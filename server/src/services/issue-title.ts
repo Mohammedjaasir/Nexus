@@ -1,8 +1,8 @@
 import { notifyStatusCardIssueChange } from "./status-card-notifications.js";
 import { notifyAttentionRetentionWork } from "./retention-work-notifications.js";
 import { and, eq } from "drizzle-orm";
-import { heartbeatRuns, issues, type Db } from "@paperclipai/db";
-import { setIssueTitleSchema, type SetIssueTitle } from "@paperclipai/shared";
+import { heartbeatRuns, issues, type Db } from "@nexusai/db";
+import { setIssueTitleSchema, type SetIssueTitle } from "@nexusai/shared";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { persistActivity, type ActivityPublication, type LogActivityInput } from "./activity-log.js";
 import { issueReferenceService } from "./issue-references.js";

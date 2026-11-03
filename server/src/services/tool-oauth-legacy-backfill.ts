@@ -1,13 +1,13 @@
 import { and, eq, ne, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   companySecretBindings,
   companySecretProviderConfigs,
   companySecrets,
   companySecretVersions,
   toolConnections,
-} from "@paperclipai/db";
-import type { McpConnectionCredentialRef, SecretProvider, ToolCredentialSecretRef } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { McpConnectionCredentialRef, SecretProvider, ToolCredentialSecretRef } from "@nexusai/shared";
 import { getSecretProvider } from "../secrets/provider-registry.js";
 import type { SecretProviderVaultRuntimeConfig } from "../secrets/types.js";
 
@@ -202,7 +202,7 @@ async function upsertTokenSecret(
       provider: "local_encrypted",
       providerConfigId: null,
       status: "active",
-      managedMode: "paperclip_managed",
+      managedMode: "nexus_managed",
       externalRef: null,
       providerMetadata: { source: "tool_oauth_legacy_backfill", namespace: secretNamespace(connection.id) },
       latestVersion: 1,

@@ -17,9 +17,9 @@ test("the Windows Runner lane runs on pull requests and master for every Runner 
   assert.match(workflow, /push:\s*\n\s*branches: \[master\]/);
   for (const path of [
     ".github/workflows/runner-windows.yml",
-    "packages/paperclip-runner/rust-toolchain.toml",
-    "packages/paperclip-runner/runner/**",
-    "packages/paperclip-runner/protocol/**",
+    "packages/nexus-runner/rust-toolchain.toml",
+    "packages/nexus-runner/runner/**",
+    "packages/nexus-runner/protocol/**",
   ]) assert.ok(pullRequest.includes(path), `missing path filter ${path}`);
 });
 

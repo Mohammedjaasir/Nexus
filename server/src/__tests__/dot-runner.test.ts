@@ -1,4 +1,4 @@
-import { applyPendingMigrations } from "@paperclipai/db";
+import { applyPendingMigrations } from "@nexusai/db";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createGrokRoutineDispatcher } from "../services/grok-bot/dispatcher.js";
 import { grokRoutineService } from "../services/grok-bot/routine.js";
@@ -19,20 +19,20 @@ import express, { type Request } from "express";
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { grokBotRoutines, grokBotDispatches, agents, authUsers, companies, companyMemberships, createDb, dotAgentBindings, dotMailboxItems, dotRunnerAssignments, dotRunnerOperations,
-  heartbeatRuns, mcpOauthGrants, issueAttachments, activityLog, agentWakeupRequests, issueComments, issues, nativeRunResults, nativeRunFinalizations, completionContracts, mcpEventDeliveries, mcpEventSubscriptions, workspaceOperations, workAssessments, statusDecisions, issueThreadInteractions } from "@paperclipai/db";
+  heartbeatRuns, mcpOauthGrants, issueAttachments, activityLog, agentWakeupRequests, issueComments, issues, nativeRunResults, nativeRunFinalizations, completionContracts, mcpEventDeliveries, mcpEventSubscriptions, workspaceOperations, workAssessments, statusDecisions, issueThreadInteractions } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createPublicMcpOAuth, DEVICE_GRANT } from "../services/public-mcp/oauth.js";
 import { createPublicMcpExecutor } from "../services/public-mcp/capabilities.js";
 import { publicMcpIngressRoutes, publicMcpManagementRoutes } from "../routes/public-mcp.js";
 import { createPublicMcpEvents, type EventFetch } from "../services/public-mcp/events.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
-import { canonicalNativeRuntimeContextDigest, type StrictCompletionContractInput } from "../vendor/paperclip-runner/index.js";
+import { canonicalNativeRuntimeContextDigest, type StrictCompletionContractInput } from "../vendor/nexus-runner/index.js";
 import { createDotRunnerMcpTools, dotRunnerBroker } from "../services/dot-runner-broker.js";
-import { PaperclipRunnerToolAuthority } from "../services/native-runtime/paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "../services/native-runtime/nexus-runner-tool-authority.js";
 import { prepareNativeHeartbeatRun } from "../services/native-runtime/prepare-native-run.js";
 import { buildNativeExecutionInput } from "../services/native-runtime/native-execution-input.js";
 import { nativeRuntimeContextFixture } from "../services/native-runtime/runtime-context.test-fixture.js";
-import { executePaperclipNativeSession } from "../services/native-runtime/native-session-executor.js";
+import { executeNexusNativeSession } from "../services/native-runtime/native-session-executor.js";
 import { registerAssignedMcpGateway } from "../services/native-runtime/assigned-mcp-tools.js";
 import type { ToolGatewayService } from "../services/tool-gateway.js";
 import { documentService } from "../services/documents.js";
@@ -44,23 +44,23 @@ import { consumeDotHistoryReceipt, publishActiveDotComment } from "../services/d
 import { createPostgresWakeQueueAdapter } from "../modules/wake-queue/adapters/postgres.js";
 import { createReleaseIssueExecution } from "../modules/wake-queue/application/use-cases.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_DOT_RUNNER_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_DOT_RUNNER_TEST_DATABASE_URL");
 
 describe("durable Dot Runner integration", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   let root: string;
   beforeAll(async () => {
-    const runnerRoot = fileURLToPath(new URL("../../../packages/paperclip-runner/", import.meta.url));
-    execFileSync("cargo", ["build", "--release", "--locked", "--manifest-path", join(runnerRoot, "runner/Cargo.toml"), "-p", "paperclip-runner-core", "--bin", "paperclip-runnerd"], { cwd: runnerRoot, stdio: "inherit", timeout: 300000 });
+    const runnerRoot = fileURLToPath(new URL("../../../packages/nexus-runner/", import.meta.url));
+    execFileSync("cargo", ["build", "--release", "--locked", "--manifest-path", join(runnerRoot, "runner/Cargo.toml"), "-p", "nexus-runner-core", "--bin", "nexus-runnerd"], { cwd: runnerRoot, stdio: "inherit", timeout: 300000 });
     if (externalUrl) await applyPendingMigrations(externalUrl);
-    else temporary = await startEmbeddedPostgresTestDatabase("paperclip-dot-runner-");
+    else temporary = await startEmbeddedPostgresTestDatabase("nexus-dot-runner-");
     db = createDb(externalUrl ?? temporary.connectionString);
-    root = await mkdtemp(join(tmpdir(), "paperclip-dot-state-"));
-    vi.stubEnv("PAPERCLIP_IN_WORKTREE", "false");
-    vi.stubEnv("PAPERCLIP_RUNNER_BINARY", join(runnerRoot, "runner/target/release", process.platform === "win32" ? "paperclip-runnerd.exe" : "paperclip-runnerd"));
-    vi.stubEnv("PAPERCLIP_RUNNER_STATE_DIR", join(root, "runner-state"));
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
+    root = await mkdtemp(join(tmpdir(), "nexus-dot-state-"));
+    vi.stubEnv("NEXUS_IN_WORKTREE", "false");
+    vi.stubEnv("NEXUS_RUNNER_BINARY", join(runnerRoot, "runner/target/release", process.platform === "win32" ? "nexus-runnerd.exe" : "nexus-runnerd"));
+    vi.stubEnv("NEXUS_RUNNER_STATE_DIR", join(root, "runner-state"));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
     await instanceSettingsService(db).updateExperimental({ enablePublicMcp: true, enableOpenAiDot: true, enableNativeRunner: false });
   }, 360000);
   afterEach(async () => {
@@ -87,12 +87,12 @@ describe("durable Dot Runner integration", () => {
     for (const key of ["enableOpenAiDot", "enablePublicMcp"] as const) {
       await settings.updateExperimental({ [key]: false });
       try {
-        vi.stubEnv("PAPERCLIP_ENABLE_OPENAI_DOT", "1");
+        vi.stubEnv("NEXUS_ENABLE_OPENAI_DOT", "1");
         expect(await broker.enabled()).toBe(false);
         await expect(broker.createPairing({ companyId: randomUUID(), agentId: randomUUID(), operatorId: randomUUID() })).rejects.toThrow("experimental settings");
       } finally { await settings.updateExperimental({ [key]: true }); }
     }
-    vi.stubEnv("PAPERCLIP_ENABLE_OPENAI_DOT", "0");
+    vi.stubEnv("NEXUS_ENABLE_OPENAI_DOT", "0");
     expect(await broker.enabled()).toBe(true);
   });
 
@@ -101,7 +101,7 @@ describe("durable Dot Runner integration", () => {
       enabled: true,
       runtimeConfig: {},
       adapterConfig: { provider: "openai_dot", dotBindingId: randomUUID(), allowUnmeteredProvider: true },
-      agent: { status: "active", adapterType: "paperclip_runner" },
+      agent: { status: "active", adapterType: "nexus_runner" },
       issue: { id: randomUUID(), workMode: "standard" },
       target: { kind: "local" },
       workspaceId: null,
@@ -110,7 +110,7 @@ describe("durable Dot Runner integration", () => {
     expect(resolveNativeRuntimeMode({ ...input, enabled: false, dotEnabled: true })).toMatchObject({ kind: "native", profile: { backend: "openai_dot_mcp" } });
     expect(() => resolveNativeRuntimeMode({ ...input, enabled: false, dotEnabled: true,
       adapterConfig: { provider: "acpx", acpxAgent: "grok", model: "anthropic/claude-sonnet-4-6" },
-    })).toThrow("Paperclip Runner is experimental and disabled");
+    })).toThrow("Nexus Runner is experimental and disabled");
     expect(resolveHeartbeatNativeRuntimeMode({ ...input, enabled: false, dotEnabled: false,
       persisted: { runtimeMode: "native", runtimeModeReason: null, runtimeModeResolvedAt: new Date(), driverKind: "openai_dot_mcp" },
     })).toMatchObject({ kind: "native", profile: { backend: "openai_dot_mcp" } });
@@ -124,13 +124,13 @@ describe("durable Dot Runner integration", () => {
     const [company] = await db.insert(companies).values({ name: "Dot test", issuePrefix: "DT" + randomBytes(3).toString("hex") }).returning();
     await db.insert(companyMemberships).values({ companyId: company!.id, principalType: "user", principalId: userId, membershipRole: "owner", status: "active" });
     await accessService(db).setPrincipalPermission(company!.id, "user", userId, "agents:create", true, userId);
-    const [agent] = await db.insert(agents).values({ companyId: company!.id, name: provider === "grok_bot" ? "Grok Bot" : "Dot", adapterType: "paperclip_runner", status: "active", adapterConfig: { provider, allowUnmeteredProvider: true } }).returning();
-    const config = { origin: "https://paperclip.example", resource: "https://paperclip.example/mcp/runner" };
+    const [agent] = await db.insert(agents).values({ companyId: company!.id, name: provider === "grok_bot" ? "Grok Bot" : "Dot", adapterType: "nexus_runner", status: "active", adapterConfig: { provider, allowUnmeteredProvider: true } }).returning();
+    const config = { origin: "https://nexus.example", resource: "https://nexus.example/mcp/runner" };
     const oauth = createPublicMcpOAuth(db, config);
     const client = await oauth.register({ client_name: "Dedicated Dot", redirect_uris: ["https://chatgpt.com/connector_platform/oauth/callback"] }, randomUUID());
     const verifier = randomBytes(32).toString("base64url");
     const input = { client_id: client.client_id, redirect_uri: "https://chatgpt.com/connector_platform/oauth/callback", response_type: "code", resource: config.resource,
-      scope: "paperclip:agent offline_access", code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256" };
+      scope: "nexus:agent offline_access", code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256" };
     const requestId = (await oauth.authorize(input)).split("/").at(-1)!;
     const consent = await oauth.consent(requestId, { type: "board", source: "session", userId }, { decision: "approve", companyId: company!.id, allowWrites: false });
     const tokens = await oauth.token({ grant_type: "authorization_code", client_id: client.client_id, redirect_uri: input.redirect_uri,
@@ -144,7 +144,7 @@ describe("durable Dot Runner integration", () => {
     await expect(broker.pair(unpaired, pairing.pairingCode)).rejects.toThrow();
     const principal = await oauth.authenticate(tokens.access_token);
     expect(principal.actor).toMatchObject({ type: "agent", agentId: agent!.id, companyId: company!.id });
-    const personal = createPublicMcpOAuth(db, { ...config, resource: config.origin + "/mcp/paperclip" });
+    const personal = createPublicMcpOAuth(db, { ...config, resource: config.origin + "/mcp/nexus" });
     await expect(personal.authenticate(tokens.access_token)).rejects.toThrow();
     const secret = "whsec_" + randomBytes(32).toString("base64");
     const received: Array<Record<string, any>> = [];
@@ -158,7 +158,7 @@ describe("durable Dot Runner integration", () => {
       received.push(body); return new Response(null, { status: 204 });
     };
     const events = createPublicMcpEvents(db, oauth, async () => { throw new Error("personal API dispatch forbidden"); }, { enableDotRunner: true, fetch: fetcher, ...options });
-    const subscription = { name: "paperclip.dot.mailbox_updated", arguments: { companyId: company!.id, bindingId: pairing.bindingId }, delivery: { mode: "webhook", url: "https://example.com/dot-hook", secret } };
+    const subscription = { name: "nexus.dot.mailbox_updated", arguments: { companyId: company!.id, bindingId: pairing.bindingId }, delivery: { mode: "webhook", url: "https://example.com/dot-hook", secret } };
     if (provider === "grok_bot") {
       const routines = grokRoutineService(db, async () => ({ delivery: "accepted", httpStatus: 200 }));
       await routines.configure({ companyId: company!.id, agentId: agent!.id, bindingId: pairing.bindingId, operatorId: userId,
@@ -204,7 +204,7 @@ describe("durable Dot Runner integration", () => {
   }
 
   function gateway(oauth: ReturnType<typeof createPublicMcpOAuth>, actor: Request["actor"]) {
-    const personal = createPublicMcpOAuth(db, { ...oauth.config, resource: oauth.config.origin + "/mcp/paperclip" });
+    const personal = createPublicMcpOAuth(db, { ...oauth.config, resource: oauth.config.origin + "/mcp/nexus" });
     const dispatch = async () => { throw new Error("Personal API dispatch forbidden"); };
     const app = express();
     app.use(express.json());
@@ -377,7 +377,7 @@ describe("durable Dot Runner integration", () => {
       const intake = await db.select().from(issues).where(eq(issues.id, requests[0]!.issueId));
       expect(intake).toHaveLength(1);
       expect(intake[0]).toMatchObject({ assigneeAgentId: f.agent.id, createdByAgentId: f.agent.id, responsibleUserId: f.userId });
-      expect(await f.broker.capabilities(f.principal)).toMatchObject({ agentId: f.agent.id, responsibleUser: { id: f.userId }, idle: { start: provider === "grok_bot" ? "paperclip_grok_request_turn" : "paperclip_dot_request_turn" } });
+      expect(await f.broker.capabilities(f.principal)).toMatchObject({ agentId: f.agent.id, responsibleUser: { id: f.userId }, idle: { start: provider === "grok_bot" ? "nexus_grok_request_turn" : "nexus_dot_request_turn" } });
       await expect(f.broker.requestTurn(f.principal, "Different request", requestId)).rejects.toThrow("reused");
       await db.update(companies).set({ budgetMonthlyCents: 1, spentMonthlyCents: 1 }).where(eq(companies.id, f.company.id));
       await expect(f.broker.requestTurn(f.principal, "Spend more", randomUUID())).rejects.toThrow("budget");
@@ -530,7 +530,7 @@ describe("durable Dot Runner integration", () => {
         let wakes = await db.select().from(agentWakeupRequests).where(eq(agentWakeupRequests.agentId, f.agent.id));
         expect(wakes).toHaveLength(scenario === "read before wake admission" ? 2 : 1);
         const pending = wakes.find(wake => wake.status === "deferred_issue_execution")!;
-        expect(pending.payload?._paperclipWakeContext).toMatchObject({ wakeCommentIds:
+        expect(pending.payload?._nexusWakeContext).toMatchObject({ wakeCommentIds:
           ["finish before delivery", "failed history"].includes(scenario)
             ? comments.map(comment => comment.id) : [comments[1]!.id] });
         if (scenario === "read before wake admission") expect(wakes.find(wake => wake.payload?.commentId === comments[0]!.id)?.status).toBe("coalesced");
@@ -604,7 +604,7 @@ describe("durable Dot Runner integration", () => {
     const cancelRun = vi.fn().mockResolvedValue(null);
     const broker = dotRunnerBroker(db, { heartbeat: { wakeup: vi.fn(), cancelRun } });
     expect(await broker.stopGrokWork(f.company.id, f.agent.id, f.userId, run!.id)).toMatchObject({ stopped: true, remoteTerminationConfirmed: false });
-    expect(cancelRun).toHaveBeenCalledWith(run!.id, "Paperclip work stopped; Grok execution unconfirmed");
+    expect(cancelRun).toHaveBeenCalledWith(run!.id, "Nexus work stopped; Grok execution unconfirmed");
     expect(await grokRoutineService(db).recoveryNeeded(f.company.id, f.agent.id)).toBe(status === "running");
     expect(await db.select().from(dotRunnerAssignments).where(eq(dotRunnerAssignments.runId, run!.id))).toHaveLength(0);
     const other = await fixture({ provider: "grok_bot" });
@@ -620,7 +620,7 @@ describe("durable Dot Runner integration", () => {
     const broker = dotRunnerBroker(db, { heartbeat: { wakeup: vi.fn(), cancelRun } });
     await broker.stopGrokWork(f.company.id, f.agent.id, f.userId, queued!.id);
     expect(cancelRun).toHaveBeenCalledTimes(1);
-    expect(cancelRun).toHaveBeenCalledWith(queued!.id, "Paperclip work stopped; Grok execution unconfirmed");
+    expect(cancelRun).toHaveBeenCalledWith(queued!.id, "Nexus work stopped; Grok execution unconfirmed");
     expect((await db.select().from(dotRunnerAssignments).where(eq(dotRunnerAssignments.id, active.assignment.id)))[0]!.status).toBe("offered");
     expect(await grokRoutineService(db).recoveryNeeded(f.company.id, f.agent.id)).toBe(false);
     await f.events.stop();
@@ -708,7 +708,7 @@ describe("durable Dot Runner integration", () => {
       const fences = inbox.items.filter(item => item.assignmentId === assignment.id && item.kind === "authority_revoked");
       expect(fences).toHaveLength(1);
       expect(fences[0]?.references).toMatchObject({ assignmentId: assignment.id, runId: run.id, externalStopConfirmed: false });
-      await expect(createDotRunnerMcpTools(db).callTool(f.principal, "paperclip_dot_accept", { assignmentId: assignment.id, requestId: randomUUID() })).rejects.toThrow("revoked");
+      await expect(createDotRunnerMcpTools(db).callTool(f.principal, "nexus_dot_accept", { assignmentId: assignment.id, requestId: randomUUID() })).rejects.toThrow("revoked");
     } finally { await f.events.unsubscribe(f.principal, f.subscription); await f.events.stop(); }
   }, 30000);
 
@@ -728,23 +728,23 @@ describe("durable Dot Runner integration", () => {
     const tools = createDotRunnerMcpTools(db);
     await f.events.tick();
     expect(f.received.at(-1)?.data.kind).toBe("authority_revoked");
-    const inbox = await tools.callTool(principal, "paperclip_dot_inbox", { after: 0 });
+    const inbox = await tools.callTool(principal, "nexus_dot_inbox", { after: 0 });
     expect(inbox).toMatchObject({ result: { nextCursor: 0, items: [{ kind: "authority_revoked", assignmentId: assignment.id, references: { assignmentId: assignment.id } }] } });
     const fencedAssignmentId = (inbox!.result as { items: Array<{ references: { assignmentId: string } }> }).items[0]!.references.assignmentId;
-    await expect(tools.callTool(principal, "paperclip_dot_tasks", {})).rejects.toThrow("authority");
-    await expect(tools.callTool(principal, "paperclip_dot_read", { assignmentId: assignment.id })).rejects.toThrow("authority");
-    await expect(tools.callTool(principal, "paperclip_dot_accept", { assignmentId: assignment.id, requestId: randomUUID() })).rejects.toThrow("authority");
-    expect(await tools.callTool(principal, "paperclip_dot_control_ack", { assignmentId: fencedAssignmentId, requestId: randomUUID() })).toMatchObject({ result: { status: "acknowledged", externalStopConfirmed: false } });
+    await expect(tools.callTool(principal, "nexus_dot_tasks", {})).rejects.toThrow("authority");
+    await expect(tools.callTool(principal, "nexus_dot_read", { assignmentId: assignment.id })).rejects.toThrow("authority");
+    await expect(tools.callTool(principal, "nexus_dot_accept", { assignmentId: assignment.id, requestId: randomUUID() })).rejects.toThrow("authority");
+    expect(await tools.callTool(principal, "nexus_dot_control_ack", { assignmentId: fencedAssignmentId, requestId: randomUUID() })).toMatchObject({ result: { status: "acknowledged", externalStopConfirmed: false } });
     await f.events.unsubscribe(principal, f.subscription); await f.events.stop();
   }, 30000);
 
   it("authorizes admitted Dot reviews while preserving the worker and rejecting stale review authority", async () => {
     const f = await fixture();
     const companyId = f.company.id;
-    const [worker] = await db.insert(agents).values({ companyId, name: "Original worker", status: "active", adapterType: "paperclip_runner" }).returning();
+    const [worker] = await db.insert(agents).values({ companyId, name: "Original worker", status: "active", adapterType: "nexus_runner" }).returning();
     const [issue] = await db.insert(issues).values({ companyId, title: "Review another agent's work", status: "in_review", statusVersion: 3, assigneeAgentId: worker!.id }).returning();
     const issueId = issue!.id;
-    const [contract] = await db.insert(completionContracts).values({ companyId, issueId, revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "fixture",
+    const [contract] = await db.insert(completionContracts).values({ companyId, issueId, revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "fixture",
       risk: "low", completionAuthority: "agent", incompleteCriteriaPolicy: "block", contractJson: {}, canonicalSha256: randomUUID(), createdByActorType: "user", createdByActorId: f.userId }).returning();
     const [source] = await db.insert(heartbeatRuns).values({ companyId, agentId: worker!.id, nativeIssueId: issueId, runtimeMode: "native", status: "succeeded",
       completionContractId: contract!.id, completionContractSha256: contract!.canonicalSha256 }).returning();
@@ -839,7 +839,7 @@ describe("durable Dot Runner integration", () => {
     expect(metadata.body.authorization_servers).toEqual([oauth.config.origin + "/mcp/runner/oauth"]);
     const issuer = await request(app).get("/.well-known/oauth-authorization-server/mcp/runner/oauth");
     expect(issuer.body).toMatchObject({ issuer: oauth.config.origin + "/mcp/runner/oauth", client_id_metadata_document_supported: true,
-      scopes_supported: ["paperclip:agent", "offline_access"], device_authorization_endpoint: oauth.config.origin + "/mcp/runner/oauth/device_authorization" });
+      scopes_supported: ["nexus:agent", "offline_access"], device_authorization_endpoint: oauth.config.origin + "/mcp/runner/oauth/device_authorization" });
     expect((await request(app).get("/.well-known/oauth-authorization-server")).body.issuer).toBe(oauth.config.origin);
     const verifier = randomBytes(32).toString("base64url");
     const input = { client_id: clientId, redirect_uri: redirectUri, response_type: "code", resource: oauth.config.resource,
@@ -858,9 +858,9 @@ describe("durable Dot Runner integration", () => {
     expect(redirect.searchParams.get("iss")).toBe(issuer.body.issuer);
     const tokens = await oauth.token({ grant_type: "authorization_code", client_id: clientId, redirect_uri: redirectUri,
       resource: oauth.config.resource, code: redirect.searchParams.get("code"), code_verifier: verifier });
-    expect((await oauth.authenticate(tokens.access_token)).grant).toMatchObject({ purpose: "agent", agentId: null, scopes: ["paperclip:agent"] });
+    expect((await oauth.authenticate(tokens.access_token)).grant).toMatchObject({ purpose: "agent", agentId: null, scopes: ["nexus:agent"] });
     await expect(personal.authenticate(tokens.access_token)).rejects.toThrow();
-    await expect(oauth.authorize({ ...input, scope: "paperclip:read" })).rejects.toMatchObject({ code: "invalid_scope" });
+    await expect(oauth.authorize({ ...input, scope: "nexus:read" })).rejects.toMatchObject({ code: "invalid_scope" });
     await f.events.unsubscribe(f.principal, f.subscription);
   }, 30000);
 
@@ -869,7 +869,7 @@ describe("durable Dot Runner integration", () => {
     const { app, personal } = gateway(f.oauth, { type: "board", source: "session", userId: f.userId });
     const client = await f.oauth.register({ client_name: "Dot device", redirect_uris: [], response_types: [], grant_types: [DEVICE_GRANT, "refresh_token"] }, randomUUID());
     const started = await request(app).post("/mcp/runner/oauth/device_authorization")
-      .send({ client_id: client.client_id, resource: f.oauth.config.resource, scope: "paperclip:agent offline_access", company_id: f.company.id });
+      .send({ client_id: client.client_id, resource: f.oauth.config.resource, scope: "nexus:agent offline_access", company_id: f.company.id });
     expect(started.status).toBe(200);
     const codes = started.body;
     expect(await f.oauth.ownsDevice(codes.user_code)).toBe(true);
@@ -893,7 +893,7 @@ describe("durable Dot Runner integration", () => {
     await instanceSettingsService(db).updateExperimental({ enableOpenAiDot: false });
     try {
       expect((await request(app).get("/.well-known/oauth-protected-resource/mcp/runner")).status).toBe(503);
-      expect((await request(app).get("/.well-known/oauth-protected-resource/mcp/paperclip")).status).toBe(200);
+      expect((await request(app).get("/.well-known/oauth-protected-resource/mcp/nexus")).status).toBe(200);
     } finally { await instanceSettingsService(db).updateExperimental({ enableOpenAiDot: true }); }
     await f.events.unsubscribe(f.principal, f.subscription);
   }, 30000);
@@ -902,7 +902,7 @@ describe("durable Dot Runner integration", () => {
     { name: "Dot local Rust", managed: false, provider: "openai_dot" as const, revokeDuringUpload: false },
     { name: "Grok local Rust", managed: false, provider: "grok_bot" as const, revokeDuringUpload: false },
     { name: "Grok upload revocation Rust", managed: false, provider: "grok_bot" as const, revokeDuringUpload: true },
-    ...(process.env.PAPERCLIP_DOT_DAYTONA_LIVE === "1" ? [{ name: "private Daytona Rust", managed: true, provider: "openai_dot" as const, revokeDuringUpload: false }] : []),
+    ...(process.env.NEXUS_DOT_DAYTONA_LIVE === "1" ? [{ name: "private Daytona Rust", managed: true, provider: "openai_dot" as const, revokeDuringUpload: false }] : []),
   ])("signed readiness, native tools and finalization through $name", async ({ managed, provider, revokeDuringUpload }) => {
     const remote = managed ? await (await import("./helpers/dot-daytona.js")).startDotDaytona(root) : null;
     try {
@@ -917,7 +917,7 @@ describe("durable Dot Runner integration", () => {
       const [boundRun] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, run!.id));
       const [contract] = await db.select().from(completionContracts).where(eq(completionContracts.id, boundRun!.completionContractId!));
       const runtimeContext = nativeRuntimeContextFixture();
-      await writeFile(join(root, "AGENTS.md"), "Use Paperclip tools to save the report.");
+      await writeFile(join(root, "AGENTS.md"), "Use Nexus tools to save the report.");
       runtimeContext.instructions.bundle.rootPath = root;
       runtimeContext.aggregateDigest = canonicalNativeRuntimeContextDigest(runtimeContext);
       const execution = buildNativeExecutionInput({ companyId: f.company.id, agentId: f.agent.id, runId: run!.id, issue: issue!,
@@ -937,19 +937,19 @@ describe("durable Dot Runner integration", () => {
         const [connectedAgent] = await db.select().from(agents).where(eq(agents.id, f.agent.id));
         await db.update(agents).set({ adapterConfig: { ...connectedAgent!.adapterConfig, dotBindingId: f.snapshot.bindingId, dotWorkspaceAccess: true, dotAttachmentAccess: true } }).where(eq(agents.id, f.agent.id));
       }
-      vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "fixture-cloud");
+      vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "fixture-cloud");
       try {
         for (const useRunnerd of [false, true]) {
-          await expect(executePaperclipNativeSession({ db, execution, runnerInstanceId: prepared.runnerInstanceId,
+          await expect(executeNexusNativeSession({ db, execution, runnerInstanceId: prepared.runnerInstanceId,
             useRunnerd, turnTimeoutMs: 1000, onEvent: async () => {} }))
             .rejects.toThrow("dot_cloud_requires_managed_runner");
         }
-      } finally { vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", ""); }
-      const resultPromise = executePaperclipNativeSession({ db, execution,
+      } finally { vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", ""); }
+      const resultPromise = executeNexusNativeSession({ db, execution,
         ...(remote ? { runnerExecutionTarget: remote.target, runnerRemoteBinaryPath: remote.runnerBinary, runnerIngressAuthorized: true }
           : { dotWorkspaceRoot: root }),
         runnerInstanceId: prepared.runnerInstanceId,
-        runnerEnvironment: { PAPERCLIP_NATIVE_MCP_NAME: "paperclip-assigned", PAPERCLIP_NATIVE_MCP_URL: "http://127.0.0.1:3217/mcp/gateways/dot-fixture", PAPERCLIP_NATIVE_MCP_TOKEN: "fixture-gateway-secret" },
+        runnerEnvironment: { NEXUS_NATIVE_MCP_NAME: "nexus-assigned", NEXUS_NATIVE_MCP_URL: "http://127.0.0.1:3217/mcp/gateways/dot-fixture", NEXUS_NATIVE_MCP_TOKEN: "fixture-gateway-secret" },
         useRunnerd: true, turnTimeoutMs: 45000, onEvent: async event => { observed.push(event); }, onLog: async () => {} });
       // Attach a handler immediately: a bootstrap error must never become an unhandled rejection.
       let startupError: unknown;
@@ -1038,7 +1038,7 @@ describe("durable Dot Runner integration", () => {
             const documentDb = Object.assign(Object.create(tx), {
               transaction: async (effect: (database: typeof db) => Promise<unknown>) => effect(tx as unknown as typeof db),
             }) as typeof db;
-            const authority = new PaperclipRunnerToolAuthority(documentDb, {
+            const authority = new NexusRunnerToolAuthority(documentDb, {
               companyId: f.company.id, issueId: issue!.id, agentId: f.agent.id, runId: run!.id, firstPartyOnly: true,
             });
             try {
@@ -1133,16 +1133,16 @@ describe("durable Dot Runner integration", () => {
         if (uploadedDeliverableId) {
           const missingEvidenceId = randomUUID();
           await f.broker.operation(f.principal, assignment!.id, missingEvidenceId, "tool", {
-            name: "paperclip_finish", arguments: { ...result, evidence: [] },
+            name: "nexus_finish", arguments: { ...result, evidence: [] },
           });
           await vi.waitFor(async () => expect(await f.broker.operationStatus(f.principal, assignment!.id, missingEvidenceId))
             .toMatchObject({ status: "completed", isError: true, result: { error: expect.stringContaining("requested file") } }), { timeout: 10000 });
         }
         const completionId = randomUUID();
-        await f.broker.operation(f.principal, assignment!.id, completionId, "tool", { name: "paperclip_finish", arguments: result });
+        await f.broker.operation(f.principal, assignment!.id, completionId, "tool", { name: "nexus_finish", arguments: result });
         await vi.waitFor(async () => expect(await f.broker.operationStatus(f.principal, assignment!.id, completionId)).toMatchObject({ status: "completed", isError: false }), { timeout: 10000 });
         expect(await f.broker.operationStatus(f.principal, assignment!.id, completionId)).toMatchObject({ result: { completionReport: {
-          schema: "paperclip.run_result.v1", reportedWorkDisposition: "done", artifacts: [], attentionRequests: [],
+          schema: "nexus.run_result.v1", reportedWorkDisposition: "done", artifacts: [], attentionRequests: [],
           verification: [{ commandOrCheck: "17 + 25", status: "passed" }],
         } } });
         if (provider === "grok_bot") await db.update(grokBotDispatches).set({ status: "accepted", sentAt: new Date() })

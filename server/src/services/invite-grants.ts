@@ -1,5 +1,5 @@
-import { PERMISSION_KEYS } from "@paperclipai/shared";
-import type { HumanCompanyMembershipRole } from "@paperclipai/shared";
+import { PERMISSION_KEYS } from "@nexusai/shared";
+import type { HumanCompanyMembershipRole } from "@nexusai/shared";
 import { NEW_STANDARD_AGENT_DEFAULT_GRANT_KEYS, newStandardAgentGrantScope } from "../lib/agent-permissions.js";
 import { grantsForHumanRole } from "./company-member-roles.js";
 

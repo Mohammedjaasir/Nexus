@@ -175,17 +175,17 @@ function createRegisteredRepairFixture(
 ) {
   const workspaceCwd = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
   const baseCwd = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), `${prefix}base-`)));
-  const configDir = path.join(workspaceCwd, ".paperclip");
-  const sourceConfigPath = path.join(baseCwd, ".paperclip", "config.json");
+  const configDir = path.join(workspaceCwd, ".nexus");
+  const sourceConfigPath = path.join(baseCwd, ".nexus", "config.json");
   const targetInstanceId = options.targetInstanceId ?? "repair-target";
   const cliRunner = path.join(baseCwd, "cli", "node_modules", "tsx", "dist", "cli.mjs");
   const cliEntry = path.join(baseCwd, "cli", "src", "index.ts");
   fs.mkdirSync(configDir, { recursive: true });
   fs.mkdirSync(path.dirname(sourceConfigPath), { recursive: true });
   fs.writeFileSync(sourceConfigPath, "{}\n");
-  fs.writeFileSync(path.join(path.dirname(sourceConfigPath), ".env"), "PAPERCLIP_INSTANCE_ID=repair-source\n");
+  fs.writeFileSync(path.join(path.dirname(sourceConfigPath), ".env"), "NEXUS_INSTANCE_ID=repair-source\n");
   fs.writeFileSync(path.join(configDir, "config.json"), "{}\n");
-  fs.writeFileSync(path.join(configDir, ".env"), `PAPERCLIP_INSTANCE_ID=${targetInstanceId}\n`);
+  fs.writeFileSync(path.join(configDir, ".env"), `NEXUS_INSTANCE_ID=${targetInstanceId}\n`);
   if (options.withCli !== false) {
     fs.mkdirSync(path.dirname(cliRunner), { recursive: true });
     fs.mkdirSync(path.dirname(cliEntry), { recursive: true });
@@ -314,7 +314,7 @@ describe("execution workspace runtime control conflict and failure reconciliatio
   ] as const)("rejects remote $source $route/$action before controller file or job operations", async ({ route, action, source }) => {
     mockExecutionWorkspaceService.getById.mockResolvedValue(buildExecutionWorkspace({
       cwd: "/workspaces/remote-only", providerType: "cloud_sandbox", providerRef: "/workspaces/remote-only",
-      metadata: { remoteWorkspace: { schema: "paperclip.remote-workspace.v1", epoch: 1,
+      metadata: { remoteWorkspace: { schema: "nexus.remote-workspace.v1", epoch: 1,
         snapshotId: null, source: source === "empty" ? { kind: "empty" }
           : { kind: "git", repoUrl: "https://github.com/example/work.git", ref: "main" },
         location: null, writerRunId: null, dirty: false } },
@@ -368,8 +368,8 @@ describe("execution workspace runtime control conflict and failure reconciliatio
     mockAssertCanManageExecutionWorkspaceRuntimeServices.mockResolvedValue({ actorType: "board" });
     const stale = buildExecutionWorkspace();
     mockExecutionWorkspaceService.getById.mockResolvedValueOnce(stale).mockResolvedValue(buildExecutionWorkspace(state === "migrating"
-      ? { metadata: { remoteWorkspaceMigration: { schema: "paperclip.remote-workspace-migration.v1", state: "running" } } }
-      : state === "remote" ? { metadata: { remoteWorkspace: { schema: "paperclip.remote-workspace.v1", epoch: 1,
+      ? { metadata: { remoteWorkspaceMigration: { schema: "nexus.remote-workspace-migration.v1", state: "running" } } }
+      : state === "remote" ? { metadata: { remoteWorkspace: { schema: "nexus.remote-workspace.v1", epoch: 1,
         snapshotId: null, source: { kind: "empty" }, location: null, writerRunId: null, dirty: false } } }
         : { cwd: "/tmp/changed-authority" }));
     const response = await request(await createApp("board"))
@@ -431,9 +431,9 @@ describe("execution workspace runtime control conflict and failure reconciliatio
   });
 
   it("returns 422 with a stable reason when the repair seed manifest is malformed", async () => {
-    const workspaceCwd = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-route-repair-malformed-"));
+    const workspaceCwd = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-route-repair-malformed-"));
     try {
-      const configDir = path.join(workspaceCwd, ".paperclip");
+      const configDir = path.join(workspaceCwd, ".nexus");
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(path.join(configDir, "config.json"), "{}\n");
       fs.writeFileSync(path.join(configDir, "seed-manifest.json"), "{ definitely-not-json\n");
@@ -458,7 +458,7 @@ describe("execution workspace runtime control conflict and failure reconciliatio
   it.each(["sibling", "foreign_instance", "symlink", "instance_mismatch"] as const)(
     "rejects a %s repair manifest source before spawn or runtime mutation",
     async (variant) => {
-      const fixture = createRegisteredRepairFixture(`paperclip-route-repair-${variant}-`);
+      const fixture = createRegisteredRepairFixture(`nexus-route-repair-${variant}-`);
       const attackerDir = path.join(path.dirname(fixture.workspaceCwd), `${path.basename(fixture.workspaceCwd)}-attacker`);
       try {
         fs.mkdirSync(attackerDir, { recursive: true });
@@ -466,7 +466,7 @@ describe("execution workspace runtime control conflict and failure reconciliatio
         fs.writeFileSync(attackerConfig, "{}\n");
         fs.writeFileSync(
           path.join(attackerDir, ".env"),
-          `PAPERCLIP_INSTANCE_ID=${variant === "foreign_instance" ? "foreign-source" : "repair-source"}\n`,
+          `NEXUS_INSTANCE_ID=${variant === "foreign_instance" ? "foreign-source" : "repair-source"}\n`,
         );
         const diagnosticPath = variant === "instance_mismatch"
           ? fixture.sourceConfigPath
@@ -509,9 +509,9 @@ describe("execution workspace runtime control conflict and failure reconciliatio
   );
 
   it("rejects repair when the execution workspace has no registered base workspace", async () => {
-    const workspaceCwd = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-route-repair-no-source-"));
+    const workspaceCwd = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-route-repair-no-source-"));
     try {
-      const configDir = path.join(workspaceCwd, ".paperclip");
+      const configDir = path.join(workspaceCwd, ".nexus");
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(path.join(configDir, "config.json"), "{}\n");
       fs.writeFileSync(path.join(configDir, "seed-manifest.json"), JSON.stringify({
@@ -540,8 +540,8 @@ describe("execution workspace runtime control conflict and failure reconciliatio
     }
   });
 
-  it("rejects repair when the registered base workspace has no runnable Paperclip CLI", async () => {
-    const fixture = createRegisteredRepairFixture("paperclip-route-repair-no-cli-", { withCli: false });
+  it("rejects repair when the registered base workspace has no runnable Nexus CLI", async () => {
+    const fixture = createRegisteredRepairFixture("nexus-route-repair-no-cli-", { withCli: false });
     try {
       const res = await request(await createApp())
         .post(`/api/execution-workspaces/${executionWorkspaceId}/runtime-commands/repair`)
@@ -561,7 +561,7 @@ describe("execution workspace runtime control conflict and failure reconciliatio
   });
 
   it("returns 422 with a stable reason when the verified manifest names another instance", async () => {
-    const fixture = createRegisteredRepairFixture("paperclip-route-repair-wrong-instance-");
+    const fixture = createRegisteredRepairFixture("nexus-route-repair-wrong-instance-");
     try {
       mockVerifiedReseed(fixture, "another-workspace-instance");
 
@@ -583,7 +583,7 @@ describe("execution workspace runtime control conflict and failure reconciliatio
 
   it("uses the recorded instance pointer consistently for readiness, handoff, and repair", async () => {
     const recordedInstanceId = "recorded-repair-instance";
-    const fixture = createRegisteredRepairFixture("paperclip-route-repair-success-", {
+    const fixture = createRegisteredRepairFixture("nexus-route-repair-success-", {
       targetInstanceId: recordedInstanceId,
     });
     try {
@@ -598,7 +598,7 @@ describe("execution workspace runtime control conflict and failure reconciliatio
         workspaceCwd: fixture.workspaceCwd,
         executionWorkspaceId,
         companyId: "company-1",
-        env: { PAPERCLIP_WORKSPACE_HANDOFF_SECRET: "test-root-secret" },
+        env: { NEXUS_WORKSPACE_HANDOFF_SECRET: "test-root-secret" },
       })?.instanceId).toBe(recordedInstanceId);
       mockEnsurePersistedExecutionWorkspaceAvailable.mockResolvedValue({ cwd: fixture.workspaceCwd });
       mockStartRuntimeServices.mockResolvedValue([{
@@ -612,9 +612,9 @@ describe("execution workspace runtime control conflict and failure reconciliatio
           "--seed-mode", "full", "--yes", "--backup-target",
         ]));
         expect(options.env).toMatchObject({
-          PAPERCLIP_SEED_EXPECTED_COMPANY_ID: "company-1",
-          PAPERCLIP_WORKSPACE_BASE_CWD: fixture.baseCwd,
-          PAPERCLIP_PROJECT_WORKSPACE_ID: projectWorkspaceId,
+          NEXUS_SEED_EXPECTED_COMPANY_ID: "company-1",
+          NEXUS_WORKSPACE_BASE_CWD: fixture.baseCwd,
+          NEXUS_PROJECT_WORKSPACE_ID: projectWorkspaceId,
         });
         const child = new EventEmitter() as EventEmitter & {
           stdout: PassThrough;
@@ -664,7 +664,7 @@ describe("execution workspace runtime control conflict and failure reconciliatio
   });
 
   it("completes database-only repair when no managed runtime service is configured", async () => {
-    const fixture = createRegisteredRepairFixture("paperclip-route-repair-db-only-");
+    const fixture = createRegisteredRepairFixture("nexus-route-repair-db-only-");
     try {
       mockExecutionWorkspaceService.getById.mockResolvedValue(buildExecutionWorkspace({
         cwd: fixture.workspaceCwd,
@@ -692,7 +692,7 @@ describe("execution workspace runtime control conflict and failure reconciliatio
   });
 
   it("fails repair at the exact seed phase and leaves managed services stopped", async () => {
-    const fixture = createRegisteredRepairFixture("paperclip-route-repair-failure-");
+    const fixture = createRegisteredRepairFixture("nexus-route-repair-failure-");
     try {
       mockEnsurePersistedExecutionWorkspaceAvailable.mockResolvedValue({ cwd: fixture.workspaceCwd });
       mockSpawn.mockImplementation(() => {

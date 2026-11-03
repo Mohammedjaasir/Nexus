@@ -3,14 +3,14 @@ import { isSettledRemoteWarmControlState } from "./remote-warm-session-recovery.
 
 const identity = { runId: "run", normalizedSessionId: "session", runnerInstanceId: "runner", environmentLeaseId: "lease", turnId: "turn", itemId: "item" };
 const terminal = { eventType: "run.terminal", envelope: { ...identity } };
-const goal = { schema: "paperclip.session_goal.snapshot.v1", goal: null, workingNow: false };
-const notification = { schema: "paperclip.prp.event.v1", eventType: "session.goal.snapshot", runId: identity.runId,
+const goal = { schema: "nexus.session_goal.snapshot.v1", goal: null, workingNow: false };
+const notification = { schema: "nexus.prp.event.v1", eventType: "session.goal.snapshot", runId: identity.runId,
   normalizedSessionId: identity.normalizedSessionId, sourceInstanceId: "runner", sourceKind: "runner", payload: goal };
 const snapshot = { eventType: "session.goal.snapshot", envelope: { ...identity, payload: notification } };
 const state = (events: unknown[]) => ({ identity, commands: [{ status: "completed" }], committedEvents: events });
 
 describe("settled remote warm control evidence", () => {
-  it.each(["paperclip.prp.event.v1", "paperclip.prp.event.v2"])("accepts the terminal and an authenticated %s idle goal-read suffix without changing its order", schema => {
+  it.each(["nexus.prp.event.v1", "nexus.prp.event.v2"])("accepts the terminal and an authenticated %s idle goal-read suffix without changing its order", schema => {
     const suffix = { ...snapshot, envelope: { ...snapshot.envelope, payload: { ...notification, schema } } };
     const control = state([terminal, suffix]);
     expect(isSettledRemoteWarmControlState(control, identity)).toBe(true);
@@ -22,7 +22,7 @@ describe("settled remote warm control evidence", () => {
     ["active goal", { ...snapshot, envelope: { ...snapshot.envelope, payload: { ...notification, payload: { ...goal, goal: { status: "active" } } } } }],
     ["provider work", { ...snapshot, envelope: { ...snapshot.envelope, payload: { ...notification, payload: { ...goal, workingNow: true } } } }],
     ["unknown event", { ...snapshot, eventType: "unknown" }],
-    ["unknown protocol version", { ...snapshot, envelope: { ...snapshot.envelope, payload: { ...notification, schema: "paperclip.prp.event.v3" } } }],
+    ["unknown protocol version", { ...snapshot, envelope: { ...snapshot.envelope, payload: { ...notification, schema: "nexus.prp.event.v3" } } }],
     ["new turn", { ...snapshot, eventType: "turn.started" }],
     ["foreign run", { ...snapshot, envelope: { ...snapshot.envelope, runId: "other" } }],
     ["foreign session", { ...snapshot, envelope: { ...snapshot.envelope, normalizedSessionId: "other" } }],

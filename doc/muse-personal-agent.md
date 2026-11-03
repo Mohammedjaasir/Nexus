@@ -1,6 +1,6 @@
 # Personal Muse receiver
 
-This experimental integration connects the existing personal Meta Muse to a named Paperclip Runner agent. It is separate from Muse Code. The provider is disabled by default; implementation and synthetic tests do not qualify the personal service. See the [architecture and release gates](plans/2026-10-10-muse-runner-architecture.md).
+This experimental integration connects the existing personal Meta Muse to a named Nexus Runner agent. It is separate from Muse Code. The provider is disabled by default; implementation and synthetic tests do not qualify the personal service. See the [architecture and release gates](plans/2026-10-10-muse-runner-architecture.md).
 
 ## Current compatibility and release gates
 
@@ -19,15 +19,15 @@ until the current OAuth setup, real work journeys, installed Cloud path and new
 
 ## Connection and work
 
-An operator uses the existing external-agent invitation, selects **Muse — Personal agent**, and supplies the agent's name and role. Paperclip creates or resumes the operator's unfinished hire, respecting approval requirements. Copy the transient setup instruction into the current Muse conversation. Muse downloads versioned, digest-pinned assets and requests a Vault-backed Paperclip connection. The user follows Muse’s Connect link; a ten-minute single-use pairing ticket binds the OAuth grant to the exact company, agent and authorizing operator. No Muse cookie export or manually copied long-lived key is part of setup.
+An operator uses the existing external-agent invitation, selects **Muse — Personal agent**, and supplies the agent's name and role. Nexus creates or resumes the operator's unfinished hire, respecting approval requirements. Copy the transient setup instruction into the current Muse conversation. Muse downloads versioned, digest-pinned assets and requests a Vault-backed Nexus connection. The user follows Muse’s Connect link; a ten-minute single-use pairing ticket binds the OAuth grant to the exact company, agent and authorizing operator. No Muse cookie export or manually copied long-lived key is part of setup.
 
-Asset6 setup records the operator’s standing authorization to receive, validate and autonomously accept ordinary tasks for the exact company, agent and binding. The client installs that nonsecret scope with the verified instructions in a binding-specific `~/workspace/skills/paperclip-muse-<binding UUID>/SKILL.md`, discoverable in later conversations. A valid in-scope assignment does not require another acceptance approval. Task text cannot expand this delegation; Muse’s tool, site and safety permissions and Paperclip approval gates still apply. Native acceptance must be observed before any task effect. Each wake carries the workflow forward; canonical answers resume the same admitted work through result publication and native completion. Assets1–5 remain available with their original bytes.
+Asset6 setup records the operator’s standing authorization to receive, validate and autonomously accept ordinary tasks for the exact company, agent and binding. The client installs that nonsecret scope with the verified instructions in a binding-specific `~/workspace/skills/nexus-muse-<binding UUID>/SKILL.md`, discoverable in later conversations. A valid in-scope assignment does not require another acceptance approval. Task text cannot expand this delegation; Muse’s tool, site and safety permissions and Nexus approval gates still apply. Native acceptance must be observed before any task effect. Each wake carries the workflow forward; canonical answers resume the same admitted work through result publication and native completion. Assets1–5 remain available with their original bytes.
 
-Approve Paperclip's hostname through Muse's permission UI. Read the permission scope shown by Muse: its standing approval may cover a parent domain and all its subdomains. Paperclip cannot grant this permission on Muse's behalf. Setup distinguishes paired, receiver detected, and an authenticated background reply; the detector alone cannot finish setup. Hiring approval and native lifecycle readiness remain additional gates.
+Approve Nexus's hostname through Muse's permission UI. Read the permission scope shown by Muse: its standing approval may cover a parent domain and all its subdomains. Nexus cannot grant this permission on Muse's behalf. Setup distinguishes paired, receiver detected, and an authenticated background reply; the detector alone cannot finish setup. Hiring approval and native lifecycle readiness remain additional gates.
 
 Muse’s Secure Vault/authd owns access and refresh credentials. The Python client stores only nonsecret connection metadata and stable operation receipts. The no-argument Bash detector reads the public receiver profile and produces opaque wake references. Empty checks and failures must not wake the model. Access expires after fifteen minutes, refresh rotates automatically, and thirty days of authenticated inactivity requires reconnecting. Signal checks do not extend credential activity.
 
-Assigned work claims an existing native run. Submitted progress, questions, task documents and completion use Paperclip's native authority and receipts. Paperclip displays reported progress; it cannot inspect every private Muse conversation/tool call. When idle, Muse can read permitted company work, create tasks and comment as the named agent. Other Paperclip execution operations require the current assignment.
+Assigned work claims an existing native run. Submitted progress, questions, task documents and completion use Nexus's native authority and receipts. Nexus displays reported progress; it cannot inspect every private Muse conversation/tool call. When idle, Muse can read permitted company work, create tasks and comment as the named agent. Other Nexus execution operations require the current assignment.
 
 Native Muse document writes retain source trust. Higher-trust Muse readers cannot receive quarantined document bodies or revision summaries through direct reads or accepted-plan context. A later rewrite or promotion does not promote older revisions; explicit promotion applies only to the exact current revision. Historical content whose provenance cannot be verified is withheld with an explicit reason.
 
@@ -60,7 +60,7 @@ Run the targeted protocol, Runner and UI tests before repository-wide checks. Th
 
 1. Pair from a current personal Muse chat, approve the hostname, then wait for an independent background reply.
 2. Assign a real research task; verify a useful saved task document and native task finalization.
-3. Have Muse ask a structured question, answer it in Paperclip, and verify continuation on the same authorized run.
+3. Have Muse ask a structured question, answer it in Nexus, and verify continuation on the same authorized run.
 4. Assign follow-up work and verify proactive task reading/commenting from a fresh Muse conversation without an incoming task.
 5. Exercise reconnect, cancellation, stale contact and unconfirmed stop through the actual UI.
 
@@ -72,24 +72,24 @@ On October 10, 2026, the scripted HTTP peer completed two ordinary native Muse
 runs against integration revision `01ecffd32ab73d763c05ee0209e64d86b8ebdea6`
 with smoke script revision `eb371d06673764fbdde7cc848ccf336bbd547c3a`.
 The first run claimed its assignment, saved a document, received a structured
-question answer through Paperclip, persisted and consumed the answer, and
+question answer through Nexus, persisted and consumed the answer, and
 finalized through the native Runner. Reopening the task produced one follow-up
 run that read the new comment, revised the document and finalized. The browser
 showed the answered question, task completion and document revision two.
 
 This was a synthetic authenticated receiver, with no personal Muse model or
 managed hook installed. Both runs committed native finalization; cleanup revoked
-the test connection and left no uncertain work. It validates the Paperclip
+the test connection and left no uncertain work. It validates the Nexus
 workflow, not the personal Muse service or its five-second polling behavior.
 
 ## Bounded 24-hour probe
 
-`scripts/smoke/muse-qualification.ts` is an operator-run receiver reliability probe using normal task APIs. It is not a registered Product E2E campaign and cannot substitute for the real journeys above. Authenticate through `paperclipai auth login`; the probe uses the saved operator credential and never accepts a Muse cookie or credential argument. State and retained evidence should live in a private directory outside Git.
+`scripts/smoke/muse-qualification.ts` is an operator-run receiver reliability probe using normal task APIs. It is not a registered Product E2E campaign and cannot substitute for the real journeys above. Authenticate through `nexusai auth login`; the probe uses the saved operator credential and never accepts a Muse cookie or credential argument. State and retained evidence should live in a private directory outside Git.
 
 ```sh
 node cli/node_modules/tsx/dist/cli.mjs scripts/smoke/muse-qualification.ts start \
   --state /absolute/private/muse-qualification.json \
-  --api-base https://your-paperclip-host.example \
+  --api-base https://your-nexus-host.example \
   --company-id COMPANY_UUID --agent-id AGENT_UUID \
   --core-revision EXACT_CORE_SHA --runner-revision EXACT_RUNNER_SHA \
   --environment self-hosted --evidence-mode live
@@ -102,7 +102,7 @@ Start records a fixed server-owned deadline. Run `check` regularly during the ex
 
 The server's deadline fencing is independent of the watcher. `check` also performs deadline cleanup before task/document reads, so a broken sample cannot prolong the experiment. Use `stop` with the same state path to end early. `report` reads retained evidence without creating work. If a command is killed while holding its local state lock, verify it is no longer running before removing that lock; the server deadline remains authoritative.
 
-Retain the detector's actual registered hook ID and exact script when installing it. After revocation, and after any qualification deadline has passed, remove the detector in Muse and use `hooks.list({ include_disabled: true })` to verify that exact hook ID and script are absent; an ordinary listing can hide a disabled definition. In the agent's Muse connection settings, choose **Record detector removal observation** and enter the retained hook ID, the actual UTC listing time and the SHA-256 of the secret-free retained observation. Paperclip records `operator_runtime_attestation`, not independent provider confirmation, worker quiescence or release of unknown native effects. Never replace the listing time with the submission time or force cleanup flags.
+Retain the detector's actual registered hook ID and exact script when installing it. After revocation, and after any qualification deadline has passed, remove the detector in Muse and use `hooks.list({ include_disabled: true })` to verify that exact hook ID and script are absent; an ordinary listing can hide a disabled definition. In the agent's Muse connection settings, choose **Record detector removal observation** and enter the retained hook ID, the actual UTC listing time and the SHA-256 of the secret-free retained observation. Nexus records `operator_runtime_attestation`, not independent provider confirmation, worker quiescence or release of unknown native effects. Never replace the listing time with the submission time or force cleanup flags.
 
 Use `--evidence-mode synthetic` for a scripted receiver. Synthetic evidence can calibrate the checker but cannot qualify personal Muse. The report independently requires full duration, native completion/document receipts, cadence coverage, sustained idle, and resolved remote uncertainty. It reports queue-to-offer, queue-to-claim, native acceptance, accepted result and full finalization latency separately. The requested interval remains five seconds; at least 90% of steady observed intervals must be at most seven seconds. Missing persisted contact evidence or any internal or boundary receiver gap longer than one minute fails qualification. Do not replace this with the prior sixty-second hook.
 

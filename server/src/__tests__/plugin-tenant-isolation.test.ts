@@ -10,7 +10,7 @@ import {
   pluginLogs,
   pluginWebhookDeliveries,
   plugins,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { buildHostServices, flushPluginLogBuffer } from "../services/plugin-host-services.js";
 import { pluginRegistryService } from "../services/plugin-registry.js";
 import {
@@ -48,7 +48,7 @@ describeEmbeddedPostgres("plugin tenant isolation (company_id FK)", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-plugin-tenant-isolation-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-plugin-tenant-isolation-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -70,18 +70,18 @@ describeEmbeddedPostgres("plugin tenant isolation (company_id FK)", () => {
     const pluginId = randomUUID();
     await db.insert(plugins).values({
       id: pluginId,
-      pluginKey: "paperclip.tenant-isolation-test",
-      packageName: "@paperclipai/plugin-tenant-isolation-test",
+      pluginKey: "nexus.tenant-isolation-test",
+      packageName: "@nexusai/plugin-tenant-isolation-test",
       version: "0.0.1",
       apiVersion: 1,
       categories: ["automation"],
       manifestJson: {
-        id: "paperclip.tenant-isolation-test",
+        id: "nexus.tenant-isolation-test",
         apiVersion: 1,
         version: "0.0.1",
         displayName: "Tenant Isolation Test",
         description: "Test plugin",
-        author: "Paperclip",
+        author: "Nexus",
         categories: ["automation"],
         capabilities: [],
         entrypoints: { worker: "./dist/worker.js" },

@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { getTableName } from "drizzle-orm";
-import { agents, agentWakeupRequests, companies, heartbeatRuns, issueComments, issueRecoveryActions, issues, type Db } from "@paperclipai/db";
+import { agents, agentWakeupRequests, companies, heartbeatRuns, issueComments, issueRecoveryActions, issues, type Db } from "@nexusai/db";
 import { getExecutionBlocker } from "../../services/execution-blocker.js";
 
 export type BlockerFactory = typeof getExecutionBlocker;
@@ -16,7 +16,7 @@ export async function seedQueuedCommentConsumption(db: Db, options: { comments?:
   const commentIds = Array.from({ length: options.comments ?? 8 }, () => randomUUID());
   if (commentIds.length) await db.insert(issueComments).values(commentIds.map(id => ({ id, companyId, issueId, authorType: "user" as const, authorUserId: "fixture-user", body: "Queued input", createdAt: fixtureTime, updatedAt: fixtureTime })));
   const [wake] = await db.insert(agentWakeupRequests).values({ companyId, agentId, source: "issue_comment", status: "deferred_issue_execution",
-    payload: { issueId, _paperclipWakeContext: { wakeCommentIds: commentIds } } }).returning();
+    payload: { issueId, _nexusWakeContext: { wakeCommentIds: commentIds } } }).returning();
   const [action] = await db.insert(issueRecoveryActions).values({ companyId, sourceIssueId: issueId, kind: "active_run_watchdog", status: "active",
     ownerType: "board", cause: "legacy_execution_requires_reconciliation", fingerprint: randomUUID(), evidence: {}, nextAction: "Inspect saved work.", createdAt: fixtureTime, updatedAt: fixtureTime }).returning();
   const payload = randomBytes(Math.ceil((options.payloadBytes ?? 0) * 3 / 4)).toString("base64");

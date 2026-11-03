@@ -1,4 +1,4 @@
-import type { AskUserQuestionsInteraction, AskUserQuestionsAnswer, IssueThreadInteraction, RequestItemVerdictValue } from "@paperclipai/shared";
+import type { AskUserQuestionsInteraction, AskUserQuestionsAnswer, IssueThreadInteraction, RequestItemVerdictValue } from "@nexusai/shared";
 import type { ChatQuestionFormSubmitTokenPayload } from "./chat-question-forms.js";
 
 /** A view model for the existing form transport; canonical interactions keep their original kind. */

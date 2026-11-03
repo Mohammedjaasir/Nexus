@@ -6,7 +6,7 @@ Remove the success-only `stores the authenticated agent run id when creating wor
 
 The retained `adds the authenticated run diff summary to PR work products` case exercises the same route with omitted attribution. It asserts the same `createdByRunId: ownerRunId`, plus the authenticated run's diff lookup and metadata. Forged create/update run attribution and foreign-company board attribution cases also remain.
 
-The route's `resolveWorkProductCreatedByRunId` helper takes no work-product type. The POST route assigns `createInput.createdByRunId` unconditionally before type-specific metadata enrichment. The removed case used provider `test`, so it did not exercise the separate Paperclip artifact attachment metadata path. The service persists attribution generically across work-product types.
+The route's `resolveWorkProductCreatedByRunId` helper takes no work-product type. The POST route assigns `createInput.createdByRunId` unconditionally before type-specific metadata enrichment. The removed case used provider `test`, so it did not exercise the separate Nexus artifact attachment metadata path. The service persists attribution generically across work-product types.
 
 ## Audit scope and evidence
 
@@ -26,7 +26,7 @@ The suite already hoists its module graph (#13524). Its historical 50,945ms shar
 
 ## Validation
 
-Focused exact-head validation passed with local bind access: `pnpm exec vitest run --project @paperclipai/server server/src/__tests__/issue-agent-mutation-ownership-routes.test.ts` reported **142/142 passing** in 10.59 seconds (start 08:18:35; finish 08:18:45). Expected warning logs are produced by cases that inject revalidation failures. The corrected run was serialized and completed successfully. No timing savings are inferred from this test duration.
+Focused exact-head validation passed with local bind access: `pnpm exec vitest run --project @nexusai/server server/src/__tests__/issue-agent-mutation-ownership-routes.test.ts` reported **142/142 passing** in 10.59 seconds (start 08:18:35; finish 08:18:45). Expected warning logs are produced by cases that inject revalidation failures. The corrected run was serialized and completed successfully. No timing savings are inferred from this test duration.
 
 `git diff --check` passed for the changed test file; its exact source diff is zero added lines and 16 removed lines. No production mutation was performed in this change. A recommended preservation mutation is to temporarily remove the POST route's `createInput.createdByRunId = createdByRunId` assignment, require the retained PR case to fail its attribution assertion, then restore production byte-for-byte.
 

@@ -1,9 +1,9 @@
 import { randomInt } from "node:crypto";
 import path from "node:path";
-import type { PaperclipConfig } from "../config/schema.js";
+import type { NexusConfig } from "../config/schema.js";
 import { expandHomePrefix } from "../config/home.js";
 
-export const DEFAULT_WORKTREE_HOME = "~/.paperclip-worktrees";
+export const DEFAULT_WORKTREE_HOME = "~/.nexus-worktrees";
 export const WORKTREE_SEED_MODES = ["minimal", "full"] as const;
 export const WORKTREE_SEED_MANIFEST = "seed-manifest.json";
 export const WORKTREE_SEED_PENDING_MARKER = "seed-pending";
@@ -205,7 +205,7 @@ export function resolveWorktreeLocalPaths(opts: {
   const cwd = path.resolve(opts.cwd);
   const homeDir = path.resolve(expandHomePrefix(opts.homeDir ?? DEFAULT_WORKTREE_HOME));
   const instanceRoot = path.resolve(homeDir, "instances", opts.instanceId);
-  const repoConfigDir = path.resolve(cwd, ".paperclip");
+  const repoConfigDir = path.resolve(cwd, ".nexus");
   return {
     cwd,
     repoConfigDir,
@@ -237,12 +237,12 @@ export function rewriteLocalUrlPort(rawUrl: string | undefined, port: number): s
 }
 
 export function buildWorktreeConfig(input: {
-  sourceConfig: PaperclipConfig | null;
+  sourceConfig: NexusConfig | null;
   paths: WorktreeLocalPaths;
   serverPort: number;
   databasePort: number;
   now?: Date;
-}): PaperclipConfig {
+}): NexusConfig {
   const { sourceConfig, paths, serverPort, databasePort } = input;
   const nowIso = (input.now ?? new Date()).toISOString();
 
@@ -295,7 +295,7 @@ export function buildWorktreeConfig(input: {
         baseDir: paths.storageDir,
       },
       s3: {
-        bucket: source?.storage.s3.bucket ?? "paperclip",
+        bucket: source?.storage.s3.bucket ?? "nexus",
         region: source?.storage.s3.region ?? "us-east-1",
         endpoint: source?.storage.s3.endpoint,
         prefix: source?.storage.s3.prefix ?? "",
@@ -317,14 +317,14 @@ export function buildWorktreeEnvEntries(
   branding?: WorktreeUiBranding,
 ): Record<string, string> {
   return {
-    PAPERCLIP_HOME: paths.homeDir,
-    PAPERCLIP_INSTANCE_ID: paths.instanceId,
-    PAPERCLIP_CONFIG: paths.configPath,
-    PAPERCLIP_CONTEXT: paths.contextPath,
-    PAPERCLIP_IN_WORKTREE: "true",
-    PAPERCLIP_DB_BACKUP_ENABLED: "false",
-    ...(branding?.name ? { PAPERCLIP_WORKTREE_NAME: branding.name } : {}),
-    ...(branding?.color ? { PAPERCLIP_WORKTREE_COLOR: branding.color } : {}),
+    NEXUS_HOME: paths.homeDir,
+    NEXUS_INSTANCE_ID: paths.instanceId,
+    NEXUS_CONFIG: paths.configPath,
+    NEXUS_CONTEXT: paths.contextPath,
+    NEXUS_IN_WORKTREE: "true",
+    NEXUS_DB_BACKUP_ENABLED: "false",
+    ...(branding?.name ? { NEXUS_WORKTREE_NAME: branding.name } : {}),
+    ...(branding?.color ? { NEXUS_WORKTREE_COLOR: branding.color } : {}),
   };
 }
 

@@ -5,7 +5,7 @@ import { type Stats, constants } from "node:fs";
 import * as fs from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { QUALIFIED_ACPX_PROFILES } from "../../vendor/paperclip-runner/index.js";
+import { QUALIFIED_ACPX_PROFILES } from "../../vendor/nexus-runner/index.js";
 
 const SERVER_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const MAX_BYTES = 4 * 1024 ** 3;
@@ -13,7 +13,7 @@ const MAX_FILE = 512 * 1024 ** 2;
 const MANIFEST = "companion.json";
 const AUTHORITY = ".import-authority.json";
 type Entry = { path: string; mode: number; kind: "directory" } | { path: string; mode: number; kind: "file"; size: number; sha256: string } | { path: string; mode: number; kind: "symlink"; target: string };
-export interface RemotePiCompanionManifest { schema: "paperclip.remote-pi-companion/v1"; sourceRevision: string; target: "linux-x64"; profileDigest: string; providerPackDigest: string; daemonSha256: string; entries: Entry[] }
+export interface RemotePiCompanionManifest { schema: "nexus.remote-pi-companion/v1"; sourceRevision: string; target: "linux-x64"; profileDigest: string; providerPackDigest: string; daemonSha256: string; entries: Entry[] }
 function require(value: unknown, reason: string): asserts value { if (!value) throw new Error(`runner_remote_companion_invalid: ${reason}`); }
 const digest = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
 const safe = (path: string) => path.length > 0 && path.length < 4096 && !isAbsolute(path) && !/[\\\x00-\x1f\x7f]/u.test(path) && path.split("/").every(p => p !== "" && p !== "." && p !== "..");
@@ -74,21 +74,21 @@ export async function inventoryRemoteCompanion(root: string, check = checkpoints
 }
 async function installedIdentity(serverRoot: string, check: Checkpoint) {
   require(process.platform === "darwin" || process.platform === "linux", "companion import supports macOS and Linux controllers");
-  await directory(serverRoot); const pkg = JSON.parse((await readOwned(join(serverRoot, "package.json"), 65536, check, true)).toString()); require(pkg.name === "@paperclipai/server", "public server package required");
+  await directory(serverRoot); const pkg = JSON.parse((await readOwned(join(serverRoot, "package.json"), 65536, check, true)).toString()); require(pkg.name === "@nexusai/server", "public server package required");
   const source = JSON.parse((await readOwned(join(serverRoot, "dist/build-info.json"), 65536, check, true)).toString()).commit;
   require(typeof source === "string" && /^[a-f0-9]{40}$/u.test(source), "installed build source is missing");
   const profile = QUALIFIED_ACPX_PROFILES.pi; require(profile.qualificationStatus !== "pending", "Pi is not qualified");
   return { source, profileDigest: profile.commandDigest };
 }
 async function validate(root: string, manifest: RemotePiCompanionManifest, identity: Awaited<ReturnType<typeof installedIdentity>>, check: Checkpoint) {
-  require(manifest.schema === "paperclip.remote-pi-companion/v1" && manifest.target === "linux-x64" && manifest.sourceRevision === identity.source && manifest.profileDigest === identity.profileDigest, "source/profile/target mismatch");
+  require(manifest.schema === "nexus.remote-pi-companion/v1" && manifest.target === "linux-x64" && manifest.sourceRevision === identity.source && manifest.profileDigest === identity.profileDigest, "source/profile/target mismatch");
   require(JSON.stringify(await inventoryRemoteCompanion(root, check)) === JSON.stringify(manifest.entries), "complete inventory mismatch");
-  const daemon = manifest.entries.find(e => e.path === "bin/paperclip-runnerd");
+  const daemon = manifest.entries.find(e => e.path === "bin/nexus-runnerd");
   require(daemon?.kind === "file" && daemon.size > 64 && (daemon.mode & 0o111) !== 0 && daemon.sha256 === manifest.daemonSha256, "daemon identity");
   const elf = (await readStable(join(root, daemon.path), MAX_FILE, false, check)).header; require(elf.subarray(0, 4).equals(Buffer.from([127, 69, 76, 70])) && elf[4] === 2 && elf[5] === 1 && elf.readUInt16LE(18) === 62, "Linux x64 ELF required");
   const pack = JSON.parse((await readOwned(join(root, "provider-pack/provider-pack.json"), 16 * 1024 ** 2, check)).toString());
   const canonical = (v: unknown): string => Array.isArray(v) ? `[${v.map(canonical).join(",")}]` : v && typeof v === "object" ? `{${Object.keys(v).sort().map(k => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`).join(",")}}` : JSON.stringify(v);
-  require(pack.schema === "paperclip-runner/remote-provider-pack/v1" && pack.digest === manifest.providerPackDigest && pack.digest === `sha256:${digest(canonical(pack.payload))}`, "pack manifest digest");
+  require(pack.schema === "nexus-runner/remote-provider-pack/v1" && pack.digest === manifest.providerPackDigest && pack.digest === `sha256:${digest(canonical(pack.payload))}`, "pack manifest digest");
   require(pack.payload.runnerSourceRevision === identity.source && pack.payload.target.platform === "linux" && pack.payload.target.architecture === "x64", "pack source/target");
   const pi = pack.payload.candidateProviders?.pi; require(pi?.qualification === "qualified" && pi.profileDigest === identity.profileDigest && pi.path === "provider-assets/pi/linux-x64", "normal Pi pack required");
 }
@@ -96,8 +96,8 @@ async function validate(root: string, manifest: RemotePiCompanionManifest, ident
 export async function createRemotePiCompanionManifest(root: string, sourceRevision: string): Promise<RemotePiCompanionManifest> {
   const check = checkpoints();
   const profile = QUALIFIED_ACPX_PROFILES.pi; const pack = JSON.parse((await readOwned(join(root, "provider-pack/provider-pack.json"), 16 * 1024 ** 2, check)).toString()); const entries = await inventoryRemoteCompanion(root, check);
-  const daemon = entries.find(e => e.path === "bin/paperclip-runnerd"); require(daemon?.kind === "file", "daemon missing");
-  const manifest: RemotePiCompanionManifest = { schema: "paperclip.remote-pi-companion/v1", sourceRevision, target: "linux-x64", profileDigest: profile.commandDigest, providerPackDigest: pack.digest, daemonSha256: daemon.sha256, entries };
+  const daemon = entries.find(e => e.path === "bin/nexus-runnerd"); require(daemon?.kind === "file", "daemon missing");
+  const manifest: RemotePiCompanionManifest = { schema: "nexus.remote-pi-companion/v1", sourceRevision, target: "linux-x64", profileDigest: profile.commandDigest, providerPackDigest: pack.digest, daemonSha256: daemon.sha256, entries };
   require(/^[a-f0-9]{40}$/u.test(sourceRevision), "release source"); await validate(root, manifest, { source: sourceRevision, profileDigest: profile.commandDigest }, check); return manifest;
 }
 function cacheParent(serverRoot: string) { return join(serverRoot, "remote-companions"); }
@@ -152,7 +152,7 @@ export async function resolveRemotePiCompanion(input: { serverRoot?: string; wor
   if (input.workspaceRoot) { const workspace = await fs.realpath(input.workspaceRoot); require(!inside(workspace, root) && !inside(root, workspace), "companion cache cannot overlap a workspace"); }
   const authority = JSON.parse((await readOwned(join(root, AUTHORITY), 65536, check, true)).toString()); const bytes = await readOwned(join(root, MANIFEST), 32 * 1024 ** 2, check, true); require(digest(bytes) === authority.sha256, "installed authority changed");
   const manifest = JSON.parse(bytes.toString()) as RemotePiCompanionManifest; await validate(root, manifest, await installedIdentity(serverRoot, check), check);
-  return { root, runnerBinary: join(root, "bin/paperclip-runnerd"), providerPack: join(root, "provider-pack"), manifestSha256: authority.sha256 as string, sourceRevision: manifest.sourceRevision, target: manifest.target };
+  return { root, runnerBinary: join(root, "bin/nexus-runnerd"), providerPack: join(root, "provider-pack"), manifestSha256: authority.sha256 as string, sourceRevision: manifest.sourceRevision, target: manifest.target };
 }
 
 /** Explicit legacy overrides remain authoritative; C/C never gain this Pi path. */

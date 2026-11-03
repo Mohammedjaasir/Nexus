@@ -104,7 +104,7 @@ describe("same-task case handoff Product E2E", () => {
   });
   it("requires correlated native tool lifecycle, never model prose", () => {
     const event = (seq: number, eventType: string, payload: unknown) => ({ seq, eventType, protocolSchemaVersion: 2,
-      payload: { prpEvent: { schema: "paperclip.prp.event.v2", schemaVersion: 2, sourceKind: "runner", payload } } });
+      payload: { prpEvent: { schema: "nexus.prp.event.v2", schemaVersion: 2, sourceKind: "runner", payload } } });
     const events = [event(1, "tool.execution.started", { name: "handoff_case", executionId: "call" }),
       event(2, "tool.execution.completed", { name: "handoff_case", executionId: "call", status: "completed" })];
     expect(hasNativeHandoffReceipt(events)).toBe(true);

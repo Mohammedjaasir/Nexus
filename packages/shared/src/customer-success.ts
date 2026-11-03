@@ -1,9 +1,9 @@
 /** Version 1 inspection wire contract. Keep Cloud's protocol.ts byte-identical. */
 export const INSPECTION_VERSION = 1;
-export const INSPECTION_AUDIENCE = "paperclip-customer-success/v1";
-export const INSPECTION_PERMIT_TYPE = "paperclip-inspection+jwt";
-export const INSPECTION_HEADER = "x-paperclip-cloud-inspection";
-export const CHALLENGE_DOMAIN = "paperclip-customer-success-challenge/v1\n";
+export const INSPECTION_AUDIENCE = "nexus-customer-success/v1";
+export const INSPECTION_PERMIT_TYPE = "nexus-inspection+jwt";
+export const INSPECTION_HEADER = "x-nexus-cloud-inspection";
+export const CHALLENGE_DOMAIN = "nexus-customer-success-challenge/v1\n";
 export const MAX_INSPECTION_BYTES = 1024 * 1024;
 export const MAX_INSPECTION_ROWS = 100;
 export const INSPECTION_RESOURCES = [
@@ -102,7 +102,7 @@ export interface RunAuthority {
 }
 export interface InspectionPermit {
   v: 1;
-  iss: "paperclip-cloud";
+  iss: "nexus-cloud";
   aud: typeof INSPECTION_AUDIENCE;
   sub: string;
   jti: string;

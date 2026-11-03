@@ -17,7 +17,7 @@ it("rejects provider-authored acceptance and an accepted result different from t
     const accepted = fixture.events.find(event => event.eventType === "run.result.accepted");
     expect(accepted).toBeDefined();
     if (wrongSource) accepted!.payload.prpEvent.sourceKind = "runner";
-    else (accepted!.payload.prpEvent.payload as Record<string, unknown>).result = { schema: "paperclip.run_result.v1", summary: "Different accepted result" };
+    else (accepted!.payload.prpEvent.payload as Record<string, unknown>).result = { schema: "nexus.run_result.v1", summary: "Different accepted result" };
     expect(() => gradeAntigravityJourneyTurn(fixture)).toThrow("antigravity_evidence_");
   }
 });
@@ -44,7 +44,7 @@ it("requires a follow-up to read the prior file before writing and read the upda
 
 function retainedResult(): RunnerE2EResult {
   return {
-    schema: "paperclip.runner-e2e.result/v2", executionId: "antigravity-agent-journey.runner-antigravity.local.saved-subscription-two-turn", suiteId: "antigravity-agent-journey",
+    schema: "nexus.runner-e2e.result/v2", executionId: "antigravity-agent-journey.runner-antigravity.local.saved-subscription-two-turn", suiteId: "antigravity-agent-journey",
     profileId: "runner-antigravity", environmentId: "local", caseId: "saved-subscription-two-turn", provider: "acpx", model: "gemini-3.8-flash-low", runtimeMode: "native",
     attempt: 1, status: "passed", cleanup: "passed", durationMs: 1000, startedAt: "2026-10-29T00:00:00Z", finishedAt: "2026-10-29T00:00:01Z",
     issueId: "task", runIds: ["run-first", "run-second"], antigravityJourney: antigravityEvidenceFixture(),

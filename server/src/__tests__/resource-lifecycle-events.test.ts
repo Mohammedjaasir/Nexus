@@ -2,8 +2,8 @@ import { createAgentLifecycle, configureAgentLifecycle } from "../services/agent
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { and, eq, ne, sql } from "drizzle-orm";
-import { agentApiKeys, agents, budgetPolicies, companies, costEvents, createDb, pluginCompanySettings, pluginLifecycleAcknowledgments, plugins, projects, resourceLifecycleEvents, type Db } from "@paperclipai/db";
-import { createHostClientHandlers } from "@paperclipai/plugin-sdk";
+import { agentApiKeys, agents, budgetPolicies, companies, costEvents, createDb, pluginCompanySettings, pluginLifecycleAcknowledgments, plugins, projects, resourceLifecycleEvents, type Db } from "@nexusai/db";
+import { createHostClientHandlers } from "@nexusai/plugin-sdk";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { agentService } from "../services/agents.js";
@@ -26,13 +26,13 @@ describePostgres("Resource lifecycle events", () => {
   let worker: ReturnType<typeof configureAgentLifecycle>;
 
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-resource-events-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-resource-events-");
     db = createDb(database.connectionString);
   }, 90_000);
   afterAll(async () => { await worker?.stop(); await database?.cleanup(); });
   beforeEach(async () => {
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", undefined);
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", undefined);
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", undefined);
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", undefined);
     await worker?.stop();
     worker = configureAgentLifecycle(db, { requiredPluginIds: async () => [], runPlugin: async () => "complete", runHost: async () => "complete" });
     companyId = randomUUID();
@@ -217,8 +217,8 @@ describePostgres("Resource lifecycle events", () => {
   });
 
   it("captures self-hosted lifecycle events without backfilling older resources", async () => {
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", undefined);
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", undefined);
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", undefined);
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", undefined);
     const oldAgentId = randomUUID();
     const oldProjectId = randomUUID();
     await db.insert(agents).values({ id: oldAgentId, companyId, name: "Existing agent" });
@@ -232,8 +232,8 @@ describePostgres("Resource lifecycle events", () => {
   });
 
   it("scopes resource identities by company and type", async () => {
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", undefined);
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "fixture-token");
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", undefined);
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "fixture-token");
     const id = randomUUID();
     await db.transaction(tx => recordResourceCreationEvent(tx as unknown as Db, companyId, "agent", id));
     await db.transaction(tx => recordResourceCreationEvent(tx as unknown as Db, companyId, "project", id));

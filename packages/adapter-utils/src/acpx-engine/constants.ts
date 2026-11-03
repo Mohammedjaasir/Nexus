@@ -27,7 +27,7 @@ export const ACPX_HANDSHAKE_TRANSPORT_POLL_MS = 250;
 export const ACPX_DUPLEX_LOSS_CANCEL_DEADLINE_MS = 30_000;
 
 // The per-call deadline Claude applies to MCP tool calls (`MCP_TOOL_TIMEOUT`)
-// when Paperclip attaches runtime MCP servers. Claude's own default is far
+// when Nexus attaches runtime MCP servers. Claude's own default is far
 // longer than a run, so a gateway call that never answers holds the turn until
 // the 4h sandbox backstop ends the run. The gateway bounds each provider call
 // at 60s and approval preparation at 2 minutes; this leaves wide headroom over

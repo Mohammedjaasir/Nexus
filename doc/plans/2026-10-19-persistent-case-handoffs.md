@@ -193,7 +193,7 @@ Verification for this UI change:
 
 The disposable acceptance case was CAS-C1 (`3f733ea1-cd9b-4413-b80b-4ae099e38e95`),
 primary task `ec7b291e-3fee-49d3-b0b6-3d04188f18b3`. Local launch/doctor records
-are in `/private/tmp/paperclip-cases-ui-proof-v2-20261019/`; screenshots are in the
+are in `/private/tmp/nexus-cases-ui-proof-v2-20261019/`; screenshots are in the
 Codex visualization workspace for this chat. Repo-wide checks/provider smoke
 were not repeated for this UI iteration; their earlier limits remain recorded
 above. No production data or deployment was changed.

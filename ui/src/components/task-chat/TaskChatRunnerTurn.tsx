@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import type { ExecutionProjection } from "@paperclipai/shared";
+import type { ExecutionProjection } from "@nexusai/shared";
 import { useSecondTick } from "@/hooks/useSecondTick";
 import { cn } from "@/lib/utils";
 import type {
@@ -19,8 +19,8 @@ import {
   buildTurnTimelineRows,
   isTerminalRunStatus,
   omitProgressRepeatedByResponse,
-  paperclipRunnerFinalResponse,
-  paperclipRunnerTimelineItems,
+  nexusRunnerFinalResponse,
+  nexusRunnerTimelineItems,
 } from "./transcript-adapter";
 
 function currentActivityStatusItems(
@@ -196,7 +196,7 @@ export function TaskChatRunnerTurn({
   );
   const observedFinal = suppressFinal
     ? undefined
-    : paperclipRunnerFinalResponse(items, {
+    : nexusRunnerFinalResponse(items, {
         allowFallback: terminal && allowSummaryFallback,
       });
   const observedProviderText = Boolean(
@@ -233,7 +233,7 @@ export function TaskChatRunnerTurn({
     finalRef.current.providerText = observedProviderText;
   }
   const final = finalRef.current.item;
-  const timelineItems = paperclipRunnerTimelineItems(items);
+  const timelineItems = nexusRunnerTimelineItems(items);
   const currentActivityItems = currentActivityStatusItems(timelineItems);
   const timelineRows = buildTurnTimelineRows(
     omitProgressRepeatedByResponse(timelineItems, final?.text),

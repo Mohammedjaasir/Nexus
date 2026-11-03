@@ -53,7 +53,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     docs: { description: { component: "A task toolbar with a vertical open-tab overview. The current document stays readable; titles wrap in the overview, selection is explicit, close actions stay visible, and controls have 44px touch targets. Inspired by Apple’s toolbar and safe-area guidance: https://developer.apple.com/design/human-interface-guidelines/toolbars and https://developer.apple.com/design/human-interface-guidelines/layout." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "navigation-preferences/navigation"
       ],

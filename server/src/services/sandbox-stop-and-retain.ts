@@ -2,7 +2,7 @@ import { notifyRetainedNativeSessionCleanup } from "./retained-native-session-cl
 import { writeEnvironmentCleanup } from "./environment-cleanup-notifications.js";
 import { randomUUID } from "node:crypto";
 import { and, eq, sql, type SQL } from "drizzle-orm";
-import { environmentLeases, heartbeatRuns, type Db } from "@paperclipai/db";
+import { environmentLeases, heartbeatRuns, type Db } from "@nexusai/db";
 import { isBuiltinSandboxProvider } from "./sandbox-provider-runtime.js";
 import { hasRemoteTerminationReceipt, remoteTerminationReceipt } from "./remote-execution-termination.js";
 import { hasNativeWorkspaceExportResume, readNativeWorkspaceExportResume, settleNativeWorkspaceExportResume } from "./native-runtime/native-workspace-export-resume.js";
@@ -28,7 +28,7 @@ export function hasConfirmedSandboxStopAndRetain(lease: typeof environmentLeases
   if (lease.status !== "released" || !hasRemoteTerminationReceipt(lease)
     || termination?.state !== "stopped" || hasStopOnlyCleanup(lease)
     || lease.metadata?.pendingCleanupInFlight === true
-    || receipt.schema !== "paperclip.sandbox-stop-and-retain-receipt.v1"
+    || receipt.schema !== "nexus.sandbox-stop-and-retain-receipt.v1"
     || receipt.companyId !== lease.companyId || receipt.runId !== lease.heartbeatRunId
     || receipt.leaseId !== lease.id || receipt.provider !== lease.provider
     || receipt.providerLeaseId !== lease.providerLeaseId
@@ -59,7 +59,7 @@ export function readStopOnlyCleanup(lease: Lease) {
   const value = lease.metadata?.[SANDBOX_STOP_AND_RETAIN_KEY];
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const intent = value as Record<string, unknown>;
-  if (intent.schema !== "paperclip.sandbox-stop-and-retain.v1"
+  if (intent.schema !== "nexus.sandbox-stop-and-retain.v1"
     || intent.companyId !== lease.companyId || intent.runId !== lease.heartbeatRunId || !lease.heartbeatRunId
     || intent.leaseId !== lease.id || intent.provider !== lease.provider || !lease.provider
     || intent.providerLeaseId !== lease.providerLeaseId || !lease.providerLeaseId
@@ -102,7 +102,7 @@ export async function prepareStoppedSandboxForRecovery(db: Db, lease: typeof env
 
 async function prepareStopAndRetain(db: Db, lease: Lease, fromStatus: "active" | "released") {
   const requestId = randomUUID(), now = new Date();
-  const intent = { schema: "paperclip.sandbox-stop-and-retain.v1", requestId,
+  const intent = { schema: "nexus.sandbox-stop-and-retain.v1", requestId,
     companyId: lease.companyId, runId: lease.heartbeatRunId, leaseId: lease.id,
     provider: lease.provider, providerLeaseId: lease.providerLeaseId,
     ...(lease.provider && isBuiltinSandboxProvider(lease.provider) && !lease.metadata?.sandboxProviderPlugin && lease.metadata?.pluginId == null
@@ -138,7 +138,7 @@ export async function settleStopOnlyCleanup(db: Db, lease: Lease, options: { att
       releasedAt: now, lastUsedAt: now, updatedAt: now,
       metadata: sql`(${environmentLeases.metadata} - 'remoteExecutionTermination' ${removeIntent}) || ${JSON.stringify({
         ...(stopped ? { remoteExecutionTermination: receipt, sandboxStopAndRetainReceipt: {
-          schema: "paperclip.sandbox-stop-and-retain-receipt.v1", requestId: intent.requestId,
+          schema: "nexus.sandbox-stop-and-retain-receipt.v1", requestId: intent.requestId,
           companyId: lease.companyId, runId: lease.heartbeatRunId, leaseId: lease.id,
           provider: lease.provider, providerLeaseId: lease.providerLeaseId,
           ...(intent.pluginId ? { pluginId: intent.pluginId, method: "environmentStopLease" }

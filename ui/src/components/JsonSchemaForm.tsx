@@ -7,7 +7,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { isUuidLike, type EnvSecretRefBinding } from "@paperclipai/shared";
+import { isUuidLike, type EnvSecretRefBinding } from "@nexusai/shared";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -77,18 +77,18 @@ export interface JsonSchemaNode {
   readOnly?: boolean;
   writeOnly?: boolean;
 
-  // Paperclip extensions
+  // Nexus extensions
   /**
    * When true, the field is hidden behind an "Advanced options" disclosure
    * in the top-level `JsonSchemaForm`. Defaults to false (essential).
    */
-  "x-paperclip-advanced"?: boolean;
+  "x-nexus-advanced"?: boolean;
   /**
    * Optional sub-section name used to group advanced fields under headings
    * inside the disclosure (e.g. "SSH access", "VM resources"). Ignored when
-   * `x-paperclip-advanced` is not true.
+   * `x-nexus-advanced` is not true.
    */
-  "x-paperclip-group"?: string;
+  "x-nexus-group"?: string;
 
   // Allow extra keys
   [key: string]: unknown;
@@ -481,7 +481,7 @@ BooleanField.displayName = "BooleanField";
  * Radix `Select` forbids an empty-string item value, so we map the unset state
  * onto this sentinel and translate it back to `undefined` on change.
  */
-const ENUM_UNSET_VALUE = "__paperclip_unset__";
+const ENUM_UNSET_VALUE = "__nexus_unset__";
 
 function isSecretRefBinding(value: unknown): value is EnvSecretRefBinding {
   return (
@@ -733,7 +733,7 @@ const SecretField = React.memo(({
       label={label}
       description={
         description ||
-        "Pick an existing organization secret, or paste a raw value (Paperclip will store it as a secret on save)."
+        "Pick an existing organization secret, or paste a raw value (Nexus will store it as a secret on save)."
       }
       required={isRequired}
       error={error}
@@ -1333,9 +1333,9 @@ export function JsonSchemaForm({
 
     for (const entry of Object.entries(properties)) {
       const [key, propSchema] = entry;
-      if (propSchema["x-paperclip-advanced"] === true) {
+      if (propSchema["x-nexus-advanced"] === true) {
         advancedKeys.add(key);
-        const rawGroup = propSchema["x-paperclip-group"];
+        const rawGroup = propSchema["x-nexus-group"];
         const group = typeof rawGroup === "string" && rawGroup.length > 0
           ? rawGroup
           : DEFAULT_GROUP;

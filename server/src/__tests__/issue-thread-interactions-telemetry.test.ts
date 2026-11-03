@@ -14,7 +14,7 @@ import {
   issueDocuments,
   issueThreadInteractions,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -30,7 +30,7 @@ vi.mock("../telemetry.js", () => ({
   getTelemetryClient: telemetryMocks.getTelemetryClient,
 }));
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_INTERACTION_TELEMETRY_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_INTERACTION_TELEMETRY_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -40,7 +40,7 @@ describeEmbeddedPostgres("issueThreadInteractionService telemetry", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    if (!externalUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-issue-interaction-telemetry-");
+    if (!externalUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-issue-interaction-telemetry-");
     db = createDb(externalUrl ?? tempDb!.connectionString);
     interactionsSvc = issueThreadInteractionService(db);
   }, 20_000);
@@ -78,7 +78,7 @@ describeEmbeddedPostgres("issueThreadInteractionService telemetry", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });

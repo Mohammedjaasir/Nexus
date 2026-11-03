@@ -1,18 +1,18 @@
 import { randomUUID, createHash } from "node:crypto";
-import { definePlugin } from "@paperclipai/plugin-sdk";
+import { definePlugin } from "@nexusai/plugin-sdk";
 import type {
   PluginContext, PluginEnvironmentAcquireLeaseParams, PluginEnvironmentDriverBaseParams,
   PluginEnvironmentExecuteParams, PluginEnvironmentLease, PluginEnvironmentReleaseLeaseParams,
-} from "@paperclipai/plugin-sdk";
+} from "@nexusai/plugin-sdk";
 import { CreateosApiError, CreateosClient, object } from "./client.js";
 import { parseConfig, resolveApiKey } from "./config.js";
 import { CreateosCleanupError, execute, shellQuote } from "./execute.js";
 import { syncFiles } from "./file-sync.js";
 
-const CWD = "/paperclip-workspace";
-// The host excludes .paperclip-runtime from workspace export, so the lease
+const CWD = "/nexus-workspace";
+// The host excludes .nexus-runtime from workspace export, so the lease
 // marker never becomes a user repository file.
-const MARKER = `${CWD}/.paperclip-runtime/.paperclip-createos-lease`;
+const MARKER = `${CWD}/.nexus-runtime/.nexus-createos-lease`;
 
 function metadataMatches(params: PluginEnvironmentDriverBaseParams, metadata?: Record<string, unknown>): boolean {
   return metadata?.provider === "createos" && metadata.companyId === params.companyId &&
@@ -137,9 +137,9 @@ export function createPlugin() {
       try {
         lease = await acquire({ ...params, runId: "probe" });
         const result = await execute(new CreateosClient(parseConfig(params.config)), {
-          ...params, lease, command: "/bin/echo", args: ["paperclip-createos-ready"], cwd: CWD,
+          ...params, lease, command: "/bin/echo", args: ["nexus-createos-ready"], cwd: CWD,
         }, AbortSignal.timeout(parseConfig(params.config).timeoutMs));
-        if (result.timedOut || result.exitCode !== 0 || !result.stdout.includes("paperclip-createos-ready")) throw new Error("CreateOS command probe failed.");
+        if (result.timedOut || result.exitCode !== 0 || !result.stdout.includes("nexus-createos-ready")) throw new Error("CreateOS command probe failed.");
         return { ok: true, summary: "CreateOS sandbox creation and command execution succeeded." };
       } catch (error) {
         return { ok: false, summary: error instanceof Error ? error.message : "CreateOS probe failed." };

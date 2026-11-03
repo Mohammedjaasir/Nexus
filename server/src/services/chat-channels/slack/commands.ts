@@ -19,17 +19,17 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatActions,
   chatEndpointResources,
   chatExternalPrincipals,
   chatIdentityLinks,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatProvider,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   conflict,
@@ -64,7 +64,7 @@ export function slackCommandForAgent(agentName: string, publicId: string): strin
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "")
     .slice(0, 6);
-  return `/${slug || "paperclip"}-${suffix || "agent"}`;
+  return `/${slug || "nexus"}-${suffix || "agent"}`;
 }
 
 type SlackCommandsOptions = {
@@ -113,7 +113,7 @@ export function createSlackCommands(db: Db, options: SlackCommandsOptions) {
       scheduleProviderEffect(effect.id, event.event.channel);
     };
     if (!["verifying", "active"].includes(record.endpoint.status)) {
-      await queueSlackNotice("This Paperclip connection is not active.");
+      await queueSlackNotice("This Nexus connection is not active.");
       return;
     }
     const expectedCommand =
@@ -155,7 +155,7 @@ export function createSlackCommands(db: Db, options: SlackCommandsOptions) {
         const currentLink = await tx.select().from(chatIdentityLinks).where(and(
           eq(chatIdentityLinks.endpointId, event.endpointId), eq(chatIdentityLinks.principalId, principal.principal.id),
         )).then((rows) => rows[0]);
-        let notice = "Your Slack account is already connected to Paperclip. You can return to Slack and message the agent.";
+        let notice = "Your Slack account is already connected to Nexus. You can return to Slack and message the agent.";
         if (currentLink?.status !== "linked") {
           const token = randomBytes(32).toString("base64url");
           const tokenHash = createHash("sha256").update(token).digest("hex");
@@ -165,15 +165,15 @@ export function createSlackCommands(db: Db, options: SlackCommandsOptions) {
             status: "pending", confirmationTokenHash: tokenHash, expiresAt,
           }).onConflictDoUpdate({
             target: [chatIdentityLinks.endpointId, chatIdentityLinks.principalId],
-            set: { paperclipUserId: null, status: "pending", confirmationTokenHash: tokenHash, expiresAt, confirmedAt: null, revokedAt: null, updatedAt: new Date() },
+            set: { nexusUserId: null, status: "pending", confirmationTokenHash: tokenHash, expiresAt, confirmedAt: null, revokedAt: null, updatedAt: new Date() },
           });
           await tx.update(chatActions).set({ payload: {
             version: 1, channelId: event.event.channel.id, userId: event.event.user.userId, identityLinkHash: tokenHash,
           } }).where(eq(chatActions.id, inserted[0].id));
           const url = `${getPublicBaseUrl()}/chat-identity/confirm?token=${encodeURIComponent(token)}`;
           notice = getPublicBaseUrl()
-            ? `[Connect your Paperclip account](${url}) — sign in and confirm this Slack identity. This private link expires in 15 minutes and works once. You can also confirm in the setup wizard. No agent work has started.`
-            : "Return to the Paperclip setup wizard to confirm your Slack account. No agent work has started.";
+            ? `[Connect your Nexus account](${url}) — sign in and confirm this Slack identity. This private link expires in 15 minutes and works once. You can also confirm in the setup wizard. No agent work has started.`
+            : "Return to the Nexus setup wizard to confirm your Slack account. No agent work has started.";
         }
         await logActivity(tx as unknown as Db, {
           companyId: record.endpoint.companyId, actorType: "system", actorId: `chat:${principal.principal.id}`,
@@ -221,7 +221,7 @@ export function createSlackCommands(db: Db, options: SlackCommandsOptions) {
           (await sponsorAllowsGuest(record.endpoint))));
     if (!authorized) {
       await queueSlackNotice(
-        "This channel or account is not allowed to start Paperclip work.",
+        "This channel or account is not allowed to start Nexus work.",
         principal.principal.id,
       );
       return;
@@ -233,18 +233,18 @@ export function createSlackCommands(db: Db, options: SlackCommandsOptions) {
       if (!slashIsDirectMessage) {
         // Slack slash-command payloads are channel-scoped and do not carry a
         // thread timestamp, so they cannot safely identify one of several
-        // Paperclip tasks in the channel. Native @mention threads remain the
+        // Nexus tasks in the channel. Native @mention threads remain the
         // task-management surface there; the control vocabulary is exact only
         // in a DM, whose provider channel identity is stable.
         await queueSlackNotice(
-          "Use status, new, and close in a direct message with this agent. In a channel, open the Paperclip task from its Slack thread.",
+          "Use status, new, and close in a direct message with this agent. In a channel, open the Nexus task from its Slack thread.",
           principal.principal.id,
         );
         return;
       }
       const endpointRuntime =
         runtime.get(event.endpointId) ?? (await runtimeFor(record.endpoint));
-      // A slash-command task starts a real Slack root and binds Paperclip to
+      // A slash-command task starts a real Slack root and binds Nexus to
       // that returned thread id. Later slash controls carry only the DM channel
       // id, so target the most recently active task instead of synthesizing an
       // unrelated base-DM thread that cannot find the binding.
@@ -364,7 +364,7 @@ export function createSlackCommands(db: Db, options: SlackCommandsOptions) {
         .then((rows) => rows[0] ?? null));
     if (!action) throw new Error("Slack command admission was not persisted");
     // Slack has a tight acknowledgement budget. The unique action row is the
-    // durable receipt; provider publication and Paperclip admission run behind
+    // durable receipt; provider publication and Nexus admission run behind
     // the acknowledgement under an atomic `received -> resolving` claim.
     // Duplicate callbacks schedule the same id and converge without waiting
     // on Slack's Web API or creating a second root.

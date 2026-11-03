@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AgentDetail as AgentDetailRecord, BudgetOverview, BudgetPolicySummary } from "@paperclipai/shared";
+import type { AgentDetail as AgentDetailRecord, BudgetOverview, BudgetPolicySummary } from "@nexusai/shared";
 import { budgetsApi } from "../api/budgets";
 import { BudgetIncidentCard } from "../components/BudgetIncidentCard";
 import { BudgetPolicyCard } from "../components/BudgetPolicyCard";

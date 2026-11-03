@@ -1,6 +1,6 @@
 import {
   buildSandboxNpmInstallCommand,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 
 export const type = "gemini_local";
 export const label = "Gemini CLI";
@@ -30,14 +30,14 @@ export const agentConfigurationDoc = `# gemini_local agent configuration
 Adapter: gemini_local
 
 Use when:
-- You want Paperclip to run the Gemini CLI locally on the host machine
+- You want Nexus to run the Gemini CLI locally on the host machine
 - You want Gemini chat sessions resumed across heartbeats with --resume
-- You want Paperclip skills injected locally without polluting the global environment
+- You want Nexus skills injected locally without polluting the global environment
 
 Don't use when:
 - You need webhook-style external invocation (use http or openclaw_gateway)
 - You only need a one-shot script without an AI coding agent loop (use process)
-- Gemini CLI is not installed on the machine that runs Paperclip
+- Gemini CLI is not installed on the machine that runs Nexus
 
 Core fields:
 - cwd (string, optional): default absolute working directory fallback for the agent process (created if missing when possible)
@@ -61,13 +61,13 @@ Operational fields:
 
 Notes:
 - Explicit ACP models are set via \`GEMINI_MODEL\` before startup; this avoids unsupported \`session/set_config_option\` calls while preserving the ACP transport. Auto continues to use the installed CLI's model selection.
-- Local turns include the current selected skill root and Paperclip artifact workflow guidance, including after a disposable connection home changes.
+- Local turns include the current selected skill root and Nexus artifact workflow guidance, including after a disposable connection home changes.
 - Local ACP workspaces use their canonical directory so Gemini's resolved file paths match the client boundary. Missing files retain ACP resource-not-found semantics. Gemini CLI 0.58.0 still mishandles the plain error object during native new-file creation; the installed-CLI compatibility smoke documents this remaining limitation.
 - Gemini shell commands may reject command substitution. Build JSON request bodies in workspace files and pass them with \`curl --data-binary @file\`, or use the selected skill's helpers.
-- Gemini ACP is the preferred auto lane when Node >=24.11.0 and the local Gemini CLI command is available. It runs Gemini CLI's native \`gemini --acp\` server through Paperclip's shared ACP engine, including selected skill links, Paperclip runtime prompt/env guidance, model config, and persistent ACP session state. Missing prerequisites fail both default and explicit ACP runs with an actionable setup error; the adapter never switches engines automatically.
+- Gemini ACP is the preferred auto lane when Node >=24.11.0 and the local Gemini CLI command is available. It runs Gemini CLI's native \`gemini --acp\` server through Nexus's shared ACP engine, including selected skill links, Nexus runtime prompt/env guidance, model config, and persistent ACP session state. Missing prerequisites fail both default and explicit ACP runs with an actionable setup error; the adapter never switches engines automatically.
 - Runs use --prompt for non-interactive execution, not stdin.
 - The adapter sets a headless-safe terminal/browser environment for Gemini CLI child processes so unattended runs do not wait on browser auth or 256-color terminal prompts.
 - Sessions resume with --resume when stored session cwd matches the current cwd.
-- Paperclip auto-injects local skills into \`~/.gemini/skills/\` via symlinks, so the CLI can discover both credentials and skills in their natural location.
+- Nexus auto-injects local skills into \`~/.gemini/skills/\` via symlinks, so the CLI can discover both credentials and skills in their natural location.
 - Authentication can use GEMINI_API_KEY / GOOGLE_API_KEY or local Gemini CLI login.
 `;

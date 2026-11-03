@@ -1,4 +1,4 @@
-import type { IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueWorkProduct } from "@nexusai/shared";
 import { workProductHref } from "./issue-artifacts";
 
 const TERMINAL_STATES = new Set(["merged", "closed", "archived"]);

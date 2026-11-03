@@ -9,8 +9,8 @@ test("canonical tabs share filled selection with compact and standard type sizes
   await expect(preview.getByRole("region")).toHaveCount(2);
   for (const [name, size, height] of [["Standard", "14px", 32], ["Compact", "12px", 24]] as const) {
     const section = preview.getByRole("region", { name, exact: true });
-    const paperclip = section.getByRole("tab", { name: "Paperclip", exact: true });
-    await paperclip.focus();
+    const nexus = section.getByRole("tab", { name: "Nexus", exact: true });
+    await nexus.focus();
     await page.keyboard.press("ArrowRight");
     const selected = section.getByRole("tab", { name: "Composio", exact: true });
     await expect(selected).toBeFocused();

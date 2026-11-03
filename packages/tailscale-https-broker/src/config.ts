@@ -38,9 +38,9 @@ function requireUid(env: NodeJS.ProcessEnv, key: string): number {
 
 export function loadHostConfig(env: NodeJS.ProcessEnv): BrokerHostConfig {
   const config: BrokerHostConfig = {
-    socketPath: env.BROKER_SOCKET_PATH ?? "/run/paperclip-tailscale-broker/broker.sock",
-    registryPath: env.BROKER_REGISTRY_PATH ?? "/var/lib/paperclip-tailscale-broker/registry.json",
-    auditPath: env.BROKER_AUDIT_PATH ?? "/var/log/paperclip-tailscale-broker/audit.log",
+    socketPath: env.BROKER_SOCKET_PATH ?? "/run/nexus-tailscale-broker/broker.sock",
+    registryPath: env.BROKER_REGISTRY_PATH ?? "/var/lib/nexus-tailscale-broker/registry.json",
+    auditPath: env.BROKER_AUDIT_PATH ?? "/var/log/nexus-tailscale-broker/audit.log",
     tailscaleBinPath: env.BROKER_TAILSCALE_BIN ?? "/usr/bin/tailscale",
     nodeIdentity: requireEnv(env, "BROKER_NODE_IDENTITY"),
     serviceUid: requireUid(env, "BROKER_SERVICE_UID"),

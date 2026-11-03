@@ -6,7 +6,7 @@ import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { createDb, executionWorkspaceRepositoryRoots, executionWorkspaceRepositoryAccess, executionWorkspaces,
-  heartbeatRuns, issues, projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+  heartbeatRuns, issues, projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { assertTaskWorkspaceExecutionAccess, assertExecutionWorkspaceRecordAccess } from "../services/task-workspace-access.js";
 import { executionWorkspaceService } from "../services/execution-workspaces.js";
 import { authorizationService } from "../services/authorization.js";

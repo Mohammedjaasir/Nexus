@@ -4,12 +4,12 @@ import { canonicalJson } from "../../packages/shared/src/portability-hash.js";
 import { approvePiBootstrapRead, withoutApprovedPiBootstrapRequests, type PiBootstrapApproval } from "./pi-bootstrap-permission.js";
 import { observePiControlPending, readPiStopSettlement, readPiSteeringSettlement } from "./pi-controls-evidence.js";
 import { piCancellationId, piControlCaller, piControlFixture } from "./pi-controls-test-fixture.js";
-const actionFile = `.paperclip-eval-action-${"a".repeat(36)}.txt`;
+const actionFile = `.nexus-eval-action-${"a".repeat(36)}.txt`;
 const digest = (value: unknown) => `sha256:${createHash("sha256").update(canonicalJson(value)).digest("hex")}`;
 function fixture() {
   const f = piControlFixture(), write = structuredClone(f.events);
   f.events.length = 0;
-  const read = { schema: "paperclip.tool.execution.v1", transport: "builtin", executionId: "setup-tool", name: "read", operation: "read", target: actionFile, status: "running" };
+  const read = { schema: "nexus.tool.execution.v1", transport: "builtin", executionId: "setup-tool", name: "read", operation: "read", target: actionFile, status: "running" };
   const request = { ...f.request, requestId: "setup-request", itemId: "setup-item", details: { toolCallId: "setup-tool" }, choices: [{ key: "accept", label: "Allow once" }, { key: "decline", label: "Deny" }] };
   f.append("tool.execution.started", read); f.append("runtime_request.created", { request });
   const finish = () => {
@@ -17,7 +17,7 @@ function fixture() {
     f.append("tool.execution.completed", { ...read, status: "completed" });
     for (const row of write) f.append(row.eventType, row.payload.prpEvent.payload);
   };
-  const proof = (): PiBootstrapApproval => ({ schema: "paperclip.e2e.pi-bootstrap-read-approval.v1", companyId: f.scope.companyId, issueId: f.scope.issueId, runId: f.scope.runId, actionFile, publishedSha256: `sha256:${"b".repeat(64)}`,
+  const proof = (): PiBootstrapApproval => ({ schema: "nexus.e2e.pi-bootstrap-read-approval.v1", companyId: f.scope.companyId, issueId: f.scope.issueId, runId: f.scope.runId, actionFile, publishedSha256: `sha256:${"b".repeat(64)}`,
     requestId: "setup-request", toolCallId: "setup-tool", turnId: "turn", normalizedSessionId: "session", sourceInstanceId: "source",
     createdRowSha256: digest(f.events[1]), resolvedRowSha256: digest(f.events[2]), completedRowSha256: digest(f.events[3]) });
   return { ...f, read, finish, proof };
@@ -56,8 +56,8 @@ describe("Pi operator setup read", () => {
       f.append("runtime_request.resolved", { requestId: "request", turnId: "turn", action: "decline" });
       f.append("tool.execution.completed", { ...f.tool, status: "failed", output: "Pi operation was denied or cancelled" });
       f.append("turn.completed", { status: "completed", error: null }); f.run.status = "succeeded"; f.issue.status = "done";
-      f.append("run.result.accepted", { result: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "done", summary: f.marker } }, { sourceKind: "control_plane", sourceInstanceId: "source:control", sourceSeq: 1, sourceEventId: "source:control:run:1" });
-      f.append("run.terminal", { schema: "paperclip.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "done" }, { sourceKind: "control_plane", sourceInstanceId: "source:control", sourceSeq: 2, sourceEventId: "source:control:run:2" });
+      f.append("run.result.accepted", { result: { schema: "nexus.run_result.v1", reportedWorkDisposition: "done", summary: f.marker } }, { sourceKind: "control_plane", sourceInstanceId: "source:control", sourceSeq: 1, sourceEventId: "source:control:run:1" });
+      f.append("run.terminal", { schema: "nexus.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "done" }, { sourceKind: "control_plane", sourceInstanceId: "source:control", sourceSeq: 2, sourceEventId: "source:control:run:2" });
       expect(readPiSteeringSettlement({ ...f.state(), pending, commentId: f.commentId, queueId: f.queueId, marker: f.marker, finalMessage: f.marker }).marker).toBe(f.marker);
     }
   });

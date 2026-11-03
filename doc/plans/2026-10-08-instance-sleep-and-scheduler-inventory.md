@@ -6,7 +6,7 @@ Status: Inventory with first delivery-coordinator implementation; full idle slee
 
 Code baseline: `0ac194450`
 
-Paperclip should release idle database connections and allow inactive customer
+Nexus should release idle database connections and allow inactive customer
 instances to sleep without losing scheduled work, incoming events, accounting,
 or recovery. Thousands of individually hosted instances make empty polling a
 material cost even when each query is cheap.

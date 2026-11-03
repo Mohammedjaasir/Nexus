@@ -1,4 +1,4 @@
-import { instanceSettings, plugins, type Db } from "@paperclipai/db";
+import { instanceSettings, plugins, type Db } from "@nexusai/db";
 import { eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 import { adapterSettingsService, readLegacyAdapterSettings } from "./adapter-settings.js";
@@ -8,7 +8,7 @@ import { isCloudManagedInstance, type CloudInstanceEnv } from "./cloud-instance.
 import { cloudConfigurationDigest, externalRegistrationEvidenceSchema, inspectLegacyExternalRegistrations } from "./cloud-configuration-evidence.js";
 import { cloudPackageEvidenceSchema, inspectCloudPackages, qualificationBlockerSchema } from "./cloud-package-qualification.js";
 import type { ResolvedBundledPlugin } from "./bundled-plugins.js";
-import type { PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import type { NexusPluginManifestV1 } from "@nexusai/shared";
 
 const RECEIPT_KEY = "cloud-configuration-migration:v1";
 const CONFIGURATION_KEYS = ["adapter-settings:v1", "cloud-runtime-config:v1"];
@@ -112,7 +112,7 @@ export function cloudConfigurationMigrationService(db: CloudConfigurationDb, opt
             completedAt: now(),
             adapter: { authority: adapterFromDatabase ? "database" : adapterCandidate ? "legacy_file" : "default", sourceDigest: cloudConfigurationDigest(adapterFromDatabase ? { disabledTypes: adapter.disabledTypes } : adapterCandidate), importedRevision: adapter.revision },
             config: { authority: configFromDatabase ? "database" : configCandidate ? "legacy_file" : "default", sourceDigest: cloudConfigurationDigest(configFromDatabase ? runtime.config : configCandidate), importedRevision: runtime.revision },
-            externalRegistrations: await inspectLegacyExternalRegistrations(getAdapterPluginStorePath(env.PAPERCLIP_HOME)),
+            externalRegistrations: await inspectLegacyExternalRegistrations(getAdapterPluginStorePath(env.NEXUS_HOME)),
           },
           qualification: null, lastPackageMismatch: null,
         };
@@ -126,7 +126,7 @@ export function cloudConfigurationMigrationService(db: CloudConfigurationDb, opt
         if (!row) throw new Error("Cloud configuration migration has not completed");
         const receipt = parseReceipt(row.general);
         if (receipt.revision !== expectedRevision) throw new Error("Cloud configuration migration receipt revision conflict");
-        const filePath = getAdapterPluginStorePath(env.PAPERCLIP_HOME);
+        const filePath = getAdapterPluginStorePath(env.NEXUS_HOME);
         if (cloudConfigurationDigest(filePath) !== receipt.migration.externalRegistrations.sourceLocatorDigest) {
           throw new Error("External registration recheck requires the original legacy source location");
         }
@@ -141,7 +141,7 @@ export function cloudConfigurationMigrationService(db: CloudConfigurationDb, opt
     async qualify(input: {
       installs: readonly ResolvedBundledPlugin[];
       catalogRoot?: string;
-      loadManifest: (packageRoot: string) => Promise<PaperclipPluginManifestV1 | null>;
+      loadManifest: (packageRoot: string) => Promise<NexusPluginManifestV1 | null>;
       expectedPackageEvidenceDigest?: string;
       imageCatalogUnavailable?: boolean;
     }) {

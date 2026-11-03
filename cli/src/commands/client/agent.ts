@@ -12,11 +12,11 @@ import {
   type Agent,
   type AgentWakeupResponse,
   type Issue,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   removeMaintainerOnlySkillSymlinks,
-  resolvePaperclipSkillsDir,
-} from "@paperclipai/adapter-utils/server-utils";
+  resolveNexusSkillsDir,
+} from "@nexusai/adapter-utils/server-utils";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -57,7 +57,7 @@ interface AgentWakeOptions extends BaseClientOptions {
 }
 
 interface AgentJsonPayloadOptions extends BaseClientOptions {
-  runner?: "auto" | "paperclip" | "legacy";
+  runner?: "auto" | "nexus" | "legacy";
   companyId?: string;
   payloadJson: string;
 }
@@ -215,10 +215,10 @@ function buildAgentEnvExports(input: {
 }): string {
   const escaped = (value: string) => value.replace(/'/g, "'\"'\"'");
   return [
-    `export PAPERCLIP_API_URL='${escaped(input.apiBase)}'`,
-    `export PAPERCLIP_COMPANY_ID='${escaped(input.companyId)}'`,
-    `export PAPERCLIP_AGENT_ID='${escaped(input.agentId)}'`,
-    `export PAPERCLIP_API_KEY='${escaped(input.apiKey)}'`,
+    `export NEXUS_API_URL='${escaped(input.apiBase)}'`,
+    `export NEXUS_COMPANY_ID='${escaped(input.companyId)}'`,
+    `export NEXUS_AGENT_ID='${escaped(input.agentId)}'`,
+    `export NEXUS_API_KEY='${escaped(input.apiKey)}'`,
   ].join("\n");
 }
 
@@ -350,7 +350,7 @@ export function registerAgentCommands(program: Command): void {
       .description("Create an agent from a JSON payload")
       .option("-C, --company-id <id>", "Company ID")
       .requiredOption("--payload-json <json>", "CreateAgent JSON payload")
-      .option("--runner <runner>", "Runner: auto (default), paperclip, or legacy")
+      .option("--runner <runner>", "Runner: auto (default), nexus, or legacy")
       .action(async (opts: AgentJsonPayloadOptions) => {
         try {
           const ctx = resolveCommandContext(opts, { requireCompany: true });
@@ -370,7 +370,7 @@ export function registerAgentCommands(program: Command): void {
       .description("Create an agent hire request")
       .option("-C, --company-id <id>", "Company ID")
       .requiredOption("--payload-json <json>", "CreateAgentHire JSON payload")
-      .option("--runner <runner>", "Runner: auto (default), paperclip, or legacy")
+      .option("--runner <runner>", "Runner: auto (default), nexus, or legacy")
       .action(async (opts: AgentJsonPayloadOptions) => {
         try {
           const ctx = resolveCommandContext(opts, { requireCompany: true });
@@ -776,14 +776,14 @@ export function registerAgentCommands(program: Command): void {
     agent
       .command("local-cli")
       .description(
-        "Create an agent API key, install local Paperclip skills for Codex/Claude, and print shell exports",
+        "Create an agent API key, install local Nexus skills for Codex/Claude, and print shell exports",
       )
       .argument("<agentRef>", "Agent ID or shortname/url-key")
       .requiredOption("-C, --company-id <id>", "Company ID")
       .option("--key-name <name>", "API key label", "local-cli")
       .option(
         "--no-install-skills",
-        "Skip installing Paperclip skills into ~/.codex/skills, ~/.claude/skills, and ~/.kimi-code/skills",
+        "Skip installing Nexus skills into ~/.codex/skills, ~/.claude/skills, and ~/.kimi-code/skills",
       )
       .action(async (agentRef: string, opts: AgentLocalCliOptions) => {
         try {
@@ -805,10 +805,10 @@ export function registerAgentCommands(program: Command): void {
 
           const installSummaries: SkillsInstallSummary[] = [];
           if (opts.installSkills !== false) {
-            const skillsDir = await resolvePaperclipSkillsDir(__moduleDir, [path.resolve(process.cwd(), "skills")]);
+            const skillsDir = await resolveNexusSkillsDir(__moduleDir, [path.resolve(process.cwd(), "skills")]);
             if (!skillsDir) {
               throw new Error(
-                "Could not locate local Paperclip skills directory. Expected ./skills in the repo checkout.",
+                "Could not locate local Nexus skills directory. Expected ./skills in the repo checkout.",
               );
             }
 

@@ -1,4 +1,4 @@
-import type { AgentConfigurationDocument } from "@paperclipai/shared";
+import type { AgentConfigurationDocument } from "@nexusai/shared";
 import { toolsApi } from "../../api/tools";
 import { equal, policyAgentIds, profileConfiguration, type AgentConfigurationSnapshot } from "./load";
 import { requireItem, requireExplicitFields, unique, type AddConfigurationStep } from "./steps";

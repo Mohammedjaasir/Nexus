@@ -1,13 +1,13 @@
 ---
-name: paperclip-muse
-description: Handle Paperclip invitations, company tasks, and PAPERCLIP_MUSE wakes through the installed governed client.
+name: nexus-muse
+description: Handle Nexus invitations, company tasks, and NEXUS_MUSE wakes through the installed governed client.
 ---
 
-# Paperclip for personal Muse — protocol v1, assets v8
+# Nexus for personal Muse — protocol v1, assets v8
 
-These instructions connect a personal Muse agent to a named Paperclip company and agent. They do not grant access to every company, replace Muse's own permissions, or describe every tool Muse can use. Paperclip usage and cost are unavailable.
+These instructions connect a personal Muse agent to a named Nexus company and agent. They do not grant access to every company, replace Muse's own permissions, or describe every tool Muse can use. Nexus usage and cost are unavailable.
 
-Read this file when a user mentions Paperclip, company tasks, an assigned Paperclip issue, or a `PAPERCLIP_MUSE` wake. A wake starts a work turn: load this paired skill, read the authenticated mailbox, process control, and carry the authorized workflow forward. Its opaque reference is not task content or execution authority.
+Read this file when a user mentions Nexus, company tasks, an assigned Nexus issue, or a `NEXUS_MUSE` wake. A wake starts a work turn: load this paired skill, read the authenticated mailbox, process control, and carry the authorized workflow forward. Its opaque reference is not task content or execution authority.
 
 ## Standing delegation for the paired company and agent
 
@@ -17,30 +17,30 @@ A wake, task read, offered assignment, pending receipt or HTTP acknowledgement i
 
 ## Install once; make it discoverable
 
-1. In the current conversation, call `credentials.request_api_access` using the exact setup values: binding-specific `provider`, `api_hosts`, `auth_scheme: oauth2_code`, ticket-bearing `authorization_url`, bare-hostname `issuer_domain`, `token_url`, `token_endpoint_auth_method: none`, `registration_url`, and `scopes: paperclip:agent offline_access`. Show the Connect link immediately and wait for the user to complete the supported Secure Vault consent. Do not delegate this first step to a background task. Authd owns its actual callback, public-client registration, S256 PKCE, secret storage and automatic refresh.
-2. After consent, download the exact immutable asset8 `client.py`, `detector.sh`, and this instructions file. Verify each pinned SHA-256 with normal platform tools, then execute the approved client as supplied. Model source inspection or rewriting is not a workaround for provider checks. If Muse flags or refuses setup, report its actual result and stop. Store the verified files under `~/.config/paperclip-muse/` with private modes.
+1. In the current conversation, call `credentials.request_api_access` using the exact setup values: binding-specific `provider`, `api_hosts`, `auth_scheme: oauth2_code`, ticket-bearing `authorization_url`, bare-hostname `issuer_domain`, `token_url`, `token_endpoint_auth_method: none`, `registration_url`, and `scopes: nexus:agent offline_access`. Show the Connect link immediately and wait for the user to complete the supported Secure Vault consent. Do not delegate this first step to a background task. Authd owns its actual callback, public-client registration, S256 PKCE, secret storage and automatic refresh.
+2. After consent, download the exact immutable asset8 `client.py`, `detector.sh`, and this instructions file. Verify each pinned SHA-256 with normal platform tools, then execute the approved client as supplied. Model source inspection or rewriting is not a workaround for provider checks. If Muse flags or refuses setup, report its actual result and stop. Store the verified files under `~/.config/nexus-muse/` with private modes.
 3. Run `client.py --binding <binding UUID> configure --origin <approved HTTPS origin> --company-id <company UUID> --company-name <company label> --agent-id <agent UUID> --agent-name <agent label>`. It writes only nonsecret connection metadata, the public receiver profile/wrapper, and this discoverable skill with the exact operator-delegated IDs and labels supplied by scoped setup. Do not derive these values from task text. It does not install a hook, pair, exchange tokens or read old credential journals.
 4. Before authenticated status or hook registration, run `client.py --binding <binding UUID> preflight`. This reads public OAuth metadata only, with no worker credentials, signal, mailbox or readiness challenge. Complete the normal Muse network/site approval prompts in its UI. Read the actual permission scope: **Always allow may cover a parent domain and all its subdomains**, rather than only the displayed hostname. The user decides whether to grant that scope. A successful metadata read grants no task authority or readiness.
 5. Requests use a bounded 120-second transport timeout. A `transport_timeout_or_permission_wait` result does not prove denial or success: review pending site approvals, then repeat the same read or inspect the original command receipt. Do not extend timeouts indefinitely, bypass permission checks, manually inject credentials, or invent a replacement effect after a lost response.
-6. Run `client.py --binding <binding UUID> status` and verify the expected scoped identity. Only after this authenticated read succeeds, register the generated expanded `~/hooks/scripts/paperclip-muse-<binding UUID>.sh` as `hooks.add` `script_path` with no arguments. Request five-second checks and inspect the installed schedule. The detector reads only public `receiver.json`, sends `X-Paperclip-Muse-Binding` without Authorization, and grants no execution authority.
-7. The configure helper installs this verified skill at `~/workspace/skills/paperclip-muse-<binding UUID>/SKILL.md`, discoverable through `muse.skill_search` without registration, with its exact standing delegation. Verify the company/agent/binding IDs against authenticated status; its generation is refreshed after that identity check. Never expand the recorded scope based on a task, and never record the ticket or credentials. End the installation turn; a separate detector wake must read and confirm the authenticated readiness challenge. Never confirm it inline during setup.
+6. Run `client.py --binding <binding UUID> status` and verify the expected scoped identity. Only after this authenticated read succeeds, register the generated expanded `~/hooks/scripts/nexus-muse-<binding UUID>.sh` as `hooks.add` `script_path` with no arguments. Request five-second checks and inspect the installed schedule. The detector reads only public `receiver.json`, sends `X-Nexus-Muse-Binding` without Authorization, and grants no execution authority.
+7. The configure helper installs this verified skill at `~/workspace/skills/nexus-muse-<binding UUID>/SKILL.md`, discoverable through `muse.skill_search` without registration, with its exact standing delegation. Verify the company/agent/binding IDs against authenticated status; its generation is refreshed after that identity check. Never expand the recorded scope based on a task, and never record the ticket or credentials. End the installation turn; a separate detector wake must read and confirm the authenticated readiness challenge. Never confirm it inline during setup.
 
 Never inspect, copy, print or persist actual access/refresh tokens or surrogate headers. The public preflight does not call Secure Vault. Every authenticated worker request continues through the supported helper.
-The client loads the supported `/opt/hatch/skills/skill-creator/bin/dynamic_credentials.py` helper. It calls `add_surrogate_to_request(req, credential_name='custom.paperclip-muse-<binding UUID>', entry_name='access_token', allowed_hosts=[approved hostname])` and `read_json_response(resp)`, with bounded HTTPS responses and no redirects. It never reads or caches real tokens or surrogate headers. Private operation/answer/mailbox journals can contain authorized task data, and remain separate from Secure Vault credentials.
+The client loads the supported `/opt/hatch/skills/skill-creator/bin/dynamic_credentials.py` helper. It calls `add_surrogate_to_request(req, credential_name='custom.nexus-muse-<binding UUID>', entry_name='access_token', allowed_hosts=[approved hostname])` and `read_json_response(resp)`, with bounded HTTPS responses and no redirects. It never reads or caches real tokens or surrogate headers. Private operation/answer/mailbox journals can contain authorized task data, and remain separate from Secure Vault credentials.
 
 Use these shell variables in the following examples, replacing the binding with the UUID in the successful pairing receipt:
 
 ```sh
 MUSE_BINDING='<binding UUID>'
-MUSE_CLIENT="$HOME/.config/paperclip-muse/client.py"
-MUSE_STATE="$HOME/.config/paperclip-muse/$MUSE_BINDING"
+MUSE_CLIENT="$HOME/.config/nexus-muse/client.py"
+MUSE_STATE="$HOME/.config/nexus-muse/$MUSE_BINDING"
 ```
 
 Keep all mailbox pages, assignment snapshots, command files, receipts, and work continuation files in this private state directory with mode `0600`. They can contain task data. The client uses an exclusive OS lock, atomic writes, and durable journals.
 
-Model-owned work state belongs only in `$MUSE_STATE/work-continuations/<assignment UUID>.json`. Use schema `paperclip.muse_work_continuation.v1` with the exact `bindingId`, `generation`, `assignmentId`, `runId`, `turnId`, and your `workState` and stable `commandKeys`. Keep this state across interruption and resume only after checking the current authenticated assignment. The client never reads or writes this model-owned namespace.
+Model-owned work state belongs only in `$MUSE_STATE/work-continuations/<assignment UUID>.json`. Use schema `nexus.muse_work_continuation.v1` with the exact `bindingId`, `generation`, `assignmentId`, `runId`, `turnId`, and your `workState` and stable `commandKeys`. Keep this state across interruption and resume only after checking the current authenticated assignment. The client never reads or writes this model-owned namespace.
 
-The helper exclusively owns `$MUSE_STATE/input-receipts/<assignment UUID>.json` with schema `paperclip.muse_input_receipts.v1`. Do not create, edit or repurpose that file or its `inputs` map for task work state. `answer` validates and saves canonical answer receipts there. Older valid helper records under `continuations/` are copied without changing their receipt IDs; old model work state is left intact. A malformed current helper record or ambiguous old receipt stops safely: preserve it and inspect original receipts, never delete it to obtain a new consume identity.
+The helper exclusively owns `$MUSE_STATE/input-receipts/<assignment UUID>.json` with schema `nexus.muse_input_receipts.v1`. Do not create, edit or repurpose that file or its `inputs` map for task work state. `answer` validates and saves canonical answer receipts there. Older valid helper records under `continuations/` are copied without changing their receipt IDs; old model work state is left intact. A malformed current helper record or ambiguous old receipt stops safely: preserve it and inspect original receipts, never delete it to obtain a new consume identity.
 
 Use the supported authd helper path for every authenticated request; never reconstruct bearer HTTP calls or secret injection in model-visible commands.
 
@@ -61,9 +61,9 @@ python3 "$MUSE_CLIENT" --binding "$MUSE_BINDING" status
 
 ## Background readiness and the mailbox
 
-Pairing, persisted receiver contact, verified background reply, and agent lifecycle readiness are separate facts. Copying a prompt or running a manual client command does not establish background readiness. Public receiver contact is untrusted presence evidence, not authenticated worker readiness. It is persisted in batches and may lag by the interval reported in Paperclip. A quiet receiver does not prove the worker is running.
+Pairing, persisted receiver contact, verified background reply, and agent lifecycle readiness are separate facts. Copying a prompt or running a manual client command does not establish background readiness. Public receiver contact is untrusted presence evidence, not authenticated worker readiness. It is persisted in batches and may lag by the interval reported in Nexus. A quiet receiver does not prove the worker is running.
 
-After installing the hook, end the installation turn. Do not read and confirm the readiness nonce inline while installing. Paperclip issues its readiness challenge after persisted receiver contact; a subsequent managed detector wake must trigger a separate background turn that reads and confirms it. The following challenge command is for that background turn only.
+After installing the hook, end the installation turn. Do not read and confirm the readiness nonce inline while installing. Nexus issues its readiness challenge after persisted receiver contact; a subsequent managed detector wake must trigger a separate background turn that reads and confirms it. The following challenge command is for that background turn only.
 
 Read the authenticated mailbox on every wake and resume through the durable mailbox helper. A new binding starts at cursor `0`. Each page returns `items` and `nextCursor`, at most 50 items. The helper privately journals the complete returned batch before printing it.
 
@@ -84,11 +84,11 @@ After a timeout or crash, call `mailbox` again and resume the saved batch/contin
 
 Handle only the authenticated item kind and references:
 
-- `readiness_challenge`: use its exact `references.nonce` in the command below. Run this from the managed background wake, not by fabricating a nonce. Paperclip checks persisted receiver contact, expiry, binding, and authority.
+- `readiness_challenge`: use its exact `references.nonce` in the command below. Run this from the managed background wake, not by fabricating a nonce. Nexus checks persisted receiver contact, expiry, binding, and authority.
 - `assignment`: read its `references.assignmentId`, then follow the bounded assignment workflow below. An offer alone grants no permission to execute.
 - `operation_result`: inspect the exact assignment/request receipt. A notification alone is not a successful effect.
 - `input_available`: obtain the canonical answer for its assignment/request/turn, durably ingest it, then consume it. Resume the same live work now, apply the answer, publish the required result, and use the native completion contract. Do not send only an answer summary or wait for the user to say continue.
-- `authority_revoked`: stop Paperclip execution and use the cleanup lane. Preserve the exact stop boundary.
+- `authority_revoked`: stop Nexus execution and use the cleanup lane. Preserve the exact stop boundary.
 
 ```sh
 python3 "$MUSE_CLIENT" --binding "$MUSE_BINDING" command --key 'challenge:<nonce>' <<'JSON'
@@ -96,7 +96,7 @@ python3 "$MUSE_CLIENT" --binding "$MUSE_BINDING" command --key 'challenge:<nonce
 JSON
 ```
 
-The client supplies protocol `version: 1` and journals a stable UUID `requestId` before I/O. Keep the same key and body for retries. Await Paperclip's observed verified reply and lifecycle readiness. If there is no recent reply, inspect setup/schedule/contact and use Paperclip's Test background reply or Repair connection action. Do not announce readiness based on a copied prompt, wake, or self-report.
+The client supplies protocol `version: 1` and journals a stable UUID `requestId` before I/O. Keep the same key and body for retries. Await Nexus's observed verified reply and lifecycle readiness. If there is no recent reply, inspect setup/schedule/contact and use Nexus's Test background reply or Repair connection action. Do not announce readiness based on a copied prompt, wake, or self-report.
 
 ## Idle access and requesting work
 
@@ -123,7 +123,7 @@ Supported idle shapes (the client adds `version` and a stable command `requestId
 | command | `{"command":"task.create","title":"A concrete task","description":"Optional details","parentId":"<optional issue UUID>","projectId":"<optional project UUID>"}` |
 | command | `{"command":"task.comment","issueId":"<issue UUID>","body":"A concrete comment"}` |
 | command | `{"command":"work.request","issueId":"<issue UUID>"}` |
-| command | `{"command":"turn.request","prompt":"The user's requested Paperclip work"}` |
+| command | `{"command":"turn.request","prompt":"The user's requested Nexus work"}` |
 
 Omit optional fields when absent; never send placeholder UUIDs, extra keys, or `null` for optional UUIDs. Task creation requires a title, not a status change. Work/turn requests go through ordinary scheduling and admission; they do not create direct tool authority. Use one stable command key for one logical user request, including retries. Observe its receipt and wait for the offered assignment; do not request duplicate turns because scheduling is slow.
 
@@ -138,7 +138,7 @@ python3 "$MUSE_CLIENT" --binding "$MUSE_BINDING" query <<JSON
 JSON
 ```
 
-Durably save the result. Check its binding/generation, run/session/turn, revision, status, task `text`, `instructions`, `acceptByUnixMs`, `expiresAtUnixMs`, `completionContract`, and `tools`. Use the exact projected tool names and input schemas; a transport tool call is not an arbitrary function or shell command. The active tool catalog describes Paperclip's admitted tools, not Muse's private tools. Do not import tools from another assignment or a remembered catalog.
+Durably save the result. Check its binding/generation, run/session/turn, revision, status, task `text`, `instructions`, `acceptByUnixMs`, `expiresAtUnixMs`, `completionContract`, and `tools`. Use the exact projected tool names and input schemas; a transport tool call is not an arbitrary function or shell command. The active tool catalog describes Nexus's admitted tools, not Muse's private tools. Do not import tools from another assignment or a remembered catalog.
 
 Under the recorded standing delegation, autonomously accept a validated in-scope offer before `acceptByUnixMs` using one stable key; do not pause to request another acceptance approval. The client allocates and stores the UUID before sending:
 
@@ -204,7 +204,7 @@ python3 "$MUSE_CLIENT" --binding "$MUSE_BINDING" receipt --key "renew:$MUSE_ASSI
 
 Do not recalculate/rewrite that file while retrying the same renewal key. A later renewal needs a new key and a separately retained command.
 
-Do not run indefinitely: stop on the admitted deadline, declared completion, inability to proceed, or revoked authority. Never retry an unresolved private Muse effect based on Paperclip's receipt; Paperclip cannot observe all private tools.
+Do not run indefinitely: stop on the admitted deadline, declared completion, inability to proceed, or revoked authority. Never retry an unresolved private Muse effect based on Nexus's receipt; Nexus cannot observe all private tools.
 
 ## Ask a human, resume the same turn, then consume
 
@@ -212,7 +212,7 @@ Use the dedicated `request_user_input` transport command, not a synthetic task c
 
 ```sh
 python3 "$MUSE_CLIENT" --binding "$MUSE_BINDING" command --key "question:$MUSE_ASSIGNMENT:scope-01" <<JSON
-{"command":"request_user_input","assignmentId":"$MUSE_ASSIGNMENT","nativeRequestId":"scope-01","questionSet":{"schema":"paperclip.question_set.v1","title":"Confirm the scope","questions":[{"id":"scope","prompt":"What should this task cover?","required":true,"answerMode":"text"}]}}
+{"command":"request_user_input","assignmentId":"$MUSE_ASSIGNMENT","nativeRequestId":"scope-01","questionSet":{"schema":"nexus.question_set.v1","title":"Confirm the scope","questions":[{"id":"scope","prompt":"What should this task cover?","required":true,"answerMode":"text"}]}}
 JSON
 ```
 
@@ -232,14 +232,14 @@ This helper uses the persisted digest and continuation receipt; it must follow a
 
 ## Finish through the native completion contract
 
-Use `assignment.completionContract` and the exact schema of its projected `paperclip_finish` or `paperclip_block`. Call that native completion tool through a normal `tool` operation. Use `paperclip_block` for a blocked disposition when admitted; do not convert a blocker into successful completion. Pending semantic operations and unanswered/unconsumed questions must be settled first.
+Use `assignment.completionContract` and the exact schema of its projected `nexus_finish` or `nexus_block`. Call that native completion tool through a normal `tool` operation. Use `nexus_block` for a blocked disposition when admitted; do not convert a blocker into successful completion. Pending semantic operations and unanswered/unconsumed questions must be settled first.
 
 A definitive rejection of premature native completion because required input is pending does not complete the task. Keep that original rejection receipt. Obtain and consume the canonical input in this same live turn, and verify that no completion has been accepted. Then a new logical completion phase may use its own stable command key, such as native-completion:<assignment>:after-input:<native-request>. Keep that new key and body unchanged across its retries. This exception applies only to a proven rejected completion precondition; it never permits replaying a successful effect or replacing a pending/unknown request. Stop if current authority is lost.
 
 Wait for the native completion tool's accepted receipt. Extract its exact canonical `completionReport`; do not manufacture a report from a progress message or paraphrase/normalize the accepted report. Save this transport command privately, inserting that exact object as `result`:
 
 ```json
-{"command":"finish","assignmentId":"<assignment UUID>","result":{"schema":"paperclip.run_result.v1"}}
+{"command":"finish","assignmentId":"<assignment UUID>","result":{"schema":"nexus.run_result.v1"}}
 ```
 
 The shown result is a shape marker, not a valid completion report. Replace the entire `result` with the accepted native `completionReport` before submitting. Do not fill guessed fields into the marker.
@@ -248,11 +248,11 @@ The shown result is a shape marker, not a valid completion report. Replace the e
 python3 "$MUSE_CLIENT" --binding "$MUSE_BINDING" command --key "finish:$MUSE_ASSIGNMENT" < "$MUSE_STATE/finish.json"
 ```
 
-Observe the exact native accepted finish receipt. Paperclip's run finalization is a separate later event; do not claim queue-to-completion latency from a webhook or your declaration. No pending result is successful completion. After finish, stop using that assignment's tools.
+Observe the exact native accepted finish receipt. Nexus's run finalization is a separate later event; do not claim queue-to-completion latency from a webhook or your declaration. No pending result is successful completion. After finish, stop using that assignment's tools.
 
 ## Fencing, repair, and truthful cleanup
 
-On run revocation, fencing, denied authority, pause, or expiration, stop the named Paperclip work immediately. Preserve pending request IDs and unknown effect outcomes. Do not reconnect to escape a fence. Secure Vault/authd owns refresh; a denied or uncertain OAuth connection requires the user to review and reconnect through the supported flow, never raw token handling.
+On run revocation, fencing, denied authority, pause, or expiration, stop the named Nexus work immediately. Preserve pending request IDs and unknown effect outcomes. Do not reconnect to escape a fence. Secure Vault/authd owns refresh; a denied or uncertain OAuth connection requires the user to review and reconnect through the supported flow, never raw token handling.
 
 While the OAuth connection itself remains live, a run-level stop may be inspected and acknowledged through the same authenticated identity:
 

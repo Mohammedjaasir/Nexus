@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, authUsers, companies, companyMemberships, createDb, heartbeatRunEvents, heartbeatRuns, issues } from "@paperclipai/db";
+import { agents, authUsers, companies, companyMemberships, createDb, heartbeatRunEvents, heartbeatRuns, issues } from "@nexusai/db";
 import { registerServerAdapter, unregisterServerAdapter, type AdapterExecutionContext } from "../adapters/index.js";
 import { heartbeatService } from "../services/heartbeat.js";
 import { getRunLogStore } from "../services/run-log-store.js";
@@ -70,7 +70,7 @@ describePostgres("heartbeat output through adapter dispatch and finalization", (
       await input.onLog("stdout", `first: Authorization: Bearer ${secret}\n`);
       await input.onLog("stdout", `${"x".repeat(10_000)}live-tail\n`);
       await input.onLog("stderr", "last stderr\n");
-      await input.onMeta?.({ adapterType, command: "fixture", env: { PAPERCLIP_API_KEY: secret }, prompt: "fixture prompt" });
+      await input.onMeta?.({ adapterType, command: "fixture", env: { NEXUS_API_KEY: secret }, prompt: "fixture prompt" });
       await input.onEvent?.({ eventType: "  fixture.progress  ", stream: "system", level: "info", message: "fixture event", payload: { step: 1 } });
       await input.onEvent?.({ eventType: "   ", stream: "system", level: "info", message: "ignored blank event" });
     });
@@ -95,7 +95,7 @@ describePostgres("heartbeat output through adapter dispatch and finalization", (
       expect(finished.lastOutputAt).toEqual(new Date(entries.at(-1).ts));
       const events = await db.select().from(heartbeatRunEvents).where(eq(heartbeatRunEvents.runId, finished.id));
       expect(JSON.stringify(events)).not.toContain(secret);
-      expect(events.find(event => event.eventType === "adapter.invoke")?.payload).toMatchObject({ env: { PAPERCLIP_API_KEY: "***REDACTED***" } });
+      expect(events.find(event => event.eventType === "adapter.invoke")?.payload).toMatchObject({ env: { NEXUS_API_KEY: "***REDACTED***" } });
       expect(events.find(event => event.eventType === "fixture.progress")).toMatchObject({ message: "fixture event", payload: { step: 1 } });
       expect(events.some(event => event.message === "ignored blank event")).toBe(false);
     } finally { unsubscribe(); }

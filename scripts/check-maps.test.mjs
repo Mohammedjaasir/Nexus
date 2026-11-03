@@ -14,7 +14,7 @@ Gaps: native mutation path.
 `;
 
 function fixture(t) {
-  const root = mkdtempSync(path.join(os.tmpdir(), "paperclip-map-contract-"));
+  const root = mkdtempSync(path.join(os.tmpdir(), "nexus-map-contract-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ["maps/feature-map", "maps/agent-access-map"]) mkdirSync(path.join(root, dir), { recursive: true });
   const product = path.join(root, "maps/feature-map/example.md");

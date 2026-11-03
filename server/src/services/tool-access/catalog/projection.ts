@@ -1,5 +1,5 @@
-import { toolCatalogEntries } from "@paperclipai/db";
-import type { ToolCatalogEntry } from "@paperclipai/shared";
+import { toolCatalogEntries } from "@nexusai/db";
+import type { ToolCatalogEntry } from "@nexusai/shared";
 
 export function toCatalogEntry(
   row: typeof toolCatalogEntries.$inferSelect,

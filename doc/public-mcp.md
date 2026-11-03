@@ -1,15 +1,15 @@
-# Public Paperclip MCP connection
+# Public Nexus MCP connection
 
 The first-release implementation connects an external assistant **as a person**
 to one explicitly selected company. It exposes first-party task operations and
-keeps normal Paperclip authorization, scheduling, attribution, budgets and
+keeps normal Nexus authorization, scheduling, attribution, budgets and
 approvals. The existing named agent gateways and native runner checks remain
 separate. The accepted roadmap is in
-[the implementation plan](plans/2026-09-30-paperclip-public-mcp-and-plugins.md).
+[the implementation plan](plans/2026-09-30-nexus-public-mcp-and-plugins.md).
 
 ## Enable an instance
 
-Apply database migrations with the normal instance upgrade workflow. In Paperclip,
+Apply database migrations with the normal instance upgrade workflow. In Nexus,
 open **Settings → Experimental → Assistant connections (MCP)** and turn it on.
 Instance administrators can change this setting. It is off by default and takes
 effect immediately without restarting the server.
@@ -17,10 +17,10 @@ effect immediately without restarting the server.
 Use the instance's configured authentication public URL, or explicitly set:
 
 ```sh
-PAPERCLIP_PUBLIC_URL=https://YOUR-PAPERCLIP-HOST
+NEXUS_PUBLIC_URL=https://YOUR-NEXUS-HOST
 ```
 
-The retired `PAPERCLIP_PUBLIC_MCP_ENABLED` variable has no effect. The persisted
+The retired `NEXUS_PUBLIC_MCP_ENABLED` variable has no effect. The persisted
 `enablePublicMcp` setting controls discovery, sign-in, tools and event delivery.
 Turning it off blocks new calls and deliveries; already delegated work continues.
 Connection management and revocation remain available. Turning it back on allows
@@ -32,7 +32,7 @@ default. Use authenticated deployment with real user accounts and company
 memberships; local implicit board authority and agent/board API keys cannot
 approve user OAuth connections. Configure `TRUST_PROXY` correctly at your edge.
 
-The endpoint is `POST /mcp/paperclip`, using stateless Streamable HTTP with JSON
+The endpoint is `POST /mcp/nexus`, using stateless Streamable HTTP with JSON
 responses. GET/SSE sessions are unnecessary. Each invocation verifies its bearer
 token again; normal API endpoints do not accept these OAuth tokens. Public
 installation requires a reachable HTTPS deployment. Private self-hosted
@@ -47,7 +47,7 @@ authorization.
 ## Start from Connections
 
 Inside your organization, open **Connectors → Assistant Connection (MCP) → Set up**.
-This connects an outside assistant to Paperclip using your human account; no agent
+This connects an outside assistant to Nexus using your human account; no agent
 is selected or impersonated. The entry is discoverable while disabled, but its
 setup instructions require the experimental setting. Follow **Open Experimental
 settings**, enable **Assistant connections (MCP)**, then return to setup.
@@ -65,11 +65,11 @@ provide the same version-aware instructions for assistants without browser acces
 connectors and headless clients. Browser clients may require adding a connector
 in their settings; reading an invitation cannot install one. A running client may
 need a restart or a fresh conversation to load its tools. Verify the organization
-with `paperclip_connection` before doing work. Keep existing client configuration,
-and use a distinct server name when another Paperclip instance is already present.
+with `nexus_connection` before doing work. Keep existing client configuration,
+and use a distinct server name when another Nexus instance is already present.
 
-For OpenCode, merge the displayed `mcp.paperclip` entry into your project’s
-`opencode.json`, run `opencode mcp auth paperclip` there, approve the organization,
+For OpenCode, merge the displayed `mcp.nexus` entry into your project’s
+`opencode.json`, run `opencode mcp auth nexus` there, approve the organization,
 then start `opencode web`. Restart an already-running OpenCode after authentication.
 An assistant invoking authorization through a shell tool must keep the command
 alive in a persistent terminal or background process and share its approval URL
@@ -105,17 +105,17 @@ After the instance is enabled and reachable, an existing team member can connect
 without a store listing. For Codex CLI:
 
 ```sh
-codex mcp add paperclip --url https://YOUR-PAPERCLIP-HOST/mcp/paperclip
-codex mcp login paperclip --scopes paperclip:read,paperclip:write,paperclip:configure,offline_access
+codex mcp add nexus --url https://YOUR-NEXUS-HOST/mcp/nexus
+codex mcp login nexus --scopes nexus:read,nexus:write,nexus:configure,offline_access
 ```
 
 For Claude Code:
 
 ```sh
-claude mcp add --transport http paperclip https://YOUR-PAPERCLIP-HOST/mcp/paperclip
+claude mcp add --transport http nexus https://YOUR-NEXUS-HOST/mcp/nexus
 ```
 
-Open Claude Code's `/mcp` menu and authenticate the Paperclip server. Both flows
+Open Claude Code's `/mcp` menu and authenticate the Nexus server. Both flows
 open browser sign-in and consent: review the selected organization (or choose one for a direct instance connection) and review the write-access checkbox. It starts checked when the assistant requests
 writes and your organization role allows them; uncheck it for read-only access. Read-only consent cannot delegate work.
 
@@ -123,7 +123,7 @@ Ask the assistant to identify the connected organization and list its agents, th
 it to delegate a small task to an available agent. The returned task link is the
 durable reference. In a later conversation, ask for that task's progress and
 report. Configure the agent's provider credentials, execution environment and
-budget in Paperclip before expecting it to run; the assistant connection does
+budget in Nexus before expecting it to run; the assistant connection does
 not supply them. Revocation is available at `/assistant-connections`.
 
 The optional [workflow packages](../integrations/assistant-plugins/README.md)
@@ -136,8 +136,8 @@ installation requires the separate deployment and submission work below.
 With a CLI build that includes this feature:
 
 ```sh
-paperclipai mcp login --device --url https://YOUR-PAPERCLIP-HOST/mcp/paperclip
-paperclipai mcp proxy --url https://YOUR-PAPERCLIP-HOST/mcp/paperclip
+nexusai mcp login --device --url https://YOUR-NEXUS-HOST/mcp/nexus
+nexusai mcp proxy --url https://YOUR-NEXUS-HOST/mcp/nexus
 ```
 
 Add `--company <organization UUID>` to login to restrict the consent choice.
@@ -146,8 +146,8 @@ the code, and approve or decline. The private device code and issued tokens stay
 inside the CLI. Configure the second command as a local stdio MCP server in a host
 without native device support. Do not copy tokens into chat or MCP configuration.
 
-The CLI stores credentials separately under `$PAPERCLIP_HOME/mcp` (default
-`~/.paperclip/mcp`), with a private directory and files, atomic replacement and a
+The CLI stores credentials separately under `$NEXUS_HOME/mcp` (default
+`~/.nexus/mcp`), with a private directory and files, atomic replacement and a
 cross-process refresh mutex. It forwards only to the exact bound resource and
 rejects redirects. A failed write is never retried automatically because it may
 already have completed. Revoke access from Connections when finished.
@@ -166,7 +166,7 @@ does not advertise device or CIMD support until separately implemented.
 
 ## Identity and consent
 
-- Protected-resource discovery: `/.well-known/oauth-protected-resource/mcp/paperclip`.
+- Protected-resource discovery: `/.well-known/oauth-protected-resource/mcp/nexus`.
 - Authorization-server discovery: `/.well-known/oauth-authorization-server`.
 - Public-client registration: `/mcp/oauth/register`.
 - Authorization, token and revocation endpoints: `/mcp/oauth/authorize`,
@@ -194,7 +194,7 @@ clients. CIMD uses an HTTPS client ID URL with an exact matching `client_id`,
 required registered redirects, a 32 KiB response limit, a bounded cache, and
 guarded DNS/HTTP fetching that rejects private networks and redirects. Supplied
 names are not proof of a brand identity. Client documents can list capabilities
-used with other servers; Paperclip retains only its implemented grants. Extra
+used with other servers; Nexus retains only its implemented grants. Extra
 capabilities such as Claude web’s JWT-bearer grant do not enable that grant here.
 Verified native loopback callbacks may vary only their port; the exact authorized
 callback remains bound to code redemption. Authorization responses include `iss`.
@@ -212,9 +212,9 @@ revoked or their agent/operator loses access. Migration `0319_heavy_captain_midl
 removes the old expiry from valid, unused Dot refresh tokens on unrevoked grants.
 Expired credentials remain expired.
 Replaying a consumed refresh token still revokes its entire grant. Tokens and codes
-are hashed at rest. `paperclip:read` is required; `paperclip:write` adds only task
-work and attachment mutations on direct connections. The `paperclip:configure`
-scope covers allowed configuration operations. One **Write all of your Paperclip
+are hashed at rest. `nexus:read` is required; `nexus:write` adds only task
+work and attachment mutations on direct connections. The `nexus:configure`
+scope covers allowed configuration operations. One **Write all of your Nexus
 data** consent checkbox approves both requested mutation scopes. Scope expansion
 requires a new consent flow; the directory broker retains its original operations.
 
@@ -231,7 +231,7 @@ registration. Clients with grants are retained, preserving their connections and
 audit/mutation history.
 
 Revocation blocks future calls; it does not cancel already delegated work or
-undo in-flight mutations. Manage existing tasks and execution in Paperclip.
+undo in-flight mutations. Manage existing tasks and execution in Nexus.
 Audit records identify the human caller and connection/client for mutations.
 OAuth credential bodies and redirect locations are redacted from HTTP logs.
 
@@ -239,16 +239,16 @@ OAuth credential bodies and redirect locations are redacted from HTTP logs.
 
 | Tool | Effect |
 | --- | --- |
-| `paperclip_connection` | Person, company, scopes, connection management link |
-| `paperclip_list_agents` | Safe agent summary and availability |
-| `paperclip_list_projects` | Safe project summary |
-| `paperclip_search_tasks` | Bounded task search with offset pagination |
-| `paperclip_read_task` | Current task plus recent comments/history |
-| `paperclip_create_task` | Assigned task, submitted to existing scheduling |
-| `paperclip_add_comment` | Human feedback; may wake or queue work |
-| `paperclip_list_deliverables` | Documents, attachments and work-product references |
-| `paperclip_read_document` | Durable document body and current revision |
-| `paperclip_pending_approvals` | Pending approvals and existing decision links |
+| `nexus_connection` | Person, company, scopes, connection management link |
+| `nexus_list_agents` | Safe agent summary and availability |
+| `nexus_list_projects` | Safe project summary |
+| `nexus_search_tasks` | Bounded task search with offset pagination |
+| `nexus_read_task` | Current task plus recent comments/history |
+| `nexus_create_task` | Assigned task, submitted to existing scheduling |
+| `nexus_add_comment` | Human feedback; may wake or queue work |
+| `nexus_list_deliverables` | Documents, attachments and work-product references |
+| `nexus_read_document` | Durable document body and current revision |
+| `nexus_pending_approvals` | Pending approvals and existing decision links |
 
 Every company-scoped call requires its explicit authorized company ID. The
 server emits bounded projections without upstream credentials. Direct connections
@@ -327,9 +327,9 @@ directory broker keeps its original ten-tool connection.
 
 | Event | Required filters | Payload |
 | --- | --- | --- |
-| `paperclip.task.status_changed` | `companyId`, `taskId`; optional `statuses` | Task ID, status, company ID and task link |
-| `paperclip.task.comment_created` | `companyId`, `taskId` | Task/company IDs, comment ID and task link |
-| `paperclip.task.document_updated` | `companyId`, `taskId` | Task/company IDs, document key, revision and task link |
+| `nexus.task.status_changed` | `companyId`, `taskId`; optional `statuses` | Task ID, status, company ID and task link |
+| `nexus.task.comment_created` | `companyId`, `taskId` | Task/company IDs, comment ID and task link |
+| `nexus.task.document_updated` | `companyId`, `taskId` | Task/company IDs, document key, revision and task link |
 
 In an Events-capable ChatGPT Work Cloud chat or dot, ask, for example:
 “Watch this task. When it finishes, read its report and tell me the result.”
@@ -356,7 +356,7 @@ must read current authorized state before responding or taking an action.
 Subscriptions last at most 24 hours (default), with a 30-second minimum. Hosted
 subscriptions last at most five minutes and never outlive the broker access
 proof: refresh the OAuth token before refreshing a subscription when necessary.
-The tenant verifies that proof through the fixed `PAPERCLIP_CLOUD_API_ORIGIN`
+The tenant verifies that proof through the fixed `NEXUS_CLOUD_API_ORIGIN`
 broker before each delivery, checking current Cloud membership as well as local
 company membership, grant revocation and task access. A compatible Cloud broker
 must be deployed first for hosted Events. Direct connections to a Cloud tenant
@@ -377,7 +377,7 @@ expired/stopped subscription. Use task history and document tools to recover
 missed changes. In-flight requests may finish during unsubscribe/revocation;
 subsequent attempts recheck access. Events are data, and may be duplicated or
 out of order. Do not post comments merely to acknowledge comments or documents,
-which would risk a feedback loop. Approval decisions remain in Paperclip.
+which would risk a feedback loop. Approval decisions remain in Nexus.
 
 See [OpenAI's MCP Events guide](https://developers.openai.com/plugins/build/mcp-events)
 for currently supported client surfaces. Actual staging ChatGPT subscription,
@@ -407,20 +407,20 @@ interactive product preview; Reset this screen restores that step’s fixture.
 Each screen starts fresh, so sample state does not persist between chapters.
 
 The Cloud walkthrough covers sign-in, choosing or creating an organization,
-readiness, and the handoff. The Paperclip walkthrough covers the experimental
+readiness, and the handoff. The Nexus walkthrough covers the experimental
 setting, organization consent, example delegation and retrieval conversations, and
 revocation. Assistant conversations are explicitly illustrative; product
 screens use isolated service fixtures. No paid work or real OAuth runs here.
 
-Local cross-links expect Paperclip Storybook on port 6106 and Cloud on 6107.
+Local cross-links expect Nexus Storybook on port 6106 and Cloud on 6107.
 The default scripts use port 6006; launch these in separate terminals with
 explicit overrides:
 
 ```sh
-# From the Paperclip repository's ui/ directory:
+# From the Nexus repository's ui/ directory:
 pnpm exec storybook dev --port 6106 --config-dir storybook/.storybook --no-open
 
-# From the paperclip-cloud repository's web/ directory:
+# From the nexus-cloud repository's web/ directory:
 npm run storybook -- --port 6107
 ```
 
@@ -431,7 +431,7 @@ story so the presentation itself never advances automatically.
 ### One organization from Cloud through consent
 
 Cloud selects an organization once and sends its registry company ID as the
-optional OAuth `company_id` parameter. Paperclip persists it as
+optional OAuth `company_id` parameter. Nexus persists it as
 `mcp_oauth_requests.requested_company_id`, filters the consent response to that
 company, and rejects approval for any other company even if the user belongs to
 both. It is a scope restriction, never a substitute for active membership or
@@ -441,7 +441,7 @@ with cancel/reconnect guidance if it is unavailable.
 
 Direct instance requests without `company_id` retain their organization picker.
 There is no separate “team” entity in this flow. Cloud’s organization maps to its
-stack’s primary Paperclip company; the stack is hosting infrastructure. The hosted
+stack’s primary Nexus company; the stack is hosting infrastructure. The hosted
 walkthrough uses **Consent → Hosted organization**; direct selection, read-only,
 and unavailable-organization variants remain separately inspectable.
 
@@ -454,44 +454,44 @@ Existing direct requests and grants are unchanged.
 Direct instance connections expose 37 explicitly registered operations. The central
 public directory broker retains its original ten tools and rejects expanded calls.
 The existing experimental setting gates both surfaces; sharing a setup link still
-conveys no authority. Consent has one **Write all of your Paperclip data** checkbox,
+conveys no authority. Consent has one **Write all of your Nexus data** checkbox,
 checked by default for eligible roles. It approves the requested work and
 configuration scopes together; unchecking it grants read-only access. Clients must
-request `paperclip:configure` to configure agents, projects and skills. Existing
+request `nexus:configure` to configure agents, projects and skills. Existing
 write connections do not acquire this scope, including after refresh; reconnect
 with the expanded scopes to approve it.
-Normal Paperclip permissions are required in addition to the connection scope.
+Normal Nexus permissions are required in addition to the connection scope.
 
-- Work (`paperclip:write`): update, finish or block tasks; write Markdown documents;
+- Work (`nexus:write`): update, finish or block tasks; write Markdown documents;
   register or update deliverables; upload attachments. Assignment and status changes
-  can schedule agents. Pending execution reviews must be decided in Paperclip.
-- Configuration (`paperclip:configure`): edit existing agents, model/budget and
+  can schedule agents. Pending execution reviews must be decided in Nexus.
+- Configuration (`nexus:configure`): edit existing agents, model/budget and
   existing connection bindings; edit instructions; create/update projects and choose
   accessible repositories; create/update organization skills and their files.
   Credentials, execution commands, policies and agent creation are excluded.
-- Reads (`paperclip:read`): task/document history, agent instructions, skill files,
+- Reads (`nexus:read`): task/document history, agent instructions, skill files,
   accessible repository choices and attachment downloads. Native domain read
   permissions still apply. Revision IDs from reads are required for content edits.
 
-`paperclip_search_api` describes the same allowlisted named operations and their
-schemas. `paperclip_call_api` takes an operation identifier and validated arguments.
+`nexus_search_api` describes the same allowlisted named operations and their
+schemas. `nexus_call_api` takes an operation identifier and validated arguments.
 It cannot accept an arbitrary URL, REST path, credential or actor override. Both
 interfaces share scope checks and mutation receipts. Reuse the same request UUID
 and arguments after a timeout. An unknown result means execution is uncertain;
 inspect current state or retry that identity instead of starting another action.
 
 To attach a video, compute its byte size and SHA-256, then call
-`paperclip_get_upload_url` with its task, filename, content type and request UUID.
+`nexus_get_upload_url` with its task, filename, content type and request UUID.
 PUT the exact bytes using the returned Content-Type. Success returns the saved
 attachment immediately; **there is no completion call**. Recover a lost response
 by repeating the upload or requesting its URL with the same identity. Conflicting
-bytes are rejected. `paperclip_list_deliverables` includes attachments, documents
-and work products; `paperclip_get_download_url` downloads one authorized attachment.
+bytes are rejected. `nexus_list_deliverables` includes attachments, documents
+and work products; `nexus_get_download_url` downloads one authorized attachment.
 Replacing a binary deliverable uses a new attachment and updates its reference.
 
 File URLs are ten-minute, transfer-specific credentials: keep them out of chat and
 logs. Only their hashes are stored. Use host HTTP/file tools to send/receive bytes;
-if unavailable, upload/download through the Paperclip task page manually. The server
+if unavailable, upload/download through the Nexus task page manually. The server
 never fetches a supplied remote URL or reads a supplied local path. Existing file
 type and size limits apply (10 MB default). Grants, membership, organization,
 experimental availability and write authority are checked again during transfer.
@@ -502,7 +502,7 @@ remain durable. Cloud deployments also need the narrowly scoped transfer proxy.
 Instruction edits require a managed instruction file with a current revision/hash.
 The legacy `promptTemplate.legacy.md` entry has no version protection, so MCP
 rejects edits to it with `MCP_LEGACY_INSTRUCTIONS_UNVERSIONED`. Migrate the legacy
-prompt to a managed instruction file in Paperclip first; native runner behavior
+prompt to a managed instruction file in Nexus first; native runner behavior
 is unchanged.
 
 Client-side tool approval remains separate from OAuth consent. For example, a

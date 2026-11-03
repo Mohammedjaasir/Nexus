@@ -8,10 +8,10 @@ import { pathToFileURL } from "node:url";
 import { assertInstalledCliSelection, usesInstalledCli } from "./installed-cli.js";
 import type { MatrixExecution } from "./types.js";
 
-export const installedDaytonaPluginKeys = ["PAPERCLIP_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN", "PAPERCLIP_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY", "PAPERCLIP_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY_SHA256"] as const;
+export const installedDaytonaPluginKeys = ["NEXUS_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN", "NEXUS_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY", "NEXUS_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY_SHA256"] as const;
 type PackagePin = { root: string; packageSha256: string; entry: string; entrySha256: string };
 export interface InstalledDaytonaPluginAuthority {
-  schema: "paperclip.e2e.installed-daytona-plugin/v1";
+  schema: "nexus.e2e.installed-daytona-plugin/v1";
   graphRoot: string;
   plugin: PackagePin & { manifestSha256: string; workerSha256: string };
   sdk: PackagePin;
@@ -44,10 +44,10 @@ export async function verifyInstalledDaytonaPlugin(env: NodeJS.ProcessEnv, execu
   if (!selected && !required) return undefined;
   assertInstalledCliSelection(env, executions);
   if (!usesInstalledCli(env) || !installedDaytonaPluginKeys.every(key => Boolean(env[key])) || executions.some(e => e.environment.id !== "daytona")) throw new Error("Installed Daytona plugin requires complete pins and installed Daytona selection");
-  const authorityPath = env.PAPERCLIP_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY!;
-  const authoritySha256 = env.PAPERCLIP_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY_SHA256!;
+  const authorityPath = env.NEXUS_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY!;
+  const authoritySha256 = env.NEXUS_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY_SHA256!;
   const a: InstalledDaytonaPluginAuthority = JSON.parse((await pinned(authorityPath, authoritySha256, 65536)).toString());
-  if (a.schema !== "paperclip.e2e.installed-daytona-plugin/v1" || a.plugin?.root !== env.PAPERCLIP_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN) throw new Error("Installed Daytona plugin authority differs");
+  if (a.schema !== "nexus.e2e.installed-daytona-plugin/v1" || a.plugin?.root !== env.NEXUS_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN) throw new Error("Installed Daytona plugin authority differs");
   await canonical(a.graphRoot);
   async function packageAt(pin: PackagePin, name: string) {
     await canonical(pin.root);
@@ -57,14 +57,14 @@ export async function verifyInstalledDaytonaPlugin(env: NodeJS.ProcessEnv, execu
     await pinned(join(pin.root, pin.entry), pin.entrySha256);
     return manifest;
   }
-  const plugin = await packageAt(a.plugin, "@paperclipai/plugin-daytona");
-  const sdk = await packageAt(a.sdk, "@paperclipai/plugin-sdk");
-  const shared = await packageAt(a.shared, "@paperclipai/shared");
+  const plugin = await packageAt(a.plugin, "@nexusai/plugin-daytona");
+  const sdk = await packageAt(a.sdk, "@nexusai/plugin-sdk");
+  const shared = await packageAt(a.shared, "@nexusai/shared");
   const daytona = await packageAt(a.daytona, "@daytonaio/sdk");
-  if (plugin.paperclipPlugin?.manifest !== "./dist/manifest.js" || plugin.paperclipPlugin?.worker !== "./dist/worker.js" || plugin.dependencies?.["@paperclipai/plugin-sdk"] !== sdk.version || sdk.dependencies?.["@paperclipai/shared"] !== shared.version || plugin.dependencies?.["@daytonaio/sdk"] !== "0.203.0" || daytona.version !== "0.203.0") throw new Error("Installed Daytona plugin public dependency identity differs");
+  if (plugin.nexusPlugin?.manifest !== "./dist/manifest.js" || plugin.nexusPlugin?.worker !== "./dist/worker.js" || plugin.dependencies?.["@nexusai/plugin-sdk"] !== sdk.version || sdk.dependencies?.["@nexusai/shared"] !== shared.version || plugin.dependencies?.["@daytonaio/sdk"] !== "0.203.0" || daytona.version !== "0.203.0") throw new Error("Installed Daytona plugin public dependency identity differs");
   await pinned(join(a.plugin.root, "dist/manifest.js"), a.plugin.manifestSha256);
   await pinned(join(a.plugin.root, "dist/worker.js"), a.plugin.workerSha256);
-  for (const [name, parent, pin] of [["@paperclipai/plugin-sdk", join(a.plugin.root, "dist/worker.js"), a.sdk], ["@paperclipai/shared", join(a.sdk.root, a.sdk.entry), a.shared], ["@daytonaio/sdk", join(a.plugin.root, "dist/worker.js"), a.daytona]] as const) {
+  for (const [name, parent, pin] of [["@nexusai/plugin-sdk", join(a.plugin.root, "dist/worker.js"), a.sdk], ["@nexusai/shared", join(a.sdk.root, a.sdk.entry), a.shared], ["@daytonaio/sdk", join(a.plugin.root, "dist/worker.js"), a.daytona]] as const) {
     const found = findPackageJSON(name, pathToFileURL(parent));
     if (!found || await realpath(found) !== join(pin.root, "package.json")) throw new Error("Installed Daytona plugin resolves a foreign dependency");
   }

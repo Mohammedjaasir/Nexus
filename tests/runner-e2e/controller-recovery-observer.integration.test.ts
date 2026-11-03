@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import { afterEach, expect, it, vi } from "vitest";
 import { agents, companies, createDb, heartbeatRunEvents, heartbeatRuns, issues, nativeRunFinalizations,
   nativeRunnerCheckpoints, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "../../packages/db/src/index.js";
-import { DurablePrpControlPlane } from "../../server/src/vendor/paperclip-runner/index.js";
+import { DurablePrpControlPlane } from "../../server/src/vendor/nexus-runner/index.js";
 import { registerNativeRunnerCheckpoint } from "../../server/src/services/native-runtime/native-runner-checkpoint.js";
 import { recoveryPostgresSupport, startRecoveryPostgres } from "../../server/src/__tests__/helpers/recovery-postgres.js";
 import { createIsolatedTestHome } from "../../server/src/__tests__/helpers/isolated-test-home.js";
@@ -20,10 +20,10 @@ afterEach(() => vi.unstubAllEnvs());
   const database = await startRecoveryPostgres("controller-observer-");
   const db = createDb(database.connectionString);
   const home = createIsolatedTestHome();
-  vi.stubEnv("PAPERCLIP_HOME", home.home);
-  vi.stubEnv("PAPERCLIP_INSTANCE_ID", "observer-fixture");
-  vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", undefined);
-  vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY_FILE", undefined);
+  vi.stubEnv("NEXUS_HOME", home.home);
+  vi.stubEnv("NEXUS_INSTANCE_ID", "observer-fixture");
+  vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", undefined);
+  vi.stubEnv("NEXUS_SECRETS_MASTER_KEY_FILE", undefined);
   const binding = { companyId: randomUUID(), issueId: randomUUID(), runId: randomUUID() };
   const agentId = randomUUID(), runnerInstanceId = randomUUID(), normalizedSessionId = randomUUID();
   const authority = new DurablePrpControlPlane({ stateDirectory: path.join(home.home, "authority"),
@@ -32,7 +32,7 @@ afterEach(() => vi.unstubAllEnvs());
     expectedRunnerVersion: "observer-fixture", expectedRunnerDigest: `sha256:${"a".repeat(64)}` });
   try {
     await db.insert(companies).values({ id: binding.companyId, name: "Qualification observer" });
-    await db.insert(agents).values({ id: agentId, companyId: binding.companyId, name: "Observer fixture", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId: binding.companyId, name: "Observer fixture", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: binding.issueId, companyId: binding.companyId, title: "Observe original execution" });
     await db.insert(heartbeatRuns).values({ id: binding.runId, companyId: binding.companyId, agentId,
       invocationSource: "manual", status: "running", runtimeMode: "native", nativeIssueId: binding.issueId,
@@ -63,8 +63,8 @@ afterEach(() => vi.unstubAllEnvs());
       try { console.log(JSON.stringify(await readControllerRecoverySnapshot(db, ${JSON.stringify(binding)}))); }
       finally { await db.$client.end(); }
     `, { mode: 0o600 });
-    for (const override of [{ PAPERCLIP_SECRETS_MASTER_KEY: "a".repeat(64) },
-      { PAPERCLIP_SECRETS_MASTER_KEY_FILE: wrongKeyFile }]) {
+    for (const override of [{ NEXUS_SECRETS_MASTER_KEY: "a".repeat(64) },
+      { NEXUS_SECRETS_MASTER_KEY_FILE: wrongKeyFile }]) {
       const { stdout } = await promisify(execFile)(process.execPath,
         runnerE2ETypeScriptProcessArgs(repositoryRoot, childScript), {
           env: buildRunnerE2EProcessEnvironment({ ...process.env, ...override,

@@ -1,15 +1,15 @@
 import { once } from "node:events";
 import { request } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { DurablePrpControlPlane } from "../vendor/paperclip-runner/index.js";
+import type { DurablePrpControlPlane } from "../vendor/nexus-runner/index.js";
 import { registerRunnerPrpAuthority, runnerPrpWebSocketInternals } from "../realtime/runner-prp-ws.js";
-import { createPaperclipHttpServer } from "./server.js";
+import { createNexusHttpServer } from "./server.js";
 
-describe("Paperclip HTTP server runner transport", () => {
+describe("Nexus HTTP server runner transport", () => {
   afterEach(() => runnerPrpWebSocketInternals.resetForTests());
 
   it("registers native runner authority without a separate startup call", async () => {
-    const server = createPaperclipHttpServer((_req, res) => res.end("ok"), {
+    const server = createNexusHttpServer((_req, res) => res.end("ok"), {
       apiUrl: "http://127.0.0.1:3210",
     });
     const handleUpgrade = vi.fn();
@@ -24,7 +24,7 @@ describe("Paperclip HTTP server runner transport", () => {
   });
 
   it("serves HTTP and rejects an unregistered runner over the real listener", async () => {
-    const server = createPaperclipHttpServer((_req, res) => res.end("ready"), {
+    const server = createNexusHttpServer((_req, res) => res.end("ready"), {
       apiUrl: "http://127.0.0.1:3210",
     });
     server.listen(0, "127.0.0.1");

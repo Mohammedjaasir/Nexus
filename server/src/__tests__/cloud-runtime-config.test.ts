@@ -5,9 +5,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyPendingMigrations, closeRegisteredClients, createDb, instanceSettings, type Db } from "@paperclipai/db";
+import { applyPendingMigrations, closeRegisteredClients, createDb, instanceSettings, type Db } from "@nexusai/db";
 import { eq } from "drizzle-orm";
-import { paperclipConfigSchema } from "@paperclipai/shared";
+import { nexusConfigSchema } from "@nexusai/shared";
 import { loadCloudBootstrapConfig, loadConfig } from "../config.js";
 import { readConfigFile } from "../config-file.js";
 import {
@@ -23,7 +23,7 @@ import {
 } from "../services/cloud-runtime-config-snapshot.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const externalDatabaseUrl = process.env.PAPERCLIP_RUNTIME_CONFIG_TEST_DATABASE_URL;
+const externalDatabaseUrl = process.env.NEXUS_RUNTIME_CONFIG_TEST_DATABASE_URL;
 const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describePostgres = support.supported ? describe : describe.skip;
 let home: string;
@@ -35,7 +35,7 @@ function legacyConfig() {
     llm: { provider: "openai", apiKey: "legacy-openai-secret" },
     database: {
       mode: "postgres",
-      connectionString: "postgres://legacy:database-secret@example.test/paperclip",
+      connectionString: "postgres://legacy:database-secret@example.test/nexus",
       backup: { enabled: false, intervalMinutes: 73, retentionDays: 11, dir: "/tmp/legacy-backups" },
     },
     logging: { mode: "cloud", logDir: "/tmp/legacy-logs" },
@@ -50,25 +50,25 @@ function legacyConfig() {
 }
 
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-runtime-config-"));
+  home = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-runtime-config-"));
   configPath = path.join(home, "config.json");
-  vi.stubEnv("PAPERCLIP_HOME", home);
-  vi.stubEnv("PAPERCLIP_CONFIG", configPath);
-  vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "test-token");
-  vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", undefined);
+  vi.stubEnv("NEXUS_HOME", home);
+  vi.stubEnv("NEXUS_CONFIG", configPath);
+  vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "test-token");
+  vi.stubEnv("NEXUS_MANAGED_CONFIG", undefined);
   vi.stubEnv("DATABASE_MIGRATION_URL", undefined);
-  vi.stubEnv("PAPERCLIP_DEPLOYMENT_MODE", undefined);
-  vi.stubEnv("PAPERCLIP_AUTH_PUBLIC_BASE_URL", undefined);
-  vi.stubEnv("PAPERCLIP_AUTH_BASE_URL_MODE", undefined);
-  vi.stubEnv("PAPERCLIP_PUBLIC_URL", undefined);
+  vi.stubEnv("NEXUS_DEPLOYMENT_MODE", undefined);
+  vi.stubEnv("NEXUS_AUTH_PUBLIC_BASE_URL", undefined);
+  vi.stubEnv("NEXUS_AUTH_BASE_URL_MODE", undefined);
+  vi.stubEnv("NEXUS_PUBLIC_URL", undefined);
   vi.stubEnv("BETTER_AUTH_URL", undefined);
   vi.stubEnv("BETTER_AUTH_BASE_URL", undefined);
-  vi.stubEnv("PAPERCLIP_ALLOWED_HOSTNAMES", undefined);
-  vi.stubEnv("PAPERCLIP_TAILNET_BIND_HOST", "100.100.0.1");
+  vi.stubEnv("NEXUS_ALLOWED_HOSTNAMES", undefined);
+  vi.stubEnv("NEXUS_TAILNET_BIND_HOST", "100.100.0.1");
   vi.stubEnv("OPENAI_API_KEY", "environment-api-secret");
-  vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "12345678901234567890123456789012");
-  vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", undefined);
-  vi.stubEnv("PAPERCLIP_STORAGE_S3_BUCKET", undefined);
+  vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "12345678901234567890123456789012");
+  vi.stubEnv("NEXUS_STORAGE_PROVIDER", undefined);
+  vi.stubEnv("NEXUS_STORAGE_S3_BUCKET", undefined);
   setCloudRuntimeConfigSnapshot(null);
 });
 
@@ -134,7 +134,7 @@ describe("Cloud configuration file boundary", () => {
   });
 
   it("preserves local config file behavior without managed signals", () => {
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", undefined);
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", undefined);
     fs.writeFileSync(configPath, JSON.stringify(legacyConfig()));
     expect(readConfigFile()?.llm?.apiKey).toBe("legacy-openai-secret");
     expect(loadConfig()).toMatchObject({ port: 3210, telemetryEnabled: false, storageS3Bucket: "saved-bucket" });
@@ -151,7 +151,7 @@ describePostgres("Cloud runtime configuration in PostgreSQL", () => {
       await applyPendingMigrations(externalDatabaseUrl);
       database = { connectionString: externalDatabaseUrl, cleanup: () => closeRegisteredClients(externalDatabaseUrl, { scope: "database" }) };
     } else {
-      database = await startEmbeddedPostgresTestDatabase("paperclip-runtime-config-db-");
+      database = await startEmbeddedPostgresTestDatabase("nexus-runtime-config-db-");
     }
     first = createDb(database.connectionString);
     second = createDb(database.connectionString);
@@ -164,26 +164,26 @@ describePostgres("Cloud runtime configuration in PostgreSQL", () => {
 
   afterAll(async () => { await database?.cleanup(); });
 
-  it.each(["PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "PAPERCLIP_MANAGED_CONFIG"])("seeds a fresh database with %s", async (signal) => {
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", undefined);
-    vi.stubEnv(signal, signal === "PAPERCLIP_MANAGED_CONFIG" ? "" : "test-token");
+  it.each(["NEXUS_CLOUD_TENANT_SERVER_TOKEN", "NEXUS_MANAGED_CONFIG"])("seeds a fresh database with %s", async (signal) => {
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", undefined);
+    vi.stubEnv(signal, signal === "NEXUS_MANAGED_CONFIG" ? "" : "test-token");
     const result = await initializeCloudRuntimeConfig(first);
     expect(result).toMatchObject({ seeded: true, current: { version: 1, revision: 0, config: null } });
     expect(await cloudRuntimeConfigService(second).inspectStored()).toEqual(result?.current);
     expect(fs.existsSync(configPath)).toBe(false);
-    vi.stubEnv("PAPERCLIP_DEPLOYMENT_MODE", "authenticated");
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", "https://environment.example.test");
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", undefined);
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "test-token");
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "s3");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_BUCKET", "environment-bucket");
+    vi.stubEnv("NEXUS_DEPLOYMENT_MODE", "authenticated");
+    vi.stubEnv("NEXUS_PUBLIC_URL", "https://environment.example.test");
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", undefined);
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "test-token");
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "s3");
+    vi.stubEnv("NEXUS_STORAGE_S3_BUCKET", "environment-bucket");
     expect(loadConfig()).toMatchObject({ databaseMode: "postgres", authBaseUrlMode: "explicit", secretsStrictMode: true, telemetryEnabled: true });
   });
 
   it("loads the saved authenticated mode before validating an environment host bind", async () => {
     fs.writeFileSync(configPath, JSON.stringify(legacyConfig()));
     vi.stubEnv("HOST", "0.0.0.0");
-    vi.stubEnv("PAPERCLIP_DEPLOYMENT_MODE", undefined);
+    vi.stubEnv("NEXUS_DEPLOYMENT_MODE", undefined);
     expect(loadCloudBootstrapConfig()).toEqual({
       databaseMode: "postgres",
       databaseUrl: database.connectionString,
@@ -203,13 +203,13 @@ describePostgres("Cloud runtime configuration in PostgreSQL", () => {
       expect(persisted).not.toContain(secret);
     }
     const replacementHome = fs.mkdtempSync(path.join(home, "replacement-"));
-    const replacementConfigDir = path.join(replacementHome, ".paperclip");
+    const replacementConfigDir = path.join(replacementHome, ".nexus");
     fs.mkdirSync(replacementConfigDir);
     const envPath = path.join(replacementConfigDir, ".env");
-    const envContents = "PORT=9999\nPAPERCLIP_RUNTIME_CONFIG_ENV_SENTINEL=should-not-load\n";
+    const envContents = "PORT=9999\nNEXUS_RUNTIME_CONFIG_ENV_SENTINEL=should-not-load\n";
     fs.writeFileSync(envPath, envContents);
-    vi.stubEnv("PAPERCLIP_HOME", replacementHome);
-    vi.stubEnv("PAPERCLIP_CONFIG", path.join(replacementConfigDir, "config.json"));
+    vi.stubEnv("NEXUS_HOME", replacementHome);
+    vi.stubEnv("NEXUS_CONFIG", path.join(replacementConfigDir, "config.json"));
     setCloudRuntimeConfigSnapshot(null);
     const files = vi.spyOn(fs, "readFileSync");
     expect(await initializeCloudRuntimeConfig(second)).toEqual({ seeded: false, current: initial?.current });
@@ -226,7 +226,7 @@ describePostgres("Cloud runtime configuration in PostgreSQL", () => {
       await initializeCloudRuntimeConfig(db);
       const config = loadConfig();
       console.log(JSON.stringify({ port: config.port, telemetryEnabled: config.telemetryEnabled, storageS3Bucket: config.storageS3Bucket,
-        envSentinel: process.env.PAPERCLIP_RUNTIME_CONFIG_ENV_SENTINEL ?? null }));
+        envSentinel: process.env.NEXUS_RUNTIME_CONFIG_ENV_SENTINEL ?? null }));
       await db.$client.end({ timeout: 1 });
     `);
     const child = await promisify(execFile)(process.execPath, [path.join(root, "server/node_modules/tsx/dist/cli.mjs"), childScript], {
@@ -242,8 +242,8 @@ describePostgres("Cloud runtime configuration in PostgreSQL", () => {
     fs.writeFileSync(configPath, JSON.stringify(legacyConfig()));
     await initializeCloudRuntimeConfig(first);
     vi.stubEnv("PORT", "4567");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_BUCKET", "operator-bucket");
-    vi.stubEnv("PAPERCLIP_AUTH_DISABLE_SIGN_UP", "false");
+    vi.stubEnv("NEXUS_STORAGE_S3_BUCKET", "operator-bucket");
+    vi.stubEnv("NEXUS_AUTH_DISABLE_SIGN_UP", "false");
     fs.writeFileSync(configPath, "malformed legacy contents");
     await initializeCloudRuntimeConfig(second);
     expect(loadConfig()).toMatchObject({ port: 4567, storageS3Bucket: "operator-bucket", authDisableSignUp: false, telemetryEnabled: false });
@@ -251,7 +251,7 @@ describePostgres("Cloud runtime configuration in PostgreSQL", () => {
   });
 
   it("keeps one committed seed when two clients propose different initial values", async () => {
-    const config = projectCloudRuntimeConfig(paperclipConfigSchema.parse(legacyConfig()));
+    const config = projectCloudRuntimeConfig(nexusConfigSchema.parse(legacyConfig()));
     const results = await Promise.all([
       cloudRuntimeConfigService(first).seedIfAbsent({ ...config, telemetry: { enabled: true } }),
       cloudRuntimeConfigService(second).seedIfAbsent({ ...config, telemetry: { enabled: false } }),
@@ -262,14 +262,14 @@ describePostgres("Cloud runtime configuration in PostgreSQL", () => {
   });
 
   it("rejects unknown or credential fields on the direct mutation path", async () => {
-    const config = projectCloudRuntimeConfig(paperclipConfigSchema.parse(legacyConfig()));
+    const config = projectCloudRuntimeConfig(nexusConfigSchema.parse(legacyConfig()));
     await cloudRuntimeConfigService(first).seedIfAbsent(config);
     await expect(cloudRuntimeConfigService(first).replace({ ...config, llm: { provider: "openai", apiKey: "must-not-store" } } as never, 0)).rejects.toThrow(/configuration is invalid/);
     expect((await cloudRuntimeConfigService(second).inspectStored())?.revision).toBe(0);
   });
 
   it("serializes revisions and rejects competing stale writes from two database clients", async () => {
-    const config = projectCloudRuntimeConfig(paperclipConfigSchema.parse(legacyConfig()));
+    const config = projectCloudRuntimeConfig(nexusConfigSchema.parse(legacyConfig()));
     await cloudRuntimeConfigService(first).seedIfAbsent(config);
     const results = await Promise.allSettled([
       cloudRuntimeConfigService(first).replace({ ...config, telemetry: { enabled: true } }, 0),
@@ -281,7 +281,7 @@ describePostgres("Cloud runtime configuration in PostgreSQL", () => {
   });
 
   it("composes a seed with the caller transaction and rolls back both on failure", async () => {
-    const config = projectCloudRuntimeConfig(paperclipConfigSchema.parse(legacyConfig()));
+    const config = projectCloudRuntimeConfig(nexusConfigSchema.parse(legacyConfig()));
     await expect(first.transaction(async tx => {
       await cloudRuntimeConfigService(first).seedIfAbsent(config, tx);
       await tx.insert(instanceSettings).values({ singletonKey: "runtime-config-test-receipt", general: {} });
@@ -292,7 +292,7 @@ describePostgres("Cloud runtime configuration in PostgreSQL", () => {
   });
 
   it.each([undefined, "", "   "])("rejects raw canonical S3 rows with missing or blank bucket %j", async bucket => {
-    const config = structuredClone(projectCloudRuntimeConfig(paperclipConfigSchema.parse(legacyConfig())));
+    const config = structuredClone(projectCloudRuntimeConfig(nexusConfigSchema.parse(legacyConfig())));
     const raw = config;
     if (bucket === undefined) Reflect.deleteProperty(raw.storage.s3, "bucket");
     else raw.storage.s3.bucket = bucket;
@@ -301,8 +301,8 @@ describePostgres("Cloud runtime configuration in PostgreSQL", () => {
     expect(() => getCloudRuntimeConfigSnapshot()).toThrow(/not been initialized/);
   });
 
-  it.each(["database-bucket", "paperclip"])("accepts canonical DB bucket %s without local configuration provenance", async bucket => {
-    const config = projectCloudRuntimeConfig(paperclipConfigSchema.parse(legacyConfig()));
+  it.each(["database-bucket", "nexus"])("accepts canonical DB bucket %s without local configuration provenance", async bucket => {
+    const config = projectCloudRuntimeConfig(nexusConfigSchema.parse(legacyConfig()));
     config.storage.s3.bucket = bucket;
     await cloudRuntimeConfigService(first).seedIfAbsent(config);
     fs.writeFileSync(configPath, "invalid local file must not be consulted");

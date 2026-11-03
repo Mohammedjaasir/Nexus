@@ -1,4 +1,4 @@
-import { legacyIssueThreadInteractionResolverPolicyAlias } from "@paperclipai/shared";
+import { legacyIssueThreadInteractionResolverPolicyAlias } from "@nexusai/shared";
 import type { LiveRunForIssue } from "../api/heartbeats";
 import type {
   IssueChatComment,
@@ -851,7 +851,7 @@ function createConnectionAuthorizationInteraction(
         type: "custom",
         key: "connection:gmail-abc:user:user-dotta",
         label: "Connect Gmail",
-        href: "https://accounts.google.com/o/oauth2/v2/auth?client_id=paperclip",
+        href: "https://accounts.google.com/o/oauth2/v2/auth?client_id=nexus",
       },
     },
     ...rest,

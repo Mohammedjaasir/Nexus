@@ -9,7 +9,7 @@ fi
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 port="${SMOKE_PORT:-$(node -e 'const s=require("node:net").createServer().listen(0,"127.0.0.1",()=>{console.log(s.address().port);s.close();})')}"
 timeout_seconds="${SMOKE_TIMEOUT_SECONDS:-180}"
-scratch="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-boot-smoke.XXXXXX")"
+scratch="$(mktemp -d "${TMPDIR:-/tmp}/nexus-boot-smoke.XXXXXX")"
 log="$scratch/server.log"
 
 args=()
@@ -35,11 +35,11 @@ started_ms=$(node -e 'console.log(Date.now())')
     PATH="$PATH" \
     HOME="$scratch" \
     NODE_ENV=production \
-    PAPERCLIP_CONFIG="$scratch/config.json" \
-    PAPERCLIP_HOME="$scratch/home" \
-    PAPERCLIP_INSTANCE_ID=boot-smoke \
-    PAPERCLIP_DEPLOYMENT_MODE=local_trusted \
-    PAPERCLIP_MIGRATION_AUTO_APPLY=true \
+    NEXUS_CONFIG="$scratch/config.json" \
+    NEXUS_HOME="$scratch/home" \
+    NEXUS_INSTANCE_ID=boot-smoke \
+    NEXUS_DEPLOYMENT_MODE=local_trusted \
+    NEXUS_MIGRATION_AUTO_APPLY=true \
     HOST=127.0.0.1 \
     PORT="$port" \
     SERVE_UI=false \

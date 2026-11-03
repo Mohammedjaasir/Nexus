@@ -16,6 +16,6 @@ it("retains only name and role in the exact company and operator scope", () => {
 it("rejects a corrupt role and does not share a signed-out draft", () => {
   saveMuseInvitationDraft("company", null, { name: "Anonymous", role: "general" });
   expect(localStorage.length).toBe(0);
-  localStorage.setItem("paperclip.muse-invitation.company.operator", JSON.stringify({ name: "Maia", role: "invented" }));
+  localStorage.setItem("nexus.muse-invitation.company.operator", JSON.stringify({ name: "Maia", role: "invented" }));
   expect(readMuseInvitationDraft("company", "operator")).toEqual({ name: "", role: "general" });
 });

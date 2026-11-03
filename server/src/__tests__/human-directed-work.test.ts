@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agents, companies, createDb, heartbeatRuns, agentWakeupRequests, issues, projects } from "@paperclipai/db";
-import { LOW_TRUST_REVIEW_PRESET } from "@paperclipai/shared";
+import { agents, companies, createDb, heartbeatRuns, agentWakeupRequests, issues, projects } from "@nexusai/db";
+import { LOW_TRUST_REVIEW_PRESET } from "@nexusai/shared";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createPostgresWatchdogAdapter } from "../modules/active-run-watchdog/adapters/postgres.js";
 import { issueService } from "../services/issues.js";
@@ -17,7 +17,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-human-work-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-human-work-");
     db = createDb(database.connectionString, { maxConnections: 2 });
   }, 30_000);
   afterAll(async () => { await database?.cleanup(); }, 60_000);
@@ -27,7 +27,7 @@ const support = await getEmbeddedPostgresTestSupport();
     await db.insert(companies).values({ id: companyId, name: companyId, issuePrefix: companyId.slice(0, 8) });
     const [project] = await db.insert(projects).values({ companyId, name: "Contained intake" }).returning();
     const [agent] = await db.insert(agents).values({
-      companyId, name: "Contained agent", role: "engineer", adapterType: "paperclip_runner",
+      companyId, name: "Contained agent", role: "engineer", adapterType: "nexus_runner",
       permissions: { authorizationPolicy: { trustPreset: LOW_TRUST_REVIEW_PRESET,
         trustBoundary: { mode: LOW_TRUST_REVIEW_PRESET, companyId, projectIds: [project.id] } } },
     }).returning();
@@ -45,7 +45,7 @@ const support = await getEmbeddedPostgresTestSupport();
     const [wake] = await db.insert(agentWakeupRequests).values({ companyId: f.companyId, agentId: f.agent.id,
       source: options.human ? "assignment" : "automation", status: "claimed",
       requestedByActorType: options.human ? "user" : "system", requestedByActorId: options.human ? "owner" : null,
-      payload: { issueId: issue.id, _paperclipWakeContext: { source: "issue.update" } } }).returning();
+      payload: { issueId: issue.id, _nexusWakeContext: { source: "issue.update" } } }).returning();
     const [run] = await db.insert(heartbeatRuns).values({ companyId: f.companyId, agentId: f.agent.id,
       status: options.status ?? "running", responsibleUserId: "owner", wakeupRequestId: wake.id,
       retryOfRunId: options.retryOfRunId, contextSnapshot: { issueId: issue.id, ...options.context } }).returning();
@@ -128,7 +128,7 @@ const support = await getEmbeddedPostgresTestSupport();
       { source: "automation", reason: "issue_commented" },
       { requestedByActorType: "system" },
       { idempotencyKey: "chat-inbound:legacy" },
-      { payload: { issueId: issue.id, _paperclipWakeContext: { source: "plugin:example" } } },
+      { payload: { issueId: issue.id, _nexusWakeContext: { source: "plugin:example" } } },
     ]) {
       await db.update(agentWakeupRequests).set(patch).where(eq(agentWakeupRequests.id, legacy.wake.id));
       expect(await resolve(f, issue, legacy.run.id)).not.toHaveProperty("humanDirectedIssueId");
@@ -143,13 +143,13 @@ const support = await getEmbeddedPostgresTestSupport();
     expect(await resolve(f, issue, current.run.id)).not.toHaveProperty("humanDirectedIssueId");
     const [coalesced] = await db.insert(agentWakeupRequests).values({ companyId: f.companyId, agentId: f.agent.id,
       runId: current.run.id, source: "assignment", status: "coalesced", requestedByActorType: "user",
-      requestedByActorId: "owner", payload: { issueId: issue.id, _paperclipWakeContext: { source: "issue.update" } } }).returning();
+      requestedByActorId: "owner", payload: { issueId: issue.id, _nexusWakeContext: { source: "issue.update" } } }).returning();
     expect(await resolve(f, issue, current.run.id)).toHaveProperty("humanDirectedIssueId", issue.id);
     for (const patch of [
       { status: "cancelled" }, { status: "skipped" }, { requestedByActorId: " " },
       { requestedByActorType: "agent" }, { idempotencyKey: "chat-inbound:external-sender" },
       { payload: { issueId: randomUUID() } },
-      { payload: { issueId: issue.id, _paperclipWakeContext: { source: "plugin:untrusted" } } },
+      { payload: { issueId: issue.id, _nexusWakeContext: { source: "plugin:untrusted" } } },
       { payload: { issueId: issue.id } }, { companyId: randomUUID() }, { agentId: f.other.id },
     ]) {
       // Existing foreign keys require a real company for the cross-company case.
@@ -158,7 +158,7 @@ const support = await getEmbeddedPostgresTestSupport();
       await db.update(agentWakeupRequests).set(patch).where(eq(agentWakeupRequests.id, coalesced.id));
       expect(await resolve(f, issue, current.run.id)).not.toHaveProperty("humanDirectedIssueId");
       await db.update(agentWakeupRequests).set({ status: "coalesced", requestedByActorType: "user",
-        requestedByActorId: "owner", idempotencyKey: null, payload: { issueId: issue.id, _paperclipWakeContext: { source: "issue.update" } },
+        requestedByActorId: "owner", idempotencyKey: null, payload: { issueId: issue.id, _nexusWakeContext: { source: "issue.update" } },
         companyId: f.companyId, agentId: f.agent.id }).where(eq(agentWakeupRequests.id, coalesced.id));
     }
   });
@@ -230,7 +230,7 @@ const support = await getEmbeddedPostgresTestSupport();
       sourceIssue: { ...completed, isRecoveryOriginKind: false },
       evidence: { kind: "activity", id: randomUUID(), createdAt: new Date(), action: "issue.updated" },
       existingEvaluation: null, silenceStartedAt: null, silenceAgeMs: null,
-      cleanup: { attempted: false, outcome: "no_process_metadata", adapterType: "paperclip_runner" }, now: new Date(),
+      cleanup: { attempted: false, outcome: "no_process_metadata", adapterType: "nexus_runner" }, now: new Date(),
     })).toMatchObject({ kind: "folded" });
     expect((await db.select().from(agentWakeupRequests).where(eq(agentWakeupRequests.id, first.wake.id)))[0].status).toBe("cancelled");
     const retry = await launch(f, issue, { retryOfRunId: first.run.id });

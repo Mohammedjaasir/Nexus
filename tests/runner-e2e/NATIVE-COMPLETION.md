@@ -35,7 +35,7 @@ per-cell deadlines (skill: original deadline; blocker: five minutes).
 
 Candidate and baseline use identical executable fixtures and public oracles.
 Both include the same closed OpenCode compatibility projection: only actual
-`tool_call` invocations named `paperclip_finish` or `paperclip_block` retain a
+`tool_call` invocations named `nexus_finish` or `nexus_block` retain a
 nested name, paired to the result by the same call ID. Arguments, arbitrary
 tool names and results are not added. Old anonymous OpenCode streams cannot
 retroactively satisfy this stricter identity check.

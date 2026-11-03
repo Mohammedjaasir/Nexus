@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 
-const fleet = "runs-on/fleet=paperclip-post-merge-x64/env=public-ci";
+const fleet = "runs-on/fleet=nexus-post-merge-x64/env=public-ci";
 const sha = "a".repeat(40);
 const base = {
   repository: "paperclipai/paperclip", repository_id: "1170821064",
@@ -12,7 +12,7 @@ const base = {
 const expectedJobs = {
   "cloud-readiness.yml": [],
   "cloud-migrator-artifacts.yml": [],
-  "release-verify.yml": ["typecheck", "general_tests", "serialized_tests", "runner_workflow_evals", "verify_paperclip_runner", "build"],
+  "release-verify.yml": ["typecheck", "general_tests", "serialized_tests", "runner_workflow_evals", "verify_nexus_runner", "build"],
   "runner-chaos-evals.yml": ["chaos_and_recovery"],
   "release.yml": ["plan_preview", "package_preview"],
 };
@@ -36,7 +36,7 @@ for (const [file, expectedNames] of Object.entries(expectedJobs)) {
       { name: "switch disabled", enabled: "false" },
       { name: "switch absent", enabled: "" },
       { name: "malformed switch", enabled: "yes" },
-      { name: "fork", github: { repository: "someone/paperclip", repository_id: "123" } },
+      { name: "fork", github: { repository: "someone/nexus", repository_id: "123" } },
       { name: "repository renamed or transferred", github: { repository_id: "123" } },
       { name: "unapproved PR", github: { event_name: "pull_request", ref: "refs/pull/1/merge" } },
       { name: "PR event even with master ref", github: { event_name: "pull_request" } },

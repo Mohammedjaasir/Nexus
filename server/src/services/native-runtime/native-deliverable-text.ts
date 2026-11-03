@@ -1,4 +1,4 @@
-import type { PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import type { PrpEvent } from "../../vendor/nexus-runner/index.js";
 
 type TextKind = "agentMessage" | "reasoning";
 
@@ -50,7 +50,7 @@ export function createNativeDeliverableTextObservation() {
     }
     if (event.eventType === "run.result.accepted") {
       const result = record(payload.result);
-      if (result.schema === "paperclip.run_result.v1" && text(result.summary)?.trim()) return "agentMessage";
+      if (result.schema === "nexus.run_result.v1" && text(result.summary)?.trim()) return "agentMessage";
     }
     return null;
   };

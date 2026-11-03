@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { loadGitHubGrantMetadata } from "../services/tool-access.js";
 import { createConnectionHealth } from "../services/tool-access/catalog/health.js";
 
@@ -18,7 +18,7 @@ vi.mock("../services/tool-connection-health-notifications.js", async importOrigi
   writeToolConnectionHealthChange: async <T>(db: Db, _target: unknown, write: (transaction: Db) => Promise<T>) => write(db),
 }));
 
-const SUSPENDED_INSTALLATION_URL = "https://github.com/organizations/paperclipai/settings/installations/101";
+const SUSPENDED_INSTALLATION_URL = "https://github.com/organizations/nexusai/settings/installations/101";
 
 function json(value: unknown): Response {
   return new Response(JSON.stringify(value), { headers: { "content-type": "application/json" } });
@@ -30,11 +30,11 @@ const suspendedGitHub = vi.fn<typeof fetch>(async (input) => {
   if (url.pathname === "/user") return json({ id: 42, login: "octocat" });
   if (url.pathname === "/user/installations") {
     return json({ installations: [
-      { id: 101, app_slug: "paperclip-staging", repository_selection: "all", suspended_at: "2026-10-22T01:33:41Z", html_url: SUSPENDED_INSTALLATION_URL },
+      { id: 101, app_slug: "nexus-staging", repository_selection: "all", suspended_at: "2026-10-22T01:33:41Z", html_url: SUSPENDED_INSTALLATION_URL },
     ] });
   }
   if (url.pathname === "/user/installations/101/repositories") {
-    return json({ repositories: [{ id: 1, full_name: "paperclipai/a" }] });
+    return json({ repositories: [{ id: 1, full_name: "nexusai/a" }] });
   }
   throw new Error(`Unexpected GitHub path: ${url.pathname}`);
 });
@@ -83,7 +83,7 @@ describe("GitHub Refresh access recovery", () => {
       details: {
         code: "github_installation_required",
         managementUrl: SUSPENDED_INSTALLATION_URL,
-        installationUrl: "https://github.com/apps/paperclip-staging/installations/new",
+        installationUrl: "https://github.com/apps/nexus-staging/installations/new",
         connection: { id: "conn-1", healthStatus: "error", healthMessage: expect.stringContaining("suspended") },
       },
     });

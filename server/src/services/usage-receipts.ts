@@ -6,9 +6,9 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { heartbeatRuns, runUsageReceipts, type Db } from "@paperclipai/db";
-import type { AdapterExecutionResult, AdapterUsageCheckpoint } from "@paperclipai/adapter-utils";
-import { compareCents, normalizeCents, pricingProvenanceSchema, usdToUnits } from "@paperclipai/shared";
+import { heartbeatRuns, runUsageReceipts, type Db } from "@nexusai/db";
+import type { AdapterExecutionResult, AdapterUsageCheckpoint } from "@nexusai/adapter-utils";
+import { compareCents, normalizeCents, pricingProvenanceSchema, usdToUnits } from "@nexusai/shared";
 import { idleAccountingSpoolPath, registerIdleSpoolDirectory } from "./idle-local-work.js";
 import { conflict, notFound } from "../errors.js";
 import { logger } from "../middleware/logger.js";
@@ -37,7 +37,7 @@ const checkpointSchema = z.object({
   providerRequestId: z.string().max(250).nullable().optional(), complete: z.boolean(),
 });
 const envelopeSchema = z.object({
-  schema: z.literal("paperclip/accounting-receipt/v1"), id: z.string().uuid(), companyId: z.string().uuid(),
+  schema: z.literal("nexus/accounting-receipt/v1"), id: z.string().uuid(), companyId: z.string().uuid(),
   runId: z.string().uuid(), sourceId: z.string().uuid(), sequence: z.number().int().positive(), receivedAt: z.iso.datetime(),
   adapterType: z.string().max(100), receipt: checkpointSchema,
   producerEvent: z.object({ sourceEventId: z.string(), turnId: z.string().optional(), providerTurnId: z.string().optional(),
@@ -355,7 +355,7 @@ export async function createRunUsageRecorder(db: Db, input: { companyId: string;
       // can be considered complete, even if a later attempt succeeded.
       receipt.complete = !captureFailed && parts.every(part => part.complete);
     }
-    const envelope: UsageReceiptEnvelope = { schema: "paperclip/accounting-receipt/v1", id: randomUUID(), ...input, sourceId, sequence: ++sequence, receivedAt: new Date().toISOString(), receipt, liveCostCents };
+    const envelope: UsageReceiptEnvelope = { schema: "nexus/accounting-receipt/v1", id: randomUUID(), ...input, sourceId, sequence: ++sequence, receivedAt: new Date().toISOString(), receipt, liveCostCents };
     const file = await spoolUsageReceipt(envelope, directory);
     try { await persistUsageReceipt(db, envelope); await fs.rm(file, { force: true }); }
     catch (error) {

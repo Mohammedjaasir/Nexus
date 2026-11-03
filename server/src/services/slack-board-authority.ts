@@ -11,7 +11,7 @@ import {
   type chatConversations,
   type chatPublications,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { HttpError } from "../errors.js";
 import { authorizeSlackChannel } from "./connectors/slack-access.js";
 import { slackClient } from "./connectors/slack-client.js";
@@ -40,7 +40,7 @@ export async function slackBoardAuthor(db: Reader, endpoint: Endpoint, userId: s
     .where(and(
       eq(chatIdentityLinks.companyId, endpoint.companyId),
       eq(chatIdentityLinks.endpointId, endpoint.id),
-      eq(chatIdentityLinks.paperclipUserId, userId),
+      eq(chatIdentityLinks.nexusUserId, userId),
       eq(chatIdentityLinks.status, "linked"),
       isNull(chatIdentityLinks.revokedAt),
     ))

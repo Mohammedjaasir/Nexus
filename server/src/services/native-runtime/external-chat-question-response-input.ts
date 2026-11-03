@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { agents, heartbeatRuns, issues, type Db } from "@paperclipai/db";
-import type { NativeInteractionResponseEnvelope } from "../../vendor/paperclip-runner/index.js";
+import { agents, heartbeatRuns, issues, type Db } from "@nexusai/db";
+import type { NativeInteractionResponseEnvelope } from "../../vendor/nexus-runner/index.js";
 import {
   authorizeChatConversationForBoundRun,
   isExternalChatWaitAuthorizationContention,

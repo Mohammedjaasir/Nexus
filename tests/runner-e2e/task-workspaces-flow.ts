@@ -46,7 +46,7 @@ export async function runTaskWorkspacesFlow(input: {
   async function save(phase: string) {
     const checks = gradeTaskWorkspaces(evidence);
     if (issue) input.observe(issue, runs, checks);
-    await input.evidence("task-workspaces.json", { schema: "paperclip.e2e.task-workspaces.v1", phase,
+    await input.evidence("task-workspaces.json", { schema: "nexus.e2e.task-workspaces.v1", phase,
       budgetMonthlyCents: TASK_WORKSPACES_BUDGET_CENTS, expectedTurns: 3, observation: evidence, checks });
     await input.evidence("task-workspaces-runs.json", { runs, events: eventEvidence });
   }
@@ -115,7 +115,7 @@ export async function runTaskWorkspacesFlow(input: {
     };
     if (turn > 1) {
       const repository = view.repositories[0];
-      if (!repository || !/^\.paperclip-repositories\/task-repo-[a-f0-9]{24}$/.test(repository.relativePath)) throw new Error("No contained managed repository receipt");
+      if (!repository || !/^\.nexus-repositories\/task-repo-[a-f0-9]{24}$/.test(repository.relativePath)) throw new Error("No contained managed repository receipt");
       const checkout = await realpath(path.join(cwd, repository.relativePath));
       if (!checkout.startsWith(`${cwd}${path.sep}`)) throw new Error("Repository oracle path escaped the isolated task root");
       const git = async (...args: string[]) => (await execFile("git", ["-C", checkout, ...args], { timeout: 15_000, maxBuffer: 65_536 })).stdout.trim();

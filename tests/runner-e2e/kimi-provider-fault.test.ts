@@ -12,7 +12,7 @@ const binding = { companyId: "company", environmentId: "environment", runId: "ru
 const hash = `sha256:${"a".repeat(64)}`;
 function receipt() {
   const contract = kimiFaultRuntimeContract("linux-x64");
-  return { schema: "paperclip.e2e.kimi-provider-death.v1", binding, runtimeEnvironmentLeaseId: "workspace-id", target, ancestry: [target, parent, root],
+  return { schema: "nexus.e2e.kimi-provider-death.v1", binding, runtimeEnvironmentLeaseId: "workspace-id", target, ancestry: [target, parent, root],
     ...contract, entrypointSha256: hash, guardSha256: hash, bootstrapSha256: hash,
     entrypointAttribution: "pinned_native_bootstrap_parent", originalChildArgvAvailable: false, observedChildTitle: "kimi-code",
     signalled: true, signal: "SIGKILL", targetKind: "kimi_native_child", workerSignalled: false };
@@ -20,7 +20,7 @@ function receipt() {
 
 describe("Kimi native child fault contract", () => {
   it("uses compiled production loader, module guard and native bootstrap bytes", () => {
-    const contract = kimiFaultRuntimeContract("linux-x64"), distribution = "/tmp/paperclip-acpx-native-test/distribution";
+    const contract = kimiFaultRuntimeContract("linux-x64"), distribution = "/tmp/nexus-acpx-native-test/distribution";
     expect(contract.guardLoaderSha256).toMatch(/^sha256:[a-f0-9]{64}$/u);
     expect(contract.closureSha256).toMatch(/^[a-f0-9]{64}$/u);
     const bootstrap = expectedNativeBootstrap(distribution, contract.nodeSha256);

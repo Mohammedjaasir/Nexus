@@ -72,7 +72,7 @@ failure. Compatible continuations carry a versioned case projection tied to the
 actual prior native input and exact agent/task/session. Stable facts fingerprints
 include document revisions and accessible references, while phase/version and
 incoming instructions are refreshed separately. Do not use a prepared
-`contextSnapshot.paperclipCase` as proof that a compact provider turn received
+`contextSnapshot.nexusCase` as proof that a compact provider turn received
 those facts. Legacy adapters continue to receive their bounded case snapshot.
 
 Start work through `handoff_case` or
@@ -105,7 +105,7 @@ durable admission, and legacy process integration tests. Run the explicit-only
 case-handoffs Product E2E workflow for provider/browser qualification; fixture
 and service tests do not establish that a live model followed the workflow.
 See [implementation and acceptance](plans/2026-10-19-persistent-case-handoffs.md)
-and the [agent case reference](../skills/paperclip/references/cases.md).
+and the [agent case reference](../skills/nexus/references/cases.md).
 
 Task detail, heartbeat context, and closed-workspace admission guards read stored
 workspace metadata. They do not inspect Git or refresh live runtime health.
@@ -141,7 +141,7 @@ GitHub Actions owns `pnpm-lock.yaml`.
 ## Trusted PR Workflow
 
 The PR caller uses `paperclipai/paperclip/.github/workflows/pr-trusted.yml@master`.
-The AWS runner group `paperclip-public-pr` must allow
+The AWS runner group `nexus-public-pr` must allow
 `paperclipai/paperclip/.github/workflows/pr-trusted.yml@refs/heads/master`.
 New workflow versions merged into master then receive runner access without a
 separate SHA allowlist update. Dependabot leaves this first-party reference on
@@ -272,7 +272,7 @@ merge SHA and parent diff, its plan hash and the expected shard/project ownershi
 invalid manifests fail selected jobs and the required aggregate; they cannot
 turn reduced matrices green. Failed-job retries download the original artifact
 ID saved with the plan, even when GitHub increments the run attempt. Turbo hashes the selected file assignment through
-`PAPERCLIP_CI_SELECTION_HASH`, so a passing subset cannot satisfy a full run or a
+`NEXUS_CI_SELECTION_HASH`, so a passing subset cannot satisfy a full run or a
 different selection.
 
 Graph discovery runs at most two isolated Node processes concurrently. Each
@@ -355,8 +355,8 @@ supported reruns still use them.
 
 General server shards run at most two test files at a time in separate Vitest
 forks. Each file retains its own home, config and process state, and its test
-cases run serially. An explicit `PAPERCLIP_*_TEST_DATABASE_URL`, including
-`PAPERCLIP_TEST_DATABASE_URL`, keeps those shards serial because the database
+cases run serially. An explicit `NEXUS_*_TEST_DATABASE_URL`, including
+`NEXUS_TEST_DATABASE_URL`, keeps those shards serial because the database
 is shared. Native Runner suites also use two isolated file workers. Their long
 lease, preparation, disk-loss and checkpoint tests have separate files so real
 observation windows can overlap. Issue recovery suites split by producer and
@@ -391,23 +391,23 @@ This starts:
 
 `pnpm dev:once` auto-applies pending local migrations by default before starting the dev server.
 
-`pnpm dev` and `pnpm dev:once` are now idempotent for the current repo and instance: if the matching Paperclip dev runner is already alive, Paperclip reports the existing process instead of starting a duplicate.
+`pnpm dev` and `pnpm dev:once` are now idempotent for the current repo and instance: if the matching Nexus dev runner is already alive, Nexus reports the existing process instead of starting a duplicate.
 
 To run against a separate local state root, pass `--data-dir`. The dev runner
-translates it to an isolated `PAPERCLIP_HOME` before migration checks or server
+translates it to an isolated `NEXUS_HOME` before migration checks or server
 startup, so embedded PostgreSQL and other default instance state live under that
 directory:
 
 ```sh
-pnpm dev --data-dir ./tmp/paperclip-dev
+pnpm dev --data-dir ./tmp/nexus-dev
 ```
 
 Pass the same option to the service-management commands so they use the
 isolated runtime-service registry:
 
 ```sh
-pnpm dev:list --data-dir ./tmp/paperclip-dev
-pnpm dev:stop --data-dir ./tmp/paperclip-dev
+pnpm dev:list --data-dir ./tmp/nexus-dev
+pnpm dev:stop --data-dir ./tmp/nexus-dev
 ```
 
 Issue execution may also use project execution workspace policies and workspace runtime services for per-project worktrees, preview servers, and managed dev commands. Configure those through the project workspace/runtime surfaces rather than starting long-running unmanaged processes when a task needs a reusable service.
@@ -435,7 +435,7 @@ Stories are grouped in `ui/storybook/stories/<feature-area>/`. Feature recipe
 navigation controls the sidebar. Shared fixtures live in `ui/storybook/support/`.
 Keep each suite's explicit meta `id` when changing titles or locations so existing
 review links remain valid. Author capability associations, implementation/data
-classification and durable limitations in the story's `parameters.paperclip`.
+classification and durable limitations in the story's `parameters.nexus`.
 
 Storybook start/build generates the catalog, feature Overview pages, and literal
 sidebar order from the checked-out sources. `ui/storybook/generated/` and
@@ -466,7 +466,7 @@ pnpm storybook
 pnpm build-storybook
 ```
 
-These run the `@paperclipai/ui` Storybook on port `6006` and build the static output to `ui/storybook-static/`.
+These run the `@nexusai/ui` Storybook on port `6006` and build the static output to `ui/storybook-static/`.
 
 **Task chat → Failure notices** covers compact run errors and adjacent recovery
 notices in both presentation modes, with expanded details, fixture retry
@@ -586,8 +586,8 @@ fixtures and never start an agent.
 
 Use **Composer → Model and effort picker** to review harness-specific model
 choices. Codex uses the curated adapter catalog unless the instance declares
-`PAPERCLIP_ADAPTER_MODELS`; general OpenAI API models are not Codex choices.
-The Paperclip Runner Codex profile shows the same known model effort levels.
+`NEXUS_ADAPTER_MODELS`; general OpenAI API models are not Codex choices.
+The Nexus Runner Codex profile shows the same known model effort levels.
 Its selected effort is saved with the run and sent to Codex for each turn.
 When Codex reports that a selected model is not supported with a ChatGPT account,
 the task shows **Model unavailable**, the provider's account restriction, and
@@ -712,9 +712,9 @@ The board UI ships its own sans-serif webfont assets in `ui/public/fonts/`.
 `ui/src/index.css` declares Inter v4.1 variable regular and italic faces and wires
 the Tailwind `font-sans` token to those bundled files before system fallbacks.
 Linux screenshot or Storybook capture jobs should not install host Inter packages
-or inject external font CSS to make Paperclip text render correctly.
+or inject external font CSS to make Nexus text render correctly.
 
-Font assets live in Vite's public directory so `pnpm --filter @paperclipai/ui build`
+Font assets live in Vite's public directory so `pnpm --filter @nexusai/ui build`
 emits them under `ui/dist/fonts/`. The server package copies the same output into
 `server/ui-dist/fonts/` through `scripts/prepare-server-ui-dist.sh`.
 
@@ -746,7 +746,7 @@ Transient errors (network drops, non-JSON responses, 408/425/429/502/503/504,
 and gateway codes such as `tenant_app_unavailable` in any status) are classified
 in `ui/src/api/errors.ts`.
 
-A new page shows **Reconnecting to Paperclip** with a **Try again** action and
+A new page shows **Reconnecting to Nexus** with a **Try again** action and
 waits for startup health to become ready. Valid startup metadata remains
 available to sign-in and invitation pages. An already open page stays mounted
 during temporary background failures so unsaved edits survive; after about two
@@ -803,10 +803,10 @@ To reproduce a deploy blip in a dev or QA build, set the outage simulator in the
 browser console and remove it to end the outage:
 
 ```js
-localStorage.paperclipSimulateOutage = "503:tenant_app_unavailable"    // until removed
-localStorage.paperclipSimulateOutage = "503:tenant_app_unavailable@20" // for 20 seconds
-localStorage.paperclipSimulateOutage = "network"                       // dropped connection
-localStorage.removeItem("paperclipSimulateOutage")
+localStorage.nexusSimulateOutage = "503:tenant_app_unavailable"    // until removed
+localStorage.nexusSimulateOutage = "503:tenant_app_unavailable@20" // for 20 seconds
+localStorage.nexusSimulateOutage = "network"                       // dropped connection
+localStorage.removeItem("nexusSimulateOutage")
 ```
 
 Reads render through `useQueryView(query)` or `<QueryView>`
@@ -834,12 +834,12 @@ prop that is already outage-aware), end the line with `// query-error-ok:
 <reason>`. Reads that must fail fast use `retry: retryTransientOnly(0)`
 instead of `retry: false`.
 
-Primary-instance rebuilds that restart `paperclip.service` can request one-shot live-run adoption instead of using the normal graceful shutdown drain. Before restarting the service, write the marker from the newly staged app with the current service PID:
+Primary-instance rebuilds that restart `nexus.service` can request one-shot live-run adoption instead of using the normal graceful shutdown drain. Before restarting the service, write the marker from the newly staged app with the current service PID:
 
 ```sh
-old_main_pid="$(systemctl show paperclip.service -p MainPID --value)"
-pnpm --filter @paperclipai/server exec tsx ../scripts/request-hot-restart.ts --server-pid "$old_main_pid"
-systemctl restart paperclip.service
+old_main_pid="$(systemctl show nexus.service -p MainPID --value)"
+pnpm --filter @nexusai/server exec tsx ../scripts/request-hot-restart.ts --server-pid "$old_main_pid"
+systemctl restart nexus.service
 ```
 
 The staged command records the target server's boot identity and operating
@@ -849,15 +849,15 @@ identities let a later request reclaim an abandoned marker after the operating
 system recycles the numeric PID. Older markers stay compatible and use process
 start metadata when available. When OS metadata is unavailable, the current
 server's health-reported boot time can still prove that a legacy marker predates
-the process now using its PID. Paperclip refuses to create a new request without
+the process now using its PID. Nexus refuses to create a new request without
 at least one identity source. Supported-platform process probes fail explicitly
 instead of silently treating a live PID as either the original owner or a
 recycled process when identity cannot be established.
 
-Use `--drain-required` only when the deploy intentionally requires the old terminate-and-retry behavior. Without that flag, the old server verifies that the marker targets its own PID, stops new scheduler work, waits for any queue-claim callback already in flight, snapshots currently running heartbeat run IDs and child PIDs, and skips the shutdown drain so eligible detached local-agent processes can keep running. ACP-backed local runs use server-owned stdio and cannot survive their parent server, so the old server instead persists their complete snapshot, changes the marker to `drainRequired` with `drainReason: "active_acp_run"`, and drains only those runs to bounded conversation retries. These retries resume the prior session when compatible, otherwise carry the full task conversation into a fresh session. They do not automatically replay tool calls or require receipts for every prior action. Detached CLI runs remain eligible for adoption during the same mixed restart. If an ACP process terminates but its terminal run update does not persist, startup classifies it as lost with reason `selective_drain_not_finalized` rather than treating the drain as successful. On startup the new server writes `$PAPERCLIP_HOME/instances/${PAPERCLIP_INSTANCE_ID:-default}/hot-restart-report.json` with `previousServerPid`, `newServerPid`, `previousServerVersion`, `newServerVersion`, `drainReason`, `adoptedRunIds`, `finalizedWhileDownRunIds`, `lostRunIds`, and per-run classifications before the normal orphan reaper runs.
+Use `--drain-required` only when the deploy intentionally requires the old terminate-and-retry behavior. Without that flag, the old server verifies that the marker targets its own PID, stops new scheduler work, waits for any queue-claim callback already in flight, snapshots currently running heartbeat run IDs and child PIDs, and skips the shutdown drain so eligible detached local-agent processes can keep running. ACP-backed local runs use server-owned stdio and cannot survive their parent server, so the old server instead persists their complete snapshot, changes the marker to `drainRequired` with `drainReason: "active_acp_run"`, and drains only those runs to bounded conversation retries. These retries resume the prior session when compatible, otherwise carry the full task conversation into a fresh session. They do not automatically replay tool calls or require receipts for every prior action. Detached CLI runs remain eligible for adoption during the same mixed restart. If an ACP process terminates but its terminal run update does not persist, startup classifies it as lost with reason `selective_drain_not_finalized` rather than treating the drain as successful. On startup the new server writes `$NEXUS_HOME/instances/${NEXUS_INSTANCE_ID:-default}/hot-restart-report.json` with `previousServerPid`, `newServerPid`, `previousServerVersion`, `newServerVersion`, `drainReason`, `adoptedRunIds`, `finalizedWhileDownRunIds`, `lostRunIds`, and per-run classifications before the normal orphan reaper runs.
 
-When Paperclip manages embedded PostgreSQL, it suppresses that dependency's eager
-`SIGINT`/`SIGTERM` cleanup hooks. Paperclip owns signal ordering so the heartbeat
+When Nexus manages embedded PostgreSQL, it suppresses that dependency's eager
+`SIGINT`/`SIGTERM` cleanup hooks. Nexus owns signal ordering so the heartbeat
 snapshot and any required drain complete while the database is still available;
 the coordinated shutdown path stops embedded PostgreSQL afterward.
 
@@ -879,10 +879,10 @@ made adoptable retroactively. Cross that version boundary once with the normal
 drain-and-retry path:
 
 ```sh
-old_main_pid="$(systemctl show paperclip.service -p MainPID --value)"
-pnpm --filter @paperclipai/server exec tsx ../scripts/request-hot-restart.ts \
+old_main_pid="$(systemctl show nexus.service -p MainPID --value)"
+pnpm --filter @nexusai/server exec tsx ../scripts/request-hot-restart.ts \
   --server-pid "$old_main_pid" --drain-required
-systemctl restart paperclip.service
+systemctl restart nexus.service
 ```
 
 After the fixed server starts, wait for the replacement `codex_local` heartbeat
@@ -890,9 +890,9 @@ to spawn, then confirm its run record has an identity (use an authenticated API
 request in authenticated mode):
 
 ```sh
-PAPERCLIP_API_BASE="${PAPERCLIP_API_URL:-http://127.0.0.1:3100}"
-PAPERCLIP_API_BASE="${PAPERCLIP_API_BASE%/api}"
-curl -fsS "$PAPERCLIP_API_BASE/api/heartbeat-runs/$RUN_ID" \
+NEXUS_API_BASE="${NEXUS_API_URL:-http://127.0.0.1:3100}"
+NEXUS_API_BASE="${NEXUS_API_BASE%/api}"
+curl -fsS "$NEXUS_API_BASE/api/heartbeat-runs/$RUN_ID" \
   | jq -e '.status == "running" and (.processPid != null or .processGroupId != null)'
 ```
 
@@ -903,7 +903,7 @@ explicit outcome for the run that was live before restart:
 ```sh
 jq -e --arg run "$RUN_ID" \
   '(.lostRunIds | length) == 0 and ((.adoptedRunIds + .finalizedWhileDownRunIds) | index($run) != null)' \
-  "$PAPERCLIP_HOME/hot-restart-report.json"
+  "$NEXUS_HOME/hot-restart-report.json"
 ```
 
 An alive child appears in `adoptedRunIds`; a child that completed during the
@@ -929,7 +929,7 @@ account, and use the setup screen to claim the first instance admin from the
 browser. The CLI fallback remains:
 
 ```sh
-pnpm paperclipai auth bootstrap-ceo
+pnpm nexusai auth bootstrap-ceo
 ```
 
 For Tailscale-only reachability on a detected tailnet address:
@@ -948,7 +948,7 @@ pnpm dev --authenticated-private
 Allow additional private hostnames (for example custom Tailscale hostnames):
 
 ```sh
-npx paperclipai allowed-hostname dotta-macbook-pro
+npx nexusai allowed-hostname dotta-macbook-pro
 ```
 
 ## Agent status recovery
@@ -976,7 +976,7 @@ parks verification nor consumes the generic failed-test budget. A completed chec
 that confirms a missing directory or command still waits for configuration repair.
 
 The retry persistence tests can use a dedicated local PostgreSQL database ending
-in `_test` through `PAPERCLIP_LIFECYCLE_VERIFICATION_RETRY_TEST_DATABASE_URL` when
+in `_test` through `NEXUS_LIFECYCLE_VERIFICATION_RETRY_TEST_DATABASE_URL` when
 embedded PostgreSQL is unavailable. The test validates that URL before use.
 
 Heartbeat completion locks the agent row before it reads remaining running work
@@ -1027,7 +1027,7 @@ first in six sequential, exact-cover child processes, each with its own home,
 config and embedded PostgreSQL. The remaining server invocation excludes that
 chat file once and retains the native Runner suites. This bounds shared fixture
 and process lifetime without increasing concurrency or changing case assertions
-or timeouts. An explicit `PAPERCLIP_TEST_DATABASE_URL` retains the original
+or timeouts. An explicit `NEXUS_TEST_DATABASE_URL` retains the original
 single, serial database path. Explicit `--group` invocations and CI shard routing
 are unchanged.
 
@@ -1048,7 +1048,7 @@ These browser suites are intended for targeted local verification and CI, not th
 
 The default E2E configuration builds the UI into `server/ui-dist` before starting
 its throwaway instance and serves that build with
-`PAPERCLIP_UI_DEV_MIDDLEWARE=false`. This exercises the
+`NEXUS_UI_DEV_MIDDLEWARE=false`. This exercises the
 shipped assets, including service-worker takeover and reload, without traversing
 the development server's unbundled module graph on each navigation. Browser
 assertion deadlines and retries remain unchanged. Use `pnpm dev` separately when
@@ -1063,7 +1063,7 @@ database for each fixture, use:
 
 ```sh
 node cli/node_modules/tsx/dist/cli.mjs packages/db/src/test-postgres-command.ts
-node cli/node_modules/tsx/dist/cli.mjs packages/db/src/test-postgres-command.ts -- pnpm exec vitest run --project @paperclipai/db
+node cli/node_modules/tsx/dist/cli.mjs packages/db/src/test-postgres-command.ts -- pnpm exec vitest run --project @nexusai/db
 ```
 
 The command starts an embedded server, prepares a migrated database template,
@@ -1074,12 +1074,12 @@ and CLI fixtures all use the common implementation. Tests of embedded startup it
 start dedicated clusters.
 
 To reuse a disposable server that you already manage, set
-`PAPERCLIP_TEST_POSTGRES_ADMIN_URL` to its administrative PostgreSQL URL. The role
+`NEXUS_TEST_POSTGRES_ADMIN_URL` to its administrative PostgreSQL URL. The role
 must be able to create databases. Each fixture creates a random database and
 closes only its clients before dropping it. It never stops the external server.
 `DATABASE_URL` does not select this test path. The optional
-`PAPERCLIP_TEST_POSTGRES_TEMPLATE` can name an existing migrated database with
-the form `paperclip_test_template_<hex>`; `0` disables template reuse.
+`NEXUS_TEST_POSTGRES_TEMPLATE` can name an existing migrated database with
+the form `nexus_test_template_<hex>`; `0` disables template reuse.
 
 On a supported platform, PostgreSQL startup failures fail test collection.
 Resource exhaustion, unavailable configured servers, and broken native binaries
@@ -1105,10 +1105,10 @@ removal. Large suites can leave many relation files; deleting them must not bloc
 the worker's event loop. The idle-sleep suite uses the existing 90-second fixture
 budget for its final directory cleanup after hundreds of table truncations.
 
-Suites that call `startEmbeddedPostgresTestDatabase` (from `@paperclipai/db`)
+Suites that call `startEmbeddedPostgresTestDatabase` (from `@nexusai/db`)
 without an administrative URL get their own embedded Postgres cluster. The first such suite on a host builds
 one fully migrated cluster and publishes its data directory under
-`$TMPDIR/paperclip-embedded-postgres-templates-<uid>/<key>`. Every later suite
+`$TMPDIR/nexus-embedded-postgres-templates-<uid>/<key>`. Every later suite
 copies that template and starts Postgres on the copy instead of running
 `initdb` and all migrations again, and the `getEmbeddedPostgresTestSupport`
 probe reuses it instead of starting a throwaway cluster. The key hashes the
@@ -1125,7 +1125,7 @@ template is checked the same way before it is copied. A root that fails those
 checks (for example one pre-created by another user in a shared `/tmp`) is left
 alone and every suite in that process uses a fresh cluster.
 
-Set `PAPERCLIP_TEST_POSTGRES_TEMPLATE=0` to bypass the cache and give every
+Set `NEXUS_TEST_POSTGRES_TEMPLATE=0` to bypass the cache and give every
 suite a fresh `initdb`, for example when debugging cluster startup itself. A
 failure on the template path (root checks, build, copy, start, or publish)
 falls back to the fresh path automatically, so the cache can make a suite
@@ -1134,20 +1134,20 @@ the suite on the fresh path.
 
 #### Reused Runner build in the server build
 
-The server build vendors `packages/paperclip-runner/dist`, so its
+The server build vendors `packages/nexus-runner/dist`, so its
 `prepare:runner-vendor` step has to make sure that directory is a current
 build. It used to run the Runner's full `build` every time. Now the Runner's
 `build` brackets itself with `scripts/record-build-inputs.mjs`: `--begin`, its
 first step, forgets the previous stamp and records a digest of the build's
-inputs (every file under `packages/paperclip-runner` except `dist`,
+inputs (every file under `packages/nexus-runner` except `dist`,
 `dist-browser`, `runner/target`, `node_modules` and dot-directories; every
-file under `packages/paperclip-eval-kernel` except `dist` and `node_modules`;
+file under `packages/nexus-eval-kernel` except `dist` and `node_modules`;
 every file under the root `patches` directory, which the acpx profile check
 hashes and the provider entrypoint bundler copies into `dist`; and the root
 `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` and
 `tsconfig.base.json`). `--finish`, its last step, recomputes the digest and
 writes the stamp
-`packages/paperclip-runner/node_modules/.cache/paperclip-runner-build-inputs.json`
+`packages/nexus-runner/node_modules/.cache/nexus-runner-build-inputs.json`
 only if the inputs are still the ones the build began with, together with the
 path and size of every file under `dist`. An edit that lands while the build
 runs leaves no stamp, so the next consumer rebuilds.
@@ -1155,13 +1155,13 @@ runs leaves no stamp, so the next consumer rebuilds.
 stamp is for this platform, every recorded output is still there at its
 recorded size, and the current digest matches. Anything else (no stamp, a
 changed input, a deleted or truncated output, a stamp from another platform)
-runs `pnpm --filter @paperclipai/paperclip-runner build` exactly as before, so
-a standalone `pnpm --filter @paperclipai/server build` on a fresh checkout
+runs `pnpm --filter @nexusai/nexus-runner build` exactly as before, so
+a standalone `pnpm --filter @nexusai/server build` on a fresh checkout
 still builds the Runner itself. Inside `pnpm build` the Runner has just been
 built by the same command, and the step skips a 12-16s rebuild. The step
-prints one `paperclip.runner-vendor.timing.v1` line saying which it did.
+prints one `nexus.runner-vendor.timing.v1` line saying which it did.
 
-Set `PAPERCLIP_RUNNER_VENDOR_REBUILD=1` to rebuild regardless of the stamp. A
+Set `NEXUS_RUNNER_VENDOR_REBUILD=1` to rebuild regardless of the stamp. A
 stamp is only written after a Runner build that passed every step, and both
 the Runner's first build step and the prepare step remove any existing stamp
 before a rebuild starts, so a build that stops partway never leaves a stamp
@@ -1186,7 +1186,7 @@ Measure native skill preparation through the production service, real PostgreSQL
 and an in-memory OpenTelemetry exporter:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx scripts/benchmark-native-skill-preparation.ts
+pnpm --filter @nexusai/server exec tsx scripts/benchmark-native-skill-preparation.ts
 ```
 
 The default fixture has a 208-file repository of about 10.8 MB. The report includes
@@ -1211,7 +1211,7 @@ the export mode, and trace IDs. Exported traces identify this local diagnostic
 in their service version; they are not evidence of staging performance.
 
 If creating another embedded cluster is impractical, `--postgres-port=55448
---postgres-user=paperclip` uses an existing **local** server. It creates and migrates
+--postgres-user=nexus` uses an existing **local** server. It creates and migrates
 a uniquely named disposable database and drops that database afterward; it does
 not reuse an application database.
 
@@ -1220,7 +1220,7 @@ not reuse an application database.
 Measure a fresh checkout with and without the repository object cache:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-repository-object-cache.ts
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-repository-object-cache.ts
 ```
 
 This uses a synthetic 32 MiB repository and the real `file://` Git transport.
@@ -1232,8 +1232,8 @@ measurement.
 Measure cold sandbox staging with a disposable 10,000-file Git repository:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-workspace-staging.ts --baseline-ref=origin/master
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-workspace-staging.ts --baseline-ref=origin/master --transfer-delay-ms=3000
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-workspace-staging.ts --baseline-ref=origin/master
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-workspace-staging.ts --baseline-ref=origin/master --transfer-delay-ms=3000
 ```
 
 The benchmark alternates the baseline and current implementations. Both pack,
@@ -1295,11 +1295,11 @@ retain the individual-read path with duplicate bindings shared within the reques
 
 ### Managed Cloud runner images
 
-Paperclip-managed Cloud sandbox images do not require a saved platform or
-snapshot qualification. Discovery offers Paperclip Runner, and execution uses
+Nexus-managed Cloud sandbox images do not require a saved platform or
+snapshot qualification. Discovery offers Nexus Runner, and execution uses
 the current platform-selected image even when an older qualification exists.
 The real runtime startup and handshake report compatibility failures. Test goes
-directly to that runtime check when discovery already offers Paperclip Runner.
+directly to that runtime check when discovery already offers Nexus Runner.
 Company access, adapter availability, credentials and runtime integrity checks
 still apply. Self-hosted sandboxes, custom environments and active captured
 custom images keep their existing qualification and snapshot binding.
@@ -1323,16 +1323,16 @@ saved execution choices remain unchanged.
 
 ### OpenCode native runtime
 
-Paperclip Runner resolves the pinned OpenCode platform package installed with
-Paperclip. On Apple Silicon and Intel Macs it runs the matching macOS binary;
+Nexus Runner resolves the pinned OpenCode platform package installed with
+Nexus. On Apple Silicon and Intel Macs it runs the matching macOS binary;
 on Linux x64 it runs the qualified baseline binary. No global OpenCode command
 or dependency postinstall script is required. This also works when installation
 scripts are disabled. The published server declares the same pinned dependency
 as the source Runner package.
 
-For native OpenCode and Cursor on Daytona, a complete installed Paperclip release
+For native OpenCode and Cursor on Daytona, a complete installed Nexus release
 also selects its packaged Linux daemon and provider-pack identity automatically.
-Use a qualified Paperclip Daytona image. For an OS-protected pack, startup
+Use a qualified Nexus Daytona image. For an OS-protected pack, startup
 checks the selected provider interface and platform from its small manifest in
 the existing runner metadata query. It does not rescan the pack or require the
 same app source revision. Writable or legacy installations retain full content
@@ -1341,8 +1341,8 @@ The controller's operating system does not determine the remote daemon target.
 
 Native Claude remote execution also selects the Linux x64 or ARM64 daemon and
 pack identity for its actual selected host. For SSH, install that exact release's
-pack at `$HOME/.local/share/paperclip-runner/provider-pack` or
-`/opt/paperclip-runner/provider-pack`; the runtime discovers and verifies it.
+pack at `$HOME/.local/share/nexus-runner/provider-pack` or
+`/opt/nexus-runner/provider-pack`; the runtime discovers and verifies it.
 The package's identities and the native producer archives share one source.
 No development pack override is needed for this installed-host path. Other
 provider qualification boundaries and the current Linux x64 image path remain.
@@ -1359,12 +1359,12 @@ An explicit override remains authoritative and fails closed if invalid.
 For a first-time local install, you can bootstrap and run in one command:
 
 ```sh
-pnpm paperclipai run
+pnpm nexusai run
 ```
 
 > **Note: private npm registry `.npmrc` + first-run onboarding**
 >
-> The first-run experience often starts with `npx paperclipai onboard --yes` (before you have a repo checkout). If your global `~/.npmrc` sets `registry` to a private registry (for example GitHub Packages), `npx` may try to resolve `paperclipai` from that private registry and fail with `E404`.
+> The first-run experience often starts with `npx nexusai onboard --yes` (before you have a repo checkout). If your global `~/.npmrc` sets `registry` to a private registry (for example GitHub Packages), `npx` may try to resolve `nexusai` from that private registry and fail with `E404`.
 >
 > Diagnostic:
 >
@@ -1375,13 +1375,13 @@ pnpm paperclipai run
 > Workaround (cross-platform; force the public npm registry for this command):
 >
 > ```sh
-> npx --registry https://registry.npmjs.org paperclipai onboard --yes
+> npx --registry https://registry.npmjs.org nexusai onboard --yes
 > ```
 
-`paperclipai run` does:
+`nexusai run` does:
 
 1. auto-onboard if config is missing
-2. `paperclipai doctor` with repair enabled
+2. `nexusai doctor` with repair enabled
 3. starts the server when checks pass
 
 ### One-command isolated manual test drive
@@ -1427,7 +1427,7 @@ Claude uses `ANTHROPIC_API_KEY`; Codex uses `OPENAI_API_KEY`; OpenCode uses
 `OPENROUTER_API_KEY` and requires an `openrouter/...` model. `--api-key-env`
 can name a different source variable while the agent still receives the
 canonical variable. `--api-key <value>` is also supported and is mutually
-exclusive with `--api-key-env`; Paperclip redacts it from its own output, but
+exclusive with `--api-key-env`; Nexus redacts it from its own output, but
 also removes it from the JavaScript argument view before telemetry, diagnostics,
 or server startup. Wrappers, operating-system process listings, and shell
 history may still expose argument values. This is an explicit local test-drive
@@ -1453,12 +1453,12 @@ token, install the app, verify Slack delivery, and try a conversation. Agent
 selection generates readable defaults for the Slack app name, bot display name,
 and slash command; edit them under **Advanced** if needed. **Get your App
 configuration token** opens Slack app settings. Enter the temporary token directly
-into Paperclip, then select **Create Slack app**. Paperclip creates the app,
+into Nexus, then select **Create Slack app**. Nexus creates the app,
 vaults its credentials, and attempts avatar upload before discarding the token.
 App details lock after creation dispatch, including an uncertain result.
 
 **Install in Slack** obtains the bot token through OAuth, links the installing
-Slack account to the Paperclip account that started installation, and sends one
+Slack account to the Nexus account that started installation, and sends one
 welcome DM. Approve with your own Slack account. After Slack verifies the Events
 Request URL, use **Open your Slack DM**, send the suggested message, and continue
 in the thread. **Done** finishes setup; the conversation test is optional.
@@ -1497,7 +1497,7 @@ separate strict connection-test API retains its conversation and delivery checks
 
 New Slack conversations receive default communication guidance that requires a
 clickable link to each task the agent creates. Agents use the public task URL
-from Paperclip tools or task context and report when a link is unavailable.
+from Nexus tools or task context and report when a link is unavailable.
 Existing conversations keep their original communication guidance snapshot.
 
 Slack catalog discovery uses `resolveSlackTaskAuthorization` to recheck the live
@@ -1518,23 +1518,23 @@ The first page refreshes automatically; older pages do not poll. Mutable action 
 entry forward in time, so this is a live ledger, not a historical snapshot. Requests without pagination
 parameters retain the recent-100 array response for existing clients.
 
-Slack callback diagnostics tolerate HTTP between a TLS proxy and Paperclip when the public host,
+Slack callback diagnostics tolerate HTTP between a TLS proxy and Nexus when the public host,
 port, and path still match. A changed authority or path remains stale. This comparison only affects
 health display; it does not trust forwarded headers or alter Slack signature verification.
 
 
 ## Docker Quickstart (No local Node install)
 
-Build and run Paperclip in Docker:
+Build and run Nexus in Docker:
 
 ```sh
-docker build -t paperclip-local .
-docker run --name paperclip \
+docker build -t nexus-local .
+docker run --name nexus \
   -p 3100:3100 \
   -e HOST=0.0.0.0 \
-  -e PAPERCLIP_HOME=/paperclip \
-  -v "$(pwd)/data/docker-paperclip:/paperclip" \
-  paperclip-local
+  -e NEXUS_HOME=/nexus \
+  -v "$(pwd)/data/docker-nexus:/nexus" \
+  nexus-local
 ```
 
 Or use Compose:
@@ -1554,7 +1554,7 @@ For a separate review-oriented container that keeps `codex`/`claude` login state
 Every local install keeps runtime state directly under the selected instance root:
 
 ```text
-~/.paperclip/instances/default/                  # instance root
+~/.nexus/instances/default/                  # instance root
   config.json                                    # runtime config
   .env                                           # instance env file
   db/                                            # embedded PostgreSQL data
@@ -1571,7 +1571,7 @@ Every local install keeps runtime state directly under the selected instance roo
                                                    # per-agent codex_local home
 ```
 
-`PAPERCLIP_HOME` and `PAPERCLIP_INSTANCE_ID` override the home root and instance id respectively. `paperclipai onboard` echoes the resolved values in its banner (`Local home: <home> | instance: <id> | config: <path>`) so you can confirm where state will land before continuing.
+`NEXUS_HOME` and `NEXUS_INSTANCE_ID` override the home root and instance id respectively. `nexusai onboard` echoes the resolved values in its banner (`Local home: <home> | instance: <id> | config: <path>`) so you can confirm where state will land before continuing.
 
 Config updates preserve unrecognized top-level and nested keys so provider or
 plugin extensions survive `configure` and worktree port repair. Likely
@@ -1586,19 +1586,19 @@ runs stop without replacing the original.
 For local development, leave `DATABASE_URL` unset.
 The server will automatically use embedded PostgreSQL and persist data at:
 
-- `~/.paperclip/instances/default/db`
+- `~/.nexus/instances/default/db`
 
 Override home or instance:
 
 ```sh
-PAPERCLIP_HOME=/custom/path PAPERCLIP_INSTANCE_ID=dev pnpm paperclipai run
+NEXUS_HOME=/custom/path NEXUS_INSTANCE_ID=dev pnpm nexusai run
 ```
 
 No Docker or external database is required for this mode.
 
 ## Issue Privacy Rollout
 
-`PAPERCLIP_ISSUE_PRIVACY_MODE` controls the canonical opt-in issue/project privacy predicate:
+`NEXUS_ISSUE_PRIVACY_MODE` controls the canonical opt-in issue/project privacy predicate:
 
 - `enforce` (default): return private issues only to implicit principals, issue grantees, or private-project access members; hide private projects from non-members
 - `shadow`: log structured would-deny decisions but preserve existing reads; use only for rollout diagnosis
@@ -1635,31 +1635,31 @@ maintenance-run visibility.
 
 For local development, the default storage provider is `local_disk`, which persists uploaded images/attachments at:
 
-- `~/.paperclip/instances/default/data/storage`
+- `~/.nexus/instances/default/data/storage`
 
 Configure storage provider/settings:
 
 ```sh
-pnpm paperclipai configure --section storage
+pnpm nexusai configure --section storage
 ```
 
 ### Managed cloud prerequisites
 
-A nonblank Cloud tenant token or the presence of `PAPERCLIP_MANAGED_CONFIG`
+A nonblank Cloud tenant token or the presence of `NEXUS_MANAGED_CONFIG`
 selects the managed-cloud profile. A supplied blank or invalid managed feature
 document refuses startup. Without either signal, the instance remains self-hosted.
 The managed profile also requires:
 
-- `PAPERCLIP_STORAGE_PROVIDER=s3` or `storage.provider: "s3"` in the canonical
+- `NEXUS_STORAGE_PROVIDER=s3` or `storage.provider: "s3"` in the canonical
   database snapshot. An invalid explicit environment value refuses startup even
   if the snapshot selects S3.
-- An explicit nonblank `PAPERCLIP_STORAGE_S3_BUCKET` or `storage.s3.bucket`.
-  The self-hosted `paperclip` bucket default does not qualify. The region defaults
+- An explicit nonblank `NEXUS_STORAGE_S3_BUCKET` or `storage.s3.bucket`.
+  The self-hosted `nexus` bucket default does not qualify. The region defaults
   to `us-east-1`; an explicit blank region refuses startup. An optional endpoint
   must be an HTTP(S) URL without embedded credentials.
 - An external PostgreSQL URL from the environment `DATABASE_URL`.
   The managed profile never falls back to embedded PostgreSQL.
-- A stable `PAPERCLIP_SECRETS_MASTER_KEY` supplied by the deployment secret store.
+- A stable `NEXUS_SECRETS_MASTER_KEY` supplied by the deployment secret store.
   Use the same value across replacements. The existing provider accepts 32-byte
   base64, 64-character hex, or a raw 32-byte UTF-8 string. A key file alone does
   not qualify because a replacement web server may not have that file.
@@ -1669,7 +1669,7 @@ opening the database or creating local state. Effective storage validation follo
 canonical snapshot resolution, before signing keys, first-party Telemetry or app
 construction. Raw canonical rows and legacy S3 imports cannot obtain a missing
 bucket from schema defaults. Already-stored nonblank bucket values remain
-canonical, including the deliberate name `paperclip`; prior normalization cannot
+canonical, including the deliberate name `nexus`; prior normalization cannot
 reliably establish their original provenance.
 It does not contact S3 or verify credentials, bucket access, database connectivity,
 or that a key matches existing encrypted data. Operators must qualify ordinary
@@ -1685,7 +1685,7 @@ separate changes.
 ### Experimental native remote workspace storage
 
 `experimental.remoteWorkspaceStorageEnabled` is a managed feature, on by default
-for Cloud and self-hosted instances. New Paperclip Runner sandbox workspaces
+for Cloud and self-hosted instances. New Nexus Runner sandbox workspaces
 enroll automatically when durable storage is configured and the fresh source is
 supported. Existing host workspaces and configured local folders retain their
 legacy behavior until explicitly imported; the default does not convert them.
@@ -1702,9 +1702,9 @@ unsupported rollback targets.
 
 This mode requires an external PostgreSQL `DATABASE_URL`, configured S3 storage,
 and the same encryption master key on every replacement server. The managed
-profile requires `PAPERCLIP_SECRETS_MASTER_KEY` as described above. Self-hosted
+profile requires `NEXUS_SECRETS_MASTER_KEY` as described above. Self-hosted
 instances may instead preserve their existing configured
-`PAPERCLIP_SECRETS_MASTER_KEY_FILE` across replacements. An embedded database,
+`NEXUS_SECRETS_MASTER_KEY_FILE` across replacements. An embedded database,
 local-disk object storage, or a newly generated replacement key cannot provide
 this durability contract. New workspaces continue through the legacy path when
 these prerequisites are absent. Validate S3 put/read/delete and database access
@@ -1744,9 +1744,9 @@ Existing local task workspaces require an explicit import. Run from a source
 checkout with the deployment's database, S3, and key configuration loaded:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx scripts/migrate-remote-workspaces.ts \
+pnpm --filter @nexusai/server exec tsx scripts/migrate-remote-workspaces.ts \
   --company-id <company-uuid> --workspace-id <workspace-uuid> --dry-run
-pnpm --filter @paperclipai/server exec tsx scripts/migrate-remote-workspaces.ts \
+pnpm --filter @nexusai/server exec tsx scripts/migrate-remote-workspaces.ts \
   --company-id <company-uuid> --workspace-id <workspace-uuid> --apply
 ```
 
@@ -1797,10 +1797,10 @@ When an agent generates a file that a board user or reviewer should inspect as
 a deliverable, attach it to the issue before marking the task complete. Do not
 rely on a local workspace path as the only access path.
 
-Use the helper bundled with the Paperclip skill from the repo root:
+Use the helper bundled with the Nexus skill from the repo root:
 
 ```sh
-skills/paperclip/scripts/paperclip-upload-artifact.sh dist/demo.mp4 \
+skills/nexus/scripts/nexus-upload-artifact.sh dist/demo.mp4 \
   --title "Demo video render" \
   --summary "MP4 render for board review"
 ```
@@ -1808,7 +1808,7 @@ skills/paperclip/scripts/paperclip-upload-artifact.sh dist/demo.mp4 \
 For WebM output:
 
 ```sh
-skills/paperclip/scripts/paperclip-upload-artifact.sh out/walkthrough.webm \
+skills/nexus/scripts/nexus-upload-artifact.sh out/walkthrough.webm \
   --title "Walkthrough video" \
   --summary "WebM walkthrough render"
 ```
@@ -1823,28 +1823,28 @@ that file, not as the main completion path for deliverables.
 
 ## Default Agent Workspaces
 
-When a local agent run has no resolved project/session workspace, Paperclip falls back to an agent home workspace under the instance root:
+When a local agent run has no resolved project/session workspace, Nexus falls back to an agent home workspace under the instance root:
 
-- `~/.paperclip/instances/default/workspaces/<agent-id>`
+- `~/.nexus/instances/default/workspaces/<agent-id>`
 
-This path honors `PAPERCLIP_HOME` and `PAPERCLIP_INSTANCE_ID` in non-default setups.
+This path honors `NEXUS_HOME` and `NEXUS_INSTANCE_ID` in non-default setups.
 
-For `codex_local`, Paperclip assigns new and updated agents an isolated Codex home under the instance root and blocks shared host/company Codex homes:
+For `codex_local`, Nexus assigns new and updated agents an isolated Codex home under the instance root and blocks shared host/company Codex homes:
 
-- `~/.paperclip/instances/default/companies/<company-id>/agents/<agent-id>/codex-home`
+- `~/.nexus/instances/default/companies/<company-id>/agents/<agent-id>/codex-home`
 
-Paperclip also persists an empty `OPENAI_API_KEY` override for those agents so a host-level `OPENAI_API_KEY` cannot leak into Codex runs through process inheritance. If an operator explicitly configures `adapterConfig.env.CODEX_HOME`, it must not point at the shared company `codex-home`, `$CODEX_HOME`, or `~/.codex`.
+Nexus also persists an empty `OPENAI_API_KEY` override for those agents so a host-level `OPENAI_API_KEY` cannot leak into Codex runs through process inheritance. If an operator explicitly configures `adapterConfig.env.CODEX_HOME`, it must not point at the shared company `codex-home`, `$CODEX_HOME`, or `~/.codex`.
 
 If the `codex` CLI is not installed or not on `PATH`, `codex_local` agent runs fail at execution time with a clear adapter error. Quota polling uses a short-lived `codex app-server` subprocess: when `codex` cannot be spawned, that provider reports `ok: false` in aggregated quota results and the API server keeps running (it must not exit on a missing binary).
 
-Local adapters require their corresponding CLI/session setup on the machine running Paperclip. Self-hosted instances can install external adapters through the adapter/plugin flow without hardcoded imports in `server/` or `ui/`.
+Local adapters require their corresponding CLI/session setup on the machine running Nexus. Self-hosted instances can install external adapters through the adapter/plugin flow without hardcoded imports in `server/` or `ui/`.
 
-Cloud-managed instances use only adapter implementations supplied by the release image. A tenant server token or the presence of `PAPERCLIP_MANAGED_CONFIG` enforces this boundary. Startup and UI parser requests do not read external adapter registrations or packages. Install, reinstall, reload, remove, and override operations return `403` with `adapter_install_platform_managed`, including for instance admins. Legacy `adapter-plugins.json` files stay untouched and do not change the built-in registry.
+Cloud-managed instances use only adapter implementations supplied by the release image. A tenant server token or the presence of `NEXUS_MANAGED_CONFIG` enforces this boundary. Startup and UI parser requests do not read external adapter registrations or packages. Install, reinstall, reload, remove, and override operations return `403` with `adapter_install_platform_managed`, including for instance admins. Legacy `adapter-plugins.json` files stay untouched and do not change the built-in registry.
 
 ### Filesystem access boundary (2026-10-20)
 
 Filesystem isolation belongs to the OS, execution environment, and storage layout.
-Paperclip authorizes the current task/run, company, explicitly selected configuration,
+Nexus authorizes the current task/run, company, explicitly selected configuration,
 execution policy, and repository credentials. It does not infer file permissions from
 other tasks or agents that previously used the same directory, overlapping roots,
 symlink aliases, or shared Git storage. Existing files under an authorized task root
@@ -1858,9 +1858,9 @@ publication receipts, binding checks, and lifecycle locks remain authoritative.
 
 ## Project Repository Checkouts
 
-Tasks use every distinct repository attached to their project, including repository-only sources with no local folder. Paperclip creates a managed checkout when no local folder is configured. The selected repository remains at the task workspace root. Other project repositories have editable Git checkouts under `.paperclip-repositories/<name>-<key>`. Workspace hints expose each checkout path to the agent. A repository without a configured local folder is checked out as a Git worktree of one shared managed clone per project and repository URL, on its own `paperclip/<id>/<branch>` branch tracking `origin/<branch>`, so its objects are stored once; see [Recoverable disk cleanup](recoverable-disk-cleanup.md#nested-project-repository-worktrees). Existing standalone checkouts keep working.
+Tasks use every distinct repository attached to their project, including repository-only sources with no local folder. Nexus creates a managed checkout when no local folder is configured. The selected repository remains at the task workspace root. Other project repositories have editable Git checkouts under `.nexus-repositories/<name>-<key>`. Workspace hints expose each checkout path to the agent. A repository without a configured local folder is checked out as a Git worktree of one shared managed clone per project and repository URL, on its own `nexus/<id>/<branch>` branch tracking `origin/<branch>`, so its objects are stored once; see [Recoverable disk cleanup](recoverable-disk-cleanup.md#nested-project-repository-worktrees). Existing standalone checkouts keep working.
 
-When an additional repository has a configured local checkout, Paperclip seeds the task copy from its current commit and uncommitted files. Git-ignored files stay out of that copy. Subsequent task edits stay in the task copy. They do not overwrite the configured source folder. Existing task copies retain their work across runs.
+When an additional repository has a configured local checkout, Nexus seeds the task copy from its current commit and uncommitted files. Git-ignored files stay out of that copy. Subsequent task edits stay in the task copy. They do not overwrite the configured source folder. Existing task copies retain their work across runs.
 
 Sandbox staging, including Daytona, transfers each repository's Git history and working files. Restore merges files and commits back into each local task checkout independently. Durable sandbox recovery keeps the same repository snapshots. Normal ignore and workspace exclusion rules still apply. A clone failure stops task preparation with an error so the agent does not start with only part of the project.
 
@@ -1873,13 +1873,13 @@ not start another run. A chat reply cannot clear the file recovery hold.
 
 Staging preserves relative symlink targets in secondary repositories, including skill links such as `.claude/skills/demo -> ../../skills/demo`. It does not rewrite them to host temporary paths or copy their target contents in place of the link. Daytona still rejects outbound archives with absolute or escaping link targets before extraction.
 
-If a repository is detached or its source configuration changes, its previous task copy is retained under `.paperclip-runtime/detached-repositories/` and excluded from future sandbox transfers. Referenced projects continue to use the separate read-only multi-project workspace behavior.
+If a repository is detached or its source configuration changes, its previous task copy is retained under `.nexus-runtime/detached-repositories/` and excluded from future sandbox transfers. Referenced projects continue to use the separate read-only multi-project workspace behavior.
 
 ## Config Freshness
 
-Agent, project, environment, secret, skill, and workspace config edits are sampled at the next run boundary. A heartbeat that is already running finishes with the config it started with. Native runners project explicitly configured task environment variables into provider processes and tool commands, including custom `PAPERCLIP_*` names such as `PAPERCLIP_PAGE_BUCKET`. Adding, changing, or removing a projected variable replaces a retained provider process at the next run boundary. Unchanged variables permit process reuse. The projection contains names only; secret values stay in the child environment. Ambient host secrets are not projected. Native projections allow up to 128 variable names, 64 KiB per entry, and 256 KiB of values in total. These native launch limits do not apply to legacy adapter configuration. Runtime authority, provider login credentials, and process-loader settings use their existing restricted paths.
+Agent, project, environment, secret, skill, and workspace config edits are sampled at the next run boundary. A heartbeat that is already running finishes with the config it started with. Native runners project explicitly configured task environment variables into provider processes and tool commands, including custom `NEXUS_*` names such as `NEXUS_PAGE_BUCKET`. Adding, changing, or removing a projected variable replaces a retained provider process at the next run boundary. Unchanged variables permit process reuse. The projection contains names only; secret values stay in the child environment. Ambient host secrets are not projected. Native projections allow up to 128 variable names, 64 KiB per entry, and 256 KiB of values in total. These native launch limits do not apply to legacy adapter configuration. Runtime authority, provider login credentials, and process-loader settings use their existing restricted paths.
 
-When effective run config changes, Paperclip may intentionally skip a saved adapter session, refresh persisted workspace runtime config, replace a reused execution workspace, or avoid reusing a sandbox/environment lease. Fresh execution can lose adapter-specific session, workspace, or sandbox state; correctness of the next run's config takes priority over continuity. Plain environment values affect freshness through value hashes; run result JSON and workspace operation logs expose only the non-sensitive freshness decision categories, without storing secret values, full env maps, provider credentials, or private path details.
+When effective run config changes, Nexus may intentionally skip a saved adapter session, refresh persisted workspace runtime config, replace a reused execution workspace, or avoid reusing a sandbox/environment lease. Fresh execution can lose adapter-specific session, workspace, or sandbox state; correctness of the next run's config takes priority over continuity. Plain environment values affect freshness through value hashes; run result JSON and workspace operation logs expose only the non-sensitive freshness decision categories, without storing secret values, full env maps, provider credentials, or private path details.
 
 An explicit `reuse_existing` Git workspace keeps its recorded source repository, including after its project-workspace row is deleted or the project primary changes. The server verifies the original company, project, repository origin, and worktree registration before reuse. It does not attach a deleted association to the new primary. A conflicting explicit project-workspace selection, missing source identity, or an unverified legacy local checkout blocks the run. Restore the original source. Before intentionally clearing the existing-workspace binding to choose a new repository, review and preserve its retained work. Missing worktrees may be reconstructed only from the verified original source; current project defaults are not a fallback.
 
@@ -1914,14 +1914,14 @@ task Git objects.
 
 ## Workspace Git Scan Protection
 
-Paperclip applies one process-wide scheduler to expensive host-side workspace Git enumeration, including changed-file browsing, runtime/finalization cleanliness guards, and adapter sandbox-sync snapshots. The scheduler defaults to two active scans and a bounded queue of 32. Identical buffered scans of the same canonical worktree share one subprocess, while successful changed-file listings are cached for 10 seconds. Streaming snapshot scans have caller-owned sinks, so they use separate jobs in the same queue and are never cached or coalesced. Correctness-sensitive runtime guards bypass the result cache.
+Nexus applies one process-wide scheduler to expensive host-side workspace Git enumeration, including changed-file browsing, runtime/finalization cleanliness guards, and adapter sandbox-sync snapshots. The scheduler defaults to two active scans and a bounded queue of 32. Identical buffered scans of the same canonical worktree share one subprocess, while successful changed-file listings are cached for 10 seconds. Streaming snapshot scans have caller-owned sinks, so they use separate jobs in the same queue and are never cached or coalesced. Correctness-sensitive runtime guards bypass the result cache.
 
 The shared scan subprocess sets `GIT_OPTIONAL_LOCKS=0`, including when a caller supplies an environment. This prevents background `git status` from rewriting the index's stat cache and competing with workspace writers. Git still computes current tracked and untracked changes. Required write locks remain enforced; existing lock files are never removed or treated as stale by a scan. This avoids optional index refresh work but may make later scans repeat stat checks. See Git's [background refresh guidance](https://git-scm.com/docs/git-status#_background_refresh).
 
 Workspace snapshots list ignored paths with `git ls-files --others --ignored --exclude-standard --directory -z` so ignored directory contents do not require a full status walk. Changed, untracked, deleted, and ignored filename lists stream into private SQLite manifests. There is no total filename-list byte limit. The parser and each sink chunk are limited to 64 KiB, and each SQLite connection uses a 1 MiB page cache with disk-backed temporary storage. Records must be complete NUL-delimited UTF-8 paths. Invalid, oversized, or incomplete records fail the scan. Explicit file selection excludes files created after the scan. Buffered browser/guard and referenced-source scan bounds stay unchanged. Snapshot failures retain their typed cause instead of becoming a non-Git-folder result. During pre-provider setup, scan timeouts and queue saturation use the existing two automatic failure retries with a 30-second delay. Cancellation, output limits, and other Git errors stop with specific recovery guidance. See `doc/execution-semantics.md` for the ownership and retry-budget contract.
 
 
-Snapshot scans default to a 30-minute execution deadline, including disk backpressure, rather than the short interactive scan deadline. Set `PAPERCLIP_WORKSPACE_GIT_SNAPSHOT_TIMEOUT_MS` to allow slower storage or larger trees (1 second to 24 hours). Disk capacity, filesystem path limits, Git's own resource use, and this execution budget remain practical limits. Each manifest is admitted with a page allowance equal to one quarter of the available bytes above the host reserve at creation. SQLite enforces that allowance before page allocation, so one snapshot cannot consume all available storage. This is a disk-capacity admission policy, not a fixed filename-list byte or record limit. Nested repository and baseline manifests receive separate allowances from the remaining capacity. Manifest writers also check available disk space before creation and at most every 1 MiB of input thereafter. They stop below a 256 MiB free-space reserve. `PAPERCLIP_WORKSPACE_MANIFEST_MIN_FREE_BYTES` can raise or lower the reserve, with a 64 MiB minimum. Concurrent writers can consume space between checks; filesystem quota and write errors still fail the operation. The scheduler keeps the active slot until the child, pipes, and pending sink write finish. Snapshot failures cancel sibling producers and settle all started producers before removing temporary storage.
+Snapshot scans default to a 30-minute execution deadline, including disk backpressure, rather than the short interactive scan deadline. Set `NEXUS_WORKSPACE_GIT_SNAPSHOT_TIMEOUT_MS` to allow slower storage or larger trees (1 second to 24 hours). Disk capacity, filesystem path limits, Git's own resource use, and this execution budget remain practical limits. Each manifest is admitted with a page allowance equal to one quarter of the available bytes above the host reserve at creation. SQLite enforces that allowance before page allocation, so one snapshot cannot consume all available storage. This is a disk-capacity admission policy, not a fixed filename-list byte or record limit. Nested repository and baseline manifests receive separate allowances from the remaining capacity. Manifest writers also check available disk space before creation and at most every 1 MiB of input thereafter. They stop below a 256 MiB free-space reserve. `NEXUS_WORKSPACE_MANIFEST_MIN_FREE_BYTES` can raise or lower the reserve, with a 64 MiB minimum. Concurrent writers can consume space between checks; filesystem quota and write errors still fail the operation. The scheduler keeps the active slot until the child, pipes, and pending sink write finish. Snapshot failures cancel sibling producers and settle all started producers before removing temporary storage.
 
 Workspace baselines, nested-repository subsets, and merge lookups also use disk-backed manifests. Local archive input uses NUL list files. Deletion replay uploads a NUL manifest and runs bounded argument batches with ancestor symlink checks. Git ignored paths are literal indexed exclusions for staging, baseline capture, and the host merge. Restore transport uses the fixed/configured archive exclusions; it can transfer a remotely created ignored file, but the host merge excludes it. The v2 native recovery descriptor contains manifest references, not file arrays. Recovery checks controller-owned paths and content digests before reading records. Existing v1 descriptors remain readable. Transient manifests are removed on preparation failure and restore completion; native manifests remain until the durable recovery lifecycle is cleaned up.
 
@@ -1940,7 +1940,7 @@ guards. Close readiness derives ancestry from its existing ahead/behind
 comparison, avoiding a second history walk with `merge-base`.
 
 Measure the avoided reads on synthetic workspaces with
-`pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-workspace-record-reads.ts`.
+`pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-workspace-record-reads.ts`.
 The benchmark checks identical persisted fields and reports wall time and actual
 Git command counts. Use `--resident-mib=1536` to exercise a large Node process on
 Linux. It measures workspace reads, not end-to-end agent latency.
@@ -1951,34 +1951,34 @@ Sandbox Git sync treats only the selected repository root as a clone source. A s
 
 Environment overrides:
 
-- `PAPERCLIP_WORKSPACE_GIT_SCAN_CONCURRENCY` (default `2`, range `1`–`16`)
-- `PAPERCLIP_WORKSPACE_GIT_SCAN_QUEUE_CAPACITY` (default `32`, range `0`–`1024`)
-- `PAPERCLIP_WORKSPACE_GIT_SCAN_TIMEOUT_MS` (default `8000`, range `100`–`120000`, buffered scans)
-- `PAPERCLIP_WORKSPACE_GIT_SNAPSHOT_TIMEOUT_MS` (default `1800000`, range `1000`–`86400000`, streaming snapshots)
-- `PAPERCLIP_WORKSPACE_GIT_SCAN_CACHE_TTL_MS` (default `10000`, range `0`–`60000`)
+- `NEXUS_WORKSPACE_GIT_SCAN_CONCURRENCY` (default `2`, range `1`–`16`)
+- `NEXUS_WORKSPACE_GIT_SCAN_QUEUE_CAPACITY` (default `32`, range `0`–`1024`)
+- `NEXUS_WORKSPACE_GIT_SCAN_TIMEOUT_MS` (default `8000`, range `100`–`120000`, buffered scans)
+- `NEXUS_WORKSPACE_GIT_SNAPSHOT_TIMEOUT_MS` (default `1800000`, range `1000`–`86400000`, streaming snapshots)
+- `NEXUS_WORKSPACE_GIT_SCAN_CACHE_TTL_MS` (default `10000`, range `0`–`60000`)
 
 Structured `workspace_git_scan` logs expose the operation name, a non-reversible workspace-path hash, queue and execution durations, active/queued counts, cache and single-flight use, and terminal outcome. Saturation and timeout warnings are rate-limited so an overload does not create a second logging storm.
 
 ## Worktree-local Instances
 
-When developing from multiple git worktrees, do not point two Paperclip servers at the same embedded PostgreSQL data directory.
+When developing from multiple git worktrees, do not point two Nexus servers at the same embedded PostgreSQL data directory.
 
-Instead, create a repo-local Paperclip config plus an isolated instance for the worktree:
+Instead, create a repo-local Nexus config plus an isolated instance for the worktree:
 
 ```sh
-paperclipai worktree init
+nexusai worktree init
 # or create the git worktree and initialize it in one step:
-npx paperclipai worktree:make paperclip-pr-432
+npx nexusai worktree:make nexus-pr-432
 ```
 
 This command:
 
-- writes repo-local files at `.paperclip/config.json` and `.paperclip/.env`
-- creates an isolated instance under `~/.paperclip-worktrees/instances/<worktree-id>/`
+- writes repo-local files at `.nexus/config.json` and `.nexus/.env`
+- creates an isolated instance under `~/.nexus-worktrees/instances/<worktree-id>/`
 - when run inside a linked git worktree, mirrors the effective git hooks into that worktree's private git dir
 - picks a free app port and embedded PostgreSQL port
 - disables automatic database backups for the isolated instance
-- by default seeds the isolated DB in `minimal` mode from the current effective Paperclip instance/config (repo-local worktree config when present, otherwise the default instance) via a logical SQL snapshot
+- by default seeds the isolated DB in `minimal` mode from the current effective Nexus instance/config (repo-local worktree config when present, otherwise the default instance) via a logical SQL snapshot
 
 Seed modes:
 
@@ -1987,7 +1987,7 @@ Seed modes:
 - `--no-seed` defers database copying until the worktree is first used
 - `--empty` creates an empty isolated instance, with fresh signing secrets and no deferred copy; use this for synthetic test drives
 
-`--empty` persists a `.paperclip/seed-empty` marker before writing the instance config.
+`--empty` persists a `.nexus/seed-empty` marker before writing the instance config.
 The CLI and managed runtime provisioner honor it even when a registered source
 instance is present. An explicit successful `worktree reseed`, or a replacement
 `worktree init --force` without `--empty`, clears the choice.
@@ -1995,31 +1995,31 @@ While that marker exists, startup uses the instance's saved JWT and tool-action
 signing keys even if the shell inherited another instance's keys. Better Auth
 uses its saved key or the fresh instance JWT key. Missing saved keys stop startup.
 
-Seeded worktree instances quarantine copied live execution by default for both `minimal` and `full` seeds. During restore, Paperclip disables copied agent timer heartbeats, resets copied `running` agents to `idle`, blocks and unassigns copied agent-owned `in_progress` issues, and unassigns copied agent-owned `todo`/`in_review` issues. This keeps a freshly booted worktree from starting agents for work already owned by the source instance. Pass `--preserve-live-work` only when you intentionally want the isolated worktree to resume copied assignments.
+Seeded worktree instances quarantine copied live execution by default for both `minimal` and `full` seeds. During restore, Nexus disables copied agent timer heartbeats, resets copied `running` agents to `idle`, blocks and unassigns copied agent-owned `in_progress` issues, and unassigns copied agent-owned `todo`/`in_review` issues. This keeps a freshly booted worktree from starting agents for work already owned by the source instance. Pass `--preserve-live-work` only when you intentionally want the isolated worktree to resume copied assignments.
 
-The same quarantine stops copied project/execution-workspace runtime desired states and clears copied runtime process claims. Without this reset, booting the cloned Paperclip database could restart a source workspace's dev service from the isolated instance, creating duplicate runners, port reassignment, and stale public URLs.
+The same quarantine stops copied project/execution-workspace runtime desired states and clears copied runtime process claims. Without this reset, booting the cloned Nexus database could restart a source workspace's dev service from the isolated instance, creating duplicate runners, port reassignment, and stale public URLs.
 
-After `worktree init`, both the server and the CLI auto-load the repo-local `.paperclip/.env` when run inside that worktree, so normal commands like `pnpm dev`, `paperclipai doctor`, and `paperclipai db:backup` stay scoped to the worktree instance.
+After `worktree init`, both the server and the CLI auto-load the repo-local `.nexus/.env` when run inside that worktree, so normal commands like `pnpm dev`, `nexusai doctor`, and `nexusai db:backup` stay scoped to the worktree instance.
 
-`pnpm dev` now fails fast in a linked git worktree when `.paperclip/.env` is missing, instead of silently booting against the default instance/port. If that happens, run `paperclipai worktree init` in the worktree first.
+`pnpm dev` now fails fast in a linked git worktree when `.nexus/.env` is missing, instead of silently booting against the default instance/port. If that happens, run `nexusai worktree init` in the worktree first.
 
 ### Lean worktrees and deferred seeding
 
 Seeding a worktree database is the heaviest part of `worktree init`. That work can be deferred so a worktree is cheap to create and only pays the seed cost the first time it is actually used — the CLI/dev-time analog of the server's lazy runtime provisioning (see the board-operator guide's "Lazy runtime provisioning" section).
 
-Seeding state is tracked in `.paperclip/seed-manifest.json`. The versioned manifest records only non-secret evidence: source instance id/config path, target instance id, seed mode, snapshot time, migration revision, attempt timestamps, current phase, terminal state, and a bounded phase diagnostic history. It never stores database credentials or auth credential material. The legacy `seed-pending` and `seed-complete` files remain read-only compatibility signals for worktrees created before the manifest shipped.
+Seeding state is tracked in `.nexus/seed-manifest.json`. The versioned manifest records only non-secret evidence: source instance id/config path, target instance id, seed mode, snapshot time, migration revision, attempt timestamps, current phase, terminal state, and a bounded phase diagnostic history. It never stores database credentials or auth credential material. The legacy `seed-pending` and `seed-complete` files remain read-only compatibility signals for worktrees created before the manifest shipped.
 
 The default `worktree init` still seeds eagerly. A lean worktree (created without an eager seed) has a `pending` manifest until something seeds it on demand:
 
-- `pnpm paperclipai worktree ensure-seeded` performs the deferred seed **exactly once**. It is lock-guarded and idempotent: only a complete `verified` manifest short-circuits it, so it is safe to call repeatedly and from concurrent processes. Managed workspaces derive the source from the control-plane-provided base project workspace when it carries its own `.paperclip/config.json`, and otherwise from the control plane's own registered instance config; either way the workspace's manifest never selects it. Manual worktrees must pass `--from-config`.
-- `paperclipai run` calls `ensureWorktreeSeeded` automatically before doctor/boot. Managed runs transparently seed a lean worktree from their registered base workspace; an unmanaged lean worktree must first run `worktree ensure-seeded --from-config <source-config>`.
-- Managed Paperclip git worktrees default to the repository's `scripts/provision-worktree.sh` when the strategy omits `provisionCommand`. When a registered source config exists, setup creates the isolated config and pending manifest. Runtime startup also runs `scripts/provision-worktree-runtime.sh` automatically when no explicit runtime provision command is configured and the manifest is not verified. Explicitly configured provision commands still take precedence.
-- An environment-configured server may have no local seed config. If neither the base checkout nor the default control-plane instance has one, a fresh worktree prepares its dependencies without creating a development instance. This also applies when `PAPERCLIP_CONFIG` names the default `$PAPERCLIP_HOME/instances/$PAPERCLIP_INSTANCE_ID/config.json` path, as the Docker image does. Setup creates no config, environment file, or seed manifest and does not claim runtime or seed readiness. A later request for a seeded development runtime still needs a canonical registered source config. Once that source exists, provisioning the checkout again creates the development instance normally.
-- A missing custom `PAPERCLIP_CONFIG`, rejected symlink, or non-regular source file still fails setup. An existing worktree with a config, environment file, or seed state also fails if its source disappears; setup never downgrades that instance to a plain checkout. Repair the source before retrying.
-- The built-in deferred seed is recorded as its own terminal `workspace_seed` operation. A zero exit code is not enough for success: the operation succeeds only when `.paperclip/seed-manifest.json` contains complete verified evidence; failed, missing, or malformed manifests produce a failed operation with the seed phase in metadata.
-- Worktrees created before lazy seeding shipped may have neither marker. Paperclip adopts them only after their configured database proves a compatible migration journal and the core Paperclip schema; otherwise managed startup creates a pending manifest and performs the normal verified seed. Manual markerless worktrees must provide `--from-config` so the source remains explicit.
+- `pnpm nexusai worktree ensure-seeded` performs the deferred seed **exactly once**. It is lock-guarded and idempotent: only a complete `verified` manifest short-circuits it, so it is safe to call repeatedly and from concurrent processes. Managed workspaces derive the source from the control-plane-provided base project workspace when it carries its own `.nexus/config.json`, and otherwise from the control plane's own registered instance config; either way the workspace's manifest never selects it. Manual worktrees must pass `--from-config`.
+- `nexusai run` calls `ensureWorktreeSeeded` automatically before doctor/boot. Managed runs transparently seed a lean worktree from their registered base workspace; an unmanaged lean worktree must first run `worktree ensure-seeded --from-config <source-config>`.
+- Managed Nexus git worktrees default to the repository's `scripts/provision-worktree.sh` when the strategy omits `provisionCommand`. When a registered source config exists, setup creates the isolated config and pending manifest. Runtime startup also runs `scripts/provision-worktree-runtime.sh` automatically when no explicit runtime provision command is configured and the manifest is not verified. Explicitly configured provision commands still take precedence.
+- An environment-configured server may have no local seed config. If neither the base checkout nor the default control-plane instance has one, a fresh worktree prepares its dependencies without creating a development instance. This also applies when `NEXUS_CONFIG` names the default `$NEXUS_HOME/instances/$NEXUS_INSTANCE_ID/config.json` path, as the Docker image does. Setup creates no config, environment file, or seed manifest and does not claim runtime or seed readiness. A later request for a seeded development runtime still needs a canonical registered source config. Once that source exists, provisioning the checkout again creates the development instance normally.
+- A missing custom `NEXUS_CONFIG`, rejected symlink, or non-regular source file still fails setup. An existing worktree with a config, environment file, or seed state also fails if its source disappears; setup never downgrades that instance to a plain checkout. Repair the source before retrying.
+- The built-in deferred seed is recorded as its own terminal `workspace_seed` operation. A zero exit code is not enough for success: the operation succeeds only when `.nexus/seed-manifest.json` contains complete verified evidence; failed, missing, or malformed manifests produce a failed operation with the seed phase in metadata.
+- Worktrees created before lazy seeding shipped may have neither marker. Nexus adopts them only after their configured database proves a compatible migration journal and the core Nexus schema; otherwise managed startup creates a pending manifest and performs the normal verified seed. Manual markerless worktrees must provide `--from-config` so the source remains explicit.
 
-Both `minimal` and `full` modes use the same terminal data-validation contract. Source validation accepts a migration journal that is a prefix of the checkout's journal and records the source revision in seed diagnostics; it rejects a source that is ahead of the checkout because that would require a downgrade. After restore, Paperclip applies pending migrations and requires the target journal to be current. Both validations also read an auth user with an instance administrator role, active company membership, and representative cloned company/issue pair. Authenticated instances additionally require that administrator to have a non-empty credential account. `local_trusted` instances accept the implicit local Board user without an account row because that mode intentionally has no human login flow. Restore, migrations, execution quarantine, routine pausing, workspace rebinding, and post-restore validation all run under the seed lock. An interruption leaves the exact active phase in terminal `failed` state; it cannot produce readiness evidence.
+Both `minimal` and `full` modes use the same terminal data-validation contract. Source validation accepts a migration journal that is a prefix of the checkout's journal and records the source revision in seed diagnostics; it rejects a source that is ahead of the checkout because that would require a downgrade. After restore, Nexus applies pending migrations and requires the target journal to be current. Both validations also read an auth user with an instance administrator role, active company membership, and representative cloned company/issue pair. Authenticated instances additionally require that administrator to have a non-empty credential account. `local_trusted` instances accept the implicit local Board user without an account row because that mode intentionally has no human login flow. Restore, migrations, execution quarantine, routine pausing, workspace rebinding, and post-restore validation all run under the seed lock. An interruption leaves the exact active phase in terminal `failed` state; it cannot produce readiness evidence.
 
 The seed process must own the target embedded PostgreSQL lifecycle for that entire sequence. It refuses to restore into a target postmaster that is already running, suppresses the embedded provider's process-global exit hooks, and stops its owned target only after validation or failure cleanup. A shutdown detected during restore is recorded as a target-database shutdown diagnostic rather than a generic restore failure.
 
@@ -2028,7 +2028,7 @@ The seed manifest never grants source-path authority. Its source path and instan
 **Unverified-seed guard.** `pnpm dev` (the dev-runner) refuses to boot a worktree whose manifest is pending, running, failed, malformed, or missing required verification evidence and points you at the fix:
 
 ```
-[paperclip] this worktree database is seed-pending. Run `pnpm paperclipai worktree ensure-seeded` before `pnpm dev`.
+[nexus] this worktree database is seed-pending. Run `pnpm nexusai worktree ensure-seeded` before `pnpm dev`.
 ```
 
 This guard (`isWorktreeSeedPending` in `server/src/dev-runner-worktree.ts`) prevents `pnpm dev` from starting the app against an empty or partially restored database — run `worktree ensure-seeded` once and re-run `pnpm dev`.
@@ -2037,23 +2037,23 @@ Provisioned git worktrees also pause seeded routines that still have enabled sch
 
 That repo-local env also sets:
 
-- `PAPERCLIP_IN_WORKTREE=true`
-- `PAPERCLIP_DB_BACKUP_ENABLED=false`
-- `PAPERCLIP_WORKTREE_NAME=<worktree-name>`
-- `PAPERCLIP_WORKTREE_COLOR=<hex-color>`
+- `NEXUS_IN_WORKTREE=true`
+- `NEXUS_DB_BACKUP_ENABLED=false`
+- `NEXUS_WORKTREE_NAME=<worktree-name>`
+- `NEXUS_WORKTREE_COLOR=<hex-color>`
 
 The server/UI use those values for worktree-specific branding such as the top banner and dynamically colored favicon.
-Authenticated worktree servers also use the `PAPERCLIP_INSTANCE_ID` value to scope Better Auth cookie names.
+Authenticated worktree servers also use the `NEXUS_INSTANCE_ID` value to scope Better Auth cookie names.
 Browser cookies are shared by host rather than port, so this prevents logging into one `127.0.0.1:<port>` worktree from replacing another worktree server's session cookie.
 
-When Paperclip closes a server-managed git worktree, it also reclaims the isolated instance referenced by that worktree's repo-local `.paperclip/.env`. New server-managed worktrees use a collision-resistant instance id derived from the resolved absolute worktree path, and Paperclip persists the resulting instance root as execution-workspace ownership metadata. Cleanup requires the env pointer to match that persisted root, stops a running embedded PostgreSQL process, and then removes the instance directory. The deletion guard only accepts canonical instance paths below `PAPERCLIP_WORKTREES_DIR/instances/`; legacy or mismatched ownership, pointers to the default/live Paperclip home, and all other locations are logged and left untouched.
+When Nexus closes a server-managed git worktree, it also reclaims the isolated instance referenced by that worktree's repo-local `.nexus/.env`. New server-managed worktrees use a collision-resistant instance id derived from the resolved absolute worktree path, and Nexus persists the resulting instance root as execution-workspace ownership metadata. Cleanup requires the env pointer to match that persisted root, stops a running embedded PostgreSQL process, and then removes the instance directory. The deletion guard only accepts canonical instance paths below `NEXUS_WORKTREES_DIR/instances/`; legacy or mismatched ownership, pointers to the default/live Nexus home, and all other locations are logged and left untouched.
 
 Print shell exports explicitly when needed:
 
 ```sh
-paperclipai worktree env
+nexusai worktree env
 # or:
-eval "$(paperclipai worktree env)"
+eval "$(nexusai worktree env)"
 ```
 
 ### Workspace login handoff and readiness
@@ -2064,14 +2064,14 @@ Opening a managed workspace board no longer depends on knowing which cloned pass
 - **Exchange** — `GET /api/auth/{workspace-handoff}/exchange?ticket=…` on the workspace itself, registered as a Better Auth plugin so session creation and cookie signing use Better Auth's own path. It verifies the signature, expiry, origin, instance, workspace, company, the cloned user's email, and an active membership **in that company**, records the nonce so a replay loses, and answers with an HTTP redirect — which is what keeps the ticket out of browser history. Request logs redact the `ticket` parameter.
 - **Fallback** — direct email/password sign-in still works and the UI labels it accurately as *snapshot-local credentials*. A rejected ticket redirects to `/auth?workspaceHandoffError=<reason>` rather than failing opaquely.
 
-Key material is derived, never shared. The control plane keeps a root secret (`PAPERCLIP_WORKSPACE_HANDOFF_SECRET`, or a domain-separated derivation from the instance's existing signing secret when that is unset) and injects only per-workspace values into the guest process:
+Key material is derived, never shared. The control plane keeps a root secret (`NEXUS_WORKSPACE_HANDOFF_SECRET`, or a domain-separated derivation from the instance's existing signing secret when that is unset) and injects only per-workspace values into the guest process:
 
 | Variable | Purpose |
 | --- | --- |
-| `PAPERCLIP_WORKSPACE_HANDOFF_KEY` | Per-workspace ticket verification key. A guest cannot mint a ticket for a sibling workspace. |
-| `PAPERCLIP_WORKSPACE_READINESS_TOKEN` | Bearer token the control plane presents to read this workspace's protected readiness. |
-| `PAPERCLIP_EXECUTION_WORKSPACE_ID` | Execution workspace the guest was provisioned for, used for identity checks. |
-| `PAPERCLIP_EXECUTION_WORKSPACE_COMPANY_ID` | Company whose board the guest represents. Scopes both the membership check and the readiness probes, so "some company in the clone is fine" cannot pass for the one being opened. |
+| `NEXUS_WORKSPACE_HANDOFF_KEY` | Per-workspace ticket verification key. A guest cannot mint a ticket for a sibling workspace. |
+| `NEXUS_WORKSPACE_READINESS_TOKEN` | Bearer token the control plane presents to read this workspace's protected readiness. |
+| `NEXUS_EXECUTION_WORKSPACE_ID` | Execution workspace the guest was provisioned for, used for identity checks. |
+| `NEXUS_EXECUTION_WORKSPACE_COMPANY_ID` | Company whose board the guest represents. Scopes both the membership check and the readiness probes, so "some company in the clone is fine" cannot pass for the one being opened. |
 
 Protected `/api/health` on a cloned workspace additionally carries a `workspace` block — `state`, `databaseReady`, `cloneDataReady`, `authHandoffReady`, `seedState`, `seedPhase`, `instanceId`, `executionWorkspaceId`, `failurePhase`. Public health stays redacted. Managed runtime start will not publish `running / healthy` unless that block agrees and names this exact instance and workspace, and runtime-service work products are refreshed from the live runtime row so a port change cannot leave a stale user-facing URL.
 
@@ -2079,15 +2079,15 @@ The workspace UI surfaces `Provisioning database`, `Validating clone`, `Ready`, 
 
 ### Worktree CLI Reference
 
-**`npx paperclipai worktree init [options]`** — Create repo-local config/env and an isolated instance for the current worktree.
+**`npx nexusai worktree init [options]`** — Create repo-local config/env and an isolated instance for the current worktree.
 
 | Option | Description |
 |---|---|
 | `--name <name>` | Display name used to derive the instance id |
 | `--instance <id>` | Explicit isolated instance id |
-| `--home <path>` | Home root for worktree instances (default: `~/.paperclip-worktrees`) |
+| `--home <path>` | Home root for worktree instances (default: `~/.nexus-worktrees`) |
 | `--from-config <path>` | Source config.json to seed from |
-| `--from-data-dir <path>` | Source PAPERCLIP_HOME used when deriving the source config |
+| `--from-data-dir <path>` | Source NEXUS_HOME used when deriving the source config |
 | `--from-instance <id>` | Source instance id (default: `default`) |
 | `--server-port <port>` | Preferred server port |
 | `--db-port <port>` | Preferred embedded Postgres port |
@@ -2099,34 +2099,34 @@ The workspace UI surfaces `Provisioning database`, `Validating clone`, `Ready`, 
 Examples:
 
 ```sh
-paperclipai worktree init --no-seed
-paperclipai worktree init --seed-mode full
-paperclipai worktree init --from-instance default
-paperclipai worktree init --from-data-dir ~/.paperclip
-paperclipai worktree init --force
+nexusai worktree init --no-seed
+nexusai worktree init --seed-mode full
+nexusai worktree init --from-instance default
+nexusai worktree init --from-data-dir ~/.nexus
+nexusai worktree init --force
 ```
 
 Repair an already-created repo-managed worktree and reseed its isolated instance from the main default install. Point `--from-config` at the instance config:
 
 ```sh
-cd /path/to/paperclip/.paperclip/worktrees/PAP-884-ai-commits-component
-npx paperclipai worktree init --force --seed-mode minimal \
+cd /path/to/nexus/.nexus/worktrees/PAP-884-ai-commits-component
+npx nexusai worktree init --force --seed-mode minimal \
   --name PAP-884-ai-commits-component \
-  --from-config ~/.paperclip/instances/default/config.json
+  --from-config ~/.nexus/instances/default/config.json
 ```
 
-That rewrites the worktree-local `.paperclip/config.json` + `.paperclip/.env`, recreates the isolated instance under `~/.paperclip-worktrees/instances/<worktree-id>/`, and preserves the git worktree contents themselves.
+That rewrites the worktree-local `.nexus/config.json` + `.nexus/.env`, recreates the isolated instance under `~/.nexus-worktrees/instances/<worktree-id>/`, and preserves the git worktree contents themselves.
 
 For an already-created worktree where you want the CLI to decide whether to rebuild missing worktree metadata or just reseed the isolated DB, use `worktree repair`.
 
-**`npx paperclipai worktree repair [options]`** — Repair the current linked worktree by default, or create/repair a named linked worktree under `.paperclip/worktrees/` when `--branch` is provided. The command never targets the primary checkout unless you explicitly pass `--branch`.
+**`npx nexusai worktree repair [options]`** — Repair the current linked worktree by default, or create/repair a named linked worktree under `.nexus/worktrees/` when `--branch` is provided. The command never targets the primary checkout unless you explicitly pass `--branch`.
 
 | Option | Description |
 |---|---|
-| `--branch <name>` | Existing branch/worktree selector to repair, or a branch name to create under `.paperclip/worktrees` |
-| `--home <path>` | Home root for worktree instances (default: `~/.paperclip-worktrees`) |
+| `--branch <name>` | Existing branch/worktree selector to repair, or a branch name to create under `.nexus/worktrees` |
+| `--home <path>` | Home root for worktree instances (default: `~/.nexus-worktrees`) |
 | `--from-config <path>` | Source config.json to seed from |
-| `--from-data-dir <path>` | Source `PAPERCLIP_HOME` used when deriving the source config |
+| `--from-data-dir <path>` | Source `NEXUS_HOME` used when deriving the source config |
 | `--from-instance <id>` | Source instance id when deriving the source config (default: `default`) |
 | `--seed-mode <mode>` | Seed profile: `minimal` or `full` (default: `minimal`) |
 | `--no-seed` | Repair metadata only when bootstrapping a missing worktree config |
@@ -2135,26 +2135,26 @@ For an already-created worktree where you want the CLI to decide whether to rebu
 Examples:
 
 ```sh
-# From inside a linked worktree, rebuild missing .paperclip metadata and reseed it from the default instance.
-cd /path/to/paperclip/.paperclip/worktrees/PAP-1132-assistant-ui-pap-1131-make-issues-comments-be-like-a-chat
-pnpm paperclipai worktree repair
+# From inside a linked worktree, rebuild missing .nexus metadata and reseed it from the default instance.
+cd /path/to/nexus/.nexus/worktrees/PAP-1132-assistant-ui-pap-1131-make-issues-comments-be-like-a-chat
+pnpm nexusai worktree repair
 
-# From the primary checkout, create or repair a linked worktree for a branch under .paperclip/worktrees/.
+# From the primary checkout, create or repair a linked worktree for a branch under .nexus/worktrees/.
 # This command repairs the local checkout, so run the checked-out CLI through the direct-exec form.
-cd /path/to/paperclip
+cd /path/to/nexus
 node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts worktree repair --branch PAP-1132-assistant-ui-pap-1131-make-issues-comments-be-like-a-chat
 ```
 
-For an already-created worktree where you want to keep the existing repo-local config/env and only overwrite the isolated database, use `worktree reseed` instead. Stop the target worktree's Paperclip server first so the command can replace the DB safely.
+For an already-created worktree where you want to keep the existing repo-local config/env and only overwrite the isolated database, use `worktree reseed` instead. Stop the target worktree's Nexus server first so the command can replace the DB safely.
 
-**`npx paperclipai worktree reseed [options]`** — Re-seed an existing worktree-local instance from another Paperclip instance or worktree while preserving the target worktree's current config, ports, and instance identity.
+**`npx nexusai worktree reseed [options]`** — Re-seed an existing worktree-local instance from another Nexus instance or worktree while preserving the target worktree's current config, ports, and instance identity.
 
 | Option | Description |
 |---|---|
 | `--from <worktree>` | Source worktree path, directory name, branch name, or `current` |
 | `--to <worktree>` | Target worktree path, directory name, branch name, or `current` (defaults to `current`) |
 | `--from-config <path>` | Source config.json to seed from |
-| `--from-data-dir <path>` | Source `PAPERCLIP_HOME` used when deriving the source config |
+| `--from-data-dir <path>` | Source `NEXUS_HOME` used when deriving the source config |
 | `--from-instance <id>` | Source instance id when deriving the source config |
 | `--seed-mode <mode>` | Seed profile: `minimal` or `full` (default: `full`) |
 | `--yes` | Skip the destructive confirmation prompt |
@@ -2165,31 +2165,31 @@ Examples:
 
 ```sh
 # From the main repo, reseed a worktree from the current default/master instance.
-cd /path/to/paperclip
-npx paperclipai worktree reseed \
+cd /path/to/nexus
+npx nexusai worktree reseed \
   --from current \
   --to PAP-1132-assistant-ui-pap-1131-make-issues-comments-be-like-a-chat \
   --seed-mode full \
   --yes
 
 # From inside a worktree, reseed it from the default instance config.
-cd /path/to/paperclip/.paperclip/worktrees/PAP-1132-assistant-ui-pap-1131-make-issues-comments-be-like-a-chat
-npx paperclipai worktree reseed \
+cd /path/to/nexus/.nexus/worktrees/PAP-1132-assistant-ui-pap-1131-make-issues-comments-be-like-a-chat
+npx nexusai worktree reseed \
   --from-instance default \
   --seed-mode full
 ```
 
 Managed workspace repair uses this same verified full-reseed contract through `POST /api/execution-workspaces/:id/runtime-commands/repair`. The exclusive, audited operation stops managed services, writes a recoverable pre-repair database backup under the isolated instance's backup directory, performs the full seed/migration/quarantine/rebinding sequence, and restarts only after terminal manifest and service-health validation. It preserves the worktree filesystem. On failure, services remain stopped while the database backup, seed manifest, bounded phase diagnostics, and operation log are retained for inspection; repair never retries itself in a loop.
 
-**`npx paperclipai worktree:make <name> [options]`** — Create `~/NAME` as a git worktree, then initialize an isolated Paperclip instance inside it. This combines `git worktree add` with `worktree init` in a single step.
+**`npx nexusai worktree:make <name> [options]`** — Create `~/NAME` as a git worktree, then initialize an isolated Nexus instance inside it. This combines `git worktree add` with `worktree init` in a single step.
 
 | Option | Description |
 |---|---|
 | `--start-point <ref>` | Remote ref to base the new branch on (e.g. `origin/main`) |
 | `--instance <id>` | Explicit isolated instance id |
-| `--home <path>` | Home root for worktree instances (default: `~/.paperclip-worktrees`) |
+| `--home <path>` | Home root for worktree instances (default: `~/.nexus-worktrees`) |
 | `--from-config <path>` | Source config.json to seed from |
-| `--from-data-dir <path>` | Source PAPERCLIP_HOME used when deriving the source config |
+| `--from-data-dir <path>` | Source NEXUS_HOME used when deriving the source config |
 | `--from-instance <id>` | Source instance id (default: `default`) |
 | `--server-port <port>` | Preferred server port |
 | `--db-port <port>` | Preferred embedded Postgres port |
@@ -2201,12 +2201,12 @@ Managed workspace repair uses this same verified full-reseed contract through `P
 Examples:
 
 ```sh
-npx paperclipai worktree:make paperclip-pr-432
-npx paperclipai worktree:make my-feature --start-point origin/main
-npx paperclipai worktree:make experiment --no-seed
+npx nexusai worktree:make nexus-pr-432
+npx nexusai worktree:make my-feature --start-point origin/main
+npx nexusai worktree:make experiment --no-seed
 ```
 
-**`npx paperclipai worktree env [options]`** — Print shell exports for the current worktree-local Paperclip instance.
+**`npx nexusai worktree env [options]`** — Print shell exports for the current worktree-local Nexus instance.
 
 | Option | Description |
 |---|---|
@@ -2216,18 +2216,18 @@ npx paperclipai worktree:make experiment --no-seed
 Examples:
 
 ```sh
-pnpm paperclipai worktree env
-pnpm paperclipai worktree env --json
-eval "$(npx paperclipai worktree env)"
+pnpm nexusai worktree env
+pnpm nexusai worktree env --json
+eval "$(npx nexusai worktree env)"
 ```
 
-For project execution worktrees, Paperclip can also run a project-defined provision command after it creates or reuses an isolated git worktree. Configure this on the project's execution workspace policy (`workspaceStrategy.provisionCommand`). The command runs inside the derived worktree and receives `PAPERCLIP_WORKSPACE_*`, `PAPERCLIP_PROJECT_ID`, `PAPERCLIP_AGENT_ID`, and `PAPERCLIP_ISSUE_*` environment variables so each repo can bootstrap itself however it wants.
+For project execution worktrees, Nexus can also run a project-defined provision command after it creates or reuses an isolated git worktree. Configure this on the project's execution workspace policy (`workspaceStrategy.provisionCommand`). The command runs inside the derived worktree and receives `NEXUS_WORKSPACE_*`, `NEXUS_PROJECT_ID`, `NEXUS_AGENT_ID`, and `NEXUS_ISSUE_*` environment variables so each repo can bootstrap itself however it wants.
 
 An issue's partial `workspaceStrategy` inherits omitted fields from the enabled project's strategy when both use the same type. For example, an issue can override `baseRef` without losing the project's provision, runtime provision, or teardown commands. An explicit value, including `null` or an empty string, replaces the project value. Clearing a command restores the runtime's usual default behavior; use `provisionCommand: "true"` for an explicit no-op. A different strategy type or a disabled project policy does not supply these defaults. An issue's `existingBranch` pin also excludes the project's `branchTemplate`.
 
 An issue can pin its isolated worktree to an exact pre-existing branch instead of a template-derived one — the contract PR-preparation tasks use. Set the issue's `executionWorkspaceSettings` to `{ "mode": "isolated_workspace", "workspaceStrategy": { "type": "git_worktree", "existingBranch": "<branch>" } }`. The validator requires isolated mode plus a `git_worktree` strategy and rejects `branchTemplate` alongside `existingBranch`. At dispatch the runtime attaches (never creates, renames, fast-forwards, or resets) that branch: it reuses a registered worktree that already has the branch checked out (including legacy `.worktrees/` paths), otherwise it attaches the branch under the managed worktree parent. A missing branch, an occupied worktree path on another branch, or a non-worktree strategy fails closed with a `workspace_validation_failed` error instead of falling back to the shared checkout or a derived branch, and an inherited `reuse_existing` workspace binding on a different branch is ignored in favor of realizing the pinned branch.
 
-Heavier setup that is only needed by a managed runtime service can use `workspaceStrategy.runtimeProvisionCommand`. Paperclip runs this command lazily before spawning the first service in a start batch, serializes concurrent provisioning for the same workspace, and records the attempt as `workspace_runtime_provision`. The command receives the same workspace environment as `provisionCommand` and should be idempotent because later service-start batches invoke it again.
+Heavier setup that is only needed by a managed runtime service can use `workspaceStrategy.runtimeProvisionCommand`. Nexus runs this command lazily before spawning the first service in a start batch, serializes concurrent provisioning for the same workspace, and records the attempt as `workspace_runtime_provision`. The command receives the same workspace environment as `provisionCommand` and should be idempotent because later service-start batches invoke it again.
 
 Managed runtime control actions (`start`, `stop`, `restart`, and job `run`) are mutually exclusive per execution workspace. An overlapping control is rejected with `409 workspace_runtime_control_in_progress` instead of racing the active operation, and authorization is still checked first, so the conflict never widens who may control a workspace.
 
@@ -2236,7 +2236,7 @@ files under the instance's `runtime-service-logs/` directory. The child inherits
 the file descriptors rather than supervisor-owned pipes, so request-logging
 servers remain responsive and adoptable when the control plane restarts.
 
-Every managed control reaches a terminal operation state. Each one stamps the owning server process and pid on its `workspace_operations` row and heartbeats while it runs, and each one carries a wall-clock ceiling (30 minutes for lifecycle controls, 4 hours for workspace jobs) so a hung provider or listener fails the operation rather than leaving it active. When a start fails part-way, Paperclip tears the workspace's runtime services down through the ordinary stop path and records a stopped desired state, so the lane is retryable and a startup reconcile will not resurrect a service that never came up.
+Every managed control reaches a terminal operation state. Each one stamps the owning server process and pid on its `workspace_operations` row and heartbeats while it runs, and each one carries a wall-clock ceiling (30 minutes for lifecycle controls, 4 hours for workspace jobs) so a hung provider or listener fails the operation rather than leaving it active. When a start fails part-way, Nexus tears the workspace's runtime services down through the ordinary stop path and records a stopped desired state, so the lane is retryable and a startup reconcile will not resurrect a service that never came up.
 
 Recovery of stranded controls is bounded and cannot steal a live operation. A `running` control is only terminalized when its owning process is gone, when the owning request in this process no longer exists, or after 60 seconds without a heartbeat; the terminalizing write is a compare-and-swap on `updated_at`, so an owner that heartbeats concurrently keeps its operation. Recovery runs on server startup and before each managed control, appends reconciliation evidence to the workspace-operation log, and stays inside the requested workspace's scope.
 
@@ -2248,11 +2248,11 @@ Lease recovery is bounded and explicit. Another issue may reclaim the lane once 
 
 For Tailscale HTTPS exposure, readiness includes stable listener-ownership checks for every requested loopback port (the app and, when configured, its Vite HMR companion). Each listener must belong to the spawned managed process group; an unrelated listener that races onto either reserved port fails the start closed before the broker is asked to expose it.
 
-Managed `paperclip-dev` worktree services enable `PAPERCLIP_UI_DEV_MIDDLEWARE=true` by default, so newly started worktrees hot-reload UI source changes. Managed HTTPS services use this default only when they publish the Paperclip Vite HMR companion listener, which is the default exposure configuration. A service or adapter can explicitly set the variable to `false` when it intentionally needs to exercise the built UI bundle.
+Managed `nexus-dev` worktree services enable `NEXUS_UI_DEV_MIDDLEWARE=true` by default, so newly started worktrees hot-reload UI source changes. Managed HTTPS services use this default only when they publish the Nexus Vite HMR companion listener, which is the default exposure configuration. A service or adapter can explicitly set the variable to `false` when it intentionally needs to exercise the built UI bundle.
 
-In Vite middleware mode, Paperclip gives HMR a dedicated HTTP server bound to the managed runtime's loopback host. The browser still derives the HMR hostname from the public HTTPS page, and exposed runtimes use secure WebSockets, so listener containment does not break remote hot reload.
+In Vite middleware mode, Nexus gives HMR a dedicated HTTP server bound to the managed runtime's loopback host. The browser still derives the HMR hostname from the public HTTPS page, and exposed runtimes use secure WebSockets, so listener containment does not break remote hot reload.
 
-When a workspace service runs Paperclip for browser OAuth QA, configure its `expose.urlTemplate` with the canonical URL the browser can reach. Paperclip preserves explicit `PAPERCLIP_PUBLIC_URL` or `BETTER_AUTH_URL` settings; otherwise it uses a valid exposed HTTPS origin (or loopback HTTP) as the managed runtime fallback for Better Auth and `/api/tools/oauth/callback`. Internal service names such as `http://paperclip-dev:<port>` are rejected unless that hostname is genuinely the browser route. Use a unique origin per isolated worktree. See [Execution Workspaces And Runtime Services](../docs/guides/board-operator/execution-workspaces-and-runtime-services.md#browser-reachable-origins-for-oauth-qa) for configuration and verification.
+When a workspace service runs Nexus for browser OAuth QA, configure its `expose.urlTemplate` with the canonical URL the browser can reach. Nexus preserves explicit `NEXUS_PUBLIC_URL` or `BETTER_AUTH_URL` settings; otherwise it uses a valid exposed HTTPS origin (or loopback HTTP) as the managed runtime fallback for Better Auth and `/api/tools/oauth/callback`. Internal service names such as `http://nexus-dev:<port>` are rejected unless that hostname is genuinely the browser route. Use a unique origin per isolated worktree. See [Execution Workspaces And Runtime Services](../docs/guides/board-operator/execution-workspaces-and-runtime-services.md#browser-reachable-origins-for-oauth-qa) for configuration and verification.
 
 ## Heartbeat Service Extractions
 
@@ -2396,11 +2396,11 @@ and quarantined-cleanup proofs parse the exact saved execution input. Other run
 and dispatch paths retain their existing reads.
 
 Measure these two admission queries with
-`pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-continuation-run-reads.ts --baseline-ref=<pre-fix-commit>`.
+`pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-continuation-run-reads.ts --baseline-ref=<pre-fix-commit>`.
 The synthetic PostgreSQL fixture compares the admission result and reports exact
 text-format DataRow frame bytes, SQL samples, and execution plans. It excludes
 TLS and protocol metadata. To use an isolated external database, set
-`PAPERCLIP_CONTINUATION_BENCHMARK_DATABASE_URL` to a disposable database ending
+`NEXUS_CONTINUATION_BENCHMARK_DATABASE_URL` to a disposable database ending
 in `_test`. The harness applies migrations there and adds synthetic fixtures.
 
 Continuation history reads select completed tool receipts and the typed
@@ -2408,10 +2408,10 @@ conversation/workspace recovery fields used to choose the prior terminal run.
 Every completed receipt keeps its full result. Receipt order, company/agent/task
 scope, and the complete retained history stay unchanged. Saved results remain
 available to detail, recovery, and execution paths.
-Use `pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-continuation-history.ts --baseline-ref=<pre-fix-commit>`
+Use `pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-continuation-history.ts --baseline-ref=<pre-fix-commit>`
 to compare generated SQL, complete continuation envelopes, and DataRow bytes.
 The benchmark includes a large required-receipt control. Its external database
-option is `PAPERCLIP_CONTINUATION_HISTORY_BENCHMARK_DATABASE_URL`, with the same
+option is `NEXUS_CONTINUATION_HISTORY_BENCHMARK_DATABASE_URL`, with the same
 disposable `_test` database restriction.
 
 Retry scheduling is in `server/src/services/heartbeat/retries.ts`. It owns bounded
@@ -2517,11 +2517,11 @@ during provider execution. Keep policy changes separate from this extraction.
 ## Wake Context Delivery
 
 Built-in adapters deliver wake context through the run prompt, including structured
-execution-continuation data. They do not export `PAPERCLIP_WAKE_PAYLOAD_JSON`. A
+execution-continuation data. They do not export `NEXUS_WAKE_PAYLOAD_JSON`. A
 large JSON environment entry can prevent the agent process from starting with
 `E2BIG`, even when the same context fits in the prompt transport. Configured values
 for this retired variable are ignored. Scalar runtime variables such as
-`PAPERCLIP_TASK_ID` and `PAPERCLIP_WAKE_REASON` remain available.
+`NEXUS_TASK_ID` and `NEXUS_WAKE_REASON` remain available.
 
 Custom instructions that read the retired variable must use the wake payload in
 the prompt instead. This transport change adds no history limits or truncation;
@@ -2536,8 +2536,8 @@ CLI paths that use stdin avoid that separate limit for the wake prompt.
 ## Adding a native Runner harness
 
 Google Antigravity's pending integration uses the official ACP server 1.4.3 with
-a pinned native admission patch. `paperclipai runtime setup antigravity` installs
-its verified assets on macOS ARM64 as the OS user running Paperclip. Setup does
+a pinned native admission patch. `nexusai runtime setup antigravity` installs
+its verified assets on macOS ARM64 as the OS user running Nexus. Setup does
 not enable global execution: qualification remains pending and admission is
 closed by default. An isolated company can use a finite trusted server-startup
 candidate authorization bound to the exact model, local platform, profile and
@@ -2547,7 +2547,7 @@ owner's managed personal-default Google subscription on macOS ARM64 with
 gates. Workspace OAuth is not runtime authentication. See the
 [contract, evidence, and remaining gates](plans/2026-10-28-antigravity-integration.md).
 
-To add a harness/provider to the new native Paperclip Runner, use
+To add a harness/provider to the new native Nexus Runner, use
 [create-runner-adapter](../.agents/skills/create-runner-adapter/SKILL.md), the
 [Runner integration playbook](RUNNER-INTEGRATION-PLAYBOOK.md) and its
 [working templates](runner-integration-templates.md). They cover requirements,
@@ -2555,9 +2555,9 @@ protocol research, implementation, packaging, and real end-to-end acceptance.
 Existing direct adapters remain a compatibility boundary; their authoring and
 agent conversion are outside this playbook.
 
-## Paperclip Runner Adapter Conversion
+## Nexus Runner Adapter Conversion
 
-Paperclip Runner offers native Codex, OpenCode, **ACPX Claude**, **ACPX Grok Build**, and **ACPX Pi**. New
+Nexus Runner offers native Codex, OpenCode, **ACPX Claude**, **ACPX Grok Build**, and **ACPX Pi**. New
 Claude Code agents default to ACPX Claude on Apple Silicon, Intel Mac, Linux x64
 and Linux ARM64 with supported glibc. New OpenCode and Pi agents default to their native
 runtimes on Apple Silicon, Intel Mac, and Linux x64 with supported glibc;
@@ -2574,7 +2574,7 @@ Custom commands, extra arguments, legacy permission modes, search flags, and
 nonzero turn limits require Legacy; conversion rejects them before saving.
 Other adapters require an explicit provider choice. Legacy ACPX Codex agent
 settings normalize to native Codex on configuration updates and before fresh
-runs; immutable run descriptors remain readable. The **Paperclip Runner**
+runs; immutable run descriptors remain readable. The **Nexus Runner**
 experimental setting applies to other native providers. Native Codex, OpenCode,
 ACPX Claude, ACPX Grok Build, and ACPX Pi do not require it. Company access checks still apply.
 
@@ -2608,7 +2608,7 @@ verification warning instead of requiring a pre-approval computer.
 
 Pi also requires an explicit `provider/model` before testing or hiring; inactive
 setup drafts may precede model selection. Install its pinned runtime on the
-execution host with `paperclipai runtime setup pi` before testing the connection.
+execution host with `nexusai runtime setup pi` before testing the connection.
 The native default uses `approve-all` permissions, `per_turn` lifecycle, and
 `low` thinking. Exact native thinking levels are `off`, `low`, `high`, and `max`.
 Legacy `minimal`, `medium`, and `xhigh` thinking, custom commands/arguments, and
@@ -2645,7 +2645,7 @@ retain the pinned SDK JavaScript and declare its native packages as server
 optional dependencies, so npm installs the executable for the consumer's
 platform. Runtime admission still checks the exact version and executable digest.
 A missing provider package is reported as **Runtime missing**, with automatic
-retries stopped. Reinstall or rebuild Paperclip with its provider dependencies,
+retries stopped. Reinstall or rebuild Nexus with its provider dependencies,
 restart the server, and run the agent's runtime test before retrying the task.
 Changing the model or signing in again cannot repair a missing runtime package.
 
@@ -2676,13 +2676,13 @@ GitHub access. Discovery remains fresh for each run, and tool calls still use th
 current gateway permissions. Local, custom-backend and other provider paths keep
 their existing preparation order.
 OpenCode defaults to `allow`, with explicit `ask` and `deny` options; ACPX
-defaults to `approve-all`, with explicit `approve-paperclip`, `approve-reads`,
+defaults to `approve-all`, with explicit `approve-nexus`, `approve-reads`,
 and `deny-all` options. Codex conversion keeps a non-empty model and
 otherwise stores the shared `gpt-5.6-sol` default. The native execution boundary
 applies the same default to older runner rows whose model is missing or blank.
 
 For an Agent Chat test drive, enable **Agent Chat** in Experimental settings and
-configure two agents with Paperclip Runner: native Codex and ACPX Claude. Connect
+configure two agents with Nexus Runner: native Codex and ACPX Claude. Connect
 the Claude account through the agent's **AI connection** section (or supply an
 explicit supported provider credential); an ambient Claude CLI login alone is
 not a credential source for its isolated runner home. The default
@@ -2691,8 +2691,8 @@ connections, including provider-native tools. Company permissions, approval
 gates, and workspace isolation still apply. Explicit restrictive modes remain
 restrictive; omitted settings use full auto.
 
-Assigned app tools can use `paperclip_search_assigned_tools` and
-`paperclip_call_assigned_tool` instead of direct tool definitions. Search with
+Assigned app tools can use `nexus_search_assigned_tools` and
+`nexus_call_assigned_tool` instead of direct tool definitions. Search with
 `{"query":"github"}` and call an exact returned tool name. Omitted, empty or
 whitespace-only `schemaTool` values perform normal discovery, including when
 `schemaOffset` is zero. To read a large schema, set `schemaTool` to the exact
@@ -2718,8 +2718,8 @@ hold. A generic retry cannot resolve this incident. The runner's
 `get_task_context` includes up to 100 existing direct child tasks and a truncation
 flag so resumed agents can reuse delegated work and inspect completed results.
 
-For native Codex runs, Paperclip passes the resolved execution workspace as
-`PAPERCLIP_WORKSPACE_CWD` and uses it as the provider containment boundary. A
+For native Codex runs, Nexus passes the resolved execution workspace as
+`NEXUS_WORKSPACE_CWD` and uses it as the provider containment boundary. A
 workspace below the host `HOME` is valid, including the default projectless
 agent workspace. The host `HOME` itself, a directory that contains it, a
 filesystem root, a `CODEX_HOME` overlap, or a canonical path outside the
@@ -2730,8 +2730,8 @@ for the selected model. Preparation selects the closest compatible older model
 of the same class, then the stable Runner default. The task shows a warning with
 the requested model, effective model, and CLI version. Agent and task settings
 stay unchanged. Update the image CLI to restore the requested model on later
-runs. Explicit `PAPERCLIP_RUNNER_REMOTE_CODEX_PATH` and
-`PAPERCLIP_RUNNER_REMOTE_CODEX_NPM_SPEC` settings take precedence. See
+runs. Explicit `NEXUS_RUNNER_REMOTE_CODEX_PATH` and
+`NEXUS_RUNNER_REMOTE_CODEX_NPM_SPEC` settings take precedence. See
 [execution semantics](execution-semantics.md#remote-codex-model-compatibility).
 
 ### Sandbox ACP input delivery
@@ -2777,7 +2777,7 @@ debugging instructions and legacy operator hints while retaining check messages
 and details; self-hosted onboarding retains that guidance after deployment
 metadata is known.
 
-For fast sandbox startup, bake `paperclip-runnerd` and the latest stable agent
+For fast sandbox startup, bake `nexus-runnerd` and the latest stable agent
 CLIs into the sandbox image. Image builds should keep one current version of each
 CLI shared by native and local adapters rather than baking multiple versions.
 The private compatibility preparation above is a fallback for existing stale
@@ -2786,7 +2786,7 @@ Pin the resolved releases at image build time for reproducibility and refresh
 the runner's qualification versions and binary digests together with those pins.
 The ACP bridges remain separately qualified protocol dependencies.
 
-Native discovery checks `/opt/paperclip-runner/bin`, then `$HOME/.local/bin`,
+Native discovery checks `/opt/nexus-runner/bin`, then `$HOME/.local/bin`,
 then PATH. Any preferred-directory entry must launch the same shared CLI that
 normal adapters use. Discovery picks the first executable; it does not compare
 versions across directories. With these artifacts preinstalled, startup links
@@ -2874,7 +2874,7 @@ Runner's settled-provider check. A staged target does not yet certify a resumabl
 session. Its eventual snapshot still uses the existing checkpoint transaction.
 
 Custom source-mode HTTP launchers should create their listener with
-`createPaperclipHttpServer` from `server/src/http/server.ts`, passing the selected
+`createNexusHttpServer` from `server/src/http/server.ts`, passing the selected
 API origin as `apiUrl`. This registers the native Runner WebSocket transport
 before execution is admitted. Plain Express `app.listen()` or Node
 `createServer(app)` alone does not initialize that transport and native runs
@@ -2904,7 +2904,7 @@ recognizes both the legacy `adapter_failed` and current `provider_transport_fail
 close-failure labels. Process ownership, pending tool outcomes, and checkpoint
 verification still control whether that session can be reused.
 
-Paperclip Runner keeps its heartbeat run, native session, logical runner, and
+Nexus Runner keeps its heartbeat run, native session, logical runner, and
 provider session identities across server restarts. A coordinated hot restart
 registers a correlated recovery request before it signals the dev supervisor.
 An uncoordinated server restart uses the same durable recovery classifier
@@ -2925,7 +2925,7 @@ ownership evidence. Scheduling and generic orphan recovery start only after
 that classification finishes.
 
 - A verified live runner re-registers its existing PRP authority and reconnects
-  with the same operating-system PID. Paperclip does not spawn a competing
+  with the same operating-system PID. Nexus does not spawn a competing
   runner.
 - For a running sandbox session, recovery checks the original provider lease,
   remote workspace, durable runner identity, and process marker inside that
@@ -2945,7 +2945,7 @@ that classification finishes.
   resumes the same provider checkpoint. Only the operating-system PID changes.
 - A prepared remote workspace interrupted before the executor's first claim
   can continue on the same run without a provider checkpoint. Under the recovery
-  locks, Paperclip requires attempt and controller generation zero, no prior
+  locks, Nexus requires attempt and controller generation zero, no prior
   controller or lease owner, and no session, process, launch, or provider evidence.
   Any existing durable runner root must still prove an untouched bootstrap before
   execution starts. A prior claim or contradictory evidence retains the hold.
@@ -2960,14 +2960,14 @@ that classification finishes.
   A detached execution also preserves the current owner's run-scoped gateway tokens.
 - A runner that died before its first authenticated connection can restart on
   the same run only when its durable root proves that no provider authority or
-  checkpoint exists. Paperclip quarantines the incomplete root first.
-- A live but mismatched or unverifiable process fails closed. Paperclip does not
+  checkpoint exists. Nexus quarantines the incomplete root first.
+- A live but mismatched or unverifiable process fails closed. Nexus does not
   signal it or spawn a replacement.
 - A persisted proposed or terminal result is reconciled before any runner or
   provider work starts, so restart recovery cannot submit a duplicate turn.
 - On the next run, a completed local Codex session whose warm controller died
   before suspension is recovered automatically, including a uniquely verified
-  checkpoint quarantined by older controllers. Paperclip requires matching
+  checkpoint quarantined by older controllers. Nexus requires matching
   database/session/provider identities, a settled terminal journal, no pending
   commands or active provider turn, and a confirmed-dead process and process
   group. It seals the old authority for normal epoch rotation and preserves the
@@ -3004,12 +3004,12 @@ successful warm-session retention or admit another provider turn.
 Run the credential-free real-process restart suite with:
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner build:runner-binaries
+pnpm --filter @nexusai/nexus-runner build:runner-binaries
 pnpm exec vitest run server/src/services/native-runtime/native-runner-restart-recovery.integration.test.ts
-pnpm --filter @paperclipai/paperclip-runner exec vitest run src/live/runnerd-codex-transport.test.ts -t 'adopts a live runner'
+pnpm --filter @nexusai/nexus-runner exec vitest run src/live/runnerd-codex-transport.test.ts -t 'adopts a live runner'
 ```
 
-The suite uses isolated PostgreSQL state, isolated `PAPERCLIP_HOME` roots, real
+The suite uses isolated PostgreSQL state, isolated `NEXUS_HOME` roots, real
 `runnerd` processes, and a deterministic fake Codex app server. It covers hot
 and hard restarts with live and dead runners, the result-finalization race,
 incomplete bootstrap, repeated crashes with steering, and fail-closed process
@@ -3037,7 +3037,7 @@ Include multiple skill versions read back from Postgres JSONB: version-map key
 order must not change the generated preference or session fingerprint. Exercise
 the real environment-selection and configuration services with a retained shared
 workspace, and keep actual model or skill-version changes incompatible.
-Run it against an isolated database with `PAPERCLIP_TEST_DATABASE_URL` when the
+Run it against an isolated database with `NEXUS_TEST_DATABASE_URL` when the
 host cannot start embedded Postgres:
 
 ```sh
@@ -3057,8 +3057,8 @@ bounded eligibility/verification commands and the one-time writer maintenance
 boundary. `managed-skill-content.test.ts` covers the focused domain behavior;
 `ephemeral-skills-process.test.ts` requires independent disposable Postgres and
 S3 fixtures and starts separate Node processes. The optional
-`PAPERCLIP_TEST_POSTGRES_ADMIN_URL` creates a random test database per suite.
-On hosts with unavailable Tailscale, set `PAPERCLIP_TAILNET_BIND_HOST=127.0.0.1`
+`NEXUS_TEST_POSTGRES_ADMIN_URL` creates a random test database per suite.
+On hosts with unavailable Tailscale, set `NEXUS_TAILNET_BIND_HOST=127.0.0.1`
 for local fixtures to avoid repeated CLI discovery. Do not use fixture timings
 collected during builds as hosted performance evidence.
 
@@ -3075,7 +3075,7 @@ stored inputs remain complete.
 Run the synthetic HTTP comparison through the production skills router:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx scripts/benchmark-skill-list.ts --samples=5 --network-delay-ms=3.5
+pnpm --filter @nexusai/server exec tsx scripts/benchmark-skill-list.ts --samples=5 --network-delay-ms=3.5
 ```
 
 The harness starts disposable PostgreSQL, synthetic skills and agents, and a
@@ -3122,7 +3122,7 @@ selected skills, the effective default environment, or plugin requirements enque
 normal durable runtime events, so an idle ready computer receives updates without
 a new run. Failed synchronization retains the event for the existing retry path.
 
-The Paperclip app ships a curated catalog of company skills out of the box. The
+The Nexus app ships a curated catalog of company skills out of the box. The
 catalog is a workspace package at `packages/skills-catalog`:
 
 ```text
@@ -3138,18 +3138,18 @@ packages/skills-catalog/
 ```
 
 Server and CLI import the generated manifest; they do not crawl repository
-paths at request time. Root `skills/` remains reserved for Paperclip runtime
+paths at request time. Root `skills/` remains reserved for Nexus runtime
 skills and is not part of the catalog.
 
 Skill-capable legacy local adapters always select the bundled
-`paperclipai/paperclip/paperclip` operational skill when it is present in the
+`paperclipai/paperclip/nexus` operational skill when it is present in the
 runtime inventory. This applies to existing agents without a stored skill
 preference and to explicit empty optional-skill selections. The operational
 skill supplies the control-plane workflow that those adapters need for
 heartbeats. The `complain` and `suggestion-box` runtime skills are also selected
 automatically alongside it; see [Agent commentary](agent-commentary.md).
 Other runtime skills remain controlled by
-`paperclipSkillSync.desiredSkills`. The native `paperclip_runner` does not use
+`nexusSkillSync.desiredSkills`. The native `nexus_runner` does not use
 this legacy default because its protocol supplies the control-plane contract.
 An empty native runtime selection returns before company skill inventory work.
 An explicit empty stored key set does the same. Nonempty selections still use
@@ -3159,18 +3159,18 @@ still resolve their operational and feedback skills.
 Validate the catalog without writing the manifest:
 
 ```sh
-pnpm --filter @paperclipai/skills-catalog validate
+pnpm --filter @nexusai/skills-catalog validate
 ```
 
 Regenerate `generated/catalog.json` after editing any catalog `SKILL.md`,
 frontmatter, file inventory, category, or slug:
 
 ```sh
-pnpm --filter @paperclipai/skills-catalog build:manifest
+pnpm --filter @nexusai/skills-catalog build:manifest
 ```
 
 The package's `build` script runs `build:manifest` and then `tsc`; tests live
-under `pnpm --filter @paperclipai/skills-catalog test`. Validation fails when:
+under `pnpm --filter @nexusai/skills-catalog test`. Validation fails when:
 
 - a catalog entry is not under `catalog/bundled/<category>/<slug>` or
   `catalog/optional/<category>/<slug>`
@@ -3187,7 +3187,7 @@ only), `assets` (other non-script files), or `scripts_executables` (any
 executable script). The build contract is documented in
 `doc/plans/2026-05-26-skills-cli-catalog-contract.md`.
 
-CI runs `pnpm --filter @paperclipai/skills-catalog validate` and the package's
+CI runs `pnpm --filter @nexusai/skills-catalog validate` and the package's
 vitest suite, so always regenerate the manifest in the same commit as the
 catalog change.
 
@@ -3213,8 +3213,8 @@ The server starts scanning one minute after startup, then hourly, in batches of
 50 inspected directories with one-second continuations. Current versions,
 explicit agent pins, active runs, and unresolved recovery pins stay. A company
 with an active or unsettled run whose pins are unknown is skipped. Optional
-`PAPERCLIP_SKILL_VERSION_RETENTION_KEEP` retains additional newest versions
-(default `0`). Idle versions expire after `PAPERCLIP_SKILL_VERSION_RETENTION_GRACE_MINUTES`
+`NEXUS_SKILL_VERSION_RETENTION_KEEP` retains additional newest versions
+(default `0`). Idle versions expire after `NEXUS_SKILL_VERSION_RETENTION_GRACE_MINUTES`
 (default `60`). Separate `__version_access__` records track use; existing caches
 without records receive a full observation period before expiration.
 
@@ -3232,7 +3232,7 @@ to unique managed `.trash-<UUID>` names. Deletion runs outside the preparation
 lock and resumes after a crash. Saved version and repository snapshot rows are
 retained, and normal runtime use restores missing caches without upstream access.
 
-Paperclip Runner preparation skips this lock when the effective selection has no
+Nexus Runner preparation skips this lock when the effective selection has no
 skills or a saved selection is explicitly empty. It still records the empty
 version snapshot. Explicit skill references, selected versions, and the legacy
 operational skill keep their existing authorization and cache-lock requirements.
@@ -3241,9 +3241,9 @@ The sweep also handles orphan version directories after explicit skill deletion,
 preserving captured run pins until they settle. Only recognized staging/trash
 names are eligible; unknown directories and symlinked paths are retained.
 
-Set `PAPERCLIP_SKILL_VERSION_RETENTION_DRY_RUN=true` before rollout to inspect
+Set `NEXUS_SKILL_VERSION_RETENTION_DRY_RUN=true` before rollout to inspect
 candidate bytes and skip reasons without deleting or changing access records.
-Set `PAPERCLIP_SKILL_VERSION_RETENTION_ENABLED=false` to disable sweeps while
+Set `NEXUS_SKILL_VERSION_RETENTION_ENABLED=false` to disable sweeps while
 leaving restoration available. Internal `skillVersionRetentionService` methods
 support company-scoped diagnosis and bounded instance-wide continuations.
 Server logs report candidates, allocated bytes reclaimed, and skip reasons.
@@ -3268,13 +3268,13 @@ packages/teams-catalog/
 Validate without writing the manifest:
 
 ```sh
-pnpm --filter @paperclipai/teams-catalog validate
+pnpm --filter @nexusai/teams-catalog validate
 ```
 
 Regenerate `generated/catalog.json` after editing catalog team files:
 
 ```sh
-pnpm --filter @paperclipai/teams-catalog build:manifest
+pnpm --filter @nexusai/teams-catalog build:manifest
 ```
 
 Team install/preview APIs enforce source policy. External skill sources require
@@ -3328,7 +3328,7 @@ The label is hidden on other hosts and when commit metadata is unavailable.
 To wipe local dev data and start fresh:
 
 ```sh
-rm -rf ~/.paperclip/instances/default/db
+rm -rf ~/.nexus/instances/default/db
 pnpm dev
 ```
 
@@ -3338,116 +3338,116 @@ If you set `DATABASE_URL`, the server will use that instead of embedded PostgreS
 
 ## Automatic DB Backups
 
-Paperclip can run automatic logical database backups on a timer. These backups cover
+Nexus can run automatic logical database backups on a timer. These backups cover
 non-system database schemas, including migration history and plugin-owned database
 schemas. Defaults:
 
 - enabled
 - every 60 minutes
 - retain 30 days
-- backup dir: `~/.paperclip/instances/default/data/backups`
+- backup dir: `~/.nexus/instances/default/data/backups`
 
 Automatic backups are disabled for isolated worktree instances created with
-`paperclipai worktree init` or `paperclipai worktree:make`. Existing worktree
+`nexusai worktree init` or `nexusai worktree:make`. Existing worktree
 configs are migrated to the disabled setting when their server next starts. The
 main/default instance keeps the normal enabled-by-default behavior.
 
 Configure these in:
 
 ```sh
-pnpm paperclipai configure --section database
+pnpm nexusai configure --section database
 ```
 
 Run a one-off backup manually:
 
 ```sh
-pnpm paperclipai db:backup
+pnpm nexusai db:backup
 # or:
 pnpm db:backup
 ```
 
 Environment overrides:
 
-- `PAPERCLIP_DB_BACKUP_ENABLED=true|false`
-- `PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES=<minutes>`
-- `PAPERCLIP_DB_BACKUP_IDLE_CHECKPOINT_ENABLED=1` enables verified final backups
+- `NEXUS_DB_BACKUP_ENABLED=true|false`
+- `NEXUS_DB_BACKUP_INTERVAL_MINUTES=<minutes>`
+- `NEXUS_DB_BACKUP_IDLE_CHECKPOINT_ENABLED=1` enables verified final backups
   for owned idle sleep, with restart catch-up. Off by default; see
   [idle sleep safety](idle-sleep-safety.md) for the hosting and storage contract.
-- `PAPERCLIP_DB_BACKUP_RETENTION_DAYS=<days>`
-- `PAPERCLIP_DB_BACKUP_DIR=/absolute/or/~/path`
-- `PAPERCLIP_DB_BACKUP_MAX_AGE_HOURS=<hours>` controls the `/api/health`
+- `NEXUS_DB_BACKUP_RETENTION_DAYS=<days>`
+- `NEXUS_DB_BACKUP_DIR=/absolute/or/~/path`
+- `NEXUS_DB_BACKUP_MAX_AGE_HOURS=<hours>` controls the `/api/health`
   stale-backup warning threshold
-- `PAPERCLIP_DB_BACKUP_ALERT_FILE=/path/to/failure-marker` lets external cron
+- `NEXUS_DB_BACKUP_ALERT_FILE=/path/to/failure-marker` lets external cron
   wrappers surface the last failed backup in `/api/health`
-- `PAPERCLIP_WORKSPACE_REAPER_COOLDOWN_DAYS=<days>` sets how long the
+- `NEXUS_WORKSPACE_REAPER_COOLDOWN_DAYS=<days>` sets how long the
   terminal-workspace reaper waits after an issue tree becomes terminal before it
   archives the execution workspace and deletes the worktree. A person can reopen
   the work inside this window. The default is `1`. A value of `0` disables the
   cooldown and restores immediate reaping. A negative or non-numeric value falls
   back to the default.
-- `PAPERCLIP_WORKSPACE_COMPACTION_DELAY_HOURS=<hours>` sets how long the reaper
+- `NEXUS_WORKSPACE_COMPACTION_DELAY_HOURS=<hours>` sets how long the reaper
   waits after an issue tree becomes terminal before it removes regenerable files
   from the workspace (see "Terminal workspace compaction" below). The default is
   `1`. A value of `0` compacts on the next sweep. A negative, empty, or
   non-numeric value falls back to the default.
-- `PAPERCLIP_WORKSPACE_COMPACTION_ENABLED=false` turns compaction off. Any other
+- `NEXUS_WORKSPACE_COMPACTION_ENABLED=false` turns compaction off. Any other
   value keeps it on.
-- `PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED=false` disables external writes and automatic
+- `NEXUS_SKILL_PACKAGE_STORAGE_ENABLED=false` disables external writes and automatic
   package maintenance for a coordinated rolling upgrade. Default: enabled. Legacy
   conversion runs automatically in bounded batches, outside turn preparation.
   Existing external packages remain readable with the override. See
   [package storage and acquisition](skill-package-storage.md).
-- `PAPERCLIP_SKILL_VERSION_RETENTION_KEEP=<count>` sets how many of the newest
+- `NEXUS_SKILL_VERSION_RETENTION_KEEP=<count>` sets how many of the newest
   materialized versions of each skill stay on disk (see "Skill Version Snapshot
   Retention" above). The default is `0`. A negative, empty, or non-numeric value
   falls back to the default.
-- `PAPERCLIP_SKILL_VERSION_RETENTION_GRACE_MINUTES=<minutes>` sets how long a
+- `NEXUS_SKILL_VERSION_RETENTION_GRACE_MINUTES=<minutes>` sets how long a
   materialized skill version stays after its last use. The default is `60`. A
   negative, empty, or non-numeric value falls back to the default.
-- `PAPERCLIP_NATIVE_HARNESS_BACKUP_EXPIRATION_DAYS=<days>` sets how long an issue
+- `NEXUS_NATIVE_HARNESS_BACKUP_EXPIRATION_DAYS=<days>` sets how long an issue
   stays closed before the failover backups of its native sessions expire (see
   `doc/recoverable-disk-cleanup.md`). The default is `7` and the minimum is `1`. A
   negative, empty, or non-numeric value falls back to the default.
-  `PAPERCLIP_NATIVE_HARNESS_BACKUP_EXPIRATION_ENABLED=false` turns expiry off, and
-  `PAPERCLIP_NATIVE_HARNESS_BACKUP_EXPIRATION_DRY_RUN=true` only reports candidates.
-- `PAPERCLIP_NATIVE_RUNNER_EVIDENCE_RETENTION_DAYS=<days>` sets how long native
+  `NEXUS_NATIVE_HARNESS_BACKUP_EXPIRATION_ENABLED=false` turns expiry off, and
+  `NEXUS_NATIVE_HARNESS_BACKUP_EXPIRATION_DRY_RUN=true` only reports candidates.
+- `NEXUS_NATIVE_RUNNER_EVIDENCE_RETENTION_DAYS=<days>` sets how long native
   session continuity-break archives and quarantined session state are kept (see
   `doc/recoverable-disk-cleanup.md`). The default is `7` and the minimum is `1`. A
   negative, empty, or non-numeric value falls back to the default. The backup
   expiration enabled and dry-run switches apply to it as well.
-- `PAPERCLIP_NATIVE_WORKSPACE_SYNC_RETENTION_DAYS=<days>` sets how long a settled
+- `NEXUS_NATIVE_WORKSPACE_SYNC_RETENTION_DAYS=<days>` sets how long a settled
   run's native workspace sync folder (descriptor, manifest and seed archives under
   `<instance>/native-workspace-sync/<run>`) is kept (see
   `doc/recoverable-disk-cleanup.md`). The default is `7` and the minimum is `1`. A
   negative, empty, or non-numeric value falls back to the default.
-  `PAPERCLIP_NATIVE_WORKSPACE_SYNC_RETENTION_ENABLED=false` turns retention off, and
-  `PAPERCLIP_NATIVE_WORKSPACE_SYNC_RETENTION_DRY_RUN=true` only reports candidates.
-- `PAPERCLIP_GIT_RESTORE_POINTS_ENABLED=true` lets git cache expiration remove closed
+  `NEXUS_NATIVE_WORKSPACE_SYNC_RETENTION_ENABLED=false` turns retention off, and
+  `NEXUS_NATIVE_WORKSPACE_SYNC_RETENTION_DRY_RUN=true` only reports candidates.
+- `NEXUS_GIT_RESTORE_POINTS_ENABLED=true` lets git cache expiration remove closed
   worktrees with unpushed or uncommitted work after saving an encrypted restore point
   (see `doc/recoverable-disk-cleanup.md`). It is off by default.
-  `PAPERCLIP_GIT_RESTORE_POINT_TERMINAL_DELAY_DAYS=<days>` sets how long the issues that
+  `NEXUS_GIT_RESTORE_POINT_TERMINAL_DELAY_DAYS=<days>` sets how long the issues that
   use the workspace (the source issue and descendants bound to it) must be closed first. The default is `3`. A negative, empty, or non-numeric value falls
   back to the default.
-  `PAPERCLIP_GIT_RESTORE_POINT_IDLE_DAYS=<days>` sets how long an open issue tree's
+  `NEXUS_GIT_RESTORE_POINT_IDLE_DAYS=<days>` sets how long an open issue tree's
   worktree must go untouched before it is removed the same way; runs restore it
   automatically. The default is `7`, and `0` turns this off.
-- `PAPERCLIP_TASK_DIRECTORY_RETENTION_ENABLED=true` lets the terminal workspace reaper
+- `NEXUS_TASK_DIRECTORY_RETENTION_ENABLED=true` lets the terminal workspace reaper
   save and remove plain task directories under `<instance>/isolated-workspaces/` once
-  their issue tree has been closed for `PAPERCLIP_GIT_RESTORE_POINT_TERMINAL_DELAY_DAYS`,
+  their issue tree has been closed for `NEXUS_GIT_RESTORE_POINT_TERMINAL_DELAY_DAYS`,
   and remove orphaned ones (see `doc/recoverable-disk-cleanup.md`). It is off by default
-  and runs as a dry run until `PAPERCLIP_TASK_DIRECTORY_RETENTION_DRY_RUN=false`. Removal
-  needs `PAPERCLIP_GIT_RESTORE_POINTS_ENABLED=true`, because the files are saved in an
+  and runs as a dry run until `NEXUS_TASK_DIRECTORY_RETENTION_DRY_RUN=false`. Removal
+  needs `NEXUS_GIT_RESTORE_POINTS_ENABLED=true`, because the files are saved in an
   encrypted restore point first and restored on reopen.
-  `PAPERCLIP_TASK_DIRECTORY_ORPHAN_GRACE_DAYS=<days>` sets how long an orphaned
+  `NEXUS_TASK_DIRECTORY_ORPHAN_GRACE_DAYS=<days>` sets how long an orphaned
   directory's issue tree must be closed and its contents unchanged. The default is `7`
   and the minimum is `1`. A negative, empty, or non-numeric value falls back to the
   default.
-- `PAPERCLIP_GIT_RESTORE_POINT_RETENTION_DAYS=<days>` sets how long a git workspace
+- `NEXUS_GIT_RESTORE_POINT_RETENTION_DAYS=<days>` sets how long a git workspace
   restore point is kept after its issue tree closes (see
   `doc/recoverable-disk-cleanup.md`). The default is `90` and the minimum is `1`. A
   negative, empty, or non-numeric value falls back to the default.
 
-Without `PAPERCLIP_DB_BACKUP_ALERT_FILE`, health checks look for
+Without `NEXUS_DB_BACKUP_ALERT_FILE`, health checks look for
 `db-backup-to-s3.failure` in the backup directory, beside the backup directory,
 and in the default sibling `health/` directory.
 
@@ -3459,15 +3459,15 @@ those providers are enabled.
 
 Agent env vars now support secret references. By default, secret values are stored with local encryption and only secret refs are persisted in agent config.
 
-- Default local key path: `~/.paperclip/instances/default/secrets/master.key`
-- Override key material directly: `PAPERCLIP_SECRETS_MASTER_KEY`
-- Override key file path: `PAPERCLIP_SECRETS_MASTER_KEY_FILE`
+- Default local key path: `~/.nexus/instances/default/secrets/master.key`
+- Override key material directly: `NEXUS_SECRETS_MASTER_KEY`
+- Override key file path: `NEXUS_SECRETS_MASTER_KEY_FILE`
 - Back up the key file and database together; either one alone is not enough to restore local encrypted secrets.
 
 Strict mode (recommended outside local trusted machines):
 
 ```sh
-PAPERCLIP_SECRETS_STRICT_MODE=true
+NEXUS_SECRETS_STRICT_MODE=true
 ```
 
 When strict mode is enabled, sensitive env keys (for example `*_API_KEY`, `*_TOKEN`, `*_SECRET`) must use secret references instead of inline plain values.
@@ -3475,9 +3475,9 @@ Authenticated deployments default strict mode on unless explicitly overridden.
 
 CLI configuration support:
 
-- `pnpm paperclipai onboard` writes a default `secrets` config section (`local_encrypted`, strict mode off, key file path set) and creates a local key file when needed.
-- `pnpm paperclipai configure --section secrets` lets you update provider/strict mode/key path and creates the local key file when needed.
-- `pnpm paperclipai doctor` validates secrets adapter configuration, can create a missing local key file with `--repair`, and reports missing AWS Secrets Manager bootstrap env when that provider is selected.
+- `pnpm nexusai onboard` writes a default `secrets` config section (`local_encrypted`, strict mode off, key file path set) and creates a local key file when needed.
+- `pnpm nexusai configure --section secrets` lets you update provider/strict mode/key path and creates the local key file when needed.
+- `pnpm nexusai doctor` validates secrets adapter configuration, can create a missing local key file with `--repair`, and reports missing AWS Secrets Manager bootstrap env when that provider is selected.
 - Provider health is available at `GET /api/companies/:companyId/secret-providers/health` and reports local key permission warnings plus backup guidance.
 
 Per-company provider vaults are configured in the board UI under
@@ -3495,11 +3495,11 @@ pnpm secrets:migrate-inline-env --apply # apply migration
 
 ## Internal Connection Token Brokers
 
-Paperclip Cloud connector identities support `development`, `test`, `staging`,
+Nexus Cloud connector identities support `development`, `test`, `staging`,
 and `production`. To enroll a self-hosted instance against the test broker, set
-`PAPERCLIP_CLOUD_CONNECTOR_BASE_URL=https://test.paperclip.app`; its environment
+`NEXUS_CLOUD_CONNECTOR_BASE_URL=https://test.paperclip.app`; its environment
 is inferred as `test`. Managed instances also receive
-`PAPERCLIP_CLOUD_CONNECTOR_ENVIRONMENT=test`. Standard Cloud broker hosts reject
+`NEXUS_CLOUD_CONNECTOR_ENVIRONMENT=test`. Standard Cloud broker hosts reject
 identities for another environment, and enrollment keys remain local to the
 selected broker.
 
@@ -3508,11 +3508,11 @@ are public-only by default even in local/private deployments. To intentionally
 use an internal broker, configure an exact hostname allowlist:
 
 ```sh
-PAPERCLIP_TOKEN_BROKER_ALLOWED_HOSTS=broker.internal.example,10.0.0.42
+NEXUS_TOKEN_BROKER_ALLOWED_HOSTS=broker.internal.example,10.0.0.42
 ```
 
 Entries are comma- or whitespace-separated exact hostnames (no wildcards). The
-host configured by `PAPERCLIP_PAGES_API_URL` is included automatically. Every
+host configured by `NEXUS_PAGES_API_URL` is included automatically. Every
 broker hostname is resolved once and the request is pinned to the approved
 address; IPv4 and IPv6 link-local destinations remain denied even when their
 host is allowlisted.
@@ -3527,7 +3527,7 @@ Server owners can opt a trusted private service in with a comma-separated list
 of exact origins:
 
 ```sh
-PAPERCLIP_HTTP_ADAPTER_PRIVATE_ENDPOINT_ALLOWLIST=http://hooks.internal.example:8080,https://10.0.0.42
+NEXUS_HTTP_ADAPTER_PRIVATE_ENDPOINT_ALLOWLIST=http://hooks.internal.example:8080,https://10.0.0.42
 ```
 
 Each entry must contain only a scheme, hostname, and optional port. Paths,
@@ -3540,7 +3540,7 @@ Link-local destinations remain denied even when explicitly listed.
 Company deletion is intended as a dev/debug capability and can be disabled at runtime:
 
 ```sh
-PAPERCLIP_ENABLE_COMPANY_DELETION=false
+NEXUS_ENABLE_COMPANY_DELETION=false
 ```
 
 Default behavior:
@@ -3550,27 +3550,27 @@ Default behavior:
 
 ## CLI Client Operations
 
-Paperclip CLI now includes client-side control-plane commands in addition to setup commands.
+Nexus CLI now includes client-side control-plane commands in addition to setup commands.
 
 Quick examples:
 
 ```sh
-npx paperclipai issue list --company-id <company-id>
-npx paperclipai issue create --company-id <company-id> --title "Investigate checkout conflict"
-npx paperclipai issue update <issue-id> --status in_progress --comment "Started triage"
+npx nexusai issue list --company-id <company-id>
+npx nexusai issue create --company-id <company-id> --title "Investigate checkout conflict"
+npx nexusai issue update <issue-id> --status in_progress --comment "Started triage"
 ```
 
 Set defaults once with context profiles:
 
 ```sh
-npx paperclipai context set --api-base http://localhost:3100 --company-id <company-id>
+npx nexusai context set --api-base http://localhost:3100 --company-id <company-id>
 ```
 
 Then run commands without repeating flags:
 
 ```sh
-pnpm paperclipai issue list
-pnpm paperclipai dashboard get
+pnpm nexusai issue list
+pnpm nexusai dashboard get
 ```
 
 See full command reference in `doc/CLI.md`.
@@ -3585,7 +3585,7 @@ The board UI generates agent onboarding prompts from the add-agent modal (`+` in
 - `GET /api/invites/:token/onboarding` returns onboarding manifest details (registration endpoint, claim endpoint template, skill install hints).
 - `GET /api/invites/:token/onboarding.txt` returns a plain-text onboarding doc intended for both human operators and agents (llm.txt-style handoff), including optional inviter message and suggested network host candidates.
 - `GET /api/skills/index` lists available skill documents.
-- `GET /api/skills/paperclip` returns the Paperclip heartbeat skill markdown.
+- `GET /api/skills/nexus` returns the Nexus heartbeat skill markdown.
 
 Hermes gateway agents use this same generic agent invite flow with
 `adapterType=hermes_gateway` and `agentDefaultsPayload.apiBaseUrl` /
@@ -3612,40 +3612,40 @@ What it validates:
 Required permissions:
 
 - This script performs board-governed actions (create invite, approve join, wakeup another agent).
-- In authenticated mode, run with board auth via `PAPERCLIP_AUTH_HEADER` or `PAPERCLIP_COOKIE`.
+- In authenticated mode, run with board auth via `NEXUS_AUTH_HEADER` or `NEXUS_COOKIE`.
 
 Optional auth flags (for authenticated mode):
 
-- `PAPERCLIP_AUTH_HEADER` (for example `Bearer ...`)
-- `PAPERCLIP_COOKIE` (session cookie header value)
+- `NEXUS_AUTH_HEADER` (for example `Bearer ...`)
+- `NEXUS_COOKIE` (session cookie header value)
 
 ## PostHog MCP Live Smoke Test
 
-The PostHog smoke targets an already-running authenticated Paperclip instance.
+The PostHog smoke targets an already-running authenticated Nexus instance.
 It is deliberately separate from `pnpm test` and `pnpm test:e2e` because it
 uses a live vendor OAuth flow and creates a short-lived connection plus one
 fresh-run proof issue.
 
 ```sh
-INTEGRATIONS_POSTHOG_PAPERCLIP_E2E_EMAIL=operator@example.test \
-INTEGRATIONS_POSTHOG_PAPERCLIP_DEV_LOGIN_PASSWORD='<environment-delivered>' \
+INTEGRATIONS_POSTHOG_NEXUS_E2E_EMAIL=operator@example.test \
+INTEGRATIONS_POSTHOG_NEXUS_DEV_LOGIN_PASSWORD='<environment-delivered>' \
 INTEGRATIONS_POSTHOG_POSTHOG_PROJECT_ID=483530 \
-pnpm smoke:posthog-live https://paperclip.example.test
+pnpm smoke:posthog-live https://nexus.example.test
 ```
 
 The command fails before browser launch unless all three integration bindings
-are present, and never prints their values. A Paperclip heartbeat derives the
-target origin from its injected `PAPERCLIP_API_URL`; the positional URL (or
+are present, and never prints their values. A Nexus heartbeat derives the
+target origin from its injected `NEXUS_API_URL`; the positional URL (or
 `--base-url <url>`) selects the running instance for a manual invocation. It
 creates no trace, video, or HAR, begins
-screenshots only after OAuth returns to Paperclip, enables read actions only,
+screenshots only after OAuth returns to Nexus, enables read actions only,
 installs the connection on `CodexCoderPro` only, runs `project-get` with `{}`
 from the board Test panel and a fresh agent run, then removes the connection.
-Sanitized JSON and PNG evidence defaults to `PAPERCLIP_RUN_SCRATCH_DIR` when the
+Sanitized JSON and PNG evidence defaults to `NEXUS_RUN_SCRATCH_DIR` when the
 command runs in a heartbeat; set `POSTHOG_EVIDENCE_DIR` for a different output
 directory.
 
-Run the focused harness checks without contacting Paperclip or PostHog:
+Run the focused harness checks without contacting Nexus or PostHog:
 
 ```sh
 node --test scripts/smoke/posthog-live.test.mjs
@@ -3672,14 +3672,14 @@ Model behavior for this smoke script:
 
 State behavior for this smoke script:
 
-- defaults to isolated config dir `~/.openclaw-paperclip-smoke`
+- defaults to isolated config dir `~/.openclaw-nexus-smoke`
 - resets smoke agent state each run by default (`OPENCLAW_RESET_STATE=1`) to avoid stale provider/auth drift
 
 Networking behavior for this smoke script:
 
-- auto-detects and prints a Paperclip host URL reachable from inside OpenClaw Docker
-- default container-side host alias is `host.docker.internal` (override with `PAPERCLIP_HOST_FROM_CONTAINER` / `PAPERCLIP_HOST_PORT`)
-- if Paperclip rejects container hostnames in authenticated/private mode, allow `host.docker.internal` via `npx paperclipai allowed-hostname host.docker.internal` and restart Paperclip
+- auto-detects and prints a Nexus host URL reachable from inside OpenClaw Docker
+- default container-side host alias is `host.docker.internal` (override with `NEXUS_HOST_FROM_CONTAINER` / `NEXUS_HOST_PORT`)
+- if Nexus rejects container hostnames in authenticated/private mode, allow `host.docker.internal` via `npx nexusai allowed-hostname host.docker.internal` and restart Nexus
 
 ### GitHub identity for shared agents
 
@@ -3688,8 +3688,8 @@ See [execution GitHub identity](execution-github-identity.md) for the operation-
 ### Agent persona Storybook
 
 See [agent-personas.md](agent-personas.md) for the dynamic avatar endpoint, cache,
-and character stories. Set `PAPERCLIP_STORYBOOK_API_URL` to your isolated
-Paperclip API URL when running dev Storybook. Published Storybook builds automatically
+and character stories. Set `NEXUS_STORYBOOK_API_URL` to your isolated
+Nexus API URL when running dev Storybook. Published Storybook builds automatically
 package avatar PNGs using the API renderer; static hosting needs no API proxy.
 
 ### Investigating polling load
@@ -3722,7 +3722,7 @@ filters linked issues without loading the run's prompt, output, or result.
 Run the deterministic native event replay with the normal server test runner:
 
 ```sh
-pnpm --filter @paperclipai/server exec vitest run src/__tests__/native-observer-replay.test.ts
+pnpm --filter @nexusai/server exec vitest run src/__tests__/native-observer-replay.test.ts
 ```
 
 The test uses disposable PostgreSQL and the production event persistence and
@@ -3758,7 +3758,7 @@ before interpreting timings.
 
 The company heartbeat-run and live-run lists load secret registries in one
 company-scoped query per response. Registry reads project only
-`paperclipSecretRedactions` from the run context. They do not load the full
+`nexusSecretRedactions` from the run context. They do not load the full
 prompt/context JSON. Decrypted values live only for that request and each run
 uses its own registry.
 
@@ -3845,7 +3845,7 @@ wait for the next wake, when startup restores their rows. Existing idle-sleep
 blockers and cleanup admission holds remain authoritative.
 
 The connection-health sweep selects only due IDs in SQL before applying its
-limit. Legacy `paperclip_plugin` placeholder connections are excluded: their
+limit. Legacy `nexus_plugin` placeholder connections are excluded: their
 tools run in plugin workers and do not have remote MCP endpoints. These rows
 remain available; the sweep does not disable or delete plugin connections.
 
@@ -3857,11 +3857,11 @@ URL or old workspace timestamp alone does not prove that a row is disposable.
 
 ### Reconstructable Git cache expiration
 
-The terminal-workspace worker can expire Paperclip-owned isolated Git worktrees
+The terminal-workspace worker can expire Nexus-owned isolated Git worktrees
 24 hours after every task in their tree is done or cancelled, independently of
 PR merge or delivery status. Enable it with
-`PAPERCLIP_GIT_CACHE_EXPIRATION_ENABLED=true`. It defaults to dry run; set
-`PAPERCLIP_GIT_CACHE_EXPIRATION_DRY_RUN=false` after inspecting the structured
+`NEXUS_GIT_CACHE_EXPIRATION_ENABLED=true`. It defaults to dry run; set
+`NEXUS_GIT_CACHE_EXPIRATION_DRY_RUN=false` after inspecting the structured
 `execution_workspace.git_cache_expiration` logs. Logs report candidate and
 reclaimed bytes, base removal, and skip reasons. The existing bounded lifecycle
 sweep supplies scheduling and shutdown cancellation.
@@ -3880,7 +3880,7 @@ unresolved recovery, dirty/untracked files, unknown ignored files, unproven
 ownership, and unsupported or unique Git state prevent deletion. Ignored files
 can be discarded only when they are repository-ignored regenerable output,
 ignored `.claude/settings.local.json` saved as an encrypted snapshot of at most
-64 KiB, or a managed project checkout under `.paperclip-repositories/<repo>-<hash>`
+64 KiB, or a managed project checkout under `.nexus-repositories/<repo>-<hash>`
 whose exact commit, branch, and source identity are saved in the restoration recipe.
 Tracked settings, oversized settings, symbolic links, and unknown files remain protected. A checkout qualifies only when its name maps back to one of
 the project's repositories and it passes the same checks as the worktree
@@ -3890,7 +3890,7 @@ unreachable objects, and every commit reachable from its refs or reflogs is
 reachable from a current upstream branch or tag, read fresh from the project
 repository's URL with the company's Git identity. A checkout that is a worktree of the project's shared clone is
 checked against its own `HEAD`, `HEAD` reflog, index and branches under its
-`paperclip/<id>/` prefix instead of the clone's storage and other tasks' refs.
+`nexus/<id>/` prefix instead of the clone's storage and other tasks' refs.
 Task repositories
 (`task-repo-*`) always prevent deletion. Inspection runs Git with
 `core.fsmonitor` disabled, so a repository's local config cannot make it run a
@@ -3901,7 +3901,7 @@ expiration.
 Deletion first renames the worktree to recorded trash; restart and reopening
 finish that cleanup under the same source/lifecycle locks.
 
-`PAPERCLIP_GIT_BASE_EXPIRATION_ENABLED=true` additionally permits removal of an
+`NEXUS_GIT_BASE_EXPIRATION_ENABLED=true` additionally permits removal of an
 owned isolated remote-source base after all consumers expire and all remaining
 refs and files are verified reproducible. Shared project clones remain intact.
 Normal authorized reopening recreates a missing source and checks out the saved
@@ -3930,9 +3930,9 @@ backups, non-Git workspaces, and immutable skill snapshots are unaffected.
 Workspaces created with a private per-issue clone under
 `isolated-repository-sources/` can be moved onto the project's shared managed
 clone, after which the private clone is deleted. Enable it with
-`PAPERCLIP_ISOLATED_SOURCE_REHOME_ENABLED=true`; it runs only when
-`PAPERCLIP_GIT_CACHE_EXPIRATION_ENABLED=true` and defaults off. Set
-`PAPERCLIP_ISOLATED_SOURCE_REHOME_DRY_RUN=true` to log candidates without changing
+`NEXUS_ISOLATED_SOURCE_REHOME_ENABLED=true`; it runs only when
+`NEXUS_GIT_CACHE_EXPIRATION_ENABLED=true` and defaults off. Set
+`NEXUS_ISOLATED_SOURCE_REHOME_DRY_RUN=true` to log candidates without changing
 anything. Each attempt logs `execution_workspace.isolated_source_rehome` with its
 outcome, skip reason and reclaimed bytes. See
 [recoverable disk cleanup](recoverable-disk-cleanup.md#isolated-repository-sources)
@@ -3941,12 +3941,12 @@ for the conditions and the verification it performs.
 ### Nested clone migration
 
 Tasks prepared before nested project repositories became worktrees of a shared
-clone still hold a full standalone clone in each `.paperclip-repositories/`
-checkout. Enable `PAPERCLIP_NESTED_CLONE_MIGRATION_ENABLED=true` (default off) to
+clone still hold a full standalone clone in each `.nexus-repositories/`
+checkout. Enable `NEXUS_NESTED_CLONE_MIGRATION_ENABLED=true` (default off) to
 let the terminal workspace reaper convert those checkouts in open tasks into
 worktrees of the project's shared clone, keeping their exact state and local
 history, and delete the standalone clones. Set
-`PAPERCLIP_NESTED_CLONE_MIGRATION_DRY_RUN=true` to log candidates without changing
+`NEXUS_NESTED_CLONE_MIGRATION_DRY_RUN=true` to log candidates without changing
 anything. Each attempt logs `execution_workspace.nested_clone_migration` with its
 outcome, skip reason and reclaimed bytes. See
 [recoverable disk cleanup](recoverable-disk-cleanup.md#converting-existing-standalone-nested-clones)
@@ -3962,7 +3962,7 @@ finished task does not hold gigabytes while it waits for the reaper (or forever,
 when it has no merged pull request or has leftover files).
 
 The reaper compacts a workspace once per terminal cycle, after
-`PAPERCLIP_WORKSPACE_COMPACTION_DELAY_HOURS`. Server startup waits for the
+`NEXUS_WORKSPACE_COMPACTION_DELAY_HOURS`. Server startup waits for the
 reaper's first sweep, so that sweep never compacts; later sweeps do. A workspace
 qualifies when all of these hold:
 
@@ -3980,14 +3980,14 @@ excludes file, or `.git/info/exclude` does not count), and that hold no tracked
 file. A directory with such a name
 that does not qualify (for example a tracked `build/`) is searched in turn, so
 ignored dependencies inside it still go. It never enters `.git` or
-`.paperclip`, and it never follows a symlink. It checks each directory's ignore
+`.nexus`, and it never follows a symlink. It checks each directory's ignore
 status on its own, so dependencies below an ignored parent (for example
 `vendor/tool/node_modules`) are found. Its Git reads have a deadline and stop
 when the sweep stops. Tracked files, uncommitted changes,
 untracked files, other ignored files (such as `.env` or local data), the branch,
 and its commits all stay. The workspace row stays active.
 
-The removal is a rename into `.paperclip-compaction-trash` beside the worktree,
+The removal is a rename into `.nexus-compaction-trash` beside the worktree,
 made while the reaper holds the workspace lifecycle lock. The reaper checks the
 conditions above before the rename and again after it, in the same transaction.
 If the task reopened or a run started in between, the directories move back.
@@ -4084,7 +4084,7 @@ module version. Production builds do not use the development cache.
 
 Run `pnpm test:e2e:browser-context` to test this with real Vite modules and
 Chromium. The test starts its own loopback Vite server and mocks API responses;
-it needs no running Paperclip instance or provider credentials. The same spec lives
+it needs no running Nexus instance or provider credentials. The same spec lives
 in the default `test:e2e` discovery tree, so the existing Chrome CI shards run it
 on pull requests.
 
@@ -4130,7 +4130,7 @@ replaced with remote clones because of historical file ownership.
 The disposable workspace-preparation performance harness is:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-workspace-preparation-history.ts --baseline-ref=df80616d98119cbf5abd40549794d9980a5fabf6
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-workspace-preparation-history.ts --baseline-ref=df80616d98119cbf5abd40549794d9980a5fabf6
 ```
 
 It compares actual preparation guards with synthetic history. Local timings are
@@ -4148,12 +4148,12 @@ still run in the service.
 Run the synthetic PostgreSQL comparison with a pinned pre-change revision:
 
 ```sh
-PAPERCLIP_LOG_LEVEL=error SIDEBAR_REQUIRE_BYTE_REDUCTION=1 pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-sidebar-badges.ts --baseline-ref=bf3ef12f3a78d0b15a32ad57f7e16520fbf6cd5e
+NEXUS_LOG_LEVEL=error SIDEBAR_REQUIRE_BYTE_REDUCTION=1 pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-sidebar-badges.ts --baseline-ref=bf3ef12f3a78d0b15a32ad57f7e16520fbf6cd5e
 ```
 
 The harness starts disposable embedded PostgreSQL by default. To use an existing
 isolated test database with current migrations, set
-`PAPERCLIP_SIDEBAR_TEST_DATABASE_URL` to a dedicated database whose name ends in
+`NEXUS_SIDEBAR_TEST_DATABASE_URL` to a dedicated database whose name ends in
 `_test`. The harness removes only its own synthetic company fixtures. Do not use
 a development or hosted company database.
 
@@ -4188,8 +4188,8 @@ policy controls admission until their terminal charge is known.
 Use a disposable real PostgreSQL database to compare cost evaluation and complete admission:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-budget-enforcement.ts --baseline-ref=6c9b87d0922f1ebfc43e8b0c36889ac5ba7b9837 > /tmp/budget-forward.json
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-budget-enforcement.ts --baseline-ref=6c9b87d0922f1ebfc43e8b0c36889ac5ba7b9837 --reverse > /tmp/budget-reverse.json
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-budget-enforcement.ts --baseline-ref=6c9b87d0922f1ebfc43e8b0c36889ac5ba7b9837 > /tmp/budget-forward.json
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-budget-enforcement.ts --baseline-ref=6c9b87d0922f1ebfc43e8b0c36889ac5ba7b9837 --reverse > /tmp/budget-reverse.json
 ```
 
 The cost comparison keeps one company policy and no active runs while adding 0,
@@ -4226,16 +4226,16 @@ until a successful sweep. Shutdown aborts provider reads and waits for the curre
 sweep. Notifications are process-local: independent SQL writers and separate live
 server replicas are not a supported notification path. Restart restores saved work.
 
-These deadlines are not yet covered by the Paperclip Cloud scheduled-wake contract.
+These deadlines are not yet covered by the Nexus Cloud scheduled-wake contract.
 The sleep-safety report retains the instance while an active company has pending
 imports or eligible automatic refreshes. Removing the five-second discovery poll
 establishes worker quiet; it does not establish host or database suspension.
 
 The targeted suites also accept external PostgreSQL when embedded PostgreSQL is
 unavailable. Use a separate, disposable database whose name ends in `_test` for each variable:
-`PAPERCLIP_SKILL_SYNC_TEST_DATABASE_URL`,
-`PAPERCLIP_PROJECT_SKILLS_TEST_DATABASE_URL`, and
-`PAPERCLIP_SKILL_SOURCES_TEST_DATABASE_URL`. The suites apply migrations and create
+`NEXUS_SKILL_SYNC_TEST_DATABASE_URL`,
+`NEXUS_PROJECT_SKILLS_TEST_DATABASE_URL`, and
+`NEXUS_SKILL_SOURCES_TEST_DATABASE_URL`. The suites apply migrations and create
 test data; the synchronization suite truncates company data between tests.
 
 ### Public MCP and Dot event delivery
@@ -4277,15 +4277,15 @@ Independent SQL writers and separate live server replicas do not wake this proce
 startup reconstructs their durable records, but continuous multi-writer discovery
 would require an ingress or notification contract before removing its backstop.
 The host sleep-safety checks remain conservative for MCP/Dot state. These retry
-deadlines are not yet exported to Paperclip Cloud's scheduled-wake contract.
+deadlines are not yet exported to Nexus Cloud's scheduled-wake contract.
 
 `events-work.test.ts` exercises real PostgreSQL commits, rollback, startup/drain,
 retry restoration, producer reactivation, large batches, and SQL/network quiet.
 When embedded PostgreSQL is unavailable, use separate disposable databases ending
-in `_test` for `PAPERCLIP_MCP_SLEEP_TEST_DATABASE_URL`,
-`PAPERCLIP_PUBLIC_MCP_TEST_DATABASE_URL`, and
-`PAPERCLIP_DOT_RUNNER_TEST_DATABASE_URL`. The interaction-service regression suite
-also accepts `PAPERCLIP_INTERACTIONS_TEST_DATABASE_URL`. The suites migrate and write to those
+in `_test` for `NEXUS_MCP_SLEEP_TEST_DATABASE_URL`,
+`NEXUS_PUBLIC_MCP_TEST_DATABASE_URL`, and
+`NEXUS_DOT_RUNNER_TEST_DATABASE_URL`. The interaction-service regression suite
+also accepts `NEXUS_INTERACTIONS_TEST_DATABASE_URL`. The suites migrate and write to those
 URLs; the sleep suite truncates company data between tests.
 
 ## S3-backed run evidence
@@ -4300,7 +4300,7 @@ the independent disposable-server requirements are satisfied.
 
 ## Volume-free execution admission
 
-With `PAPERCLIP_EPHEMERAL_SERVER=true`, workspace preparation requires Paperclip
+With `NEXUS_EPHEMERAL_SERVER=true`, workspace preparation requires Nexus
 Runner and remote workspace storage. A fresh run still has its initial `legacy`
 label at this phase; that label is not the selected execution mode. The runtime
 selector checks the resolved native warm lifecycle before admission and rejects

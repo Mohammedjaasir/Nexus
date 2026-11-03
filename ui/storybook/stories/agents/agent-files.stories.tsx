@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { AgentInstructionsFileDetail } from "@paperclipai/shared";
+import type { AgentInstructionsFileDetail } from "@nexusai/shared";
 import { AgentFileRunNotice, PromptsTab } from "@/pages/AgentDetail";
 import { Button } from "@/components/ui/button";
 import { queryKeys } from "@/lib/queryKeys";
-import { storybookAgents } from "../../fixtures/paperclipData";
+import { storybookAgents } from "../../fixtures/nexusData";
 
 const agent = { ...storybookAgents[0]!, id: "agent-files-story", adapterType: "codex_local" as const };
 const root = "/instance/agents/agent-files-story/instructions";
@@ -108,7 +108,7 @@ function AgentFilesStory({ failedSync = false, fullStorageRun = false, historica
 }
 const meta = { id: "agents-persistent-files",
   title: "Agents and reusable capabilities/Hiring, configuration, and organization/Agents/Persistent files", component: AgentFilesStory, parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agents/instructions"
       ],

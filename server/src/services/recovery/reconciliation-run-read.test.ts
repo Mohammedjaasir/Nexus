@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { agents, agentWakeupRequests, companies, createDb, heartbeatRuns, issueRecoveryActions, issues } from "@paperclipai/db";
+import { agents, agentWakeupRequests, companies, createDb, heartbeatRuns, issueRecoveryActions, issues } from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
@@ -11,9 +11,9 @@ describe.skipIf(!support.supported)("reconciliation source PostgreSQL reads", ()
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   let companyId: string, agentId: string;
-  const launchKeys = ["executionContinuation", "paperclipWake", "paperclipWakeComment", "paperclipTaskMarkdown",
-    "paperclipTaskMarkdownCompact", "paperclipTaskAssignment", "paperclipTaskAssignmentCompact", "paperclipWorkspace",
-    "paperclipEnvironment", "paperclipContinuationSummary"];
+  const launchKeys = ["executionContinuation", "nexusWake", "nexusWakeComment", "nexusTaskMarkdown",
+    "nexusTaskMarkdownCompact", "nexusTaskAssignment", "nexusTaskAssignmentCompact", "nexusWorkspace",
+    "nexusEnvironment", "nexusContinuationSummary"];
   beforeAll(async () => {
     temporary = await startEmbeddedPostgresTestDatabase("reconciliation-source-");
     db = createDb(temporary.connectionString);
@@ -90,7 +90,7 @@ describe.skipIf(!support.supported)("reconciliation source PostgreSQL reads", ()
   it("keeps full stored input and newer ownership when the projected source is terminalized", async () => {
     const issueId = randomUUID();
     await db.insert(issues).values({ id: issueId, companyId, title: "Recover the stopped source", status: "in_progress", assigneeAgentId: agentId });
-    const f = await fixture({ issueId, contextSnapshot: { issueId, paperclipTaskMarkdown: randomBytes(128 * 1024).toString("base64"),
+    const f = await fixture({ issueId, contextSnapshot: { issueId, nexusTaskMarkdown: randomBytes(128 * 1024).toString("base64"),
       executionRetryAccounting: { version: 1, failureRetries: 2, maxTurnContinuations: 0 } } });
     const [successor] = await db.insert(heartbeatRuns).values({ companyId, agentId, issueId, status: "running" }).returning();
     await db.update(issues).set({ executionRunId: successor!.id, checkoutRunId: successor!.id }).where(eq(issues.id, issueId));

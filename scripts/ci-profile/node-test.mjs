@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { invocationEnv } from "./record.mjs";
 
 const args = ["--test"];
-if (process.env.PAPERCLIP_CI_PROFILE === "true") {
+if (process.env.NEXUS_CI_PROFILE === "true") {
   args.push("--test-reporter=spec", "--test-reporter-destination=stdout",
     `--test-reporter=${fileURLToPath(new URL("./node-reporter.mjs", import.meta.url))}`,
     "--test-reporter-destination=stdout");

@@ -88,7 +88,7 @@ export const PROPERTIES_PANE_FOOTER_SLOT_ID = "properties-pane-footer-slot";
 
 const WIDTH_STORAGE_KEY = "taskChatRedesign.propertiesPaneWidth";
 const TASK_DETAIL_WIDTH_STORAGE_KEY = "taskChatRedesign.taskDetailPropertiesPaneWidth";
-const PROPOSAL_WIDTH_STORAGE_KEY = "paperclip.design-proposal.properties-pane-width";
+const PROPOSAL_WIDTH_STORAGE_KEY = "nexus.design-proposal.properties-pane-width";
 const DEFAULT_PANE_WIDTH = 322;
 const TASK_DETAIL_DEFAULT_PANE_WIDTH = 434;
 const MIN_PANE_WIDTH = 260;

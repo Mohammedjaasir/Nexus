@@ -1,6 +1,6 @@
-import { issues } from "@paperclipai/db";
+import { issues } from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
-import { LOW_TRUST_REVIEW_PRESET, LOW_TRUST_REVIEW_PRESET_VERSION, LOW_TRUST_REVIEW_RAW_OUTPUT_DISPOSITION } from "@paperclipai/shared";
+import { LOW_TRUST_REVIEW_PRESET, LOW_TRUST_REVIEW_PRESET_VERSION, LOW_TRUST_REVIEW_RAW_OUTPUT_DISPOSITION } from "@nexusai/shared";
 import type { DbOrTransaction, EndpointRow } from "../runtime-types.js";
 
 function policyRecord(value: unknown): Record<string, unknown> {

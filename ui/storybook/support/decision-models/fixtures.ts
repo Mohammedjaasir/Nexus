@@ -1,4 +1,4 @@
-import type { DecisionConnectionChoice, DecisionHistoryEntry, DecisionModelSettings, DecisionResult } from "@paperclipai/shared";
+import type { DecisionConnectionChoice, DecisionHistoryEntry, DecisionModelSettings, DecisionResult } from "@nexusai/shared";
 
 export const companyId = "company-storybook";
 export const choices: DecisionConnectionChoice[] = ["openai", "openrouter"].map((provider, i) => ({

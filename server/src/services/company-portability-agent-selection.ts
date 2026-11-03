@@ -1,4 +1,4 @@
-import { normalizeAgentUrlKey } from "@paperclipai/shared";
+import { normalizeAgentUrlKey } from "@nexusai/shared";
 import { readBuiltInAgentMarker } from "../lib/built-in-agent-metadata.js";
 
 interface ExportAgentCandidate {

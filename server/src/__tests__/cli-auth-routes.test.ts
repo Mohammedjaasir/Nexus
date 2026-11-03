@@ -120,8 +120,8 @@ describe("cli auth routes", () => {
     const res = await request(app)
       .post("/api/cli-auth/challenges")
       .send({
-        command: "paperclipai company import",
-        clientName: "paperclipai cli",
+        command: "nexusai company import",
+        clientName: "nexusai cli",
         requestedAccess: "board",
       });
 
@@ -148,7 +148,7 @@ describe("cli auth routes", () => {
       cliAuthCreateRateLimiter: createInviteRateLimiter({ maxRequests: 2, now: () => now }),
       cliAuthPollRateLimiter: createInviteRateLimiter({ maxRequests: 2, now: () => now }),
     });
-    const payload = { command: "paperclipai auth login", requestedAccess: "board" };
+    const payload = { command: "nexusai auth login", requestedAccess: "board" };
     for (let i = 0; i < 2; i++) expect((await request(app).post("/api/cli-auth/challenges").set("X-Forwarded-For", `198.51.100.${i}`).send(payload)).status).toBe(201);
     const blocked = await request(app).post("/api/cli-auth/challenges").set("X-Forwarded-For", "203.0.113.7").send(payload);
     expect(blocked.status).toBe(429);
@@ -188,7 +188,7 @@ describe("cli auth routes", () => {
     mockBoardAuthService.describeCliAuthChallenge.mockResolvedValue({ id: "12345678-1234-4123-8123-123456789abc", status: "pending", requestedAccess: "board" });
     const app = await createApp({ type: "none", source: "none" });
     const responses = [
-      await request(app).post("/api/cli-auth/challenges").send({ command: "paperclipai auth login" }),
+      await request(app).post("/api/cli-auth/challenges").send({ command: "nexusai auth login" }),
       await request(app).get("/api/cli-auth/challenges/12345678-1234-4123-8123-123456789abc?token=pcp_cli_auth_secret"),
       await request(app).get("/api/cli-auth/challenges/12345678-1234-4123-8123-123456789abc"),
       await request(app).get("/api/cli-auth/challenges/not-a-uuid?token=pcp_cli_auth_secret"),
@@ -227,13 +227,13 @@ describe("cli auth routes", () => {
     const skillApp = await createApp({ type: "none", source: "none" });
 
     const indexRes = await request(indexApp).get("/api/skills/index");
-    const skillRes = await request(skillApp).get("/api/skills/paperclip");
+    const skillRes = await request(skillApp).get("/api/skills/nexus");
 
     expect(indexRes.status, JSON.stringify(indexRes.body)).toBe(401);
     expect(skillRes.status, skillRes.text || JSON.stringify(skillRes.body)).toBe(401);
   });
 
-  it("serves the invite-scoped paperclip skill anonymously for active invites", async () => {
+  it("serves the invite-scoped nexus skill anonymously for active invites", async () => {
     const invite = {
       id: "invite-1",
       companyId: "company-1",
@@ -257,19 +257,19 @@ describe("cli auth routes", () => {
     };
 
     const app = await createApp({ type: "none", source: "none" }, db);
-    const res = await request(app).get("/api/invites/token-123/skills/paperclip");
+    const res = await request(app).get("/api/invites/token-123/skills/nexus");
 
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toContain("text/markdown");
-    expect(res.text).toContain("# Paperclip Skill");
+    expect(res.text).toContain("# Nexus Skill");
   });
 
   it("marks challenge status as requiring sign-in for anonymous viewers", async () => {
     mockBoardAuthService.describeCliAuthChallenge.mockResolvedValue({
       id: "12345678-1234-4123-8123-123456789abc",
       status: "pending",
-      command: "paperclipai company import",
-      clientName: "paperclipai cli",
+      command: "nexusai company import",
+      clientName: "nexusai cli",
       requestedAccess: "board",
       requestedCompanyId: null,
       requestedCompanyName: null,

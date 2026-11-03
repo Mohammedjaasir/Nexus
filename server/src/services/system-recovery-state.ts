@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { ENVIRONMENT_LEASE_POLICIES, WORKSPACE_SOURCE_VERIFICATION_REASONS,
-  type WorkspaceSourceVerificationFailure } from "@paperclipai/shared";
+  type WorkspaceSourceVerificationFailure } from "@nexusai/shared";
 
 export const SYSTEM_RECOVERY_POLICY_VERSION = 1;
 export const SYSTEM_RECOVERY_MAX_RETRIES = 5;
@@ -35,7 +35,7 @@ export const workspaceSourceVerificationFailureSchema = z.object({
 });
 
 export const systemRecoverySchema = z.object({
-  schema: z.literal("paperclip.system-recovery.v1"),
+  schema: z.literal("nexus.system-recovery.v1"),
   policyVersion: z.literal(SYSTEM_RECOVERY_POLICY_VERSION),
   sourceRunId: z.string().uuid(),
   revision: z.number().int().nonnegative(),
@@ -69,7 +69,7 @@ export function readSystemRecovery(evidence: Record<string, unknown> | null | un
 /** New generations require new intent or one-time policy adoption, never a sweep. */
 export function createSystemRecovery(sourceRunId: string, intentId: string | null = null): SystemRecoveryState {
   return {
-    schema: "paperclip.system-recovery.v1", policyVersion: SYSTEM_RECOVERY_POLICY_VERSION,
+    schema: "nexus.system-recovery.v1", policyVersion: SYSTEM_RECOVERY_POLICY_VERSION,
     sourceRunId, revision: 0, generationId: intentId ?? randomUUID(), intentId,
     phase: "verify_execution", state: "scheduled", attemptId: null, attempts: 0, retriesUsed: 0,
     firstFailureAt: null, nextAttemptAt: null, deadlineAt: null, providerCooldownAt: null, failure: null,

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { companies, createDb } from "@paperclipai/db";
+import { companies, createDb } from "@nexusai/db";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { connectorToolPolicy } from "../services/connectors/tool-policy.js";
 import { DAYTONA_API_URL, DAYTONA_METHOD } from "../services/daytona.js";
@@ -84,7 +84,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let db: ReturnType<typeof createDb>;
   let temp: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   beforeAll(async () => {
-    temp = await startEmbeddedPostgresTestDatabase("paperclip-connector-policy-");
+    temp = await startEmbeddedPostgresTestDatabase("nexus-connector-policy-");
     db = createDb(temp.connectionString);
   }, 30000);
   afterAll(async () => { await temp?.cleanup(); });

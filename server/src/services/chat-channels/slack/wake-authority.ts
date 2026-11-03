@@ -1,7 +1,7 @@
 import { forbidden } from "../../../errors.js";
 
 import type { EndpointRow } from "../runtime-types.js";
-import type { chatConversations, chatDeliveries } from "@paperclipai/db";
+import type { chatConversations, chatDeliveries } from "@nexusai/db";
 export function assertSlackWakeMention(endpoint: EndpointRow, conversation: Pick<typeof chatConversations.$inferSelect, "isDirectMessage">, delivery: Pick<typeof chatDeliveries.$inferSelect, "normalizedEvent">): void {
   if (
     endpoint.requireAtMention &&

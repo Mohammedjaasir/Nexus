@@ -114,7 +114,7 @@ describe("Read-only cases list", () => {
     casesApi.listTypes.mockReset().mockResolvedValue(["Bug", "Research"]);
     casesApi.get.mockReset();
     casesApi.patch.mockReset();
-    projectsApi.list.mockReset().mockResolvedValue([{ id: "project-1", name: "Paperclip" }]);
+    projectsApi.list.mockReset().mockResolvedValue([{ id: "project-1", name: "Nexus" }]);
     setBreadcrumbs.mockClear();
   });
   afterEach(async () => {
@@ -132,7 +132,7 @@ describe("Read-only cases list", () => {
     await renderPage();
     await waitFor(() => expect(container.textContent).toContain("Codex Coder"));
     expect(container.textContent).toContain("Implementation");
-    expect(container.textContent).toContain("Paperclip");
+    expect(container.textContent).toContain("Nexus");
     expect(container.textContent).toContain("Published guide");
     expect(container.textContent).toContain("Done");
     expect(container.querySelector('[aria-label="Change case status"]')).toBeNull();

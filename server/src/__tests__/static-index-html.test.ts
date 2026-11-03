@@ -17,22 +17,22 @@ describe("static SPA fallback HTML", () => {
   });
 
   it("ignores retired snippet settings in managed and self-hosted static HTML", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-cloud-html-"));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-cloud-html-"));
     tempDirs.push(dir);
     fs.writeFileSync(path.join(dir, "index.html"), "<html><body>App</body></html>");
-    vi.stubEnv("PAPERCLIP_CLOUD_UI_SNIPPET", '<script src="https://example.com/chat.js"></script>');
-    vi.stubEnv("PAPERCLIP_CLOUD_UI_SNIPPET_B64", Buffer.from('<script src="https://example.com/legacy.js"></script>').toString("base64"));
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", undefined);
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", undefined);
+    vi.stubEnv("NEXUS_CLOUD_UI_SNIPPET", '<script src="https://example.com/chat.js"></script>');
+    vi.stubEnv("NEXUS_CLOUD_UI_SNIPPET_B64", Buffer.from('<script src="https://example.com/legacy.js"></script>').toString("base64"));
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", undefined);
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", undefined);
     expect(readBrandedStaticIndexHtml(dir)).not.toContain("chat.js");
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", "{}");
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", "{}");
     expect(readBrandedStaticIndexHtml(dir)).not.toContain("chat.js");
-    vi.stubEnv("PAPERCLIP_CLOUD_UI_SNIPPET", undefined);
+    vi.stubEnv("NEXUS_CLOUD_UI_SNIPPET", undefined);
     expect(readBrandedStaticIndexHtml(dir)).not.toContain("legacy.js");
   });
 
   it("serves the current index.html instead of reusing stale asset hashes", async () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-static-index-"));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-static-index-"));
     tempDirs.push(tempDir);
     const indexPath = path.join(tempDir, "index.html");
     const app = express();

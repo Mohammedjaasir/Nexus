@@ -21,10 +21,10 @@ export async function readEvalAttemptPhase(file: string, expected: Identity): Pr
 }
 
 export async function beginEvalAgentPhase(executionId: string, env: NodeJS.ProcessEnv = process.env) {
-  const file = env.PAPERCLIP_E2E_GATEWAY_PHASE_PATH;
-  if (!file && !env.PAPERCLIP_E2E_GATEWAY_BASE_URL) return;
-  if (!file || !env.PAPERCLIP_E2E_ACCOUNTING_ATTEMPT_ID) throw new Error("Missing eval phase checkpoint");
-  const identity = await readEvalAttemptPhase(file, { executionId, attemptId: env.PAPERCLIP_E2E_ACCOUNTING_ATTEMPT_ID });
+  const file = env.NEXUS_E2E_GATEWAY_PHASE_PATH;
+  if (!file && !env.NEXUS_E2E_GATEWAY_BASE_URL) return;
+  if (!file || !env.NEXUS_E2E_ACCOUNTING_ATTEMPT_ID) throw new Error("Missing eval phase checkpoint");
+  const identity = await readEvalAttemptPhase(file, { executionId, attemptId: env.NEXUS_E2E_ACCOUNTING_ATTEMPT_ID });
   if (identity.phase === "agent") return;
   const temporary = `${file}.${randomUUID()}.tmp`;
   try {

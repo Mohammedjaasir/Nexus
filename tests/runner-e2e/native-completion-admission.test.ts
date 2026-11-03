@@ -16,11 +16,11 @@ describe("native completion credential-free admission", () => {
     expect(nativeCompletionPreflightEnvironment(source)).toEqual({ PATH: "/bin", HOME: "/home/fixture", CARGO_HOME: "/cargo", CI: "true" });
   });
   it("carries only public hosted identity through actual prepare and verify subprocess options", () => {
-    const identity = { GITHUB_ACTIONS: "true", PAPERCLIP_RUNNER_E2E_SOURCE_SHA: "a".repeat(40), GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1" };
+    const identity = { GITHUB_ACTIONS: "true", NEXUS_RUNNER_E2E_SOURCE_SHA: "a".repeat(40), GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1" };
     for (const [name, value] of Object.entries(identity)) vi.stubEnv(name, value);
     for (const name of [...CREDENTIAL_NAMES, "GH_TOKEN", "FUTURE_PROVIDER_API_KEY", "NODE_OPTIONS"]) vi.stubEnv(name, "secret");
     spawn.mockReturnValueOnce({ status: 0 } as ReturnType<typeof spawnSync>);
-    spawn.mockReturnValueOnce({ status: 0, stdout: JSON.stringify({ passed: true, sourceSha: identity.PAPERCLIP_RUNNER_E2E_SOURCE_SHA }) } as ReturnType<typeof spawnSync>);
+    spawn.mockReturnValueOnce({ status: 0, stdout: JSON.stringify({ passed: true, sourceSha: identity.NEXUS_RUNNER_E2E_SOURCE_SHA }) } as ReturnType<typeof spawnSync>);
     prepareNativeCompletionPreflight(campaignDirectory);
     expect(spawn).toHaveBeenCalledTimes(2);
     for (const call of spawn.mock.calls) {
@@ -41,7 +41,7 @@ describe("native completion credential-free admission", () => {
   });
   it("retains credential-free prerequisites inside the exact campaign root and verifies them", () => {
     const sourceSha = "c".repeat(40);
-    vi.stubEnv("PAPERCLIP_RUNNER_E2E_SOURCE_SHA", sourceSha);
+    vi.stubEnv("NEXUS_RUNNER_E2E_SOURCE_SHA", sourceSha);
     vi.stubEnv("OPENAI_API_KEY", "secret"); vi.stubEnv("UNLISTED_PROVIDER_CREDENTIAL", "secret");
     spawn.mockReturnValueOnce({ status: 0 } as ReturnType<typeof spawnSync>);
     spawn.mockReturnValueOnce({ status: 0, stdout: JSON.stringify({ passed: true, sourceSha }) } as ReturnType<typeof spawnSync>);
@@ -54,7 +54,7 @@ describe("native completion credential-free admission", () => {
     }
   });
   it("rejects a workflow source override that differs from the exact receipt SHA", () => {
-    vi.stubEnv("PAPERCLIP_RUNNER_E2E_SOURCE_SHA", "a".repeat(40));
+    vi.stubEnv("NEXUS_RUNNER_E2E_SOURCE_SHA", "a".repeat(40));
     spawn.mockReturnValue({ status: 0, stdout: JSON.stringify({ passed: true, sourceSha: "b".repeat(40) }) } as ReturnType<typeof spawnSync>);
     expect(() => verifyNativeCompletionPreflight("/fixture/preflight.json")).toThrow("source SHA differs");
     spawn.mockReturnValue({ status: 0, stdout: JSON.stringify({ passed: true, sourceSha: "a".repeat(40) }) } as ReturnType<typeof spawnSync>);

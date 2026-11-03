@@ -213,7 +213,7 @@ export function gradeCaseReceipt(input: CaseReceiptObservation) {
     && new Set(toolRuns).size === 4 && runs.every(run => toolRuns.includes(run.id)) && validRuns && validHandoffs,
   "Kickoff replay preserved the receipt, and all agent transfers and the terminal handoff have completed native tool receipts.");
   add("fresh-phase-context", validRuns && validHandoffs && runs.every((run, index) => {
-    const context = object(run.contextSnapshot?.paperclipCase);
+    const context = object(run.contextSnapshot?.nexusCase);
     return context.id === input.caseId && context.taskId === input.taskId && context.phase === phases[index]
       && context.handoffVersion === index + 1 && integer(context.issueStatusVersion)
       && context.issueStatusVersion >= handoffs[index]!.appliedIssueStatusVersion

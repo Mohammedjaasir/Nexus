@@ -6,13 +6,13 @@ import { hasRequiredWorkspaceRecovery, preserveWorkspaceRestoreRecoveryMetadata,
 import { hasUnrestoredRemoteWorkspace, preserveLegacyWorkspaceRestoreSources, type LegacyWorkspaceRestoreSource } from "./legacy-workspace-restore-recovery.js";
 import { isPreDispatchReviewWaitVerified } from "./pre-dispatch-review-wait.js";
 import { isPreDispatchExecutionWaitVerified } from "./pre-dispatch-execution-wait.js";
-import { hasWorkspaceRestoreFailure } from "@paperclipai/shared";
+import { hasWorkspaceRestoreFailure } from "@nexusai/shared";
 import { normalizeMaxTurnStopReason } from "./heartbeat-stop-metadata.js";
 import { claimedAdapterType, hasConversationContinuationPolicy } from "./conversation-continuation.js";
 import { canonicalExecutionUuid } from "./execution-identity.js";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, getTableColumns, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
-import { environmentLeases, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { environmentLeases, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations, type Db } from "@nexusai/db";
 import { issueRecoveryActionService } from "./issue-recovery-actions.js";
 import { parseIssueExecutionState } from "./issue-execution-policy.js";
 import { executionFailureRetryCount } from "./execution-recovery-attempt.js";
@@ -24,9 +24,9 @@ type Run = typeof heartbeatRuns.$inferSelect;
 export const LEGACY_RECOVERY_CAUSE = "legacy_execution_requires_reconciliation";
 
 const unusedReconciliationContextKeys = [
-  "executionContinuation", "paperclipWake", "paperclipWakeComment",
-  "paperclipTaskMarkdown", "paperclipTaskMarkdownCompact", "paperclipTaskAssignment",
-  "paperclipTaskAssignmentCompact", "paperclipWorkspace", "paperclipEnvironment", "paperclipContinuationSummary",
+  "executionContinuation", "nexusWake", "nexusWakeComment",
+  "nexusTaskMarkdown", "nexusTaskMarkdownCompact", "nexusTaskAssignment",
+  "nexusTaskAssignmentCompact", "nexusWorkspace", "nexusEnvironment", "nexusContinuationSummary",
 ] as const;
 
 export const legacyReconciliationRunFields = {
@@ -319,7 +319,7 @@ export async function settleInterruptedNativeBootstrap(
     if (!task || !run || run.runtimeMode !== "legacy" || run.runtimeModeResolvedAt ||
         run.contextSnapshot?.issueId !== task.id ||
         run.status !== "interrupted" || run.errorCode !== "server_shutdown_interrupted" ||
-        claimedAdapterType(run) !== "paperclip_runner" || run.processPid || run.processGroupId ||
+        claimedAdapterType(run) !== "nexus_runner" || run.processPid || run.processGroupId ||
         hasWorkspaceRestoreFailure(run.resultJson) || executionFailureRetryCount(run) >= 2) return null;
     const [native] = await tx.select({ id: nativeRunFinalizations.runId }).from(nativeRunFinalizations).where(eq(nativeRunFinalizations.runId, run.id)).limit(1);
     const [lease] = await tx.select({ id: environmentLeases.id }).from(environmentLeases).where(and(

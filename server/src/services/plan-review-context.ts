@@ -1,12 +1,12 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   documentAnnotationComments,
   documentAnnotationThreads,
   documents,
   issueDocuments,
   issueThreadInteractions,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   DocumentReviewContext,
   DocumentReviewContextDocument,
@@ -15,7 +15,7 @@ import type {
   PlanReviewInteractionContext,
   PlanReviewInteractionResultContext,
   PlanReviewInteractionTargetContext,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { parseObject } from "../adapters/utils.js";
 
 export const PLAN_REVIEW_CONTEXT_LIMITS = {

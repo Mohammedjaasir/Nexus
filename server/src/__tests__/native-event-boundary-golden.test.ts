@@ -4,18 +4,18 @@ import {
   createDb,
   heartbeatRunEvents,
   heartbeatRuns,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import {
   localIntegrityBoundaryGolden as fixture,
   localIntegrityEventsFor as eventsFor,
-} from "../../../packages/paperclip-runner/test-support/local-integrity-boundary-golden.js";
+} from "../../../packages/nexus-runner/test-support/local-integrity-boundary-golden.js";
 
 import { redactEventPayload } from "../redaction.js";
 import { appendHeartbeatRunEvent } from "../services/heartbeat-run-events.js";
-import { validatePrpEvent } from "../vendor/paperclip-runner/index.js";
+import { validatePrpEvent } from "../vendor/nexus-runner/index.js";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -37,7 +37,7 @@ describeEmbeddedPostgres(
   () => {
     it("preserves each profile-tagged canonical discriminator and identity through storage and sanitization", async () => {
       const temporary = await startEmbeddedPostgresTestDatabase(
-        "paperclip-native-boundary-",
+        "nexus-native-boundary-",
       );
       const db = createDb(temporary.connectionString);
       const companyId = "73000000-0000-4000-8000-000000000001";
@@ -157,7 +157,7 @@ describeEmbeddedPostgres(
           expect(payloadBySourceId.get("question-created")).toMatchObject({
             request: {
               requestId: fixture.expected.questionRequestId,
-              input: { schema: "paperclip.question_set.v1" },
+              input: { schema: "nexus.question_set.v1" },
             },
           });
         }

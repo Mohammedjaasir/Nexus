@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { PluginEnvironmentCreationCleanupError } from "@paperclipai/plugin-sdk";
+import { PluginEnvironmentCreationCleanupError } from "@nexusai/plugin-sdk";
 import { acquireDaytonaLeaseWithCleanup } from "../../scripts/agent-commentary-daytona.js";
 
 const scope = { companyId: "company", environmentId: "environment", runId: "run" };
 const cleanup = { ...scope, providerLeaseId: "failed-create-attempt", observedProviderLeaseId: "sandbox",
-  attemptId: "attempt", accountFingerprint: "a".repeat(64), labels: { "paperclip-run": "run" } };
+  attemptId: "attempt", accountFingerprint: "a".repeat(64), labels: { "nexus-run": "run" } };
 const failure = () => new PluginEnvironmentCreationCleanupError([new Error("setup timeout")], "cleanup pending", cleanup);
 
 describe("feedback smoke Daytona acquisition cleanup", () => {

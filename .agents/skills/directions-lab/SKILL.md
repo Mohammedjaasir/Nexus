@@ -218,7 +218,7 @@ and the repo's tracked skills were added with `git add -f`.
 
 `new` writes `ui/storybook/stories/design-proposals/<slug>-directions.stories.tsx`
 with meta id `design-<slug>-directions`, title `Design proposals/<Group>/<Title>
-directions/Compare`, a literal `parameters.paperclip` block (`status:
+directions/Compare`, a literal `parameters.nexus` block (`status:
 "proposed"`, `home: "design-proposals"`, `implementation: "prototype"`,
 `boundary: "fixtures"`, capabilities, exception, notes) and stories Compare,
 Today, one per direction, and `TodayProductionPalette` (the decorator themes
@@ -253,7 +253,7 @@ Tonio says yes.
 - Rename a direction, add a surface, or move a direction through the
   lifecycle: by hand, following `references/lab-anatomy.md` section 5 and 8
   and `references/lifecycle.md`.
-- Publish: build with `<SLUG>_DIRECTIONS_OUT_DIR=<dir>/paperclip-<slug>-directions`,
+- Publish: build with `<SLUG>_DIRECTIONS_OUT_DIR=<dir>/nexus-<slug>-directions`,
   remove `sw.js` from the output, `vercel deploy <that dir> --prod --yes` from
   its parent; the basename names the project and the alias is the public URL.
   `references/today-fixtures-and-build.md` section 11 has the details.

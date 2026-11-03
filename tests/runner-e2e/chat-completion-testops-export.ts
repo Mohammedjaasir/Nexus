@@ -38,7 +38,7 @@ export async function exportCompletionPilot(root: string, output: string, bindin
     || new Set(expectedIds).size !== expectedIds.length || expectedIds.some(id => !cases.some(row => row.executionId === id))) throw new Error("Invalid pilot binding");
   const campaignId = `gha-${binding.runId}-1`, runUrl = `https://github.com/paperclipai/paperclip/actions/runs/${binding.runId}`;
   const raw = JSON.parse((await ownedRead(root, "normalized-results.json", 8 * 1024 * 1024)).toString("utf8"));
-  if (raw.schema !== "paperclip.runner-e2e.campaign/v2" || raw.campaignId !== campaignId || raw.retries !== 0
+  if (raw.schema !== "nexus.runner-e2e.campaign/v2" || raw.campaignId !== campaignId || raw.retries !== 0
     || !Array.isArray(raw.expected) || JSON.stringify([...raw.expected].sort()) !== JSON.stringify([...expectedIds].sort())
     || !Array.isArray(raw.results) || raw.results.length !== expectedIds.length || new Set(raw.results.map((row: RunnerE2EResult) => row.executionId)).size !== expectedIds.length) throw new Error("Foreign pilot campaign");
   const files = new Map<string, Buffer>(), results: RunnerE2EResult[] = [];
@@ -86,10 +86,10 @@ export async function exportCompletionPilot(root: string, output: string, bindin
   if (findSecretLeakInJsonValues(campaign, [], { includeShapes: true })) throw new Error("Unsafe pilot projection");
   files.set("normalized-results.json", Buffer.from(`${JSON.stringify(campaign, null, 2)}\n`));
   const failed = results.filter(row => row.status !== "passed" || row.cleanup !== "passed").length;
-  files.set("junit.xml", Buffer.from(`<?xml version="1.0" encoding="UTF-8"?><testsuite name="Chat completion pilot" tests="${results.length}" failures="${failed}">${results.map(row => `<testcase classname="paperclip.Product E2E.chat-features" name="${row.caseId}" time="${row.durationMs / 1000}">${row.status !== "passed" || row.cleanup !== "passed" ? '<failure message="Original evaluation or cleanup failed"/>' : ""}</testcase>`).join("")}</testsuite>\n`));
+  files.set("junit.xml", Buffer.from(`<?xml version="1.0" encoding="UTF-8"?><testsuite name="Chat completion pilot" tests="${results.length}" failures="${failed}">${results.map(row => `<testcase classname="nexus.Product E2E.chat-features" name="${row.caseId}" time="${row.durationMs / 1000}">${row.status !== "passed" || row.cleanup !== "passed" ? '<failure message="Original evaluation or cleanup failed"/>' : ""}</testcase>`).join("")}</testsuite>\n`));
   const manifest = [...files].sort(([a], [b]) => a.localeCompare(b)).map(([name, bytes]) => ({ path: name, sha256: hash(bytes), bytes: bytes.length }));
   if (manifest.reduce((total, row) => total + row.bytes, 0) > 32 * 1024 * 1024) throw new Error("Pilot projection exceeds allowance");
-  const receipt = { schema: "paperclip.chat-completion-testops-export/v1", ...binding, campaignId, executionIds: expectedIds, privateEvidence, files: manifest };
+  const receipt = { schema: "nexus.chat-completion-testops-export/v1", ...binding, campaignId, executionIds: expectedIds, privateEvidence, files: manifest };
   await mkdir(output, { mode: 0o700 });
   for (const [relative, bytes] of files) {
     const destination = path.join(output, relative); await mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });

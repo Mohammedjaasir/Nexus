@@ -11,7 +11,7 @@ const RECOVERY_CONTEXT_KEYS = [
   // Retired model-profile fields are scrubbed from old queued contexts so an
   // upgrade cannot restore the removed execution path.
   "modelProfile",
-  "paperclipModelProfile",
+  "nexusModelProfile",
   "recoveryIntent",
   "allowDeliverableWork",
   "allowDocumentUpdates",

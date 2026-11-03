@@ -14,7 +14,7 @@ const meta = {
     layout: "fullscreen",
     initialEntries: ["/PAP/issues"],
     docs: { description: { component: "Shared proposed desktop layout, also used by Pages/Tasks. Import DesignPageShell from @/components/DesignPageShell and supply sidebar, title and children. Add rightSidebar and rightSidebarTitle for three panes; rightSidebarHeader and rightSidebarControls accept the production tab strip and window controls. rightSidebarMaximized expands the panel across the workspace; headerActions can supply a reopen button. These stories use the task-detail page's SidePanelTabs, SidePanelLauncher, SidePanelWindowControls and useSidePanelTabs for adding, selecting, closing and reordering tabs. Closing the last tab reveals the launcher. Sidebar width uses the existing resize shell; pass sidebarStorageKey to isolate preferences. The right pane defaults to 320px, capped at 30% on narrower desktops. Drag its highlighted divider or use the arrow keys to resize; double-click animates back to default using the shared 200ms reset motion (instant with reduced motion). Widths persist separately from the left sidebar and survive maximize/restore. Resizing preserves space for the main pane. Main and right content scroll independently beneath fixed headers; scrollbars hide after scrolling stops using the shared idle-delay token. Colors come from the proposed dark foundation. Tab bodies and placeholder blocks are fixture content. Mobile navigation and panel overlay behavior are not defined by these desktop specimens." } },
-    paperclip: {
+    nexus: {
       capabilities: ["navigation-preferences/navigation"],
       home: "design-proposals",
       status: "proposed",

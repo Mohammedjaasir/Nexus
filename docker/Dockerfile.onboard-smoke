@@ -1,20 +1,20 @@
 FROM ubuntu:24.04
 
 ARG NODE_MAJOR=24
-ARG PAPERCLIPAI_VERSION=latest
+ARG NEXUSAI_VERSION=latest
 ARG HOST_UID=10001
 
 ENV DEBIAN_FRONTEND=noninteractive \
-  PAPERCLIP_HOME=/paperclip \
-  PAPERCLIP_OPEN_ON_LISTEN=false \
+  NEXUS_HOME=/nexus \
+  NEXUS_OPEN_ON_LISTEN=false \
   HOST=0.0.0.0 \
   PORT=3100 \
-  HOME=/home/paperclip \
+  HOME=/home/nexus \
   LANG=en_US.UTF-8 \
   LC_ALL=en_US.UTF-8 \
   NPM_CONFIG_UPDATE_NOTIFIER=false \
   NODE_MAJOR=${NODE_MAJOR} \
-  PAPERCLIPAI_VERSION=${PAPERCLIPAI_VERSION}
+  NEXUSAI_VERSION=${NEXUSAI_VERSION}
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl gnupg locales \
@@ -26,20 +26,20 @@ RUN apt-get update \
   && apt-get update \
   && apt-get install -y --no-install-recommends nodejs \
   && locale-gen en_US.UTF-8 \
-  && groupadd --gid 10001 paperclip \
-  && useradd --create-home --shell /bin/bash --uid "${HOST_UID}" --gid 10001 paperclip \
-  && mkdir -p /paperclip /home/paperclip/workspace \
-  && chown -R paperclip:paperclip /paperclip /home/paperclip \
+  && groupadd --gid 10001 nexus \
+  && useradd --create-home --shell /bin/bash --uid "${HOST_UID}" --gid 10001 nexus \
+  && mkdir -p /nexus /home/nexus/workspace \
+  && chown -R nexus:nexus /nexus /home/nexus \
   && rm -rf /var/lib/apt/lists/*
 
-VOLUME ["/paperclip"]
-WORKDIR /home/paperclip/workspace
+VOLUME ["/nexus"]
+WORKDIR /home/nexus/workspace
 EXPOSE 3100
-USER paperclip
+USER nexus
 
 # --bind lan is required: `onboard --yes` without an explicit --bind prefers
 # trusted-local defaults, which write a loopback bind into the instance config
 # and ignore the deployment env vars. A loopback listener inside the container
 # is unreachable through Docker's port mapping, so the smoke health check can
 # never pass without this flag.
-CMD ["bash", "-lc", "set -euo pipefail; mkdir -p \"$PAPERCLIP_HOME\"; npx --yes \"paperclipai@${PAPERCLIPAI_VERSION}\" onboard --yes --bind lan --data-dir \"$PAPERCLIP_HOME\""]
+CMD ["bash", "-lc", "set -euo pipefail; mkdir -p \"$NEXUS_HOME\"; npx --yes \"nexusai@${NEXUSAI_VERSION}\" onboard --yes --bind lan --data-dir \"$NEXUS_HOME\""]

@@ -25,7 +25,7 @@ Agent access: [companion](../agent-access-map/cli-operations.md).
 
 ### `client-context`
 
-Use `paperclipai context show/list/use/set`, auth/connect, and the registered resource command help.
+Use `nexusai context show/list/use/set`, auth/connect, and the registered resource command help.
 
 ### `subresources-and-runs`
 
@@ -33,15 +33,15 @@ Use issue subresource, asset/skill, and run/heartbeat commands exposed by the CL
 
 ### `worktree-instance`
 
-Use the documented worktree/test-drive commands in an owned checkout; inspect `paperclipai worktree --help` first.
+Use the documented worktree/test-drive commands in an owned checkout; inspect `nexusai worktree --help` first.
 Inspect root help too: `worktree:make/list/merge-history/cleanup` are top-level
 commands rather than subcommands of `worktree`.
 
 ### `feedback-report-export`
 
-Use `paperclipai feedback report --company-id <company-id> --json`, `feedback trace <trace-id> --json`, or `feedback bundle <trace-id> --json`. Export with `paperclipai feedback export --company-id <company-id> --out <empty-owned-directory> --json`. Select the intended board context/profile and use report/export filters such as --vote, --status, --issue-id, --project-id, --from, --to, or --shared-only.
+Use `nexusai feedback report --company-id <company-id> --json`, `feedback trace <trace-id> --json`, or `feedback bundle <trace-id> --json`. Export with `nexusai feedback export --company-id <company-id> --out <empty-owned-directory> --json`. Select the intended board context/profile and use report/export filters such as --vote, --status, --issue-id, --project-id, --from, --to, or --shared-only.
 
-## Driving it with the Paperclip CLI
+## Driving it with the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use `--help` from the checked-out CLI to discover exact arguments. Select a disposable company and isolated context; do not inherit an unknown API target.
 Pass the server origin to `--api-base` (without appending `/api`); the commands

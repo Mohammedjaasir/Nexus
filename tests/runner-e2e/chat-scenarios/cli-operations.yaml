@@ -67,7 +67,7 @@ scenarios:
       This is an operator companion journey in an explicitly owned disposable checkout; no
       production instance is targeted.
     query: >-
-      Set up a throwaway Paperclip instance for testing this chat flow.
+      Set up a throwaway Nexus instance for testing this chat flow.
     expected_outcome: >-
       The supported development-instance commands create and seed only the owned target and
       report its URL and health. Cleanup identifies that exact instance and preserves unrelated

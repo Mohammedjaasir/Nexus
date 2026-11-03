@@ -80,7 +80,7 @@ export function aiRoutingHarness(
   provider?: unknown,
   acpxAgent?: unknown,
 ): string {
-  if (adapter !== "paperclip_runner") return adapter;
+  if (adapter !== "nexus_runner") return adapter;
   if (provider === "acpx" && acpxAgent === "copilot") return "copilot_runtime";
   if (provider === "acpx" && acpxAgent === "antigravity") return "antigravity_runtime";
   const runner =
@@ -131,7 +131,7 @@ export function aiRoutingModel(
   model: string,
 ): string {
   if (!model || (harness !== "opencode_local" && !(harness === "pi_local" && route.kind === "openrouter"))) return model;
-  const prefix = route.kind === "openrouter" ? "openrouter" : "paperclip";
+  const prefix = route.kind === "openrouter" ? "openrouter" : "nexus";
   return model.startsWith(`${prefix}/`) ? model : `${prefix}/${model}`;
 }
 

@@ -1,7 +1,7 @@
 import type { Message, Thread } from "chat";
 import type { ChatSdkMessageCallbackEvent } from "../chat-sdk-runtime.js";
-import type { Db, chatEndpoints } from "@paperclipai/db";
-import type { ToolCredentialSecretRef, ChatEndpointSetupState, ChatEndpointCallbackSurfaces } from "@paperclipai/shared";
+import type { Db, chatEndpoints } from "@nexusai/db";
+import type { ToolCredentialSecretRef, ChatEndpointSetupState, ChatEndpointCallbackSurfaces } from "@nexusai/shared";
 import type { ChatEndpointRuntime } from "../voice/voice-runtime.js";
 
 export type EndpointRow = typeof chatEndpoints.$inferSelect;

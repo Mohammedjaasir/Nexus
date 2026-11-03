@@ -13,7 +13,7 @@ classic personal tokens are unsupported for this setup. Follow
 [GitHub's authentication instructions](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli).
 
 Save the token as a personal or shared AI connection and select the execution
-environment. Paperclip uses its encrypted credential store, grants, access
+environment. Nexus uses its encrypted credential store, grants, access
 checks, reconnect/revocation, and activity logging. GitHub repository/MCP access
 uses its separate connection and grants. Copilot execution receives only the
 selected runtime token as `COPILOT_GITHUB_TOKEN`; ambient GitHub credentials
@@ -26,7 +26,7 @@ sends no model prompt. Authentication, entitlement/policy, installation, and
 unavailable-model errors are reported separately. Remote verification releases
 its owned login lease and does not fall back to the controller host.
 
-In an agent's **Harness / Runtime** settings, select **Paperclip Runner**,
+In an agent's **Harness / Runtime** settings, select **Nexus Runner**,
 **ACP agents**, **GitHub Copilot**, and a model from authenticated discovery.
 Saving and reopening retain `provider: acpx`, `acpxAgent: copilot`, and that exact
 model. Auto/default and unavailable models are rejected. The qualification
@@ -40,12 +40,12 @@ verifies the saved connection and exact model without sending a prompt.
 
 For Daytona, install the first-party Daytona provider and configure an execution
 environment with its saved API key and the matching release image. Environment
-assignment currently uses Paperclip's existing **Enable Environments** instance
+assignment currently uses Nexus's existing **Enable Environments** instance
 setting. Select that environment for connection verification and agent execution;
 successful local verification alone does not establish remote readiness. The
 admitted daemon and provider assets must belong to the same verified build.
 
-Core workflows use Paperclip's semantic questions, plans, and completion tools.
+Core workflows use Nexus's semantic questions, plans, and completion tools.
 Permission cards identify actual targets. Denied writes have no effects; Stop
 cancels unanswered permissions and refuses late answers. Provider death must
 expire stale input without replay. Detached work, native steering, native plan

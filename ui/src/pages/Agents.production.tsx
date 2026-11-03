@@ -23,7 +23,7 @@ import { PageSkeleton } from "../components/PageSkeleton";
 import { relativeTime, cn, agentRouteRef, agentUrl } from "../lib/utils";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Bot, Plus, List, GitBranch } from "lucide-react";
-import { AGENT_ROLE_LABELS, type Agent, type Environment, type EnvironmentCapabilities } from "@paperclipai/shared";
+import { AGENT_ROLE_LABELS, type Agent, type Environment, type EnvironmentCapabilities } from "@nexusai/shared";
 import { usePublishSharedQueryData, useSharedPollingQuery } from "../hooks/useSharedPolling";
 
 import { getAdapterLabel } from "../adapters/adapter-display-registry";
@@ -53,8 +53,8 @@ interface EnvironmentDescriptor {
 
 const localEnvironmentDescriptor: EnvironmentDescriptor = {
   label: "Local",
-  detail: "Paperclip host",
-  title: "Local - Paperclip host",
+  detail: "Nexus host",
+  title: "Local - Nexus host",
 };
 
 const loadingEnvironmentDescriptor: EnvironmentDescriptor = {
@@ -115,11 +115,11 @@ function describeEnvironment(
   capabilities?: EnvironmentCapabilities | null,
 ): EnvironmentDescriptor {
   const detail = isPlatformManagedEnvironment(environment)
-    ? "Managed by Paperclip"
+    ? "Managed by Nexus"
     : environment.driver === "sandbox"
       ? `${getSandboxProviderLabel(environment, capabilities)} sandbox provider`
       : environment.driver === "local"
-        ? "Paperclip host"
+        ? "Nexus host"
         : formatEnvironmentDriver(environment.driver);
 
   return {

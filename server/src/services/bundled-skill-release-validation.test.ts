@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { companies, companySkills, companySkillVersions, createDb } from "@paperclipai/db";
+import { companies, companySkills, companySkillVersions, createDb } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { verifyExistingBundledSkillRelease } from "./bundled-skill-release-validation.js";
 

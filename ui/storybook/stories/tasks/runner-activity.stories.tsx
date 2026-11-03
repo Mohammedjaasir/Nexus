@@ -25,7 +25,7 @@ const meta = {
           "Production runner turn with deterministic event playback. Each commentary boundary starts a separate activity group. Compact groups roll through one tool or thinking item at a time. Expand a group to keep its history growing inline, and click any expanded row to inspect its detail. Pause, Next, and Replay control simulated events; no runner or task API is called.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "tasks/discussion",
         "runs-adapters/runs"

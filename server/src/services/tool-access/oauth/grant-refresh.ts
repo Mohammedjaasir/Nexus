@@ -3,15 +3,15 @@ import { writeToolConnectionHealthChange } from "../../tool-connection-health-no
 import type { ActorInfo } from "../types.js";
 import { createOAuthClientProtocol, storedOAuthTokenEndpointAuthMethod } from "./client.js";
 import { oauthConfig, normalizeOauthScopes, resolveGrantedOauthScopes } from "./metadata.js";
-import { googleWorkspaceEffectiveScopes, isGoogleWorkspaceScopeGrant } from "@paperclipai/shared";
+import { googleWorkspaceEffectiveScopes, isGoogleWorkspaceScopeGrant } from "@nexusai/shared";
 import { emitConnectionUpdated } from "../../connector-telemetry.js";
 import { and, eq, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { connectionGrants, companySecrets, toolConnections } from "@paperclipai/db";
-import type { ToolCredentialSecretRef } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { connectionGrants, companySecrets, toolConnections } from "@nexusai/db";
+import type { ToolCredentialSecretRef } from "@nexusai/shared";
 import { conflict, HttpError, unprocessable } from "../../../errors.js";
 import { secretService } from "../../secrets.js";
-import { isPaperclipCloudConnectorStrategy, PaperclipCloudConnectorError, type PaperclipCloudConnector } from "../../paperclip-cloud-connector.js";
+import { isNexusCloudConnectorStrategy, NexusCloudConnectorError, type NexusCloudConnector } from "../../nexus-cloud-connector.js";
 
 import { actorForSecret, type OAuthCredentialStore } from "./credential-store.js";
 import { withoutOAuthRefreshLease, type OAuthRefreshLeases } from "./refresh-leases.js";
@@ -28,7 +28,7 @@ type GrantRefreshDependencies = {
   now: () => Date;
   store: Pick<OAuthCredentialStore, "getOAuthGrantRow" | "resolveOAuthGrantSecret" | "createOrRotateOAuthSecret" | "oauthClientForConnection" | "syncCredentialBindings">;
   leases: Pick<OAuthRefreshLeases, "acquireOAuthGrantRefreshLease" | "clearOAuthGrantRefreshLease">;
-  currentCloudConnector: () => PaperclipCloudConnector | null;
+  currentCloudConnector: () => NexusCloudConnector | null;
   getConnectionRow(idOrUid: string, companyId?: string): Promise<typeof toolConnections.$inferSelect>;
   exchangeOAuthToken: ReturnType<typeof createOAuthClientProtocol>["exchangeOAuthToken"];
 };
@@ -58,8 +58,8 @@ export function createOAuthGrantRefresh(db: Db, { now, store, leases, currentClo
       typeof oauth.tokenUrl === "string" ? oauth.tokenUrl : null;
     if (
       connection.authKind === "oauth" &&
-      connection.credentialSource === "paperclip_vault" &&
-      isPaperclipCloudConnectorStrategy(oauth.strategy)
+      connection.credentialSource === "nexus_vault" &&
+      isNexusCloudConnectorStrategy(oauth.strategy)
     ) {
       const grantOauth = oauthGrantConfig(initialGrant);
       const expiresAt =
@@ -148,11 +148,11 @@ export function createOAuthGrantRefresh(db: Db, { now, store, leases, currentClo
                 credentials.scopes = googleWorkspaceEffectiveScopes(requested, credentials.scopes);
               }
               if (profile.id === "workspace.all" && !isGoogleWorkspaceScopeGrant(credentials.scopes)) {
-                throw new PaperclipCloudConnectorError("Google did not return verifiable permissions", "REAUTHORIZATION_REQUIRED");
+                throw new NexusCloudConnectorError("Google did not return verifiable permissions", "REAUTHORIZATION_REQUIRED");
               }
             } catch (error) {
               if (
-                error instanceof PaperclipCloudConnectorError &&
+                error instanceof NexusCloudConnectorError &&
                 error.code === "REAUTHORIZATION_REQUIRED"
               ) {
                 await db
@@ -180,7 +180,7 @@ export function createOAuthGrantRefresh(db: Db, { now, store, leases, currentClo
                 ? { actorType: "user", actorId: grant.subjectUserId }
                 : input.actor;
             const oauthUpdates = {
-                strategy: "paperclip_cloud_connector",
+                strategy: "nexus_cloud_connector",
                 accessTokenExpiresAt: credentials.accessTokenExpiresAt,
                 scopes: credentials.scopes,
                 tokenType: credentials.tokenType,
@@ -249,7 +249,7 @@ export function createOAuthGrantRefresh(db: Db, { now, store, leases, currentClo
     }
     if (
       connection.authKind !== "oauth" ||
-      connection.credentialSource !== "paperclip_vault" ||
+      connection.credentialSource !== "nexus_vault" ||
       !oauthTokenUrl ||
       !oauthProvider
     ) {
@@ -491,7 +491,7 @@ export function createOAuthGrantRefresh(db: Db, { now, store, leases, currentClo
           ? new Date(Date.now() + token.expiresIn * 1000).toISOString()
           : null;
         // A refresh carries no fresh authorization request, so the baseline stays what
-        // Paperclip asked for when *this* grant was authorized. Judging the response against
+        // Nexus asked for when *this* grant was authorized. Judging the response against
         // the grant's own scopes instead would let an over-grant that the provider re-asserts
         // on every refresh read back as clean, because the widened grant would have become
         // its own baseline. The connection-level list is only a fallback for grants created

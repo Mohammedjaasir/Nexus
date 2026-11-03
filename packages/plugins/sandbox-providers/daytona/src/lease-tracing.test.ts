@@ -1,7 +1,7 @@
 import { createInterface } from "node:readline";
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { NOOP_PLUGIN_TRACER, startWorkerRpcHost, type PluginInvocationContext, type PluginTracer } from "@paperclipai/plugin-sdk";
+import { NOOP_PLUGIN_TRACER, startWorkerRpcHost, type PluginInvocationContext, type PluginTracer } from "@nexusai/plugin-sdk";
 import plugin, { __resetDaytonaSandboxHandleCacheForTest, __setDaytonaPluginContextForTest } from "./plugin.js";
 import manifest from "./manifest.js";
 import { leaseStateAttributes, withLeaseSpan } from "./lease-tracing.js";
@@ -53,7 +53,7 @@ function workerHarness() {
   lines.on("line", line => {
     const message = JSON.parse(line);
     if (message.method) {
-      if (message.method === "span.record") receipts.push({ invocationId: message.paperclipInvocationId, span: message.params });
+      if (message.method === "span.record") receipts.push({ invocationId: message.nexusInvocationId, span: message.params });
       if (message.id !== undefined) stdin.write(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: null }) + "\n");
     } else {
       const waiter = pending.get(message.id);
@@ -68,7 +68,7 @@ function workerHarness() {
     return new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject });
       stdin.write(JSON.stringify({ jsonrpc: "2.0", id, method, params: input,
-        ...(invocation ? { paperclipInvocation: invocation } : {}) }) + "\n");
+        ...(invocation ? { nexusInvocation: invocation } : {}) }) + "\n");
     });
   }
   return {
@@ -102,7 +102,7 @@ describe("Daytona lease worker tracing", () => {
       const root = worker.receipts[0].span;
       expect(root.name).toBe("plugin.worker");
       expect(root.children.map(span => span.name)).toEqual(["lease.lookup", "lease.channel_cleanup", "lease.start", "lease.verify"]);
-      expect(root.children[2].attributes).toMatchObject({ "paperclip.sandbox.startup.state": "archived" });
+      expect(root.children[2].attributes).toMatchObject({ "nexus.sandbox.startup.state": "archived" });
       expect(root.children[3].children.map(span => span.name)).toEqual(["lease.workspace", "lease.sentinel", "lease.shell"]);
       function checkBounds(parent: Receipt) {
         for (const child of parent.children) {
@@ -268,6 +268,6 @@ describe("lease tracing cannot change provider work", () => {
   });
 
   it("normalizes unknown provider states before recording", () => {
-    expect(leaseStateAttributes("provider-private-state")).toEqual({ "paperclip.sandbox.startup.state": "other" });
+    expect(leaseStateAttributes("provider-private-state")).toEqual({ "nexus.sandbox.startup.state": "other" });
   });
 });

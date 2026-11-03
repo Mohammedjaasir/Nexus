@@ -1,6 +1,6 @@
-import { subscribeDatabaseWork } from "@paperclipai/db";
+import { subscribeDatabaseWork } from "@nexusai/db";
 import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
-import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
@@ -38,7 +38,7 @@ import {
   projects,
   projectWorkspaces,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -125,7 +125,7 @@ vi.mock("../adapters/index.js", () => ({
   runningProcesses: new Map(),
 }));
 
-const externalTestDatabaseUrl = process.env.PAPERCLIP_TEST_DATABASE_URL?.trim();
+const externalTestDatabaseUrl = process.env.NEXUS_TEST_DATABASE_URL?.trim();
 const embeddedPostgresSupport = externalTestDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -150,10 +150,10 @@ async function readGit(cwd: string, args: string[]) {
 async function createGitRepo() {
   // realpath: on macOS os.tmpdir() is a symlink (/tmp -> /private/tmp) and the
   // runtime persists resolved worktree paths, so unresolved fixtures never match.
-  const repoRoot = await realpath(await mkdtemp(path.join(os.tmpdir(), "paperclip-branch-containment-repo-")));
+  const repoRoot = await realpath(await mkdtemp(path.join(os.tmpdir(), "nexus-branch-containment-repo-")));
   await runGit(repoRoot, ["init"]);
-  await runGit(repoRoot, ["config", "user.email", "paperclip-test@example.com"]);
-  await runGit(repoRoot, ["config", "user.name", "Paperclip Test"]);
+  await runGit(repoRoot, ["config", "user.email", "nexus-test@example.com"]);
+  await runGit(repoRoot, ["config", "user.name", "Nexus Test"]);
   await writeFile(path.join(repoRoot, "README.md"), "branch containment\n", "utf8");
   await runGit(repoRoot, ["add", "README.md"]);
   await runGit(repoRoot, ["commit", "-m", "initial"]);
@@ -301,7 +301,7 @@ function readContainmentComments(db: Db, issueIds: string[]) {
 
 function readAdapterWorkspace(input: unknown) {
   const context = (input as { context?: Record<string, unknown> }).context ?? {};
-  const workspace = context.paperclipWorkspace as Record<string, unknown> | undefined;
+  const workspace = context.nexusWorkspace as Record<string, unknown> | undefined;
   const cwd = typeof workspace?.cwd === "string" ? workspace.cwd : null;
   const branchName = typeof workspace?.branchName === "string" ? workspace.branchName : null;
   const executionWorkspaceId =
@@ -309,7 +309,7 @@ function readAdapterWorkspace(input: unknown) {
   if (!cwd || !branchName || !executionWorkspaceId) {
     throw new Error("Adapter input is missing execution workspace context");
   }
-  const wake = context.paperclipWake as { executionWorkspace?: { branchName?: string } } | undefined;
+  const wake = context.nexusWake as { executionWorkspace?: { branchName?: string } } | undefined;
   if (wake?.executionWorkspace?.branchName !== branchName) {
     throw new Error("Adapter wake payload is missing the execution workspace branch pin");
   }
@@ -339,7 +339,7 @@ async function seedBranchContainmentRun(
   const otherSiblingIdentifier = `${issuePrefix}-3`;
   const expectedBranch = `${sourceIdentifier}-recorded`;
   const actualBranch = `${sourceIdentifier}-actual`;
-  const worktreePath = path.join(repoRoot, ".paperclip", "worktrees", expectedBranch);
+  const worktreePath = path.join(repoRoot, ".nexus", "worktrees", expectedBranch);
   const now = new Date("2026-07-07T00:00:00.000Z");
 
   await instanceSettingsService(db).updateExperimental({
@@ -449,12 +449,12 @@ async function seedBranchContainmentRun(
       strategyType: "git_worktree",
       name: "other-workspace",
       status: "active",
-      cwd: path.join(repoRoot, ".paperclip", "worktrees", "other-workspace"),
+      cwd: path.join(repoRoot, ".nexus", "worktrees", "other-workspace"),
       repoUrl: null,
       baseRef: "HEAD",
       branchName: "other-workspace",
       providerType: "git_worktree",
-      providerRef: path.join(repoRoot, ".paperclip", "worktrees", "other-workspace"),
+      providerRef: path.join(repoRoot, ".nexus", "worktrees", "other-workspace"),
       lastUsedAt: now,
       openedAt: now,
       createdAt: now,
@@ -892,7 +892,7 @@ describeEmbeddedPostgres("heartbeat workspace branch containment", () => {
   beforeAll(async () => {
     if (externalTestDatabaseUrl) db = createDb(externalTestDatabaseUrl, { maxConnections: 6 });
     else {
-      tempDb = await startEmbeddedPostgresTestDatabase("paperclip-branch-containment-");
+      tempDb = await startEmbeddedPostgresTestDatabase("nexus-branch-containment-");
       db = createDb(tempDb.connectionString);
     }
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
@@ -955,9 +955,9 @@ describeEmbeddedPostgres("heartbeat workspace branch containment", () => {
   }, 60_000);
 
   async function seedRetainedSourceRun(kind: "deleted" | "explicit_conflict" | "foreign_project" | "foreign_company" | "unproven") {
-    const home = await realpath(await mkdtemp(path.join(os.tmpdir(), "paperclip-retained-source-home-")));
+    const home = await realpath(await mkdtemp(path.join(os.tmpdir(), "nexus-retained-source-home-")));
     tempRoots.push(home);
-    vi.stubEnv("PAPERCLIP_HOME", home);
+    vi.stubEnv("NEXUS_HOME", home);
     const original = await createGitRepo();
     const replacement = await createGitRepo();
     tempRoots.push(original, replacement);
@@ -972,7 +972,7 @@ describeEmbeddedPostgres("heartbeat workspace branch containment", () => {
       await runGit(original, ["clone", repoUrl, owner]);
     }
     const branch = "retained-task";
-    const worktree = path.join(owner, ".paperclip", "worktrees", branch);
+    const worktree = path.join(owner, ".nexus", "worktrees", branch);
     await runGit(owner, ["worktree", "add", "-b", branch, worktree]);
     await writeFile(path.join(worktree, "retained.txt"), "unexported original task edits\n");
     await writeFile(path.join(replacement, "replacement.txt"), "replacement source must stay untouched\n");
@@ -1034,7 +1034,7 @@ describeEmbeddedPostgres("heartbeat workspace branch containment", () => {
     expect(run).toMatchObject({ status: "succeeded" });
     expect(adapterExecute).toHaveBeenCalledTimes(1);
     expect(readAdapterWorkspace(adapterExecute.mock.calls[0]?.[0])).toEqual({ cwd: seeded.worktree, branchName: seeded.branch, executionWorkspaceId: seeded.executionWorkspaceId });
-    expect(adapterExecute.mock.calls[0]?.[0]).toMatchObject({ context: { paperclipWorkspace: {
+    expect(adapterExecute.mock.calls[0]?.[0]).toMatchObject({ context: { nexusWorkspace: {
       projectId: seeded.projectId, workspaceId: null, repoUrl: seeded.repoUrl, repoRef: "HEAD", source: "task_session",
     } } });
     const [workspace] = await db.select().from(executionWorkspaces).where(eq(executionWorkspaces.id, seeded.executionWorkspaceId));
@@ -1078,7 +1078,7 @@ describeEmbeddedPostgres("heartbeat workspace branch containment", () => {
   );
 
   it.each(["git_worktree", "project_primary"] as const)("reuses a %s workspace when a private historical task worktree shares its Git root", async (strategyType) => {
-    vi.stubEnv("PAPERCLIP_SENTRY_RUN_FAILURES", "unexpected");
+    vi.stubEnv("NEXUS_SENTRY_RUN_FAILURES", "unexpected");
     const seeded = await seedRetainedSourceRun("deleted");
     if (strategyType === "project_primary") {
       await db.update(projectWorkspaces).set({ cwd: seeded.owner, repoUrl: seeded.repoUrl }).where(eq(projectWorkspaces.id, seeded.newWorkspaceId));
@@ -1090,7 +1090,7 @@ describeEmbeddedPostgres("heartbeat workspace branch containment", () => {
     }
     const [privateIssue] = await db.insert(issues).values({ companyId: seeded.companyId, projectId: seeded.projectId,
       title: "Private work", visibility: "private" }).returning();
-    const privateCwd = path.join(seeded.owner, ".paperclip", "worktrees", "restricted-task");
+    const privateCwd = path.join(seeded.owner, ".nexus", "worktrees", "restricted-task");
     await runGit(seeded.owner, ["worktree", "add", "-b", "restricted-task", privateCwd]);
     const [privateWorkspace] = await db.insert(executionWorkspaces).values({ companyId: seeded.companyId, projectId: seeded.projectId,
       sourceIssueId: privateIssue.id, name: "Private workspace", mode: "isolated_workspace", strategyType: "git_worktree",
@@ -1110,7 +1110,7 @@ describeEmbeddedPostgres("heartbeat workspace branch containment", () => {
     expect(run).toMatchObject({ status: "succeeded", errorCode: null });
     expect(adapterExecute).toHaveBeenCalledTimes(1);
     expect(adapterExecute.mock.calls[0]?.[0]).toMatchObject({ context: {
-      paperclipWorkspace: { cwd: strategyType === "project_primary" ? seeded.owner : seeded.worktree },
+      nexusWorkspace: { cwd: strategyType === "project_primary" ? seeded.owner : seeded.worktree },
       executionWorkspaceId: seeded.executionWorkspaceId,
     } });
     expect(mockCaptureRunFailure).not.toHaveBeenCalled();

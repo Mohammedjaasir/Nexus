@@ -5,7 +5,7 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 import { and, eq } from "drizzle-orm";
-import { agentFileRoots, type Db, type DurableAgentFileEntry } from "@paperclipai/db";
+import { agentFileRoots, type Db, type DurableAgentFileEntry } from "@nexusai/db";
 import { HttpError } from "../errors.js";
 import { getStorageService } from "../storage/index.js";
 import { assertInstructionPathSafe, instructionPath } from "./agent-instruction-files.js";
@@ -18,7 +18,7 @@ type Head = typeof agentFileRoots.$inferSelect;
 const where = (owner: Owner) => and(eq(agentFileRoots.companyId, owner.companyId), eq(agentFileRoots.agentId, owner.id));
 const marker = (root: string) => path.join(path.dirname(root), "file-sync", "durable-generation");
 const adoptionReceipt = (root: string) => path.join(path.dirname(root), "file-sync", "durable-adoption.json");
-export const durableAgentFilesEnabled = () => process.env.PAPERCLIP_DURABLE_AGENT_FILES === "true";
+export const durableAgentFilesEnabled = () => process.env.NEXUS_DURABLE_AGENT_FILES === "true";
 
 /** A newly created agent has no legacy files to import. Commit its empty
  * authority with the agent row, before any API can acknowledge file mutations. */

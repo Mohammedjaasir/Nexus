@@ -1,6 +1,6 @@
-import type { PaperclipPluginManifestV1 } from "@paperclipai/plugin-sdk";
+import type { NexusPluginManifestV1 } from "@nexusai/plugin-sdk";
 
-const PLUGIN_ID = "paperclip.daytona-sandbox-provider";
+const PLUGIN_ID = "nexus.daytona-sandbox-provider";
 export const DEFAULT_DAYTONA_OPERATION_TIMEOUT_MS = 300_000;
 // The bundled-plugin boot reconcile refreshes the persisted manifest for an
 // existing install only when PLUGIN_VERSION changes. A manifest change without a
@@ -12,19 +12,19 @@ export const DEFAULT_DAYTONA_OPERATION_TIMEOUT_MS = 300_000;
 // neutral `supportsLoginPty`.
 // 0.1.4 adds the `concurrentSyncOperations` sandbox capability to the driver.
 // 0.1.5 adds the `duplexCommandStream` sandbox capability to the driver.
-// 0.1.6 adds private authenticated WebSocket ingress for paperclip_runner.
+// 0.1.6 adds private authenticated WebSocket ingress for nexus_runner.
 // 0.1.7 exposes host-owned warm/cold runner lifecycle controls.
 // 0.1.8 declares the default provider acquisition budget to the host.
 const PLUGIN_VERSION = "0.1.10";
 
-const manifest: PaperclipPluginManifestV1 = {
+const manifest: NexusPluginManifestV1 = {
   id: PLUGIN_ID,
   apiVersion: 1,
   version: PLUGIN_VERSION,
   displayName: "Daytona Sandbox Provider",
   description:
-    "First-party sandbox provider plugin that provisions Daytona sandboxes as Paperclip execution environments.",
-  author: "Paperclip",
+    "First-party sandbox provider plugin that provisions Daytona sandboxes as Nexus execution environments.",
+  author: "Nexus",
   categories: ["automation"],
   capabilities: ["environment.drivers.register"],
   entrypoints: {
@@ -80,7 +80,7 @@ const manifest: PaperclipPluginManifestV1 = {
       // only bundled provider that implements the login pseudo-terminal methods,
       // so it advertises the capability. The session home helpers and the
       // credential reader run on node, and the sandbox already runs node for the
-      // Paperclip bridge. So the login has no extra runtime prerequisite, and the
+      // Nexus bridge. So the login has no extra runtime prerequisite, and the
       // advertised capability matches the runtime contract for every configured
       // image or snapshot.
       supportsLoginPty: true,
@@ -91,7 +91,7 @@ const manifest: PaperclipPluginManifestV1 = {
             type: "string",
             format: "secret-ref",
             description:
-              "Environment-specific Daytona API key. Paste a key or an existing Paperclip secret reference; saved environments store pasted values as company secrets. Falls back to DAYTONA_API_KEY if omitted.",
+              "Environment-specific Daytona API key. Paste a key or an existing Nexus secret reference; saved environments store pasted values as company secrets. Falls back to DAYTONA_API_KEY if omitted.",
           },
           apiUrl: {
             type: "string",
@@ -185,13 +185,13 @@ const manifest: PaperclipPluginManifestV1 = {
             type: "string",
             enum: ["inherit", "per_turn", "warm"],
             description:
-              "paperclip_runner lifecycle for this environment. Inherit uses the agent setting; warm keeps runnerd and the sandbox available between turns.",
+              "nexus_runner lifecycle for this environment. Inherit uses the agent setting; warm keeps runnerd and the sandbox available between turns.",
             default: "inherit",
           },
           runnerIdleTimeoutMs: {
             type: "integer",
             description:
-              "How long an idle warm paperclip_runner stays alive before it checkpoints and suspends.",
+              "How long an idle warm nexus_runner stays alive before it checkpoints and suspends.",
             minimum: 1000,
             maximum: 86400000,
             default: 300000,

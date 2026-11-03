@@ -15,7 +15,7 @@ const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
 async function createTempDatabase(): Promise<string> {
-  const db = await startEmbeddedPostgresTestDatabase("paperclip-inbox-archive-policies-");
+  const db = await startEmbeddedPostgresTestDatabase("nexus-inbox-archive-policies-");
   cleanups.push(db.cleanup);
   return db.connectionString;
 }

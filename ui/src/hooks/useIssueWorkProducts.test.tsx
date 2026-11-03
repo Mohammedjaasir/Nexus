@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueWorkProduct } from "@nexusai/shared";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { queryKeys } from "@/lib/queryKeys";
 import { pullRequestNeedsReview } from "@/lib/issue-pull-requests";

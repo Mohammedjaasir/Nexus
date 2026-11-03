@@ -2,7 +2,7 @@
  * SandboxOrchestrator implementation backed by the kubernetes-sigs/agent-sandbox
  * Sandbox CRD (agents.x-k8s.io/v1alpha1).
  *
- * The Sandbox CR creates a long-lived pod that paperclip-server can exec into
+ * The Sandbox CR creates a long-lived pod that nexus-server can exec into
  * for multi-command adapter-install workflows — the key architectural win over
  * the batch/v1 Job backend.
  *

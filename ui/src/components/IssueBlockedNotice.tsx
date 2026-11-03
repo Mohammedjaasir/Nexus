@@ -4,7 +4,7 @@ import type {
   IssueRelationIssueSummary,
   IssueScheduledRetry,
   SuccessfulRunHandoffState,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import type { ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Circle, Flag, Loader2, RotateCcw } from "lucide-react";
 import { Link } from "@/lib/router";
@@ -97,7 +97,7 @@ function SuccessfulRunRetryNowControl({
         <div className="min-w-0 text-xs leading-5 text-amber-900 dark:text-amber-100">
           {retryNow.data?.outcome === "waiting" && retryNow.data.scheduledRetry?.runId === scheduledRetry.runId
             ? retryNow.data.message
-            : <>Paperclip will ask the assignee to choose the next step {scheduleLabel}. Retry now starts that follow-up immediately.</>}
+            : <>Nexus will ask the assignee to choose the next step {scheduleLabel}. Retry now starts that follow-up immediately.</>}
         </div>
         <Button
           type="button"
@@ -624,7 +624,7 @@ export function IssueBlockedNotice({
             <>
               <p className="font-medium leading-5">This task still needs a next step.</p>
               <p className="leading-5">
-                A run finished successfully, but the task is still open. Paperclip needs someone to choose
+                A run finished successfully, but the task is still open. Nexus needs someone to choose
                 what happens next.
               </p>
               <ul className="list-disc space-y-1 pl-5 text-xs leading-5 text-amber-900 dark:text-amber-100">

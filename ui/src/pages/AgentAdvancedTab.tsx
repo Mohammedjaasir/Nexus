@@ -6,7 +6,7 @@ import { EditorView } from "@codemirror/view";
 import { yaml } from "@codemirror/lang-yaml";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { Button } from "../components/ui/button";
 import { useToastActions } from "../context/ToastContext";
 import { queryKeys } from "../lib/queryKeys";

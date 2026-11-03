@@ -6,7 +6,7 @@ import { once } from "node:events";
 import { createRequire } from "node:module";
 import { setTimeout as delay } from "node:timers/promises";
 import { createDb, authUsers, instanceUserRoles, issueComments, issues, issueThreadInteractions, issueQuestionResponseDeliveries, chatVoiceInboundCalls, chatVoiceReports, chatVoiceSessions, chatVoiceReplies, chatVoiceToolCalls, chatActions, chatDeliveries, chatPublications, heartbeatRuns, agentWakeupRequests } from "../../packages/db/src/index.js";
-const home = process.env.PAPERCLIP_HOME!;
+const home = process.env.NEXUS_HOME!;
 const port = Number(process.env.SPEKO_NATIVE_PORT ?? 3449);
 const origin = `http://127.0.0.1:${port}`;
 const callbackOrigin = process.env.SPEKO_NATIVE_CALLBACK_ORIGIN!;
@@ -17,7 +17,7 @@ const authenticated = process.env.SPEKO_NATIVE_AUTH === "1";
 const deploymentMode = authenticated ? "authenticated" : "local_trusted";
 // Match index.ts's local-trusted bootstrap: agent JWTs retain this real
 // responsible user and the memberships created by the normal company route.
-if (!authenticated) await db.insert(authUsers).values({ id: "local-board", name: "Board", email: "local@paperclip.local", emailVerified: true, createdAt: new Date(), updatedAt: new Date() }).onConflictDoNothing();
+if (!authenticated) await db.insert(authUsers).values({ id: "local-board", name: "Board", email: "local@nexus.local", emailVerified: true, createdAt: new Date(), updatedAt: new Date() }).onConflictDoNothing();
 if (!authenticated) await db.insert(instanceUserRoles).values({ userId: "local-board", role: "instance_admin" }).onConflictDoNothing();
 const { registerServerAdapter, waitForExternalAdapters } = await import("../../server/src/adapters/registry.js");
 await waitForExternalAdapters();
@@ -35,7 +35,7 @@ registerServerAdapter({
     if (ctx.config.command === "fixture-phone") {
       // Only execution is synthetic. Discover and invoke through the real
       // run-scoped MCP transport; do not reach into the voice service.
-      const server = ctx.runtimeMcp?.getServers().find(server => server.name === "paperclip-assigned");
+      const server = ctx.runtimeMcp?.getServers().find(server => server.name === "nexus-assigned");
       if (!server) throw new Error("The assigned phone tool was not delivered to the runtime");
       const { Client } = requireServer("@modelcontextprotocol/sdk/client/index.js");
       const { StreamableHTTPClientTransport } = requireServer("@modelcontextprotocol/sdk/client/streamableHttp.js");
@@ -70,7 +70,7 @@ registerServerAdapter({
       if (!question) {
         const [task] = await db.select().from(issues).where(eq(issues.id, issueId));
         const response = await fetch(`${origin}/api/issues/${issueId}/interactions`, {
-          method: "POST", headers: { authorization: `Bearer ${ctx.authToken}`, "content-type": "application/json", "x-paperclip-run-id": ctx.runId },
+          method: "POST", headers: { authorization: `Bearer ${ctx.authToken}`, "content-type": "application/json", "x-nexus-run-id": ctx.runId },
           body: JSON.stringify({ kind: "ask_user_questions", idempotencyKey: `fixture-question:${issueId}`, addresseeUserId: task.responsibleUserId,
             payload: { version: 1, questions: [{ id: "color", prompt: "Which color should I use?", selectionMode: "single", required: true, allowOther: false, options: [{ id: "cobalt", label: "Cobalt" }, { id: "amber", label: "Amber" }] }] } }), signal: ctx.signal,
         });
@@ -82,7 +82,7 @@ registerServerAdapter({
     const answeredQuestion = (await db.select().from(issueThreadInteractions).where(eq(issueThreadInteractions.issueId, issueId))).find((item) => item.idempotencyKey === `fixture-question:${issueId}` && item.status === "answered");
     const summary = answeredQuestion ? `Your structured answer was received: ${JSON.stringify(answeredQuestion.result)}.` : followupRun ? "Your follow-up was included in the completed result." : `The delayed work is complete. Verification number ${run.number}. I received ${Math.max(0, requests.length - 1)} follow-up instructions on this same task.`;
     const response = await fetch(`${origin}/api/issues/${issueId}/comments`, {
-      method: "POST", headers: { authorization: `Bearer ${ctx.authToken}`, "content-type": "application/json", "x-paperclip-run-id": ctx.runId },
+      method: "POST", headers: { authorization: `Bearer ${ctx.authToken}`, "content-type": "application/json", "x-nexus-run-id": ctx.runId },
       body: JSON.stringify({ body: summary }), signal: ctx.signal,
     });
     if (!response.ok) throw new Error(`Normal agent comment API rejected fixture: ${response.status} ${(await response.json() as { error: string }).error}`);
@@ -131,9 +131,9 @@ async function writeEvidence() {
   ]);
   const runEvidence = runs.map(({ contextSnapshot, ...row }) => {
     const context = (contextSnapshot ?? {}) as Record<string, unknown>;
-    const wake = (context.paperclipWake ?? {}) as Record<string, unknown>;
+    const wake = (context.nexusWake ?? {}) as Record<string, unknown>;
     return { ...row, context: { source: context.source, issueId: context.issueId, wakeCommentIds: context.wakeCommentIds,
-      paperclipTaskCommunicationGuidance: context.paperclipTaskCommunicationGuidance, paperclipHarnessCheckedOut: context.paperclipHarnessCheckedOut, paperclipExternalChatExecutionBound: context.paperclipExternalChatExecutionBound,
+      nexusTaskCommunicationGuidance: context.nexusTaskCommunicationGuidance, nexusHarnessCheckedOut: context.nexusHarnessCheckedOut, nexusExternalChatExecutionBound: context.nexusExternalChatExecutionBound,
       wake: { externalChatProvider: wake.externalChatProvider, checkedOutByHarness: wake.checkedOutByHarness, externalChatExecutionBound: wake.externalChatExecutionBound } } };
   });
   await writeFile(resolve(home, "evidence.pending.json"), JSON.stringify({ appPid: process.pid, at: new Date().toISOString(), reports, incoming, sessions, replies, tools, deliveries, publications, runs: runEvidence, wakeups, comments, interactions, questionDeliveries, pushActions }), { mode: 0o600 });
@@ -143,8 +143,8 @@ async function writeEvidence() {
 await writeEvidence();
 const evidenceTimer = setInterval(() => { void writeEvidence().catch((error) => console.error("Evidence snapshot failed:", error.message)); }, 2000);
 evidenceTimer.unref();
-const { createPaperclipHttpServer } = await import("../../server/src/http/server.js");
-const server = createPaperclipHttpServer(app, { apiUrl: origin });
+const { createNexusHttpServer } = await import("../../server/src/http/server.js");
+const server = createNexusHttpServer(app, { apiUrl: origin });
 server.listen(port, "127.0.0.1");
 const { setupLiveEventsWebSocketServer } = await import("../../server/src/realtime/live-events-ws.js");
 const liveEvents = setupLiveEventsWebSocketServer(server, db, { deploymentMode, ...(auth ? { resolveSessionFromHeaders: (headers: Headers) => authModule.resolveBetterAuthSessionFromHeaders(auth, headers) } : {}) });
@@ -156,7 +156,7 @@ async function stop() {
   clearInterval(evidenceTimer);
   for (const client of liveEvents.clients) client.terminate();
   server.close(); server.closeAllConnections();
-  await app.locals.paperclipShutdown?.();
+  await app.locals.nexusShutdown?.();
   await closeStub?.();
   process.exit(0);
 }

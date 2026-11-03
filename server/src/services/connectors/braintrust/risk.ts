@@ -1,4 +1,4 @@
-import type { ToolRiskLevel } from "@paperclipai/shared";
+import type { ToolRiskLevel } from "@nexusai/shared";
 
 // Reviewed against Braintrust's hosted MCP tool reference on 2026-10-21:
 // https://www.braintrust.dev/docs/integrations/developer-tools/mcp#tools

@@ -1,6 +1,6 @@
 ---
 description: Give every ACPX provider the same identity model - its commandDigest attests the upstream release, the pack contract digest covers Runner source and the shared ACPX layer, and profile versions change only for deliberate resets.
-globs: "packages/paperclip-runner/acpx-profiles.json,packages/paperclip-runner/cursor-contract.json,packages/paperclip-runner/cursor-distributions.json,packages/paperclip-runner/antigravity-distributions.json,packages/paperclip-runner/scripts/acpx-release-attestations.mjs,packages/paperclip-runner/scripts/generate-acpx-profiles.mjs,packages/paperclip-runner/scripts/contracts/**,packages/paperclip-runner/src/drivers/acpx/**,packages/paperclip-runner/src/providers/**,packages/paperclip-runner/protocol/**"
+globs: "packages/nexus-runner/acpx-profiles.json,packages/nexus-runner/cursor-contract.json,packages/nexus-runner/cursor-distributions.json,packages/nexus-runner/antigravity-distributions.json,packages/nexus-runner/scripts/acpx-release-attestations.mjs,packages/nexus-runner/scripts/generate-acpx-profiles.mjs,packages/nexus-runner/scripts/contracts/**,packages/nexus-runner/src/drivers/acpx/**,packages/nexus-runner/src/providers/**,packages/nexus-runner/protocol/**"
 alwaysApply: false
 ---
 
@@ -35,13 +35,13 @@ Ordinary Runner source changes, refactors and comments change none of these.
   `declaration`. The digest binds only what a repackager copies verbatim from
   the upstream release, so the same release gives the same digest wherever the
   pack is built or installed.
-- **Keep Paperclip source and the ACPX layer out of provider digests.**
+- **Keep Nexus source and the ACPX layer out of provider digests.**
   Runner/pack compatibility belongs to the `contractDigest`. When Runner code
   and a pack must agree on a new field or behavior, declare it in a schema
   under `protocol/` and generate the TypeScript, so the contract registry
   covers it.
 - **Regenerate instead of hand-editing.** After an upstream bump or a pin
-  change, run `pnpm --filter @paperclipai/paperclip-runner generate:acpx-profiles`.
+  change, run `pnpm --filter @nexusai/nexus-runner generate:acpx-profiles`.
   `check:acpx-profiles` runs in the build and refuses a stale digest.
 - **Keep the profile version.** An upstream release changes the digest, not the
   version. A new provider starts at version 1. Bump a version only to reset
@@ -67,6 +67,6 @@ Ordinary Runner source changes, refactors and comments change none of these.
 - Does the change treat every ACPX harness the same way?
 
 The canonical reference is
-[`packages/paperclip-runner/docs/durable-recovery.md`](../packages/paperclip-runner/docs/durable-recovery.md#profile-identity).
+[`packages/nexus-runner/docs/durable-recovery.md`](../packages/nexus-runner/docs/durable-recovery.md#profile-identity).
 The pack contract digest is described in
 [`docker/daytona-runner/README.md`](../docker/daytona-runner/README.md).

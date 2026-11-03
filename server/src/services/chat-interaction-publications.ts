@@ -6,7 +6,7 @@ import { notifyChatPublicationWork } from "./chat-work-notifications.js";
 import { nativePhotonInteraction } from "./photon/interactions.js";
 import { randomBytes } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   chatActions,
   chatConversations,
@@ -14,7 +14,7 @@ import {
   chatPublications,
   heartbeatRuns,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   AskUserQuestionsInteraction,
   AskUserQuestionsQuestion,
@@ -23,7 +23,7 @@ import type {
   RequestCheckboxConfirmationInteraction,
   SuggestTasksInteraction,
   SafeExternalChatCardAction,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { projectSafeChatPublication } from "./chat-publication-projection.js";
 import { publicChatTaskUrl } from "./chat-task-url.js";
 import {
@@ -51,12 +51,12 @@ function terminalNativeInteractionCopy(
       const outcome = interaction.result?.outcome;
       const body =
         outcome === "skipped"
-          ? "Skipped in Paperclip"
+          ? "Skipped in Nexus"
           : outcome === "withdrawn"
-            ? "Withdrawn in Paperclip"
+            ? "Withdrawn in Nexus"
             : outcome === "addressee_deleted"
               ? "Cancelled: addressed agent was removed"
-              : "Cancelled in Paperclip";
+              : "Cancelled in Nexus";
       return { body, text: `${body}.` };
     }
     if (interaction.status === "expired") {
@@ -69,7 +69,7 @@ function terminalNativeInteractionCopy(
               ? "Expired: target is no longer current"
               : interaction.result?.outcome === "issue_closed"
                 ? "Expired: task is closed"
-                : "Expired in Paperclip";
+                : "Expired in Nexus";
       return { body, text: `${body}.` };
     }
     return null;
@@ -99,7 +99,7 @@ function terminalNativeInteractionCopy(
     return { body, text: body };
   }
   if (interaction.kind !== "ask_user_questions") {
-    const body = ({ accepted: "Accepted", rejected: "Rejected", answered: "Answered", cancelled: "Cancelled in Paperclip", expired: "Expired in Paperclip" } as Record<string, string>)[interaction.status];
+    const body = ({ accepted: "Accepted", rejected: "Rejected", answered: "Answered", cancelled: "Cancelled in Nexus", expired: "Expired in Nexus" } as Record<string, string>)[interaction.status];
     return body ? { body, text: `${body}.` } : null;
   }
   if (interaction.status === "answered") {
@@ -122,10 +122,10 @@ function terminalNativeInteractionCopy(
     const outcome = interaction.result?.outcome;
     const body =
       outcome === "skipped"
-        ? "Skipped in Paperclip."
+        ? "Skipped in Nexus."
         : outcome === "withdrawn"
-          ? "Withdrawn in Paperclip."
-          : "Cancelled in Paperclip.";
+          ? "Withdrawn in Nexus."
+          : "Cancelled in Nexus.";
     return { body, text: body };
   }
   if (interaction.status === "expired") {
@@ -137,7 +137,7 @@ function terminalNativeInteractionCopy(
           ? "Expired: replaced by a newer request"
           : interaction.result?.outcome === "issue_closed"
             ? "Expired: task is closed"
-            : "Expired in Paperclip";
+            : "Expired in Nexus";
     return { body, text: `${body}.` };
   }
   return null;
@@ -223,7 +223,7 @@ export function nativeChatCheckbox(interaction: IssueThreadInteraction): Request
 /**
  * Slack and Telegram can render ordinary binary confirmations as inline buttons.
  * Confirmations that collect a rejection reason or authorize a credential,
- * connection, or tool side effect stay in Paperclip, where the complete
+ * connection, or tool side effect stay in Nexus, where the complete
  * governed review UI and permission checks are available.
  */
 export function nativeChatConfirmation(
@@ -398,14 +398,14 @@ export async function enqueueIssueInteractionChatPublications(
             ? [
                 {
                   type: "link" as const,
-                  label: "Open in Paperclip",
+                  label: "Open in Nexus",
                   url: taskUrl,
                 },
               ]
             : [];
     if (connectionDecline && taskUrl) actions.unshift({ type: "link", label: "Review connection", url: taskUrl });
-    if (suggestions && taskUrl) actions.push({ type: "link", label: "Revise in Paperclip", url: taskUrl });
-    const text = [presentation.title, presentation.body, taskUrl ? `Open the task in Paperclip to respond: ${taskUrl}` : "Open the task in Paperclip to respond."].join("\n\n");
+    if (suggestions && taskUrl) actions.push({ type: "link", label: "Revise in Nexus", url: taskUrl });
+    const text = [presentation.title, presentation.body, taskUrl ? `Open the task in Nexus to respond: ${taskUrl}` : "Open the task in Nexus to respond."].join("\n\n");
     const payload = projectSafeChatPublication({
       classification: "external",
       source: "issue_interaction",
@@ -546,12 +546,12 @@ export async function enqueueIssueInteractionChatPublications(
 /**
  * Settles every delivered question or confirmation card. Providers without a
  * native callback receive the same actionless terminal edit/follow-up as
- * providers with buttons, so an "Open in Paperclip" prompt never remains
+ * providers with buttons, so an "Open in Nexus" prompt never remains
  * visibly pending after the authoritative board decision.
  *
  * The terminal publication shares the provider callback idempotency key. If a
  * provider click wins the race, its handler converges on the same row; if the
- * Paperclip UI wins, all still-issued callback tokens expire in this same
+ * Nexus UI wins, all still-issued callback tokens expire in this same
  * authoritative resolution transaction.
  */
 export async function enqueueTerminalIssueInteractionChatPublications(

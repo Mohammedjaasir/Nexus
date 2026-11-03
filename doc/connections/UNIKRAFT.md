@@ -26,10 +26,10 @@ stores resource tokens; no connections hub on the ID service.
 
 | Axis | Value |
 | --- | --- |
-| Transport | `rest_api`, executed by Paperclip's native provider bridge |
+| Transport | `rest_api`, executed by Nexus's native provider bridge |
 | Authentication | `api_key`, sent as `Authorization: Bearer <token>` |
 | OAuth client ownership | Not applicable; Unikraft offers no third-party OAuth |
-| Credential source | Paperclip vault |
+| Credential source | Nexus vault |
 | Grant identity | `organization` or `user` |
 
 Unikraft Cloud has no global platform endpoint. Each metro serves its own API at
@@ -49,8 +49,8 @@ the connection only. Actions use the metro hosts above.
 ```mermaid
 sequenceDiagram
     actor Operator
-    participant UI as Paperclip UI
-    participant Server as Paperclip server
+    participant UI as Nexus UI
+    participant Server as Nexus server
     participant Vault as Instance vault
     participant Metro as Unikraft metro API
     actor Agent
@@ -68,7 +68,7 @@ sequenceDiagram
     Server-->>Agent: Result with the token redacted
 ```
 
-Paperclip endpoints used: `GET /api/companies/{companyId}/tools/apps/unikraft/preflight`,
+Nexus endpoints used: `GET /api/companies/{companyId}/tools/apps/unikraft/preflight`,
 `POST /api/companies/{companyId}/tools/apps/connect`,
 `POST /api/companies/{companyId}/tools/apps/{connectionId}/finish`,
 `GET /api/tool-connections/{connectionId}/catalog`, and the run-bound tool gateway.
@@ -78,7 +78,7 @@ There is no OAuth handoff, so `GET /api/tools/oauth/callback` is not used.
 
 1. Sign in to the [Unikraft Cloud console](https://console.unikraft.com) and
    create an API token for the organization agents should manage.
-2. In Paperclip choose **Connectors → Unikraft → Add key**, choose who can use
+2. In Nexus choose **Connectors → Unikraft → Add key**, choose who can use
    the credential, and paste the token.
 3. Optional: under **Advanced**, change the default metro.
 4. On the saved connection's **Permissions** screen, choose agents and set
@@ -87,7 +87,7 @@ There is no OAuth handoff, so `GET /api/tools/oauth/callback` is not used.
 A token acts for its whole organization in every metro. Unikraft does not offer
 narrower token permissions, so agent assignment and action permissions enforce
 the capability boundary. Revoke a token in the Unikraft console, then remove or
-reconnect the Paperclip connection.
+reconnect the Nexus connection.
 
 ## Resource filters
 

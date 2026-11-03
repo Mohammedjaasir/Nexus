@@ -1,4 +1,4 @@
-import type { ToolProfileBindingTargetType } from "@paperclipai/shared";
+import type { ToolProfileBindingTargetType } from "@nexusai/shared";
 
 type BindingLike = {
   profileId: string;

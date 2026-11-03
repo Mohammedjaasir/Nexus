@@ -129,8 +129,8 @@ Keep this section even if this slice incidentally resolves some assertions.
 | Missing-comment policy ownership | Coverage boundary | Existing typed retry policy remains; review separately if consolidating all post-run compliance into one disposition contract |
 | Maintain CI and prepare App/Evals review | Pending | Promote fixed invariants into maintained cheap gates; paid suites remain explicit |
 
-Reference reports moved to `paperclip-evals`; see the
-[results index](../../tests/lifecycle-baseline/README.md#recorded-results-moved-to-paperclip-evals)
+Reference reports moved to `nexus-evals`; see the
+[results index](../../tests/lifecycle-baseline/README.md#recorded-results-moved-to-nexus-evals)
 for the initial baseline, live baseline, and live fixes.
 Live follow-up: 40/40 Product E2E passed on App `331e89bb3`; original protocol
 correction: 8/8 passed. Those results do not establish prose-free authority.

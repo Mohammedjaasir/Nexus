@@ -9,7 +9,7 @@ const meta = {
   parameters: { layout: "fullscreen", docs: { description: { component:
     "Historical chat-entry exploration: the local sidebar and landing composition keeps a first-created-agent default. The current product uses the personal primary-agent preference and recent-conversation rules. Shared layout, picker and conversation components remain useful here, but these entry/default rules are retained design history. Selecting and sending use in-memory fixtures; no real agents run. Use Primary Agent journeys for current default-selection examples."
   } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agent-chat/discovery",
         "agent-chat/history"

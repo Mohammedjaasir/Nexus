@@ -3,7 +3,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PROJECT_COLORS } from "@paperclipai/shared";
+import { PROJECT_COLORS } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { projectsApi } from "../api/projects";
 import { getLastProjectId } from "../lib/recent-projects";

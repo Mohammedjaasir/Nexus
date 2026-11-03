@@ -123,7 +123,7 @@ describe("campaign interruption", () => {
 
 describe("live connection coverage", () => {
   it("inventories every built-in adapter and keeps remote exclusions explicit", () => {
-    const inventory = new Set<string>(["paperclip_runner", ...connectionHarnesses.map(h => h.adapter), ...connectionScopeGaps.map(h => h.adapter)]);
+    const inventory = new Set<string>(["nexus_runner", ...connectionHarnesses.map(h => h.adapter), ...connectionScopeGaps.map(h => h.adapter)]);
     expect(AGENT_ADAPTER_TYPES.filter(type => !inventory.has(type))).toEqual([]);
     expect(connectionHarnesses.some(h => h.adapter === "hermes_local")).toBe(true);
     expect(connectionScopeGaps.find(h => h.adapter === "hermes_gateway")?.status).toBe("excluded");
@@ -146,7 +146,7 @@ describe("target and selected credential boundaries", () => {
   it("keeps scoped requests on tenant APIs and bounds extended probe timeouts", async () => {
     const fetch = vi.fn(async (_url: string, _options: unknown) => ({ ok: () => true, json: async () => ({ passed: true }) }));
     const api = new ConnectionApi({ fetch } as any, "https://qa.test.paperclip.app");
-    await api.post("/api/companies/qa/adapters/paperclip_runner/test-environment", {}, { timeoutMs: 120_000 });
+    await api.post("/api/companies/qa/adapters/nexus_runner/test-environment", {}, { timeoutMs: 120_000 });
     expect(fetch.mock.calls[0]?.[1]).toMatchObject({ headers: { Origin: "https://qa.test.paperclip.app" }, timeout: 120_000, maxRedirects: 0 });
     fetch.mockClear();
     for (const route of ["https://other.test/api/health", "/api/../v1/admin", "/api/%2e%2e/v1/admin"]) await expect(api.get(route)).rejects.toThrow("invalid_api_route");
@@ -228,7 +228,7 @@ describe("independent qualification", () => {
   });
   it("waits for disposition repair and requires the successful artifact-producing run", () => {
     const expected = { agentId: "a", connectionId: "c", method: "api_key", runtimeMode: "legacy", environmentId: "env" };
-    const first = { id: "first", agentId: "a", status: "succeeded", runtimeMode: "legacy", contextSnapshot: { paperclipEnvironment: { id: "env" }, aiConnection: { connectionId: "c", method: "api_key" } } };
+    const first = { id: "first", agentId: "a", status: "succeeded", runtimeMode: "legacy", contextSnapshot: { nexusEnvironment: { id: "env" }, aiConnection: { connectionId: "c", method: "api_key" } } };
     const repair = { ...first, id: "repair" };
     const file = { originalFilename: "proof.json", createdByAgentId: "a", originatingRunId: "repair" };
     expect(completedConnectionArtifactRun([first, { ...repair, status: "running" }], [file], "proof.json", expected)).toBeUndefined();
@@ -253,7 +253,7 @@ describe("independent qualification", () => {
     expect(verifyConnectionArtifact(Buffer.from("Provider routing works"), proof.expected)).toBe(false);
     expect(verifyConnectionArtifact(Buffer.from(JSON.stringify({ ...proof.expected, total: proof.expected.total + 1 })), proof.expected)).toBe(false);
     const expected = { agentId: "a", connectionId: "c", method: "subscription", runtimeMode: "native", environmentId: "env", model: "m" };
-    const run = { agentId: "a", status: "succeeded", runtimeMode: "native", contextSnapshot: { paperclipEnvironment: { id: "env" }, aiConnection: { connectionId: "c", method: "subscription" } } };
+    const run = { agentId: "a", status: "succeeded", runtimeMode: "native", contextSnapshot: { nexusEnvironment: { id: "env" }, aiConnection: { connectionId: "c", method: "subscription" } } };
     expect(verifyConnectionRun(run, expected)).toBe(true);
     expect(verifyConnectionRun(run, { ...expected, connectionId: "ambient" })).toBe(false);
     expect(verifyConnectionRun(run, { ...expected, method: "api_key" })).toBe(false);
@@ -278,7 +278,7 @@ describe("independent qualification", () => {
   });
   it("keeps blocked authentication incomplete in the existing campaign/report", () => {
     const execution = cell("subscription");
-    const result: RunnerE2EResult = { schema: "paperclip.runner-e2e.result/v2", executionId: execution.id, suiteId: execution.suite.id, suiteDefinitionHash: execution.suiteDefinitionHash,
+    const result: RunnerE2EResult = { schema: "nexus.runner-e2e.result/v2", executionId: execution.id, suiteId: execution.suite.id, suiteDefinitionHash: execution.suiteDefinitionHash,
       attempt: 1, status: "failed", failureClass: "permanent_infrastructure", error: "provider_login_deadline_reached", profileId: execution.profile.id, environmentId: "local", caseId: execution.task.id, provider: "codex", model: "model", runtimeMode: "native",
       startedAt: "2026-10-03T00:00:00Z", finishedAt: "2026-10-03T00:01:00Z", durationMs: 60_000, cleanup: "passed", providerConnection: { ...passingEvidence(), outcome: "awaiting_user", checkpoints: { target: true } } };
     const campaign = buildRunnerCampaign({ campaignId: "test", generatedAt: result.finishedAt, expected: [execution.id], results: [result] });

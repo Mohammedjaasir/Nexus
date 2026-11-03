@@ -33,14 +33,14 @@ Controls:
 
 | Environment variable | Default | Effect |
 | --- | --- | --- |
-| `PAPERCLIP_SKILL_VERSION_RETENTION_ENABLED` | `true` | Set `false` to stop future sweeps; restoration stays available |
-| `PAPERCLIP_SKILL_VERSION_RETENTION_DRY_RUN` | `false` | Set `true` to report candidates without changing cache or access records |
+| `NEXUS_SKILL_VERSION_RETENTION_ENABLED` | `true` | Set `false` to stop future sweeps; restoration stays available |
+| `NEXUS_SKILL_VERSION_RETENTION_DRY_RUN` | `false` | Set `true` to report candidates without changing cache or access records |
 
 The internal `skillVersionRetentionService` supports company-scoped diagnosis,
 bounded continuations, cancellation between entries, and dry run. Explicit agent
 pins stay cached. Operators can also retain newest versions with
-`PAPERCLIP_SKILL_VERSION_RETENTION_KEEP` (default `0`), or change the one-hour
-window with `PAPERCLIP_SKILL_VERSION_RETENTION_GRACE_MINUTES` (default `60`). Each batch reports
+`NEXUS_SKILL_VERSION_RETENTION_KEEP` (default `0`), or change the one-hour
+window with `NEXUS_SKILL_VERSION_RETENTION_GRACE_MINUTES` (default `60`). Each batch reports
 candidate and reclaimed allocated bytes, eviction counts, and skip reasons in
 the server log. Compare volume usage before and after to verify physical savings;
 concurrent writes and filesystem allocation can affect the net change. A dry run
@@ -54,7 +54,7 @@ this worker never scans or removes them.
 
 After each remote turn, the server copies the sandbox's harness state (runner
 state plus the provider's session home, such as `codex-home`) to
-`<instance>/runtime/paperclip-runner/durable-sessions/<scope>/failover-backups/current`.
+`<instance>/runtime/nexus-runner/durable-sessions/<scope>/failover-backups/current`.
 A replacement sandbox restores the session from this copy, and an ephemeral sandbox
 restores it at the start of every turn. Each session keeps one copy, and a single
 copy can reach several gigabytes. Codex copies omit credentials, scratch
@@ -90,10 +90,10 @@ The rest of the session directory, including its control-plane state, is kept.
 
 | Environment variable | Default | Effect |
 | --- | --- | --- |
-| `PAPERCLIP_NATIVE_HARNESS_BACKUP_EXPIRATION_ENABLED` | `true` | Set `false` to stop expiring copies |
-| `PAPERCLIP_NATIVE_HARNESS_BACKUP_EXPIRATION_DRY_RUN` | `false` | Set `true` to report candidates without deleting copies or task sessions |
-| `PAPERCLIP_NATIVE_HARNESS_BACKUP_EXPIRATION_DAYS` | `7` | Days an issue must be closed before its sessions' copies expire (minimum `1`) |
-| `PAPERCLIP_NATIVE_RUNNER_EVIDENCE_RETENTION_DAYS` | `7` | Days continuity-break archives and quarantined session state are kept (minimum `1`) |
+| `NEXUS_NATIVE_HARNESS_BACKUP_EXPIRATION_ENABLED` | `true` | Set `false` to stop expiring copies |
+| `NEXUS_NATIVE_HARNESS_BACKUP_EXPIRATION_DRY_RUN` | `false` | Set `true` to report candidates without deleting copies or task sessions |
+| `NEXUS_NATIVE_HARNESS_BACKUP_EXPIRATION_DAYS` | `7` | Days an issue must be closed before its sessions' copies expire (minimum `1`) |
+| `NEXUS_NATIVE_RUNNER_EVIDENCE_RETENTION_DAYS` | `7` | Days continuity-break archives and quarantined session state are kept (minimum `1`) |
 
 Each batch that finds candidates logs them with candidate and reclaimed allocated
 bytes, cleared task sessions, and skip reasons.
@@ -111,7 +111,7 @@ under the same root:
 
 An entry's age comes from the epoch in its name, or from its modification time when
 that epoch is in the future. An entry is removed once it is older than
-`PAPERCLIP_NATIVE_RUNNER_EVIDENCE_RETENTION_DAYS` and its session is not executing,
+`NEXUS_NATIVE_RUNNER_EVIDENCE_RETENTION_DAYS` and its session is not executing,
 initializing, warm, or closing in this process. Quarantine entries created by
 native cleanup (`<session>.identity_indeterminate.cleanup.<UUID>`) are referenced
 from recovery history and kept. Symlinks are never followed or removed. Once a
@@ -128,7 +128,7 @@ An entry is renamed to `.expired-<UUID>` in its folder before it is deleted, and
 later sweep finishes an interrupted deletion. An empty `continuity-breaks` folder
 is removed. Archives, quarantine entries, and leftovers count toward the batch
 limits of 200 entries and 50 removals shared with backup copies, and
-`PAPERCLIP_NATIVE_HARNESS_BACKUP_EXPIRATION_ENABLED` and `_DRY_RUN` apply to both.
+`NEXUS_NATIVE_HARNESS_BACKUP_EXPIRATION_ENABLED` and `_DRY_RUN` apply to both.
 
 ## Native workspace sync folders
 
@@ -181,20 +181,20 @@ run state 200 folders at a time and stops when the server drains or shuts down.
 
 | Environment variable | Default | Effect |
 | --- | --- | --- |
-| `PAPERCLIP_NATIVE_WORKSPACE_SYNC_RETENTION_ENABLED` | `true` | Set `false` to stop removing folders |
-| `PAPERCLIP_NATIVE_WORKSPACE_SYNC_RETENTION_DRY_RUN` | `false` | Set `true` to report candidates without removing folders |
-| `PAPERCLIP_NATIVE_WORKSPACE_SYNC_RETENTION_DAYS` | `7` | Days a run must be finished, and its folder untouched, before removal (minimum `1`) |
+| `NEXUS_NATIVE_WORKSPACE_SYNC_RETENTION_ENABLED` | `true` | Set `false` to stop removing folders |
+| `NEXUS_NATIVE_WORKSPACE_SYNC_RETENTION_DRY_RUN` | `false` | Set `true` to report candidates without removing folders |
+| `NEXUS_NATIVE_WORKSPACE_SYNC_RETENTION_DAYS` | `7` | Days a run must be finished, and its folder untouched, before removal (minimum `1`) |
 
 Each batch that finds candidates logs them with candidate and reclaimed allocated
 bytes and skip reasons.
 
 ## Git workspace restore points
 
-Git cache expiration (`PAPERCLIP_GIT_CACHE_EXPIRATION_ENABLED=true`) normally removes a
+Git cache expiration (`NEXUS_GIT_CACHE_EXPIRATION_ENABLED=true`) normally removes a
 closed issue's worktree only when its remote can reproduce it exactly. With
-`PAPERCLIP_GIT_RESTORE_POINTS_ENABLED=true`, it can also remove a worktree that has
+`NEXUS_GIT_RESTORE_POINTS_ENABLED=true`, it can also remove a worktree that has
 unpushed commits, uncommitted or untracked files, or history-only commits, once its issue
-tree has been closed for `PAPERCLIP_GIT_RESTORE_POINT_TERMINAL_DELAY_DAYS` (default `3`).
+tree has been closed for `NEXUS_GIT_RESTORE_POINT_TERMINAL_DELAY_DAYS` (default `3`).
 For this, only the issues in the tree that use the workspace count: the source issue, and
 each descendant that is bound to it (`execution_workspace_id`, which is how a child that
 inherits the parent's workspace with `reuse_existing` is recorded) or that selects it as
@@ -207,7 +207,7 @@ workspace, its next run or a comment reopens it from the restore point, as below
 workspace reaper does not compact or archive such a worktree by its normal rules while
 descendants are open; only expiration removes it.
 It also removes the worktree of an issue tree that is still open once nothing has
-touched it for `PAPERCLIP_GIT_RESTORE_POINT_IDLE_DAYS` (default `7`, `0` turns this off):
+touched it for `NEXUS_GIT_RESTORE_POINT_IDLE_DAYS` (default `7`, `0` turns this off):
 no issue in the tree or bound to the workspace was updated and no run for those issues or
 the workspace was created, started or finished in that time, and no run is still live. An
 interrupted removal is finished by later sweeps while the issue stays open. The workspace reaper sets a
@@ -223,7 +223,7 @@ Before removal it saves a restore point:
   non-default file modes. Untracked `.env` and `.env.*` files are left out, because
   provisioning recreates them with current secrets;
 - a separate snapshot of ignored files, such as build caches or files an agent kept out of
-  git. It leaves out `.env` files, nested `.paperclip-repositories` checkouts (they get their
+  git. It leaves out `.env` files, nested `.nexus-repositories` checkouts (they get their
   own restore points), `.claude/settings.local.json` (saved with the workspace contents)
   and anything inside a regenerable directory such as `node_modules` or `dist`. A
   restore point with ignored files uses payload schema `v2`, which older servers reject
@@ -233,12 +233,12 @@ Before removal it saves a restore point:
 The restore point is encrypted with a per-restore-point key wrapped by the instance
 secrets key, uploaded to file storage, read back and hash-checked, then activated in
 the same transaction that archives the workspace with a versioned recipe
-(`paperclip.git-cache-restoration.v2`). Older servers reject that recipe instead of
+(`nexus.git-cache-restoration.v2`). Older servers reject that recipe instead of
 restoring without the saved work. Under the expiration locks, the worktree must still
 match the captured snapshot exactly; otherwise expiration rolls back, keeps the
 worktree, and drops the restore point.
 
-Nested managed checkouts under `.paperclip-repositories/` get their own restore points
+Nested managed checkouts under `.nexus-repositories/` get their own restore points
 when their checked-out branch has unpushed commits or uncommitted, untracked or
 history-only work. Each is stored under its checkout name, recorded in the recipe's
 contents, and verified against its own snapshot under the expiration locks. A nested
@@ -260,7 +260,7 @@ re-clones the checkout, imports its bundle, checks out the saved commit and appl
 restore point. Submodules, special git state and ignored files other than `.env`
 still keep a worktree from expiring.
 Restore points are refused when the file storage is `s3` and the secrets master key
-does not come from `PAPERCLIP_SECRETS_MASTER_KEY`.
+does not come from `NEXUS_SECRETS_MASTER_KEY`.
 
 ## Isolated task directories
 
@@ -278,9 +278,9 @@ directory too: artifact cleanup removes a `local_fs` directory only when the row
 runtime created it, and task directory rows never say so. Deleting them on archive would
 discard work silently, so retention saves the files first instead.
 
-With `PAPERCLIP_TASK_DIRECTORY_RETENTION_ENABLED=true` the terminal workspace reaper
+With `NEXUS_TASK_DIRECTORY_RETENTION_ENABLED=true` the terminal workspace reaper
 handles an open task directory row once every issue in its tree has been `done` or
-`cancelled` for `PAPERCLIP_GIT_RESTORE_POINT_TERMINAL_DELAY_DAYS` (default `3`), the same
+`cancelled` for `NEXUS_GIT_RESTORE_POINT_TERMINAL_DELAY_DAYS` (default `3`), the same
 delay git restore points use. It registers that moment as its deadline, so a closed tree
 costs no checks before then. It removes the directory only when all of these hold, checked
 under the issue's source lock and the workspace lifecycle lock:
@@ -309,11 +309,11 @@ per-restore-point key wrapped by the instance secrets key, uploaded to file stor
 `git-restore-points/<workspace>/<generation>/task-directory/`, read back and hash-checked,
 and activated in the same transaction that archives the workspace and records the
 `isolatedTaskDirectoryRetention` state in its metadata. It follows the git restore point
-retention (`PAPERCLIP_GIT_RESTORE_POINT_RETENTION_DAYS`, default `90`), counted from the
+retention (`NEXUS_GIT_RESTORE_POINT_RETENTION_DAYS`, default `90`), counted from the
 later of the tree's close and the removal, so a task that closed long ago still keeps its
-files for the full period. Restore points must be enabled (`PAPERCLIP_GIT_RESTORE_POINTS_ENABLED=true`,
+files for the full period. Restore points must be enabled (`NEXUS_GIT_RESTORE_POINTS_ENABLED=true`,
 `restore_points_disabled` otherwise), and they are refused when the file storage is `s3`
-and the secrets master key does not come from `PAPERCLIP_SECRETS_MASTER_KEY`.
+and the secrets master key does not come from `NEXUS_SECRETS_MASTER_KEY`.
 
 Right before deletion the directory is read again. If anything changed since the capture,
 the workspace is made active again, the restore point is dropped and the directory stays
@@ -348,7 +348,7 @@ symbolic links. For each directory:
 - any other directory is an orphan: its workspace row is missing, or archived or
   `cleanup_failed` without the issue bound to it. An orphan is removed when its issue is
   gone, or every issue in the tree has been closed for
-  `PAPERCLIP_TASK_DIRECTORY_ORPHAN_GRACE_DAYS` (default `7`), and nothing in it changed
+  `NEXUS_TASK_DIRECTORY_ORPHAN_GRACE_DAYS` (default `7`), and nothing in it changed
   during that period, and no project workspace, live runtime service, unsettled run,
   finalization, live lease or unresolved recovery action of the issue refers to it. Leases
 count when they belong to a run of the issue tree, to an issue in the tree, or to any
@@ -371,9 +371,9 @@ scheduled an hour later.
 
 | Environment variable | Default | Effect |
 | --- | --- | --- |
-| `PAPERCLIP_TASK_DIRECTORY_RETENTION_ENABLED` | `false` | Set `true` to let the reaper handle task directories |
-| `PAPERCLIP_TASK_DIRECTORY_RETENTION_DRY_RUN` | `true` | Set `false` to save and remove; a dry run only reports candidates and needs no restore points |
-| `PAPERCLIP_TASK_DIRECTORY_ORPHAN_GRACE_DAYS` | `7` | Days an orphan's issue tree must be closed and its contents unchanged before removal (minimum `1`) |
+| `NEXUS_TASK_DIRECTORY_RETENTION_ENABLED` | `false` | Set `true` to let the reaper handle task directories |
+| `NEXUS_TASK_DIRECTORY_RETENTION_DRY_RUN` | `true` | Set `false` to save and remove; a dry run only reports candidates and needs no restore points |
+| `NEXUS_TASK_DIRECTORY_ORPHAN_GRACE_DAYS` | `7` | Days an orphan's issue tree must be closed and its contents unchanged before removal (minimum `1`) |
 
 Each open or pending workspace logs `event: "execution_workspace.task_directory_retention"`
 with its outcome (`removed`, `dry_run` or `skipped`), skip reason, candidate bytes and
@@ -390,7 +390,7 @@ Roll out with the dry run, inspect the candidates and skip reasons, then set the
 ## Nested project repository worktrees
 
 Extra project repositories that have no configured local folder are no longer full
-clones inside every task. Each task's `.paperclip-repositories/<name>-<key>` checkout is a
+clones inside every task. Each task's `.nexus-repositories/<name>-<key>` checkout is a
 Git worktree of one shared clone per company, project and repository URL: the managed
 project checkout for that URL under the instance's `projects/` directory (the same clone
 that main task worktrees use when the repository is a task's primary source). Objects are
@@ -399,14 +399,14 @@ configured local folder are still seeded as independent copies. Existing standal
 nested clones keep working unchanged until the optional conversion below turns them into
 worktrees of the shared clone.
 
-Each nested worktree checks out its own branch, `paperclip/<id>/<branch>`, where `<id>`
+Each nested worktree checks out its own branch, `nexus/<id>/<branch>`, where `<id>`
 derives from the worktree path and `<branch>` is the remote's current default branch
 (refreshed before each new worktree) or the configured branch ref, tracking
 `origin/<branch>`. Reopening derives the upstream from the saved source ref, not from the
 branch name. A tag or commit ref is checked out detached, as
 before. Branch names therefore never collide between tasks. When a checkout kept under
-`.paperclip-runtime/detached-repositories/` still holds that branch, the new worktree
-uses `paperclip/<id>/r<n>/<branch>` instead, so the retained work is never reset. `git pull` works as before;
+`.nexus-runtime/detached-repositories/` still holds that branch, the new worktree
+uses `nexus/<id>/r<n>/<branch>` instead, so the retained work is never reset. `git pull` works as before;
 pushing needs an explicit destination such as `git push origin HEAD:<branch>`. Adding the
 worktree, fetching and removing registrations are serialized per shared clone. Each new
 worktree first fetches with `--prune`, so a branch deleted upstream is rejected as a fresh
@@ -416,7 +416,7 @@ disabled, so hooks an agent plants there never run in the server.
 Branches and reflogs of a worktree live partly in the shared clone. Expiration and restore
 points therefore scope their checks to what belongs to the nested worktree: its `HEAD`,
 `HEAD` reflog, `ORIG_HEAD`, index and working tree (stored per worktree) and every branch
-under its own `paperclip/<id>/` prefix together with that branch's reflog. Those must be on
+under its own `nexus/<id>/` prefix together with that branch's reflog. Those must be on
 the remote or saved in a restore point exactly as for a standalone checkout. Checking out
 any other branch, stashes, unsupported refs or custom local config in the shared clone
 still block expiration. Branches outside the prefix, other tasks' branches and their
@@ -430,14 +430,14 @@ worktree from the shared clone (re-cloning the shared clone if it is gone) on th
 branch and commit and applies its restore point. Deleting or archiving a task removes the
 registration of each of its nested worktrees and deletes their branches only when every
 commit is on a remote-tracking ref; an unpushed branch stays in the shared clone. Moving a
-nested worktree to `.paperclip-runtime/detached-repositories/` when its repository leaves
+nested worktree to `.nexus-runtime/detached-repositories/` when its repository leaves
 the project repairs its registration.
 
 ### Converting existing standalone nested clones
 
 Tasks prepared before nested worktrees existed still hold a full standalone clone in each
-`.paperclip-repositories/<name>-<key>` checkout, often of the same large repository many
-times over. With `PAPERCLIP_NESTED_CLONE_MIGRATION_ENABLED=true`, the terminal workspace
+`.nexus-repositories/<name>-<key>` checkout, often of the same large repository many
+times over. With `NEXUS_NESTED_CLONE_MIGRATION_ENABLED=true`, the terminal workspace
 reaper converts each such checkout in an open task into a worktree of the project's shared
 clone and deletes the standalone clone. It holds the source lock and workspace lifecycle
 lock that git cache expiration holds, the per-shared-clone lock that nested worktree
@@ -466,12 +466,12 @@ interleave. A checkout is converted only when:
   nested repositories, oversized contents or history).
 
 The conversion fetches the shared clone, then brings the clone's history in under the
-checkout's own prefix: the current branch becomes `paperclip/<id>/<branch>` at the same
+checkout's own prefix: the current branch becomes `nexus/<id>/<branch>` at the same
 commit, tracking `origin/<branch>` (or the branch's configured `origin` upstream); every
 other local branch whose tip the shared clone's remote-tracking refs do not contain becomes
-`paperclip/<id>/<branch>`, every such tag becomes `paperclip/<id>/tags/<tag>` at the
+`nexus/<id>/<branch>`, every such tag becomes `nexus/<id>/tags/<tag>` at the
 tagged commit, and every such `origin` remote-tracking ref (for example one whose branch was
-deleted or force-pushed upstream) becomes `paperclip/<id>/remotes/origin/<branch>`. `<id>` derives from the final checkout path, so later expiration and release
+deleted or force-pushed upstream) becomes `nexus/<id>/remotes/origin/<branch>`. `<id>` derives from the final checkout path, so later expiration and release
 treat those branches exactly like a nested worktree's own branches: they block expiration
 until pushed or saved and are never deleted while unpushed. A restore point of the clone,
 captured against commits both repositories share and preserving those branch tips, its
@@ -516,7 +516,7 @@ only at checkouts named after the project's configured repositories (plus pendin
 never at arbitrary directories, and attempts at most 8 per workspace per sweep. Pending
 recoveries go first, and the rest rotate across sweeps. While a rotation has not yet visited
 every checkout it registers a retry deadline; after a full rotation without progress it waits
-for a later sweep, until a conversion succeeds or the set of candidate checkouts changes. `PAPERCLIP_NESTED_CLONE_MIGRATION_DRY_RUN=true` reports candidates
+for a later sweep, until a conversion succeeds or the set of candidate checkouts changes. `NEXUS_NESTED_CLONE_MIGRATION_DRY_RUN=true` reports candidates
 without changing anything and registers no deadlines.
 
 Reopening the issue, or the next run that recreates the worktree, imports the bundle,
@@ -555,7 +555,7 @@ a failed deletion's retry. With nothing due, it schedules nothing, and open tree
 no recurring checks. At review it checks the source issue tree:
 
 - Tree still open: clear `delete_after` and wait for the next issue change.
-- Tree `done` or `cancelled`: expire `PAPERCLIP_GIT_RESTORE_POINT_RETENTION_DAYS`
+- Tree `done` or `cancelled`: expire `NEXUS_GIT_RESTORE_POINT_RETENTION_DAYS`
   (default `90`, minimum `1`) after the tree's latest close, immediately if that time
   has passed. Expiry first moves the row to `expiring`, runs the expiry hook, and only
   then requests deletion. An `expiring` row's object is never deleted; after a restart
@@ -583,7 +583,7 @@ issue's worktree inside it. Workspace metadata marks these with `isolatedRemoteS
 New workspaces no longer get one; they are worktrees of the project's shared managed
 clone. Each old clone still holds a full `.git` and an unused default-branch checkout.
 
-With `PAPERCLIP_ISOLATED_SOURCE_REHOME_ENABLED=true` (and git cache expiration enabled),
+With `NEXUS_ISOLATED_SOURCE_REHOME_ENABLED=true` (and git cache expiration enabled),
 the terminal workspace reaper moves each such open workspace onto the shared clone and
 then deletes its private clone. It runs under the same source lock, workspace lifecycle
 lock and Git lock files as git cache expiration, so no run, expiration, reopen or
@@ -592,7 +592,7 @@ restore can interleave. A workspace is moved only when:
 - no run, native finalization, environment lease or runtime service is still live for it,
   and it is not waiting for a reopen to be consumed (the issue may be open);
 - the project has a shared managed clone for the same `repoUrl`;
-- its worktree sits at the standard `.paperclip/worktrees/<branch>` location, and the
+- its worktree sits at the standard `.nexus/worktrees/<branch>` location, and the
   branch is absent from the shared clone, points to an ancestor of the worktree's HEAD
   there, and is not checked out in another of its worktrees;
 - the shared clone's local config sets no filter drivers, includes, attribute files, worktree
@@ -611,10 +611,10 @@ the new worktree at the same HEAD and applies the restore point (index, worktree
 untracked and ignored files, file modes). The `HEAD` reflog and `ORIG_HEAD` are copied.
 What restore points leave out is moved by rename on the same filesystem: regenerable
 directories such as `node_modules`, untracked `.env` and `.env.*` files,
-`.claude/settings.local.json`, and each nested `.paperclip-repositories/*` checkout as a
+`.claude/settings.local.json`, and each nested `.nexus-repositories/*` checkout as a
 whole. A standalone nested clone moves as is. A nested checkout that is a worktree of its own
 shared clone moves too, and the move runs `git worktree repair` in that clone so its
-registration follows the new path. Its `paperclip/<hash>/` branch is renamed to the prefix of
+registration follows the new path. Its `nexus/<hash>/` branch is renamed to the prefix of
 the new path, because that prefix proves the checkout owns the branch (a rollback moves it
 back, repairs it and renames the branch back). Items inside a moved nested checkout, such as
 its `node_modules`, move with it. Any other
@@ -644,10 +644,10 @@ else needs it and everything in it is reproducible:
 - no other workspace or project workspace refers to it (a workspace already expired with its
   worktree removed does not count) and no runtime service runs in it;
 - after `git worktree prune`, it has no worktree besides its own checkout;
-- its own checkout has no tracked changes and no untracked files (only Paperclip's
+- its own checkout has no tracked changes and no untracked files (only Nexus's
   compaction trash is allowed, even inside a directory with a regenerable name), and its
-  ignored files are only inside regenerable directories (such as `node_modules`) or Paperclip's compaction
-  trash. Empty directories, such as the `.paperclip/worktrees` parent left by the old
+  ignored files are only inside regenerable directories (such as `node_modules`) or Nexus's compaction
+  trash. Empty directories, such as the `.nexus/worktrees` parent left by the old
   worktree, do not count;
 - it has only branch, tag and remote-tracking refs (no stash, notes or replacement refs);
 - every commit that its local branches, local tags, reflogs (other than remote-tracking
@@ -683,7 +683,7 @@ Each attempt logs `event: "execution_workspace.isolated_source_rehome"` with the
 skip reason, candidate bytes and reclaimed bytes. A workspace that is skipped, or whose
 clone is kept for a reason that can change, is retried an hour later through the reaper's
 existing deadlines; nothing runs while there is no candidate.
-`PAPERCLIP_ISOLATED_SOURCE_REHOME_DRY_RUN=true` reports candidates without changing
+`NEXUS_ISOLATED_SOURCE_REHOME_DRY_RUN=true` reports candidates without changing
 anything.
 
 Re-homed workspaces get a new path. An agent that resumes an older session may still

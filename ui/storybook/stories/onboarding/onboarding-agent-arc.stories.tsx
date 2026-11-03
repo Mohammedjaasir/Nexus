@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { PillGuy } from "@/components/onboarding/PillGuy";
 import { Stepper } from "@/components/onboarding/Stepper";
-import { storybookHiredAgent } from "../../fixtures/paperclipData";
+import { storybookHiredAgent } from "../../fixtures/nexusData";
 import { useCompanyListQuery } from "@/api/companies-query";
 import { useDialog } from "@/context/DialogContext";
 import {
@@ -36,7 +36,7 @@ const meta = {
   id: "onboarding-agent-arc",
   title: "Getting started and access/Onboarding and first work/Onboarding/Agent arc",
   parameters: { layout: "centered",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "onboarding/adapter",
         "onboarding/first-task"
@@ -559,7 +559,7 @@ function installCodexPlatformFixture(outcome: CodexPlatformFixtureOutcome) {
       const response = await previous(input, init);
       const environments = await response.json();
       return Response.json(environments.map((environment: { id: string; config: Record<string, unknown> }) => ({ ...environment,
-        config: { ...environment.config, image: `registry.example.test/paperclip@sha256:${"a".repeat(64)}` },
+        config: { ...environment.config, image: `registry.example.test/nexus@sha256:${"a".repeat(64)}` },
       })));
     }
     if (url.pathname === "/api/adapters" && url.searchParams.get("companyId") === STORYBOOK_COMPANY_ID) {
@@ -567,10 +567,10 @@ function installCodexPlatformFixture(outcome: CodexPlatformFixtureOutcome) {
       receipt.calls.push(qualified ? "discovery-after" : "discovery-before");
       const response = await previous(input, init);
       const adapters = (await response.json()).map((adapter: { type: string }) => adapter.type === "codex_local" ? { ...adapter,
-        defaultRunner: qualified && outcome === "native" ? "paperclip" : "legacy",
-        supportedRunners: qualified && outcome === "native" ? ["paperclip", "legacy"] : ["legacy"],
+        defaultRunner: qualified && outcome === "native" ? "nexus" : "legacy",
+        supportedRunners: qualified && outcome === "native" ? ["nexus", "legacy"] : ["legacy"],
       } : adapter);
-      return Response.json([...adapters, { type: "paperclip_runner", loaded: true, disabled: false, source: "builtin", label: "Paperclip Runner", modelsCount: 0 }]);
+      return Response.json([...adapters, { type: "nexus_runner", loaded: true, disabled: false, source: "builtin", label: "Nexus Runner", modelsCount: 0 }]);
     }
     if (url.pathname === "/api/environments/environment-storybook-sandbox/probe" && method === "POST") {
       receipt.calls.push("platform");
@@ -587,14 +587,14 @@ function installCodexPlatformFixture(outcome: CodexPlatformFixtureOutcome) {
       receipt.testRequests.push(await payload());
       const response = await previous(input, init);
       const result = await response.json();
-      return Response.json({ ...result, adapterType: outcome === "native" && qualified ? "paperclip_runner" : "codex_local" });
+      return Response.json({ ...result, adapterType: outcome === "native" && qualified ? "nexus_runner" : "codex_local" });
     }
     if (url.pathname === `/api/companies/${STORYBOOK_COMPANY_ID}/agent-hires` && method === "POST") {
       receipt.calls.push("hire");
       const request = await payload();
       receipt.hireRequests.push(request);
       const native = outcome === "native" && qualified;
-      receipt.createdAdapterType = native ? "paperclip_runner" : "codex_local";
+      receipt.createdAdapterType = native ? "nexus_runner" : "codex_local";
       const adapterConfig = request.adapterConfig as Record<string, unknown>;
       return Response.json({ agent: { ...storybookHiredAgent, ...request, adapterType: receipt.createdAdapterType,
         adapterConfig: { ...adapterConfig, ...(native ? { provider: "codex" } : {}) } }, approval: null });
@@ -645,7 +645,7 @@ function managedCodexQualificationStory(outcome: CodexPlatformFixtureOutcome): S
         await expect(receipt.testRequests[0]).not.toHaveProperty("runner");
         await expect(receipt.testRequests[0]).toHaveProperty("environmentId", "environment-storybook-sandbox");
         await expect(receipt.hireRequests[0]).not.toHaveProperty("runner");
-        await expect(receipt.createdAdapterType).toBe(outcome === "native" ? "paperclip_runner" : "codex_local");
+        await expect(receipt.createdAdapterType).toBe(outcome === "native" ? "nexus_runner" : "codex_local");
       }
     },
   };

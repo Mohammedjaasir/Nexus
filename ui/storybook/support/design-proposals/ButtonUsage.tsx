@@ -1,5 +1,5 @@
 import { useState } from "react";
-import inventory from "virtual:paperclip-button-usage";
+import inventory from "virtual:nexus-button-usage";
 import { Input } from "@/components/ui/input";
 import type { ButtonPlaygroundSettings } from "./ButtonSamples";
 

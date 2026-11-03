@@ -28,7 +28,7 @@ assert.ok(["true", "false"].includes(captureArgument));
 const captureValues = captureArgument === "true";
 assert.ok(Number.isInteger(sampleCount) && sampleCount >= 3 && sampleCount <= 10);
 assert.ok(Number.isFinite(delayMs) && delayMs >= 0 && delayMs <= 20);
-const previous = { home: process.env.PAPERCLIP_HOME, instance: process.env.PAPERCLIP_INSTANCE_ID,
+const previous = { home: process.env.NEXUS_HOME, instance: process.env.NEXUS_INSTANCE_ID,
   endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT };
 delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 const { companySkillService } = await import("../src/services/company-skills.js");
@@ -55,8 +55,8 @@ let provider: TracerProvider | undefined;
 let manager: AsyncLocalStorageContextManager | undefined;
 const sockets = new Set<Socket>();
 try {
-  process.env.PAPERCLIP_HOME = home;
-  process.env.PAPERCLIP_INSTANCE_ID = "default";
+  process.env.NEXUS_HOME = home;
+  process.env.NEXUS_INSTANCE_ID = "default";
   const port = argument("--postgres-port");
   if (port) {
     assert.match(port, /^\d{1,5}$/);
@@ -121,7 +121,7 @@ try {
   for (let i = 0; i < 40; i++) await lifecycle.requestHire(companyId, {
     name: `Reader ${i}`, adapterType: "process", status: i === 39 ? "terminated" : "paused",
     adapterConfig: { instructions: "Synthetic agent context. ".repeat(2600),
-      paperclipSkillSync: { desiredSkills: [skills[i % 155]!.key, { key: skills[(i + 1) % 155]!.id, versionId: null }] } },
+      nexusSkillSync: { desiredSkills: [skills[i % 155]!.key, { key: skills[(i + 1) % 155]!.id, versionId: null }] } },
     runtimeConfig: { unused: "runtime ".repeat(1000) }, metadata: { unused: "metadata ".repeat(1000) },
   }, { runnerResolved: true });
   await companySkillService(db).list(companyId);
@@ -213,10 +213,10 @@ try {
   } finally { capture?.flush(); }
   assert.equal(await sourceHash(), measuredSourceHash, "Source changed during measurement");
   const timings = samples.map(sample => sample.elapsedMs).sort((a, b) => a - b);
-  const summary = events.find(event => event.event === "paperclip.test_db_response_capture.summary.v1");
+  const summary = events.find(event => event.event === "nexus.test_db_response_capture.summary.v1");
   if (capture) assert.ok(summary && summary.inFlightAtEnd === 0 && summary.overflowCalls === 0);
   const rowCount = (await db.select().from(companySkills).where(eq(companySkills.companyId, companyId))).length;
-  console.log(JSON.stringify({ schema: "paperclip.skill-list-benchmark.v1", sourceRevision, measuredSourceHash,
+  console.log(JSON.stringify({ schema: "nexus.skill-list-benchmark.v1", sourceRevision, measuredSourceHash,
     fixture: { remoteSkills: 155, totalSkills: rowCount, agents: 40, nonterminatedAgents: 39, projects: 14, sources: 10 },
     captureValues, networkDelayMsPerDirection: delayMs, postgresVersion: await db.$client`select version()`,
     boundary: "production router and real service; synthetic authenticated board actor; postgres-js response values",
@@ -241,7 +241,7 @@ try {
   await clean(async () => database?.cleanup());
   await clean(async () => provider?.shutdown());
   trace.disable(); context.disable(); manager?.disable();
-  for (const [name, value] of Object.entries({ PAPERCLIP_HOME: previous.home, PAPERCLIP_INSTANCE_ID: previous.instance, OTEL_EXPORTER_OTLP_ENDPOINT: previous.endpoint })) {
+  for (const [name, value] of Object.entries({ NEXUS_HOME: previous.home, NEXUS_INSTANCE_ID: previous.instance, OTEL_EXPORTER_OTLP_ENDPOINT: previous.endpoint })) {
     if (value === undefined) delete process.env[name]; else process.env[name] = value;
   }
   await clean(() => fs.rm(home, { recursive: true, force: true }));

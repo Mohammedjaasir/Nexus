@@ -1,5 +1,5 @@
-import type { Db } from "@paperclipai/db";
-import { heartbeatRuns } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { heartbeatRuns } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { vi, type Mock, type Mocked } from "vitest";
 import { createRunDispatch } from "../../modules/run-dispatch/index.js";

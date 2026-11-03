@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-RESULTS_DIR="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-install-sh.XXXXXX")"
+RESULTS_DIR="$(mktemp -d "${TMPDIR:-/tmp}/nexus-install-sh.XXXXXX")"
 KEEP_RESULTS="${KEEP_RESULTS:-0}"
 
 cleanup() {
@@ -32,10 +32,10 @@ run_with_node() {
   local name="$1"
   shift
   docker run --rm \
-    -v "$REPO_ROOT/scripts:/paperclip-scripts:ro" \
+    -v "$REPO_ROOT/scripts:/nexus-scripts:ro" \
     -v "$RESULTS_DIR:/results" \
-    -e "PAPERCLIP_INSTALL_TEST_LOG=/results/$name.args" \
-    -e PATH="/paperclip-scripts/install-sh-fixtures:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    -e "NEXUS_INSTALL_TEST_LOG=/results/$name.args" \
+    -e PATH="/nexus-scripts/install-sh-fixtures:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
     node:24-bookworm-slim \
     "$@"
 }
@@ -64,8 +64,8 @@ echo "==> shellcheck"
 run_shellcheck
 
 echo "==> existing Node"
-run_with_node with-node bash /paperclip-scripts/install.sh --no-prompt --no-onboard
-assert_line "$RESULTS_DIR/with-node.args" "paperclipai@latest"
+run_with_node with-node bash /nexus-scripts/install.sh --no-prompt --no-onboard
+assert_line "$RESULTS_DIR/with-node.args" "nexusai@latest"
 assert_line "$RESULTS_DIR/with-node.args" "install"
 assert_line "$RESULTS_DIR/with-node.args" "--yes"
 assert_line "$RESULTS_DIR/with-node.args" "--registry=https://registry.npmjs.org"
@@ -77,22 +77,22 @@ echo "==> hostile npm config isolation"
 mkdir -p "$RESULTS_DIR/hostile-home"
 printf 'registry=http://attacker-registry.invalid\n' >"$RESULTS_DIR/hostile-home/.npmrc"
 docker run --rm \
-  -v "$REPO_ROOT/scripts:/paperclip-scripts:ro" \
+  -v "$REPO_ROOT/scripts:/nexus-scripts:ro" \
   -v "$RESULTS_DIR:/results" \
   -e HOME=/results/hostile-home \
   -e NPM_CONFIG_REGISTRY=http://attacker-registry.invalid \
   -e npm_config_registry=http://attacker-registry.invalid \
-  -e PAPERCLIP_INSTALL_TEST_LOG=/results/hostile.args \
-  -e PATH="/paperclip-scripts/install-sh-fixtures:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+  -e NEXUS_INSTALL_TEST_LOG=/results/hostile.args \
+  -e PATH="/nexus-scripts/install-sh-fixtures:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
   node:24-bookworm-slim \
-  bash /paperclip-scripts/install.sh --no-prompt --no-onboard
+  bash /nexus-scripts/install.sh --no-prompt --no-onboard
 assert_line "$RESULTS_DIR/hostile.args" "--registry=https://registry.npmjs.org"
 assert_line "$RESULTS_DIR/hostile.args" "NPM_CONFIG_REGISTRY=https://registry.npmjs.org"
 assert_line "$RESULTS_DIR/hostile.args" "npm_config_registry=https://registry.npmjs.org"
 assert_line "$RESULTS_DIR/hostile.args" "npmrc:registry=https://registry.npmjs.org"
 
 echo "==> --ref master"
-if run_with_node ref-master bash /paperclip-scripts/install.sh --ref master --no-onboard; then
+if run_with_node ref-master bash /nexus-scripts/install.sh --ref master --no-onboard; then
   echo "Expected --ref to fail until git-ref installation support is integrated" >&2
   exit 1
 fi
@@ -102,29 +102,29 @@ fi
 }
 
 echo "==> piped mode requires explicit consent"
-if run_with_node piped-rejected bash -c 'cat /paperclip-scripts/install.sh | bash -s -- --no-onboard'; then
+if run_with_node piped-rejected bash -c 'cat /nexus-scripts/install.sh | bash -s -- --no-onboard'; then
   echo "Expected piped install without --no-prompt to fail" >&2
   exit 1
 fi
 
 echo "==> piped --no-prompt"
-run_with_node piped bash -c 'cat /paperclip-scripts/install.sh | bash -s -- --no-prompt --no-onboard'
+run_with_node piped bash -c 'cat /nexus-scripts/install.sh | bash -s -- --no-prompt --no-onboard'
 assert_line "$RESULTS_DIR/piped.args" "--yes"
 
 echo "==> piped mode refuses privileged Node bootstrap"
 if docker run --rm \
-  -v "$REPO_ROOT/scripts:/paperclip-scripts:ro" \
+  -v "$REPO_ROOT/scripts:/nexus-scripts:ro" \
   -e PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
   ubuntu:24.04 \
-  bash -c 'cat /paperclip-scripts/install.sh | bash -s -- --no-prompt --no-onboard' \
+  bash -c 'cat /nexus-scripts/install.sh | bash -s -- --no-prompt --no-onboard' \
   >"$RESULTS_DIR/piped-no-node.out" 2>&1; then
   echo "Expected piped install without Node.js to fail before privileged bootstrap" >&2
   exit 1
 fi
-assert_line "$RESULTS_DIR/piped-no-node.out" "[paperclip] error: Node.js bootstrap is disabled for piped installs; download install.sh, review it, and run 'bash install.sh --no-prompt'"
+assert_line "$RESULTS_DIR/piped-no-node.out" "[nexus] error: Node.js bootstrap is disabled for piped installs; download install.sh, review it, and run 'bash install.sh --no-prompt'"
 
 echo "==> dry run"
-run_with_node dry-run bash /paperclip-scripts/install.sh --no-prompt --dry-run --no-onboard
+run_with_node dry-run bash /nexus-scripts/install.sh --no-prompt --dry-run --no-onboard
 [ ! -e "$RESULTS_DIR/dry-run.args" ] || {
   echo "Expected --dry-run to avoid invoking npx" >&2
   exit 1
@@ -132,17 +132,17 @@ run_with_node dry-run bash /paperclip-scripts/install.sh --no-prompt --dry-run -
 
 echo "==> environment twins"
 docker run --rm \
-  -v "$REPO_ROOT/scripts:/paperclip-scripts:ro" \
+  -v "$REPO_ROOT/scripts:/nexus-scripts:ro" \
   -v "$RESULTS_DIR:/results" \
-  -e PAPERCLIP_INSTALL_TEST_LOG=/results/env.args \
-  -e PAPERCLIP_INSTALL_VERSION=2026.722.0 \
-  -e PAPERCLIP_INSTALL_INSTALL_SERVICE=1 \
-  -e PAPERCLIP_INSTALL_NO_ONBOARD=1 \
-  -e PAPERCLIP_INSTALL_NO_PROMPT=1 \
-  -e PATH="/paperclip-scripts/install-sh-fixtures:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+  -e NEXUS_INSTALL_TEST_LOG=/results/env.args \
+  -e NEXUS_INSTALL_VERSION=2026.722.0 \
+  -e NEXUS_INSTALL_INSTALL_SERVICE=1 \
+  -e NEXUS_INSTALL_NO_ONBOARD=1 \
+  -e NEXUS_INSTALL_NO_PROMPT=1 \
+  -e PATH="/nexus-scripts/install-sh-fixtures:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
   node:24-bookworm-slim \
-  bash /paperclip-scripts/install.sh
-assert_line "$RESULTS_DIR/env.args" "paperclipai@2026.722.0"
+  bash /nexus-scripts/install.sh
+assert_line "$RESULTS_DIR/env.args" "nexusai@2026.722.0"
 assert_line "$RESULTS_DIR/env.args" "--version"
 assert_line "$RESULTS_DIR/env.args" "2026.722.0"
 assert_no_line "$RESULTS_DIR/env.args" "--repo"
@@ -151,13 +151,13 @@ assert_line "$RESULTS_DIR/env.args" "service"
 
 echo "==> no Node, apt bootstrap"
 docker run --rm \
-  -v "$REPO_ROOT/scripts:/paperclip-scripts:ro" \
+  -v "$REPO_ROOT/scripts:/nexus-scripts:ro" \
   -v "$RESULTS_DIR:/results" \
-  -e PAPERCLIP_INSTALL_TEST_LOG=/results/no-node.args \
-  -e PATH="/paperclip-scripts/install-sh-fixtures:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+  -e NEXUS_INSTALL_TEST_LOG=/results/no-node.args \
+  -e PATH="/nexus-scripts/install-sh-fixtures:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
   ubuntu:24.04 \
-  bash -c 'apt-get update >/dev/null && apt-get install -y ca-certificates curl >/dev/null && bash /paperclip-scripts/install.sh --no-prompt --no-onboard'
-assert_line "$RESULTS_DIR/no-node.args" "paperclipai@latest"
+  bash -c 'apt-get update >/dev/null && apt-get install -y ca-certificates curl >/dev/null && bash /nexus-scripts/install.sh --no-prompt --no-onboard'
+assert_line "$RESULTS_DIR/no-node.args" "nexusai@latest"
 node_version="$(cat "$RESULTS_DIR/no-node.args.node")"
 node_major="${node_version#v}"
 node_major="${node_major%%.*}"

@@ -24,7 +24,7 @@ export const instructionPersistenceTask: RunnerTaskFixture = {
     `In AGENT_HOME, create notes/retained.txt containing exactly ${JSON.stringify(`Personal file nonce: ${nonce}\n`)}. Create notes/bytes.bin with exactly the bytes [0,255,17,128,9]. Read notes/from-editor.txt and append exactly a newline followed by Edited by agent. and a final newline.`,
     "Do not use update_agent_instructions, restore_agent_instructions, or an instructions API to save it. Do not edit repository AGENTS.md or the read-only loaded bundle.",
     "After verifying the edits, upload a small text/plain attachment named agent-file-check.txt containing only 'Private file edits verified'. Use this attachment as your task completion evidence; the personal files themselves stay in AGENT_HOME.",
-    "Reply only Instruction copy edited without printing filesystem paths, then complete this task after the file edit. Paperclip will collect it after the provider stops; do not claim it has already persisted. Do not create further tasks.",
+    "Reply only Instruction copy edited without printing filesystem paths, then complete this task after the file edit. Nexus will collect it after the provider stops; do not claim it has already persisted. Do not create further tasks.",
   ].join("\n"),
   buildMatchers: () => [], // Independent current file and attachment oracle below.
 };

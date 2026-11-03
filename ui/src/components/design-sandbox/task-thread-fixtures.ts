@@ -1,5 +1,5 @@
 import { revealWordProgress } from "./word-reveal";
-import type { HeartbeatRunEvent } from "@paperclipai/shared";
+import type { HeartbeatRunEvent } from "@nexusai/shared";
 import type { TranscriptEntry } from "../../adapters";
 import { nativeRunEventsToTranscript } from "../transcript/native-run-events";
 import type { TaskChatMessageItem } from "../task-chat/task-chat-model";
@@ -27,7 +27,7 @@ const event = (seq: number, type: string, payload: Record<string, unknown>, item
   id: seq, companyId: "synthetic-company", agentId: "synthetic-agent", runId: "synthetic-run", seq,
   eventType: type, stream: "system", level: "info", color: null, message: null, createdAt: new Date(ts(seq)),
   payload: { prpEvent: {
-    schema: "paperclip.prp.event.v1", sourceEventId: `synthetic-event-${seq}`, sourceSeq: seq,
+    schema: "nexus.prp.event.v1", sourceEventId: `synthetic-event-${seq}`, sourceSeq: seq,
     sourceInstanceId: "synthetic-runner", sourceKind: "runner", runId: "synthetic-run",
     normalizedSessionId: "synthetic-session", eventType: type, schemaVersion: 1, priority: 1,
     emittedAt: ts(seq), payload, ...(itemId ? { itemId } : {}),
@@ -80,7 +80,7 @@ const permission = (status: "pending" | "resolved" | "expired" | "cancelled", in
   turnId: "synthetic-turn", requestType: input ? "input" : "permission", status,
   prompt: input ? "Which reconnect behavior should I verify?" : "Allow running the focused reconnect tests?",
   choices: input ? [] : [{ key: "accept", label: "Allow once" }, { key: "decline", label: "Deny" }], fields: [],
-  questionSet: input ? { schema: "paperclip.question_set.v1", title: "Choose a reconnect policy", questions: [{
+  questionSet: input ? { schema: "nexus.question_set.v1", title: "Choose a reconnect policy", questions: [{
     id: "policy", prompt: "Which reconnect policy should I test?", required: true, answerMode: "single_select",
     options: [{ id: "bounded", label: "Bounded retry", description: "Stop after three attempts." }, { id: "manual", label: "Manual recovery", description: "Ask before reconnecting." }],
   }] } : null,
@@ -112,7 +112,7 @@ export const THREAD_PREVIEW_CASES: ThreadPreviewCase[] = [
   ...(["failed", "timed_out", "cancelled"] as const).map(status => example(`runner-${status}`, `Run · ${status.replaceAll("_", " ")}`, "Run outcomes", () => snapshot([...reasoning(), ...tool(5, "exec_command", false)], status))),
   example("runner-running", "Native runner · live activity", "Native runner", () => snapshot(workingEvents(), "running", { renderer: "native" })),
   example("runner-succeeded", "Native runner · completed response", "Native runner", () => snapshot(completedEvents(), "succeeded", { renderer: "native" })),
-  ...(["failed", "timed_out", "cancelled"] as const).map(status => example(`native-${status}`, `Native runner · ${status.replaceAll("_", " ")}`, "Native runner", () => snapshot([...reasoning(), ...tool(5, "exec_command", false), event(15, "run.terminal", { schema: "paperclip.prp.terminal.v1", turnTerminalState: status === "cancelled" ? "cancelled" : "failed", runTerminalState: status === "cancelled" ? "cancelled" : "failed", reportedWorkDisposition: "needs_review", stopReason: { schema: "paperclip.stop_reason.v1", code: "synthetic_provider_stop", message: status === "cancelled" ? "The synthetic run was cancelled." : "The synthetic test process stopped before a final reply." } })], status, { renderer: "native" }))),
+  ...(["failed", "timed_out", "cancelled"] as const).map(status => example(`native-${status}`, `Native runner · ${status.replaceAll("_", " ")}`, "Native runner", () => snapshot([...reasoning(), ...tool(5, "exec_command", false), event(15, "run.terminal", { schema: "nexus.prp.terminal.v1", turnTerminalState: status === "cancelled" ? "cancelled" : "failed", runTerminalState: status === "cancelled" ? "cancelled" : "failed", reportedWorkDisposition: "needs_review", stopReason: { schema: "nexus.stop_reason.v1", code: "synthetic_provider_stop", message: status === "cancelled" ? "The synthetic run was cancelled." : "The synthetic test process stopped before a final reply." } })], status, { renderer: "native" }))),
   example("native-streaming", "Native runner · streaming final response", "Native runner", () => snapshot([...reasoning(), ...tool(5), event(12, "item.started", { kind: "assistant_message", channel: "final", text: "" }, "final"), event(13, "item.delta", { text: SYNTHETIC_FINAL }, "final")], "running", { renderer: "native" })),
   example("native-starting", "Native runner · starting", "Native runner", () => snapshot([], "queued", { renderer: "native" })),
   example("native-reconnecting", "Native runner · activity unavailable", "Native runner", () => snapshot(workingEvents(), "running", { renderer: "native", activityUnavailable: true })),
@@ -123,7 +123,7 @@ export const THREAD_PREVIEW_CASES: ThreadPreviewCase[] = [
   ...(["pending", "resolved", "expired", "cancelled"] as const).map(status => direct(`permission-${status}`, `Permission request · ${status}`, "Requests and results", [permission("pending"), ...(status !== "pending" ? [permission(status)] : [])], { emptyMessage: "Waiting for permission…" })),
   direct("permission-denied", "Permission request · denied", "Requests and results", [{ ...permission("resolved"), resolvedAction: "decline" }]),
   direct("question-text", "Question · free-text input", "Requests and results", [{ ...permission("pending", true), questionSet: null, fields: [{ name: "delay", label: "Reconnect delay", placeholder: "For example, 30 seconds" }] }], { emptyMessage: "Waiting for your answer…" }),
-  ...(["pending", "resolved", "expired", "cancelled"] as const).map(status => direct(`question-${status}`, `Question · ${status}`, "Requests and results", [permission("pending", true), ...(status !== "pending" ? [{ ...permission(status, true), response: status === "resolved" ? { schema: "paperclip.question_response.v1" as const, answers: { policy: { selectedOptionIds: ["bounded"] } } } : null }] : [])], { emptyMessage: "Waiting for your answer…" })),
+  ...(["pending", "resolved", "expired", "cancelled"] as const).map(status => direct(`question-${status}`, `Question · ${status}`, "Requests and results", [permission("pending", true), ...(status !== "pending" ? [{ ...permission(status, true), response: status === "resolved" ? { schema: "nexus.question_response.v1" as const, answers: { policy: { selectedOptionIds: ["bounded"] } } } : null }] : [])], { emptyMessage: "Waiting for your answer…" })),
   ...(["done", "blocked", "needs_review", "yielded"] as const).map(disposition => direct(`result-${disposition}`, `Run result · ${disposition.replaceAll("_", " ")}`, "Requests and results", [{
     kind: "run_result", ts: ts(20), disposition, summary: "The reconnect implementation is ready for review.", objectiveSatisfied: disposition === "done",
     verification: [{ commandOrCheck: "Reconnect tests", status: "passed", detail: "12 cases passed" }, { commandOrCheck: "Live provider smoke test", status: "not_run", detail: "No provider is contacted by this preview" }],
@@ -143,7 +143,7 @@ export const THREAD_PREVIEW_CASES: ThreadPreviewCase[] = [
     kind: "workspace_file_reference", ts: ts(15), referenceId: "synthetic-file", source: "harness_reported", path: "connectors/reconnect.ts", displayName: "Reconnect implementation", mediaType: "text/typescript", presentation: "code", line: 12,
     preview: "export const retryDelay = (attempt: number) => Math.min(attempt * 1000, 30_000);", previewTruncated: false, contentDigest: null,
   }], { renderer: "native" }),
-  direct("live-token-cost", "Usage · run and provider totals", "Provider and workspace", [{ kind: "result", ts: ts(18), text: "", inputTokens: 12000, outputTokens: 1800, cachedTokens: 4000, costUsd: 0.042, subtype: "paperclip_runner_usage", isError: false, errors: [] }, { kind: "result", ts: ts(19), text: "Cumulative provider usage includes earlier turns.", inputTokens: 50000, outputTokens: 6000, cachedTokens: 16000, costUsd: 0.19, subtype: "paperclip_runner_session_usage", isError: false, errors: [] }]),
+  direct("live-token-cost", "Usage · run and provider totals", "Provider and workspace", [{ kind: "result", ts: ts(18), text: "", inputTokens: 12000, outputTokens: 1800, cachedTokens: 4000, costUsd: 0.042, subtype: "nexus_runner_usage", isError: false, errors: [] }, { kind: "result", ts: ts(19), text: "Cumulative provider usage includes earlier turns.", inputTokens: 50000, outputTokens: 6000, cachedTokens: 16000, costUsd: 0.19, subtype: "nexus_runner_session_usage", isError: false, errors: [] }]),
 ];
 
 // Keep links shared during the first preview usable without retaining lab-only UI.
@@ -192,7 +192,7 @@ export function conversationPlaybackSnapshot(stage: number, progress: number): T
   if (stage >= PLAYBACK_FOLLOW_UP_STAGE) {
     if (stage === 7) return snapshot([], "queued", { emptyMessage: "Waiting to start…" });
     const entries: TranscriptEntry[] = [...THREAD_PREVIEW_CASES.find(item => item.id === "provider-plan")!.build().entries];
-    if (stage >= 9) entries.push({ ...permission(stage > 9 ? "resolved" : "pending", true), response: stage > 9 ? { schema: "paperclip.question_response.v1", answers: { policy: { selectedOptionIds: ["bounded"] } } } : null });
+    if (stage >= 9) entries.push({ ...permission(stage > 9 ? "resolved" : "pending", true), response: stage > 9 ? { schema: "nexus.question_response.v1", answers: { policy: { selectedOptionIds: ["bounded"] } } } : null });
     if (stage >= 11) entries.push(permission(stage > 11 ? "resolved" : "pending"));
     const test = (seq: number, done: boolean, failed = false) => tool(seq, "exec_command", done, failed, {
       command: "pnpm exec vitest run reconnect.test.ts", result: "PASS reconnect.test.ts · 12 cases passed",

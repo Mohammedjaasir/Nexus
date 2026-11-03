@@ -4,7 +4,7 @@ import {
   APP_STORE_DEFINITIONS,
   aiProviderSetupPreset,
   type ToolConnection,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AiProviderSetup } from "@/components/ai-connections/AiProviderSetup";
 import { appDefinitionLogoUrl } from "@/pages/apps/app-definition-display";
@@ -39,7 +39,7 @@ export function asToolConnection(connection: Connection): ToolConnection {
         : connection.method === "No authentication"
           ? "none"
           : "api_key",
-    credentialSource: "paperclip_vault",
+    credentialSource: "nexus_vault",
     credentialPolicy: connection.ownership === "shared" ? "shared" : "per_user",
     status: connection.status === "connected" ? "active" : "disabled",
     enabled: connection.status === "connected",

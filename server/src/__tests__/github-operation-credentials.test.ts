@@ -26,8 +26,8 @@ import {
   toolConnectionInstalls,
   toolConnections,
   userSecretDefinitions,
-} from "@paperclipai/db";
-import { LOW_TRUST_REVIEW_PRESET } from "@paperclipai/shared";
+} from "@nexusai/db";
+import { LOW_TRUST_REVIEW_PRESET } from "@nexusai/shared";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -51,7 +51,7 @@ const vault = vi.hoisted(() => ({
   resolveSecretValue: vi.fn(async () => "test-dedicated-token"),
 }));
 vi.mock("../services/secrets.js", () => ({ secretService: () => vault }));
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_GITHUB_CREDENTIAL_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_GITHUB_CREDENTIAL_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)(
   "operation-time GitHub credential resolution",
@@ -60,11 +60,11 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
       db: ReturnType<typeof createDb>;
     beforeAll(async () => {
       vi.stubEnv(
-        "PAPERCLIP_AGENT_JWT_SECRET",
+        "NEXUS_AGENT_JWT_SECRET",
         "test-github-broker-signing-secret",
       );
       if (!external) database = await startEmbeddedPostgresTestDatabase(
-        "paperclip-github-operation-",
+        "nexus-github-operation-",
       );
       db = createDb(external ?? database!.connectionString);
     }, 30_000);
@@ -775,8 +775,8 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
         scope: input, target: null, cwd: process.cwd(), env: { PATH: process.env.PATH },
         resolveCredentials: (binding) => resolveGitHubOperationCredentials(db, binding),
       });
-      const post = () => fetch(`${broker.env.PAPERCLIP_GITHUB_BROKER_URL}/runtime-tools/github/credentials`, {
-        method: "POST", headers: { authorization: `Bearer ${broker.env.PAPERCLIP_GITHUB_BRIDGE_TOKEN}` },
+      const post = () => fetch(`${broker.env.NEXUS_GITHUB_BROKER_URL}/runtime-tools/github/credentials`, {
+        method: "POST", headers: { authorization: `Bearer ${broker.env.NEXUS_GITHUB_BRIDGE_TOKEN}` },
       });
       try {
         const releaseA = broker.activate(input);
@@ -859,7 +859,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
         (
           await post()
             .set("Authorization", "Bearer bridge-host-token")
-            .set("x-paperclip-github-capability", token)
+            .set("x-nexus-github-capability", token)
         ).status,
       ).toBe(200);
       await switchTo(input, "B");

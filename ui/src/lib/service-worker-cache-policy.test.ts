@@ -10,9 +10,9 @@ function worker(development = false) {
   const remove = vi.fn().mockResolvedValue(true);
   const fetch = vi.fn().mockResolvedValue(new Response("public asset"));
   const source = readFileSync(new URL("../../public/sw.js", import.meta.url), "utf8");
-  vm.runInNewContext(development ? source : source.replace("__PAPERCLIP_BUILD_ID__", "fixture-production"), {
+  vm.runInNewContext(development ? source : source.replace("__NEXUS_BUILD_ID__", "fixture-production"), {
     self: { location: { origin: "https://example.test" }, addEventListener: (type: string, fn: (event: unknown) => void) => handlers.set(type, fn) },
-    URL, Response, fetch, caches: { keys: async () => ["paperclip-old", "paperclip-current"], open: async () => ({ put, delete: remove, match }), match },
+    URL, Response, fetch, caches: { keys: async () => ["nexus-old", "nexus-current"], open: async () => ({ put, delete: remove, match }), match },
   });
   const request = (cache: RequestCache = "default", pathname = "/extension/history") => {
     const respondWith = vi.fn();

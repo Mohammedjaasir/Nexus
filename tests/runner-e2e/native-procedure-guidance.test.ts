@@ -25,7 +25,7 @@ describe("bounded native procedure comparison", () => {
         [profile.credential]: { type: "secret_ref" as const, secretId: "00000000-0000-4000-8000-000000000001", version: "latest" as const },
       } };
       const agent = profile.buildAgent(input);
-      expect(JSON.stringify(agent.instructionsBundle)).not.toMatch(/paperclip_finish|paperclip_block|set_dependencies|hire_agent/);
+      expect(JSON.stringify(agent.instructionsBundle)).not.toMatch(/nexus_finish|nexus_block|set_dependencies|hire_agent/);
     }
   });
 });

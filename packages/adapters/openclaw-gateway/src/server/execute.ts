@@ -2,21 +2,21 @@ import type {
   AdapterExecutionContext,
   AdapterExecutionResult,
   AdapterRuntimeServiceReport,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import {
   asNumber,
   asString,
-  buildPaperclipEnv,
+  buildNexusEnv,
   buildRuntimeToolsEnv,
   parseObject,
-  readPaperclipIssueWorkModeFromContext,
+  readNexusIssueWorkModeFromContext,
   hydrateFreshSessionHandoff,
-  selectPaperclipPromptSections,
+  selectNexusPromptSections,
   selectInitialCommunicationGuidance,
   joinPromptSections,
-  stringifyPaperclipWakePayload,
-  paperclipWakeCommentsArePromptOwned,
-} from "@paperclipai/adapter-utils/server-utils";
+  stringifyNexusWakePayload,
+  nexusWakeCommentsArePromptOwned,
+} from "@nexusai/adapter-utils/server-utils";
 import crypto, { randomUUID } from "node:crypto";
 import { WebSocket } from "ws";
 
@@ -95,7 +95,7 @@ const PROTOCOL_VERSION = 4;
 const DEFAULT_SCOPES = ["operator.admin"];
 const DEFAULT_CLIENT_ID = "gateway-client";
 const DEFAULT_CLIENT_MODE = "backend";
-const DEFAULT_CLIENT_VERSION = "paperclip";
+const DEFAULT_CLIENT_VERSION = "nexus";
 const DEFAULT_ROLE = "operator";
 
 const SENSITIVE_LOG_KEY_PATTERN =
@@ -151,12 +151,12 @@ export function resolveSessionKey(input: {
   runId: string;
   issueId: string | null;
 }): string {
-  const fallback = input.configuredSessionKey ?? "paperclip";
+  const fallback = input.configuredSessionKey ?? "nexus";
   if (input.strategy === "run") {
-    return prefixSessionKeyForAgent(`paperclip:run:${input.runId}`, input.agentId);
+    return prefixSessionKeyForAgent(`nexus:run:${input.runId}`, input.agentId);
   }
   if (input.strategy === "issue" && input.issueId) {
-    return prefixSessionKeyForAgent(`paperclip:issue:${input.issueId}`, input.agentId);
+    return prefixSessionKeyForAgent(`nexus:issue:${input.issueId}`, input.agentId);
   }
   return prefixSessionKeyForAgent(fallback, input.agentId);
 }
@@ -328,7 +328,7 @@ function buildWakePayload(ctx: AdapterExecutionContext): WakePayload {
   };
 }
 
-function resolvePaperclipApiUrlOverride(value: unknown): string | null {
+function resolveNexusApiUrlOverride(value: unknown): string | null {
   const raw = nonEmpty(value);
   if (!raw) return null;
   try {
@@ -340,74 +340,74 @@ function resolvePaperclipApiUrlOverride(value: unknown): string | null {
   }
 }
 
-const DEFAULT_CLAIMED_API_KEY_PATH = "~/.openclaw/workspace/paperclip-claimed-api-key.json";
+const DEFAULT_CLAIMED_API_KEY_PATH = "~/.openclaw/workspace/nexus-claimed-api-key.json";
 
 export function resolveClaimedApiKeyPath(value: unknown): string {
   return nonEmpty(value) ?? DEFAULT_CLAIMED_API_KEY_PATH;
 }
 
-function buildPaperclipEnvForWake(ctx: AdapterExecutionContext, wakePayload: WakePayload): Record<string, string> {
-  const paperclipApiUrlOverride = resolvePaperclipApiUrlOverride(ctx.config.paperclipApiUrl);
-  const paperclipEnv: Record<string, string> = {
-    ...buildPaperclipEnv(ctx.agent),
+function buildNexusEnvForWake(ctx: AdapterExecutionContext, wakePayload: WakePayload): Record<string, string> {
+  const nexusApiUrlOverride = resolveNexusApiUrlOverride(ctx.config.nexusApiUrl);
+  const nexusEnv: Record<string, string> = {
+    ...buildNexusEnv(ctx.agent),
     ...buildRuntimeToolsEnv(ctx.runtimeTools),
-    PAPERCLIP_RUN_ID: ctx.runId,
+    NEXUS_RUN_ID: ctx.runId,
   };
 
-  if (paperclipApiUrlOverride) {
-    paperclipEnv.PAPERCLIP_API_URL = paperclipApiUrlOverride;
+  if (nexusApiUrlOverride) {
+    nexusEnv.NEXUS_API_URL = nexusApiUrlOverride;
   }
-  if (wakePayload.taskId) paperclipEnv.PAPERCLIP_TASK_ID = wakePayload.taskId;
-  const issueWorkMode = readPaperclipIssueWorkModeFromContext(ctx.context);
-  if (issueWorkMode) paperclipEnv.PAPERCLIP_ISSUE_WORK_MODE = issueWorkMode;
-  if (wakePayload.wakeReason) paperclipEnv.PAPERCLIP_WAKE_REASON = wakePayload.wakeReason;
-  if (wakePayload.wakeCommentId) paperclipEnv.PAPERCLIP_WAKE_COMMENT_ID = wakePayload.wakeCommentId;
-  if (wakePayload.approvalId) paperclipEnv.PAPERCLIP_APPROVAL_ID = wakePayload.approvalId;
-  if (wakePayload.approvalStatus) paperclipEnv.PAPERCLIP_APPROVAL_STATUS = wakePayload.approvalStatus;
+  if (wakePayload.taskId) nexusEnv.NEXUS_TASK_ID = wakePayload.taskId;
+  const issueWorkMode = readNexusIssueWorkModeFromContext(ctx.context);
+  if (issueWorkMode) nexusEnv.NEXUS_ISSUE_WORK_MODE = issueWorkMode;
+  if (wakePayload.wakeReason) nexusEnv.NEXUS_WAKE_REASON = wakePayload.wakeReason;
+  if (wakePayload.wakeCommentId) nexusEnv.NEXUS_WAKE_COMMENT_ID = wakePayload.wakeCommentId;
+  if (wakePayload.approvalId) nexusEnv.NEXUS_APPROVAL_ID = wakePayload.approvalId;
+  if (wakePayload.approvalStatus) nexusEnv.NEXUS_APPROVAL_STATUS = wakePayload.approvalStatus;
   if (wakePayload.issueIds.length > 0) {
-    paperclipEnv.PAPERCLIP_LINKED_ISSUE_IDS = wakePayload.issueIds.join(",");
+    nexusEnv.NEXUS_LINKED_ISSUE_IDS = wakePayload.issueIds.join(",");
   }
 
-  return paperclipEnv;
+  return nexusEnv;
 }
 
 function buildWakeText(
   payload: WakePayload,
-  paperclipEnv: Record<string, string>,
+  nexusEnv: Record<string, string>,
   structuredWakePrompt: string,
   claimedApiKeyPath: string,
   conversationTaskMarkdown?: string,
 ): string {
   const orderedKeys = [
-    "PAPERCLIP_RUN_ID",
-    "PAPERCLIP_AGENT_ID",
-    "PAPERCLIP_COMPANY_ID",
-    "PAPERCLIP_API_URL",
-    "PAPERCLIP_TASK_ID",
-    "PAPERCLIP_WAKE_REASON",
-    "PAPERCLIP_WAKE_COMMENT_ID",
-    "PAPERCLIP_APPROVAL_ID",
-    "PAPERCLIP_APPROVAL_STATUS",
-    "PAPERCLIP_LINKED_ISSUE_IDS",
+    "NEXUS_RUN_ID",
+    "NEXUS_AGENT_ID",
+    "NEXUS_COMPANY_ID",
+    "NEXUS_API_URL",
+    "NEXUS_TASK_ID",
+    "NEXUS_WAKE_REASON",
+    "NEXUS_WAKE_COMMENT_ID",
+    "NEXUS_APPROVAL_ID",
+    "NEXUS_APPROVAL_STATUS",
+    "NEXUS_LINKED_ISSUE_IDS",
   ];
 
   const envLines: string[] = [];
   for (const key of orderedKeys) {
-    const value = paperclipEnv[key];
+    const value = nexusEnv[key];
     if (!value) continue;
     envLines.push(`${key}=${value}`);
   }
 
   const issueIdHint = payload.taskId ?? payload.issueId ?? "";
-  const apiBaseHint = paperclipEnv.PAPERCLIP_API_URL ?? "<set PAPERCLIP_API_URL>";
+  const apiBaseHint = nexusEnv.NEXUS_API_URL ?? "<set NEXUS_API_URL>";
 
   if (conversationTaskMarkdown !== undefined) {
     return [
-      "Paperclip conversation turn for a cloud adapter.",
+      "Nexus conversation turn for a cloud adapter.",
       "Set these values in your run context:",
       ...envLines,
-      `Load PAPERCLIP_API_KEY from ${claimedApiKeyPath} (the token saved after claim-api-key).`,
-      "Use Authorization: Bearer $PAPERCLIP_API_KEY on every API call and X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID on every mutation.",
+      `Load NEXUS_API_KEY from ${claimedApiKeyPath} (the token saved after claim-api-key).`,
+      "Use Authorization: Bearer $NEXUS_API_KEY on every API call and X-Nexus-Run-Id: $NEXUS_RUN_ID on every mutation.",
       "Follow the supplied chat mode directive. Keep this conversation available for the next message.",
       structuredWakePrompt,
       conversationTaskMarkdown,
@@ -415,15 +415,15 @@ function buildWakeText(
   }
 
   const lines = [
-    "Paperclip wake event for a cloud adapter.",
+    "Nexus wake event for a cloud adapter.",
     "",
     "Run this procedure now. Do not guess undocumented endpoints and do not ask for additional heartbeat docs.",
     "",
     "Set these values in your run context:",
     ...envLines,
-    `PAPERCLIP_API_KEY=<token from ${claimedApiKeyPath}>`,
+    `NEXUS_API_KEY=<token from ${claimedApiKeyPath}>`,
     "",
-    `Load PAPERCLIP_API_KEY from ${claimedApiKeyPath} (the token you saved after claim-api-key).`,
+    `Load NEXUS_API_KEY from ${claimedApiKeyPath} (the token you saved after claim-api-key).`,
     "",
     `api_base=${apiBaseHint}`,
     `task_id=${payload.taskId ?? ""}`,
@@ -435,17 +435,17 @@ function buildWakeText(
     `linked_issue_ids=${payload.issueIds.join(",")}`,
     "",
     "HTTP rules:",
-    "- Use Authorization: Bearer $PAPERCLIP_API_KEY on every API call.",
-    "- Use X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID on every mutating API call.",
+    "- Use Authorization: Bearer $NEXUS_API_KEY on every API call.",
+    "- Use X-Nexus-Run-Id: $NEXUS_RUN_ID on every mutating API call.",
     "- Use only /api endpoints listed below.",
     "- Do NOT call guessed endpoints like /api/cloud-adapter/*, /api/cloud-adapters/*, /api/adapters/cloud/*, or /api/heartbeat.",
     "",
     "Workflow:",
     "1) GET /api/agents/me",
-    `2) Determine issueId: PAPERCLIP_TASK_ID if present, otherwise issue_id (${issueIdHint}).`,
+    `2) Determine issueId: NEXUS_TASK_ID if present, otherwise issue_id (${issueIdHint}).`,
     '   Replace {issueId} in every endpoint below with that determined id. Never send the literal text "{issueId}" in a URL.',
     "3) If issueId exists:",
-    "   - POST /api/issues/{issueId}/checkout with {\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\",\"in_review\"]}",
+    "   - POST /api/issues/{issueId}/checkout with {\"agentId\":\"$NEXUS_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\",\"in_review\"]}",
     "   - GET /api/issues/{issueId}",
     "   - GET /api/issues/{issueId}/comments",
     "   - Execute the issue instructions exactly. If the issue is actionable, take concrete action in this run; do not stop at a plan unless planning was requested.",
@@ -456,7 +456,7 @@ function buildWakeText(
     "   - If instructions require a comment, POST /api/issues/{issueId}/comments with {\"body\":\"...\"}.",
     "   - PATCH /api/issues/{issueId} with {\"status\":\"done\",\"comment\":\"what changed and why\"}.",
     "4) If issueId does not exist:",
-    "   - GET /api/companies/$PAPERCLIP_COMPANY_ID/issues?assigneeAgentId=$PAPERCLIP_AGENT_ID&status=todo,in_progress,in_review,blocked",
+    "   - GET /api/companies/$NEXUS_COMPANY_ID/issues?assigneeAgentId=$NEXUS_AGENT_ID&status=todo,in_progress,in_review,blocked",
     "   - Pick in_progress first, then in_review when you were woken by a comment, then todo, then blocked, then execute step 3.",
     "",
     "Useful endpoints for issue work:",
@@ -506,7 +506,7 @@ export function buildAgentParams(input: {
     idempotencyKey: input.runId,
   };
   delete agentParams.text;
-  delete agentParams.paperclip;
+  delete agentParams.nexus;
 
   if (input.configuredAgentId && !nonEmpty(agentParams.agentId)) {
     agentParams.agentId = input.configuredAgentId;
@@ -765,7 +765,7 @@ class GatewayWsClient {
 
   close() {
     if (!this.ws) return;
-    this.ws.close(1000, "paperclip-complete");
+    this.ws.close(1000, "nexus-complete");
     this.ws = null;
   }
 
@@ -1104,23 +1104,23 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const disableDeviceAuth = parseBoolean(ctx.config.disableDeviceAuth, false);
 
   const wakePayload = buildWakePayload(ctx);
-  const paperclipEnv = buildPaperclipEnvForWake(ctx, wakePayload);
+  const nexusEnv = buildNexusEnvForWake(ctx, wakePayload);
   // No heartbeat prompt template is sent over the gateway, so the wake prompt
   // must carry the execution contract itself.
   await hydrateFreshSessionHandoff(ctx, { resumedSession: Boolean(ctx.runtime?.sessionId) });
-  const { taskContextNote, wakePrompt: structuredWakePrompt } = selectPaperclipPromptSections(ctx.context, {
+  const { taskContextNote, wakePrompt: structuredWakePrompt } = selectNexusPromptSections(ctx.context, {
     resumedSession: Boolean(ctx.runtime?.sessionId),
     includeExecutionContract: true,
     includeCommunicationGuidance: false,
   });
-  const structuredWakeJson = paperclipWakeCommentsArePromptOwned(ctx.context)
+  const structuredWakeJson = nexusWakeCommentsArePromptOwned(ctx.context)
     ? null
-    : stringifyPaperclipWakePayload(ctx.context.paperclipWake, {
+    : stringifyNexusWakePayload(ctx.context.nexusWake, {
         omitIssueDescription: Boolean(taskContextNote),
       });
   const wakeText = buildWakeText(
     wakePayload,
-    paperclipEnv,
+    nexusEnv,
     structuredWakeJson
       ? joinWakePayloadSections(structuredWakePrompt, structuredWakeJson)
       : structuredWakePrompt,

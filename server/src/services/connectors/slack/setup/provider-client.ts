@@ -1,4 +1,4 @@
-import { slackRegistrationErrorMessage } from "@paperclipai/shared";
+import { slackRegistrationErrorMessage } from "@nexusai/shared";
 import { unprocessable } from "../../../../errors.js";
 export const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 export const providerFailure = (code: string) => unprocessable(slackRegistrationErrorMessage(code), { code });

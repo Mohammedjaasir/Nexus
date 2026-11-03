@@ -2,14 +2,14 @@ import path from "node:path";
 import fs from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { isCloudManagedInstance } from "./cloud-instance.js";
-import type { PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import type { NexusPluginManifestV1 } from "@nexusai/shared";
 import { assertDistributionManifestCapabilities, readDistributionPluginCatalog, type DistributionPlugin } from "./distribution-plugin-catalog.js";
 
 /**
  * Bundled plugin auto-provisioning.
  *
  * Managed-cloud instances receive a `plugins.autoInstall` key list through
- * `PAPERCLIP_MANAGED_CONFIG` (parsed fail-closed at startup — see
+ * `NEXUS_MANAGED_CONFIG` (parsed fail-closed at startup — see
  * `managed-config.ts`). Each key maps to a plugin bundled into
  * the release image under the bundled catalog root. Nobody "installs" on a
  * managed instance: the control plane provisions, tenants use.
@@ -41,7 +41,7 @@ export const DEFAULT_BUNDLED_CATALOG_ROOT = "/app/packages/plugins";
 /**
  * Env var that relocates the bundled catalog root (dev images, tests).
  */
-export const BUNDLED_CATALOG_ROOT_ENV_VAR = "PAPERCLIP_BUNDLED_PLUGIN_ROOT";
+export const BUNDLED_CATALOG_ROOT_ENV_VAR = "NEXUS_BUNDLED_PLUGIN_ROOT";
 
 export interface BundledPluginCatalogEntry {
   /** Key the managed config's `plugins.autoInstall` list uses. */
@@ -66,48 +66,48 @@ export interface BundledPluginCatalogEntry {
 export const BUNDLED_PLUGIN_CATALOG: readonly BundledPluginCatalogEntry[] = [
   {
     key: "boxd",
-    pluginKey: "paperclip.boxd-sandbox-provider",
+    pluginKey: "nexus.boxd-sandbox-provider",
     relativePath: "sandbox-providers/boxd",
   },
   {
     key: "createos",
-    pluginKey: "paperclip.createos-sandbox-provider",
+    pluginKey: "nexus.createos-sandbox-provider",
     relativePath: "sandbox-providers/createos",
   },
   {
     key: "cloudflare",
-    pluginKey: "paperclip.cloudflare-sandbox-provider",
+    pluginKey: "nexus.cloudflare-sandbox-provider",
     relativePath: "sandbox-providers/cloudflare",
   },
   {
     key: "daytona",
-    pluginKey: "paperclip.daytona-sandbox-provider",
+    pluginKey: "nexus.daytona-sandbox-provider",
     relativePath: "sandbox-providers/daytona",
   },
   {
     key: "e2b",
-    pluginKey: "paperclip.e2b-sandbox-provider",
+    pluginKey: "nexus.e2b-sandbox-provider",
     relativePath: "sandbox-providers/e2b",
   },
   {
     key: "exe-dev",
-    pluginKey: "paperclip.exe-dev-sandbox-provider",
+    pluginKey: "nexus.exe-dev-sandbox-provider",
     relativePath: "sandbox-providers/exe-dev",
   },
   {
     key: "kubernetes",
-    pluginKey: "paperclip.kubernetes-sandbox-provider",
+    pluginKey: "nexus.kubernetes-sandbox-provider",
     relativePath: "sandbox-providers/kubernetes",
-    pathOverrideEnvVar: "PAPERCLIP_KUBERNETES_PLUGIN_PATH",
+    pathOverrideEnvVar: "NEXUS_KUBERNETES_PLUGIN_PATH",
   },
   {
     key: "modal",
-    pluginKey: "paperclip.modal-sandbox-provider",
+    pluginKey: "nexus.modal-sandbox-provider",
     relativePath: "sandbox-providers/modal",
   },
   {
     key: "novita",
-    pluginKey: "paperclip.novita-sandbox-provider",
+    pluginKey: "nexus.novita-sandbox-provider",
     relativePath: "sandbox-providers/novita",
   },
 ];
@@ -221,7 +221,7 @@ interface RegistryPluginRow {
   pluginKey: string;
   status: string;
   version: string;
-  manifestJson: PaperclipPluginManifestV1;
+  manifestJson: NexusPluginManifestV1;
   packagePath?: string | null;
   lastError?: string | null;
 }
@@ -231,7 +231,7 @@ export interface BundledPluginProvisionerDeps {
     getByKey(pluginKey: string): Promise<RegistryPluginRow | null>;
     update(
       id: string,
-      data: { version?: string; manifest?: PaperclipPluginManifestV1; packagePath?: string; status?: "upgrade_pending" },
+      data: { version?: string; manifest?: NexusPluginManifestV1; packagePath?: string; status?: "upgrade_pending" },
     ): Promise<unknown>;
     updateStatus(id: string, input: { status: "ready"; lastError: string | null }): Promise<unknown>;
   };
@@ -239,7 +239,7 @@ export interface BundledPluginProvisionerDeps {
     installPlugin(options: { localPath: string }): Promise<{
       manifest: { id: string } | null;
     }>;
-    loadManifest(packagePath: string): Promise<PaperclipPluginManifestV1 | null>;
+    loadManifest(packagePath: string): Promise<NexusPluginManifestV1 | null>;
   };
   lifecycle: {
     load(pluginId: string): Promise<unknown>;
@@ -276,7 +276,7 @@ async function reconcileBundledPluginManifest(
   install: ResolvedBundledPlugin,
   deps: BundledPluginProvisionerDeps,
   bundleManifestExists: (localPath: string) => boolean,
-  verifiedManifest?: PaperclipPluginManifestV1,
+  verifiedManifest?: NexusPluginManifestV1,
   preservePackagePath = false,
 ): Promise<"upgrade_pending" | undefined> {
   try {
@@ -403,7 +403,7 @@ export async function ensureBundledPlugins(
   const bundleManifestExists = deps.bundleManifestExists ?? defaultBundleManifestExists;
   for (const install of installs) {
     try {
-      let verifiedManifest: PaperclipPluginManifestV1 | undefined;
+      let verifiedManifest: NexusPluginManifestV1 | undefined;
       if (install.distribution) {
         const manifest = await deps.loader.loadManifest(install.localPath);
         if (manifest?.id !== install.pluginKey || manifest.version !== install.distribution.version) {

@@ -3,16 +3,16 @@ import { randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sanitizeAntigravityCredential, verifyAntigravityCredential } from "../../vendor/paperclip-runner/index.js";
+import { sanitizeAntigravityCredential, verifyAntigravityCredential } from "../../vendor/nexus-runner/index.js";
 import { readLocalAiCredentialFile } from "../local-ai-credential-file.js";
 import { reconcileRetainedGoogleCleanupForHome, retainGoogleCredentialCleanupForHome, retainGoogleCredentialCleanup, type RetainedGoogleCleanupScope } from "../retained-google-credential-cleanup.js";
-import { withDirectoryMergeLock } from "@paperclipai/adapter-utils/workspace-restore-merge";
-import { withAccountHomeSecretMutationLock } from "@paperclipai/adapter-codex-local/server";
+import { withDirectoryMergeLock } from "@nexusai/adapter-utils/workspace-restore-merge";
+import { withAccountHomeSecretMutationLock } from "@nexusai/adapter-codex-local/server";
 import { openRunnerWorkspaceFile } from "./runner-api-files.js";
-import type { NativeSession, createRunnerdCodexTransport } from "../../vendor/paperclip-runner/index.js";
+import type { NativeSession, createRunnerdCodexTransport } from "../../vendor/nexus-runner/index.js";
 import { bindManagedNativeCredentialTurn } from "./managed-native-credentials.js";
 
-const AUTH_SECRET = "PAPERCLIP_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET";
+const AUTH_SECRET = "NEXUS_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET";
 const TOKEN_FILE = "acp_token.json";
 const REFRESH_FILE = "auth-refresh.json";
 const retirementProofs = new WeakMap<object, () => Promise<void>>();
@@ -45,7 +45,7 @@ export async function prepareAntigravityRunnerCredentials(input: {
   for (const key of [AUTH_SECRET, "GEMINI_HOME", "GOOGLE_API_KEY", "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_ACCESS_TOKEN"]) delete environment[key];
   if (environment.GEMINI_API_KEY?.trim()) return { environment, home: null };
   delete environment.GEMINI_API_KEY;
-  if (input.remote) throw new Error("Google Antigravity subscription authentication is not qualified for remote environments. Select a Google API key or use the Paperclip host.");
+  if (input.remote) throw new Error("Google Antigravity subscription authentication is not qualified for remote environments. Select a Google API key or use the Nexus host.");
   if (input.lifecycleMode === "warm") throw new Error("Google Antigravity subscription authentication requires turn-by-turn sessions; warm sessions are not qualified.");
   const home = input.managedHome?.trim();
   if (!home) throw new Error("Google Antigravity requires a selected managed Google account or Google API key.");
@@ -87,7 +87,7 @@ export async function prepareAntigravityCredentialRecovery(input: {
   scope: RetainedGoogleCleanupScope;
   persistVerified: (credential: string) => Promise<void>;
 }): Promise<string> {
-  const home = await realpath(await mkdtemp(join(tmpdir(), "paperclip-google-recovery-")));
+  const home = await realpath(await mkdtemp(join(tmpdir(), "nexus-google-recovery-")));
   const directory = join(home, "antigravity-acp");
   try {
     await mkdir(directory, { mode: 0o700 });

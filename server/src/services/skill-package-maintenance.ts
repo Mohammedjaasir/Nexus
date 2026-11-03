@@ -1,7 +1,7 @@
 import path from "node:path";
 import { and, asc, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
 import { companySkillRepositorySnapshots as snapshots, companySkillVersions as versions,
-  skillPackageDeletions, type Db } from "@paperclipai/db";
+  skillPackageDeletions, type Db } from "@nexusai/db";
 import { getStorageService, type StorageService } from "../storage/index.js";
 import { skillPackageStore, skillVersionFileMap, skillVersionMetadataColumns } from "./skill-package-store.js";
 import { packageSha256 } from "./skill-package-files.js";

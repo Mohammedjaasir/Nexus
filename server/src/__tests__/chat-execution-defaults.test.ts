@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chatExecutionDefaultsSchema, updateChatEndpointSchema, replaceChatEndpointResourcesSchema } from "@paperclipai/shared";
+import { chatExecutionDefaultsSchema, updateChatEndpointSchema, replaceChatEndpointResourcesSchema } from "@nexusai/shared";
 import { resolveChatExecutionDefaults } from "../services/chat-execution-defaults.js";
 
 const projectId = "11f01381-578d-4bb7-9de4-57e6d9678313";

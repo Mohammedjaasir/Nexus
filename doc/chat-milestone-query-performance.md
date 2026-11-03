@@ -18,9 +18,9 @@ this change.
 Run from the repository root with Docker available:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-milestones.ts --baseline-ref=db70c5acd92f50fa37fb4f0dea3da0e7685089a2 --docker-postgres=17 --report=/tmp/chat-milestones-report.json
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-milestones.ts --baseline-ref=db70c5acd92f50fa37fb4f0dea3da0e7685089a2 --docker-postgres=17 --dense-chat --report=/tmp/chat-milestones-dense-report.json
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-milestones.ts --baseline-ref=db70c5acd92f50fa37fb4f0dea3da0e7685089a2 --docker-postgres=17 --cursor-window --report=/tmp/chat-milestones-large-window-report.json
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-chat-milestones.ts --baseline-ref=db70c5acd92f50fa37fb4f0dea3da0e7685089a2 --docker-postgres=17 --report=/tmp/chat-milestones-report.json
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-chat-milestones.ts --baseline-ref=db70c5acd92f50fa37fb4f0dea3da0e7685089a2 --docker-postgres=17 --dense-chat --report=/tmp/chat-milestones-dense-report.json
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-chat-milestones.ts --baseline-ref=db70c5acd92f50fa37fb4f0dea3da0e7685089a2 --docker-postgres=17 --cursor-window --report=/tmp/chat-milestones-large-window-report.json
 ```
 
 Without `--docker-postgres=17`, the harness uses disposable embedded PostgreSQL.
@@ -127,7 +127,7 @@ it in `finally`. Runtime triggers are unchanged.
 Run the dedicated regression and existing coordination suites:
 
 ```sh
-pnpm --filter @paperclipai/server exec vitest run src/__tests__/chat-run-milestone-candidates.test.ts src/services/chat-publication-reconciliation.test.ts src/__tests__/app-private-hostname-gate.test.ts
+pnpm --filter @nexusai/server exec vitest run src/__tests__/chat-run-milestone-candidates.test.ts src/services/chat-publication-reconciliation.test.ts src/__tests__/app-private-hostname-gate.test.ts
 ```
 
 These three suites passed **27 tests** during validation, with a disposable
@@ -145,6 +145,6 @@ The following selection passed **37 tests** with disposable PostgreSQL 17;
 1,529 unrelated cases were skipped:
 
 ```sh
-pnpm --filter @paperclipai/server exec vitest run src/__tests__/chat-channels.integration.test.ts \
+pnpm --filter @nexusai/server exec vitest run src/__tests__/chat-channels.integration.test.ts \
   -t "drains bounded Slack chat-origin milestones|coalesces one Slack run's lifecycle|edits a Slack working reply|publishes a Telegram failure for an exact confirmation continuation|replaces working with one safe ownership-attention|does not let a late|keeps an internal Telegram run summary private|publishes only a resolver-selected Telegram reply|settles an interrupted native run once|preserves an interrupted run's selected final|skips a locked native progress|reauthorizes skipped native progress|coalesces closed native progress|publishes native progress with a typed issue binding|enforces the native progress cadence|does not replay stale native progress|keeps native progress behind question|reuses a pre-run FIFO notice|link-only interaction continuation|successful GitHub link-question continuation|publishes a closed-choice question, settles its Slack card"
 ```

@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agents, applyPendingMigrations, companies, createDb, heartbeatRuns, issues, type Db } from "@paperclipai/db";
+import { agents, applyPendingMigrations, companies, createDb, heartbeatRuns, issues, type Db } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "../__tests__/helpers/external-test-database.js";
 import { buildExecutionContinuation } from "./execution-continuation.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_EXECUTION_CONTINUATION_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_EXECUTION_CONTINUATION_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 describe.skipIf(!support.supported)("continuation history PostgreSQL projection", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
@@ -24,7 +24,7 @@ describe.skipIf(!support.supported)("continuation history PostgreSQL projection"
   async function fixture(result: unknown) {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "History", issuePrefix: `H${companyId.replaceAll("-", "")}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Executor", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Executor", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Continue", status: "in_progress", assigneeAgentId: agentId });
     const [run] = await db.insert(heartbeatRuns).values({ companyId, agentId, status: "failed", errorCode: "adapter_failed",
       contextSnapshot: { issueId }, createdAt: new Date("2020-01-01T00:00:00Z"), resultJson: result as Record<string, unknown> | null }).returning();
@@ -84,7 +84,7 @@ describe.skipIf(!support.supported)("continuation history PostgreSQL projection"
     expect((await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, f.run.id)))[0].resultJson).toEqual(result);
   });
 
-  const recovery = { schema: "paperclip.workspace-restore-recovery.v1" };
+  const recovery = { schema: "nexus.workspace-restore-recovery.v1" };
   it.each([
     { value: null, interrupted: false }, { value: [], interrupted: false }, { value: "scalar", interrupted: false }, { value: 42, interrupted: false },
     { value: {}, interrupted: false }, { value: { conversationContinuation: "continue_conversation_v1", apiToolReceipts: [1, 2] }, interrupted: true },
@@ -107,7 +107,7 @@ describe.skipIf(!support.supported)("continuation history PostgreSQL projection"
     const completed = (operationId: string) => ({ apiToolReceipts: { saved: { state: "completed", operationId, result: { operationId } } } });
     const f = await fixture({ ...completed("first"), conversationContinuation: "continue_conversation_v1" });
     const otherAgentId = randomUUID();
-    await db.insert(agents).values({ id: otherAgentId, companyId: f.companyId, name: "Previous owner", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: otherAgentId, companyId: f.companyId, name: "Previous owner", adapterType: "nexus_runner" });
     const [source] = await db.insert(heartbeatRuns).values({ companyId: f.companyId, agentId: otherAgentId, status: "succeeded",
       contextSnapshot: { issueId: f.issueId }, resultJson: completed("other-agent"), createdAt: new Date("2020-01-01T00:01:00Z") }).returning();
     await db.insert(heartbeatRuns).values({ companyId: f.companyId, agentId: f.agentId, status: "cancelled", errorCode: "execution_reconciliation_required",

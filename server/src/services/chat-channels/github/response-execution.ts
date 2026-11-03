@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { githubRunReplyState } from "../../chat-run-publications.js";
 import { readGitHubResponseRun } from "./response-run-state.js";
 export { responseRunColumns as githubResponseRunColumns } from "./response-run-state.js";
@@ -28,10 +28,10 @@ export async function githubResponseExecution(db: Db, input: GitHubResponseExecu
   const presentationPending = !!run && ownsLatestRequest && run.nativePresentationPending && reply === "none";
   const passiveResponseWait = !!run && ownsLatestRequest && run.passiveResponseWait && reply === "none";
   const body = presentationPending ? undefined : run ? reply === "confirmed" ? "This request has been handled. See the response in this conversation."
-    : paused ? "Work is paused. Your request is saved. See the Paperclip task for details."
-    : run.status === "succeeded" ? "This turn ended without publishing a final response. See the Paperclip task for details."
-    : "This turn stopped before completing. See the Paperclip task for details."
-    : paused ? "Work is paused. Your request is saved. See the Paperclip task for details." : undefined;
+    : paused ? "Work is paused. Your request is saved. See the Nexus task for details."
+    : run.status === "succeeded" ? "This turn ended without publishing a final response. See the Nexus task for details."
+    : "This turn stopped before completing. See the Nexus task for details."
+    : paused ? "Work is paused. Your request is saved. See the Nexus task for details." : undefined;
   return {
     body, paused, reply, running: requestRunning, presentationPending, passiveResponseWait,
     versionAt: run ? new Date(Math.max(run.updatedAt.getTime(), input.deliveryCreatedAt.getTime()))

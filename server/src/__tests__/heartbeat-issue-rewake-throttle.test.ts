@@ -17,7 +17,7 @@ import {
   heartbeatRuns,
   issueComments,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -64,7 +64,7 @@ describeEmbeddedPostgres("heartbeat issue rewake throttle", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-heartbeat-issue-rewake-throttle-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-heartbeat-issue-rewake-throttle-");
     db = createDb(tempDb.connectionString);
     heartbeat = heartbeatService(db);
   }, 20_000);
@@ -119,7 +119,7 @@ describeEmbeddedPostgres("heartbeat issue rewake throttle", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
       defaultResponsibleUserId: "responsible-user",

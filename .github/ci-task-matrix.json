@@ -140,7 +140,7 @@
       "task": "ci:docker"
     }
   ],
-  "verify_paperclip_runner": [
+  "verify_nexus_runner": [
     {
       "lane_label": "static checks",
       "command": "check:static",

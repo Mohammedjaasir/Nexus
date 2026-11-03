@@ -1,5 +1,5 @@
 import { and, eq, gt, inArray, isNotNull, ne, or } from "drizzle-orm";
-import { chatEndpoints, toolConnections, type Db } from "@paperclipai/db";
+import { chatEndpoints, toolConnections, type Db } from "@nexusai/db";
 import { readDiscordCommandRegistrationDeadline } from "../../chat-discord-command-registration-store.js";
 import type { CommandRegistrationScope } from "./command-work-notifications.js";
 

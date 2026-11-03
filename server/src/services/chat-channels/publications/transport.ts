@@ -14,7 +14,7 @@ import { voiceSessionStore } from "../../voice/voice-session-store.js";
 import { type ChatRuntime } from "../../chat-runtime.js";
 import type { ChatEndpointRuntime } from "../../voice/voice-runtime.js";
 
-import { chatGitHubConfigurations } from "@paperclipai/db";
+import { chatGitHubConfigurations } from "@nexusai/db";
 
 import { githubResponseCommentService } from "../../chat-github-response-comments.js";
 
@@ -24,18 +24,18 @@ import {
   isNull,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatMessageLinks,
   chatPublications,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatAdapterCapabilities,
   ChatEndpointSetupState,
   ChatProvider,
   SafeChatPublicationPayload,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import { telegramAttachmentForUpload } from "../../chat-telegram-photo.js";
 
@@ -201,7 +201,7 @@ function safeCardForPublication(
       const receipt = await githubResponseCommentService(db, fetchImpl).failRun({
         companyId: input.publication.companyId, endpointId: input.endpoint.id,
         issueId: input.publication.issueId, runId, body: input.payload.progressState === "completed"
-          ? "This turn ended without publishing a final response. See the Paperclip task for details."
+          ? "This turn ended without publishing a final response. See the Nexus task for details."
           : renderPublicationTransportText(input.payload),
       });
       if (!receipt) throw conflict("GitHub response publication is busy");
@@ -267,21 +267,21 @@ function safeCardForPublication(
               : "Direct file delivery isn't available for this Teams conversation.";
           if (generatedFileLabel) {
             const saved = taskUrl
-              ? `File saved on the Paperclip task: ${generatedFileLabel}.`
-              : `File saved on the private Paperclip task: ${generatedFileLabel}.`;
+              ? `File saved on the Nexus task: ${generatedFileLabel}.`
+              : `File saved on the private Nexus task: ${generatedFileLabel}.`;
             text = taskUrl
               ? `${saved} ${limitation} Download it: ${taskUrl}`
               : `${saved} ${limitation}`;
           } else {
             const handoff = taskUrl
-              ? `Open the file on its Paperclip task: ${taskUrl}`
-              : "The file remains available only on the private Paperclip task.";
+              ? `Open the file on its Nexus task: ${taskUrl}`
+              : "The file remains available only on the private Nexus task.";
             text = `${text}\n\n${limitation} ${handoff}`;
           }
         } else {
           const attachmentFallback = taskUrl
-            ? `Open the task in Paperclip: ${taskUrl}`
-            : "Open the task in Paperclip to download the attachment.";
+            ? `Open the task in Nexus: ${taskUrl}`
+            : "Open the task in Nexus to download the attachment.";
           text = `${text}\n\n${attachmentFallback}`;
         }
       }
@@ -297,7 +297,7 @@ function safeCardForPublication(
       text =
         input.payload.transportPart.count > 1
           ? "Complete response attached."
-          : "Paperclip attached the complete response because it exceeds Discord’s message limit.";
+          : "Nexus attached the complete response because it exceeds Discord’s message limit.";
     }
     if (
       input.endpoint.provider === "telegram" &&
@@ -307,7 +307,7 @@ function safeCardForPublication(
       text =
         input.payload.transportPart.count > 1
           ? "Complete response attached."
-          : "Paperclip attached the complete response to preserve its Markdown formatting.";
+          : "Nexus attached the complete response to preserve its Markdown formatting.";
     }
     if (card && CAPABILITIES[input.endpoint.provider].cards) {
       return await attemptProviderPublication(async () =>

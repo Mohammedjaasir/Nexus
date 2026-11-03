@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { COPILOT_LAUNCH_ARGUMENTS } from "../../packages/paperclip-runner/src/drivers/acpx/copilot-profile.js";
+import { COPILOT_LAUNCH_ARGUMENTS } from "../../packages/nexus-runner/src/drivers/acpx/copilot-profile.js";
 import { isValidNativePrpEnvelope } from "./native-event-envelope.js";
 import { copilotEditOriginForPermission, readCopilotToolEvidence } from "./copilot-evidence.js";
 import { readCopilotContextRead } from "./copilot-context-evidence.js";
@@ -17,7 +17,7 @@ export function selectOwnedCopilotProcess<T extends { pid: number; parent: numbe
   const candidates = journal.filter(row => {
     if (row.pid === rootPid || !live.includes(row.pid)) return false;
     const command = argv.get(row.pid);
-    if (!command || command.length !== fixedArguments.length + 1 || !/^\/[^\u0000-\u0020]*\/paperclip-acpx-native-[A-Za-z0-9_-]+\/distribution\/copilot$/u.test(command[0] ?? "") || !fixedArguments.every((arg, i) => command[i + 1] === arg)) return false;
+    if (!command || command.length !== fixedArguments.length + 1 || !/^\/[^\u0000-\u0020]*\/nexus-acpx-native-[A-Za-z0-9_-]+\/distribution\/copilot$/u.test(command[0] ?? "") || !fixedArguments.every((arg, i) => command[i + 1] === arg)) return false;
     const seen = new Set<number>(); let parent = row.parent;
     while (parent !== rootPid) {
       if (seen.has(parent) || !live.includes(parent)) return false;
@@ -38,7 +38,7 @@ export function canonicalRemoteCopilotCommand(
   executableIdentity: { dev: string; ino: string },
   descriptor?: { path: string; dev: string; ino: string },
 ): readonly string[] {
-  if (!/^\/[^\u0000-\u0020]*\/paperclip-acpx-native-[A-Za-z0-9_-]+\/distribution\/copilot$/u.test(executable)) return command;
+  if (!/^\/[^\u0000-\u0020]*\/nexus-acpx-native-[A-Za-z0-9_-]+\/distribution\/copilot$/u.test(executable)) return command;
   if (command[0] === executable) return command;
   if (!/^\/proc\/self\/fd\/(?:3|7)$/u.test(command[0] ?? "") || !descriptor
     || descriptor.path !== executable || descriptor.dev !== executableIdentity.dev || descriptor.ino !== executableIdentity.ino) return command;
@@ -67,5 +67,5 @@ export function assertCopilotProviderDeath(input: { pending: ActiveStopPending; 
   const expirySeq = rows.find(row => row.payload.prpEvent === expiry[0])!.seq;
   if (allNotices.some(n => n.stage === "tool" && n.seq >= expirySeq && !(n.toolCallId === pending.toolCallId && n.operation === "edit" && n.status === "failed"))) throw new Error("Provider death executed an operation after callback expiry");
   if (!events.some(event => ["turn.failed", "turn.interrupted"].includes(event.eventType) && event.turnId === pending.turnId)) throw new Error("Provider death lacks a failed provider turn");
-  return { schema: "paperclip.e2e.copilot-provider-death.v1", runId: run.id, requestId: pending.requestId, expired: true, mutationReplay: false };
+  return { schema: "nexus.e2e.copilot-provider-death.v1", runId: run.id, requestId: pending.requestId, expired: true, mutationReplay: false };
 }

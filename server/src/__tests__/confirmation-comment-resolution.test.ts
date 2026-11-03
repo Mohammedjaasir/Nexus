@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { activityLog, agents, authUsers, companies, companyMemberships, createDb, documents, documentRevisions, heartbeatRuns,
-  issueComments, issueDocuments, issues, issueThreadInteractions } from "@paperclipai/db";
+  issueComments, issueDocuments, issues, issueThreadInteractions } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveConfirmationFromComment } from "../services/confirmation-comment-resolution.js";
 import { issueThreadInteractionService } from "../services/issue-thread-interactions.js";
@@ -10,7 +10,7 @@ import { pendingNativeGovernance } from "../services/native-runtime/native-run-f
 import { getConversationConfirmationContext } from "../services/conversation-confirmation-context.js";
 
 const { resolvedTelemetry } = vi.hoisted(() => ({ resolvedTelemetry: vi.fn() }));
-vi.mock("@paperclipai/shared/telemetry", async importOriginal => ({
+vi.mock("@nexusai/shared/telemetry", async importOriginal => ({
   ...await importOriginal<Record<string, unknown>>(), trackInteractionResolved: resolvedTelemetry, trackInteractionCreated: vi.fn(),
 }));
 vi.mock("../telemetry.js", async importOriginal => ({
@@ -30,7 +30,7 @@ const support = await getEmbeddedPostgresTestSupport();
       await db.insert(authUsers).values({ id: "operator", name: "Operator", email: "operator@example.test", createdAt: new Date(), updatedAt: new Date() }).onConflictDoNothing();
       await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: "operator", status: "active", membershipRole: "member" });
     }
-    await db.insert(agents).values({ id: agentId, companyId, name: "Planner", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Planner", adapterType: "nexus_runner" });
     const [issue] = await db.insert(issues).values({ id: issueId, companyId, title: "Proposal", status: "in_progress", assigneeAgentId: agentId,
       ...(conversation ? { conversationAgentId: agentId, conversationUserId: "operator", conversationState: "active", conversationSessionGeneration: 1 } : {}) }).returning();
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, nativeIssueId: issueId, status: "running", runtimeMode: "native", contextSnapshot: { issueId, conversationSessionGeneration: 1 } });

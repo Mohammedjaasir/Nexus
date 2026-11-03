@@ -7,7 +7,7 @@ export type CompanySkillTrustLevel = "markdown_only" | "assets" | "scripts_execu
 
 export type CompanySkillCompatibility = "compatible" | "unknown" | "invalid";
 
-export type CompanySkillSourceBadge = "paperclip" | "github" | "local" | "url" | "catalog" | "skills_sh";
+export type CompanySkillSourceBadge = "nexus" | "github" | "local" | "url" | "catalog" | "skills_sh";
 
 export type CompanySkillSharingScope = "private" | "company" | "public_link";
 

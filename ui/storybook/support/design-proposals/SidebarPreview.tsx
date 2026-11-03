@@ -27,7 +27,7 @@ function SidebarContent({ scenario }: SidebarPreviewProps) {
   return <>
     <DesignPageShell
       title="Sidebar"
-      sidebarStorageKey={`paperclip.design-proposal.sidebar-review.${scenario}.width`}
+      sidebarStorageKey={`nexus.design-proposal.sidebar-review.${scenario}.width`}
       sidebar={<DesignSidebar recentTasks={tasks} onNewTask={() => openNewIssue()} />}
     >
       <div className="max-w-xl space-y-4 text-sm text-muted-foreground">

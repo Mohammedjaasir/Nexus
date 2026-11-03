@@ -1,11 +1,11 @@
-import { workspaceProviderBindingSchema } from "@paperclipai/shared";
+import { workspaceProviderBindingSchema } from "@nexusai/shared";
 import type {
   Environment,
   EnvironmentLease,
   ExecutionWorkspaceConfig,
   WorkspaceRealizationRecord,
   WorkspaceRealizationRequest,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import type { RealizedExecutionWorkspace } from "./workspace-runtime.js";
 import { ENVIRONMENT_DRIVER_TRAITS, getEnvironmentDriverTraits } from "./environment-driver-traits.js";
 
@@ -144,7 +144,7 @@ export function buildWorkspaceRealizationRequest(input: {
     },
     // The additional (referenced) sources carry the read-only referenced-project workspaces. Run
     // preparation resolves them for a local execution target only and exposes each local path to
-    // the agent through the workspace-hints channel (`PAPERCLIP_WORKSPACES_JSON`). A remote target
+    // the agent through the workspace-hints channel (`NEXUS_WORKSPACES_JSON`). A remote target
     // never receives a referenced source: run preparation skips referenced-project resolution on a
     // remote target, so this array is empty there. The `sync` block below therefore realizes only
     // the anchor source; a remote-transport sync of the referenced trees is not implemented yet.

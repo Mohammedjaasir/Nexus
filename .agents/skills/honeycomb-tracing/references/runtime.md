@@ -21,16 +21,16 @@ and the data contract live in
    | `OTEL_EXPORTER_OTLP_ENDPOINT` | `https://api.honeycomb.io` |
    | `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` |
    | `OTEL_EXPORTER_OTLP_HEADERS` | `x-honeycomb-team=<authorized ingest key>` |
-   | `OTEL_SERVICE_NAME` | `paperclip`, or the deliberately selected service identity |
+   | `OTEL_SERVICE_NAME` | `nexus`, or the deliberately selected service identity |
 
    Inject the header through the existing secret manager/process environment;
    do not paste a key into shell history or a tracked `.env`. Confirm region and
    environment from the operator's configuration. An existing collector may be
    the intended endpoint instead of direct Honeycomb ingestion.
-3. For HTTP, supply the **base URL**; the exporter appends `/v1/traces`. Paperclip
+3. For HTTP, supply the **base URL**; the exporter appends `/v1/traces`. Nexus
    intentionally constructs HTTP exporters without an explicit URL so they read
    the standard environment variables. A signal-specific variable alone does
-   not activate Paperclip: the bootstrap gate checks the generic
+   not activate Nexus: the bootstrap gate checks the generic
    `OTEL_EXPORTER_OTLP_ENDPOINT`.
 4. For gRPC, use the appropriate TLS endpoint and matching exporter; the protocol
    defaults to gRPC when unset. Unknown protocol strings warn and fall back to
@@ -50,10 +50,10 @@ Classic. Confirm current provider requirements when changing setup.
 
 ## Identify the serving version
 
-Paperclip resolves `service.version` from the build stamp
+Nexus resolves `service.version` from the build stamp
 (`dist/build-info.json`), then runtime Git, then `OTEL_SERVICE_VERSION`, then
 `unknown`. The build stamp wins over a stale environment variable. Docker builds
-without `.git` use `PAPERCLIP_BUILD_COMMIT` to populate the stamp.
+without `.git` use `NEXUS_BUILD_COMMIT` to populate the stamp.
 
 Match the trace's version with actual runtime/deployment evidence. Record source
 revision and observation time; an opaque desired release or current local HEAD

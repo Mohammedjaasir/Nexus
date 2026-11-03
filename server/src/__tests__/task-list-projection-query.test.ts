@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { activityLog, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, issueComments, issues } from "@paperclipai/db";
+import { activityLog, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, issueComments, issues } from "@nexusai/db";
 import { issueService } from "../services/issues.js";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { captureTaskListQuery, seedTaskListProjectionFixture, type ListFilters } from "./helpers/task-list-projection-fixture.js";

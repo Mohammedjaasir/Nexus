@@ -6,9 +6,9 @@ import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { eq } from "drizzle-orm";
-import { agents, companies, closeRegisteredClients, createDb, heartbeatRuns, issues, nativeRunFinalizations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { agents, companies, closeRegisteredClients, createDb, heartbeatRuns, issues, nativeRunFinalizations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
-import { defaultCapabilityRunnerdBinary } from "../../vendor/paperclip-runner/index.js";
+import { defaultCapabilityRunnerdBinary } from "../../vendor/nexus-runner/index.js";
 import { startEmbeddedPostgresTestDatabase } from "./embedded-postgres.js";
 import { registerRunnerPrpAuthority, runnerPrpWebSocketInternals, setupRunnerPrpWebSocketServer } from "../../realtime/runner-prp-ws.js";
 import { readProcessStartedAt } from "../../services/hot-restart.js";
@@ -23,7 +23,7 @@ export const describeEmbeddedPostgres: typeof describe.skip = recoveryPostgresSu
 
 export const fakeCodexAppServer = resolve(
   import.meta.dirname,
-  "../../../../packages/paperclip-runner/runner/target/debug/fake-codex-app-server",
+  "../../../../packages/nexus-runner/runner/target/debug/fake-codex-app-server",
 );
 const binariesAvailable =
   existsSync(defaultCapabilityRunnerdBinary()) && existsSync(fakeCodexAppServer);
@@ -81,10 +81,10 @@ export async function stopOwnedProcessGroup(
 export function nativeRestartFixture() {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let runtimeRoot: string;
-  let paperclipHome: string;
+  let nexusHome: string;
   let server: Server | null = null;
   let apiUrl: string;
-  const originalPaperclipHome = process.env.PAPERCLIP_HOME;
+  const originalNexusHome = process.env.NEXUS_HOME;
   let isolatedHome: ReturnType<typeof createIsolatedTestHome>;
 
   const companyId = randomUUID();
@@ -95,8 +95,8 @@ export function nativeRestartFixture() {
     temporary = await startRecoveryPostgres("native-runner-restart-recovery-");
     runtimeRoot = await mkdtemp(resolve(tmpdir(), "native-restart-runtime-"));
     isolatedHome = createIsolatedTestHome();
-    paperclipHome = isolatedHome.home;
-    process.env.PAPERCLIP_HOME = paperclipHome;
+    nexusHome = isolatedHome.home;
+    process.env.NEXUS_HOME = nexusHome;
     const controllerStartedAt = await readProcessStartedAt(process.pid);
     successor = {
       bootId: randomUUID(),
@@ -129,7 +129,7 @@ export function nativeRestartFixture() {
       name: "Native restart runner",
       role: "engineer",
       status: "active",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: { provider: "codex" },
       runtimeConfig: {},
       permissions: {},
@@ -149,8 +149,8 @@ export function nativeRestartFixture() {
     await temporary?.cleanup();
     if (runtimeRoot) await rm(runtimeRoot, { recursive: true, force: true });
     isolatedHome?.cleanup();
-    if (originalPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = originalPaperclipHome;
+    if (originalNexusHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = originalNexusHome;
   });
 
   async function seedRun(
@@ -242,11 +242,11 @@ export function nativeRestartFixture() {
     };
   }
 
-  return { seedRun, transportOptions, get current() { return { temporary, runtimeRoot, paperclipHome, apiUrl, companyId, agentId, successor }; } };
+  return { seedRun, transportOptions, get current() { return { temporary, runtimeRoot, nexusHome, apiUrl, companyId, agentId, successor }; } };
 }
 
 export function remotePreparedWorkspace() {
-  return { schema: "paperclip.native-workspace-sync/v3", state: "prepared",
+  return { schema: "nexus.native-workspace-sync/v3", state: "prepared",
     descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null,
     workspaceId: randomUUID(), leaseId: randomUUID(), providerLeaseId: randomUUID(),
     remoteCwd: "/workspace", resourceDisposition: "destroy" };

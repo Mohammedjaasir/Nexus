@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
-import type { IssueLockedStub, IssueRelationIssueSummary } from "@paperclipai/shared";
+import type { IssueLockedStub, IssueRelationIssueSummary } from "@nexusai/shared";
 import { Link } from "@/lib/router";
 import { cn } from "../lib/utils";
 import { LockedIssueChip, isLockedIssueStub } from "./LockedIssueChip";
@@ -34,7 +34,7 @@ export function IssueReferencePill({
   const classNames = cn(
     variant === "property" || onRemove
       ? cn(badgeVariants({ variant: "outline" }), "min-w-0 max-w-full shrink font-normal no-underline")
-      : "paperclip-mention-chip paperclip-mention-chip--issue inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs no-underline",
+      : "nexus-mention-chip nexus-mention-chip--issue inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs no-underline",
     issue.identifier && "hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-(length:--rad-3) focus-visible:ring-ring",
     onRemove && "pr-6",
     strikethrough && "opacity-60 line-through decoration-muted-foreground",

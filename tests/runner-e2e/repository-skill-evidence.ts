@@ -16,9 +16,9 @@ export function repositoryRuntimeSessionRoot(instanceRoot: string, sessionId: st
   const canonical = (value: any): string => value && typeof value === "object"
     ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`
     : JSON.stringify(value);
-  const scope = { schema: "paperclip.native-session-scope.v2", companyId: owner.companyId, agentId: owner.agentId,
+  const scope = { schema: "nexus.native-session-scope.v2", companyId: owner.companyId, agentId: owner.agentId,
     workspace: { kind: "transient", ...owner.workspace }, provider: { driverKind: owner.driverKind, identity: { kind: "codex" } }, normalizedSessionId: sessionId };
-  return path.join(instanceRoot, "runtime", "paperclip-runner", "durable-sessions", createHash("sha256").update(canonical(scope)).digest("hex"));
+  return path.join(instanceRoot, "runtime", "nexus-runner", "durable-sessions", createHash("sha256").update(canonical(scope)).digest("hex"));
 }
 
 /** Bind disk locations to the active native session, rather than library caches. */
@@ -30,14 +30,14 @@ export function isOwnedRepositoryRuntimeRoot(root: string, sessionId: string, lo
   if (location.kind === "local") return parent === path.join(repositoryRuntimeSessionRoot(location.instanceRoot, sessionId, location.owner), "codex-home", "skills")
     || (location.contextSkills?.sessionId === sessionId && location.contextSkills.roots.includes(root)
       && parent === path.join(location.instanceRoot, "runtime-context-assets", "bundles"));
-  const filesystem = path.posix.join(location.remoteCwd, ".paperclip-runtime", "paperclip-runner", "sessions", digest, "filesystem");
+  const filesystem = path.posix.join(location.remoteCwd, ".nexus-runtime", "nexus-runner", "sessions", digest, "filesystem");
   return parent === path.posix.join(filesystem, "codex-home", "skills")
     || parent === path.posix.join(filesystem, "context", "skills");
 }
 
 /** Independent disk evidence; never follows imported links or reads provider auth. */
 export function inspectRepositoryBundle(root: string): RepositoryBundleReceipt {
-  const canonical = path.join(root, ".paperclip-repository");
+  const canonical = path.join(root, ".nexus-repository");
   if (lstatSync(canonical).isSymbolicLink() || realpathSync(canonical) !== canonical) throw new Error("Repository root is not a regular directory");
   const files: RepositoryFileReceipt[] = [];
   function walk(directory: string) {
@@ -61,7 +61,7 @@ export function remoteRepositoryInspector(roots: string[]): string {
   const source = `const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 function inspect(root) {
   root=fs.realpathSync(root);
-  const canonical=path.join(root,'.paperclip-repository'),files=[];
+  const canonical=path.join(root,'.nexus-repository'),files=[];
   if(fs.lstatSync(canonical).isSymbolicLink()||fs.realpathSync(canonical)!==canonical) throw Error('Invalid repository root');
   function walk(directory) { for(const name of fs.readdirSync(directory).sort()) {
     const file=path.join(directory,name),stat=fs.lstatSync(file);
@@ -82,7 +82,7 @@ export function gradeRepositoryBundles(bundles: RepositoryBundleReceipt[], expec
   const sorted = (files: RepositoryFileReceipt[]) => [...files].sort((a, b) => a.path.localeCompare(b.path));
   return [
     { id: "two-distinct-runtime-packages", passed: bundles.length === skills.length && new Set(bundles.map(bundle => bundle.root)).size === skills.length },
-    ...skills.map(skill => ({ id: `canonical-${skill}`, passed: bundles.filter(bundle => bundle.wrapper.includes(`.paperclip-repository/skills/${skill}/SKILL.md`)).length === 1 })),
+    ...skills.map(skill => ({ id: `canonical-${skill}`, passed: bundles.filter(bundle => bundle.wrapper.includes(`.nexus-repository/skills/${skill}/SKILL.md`)).length === 1 })),
     { id: "complete-original-repository-bytes-and-modes", passed: bundles.length === skills.length && bundles.every(bundle => JSON.stringify(sorted(bundle.files)) === JSON.stringify(sorted(expected))) },
   ];
 }

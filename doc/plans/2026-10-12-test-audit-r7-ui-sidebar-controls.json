@@ -100,7 +100,7 @@
         "logSha256": "6cf3b4b626a80e4443325c75f7fe1887f12425322f142d93b69c476fcda9e8f3",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'Company menuNew TaskSearchDashboardIn\u2026' not to contain 'Workspaces'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/Sidebar.test.tsx:270:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'Company menuNew TaskSearchDashboardIn\u2026' not to contain 'Workspaces'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/Sidebar.test.tsx:270:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -127,7 +127,7 @@
         "logSha256": "d58f1e168ce951a214c10f9b2a690b061fc98113b3645ce1504129606a247620",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected [ 'Search', 'Dashboard', \u2026(10) ] to not include 'Goals'\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2077:15)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/Sidebar.test.tsx:271:92\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected [ 'Search', 'Dashboard', \u2026(10) ] to not include 'Goals'\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2077:15)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/Sidebar.test.tsx:271:92\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -154,7 +154,7 @@
         "logSha256": "c03a4143999fc21ff93cd6e945113cb76c140c34483515a26f4321eb84b25d24",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'Company menuNew TaskSearchDashboardIn\u2026' not to contain 'Conference Room'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/Sidebar.test.tsx:273:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'Company menuNew TaskSearchDashboardIn\u2026' not to contain 'Conference Room'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/Sidebar.test.tsx:273:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -181,7 +181,7 @@
         "logSha256": "bf37d6a6eddb8da880fd0fff2680369b11cd9784d81d0f1d36fc7129ea3be981",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'Company menuNew TaskSearchDashboardIn\u2026' not to contain 'Pipelines'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/Sidebar.test.tsx:274:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'Company menuNew TaskSearchDashboardIn\u2026' not to contain 'Pipelines'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/Sidebar.test.tsx:274:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -208,7 +208,7 @@
         "logSha256": "528addefacd70920cd7fd16fbc15cb6be237fdc21379d6e61722ee847648aa3f",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected null not to be null\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/Sidebar.test.tsx:272:86\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected null not to be null\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/Sidebar.test.tsx:272:86\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     }

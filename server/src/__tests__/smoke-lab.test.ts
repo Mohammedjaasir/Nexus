@@ -22,14 +22,14 @@ import {
   toolProfileBindings,
   toolProfileEntries,
   toolProfiles,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { smokeLabRoutes } from "../routes/smoke-lab.js";
 import { SMOKE_LAB_OAUTH_SCOPE } from "../services/smoke-lab.js";
 import { errorHandler } from "../middleware/index.js";
 
-const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_SMOKE_LAB_TEST_DATABASE_URL");
+const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_SMOKE_LAB_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalTestDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -107,7 +107,7 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    if (!externalTestDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-smoke-lab-");
+    if (!externalTestDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-smoke-lab-");
     if (externalTestDatabaseUrl) await applyPendingMigrations(externalTestDatabaseUrl);
     db = createDb(externalTestDatabaseUrl ?? tempDb!.connectionString);
   }, 20_000);
@@ -169,7 +169,7 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
       .query({ client_id: "smoke-client", redirect_uri: redirectUri, state: "state-1", response_type: "code" })
       .expect(200);
     expect(page.text).toContain("SMOKE TEST - not a real provider");
-    expect(page.text).toContain("smoke@paperclip.test");
+    expect(page.text).toContain("smoke@nexus.test");
     expect(page.text).toContain(SMOKE_LAB_OAUTH_SCOPE);
 
     const authorizeBody = {
@@ -178,7 +178,7 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
       state: "state-1",
       response_type: "code",
       scope: SMOKE_LAB_OAUTH_SCOPE,
-      email: "smoke@paperclip.test",
+      email: "smoke@nexus.test",
       password: "smoke-password",
     };
     const authorize = await request(app)
@@ -227,7 +227,7 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
       .get(`/api/companies/${company.id}/smoke-lab/oauth/userinfo`)
       .set("Authorization", `Bearer ${refreshed.body.access_token}`)
       .expect(200);
-    expect(userinfo.body).toMatchObject({ sub: "smoke-user-1", email: "smoke@paperclip.test" });
+    expect(userinfo.body).toMatchObject({ sub: "smoke-user-1", email: "smoke@nexus.test" });
 
     await request(app)
       .post(`/api/companies/${company.id}/smoke-lab/oauth/revoke`)
@@ -259,7 +259,7 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
         client_id: "smoke-client",
         redirect_uri: redirectUri,
         scope: "repo user:email offline_access",
-        email: "smoke@paperclip.test",
+        email: "smoke@nexus.test",
         password: "smoke-password",
       })
       .expect(400);
@@ -269,7 +269,7 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
     const company = await createCompany(db);
     await enableSmokeLab(db);
     const app = createRouteApp(db);
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", "http://paperclip-dev:45439");
+    vi.stubEnv("NEXUS_PUBLIC_URL", "http://nexus-dev:45439");
 
     // A redirect host that is neither loopback nor the instance's own origin
     // could leak fixture authorization codes off the gated deployment.
@@ -282,7 +282,7 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
     // any private instance, e.g. an authenticated Tailscale host.
     await request(app)
       .get(`/api/companies/${company.id}/smoke-lab/oauth/authorize`)
-      .query({ client_id: "smoke-client", redirect_uri: "http://paperclip-dev:45439/callback", response_type: "code" })
+      .query({ client_id: "smoke-client", redirect_uri: "http://nexus-dev:45439/callback", response_type: "code" })
       .expect(200);
 
     await request(app)
@@ -290,8 +290,8 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
       .type("form")
       .send({
         client_id: "smoke-client",
-        redirect_uri: "http://paperclip-dev:45439/api/tools/oauth/callback",
-        email: "smoke@paperclip.test",
+        redirect_uri: "http://nexus-dev:45439/api/tools/oauth/callback",
+        email: "smoke@nexus.test",
         password: "smoke-password",
       })
       .expect(302);
@@ -302,7 +302,7 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
       .send({
         client_id: "smoke-client",
         redirect_uri: "http://127.0.0.2/callback",
-        email: "smoke@paperclip.test",
+        email: "smoke@nexus.test",
         password: "smoke-password",
       })
       .expect(302);
@@ -313,7 +313,7 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
       .send({
         client_id: "smoke-client",
         redirect_uri: "ftp://localhost/callback",
-        email: "smoke@paperclip.test",
+        email: "smoke@nexus.test",
         password: "smoke-password",
       })
       .expect(400);
@@ -323,8 +323,8 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
     const company = await createCompany(db);
     await enableSmokeLab(db);
     const app = createRouteApp(db);
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", "");
-    vi.stubEnv("PAPERCLIP_AUTH_PUBLIC_BASE_URL", "");
+    vi.stubEnv("NEXUS_PUBLIC_URL", "");
+    vi.stubEnv("NEXUS_AUTH_PUBLIC_BASE_URL", "");
     vi.stubEnv("BETTER_AUTH_URL", "");
     vi.stubEnv("BETTER_AUTH_BASE_URL", "");
 
@@ -398,7 +398,7 @@ describeEmbeddedPostgres("smoke lab service pack and results API", () => {
         scenarioStep: "oauth-login",
         status: "pass",
         detail: "OAuth login completed",
-        screenshotArtifactRef: { provider: "paperclip", attachmentId: randomUUID() },
+        screenshotArtifactRef: { provider: "nexus", attachmentId: randomUUID() },
         durationMs: 42,
       })
       .expect(201);

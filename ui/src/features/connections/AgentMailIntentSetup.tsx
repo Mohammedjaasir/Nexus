@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { isUuidLike } from "@paperclipai/shared";
+import { isUuidLike } from "@nexusai/shared";
 import { emailApi } from "@/api/email";
 import { Button } from "@/components/ui/button";
 import { AgentMailCredentialField } from "./AgentMailCredentialField";
@@ -30,7 +30,7 @@ export function AgentMailIntentSetup({ companyId, agentId, requestId, savedCrede
   onDecline(): void;
   declining?: boolean;
 }) {
-  const draftKey = `paperclip.agentmail-inline:${companyId}:${requestId}`;
+  const draftKey = `nexus.agentmail-inline:${companyId}:${requestId}`;
   const [draft] = useState(() => readDraft(draftKey));
   const [setupRequestId, setSetupRequestId] = useState(draft?.setupRequestId ?? requestId);
   const [apiKey, setApiKey] = useState("");

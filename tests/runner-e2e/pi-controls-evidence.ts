@@ -10,7 +10,7 @@ type Row = Record<string, any>;
 export interface PiControlScope { companyId: string; issueId: string; runId: string; target: string }
 export interface PiControlState { run: Row; issue: Row; events: readonly unknown[]; bootstrapApproval?: PiBootstrapApproval }
 export interface PiControlPending {
-  schema: "paperclip.e2e.pi-control-pending.v1"; bootstrapApproval?: PiBootstrapApproval; scope: PiControlScope; requestId: string; toolCallId: string; executionId: string;
+  schema: "nexus.e2e.pi-control-pending.v1"; bootstrapApproval?: PiBootstrapApproval; scope: PiControlScope; requestId: string; toolCallId: string; executionId: string;
   turnId: string; normalizedSessionId: string; sourceInstanceId: string; itemId: string;
   requestSourceSeq: number; startedSourceSeq: number; requestRowSha256: string; startedRowSha256: string; observedMonotonicNs: string;
 }
@@ -43,7 +43,7 @@ function origin(events: readonly unknown[], scope: PiControlScope, bootstrapAppr
   const created = rows.filter(x => x.event.eventType === "runtime_request.created");
   requireProof(created.length === 1, "one native permission required");
   const card = created[0]!, request = rec(rec(card.event.payload).request);
-  requireProof(request.schema === "paperclip.runtime_request.v2" && request.type === "permission" && request.requestKind === "permission_approval" && request.status === "pending"
+  requireProof(request.schema === "nexus.runtime_request.v2" && request.type === "permission" && request.requestKind === "permission_approval" && request.status === "pending"
     && id(request.requestId) && id(request.itemId) && id(request.details?.toolCallId) && request.turnId === card.event.turnId && id(card.event.turnId)
     && id(card.event.normalizedSessionId) && hasAcpxNativeOrigin(request.origin, "pi", "session/request_permission")
     && Array.isArray(request.choices) && request.choices.some((c: Row) => c.key === "decline"), "native permission identity missing");
@@ -57,8 +57,8 @@ function origin(events: readonly unknown[], scope: PiControlScope, bootstrapAppr
       && x.event.sourceInstanceId === `${card.event.sourceInstanceId}:control`
       && x.event.turnId === card.event.turnId && x.event.normalizedSessionId === card.event.normalizedSessionId
       && (x.event.eventType === "run.result.accepted"
-        ? rec(rec(x.event.payload).result).schema === "paperclip.run_result.v1"
-        : rec(x.event.payload).schema === "paperclip.prp.terminal.v1"))
+        ? rec(rec(x.event.payload).result).schema === "nexus.run_result.v1"
+        : rec(x.event.payload).schema === "nexus.prp.terminal.v1"))
     && (control.length !== 2 || (control[0]!.event.eventType === "run.result.accepted" && control[1]!.event.eventType === "run.terminal")),
   "foreign, duplicate or premature control-plane settlement");
   const executionId = bootstrapReadExecutionId(request.details.toolCallId);
@@ -73,7 +73,7 @@ function origin(events: readonly unknown[], scope: PiControlScope, bootstrapAppr
   requireProof(started.length === 1 && write.filter(x => x.event.eventType === "tool.execution.completed").length <= 1
     && write[0] === started[0] && targetIndex >= 0
     && write.every((x, index) => ["tool.execution.started", "tool.execution.progressed", "tool.execution.completed"].includes(x.event.eventType)
-      && x.event.payload.schema === "paperclip.tool.execution.v1" && x.event.payload.name === "write" && x.event.payload.operation === "edit"
+      && x.event.payload.schema === "nexus.tool.execution.v1" && x.event.payload.name === "write" && x.event.payload.operation === "edit"
       && (x.event.payload.target === scope.target || (index < targetIndex && x.event.payload.target === null && x.event.eventType !== "tool.execution.completed"))
       && x.event.payload.status === (x.event.eventType === "tool.execution.completed" ? "failed" : "running")), "exact native write lifecycle missing");
   requireProof(!write.some((x, index) => x.event.eventType === "tool.execution.completed" && index !== write.length - 1), "write activity after terminal");
@@ -89,13 +89,13 @@ export function observePiControlPending(input: PiControlState & { scope: PiContr
     && run.resultJson?.startupCancellation == null && run.resultJson?.nativeCancellation == null, "run is not fresh active work");
   requireProof(!p.rows.some(x => terminalTypes.has(x.event.eventType) || closureTypes.has(x.event.eventType)
     || (x.event.eventType === "tool.execution.completed" && x.event.payload.executionId === p.executionId)), "permission already answered or provider settled");
-  return { schema: "paperclip.e2e.pi-control-pending.v1", ...(input.bootstrapApproval ? { bootstrapApproval: input.bootstrapApproval } : {}), scope, requestId: p.request.requestId, toolCallId: p.request.details.toolCallId, executionId: p.executionId,
+  return { schema: "nexus.e2e.pi-control-pending.v1", ...(input.bootstrapApproval ? { bootstrapApproval: input.bootstrapApproval } : {}), scope, requestId: p.request.requestId, toolCallId: p.request.details.toolCallId, executionId: p.executionId,
     turnId: p.card.event.turnId, normalizedSessionId: p.card.event.normalizedSessionId, sourceInstanceId: p.card.event.sourceInstanceId, itemId: p.request.itemId,
     requestSourceSeq: p.card.event.sourceSeq, startedSourceSeq: p.started.event.sourceSeq, requestRowSha256: hash(p.card.row), startedRowSha256: hash(p.started.row), observedMonotonicNs: process.hrtime.bigint().toString() };
 }
 function retained(input: PiControlState & { pending: PiControlPending }) {
   const b = input.pending;
-  requireProof(b.schema === "paperclip.e2e.pi-control-pending.v1", "pending receipt missing");
+  requireProof(b.schema === "nexus.e2e.pi-control-pending.v1", "pending receipt missing");
   const p = origin(input.events, b.scope, b.bootstrapApproval);
   requireProof(hash(p.card.row) === b.requestRowSha256 && hash(p.started.row) === b.startedRowSha256 && p.card.event.sourceSeq === b.requestSourceSeq && p.started.event.sourceSeq === b.startedSourceSeq
     && p.request.requestId === b.requestId && p.request.details.toolCallId === b.toolCallId && p.executionId === b.executionId && p.request.itemId === b.itemId
@@ -121,10 +121,10 @@ export function readPiStopSettlement(input: PiControlState & { pending: PiContro
   requireProof(run.id === b.scope.runId && run.companyId === b.scope.companyId && run.nativeIssueId === b.scope.issueId && run.status === "cancelled" && run.runtimeMode === "native"
     && issue.id === b.scope.issueId && issue.companyId === b.scope.companyId && issue.status === "in_progress"
     && startup.requestedBy?.type === caller.type && startup.requestedBy?.userId === caller.userId && startup.cancellationRequestId === input.cancellationRequestId
-    && stop.schema === "paperclip.native-cancellation.v1" && stop.intentId === `native-cancellation:${input.cancellationRequestId}` && stop.companyId === b.scope.companyId && stop.runId === run.id && stop.issueId === issue.id
+    && stop.schema === "nexus.native-cancellation.v1" && stop.intentId === `native-cancellation:${input.cancellationRequestId}` && stop.companyId === b.scope.companyId && stop.runId === run.id && stop.issueId === issue.id
     && stop.scope === "run" && stop.dispatched === true && stop.dispatchState === "acknowledged" && stop.reasonCode === "cancellation_run_only"
     && Array.isArray(stop.effects) && stop.effects.length === 1 && stop.effects[0] === "release_run_resources" && id(stop.intentAuditId) && id(stop.acknowledgementAuditId) && stop.intentAuditId !== stop.acknowledgementAuditId, "same-scope caller Stop acknowledgement missing");
-  return { schema: "paperclip.e2e.pi-stop-settlement.v1", pending: b, cancellationRequestId: input.cancellationRequestId, dispatchMonotonicNs: input.dispatchMonotonicNs,
+  return { schema: "nexus.e2e.pi-stop-settlement.v1", pending: b, cancellationRequestId: input.cancellationRequestId, dispatchMonotonicNs: input.dispatchMonotonicNs,
     closedRowSha256: hash(c.row), terminalRowSha256: hash(t.row), intentId: stop.intentId, intentAuditId: stop.intentAuditId, acknowledgementAuditId: stop.acknowledgementAuditId, normalCompletionAccepted: false };
 }
 export function readPiSteeringAcknowledgement(input: PiControlState & { pending: PiControlPending; commentId: string; queueId: string }) {
@@ -137,7 +137,7 @@ export function readPiSteeringAcknowledgement(input: PiControlState & { pending:
     && id(input.commentId) && id(input.queueId) && saved.status === "acknowledged" && saved.queueId === input.queueId && saved.turnId === b.turnId && Number.isFinite(Date.parse(saved.acknowledgedAt))
     && receipts.length === 1 && receipts[0]!.event.itemId === `${b.turnId}:steer:${input.commentId}` && receipts[0]!.event.payload.status === "acknowledged"
     && receipts[0]!.event.payload.mode === "steer" && receipts[0]!.event.sourceSeq > Math.max(b.requestSourceSeq, b.startedSourceSeq), "same-turn steering acknowledgement missing");
-  return { schema: "paperclip.e2e.pi-steering-ack.v1", commentId: input.commentId, queueId: input.queueId, turnId: b.turnId, sourceSeq: receipts[0]!.event.sourceSeq, rowSha256: hash(receipts[0]!.row) };
+  return { schema: "nexus.e2e.pi-steering-ack.v1", commentId: input.commentId, queueId: input.queueId, turnId: b.turnId, sourceSeq: receipts[0]!.event.sourceSeq, rowSha256: hash(receipts[0]!.row) };
 }
 export function readPiSteeringSettlement(input: PiControlState & { pending: PiControlPending; commentId: string; queueId: string; marker: string; finalMessage: string }) {
   const ack = readPiSteeringAcknowledgement(input), p = retained(input), b = input.pending;
@@ -156,5 +156,5 @@ export function readPiSteeringSettlement(input: PiControlState & { pending: PiCo
     && input.issue.id === b.scope.issueId && input.issue.companyId === b.scope.companyId && input.issue.status === "done"
     && input.run.resultJson?.nativeCancellation == null && input.run.resultJson?.startupCancellation == null
     && /^PI-STEER-[a-f0-9]{32}$/u.test(input.marker) && input.finalMessage === input.marker, "steering was not consumed in the original denied-write turn");
-  return { schema: "paperclip.e2e.pi-steering-settlement.v1", pending: b, acknowledgement: ack, marker: input.marker, terminalRowSha256: hash(terminal[0]!.row), nativeFollowUpTested: false };
+  return { schema: "nexus.e2e.pi-steering-settlement.v1", pending: b, acknowledgement: ack, marker: input.marker, terminalRowSha256: hash(terminal[0]!.row), nativeFollowUpTested: false };
 }

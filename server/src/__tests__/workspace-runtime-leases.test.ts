@@ -10,7 +10,7 @@ import {
   heartbeatRuns,
   issues,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -37,7 +37,7 @@ describeEmbeddedPostgres("execution workspace runtime leases", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-workspace-runtime-lease-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-workspace-runtime-lease-");
     db = createDb(tempDb.connectionString);
     otherProcessDb = createDb(tempDb.connectionString);
   }, 30_000);

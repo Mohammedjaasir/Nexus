@@ -8,12 +8,12 @@ import {
   issueComments,
   issueDocuments,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   COMPANY_SEARCH_EXTRACT_DEFAULT_MATCHES_PER_ISSUE,
   COMPANY_SEARCH_EXTRACT_MAX_MATCHES_PER_ISSUE,
   companySearchExtractQuerySchema,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -65,7 +65,7 @@ describeEmbeddedPostgres("companySearchExtractService", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-company-search-extract-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-company-search-extract-");
     db = createDb(tempDb.connectionString);
     svc = companySearchExtractService(db);
   }, 20_000);
@@ -83,7 +83,7 @@ describeEmbeddedPostgres("companySearchExtractService", () => {
     await tempDb?.cleanup();
   });
 
-  async function createCompany(name = "Paperclip") {
+  async function createCompany(name = "Nexus") {
     const companyId = randomUUID();
     await db.insert(companies).values({
       id: companyId,

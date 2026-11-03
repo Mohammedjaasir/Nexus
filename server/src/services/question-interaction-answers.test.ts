@@ -10,7 +10,7 @@ it("isolates pathological patterns throughout canonical answer validation", () =
     const timer = setInterval(() => { ticks += 1; }, 10);
     try {
       await parseQuestionInteractionAnswers({
-        schema: "paperclip.question_set.v1",
+        schema: "nexus.question_set.v1",
         questions: [{ id: "value", prompt: "Value?", required: true, answerMode: "text", textValidation: { pattern: "^(a+)+$" } }],
       }, [{ questionId: "value", optionIds: [], otherText: "a".repeat(99999) + "!" }], []);
       process.exitCode = 1;

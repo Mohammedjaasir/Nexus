@@ -186,7 +186,7 @@ export async function forwardEvalRequest(input: {
     if (route.mode === "braintrust" && (receipt.cache === "HIT" || receipt.failoverFrom || receipt.failoverTo
         || response.ok && receipt.endpoint !== route.endpointName)) throw new Error("gateway_route_not_qualified");
     const contentType = response.headers.get("content-type") ?? "application/json";
-    input.onHeaders(response.status, { "content-type": contentType, "cache-control": "no-store", "x-paperclip-eval-request-id": requestId });
+    input.onHeaders(response.status, { "content-type": contentType, "cache-control": "no-store", "x-nexus-eval-request-id": requestId });
     const reader = response.body?.getReader();
     const stream = contentType.startsWith("text/event-stream") ? new EvalUsageStream(value => usage.observe(value)) : undefined;
     const chunks: Uint8Array[] = []; let size = 0;

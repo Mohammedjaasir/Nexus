@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { connectionGrants, createDb, toolMcpGatewayTokens, toolPolicies, startEmbeddedPostgresTestDatabase, getEmbeddedPostgresTestSupport } from "@paperclipai/db";
+import { connectionGrants, createDb, toolMcpGatewayTokens, toolPolicies, startEmbeddedPostgresTestDatabase, getEmbeddedPostgresTestSupport } from "@nexusai/db";
 import { createToolGatewayService } from "../services/tool-gateway.js";
 import { mcpGatewayProtocolRoutes } from "../routes/tool-gateway.js";
 import { createListingFixture } from "./helpers/tool-gateway-listing-fixture.js";
@@ -14,7 +14,7 @@ suite("MCP discovery over HTTP", () => {
   let db!: ReturnType<typeof createDb>;
   let temp!: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   beforeAll(async () => {
-    temp = await startEmbeddedPostgresTestDatabase("paperclip-discovery-http-");
+    temp = await startEmbeddedPostgresTestDatabase("nexus-discovery-http-");
     db = createDb(temp.connectionString);
   });
   afterAll(async () => { await temp?.cleanup(); });

@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, isNotNull, sql } from "drizzle-orm";
 import { chatActions, chatConversations, chatDeliveries, chatEndpointLeases, chatEndpointResources,
-  chatEndpoints, chatMessageLinks, heartbeatRuns, issues, type Db } from "@paperclipai/db";
+  chatEndpoints, chatMessageLinks, heartbeatRuns, issues, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "../../delivery-work-coordinator.js";
 import { DELIVERY_QUEUES } from "../../delivery-work-notifications.js";
 import type { ChatResponseScope } from "../../chat-response-availability.js";

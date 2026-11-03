@@ -1,4 +1,4 @@
-import { fastResponseHistoryBody } from "@paperclipai/shared";
+import { fastResponseHistoryBody } from "@nexusai/shared";
 import { readTaskQuestionContext } from "../issue-question-context.js";
 import { isConversation } from "../agent-conversations.js";
 import {
@@ -8,7 +8,7 @@ import {
 } from "../source-trust.js";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   documentRevisions,
@@ -17,20 +17,20 @@ import {
   issueComments,
   issueDocuments,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
-  PaperclipSemanticDispatcher,
-  type PaperclipJsonValue,
-  type PaperclipSemanticActionBinding,
-  type PaperclipSemanticActionId,
-  type PaperclipSemanticAuthorizationRecord,
-  type PaperclipSemanticRunContext,
-  type PaperclipSemanticToolCall,
-  type PaperclipSemanticToolDefinition,
-  type PaperclipSemanticToolResult,
-} from "../../vendor/paperclip-runner/index.js";
+  NexusSemanticDispatcher,
+  type NexusJsonValue,
+  type NexusSemanticActionBinding,
+  type NexusSemanticActionId,
+  type NexusSemanticAuthorizationRecord,
+  type NexusSemanticRunContext,
+  type NexusSemanticToolCall,
+  type NexusSemanticToolDefinition,
+  type NexusSemanticToolResult,
+} from "../../vendor/nexus-runner/index.js";
 
-export interface PaperclipRunnerSemanticBinding {
+export interface NexusRunnerSemanticBinding {
   readonly companyId: string;
   readonly issueId: string;
   readonly runId: string;
@@ -43,7 +43,7 @@ const READ_OPERATION_IDS = [
   "list_documents",
   "read_document",
   "list_document_revisions",
-] as const satisfies readonly PaperclipSemanticActionId[];
+] as const satisfies readonly NexusSemanticActionId[];
 
 type BoundContext = {
   readonly run: typeof heartbeatRuns.$inferSelect;
@@ -59,13 +59,13 @@ function boundedLimit(value: unknown): number {
 
 function requiredString(value: unknown): string {
   if (typeof value !== "string" || value.length === 0 || value.length > 240) {
-    throw new Error("paperclip_runner_semantic_input_invalid");
+    throw new Error("nexus_runner_semantic_input_invalid");
   }
   return value;
 }
 
-function jsonValue(value: unknown): PaperclipJsonValue {
-  return JSON.parse(JSON.stringify(value)) as PaperclipJsonValue;
+function jsonValue(value: unknown): NexusJsonValue {
+  return JSON.parse(JSON.stringify(value)) as NexusJsonValue;
 }
 
 function activeAgentStatus(status: string): "active" | "inactive" {
@@ -79,15 +79,15 @@ function activeAgentStatus(status: string): "active" | "inactive" {
  * This first server slice binds only same-task read operations. A catalog
  * entry remains undiscoverable until a later PR adds its guarded binding.
  */
-export class PaperclipRunnerSemanticAuthority {
+export class NexusRunnerSemanticAuthority {
   readonly #db: Db;
-  readonly #binding: PaperclipRunnerSemanticBinding;
-  readonly #dispatcher: PaperclipSemanticDispatcher;
+  readonly #binding: NexusRunnerSemanticBinding;
+  readonly #dispatcher: NexusSemanticDispatcher;
 
-  constructor(db: Db, binding: PaperclipRunnerSemanticBinding) {
+  constructor(db: Db, binding: NexusRunnerSemanticBinding) {
     this.#db = db;
     this.#binding = structuredClone(binding);
-    this.#dispatcher = new PaperclipSemanticDispatcher({
+    this.#dispatcher = new NexusSemanticDispatcher({
       contextProvider: (runId) => this.#context(runId),
       bindings: READ_OPERATION_IDS.map((operationId) =>
         this.#readBinding(operationId),
@@ -96,24 +96,24 @@ export class PaperclipRunnerSemanticAuthority {
   }
 
   listAlwaysAvailableTools(): Promise<
-    readonly PaperclipSemanticToolDefinition[]
+    readonly NexusSemanticToolDefinition[]
   > {
     return this.#dispatcher.listAlwaysAvailableTools(this.#binding.runId);
   }
 
   dispatch(
-    call: Omit<PaperclipSemanticToolCall, "runId">,
-  ): Promise<PaperclipSemanticToolResult> {
+    call: Omit<NexusSemanticToolCall, "runId">,
+  ): Promise<NexusSemanticToolResult> {
     return this.#dispatcher.dispatch({ ...call, runId: this.#binding.runId });
   }
 
-  authorizationRecords(): readonly PaperclipSemanticAuthorizationRecord[] {
+  authorizationRecords(): readonly NexusSemanticAuthorizationRecord[] {
     return this.#dispatcher.authorizationRecords();
   }
 
   #readBinding(
     operationId: (typeof READ_OPERATION_IDS)[number],
-  ): PaperclipSemanticActionBinding {
+  ): NexusSemanticActionBinding {
     return {
       operationId,
       execute: async (invocation) => {
@@ -247,7 +247,7 @@ export class PaperclipRunnerSemanticAuthority {
                 ),
               )
               .limit(1);
-            if (!row) throw new Error("paperclip_runner_document_not_found");
+            if (!row) throw new Error("nexus_runner_document_not_found");
             return {
               value: jsonValue({ document: row }),
               references: [
@@ -300,9 +300,9 @@ export class PaperclipRunnerSemanticAuthority {
     };
   }
 
-  async #context(requestedRunId: string): Promise<PaperclipSemanticRunContext> {
+  async #context(requestedRunId: string): Promise<NexusSemanticRunContext> {
     if (requestedRunId !== this.#binding.runId) {
-      throw new Error("paperclip_runner_semantic_run_mismatch");
+      throw new Error("nexus_runner_semantic_run_mismatch");
     }
     const context = await this.#loadBoundContext();
     this.#assertActiveContext(context, false);
@@ -323,7 +323,7 @@ export class PaperclipRunnerSemanticAuthority {
         executionRunId: context.issue.executionRunId,
         status: context.issue.status,
         workMode: context.issue
-          .workMode as PaperclipSemanticRunContext["activeTask"]["workMode"],
+          .workMode as NexusSemanticRunContext["activeTask"]["workMode"],
       },
       delegatedClaims: [],
     };
@@ -357,7 +357,7 @@ export class PaperclipRunnerSemanticAuthority {
         ),
       )
       .limit(1);
-    if (!row) throw new Error("paperclip_runner_semantic_binding_not_found");
+    if (!row) throw new Error("nexus_runner_semantic_binding_not_found");
     return row;
   }
 
@@ -369,7 +369,7 @@ export class PaperclipRunnerSemanticAuthority {
         (context.issue.assigneeAgentId !== this.#binding.agentId ||
           context.issue.executionRunId !== this.#binding.runId))
     ) {
-      throw new Error("paperclip_runner_semantic_binding_inactive");
+      throw new Error("nexus_runner_semantic_binding_inactive");
     }
   }
 }

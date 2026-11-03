@@ -1,4 +1,4 @@
-import type { ChatProvider } from "@paperclipai/shared";
+import type { ChatProvider } from "@nexusai/shared";
 
 export const RECEIVER_LEASE_KEYS = {
   discord: "discord_gateway_runtime",

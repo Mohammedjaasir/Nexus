@@ -42,7 +42,7 @@ it("uploads binary bytes directly and applies the requested mode before promotio
   const bytes = Buffer.from([0, 255, 128, 10, 13]);
   await fs.writeFile(source, bytes);
   const result = await syncFiles(client(), { ...params, operations: [{ operationId: "asset", files: [{
-    sourcePath: source, targetPath: "/paperclip-workspace/secret", kind: "file", mode: 0o600,
+    sourcePath: source, targetPath: "/nexus-workspace/secret", kind: "file", mode: 0o600,
   }] }] }, "in", AbortSignal.timeout(5000));
   expect(uploads).toEqual([bytes]);
   expect(run.mock.calls[0][1].args[1]).toContain("chmod 600");
@@ -53,7 +53,7 @@ it("downloads more than the process journal limit through the binary API with ex
   downloads = Buffer.alloc(5 * 1024 * 1024, 0xa5);
   const target = path.join(temp, "result");
   const result = await syncFiles(client(), { ...params, operations: [{ operationId: "workspace", files: [{
-    sourcePath: "/paperclip-workspace/big.bin", targetPath: target, kind: "file", mode: 0o600,
+    sourcePath: "/nexus-workspace/big.bin", targetPath: target, kind: "file", mode: 0o600,
   }] }] }, "out", AbortSignal.timeout(5000));
   expect((await fs.readFile(target)).equals(downloads)).toBe(true);
   expect((await fs.stat(target)).mode & 0o777).toBe(0o600);
@@ -73,7 +73,7 @@ it("never replaces an existing host file with a partial download", async () => {
     return normal(url, init);
   });
   await expect(syncFiles(client(), { ...params, operations: [{ operationId: "file", files: [{
-    sourcePath: "/paperclip-workspace/result", targetPath: target, kind: "file",
+    sourcePath: "/nexus-workspace/result", targetPath: target, kind: "file",
   }] }] }, "out", AbortSignal.timeout(5000))).rejects.toThrow();
   expect(await fs.readFile(target, "utf8")).toBe("original");
   expect(await fs.readdir(temp)).toEqual(["result"]);
@@ -86,12 +86,12 @@ it("preserves directory files, modes, and internal symlinks while honoring exclu
   await fs.writeFile(path.join(source, "node_modules", "skip"), "ignored");
   await fs.symlink("keep", path.join(source, "link"));
   await syncFiles(client(), { ...params, operations: [{ operationId: "directory", files: [{
-    sourcePath: source, targetPath: "/paperclip-workspace/project", kind: "directory", exclude: ["node_modules"],
+    sourcePath: source, targetPath: "/nexus-workspace/project", kind: "directory", exclude: ["node_modules"],
   }] }] }, "in", AbortSignal.timeout(5000));
   downloads = uploads[0];
   const target = path.join(temp, "restored");
   await syncFiles(client(), { ...params, operations: [{ operationId: "directory", files: [{
-    sourcePath: "/paperclip-workspace/project", targetPath: target, kind: "directory",
+    sourcePath: "/nexus-workspace/project", targetPath: target, kind: "directory",
   }] }] }, "out", AbortSignal.timeout(5000));
   expect(await fs.readdir(target)).toEqual(["keep", "link"]);
   expect(await fs.readFile(path.join(target, "keep"), "utf8")).toBe("hello");
@@ -110,7 +110,7 @@ it("rejects an archive carrying an escaping symlink before extracting any files"
   downloads = await fs.readFile(file);
   const target = path.join(temp, "restored");
   await expect(syncFiles(client(), { ...params, operations: [{ operationId: "directory", files: [{
-    sourcePath: "/paperclip-workspace/project", targetPath: target, kind: "directory",
+    sourcePath: "/nexus-workspace/project", targetPath: target, kind: "directory",
   }] }] }, "out", AbortSignal.timeout(5000))).rejects.toThrow("unsafe entries");
   await expect(fs.stat(target)).rejects.toThrow();
 });
@@ -119,14 +119,14 @@ it("runs post-upload commands verbatim and stops after the first failure", async
   const command = "printf 'first'; printf 'second'";
   run.mockImplementation(async (_client, execution) => ({ exitCode: execution.args[1] === command ? 1 : 0, timedOut: false, stdout: "", stderr: "" }));
   await expect(syncFiles(client(), { ...params, operations: [{ operationId: "commands", files: [], postUploadCommands: [
-    { command, cwd: "/paperclip-workspace/project" }, { command: "must-not-run" },
+    { command, cwd: "/nexus-workspace/project" }, { command: "must-not-run" },
   ] }] }, "in", AbortSignal.timeout(5000))).rejects.toThrow("transfer command failed");
   const commands = run.mock.calls.map((call) => call[1].args[1]);
   expect(commands).toContain(command);
   expect(commands).not.toContain("must-not-run");
 });
 
-it.each(["/etc/passwd", "/paperclip-workspace/../secret", "relative", "/paperclip-workspace-other/file"])("rejects unconfined sandbox path %s before any API call", async (sourcePath) => {
+it.each(["/etc/passwd", "/nexus-workspace/../secret", "relative", "/nexus-workspace-other/file"])("rejects unconfined sandbox path %s before any API call", async (sourcePath) => {
   expect(() => assertRemotePath(sourcePath)).toThrow();
   await expect(syncFiles(client(), { ...params, operations: [{ operationId: "bad", files: [{
     sourcePath, targetPath: path.join(temp, "file"), kind: "file",

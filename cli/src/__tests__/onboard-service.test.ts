@@ -57,7 +57,7 @@ it("restores a missing shim without reinstalling the managed payload", async () 
   });
   vi.mocked(isExecutableFile).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
-  const entrypoint = path.join(resolveInstallStorePaths().currentPath, "node_modules", "paperclipai", "dist", "index.js");
+  const entrypoint = path.join(resolveInstallStorePaths().currentPath, "node_modules", "nexusai", "dist", "index.js");
   const existsSync = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => filePath === entrypoint);
   try {
     await expect(ensureServiceShim()).resolves.toEqual({ ok: true, installedNow: true });
@@ -86,7 +86,7 @@ it("does not restore a shim when the managed payload smoke check fails", async (
   vi.mocked(isExecutableFile).mockResolvedValue(false);
   vi.mocked(smokePayload).mockRejectedValueOnce(new Error("payload dependency is missing"));
 
-  const entrypoint = path.join(resolveInstallStorePaths().currentPath, "node_modules", "paperclipai", "dist", "index.js");
+  const entrypoint = path.join(resolveInstallStorePaths().currentPath, "node_modules", "nexusai", "dist", "index.js");
   const existsSync = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => filePath === entrypoint);
   try {
     await expect(ensureServiceShim()).resolves.toEqual({
@@ -126,8 +126,8 @@ function supportedDetection() {
     manager: {
       platform: "systemd" as const,
       instanceId: "default",
-      serviceName: "paperclipai.service",
-      definitionPath: "/tmp/paperclipai.service",
+      serviceName: "nexusai.service",
+      definitionPath: "/tmp/nexusai.service",
       renderDefinition: () => "unit",
       install: vi.fn(async () => ({ changed: true })),
       uninstall: vi.fn(async () => undefined),
@@ -136,7 +136,7 @@ function supportedDetection() {
       restart: vi.fn(async () => undefined),
       status: vi.fn(async () => ({
         platform: "systemd" as const,
-        serviceName: "paperclipai.service",
+        serviceName: "nexusai.service",
         installed: true,
         active: true,
         enabled: true,
@@ -223,7 +223,7 @@ describe("onboard service policy", () => {
 
     expect(installed).toBe(true);
     expect(ensureServiceShim).toHaveBeenCalledOnce();
-    expect(success).toHaveBeenCalledWith(expect.stringContaining("managed paperclipai payload"));
+    expect(success).toHaveBeenCalledWith(expect.stringContaining("managed nexusai payload"));
     expect(detection.manager.install).toHaveBeenCalledWith({ startNow: true, startOnLogin: true });
   });
 
@@ -244,7 +244,7 @@ describe("onboard service policy", () => {
     expect(installed).toBe(false);
     expect(detection.manager.install).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("npm exploded"));
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("paperclipai install"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("nexusai install"));
   });
 
 });
@@ -269,8 +269,8 @@ describe("onboarded service dashboard handoff", () => {
   it("uses the configured public URL when auth requires one", () => {
     expect(resolveOnboardServiceDashboardUrl(dashboardConfig({
       baseUrlMode: "explicit",
-      publicBaseUrl: "https://paperclip.example.com/",
-    }))).toBe("https://paperclip.example.com");
+      publicBaseUrl: "https://nexus.example.com/",
+    }))).toBe("https://nexus.example.com");
   });
 
   it("prints the dashboard URL without opening a browser in non-interactive runs", async () => {
@@ -337,7 +337,7 @@ describe("onboarded service dashboard handoff", () => {
     });
 
     expect(openDashboard).not.toHaveBeenCalled();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("paperclipai service logs"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("nexusai service logs"));
   });
 });
 

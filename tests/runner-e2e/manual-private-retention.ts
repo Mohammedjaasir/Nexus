@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 export const MAX_MANUAL_PRIVATE_CELLS = 8;
-export const MANUAL_PRIVATE_PROTOCOL = "paperclip.manual-private-evidence/v1";
+export const MANUAL_PRIVATE_PROTOCOL = "nexus.manual-private-evidence/v1";
 export const MANUAL_PRIVATE_EXECUTIONS = Object.freeze([
   "activity.agent-feedback",
   "activity.work-timeline",

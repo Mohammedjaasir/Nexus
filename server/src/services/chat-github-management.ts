@@ -1,7 +1,7 @@
 import type { ConnectionManagementContext } from "./connection-management.js";
 import { githubBotCredentials } from "./chat-github-client.js";
 import { toolAccessPolicyService } from "./tool-access-policy.js";
-import { agents, toolCatalogEntries } from "@paperclipai/db";
+import { agents, toolCatalogEntries } from "@nexusai/db";
 import { GITHUB_BOT_TOOLS, syncGitHubBotTools } from "./chat-github-tools.js";
 import { and, desc, eq, sql } from "drizzle-orm";
 import {
@@ -15,12 +15,12 @@ import {
   connectionGrants,
   toolConnections,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   defaultGitHubReviewPolicy,
   updateGitHubChatConfigurationSchema,
   type GitHubChatConfiguration,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { HttpError, badRequest, conflict, forbidden, notFound, unprocessable } from "../errors.js";
 import { toolAccessService } from "./tool-access.js";
 import { logActivity } from "./activity-log.js";
@@ -117,7 +117,7 @@ export function githubChatManagementService(db: Db, fetchImpl = fetch) {
           and(
             eq(chatIdentityLinks.companyId, bot.companyId),
             eq(chatIdentityLinks.endpointId, endpointId),
-            eq(chatIdentityLinks.paperclipUserId, person.userId),
+            eq(chatIdentityLinks.nexusUserId, person.userId),
             eq(chatIdentityLinks.status, "linked"),
             eq(chatExternalPrincipals.externalId, person.githubUserId),
           ),
@@ -302,9 +302,9 @@ export function githubChatManagementService(db: Db, fetchImpl = fetch) {
           ),
         )
         .for("update");
-      if (prior?.status === "linked" && prior.paperclipUserId !== userId)
+      if (prior?.status === "linked" && prior.nexusUserId !== userId)
         throw conflict(
-          "This GitHub account is already linked to another Paperclip member",
+          "This GitHub account is already linked to another Nexus member",
         );
       if (verified.grantId) {
       const [grant] = await tx
@@ -326,7 +326,7 @@ export function githubChatManagementService(db: Db, fetchImpl = fetch) {
         companyId: bot.companyId,
         endpointId,
         principalId: principal!.id,
-        paperclipUserId: userId,
+        nexusUserId: userId,
         status: "linked" as const,
         confirmedAt: new Date(),
         revokedAt: null,
@@ -506,9 +506,9 @@ export function githubChatManagementService(db: Db, fetchImpl = fetch) {
         label: "Agent runtime supports bot tools",
         ok:
           !!agent &&
-          ["paperclip_runner", "codex_local"].includes(agent.adapterType),
+          ["nexus_runner", "codex_local"].includes(agent.adapterType),
         detail:
-          "Use Paperclip Runner or Codex with managed MCP tools. Low-trust execution also requires a valid scoped boundary and isolated sandbox; the test task proves runtime execution.",
+          "Use Nexus Runner or Codex with managed MCP tools. Low-trust execution also requires a valid scoped boundary and isolated sandbox; the test task proves runtime execution.",
       });
       const [savedConfig] = await db
         .select()
@@ -593,7 +593,7 @@ export function githubChatManagementService(db: Db, fetchImpl = fetch) {
             applicationKey: "github-chat",
             connectionId: bot.connectionId,
             catalogEntryId: entry.id,
-            providerType: "paperclip_github_chat",
+            providerType: "nexus_github_chat",
             upstreamToolName: entry.toolName,
             riskLevel: entry.riskLevel,
             arguments: {},

@@ -88,10 +88,10 @@ ports, capabilities })` and, for `add-direction`, by `assembleContext` from a pa
 | `surfaces[]` | `{ id: "inbox", label: "Inbox", width: 960, nav: "other", Pascal: "Inbox", UPPER: "INBOX", fixture: "INBOX_ITEMS", body: "InboxBody", frame: "InboxFrame" }` | kit contract, frames, fixtures, bodies |
 | `multiSurface`, `cells` | `false`, `3` | toolbar row 2, landing rule |
 | `landing` | `{ direction: "all", view: "board" }` | registry; `d=all&s=board` when `cells <= 8`, else `d=all&s=<first surface>` |
-| `capabilities`, `exception`, `notes` | `[]`, the two house sentences | story paperclip block, registry |
+| `capabilities`, `exception`, `notes` | `[]`, the two house sentences | story nexus block, registry |
 | `company`, `tasks` | `{ id: "company-acmehats", name: "acmehats", issuePrefix: "ACM" }`, three tasks | registry shell, fixtures, stub session |
 | `tag` | `[inbox-row-directions]` | the stub's `console.debug` line |
-| `publicUrl`, `vercelProject` | `https://paperclip-inbox-row-directions.vercel.app` | registry, story description |
+| `publicUrl`, `vercelProject` | `https://nexus-inbox-row-directions.vercel.app` | registry, story description |
 | `forceCount` | `false` | `allowMore: true` in the registry |
 | `provenance` | `{ runtimeCommit: <git short sha or "unknown">, skillVersion: "1", createdAt: "YYYY-MM-DD" }` | registry |
 
@@ -123,7 +123,7 @@ Conventions the templates follow, and `write.mjs` enforces on the result:
   `ui/vitest.config.ts` sets `environment: "node"`
 - no file reaches 600 lines (the repo's hard rule is 1,000; 600 is the house limit for a lab file)
 - no `package.json` script or dependency; the lab is invoked through its own vite config
-- strings that the catalog must read as literals (the story's `paperclip` block) are emitted with
+- strings that the catalog must read as literals (the story's `nexus` block) are emitted with
   `JSON.stringify`, never as template interpolation inside the generated file
 
 ## 5. The generated lab, file by file
@@ -159,7 +159,7 @@ hand-maintained literals (`DirectionId`, `DIRECTION_IDS`, `KIT_KEYS`, `KIT_META`
 | `directions/d<N>-<name>/*` | `d5-v1-mvp/` | `index.tsx` importing `./tokens.css`; `tokens.css` (section 6); `MotionSpecimen.tsx` (a `<button>` with two `data-rotate data-spread` backings at inline `-14deg`/`-5deg`, geometry-derived `transform-origin`, static shadow filter, one `[data-front]` sheet, `transition-colors` fills); one `<Pascal>Body.tsx` per surface rendering a specimen per item inside `data-lab-stub="<id>-<surface>"` |
 | `shot.cjs` | `shot.cjs` | reads `window.__LAB__` on a first `chrome=0` load instead of mirrored constants (fails with "page did not expose window.__LAB__; main.tsx did not run, read the console"); `--hover` writes `<kit>__<surface>__<theme>__hover.png` from a context without reduced motion; the board sheet is `150px repeat(<surfaces>, minmax(0,1fr))`; no excuse list |
 | tests | `lab-state.test.ts`, `api-stub.test.ts`, `Thread.test.tsx` | `registry.test.ts`, `lab-state.test.ts`, `motion-contract.test.ts`, `today.test.tsx`, `api-stub.test.ts` (section 7 of `repo-gates.md` for the conventions) |
-| the story | `artifact-directions-compare.stories.tsx` | `installApiStub` in a story-scoped effect with restore; `loadKit`; `SurfaceView`; the `animation` arg sets and restores `data-lab-anim`; `argTypes` and `args` precede `parameters` so `paperclip` is the last parameter; exports `Compare`, `Today`, `D1..DN`, `TodayProductionPalette` |
+| the story | `artifact-directions-compare.stories.tsx` | `installApiStub` in a story-scoped effect with restore; `loadKit`; `SurfaceView`; the `animation` arg sets and restores `data-lab-anim`; `argTypes` and `args` precede `parameters` so `nexus` is the last parameter; exports `Compare`, `Today`, `D1..DN`, `TodayProductionPalette` |
 
 ## 6. The motion asset and the drift test
 
@@ -224,7 +224,7 @@ none of the artifact lab's names (`DENY_LIST` in `check.mjs`: `artifact-directio
 appears in no code file under `ui/src`, `ui/storybook` or at the top of `ui/` outside the lab, its html, its
 config, its story, launch.json and .gitignore;
 no `.css` or `.html` file outside `directions/<id>/tokens.css` carries a `data-lab-anim` rule;
-the story's meta id equals `registry.storyId`, the stable exports exist, the `paperclip` parameter comes
+the story's meta id equals `registry.storyId`, the stable exports exist, the `nexus` parameter comes
 last and its status matches the detected mode and the lab's stage (`modes.mjs`: `labStage` is `proposed`
 while any exploration is `proposed` or `adopted`, `historical` when every exploration is `historical`,
 else `current`; `expectedStoryStatus` maps it to `proposed` in mode A and to itself in mode B; a

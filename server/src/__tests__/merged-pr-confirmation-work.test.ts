@@ -3,7 +3,7 @@ import { createPullRequestMergeStateResolver } from "../services/github-pull-req
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { eq, sql } from "drizzle-orm";
-import { activityLog, agents, chatActions, chatConversations, chatEndpoints, chatPublications, companies, createDb, issues, issueThreadInteractions, toolApplications, toolConnections, type Db } from "@paperclipai/db";
+import { activityLog, agents, chatActions, chatConversations, chatEndpoints, chatPublications, companies, createDb, issues, issueThreadInteractions, toolApplications, toolConnections, type Db } from "@nexusai/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { issueThreadInteractionService } from "../services/issue-thread-interactions.js";
@@ -13,7 +13,7 @@ import { idleWorkSnapshot } from "../services/task-admission.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_MERGE_WORK_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_MERGE_WORK_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("merge confirmation work with PostgreSQL and simulated GitHub", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -435,7 +435,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     await db.insert(issues).values({ id: foreignIssue, companyId: foreignCompany, title: "Other", status: "todo" });
     const foreign = await service().create({ id: foreignIssue, companyId: foreignCompany }, input(), { userId: "board" });
     const local = service();
-    const hint = [{ companyId, owner: "PAPERCLIPAI", repo: "paperclip", number: 39 }];
+    const hint = [{ companyId, owner: "NEXUSAI", repo: "nexus", number: 39 }];
     expect((await local.sweepMergedPullRequestConfirmations(hint)).accepted).toBe(1);
     expect((await stored(own.id)).status).toBe("accepted"); expect((await stored(foreign.id)).status).toBe("pending");
     expect(provider).not.toHaveBeenCalled();

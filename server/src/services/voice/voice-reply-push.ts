@@ -7,7 +7,7 @@ import { VOICE_REPLY_ACTION_KIND } from "./voice-reply-policy.js";
 import { readVoiceReplyState } from "./voice-reply-state.js";
 export { splitSpekoReplyText } from "./voice-reply-policy.js";
 import { and, asc, eq, gt, inArray, isNull } from "drizzle-orm";
-import { chatActions, chatEndpoints, chatVoiceReplies, chatVoiceSessions, type Db } from "@paperclipai/db";
+import { chatActions, chatEndpoints, chatVoiceReplies, chatVoiceSessions, type Db } from "@nexusai/db";
 import { instanceSettingsService } from "../instance-settings.js";
 import { HttpError } from "../../errors.js";
 import { createSpekoProvider, SpekoProviderError } from "./speko-provider.js";

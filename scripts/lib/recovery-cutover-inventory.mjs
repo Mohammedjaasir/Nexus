@@ -93,7 +93,7 @@ export async function inventoryRecoveryFiles({ instanceRoot, orphanDirectory, ma
     summary.status = cutoverStatus(summary);
     summaries.push(summary);
   }
-  return { schema: "paperclip/recovery-cutover-inventory/v1", status:
+  return { schema: "nexus/recovery-cutover-inventory/v1", status:
     summaries.some(s => s.status === "unknown") ? "unknown" : summaries.some(s => s.status === "blocked") ? "blocked" : "clear",
     instanceStatus: rootState, contentInspection: "none", counts: "observed-lower-bounds", maxEntries, directories: summaries };
 }

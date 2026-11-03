@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { VoicePhoneConfiguration } from "@paperclipai/shared";
+import type { VoicePhoneConfiguration } from "@nexusai/shared";
 import { voicePhoneApi } from "@/api/voicePhone";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

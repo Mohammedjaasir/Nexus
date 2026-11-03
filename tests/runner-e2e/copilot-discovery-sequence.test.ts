@@ -28,29 +28,29 @@ describe("bounded individually attested context discovery sequence", () => {
     expect(onlyCopilotAttachedOperations(f.notices, f.command, proof)).toBe(true);
     expect(retained.outcome).toContain("calibration only");
   });
-  it.each(["get_task_context", "get task context", "dedicated get_task_context tool", "get_task_context paperclip_finish"])("admits bounded context metadata query %s", query => {
-    expect(isCopilotContextDiscoveryProgress(`paperclip-search_api (pending): ${query}`)).toBe(true);
+  it.each(["get_task_context", "get task context", "dedicated get_task_context tool", "get_task_context nexus_finish"])("admits bounded context metadata query %s", query => {
+    expect(isCopilotContextDiscoveryProgress(`nexus-search_api (pending): ${query}`)).toBe(true);
   });
-  it.each(["create_task", "get task context call_api", "get task context create_task", "get task context; paperclip_finish", "get_task_context call_api", "get_task_context get_task_context", "get_task_context; paperclip_finish", "get_task_context " + "tool ".repeat(100)])("refuses another search scope: %s", query => {
-    expect(isCopilotContextDiscoveryProgress(`paperclip-search_api (pending): ${query}`)).toBe(false);
+  it.each(["create_task", "get task context call_api", "get task context create_task", "get task context; nexus_finish", "get_task_context call_api", "get_task_context get_task_context", "get_task_context; nexus_finish", "get_task_context " + "tool ".repeat(100)])("refuses another search scope: %s", query => {
+    expect(isCopilotContextDiscoveryProgress(`nexus-search_api (pending): ${query}`)).toBe(false);
   });
   it.each(["duplicate-receipt", "missing-receipt", "borrowed-identity", "foreign-session", "mutation", "another-query", "native-result-mismatch", "late-discovery"])("refuses %s in a multi-call sequence", kind => {
     const f = fixture();
-    const receipts = f.rows.filter((r: any) => payload(r).category === "paperclip_semantic_tool_receipt_v2" && payload(r).details.some((d: any) => d.name === "operationId" && d.value === "search_api"));
+    const receipts = f.rows.filter((r: any) => payload(r).category === "nexus_semantic_tool_receipt_v2" && payload(r).details.some((d: any) => d.name === "operationId" && d.value === "search_api"));
     const second = receipts[1]!;
-    const start = f.rows.find((r: any) => r.eventType === "tool.execution.started" && payload(r).name === "paperclip-search_api");
+    const start = f.rows.find((r: any) => r.eventType === "tool.execution.started" && payload(r).name === "nexus-search_api");
     if (kind === "duplicate-receipt") f.rows.push(structuredClone(second));
     if (kind === "missing-receipt") f.rows.splice(f.rows.indexOf(second), 1);
     if (kind === "borrowed-identity") detail(second, "callIdentitySha256", payload(receipts[0]).details.find((d: any) => d.name === "callIdentitySha256").value);
     if (kind === "foreign-session") second.payload.prpEvent.normalizedSessionId = "foreign";
     if (kind === "mutation") payload(start).readOnly = false;
-    if (kind === "another-query") payload(start).progress = "paperclip-search_api (pending): create_task";
+    if (kind === "another-query") payload(start).progress = "nexus-search_api (pending): create_task";
     if (kind === "native-result-mismatch") detail(second, "resultSha256", "f".repeat(64));
     if (kind === "late-discovery") second.seq = f.command.seq + 1;
     expect(() => readCopilotContextRead(f.rows, f.command, true)).toThrow();
   });
   it("refuses an unbounded discovery campaign", () => {
-    const f = fixture(), receipt = f.rows.find((r: any) => payload(r).category === "paperclip_semantic_tool_receipt_v2" && payload(r).details.some((d: any) => d.name === "operationId" && d.value === "search_api"));
+    const f = fixture(), receipt = f.rows.find((r: any) => payload(r).category === "nexus_semantic_tool_receipt_v2" && payload(r).details.some((d: any) => d.name === "operationId" && d.value === "search_api"));
     for (let i = 0; i < COPILOT_CONTEXT_DISCOVERY_LIMIT; i++) f.rows.push(structuredClone(receipt));
     expect(() => readCopilotContextRead(f.rows, f.command, true)).toThrow(/unbounded/);
   });

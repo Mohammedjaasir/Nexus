@@ -50,7 +50,7 @@ export function parseAntigravityJourneyConfig(input: unknown): AntigravityJourne
     return { version: 1, setupId: text(v.setupId, /^[a-z0-9-]{1,80}$/), hosting: "self-hosted", executionEnvironment: "local",
       target: { ...common.target, companyId: text(common.target.companyId, uuid), environmentId: text(common.target.environmentId, uuid) }, browser: common.browser,
       savedConnection: { id: text(connection.id, uuid), name: text(connection.name), ownerUserId: text(connection.ownerUserId) },
-      candidate: { platform: "darwin", architecture: "arm64", nativeVersion: text(candidate.nativeVersion, /^\d+\.\d+\.\d+-paperclip\.\d+$/),
+      candidate: { platform: "darwin", architecture: "arm64", nativeVersion: text(candidate.nativeVersion, /^\d+\.\d+\.\d+-nexus\.\d+$/),
         profileDigest: text(candidate.profileDigest, /^sha256:[a-f0-9]{64}$/), nativeClosureDigest: text(candidate.nativeClosureDigest, /^sha256:[a-f0-9]{64}$/) },
       limits: { durationMs, turnTimeoutMs, maxRuns: 2, budgetCents: number(limits.budgetCents, 1, 1000) }, retainAgent: v.retainAgent ?? false };
   } catch { return invalid(); }

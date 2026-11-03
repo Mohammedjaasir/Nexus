@@ -2,17 +2,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { copyTextToClipboard } from "../src/ui/clipboard.js";
 
 type GlobalWithPluginBridge = typeof globalThis & {
-  __paperclipPluginBridge__?: unknown;
+  __nexusPluginBridge__?: unknown;
 };
 
 afterEach(() => {
-  delete (globalThis as GlobalWithPluginBridge).__paperclipPluginBridge__;
+  delete (globalThis as GlobalWithPluginBridge).__nexusPluginBridge__;
 });
 
 describe("copyTextToClipboard", () => {
   it("delegates clipboard writes to the host UI runtime", async () => {
     const copy = vi.fn(async () => undefined);
-    (globalThis as GlobalWithPluginBridge).__paperclipPluginBridge__ = {
+    (globalThis as GlobalWithPluginBridge).__nexusPluginBridge__ = {
       sdkUi: { copyTextToClipboard: copy },
     };
 

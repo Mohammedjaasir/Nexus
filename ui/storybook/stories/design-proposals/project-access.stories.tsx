@@ -10,7 +10,7 @@ const meta = {
     layout: "fullscreen",
     initialEntries: ["/PAP/issues/DEMO-42"],
     docs: { description: { component: "Start at Blocked task. Manage project access opens the proposed agent settings. Add Agent Extensions, review the additive access change, save, return to the task and retry. Low-trust review stays active. Settings supports multiple allowed projects without replacing the existing one. Read-only, pending save, failed save and failed retry states remain actionable. The reply and every state transition are local fixtures; no project permissions change and no provider runs. Reset the story to restore the starting state." } },
-    paperclip: {
+    nexus: {
       capabilities: ["recovery/diagnosis", "recovery/source-action", "agents/instructions"],
       home: "design-proposals", status: "proposed",
       exception: "Requested design for a visible project denial and additive project access repair before production implementation.",

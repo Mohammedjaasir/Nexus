@@ -4,7 +4,7 @@ import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { and, eq, sql } from "drizzle-orm";
-import { agents, heartbeatRuns, issues, companies, companyMemberships, createDb, instanceSettings, pluginConfig, plugins, projects, toolApplications, toolConnections, toolConnectionInstalls, toolProfiles, toolMcpGateways, toolProfileBindings, resourceLifecycleEvents, type Db } from "@paperclipai/db";
+import { agents, heartbeatRuns, issues, companies, companyMemberships, createDb, instanceSettings, pluginConfig, plugins, projects, toolApplications, toolConnections, toolConnectionInstalls, toolProfiles, toolMcpGateways, toolProfileBindings, resourceLifecycleEvents, type Db } from "@nexusai/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { pluginAgentRuntimeState } from "../services/plugin-agent-runtime-state.js";
@@ -30,14 +30,14 @@ describeDatabase("connection assignment synchronization", () => {
   let pluginId: string;
   let applicationId: string;
   let connectionId: string;
-  beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("paperclip-runtime-assignments-"); db = createDb(database.connectionString); }, 90_000);
+  beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("nexus-runtime-assignments-"); db = createDb(database.connectionString); }, 90_000);
   afterAll(async () => { await database?.cleanup(); });
   afterEach(() => vi.unstubAllEnvs());
   beforeEach(async () => {
     companyId = randomUUID(); agentId = randomUUID(); peerId = randomUUID(); pluginId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Connector runtime fixture", issuePrefix: `C${companyId.slice(0, 6)}` });
     await db.insert(plugins).values({ id: pluginId, pluginKey: pluginId, packageName: "runtime-fixture", version: "1.0.0", status: "ready", manifestJson: { resourceLifecycle: ["agent_runtime"], capabilities: ["events.subscribe", "agents.lifecycle.manage"] } as never });
-    await db.insert(agents).values([agentId, peerId].map(id => ({ id, companyId, name: id, adapterType: "paperclip_runner", lifecycleRequiredPluginIds: [pluginId] })));
+    await db.insert(agents).values([agentId, peerId].map(id => ({ id, companyId, name: id, adapterType: "nexus_runner", lifecycleRequiredPluginIds: [pluginId] })));
     const [application] = await db.insert(toolApplications).values({ companyId, name: "Fixture MCP", type: "mcp_http" }).returning(); applicationId = application.id;
     const [connection] = await db.insert(toolConnections).values({ companyId, applicationId, name: "Fixture connection", uid: randomUUID(), transport: "mcp_remote", authKind: "none", enabled: true, status: "active" }).returning(); connectionId = connection.id;
   });
@@ -158,7 +158,7 @@ describeDatabase("connection assignment synchronization", () => {
     const inbox = pluginLifecycleInbox(db, pluginId);
     for (const event of await events()) await inbox.acknowledge(companyId, String(event.id));
     for (const enabled of [true, false]) {
-      vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", JSON.stringify({ v: 1, mode: "cloud", catalogVersion: "2026.720.0", features: { enablePublicMcp: enabled, enableChatConnectors: enabled }, plugins: { autoInstall: [] } }));
+      vi.stubEnv("NEXUS_MANAGED_CONFIG", JSON.stringify({ v: 1, mode: "cloud", catalogVersion: "2026.720.0", features: { enablePublicMcp: enabled, enableChatConnectors: enabled }, plugins: { autoInstall: [] } }));
       const before = (await events()).length;
       const snapshots: Array<{ publicMcp: boolean; chatConnectors: boolean }> = [];
       const call = vi.fn(async (_plugin, _method, event) => {
@@ -277,9 +277,9 @@ describeDatabase("connection assignment synchronization", () => {
   }, 15000);
 
   it.each(["connection settings", "profile binding"] as const)("orders AI adoption with concurrent %s using foreign-key-compatible locks", async change => {
-    const home = await realpath(await mkdtemp(join(tmpdir(), "paperclip-adoption-fixture-")));
-    vi.stubEnv("PAPERCLIP_HOME", home);
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "adoption-fixture");
+    const home = await realpath(await mkdtemp(join(tmpdir(), "nexus-adoption-fixture-")));
+    vi.stubEnv("NEXUS_HOME", home);
+    vi.stubEnv("NEXUS_INSTANCE_ID", "adoption-fixture");
     const [lower, higher] = [agentId, peerId].sort();
     const userId = `adoption-${randomUUID()}`;
     const issueId = randomUUID();
@@ -288,7 +288,7 @@ describeDatabase("connection assignment synchronization", () => {
     try {
       await db.update(toolConnections).set({ config: { url: "https://mcp.example.test/mcp" } }).where(eq(toolConnections.id, connectionId));
       await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: userId, status: "active", membershipRole: "member" });
-      await db.update(agents).set({ adapterType: "paperclip_runner", adapterConfig: { provider: "codex" } }).where(eq(agents.id, higher));
+      await db.update(agents).set({ adapterType: "nexus_runner", adapterConfig: { provider: "codex" } }).where(eq(agents.id, higher));
       await db.insert(issues).values({ id: issueId, companyId, title: "Legacy AI adoption", status: "in_progress", assigneeAgentId: higher, responsibleUserId: userId });
       await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId: higher, nativeIssueId: issueId, status: "failed", errorCode: "acpx_auth_required", responsibleUserId: userId, contextSnapshot: {} });
       const intents = connectionIntentService(db);

@@ -1,4 +1,4 @@
-import type { AskUserQuestionsInteraction, IssueThreadInteraction } from "@paperclipai/shared";
+import type { AskUserQuestionsInteraction, IssueThreadInteraction } from "@nexusai/shared";
 
 export function chatInteractionPresentation(interaction: IssueThreadInteraction, options: { compactChoices?: boolean; nativeCustomAnswer?: boolean } = {}) {
   const context = [interaction.summary].filter((value): value is string => Boolean(value?.trim()));
@@ -60,7 +60,7 @@ export function chatInteractionPresentation(interaction: IssueThreadInteraction,
     case "connection_intent": {
       const { payload } = interaction;
       context.push(`${payload.requestingAgentName} needs ${payload.serviceName}${payload.accessRequest ? ` (${payload.accessRequest.connectionName})` : ""}.`);
-      context.push("The addressed user must review this connection request in Paperclip.");
+      context.push("The addressed user must review this connection request in Nexus.");
       return { title: interaction.title ?? `Connect ${payload.serviceName}`, body: context.join("\n\n") };
     }
   }

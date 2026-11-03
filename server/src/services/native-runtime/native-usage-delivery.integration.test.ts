@@ -1,4 +1,4 @@
-import { compareCents, usdToUnits } from "@paperclipai/shared";
+import { compareCents, usdToUnits } from "@nexusai/shared";
 import { spawn, execFileSync, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import { randomUUID } from "node:crypto";
@@ -8,14 +8,14 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, budgetPolicies, companies, costEvents, createDb, heartbeatRuns, runUsageReceipts, type Db } from "@paperclipai/db";
-import { type PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import { agents, budgetPolicies, companies, costEvents, createDb, heartbeatRuns, runUsageReceipts, type Db } from "@nexusai/db";
+import { type PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { accountRunCost } from "../run-cost-accounting.js";
 import { usageReceiptSpoolPath, type UsageReceiptEnvelope } from "../usage-receipts.js";
 import { createNativeUsageContinuationDelivery, createNativeUsageDelivery } from "./native-usage-delivery.js";
 
-const runnerRoot = fileURLToPath(new URL("../../../../packages/paperclip-runner/runner/", import.meta.url));
+const runnerRoot = fileURLToPath(new URL("../../../../packages/nexus-runner/runner/", import.meta.url));
 const fixtureProfile = process.env.CI ? "release" : "debug";
 const billing = { provider: "openai", biller: "openai", billingType: "metered_api" as const };
 
@@ -24,7 +24,7 @@ describe("producer-owned native usage", () => {
   let db: Db;
   beforeAll(async () => {
     execFileSync("cargo", ["build", ...(fixtureProfile === "release" ? ["--release"] : []), "--locked",
-      "--manifest-path", resolve(runnerRoot, "Cargo.toml"), "-p", "paperclip-runner-core", "--example", "recovery-fixture"],
+      "--manifest-path", resolve(runnerRoot, "Cargo.toml"), "-p", "nexus-runner-core", "--example", "recovery-fixture"],
     { timeout: 600_000, stdio: "pipe" });
     database = await startEmbeddedPostgresTestDatabase("native-usage-delivery-");
     db = createDb(database.connectionString);
@@ -33,12 +33,12 @@ describe("producer-owned native usage", () => {
   const seed = async () => {
     const companyId = randomUUID(), agentId = randomUUID(), runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Usage delivery", issuePrefix: randomUUID().slice(0, 8) });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Producer", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Producer", adapterType: "nexus_runner" });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, invocationSource: "on_demand", status: "running", runtimeMode: "native", costAccountingPending: true });
     return { companyId, agentId, runId, runnerInstanceId: randomUUID(), provider: { kind: "codex" as const, model: "test-model" }, billing };
   };
   const event = (input: Pick<Awaited<ReturnType<typeof seed>>, "runId" | "runnerInstanceId">, sequence: number, type: string, turnId = "turn-1", amount = 0.25): PrpEvent => ({
-    schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", sourceInstanceId: input.runnerInstanceId,
+    schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", sourceInstanceId: input.runnerInstanceId,
     sourceEventId: `usage-${sequence}`, sourceSeq: sequence, priority: 0, runId: input.runId,
     normalizedSessionId: "session-1", turnId, emittedAt: new Date().toISOString(), eventType: type,
     payload: type === "usage.reported" ? { runDeltaAvailable: true, runDeltaBasis: "run", runDelta: { inputTokens: 120, outputTokens: 10, providerCostUsd: amount } } : {},
@@ -178,7 +178,7 @@ describe("producer-owned native usage", () => {
         "--state-dir", resolve(root, "producer"), "--runner-id", identity.runnerInstanceId, "--environment-lease-id", identity.environmentLeaseId,
         "--run-id", identity.runId, "--session-id", identity.normalizedSessionId, "--turn-id", identity.turnId, "--item-id", identity.itemId,
         "--runner-version", expectedRunnerVersion, "--runner-digest", expectedRunnerDigest, "--max-outbox-bytes", "65536", "--p0-reserve-bytes", "16384", "--reconnect-grace-ms", "120000"],
-      { env: { ...process.env, PAPERCLIP_RUNNER_BOOTSTRAP_TICKET: ticket }, stdio: ["ignore", "ignore", "pipe"] });
+      { env: { ...process.env, NEXUS_RUNNER_BOOTSTRAP_TICKET: ticket }, stdio: ["ignore", "ignore", "pipe"] });
       exit = once(child, "exit");
       await request(receiver, { kind: "command", type: "turn.start", commandId: "start-once" });
       writeFileSync(releaseFile, "produce");

@@ -11,8 +11,8 @@ import {
   issueRelations,
   issues,
   projects,
-} from "@paperclipai/db";
-import { LOW_TRUST_REVIEW_PRESET } from "@paperclipai/shared";
+} from "@nexusai/db";
+import { LOW_TRUST_REVIEW_PRESET } from "@nexusai/shared";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -188,7 +188,7 @@ describeEmbeddedPostgres("issue blocker diagnostics route", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-issue-blocker-diagnostics-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-issue-blocker-diagnostics-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 

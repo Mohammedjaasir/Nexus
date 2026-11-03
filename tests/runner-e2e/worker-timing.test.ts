@@ -17,7 +17,7 @@ afterEach(async () => { await Promise.all(temporary.splice(0).map(dir => rm(dir,
 async function fixture() {
   const dir = await mkdtemp(path.join(os.tmpdir(), "worker-timing-")); temporary.push(dir);
   const result: RunnerE2EResult = {
-    schema: "paperclip.runner-e2e.result/v2", executionId: "timing-case", suiteId: "timing-fixture", attempt: 1,
+    schema: "nexus.runner-e2e.result/v2", executionId: "timing-case", suiteId: "timing-fixture", attempt: 1,
     accountingIdentity: { campaignId: "timing-campaign", attemptId: "timing-attempt" },
     status: "passed", profileId: "runner-codex", environmentId: "local", caseId: "marker", provider: "codex",
     model: "fixture-model", runtimeMode: "native", startedAt: new Date(1000).toISOString(),

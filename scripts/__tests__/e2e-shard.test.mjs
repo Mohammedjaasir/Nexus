@@ -64,7 +64,7 @@ function runStackScope(stack, prBaseRef) {
     .split("\n")
     .map((line) => line.replace(/^ {10}/, ""))
     .join("\n");
-  const scratch = mkdtempSync(path.join(tmpdir(), "paperclip-stack-scope-"));
+  const scratch = mkdtempSync(path.join(tmpdir(), "nexus-stack-scope-"));
   const output = path.join(scratch, "github-output");
 
   try {
@@ -241,7 +241,7 @@ test("the trusted PR workflow limits full CI to merge-relevant stack layers", ()
   for (const jobId of [
     "typecheck_release_registry",
     "general_tests",
-    "verify_paperclip_runner",
+    "verify_nexus_runner",
     "build",
     "verify_serialized_server",
     "canary_dry_run",
@@ -263,7 +263,7 @@ test("the trusted PR workflow limits full CI to merge-relevant stack layers", ()
   const verify = jobs.get("verify");
   assert.match(
     verify,
-    /^ {4}needs: \[gate, test_selection, policy, typecheck_release_registry, general_tests, verify_paperclip_runner, build, docker_context_integrity, verify_serialized_server, canary_dry_run\]$/m,
+    /^ {4}needs: \[gate, test_selection, policy, typecheck_release_registry, general_tests, verify_nexus_runner, build, docker_context_integrity, verify_serialized_server, canary_dry_run\]$/m,
   );
   assert.equal(runAggregate(verify, true).status, 0);
   assert.equal(runAggregate(verify, false).status, 0);
@@ -271,7 +271,7 @@ test("the trusted PR workflow limits full CI to merge-relevant stack layers", ()
     assert.equal(runAggregate(verify, true, { test_selection: result }).status, 0,
       "an optional selector cannot block the successful original matrix");
   }
-  for (const job of ["gate", "policy", "typecheck_release_registry", "general_tests", "verify_paperclip_runner",
+  for (const job of ["gate", "policy", "typecheck_release_registry", "general_tests", "verify_nexus_runner",
     "build", "docker_context_integrity", "verify_serialized_server", "canary_dry_run"]) {
     for (const result of ["failure", "cancelled", "skipped"]) {
       assert.notEqual(runAggregate(verify, true, { [job]: result }).status, 0, `${job}: ${result}`);

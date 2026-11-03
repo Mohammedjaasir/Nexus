@@ -52,7 +52,7 @@ function ReviewGuide() {
 }
 export default { id: "primary-agent-00-review-guide",
   title: "Agents and reusable capabilities/Hiring, configuration, and organization/Primary Agent/00 Review guide", parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agents/primary-agent",
         "tasks/create",

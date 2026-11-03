@@ -11,8 +11,8 @@ const readinessState = new Map<ReadinessGate, boolean>();
 
 declare global {
   interface Window {
-    __PAPERCLIP_ISSUE_DETAIL_NAVIGATE_START__?: number;
-    __PAPERCLIP_ISSUE_DETAIL_PROFILE__?: boolean;
+    __NEXUS_ISSUE_DETAIL_NAVIGATE_START__?: number;
+    __NEXUS_ISSUE_DETAIL_PROFILE__?: boolean;
   }
 }
 
@@ -32,15 +32,15 @@ export function beginIssueDetailNavigation(): void {
   for (const gate of readinessState.keys()) performance.clearMarks(`issue-detail:gate:${gate}`);
   readinessState.clear();
 
-  const externallyCapturedStart = window.__PAPERCLIP_ISSUE_DETAIL_NAVIGATE_START__;
-  delete window.__PAPERCLIP_ISSUE_DETAIL_NAVIGATE_START__;
+  const externallyCapturedStart = window.__NEXUS_ISSUE_DETAIL_NAVIGATE_START__;
+  delete window.__NEXUS_ISSUE_DETAIL_NAVIGATE_START__;
   performance.mark(ISSUE_DETAIL_NAVIGATE_MARK, {
     startTime: typeof externallyCapturedStart === "number" ? externallyCapturedStart : performance.now(),
   });
 }
 
 export function recordIssueDetailReadiness(gates: Partial<Record<ReadinessGate, boolean>>): void {
-  if (!supportsPerformanceMarks() || !window.__PAPERCLIP_ISSUE_DETAIL_PROFILE__) return;
+  if (!supportsPerformanceMarks() || !window.__NEXUS_ISSUE_DETAIL_PROFILE__) return;
   for (const gate of readinessGates) {
     const ready = gates[gate];
     if (ready === undefined || readinessState.get(gate) === ready) continue;

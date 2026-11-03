@@ -7,7 +7,7 @@ import type {
   IssueAttachment,
   IssueDocument,
   IssueWorkProduct,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   buildReRunRequest,
   buildCreateRunRequest,
@@ -121,7 +121,7 @@ function makeArtifactWorkProduct(
     executionWorkspaceId: null,
     runtimeServiceId: null,
     type: "artifact",
-    provider: "paperclip",
+    provider: "nexus",
     externalId: null,
     title: overrides.title ?? `Artifact ${id}`,
     url: null,

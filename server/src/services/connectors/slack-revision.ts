@@ -10,7 +10,7 @@ import {
   toolProfileEntries,
   toolProfiles,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 function revisionColumns(columns: Record<string, AnyPgColumn>) {
   return Object.fromEntries(Object.entries(columns).map(([name, column]) => [
@@ -47,7 +47,7 @@ export async function slackAuthorizationRevision(
       .select(revisionColumns({
         id: chatIdentityLinks.id,
         status: chatIdentityLinks.status,
-        user: chatIdentityLinks.paperclipUserId,
+        user: chatIdentityLinks.nexusUserId,
         updatedAt: chatIdentityLinks.updatedAt,
       }))
       .from(chatIdentityLinks)
@@ -55,7 +55,7 @@ export async function slackAuthorizationRevision(
         and(
           eq(chatIdentityLinks.companyId, companyId),
           eq(chatIdentityLinks.endpointId, endpointId),
-          eq(chatIdentityLinks.paperclipUserId, userId),
+          eq(chatIdentityLinks.nexusUserId, userId),
         ),
       )
       .orderBy(chatIdentityLinks.id),

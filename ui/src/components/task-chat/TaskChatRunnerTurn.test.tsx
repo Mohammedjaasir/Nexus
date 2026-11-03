@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { ExecutionProjection } from "@paperclipai/shared";
+import type { ExecutionProjection } from "@nexusai/shared";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -117,13 +117,13 @@ describe("TaskChatRunnerTurn", () => {
     choices: [],
     fields: [],
     questionSet: {
-      schema: "paperclip.question_set.v1",
+      schema: "nexus.question_set.v1",
       questions: [
         { id: `${id}-field`, prompt, required: true, answerMode: "text" },
       ],
     },
     response: {
-      schema: "paperclip.question_response.v1",
+      schema: "nexus.question_response.v1",
       answers: { [`${id}-field`]: { text: "Answered" } },
     },
   });
@@ -450,10 +450,10 @@ describe("TaskChatRunnerTurn", () => {
   });
 
   it("keeps a visible fallback when completion tools are filtered before the final reply", () => {
-    render([{ id: "finish", kind: "tool", name: "paperclip_finish", status: "in_progress" }]);
+    render([{ id: "finish", kind: "tool", name: "nexus_finish", status: "in_progress" }]);
     expect(container.querySelector('[data-testid="task-chat-current-activity"]')?.textContent).toContain("Thinking");
     expect(container.querySelector('[data-testid="task-chat-activity-phase"]')).toBeNull();
-    render([{ id: "finish-provider", kind: "protocol", surface: "provider_activity", family: "tool_execution", eventType: "tool.execution.started", status: "running", title: "Finish", details: [{ label: "Name", value: "paperclip_finish" }], steps: [], links: [], children: [] }]);
+    render([{ id: "finish-provider", kind: "protocol", surface: "provider_activity", family: "tool_execution", eventType: "tool.execution.started", status: "running", title: "Finish", details: [{ label: "Name", value: "nexus_finish" }], steps: [], links: [], children: [] }]);
     expect(container.querySelector('[data-testid="task-chat-current-activity"]')?.textContent).toContain("Thinking");
     expect(container.querySelector('[data-testid="task-chat-activity-phase"]')).toBeNull();
   });
@@ -1187,7 +1187,7 @@ describe("TaskChatRunnerTurn", () => {
       },
     ]);
     render([
-      { id: "t1", kind: "tool", name: "Paperclip_finish", status: "completed" },
+      { id: "t1", kind: "tool", name: "Nexus_finish", status: "completed" },
     ]);
 
     expect(
@@ -1251,8 +1251,8 @@ describe("TaskChatRunnerTurn", () => {
       {
         id: "tool",
         kind: "tool",
-        name: "Paperclip_finish",
-        rawName: "paperclip_finish",
+        name: "Nexus_finish",
+        rawName: "nexus_finish",
         target: "reportedWorkDisposition: done",
         status: "completed",
       },
@@ -1270,7 +1270,7 @@ describe("TaskChatRunnerTurn", () => {
       },
     ]);
 
-    expect(container.textContent).not.toContain("Paperclip_finish");
+    expect(container.textContent).not.toContain("Nexus_finish");
     expect(container.textContent).toContain("Interrupted");
     expect(container.textContent).not.toContain("Session started");
     expect(container.textContent).not.toContain("Turn started");
@@ -1343,7 +1343,7 @@ describe("TaskChatRunnerTurn", () => {
           choices: [],
           fields: [],
           questionSet: {
-            schema: "paperclip.question_set.v1",
+            schema: "nexus.question_set.v1",
             questions: [
               {
                 id: "goal",
@@ -1354,7 +1354,7 @@ describe("TaskChatRunnerTurn", () => {
             ],
           },
           response: {
-            schema: "paperclip.question_response.v1",
+            schema: "nexus.question_response.v1",
             answers: { goal: { text: "Serve a small JSON API." } },
           },
         },

@@ -3,17 +3,17 @@ import type {
   AgentInstructionsBundle,
   AgentSkillSnapshot,
   CompanySkillListItem,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   storybookHiredAgent,
   storybookAgents,
   storybookIssues,
   storybookSecrets,
-} from "../../fixtures/paperclipData";
-import { models as claudeModels } from "@paperclipai/adapter-claude-local";
-import { models as openCodeModels } from "@paperclipai/adapter-opencode-local";
+} from "../../fixtures/nexusData";
+import { models as claudeModels } from "@nexusai/adapter-claude-local";
+import { models as openCodeModels } from "@nexusai/adapter-opencode-local";
 import { storybookEnvironments } from "../../fixtures/onboardingEnvironment";
-import { models as codexModels } from "@paperclipai/adapter-codex-local";
+import { models as codexModels } from "@nexusai/adapter-codex-local";
 import { runtimeTestResult, type TestOutcome } from "../new-agent-fixtures";
 export const COMPANY = "company-storybook";
 export const ID = "agent-settings-preview";
@@ -21,8 +21,8 @@ export const REF = "nova";
 
 export const library = [
   [
-    "paperclip",
-    "Paperclip",
+    "nexus",
+    "Nexus",
     "Coordinate tasks, report progress, and work with your team.",
   ],
   [
@@ -118,7 +118,7 @@ export function createSettingsFixtures(
       grants: [],
     },
   };
-  let desiredSkills = ["paperclip", "design-guide"];
+  let desiredSkills = ["nexus", "design-guide"];
   let desiredSkillEntries = desiredSkills.map(key => ({ key, versionId: null as string | null }));
   const files: Record<string, string> = {
     "AGENTS.md":
@@ -126,7 +126,7 @@ export function createSettingsFixtures(
     "workflow.md":
       "# Delivery checklist\n\n1. Understand the user’s goal.\n2. Make a focused change.\n3. Verify the result.\n4. Explain what changed and how it was tested.\n",
     "references/product.md":
-      "# Product context\n\nPaperclip helps people coordinate teams of agents. Prefer simple workflows with visible progress.\n",
+      "# Product context\n\nNexus helps people coordinate teams of agents. Prefer simple workflows with visible progress.\n",
   };
   let bundleMode: "managed" | "external" = "managed";
   let entryFile = "AGENTS.md";
@@ -167,7 +167,7 @@ export function createSettingsFixtures(
       managed: true,
       state: "configured",
       origin: "company_managed",
-      originLabel: "Managed by Paperclip",
+      originLabel: "Managed by Nexus",
       readOnly: false,
       sourcePath: `skills/${key}`,
       targetPath: null,
@@ -315,7 +315,7 @@ export function createSettingsFixtures(
             url.pathname.includes("claude")
               ? claudeModels
               : url.pathname.includes("codex") ||
-                  url.pathname.includes("paperclip_runner")
+                  url.pathname.includes("nexus_runner")
                 ? codexModels
                 : url.pathname.includes("opencode")
                   ? openCodeModels
@@ -329,7 +329,7 @@ export function createSettingsFixtures(
               url.pathname.split("/").at(-2) ?? agent.adapterType,
               outcome,
               data.adapterConfig?.model ?? "",
-              "Paperclip Computer",
+              "Nexus Computer",
             ),
           );
         }

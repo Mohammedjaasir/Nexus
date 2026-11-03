@@ -7,11 +7,11 @@ import {
   eq,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatEndpointResources,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import { getSlackBotChannel, listSlackBotChannels } from "../../chat-provider-inventory.js";
 

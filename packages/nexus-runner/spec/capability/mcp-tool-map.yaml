@@ -1,0 +1,432 @@
+# GENERATED FILE — DO NOT EDIT. Run pnpm generate:capability-inventory.
+{
+  "schemaVersion": 2,
+  "inventoryRole": "legacy_alias_index",
+  "generatedFrom": "packages/mcp-server/src/tools.ts",
+  "normativeSources": [
+    "capabilities",
+    "evaluations"
+  ],
+  "rows": [
+    {
+      "id": "mcp:nexusMe",
+      "name": "nexusMe",
+      "description": "Get the current authenticated Nexus actor details",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:290",
+      "expectedSemantics": "Get the current authenticated Nexus actor details",
+      "foldedInto": "eval:hb-inbox-lite-01",
+      "evidenceId": "mcp:nexusMe"
+    },
+    {
+      "id": "mcp:nexusInboxLite",
+      "name": "nexusInboxLite",
+      "description": "Get the current authenticated agent inbox-lite assignment list",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:296",
+      "expectedSemantics": "Get the current authenticated agent inbox-lite assignment list",
+      "foldedInto": "eval:hb-inbox-lite-01",
+      "evidenceId": "mcp:nexusInboxLite"
+    },
+    {
+      "id": "mcp:nexusListAgents",
+      "name": "nexusListAgents",
+      "description": "List agents in a company",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:302",
+      "expectedSemantics": "List agents in a company",
+      "foldedInto": "eval:rf-api-mgr-heartbeat-01",
+      "evidenceId": "mcp:nexusListAgents"
+    },
+    {
+      "id": "mcp:nexusListSkills",
+      "name": "nexusListSkills",
+      "description": "List the company skill library (all installed skills, independent of which agents have them enabled)",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:308",
+      "expectedSemantics": "List the company skill library (all installed skills, independent of which agents have them enabled)",
+      "foldedInto": "eval:rf-cskill-audit-01",
+      "evidenceId": "mcp:nexusListSkills"
+    },
+    {
+      "id": "mcp:nexusGetAgent",
+      "name": "nexusGetAgent",
+      "description": "Get a single agent by id",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:314",
+      "expectedSemantics": "Get a single agent by id",
+      "foldedInto": "eval:rf-api-mgr-heartbeat-01",
+      "evidenceId": "mcp:nexusGetAgent"
+    },
+    {
+      "id": "mcp:nexusListIssues",
+      "name": "nexusListIssues",
+      "description": "List issues for a company with optional filters",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:323",
+      "expectedSemantics": "List issues for a company with optional filters",
+      "foldedInto": "eval:se-q-filters-01",
+      "evidenceId": "mcp:nexusListIssues"
+    },
+    {
+      "id": "mcp:nexusGetIssue",
+      "name": "nexusGetIssue",
+      "description": "Get a single issue by UUID or identifier",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:338",
+      "expectedSemantics": "Get a single issue by UUID or identifier",
+      "foldedInto": "eval:se-get-issue-01",
+      "evidenceId": "mcp:nexusGetIssue"
+    },
+    {
+      "id": "mcp:nexusGetHeartbeatContext",
+      "name": "nexusGetHeartbeatContext",
+      "description": "Get compact heartbeat context for an issue",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:344",
+      "expectedSemantics": "Get compact heartbeat context for an issue",
+      "foldedInto": "eval:hb-context-01",
+      "evidenceId": "mcp:nexusGetHeartbeatContext"
+    },
+    {
+      "id": "mcp:nexusListComments",
+      "name": "nexusListComments",
+      "description": "List issue comments with incremental options",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:353",
+      "expectedSemantics": "List issue comments with incremental options",
+      "foldedInto": "eval:se-get-issue-01",
+      "evidenceId": "mcp:nexusListComments"
+    },
+    {
+      "id": "mcp:nexusGetComment",
+      "name": "nexusGetComment",
+      "description": "Get a specific issue comment by id",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:366",
+      "expectedSemantics": "Get a specific issue comment by id",
+      "foldedInto": "eval:hb-wake-comment-01",
+      "evidenceId": "mcp:nexusGetComment"
+    },
+    {
+      "id": "mcp:nexusListIssueApprovals",
+      "name": "nexusListIssueApprovals",
+      "description": "List approvals linked to an issue",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:373",
+      "expectedSemantics": "List approvals linked to an issue",
+      "foldedInto": "eval:ap-board-approval-01",
+      "evidenceId": "mcp:nexusListIssueApprovals"
+    },
+    {
+      "id": "mcp:nexusListDocuments",
+      "name": "nexusListDocuments",
+      "description": "List issue documents",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:379",
+      "expectedSemantics": "List issue documents",
+      "foldedInto": "eval:dp-base-revision-01",
+      "evidenceId": "mcp:nexusListDocuments"
+    },
+    {
+      "id": "mcp:nexusGetDocument",
+      "name": "nexusGetDocument",
+      "description": "Get one issue document by key",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:385",
+      "expectedSemantics": "Get one issue document by key",
+      "foldedInto": "eval:dp-base-revision-01",
+      "evidenceId": "mcp:nexusGetDocument"
+    },
+    {
+      "id": "mcp:nexusListDocumentRevisions",
+      "name": "nexusListDocumentRevisions",
+      "description": "List revisions for an issue document",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:392",
+      "expectedSemantics": "List revisions for an issue document",
+      "foldedInto": "eval:dp-base-revision-01",
+      "evidenceId": "mcp:nexusListDocumentRevisions"
+    },
+    {
+      "id": "mcp:nexusListProjects",
+      "name": "nexusListProjects",
+      "description": "List projects in a company",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:402",
+      "expectedSemantics": "List projects in a company",
+      "foldedInto": "eval:rf-wf-project-setup-01",
+      "evidenceId": "mcp:nexusListProjects"
+    },
+    {
+      "id": "mcp:nexusGetProject",
+      "name": "nexusGetProject",
+      "description": "Get a project by id or company-scoped short reference",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:408",
+      "expectedSemantics": "Get a project by id or company-scoped short reference",
+      "foldedInto": "eval:rf-wf-project-setup-01",
+      "evidenceId": "mcp:nexusGetProject"
+    },
+    {
+      "id": "mcp:nexusGetIssueWorkspaceRuntime",
+      "name": "nexusGetIssueWorkspaceRuntime",
+      "description": "Get the current execution workspace and runtime services for an issue, including service URLs",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:417",
+      "expectedSemantics": "Get the current execution workspace and runtime services for an issue, including service URLs",
+      "foldedInto": "eval:rf-iws-start-url-01",
+      "evidenceId": "mcp:nexusGetIssueWorkspaceRuntime"
+    },
+    {
+      "id": "mcp:nexusControlIssueWorkspaceServices",
+      "name": "nexusControlIssueWorkspaceServices",
+      "description": "Start, stop, or restart the current issue execution workspace runtime services",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:423",
+      "expectedSemantics": "Start, stop, or restart the current issue execution workspace runtime services",
+      "foldedInto": "eval:rf-iws-start-url-01",
+      "evidenceId": "mcp:nexusControlIssueWorkspaceServices"
+    },
+    {
+      "id": "mcp:nexusWaitForIssueWorkspaceService",
+      "name": "nexusWaitForIssueWorkspaceService",
+      "description": "Wait until an issue execution workspace runtime service is running and has a URL when one is exposed",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:440",
+      "expectedSemantics": "Wait until an issue execution workspace runtime service is running and has a URL when one is exposed",
+      "foldedInto": "eval:rf-iws-target-restart-01",
+      "evidenceId": "mcp:nexusWaitForIssueWorkspaceService"
+    },
+    {
+      "id": "mcp:nexusListGoals",
+      "name": "nexusListGoals",
+      "description": "List goals in a company",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:466",
+      "expectedSemantics": "List goals in a company",
+      "foldedInto": "eval:su-parent-goal-01",
+      "evidenceId": "mcp:nexusListGoals"
+    },
+    {
+      "id": "mcp:nexusGetGoal",
+      "name": "nexusGetGoal",
+      "description": "Get a goal by id",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:472",
+      "expectedSemantics": "Get a goal by id",
+      "foldedInto": "eval:su-parent-goal-01",
+      "evidenceId": "mcp:nexusGetGoal"
+    },
+    {
+      "id": "mcp:nexusListApprovals",
+      "name": "nexusListApprovals",
+      "description": "List approvals in a company",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:478",
+      "expectedSemantics": "List approvals in a company",
+      "foldedInto": "eval:ap-approval-wake-01",
+      "evidenceId": "mcp:nexusListApprovals"
+    },
+    {
+      "id": "mcp:nexusCreateApproval",
+      "name": "nexusCreateApproval",
+      "description": "Create a board approval request, optionally linked to one or more issues",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:487",
+      "expectedSemantics": "Create a board approval request, optionally linked to one or more issues",
+      "foldedInto": "eval:ap-board-approval-01",
+      "evidenceId": "mcp:nexusCreateApproval"
+    },
+    {
+      "id": "mcp:nexusGetApproval",
+      "name": "nexusGetApproval",
+      "description": "Get an approval by id",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:496",
+      "expectedSemantics": "Get an approval by id",
+      "foldedInto": "eval:ap-approval-wake-01",
+      "evidenceId": "mcp:nexusGetApproval"
+    },
+    {
+      "id": "mcp:nexusGetApprovalIssues",
+      "name": "nexusGetApprovalIssues",
+      "description": "List issues linked to an approval",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:502",
+      "expectedSemantics": "List issues linked to an approval",
+      "foldedInto": "eval:ap-approval-wake-01",
+      "evidenceId": "mcp:nexusGetApprovalIssues"
+    },
+    {
+      "id": "mcp:nexusListApprovalComments",
+      "name": "nexusListApprovalComments",
+      "description": "List comments for an approval",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:508",
+      "expectedSemantics": "List comments for an approval",
+      "foldedInto": "eval:ap-approval-deny-01",
+      "evidenceId": "mcp:nexusListApprovalComments"
+    },
+    {
+      "id": "mcp:nexusCreateIssue",
+      "name": "nexusCreateIssue",
+      "description": "Create a new issue",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:514",
+      "expectedSemantics": "Create a new issue",
+      "foldedInto": "eval:su-parent-goal-01",
+      "evidenceId": "mcp:nexusCreateIssue"
+    },
+    {
+      "id": "mcp:nexusUpdateIssue",
+      "name": "nexusUpdateIssue",
+      "description": "Patch an issue, optionally including a comment; include resume=true when intentionally requesting follow-up on resumable closed work",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:521",
+      "expectedSemantics": "Patch an issue, optionally including a comment; include resume=true when intentionally requesting follow-up on resumable closed work",
+      "foldedInto": "eval:st-done-comment-01",
+      "evidenceId": "mcp:nexusUpdateIssue"
+    },
+    {
+      "id": "mcp:nexusCheckoutIssue",
+      "name": "nexusCheckoutIssue",
+      "description": "Checkout an issue for an agent",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:528",
+      "expectedSemantics": "Checkout an issue for an agent",
+      "foldedInto": "eval:co-body-contract-01",
+      "evidenceId": "mcp:nexusCheckoutIssue"
+    },
+    {
+      "id": "mcp:nexusReleaseIssue",
+      "name": "nexusReleaseIssue",
+      "description": "Release an issue checkout",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:540",
+      "expectedSemantics": "Release an issue checkout",
+      "foldedInto": "eval:er-release-01",
+      "evidenceId": "mcp:nexusReleaseIssue"
+    },
+    {
+      "id": "mcp:nexusAddComment",
+      "name": "nexusAddComment",
+      "description": "Add a comment to an issue; include resume=true when intentionally requesting follow-up on resumable closed work",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:546",
+      "expectedSemantics": "Add a comment to an issue; include resume=true when intentionally requesting follow-up on resumable closed work",
+      "foldedInto": "eval:cm-multiline-01",
+      "evidenceId": "mcp:nexusAddComment"
+    },
+    {
+      "id": "mcp:nexusSuggestTasks",
+      "name": "nexusSuggestTasks",
+      "description": "Create a suggest_tasks interaction on an issue",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:553",
+      "expectedSemantics": "Create a suggest_tasks interaction on an issue",
+      "foldedInto": "eval:ix-suggest-tasks-01",
+      "evidenceId": "mcp:nexusSuggestTasks"
+    },
+    {
+      "id": "mcp:nexusAskUserQuestions",
+      "name": "nexusAskUserQuestions",
+      "description": "Create an ask_user_questions interaction on an issue",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:565",
+      "expectedSemantics": "Create an ask_user_questions interaction on an issue",
+      "foldedInto": "eval:ix-questions-01",
+      "evidenceId": "mcp:nexusAskUserQuestions"
+    },
+    {
+      "id": "mcp:nexusRequestConfirmation",
+      "name": "nexusRequestConfirmation",
+      "description": "Create a request_confirmation interaction on an issue",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:577",
+      "expectedSemantics": "Create a request_confirmation interaction on an issue",
+      "foldedInto": "eval:ix-confirmation-plan-01",
+      "evidenceId": "mcp:nexusRequestConfirmation"
+    },
+    {
+      "id": "mcp:nexusRequestCheckboxConfirmation",
+      "name": "nexusRequestCheckboxConfirmation",
+      "description": "Create a request_checkbox_confirmation interaction on an issue",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:589",
+      "expectedSemantics": "Create a request_checkbox_confirmation interaction on an issue",
+      "foldedInto": "eval:ix-checkbox-01",
+      "evidenceId": "mcp:nexusRequestCheckboxConfirmation"
+    },
+    {
+      "id": "mcp:nexusUpsertIssueDocument",
+      "name": "nexusUpsertIssueDocument",
+      "description": "Create or update an issue document",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:601",
+      "expectedSemantics": "Create or update an issue document",
+      "foldedInto": "eval:dp-plan-doc-01",
+      "evidenceId": "mcp:nexusUpsertIssueDocument"
+    },
+    {
+      "id": "mcp:nexusRestoreIssueDocumentRevision",
+      "name": "nexusRestoreIssueDocumentRevision",
+      "description": "Restore a prior revision of an issue document",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:612",
+      "expectedSemantics": "Restore a prior revision of an issue document",
+      "foldedInto": "eval:dp-base-revision-01",
+      "evidenceId": "mcp:nexusRestoreIssueDocumentRevision"
+    },
+    {
+      "id": "mcp:nexusLinkIssueApproval",
+      "name": "nexusLinkIssueApproval",
+      "description": "Link an approval to an issue",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:627",
+      "expectedSemantics": "Link an approval to an issue",
+      "foldedInto": "eval:ap-board-approval-01",
+      "evidenceId": "mcp:nexusLinkIssueApproval"
+    },
+    {
+      "id": "mcp:nexusUnlinkIssueApproval",
+      "name": "nexusUnlinkIssueApproval",
+      "description": "Unlink an approval from an issue",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:636",
+      "expectedSemantics": "Unlink an approval from an issue",
+      "foldedInto": "eval:ap-board-approval-01",
+      "evidenceId": "mcp:nexusUnlinkIssueApproval"
+    },
+    {
+      "id": "mcp:nexusApprovalDecision",
+      "name": "nexusApprovalDecision",
+      "description": "Approve, reject, request revision, or resubmit an approval",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:646",
+      "expectedSemantics": "Approve, reject, request revision, or resubmit an approval",
+      "foldedInto": "eval:ap-approval-wake-01",
+      "evidenceId": "mcp:nexusApprovalDecision"
+    },
+    {
+      "id": "mcp:nexusAddApprovalComment",
+      "name": "nexusAddApprovalComment",
+      "description": "Add a comment to an approval",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:668",
+      "expectedSemantics": "Add a comment to an approval",
+      "foldedInto": "eval:ap-approval-deny-01",
+      "evidenceId": "mcp:nexusAddApprovalComment"
+    },
+    {
+      "id": "mcp:nexusApiRequest",
+      "name": "nexusApiRequest",
+      "description": "Make a JSON request to an existing Nexus /api endpoint for unsupported operations",
+      "sourceKind": "legacy_mcp_alias",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts:677",
+      "expectedSemantics": "Make a JSON request to an existing Nexus /api endpoint for unsupported operations",
+      "foldedInto": "eval:rf-api-404-report-01",
+      "evidenceId": "mcp:nexusApiRequest"
+    }
+  ]
+}

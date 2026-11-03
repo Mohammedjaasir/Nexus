@@ -1,4 +1,4 @@
-import type { IssueDocument } from "@paperclipai/shared";
+import type { IssueDocument } from "@nexusai/shared";
 import { FileText, Lightbulb, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SidebarDocumentLink } from "@/components/SidebarDocumentLink";

@@ -8,8 +8,8 @@ const meta = {
   component: ConnectorCatalogNavigation,
   parameters: {
     layout: "fullscreen",
-    docs: { description: { component: "Focused chip navigation: Paperclip, Composio, Arcade, Installed, and All. Connected accounts remain above the paginated catalog. Uses shipped connection cards, public catalogs with native duplicates omitted, and sample saved accounts. No account authorization or mutations." } },
-    paperclip: {
+    docs: { description: { component: "Focused chip navigation: Nexus, Composio, Arcade, Installed, and All. Connected accounts remain above the paginated catalog. Uses shipped connection cards, public catalogs with native duplicates omitted, and sample saved accounts. No account authorization or mutations." } },
+    nexus: {
       "capabilities": [
         "connection-setup/catalog"
       ],
@@ -20,7 +20,7 @@ const meta = {
     },
   },
   argTypes: {
-    initialSource: { control: "select", options: ["paperclip", "composio", "arcade", "installed", "all"] },
+    initialSource: { control: "select", options: ["nexus", "composio", "arcade", "installed", "all"] },
     pageSize: { control: "select", options: [50] },
   },
 } satisfies Meta<typeof ConnectorCatalogNavigation>;
@@ -58,12 +58,12 @@ export const SwitchFiltersAndSearch: Story = {
     await expect(canvas.getByRole("button", { name: "Manage Circleback" })).toBeVisible();
     await expect(canvas.queryByRole("heading", { name: "Notion" })).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Clear search" }));
-    await userEvent.click(filters.getByRole("button", { name: "Paperclip" }));
+    await userEvent.click(filters.getByRole("button", { name: "Nexus" }));
     await userEvent.type(canvas.getByRole("textbox", { name: "Search connectors" }), "calendar");
     await expect(filters.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
     await expect(canvas.getByRole("list", { name: "Available connectors" })).toHaveTextContent("Microsoft Outlook Calendar");
     await userEvent.click(canvas.getByRole("button", { name: "Clear search" }));
-    await expect(filters.getByRole("button", { name: "Paperclip" })).toHaveAttribute("aria-pressed", "true");
+    await expect(filters.getByRole("button", { name: "Nexus" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(filters.getByRole("button", { name: "All" }));
     await userEvent.type(canvas.getByRole("textbox", { name: "Search connectors" }), "github");
     await expect(canvas.getByRole("heading", { name: "GitHub" })).toBeVisible();

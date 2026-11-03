@@ -31,7 +31,7 @@ Managed setup is disabled by default. Qualification requires all of:
 - The instance chat-connector rollout gate and connection-management permission.
 - Verified Cloud runtime identity, connector broker signing/sealing configuration,
   and valid independently configured public board and webhook HTTPS origins.
-- `PAPERCLIP_SLACK_MANAGED_SETUP_ENABLED=true` on the approved tenant deployment.
+- `NEXUS_SLACK_MANAGED_SETUP_ENABLED=true` on the approved tenant deployment.
 - The companion Cloud broker deployment with the explicitly enabled `slack.manager`
   profile, approved Slack manager app, token rotation, and its client secret in
   the broker's secret store. No manager client secret belongs in the tenant.
@@ -42,12 +42,12 @@ without this capability leaves managed setup unavailable. Do not enable the tena
 gate until real Slack qualification has passed; fixture coverage does not prove
 Marketplace eligibility or a workspace's approval policy.
 
-Self-hosted instances do not need a Paperclip account, broker enrollment, manager
+Self-hosted instances do not need a Nexus account, broker enrollment, manager
 credentials, or hosted-service calls. They continue using the own-app flow.
 
 ## Personal workspace authorization
 
-Manager grants belong to a company **and one Paperclip user**, and bind a verified
+Manager grants belong to a company **and one Nexus user**, and bind a verified
 Slack user, workspace, and manager app. Another company member must authorize their
 own account, even for the same workspace. Access and rotating refresh tokens are
 user-scoped vault entries. Refreshes serialize across connections, persist the new
@@ -128,11 +128,11 @@ the production manager-grant vault, state claims, provisioning, completion, and
 runtime. It does not exercise the Cloud broker's sealed handoff; qualify that
 separately on staging afterward.
 
-Set `NODE_ENV=development`, `PAPERCLIP_SLACK_MANAGED_SETUP_ENABLED=true`, and
-`PAPERCLIP_SLACK_MANAGER_DEVELOPMENT_CONFIG` to an absolute path outside the
+Set `NODE_ENV=development`, `NEXUS_SLACK_MANAGED_SETUP_ENABLED=true`, and
+`NEXUS_SLACK_MANAGER_DEVELOPMENT_CONFIG` to an absolute path outside the
 checkout containing a mode-0600 JSON file with `appId`, `clientId`, and
 `clientSecret`. Use only an authorized qualification manager app. No credentials
-are shipped with Paperclip. Production ignores this development configuration,
+are shipped with Nexus. Production ignores this development configuration,
 and Cloud runtime identity continues to select the Cloud broker.
 
 Configure the local instance for authenticated public access, with its public
@@ -152,10 +152,10 @@ used by other bots.
 
 **Send me a test message** sends a DM to the signed-in connection manager,
 using their linked identity in this workspace. If this bot is not linked yet,
-Paperclip can reuse that user's verified manager grant or another bot's linked
+Nexus can reuse that user's verified manager grant or another bot's linked
 identity in the same company and workspace. Otherwise, the user selects their
 Slack account and receives a private connection invitation in Slack. They must
-open that invitation, sign in, and confirm before Paperclip links the account and
+open that invitation, sign in, and confirm before Nexus links the account and
 sends the test DM. The account picker loads further workspace pages on request. Existing revoked or conflicting identity links are not overwritten.
 Direct messages must be enabled, and the user must be an active company operator.
 

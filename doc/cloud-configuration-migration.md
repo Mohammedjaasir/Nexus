@@ -141,7 +141,7 @@ SDK/shared package graph and uses the production loader and worker manager for
 credential-free initialize/health calls. The runtime-path tests also invoke the
 production server bundler to verify its preserved module locations.
 
-Set `PAPERCLIP_CLOUD_CONFIGURATION_TEST_DATABASE_URL` only to an owned disposable
+Set `NEXUS_CLOUD_CONFIGURATION_TEST_DATABASE_URL` only to an owned disposable
 PostgreSQL database when embedded PostgreSQL is unavailable. The suite applies
 migrations and writes/deletes test records. A complete release image, hosted
 replacement, overlapping production processes, secret-byte migration, and volume

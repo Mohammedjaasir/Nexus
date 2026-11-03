@@ -27,7 +27,7 @@ const describePostgres = support.supported ? describe : describe.skip;
 afterEach(async () => { while (cleanups.length) await cleanups.pop()?.(); });
 
 async function database() {
-  const db = await startEmbeddedPostgresTestDatabase("paperclip-muse-migration-replay-");
+  const db = await startEmbeddedPostgresTestDatabase("nexus-muse-migration-replay-");
   cleanups.push(db.cleanup);
   const sql = postgres(db.connectionString, { max: 1, onnotice: () => {} });
   cleanups.push(async () => { await sql.end(); });
@@ -66,7 +66,7 @@ async function removeMuseSchemaAndReceipts(sql: ReturnType<typeof postgres>) {
 }
 async function seedRows(sql: ReturnType<typeof postgres>, complete: boolean) {
   const [company] = await sql`INSERT INTO companies (name, issue_prefix) VALUES ('Migration replay', 'RPL') RETURNING id`;
-  const [agent] = await sql`INSERT INTO agents (company_id, name, adapter_type) VALUES (${company.id}, 'Retained agent', 'paperclip_runner') RETURNING id`;
+  const [agent] = await sql`INSERT INTO agents (company_id, name, adapter_type) VALUES (${company.id}, 'Retained agent', 'nexus_runner') RETURNING id`;
   const [task] = await sql`INSERT INTO issues (company_id, title, assignee_agent_id) VALUES (${company.id}, 'Retained task', ${agent.id}) RETURNING id`;
   const [run] = await sql`INSERT INTO heartbeat_runs (company_id, agent_id, invocation_source, trigger_detail, status)
     VALUES (${company.id}, ${agent.id}, 'assignment', 'system', 'failed') RETURNING id`;
@@ -94,7 +94,7 @@ async function seedRows(sql: ReturnType<typeof postgres>, complete: boolean) {
   await sql`INSERT INTO "user" (id, name, email, created_at, updated_at) VALUES (${userId}, 'Synthetic operator', ${`${userId}@example.test`}, now(), now())`;
   await sql`INSERT INTO mcp_oauth_clients (id, name, redirect_uris) VALUES (${clientId}, 'Synthetic client', '["https://example.test/callback"]'::jsonb)`;
   const [grant] = await sql`INSERT INTO mcp_oauth_grants (company_id, user_id, client_id, resource, purpose, agent_id, scopes)
-    VALUES (${company.id}, ${userId}, ${clientId}, 'https://example.test/api/muse/v1', 'agent', ${agent.id}, '["paperclip:agent","offline_access"]'::jsonb) RETURNING id`;
+    VALUES (${company.id}, ${userId}, ${clientId}, 'https://example.test/api/muse/v1', 'agent', ${agent.id}, '["nexus:agent","offline_access"]'::jsonb) RETURNING id`;
   await sql`UPDATE muse_agent_bindings SET grant_id = ${grant.id} WHERE id = ${binding.id}`;
   if (complete) {
     await sql`UPDATE muse_agent_bindings SET qualification_started_at = '2026-01-01T00:00:00Z', deadline_enforced_at = '2026-01-02T00:00:00Z',

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PROVIDER_QUOTA_MONITOR_SERVICE_NAME } from "@paperclipai/shared";
+import { PROVIDER_QUOTA_MONITOR_SERVICE_NAME } from "@nexusai/shared";
 
 const SECOND_MS = 1_000;
 const MINUTE_MS = 60 * SECOND_MS;

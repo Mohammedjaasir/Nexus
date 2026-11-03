@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
-import { agentWakeupRequests, issues } from "@paperclipai/db";
-import type { Db } from "@paperclipai/db";
+import { agentWakeupRequests, issues } from "@nexusai/db";
+import type { Db } from "@nexusai/db";
 import type { TrustPresetResolution } from "./trust-preset-resolver.js";
 
 /**
@@ -49,15 +49,15 @@ export async function withHumanDirectedWork(
           AND w.status NOT IN ('skipped', 'cancelled')
           -- The source is copied from server-owned context at admission, never
           -- from caller payloads. Plugins can attribute a user but use plugin: sources.
-          AND (w.payload->'_paperclipWakeContext'->>'source' LIKE 'issue.%'
+          AND (w.payload->'_nexusWakeContext'->>'source' LIKE 'issue.%'
             -- Before origin snapshots were retained, board assignment requests
             -- already had this closed source/reason/actor combination. Plugin
             -- assignment wakes are system-attributed; plugin human comments are
             -- automation wakes. External connector receipts are excluded below.
-            OR (NOT (w.payload ? '_paperclipWakeContext')
+            OR (NOT (w.payload ? '_nexusWakeContext')
               AND w.source = 'assignment' AND w.reason = 'issue_assigned'))
           AND coalesce(w.payload->>'issueId', w.payload->>'taskId',
-            w.payload->'_paperclipWakeContext'->>'issueId', w.payload->'_paperclipWakeContext'->>'taskId') = t.id::text
+            w.payload->'_nexusWakeContext'->>'issueId', w.payload->'_nexusWakeContext'->>'taskId') = t.id::text
           -- Connector sender attribution can also use a user id. Its durable
           -- inbound receipts are not authenticated board instructions.
           AND (w.idempotency_key IS NULL OR w.idempotency_key NOT LIKE 'chat-inbound:%')
@@ -88,7 +88,7 @@ export async function retainBacklogHumanAssignment(
       companyId: issue.companyId, agentId: issue.assigneeAgentId!, source: "assignment",
       reason: "issue_human_assignment", status: "completed", finishedAt: new Date(),
       requestedByActorType: "user", requestedByActorId: actor.actorId,
-      payload: { issueId: issue.id, _paperclipWakeContext: { source: "issue.backlog_assignment" } },
+      payload: { issueId: issue.id, _nexusWakeContext: { source: "issue.backlog_assignment" } },
     });
   });
 }

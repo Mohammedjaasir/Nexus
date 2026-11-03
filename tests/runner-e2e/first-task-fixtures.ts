@@ -1,4 +1,4 @@
-import { normalizePaperclipOperationalSkillPreference } from "../../packages/adapter-utils/src/server-utils.js";
+import { normalizeNexusOperationalSkillPreference } from "../../packages/adapter-utils/src/server-utils.js";
 import { isDeepStrictEqual } from "node:util";
 import type { RunnerApi } from "./api.js";
 import { deleteDaytonaEnvironment, installFixtureDaytonaProvider, type LiveFixtureValues } from "./live-fixtures.js";
@@ -33,7 +33,7 @@ export async function startFirstTaskWithRuntimeBound(input: {
       "id", "companyId", "adapterType", "adapterConfig", "runtimeConfig", "permissions", "defaultEnvironmentId", "budgetMonthlyCents", "metadata",
     ].map(key => [key, agent?.[key]]))) as Record<string, any>;
     const before = snapshot(input.agent);
-    if (!before.id || !before.companyId || before.adapterType !== "paperclip_runner" || before.adapterConfig?.provider !== "codex") {
+    if (!before.id || !before.companyId || before.adapterType !== "nexus_runner" || before.adapterConfig?.provider !== "codex") {
       throw new Error("First-task runtime bound requires the wizard's original native Codex selection");
     }
     const agentPath = `/api/agents/${encodeURIComponent(before.id)}`;
@@ -181,9 +181,9 @@ export function firstTaskNativeRuntimePatch(
   if (agent.adapterConfig?.model == null) delete config.model;
   else config.model = agent.adapterConfig.model;
   return {
-    adapterType: "paperclip_runner",
-    adapterConfig: normalizePaperclipOperationalSkillPreference(
-      "paperclip_runner",
+    adapterType: "nexus_runner",
+    adapterConfig: normalizeNexusOperationalSkillPreference(
+      "nexus_runner",
       config,
     ),
   };

@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { collectPiFileEvidence, gradePiCopyback, gradePiFileEvidence, piFileContract, piFilePrompt, seedPiFile } from "./pi-file-evidence.js";
-import { canonicalProviderEventsFromAcpxRuntimeEvent, createAcpxToolEventNormalizer } from "../../packages/paperclip-runner/src/provider-events.js";
-import { safeAcpxLocations } from "../../packages/paperclip-runner/src/drivers/acpx/safe-locations.js";
+import { canonicalProviderEventsFromAcpxRuntimeEvent, createAcpxToolEventNormalizer } from "../../packages/nexus-runner/src/provider-events.js";
+import { safeAcpxLocations } from "../../packages/nexus-runner/src/drivers/acpx/safe-locations.js";
 import { classifyFailure } from "./failure-classifier.js";
 import { runnerMatrix } from "./catalog.js";
 
@@ -27,12 +27,12 @@ function fixture() {
     const canonical = canonicalProviderEventsFromAcpxRuntimeEvent(event, executionId, "turn")[0]!;
     return { companyId: "company", runId: "run", seq, protocolSchemaVersion: 1, eventType: canonical.eventType,
       sourceInstanceId: "runner", sourceSeq: seq, sourceEventId: `runner:run:${seq}`,
-      payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", sourceInstanceId: "runner",
+      payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", sourceInstanceId: "runner",
         sourceSeq: seq, sourceEventId: `runner:run:${seq}`, runId: "run", turnId: "turn", normalizedSessionId: "session", ...canonical } } };
   };
   return {
     environment: "local" as const, environmentId: "environment", nonce: "fixture", companyId: "company", issueId: "issue", agentId: "agent", attachmentId,
-    seed: { schema: "paperclip.e2e.pi-file-seed.v1", filename: c.filename,
+    seed: { schema: "nexus.e2e.pi-file-seed.v1", filename: c.filename,
       beforeSha256: createHash("sha256").update("ready-fixture\n").digest("hex"), byteSize: Buffer.byteLength(c.before) },
     workspaceBytes: Buffer.from(c.after), downloadedBytes: Buffer.from(c.after),
     run: { id: "run", companyId: "company", agentId: "agent", runtimeMode: "native", nativeSessionId: "session", runnerInstanceId: "runner", status: "succeeded", resultJson: { semanticToolReceipts: {
@@ -51,7 +51,7 @@ function fixture() {
     attachments: [{ id: attachmentId, companyId: "company", issueId: "issue", originatingRunId: "run", createdByAgentId: "agent",
       originalFilename: c.filename, contentType: "text/plain", byteSize: c.byteSize, sha256: c.sha256 }],
     activity: [{ action: "issue.attachment_added", companyId: "company", runId: "run", actorId: "agent", entityId: "issue",
-      details: { attachmentId, source: "paperclip_runner_protocol" } }],
+      details: { attachmentId, source: "nexus_runner_protocol" } }],
   };
 }
 function changeOutput(f: ReturnType<typeof fixture>, change: (output: any) => void) {
@@ -66,7 +66,7 @@ describe("Pi edit, validation and public artifact oracle", () => {
     f.events = retained.events.map((x: any) => ({ companyId: "company", runId: "run", seq: x.seq,
       protocolSchemaVersion: 1, eventType: x.eventType, sourceInstanceId: "runner", sourceSeq: x.sourceSeq,
       sourceEventId: `runner:run:${x.sourceSeq}`, payload: { prpEvent: {
-        schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", sourceInstanceId: "runner",
+        schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", sourceInstanceId: "runner",
         sourceSeq: x.sourceSeq, sourceEventId: `runner:run:${x.sourceSeq}`, runId: "run", turnId: "turn",
         normalizedSessionId: "session", eventType: x.eventType, payload: x.payload,
       } } }));
@@ -167,7 +167,7 @@ describe("Pi edit, validation and public artifact oracle", () => {
     const c = piFileContract("0123456789ab-1");
     expect([...c.validationCommand].length).toBeLessThanOrEqual(240);
     expect(safeAcpxLocations([{ path: `/workspace/${c.filename}` }], "/workspace", "edit", "edit")[0]).toMatchObject({
-      path: c.filename, pathBoundary: "paperclip.workspace_relative_display.v2",
+      path: c.filename, pathBoundary: "nexus.workspace_relative_display.v2",
     });
     expect(() => piFileContract("a".repeat(100))).toThrow("native Rust tool-name bound");
   });
@@ -242,10 +242,10 @@ describe("Pi edit, validation and public artifact oracle", () => {
 
 function copyback() {
   const f = fixture();
-  const reference = { schema: "paperclip.native-workspace-sync/v2", state: "finalized", baselineSha256: "a".repeat(64),
+  const reference = { schema: "nexus.native-workspace-sync/v2", state: "finalized", baselineSha256: "a".repeat(64),
     descriptorSha256: "b".repeat(64), finalHostSha256: "c".repeat(64), workspaceId: "workspace", leaseId: "lease",
     providerLeaseId: "sandbox", remoteCwd: "/workspace" };
-  const run = { ...f.run, contextSnapshot: { executionWorkspaceId: "workspace", paperclipEnvironment: { id: "environment", driver: "sandbox", leaseId: "lease" } },
+  const run = { ...f.run, contextSnapshot: { executionWorkspaceId: "workspace", nexusEnvironment: { id: "environment", driver: "sandbox", leaseId: "lease" } },
     runnerProfileJson: { nativeWorkspaceSync: reference, nativeExecutionInput: { binding: { executionWorkspaceId: "workspace" } } } };
   const lease = { id: "lease", companyId: "company", environmentId: "environment", heartbeatRunId: "run", provider: "daytona", providerLeaseId: "sandbox", metadata: { remoteCwd: "/workspace" } };
   return { ...f, run, lease, environment: "daytona" as const };

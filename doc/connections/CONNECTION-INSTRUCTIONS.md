@@ -87,7 +87,7 @@ Custom integration contracts:
   This server-owned field overrides `payloadTemplate`. Append its text alongside
   agent instructions before invoking a model; do not reuse a session with a
   different digest.
-- **Process adapter:** `PAPERCLIP_CONNECTION_INSTRUCTIONS_FILE` points to a private
+- **Process adapter:** `NEXUS_CONNECTION_INSTRUCTIONS_FILE` points to a private
   JSON file containing the same snapshot. Read it during the invocation and
   append `.text` to your model prompt. It is empty when no instructions apply.
   Configured or inherited paths cannot override it. The temporary file is removed
@@ -95,7 +95,7 @@ Custom integration contracts:
 
 Instruction guidance grants no new permissions. Approval requirements remain
 attached to tool calls, and remembered content does not override the current task.
-Provider memory scope follows the provider’s real configuration; Paperclip does
+Provider memory scope follows the provider’s real configuration; Nexus does
 not claim isolation from invented agent IDs or tags.
 
 ## Honcho configuration

@@ -11,7 +11,7 @@ const meta = {
     layout: "fullscreen",
     initialEntries: ["/PAP/projects"],
     docs: { description: { component: "Independent desktop reuse trial using only Design Proposals references. Shared shell, sidebar, metrics, cards, flyouts, inputs, task summaries and empty states; local project aggregation, name/description search and selection. Active means in progress. Needs attention uses the shared task-view predicate: blocked or in review. Summary totals always describe the selected organization, independent of filters. Selecting a card shows its six most recently updated tasks. Changing search, view or organization clears selection. Fixtures include long names, an empty project and an empty organization. No production route, API, permission or persistence coverage." } },
-    paperclip: {
+    nexus: {
       capabilities: ["projects/lifecycle", "projects/task-context"],
       home: "design-proposals",
       status: "proposed",

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 
-import { DurablePrpControlPlane } from "@paperclipai/paperclip-runner";
+import { DurablePrpControlPlane } from "@nexusai/nexus-runner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -43,7 +43,7 @@ describe("runner PRP websocket route", () => {
     const socket = new PassThrough();
     const request = { url: `/api/runner/v1/connect/${runId}`, headers: {} };
     server.emit("upgrade", request, socket, Buffer.alloc(0));
-    expect(request).toMatchObject({ paperclipWebSocketHandled: true });
+    expect(request).toMatchObject({ nexusWebSocketHandled: true });
     expect(handleUpgrade).toHaveBeenCalledWith(
       expect.objectContaining({ url: `/api/runner/v1/connect/${runId}` }),
       socket,

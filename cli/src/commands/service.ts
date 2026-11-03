@@ -3,7 +3,7 @@ import path from "node:path";
 import * as p from "@clack/prompts";
 import type { Command } from "commander";
 import { readConfig, resolveConfigPath } from "../config/store.js";
-import { resolvePaperclipInstanceId, resolvePaperclipInstanceRoot } from "../config/home.js";
+import { resolveNexusInstanceId, resolveNexusInstanceRoot } from "../config/home.js";
 import { detectServiceManager, type ServiceManager, type ServiceStatus } from "../services/service-manager.js";
 import { ensureServiceShim } from "../onboard-service.js";
 import { buildLocalHealthUrl } from "../utils/health-url.js";
@@ -25,7 +25,7 @@ async function resolveManager(opts: CommonOptions): Promise<ServiceManager | nul
 }
 
 function healthUrl(instanceId: string): string {
-  process.env.PAPERCLIP_INSTANCE_ID = instanceId;
+  process.env.NEXUS_INSTANCE_ID = instanceId;
   const config = readConfig(resolveConfigPath());
   return buildLocalHealthUrl(config?.server.host, config?.server.port ?? 3100);
 }
@@ -48,7 +48,7 @@ async function waitForHealth(instanceId: string, expectedVersion: string | null,
     if (last.ok && (!expectedVersion || last.serverVersion === expectedVersion)) return last;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error(`Paperclip service did not become healthy${expectedVersion ? ` at version ${expectedVersion}` : ""}: ${last.error ?? `reported ${last.serverVersion ?? "no version"}`}`);
+  throw new Error(`Nexus service did not become healthy${expectedVersion ? ` at version ${expectedVersion}` : ""}: ${last.error ?? `reported ${last.serverVersion ?? "no version"}`}`);
 }
 
 export function resolveRestartExpectedVersion(expectedVersion: string | null | undefined): string | null {
@@ -60,7 +60,7 @@ export async function withHotRestartLock<T>(
   callback: () => Promise<T>,
   options: { timeoutMs?: number; pollMs?: number; isProcessAlive?: (pid: number) => boolean } = {},
 ): Promise<T> {
-  const instanceRoot = resolvePaperclipInstanceRoot(instanceId);
+  const instanceRoot = resolveNexusInstanceRoot(instanceId);
   const lockPath = path.join(instanceRoot, "hot-restart.lock");
   const token = `${process.pid}:${Date.now()}:${Math.random().toString(16).slice(2)}`;
   const deadline = Date.now() + (options.timeoutMs ?? 120_000);
@@ -120,7 +120,7 @@ export async function withHotRestartLock<T>(
 async function writeHotRestartIntent(status: ServiceStatus, instanceId: string, drainRequired: boolean): Promise<{ requestedAt: string }> {
   if (!status.pid) throw new Error(`Cannot restart ${status.serviceName}: supervisor did not report a server pid.`);
   const health = await probeHealth(instanceId);
-  const instanceRoot = resolvePaperclipInstanceRoot(instanceId);
+  const instanceRoot = resolveNexusInstanceRoot(instanceId);
   const requestedAt = new Date().toISOString();
   await fs.mkdir(instanceRoot, { recursive: true });
   await fs.rm(path.join(instanceRoot, "hot-restart-report.json"), { force: true });
@@ -130,13 +130,13 @@ async function writeHotRestartIntent(status: ServiceStatus, instanceId: string, 
     previousServerPid: status.pid,
     previousServerVersion: health.serverVersion,
     drainRequired,
-    requestedByRunId: process.env.PAPERCLIP_RUN_ID?.trim() || null,
+    requestedByRunId: process.env.NEXUS_RUN_ID?.trim() || null,
   }, null, 2)}\n`, "utf8");
   return { requestedAt };
 }
 
 async function waitForRestartReport(instanceId: string, requestedAt: string, timeoutMs = 10_000): Promise<unknown | null> {
-  const reportPath = path.join(resolvePaperclipInstanceRoot(instanceId), "hot-restart-report.json");
+  const reportPath = path.join(resolveNexusInstanceRoot(instanceId), "hot-restart-report.json");
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
@@ -151,7 +151,7 @@ async function waitForRestartReport(instanceId: string, requestedAt: string, tim
 }
 
 export async function restartManagedService(input: { instanceId?: string; expectedVersion?: string | null; waitForDrain?: boolean } = {}): Promise<{ status: ServiceStatus; health: HealthResult; report: unknown | null }> {
-  const instanceId = resolvePaperclipInstanceId(input.instanceId);
+  const instanceId = resolveNexusInstanceId(input.instanceId);
   return withHotRestartLock(instanceId, async () => {
     const detection = await detectServiceManager({ instanceId });
     if (!detection.supported) throw new Error(detection.reason);
@@ -164,7 +164,7 @@ export async function restartManagedService(input: { instanceId?: string; expect
 }
 
 export function registerServiceCommands(program: Command): void {
-  const service = program.command("service").description("Manage Paperclip as a background service");
+  const service = program.command("service").description("Manage Nexus as a background service");
   const common = (command: Command) => command.option("-i, --instance <id>", "Local instance id (default: default)").option("--json", "Print machine-readable JSON", false);
 
   common(service.command("install").description("Install and register the background service"))
@@ -177,18 +177,18 @@ export function registerServiceCommands(program: Command): void {
       if (!shim.ok) {
         throw new Error(
           `Background service not installed: ${shim.reason ?? "the managed install could not be completed"}. ` +
-            "Run `paperclipai install`, then `paperclipai service install`.",
+            "Run `nexusai install`, then `nexusai service install`.",
         );
       }
       if (shim.installedNow) {
-        p.log.success("Installed the managed paperclipai payload and command shim for the service.");
+        p.log.success("Installed the managed nexusai payload and command shim for the service.");
       }
       const result = await manager.install({ startNow: opts.startNow, startOnLogin: opts.startOnLogin });
       let lingerEnabled = false;
       if (manager.enableLinger) {
         let consent = opts.enableLinger === true;
         if (!consent && process.stdin.isTTY && process.stdout.isTTY) {
-          consent = await p.confirm({ message: "Allow Paperclip to run without an active login session? This runs 'loginctl enable-linger' for your user and may request system authorization.", initialValue: false }) === true;
+          consent = await p.confirm({ message: "Allow Nexus to run without an active login session? This runs 'loginctl enable-linger' for your user and may request system authorization.", initialValue: false }) === true;
         }
         if (consent) { await manager.enableLinger(); lingerEnabled = true; }
       }
@@ -218,7 +218,7 @@ export function registerServiceCommands(program: Command): void {
 
   common(service.command("status").description("Show supervisor and health status")).action(async (opts) => {
     const manager = await resolveManager(opts); if (!manager) return;
-    const instanceId = resolvePaperclipInstanceId(opts.instance);
+    const instanceId = resolveNexusInstanceId(opts.instance);
     output({ ...await manager.status(), health: await probeHealth(instanceId) }, opts.json);
   });
 

@@ -99,7 +99,7 @@ External event delivery remains durable in Cloud across processes and restarts.
 3. Enable Cloud enrollment. Version 1 activation is durable and idempotent. Turning
    the new-enrollment flag off must still service all existing version 1 records.
 4. Before removing the Cloud delivery worker, restart affected tenants with
-   `PAPERCLIP_GITHUB_EVENT_POLLING=1`. They arm fallback before sending signed
+   `NEXUS_GITHUB_EVENT_POLLING=1`. They arm fallback before sending signed
    `ewv=0`. Confirm the Cloud registration is cleared. A failed handoff leaves
    fallback active and Cloud retry intact. Alternatively, restore the old polling
    tenant image first while retaining the compatible Cloud worker.

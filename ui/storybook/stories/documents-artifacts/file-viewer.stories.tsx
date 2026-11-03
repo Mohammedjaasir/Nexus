@@ -5,7 +5,7 @@ import type {
   ResolvedWorkspaceResource,
   WorkspaceFileContent,
   WorkspaceFileSelector,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { FileViewerProvider } from "@/context/FileViewerContext";
 import { FileViewerSheet } from "@/components/FileViewerSheet";
 import { queryKeys } from "@/lib/queryKeys";
@@ -218,7 +218,7 @@ const meta: Meta = {
   parameters: {
     layout: "fullscreen",
     a11y: { test: "todo" },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "documents-artifacts/attachments"
       ],

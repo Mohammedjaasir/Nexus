@@ -1,6 +1,6 @@
 import { and, eq, exists, gte, isNull, lte, notExists, or, sql } from "drizzle-orm";
-import { aiSubscriptions, aiSubscriptionPrices, aiSubscriptionConnections, connectionGrants, connectionGrantMembers, agents, authUsers, companyMemberships, costEvents, type Db } from "@paperclipai/db";
-import { addCents, monthlySubscriptionCents, type SubscriptionCostReport, type SubscriptionPrice, type SubscriptionUsage } from "@paperclipai/shared";
+import { aiSubscriptions, aiSubscriptionPrices, aiSubscriptionConnections, connectionGrants, connectionGrantMembers, agents, authUsers, companyMemberships, costEvents, type Db } from "@nexusai/db";
+import { addCents, monthlySubscriptionCents, type SubscriptionCostReport, type SubscriptionPrice, type SubscriptionUsage } from "@nexusai/shared";
 import { withAccountingReadSnapshot } from "./accounting-transaction.js";
 import { ordinaryInputTokens } from "./costs.js";
 import { resolveCostDateRange, type CostDateRange } from "./cost-date-range.js";

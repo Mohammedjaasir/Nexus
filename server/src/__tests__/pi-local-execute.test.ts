@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { discoverPiModels, execute, testEnvironment } from "@paperclipai/adapter-pi-local/server";
+import { discoverPiModels, execute, testEnvironment } from "@nexusai/adapter-pi-local/server";
 
 async function writeFakePiCommand(commandPath: string): Promise<void> {
   const script = `#!/usr/bin/env node
@@ -48,7 +48,7 @@ process.exit(0);
 
 describe("pi_local execute", () => {
   it("fails the run when Pi exhausts automatic retries despite exiting 0", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-pi-execute-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-pi-execute-"));
     const workspace = path.join(root, "workspace");
     const commandPath = path.join(root, "pi");
     await fs.mkdir(workspace, { recursive: true });
@@ -94,7 +94,7 @@ describe("pi_local execute", () => {
   });
 
   it("prepends installed skill bin/ dirs to the spawned Pi child PATH", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-pi-path-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-pi-path-"));
     const workspace = path.join(root, "workspace");
     const commandPath = path.join(root, "pi");
     const skillDir = path.join(root, "skills", "demo-skill");
@@ -129,10 +129,10 @@ describe("pi_local execute", () => {
           cwd: workspace,
           model: "google/gemini-3-flash-preview",
           promptTemplate: "Keep working.",
-          paperclipRuntimeSkills: [
+          nexusRuntimeSkills: [
             { key: "demo-skill", runtimeName: "demo-skill", source: skillDir },
           ],
-          paperclipSkillSync: {
+          nexusSkillSync: {
             desiredSkills: ["demo-skill"],
           },
         },
@@ -153,7 +153,7 @@ describe("pi_local execute", () => {
   });
 
   it("does not expose bin/ dirs from skills that are not injected", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-pi-path-neg-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-pi-path-neg-"));
     const workspace = path.join(root, "workspace");
     const commandPath = path.join(root, "pi");
     const nonInjectedSkillDir = path.join(root, "skills", "not-injected");
@@ -188,9 +188,9 @@ describe("pi_local execute", () => {
           cwd: workspace,
           model: "google/gemini-3-flash-preview",
           promptTemplate: "Keep working.",
-          // The implicit legacy default applies only to the canonical Paperclip
+          // The implicit legacy default applies only to the canonical Nexus
           // operational skill, so this unrelated skill remains unselected.
-          paperclipRuntimeSkills: [
+          nexusRuntimeSkills: [
             { key: "not-injected", runtimeName: "not-injected", source: nonInjectedSkillDir },
           ],
         },
@@ -209,7 +209,7 @@ describe("pi_local execute", () => {
   });
 
   it("isolates server secrets during execution, model discovery, and environment probes", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-pi-env-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-pi-env-"));
     const workspace = path.join(root, "workspace");
     const commandPath = path.join(root, "pi");
     const envDumpPath = path.join(root, "captured-env.json");
@@ -228,14 +228,14 @@ console.log(JSON.stringify({ type: "agent_end", messages: [] }));
     await fs.chmod(commandPath, 0o755);
 
     const serverSecrets = {
-      PAPERCLIP_AGENT_JWT_SECRET: "server-jwt-secret",
-      PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: "server-tool-action-secret",
-      PAPERCLIP_SECRETS_MASTER_KEY_FILE: "/server/master.key",
+      NEXUS_AGENT_JWT_SECRET: "server-jwt-secret",
+      NEXUS_TOOL_ACTION_SIGNING_SECRET: "server-tool-action-secret",
+      NEXUS_SECRETS_MASTER_KEY_FILE: "/server/master.key",
     };
     const permittedEnv = {
-      PAPERCLIP_RUNTIME_API_URL: "https://runtime.example.test",
-      PAPERCLIP_LISTEN_HOST: "127.0.0.1",
-      PAPERCLIP_LISTEN_PORT: "3100",
+      NEXUS_RUNTIME_API_URL: "https://runtime.example.test",
+      NEXUS_LISTEN_HOST: "127.0.0.1",
+      NEXUS_LISTEN_PORT: "3100",
     };
     const inheritedEnv = { ...serverSecrets, ...permittedEnv };
     const previous = { HOME: process.env.HOME, ...Object.fromEntries(Object.keys(inheritedEnv).map((k) => [k, process.env[k]])) };
@@ -277,7 +277,7 @@ console.log(JSON.stringify({ type: "agent_end", messages: [] }));
         (line) => JSON.parse(line) as { args: string[]; env: Record<string, string> },
       );
       const discovery = captures.find(({ args }) => args.includes("--list-models"));
-      const execution = captures.find(({ env }) => env.PAPERCLIP_AGENT_ID === "agent-env");
+      const execution = captures.find(({ env }) => env.NEXUS_AGENT_ID === "agent-env");
       const probe = captures.find(({ args }) => args.includes("Respond with hello."));
       expect(discovery).toBeDefined();
       expect(execution).toBeDefined();
@@ -287,7 +287,7 @@ console.log(JSON.stringify({ type: "agent_end", messages: [] }));
         expect(capture.env.AGENT_SETTING).toBe("kept");
         expect(capture.env).toMatchObject(permittedEnv);
       }
-      expect(execution!.env.PAPERCLIP_API_KEY).toBe("run-jwt-token");
+      expect(execution!.env.NEXUS_API_KEY).toBe("run-jwt-token");
     } finally {
       for (const [key, value] of Object.entries(previous)) {
         if (value === undefined) delete process.env[key];

@@ -28,7 +28,7 @@ import type {
   ChatPublicationState,
   ChatResourceAvailability,
   SafeChatPublicationPayload,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { agents } from "./agents.js";
 import { companies } from "./companies.js";
 import { issueComments } from "./issue_comments.js";
@@ -145,7 +145,7 @@ export const chatEndpoints = pgTable(
       .on(table.botExternalId)
       .where(sql`${table.provider} = 'agentmail' and ${table.status} != 'archived' and ${table.botExternalId} is not null`),
     uniqueIndex("chat_endpoints_connection_uq").on(table.connectionId),
-    // A native provider identity can back only one live Paperclip endpoint.
+    // A native provider identity can back only one live Nexus endpoint.
     // Historical archived/revoked endpoints retain attribution without
     // preventing an operator from deliberately reusing the provider bot later.
     uniqueIndex("chat_endpoints_live_bot_external_uq")
@@ -158,7 +158,7 @@ export const chatEndpoints = pgTable(
     // One Discord application can be installed in many guilds, but it remains
     // one native bot identity. Excluding providerAccountId closes the race
     // where concurrent setup in two guilds could otherwise claim that bot for
-    // two Paperclip agents after both application-level prechecks passed.
+    // two Nexus agents after both application-level prechecks passed.
     uniqueIndex("chat_endpoints_photon_number_uq")
       .on(table.botExternalId)
       .where(sql`${table.provider} = 'imessage-photon' and ${table.status} <> 'archived' and ${table.botExternalId} is not null`),
@@ -173,7 +173,7 @@ export const chatEndpoints = pgTable(
     // identities. Their mutable owner/tenant coordinate is useful metadata,
     // but it cannot be part of the exclusivity key: an App transfer or a
     // multi-tenant service principal must never let one native bot represent
-    // two Paperclip agents through two different webhook URLs.
+    // two Nexus agents through two different webhook URLs.
     uniqueIndex("chat_endpoints_live_global_app_bot_external_uq")
       .on(table.provider, table.botExternalId)
       .where(
@@ -315,7 +315,7 @@ export const chatIdentityLinks = pgTable(
       .references(() => companies.id, { onDelete: "cascade" }),
     endpointId: uuid("endpoint_id").notNull(),
     principalId: uuid("principal_id").notNull(),
-    paperclipUserId: text("paperclip_user_id"),
+    nexusUserId: text("nexus_user_id"),
     status: text("status")
       .$type<ChatIdentityLinkStatus>()
       .notNull()
@@ -338,7 +338,7 @@ export const chatIdentityLinks = pgTable(
     ),
     index("chat_identity_links_user_idx").on(
       table.companyId,
-      table.paperclipUserId,
+      table.nexusUserId,
     ),
     uniqueIndex("chat_identity_links_endpoint_principal_uq").on(
       table.endpointId,
@@ -378,7 +378,7 @@ export const chatConversations = pgTable(
     externalThreadId: text("external_thread_id").notNull().default(""),
     // Providers with linear conversations (DMs, Telegram groups, Teams group
     // chats) reuse one native thread id. A generation preserves the native id
-    // used for replies while allowing completed Paperclip tasks to roll over.
+    // used for replies while allowing completed Nexus tasks to roll over.
     sessionGeneration: integer("session_generation").notNull().default(1),
     externalLabel: text("external_label").notNull(),
     providerUrl: text("provider_url"),

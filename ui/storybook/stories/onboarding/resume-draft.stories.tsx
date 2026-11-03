@@ -41,7 +41,7 @@ const meta = {
     "Getting started and access/Onboarding and first work/Resume a saved draft",
   component: Resume,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "onboarding/resume"
       ],

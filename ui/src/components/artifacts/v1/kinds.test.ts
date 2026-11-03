@@ -1,5 +1,5 @@
 import { Music } from "lucide-react";
-import type { CompanyArtifact } from "@paperclipai/shared";
+import type { CompanyArtifact } from "@nexusai/shared";
 import { describe, expect, it } from "vitest";
 import { glyphOf, isPortrait, kindFor, labelOf, mediaKindOf, subjectFromCompanyArtifact, treatmentOf } from "./kinds";
 import { testSubject } from "./test-subject";

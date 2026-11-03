@@ -49,13 +49,13 @@ describe("agent chat navigation and session markers", () => {
     recordAgentChatVisit("b", "user1", "agent3");
     recordAgentChatVisit("a", "user2", "agent4");
     expect(
-      JSON.parse(localStorage.getItem("paperclip.recentAgentChats:a:user1")!),
+      JSON.parse(localStorage.getItem("nexus.recentAgentChats:a:user1")!),
     ).toEqual(["agent1", "agent2"]);
     expect(
-      JSON.parse(localStorage.getItem("paperclip.recentAgentChats:b:user1")!),
+      JSON.parse(localStorage.getItem("nexus.recentAgentChats:b:user1")!),
     ).toEqual(["agent3"]);
     expect(
-      JSON.parse(localStorage.getItem("paperclip.recentAgentChats:a:user2")!),
+      JSON.parse(localStorage.getItem("nexus.recentAgentChats:a:user2")!),
     ).toEqual(["agent4"]);
   });
   it("remembers an existing conversation and clears its identity for a new empty chat", () => {
@@ -66,7 +66,7 @@ describe("agent chat navigation and session markers", () => {
     expect(recordedAgentChatIssueId("company-c", "user1", "agent1")).toBeNull();
   });
   it("recognizes a conversation cleared in another tab while retaining failed-write fallback", () => {
-    const storageKey = "paperclip.recentAgentChatIssue:company-d:user1:agent1";
+    const storageKey = "nexus.recentAgentChatIssue:company-d:user1:agent1";
     recordAgentChatVisit("company-d", "user1", "agent1", "issue-1");
     localStorage.removeItem(storageKey);
     expect(recordedAgentChatIssueId("company-d", "user1", "agent1")).toBeNull();
@@ -83,7 +83,7 @@ describe("agent chat navigation and session markers", () => {
   });
   it("removes legacy plaintext retry records", () => {
     const scope = "company:user:agent";
-    const key = `paperclip:agent-chat-pending:${scope}`;
+    const key = `nexus:agent-chat-pending:${scope}`;
     localStorage.setItem(key, JSON.stringify([{ body: "private text", id: "old" }]));
     clearLegacyChatMessageRequests(scope);
     expect(localStorage.getItem(key)).toBeNull();

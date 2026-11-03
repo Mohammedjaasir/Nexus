@@ -16,5 +16,5 @@ export async function convertRepositoryProofAgent(api: Pick<RunnerApi, "post" | 
     if (!probe.ok || !probe.details?.platformQualificationRecorded || !probe.details.leaseId)
       throw new Error("Legacy conversion platform qualification was not recorded");
   }
-  await api.patch(`/api/agents/${fixtures.agent.id}`, { runner: "paperclip" });
+  await api.patch(`/api/agents/${fixtures.agent.id}`, { runner: "nexus" });
 }

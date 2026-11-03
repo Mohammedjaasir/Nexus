@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Agent, AgentInstructionsBundle, AgentInstructionsFileDetail, AgentInstructionsFileSummary } from "@paperclipai/shared";
+import type { Agent, AgentInstructionsBundle, AgentInstructionsFileDetail, AgentInstructionsFileSummary } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentFileRunNotice, PromptsTab } from "./AgentDetail";
 import { queryKeys } from "../lib/queryKeys";
@@ -206,10 +206,10 @@ function makeBundle(
     agentId: "agent-1",
     companyId: "company-1",
     mode: "managed",
-    rootPath: "/paperclip/agents/agent-1/instructions",
-    managedRootPath: "/paperclip/agents/agent-1/instructions",
+    rootPath: "/nexus/agents/agent-1/instructions",
+    managedRootPath: "/nexus/agents/agent-1/instructions",
     entryFile,
-    resolvedEntryPath: `/paperclip/agents/agent-1/instructions/${entryFile}`,
+    resolvedEntryPath: `/nexus/agents/agent-1/instructions/${entryFile}`,
     editable: true,
     warnings: [],
     legacyPromptTemplateActive: false,

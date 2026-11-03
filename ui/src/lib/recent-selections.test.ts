@@ -90,7 +90,7 @@ describe("recent selection ordering", () => {
     rememberComposerEffort("company-1", null);
     expect(getLastComposerEffort("company-1")).toBeNull();
     expect(getLastComposerEffort("company-2")).toBe("ultra");
-    localStorage.setItem("paperclip:composer-effort:company-1", "broken json");
+    localStorage.setItem("nexus:composer-effort:company-1", "broken json");
     expect(getLastComposerEffort("company-1")).toBeUndefined();
   });
 

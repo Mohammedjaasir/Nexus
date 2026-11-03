@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { DurableRecoveryIdentity, PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import type { DurableRecoveryIdentity, PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { buildNativeExecutionInput } from "./native-execution-input.js";
 import { nativeRuntimeContextFixture } from "./runtime-context.test-fixture.js";
 import { createNativeRecoveryUsageDelivery } from "./native-recovery-usage-delivery.js";
@@ -19,7 +19,7 @@ function fixture() {
   const build = (runId: string) => buildNativeExecutionInput({ companyId, agentId, runId, normalizedSessionId: sessionId,
     provider: "codex", issue: { id: issueId, identifier: "REC-1", title: "Continue", description: null, workMode: "standard" },
     taskPrompt: "Continue once", workspace: { id: randomUUID(), cwd: "/workspace", repoUrl: null, repoRef: null, branchName: null },
-    completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "paperclip.run-result.v1",
+    completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "nexus.run-result.v1",
       contract: { revision: "1", objective: "Continue", criteria: [{ id: "objective", requirement: "Preserve the result" }] } },
     runtimeContext: nativeRuntimeContextFixture() });
   const execution = build(randomUUID()), previous = build(source.runId);
@@ -31,7 +31,7 @@ function fixture() {
   const db = { select } as unknown as Db;
   const matchesExecution = vi.fn(() => true);
   const deliver = () => createNativeRecoveryUsageDelivery({ db, execution, sourceIdentity: { ...source }, matchesExecution });
-  const event: PrpEvent = { schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", sourceInstanceId: source.runnerInstanceId,
+  const event: PrpEvent = { schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", sourceInstanceId: source.runnerInstanceId,
     sourceEventId: "source-usage", sourceSeq: 1, runId: source.runId, normalizedSessionId: sessionId, turnId: source.turnId,
     eventType: "usage.reported", priority: 0, emittedAt: new Date().toISOString(), payload: {} };
   return { source, execution, previous, row, select, where, matchesExecution, deliver, event };

@@ -8,8 +8,8 @@ not include a separate avatar step. Settings retains the download and manual
 re-upload instructions for existing apps and recovery.
 
 Slack exports use the persisted agent palette, `rest` pose, 512 × 512 pixels,
-and `background=paperclip-dark`. The background matches Paperclip’s dark-mode
-app surface. Normal Paperclip avatars stay transparent. Storybook generates
+and `background=nexus-dark`. The background matches Nexus’s dark-mode
+app surface. Normal Nexus avatars stay transparent. Storybook generates
 its preset files with the same production worker as the API.
 
 The older component fixture remains for communication-instruction variants;

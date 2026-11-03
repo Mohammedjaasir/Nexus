@@ -5,7 +5,7 @@ import {
   agentWakeupRequests, agents, companies, createDb, environmentLeases,
   heartbeatRunEvents, heartbeatRuns, issueComments, issueRecoveryActions, issues, issueTreeHoldMembers, issueTreeHolds,
   nativeRunFinalizations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { getExecutionBlocker } from "../services/execution-blocker.js";
 import { heartbeatService } from "../services/heartbeat.js";
@@ -25,7 +25,7 @@ const support = await getEmbeddedPostgresTestSupport();
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID();
     const runId = randomUUID(), actionId = randomUUID(), originalActionId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Admission wait", defaultResponsibleUserId: "board", issuePrefix: "W" + companyId.replaceAll("-", "") });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", role: "engineer", adapterType: "paperclip_runner", status: "idle", runtimeConfig: { heartbeat: { maxConcurrentRuns: 1 } } });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", role: "engineer", adapterType: "nexus_runner", status: "idle", runtimeConfig: { heartbeat: { maxConcurrentRuns: 1 } } });
     await db.insert(issues).values({ id: issueId, companyId, title: "Continue saved work", status: "todo", assigneeAgentId: agentId });
     const [run] = await db.insert(heartbeatRuns).values({
       id: runId, companyId, agentId, runtimeMode: "legacy", status: "cancelled",
@@ -56,7 +56,7 @@ const support = await getEmbeddedPostgresTestSupport();
     await db.insert(agentWakeupRequests).values({ id: queueId, companyId: f.companyId, agentId: f.agentId,
       source: "automation", reason: "issue_commented", status: "deferred_issue_execution",
       requestedByActorType: "user", requestedByActorId: "board", payload: { issueId: f.issueId,
-        commentId: commentIds[1], _paperclipWakeContext: { issueId: f.issueId, wakeReason: "issue_commented",
+        commentId: commentIds[1], _nexusWakeContext: { issueId: f.issueId, wakeReason: "issue_commented",
           wakeCommentId: commentIds[1], wakeCommentIds: commentIds } } });
     return { commentIds, queueId, busy };
   }

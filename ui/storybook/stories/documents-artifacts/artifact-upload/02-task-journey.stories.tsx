@@ -48,7 +48,7 @@ const meta = {
   id: "artifact-upload-02-paused-task-journey",
   title: "Tasks and conversations/Documents, attachments, and work products/Artifact upload/02 Paused task journey", component: Journey,
   parameters: { layout: "fullscreen", initialEntries: ["/PAP/issues/PAP-214"], docs: { description: { component: "Start on the paused, unassigned PAP-214 placeholder in the production app shell. Upload or drop files in Artifacts, open a document in another tab, then return to Artifacts. On mobile, open Artifacts from the task header. Uses production chat bubbles, paused takeover, panel frame, desktop/mobile tabs, artifact list and document viewer. The story composes these components for review; upload persistence is simulated. No live issue is modified or resumed." }, story: { inline: false } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "documents-artifacts/attachments"
       ],

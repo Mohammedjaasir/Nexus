@@ -15,7 +15,7 @@ import {
   isSuccessfulRunHandoffRequiredNoticeBody,
   noticeMetadataReferencesRecoveryAction,
 } from "./successful-run-handoff.js";
-import { UNMANAGED_BACKGROUND_TASK_LIVENESS_REASON } from "@paperclipai/adapter-utils/server-utils";
+import { UNMANAGED_BACKGROUND_TASK_LIVENESS_REASON } from "@nexusai/adapter-utils/server-utils";
 
 const run = {
   id: "run-1",
@@ -260,11 +260,11 @@ describe("successful run handoff decision", () => {
   });
 
   it("does not queue when a plugin owns the issue's lifecycle", () => {
-    expect(decide({ issue: { ...issue, originKind: "plugin:paperclip.workflow-engine" } as any })).toEqual({
+    expect(decide({ issue: { ...issue, originKind: "plugin:nexus.workflow-engine" } as any })).toEqual({
       kind: "skip",
       reason: "issue lifecycle is owned by a plugin",
     });
-    expect(decide({ issue: { ...issue, originKind: "plugin:paperclip.workflow-engine:advance" } as any })).toEqual({
+    expect(decide({ issue: { ...issue, originKind: "plugin:nexus.workflow-engine:advance" } as any })).toEqual({
       kind: "skip",
       reason: "issue lifecycle is owned by a plugin",
     });
@@ -277,8 +277,8 @@ describe("successful run handoff decision", () => {
 
   describe("isPluginManagedIssueLifecycle", () => {
     it("is true for any plugin: prefixed origin kind", () => {
-      expect(isPluginManagedIssueLifecycle({ originKind: "plugin:paperclip.workflow-engine" })).toBe(true);
-      expect(isPluginManagedIssueLifecycle({ originKind: "plugin:paperclip.workflow-engine:advance" })).toBe(true);
+      expect(isPluginManagedIssueLifecycle({ originKind: "plugin:nexus.workflow-engine" })).toBe(true);
+      expect(isPluginManagedIssueLifecycle({ originKind: "plugin:nexus.workflow-engine:advance" })).toBe(true);
     });
 
     it("is false for non-plugin or missing origin kinds", () => {

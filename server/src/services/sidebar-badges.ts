@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, isNull, not, or, sql, type SQL } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { agents, approvals, heartbeatRuns } from "@paperclipai/db";
-import type { SidebarBadges } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { agents, approvals, heartbeatRuns } from "@nexusai/db";
+import type { SidebarBadges } from "@nexusai/shared";
 import { authorizationService, type AuthorizationActor } from "./authorization.js";
 import { getHeartbeatRunReadDecisions } from "./heartbeat-run-privacy.js";
 

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { agents, companies, toolApplications, toolCatalogEntries, toolConnections, toolProfileEntries, toolProfiles, type Db } from "@paperclipai/db";
+import { agents, companies, toolApplications, toolCatalogEntries, toolConnections, toolProfileEntries, toolProfiles, type Db } from "@nexusai/db";
 
 export async function createProfileProjectionFixture(db: Db, options: { profiles?: number; tools?: number; rules?: number } = {}) {
   const profileCount = options.profiles ?? 200, toolCount = options.tools ?? 1900, ruleCount = options.rules ?? 380, maxRuleCount = options.rules ?? 695;

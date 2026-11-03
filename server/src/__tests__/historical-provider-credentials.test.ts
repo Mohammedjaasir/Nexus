@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { companies, companySecrets, companySecretVersions, createDb } from "@paperclipai/db";
-import type { SandboxEnvironmentConfig } from "@paperclipai/shared";
+import { companies, companySecrets, companySecretVersions, createDb } from "@nexusai/db";
+import type { SandboxEnvironmentConfig } from "@nexusai/shared";
 const resolve = vi.hoisted(() => vi.fn());
 vi.mock("../services/secrets.js", () => ({ secretService: () => ({ resolveSecretValueForSandboxCleanup: resolve }) }));
 import { historicalProviderCredentials } from "../services/historical-provider-credentials.js";

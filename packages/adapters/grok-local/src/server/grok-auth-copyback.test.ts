@@ -43,7 +43,7 @@ describe("copyBackGrokAuth", () => {
   }
 
   async function makeHostDir(): Promise<string> {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-grok-copyback-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-grok-copyback-"));
     cleanupDirs.push(dir);
     return dir;
   }
@@ -276,7 +276,7 @@ describe("copyBackGrokAuth", () => {
 
   it("logs no token bytes and no home path on an error", async () => {
     const marker = "SECRET-ACCOUNT-HANDLE";
-    const root = await mkdtemp(path.join(os.tmpdir(), `paperclip-grok-copyback-${marker}-`));
+    const root = await mkdtemp(path.join(os.tmpdir(), `nexus-grok-copyback-${marker}-`));
     cleanupDirs.push(root);
     const hostAuth = auth({ expiresAt: OLDER, marker: "HOST-TOKEN-SENTINEL" });
     await writeFile(path.join(root, "auth.json"), hostAuth, { mode: 0o600 });

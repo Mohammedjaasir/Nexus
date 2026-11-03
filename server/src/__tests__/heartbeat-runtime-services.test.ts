@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, authUsers, companies, companyMemberships, createDb, heartbeatRuns, issueComments, issues, workspaceRuntimeServices } from "@paperclipai/db";
+import { agents, authUsers, companies, companyMemberships, createDb, heartbeatRuns, issueComments, issues, workspaceRuntimeServices } from "@nexusai/db";
 import { registerServerAdapter, unregisterServerAdapter, type AdapterExecutionContext } from "../adapters/index.js";
 import { heartbeatService } from "../services/heartbeat.js";
 import { stopRuntimeServicesForExecutionWorkspace, type RuntimeServiceRef } from "../services/workspace-runtime.js";
@@ -44,8 +44,8 @@ describePostgres("heartbeat runtime services through adapter dispatch", () => {
     registerServerAdapter({
       type: adapterType, supportsLocalAgentJwt: false,
       execute: async (input: AdapterExecutionContext) => {
-        const services = input.context.paperclipRuntimeServices as RuntimeServiceRef[];
-        captured.set(input.runId, { services: structuredClone(services), primaryUrl: input.context.paperclipRuntimePrimaryUrl, intents: input.context.paperclipRuntimeServiceIntents });
+        const services = input.context.nexusRuntimeServices as RuntimeServiceRef[];
+        captured.set(input.runId, { services: structuredClone(services), primaryUrl: input.context.nexusRuntimePrimaryUrl, intents: input.context.nexusRuntimeServiceIntents });
         expect(await fetch(services[0]!.url!).then(response => response.text())).toBe("heartbeat runtime fixture");
         // Stop unfinished-task recovery from racing subsequent fixture runs.
         await db.update(issues).set({ status: "in_review" }).where(eq(issues.id, String(input.context.issueId)));
@@ -104,8 +104,8 @@ describePostgres("heartbeat runtime services through adapter dispatch", () => {
     expect(finished.status, finished.error ?? undefined).toBe("succeeded");
     expect(input.intents).toEqual([expect.objectContaining({ name: "web" })]);
     expect(input.services).toEqual([expect.objectContaining({ companyId: f.companyId, serviceName: "web", status: "running", reused: false, startedByRunId: finished.id })]);
-    expect(finished.contextSnapshot?.paperclipRuntimePrimaryUrl).toBe(input.primaryUrl);
-    expect(finished.contextSnapshot?.paperclipRuntimeServices).toEqual([
+    expect(finished.contextSnapshot?.nexusRuntimePrimaryUrl).toBe(input.primaryUrl);
+    expect(finished.contextSnapshot?.nexusRuntimeServices).toEqual([
       expect.objectContaining({ id: input.services[0]!.id }),
       expect.objectContaining({ serviceName: "adapter-preview", provider: "adapter_managed", url: "https://preview.example.test/fixture" }),
     ]);

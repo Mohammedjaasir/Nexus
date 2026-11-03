@@ -41,7 +41,7 @@ fi
 #
 # The placeholder embeds the original home, so a boot that stops between the
 # two usermod -d calls is repaired on the next start of the same container.
-remap_home_prefix="/nonexistent/paperclip-uid-remap"
+remap_home_prefix="/nonexistent/nexus-uid-remap"
 node_home="$(getent passwd node 2>/dev/null | cut -d: -f6 || true)"
 case "$node_home" in
     "$remap_home_prefix"/*)
@@ -55,7 +55,7 @@ remap_uid=0
 remap_gid=0
 [ "$(id -u node)" -ne "$PUID" ] && remap_uid=1
 [ "$(id -g node)" -ne "$PGID" ] && remap_gid=1
-app_home="${PAPERCLIP_HOME:-/paperclip}"
+app_home="${NEXUS_HOME:-/nexus}"
 move_home=0
 if { [ "$remap_uid" -eq 1 ] || [ "$remap_gid" -eq 1 ]; } \
     && [ -n "$node_home" ] && [ "${node_home%/}" = "${app_home%/}" ]; then
@@ -98,8 +98,8 @@ fi
 # Any mismatch repairs the whole tree. After a clean probe or a repair, the
 # marker records the verified node UID/GID, so later boots skip the full
 # walk. Delete the marker to force a full probe on the next boot.
-home_dir="${PAPERCLIP_HOME:-/paperclip}"
-ownership_marker="$home_dir/.paperclip-ownership-verified"
+home_dir="${NEXUS_HOME:-/nexus}"
+ownership_marker="$home_dir/.nexus-ownership-verified"
 ownership_shallow_depth=3
 
 # Sets needs_repair=1 when any entry is not node:node, and probe_failed=1

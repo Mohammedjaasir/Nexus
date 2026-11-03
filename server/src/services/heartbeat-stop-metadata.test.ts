@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveAdapterExecutionTargetTimeout } from "@paperclipai/adapter-utils/execution-target";
+import { resolveAdapterExecutionTargetTimeout } from "@nexusai/adapter-utils/execution-target";
 import {
   buildHeartbeatRunStopMetadata,
   mergeHeartbeatRunStopMetadata,

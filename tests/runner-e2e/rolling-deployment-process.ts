@@ -3,7 +3,7 @@ import { createWriteStream } from "node:fs";
 import { cp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { paperclipConfigSchema } from "../../packages/shared/src/config-schema.js";
+import { nexusConfigSchema } from "../../packages/shared/src/config-schema.js";
 import { reserveRunnerE2EServerPort } from "./ports.js";
 import { prepareRunnerE2EServerConfig } from "./server-config.js";
 import { createRunnerE2EServerStopper } from "./server-stop.js";
@@ -25,7 +25,7 @@ export async function startRollingDeploymentProcess(input: {
   const configPath = path.join(home, "instances/default/config.json");
   const reservation = await prepareRunnerE2EServerConfig({ temporaryRoot: home, configPath, serverPort: port });
   await reservation?.close();
-  const config = paperclipConfigSchema.parse(JSON.parse(await readFile(configPath, "utf8")));
+  const config = nexusConfigSchema.parse(JSON.parse(await readFile(configPath, "utf8")));
   config.database = { ...config.database, mode: "postgres", connectionString: input.databaseUrl };
   config.server.serveUi = Boolean(input.browser);
   await writeFile(configPath, JSON.stringify(config), { mode: 0o600 });
@@ -59,10 +59,10 @@ export async function startRollingDeploymentProcess(input: {
     cwd: input.repositoryRoot,
     env: {
       ...input.sharedEnvironment, PATH: input.sharedEnvironment.PATH ?? process.env.PATH, HOME: home, TMPDIR: temporary, XDG_CACHE_HOME: path.join(home, "cache"),
-      NODE_ENV: "test", PAPERCLIP_HOME: home, PAPERCLIP_CONFIG: configPath,
-      PORT: String(port), PAPERCLIP_INSTANCE_ID: "default", DATABASE_URL: input.databaseUrl,
-      PAPERCLIP_API_URL: input.ingressOrigin, PAPERCLIP_TELEMETRY_ENABLED: "false",
-      PAPERCLIP_DISABLE_TELEMETRY: "true", PAPERCLIP_LOG_LEVEL: "warn",
+      NODE_ENV: "test", NEXUS_HOME: home, NEXUS_CONFIG: configPath,
+      PORT: String(port), NEXUS_INSTANCE_ID: "default", DATABASE_URL: input.databaseUrl,
+      NEXUS_API_URL: input.ingressOrigin, NEXUS_TELEMETRY_ENABLED: "false",
+      NEXUS_DISABLE_TELEMETRY: "true", NEXUS_LOG_LEVEL: "warn",
       HEARTBEAT_SCHEDULER_ENABLED: input.sharedEnvironment.HEARTBEAT_SCHEDULER_ENABLED ?? "false",
     },
     detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"],

@@ -81,7 +81,7 @@ describe("workspace command helpers", () => {
   it("matches an exposed dev runtime whose bind command was hardened to loopback", () => {
     const workspaceRuntime = {
       commands: [
-        { id: "web", name: "paperclip-dev", kind: "service", command: "pnpm dev --bind lan" },
+        { id: "web", name: "nexus-dev", kind: "service", command: "pnpm dev --bind lan" },
       ],
     };
     const command = findWorkspaceCommandDefinition(workspaceRuntime, "web");
@@ -90,7 +90,7 @@ describe("workspace command helpers", () => {
     const match = matchWorkspaceRuntimeServiceToCommand(command!, [
       {
         id: "runtime-web",
-        serviceName: "paperclip-dev",
+        serviceName: "nexus-dev",
         command: "pnpm dev --bind loopback",
         cwd: "/repo",
         configIndex: null,
@@ -112,13 +112,13 @@ describe("workspace command helpers", () => {
 
   it("does not equate a loopback command with a lan command without managed exposure", () => {
     const command = findWorkspaceCommandDefinition({
-      services: [{ name: "paperclip-dev", command: "pnpm dev --bind lan" }],
-    }, "service:paperclip-dev");
+      services: [{ name: "nexus-dev", command: "pnpm dev --bind lan" }],
+    }, "service:nexus-dev");
 
     const match = matchWorkspaceRuntimeServiceToCommand(command!, [
       {
         id: "runtime-web",
-        serviceName: "paperclip-dev",
+        serviceName: "nexus-dev",
         command: "pnpm dev --bind loopback",
         cwd: "/repo",
         configIndex: null,

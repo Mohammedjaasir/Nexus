@@ -70,7 +70,7 @@ describe("exe.dev sandbox provider plugin", () => {
       driverKey: "exe-dev",
       config: {
         apiUrl: "https://exe.dev",
-        namePrefix: " Paperclip Sandbox ",
+        namePrefix: " Nexus Sandbox ",
         image: " ubuntu:22.04 ",
         cpu: "4.8",
         memory: " 8GB ",
@@ -89,13 +89,13 @@ describe("exe.dev sandbox provider plugin", () => {
     expect(result).toEqual({
       ok: true,
       warnings: [
-        "The Paperclip host must have SSH access to the created exe.dev VM, and its SSH key must be registered with exe.dev. The API token only covers provisioning.",
+        "The Nexus host must have SSH access to the created exe.dev VM, and its SSH key must be registered with exe.dev. The API token only covers provisioning.",
         "reuseLease keeps the VM alive between runs; this provider does not suspend retained VMs.",
       ],
       normalizedConfig: {
         apiKey: null,
         apiUrl: "https://exe.dev/exec",
-        namePrefix: "paperclip-sandbox",
+        namePrefix: "nexus-sandbox",
         image: "ubuntu:22.04",
         command: null,
         cpu: 4,
@@ -153,7 +153,7 @@ describe("exe.dev sandbox provider plugin", () => {
     })).resolves.toEqual({
       ok: false,
       warnings: [
-        "The Paperclip host must have SSH access to the created exe.dev VM, and its SSH key must be registered with exe.dev. The API token only covers provisioning.",
+        "The Nexus host must have SSH access to the created exe.dev VM, and its SSH key must be registered with exe.dev. The API token only covers provisioning.",
       ],
       errors: [
         "apiUrl must be a valid URL.",
@@ -281,9 +281,9 @@ describe("exe.dev sandbox provider plugin", () => {
   it("acquires a lease by creating a VM and preparing the SSH workspace", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({
-        vm_name: "paperclip-env-run",
-        ssh_dest: "paperclip-env-run.exe.xyz",
-        https_url: "https://paperclip-env-run.exe.xyz",
+        vm_name: "nexus-env-run",
+        ssh_dest: "nexus-env-run.exe.xyz",
+        https_url: "https://nexus-env-run.exe.xyz",
         status: "running",
       }), { status: 200 }),
     );
@@ -298,7 +298,7 @@ describe("exe.dev sandbox provider plugin", () => {
       requestedCwd: "/workspace/custom",
       config: {
         apiKey: "api-key",
-        namePrefix: "paperclip",
+        namePrefix: "nexus",
         image: "ubuntu:22.04",
         timeoutMs: 300000,
       },
@@ -308,11 +308,11 @@ describe("exe.dev sandbox provider plugin", () => {
     expect(String(fetchMock.mock.calls[0]?.[1]?.body ?? "")).toContain("new --json --no-email");
     expect(spawnMock).toHaveBeenCalledTimes(2);
     expect(lease).toMatchObject({
-      providerLeaseId: "paperclip-env-run",
+      providerLeaseId: "nexus-env-run",
       metadata: {
         provider: "exe-dev",
-        vmName: "paperclip-env-run",
-        sshDest: "paperclip-env-run.exe.xyz",
+        vmName: "nexus-env-run",
+        sshDest: "nexus-env-run.exe.xyz",
         remoteCwd: "/workspace/custom",
         shellCommand: "bash",
         reuseLease: false,
@@ -323,8 +323,8 @@ describe("exe.dev sandbox provider plugin", () => {
   it("copies the source VM with exe.dev cp instead of creating a new VM", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({
-        vm_name: "paperclip-env1-run1",
-        ssh_dest: "paperclip-env1-run1.exe.xyz",
+        vm_name: "nexus-env1-run1",
+        ssh_dest: "nexus-env1-run1.exe.xyz",
         status: "running",
       }), { status: 200 }),
     );
@@ -348,9 +348,9 @@ describe("exe.dev sandbox provider plugin", () => {
     });
 
     expect(String(fetchMock.mock.calls[0]?.[1]?.body ?? "")).toBe(
-      "cp 'golden-vm' 'paperclip-env1-run1' --json --cpu='4' --memory='8GB' --disk='40GB'",
+      "cp 'golden-vm' 'nexus-env1-run1' --json --cpu='4' --memory='8GB' --disk='40GB'",
     );
-    expect(lease).toMatchObject({ providerLeaseId: "paperclip-env1-run1" });
+    expect(lease).toMatchObject({ providerLeaseId: "nexus-env1-run1" });
   });
 
   it("rejects VM creation settings that exe.dev cp cannot apply when sourceVm is set", async () => {
@@ -374,9 +374,9 @@ describe("exe.dev sandbox provider plugin", () => {
   it("uses a pasted sshPrivateKey when connecting to the VM", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({
-        vm_name: "paperclip-env-run",
-        ssh_dest: "paperclip-env-run.exe.xyz",
-        https_url: "https://paperclip-env-run.exe.xyz",
+        vm_name: "nexus-env-run",
+        ssh_dest: "nexus-env-run.exe.xyz",
+        https_url: "https://nexus-env-run.exe.xyz",
         status: "running",
       }), { status: 200 }),
     );
@@ -403,9 +403,9 @@ describe("exe.dev sandbox provider plugin", () => {
   it("supplies a default Node-install setup script when none is provided", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({
-        vm_name: "paperclip-env-run",
-        ssh_dest: "paperclip-env-run.exe.xyz",
-        https_url: "https://paperclip-env-run.exe.xyz",
+        vm_name: "nexus-env-run",
+        ssh_dest: "nexus-env-run.exe.xyz",
+        https_url: "https://nexus-env-run.exe.xyz",
         status: "running",
       }), { status: 200 }),
     );
@@ -433,9 +433,9 @@ describe("exe.dev sandbox provider plugin", () => {
   it("preserves an operator-supplied setup script and does not append the default", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({
-        vm_name: "paperclip-env-run",
-        ssh_dest: "paperclip-env-run.exe.xyz",
-        https_url: "https://paperclip-env-run.exe.xyz",
+        vm_name: "nexus-env-run",
+        ssh_dest: "nexus-env-run.exe.xyz",
+        https_url: "https://nexus-env-run.exe.xyz",
         status: "running",
       }), { status: 200 }),
     );
@@ -487,9 +487,9 @@ describe("exe.dev sandbox provider plugin", () => {
   it("surfaces exe.dev SSH onboarding guidance during lease acquisition", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({
-        vm_name: "paperclip-env-run",
-        ssh_dest: "paperclip-env-run.exe.xyz",
-        https_url: "https://paperclip-env-run.exe.xyz",
+        vm_name: "nexus-env-run",
+        ssh_dest: "nexus-env-run.exe.xyz",
+        https_url: "https://nexus-env-run.exe.xyz",
         status: "running",
       }), { status: 200 }),
     );
@@ -506,25 +506,25 @@ describe("exe.dev sandbox provider plugin", () => {
         timeoutMs: 300000,
       },
     })).rejects.toThrow(
-      "the Paperclip host SSH key is not registered with exe.dev",
+      "the Nexus host SSH key is not registered with exe.dev",
     );
 
-    expect(String(fetchMock.mock.calls[1]?.[1]?.body ?? "")).toBe("rm --json 'paperclip-env-run'");
+    expect(String(fetchMock.mock.calls[1]?.[1]?.body ?? "")).toBe("rm --json 'nexus-env-run'");
   });
 
   it("surfaces invalid SSH key-format guidance during lease acquisition", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({
-        vm_name: "paperclip-env-run",
-        ssh_dest: "paperclip-env-run.exe.xyz",
-        https_url: "https://paperclip-env-run.exe.xyz",
+        vm_name: "nexus-env-run",
+        ssh_dest: "nexus-env-run.exe.xyz",
+        https_url: "https://nexus-env-run.exe.xyz",
         status: "running",
       }), { status: 200 }),
     );
     fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200 }));
     queueSpawnResult({
       code: 255,
-      stderr: 'Load key "/tmp/paperclip-exe-dev-ssh-abc/id_ed25519": invalid format\n',
+      stderr: 'Load key "/tmp/nexus-exe-dev-ssh-abc/id_ed25519": invalid format\n',
     });
 
     await expect(plugin.definition.onEnvironmentAcquireLease?.({
@@ -541,7 +541,7 @@ describe("exe.dev sandbox provider plugin", () => {
       "the configured SSH private key isn't an OpenSSH-format private key",
     );
 
-    expect(String(fetchMock.mock.calls[1]?.[1]?.body ?? "")).toBe("rm --json 'paperclip-env-run'");
+    expect(String(fetchMock.mock.calls[1]?.[1]?.body ?? "")).toBe("rm --json 'nexus-env-run'");
   });
 
   it("redacts sensitive lifecycle flags in API errors", async () => {
@@ -674,7 +674,7 @@ describe("exe.dev sandbox provider plugin", () => {
     });
 
     expect(result?.exitCode).toBe(1);
-    expect(String(result?.stderr ?? "")).toContain("the Paperclip host SSH key is not registered with exe.dev");
+    expect(String(result?.stderr ?? "")).toContain("the Nexus host SSH key is not registered with exe.dev");
     expect(String(result?.stderr ?? "")).toContain("ssh exe.dev");
   });
 
@@ -682,8 +682,8 @@ describe("exe.dev sandbox provider plugin", () => {
     fetchMock
       .mockResolvedValueOnce(
         new Response(JSON.stringify({
-          vm_name: "paperclip-probe",
-          ssh_dest: "paperclip-probe.exe.xyz",
+          vm_name: "nexus-probe",
+          ssh_dest: "nexus-probe.exe.xyz",
           status: "running",
         }), { status: 200 }),
       )
@@ -702,23 +702,23 @@ describe("exe.dev sandbox provider plugin", () => {
 
     expect(result).toMatchObject({
       ok: true,
-      summary: "Connected to exe.dev VM paperclip-probe.",
+      summary: "Connected to exe.dev VM nexus-probe.",
       metadata: {
         provider: "exe-dev",
-        vmName: "paperclip-probe",
-        sshDest: "paperclip-probe.exe.xyz",
+        vmName: "nexus-probe",
+        sshDest: "nexus-probe.exe.xyz",
         shellCommand: "bash",
       },
     });
-    expect(String(fetchMock.mock.calls[1]?.[1]?.body ?? "")).toBe("rm --json 'paperclip-probe'");
+    expect(String(fetchMock.mock.calls[1]?.[1]?.body ?? "")).toBe("rm --json 'nexus-probe'");
   });
 
   it("cleans up the probe VM when SSH verification fails", async () => {
     fetchMock
       .mockResolvedValueOnce(
         new Response(JSON.stringify({
-          vm_name: "paperclip-probe",
-          ssh_dest: "paperclip-probe.exe.xyz",
+          vm_name: "nexus-probe",
+          ssh_dest: "nexus-probe.exe.xyz",
           status: "running",
         }), { status: 200 }),
       )
@@ -742,15 +742,15 @@ describe("exe.dev sandbox provider plugin", () => {
       },
     });
     expect(String(result?.metadata?.error ?? "")).toContain("permission denied");
-    expect(String(fetchMock.mock.calls[1]?.[1]?.body ?? "")).toBe("rm --json 'paperclip-probe'");
+    expect(String(fetchMock.mock.calls[1]?.[1]?.body ?? "")).toBe("rm --json 'nexus-probe'");
   });
 
   it("returns onboarding guidance when probe hits exe.dev SSH registration", async () => {
     fetchMock
       .mockResolvedValueOnce(
         new Response(JSON.stringify({
-          vm_name: "paperclip-probe",
-          ssh_dest: "paperclip-probe.exe.xyz",
+          vm_name: "nexus-probe",
+          ssh_dest: "nexus-probe.exe.xyz",
           status: "running",
         }), { status: 200 }),
       )
@@ -770,8 +770,8 @@ describe("exe.dev sandbox provider plugin", () => {
       ok: false,
       summary: "exe.dev environment probe failed.",
     });
-    expect(String(result?.metadata?.error ?? "")).toContain("the Paperclip host SSH key is not registered with exe.dev");
-    expect(String(fetchMock.mock.calls[1]?.[1]?.body ?? "")).toBe("rm --json 'paperclip-probe'");
+    expect(String(result?.metadata?.error ?? "")).toContain("the Nexus host SSH key is not registered with exe.dev");
+    expect(String(fetchMock.mock.calls[1]?.[1]?.body ?? "")).toBe("rm --json 'nexus-probe'");
   });
 
   it("deletes non-reusable leases on release", async () => {
@@ -824,11 +824,11 @@ describe("exe.dev sandbox provider plugin", () => {
         providerLeaseId: "vm-1",
         metadata: {
           sshDest: "vm-1.exe.xyz",
-          remoteCwd: "/srv/paperclip/run-1",
+          remoteCwd: "/srv/nexus/run-1",
         },
       },
       workspace: {
-        localPath: "/local/paperclip",
+        localPath: "/local/nexus",
         remotePath: undefined,
       },
     });
@@ -837,12 +837,12 @@ describe("exe.dev sandbox provider plugin", () => {
     expect(spawnMock.mock.calls[0]?.[0]).toBe("ssh");
     const sshCommand = String(spawnMock.mock.calls[0]?.[1]?.at(-1) ?? "");
     expect(sshCommand).toContain("mkdir -p");
-    expect(sshCommand).toContain("/srv/paperclip/run-1");
+    expect(sshCommand).toContain("/srv/nexus/run-1");
     expect(result).toMatchObject({
-      cwd: "/srv/paperclip/run-1",
+      cwd: "/srv/nexus/run-1",
       metadata: {
         provider: "exe-dev",
-        remoteCwd: "/srv/paperclip/run-1",
+        remoteCwd: "/srv/nexus/run-1",
       },
     });
   });
@@ -865,12 +865,12 @@ describe("exe.dev sandbox provider plugin", () => {
         },
       },
       workspace: {
-        localPath: "/local/paperclip",
-        remotePath: "/srv/paperclip/remote-fallback",
+        localPath: "/local/nexus",
+        remotePath: "/srv/nexus/remote-fallback",
       },
     });
 
-    expect(result?.cwd).toBe("/srv/paperclip/remote-fallback");
+    expect(result?.cwd).toBe("/srv/nexus/remote-fallback");
   });
 
   it("skips ensureRemoteWorkspace and returns the resolved cwd when no VM metadata is available", async () => {
@@ -885,16 +885,16 @@ describe("exe.dev sandbox provider plugin", () => {
       lease: {
         providerLeaseId: null,
         metadata: {
-          remoteCwd: "/srv/paperclip/no-vm",
+          remoteCwd: "/srv/nexus/no-vm",
         },
       },
       workspace: {
-        localPath: "/local/paperclip",
+        localPath: "/local/nexus",
       },
     });
 
     expect(spawnMock).not.toHaveBeenCalled();
-    expect(result?.cwd).toBe("/srv/paperclip/no-vm");
+    expect(result?.cwd).toBe("/srv/nexus/no-vm");
   });
 });
 

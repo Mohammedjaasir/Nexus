@@ -34,12 +34,12 @@ describe("stranded recovery notice seeds", () => {
   it("names the sandbox provider plugin and its status when that is the configuration gap", () => {
     const seed = buildConfigurationIncompleteRecoveryNoticeSeed({
       reason: "sandbox_provider_plugin_not_ready",
-      pluginKey: "paperclip.kubernetes-sandbox-provider",
+      pluginKey: "nexus.kubernetes-sandbox-provider",
       pluginStatus: "error",
     });
     expect(seed.title).toBe("Configuration incomplete");
     expect(seed.tone).toBe("danger");
-    expect(seed.body).toContain("`paperclip.kubernetes-sandbox-provider`");
+    expect(seed.body).toContain("`nexus.kubernetes-sandbox-provider`");
     expect(seed.body).toContain("`error`");
     expect(seed.body).toContain("enable the plugin");
     expect(seed.body).not.toContain("secret/env bindings");
@@ -48,13 +48,13 @@ describe("stranded recovery notice seeds", () => {
   it("asks for a capability review before enabling an upgrade_pending plugin, and names an operator disable", () => {
     const upgrade = buildConfigurationIncompleteRecoveryNoticeSeed({
       reason: "sandbox_provider_plugin_not_ready",
-      pluginKey: "paperclip.daytona-sandbox-provider",
+      pluginKey: "nexus.daytona-sandbox-provider",
       pluginStatus: "upgrade_pending",
     });
     expect(upgrade.body).toContain("review and approve the upgraded plugin's capabilities");
     const disabled = buildConfigurationIncompleteRecoveryNoticeSeed({
       reason: "sandbox_provider_plugin_not_ready",
-      pluginKey: "paperclip.daytona-sandbox-provider",
+      pluginKey: "nexus.daytona-sandbox-provider",
       pluginStatus: "disabled",
     });
     expect(disabled.body).toContain("an operator disabled it");

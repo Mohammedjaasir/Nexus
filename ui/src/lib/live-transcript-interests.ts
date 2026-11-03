@@ -1,4 +1,4 @@
-import type { LiveDeliveryClientMessage } from "@paperclipai/shared";
+import type { LiveDeliveryClientMessage } from "@nexusai/shared";
 
 export interface TranscriptStreamState { healthy: boolean; epoch: number; subscribedRunIds: ReadonlySet<string> }
 export const DISCONNECTED_TRANSCRIPT_STREAM: TranscriptStreamState = { healthy: false, epoch: 0, subscribedRunIds: new Set() };

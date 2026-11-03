@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PluginContext } from "@paperclipai/plugin-sdk";
+import type { PluginContext } from "@nexusai/plugin-sdk";
 
 const getSandbox = vi.hoisted(() => vi.fn());
 vi.mock("@daytonaio/sdk", () => ({

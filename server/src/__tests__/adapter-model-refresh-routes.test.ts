@@ -1,7 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { models as openCodeFallbackModels } from "@paperclipai/adapter-opencode-local";
+import { models as openCodeFallbackModels } from "@nexusai/adapter-opencode-local";
 import type { ServerAdapterModule } from "../adapters/index.js";
 
 vi.mock("acpx/runtime", () => ({
@@ -67,8 +67,8 @@ const mockInstanceSettingsService = vi.hoisted(() => ({
 const mockLogActivity = vi.hoisted(() => vi.fn());
 
 function registerModuleMocks() {
-  vi.doMock("@paperclipai/adapter-opencode-local/server", async () => {
-    const actual = await vi.importActual<typeof import("@paperclipai/adapter-opencode-local/server")>("@paperclipai/adapter-opencode-local/server");
+  vi.doMock("@nexusai/adapter-opencode-local/server", async () => {
+    const actual = await vi.importActual<typeof import("@nexusai/adapter-opencode-local/server")>("@nexusai/adapter-opencode-local/server");
     return {
       ...actual,
       listOpenCodeModels: mockListOpenCodeModels,
@@ -187,26 +187,26 @@ describe("adapter model refresh route", () => {
     { qualification: "pending", qualified: false, status: 422 },
     { qualification: "released", qualified: true, status: 200 },
   ])("keeps $qualification Kimi model selection separate from other provider catalogs", async ({ qualified, status }) => {
-    const { PAPERCLIP_RUNNER_ACPX_PROFILES } = await import("@paperclipai/adapter-utils");
-    const kimi = PAPERCLIP_RUNNER_ACPX_PROFILES.find(profile => profile.value === "kimi")! as { qualified: boolean };
+    const { NEXUS_RUNNER_ACPX_PROFILES } = await import("@nexusai/adapter-utils");
+    const kimi = NEXUS_RUNNER_ACPX_PROFILES.find(profile => profile.value === "kimi")! as { qualified: boolean };
     const previousQualified = kimi.qualified;
-    const previousAdmission = process.env.PAPERCLIP_ACPX_CANDIDATE_ADMISSION;
+    const previousAdmission = process.env.NEXUS_ACPX_CANDIDATE_ADMISSION;
     try {
       kimi.qualified = qualified;
-      delete process.env.PAPERCLIP_ACPX_CANDIDATE_ADMISSION;
+      delete process.env.NEXUS_ACPX_CANDIDATE_ADMISSION;
       const app = await createApp();
       const res = await requestApp(app, baseUrl =>
-        request(baseUrl).get("/api/companies/company-1/adapters/paperclip_runner/models?provider=acpx&acpxAgent=kimi&refresh=1"),
+        request(baseUrl).get("/api/companies/company-1/adapters/nexus_runner/models?provider=acpx&acpxAgent=kimi&refresh=1"),
       );
 
       expect(res.status, JSON.stringify(res.body)).toBe(status);
       if (qualified) expect(res.body).toEqual([]);
-      else expect(res.body).toMatchObject({ code: "paperclip_runner_acpx_agent_unavailable" });
+      else expect(res.body).toMatchObject({ code: "nexus_runner_acpx_agent_unavailable" });
       expect(mockListOpenCodeModels).not.toHaveBeenCalled();
     } finally {
       kimi.qualified = previousQualified;
-      if (previousAdmission === undefined) delete process.env.PAPERCLIP_ACPX_CANDIDATE_ADMISSION;
-      else process.env.PAPERCLIP_ACPX_CANDIDATE_ADMISSION = previousAdmission;
+      if (previousAdmission === undefined) delete process.env.NEXUS_ACPX_CANDIDATE_ADMISSION;
+      else process.env.NEXUS_ACPX_CANDIDATE_ADMISSION = previousAdmission;
     }
   });
 

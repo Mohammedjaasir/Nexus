@@ -4,9 +4,9 @@ import { execFileSync } from "node:child_process";
 import { rmSync, mkdirSync, writeFileSync, cpSync, readFileSync, existsSync, mkdtempSync } from "node:fs";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { applyPendingMigrations, closeRegisteredClients, companies, createDb, plugins } from "@paperclipai/db";
+import { applyPendingMigrations, closeRegisteredClients, companies, createDb, plugins } from "@nexusai/db";
 import { eq } from "drizzle-orm";
-import type { PluginRecord } from "@paperclipai/shared";
+import type { PluginRecord } from "@nexusai/shared";
 import { createPluginWorkerManager } from "../services/plugin-worker-manager.js";
 import { pluginLoader, type PluginRuntimeServices } from "../services/plugin-loader.js";
 import { linkSdkInto } from "../../../scripts/link-plugin-dev-sdk.mjs";
@@ -23,7 +23,7 @@ import daytonaManifest from "../../../packages/plugins/sandbox-providers/daytona
 import { bundledImageFixture } from "./helpers/bundled-image-fixture.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const externalDatabaseUrl = process.env.PAPERCLIP_BUNDLED_PLUGIN_TEST_DATABASE_URL?.trim();
+const externalDatabaseUrl = process.env.NEXUS_BUNDLED_PLUGIN_TEST_DATABASE_URL?.trim();
 const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describePostgres = support.supported ? describe : describe.skip;
 
@@ -142,7 +142,7 @@ describePostgres("bundled image registration in PostgreSQL", () => {
     roots.push(provider);
     cpSync(image.packageRoot, provider, { recursive: true });
     linkSdkInto(provider);
-    writeFileSync(path.join(provider, "dist", "worker.js"), 'import { definePlugin, runWorker } from "@paperclipai/plugin-sdk"; runWorker(definePlugin({ async setup() {}, async onHealth() { return { status: "ok", message: "Current image SDK/shared loaded" }; } }), import.meta.url);');
+    writeFileSync(path.join(provider, "dist", "worker.js"), 'import { definePlugin, runWorker } from "@nexusai/plugin-sdk"; runWorker(definePlugin({ async setup() {}, async onHealth() { return { status: "ok", message: "Current image SDK/shared loaded" }; } }), import.meta.url);');
     const installs = [{ key: "sdk-proof", pluginKey: image.manifest.id, localPath: provider }];
     const resolver = createBundledPluginPackageResolver(installs);
     const manager = createPluginWorkerManager();
@@ -254,15 +254,15 @@ describePostgres("bundled image registration in PostgreSQL", () => {
   });
 
   it("retains registry-install provider credentials for an ordinary npm package", async () => {
-    const npmManifest = { ...daytonaManifest, id: "paperclip.image-npm-fixture" };
+    const npmManifest = { ...daytonaManifest, id: "nexus.image-npm-fixture" };
     const image = bundledImageFixture(npmManifest);
     roots.push(image.root);
     const localPluginDir = path.join(image.root, "npm-home");
-    const packageRoot = path.join(localPluginDir, "node_modules", "@paperclipai", "plugin-daytona");
+    const packageRoot = path.join(localPluginDir, "node_modules", "@nexusai", "plugin-daytona");
     mkdirSync(path.dirname(packageRoot), { recursive: true });
     cpSync(image.packageRoot, packageRoot, { recursive: true });
     const metadata = JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8"));
-    metadata.name = "@paperclipai/plugin-daytona";
+    metadata.name = "@nexusai/plugin-daytona";
     writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify(metadata));
     const registry = pluginRegistryService(db);
     const row = (await registry.install({ packageName: metadata.name }, npmManifest))!;

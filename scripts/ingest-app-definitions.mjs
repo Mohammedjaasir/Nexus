@@ -5,10 +5,10 @@ const root = process.cwd();
 // This mode preserves the checked-in ingestion report.
 const definitionsOnly = process.argv.includes("--definitions-only");
 const corpus =
-  process.env.PAPERCLIP_CONTENT_TEMPLATES ??
+  process.env.NEXUS_CONTENT_TEMPLATES ??
   path.resolve(
     root,
-    "../../paperclip-content/research/connections/vercel/templates",
+    "../../nexus-content/research/connections/vercel/templates",
   );
 const out = path.join(root, "packages/shared/src/app-definitions");
 const brandingManifest = JSON.parse(
@@ -84,7 +84,7 @@ const channelMethod = (
   transport: "chat_sdk",
   auth: "api_key",
   ownershipModes: ["customer"],
-  whenToUse: `Let people in ${chatProviderName(provider)} start and continue work with one Paperclip agent.`,
+  whenToUse: `Let people in ${chatProviderName(provider)} start and continue work with one Nexus agent.`,
   credentialFields,
   guidanceMd,
   consoleLinks,
@@ -166,7 +166,7 @@ const posthogConfigFields = () => [
     defaultValue: "tools",
     options: [{ value: "tools", label: "Individual tools" }],
     helperMd:
-      "Paperclip uses individual tools so every action can be governed. CLI mode remains unavailable until nested execution is governed.",
+      "Nexus uses individual tools so every action can be governed. CLI mode remains unavailable until nested execution is governed.",
     transport: { location: "query", name: "mode" },
   },
 ];
@@ -234,7 +234,7 @@ const apps = [
         oauthAuthorizationParams: { prompt: "consent" },
       },
       "S4",
-      "Sign in to Railway and select the workspaces your agents may use. Paperclip adds direct service, deployment, and bounded log tools when Railway accepts the connection for API access. Container commands require the separate SSH setup on the connection. Project tokens are not supported by Railway's hosted connection.",
+      "Sign in to Railway and select the workspaces your agents may use. Nexus adds direct service, deployment, and bounded log tools when Railway accepts the connection for API access. Container commands require the separate SSH setup on the connection. Project tokens are not supported by Railway's hosted connection.",
       {
         label: "Connect Railway",
         ownershipModes: ["dcr", "customer"],
@@ -247,8 +247,8 @@ const apps = [
         warnings: [
           "Railway enforces the workspaces selected at consent. Selected actions start Allowed; choose Ask first for operations you want to approve.",
           "Logs and container commands can expose application data and secrets. Grant access only to agents trusted with the selected services.",
-          "The general Railway agent and committing staged changes are unavailable because their internal changes cannot be individually reviewed in Paperclip.",
-          "Live Railway qualification is pending. If Railway rejects API access, reconnect with the required permissions; Paperclip never falls back to another credential.",
+          "The general Railway agent and committing staged changes are unavailable because their internal changes cannot be individually reviewed in Nexus.",
+          "Live Railway qualification is pending. If Railway rejects API access, reconnect with the required permissions; Nexus never falls back to another credential.",
         ],
         requiredResourceFilters: ["workspace", "project", "environment", "service"],
       },
@@ -269,11 +269,11 @@ const apps = [
         "oauth",
         { serverUrl: "https://api.githubcopilot.com/mcp/" },
         "S3",
-        "Authorize Paperclip, then choose selected repositories in GitHub. You can edit repository access later from GitHub's installation settings.",
+        "Authorize Nexus, then choose selected repositories in GitHub. You can edit repository access later from GitHub's installation settings.",
         {
           label: "Connect GitHub",
           purpose: "tool",
-          oauthStrategy: "paperclip_cloud_connector",
+          oauthStrategy: "nexus_cloud_connector",
           connectorProfile: "github.code",
           grantKinds: ["user", "agent"],
           ownershipModes: ["platform_shared"],
@@ -333,7 +333,7 @@ const apps = [
         },
       ],
       ["organization", "repository"],
-      "Generate the webhook secret in Paperclip, then create one private GitHub App with active SSL-verified webhooks, Issues and Pull requests read/write permission, and the selectable issue_comment and pull_request_review_comment events. GitHub sends installation and installation_repositories automatically. Install the App only on repositories where people may mention the agent.",
+      "Generate the webhook secret in Nexus, then create one private GitHub App with active SSL-verified webhooks, Issues and Pull requests read/write permission, and the selectable issue_comment and pull_request_review_comment events. GitHub sends installation and installation_repositories automatically. Install the App only on repositories where people may mention the agent.",
       {
         register: "https://github.com/settings/apps/new",
         docs: "https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app",
@@ -344,7 +344,7 @@ const apps = [
   [
     "slack",
     "Slack",
-    "Give agents Slack tools or let people start and continue Paperclip work from Slack.",
+    "Give agents Slack tools or let people start and continue Nexus work from Slack.",
     "communication",
     "slack.com",
     ["https://mcp.slack.com/*", "https://app.slack.com/client/*"],
@@ -379,7 +379,7 @@ const apps = [
           ),
         ],
         ["workspace", "channel"],
-        "Create and install one Slack App for this agent. Paperclip receives verified Events API requests and interactive callbacks, acknowledges with reactions, responds in direct messages, and starts one Paperclip task per new mentioned channel thread.",
+        "Create and install one Slack App for this agent. Nexus receives verified Events API requests and interactive callbacks, acknowledges with reactions, responds in direct messages, and starts one Nexus task per new mentioned channel thread.",
         {
           register: "https://api.slack.com/apps",
           docs: "https://api.slack.com/start/quickstart",
@@ -390,7 +390,7 @@ const apps = [
   [
     "microsoft-teams",
     "Microsoft Teams",
-    "Let people start and continue Paperclip work with an agent from Microsoft Teams.",
+    "Let people start and continue Nexus work with an agent from Microsoft Teams.",
     "communication",
     "teams.microsoft.com",
     ["https://teams.microsoft.com/*"],
@@ -427,16 +427,16 @@ const apps = [
   ],
   [
     "imessage-photon", "iMessage Photon",
-    "Message a Paperclip agent from Apple Messages using Photon Cloud. Pro supports DMs; dedicated lines also support groups.",
+    "Message a Nexus agent from Apple Messages using Photon Cloud. Pro supports DMs; dedicated lines also support groups.",
     "communication", "photon.codes", ["https://photon.codes/*"],
     channelMethod("imessage-photon", [field("projectSecret", "Project secret", "Photon project secret")], ["direct_message", "group_chat"],
-      "Connect a Photon Cloud project. Pro shared lines support DMs after sender enrollment in Photon and identity linking in Paperclip. Dedicated lines also support individually enabled groups.",
+      "Connect a Photon Cloud project. Pro shared lines support DMs after sender enrollment in Photon and identity linking in Nexus. Dedicated lines also support individually enabled groups.",
       { register: "https://photon.codes/", docs: "https://photon.codes/docs/spectrum-ts/providers/imessage/connection-and-routing" }),
   ],
   [
     "telegram",
     "Telegram",
-    "Let people start and continue Paperclip work with an agent from Telegram.",
+    "Let people start and continue Nexus work with an agent from Telegram.",
     "communication",
     "telegram.org",
     ["https://t.me/*", "https://telegram.me/*", "https://api.telegram.org/*"],
@@ -444,7 +444,7 @@ const apps = [
       "telegram",
       [field("botToken", "Bot token", "123456789:AA...")],
       ["chat", "group", "topic"],
-      "Create one dedicated bot with BotFather, then connect its token to the public Paperclip webhook endpoint.",
+      "Create one dedicated bot with BotFather, then connect its token to the public Nexus webhook endpoint.",
       {
         register: "https://t.me/BotFather",
         docs: "https://core.telegram.org/bots/tutorial",
@@ -454,7 +454,7 @@ const apps = [
   [
     "discord",
     "Discord",
-    "Let people start and continue Paperclip work with an agent from Discord.",
+    "Let people start and continue Nexus work with an agent from Discord.",
     "communication",
     "discord.com",
     ["https://discord.com/*"],
@@ -474,7 +474,7 @@ const apps = [
         },
       ],
       ["channel"],
-      "Create one dedicated Discord application and bot, enable the Message Content intent, install it in one server with the documented bot permissions, then connect its bot token, Application ID, and server ID. Paperclip starts one Discord thread per root bot mention and keeps the linked Paperclip task authoritative.",
+      "Create one dedicated Discord application and bot, enable the Message Content intent, install it in one server with the documented bot permissions, then connect its bot token, Application ID, and server ID. Nexus starts one Discord thread per root bot mention and keeps the linked Nexus task authoritative.",
       {
         register: "https://discord.com/developers/applications",
         docs: "https://discord.com/developers/docs/quick-start/getting-started",
@@ -559,7 +559,7 @@ const apps = [
         scopesHint: ["read", "write"],
       },
       "S2",
-      "Register a Linear OAuth app and add Paperclip's redirect URI before connecting.",
+      "Register a Linear OAuth app and add Nexus's redirect URI before connecting.",
       {
         ownershipModes: ["customer"],
         requiredResourceFilters: ["workspace", "team", "project"],
@@ -578,9 +578,9 @@ const apps = [
       "local",
       "local_stdio",
       "none",
-      { templateKey: "paperclip.google-sheets" },
+      { templateKey: "nexus.google-sheets" },
       "S3",
-      "Share each spreadsheet with the Paperclip robot email, then paste the sheet links.",
+      "Share each spreadsheet with the Nexus robot email, then paste the sheet links.",
       { requiredResourceFilters: ["spreadsheet"] },
     ),
   ],
@@ -624,7 +624,7 @@ const apps = [
           },
         },
         "S3",
-        "Connect Shopify's current UCP server for shopper-facing catalog and commerce tools. Paperclip supplies the required agent profile automatically.",
+        "Connect Shopify's current UCP server for shopper-facing catalog and commerce tools. Nexus supplies the required agent profile automatically.",
         {
           label: "Shopify UCP commerce",
           whenToUse:
@@ -650,7 +650,7 @@ const apps = [
           warnings: [
             "This is Shopify's shopper-facing UCP server, not Admin API access. It does not manage merchant products or customers.",
             "The storefront must be public. A private or password-protected storefront returns HTTP 401 even when the merchant is signed in to Shopify Admin.",
-            "Paperclip currently uses Shopify's documented hosted agent-profile fixture while Paperclip's production UCP profile is being established.",
+            "Nexus currently uses Shopify's documented hosted agent-profile fixture while Nexus's production UCP profile is being established.",
           ],
           requiredResourceFilters: ["store"],
         },
@@ -698,11 +698,11 @@ const apps = [
       setupPrerequisite: {
         title: "Launch the storefront before connecting",
         description:
-          "Shopify's Storefront MCP is a public, no-auth endpoint. Paperclip cannot use the merchant's Shopify Admin session to bypass a private storefront.",
+          "Shopify's Storefront MCP is a public, no-auth endpoint. Nexus cannot use the merchant's Shopify Admin session to bypass a private storefront.",
         steps: [
           "Select a Shopify plan; Shopify keeps trial storefronts private until a plan is selected.",
           "In Shopify Admin, open Online Store → Preferences and set Storefront visibility to Public (remove password protection).",
-          "Use the permanent <store>.myshopify.com domain in Paperclip, even if the store also has a custom domain.",
+          "Use the permanent <store>.myshopify.com domain in Nexus, even if the store also has a custom domain.",
         ],
         actionLabel: "Open Shopify Admin",
         actionUrl: "https://admin.shopify.com/",
@@ -732,7 +732,7 @@ const apps = [
       "oauth",
       {},
       "S3",
-      "Register an OAuth client with the provider and add Paperclip's redirect URI.",
+      "Register an OAuth client with the provider and add Nexus's redirect URI.",
       {
         credentialFields: [
           {
@@ -879,8 +879,8 @@ const apps = [
             docs: "https://enterpret.support.site/article/enterpret-mcp-server",
           },
           warnings: [
-            "The official Enterpret MCP is read-only. Enterpret previously reported broader OAuth scopes, including mcp:write and email, than Paperclip requested. Enterpret is correcting this scope reporting; it does not establish access to the separate beta Agent MCP.",
-            "After revocation, Enterpret may cache token validity for up to 24 hours. Disconnect this connection to stop Paperclip access immediately. Enterpret is reducing this delay.",
+            "The official Enterpret MCP is read-only. Enterpret previously reported broader OAuth scopes, including mcp:write and email, than Nexus requested. Enterpret is correcting this scope reporting; it does not establish access to the separate beta Agent MCP.",
+            "After revocation, Enterpret may cache token validity for up to 24 hours. Disconnect this connection to stop Nexus access immediately. Enterpret is reducing this delay.",
             "You need an Enterpret account with access to your organization's feedback.",
             "This connection reads customer feedback, including verbatim quotes with speaker attribution.",
           ],
@@ -912,7 +912,7 @@ const apps = [
       },
     ),
   ],
-  ["browser-use-cloud", "Browser Use Cloud", "Delegate browser tasks and watch them live in Paperclip.", "productivity", "browser-use.com", ["https://cloud.browser-use.com/*"],
+  ["browser-use-cloud", "Browser Use Cloud", "Delegate browser tasks and watch them live in Nexus.", "productivity", "browser-use.com", ["https://cloud.browser-use.com/*"],
     method("cloud-v4", "rest_api", "api_key", { serverUrl: "https://api.browser-use.com/api/v4" }, "S3",
       "Create an API key in [Browser Use settings](https://cloud.browser-use.com/settings) and paste it below. Your agents can browse websites while you watch and interact from the task's Browser tab.", {
         label: "Browser Use Cloud",
@@ -967,15 +967,15 @@ apps.push({
   redirectConstraints: "https-or-loopback-http",
   methods: [
     {
-      key: "paperclip-id-oauth",
+      key: "nexus-id-oauth",
       label: "Connect Gmail",
       transport: "mcp_remote",
       auth: "oauth",
-      oauthStrategy: "paperclip_id_connector",
+      oauthStrategy: "nexus_id_connector",
       grantKinds: ["user"],
       ownershipModes: ["customer"],
       whenToUse:
-        "Use Paperclip ID for a personal Gmail connection with centrally registered Google OAuth.",
+        "Use Nexus ID for a personal Gmail connection with centrally registered Google OAuth.",
       defaults: {
         serverUrl: "https://gmailmcp.googleapis.com/mcp/v1",
         scopesHint: [
@@ -984,7 +984,7 @@ apps.push({
         ],
       },
       guidanceMd:
-        "Connect your Gmail identity. Paperclip can search and read mail and create drafts. Sending mail is not enabled.",
+        "Connect your Gmail identity. Nexus can search and read mail and create drafts. Sending mail is not enabled.",
       warnings: [
         "This connection is personal. Agents need an explicit install, profile, and delegation before they can use it.",
       ],
@@ -1206,12 +1206,12 @@ const specialMethodsFor = (entry) => {
     oauthMethodFor(entry, "managed", entry.serverUrl, {
       label: "Sign in with Asana",
       ownershipModes: ["platform_shared"],
-      oauthStrategy: "paperclip_cloud_connector",
+      oauthStrategy: "nexus_cloud_connector",
       connectorProfile: "asana.mcp",
       grantKinds: ["user", "agent"],
       defaults: { serverUrl: entry.serverUrl, scopesHint: ["default"] },
-      guidanceMd: "Sign in to Asana with Paperclip. Asana gives this connection access to the workspaces available to your account.",
-      whenToUse: "Connect your Asana account with Paperclip's app.",
+      guidanceMd: "Sign in to Asana with Nexus. Asana gives this connection access to the workspaces available to your account.",
+      whenToUse: "Connect your Asana account with Nexus's app.",
       warnings: [],
     }),
     {
@@ -1253,14 +1253,14 @@ const specialMethodsFor = (entry) => {
     return [
       oauthMethodFor(entry, "mcp-oauth", entry.serverUrl, {
         guidanceMd:
-          "Connect Ditto in the browser. The connection acts as the Ditto user who signs in. Write tools start enabled and remain governed by Paperclip's action policies.",
+          "Connect Ditto in the browser. The connection acts as the Ditto user who signs in. Write tools start enabled and remain governed by Nexus's action policies.",
         warnings: [entry.prerequisite, warning],
         capabilityProfile,
       }),
       apiKeyMethodFor(entry, "mcp-api-key", entry.serverUrl, {
         whenToUse: "Use a Ditto workspace API key when browser sign-in is not suitable.",
         guidanceMd:
-          "In Ditto, open Developers → API keys, create a key for Paperclip, and paste it below.",
+          "In Ditto, open Developers → API keys, create a key for Nexus, and paste it below.",
         consoleLinks: { keys: "https://app.dittowords.com/developers", docs: entry.docsUrl },
         warnings: [entry.prerequisite, warning],
         capabilityProfile,
@@ -1280,14 +1280,14 @@ const specialMethodsFor = (entry) => {
     return [
       oauthMethodFor(entry, "mcp-oauth", entry.serverUrl, {
         guidanceMd:
-          "Connect Gauge in the browser and choose the organization this connection may use. Write tools start enabled and remain governed by Paperclip's action policies.",
+          "Connect Gauge in the browser and choose the organization this connection may use. Write tools start enabled and remain governed by Nexus's action policies.",
         warnings: [entry.prerequisite, warning],
         capabilityProfile,
       }),
       apiKeyMethodFor(entry, "mcp-api-key", entry.serverUrl, {
         whenToUse: "Use a Gauge organization API key when browser sign-in is not suitable.",
         guidanceMd:
-          "In Gauge, open Settings → Integrations → API Keys, generate a key for Paperclip, and paste it below.",
+          "In Gauge, open Settings → Integrations → API Keys, generate a key for Nexus, and paste it below.",
         warnings: [entry.prerequisite, warning],
         capabilityProfile,
       }),
@@ -1299,7 +1299,7 @@ const specialMethodsFor = (entry) => {
   if (entry.slug === "superagent") return [
     apiKeyMethodFor(entry, "mcp-api-key", entry.serverUrl, {
       whenToUse: "Connect with a Superagent organization API key.",
-      guidanceMd: "Open Superagent Settings → API keys, create a separate key for Paperclip, and paste it below.",
+      guidanceMd: "Open Superagent Settings → API keys, create a separate key for Nexus, and paste it below.",
       consoleLinks: { keys: "https://www.superagent.sh/app/settings#api-keys", docs: entry.docsUrl },
     }),
   ];
@@ -1577,14 +1577,14 @@ const specialMethodsFor = (entry) => {
     return [
       oauthMethodFor(entry, "mcp-oauth", entry.serverUrl, {
         guidanceMd:
-          "Connect Supabase in the browser and scope the connection to one development project. Write tools start enabled and remain governed by Paperclip's action policies.",
+          "Connect Supabase in the browser and scope the connection to one development project. Write tools start enabled and remain governed by Nexus's action policies.",
         tenantFields,
         warnings: [entry.prerequisite, warning],
         requiredResourceFilters: ["project"],
       }),
       apiKeyMethodFor(entry, "mcp-api-key", entry.serverUrl, {
         guidanceMd:
-          "Use a customer-created Supabase key scoped to one development project. Write tools start enabled and remain governed by Paperclip's action policies.",
+          "Use a customer-created Supabase key scoped to one development project. Write tools start enabled and remain governed by Nexus's action policies.",
         tenantFields,
         warnings: [entry.prerequisite, warning],
         requiredResourceFilters: ["project"],
@@ -1628,14 +1628,14 @@ const specialMethodsFor = (entry) => {
     return [
       oauthMethodFor(entry, "mcp-oauth", entry.serverUrl, {
         guidanceMd:
-          "Connect Neon in the browser. Open Advanced to pin one project or enable read-only mode. Write tools start enabled and remain governed by Paperclip's action policies.",
+          "Connect Neon in the browser. Open Advanced to pin one project or enable read-only mode. Write tools start enabled and remain governed by Nexus's action policies.",
         tenantFields,
         warnings: [entry.prerequisite, warning],
         requiredResourceFilters: ["project"],
       }),
       apiKeyMethodFor(entry, "mcp-api-key", entry.serverUrl, {
         guidanceMd:
-          "Use a customer-created Neon API key. Prefer a project-scoped key for one development project; personal and organization keys reach every project they can access. Write tools start enabled and remain governed by Paperclip's action policies.",
+          "Use a customer-created Neon API key. Prefer a project-scoped key for one development project; personal and organization keys reach every project they can access. Write tools start enabled and remain governed by Nexus's action policies.",
         consoleLinks: {
           keys: "https://console.neon.tech/app/settings/api-keys",
           docs: entry.docsUrl,
@@ -1752,11 +1752,11 @@ apps.push({
   docsUrl: "https://docs.cognee.ai/cognee-cloud/connections/cloud-mcp",
   setupPrerequisite: {
     title: "Cognee Cloud and a local runtime",
-    description: "Use your Cognee Cloud tenant API URL and key. Paperclip's runtime host needs uv installed to run the official Cognee MCP client. Public deployments require a trusted MCP runtime host.",
+    description: "Use your Cognee Cloud tenant API URL and key. Nexus's runtime host needs uv installed to run the official Cognee MCP client. Public deployments require a trusted MCP runtime host.",
     actionLabel: "Open Cognee API keys", actionUrl: "https://platform.cognee.ai/api-keys",
   },
-  methods: [method("cloud-local", "local_stdio", "api_key", { templateKey: "paperclip.cognee-cloud" }, "S3",
-    "Copy the API Base URL and create an API key on Cognee's API Keys page. Use a Cloud workspace with an active subscription. Paperclip uses its bundled Cloud client; no extra runtime installation is required.", {
+  methods: [method("cloud-local", "local_stdio", "api_key", { templateKey: "nexus.cognee-cloud" }, "S3",
+    "Copy the API Base URL and create an API key on Cognee's API Keys page. Use a Cloud workspace with an active subscription. Nexus uses its bundled Cloud client; no extra runtime installation is required.", {
       label: "Connect Cognee Cloud", whenToUse: "Connect your Cloud tenant through the official Cognee MCP client.",
       credentialFields: [
         { key: "COGNEE_BASE_URL", label: "API Base URL", type: "text", required: true, secret: false, placeholder: "https://your-tenant.aws.cognee.ai", validation: { pattern: "^https://[a-zA-Z0-9-]+\\.aws\\.cognee\\.ai/?$", maxLength: 255 }, helperMd: "Copy API Base URL from Cognee's API Keys page." },
@@ -1929,7 +1929,7 @@ const inferState = (slug, state) => {
         : null;
   const ownershipModes = [];
   // A "Managed" state in Vercel describes credential custody, not ownership of
-  // a Paperclip connection. Keep those concepts separate: importing this review
+  // a Nexus connection. Keep those concepts separate: importing this review
   // evidence must never silently turn an operator-owned connector into
   // `platform_shared`.
   const externalCredentialCustody =
@@ -2095,7 +2095,7 @@ apps.push({
   "schemaVersion": 1,
   "slug": "speko",
   "name": "Speko",
-  "description": "Talk with a Paperclip agent through an experimental hosted voice connection.",
+  "description": "Talk with a Nexus agent through an experimental hosted voice connection.",
   "categories": [
     "communication"
   ],
@@ -2118,7 +2118,7 @@ apps.push({
       "ownershipModes": [
         "customer"
       ],
-      "whenToUse": "Use browser voice to start and continue work with a selected Paperclip agent.",
+      "whenToUse": "Use browser voice to start and continue work with a selected Nexus agent.",
       "credentialFields": [
         {
           "key": "apiKey",
@@ -2137,7 +2137,7 @@ apps.push({
           "secret": false
         }
       ],
-      "guidanceMd": "Create a dedicated Speko voice persona and choose its voice. Paperclip registers signed session tools and keeps the selected Paperclip agent responsible for task work. Public HTTPS callbacks are required. Review provider recording settings; Speko charges are separate from agent costs. Phone calling is withheld pending live qualification.",
+      "guidanceMd": "Create a dedicated Speko voice persona and choose its voice. Nexus registers signed session tools and keeps the selected Nexus agent responsible for task work. Public HTTPS callbacks are required. Review provider recording settings; Speko charges are separate from agent costs. Phone calling is withheld pending live qualification.",
       "consoleLinks": {
         "register": "https://platform.speko.ai/agents",
         "docs": "https://docs.speko.ai/guides/tool-calling"

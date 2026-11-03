@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agentTaskSessions, agents, companies, createDb, heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults } from "@paperclipai/db";
-import { DurablePrpControlPlane, type PersistedNativeSession } from "../../vendor/paperclip-runner/index.js";
+import { agentTaskSessions, agents, companies, createDb, heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults } from "@nexusai/db";
+import { DurablePrpControlPlane, type PersistedNativeSession } from "../../vendor/nexus-runner/index.js";
 import { startRecoveryPostgres, recoveryPostgresSupport } from "../../__tests__/helpers/recovery-postgres.js";
 import { createIsolatedTestHome } from "../../__tests__/helpers/isolated-test-home.js";
 import { prepareNativeHeartbeatRun } from "./prepare-native-run.js";
@@ -20,24 +20,24 @@ describe.skipIf(!recoveryPostgresSupport.supported)("native controller durable d
   let db: ReturnType<typeof createDb>;
   let home: ReturnType<typeof createIsolatedTestHome>;
   let root: string;
-  const previousHome = process.env.PAPERCLIP_HOME;
+  const previousHome = process.env.NEXUS_HOME;
   const companyId = randomUUID(), agentId = randomUUID();
   const compatibility = { configDigest: `sha256:${"a".repeat(64)}`, processConfigDigest: null };
   beforeAll(async () => {
     home = createIsolatedTestHome();
-    process.env.PAPERCLIP_HOME = home.home;
+    process.env.NEXUS_HOME = home.home;
     root = await mkdtemp(join(tmpdir(), "native-controller-discovery-"));
     database = await startRecoveryPostgres("native-controller-discovery-");
     db = createDb(database.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Controller discovery", issuePrefix: "NCD" });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Runner", adapterType: "paperclip_runner", adapterConfig: { provider: "codex" } });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Runner", adapterType: "nexus_runner", adapterConfig: { provider: "codex" } });
   }, 60_000);
   afterAll(async () => {
     await database?.cleanup();
     if (root) await rm(root, { recursive: true, force: true });
     home?.cleanup();
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = previousHome;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = previousHome;
   });
 
   async function seed() {
@@ -66,7 +66,7 @@ describe.skipIf(!recoveryPostgresSupport.supported)("native controller durable d
     await db.update(heartbeatRuns).set({ status: "succeeded", finishedAt: new Date(), runnerProfileJson: profile }).where(eq(heartbeatRuns.id, runId));
     const scope = { companyId, agentId, issueId, runId, normalizedSessionId: native.normalizedSessionId };
     return { scope, native, profile, snapshot, owner,
-      supervisor: { schema: "paperclip.native-session-supervisor.v1", ...compatibility, snapshot } };
+      supervisor: { schema: "nexus.native-session-supervisor.v1", ...compatibility, snapshot } };
   }
 
   it("imports a retained source once, rejects stale input, and resolves it without any local projection", async () => {
@@ -156,7 +156,7 @@ describe.skipIf(!recoveryPostgresSupport.supported)("native controller durable d
     const fixture = await seed();
     await importNativeControllerRecovery(db, { ...fixture.scope, expectedConfigDigest: compatibility.configDigest, supervisor: fixture.supervisor });
     await db.insert(agentTaskSessions).values([0, 1].map(index => ({ companyId, agentId, taskKey: `${fixture.scope.issueId}-${index}`,
-      adapterType: "paperclip_runner", lastRunId: fixture.scope.runId })));
+      adapterType: "nexus_runner", lastRunId: fixture.scope.runId })));
     const first = await readNativeControllerRecoveryInventory(db, { limit: 1 });
     expect(first).toMatchObject({ inspected: 1, coverage: "partial", truncated: true, selectedRetainedEvidence: 1, fullPayloadsValidated: false });
     const next = await readNativeControllerRecoveryInventory(db, { limit: 1, afterId: first.nextAfterId! });

@@ -61,7 +61,7 @@ describe("grok-auth-merge-decision predicate", () => {
     sourceAuth: string | typeof ABSENT;
     destinationAuth: string | typeof ABSENT;
   }): Promise<number> {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-grok-merge-decision-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-grok-merge-decision-"));
     cleanupDirs.push(dir);
     const sourcePath = path.join(dir, "source-auth.json");
     const destinationPath = path.join(dir, "destination-auth.json");

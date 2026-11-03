@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { PluginEnvironmentCreationCleanupError } from "@paperclipai/plugin-sdk";
+import { PluginEnvironmentCreationCleanupError } from "@nexusai/plugin-sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sdk = vi.hoisted(() => {
@@ -66,7 +66,7 @@ const hooks = plugin.definition;
 const base = { driverKey: "boxd", companyId: "company-1", environmentId: "env-12345678abc" };
 
 function machine(overrides: Partial<{ id: string; name: string; status: string }> = {}) {
-  return { id: "vm-1", name: "paperclip-env12345-run12345-abcd", status: "running", ...overrides };
+  return { id: "vm-1", name: "nexus-env12345-run12345-abcd", status: "running", ...overrides };
 }
 
 function execOk(stdout = "", stderr = "", exitCode = 0) {
@@ -74,7 +74,7 @@ function execOk(stdout = "", stderr = "", exitCode = 0) {
 }
 
 function lease(metadata: Record<string, unknown> = {}) {
-  return { providerLeaseId: "vm-1", metadata: { remoteCwd: "/home/boxd/paperclip-workspace", ...metadata } };
+  return { providerLeaseId: "vm-1", metadata: { remoteCwd: "/home/boxd/nexus-workspace", ...metadata } };
 }
 
 describe("boxd sandbox provider plugin", () => {
@@ -117,7 +117,7 @@ describe("boxd sandbox provider plugin", () => {
   it("normalizes config", async () => {
     const result = await hooks.onEnvironmentValidateConfig?.({
       driverKey: "boxd",
-      config: { apiKey: "  bxd_test  ", org: " acme ", vcpu: "4", namePrefix: "My Paperclip!", timeoutMs: "450000.9", reuseLease: true },
+      config: { apiKey: "  bxd_test  ", org: " acme ", vcpu: "4", namePrefix: "My Nexus!", timeoutMs: "450000.9", reuseLease: true },
     });
     expect(result).toEqual({
       ok: true,
@@ -126,7 +126,7 @@ describe("boxd sandbox provider plugin", () => {
         org: "acme",
         snapshot: null,
         vcpu: 4,
-        namePrefix: "my-paperclip",
+        namePrefix: "my-nexus",
         timeoutMs: 450000,
         reuseLease: true,
       },
@@ -161,27 +161,27 @@ describe("boxd sandbox provider plugin", () => {
     });
 
     expect(machines.create).toHaveBeenCalledWith({
-      name: expect.stringMatching(/^paperclip-env12345-run12345-[0-9a-f]{4}$/),
+      name: expect.stringMatching(/^nexus-env12345-run12345-[0-9a-f]{4}$/),
       org: "acme",
       isolated: true,
-      labels: { "paperclip-provider": "boxd", "paperclip-environment": "env-12345678abc", "paperclip-run": "run-12345678-xyz" },
+      labels: { "nexus-provider": "boxd", "nexus-environment": "env-12345678abc", "nexus-run": "run-12345678-xyz" },
       config: { autoSuspendTimeout: 0, vcpu: 2, memory: "8G" },
     });
     expect(machines.waitUntilReady).toHaveBeenCalledWith("vm-1", { timeout: 120000 });
-    expect(machines.fs.mkdir).toHaveBeenCalledWith("vm-1", "/home/boxd/paperclip-workspace");
+    expect(machines.fs.mkdir).toHaveBeenCalledWith("vm-1", "/home/boxd/nexus-workspace");
     expect(machines.setDeleteAfter).not.toHaveBeenCalled();
     expect(result).toEqual({
       providerLeaseId: "vm-1",
       metadata: {
         provider: "boxd",
         machineId: "vm-1",
-        machineName: "paperclip-env12345-run12345-abcd",
-        sandboxName: "paperclip-env12345-run12345-abcd",
-        url: "https://paperclip-env12345-run12345-abcd.boxd.sh",
+        machineName: "nexus-env12345-run12345-abcd",
+        sandboxName: "nexus-env12345-run12345-abcd",
+        url: "https://nexus-env12345-run12345-abcd.boxd.sh",
         org: "acme",
         snapshot: null,
         shellCommand: "bash",
-        remoteCwd: "/home/boxd/paperclip-workspace",
+        remoteCwd: "/home/boxd/nexus-workspace",
         timeoutMs: 3600000,
         reuseLease: false,
         resumedLease: false,
@@ -228,9 +228,9 @@ describe("boxd sandbox provider plugin", () => {
   });
 
   it("deletes the machine when workspace setup fails", async () => {
-    machines.fs.mkdir.mockRejectedValue(new sdk.FilesystemError("/home/boxd/paperclip-workspace: Read-only file system"));
+    machines.fs.mkdir.mockRejectedValue(new sdk.FilesystemError("/home/boxd/nexus-workspace: Read-only file system"));
     await expect(hooks.onEnvironmentAcquireLease?.({ ...base, runId: "run-1", config: { apiKey: "bxd_test" } }))
-      .rejects.toThrow("Failed to create /home/boxd/paperclip-workspace on boxd machine vm-1: /home/boxd/paperclip-workspace: Read-only file system");
+      .rejects.toThrow("Failed to create /home/boxd/nexus-workspace on boxd machine vm-1: /home/boxd/nexus-workspace: Read-only file system");
     expect(machines.delete).toHaveBeenCalledWith("vm-1");
   });
 
@@ -252,7 +252,7 @@ describe("boxd sandbox provider plugin", () => {
       runId: "run-12345678-xyz",
       attemptId: expect.stringMatching(/^[0-9a-f-]{36}$/),
       accountFingerprint: createHash("sha256").update("bxd_test").digest("hex"),
-      labels: { "paperclip-provider": "boxd", "paperclip-environment": "env-12345678abc", "paperclip-run": "run-12345678-xyz" },
+      labels: { "nexus-provider": "boxd", "nexus-environment": "env-12345678abc", "nexus-run": "run-12345678-xyz" },
     });
   });
 
@@ -264,9 +264,9 @@ describe("boxd sandbox provider plugin", () => {
       runId: "run-1",
       attemptId: "attempt-1",
       accountFingerprint: createHash("sha256").update("bxd_test").digest("hex"),
-      labels: { "paperclip-provider": "boxd", "paperclip-run": "run-1" },
+      labels: { "nexus-provider": "boxd", "nexus-run": "run-1" },
     };
-    const owned = machine({ labels: { "paperclip-provider": "boxd", "paperclip-run": "run-1" } } as never);
+    const owned = machine({ labels: { "nexus-provider": "boxd", "nexus-run": "run-1" } } as never);
     machines.get.mockResolvedValueOnce(owned).mockRejectedValue(new sdk.NotFoundError("not found", 5));
     expect(await hooks.onEnvironmentDestroyLease?.({
       ...base, config: { apiKey: "bxd_test" }, providerLeaseId: "vm-1", leaseMetadata: { failedCreateCleanup },
@@ -274,7 +274,7 @@ describe("boxd sandbox provider plugin", () => {
     expect(machines.delete).toHaveBeenCalledWith("vm-1");
 
     machines.delete.mockClear();
-    machines.get.mockResolvedValue(machine({ labels: { "paperclip-provider": "boxd", "paperclip-run": "run-2" } } as never));
+    machines.get.mockResolvedValue(machine({ labels: { "nexus-provider": "boxd", "nexus-run": "run-2" } } as never));
     await expect(hooks.onEnvironmentDestroyLease?.({
       ...base, config: { apiKey: "bxd_test" }, providerLeaseId: "vm-1", leaseMetadata: { failedCreateCleanup },
     })).rejects.toThrow("does not match");
@@ -306,7 +306,7 @@ describe("boxd sandbox provider plugin", () => {
 
     const [id, params] = machines.exec.mock.calls[0];
     expect(id).toBe("vm-1");
-    expect(params.cwd).toBe("/home/boxd/paperclip-workspace");
+    expect(params.cwd).toBe("/home/boxd/nexus-workspace");
     expect(params.timeout).toBe(5000);
     expect(params.command).toContain(". \"$HOME/.profile\"");
     expect(params.command).toMatch(/exec env GREETING='it'"'"'s here' 'sh' '-c' 'echo \$GREETING'$/);
@@ -321,7 +321,7 @@ describe("boxd sandbox provider plugin", () => {
   it("stages stdin in a private temporary file and removes it afterwards", async () => {
     await hooks.onEnvironmentExecute?.({ ...base, config: { apiKey: "bxd_test" }, lease: lease(), command: "cat", stdin: "payload\n" });
     const [, stdinPath, contents, options] = machines.fs.write.mock.calls[0];
-    expect(stdinPath).toMatch(/^\/tmp\/paperclip-stdin-/);
+    expect(stdinPath).toMatch(/^\/tmp\/nexus-stdin-/);
     expect(contents).toBe("payload\n");
     expect(options).toEqual({ mode: 0o600 });
     expect(machines.exec.mock.calls[0][1].command).toMatch(new RegExp(`exec 'cat' < '${stdinPath}'$`));
@@ -345,7 +345,7 @@ describe("boxd sandbox provider plugin", () => {
     expect(machines.files.delete).toHaveBeenCalledWith("vm-1", stdinPath);
 
     await hooks.onEnvironmentRealizeWorkspace?.({ ...base, config: { apiKey: "bxd_test" }, lease: lease(), workspace: {} });
-    expect(machines.exec).toHaveBeenLastCalledWith("vm-1", { command: "mkdir -p '/home/boxd/paperclip-workspace'" });
+    expect(machines.exec).toHaveBeenLastCalledWith("vm-1", { command: "mkdir -p '/home/boxd/nexus-workspace'" });
   });
 
   it("reports an exec timeout as timedOut", async () => {
@@ -356,7 +356,7 @@ describe("boxd sandbox provider plugin", () => {
 
   it("starts a stopped machine and retries the command once", async () => {
     machines.exec
-      .mockRejectedValueOnce(new sdk.ConflictError("VM paperclip-x is stopped, so it won't be resumed automatically.", 9))
+      .mockRejectedValueOnce(new sdk.ConflictError("VM nexus-x is stopped, so it won't be resumed automatically.", 9))
       .mockResolvedValueOnce(execOk("ok\n"));
     const result = await hooks.onEnvironmentExecute?.({ ...base, config: { apiKey: "bxd_test" }, lease: lease(), command: "echo", args: ["ok"] });
     expect(machines.start).toHaveBeenCalledWith("vm-1");
@@ -463,7 +463,7 @@ describe("boxd sandbox provider plugin", () => {
   it("probes with a throwaway machine that boxd deletes on a timer, and deletes it", async () => {
     const result = await hooks.onEnvironmentProbe?.({ ...base, config: { apiKey: "bxd_test" } });
     expect(result?.ok).toBe(true);
-    expect(machines.create.mock.calls[0][0].name).toMatch(/^paperclip-probe-/);
+    expect(machines.create.mock.calls[0][0].name).toMatch(/^nexus-probe-/);
     expect(machines.setDeleteAfter).toHaveBeenCalledWith("vm-1", 900);
     expect(machines.delete).toHaveBeenCalledWith("vm-1");
   });
@@ -473,8 +473,8 @@ describe("boxd sandbox provider plugin", () => {
     const result = await hooks.onEnvironmentProbe?.({ ...base, config: { apiKey: "bxd_test" } });
     expect(result).toMatchObject({
       ok: false,
-      summary: "boxd environment probe could not delete its machine paperclip-env12345-run12345-abcd.",
-      metadata: { machineId: "vm-1", cleanupError: "unavailable", remoteCwd: "/home/boxd/paperclip-workspace" },
+      summary: "boxd environment probe could not delete its machine nexus-env12345-run12345-abcd.",
+      metadata: { machineId: "vm-1", cleanupError: "unavailable", remoteCwd: "/home/boxd/nexus-workspace" },
     });
   });
 

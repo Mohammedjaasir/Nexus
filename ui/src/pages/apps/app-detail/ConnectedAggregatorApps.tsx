@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, RefreshCw } from "lucide-react";
-import type { ToolConnection } from "@paperclipai/shared";
-import { AGGREGATOR_APP_CATALOG } from "@paperclipai/shared/aggregator-app-catalog";
-import { AGGREGATOR_NAMES, type AggregatorAppSnapshot, isAppAggregator } from "@paperclipai/shared/aggregator-apps";
+import type { ToolConnection } from "@nexusai/shared";
+import { AGGREGATOR_APP_CATALOG } from "@nexusai/shared/aggregator-app-catalog";
+import { AGGREGATOR_NAMES, type AggregatorAppSnapshot, isAppAggregator } from "@nexusai/shared/aggregator-apps";
 import { useAccountIdentity } from "@/api/companies-query";
 import { toolsApi } from "@/api/tools";
 import { Button } from "@/components/ui/button";

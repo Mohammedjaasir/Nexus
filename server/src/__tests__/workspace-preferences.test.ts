@@ -3,7 +3,7 @@ import express from "express";
 import request from "supertest";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { activityLog, companies, createDb, userWorkspacePreferences } from "@paperclipai/db";
+import { activityLog, companies, createDb, userWorkspacePreferences } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { errorHandler } from "../middleware/index.js";
 import { workspacePreferenceRoutes } from "../routes/workspace-preferences.js";
@@ -16,7 +16,7 @@ if (!support.supported) console.warn(`Workspace preference database tests unavai
   let db: ReturnType<typeof createDb>;
   let temp: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   beforeAll(async () => {
-    temp = await startEmbeddedPostgresTestDatabase("paperclip-workspace-preferences-");
+    temp = await startEmbeddedPostgresTestDatabase("nexus-workspace-preferences-");
     db = createDb(temp.connectionString);
   }, 30_000);
   afterAll(async () => { await temp?.cleanup(); });

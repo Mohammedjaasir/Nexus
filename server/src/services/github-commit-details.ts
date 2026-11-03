@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   DEFAULT_GITHUB_TOKEN_SECRET_NAMES,
   resolveGitHubApiCredential,
@@ -123,7 +123,7 @@ export function createGitHubCommitDiffDetailsResolver(
       const token = credential?.token?.trim() || null;
       const headers: Record<string, string> = {
         accept: "application/vnd.github+json",
-        "user-agent": "paperclip-work-product-resolver",
+        "user-agent": "nexus-work-product-resolver",
         "x-github-api-version": "2022-11-28",
       };
       if (token) headers.authorization = `Bearer ${token}`;

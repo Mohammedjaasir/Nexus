@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, approvals, companies, companyMemberships, companySecrets, connectionGrants, createDb, heartbeatRuns, issues, toolCatalogEntries, toolActionRequests, toolConnections, toolPolicies, toolProfileBindings, toolProfiles, toolAccessAuditEvents } from "@paperclipai/db";
+import { agents, approvals, companies, companyMemberships, companySecrets, connectionGrants, createDb, heartbeatRuns, issues, toolCatalogEntries, toolActionRequests, toolConnections, toolPolicies, toolProfileBindings, toolProfiles, toolAccessAuditEvents } from "@nexusai/db";
 import { toolAccessService } from "../services/tool-access.js";
 import { createToolGatewayService } from "../services/tool-gateway.js";
 import { RAILWAY_API_URL, RAILWAY_MCP_URL, RAILWAY_QUERIES } from "../services/railway.js";
@@ -21,7 +21,7 @@ const initialTools = [
 (support.supported ? describe : describe.skip)("Railway connection lifecycle and gateway", () => {
   let db: ReturnType<typeof createDb>;
   let temp: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
-  beforeAll(async () => { temp = await startEmbeddedPostgresTestDatabase("paperclip-railway-"); db = createDb(temp.connectionString); }, 20000);
+  beforeAll(async () => { temp = await startEmbeddedPostgresTestDatabase("nexus-railway-"); db = createDb(temp.connectionString); }, 20000);
   afterAll(async () => { await temp?.cleanup(); });
 
   async function fixture() {
@@ -43,9 +43,9 @@ const initialTools = [
         if (new Headers(init.headers).get("authorization") !== `Bearer ${token}`) return new Response("", { status: 401, headers: { "www-authenticate": 'Bearer resource_metadata="https://mcp.railway.com/.well-known/oauth-protected-resource"' } });
         if (JSON.parse(body).method === "tools/call") {
           expect(JSON.parse(body).params).toEqual({ name: "list-workspaces", arguments: {} });
-          return Response.json({ jsonrpc: "2.0", id: "paperclip-railway-workspace-probe", result: { structuredContent: { workspaces: [{ id: target.projectId }] } } });
+          return Response.json({ jsonrpc: "2.0", id: "nexus-railway-workspace-probe", result: { structuredContent: { workspaces: [{ id: target.projectId }] } } });
         }
-        return Response.json({ jsonrpc: "2.0", id: "paperclip-catalog-refresh", result: { tools } });
+        return Response.json({ jsonrpc: "2.0", id: "nexus-catalog-refresh", result: { tools } });
       }
       if (url.includes("oauth-protected-resource")) return Response.json(railwayResourceMetadata);
       if (url.includes("oauth-authorization-server")) return Response.json(railwayAuthorizationMetadata);
@@ -70,7 +70,7 @@ const initialTools = [
     const f = await fixture();
     const rows = await f.service.listCatalog(f.connectionId);
     expect((await f.service.getConnection(f.connectionId))?.config?.railwayApiStatus).toBe("available");
-    expect(rows.find((r) => r.toolName === "paperclip-railway-read-logs")?.status).toBe("active");
+    expect(rows.find((r) => r.toolName === "nexus-railway-read-logs")?.status).toBe("active");
     expect(rows.find((r) => r.toolName === "redeploy")?.riskLevel).toBe("destructive");
     expect(rows.filter((r) => ["railway-agent", "accept-deploy"].includes(r.toolName)).every((r) => r.status === "disabled")).toBe(true);
     f.setTools([...initialTools.map((tool) => tool.name === "list-projects" ? { ...tool, inputSchema: { type: "object", properties: { changed: { type: "string" } } } } : tool), { name: "new-tool" }]);
@@ -83,8 +83,8 @@ const initialTools = [
     const after = await f.service.listCatalog(f.connectionId);
     expect(after.find((r) => r.toolName === "new-tool")?.status).toBe("quarantined");
     expect(JSON.stringify(await f.service.getConnection(f.connectionId))).not.toContain(token);
-    f.setTools([{ name: "paperclip_railway_restart" }]);
-    await expect(f.service.refreshCatalog(f.connectionId, actor)).rejects.toThrow("Railway advertised a reserved Paperclip action");
+    f.setTools([{ name: "nexus_railway_restart" }]);
+    await expect(f.service.refreshCatalog(f.connectionId, actor)).rejects.toThrow("Railway advertised a reserved Nexus action");
   });
 
   it("keeps direct operations unavailable when API acceptance fails and reports refresh failure safely", async () => {
@@ -108,20 +108,20 @@ const initialTools = [
     const [run] = await db.insert(heartbeatRuns).values({ companyId: f.company.id, agentId: agent.id, invocationSource: "on_demand", status: "running" }).returning();
     const [profile] = await db.insert(toolProfiles).values({ companyId: f.company.id, name: "Railway tools", profileKey: randomUUID(), defaultAction: "allow" }).returning();
     await db.insert(toolProfileBindings).values({ companyId: f.company.id, profileId: profile.id, targetType: "agent", targetId: agent.id });
-    const [existing] = await db.select().from(toolCatalogEntries).where(and(eq(toolCatalogEntries.connectionId, f.connectionId), eq(toolCatalogEntries.toolName, "paperclip-railway-restart")));
-    const names = ["paperclip-railway-deploy-revision", "paperclip_railway_deploy_revision", "paperclipRailwayDeployRevision"];
+    const [existing] = await db.select().from(toolCatalogEntries).where(and(eq(toolCatalogEntries.connectionId, f.connectionId), eq(toolCatalogEntries.toolName, "nexus-railway-restart")));
+    const names = ["nexus-railway-deploy-revision", "nexus_railway_deploy_revision", "nexusRailwayDeployRevision"];
     // Reproduce active catalog rows persisted by an older server, before refresh.
     await db.insert(toolCatalogEntries).values(names.map((name) => ({ ...existing, id: randomUUID(), name, toolName: name, inputSchema: { type: "object" } })));
     const gateway = createToolGatewayService(db, { remoteHttpRequest: f.request });
     const session = await gateway.createSession({ companyId: f.company.id, agentId: agent.id, runId: run.id });
     const listed = await gateway.listToolsForSession(session.token);
     expect(listed.some((tool) => names.includes(tool.upstreamToolName ?? ""))).toBe(false);
-    const restart = listed.find((tool) => tool.upstreamToolName === "paperclip-railway-restart")!;
+    const restart = listed.find((tool) => tool.upstreamToolName === "nexus-railway-restart")!;
     expect(restart).toBeTruthy();
     f.request.mockClear();
     const { deploymentId: _, ...ids } = target;
     const parameters = { ...ids, repository: "example/app", commitSha: "a".repeat(40) };
-    await expect(gateway.executeTool({ sessionToken: session.token, tool: restart.name.replace("paperclip-railway-restart", names[0]), parameters, idempotencyKey: randomUUID() })).rejects.toMatchObject({ reasonCode: "tool_not_found" });
+    await expect(gateway.executeTool({ sessionToken: session.token, tool: restart.name.replace("nexus-railway-restart", names[0]), parameters, idempotencyKey: randomUUID() })).rejects.toMatchObject({ reasonCode: "tool_not_found" });
     for (const toolName of names) {
       await expect(gateway.executeTestCall({ companyId: f.company.id, connectionId: f.connectionId, agentId: agent.id, userId: actor.actorId, toolName, parameters })).rejects.toMatchObject({ reasonCode: "tool_not_found" });
     }
@@ -198,7 +198,7 @@ const initialTools = [
     await db.insert(toolProfileBindings).values({ companyId: f.company.id, profileId: profile.id, targetType: "agent", targetId: agent.id });
     const gateway = createToolGatewayService(db, { remoteHttpRequest: f.request, toolActionSigningSecret: "railway-fixture-signing-key" });
     let session = await gateway.createSession({ companyId: f.company.id, agentId: agent.id, runId: run.id });
-    const tool = (await gateway.listToolsForSession(session.token)).find((r) => r.upstreamToolName === "paperclip-railway-restart")!;
+    const tool = (await gateway.listToolsForSession(session.token)).find((r) => r.upstreamToolName === "nexus-railway-restart")!;
     expect(tool).toBeTruthy();
     const [policy] = await db.insert(toolPolicies).values({ companyId: f.company.id, name: "Approve Railway restart", policyType: "require_approval", selectors: { connectionId: f.connectionId }, priority: 10 }).returning();
     f.request.mockClear();

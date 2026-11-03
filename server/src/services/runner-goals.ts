@@ -2,14 +2,14 @@ import { notifyExternalConversationSettlement } from "./external-conversation-se
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   agentSessionGoalActions,
   agentTaskSessions,
   heartbeatRuns,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   RunnerGoalActionAccepted,
   RunnerGoalActionRequest,
@@ -17,7 +17,7 @@ import type {
   RunnerGoalPendingAction,
   RunnerGoalProjection,
   RunnerGoalSnapshot,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { queueLiveRunnerPrpCommand } from "../realtime/runner-prp-ws.js";
 import { dispatchLiveRunnerGoalControl } from "./runner-goal-control-broker.js";
 import { publishLiveEvent } from "./live-events.js";
@@ -53,7 +53,7 @@ function capabilityForAgent(agent: AgentBinding): RunnerGoalCapability {
   const config = asRecord(agent.adapterConfig) ?? {};
   const engine = typeof config.engine === "string" ? config.engine : null;
   const sessionMode = typeof config.mode === "string" ? config.mode : "persistent";
-  if (agent.adapterType === "paperclip_runner") {
+  if (agent.adapterType === "nexus_runner") {
     const provider = typeof config.provider === "string" ? config.provider : "codex";
     const acpxAgent = typeof config.acpxAgent === "string" ? config.acpxAgent : "pi";
     if (provider === "codex" || (provider === "acpx" && acpxAgent === "codex")) {
@@ -90,7 +90,7 @@ function capabilityForAgent(agent: AgentBinding): RunnerGoalCapability {
       ? "Unsupported by OpenCode."
       : provider === "acpx"
         ? "This ACP agent does not advertise a structured session goal extension."
-        : "This Paperclip runner provider does not expose a durable session goal lifecycle.";
+        : "This Nexus runner provider does not expose a durable session goal lifecycle.";
     return {
       availability: "unsupported",
       verified: true,
@@ -111,7 +111,7 @@ function capabilityForAgent(agent: AgentBinding): RunnerGoalCapability {
   const reason = agent.adapterType === "opencode_local"
     ? "Unsupported by OpenCode."
     : directAcp
-      ? "This direct ACP adapter has no live session goal controller. Use Paperclip Runner with a supported provider."
+      ? "This direct ACP adapter has no live session goal controller. Use Nexus Runner with a supported provider."
     : (agent.adapterType === "claude_local" || agent.adapterType === "codex_local") && sessionMode === "oneshot"
       ? "Session goals require a persistent ACP session."
     : agent.adapterType === "claude_local"

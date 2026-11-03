@@ -2,9 +2,9 @@ import type { ActorInfo } from "../types.js";
 import { oauthConfig, isSmokeLabOAuthFixture } from "./metadata.js";
 import { connectionMethodForConnection } from "../connection-methods.js";
 import { stableHash } from "../../tool-catalog-hash.js";
-import { ASANA_CONNECTOR_SCOPES, isAsanaConnectorProfileId, type AsanaConnectorProfileId } from "@paperclipai/shared";
-import { connectionGrants, toolConnections } from "@paperclipai/db";
-import { GITHUB_CONNECTOR_PROFILES, GOOGLE_WORKSPACE_CONNECTOR_PROFILES, getConnectableAppDefinition, isGitHubConnectorProfileId, isGoogleWorkspaceConnectorProfileId, type GitHubConnectorProfileId, type GoogleWorkspaceConnectorProfileId } from "@paperclipai/shared";
+import { ASANA_CONNECTOR_SCOPES, isAsanaConnectorProfileId, type AsanaConnectorProfileId } from "@nexusai/shared";
+import { connectionGrants, toolConnections } from "@nexusai/db";
+import { GITHUB_CONNECTOR_PROFILES, GOOGLE_WORKSPACE_CONNECTOR_PROFILES, getConnectableAppDefinition, isGitHubConnectorProfileId, isGoogleWorkspaceConnectorProfileId, type GitHubConnectorProfileId, type GoogleWorkspaceConnectorProfileId } from "@nexusai/shared";
 import { unprocessable } from "../../../errors.js";
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -17,7 +17,7 @@ export function oauthEnvName(
   provider: string,
   suffix: "CLIENT_ID" | "CLIENT_SECRET",
 ) {
-  return `PAPERCLIP_TOOL_OAUTH_${provider.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}_${suffix}`;
+  return `NEXUS_TOOL_OAUTH_${provider.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}_${suffix}`;
 }
 
 export function oauthClientConfig(provider: string) {
@@ -28,11 +28,11 @@ export function oauthClientConfig(provider: string) {
     clientSecretEnv,
     clientId:
       process.env[clientIdEnv] ??
-      process.env.PAPERCLIP_TOOL_OAUTH_CLIENT_ID ??
+      process.env.NEXUS_TOOL_OAUTH_CLIENT_ID ??
       null,
     clientSecret:
       process.env[clientSecretEnv] ??
-      process.env.PAPERCLIP_TOOL_OAUTH_CLIENT_SECRET ??
+      process.env.NEXUS_TOOL_OAUTH_CLIENT_SECRET ??
       null,
   };
 }
@@ -45,7 +45,7 @@ export function configuredOAuthClientForConnection(
     return {
       clientIdEnv: "SMOKE_LAB_FIXED_CLIENT_ID",
       clientSecretEnv: "SMOKE_LAB_FIXED_CLIENT_SECRET",
-      clientId: "paperclip-smoke-lab",
+      clientId: "nexus-smoke-lab",
       clientSecret: null,
     };
   }

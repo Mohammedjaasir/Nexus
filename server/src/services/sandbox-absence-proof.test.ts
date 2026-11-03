@@ -6,13 +6,13 @@ import { inspectCloudSandboxCleanupAbsence, requestSandboxAbsenceProof, verifySa
 const { privateKey, publicKey } = generateKeyPairSync("ed25519");
 const binding = { companyId: randomUUID(), issueId: randomUUID(), runId: randomUUID(), leaseId: randomUUID(),
   ownerToken: randomUUID(), provider: "daytona" as const, providerLeaseId: randomUUID() };
-const env = { PAPERCLIP_CLOUD_STACK_ID: "fixture-stack", PAPERCLIP_CLOUD_API_ORIGIN: "https://cloud.example.test",
-  PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: "fleet-token", PAPERCLIP_PRIMARY_HOST: "fixture.paperclip.test", PAPERCLIP_AUTH_SECRET: "fixture-secret",
-  PAPERCLIP_CLOUD_RUNTIME_IDENTITY_JWKS: JSON.stringify({ keys: [{ ...publicKey.export({ format: "jwk" }), kid: "fixture", alg: "EdDSA", use: "sig" }] }) };
+const env = { NEXUS_CLOUD_STACK_ID: "fixture-stack", NEXUS_CLOUD_API_ORIGIN: "https://cloud.example.test",
+  NEXUS_CLOUD_TENANT_SERVER_TOKEN: "fleet-token", NEXUS_PRIMARY_HOST: "fixture.nexus.test", NEXUS_AUTH_SECRET: "fixture-secret",
+  NEXUS_CLOUD_RUNTIME_IDENTITY_JWKS: JSON.stringify({ keys: [{ ...publicKey.export({ format: "jwk" }), kid: "fixture", alg: "EdDSA", use: "sig" }] }) };
 const now = new Date("2099-01-01T00:00:00Z"), seconds = now.getTime() / 1000;
 function receipt(overrides: Record<string, unknown> = {}, purpose = "sandbox-absence", source: Record<string, unknown> = binding) {
-  const header = Buffer.from(JSON.stringify({ alg: "EdDSA", kid: "fixture", typ: `paperclip-${purpose}+jwt` })).toString("base64url");
-  const payload = Buffer.from(JSON.stringify({ v: 1, iss: "paperclip-cloud", aud: `paperclip-${purpose}/v1`, sub: "fixture-stack",
+  const header = Buffer.from(JSON.stringify({ alg: "EdDSA", kid: "fixture", typ: `nexus-${purpose}+jwt` })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ v: 1, iss: "nexus-cloud", aud: `nexus-${purpose}/v1`, sub: "fixture-stack",
     ...source, absent: true, iat: seconds, exp: seconds + 60, ...overrides })).toString("base64url");
   return `${header}.${payload}.${sign(null, Buffer.from(`${header}.${payload}`), privateKey).toString("base64url")}`;
 }
@@ -21,7 +21,7 @@ describe("sandbox absence proof", () => {
     expect(verifySandboxAbsenceReceipt(receipt(), binding, env, now)).toMatchObject({ ...binding, absent: true });
     for (const overrides of [
       ...Object.keys(binding).map(key => ({ [key]: key === "provider" ? "other" : randomUUID() })),
-      { sub: "foreign-stack" }, { absent: false }, { aud: "paperclip-workspace-worker-stop/v1" }, { iss: "other" },
+      { sub: "foreign-stack" }, { absent: false }, { aud: "nexus-workspace-worker-stop/v1" }, { iss: "other" },
       { iat: seconds + 31, exp: seconds + 60 }, { exp: seconds }, { exp: seconds + 61 },
     ]) expect(verifySandboxAbsenceReceipt(receipt(overrides), binding, env, now)).toBeNull();
     expect(verifySandboxAbsenceReceipt(receipt().slice(0, -8) + "tampered", binding, env, now)).toBeNull();
@@ -31,8 +31,8 @@ describe("sandbox absence proof", () => {
     expect(await requestSandboxAbsenceProof(binding, { env, now, fetchImpl })).toMatchObject({ proof: { absent: true } });
     const [url, init] = fetchImpl.mock.calls[0];
     expect(url).toBe("https://cloud.example.test/v1/tenant/sandbox-absence");
-    expect(init.headers).toEqual({ authorization: `Bearer ${createHmac("sha256", "fixture-secret").update("paperclip-cloud-sandbox-absence-v1\nfixture.paperclip.test").digest("hex")}`,
-      "content-type": "application/json", "x-paperclip-cloud-tenant-host": "fixture.paperclip.test" });
+    expect(init.headers).toEqual({ authorization: `Bearer ${createHmac("sha256", "fixture-secret").update("nexus-cloud-sandbox-absence-v1\nfixture.nexus.test").digest("hex")}`,
+      "content-type": "application/json", "x-nexus-cloud-tenant-host": "fixture.nexus.test" });
     expect(JSON.parse(init.body)).toEqual(binding);
     expect(init.redirect).toBe("error");
   });
@@ -60,14 +60,14 @@ describe("cleanup-only sandbox absence", () => {
     const [url, init] = fetchImpl.mock.calls[0];
     expect(url).toBe("https://cloud.example.test/v1/tenant/sandbox-absence");
     expect(JSON.parse(init.body)).toEqual(source);
-    expect(init.headers.authorization).not.toContain(env.PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN);
+    expect(init.headers.authorization).not.toContain(env.NEXUS_CLOUD_TENANT_SERVER_TOKEN);
     expect(init.redirect).toBe("error");
   });
   it("requires every binding, current stack, signature and freshness, and rejects recovery receipts", () => {
     expect(verifySandboxCleanupAbsenceReceipt(signed(), cleanup, env, now)).toMatchObject(cleanup);
     for (const overrides of [
       ...Object.keys(cleanup).map(key => ({ [key]: randomUUID() })),
-      { sub: "foreign-stack" }, { absent: false }, { aud: "paperclip-sandbox-absence/v1" }, { iss: "other" },
+      { sub: "foreign-stack" }, { absent: false }, { aud: "nexus-sandbox-absence/v1" }, { iss: "other" },
       { iat: seconds + 31 }, { exp: seconds }, { exp: seconds + 61 },
     ]) expect(verifySandboxCleanupAbsenceReceipt(signed(overrides), cleanup, env, now)).toBeNull();
     expect(verifySandboxCleanupAbsenceReceipt(signed().slice(0, -8) + "tampered", cleanup, env, now)).toBeNull();

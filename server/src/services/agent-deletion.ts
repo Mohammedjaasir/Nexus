@@ -11,7 +11,7 @@ import { notifyScheduledRetryCancellation } from "./scheduled-retry-cancellation
 import { and, eq, or, sql } from "drizzle-orm";
 import { agents, agentApiKeys, agentRuntimeState, agentTaskSessions, agentWakeupRequests, activityLog,
   budgetReservations, heartbeatRunEvents, heartbeatRuns, issueExecutionDecisions, issues, issueComments,
-  caseHandoffs, principalPermissionGrants, type Db } from "@paperclipai/db";
+  caseHandoffs, principalPermissionGrants, type Db } from "@nexusai/db";
 import { conflict } from "../errors.js";
 import { issueThreadInteractionService } from "./issue-thread-interactions.js";
 

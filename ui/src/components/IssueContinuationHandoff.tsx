@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { IssueDocument } from "@paperclipai/shared";
-import { ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY } from "@paperclipai/shared";
+import type { IssueDocument } from "@nexusai/shared";
+import { ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY } from "@nexusai/shared";
 import { AgentSetupPrompt } from "@/components/AgentSetupPrompt";
 import { cn, relativeTime } from "../lib/utils";
 import { MarkdownBody, type MarkdownExternalReferenceMap } from "./MarkdownBody";
@@ -78,7 +78,7 @@ export function IssueContinuationHandoff({
       {expanded ? (
         <div className="mt-3 rounded-md border border-border bg-background/80 p-3">
           <MarkdownBody
-            className="paperclip-edit-in-place-content text-sm leading-6"
+            className="nexus-edit-in-place-content text-sm leading-6"
             softBreaks={false}
             externalReferences={externalReferences}
           >

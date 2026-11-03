@@ -6,17 +6,17 @@ import { InMemorySpanExporter, SimpleSpanProcessor, TracerProvider } from "@open
 import {
   applyPendingMigrations, authUsers, companies, companySecrets, companyMemberships, connectionGrants, createDb,
   EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, toolApplications, toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { writeConnectionCredential } from "../services/connection-credentials.js";
 import { syncConnectionCredentialBindings } from "../services/connection-credential-bindings.js";
 import { withRunExecutionTiming } from "../services/execution-preparation-timing.js";
-import type { PaperclipCloudConnector } from "../services/paperclip-cloud-connector.js";
+import type { NexusCloudConnector } from "../services/nexus-cloud-connector.js";
 import { toolAccessService } from "../services/tool-access.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const databaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_GITHUB_CATALOG_TEST_DATABASE_URL");
+const databaseUrl = resolveExternalTestDatabaseUrl("NEXUS_GITHUB_CATALOG_TEST_DATABASE_URL");
 const support = databaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("GitHub repository catalog execution timing", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
@@ -26,11 +26,11 @@ const support = databaseUrl ? { supported: true } : await getEmbeddedPostgresTes
 
   beforeAll(async () => {
     if (databaseUrl) await applyPendingMigrations(databaseUrl);
-    else temporary = await startEmbeddedPostgresTestDatabase("paperclip-github-catalog-timing-");
+    else temporary = await startEmbeddedPostgresTestDatabase("nexus-github-catalog-timing-");
     db = createDb(databaseUrl ?? temporary.connectionString, { maxConnections: 3 });
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
   beforeEach(() => {
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "01234567890123456789012345678901");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "01234567890123456789012345678901");
     vi.stubEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector.test");
     exporter = new InMemorySpanExporter();
     provider = new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] });
@@ -59,7 +59,7 @@ const support = databaseUrl ? { supported: true } : await getEmbeddedPostgresTes
     const [connection] = await db.insert(toolConnections).values({
       companyId: company.id, applicationId: application.id, name: "Private GitHub connection", uid: randomUUID(),
       transport: "mcp_remote", authKind: "oauth", credentialPolicy: "per_user", enabled: true, status: "active",
-      config: { sourceTemplateKey: "github", oauth: { strategy: "paperclip_cloud_connector", connectorProfile: "github.code" } },
+      config: { sourceTemplateKey: "github", oauth: { strategy: "nexus_cloud_connector", connectorProfile: "github.code" } },
     }).returning();
     const token = `private-fixture-token-${randomUUID()}`;
     const { secret } = await writeConnectionCredential(db, {
@@ -74,8 +74,8 @@ const support = databaseUrl ? { supported: true } : await getEmbeddedPostgresTes
     const webhook = vi.fn(async () => trace.getTracer("catalog-fixture").startActiveSpan("fixture.webhook", async span => {
       await Promise.resolve(); span.end();
     }));
-    const connector = { setWebhookBinding: webhook } as unknown as PaperclipCloudConnector;
-    const service = toolAccessService(db, { paperclipCloudConnector: connector });
+    const connector = { setWebhookBinding: webhook } as unknown as NexusCloudConnector;
+    const service = toolAccessService(db, { nexusCloudConnector: connector });
     expect(await service.githubReadHeaders(company.id, connection.id, userId)).toEqual({ Authorization: `Bearer ${token}` });
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async url =>
       trace.getTracer("catalog-fixture").startActiveSpan("fixture.github_http", async span => {

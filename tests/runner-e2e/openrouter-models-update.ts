@@ -43,7 +43,7 @@ const models: OpenRouterRankedModel[] = (payload.data ?? [])
   }));
 const capturedAt = new Date().toISOString();
 const snapshot = validateOpenRouterRankingSnapshot({
-  schema: "paperclip.runner-e2e.openrouter-ranking/v1",
+  schema: "nexus.runner-e2e.openrouter-ranking/v1",
   snapshotId: `top-weekly-tools-${capturedAt.slice(0, 10)}`,
   ranking: "top-weekly",
   requiredParameter: "tools",

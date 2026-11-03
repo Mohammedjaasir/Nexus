@@ -27,13 +27,13 @@ async function write(filePath: string, contents = "x\n") {
 }
 
 async function createRepoWithWorktree(gitignore: string[]) {
-  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-compaction-unit-")));
+  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "nexus-compaction-unit-")));
   tempDirs.push(root);
   const repoRoot = path.join(root, "repo");
   await fs.mkdir(repoRoot);
   await git(repoRoot, ["init", "-b", "main"]);
-  await git(repoRoot, ["config", "user.name", "Paperclip Test"]);
-  await git(repoRoot, ["config", "user.email", "test@paperclip.local"]);
+  await git(repoRoot, ["config", "user.name", "Nexus Test"]);
+  await git(repoRoot, ["config", "user.email", "test@nexus.local"]);
   await write(path.join(repoRoot, ".gitignore"), `${gitignore.join("\n")}\n`);
   await git(repoRoot, ["add", ".gitignore"]);
   await git(repoRoot, ["commit", "-m", "Initial commit"]);
@@ -49,7 +49,7 @@ afterEach(async () => {
 describe("findRegenerableWorkspaceDirs", () => {
   it("returns only ignored, untracked directories with a regenerable name", async () => {
     const { worktreePath } = await createRepoWithWorktree([
-      "node_modules/", "dist/", ".turbo/", ".env", "local-data/", ".paperclip/", "coverage/",
+      "node_modules/", "dist/", ".turbo/", ".env", "local-data/", ".nexus/", "coverage/",
     ]);
     await write(path.join(worktreePath, "node_modules/a/index.js"));
     await write(path.join(worktreePath, "packages/ui/node_modules/b/index.js"));
@@ -61,7 +61,7 @@ describe("findRegenerableWorkspaceDirs", () => {
     // A regenerable name that Git does not ignore is source.
     await write(path.join(worktreePath, "build/keep.txt"));
     // The worktree instance data is never scanned.
-    await write(path.join(worktreePath, ".paperclip/node_modules/c/index.js"));
+    await write(path.join(worktreePath, ".nexus/node_modules/c/index.js"));
     // An ignored directory with a force-added tracked file is source.
     await write(path.join(worktreePath, "coverage/baseline.json"));
     await git(worktreePath, ["add", "-f", "coverage/baseline.json"]);

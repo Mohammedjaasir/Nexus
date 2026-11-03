@@ -1,13 +1,13 @@
 import { Router, type Request } from "express";
 import { eq } from "drizzle-orm";
-import { heartbeatRuns, type Db } from "@paperclipai/db";
+import { heartbeatRuns, type Db } from "@nexusai/db";
 import {
   addApprovalCommentSchema,
   createApprovalSchema,
   requestApprovalRevisionSchema,
   resolveApprovalSchema,
   resubmitApprovalSchema,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { validate } from "../middleware/validate.js";
 import { logger } from "../middleware/logger.js";
 import {
@@ -63,7 +63,7 @@ export function approvalRoutes(
   const issueApprovalsSvc = issueApprovalService(db);
   const issuesSvc = issueService(db);
   const secretsSvc = secretService(db);
-  const strictSecretsMode = process.env.PAPERCLIP_SECRETS_STRICT_MODE === "true";
+  const strictSecretsMode = process.env.NEXUS_SECRETS_STRICT_MODE === "true";
 
   async function lostReviewPathIssueIds(
     companyId: string,

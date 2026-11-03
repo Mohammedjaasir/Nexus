@@ -771,7 +771,7 @@ Gaps: This operation has source review, not current-head HTTP verification.
 API: `present` — `POST /api/companies/{companyId}/issues/{issueId}/attachments`; multipart upload.
 Agent access: `partial` — agent REST upload; native attachment tools and `register_deliverable` use their admitted resource paths and server-owned chat delivery. JSON-only `call_api` does not upload multipart content.
 Policy: Task mutation/privacy authority, company/resource bounds, storage limits, and admitted native tool scope. Server-owned delivery does not grant endpoint administration.
-Evidence: `source-only` — [asset routes](../../server/src/routes/assets.ts) and [native authority](../../server/src/services/native-runtime/paperclip-runner-tool-authority.ts).
+Evidence: `source-only` — [asset routes](../../server/src/routes/assets.ts) and [native authority](../../server/src/services/native-runtime/nexus-runner-tool-authority.ts).
 Verification: `not-run` — upload through an admitted agent path, inspect the stored task attachment and outbound delivery, and deny a foreign task.
 Gaps: Multipart upload is not a JSON native API call. Live chat file delivery remains unqualified by this connection setup audit.
 

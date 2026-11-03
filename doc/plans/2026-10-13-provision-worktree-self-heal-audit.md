@@ -22,7 +22,7 @@ Every accepted run has zero cancelled/todo. Existing skip: ok 20 - repairs an un
 
 Change only generated fallback targetConfig.database.embeddedPostgresDataDir in scripts/provision-worktree.sh from path.resolve(instanceRoot, "db") to path.resolve(worktreeHome, "..", "misdirected-worktree-db"). This writes only a config value; it does not create or touch files at that escaped path. Original and keeper both fail the exact assertion `!path.relative(worktreesHome, dataDir).startsWith("..")`, reporting the actual persisted escaped path before keeper's second launch. No setup/timeout failure qualifies the control.
 
-Original mutated complete owner has two direct failures: exact isolation assertion, plus separate reuse case's unchanged /Reusing existing isolated Paperclip worktree config/ guard when production correctly treats escaped-path config as stale. Candidate mutated complete owner has one failure: relocated exact isolation assertion. The exact mutation and relevant failures are included below. Production bytes restore in finally and hash-check before restored candidate (33 passing/1 unchanged skipped). Test owner restores to exact-head original after proof.
+Original mutated complete owner has two direct failures: exact isolation assertion, plus separate reuse case's unchanged /Reusing existing isolated Nexus worktree config/ guard when production correctly treats escaped-path config as stale. Candidate mutated complete owner has one failure: relocated exact isolation assertion. The exact mutation and relevant failures are included below. Production bytes restore in finally and hash-check before restored candidate (33 passing/1 unchanged skipped). Test owner restores to exact-head original after proof.
 
 Initial default-sandbox baseline was rejected by real localhost binding EPERM: 35 cases, 32 passing, 2 setup failures, 1 existing skip. No candidate/mutation ran during that attempt. Those local reports are not bundled; these setup failures are not accepted controls. Approved escalation then ran the identical sequence with real localhost binding enabled, producing the accepted table above. No production behavior, assertions, deadlines, retries or skip logic changed.
 
@@ -109,7 +109,7 @@ if os.environ.get("AUDIT_RECONSTRUCT_ONLY") == "1":
     raise SystemExit(0)
 
 archive = subprocess.check_output(["git", "archive", spec["base"]])
-with tempfile.TemporaryDirectory(prefix="paperclip-audit-") as directory:
+with tempfile.TemporaryDirectory(prefix="nexus-audit-") as directory:
     root = Path(directory)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
         tar.extractall(root, filter="data")
@@ -125,7 +125,7 @@ with tempfile.TemporaryDirectory(prefix="paperclip-audit-") as directory:
         if spec["kind"] == "tap":
             command = ["node", "--test", "--test-reporter=tap", owner]
         elif spec["kind"] == "ui":
-            command = ["pnpm", "--filter", "@paperclipai/ui",
+            command = ["pnpm", "--filter", "@nexusai/ui",
                        "exec", "vitest", "run", "src/pages/CompanyExport.test.tsx",
                        "--maxWorkers=1", "--reporter=default", "--reporter=json",
                        "--outputFile.json=" + str(report)]
@@ -199,15 +199,15 @@ Recorded intended failure excerpts (fixture path prefixes omitted):
 ```text
 database-path-escape-original
 falls back to an isolated config when the base CLI cannot boot
-'expected <fixture-root>/misdirected-worktree-db to live under <fixture-root>/paperclip-provision-home-GzsiQq'
+'expected <fixture-root>/misdirected-worktree-db to live under <fixture-root>/nexus-provision-home-GzsiQq'
 reconciles deployment mode from the registered source when reusing a guest config
 |-
-    The input did not match the regular expression /Reusing existing isolated Paperclip worktree config/. Input:
+    The input did not match the regular expression /Reusing existing isolated Nexus worktree config/. Input:
 
-    'existing worktree config path is outside <fixture-root>/paperclip-provision-worktree-kroaza-bc89219c87b9: <fixture-root>/misdirected-worktree-db\n' +
-      'Existing isolated Paperclip worktree config is stale for this host; regenerating.\n' +
-      'No usable paperclipai CLI found; writing isolated fallback config without DB seeding.\n'
+    'existing worktree config path is outside <fixture-root>/nexus-provision-worktree-kroaza-bc89219c87b9: <fixture-root>/misdirected-worktree-db\n' +
+      'Existing isolated Nexus worktree config is stale for this host; regenerating.\n' +
+      'No usable nexusai CLI found; writing isolated fallback config without DB seeding.\n'
 database-path-escape-keeper
 isolates fallback configuration and reconciles deployment mode from the registered source when reusing a guest config
-'expected <fixture-root>/misdirected-worktree-db to live under <fixture-root>/paperclip-provision-home-Rv7iS2'
+'expected <fixture-root>/misdirected-worktree-db to live under <fixture-root>/nexus-provision-home-Rv7iS2'
 ```

@@ -1,4 +1,4 @@
-import type { VoiceSession, VoiceSessionMedia, VoiceSessionNotification } from "@paperclipai/shared";
+import type { VoiceSession, VoiceSessionMedia, VoiceSessionNotification } from "@nexusai/shared";
 import { api } from "./client";
 
 const base = (companyId: string) => `/companies/${encodeURIComponent(companyId)}/voice-sessions`;

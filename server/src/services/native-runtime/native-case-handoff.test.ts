@@ -4,13 +4,13 @@ import { once } from "node:events";
 import { rm } from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { agents, caseEvents, caseHandoffs, cases, companies, createDb, heartbeatRuns, issues } from "@paperclipai/db";
+import { agents, caseEvents, caseHandoffs, cases, companies, createDb, heartbeatRuns, issues } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { assertAgentRunWriteAllowed } from "../../agent-run-cancellation.js";
 import { assertNoCaseHandoffMutation, isCaseHandoffSourceReleased, pendingCaseHandoffForRun, recordCaseHandoffExecutionReleased } from "../heartbeat/case-handoff-lifecycle.js";
 import { nativeCaseHandoffResult, assertNativeCaseHandoffResult } from "./native-case-handoff.js";
 import { createGovernedWaitEventObservation } from "./native-session-executor.js";
-import type { PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import type { PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { recordNativeLocalProcessStop } from "../native-local-process-stop.js";
 import { issueService } from "../issues.js";
 import { prepareHeartbeatRunScratch, cleanupHeartbeatRunScratch } from "../run-scratch.js";
@@ -36,7 +36,7 @@ describe("native persisted case handoff runtime", () => {
   it("uses persisted intent to yield after the accepted tool response, without a finish call", async () => {
     const f = await fixture();
     const observation = createGovernedWaitEventObservation(() => nativeCaseHandoffResult(db, f.input));
-    const event = { schema: "paperclip.prp.event.v1", sourceEventId: "tool-result", sourceInstanceId: "provider", sourceSeq: 2,
+    const event = { schema: "nexus.prp.event.v1", sourceEventId: "tool-result", sourceInstanceId: "provider", sourceSeq: 2,
       runId: f.runId, eventType: "item.completed", itemId: "handoff-tool", payload: { kind: "dynamicToolCall" },
       sourceKind: "provider", normalizedSessionId: "session", schemaVersion: 1, priority: "normal", emittedAt: new Date().toISOString() } as unknown as PrpEvent;
     await observation.observe(event, true);

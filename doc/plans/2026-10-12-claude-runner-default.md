@@ -50,7 +50,7 @@ Experience findings: the Connectors announcement covered part of the first-task 
 
 ## Delivery checkpoint — 2026-10-15
 
-New Claude agents use Paperclip Runner and ordinary Opus 5.5 defaults on the four qualified installed targets. Saved Legacy/native choices, explicit models, provider routing, and the latest Codex defaults remain intact. Runtime source is `0670b85392a0be51745f1ba7ca84f998bf122c07`, integrated with master through `7420af26fc9a80d6252ababd879e2fc991eebd07`. Required source CI passed, with exact-source Greptile 5/5 and zero unresolved threads. The final record changes evidence only; the linked PRs show current-head checks.
+New Claude agents use Nexus Runner and ordinary Opus 5.5 defaults on the four qualified installed targets. Saved Legacy/native choices, explicit models, provider routing, and the latest Codex defaults remain intact. Runtime source is `0670b85392a0be51745f1ba7ca84f998bf122c07`, integrated with master through `7420af26fc9a80d6252ababd879e2fc991eebd07`. Required source CI passed, with exact-source Greptile 5/5 and zero unresolved threads. The final record changes evidence only; the linked PRs show current-head checks.
 
 | Target | Completed evidence |
 | --- | --- |
@@ -67,7 +67,7 @@ Known rate-card estimates total **$4.810616600**, excluding unknown charges. Agg
 
 ## Finish line and baseline
 
-New Claude agents created through ordinary product entry points select Paperclip Runner automatically, use `claude-opus-5-5` unless an explicit model/provider override exists, and complete a useful task plus revision. Saved Legacy/native choices remain stable. Deliver tested, reviewable PRs; merge and production rollout remain separate.
+New Claude agents created through ordinary product entry points select Nexus Runner automatically, use `claude-opus-5-5` unless an explicit model/provider override exists, and complete a useful task plus revision. Saved Legacy/native choices remain stable. Deliver tested, reviewable PRs; merge and production rollout remain separate.
 
 Planning baseline fetched from origin/master: `7fc2dc8b3236e1149ae32756b6153a503623404b`. Implementation later integrated master through `7420af26fc9a80d6252ababd879e2fc991eebd07`; see the current evidence below.
 Clean baseline checkout: `/private/tmp/claude-default-master-plan`, branch `codex/claude-default-master-plan`. Existing three PR branches and installed preview are preserved. This planning checkout is current master plus this record; it does not yet contain the Claude implementation.
@@ -78,7 +78,7 @@ Clean baseline checkout: `/private/tmp/claude-default-master-plan`, branch `code
 - Existing native Claude ACPX profile: Claude ACP 0.73.0, SDK 0.3.286. Native Claude is not a new adapter implementation.
 - Pinned Claude Linux ARM64 executable admission, including actual digest `0292fa22ac2fd43e16be9d0e511ddd8347280d6e0ebaca744ef5b27e05d8d0f8`, landed in #16372 (`854ab294cc`). Reuse this implementation.
 - Network-safe libc detection and asynchronous startup probing (#16333/#16335), plus newer task recovery, repository admission, workspace retention, and snapshot isolation. These must survive integration.
-- Claude still has no automatic runner mapping: `paperclipRunnerProfileForHarness` and `agentRunnerAvailability` select Codex only. Legacy Claude defaults to Opus 5; generic ACPX defaults to Sonnet 5. Native Claude remains subject to the experimental gate.
+- Claude still has no automatic runner mapping: `nexusRunnerProfileForHarness` and `agentRunnerAvailability` select Codex only. Legacy Claude defaults to Opus 5; generic ACPX defaults to Sonnet 5. Native Claude remains subject to the experimental gate.
 - Native setup's SSH architecture whitelist still excludes Linux ARM64. Executable admission alone does not prove onboarding/remote selection works.
 
 ## Existing work and evidence at the planning checkpoint
@@ -101,8 +101,8 @@ Use the existing PR stack; integrate master forward into its prerequisite, then 
 
 An index-free merge rehearsal against the complete local stack found 25 overlapping changed files and six textual conflicts:
 
-- packages/paperclip-runner/README.md
-- packages/paperclip-runner/src/drivers/acpx/installation-integrity.ts
+- packages/nexus-runner/README.md
+- packages/nexus-runner/src/drivers/acpx/installation-integrity.ts
 - server/src/__tests__/agent-skills-routes.test.ts
 - server/src/__tests__/issue-update-comment-wakeup-routes.test.ts
 - ui/src/components/AgentConfigForm.render.test.tsx
@@ -118,8 +118,8 @@ Exit: focused selection/UI/protocol/resume checks pass with current Codex behavi
 
 First implementation delivery enables Apple Silicon only. Other Claude targets retain their current default until their package/execution gates pass.
 
-- Extend existing centralized resolution to `claude_local` -> `paperclip_runner`, `provider: acpx`, `acpxAgent: claude`. Graduate this profile only from the experimental gate.
-- Preserve request-level `runner: auto | paperclip | legacy`, discovery fields, and resolved stored configuration. No migration or bulk rewrite of saved agents.
+- Extend existing centralized resolution to `claude_local` -> `nexus_runner`, `provider: acpx`, `acpxAgent: claude`. Graduate this profile only from the experimental gate.
+- Preserve request-level `runner: auto | nexus | legacy`, discovery fields, and resolved stored configuration. No migration or bulk rewrite of saved agents.
 - Reuse Claude connections, secret storage, selected account, subscription actions, and built-in setup probes. Use the API key from ~/.secrets through the existing connection flow without exposing it.
 - Reuse the shared Advanced runner selector with Claude branding. Omit legacy-only defaults from native forms; incompatible custom execution settings require explicit Legacy with a useful error.
 - Apply ordinary Opus 5.5 defaults consistently while preserving explicit models, ANTHROPIC_MODEL, and provider routing.
@@ -183,7 +183,7 @@ Master's retained-reader authorization batching and CI profile export are preser
 
 Review corrections are committed and covered by failing-before/passing-after controls. Discovery changes invalidate stale onboarding probes. Finish setup now saves the exact configuration admitted during qualification rather than rebuilding Legacy defaults from an older render. V7 native input retains prepared transport, constraints, and completion-only second turns. The latter regression reproduces `session cannot start another turn` before the fix. All 160 focused protocol/session tests, all 71 New Agent tests, 148 onboarding tests, UI typecheck, and runner TypeScript build pass. Earlier focused verification also passed 343 selection/configuration checks, 849 skills/comment/native-session checks, 320 latest-master lifecycle/selection/snapshot checks, 148 platform-selection controls, 114 release controls, 16 image-consumer controls and token gates. Master's subsequently landed snapshot-worker test fix replaces the earlier local timeout change. All three heads have fresh 5/5 reviews with zero unresolved findings and passing required CI. One earlier platform shard hit an ephemeral HTTP/2 EADDRINUSE test-port collision in unchanged code; a single provider-free rerun passed, preserving the original failure log at `/private/tmp/claude-v7-platform-workspaces-b-failure-20261015.log`. The final packaged Mac pair subsequently passed; current remote execution gates are recorded below.
 
-Preview: http://127.0.0.1:3105/CLA/issues/CLA-2, data `/private/tmp/claude-master-local-20261015`. Historical preview 3115 is separate. Ordinary New Agent -> Claude Code -> saved Anthropic API key -> Model Default -> high effort -> Finish setup originally saved agent `5339638d-b41d-4a6f-a041-4e5d1698a8de` as `paperclip_runner`/`acpx`/`claude`/`claude-opus-5-5`. No runner/model was patched after creation. Only timeout (180 seconds) and concurrency (one) were bounded. Experimental native runner remains false. The isolated PATH uses the already-qualified Claude 2.1.286 executable, preserving the user's system CLI.
+Preview: http://127.0.0.1:3105/CLA/issues/CLA-2, data `/private/tmp/claude-master-local-20261015`. Historical preview 3115 is separate. Ordinary New Agent -> Claude Code -> saved Anthropic API key -> Model Default -> high effort -> Finish setup originally saved agent `5339638d-b41d-4a6f-a041-4e5d1698a8de` as `nexus_runner`/`acpx`/`claude`/`claude-opus-5-5`. No runner/model was patched after creation. Only timeout (180 seconds) and concurrency (one) were bounded. Experimental native runner remains false. The isolated PATH uses the already-qualified Claude 2.1.286 executable, preserving the user's system CLI.
 
 The first integrated local pair passed on `77936b2973`: runs `58291208-459e-4de4-8b3e-5eff25d4e98c` and `37e6164e-98e3-42fe-8847-2ee061629055`, independent 160/217-byte artifacts, high effort, unchanged task/provider/backend session across controller restart, estimate $0.336505200. Its report remains `/private/tmp/claude-master-local-proof-20261015/acceptance.json` and attached to CLA-1. This is preserved historical evidence for that runtime.
 
@@ -246,7 +246,7 @@ Updated 2026-10-12.
 
 ## Outcome and constraints
 
-Start from `058af8f1b69c5fa3d9bc974b9eab73c141b52823`; branch `codex/claude-runner-default`, checkout `/Users/dotta/.codex/worktrees/670b/paperclip`. New Claude agents eventually default to native ACPX Claude on Apple Silicon, Intel Mac, Linux x64 and Linux ARM64. Codex selection remains owned by the dependency branch. On 2026-10-12 the user explicitly approved preserving its latest Linux ARM64 default from `dcdf09a0f33536fa2b6daaf6e731d921d5711282` during reconciliation. Ordinary Claude defaults become Opus 5.5; explicit models and existing runner selections remain intact.
+Start from `058af8f1b69c5fa3d9bc974b9eab73c141b52823`; branch `codex/claude-runner-default`, checkout `/Users/dotta/.codex/worktrees/670b/nexus`. New Claude agents eventually default to native ACPX Claude on Apple Silicon, Intel Mac, Linux x64 and Linux ARM64. Codex selection remains owned by the dependency branch. On 2026-10-12 the user explicitly approved preserving its latest Linux ARM64 default from `dcdf09a0f33536fa2b6daaf6e731d921d5711282` during reconciliation. Ordinary Claude defaults become Opus 5.5; explicit models and existing runner selections remain intact.
 
 Local Apple Silicon API-key task and follow-up are the first gate. Keep existing connection/login tools. Complete core settings and local subscription next, then package/qualify other targets. Two behavior/platform delivery boundaries plus the user-approved protocol prerequisite PR; no merge or deployment. Linux ARM64 covers installed hosts and SSH, not ARM cloud images. Separate $50 Claude ceiling including setup probes, unknown-charge holds and task turns. No automatic paid retry loops. Docker and expensive Rust builds run in cloud infrastructure; never build Docker images on this Mac.
 
@@ -259,11 +259,11 @@ Local Apple Silicon API-key task and follow-up are the first gate. Keep existing
 - The user redirected the remaining live checks to API keys. Subscription login remains supported, but no further attended subscription qualification is required; subscription follow-up is not claimed.
 - Shared runner controls passed light/dark, 390-pixel mobile and keyboard opening/closing checks. The walkthrough found native Command/Extra args controls; they are now hidden for native execution. The saved Claude preservation test covers this path. Agent form 111 tests, UI TypeScript and token gates passed.
 - Four-target cloud producers and required source checks are running on 9788c05; clean-install consumers are still pending. The existing authorized SSH development host is Linux ARM64 with GNU libc 2.39; qualification will use an isolated directory and preserve its other services.
-- Reviewed source chat “Make Paperclip Runner the default”; source worktree remains separate and active.
+- Reviewed source chat “Make Nexus Runner the default”; source worktree remains separate and active.
 - Isolated feature branch starts at the exact requested SHA.
 - Workspace dependencies installed with pinned pnpm 9.15.4 and lifecycle scripts disabled.
 - Local key source exists; no credentials retained here.
-- Verified baseline Apple Silicon daemon is available at `/private/tmp/pr2-d522-mac-remote-daemon/darwin-arm64/paperclip-runnerd`; use its receipt and digest for phase 1.
+- Verified baseline Apple Silicon daemon is available at `/private/tmp/pr2-d522-mac-remote-daemon/darwin-arm64/nexus-runnerd`; use its receipt and digest for phase 1.
 - Local default selection, narrow experimental-gate graduation, Opus defaults, and shared runner UI are being implemented. Claude effort transport and acknowledgment are being implemented; the live milestone used default effort on the unchanged baseline daemon.
 
 ## Remaining gates
@@ -304,7 +304,7 @@ Reconcile the latest Codex dependency (`dcdf09a0f3`, direct descendant of the re
 
 Frozen runtime candidate: `5f0b898e9ecef77afefe309a230e04d7fef66cde`. [Cloud daemon and clean-install qualification](https://github.com/paperclipai/paperclip/actions/runs/38273229107) uses the reconciled source's four-target release matrix. [Cloud required-source verification](https://github.com/paperclipai/paperclip/actions/runs/38273238920) resolves the branch to an immutable target under the trusted master workflow. Both are in progress; no passing claim yet. Image publication is disabled. All Docker/Rust compilation is remote.
 
-Subscription setup is prepared through the ordinary Claude Code wizard. The existing host CLI account is Paperclip Team (`claude.ai`, Team subscription), but the provider browser requires fresh reauthentication after selecting that organization. The user has been asked to complete that sign-in; no credential was extracted from the host or pasted into chat. The API-key preview/artifacts remain available while the subscription draft is pending.
+Subscription setup is prepared through the ordinary Claude Code wizard. The existing host CLI account is Nexus Team (`claude.ai`, Team subscription), but the provider browser requires fresh reauthentication after selecting that organization. The user has been asked to complete that sign-in; no credential was extracted from the host or pasted into chat. The API-key preview/artifacts remain available while the subscription draft is pending.
 
 ## Cold-resume diagnosis and corrective candidate
 
@@ -324,7 +324,7 @@ Cloud source verification retained failures rather than claiming a pass: the pro
 
 The user redirected remaining live execution checks to the API key in `~/.secrets`; the fresh subscription sign-in was closed and its unused company archived. Do not require more attended subscription sign-in for this delivery. Preserve existing connection tools and the prior successful subscription first-task evidence; subscription follow-up qualification is not claimed.
 
-Ordinary API-key wizard agent `688ff15d-eb48-4cb5-9f31-2d394ab3fbbb` saved `paperclip_runner` / `acpx` / `claude`, model `claude-opus-5-5`, effort `high`, and the existing responsible-user API-key connection. Preview: [successful API task and revision](http://127.0.0.1:3105/CLAA/issues/CLAA-1). Runs `271e0877-c60c-4ac7-aa1a-7b075481872b` and `eb95ed4d-c219-463e-b04a-1bc4ac83c012` both succeeded with `acpx_runtime`, acknowledged high effort, and metered Anthropic API attribution. Estimated costs: $0.194798400 and $0.342168800. The task, provider, and backend session identities all matched across the controller restart; private provider IDs are omitted from the report. Both runs finished accounting. Saved settings and `enableNativeRunner=false` persisted after reload.
+Ordinary API-key wizard agent `688ff15d-eb48-4cb5-9f31-2d394ab3fbbb` saved `nexus_runner` / `acpx` / `claude`, model `claude-opus-5-5`, effort `high`, and the existing responsible-user API-key connection. Preview: [successful API task and revision](http://127.0.0.1:3105/CLAA/issues/CLAA-1). Runs `271e0877-c60c-4ac7-aa1a-7b075481872b` and `eb95ed4d-c219-463e-b04a-1bc4ac83c012` both succeeded with `acpx_runtime`, acknowledged high effort, and metered Anthropic API attribution. Estimated costs: $0.194798400 and $0.342168800. The task, provider, and backend session identities all matched across the controller restart; private provider IDs are omitted from the report. Both runs finished accounting. Saved settings and `enableNativeRunner=false` persisted after reload.
 
 Independent downloads matched both byte oracles, and the original remained unchanged after the revision: v1 137 bytes, sha256 `fe24122962056946d5d01f693342c86fd83e22dbb21d6d0bc20d35f220f7952c`; v2 194 bytes, sha256 `0232a93ccc4da44fd156907b22a64b14487a981fdf12ab9cf73b4ef20d755816`. [First download](http://127.0.0.1:3105/api/attachments/fe58953d-7d1d-4b33-9548-c7611a2e82c6/content?download=1), [revision download](http://127.0.0.1:3105/api/attachments/3a0b5877-5afc-4088-b958-daa3c0b61f61/content?download=1). Sanitized report: `/private/tmp/claude-final-api-acceptance.json`.
 
@@ -486,7 +486,7 @@ automatic Linux selection. Final broad source checks run in the cloud on
 reconciled `06c4f5e5a0`: [campaign 38296110502](https://github.com/paperclipai/paperclip/actions/runs/38296110502).
 The behavior head `2874232d25` received 5/5 after its three settings fixes.
 
-Installed Mac proof is available as a Paperclip
+Installed Mac proof is available as a Nexus
 [acceptance report](http://127.0.0.1:3105/api/attachments/61653e0a-3ae0-459c-b1d1-20b5d1db73d6/content?download=1)
 and [screenshot](http://127.0.0.1:3105/api/attachments/bce37c56-3984-45b9-a995-b6a23cc9a85d/content?download=1),
 with artifact work products on CLAA-2. The actual native SDK is the server's
@@ -668,7 +668,7 @@ saved native configuration by applying actual form changes. Explicit empty
 model/effort and account-binding removal remain removals. Mounted Codex and
 Claude import cases cover ordinary edits, model/effort clears, connection-binding
 removal, Legacy selection and harness changes. Switching a Legacy Claude import
-to Paperclip preserves deny-all/approve-reads through the native builder.
+to Nexus preserves deny-all/approve-reads through the native builder.
 Current import/builder controls: 123 passed; mounted existing-agent form controls:
 121 passed, including hydration and explicit Auto clearing for both harnesses
 and all three effort aliases. Server/UI noemit, token gates and capability-map
@@ -1246,7 +1246,7 @@ heartbeat scheduling and zero live runs are verified. Receipts:
 `/private/tmp/claude-ad5875-local-installed-identity.json` and
 `/private/tmp/claude-ad5875-preview-health-receipt.json`.
 
-The actual creation UI selected Claude Code and displayed Paperclip Runner as
+The actual creation UI selected Claude Code and displayed Nexus Runner as
 the default with the existing saved API-key account. Setup then failed before
 authentication with `acpx_runtime_unavailable`: the default installed verifier
 did not carry its owning server's package authority. The SDK and qualified
@@ -1362,14 +1362,14 @@ complete data backed up to /private/tmp/claude-qa-before-js-treatment-snapshot,
 and the private treatment started at 3105 with scheduling and ambient Claude
 credentials disabled. This is explicitly a treatment, not a final package.
 
-The real creation UI displays Paperclip Runner (default) for Claude Code. Both
+The real creation UI displays Nexus Runner (default) for Claude Code. Both
 native readiness and the existing supplementary credential check pass with the
 saved personal Anthropic API key. Three bounded setup walkthroughs were used:
 the first browser harness waited on the wrong Configure label; the corrected
 walkthrough reached Configure; the final walkthrough saved the agent but watched
 /agents rather than the product's /agent-hires response. No duplicate agent was
 created. Reload independently verifies agent dd26921e-fe79-4ef7-a83c-5755bebd8936
-as paperclip_runner/acpx/claude/claude-opus-5-5 with the existing managed API-key
+as nexus_runner/acpx/claude/claude-opus-5-5 with the existing managed API-key
 binding. The runner control was inspected without changing its default.
 
 The first manual file task CLAAAAAAA-2 (6689bb7c-785e-4884-842f-13f6f5fddefa)
@@ -1490,7 +1490,7 @@ production defaults.
 
 Codex #15683 merged as `adb69e8f09852c772d9901ae270e5b2d66e39c77`.
 Fetched that exact object using the existing repository authentication. The
-original /Users/dotta/.codex/worktrees/670b/paperclip checkout no longer exists,
+original /Users/dotta/.codex/worktrees/670b/nexus checkout no longer exists,
 but its committed behavior branch is intact at f4b24bf695. App-managed recovery
 reported Not a git repository, so the same branch was recovered into the isolated
 /private/tmp/claude-runner-default-recovery worktree. No source-owner branch,
@@ -1580,7 +1580,7 @@ A replacement package campaign waits for fresh review of the corrected runtime.
 
 The existing Product E2E browser helper exercised UI source 7069077274 against
 the retained older backend at 3115 through New Agent, Claude Code and Advanced.
-The runner shows Paperclip Runner (default); keyboard Legacy/native selection
+The runner shows Nexus Runner (default); keyboard Legacy/native selection
 passes. Stable light/dark screenshots at 1440 and 390 px show no horizontal page
 overflow. The inherited Custom Gateway subtitle clips on 390 px; Claude API-key
 controls remain visible. Every API mutation was blocked by the browser guard;
@@ -1682,7 +1682,7 @@ source Release Smoke artifact set. It validates repository/workflow/source,
 artifact archive digests, canonical paths, package authority, daemon architecture
 and daemon bytes before constructing the image. The release pack must equal the
 manifest inside the public server tarball. This mode copies the producer's pack
-and daemon over an immutable Paperclip base image without rebuilding either or
+and daemon over an immutable Nexus base image without rebuilding either or
 resolving dependencies. The resulting image is read back to compare pack and
 daemon identities. Existing source-build mode remains available. Fifteen focused
 negative/positive controls and 71 existing release workflow controls pass; full
@@ -1795,8 +1795,8 @@ private Cloud UI plugins are excluded. All image builds ran in cloud infrastruct
 A fresh strict browser journey started at `https://test.paperclip.app`, selected
 the test organization, created Claude Hosted Writer through New Agent, reused
 the saved personal Claude API connection, and submitted default model/runner
-settings. The saved Runtime form showed Paperclip Runner (default), Claude
-Opus 5.5, effort Auto, and Paperclip Computer. No runner or model override was
+settings. The saved Runtime form showed Nexus Runner (default), Claude
+Opus 5.5, effort Auto, and Nexus Computer. No runner or model override was
 submitted. The native experimental flag remained at its disabled app default.
 Prior interface familiarity and the preconfigured $2 project are disclosed.
 
@@ -1866,7 +1866,7 @@ Rust prerequisite; it was stopped and replaced with direct TypeScript checks.
 Subsequent native builds and package qualification ran in GitHub Actions.
 
 Ordinary web creation of `Claude Default QA` with `enableNativeRunner=false`
-saved `paperclip_runner`, `provider: acpx`, `acpxAgent: claude`,
+saved `nexus_runner`, `provider: acpx`, `acpxAgent: claude`,
 `model: claude-opus-5-5`, and `modelReasoningEffort: high`, without runner or
 model overrides. The API-key connection initially applied a Legacy CLI version
 check. The fix reuses the existing Anthropic key-validation endpoint for native
@@ -1881,7 +1881,7 @@ v9 preserves master's explicit homeMode and historical v1–v8 readers.
 
 The first task attempt (`075e4543-e04f-4af2-bad3-c0d6c4987947`, original company
 `1de13e1c-5957-4920-9332-f77396c976ec`) failed before provider launch because
-the test-drive CLI intentionally removes inherited PAPERCLIP_* overrides.
+the test-drive CLI intentionally removes inherited NEXUS_* overrides.
 The verified daemon was then staged in the package-owned target location.
 That failed record and its full $2 pending reservation remain intact.
 

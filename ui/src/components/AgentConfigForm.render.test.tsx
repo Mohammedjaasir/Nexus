@@ -6,8 +6,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Agent, Environment, UserSecretDefinition } from "@paperclipai/shared";
-import { getEnvironmentCapabilities } from "@paperclipai/shared";
+import type { Agent, Environment, UserSecretDefinition } from "@nexusai/shared";
+import { getEnvironmentCapabilities } from "@nexusai/shared";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastProvider } from "../context/ToastContext";
 import { AgentConfigForm, AdapterLoginPanel, ModelDropdown, subtractPersistedOverlay, type AdapterLoginDescriptor } from "./AgentConfigForm";
@@ -19,8 +19,8 @@ import { ApiError } from "../api/client";
 import { aiConnectionsApi } from "../api/ai-connections";
 import { CodexLocalConfigFields } from "../adapters/codex-local/config-fields";
 import type { AdapterConfigFieldsProps } from "../adapters/types";
-import { buildClaudeLocalConfig } from "@paperclipai/adapter-claude-local/ui";
-import { DEFAULT_CODEX_LOCAL_MODEL } from "@paperclipai/adapter-codex-local";
+import { buildClaudeLocalConfig } from "@nexusai/adapter-claude-local/ui";
+import { DEFAULT_CODEX_LOCAL_MODEL } from "@nexusai/adapter-codex-local";
 import { ConfigurationTab } from "../pages/AgentDetail";
 import { ConfigurationTab as ClassicConfigurationTab } from "../pages/AgentDetail.production";
 
@@ -85,7 +85,7 @@ vi.mock("../api/grokBot", () => ({
   },
 }));
 
-const mockAdaptersApi = vi.hoisted(() => ({ list: vi.fn(async () => [{ type: "codex_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "legacy" }]) }));
+const mockAdaptersApi = vi.hoisted(() => ({ list: vi.fn(async () => [{ type: "codex_local", supportedRunners: ["legacy", "nexus"], defaultRunner: "legacy" }]) }));
 vi.mock("../api/adapters", () => ({ adaptersApi: mockAdaptersApi }));
 
 vi.mock("../api/environments", () => ({
@@ -106,9 +106,9 @@ vi.mock("../lib/clipboard", () => ({
 
 vi.mock("../context/CompanyContext", () => ({
   useCompany: () => ({
-    companies: [{ id: "company-1", name: "Paperclip", issuePrefix: "CO" }],
+    companies: [{ id: "company-1", name: "Nexus", issuePrefix: "CO" }],
     selectedCompanyId: "company-1",
-    selectedCompany: { id: "company-1", name: "Paperclip", issuePrefix: "CO" },
+    selectedCompany: { id: "company-1", name: "Nexus", issuePrefix: "CO" },
     selectionSource: "bootstrap",
     loading: false,
     error: null,
@@ -126,7 +126,7 @@ vi.mock("../adapters", () => ({
     // adapter, so a test can assert the plumbing without rendering a real
     // adapter's fields.
     ConfigFields: (props: AdapterConfigFieldsProps) => {
-      if (type === "paperclip_runner") return <CodexLocalConfigFields {...props} />;
+      if (type === "nexus_runner") return <CodexLocalConfigFields {...props} />;
       const { adapterType, hideInstructionsFile, managedSandboxOnly } = props;
       return adapterType === "hermes_gateway"
         ? <div data-testid="hermes-gateway-config-fields">Hermes Gateway fields</div>
@@ -645,8 +645,8 @@ async function flushUntil(check: () => boolean, timeoutMs = 4000) {
 describe("AgentConfigForm environment selector", () => {
   let roots: Root[] = [];
 
-  it.each(["paperclip", "legacy"] as const)("uses the resolved %s Claude form to preserve the correct turn limit", async defaultRunner => {
-    mockAdaptersApi.list.mockResolvedValue([{ type: "claude_local", supportedRunners: defaultRunner === "paperclip" ? ["paperclip", "legacy"] : ["legacy"], defaultRunner }]);
+  it.each(["nexus", "legacy"] as const)("uses the resolved %s Claude form to preserve the correct turn limit", async defaultRunner => {
+    mockAdaptersApi.list.mockResolvedValue([{ type: "claude_local", supportedRunners: defaultRunner === "nexus" ? ["nexus", "legacy"] : ["legacy"], defaultRunner }]);
     try {
       const values = { ...defaultCreateValues, adapterType: "claude_local", runner: "auto" as const };
       const result = await renderCreateForm([], values);
@@ -657,12 +657,12 @@ describe("AgentConfigForm environment selector", () => {
       if (defaultRunner === "legacy") expect(config.maxTurnsPerRun).toBe(1000);
       else expect(config).not.toHaveProperty("maxTurnsPerRun");
       expect(config).not.toHaveProperty("resolvedRunner");
-    } finally { mockAdaptersApi.list.mockResolvedValue([{ type: "codex_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "legacy" }]); }
+    } finally { mockAdaptersApi.list.mockResolvedValue([{ type: "codex_local", supportedRunners: ["legacy", "nexus"], defaultRunner: "legacy" }]); }
   });
 
 
   it("carries a selected native Claude permission through the ordinary creation builder", async () => {
-    mockAdaptersApi.list.mockResolvedValue([{ type: "claude_local", supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" }]);
+    mockAdaptersApi.list.mockResolvedValue([{ type: "claude_local", supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" }]);
     try {
       const values = { ...defaultCreateValues, adapterType: "claude_local", runner: "auto" as const };
       const result = await renderCreateForm([], values);
@@ -673,7 +673,7 @@ describe("AgentConfigForm environment selector", () => {
       await clickElement(deny);
       const resolved = result.onChange.mock.calls.reduce((current, [patch]) => ({ ...current, ...patch }), values);
       expect(buildClaudeLocalConfig(resolved)).toMatchObject({ acpxPermissionMode: "deny-all" });
-    } finally { mockAdaptersApi.list.mockResolvedValue([{ type: "codex_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "legacy" }]); }
+    } finally { mockAdaptersApi.list.mockResolvedValue([{ type: "codex_local", supportedRunners: ["legacy", "nexus"], defaultRunner: "legacy" }]); }
   });
 
   it("keeps an explicit Codex draft policy until a harness reset clears it", async () => {
@@ -709,13 +709,13 @@ describe("AgentConfigForm environment selector", () => {
     }
   });
 
-  it.each(["codex_local", "paperclip_runner"])("keeps a saved %s runner during unrelated edits", async adapterType => {
-    const adapterConfig = { model: "gpt-5.6-sol", ...(adapterType === "paperclip_runner" ? { provider: "codex", reasoningEffort: "high" } : { modelReasoningEffort: "high" }) };
+  it.each(["codex_local", "nexus_runner"])("keeps a saved %s runner during unrelated edits", async adapterType => {
+    const adapterConfig = { model: "gpt-5.6-sol", ...(adapterType === "nexus_runner" ? { provider: "codex", reasoningEffort: "high" } : { modelReasoningEffort: "high" }) };
     const result = await renderForm([], { adapterType, adapterConfig }, { showAdapterTypeField: true });
     roots.push(result.root);
     expect(result.container.querySelector('[aria-label="Harness"]')?.textContent).toContain("Codex");
     await clickByText(result.container, "Advanced");
-    expect(result.container.querySelector('[aria-label="Runner"]')?.textContent).toContain(adapterType === "paperclip_runner" ? "Paperclip Runner" : "Legacy runner");
+    expect(result.container.querySelector('[aria-label="Runner"]')?.textContent).toContain(adapterType === "nexus_runner" ? "Nexus Runner" : "Legacy runner");
     await act(async () => setInputValue(result.container.querySelector<HTMLInputElement>('[placeholder="Agent name"]')!, "Renamed Cody"));
     await flushReact();
     await clickByText(result.container, "Save");
@@ -728,13 +728,13 @@ describe("AgentConfigForm environment selector", () => {
     { harness: "codex_local", label: "Codex", profile: { provider: "codex" } },
     { harness: "opencode_local", label: "OpenCode", profile: { provider: "opencode" } },
   ])("uses only Harness to choose $label for new and saved native agents", async ({ harness, label, profile }) => {
-    mockAdaptersApi.list.mockResolvedValue([{ type: harness, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" }]);
+    mockAdaptersApi.list.mockResolvedValue([{ type: harness, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" }]);
     const created = await renderCreateForm([], { adapterType: harness, runner: "auto" });
     roots.push(created.root);
     expect(created.container.querySelector('[aria-label="ACP agent"]')).toBeNull();
     if (harness === "pi_local") expect(created.container.querySelector('[aria-label="Pi thinking level"]')).not.toBeNull();
 
-    const edited = await renderForm([], { adapterType: "paperclip_runner", adapterConfig: profile }, { showAdapterTypeField: true });
+    const edited = await renderForm([], { adapterType: "nexus_runner", adapterConfig: profile }, { showAdapterTypeField: true });
     roots.push(edited.root);
     expect(edited.container.querySelector('[aria-label="Harness"]')?.textContent).toContain(label);
     expect(edited.container.querySelector('[aria-label="ACP agent"]')).toBeNull();
@@ -768,24 +768,24 @@ describe("AgentConfigForm environment selector", () => {
   });
 
   it.each(["codex_local", "claude_local", "grok_local"])("upgrades a saved %s in one click with pending edits", async adapterType => {
-    mockAdaptersApi.list.mockResolvedValueOnce([{ type: adapterType, supportedRunners: ["legacy", "paperclip"], defaultRunner: "paperclip" }]);
+    mockAdaptersApi.list.mockResolvedValueOnce([{ type: adapterType, supportedRunners: ["legacy", "nexus"], defaultRunner: "nexus" }]);
     const result = await renderForm([], { adapterType, adapterConfig: { model: "existing-model", effort: "high" } });
     roots.push(result.root);
-    expect(result.container.textContent).toContain("Upgrade to Paperclip Runner");
+    expect(result.container.textContent).toContain("Upgrade to Nexus Runner");
     await act(async () => setInputValue(result.container.querySelector<HTMLInputElement>('[placeholder="Agent name"]')!, "Renamed agent"));
     await flushReact();
     await clickByText(result.container, "Upgrade runner");
-    expect(result.onSave).toHaveBeenCalledWith({ name: "Renamed agent", runner: "paperclip" });
+    expect(result.onSave).toHaveBeenCalledWith({ name: "Renamed agent", runner: "nexus" });
   });
 
-  it.each(["paperclip_runner", "gemini_local"])("does not offer an upgrade for %s", async adapterType => {
+  it.each(["nexus_runner", "gemini_local"])("does not offer an upgrade for %s", async adapterType => {
     const result = await renderForm([], { adapterType });
     roots.push(result.root);
     expect(result.container.textContent).not.toContain("Upgrade runner");
   });
 
   it("includes an uncommitted environment variable draft in an upgrade", async () => {
-    mockAdaptersApi.list.mockResolvedValueOnce([{ type: "codex_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "paperclip" }]);
+    mockAdaptersApi.list.mockResolvedValueOnce([{ type: "codex_local", supportedRunners: ["legacy", "nexus"], defaultRunner: "nexus" }]);
     const result = await renderForm([], { adapterConfig: { model: "gpt-5.4" } }, { environmentVariablesPlacement: "configuration" });
     roots.push(result.root);
     await clickByText(result.container, "Add variable");
@@ -795,26 +795,26 @@ describe("AgentConfigForm environment selector", () => {
     });
     await flushReact();
     await clickByText(result.container, "Upgrade runner");
-    expect(result.onSave).toHaveBeenCalledWith(expect.objectContaining({ runner: "paperclip", replaceAdapterConfig: true,
+    expect(result.onSave).toHaveBeenCalledWith(expect.objectContaining({ runner: "nexus", replaceAdapterConfig: true,
       adapterConfig: { model: "gpt-5.4", env: { MIGRATION_MARKER: { type: "plain", value: "kept" } } },
     }));
   });
 
   it("keeps failed upgrades editable and allows retry", async () => {
-    mockAdaptersApi.list.mockResolvedValueOnce([{ type: "codex_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "paperclip" }]);
+    mockAdaptersApi.list.mockResolvedValueOnce([{ type: "codex_local", supportedRunners: ["legacy", "nexus"], defaultRunner: "nexus" }]);
     const result = await renderForm([]);
     roots.push(result.root);
-    result.onSave.mockRejectedValueOnce(new Error("Paperclip Runner cannot honor these settings: extraArgs."));
+    result.onSave.mockRejectedValueOnce(new Error("Nexus Runner cannot honor these settings: extraArgs."));
     await clickByText(result.container, "Upgrade runner");
     expect(result.container.querySelector('[role="alert"]')?.textContent).toContain("extraArgs");
-    expect(result.onSave).toHaveBeenLastCalledWith({ runner: "paperclip" });
+    expect(result.onSave).toHaveBeenLastCalledWith({ runner: "nexus" });
     await clickByText(result.container, "Upgrade runner");
     expect(result.onSave).toHaveBeenCalledTimes(2);
     expect(result.container.querySelector('[role="alert"]')).toBeNull();
   });
 
   it("does not show an earlier agent's upgrade result after navigation", async () => {
-    mockAdaptersApi.list.mockResolvedValueOnce([{ type: "codex_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "paperclip" }]);
+    mockAdaptersApi.list.mockResolvedValueOnce([{ type: "codex_local", supportedRunners: ["legacy", "nexus"], defaultRunner: "nexus" }]);
     let finishUpgrade!: () => void;
     let changeAgent!: () => void;
     const save = vi.fn(() => new Promise<void>(resolve => { finishUpgrade = resolve; }));
@@ -833,37 +833,37 @@ describe("AgentConfigForm environment selector", () => {
     await act(async () => changeAgent());
     await act(async () => finishUpgrade());
     await flushReact();
-    expect(container.textContent).not.toContain("Upgraded to Paperclip Runner.");
+    expect(container.textContent).not.toContain("Upgraded to Nexus Runner.");
     expect(findButton(container, "Upgrade runner")).toBeDefined();
   });
 
-  it("switches a saved legacy Claude agent to Paperclip Runner on a Runner-only environment", async () => {
-    mockAdaptersApi.list.mockResolvedValue([{ type: "claude_local", supportedRunners: ["paperclip"], defaultRunner: "paperclip" }]);
+  it("switches a saved legacy Claude agent to Nexus Runner on a Runner-only environment", async () => {
+    mockAdaptersApi.list.mockResolvedValue([{ type: "claude_local", supportedRunners: ["nexus"], defaultRunner: "nexus" }]);
     try {
       const result = await renderForm([], { adapterType: "claude_local", adapterConfig: { model: "claude-opus-5-5" } });
       roots.push(result.root);
       await clickByText(result.container, "Advanced");
-      expect(result.container.querySelector('[aria-label="Runner"]')?.textContent).toContain("Paperclip Runner");
+      expect(result.container.querySelector('[aria-label="Runner"]')?.textContent).toContain("Nexus Runner");
       await clickByText(result.container, "Save");
-      expect(result.onSave).toHaveBeenCalledWith(expect.objectContaining({ runner: "paperclip" }));
-    } finally { mockAdaptersApi.list.mockResolvedValue([{ type: "codex_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "legacy" }]); }
+      expect(result.onSave).toHaveBeenCalledWith(expect.objectContaining({ runner: "nexus" }));
+    } finally { mockAdaptersApi.list.mockResolvedValue([{ type: "codex_local", supportedRunners: ["legacy", "nexus"], defaultRunner: "legacy" }]); }
   });
 
-  it("switches a new agent's Legacy choice to Paperclip Runner on a Runner-only environment", async () => {
-    mockAdaptersApi.list.mockResolvedValue([{ type: "claude_local", supportedRunners: ["paperclip"], defaultRunner: "paperclip" }]);
+  it("switches a new agent's Legacy choice to Nexus Runner on a Runner-only environment", async () => {
+    mockAdaptersApi.list.mockResolvedValue([{ type: "claude_local", supportedRunners: ["nexus"], defaultRunner: "nexus" }]);
     try {
       const result = await renderCreateForm([], { ...defaultCreateValues, adapterType: "claude_local", runner: "legacy" });
       roots.push(result.root);
-      expect(result.onChange).toHaveBeenCalledWith({ runner: "paperclip" });
-    } finally { mockAdaptersApi.list.mockResolvedValue([{ type: "codex_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "legacy" }]); }
+      expect(result.onChange).toHaveBeenCalledWith({ runner: "nexus" });
+    } finally { mockAdaptersApi.list.mockResolvedValue([{ type: "codex_local", supportedRunners: ["legacy", "nexus"], defaultRunner: "legacy" }]); }
   });
 
   it.each(["explicit", "instance", "managed", "env-draft"])("qualifies a saved Daytona Claude agent and upgrades with its legacy turn limit (%s environment)", async mode => {
-    const environment = makeEnvironment({ id: "daytona-computer", name: "Paperclip Computer", driver: "sandbox", status: "active",
-      config: { provider: "daytona", snapshot: "managed-snapshot" }, metadata: { managedByPaperclip: true } });
+    const environment = makeEnvironment({ id: "daytona-computer", name: "Nexus Computer", driver: "sandbox", status: "active",
+      config: { provider: "daytona", snapshot: "managed-snapshot" }, metadata: { managedByNexus: true } });
     const inventory = (qualified: boolean) => [
-      { type: "claude_local", supportedRunners: qualified ? ["paperclip", "legacy"] : ["legacy"], defaultRunner: qualified ? "paperclip" : "legacy" },
-      { type: "paperclip_runner", supportedRunners: ["legacy"], defaultRunner: "legacy" },
+      { type: "claude_local", supportedRunners: qualified ? ["nexus", "legacy"] : ["legacy"], defaultRunner: qualified ? "nexus" : "legacy" },
+      { type: "nexus_runner", supportedRunners: ["legacy"], defaultRunner: "legacy" },
     ];
     mockAdaptersApi.list.mockResolvedValue(inventory(false));
     mockAgentsApi.qualifyRunner.mockImplementation(async () => {
@@ -876,7 +876,7 @@ describe("AgentConfigForm environment selector", () => {
       adapterConfig: { model: "claude-opus-5-5", effort: "high", maxTurnsPerRun: 1000, dangerouslySkipPermissions: true } },
       { environmentVariablesPlacement: "configuration" });
     roots.push(result.root);
-    expect(result.container.textContent).toContain("Upgrade to Paperclip Runner");
+    expect(result.container.textContent).toContain("Upgrade to Nexus Runner");
     expect(result.container.textContent).toContain("Max turns per run");
     expect(mockAgentsApi.qualifyRunner).not.toHaveBeenCalled();
     if (mode === "env-draft") {
@@ -890,17 +890,17 @@ describe("AgentConfigForm environment selector", () => {
     await clickByText(result.container, "Upgrade runner");
     expect(mockAgentsApi.qualifyRunner).toHaveBeenCalledWith("agent-1", environment.id, "company-1");
     expect(result.onSave).toHaveBeenCalledWith(mode === "env-draft" ? expect.objectContaining({
-      runner: "paperclip", replaceAdapterConfig: true,
+      runner: "nexus", replaceAdapterConfig: true,
       adapterConfig: expect.objectContaining({ env: { MIGRATION_MARKER: { type: "plain", value: "kept" } } }),
-    }) : { runner: "paperclip" });
+    }) : { runner: "nexus" });
   });
 
   it.each([false, true])("requires saving a changed computer before upgrading (qualified: %s)", async qualified => {
     const environments = ["saved-computer", "draft-computer"].map(id => makeEnvironment({ id, driver: "sandbox", status: "active",
       config: { provider: "daytona", snapshot: "managed-snapshot" } }));
     mockAdaptersApi.list.mockResolvedValue([
-      { type: "claude_local", supportedRunners: qualified ? ["paperclip", "legacy"] : ["legacy"], defaultRunner: qualified ? "paperclip" : "legacy" },
-      { type: "paperclip_runner", supportedRunners: ["legacy"], defaultRunner: "legacy" },
+      { type: "claude_local", supportedRunners: qualified ? ["nexus", "legacy"] : ["legacy"], defaultRunner: qualified ? "nexus" : "legacy" },
+      { type: "nexus_runner", supportedRunners: ["legacy"], defaultRunner: "legacy" },
     ]);
     const result = await renderForm(environments, { adapterType: "claude_local", defaultEnvironmentId: "saved-computer" });
     roots.push(result.root);
@@ -917,9 +917,9 @@ describe("AgentConfigForm environment selector", () => {
   });
 
   it.each(["probe", "unsupported", "settings-changed"])("does not save after Daytona %s", async failure => {
-    const environment = makeEnvironment({ id: "daytona-computer", name: "Paperclip Computer", driver: "sandbox", status: "active",
+    const environment = makeEnvironment({ id: "daytona-computer", name: "Nexus Computer", driver: "sandbox", status: "active",
       config: { provider: "daytona", snapshot: "managed-snapshot" } });
-    mockAdaptersApi.list.mockResolvedValue([{ type: "claude_local", supportedRunners: ["legacy"], defaultRunner: "legacy" }, { type: "paperclip_runner", supportedRunners: ["legacy"], defaultRunner: "legacy" }]);
+    mockAdaptersApi.list.mockResolvedValue([{ type: "claude_local", supportedRunners: ["legacy"], defaultRunner: "legacy" }, { type: "nexus_runner", supportedRunners: ["legacy"], defaultRunner: "legacy" }]);
     let finish!: () => void;
     mockAgentsApi.qualifyRunner.mockImplementation(() => new Promise(resolve => { finish = () => resolve({ ok: failure !== "probe",
       summary: "Could not verify this computer", details: { platformQualificationRecorded: failure !== "probe", leaseId: "lease" } }); }));
@@ -940,8 +940,8 @@ describe("AgentConfigForm environment selector", () => {
     const kubernetes = makeEnvironment({ id: "forced-kubernetes", driver: "sandbox", config: { provider: "kubernetes", image: `example.test/runner@sha256:${"a".repeat(64)}` } });
     mockInstanceSettingsApi.getGeneral.mockResolvedValue({ executionMode: "kubernetes" });
     const inventory = (qualified: boolean) => [
-      { type: "claude_local", supportedRunners: qualified ? ["paperclip", "legacy"] : ["legacy"], defaultRunner: qualified ? "paperclip" : "legacy" },
-      { type: "paperclip_runner", supportedRunners: ["legacy"], defaultRunner: "legacy" },
+      { type: "claude_local", supportedRunners: qualified ? ["nexus", "legacy"] : ["legacy"], defaultRunner: qualified ? "nexus" : "legacy" },
+      { type: "nexus_runner", supportedRunners: ["legacy"], defaultRunner: "legacy" },
     ];
     mockAdaptersApi.list.mockResolvedValue(inventory(false));
     mockAgentsApi.qualifyRunner.mockImplementation(async () => {
@@ -956,7 +956,7 @@ describe("AgentConfigForm environment selector", () => {
       await clickByText(result.container, "Upgrade runner");
       expect(mockAgentsApi.qualifyRunner).toHaveBeenCalledWith("agent-1", kubernetes.id, "company-1");
       expect(mockAdaptersApi.list).toHaveBeenLastCalledWith({ companyId: "company-1", environmentId: kubernetes.id });
-      expect(result.onSave).toHaveBeenCalledWith({ runner: "paperclip" });
+      expect(result.onSave).toHaveBeenCalledWith({ runner: "nexus" });
     } else {
       expect(findButton(result.container, "Upgrade runner")).toBeUndefined();
       expect(mockAgentsApi.qualifyRunner).not.toHaveBeenCalled();
@@ -971,7 +971,7 @@ describe("AgentConfigForm environment selector", () => {
   });
 
   it("explains ignored options already saved on a native Claude agent", async () => {
-    const result = await renderForm([], { adapterType: "paperclip_runner", adapterConfig: {
+    const result = await renderForm([], { adapterType: "nexus_runner", adapterConfig: {
       provider: "acpx", acpxAgent: "claude", model: "claude-opus-5-5", maxTurnsPerRun: 1000,
     } });
     roots.push(result.root);
@@ -981,7 +981,7 @@ describe("AgentConfigForm environment selector", () => {
 
   it.each(["codex", "claude", "grok"].flatMap(harness => ["modelReasoningEffort", "reasoningEffort", "effort"].map(key => ({ harness, key }))))("hydrates saved effort and clears explicit Auto for $harness ($key)", async ({ harness, key }) => {
     const profile = harness === "codex" ? { provider: "codex", model: "gpt-5.6-sol" } : { provider: "acpx", acpxAgent: harness, model: harness === "grok" ? "grok-4.7" : "claude-opus-5-5" };
-    const result = await renderForm([], { adapterType: "paperclip_runner", adapterConfig: { ...profile, [key]: "high" } });
+    const result = await renderForm([], { adapterType: "nexus_runner", adapterConfig: { ...profile, [key]: "high" } });
     roots.push(result.root);
     const effort = result.container.querySelector('[aria-label="Thinking effort"]');
     expect(effort?.textContent).toContain("High");
@@ -994,10 +994,10 @@ describe("AgentConfigForm environment selector", () => {
     for (const alias of ["modelReasoningEffort", "reasoningEffort", "effort"]) expect(saved.adapterConfig).not.toHaveProperty(alias);
   });
 
-  it.each(["codex_local", "paperclip_runner"])("changes and clears the environment without changing a saved %s runner or account", async adapterType => {
+  it.each(["codex_local", "nexus_runner"])("changes and clears the environment without changing a saved %s runner or account", async adapterType => {
     const adapterConfig = {
       model: "gpt-5.6-sol",
-      ...(adapterType === "paperclip_runner" ? { provider: "codex", reasoningEffort: "high" } : { modelReasoningEffort: "high" }),
+      ...(adapterType === "nexus_runner" ? { provider: "codex", reasoningEffort: "high" } : { modelReasoningEffort: "high" }),
       env: { CODEX_HOME: { type: "secret_ref", secretId: "codex-account" } },
     };
     const result = await renderForm([
@@ -1006,7 +1006,7 @@ describe("AgentConfigForm environment selector", () => {
     ], { adapterType, adapterConfig, defaultEnvironmentId: "sandbox-1" }, { showAdapterTypeField: true });
     roots.push(result.root);
     await clickByText(result.container, "Advanced");
-    const runnerLabel = adapterType === "paperclip_runner" ? "Paperclip Runner" : "Legacy runner";
+    const runnerLabel = adapterType === "nexus_runner" ? "Nexus Runner" : "Legacy runner";
 
     await selectEnvironment(result.container, "sandbox-2");
     expect(result.container.querySelector('[aria-label="Environment override"]')?.textContent).toContain("Daytona Two");
@@ -1029,7 +1029,7 @@ describe("AgentConfigForm environment selector", () => {
   });
 
   it("submits only an explicit runner change and retains saved configuration for server translation", async () => {
-    const result = await renderForm([], { adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol", reasoningEffort: "high", env: { CODEX_HOME: { type: "secret_ref", secretId: "codex-account" } } } });
+    const result = await renderForm([], { adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol", reasoningEffort: "high", env: { CODEX_HOME: { type: "secret_ref", secretId: "codex-account" } } } });
     roots.push(result.root);
     await clickByText(result.container, "Advanced");
     await clickElement(result.container.querySelector('[aria-label="Runner"]'));
@@ -1043,14 +1043,14 @@ describe("AgentConfigForm environment selector", () => {
     const result = await renderForm([], { adapterType: "claude_local", adapterConfig: { model: "claude-sonnet-5" } }, { showAdapterTypeField: true });
     roots.push(result.root);
     await clickElement(result.container.querySelector('[aria-label="Harness"]'));
-    const option = [...document.querySelectorAll('[role="option"]')].find(element => element.getAttribute("data-value") === "paperclip_runner");
+    const option = [...document.querySelectorAll('[role="option"]')].find(element => element.getAttribute("data-value") === "nexus_runner");
     expect(Boolean(option)).toBe(enabled);
     if (!enabled) return;
     expect(document.body.textContent).toContain("Advanced");
     await clickElement(option);
     await clickByText(result.container, "Save");
     expect(result.onSave).toHaveBeenCalledWith(expect.objectContaining({
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: expect.objectContaining({ provider: "acpx", acpxAgent: "claude" }),
     }));
     expect(result.onSave.mock.calls[0][0].runner).toBeUndefined();
@@ -1058,11 +1058,11 @@ describe("AgentConfigForm environment selector", () => {
 
   it("shows Claude's saved runner without legacy command controls when the experimental gate is off", async () => {
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableNativeRunner: false });
-    const result = await renderForm([], { adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude", model: "claude-opus-5-5", modelReasoningEffort: "high" } }, { showAdapterTypeField: true });
+    const result = await renderForm([], { adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude", model: "claude-opus-5-5", modelReasoningEffort: "high" } }, { showAdapterTypeField: true });
     roots.push(result.root);
     expect(result.container.querySelector('[aria-label="Harness"]')?.textContent).toContain("Claude");
     await clickByText(result.container, "Advanced");
-    expect(result.container.querySelector('[aria-label="Runner"]')?.textContent).toContain("Paperclip Runner");
+    expect(result.container.querySelector('[aria-label="Runner"]')?.textContent).toContain("Nexus Runner");
     const labels = Array.from(result.container.querySelectorAll("label")).map(label => label.textContent?.trim());
     expect(labels).not.toContain("Command");
     expect(labels).not.toContain("Extra args (comma-separated)");
@@ -1074,12 +1074,12 @@ describe("AgentConfigForm environment selector", () => {
 
   it.each([{ provider: "opencode", model: "openrouter/anthropic/claude-sonnet-4.6" }, { provider: "acpx", acpxAgent: "pi", model: "openrouter/anthropic/claude-sonnet-4.6", piThinkingLevel: "max", acpxPermissionMode: "approve-reads", lifecycleMode: "warm" }, { provider: "unknown-provider" }])("preserves saved native $provider configuration with the experimental gate off", async adapterConfig => {
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableNativeRunner: false });
-    const result = await renderForm([], { adapterType: "paperclip_runner", adapterConfig }, { showAdapterTypeField: true });
+    const result = await renderForm([], { adapterType: "nexus_runner", adapterConfig }, { showAdapterTypeField: true });
     roots.push(result.root);
     if (adapterConfig.provider === "opencode" || adapterConfig.acpxAgent === "pi") {
       expect(result.container.querySelector('[aria-label="Harness"]')?.textContent).toContain(adapterConfig.provider === "opencode" ? "OpenCode" : "Pi");
       await clickByText(result.container, "Advanced");
-      expect(result.container.querySelector('[aria-label="Runner"]')?.textContent).toContain("Paperclip Runner");
+      expect(result.container.querySelector('[aria-label="Runner"]')?.textContent).toContain("Nexus Runner");
     } else expect(result.container.querySelector('[aria-label="Runner"]')).toBeNull();
     if (adapterConfig.acpxAgent === "pi") {
       expect(result.container.querySelector('[aria-label="Pi thinking level"]')).not.toBeNull();
@@ -1094,7 +1094,7 @@ describe("AgentConfigForm environment selector", () => {
   beforeEach(() => {
     mockEnvironmentsApi.probe.mockReset();
     mockAgentsApi.qualifyRunner.mockReset();
-    mockAdaptersApi.list.mockReset().mockResolvedValue([{ type: "codex_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "legacy" }]);
+    mockAdaptersApi.list.mockReset().mockResolvedValue([{ type: "codex_local", supportedRunners: ["legacy", "nexus"], defaultRunner: "legacy" }]);
     mockAgentsApi.adapterModels.mockResolvedValue([]);
     mockAgentsApi.detectModel.mockResolvedValue(null);
     mockAgentsApi.list.mockResolvedValue([]);
@@ -1186,7 +1186,7 @@ describe("AgentConfigForm environment selector", () => {
 
   it.each([false, true])("uses Grok connection verification without native controls (compact: %s)", async compactTestFeedback => {
     const result = await renderForm([], {
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: { provider: "grok_bot", cwd: "/old/local/path", model: "old-model" },
     }, { showAdapterTypeField: true, showAdapterTestEnvironmentButton: true, compactTestFeedback });
     roots.push(result.root);
@@ -1259,7 +1259,7 @@ describe("AgentConfigForm environment selector", () => {
     });
     try {
       const result = await renderForm([], {
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         adapterConfig: { provider: "opencode", model: "openrouter/anthropic/claude-sonnet-4.6" },
         runtimeConfig: { aiConnection: { mode: "responsible_user", provider: "openrouter", method: "api_key" } },
       }, { showAdapterTypeField: true });
@@ -1282,8 +1282,8 @@ describe("AgentConfigForm environment selector", () => {
     }
   });
 
-  it.each(["grok_local", "paperclip_runner"])("saves Grok 4.7 reasoning effort using the runtime key on %s", async adapterType => {
-    const result = await renderForm([], { adapterType, adapterConfig: { ...(adapterType === "paperclip_runner" ? { provider: "acpx", acpxAgent: "grok" } : {}), model: "grok-4.7", reasoningEffort: "high" } });
+  it.each(["grok_local", "nexus_runner"])("saves Grok 4.7 reasoning effort using the runtime key on %s", async adapterType => {
+    const result = await renderForm([], { adapterType, adapterConfig: { ...(adapterType === "nexus_runner" ? { provider: "acpx", acpxAgent: "grok" } : {}), model: "grok-4.7", reasoningEffort: "high" } });
     roots.push(result.root);
     const effort = [...result.container.querySelectorAll("button")].find(button => button.textContent?.trim() === "High")!;
     expect(effort).toBeTruthy();
@@ -1314,10 +1314,10 @@ describe("AgentConfigForm environment selector", () => {
   it("requests the native Kimi model catalog while preserving an explicit saved model", async () => {
     mockAgentsApi.adapterModels.mockResolvedValue([]);
     const result = await renderForm([], {
-      adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "kimi", model: "explicit-kimi-model" },
+      adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "kimi", model: "explicit-kimi-model" },
     });
     roots.push(result.root);
-    await vi.waitFor(() => expect(mockAgentsApi.adapterModels).toHaveBeenCalledWith("company-1", "paperclip_runner", expect.objectContaining({ provider: "acpx", acpxAgent: "kimi" })));
+    await vi.waitFor(() => expect(mockAgentsApi.adapterModels).toHaveBeenCalledWith("company-1", "nexus_runner", expect.objectContaining({ provider: "acpx", acpxAgent: "kimi" })));
     expect(result.container.textContent).toContain("explicit-kimi-model");
   });
 
@@ -1330,14 +1330,14 @@ describe("AgentConfigForm environment selector", () => {
     mockAgentsApi.adapterModels.mockResolvedValue([{ id: "google-exact-model", label: "My Google model" }]);
     try {
       const result = await renderForm([makeEnvironment({ id: "local-1", name: "Local", driver: "local" })], {
-        adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "antigravity", model: "google-exact-model" }, runtimeConfig: { aiConnection: binding },
+        adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "antigravity", model: "google-exact-model" }, runtimeConfig: { aiConnection: binding },
       });
       roots.push(result.root);
-      await vi.waitFor(() => expect(mockAgentsApi.adapterModels).toHaveBeenCalledWith("company-1", "paperclip_runner", expect.objectContaining({
+      await vi.waitFor(() => expect(mockAgentsApi.adapterModels).toHaveBeenCalledWith("company-1", "nexus_runner", expect.objectContaining({
         provider: "acpx", acpxAgent: "antigravity", aiConnection: binding, agentId: "agent-1",
       })));
       expect(result.container.textContent).toContain("My Google model");
-      expect(mockAgentsApi.adapterModels.mock.calls.every(call => call[1] === "paperclip_runner" && call[2]?.acpxAgent === "antigravity")).toBe(true);
+      expect(mockAgentsApi.adapterModels.mock.calls.every(call => call[1] === "nexus_runner" && call[2]?.acpxAgent === "antigravity")).toBe(true);
       await clickByText(result.container, "My Google model");
       const search = document.body.querySelector<HTMLInputElement>('[placeholder="Search models... (type to create)"]');
       expect(search).not.toBeNull();
@@ -1360,7 +1360,7 @@ describe("AgentConfigForm environment selector", () => {
       .mockResolvedValue([{ id: "gpt-5.6-luna", label: "New token model" }]);
     try {
       const result = await renderForm([makeEnvironment({ id: "local-1", name: "Local", driver: "local" })], {
-        adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "copilot", model: "gpt-5.6-luna" }, runtimeConfig: { aiConnection: binding },
+        adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "copilot", model: "gpt-5.6-luna" }, runtimeConfig: { aiConnection: binding },
       });
       roots.push(result.root);
       await vi.waitFor(() => expect(mockAgentsApi.adapterModels).toHaveBeenCalledTimes(1));
@@ -1372,7 +1372,7 @@ describe("AgentConfigForm environment selector", () => {
       await clickByText(document.body, "Connect");
       await vi.waitFor(() => expect(reconnect).toHaveBeenCalledWith("company-1", expect.objectContaining({ provider: "github", connectionId: account.id, apiKey: "github_pat_test_reconnect" })));
       await vi.waitFor(() => expect(mockAgentsApi.adapterModels).toHaveBeenCalledTimes(2));
-      expect(mockAgentsApi.adapterModels).toHaveBeenLastCalledWith("company-1", "paperclip_runner", expect.objectContaining({ provider: "acpx", acpxAgent: "copilot", aiConnection: binding }));
+      expect(mockAgentsApi.adapterModels).toHaveBeenLastCalledWith("company-1", "nexus_runner", expect.objectContaining({ provider: "acpx", acpxAgent: "copilot", aiConnection: binding }));
       await flushReact();
       expect(result.container.textContent).toContain("New token model");
     } finally { accountList.mockRestore(); reconnect.mockRestore(); }
@@ -1464,7 +1464,7 @@ describe("AgentConfigForm environment selector", () => {
     const result = await renderForm(
       [makeEnvironment({ id: "local-1", name: "Local", driver: "local" })],
       {
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         adapterConfig: {
           provider: "acpx", acpxAgent: "claude",
           model: "claude-opus-5-5",
@@ -1528,9 +1528,9 @@ describe("AgentConfigForm environment selector", () => {
   });
 
   it.each([
-    { variant: "current", adapterType: "paperclip_runner" },
+    { variant: "current", adapterType: "nexus_runner" },
     { variant: "current", adapterType: "claude_local" },
-    { variant: "classic", adapterType: "paperclip_runner" },
+    { variant: "classic", adapterType: "nexus_runner" },
     { variant: "classic", adapterType: "claude_local" },
   ])("shows saved $adapterType environment credentials on the $variant agent Secrets page", async ({ variant, adapterType }) => {
     mockEnvironmentsApi.list.mockResolvedValue([]);
@@ -1629,18 +1629,18 @@ describe("AgentConfigForm environment selector", () => {
     const result = await renderForm([
       makeEnvironment({
         id: "managed-1",
-        name: "Paperclip Computer",
+        name: "Nexus Computer",
         driver: "sandbox",
         config: { provider: "daytona" },
-        metadata: { managedByPaperclip: true },
+        metadata: { managedByNexus: true },
       }),
     ]);
     roots.push(result.root);
 
     const selector = await environmentOptions(result.container);
 
-    expect(selector?.textContent).toContain("Default: Paperclip Computer");
-    expect(selector?.textContent).toContain("Paperclip Computer");
+    expect(selector?.textContent).toContain("Default: Nexus Computer");
+    expect(selector?.textContent).toContain("Nexus Computer");
     expect(selector?.textContent).not.toContain("(sandbox)");
     expect(selector?.textContent).not.toContain("· sandbox");
   });
@@ -1723,9 +1723,9 @@ describe("AgentConfigForm environment selector", () => {
     });
     mockAgentsApi.testEnvironment.mockImplementation(async () => {
       order.push("runtime");
-      return { adapterType: "paperclip_runner", status: "pass", checks: [], testedAt: new Date(0).toISOString() };
+      return { adapterType: "nexus_runner", status: "pass", checks: [], testedAt: new Date(0).toISOString() };
     });
-    const result = await renderForm([computer], { adapterType: "paperclip_runner", defaultEnvironmentId: computer.id,
+    const result = await renderForm([computer], { adapterType: "nexus_runner", defaultEnvironmentId: computer.id,
       adapterConfig: { provider: "opencode", model: "example/model" } }, { showAdapterTestEnvironmentButton: true });
     roots.push(result.root);
     await runTest(result.container);
@@ -1736,18 +1736,18 @@ describe("AgentConfigForm environment selector", () => {
 
   it("tests an available managed runner directly without a separate qualification request", async () => {
     const computer = makeEnvironment({ id: "managed-computer", driver: "sandbox", status: "active",
-      config: { provider: "daytona", snapshot: "replacement-snapshot" }, metadata: { managedByPaperclip: true } });
+      config: { provider: "daytona", snapshot: "replacement-snapshot" }, metadata: { managedByNexus: true } });
     mockAdaptersApi.list.mockResolvedValue([
-      { type: "opencode_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "paperclip" },
-      { type: "paperclip_runner", supportedRunners: ["paperclip"], defaultRunner: "paperclip" },
+      { type: "opencode_local", supportedRunners: ["legacy", "nexus"], defaultRunner: "nexus" },
+      { type: "nexus_runner", supportedRunners: ["nexus"], defaultRunner: "nexus" },
     ]);
     mockAgentsApi.qualifyRunner.mockRejectedValue(new Error("Separate qualification is unavailable."));
-    const result = await renderForm([computer], { adapterType: "paperclip_runner", defaultEnvironmentId: computer.id,
+    const result = await renderForm([computer], { adapterType: "nexus_runner", defaultEnvironmentId: computer.id,
       adapterConfig: { provider: "opencode", model: "example/model" } }, { showAdapterTestEnvironmentButton: true });
     roots.push(result.root);
     await runTest(result.container);
     expect(mockAgentsApi.qualifyRunner).not.toHaveBeenCalled();
-    expect(mockAgentsApi.testEnvironment).toHaveBeenCalledWith("company-1", "paperclip_runner",
+    expect(mockAgentsApi.testEnvironment).toHaveBeenCalledWith("company-1", "nexus_runner",
       expect.objectContaining({ environmentId: computer.id }));
   });
 
@@ -1756,7 +1756,7 @@ describe("AgentConfigForm environment selector", () => {
       config: { provider: "daytona", snapshot: "managed-snapshot" } });
     mockAgentsApi.qualifyRunner.mockResolvedValue({ ok: state !== "failed", driver: "sandbox", summary: "Computer test failed.",
       details: { platformQualificationRecorded: false } });
-    const result = await renderForm([computer], { adapterType: "paperclip_runner", defaultEnvironmentId: computer.id,
+    const result = await renderForm([computer], { adapterType: "nexus_runner", defaultEnvironmentId: computer.id,
       adapterConfig: { provider: "opencode" } }, { showAdapterTestEnvironmentButton: true });
     roots.push(result.root);
     await runTest(result.container);
@@ -1769,7 +1769,7 @@ describe("AgentConfigForm environment selector", () => {
     const computer = makeEnvironment({ id: "saved-computer", driver: "sandbox", status: "active",
       config: { provider: "daytona", snapshot: "managed-snapshot" } });
     mockAgentsApi.qualifyRunner.mockResolvedValue({ ok: true, driver: "sandbox", details: { platformQualificationRecorded: true } });
-    const result = await renderForm([computer], { adapterType: "paperclip_runner", defaultEnvironmentId: computer.id,
+    const result = await renderForm([computer], { adapterType: "nexus_runner", defaultEnvironmentId: computer.id,
       adapterConfig: { provider: provider === "pool" ? "opencode" : provider },
       ...(provider === "pool" ? { runtimeConfig: { aiConnection: { mode: "router", connectionId: "a8d3a9a3-9866-49d8-93d6-c497ae090d05" } } } : {}) },
       { showAdapterTestEnvironmentButton: true, compactTestFeedback: true });
@@ -1786,7 +1786,7 @@ describe("AgentConfigForm environment selector", () => {
     mockAgentsApi.qualifyRunner.mockImplementation(() => new Promise(resolve => {
       finish = () => resolve({ ok: true, driver: "sandbox", details: { platformQualificationRecorded: true } });
     }));
-    const result = await renderForm([computer], { adapterType: "paperclip_runner", defaultEnvironmentId: computer.id,
+    const result = await renderForm([computer], { adapterType: "nexus_runner", defaultEnvironmentId: computer.id,
       adapterConfig: { provider: "opencode" } }, { showAdapterTestEnvironmentButton: true });
     roots.push(result.root);
     await runTest(result.container);
@@ -1801,7 +1801,7 @@ describe("AgentConfigForm environment selector", () => {
   it("does not qualify a draft computer through the native runtime Test", async () => {
     const computers = ["saved-computer", "draft-computer"].map(id => makeEnvironment({ id, driver: "sandbox", status: "active",
       config: { provider: "daytona", snapshot: "managed-snapshot" } }));
-    const result = await renderForm(computers, { adapterType: "paperclip_runner", defaultEnvironmentId: computers[0]!.id,
+    const result = await renderForm(computers, { adapterType: "nexus_runner", defaultEnvironmentId: computers[0]!.id,
       adapterConfig: { provider: "opencode" } }, { showAdapterTestEnvironmentButton: true });
     roots.push(result.root);
     await selectEnvironment(result.container, computers[1]!.id);
@@ -1954,13 +1954,13 @@ describe("AgentConfigForm environment selector", () => {
     ["auth_required", false], ["auth_required", true], ["failed", false],
   ] as const)("gates native Codex sandbox login on the shared auth check (%s, %s)", async (diagnostic, authentication) => {
     mockAgentsApi.testEnvironment.mockResolvedValue({
-      adapterType: "paperclip_runner", status: "fail", testedAt: new Date(0).toISOString(),
+      adapterType: "nexus_runner", status: "fail", testedAt: new Date(0).toISOString(),
       checks: [
         { code: `codex_hello_probe_${diagnostic}`, level: "error", message: "Native Codex setup failed." },
         ...(authentication ? [{ code: "adapter_auth_missing", level: "error", message: "The selected Codex account needs authentication." }] : []),
       ],
     });
-    const result = await renderCodexSandbox({ adapterType: "paperclip_runner", adapterConfig: { provider: "codex" } });
+    const result = await renderCodexSandbox({ adapterType: "nexus_runner", adapterConfig: { provider: "codex" } });
     roots.push(result.root);
     expect(findButton(result.container, "Sign in")).toBeFalsy();
     await runTest(result.container);
@@ -2227,7 +2227,7 @@ describe("AgentConfigForm environment selector", () => {
           name: "Managed",
           driver: "sandbox",
           config: { provider: "daytona" },
-          metadata: { managedByPaperclip: true },
+          metadata: { managedByNexus: true },
         }),
       ],
       { adapterType: "claude_local", defaultEnvironmentId: null },
@@ -3271,7 +3271,7 @@ describe("AgentConfigForm environment selector", () => {
       description: null,
       status: "active",
       provider: "local_encrypted",
-      managedMode: "paperclip_managed",
+      managedMode: "nexus_managed",
       providerConfigId: null,
       providerMetadata: null,
       usageGuidance: null,

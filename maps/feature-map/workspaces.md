@@ -56,7 +56,7 @@ and limits. Provider-free regression evidence is not live remote qualification.
 
 Open `/workspaces`, a project workspace, or `/execution-workspaces/:workspaceId` and its Services/Configuration/Runtime logs views.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Enable isolated-workspace UI where needed. Use an owned disposable repository and environment; record workspace ID and branch.
 
@@ -69,7 +69,7 @@ Manual: Run a task that writes a small file, follow the bound workspace, and ins
 For experimental native remote storage, follow the
 [deployment prerequisites and explicit local import](../../doc/DEVELOPING.md#experimental-native-remote-workspace-storage).
 With durable Postgres, S3, and a stable key configured, a new disposable
-Paperclip Runner sandbox task with a supported fresh source enrolls by default.
+Nexus Runner sandbox task with a supported fresh source enrolls by default.
 Verify an explicit `remoteWorkspaceStorageEnabled: false` disables new enrollment,
 and an existing host workspace or configured local folder stays on its legacy
 path until explicitly imported. An enrolled workspace must keep remote authority
@@ -144,7 +144,7 @@ tasks and many old workspace records. Start and reuse it without a historical-so
 permission failure or remote-clone fallback. Verify task-bound file browsing works,
 while private historical task content and operation logs remain denied through app
 APIs. Root traversal and symlink escapes must remain rejected. The OS and execution
-environment own isolation between agents; Paperclip does not classify existing bytes
+environment own isolation between agents; Nexus does not classify existing bytes
 by the task that wrote them. Existing `workspace_source_restricted` failures remain
 inspectable and recoverable, but new preparation does not produce that failure from
 filesystem history. Current trust, credential, binding, and publication checks still

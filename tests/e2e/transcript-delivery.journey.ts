@@ -36,7 +36,7 @@ test("native transcript survives two views and reload through negotiated streami
     await json(await request.patch("/api/instance/settings/experimental", { data: { enableNativeRunner: true, enableWorktreeRunExecution: true } }));
     await json(await request.post(`/api/companies/${company.id}/user-secret-definitions`, { data: { key: "OPENAI_API_KEY", name: "Fixture credential" } }));
     await json(await request.post(`/api/companies/${company.id}/me/user-secrets`, { data: { definitionKey: "OPENAI_API_KEY", value: "not-a-real-model-key" } }));
-    const agent = await json(await request.post(`/api/companies/${company.id}/agents`, { data: { name: "CEO", role: "ceo", adapterType: "paperclip_runner",
+    const agent = await json(await request.post(`/api/companies/${company.id}/agents`, { data: { name: "CEO", role: "ceo", adapterType: "nexus_runner",
       adapterConfig: { provider: "codex", model: "gpt-5.1-codex-mini", env: {
         OPENAI_API_KEY: { type: "user_secret_ref", key: "OPENAI_API_KEY", version: "latest", required: true },
       } } } }));

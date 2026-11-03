@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agents, companies, completionContracts, createDb, environmentLeases, environments, heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { agents, companies, completionContracts, createDb, environmentLeases, environments, heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@nexusai/db";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "./helpers/full-database-response-capture.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { heartbeatService } from "../services/heartbeat.js";
@@ -19,11 +19,11 @@ import { environmentService } from "../services/environments.js";
 import { nativeEnvironmentSettlementDisposition, nativeEnvironmentSettlementWork } from "../services/native-runtime/native-environment-settlement-work.js";
 import { notifyNativeEnvironmentSettlement } from "../services/native-environment-settlement-notifications.js";
 import { finalizeNativeRun } from "../services/native-runtime/native-run-finalizer.js";
-import { PaperclipControlPlanePort } from "../services/native-runtime/paperclip-control-plane-port.js";
+import { NexusControlPlanePort } from "../services/native-runtime/nexus-control-plane-port.js";
 import { NativeRunCoordinatorStore } from "../services/native-runtime/native-run-coordinator-store.js";
 import { workspaceOperationService } from "../services/workspace-operations.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
-import { CONTROL_PLANE_CONFORMANCE_RESULT, CONTROL_PLANE_CONFORMANCE_TERMINAL } from "../vendor/paperclip-runner/testing.js";
+import { CONTROL_PLANE_CONFORMANCE_RESULT, CONTROL_PLANE_CONFORMANCE_TERMINAL } from "../vendor/nexus-runner/testing.js";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 vi.mock("../services/agent-task-run-telemetry.js", () => ({ emitAgentTaskRun: vi.fn(async () => undefined) }));
@@ -63,11 +63,11 @@ describe("native environment release scheduling", () => {
   beforeAll(async () => {
     root = await mkdtemp(join(tmpdir(), "native-environment-"));
     process.env.WORKSPACE_OPERATION_LOG_BASE_PATH = root;
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_NATIVE_ENVIRONMENT_TEST_DATABASE_URL");
+    const external = resolveExternalTestDatabaseUrl("NEXUS_NATIVE_ENVIRONMENT_TEST_DATABASE_URL");
     if (!external) temporary = await startEmbeddedPostgresTestDatabase("native-environment-");
     db = createDb(external ?? temporary!.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Environment settlement", issuePrefix: `NE${randomUUID().slice(0, 6)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Release owner", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Release owner", adapterType: "nexus_runner" });
     environmentId = (await db.select({ id: environments.id }).from(environments).where(eq(environments.driver, "local")))[0].id;
   }, 30_000);
   beforeEach(() => {
@@ -116,7 +116,7 @@ describe("native environment release scheduling", () => {
     const runId = randomUUID(), issueId = randomUUID(), contractId = randomUUID(), sourceInstanceId = randomUUID();
     await db.insert(issues).values({ id: issueId, companyId, title: "Commit accepted work", status: "in_progress", assigneeAgentId: agentId });
     await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1", policyVersion: "result-worker-v1", risk: "standard",
+      schemaVersion: "nexus.completion-contract.v1", policyVersion: "result-worker-v1", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "result-worker-v1", objective: "Finish", criteria: [{ id: "objective", requirement: "Complete the task" }] },
       canonicalSha256: contractId, createdByActorType: "system", createdByActorId: "test" });
@@ -128,7 +128,7 @@ describe("native environment release scheduling", () => {
       completionContractSha256: contractId, sourceInstanceId, controlPlaneSourceInstanceId: "result-worker-test" };
   }
   async function complete(binding: Awaited<ReturnType<typeof seed>>, producer: "control_plane" | "coordinator", writer: Db = db, terminalStatus: "succeeded" | "failed" | "cancelled" = "succeeded") {
-    const port = producer === "control_plane" ? new PaperclipControlPlanePort(writer, binding)
+    const port = producer === "control_plane" ? new NexusControlPlanePort(writer, binding)
       : new NativeRunCoordinatorStore(writer, { ...binding, normalizedSessionId: binding.sessionId,
         runnerSourceInstanceId: binding.sourceInstanceId,
         completionContractRevision: CONTROL_PLANE_CONFORMANCE_RESULT.completionClaim.contractRevision,
@@ -167,7 +167,7 @@ describe("native environment release scheduling", () => {
       const run = await read(binding.runId);
       await db.update(heartbeatRuns).set({
         runnerProfileJson: { ...run.runnerProfileJson, savedInputs: payload, nativeWorkspaceSync: {
-          schema: disposition === "invalid" ? "unknown" : "paperclip.native-workspace-sync/v3", state: "finalized",
+          schema: disposition === "invalid" ? "unknown" : "nexus.native-workspace-sync/v3", state: "finalized",
           descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: "c".repeat(64),
           workspaceId: randomUUID(), leaseId: randomUUID(), providerLeaseId: "saved", remoteCwd: "/workspace",
           resourceDisposition: disposition === "invalid" ? "destroy" : disposition,
@@ -360,8 +360,8 @@ describe("native environment release scheduling", () => {
   });
   it.each(["restore", "worktree"])("preserves %s suppression and reactivates through settings", async mode => {
     const binding = await committed(), acquired = await lease(binding);
-    const runtimeEnv = mode === "restore" ? { PAPERCLIP_DATABASE_RESTORE_IN_PROGRESS: "true" }
-      : { PAPERCLIP_IN_WORKTREE: "true", PAPERCLIP_INSTANCE_ID: "environment-suppression-test" };
+    const runtimeEnv = mode === "restore" ? { NEXUS_DATABASE_RESTORE_IN_PROGRESS: "true" }
+      : { NEXUS_IN_WORKTREE: "true", NEXUS_INSTANCE_ID: "environment-suppression-test" };
     const settings = instanceSettingsService(db, { runtimeEnv });
     if (mode === "worktree") await settings.updateExperimental({ enableWorktreeRunExecution: false });
     await start(runtimeEnv); await quiet(); expect(release).not.toHaveBeenCalled();
@@ -376,7 +376,7 @@ describe("native environment release scheduling", () => {
   it.each(["workspace", "runtime"])("preserves %s keep-running retention without stopping the completed Runner", async source => {
     const binding = await committed();
     await db.update(heartbeatRuns).set({ runnerProfileJson: source === "runtime" ? { nativeResourceDisposition: "keep_running" } : { nativeWorkspaceSync: {
-      schema: "paperclip.native-workspace-sync/v3", state: "finalized", descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64),
+      schema: "nexus.native-workspace-sync/v3", state: "finalized", descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64),
       finalHostSha256: "c".repeat(64), workspaceId: randomUUID(), leaseId: randomUUID(), providerLeaseId: "kept", remoteCwd: "/workspace",
       resourceDisposition: "keep_running",
     } } }).where(eq(heartbeatRuns.id, binding.runId));

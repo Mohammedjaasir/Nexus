@@ -30,7 +30,7 @@ describeEmbeddedPostgres("company secret proposals migration", () => {
   // explicit timeout for that reason; this one did not, so it failed on any
   // runner that was not unusually fast.
   it("can be reapplied after its migration journal entry is removed", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-secret-proposals-migration-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-secret-proposals-migration-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1 });
     cleanups.push(async () => sql.end());

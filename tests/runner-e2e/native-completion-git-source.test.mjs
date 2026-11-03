@@ -134,7 +134,7 @@ function runnerdFixture() {
   }
   pack();
   const input = { repositoryRoot: root, sourceSha: "a".repeat(40), sourceFingerprint: "b".repeat(64), environment: {
-    GITHUB_ACTIONS: "true", PAPERCLIP_RUNNER_E2E_SOURCE_SHA: "a".repeat(40), GITHUB_RUN_ID: "12345", GITHUB_RUN_ATTEMPT: "2" } };
+    GITHUB_ACTIONS: "true", NEXUS_RUNNER_E2E_SOURCE_SHA: "a".repeat(40), GITHUB_RUN_ID: "12345", GITHUB_RUN_ATTEMPT: "2" } };
   return { root, binary, directory, pack, input };
 }
 test("native hosted runnerd proof binds the actual selected debug executable to the trusted same-run archive", () => {
@@ -151,7 +151,7 @@ test("native hosted runnerd proof binds the actual selected debug executable to 
   assert.equal(local.binaryBytes, readFileSync(f.binary).length); assert.equal(local.archiveMemberBytes, null);
 });
 for (const [name, mutate] of [
-  ["wrong trusted source SHA", f => { f.input.environment.PAPERCLIP_RUNNER_E2E_SOURCE_SHA = "c".repeat(40); }],
+  ["wrong trusted source SHA", f => { f.input.environment.NEXUS_RUNNER_E2E_SOURCE_SHA = "c".repeat(40); }],
   ["missing workflow run", f => { delete f.input.environment.GITHUB_RUN_ID; }],
   ["malformed workflow attempt", f => { f.input.environment.GITHUB_RUN_ATTEMPT = "../2"; }],
   ["newline in workflow run", f => { f.input.environment.GITHUB_RUN_ID = "12345\n"; }],
@@ -161,8 +161,8 @@ for (const [name, mutate] of [
   ["nonexecutable selected binary", f => { chmodSync(f.binary, 0o644); }],
   ["same-size different binary hash", f => { writeFileSync(f.binary, Buffer.alloc(readFileSync(f.binary).length, 0x58)); }],
   ["symlink selected executable", f => { const bytes = readFileSync(f.binary); rmSync(f.binary); writeFileSync(join(f.root, "other"), bytes); symlinkSync(join(f.root, "other"), f.binary); }],
-  ["symlink executable ancestor", f => { const bytes = readFileSync(f.binary), directory = join(f.binary, ".."); rmSync(directory, { recursive: true }); mkdirSync(join(f.root, "other")); writeFileSync(join(f.root, "other", "paperclip-runnerd"), bytes); chmodSync(join(f.root, "other", "paperclip-runnerd"), 0o755); symlinkSync(join(f.root, "other"), directory); }],
-  ["staged executable override", f => { const staged = join(f.root, "packages/paperclip-runner/dist/bin"); mkdirSync(staged, { recursive: true }); writeFileSync(join(staged, "paperclip-runnerd"), "Unexpected staged binary"); }],
+  ["symlink executable ancestor", f => { const bytes = readFileSync(f.binary), directory = join(f.binary, ".."); rmSync(directory, { recursive: true }); mkdirSync(join(f.root, "other")); writeFileSync(join(f.root, "other", "nexus-runnerd"), bytes); chmodSync(join(f.root, "other", "nexus-runnerd"), 0o755); symlinkSync(join(f.root, "other"), directory); }],
+  ["staged executable override", f => { const staged = join(f.root, "packages/nexus-runner/dist/bin"); mkdirSync(staged, { recursive: true }); writeFileSync(join(staged, "nexus-runnerd"), "Unexpected staged binary"); }],
   ["duplicate canonical archive members", f => { f.pack([NATIVE_COMPLETION_RUNNERD_PATH, NATIVE_COMPLETION_RUNNERD_PATH]); }],
   ["noncanonical archive member", f => { f.pack([`./${NATIVE_COMPLETION_RUNNERD_PATH}`]); }],
   ["missing archive member", f => { writeFileSync(join(f.root, "other"), "Other"); f.pack(["other"]); }],

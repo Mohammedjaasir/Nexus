@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { ToolCatalogEntry } from "@paperclipai/shared";
+import type { ToolCatalogEntry } from "@nexusai/shared";
 import { ActionsSection } from "@/pages/apps/app-detail/PermissionsPanel";
 import { expect, userEvent, within } from "storybook/test";
 const entry: ToolCatalogEntry = {
@@ -84,7 +84,7 @@ const meta = {
           "Shipped action section and quarantine reviewer with local catalog props. Discovery failures belong to the owning AppDetail API boundary; permissions and review persistence need production checks.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "app-permissions/catalog-change"
       ],

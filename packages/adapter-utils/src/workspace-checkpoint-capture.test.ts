@@ -20,7 +20,7 @@ afterEach(async () => {
 async function fixture(failure: "none" | "read" | "mutation" | "full_db" | "walk") {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), "checkpoint-capture-"));
   roots.push(temp);
-  vi.stubEnv("PAPERCLIP_HOME", path.join(temp, "home"));
+  vi.stubEnv("NEXUS_HOME", path.join(temp, "home"));
   const root = path.join(temp, "root");
   await fs.mkdir(root);
   for (let index = 0; index < 32; index++) {

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
 import { EmailEndpointSettings } from "@/pages/apps/chat/EmailEndpointSetup";
-import type { EmailEndpointSummary } from "@paperclipai/shared";
+import type { EmailEndpointSummary } from "@nexusai/shared";
 
 const COMPANY = "company-storybook";
 const ENDPOINT = "agentmail-settings-preview";
@@ -10,7 +10,7 @@ const meta = {
   title: "Apps, channels, and extensions/External chat and email/Connections/AgentMail settings",
   component: EmailEndpointSettings,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "chat-channels/lifecycle"
       ],
@@ -23,7 +23,7 @@ const meta = {
   beforeEach(context) {
     let inbox: EmailEndpointSummary = {
       id: ENDPOINT, companyId: COMPANY, connectionId: "preview-account", assignedAgentId: "ralph",
-      address: "ralph@paperclip.example", status: "active", receiveMode: "websocket",
+      address: "ralph@nexus.example", status: "active", receiveMode: "websocket",
       lastSyncAt: "2026-10-02T12:40:00Z", lastError: null,
       ...context.parameters.inbox,
     };
@@ -52,9 +52,9 @@ type Story = StoryObj<typeof meta>;
 export const Receiving: Story = { play: async ({ canvasElement }) => {
   const canvas = within(canvasElement);
   const copyAddress = await canvas.findByRole("button", { name: "Copy email address" });
-  await expect(copyAddress).toHaveTextContent("ralph@paperclip.example");
+  await expect(copyAddress).toHaveTextContent("ralph@nexus.example");
   await expect(canvas.getByRole("link", { name: "View inbox" })).toHaveAttribute(
-    "href", "https://console.agentmail.to/dashboard/inboxes/ralph%40paperclip.example");
+    "href", "https://console.agentmail.to/dashboard/inboxes/ralph%40nexus.example");
 } };
 export const Paused: Story = { parameters: { inbox: { status: "paused" } }, play: async ({ canvasElement }) => {
   const canvas = within(canvasElement);
@@ -75,11 +75,11 @@ export const NeedsAttention: Story = { parameters: { inbox: { status: "revoked",
   await expect(canvas.getByLabelText("New API key")).toBeVisible();
 } };
 export const Webhook: Story = { parameters: { inbox: { receiveMode: "webhook", lastSyncAt: null } } };
-export const LongAddress: Story = { parameters: { inbox: { address: "ralph-customer-support-and-operations@paperclip.example" } } };
+export const LongAddress: Story = { parameters: { inbox: { address: "ralph-customer-support-and-operations@nexus.example" } } };
 export const Mobile: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, parameters: { waitForViewport: true } };
 export const Reconnect: Story = { play: async ({ canvasElement }) => {
   const canvas = within(canvasElement);
-  await canvas.findByRole("heading", { name: "ralph@paperclip.example" });
+  await canvas.findByRole("heading", { name: "ralph@nexus.example" });
   const disclosure = canvas.getByText("Reconnect inbox", { selector: "summary" });
   await expect(canvas.queryByLabelText("New API key")).not.toBeVisible();
   await userEvent.click(disclosure);

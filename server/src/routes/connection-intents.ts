@@ -1,6 +1,6 @@
 import { connectionIntentDeliveryService } from "../services/connection-intent-delivery.js";
 import { Router, type Request } from "express";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   CONNECTION_REQUEST_TOOL_DESCRIPTION,
   CONNECTIONS_SEARCH_TOOL_DESCRIPTION,
@@ -8,7 +8,7 @@ import {
   connectionRequestInputSchema,
   connectionsSearchInputSchema,
   declineConnectionIntentSchema,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { forbidden, unauthorized } from "../errors.js";
 import { verifyRuntimeToolsToken } from "../runtime-tools-token.js";
 import { connectionIntentService } from "../services/connection-intents.js";
@@ -48,8 +48,8 @@ export function runtimeConnectionIntentRoutes(db: Db) {
     // This capability is never accepted as board/session authentication.
     // Node fetch sends Sec-Fetch-Mode too; browsers additionally send Origin or Sec-Fetch-Site.
     if (req.headers.origin || req.headers.cookie || req.headers["sec-fetch-site"]) throw forbidden("GitHub credentials require runtime authentication");
-    const claims = verifyRuntimeToolsToken(typeof req.headers["x-paperclip-github-capability"] === "string"
-      ? req.headers["x-paperclip-github-capability"] : bearer(req), "github_credentials");
+    const claims = verifyRuntimeToolsToken(typeof req.headers["x-nexus-github-capability"] === "string"
+      ? req.headers["x-nexus-github-capability"] : bearer(req), "github_credentials");
     if (!claims) throw unauthorized("Invalid GitHub runtime capability");
     res.setHeader("Cache-Control", "no-store");
     res.json(await resolveGitHubOperationCredentials(db, {
@@ -77,7 +77,7 @@ export function runtimeConnectionIntentRoutes(db: Db) {
         result: {
           protocolVersion: "2025-03-26",
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: "paperclip-runtime-tools", version: "1" },
+          serverInfo: { name: "nexus-runtime-tools", version: "1" },
         },
       });
       return;

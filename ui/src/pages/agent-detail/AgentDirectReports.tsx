@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { Link } from "@/lib/router";
 import { agentRouteRef } from "@/lib/utils";

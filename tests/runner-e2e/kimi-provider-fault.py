@@ -9,12 +9,12 @@ import signal
 import stat
 import sys
 
-PACK = '/opt/paperclip-runner/provider-pack'
+PACK = '/opt/nexus-runner/provider-pack'
 ENTRY = 'node_modules/@moonshot-ai/kimi-code/dist/main.mjs'
 NODE = 'node/bin/node'
-GUARD = '.paperclip-native-module-guard.cjs'
-BOOTSTRAP = '.paperclip-native-entry.cjs'
-PLACEHOLDER = '/__paperclip_kimi_fault_snapshot__/distribution'
+GUARD = '.nexus-native-module-guard.cjs'
+BOOTSTRAP = '.nexus-native-entry.cjs'
+PLACEHOLDER = '/__nexus_kimi_fault_snapshot__/distribution'
 
 
 def require(value, code):
@@ -80,7 +80,7 @@ def checked_parent_descriptor(pid):
         seals = None
         if before.st_nlink == 0:
             require(all(hasattr(fcntl, name) for name in ('F_GET_SEALS', 'F_SEAL_WRITE', 'F_SEAL_GROW', 'F_SEAL_SHRINK', 'F_SEAL_SEAL')), 'parent_memfd_required')
-            require(os.readlink(f'/proc/self/fd/{fd}') == '/memfd:paperclip-verified-launch (deleted)' and before.st_mode & 0o222 == 0, 'parent_memfd_required')
+            require(os.readlink(f'/proc/self/fd/{fd}') == '/memfd:nexus-verified-launch (deleted)' and before.st_mode & 0o222 == 0, 'parent_memfd_required')
             required = fcntl.F_SEAL_WRITE | fcntl.F_SEAL_GROW | fcntl.F_SEAL_SHRINK | fcntl.F_SEAL_SEAL
             seals = fcntl.fcntl(fd, fcntl.F_GET_SEALS)
             require(type(seals) is int and seals & required == required, 'parent_memfd_seals')
@@ -122,7 +122,7 @@ def parse_closure(content, expected):
         require(isinstance(path, str) and 0 < len(path) <= 4096 and not os.path.isabs(path)
                 and not re.search(r'[\x00-\x1f\x7f\\]', path) and path > previous
                 and all(part not in ('', '.', '..') for part in path.split('/'))
-                and path != 'manifest.json' and not path.startswith('.paperclip-'), 'closure_path')
+                and path != 'manifest.json' and not path.startswith('.nexus-'), 'closure_path')
         require(isinstance(entry['sha256'], str) and re.fullmatch(r'[a-f0-9]{64}', entry['sha256'])
                 and type(entry['size']) is int and 0 <= entry['size'] <= 384 * 1024 * 1024
                 and type(entry['executable']) is bool, 'closure_metadata')
@@ -150,8 +150,8 @@ def inspect(config):
     require(re.fullmatch(r'[a-f0-9-]{36}', boot) and boot == expected['bootId'], 'boot_changed')
     root = proc(expected['pid'], boot)
     require(root == expected and os.getpgid(root['pid']) == root['pid'], 'root_changed')
-    runtime = binding['remoteCwd'] + '/.paperclip-runtime/paperclip-runner'
-    runner = runtime + '/bin/paperclip-runnerd'
+    runtime = binding['remoteCwd'] + '/.nexus-runtime/nexus-runner'
+    runner = runtime + '/bin/nexus-runnerd'
     root_args = argv(root['pid'])
     require(root_args[0] == runner and flag(root_args, '--run-id') == binding['runId']
             and flag(root_args, '--environment-lease-id') == config['runtimeEnvironmentLeaseId']
@@ -204,7 +204,7 @@ def inspect(config):
         if len(args) != 10 or args[1] != '--eval' or args[4] != BOOTSTRAP:
             continue
         distribution = args[3]
-        require(re.fullmatch(r'/tmp/paperclip-acpx-native-[A-Za-z0-9_-]+/distribution', distribution), 'snapshot_path')
+        require(re.fullmatch(r'/tmp/nexus-acpx-native-[A-Za-z0-9_-]+/distribution', distribution), 'snapshot_path')
         require(args[4:] == [BOOTSTRAP, '0', '0', 'commonjs', '[]', '0'] and 'sha256:' + digest(args[2].encode()) == config['guardLoaderSha256'], 'parent_bootstrap')
         require(argv(pid) == ['kimi-code'], 'native_title')
         for directory in (distribution, os.path.dirname(distribution)):
@@ -255,7 +255,7 @@ def terminate(config):
         fields = dict(line.split(':', 1) for line in Path(f'/proc/self/fdinfo/{fd}').read_text().splitlines() if ':' in line)
         require(int(fields.get('Pid', '-1').strip()) == pid, 'pidfd_retired')
         signal.pidfd_send_signal(fd, signal.SIGKILL, None, 0)
-        return {'schema': 'paperclip.e2e.kimi-provider-death.v1', 'binding': config['binding'], 'runtimeEnvironmentLeaseId': config['runtimeEnvironmentLeaseId'],
+        return {'schema': 'nexus.e2e.kimi-provider-death.v1', 'binding': config['binding'], 'runtimeEnvironmentLeaseId': config['runtimeEnvironmentLeaseId'],
                 **before, 'signalled': True, 'signal': 'SIGKILL', 'targetKind': 'kimi_native_child', 'workerSignalled': False}
     finally:
         os.close(fd)

@@ -10,9 +10,9 @@ import type {
   IssueLabel,
   Project,
   WorkspaceRuntimeService,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Issue, IssueDocument } from "@paperclipai/shared";
+import type { Issue, IssueDocument } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getLastProjectId } from "../lib/recent-projects";
 import { IssueProperties } from "./IssueProperties";
@@ -313,7 +313,7 @@ function createRuntimeService(overrides: Partial<WorkspaceRuntimeService> = {}):
     lifecycle: "shared",
     reuseKey: null,
     command: "pnpm dev",
-    cwd: "/tmp/paperclip",
+    cwd: "/tmp/nexus",
     port: 62475,
     url: "http://127.0.0.1:62475",
     provider: "local_process",
@@ -343,12 +343,12 @@ function createExecutionWorkspace(overrides: Partial<ExecutionWorkspace> = {}): 
     name: "PAP-1 workspace",
     status: "active",
     deliveryState: "unknown",
-    cwd: "/tmp/paperclip/PAP-1",
+    cwd: "/tmp/nexus/PAP-1",
     repoUrl: null,
     baseRef: "master",
     branchName: "pap-1-workspace",
     providerType: "git_worktree",
-    providerRef: "/tmp/paperclip/PAP-1",
+    providerRef: "/tmp/nexus/PAP-1",
     derivedFromExecutionWorkspaceId: null,
     lastUsedAt: new Date("2026-04-06T12:04:00.000Z"),
     openedAt: new Date("2026-04-06T12:01:00.000Z"),
@@ -371,7 +371,7 @@ function createProject(overrides: Partial<Project> = {}): Project {
     projectId: "project-1",
     name: "Main",
     sourceType: "local_path" as const,
-    cwd: "/tmp/paperclip",
+    cwd: "/tmp/nexus",
     repoUrl: null,
     repoRef: null,
     defaultRef: "master",
@@ -412,9 +412,9 @@ function createProject(overrides: Partial<Project> = {}): Project {
       repoRef: null,
       defaultRef: "master",
       repoName: null,
-      localFolder: "/tmp/paperclip",
-      managedFolder: "/tmp/paperclip",
-      effectiveLocalFolder: "/tmp/paperclip",
+      localFolder: "/tmp/nexus",
+      managedFolder: "/tmp/nexus",
+      effectiveLocalFolder: "/tmp/nexus",
       origin: "local_folder",
     },
     workspaces: [primaryWorkspace],
@@ -2141,7 +2141,7 @@ describe("IssueProperties", () => {
         executionWorkspaceId: "workspace-1",
         currentExecutionWorkspace: createExecutionWorkspace({
           branchName: "pap-1-workspace",
-          cwd: "/tmp/paperclip/PAP-1",
+          cwd: "/tmp/nexus/PAP-1",
         }),
       }),
       childIssues: [],
@@ -2154,12 +2154,12 @@ describe("IssueProperties", () => {
       'button[aria-label="Copy pap-1-workspace to clipboard"]',
     );
     const folderCopyButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Copy /tmp/paperclip/PAP-1 to clipboard"]',
+      'button[aria-label="Copy /tmp/nexus/PAP-1 to clipboard"]',
     );
     expect(branchCopyButton).not.toBeNull();
     expect(folderCopyButton?.querySelector('[data-middle-truncate="true"]')?.textContent)
-      .toBe("/tmp/paperclip/PAP-1");
-    expect(folderCopyButton?.title).toBe("/tmp/paperclip/PAP-1");
+      .toBe("/tmp/nexus/PAP-1");
+    expect(folderCopyButton?.title).toBe("/tmp/nexus/PAP-1");
 
     await act(async () => {
       branchCopyButton!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -2373,7 +2373,7 @@ describe("IssueProperties", () => {
   ] as const)("discovers $name overrides with the assignee connection and environment", async ({ acpxAgent, provider, method, model, label }) => {
     const binding = { provider, method, mode: "shared", connectionId: "11111111-1111-4111-8111-111111111111", grantId: "33333333-3333-4333-8333-333333333333" };
     mockAgentsApi.list.mockResolvedValue([{ id: "agent-1", name: acpxAgent, role: "engineer", status: "active",
-      adapterType: "paperclip_runner", defaultEnvironmentId: "daytona-1",
+      adapterType: "nexus_runner", defaultEnvironmentId: "daytona-1",
       adapterConfig: { provider: "acpx", acpxAgent, model },
       runtimeConfig: { aiConnection: binding } }]);
     mockAgentsApi.adapterModels.mockResolvedValue([{ id: model, label }]);
@@ -2387,7 +2387,7 @@ describe("IssueProperties", () => {
     const modelTrigger = findRowTrigger(container, "Model");
     expect(modelTrigger).toBeDefined();
     await act(async () => modelTrigger!.click());
-    await waitForAssertion(() => expect(mockAgentsApi.adapterModels).toHaveBeenCalledWith("company-1", "paperclip_runner", {
+    await waitForAssertion(() => expect(mockAgentsApi.adapterModels).toHaveBeenCalledWith("company-1", "nexus_runner", {
       environmentId: "daytona-1", provider: "acpx", acpxAgent, agentId: "agent-1", aiConnection: binding,
     }));
     await act(async () => { await queryClient.invalidateQueries({ type: "active" }, { cancelRefetch: false }); });
@@ -3500,7 +3500,7 @@ describe("IssueProperties", () => {
     expect(pullRequestLink?.textContent).not.toContain("acme/web#241");
     expect(pullRequestLink?.textContent).not.toContain("Github PR");
     expect(pullRequestLink?.querySelectorAll("svg")).toHaveLength(1);
-    expect(pullRequestLink?.className).not.toContain("paperclip-mention-chip");
+    expect(pullRequestLink?.className).not.toContain("nexus-mention-chip");
     expect(pullRequestLink?.className).not.toContain("rounded-full");
     expect(pullRequestLink?.className).not.toContain("border");
     const unrefreshedPullRequestLink = Array.from(container.querySelectorAll("a"))
@@ -3773,14 +3773,14 @@ describe("IssueProperties", () => {
     const alphaWorkspace = createExecutionWorkspace({
       id: "workspace-alpha",
       name: "Alpha workspace",
-      cwd: "/tmp/paperclip/alpha",
+      cwd: "/tmp/nexus/alpha",
       branchName: "alpha-branch",
       lastUsedAt: new Date(),
     });
     const betaWorkspace = createExecutionWorkspace({
       id: "workspace-beta",
       name: "Beta workspace",
-      cwd: "/tmp/paperclip/beta",
+      cwd: "/tmp/nexus/beta",
       branchName: "beta-branch",
       lastUsedAt: new Date(),
     });

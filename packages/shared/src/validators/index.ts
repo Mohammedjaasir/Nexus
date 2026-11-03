@@ -478,7 +478,7 @@ export {
   suggestTasksResultSchema,
   askUserQuestionsQuestionOptionSchema,
   askUserQuestionsQuestionSchema,
-  paperclipQuestionSetPayloadSchema,
+  nexusQuestionSetPayloadSchema,
   askUserQuestionsPayloadSchema,
   askUserQuestionsAnswerSchema,
   askUserQuestionsResultSchema,

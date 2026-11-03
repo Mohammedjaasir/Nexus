@@ -3,7 +3,7 @@ import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import type {
   DocumentAnnotationComment,
   DocumentAnnotationThreadWithComments,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   Check,
   Copy,
@@ -27,7 +27,7 @@ import { useCopyToast } from "@/lib/use-copy-action";
 import { deriveInitials } from "./Identity";
 import { MarkdownBody } from "./MarkdownBody";
 import type { PendingAnchor } from "./DocumentAnnotationLayer";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import type { CompanyUserProfile } from "@/lib/company-members";
 import { useDocumentAnnotationMutations } from "@/hooks/useDocumentAnnotationMutations";
 
@@ -71,7 +71,7 @@ export function DocumentAnnotationPanel(props: AnnotationPanelProps) {
         <SheetContent
           side="bottom"
           showCloseButton={false}
-          className="paperclip-doc-annotation-sheet z-(--z-60) flex max-h-(--sz-88vh) flex-col rounded-none border-t border-border bg-popover p-0 text-popover-foreground shadow-2xl"
+          className="nexus-doc-annotation-sheet z-(--z-60) flex max-h-(--sz-88vh) flex-col rounded-none border-t border-border bg-popover p-0 text-popover-foreground shadow-2xl"
         >
           <SheetTitle className="sr-only">
             Comments on {props.documentKey} revision {props.documentRevisionNumber}

@@ -151,7 +151,7 @@ const diagnosticProcessKinds = new Set([
   "codex",
   "google-chrome",
   "node",
-  "paperclip-runnerd",
+  "nexus-runnerd",
   "playwright",
   "pnpm",
   "postgres",
@@ -163,7 +163,7 @@ export function diagnosticProcessKind(command: string, platform: NodeJS.Platform
   const name = path.basename(command);
   // Linux comm is limited to 15 bytes. This is a diagnostic role only;
   // preservation still requires the trusted run PID/start/group and ancestry.
-  if (platform === "linux" && name === "paperclip-runne") return "paperclip-runnerd";
+  if (platform === "linux" && name === "nexus-runne") return "nexus-runnerd";
   return diagnosticProcessKinds.has(name) ? name : "other";
 }
 

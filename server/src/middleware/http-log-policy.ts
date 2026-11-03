@@ -40,7 +40,7 @@ function normalizePath(url: string): string {
 
 const SECRET_SENSITIVE_HTTP_PATHS = [
   /^\/api\/companies\/[^/]+\/voice-sessions(?:\/|$)/,
-  /^\/mcp\/(?:oauth|paperclip)(?:\/|$)/,
+  /^\/mcp\/(?:oauth|nexus)(?:\/|$)/,
   /^\/api\/mcp(?:\/|$)/,
   /^\/api\/chat-endpoints\/[^/]+\/setup(?:-secret)?(?:\/|$)/,
 ];

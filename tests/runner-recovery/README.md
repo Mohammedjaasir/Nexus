@@ -1,6 +1,6 @@
 # Controlled runner recovery tests
 
-Run from the Paperclip repository after installing and building dependencies:
+Run from the Nexus repository after installing and building dependencies:
 
 ```sh
 pnpm test:runner-recovery

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { agentApiKeys, agents, companies, companyMemberships, heartbeatRuns, issueComments, issues, nativeRunResults, type Db } from "@paperclipai/db";
-import { agentApiKeyScopeSchema, isUuidLike, sendChatMessageSchema, type AgentApiKeyScope } from "@paperclipai/shared";
+import { agentApiKeys, agents, companies, companyMemberships, heartbeatRuns, issueComments, issues, nativeRunResults, type Db } from "@nexusai/db";
+import { agentApiKeyScopeSchema, isUuidLike, sendChatMessageSchema, type AgentApiKeyScope } from "@nexusai/shared";
 import { badRequest, conflict, forbidden, notFound, tooManyRequests } from "../errors.js";
 import { agentRunWritesRevoked, assertAgentRunWriteAllowed } from "../agent-run-cancellation.js";
 import { authorizationService, canActorReadIssuePrivacy, type AuthorizationActor } from "./authorization.js";

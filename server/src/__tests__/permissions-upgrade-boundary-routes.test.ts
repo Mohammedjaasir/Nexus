@@ -17,17 +17,17 @@ import {
   issues,
   issueWorkProducts,
   principalPermissionGrants,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
 
 vi.hoisted(() => {
-  process.env.PAPERCLIP_HOME = "/tmp/paperclip-test-home";
-  process.env.PAPERCLIP_INSTANCE_ID = "vitest";
-  process.env.PAPERCLIP_LOG_DIR = "/tmp/paperclip-test-home/logs";
-  process.env.PAPERCLIP_IN_WORKTREE = "false";
+  process.env.NEXUS_HOME = "/tmp/nexus-test-home";
+  process.env.NEXUS_INSTANCE_ID = "vitest";
+  process.env.NEXUS_LOG_DIR = "/tmp/nexus-test-home/logs";
+  process.env.NEXUS_IN_WORKTREE = "false";
 });
 
 vi.mock("../services/issue-assignment-wakeup.js", () => ({
@@ -53,8 +53,8 @@ function agentActor(companyId: string, agentId: string): Express.Request["actor"
 }
 
 async function createApp(db: Db, actor: Express.Request["actor"]) {
-  process.env.PAPERCLIP_LOG_DIR = "/tmp/paperclip-test-home/logs";
-  process.env.PAPERCLIP_IN_WORKTREE = "false";
+  process.env.NEXUS_LOG_DIR = "/tmp/nexus-test-home/logs";
+  process.env.NEXUS_IN_WORKTREE = "false";
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
@@ -106,7 +106,7 @@ describeEmbeddedPostgres("permissions upgrade visibility and route boundaries", 
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-permissions-boundary-routes-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-permissions-boundary-routes-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 

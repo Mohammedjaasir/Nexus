@@ -9,7 +9,7 @@ import test from "node:test";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const script = path.join(repoRoot, "scripts", "e2e-update-migrations.sh");
 const cleanEnv = Object.fromEntries(
-  Object.entries(process.env).filter(([name]) => !name.startsWith("PAPERCLIP_") && !name.startsWith("E2E_UPDATE_")),
+  Object.entries(process.env).filter(([name]) => !name.startsWith("NEXUS_") && !name.startsWith("E2E_UPDATE_")),
 );
 
 test("cross-version migration harness has valid shell syntax", () => {
@@ -33,7 +33,7 @@ test("cross-version migration harness requires both refs before side effects", (
     { env: {}, missing: "E2E_UPDATE_BASE_REF" },
     { env: { E2E_UPDATE_BASE_REF: "test/base" }, missing: "E2E_UPDATE_NEXT_REF" },
   ]) {
-    const testHome = mkdtempSync(path.join(os.tmpdir(), "paperclip-update-migrations-"));
+    const testHome = mkdtempSync(path.join(os.tmpdir(), "nexus-update-migrations-"));
     try {
       const result = spawnSync("bash", [script], {
         cwd: repoRoot,

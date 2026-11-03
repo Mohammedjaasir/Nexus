@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { IssueAttachment, IssueDocumentSummary, IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueAttachment, IssueDocumentSummary, IssueWorkProduct } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTaskArtifactArrival } from "./useTaskArtifactArrival";
 
@@ -18,7 +18,7 @@ const product = (attachmentId = fileId) => ({
   externalId: null, title: "Image", url: null, status: "active", reviewState: "none",
   isPrimary: false, healthStatus: "unknown", summary: null, createdByRunId: null,
   createdAt: new Date(), updatedAt: new Date(),
-  type: "artifact", provider: "paperclip", metadata: {
+  type: "artifact", provider: "nexus", metadata: {
     attachmentId, contentType: "image/png", byteSize: 123,
     contentPath: `/api/attachments/${attachmentId}/content`,
     openPath: `/api/attachments/${attachmentId}/content`,

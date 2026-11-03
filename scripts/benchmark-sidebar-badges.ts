@@ -11,7 +11,7 @@ const baselineRef = process.argv.find(arg => arg.startsWith("--baseline-ref="))?
 assert.ok(baselineRef, "Pass --baseline-ref=<pre-fix commit>");
 const baselineRevision = execFileSync("git", ["rev-parse", "--verify", `${baselineRef}^{commit}`], { encoding: "utf8" }).trim();
 const treatmentRevision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-const externalUrl = process.env.PAPERCLIP_SIDEBAR_TEST_DATABASE_URL;
+const externalUrl = process.env.NEXUS_SIDEBAR_TEST_DATABASE_URL;
 assert.ok(!externalUrl || new URL(externalUrl).pathname.endsWith("_test"), "Use a dedicated synthetic *_test database");
 const keepAlive = setInterval(() => {}, 1000);
 let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;

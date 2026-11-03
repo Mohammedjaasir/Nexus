@@ -10,18 +10,18 @@ import {
   EMBEDDED_POSTGRES_TEST_TIMEOUT_MS,
   heartbeatRuns,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
 } from "../../__tests__/helpers/embedded-postgres.js";
 import { createSentryRunLinkResolver } from "../sentry-run-links.js";
 
-const testDatabaseUrl = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const testDatabaseUrl = process.env.NEXUS_TEST_DATABASE_URL;
 const support = testDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 
 it.skipIf(!support.supported)("resolves saved task links and rejects foreign company, agent, and task identities", async () => {
-  const tempDb = testDatabaseUrl ? null : await startEmbeddedPostgresTestDatabase("paperclip-sentry-links-");
+  const tempDb = testDatabaseUrl ? null : await startEmbeddedPostgresTestDatabase("nexus-sentry-links-");
   const databaseUrl = testDatabaseUrl ?? tempDb!.connectionString;
   const db = createDb(databaseUrl);
   const companyIds: string[] = [];

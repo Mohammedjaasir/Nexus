@@ -4,10 +4,10 @@ import { GrokBotWorkSummary } from "@/components/GrokBotWorkSummary";
 import { PrimaryAgentCrownButton } from "@/components/primary-agent/PrimaryAgentPresentation";
 import { AiConnectionPoolRunDetails } from "@/components/ai-connections/AiConnectionPoolRunDetails";
 import { AgentConnectionInstructions } from "@/features/connections/ConnectionInstructions";
-import type { AgentInstructionCandidate, AgentInstructionsBundle } from "@paperclipai/shared";
+import type { AgentInstructionCandidate, AgentInstructionsBundle } from "@nexusai/shared";
 import { InstructionHistory } from "../components/InstructionHistory";
 import { AgentCharacter } from "../components/AgentCharacter";
-import { characterStateForAgent, HEARTBEAT_RUN_LIST_DEFAULT_LIMIT } from "@paperclipai/shared";
+import { characterStateForAgent, HEARTBEAT_RUN_LIST_DEFAULT_LIMIT } from "@nexusai/shared";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useNavigate, useLocation, Link, Navigate, useBeforeUnload, type NavigateFunction } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
@@ -116,7 +116,7 @@ import {
   type LiveEvent,
   isResponsibleUserDenialCode,
   responsibleUserLabel,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { ResponsibleUserDenialNotice } from "../components/ResponsibleUserDenialNotice";
 import { RunWorkspaceRecoverySurface } from "../components/RunWorkspaceRecoverySurface";
 import { RunnerInspector } from "../components/RunnerInspector";
@@ -1007,7 +1007,7 @@ export function AgentDetail() {
             </Button>
           }
         >
-          Ships with Paperclip and powers <strong>{builtInFeatureLabel}</strong>. Configure it like
+          Ships with Nexus and powers <strong>{builtInFeatureLabel}</strong>. Configure it like
           any agent — model, instructions, budget. It can be paused but not deleted; pausing it
           pauses {builtInFeatureLabel}.
         </InlineBanner>
@@ -1641,7 +1641,7 @@ export function ConfigurationTab({
   const [awaitingRefreshAfterSave, setAwaitingRefreshAfterSave] = useState(false);
   const lastAgentRef = useRef(agent);
 
-  const catalogProvider = agent.adapterType === "paperclip_runner" ? String(agent.adapterConfig.provider ?? "codex") : undefined;
+  const catalogProvider = agent.adapterType === "nexus_runner" ? String(agent.adapterConfig.provider ?? "codex") : undefined;
   const { data: adapterModels } = useQuery({
     queryKey:
       companyId
@@ -2923,8 +2923,8 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType, adapterConfig }
     queryKey: queryKeys.instance.experimentalSettings,
     queryFn: () => instanceSettingsApi.getExperimental(),
   });
-  const paperclipDeveloperMode =
-    experimentalSettings?.enablePaperclipDeveloperMode === true;
+  const nexusDeveloperMode =
+    experimentalSettings?.enableNexusDeveloperMode === true;
   const canRerunWithProviderTrace = canUseProviderTrace && supportsRawProviderTrace(adapterType, adapterConfig);
   const { data: providerTraceRows } = useQuery({
     queryKey: queryKeys.providerTraceMetadata(run.companyId, [run.id]),
@@ -3110,7 +3110,7 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType, adapterConfig }
           break-glass handlers as the task detail page. */}
       <RunWorkspaceRecoverySurface run={run} />
       <AiConnectionPoolRunDetails context={run.contextSnapshot} />
-      {grokWork && <p className="text-sm text-muted-foreground">Runs in Grok Bot. Usage not reported. Stopping this session revokes Paperclip authority; remote execution may continue. Open the Grok Bot desktop app to inspect it. This view contains Paperclip-reported activity.</p>}
+      {grokWork && <p className="text-sm text-muted-foreground">Runs in Grok Bot. Usage not reported. Stopping this session revokes Nexus authority; remote execution may continue. Open the Grok Bot desktop app to inspect it. This view contains Nexus-reported activity.</p>}
       {/* Run summary card */}
       <div className="border border-border rounded-lg overflow-hidden">
         <div className="flex flex-col sm:flex-row">
@@ -3131,7 +3131,7 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType, adapterConfig }
                   onClick={() => cancelRun.mutate()}
                   disabled={cancelRun.isPending}
                 >
-                  {grokWork ? cancelRun.isPending ? "Stopping Paperclip work…" : "Stop Paperclip work" : cancelRun.isPending ? "Cancelling…" : "Cancel"}
+                  {grokWork ? cancelRun.isPending ? "Stopping Nexus work…" : "Stop Nexus work" : cancelRun.isPending ? "Cancelling…" : "Cancel"}
                 </Button>
               )}
               {canResumeLostRun && (
@@ -3169,7 +3169,7 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType, adapterConfig }
               </Button>
               <HoneycombRunLink
                 runId={run.id}
-                enabled={paperclipDeveloperMode && canUseProviderTrace}
+                enabled={nexusDeveloperMode && canUseProviderTrace}
               />
               {canRerunWithProviderTrace && !["queued", "running"].includes(run.status) ? (
                 <Button
@@ -3556,7 +3556,7 @@ export function KeysTab({ agentId, companyId }: { agentId: string; companyId?: s
           Create API Key
         </h3>
         <p className="text-xs text-muted-foreground">
-          API keys allow this agent to authenticate calls to the Paperclip server.
+          API keys allow this agent to authenticate calls to the Nexus server.
         </p>
         <div className="flex items-center gap-2">
           <Input

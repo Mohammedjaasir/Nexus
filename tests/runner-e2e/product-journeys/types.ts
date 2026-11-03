@@ -33,7 +33,7 @@ export interface JourneyEvidence {
   onboardingPreAcceptance?: import("./onboarding-pre-acceptance.js").OnboardingPreAcceptanceEvidence;
 }
 export interface OnboardingArtifactEvidence {
-  schema: "paperclip.product-journey.artifact/v1";
+  schema: "nexus.product-journey.artifact/v1";
   id: string;
   originatingRunId: string;
   filename: "connection-proof.json";

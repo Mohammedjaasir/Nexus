@@ -2,7 +2,7 @@ import { notifyExternalObjectRefresh } from "./external-object-refresh-notificat
 import { notifyGitHubCredentialChange } from "./github-connection-notifications.js";
 import { notifyToolConnectionHealth } from "./tool-connection-health-notifications.js";
 import { dispatchGitHubBotCloudEvent } from "./chat-github-cloud-ingress.js";
-import { chatEndpoints } from "@paperclipai/db";
+import { chatEndpoints } from "@nexusai/db";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import {
@@ -11,7 +11,7 @@ import {
   externalObjects,
   toolConnections,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { and, eq, ne, sql } from "drizzle-orm";
 import {
   logActivity,
@@ -19,11 +19,11 @@ import {
   type ActivityPublication,
 } from "./activity-log.js";
 import {
-  createPaperclipCloudConnector,
-  paperclipCloudConnectorConfigFromEnv,
-  type PaperclipCloudConnector,
+  createNexusCloudConnector,
+  nexusCloudConnectorConfigFromEnv,
+  type NexusCloudConnector,
   type SealedConnectorEvents,
-} from "./paperclip-cloud-connector.js";
+} from "./nexus-cloud-connector.js";
 import { issueThreadInteractionService } from "./issue-thread-interactions.js";
 import { logger } from "../middleware/logger.js";
 
@@ -216,7 +216,7 @@ function githubSnapshotUpdate(payload: Record<string, unknown>) {
 export function githubConnectionEventService(
   db: Db,
   options: {
-    connector?: PaperclipCloudConnector;
+    connector?: NexusCloudConnector;
     env?: NodeJS.ProcessEnv;
     now?: () => Date;
     wakeup?: NonNullable<Parameters<typeof issueThreadInteractionService>[1]>["wakeup"];
@@ -225,21 +225,21 @@ export function githubConnectionEventService(
   const now = options.now ?? (() => new Date());
   let nextPollAt = 0;
   let configuredConnector: {
-    config: NonNullable<ReturnType<typeof paperclipCloudConnectorConfigFromEnv>>;
-    connector: PaperclipCloudConnector;
+    config: NonNullable<ReturnType<typeof nexusCloudConnectorConfigFromEnv>>;
+    connector: NexusCloudConnector;
   } | undefined;
   function currentConnector() {
     if (options.connector) return options.connector;
     // Enrollment and identity replacement can happen after this owner starts.
     // Read only on an admitted pass; preserve negotiated delivery while unchanged.
-    const config = paperclipCloudConnectorConfigFromEnv(options.env);
+    const config = nexusCloudConnectorConfigFromEnv(options.env);
     if (!config) { configuredConnector = undefined; return null; }
     if (!configuredConnector || !isDeepStrictEqual(configuredConnector.config, config)) {
-      configuredConnector = { config, connector: createPaperclipCloudConnector({ config }) };
+      configuredConnector = { config, connector: createNexusCloudConnector({ config }) };
     }
     return configuredConnector.connector;
   }
-  const forcePolling = (options.env ?? process.env).PAPERCLIP_GITHUB_EVENT_POLLING === "1";
+  const forcePolling = (options.env ?? process.env).NEXUS_GITHUB_EVENT_POLLING === "1";
   let emptyPolls = 0;
   let nextSetupPollAt = 0;
   let inFlight: Promise<GitHubConnectionEventPollResult> | null = null;

@@ -3,7 +3,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Agent, ResourceMemberships } from "@paperclipai/shared";
+import type { Agent, ResourceMemberships } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SidebarAgents } from "./SidebarAgents";
 import { queryKeys } from "../lib/queryKeys";
@@ -498,7 +498,7 @@ describe("SidebarAgents", () => {
   });
 
   it("keeps top mode in stored org-aware order", async () => {
-    localStorage.setItem("paperclip.agentOrder:company-1:user-1", JSON.stringify(["agent-b", "agent-a", "agent-c"]));
+    localStorage.setItem("nexus.agentOrder:company-1:user-1", JSON.stringify(["agent-b", "agent-a", "agent-c"]));
     mockAgentsApi.list.mockResolvedValue([
       makeAgent({ id: "agent-a", name: "Alpha", urlKey: "alpha" }),
       makeAgent({ id: "agent-b", name: "Bravo", urlKey: "bravo" }),
@@ -546,7 +546,7 @@ describe("SidebarAgents", () => {
     await chooseSortMode("Alphabetical");
 
     expect(agentLinkLabels(container)).toEqual(["Alpha", "Bravo", "Charlie"]);
-    expect(localStorage.getItem("paperclip.agentSortMode:company-1:user-1")).toBe("alphabetical");
+    expect(localStorage.getItem("nexus.agentSortMode:company-1:user-1")).toBe("alphabetical");
   });
 
   it("sorts recent agents by heartbeat, updated time, and created time descending", async () => {

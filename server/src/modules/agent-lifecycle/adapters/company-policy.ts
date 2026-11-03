@@ -1,4 +1,4 @@
-import { agents, companies, heartbeatRuns, type Db } from "@paperclipai/db";
+import { agents, companies, heartbeatRuns, type Db } from "@nexusai/db";
 import { and, asc, eq, inArray, sql, type SQLWrapper } from "drizzle-orm";
 import type { LifecycleEffects } from "./effects.js";
 import { applyAgentPolicyHoldsInTransaction } from "./postgres.js";

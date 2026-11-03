@@ -4,14 +4,14 @@ import { mkdtemp, readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { eq, sql } from "drizzle-orm";
-import { createDb, companies, agents, companyMemberships, adapterAuthSessions, environments, connectionGrants, toolConnections, activityLog, companySecrets } from "@paperclipai/db";
-import { startEmbeddedPostgresTestDatabase } from "@paperclipai/db/test-embedded-postgres";
+import { createDb, companies, agents, companyMemberships, adapterAuthSessions, environments, connectionGrants, toolConnections, activityLog, companySecrets } from "@nexusai/db";
+import { startEmbeddedPostgresTestDatabase } from "@nexusai/db/test-embedded-postgres";
 import { secretService } from "../services/secrets.js";
 import { aiConnectionService } from "../services/ai-connections.js";
 import { prepareManagedAiRuntime, managedAiSessionFingerprintConfig } from "../services/ai-connection-runtime.js";
 import { localAiLoginService } from "../services/local-ai-login.js";
 import { readVerifiedLocalAiCredential } from "../services/local-ai-credentials.js";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 
 const browserLogin = vi.hoisted(() => ({ submitCode: vi.fn(), abort: vi.fn() }));
 vi.mock("../services/local-ai-browser-login.js", () => ({
@@ -29,7 +29,7 @@ let home: string;
 const companyId = randomUUID(), agentId = randomUUID(), owner = "audit-owner";
 beforeAll(async () => {
   home = await mkdtemp(path.join(os.tmpdir(), "ai-legacy-audit-"));
-  vi.stubEnv("PAPERCLIP_HOME", home);
+  vi.stubEnv("NEXUS_HOME", home);
   database = await startEmbeddedPostgresTestDatabase("ai-legacy-audit-db-");
   db = createDb(database.connectionString);
   await db.insert(companies).values({ id: companyId, name: "Audit", issuePrefix: "AUD" });
@@ -80,7 +80,7 @@ it("reconnect detaches an indexed credential without changing unadopted legacy a
 const intent = { provider: "openai", method: "subscription", name: "Isolated Codex", ownership: "personal", agentIds: [], allAgents: true } as const;
 const loginIntent = () => ({ ...intent, agentIds: [] });
 const auth = (mark: string, hour = 10) => JSON.stringify({ tokens: { account_id: "fixture-account", id_token: `id-${mark}`, access_token: `access-${mark}`, refresh_token: `refresh-${mark}` }, last_refresh: `2026-09-10T${hour}:00:00Z` });
-const directoryFor = (id: string) => path.join(resolvePaperclipInstanceRoot(), "ai-local-logins", id);
+const directoryFor = (id: string) => path.join(resolveNexusInstanceRoot(), "ai-local-logins", id);
 
 it("accepts a Claude code once, only from its owner, and audits without the code", async () => {
   const login = localAiLoginService(db);

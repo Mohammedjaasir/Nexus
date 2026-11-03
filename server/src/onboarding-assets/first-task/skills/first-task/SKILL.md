@@ -1,7 +1,7 @@
 ---
 name: first-task
 description: >
-  Guide the user's first Paperclip task when its description invokes /first-task.
+  Guide the user's first Nexus task when its description invokes /first-task.
   Interpret the opening answer, clarify their goal, propose a plan or a single
   task, and wait for approval before hiring agents or executing approved work.
 ---
@@ -17,13 +17,13 @@ next steps directly. This is a wording preference: answer truthfully if the
 user asks about the workflow, and always disclose relevant permissions,
 security implications, and execution actions.
 
-This is the user's first task in Paperclip. Your job is to understand what they want and propose a path forward. A greeting and an opening question card were already posted for you; the card offered two choices: "Interview me and propose a plan and an agent team to execute it." (option `interview`) or "I have a task in mind" (option `task`, with a text field). You are running because the user answered that card (the answer is in your wake payload) or wrote a message instead of answering. Don't re-introduce yourself and don't post the opening card again.
+This is the user's first task in Nexus. Your job is to understand what they want and propose a path forward. A greeting and an opening question card were already posted for you; the card offered two choices: "Interview me and propose a plan and an agent team to execute it." (option `interview`) or "I have a task in mind" (option `task`, with a text field). You are running because the user answered that card (the answer is in your wake payload) or wrote a message instead of answering. Don't re-introduce yourself and don't post the opening card again.
 
 Work in this order.
 
 1. Take the path the user picked.
 
-   - `interview` → ask the user 3–4 questions in one Paperclip question card (`request_human_input` with `interactionKind: "questions"` when available, otherwise the `ask_user_questions` API) that pin down what their organization does, what they want to achieve first, any constraints (time, budget, tools), and what "done" looks like. Don't guess; ask. Don't post anything else before the card. The answers lead to the plan-and-team path in step 2.
+   - `interview` → ask the user 3–4 questions in one Nexus question card (`request_human_input` with `interactionKind: "questions"` when available, otherwise the `ask_user_questions` API) that pin down what their organization does, what they want to achieve first, any constraints (time, budget, tools), and what "done" looks like. Don't guess; ask. Don't post anything else before the card. The answers lead to the plan-and-team path in step 2.
 
    - `task` → the text they typed is the task. If it is clear enough to propose on, go straight to step 2. If not, reply by asking 2–3 questions specific to their message (concrete goal, constraints, what "done" looks like), then go to step 2.
 
@@ -92,14 +92,14 @@ Work in this order.
 
    - For a plan-only request, retain the accepted plan on this task. Do not start its implementation or hire the proposed team without authorization to do that work.
    - For an accepted single task, check for an existing child from this proposal before creating anything. Create exactly one child linked to this onboarding task and assign it to yourself. On later wakes, continue that same child instead of creating another.
-   - If the accepted child work requires a file deliverable, include the approved scope, document requirements, and requested filenames in a self-contained child description. Delegate the work to the child's own Paperclip execution, even when the child is assigned to yourself. That execution must save the document and publish the requested file on the child before marking it done. Do not create or register that file from the onboarding run, or mark the child done before its execution delivers the file. Native `register_deliverable` is bound to its current task.
+   - If the accepted child work requires a file deliverable, include the approved scope, document requirements, and requested filenames in a self-contained child description. Delegate the work to the child's own Nexus execution, even when the child is assigned to yourself. That execution must save the document and publish the requested file on the child before marking it done. Do not create or register that file from the onboarding run, or mark the child done before its execution delivers the file. Native `register_deliverable` is bound to its current task.
    - Copy required input payloads verbatim, including encoded bytes, nonces, constraints, and requested filenames, from the accepted request and its accepted corrections into the child description. The child has its own execution context and does not inherit this conversation. Do not leave references such as "provided above" or "same as the parent" in place of actual inputs. When an input is not inline, include its actual retrievable source reference and ensure the child is authorized to read it. Keep credentials and secrets out of handoff text.
    - Parent-child linkage is not a dependency. Do not put this onboarding task in the child's `blockedByTaskIds`: the child must execute before this task can finish. Create the child ready to run, then make this onboarding task wait for the child.
-   - While waiting for that file-producing child, preserve existing blocker IDs and add the child as a dependency. Native runners use `set_dependencies`, then `paperclip_block` with the child agent as owner and child completion as the unblock action; legacy runners use the normal issue API with `blockedByIssueIds` and a blocked disposition. End the turn so the child can execute. Do not poll for its result while holding the onboarding run.
+   - While waiting for that file-producing child, preserve existing blocker IDs and add the child as a dependency. Native runners use `set_dependencies`, then `nexus_block` with the child agent as owner and child completion as the unblock action; legacy runners use the normal issue API with `blockedByIssueIds` and a blocked disposition. End the turn so the child can execute. Do not poll for its result while holding the onboarding run.
    - When child completion resumes the onboarding task, verify the saved child document and retrievable file, then reply with the actual child task and download links. Reuse the recorded result instead of producing another file on the parent or creating another child.
    - For document-only child work, you may execute it directly. Save the finished output as a document on the child task and mark that child done. Link it from the onboarding conversation. Completing the onboarding parent in place, or saving the output only on the parent, does not fulfill the accepted child-task proposal.
 
-   For a new native file-producing handoff, the following JSON contains two argument objects, not one tool call. Call `create_task` with `createTask` first. After its successful receipt, call `set_dependencies` with `setDependencies` on this onboarding task, then `paperclip_block` as above. Replace every placeholder before calling a tool: use the accepted proposal's ID, your actual agent ID, and the created child's task ID. Replace `<approved-child-description>` with the self-contained description and actual inputs described above. Replace `<existing-blocker-id>` with all current blocker IDs; remove that placeholder when there are none, leaving only the child ID. Never replace it with this onboarding task's own ID. Keep each blocker ID only once. If the child already exists, reuse its ID and continue with `set_dependencies` instead of creating another child.
+   For a new native file-producing handoff, the following JSON contains two argument objects, not one tool call. Call `create_task` with `createTask` first. After its successful receipt, call `set_dependencies` with `setDependencies` on this onboarding task, then `nexus_block` as above. Replace every placeholder before calling a tool: use the accepted proposal's ID, your actual agent ID, and the created child's task ID. Replace `<approved-child-description>` with the self-contained description and actual inputs described above. Replace `<existing-blocker-id>` with all current blocker IDs; remove that placeholder when there are none, leaving only the child ID. Never replace it with this onboarding task's own ID. Keep each blocker ID only once. If the child already exists, reuse its ID and continue with `set_dependencies` instead of creating another child.
 
    ```json
    {

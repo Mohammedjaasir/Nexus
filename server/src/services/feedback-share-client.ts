@@ -1,5 +1,5 @@
 import { gzipSync } from "node:zlib";
-import type { FeedbackTraceBundle } from "@paperclipai/shared";
+import type { FeedbackTraceBundle } from "@nexusai/shared";
 import type { Config } from "../config.js";
 
 export const FEEDBACK_UPLOAD_TIMEOUT_MS = 30_000;

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, FileCheck2 } from "lucide-react";
-import type { ConversationTaskHandoff } from "@paperclipai/shared";
+import type { ConversationTaskHandoff } from "@nexusai/shared";
 import type { SuggestTasksInteraction } from "@/lib/issue-thread-interactions";
 import { issuesApi } from "@/api/issues";
 import { queryKeys } from "@/lib/queryKeys";

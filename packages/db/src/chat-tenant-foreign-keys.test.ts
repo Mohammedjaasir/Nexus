@@ -15,7 +15,7 @@ describeDatabase("chat tenant foreign keys", () => {
     "rejects cross-company references without breaking nullable-link deletion",
     async () => {
       const database = await startEmbeddedPostgresTestDatabase(
-        "paperclip-chat-tenant-fks-",
+        "nexus-chat-tenant-fks-",
       );
       const sql = postgres(database.connectionString, {
         max: 1,

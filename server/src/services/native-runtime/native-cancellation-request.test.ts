@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { assertCancellationRequest, cancellationIntentId, cancellationRequestId, claimCancellationRequest } from "./native-cancellation-request.js";
-import { heartbeatRuns, type Db } from "@paperclipai/db";
+import { heartbeatRuns, type Db } from "@nexusai/db";
 const id = "11111111-1111-4111-8111-111111111111";
 describe("caller-bound native cancellation", () => {
   it.each([null, "", " x", {}, [], 1, `${id} `, "not-a-uuid"])("rejects malformed request %j", value => {
@@ -27,7 +27,7 @@ describe("caller-bound native cancellation", () => {
 describe("failed native retry caller admission", () => {
   const companyId = "company", runId = "run", issueId = "issue";
   const claimed = { cancellationRequestId: id, requestedBy: { type: "board", userId: "board-user" } };
-  const native = { schema: "paperclip.native-cancellation.v1", intentId: cancellationIntentId(id),
+  const native = { schema: "nexus.native-cancellation.v1", intentId: cancellationIntentId(id),
     companyId, runId, issueId, scope: "run", dispatchState: "pending", dispatched: false, intentAuditId: "intent-audit" };
   function fixture(phase: string | null, resultJson: Record<string, unknown> = {}, status = "failed", failureCode: string | null = null) {
     const run = { id: runId, companyId, nativeIssueId: issueId, runtimeMode: "native", status, resultJson };

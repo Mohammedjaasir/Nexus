@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { activityLog, agents, companies, createDb, subscribeDatabaseWork, decisionBundles, decisionEffectExecutions, decisions,
-  decisionTargetIssues, heartbeatRuns, issues } from "@paperclipai/db";
+  decisionTargetIssues, heartbeatRuns, issues } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { decisionService } from "../services/decisions.js";
@@ -12,7 +12,7 @@ import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordin
 import { idleWorkSnapshot } from "../services/task-admission.js";
 import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_DECISION_EXPIRY_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_DECISION_EXPIRY_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("decision expiry worker", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -29,7 +29,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
     db = createDb(externalUrl ?? temporary!.connectionString, { maxConnections: 6, idleTimeoutSeconds: 0, maxLifetimeSeconds: 0 });
   }, 30_000);
   beforeEach(async () => {
-    process.env.PAPERCLIP_DECISION_SIGNING_SECRET = "0123456789abcdef0123456789abcdef";
+    process.env.NEXUS_DECISION_SIGNING_SECRET = "0123456789abcdef0123456789abcdef";
     companyId = randomUUID(); agentId = randomUUID(); issueId = randomUUID(); runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Expiry", issuePrefix: `E${companyId.slice(0, 6)}`, requireBoardApprovalForNewAgents: false });
     await db.insert(agents).values({ id: agentId, companyId, name: "Proposer", role: "engineer", status: "active", adapterType: "codex_local", adapterConfig: {}, runtimeConfig: {}, permissions: {} });
@@ -122,7 +122,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
   });
 
   it("honors the configured expiry batch size", async () => {
-    vi.stubEnv("PAPERCLIP_DECISIONS_SWEEP_BATCH_SIZE", "2");
+    vi.stubEnv("NEXUS_DECISIONS_SWEEP_BATCH_SIZE", "2");
     const seed = await create(); await db.delete(decisions).where(eq(decisions.id, seed.id));
     await db.insert(decisions).values(Array.from({ length: 5 }, () => ({ ...seed, id: randomUUID(), expiresAt: new Date(Date.now() - 1000) })));
     const recovery = service();

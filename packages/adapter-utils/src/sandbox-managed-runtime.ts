@@ -219,7 +219,7 @@ export const REFERENCED_SOURCE_IGNORE_FAILURE_REASONS = {
  * subdirectory (`project-<projectId>` under the runtime root) the tree lands in.
  *
  * Additional sources are plain trees only. They never carry the anchor
- * workspace's git-history, overlay, or `.paperclip-runtime` preservation
+ * workspace's git-history, overlay, or `.nexus-runtime` preservation
  * semantics — those stay anchor-only.
  *
  * `ignoreResolution` is required so every construction site must supply it
@@ -493,7 +493,7 @@ export interface SandboxSyncFileMapping {
  * order, fail-fast (first non-zero exit or timeout aborts the operation).
  *
  * SECURITY — command origin (Stage-1 design review, condition C1). `command` is
- * a **Paperclip/adapter-authored control operation**: it may be supplied ONLY by
+ * a **Nexus/adapter-authored control operation**: it may be supplied ONLY by
  * core/adapter code. No server route, issue/comment content, project/workspace
  * file content, provider-plugin callback, or arbitrary adapter config may supply
  * a raw `command` string; any path embedded in it MUST be built by adapter/core
@@ -694,7 +694,7 @@ function buildWorkspaceTarExtractCommand(input: {
 }): string {
   // The wipe must also preserve any in-flight sync scratch tarball at the
   // workspace root. A concurrent referenced-project upload stages a scratch
-  // tarball named `.paperclip-upload-<uuid>.tar` there. Without this preserve
+  // tarball named `.nexus-upload-<uuid>.tar` there. Without this preserve
   // term the wipe unlinks the in-flight tarball and the later extract fails.
   // The static pattern must agree with the daytona scratch prefix
   // `SCRATCH_PREFIX` in
@@ -703,7 +703,7 @@ function buildWorkspaceTarExtractCommand(input: {
   // shell passes it to `find -name` as a pattern (Security Conditions C1/C3).
   const wipe = input.wipeExceptNames
     ? ` && find ${shellQuote(input.workspaceRemoteDir)} -mindepth 1 -maxdepth 1 ` +
-      `${preserveFindArgs([...input.wipeExceptNames, ".paperclip-upload-*"])} -exec rm -rf -- {} +`
+      `${preserveFindArgs([...input.wipeExceptNames, ".nexus-upload-*"])} -exec rm -rf -- {} +`
     : "";
   return (
     `mkdir -p ${shellQuote(input.workspaceRemoteDir)}${wipe} && ` +
@@ -925,7 +925,7 @@ export async function createTarballFromDirectory(input: {
   // entries avoids the self-entry entirely and is portable across GNU/BSD/busybox
   // tar (no GNU-only --no-overwrite-dir needed). --exclude still filters nested
   // matches and any named entry it matches.
-  await withTempDir("paperclip-tar-list-", async (directory) => {
+  await withTempDir("nexus-tar-list-", async (directory) => {
     const list = path.join(directory, "entries.nul");
     const file = await fs.open(list, "wx", 0o600);
     try {
@@ -994,7 +994,7 @@ export async function exportSandboxWorkspaceSnapshot(input: {
   if ((await fs.readdir(input.stagingDir)).length) throw new Error("Workspace snapshot destination is not empty");
   const operations: SandboxSyncOperation[] = [{
     operationId: input.operationId,
-    files: [{ sourcePath: input.remoteDir, targetPath: input.stagingDir, kind: "directory", exclude: [".paperclip-runtime"] }],
+    files: [{ sourcePath: input.remoteDir, targetPath: input.stagingDir, kind: "directory", exclude: [".nexus-runtime"] }],
   }];
   assertSyncOperationsConfined(operations, { sourceRoots: [input.remoteDir], targetRoots: [input.stagingDir] });
   if (!input.client.syncOut) throw Object.assign(new Error("Validated workspace export is unavailable for this provider"),
@@ -1041,7 +1041,7 @@ async function copyWorkspaceEntry(sourceRoot: string, targetRoot: string, relati
     return;
   }
 
-  const stagedTargetPath = buildUniqueStagingPath({ targetPath, suffix: ".paperclip-copy" });
+  const stagedTargetPath = buildUniqueStagingPath({ targetPath, suffix: ".nexus-copy" });
   await fs.rm(stagedTargetPath, { recursive: true, force: true }).catch(() => undefined);
   try {
     await fs.copyFile(sourcePath, stagedTargetPath, fsConstants.COPYFILE_FICLONE).catch(async () => {
@@ -1226,7 +1226,7 @@ function makeTransferProgress(
         await emitRuntimeStatus(
           runtimeStatus.sink,
           runtimeStatus.phase,
-          line.replace(/^\[paperclip\]\s*/, "").trim(),
+          line.replace(/^\[nexus\]\s*/, "").trim(),
         );
       }
     },
@@ -1299,9 +1299,9 @@ export async function prepareSandboxManagedRuntime(input: {
     ? captureDirectorySnapshotOffThread
     : captureDirectorySnapshot;
   const workspaceRemoteDir = input.workspaceRemoteDir ?? input.spec.remoteCwd;
-  const runtimeRootDir = input.runtimeRootDir ?? path.posix.join(workspaceRemoteDir, ".paperclip-runtime", input.adapterKey);
+  const runtimeRootDir = input.runtimeRootDir ?? path.posix.join(workspaceRemoteDir, ".nexus-runtime", input.adapterKey);
   if (input.runtimeRootDir !== undefined) {
-    const reservedRoot = path.posix.join(input.spec.remoteCwd, ".paperclip-runtime");
+    const reservedRoot = path.posix.join(input.spec.remoteCwd, ".nexus-runtime");
     if (!path.posix.isAbsolute(runtimeRootDir) || path.posix.normalize(runtimeRootDir) !== runtimeRootDir
       || runtimeRootDir.includes("\0") || runtimeRootDir.endsWith("/") || !runtimeRootDir.startsWith(`${reservedRoot}/`)) {
       throw new Error("Transfer scratch must remain within the lease runtime tree");
@@ -1412,7 +1412,7 @@ export async function prepareSandboxManagedRuntime(input: {
   }
   const gitIgnoredExcludes = directoryIgnore?.kind === "git" ? directoryIgnore.ignoredPaths : undefined;
   const workspaceArchiveExclude = mergeExcludes(
-    [".paperclip-runtime"],
+    [".nexus-runtime"],
     repositoryMetadataExcludes,
     input.workspaceFileMode === "all" ? [] : SANDBOX_WORKSPACE_HEAVY_DIR_EXCLUDES,
     input.workspaceFileMode === "all" && !gitSnapshot ? [] : [...GIT_ARCHIVE_EXCLUDES],
@@ -1423,7 +1423,7 @@ export async function prepareSandboxManagedRuntime(input: {
     repositoryMetadataExcludes,
     input.workspaceFileMode === "all" ? [] : SANDBOX_WORKSPACE_HEAVY_DIR_EXCLUDES,
     input.workspaceFileMode === "all" && !gitSnapshot ? [] : [...GIT_ARCHIVE_EXCLUDES],
-    [".paperclip-runtime"],
+    [".nexus-runtime"],
     input.preserveAbsentOnRestore,
     input.workspaceExclude,
     gitIgnoredExcludes,
@@ -1513,13 +1513,13 @@ export async function prepareSandboxManagedRuntime(input: {
       timeoutMs: command.timeoutMs ?? input.spec.timeoutMs,
     }));
 
-  await withTempDir("paperclip-sandbox-sync-", async (tempDir) => {
+  await withTempDir("nexus-sandbox-sync-", async (tempDir) => {
     const cachedSeed = seedGeneration
       ? await runStepSpan("workspace.seed_lookup", () => readWorkspaceSeedGeneration(input.workspaceSeedCacheDirectory!, seedGeneration,
         { companyDirectory: input.workspaceSeedCacheCompanyDirectory, privateCopyDirectory: tempDir, runtimeSpan: runStepSpan })) : null;
     const replaySeed = workspaceInboundMode === "durable_seed" ? input.workspaceDurableSeed : cachedSeed;
     const preservedNames = new Set([
-      ".paperclip-runtime",
+      ".nexus-runtime",
       ...(gitSnapshot ? [".git"] : []),
       ...(input.preserveAbsentOnRestore ?? []),
     ]);
@@ -1611,9 +1611,9 @@ export async function prepareSandboxManagedRuntime(input: {
           // current behavior and control flow.
           await runStepSpan("pack", async () => {
             // 1. git-history tar (git-backed workspace only). Both tar targets live under
-            //    `runtimeRootDir` (`.paperclip-runtime/<adapterKey>`). The git extract
-            //    wipes the target tree EXCEPT `.paperclip-runtime`, so the overlay tar,
-            //    which sits under `.paperclip-runtime`, survives to run its own extract.
+            //    `runtimeRootDir` (`.nexus-runtime/<adapterKey>`). The git extract
+            //    wipes the target tree EXCEPT `.nexus-runtime`, so the overlay tar,
+            //    which sits under `.nexus-runtime`, survives to run its own extract.
             if (gitSnapshot || repositories.length) {
               await reportWorkspaceStatus("git_sync", "Syncing git history to environment");
               const gitTarPath = sharedSeed ? path.join(tempDir, "git-workspace.tar") : gitSeedTarPath;
@@ -1632,10 +1632,10 @@ export async function prepareSandboxManagedRuntime(input: {
                   expectedSha256: replaySeed.gitArchiveSha256,
                 }));
               } else {
-                const archive = async (cloneDir: string) => runStepSpan("workspace.git_archive", () => createTarballFromDirectory({ localDir: cloneDir, archivePath: gitSeedTarPath, exclude: [".paperclip-runtime"] }));
+                const archive = async (cloneDir: string) => runStepSpan("workspace.git_archive", () => createTarballFromDirectory({ localDir: cloneDir, archivePath: gitSeedTarPath, exclude: [".nexus-runtime"] }));
                 const snapshot = (git: GitWorkspaceSnapshot) => sharedSeed ? workspaceSeedCloneSnapshot(git) : git;
                 if (gitSnapshot) await runStepSpan("workspace.git_clone", () => withShallowGitWorkspaceClone({ localDir: input.workspaceLocalDir, snapshot: snapshot(gitSnapshot) }, archive));
-                else await runStepSpan("workspace.git_clone", () => withTempDir("paperclip-managed-repositories-", async (cloneDir) => {
+                else await runStepSpan("workspace.git_clone", () => withTempDir("nexus-managed-repositories-", async (cloneDir) => {
                   for (const repo of repositories) await withShallowGitWorkspaceClone({ localDir: path.join(input.workspaceLocalDir, repo.path), snapshot: snapshot(repo.snapshot) }, async (child) => copyCloneTree(child, path.join(cloneDir, repo.path)));
                   await archive(cloneDir);
                 }));
@@ -1660,7 +1660,7 @@ export async function prepareSandboxManagedRuntime(input: {
                 command: buildWorkspaceTarExtractCommand({
                   workspaceRemoteDir,
                   remoteTar: remoteGitTar,
-                  wipeExceptNames: [".paperclip-runtime"],
+                  wipeExceptNames: [".nexus-runtime"],
                 }),
               });
               workspaceUploadBytes += (await fs.stat(gitTarPath)).size;
@@ -1865,7 +1865,7 @@ export async function prepareSandboxManagedRuntime(input: {
     // its OWN isolated remote directory (`project-<projectId>`). An additional
     // project rides one confined `syncIn` directory mapping — a native directory
     // transfer, or the base64-tar fallback — with source and target confined to
-    // their own roots. No workspace, git-history, or `.paperclip-runtime`
+    // their own roots. No workspace, git-history, or `.nexus-runtime`
     // semantics apply; those stay anchor-only. Per-project failure isolation: one
     // project's confinement or sync failure logs a warning and is skipped, and
     // the run plus the other projects continue. Only a project that stages
@@ -2033,7 +2033,7 @@ export async function prepareSandboxManagedRuntime(input: {
                 workspaceExclude: nestedExclude,
                 workspaceBaseline: await selectDirectorySnapshot(baselineSnapshot!, {
                   prefix,
-                  exclude: mergeExcludes(input.workspaceFileMode === "all" ? [] : SANDBOX_WORKSPACE_HEAVY_DIR_EXCLUDES, [...GIT_ARCHIVE_EXCLUDES], [".paperclip-runtime"], nestedExclude),
+                  exclude: mergeExcludes(input.workspaceFileMode === "all" ? [] : SANDBOX_WORKSPACE_HEAVY_DIR_EXCLUDES, [...GIT_ARCHIVE_EXCLUDES], [".nexus-runtime"], nestedExclude),
                   ignoredPaths: input.workspaceFileMode === "all" ? undefined : repository.snapshot.ignoredPaths,
                 }),
                 onRuntimeProgress: input.onRuntimeProgress,
@@ -2043,7 +2043,7 @@ export async function prepareSandboxManagedRuntime(input: {
             }
             await retryWorkspaceRestoreBeforeHostWrite(
               input.workspaceRestoreRetryDelaysMs ?? WORKSPACE_RESTORE_RETRY_DELAYS_MS,
-              (markHostWriteStarted) => withTempDir("paperclip-sandbox-restore-", async (tempDir) => {
+              (markHostWriteStarted) => withTempDir("nexus-sandbox-restore-", async (tempDir) => {
               let importedRef: string | null = null;
               let importedHead: string | null = null;
               let remoteWorkspaceStatus = "dirty";
@@ -2338,7 +2338,7 @@ export async function prepareSandboxManagedRuntime(input: {
           withWorkspaceRestoreDiagnostics(
             "asset",
             () => runStepSpan(`restore.asset.${assetKey}`, async () => {
-              await withTempDir("paperclip-sandbox-restore-", async (tempDir) => {
+              await withTempDir("nexus-sandbox-restore-", async (tempDir) => {
                 await withWorkspaceRestoreStep("asset_restore", () => assetRestore({
                   assetDir: path.posix.join(runtimeRootDir, assetKey),
                   readFile: async (remotePath) => toBuffer(await input.client.readFile(remotePath)),

@@ -4,7 +4,7 @@ import type {
   ConnectionGrant,
   ConnectionGrantsResponse,
   ToolConnection,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { BrowserUseSettingsPanel } from "@/pages/apps/app-detail/BrowserUseSettingsPanel";
 import { BrowserStoryProviders, mockBrowserUse } from "../../fixtures/browser-use";
 const connection = {
@@ -38,7 +38,7 @@ const meta = {
           "Production credential settings: per-run spending cap, saved-profile access, multiple credentials, and loading/error/permission states. Saves and provider profiles are simulated; no credentials are present.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/credentials"
       ],

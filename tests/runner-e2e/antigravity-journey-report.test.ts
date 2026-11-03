@@ -21,7 +21,7 @@ function fixture(passed = true): RunnerE2EResult {
   const cell = runnerMatrix.find(row => row.id === "antigravity-agent-journey.runner-antigravity.local.saved-subscription-two-turn")!;
   const evidence = antigravityEvidenceFixture();
   if (!passed) { evidence.outcome = "failed"; evidence.checkpoints.persisted = false; }
-  return { schema: "paperclip.runner-e2e.result/v2", executionId: cell.id, suiteId: cell.suite.id, suiteDefinitionHash: cell.suiteDefinitionHash,
+  return { schema: "nexus.runner-e2e.result/v2", executionId: cell.id, suiteId: cell.suite.id, suiteDefinitionHash: cell.suiteDefinitionHash,
     profileId: cell.profile.id, environmentId: "local", caseId: cell.task.id, provider: "acpx", model: "gemini-3.8-flash-low", runtimeMode: "native",
     attempt: 1, status: passed ? "passed" : "failed", ...(!passed ? { error: "antigravity_evidence_exact_download" } : {}), cleanup: "passed", durationMs: 1000,
     startedAt: "2026-10-29T00:00:00Z", finishedAt: "2026-10-29T00:00:01Z", issueId: "task", runIds: ["run-first", "run-second"], antigravityJourney: evidence,
@@ -89,8 +89,8 @@ it.each([true, false])("imports a synthetic %s receipt through the ordinary repo
   let exitCode = 0;
   try {
     await promisify(execFile)(process.execPath, ["--import", path.join(repositoryRoot, "cli/node_modules/tsx/dist/loader.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
-      cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: output, PAPERCLIP_RUNNER_E2E_REPORT_OUT: rebuilt,
-        PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([input.executionId]) }, timeout: 30_000, maxBuffer: 1024 * 1024,
+      cwd: repositoryRoot, env: { ...process.env, NEXUS_RUNNER_E2E_REPORT_ROOT: output, NEXUS_RUNNER_E2E_REPORT_OUT: rebuilt,
+        NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([input.executionId]) }, timeout: 30_000, maxBuffer: 1024 * 1024,
     });
   } catch (error) {
     if (typeof (error as { code?: unknown }).code !== "number") throw error;

@@ -66,13 +66,13 @@ export async function canRetryPublishedTarball404(stderr, version, {
     // configuration values can contain credentials. Config and HTTP share
     // this short deadline, inside the unchanged installation budget.
     const config = await runConfig(process.platform === "win32" ? "npm.cmd" : "npm", [
-      "config", "get", "registry", "@paperclipai:registry", "--prefix", prefix,
+      "config", "get", "registry", "@nexusai:registry", "--prefix", prefix,
     ], { env, signal: lookupSignal, captureStdout: true, captureStderr: true, quiet: true, outputLimit: 4096 });
     if (config.code !== 0 || config.signal || config.outputTruncated) return false;
     const lines = config.stdout.trim().split(/\r?\n/);
-    if (lines.length !== 2 || !lines[0].startsWith("registry=") || !lines[1].startsWith("@paperclipai:registry=")) return false;
+    if (lines.length !== 2 || !lines[0].startsWith("registry=") || !lines[1].startsWith("@nexusai:registry=")) return false;
     const globalRegistry = lines[0].slice("registry=".length);
-    const scoped = lines[1].slice("@paperclipai:registry=".length);
+    const scoped = lines[1].slice("@nexusai:registry=".length);
     const effectiveRegistry = packageName.startsWith("@") && scoped !== "undefined" ? scoped : globalRegistry;
     if (![PRIMARY_REGISTRY, PRIMARY_REGISTRY.slice(0, -1)].includes(effectiveRegistry)) return false;
     response = await withAbort(Promise.resolve(fetchMetadata(metadataUrl, {
@@ -197,7 +197,7 @@ export async function startPublishedCanary({
   signal = new AbortController().signal,
 }) {
   if (!version || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version)) {
-    throw new Error("An exact published Paperclip version is required");
+    throw new Error("An exact published Nexus version is required");
   }
   let prefix;
   try {
@@ -212,7 +212,7 @@ export async function startPublishedCanary({
         prefix = await mkdtemp(path.join(workspace, "npm-install-"));
         const result = await run(process.platform === "win32" ? "npm.cmd" : "npm", [
           "install", "--prefix", prefix, "--no-save", "--no-package-lock", "--no-audit", "--no-fund",
-          ...(attempt > 1 ? ["--prefer-online"] : []), `paperclipai@${version}`,
+          ...(attempt > 1 ? ["--prefer-online"] : []), `nexusai@${version}`,
         ], { env, signal: installSignal, captureStderr: true });
         if (result.code === 0) break;
         const codes = [...result.stderr.matchAll(/^npm (?:error|ERR!) code ([A-Z0-9_]+)\r?$/gm)];
@@ -234,7 +234,7 @@ export async function startPublishedCanary({
     signal.throwIfAborted();
     // Start the installed CLI exactly once. Its own failures must never trigger
     // another onboarding run or another dependency-install attempt.
-    const result = await run(path.join(prefix, "node_modules", ".bin", process.platform === "win32" ? "paperclipai.cmd" : "paperclipai"),
+    const result = await run(path.join(prefix, "node_modules", ".bin", process.platform === "win32" ? "nexusai.cmd" : "nexusai"),
       ["onboard", "--yes", "--data-dir", dataDir], { env, signal });
     if (result.code !== 0) throw new Error(`Canary onboarding failed (exit ${result.code ?? result.signal})`);
   } finally {

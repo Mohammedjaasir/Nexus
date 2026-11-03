@@ -7,7 +7,7 @@ export interface GitHubReviewJourneyEvidence {
   outcome: "running" | "passed" | "failed" | "awaiting_user" | "missing_credential" | "blocked_target";
   phase: string;
   setupId: string;
-  hosting: "self-hosted" | "paperclip-cloud";
+  hosting: "self-hosted" | "nexus-cloud";
   targetCommit: string | null;
   assisted: boolean;
   dependencies: Array<{ alias: string; consumer: "harness" | "browser" | "product-agent"; status: "ready" | "unverified" | "created-in-journey"; source: "onepassword" | "environment" | "browser-session" | "product-connection" }>;
@@ -56,8 +56,8 @@ export function verifyGitHubReviewRun(run: Record<string, any> | undefined, expe
     && run.agentId === expected.agentId && run.issueId === expected.issueId
     && run.status === "succeeded" && run.runtimeMode === expected.runtimeMode
     && matchesGitHubJourneyEnvironment(expected.environment, expected.environmentId, expected.executionEnvironment)
-    && run.contextSnapshot?.paperclipEnvironment?.id === expected.environmentId
-    && run.contextSnapshot?.paperclipEnvironment?.driver === expected.environment.driver
+    && run.contextSnapshot?.nexusEnvironment?.id === expected.environmentId
+    && run.contextSnapshot?.nexusEnvironment?.driver === expected.environment.driver
     && (expected.runtimeMode !== "native" || (provider?.kind === expected.provider && provider?.model === expected.model)));
 }
 

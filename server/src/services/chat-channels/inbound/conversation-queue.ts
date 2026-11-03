@@ -11,7 +11,7 @@ import { notifyChatDeliveryWork } from "../../chat-work-notifications.js";
 
 import type { ChatEndpointRuntime } from "../../voice/voice-runtime.js";
 
-import type { GitHubReviewEventContext, GitHubIssueEventContext, GitHubReviewPolicy } from "@paperclipai/shared";
+import type { GitHubReviewEventContext, GitHubIssueEventContext, GitHubReviewPolicy } from "@nexusai/shared";
 
 import {
   createHash,
@@ -31,13 +31,13 @@ import {
   externalThreadIdentityCondition,
 } from "../../chat-control-chronology.js";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatDeliveries,
   chatEndpointLeases,
   chatEndpoints,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import {
   normalizeContentType,
@@ -121,7 +121,7 @@ export function createChatConversationDeliveryQueue(db: Db, options: Conversatio
       .then((rows) => rows[0] ?? null);
     if (!candidate) return null;
 
-    // A lifecycle callback can reach Paperclip before its create callback. If
+    // A lifecycle callback can reach Nexus before its create callback. If
     // the root becomes durable while the lifecycle row is waiting, always
     // return that exact dependency first even when a coarse or malformed
     // provider timestamp would otherwise put the edit/delete at the head.
@@ -386,7 +386,7 @@ export function createChatConversationDeliveryQueue(db: Db, options: Conversatio
    * Drain one external conversation in durable receipt order. The database
    * lease is endpoint + thread scoped, so separate server processes can work
    * on different conversations concurrently but can never mutate the same
-   * Paperclip task from two inbound turns at once.
+   * Nexus task from two inbound turns at once.
    */
   async function drainConversationDeliveries(
     endpointId: string,

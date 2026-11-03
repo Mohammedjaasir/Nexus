@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "slug": "nexus-notebook",
+  "experimentalFeatureKey": "enableNexusNotebook",
+  "name": "Nexus Notebook",
+  "description": "Publish, find, and share reports, files, and interactive pages with your Nexus Cloud account.",
+  "categories": [
+    "content",
+    "productivity"
+  ],
+  "featured": true,
+  "branding": {
+    "logoUrl": "/brands/apps/nexus-notebook.svg",
+    "darkLogoUrl": "/brands/apps/nexus-notebook-dark.svg"
+  },
+  "urlPatterns": [
+    "https://notebook.paperclip.app/*"
+  ],
+  "availability": {
+    "available": true
+  },
+  "methods": [
+    {
+      "key": "mcp-oauth",
+      "transport": "mcp_remote",
+      "auth": "oauth",
+      "ownershipModes": [
+        "dcr"
+      ],
+      "oauthClientRegistration": "dcr",
+      "grantKinds": [
+        "user"
+      ],
+      "whenToUse": "Sign in with Nexus Cloud and let your assigned agents publish and manage your Notebook pages.",
+      "defaults": {
+        "serverUrl": "https://notebook.paperclip.app/mcp",
+        "scopesHint": [
+          "notebook:read",
+          "notebook:write",
+          "notebook:share",
+          "notebook:delete"
+        ],
+        "mcpSessionRequired": true
+      },
+      "guidanceMd": "Connect your Nexus Cloud account. Assigned agents can read available pages, publish and update your pages, change sharing including making pages public, manage versions, and delete or restore your pages. Manage individual actions in Permissions.",
+      "riskTier": "S3"
+    }
+  ],
+  "redirectConstraints": "https-or-loopback-http"
+}

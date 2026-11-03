@@ -1,15 +1,15 @@
 # Release Channels
 
-Paperclip ships on four channels. Pick the one that matches your appetite for
+Nexus ships on four channels. Pick the one that matches your appetite for
 freshness versus stability — switching is just a matter of which version you
 install.
 
 | Channel | What it is | Updates | npm | Docker |
 | --- | --- | --- | --- | --- |
-| `stable` | The recommended release | every week or two | `paperclipai@latest` | `ghcr.io/paperclipai/paperclip:latest` |
-| `beta` | Release candidates soaking before stable | when promoted | `paperclipai@beta` | `ghcr.io/paperclipai/paperclip:beta` |
-| `nightly` | Yesterday's merges, smoke-tested as a unit | once a night | `paperclipai@nightly` | `ghcr.io/paperclipai/paperclip:nightly` |
-| `canary` | Every merge to `master`, as it happens | many times a day | `paperclipai@canary` | `ghcr.io/paperclipai/paperclip:canary` |
+| `stable` | The recommended release | every week or two | `nexusai@latest` | `ghcr.io/paperclipai/paperclip:latest` |
+| `beta` | Release candidates soaking before stable | when promoted | `nexusai@beta` | `ghcr.io/paperclipai/paperclip:beta` |
+| `nightly` | Yesterday's merges, smoke-tested as a unit | once a night | `nexusai@nightly` | `ghcr.io/paperclipai/paperclip:nightly` |
+| `canary` | Every merge to `master`, as it happens | many times a day | `nexusai@canary` | `ghcr.io/paperclipai/paperclip:canary` |
 
 ## Choosing a channel
 
@@ -38,10 +38,10 @@ but it's available to anyone who wants the newest bits and accepts the risk.
 npm / npx:
 
 ```bash
-npx paperclipai@latest onboard    # stable
-npx paperclipai@beta onboard
-npx paperclipai@nightly onboard
-npx paperclipai@canary onboard
+npx nexusai@latest onboard    # stable
+npx nexusai@beta onboard
+npx nexusai@nightly onboard
+npx nexusai@canary onboard
 ```
 
 Docker:
@@ -59,7 +59,7 @@ stable images additionally get `:YYYY.MDD.P` version tags.
 ## Seeing where you are
 
 ```bash
-npx paperclipai channels
+npx nexusai channels
 ```
 
 prints every channel with the version it currently resolves to, the install

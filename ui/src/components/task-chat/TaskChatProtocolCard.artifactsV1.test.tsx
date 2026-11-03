@@ -4,7 +4,7 @@ import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueWorkProduct } from "@nexusai/shared";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { MemoryRouter } from "@/lib/router";
 import { TaskChatProtocolCard } from "./TaskChatProtocolCard";
@@ -22,7 +22,7 @@ const deckPdf = {
   executionWorkspaceId: null,
   runtimeServiceId: null,
   type: "artifact",
-  provider: "paperclip",
+  provider: "nexus",
   externalId: null,
   title: "Interface Craft revision — PDF",
   url: null,

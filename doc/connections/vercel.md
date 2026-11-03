@@ -16,12 +16,12 @@ providers and does not supply this connection's token.
 | Transport | Reviewed `rest_api` adapter, delivered by the normal run-scoped tool gateway |
 | API origin | `https://api.vercel.com` with fixed versioned routes |
 | Credential | Vercel access token, sent only as `Authorization: Bearer …` |
-| Ownership | Customer credential in the Paperclip vault; personal grants keep user-owned secret references |
+| Ownership | Customer credential in the Nexus vault; personal grants keep user-owned secret references |
 | Resource scope | Required `teamId`; targeted project actions verify the returned project's `accountId`, and deployment actions verify `projectId` |
-| Permission | Provider team/token role plus Paperclip agent access and individual action policy |
+| Permission | Provider team/token role plus Nexus agent access and individual action policy |
 
 Vercel's token team selection, expiration and the account's permissions determine
-provider access. Paperclip cannot expand an issued token. See
+provider access. Nexus cannot expand an issued token. See
 [REST authentication](https://vercel.com/docs/rest-api#authentication).
 The key must support project reads and the desired deployment/configuration writes.
 No OAuth scopes are requested for this method. Reconnect with a fresh token when
@@ -31,9 +31,9 @@ it expires, is revoked, or lacks access.
 
 Vercel's official [MCP reference](https://vercel.com/docs/agent-resources/vercel-mcp/tools)
 now includes deployment and configuration tools, but explicitly says availability
-and approval can differ by client. Paperclip's earlier MCP entry was unavailable
+and approval can differ by client. Nexus's earlier MCP entry was unavailable
 pending client approval. Public metadata demonstrates OAuth protocol support; it
-does not prove Paperclip client acceptance or account-bound writes. The reviewed
+does not prove Nexus client acceptance or account-bound writes. The reviewed
 REST adapter provides a self-serve token path without assuming MCP client approval.
 The historical MCP method is not advertised as a second setup choice.
 
@@ -82,7 +82,7 @@ and usage billing still apply. GitHub deployments need the repository available
 to Vercel; this connector does not install or authorize Vercel's GitHub integration.
 
 To revoke, delete the token in Vercel account settings and remove the connection
-in Paperclip. A retained Paperclip grant cannot make a revoked token usable.
+in Nexus. A retained Nexus grant cannot make a revoked token usable.
 Replacing the token through reconnect preserves connection identity and explicit
 action policies. The normal removal path revokes access and cleans credential refs.
 
@@ -117,7 +117,7 @@ variables and build settings, then call `create_deployment` with exactly one of:
 
 Preview is the default target; `target: "production"` must be explicit. Vercel
 [makes a project's first deployment production](https://vercel.com/docs/deployments/environments#first-deployment),
-even when preview is requested. Before a preview, Paperclip checks that the
+even when preview is requested. Before a preview, Nexus checks that the
 project has at least one existing deployment. Failed and canceled deployments
 count. An empty project is rejected before submission with
 `vercel_preview_requires_existing_deployment`; initialize it with an explicitly
@@ -127,7 +127,7 @@ The check cannot prevent an external actor from deleting every deployment
 between inspection and submission. If a preview response has a production or
 unrecognized target, the adapter preserves its deployment ID in a
 `reconciliationRequired` receipt with `vercel_deployment_target_mismatch`.
-Inspect that deployment before any retry. Paperclip does not automatically retry,
+Inspect that deployment before any retry. Nexus does not automatically retry,
 delete the result, or change deployment protection.
 
 The adapter submits one deployment request and returns its ID, URL and state. A
@@ -163,7 +163,7 @@ The database-backed lifecycle suite is
 `server/src/__tests__/deployment-connections.test.ts`.
 
 Account-bound live proof passed on 2026-10-22 with an approved, one-hour token
-and disposable projects in an isolated local Paperclip instance. Actual process
+and disposable projects in an isolated local Nexus instance. Actual process
 agent runs used the run-scoped gateway to list projects, create a project, write
 a synthetic preview environment secret, read back metadata without its value,
 and create a preview deployment that reached `READY`. The signed-in browser
@@ -200,8 +200,8 @@ approval payloads with the instance tool-action signing secret. Approval summari
 and audit still use redacted values. Existing signed approval records remain
 readable and are not rewritten. Sensitive request identities also use this key
 to distinguish secret replacements without storing guessable secret hashes.
-The configured `PAPERCLIP_TOOL_ACTION_SIGNING_SECRET` takes precedence. When unset,
-Paperclip derives a separate signing key from its persisted secrets master key,
+The configured `NEXUS_TOOL_ACTION_SIGNING_SECRET` takes precedence. When unset,
+Nexus derives a separate signing key from its persisted secrets master key,
 using the configured master-key environment value or durable key file. Key rotation
 can invalidate retry matching; back up the configured signing key or master key
 with the database, and share that key across processes serving the same instance.

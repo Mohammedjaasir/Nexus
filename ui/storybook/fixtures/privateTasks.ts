@@ -4,7 +4,7 @@ import type {
   IssueAccessGrant,
   Project,
   ProjectAccessMember,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import type { CurrentBoardAccess } from "@/api/access";
 import {
   storybookAgents,
@@ -14,7 +14,7 @@ import {
   storybookProjects,
   storybookSidebarBadges,
   storybookDashboardSummary,
-} from "./paperclipData";
+} from "./nexusData";
 
 export const privacyCompanyId = "company-storybook";
 export const privacyOwnerId = "user-board";
@@ -345,7 +345,7 @@ export type PrivacyState = ReturnType<typeof createPrivacyState>;
 export function installPrivacyApi(state: PrivacyState) {
   const previous = window.fetch;
   const failed = new Set<string>();
-  const draftKey = `paperclip:issue-draft:${state.user.id}`;
+  const draftKey = `nexus:issue-draft:${state.user.id}`;
   const oldDraft = localStorage.getItem(draftKey);
   localStorage.removeItem(draftKey);
   if (state.options.draft)

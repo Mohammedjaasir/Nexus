@@ -24,16 +24,16 @@ Official documentation and public endpoint discovery checked September 24, 2026.
 | [Zep](https://help.getzep.com/memory-mcp-server) | Remote MCP, `https://api.getzep.com/mcp`, OAuth | Configure Memory MCP and the identity provider in Zep first. A project administrator assigns MCP seats and shared graphs. Sign in with the assigned work identity. An ordinary Zep API key is not the credential for this endpoint. |
 | [Supermemory](https://supermemory.ai/docs/supermemory-mcp/mcp) | Remote MCP, `https://mcp.supermemory.ai/mcp`, OAuth | Sign in and select the workspace, read/write access, and optional container tags offered by Supermemory. Developer API keys are separate from hosted MCP sign-in. |
 | [Cognee](https://docs.cognee.ai/cognee-cloud/connections/cloud-mcp) | Bundled Cloud API bridge, Cloud API key | Copy the tenant API Base URL and key from Cognee Cloud → API Keys. Requires an active Cloud workspace. The bundled bridge works in public deployments without a local MCP runtime host. |
-| [Honcho](https://honcho.dev/docs/v3/guides/integrations/mcp) | Remote MCP, `https://mcp.honcho.dev`, Bearer API key | Create an organization and API key in the Honcho dashboard. Configure the required workspace in Paperclip; it is projected into workspace-scoped tool arguments. Peer and session selectors follow provider/task context. |
+| [Honcho](https://honcho.dev/docs/v3/guides/integrations/mcp) | Remote MCP, `https://mcp.honcho.dev`, Bearer API key | Create an organization and API key in the Honcho dashboard. Configure the required workspace in Nexus; it is projected into workspace-scoped tool arguments. Peer and session selectors follow provider/task context. |
 
 Zep and Supermemory use user grants, the existing PKCE OAuth broker, and automatic
 client registration/discovery. Zep advertises its authorization server at
 `https://api.getzep.com/v1/oauth`, with `graph:read graph:write` scopes.
 Supermemory advertises `https://api.supermemory.ai/api/auth`, with
-`openid profile email offline_access`. Neither requires Paperclip ID or a new
-Paperclip-hosted credential service.
+`openid profile email offline_access`. Neither requires Nexus ID or a new
+Nexus-hosted credential service.
 
-Cognee does not advertise a hosted MCP endpoint. Paperclip bundles a narrow
+Cognee does not advertise a hosted MCP endpoint. Nexus bundles a narrow
 Cloud API bridge for `remember`, `recall`, and `forget`, matching the reviewed
 remote-mode contract from `cognee-mcp` 0.5.5. The existing approved template ID
 and credential paths remain compatible, but no process or package manager runs:
@@ -60,7 +60,7 @@ config, manifests, logs, fixtures, or Storybook. Personal credentials stay on
 personal grants; organization credentials stay on the organization grant.
 The local stdio gateway projects only the approved template's environment keys.
 
-Provider resource selectors are not new Paperclip-enforced tenant filters. The
+Provider resource selectors are not new Nexus-enforced tenant filters. The
 provider's key, OAuth consent, and ACLs determine its accessible data. Configure
 agent access and action policies accordingly; do not claim that a user ID,
 workspace name, dataset, or space argument by itself enforces isolation.
@@ -103,7 +103,7 @@ five connected providers (82 tools total).
 Live observations from the isolated `codex/memory-connectors` checkout:
 
 - Mem0: API key created; live setup discovered 11 tools. Search succeeded through
-  Paperclip. An `add_memory` call with synthetic notebook text waited for **Ask
+  Nexus. An `add_memory` call with synthetic notebook text waited for **Ask
   first**, then executed after **Allow once**, with both decisions in the audit log.
 - Supermemory: Google sign-in and developer API key creation completed. Hosted
   MCP OAuth connected separately with read-only consent restricted to the test
@@ -112,13 +112,13 @@ Live observations from the isolated `codex/memory-connectors` checkout:
 - Cognee: API key created and Cloud access verified. The official pinned MCP
   client stored synthetic notebook text in a dedicated test dataset and recalled
   it after indexing completed. Personal setup exposes the three reviewed tools.
-  Paperclip gateway recall returned the expected blue notebook fact (10.6s).
+  Nexus gateway recall returned the expected blue notebook fact (10.6s).
   A nonexistent test dataset returned a tool error, correctly recorded as failure.
 - Zep: Google signup and the isolated `Memory connector test` project are ready.
   Its project API key is saved in `~/.secrets` (mode 0600), separately from the
   hosted MCP OAuth grant. Enabled Google Workspace MCP with writes allowed and
   automatic user creation disabled; created only the matching test user using
-  the documented API. Paperclip dynamic registration and the explicitly approved
+  the documented API. Nexus dynamic registration and the explicitly approved
   `graph:read` / `graph:write` grant completed. Live discovery returned 12 tools.
   The Codex browser's automated form submission stalled; a fresh flow and the
   user's final consent click completed authorization.
@@ -132,8 +132,8 @@ All five providers now have authenticated managed-tool E2E evidence. Supermemory
 now also has verified scoped writes and semantic recall, as recorded below. Discovery does
 not establish that every individual tool or advanced provider feature was tested.
 No real memories were uploaded for testing. The synthetic Cognee dataset is
-`paperclip_memory_connector_smoke_20260924`; the Mem0 test user and Supermemory
-consent tag are `paperclip-memory-smoke-20260924`.
+`nexus_memory_connector_smoke_20260924`; the Mem0 test user and Supermemory
+consent tag are `nexus-memory-smoke-20260924`.
 
 ### Real agent tasks
 
@@ -152,10 +152,10 @@ tools and retrieved the approved Mem0 memory.
 - **MEM-1 / Mem0:** browser-created task requested a synthetic write, paused for
   **Ask first**, and resumed after the board clicked **Approve & run**. The write
   executed once and `search_memories` retrieved the same memory ID and exact
-  silver compass fact under user `paperclip-memory-task-e2e-20260924`.
+  silver compass fact under user `nexus-memory-task-e2e-20260924`.
 - **MEM-2 / Cognee:** the task called `remember` and `recall` through the managed
   stdio gateway. The provider returned the amber telescope fact from dedicated
-  dataset `paperclip_memory_task_e2e_20260924` on the first recall.
+  dataset `nexus_memory_task_e2e_20260924` on the first recall.
 - **MEM-3 / Supermemory:** read-only search succeeded within the consented tag
   with an honest zero-result response; one out-of-scope search returned the
   provider's explicit 403 denial. This does not test memory writes under
@@ -177,7 +177,7 @@ tools and retrieved the approved Mem0 memory.
   OAuth. After restart, run `f8498aa1-5c84-48f5-8a94-3b603ea30e9a` made seven
   successful managed calls: list/create workspace, create peer/session, add the
   peer, add a message, and retrieve messages. Dedicated workspace
-  `paperclip-memory-e2e-20260924`, peer `synthetic-test-explorer`, session
+  `nexus-memory-e2e-20260924`, peer `synthetic-test-explorer`, session
   `synthetic-observatory-session`, message `q3nOttElad3g_JACmizQd` returned the
   exact violet sundial fact. No approval or provider errors occurred on the
   successful run. Its initial discovery still reflected the earlier failed
@@ -187,13 +187,13 @@ All tools default to **Allowed**, including writes and destructive actions.
 The temporary Mem0 **Ask first** test override was removed after the approval
 test. Effective agent access was checked again: Mem0 11/11, Cognee 3/3,
 Supermemory 16/16, Zep 12/12, and Honcho 40/40 allowed, with zero ask-first or
-off actions. Provider OAuth consent remains a separate boundary from Paperclip
+off actions. Provider OAuth consent remains a separate boundary from Nexus
 tool permissions.
 
 ### Daytona sandbox verification (September 24, 2026)
 
 Browser-created **MEM-6** runs the same three connected providers through a
-native `paperclip_runner` Codex agent in a real Daytona Linux x86_64 sandbox.
+native `nexus_runner` Codex agent in a real Daytona Linux x86_64 sandbox.
 The acceptance task uses only synthetic data and managed tools: a Mem0 copper
 lantern fact, a dedicated Cognee dataset, and Supermemory searches inside and
 outside the existing read-only consent. This first run predates Zep and Honcho
@@ -205,9 +205,9 @@ The immutable sandbox image is
 The remote runner binary was extracted from that image (SHA-256
 `5067194e4a4eff0946e312b162e78a46184dae49c29f5699be81fec6cfd0b9d7`).
 The first attempt failed before provider startup because a macOS host needs
-`PAPERCLIP_RUNNER_REMOTE_BINARY_PATH` pointing to a Linux binary. After configuring
+`NEXUS_RUNNER_REMOTE_BINARY_PATH` pointing to a Linux binary. After configuring
 it, PRP authenticated through Daytona provider ingress and the agent executed in
-`/home/daytona/paperclip-workspace` as the `daytona` user.
+`/home/daytona/nexus-workspace` as the `daytona` user.
 
 That retry did **not** pass connector acceptance: its assigned MCP URL pointed to
 the local host's loopback address, which means the sandbox itself when used
@@ -232,9 +232,9 @@ Task-scoped gateway audit records independently confirm six calls:
 
 - Mem0 `add_memory` stored the exact copper lantern fact with `infer=false`;
   `search_memories` returned the same ID (`ba30eea2-f68b-4873-acbe-a59dae98ed75`)
-  under user `paperclip-memory-daytona-e2e-20260924`.
+  under user `nexus-memory-daytona-e2e-20260924`.
 - Cognee `remember` accepted the dedicated
-  `paperclip_memory_daytona_e2e_20260924` dataset, and `recall` returned the fact
+  `nexus_memory_daytona_e2e_20260924` dataset, and `recall` returned the fact
   on the first attempt. Its stdio provider process remains on the control plane;
   the Daytona agent calls it through PRP.
 - Supermemory `search_memory` succeeded within the existing consented tag with
@@ -264,7 +264,7 @@ successful provider calls across all five providers**:
   the exact message `e7g4wGXfWR5_rdb4bk6zN`.
 
 The agent confirmed Linux x86_64, user `daytona`, and working directory
-`/home/daytona/paperclip-workspace`. No unexpected approval or connector error
+`/home/daytona/nexus-workspace`. No unexpected approval or connector error
 occurred. The control plane relayed all managed provider calls through the native
 runner channel, with no provider keys in the agent environment or public tunnel.
 All five connections finished healthy. The original local test-agent configuration
@@ -315,9 +315,9 @@ These are simulated provider journeys and do not replace live account tests.
 ### Supermemory write completion (September 24)
 
 The original read-only grant was replaced through the browser with a new
-read/write OAuth grant restricted to `paperclip-memory-smoke-20260924` and the
+read/write OAuth grant restricted to `nexus-memory-smoke-20260924` and the
 same test agent. The old local connection was removed. `who_am_i` independently
-returned scoped `permission: write`; all 16 Paperclip tools remain Allowed.
+returned scoped `permission: write`; all 16 Nexus tools remain Allowed.
 
 Local run `fb67a991-2960-47e5-8f79-94282c65d2ec` saved the exact synthetic fact
 “The Supermemory test navigator keeps a turquoise compass in a maple cabinet.”
@@ -340,13 +340,13 @@ sandbox `6a9723dd-972e-4933-b227-6b8e7e2133ae` was deleted and verified absent.
 The final implementation was retested after replacing the external MCP client
 with the bundled Cloud bridge. Local managed write run
 `16e7820c-2a94-41d9-8d7b-abe6524edf01` stored the bronze-telescope fact in
-`paperclip_memory_bundled_bridge_20260924`; the immediate recall did not yet
+`nexus_memory_bundled_bridge_20260924`; the immediate recall did not yet
 prove indexing completion. Follow-up run `8e12cad1-f2f4-4471-a790-d589ffa050b7`
 returned “He keeps a bronze telescope in a birch observatory.”
 
 Final Daytona run `a56f9f97-3fb3-498c-abf6-974ddc7d5d30` independently recalled
 that fact, then stored “The Daytona Cognee test cartographer keeps a silver
-globe in a cedar study.” in `paperclip_memory_daytona_bridge_20260924`.
+globe in a cedar study.” in `nexus_memory_daytona_bridge_20260924`.
 The provider returned dataset `9518ab46-e777-5f38-994b-9ceabfff4856`, then graph
 recall returned the silver globe and cedar study. Every call used the native
 runner relay and reported `transport: cognee_cloud`, `spawnedLocalProcess: false`.

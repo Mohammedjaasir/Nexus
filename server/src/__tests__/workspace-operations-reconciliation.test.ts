@@ -10,9 +10,9 @@ import {
   executionWorkspaces,
   projects,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { eq } from "drizzle-orm";
-import { subscribeDatabaseWork } from "@paperclipai/db/work-signals";
+import { subscribeDatabaseWork } from "@nexusai/db/work-signals";
 import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { getWorkspaceOperationLogStore } from "../services/workspace-operation-log-store.js";
 import {
@@ -68,7 +68,7 @@ describe("workspace runtime control serialization", () => {
   });
 });
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_WORKSPACE_OPERATIONS_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_WORKSPACE_OPERATIONS_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -85,9 +85,9 @@ describeEmbeddedPostgres("workspace operation reconciliation", () => {
   let previousLogRoot: string | undefined;
 
   beforeAll(async () => {
-    if (!externalUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-workspace-operation-reconcile-");
+    if (!externalUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-workspace-operation-reconcile-");
     db = createDb(externalUrl ?? tempDb!.connectionString);
-    logRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-operation-logs-"));
+    logRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-workspace-operation-logs-"));
     previousLogRoot = process.env.WORKSPACE_OPERATION_LOG_BASE_PATH;
     process.env.WORKSPACE_OPERATION_LOG_BASE_PATH = logRoot;
   }, 20_000);
@@ -333,7 +333,7 @@ describeEmbeddedPostgres("workspace operation reconciliation", () => {
   });
 
   describe("when the operation log file cannot be written", () => {
-    // The log file is created, then every append hits a full disk (PAPERCLIP-BACKEND-4H).
+    // The log file is created, then every append hits a full disk (NEXUS-BACKEND-4H).
     function failLogAppends() {
       const enospc = Object.assign(new Error("ENOSPC: no space left on device, write"), {
         code: "ENOSPC",

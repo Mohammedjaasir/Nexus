@@ -10,18 +10,18 @@ import { REGENERABLE_WORKSPACE_DIR_NAMES } from "./workspace-compaction.js";
 
 const execFile = promisify(execFileCallback);
 
-export const RESTORE_POINT_PAYLOAD_SCHEMA = "paperclip.git-restore-point-payload.v1";
-export const RESTORE_POINT_PAYLOAD_SCHEMA_V2 = "paperclip.git-restore-point-payload.v2";
+export const RESTORE_POINT_PAYLOAD_SCHEMA = "nexus.git-restore-point-payload.v1";
+export const RESTORE_POINT_PAYLOAD_SCHEMA_V2 = "nexus.git-restore-point-payload.v2";
 const PAYLOAD_MAGIC = Buffer.from("PCRP-PLAIN1\n");
 const SEALED_MAGIC = Buffer.from("PCRP1");
-const KEY_SCHEMA = "paperclip.git-restore-point-key.v1";
+const KEY_SCHEMA = "nexus.git-restore-point-key.v1";
 const SHA = /^[0-9a-f]{40}$/;
 const SNAPSHOT_IDENTITY = {
-  GIT_AUTHOR_NAME: "Paperclip",
-  GIT_AUTHOR_EMAIL: "restore-point@paperclip.invalid",
+  GIT_AUTHOR_NAME: "Nexus",
+  GIT_AUTHOR_EMAIL: "restore-point@nexus.invalid",
   GIT_AUTHOR_DATE: "@0 +0000",
-  GIT_COMMITTER_NAME: "Paperclip",
-  GIT_COMMITTER_EMAIL: "restore-point@paperclip.invalid",
+  GIT_COMMITTER_NAME: "Nexus",
+  GIT_COMMITTER_EMAIL: "restore-point@nexus.invalid",
   GIT_COMMITTER_DATE: "@0 +0000",
 };
 const EXCLUDED_UNTRACKED = [":(exclude,glob)**/.env", ":(exclude,glob)**/.env.*"];
@@ -60,7 +60,7 @@ export type RestorePointSnapshot = { head: string; index: string | null; worktre
 export function restorePointSavesIgnoredFile(file: string) {
   const parts = file.split("/").filter(Boolean);
   if (parts.length === 0 || /^\.env(\..*)?$/.test(parts[parts.length - 1]!)) return false;
-  if (parts[0] === ".paperclip-repositories" || file === ".claude/settings.local.json") return false;
+  if (parts[0] === ".nexus-repositories" || file === ".claude/settings.local.json") return false;
   return !parts.slice(0, -1).some(part => REGENERABLE_WORKSPACE_DIR_NAMES.has(part));
 }
 
@@ -318,10 +318,10 @@ async function snapshotCommits(cwd: string, env: Record<string, string>, tempora
   const headTree = await gitText(cwd, ["rev-parse", "HEAD^{tree}"], { signal });
   const { indexTree, worktreeTree, ignoredTree } = await snapshotTrees(cwd, env, temporary, signal);
   const ignored = ignoredTree
-    ? await gitText(cwd, ["commit-tree", ignoredTree, "-p", head, "-m", "paperclip restore point ignored files"], { env, signal }) : null;
+    ? await gitText(cwd, ["commit-tree", ignoredTree, "-p", head, "-m", "nexus restore point ignored files"], { env, signal }) : null;
   if (indexTree === headTree && worktreeTree === headTree) return { head, index: null, worktree: null, ignored, modes: ignored ? modes : [] };
-  const index = await gitText(cwd, ["commit-tree", indexTree, "-p", head, "-m", "paperclip restore point index"], { env, signal });
-  const worktree = await gitText(cwd, ["commit-tree", worktreeTree, "-p", head, "-p", index, "-m", "paperclip restore point worktree"], { env, signal });
+  const index = await gitText(cwd, ["commit-tree", indexTree, "-p", head, "-m", "nexus restore point index"], { env, signal });
+  const worktree = await gitText(cwd, ["commit-tree", worktreeTree, "-p", head, "-p", index, "-m", "nexus restore point worktree"], { env, signal });
   return { head, index, worktree, ignored, modes };
 }
 
@@ -336,7 +336,7 @@ const UNBOUNDED_LIMITS: RestorePointLimits = {
 export async function currentRestorePointSnapshot(input: string, signal?: AbortSignal): Promise<RestorePointSnapshot> {
   const cwd = await fs.realpath(input);
   const { modes } = await scanChangedPaths(cwd, UNBOUNDED_LIMITS, signal);
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-restore-point-"));
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-restore-point-"));
   try {
     const { env } = await snapshotStore(cwd, temporary);
     return await snapshotCommits(cwd, env, temporary, modes, signal);
@@ -423,7 +423,7 @@ export async function captureRestorePoint(input: {
   const limits = { ...DEFAULT_RESTORE_POINT_LIMITS, ...input.limits };
   const cwd = await fs.realpath(input.cwd);
   const { modes } = await scanChangedPaths(cwd, limits, input.signal);
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-restore-point-"));
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-restore-point-"));
   try {
     const { store, env } = await snapshotStore(cwd, temporary);
     const snapshot = await snapshotCommits(cwd, env, temporary, modes, input.signal);
@@ -470,7 +470,7 @@ export async function captureRestorePoint(input: {
 
 export async function importRestorePoint(input: { repositoryCwd: string; payload: Buffer; signal?: AbortSignal }) {
   const { manifest, bundle } = decodeRestorePointPayload(input.payload);
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-restore-point-"));
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-restore-point-"));
   try {
     const bundlePath = path.join(temporary, "restore.bundle");
     await fs.writeFile(bundlePath, bundle, { mode: 0o600 });
@@ -494,9 +494,9 @@ export async function importRestorePoint(input: { repositoryCwd: string; payload
     }
     if (listed.size > 0) {
       await git(input.repositoryCwd, ["fetch", "-q", "--no-tags", "--no-write-fetch-head", bundlePath,
-        ...[...listed].map((ref) => `${ref}:refs/paperclip-restore-import/${ref!.slice("refs/restore/".length)}`)], { signal: input.signal });
+        ...[...listed].map((ref) => `${ref}:refs/nexus-restore-import/${ref!.slice("refs/restore/".length)}`)], { signal: input.signal });
     }
-    await git(input.repositoryCwd, ["for-each-ref", "--format=delete %(refname)", "refs/paperclip-restore-import/"], { signal: input.signal })
+    await git(input.repositoryCwd, ["for-each-ref", "--format=delete %(refname)", "refs/nexus-restore-import/"], { signal: input.signal })
       .then((output) => git(input.repositoryCwd, ["update-ref", "--stdin"], { input: output, signal: input.signal }));
     return manifest;
   } finally {

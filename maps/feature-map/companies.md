@@ -40,7 +40,7 @@ and Prompt Injection Prevention, independent of experimental flags. Fast respons
 appears there only when its experiment is enabled.
 Open the Decisions and Fast responses tabs in Costs to inspect invocation history.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use two disposable companies and a small package fixture. Record cloud-managed restrictions and visible settings gates.
 

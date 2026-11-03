@@ -1,6 +1,6 @@
 import { QueryBuilder } from "drizzle-orm/pg-core";
 import { and, asc, eq, exists, gt, inArray, isNotNull, isNull, notExists, or, sql } from "drizzle-orm";
-import { heartbeatRunEvents, heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults, statusDecisions, statusDecisionEffects } from "@paperclipai/db";
+import { heartbeatRunEvents, heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults, statusDecisions, statusDecisionEffects } from "@nexusai/db";
 import type { NativeResponsePresentationScope } from "../native-response-presentation-notifications.js";
 
 export function nativeResponsePresentationCandidates(scope?: NativeResponsePresentationScope, after?: string, runId?: string) {
@@ -25,7 +25,7 @@ export function nativeResponsePresentationCandidates(scope?: NativeResponsePrese
       sql`coalesce(${heartbeatRuns.resultJson} #> '{presentationDecision,commentAction}', '"create"'::jsonb) = '"create"'::jsonb`,
       sql`${heartbeatRuns.contextSnapshot}->'skipIssueComment' is distinct from 'true'::jsonb`,
       sql`coalesce(${statusDecisions.decisionJson}->'externalChatReviewPresentation', 'null'::jsonb) in ('null'::jsonb, 'false'::jsonb, '0'::jsonb, '""'::jsonb)`,
-      sql`${nativeRunResults.resultJson} #>> '{result,schema}' = 'paperclip.run_result.v1'`,
+      sql`${nativeRunResults.resultJson} #>> '{result,schema}' = 'nexus.run_result.v1'`,
       sql`${nativeRunResults.resultJson} #>> '{terminal,runTerminalState}' = 'succeeded'`,
       sql`${nativeRunResults.resultJson} #>> '{terminal,turnTerminalState}' = 'completed'`,
       or(

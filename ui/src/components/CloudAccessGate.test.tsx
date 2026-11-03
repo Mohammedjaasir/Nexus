@@ -16,7 +16,7 @@ vi.mock("@/lib/router", () => ({
   Navigate: ({ to }: { to: string }) => <div data-redirect={to} />,
   Outlet: () => <textarea aria-label="Instructions" defaultValue="Unsaved instructions" />,
 }));
-vi.mock("@/components/AnimatedPaperclipIcon", () => ({ PaperclipLoading: () => <div>Loading…</div> }));
+vi.mock("@/components/AnimatedNexusIcon", () => ({ NexusLoading: () => <div>Loading…</div> }));
 vi.mock("@/components/CloudSignIn", () => ({ CloudSignIn: () => <div>Sign in to Cloud</div> }));
 vi.mock("@/components/BootstrapPendingPage", () => ({ BootstrapPendingPage: () => <div>Set up instance</div> }));
 
@@ -107,7 +107,7 @@ describe("CloudAccessGate restart recovery", () => {
   it.each(checks)("recovers from an HTML response on %s without navigating", async (path) => {
     failingPath = path;
     await render();
-    expect(container.textContent).toContain("Reconnecting to Paperclip");
+    expect(container.textContent).toContain("Reconnecting to Nexus");
     expect(container.textContent).not.toContain("Unexpected token");
     expect(container.querySelector("[data-redirect]")).toBeNull();
     expect(container.querySelector("textarea")).toBeNull();
@@ -157,7 +157,7 @@ describe("CloudAccessGate restart recovery", () => {
     focusManager.setFocused(false);
     failingPath = path;
     await render();
-    expect(container.textContent).toContain("Reconnecting to Paperclip");
+    expect(container.textContent).toContain("Reconnecting to Nexus");
     failingPath = null;
     await waitForReconnect();
     focusManager.setFocused(true);
@@ -221,7 +221,7 @@ describe("CloudAccessGate restart recovery", () => {
   it("retries a dropped connection and opens the requested page when it returns", async () => {
     fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     await render();
-    expect(container.textContent).toContain("Reconnecting to Paperclip");
+    expect(container.textContent).toContain("Reconnecting to Nexus");
     await vi.advanceTimersByTimeAsync(5_100);
     await flushReact();
     expect(container.querySelector("textarea")).not.toBeNull();
@@ -248,7 +248,7 @@ describe("CloudAccessGate restart recovery", () => {
     failure = () => Response.json({ error: "Forbidden" }, { status: 403 });
     await client.refetchQueries({ queryKey: queryKeys.access.currentBoardAccess });
     await flushReact();
-    expect(container.textContent).toContain("Unable to load Paperclip");
+    expect(container.textContent).toContain("Unable to load Nexus");
     expect(container.textContent).not.toContain("reconnect automatically");
     expect(container.querySelector("textarea")).toBeNull();
     const calls = fetchMock.mock.calls.length;

@@ -1,4 +1,4 @@
-import { agentConfigurationDocumentSchema, agentConfigurationInputSchema, type AgentConfigurationInput } from "@paperclipai/shared";
+import { agentConfigurationDocumentSchema, agentConfigurationInputSchema, type AgentConfigurationInput } from "@nexusai/shared";
 import { equal, profileConfiguration, type AgentConfigurationSnapshot } from "./load";
 import { requireItem } from "./steps";
 

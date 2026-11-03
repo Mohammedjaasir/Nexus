@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
-import { createDb, companies, toolActionRequests, toolCatalogEntries, toolConnections, toolInvocations } from "@paperclipai/db";
+import { createDb, companies, toolActionRequests, toolCatalogEntries, toolConnections, toolInvocations } from "@nexusai/db";
 import { startRecoveryPostgres } from "./helpers/recovery-postgres.js";
 import { createConnectionReviewCountsFixture } from "./helpers/tool-connection-review-counts-fixture.js";
 import { createToolAppAttention } from "../services/tool-access/catalog/attention.js";

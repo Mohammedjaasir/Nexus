@@ -54,7 +54,7 @@ function admissionFixture() {
   for (const key of ["sourceInstanceId", "sourceEventId", "sourceSeq", "sourcePayloadSha256", "protocolSchemaVersion"]) event[key] = null;
   const stopped = { id: identity.stopId, companyId: identity.companyId, agentId: identity.agentId,
     nativeIssueId: identity.issueId, contextSnapshot: { issueId: identity.issueId }, runtimeMode: "native", status: "cancelled", finishedAt: "2026-10-30T00:00:01Z",
-    resultJson: { nativeCancellation: { schema: "paperclip.native-cancellation.v1", runId: identity.stopId,
+    resultJson: { nativeCancellation: { schema: "nexus.native-cancellation.v1", runId: identity.stopId,
       companyId: identity.companyId, issueId: identity.issueId, scope: "run", reasonCode: "cancellation_run_only",
       dispatchState: "acknowledged", dispatched: true } } };
   const seed = { ...stopped, id: "10000000-0000-4000-8000-000000000009", status: "succeeded", resultJson: {} };
@@ -69,9 +69,9 @@ function admissionFixture() {
       automaticRecovery: { policy: "preserve_without_replay_v1", replay: "explicit_user_continuation", runId: identity.stopId },
       explicitUserContinuation: { previousRunId: identity.stopId, commentId: identity.commentId, actorId: "board",
         runId: reset.id, queuedCommentRequestId: identity.wakeId, commentBodyHash: createHash("sha256").update("/new").digest("hex") },
-      systemRecovery: { schema: "paperclip.system-recovery.v1", sourceRunId: identity.stopId, state: "complete",
+      systemRecovery: { schema: "nexus.system-recovery.v1", sourceRunId: identity.stopId, state: "complete",
         phase: "reconcile_effects", preservationOperationIds: ["10000000-0000-4000-8000-000000000012"] },
-      workspaceRecovery: { schema: "paperclip.workspace-recovery.v1", runId: identity.stopId, status: "recovered" } } };
+      workspaceRecovery: { schema: "nexus.workspace-recovery.v1", runId: identity.stopId, status: "recovered" } } };
   return { row, event, final: { runs: [seed, stopped, row, reset, fresh],
     runEvidence: [{ runId: row.id, log: null, logOmissionReason: "pre_dispatch_execution_wait", events: [event] }],
     companyId: identity.companyId, agentId: identity.agentId, stoppedRunId: identity.stopId,
@@ -80,7 +80,7 @@ function admissionFixture() {
     comments: [{ id: identity.commentId, companyId: identity.companyId, issueId: identity.issueId, body: "/new",
       authorType: "user", deletedAt: null, authorUserId: "board", authorAgentId: null, createdByRunId: null, createdAt: "2026-10-30T00:00:02Z" }],
     recoverySources: [{ runId: identity.stopId, recoveryActionId: identity.actionId, response: { actions: [action],
-      sourceInspection: { schema: "paperclip.workspace-source-inspection.v1", actionId: identity.actionId,
+      sourceInspection: { schema: "nexus.workspace-source-inspection.v1", actionId: identity.actionId,
         runId: identity.stopId, scope: "recorded_source_identity", status: "verified" } } }] } };
 }
 

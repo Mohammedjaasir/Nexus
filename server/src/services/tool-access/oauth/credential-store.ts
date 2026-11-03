@@ -3,9 +3,9 @@ import type { ActorInfo, DbTransaction, ToolAccessMutationDb } from "../types.js
 import { oauthConfig } from "./metadata.js";
 import { syncConnectionCredentialBindings } from "../../connection-credential-bindings.js";
 import { and, eq, inArray } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { connectionGrants, toolConnections } from "@paperclipai/db";
-import type { ToolConnection, ToolCredentialSecretRef } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { connectionGrants, toolConnections } from "@nexusai/db";
+import type { ToolConnection, ToolCredentialSecretRef } from "@nexusai/shared";
 import { notFound } from "../../../errors.js";
 import { secretService } from "../../secrets.js";
 import { resolveConnectionGrantSecret, writeConnectionCredential } from "../../connection-credentials.js";

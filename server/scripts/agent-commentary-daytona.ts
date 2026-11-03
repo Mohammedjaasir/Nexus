@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { parse } from "dotenv";
-import { environmentLeases, environments, type Db } from "@paperclipai/db";
+import { environmentLeases, environments, type Db } from "@nexusai/db";
 import { eq } from "drizzle-orm";
-import type { AdapterSandboxExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
+import type { AdapterSandboxExecutionTarget } from "@nexusai/adapter-utils/execution-target";
 import { readEnvironmentCreationCleanupError, type PluginEnvironmentCreationCleanup,
-  type PluginEnvironmentLease, type PluginEnvironmentTerminationReceipt } from "@paperclipai/plugin-sdk";
+  type PluginEnvironmentLease, type PluginEnvironmentTerminationReceipt } from "@nexusai/plugin-sdk";
 
 export async function acquireDaytonaLeaseWithCleanup(input: {
   companyId: string; environmentId: string; runId: string;
@@ -30,10 +30,10 @@ export async function acquireDaytonaLeaseWithCleanup(input: {
 export async function acquireCommentaryDaytonaTarget(db: Db, fixture: {
   companyId: string; agentId: string; issueId: string; runId: string;
 }, mode: "legacy" | "native") {
-  const envFile = process.env.PAPERCLIP_LIVE_DAYTONA_ENV_FILE;
+  const envFile = process.env.NEXUS_LIVE_DAYTONA_ENV_FILE;
   const env = envFile ? parse(await readFile(envFile)) : process.env;
   const apiKey = env.DAYTONA_API_KEY;
-  const image = env.PAPERCLIP_E2E_DAYTONA_IMAGE;
+  const image = env.NEXUS_E2E_DAYTONA_IMAGE;
   assert.ok(apiKey, "DAYTONA_API_KEY required");
   assert.match(image ?? "", /@sha256:[a-f0-9]{64}$/, "Immutable Daytona image required");
   // Import only for explicit remote execution; the optional provider is not a server dependency.
@@ -49,7 +49,7 @@ export async function acquireCommentaryDaytonaTarget(db: Db, fixture: {
   console.error(`Acquiring disposable ${mode} Daytona sandbox.`);
   const lease = await acquireDaytonaLeaseWithCleanup({ ...fixture, environmentId,
     acquire: () => hooks.onEnvironmentAcquireLease!({ ...base, runId: fixture.runId, agentId: fixture.agentId,
-      adapterType: mode === "legacy" ? "codex_local" : "paperclip_runner",
+      adapterType: mode === "legacy" ? "codex_local" : "nexus_runner",
       requestedExpiresAt: new Date(Date.now() + 20 * 60_000).toISOString() }),
     destroy: cleanup => hooks.onEnvironmentDestroyLease!({ ...base, providerLeaseId: cleanup.providerLeaseId,
       leaseMetadata: { failedCreateCleanup: cleanup } }),

@@ -4,7 +4,7 @@ Fast response is an optional company service that acknowledges an accepted human
 
 The direct Vercel AI SDK service supports OpenAI Responses, Anthropic Messages, Google, xAI, OpenRouter, Bedrock, and connection-configured Responses, Messages, Chat Completions, and local endpoints. Routing, region, endpoint and authentication come from the saved connection. Model choices reuse existing catalogs; custom endpoints permit manual IDs. Decision-model execution is independent.
 
-**Allow company-sponsored fast responses** defaults on. It covers accepted external senders without linked Paperclip users. A linked user must retain both task access and connection audience permission; denial never falls back to sponsorship. Connection management permissions govern settings, model selection and tests. Costs history uses company cost visibility, with task links checked separately.
+**Allow company-sponsored fast responses** defaults on. It covers accepted external senders without linked Nexus users. A linked user must retain both task access and connection audience permission; denial never falls back to sponsorship. Connection management permissions govern settings, model selection and tests. Costs history uses company cost visibility, with task links checked separately.
 
 ## Accepted turns and receipts
 
@@ -45,4 +45,4 @@ Company-scoped endpoints under `/api/companies/:companyId/fast-response`:
 
 Provider-contract tests use the real SDK adapters with mocked HTTP, including endpoint/auth/model/output/token/abort/error behavior. Database tests cover deduplication, simultaneous workers, provenance, completion isolation, revoked audience access, real-reply races, source mutation/deletion/cancellation/reassignment, retained charges and unknown billing. Stories cover configured, disabled, revoked, testing, timeout, result and mobile settings states.
 
-Live OpenRouter latency, prompt quality and complete Paperclip/Slack/GitHub journeys are a separate evidence category. Passing contract tests does not establish those live results. Live verification requires an authorized OpenRouter connection and designated channel test destinations.
+Live OpenRouter latency, prompt quality and complete Nexus/Slack/GitHub journeys are a separate evidence category. Passing contract tests does not establish those live results. Live verification requires an authorized OpenRouter connection and designated channel test destinations.

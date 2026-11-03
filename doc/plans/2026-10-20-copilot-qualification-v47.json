@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.copilot.production-qualification.v1",
+  "schema": "nexus.copilot.production-qualification.v1",
   "recordedAt": "2026-10-20",
   "productionReady": false,
   "merged": false,

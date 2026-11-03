@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { ExecutionWorkspace } from "@paperclipai/shared";
+import type { ExecutionWorkspace } from "@nexusai/shared";
 import { inspectManagedGitWorktreeBranch, WorkspaceRuntimeValidationFailure } from "./workspace-runtime.js";
 import type { ManagedGitInspectionDiagnostic, PersistedWorkspaceSourceReasonCode } from "./workspace-validation-diagnostics.js";
 

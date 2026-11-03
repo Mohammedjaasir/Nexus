@@ -113,8 +113,8 @@ one-child-per-parent selection.
 Run the focused tests with the repository's normal PostgreSQL test support:
 
 ```sh
-pnpm --filter @paperclipai/server exec vitest run src/__tests__/task-list-projection-query.test.ts
-pnpm --filter @paperclipai/db exec vitest run src/task-list-activity-index-migration.test.ts src/voice-inbound-cleanup-migration.test.ts src/question-response-history-migration.test.ts
+pnpm --filter @nexusai/server exec vitest run src/__tests__/task-list-projection-query.test.ts
+pnpm --filter @nexusai/db exec vitest run src/task-list-activity-index-migration.test.ts src/voice-inbound-cleanup-migration.test.ts src/question-response-history-migration.test.ts
 ```
 
 The query harness is `server/scripts/benchmark-task-list-projection.ts`. It

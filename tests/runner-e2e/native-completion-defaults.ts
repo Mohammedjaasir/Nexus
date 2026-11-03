@@ -5,7 +5,7 @@ import type { RunnerProfileFixture } from "./types.js";
 
 export const NATIVE_COMPLETION_BUDGET_CENTS = 1_000;
 // Independent, immutable current-master default; not the reduced #14948 manual.
-export const NATIVE_MASTER_DEFAULT_SHA256 = "e4d2375d722602cd744403292d99f6e6c9b7e8014d9cdfa6f9811ace03428e5f";
+export const NATIVE_MASTER_DEFAULT_SHA256 = "1b2f303539f921140fab608404e9742841f60366e6323a8a5ee2b76233ab86cc";
 
 /** Scoped blocker proof: hash symlink identity without following any target. */
 export async function nativeCompletionWorkspaceDigest(root: string): Promise<string> {
@@ -32,7 +32,7 @@ export function nativeCompletionProfile(profile: RunnerProfileFixture): RunnerPr
 }
 
 export interface NativeDefaultReceipt {
-  schema: "paperclip.native-completion-default.v1";
+  schema: "nexus.native-completion-default.v1";
   agentId: string;
   companyId: string;
   entryFile: unknown;
@@ -65,6 +65,6 @@ export async function captureNativeDefault(input: {
     const detail = await input.api.get<{ content: string }>(`/api/agents/${input.agentId}/instructions-bundle/file?path=${encodeURIComponent(file.path)}`);
     return { path: file.path, sha256: createHash("sha256").update(detail.content).digest("hex"), bytes: Buffer.byteLength(detail.content) };
   }));
-  return { schema: "paperclip.native-completion-default.v1", agentId: input.agentId, companyId: input.companyId,
+  return { schema: "nexus.native-completion-default.v1", agentId: input.agentId, companyId: input.companyId,
     entryFile: bundle.entryFile, files, budgets: { company: company.budgetMonthlyCents, agent: agent.budgetMonthlyCents } };
 }

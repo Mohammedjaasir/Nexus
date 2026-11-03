@@ -1,12 +1,12 @@
 import { readWorkspaceBaseRefDiagnostic } from "./workspace-base-ref-diagnostics.js";
 import { getEnvironmentAcquisitionDiagnostic } from "./environment-acquisition-diagnostics.js";
-import type { heartbeatRuns } from "@paperclipai/db";
+import type { heartbeatRuns } from "@nexusai/db";
 import { readControllerLeaseLoss, readControllerLeaseLossCause, readRunCancellation } from "./run-cancellation.js";
 import { readProcessLossDiagnostic } from "./process-loss-diagnostics.js";
-import { WORKSPACE_RESTORE_FAILURE_CODES } from "@paperclipai/shared";
-import { redactDiagnosticText } from "@paperclipai/adapter-utils/command-redaction";
-import { sanitizeWorkspaceRestoreDiagnostic } from "@paperclipai/adapter-utils/workspace-restore-diagnostics";
-import { ACP_TOOL_KINDS } from "@paperclipai/adapter-utils/acpx-engine/constants";
+import { WORKSPACE_RESTORE_FAILURE_CODES } from "@nexusai/shared";
+import { redactDiagnosticText } from "@nexusai/adapter-utils/command-redaction";
+import { sanitizeWorkspaceRestoreDiagnostic } from "@nexusai/adapter-utils/workspace-restore-diagnostics";
+import { ACP_TOOL_KINDS } from "@nexusai/adapter-utils/acpx-engine/constants";
 import { redactCurrentUserText } from "../log-redaction.js";
 import { redactSensitiveText, REDACTED_EVENT_VALUE } from "../redaction.js";
 import { readNativeModelRejectionDiagnostic, readNativeTurnFailureDiagnostic } from "./native-runtime/native-provider-failure.js";
@@ -153,21 +153,21 @@ const PUBLIC_ENV_KEYS = new Set([
   "NPM_LIFECYCLE_EVENT", "NPM_COMMAND", "NPM_EXEC_PATH", "NPM_EXECPATH", "NPM_NODE_EXECPATH",
   "NPM_PACKAGE_NAME", "NPM_PACKAGE_VERSION", "NPM_PACKAGE_JSON", "NPM_CONFIG_USER_AGENT",
   "XPC_SERVICE_NAME", "VITEST_POOL_ID", "VITEST_WORKER_ID",
-  "PAPERCLIP_AGENT_ID", "PAPERCLIP_COMPANY_ID", "PAPERCLIP_RUN_ID", "PAPERCLIP_TASK_ID",
+  "NEXUS_AGENT_ID", "NEXUS_COMPANY_ID", "NEXUS_RUN_ID", "NEXUS_TASK_ID",
 ]);
 const PUBLIC_BOOLEAN_ENV_KEYS = new Set([
   "OPENCODE_ALLOW_ALL_MODELS", "CLAUDE_CODE_USE_BEDROCK", "GOOGLE_GENAI_USE_GCA",
   "CI", "NO_COLOR", "FORCE_COLOR",
   "VITEST", "MALLOCNANOZONE", "CODEX_CI", "CODEX_SHELL", "CODEX_SAGE_BACKFILL_TRACKER_TAB_REUSE",
-  "DEV", "PROD", "SSR", "PAPERCLIP_REQUIRE_SENTRY_TEST_SDK",
-  "PAPERCLIP_DB_BACKUP_ENABLED", "PAPERCLIP_WORKSPACE_COMPACTION_ENABLED", "PAPERCLIP_AUTH_DISABLE_SIGN_UP", "PAPERCLIP_ENABLE_COMPANY_DELETION",
-  "PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE", "PAPERCLIP_SECRETS_STRICT_MODE",
-  "SERVE_UI", "PAPERCLIP_UI_DEV_MIDDLEWARE", "HEARTBEAT_SCHEDULER_ENABLED", "PAPERCLIP_ANNOUNCEMENTS_ENABLED",
+  "DEV", "PROD", "SSR", "NEXUS_REQUIRE_SENTRY_TEST_SDK",
+  "NEXUS_DB_BACKUP_ENABLED", "NEXUS_WORKSPACE_COMPACTION_ENABLED", "NEXUS_AUTH_DISABLE_SIGN_UP", "NEXUS_ENABLE_COMPANY_DELETION",
+  "NEXUS_STORAGE_S3_FORCE_PATH_STYLE", "NEXUS_SECRETS_STRICT_MODE",
+  "SERVE_UI", "NEXUS_UI_DEV_MIDDLEWARE", "HEARTBEAT_SCHEDULER_ENABLED", "NEXUS_ANNOUNCEMENTS_ENABLED",
   "GITHUB_ACTIONS", "GITHUB_REF_PROTECTED", "RUNNER_DEBUG", "ACTIONS_RUNNER_DEBUG", "ACTIONS_STEP_DEBUG",
 ]);
 const PUBLIC_NUMBER_ENV_KEYS = new Set([
-  "PORT", "PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES", "PAPERCLIP_DB_BACKUP_RETENTION_DAYS",
-  "PAPERCLIP_WORKSPACE_REAPER_COOLDOWN_DAYS", "PAPERCLIP_WORKSPACE_COMPACTION_DELAY_HOURS",
+  "PORT", "NEXUS_DB_BACKUP_INTERVAL_MINUTES", "NEXUS_DB_BACKUP_RETENTION_DAYS",
+  "NEXUS_WORKSPACE_REAPER_COOLDOWN_DAYS", "NEXUS_WORKSPACE_COMPACTION_DELAY_HOURS",
   "HEARTBEAT_SCHEDULER_INTERVAL_MS",
   "GITHUB_RUN_ATTEMPT", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ID", "GITHUB_RETENTION_DAYS",
 ]);
@@ -189,7 +189,7 @@ export function collectRunFailureSecretValues(
       (PUBLIC_NUMBER_ENV_KEYS.has(key.toUpperCase()) && /^\d+$/.test(value)) ||
       (key === "BASE_URL" && value === "/") ||
       (key === "MODE" && /^(?:test|development|production)$/.test(value)) ||
-      (key === "PAPERCLIP_SENTRY_RUN_FAILURES" && /^(?:off|unexpected|all)$/.test(value))
+      (key === "NEXUS_SENTRY_RUN_FAILURES" && /^(?:off|unexpected|all)$/.test(value))
     )) ||
       (PUBLIC_BOOLEAN_ENV_KEYS.has(key.toUpperCase()) && /^(?:0|1|true|false)$/i.test(value));
     if (declared.has(key) || !publicSetting) values.push(value);

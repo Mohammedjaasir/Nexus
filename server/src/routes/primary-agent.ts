@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { agents, companies, type Db } from "@paperclipai/db";
+import { agents, companies, type Db } from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
-import { updatePrimaryAgentSchema } from "@paperclipai/shared";
+import { updatePrimaryAgentSchema } from "@nexusai/shared";
 import { forbidden, notFound } from "../errors.js";
 import { validate } from "../middleware/validate.js";
 import { accessService } from "../services/access.js";

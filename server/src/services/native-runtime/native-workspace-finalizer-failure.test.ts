@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GitShallowMetadataError } from "@paperclipai/adapter-utils/git-workspace-sync";
-import type { Db } from "@paperclipai/db";
+import { GitShallowMetadataError } from "@nexusai/adapter-utils/git-workspace-sync";
+import type { Db } from "@nexusai/db";
 
 const sync = vi.hoisted(() => ({ resume: vi.fn() }));
 vi.mock("./native-workspace-finalization-ownership.js", () => ({

@@ -7,7 +7,7 @@ import express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import * as schema from "@paperclipai/db";
+import * as schema from "@nexusai/db";
 import {
   INSPECTION_AUDIENCE,
   INSPECTION_HEADER,
@@ -16,7 +16,7 @@ import {
   parseInspectionQuery,
   type InspectionQuery,
   type InspectionPermit,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { customerSuccessRunAuthority } from "../services/customer-success-authority.js";
 import {
   readCustomerSuccessResource,
@@ -60,11 +60,11 @@ describe("customer-success read authority", () => {
   };
   beforeAll(async () => {
     directory = await mkdtemp(join(tmpdir(), "inspection-test-"));
-    vi.stubEnv("PAPERCLIP_HOME", directory);
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "inspection-home");
-    vi.stubEnv("PAPERCLIP_AGENT_JWT_SECRET", "inspection-local-fixture");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY_FILE", join(directory, "master.key"));
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "");
+    vi.stubEnv("NEXUS_HOME", directory);
+    vi.stubEnv("NEXUS_INSTANCE_ID", "inspection-home");
+    vi.stubEnv("NEXUS_AGENT_JWT_SECRET", "inspection-local-fixture");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY_FILE", join(directory, "master.key"));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "");
     database = await startEmbeddedPostgresTestDatabase("inspection-db-");
     db = schema.createDb(database.connectionString);
     const companies = await db
@@ -135,9 +135,9 @@ describe("customer-success read authority", () => {
     const legacy = `${input}.${createHmac("sha256", "inspection-local-fixture").update(input).digest("base64url")}`;
     expect(verifyLocalAgentJwt(legacy)).not.toBeNull();
     expect(verifyLocalAgentJwt(legacy, { strictRunAuthority: true })).toBeNull();
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "development-clone");
+    vi.stubEnv("NEXUS_INSTANCE_ID", "development-clone");
     const foreign = createLocalAgentJwt(agentId, companyId, "process", runId)!;
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "inspection-home");
+    vi.stubEnv("NEXUS_INSTANCE_ID", "inspection-home");
     await expect(customerSuccessRunAuthority(db, foreign)).rejects.toThrow("managed-run");
   });
   it("every catalog reader is company scoped, paginated, and leaves the complete database unchanged", async () => {
@@ -353,13 +353,13 @@ describe("customer-success read authority", () => {
     ).rejects.toThrow("not found");
   });
   it("tenant requests verify exact Cloud permit parameters, consume centrally, reject cookies and unknown paths", async () => {
-    vi.stubEnv("PAPERCLIP_CUSTOMER_SUCCESS_INSPECTION_ENABLED", "true");
-    vi.stubEnv("PAPERCLIP_CLOUD_STACK_ID", "fixture-stack");
-    vi.stubEnv("PAPERCLIP_CUSTOMER_SUCCESS_CLOUD_ORIGIN", "https://cloud.example.test");
-    vi.stubEnv("PAPERCLIP_CUSTOMER_SUCCESS_AUTHORITY_ENABLED", "true");
+    vi.stubEnv("NEXUS_CUSTOMER_SUCCESS_INSPECTION_ENABLED", "true");
+    vi.stubEnv("NEXUS_CLOUD_STACK_ID", "fixture-stack");
+    vi.stubEnv("NEXUS_CUSTOMER_SUCCESS_CLOUD_ORIGIN", "https://cloud.example.test");
+    vi.stubEnv("NEXUS_CUSTOMER_SUCCESS_AUTHORITY_ENABLED", "true");
     const keys = generateKeyPairSync("ed25519");
     const jwks = { keys: [{ ...keys.publicKey.export({ format: "jwk" }), kid: "cloud" }] };
-    vi.stubEnv("PAPERCLIP_CUSTOMER_SUCCESS_INSPECTION_JWKS", JSON.stringify(jwks));
+    vi.stubEnv("NEXUS_CUSTOMER_SUCCESS_INSPECTION_JWKS", JSON.stringify(jwks));
     const query: InspectionQuery = {
       operation: "get",
       resource: "companies",
@@ -369,7 +369,7 @@ describe("customer-success read authority", () => {
     const now = Math.floor(Date.now() / 1000);
     const claims: InspectionPermit = {
       v: 1,
-      iss: "paperclip-cloud",
+      iss: "nexus-cloud",
       aud: INSPECTION_AUDIENCE,
       sub: "fixture-stack",
       iat: now,

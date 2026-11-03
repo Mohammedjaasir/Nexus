@@ -1,11 +1,11 @@
 // This entrypoint is used only by isolated Runner E2E instances. Production
 // service code has no test flag, delay, altered prompt, or private test API.
 import { ServerResponse } from "node:http";
-import { PaperclipRunnerToolAuthority } from "../../server/src/services/native-runtime/paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "../../server/src/services/native-runtime/nexus-runner-tool-authority.js";
 import { canonicalDocumentIssueId, contextCommentGateSelected, holdCommittedDocumentResponse, isArmed } from "./context-comment-gate.js";
 import { holdInteractionResponse } from "./interaction-response-gate.js";
 
-const ids: string[] = JSON.parse(process.env.PAPERCLIP_RUNNER_E2E_EXECUTION_IDS ?? "[]");
+const ids: string[] = JSON.parse(process.env.NEXUS_RUNNER_E2E_EXECUTION_IDS ?? "[]");
 const contextCommentGate = contextCommentGateSelected(ids);
 const completionBusyGate = ids.some(id => id.startsWith("completion-updates.") && id.endsWith(".handoff-completion-busy"));
 if (ids.some((id) => id.endsWith(".accept-while-running"))) {
@@ -18,7 +18,7 @@ if (ids.some((id) => id.endsWith(".accept-while-running"))) {
     await holdInteractionResponse({
       deadlineAt: Date.now() + 90_000,
       loadStatus: async () => {
-        const response = await fetch(`http://127.0.0.1:${process.env.PAPERCLIP_RUNNER_E2E_PORT}/api/issues/${interaction.issueId}/interactions`);
+        const response = await fetch(`http://127.0.0.1:${process.env.NEXUS_RUNNER_E2E_PORT}/api/issues/${interaction.issueId}/interactions`);
         if (!response.ok) throw new Error(`Approval barrier read failed: ${response.status}`);
         const rows = await response.json() as Array<{ id: string; status: string }>;
         const row = rows.find((candidate) => candidate.id === interaction.id);
@@ -27,8 +27,8 @@ if (ids.some((id) => id.endsWith(".accept-while-running"))) {
       },
     });
   };
-  const execute = PaperclipRunnerToolAuthority.prototype.execute;
-  PaperclipRunnerToolAuthority.prototype.execute = async function (...args) {
+  const execute = NexusRunnerToolAuthority.prototype.execute;
+  NexusRunnerToolAuthority.prototype.execute = async function (...args) {
     const result = await execute.apply(this, args);
     if (args[0].tool === "request_human_input") await hold(result);
     return result;
@@ -55,8 +55,8 @@ if (contextCommentGate || completionBusyGate) {
     heldIssues.add(issueId);
     await holdCommittedDocumentResponse(issueId, Date.now() + (completionBusyGate ? 300_000 : 90_000));
   };
-  const execute = PaperclipRunnerToolAuthority.prototype.execute;
-  PaperclipRunnerToolAuthority.prototype.execute = async function (...args) {
+  const execute = NexusRunnerToolAuthority.prototype.execute;
+  NexusRunnerToolAuthority.prototype.execute = async function (...args) {
     const result = await execute.apply(this, args);
     if (args[0].tool === "write_document") {
       const issueId = this.binding?.issueId;

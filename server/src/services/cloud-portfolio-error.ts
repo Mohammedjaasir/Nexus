@@ -42,8 +42,8 @@ export class CloudPortfolioError extends HttpError {
     error?: unknown,
   ) {
     super(502, kind === "invalid_response"
-      ? "Paperclip Cloud portfolio returned invalid JSON"
-      : "Paperclip Cloud portfolio request failed", {
+      ? "Nexus Cloud portfolio returned invalid JSON"
+      : "Nexus Cloud portfolio request failed", {
       code: kind === "invalid_response" ? "cloud_portfolio_invalid_response" : "cloud_portfolio_upstream_error",
     });
     Error.captureStackTrace?.(this, CloudPortfolioError);

@@ -1,12 +1,12 @@
 import { mkdir, mkdtemp, realpath, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { paperclipConfigSchema } from "../../packages/shared/src/config-schema.js";
+import { nexusConfigSchema } from "../../packages/shared/src/config-schema.js";
 import { reserveRunnerE2EDatabasePort } from "./ports.js";
 
 /** Runtime instructions and native filesystem grants must use the same path. */
 export async function createRunnerE2ETemporaryRoot(parent = os.tmpdir()) {
-  return await realpath(await mkdtemp(path.join(parent, "paperclip-runner-e2e-")));
+  return await realpath(await mkdtemp(path.join(parent, "nexus-runner-e2e-")));
 }
 
 /** Seed only the disposable fixture. Onboarding preserves this validated config
@@ -28,7 +28,7 @@ export async function prepareRunnerE2EServerConfig(input: {
   );
   try {
     const instanceRoot = path.dirname(input.configPath);
-    const config = paperclipConfigSchema.parse({
+    const config = nexusConfigSchema.parse({
       $meta: {
         version: 1,
         updatedAt: new Date().toISOString(),

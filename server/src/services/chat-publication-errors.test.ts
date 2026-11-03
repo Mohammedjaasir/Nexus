@@ -166,7 +166,7 @@ describe("chat publication error classification", () => {
     ).toMatchObject({ kind: "failed" });
   });
 
-  it("keeps Paperclip's own authorization failures scoped to the publication", () => {
+  it("keeps Nexus's own authorization failures scoped to the publication", () => {
     expect(
       classifyChatPublicationError(
         forbidden("GitHub failure has no request binding"),

@@ -18,14 +18,14 @@ export function observeCheckoutActivity(input: {
   const uniqueRows = new Set(rows.map(row => row.id)).size === rows.length;
   const complete = boundRuns && validRows && uniqueRows;
   return {
-    schema: "paperclip.checkout-activity.v1",
+    schema: "nexus.checkout-activity.v1",
     status: complete ? "observed" : "uncomparable",
     companyId: input.companyId, issueId: input.issueId, agentId: input.agentId,
     scope: "successful checkout HTTP calls only; failed attempts require run-log inspection",
     successfulCheckoutRequests: complete ? rows.length : null,
     runs: input.runs.map(run => ({
       runId: run.id, status: run.status,
-      checkedOutByHarness: run.contextSnapshot?.paperclipWake?.checkedOutByHarness === true,
+      checkedOutByHarness: run.contextSnapshot?.nexusWake?.checkedOutByHarness === true,
       successfulCheckoutRequests: complete ? rows.filter(row => row.runId === run.id).length : null,
     })),
     receipts: rows.map(row => ({

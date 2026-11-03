@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { writePaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
+import { writeNexusSkillSyncPreference } from "@nexusai/adapter-utils/server-utils";
 import {
   agents,
   companies,
@@ -22,7 +22,7 @@ import {
   issueComments,
   issueDocuments,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { feedbackService } from "../services/feedback.ts";
 import {
   getEmbeddedPostgresTestSupport,
@@ -49,7 +49,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
   let tempDirs: string[] = [];
 
   beforeAll(async () => {
-    const started = await startEmbeddedPostgresTestDatabase("paperclip-feedback-service-");
+    const started = await startEmbeddedPostgresTestDatabase("nexus-feedback-service-");
     db = createDb(started.connectionString);
     svc = feedbackService(db);
     tempDb = started;
@@ -89,7 +89,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `F${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -138,7 +138,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
     // Random UUIDs occasionally produce digit pairs like "4880-8614" that
     // cross segment boundaries and match the phone pattern.
     const runId = "abcde123-face-beef-cafe-abcdef654321";
-    const instructionsDir = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-feedback-instructions-"));
+    const instructionsDir = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-feedback-instructions-"));
     tempDirs.push(instructionsDir);
     const instructionsPath = path.join(instructionsDir, "AGENTS.md");
     fs.writeFileSync(
@@ -149,7 +149,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `R${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -158,10 +158,10 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
       {
         id: randomUUID(),
         companyId,
-        key: "paperclipai/paperclip/paperclip",
-        slug: "paperclip",
-        name: "Paperclip",
-        markdown: "# Paperclip",
+        key: "paperclipai/paperclip/nexus",
+        slug: "nexus",
+        name: "Nexus",
+        markdown: "# Nexus",
         sourceType: "catalog",
         sourceLocator: null,
         sourceRef: null,
@@ -188,7 +188,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
       role: "engineer",
       status: "active",
       adapterType: "codex_local",
-      adapterConfig: writePaperclipSkillSyncPreference(
+      adapterConfig: writeNexusSkillSyncPreference(
         {
           model: "gpt-5.4",
           instructionsBundleMode: "external",
@@ -196,7 +196,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
           instructionsEntryFile: "AGENTS.md",
           instructionsFilePath: instructionsPath,
         },
-        ["paperclipai/paperclip/paperclip", "octo/research/public-skill"],
+        ["paperclipai/paperclip/nexus", "octo/research/public-skill"],
       ),
       runtimeConfig: {
         heartbeat: {
@@ -293,7 +293,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `D${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -362,7 +362,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -682,8 +682,8 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
 
     expect(trace?.status).toBe("pending");
     expect(trace?.exportId).toMatch(/^fbexp_/);
-    expect(trace?.schemaVersion).toBe("paperclip-feedback-envelope-v2");
-    expect(trace?.bundleVersion).toBe("paperclip-feedback-bundle-v2");
+    expect(trace?.schemaVersion).toBe("nexus-feedback-envelope-v2");
+    expect(trace?.bundleVersion).toBe("nexus-feedback-bundle-v2");
     expect(trace?.payloadDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(primaryContent?.createdByRunId).toBe(runId);
     expect(String(primaryContent?.body)).toContain("[REDACTED]");
@@ -746,15 +746,15 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
 
     expect(localTrace?.status).toBe("local_only");
     expect(localTrace?.exportId).toBeNull();
-    expect(localTrace?.payloadVersion).toBe("paperclip-feedback-v1");
+    expect(localTrace?.payloadVersion).toBe("nexus-feedback-v1");
     expect(localTrace?.payloadSnapshot?.bundle).toBeNull();
     expect(sharedTrace?.status).toBe("pending");
     expect(sharedTrace?.exportId).toMatch(/^fbexp_/);
-    expect(sharedTrace?.payloadVersion).toBe("paperclip-feedback-v1");
+    expect(sharedTrace?.payloadVersion).toBe("nexus-feedback-v1");
   });
 
   it("captures Claude project session artifacts as full traces", async () => {
-    const claudeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-feedback-claude-"));
+    const claudeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-feedback-claude-"));
     tempDirs.push(claudeRoot);
     const sessionId = randomUUID();
     const projectDir = path.join(claudeRoot, "projects", "workspace-1");
@@ -835,7 +835,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
   });
 
   it("captures OpenCode message and part files as full traces", async () => {
-    const opencodeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-feedback-opencode-"));
+    const opencodeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-feedback-opencode-"));
     tempDirs.push(opencodeRoot);
     const sessionId = "ses_test_feedback_trace";
     const sessionDir = path.join(opencodeRoot, "storage", "session", "global");
@@ -925,7 +925,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
       JSON.stringify([{ content: "Verify exported traces" }]),
       "utf8",
     );
-    vi.stubEnv("PAPERCLIP_OPENCODE_STORAGE_DIR", opencodeRoot);
+    vi.stubEnv("NEXUS_OPENCODE_STORAGE_DIR", opencodeRoot);
     const uploadTraceBundle = vi.fn().mockResolvedValue({ objectKey: "feedback-traces/test.json" });
     const flushingSvc = feedbackService(db, {
       shareClient: {
@@ -972,7 +972,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `H${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -1050,7 +1050,7 @@ describeEmbeddedPostgres("feedbackService.saveIssueVote", () => {
       issueIdentifier: traces[0]?.issueIdentifier,
       captureStatus: expect.stringMatching(/^(full|partial|unavailable)$/),
       envelope: {
-        destination: "paperclip_labs_feedback_v1",
+        destination: "nexus_labs_feedback_v1",
         exportId: traces[0]?.exportId,
       },
     });

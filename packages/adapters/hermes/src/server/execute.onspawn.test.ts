@@ -13,8 +13,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // Mock the adapter-utils server-utils module that execute.ts imports from.
 // We intercept runChildProcess so we can inspect its opts without spawning
 // a real child process.
-vi.mock("@paperclipai/adapter-utils/server-utils", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@paperclipai/adapter-utils/server-utils")>();
+vi.mock("@nexusai/adapter-utils/server-utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@nexusai/adapter-utils/server-utils")>();
   return {
     ...actual,
     runChildProcess: vi.fn(async () => ({
@@ -39,7 +39,7 @@ vi.mock("node:fs/promises", () => ({
 }));
 
 import { execute } from "./execute.js";
-import * as serverUtils from "@paperclipai/adapter-utils/server-utils";
+import * as serverUtils from "@nexusai/adapter-utils/server-utils";
 
 function makeCtx(overrides: Record<string, unknown> = {}) {
   const onSpawn = vi.fn(async () => undefined);
@@ -68,7 +68,7 @@ function makeCtx(overrides: Record<string, unknown> = {}) {
       context: {
         issueId: "issue-1",
         wakeReason: "manual",
-        paperclipWake: null,
+        nexusWake: null,
       },
       onLog: vi.fn(async () => undefined),
       onMeta: vi.fn(async () => undefined),
@@ -105,23 +105,23 @@ describe("hermes-local adapter onSpawn forwarding", () => {
   });
 
   it("keeps wake data in the prompt and drops configured JSON env copies", async () => {
-    const { ctx } = makeCtx({ env: { PAPERCLIP_WAKE_PAYLOAD_JSON: "stale configured wake" } });
+    const { ctx } = makeCtx({ env: { NEXUS_WAKE_PAYLOAD_JSON: "stale configured wake" } });
     const wake = { reason: "issue_assigned", issue: { id: "issue-1", description: "Current task brief" } };
-    await execute({ ...ctx, context: { ...ctx.context, paperclipWake: wake } } as any);
+    await execute({ ...ctx, context: { ...ctx.context, nexusWake: wake } } as any);
     const call = vi.mocked(serverUtils.runChildProcess).mock.calls.at(-1)!;
-    expect(call[3].env).not.toHaveProperty("PAPERCLIP_WAKE_PAYLOAD_JSON");
+    expect(call[3].env).not.toHaveProperty("NEXUS_WAKE_PAYLOAD_JSON");
     expect(call[2]).toContainEqual(expect.stringContaining("Current task brief"));
   });
 
   it("launches in the assigned task workspace when no cwd was configured", async () => {
     const { ctx } = makeCtx();
-    await execute({ ...ctx, context: { ...ctx.context, paperclipWorkspace: { cwd: "/private/qa/agent-workspace" } } } as any);
+    await execute({ ...ctx, context: { ...ctx.context, nexusWorkspace: { cwd: "/private/qa/agent-workspace" } } } as any);
     expect(vi.mocked(serverUtils.runChildProcess).mock.calls.at(-1)![3].cwd).toBe("/private/qa/agent-workspace");
   });
 
   it("preserves an explicitly configured cwd", async () => {
     const { ctx } = makeCtx({ cwd: "/private/qa/configured-workspace" });
-    await execute({ ...ctx, context: { ...ctx.context, paperclipWorkspace: { cwd: "/private/qa/agent-workspace" } } } as any);
+    await execute({ ...ctx, context: { ...ctx.context, nexusWorkspace: { cwd: "/private/qa/agent-workspace" } } } as any);
     expect(vi.mocked(serverUtils.runChildProcess).mock.calls.at(-1)![3].cwd).toBe("/private/qa/configured-workspace");
   });
 
@@ -208,9 +208,9 @@ describe("hermes-local adapter onSpawn forwarding", () => {
     expect(result.errorMessage).toBeUndefined();
   });
 
-  it("does not inherit PAPERCLIP_API_KEY without a harness token", async () => {
-    const previousApiKey = process.env.PAPERCLIP_API_KEY;
-    process.env.PAPERCLIP_API_KEY = "parent-process-key";
+  it("does not inherit NEXUS_API_KEY without a harness token", async () => {
+    const previousApiKey = process.env.NEXUS_API_KEY;
+    process.env.NEXUS_API_KEY = "parent-process-key";
 
     try {
       const { ctx } = makeCtx();
@@ -219,10 +219,10 @@ describe("hermes-local adapter onSpawn forwarding", () => {
       const mocked = vi.mocked(serverUtils.runChildProcess);
       const lastCall = mocked.mock.calls[mocked.mock.calls.length - 1];
       const opts = lastCall[3] as { env: Record<string, string> };
-      expect(opts.env.PAPERCLIP_API_KEY).toBeUndefined();
+      expect(opts.env.NEXUS_API_KEY).toBeUndefined();
     } finally {
-      if (previousApiKey === undefined) delete process.env.PAPERCLIP_API_KEY;
-      else process.env.PAPERCLIP_API_KEY = previousApiKey;
+      if (previousApiKey === undefined) delete process.env.NEXUS_API_KEY;
+      else process.env.NEXUS_API_KEY = previousApiKey;
     }
   });
 });

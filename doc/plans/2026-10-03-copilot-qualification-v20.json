@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.copilot.qualification-progress/v1",
+  "schema": "nexus.copilot.qualification-progress/v1",
   "status": "historical-core-covered-release-gated",
   "productionAdmission": "gated",
   "supersedes": "2026-10-03-copilot-qualification-v19.json",

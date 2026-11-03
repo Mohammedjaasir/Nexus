@@ -10,8 +10,8 @@ selections are migrated.
 
 | Adapter | Changes from the audit |
 | --- | --- |
-| Codex | No new selectable model IDs. Codex 0.160.0 through 0.164.0 ship the same bundled model set, which the picker already lists (including GPT-6 Astra, GPT-5.6 Terra, and GPT-5.6 Luna). OpenAI retired `gpt-5.5` (October 14, 2026) and `gpt-5.4` / `gpt-5.4-mini` (August 31, 2026) from Codex with ChatGPT sign-in. The API and API-key Codex sessions still serve them, so they stay in the picker. When the backend rejects one of them for a ChatGPT account, the environment Test (legacy CLI and Paperclip Runner) now names the retirement and the documented replacement instead of suggesting a stale CLI, a plan restriction, or generic account checks. |
-| OpenCode | Add `anthropic/claude-haiku-5-5` and `google/gemini-4-argon` to the static fallback used by remote environments and the Paperclip Runner picker. Both IDs are in the OpenCode model registry (models.dev). |
+| Codex | No new selectable model IDs. Codex 0.160.0 through 0.164.0 ship the same bundled model set, which the picker already lists (including GPT-6 Astra, GPT-5.6 Terra, and GPT-5.6 Luna). OpenAI retired `gpt-5.5` (October 14, 2026) and `gpt-5.4` / `gpt-5.4-mini` (August 31, 2026) from Codex with ChatGPT sign-in. The API and API-key Codex sessions still serve them, so they stay in the picker. When the backend rejects one of them for a ChatGPT account, the environment Test (legacy CLI and Nexus Runner) now names the retirement and the documented replacement instead of suggesting a stale CLI, a plan restriction, or generic account checks. |
+| OpenCode | Add `anthropic/claude-haiku-5-5` and `google/gemini-4-argon` to the static fallback used by remote environments and the Nexus Runner picker. Both IDs are in the OpenCode model registry (models.dev). |
 | Claude Code (direct and Bedrock) | Claude Haiku 5.5 is covered by [#16708](https://github.com/paperclipai/paperclip/pull/16708); this audit does not duplicate it. Haiku 5.5 needs Claude Code 2.1.293 or later and supports all five effort levels. |
 | Gemini CLI | Gemini 4 Argon (`gemini-4-argon`) is generally available on the Gemini API, but Gemini CLI 0.65.0 does not register it. Deferred. |
 | Grok Build, Kimi Code, Cursor | No new verified model IDs. Grok 4.7 and Kimi K3 remain the newest documented models. |
@@ -52,7 +52,7 @@ Research date: October 23, 2026. Harness pins rechecked October 26, 2026.
   entry for 2.1.293 adds `claude-haiku-5-5`.
 - [models.dev](https://models.dev/api.json) lists `anthropic/claude-haiku-5-5`
   and `google/gemini-4-argon`. The OpenCode 1.18.34 executable's bundled
-  snapshot predates both. Paperclip Runner binds the selected model into the
+  snapshot predates both. Nexus Runner binds the selected model into the
   OpenCode provider configuration, so the snapshot does not limit it.
 - [Gemini 4 Argon](https://ai.google.dev/gemini-api/docs/models/gemini-4-argon)
   is generally available since October 13, 2026. Gemini CLI 0.65.0
@@ -65,12 +65,12 @@ Research date: October 23, 2026. Harness pins rechecked October 26, 2026.
   `grok --help` from 1.0.70.
   [Kimi Code 2.2.0 and 2.3.0](https://github.com/MoonshotAI/kimi-code/releases)
   remove the `kaos` MCP executor and require qualified plugin skill names;
-  Paperclip uses neither. Kimi Code 2.3.2 stops the agent from launching
+  Nexus uses neither. Kimi Code 2.3.2 stops the agent from launching
   swarms by itself, so `kimi -p` and ACP sessions no longer start swarms;
   2.3.1 and 2.3.3 are fixes and prompt changes. `-m`, `-p`,
   `--output-format`, and `acp` are unchanged in `kimi --help` from 2.3.3.
   Gemini CLI 0.65.0 makes workspace settings read-only in untrusted folders;
-  Paperclip writes only home settings and sets `GEMINI_CLI_TRUST_WORKSPACE`
+  Nexus writes only home settings and sets `GEMINI_CLI_TRUST_WORKSPACE`
   for remote runs.
 - Cursor CLI 2026.10.22-27dcf5f is the version `https://cursor.com/install`
   resolves. The archive SHA-256 was computed from the versioned Linux x64
@@ -86,7 +86,7 @@ Research date: October 23, 2026. Harness pins rechecked October 26, 2026.
 
 - **Claude runtime 2.1.286 → 2.1.308.** Claude Code's `stable` channel is
   2.1.308 (`latest` is 2.1.309), with Agent SDK 0.3.308. The range changes
-  headless defaults that Paperclip runs depend on: fork subagents are on by
+  headless defaults that Nexus runs depend on: fork subagents are on by
   default in `-p` and the Agent SDK (2.1.302), sessions with no permission
   mode start in `default` mode on third-party providers (2.1.302), and MCP
   allow rules match whole server names (2.1.299). This needs a separate runner
@@ -96,7 +96,7 @@ Research date: October 23, 2026. Harness pins rechecked October 26, 2026.
   minimum before launch.
 - **OpenCode 1.19.x and 2.x.** OpenCode 1.19.3 generates reasoning variants
   from model options instead of catalog variants, which affects the variants
-  Paperclip Runner binds. OpenCode 2 changes the SDK, event, and plugin
+  Nexus Runner binds. OpenCode 2 changes the SDK, event, and plugin
   contracts. Both need qualification.
 - **ACP bridges.** ACPX 0.20.0, `claude-agent-acp` 0.94.0 (ACP SDK 2.0), and
   `codex-acp` 2.2.2 (breaking tool-call contract in 2.0.0) need a
@@ -110,7 +110,7 @@ Research date: October 23, 2026. Harness pins rechecked October 26, 2026.
 - **Gemini 4 Argon** in the Gemini CLI and Cursor catalogs: the CLI does not
   register it yet, and Cursor documents display names only.
 - **Codex default model.** Codex 0.161.0 makes `gpt-6.1-sol` its default.
-  Paperclip keeps `gpt-5.6-sol` so saved agents and spending do not change.
+  Nexus keeps `gpt-5.6-sol` so saved agents and spending do not change.
 - **Hidden Codex aliases** (`gpt-daybreak-*`) are restricted to eligible
   accounts.
 - **Claude Sonnet 4.5** is deprecated and retires November 30, 2026. It stays

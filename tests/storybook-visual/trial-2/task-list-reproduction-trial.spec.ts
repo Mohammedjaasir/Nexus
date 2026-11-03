@@ -293,7 +293,7 @@ test.describe("independent second trial", () => {
     await expect(page.getByRole("dialog", { name: "Account", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Invite", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Open Paperclip Storybook organization switcher", exact: true }).click();
+    await page.getByRole("button", { name: "Open Nexus Storybook organization switcher", exact: true }).click();
     await expect(page.getByRole("menuitem", { name: /Research Bureau/ })).toBeVisible();
     await page.getByRole("menuitem", { name: /Research Bureau/ }).click();
     await expect(rows(page)).toHaveCount(0);

@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 
 const root = fileURLToPath(new URL('../../../../../../', import.meta.url));
 const catalog = JSON.parse(await readFile(new URL('./cases.json', import.meta.url), 'utf8'));
-if (catalog.schema !== 'paperclip.slack_connector_probes.v1' || catalog.version !== 1 || !Array.isArray(catalog.cases) || !catalog.cases.length) {
+if (catalog.schema !== 'nexus.slack_connector_probes.v1' || catalog.version !== 1 || !Array.isArray(catalog.cases) || !catalog.cases.length) {
   throw new Error('Invalid Slack probe catalog');
 }
 const args = process.argv.slice(2);

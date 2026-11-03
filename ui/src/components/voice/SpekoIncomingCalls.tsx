@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { VoiceInboundCall } from "@paperclipai/shared";
+import type { VoiceInboundCall } from "@nexusai/shared";
 import { voicePhoneApi } from "@/api/voicePhone";
 import { issuesApi } from "@/api/issues";
 import { Button } from "@/components/ui/button";

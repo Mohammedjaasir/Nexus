@@ -6,7 +6,7 @@ import {
   type IssueThreadInteractionCanonicalResolverPolicy,
   type IssueThreadInteractionKind,
   type IssueThreadInteractionResolverPolicy,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   Select,
   SelectContent,

@@ -2,9 +2,9 @@ import { notifyRetentionWork } from "../../retention-work-notifications.js";
 import { createHash, randomBytes } from "node:crypto";
 import { and, desc, eq, gt, or, sql } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
-import { authUsers, chatActions, chatEndpoints, chatIdentityLinks, invites, joinRequests } from "@paperclipai/db";
+import { authUsers, chatActions, chatEndpoints, chatIdentityLinks, invites, joinRequests } from "@nexusai/db";
 
 import { conflict, forbidden, unprocessable } from "../../../errors.js";
 
@@ -65,7 +65,7 @@ export function createSlackIdentityLinks(db: Db, { previewIdentityLink, stagePro
       payload: {
         version: 1, effect: "ephemeral_message", authorizationMode: "safe_notice",
         threadId: channelId, userId: userId,
-        text: "Your Slack account is connected to Paperclip. Future messages use your Paperclip permissions.", settleDelivery: false
+        text: "Your Slack account is connected to Nexus. Future messages use your Nexus permissions.", settleDelivery: false
       },
       runtimeContext: confirmationRuntime,
     });

@@ -3,7 +3,7 @@
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FolderListResult } from "@paperclipai/shared";
+import type { FolderListResult } from "@nexusai/shared";
 import {
   AllUnfiledBanner,
   BulkBar,
@@ -435,7 +435,7 @@ describe("FolderControls", () => {
   });
 
   it("persists AllUnfiledBanner dismissal across mounts", () => {
-    const storageKey = "paperclip:test-folder-nudge";
+    const storageKey = "nexus:test-folder-nudge";
     window.localStorage.removeItem(storageKey);
     const onCreateFolder = vi.fn();
     root = createRoot(container);

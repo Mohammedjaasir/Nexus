@@ -50,7 +50,7 @@ shipped the smaller planning skills; its report publication is separate.
    delivery, worker ownership, parent review and parent completion ordering.
    A green workflow is not itself a behavioral pass. A single pair does not
    establish general equivalence, causation or cost/speed trends.
-5. Retain dated measurement/results in the private `paperclip-evals` archive
+5. Retain dated measurement/results in the private `nexus-evals` archive
    and existing campaign artifact storage. Keep a compact index here. Verify
    current-head CI and review before a readiness claim.
 

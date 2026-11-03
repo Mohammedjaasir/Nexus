@@ -1,5 +1,5 @@
-export const CLEANUP_VERIFICATION_KEY = "paperclipCleanupVerification";
-export const CLEANUP_VERIFICATION_SCHEMA = "paperclip.cleanup-verification.v1";
+export const CLEANUP_VERIFICATION_KEY = "nexusCleanupVerification";
+export const CLEANUP_VERIFICATION_SCHEMA = "nexus.cleanup-verification.v1";
 export const CLEANUP_ROW_STAMP_FORMAT = 'YYYY-MM-DD"T"HH24:MI:SS.US';
 
 /** Provider-supplied metadata cannot create host verification evidence. */

@@ -42,15 +42,15 @@ describe("grok device-login credential promotion", () => {
   });
 
   async function makeInstanceRoot(): Promise<string> {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-grok-promotion-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-grok-promotion-"));
     cleanupDirs.push(dir);
     return dir;
   }
 
   function envFor(instanceHome: string): NodeJS.ProcessEnv {
     return {
-      PAPERCLIP_HOME: instanceHome,
-      PAPERCLIP_INSTANCE_ID: "default",
+      NEXUS_HOME: instanceHome,
+      NEXUS_INSTANCE_ID: "default",
     };
   }
 

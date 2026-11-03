@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { companySecrets } from "@paperclipai/db";
-import { CLASS3_STATIC_LEASE_ALLOWLIST } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { companySecrets } from "@nexusai/db";
+import { CLASS3_STATIC_LEASE_ALLOWLIST } from "@nexusai/shared";
 import { unprocessable } from "../../../errors.js";
 
 function assertClass3ToolCredentialRefAllowed(ref: {

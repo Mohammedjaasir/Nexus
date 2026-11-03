@@ -15,7 +15,7 @@ const config: DependableQualification = { revision: "b".repeat(40), startedAt: "
 function attempt(cell: DependableCell, index: number, phase: "candidate" | "staging" = "candidate"): DependableAttempt {
   const identity = `${cell}-${index}-${phase}`;
   return { campaignId: `campaign-${identity}`, cell, phase,
-    result: { schema: "paperclip.runner-e2e.result/v2", executionId: dependableExecutionId(cell), suiteId: "dependable-work",
+    result: { schema: "nexus.runner-e2e.result/v2", executionId: dependableExecutionId(cell), suiteId: "dependable-work",
       suiteDefinitionHash: hash, source: { sha: config.revision, ref: "refs/heads/candidate", workflowRunUrl: null },
       attempt: 1, status: "passed", profileId: cell.startsWith("codie.") ? "codie" : "claude", environmentId: "daytona",
       caseId: cell.split(".").slice(1).join("-"), provider: cell.startsWith("codie.") ? "codex" : "acpx", model: config.models[cell.startsWith("codie.") ? "codie" : "claude"],
@@ -155,9 +155,9 @@ it("makes the actual report command fail an incomplete checkpoint while retainin
     const output = path.join(root, "report");
     await expect(promisify(execFile)(process.execPath, [path.join(repository, "cli/node_modules/tsx/dist/cli.mjs"),
       path.join(repository, "tests/runner-e2e/report.ts")], { cwd: repository, timeout: 25_000,
-      env: { PATH: process.env.PATH, HOME: process.env.HOME, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root,
-        PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([rows[0]!.result.executionId]),
-        PAPERCLIP_DEPENDABLE_QUALIFICATION_MANIFEST: manifest } })).rejects.toMatchObject({ code: 1 });
+      env: { PATH: process.env.PATH, HOME: process.env.HOME, NEXUS_RUNNER_E2E_REPORT_ROOT: root,
+        NEXUS_RUNNER_E2E_REPORT_OUT: output, NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([rows[0]!.result.executionId]),
+        NEXUS_DEPENDABLE_QUALIFICATION_MANIFEST: manifest } })).rejects.toMatchObject({ code: 1 });
     const report = JSON.parse(await readFile(path.join(output, "dependable-qualification.json"), "utf8"));
     expect(report.complete).toBe(false); expect(report.observations).toHaveLength(2); expect(report.failedAttempts).toBe(1);
     expect(report.cells[0].candidatePassed).toBe(1);
@@ -206,9 +206,9 @@ it.each(["missing", "duplicate", "linked", "unsafe"])("writes an incomplete repo
     let exitCode = 0;
     try {
       await promisify(execFile)(process.execPath, [path.join(repository, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repository, "tests/runner-e2e/report.ts")], {
-        cwd: repository, timeout: 25_000, env: { PATH: process.env.PATH, HOME: process.env.HOME, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root,
-          PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([rows[0]!.result.executionId]),
-          PAPERCLIP_DEPENDABLE_QUALIFICATION_MANIFEST: manifest },
+        cwd: repository, timeout: 25_000, env: { PATH: process.env.PATH, HOME: process.env.HOME, NEXUS_RUNNER_E2E_REPORT_ROOT: root,
+          NEXUS_RUNNER_E2E_REPORT_OUT: output, NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([rows[0]!.result.executionId]),
+          NEXUS_DEPENDABLE_QUALIFICATION_MANIFEST: manifest },
       });
     } catch (error) { exitCode = (error as { code: number }).code; }
     expect(exitCode).toBe(1);

@@ -1,8 +1,8 @@
-import { isOpenRouterUrl, openRouterAttributionHeaders } from "@paperclipai/adapter-utils/openrouter-attribution";
+import { isOpenRouterUrl, openRouterAttributionHeaders } from "@nexusai/adapter-utils/openrouter-attribution";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { asBoolean } from "@paperclipai/adapter-utils/server-utils";
+import { asBoolean } from "@nexusai/adapter-utils/server-utils";
 import { installSandboxToolMemoryPreference } from "./sandbox-tool-memory.js";
 
 type PreparedOpenCodeRuntimeConfig = {
@@ -61,12 +61,12 @@ function parseProviderConfig(
   } catch {
     // Surface the misconfiguration instead of silently dropping the provider
     // block; an unparseable value would otherwise be undiagnosable.
-    notes.push("PAPERCLIP_OPENCODE_PROVIDERS contains invalid JSON; custom providers ignored.");
+    notes.push("NEXUS_OPENCODE_PROVIDERS contains invalid JSON; custom providers ignored.");
     return null;
   }
   if (!isPlainObject(parsed)) {
     notes.push(
-      "PAPERCLIP_OPENCODE_PROVIDERS is set but is not a JSON object; custom providers ignored.",
+      "NEXUS_OPENCODE_PROVIDERS is set but is not a JSON object; custom providers ignored.",
     );
     return null;
   }
@@ -80,7 +80,7 @@ function parseProviderConfig(
   }
   if (skipped.length > 0) {
     notes.push(
-      `PAPERCLIP_OPENCODE_PROVIDERS: skipped provider(s) with non-object values: ${skipped.join(", ")}.`,
+      `NEXUS_OPENCODE_PROVIDERS: skipped provider(s) with non-object values: ${skipped.join(", ")}.`,
     );
   }
   return Object.keys(providers).length > 0 ? providers : null;
@@ -126,7 +126,7 @@ export async function prepareOpenCodeRuntimeConfig(input: {
   }
 
   const sourceConfigDir = path.join(resolveXdgConfigHome(input.env), "opencode");
-  const runtimeConfigHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-opencode-config-"));
+  const runtimeConfigHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-opencode-config-"));
   const runtimeConfigDir = path.join(runtimeConfigHome, "opencode");
   const runtimeConfigPath = path.join(runtimeConfigDir, "opencode.json");
 
@@ -149,7 +149,7 @@ export async function prepareOpenCodeRuntimeConfig(input: {
     skipPermissions ? "Injected runtime OpenCode config with permission=allow for all tools and connections." : "Prepared isolated OpenCode provider configuration.",
   ];
 
-  // Merge gateway/custom provider definitions supplied via PAPERCLIP_OPENCODE_PROVIDERS
+  // Merge gateway/custom provider definitions supplied via NEXUS_OPENCODE_PROVIDERS
   // (a JSON object in OpenCode's `provider` shape). OpenCode resolves a `--model
   // provider/model` only when that model exists in a provider's `models` map, and
   // OPENCODE_ALLOW_ALL_MODELS does NOT bypass its internal getModel(). So routing a
@@ -158,7 +158,7 @@ export async function prepareOpenCodeRuntimeConfig(input: {
   // hard-coded) so the gateway URL, key env, and model list stay declarative.
   const resolveEnv = (name: string): string | undefined => input.env[name] ?? process.env[name];
   const gatewayProviders = parseProviderConfig(
-    input.env.PAPERCLIP_OPENCODE_PROVIDERS ?? process.env.PAPERCLIP_OPENCODE_PROVIDERS,
+    input.env.NEXUS_OPENCODE_PROVIDERS ?? process.env.NEXUS_OPENCODE_PROVIDERS,
     resolveEnv,
     notes,
   );
@@ -168,7 +168,7 @@ export async function prepareOpenCodeRuntimeConfig(input: {
     : existingProvider;
   if (gatewayProviders) {
     notes.push(
-      `Injected ${Object.keys(gatewayProviders).length} custom OpenCode provider(s) from PAPERCLIP_OPENCODE_PROVIDERS: ${Object.keys(gatewayProviders).join(", ")}.`,
+      `Injected ${Object.keys(gatewayProviders).length} custom OpenCode provider(s) from NEXUS_OPENCODE_PROVIDERS: ${Object.keys(gatewayProviders).join(", ")}.`,
     );
   }
 
@@ -179,7 +179,7 @@ export async function prepareOpenCodeRuntimeConfig(input: {
   // otherwise rejected with "Model not found" even though the provider serves them.
   // An empty entry deep-merges with catalog metadata, so this is a no-op for models
   // the catalog already knows, and we never clobber an explicit definition from the
-  // user config or PAPERCLIP_OPENCODE_PROVIDERS.
+  // user config or NEXUS_OPENCODE_PROVIDERS.
   const configuredModel = parseConfiguredModelRef(input.config.model);
   if (configuredModel) {
     const providerEntry = isPlainObject(nextProvider[configuredModel.provider])
@@ -219,12 +219,12 @@ export async function prepareOpenCodeRuntimeConfig(input: {
   }
 
   // Pin OpenCode's auxiliary "small" model (used for session-title generation and
-  // other helper tasks) via PAPERCLIP_OPENCODE_SMALL_MODEL. OpenCode otherwise
+  // other helper tasks) via NEXUS_OPENCODE_SMALL_MODEL. OpenCode otherwise
   // defaults the small model to a built-in provider default (e.g. a claude-* model
   // for the anthropic provider); when that provider is repointed at a gateway that
   // does not serve that exact model, the title-gen call fails and aborts the run.
   // Setting small_model to a gateway-served model keeps every call on supported models.
-  const smallModel = (input.env.PAPERCLIP_OPENCODE_SMALL_MODEL ?? process.env.PAPERCLIP_OPENCODE_SMALL_MODEL)?.trim();
+  const smallModel = (input.env.NEXUS_OPENCODE_SMALL_MODEL ?? process.env.NEXUS_OPENCODE_SMALL_MODEL)?.trim();
   if (smallModel) {
     nextConfig.small_model = smallModel;
     notes.push(`Pinned OpenCode small_model to ${smallModel}.`);

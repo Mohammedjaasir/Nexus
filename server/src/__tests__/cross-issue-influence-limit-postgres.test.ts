@@ -7,7 +7,7 @@ import {
   companies,
   createDb,
   heartbeatRuns,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -25,7 +25,7 @@ describeEmbeddedPostgres("cross-issue influence limit PostgreSQL serialization",
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-cross-issue-cap-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-cross-issue-cap-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -49,7 +49,7 @@ describeEmbeddedPostgres("cross-issue influence limit PostgreSQL serialization",
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `C${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       defaultResponsibleUserId: "board-user",
     });

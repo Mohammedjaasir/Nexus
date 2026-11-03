@@ -4,7 +4,7 @@ import { copyFile, link, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeF
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 import { MAX_REMOTE_DELIVERABLE_BYTES, readVerifiedRemoteWorkspaceFile } from "./remote-deliverable-file.js";
 
 const digest = (body: Buffer) => createHash("sha256").update(body).digest("hex");
@@ -22,18 +22,18 @@ describe("remote deliverable admission", () => {
     { byteSize: 1.5 }, { sha256: "invalid" },
   ])("rejects invalid input before dispatch: %j", async (override) => {
     const execute = vi.fn();
-    await expect(readVerifiedRemoteWorkspaceFile({ ...request, ...override, runner: { execute } })).rejects.toThrow(/paperclip_runner_file_handoff_/);
+    await expect(readVerifiedRemoteWorkspaceFile({ ...request, ...override, runner: { execute } })).rejects.toThrow(/nexus_runner_file_handoff_/);
     expect(execute).not.toHaveBeenCalled();
   });
 
   it("sanitizes a rejected remote transport error", async () => {
     const execute = vi.fn().mockRejectedValue(new Error("/private/provider/details"));
     await expect(readVerifiedRemoteWorkspaceFile({ ...request, runner: { execute } }))
-      .rejects.toThrow("paperclip_runner_file_handoff_remote_read_failed");
+      .rejects.toThrow("nexus_runner_file_handoff_remote_read_failed");
   });
 
   it.each(["path_denied", "symlink_denied", "file_changed", "hash_mismatch"])("preserves the safe %s error from either output stream", async (suffix) => {
-    const code = `paperclip_runner_file_handoff_${suffix}`;
+    const code = `nexus_runner_file_handoff_${suffix}`;
     for (const stream of ["stdout", "stderr"]) {
       const execute = vi.fn().mockResolvedValue({ ...success, exitCode: 1, stdout: "", stderr: "", [stream]: ` ${code}\n` });
       await expect(readVerifiedRemoteWorkspaceFile({ ...request, runner: { execute } })).rejects.toThrow(new Error(code));
@@ -41,7 +41,7 @@ describe("remote deliverable admission", () => {
   });
 
   it("explains a missing task workspace file from either output stream without exposing paths", async () => {
-    const code = "paperclip_runner_file_handoff_workspace_file_missing";
+    const code = "nexus_runner_file_handoff_workspace_file_missing";
     for (const stream of ["stdout", "stderr"]) {
       const execute = vi.fn().mockResolvedValue({ ...success, exitCode: 1, stdout: "", stderr: "", [stream]: code });
       await expect(readVerifiedRemoteWorkspaceFile({ ...request, runner: { execute } })).rejects.toThrow(new Error(
@@ -52,20 +52,20 @@ describe("remote deliverable admission", () => {
 
   it.each([
     "/private/provider/details",
-    "paperclip_runner_file_handoff_unknown_failure",
-    "paperclip_runner_file_handoff_workspace_file_missing\n/private/provider/details",
-    "warning: paperclip_runner_file_handoff_hash_mismatch",
-    "paperclip_runner_file_handoff_hash_mismatch extra",
-    "paperclip_runner_file_handoff_hash_mismatch\n/private/provider/details",
-    "paperclip_runner_file_handoff_hash_mismatch\nAPI_KEY=private-value",
-    '{"error":"paperclip_runner_file_handoff_hash_mismatch"}',
-    "\u001b[31mpaperclip_runner_file_handoff_hash_mismatch\u001b[0m",
-    "paperclip_runner_file_handoff_hash_mismatch\u0000",
+    "nexus_runner_file_handoff_unknown_failure",
+    "nexus_runner_file_handoff_workspace_file_missing\n/private/provider/details",
+    "warning: nexus_runner_file_handoff_hash_mismatch",
+    "nexus_runner_file_handoff_hash_mismatch extra",
+    "nexus_runner_file_handoff_hash_mismatch\n/private/provider/details",
+    "nexus_runner_file_handoff_hash_mismatch\nAPI_KEY=private-value",
+    '{"error":"nexus_runner_file_handoff_hash_mismatch"}',
+    "\u001b[31mnexus_runner_file_handoff_hash_mismatch\u001b[0m",
+    "nexus_runner_file_handoff_hash_mismatch\u0000",
   ])("does not expose unrecognized remote output: %j", async (output) => {
     for (const stream of ["stdout", "stderr"]) {
       const execute = vi.fn().mockResolvedValue({ ...success, exitCode: 1, stdout: "", stderr: "", [stream]: output });
       await expect(readVerifiedRemoteWorkspaceFile({ ...request, runner: { execute } }))
-        .rejects.toThrow(new Error("paperclip_runner_file_handoff_remote_read_failed"));
+        .rejects.toThrow(new Error("nexus_runner_file_handoff_remote_read_failed"));
     }
   });
 
@@ -74,7 +74,7 @@ describe("remote deliverable admission", () => {
     { stdout: Buffer.alloc(body.length, 65).toString("base64") }, { timedOut: true }, { exitCode: 1, stderr: "/private/provider/details" },
   ])("rejects truncated, corrupt, or failed provider output: %j", async (override) => {
     const execute = vi.fn().mockResolvedValue({ ...success, ...override });
-    await expect(readVerifiedRemoteWorkspaceFile({ ...request, runner: { execute } })).rejects.toThrow(/paperclip_runner_file_handoff_/);
+    await expect(readVerifiedRemoteWorkspaceFile({ ...request, runner: { execute } })).rejects.toThrow(/nexus_runner_file_handoff_/);
   });
 });
 
@@ -86,7 +86,7 @@ describe.skipIf(!hasLinuxNode)("remote deliverable real Linux descriptor reads",
   let runner: Pick<CommandManagedRuntimeRunner, "execute">;
 
   beforeEach(async () => {
-    root = await realpath(await mkdtemp(join(tmpdir(), "paperclip-remote-file-")));
+    root = await realpath(await mkdtemp(join(tmpdir(), "nexus-remote-file-")));
     workspaceRoot = join(root, "workspace");
     await mkdir(workspaceRoot);
     await writeFile(join(workspaceRoot, "checklist.md"), body);
@@ -131,7 +131,7 @@ describe.skipIf(!hasLinuxNode)("remote deliverable real Linux descriptor reads",
     const input = { runner, workspaceRoot, contentRef: "connection-proof.json", byteSize: proof.length, sha256: digest(proof) };
     await expect(readVerifiedRemoteWorkspaceFile(input)).resolves.toEqual(proof);
     await expect(readVerifiedRemoteWorkspaceFile({ ...input, sha256: "0".repeat(64) }))
-      .rejects.toThrow(new Error("paperclip_runner_file_handoff_hash_mismatch"));
+      .rejects.toThrow(new Error("nexus_runner_file_handoff_hash_mismatch"));
   });
 
   it("requires an agent-home deliverable to be copied into the task workspace before registration", async () => {
@@ -139,12 +139,12 @@ describe.skipIf(!hasLinuxNode)("remote deliverable real Linux descriptor reads",
       nonce: "abcdefghijklmnopqrstuvwx", count: 7, total: 271391, sha256: "d".repeat(64),
     }, null, 2) + "\n");
     expect(proof.length).toBe(155);
-    const agentHome = join(workspaceRoot, ".paperclip-runtime", "agent-files", "agent", "origin");
+    const agentHome = join(workspaceRoot, ".nexus-runtime", "agent-files", "agent", "origin");
     await mkdir(agentHome, { recursive: true });
     await writeFile(join(agentHome, "connection-proof.json"), proof);
     mergedOutput = true;
     const input = { runner, workspaceRoot, contentRef: "connection-proof.json", byteSize: proof.length, sha256: digest(proof) };
-    await expect(readVerifiedRemoteWorkspaceFile(input)).rejects.toThrow("paperclip_runner_file_handoff_workspace_file_missing");
+    await expect(readVerifiedRemoteWorkspaceFile(input)).rejects.toThrow("nexus_runner_file_handoff_workspace_file_missing");
     await expect(readFile(join(workspaceRoot, "connection-proof.json"))).rejects.toMatchObject({ code: "ENOENT" });
     expect(await readFile(join(agentHome, "connection-proof.json"))).toEqual(proof);
     await copyFile(join(agentHome, "connection-proof.json"), join(workspaceRoot, "connection-proof.json"));
@@ -154,7 +154,7 @@ describe.skipIf(!hasLinuxNode)("remote deliverable real Linux descriptor reads",
 
   it("does not classify an unavailable workspace root as a missing deliverable", async () => {
     await expect(readVerifiedRemoteWorkspaceFile({ ...request, workspaceRoot: join(root, "missing-workspace"), runner }))
-      .rejects.toThrow(new Error("paperclip_runner_file_handoff_remote_read_failed"));
+      .rejects.toThrow(new Error("nexus_runner_file_handoff_remote_read_failed"));
   });
 
   it("passes metacharacters as data, never shell syntax", async () => {
@@ -174,7 +174,7 @@ describe.skipIf(!hasLinuxNode)("remote deliverable real Linux descriptor reads",
     if (scenario === "directory") { contentRef = "directory"; await mkdir(join(workspaceRoot, contentRef)); }
     if (scenario === "wrong size") values.byteSize++;
     if (scenario === "wrong hash") values.sha256 = "0".repeat(64);
-    await expect(readVerifiedRemoteWorkspaceFile({ ...request, workspaceRoot, contentRef, runner, ...values })).rejects.toThrow(/paperclip_runner_file_handoff_/);
+    await expect(readVerifiedRemoteWorkspaceFile({ ...request, workspaceRoot, contentRef, runner, ...values })).rejects.toThrow(/nexus_runner_file_handoff_/);
   });
 
   it.each(["replace", "grow", "hardlink"])("detects a %s during the descriptor read", async (mutation) => {
@@ -200,7 +200,7 @@ describe.skipIf(!hasLinuxNode)("remote deliverable real Linux descriptor reads",
         return handle;
       };
     `);
-    await expect(readVerifiedRemoteWorkspaceFile({ ...request, workspaceRoot, runner })).rejects.toThrow(/paperclip_runner_file_handoff_file_changed/);
+    await expect(readVerifiedRemoteWorkspaceFile({ ...request, workspaceRoot, runner })).rejects.toThrow(/nexus_runner_file_handoff_file_changed/);
   });
 
   it("accepts the 10 MiB limit with exact bytes and hash", async () => {

@@ -163,7 +163,7 @@ describe("SmokeLabTab", () => {
       "http://127.0.0.1:3100/api/companies/company-1/smoke-lab/oauth/authorize",
     );
     // Demo credentials for the fake OAuth login.
-    expect(container.textContent).toContain("smoke@paperclip.test");
+    expect(container.textContent).toContain("smoke@nexus.test");
     expect(container.textContent).toContain("smoke-password");
     // Matrix rows for every path + a governed lifecycle column.
     expect(container.textContent).toContain("Integration matrix");

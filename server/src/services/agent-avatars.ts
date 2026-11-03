@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { AgentAppearance, AgentAvatarSize, AgentAvatarBackground, CharacterState } from "@paperclipai/shared";
+import type { AgentAppearance, AgentAvatarSize, AgentAvatarBackground, CharacterState } from "@nexusai/shared";
 import type { StorageProvider } from "../storage/types.js";
 import { createInviteRateLimiter } from "./invite-rate-limit.js";
 import { createAgentAvatarPool } from "./agent-avatar-pool.js";
@@ -14,7 +14,7 @@ export interface AgentAvatarRequest {
 }
 export function avatarCacheKey(request: AgentAvatarRequest) {
   const { appearance, size, scale, pose, muted, background } = request;
-  return `generated-agent-avatars/${appearance.characterVersion}/${muted ? "muted-dream" : appearance.paletteId}/${pose}-${size}-${scale}${background === "paperclip-dark" ? "-paperclip-dark-v1" : ""}.png`;
+  return `generated-agent-avatars/${appearance.characterVersion}/${muted ? "muted-dream" : appearance.paletteId}/${pose}-${size}-${scale}${background === "nexus-dark" ? "-nexus-dark-v1" : ""}.png`;
 }
 export class AvatarAdmissionError extends Error {
   constructor(public readonly retryAfterSeconds: number) { super("Too many cold avatar requests"); }

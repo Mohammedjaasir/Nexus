@@ -69,8 +69,8 @@ export function gradeRepositoryProof(value: RepositoryProofObservation) {
   const result = value.downloaded && typeof value.downloaded === "object" && !Array.isArray(value.downloaded)
     ? value.downloaded as Record<string, unknown> : null;
   return [
-    check("production-conversion", value.finalAdapter === "paperclip_runner" &&
-      value.originalAdapter === (value.conversion ? value.expectedLegacyAdapter : "paperclip_runner"),
+    check("production-conversion", value.finalAdapter === "nexus_runner" &&
+      value.originalAdapter === (value.conversion ? value.expectedLegacyAdapter : "nexus_runner"),
       "Conversion must start with a real legacy agent and use its production runner transition."),
     check("retained-configuration", Boolean(value.configurationBefore) && value.configurationBefore === value.configurationAfter &&
       Boolean(value.instructionsBefore) && value.instructionsBefore === value.instructionsAfter && value.permissionsPreserved && value.environmentRetained,

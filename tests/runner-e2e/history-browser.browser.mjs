@@ -1,4 +1,4 @@
-// Explicit browser regression; synthetic history only, with no Paperclip/model runs.
+// Explicit browser regression; synthetic history only, with no Nexus/model runs.
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
@@ -8,7 +8,7 @@ import { renderRunnerHistoryIndex } from './history-index.ts';
 
 const {values} = parseArgs({options:{screenshots:{type:'string'}}});
 const result = (suite,profile,environment,model,targetUrl,status='passed',attempt=1) => ({
- schema:'paperclip.runner-e2e.result/v2',executionId:`${suite}.${profile}.${environment}.create`,suiteId:suite,
+ schema:'nexus.runner-e2e.result/v2',executionId:`${suite}.${profile}.${environment}.create`,suiteId:suite,
  suiteDefinitionHash:'fixture-definition',profileId:profile,environmentId:environment,caseId:'create',provider:profile,
  model,runtimeMode:'native',targetUrl,attempt,status,cleanup:'passed',durationMs:1000,
  startedAt:'2026-10-27T12:00:00Z',finishedAt:'2026-10-27T12:00:01Z',

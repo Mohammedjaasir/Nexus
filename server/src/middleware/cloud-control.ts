@@ -58,8 +58,8 @@ export function cloudControlMiddleware(): RequestHandler {
     }
     req.actor = {
       type: "board",
-      userId: "paperclip-cloud",
-      userName: "Paperclip Cloud",
+      userId: "nexus-cloud",
+      userName: "Nexus Cloud",
       userEmail: null,
       isInstanceAdmin: true,
       source: "cloud_control",

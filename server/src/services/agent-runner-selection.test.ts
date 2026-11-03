@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { agentHarnessType, agentRunner, paperclipRunnerProfileForHarness, paperclipRunnerSupportsPlatform, PAPERCLIP_RUNNER_MINIMUM_GLIBC_VERSION, createAgentSchema, updateAgentSchema, testAdapterEnvironmentSchema } from "@paperclipai/shared";
+import { agentHarnessType, agentRunner, nexusRunnerProfileForHarness, nexusRunnerSupportsPlatform, NEXUS_RUNNER_MINIMUM_GLIBC_VERSION, createAgentSchema, updateAgentSchema, testAdapterEnvironmentSchema } from "@nexusai/shared";
 const state = vi.hoisted(() => ({ disabled: [] as string[], overridden: new Set<string>(), settings: {} as Record<string, unknown>, getEnvironment: vi.fn(), bindings: vi.fn(), activeTemplate: vi.fn().mockResolvedValue(null), secretPaths: vi.fn().mockResolvedValue(new Set(["apiKey"])), managedEnvironment: vi.fn(), kubernetesEnvironment: vi.fn(), ensureKubernetesEnvironment: vi.fn(), ssh: vi.fn(), resolveEnvironment: vi.fn(), sandboxQualification: vi.fn(), pluginByKey: vi.fn() }));
 vi.mock("../adapters/registry.js", () => ({ findActiveServerAdapter: (type: string) => ({ type }), hasActiveAdapterOverride: (type: string) => state.overridden.has(type), waitForExternalAdapters: async () => {} }));
 vi.mock("./adapter-plugin-store.js", () => ({ getDisabledAdapterTypes: () => state.disabled }));
@@ -17,9 +17,9 @@ vi.mock("./environment-config.js", async () => ({
   resolveSandboxProviderSecretRefPaths: state.secretPaths,
 }));
 vi.mock("./plugin-registry.js", () => ({ pluginRegistryService: () => ({ getByKey: state.pluginByKey }) }));
-vi.mock("@paperclipai/adapter-utils/ssh", () => ({ runSshCommand: state.ssh }));
+vi.mock("@nexusai/adapter-utils/ssh", () => ({ runSshCommand: state.ssh }));
 import { AGENT_RUNNER_SSH_PLATFORM_COMMAND, agentRunnerAvailability, resolveAgentRunnerTaskDriverForCompany, resolveAgentRunnerTargetForCompany, resolveNewAgentRunner, resolveNewAgentRunnerForCompany } from "./agent-runner-selection.js";
-import { buildCodexAcpConfig, resolveCodexExecutionEngine } from "@paperclipai/adapter-codex-local/server";
+import { buildCodexAcpConfig, resolveCodexExecutionEngine } from "@nexusai/adapter-codex-local/server";
 import { secretService } from "./secrets.js";
 import * as localPlatform from "../lib/agent-runner-platform.js";
 import { fingerprintEnvironmentSandboxProviderConfig as fingerprint } from "./environment-custom-image-runtime.js";
@@ -39,11 +39,11 @@ describe("server-owned Codex runner selection", () => {
       expect(agentRunnerAvailability("codex_local", target)).toEqual({ supportedRunners: ["legacy"], defaultRunner: "legacy" });
       const input = { adapterType: "codex_local", adapterConfig: { extraArgs: ["--sandbox", "read-only"] }, target };
       expect(resolveNewAgentRunner(input)).toEqual({ adapterType: input.adapterType, adapterConfig: input.adapterConfig });
-      expect(() => resolveNewAgentRunner({ ...input, runner: "paperclip" })).toThrow("unavailable");
-      const saved = { adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" }, target };
+      expect(() => resolveNewAgentRunner({ ...input, runner: "nexus" })).toThrow("unavailable");
+      const saved = { adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" }, target };
       expect(resolveNewAgentRunner(saved)).toEqual({ adapterType: saved.adapterType, adapterConfig: saved.adapterConfig });
-      expect(resolveNewAgentRunner({ ...saved, runner: "paperclip" })).toEqual({ adapterType: saved.adapterType, adapterConfig: saved.adapterConfig });
-      expect(agentRunnerAvailability("codex_local", { ...target, libc: "glibc" }).defaultRunner).toBe("paperclip");
+      expect(resolveNewAgentRunner({ ...saved, runner: "nexus" })).toEqual({ adapterType: saved.adapterType, adapterConfig: saved.adapterConfig });
+      expect(agentRunnerAvailability("codex_local", { ...target, libc: "glibc" }).defaultRunner).toBe("nexus");
     }
   });
   it.each([[undefined, false], ["2.38", false], ["2.39", true], ["3.0", true], [" 2.39 ", true], ["malformed", false], ["", false]] as const)("uses the measured local libc version (%s) for creation", async (glibcVersionRuntime, native) => {
@@ -52,9 +52,9 @@ describe("server-owned Codex runner selection", () => {
     vi.spyOn(localPlatform, "localAgentRunnerTarget").mockReturnValue({ driver: "local", platform: "linux", architecture: "arm64", libc: glibcVersionRuntime ? "glibc" : "unknown", ...(glibcVersionRuntime ? { glibcVersion: glibcVersionRuntime.trim() } : {}) });
     const localTarget = localPlatform.localAgentRunnerTarget();
     expect(localTarget).toEqual({ driver: "local", platform: "linux", architecture: "arm64", libc: glibcVersionRuntime ? "glibc" : "unknown", ...(glibcVersionRuntime ? { glibcVersion: glibcVersionRuntime.trim() } : {}) });
-    expect(agentRunnerAvailability("codex_local").defaultRunner).toBe(native ? "paperclip" : "legacy");
+    expect(agentRunnerAvailability("codex_local").defaultRunner).toBe(native ? "nexus" : "legacy");
     const saved = await resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local" });
-    expect(saved.adapterType).toBe(native ? "paperclip_runner" : "codex_local");
+    expect(saved.adapterType).toBe(native ? "nexus_runner" : "codex_local");
   });
   it.each([
     ["2.38", false], ["2.39", true], ["2.40", true], ["3.0", true], ["2.9", false],
@@ -62,14 +62,14 @@ describe("server-owned Codex runner selection", () => {
     ["2.39ubuntu1", false], ["unknown", false], ["", false], ["2", false], ["2.-39", false],
     ["999999999999999999999999.0", false],
   ])("qualifies the measured GNU/Linux daemon ABI for glibc %s (%s)", (glibcVersion, native) => {
-    expect(PAPERCLIP_RUNNER_MINIMUM_GLIBC_VERSION).toBe("2.39");
+    expect(NEXUS_RUNNER_MINIMUM_GLIBC_VERSION).toBe("2.39");
     for (const architecture of ["x64", "arm64"]) {
       const target = { driver: "local", platform: "linux", architecture, libc: "glibc" as const, glibcVersion: String(glibcVersion) };
-      expect(paperclipRunnerSupportsPlatform("codex_local", target.platform, architecture, target.libc, target.glibcVersion)).toBe(native);
-      expect(agentRunnerAvailability("codex_local", target).defaultRunner).toBe(native ? "paperclip" : "legacy");
-      expect(resolveNewAgentRunner({ adapterType: "codex_local", target }).adapterType).toBe(native ? "paperclip_runner" : "codex_local");
-      if (!native) expect(() => resolveNewAgentRunner({ adapterType: "codex_local", runner: "paperclip", target })).toThrow("unavailable");
-      const saved = { adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" }, target, runner: "paperclip" as const };
+      expect(nexusRunnerSupportsPlatform("codex_local", target.platform, architecture, target.libc, target.glibcVersion)).toBe(native);
+      expect(agentRunnerAvailability("codex_local", target).defaultRunner).toBe(native ? "nexus" : "legacy");
+      expect(resolveNewAgentRunner({ adapterType: "codex_local", target }).adapterType).toBe(native ? "nexus_runner" : "codex_local");
+      if (!native) expect(() => resolveNewAgentRunner({ adapterType: "codex_local", runner: "nexus", target })).toThrow("unavailable");
+      const saved = { adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" }, target, runner: "nexus" as const };
       expect(resolveNewAgentRunner(saved)).toEqual({ adapterType: saved.adapterType, adapterConfig: saved.adapterConfig });
     }
   });
@@ -82,7 +82,7 @@ describe("server-owned Codex runner selection", () => {
   it.each(qualifiedTargets)("uses native Codex automatically with compatible configuration and is idempotent on $platform/$architecture", target => {
     const input = { adapterType: "codex_local", target, adapterConfig: { model: "gpt-5.6-sol", modelReasoningEffort: "high", env: { OPENAI_API_KEY: { type: "secret_ref", secretId: "secret" } }, cwd: "/workspace", instructionsFilePath: "/workspace/AGENTS.md", workspaceStrategy: { type: "git_worktree" }, timeoutSec: 60, search: false, fastMode: false, dangerouslyBypassApprovalsAndSandbox: true } };
     const resolved = resolveNewAgentRunner(input);
-    expect(resolved).toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { provider: "codex", codexPermissionMode: "never", modelReasoningEffort: "high", env: input.adapterConfig.env, workspaceStrategy: input.adapterConfig.workspaceStrategy, timeoutSec: 60 } });
+    expect(resolved).toMatchObject({ adapterType: "nexus_runner", adapterConfig: { provider: "codex", codexPermissionMode: "never", modelReasoningEffort: "high", env: input.adapterConfig.env, workspaceStrategy: input.adapterConfig.workspaceStrategy, timeoutSec: 60 } });
     expect(resolved.adapterConfig).toHaveProperty("search", false);
     expect(resolveNewAgentRunner(resolved)).toEqual(resolved);
     expect(input.adapterConfig).toHaveProperty("search", false);
@@ -93,8 +93,8 @@ describe("server-owned Codex runner selection", () => {
   it.each(qualifiedTargets.filter(target => !(target.platform === "linux" && target.architecture === "arm64")))("defaults Pi to native on $platform/$architecture and round trips exact thinking", target => {
     const adapterConfig = { model: "openrouter/anthropic/claude-sonnet-4.6", thinking: "high", command: "pi", env: { OPENROUTER_API_KEY: { type: "secret_ref", secretId: "connection" } }, cwd: "/workspace" };
     const selected = resolveNewAgentRunner({ adapterType: "pi_local", adapterConfig, target });
-    expect(agentRunnerAvailability("pi_local", target).defaultRunner).toBe("paperclip");
-    expect(selected).toEqual({ adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "pi", model: adapterConfig.model, piThinkingLevel: "high", acpxPermissionMode: "approve-all", lifecycleMode: "per_turn", cwd: adapterConfig.cwd, env: adapterConfig.env } });
+    expect(agentRunnerAvailability("pi_local", target).defaultRunner).toBe("nexus");
+    expect(selected).toEqual({ adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "pi", model: adapterConfig.model, piThinkingLevel: "high", acpxPermissionMode: "approve-all", lifecycleMode: "per_turn", cwd: adapterConfig.cwd, env: adapterConfig.env } });
     expect(resolveNewAgentRunner(selected)).toEqual(selected);
     expect(resolveNewAgentRunner({ ...selected, runner: "legacy" })).toEqual({ adapterType: "pi_local", adapterConfig: { model: adapterConfig.model, thinking: "high", cwd: adapterConfig.cwd, env: adapterConfig.env } });
   });
@@ -110,8 +110,8 @@ describe("server-owned Codex runner selection", () => {
     expect(() => resolveNewAgentRunner({ adapterType: "pi_local", target, adapterConfig: { model } })).toThrow("provider/model");
   });
   it("allows an inactive Pi draft before model selection and preserves saved native policy", () => {
-    expect(resolveNewAgentRunner({ adapterType: "pi_local", target, setupOnly: true })).toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "pi", model: "", piThinkingLevel: "low" } });
-    const saved = { adapterType: "paperclip_runner", target, adapterConfig: { provider: "acpx", acpxAgent: "pi", model: "custom/model", piThinkingLevel: "max", acpxPermissionMode: "approve-reads", lifecycleMode: "warm", idleTimeoutMs: 1234 } };
+    expect(resolveNewAgentRunner({ adapterType: "pi_local", target, setupOnly: true })).toMatchObject({ adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "pi", model: "", piThinkingLevel: "low" } });
+    const saved = { adapterType: "nexus_runner", target, adapterConfig: { provider: "acpx", acpxAgent: "pi", model: "custom/model", piThinkingLevel: "max", acpxPermissionMode: "approve-reads", lifecycleMode: "warm", idleTimeoutMs: 1234 } };
     expect(resolveNewAgentRunner(saved)).toEqual({ adapterType: saved.adapterType, adapterConfig: saved.adapterConfig });
     expect(() => resolveNewAgentRunner({ ...saved, runner: "legacy" })).toThrow("Legacy Pi cannot honor");
   });
@@ -119,16 +119,16 @@ describe("server-owned Codex runner selection", () => {
     const input = { adapterType: "pi_local", adapterConfig: { model: "custom/model", thinking: "medium" }, target };
     expect(agentRunnerAvailability("pi_local", target).defaultRunner).toBe("legacy");
     expect(resolveNewAgentRunner(input)).toEqual({ adapterType: input.adapterType, adapterConfig: input.adapterConfig });
-    expect(() => resolveNewAgentRunner({ ...input, runner: "paperclip" })).toThrow("unavailable");
+    expect(() => resolveNewAgentRunner({ ...input, runner: "nexus" })).toThrow("unavailable");
   });
   it.each(["minimal", "medium", "xhigh"])("honors an explicit Legacy Pi thinking edit to %s when resuming a native draft", thinking => {
-    expect(resolveNewAgentRunner({ adapterType: "paperclip_runner", runner: "legacy", adapterConfig: { provider: "acpx", acpxAgent: "pi", model: "custom/model", piThinkingLevel: "max", thinking } })).toEqual({ adapterType: "pi_local", adapterConfig: { model: "custom/model", thinking } });
+    expect(resolveNewAgentRunner({ adapterType: "nexus_runner", runner: "legacy", adapterConfig: { provider: "acpx", acpxAgent: "pi", model: "custom/model", piThinkingLevel: "max", thinking } })).toEqual({ adapterType: "pi_local", adapterConfig: { model: "custom/model", thinking } });
   });
   it("honors disabled and overridden Pi adapters", () => {
     const input = { adapterType: "pi_local", target, adapterConfig: { model: "custom/model" } };
     state.overridden.add("pi_local");
     expect(resolveNewAgentRunner(input).adapterType).toBe("pi_local");
-    state.overridden.clear(); state.disabled = ["paperclip_runner"];
+    state.overridden.clear(); state.disabled = ["nexus_runner"];
     expect(resolveNewAgentRunner(input).adapterType).toBe("pi_local");
     state.disabled = ["pi_local"];
     expect(() => resolveNewAgentRunner(input)).toThrow("Pi is disabled");
@@ -136,8 +136,8 @@ describe("server-owned Codex runner selection", () => {
   it.each(qualifiedTargets.filter(target => !(target.platform === "linux" && target.architecture === "arm64")))("defaults OpenCode to its native provider on $platform/$architecture", target => {
     const adapterConfig = { model: "openrouter/anthropic/claude-sonnet-4.6", dangerouslySkipPermissions: true, command: "opencode", env: { OPENROUTER_API_KEY: { type: "secret_ref", secretId: "connection" } }, cwd: "/workspace", instructionsFilePath: "/workspace/AGENTS.md" };
     const selected = resolveNewAgentRunner({ adapterType: "opencode_local", adapterConfig, target });
-    expect(agentRunnerAvailability("opencode_local", target).defaultRunner).toBe("paperclip");
-    expect(selected).toEqual({ adapterType: "paperclip_runner", adapterConfig: { provider: "opencode", model: adapterConfig.model, env: adapterConfig.env, cwd: adapterConfig.cwd, instructionsFilePath: adapterConfig.instructionsFilePath, opencodePermissionMode: "allow", lifecycleMode: "per_turn" } });
+    expect(agentRunnerAvailability("opencode_local", target).defaultRunner).toBe("nexus");
+    expect(selected).toEqual({ adapterType: "nexus_runner", adapterConfig: { provider: "opencode", model: adapterConfig.model, env: adapterConfig.env, cwd: adapterConfig.cwd, instructionsFilePath: adapterConfig.instructionsFilePath, opencodePermissionMode: "allow", lifecycleMode: "per_turn" } });
     expect(resolveNewAgentRunner(selected)).toEqual(selected);
     expect(resolveNewAgentRunner({ ...selected, runner: "legacy" })).toMatchObject({ adapterType: "opencode_local", adapterConfig: { model: adapterConfig.model, dangerouslySkipPermissions: true } });
   });
@@ -145,7 +145,7 @@ describe("server-owned Codex runner selection", () => {
     const input = { adapterType: "opencode_local", adapterConfig: { model: "custom/model", command: "custom-opencode" }, target };
     expect(agentRunnerAvailability("opencode_local", target)).toEqual({ supportedRunners: ["legacy"], defaultRunner: "legacy" });
     expect(resolveNewAgentRunner(input)).toEqual({ adapterType: input.adapterType, adapterConfig: input.adapterConfig });
-    expect(() => resolveNewAgentRunner({ ...input, runner: "paperclip" })).toThrow("unavailable");
+    expect(() => resolveNewAgentRunner({ ...input, runner: "nexus" })).toThrow("unavailable");
   });
   it.each([{ command: "custom-opencode" }, { variant: "high" }, { extraArgs: ["--agent", "plan"] }, { args: ["--attach", "http://localhost"] }, { dangerouslySkipPermissions: false }])("rejects unsupported OpenCode settings instead of discarding them: %j", adapterConfig => {
     const input = { adapterType: "opencode_local", adapterConfig: { model: "custom/model", ...adapterConfig }, target };
@@ -157,7 +157,7 @@ describe("server-owned Codex runner selection", () => {
   });
   it("stores an inactive native OpenCode setup draft before model selection, but cannot hire it", () => {
     const input = { adapterType: "opencode_local", target };
-    expect(resolveNewAgentRunner({ ...input, setupOnly: true })).toEqual({ adapterType: "paperclip_runner", adapterConfig: { provider: "opencode", model: "", opencodePermissionMode: "allow", lifecycleMode: "per_turn" } });
+    expect(resolveNewAgentRunner({ ...input, setupOnly: true })).toEqual({ adapterType: "nexus_runner", adapterConfig: { provider: "opencode", model: "", opencodePermissionMode: "allow", lifecycleMode: "per_turn" } });
     expect(() => resolveNewAgentRunner(input)).toThrow("provider/model");
   });
   it("honors native OpenCode permissions and refuses to discard them on return to legacy", () => {
@@ -171,47 +171,47 @@ describe("server-owned Codex runner selection", () => {
     state.getEnvironment.mockResolvedValue({ id: "sandbox", driver: "sandbox", status: "active", config: { provider: "daytona" } });
     expect((await resolveNewAgentRunnerForCompany({} as never, "company", input)).adapterType).toBe("opencode_local");
     state.sandboxQualification.mockResolvedValue({ platform: "linux", architecture: "x64", libc: "glibc", glibcVersion: "2.39" });
-    expect((await resolveNewAgentRunnerForCompany({} as never, "company", input)).adapterType).toBe("paperclip_runner");
+    expect((await resolveNewAgentRunnerForCompany({} as never, "company", input)).adapterType).toBe("nexus_runner");
     state.overridden.add("opencode_local");
     expect(resolveNewAgentRunner({ ...input, target }).adapterType).toBe("opencode_local");
-    state.overridden.clear(); state.disabled = ["paperclip_runner"];
+    state.overridden.clear(); state.disabled = ["nexus_runner"];
     expect(resolveNewAgentRunner({ ...input, target }).adapterType).toBe("opencode_local");
     state.disabled = ["opencode_local"];
     expect(() => resolveNewAgentRunner({ ...input, target })).toThrow("OpenCode is disabled");
   });
   it.each(qualifiedTargets)("allows an explicit legacy runner and native to legacy round trip on $platform/$architecture", target => {
     expect(resolveNewAgentRunner({ adapterType: "codex_local", target, runner: "legacy", adapterConfig: { extraArgs: ["--search"] } }).adapterType).toBe("codex_local");
-    expect(resolveNewAgentRunner({ adapterType: "paperclip_runner", runner: "legacy", adapterConfig: { provider: "codex", model: "gpt-5.6-sol", lifecycleMode: "per_turn", codexPermissionMode: "never", modelReasoningEffort: "high" } })).toEqual({ adapterType: "codex_local", adapterConfig: { model: "gpt-5.6-sol", modelReasoningEffort: "high", dangerouslyBypassApprovalsAndSandbox: true } });
+    expect(resolveNewAgentRunner({ adapterType: "nexus_runner", runner: "legacy", adapterConfig: { provider: "codex", model: "gpt-5.6-sol", lifecycleMode: "per_turn", codexPermissionMode: "never", modelReasoningEffort: "high" } })).toEqual({ adapterType: "codex_local", adapterConfig: { model: "gpt-5.6-sol", modelReasoningEffort: "high", dangerouslyBypassApprovalsAndSandbox: true } });
   });
   it("preserves explicit legacy permission policy alongside compatible native lifecycle defaults", () => {
     expect(resolveNewAgentRunner({ adapterType: "codex_local", runner: "legacy", adapterConfig: { dangerouslyBypassApprovalsAndSandbox: false, lifecycleMode: "per_turn" } }))
       .toEqual({ adapterType: "codex_local", adapterConfig: { dangerouslyBypassApprovalsAndSandbox: false } });
-    expect(resolveNewAgentRunner({ adapterType: "paperclip_runner", runner: "legacy", adapterConfig: { provider: "codex", codexPermissionMode: "never", lifecycleMode: "per_turn", dangerouslyBypassApprovalsAndSandbox: false } }))
+    expect(resolveNewAgentRunner({ adapterType: "nexus_runner", runner: "legacy", adapterConfig: { provider: "codex", codexPermissionMode: "never", lifecycleMode: "per_turn", dangerouslyBypassApprovalsAndSandbox: false } }))
       .toEqual({ adapterType: "codex_local", adapterConfig: { dangerouslyBypassApprovalsAndSandbox: false } });
   });
   it.each([{ platform: "win32", architecture: "x64" }, { platform: "linux", architecture: "arm" }, { platform: "darwin", architecture: "ia32" }])("keeps unqualified $platform/$architecture targets legacy while preserving explicit native profiles", ({ platform, architecture }) => {
     const input = { adapterType: "codex_local", target: { driver: "local", platform, architecture } };
     expect(resolveNewAgentRunner(input).adapterType).toBe("codex_local");
-    expect(() => resolveNewAgentRunner({ ...input, runner: "paperclip" })).toThrow("unavailable");
-    const saved = { adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" }, target: input.target };
+    expect(() => resolveNewAgentRunner({ ...input, runner: "nexus" })).toThrow("unavailable");
+    const saved = { adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" }, target: input.target };
     expect(resolveNewAgentRunner(saved)).toEqual({ adapterType: saved.adapterType, adapterConfig: saved.adapterConfig });
-    expect(resolveNewAgentRunner({ ...saved, runner: "paperclip" })).toEqual({ adapterType: saved.adapterType, adapterConfig: saved.adapterConfig });
+    expect(resolveNewAgentRunner({ ...saved, runner: "nexus" })).toEqual({ adapterType: saved.adapterType, adapterConfig: saved.adapterConfig });
   });
   it.each(qualifiedTargets)("automatically keeps unsupported targets and active external overrides legacy on $platform/$architecture", target => {
     const input = { adapterType: "codex_local", target: { driver: "local", platform: "win32", architecture: "x64" } };
     expect(resolveNewAgentRunner(input).adapterType).toBe("codex_local");
-    expect(() => resolveNewAgentRunner({ ...input, runner: "paperclip" })).toThrow("unavailable");
+    expect(() => resolveNewAgentRunner({ ...input, runner: "nexus" })).toThrow("unavailable");
     state.overridden.add("codex_local");
     expect(agentRunnerAvailability("codex_local", target).defaultRunner).toBe("legacy");
     expect(resolveNewAgentRunner({ adapterType: "codex_local", target }).adapterType).toBe("codex_local");
     state.overridden.clear();
-    state.overridden.add("paperclip_runner");
+    state.overridden.add("nexus_runner");
     expect(resolveNewAgentRunner({ adapterType: "codex_local", target }).adapterType).toBe("codex_local");
   });
   it.each(qualifiedTargets)("does not select a disabled runner on $platform/$architecture", target => {
-    state.disabled = ["paperclip_runner"];
+    state.disabled = ["nexus_runner"];
     expect(resolveNewAgentRunner({ adapterType: "codex_local", target }).adapterType).toBe("codex_local");
-    expect(() => resolveNewAgentRunner({ adapterType: "codex_local", target, runner: "paperclip" })).toThrow("unavailable");
+    expect(() => resolveNewAgentRunner({ adapterType: "codex_local", target, runner: "nexus" })).toThrow("unavailable");
     state.disabled = ["codex_local"];
     expect(() => resolveNewAgentRunner({ adapterType: "codex_local", target })).toThrow("Codex is disabled");
   });
@@ -230,7 +230,7 @@ describe("server-owned Codex runner selection", () => {
   ])("rejects effective Legacy ACP alias %s/%s before automatic native translation", (canonical, alias, value) => {
     const adapterConfig = { engine: "acp", [alias]: value };
     expect(buildCodexAcpConfig(adapterConfig)).toHaveProperty(canonical, value);
-    for (const runner of ["auto", "paperclip"] as const) {
+    for (const runner of ["auto", "nexus"] as const) {
       expect(() => resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target, runner }))
         .toThrow(expect.objectContaining({ status: 422, details: { code: "agent_runner_config_incompatible", fields: [alias] } }));
     }
@@ -255,7 +255,7 @@ describe("server-owned Codex runner selection", () => {
       warmHandleIdleMs: 0, acpWarmHandleIdleMs: 30_000 };
     expect(buildCodexAcpConfig(adapterConfig)).toMatchObject({ mode: "persistent", nonInteractivePermissions: "deny", warmHandleIdleMs: 0 });
     const resolved = resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target });
-    expect(resolved).toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { codexPermissionMode: "never" } });
+    expect(resolved).toMatchObject({ adapterType: "nexus_runner", adapterConfig: { codexPermissionMode: "never" } });
     for (const field of Object.keys(adapterConfig)) expect(resolved.adapterConfig).not.toHaveProperty(field);
     expect(resolveNewAgentRunner(resolved)).toEqual(resolved);
     expect(resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target, runner: "legacy" }))
@@ -266,7 +266,7 @@ describe("server-owned Codex runner selection", () => {
     const adapterConfig = { engine: "acp", acpMode: " persistent ", acpNonInteractivePermissions: " deny ", acpWarmHandleIdleMs: 0 };
     expect(buildCodexAcpConfig(adapterConfig)).toMatchObject({ mode: "persistent", nonInteractivePermissions: "deny", warmHandleIdleMs: 0 });
     const resolved = resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target });
-    expect(resolved.adapterType).toBe("paperclip_runner");
+    expect(resolved.adapterType).toBe("nexus_runner");
     for (const field of Object.keys(adapterConfig)) expect(resolved.adapterConfig).not.toHaveProperty(field);
     expect(resolveNewAgentRunner(resolved)).toEqual(resolved);
   });
@@ -286,20 +286,20 @@ describe("server-owned Codex runner selection", () => {
   });
 
   it.each([undefined, "acp"])("rejects effective Legacy ACP network denial for engine=%s before native selection", async engine => {
-    const adapterConfig = { ...(engine ? { engine } : {}), env: { PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: "false" } };
+    const adapterConfig = { ...(engine ? { engine } : {}), env: { NEXUS_CODEX_ACP_NETWORK_ACCESS: "false" } };
     expect(resolveCodexExecutionEngine(adapterConfig).engine).toBe("acp");
-    expect(buildCodexAcpConfig(adapterConfig)).toMatchObject({ env: { PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: "false" } });
+    expect(buildCodexAcpConfig(adapterConfig)).toMatchObject({ env: { NEXUS_CODEX_ACP_NETWORK_ACCESS: "false" } });
     const { codexNetworkAccess } = await import(new URL(
-      "../../../packages/paperclip-runner/src/drivers/codex/codex-security-config.ts", import.meta.url,
+      "../../../packages/nexus-runner/src/drivers/codex/codex-security-config.ts", import.meta.url,
     ).href);
-    expect(codexNetworkAccess({ PAPERCLIP_RUNNER_NETWORK_ACCESS: "enabled", PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: "false" })).toBe(true);
-    for (const runner of [undefined, "auto", "paperclip"] as const) {
+    expect(codexNetworkAccess({ NEXUS_RUNNER_NETWORK_ACCESS: "enabled", NEXUS_CODEX_ACP_NETWORK_ACCESS: "false" })).toBe(true);
+    for (const runner of [undefined, "auto", "nexus"] as const) {
       expect(() => resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target, runner }))
-        .toThrow(expect.objectContaining({ status: 422, details: { code: "agent_runner_config_incompatible", fields: ["env.PAPERCLIP_CODEX_ACP_NETWORK_ACCESS"] } }));
+        .toThrow(expect.objectContaining({ status: 422, details: { code: "agent_runner_config_incompatible", fields: ["env.NEXUS_CODEX_ACP_NETWORK_ACCESS"] } }));
     }
     expect(resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target, runner: "legacy" }))
       .toEqual({ adapterType: "codex_local", adapterConfig });
-    expect(adapterConfig.env).toEqual({ PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: "false" });
+    expect(adapterConfig.env).toEqual({ NEXUS_CODEX_ACP_NETWORK_ACCESS: "false" });
   });
 
   it.each([
@@ -307,14 +307,14 @@ describe("server-owned Codex runner selection", () => {
     { type: "secret_ref", secretId: "fixture-policy", version: "latest" },
     { type: "user_secret_ref", key: "fixture-policy", version: "latest" },
   ])("does not discard a bound ACP network restriction or guess its value (%j)", async binding => {
-    const adapterConfig = { engine: "acp", env: { PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: binding } };
+    const adapterConfig = { engine: "acp", env: { NEXUS_CODEX_ACP_NETWORK_ACCESS: binding } };
     if (binding.type === "plain") {
       const resolved = await secretService({} as never).resolveEnvBindings("fixture-company", adapterConfig.env);
       expect(buildCodexAcpConfig({ ...adapterConfig, env: resolved.env }))
-        .toMatchObject({ env: { PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: "false" } });
+        .toMatchObject({ env: { NEXUS_CODEX_ACP_NETWORK_ACCESS: "false" } });
     }
     expect(() => resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target }))
-      .toThrow(expect.objectContaining({ status: 422, details: { code: "agent_runner_config_incompatible", fields: ["env.PAPERCLIP_CODEX_ACP_NETWORK_ACCESS"] } }));
+      .toThrow(expect.objectContaining({ status: 422, details: { code: "agent_runner_config_incompatible", fields: ["env.NEXUS_CODEX_ACP_NETWORK_ACCESS"] } }));
     expect(resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target, runner: "legacy" }))
       .toEqual({ adapterType: "codex_local", adapterConfig });
   });
@@ -323,33 +323,33 @@ describe("server-owned Codex runner selection", () => {
     { extraArgs: ["-c", "sandbox_workspace_write.network_access=true"] },
     { extraArgs: [], args: ["-c", "sandbox_workspace_write.network_access=true"] },
   ])("retains actionable argument errors when Legacy arguments override a network flag (%j)", args => {
-    const adapterConfig = { engine: "acp", ...args, env: { PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: "false" } };
-    expect(buildCodexAcpConfig(adapterConfig)).toMatchObject({ env: { PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: "true" } });
+    const adapterConfig = { engine: "acp", ...args, env: { NEXUS_CODEX_ACP_NETWORK_ACCESS: "false" } };
+    expect(buildCodexAcpConfig(adapterConfig)).toMatchObject({ env: { NEXUS_CODEX_ACP_NETWORK_ACCESS: "true" } });
     expect(() => resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target }))
       .toThrow(expect.objectContaining({ status: 422, details: { code: "agent_runner_config_incompatible", fields: [args.extraArgs.length ? "extraArgs" : "args"] } }));
   });
 
   it.each(["true", "False", " false ", { type: "plain", value: "true" }])("keeps compatible ACP environment settings (%j) and native idempotence", value => {
-    const adapterConfig = { engine: "acp", env: { PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: value, OPENAI_API_KEY: { type: "secret_ref", secretId: "fixture-api-key" } } };
+    const adapterConfig = { engine: "acp", env: { NEXUS_CODEX_ACP_NETWORK_ACCESS: value, OPENAI_API_KEY: { type: "secret_ref", secretId: "fixture-api-key" } } };
     const literal = typeof value === "string" ? value : value.value;
-    expect(buildCodexAcpConfig({ ...adapterConfig, env: { PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: literal } }))
-      .toMatchObject({ env: { PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: "true" } });
+    expect(buildCodexAcpConfig({ ...adapterConfig, env: { NEXUS_CODEX_ACP_NETWORK_ACCESS: literal } }))
+      .toMatchObject({ env: { NEXUS_CODEX_ACP_NETWORK_ACCESS: "true" } });
     const resolved = resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target });
-    expect(resolved.adapterType).toBe("paperclip_runner");
+    expect(resolved.adapterType).toBe("nexus_runner");
     expect(resolved.adapterConfig.env).toEqual(adapterConfig.env);
     expect(resolveNewAgentRunner(resolved)).toEqual(resolved);
   });
 
   it("keeps a saved native profile and an explicitly selected Legacy CLI's unused ACP flag unchanged", () => {
-    const adapterConfig = { engine: "cli", env: { PAPERCLIP_CODEX_ACP_NETWORK_ACCESS: "false" } };
+    const adapterConfig = { engine: "cli", env: { NEXUS_CODEX_ACP_NETWORK_ACCESS: "false" } };
     expect(resolveCodexExecutionEngine(adapterConfig).engine).toBe("cli");
-    expect(resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target }).adapterType).toBe("paperclip_runner");
-    const saved = { adapterType: "paperclip_runner", adapterConfig: { provider: "codex", env: adapterConfig.env } };
+    expect(resolveNewAgentRunner({ adapterType: "codex_local", adapterConfig, target }).adapterType).toBe("nexus_runner");
+    const saved = { adapterType: "nexus_runner", adapterConfig: { provider: "codex", env: adapterConfig.env } };
     expect(resolveNewAgentRunner(saved)).toEqual(saved);
   });
 
   it("preserves explicit historical native profiles, including managed configurations", () => {
-    for (const config of [{ provider: "acpx", acpxAgent: "claude", model: "claude-sonnet-5" }, { provider: "claude_managed", managedProfileId: "profile", managedAgentsRetentionAcknowledged: true }, { provider: "aws_agentcore", agentCoreProfileId: "profile" }]) expect(resolveNewAgentRunner({ adapterType: "paperclip_runner", adapterConfig: config })).toEqual({ adapterType: "paperclip_runner", adapterConfig: config });
+    for (const config of [{ provider: "acpx", acpxAgent: "claude", model: "claude-sonnet-5" }, { provider: "claude_managed", managedProfileId: "profile", managedAgentsRetentionAcknowledged: true }, { provider: "aws_agentcore", agentCoreProfileId: "profile" }]) expect(resolveNewAgentRunner({ adapterType: "nexus_runner", adapterConfig: config })).toEqual({ adapterType: "nexus_runner", adapterConfig: config });
   });
   it("advertises Legacy for a forced Kubernetes target before lazy environment creation", async () => {
     state.settings = { general: { executionMode: "kubernetes" } };
@@ -372,9 +372,9 @@ describe("server-owned Codex runner selection", () => {
     expect(state.sandboxQualification).not.toHaveBeenCalled();
     expect(state.ssh).not.toHaveBeenCalled();
   });
-  it("rejects explicit Paperclip execution on an unqualified forced Kubernetes target without provisioning", async () => {
+  it("rejects explicit Nexus execution on an unqualified forced Kubernetes target without provisioning", async () => {
     state.settings = { general: { executionMode: "kubernetes" } };
-    await expect(resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local", runner: "paperclip" }))
+    await expect(resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local", runner: "nexus" }))
       .rejects.toMatchObject({ status: 422, message: expect.stringContaining("Legacy runner"), details: { code: "agent_runner_unavailable" } });
     expect(state.ensureKubernetesEnvironment).not.toHaveBeenCalled();
     expect(state.resolveEnvironment).not.toHaveBeenCalled();
@@ -385,7 +385,7 @@ describe("server-owned Codex runner selection", () => {
     state.settings = { general: { executionMode: "kubernetes" } };
     for (const input of [
       { adapterType: "codex_local", runner: "legacy" as const, adapterConfig: { extraArgs: ["--search"] } },
-      { adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" } },
+      { adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" } },
     ]) {
       expect(await resolveNewAgentRunnerForCompany({} as never, "company", input))
         .toEqual({ adapterType: input.adapterType, adapterConfig: input.adapterConfig });
@@ -415,20 +415,20 @@ describe("server-owned Codex runner selection", () => {
     state.ssh.mockResolvedValue({ stdout: "Linux\naarch64\n" });
     const result = await resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local", defaultEnvironmentId: null });
     expect(state.getEnvironment).toHaveBeenCalledWith("default"); expect(state.bindings).toHaveBeenCalledWith("default");
-    expect(result.adapterType).toBe("paperclip_runner");
+    expect(result.adapterType).toBe("nexus_runner");
   });
   it.each([
-    ["Linux\nx86_64\n", "paperclip", "paperclip_runner"],
-    ["Darwin\narm64\n", "paperclip", "paperclip_runner"],
-    ["Darwin\nx86_64\n", "paperclip", "paperclip_runner"],
-    ["Linux\naarch64\n", "paperclip", "paperclip_runner"],
-    ["Linux\narm64\n", "paperclip", "paperclip_runner"],
-    ["Linux\nx86_64\nglibc\n", "paperclip", "paperclip_runner"],
-    ["Linux\naarch64\nglibc\n", "paperclip", "paperclip_runner"],
+    ["Linux\nx86_64\n", "nexus", "nexus_runner"],
+    ["Darwin\narm64\n", "nexus", "nexus_runner"],
+    ["Darwin\nx86_64\n", "nexus", "nexus_runner"],
+    ["Linux\naarch64\n", "nexus", "nexus_runner"],
+    ["Linux\narm64\n", "nexus", "nexus_runner"],
+    ["Linux\nx86_64\nglibc\n", "nexus", "nexus_runner"],
+    ["Linux\naarch64\nglibc\n", "nexus", "nexus_runner"],
     ["Linux\nx86_64\nglibc\nglibc 2.38\n", "legacy", "codex_local"],
     ["Linux\naarch64\nglibc\nglibc 2.38\n", "legacy", "codex_local"],
-    ["Linux\nx86_64\nglibc\nglibc 2.39\n", "paperclip", "paperclip_runner"],
-    ["Linux\naarch64\nglibc\nglibc 3.0\n", "paperclip", "paperclip_runner"],
+    ["Linux\nx86_64\nglibc\nglibc 2.39\n", "nexus", "nexus_runner"],
+    ["Linux\naarch64\nglibc\nglibc 3.0\n", "nexus", "nexus_runner"],
     ["Linux\nx86_64\nglibc\nmalformed\n", "legacy", "codex_local"],
     ["Linux\nx86_64\nmusl\n", "legacy", "codex_local"],
     ["Linux\naarch64\nmusl\n", "legacy", "codex_local"],
@@ -445,14 +445,14 @@ describe("server-owned Codex runner selection", () => {
     expect(state.ssh).toHaveBeenCalledWith({}, AGENT_RUNNER_SSH_PLATFORM_COMMAND, { timeoutMs: 10_000 });
   });
   it("preserves recorded explicit native execution without rechecking creation defaults", async () => {
-    const recorded = { adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" }, runner: "paperclip" as const };
+    const recorded = { adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" }, runner: "nexus" as const };
     expect(await resolveNewAgentRunnerForCompany({} as never, "company", recorded)).toEqual({ adapterType: recorded.adapterType, adapterConfig: recorded.adapterConfig });
     expect(state.getEnvironment).not.toHaveBeenCalled();
     expect(state.ssh).not.toHaveBeenCalled();
   });
   it.each([
-    [{ platform: "linux", architecture: "x64", libc: "glibc", glibcVersion: "2.39" }, "paperclip_runner"],
-    [{ platform: "linux", architecture: "arm64", libc: "glibc", glibcVersion: "3.0" }, "paperclip_runner"],
+    [{ platform: "linux", architecture: "x64", libc: "glibc", glibcVersion: "2.39" }, "nexus_runner"],
+    [{ platform: "linux", architecture: "arm64", libc: "glibc", glibcVersion: "3.0" }, "nexus_runner"],
     [{ platform: "linux", architecture: "arm64", libc: "glibc", glibcVersion: "2.38" }, "codex_local"],
     [{ platform: "linux", architecture: "x64", libc: "glibc" }, "codex_local"],
     [{ platform: "linux", architecture: "arm64", libc: "musl" }, "codex_local"],
@@ -461,73 +461,73 @@ describe("server-owned Codex runner selection", () => {
     state.getEnvironment.mockResolvedValue({ id: "sandbox", driver: "sandbox", status: "active", config: { provider: "daytona" } });
     state.sandboxQualification.mockResolvedValue(facts);
     const selectedTarget = await resolveAgentRunnerTargetForCompany({} as never, "company", "sandbox");
-    expect(agentRunnerAvailability("codex_local", selectedTarget).defaultRunner).toBe(expected === "paperclip_runner" ? "paperclip" : "legacy");
+    expect(agentRunnerAvailability("codex_local", selectedTarget).defaultRunner).toBe(expected === "nexus_runner" ? "nexus" : "legacy");
     const result = await resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local", defaultEnvironmentId: "sandbox" });
     expect(result.adapterType).toBe(expected);
     expect(state.ssh).not.toHaveBeenCalled();
     expect(state.resolveEnvironment).not.toHaveBeenCalled();
-    if (expected === "codex_local") await expect(resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local", runner: "paperclip", defaultEnvironmentId: "sandbox" })).rejects.toMatchObject({ status: 422 });
+    if (expected === "codex_local") await expect(resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local", runner: "nexus", defaultEnvironmentId: "sandbox" })).rejects.toMatchObject({ status: 422 });
   });
   it("does not infer a sandbox image architecture from its driver", async () => {
     state.getEnvironment.mockResolvedValue({ id: "sandbox", driver: "sandbox", status: "active", config: { provider: "daytona" } });
     const result = await resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local", defaultEnvironmentId: "sandbox" });
     expect(result.adapterType).toBe("codex_local"); expect(state.ssh).not.toHaveBeenCalled();
     expect(state.sandboxQualification).toHaveBeenCalledWith({}, expect.objectContaining({ id: "sandbox" }), "company");
-    await expect(resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local", runner: "paperclip", defaultEnvironmentId: "sandbox" })).rejects.toMatchObject({ status: 422, details: { code: "agent_runner_unavailable" } });
+    await expect(resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local", runner: "nexus", defaultEnvironmentId: "sandbox" })).rejects.toMatchObject({ status: 422, details: { code: "agent_runner_unavailable" } });
   });
   it.each(["codex_local", "claude_local", "opencode_local"])("selects %s on a managed Cloud image without saved platform qualification", async adapterType => {
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", JSON.stringify({ ...managedCloudConfig, environments: [{ name: "Paperclip Computer", provider: "daytona", config: {} }] }));
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", JSON.stringify({ ...managedCloudConfig, environments: [{ name: "Nexus Computer", provider: "daytona", config: {} }] }));
     state.getEnvironment.mockResolvedValue({ id: "sandbox", driver: "sandbox", status: "active",
-      config: { provider: "daytona", snapshot: "replacement-snapshot" }, metadata: { managedByPaperclip: true } });
+      config: { provider: "daytona", snapshot: "replacement-snapshot" }, metadata: { managedByNexus: true } });
     state.resolveEnvironment.mockRejectedValue(new Error("Saved provider secret is unavailable."));
     const selected = await resolveAgentRunnerTargetForCompany({} as never, "company", "sandbox");
-    expect(agentRunnerAvailability(adapterType, selected, state.disabled).defaultRunner).toBe("paperclip");
+    expect(agentRunnerAvailability(adapterType, selected, state.disabled).defaultRunner).toBe("nexus");
     expect(await resolveNewAgentRunnerForCompany({} as never, "company", {
       adapterType, defaultEnvironmentId: "sandbox", adapterConfig: { model: adapterType === "opencode_local" ? "provider/model" : undefined },
-    })).toMatchObject({ adapterType: "paperclip_runner" });
+    })).toMatchObject({ adapterType: "nexus_runner" });
     expect(state.sandboxQualification).not.toHaveBeenCalled();
     expect(state.resolveEnvironment).not.toHaveBeenCalled();
-    state.disabled.push("paperclip_runner");
+    state.disabled.push("nexus_runner");
     expect(agentRunnerAvailability(adapterType, selected, state.disabled).defaultRunner).toBe("legacy");
   });
   it.each(["self-hosted", "custom-environment", "captured-template", "stale-marker"])("keeps qualification for a %s sandbox", async kind => {
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", kind === "self-hosted" ? undefined : JSON.stringify({ ...managedCloudConfig,
-      environments: kind === "stale-marker" ? [] : [{ name: "Paperclip Computer", provider: "daytona", config: {} }] }));
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", undefined);
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", kind === "self-hosted" ? undefined : JSON.stringify({ ...managedCloudConfig,
+      environments: kind === "stale-marker" ? [] : [{ name: "Nexus Computer", provider: "daytona", config: {} }] }));
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", undefined);
     state.getEnvironment.mockResolvedValue({ id: "sandbox", driver: "sandbox", status: "active",
       config: { provider: "daytona", snapshot: "custom-snapshot" },
-      metadata: { managedByPaperclip: kind !== "custom-environment" } });
+      metadata: { managedByNexus: kind !== "custom-environment" } });
     state.activeTemplate.mockResolvedValue(kind === "captured-template" ? { id: "template", provider: "daytona", templateRef: "custom-snapshot" } : null);
     const selected = await resolveAgentRunnerTargetForCompany({} as never, "company", "sandbox");
     expect(agentRunnerAvailability("codex_local", selected, state.disabled).defaultRunner).toBe("legacy");
     expect(state.sandboxQualification).toHaveBeenCalled();
   });
   it("ignores a stale captured image and preserves a matching custom image without resolving credentials", async () => {
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", JSON.stringify({ ...managedCloudConfig, environments: [{ name: "Paperclip Computer", provider: "daytona", config: {} }] }));
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", JSON.stringify({ ...managedCloudConfig, environments: [{ name: "Nexus Computer", provider: "daytona", config: {} }] }));
     const config = { provider: "daytona", snapshot: "replacement-snapshot", reuseLease: false, apiKey: "a6b9e7d0-f886-471a-b461-640dd03e8d0f" };
-    state.getEnvironment.mockResolvedValue({ id: "sandbox", driver: "sandbox", status: "active", config, metadata: { managedByPaperclip: true } });
+    state.getEnvironment.mockResolvedValue({ id: "sandbox", driver: "sandbox", status: "active", config, metadata: { managedByNexus: true } });
     state.resolveEnvironment.mockRejectedValue(new Error("Saved provider secret is unavailable."));
     const template = { id: "template", provider: "daytona", templateRef: "custom-snapshot",
       sourceEnvironmentConfigFingerprint: fingerprint({ ...config, snapshot: "previous-snapshot" }, { excludePaths: ["apiKey"] }) };
     state.activeTemplate.mockResolvedValue(template);
     const current = await resolveAgentRunnerTargetForCompany({} as never, "company", "sandbox");
-    expect(agentRunnerAvailability("codex_local", current, state.disabled).defaultRunner).toBe("paperclip");
-    expect(await resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local", runner: "paperclip", defaultEnvironmentId: "sandbox" }))
-      .toMatchObject({ adapterType: "paperclip_runner" });
+    expect(agentRunnerAvailability("codex_local", current, state.disabled).defaultRunner).toBe("nexus");
+    expect(await resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "codex_local", runner: "nexus", defaultEnvironmentId: "sandbox" }))
+      .toMatchObject({ adapterType: "nexus_runner" });
     expect(state.sandboxQualification).not.toHaveBeenCalled();
     state.activeTemplate.mockResolvedValue({ ...template, sourceEnvironmentConfigFingerprint: fingerprint(config, { excludePaths: ["apiKey"] }) });
     const custom = await resolveAgentRunnerTargetForCompany({} as never, "company", "sandbox");
     expect(agentRunnerAvailability("codex_local", custom, state.disabled).defaultRunner).toBe("legacy");
     expect(state.sandboxQualification).toHaveBeenCalled();
-    state.getEnvironment.mockResolvedValue({ id: "sandbox", driver: "sandbox", status: "active", config: { ...config, timeoutMs: "invalid" }, metadata: { managedByPaperclip: true } });
+    state.getEnvironment.mockResolvedValue({ id: "sandbox", driver: "sandbox", status: "active", config: { ...config, timeoutMs: "invalid" }, metadata: { managedByNexus: true } });
     const invalid = await resolveAgentRunnerTargetForCompany({} as never, "company", "sandbox");
     expect(agentRunnerAvailability("codex_local", invalid, state.disabled).defaultRunner).toBe("legacy");
     expect(state.resolveEnvironment).not.toHaveBeenCalled();
   });
   it("checks company access before trusting a managed Cloud image", async () => {
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", "{}");
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", "{}");
     state.getEnvironment.mockResolvedValue({ id: "sandbox", driver: "sandbox", status: "active",
-      config: { provider: "daytona" }, metadata: { managedByPaperclip: true } });
+      config: { provider: "daytona" }, metadata: { managedByNexus: true } });
     state.bindings.mockResolvedValue(["another-company"]);
     await expect(resolveAgentRunnerTargetForCompany({} as never, "company", "sandbox"))
       .rejects.toMatchObject({ status: 403, details: { code: "environment_company_mismatch" } });
@@ -541,16 +541,16 @@ describe("Grok runner migration", () => {
   it("selects Grok's native profile and preserves the model and account", () => {
     const aiConnection = { mode: "fixed", connectionId: "grok-account" };
     const adapterConfig = { model: "grok-4.7", reasoningEffort: "high", command: "grok", aiConnection, cwd: "/workspace" };
-    expect(paperclipRunnerProfileForHarness("grok_local")).toEqual({ provider: "acpx", acpxAgent: "grok" });
-    expect(resolveNewAgentRunner({ adapterType: "grok_local", runner: "paperclip", adapterConfig, target }))
-      .toEqual({ adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "grok", model: "grok-4.7", reasoningEffort: "high", disableWebSearch: true, aiConnection, cwd: "/workspace", acpxPermissionMode: "approve-all", lifecycleMode: "per_turn" } });
+    expect(nexusRunnerProfileForHarness("grok_local")).toEqual({ provider: "acpx", acpxAgent: "grok" });
+    expect(resolveNewAgentRunner({ adapterType: "grok_local", runner: "nexus", adapterConfig, target }))
+      .toEqual({ adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "grok", model: "grok-4.7", reasoningEffort: "high", disableWebSearch: true, aiConnection, cwd: "/workspace", acpxPermissionMode: "approve-all", lifecycleMode: "per_turn" } });
   });
   it.each([undefined, "", "grok-build"])("resolves legacy default model %s before native admission", model => {
-    expect(resolveNewAgentRunner({ adapterType: "grok_local", runner: "paperclip", target, adapterConfig: { model } }).adapterConfig)
+    expect(resolveNewAgentRunner({ adapterType: "grok_local", runner: "nexus", target, adapterConfig: { model } }).adapterConfig)
       .toMatchObject({ model: "grok-4.7", disableWebSearch: true });
   });
   it.each([undefined, true, false])("preserves effective legacy web search policy %s", disableWebSearch => {
-    const result = resolveNewAgentRunner({ adapterType: "grok_local", runner: "paperclip", target, adapterConfig: { disableWebSearch } });
+    const result = resolveNewAgentRunner({ adapterType: "grok_local", runner: "nexus", target, adapterConfig: { disableWebSearch } });
     expect(result.adapterConfig.disableWebSearch).toBe(disableWebSearch ?? true);
   });
   it.each([
@@ -561,7 +561,7 @@ describe("Grok runner migration", () => {
     expect(agentRunnerAvailability("grok_local", { ...target, ...platform }).supportedRunners).toEqual(["legacy"]);
   });
   it("retains High effort when switching back and rejects restricted native permission loss", () => {
-    const selected = resolveNewAgentRunner({ adapterType: "grok_local", runner: "paperclip", target,
+    const selected = resolveNewAgentRunner({ adapterType: "grok_local", runner: "nexus", target,
       adapterConfig: { model: "grok-4.7", reasoningEffort: "high" } });
     expect(resolveNewAgentRunner({ ...selected, runner: "legacy", target })).toEqual({
       adapterType: "grok_local", adapterConfig: { model: "grok-4.7", reasoningEffort: "high", disableWebSearch: true },
@@ -570,41 +570,41 @@ describe("Grok runner migration", () => {
       adapterConfig: { ...selected.adapterConfig, acpxPermissionMode: "deny-all" } })).toThrow("cannot honor");
   });
   it.each(["modelReasoningEffort", "effort"])("preserves native %s when switching to Legacy", key => {
-    const saved = { adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "grok", model: "grok-4.7", [key]: "high" } };
+    const saved = { adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "grok", model: "grok-4.7", [key]: "high" } };
     expect(resolveNewAgentRunner({ ...saved, runner: "legacy", target })).toEqual({
       adapterType: "grok_local", adapterConfig: { model: "grok-4.7", reasoningEffort: "high", disableWebSearch: false },
     });
   });
   it.each([{ command: "custom-grok" }, { extraArgs: ["--unsafe"] }, { permissionMode: "dontAsk" }, { alwaysApprove: false }, { maxTurns: 5 }])("rejects incompatible settings %j without mutating them", adapterConfig => {
     const before = structuredClone(adapterConfig);
-    expect(() => resolveNewAgentRunner({ adapterType: "grok_local", runner: "paperclip", adapterConfig, target })).toThrow("cannot honor");
+    expect(() => resolveNewAgentRunner({ adapterType: "grok_local", runner: "nexus", adapterConfig, target })).toThrow("cannot honor");
     expect(adapterConfig).toEqual(before);
   });
 });
 
 describe("Codex creation runner contract", () => {
   it("graduates qualified harnesses and retains saved provider identity", () => {
-    expect(paperclipRunnerProfileForHarness("codex_local")).toEqual({ provider: "codex" });
-    expect(paperclipRunnerProfileForHarness("claude_local")).toEqual({ provider: "acpx", acpxAgent: "claude" });
-    expect(paperclipRunnerProfileForHarness("opencode_local")).toEqual({ provider: "opencode" });
-    expect(paperclipRunnerProfileForHarness("pi_local")).toEqual({ provider: "acpx", acpxAgent: "pi" });
-    for (const harness of ["cursor", "process"]) expect(paperclipRunnerProfileForHarness(harness)).toBeUndefined();
-    expect(agentHarnessType("paperclip_runner", { provider: "codex" })).toBe("codex_local");
-    expect(agentHarnessType("paperclip_runner", { provider: "acpx", acpxAgent: "claude" })).toBe("claude_local");
-    expect(agentHarnessType("paperclip_runner", { provider: "unknown" })).toBe("unknown");
-    expect(agentHarnessType("paperclip_runner", { provider: "acpx", acpxAgent: "unknown" })).toBe("acpx:unknown");
+    expect(nexusRunnerProfileForHarness("codex_local")).toEqual({ provider: "codex" });
+    expect(nexusRunnerProfileForHarness("claude_local")).toEqual({ provider: "acpx", acpxAgent: "claude" });
+    expect(nexusRunnerProfileForHarness("opencode_local")).toEqual({ provider: "opencode" });
+    expect(nexusRunnerProfileForHarness("pi_local")).toEqual({ provider: "acpx", acpxAgent: "pi" });
+    for (const harness of ["cursor", "process"]) expect(nexusRunnerProfileForHarness(harness)).toBeUndefined();
+    expect(agentHarnessType("nexus_runner", { provider: "codex" })).toBe("codex_local");
+    expect(agentHarnessType("nexus_runner", { provider: "acpx", acpxAgent: "claude" })).toBe("claude_local");
+    expect(agentHarnessType("nexus_runner", { provider: "unknown" })).toBe("unknown");
+    expect(agentHarnessType("nexus_runner", { provider: "acpx", acpxAgent: "unknown" })).toBe("acpx:unknown");
     expect(agentRunner("codex_local")).toBe("legacy");
-    expect(agentRunner("paperclip_runner")).toBe("paperclip");
+    expect(agentRunner("nexus_runner")).toBe("nexus");
   });
   it("qualifies only the Codex daemon targets shipped in public server packages", () => {
-    for (const { platform, architecture } of qualifiedTargets) expect(paperclipRunnerSupportsPlatform("codex_local", platform, architecture)).toBe(true);
+    for (const { platform, architecture } of qualifiedTargets) expect(nexusRunnerSupportsPlatform("codex_local", platform, architecture)).toBe(true);
     for (const architecture of ["x64", "arm64"]) {
-      expect(paperclipRunnerSupportsPlatform("codex_local", "linux", architecture, "glibc")).toBe(true);
-      expect(paperclipRunnerSupportsPlatform("codex_local", "linux", architecture, "musl")).toBe(false);
-      expect(paperclipRunnerSupportsPlatform("codex_local", "linux", architecture, "unknown")).toBe(false);
+      expect(nexusRunnerSupportsPlatform("codex_local", "linux", architecture, "glibc")).toBe(true);
+      expect(nexusRunnerSupportsPlatform("codex_local", "linux", architecture, "musl")).toBe(false);
+      expect(nexusRunnerSupportsPlatform("codex_local", "linux", architecture, "unknown")).toBe(false);
     }
-    for (const [platform, architecture] of [["darwin", "ia32"], ["linux", "arm"], ["win32", "x64"], ["win32", "arm64"], ["freebsd", "x64"]]) expect(paperclipRunnerSupportsPlatform("codex_local", platform, architecture)).toBe(false);
-    expect(paperclipRunnerSupportsPlatform("claude_local", "darwin", "arm64")).toBe(true);
+    for (const [platform, architecture] of [["darwin", "ia32"], ["linux", "arm"], ["win32", "x64"], ["win32", "arm64"], ["freebsd", "x64"]]) expect(nexusRunnerSupportsPlatform("codex_local", platform, architecture)).toBe(false);
+    expect(nexusRunnerSupportsPlatform("claude_local", "darwin", "arm64")).toBe(true);
   });
   it("keeps auto out of saved update defaults and validates request intent", () => {
     expect(createAgentSchema.parse({ name: "Codex", adapterType: "codex_local" }).runner).toBeUndefined();
@@ -626,12 +626,12 @@ describe("Runner-only plugin environments", () => {
     state.kubernetesEnvironment.mockReset().mockResolvedValue(null); state.ssh.mockReset(); state.sandboxQualification.mockReset();
     state.pluginByKey.mockReset().mockResolvedValue(plugin({ supportsTasks: true }));
   });
-  it("offers only Paperclip Runner for Codex and Claude without a platform", async () => {
+  it("offers only Nexus Runner for Codex and Claude without a platform", async () => {
     const target = await resolveAgentRunnerTargetForCompany({} as never, "company", "computer");
     expect(target).toEqual({ driver: "plugin", runnerTasks: true });
     expect(state.pluginByKey).toHaveBeenCalledWith("acme.computers");
     for (const harness of ["codex_local", "claude_local"]) {
-      expect(agentRunnerAvailability(harness, target)).toEqual({ supportedRunners: ["paperclip"], defaultRunner: "paperclip" });
+      expect(agentRunnerAvailability(harness, target)).toEqual({ supportedRunners: ["nexus"], defaultRunner: "nexus" });
     }
     expect(agentRunnerAvailability("gemini_local", target)).toEqual({ supportedRunners: ["legacy"], defaultRunner: "legacy" });
     expect(state.ssh).not.toHaveBeenCalled();
@@ -654,11 +654,11 @@ describe("Runner-only plugin environments", () => {
       .rejects.toThrow("The fake sandbox provider cannot execute runs.");
   });
 
-  it("saves a Claude agent on the plugin environment as Paperclip Runner", async () => {
+  it("saves a Claude agent on the plugin environment as Nexus Runner", async () => {
     const saved = await resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "claude_local", defaultEnvironmentId: "computer" });
-    expect(saved).toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude" } });
-    const explicit = await resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "claude_local", runner: "paperclip", defaultEnvironmentId: "computer" });
-    expect(explicit.adapterType).toBe("paperclip_runner");
+    expect(saved).toMatchObject({ adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude" } });
+    const explicit = await resolveNewAgentRunnerForCompany({} as never, "company", { adapterType: "claude_local", runner: "nexus", defaultEnvironmentId: "computer" });
+    expect(explicit.adapterType).toBe("nexus_runner");
   });
   it.each([
     ["a driver without Runner tasks", plugin({})],
@@ -682,22 +682,22 @@ describe("Claude runner defaults", () => {
   const mac = { driver: "local", platform: "darwin", architecture: "arm64" };
   beforeEach(() => { state.disabled = []; state.overridden.clear(); });
   it.each(qualifiedTargets)("defaults Claude to the qualified $platform $architecture profile", target => {
-    expect(agentRunnerAvailability("claude_local", target)).toEqual({ supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" });
+    expect(agentRunnerAvailability("claude_local", target)).toEqual({ supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" });
     expect(resolveNewAgentRunner({ adapterType: "claude_local", target })).toEqual({
-      adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude", model: "claude-opus-5-5", acpxPermissionMode: "approve-all", lifecycleMode: "per_turn" },
+      adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude", model: "claude-opus-5-5", acpxPermissionMode: "approve-all", lifecycleMode: "per_turn" },
     });
     expect(resolveNewAgentRunner({ adapterType: "claude_local", target, runner: "legacy", adapterConfig: { model: "custom", dangerouslySkipPermissions: true } }))
       .toEqual({ adapterType: "claude_local", adapterConfig: { model: "custom", dangerouslySkipPermissions: true } });
   });
   it.each(["x64", "arm64"])("keeps Darwin SSH %s automatic selection Legacy while preserving explicit assets", architecture => {
     const target = { driver: "ssh", platform: "darwin", architecture };
-    expect(agentRunnerAvailability("claude_local", target)).toEqual({ supportedRunners: ["paperclip", "legacy"], defaultRunner: "legacy" });
+    expect(agentRunnerAvailability("claude_local", target)).toEqual({ supportedRunners: ["nexus", "legacy"], defaultRunner: "legacy" });
     const config = { model: "custom-model", dangerouslySkipPermissions: false };
     expect(resolveNewAgentRunner({ adapterType: "claude_local", target, adapterConfig: config })).toEqual({ adapterType: "claude_local", adapterConfig: config });
     const assets = { runnerRemoteProviderPackPath: "/operator/mac-pack", runnerRemoteBinaryPath: "/operator/mac-daemon" };
-    expect(resolveNewAgentRunner({ adapterType: "claude_local", target, runner: "paperclip", adapterConfig: assets }))
-      .toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { ...assets, provider: "acpx", acpxAgent: "claude" } });
-    const saved = { adapterType: "paperclip_runner", adapterConfig: { ...assets, provider: "acpx", acpxAgent: "claude" }, target };
+    expect(resolveNewAgentRunner({ adapterType: "claude_local", target, runner: "nexus", adapterConfig: assets }))
+      .toMatchObject({ adapterType: "nexus_runner", adapterConfig: { ...assets, provider: "acpx", acpxAgent: "claude" } });
+    const saved = { adapterType: "nexus_runner", adapterConfig: { ...assets, provider: "acpx", acpxAgent: "claude" }, target };
     expect(resolveNewAgentRunner(saved)).toEqual({ adapterType: saved.adapterType, adapterConfig: saved.adapterConfig });
   });
   it.each(["x64", "arm64"])("keeps incompatible Linux Claude %s targets legacy", architecture => {
@@ -709,7 +709,7 @@ describe("Claude runner defaults", () => {
   it("saves native Claude with Opus 5.5, preserving credentials and shared settings", () => {
     const config = { env: { ANTHROPIC_API_KEY: { type: "secret_ref", secretId: "key" } }, instructionsFilePath: "/workspace/AGENTS.md", timeoutSec: 180, dangerouslySkipPermissions: true };
     const result = resolveNewAgentRunner({ adapterType: "claude_local", target: mac, adapterConfig: config });
-    expect(result).toEqual({ adapterType: "paperclip_runner", adapterConfig: { env: config.env, instructionsFilePath: config.instructionsFilePath, timeoutSec: 180, provider: "acpx", acpxAgent: "claude", model: "claude-opus-5-5", acpxPermissionMode: "approve-all", lifecycleMode: "per_turn" } });
+    expect(result).toEqual({ adapterType: "nexus_runner", adapterConfig: { env: config.env, instructionsFilePath: config.instructionsFilePath, timeoutSec: 180, provider: "acpx", acpxAgent: "claude", model: "claude-opus-5-5", acpxPermissionMode: "approve-all", lifecycleMode: "per_turn" } });
     expect(resolveNewAgentRunner(result)).toEqual(result);
     expect(config.dangerouslySkipPermissions).toBe(true);
   });
@@ -743,17 +743,17 @@ describe("Claude runner defaults", () => {
     expect(() => resolveNewAgentRunner({ adapterType: "claude_local", target: mac, adapterConfig: { [key]: "unrecognized" } })).toThrow("Legacy runner");
   });
   it("retains saved native Claude and allows an explicit compatible Legacy switch", () => {
-    const saved = { adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude", model: "custom", acpxPermissionMode: "approve-all", lifecycleMode: "per_turn" } };
+    const saved = { adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude", model: "custom", acpxPermissionMode: "approve-all", lifecycleMode: "per_turn" } };
     expect(resolveNewAgentRunner(saved)).toEqual(saved);
     expect(resolveNewAgentRunner({ ...saved, runner: "legacy" })).toEqual({ adapterType: "claude_local", adapterConfig: { model: "custom", dangerouslySkipPermissions: true } });
     expect(() => resolveNewAgentRunner({ ...saved, runner: "legacy", adapterConfig: { ...saved.adapterConfig, acpxPermissionMode: "deny-all" } })).toThrow("cannot honor");
   });
   it.each(["maxTurnsPerRun", "chrome", "warmHandleIdleMs", "acpWarmHandleIdleMs"])("warns and ignores obsolete Claude %s on conversion and native saves", field => {
-    for (const adapterType of ["claude_local", "paperclip_runner"]) {
+    for (const adapterType of ["claude_local", "nexus_runner"]) {
       const onConfigurationWarnings = vi.fn();
-      const result = resolveNewAgentRunner({ adapterType, target: mac, runner: "paperclip",
+      const result = resolveNewAgentRunner({ adapterType, target: mac, runner: "nexus",
         adapterConfig: { provider: "acpx", acpxAgent: "claude", model: "claude-opus-5-5", [field]: 1000 }, onConfigurationWarnings });
-      expect(result.adapterType).toBe("paperclip_runner");
+      expect(result.adapterType).toBe("nexus_runner");
       expect(result.adapterConfig).not.toHaveProperty(field);
       expect(onConfigurationWarnings).toHaveBeenCalledWith([expect.objectContaining({ field, code: "runner_option_ignored" })]);
     }

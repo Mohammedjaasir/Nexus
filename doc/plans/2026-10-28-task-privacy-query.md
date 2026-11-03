@@ -48,7 +48,7 @@ moved after pagination.
 Run the real service benchmark with a pinned source baseline:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx scripts/benchmark-task-privacy.ts \
+pnpm --filter @nexusai/server exec tsx scripts/benchmark-task-privacy.ts \
   --baseline-ref=71b448b9cb841e6fa18fe883585430c5081245da \
   --evidence-dir=/tmp/task-privacy-proof
 ```
@@ -181,7 +181,7 @@ The final-runtime focused PostgreSQL 17 run passed 44/44 tests across the dedica
 Workspace typecheck and full build passed before replay. The full local
 `pnpm test:run` attempt completed 940 native executor cases with 16 database
 bootstrap failures, then was stopped with exit 143. An independent empty native
-`initdb` failed with `semget` semaphore exhaustion before Paperclip schema or SQL
+`initdb` failed with `semget` semaphore exhaustion before Nexus schema or SQL
 ran. This is a failed/incomplete local full-suite result, not a pass. A focused
 Docker PostgreSQL retry and exact-head CI results are recorded in the PR.
 

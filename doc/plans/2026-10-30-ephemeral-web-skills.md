@@ -5,7 +5,7 @@
 Implementation is in [PR #18334](https://github.com/paperclipai/paperclip/pull/18334).
 Hosted qualification uses the owned disposable
 [test tenant](https://ephemeral-skills-qa-oct-30.test.paperclip.app), external
-Postgres, S3, and a real remote Paperclip Computer. Cloud policy reserves the
+Postgres, S3, and a real remote Nexus Computer. Cloud policy reserves the
 staging domain for master; the rejected staging branch request below made no
 deployment.
 
@@ -64,7 +64,7 @@ handoff, and production volume removal are outside this slice.
 
 ## Canonical work and progress
 
-- Worktree: `/Users/dotta/.codex/worktrees/d084/paperclip`
+- Worktree: `/Users/dotta/.codex/worktrees/d084/nexus`
 - Branch: `codex/skills-ephemeral-web`
 - Draft PR: https://github.com/paperclipai/paperclip/pull/18334
 - Approved plan: this chat, “Skills on ephemeral web servers,” nine sections.
@@ -86,8 +86,8 @@ handoff, and production volume removal are outside this slice.
 - One-connection tests now exercise package acquisition before the publication
   transaction. Fork reassignment also uses the transaction's database handle.
 - Host embedded Postgres cannot initialize: exhausted kernel semaphore pool.
-  Owned Docker fixtures are `paperclip-skills-ephemeral-pg` (port 61006) and
-  `paperclip-skills-ephemeral-s3` (port 61007). No unrelated databases changed.
+  Owned Docker fixtures are `nexus-skills-ephemeral-pg` (port 61006) and
+  `nexus-skills-ephemeral-s3` (port 61007). No unrelated databases changed.
 - Disposable staging tenant created through normal onboarding:
   https://ephemeral-skills-qa-oct-30.staging.paperclip.app
   Agent `dfd238b5-5e5d-43ef-b34a-cb5bff2267f3` (Skills Qualification), paused.
@@ -150,7 +150,7 @@ handoff, and production volume removal are outside this slice.
   Deploy request `19c33461-d232-453a-bdd1-ba357459be48`, campaign
   `fleet-campaign-1793366873548`, Cloud run `41094804453`: one target succeeded.
   The user approved saving the same OpenAI key to this test tenant; its remote
-  Codex environment verification succeeded on a Paperclip Computer.
+  Codex environment verification succeeded on a Nexus Computer.
 - Studio created unassigned managed skill `3ade7878-8aaf-47c7-aebd-7da23a8afb5d`
   (Ephemeral Skills Proof), with instructions, `references/value.txt`, and
   `scripts/prove.sh`. Remote agent `300911d4-590d-4a26-b1c0-c80db14fa072` is
@@ -185,7 +185,7 @@ handoff, and production volume removal are outside this slice.
   A later explicit source refresh hit the repository size limit and retained
   the installed revision. That refresh is not counted as a successful update.
 - Test-only env campaign `fleet-campaign-1793366873581` succeeded at
-  `2026-10-30T17:38:00.006Z`, changing only `PAPERCLIP_HOME` to
+  `2026-10-30T17:38:00.006Z`, changing only `NEXUS_HOME` to
   `/tmp/ephemeral-skills-a` on `stack-ephemeral-skills-qa-oct-30`.
   Audit evidence reports one target, one key, zero removed keys, and unchanged
   Computer images. Studio reopened v6 with its supporting files afterward.
@@ -209,7 +209,7 @@ handoff, and production volume removal are outside this slice.
   with zero unresolved review threads. Hosted candidate build is run
   `41101360597`; baseline A remains deployed until it completes.
 - Provider console independently confirmed external Neon Postgres and S3 on A,
-  with `PAPERCLIP_HOME=/tmp/ephemeral-skills-a`, deployment
+  with `NEXUS_HOME=/tmp/ephemeral-skills-a`, deployment
   `5fc05d1a-2451-465c-8a15-16b18d1e0d3d`, replica
   `f7393d02-49b6-40b9-ae94-db9181300bf4`. A temporary marker was written to
   that home so a later container can prove the predecessor's local state is absent.
@@ -253,7 +253,7 @@ handoff, and production volume removal are outside this slice.
   `d4e172e8-a861-48cc-ae9c-e2f26c8ee636`, Cloud run `41106109829`.
   B is deployment `ed70e789-22c3-4b93-93de-da61d7f30ca4`, replica
   `16fbb2e8-a7b3-4f32-a483-bc2f5c77a8ee`, with
-  `PAPERCLIP_HOME=/tmp/ephemeral-skills-b`. Local health confirmed the code SHA;
+  `NEXUS_HOME=/tmp/ephemeral-skills-b`. Local health confirmed the code SHA;
   provider console confirmed A's home and marker absent. The unassigned fork
   opened as v2 with zero agents. Studio acknowledged a supporting-file edit to
   the primary managed skill as v7 (`durable-skill-payload-B-20261030`).

@@ -4,7 +4,7 @@ set -u
 source "${HATCH_HOOK_RUNTIME:?Managed hook runtime required}"
 binding="${1:-}"
 if [[ ! "$binding" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$ ]]; then silent "Invalid connection reference"; exit 0; fi
-state="$HOME/hooks/state/paperclip-$binding"
+state="$HOME/hooks/state/nexus-$binding"
 dry="${HATCH_HOOK_DRY_RUN:-0}"
 [[ "$dry" != 1 && "$dry" != true ]] && mkdir -p "$state" && chmod 700 "$state"
 now=$(date +%s)
@@ -16,14 +16,14 @@ import json, re, sys, urllib.request, urllib.error
 from pathlib import Path
 from urllib.parse import urlparse
 try:
-    directory = Path.home() / '.config/paperclip-muse' / sys.argv[1]
+    directory = Path.home() / '.config/nexus-muse' / sys.argv[1]
     config = json.loads((directory / 'receiver.json').read_text())
     if set(config) != {'version','origin','bindingId'} or config['version'] != 1 or config['bindingId'] != sys.argv[1]: raise ValueError()
     parsed = urlparse(config['origin'])
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment: raise ValueError()
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, req, fp, code, msg, headers, newurl): return None
-    request = urllib.request.Request(config['origin'] + '/api/muse/v1/signal', headers={'Accept':'application/json','X-Paperclip-Muse-Binding':config['bindingId']})
+    request = urllib.request.Request(config['origin'] + '/api/muse/v1/signal', headers={'Accept':'application/json','X-Nexus-Muse-Binding':config['bindingId']})
     with urllib.request.build_opener(NoRedirect).open(request, timeout=10) as response:
         if response.status != 200 or response.headers.get_content_type() != 'application/json': raise ValueError()
         data = json.loads(response.read(1025))
@@ -47,6 +47,6 @@ case "$signal" in
  *) previous=""; [[ -f "$state/signal" ]] && read -r previous < "$state/signal"
     if [[ "$signal" == "$previous" ]]; then silent "Signal already observed"; else
       [[ "$dry" != 1 && "$dry" != true ]] && printf '%s\n' "$signal" > "$state/signal"
-      wake "PAPERCLIP_MUSE: open the installed Paperclip client for binding $binding and inspect its authenticated mailbox. This opaque reference grants no work authority."
+      wake "NEXUS_MUSE: open the installed Nexus client for binding $binding and inspect its authenticated mailbox. This opaque reference grants no work authority."
     fi ;;
 esac

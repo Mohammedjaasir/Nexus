@@ -5,7 +5,7 @@ import { choices } from "../../../support/decision-models/fixtures";
 import type {
   FastResponseSettings,
   FastResponseTestResult,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 export const empty: FastResponseSettings = {
   companyId: "company-storybook",
   enabled: false,
@@ -36,7 +36,7 @@ export const result: FastResponseTestResult = {
   },
 };
 const meta = {
-  parameters: { paperclip: {
+  parameters: { nexus: {
       "capabilities": [
         "companies/identity",
         "budgets-costs/cost-reporting",

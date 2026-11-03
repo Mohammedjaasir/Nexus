@@ -11,12 +11,12 @@
  * It is skipped unless BOTH hold, because it mutates host-level Tailscale serve
  * state and must never run in CI:
  *
- *   - `PAPERCLIP_LIVE_BROKER_EXERCISE=1`
- *   - the broker socket exists (`PAPERCLIP_TAILSCALE_BROKER_SOCKET` or the default)
+ *   - `NEXUS_LIVE_BROKER_EXERCISE=1`
+ *   - the broker socket exists (`NEXUS_TAILSCALE_BROKER_SOCKET` or the default)
  *
  * Run it on a broker-provisioned host with:
  *
- *   PAPERCLIP_LIVE_BROKER_EXERCISE=1 pnpm --filter @paperclipai/server exec \
+ *   NEXUS_LIVE_BROKER_EXERCISE=1 pnpm --filter @nexusai/server exec \
  *     vitest run src/__tests__/workspace-runtime-https-live-exercise.test.ts
  *
  * The caller must be the broker's configured service UID/GID and its listeners
@@ -35,7 +35,7 @@ import {
   projects,
   workspaceRuntimeServices,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -48,8 +48,8 @@ import {
   type RealizedExecutionWorkspace,
 } from "../services/workspace-runtime.ts";
 
-const DEFAULT_BROKER_SOCKET = "/run/paperclip-tailscale-broker/broker.sock";
-const brokerSocketPath = process.env.PAPERCLIP_TAILSCALE_BROKER_SOCKET ?? DEFAULT_BROKER_SOCKET;
+const DEFAULT_BROKER_SOCKET = "/run/nexus-tailscale-broker/broker.sock";
+const brokerSocketPath = process.env.NEXUS_TAILSCALE_BROKER_SOCKET ?? DEFAULT_BROKER_SOCKET;
 
 async function brokerSocketPresent() {
   try {
@@ -59,7 +59,7 @@ async function brokerSocketPresent() {
   }
 }
 
-const optedIn = process.env.PAPERCLIP_LIVE_BROKER_EXERCISE === "1";
+const optedIn = process.env.NEXUS_LIVE_BROKER_EXERCISE === "1";
 const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
 const live = optedIn && embeddedPostgresSupport.supported && (await brokerSocketPresent());
 
@@ -86,12 +86,12 @@ if (optedIn && !live) {
 
   it("upgrades a pre-existing HTTP workspace in place to a browser-trusted HTTPS URL", async () => {
     const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pap17158-live-"));
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "pap17158-live-home-"));
-    const previousHome = process.env.PAPERCLIP_HOME;
-    const previousInstance = process.env.PAPERCLIP_INSTANCE_ID;
-    const previousMode = process.env.PAPERCLIP_MANAGED_RUNTIME_HTTPS;
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `pap17158-live-${randomUUID()}`;
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "pap17158-live-home-"));
+    const previousHome = process.env.NEXUS_HOME;
+    const previousInstance = process.env.NEXUS_INSTANCE_ID;
+    const previousMode = process.env.NEXUS_MANAGED_RUNTIME_HTTPS;
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `pap17158-live-${randomUUID()}`;
 
     // An ephemeral legacy port rather than the real template's 45439, so this
     // never contends with the live workspace runtime on the same host.
@@ -120,7 +120,7 @@ if (optedIn && !live) {
     const workspaceRuntime = {
       services: [
         {
-          name: "paperclip-dev",
+          name: "nexus-dev",
           command,
           port: legacyPort,
           // Pre-feature block: backend URL only, no exposure declaration.
@@ -140,7 +140,7 @@ if (optedIn && !live) {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `L${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -166,10 +166,10 @@ if (optedIn && !live) {
     const evidence: Record<string, unknown> = {};
     try {
       // ---- Before: the workspace as it exists today, plain HTTP. ----
-      process.env.PAPERCLIP_MANAGED_RUNTIME_HTTPS = "off";
+      process.env.NEXUS_MANAGED_RUNTIME_HTTPS = "off";
       const before = await startRuntimeServicesForWorkspaceControl({
         db,
-        actor: { id: null, name: "Paperclip", companyId },
+        actor: { id: null, name: "Nexus", companyId },
         issue: null,
         workspace: {
           baseCwd: workspaceRoot,
@@ -199,7 +199,7 @@ if (optedIn && !live) {
 
       // ---- Deploy: production exposure deps, automatic default on. ----
       await resetRuntimeServicesForTests(); // restores the real broker client
-      delete process.env.PAPERCLIP_MANAGED_RUNTIME_HTTPS;
+      delete process.env.NEXUS_MANAGED_RUNTIME_HTTPS;
 
       const result = await reconcilePersistedRuntimeServicesOnStartup(db);
       evidence.reconcile = result;
@@ -246,14 +246,14 @@ if (optedIn && !live) {
         workspaceCwd: workspaceRoot,
       }).catch((error) => console.error("[PAP-17158] teardown failed", error));
       await resetRuntimeServicesForTests();
-      await fs.rm(paperclipHome, { recursive: true, force: true });
+      await fs.rm(nexusHome, { recursive: true, force: true });
       await fs.rm(workspaceRoot, { recursive: true, force: true });
-      if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-      else process.env.PAPERCLIP_HOME = previousHome;
-      if (previousInstance === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-      else process.env.PAPERCLIP_INSTANCE_ID = previousInstance;
-      if (previousMode === undefined) delete process.env.PAPERCLIP_MANAGED_RUNTIME_HTTPS;
-      else process.env.PAPERCLIP_MANAGED_RUNTIME_HTTPS = previousMode;
+      if (previousHome === undefined) delete process.env.NEXUS_HOME;
+      else process.env.NEXUS_HOME = previousHome;
+      if (previousInstance === undefined) delete process.env.NEXUS_INSTANCE_ID;
+      else process.env.NEXUS_INSTANCE_ID = previousInstance;
+      if (previousMode === undefined) delete process.env.NEXUS_MANAGED_RUNTIME_HTTPS;
+      else process.env.NEXUS_MANAGED_RUNTIME_HTTPS = previousMode;
     }
   }, 180_000);
 });

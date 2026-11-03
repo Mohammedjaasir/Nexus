@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { agents, companies, createDb, heartbeatRuns } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRuns } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
@@ -50,10 +50,10 @@ describe.skipIf(!support.supported)("recovery context PostgreSQL projection", ()
       wakeCommentIds: [randomUUID(), randomUUID()], wakeCommentId: randomUUID(), commentId: randomUUID(),
       externalChatContinuation: true,
     };
-    const context = { ...evidence, paperclipWake: { externalInteractionContinuation: true, prompt: payload },
-      paperclipWorkspace: { mode: "shared_workspace", instructions: payload }, executionContinuation: { prompt: payload }, paperclipTaskMarkdown: payload };
+    const context = { ...evidence, nexusWake: { externalInteractionContinuation: true, prompt: payload },
+      nexusWorkspace: { mode: "shared_workspace", instructions: payload }, executionContinuation: { prompt: payload }, nexusTaskMarkdown: payload };
     const { run, selected } = await read(context);
-    expect(selected.context).toEqual({ ...evidence, paperclipWake: { externalInteractionContinuation: true }, paperclipWorkspace: { mode: "shared_workspace" } });
+    expect(selected.context).toEqual({ ...evidence, nexusWake: { externalInteractionContinuation: true }, nexusWorkspace: { mode: "shared_workspace" } });
     expect(Buffer.byteLength(JSON.stringify(selected))).toBeLessThan(4096);
     expect(isExternalChatPresentationContext(selected.context)).toBe(isExternalChatPresentationContext(context));
     expect(legacyDispositionEpisode({ ...run, contextSnapshot: selected.context })).toEqual(legacyDispositionEpisode(run));
@@ -61,13 +61,13 @@ describe.skipIf(!support.supported)("recovery context PostgreSQL projection", ()
     expect(stored.contextSnapshot).toEqual(context);
     const [serialized] = await db.$client.unsafe("SELECT xmin::text AS version FROM heartbeat_runs WHERE id = $1", [run.id]);
     expect(selected.version).toBe(serialized.version);
-    await db.update(heartbeatRuns).set({ contextSnapshot: { ...context, paperclipTaskMarkdown: "changed" } }).where(eq(heartbeatRuns.id, run.id));
+    await db.update(heartbeatRuns).set({ contextSnapshot: { ...context, nexusTaskMarkdown: "changed" } }).where(eq(heartbeatRuns.id, run.id));
     const [changed] = await db.select({ context: recoveryRunContextColumn, version: recoveryRunVersionColumn }).from(heartbeatRuns).where(eq(heartbeatRuns.id, run.id));
     expect(changed.context).toEqual(selected.context);
     expect(changed.version).not.toBe(selected.version);
   });
 
-  it.each([null, [], ["unexpected"], "scalar", 42, { issueId: 42, taskId: false, paperclipWake: [], paperclipWorkspace: null }].map(context => ({ context })))("preserves decisions for malformed context $context", async ({ context }) => {
+  it.each([null, [], ["unexpected"], "scalar", 42, { issueId: 42, taskId: false, nexusWake: [], nexusWorkspace: null }].map(context => ({ context })))("preserves decisions for malformed context $context", async ({ context }) => {
     const { selected } = await read(context);
     expect(isExternalChatPresentationContext(selected.context)).toBe(isExternalChatPresentationContext(context));
     expect(legacyDispositionEpisode({ id: "run", contextSnapshot: selected.context })).toEqual(legacyDispositionEpisode({ id: "run", contextSnapshot: context }));

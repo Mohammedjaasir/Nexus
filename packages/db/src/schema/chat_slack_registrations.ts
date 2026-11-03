@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, foreignKey, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import type { SlackRegistrationStatus } from "@paperclipai/shared";
+import type { SlackRegistrationStatus } from "@nexusai/shared";
 import { chatSlackManagerGrants } from "./chat_slack_manager_grants.js";
 import { chatEndpoints } from "./chat_channels.js";
 

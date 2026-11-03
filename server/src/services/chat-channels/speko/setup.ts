@@ -6,7 +6,7 @@ import { createSpekoProvider } from "../../voice/speko-provider.js";
 
 import { type CredentialMutationLeaseGuard } from "../../chat-credential-mutation-lease.js";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   forbidden,

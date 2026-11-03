@@ -21,7 +21,7 @@ The `workspaceServices` input accepts only nonempty combinations of `gmail`,
 from the shared closed registry. Default write access requests nine scopes.
 Drive file creation is limited to app-opened/app-created files; Docs, Sheets,
 and Slides have their respective editor scopes. Gmail uses `gmail.compose`
-for draft creation; Google permits sending under that scope, but Paperclip's
+for draft creation; Google permits sending under that scope, but Nexus's
 closed tool allowlist still excludes sending.
 
 Both customer OAuth and managed Cloud OAuth bind the request to durable OAuth

@@ -1,7 +1,7 @@
 import type {
   EventDimensionsMap,
-  PaperclipEventName,
-} from "./generated/paperclip-telemetry.js";
+  NexusEventName,
+} from "./generated/nexus-telemetry.js";
 
 export interface TelemetryState {
   installId: string;
@@ -67,7 +67,7 @@ export interface TelemetryEventEnvelope {
 }
 
 export type RegisteredPluginEventName = never;
-export type TelemetryEventName = PaperclipEventName | RegisteredPluginEventName;
+export type TelemetryEventName = NexusEventName | RegisteredPluginEventName;
 
 export type TelemetryEventDimensions<K extends TelemetryEventName> =
   K extends keyof EventDimensionsMap ? EventDimensionsMap[K] : never;

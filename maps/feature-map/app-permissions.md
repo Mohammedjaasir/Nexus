@@ -106,7 +106,7 @@ then shows an error with Retry. A background failure keeps loaded controls visib
 exercise stalled account/grants reads, cancellation, retry recovery and cached grants.
 
 The account-details section shows the provider email and organization when
-available, beside the sign-in method and Paperclip ownership. Anthropic profile
+available, beside the sign-in method and Nexus ownership. Anthropic profile
 permission denial shows an explicit unavailable message without changing the
 connection's connected state. Account identity loads independently of maintenance
 controls, has a bounded wait and a separate retry for temporary failures, and

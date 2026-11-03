@@ -52,7 +52,7 @@ const DEFAULT_BRIDGE_MAX_BODY_BYTES = 10 * 1024 * 1024 + BRIDGE_MULTIPART_FRAMIN
 // round trip finishes in well under one second, so 10s is far above a normal
 // iteration and never false-fires on a slow-but-live call. It is also well
 // under the in-sandbox 30s response deadline
-// (PAPERCLIP_BRIDGE_RESPONSE_TIMEOUT_MS), so the host loop fails fast and writes
+// (NEXUS_BRIDGE_RESPONSE_TIMEOUT_MS), so the host loop fails fast and writes
 // 503 responses before the in-sandbox client gives up. A silently unresponsive
 // sandbox channel makes a client call hang with no reject; this timeout turns
 // that hang into a caught error, so the poll loop can back off and retry while
@@ -87,22 +87,22 @@ const BACKSTOP_WRITE_RETRY_MS = 50;
 // call every poll interval.
 const MAX_TRANSIENT_ITERATION_BACKOFF_MS = 5_000;
 const REMOTE_WRITE_BASE64_CHUNK_SIZE = 32 * 1024;
-export const SANDBOX_CALLBACK_BRIDGE_ENTRYPOINT = "paperclip-bridge-server.mjs";
-const SANDBOX_EXEC_CHANNEL_ENV = "PAPERCLIP_SANDBOX_EXEC_CHANNEL";
+export const SANDBOX_CALLBACK_BRIDGE_ENTRYPOINT = "nexus-bridge-server.mjs";
+const SANDBOX_EXEC_CHANNEL_ENV = "NEXUS_SANDBOX_EXEC_CHANNEL";
 const SANDBOX_EXEC_CHANNEL_BRIDGE = "bridge";
 
 // The bridge modes the generated gateway supports. The file mode polls a
 // request/response queue on disk. The http2 mode runs one Node HTTP/2 client
 // session directly on stdin/stdout, after it sends the one READY line the
 // host readiness gate expects. The generated `.mjs` selects the mode from
-// `PAPERCLIP_API_BRIDGE_MODE`. The generated gateway rejects every other
+// `NEXUS_API_BRIDGE_MODE`. The generated gateway rejects every other
 // value with a fixed startup error, including the retired duplex transport.
 // HTTP/2 is the preferred transport. `queue_v1` is the soft-deprecated fallback.
 const SANDBOX_CALLBACK_BRIDGE_FILE_MODE = "queue_v1";
 /** The active non-file transport mode. */
 export const SANDBOX_CALLBACK_BRIDGE_HTTP2_MODE = "http2_v1";
 
-/** Span name that wraps one Paperclip-API callback request — read the request,
+/** Span name that wraps one Nexus-API callback request — read the request,
  * write the response, and remove the request file. */
 const CALLBACK_BRIDGE_RELAY_REQUEST_SPAN = "sandbox.callbackBridge.relayRequest";
 
@@ -122,8 +122,8 @@ export interface SandboxCallbackBridgeRouteRule {
 // Routes the in-sandbox heartbeat skill is documented to call. The server
 // still enforces actor-level permissions on top of this allowlist; the list
 // exists to bound the surface area a compromised CLI could reach via the
-// reverse bridge. Keep this in sync with the Paperclip skill in
-// `skills/paperclip/SKILL.md` and `references/api-reference.md`.
+// reverse bridge. Keep this in sync with the Nexus skill in
+// `skills/nexus/SKILL.md` and `references/api-reference.md`.
 export const DEFAULT_SANDBOX_CALLBACK_BRIDGE_ROUTE_ALLOWLIST: readonly SandboxCallbackBridgeRouteRule[] = [
   // Runtime capability authentication is independently checked by the controller.
   { method: "POST", path: /^\/runtime-tools\/github\/credentials$/ },
@@ -205,7 +205,7 @@ export const DEFAULT_SANDBOX_CALLBACK_BRIDGE_ROUTE_ALLOWLIST: readonly SandboxCa
   // Subtasks / delegation
   { method: "POST", path: /^\/api\/companies\/[^/]+\/issues$/ },
 
-  // Hiring (paperclip-create-agent skill): adapter/icon discovery, comparing
+  // Hiring (nexus-create-agent skill): adapter/icon discovery, comparing
   // existing agent configs, submitting the hire request, and linking the
   // resulting approval to its source issue. Direct agent creation
   // (POST /api/companies/:id/agents) stays denied — hires must go through the
@@ -247,7 +247,7 @@ export const DEFAULT_SANDBOX_CALLBACK_BRIDGE_HEADER_ALLOWLIST = [
   "content-type",
   "if-match",
   "if-none-match",
-  "x-paperclip-github-capability",
+  "x-nexus-github-capability",
 ] as const;
 
 export interface SandboxCallbackBridgeRequest extends SandboxCallbackBridgeBody {
@@ -474,28 +474,28 @@ export function buildSandboxCallbackBridgeEnv(input: {
   maxBodyBytes?: number | null;
 }): Record<string, string> {
   return {
-    PAPERCLIP_API_BRIDGE_MODE: SANDBOX_CALLBACK_BRIDGE_FILE_MODE,
-    PAPERCLIP_BRIDGE_QUEUE_DIR: input.queueDir,
-    PAPERCLIP_BRIDGE_TOKEN: input.bridgeToken,
-    PAPERCLIP_BRIDGE_HOST: input.host?.trim() || "127.0.0.1",
-    PAPERCLIP_BRIDGE_PORT: String(input.port && input.port > 0 ? Math.trunc(input.port) : 0),
-    PAPERCLIP_BRIDGE_POLL_INTERVAL_MS: String(
+    NEXUS_API_BRIDGE_MODE: SANDBOX_CALLBACK_BRIDGE_FILE_MODE,
+    NEXUS_BRIDGE_QUEUE_DIR: input.queueDir,
+    NEXUS_BRIDGE_TOKEN: input.bridgeToken,
+    NEXUS_BRIDGE_HOST: input.host?.trim() || "127.0.0.1",
+    NEXUS_BRIDGE_PORT: String(input.port && input.port > 0 ? Math.trunc(input.port) : 0),
+    NEXUS_BRIDGE_POLL_INTERVAL_MS: String(
       normalizeTimeoutMs(input.pollIntervalMs, DEFAULT_BRIDGE_POLL_INTERVAL_MS),
     ),
-    PAPERCLIP_BRIDGE_RESPONSE_TIMEOUT_MS: String(
+    NEXUS_BRIDGE_RESPONSE_TIMEOUT_MS: String(
       normalizeTimeoutMs(input.responseTimeoutMs, DEFAULT_BRIDGE_RESPONSE_TIMEOUT_MS),
     ),
-    PAPERCLIP_BRIDGE_MAX_QUEUE_DEPTH: String(
+    NEXUS_BRIDGE_MAX_QUEUE_DEPTH: String(
       normalizeTimeoutMs(input.maxQueueDepth, DEFAULT_BRIDGE_MAX_QUEUE_DEPTH),
     ),
-    PAPERCLIP_BRIDGE_MAX_BODY_BYTES: String(
+    NEXUS_BRIDGE_MAX_BODY_BYTES: String(
       normalizeTimeoutMs(input.maxBodyBytes, DEFAULT_BRIDGE_MAX_BODY_BYTES),
     ),
   };
 }
 
 export async function createSandboxCallbackBridgeAsset(): Promise<SandboxCallbackBridgeAsset> {
-  const localDir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-bridge-asset-"));
+  const localDir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-bridge-asset-"));
   const entrypoint = path.join(localDir, SANDBOX_CALLBACK_BRIDGE_ENTRYPOINT);
   await fs.writeFile(entrypoint, getSandboxCallbackBridgeServerSource(), "utf8");
   return {
@@ -548,14 +548,14 @@ export function createFileSystemSandboxCallbackBridgeQueueClient(): SandboxCallb
       // onto the final `.json` path. A direct `writeFile` truncates the final
       // path first, so a `.json`-only reader (the stdin poller) can see an
       // empty or partial file. The atomic rename never exposes partial content.
-      const tempPath = `${remotePath}.paperclip-upload.decoded`;
+      const tempPath = `${remotePath}.nexus-upload.decoded`;
       await fs.writeFile(tempPath, body, "utf8");
       await fs.rename(tempPath, remotePath);
     },
     writeResponseFile: async (responsePath, body, options = {}) => {
       const responseDir = path.posix.dirname(responsePath);
       const tempPath = `${responsePath}.tmp`;
-      const lockDir = `${responsePath}.paperclip-write.lock`;
+      const lockDir = `${responsePath}.nexus-write.lock`;
       const lockPidFile = `${lockDir}/pid`;
       if (options.requestPath) {
         const requestExists = await pathExists(options.requestPath);
@@ -703,7 +703,7 @@ export function createCommandManagedSandboxCallbackBridgeQueueClient(input: {
       // decode writes it, so a reader can see an empty or partial file.
       // A failed provider response does not prove the remote command stopped.
       // Keep concurrent or retried uploads from truncating each other's bytes.
-      const uploadPath = `${remotePath}.${randomUUID()}.paperclip-upload`;
+      const uploadPath = `${remotePath}.${randomUUID()}.nexus-upload`;
       const tempPath = `${uploadPath}.b64`;
       const decodedPath = `${uploadPath}.decoded`;
       try {
@@ -739,7 +739,7 @@ export function createCommandManagedSandboxCallbackBridgeQueueClient(input: {
     writeResponseFile: async (responsePath, body, options = {}) => {
       const responseDir = path.posix.dirname(responsePath);
       const tempPath = `${responsePath}.tmp`;
-      const lockDir = `${responsePath}.paperclip-write.lock`;
+      const lockDir = `${responsePath}.nexus-write.lock`;
       const requestPath = options.requestPath?.trim() || "";
       const result = await runShell(
         input.runner,
@@ -851,7 +851,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
   // otherwise). When it is absent, the request work runs with an empty store,
   // exactly like the earlier `runWithoutActiveStep` behavior.
   getRuntimeParentContext?: () => StartupSpanContext | undefined;
-  // Wrap each Paperclip-API callback request in a
+  // Wrap each Nexus-API callback request in a
   // `sandbox.callbackBridge.relayRequest` span, so the request's read, write, and
   // remove execs group under one named span. When it is absent, the request work
   // runs under the run parent with no wrapper span, exactly like the earlier
@@ -1026,7 +1026,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
         } catch (error) {
           lastWriteError = error instanceof Error ? error.message : String(error);
           console.warn(
-            `[paperclip] sandbox callback bridge failed to write response for ${response.id} (attempt ${attempt}/${MAX_BACKSTOP_WRITE_ATTEMPTS}): ${lastWriteError}`,
+            `[nexus] sandbox callback bridge failed to write response for ${response.id} (attempt ${attempt}/${MAX_BACKSTOP_WRITE_ATTEMPTS}): ${lastWriteError}`,
           );
           if (attempt < MAX_BACKSTOP_WRITE_ATTEMPTS) {
             await new Promise((resolve) => setTimeout(resolve, BACKSTOP_WRITE_RETRY_MS));
@@ -1157,7 +1157,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
         };
       } catch (error) {
         console.warn(
-          `[paperclip] sandbox callback bridge handler failed for ${request.id}: ${error instanceof Error ? error.message : String(error)}`,
+          `[nexus] sandbox callback bridge handler failed for ${request.id}: ${error instanceof Error ? error.message : String(error)}`,
         );
         // Tell a worker abort apart from a normal handler failure. The recovery
         // path aborts `guard.controller` when the per-iteration timeout or the
@@ -1175,7 +1175,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
             status: 504,
             headers: {
               "content-type": "application/json",
-              "x-paperclip-bridge-outcome": "indeterminate",
+              "x-nexus-bridge-outcome": "indeterminate",
             },
             body: JSON.stringify({
               error: error instanceof Error ? error.message : String(error),
@@ -1239,7 +1239,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
             status: 504,
             headers: {
               "content-type": "application/json",
-              "x-paperclip-bridge-outcome": "indeterminate",
+              "x-nexus-bridge-outcome": "indeterminate",
             },
             body: JSON.stringify({ error: message, outcome: "indeterminate", retryable: false }),
             completedAt: new Date().toISOString(),
@@ -1255,7 +1255,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
         return;
       } catch (error) {
         console.warn(
-          `[paperclip] sandbox callback bridge failed to write 504 backstop for ${requestId} (attempt ${attempt}/${MAX_BACKSTOP_WRITE_ATTEMPTS}): ${error instanceof Error ? error.message : String(error)}`,
+          `[nexus] sandbox callback bridge failed to write 504 backstop for ${requestId} (attempt ${attempt}/${MAX_BACKSTOP_WRITE_ATTEMPTS}): ${error instanceof Error ? error.message : String(error)}`,
         );
         if (attempt < MAX_BACKSTOP_WRITE_ATTEMPTS) {
           await new Promise((resolve) => setTimeout(resolve, BACKSTOP_WRITE_RETRY_MS));
@@ -1383,7 +1383,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
         // can still read it and deliver a terminal 503. A remove here drops the
         // request and strands the caller until its own deadline.
         console.warn(
-          `[paperclip] sandbox callback bridge could not read pending request ${requestId}: ${error instanceof Error ? error.message : String(error)}`,
+          `[nexus] sandbox callback bridge could not read pending request ${requestId}: ${error instanceof Error ? error.message : String(error)}`,
         );
         continue;
       }
@@ -1417,7 +1417,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
         } catch (error) {
           lastWriteError = error instanceof Error ? error.message : String(error);
           console.warn(
-            `[paperclip] sandbox callback bridge failed to write recovery 503 for ${requestId} (attempt ${attempt}/${MAX_BACKSTOP_WRITE_ATTEMPTS}): ${lastWriteError}`,
+            `[nexus] sandbox callback bridge failed to write recovery 503 for ${requestId} (attempt ${attempt}/${MAX_BACKSTOP_WRITE_ATTEMPTS}): ${lastWriteError}`,
           );
           if (attempt < MAX_BACKSTOP_WRITE_ATTEMPTS) {
             await new Promise((resolve) => setTimeout(resolve, BACKSTOP_WRITE_RETRY_MS));
@@ -1431,7 +1431,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
       } else {
         // Every 503 write failed. Keep the request file for a later recovery pass.
         console.warn(
-          `[paperclip] sandbox callback bridge kept queued request ${requestId} after every recovery 503 write failed: ${lastWriteError}`,
+          `[nexus] sandbox callback bridge kept queued request ${requestId} after every recovery 503 write failed: ${lastWriteError}`,
         );
       }
     }
@@ -1453,7 +1453,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
         // now on the trace; swallow it here so the worker recovery continues.
       }
     }
-    console.warn(`[paperclip] ${error.message}`);
+    console.warn(`[nexus] ${error.message}`);
   };
 
   // The timestamp of the last successful loop iteration. The watchdog compares
@@ -1473,14 +1473,14 @@ export async function startSandboxCallbackBridgeWorker(input: {
       await failPendingRequests(message, { abandonInFlight: true });
     } catch (error) {
       console.warn(
-        `[paperclip] sandbox callback bridge watchdog failed to abort queued requests: ${error instanceof Error ? error.message : String(error)}`,
+        `[nexus] sandbox callback bridge watchdog failed to abort queued requests: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   };
 
   // Start the long-lived poll loop outside the measured startup-step store.
   // The `makeDir` calls above are startup work and must keep the active
-  // `bridge.paperclip` step. The loop runs run-time execs for the whole run,
+  // `bridge.nexus` step. The loop runs run-time execs for the whole run,
   // so each loop `sandbox.exec` span must not parent to the ended step or copy
   // its `criticalPath` flag. `runWithoutActiveStep` empties the store for the
   // loop only; Node keeps the empty store on every later poll continuation.
@@ -1538,7 +1538,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
             // only warn, so a flapping channel does not spam failed spans.
             await surfaceRunError(new Error(message));
           } else {
-            console.warn(`[paperclip] ${message}`);
+            console.warn(`[nexus] ${message}`);
           }
           const backoffMs = Math.min(
             pollIntervalMs * 2 ** consecutivePollFailures,
@@ -1602,7 +1602,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
               await failPendingRequests(message, { abandonInFlight: true });
             } catch (failPendingError) {
               console.warn(
-                `[paperclip] sandbox callback bridge failed to abort queued requests after a request failure: ${failPendingError instanceof Error ? failPendingError.message : String(failPendingError)}`,
+                `[nexus] sandbox callback bridge failed to abort queued requests after a request failure: ${failPendingError instanceof Error ? failPendingError.message : String(failPendingError)}`,
               );
             }
           } finally {
@@ -1621,7 +1621,7 @@ export async function startSandboxCallbackBridgeWorker(input: {
         await failPendingRequests(message, { abandonInFlight: true });
       } catch (failPendingError) {
         console.warn(
-          `[paperclip] sandbox callback bridge failed to abort queued requests after worker failure: ${failPendingError instanceof Error ? failPendingError.message : String(failPendingError)}`,
+          `[nexus] sandbox callback bridge failed to abort queued requests after worker failure: ${failPendingError instanceof Error ? failPendingError.message : String(failPendingError)}`,
         );
       }
     } finally {
@@ -1677,7 +1677,7 @@ export async function syncSandboxCallbackBridgeEntrypoint(input: {
     body: entrypointSource,
     label: "Sandbox callback bridge entrypoint",
     action: "sync sandbox callback bridge entrypoint",
-    lockDir: path.posix.join(input.assetRemoteDir, ".paperclip-bridge-upload.lock"),
+    lockDir: path.posix.join(input.assetRemoteDir, ".nexus-bridge-upload.lock"),
     timeoutMs: input.timeoutMs,
     shellCommand: input.shellCommand,
   });
@@ -2120,23 +2120,23 @@ import path from "node:path";
 import http2 from "node:http2";
 import { Duplex } from "node:stream";
 
-const bridgeMode = process.env.PAPERCLIP_API_BRIDGE_MODE || "${SANDBOX_CALLBACK_BRIDGE_FILE_MODE}";
-const queueDir = process.env.PAPERCLIP_BRIDGE_QUEUE_DIR;
-const bridgeToken = process.env.PAPERCLIP_BRIDGE_TOKEN;
-const host = process.env.PAPERCLIP_BRIDGE_HOST || "127.0.0.1";
-const port = Number(process.env.PAPERCLIP_BRIDGE_PORT || "0");
+const bridgeMode = process.env.NEXUS_API_BRIDGE_MODE || "${SANDBOX_CALLBACK_BRIDGE_FILE_MODE}";
+const queueDir = process.env.NEXUS_BRIDGE_QUEUE_DIR;
+const bridgeToken = process.env.NEXUS_BRIDGE_TOKEN;
+const host = process.env.NEXUS_BRIDGE_HOST || "127.0.0.1";
+const port = Number(process.env.NEXUS_BRIDGE_PORT || "0");
 // The host assigns the loopback port and passes it through the launch
 // environment. The gateway binds exactly this port; it never selects a
 // different one. The host also passes one random per-open nonce here. The
 // gateway echoes it in the READY frame so the host correlates READY with this
 // channel open. The nonce is a liveness signal, not authentication.
-const bridgeNonce = process.env.PAPERCLIP_BRIDGE_NONCE || "";
-const pollIntervalMs = Number(process.env.PAPERCLIP_BRIDGE_POLL_INTERVAL_MS || "100");
+const bridgeNonce = process.env.NEXUS_BRIDGE_NONCE || "";
+const pollIntervalMs = Number(process.env.NEXUS_BRIDGE_POLL_INTERVAL_MS || "100");
 const responseTimeoutMs = Number(
-  process.env.PAPERCLIP_BRIDGE_RESPONSE_TIMEOUT_MS || "${DEFAULT_BRIDGE_RESPONSE_TIMEOUT_MS}",
+  process.env.NEXUS_BRIDGE_RESPONSE_TIMEOUT_MS || "${DEFAULT_BRIDGE_RESPONSE_TIMEOUT_MS}",
 );
-const maxQueueDepth = Number(process.env.PAPERCLIP_BRIDGE_MAX_QUEUE_DEPTH || "${DEFAULT_BRIDGE_MAX_QUEUE_DEPTH}");
-const maxBodyBytes = Number(process.env.PAPERCLIP_BRIDGE_MAX_BODY_BYTES || "${DEFAULT_BRIDGE_MAX_BODY_BYTES}");
+const maxQueueDepth = Number(process.env.NEXUS_BRIDGE_MAX_QUEUE_DEPTH || "${DEFAULT_BRIDGE_MAX_QUEUE_DEPTH}");
+const maxBodyBytes = Number(process.env.NEXUS_BRIDGE_MAX_BODY_BYTES || "${DEFAULT_BRIDGE_MAX_BODY_BYTES}");
 // The header allowlist. Both the file gateway and the http2 gateway strip an
 // inbound request to these headers before they forward it. One copy serves both
 // modes. The route allowlist stays on the host: both modes forward a request to
@@ -2144,7 +2144,7 @@ const maxBodyBytes = Number(process.env.PAPERCLIP_BRIDGE_MAX_BODY_BYTES || "${DE
 const allowedHeaders = new Set(${JSON.stringify([...DEFAULT_SANDBOX_CALLBACK_BRIDGE_HEADER_ALLOWLIST])});
 
 if (!bridgeToken) {
-  throw new Error("PAPERCLIP_BRIDGE_TOKEN is required.");
+  throw new Error("NEXUS_BRIDGE_TOKEN is required.");
 }
 // Closed allowlist for the bridge mode. The generated gateway supports exactly
 // two transports: http2 and the file-mode queue. Every other value, including
@@ -2156,10 +2156,10 @@ if (
   bridgeMode !== "${SANDBOX_CALLBACK_BRIDGE_HTTP2_MODE}" &&
   bridgeMode !== "${SANDBOX_CALLBACK_BRIDGE_FILE_MODE}"
 ) {
-  throw new Error("Unsupported PAPERCLIP_API_BRIDGE_MODE: " + bridgeMode);
+  throw new Error("Unsupported NEXUS_API_BRIDGE_MODE: " + bridgeMode);
 }
 if (bridgeMode !== "${SANDBOX_CALLBACK_BRIDGE_HTTP2_MODE}" && !queueDir) {
-  throw new Error("PAPERCLIP_BRIDGE_QUEUE_DIR and PAPERCLIP_BRIDGE_TOKEN are required.");
+  throw new Error("NEXUS_BRIDGE_QUEUE_DIR and NEXUS_BRIDGE_TOKEN are required.");
 }
 
 // A crashed gateway is a dead loopback port for the rest of the run: nothing
@@ -2174,7 +2174,7 @@ if (bridgeMode !== "${SANDBOX_CALLBACK_BRIDGE_HTTP2_MODE}" && !queueDir) {
 let gatewayReady = false;
 process.on("uncaughtException", (error) => {
   process.stderr.write(
-    "[paperclip-bridge] uncaught exception: " + (error && error.stack ? error.stack : String(error)) + "\\n",
+    "[nexus-bridge] uncaught exception: " + (error && error.stack ? error.stack : String(error)) + "\\n",
   );
   if (!gatewayReady) {
     process.exit(1);
@@ -2182,7 +2182,7 @@ process.on("uncaughtException", (error) => {
 });
 process.on("unhandledRejection", (reason) => {
   const detail = reason && typeof reason === "object" && "stack" in reason ? reason.stack : String(reason);
-  process.stderr.write("[paperclip-bridge] unhandled rejection: " + detail + "\\n");
+  process.stderr.write("[nexus-bridge] unhandled rejection: " + detail + "\\n");
   if (!gatewayReady) {
     process.exit(1);
   }
@@ -2288,7 +2288,7 @@ function tokensMatch(received) {
 
 // Read the bridge token a local caller presented. The gateway accepts two
 // header conventions for the same token. "Authorization: Bearer <token>" is the
-// bridge convention. "X-API-Key: <token>" is the convention the public Paperclip
+// bridge convention. "X-API-Key: <token>" is the convention the public Nexus
 // API documents, so an agent that follows those docs sends it first. Both
 // headers carry the same per-run token and both reach the same constant-time
 // comparison in tokensMatch, so the second header removes a needless 401 without
@@ -2453,7 +2453,7 @@ async function runFileGateway() {
       // mutation twice. Map the indeterminate outcome to a non-retryable 409, so a
       // standard retry policy does not repeat the request. The outcome header and
       // body stay, so a caller that reads them still sees the indeterminate result.
-      const bridgeOutcome = responseHeaders["x-paperclip-bridge-outcome"];
+      const bridgeOutcome = responseHeaders["x-nexus-bridge-outcome"];
       if (bridgeOutcome === "indeterminate") {
         res.statusCode = 409;
       } else {
@@ -2469,7 +2469,7 @@ async function runFileGateway() {
       // dispatched, a missing or corrupt receipt cannot prove that it failed.
       const uncertainWrite = dispatched && !["GET", "HEAD", "OPTIONS", "TRACE"].includes(req.method || "GET");
       const status = uncertainWrite ? 409 : error instanceof BridgeProcessCapacityError ? 503 : 502;
-      if (uncertainWrite) res.setHeader("x-paperclip-bridge-outcome", "indeterminate");
+      if (uncertainWrite) res.setHeader("x-nexus-bridge-outcome", "indeterminate");
       writeJsonResponse(res, status, {
         error: error instanceof Error ? error.message : String(error),
         ...(uncertainWrite ? { outcome: "indeterminate", retryable: false } : {}),
@@ -2503,7 +2503,7 @@ async function runFileGateway() {
   server.once("error", (error) => {
     clearInterval(bindKeepalive);
     process.stderr.write(
-      "[paperclip-bridge] server error: " + (error && error.stack ? error.stack : String(error)) + "\\n",
+      "[nexus-bridge] server error: " + (error && error.stack ? error.stack : String(error)) + "\\n",
     );
     if (!gatewayReady) {
       process.exit(1);
@@ -2573,7 +2573,7 @@ function createStdioDuplex() {
 function runHttp2Gateway() {
   function diag(message) {
     // Diagnostics go to stderr only, the same as every other mode.
-    process.stderr.write("[paperclip-bridge] " + message + "\\n");
+    process.stderr.write("[nexus-bridge] " + message + "\\n");
   }
   function writeFrame(frame) {
     process.stdout.write(encodeDuplexFrame(frame));
@@ -2696,7 +2696,7 @@ function runHttp2Gateway() {
       // mutation twice. Map the indeterminate outcome to a non-retryable 409, so a
       // standard retry policy does not repeat the request. The outcome header and
       // body stay, so a caller that reads them still sees the indeterminate result.
-      const bridgeOutcome = (response.headers || {})["x-paperclip-bridge-outcome"];
+      const bridgeOutcome = (response.headers || {})["x-nexus-bridge-outcome"];
       if (bridgeOutcome === "indeterminate") {
         res.statusCode = 409;
       } else {
@@ -2739,7 +2739,7 @@ function runHttp2Gateway() {
   // positive loopback port, and the gateway binds exactly that port or exits
   // nonzero. It never selects a different port.
   if (!Number.isInteger(port) || port <= 0) {
-    diag("http2 gateway requires a positive assigned PAPERCLIP_BRIDGE_PORT; got " + String(port));
+    diag("http2 gateway requires a positive assigned NEXUS_BRIDGE_PORT; got " + String(port));
     process.exit(1);
   }
   server.on("error", (error) => {
@@ -2776,6 +2776,6 @@ if (bridgeMode === "${SANDBOX_CALLBACK_BRIDGE_HTTP2_MODE}") {
 } else if (bridgeMode === "${SANDBOX_CALLBACK_BRIDGE_FILE_MODE}") {
   await runFileGateway();
 } else {
-  throw new Error("Unsupported PAPERCLIP_API_BRIDGE_MODE: " + bridgeMode);
+  throw new Error("Unsupported NEXUS_API_BRIDGE_MODE: " + bridgeMode);
 }`;
 }

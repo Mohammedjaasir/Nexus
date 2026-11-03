@@ -2,11 +2,11 @@ services:
   db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: paperclip
-      POSTGRES_PASSWORD: paperclip
-      POSTGRES_DB: paperclip
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus
+      POSTGRES_DB: nexus
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U paperclip -d paperclip"]
+      test: ["CMD-SHELL", "pg_isready -U nexus -d nexus"]
       interval: 2s
       timeout: 5s
       retries: 30
@@ -33,21 +33,21 @@ services:
     ports:
       - "3100:3100"
     environment:
-      DATABASE_URL: postgres://paperclip:paperclip@db:5432/paperclip
+      DATABASE_URL: postgres://nexus:nexus@db:5432/nexus
       PORT: "3100"
       SERVE_UI: "true"
-      PAPERCLIP_DEPLOYMENT_MODE: "authenticated"
-      PAPERCLIP_DEPLOYMENT_EXPOSURE: "private"
-      PAPERCLIP_PUBLIC_URL: "${PAPERCLIP_PUBLIC_URL:-http://localhost:3100}"
+      NEXUS_DEPLOYMENT_MODE: "authenticated"
+      NEXUS_DEPLOYMENT_EXPOSURE: "private"
+      NEXUS_PUBLIC_URL: "${NEXUS_PUBLIC_URL:-http://localhost:3100}"
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set}"
       # Independent secret for signed approval-gated tool actions.
-      PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: "${PAPERCLIP_TOOL_ACTION_SIGNING_SECRET:-}"
+      NEXUS_TOOL_ACTION_SIGNING_SECRET: "${NEXUS_TOOL_ACTION_SIGNING_SECRET:-}"
     volumes:
-      - paperclip-data:/paperclip
+      - nexus-data:/nexus
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   pgdata:
-  paperclip-data:
+  nexus-data:

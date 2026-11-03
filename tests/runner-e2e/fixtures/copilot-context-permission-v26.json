@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.e2e.copilot-context-permission-fixture.v1",
+  "schema": "nexus.e2e.copilot-context-permission-fixture.v1",
   "provenance": {
     "source": "f43b483517f952121c426cc58e6fb4c361577602",
     "runtimeSource": "3073c062d47891cc275072de4eaaf049f5837839",
@@ -24,11 +24,11 @@
         "prpEvent": {
           "runId": "5c1ddc98-5f3c-4469-ad1b-ae825af1fa44",
           "itemId": "item-5c1ddc98-5f3c-4469-ad1b-ae825af1fa44",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_73aaed4624a44a448bd3d3fe0d0bdb8a",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -93,16 +93,16 @@
         "prpEvent": {
           "runId": "5c1ddc98-5f3c-4469-ad1b-ae825af1fa44",
           "itemId": "item-5c1ddc98-5f3c-4469-ad1b-ae825af1fa44",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_73aaed4624a44a448bd3d3fe0d0bdb8a",
           "payload": {
-            "name": "paperclip-get_task_context",
+            "name": "nexus-get_task_context",
             "output": "null",
-            "schema": "paperclip.tool.execution.v1",
+            "schema": "nexus.tool.execution.v1",
             "status": "running",
             "target": null,
             "exitCode": null,
-            "progress": "paperclip-get_task_context (pending)",
+            "progress": "nexus-get_task_context (pending)",
             "readOnly": true,
             "namespace": null,
             "operation": "read",
@@ -147,11 +147,11 @@
         "prpEvent": {
           "runId": "5c1ddc98-5f3c-4469-ad1b-ae825af1fa44",
           "itemId": "item-5c1ddc98-5f3c-4469-ad1b-ae825af1fa44",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_73aaed4624a44a448bd3d3fe0d0bdb8a",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -216,7 +216,7 @@
         "prpEvent": {
           "runId": "5c1ddc98-5f3c-4469-ad1b-ae825af1fa44",
           "itemId": "item-5c1ddc98-5f3c-4469-ad1b-ae825af1fa44",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_73aaed4624a44a448bd3d3fe0d0bdb8a",
           "payload": {
             "request": {
@@ -229,7 +229,7 @@
                 "provider": "copilot"
               },
               "prompt": "get_task_context",
-              "schema": "paperclip.runtime_request.v2",
+              "schema": "nexus.runtime_request.v2",
               "status": "pending",
               "turnId": "turn_lab_73aaed4624a44a448bd3d3fe0d0bdb8a",
               "choices": [
@@ -277,7 +277,7 @@
                     "label": "Cancel"
                   }
                 ],
-                "threadId": "paperclip-80e180f467cfbdfe68e90384027c4b1fe0f65dc94991b7f6a67321043b66f912",
+                "threadId": "nexus-80e180f467cfbdfe68e90384027c4b1fe0f65dc94991b7f6a67321043b66f912",
                 "toolCallId": "call_ZURUpVXGfBtUt9Ev2V9mqCyN"
               },
               "requestId": "acpx-input-7ea2516111a915df66eb8c03",

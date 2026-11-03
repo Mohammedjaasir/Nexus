@@ -32,7 +32,7 @@ afterEach(async () => {
 
 it("spawns a real Node ACP agent with per-session env on this platform", async () => {
   const root = await fs.mkdtemp(
-    path.join(os.tmpdir(), "paperclip-acpx-spawn-smoke-"),
+    path.join(os.tmpdir(), "nexus-acpx-spawn-smoke-"),
   );
   tempRoots.push(root);
   const stateDir = path.join(root, "state");
@@ -49,7 +49,7 @@ it("spawns a real Node ACP agent with per-session env on this platform", async (
       mode: "oneshot",
       stateDir,
       cwd: repoRoot,
-      env: { PAPERCLIP_ACPX_SPAWN_SMOKE: "spawn-ok" },
+      env: { NEXUS_ACPX_SPAWN_SMOKE: "spawn-ok" },
     },
     context: {},
     onLog: async (_stream: string, text: string) => logs.push(text),
@@ -64,12 +64,12 @@ it("spawns a real Node ACP agent with per-session env on this platform", async (
     "utf8",
   );
   expect(stderr).toContain("nes/close");
-  expect(stderr).toContain("paperclip-acp-echo-agent started");
+  expect(stderr).toContain("nexus-acp-echo-agent started");
 });
 
 it("retains a typed ACP failure as diagnostics without making it assistant output", async () => {
   const root = await fs.mkdtemp(
-    path.join(os.tmpdir(), "paperclip-acpx-typed-failure-"),
+    path.join(os.tmpdir(), "nexus-acpx-typed-failure-"),
   );
   tempRoots.push(root);
   const logs: string[] = [];
@@ -86,7 +86,7 @@ it("retains a typed ACP failure as diagnostics without making it assistant outpu
       mode: "oneshot",
       stateDir: path.join(root, "state"),
       cwd: repoRoot,
-      env: { PAPERCLIP_ACPX_TYPED_FAILURE_FILE: await writeFailureFile(root, providerText) },
+      env: { NEXUS_ACPX_TYPED_FAILURE_FILE: await writeFailureFile(root, providerText) },
     },
     context: {},
     onLog: async (_stream: string, text: string) => logs.push(text),
@@ -104,7 +104,7 @@ it("retains a typed ACP failure as diagnostics without making it assistant outpu
 
 it("fails closed on a typed ACP session failure in persistent mode", async () => {
   const root = await fs.mkdtemp(
-    path.join(os.tmpdir(), "paperclip-acpx-persistent-typed-failure-"),
+    path.join(os.tmpdir(), "nexus-acpx-persistent-typed-failure-"),
   );
   tempRoots.push(root);
   const providerText = "persistent-provider-error-canary-must-not-escape";
@@ -122,7 +122,7 @@ it("fails closed on a typed ACP session failure in persistent mode", async () =>
       warmHandleIdleMs: 0,
       stateDir: path.join(root, "state"),
       cwd: repoRoot,
-      env: { PAPERCLIP_ACPX_TYPED_FAILURE_FILE: await writeFailureFile(root, providerText) },
+      env: { NEXUS_ACPX_TYPED_FAILURE_FILE: await writeFailureFile(root, providerText) },
     },
     context: {},
     onLog: async (_stream: string, text: string) => logs.push(text),
@@ -140,7 +140,7 @@ it("fails closed on a typed ACP session failure in persistent mode", async () =>
 
 it("preserves ordinary assistant text even when it resembles a provider error", async () => {
   const root = await fs.mkdtemp(
-    path.join(os.tmpdir(), "paperclip-acpx-error-shaped-answer-"),
+    path.join(os.tmpdir(), "nexus-acpx-error-shaped-answer-"),
   );
   tempRoots.push(root);
   const answer =
@@ -157,7 +157,7 @@ it("preserves ordinary assistant text even when it resembles a provider error", 
       mode: "oneshot",
       stateDir: path.join(root, "state"),
       cwd: repoRoot,
-      env: { PAPERCLIP_ACPX_SPAWN_SMOKE: answer },
+      env: { NEXUS_ACPX_SPAWN_SMOKE: answer },
     },
     context: {},
     onLog: async () => {},
@@ -170,7 +170,7 @@ it("preserves ordinary assistant text even when it resembles a provider error", 
 
 it("keeps a typed retry warning nonfatal when the turn produces an answer", async () => {
   const root = await fs.mkdtemp(
-    path.join(os.tmpdir(), "paperclip-acpx-typed-warning-"),
+    path.join(os.tmpdir(), "nexus-acpx-typed-warning-"),
   );
   tempRoots.push(root);
   const answer = "Recovered after the transient connection warning.";
@@ -190,8 +190,8 @@ it("keeps a typed retry warning nonfatal when the turn produces an answer", asyn
       stateDir: path.join(root, "state"),
       cwd: repoRoot,
       env: {
-        PAPERCLIP_ACPX_TYPED_WARNING_CANARY: warningCanary,
-        PAPERCLIP_ACPX_SPAWN_SMOKE: answer,
+        NEXUS_ACPX_TYPED_WARNING_CANARY: warningCanary,
+        NEXUS_ACPX_SPAWN_SMOKE: answer,
       },
     },
     context: {},
@@ -214,7 +214,7 @@ it("captures the Node error shape for a host-invalid spawn cwd", async () => {
   // when it host-spawns the relay proxy with the in-sandbox `remoteCwd`.
   const missingCwd = path.join(
     os.tmpdir(),
-    "paperclip-acpx-missing-spawn-cwd",
+    "nexus-acpx-missing-spawn-cwd",
     "nested",
     "does-not-exist",
   );

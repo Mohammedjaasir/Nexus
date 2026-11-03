@@ -38,7 +38,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatActions,
@@ -50,12 +50,12 @@ import {
   chatPublications,
   chatTeamsFileTransfers,
   issueThreadInteractions,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatAdapterCapabilities,
   ChatProvider,
   SafeChatPublicationPayload,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   isTelegramDraftStopped,
@@ -539,7 +539,7 @@ export function createChatPublicationWorker(db: Db, options: PublicationWorkerOp
                 .update(chatPublications)
                 .set({
                   state: "cancelled",
-                  redactedError: "Direct messages are disabled in Paperclip",
+                  redactedError: "Direct messages are disabled in Nexus",
                   updatedAt: new Date(),
                 })
                 .where(
@@ -574,7 +574,7 @@ export function createChatPublicationWorker(db: Db, options: PublicationWorkerOp
                 .update(chatPublications)
                 .set({
                   state: "cancelled",
-                  redactedError: "Destination is disabled in Paperclip",
+                  redactedError: "Destination is disabled in Nexus",
                   updatedAt: new Date(),
                 })
                 .where(
@@ -663,7 +663,7 @@ export function createChatPublicationWorker(db: Db, options: PublicationWorkerOp
         }
         // Status is sampled when it reaches the head of the provider lane,
         // not when the command was admitted. If an already-streaming final
-        // publication won the race, this reply reflects Paperclip's latest
+        // publication won the race, this reply reflects Nexus's latest
         // authoritative task state after that earlier send commits.
         let payload = await currentTaskControlPayload(publication);
         await withCredentialMutationLease(

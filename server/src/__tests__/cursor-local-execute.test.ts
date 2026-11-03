@@ -2,19 +2,19 @@ import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { runChildProcess } from "@paperclipai/adapter-utils/server-utils";
-import { execute } from "@paperclipai/adapter-cursor-local/server";
+import { runChildProcess } from "@nexusai/adapter-utils/server-utils";
+import { execute } from "@nexusai/adapter-cursor-local/server";
 
 // These fixtures verify command discovery, environment and real CLI execution.
 // Callback bridge startup/teardown has its own execution-target coverage; starting
 // that server here adds unrelated process and polling work to command assertions.
-vi.mock("@paperclipai/adapter-utils/execution-target", async () => {
-  const actual = await vi.importActual<typeof import("@paperclipai/adapter-utils/execution-target")>(
-    "@paperclipai/adapter-utils/execution-target",
+vi.mock("@nexusai/adapter-utils/execution-target", async () => {
+  const actual = await vi.importActual<typeof import("@nexusai/adapter-utils/execution-target")>(
+    "@nexusai/adapter-utils/execution-target",
   );
   return {
     ...actual,
-    startAdapterExecutionTargetPaperclipBridge: async () => null,
+    startAdapterExecutionTargetNexusBridge: async () => null,
   };
 });
 
@@ -22,12 +22,12 @@ async function writeFakeCursorCommand(commandPath: string): Promise<void> {
   const script = `#!/usr/bin/env node
 const fs = require("node:fs");
 
-const capturePath = process.env.PAPERCLIP_TEST_CAPTURE_PATH;
+const capturePath = process.env.NEXUS_TEST_CAPTURE_PATH;
 const payload = {
   argv: process.argv.slice(2),
   prompt: fs.readFileSync(0, "utf8"),
-  paperclipEnvKeys: Object.keys(process.env)
-    .filter((key) => key.startsWith("PAPERCLIP_"))
+  nexusEnvKeys: Object.keys(process.env)
+    .filter((key) => key.startsWith("NEXUS_"))
     .sort(),
 };
 if (capturePath) {
@@ -124,7 +124,7 @@ function createLocalSandboxRunner() {
 type CapturePayload = {
   argv: string[];
   prompt: string;
-  paperclipEnvKeys: string[];
+  nexusEnvKeys: string[];
 };
 
 async function createSkillDir(root: string, name: string) {
@@ -135,8 +135,8 @@ async function createSkillDir(root: string, name: string) {
 }
 
 describe("cursor execute", () => {
-  it("injects paperclip env vars and prompt note by default", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-cursor-execute-"));
+  it("injects nexus env vars and prompt note by default", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-cursor-execute-"));
     const workspace = path.join(root, "workspace");
     const commandPath = path.join(root, "agent");
     const capturePath = path.join(root, "capture.json");
@@ -168,9 +168,9 @@ describe("cursor execute", () => {
           cwd: workspace,
           model: "auto",
           env: {
-            PAPERCLIP_TEST_CAPTURE_PATH: capturePath,
+            NEXUS_TEST_CAPTURE_PATH: capturePath,
           },
-          promptTemplate: "Follow the paperclip heartbeat.",
+          promptTemplate: "Follow the nexus heartbeat.",
         },
         context: {},
         authToken: "run-jwt-token",
@@ -184,22 +184,22 @@ describe("cursor execute", () => {
       expect(result.errorMessage).toBeNull();
 
       const capture = JSON.parse(await fs.readFile(capturePath, "utf8")) as CapturePayload;
-      expect(capture.argv).not.toContain("Follow the paperclip heartbeat.");
+      expect(capture.argv).not.toContain("Follow the nexus heartbeat.");
       expect(capture.argv).not.toContain("--mode");
       expect(capture.argv).not.toContain("ask");
-      expect(capture.paperclipEnvKeys).toEqual(
+      expect(capture.nexusEnvKeys).toEqual(
         expect.arrayContaining([
-          "PAPERCLIP_AGENT_ID",
-          "PAPERCLIP_API_KEY",
-          "PAPERCLIP_API_URL",
-          "PAPERCLIP_COMPANY_ID",
-          "PAPERCLIP_RUN_ID",
+          "NEXUS_AGENT_ID",
+          "NEXUS_API_KEY",
+          "NEXUS_API_URL",
+          "NEXUS_COMPANY_ID",
+          "NEXUS_RUN_ID",
         ]),
       );
-      expect(capture.prompt).toContain("Paperclip runtime note:");
-      expect(capture.prompt).toContain("PAPERCLIP_API_KEY");
-      expect(invocationPrompt).toContain("Paperclip runtime note:");
-      expect(invocationPrompt).toContain("PAPERCLIP_API_URL");
+      expect(capture.prompt).toContain("Nexus runtime note:");
+      expect(capture.prompt).toContain("NEXUS_API_KEY");
+      expect(invocationPrompt).toContain("Nexus runtime note:");
+      expect(invocationPrompt).toContain("NEXUS_API_URL");
     } finally {
       if (previousHome === undefined) {
         delete process.env.HOME;
@@ -211,7 +211,7 @@ describe("cursor execute", () => {
   });
 
   it("passes --mode when explicitly configured", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-cursor-execute-mode-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-cursor-execute-mode-"));
     const workspace = path.join(root, "workspace");
     const commandPath = path.join(root, "agent");
     const capturePath = path.join(root, "capture.json");
@@ -243,9 +243,9 @@ describe("cursor execute", () => {
           model: "auto",
           mode: "ask",
           env: {
-            PAPERCLIP_TEST_CAPTURE_PATH: capturePath,
+            NEXUS_TEST_CAPTURE_PATH: capturePath,
           },
-          promptTemplate: "Follow the paperclip heartbeat.",
+          promptTemplate: "Follow the nexus heartbeat.",
         },
         context: {},
         authToken: "run-jwt-token",
@@ -269,7 +269,7 @@ describe("cursor execute", () => {
   });
 
   it("injects company-library runtime skills into the Cursor skills home before execution", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-cursor-execute-runtime-skill-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-cursor-execute-runtime-skill-"));
     const processHome = path.join(root, "process-home");
     const configuredHome = path.join(root, "configured-home");
     const workspace = path.join(root, "workspace");
@@ -278,7 +278,7 @@ describe("cursor execute", () => {
     await fs.mkdir(workspace, { recursive: true });
     await writeFakeCursorCommand(commandPath);
 
-    const paperclipDir = await createSkillDir(runtimeSkillsRoot, "paperclip");
+    const nexusDir = await createSkillDir(runtimeSkillsRoot, "nexus");
     const asciiHeartDir = await createSkillDir(runtimeSkillsRoot, "ascii-heart");
 
     const previousHome = process.env.HOME;
@@ -305,20 +305,20 @@ describe("cursor execute", () => {
           cwd: workspace,
           model: "auto",
           env: { HOME: configuredHome },
-          paperclipRuntimeSkills: [
+          nexusRuntimeSkills: [
             {
-              name: "paperclip",
-              source: paperclipDir,
+              name: "nexus",
+              source: nexusDir,
             },
             {
               name: "ascii-heart",
               source: asciiHeartDir,
             },
           ],
-          paperclipSkillSync: {
+          nexusSkillSync: {
             desiredSkills: ["ascii-heart"],
           },
-          promptTemplate: "Follow the paperclip heartbeat.",
+          promptTemplate: "Follow the nexus heartbeat.",
         },
         context: {},
         authToken: "run-jwt-token",
@@ -345,7 +345,7 @@ describe("cursor execute", () => {
   });
 
   it("prefers ~/.local/bin/cursor-agent for remote sandbox execution when using the default command", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-cursor-sandbox-execute-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-cursor-sandbox-execute-"));
     const homeDir = path.join(root, "home");
     const workspace = path.join(root, "workspace");
     const remoteWorkspace = path.join(root, "remote-workspace");
@@ -384,7 +384,7 @@ describe("cursor execute", () => {
         config: {
           command: "agent",
           cwd: workspace,
-          promptTemplate: "Follow the paperclip heartbeat.",
+          promptTemplate: "Follow the nexus heartbeat.",
         },
         context: {},
         authToken: "run-jwt-token",
@@ -400,7 +400,7 @@ describe("cursor execute", () => {
       };
       expect(capture.command).toBe(cursorAgentPath);
       expect(capture.path.split(":")[0]).toBe(path.join(homeDir, ".local", "bin"));
-      expect(capture.prompt).toContain("Follow the paperclip heartbeat.");
+      expect(capture.prompt).toContain("Follow the nexus heartbeat.");
     } finally {
       if (previousHome === undefined) delete process.env.HOME;
       else process.env.HOME = previousHome;
@@ -409,7 +409,7 @@ describe("cursor execute", () => {
   });
 
   it("keeps explicit command overrides for remote sandbox execution", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-cursor-sandbox-explicit-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-cursor-sandbox-explicit-"));
     const homeDir = path.join(root, "home");
     const workspace = path.join(root, "workspace");
     const remoteWorkspace = path.join(root, "remote-workspace");
@@ -450,7 +450,7 @@ describe("cursor execute", () => {
         config: {
           command: customCommandPath,
           cwd: workspace,
-          promptTemplate: "Follow the paperclip heartbeat.",
+          promptTemplate: "Follow the nexus heartbeat.",
         },
         context: {},
         authToken: "run-jwt-token",

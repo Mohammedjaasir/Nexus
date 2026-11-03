@@ -4,7 +4,7 @@ import type { EndpointRow, SlackCallbackSurface, InternalSetupState } from "../r
 
 import type {
   ChatEndpointCallbackSurfaces,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 export function slackSetupState(input: {
   endpoint: Pick<

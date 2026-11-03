@@ -22,18 +22,18 @@ try {
     throw new Error(`Unknown dev-service option: ${forwardedArgs[0]}`);
   }
 } catch (error) {
-  console.error(`[paperclip] ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`[nexus] ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 }
 
 const records = await listLocalServiceRegistryRecords({
-  profileKind: "paperclip-dev",
+  profileKind: "nexus-dev",
   metadata: { repoRoot },
 });
 
 if (command === "list") {
   if (records.length === 0) {
-    console.log("No Paperclip dev services registered for this repo.");
+    console.log("No Nexus dev services registered for this repo.");
     process.exit(0);
   }
   for (const line of toDisplayLines(records)) {
@@ -44,7 +44,7 @@ if (command === "list") {
 
 if (command === "stop") {
   if (records.length === 0) {
-    console.log("No Paperclip dev services registered for this repo.");
+    console.log("No Nexus dev services registered for this repo.");
     process.exit(0);
   }
   for (const record of records) {

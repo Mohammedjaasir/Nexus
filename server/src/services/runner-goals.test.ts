@@ -9,7 +9,7 @@ import {
   createDb,
   heartbeatRuns,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import {
   getEmbeddedPostgresTestSupport,
@@ -25,7 +25,7 @@ import {
 } from "./runner-goals.js";
 
 import { resolveExternalTestDatabaseUrl } from "../__tests__/helpers/external-test-database.js";
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_RUNNER_GOALS_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_RUNNER_GOALS_TEST_DATABASE_URL");
 const embeddedPostgresSupport = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -34,7 +34,7 @@ describeEmbeddedPostgres("runner goal service", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-runner-goals-");
+    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("nexus-runner-goals-");
     db = createDb(external ?? tempDb!.connectionString);
   }, 20_000);
 
@@ -68,7 +68,7 @@ describeEmbeddedPostgres("runner goal service", () => {
       name: "Codex Goal Agent",
       role: "engineer",
       status: "idle",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: {},
       runtimeConfig: {},
       permissions: {},
@@ -118,12 +118,12 @@ describeEmbeddedPostgres("runner goal service", () => {
       objective: "Observe a failed start",
     });
     const failed = await failRunnerGoalAction(db, {
-      ...binding, adapterType: "paperclip_runner",
+      ...binding, adapterType: "nexus_runner",
     }, requestId, "provider_start_failed");
     expect(failed?.pendingAction).toBeNull();
     expect(failed?.revision).toBe(accepted.projection.revision + 1);
     expect(await failRunnerGoalAction(db, {
-      ...binding, adapterType: "paperclip_runner",
+      ...binding, adapterType: "nexus_runner",
     }, requestId, "duplicate_failure")).toBeNull();
     expect((await service.projection(binding.companyId, binding.issueId))?.revision).toBe(failed?.revision);
   });
@@ -182,7 +182,7 @@ describeEmbeddedPostgres("runner goal service", () => {
 
     await applyRunnerGoalPrpEvent(db, {
       ...binding,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
     }, {
       eventType: "session.capabilities.updated",
       sourceSeq: 1,
@@ -200,7 +200,7 @@ describeEmbeddedPostgres("runner goal service", () => {
     });
     const updated = await applyRunnerGoalPrpEvent(db, {
       ...binding,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
     }, {
       eventType: "session.goal.updated",
       sourceSeq: 2,
@@ -231,7 +231,7 @@ describeEmbeddedPostgres("runner goal service", () => {
 
     const failedClear = await applyRunnerGoalPrpEvent(db, {
       ...binding,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
     }, {
       eventType: "session.goal.cleared",
       sourceSeq: 3,
@@ -270,7 +270,7 @@ describeEmbeddedPostgres("runner goal service", () => {
     expect(clearAccepted.projection.pendingAction).toBe("clearing");
     const cleared = await applyRunnerGoalPrpEvent(db, {
       ...binding,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
     }, {
       eventType: "session.goal.cleared",
       sourceSeq: 4,
@@ -280,7 +280,7 @@ describeEmbeddedPostgres("runner goal service", () => {
 
     const stale = await applyRunnerGoalPrpEvent(db, {
       ...binding,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
     }, {
       eventType: "session.goal.updated",
       sourceSeq: 3,
@@ -305,7 +305,7 @@ describeEmbeddedPostgres("runner goal service", () => {
     ]);
     const first = await applyRunnerGoalPrpEvent(db, {
       ...binding,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
     }, {
       eventType: "session.goal.updated",
       sourceInstanceId: runnerId,
@@ -321,7 +321,7 @@ describeEmbeddedPostgres("runner goal service", () => {
     expect(first).toMatchObject({ goal: { status: "complete" } });
     await expect(applyRunnerGoalPrpEvent(db, {
       ...binding,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
     }, {
       eventType: "session.goal.snapshot",
       sourceInstanceId: runnerId,
@@ -347,7 +347,7 @@ describeEmbeddedPostgres("runner goal service", () => {
         },
       },
     };
-    const eventBinding = { ...binding, adapterType: "paperclip_runner" };
+    const eventBinding = { ...binding, adapterType: "nexus_runner" };
     // Merely changing the source namespace is not proof of succession.
     for (const invalidOwner of [
       { nativeSessionId: randomUUID() },
@@ -377,7 +377,7 @@ describeEmbeddedPostgres("runner goal service", () => {
 
     const duplicate = await applyRunnerGoalPrpEvent(db, {
       ...binding,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
     }, {
       eventType: "session.goal.cleared",
       sourceInstanceId: runnerId,
@@ -411,7 +411,7 @@ describeEmbeddedPostgres("runner goal service", () => {
 
   it("keeps a missing resumed goal blocked across restored empty snapshots", async () => {
     const binding = await seed();
-    const eventBinding = { ...binding, adapterType: "paperclip_runner" };
+    const eventBinding = { ...binding, adapterType: "nexus_runner" };
     await applyRunnerGoalPrpEvent(db, eventBinding, {
       eventType: "session.goal.updated",
       sourceSeq: 1,
@@ -464,7 +464,7 @@ describeEmbeddedPostgres("runner goal service", () => {
     const binding = await seed();
     const eventBinding = {
       ...binding,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
     };
     const source = {
       sourceInstanceId: "native-runner",
@@ -551,7 +551,7 @@ describeEmbeddedPostgres("runner goal service", () => {
 
   it("blocks an unrecoverable active goal with a stable resumable reason", async () => {
     const binding = await seed();
-    await applyRunnerGoalPrpEvent(db, { ...binding, adapterType: "paperclip_runner" }, {
+    await applyRunnerGoalPrpEvent(db, { ...binding, adapterType: "nexus_runner" }, {
       eventType: "session.goal.updated",
       sourceSeq: 1,
       payload: {
@@ -567,7 +567,7 @@ describeEmbeddedPostgres("runner goal service", () => {
 
     const blocked = await blockRunnerGoalRecovery(db, {
       ...binding,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
     });
     expect(blocked).toMatchObject({
       goal: {

@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { paperclipRunnerSupportsPlatform } from "@paperclipai/shared";
+import { nexusRunnerSupportsPlatform } from "@nexusai/shared";
 
 type LocalRunnerTarget = {
   driver: "local";
@@ -36,7 +36,7 @@ export function localAgentRunnerTarget(): LocalRunnerTarget {
   return { ...localTarget };
 }
 
-export function localPaperclipRunnerSupported(): boolean {
+export function localNexusRunnerSupported(): boolean {
   const target = localAgentRunnerTarget();
-  return paperclipRunnerSupportsPlatform("codex_local", target.platform, target.architecture, target.libc, target.glibcVersion);
+  return nexusRunnerSupportsPlatform("codex_local", target.platform, target.architecture, target.libc, target.glibcVersion);
 }

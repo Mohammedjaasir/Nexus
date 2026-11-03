@@ -1,4 +1,4 @@
-import { connectionInstructionsConfig } from "@paperclipai/shared";
+import { connectionInstructionsConfig } from "@nexusai/shared";
 
 type ConfiguredConnection = { config: Record<string, unknown>; transportConfig?: Record<string, unknown> };
 

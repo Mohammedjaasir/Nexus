@@ -37,8 +37,8 @@ export function readPortableCatalogProvenance(
   metadata: Record<string, unknown> | null,
   canonicalKey: string | null = null,
 ) {
-  const paperclip = isCatalogRecord(metadata?.paperclip) ? metadata.paperclip : null;
-  const catalog = isCatalogRecord(paperclip?.catalog) ? paperclip.catalog : null;
+  const nexus = isCatalogRecord(metadata?.nexus) ? metadata.nexus : null;
+  const catalog = isCatalogRecord(nexus?.catalog) ? nexus.catalog : null;
   if (!catalog) return null;
 
   const sourceRef = asCatalogString(catalog.sourceRef) ?? asCatalogString(catalog.originHash);

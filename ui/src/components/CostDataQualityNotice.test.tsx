@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { appearanceForPalette, agentAvatarUrl, type CostDataQualityItem, type CostDataQualityReason, type CostDataQualityReport } from "@paperclipai/shared";
+import { appearanceForPalette, agentAvatarUrl, type CostDataQualityItem, type CostDataQualityReason, type CostDataQualityReport } from "@nexusai/shared";
 import { ToastProvider, useToastState } from "../context/ToastContext";
 import { CostDataQualityNotice } from "./CostDataQualityNotice";
 
@@ -104,7 +104,7 @@ describe("actionable cost notices", () => {
     });
     await render(); await click("16 run costs unavailable"); await loaded();
     const groups = [...container.querySelectorAll('[aria-label="Cost details by agent"] > li')];
-    expect(groups.map(group => group.querySelector("h3")!.textContent)).toEqual(["Codie", "Codie", "fry", "Leela", "Paperclip services"]);
+    expect(groups.map(group => group.querySelector("h3")!.textContent)).toEqual(["Codie", "Codie", "fry", "Leela", "Nexus services"]);
     const codieItems = groups[0].querySelectorAll("li");
     expect(codieItems).toHaveLength(2);
     expect(codieItems[0].textContent).toContain("Ready to record");

@@ -1,6 +1,6 @@
-import type { PaperclipRunnerProviderProfile } from "./provider-profile.js";
+import type { NexusRunnerProviderProfile } from "./provider-profile.js";
 
-type WarmProviderSelection = { backend: PaperclipRunnerProviderProfile["backend"]; acpxAgent?: unknown };
+type WarmProviderSelection = { backend: NexusRunnerProviderProfile["backend"]; acpxAgent?: unknown };
 
 /** Providers with a session-owned home and the current instruction-grant handoff. */
 export function supportsNativeWarmFiles(profile: WarmProviderSelection): boolean {

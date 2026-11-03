@@ -9,7 +9,7 @@ import {
   heartbeatRuns,
   issues,
   nativeRunFinalizations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -88,7 +88,7 @@ describeEmbeddedPostgres(
         id: agentId,
         companyId,
         name: "Native worker",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         status: "running",
       });
       await db.insert(issues).values({

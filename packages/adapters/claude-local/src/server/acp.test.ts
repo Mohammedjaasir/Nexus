@@ -1,24 +1,24 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createPromptContextFixture } from "@paperclipai/adapter-utils/test-fixtures/prompt-context";
+import { createPromptContextFixture } from "@nexusai/adapter-utils/test-fixtures/prompt-context";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AdapterExecutionContext, AdapterInvocationMeta } from "@paperclipai/adapter-utils";
-import { runChildProcess } from "@paperclipai/adapter-utils/server-utils";
+import type { AdapterExecutionContext, AdapterInvocationMeta } from "@nexusai/adapter-utils";
+import { runChildProcess } from "@nexusai/adapter-utils/server-utils";
 
 // Wrap the shared staging seam in a call-recording spy that still delegates to
 // the real implementation (a runner-backed sandbox test exercises it end to
 // end against the local sandbox stand-in). This lets a test assert the exact
 // `assets` the Claude remote managed-home seam sends it without changing any
 // real behavior for the other tests.
-vi.mock("@paperclipai/adapter-utils/execution-target", async (importActual) => {
-  const actual = await importActual<typeof import("@paperclipai/adapter-utils/execution-target")>();
+vi.mock("@nexusai/adapter-utils/execution-target", async (importActual) => {
+  const actual = await importActual<typeof import("@nexusai/adapter-utils/execution-target")>();
   return {
     ...actual,
     prepareAdapterExecutionTargetRuntime: vi.fn(actual.prepareAdapterExecutionTargetRuntime),
   };
 });
-import { prepareAdapterExecutionTargetRuntime } from "@paperclipai/adapter-utils/execution-target";
+import { prepareAdapterExecutionTargetRuntime } from "@nexusai/adapter-utils/execution-target";
 import {
   buildClaudeAcpConfig,
   createClaudeAcpExecutor,
@@ -81,8 +81,8 @@ type FakeRuntimeTurn = {
 const tempRoots: string[] = [];
 const originalNodeVersion = process.version;
 const originalEnv: Record<string, string | undefined> = {
-  PAPERCLIP_HOME: process.env.PAPERCLIP_HOME,
-  PAPERCLIP_INSTANCE_ID: process.env.PAPERCLIP_INSTANCE_ID,
+  NEXUS_HOME: process.env.NEXUS_HOME,
+  NEXUS_INSTANCE_ID: process.env.NEXUS_INSTANCE_ID,
   CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR,
 };
 
@@ -255,8 +255,8 @@ function buildContext(root: string, overrides: Partial<AdapterExecutionContext> 
     },
     context: {
       issueId: "issue-1",
-      paperclipTaskMarkdown: "Task context",
-      paperclipWorkspace: {
+      nexusTaskMarkdown: "Task context",
+      nexusWorkspace: {
         cwd: root,
         source: "project_workspace",
         workspaceId: "workspace-1",
@@ -269,7 +269,7 @@ function buildContext(root: string, overrides: Partial<AdapterExecutionContext> 
 
 describe("claude_local ACP lane", () => {
   it("uses the same default model in ACP startup and session identity", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-default-");
+    const root = await makeTempRoot("nexus-claude-acp-default-");
     const meta: AdapterInvocationMeta[] = [];
     const execute = createClaudeAcpExecutor({
       createRuntime: (options: FakeRuntimeOptions) => new FakeRuntime(options) as never,
@@ -319,7 +319,7 @@ describe("claude_local ACP lane", () => {
   });
 
   it("keeps ACP selected and reports unavailable prerequisites for default and explicit engines", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-default-");
+    const root = await makeTempRoot("nexus-claude-acp-default-");
     const commandPath = path.join(root, "bin", "claude-agent-acp");
     await fs.mkdir(path.dirname(commandPath), { recursive: true });
     await fs.writeFile(commandPath, "#!/usr/bin/env sh\n", "utf8");
@@ -489,7 +489,7 @@ describe("claude_local ACP lane", () => {
   });
 
   it("reports ACP prerequisites for the ACP lane", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-env-");
+    const root = await makeTempRoot("nexus-claude-acp-env-");
     const commandPath = path.join(root, "bin", "claude-agent-acp");
     await fs.mkdir(path.dirname(commandPath), { recursive: true });
     await fs.writeFile(commandPath, "#!/usr/bin/env sh\n", "utf8");
@@ -539,7 +539,7 @@ describe("claude_local ACP lane", () => {
   });
 
   it("executes through ACPX with Claude model env, settings.local.json, and ephemeral skills", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-exec-");
+    const root = await makeTempRoot("nexus-claude-acp-exec-");
     const skill = await createRuntimeSkill(root);
     const runtimes: FakeRuntime[] = [];
     const meta: AdapterInvocationMeta[] = [];
@@ -559,8 +559,8 @@ describe("claude_local ACP lane", () => {
         model: "claude-opus-4-7",
         effort: "high",
         promptTemplate: "Do the assigned work.",
-        paperclipRuntimeSkills: [skill],
-        paperclipSkillSync: { desiredSkills: [skill.key] },
+        nexusRuntimeSkills: [skill],
+        nexusSkillSync: { desiredSkills: [skill.key] },
       },
       onMeta: async (payload: AdapterInvocationMeta) => {
         meta.push(payload);
@@ -591,7 +591,7 @@ describe("claude_local ACP lane", () => {
 
   it("stages the skill bundle as a no-follow-symlinks asset for a remote ACP run, and points the prompt at the in-sandbox skill root", async () => {
     vi.mocked(prepareAdapterExecutionTargetRuntime).mockClear();
-    const root = await makeTempRoot("paperclip-claude-acp-skills-remote-");
+    const root = await makeTempRoot("nexus-claude-acp-skills-remote-");
     const skill = await createRuntimeSkill(root);
     const localCwd = path.join(root, "worktree");
     const remoteCwd = path.join(root, "remote-workspace");
@@ -615,13 +615,13 @@ describe("claude_local ACP lane", () => {
           agentCommand: "node ./fake-acp.js",
           stateDir: path.join(root, "state"),
           promptTemplate: "Do the assigned work.",
-          paperclipRuntimeSkills: [skill],
-          paperclipSkillSync: { desiredSkills: [skill.key] },
+          nexusRuntimeSkills: [skill],
+          nexusSkillSync: { desiredSkills: [skill.key] },
         },
         context: {
           issueId: "issue-1",
-          paperclipTaskMarkdown: "Task context",
-          paperclipWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
+          nexusTaskMarkdown: "Task context",
+          nexusWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
         },
         executionTarget: {
           kind: "remote",
@@ -660,10 +660,10 @@ describe("claude_local ACP lane", () => {
 
   it("stages no skills asset for a remote ACP run with no selected skill", async () => {
     vi.mocked(prepareAdapterExecutionTargetRuntime).mockClear();
-    const root = await makeTempRoot("paperclip-claude-acp-skills-remote-empty-");
+    const root = await makeTempRoot("nexus-claude-acp-skills-remote-empty-");
     // An available-but-undesired skill, so the run resolves a real (empty)
     // selection instead of falling back to the package's own default skill
-    // set (that fallback only fires when `paperclipRuntimeSkills` is absent).
+    // set (that fallback only fires when `nexusRuntimeSkills` is absent).
     const skill = await createRuntimeSkill(root);
     const localCwd = path.join(root, "worktree");
     const remoteCwd = path.join(root, "remote-workspace");
@@ -687,12 +687,12 @@ describe("claude_local ACP lane", () => {
           agentCommand: "node ./fake-acp.js",
           stateDir: path.join(root, "state"),
           promptTemplate: "Do the assigned work.",
-          paperclipRuntimeSkills: [skill],
-          paperclipSkillSync: { desiredSkills: [] },
+          nexusRuntimeSkills: [skill],
+          nexusSkillSync: { desiredSkills: [] },
         },
         context: {
           issueId: "issue-1",
-          paperclipWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
+          nexusWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
         },
         executionTarget: {
           kind: "remote",
@@ -712,12 +712,12 @@ describe("claude_local ACP lane", () => {
   });
 
   it("stages the skill bundle inside the sandbox but never syncs it back into the host workspace", async () => {
-    // The staged skill bundle lives under `.paperclip-runtime/claude/skills`,
+    // The staged skill bundle lives under `.nexus-runtime/claude/skills`,
     // inside the same in-sandbox directory the workspace restore reads. The
-    // restore excludes the whole `.paperclip-runtime` tree
+    // restore excludes the whole `.nexus-runtime` tree
     // (`sandbox-managed-runtime.ts`'s `restoreExclude` list) for every asset
     // key alike, so this proves it for the new "skills" asset specifically.
-    const root = await makeTempRoot("paperclip-claude-acp-skills-no-syncback-");
+    const root = await makeTempRoot("nexus-claude-acp-skills-no-syncback-");
     const skill = await createRuntimeSkill(root);
     const localCwd = path.join(root, "worktree");
     const remoteCwd = path.join(root, "remote-workspace");
@@ -742,12 +742,12 @@ describe("claude_local ACP lane", () => {
           agentCommand: "node ./fake-acp.js",
           stateDir: path.join(root, "state"),
           promptTemplate: "Do the assigned work.",
-          paperclipRuntimeSkills: [skill],
-          paperclipSkillSync: { desiredSkills: [skill.key] },
+          nexusRuntimeSkills: [skill],
+          nexusSkillSync: { desiredSkills: [skill.key] },
         },
         context: {
           issueId: "issue-1",
-          paperclipWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
+          nexusWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
         },
         executionTarget: {
           kind: "remote",
@@ -765,7 +765,7 @@ describe("claude_local ACP lane", () => {
     // during the run, under the in-sandbox skill root the prompt names.
     const prompt = String(runtimes[0]?.startInputs[0]?.text ?? "");
     const inSandboxSkillRoot = prompt.match(/Skill root: (\S+)/)![1]!;
-    expect(inSandboxSkillRoot).toContain(path.join(remoteCwd, ".paperclip-runtime"));
+    expect(inSandboxSkillRoot).toContain(path.join(remoteCwd, ".nexus-runtime"));
     await expect(
       fs.readFile(path.join(inSandboxSkillRoot, "review", "SKILL.md"), "utf8"),
     ).resolves.toContain("review skill");
@@ -773,11 +773,11 @@ describe("claude_local ACP lane", () => {
     // run wrote inside the workspace proper...
     await expect(fs.readFile(path.join(localCwd, "hello.txt"), "utf8")).resolves.toBe("hi");
     // ...but not the staged runtime directory the skill bundle staged into.
-    await expect(fs.access(path.join(localCwd, ".paperclip-runtime"))).rejects.toThrow();
+    await expect(fs.access(path.join(localCwd, ".nexus-runtime"))).rejects.toThrow();
   });
 
   it("passes the exact configured Fable 5.1 ID through ANTHROPIC_MODEL on the ACP lane", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-fable51-");
+    const root = await makeTempRoot("nexus-claude-acp-fable51-");
     const meta: AdapterInvocationMeta[] = [];
     const execute = createClaudeAcpExecutor({
       createRuntime: (options: FakeRuntimeOptions) => new FakeRuntime(options) as never,
@@ -801,7 +801,7 @@ describe("claude_local ACP lane", () => {
   });
 
   it("creates the ACP session on the in-sandbox workspace cwd for runner-backed remote runs", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-remote-cwd-");
+    const root = await makeTempRoot("nexus-claude-acp-remote-cwd-");
     const localCwd = path.join(root, "worktree");
     const remoteCwd = path.join(root, "remote-workspace");
     await fs.mkdir(localCwd, { recursive: true });
@@ -830,8 +830,8 @@ describe("claude_local ACP lane", () => {
         },
         context: {
           issueId: "issue-1",
-          paperclipTaskMarkdown: "Task context",
-          paperclipWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
+          nexusTaskMarkdown: "Task context",
+          nexusWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
         },
         executionTarget: {
           kind: "remote",
@@ -851,7 +851,7 @@ describe("claude_local ACP lane", () => {
   });
 
   it("seeds the managed Claude config into the sandbox and repoints CLAUDE_CONFIG_DIR to the in-sandbox path", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-home-seed-");
+    const root = await makeTempRoot("nexus-claude-acp-home-seed-");
     const localCwd = path.join(root, "worktree");
     const remoteCwd = path.join(root, "remote-workspace");
     const sharedClaudeConfig = path.join(root, "shared-claude-config");
@@ -865,8 +865,8 @@ describe("claude_local ACP lane", () => {
       "utf8",
     );
     await fs.writeFile(path.join(sharedClaudeConfig, "CLAUDE.md"), "# shared guidance\n", "utf8");
-    process.env.PAPERCLIP_HOME = path.join(root, "paperclip-home");
-    process.env.PAPERCLIP_INSTANCE_ID = "test";
+    process.env.NEXUS_HOME = path.join(root, "nexus-home");
+    process.env.NEXUS_INSTANCE_ID = "test";
     process.env.CLAUDE_CONFIG_DIR = sharedClaudeConfig;
 
     const meta: AdapterInvocationMeta[] = [];
@@ -884,7 +884,7 @@ describe("claude_local ACP lane", () => {
         },
         context: {
           issueId: "issue-1",
-          paperclipWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
+          nexusWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
         },
         executionTarget: {
           kind: "remote",
@@ -905,7 +905,7 @@ describe("claude_local ACP lane", () => {
     // C2 — CLAUDE_CONFIG_DIR repointed onto an in-sandbox path, distinct from the
     // host shared config dir.
     expect(remappedConfigDir).not.toBe(sharedClaudeConfig);
-    expect(remappedConfigDir).toContain(".paperclip-runtime");
+    expect(remappedConfigDir).toContain(".nexus-runtime");
     expect(remappedConfigDir.endsWith("/config")).toBe(true);
     // Seeded: settings.json was materialized into the in-sandbox config dir (the
     // local runner uses the host FS, so this is a real host path).
@@ -917,7 +917,7 @@ describe("claude_local ACP lane", () => {
   });
 
   it("test_claude_acp_seam_registers_workspace_sync_back", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-syncback-");
+    const root = await makeTempRoot("nexus-claude-acp-syncback-");
     const localCwd = path.join(root, "worktree");
     const remoteCwd = path.join(root, "remote-workspace");
     const sharedClaudeConfig = path.join(root, "shared-claude-config");
@@ -931,8 +931,8 @@ describe("claude_local ACP lane", () => {
       "utf8",
     );
     await fs.writeFile(path.join(sharedClaudeConfig, "CLAUDE.md"), "# shared guidance\n", "utf8");
-    process.env.PAPERCLIP_HOME = path.join(root, "paperclip-home");
-    process.env.PAPERCLIP_INSTANCE_ID = "test";
+    process.env.NEXUS_HOME = path.join(root, "nexus-home");
+    process.env.NEXUS_INSTANCE_ID = "test";
     process.env.CLAUDE_CONFIG_DIR = sharedClaudeConfig;
 
     // The runtime writes a NEW file into the in-sandbox workspace during the turn.
@@ -970,7 +970,7 @@ describe("claude_local ACP lane", () => {
         },
         context: {
           issueId: "issue-1",
-          paperclipWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
+          nexusWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
         },
         executionTarget: {
           kind: "remote",
@@ -995,14 +995,14 @@ describe("claude_local ACP lane", () => {
     // the caught error's own message there — that message can carry the host
     // workspace path. Force a real EACCES by making the workspace read-only,
     // and name it with a sentinel marker so any leak is easy to spot.
-    const root = await makeTempRoot("paperclip-claude-acp-restore-failure-");
+    const root = await makeTempRoot("nexus-claude-acp-restore-failure-");
     const localCwd = path.join(root, "SENTINEL-HOST-PATH-marker", "worktree");
     const remoteCwd = path.join(root, "remote-workspace");
     await fs.mkdir(localCwd, { recursive: true });
     await fs.mkdir(remoteCwd, { recursive: true });
     await fs.writeFile(path.join(localCwd, "hello.txt"), "hi", "utf8");
-    process.env.PAPERCLIP_HOME = path.join(root, "paperclip-home");
-    process.env.PAPERCLIP_INSTANCE_ID = "test";
+    process.env.NEXUS_HOME = path.join(root, "nexus-home");
+    process.env.NEXUS_INSTANCE_ID = "test";
 
     // The runtime writes a new file into the in-sandbox workspace during the
     // turn, so the teardown's restore has something to copy back — and a new
@@ -1045,7 +1045,7 @@ describe("claude_local ACP lane", () => {
           },
           context: {
             issueId: "issue-1",
-            paperclipWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
+            nexusWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
           },
           executionTarget: {
             kind: "remote",
@@ -1071,7 +1071,7 @@ describe("claude_local ACP lane", () => {
       const allLogs = loggedLines.join("");
       expect(allLogs).not.toContain("SENTINEL-HOST-PATH-marker");
       expect(allLogs).not.toContain(localCwd);
-      const diagnostic = '[paperclip] Workspace restore diagnostic: {"phase":"workspace","step":"directory_merge","errorCode":"EACCES"}\n';
+      const diagnostic = '[nexus] Workspace restore diagnostic: {"phase":"workspace","step":"directory_merge","errorCode":"EACCES"}\n';
       expect(loggedLines.filter((line) => line.includes("Workspace restore diagnostic:"))).toEqual([diagnostic]);
       expect(loggedLines.filter((line) => line !== diagnostic).join("")).not.toContain("EACCES");
       expect(allLogs).toContain("permission denied");
@@ -1081,7 +1081,7 @@ describe("claude_local ACP lane", () => {
   });
 
   it("remaps a workspace-relative explicit CLAUDE_CONFIG_DIR onto the in-sandbox workspace path", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-explicit-inworkspace-");
+    const root = await makeTempRoot("nexus-claude-acp-explicit-inworkspace-");
     const localCwd = path.join(root, "worktree");
     const remoteCwd = path.join(root, "remote-workspace");
     await fs.mkdir(localCwd, { recursive: true });
@@ -1096,8 +1096,8 @@ describe("claude_local ACP lane", () => {
       JSON.stringify({ permissions: { defaultMode: "acceptEdits" } }),
       "utf8",
     );
-    process.env.PAPERCLIP_HOME = path.join(root, "paperclip-home");
-    process.env.PAPERCLIP_INSTANCE_ID = "test";
+    process.env.NEXUS_HOME = path.join(root, "nexus-home");
+    process.env.NEXUS_INSTANCE_ID = "test";
 
     const meta: AdapterInvocationMeta[] = [];
     const logs: string[] = [];
@@ -1116,7 +1116,7 @@ describe("claude_local ACP lane", () => {
         },
         context: {
           issueId: "issue-1",
-          paperclipWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
+          nexusWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
         },
         executionTarget: {
           kind: "remote",
@@ -1140,14 +1140,14 @@ describe("claude_local ACP lane", () => {
     expect(meta[0]?.env?.CLAUDE_CONFIG_DIR).toBe(path.posix.join(remoteCwd, ".claude-config"));
     expect(meta[0]?.env?.CLAUDE_CONFIG_DIR).not.toBe(operatorConfigDir);
     // No managed config seed is materialized — the operator dir is authoritative.
-    expect(String(meta[0]?.env?.CLAUDE_CONFIG_DIR ?? "")).not.toContain(".paperclip-runtime");
+    expect(String(meta[0]?.env?.CLAUDE_CONFIG_DIR ?? "")).not.toContain(".nexus-runtime");
     expect(logs.join("")).toContain(
       `Remapped operator CLAUDE_CONFIG_DIR from host path ${operatorConfigDir}`,
     );
   });
 
   it("ignores a host-only explicit CLAUDE_CONFIG_DIR that cannot reach the sandbox and seeds the managed config instead", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-explicit-hostonly-");
+    const root = await makeTempRoot("nexus-claude-acp-explicit-hostonly-");
     const localCwd = path.join(root, "worktree");
     const remoteCwd = path.join(root, "remote-workspace");
     const sharedClaudeConfig = path.join(root, "shared-claude-config");
@@ -1164,8 +1164,8 @@ describe("claude_local ACP lane", () => {
       "utf8",
     );
     await fs.writeFile(path.join(sharedClaudeConfig, "CLAUDE.md"), "# shared guidance\n", "utf8");
-    process.env.PAPERCLIP_HOME = path.join(root, "paperclip-home");
-    process.env.PAPERCLIP_INSTANCE_ID = "test";
+    process.env.NEXUS_HOME = path.join(root, "nexus-home");
+    process.env.NEXUS_INSTANCE_ID = "test";
     process.env.CLAUDE_CONFIG_DIR = sharedClaudeConfig;
 
     const meta: AdapterInvocationMeta[] = [];
@@ -1187,7 +1187,7 @@ describe("claude_local ACP lane", () => {
         },
         context: {
           issueId: "issue-1",
-          paperclipWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
+          nexusWorkspace: { cwd: localCwd, source: "project_workspace", workspaceId: "workspace-1" },
         },
         executionTarget: {
           kind: "remote",
@@ -1210,7 +1210,7 @@ describe("claude_local ACP lane", () => {
     const remappedConfigDir = String(meta[0]?.env?.CLAUDE_CONFIG_DIR ?? "");
     // The un-portable host path is dropped; managed config is seeded in-sandbox.
     expect(remappedConfigDir).not.toBe(operatorConfigDir);
-    expect(remappedConfigDir).toContain(".paperclip-runtime");
+    expect(remappedConfigDir).toContain(".nexus-runtime");
     expect(remappedConfigDir.endsWith("/config")).toBe(true);
     await expect(fs.readFile(path.join(remappedConfigDir, "settings.json"), "utf8")).resolves.toContain(
       "permissions",
@@ -1241,7 +1241,7 @@ describe("claude_local ACP lane", () => {
   });
 
   it("sends assignment-owned markdown and ordered distinct wake comments at the ACP boundary", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-context-owner-");
+    const root = await makeTempRoot("nexus-claude-acp-context-owner-");
     const runtimes: FakeRuntime[] = [];
     const execute = createClaudeAcpExecutor({
       createRuntime: (options: FakeRuntimeOptions) => {
@@ -1263,7 +1263,7 @@ describe("claude_local ACP lane", () => {
     // The adapter receives server-rendered fields. Keep the server builder's
     // own tests in the server package; adapter packages compile independently.
     const assignmentMarkdown = [
-      "Paperclip task context:",
+      "Nexus task context:",
       `- Issue: ${JSON.stringify(issue.identifier)}`,
       `- Title: ${JSON.stringify(issue.title)}`,
       "", "Issue description:", "```text", issue.description, "```",
@@ -1275,9 +1275,9 @@ describe("claude_local ACP lane", () => {
     const result = await execute(buildContext(root, {
       context: {
         issueId: issue.id,
-        paperclipTaskMarkdown: historicalMarkdown,
-        paperclipTaskMarkdownAssignment: assignmentMarkdown,
-        paperclipWake: {
+        nexusTaskMarkdown: historicalMarkdown,
+        nexusTaskMarkdownAssignment: assignmentMarkdown,
+        nexusWake: {
           reason: "issue_commented",
           issue: { ...issue, status: "in_progress" },
           comments: comments.map((comment, index) => ({
@@ -1288,7 +1288,7 @@ describe("claude_local ACP lane", () => {
           commentWindow: { requestedCount: 2, includedCount: 2, missingCount: 0 },
           fallbackFetchNeeded: false,
         },
-        paperclipTurnContext: {
+        nexusTurnContext: {
           version: 1,
           assignment: { owner: "task_markdown" },
           events: {
@@ -1299,7 +1299,7 @@ describe("claude_local ACP lane", () => {
             ],
           },
         },
-        paperclipWorkspace: { cwd: root, source: "project_workspace", workspaceId: "workspace-1" },
+        nexusWorkspace: { cwd: root, source: "project_workspace", workspaceId: "workspace-1" },
       },
     }));
     expect(result.exitCode).toBe(0);
@@ -1310,13 +1310,13 @@ describe("claude_local ACP lane", () => {
   });
 
   it("delivers owned assignment and current events through fresh and healthy resumed ACP turns", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-owned-context-");
+    const root = await makeTempRoot("nexus-claude-acp-owned-context-");
     const runtimes: FakeRuntime[] = [];
     const fixture = createPromptContextFixture();
     const context = {
       ...fixture,
       issueId: "issue-1",
-      paperclipWorkspace: { cwd: root, source: "project_workspace", workspaceId: "workspace-1" },
+      nexusWorkspace: { cwd: root, source: "project_workspace", workspaceId: "workspace-1" },
     };
     const execute = createClaudeAcpExecutor({
       createRuntime: (options: FakeRuntimeOptions) => {
@@ -1329,17 +1329,17 @@ describe("claude_local ACP lane", () => {
     const fresh = await execute(buildContext(root, { context }));
     const freshPrompt = String(runtimes[0]?.startInputs[0]?.text ?? "");
     expect(fresh.exitCode).toBe(0);
-    expect(freshPrompt).toContain(context.paperclipTaskMarkdownAssignment);
-    expect(freshPrompt.split(context.paperclipTaskMarkdownAssignment).length).toBe(2);
-    expect(freshPrompt).toContain(context.paperclipTaskCommunicationGuidance);
-    expect(freshPrompt).not.toContain(context.paperclipTaskMarkdownAssignmentCompact);
+    expect(freshPrompt).toContain(context.nexusTaskMarkdownAssignment);
+    expect(freshPrompt.split(context.nexusTaskMarkdownAssignment).length).toBe(2);
+    expect(freshPrompt).toContain(context.nexusTaskCommunicationGuidance);
+    expect(freshPrompt).not.toContain(context.nexusTaskMarkdownAssignmentCompact);
     expect(freshPrompt).toContain("\"id\":\"comment-first\"");
     expect(freshPrompt).toContain("\"id\":\"comment-second\"");
     expect(freshPrompt).toContain("\"id\":\"comment-scope\"");
     expect(freshPrompt.indexOf("\"id\":\"comment-first\"")).toBeLessThan(freshPrompt.indexOf("\"id\":\"comment-second\""));
     expect(freshPrompt.indexOf("\"id\":\"comment-second\"")).toBeLessThan(freshPrompt.indexOf("\"id\":\"comment-scope\""));
     expect(freshPrompt.split("Append the same ledger entry.")).toHaveLength(3);
-    expect(freshPrompt.split(fixture.paperclipWake.issue.description)).toHaveLength(2);
+    expect(freshPrompt.split(fixture.nexusWake.issue.description)).toHaveLength(2);
     expect(freshPrompt).not.toContain('"objective":"');
     expect(freshPrompt).toContain("Untrusted continuation evidence");
     expect(freshPrompt).toContain("receipt-1");
@@ -1356,8 +1356,8 @@ describe("claude_local ACP lane", () => {
     const resumedPrompt = String(runtimes[1]?.startInputs[0]?.text ?? "");
     expect(resumed.exitCode).toBe(0);
     expect(runtimes[1]?.ensureInputs[0]?.resumeSessionId).toBe("acp-1");
-    expect(resumedPrompt).toContain(context.paperclipTaskMarkdownAssignmentCompact);
-    expect(resumedPrompt).not.toContain(context.paperclipTaskCommunicationGuidance);
+    expect(resumedPrompt).toContain(context.nexusTaskMarkdownAssignmentCompact);
+    expect(resumedPrompt).not.toContain(context.nexusTaskCommunicationGuidance);
     expect(resumedPrompt).not.toContain("\"id\":\"comment-first\"");
     expect(resumedPrompt).toContain("\"id\":\"comment-second\"");
     expect(resumedPrompt).toContain("\"id\":\"comment-scope\"");
@@ -1365,23 +1365,23 @@ describe("claude_local ACP lane", () => {
   });
 
   it("restores the full assignment and current event history when a resume session is missing", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-missing-resume-context-");
+    const root = await makeTempRoot("nexus-claude-acp-missing-resume-context-");
     const runtimes: MissingResumeRuntime[] = [];
     const assignment = "## Owned assignment\n\nRebuild the launch card. Rebuild the launch card.";
     const compact = "## Compact assignment";
     const context = {
       issueId: "issue-1",
-      paperclipTaskMarkdownAssignment: assignment,
-      paperclipTaskMarkdownAssignmentCompact: compact,
-      paperclipTaskCommunicationGuidance: "Explain the next step before starting work.",
-      paperclipWake: {
+      nexusTaskMarkdownAssignment: assignment,
+      nexusTaskMarkdownAssignmentCompact: compact,
+      nexusTaskCommunicationGuidance: "Explain the next step before starting work.",
+      nexusWake: {
         reason: "issue_commented",
         issue: { id: "issue-1", identifier: "PAP-1", title: "Launch card", description: "Rebuild the launch card.", status: "in_progress" },
         comments: [{ id: "comment-retry", body: "Preserve this retry request." }],
         commentWindow: { requestedCount: 1, includedCount: 1, missingCount: 0 },
         fallbackFetchNeeded: false,
       },
-      paperclipWorkspace: { cwd: root, source: "project_workspace", workspaceId: "workspace-1" },
+      nexusWorkspace: { cwd: root, source: "project_workspace", workspaceId: "workspace-1" },
     };
     const execute = createClaudeAcpExecutor({
       createRuntime: (options: FakeRuntimeOptions) => {
@@ -1410,7 +1410,7 @@ describe("claude_local ACP lane", () => {
   });
 
   it("delivers the issue description exactly once per prompt and compacts non-assignment resume deltas", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-brief-");
+    const root = await makeTempRoot("nexus-claude-acp-brief-");
     const runtimes: FakeRuntime[] = [];
     const execute = createClaudeAcpExecutor({
       createRuntime: (options: FakeRuntimeOptions) => {
@@ -1422,7 +1422,7 @@ describe("claude_local ACP lane", () => {
 
     const description = "Update launch-card.svg and change the CTA to Try Team free.";
     const fullTaskMarkdown = [
-      "Paperclip task context:",
+      "Nexus task context:",
       "- Issue: \"PAP-15271\"",
       "- Title: \"Preserve the task brief\"",
       "",
@@ -1432,15 +1432,15 @@ describe("claude_local ACP lane", () => {
       "```",
     ].join("\n");
     const compactTaskMarkdown = [
-      "Paperclip task context:",
+      "Nexus task context:",
       "- Issue: \"PAP-15271\"",
       "- Title: \"Preserve the task brief\"",
     ].join("\n");
     const wakeContext = (reason: string) => ({
       issueId: "issue-1",
-      paperclipTaskMarkdown: fullTaskMarkdown,
-      paperclipTaskMarkdownCompact: compactTaskMarkdown,
-      paperclipWake: {
+      nexusTaskMarkdown: fullTaskMarkdown,
+      nexusTaskMarkdownCompact: compactTaskMarkdown,
+      nexusWake: {
         reason,
         issue: {
           id: "issue-1",
@@ -1454,7 +1454,7 @@ describe("claude_local ACP lane", () => {
         comments: [],
         fallbackFetchNeeded: false,
       },
-      paperclipWorkspace: {
+      nexusWorkspace: {
         cwd: root,
         source: "project_workspace",
         workspaceId: "workspace-1",
@@ -1464,7 +1464,7 @@ describe("claude_local ACP lane", () => {
     const first = await execute(buildContext(root, { context: wakeContext("issue_assigned") }));
     const freshPrompt = runtimes[0]?.startInputs[0]?.text ?? "";
     expect(freshPrompt.split(description)).toHaveLength(2);
-    expect(freshPrompt).toContain("Paperclip task context:");
+    expect(freshPrompt).toContain("Nexus task context:");
 
     const second = await execute(buildContext(root, {
       runtime: {
@@ -1478,14 +1478,14 @@ describe("claude_local ACP lane", () => {
     expect(second.exitCode).toBe(0);
     const resumePrompt = runtimes[1]?.startInputs[0]?.text ?? "";
     expect(resumePrompt).not.toContain(description);
-    expect(resumePrompt).toContain("Paperclip task context:");
+    expect(resumePrompt).toContain("Nexus task context:");
     expect(resumePrompt).toContain(
       "- issue description: omitted from this resume delta; fetch the issue if you need the latest brief",
     );
   });
 
   it("resumes compatible ACP sessions on later Claude ACP runs", async () => {
-    const root = await makeTempRoot("paperclip-claude-acp-resume-");
+    const root = await makeTempRoot("nexus-claude-acp-resume-");
     const runtimes: FakeRuntime[] = [];
     const execute = createClaudeAcpExecutor({
       createRuntime: (options: FakeRuntimeOptions) => {

@@ -11,7 +11,7 @@ import { TaskChatBubble } from "@/components/task-chat/TaskChatBubble";
 import { Button } from "@/components/ui/button";
 import type { ChatEndpoint, ChatIdentityLink } from "@/api/chatEndpoints";
 import type { TaskChatMessageItem } from "@/components/task-chat/task-chat-model";
-import { storybookAgents } from "../../fixtures/paperclipData";
+import { storybookAgents } from "../../fixtures/nexusData";
 
 type Screen = "catalog" | "agent" | "credentials" | "access" | "task" | "reconnect";
 type Scenario = { screen?: Screen; dedicated?: boolean; outage?: boolean; noLine?: boolean; loading?: boolean; connecting?: boolean };
@@ -38,7 +38,7 @@ function resetFixture(scenario: Scenario) {
   received = false;
   messages = [];
   if (scenario.screen === "task") {
-    principal = { ...sender, status: "linked", paperclipUserLabel: "Alex" };
+    principal = { ...sender, status: "linked", nexusUserLabel: "Alex" };
     simulateIncoming();
   }
   if (scenario.screen === "reconnect") endpoint.status = "attention";
@@ -68,7 +68,7 @@ function Journey({ screen = "catalog" }: { screen?: Screen }) {
       <p><strong>Simulated Photon demo.</strong> Production catalog, setup, access, management, and message components use local fixtures. No credentials are saved and no real messages are sent.</p>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={() => { simulateIncoming(); refresh(); }}>Simulate incoming iMessage</Button>
-        <Button size="sm" variant="outline" onClick={() => { principal = { ...sender, status: "linked", paperclipUserLabel: "Alex" }; refresh(); }}>Simulate identity confirmation</Button>
+        <Button size="sm" variant="outline" onClick={() => { principal = { ...sender, status: "linked", nexusUserLabel: "Alex" }; refresh(); }}>Simulate identity confirmation</Button>
         <Button size="sm" variant="outline" onClick={() => navigate(`${setupUrl}&resume=${endpointId}`)}>Return to setup</Button>
         <Button size="sm" variant="outline" onClick={() => navigate("/issues/DEMO-1")}>View simulated task</Button>
       </div>
@@ -99,7 +99,7 @@ const meta = {
   id: "connections-imessage-photon",
   title: "Apps, channels, and extensions/External chat and email/Connections/iMessage Photon", component: Host,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "chat-channels/conversation",
         "chat-channels/providers",

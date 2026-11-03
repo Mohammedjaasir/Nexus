@@ -6,8 +6,8 @@
 -const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 +const repoRoot = path.resolve(required("BENCH_CANDIDATE_ROOT"));
 @@ -187 +188 @@
--    const byPool = Object.fromEntries(["benchmark-application", "paperclip-controller-lease", "paperclip-runner-checkpoint"].map(pool => {
-+    const byPool = Object.fromEntries(["benchmark-application", "benchmark-replacement-application", "paperclip-controller-lease", "paperclip-runner-checkpoint"].map(pool => {
+-    const byPool = Object.fromEntries(["benchmark-application", "nexus-controller-lease", "nexus-runner-checkpoint"].map(pool => {
++    const byPool = Object.fromEntries(["benchmark-application", "benchmark-replacement-application", "nexus-controller-lease", "nexus-runner-checkpoint"].map(pool => {
 @@ -250,0 +252 @@
 +  const replacementDb = createDb(u, { maxConnections: 10, applicationName: "benchmark-replacement-application" });
 @@ -256,0 +259 @@
@@ -70,7 +70,7 @@
 -    ] as const;
 +    const profile = [["baseline", 300], ["candidate", 300], ["candidate", 300], ["baseline", 300]] as const;
 @@ -929 +937 @@
--        "Paired baseline/candidate, including real PaperclipControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
-+        "Two logical servers in one client process, 150 controllers each, separate request/liveness/checkpoint pools at unchanged caps; same aggregate aligned-burst workload. Matched baseline/candidate ABBA pool-overlap component qualification; no takeover latency or provider reattachment claim. Includes real PaperclipControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
+-        "Paired baseline/candidate, including real NexusControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
++        "Two logical servers in one client process, 150 controllers each, separate request/liveness/checkpoint pools at unchanged caps; same aggregate aligned-burst workload. Matched baseline/candidate ABBA pool-overlap component qualification; no takeover latency or provider reattachment claim. Includes real NexusControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
 @@ -930,0 +939 @@
 +        logicalServers: 2,

@@ -219,7 +219,7 @@ export function renderReportHistory(history: RunnerE2EHistoryIndex | undefined, 
       <label>Through <input type="date" data-history-through></label>
       <label class="history-checkbox"><input type="checkbox" data-history-partial> Include partial campaigns</label>
     </div>
-    <div class="history-table-wrap"><table class="history-table"><thead><tr><th>Campaign</th><th>Paperclip SHA</th><th>Result</th><th>Tokens</th><th>Cost</th><th>Execution</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="history-table-wrap"><table class="history-table"><thead><tr><th>Campaign</th><th>Nexus SHA</th><th>Result</th><th>Tokens</th><th>Cost</th><th>Execution</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="history-empty" data-history-empty hidden>No campaigns match these filters.</p>`}
   </section>`;
 }

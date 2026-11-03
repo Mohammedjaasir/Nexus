@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
-import type { HeartbeatRun } from "@paperclipai/shared";
+import type { HeartbeatRun } from "@nexusai/shared";
 import { afterEach, expect, it, vi } from "vitest";
 import { RunsTab } from "./AgentDetail";
 import { RunsTab as ProductionRunsTab } from "./AgentDetail.production";

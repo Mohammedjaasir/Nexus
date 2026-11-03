@@ -92,7 +92,7 @@ The variable has this closed shape (all values below are placeholders):
     "runId": "123456789",
     "attempt": "1",
     "executionIds": ["chat-features.runner-opencode.local.activity.agent-feedback"],
-    "protocol": "paperclip.manual-private-evidence/v1",
+    "protocol": "nexus.manual-private-evidence/v1",
     "launchSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
   }]
 }

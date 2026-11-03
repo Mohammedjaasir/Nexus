@@ -91,7 +91,7 @@ const shared = {
 };
 
 const meta: Meta<typeof DecisionCard> = {
-  parameters: { paperclip: {
+  parameters: { nexus: {
       "capabilities": [
         "inbox-search/decisions"
       ],

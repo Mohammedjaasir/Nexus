@@ -1,6 +1,6 @@
 import { and, count, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
-import { agentCommentary, agents, heartbeatRuns, issues, type Db } from "@paperclipai/db";
-import type { AgentCommentaryDetail, AgentCommentaryEntry, AgentCommentaryPage, AgentCommentaryQuery } from "@paperclipai/shared";
+import { agentCommentary, agents, heartbeatRuns, issues, type Db } from "@nexusai/db";
+import type { AgentCommentaryDetail, AgentCommentaryEntry, AgentCommentaryPage, AgentCommentaryQuery } from "@nexusai/shared";
 
 const entryFields = {
   id: agentCommentary.id,

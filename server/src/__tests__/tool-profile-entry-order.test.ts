@@ -9,7 +9,7 @@ import {
   toolConnections,
   toolProfileEntries,
   toolProfiles,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -24,7 +24,7 @@ describeDatabase("tool profile entry order", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
 
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-profile-entry-order-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-profile-entry-order-");
     db = createDb(database.connectionString, { maxConnections: 1 });
   }, 20_000);
 

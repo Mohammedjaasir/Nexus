@@ -1,9 +1,9 @@
-import { isUuidLike, type ConnectionRequiredUserAction } from "@paperclipai/shared";
+import { isUuidLike, type ConnectionRequiredUserAction } from "@nexusai/shared";
 import type { Request, RequestHandler } from "express";
 import { and, eq, or, sql } from "drizzle-orm";
 import { type Db, toolConnections, toolApplications, toolProfiles, toolProfileEntries, toolProfileBindings,
   toolMcpGateways, toolMcpGatewayTokens, chatEndpoints, chatConversations, connectionGrants, connectionGrantDelegations, agents, issues,
-  toolConnectionInstalls, heartbeatRuns, toolPolicies, toolRuntimeSlots, toolCatalogEntries, chatSlackManagerGrants, adapterAuthSessions, companySecrets, companies, companyMemberships } from "@paperclipai/db";
+  toolConnectionInstalls, heartbeatRuns, toolPolicies, toolRuntimeSlots, toolCatalogEntries, chatSlackManagerGrants, adapterAuthSessions, companySecrets, companies, companyMemberships } from "@nexusai/db";
 import { badRequest, forbidden, notFound, HttpError } from "../errors.js";
 import { assertAuthenticated, assertCompanyAccess, hasCompanyAccess, getActorInfo } from "./authz.js";
 import { connectionManagementService, responsibleConnectionUser, type ConnectionManagementContext } from "../services/connection-management.js";

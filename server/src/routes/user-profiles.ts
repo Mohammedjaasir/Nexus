@@ -1,7 +1,7 @@
 import { issueDisplayStatusSql } from "../services/issue-display-status.js";
 import { Router } from "express";
 import { and, desc, eq, gte, inArray, isNull, or, sql, type SQLWrapper } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   activityLog,
   agents,
@@ -10,13 +10,13 @@ import {
   costEvents,
   issueComments,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   UserProfileDailyPoint,
   UserProfileIdentity,
   UserProfileResponse,
   UserProfileWindowStats,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { notFound } from "../errors.js";
 import { visibleIssueCondition } from "../services/issue-visibility.js";
 import { assertCompanyAccess } from "./authz.js";

@@ -6,7 +6,7 @@ Source inspected: `0c70cedce9a803bdc201324528abb35e423e7cd0` in the current task
 
 ## Goal and finish line
 
-Make native controller state independent of the main Paperclip webserver's disk,
+Make native controller state independent of the main Nexus webserver's disk,
 as one prerequisite for zero-downtime webserver deployments. A person starts a
 task, the webserver is replaced, and the same remote execution continues. After
 completion, another replacement can continue the retained session without the
@@ -40,9 +40,9 @@ has since landed. Build on it instead of introducing another checkpoint store.
 | Existing capability | Owner / evidence inspected |
 | --- | --- |
 | Encrypted, company/task/run-bound PRP checkpoints in Postgres | [`native-runner-checkpoint.ts`](../../server/src/services/native-runtime/native-runner-checkpoint.ts), [`native_runner_checkpoints`](../../packages/db/src/schema/native_runner_checkpoints.ts); landed in `09ad9adce2` / PR #17439 |
-| Opaque checkpoint codec, restore, authenticated replay cursor and persistence-before-effect barriers | [`durable-prp-control-plane.ts`](../../packages/paperclip-runner/src/control-plane/durable-prp-control-plane.ts) |
+| Opaque checkpoint codec, restore, authenticated replay cursor and persistence-before-effect barriers | [`durable-prp-control-plane.ts`](../../packages/nexus-runner/src/control-plane/durable-prp-control-plane.ts) |
 | Expiring ownership, controller generations, stale-writer fencing and isolated renewal/checkpoint pools | [`native-restart-recovery.ts`](../../server/src/services/native-runtime/native-restart-recovery.ts), [`native-execution-lease.ts`](../../server/src/services/native-runtime/native-execution-lease.ts) |
-| Active remote reattachment from DB state and the admitted Runner artifact | [`native-session-executor.ts`](../../server/src/services/native-runtime/native-session-executor.ts), `executePaperclipNativeSessionWithinScope` |
+| Active remote reattachment from DB state and the admitted Runner artifact | [`native-session-executor.ts`](../../server/src/services/native-runtime/native-session-executor.ts), `executeNexusNativeSessionWithinScope` |
 | Bounded database discovery of prior task/session checkpoints | [`native-session-resume.ts`](../../server/src/services/native-runtime/native-session-resume.ts) |
 | Empty-controller-directory, receipt-recovery, concurrency, retention and SQL-cost tests | [`native-runner-restart-recovery.integration.test.ts`](../../server/src/services/native-runtime/native-runner-restart-recovery.integration.test.ts), [continuity runbook](../testing-native-remote-continuity.md) |
 | Read-only active-run upgrade eligibility | [`heartbeat/upgrade-readiness.ts`](../../server/src/services/heartbeat/upgrade-readiness.ts); landed in `567c043b17` / PR #18037 |
@@ -63,7 +63,7 @@ changes; do not duplicate its rollout or configuration work.
    binding. Extend that approach to ordinary continuation without skipping the
    existing prior-owner, session, configuration, and suspended-state checks.
 2. **Warm supervisor state has its own local persistence path.**
-   `persistWarmNativeCheckpoint` writes `paperclip.native-session-supervisor.v1`
+   `persistWarmNativeCheckpoint` writes `nexus.native-session-supervisor.v1`
    with the snapshot, configuration digest, and process-configuration digest;
    `loadWarmNativeCheckpoint` and warm process reuse read that file. The separate
    Postgres PRP restore writes only `control-plane-state.json`. Existing saved
@@ -140,13 +140,13 @@ existing encrypted authority; persist logical resource identities, not secret
 values or host paths. Any newly sensitive recovery material uses the existing
 encryption provider and remains excluded from public run projections.
 
-`PaperclipControlPlanePort.checkpointSession` already persists the snapshot before
+`NexusControlPlanePort.checkpointSession` already persists the snapshot before
 the local supervisor callback. Add the envelope to that same transaction and
 update; do not introduce a second snapshot writer. Compute stable compatibility
 inputs once per admission/attachment, preserve unrelated profile fields, and
 recheck durable ownership after lock waits with the established lock ordering.
 Keep legitimate post-result suspension/cleanup checkpoints permitted. The generic
-Runner persistence port must not learn Paperclip database fields. Remote local
+Runner persistence port must not learn Nexus database fields. Remote local
 files become projections; local-only consumers retain authoritative files.
 
 The recovery owner resolves, validates, materializes and attaches through existing
@@ -370,7 +370,7 @@ attempts when adding later passes. The rollback floor must include the idle-goal
 reader fix; an envelope-only reader is insufficient.
 
 Implementation is underway on `codex/native-controller-disk-independent-recovery`.
-The related Cloud policy work merged as paperclip-cloud PR #1048; it retains
+The related Cloud policy work merged as nexus-cloud PR #1048; it retains
 compatibility checks and drain fallback and does not implement this component.
 Verified locally: metadata/source-selection/lock-wait checks (21 tests), readiness
 and recovery scheduling (55 tests), durable discovery/import/inventory (7 tests),
@@ -421,7 +421,7 @@ uses the existing admission snapshot rebinder, which its warm-only predecessor
 omitted. The first benchmark attempts lacked ES-module setup and the observer's
 pg_stat_statements extension; the isolated Linux pilot needed its native Sharp
 dependency. No database-load acceptance claim has been made from failed attempts.
-There is no Paperclip issue bound to this local chat; this versioned source plan
+There is no Nexus issue bound to this local chat; this versioned source plan
 is the handoff, rather than an upload to an unrelated company or issue.
 
 The remaining native qualification and compatibility cells require reproducible

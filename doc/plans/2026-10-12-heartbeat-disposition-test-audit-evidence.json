@@ -1393,13 +1393,13 @@
         4388,
         4444
       ],
-      "name": "suspends native Paperclip Runner ownership on graceful restart without cancelling or creating a retry run",
+      "name": "suspends native Nexus Runner ownership on graceful restart without cancelling or creating a retry run",
       "kind": "ordinary",
       "sourceSHA256": "25aea5766be0f0cae6be0240010610349c96f7f9472b6ad3bcb1d2d50232fa93",
       "runtimeCaseCount": 1,
       "runtimeCases": [
         {
-          "title": "suspends native Paperclip Runner ownership on graceful restart without cancelling or creating a retry run",
+          "title": "suspends native Nexus Runner ownership on graceful restart without cancelling or creating a retry run",
           "status": "passed"
         }
       ],
@@ -2429,7 +2429,7 @@
           "status": "passed"
         },
         {
-          "title": "releases holds for real process bootstrap failures: {\"command\":\"/nonexistent-paperclip-bootstrap-command\"}",
+          "title": "releases holds for real process bootstrap failures: {\"command\":\"/nonexistent-nexus-bootstrap-command\"}",
           "status": "passed"
         }
       ],
@@ -5582,7 +5582,7 @@
       "sha256": "6fa3a72c0ffc6b41be0c19203e17d9cae59c8a37fdea9a5d705173e11c7795f9"
     },
     {
-      "name": "withTempPaperclipHome",
+      "name": "withTempNexusHome",
       "line": 3277,
       "endLine": 3308,
       "sha256": "c1983186ccc78b1aa0d1adae8b949632b5c30438cad698fdad9a3dbaf1459dd4"

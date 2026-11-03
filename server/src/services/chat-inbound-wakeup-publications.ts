@@ -1,4 +1,4 @@
-import type { agentWakeupRequests, chatActions } from "@paperclipai/db";
+import type { agentWakeupRequests, chatActions } from "@nexusai/db";
 import {
   assertDurableChatWakeupReceipt,
   createDurableChatWakeupRequest,
@@ -41,14 +41,14 @@ export function inboundWakePublicationText(
   if (state === "removed") return "This queued message was removed.";
   return state === "queued"
     ? "Your follow-up is queued."
-    : "This follow-up was not started. Open the task in Paperclip for details.";
+    : "This follow-up was not started. Open the task in Nexus for details.";
 }
 
 function hasComment(
   payload: Record<string, unknown> | null,
   commentId: string,
 ) {
-  const context = payload?._paperclipWakeContext;
+  const context = payload?._nexusWakeContext;
   const nested =
     context && typeof context === "object" && !Array.isArray(context)
       ? (context as Record<string, unknown>)

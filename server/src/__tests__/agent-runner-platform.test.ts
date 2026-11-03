@@ -40,7 +40,7 @@ describe("local runner platform probe", () => {
       driver: "local", platform: "linux", architecture: "x64",
       libc: "glibc", glibcVersion: version,
     });
-    expect(module.localPaperclipRunnerSupported()).toBe(supported);
+    expect(module.localNexusRunnerSupported()).toBe(supported);
     expect(process.report.getReport).not.toHaveBeenCalled();
   });
 
@@ -69,7 +69,7 @@ describe("local runner platform probe", () => {
       const module = await import("../lib/agent-runner-platform.js");
       expect(module.localAgentRunnerTarget()).toMatchObject({ libc: "unknown" });
       expect(module.localAgentRunnerTarget()).not.toHaveProperty("glibcVersion");
-      expect(module.localPaperclipRunnerSupported()).toBe(false);
+      expect(module.localNexusRunnerSupported()).toBe(false);
     },
   );
 
@@ -78,7 +78,7 @@ describe("local runner platform probe", () => {
       reply("", Object.assign(new Error("probe failed"), { code }));
       const module = await import("../lib/agent-runner-platform.js");
       expect(module.localAgentRunnerTarget()).toMatchObject({ libc: "unknown" });
-      expect(module.localPaperclipRunnerSupported()).toBe(false);
+      expect(module.localNexusRunnerSupported()).toBe(false);
       expect(probe.execFile).toHaveBeenCalledTimes(1);
     },
   );

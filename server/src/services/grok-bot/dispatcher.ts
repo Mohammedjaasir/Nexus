@@ -1,5 +1,5 @@
 import { and, asc, eq, sql } from "drizzle-orm";
-import { grokBotDispatches, grokBotRoutines, type Db } from "@paperclipai/db";
+import { grokBotDispatches, grokBotRoutines, type Db } from "@nexusai/db";
 import { grokRoutineService } from "./routine.js";
 import type { deliverGrokRoutineWake } from "./webhook.js";
 import { externalBotEnabled } from "../external-bot-authority.js";

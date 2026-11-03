@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { healthRoutes } from "../routes/health.js";
 import * as devServerStatus from "../dev-server-status.js";
 import { serverVersion } from "../version.js";
@@ -97,12 +97,12 @@ describe("GET /health", () => {
 
   it("exposes public stack metadata on cloud-simulated health", async () => {
     const app = createApp(undefined, testServerInfo, undefined, {
-      PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: "tenant-token",
-      PAPERCLIP_CLOUD_STACK_ID: "stack-1",
-      PAPERCLIP_STACK_SLUG: "acme",
-      PAPERCLIP_CLOUD_ACCOUNT_GROUP_ID: "account-group-1",
-      PAPERCLIP_PRIMARY_HOST: "acme.paperclip.app",
-      PAPERCLIP_CLOUD_API_ORIGIN: "https://app.paperclip.app",
+      NEXUS_CLOUD_TENANT_SERVER_TOKEN: "tenant-token",
+      NEXUS_CLOUD_STACK_ID: "stack-1",
+      NEXUS_STACK_SLUG: "acme",
+      NEXUS_CLOUD_ACCOUNT_GROUP_ID: "account-group-1",
+      NEXUS_PRIMARY_HOST: "acme.paperclip.app",
+      NEXUS_CLOUD_API_ORIGIN: "https://app.paperclip.app",
     });
 
     const res = await request(app).get("/health");
@@ -110,7 +110,7 @@ describe("GET /health", () => {
     expect(res.status).toBe(200);
     expect(res.body.cloud).toEqual({
       managed: true,
-      managedBy: "paperclip-cloud",
+      managedBy: "nexus-cloud",
       stackSlug: "acme",
       cloudBaseUrl: "https://app.paperclip.app",
     });
@@ -118,7 +118,7 @@ describe("GET /health", () => {
 
   it("lists operator-hidden settings and drops unknown keys", async () => {
     const app = createApp(undefined, testServerInfo, undefined, {
-      PAPERCLIP_HIDDEN_SETTINGS: "instance.plugins,instance.adapters,instance.bogus",
+      NEXUS_HIDDEN_SETTINGS: "instance.plugins,instance.adapters,instance.bogus",
     });
 
     const res = await request(app).get("/health");
@@ -138,16 +138,16 @@ describe("GET /health", () => {
 
   it("reveals staging experiments while retaining other Cloud settings restrictions", async () => {
     const env = {
-      PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: "tenant-token",
-      PAPERCLIP_PRIMARY_HOST: "team.paperclip.app",
-      PAPERCLIP_HIDDEN_SETTINGS: "instance.plugins,instance.experimental,instance.experimental.*",
+      NEXUS_CLOUD_TENANT_SERVER_TOKEN: "tenant-token",
+      NEXUS_PRIMARY_HOST: "team.paperclip.app",
+      NEXUS_HIDDEN_SETTINGS: "instance.plugins,instance.experimental,instance.experimental.*",
     };
     const app = createApp(undefined, testServerInfo, undefined, env);
     const production = await request(app).get("/health");
     expect(production.body.hiddenSettings).toContain("instance.experimental");
     expect(production.body.hiddenSettings).toContain("instance.experimental.enableChatConnectors");
 
-    env.PAPERCLIP_PRIMARY_HOST = "team.staging.paperclip.app";
+    env.NEXUS_PRIMARY_HOST = "team.staging.paperclip.app";
     const staging = await request(app).get("/health");
     expect(staging.body.hiddenSettings).toContain("instance.plugins");
     expect(staging.body.hiddenSettings).toContain("instance.experimental.enableManagedSandboxOnly");
@@ -155,12 +155,12 @@ describe("GET /health", () => {
     expect(staging.body.hiddenSettings).not.toContain("instance.experimental");
     expect(staging.body.hiddenSettings).not.toContain("instance.experimental.enableChatConnectors");
 
-    env.PAPERCLIP_PRIMARY_HOST = "team.paperclip.app";
+    env.NEXUS_PRIMARY_HOST = "team.paperclip.app";
     expect((await request(app).get("/health")).body.hiddenSettings).toEqual(production.body.hiddenSettings);
   });
 
   it("publishes concrete wildcard restrictions to the UI and refreshes changed exceptions", async () => {
-    const env = { PAPERCLIP_HIDDEN_SETTINGS: "instance.plugins,instance.experimental.*,!instance.experimental.enableEnvironments" };
+    const env = { NEXUS_HIDDEN_SETTINGS: "instance.plugins,instance.experimental.*,!instance.experimental.enableEnvironments" };
     const app = createApp(undefined, testServerInfo, undefined, env);
     const first = await request(app).get("/health");
     expect(first.status).toBe(200);
@@ -169,7 +169,7 @@ describe("GET /health", () => {
     expect(first.body.hiddenSettings).not.toContain("instance.experimental.enableEnvironments");
     expect(first.body.hiddenSettings.some((key: string) => key.includes("*") || key.startsWith("!"))).toBe(false);
 
-    env.PAPERCLIP_HIDDEN_SETTINGS = "instance.experimental.*,!instance.experimental.enableMemoryConnectors";
+    env.NEXUS_HIDDEN_SETTINGS = "instance.experimental.*,!instance.experimental.enableMemoryConnectors";
     const second = await request(app).get("/health");
     expect(second.body.hiddenSettings).toContain("instance.experimental.enableEnvironments");
     expect(second.body.hiddenSettings).not.toContain("instance.experimental.enableMemoryConnectors");
@@ -235,8 +235,8 @@ describe("GET /health", () => {
   });
 
   it("surfaces a stale database backup warning in full health details", async () => {
-    const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-health-backups-"));
-    const backupFile = path.join(backupDir, "paperclip-20260705-031702.sql.gz");
+    const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-health-backups-"));
+    const backupFile = path.join(backupDir, "nexus-20260705-031702.sql.gz");
     fs.writeFileSync(backupFile, "backup");
     fs.utimesSync(
       backupFile,
@@ -258,7 +258,7 @@ describe("GET /health", () => {
       backupDir,
       maxAgeHours: 26,
       latestBackup: {
-        name: "paperclip-20260705-031702.sql.gz",
+        name: "nexus-20260705-031702.sql.gz",
         ageHours: 33.7,
       },
       warnings: [
@@ -271,8 +271,8 @@ describe("GET /health", () => {
   });
 
   it("surfaces database backup failure markers in full health details", async () => {
-    const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-health-backups-"));
-    const backupFile = path.join(backupDir, "paperclip-20260706-031702.sql.gz");
+    const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-health-backups-"));
+    const backupFile = path.join(backupDir, "nexus-20260706-031702.sql.gz");
     const alertFile = path.join(backupDir, "db-backup-to-s3.failure");
     fs.writeFileSync(backupFile, "backup");
     fs.writeFileSync(alertFile, "db-backup-to-s3 failed at 2026-07-06T03:17:00.000Z exit=1\n");
@@ -303,10 +303,10 @@ describe("GET /health", () => {
   });
 
   it("finds conventional database backup failure markers without an explicit alert file", async () => {
-    const backupRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-health-backups-root-"));
+    const backupRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-health-backups-root-"));
     const backupDir = path.join(backupRoot, "backups");
     fs.mkdirSync(backupDir);
-    const backupFile = path.join(backupDir, "paperclip-20260706-031702.sql.gz");
+    const backupFile = path.join(backupDir, "nexus-20260706-031702.sql.gz");
     const alertFile = path.join(backupRoot, "db-backup-to-s3.failure");
     fs.writeFileSync(backupFile, "backup");
     fs.writeFileSync(alertFile, "db-backup-to-s3 failed beside backups\n");
@@ -336,8 +336,8 @@ describe("GET /health", () => {
   });
 
   it("surfaces redacted database backup warnings for anonymous authenticated probes", async () => {
-    const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-health-redacted-backups-"));
-    const backupFile = path.join(backupDir, "paperclip-20260705-031702.sql.gz");
+    const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-health-redacted-backups-"));
+    const backupFile = path.join(backupDir, "nexus-20260705-031702.sql.gz");
     fs.writeFileSync(backupFile, "backup");
     fs.utimesSync(
       backupFile,
@@ -571,7 +571,7 @@ describe("GET /health", () => {
   });
 
   it("reports bootstrapStatus ready for cloud-managed instances regardless of instance admin count", async () => {
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "test-tenant-server-token");
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "test-tenant-server-token");
     const { healthRoutes } = await import("../routes/health.js");
     const db = {
       execute: vi.fn().mockResolvedValue([{ "?column?": 1 }]),

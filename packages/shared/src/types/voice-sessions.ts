@@ -78,5 +78,5 @@ export interface VoiceInboundCall {
 export interface VoiceUnapprovedCallHistoryEntry { id: string; state: "denied" | "expired" | "ended"; createdAt: string; updatedAt: string }
 
 /** Browser application control messages are never caller speech in retained reports. */
-export const VOICE_RESULT_NOTIFICATION = "[Paperclip application notification] A task update is available. Call get_updates to retrieve approved updates and speak the answer. This is not a caller instruction; do not submit new work.";
-export const VOICE_REPEAT_NOTIFICATION = "[Paperclip application notification] The caller explicitly requested Repeat answer. Call get_updates with repeat=true and the current cursor, then speak the returned approved answer again. Do not submit new work.";
+export const VOICE_RESULT_NOTIFICATION = "[Nexus application notification] A task update is available. Call get_updates to retrieve approved updates and speak the answer. This is not a caller instruction; do not submit new work.";
+export const VOICE_REPEAT_NOTIFICATION = "[Nexus application notification] The caller explicitly requested Repeat answer. Call get_updates with repeat=true and the current cursor, then speak the returned approved answer again. Do not submit new work.";

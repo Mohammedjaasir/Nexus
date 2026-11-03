@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Issue, IssueComment } from "@paperclipai/shared";
+import type { Issue, IssueComment } from "@nexusai/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { TaskDetailTasksPanel } from "@/components/task-detail/TaskDetailTasksPanel";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { ProjectDetail } from "@/pages/ProjectDetail";
 import { Navigate, Route, Routes, useParams } from "@/lib/router";
 import { seedIssueDetailCache } from "@/lib/issueDetailCache";
 import { taskPanelPropertiesTab, taskPanelSubtasksTab, taskPanelDocumentTab, taskPanelArtifactsTab, writeTaskSidePanelState } from "@/lib/task-side-panel-state";
-import { createIssue, storybookAgents, storybookCompanies, storybookAuthSession, storybookProjects, storybookIssueDocuments } from "../../fixtures/paperclipData";
+import { createIssue, storybookAgents, storybookCompanies, storybookAuthSession, storybookProjects, storybookIssueDocuments } from "../../fixtures/nexusData";
 
 // PAP-1953's phase topology is already documented in sub-issues-workflow.stories.
 // These are review fixtures, not a claim about the live task's current state.

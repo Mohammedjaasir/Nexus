@@ -1,4 +1,4 @@
-import type { Db, executionWorkspaces } from "@paperclipai/db";
+import type { Db, executionWorkspaces } from "@nexusai/db";
 import { finalizePluginWorkspace, type WorkspaceWorkers } from "../plugin-workspaces.js";
 
 /** Validate retained plugin files without interpreting a provider reference as a Core path. */

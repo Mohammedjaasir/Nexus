@@ -11,12 +11,12 @@ import {
 
 const swSource = () =>
   `const BUILD_ID = "${SERVICE_WORKER_BUILD_ID_PLACEHOLDER}";\n` +
-  "const CACHE_NAME = `paperclip-${BUILD_ID}`;\n";
+  "const CACHE_NAME = `nexus-${BUILD_ID}`;\n";
 
 describe("embedServiceWorkerOfflineStyles", () => {
   it("embeds CSS as a safe JavaScript string, preserving quotes and newlines", () => {
-    const css = '.paperclip-offline {\n  font-family: "Segoe UI", sans-serif;\n}';
-    const source = 'return "__PAPERCLIP_OFFLINE_STYLES__";';
+    const css = '.nexus-offline {\n  font-family: "Segoe UI", sans-serif;\n}';
+    const source = 'return "__NEXUS_OFFLINE_STYLES__";';
     const embedded = embedServiceWorkerOfflineStyles(
       source, `/* offline-recovery:start */${css}/* offline-recovery:end */`,
     );
@@ -24,7 +24,7 @@ describe("embedServiceWorkerOfflineStyles", () => {
   });
 
   it("fails the build if either side of the embedding contract is missing", () => {
-    expect(() => embedServiceWorkerOfflineStyles('"__PAPERCLIP_OFFLINE_STYLES__"', ""))
+    expect(() => embedServiceWorkerOfflineStyles('"__NEXUS_OFFLINE_STYLES__"', ""))
       .toThrow(/missing/);
     expect(() => embedServiceWorkerOfflineStyles("", "/* offline-recovery:start */body {}/* offline-recovery:end */"))
       .toThrow(/missing/);
@@ -50,7 +50,7 @@ describe("stampServiceWorkerBuildId", () => {
   });
 
   it("throws when the placeholder is missing so a drifted worker fails the build", () => {
-    expect(() => stampServiceWorkerBuildId("const CACHE_NAME = 'paperclip';", "x")).toThrow(
+    expect(() => stampServiceWorkerBuildId("const CACHE_NAME = 'nexus';", "x")).toThrow(
       /placeholder/,
     );
   });

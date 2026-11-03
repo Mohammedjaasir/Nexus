@@ -26,7 +26,7 @@ const selectionHash = '32736bd5d8ebdc971157e7c42c6fd3dc86bf0ed8fe425015a38552664
 const bindingHash = '3d383a8b8d6e10526a9ea408734ab74b3c1015659368f3c451a56db5a170e897';
 const originalHelpers = [
   ['chat-feature-testops-api.mjs', 'b89fa3bd1fcd46a7da00d0ec04422cb523d166ba12255ff7b1df80d046b1839e'],
-  ['chat-feature-testops-results.mjs', 'a53923326c8c97e5305f25b864b9bb56d2d33dc8d0365b93017c8033f3007b74'],
+  ['chat-feature-testops-results.mjs', 'cb9727c3788caec376f96e640d80833cc36169638d6b008b442c38baead0355a'],
 ];
 const expectedAttachments = [
   { name: 'Synthetic task and source conversation', contentType: 'image/png', contentLength: 104828 },
@@ -189,7 +189,7 @@ export async function run(env = process.env) {
       try { return await api(route, 'GET'); }
       catch (error) { apiFailure = failureProjection(error, 'upload_verification'); throw error; }
     }, selected, exported);
-    const record = { schema: 'paperclip.chat-feature-testops-retained-verification/v1', executor, origin,
+    const record = { schema: 'nexus.chat-feature-testops-retained-verification/v1', executor, origin,
       observedAt: new Date().toISOString(), authentication: 'existing protected reporting ALLURE_TOKEN',
       historicalFailureCause: 'not established by this later snapshot', originalGradeUnchanged: true,
       selectionSha256: selectionHash, bindingSha256: bindingHash, ...result };
@@ -197,7 +197,7 @@ export async function run(env = process.env) {
     await writeFile(path.join(output, 'retained-verification.json'), JSON.stringify(record, null, 2), { flag: 'wx', mode: 0o600 });
     return result.verification ? 0 : 1;
   } catch (error) {
-    if (output) await writeFile(path.join(output, 'failure.json'), JSON.stringify({ schema: 'paperclip.chat-feature-testops-retained-failure/v1',
+    if (output) await writeFile(path.join(output, 'failure.json'), JSON.stringify({ schema: 'nexus.chat-feature-testops-retained-failure/v1',
       executor, origin, stage, code: codes.has(error.message) ? error.message : 'retained_verification_failed',
       ...(apiFailure ? { apiFailure } : {}) }, null, 2), { flag: 'wx', mode: 0o600 });
     return 1;

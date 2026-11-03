@@ -9,7 +9,7 @@ import { dirname, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 const origin = `http://127.0.0.1:${Number(process.env.SPEKO_NATIVE_PORT ?? 3449)}`;
-const privateRoot = resolve(homedir(), '.paperclip/speko-proof');
+const privateRoot = resolve(homedir(), '.nexus/speko-proof');
 const resumeIssueId = process.env.SPEKO_NATIVE_RESUME_ISSUE_ID;
 const diskScenario = process.env.SPEKO_NATIVE_SCENARIO === 'disk';
 const delayedTemplate = process.env.SPEKO_NATIVE_SCENARIO === 'template-delayed';
@@ -78,7 +78,7 @@ await page.addInitScript(() => {
   }).observe(document, { childList: true, subtree: true });
 });
 async function speak(name) {
-  const audioPath = process.env.SPEKO_NATIVE_AUDIO_DIR ? resolve(process.env.SPEKO_NATIVE_AUDIO_DIR, `${name}.pcm`) : new URL(`../../.paperclip-local/speko-proof-audio/${name}.pcm`, import.meta.url);
+  const audioPath = process.env.SPEKO_NATIVE_AUDIO_DIR ? resolve(process.env.SPEKO_NATIVE_AUDIO_DIR, `${name}.pcm`) : new URL(`../../.nexus-local/speko-proof-audio/${name}.pcm`, import.meta.url);
   const bytes = [...await readFile(audioPath)];
   event('input_started', { name });
   await page.evaluate(async (bytes) => {
@@ -114,7 +114,7 @@ try {
   } else {
     await page.locator('[data-app-slug="speko"]').getByRole('button', { name: /^(Connect Speko|Add connection Speko)$/ }).click();
     await page.getByRole('button', { name: 'Choose an active agent', exact: true }).click();
-    await page.getByRole('button', { name: `Select ${fixture.agentName ?? 'Existing Paperclip Agent'}`, exact: true }).click();
+    await page.getByRole('button', { name: `Select ${fixture.agentName ?? 'Existing Nexus Agent'}`, exact: true }).click();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
   }
   await expect(page.getByLabel('Speko API key', { exact: true }).or(page.getByRole('button', { name: 'Start voice', exact: true })).filter({ visible: true }).first()).toBeVisible({ timeout: 30000 });
@@ -171,7 +171,7 @@ try {
     }, { timeout: 30000 }).toBeGreaterThanOrEqual(2);
     event('followup_durably_accepted');
   }
-  const agentTranscript = transcript.getByRole('listitem').filter({ has: page.locator('span').filter({ hasText: fixture.agentName ?? 'Existing Paperclip Agent' }) });
+  const agentTranscript = transcript.getByRole('listitem').filter({ has: page.locator('span').filter({ hasText: fixture.agentName ?? 'Existing Nexus Agent' }) });
   await expect(agentTranscript).toContainText([diskScenario ? /(?:10|ten) gigabytes[\s\S]*?(?:9[.,]7|nine point seven) gigabytes/i : templateScenario ? new RegExp(expectedWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : /verification number/i], { timeout: templateScenario ? 180000 : 100000 });
   if (diskScenario) {
     await expect.poll(async () => {

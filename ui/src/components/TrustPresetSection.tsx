@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { AgentPermissions, TrustPreset } from "@paperclipai/shared";
+import type { AgentPermissions, TrustPreset } from "@nexusai/shared";
 import { Check, Lock, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, CollapsibleSection } from "./agent-config-primitives";
@@ -209,7 +209,7 @@ export function TrustPresetSection({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Get Paperclip EE.
+                  Get Nexus EE.
                 </a>
               </p>}
               <CollapsibleSection
@@ -286,7 +286,7 @@ export function TrustPresetSection({
     <div>
       <h3 className="mb-3 text-sm font-medium">Trust</h3>
       <div className="rounded-lg border border-border p-4 space-y-3">
-        <Field label="Trust preset" hint="Choose how broadly this agent can read and act on Paperclip work objects.">
+        <Field label="Trust preset" hint="Choose how broadly this agent can read and act on Nexus work objects.">
           <select
             className={inputClass}
             value={preset}

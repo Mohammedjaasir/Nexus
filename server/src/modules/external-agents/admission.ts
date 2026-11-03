@@ -1,11 +1,11 @@
-import type { Db } from "@paperclipai/db";
-import { agents, heartbeatRuns, issues, dotRunnerAssignments, externalAgentHolds, museRunnerAssignments } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { agents, heartbeatRuns, issues, dotRunnerAssignments, externalAgentHolds, museRunnerAssignments } from "@nexusai/db";
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { conflict, forbidden } from "../../errors.js";
 export type ExternalAdmissionTransaction = Parameters<Parameters<Db["transaction"]>[0]>[0];
 /** Acquire only after the queue's issue/wake/run locks. Generation/stop operations acquire this guard before binding locks. */
 export async function withExternalAdmissionGuard<T>(tx: ExternalAdmissionTransaction, companyId: string, agentId: string, action: () => Promise<T>): Promise<T> {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`paperclip:external-admission:${companyId}:${agentId}`},0))`);
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`nexus:external-admission:${companyId}:${agentId}`},0))`);
   return action();
 }
 export async function withExternalExecutionAdmission<T>(tx:ExternalAdmissionTransaction,companyId:string,agentId:string,runId:string,action:()=>Promise<T>) {

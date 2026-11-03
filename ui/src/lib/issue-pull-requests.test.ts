@@ -1,4 +1,4 @@
-import type { IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueWorkProduct } from "@nexusai/shared";
 import { describe, expect, it } from "vitest";
 import { getIssuePullRequests, pullRequestHref, pullRequestLabel, pullRequestNeedsReview } from "./issue-pull-requests";
 

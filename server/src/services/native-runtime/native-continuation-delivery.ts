@@ -1,4 +1,4 @@
-import { agentWakeupRequests, heartbeatRuns, statusDecisions, statusDecisionEffects, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, heartbeatRuns, statusDecisions, statusDecisionEffects, type Db } from "@nexusai/db";
 import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { boundRunIssueIdSql } from "../run-task-binding.js";

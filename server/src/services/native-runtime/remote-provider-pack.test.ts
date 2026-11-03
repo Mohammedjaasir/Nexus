@@ -115,7 +115,7 @@ describe("ordinary ACPX image artifacts", () => {
 });
 
 describe("standard remote provider pack discovery", () => {
-  const roots = ["/opt/paperclip-runner/provider-pack", "/home/operator/.local/share/paperclip-runner/provider-pack"];
+  const roots = ["/opt/nexus-runner/provider-pack", "/home/operator/.local/share/nexus-runner/provider-pack"];
   it.each(["old manifest", "modified artifact", "failed link"])("tries the matching home pack after %s rejects /opt", async reason => {
     const verifyAndLink = vi.fn(async (root: string) => {
       if (root === roots[0]) throw new Error(reason);

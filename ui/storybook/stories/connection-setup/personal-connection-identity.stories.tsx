@@ -5,7 +5,7 @@ import type {
   ConnectionGrantsResponse,
   ToolConnectionCapabilities,
   ToolConnectionCredentialPolicy,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { IdentitiesSection } from "@/pages/apps/app-detail/IdentitiesSection";
 
 // ---------------------------------------------------------------------------
@@ -155,7 +155,7 @@ const meta: Meta = {
   id: "reviews-pap-17835-personal-connection-identity",
   title: "Apps, channels, and extensions/Connection setup/Reviews/PAP-17835 Personal connection identity",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/identity-and-access"
       ],

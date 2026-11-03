@@ -7,15 +7,15 @@ Executes the approved component-convergence scope from `DECISION-SHEET.md`: C5 (
 **If PR #9134 has merged to master (preferred):** create a fresh worktree from the main checkout —
 
 ```bash
-cd ~/Projects/DEV/paperclip
-git fetch origin && git worktree add ../paperclip-run3 -b design/component-convergence origin/master
-cd ../paperclip-run3 && pnpm install
+cd ~/Projects/DEV/nexus
+git fetch origin && git worktree add ../nexus-run3 -b design/component-convergence origin/master
+cd ../nexus-run3 && pnpm install
 ```
 
 **If #9134 is still open:** reuse the existing worktree (it has everything installed and the baselines present) on a stacked branch —
 
 ```bash
-cd ~/Projects/DEV/paperclip-design-simplify
+cd ~/Projects/DEV/nexus-design-simplify
 git checkout -b design/component-convergence
 ```
 
@@ -29,7 +29,7 @@ Either way: launch `claude` from inside that directory, type `/goal`, paste the 
 ## The /goal paste block
 
 ```
-Converge Paperclip's duplicated hand-rolled UI onto the shared
+Converge Nexus's duplicated hand-rolled UI onto the shared
 primitives, per the approved scope in doc/design/DECISION-SHEET.md
 items C2, C3, C5, C11. DESIGN.md is the source of truth; read
 doc/design/CHANGING-THE-UI.md and doc/design/RUN3-PROMPT.md first.
@@ -74,7 +74,7 @@ DONE WHEN (all verified in this worktree)
    recorded in DECISION-SHEET.md.
 3. AgentDetail story exists and renders in the suite.
 4. pnpm check:token-gates 3/3 CLEAN; pnpm typecheck green;
-   pnpm --filter @paperclipai/ui build exit 0.
+   pnpm --filter @nexusai/ui build exit 0.
 5. Full visual suite passes against the updated baseline, and
    doc/design/run3-review/ contains the triplets for every story
    whose baseline changed, committed.

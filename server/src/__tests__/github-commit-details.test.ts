@@ -10,8 +10,8 @@ describe("GitHub commit details", () => {
       "https://github.com/paperclipai/paperclip/commit/9c12ae7b41e5",
     ])).toEqual({
       host: "github.com",
-      owner: "paperclipai",
-      repo: "paperclip",
+      owner: "nexusai",
+      repo: "nexus",
       sha: "9c12ae7b41e5",
     });
     expect(extractGitHubCommitReference(["paperclipai/paperclip@9c12ae7b41e5"])?.sha)

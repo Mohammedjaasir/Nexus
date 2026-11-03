@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { agents, applyPendingMigrations, closeRegisteredClients, companies, createDb, environmentLeases, environments,
-  executionWorkspaces, executionWorkspaceSnapshots, heartbeatRuns, issues, projects, workspaceOperations, workspaceRuntimeServices, type Db } from "@paperclipai/db";
-import { readRemoteWorkspaceAuthority, type RemoteWorkspaceAuthority } from "@paperclipai/shared";
+  executionWorkspaces, executionWorkspaceSnapshots, heartbeatRuns, issues, projects, workspaceOperations, workspaceRuntimeServices, type Db } from "@nexusai/db";
+import { readRemoteWorkspaceAuthority, type RemoteWorkspaceAuthority } from "@nexusai/shared";
 import { resolveExternalTestDatabaseUrl } from "../__tests__/helpers/external-test-database.js";
 import { environmentRuntimeService } from "./environment-runtime.js";
 import { environmentService } from "./environments.js";
@@ -20,7 +20,7 @@ import { inventoryRemoteWorkspaceMigration } from "./remote-workspace-migration.
 import { hasPendingNestedCloneMigration, isNestedCloneMigrationCandidate, listNestedCloneMigrationNames,
   migrateNestedRepositoryClone, pendingNestedCloneMigrationNames } from "./nested-clone-migration.js";
 
-const url = resolveExternalTestDatabaseUrl("PAPERCLIP_REMOTE_WORKSPACE_LIFECYCLE_TEST_DATABASE_URL");
+const url = resolveExternalTestDatabaseUrl("NEXUS_REMOTE_WORKSPACE_LIFECYCLE_TEST_DATABASE_URL");
 describe.skipIf(!url)("remote workspace close and allocation cleanup", () => {
   let db: Db;
   const directories: string[] = [];
@@ -34,16 +34,16 @@ describe.skipIf(!url)("remote workspace close and allocation cleanup", () => {
 
   async function fixture(receiptState: "destroyed" | "stopped" | "invalid" = "destroyed") {
     const [company] = await db.insert(companies).values({ name: "Remote close", issuePrefix: "RC" }).returning();
-    const [agent] = await db.insert(agents).values({ companyId: company.id, name: "Native worker", adapterType: "paperclip_runner" }).returning();
+    const [agent] = await db.insert(agents).values({ companyId: company.id, name: "Native worker", adapterType: "nexus_runner" }).returning();
     const [issue] = await db.insert(issues).values({ companyId: company.id, title: "Saved work", status: "done",
       completedAt: new Date(0), assigneeAgentId: agent.id }).returning();
     const [run] = await db.insert(heartbeatRuns).values({ companyId: company.id, agentId: agent.id, issueId: issue.id,
       nativeIssueId: issue.id, runtimeMode: "native", status: "succeeded", finishedAt: new Date() }).returning();
     const [environment] = await db.insert(environments).values({ name: `Remote close ${randomUUID()}`, driver: "sandbox", config: { provider: "daytona" } }).returning();
-    const cwd = await mkdtemp(join(tmpdir(), "paperclip-remote-close-")); directories.push(cwd);
+    const cwd = await mkdtemp(join(tmpdir(), "nexus-remote-close-")); directories.push(cwd);
     await writeFile(join(cwd, "host-sentinel.txt"), "Host files must never be cleaned as remote files.");
     const workspaceId = randomUUID(), leaseId = randomUUID(), snapshotId = randomUUID(), providerLeaseId = `allocation-${randomUUID()}`;
-    const authority: RemoteWorkspaceAuthority = { schema: "paperclip.remote-workspace.v1", epoch: 1,
+    const authority: RemoteWorkspaceAuthority = { schema: "nexus.remote-workspace.v1", epoch: 1,
       snapshotId, source: { kind: "empty" }, writerRunId: null, dirty: false,
       location: { environmentId: environment.id, leaseId, providerLeaseId, remoteCwd: cwd } };
     const [workspace] = await db.insert(executionWorkspaces).values({ id: workspaceId, companyId: company.id, sourceIssueId: issue.id,
@@ -82,7 +82,7 @@ describe.skipIf(!url)("remote workspace close and allocation cleanup", () => {
       workspace: { cwd: f.cwd, baseCwd: f.cwd, source: "task_session", projectId: null, workspaceId: null,
         repoUrl: null, repoRef: null, strategy: "git_worktree", branchName: null, worktreePath: f.cwd,
         warnings: [], created: false, branchCreatedByRuntime: false }, executionWorkspaceId: f.workspace.id,
-      config: { workspaceRuntime: { services: [{ name: "web", command: "/__paperclip_missing_remote_service__", cwd: "." }] } },
+      config: { workspaceRuntime: { services: [{ name: "web", command: "/__nexus_missing_remote_service__", cwd: "." }] } },
       adapterEnv: {}, skipHostProvision, onLog: log,
     })).rejects.toMatchObject({ code: "workspace_validation_failed", resultJson: { reason: "remote_workspace_runtime_services_unsupported" } });
     expect(inspect).not.toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe.skipIf(!url)("remote workspace close and allocation cleanup", () => {
     await db.update(executionWorkspaces).set({ projectId: project.id,
       ...(mode === "import" ? { providerType: "local_fs" } : {}),
       metadata: { ...(mode === "remote" ? { remoteWorkspace: f.authority } : {
-        remoteWorkspaceMigration: { schema: "paperclip.remote-workspace-migration.v1", state: "running", operationId: randomUUID() },
+        remoteWorkspaceMigration: { schema: "nexus.remote-workspace-migration.v1", state: "running", operationId: randomUUID() },
       }),
       nestedCloneMigrationPending: { "repo-123456789abc": { phase: "cleanup" } } } }).where(eq(executionWorkspaces.id, f.workspace.id));
     const workspace = await current(f.workspace.id);
@@ -194,7 +194,7 @@ describe.skipIf(!url)("remote workspace close and allocation cleanup", () => {
       await released;
       await db.update(executionWorkspaces).set({ providerType: state === "remote" ? "cloud_sandbox" : "local_fs",
         metadata: state === "remote" ? { config, remoteWorkspace: f.authority } : { config,
-          remoteWorkspaceMigration: { schema: "paperclip.remote-workspace-migration.v1", state: "running" } } })
+          remoteWorkspaceMigration: { schema: "nexus.remote-workspace-migration.v1", state: "running" } } })
         .where(eq(executionWorkspaces.id, f.workspace.id));
     });
     const blocker = await locked;

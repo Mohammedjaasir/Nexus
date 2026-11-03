@@ -1,7 +1,7 @@
 import { pendingFailedNativeRetryCancellationCondition } from "../native-runtime/native-cancellation-request.js";
 import { settledNativeProcessIdentityCondition } from "../native-local-process-stop.js";
 import { and, asc, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
-import { agents, environmentLeases, heartbeatRuns, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { agents, environmentLeases, heartbeatRuns, nativeRunFinalizations, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { DELIVERY_QUEUES, type DeliveryQueue } from "../delivery-work-notifications.js";
 import type { LiveResourceRecoveryScope, LiveRunRecoveryScope } from "../live-run-recovery-notifications.js";
@@ -52,7 +52,7 @@ export function registerLiveRecoveryWork(db: Db, coordinator: ReturnType<typeof 
               cursor ? gt(environmentLeases.id, cursor) : undefined,
               kind === "orphanLease" ? and(eq(environmentLeases.status, "active"),
                 or(isNull(environmentLeases.heartbeatRunId), inArray(heartbeatRuns.status, TERMINAL)))
-                : sql`${environmentLeases.metadata}#>>'{legacyShutdownWorkspaceSettlement,schema}' = 'paperclip.legacy-shutdown-workspace-settlement.v1'
+                : sql`${environmentLeases.metadata}#>>'{legacyShutdownWorkspaceSettlement,schema}' = 'nexus.legacy-shutdown-workspace-settlement.v1'
                   and ${environmentLeases.metadata}#>>'{legacyShutdownWorkspaceSettlement,state}' = 'pending'`,
             )).orderBy(asc(environmentLeases.id)).limit(100);
           rows = candidates.map(row => ({ id: row.id, companyId: row.companyId, runId: row.runId,

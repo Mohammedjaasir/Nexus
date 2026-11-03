@@ -33,7 +33,7 @@ import { fileURLToPath } from "node:url";
 
 export const PLACEHOLDER_VERSION = "0.0.0";
 
-const SCOPE_RE = /^@paperclipai\/[a-z0-9][a-z0-9._-]*$/;
+const SCOPE_RE = /^@nexusai\/[a-z0-9][a-z0-9._-]*$/;
 
 const REGISTRY_POLL_INTERVAL_MS = 15_000;
 const REGISTRY_POLL_ATTEMPTS = 40; // ~10 minutes
@@ -58,8 +58,8 @@ function usage() {
       "environment, so codes never appear on a command line.",
       "",
       "Examples:",
-      "  node scripts/bootstrap-npm-package.mjs @paperclipai/new-package",
-      "  node scripts/bootstrap-npm-package.mjs @paperclipai/new-package --publish",
+      "  node scripts/bootstrap-npm-package.mjs @nexusai/new-package",
+      "  node scripts/bootstrap-npm-package.mjs @nexusai/new-package --publish",
       "",
     ].join("\n"),
   );
@@ -105,7 +105,7 @@ export function validatePackageName(packageName) {
   if (!SCOPE_RE.test(packageName)) {
     throw new Error(
       `refusing to publish a placeholder for ${JSON.stringify(packageName)}: ` +
-        "the name must be a lowercase package inside the @paperclipai scope " +
+        "the name must be a lowercase package inside the @nexusai scope " +
         "(this guard prevents accidental publishes to names we do not own).",
     );
   }
@@ -114,14 +114,14 @@ export function validatePackageName(packageName) {
 export function buildPlaceholderFiles(packageName) {
   const deprecationNote =
     `${packageName}@${PLACEHOLDER_VERSION} is a placeholder that reserves the package name ` +
-    "for Paperclip's release pipeline. It contains no functionality; the first real release " +
+    "for Nexus's release pipeline. It contains no functionality; the first real release " +
     "supersedes it. See https://github.com/paperclipai/paperclip";
 
   const packageJson = {
     name: packageName,
     version: PLACEHOLDER_VERSION,
     description:
-      "Placeholder publish reserving this name for Paperclip's release pipeline. Do not install this version.",
+      "Placeholder publish reserving this name for Nexus's release pipeline. Do not install this version.",
     license: "MIT",
     main: "index.js",
     files: ["index.js"],
@@ -141,7 +141,7 @@ export function buildPlaceholderFiles(packageName) {
     `# ${packageName}`,
     "",
     `Version ${PLACEHOLDER_VERSION} is a **placeholder publish**. It reserves this package name so`,
-    "Paperclip's release-bootstrap CI gate can pass before the package's first real",
+    "Nexus's release-bootstrap CI gate can pass before the package's first real",
     "release ships from CI. It intentionally contains no functionality.",
     "",
     "Real versions are published by the release workflow of",
@@ -189,7 +189,7 @@ export function ensureNpmAuth() {
       [
         "npm auth check failed.",
         "This usually means the machine is either not logged into npm yet or has a stale token in ~/.npmrc.",
-        "Run `npm logout --registry=https://registry.npmjs.org/` and then `npm login` or `npm adduser` on this maintainer machine with an npm account that can publish to the @paperclipai scope, then rerun with --publish.",
+        "Run `npm logout --registry=https://registry.npmjs.org/` and then `npm login` or `npm adduser` on this maintainer machine with an npm account that can publish to the @nexusai scope, then rerun with --publish.",
         "Do not use this auth flow in CI; it is only for the one-time human bootstrap publish.",
       ].join(" "),
     );
@@ -340,7 +340,7 @@ function printNextSteps(packageName) {
 
 async function stageAndPublish(packageName, { publish }) {
   const files = buildPlaceholderFiles(packageName);
-  const stageDir = mkdtempSync(join(tmpdir(), "paperclip-npm-placeholder-"));
+  const stageDir = mkdtempSync(join(tmpdir(), "nexus-npm-placeholder-"));
 
   try {
     for (const fileName of ["package.json", "index.js", "README.md"]) {

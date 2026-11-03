@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Issue, LiveEvent } from "@paperclipai/shared";
+import type { Issue, LiveEvent } from "@nexusai/shared";
 import { afterEach, beforeEach, expect, it, vi, type MockInstance } from "vitest";
 import { api, ApiError } from "@/api/client";
 import { heartbeatsApi, type LiveRunForIssue } from "@/api/heartbeats";

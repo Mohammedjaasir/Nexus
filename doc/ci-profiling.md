@@ -24,7 +24,7 @@ Ordinary PRs do not write timing artifacts or export traces. The exporter job is
 skipped for ordinary run names. Adding another label does not run the CI matrix.
 
 Profiling preserves the existing trusted AWS runner routing. Eligible PR jobs
-use `paperclip-public-pr-x64`; the routing gate uses `ubuntu-latest` to verify
+use `nexus-public-pr-x64`; the routing gate uses `ubuntu-latest` to verify
 current CI CODEOWNERS before allocating any AWS capacity.
 The existing fail-closed GitHub-hosted fallback still applies if AWS routing
 cannot be authorized. The separate post-run Honeycomb exporter also uses
@@ -108,8 +108,8 @@ traces, or credentials are included in the exported field allowlist.
 
 ## Operator setup and activation
 
-Use the existing Honeycomb `paperclip` team, `test` environment, and a separate
-service dataset named `paperclip-ci`. Create GitHub environment `ci-profiling` with **Selected branches and tags**:
+Use the existing Honeycomb `nexus` team, `test` environment, and a separate
+service dataset named `nexus-ci`. Create GitHub environment `ci-profiling` with **Selected branches and tags**:
 allow only the branch `master`, with no PR-ref or tag patterns. Store environment
 secret `HONEYCOMB_CI_API_KEY` with a dedicated ingest-only key for the Honeycomb
 `test` environment. Do not create a repository- or organization-level secret of
@@ -207,7 +207,7 @@ registry closes before the existing offline lifecycle rebuild and runtime
 probes. No lifecycle, network-isolation, lock-preservation or provider checks
 are skipped. Native ARM and Mac qualification keep their existing file installs.
 
-The Linux verifier also shares `PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE` with the
+The Linux verifier also shares `NEXUS_PUBLIC_INSTALL_NPM_CACHE` with the
 producer installs that prepare bundled dependencies. These run after the existing
 cache warm-up and reuse its downloaded archives instead of populating a second
 host cache. Each producer still installs into a separate empty directory, applies

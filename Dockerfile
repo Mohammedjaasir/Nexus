@@ -10,7 +10,7 @@ RUN apt-get update \
 # Modify the existing node user/group to have the specified UID/GID to match host user
 RUN usermod -u $USER_UID --non-unique node \
   && groupmod -g $USER_GID --non-unique node \
-  && usermod -g $USER_GID -d /paperclip node
+  && usermod -g $USER_GID -d /nexus node
 
 FROM base AS deps
 WORKDIR /app
@@ -24,8 +24,8 @@ COPY packages/adapter-utils/package.json packages/adapter-utils/
 COPY packages/google-sheets-mcp-server/package.json packages/google-sheets-mcp-server/
 COPY packages/kv-demo-mcp-server/package.json packages/kv-demo-mcp-server/
 COPY packages/mcp-server/package.json packages/mcp-server/
-COPY packages/paperclip-eval-kernel/package.json packages/paperclip-eval-kernel/
-COPY packages/paperclip-runner/package.json packages/paperclip-runner/
+COPY packages/nexus-eval-kernel/package.json packages/nexus-eval-kernel/
+COPY packages/nexus-runner/package.json packages/nexus-runner/
 COPY packages/skills-catalog/package.json packages/skills-catalog/
 COPY packages/tailscale-https-broker/package.json packages/tailscale-https-broker/
 COPY packages/teams-catalog/package.json packages/teams-catalog/
@@ -43,13 +43,13 @@ COPY packages/adapters/opencode-local/package.json packages/adapters/opencode-lo
 COPY packages/adapters/pi-local/package.json packages/adapters/pi-local/
 COPY packages/plugins/sdk/package.json packages/plugins/sdk/
 COPY --parents packages/plugins/sandbox-providers/./*/package.json packages/plugins/sandbox-providers/
-COPY packages/plugins/paperclip-plugin-fake-sandbox/package.json packages/plugins/paperclip-plugin-fake-sandbox/
+COPY packages/plugins/nexus-plugin-fake-sandbox/package.json packages/plugins/nexus-plugin-fake-sandbox/
 COPY packages/plugins/plugin-llm-wiki/package.json packages/plugins/plugin-llm-wiki/
 COPY packages/plugins/plugin-workspace-diff/package.json packages/plugins/plugin-workspace-diff/
 COPY patches/ patches/
 COPY scripts/link-plugin-dev-sdk.mjs scripts/
-COPY packages/paperclip-runner/scripts/install-copilot-assets.mjs packages/paperclip-runner/scripts/materialize-copilot-binary.mjs packages/paperclip-runner/scripts/copilot-inner-distribution.mjs packages/paperclip-runner/scripts/
-COPY packages/paperclip-runner/src/drivers/acpx/copilot-installation.ts packages/paperclip-runner/src/drivers/acpx/
+COPY packages/nexus-runner/scripts/install-copilot-assets.mjs packages/nexus-runner/scripts/materialize-copilot-binary.mjs packages/nexus-runner/scripts/copilot-inner-distribution.mjs packages/nexus-runner/scripts/
+COPY packages/nexus-runner/src/drivers/acpx/copilot-installation.ts packages/nexus-runner/src/drivers/acpx/
 COPY server/scripts/install-copilot-assets.mjs server/scripts/
 COPY server/src/services/copilot-connection-probe.ts server/src/services/
 
@@ -91,7 +91,7 @@ RUN set -eux; \
     rm /tmp/rustup-init
 # Install the package-owned compiler before any application source enters the
 # stage. rustup-init above installs rustup itself, not the selected compiler.
-COPY packages/paperclip-runner/rust-toolchain.toml /tmp/runner-toolchain/rust-toolchain.toml
+COPY packages/nexus-runner/rust-toolchain.toml /tmp/runner-toolchain/rust-toolchain.toml
 RUN cd /tmp/runner-toolchain && rustup show
 
 # Pin the recipe generator and its dependency lockfile. It is a build-only tool
@@ -100,58 +100,58 @@ FROM rust-toolchain AS rust-chef
 RUN cd /tmp/runner-toolchain && cargo install cargo-chef --version 0.1.73 --locked
 
 FROM rust-chef AS runner-plan
-WORKDIR /app/packages/paperclip-runner
-COPY packages/paperclip-runner/rust-toolchain.toml ./
-COPY packages/paperclip-runner/runner ./runner
+WORKDIR /app/packages/nexus-runner
+COPY packages/nexus-runner/rust-toolchain.toml ./
+COPY packages/nexus-runner/runner ./runner
 RUN cd runner && cargo chef prepare --recipe-path /tmp/runner-recipe.json
 
 FROM rust-chef AS runner-deps
-WORKDIR /app/packages/paperclip-runner/runner
-COPY packages/paperclip-runner/rust-toolchain.toml ../
+WORKDIR /app/packages/nexus-runner/runner
+COPY packages/nexus-runner/rust-toolchain.toml ../
 # The recipe changes only when dependency manifests, the lockfile, or target
 # metadata change. Source edits can reuse this compiled dependency layer.
 COPY --from=runner-plan /tmp/runner-recipe.json /tmp/runner-recipe.json
-RUN cargo chef cook --release --locked --package paperclip-runner-core --bin paperclip-runnerd --recipe-path /tmp/runner-recipe.json \
+RUN cargo chef cook --release --locked --package nexus-runner-core --bin nexus-runnerd --recipe-path /tmp/runner-recipe.json \
   && find . -mindepth 1 -maxdepth 1 ! -name target -exec rm -rf {} +
 
 FROM runner-deps AS runner-build
-WORKDIR /app/packages/paperclip-runner
+WORKDIR /app/packages/nexus-runner
 # Rust embeds protocol schemas and fixtures with include_str!. Keep those
 # alongside the complete Cargo workspace so every compile-time input keys
 # this layer. Ordinary server/UI edits can then reuse the native build.
-COPY packages/paperclip-runner/rust-toolchain.toml ./
-COPY packages/paperclip-runner/runner ./runner
-COPY packages/paperclip-runner/protocol ./protocol
-COPY packages/paperclip-runner/acpx-profiles.json packages/paperclip-runner/antigravity-distributions.json ./
+COPY packages/nexus-runner/rust-toolchain.toml ./
+COPY packages/nexus-runner/runner ./runner
+COPY packages/nexus-runner/protocol ./protocol
+COPY packages/nexus-runner/acpx-profiles.json packages/nexus-runner/antigravity-distributions.json ./
 # Cargo fingerprints source mtimes. Normalize them here and after the full
 # source copy below so a fresh checkout cannot invalidate unchanged inputs.
 RUN find runner protocol -type f -exec touch -d @0 {} + \
   && touch -d @0 rust-toolchain.toml acpx-profiles.json antigravity-distributions.json \
-  && cargo build --release --manifest-path runner/Cargo.toml --locked -p paperclip-runner-core --bin paperclip-runnerd
+  && cargo build --release --manifest-path runner/Cargo.toml --locked -p nexus-runner-core --bin nexus-runnerd
 
 FROM runner-build AS build
 WORKDIR /app
 COPY --from=deps /app /app
 COPY . .
-RUN find packages/paperclip-runner/runner packages/paperclip-runner/protocol -type f -exec touch -d @0 {} + \
-  && touch -d @0 packages/paperclip-runner/rust-toolchain.toml packages/paperclip-runner/acpx-profiles.json packages/paperclip-runner/antigravity-distributions.json
+RUN find packages/nexus-runner/runner packages/nexus-runner/protocol -type f -exec touch -d @0 {} + \
+  && touch -d @0 packages/nexus-runner/rust-toolchain.toml packages/nexus-runner/acpx-profiles.json packages/nexus-runner/antigravity-distributions.json
 # Both the browser bundle and server stamp need the source commit. Declare it
 # after the stable dependency layers, before either application build.
-ARG PAPERCLIP_BUILD_COMMIT=""
-RUN pnpm --filter @paperclipai/ui build
-RUN pnpm --filter @paperclipai/plugin-sdk build
+ARG NEXUS_BUILD_COMMIT=""
+RUN pnpm --filter @nexusai/ui build
+RUN pnpm --filter @nexusai/plugin-sdk build
 # The server build runs scripts/write-build-stamp.mjs, which stamps the built
 # commit into dist/build-info.json. The build context has no .git, so the
-# script reads PAPERCLIP_BUILD_COMMIT instead. Docker exposes an ARG to the
+# script reads NEXUS_BUILD_COMMIT instead. Docker exposes an ARG to the
 # next RUN as an environment variable. The production stage below declares the
 # same ARG again for the runtime fallback; an ARG goes out of scope at the
 # end of its stage. Empty for local `docker build`, which then writes no stamp.
 ENV NODE_OPTIONS=--max-old-space-size=4096
-RUN pnpm --filter @paperclipai/server build
+RUN pnpm --filter @nexusai/server build
 RUN test -f server/dist/index.js || (echo "ERROR: server build output missing" && exit 1)
-RUN pnpm --filter @paperclipai/server build:runtime \
+RUN pnpm --filter @nexusai/server build:runtime \
   && test -f server/dist-runtime/index.mjs || (echo "ERROR: server runtime bundle missing" && exit 1)
-RUN rm -rf packages/paperclip-runner/runner/target
+RUN rm -rf packages/nexus-runner/runner/target
 
 # Remote OpenCode and ACPX runs require a controller-owned provider pack to
 # verify the sandbox installation or stage matching assets. Ship it in the
@@ -162,12 +162,12 @@ FROM build AS runner-provider-pack
 # Unstamped local builds remain usable, but cannot qualify a remote pack.
 # Never invent a source revision to make an unqualified pack look verified.
 RUN mkdir -p /provider-pack /provider-pack-transport \
-  && if [ -n "${PAPERCLIP_BUILD_COMMIT}" ]; then \
-    PAPERCLIP_RUNNER_SOURCE_REVISION="${PAPERCLIP_BUILD_COMMIT}" node packages/paperclip-runner/scripts/build-provider-pack.mjs /provider-pack \
+  && if [ -n "${NEXUS_BUILD_COMMIT}" ]; then \
+    NEXUS_RUNNER_SOURCE_REVISION="${NEXUS_BUILD_COMMIT}" node packages/nexus-runner/scripts/build-provider-pack.mjs /provider-pack \
       && node scripts/create-provider-pack-archive.mjs /provider-pack \
       && mv /provider-pack.archives /provider-pack.archive.json /provider-pack-transport/; \
   else \
-    echo "Skipping remote provider pack: supply a full PAPERCLIP_BUILD_COMMIT to enable remote OpenCode/ACPX execution"; \
+    echo "Skipping remote provider pack: supply a full NEXUS_BUILD_COMMIT to enable remote OpenCode/ACPX execution"; \
   fi
 
 FROM base AS production
@@ -187,47 +187,47 @@ RUN echo "cli-tools-epoch: ${CLI_TOOLS_CACHE_EPOCH}" \
   && apt-get update \
   && apt-get install -y --no-install-recommends openssh-client jq \
   && rm -rf /var/lib/apt/lists/* \
-  && mkdir -p /paperclip \
-  && chown node:node /paperclip
+  && mkdir -p /nexus \
+  && chown node:node /nexus
 
 COPY scripts/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 COPY --chown=node:node --from=build /app /app
 
-COPY --chown=0:0 --from=runner-provider-pack /provider-pack /opt/paperclip-runner/provider-pack
-COPY --from=runner-provider-pack /provider-pack-transport/ /opt/paperclip-runner/
+COPY --chown=0:0 --from=runner-provider-pack /provider-pack /opt/nexus-runner/provider-pack
+COPY --from=runner-provider-pack /provider-pack-transport/ /opt/nexus-runner/
 # Managed deployments can remap node's UID at startup. This immutable pack
 # contains public code and integrity metadata, never credentials; it must remain
 # readable afterward.
 # Keep it root-owned and verify access as an unrelated unprivileged UID.
-RUN chmod -R a+rX /opt/paperclip-runner/provider-pack \
-  && if [ -f /opt/paperclip-runner/provider-pack/provider-pack.json ]; then \
-    gosu 65534:65534 node -e 'const fs = require("node:fs"); const path = require("node:path"); const root = "/opt/paperclip-runner/provider-pack"; const manifest = JSON.parse(fs.readFileSync(path.join(root, "provider-pack.json"), "utf8")); for (const artifact of Object.values(manifest.payload.artifacts)) fs.readFileSync(path.join(root, artifact.path)); fs.accessSync(path.join(root, manifest.payload.artifacts.nodeCommand.path), fs.constants.X_OK);'; \
+RUN chmod -R a+rX /opt/nexus-runner/provider-pack \
+  && if [ -f /opt/nexus-runner/provider-pack/provider-pack.json ]; then \
+    gosu 65534:65534 node -e 'const fs = require("node:fs"); const path = require("node:path"); const root = "/opt/nexus-runner/provider-pack"; const manifest = JSON.parse(fs.readFileSync(path.join(root, "provider-pack.json"), "utf8")); for (const artifact of Object.values(manifest.payload.artifacts)) fs.readFileSync(path.join(root, artifact.path)); fs.accessSync(path.join(root, manifest.payload.artifacts.nodeCommand.path), fs.constants.X_OK);'; \
   fi
-ENV PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH=/opt/paperclip-runner/provider-pack
+ENV NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH=/opt/nexus-runner/provider-pack
 
 # Declare per-build metadata after the stable RUN layers. Docker includes
 # in-scope ARG values in a RUN's environment even when its command does not
 # mention them; declaring these earlier invalidates the weekly tool cache.
 # The build stage still receives the commit before writing dist/build-info.json.
 # Empty for local builds, preserving the server's normal version fallbacks.
-ARG PAPERCLIP_BUILD_VERSION=""
-ARG PAPERCLIP_BUILD_COMMIT=""
+ARG NEXUS_BUILD_VERSION=""
+ARG NEXUS_BUILD_COMMIT=""
 ENV NODE_ENV=production \
-  HOME=/paperclip \
+  HOME=/nexus \
   HOST=0.0.0.0 \
   PORT=3100 \
   SERVE_UI=true \
-  PAPERCLIP_HOME=/paperclip \
-  PAPERCLIP_INSTANCE_ID=default \
-  PAPERCLIP_BUILD_VERSION=${PAPERCLIP_BUILD_VERSION} \
-  PAPERCLIP_BUILD_COMMIT=${PAPERCLIP_BUILD_COMMIT} \
+  NEXUS_HOME=/nexus \
+  NEXUS_INSTANCE_ID=default \
+  NEXUS_BUILD_VERSION=${NEXUS_BUILD_VERSION} \
+  NEXUS_BUILD_COMMIT=${NEXUS_BUILD_COMMIT} \
   USER_UID=${USER_UID} \
   USER_GID=${USER_GID} \
-  PAPERCLIP_CONFIG=/paperclip/instances/default/config.json \
-  PAPERCLIP_DEPLOYMENT_MODE=authenticated \
-  PAPERCLIP_DEPLOYMENT_EXPOSURE=private \
+  NEXUS_CONFIG=/nexus/instances/default/config.json \
+  NEXUS_DEPLOYMENT_MODE=authenticated \
+  NEXUS_DEPLOYMENT_EXPOSURE=private \
   OPENCODE_ALLOW_ALL_MODELS=true \
   GEMINI_SANDBOX=false
 
@@ -245,7 +245,7 @@ CMD ["node", "server/dist-runtime/index.mjs"]
 
 # Cloud image variant (build with `--target cloud`): the production image
 # plus built bundled sandbox-provider plugins. Managed instances receive a
-# `plugins.autoInstall` key list through PAPERCLIP_MANAGED_CONFIG and
+# `plugins.autoInstall` key list through NEXUS_MANAGED_CONFIG and
 # install those plugins from the bundled catalog at boot
 # (server/src/services/bundled-plugins.ts), which requires each plugin's
 # dist/ to exist in the image — the default image ships only their source,
@@ -321,7 +321,7 @@ WORKDIR /app/.cloud-server-deps
 ARG CLOUD_BUNDLED_SERVER_DEPS="@sentry/node"
 RUN set -eu; \
   test -n "$CLOUD_BUNDLED_SERVER_DEPS" || { echo "ERROR: CLOUD_BUNDLED_SERVER_DEPS is empty; name at least one optional peer package to install" >&2; exit 1; }; \
-  echo '{"name":"paperclip-cloud-server-deps","private":true}' > package.json; \
+  echo '{"name":"nexus-cloud-server-deps","private":true}' > package.json; \
   specifiers=""; \
   for name in $CLOUD_BUNDLED_SERVER_DEPS; do \
     version="$(node -e "const pkg=require('/app/server/package.json'); const name=process.argv[1]; const version=(pkg.peerDependencies||{})[name]; if(!version){console.error('ERROR: server/package.json declares no peerDependencies version for '+JSON.stringify(name));process.exit(1);} const meta=(pkg.peerDependenciesMeta||{})[name]; if(!meta||meta.optional!==true){console.error('ERROR: '+JSON.stringify(name)+' is not declared as an optional peer dependency in server/package.json; CLOUD_BUNDLED_SERVER_DEPS may name only optional peer packages');process.exit(1);} process.stdout.write(version);" "$name")"; \

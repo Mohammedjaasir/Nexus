@@ -7,7 +7,7 @@ import { createHeartbeatRunPreparation } from "../heartbeat/run-preparation.js";
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { activityLog, agents, agentWakeupRequests, companies, createDb, applyPendingMigrations, environmentLeases, environments, externalAgentHolds, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations } from "@paperclipai/db";
+import { activityLog, agents, agentWakeupRequests, companies, createDb, applyPendingMigrations, environmentLeases, environments, externalAgentHolds, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { getExecutionBlocker } from "../execution-blocker.js";
 import { markExecutionReconciliation, settleUnrecoverableExecutions, validateExecutionReconciliation } from "../execution-recovery-resolution.js";
@@ -18,7 +18,7 @@ import { NativeWorkspaceFinalizationBusyError } from "./native-workspace-finaliz
 import { preserveWorkspaceRestoreRecoveryMetadataSql } from "../legacy-workspace-restore-recovery.js";
 import { claimNativeSessionResumptions } from "./native-finalization-reconciler.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("failed native workspace retention", () => {
   let db: ReturnType<typeof createDb>;
@@ -38,7 +38,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
   async function seed() {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Native workspace", issuePrefix: companyId.slice(0, 8) });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Engineer", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Engineer", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Preserve unfinished files", status: "in_progress", assigneeAgentId: agentId });
     const [run] = await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, issueId, nativeIssueId: issueId,
       runtimeMode: "native", status: "failed", nativePhase: "terminal_failure", errorCode: "adapter_failed",
@@ -51,7 +51,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
       metadata: { driver: "sandbox", pluginId: randomUUID(), sandboxProviderPlugin: true, remoteCwd: "/work" },
     }).returning();
     const [bound] = await db.update(heartbeatRuns).set({ runnerProfileJson: { nativeWorkspaceSync: {
-      schema: "paperclip.native-workspace-sync/v3", state: "prepared", descriptorSha256: "a".repeat(64),
+      schema: "nexus.native-workspace-sync/v3", state: "prepared", descriptorSha256: "a".repeat(64),
       baselineSha256: "b".repeat(64), finalHostSha256: null, workspaceId: runId,
       leaseId: lease.id, providerLeaseId: lease.providerLeaseId, remoteCwd: "/work", resourceDisposition: "destroy",
     } } }).where(eq(heartbeatRuns.id, runId)).returning();
@@ -145,7 +145,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
     }
     const acknowledgement = (f: Awaited<ReturnType<typeof seed>>) => ({
       cancelledByActorType: "user", cancelledByUserId: "operator", nativeCancellation: {
-        schema: "paperclip.native-cancellation.v1", runId: f.runId, companyId: f.companyId, issueId: f.issueId,
+        schema: "nexus.native-cancellation.v1", runId: f.runId, companyId: f.companyId, issueId: f.issueId,
         scope: "run", reasonCode: "cancellation_run_only", dispatchState: "acknowledged", dispatched: true,
         intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID(),
       },
@@ -171,7 +171,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
       await vi.waitFor(async () => {
         await vi.advanceTimersByTimeAsync(100);
         expect((await readRun(f.runId)).resultJson).toMatchObject({
-          workspaceRestoreRecovery: { schema: "paperclip.workspace-restore-recovery.v1", leaseIds: [f.lease.id] },
+          workspaceRestoreRecovery: { schema: "nexus.workspace-restore-recovery.v1", leaseIds: [f.lease.id] },
         });
       }, { timeout: 5000 });
       expect((await readLease(f.lease.id)).leasePolicy).toBe("retain_on_failure");
@@ -524,7 +524,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
     if (kind === "warm") await db.update(environmentLeases).set({ leasePolicy: "reuse_by_environment" }).where(eq(environmentLeases.id, f.lease.id));
     await db.update(heartbeatRuns).set({ status: "cancelled", nativePhase: "observed", finishedAt: new Date(),
       resultJson: { cancelledByActorType: "user", cancelledByUserId: "operator", nativeCancellation: {
-        schema: "paperclip.native-cancellation.v1", runId: f.runId,
+        schema: "nexus.native-cancellation.v1", runId: f.runId,
         companyId: kind === "foreign" ? randomUUID() : f.companyId, issueId: f.issueId,
         scope: "run", reasonCode: "cancellation_run_only", dispatchState: kind === "pending" ? "pending" : "acknowledged",
         dispatched: true, intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID(),
@@ -547,7 +547,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
     const busy = await seed(), free = await seed();
     for (const f of [busy, free]) await db.update(heartbeatRuns).set({ status: "cancelled", finishedAt: new Date(),
       resultJson: { cancelledByActorType: "user", cancelledByUserId: "operator", nativeCancellation: {
-        schema: "paperclip.native-cancellation.v1", runId: f.runId, companyId: f.companyId, issueId: f.issueId,
+        schema: "nexus.native-cancellation.v1", runId: f.runId, companyId: f.companyId, issueId: f.issueId,
         scope: "run", reasonCode: "cancellation_run_only", dispatchState: "acknowledged", dispatched: true,
         intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID(),
       } },
@@ -570,7 +570,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
     const f = await seed();
     await db.update(heartbeatRuns).set({ status: "cancelled", finishedAt: new Date(),
       resultJson: { cancelledByActorType: "user", cancelledByUserId: "operator", nativeCancellation: {
-        schema: "paperclip.native-cancellation.v1", runId: f.runId, companyId: f.companyId, issueId: f.issueId,
+        schema: "nexus.native-cancellation.v1", runId: f.runId, companyId: f.companyId, issueId: f.issueId,
         scope: "run", reasonCode: "cancellation_run_only", dispatchState: "acknowledged", dispatched: true,
         intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID(),
       } },
@@ -620,7 +620,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
 
   async function bindExternalInput(f: Awaited<ReturnType<typeof seed>>, provider: "grok_bot" | "openai_dot" | "muse", change?: (input: { schema: string; binding: { runId: string; companyId: string; agentId: string; issueId: string }; provider: { kind: string; bridgeRevision?: string }; workspace: { access: string; cwd: string | null } }) => void) {
     const run = await readRun(f.runId);
-    const input = { schema: provider === "muse" ? "paperclip.native-execution-input.v8" : "paperclip.native-execution-input.v6",
+    const input = { schema: provider === "muse" ? "nexus.native-execution-input.v8" : "nexus.native-execution-input.v6",
       binding: { runId: f.runId, companyId: f.companyId, agentId: f.agentId, issueId: f.issueId },
       provider: { kind: provider, ...(provider === "muse" ? { bridgeRevision: "muse-v1" } : {}) }, workspace: { access: "none", cwd: null, repoUrl: null, repoRef: null, branchName: null } };
     change?.(input);
@@ -662,7 +662,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
       if (mismatch === "company") input.binding.companyId = randomUUID();
       if (mismatch === "agent") input.binding.agentId = randomUUID();
       if (mismatch === "issue") input.binding.issueId = randomUUID();
-      if (mismatch === "schema") input.schema = "paperclip.native-execution-input.v6";
+      if (mismatch === "schema") input.schema = "nexus.native-execution-input.v6";
       if (mismatch === "provider") input.provider.kind = "grok_bot";
       if (mismatch === "bridge") input.provider.bridgeRevision = "unknown";
       if (mismatch === "missing_bridge") delete input.provider.bridgeRevision;

@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { chatEndpoints, chatSdkState, type Db } from "@paperclipai/db";
+import { chatEndpoints, chatSdkState, type Db } from "@nexusai/db";
 import { GITHUB_RECOVERY_STATE_KEY } from "./webhook-recovery-state.js";
 
 /** Direct callback recovery warnings do not describe Cloud relay delivery. */
@@ -27,7 +27,7 @@ export async function githubRecoveryActivity(
         : value?.outcome === "callback_mismatch"
           ? "The GitHub App's callback no longer matches this connection. Reconnect the App to repair it; repository access will not change."
           : value?.outcome === "scan_failed"
-            ? "Paperclip could not check GitHub's failed deliveries. The check will retry with backoff; normal callbacks are still processed."
+            ? "Nexus could not check GitHub's failed deliveries. The check will retry with backoff; normal callbacks are still processed."
             : null;
     return detail
       ? [

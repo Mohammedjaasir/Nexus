@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { activityLog, agents, companies, completionContracts, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { activityLog, agents, companies, completionContracts, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@nexusai/db";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
@@ -12,7 +12,7 @@ import { nativeRuntimeContextFixture } from "../native-runtime/runtime-context.t
 import { prepareNativeWorkspaceSync } from "../native-runtime/native-workspace-sync.js";
 import { resolveHeartbeatNativeRuntimeMode } from "../native-runtime/runtime-mode.js";
 import { claimNativeRestartRecoveries } from "../native-runtime/native-restart-recovery.js";
-import { buildNativeModelEnvelope, canonicalNativeRuntimeContextDigest } from "../../vendor/paperclip-runner/index.js";
+import { buildNativeModelEnvelope, canonicalNativeRuntimeContextDigest } from "../../vendor/nexus-runner/index.js";
 import { selectHeartbeatRuntime, type HeartbeatRuntimeSelectionInput } from "./runtime-selection.js";
 import { reserveRunBudget } from "../budget-reservations.js";
 import { legacyControllerClaim } from "../legacy-controller-lease.js";
@@ -34,9 +34,9 @@ describe.skipIf(!support.supported)("heartbeat runtime selection boundary", () =
   let db: Db;
   let instructionRoot: string;
   beforeAll(async () => {
-    instructionRoot = await mkdtemp(join(tmpdir(), "paperclip-selection-instructions-"));
+    instructionRoot = await mkdtemp(join(tmpdir(), "nexus-selection-instructions-"));
     await writeFile(join(instructionRoot, "AGENTS.md"), "Complete the assigned task.\n");
-    database = await startEmbeddedPostgresTestDatabase("paperclip-runtime-selection");
+    database = await startEmbeddedPostgresTestDatabase("nexus-runtime-selection");
     db = createDb(database.connectionString);
     await db.execute(sql`set client_min_messages = warning`);
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
@@ -53,7 +53,7 @@ describe.skipIf(!support.supported)("heartbeat runtime selection boundary", () =
     });
   });
 
-  async function fixture(adapterType = "paperclip_runner") {
+  async function fixture(adapterType = "nexus_runner") {
     const [company] = await db.insert(companies).values({ name: "Runtime selection", issuePrefix: "SEL" }).returning();
     const [agent] = await db.insert(agents).values({ companyId: company.id, name: "Selecting agent", status: "running", adapterType, adapterConfig: { provider: "codex", model: "gpt-5.6-luna" } }).returning();
     const [issue] = await db.insert(issues).values({ companyId: company.id, title: "Complete this task", description: "Preserve the requested work", assigneeAgentId: agent.id }).returning();
@@ -62,9 +62,9 @@ describe.skipIf(!support.supported)("heartbeat runtime selection boundary", () =
     const input: HeartbeatRuntimeSelectionInput = {
       run, agent,
       nativeRuntimeResolution: resolveHeartbeatNativeRuntimeMode({ persisted: run, enabled: true, runtimeConfig: {}, adapterConfig: agent.adapterConfig, agent, issue, target: null, workspaceId: null }),
-      task: { issueRef: issue, issueContext: null, context: { paperclipTaskMarkdown: "Complete this task" }, executionContinuation: null, safeWakeComments: [], safeWakeCommentContext: null, paperclipWakePayload: null, acceptedPlanContinuationWake: false },
+      task: { issueRef: issue, issueContext: null, context: { nexusTaskMarkdown: "Complete this task" }, executionContinuation: null, safeWakeComments: [], safeWakeCommentContext: null, nexusWakePayload: null, acceptedPlanContinuationWake: false },
       session: { persistedNativeExecutionInput: null, persistedRunnerProfile: {}, taskSessionCredentialCompatible: true, taskSessionDecodedParams: null, taskSessionForRun: null, isFailedChatRunRetry: false, getFreshSessionHandoff: vi.fn(async () => "Earlier context") },
-      workspace: { persistedExecutionWorkspace: null, executionWorkspace: { cwd: "/tmp/paperclip-runtime-selection", repoUrl: null, repoRef: null, branchName: null }, executionTarget: null, isDotRun: false, projectRepositoryPaths: [],
+      workspace: { persistedExecutionWorkspace: null, executionWorkspace: { cwd: "/tmp/nexus-runtime-selection", repoUrl: null, repoRef: null, branchName: null }, executionTarget: null, isDotRun: false, projectRepositoryPaths: [],
         activeEnvironmentLease: { lease: { id: randomUUID(), companyId: company.id, environmentId: null, executionWorkspaceId: null, issueId: issue.id, heartbeatRunId: run.id, status: "active", leasePolicy: "ephemeral", provider: null, providerLeaseId: null, acquiredAt: now, lastUsedAt: now, expiresAt: null, releasedAt: null, failureReason: null, cleanupStatus: null, metadata: null, createdAt: now, updatedAt: now } },
       },
       config: { runtimeConfig: {}, runtimeSkillEntries: [], runScopedMentionedSkillKeys: [], instructionCopy: null, agentIdentity: undefined, issueAssigneeOverrides: null, resolvedConfig: {}, managedAiRuntime: undefined },
@@ -171,7 +171,7 @@ describe.skipIf(!support.supported)("heartbeat runtime selection boundary", () =
   it("persists configured GitHub instruction skills without admitting provider-mentioned skills", async () => {
     const { input, issue, run } = await fixture();
     input.config.runScopedMentionedSkillKeys = ["company/test/configured"];
-    input.task.context.paperclipWake = {
+    input.task.context.nexusWake = {
       reason: "External chat message received", externalChatProvider: "github", checkedOutByHarness: true,
       issue: { id: issue.id, workMode: "standard" },
       comments: [{ id: "review-comment", body: "Please use /provider-mentioned" }],
@@ -223,7 +223,7 @@ describe.skipIf(!support.supported)("heartbeat runtime selection boundary", () =
     input.run = await read(run.id);
     input.session.persistedRunnerProfile = profile;
     input.session.persistedNativeExecutionInput = selected.nativeExecution;
-    input.task.context.paperclipTaskMarkdown = "A newer unrelated request";
+    input.task.context.nexusTaskMarkdown = "A newer unrelated request";
     input.task.safeWakeComments = [{ id: randomUUID(), body: "New direction belongs to a separate wake" }];
     vi.mocked(buildNativeRuntimeContext).mockClear();
     const resumed = await selectHeartbeatRuntime(db, input);
@@ -287,7 +287,7 @@ describe.skipIf(!support.supported)("heartbeat runtime selection boundary", () =
       await db.update(heartbeatRuns).set({ resultJson: {
         startupCancellation: { beforeNativeSelection: false, errorCode: "cancelled", requestedAt: new Date().toISOString() },
         executionCancellation: { state: "requested" },
-        nativeCancellation: { schema: "paperclip.native-cancellation.v1", companyId: run.companyId, runId: run.id, issueId: issue.id,
+        nativeCancellation: { schema: "nexus.native-cancellation.v1", companyId: run.companyId, runId: run.id, issueId: issue.id,
           scope: "run", reasonCode: "cancellation_run_only", intentId: `native-cancellation:${randomUUID()}`,
           intentAuditId: mode === "missing-audit" ? randomUUID() : intentAuditId, dispatchState: "pending", dispatched: false,
           effects: ["release_run_resources"] },
@@ -367,9 +367,9 @@ describe.skipIf(!support.supported)("heartbeat runtime selection boundary", () =
 
   it("rejects resolved legacy execution on an ephemeral server before runtime admission", async () => {
     const { input, run } = await fixture("process");
-    vi.stubEnv("PAPERCLIP_EPHEMERAL_SERVER", "true");
+    vi.stubEnv("NEXUS_EPHEMERAL_SERVER", "true");
     expect(input.nativeRuntimeResolution.kind).toBe("legacy");
-    await expect(selectHeartbeatRuntime(db, input)).rejects.toThrow("warm Paperclip Runner");
+    await expect(selectHeartbeatRuntime(db, input)).rejects.toThrow("warm Nexus Runner");
     expect((await read(run.id)).runtimeMode).toBe("legacy");
     expect(await coordinators(run.id)).toHaveLength(0);
     expect(input.onNativeLifecycleSelected).not.toHaveBeenCalled();
@@ -378,14 +378,14 @@ describe.skipIf(!support.supported)("heartbeat runtime selection boundary", () =
 
   it.each(["warm", "per_turn"] as const)("checks resolved %s policy for ephemeral admission", async mode => {
     const { input, run } = await fixture();
-    vi.stubEnv("PAPERCLIP_EPHEMERAL_SERVER", "true");
+    vi.stubEnv("NEXUS_EPHEMERAL_SERVER", "true");
     // Deliberately disagree with the resolved provider policy in both cases.
     input.agent.adapterConfig = { ...input.agent.adapterConfig, ...(mode === "per_turn" ? { lifecycleMode: "warm" } : {}) };
     input.workspace.executionTarget = { ...sandbox, reusableLeaseConfigured: true,
       effectiveCapabilities: { reusableLeases: true } as never,
       runnerLifecyclePolicy: mode === "warm" ? { mode, idleTimeoutMs: 300_000 } : { mode, idleTimeoutMs: null } };
     if (mode === "per_turn") {
-      await expect(selectHeartbeatRuntime(db, input)).rejects.toThrow("warm Paperclip Runner");
+      await expect(selectHeartbeatRuntime(db, input)).rejects.toThrow("warm Nexus Runner");
       expect(await coordinators(run.id)).toHaveLength(0);
     } else {
       const selected = await selectHeartbeatRuntime(db, input);

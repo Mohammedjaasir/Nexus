@@ -30,7 +30,7 @@ export function activeFollowupBoundary(run: Row, events: Row[]): ActiveFollowupB
   if (latestTurn?.eventType !== "turn.started") return null;
   const starts = bound.filter(event => {
     const payload = event.payload.prpEvent.payload;
-    return event.seq > latestTurn.seq && event.eventType === "tool.execution.started" && payload?.schema === "paperclip.tool.execution.v1"
+    return event.seq > latestTurn.seq && event.eventType === "tool.execution.started" && payload?.schema === "nexus.tool.execution.v1"
       && typeof payload.executionId === "string" && Boolean(payload.executionId)
       && ["builtin", "process"].includes(payload.transport)
       && (payload.operation === "execute"
@@ -38,12 +38,12 @@ export function activeFollowupBoundary(run: Row, events: Row[]): ActiveFollowupB
         // that named v1 shell shape; unknown semantic/custom tools still fail.
         || event.protocolSchemaVersion === 1 && payload.operation === "unknown"
           && payload.transport === "builtin" && payload.name === "bash" && payload.readOnly === false)
-      // Provider display titles vary, but Paperclip semantic calls never prove
+      // Provider display titles vary, but Nexus semantic calls never prove
       // native command work, even when a provider maps them to builtin execute.
       && payload.namespace == null
       && (payload.transport === "process" || typeof payload.name === "string" && Boolean(payload.name.trim())
         && !/^(?:unknown|tool(?:[ _-]+call)?)$/i.test(payload.name.trim())
-        && !/(?:^|[._:/-])paperclip(?:[._:/-]|$)/i.test(payload.name.trim()))
+        && !/(?:^|[._:/-])nexus(?:[._:/-]|$)/i.test(payload.name.trim()))
       && payload.readOnly !== true && payload.status === "running";
   });
   const pending = starts.filter(start => {

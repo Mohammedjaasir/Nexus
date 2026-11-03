@@ -4,7 +4,7 @@ import { localAiLoginService } from "../services/local-ai-login.js";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { agents, agentWakeupRequests, companies, createDb, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, applyPendingMigrations } from "@paperclipai/db";
+import { agents, agentWakeupRequests, companies, createDb, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, applyPendingMigrations } from "@nexusai/db";
 import { installDatabaseWorkSignals } from "../../../packages/db/src/work-signals.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
@@ -115,7 +115,7 @@ describe("execution-control lifecycle", () => {
   });
 });
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_EXECUTION_SLEEP_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_EXECUTION_SLEEP_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 describe.skipIf(!support.supported)("execution-control durable work", () => {
   let db: ReturnType<typeof createDb>, observed: typeof db;
@@ -168,7 +168,7 @@ describe.skipIf(!support.supported)("execution-control durable work", () => {
       kind: "active_run_watchdog", ownerType: "system", cause: "native_workspace_sync_out_retry_exhausted",
       fingerprint: run.id, nextAction: "Saved work recovered", evidence: { runId: run.id,
         systemRecovery: { ...createSystemRecovery(run.id), state: "complete" },
-        workspaceRecovery: { schema: "paperclip.workspace-recovery.v1", runId: run.id,
+        workspaceRecovery: { schema: "nexus.workspace-recovery.v1", runId: run.id,
           status: "recovered", stage: "saving_receipts", attempt: 1, attemptLimit: 6, requestIds: [] } } });
     const retry = await requestTaskRetry({ db, companyId, issueId: sourceIssueId, actorId: "board",
       observedRunId: run.id, idempotencyKey: randomUUID() });
@@ -191,7 +191,7 @@ describe.skipIf(!support.supported)("execution-control durable work", () => {
     const run = await runRow("failed");
     const state = createSystemRecovery(run.id);
     const evidence = { runId: run.id, systemRecovery: state,
-      workspaceRecovery: { schema: "paperclip.workspace-recovery.v1", runId: run.id,
+      workspaceRecovery: { schema: "nexus.workspace-recovery.v1", runId: run.id,
         status: "queued", stage: "verifying_stop", attempt: 0, attemptLimit: 6, requestIds: [] } };
     const [action] = await db.insert(issueRecoveryActions).values({ companyId, sourceIssueId: issueId,
       kind: "active_run_watchdog", ownerType: "system", cause: "native_workspace_sync_out_retry_exhausted",

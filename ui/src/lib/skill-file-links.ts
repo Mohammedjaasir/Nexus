@@ -1,4 +1,4 @@
-import type { CompanySkill } from "@paperclipai/shared";
+import type { CompanySkill } from "@nexusai/shared";
 import { skillRoute, type CompanySkillRouteSubject } from "./company-skill-routes";
 
 type FileLinkSkill = Pick<CompanySkill, "id" | "slug" | "key" | "sourceType" | "metadata" | "fileInventory">;
@@ -8,7 +8,7 @@ export function skillFileLinkHref(skill: FileLinkSkill, selectedPath: string, hr
   if (/^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(href)) return href;
   const originalPath = selectedPath === "SKILL.md" && skill.sourceType === "github"
     && skill.metadata?.packageMode === "repository" && typeof skill.metadata.skillSourcePath === "string"
-    ? `.paperclip-repository/${skill.metadata.skillSourcePath}` : selectedPath;
+    ? `.nexus-repository/${skill.metadata.skillSourcePath}` : selectedPath;
   try {
     const url = new URL(href, `https://skill.invalid/${originalPath.split("/").map(encodeURIComponent).join("/")}`);
     const target = decodeURIComponent(url.pathname.slice(1));

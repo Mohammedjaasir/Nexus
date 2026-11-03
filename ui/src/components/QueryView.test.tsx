@@ -11,7 +11,7 @@ import { QueryErrorState, QueryView, queryViewKind, useQueryView, type QueryView
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-const unavailable = () => new ApiError("Paperclip is restarting.", 503, { error: "tenant_app_unavailable" });
+const unavailable = () => new ApiError("Nexus is restarting.", 503, { error: "tenant_app_unavailable" });
 const notFound = () => new ApiError("Issue not found", 404, { error: "Issue not found" });
 const forbidden = () => new ApiError("Forbidden", 403, { error: "Forbidden" });
 

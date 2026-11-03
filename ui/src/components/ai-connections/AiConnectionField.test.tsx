@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
-import type { AiManagedConnectionSummary } from "@paperclipai/shared";
+import type { AiManagedConnectionSummary } from "@nexusai/shared";
 import { AiConnectionField, aiProviderForAdapter } from "./AiConnectionField";
 import type { AiConnectionCredentialStep } from "./AiConnectionCredentialStep";
 

@@ -1,6 +1,6 @@
 # MCP Fixture Smoke Harness
 
-Paperclip's MCP permission work uses deterministic fixture servers so policy
+Nexus's MCP permission work uses deterministic fixture servers so policy
 logic can be tested without real customer credentials or live integrations.
 
 Run the local smoke:
@@ -10,7 +10,7 @@ pnpm smoke:mcp-fixtures
 ```
 
 The runner starts one local stdio fixture and one remote-style HTTP fixture,
-checks the local Paperclip `/api/health` endpoint when available, then exercises:
+checks the local Nexus `/api/health` endpoint when available, then exercises:
 
 - allow and deny decisions
 - approval-gated writes
@@ -24,13 +24,13 @@ checks the local Paperclip `/api/health` endpoint when available, then exercises
 Use a specific dev instance URL:
 
 ```sh
-pnpm smoke:mcp-fixtures -- --paperclip-url http://127.0.0.1:3100
+pnpm smoke:mcp-fixtures -- --nexus-url http://127.0.0.1:3100
 ```
 
 Require the dev instance health check:
 
 ```sh
-pnpm smoke:mcp-fixtures -- --require-paperclip
+pnpm smoke:mcp-fixtures -- --require-nexus
 ```
 
 JSON output for CI or release-smoke ingestion:
@@ -60,7 +60,7 @@ The catalog also defines the first profile set:
 
 The first-install demo definitions are:
 
-- `paperclip-self-read`
+- `nexus-self-read`
 - `child-issue-proposal`
 - `github-triage`
 - `update-sender`
@@ -91,7 +91,7 @@ US-7, with:
 pnpm test:e2e:mcp-user-stories -- --include-gated
 ```
 
-The browser side uses the same `PAPERCLIP_PLAYWRIGHT_CHANNEL` override as the
+The browser side uses the same `NEXUS_PLAYWRIGHT_CHANNEL` override as the
 rest of `tests/e2e`. In minimal containers, install the Playwright system
-dependencies or point `PAPERCLIP_PLAYWRIGHT_CHANNEL` at the managed branch
+dependencies or point `NEXUS_PLAYWRIGHT_CHANNEL` at the managed branch
 service's known-good Chromium wrapper before running the browser smoke.

@@ -1,26 +1,26 @@
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, agentWakeupRequests, caseAccessSources, caseDocuments, caseEvents, caseHandoffs, caseIssueLinks, cases, documents, heartbeatRuns, issues, pipelineCases, pipelines, pipelineStages, workflows } from "@paperclipai/db";
-import { SYSTEM_ISSUE_DOCUMENT_KEYS } from "@paperclipai/shared";
+import { agents, agentWakeupRequests, caseAccessSources, caseDocuments, caseEvents, caseHandoffs, caseIssueLinks, cases, documents, heartbeatRuns, issues, pipelineCases, pipelines, pipelineStages, workflows } from "@nexusai/db";
+import { SYSTEM_ISSUE_DOCUMENT_KEYS } from "@nexusai/shared";
 import { startRunnerApiTestServer } from "../../__tests__/helpers/runner-api-server.js";
 import { instanceSettingsService } from "../instance-settings.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 import { createLocalAgentJwt } from "../../agent-auth-jwt.js";
 import { documentService } from "../documents.js";
 
 describe("native case tools through authenticated production routes", () => {
   let server: Awaited<ReturnType<typeof startRunnerApiTestServer>>;
-  const priorSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
+  const priorSecret = process.env.NEXUS_AGENT_JWT_SECRET;
   beforeAll(async () => {
-    process.env.PAPERCLIP_AGENT_JWT_SECRET = randomUUID();
+    process.env.NEXUS_AGENT_JWT_SECRET = randomUUID();
     server = await startRunnerApiTestServer();
     await instanceSettingsService(server.db).updateExperimental({ enableCases: true });
   }, 60_000);
   afterAll(async () => {
     await server?.close();
-    if (priorSecret === undefined) delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
-    else process.env.PAPERCLIP_AGENT_JWT_SECRET = priorSecret;
+    if (priorSecret === undefined) delete process.env.NEXUS_AGENT_JWT_SECRET;
+    else process.env.NEXUS_AGENT_JWT_SECRET = priorSecret;
   });
   async function fixture(mode: "standard" | "planning" | "ask" = "standard") {
     const f = await server.fixture({ apiToolsEnabled: false, disableWakeOnDemand: true, mode });
@@ -28,7 +28,7 @@ describe("native case tools through authenticated production routes", () => {
     const [record] = await server.db.insert(cases).values({ companyId: f.companyId, caseNumber: 1,
       identifier: `C-${randomUUID()}`, caseType: "receipt", title: "Receipt case", summary: "Two items at $3",
       fields: { total: 6, obsolete: true }, workIssueId: f.issueId }).returning();
-    const authority = new PaperclipRunnerToolAuthority(server.db, { ...f, casesEnabled: true, workMode: mode });
+    const authority = new NexusRunnerToolAuthority(server.db, { ...f, casesEnabled: true, workMode: mode });
     const call = (tool: string, input: Record<string, unknown> = {}, callId = randomUUID()) => authority.execute({ tool, callId, arguments: input });
     return { ...f, record: record!, authority, call };
   }
@@ -41,7 +41,7 @@ describe("native case tools through authenticated production routes", () => {
 
   async function saveCaseDocument(f: CaseFixture, key: string, body: string, baseRevisionId?: string) {
     const response = await fetch(`${server.apiUrl}/api/cases/${f.record.id}/documents/${key}`, {
-      method: "PUT", headers: { Authorization: `Bearer ${createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", f.runId)}`,
+      method: "PUT", headers: { Authorization: `Bearer ${createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", f.runId)}`,
         "Content-Type": "application/json" }, body: JSON.stringify({ title: `Case ${key}`, format: "markdown", body, baseRevisionId }),
     });
     expect(response.status).toBe(200);
@@ -101,7 +101,7 @@ describe("native case tools through authenticated production routes", () => {
       workflows: await server.db.select().from(workflows).where(eq(workflows.companyId, f.companyId)),
     });
     const before = await snapshot();
-    const replacement = new PaperclipRunnerToolAuthority(server.db, { ...f, casesEnabled: true, workMode: "standard" });
+    const replacement = new NexusRunnerToolAuthority(server.db, { ...f, casesEnabled: true, workMode: "standard" });
     const recover = (arguments_: unknown = input) => replacement.recover({ tool, callId: "lost-provider-response", arguments: arguments_ });
     const fetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Recovery must not dispatch HTTP"));
     try {
@@ -115,10 +115,10 @@ describe("native case tools through authenticated production routes", () => {
         Object.fromEntries(Object.entries(receipts).map(([id, receipt]) => [id, { ...receipt, state: "pending" }])) } }).where(eq(heartbeatRuns.id, f.runId));
       expect(await recover()).toBeNull();
       await server.db.update(heartbeatRuns).set({ resultJson: completed }).where(eq(heartbeatRuns.id, f.runId));
-      const disabled = new PaperclipRunnerToolAuthority(server.db, { ...f, casesEnabled: false, workMode: "standard" });
+      const disabled = new NexusRunnerToolAuthority(server.db, { ...f, casesEnabled: false, workMode: "standard" });
       await expect(disabled.recover({ tool, callId: "lost-provider-response", arguments: input })).rejects.toThrow("Cases are disabled");
       await server.db.update(heartbeatRuns).set({ status: "cancelled" }).where(eq(heartbeatRuns.id, f.runId));
-      await expect(recover()).rejects.toThrow("paperclip_runner_tool_binding_not_authorized");
+      await expect(recover()).rejects.toThrow("nexus_runner_tool_binding_not_authorized");
       expect(await snapshot()).toEqual(before);
       expect(fetch).not.toHaveBeenCalled();
     } finally { fetch.mockRestore(); }
@@ -274,7 +274,7 @@ describe("native case tools through authenticated production routes", () => {
       issueId: f.issueId, nativeIssueId: f.issueId, status: "running", runtimeMode: "native", contextSnapshot: { issueId: f.issueId } });
     await server.db.update(issues).set({ executionRunId: laterRunId }).where(eq(issues.id, f.issueId));
     await server.db.update(heartbeatRuns).set({ status: "succeeded" }).where(eq(heartbeatRuns.id, f.runId));
-    const later = new PaperclipRunnerToolAuthority(server.db, { ...f, runId: laterRunId, casesEnabled: true, workMode: "standard" });
+    const later = new NexusRunnerToolAuthority(server.db, { ...f, runId: laterRunId, casesEnabled: true, workMode: "standard" });
     expect(await later.execute({ tool: "create_case", callId: randomUUID(), arguments: input })).toMatchObject({ ...receipt, replayed: true });
     await expect(later.execute({ tool: "create_case", callId: randomUUID(), arguments: { ...input, workflow_document_text: "Changed routing" } }))
       .rejects.toThrow("Idempotency key was used for a different handoff");
@@ -322,7 +322,7 @@ describe("native case tools through authenticated production routes", () => {
     expect(f.authority.definitions().map(tool => tool.name)).not.toContain("call_api");
     // Reproduce the existing generic transport's >24KiB asset-only response.
     // The dedicated reader below must remain usable with generic API disabled.
-    const generic = new PaperclipRunnerToolAuthority(server.db, { ...f, casesEnabled: true, apiToolsEnabled: true });
+    const generic = new NexusRunnerToolAuthority(server.db, { ...f, casesEnabled: true, apiToolsEnabled: true });
     const baseline = await generic.execute({ tool: "call_api", callId: randomUUID(), arguments: {
       operationId: "GET /api/cases/{id}", pathParams: { id: f.record.id }, query: { includeDocumentBodies: false },
     } });
@@ -472,23 +472,23 @@ describe("native case tools through authenticated production routes", () => {
     expect(saved).toMatchObject({ ok: true, status: 200, artifact: { artifactId: expect.any(String) } });
     const asset = (await f.snapshot()).assets.find(asset => asset.id === saved.artifact.artifactId)!;
     expect(asset.objectKey).toContain(`/cases/${f.record.id}/runner-api/`);
-    const headers = { Authorization: `Bearer ${createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", f.runId)}` };
+    const headers = { Authorization: `Bearer ${createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", f.runId)}` };
     const readable = await fetch(`${server.apiUrl}${saved.artifact.url}`, { headers });
     expect(readable.status).toBe(200); await readable.body?.cancel();
     const readerId = randomUUID(), readerRunId = randomUUID();
     await server.db.insert(agents).values({ id: readerId, companyId: f.companyId, name: "Another case reader", status: "active",
-      adapterType: "paperclip_runner", adapterConfig: { provider: "codex" }, runtimeConfig: { heartbeat: { enabled: false } } });
+      adapterType: "nexus_runner", adapterConfig: { provider: "codex" }, runtimeConfig: { heartbeat: { enabled: false } } });
     const [readerTask] = await server.db.insert(issues).values({ companyId: f.companyId, title: "Another task",
       status: "in_progress", assigneeAgentId: readerId }).returning();
     await server.db.insert(heartbeatRuns).values({ id: readerRunId, companyId: f.companyId, agentId: readerId,
       nativeIssueId: readerTask!.id, status: "running", runtimeMode: "native", contextSnapshot: { issueId: readerTask!.id } });
     await server.db.update(issues).set({ executionRunId: readerRunId }).where(eq(issues.id, readerTask!.id));
-    const readerHeaders = { Authorization: `Bearer ${createLocalAgentJwt(readerId, f.companyId, "paperclip_runner", readerRunId)}` };
+    const readerHeaders = { Authorization: `Bearer ${createLocalAgentJwt(readerId, f.companyId, "nexus_runner", readerRunId)}` };
     const sameCase = await fetch(`${server.apiUrl}/api/cases/${f.record.id}`, { headers: readerHeaders });
     expect(sameCase.status).toBe(200); await sameCase.body?.cancel();
     const otherRunCapture = await fetch(`${server.apiUrl}${saved.artifact.url}`, { headers: readerHeaders });
     expect(otherRunCapture.status).toBe(404); await otherRunCapture.body?.cancel();
-    const generic = new PaperclipRunnerToolAuthority(server.db, { ...f, casesEnabled: true, apiToolsEnabled: true });
+    const generic = new NexusRunnerToolAuthority(server.db, { ...f, casesEnabled: true, apiToolsEnabled: true });
     const genericRead = await generic.execute({ tool: "call_api", callId: randomUUID(), arguments: {
       operationId: "GET /api/cases/{id}", pathParams: { id: f.record.id },
     } }) as { artifact: { artifactId: string; url: string } };
@@ -508,10 +508,10 @@ describe("native case tools through authenticated production routes", () => {
       expect(other.authority.definitions().map(tool => tool.name)).not.toContain("read_case");
       await expect(other.call("read_case")).rejects.toThrow("mode_denied");
     }
-    const disabled = new PaperclipRunnerToolAuthority(server.db, { ...f, casesEnabled: false });
+    const disabled = new NexusRunnerToolAuthority(server.db, { ...f, casesEnabled: false });
     expect(disabled.definitions().map(tool => tool.name)).not.toContain("read_case");
     await expect(disabled.execute({ tool: "read_case", callId: randomUUID(), arguments: {} })).rejects.toThrow("Cases are disabled");
-    const review = new PaperclipRunnerToolAuthority(server.db, { ...f, casesEnabled: true,
+    const review = new NexusRunnerToolAuthority(server.db, { ...f, casesEnabled: true,
       nativeReview: { nativeReviewInteractionId: randomUUID(), nativeReviewDecisionId: randomUUID() } });
     expect(review.definitions().map(tool => tool.name)).not.toContain("read_case");
     await expect(review.execute({ tool: "update_case", callId: randomUUID(), arguments: { idempotencyKey: "review", title: "No" } })).rejects.toThrow("may only inspect");

@@ -13,7 +13,7 @@ test("dependency-layer inputs can run both Copilot postinstall entrypoints befor
   const stage = dockerfile.split(/^FROM .* AS deps\s*$/im)[1]?.split(/^FROM /im)[0];
   assert.ok(stage, "dependency stage exists");
   const beforeInstall = stage.split(/^RUN pnpm install/m)[0];
-  const fixture = await mkdtemp(path.join(tmpdir(), "paperclip-docker-postinstall-"));
+  const fixture = await mkdtemp(path.join(tmpdir(), "nexus-docker-postinstall-"));
   try {
     for (const line of beforeInstall.split("\n")) {
       if (!line.startsWith("COPY ") || line.includes("--")) continue;
@@ -21,7 +21,7 @@ test("dependency-layer inputs can run both Copilot postinstall entrypoints befor
       const destination = args.pop();
       for (const source of args) {
         if (source !== "pnpm-workspace.yaml"
-          && !source.startsWith("packages/paperclip-runner/")
+          && !source.startsWith("packages/nexus-runner/")
           && !source.startsWith("server/")) continue;
         assert.ok(destination.endsWith("/"), "fixture supports directory COPY destinations");
         const target = path.join(fixture, destination, path.basename(source));
@@ -29,7 +29,7 @@ test("dependency-layer inputs can run both Copilot postinstall entrypoints befor
         await cp(path.join(repo, source), target, { recursive: true });
       }
     }
-    for (const owner of ["packages/paperclip-runner", "server"]) {
+    for (const owner of ["packages/nexus-runner", "server"]) {
       const cwd = path.join(fixture, owner);
       const manifest = JSON.parse(await readFile(path.join(cwd, "package.json"), "utf8"));
       assert.equal(manifest.scripts.postinstall, "node scripts/install-copilot-assets.mjs");

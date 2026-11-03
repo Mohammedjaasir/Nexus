@@ -11,7 +11,7 @@ describe("reconstructable base Git metadata", () => {
   let checkout: string;
   let exclude: string;
   beforeEach(async () => {
-    root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-base-storage-"));
+    root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-base-storage-"));
     const source = path.join(root, "source");
     checkout = path.join(root, "checkout");
     await fs.mkdir(source);
@@ -34,7 +34,7 @@ describe("reconstructable base Git metadata", () => {
     ["custom pattern", Buffer.from("private-output/\n")],
     ["custom comment", Buffer.from("# Retain my local metadata\n")],
     ["nonstandard bytes", Buffer.from([0xff, 0x00])],
-    ["duplicate generated entry", Buffer.from("\n/.paperclip-repositories/\n")],
+    ["duplicate generated entry", Buffer.from("\n/.nexus-repositories/\n")],
   ])("preserves a %s beyond the generated ignore entry", async (_name, bytes) => {
     await fs.appendFile(exclude, bytes);
     const original = await fs.readFile(exclude);

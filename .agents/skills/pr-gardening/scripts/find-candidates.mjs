@@ -7,7 +7,7 @@ import {
   isMissingPullRequestError,
   issueSummary,
   normalizeRepository,
-  paperclipGet,
+  nexusGet,
   parseArgs,
   prUrl,
   repositoryFromGh,
@@ -16,7 +16,7 @@ import {
 } from "./lib.mjs";
 
 export async function findCandidates(options) {
-  const getPaperclip = options.paperclip_get ?? paperclipGet;
+  const getNexus = options.nexus_get ?? nexusGet;
   const getGhJson = options.gh_json ?? ghJson;
   const repository = normalizeRepository(options.repo ?? repositoryFromGh());
   const authorAllowlist = resolveAuthorAllowlist(options, getGhJson);
@@ -25,11 +25,11 @@ export async function findCandidates(options) {
   const now = options.now ? new Date(options.now) : new Date();
   const windowStartMs = now.getTime() - days * 24 * 60 * 60 * 1000;
 
-  const apiUrl = options.api_url ?? process.env.PAPERCLIP_API_URL;
-  const apiKey = options.api_key ?? process.env.PAPERCLIP_API_KEY;
-  const companyId = options.company_id ?? process.env.PAPERCLIP_COMPANY_ID;
+  const apiUrl = options.api_url ?? process.env.NEXUS_API_URL;
+  const apiKey = options.api_key ?? process.env.NEXUS_API_KEY;
+  const companyId = options.company_id ?? process.env.NEXUS_COMPANY_ID;
   if (!apiUrl || !apiKey || !companyId) {
-    throw new Error("PAPERCLIP_API_URL, PAPERCLIP_API_KEY, and PAPERCLIP_COMPANY_ID are required");
+    throw new Error("NEXUS_API_URL, NEXUS_API_KEY, and NEXUS_COMPANY_ID are required");
   }
 
   const contains = `github.com/${repository}/pull`;
@@ -48,7 +48,7 @@ export async function findCandidates(options) {
       offset: String(offset),
       matchesPerIssue: String(matchesPerIssue),
     });
-    const page = await getPaperclip(`/companies/${companyId}/search/extract?${query}`, { apiUrl, apiKey });
+    const page = await getNexus(`/companies/${companyId}/search/extract?${query}`, { apiUrl, apiKey });
     for (const issue of page.results) issueMap.set(issue.issueId, issue);
     if (!page.hasMore) break;
     offset += limit;
@@ -94,7 +94,7 @@ export async function findCandidates(options) {
   const workers = Array.from({ length: Math.min(8, issueIds.length) }, async (_, workerIndex) => {
     for (let index = workerIndex; index < issueIds.length; index += 8) {
       const issueId = issueIds[index];
-      const workProducts = await getPaperclip(`/issues/${issueId}/work-products`, { apiUrl, apiKey });
+      const workProducts = await getNexus(`/issues/${issueId}/work-products`, { apiUrl, apiKey });
       for (const entry of pullRequests.values()) {
         const issue = entry.issueMentions.get(issueId);
         if (issue) issue.workProducts = workProducts;

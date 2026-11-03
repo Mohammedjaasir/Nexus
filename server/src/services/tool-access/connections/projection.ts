@@ -1,8 +1,8 @@
 import { redactedVercelGrant } from "../vercel-credentials.js";
-import { connectionPurposeTransportSchema } from "@paperclipai/shared";
-import { connectionGrants, toolConnectionInstalls, toolConnections } from "@paperclipai/db";
-import type { ToolConnection, ToolConnectionInstall } from "@paperclipai/shared";
-import { isRetiredComposioConnection, RETIRED_COMPOSIO_MESSAGE } from "@paperclipai/shared";
+import { connectionPurposeTransportSchema } from "@nexusai/shared";
+import { connectionGrants, toolConnectionInstalls, toolConnections } from "@nexusai/db";
+import type { ToolConnection, ToolConnectionInstall } from "@nexusai/shared";
+import { isRetiredComposioConnection, RETIRED_COMPOSIO_MESSAGE } from "@nexusai/shared";
 
 export function toConnection(row: typeof toolConnections.$inferSelect): ToolConnection {
   connectionPurposeTransportSchema.parse(row);

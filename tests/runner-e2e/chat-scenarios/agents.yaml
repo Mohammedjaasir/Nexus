@@ -195,7 +195,7 @@ scenarios:
       - connection-setup/handoff
     context: >-
       The Grok Bot experiment is enabled and the person owns an existing Bot but has not
-      authorized Paperclip.
+      authorized Nexus.
     query: >-
       Connect my existing Grok Bot as an agent here.
     expected_outcome: >-

@@ -4,7 +4,7 @@ import { expect, userEvent, within } from "storybook/test";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { TaskSidePanel } from "@/components/task-side-panel/TaskSidePanel";
 import { TaskBrowserPanel } from "@/components/task-side-panel/TaskBrowserPanel";
-import { storybookIssues } from "../../fixtures/paperclipData";
+import { storybookIssues } from "../../fixtures/nexusData";
 import {
   BrowserStoryProviders,
   InteractiveBrowserStory,
@@ -25,7 +25,7 @@ const meta = {
           "Production Browser panel with offline provider fixtures. Fit to pane follows the available viewport after a short debounce. Fixed presets retain their dimensions. The provider interaction is mocked; live resize support was tested separately. No credentials or paid runs are used.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "workspaces/services",
         "tasks/discussion"

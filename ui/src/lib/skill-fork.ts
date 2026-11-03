@@ -3,7 +3,7 @@ import type {
   CompanySkillOriginalSummary,
   CompanySkillSourceType,
   CompanySkillUsageAgent,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 /**
  * Pure logic for the Skill Studio "Edit a copy" fork flow (PAP-13112). Kept
@@ -27,7 +27,7 @@ export function shortSha(ref: string | null | undefined): string | null {
 function sourceTypeFallbackLabel(sourceType: CompanySkillSourceType): string {
   switch (sourceType) {
     case "managed":
-      return "Paperclip";
+      return "Nexus";
     case "github":
       return "GitHub";
     case "skills_sh":

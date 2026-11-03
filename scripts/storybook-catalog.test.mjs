@@ -44,21 +44,21 @@ test("unknown capabilities, invalid annotations and inappropriate homes fail", t
 
 test("metadata is parsed without executing code or accepting obsolete bookkeeping fields", t => {
   const f = mapFixture(t);
-  f.write(f.file, `export default { id: 'task', title: 'Work/Tasks/Test', parameters: { paperclip: (() => { throw new Error('executed'); })() } }; export const Empty = {};`);
+  f.write(f.file, `export default { id: 'task', title: 'Work/Tasks/Test', parameters: { nexus: (() => { throw new Error('executed'); })() } }; export const Empty = {};`);
   assert.throws(() => scanStories(f.root), /expressions are not executed/);
   f.story("task", { capabilities: ["tasks/create"], fingerprint: "old" });
-  assert.throws(() => scanStories(f.root), /unknown paperclip field fingerprint/);
-  f.write(f.file, "export default { id: 'task', title: 'Work/Tasks/Test', parameters: { paperclip: { capabilities: [], capabilities: [] } } }; export const Empty = {};");
+  assert.throws(() => scanStories(f.root), /unknown nexus field fingerprint/);
+  f.write(f.file, "export default { id: 'task', title: 'Work/Tasks/Test', parameters: { nexus: { capabilities: [], capabilities: [] } } }; export const Empty = {};");
   assert.throws(() => scanStories(f.root), /unique literal properties/);
 });
 
 test("parameter spreads cannot silently overwrite a source annotation", t => {
   const f = mapFixture(t);
-  f.write(f.file, "export default { id: 'task', title: 'Work/Tasks/Test', parameters: { paperclip: { capabilities: [] }, ...other } }; export const Empty = {};");
+  f.write(f.file, "export default { id: 'task', title: 'Work/Tasks/Test', parameters: { nexus: { capabilities: [] }, ...other } }; export const Empty = {};");
   assert.throws(() => scanStories(f.root), /must follow parameter spreads/);
-  f.write(f.file, "export default { id: 'task', title: 'Work/Tasks/Test', parameters: { paperclip: { capabilities: [] }, [key]: other } }; export const Empty = {};");
+  f.write(f.file, "export default { id: 'task', title: 'Work/Tasks/Test', parameters: { nexus: { capabilities: [] }, [key]: other } }; export const Empty = {};");
   assert.throws(() => scanStories(f.root), /must follow parameter spreads/);
-  f.write(f.file, "export default { id: 'task', title: 'Work/Tasks/Test', parameters: { ['paperclip']: { capabilities: [] } } }; export const Empty = {};");
+  f.write(f.file, "export default { id: 'task', title: 'Work/Tasks/Test', parameters: { ['nexus']: { capabilities: [] } } }; export const Empty = {};");
   assert.throws(() => scanStories(f.root), /must be a literal property/);
 });
 
@@ -164,7 +164,7 @@ test("gap reports combine associations with local verification scope and retain 
 test("the CSF parser preserves explicit IDs, export filtering and play counts", t => {
   const f = mapFixture(t);
   f.write(f.file, `import type { Meta } from '@storybook/react-vite';
-    const meta = { id: 'stable-task', title: 'Work/Tasks/Create', excludeStories: ['helper'], parameters: { paperclip: { capabilities: ['tasks/create'] } } } satisfies Meta;
+    const meta = { id: 'stable-task', title: 'Work/Tasks/Create', excludeStories: ['helper'], parameters: { nexus: { capabilities: ['tasks/create'] } } } satisfies Meta;
     export default meta;
     export const helper = {};
     export const Empty = {};

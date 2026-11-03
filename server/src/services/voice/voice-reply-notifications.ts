@@ -1,4 +1,4 @@
-import type { ChatProvider } from "@paperclipai/shared";
+import type { ChatProvider } from "@nexusai/shared";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "../delivery-work-notifications.js";
 
 export type VoiceReplyScope = { kind: "session" | "endpoint" | "connection" | "company" | "conversation"; id: string };

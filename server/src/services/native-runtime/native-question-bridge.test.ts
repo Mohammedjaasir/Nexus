@@ -21,9 +21,9 @@ import {
   issueThreadInteractions,
   issues,
   nativeRunFinalizations,
-} from "@paperclipai/db";
-import type { PrpEvent } from "@paperclipai/paperclip-runner";
-import { respondIssueThreadInteractionSchema } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { PrpEvent } from "@nexusai/nexus-runner";
+import { respondIssueThreadInteractionSchema } from "@nexusai/shared";
 
 import {
   getEmbeddedPostgresTestSupport,
@@ -49,8 +49,8 @@ import {
 import { questionResponseDeliveryService } from "../question-response-delivery.js";
 import * as questionPatternValidation from "../question-pattern-validation.js";
 import { heartbeatService } from "../heartbeat.js";
-import { DurablePrpControlPlane } from "../../vendor/paperclip-runner/index.js";
-import { PaperclipControlPlanePort } from "./paperclip-control-plane-port.js";
+import { DurablePrpControlPlane } from "../../vendor/nexus-runner/index.js";
+import { NexusControlPlanePort } from "./nexus-control-plane-port.js";
 import { readPendingNativeRuntimeRequest } from "./runtime-request-resolution-authority.js";
 import {
   queueRunnerPrpRuntimeRequestResolution,
@@ -79,7 +79,7 @@ describeEmbeddedPostgres("native question bridge", () => {
   let runnerInstanceId: string;
 
   beforeAll(async () => {
-    temporary = await startEmbeddedPostgresTestDatabase("paperclip-native-question-");
+    temporary = await startEmbeddedPostgresTestDatabase("nexus-native-question-");
     db = createDb(temporary.connectionString);
     heartbeat = heartbeatService(db);
   }, 20_000);
@@ -135,7 +135,7 @@ describeEmbeddedPostgres("native question bridge", () => {
       id: agentId,
       companyId,
       name: "Native Codex",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       status: "running",
       adapterConfig: { provider: "codex" },
       runtimeConfig: {},
@@ -171,7 +171,7 @@ describeEmbeddedPostgres("native question bridge", () => {
 
   function runtimeRequestEvent(): PrpEvent {
     return {
-      schema: "paperclip.prp.event.v1",
+      schema: "nexus.prp.event.v1",
       sourceEventId: "runtime-question-1",
       sourceSeq: 1,
       sourceInstanceId: runnerInstanceId,
@@ -186,14 +186,14 @@ describeEmbeddedPostgres("native question bridge", () => {
       emittedAt: "2026-08-25T18:00:00.000Z",
       payload: {
         request: {
-          schema: "paperclip.runtime_request.v2",
+          schema: "nexus.runtime_request.v2",
           requestKind: "runtime",
           requestId: "request-1",
           type: "input",
           status: "pending",
           prompt: "Choose a deployment color",
           input: {
-            schema: "paperclip.question_set.v1",
+            schema: "nexus.question_set.v1",
             title: "Deployment",
             questions: [{
               id: "color",
@@ -228,7 +228,7 @@ describeEmbeddedPostgres("native question bridge", () => {
 
   function permissionRequestEvent(): PrpEvent {
     return { ...runtimeRequestEvent(), payload: { request: {
-      schema: "paperclip.runtime_request.v2", requestKind: "permission_approval",
+      schema: "nexus.runtime_request.v2", requestKind: "permission_approval",
       requestId: "permission-1", turnId: "turn-1", itemId: "item-1",
       type: "permission", status: "pending", prompt: "Allow editing src/example.ts?",
       choices: [{ key: "accept", label: "Allow once" }, { key: "decline", label: "Deny" }],
@@ -243,7 +243,7 @@ describeEmbeddedPostgres("native question bridge", () => {
     const projection = vi.fn(async (committed: PrpEvent) => {
       await projectNativeRuntimeRequest({ db, binding: binding(), event: committed });
     });
-    const port = new PaperclipControlPlanePort(db, {
+    const port = new NexusControlPlanePort(db, {
       companyId, issueId, runId, agentId, sessionId,
       completionContractId: binding().completionContractId,
       completionContractSha256: binding().completionContractSha256,
@@ -332,7 +332,7 @@ describeEmbeddedPostgres("native question bridge", () => {
       if (answered.kind !== "ask_user_questions") throw new Error("wrong question kind");
       expect(await deliverNativeQuestionResponse(db, answered)).toBe("queued");
       expect(resolve).toHaveBeenCalledWith(expect.objectContaining({ runId, requestId: "request-1", turnId: "turn-1", commandId: `question_${cards[0]!.id}`,
-        resolution: { action: "submit", response: { schema: "paperclip.question_response.v1", answers: { color: { selectedOptionIds: ["green"] } } } },
+        resolution: { action: "submit", response: { schema: "nexus.question_response.v1", answers: { color: { selectedOptionIds: ["green"] } } } },
       }));
       await db.update(heartbeatRuns).set({ status: "cancelled" }).where(eq(heartbeatRuns.id, runId));
       await expect(resolve.mock.calls[0]![0].authorizeBeforeDispatch()).rejects.toThrow("native_question_not_pending");
@@ -355,7 +355,7 @@ describeEmbeddedPostgres("native question bridge", () => {
     try {
       await flushNativeQuestionResponses(db, runId);
       expect(queueCommand).toHaveBeenCalledWith("request.resolve", expect.objectContaining({
-        response: { schema: "paperclip.question_response.v1", answers: { url: { text: "https://example.test" } } },
+        response: { schema: "nexus.question_response.v1", answers: { url: { text: "https://example.test" } } },
       }), `question_${interaction!.id}`);
       expect(busy).not.toHaveBeenCalled();
       const [delivery] = await db.select().from(issueQuestionResponseDeliveries);
@@ -388,7 +388,7 @@ describeEmbeddedPostgres("native question bridge", () => {
       payload: {
         runtimeRequestId: "request-1",
         supersedeOnUserComment: false,
-        questionSet: { schema: "paperclip.question_set.v1" },
+        questionSet: { schema: "nexus.question_set.v1" },
         questions: [{
           id: "color",
           selectionMode: "single",
@@ -423,7 +423,7 @@ describeEmbeddedPostgres("native question bridge", () => {
       {
         requestId: "request-1",
         response: {
-          schema: "paperclip.question_response.v1",
+          schema: "nexus.question_response.v1",
           answers: { color: { selectedOptionIds: ["blue"] } },
         },
       },
@@ -469,7 +469,7 @@ describeEmbeddedPostgres("native question bridge", () => {
     const initialText = "  Editable draft\n漢字\n";
     const event = runtimeRequestEvent();
     const request = event.payload.request as Record<string, unknown>;
-    request.input = { schema: "paperclip.question_set.v1", questions: [{ id: "draft", prompt: "Edit", required: true, answerMode: "text", initialText }] };
+    request.input = { schema: "nexus.question_set.v1", questions: [{ id: "draft", prompt: "Edit", required: true, answerMode: "text", initialText }] };
     const interaction = await projectNativeRuntimeRequest({ db, binding: binding(), event });
     expect(interaction).toMatchObject({ status: "pending", payload: { questionSet: { questions: [{ initialText }] } } });
     const [stored] = await db.select().from(issueThreadInteractions).where(eq(issueThreadInteractions.id, interaction!.id));
@@ -486,7 +486,7 @@ describeEmbeddedPostgres("native question bridge", () => {
       );
       await flushNativeQuestionResponses(db, runId);
       expect(queueCommand).toHaveBeenCalledExactlyOnceWith("request.resolve", {
-        requestId: "request-1", response: { schema: "paperclip.question_response.v1", answers: { draft: { text: edited } } },
+        requestId: "request-1", response: { schema: "nexus.question_response.v1", answers: { draft: { text: edited } } },
       }, `question_${interaction!.id}`);
     } finally { release(); }
   });
@@ -744,7 +744,7 @@ describeEmbeddedPostgres("native question bridge", () => {
     const answer = {
       answers: [{
         questionId: "color",
-        optionIds: ["paperclip_custom_answer"],
+        optionIds: ["nexus_custom_answer"],
         otherText: "purple",
       }],
     };
@@ -769,7 +769,7 @@ describeEmbeddedPostgres("native question bridge", () => {
       {
         requestId: "request-1",
         response: {
-          schema: "paperclip.question_response.v1",
+          schema: "nexus.question_response.v1",
           answers: { color: { selectedOptionIds: [], customText: "purple" } },
         },
       },

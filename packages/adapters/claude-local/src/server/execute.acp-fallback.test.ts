@@ -47,9 +47,9 @@ vi.mock("./acp.js", () => ({
       : { engine: "acp", explicit: false },
 }));
 
-vi.mock("@paperclipai/adapter-utils/execution-target", async () => {
-  const actual = await vi.importActual<typeof import("@paperclipai/adapter-utils/execution-target")>(
-    "@paperclipai/adapter-utils/execution-target",
+vi.mock("@nexusai/adapter-utils/execution-target", async () => {
+  const actual = await vi.importActual<typeof import("@nexusai/adapter-utils/execution-target")>(
+    "@nexusai/adapter-utils/execution-target",
   );
   return {
     ...actual,
@@ -100,9 +100,9 @@ describe("claude_local ACP startup fallback", () => {
     expect(runAdapterExecutionTargetProcess).not.toHaveBeenCalled();
   });
 
-  it("trusts the Paperclip API URL when network access is allowlisted", async () => {
-    const paperclipApiUrl = "http://127.0.0.1:4310";
-    vi.stubEnv("PAPERCLIP_API_URL", paperclipApiUrl);
+  it("trusts the Nexus API URL when network access is allowlisted", async () => {
+    const nexusApiUrl = "http://127.0.0.1:4310";
+    vi.stubEnv("NEXUS_API_URL", nexusApiUrl);
     const ctx = buildContext({ engine: "cli", networkScope: "allowlist" });
 
     await execute(ctx as never);
@@ -116,7 +116,7 @@ describe("claude_local ACP startup fallback", () => {
       expect.objectContaining({
         localProcessSandbox: expect.objectContaining({
           networkScope: "allowlist",
-          networkTrustedUrls: [paperclipApiUrl],
+          networkTrustedUrls: [nexusApiUrl],
         }),
       }),
     );

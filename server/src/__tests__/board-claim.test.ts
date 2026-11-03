@@ -11,7 +11,7 @@ import {
   instanceUserRoles,
   principalPermissionGrants,
   subscribeDatabaseWork,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   claimBoardOwnership,
   getBoardClaimWarningUrl,
@@ -23,7 +23,7 @@ import {
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_BOARD_CLAIM_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_BOARD_CLAIM_TEST_DATABASE_URL");
 const embeddedPostgresSupport = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -32,7 +32,7 @@ describeEmbeddedPostgres("board claim", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-board-claim-");
+    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("nexus-board-claim-");
     db = createDb(external ?? tempDb!.connectionString);
   }, 20_000);
 

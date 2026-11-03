@@ -2,7 +2,7 @@ import type { EndpointRow, DbTransaction, LifecycleRuntimeFence, InboundRuntimeC
 
 import { type ChatRuntime } from "../../chat-runtime.js";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   type ChatSdkRuntime,

@@ -35,7 +35,7 @@ Use Settings → Profile, `/u/:userSlug`, and the announcement well when a publi
 
 Press Cmd/Ctrl+K to open the command palette. `/` focuses the current page search or opens quick search; `?` opens shortcut help. Outside an input or modal, `c` starts New task and `g` then `i` opens Inbox/My work. In the palette, use **Search all** or Cmd/Ctrl+Enter for the full results page.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use two test users and companies; record the selected UI shell and any client-local preference storage.
 

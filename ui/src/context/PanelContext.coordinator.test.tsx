@@ -14,12 +14,12 @@ describe("Coordinator panel visibility", () => {
   afterEach(() => { flushSync(() => root.unmount()); container.remove(); });
   function render() { flushSync(() => root.render(<PanelProvider><Probe /></PanelProvider>)); }
   it("starts closed in Coordinator and restores classic visibility when switched off", () => {
-    localStorage.setItem("paperclip:panel-visible", "true"); render();
+    localStorage.setItem("nexus:panel-visible", "true"); render();
     expect(panel.panelVisible).toBe(true);
     preference.enabled = true; render(); expect(panel.panelVisible).toBe(false);
     flushSync(() => panel.setPanelVisible(true)); expect(panel.panelVisible).toBe(true);
     flushSync(() => panel.setPanelVisible(false));
-    expect(localStorage.getItem("paperclip:panel-visible")).toBe("true");
+    expect(localStorage.getItem("nexus:panel-visible")).toBe("true");
     preference.enabled = false; render(); expect(panel.panelVisible).toBe(true);
   });
   it("does not carry another person's open context pane across identity changes", () => {

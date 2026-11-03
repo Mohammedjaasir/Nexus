@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.opencode-skill-routing-link-comparison/v1",
+  "schema": "nexus.opencode-skill-routing-link-comparison/v1",
   "status": "complete",
   "candidateSha": "fe9dc1e3c518825242ed889ab9c8352986f8c2ed",
   "baselineSha": "0d7ecfa96d72fba79b7f0a25052b42c0686c0488",
@@ -14,24 +14,24 @@
   "sourceProof": {
     "identicalTrackedFiles": 8242,
     "changedTrackedPaths": [
-      "skills/paperclip/SKILL.md",
-      "skills/paperclip/references/issue-documents.md",
+      "skills/nexus/SKILL.md",
+      "skills/nexus/references/issue-documents.md",
       "tests/runner-e2e/opencode-skill-routing-comparison.json"
     ],
     "onlyProductionDifferences": [
       {
-        "path": "skills/paperclip/SKILL.md",
+        "path": "skills/nexus/SKILL.md",
         "candidateSha256": "6ca593effe18704f8014ac4e8155f7513c0701aa3c61d3cf0b96d3366c92f0e1",
         "baselineSha256": "768522e081c1ec43dee4a5794539f7b597ee3708c634d05e388c874df283cc53"
       },
       {
-        "path": "skills/paperclip/references/issue-documents.md",
+        "path": "skills/nexus/references/issue-documents.md",
         "candidateSha256": "a6141e8ba4510b683418197d58598d5a14db2641c49c869ae8aca4e2b05aca97",
         "baselineSha256": "353845a406b1b4948487c348c86eb7b8c89a55ae67afe203100eee10aee46336"
       }
     ],
     "baselineReceipt": {
-      "schema": "paperclip.opencode-skill-routing.baseline/v1",
+      "schema": "nexus.opencode-skill-routing.baseline/v1",
       "candidateSha": "fe9dc1e3c518825242ed889ab9c8352986f8c2ed",
       "priorSkillSha": "b85668c4065d66e08026218a6bd48a3d22ddd4c9",
       "expectedCellsPerVariant": 2,
@@ -45,19 +45,19 @@
       ],
       "onlyChangedProductionSources": [
         {
-          "path": "skills/paperclip/SKILL.md",
+          "path": "skills/nexus/SKILL.md",
           "candidateSha256": "6ca593effe18704f8014ac4e8155f7513c0701aa3c61d3cf0b96d3366c92f0e1",
           "baselineSha256": "768522e081c1ec43dee4a5794539f7b597ee3708c634d05e388c874df283cc53"
         },
         {
-          "path": "skills/paperclip/references/issue-documents.md",
+          "path": "skills/nexus/references/issue-documents.md",
           "candidateSha256": "a6141e8ba4510b683418197d58598d5a14db2641c49c869ae8aca4e2b05aca97",
           "baselineSha256": "353845a406b1b4948487c348c86eb7b8c89a55ae67afe203100eee10aee46336"
         }
       ]
     },
     "fixtureConfigurations": {
-      "schema": "paperclip.opencode-skill-routing.fixture-match-proof/v1",
+      "schema": "nexus.opencode-skill-routing.fixture-match-proof/v1",
       "cells": [
         {
           "executionId": "stock-harness.legacy-opencode.local.assigned-skill-explicit-invocation",
@@ -65,7 +65,7 @@
           "model": "openrouter/deepseek/deepseek-v4-flash-0731"
         },
         {
-          "executionId": "stock-harness.legacy-opencode.local.assigned-skill-paperclip-document",
+          "executionId": "stock-harness.legacy-opencode.local.assigned-skill-nexus-document",
           "fixtureConfigSha256": "4924cbbcb8768fdbff70d9f53c20835dba28626278da77fb5edcc09c1700fd5f",
           "model": "openrouter/deepseek/deepseek-v4-flash-0731"
         }
@@ -319,7 +319,7 @@
           "documentApiCall": false,
           "statusApiCall": false,
           "ordinal": 5,
-          "skill": "paperclip"
+          "skill": "nexus"
         },
         {
           "tool": "bash",
@@ -423,7 +423,7 @@
     },
     {
       "variant": "baseline",
-      "caseId": "assigned-skill-paperclip-document",
+      "caseId": "assigned-skill-nexus-document",
       "source": {
         "sha": "0d7ecfa96d72fba79b7f0a25052b42c0686c0488",
         "ref": "refs/heads/codex/opencode-pre-routing-skill",
@@ -648,7 +648,7 @@
           "documentApiCall": false,
           "statusApiCall": false,
           "ordinal": 2,
-          "skill": "paperclip"
+          "skill": "nexus"
         },
         {
           "tool": "bash",
@@ -959,7 +959,7 @@
           "documentApiCall": false,
           "statusApiCall": false,
           "ordinal": 2,
-          "skill": "paperclip"
+          "skill": "nexus"
         },
         {
           "tool": "bash",
@@ -1050,7 +1050,7 @@
     },
     {
       "variant": "candidate",
-      "caseId": "assigned-skill-paperclip-document",
+      "caseId": "assigned-skill-nexus-document",
       "source": {
         "sha": "fe9dc1e3c518825242ed889ab9c8352986f8c2ed",
         "ref": "refs/heads/codex/opencode-stock-routing-qualified",
@@ -1275,7 +1275,7 @@
           "documentApiCall": false,
           "statusApiCall": false,
           "ordinal": 2,
-          "skill": "paperclip"
+          "skill": "nexus"
         },
         {
           "tool": "read",

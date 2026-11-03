@@ -14,7 +14,7 @@ import {
   statusDecisionEffects,
   workAssessments,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { nativeSha256 } from "./canonical.js";
 import { isNativeRunnerOwnershipHeld } from "./native-runner-ownership.js";
 import { hasChatRunOwnedProviderInteraction } from "../chat-interaction-arbitration.js";
@@ -24,7 +24,7 @@ import {
   resolveExternalChatResponseWaitAuthorizationInTransaction,
 } from "./chat-attachment-reuse.js";
 
-const SCHEMA = "paperclip.chat_review_response_presentation.v1";
+const SCHEMA = "nexus.chat_review_response_presentation.v1";
 export class NativeChatReviewPresentationContentionError extends Error {
   constructor() {
     super(
@@ -43,8 +43,8 @@ function presentationContextSha256(value: unknown): string {
   // finalization. They do not change the authenticated chat actor or wake.
   // Keep every other context field in the hash, including unknown fields.
   const {
-    paperclipRuntimeServices: _services,
-    paperclipRuntimePrimaryUrl: _url,
+    nexusRuntimeServices: _services,
+    nexusRuntimePrimaryUrl: _url,
     ...scope
   } = record(value);
   return nativeSha256(scope);
@@ -147,7 +147,7 @@ async function reviewPresentationEvidence(
   const continuation = record(semantic.continuation);
   const assessed = record(assessment.assessmentJson);
   if (
-    semantic.schema !== "paperclip.run_result.v1" ||
+    semantic.schema !== "nexus.run_result.v1" ||
     semantic.reportedWorkDisposition !== "yielded" ||
     record(canonical.terminal).runTerminalState !== "succeeded" ||
     continuation.kind !== "response_wake" ||
@@ -452,9 +452,9 @@ export async function authorizeNativeChatReviewPresentation(
     if (
       error instanceof Error &&
       [
-        "paperclip_runner_chat_attachment_binding_denied",
-        "paperclip_runner_chat_attachment_destination_denied",
-        "paperclip_runner_chat_attachment_principal_denied",
+        "nexus_runner_chat_attachment_binding_denied",
+        "nexus_runner_chat_attachment_destination_denied",
+        "nexus_runner_chat_attachment_principal_denied",
       ].includes(error.message)
     )
       return false;

@@ -11,7 +11,7 @@ import {
   environmentLeases,
   environments,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -65,7 +65,7 @@ describeEmbeddedPostgres("heartbeat teardown terminalizes the run before releasi
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-terminalize-before-release-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-terminalize-before-release-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -90,7 +90,7 @@ describeEmbeddedPostgres("heartbeat teardown terminalizes the run before releasi
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });

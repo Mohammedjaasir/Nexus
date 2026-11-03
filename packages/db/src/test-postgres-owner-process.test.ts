@@ -6,12 +6,12 @@ import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 import { getEmbeddedPostgresTestSupport } from "./test-embedded-postgres.js";
 
-const configuredAdmin = process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL;
-delete process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL;
+const configuredAdmin = process.env.NEXUS_TEST_POSTGRES_ADMIN_URL;
+delete process.env.NEXUS_TEST_POSTGRES_ADMIN_URL;
 let embeddedSupported = false;
 try { embeddedSupported = process.platform !== "win32" && (await getEmbeddedPostgresTestSupport()).supported; }
 finally {
-  if (configuredAdmin !== undefined) process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL = configuredAdmin;
+  if (configuredAdmin !== undefined) process.env.NEXUS_TEST_POSTGRES_ADMIN_URL = configuredAdmin;
 }
 
 function exists(pid: number): boolean {

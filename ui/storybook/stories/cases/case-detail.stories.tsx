@@ -3,7 +3,7 @@ import { Routes, Route } from "@/lib/router";
 import { CaseDetail } from "@/pages/CaseDetail";
 import { CaseFieldsPanel, CaseFieldsTable } from "@/components/CaseFieldsPanel";
 import { IssueCasesPanel } from "@/components/IssueCasesPanel";
-import { instanceExperimentalSettingsSchema } from "@paperclipai/shared";
+import { instanceExperimentalSettingsSchema } from "@nexusai/shared";
 import { expect, within } from "storybook/test";
 import {
   caseItem,
@@ -26,7 +26,7 @@ const meta = {
     "Automation and structured work/Cases/Structure, history and task links",
   component: CaseDetailHost,
   parameters: { layout: "padded", initialEntries: ["/PAP/cases/PAP-C42"],
-    paperclip: {
+    nexus: {
       "capabilities": [
         "cases/structure",
         "cases/history",

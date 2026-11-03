@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { ToolCredentialSecretRef } from "@paperclipai/shared";
+import type { ToolCredentialSecretRef } from "@nexusai/shared";
 
 export function credentialFingerprint(refs: ToolCredentialSecretRef[]): string {
   const stable = refs.map(ref => ({ configPath: ref.configPath, secretId: ref.secretId,

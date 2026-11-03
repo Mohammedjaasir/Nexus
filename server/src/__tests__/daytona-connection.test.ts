@@ -2,13 +2,13 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { agents, companies, companyMemberships, companySecrets, connectionGrants, createDb,
-  ensurePostgresDatabase, applyPendingMigrations, heartbeatRuns, issues, toolCatalogEntries, toolConnections } from "@paperclipai/db";
+  ensurePostgresDatabase, applyPendingMigrations, heartbeatRuns, issues, toolCatalogEntries, toolConnections } from "@nexusai/db";
 import { toolAccessService } from "../services/tool-access.js";
 import { createToolGatewayService } from "../services/tool-gateway.js";
 import { DAYTONA_API_URL, DAYTONA_TOOLS, daytonaClient, executeDaytonaTool } from "../services/daytona.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const external = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const external = process.env.NEXUS_TEST_DATABASE_URL;
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const actor = { actorType: "user" as const, actorId: "daytona-reviewer" };
 const credential = "daytona-fixture-secret";
@@ -83,7 +83,7 @@ const credential = "daytona-fixture-secret";
       expect(f.connected.catalog.find(c => c.toolName === name), name).toMatchObject({ isDestructive: true, isReadOnly: false });
     }
     expect(JSON.stringify(await f.service.getConnection(f.connected.connectionId))).not.toContain(credential);
-    // The sandbox has no Paperclip environment lease or task ownership record.
+    // The sandbox has no Nexus environment lease or task ownership record.
     expect(JSON.stringify(await f.call("daytona_api_list_sandboxes", {}))).toContain(f.sandboxId);
     expect(JSON.stringify(await f.call("daytona_api_create_sandbox", { body: { name: "Created through gateway" } }))).toContain("Created through gateway");
     const result = JSON.stringify(await f.call("daytona_toolbox_execute_command", { sandboxId: f.sandboxId, body: { command: "echo done" } }));

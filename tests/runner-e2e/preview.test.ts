@@ -15,7 +15,7 @@ const missingPath = `${campaignRoot}/evidence/missing.png`;
 const screenshot = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6nAAAAABJRU5ErkJggg==", "base64");
 const files = new Map([
   ["history.json", Buffer.from(JSON.stringify({
-    schema: "paperclip.runner-e2e.history/v1", campaigns: [{ campaignId }],
+    schema: "nexus.runner-e2e.history/v1", campaigns: [{ campaignId }],
   }))],
   [`${campaignRoot}/bundle-manifest.json`, Buffer.from(JSON.stringify({
     campaignId,

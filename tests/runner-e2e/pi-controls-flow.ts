@@ -96,7 +96,7 @@ export async function runPiControlsFlow(input: {
       // decision, before grading. A marker or derived string cannot replace
       // the persisted comment selected by the Product.
       await input.evidence(`pi-steering-presentation${phase === "after-cleanup" ? "-after-cleanup" : ""}.json`, {
-        schema: "paperclip.e2e.pi-steering-presentation.v1", phase,
+        schema: "nexus.e2e.pi-steering-presentation.v1", phase,
         companyId: fixtures.company.id, issueId: state.issue.id, runId: state.run.id, ...presentation,
       });
       return readPiSteeringSettlement({ ...presentation, ...steered, finalMessage: finalMessage(presentation) });

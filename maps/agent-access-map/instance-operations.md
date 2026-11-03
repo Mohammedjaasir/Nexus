@@ -234,19 +234,19 @@ Agent access: `operator-only` — explicit host/package provisioning through the
 
 Policy: Host setup verifies public pinned assets without model calls and requires the published server package layout/identity. Import requires a trusted manifest digest, exact installed source/profile identity, Linux x64 companion inventory/pack/ELF integrity, and a private operator-owned cache. Import performs no downloads or executable probes. A Pi companion does not enable remote Cursor or qualify credentials.
 
-Evidence: `source-only` — reviewed at `9ef434fe79c57d976b8b03b14c5242db270b8320`. [Runtime CLI](../../cli/src/commands/runtime.ts), [instance-config bypass](../../cli/src/index.ts), [Pi provisioning](../../packages/paperclip-runner/scripts/provision-pi.mjs), [Cursor provisioning](../../packages/paperclip-runner/scripts/provision-cursor.mjs), and [companion importer](../../server/src/services/native-runtime/remote-pi-companion.ts).
+Evidence: `source-only` — reviewed at `9ef434fe79c57d976b8b03b14c5242db270b8320`. [Runtime CLI](../../cli/src/commands/runtime.ts), [instance-config bypass](../../cli/src/index.ts), [Pi provisioning](../../packages/nexus-runner/scripts/provision-pi.mjs), [Cursor provisioning](../../packages/nexus-runner/scripts/provision-cursor.mjs), and [companion importer](../../server/src/services/native-runtime/remote-pi-companion.ts).
 
 Verification: `not-run` — Inspect setup identity/path and repeat reuse on an owned disposable published installation. Verify a matching trusted companion import and reject altered/cross-release/linked inventory while preserving unrelated files. Check no instance credentials are loaded and no model is called. Qualify actual adapter/account task execution separately.
 
 Gaps: Source-checkout setup, different platforms, remote Cursor, provider execution, and published-package acceptance remain separate scopes. Local fixture materialization does not establish remote model readiness.
 
-Antigravity addition (2026-10-28): `paperclipai runtime setup antigravity` stages
+Antigravity addition (2026-10-28): `nexusai runtime setup antigravity` stages
 the verified official and patched two-executable closures on macOS ARM64. The
 operator-only authority above is unchanged. The native profile remains pending
 at API, driver, sidecar and Rust admission; a company grant cannot enable it.
 Google AI API-key binding is distinct from Workspace OAuth. Evidence remains
 `source-only` for agent access: [setup](../../cli/src/commands/runtime.ts),
-[provisioner](../../packages/paperclip-runner/scripts/provision-antigravity.mjs),
-and [gate regressions](../../packages/paperclip-runner/src/drivers/acpx/antigravity-models.test.ts).
+[provisioner](../../packages/nexus-runner/scripts/provision-antigravity.mjs),
+and [gate regressions](../../packages/nexus-runner/src/drivers/acpx/antigravity-models.test.ts).
 Credential-free public-layout provisioning and controlled native tests do not
 qualify a company agent task or authenticated connection/revocation.

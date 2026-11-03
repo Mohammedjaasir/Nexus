@@ -17,7 +17,7 @@ describe("API responses during a restart", () => {
     for (const read of [healthApi.get, authApi.getSession, () => api.get("/cli-auth/me")]) {
       await expect(read()).rejects.toMatchObject({
         name: "ApiUnavailableError",
-        message: "Paperclip is temporarily unavailable. Please try again in a moment.",
+        message: "Nexus is temporarily unavailable. Please try again in a moment.",
         status,
       });
     }
@@ -48,7 +48,7 @@ describe("API responses during a restart", () => {
     const payload = {
       status: "starting",
       deploymentMode: "authenticated",
-      cloud: { managed: true, managedBy: "paperclip-cloud", stackSlug: "example", cloudBaseUrl: "https://example.com" },
+      cloud: { managed: true, managedBy: "nexus-cloud", stackSlug: "example", cloudBaseUrl: "https://example.com" },
     };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(payload)));
     await expect(healthApi.get()).resolves.toEqual(payload);

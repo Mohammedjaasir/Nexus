@@ -29,7 +29,7 @@ export function inspectRunDelivery(input: { binding: RunDeliveryBinding; agentId
   const receiptMatches = run.id === binding.runId && run.companyId === binding.companyId && run.nativeIssueId === binding.issueId &&
     run.agentId === input.agentId && run.issueCommentStatus === "satisfied" && replies.length === 1 &&
     typeof replies[0]!.body === "string" && Boolean(replies[0]!.body.trim()) && run.issueCommentSatisfiedByCommentId === replies[0]!.id &&
-    presentation?.schema === "paperclip.run_presentation_decision.v1" && presentation.commentId === replies[0]!.id &&
+    presentation?.schema === "nexus.run_presentation_decision.v1" && presentation.commentId === replies[0]!.id &&
     ["create", "reuse"].includes(presentation.commentAction) &&
     ["existing_issue_comment", "final_agent_message", "semantic_result_summary", "adapter_final_response"].includes(presentation.chosenSource);
   return { finalDeliveryCount: replies.length, deliveryReceiptMatches: receiptMatches,

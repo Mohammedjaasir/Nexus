@@ -16,11 +16,11 @@ const ENTER = "\r";
 // vector: element 0 is the program and the rest are its arguments. The real
 // command is the generated duplex gateway; the tests use a placeholder, because
 // the fake PTY runs no process.
-const GATEWAY = ["node", "/paperclip/gateway.mjs"];
+const GATEWAY = ["node", "/nexus/gateway.mjs"];
 
 // The gateway argument vector after the wrapper quotes each element. The wrapper
 // quotes every argument as a single-quoted shell word.
-const GATEWAY_QUOTED = "'node' '/paperclip/gateway.mjs'";
+const GATEWAY_QUOTED = "'node' '/nexus/gateway.mjs'";
 
 /**
  * A fake Daytona PTY handle. It records each input write, drives the output
@@ -214,15 +214,15 @@ describe("buildDuplexChannelLaunchWrapper", () => {
 
   it("quotes each command argument that holds shell metacharacters", () => {
     const wrapper = buildDuplexChannelLaunchWrapper(
-      ["node", "/paperclip/gateway.mjs", "; rm -rf ~"],
+      ["node", "/nexus/gateway.mjs", "; rm -rf ~"],
       "/tmp/diag.log",
     );
 
     // Each argument is one single-quoted word, so the metacharacters stay literal
     // text. The dangerous `rm` argument never becomes its own command.
-    expect(wrapper).toContain(`exec 'node' '/paperclip/gateway.mjs' '; rm -rf ~'`);
+    expect(wrapper).toContain(`exec 'node' '/nexus/gateway.mjs' '; rm -rf ~'`);
     expect(wrapper).not.toContain("; rm -rf ~;");
-    expect(wrapper).not.toContain("exec node /paperclip/gateway.mjs ; rm -rf ~");
+    expect(wrapper).not.toContain("exec node /nexus/gateway.mjs ; rm -rf ~");
   });
 
   it("rejects an empty command argument vector", () => {
@@ -251,10 +251,10 @@ describe("openDaytonaDuplexChannelSession", () => {
     const process = createFakeProcess();
 
     await openDaytonaDuplexChannelSession(process, GATEWAY, {
-      diagnosticsPath: "/tmp/paperclip-duplex-fixed.log",
+      diagnosticsPath: "/tmp/nexus-duplex-fixed.log",
     });
 
-    expect(process.handle?.inputs[0]).toContain("2>'/tmp/paperclip-duplex-fixed.log'");
+    expect(process.handle?.inputs[0]).toContain("2>'/tmp/nexus-duplex-fixed.log'");
   });
 
   it("defaults the diagnostics path under /tmp when the caller gives none", async () => {
@@ -262,7 +262,7 @@ describe("openDaytonaDuplexChannelSession", () => {
 
     await openDaytonaDuplexChannelSession(process, GATEWAY);
 
-    expect(process.handle?.inputs[0]).toMatch(/2>'\/tmp\/paperclip-duplex-[0-9a-f-]+\.log'/);
+    expect(process.handle?.inputs[0]).toMatch(/2>'\/tmp\/nexus-duplex-[0-9a-f-]+\.log'/);
   });
 
   it("delivers a host write to the process and does not echo it back as data", async () => {
@@ -498,9 +498,9 @@ describe("openDaytonaDuplexChannelSession", () => {
   it("passes the working directory to the pseudo-terminal", async () => {
     const process = createFakeProcess();
 
-    await openDaytonaDuplexChannelSession(process, GATEWAY, { cwd: "/paperclip-workspace" });
+    await openDaytonaDuplexChannelSession(process, GATEWAY, { cwd: "/nexus-workspace" });
 
-    expect(process.createOptions?.cwd).toBe("/paperclip-workspace");
+    expect(process.createOptions?.cwd).toBe("/nexus-workspace");
   });
 
   it("ends the channel with the typed write_error and no raw text when a write rejects", async () => {
@@ -635,11 +635,11 @@ describe("openDaytonaDuplexChannelSession", () => {
 describe("createDaytonaDuplexChannelSessionOpener", () => {
   it("opens a session for the command on each call", async () => {
     const process = createFakeProcess();
-    const opener = createDaytonaDuplexChannelSessionOpener(process, { cwd: "/paperclip-workspace" });
+    const opener = createDaytonaDuplexChannelSessionOpener(process, { cwd: "/nexus-workspace" });
 
     const session = await opener(GATEWAY);
 
-    expect(process.createOptions?.cwd).toBe("/paperclip-workspace");
+    expect(process.createOptions?.cwd).toBe("/nexus-workspace");
     expect(process.handle?.inputs[0]).toContain(`exec ${GATEWAY_QUOTED}`);
     expect(typeof session.onData).toBe("function");
     expect(typeof session.write).toBe("function");

@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { ChatExecutionDefaults as Defaults, TaskWorkspaceSelection } from "@paperclipai/shared";
+import type { ChatExecutionDefaults as Defaults, TaskWorkspaceSelection } from "@nexusai/shared";
 import { projectsApi } from "@/api/projects";
 import { executionWorkspacesApi } from "@/api/execution-workspaces";
 import { Button } from "@/components/ui/button";

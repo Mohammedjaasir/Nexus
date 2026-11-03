@@ -24,11 +24,11 @@
       "defaults": {
         "serverUrl": "https://api.githubcopilot.com/mcp/"
       },
-      "guidanceMd": "Authorize Paperclip, then choose selected repositories in GitHub. You can edit repository access later from GitHub's installation settings.",
+      "guidanceMd": "Authorize Nexus, then choose selected repositories in GitHub. You can edit repository access later from GitHub's installation settings.",
       "riskTier": "S3",
       "label": "Connect GitHub",
       "purpose": "tool",
-      "oauthStrategy": "paperclip_cloud_connector",
+      "oauthStrategy": "nexus_cloud_connector",
       "connectorProfile": "github.code",
       "grantKinds": [
         "user",
@@ -65,7 +65,7 @@
           "required": true,
           "placeholder": "github_pat_...",
           "secret": true,
-          "helperMd": "Repository contents, issues, pull requests and other granted toolsets; selected repos and installation/PAT permissions apply. Create a key with read and write permissions for these actions; Paperclip cannot increase an existing key\u2019s permissions."
+          "helperMd": "Repository contents, issues, pull requests and other granted toolsets; selected repos and installation/PAT permissions apply. Create a key with read and write permissions for these actions; Nexus cannot increase an existing key\u2019s permissions."
         }
       ],
       "keyPlacement": {

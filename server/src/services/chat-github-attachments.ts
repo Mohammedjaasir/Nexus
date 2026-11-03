@@ -284,7 +284,7 @@ export function rehydrateGitHubPublicAttachment(
   return attachment;
 }
 
-/** Parse references only; network I/O happens later, after Paperclip's admission fence. */
+/** Parse references only; network I/O happens later, after Nexus's admission fence. */
 export function githubPublicAttachmentsFromMessage(
   message: Message,
 ): Attachment[] {
@@ -746,7 +746,7 @@ export async function prepareGitHubPublicAttachment(
           redirect: "manual",
           credentials: "omit",
           signal,
-          headers: { accept: "*/*", "user-agent": "Paperclip/ChatAttachments" },
+          headers: { accept: "*/*", "user-agent": "Nexus/ChatAttachments" },
         },
         {
           allowPrivateNetwork: false,

@@ -8,7 +8,7 @@ const meta = {
   title: "Automation and structured work/Cases/Browse",
   component: Cases,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "cases/browse"
       ],
@@ -19,7 +19,7 @@ const meta = {
     },
   },
   beforeEach: ({ parameters }) => {
-    const key = "paperclip:cases:company-storybook:view";
+    const key = "nexus:cases:company-storybook:view";
     const previous = localStorage.getItem(key);
     localStorage.removeItem(key);
     const cleanup = installCaseFixtures(

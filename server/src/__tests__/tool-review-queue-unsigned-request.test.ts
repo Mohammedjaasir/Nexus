@@ -17,7 +17,7 @@ import {
   toolCatalogEntries,
   toolConnections,
   toolInvocations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { toolAccessService } from "../services/tool-access.js";
 import { createToolGatewayService } from "../services/tool-gateway.js";
 import { canonicalToolArguments, signToolArguments } from "../services/tool-content-guards.js";
@@ -35,7 +35,7 @@ describeEmbeddedPostgres("tool review queue vs unsigned ask-first request", () =
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-review-queue-unsigned-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-review-queue-unsigned-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -44,7 +44,7 @@ describeEmbeddedPostgres("tool review queue vs unsigned ask-first request", () =
   });
 
   it("hides an unsigned pending request from the queue, keeps it pending, and lets approve succeed once it is signed", async () => {
-    vi.stubEnv("PAPERCLIP_TOOL_ACTION_SIGNING_SECRET", signingSecret);
+    vi.stubEnv("NEXUS_TOOL_ACTION_SIGNING_SECRET", signingSecret);
     const [company] = await db.insert(companies).values({
       name: `Review Queue ${randomUUID()}`,
       issuePrefix: `RQ${randomUUID().slice(0, 6).toUpperCase()}`,

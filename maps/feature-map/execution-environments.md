@@ -34,7 +34,7 @@ or instance administrator.
 
 Choose the environment in agent/project/workspace configuration, then inspect the resulting task/run and workspace.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use an owned disposable target and a supported provider plugin. Record provider, target identity, account, and spending constraints before a live remote run.
 
@@ -52,7 +52,7 @@ the live lease and cleanup is confirmed. Inspect `platformQualificationRecorded`
 and its diagnostic in the probe result: connection success alone does not mean
 the image has native runtime qualification.
 
-Paperclip-managed Cloud images use the current platform-selected image without
+Nexus-managed Cloud images use the current platform-selected image without
 a saved qualification prerequisite. A missing, stale or revoked qualification
 does not block execution or pin an older snapshot. Runtime startup and the
 handshake detect real incompatibility. This exception excludes custom
@@ -71,7 +71,7 @@ account, image or active captured template invalidates
 the record; normal metadata edits cannot forge or overwrite it, and API reads
 omit the private metadata. Reading this evidence for discovery or creation does
 not allocate a sandbox. The draft `probe-config` checks are not a saved-image
-qualification operation. See the [runtime contract](../../packages/paperclip-runner/README.md)
+qualification operation. See the [runtime contract](../../packages/nexus-runner/README.md)
 and [adapter validation recipe](./runs-adapters.md#adapter-setup) for native
 binary/provider readiness after platform qualification.
 
@@ -82,7 +82,7 @@ qualification remains absent. Assert ordinary agent and non-admin board probe
 requests are denied, and environment create/PATCH payloads cannot supply
 qualification metadata.
 For a managed Cloud image, replace the platform-selected snapshot while an old
-qualification remains. Discovery must still offer Paperclip Runner, and Test
+qualification remains. Discovery must still offer Nexus Runner, and Test
 must check the runtime directly. Verify execution selects the replacement image
 and still reports a real provider startup failure. Keep a custom-image control
 that requires its existing qualification.
@@ -95,7 +95,7 @@ execution. Remote-driver probes and a real bounded run need their own evidence.
 
 ### `remote-execution`
 
-For `paperclip_runner`, a saved plugin environment can provide per-turn Runner
+For `nexus_runner`, a saved plugin environment can provide per-turn Runner
 execution when its manifest and worker expose the Runner task API. The task
 contract starts a provider-owned Runner without shell or workspace hooks. Core
 resolves the saved lease, connects through PRP, and verifies stop before lease

@@ -4,7 +4,7 @@ import { expect, userEvent, within } from "storybook/test";
 import {
   storybookIssues,
   storybookIssueDocuments,
-} from "../../fixtures/paperclipData";
+} from "../../fixtures/nexusData";
 import {
   prepareFixtureApi,
   type FixtureState,
@@ -23,7 +23,7 @@ const meta = {
           "Production document section. Loading and read errors currently yield the section's empty rendering; these examples expose that limitation. Revision authority and persisted concurrency require API tests.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "documents-artifacts/documents"
       ],

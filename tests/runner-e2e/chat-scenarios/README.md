@@ -1,7 +1,7 @@
 # Chat feature scenarios
 
 This is the planning catalog for what happens when a person asks an agent to use
-Paperclip. It belongs to [Product E2E](../README.md), alongside the existing chat
+Nexus. It belongs to [Product E2E](../README.md), alongside the existing chat
 and Everyday Workflows suites. These files contain human requests, assumed context
 and loosely specified outcomes. Entries alone do not run models, register tests,
 or contribute passing results to a report. Two task entries now have explicit

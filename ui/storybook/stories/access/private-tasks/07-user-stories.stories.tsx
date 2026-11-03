@@ -25,7 +25,7 @@ const meta = {
   title: "Getting started and access/Login, invitations, and access/Private tasks/07 User stories",
   decorators: [privacyDecorator],
   parameters: { ...privacyParameters, waitForViewport: true,
-    paperclip: {
+    nexus: {
       "capabilities": [
         "access/resources",
         "tasks/properties"

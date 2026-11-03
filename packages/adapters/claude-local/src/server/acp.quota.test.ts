@@ -5,15 +5,15 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { afterEach, expect, it, vi } from "vitest";
 import { classifyClaudeTerminalSessionFailure, createClaudeAcpExecutor } from "./acp.js";
-import type { AcpxEngineExecutorOptions } from "@paperclipai/adapter-utils/acpx-engine/execute";
-import { parseAcpxStdoutLine } from "@paperclipai/adapter-utils/acpx-engine/ui";
+import type { AcpxEngineExecutorOptions } from "@nexusai/adapter-utils/acpx-engine/execute";
+import { parseAcpxStdoutLine } from "@nexusai/adapter-utils/acpx-engine/ui";
 
 const repoRoot = fileURLToPath(new URL("../../../../..", import.meta.url));
 const fixture = path.join(repoRoot, "scripts/mcp-fixtures/servers/acp-echo-agent.mjs");
 const roots: string[] = [];
 const now = new Date("2026-07-15T20:00:00.000Z");
 // Exercise both pinned dependency patches through the same real ACP child.
-const runnerRequire = createRequire(path.join(repoRoot, "packages/paperclip-runner/package.json"));
+const runnerRequire = createRequire(path.join(repoRoot, "packages/nexus-runner/package.json"));
 const runnerAcpx = await import(runnerRequire.resolve("acpx/runtime"));
 
 afterEach(async () => {
@@ -29,7 +29,7 @@ async function executeFailure(
   extraEnv: Record<string, string> = {},
   details?: string,
 ) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-claude-acp-quota-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-claude-acp-quota-"));
   roots.push(root);
   const failureFile = path.join(root, "failure.json");
   await fs.writeFile(failureFile, JSON.stringify({ title, category, details }));
@@ -47,7 +47,7 @@ async function executeFailure(
       stateDir: path.join(root, "state"),
       env: {
         ...extraEnv,
-        PAPERCLIP_ACPX_TYPED_FAILURE_FILE: failureFile,
+        NEXUS_ACPX_TYPED_FAILURE_FILE: failureFile,
       },
     },
     context: {},

@@ -26,7 +26,7 @@ import "./index.css";
 
 const COMPANY = { id: "company-preview", name: "Initech", issuePrefix: "INI" };
 const SESSION_ID = "preview-session";
-const AUTH_URL = "https://claude.ai/oauth/authorize?code=true&client=paperclip";
+const AUTH_URL = "https://claude.ai/oauth/authorize?code=true&client=nexus";
 const OPENAI_URL = "https://auth.openai.com/codex/device";
 
 /** How long the fake server takes to produce a prompt. */

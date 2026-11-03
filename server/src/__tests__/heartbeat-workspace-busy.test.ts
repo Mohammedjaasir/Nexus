@@ -28,7 +28,7 @@ import {
   issues,
   projects,
   projectWorkspaces,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -59,14 +59,14 @@ vi.mock("../sentry.js", async (importOriginal) => ({
 }));
 
 // Exercise the real SSH lease and heartbeat paths without connecting to a host.
-vi.mock("@paperclipai/adapter-utils/ssh", async (importOriginal) => ({
-  ...await importOriginal<typeof import("@paperclipai/adapter-utils/ssh")>(),
+vi.mock("@nexusai/adapter-utils/ssh", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@nexusai/adapter-utils/ssh")>(),
   ensureSshWorkspaceReady: async (config: { remoteWorkspacePath: string }) => ({
     remoteCwd: config.remoteWorkspacePath,
   }),
 }));
 
-const externalTestDatabaseUrl = process.env.PAPERCLIP_TEST_DATABASE_URL?.trim();
+const externalTestDatabaseUrl = process.env.NEXUS_TEST_DATABASE_URL?.trim();
 const embeddedPostgresSupport = externalTestDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 const WORKSPACE_BUSY_TEST_ADAPTER = "workspace_busy_test";
@@ -108,11 +108,11 @@ describeEmbeddedPostgres("shared-workspace run serialization", () => {
   beforeAll(async () => {
     if (externalTestDatabaseUrl) db = createDb(externalTestDatabaseUrl);
     else {
-      tempDb = await startEmbeddedPostgresTestDatabase("paperclip-heartbeat-workspace-busy-");
+      tempDb = await startEmbeddedPostgresTestDatabase("nexus-heartbeat-workspace-busy-");
       db = createDb(tempDb.connectionString);
     }
     heartbeat = heartbeatService(db);
-    workspaceCwd = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-busy-"));
+    workspaceCwd = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-workspace-busy-"));
     registerServerAdapter({
       type: WORKSPACE_BUSY_TEST_ADAPTER,
       execute: async (input) => {
@@ -286,7 +286,7 @@ describeEmbeddedPostgres("shared-workspace run serialization", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix,
       requireBoardApprovalForNewAgents: false,
       defaultResponsibleUserId: "responsible-user",
@@ -472,10 +472,10 @@ describeEmbeddedPostgres("shared-workspace run serialization", () => {
     const finishedRun = await waitForRunToLeaveActiveStates(run!.id);
     expect(finishedRun?.status).toBe("succeeded");
     expect(executedRunIds).toContain(run!.id);
-    expect(executedInputs.get(run!.id)?.context.paperclipTaskMarkdown).toContain(
+    expect(executedInputs.get(run!.id)?.context.nexusTaskMarkdown).toContain(
       `shared workspace is concurrently held by run ${fixture.holderRunId}`,
     );
-    expect(executedInputs.get(run!.id)?.context.paperclipTaskMarkdown).toContain(
+    expect(executedInputs.get(run!.id)?.context.nexusTaskMarkdown).toContain(
       "expect concurrent mutations, coordinate via commits",
     );
   });
@@ -530,7 +530,7 @@ describeEmbeddedPostgres("shared-workspace run serialization", () => {
 
   it.each(["any", "invalid"])("refuses local fallback when Kubernetes is required but bootstrap mode is %s", async (mode) => {
     const fixture = await seedWorkspaceFixture({ agentEnvironmentDriver: "local" });
-    vi.stubEnv("PAPERCLIP_EXECUTION_MODE", mode);
+    vi.stubEnv("NEXUS_EXECUTION_MODE", mode);
     await instanceSettingsService(db).updateGeneral({ executionMode: "kubernetes" });
 
     const run = await heartbeat.invoke(fixture.agentId, "assignment", { issueId: fixture.issueId }, "system");
@@ -547,12 +547,12 @@ describeEmbeddedPostgres("shared-workspace run serialization", () => {
 
   it("lazily provisions the required Kubernetes environment before applying workspace contention", async () => {
     const fixture = await seedWorkspaceFixture({ agentEnvironmentDriver: "local" });
-    for (const key of Object.keys(process.env).filter(key => key.startsWith("PAPERCLIP_K8S_"))) {
+    for (const key of Object.keys(process.env).filter(key => key.startsWith("NEXUS_K8S_"))) {
       vi.stubEnv(key, undefined);
     }
-    vi.stubEnv("PAPERCLIP_EXECUTION_MODE", "kubernetes");
-    vi.stubEnv("PAPERCLIP_K8S_IN_CLUSTER", "true");
-    vi.stubEnv("PAPERCLIP_K8S_BACKEND", "job");
+    vi.stubEnv("NEXUS_EXECUTION_MODE", "kubernetes");
+    vi.stubEnv("NEXUS_K8S_IN_CLUSTER", "true");
+    vi.stubEnv("NEXUS_K8S_BACKEND", "job");
     await instanceSettingsService(db).updateGeneral({ executionMode: "kubernetes" });
 
     const run = await heartbeat.invoke(fixture.agentId, "assignment", { issueId: fixture.issueId }, "system");
@@ -576,7 +576,7 @@ describeEmbeddedPostgres("shared-workspace run serialization", () => {
     if (state === "archived") {
       await db.insert(environments).values({
         name: "Unavailable managed sandbox", driver: "sandbox", status: "archived",
-        config: { provider: "fake" }, metadata: { managedByPaperclip: true },
+        config: { provider: "fake" }, metadata: { managedByNexus: true },
       });
     }
     await instanceSettingsService(db).updateExperimental({ enableManagedSandboxOnly: true });
@@ -597,7 +597,7 @@ describeEmbeddedPostgres("shared-workspace run serialization", () => {
     const fixture = await seedWorkspaceFixture({ agentEnvironmentDriver: "local" });
     await db.insert(environments).values({
       name: "Managed sandbox", driver: "sandbox", status: "active",
-      config: { provider: "fake" }, metadata: { managedByPaperclip: true },
+      config: { provider: "fake" }, metadata: { managedByNexus: true },
     });
     await instanceSettingsService(db).updateExperimental({ enableManagedSandboxOnly: true });
 
@@ -638,7 +638,7 @@ describeEmbeddedPostgres("shared-workspace run serialization", () => {
     expect(finishedRun?.status).toBe("succeeded");
     expect(finishedRun?.errorCode).not.toBe(WORKSPACE_BUSY_ERROR_CODE);
     expect(executedRunIds).toContain(run!.id);
-    expect(executedInputs.get(run!.id)?.context.paperclipTaskMarkdown).toContain(
+    expect(executedInputs.get(run!.id)?.context.nexusTaskMarkdown).toContain(
       `shared workspace is concurrently held by run ${fixture.holderRunId}`,
     );
     expect((await heartbeat.getRun(fixture.holderRunId))?.status).toBe("running");
@@ -743,7 +743,7 @@ describeEmbeddedPostgres("shared-workspace run serialization", () => {
 
       expect((await waitForRunToLeaveActiveStates(retryRun!.id))?.status).toBe("succeeded");
       expect(executedRunIds).toContain(retryRun!.id);
-      expect(executedInputs.get(retryRun!.id)?.context.paperclipWorkspace).toMatchObject({
+      expect(executedInputs.get(retryRun!.id)?.context.nexusWorkspace).toMatchObject({
         cwd: workspaceCwd,
         mode: "shared_workspace",
       });

@@ -212,7 +212,7 @@ and unmetered host runtime prevent any claim about actual cost savings.
 The candidate Claude hire created Morgan and a child task, then ended with a
 waiting message without recording dependencies or using a terminal tool. The
 lead failed with `native_finalization_missing`. The corrected v7 prompt keeps
-explicit `set_dependencies` and `paperclip_block` discovery. This is a concrete
+explicit `set_dependencies` and `nexus_block` discovery. This is a concrete
 missing behavior; a single trial does not establish causation.
 
 The candidate Codex delegate failed in Riley's worker turn with the provider

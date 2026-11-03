@@ -4,16 +4,16 @@ The release scope is Cursor CLI `2026.09.26-dd393fe` on macOS ARM64, macOS x64,
 and Linux x64 (including Daytona). Qualification uses the explicitly selected
 `gpt-5.6-luna[context=272k,reasoning=medium,fast=false]`. Native AskQuestion and
 authoritative per-run USD accounting are excluded from certification. Semantic
-Paperclip questions remain the supported question path. Unknown usage is unknown.
+Nexus questions remain the supported question path. Unknown usage is unknown.
 
-The proposed release supports authenticated Paperclip tools, semantic questions,
+The proposed release supports authenticated Nexus tools, semantic questions,
 native plan decisions, permission control, rich activity, file delivery, durable
 responses, cancellation and warm continuation. The matrix below records the
 completed local and fresh Daytona proof for those capabilities.
 Accepted planning succeeds while the task waits for explicit user direction.
 Acceptance does not start implementation.
 
-Install with `paperclipai runtime setup cursor`. Configure company secret bindings
+Install with `nexusai runtime setup cursor`. Configure company secret bindings
 for `CURSOR_API_KEY` or `CURSOR_AUTH_TOKEN` and select the model explicitly.
 Agent is the default mode; Plan and Ask are explicit alternatives. Missing assets,
 credentials, model availability and entitlement are diagnosed without substituting
@@ -30,7 +30,7 @@ defensively but is not advertised or certified. See the
 The PR audit found duplicated release tuples in Rust descriptor validation,
 duplicated model rules in Rust session validation, and independent pins in the
 TypeScript profile registry, provider-pack builder, server pack verifier, and
-Cursor installation code. `packages/paperclip-runner/acpx-profiles.json` now owns
+Cursor installation code. `packages/nexus-runner/acpx-profiles.json` now owns
 the release/profile declarations; generated TypeScript and named Rust structs
 share them. Following review, all ACPX harnesses now accept any explicit model ID;
 the native provider must acknowledge that exact selection before prompting.
@@ -70,7 +70,7 @@ or `packages` relative to the frozen application. Historical results below retai
 their original source and artifact identities.
 
 The tested public version is `0.0.0-cursor-verify.3d0c9b7761c6`. Cursor CLI
-`2026.09.26-dd393fe`, profile v11, patch `paperclip-cursor-usage-v4`, and explicit
+`2026.09.26-dd393fe`, profile v11, patch `nexus-cursor-usage-v4`, and explicit
 model `gpt-5.6-luna[context=272k,reasoning=medium,fast=false]` stayed fixed.
 The native distribution/profile digest is
 `sha256:2feb50c7b0a317dff454c00115a5bbe4d5c757189691586577be9c80234d477e`.
@@ -83,7 +83,7 @@ The tracked lockfile was not changed.
 | macOS ARM64 daemon | `816c6603b4ef05ab29cc22a8b6cae9989469a8233bdedc3c97aae22a0c1c6abc` |
 | macOS x64 daemon | `372524b322f1200f1708288d0497195477ecf984e21dd32f3ddc2f2038465199` |
 | Linux x64 daemon | `d5a22554c922087f122ceeb0e7527529221c41af171b37315469c838dede0288` |
-| Public `paperclipai` tarball | `14a96c7de0c20cde231782f54ce0df76c1d6a81512f0c5b38a08ec8e8786631a` |
+| Public `nexusai` tarball | `14a96c7de0c20cde231782f54ce0df76c1d6a81512f0c5b38a08ec8e8786631a` |
 | Public server tarball | `6e66d37c3ee4d61b66bbc5f2515550a246d8afc8a10b5425c064f5ec3f661d66` |
 | Public Daytona plugin tarball | `a6cf4e9070503757be0505d6a1a8df219dca493f801831b3cc1ca83a185d07db` |
 
@@ -97,7 +97,7 @@ publish an npm release or deploy production.
 
 Clean public-package installation passed on macOS ARM64, macOS x64 through
 Rosetta, and Linux x64. Normal npm lifecycle scripts ran; Cursor remained absent
-until explicit `paperclipai runtime setup cursor`. Setup verified the pinned
+until explicit `nexusai runtime setup cursor`. Setup verified the pinned
 closure, and normal resolution launched each platform's packaged daemon without
 candidate or asset overrides. The x64 Mac proof covers installation and daemon
 startup under Rosetta, not a separate native Intel live campaign. The public
@@ -282,7 +282,7 @@ and finished the task through authenticated tools. The task and run reached
 `done` and `succeeded`. Independent download matched the workspace bytes and
 SHA-256 `0db0ddc7bcd33aed5fe7e74b2551f1c13403d3a6175239f544cab9a45ad0891e`.
 The page rendered in the browser and incremented from 0 to 1 to 2 without console
-errors. Native approval requests were approved through Paperclip. The reviewer
+errors. Native approval requests were approved through Nexus. The reviewer
 did not create or edit the page. This trial uses the previously qualified public
 package; it is additional live proof, not a new certification identity.
 
@@ -295,7 +295,7 @@ remain gated. Production merge and deployment are separate actions; the PR must
 have green final-head checks before merge.
 
 The frozen native runtime is `d0b90756e3abe9e7516caded784036f01e76ad25`. Cursor
-profile v11, patch `paperclip-cursor-usage-v4`, CLI and exact Luna model remain
+profile v11, patch `nexus-cursor-usage-v4`, CLI and exact Luna model remain
 fixed. The native command digest is
 `sha256:2feb50c7b0a317dff454c00115a5bbe4d5c757189691586577be9c80234d477e`;
 the ACPX patch SHA-256 is `bd5393058a218040d217fa85449d59a6f30507de54cd645bf0ef21422823f85e`.
@@ -379,7 +379,7 @@ installed configuration probe also passed without credentials.
 | `cursor-v11-268497-installed-local-file-edit-validate-01` | `b9a0180c1a96cf0fd0448cc69d6f47a5de8d258e` | 8/8 matchers, cleanup pass | `26cdd34a8b7c3dc19f0afd3cf94c22e1700bad217d2af92877aeb10dbe1f58bc` |
 | `cursor-v11-268497-installed-daytona-hello-complete-02` | `327f6df095d38f0e2213cb4572376e01d4629946` | 6/6 matchers, cleanup pass | `7f2f23d1c5dec8e030866781cc09e06990d5149758c0d467df49e63366b29dd1` |
 
-These launch the actual installed `paperclipai/dist/index.js` from its consumer
+These launch the actual installed `nexusai/dist/index.js` from its consumer
 root. The server removes qualification admission, native binary paths, provider
 pack overrides, repository executables and TypeScript loader injection. Credentials
 use company secret bindings. The Daytona plugin is a compiled public npm package
@@ -554,7 +554,7 @@ catalog fingerprints; the verification commit is an additional harness identity.
 
 Cursor profile v11 binds command digest
 `sha256:2feb50c7b0a317dff454c00115a5bbe4d5c757189691586577be9c80234d477e`.
-The native patch remains `paperclip-cursor-usage-v4`.
+The native patch remains `nexus-cursor-usage-v4`.
 The ordinary macOS ARM64 pack digest is
 `sha256:7443adb3ab1d2fbd7081532923bcc6eaf8d9f511aff22fac6836c647ac6a3c8e`.
 Both macOS targets were built with official standalone Node 24.21.0; the x64
@@ -633,7 +633,7 @@ The `cursor-v11-ae24f0-local-native-write-deny-reconnect-01` attempt delivered
 the exact Reject once, observed no target mutation, and retired the owned process
 tree. Its original result remains failed: the fixture incorrectly required a
 failed native tool and a subsequent Stop. Cursor reported transport completion
-and ended the turn; Paperclip correctly failed missing semantic finalization and
+and ended the turn; Nexus correctly failed missing semantic finalization and
 kept the task unfinished. The repaired oracle preserves exact request/tool/turn/
 command identity, delivered rejection, all six independent samples, a complete
 continuous watcher, and actual process retirement. It additionally requires the
@@ -745,7 +745,7 @@ Public release packaging now selects the daemon beside its own compiled module,
 including the server's vendored layout, and verifies its actual executable
 architecture. Release assembly requires one source revision and all three
 independently built daemons. Run
-`pnpm --filter @paperclipai/paperclip-runner stage:release-binaries /path/to/manifest.json`
+`pnpm --filter @nexusai/nexus-runner stage:release-binaries /path/to/manifest.json`
 with a JSON manifest containing `sourceRevision` and `platforms`, whose exact
 keys are `darwin-arm64`, `darwin-x64`, and `linux-x64`; each entry contains an
 absolute artifact `path` and `sha256:<64 hex digits>` digest. Assembly verifies
@@ -887,7 +887,7 @@ artifacts still require matching source and qualification.
 ## Model selection and activity adapters (2026-10-06)
 
 The bundled ACPX dependency still checked model discovery catalogs after the
-Paperclip allowlists were removed. The package now forwards an explicit model ID
+Nexus allowlists were removed. The package now forwards an explicit model ID
 unchanged, including IDs absent from the catalog. It does not expand Cursor IDs
 into advertised variants. A native selection response must acknowledge the exact
 ID. New connections recheck the selected model after session load; rejection,
@@ -921,7 +921,7 @@ with two release-path findings. Explicit setup now installs the pinned runtime
 under the OS account's cache, independently of npm package ownership. Setup and
 execution resolve the same closure-keyed path even when the provider has an
 isolated HOME. Image-owned assets remain authoritative. Setup must run as the
-Paperclip service account; it does not make root-owned private assets public.
+Nexus service account; it does not make root-owned private assets public.
 
 Release assembly requires the Linux image manifest and verifies its canonical
 payload digest, source revision, ACPX profiles and Cursor version/profile/closure

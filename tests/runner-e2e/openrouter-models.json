@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.runner-e2e.openrouter-ranking/v1",
+  "schema": "nexus.runner-e2e.openrouter-ranking/v1",
   "snapshotId": "top-weekly-tools-2026-08-28",
   "ranking": "top-weekly",
   "requiredParameter": "tools",

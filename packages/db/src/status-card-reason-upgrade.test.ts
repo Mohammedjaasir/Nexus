@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { applyPendingMigrations, inspectMigrations } from "./client.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./test-embedded-postgres.js";
 
-const adminUrl = process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL;
+const adminUrl = process.env.NEXUS_TEST_POSTGRES_ADMIN_URL;
 const support = adminUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const journal = JSON.parse(await readFile(new URL("./migrations/meta/_journal.json", import.meta.url), "utf8")) as {
   entries: Array<{ idx: number; tag: string }>;

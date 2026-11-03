@@ -2,10 +2,10 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { open } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
-import { runSetupTokenLogin } from "@paperclipai/adapter-claude-local/server";
-import { runDeviceLogin } from "@paperclipai/adapter-codex-local/server";
-import { ensureCommandResolvable, resolveCommandForLogs } from "@paperclipai/adapter-utils/server-utils";
-import { resolveCodexCommand, startAntigravityBrowserLogin } from "../vendor/paperclip-runner/index.js";
+import { runSetupTokenLogin } from "@nexusai/adapter-claude-local/server";
+import { runDeviceLogin } from "@nexusai/adapter-codex-local/server";
+import { ensureCommandResolvable, resolveCommandForLogs } from "@nexusai/adapter-utils/server-utils";
+import { resolveCodexCommand, startAntigravityBrowserLogin } from "../vendor/nexus-runner/index.js";
 
 export type LocalBrowserLoginState = {
   authorizationUrl?: string;
@@ -68,8 +68,8 @@ export function startLocalBrowserLogin(provider: "anthropic" | "openai" | "googl
           }
         } catch {
           state.error = legacyPlatform
-            ? "Codex browser sign-in requires the Codex CLI on this platform. Install Codex on this execution host and ensure codex is on Paperclip's PATH, then start sign-in again."
-            : "Codex browser sign-in requires an installed Codex CLI. Install Codex on this execution host or restore Paperclip's runtime dependencies, then start sign-in again.";
+            ? "Codex browser sign-in requires the Codex CLI on this platform. Install Codex on this execution host and ensure codex is on Nexus's PATH, then start sign-in again."
+            : "Codex browser sign-in requires an installed Codex CLI. Install Codex on this execution host or restore Nexus's runtime dependencies, then start sign-in again.";
           throw new Error("Browser login runtime unavailable");
         }
       }

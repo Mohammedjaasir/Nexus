@@ -5,11 +5,11 @@ from lifecycle decisions. The original baseline changes no production policy. As
 intended behavior; observed failures are retained rather than blessed as expected
 outcomes. Subsequent fixes and fresh measurements are recorded separately.
 
-## Recorded results moved to paperclip-evals
+## Recorded results moved to nexus-evals
 
 The 16 saved result JSON files and seven dated measurement reports now live in
 [the lifecycle authority archive](https://github.com/paperclipai/paperclip-evals/blob/ce3e5afcd4a1184650f586a2b5b8be5874c66c8b/experiments/2026-09-lifecycle-authority/README.md)
-in the private `paperclip-evals` repository. Links below pin the archive commit.
+in the private `nexus-evals` repository. Links below pin the archive commit.
 The [migration manifest](https://github.com/paperclipai/paperclip-evals/blob/ce3e5afcd4a1184650f586a2b5b8be5874c66c8b/experiments/2026-09-lifecycle-authority/manifest.json)
 records original paths and checksums. JSON measurements are unchanged, including
 failed and partial attempts; report edits only repair links to application files.
@@ -17,7 +17,7 @@ failed and partial attempts; report edits only repair links to application files
 Executable tests, fixtures, graders, run commands, and the scenario inventory
 remain here. These tests do not require the archive or access to the private
 repository. New runs still write ignored local output under `.lifecycle-baseline/`;
-archive retained measurements in `paperclip-evals`, with their source revisions
+archive retained measurements in `nexus-evals`, with their source revisions
 and coverage, instead of committing result snapshots to the app repository.
 
 | Measurement | Archived report (private) | Published Product E2E report |
@@ -37,7 +37,7 @@ videos, and browser reports stay in existing campaign artifact storage.
 
 ## Run and inspect
 
-From an installed Paperclip checkout:
+From an installed Nexus checkout:
 
 ```sh
 pnpm test:lifecycle-baseline --list
@@ -52,7 +52,7 @@ pnpm exec tsc -p tests/lifecycle-baseline/tsconfig.json
 
 All four lanes are credential-free. The integration lane uses disposable embedded
 Postgres and scripted providers. No command above invokes a model, starts a paid
-campaign, or changes an existing Paperclip instance. Tests are outside default
+campaign, or changes an existing Nexus instance. Tests are outside default
 server/workspace discovery; Product E2E matcher calibration remains in its normal
 opt-in support suite. The baseline command returns nonzero on failed assertions,
 missing evidence, or unavailable selected coverage. Ordinary CI is unaffected.
@@ -157,7 +157,7 @@ pnpm test:e2e:runner -- --list --suite agent-chat
 pnpm test:e2e:runner -- --list --suite everyday-workflows
 ```
 
-The sibling `paperclip-evals` change adds the opt-in
+The sibling `nexus-evals` change adds the opt-in
 `rosters/live-lifecycle-narrative-baseline.json`: ordinary finish/block controls, two
 misleading-summary variants, and question/review/dependency/wake cases. It does
 not expand the maintained paid campaign. Both cases and the roster are validated
@@ -179,11 +179,11 @@ retain the original measurements and cover separate persisted allowances, delaye
 repair promotion and the current native question/response continuation contract.
 
 The inexpensive browser regressions use real Chromium without a provider or
-Paperclip instance. They check screenshot readiness and development service-worker
+Nexus instance. They check screenshot readiness and development service-worker
 module revalidation across repeated reloads:
 
 ```sh
 pnpm exec playwright test --config tests/runner-e2e/playwright-support.config.ts
 ```
 
-Set `PAPERCLIP_PLAYWRIGHT_CHANNEL=chrome` to use an installed Chrome browser.
+Set `NEXUS_PLAYWRIGHT_CHANNEL=chrome` to use an installed Chrome browser.

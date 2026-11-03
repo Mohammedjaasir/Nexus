@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { agents, budgetPolicies, budgetReservations, companies, costEvents, createDb, heartbeatRuns, projects, type Db } from "@paperclipai/db";
+import { agents, budgetPolicies, budgetReservations, companies, costEvents, createDb, heartbeatRuns, projects, type Db } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { budgetService, computeObservedSpend } from "../services/budgets.js";
 import { reserveRunBudget } from "../services/budget-reservations.js";
@@ -43,7 +43,7 @@ const support = await getEmbeddedPostgresTestSupport();
     const readRun = async () => (await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, runId)))[0];
     const exposure = () => computeObservedSpend(db, policy);
     const receipt = (sequence: number, costUsd?: number, extra: Partial<UsageReceiptEnvelope["receipt"]> = {}): UsageReceiptEnvelope => ({
-      schema: "paperclip/accounting-receipt/v1", id: randomUUID(), companyId, runId, sourceId, sequence,
+      schema: "nexus/accounting-receipt/v1", id: randomUUID(), companyId, runId, sourceId, sequence,
       receivedAt: new Date().toISOString(), adapterType: "process", receipt: {
         complete: false, usageBasis: "per_run", provider: "test", biller: "test", model: "budget-fixture",
         billingType: "metered_api", costStatus: "unpriced", ...(costUsd === undefined ? {} : { costUsd }), ...extra,

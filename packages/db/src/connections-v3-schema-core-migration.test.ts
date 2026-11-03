@@ -19,7 +19,7 @@ describeEmbeddedPostgres("connections v3 schema core migration", () => {
   afterEach(async () => Promise.all(cleanups.splice(0).map((cleanup) => cleanup())));
 
   it("backfills a workspace grant and rolls back without losing the connection", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-connections-v3-migration-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-connections-v3-migration-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1 });
     cleanups.push(async () => sql.end());
@@ -80,7 +80,7 @@ describeEmbeddedPostgres("connections v3 schema core migration", () => {
     const applicationId = randomUUID();
     const connectionId = randomUUID();
     const secretId = randomUUID();
-    await sql`INSERT INTO "companies" ("id", "name", "issue_prefix") VALUES (${companyId}, 'Paperclip', 'PAP')`;
+    await sql`INSERT INTO "companies" ("id", "name", "issue_prefix") VALUES (${companyId}, 'Nexus', 'PAP')`;
     await sql`INSERT INTO "tool_applications" ("id", "company_id", "application_key", "name", "type") VALUES (${applicationId}, ${companyId}, 'linear', 'Linear', 'mcp_http')`;
     await sql`
       INSERT INTO "tool_connections" ("id", "company_id", "application_id", "name", "connection_kind", "transport", "config", "credential_secret_refs")

@@ -196,7 +196,7 @@ export function createAppQueryClient(deps: AppQueryClientDeps, config: QueryClie
     if (event.type !== "updated") return;
     if (event.action.type === "failed" || event.action.type === "error") deps.connectivity.reportError(event.action.error);
     // Queries can read other services or return local data. Only the health
-    // probe and the server WebSocket can prove that Paperclip recovered.
+    // probe and the server WebSocket can prove that Nexus recovered.
   });
   mutationCache.subscribe((event) => {
     if (event.type !== "updated") return;

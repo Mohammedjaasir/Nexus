@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { preserveEnvironmentSyncErrorDiagnostic, environmentSyncErrorData, readEnvironmentSyncErrorDiagnostic, withEnvironmentSyncErrorCapture, withEnvironmentSyncTransferStep, recordEnvironmentSyncError } from "../src/environment-sync-error.js";
 
-const schema = "paperclip/environment-sync-error/v1";
+const schema = "nexus/environment-sync-error/v1";
 
 describe("environment sync diagnostic envelope", () => {
   it("keeps only known codes and bounded numbers from nested provider errors", () => {

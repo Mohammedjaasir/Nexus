@@ -3,7 +3,7 @@ import { DecisionHistoryTable } from "@/components/decision-models/DecisionHisto
 import { entry } from "../../../support/decision-models/fixtures";
 
 const meta = {
-  parameters: { paperclip: {
+  parameters: { nexus: {
       "capabilities": [
         "companies/identity",
         "budgets-costs/cost-reporting",

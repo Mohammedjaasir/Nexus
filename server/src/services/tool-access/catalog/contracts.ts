@@ -1,5 +1,5 @@
 import type { ActorInfo } from "../types.js";
-import type { FinishToolApp, FinishToolAppResult, ToolCatalogRefreshResult, ToolConnectionHealthCheckResult } from "@paperclipai/shared";
+import type { FinishToolApp, FinishToolAppResult, ToolCatalogRefreshResult, ToolConnectionHealthCheckResult } from "@nexusai/shared";
 
 /** Capabilities used by setup and authorization before catalog ownership is constructed. */
 export type RefreshConnectionCatalog = (connectionId: string, actor?: ActorInfo, options?: {

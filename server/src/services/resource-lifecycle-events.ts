@@ -1,4 +1,4 @@
-import { resourceLifecycleEvents, type Db } from "@paperclipai/db";
+import { resourceLifecycleEvents, type Db } from "@nexusai/db";
 import { sql } from "drizzle-orm";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 

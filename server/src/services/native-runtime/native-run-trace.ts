@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { isSpanContextValid, ROOT_CONTEXT, trace } from "@opentelemetry/api";
 
-import { runWithRuntimeParent } from "@paperclipai/adapter-utils/acpx-engine/startup-timing";
+import { runWithRuntimeParent } from "@nexusai/adapter-utils/acpx-engine/startup-timing";
 import type { AdapterRuntimeEvent } from "../../adapters/index.js";
 import {
   getStartupTraceContext,
@@ -195,7 +195,7 @@ function safeAttributes(
 }
 
 /**
- * Run-scoped tracing for the native Paperclip runner path.
+ * Run-scoped tracing for the native Nexus runner path.
  *
  * A scope owns a real OpenTelemetry parent context. While work runs inside a
  * scope, nested native measurements and the existing sandbox/provider tracing
@@ -209,7 +209,7 @@ export function createNativeRunTrace(input: {
   traceContext?: StartupTraceContextHandle;
 }) {
   const tracing =
-    input.traceContext ?? getStartupTraceContext("paperclip.native-runner");
+    input.traceContext ?? getStartupTraceContext("nexus.native-runner");
   const traceStartedAtMs = finiteMs(input.startedAtMs ?? Date.now());
   const runIdHash = hashedId(input.runId);
   let rootSpan: SpanHandle;
@@ -221,9 +221,9 @@ export function createNativeRunTrace(input: {
     rootSpan = tracing.tracer.startSpan("task.provider_session", {
       startTime: traceStartedAtMs,
       attributes: {
-        "paperclip.task.run.run_id": runIdHash,
-        "paperclip.task.run.runtime": "paperclip_runner",
-        "paperclip.task.run.trace_schema_version":
+        "nexus.task.run.run_id": runIdHash,
+        "nexus.task.run.runtime": "nexus_runner",
+        "nexus.task.run.trace_schema_version":
           NATIVE_RUN_TRACE_SCHEMA_VERSION,
       },
       ...(trigger && isSpanContextValid(trigger) ? { links: [{ context: trigger }] } : {}),
@@ -280,7 +280,7 @@ export function createNativeRunTrace(input: {
   ): void => {
     for (const [key, value] of Object.entries(attributes)) {
       try {
-        span.setAttribute(`paperclip.native.span.${key}`, value);
+        span.setAttribute(`nexus.native.span.${key}`, value);
       } catch {
         // Tracing is diagnostic-only and must never change runner control flow.
       }
@@ -304,7 +304,7 @@ export function createNativeRunTrace(input: {
         payload: {
           // Keep the persisted schema identifier stable; traceSchemaVersion
           // describes the OTel hierarchy independently of the run-log shape.
-          schema: "paperclip.run-performance-span.v1",
+          schema: "nexus.run-performance-span.v1",
           traceSchemaVersion: NATIVE_RUN_TRACE_SCHEMA_VERSION,
           span: span.name,
           parentSpan: span.parentName ?? "task.provider_session",
@@ -339,11 +339,11 @@ export function createNativeRunTrace(input: {
         {
           startTime: startedAtMs,
           attributes: {
-            "paperclip.native.span.trace_schema_version":
+            "nexus.native.span.trace_schema_version":
               NATIVE_RUN_TRACE_SCHEMA_VERSION,
             ...Object.fromEntries(
               Object.entries(attributes).map(([key, value]) => [
-                `paperclip.native.span.${key}`,
+                `nexus.native.span.${key}`,
                 value,
               ]),
             ),
@@ -503,8 +503,8 @@ export function createNativeRunTrace(input: {
     for (const scope of [...openScopes].reverse()) {
       await end(scope, { endedAtMs, outcome });
     }
-    try { rootSpan.setAttribute("paperclip.task.run.wall_ms", endedAtMs - traceStartedAtMs); } catch {}
-    try { rootSpan.setAttribute("paperclip.task.run.outcome", outcome); } catch {}
+    try { rootSpan.setAttribute("nexus.task.run.wall_ms", endedAtMs - traceStartedAtMs); } catch {}
+    try { rootSpan.setAttribute("nexus.task.run.outcome", outcome); } catch {}
     if (outcome === "failed") { try { rootSpan.setStatus({ code: 2 }); } catch {} }
     try { rootSpan.end(endedAtMs); } catch {}
     // Preserve the historical run-log record without emitting a duplicate
@@ -515,7 +515,7 @@ export function createNativeRunTrace(input: {
       startedAtMs: traceStartedAtMs,
       endedAtMs,
       outcome,
-      attributes: { runtime: "paperclip_runner" },
+      attributes: { runtime: "nexus_runner" },
     });
   };
 

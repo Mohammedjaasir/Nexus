@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { installDatabaseWorkSignals } from "../../../packages/db/src/work-signals.js";
 import { emailChannelService } from "../services/email-channels.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "../services/delivery-work-notifications.js";

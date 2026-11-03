@@ -10,7 +10,7 @@ has not started; see the [current compatibility limit](../muse-personal-agent.md
 
 Keep Muse's proven receiver transport, but move task execution onto the external-provider Runner path now used by OpenAI Dot. Reuse Dot's invitation experience, durable operation receipts, controller recovery, native completion, and Cloud execution support. Do not restore a second Muse-specific Runner lifecycle.
 
-This connects the user's existing **personal Muse at muse.ai**, not a coding CLI or a model API. Muse keeps its own tools and permission system. Paperclip supplies company identity, task collaboration, execution authority, and durable delivery.
+This connects the user's existing **personal Muse at muse.ai**, not a coding CLI or a model API. Muse keeps its own tools and permission system. Nexus supplies company identity, task collaboration, execution authority, and durable delivery.
 
 The work needs a selective port onto current master. The prior Muse implementation predates the merged MCP foundation, the new agent lifecycle, and several Dot improvements. A wholesale merge produces 82 conflicted files, including generated contracts and migration metadata.
 
@@ -18,14 +18,14 @@ The work needs a selective port onto current master. The prior Muse implementati
 
 | Source | Inspected state | What it establishes |
 | --- | --- | --- |
-| Paperclip | `origin/master` at `417db14e7dfce7109e254a6f2cf410b6103fd037` | Current implementation baseline; new worktree/branch `codex/muse-dot-refresh` starts here. |
+| Nexus | `origin/master` at `417db14e7dfce7109e254a6f2cf410b6103fd037` | Current implementation baseline; new worktree/branch `codex/muse-dot-refresh` starts here. |
 | Earlier Muse work | `codex/muse-runner` preserved at snapshot `1dfdc7b7dbae9debe8ca86bbcdb4492dc2b277d1` | Recoverable implementation, tests, synthetic task evidence, and qualification tooling. It has **not** been merged into this baseline. |
-| Paperclip Cloud | `origin/master` at `282f5b2f` | Current tenant routing and Dot protocol ingress; inspected without changing the existing Cloud checkout. |
+| Nexus Cloud | `origin/master` at `282f5b2f` | Current tenant routing and Dot protocol ingress; inspected without changing the existing Cloud checkout. |
 | Dot implementation | [#15402](https://github.com/paperclipai/paperclip/pull/15402), [#15414](https://github.com/paperclipai/paperclip/pull/15414), [#15581](https://github.com/paperclipai/paperclip/pull/15581), [#15691](https://github.com/paperclipai/paperclip/pull/15691), [#15722](https://github.com/paperclipai/paperclip/pull/15722), [#15734](https://github.com/paperclipai/paperclip/pull/15734) | Merged delivery, governed tools, invitations, managed Cloud execution, pairing fixes, and provider-native tool guidance. |
 | Dot live evidence | [Current Dot documentation](../openai-dot-runner.md) and the existing Dot integration chat | Previously recorded real Dot assignment, document, proactive intake, and Cloud walkthrough. This investigation did not rerun those live tests. |
 | Muse live evidence | Stopped personal-agent experiment | Four unattended replies with a 60-second hook. Connectivity proof only; no five-second, full-task, or 24-hour qualification. |
 
-The old Muse worktree was removed by startup cleanup. Its Git snapshot was recovered and the branch moved forward to preserve it. Primary Paperclip and Cloud checkout edits were left untouched. Older Muse test results describe that snapshot only; they do not validate the proposed port.
+The old Muse worktree was removed by startup cleanup. Its Git snapshot was recovered and the branch moved forward to preserve it. Primary Nexus and Cloud checkout edits were left untouched. Older Muse test results describe that snapshot only; they do not validate the proposed port.
 
 ## What Dot has that Muse should inherit
 
@@ -39,8 +39,8 @@ The old Muse worktree was removed by startup cleanup. Its Git snapshot was recov
 | Follow-up | Comments reach the current assignment; delivery is consumed only after an exact task-history receipt | Reuse for ordinary comments; retain structured clarification answers through the existing interaction contracts. |
 | Proactive work | Idle capability discovery and `request_turn`, admitted through ordinary task/Runner scheduling | Add this admission path while retaining the original Muse requirement for permitted idle read/search/create/comment operations. |
 | Cloud | Managed Runner sandbox, artifact capability checks, authenticated reconnect, bounded tenant protocol ingress | Extend the same paths for Muse; no local-process fallback on a Cloud control-plane host. |
-| Tool guidance | Explicitly permits the external agent's own apps/tools; setup restrictions do not become permanent | Reuse generic external-agent guidance. Muse first release exposes only first-party Paperclip capabilities. |
-| Usage | Unknown provider usage/cost remain unavailable | Keep this behavior; Paperclip budget gates do not imply control over Muse's independent spending. |
+| Tool guidance | Explicitly permits the external agent's own apps/tools; setup restrictions do not become permanent | Reuse generic external-agent guidance. Muse first release exposes only first-party Nexus capabilities. |
+| Usage | Unknown provider usage/cost remain unavailable | Keep this behavior; Nexus budget gates do not imply control over Muse's independent spending. |
 
 Two Dot policies must **not** become Muse defaults:
 
@@ -53,10 +53,10 @@ Dot's MCP Events webhook is its own transport capability. Nothing inspected prov
 
 ```mermaid
 flowchart LR
-    UI[Paperclip invitation and agent settings] --> C[Company and agent connection]
+    UI[Nexus invitation and agent settings] --> C[Company and agent connection]
     S[Task scheduler and admission] --> B[Shared external-provider broker]
     C --> B
-    B <--> R[Native Rust Runner in Paperclip infrastructure]
+    B <--> R[Native Rust Runner in Nexus infrastructure]
     R <--> T[Native semantic tools and finalization]
     B <--> M[Durable mailbox and operation receipts]
     M --> H[Muse opaque signal endpoint]
@@ -71,17 +71,17 @@ flowchart LR
 
 A signal contains no task content or worker credential. An empty check never wakes the model. The authenticated worker claims one assignment, accepts it through the Runner, and submits operations with stable identities. Transport receipt, worker progress, accepted result, and native task finalization remain separate facts.
 
-Runner infrastructure is allocated for admitted work, not for an idle connection. A managed Runner sandbox does not itself grant Muse workspace commands or third-party Paperclip tools.
+Runner infrastructure is allocated for admitted work, not for an idle connection. A managed Runner sandbox does not itself grant Muse workspace commands or third-party Nexus tools.
 
 ### A small shared core, with provider-specific transport
 
-1. Generalize the existing [external-provider contract](../../packages/paperclip-runner/src/contracts/external-provider.ts), [Dot Runner driver](../../packages/paperclip-runner/src/drivers/dot/runnerd-dot-driver.ts), and [Rust backend](../../packages/paperclip-runner/runner/crates/runner-core/src/dot_provider_backend.rs). Extract the common acceptance/tool/progress/finish/recovery state machine. Keep Dot's existing driver kind, command IDs, wire revision, and checkpoint reader compatible.
+1. Generalize the existing [external-provider contract](../../packages/nexus-runner/src/contracts/external-provider.ts), [Dot Runner driver](../../packages/nexus-runner/src/drivers/dot/runnerd-dot-driver.ts), and [Rust backend](../../packages/nexus-runner/runner/crates/runner-core/src/dot_provider_backend.rs). Extract the common acceptance/tool/progress/finish/recovery state machine. Keep Dot's existing driver kind, command IDs, wire revision, and checkpoint reader compatible.
 2. Extract authority validation, durable operation admission/settlement, mailbox ordering, and follow-up handling from the [Dot broker](../../server/src/services/dot-runner-broker.ts) behind explicit provider binding/storage adapters. Do not build a general plugin framework or generic ORM. Shared code receives a validated agent principal; the transport remains responsible for authenticating its own credential type.
 3. Keep Dot's existing tables and deployed OAuth grants intact. Port Muse connection/token and delivery records additively, with the fields needed for binding generation, assignment revision, controller generation, semantic digest, source event, and consumed-input receipts. Both providers exercise the same broker invariants through their storage adapters. No bulk rename or migration of live Dot assignments is required for this release.
 4. Supply a Muse adapter for signal, pairing, refresh, authenticated claim, operations, input/control reads, and connection health. Retain the old detector/client assets where appropriate, but update them to the shared operation protocol. Remove the old separate Muse Runner transport credential and HTTP-polling backend where the existing PRP command lane replaces them.
 5. Register `provider: "muse"` in the current native contract generation, provider resolver, capability manifest, artifact selection, recovery, and accounting projections. Generate current contracts; do not copy the old V5 contract edits or old generated artifacts. Remote Runner artifacts must explicitly advertise Muse support before launch.
 
-Provider policy is explicit and server-controlled: credential inactivity, run lease bounds, stop confirmation, and readiness differ. Muse credentials must not authenticate as Dot or through the human `/mcp/paperclip` connection. Dot credentials must not access a Muse binding.
+Provider policy is explicit and server-controlled: credential inactivity, run lease bounds, stop confirmation, and readiness differ. Muse credentials must not authenticate as Dot or through the human `/mcp/nexus` connection. Dot credentials must not access a Muse binding.
 
 ### Authorization and lifecycle details
 
@@ -104,20 +104,20 @@ Use [ExternalAgentInviteContent](../../ui/src/components/new-agent/ExternalAgent
 | Choose | New Agent → Invite an external agent → **Muse — Personal agent** | Add a gated preset explaining that it connects the user's existing Muse and capabilities. Keep Dot/Hermes/Other behavior unchanged. |
 | Identify | Name and role, then Continue | A compact step using existing fields; company-scoped non-secret draft survives navigation/reload. No model, computer, repo, or API-key fields. |
 | Connect | Copy setup instructions; Open Muse; paste in the current conversation | Ticket is transient. Server owns the resumable invitation and normal approval state. An expired prompt can be renewed without revoking a concurrent successful pairing. |
-| Approve | Muse requests its normal hostname approval | Explain the standing approval covers the hostname. Paperclip cannot grant it or infer it from silence. |
+| Approve | Muse requests its normal hostname approval | Explain the standing approval covers the hostname. Nexus cannot grant it or infer it from silence. |
 | Verify | **Muse paired → Receiver detected → Background reply verified** | Start one idempotent background challenge after receiver detection. Require a separate authenticated worker reply. Agent lifecycle readiness must also succeed. |
 | Work | Assign an ordinary task; **Waiting for Muse** until claimed | Show submitted progress, structured questions, documents, and native run outcome in the existing task thread. No invented private tool trace. |
 | Maintain | Connection status, Test connection, Repair setup, Pause, Disconnect | Show last signal contact, authenticated worker activity, last verified reply, installed version, and current assignment/stop status. |
 
 Reuse the current server-owned invitation recovery pattern from [dot-invitations.ts](../../server/src/services/dot-invitations.ts), parameterized by provider and operator/company. Resume only that operator's unfinished invitation. Preserve the exact connection reference and configuration revision when rotating setup. Secrets must not enter query caches or draft persistence. The footer remains one row, with Back/Save & exit on the left and the primary action on the right.
 
-For errors, distinguish a failed UI status request, unreachable Paperclip hostname, expired credentials, stale detector, and missing worker reply. Show **Open Muse** for a reported permission request. Otherwise show **No recent response**; do not label a silent worker as a permission failure. Explain stop-unconfirmed and cleanup-unconfirmed states with one clear repair action.
+For errors, distinguish a failed UI status request, unreachable Nexus hostname, expired credentials, stale detector, and missing worker reply. Show **Open Muse** for a reported permission request. Otherwise show **No recent response**; do not label a silent worker as a permission failure. Explain stop-unconfirmed and cleanup-unconfirmed states with one clear repair action.
 
-Reuse [external-agent-guidance.ts](../../packages/shared/src/external-agent-guidance.ts): Paperclip's catalog describes this connection, not everything Muse can do. Muse may use its own approved apps and tools. Installation must register discoverable client instructions in Muse's supported persistent environment; prove proactive use from another conversation rather than assuming installation establishes discoverability.
+Reuse [external-agent-guidance.ts](../../packages/shared/src/external-agent-guidance.ts): Nexus's catalog describes this connection, not everything Muse can do. Muse may use its own approved apps and tools. Installation must register discoverable client instructions in Muse's supported persistent environment; prove proactive use from another conversation rather than assuming installation establishes discoverability.
 
 ## Cloud and protocol routing
 
-Extend Cloud's existing exact method/path tenant protocol allowlist, next to `isTenantDotProtocolRequest` in `paperclip-cloud/src/service/app.ts`. Route only the versioned receiver assets and bounded pairing/refresh/signal/claim/operation/control/agent-gateway endpoints that the final Muse protocol needs. Keep board management behind normal tenant browser authentication.
+Extend Cloud's existing exact method/path tenant protocol allowlist, next to `isTenantDotProtocolRequest` in `nexus-cloud/src/service/app.ts`. Route only the versioned receiver assets and bounded pairing/refresh/signal/claim/operation/control/agent-gateway endpoints that the final Muse protocol needs. Keep board management behind normal tenant browser authentication.
 
 Host resolution selects the tenant; tenant-issued credentials select the company/agent. Strip spoofed Cloud identity headers. Do not add an arbitrary `/api/muse/*` proxy exemption, route through the human MCP identity, or require a logged-in Cloud browser for receiver calls. Test invalid methods, encoded path variants, cross-tenant credentials, revoked access, unavailable tenants, and reconnect after a Cloud rollout.
 
@@ -143,7 +143,7 @@ Acceptance: simulated receiver pairs, passes an independent background challenge
 
 Scope: permitted idle operations, proactive `request_turn`, structured clarification, current-assignment follow-ups, reconnect, credential rotation, cancellation, revocation, and uncertain-stop blocking. Reuse [Dot follow-up handling](../../server/src/services/dot-assignment-follow-up.ts) and native question response delivery.
 
-Acceptance: two sequential task assignments; a question answered in Paperclip resumes the original assignment; comments consumed once; agent attribution and authorizing-user audit; a cancelled claimed assignment cannot be replaced while stopping is unconfirmed. Restart, controller takeover, and lost responses never duplicate uncertain side effects.
+Acceptance: two sequential task assignments; a question answered in Nexus resumes the original assignment; comments consumed once; agent attribution and authorizing-user audit; a cancelled claimed assignment cannot be replaced while stopping is unconfirmed. Restart, controller takeover, and lost responses never duplicate uncertain side effects.
 
 ### 4. Finish invitation, settings, and Cloud integration
 
@@ -153,7 +153,7 @@ Acceptance: hire approval, name/role draft, reload/resume, concurrent setup wind
 
 ### 5. Qualify personal Muse before enabling it
 
-First prove a real research/document task, a clarification answered in Paperclip, a follow-up assignment, and proactive read/create/comment from a fresh Muse conversation. Then run a new bounded 24-hour qualification with at least 20 unattended samples and sustained idle periods. The previous experiment remains stopped; none of its replies count toward this run.
+First prove a real research/document task, a clarification answered in Nexus, a follow-up assignment, and proactive read/create/comment from a fresh Muse conversation. Then run a new bounded 24-hour qualification with at least 20 unattended samples and sustained idle periods. The previous experiment remains stopped; none of its replies count toward this run.
 
 Use the recovered qualification tooling after adapting it to the new receipts and generation identities. Schedule deterministic sample slots; never enqueue over active or uncertain work.
 
@@ -180,7 +180,7 @@ At the deadline, revoke qualification authority and request detector cleanup eve
 
 Run targeted server protocol, receiver/client, native Runner/Rust, UI, and Cloud routing tests first. Before implementation handoff, run repository-required `pnpm -r typecheck`, `pnpm test:run`, `pnpm build`, token gates, and Storybook; run the companion Cloud checks for changed ingress. Record any failures and their scope. Re-run Dot's relevant tests alongside Muse throughout the extraction.
 
-Keep the Muse provider experimental and off until the live gates pass. Do not include third-party Paperclip tool grants, workspace command access, a Muse cookie login, or a new public model API in this release. Dot's additional capabilities can be evaluated later without broadening this port.
+Keep the Muse provider experimental and off until the live gates pass. Do not include third-party Nexus tool grants, workspace command access, a Muse cookie login, or a new public model API in this release. Dot's additional capabilities can be evaluated later without broadening this port.
 
 ## Next concrete step
 

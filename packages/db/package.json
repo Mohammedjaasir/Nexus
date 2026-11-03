@@ -1,5 +1,5 @@
 {
-  "name": "@paperclipai/db",
+  "name": "@nexusai/db",
   "version": "0.3.1",
   "license": "MIT",
   "homepage": "https://github.com/paperclipai/paperclip",
@@ -45,10 +45,10 @@
     "generate": "pnpm run check:migrations && pnpm run clean && tsc -p tsconfig.json && drizzle-kit generate && pnpm run prune:snapshots",
     "prune:snapshots": "ls src/migrations/meta/*_snapshot.json | sort -r | tail -n +6 | xargs rm -f",
     "migrate": "pnpm run check:migrations && tsx src/migrate.ts",
-    "seed": "pnpm --filter @paperclipai/server exec tsx scripts/seed.ts"
+    "seed": "pnpm --filter @nexusai/server exec tsx scripts/seed.ts"
   },
   "dependencies": {
-    "@paperclipai/shared": "workspace:*",
+    "@nexusai/shared": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "embedded-postgres": "^18.1.0-beta.16",
     "postgres": "^3.4.9"

@@ -1,4 +1,4 @@
-import { agentWakeupRequests, connectionIntentDeliveries, issueThreadInteractions, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, connectionIntentDeliveries, issueThreadInteractions, type Db } from "@nexusai/db";
 import { and, eq, ne, or, inArray, sql } from "drizzle-orm";
 
 function record(value: unknown): Record<string, unknown> {

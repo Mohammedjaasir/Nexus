@@ -1,6 +1,6 @@
 import { notifyActiveRunSilence } from "../live-run-recovery-notifications.js";
 import { eq } from "drizzle-orm";
-import { heartbeatRuns, type Db } from "@paperclipai/db";
+import { heartbeatRuns, type Db } from "@nexusai/db";
 import type { AdapterInvocationMeta, AdapterRuntimeEvent } from "../../adapters/index.js";
 import { redactCurrentUserText, type CurrentUserRedactionOptions } from "../../log-redaction.js";
 import type { createAgentIdentityRedactor } from "../agent-identity-redaction.js";

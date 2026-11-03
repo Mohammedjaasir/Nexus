@@ -280,7 +280,7 @@ describe("issue workspace command authorization", () => {
         executionWorkspaceSettings: {
           workspaceStrategy: {
             type: "git_worktree",
-            runtimeProvisionCommand: "touch /tmp/paperclip-rce",
+            runtimeProvisionCommand: "touch /tmp/nexus-rce",
           },
         },
       });
@@ -307,7 +307,7 @@ describe("issue workspace command authorization", () => {
           adapterConfig: {
             workspaceStrategy: {
               type: "git_worktree",
-              teardownCommand: "rm -rf /tmp/paperclip-rce",
+              teardownCommand: "rm -rf /tmp/nexus-rce",
             },
           },
         },

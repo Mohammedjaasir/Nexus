@@ -1,4 +1,4 @@
-import type { ToolRiskLevel } from "@paperclipai/shared";
+import type { ToolRiskLevel } from "@nexusai/shared";
 import { SUPABASE_TOOLS, isSupabaseConnection, isCurrentSupabaseCatalogEntry, supabaseClient, supabaseRisk } from "./supabase/index.js";
 import { VERCEL_TOOLS, isVercelConnection, isCurrentVercelCatalogEntry, vercelClient, vercelRisk } from "./vercel/index.js";
 

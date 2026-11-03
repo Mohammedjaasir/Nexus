@@ -18,7 +18,7 @@ export async function main(args: string[]) {
   const target = resolve(options["--evidence"]), original = await readFile(target, "utf8");
   assertSecretFree(original, [apiKey], "completion judge input");
   const evidence = JSON.parse(original);
-  if (!evidence.observation || !evidence.schema?.startsWith("paperclip.completion-update-probe.")) throw new Error("Expected a retained completion probe");
+  if (!evidence.observation || !evidence.schema?.startsWith("nexus.completion-update-probe.")) throw new Error("Expected a retained completion probe");
   const pending = reserveCompletionQuality(evidence.observation, Number(options["--max-dollars"]), secrets);
   const sidecar = `${target}.quality.json`;
   await writeFile(sidecar, JSON.stringify(pending, null, 2), { flag: "wx", mode: 0o600 });

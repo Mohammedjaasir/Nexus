@@ -8,7 +8,7 @@ const meta = {
   id: "task-project-access",
   title: "Projects and execution/Recovery/Task chat/Project access",
   component: ProjectAccessNotice,
-  parameters: { paperclip: {
+  parameters: { nexus: {
     capabilities: ["recovery/diagnosis", "agents/instructions"], implementation: "production", boundary: "fixtures",
     notes: "Production notice and additive project editor. Local save callbacks cover selection, read-only, cancellation and failed-save states. API authorization, persistence and explicit retry admission are separate server regressions and local application verification.",
   } },

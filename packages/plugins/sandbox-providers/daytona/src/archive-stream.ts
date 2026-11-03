@@ -35,7 +35,7 @@ export async function streamSandboxArchive(input: {
   if (!Number.isSafeInteger(input.maxBytes) || input.maxBytes <= 0) {
     throw new Error("Daytona archive stream requires a verified sandbox disk budget");
   }
-  const marker = `paperclip-archive-${randomUUID()}`;
+  const marker = `nexus-archive-${randomUUID()}`;
   const ready = `${marker}:ready`;
   const start = `${marker}:start`;
   const done = `${marker}:done`;

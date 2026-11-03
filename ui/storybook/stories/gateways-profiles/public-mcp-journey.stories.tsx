@@ -26,8 +26,8 @@ const meta = {
   component: ConnectionJourney,
   parameters: {
     layout: "fullscreen", initialEntries: ["/PAP/apps"], fixture: { enabled: false, empty: true },
-    docs: { description: { component: "Begin inside Paperclip. Open Assistant Connection (MCP), follow its Experimental settings link if needed, then choose your assistant. These are production pages in the real app shell; API responses are fixtures. Follow the displayed commands in a live instance to launch browser sign-in and consent. Storybook does not run a terminal, grant access, or simulate a successful OpenCode conversation. Consent states have their own stories. The Connected checkpoint represents returning after a real grant, not clicking a mock connect button." } },
-    paperclip: {
+    docs: { description: { component: "Begin inside Nexus. Open Assistant Connection (MCP), follow its Experimental settings link if needed, then choose your assistant. These are production pages in the real app shell; API responses are fixtures. Follow the displayed commands in a live instance to launch browser sign-in and consent. Storybook does not run a terminal, grant access, or simulate a successful OpenCode conversation. Consent states have their own stories. The Connected checkpoint represents returning after a real grant, not clicking a mock connect button." } },
+    nexus: {
       "capabilities": [
         "gateways-profiles/client-connect"
       ],
@@ -47,8 +47,8 @@ export const OpenCodeSetup: Story = { parameters: { initialEntries: ["/PAP/apps/
 export const CodexSetup: Story = { ...OpenCodeSetup, args: { assistant: "codex" } };
 export const ClaudeSetup: Story = { ...OpenCodeSetup, args: { assistant: "claude" } };
 export const Connected: Story = { parameters: { initialEntries: ["/PAP/apps/assistant-connection"], fixture: { enabled: true, empty: false, connections: [
-  { id: "opencode", companyId: "company-storybook", companyName: "Paperclip", clientName: "OpenCode", user: connectedUser, scopes: ["paperclip:read", "paperclip:write", "offline_access"], createdAt: "2026-10-05T12:00:00Z", revokedAt: null },
-  { id: "other-org", companyId: "another-company", companyName: "Other organization", clientName: "Private other client", scopes: ["paperclip:read"], createdAt: "2026-10-05T12:00:00Z", revokedAt: null },
+  { id: "opencode", companyId: "company-storybook", companyName: "Nexus", clientName: "OpenCode", user: connectedUser, scopes: ["nexus:read", "nexus:write", "offline_access"], createdAt: "2026-10-05T12:00:00Z", revokedAt: null },
+  { id: "other-org", companyId: "another-company", companyName: "Other organization", clientName: "Private other client", scopes: ["nexus:read"], createdAt: "2026-10-05T12:00:00Z", revokedAt: null },
 ] } } };
 export const Unavailable: Story = { parameters: { initialEntries: ["/PAP/apps/assistant-connection"], fixture: { unavailable: true } } };
 export const Loading: Story = { parameters: { initialEntries: ["/PAP/apps/assistant-connection"], fixture: { loading: true } } };
@@ -60,7 +60,7 @@ export const NavigationCheck: Story = { play: async ({ canvasElement }) => {
   await userEvent.click(await c.findByRole("link", { name: "Set up an assistant connection" }));
   await expect(await c.findByRole("button", { name: "Copy invitation" })).toBeVisible();
   await userEvent.click(c.getByText("Set up manually"));
-  await expect(c.getByText("opencode mcp auth paperclip")).toBeVisible();
+  await expect(c.getByText("opencode mcp auth nexus")).toBeVisible();
   await expect(c.getByText(/No assistants connected/)).toBeVisible();
 } };
 
@@ -77,6 +77,6 @@ export const ManualSetup: Story = { ...OpenCodeSetup, play: async ({ canvasEleme
 export const RevokeConnection: Story = { ...Connected, play: async ({ canvasElement }) => {
   const c = within(canvasElement);
   await userEvent.click(await c.findByRole("button", { name: "Revoke Dotta’s OpenCode connection" }));
-  await expect(await c.findByText("No assistants connected to Paperclip Storybook yet.")).toBeVisible();
+  await expect(await c.findByText("No assistants connected to Nexus Storybook yet.")).toBeVisible();
   await expect(c.queryByText("Dotta’s OpenCode connection")).not.toBeInTheDocument();
 } };

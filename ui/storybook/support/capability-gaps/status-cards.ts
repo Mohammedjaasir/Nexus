@@ -1,4 +1,4 @@
-import type { StatusCard } from "@paperclipai/shared";
+import type { StatusCard } from "@nexusai/shared";
 import type { StatusCardView } from "@/pages/StatusCards/types";
 export function makeStatusCard(
   overrides: Partial<StatusCardView> = {},

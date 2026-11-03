@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { chatTeamsFileTransfers } from "@paperclipai/db";
+import { chatTeamsFileTransfers } from "@nexusai/db";
 
 export const fileTransferProjectionColumns = {
   publicationId: chatTeamsFileTransfers.publicationId,
@@ -11,7 +11,7 @@ export const fileTransferProjectionColumns = {
   responseActivityId: chatTeamsFileTransfers.responseActivityId,
   fileInfoMessageId: chatTeamsFileTransfers.fileInfoMessageId,
   operatorConfirmed: sql<boolean>`
-    coalesce(${chatTeamsFileTransfers.privateState}#>>'{resolution,schema}', '') = 'paperclip.teams.file-resolution.v1'
+    coalesce(${chatTeamsFileTransfers.privateState}#>>'{resolution,schema}', '') = 'nexus.teams.file-resolution.v1'
     and coalesce(${chatTeamsFileTransfers.privateState}#>>'{resolution,action}', '') = 'mark_delivered'
     and coalesce(${chatTeamsFileTransfers.privateState}#>>'{resolution,fromPhase}', '') = 'file_info_unknown'
   `,

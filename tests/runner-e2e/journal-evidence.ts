@@ -13,9 +13,9 @@ export function completedJournalStimulusCalls(events: unknown[], runId: string):
   const completed = new Set<string>();
   const executions = events.map(object).filter(event => {
     const payload = object(event.payload);
-    return event.schema === "paperclip.prp.event.v1" && event.runId === runId && event.sourceKind === "runner" &&
+    return event.schema === "nexus.prp.event.v1" && event.runId === runId && event.sourceKind === "runner" &&
       typeof event.sourceInstanceId === "string" && typeof event.normalizedSessionId === "string" &&
-      Number.isSafeInteger(event.sourceSeq) && Number(event.sourceSeq) > 0 && payload.schema === "paperclip.tool.execution.v1" &&
+      Number.isSafeInteger(event.sourceSeq) && Number(event.sourceSeq) > 0 && payload.schema === "nexus.tool.execution.v1" &&
       payload.transport === "process" && payload.operation === "execute" && typeof payload.executionId === "string" &&
       typeof payload.name === "string";
   });
@@ -56,7 +56,7 @@ export async function largeJournalEvidence(input: {
       identity?: { runId?: string };
       committedEvents?: unknown[];
     };
-    if (state.schema === "paperclip.runner.durable.control-plane-state.v1" && state.identity?.runId === input.runId) {
+    if (state.schema === "nexus.runner.durable.control-plane-state.v1" && state.identity?.runId === input.runId) {
       const events = (state.committedEvents ?? []).map(entry => object(object(entry).envelope).payload);
       matches.push({ bytes: metadata.size, calls: completedJournalStimulusCalls(events, input.runId) });
     }

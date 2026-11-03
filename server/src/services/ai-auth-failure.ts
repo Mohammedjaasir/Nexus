@@ -1,4 +1,4 @@
-import { AI_PROVIDERS, AI_CONNECTION_CAPABILITIES, isAiConnectionCompatible, type AiConnectionBinding, type AiProvider } from "@paperclipai/shared";
+import { AI_PROVIDERS, AI_CONNECTION_CAPABILITIES, isAiConnectionCompatible, type AiConnectionBinding, type AiProvider } from "@nexusai/shared";
 
 type AuthenticationFailure = {
   errorCode?: string | null;

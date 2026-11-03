@@ -1,0 +1,23 @@
+[Unit]
+Description=Nexus AI Agent Orchestrator
+Requires=nexus-db.service
+After=nexus-db.service
+
+[Container]
+Image=nexus-local
+ContainerName=nexus
+Pod=nexus.pod
+Volume=%h/.local/share/nexus:/nexus:Z
+Environment=HOST=0.0.0.0
+Environment=NEXUS_HOME=/nexus
+Environment=NEXUS_DEPLOYMENT_MODE=authenticated
+Environment=NEXUS_DEPLOYMENT_EXPOSURE=private
+Environment=NEXUS_PUBLIC_URL=http://localhost:3100
+EnvironmentFile=%h/.config/containers/systemd/nexus.env
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

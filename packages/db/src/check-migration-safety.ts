@@ -185,7 +185,9 @@ function splitSqlStatements(sql: string): string[] {
 
 function ignoreRules(statement: string): Set<string> {
   const rules = new Set<string>();
-  const pattern = /--\s*paperclip:migration-safety-ignore\s+([a-z0-9-]+|all)\s*:\s*(\S.*)$/gim;
+  // Migrations written before the Nexus rename keep the legacy `paperclip:` marker;
+  // their SQL bytes are immutable because applied history is recognized by hash.
+  const pattern = /--\s*(?:nexus|paperclip):migration-safety-ignore\s+([a-z0-9-]+|all)\s*:\s*(\S.*)$/gim;
   for (const match of statement.matchAll(pattern)) {
     const rule = match[1];
     const reason = match[2]?.trim();
@@ -1020,7 +1022,7 @@ function formatNewFindings(findings: readonly MigrationSafetyFinding[]): string 
   return [
     `Migration safety check found ${findings.length} new finding(s).`,
     "Add a same-migration support index, use CONCURRENTLY where applicable, or add",
-    "`-- paperclip:migration-safety-ignore <rule>: <reason>` next to the statement.",
+    "`-- nexus:migration-safety-ignore <rule>: <reason>` next to the statement.",
     "",
     rendered,
   ].join("\n");

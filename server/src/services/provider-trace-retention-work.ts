@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { providerTraceStore } from "./provider-trace-store.js";
 import { DELIVERY_QUEUES } from "./delivery-work-notifications.js";
 import { registerDeadlineWork } from "./deadline-work.js";

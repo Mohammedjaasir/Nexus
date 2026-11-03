@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import { and, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
-import { environmentLeases, environments, heartbeatRuns, type Db } from "@paperclipai/db";
-import { hasWorkspaceRestoreFailure, WORKSPACE_RESTORE_FAILURE_CODES } from "@paperclipai/shared";
+import { environmentLeases, environments, heartbeatRuns, type Db } from "@nexusai/db";
+import { hasWorkspaceRestoreFailure, WORKSPACE_RESTORE_FAILURE_CODES } from "@nexusai/shared";
 import { hasConfirmedSandboxStopAndRetain, prepareSandboxStopAndRetain } from "./sandbox-stop-and-retain.js";
 
 import { hasRequiredWorkspaceRecovery, LEGACY_WORKSPACE_RECOVERY_SCHEMA } from "./workspace-restore-recovery-state.js";

@@ -11,7 +11,7 @@
  * any ready plugin. A retry that fails re-records the error through markError.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -160,7 +160,7 @@ describe("pluginLoader.loadAll error retry", () => {
       mkdirSync(path.join(packageRoot, "dist"), { recursive: true });
       const plugin = createPluginRecord({ status: "ready", packagePath: packageRoot });
       const replacement = { ...plugin.manifestJson, categories: ["ui"], capabilities: ["issues.read"] };
-      writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ name: plugin.packageName, version: "1.0.0", type: "module", paperclipPlugin: { manifest: "dist/manifest.js", worker: "dist/worker.js" } }));
+      writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ name: plugin.packageName, version: "1.0.0", type: "module", nexusPlugin: { manifest: "dist/manifest.js", worker: "dist/worker.js" } }));
       writeFileSync(path.join(packageRoot, "dist/manifest.js"), `export default ${JSON.stringify(replacement)};`);
       writeFileSync(path.join(packageRoot, "dist/worker.js"), "throw new Error('unapproved worker must not start');");
       writeFileSync(path.join(root, "distribution/catalog.json"), JSON.stringify({ schemaVersion: 1, plugins: [{ key: "example", pluginKey: plugin.pluginKey, version: "1.0.0", directory: "example", digest: distributionBundleDigest(packageRoot) }] }));
@@ -188,7 +188,7 @@ describe("pluginLoader.loadAll error retry", () => {
       const packageRoot = path.join(root, "node_modules/@example/broken-plugin");
       mkdirSync(packageRoot, { recursive: true });
       const plugin = createPluginRecord({ status: "ready", packagePath: path.join(root, "distribution/removed") });
-      writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ name: plugin.packageName, type: "module", paperclipPlugin: { manifest: "manifest.js" } }));
+      writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ name: plugin.packageName, type: "module", nexusPlugin: { manifest: "manifest.js" } }));
       writeFileSync(path.join(packageRoot, "manifest.js"), "throw new Error('fallback manifest must never import');");
       const runtime = createRuntimeServices();
       const startWorker = vi.fn();

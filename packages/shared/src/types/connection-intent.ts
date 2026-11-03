@@ -1,6 +1,6 @@
 import type { ConnectionIntentInteraction } from "./issue.js";
 import type { ToolConnection } from "./tool-access.js";
-import type { AskUserQuestionsQuestion, PaperclipQuestionSetPayload } from "./issue.js";
+import type { AskUserQuestionsQuestion, NexusQuestionSetPayload } from "./issue.js";
 import type { RemoteMcpConnectorId } from "../remote-mcp-connectors.js";
 
 /** A saved setup's next human step. This is not an authorization grant. */
@@ -61,11 +61,11 @@ export interface ConnectionsSearchResult {
   version: 1;
   query: string;
   results: ConnectionSearchResultItem[];
-  /** Paperclip-authored next step; provider content must never supply this field. */
+  /** Nexus-authored next step; provider content must never supply this field. */
   instruction?: string;
   providerQuestion?: AskUserQuestionsQuestion;
   /** Canonical native form of the same provider choice; IDs and disclosure are identical. */
-  providerQuestionSet?: PaperclipQuestionSetPayload;
+  providerQuestionSet?: NexusQuestionSetPayload;
   selectionInteractionId?: string;
 }
 

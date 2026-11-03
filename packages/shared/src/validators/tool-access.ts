@@ -47,7 +47,7 @@ export const toolConnectionTransportSchema = z.enum(["mcp_remote", "rest_api", "
 export const toolConnectionPurposeSchema = z.enum(["tool", "channel"]);
 export const toolConnectionAuthKindSchema = z.enum(["oauth", "api_key", "none"]);
 export const toolConnectionOwnershipSchema = z.enum(["platform_shared", "platform_provisioned", "customer", "dcr"]);
-export const toolConnectionCredentialSourceSchema = z.enum(["paperclip_vault", "vercel_connect"]);
+export const toolConnectionCredentialSourceSchema = z.enum(["nexus_vault", "vercel_connect"]);
 export const vercelConnectCredentialSummarySchema = z.object({
   provider: z.literal("vercel_connect"),
   connectorId: z.string().trim().min(1).max(255),
@@ -266,7 +266,7 @@ export const connectionGrantSchema = z.object({
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["kind"], message: "User and agent grants require exactly their matching subject; organization grants cannot have a subject" });
   }
   if (grant.externalCredential && grant.credentialSecretRefs.length > 0) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["credentialSecretRefs"], message: "External grants cannot also contain Paperclip secret references" });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["credentialSecretRefs"], message: "External grants cannot also contain Nexus secret references" });
   }
 });
 
@@ -349,7 +349,7 @@ export type DisableToolStdioCommandTemplate = z.infer<typeof disableToolStdioCom
 /**
  * How an operator says a generic remote MCP endpoint authenticates (PAP-17087).
  *
- * `auto` is the default and the only value the simple path sends: Paperclip
+ * `auto` is the default and the only value the simple path sends: Nexus
  * probes the endpoint and branches on what it finds. The rest are the explicit
  * choices behind "Advanced authentication", where the operator already knows.
  */
@@ -362,7 +362,7 @@ export type GenericMcpAuthMode = z.infer<typeof genericMcpAuthModeSchema>;
 /**
  * A preregistered OAuth client an operator pasted in because the authorization
  * server supports neither CIMD nor dynamic registration. The secret is write-only:
- * it becomes a Paperclip secret ref and is never read back.
+ * it becomes a Nexus secret ref and is never read back.
  */
 export const genericMcpOAuthClientSchema = z.object({
   clientId: z.string().trim().min(1).max(4096),
@@ -372,7 +372,7 @@ export const genericMcpOAuthClientSchema = z.object({
 export type GenericMcpOAuthClient = z.infer<typeof genericMcpOAuthClientSchema>;
 
 /**
- * Reject `headers.*` credential paths whose header name Paperclip refuses to
+ * Reject `headers.*` credential paths whose header name Nexus refuses to
  * send, and any value that could split the outbound request. This runs at the
  * API boundary so both the guided wizard and normalized paste-config go through
  * exactly one gate; the service re-checks when it projects the headers.
@@ -438,7 +438,7 @@ export const connectToolAppSchema = z.object({
   saveDraft: z.boolean().optional(),
   authMode: genericMcpAuthModeSchema.optional(),
   oauthClient: genericMcpOAuthClientSchema.optional(),
-  credentialSource: z.enum(["paperclip_vault", "vercel_connect"]).optional(),
+  credentialSource: z.enum(["nexus_vault", "vercel_connect"]).optional(),
   vercelConnect: z.object({ connector: z.string().trim().min(1).max(255) }).strict().optional(),
   /**
    * Which identity this credential becomes (PAP-17835). `user` means "Just me":
@@ -478,7 +478,7 @@ export const connectToolAppSchema = z.object({
       message: "Only gallery app setup can resume a draft connection",
     });
   }
-  const source = value.credentialSource ?? "paperclip_vault";
+  const source = value.credentialSource ?? "nexus_vault";
   if (source === "vercel_connect") {
     if (!value.vercelConnect) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["vercelConnect"], message: "A Vercel connector UID is required" });
@@ -856,7 +856,7 @@ export const toolPolicyConditionsSchema = z.object({
     applicationKey: z.string().trim().min(1).max(160).optional(),
     applicationKeys: z.array(z.string().trim().min(1).max(160)).max(100).optional(),
     remoteHttpOnly: z.boolean().optional(),
-    paperclipSelfOnly: z.boolean().optional(),
+    nexusSelfOnly: z.boolean().optional(),
   }).strict().optional(),
   timeWindow: timeWindowConditionSchema.optional(),
 }).strict().refine(

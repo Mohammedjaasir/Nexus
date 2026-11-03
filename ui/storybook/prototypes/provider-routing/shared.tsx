@@ -105,7 +105,7 @@ export function ReviewFrame({
             Production location and prototype scope
           </summary>
           <p className="mt-3">
-            Uses existing Paperclip components with local fixture state.
+            Uses existing Nexus components with local fixture state.
             Provider support, accounts, model catalogs, and tests are
             illustrative fixtures; these flows are not wired to the product.
           </p>

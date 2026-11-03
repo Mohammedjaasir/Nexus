@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { HarnessDriverBackend } from "../../../packages/paperclip-runner/src/backends/harness-driver-backend.js";
-import { FakeCodexTransport, makeDriver, result, WORKSPACE } from "../../../packages/paperclip-runner/src/drivers/codex/codex-app-server-driver.test-support.js";
+import { HarnessDriverBackend } from "../../../packages/nexus-runner/src/backends/harness-driver-backend.js";
+import { FakeCodexTransport, makeDriver, result, WORKSPACE } from "../../../packages/nexus-runner/src/drivers/codex/codex-app-server-driver.test-support.js";
 import { redactRunnerApiPayloads } from "../services/native-runtime/runner-api-log-redaction.js";
 
 describe("private API output in provider recovery", () => {
@@ -14,7 +14,7 @@ describe("private API output in provider recovery", () => {
     const receipt = { operationId: "call_api", apiOperationId: "POST /api/companies/{companyId}/exports", callId: "export", ok: true, status: 200, data: { credential: "private-recovery-value" } };
     const completion = { ...result, summary: JSON.stringify(receipt) };
     expect(await first.invoke({ id: "finish", method: "item/tool/call", params: {
-      threadId: "thread-1", turnId: "turn-1", callId: "finish", tool: "paperclip_finish", arguments: completion,
+      threadId: "thread-1", turnId: "turn-1", callId: "finish", tool: "nexus_finish", arguments: completion,
     } })).toMatchObject({ success: true });
     const raw = await original.snapshot();
     expect(raw.activeTurnId).toBe("turn-1");

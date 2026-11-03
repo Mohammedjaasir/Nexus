@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TranscriptEntry } from "../../adapters";
-import type { ToolRunDecision } from "@paperclipai/shared";
+import type { ToolRunDecision } from "@nexusai/shared";
 import { MarkdownBody, type MarkdownExternalReferenceMap } from "../MarkdownBody";
 import { cn, formatTokens } from "../../lib/utils";
 import { runningLabelText } from "../../lib/status-colors";
@@ -454,7 +454,7 @@ function parseSystemActivity(text: string): { activityId?: string; name: string;
 
 function shouldHideNiceModeStderr(text: string): boolean {
   const normalized = compactWhitespace(text).toLowerCase();
-  return normalized.startsWith("[paperclip] skipping saved session resume");
+  return normalized.startsWith("[nexus] skipping saved session resume");
 }
 
 function groupCommandBlocks(blocks: TranscriptBlock[]): TranscriptBlock[] {

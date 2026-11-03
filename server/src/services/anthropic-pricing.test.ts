@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AdapterUsageCheckpoint } from "@paperclipai/adapter-utils";
+import type { AdapterUsageCheckpoint } from "@nexusai/adapter-utils";
 import { priceAnthropicReceipt } from "./anthropic-pricing.js";
 
 const receipt: AdapterUsageCheckpoint = { complete: true, usageBasis: "per_run", provider: "anthropic", biller: "anthropic",

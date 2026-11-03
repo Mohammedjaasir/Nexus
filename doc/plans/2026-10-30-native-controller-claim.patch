@@ -9,7 +9,7 @@
 +  const { loadNativeRunnerCheckpoint } = await load(repoRoot, "server/src/services/native-runtime/native-runner-checkpoint.ts");
 +  const replacement = createDb(u, { maxConnections: 10, applicationName: "benchmark-claim-replacement" });
 +  const successor = { bootId: randomUUID(), pid: process.pid, processStartedAt: new Date() };
-+  const result: any = { schema: "paperclip.native-controller-claim-capacity/v1", ...provenance,
++  const result: any = { schema: "nexus.native-controller-claim-capacity/v1", ...provenance,
 +    scope: "Production DB claim function against synthetic prepared-workspace references and real persisted snapshots/PRP records. Natural lease expiry; two server database clients. No provider attachment or external sandbox existence claim.",
 +    errors: [], claims: [], reads: [], samples: [], sqlByClient: {}, renewedOwnerLosses: 0, restoredCheckpoints: 0,
 +    retainedOldControllerLeaseMs: 60000, remoteReconnectGraceMs: 420000, checkpointPoolPerServer: 2 };
@@ -117,7 +117,7 @@
 +}
 +
 @@ -429,0 +542 @@
-+        runnerProfileJson: { nativeWorkspaceSync: { schema: "paperclip.native-workspace-sync/v3", state: "prepared", descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null, workspaceId: randomUUID(), leaseId: randomUUID(), providerLeaseId: randomUUID(), remoteCwd: "/workspace", resourceDisposition: "destroy" } },
++        runnerProfileJson: { nativeWorkspaceSync: { schema: "nexus.native-workspace-sync/v3", state: "prepared", descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null, workspaceId: randomUUID(), leaseId: randomUUID(), providerLeaseId: randomUUID(), remoteCwd: "/workspace", resourceDisposition: "destroy" } },
 @@ -544,0 +658,2 @@
 +      completionContractId: contractId,
 +      completionContractSha256: "fixture",

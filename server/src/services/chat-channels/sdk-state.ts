@@ -3,11 +3,11 @@ import {
   eq,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatSdkState,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import type {
   ChatSdkStateCompareAndSetInput,

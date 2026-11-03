@@ -1,5 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
-import type { SkillRepositoryPackage, SkillSourceCandidate } from '@paperclipai/shared';
+import type { SkillRepositoryPackage, SkillSourceCandidate } from '@nexusai/shared';
 
 export function skillImportWarnings(candidates: Pick<SkillSourceCandidate, 'path' | 'error' | 'inspection'>[], repositoryPackage?: SkillRepositoryPackage | null, warnings: string[] = []) {
   return [...new Set([

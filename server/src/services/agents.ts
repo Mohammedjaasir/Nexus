@@ -2,9 +2,9 @@ import { notifyAttentionRetentionWork } from "./retention-work-notifications.js"
 import { type BudgetServiceHooks } from "./budgets.js";
 
 import { and, desc, eq, inArray } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { agents, agentConfigRevisions, agentApiKeys, heartbeatRuns } from "@paperclipai/db";
-import { isUuidLike, normalizeAgentApiKeyScope, normalizeAgentUrlKey, type AgentApiKeyScope } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { agents, agentConfigRevisions, agentApiKeys, heartbeatRuns } from "@nexusai/db";
+import { isUuidLike, normalizeAgentApiKeyScope, normalizeAgentUrlKey, type AgentApiKeyScope } from "@nexusai/shared";
 
 import { conflict, notFound, unprocessable } from "../errors.js";
 

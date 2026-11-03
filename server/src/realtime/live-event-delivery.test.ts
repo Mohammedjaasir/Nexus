@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import type { LiveEvent } from "@paperclipai/shared";
+import type { LiveEvent } from "@nexusai/shared";
 import { createLiveEventDelivery, LIVE_DELIVERY_MAX_BYTES, LIVE_DELIVERY_MAX_ITEMS } from "./live-event-delivery.js";
 
 const event = (seq = 1, runId = "run-1"): LiveEvent => ({ id: seq, companyId: "company", type: "heartbeat.run.log",

@@ -24,7 +24,7 @@ import {
   toolProfileBindings,
   toolProfiles,
   toolRuntimeSlots,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -259,7 +259,7 @@ describeEmbeddedPostgres("gateway connector invocation telemetry", () => {
 
   beforeAll(async () => {
     tempDb = await startEmbeddedPostgresTestDatabase(
-      "paperclip-connector-telemetry-",
+      "nexus-connector-telemetry-",
     );
     db = createDb(tempDb.connectionString);
   }, 30_000);

@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   agents, agentWakeupRequests, chatEndpoints, chatSlackRegistrations, companies, connectionEventDeliveries, connectionGrants, connectionIntentDeliveries,
   createDb, environmentLeases, environments, heartbeatRuns, issues, issueThreadInteractions, toolApplications, toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { beginIdleTrackedWork } from "../services/task-admission.js";
 import { connectionIntentDeliveryService } from "../services/connection-intent-delivery.js";
 import { readIdleSleepSafety, type IdleSleepDrainStatus } from "../services/idle-sleep-safety.js";
@@ -114,7 +114,7 @@ if (!support.supported) console.warn(`Skipping connection-history database tests
       setup: { step: "provider_setup", ...(command ? { command } : {}) } }).returning();
     return { ...f, connection: c, endpoint: endpoint! };
   }
-  it.each([undefined, "/paperclip-fixture"])("permits an unconfigured disabled Slack draft without losing setup state (%s)", async command => {
+  it.each([undefined, "/nexus-fixture"])("permits an unconfigured disabled Slack draft without losing setup state (%s)", async command => {
     const f = await slackDraft(command); expect(await read()).toEqual(none);
     expect(await db.select().from(chatEndpoints)).toEqual([f.endpoint]);
   });

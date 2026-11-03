@@ -5,14 +5,14 @@ import {
   agents, agentWakeupRequests, authUsers, chatConversations, chatEndpoints, chatMessageLinks,
   chatPublications, connectionIntentDeliveries, companies, companyMemberships, closeRegisteredClients, createDb, heartbeatRuns,
   issueComments, issueThreadInteractions, issues, toolApplications, toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { resolveChatRunPresentationAuthorizationReason, enqueueChatRunMilestones } from "./chat-run-publications.js";
 import { CHAT_RUN_PRESENTATION_AUTHORIZATION_REASON, isChatOriginPublicationCandidate, isExternalChatPresentationContext, resolveHeartbeatRunResponse } from "./heartbeat-run-summary.js";
 import { resolveChatOriginPublicationBindings } from "./issues.js";
 
 describe("chat interaction continuation delivery", () => {
-  const externalUrl = process.env.PAPERCLIP_TEST_DATABASE_URL;
+  const externalUrl = process.env.NEXUS_TEST_DATABASE_URL;
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
@@ -24,7 +24,7 @@ describe("chat interaction continuation delivery", () => {
   async function fixture(kind = "request_checkbox_confirmation", status = "accepted") {
     const [company] = await db.insert(companies).values({ name: "Continuation", issuePrefix: randomUUID().slice(0, 8) }).returning();
     await db.insert(companyMemberships).values({ companyId: company.id, principalType: "user", principalId: "requester", status: "active", membershipRole: "owner" });
-    const [agent] = await db.insert(agents).values({ companyId: company.id, name: "Worker", adapterType: "paperclip_runner" }).returning();
+    const [agent] = await db.insert(agents).values({ companyId: company.id, name: "Worker", adapterType: "nexus_runner" }).returning();
     const [issue] = await db.insert(issues).values({ companyId: company.id, title: "Repository QA", status: "in_progress", assigneeAgentId: agent.id, responsibleUserId: "requester" }).returning();
     const [application] = await db.insert(toolApplications).values({ companyId: company.id, applicationKey: randomUUID(), name: "Slack", type: "chat" }).returning();
     const [connection] = await db.insert(toolConnections).values({ companyId: company.id, applicationId: application.id, name: "Slack", uid: randomUUID(), connectionPurpose: "channel", transport: "chat_sdk" }).returning();

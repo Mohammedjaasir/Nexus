@@ -22,7 +22,7 @@ import {
   toolConnections,
   userSecretDeclarations,
   userSecretDefinitions,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -31,7 +31,7 @@ import { accessService } from "../services/access.js";
 import { grantsForHumanRole } from "../services/company-member-roles.js";
 import { backfillPrincipalAccessCompatibility } from "../services/principal-access-compatibility.js";
 
-const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_ACCESS_TEST_DATABASE_URL");
+const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_ACCESS_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalTestDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -65,7 +65,7 @@ describeEmbeddedPostgres("access service", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    if (!externalTestDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-access-service-");
+    if (!externalTestDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-access-service-");
     if (externalTestDatabaseUrl) await applyPendingMigrations(externalTestDatabaseUrl);
     db = createDb(externalTestDatabaseUrl ?? tempDb!.connectionString);
   }, 20_000);

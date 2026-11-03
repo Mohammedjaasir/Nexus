@@ -6,8 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { createInviteRateLimiter } from "./invite-rate-limit.js";
 import { eq, sql } from "drizzle-orm";
-import { activityLog, authUsers, boardApiKeys, cliAuthChallenges, companies, companyMemberships, createDb, getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "@paperclipai/db";
-import type { Db } from "@paperclipai/db";
+import { activityLog, authUsers, boardApiKeys, cliAuthChallenges, companies, companyMemberships, createDb, getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "@nexusai/db";
+import type { Db } from "@nexusai/db";
 import { boardAuthService } from "./board-auth.js";
 import { subscribeCompanyLiveEvents } from "./live-events.js";
 
@@ -48,7 +48,7 @@ describe("boardAuthService touchBoardApiKey", () => {
   });
 });
 
-const external = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const external = process.env.NEXUS_TEST_DATABASE_URL;
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const databaseSuite = support.supported ? describe : describe.skip;
 
@@ -78,7 +78,7 @@ databaseSuite("CLI challenge authority and transitions (real PostgreSQL)", () =>
       companyId, principalType: "user", principalId, status: "active", membershipRole: "owner",
     })));
     const service = boardAuthService(db);
-    const created = await service.createCliAuthChallenge({ command: "paperclipai auth login", requestedAccess: "board", requestedCompanyId: companyId });
+    const created = await service.createCliAuthChallenge({ command: "nexusai auth login", requestedAccess: "board", requestedCompanyId: companyId });
     return { companyId, userId, otherUserId, service, ...created };
   }
 
@@ -224,10 +224,10 @@ databaseSuite("CLI challenge authority and transitions (real PostgreSQL)", () =>
 
   it("keeps instance-admin approval and current full-Board key authentication compatible", async () => {
     const f = await fixture();
-    const { instanceUserRoles } = await import("@paperclipai/db");
+    const { instanceUserRoles } = await import("@nexusai/db");
     await db.delete(companyMemberships).where(eq(companyMemberships.principalId, f.userId));
     await db.insert(instanceUserRoles).values({ userId: f.userId, role: "instance_admin" });
-    const created = await f.service.createCliAuthChallenge({ command: "paperclipai auth login", requestedAccess: "instance_admin_required", requestedCompanyId: f.companyId });
+    const created = await f.service.createCliAuthChallenge({ command: "nexusai auth login", requestedAccess: "instance_admin_required", requestedCompanyId: f.companyId });
     await expect(f.service.approveCliAuthChallenge(created.challenge.id, created.challengeSecret, f.otherUserId)).rejects.toThrow("Instance admin required");
     const approved = await f.service.approveCliAuthChallenge(created.challenge.id, created.challengeSecret, f.userId);
     expect(approved.status).toBe("approved");
@@ -248,7 +248,7 @@ databaseSuite("CLI challenge authority and transitions (real PostgreSQL)", () =>
     app.use("/api", accessRoutes(db, { deploymentMode: "authenticated", deploymentExposure: "private", bindHost: "127.0.0.1", allowedHostnames: [] }));
     app.use(errorHandler);
     const created = await request(app).post("/api/cli-auth/challenges")
-      .send({ command: "paperclipai auth login", requestedCompanyId: f.companyId });
+      .send({ command: "nexusai auth login", requestedCompanyId: f.companyId });
     expect(created.status).toBe(201);
     const { id, token, boardApiToken } = created.body;
     const secondCompanyId = randomUUID();

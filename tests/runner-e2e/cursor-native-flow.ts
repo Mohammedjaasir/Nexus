@@ -70,7 +70,7 @@ export async function prepareCursorRemoteAction(input: {
 
 /** Match canonical omission of an unanswered optional feedback field. */
 export function cursorNativePlanResponse(planId: string, decision: "accept" | "reject" | "cancel", feedback: string) {
-  return { schema: "paperclip.question_response.v1", answers: { [planId]: { selectedOptionIds: [decision] }, ...(decision === "reject" ? { reason: { text: feedback } } : {}) } };
+  return { schema: "nexus.question_response.v1", answers: { [planId]: { selectedOptionIds: [decision] }, ...(decision === "reject" ? { reason: { text: feedback } } : {}) } };
 }
 
 /** Independent bounded snapshot; symlinks are rejected without following them. */
@@ -299,7 +299,7 @@ export async function runCursorNativeFlow(input: {
       for (const tree of trees) await page.getByRole("checkbox", { name: tree, exact: true }).last().click();
       const answers = Object.fromEntries(questions.map((question: Row, index: number) => [question.id, { selectedOptionIds: (index === 0 ? [color] : trees).map(label => question.options.find((option: Row) => option.label === label)?.id) }]));
       await page.getByRole("button", { name: card.payload.questionSet.submitLabel ?? "Submit answers", exact: true }).last().click();
-      await delivery(card, event, { schema: "paperclip.question_response.v1", answers });
+      await delivery(card, event, { schema: "nexus.question_response.v1", answers });
       expectedMarker = `CURSOR-NATIVE-${nonce}-${color.toLowerCase()}-${trees.map(tree => tree.toLowerCase()).sort().join("+")}`;
       await sampleWorkspace("question-delivered");
     } else if (design.method === "cursor/create_plan") {

@@ -61,7 +61,7 @@ history with the real sweep implementations, a real producer inside an outer
 commit/rollback, saved deadlines, deadline replacement/cancellation, durable
 status retries, recovery continuations, independent duties, and drain/resume.
 Database tests use embedded PostgreSQL by default. An isolated external test
-instance can be supplied through `PAPERCLIP_EXECUTION_SLEEP_TEST_DATABASE_URL`;
+instance can be supplied through `NEXUS_EXECUTION_SLEEP_TEST_DATABASE_URL`;
 the database must have a dedicated name ending in `_test` and is cleared by the
 suite. Never use a tenant database.
 

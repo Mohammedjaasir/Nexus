@@ -93,7 +93,7 @@ describe("announcement feed", () => {
     expect(await service.current()).not.toBeNull();
     now = 1000;
     expect(await service.current()).toBeNull();
-    expect(await announcementFeedService({ version: "1.0.0", fetch: async () => json({ ...item, minimumPaperclipVersion: "2.0.0" }) }).current()).toBeNull();
+    expect(await announcementFeedService({ version: "1.0.0", fetch: async () => json({ ...item, minimumNexusVersion: "2.0.0" }) }).current()).toBeNull();
   });
   it("proxies only the current content-addressed image and caches bytes", async () => {
     const bytes = Buffer.from("test-image");

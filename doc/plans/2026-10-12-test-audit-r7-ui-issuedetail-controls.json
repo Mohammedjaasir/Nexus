@@ -73,7 +73,7 @@
         "logSha256": "b7a6464f68a800d0218d044694c0f8405e993f18ee831634a9c22b4b00204c86",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected <button \u2026(3)>\u2026(1)</button> to be null\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/pages/IssueDetail.test.tsx:4195:7\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected <button \u2026(3)>\u2026(1)</button> to be null\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/pages/IssueDetail.test.tsx:4195:7\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     }

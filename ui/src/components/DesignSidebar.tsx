@@ -1,4 +1,4 @@
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 import { Boxes, CircleCheck, CirclePlus, FolderOpen, History, LayoutDashboard, MessageCircle, Package, Repeat, Search, Unplug, Users } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
 import { SidebarAccountMenu } from "./SidebarAccountMenu";

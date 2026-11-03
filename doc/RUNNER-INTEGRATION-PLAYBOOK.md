@@ -1,8 +1,8 @@
-# Adding a harness to Paperclip Runner
+# Adding a harness to Nexus Runner
 
 Last reviewed: 2026-10-19. Source baseline: `c6a0cf4bce42449f617fb1cfbe25b8500d8a9fb9`.
 
-This playbook adds a new harness/provider to **native Paperclip Runner**, the new
+This playbook adds a new harness/provider to **native Nexus Runner**, the new
 Runner execution system. It takes that integration from requirements and protocol
 research to installation, real product acceptance, and a bounded release. It
 distills the Pi, Cursor, and GitHub Copilot integrations, including failed attempts and
@@ -10,7 +10,7 @@ later corrections. It is a procedure for future work, not a certification of
 today's binaries or a requirement to repeat every historical test.
 
 All reusable principles and acceptance criteria are written here and in the
-templates. No private Codex session, Paperclip task, historical evidence archive,
+templates. No private Codex session, Nexus task, historical evidence archive,
 or separate private repository is a prerequisite. Links point to code and docs
 in this checkout or public provider documentation. The matching skill is
 [create-runner-adapter](../.agents/skills/create-runner-adapter/SKILL.md).
@@ -57,10 +57,10 @@ Trace those responsibilities before copying an existing provider.
 
 | Integration responsibility | Owning boundary | Starting point |
 | --- | --- | --- |
-| Provider lifecycle and native session behavior | Harness driver and provider-owned translation | [Runner package](../packages/paperclip-runner/README.md) and the source map in section 3 |
-| ACP-based transport, when suitable | Existing ACPX driver plus provider-owned launch and extensions | [ACPX implementation](../packages/paperclip-runner/src/drivers/acpx/) |
+| Provider lifecycle and native session behavior | Harness driver and provider-owned translation | [Runner package](../packages/nexus-runner/README.md) and the source map in section 3 |
+| ACP-based transport, when suitable | Existing ACPX driver plus provider-owned launch and extensions | [ACPX implementation](../packages/nexus-runner/src/drivers/acpx/) |
 | Admission and product configuration | Shared contracts, server admission, and native Runner UI | Section 6 and the source map in section 3 |
-| Running this provider on an existing hosting target | Runtime distribution, execution-environment lifecycle, and networking | [RunnerExecutionDriver architecture](../packages/paperclip-runner/README.md#execution-environment-lifecycle) and section 11 |
+| Running this provider on an existing hosting target | Runtime distribution, execution-environment lifecycle, and networking | [RunnerExecutionDriver architecture](../packages/nexus-runner/README.md#execution-environment-lifecycle) and section 11 |
 
 Choose the richest stable interface that can meet the release contract. A native
 session API can be better than ACP when it exposes controls ACP cannot carry.
@@ -80,8 +80,8 @@ describe rollout phases and can lag current product configuration.
 
 Before editing, follow `AGENTS.md`, the scoped rules, and any nested instructions.
 Read the goal/product/spec/development/database documents, then the runner README,
-[architecture](architecture/paperclip-runner.md),
-[compatibility](architecture/paperclip-runner-compatibility.md). The test procedure
+[architecture](architecture/nexus-runner.md),
+[compatibility](architecture/nexus-runner-compatibility.md). The test procedure
 and acceptance criteria are in sections 12–15 below. Use
 [runtime-dependency-boundaries](../rules/runtime-dependency-boundaries.mdc) when
 adding filesystem, process, database, or network work to shared paths.
@@ -89,7 +89,7 @@ adding filesystem, process, database, or network work to shared paths.
 ## 2. Define the release before implementing it
 
 Create a dated plan under `doc/plans/` when a repository plan is needed. If the
-task lives in Paperclip and requests a plan, use its issue plan document. Keep
+task lives in Nexus and requests a plan, use its issue plan document. Keep
 one current acceptance ledger; append historical results without allowing them
 to masquerade as the current decision.
 
@@ -152,17 +152,17 @@ the Rust decoder or actual packaged sidecar.
 
 | Responsibility | Current source anchors |
 | --- | --- |
-| Public harness interfaces, capabilities, requests | [harness-driver.ts](../packages/paperclip-runner/src/contracts/harness-driver.ts), [native execution contracts](../packages/paperclip-runner/src/contracts/native-execution.ts) |
-| Canonical provider event inventory | [provider-events.ts](../packages/paperclip-runner/src/provider-events.ts), [protocol schemas](../packages/paperclip-runner/protocol/) |
-| ACPX capability and driver declarations | [driver-profile.ts](../packages/paperclip-runner/src/drivers/acpx/driver-profile.ts), [capability-profiles.ts](../packages/paperclip-runner/src/drivers/acpx/capability-profiles.ts) |
-| Provider-specific requests and activity | [profile-extensions.ts](../packages/paperclip-runner/src/drivers/acpx/profile-extensions.ts), [profile-activity.ts](../packages/paperclip-runner/src/drivers/acpx/profile-activity.ts) |
-| Actual ACPX manager and provider interaction | [codex-runtime-adapter.ts](../packages/paperclip-runner/src/drivers/acpx/codex-runtime-adapter.ts), [codex-acpx-driver.ts](../packages/paperclip-runner/src/drivers/acpx/codex-acpx-driver.ts) |
-| Model/mode and session identity | [model-verification.ts](../packages/paperclip-runner/src/drivers/acpx/model-verification.ts), [provider-mode.ts](../packages/paperclip-runner/src/drivers/acpx/provider-mode.ts), [recovery-identity.ts](../packages/paperclip-runner/src/drivers/acpx/recovery-identity.ts) |
-| TypeScript/Rust sidecar boundary | [sidecar schema](../packages/paperclip-runner/protocol/provider-schemas/acpx-sidecar.schema.json), [sidecar-protocol.ts](../packages/paperclip-runner/src/drivers/acpx/sidecar-protocol.ts), [sidecar CLI](../packages/paperclip-runner/src/cli/), [Rust core](../packages/paperclip-runner/runner/crates/runner-core/src/) |
-| Release identity | [acpx-profiles.json](../packages/paperclip-runner/acpx-profiles.json), [profile generator](../packages/paperclip-runner/scripts/generate-acpx-profiles.mjs), [qualified-profiles.ts](../packages/paperclip-runner/src/drivers/acpx/qualified-profiles.ts) |
+| Public harness interfaces, capabilities, requests | [harness-driver.ts](../packages/nexus-runner/src/contracts/harness-driver.ts), [native execution contracts](../packages/nexus-runner/src/contracts/native-execution.ts) |
+| Canonical provider event inventory | [provider-events.ts](../packages/nexus-runner/src/provider-events.ts), [protocol schemas](../packages/nexus-runner/protocol/) |
+| ACPX capability and driver declarations | [driver-profile.ts](../packages/nexus-runner/src/drivers/acpx/driver-profile.ts), [capability-profiles.ts](../packages/nexus-runner/src/drivers/acpx/capability-profiles.ts) |
+| Provider-specific requests and activity | [profile-extensions.ts](../packages/nexus-runner/src/drivers/acpx/profile-extensions.ts), [profile-activity.ts](../packages/nexus-runner/src/drivers/acpx/profile-activity.ts) |
+| Actual ACPX manager and provider interaction | [codex-runtime-adapter.ts](../packages/nexus-runner/src/drivers/acpx/codex-runtime-adapter.ts), [codex-acpx-driver.ts](../packages/nexus-runner/src/drivers/acpx/codex-acpx-driver.ts) |
+| Model/mode and session identity | [model-verification.ts](../packages/nexus-runner/src/drivers/acpx/model-verification.ts), [provider-mode.ts](../packages/nexus-runner/src/drivers/acpx/provider-mode.ts), [recovery-identity.ts](../packages/nexus-runner/src/drivers/acpx/recovery-identity.ts) |
+| TypeScript/Rust sidecar boundary | [sidecar schema](../packages/nexus-runner/protocol/provider-schemas/acpx-sidecar.schema.json), [sidecar-protocol.ts](../packages/nexus-runner/src/drivers/acpx/sidecar-protocol.ts), [sidecar CLI](../packages/nexus-runner/src/cli/), [Rust core](../packages/nexus-runner/runner/crates/runner-core/src/) |
+| Release identity | [acpx-profiles.json](../packages/nexus-runner/acpx-profiles.json), [profile generator](../packages/nexus-runner/scripts/generate-acpx-profiles.mjs), [qualified-profiles.ts](../packages/nexus-runner/src/drivers/acpx/qualified-profiles.ts) |
 | Server admission, permissions, finalization, recovery | [native-runtime services](../server/src/services/native-runtime/), including `acpx-qualification.ts`, `native-interaction-bridge.ts`, `native-run-finalizer.ts`, and `native-plan-wait-receipts.ts` |
-| Product selection and setup | [shared agent runner](../packages/shared/src/agent-runner.ts), [Runner UI adapter](../ui/src/adapters/paperclip-runner/), [runtime CLI](../cli/src/commands/runtime.ts) |
-| Packaging and image contents | [runner scripts](../packages/paperclip-runner/scripts/), [remote pack admission](../server/src/services/native-runtime/remote-provider-pack.ts), [Daytona image identity](../tests/runner-e2e/daytona-image-content.ts) |
+| Product selection and setup | [shared agent runner](../packages/shared/src/agent-runner.ts), [Runner UI adapter](../ui/src/adapters/nexus-runner/), [runtime CLI](../cli/src/commands/runtime.ts) |
+| Packaging and image contents | [runner scripts](../packages/nexus-runner/scripts/), [remote pack admission](../server/src/services/native-runtime/remote-provider-pack.ts), [Daytona image identity](../tests/runner-e2e/daytona-image-content.ts) |
 | Product acceptance | [runner-e2e](../tests/runner-e2e/README.md), [fixtures](../tests/runner-e2e/FIXTURES.md), [security](../tests/runner-e2e/SECURITY.md) |
 
 These are discovery anchors, not an exhaustive edit checklist. Search from the
@@ -170,7 +170,7 @@ actual field or capability to find its callers, serializers, snapshots, tests,
 UI, and packaging. Some historical filenames still say `codex` while carrying
 shared ACPX behavior. Do not infer ownership solely from a filename.
 
-Keep business authority in Paperclip: company access, task ownership, approval
+Keep business authority in Nexus: company access, task ownership, approval
 policy, budget stops, semantic action acceptance, and final task state. Keep
 provider protocol translation, native mode names, CLI flags, credentials, and
 version-specific quirks in provider code. The runner owns process supervision,
@@ -223,7 +223,7 @@ Cover:
 - File edits, diffs, images, attachments, artifacts, and inbound media.
 - Usage, cached tokens, retries, subagent usage, cost provenance, and subscription limits.
 - Idle behavior, autonomous retry/cache warming, shutdown, EOF, and process cleanup.
-- Config/command discovery and useful native events that Paperclip does not yet display.
+- Config/command discovery and useful native events that Nexus does not yet display.
 
 For every partial or dropped field, name the field, loss boundary, impact,
 reason, and next action. “ACP does not support it” is too broad if the wrapper
@@ -266,7 +266,7 @@ Implement in this order unless a demonstrated dependency requires another:
 2. Start the real provider through a minimal owned harness. Establish exact
    model/instruction admission and a clean stop with no product UI yet.
 3. Complete one semantic tool round trip through the real wrapper/sidecar.
-4. Run an actual task through Paperclip: context → file change → validation →
+4. Run an actual task through Nexus: context → file change → validation →
    artifact → accepted completion → durable Done → cleanup.
 5. Add the blocking human interactions and lifecycle controls promised for
    the first environment. Exercise their failures, not only successful replies.
@@ -298,8 +298,8 @@ For ACPX, `acpx-profiles.json` owns release declarations. Generate the language
 representations instead of maintaining handwritten TypeScript/Rust tuples:
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner generate:acpx-profiles
-pnpm --filter @paperclipai/paperclip-runner check:acpx-profiles
+pnpm --filter @nexusai/nexus-runner generate:acpx-profiles
+pnpm --filter @nexusai/nexus-runner check:acpx-profiles
 ```
 
 The existing native Runner serialized field `qualificationModel` contains the selected
@@ -348,7 +348,7 @@ Pass the actual registered profile through every execution-input parser, not onl
 the runtime registry. Derive version types from one declaration so a new profile
 cannot be admitted by one layer and rejected by another. A provider's
 `commandDigest` attests only its own upstream release: upstream versions, platform
-closure pins and any launcher bytes. Never bind Paperclip source, the shared ACPX
+closure pins and any launcher bytes. Never bind Nexus source, the shared ACPX
 version or patch, absolute paths or the pack layout into it. Every harness gets
 the ACPX layer the same way: the profile's `acpxVersion` and the provider pack's
 `contractDigest`, which also covers the Runner's ACPX patch and Runner source
@@ -376,7 +376,7 @@ Include both agent configuration and task-level model selection where supported.
 These checks establish correct routing and authority. They do not turn a discovery
 list into a model allowlist: explicit compatible models still follow section 6.1.
 
-For Kimi Code, when `PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH` selects a
+For Kimi Code, when `NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH` selects a
 controller pack, remote Test prepares and verifies that current pack through the
 normal installer before its 35-second metadata/catalog budget starts.
 Installation adds to total Test time. Without a selected pack, remote targets
@@ -406,12 +406,12 @@ cannot replace the managed context.
 
 ### 7.2 Bridge tools with the correct authority
 
-Trace assigned MCP tools and Paperclip semantic actions from current company/run
+Trace assigned MCP tools and Nexus semantic actions from current company/run
 authority through discovery and invocation. The provider receives only the
 scoped tool bridge and explicitly granted credentials. Do not give the native
 runner a broad control-plane credential to simplify integration.
 
-Distinguish native tools, Paperclip semantic tools, and assigned external tools.
+Distinguish native tools, Nexus semantic tools, and assigned external tools.
 Verify discovery, schema, invocation, result, and accepted control-plane mutation
 separately. Inspect the schema actually sent to the model: a validator may accept
 a schema that presents required fields poorly to a real model. Preserve runtime
@@ -503,7 +503,7 @@ notification does not prove a usable image was delivered. Compare downloaded
 bytes with an independent expected result.
 
 Inbound media is a separate capability from artifact output. A provider's
-advertised image support does not prove Paperclip's text-only turn path forwards
+advertised image support does not prove Nexus's text-only turn path forwards
 attachments. Do not expose an affordance until the complete conversion path exists.
 
 ### Usage and costs
@@ -544,7 +544,7 @@ merely because a callback resolved locally.
 | Interaction | Required details and negative cases |
 | --- | --- |
 | Native question | Native question/option identity, required fields, selection cardinality, supported text/editor forms, explicit skip/cancel. Reject missing, duplicate, forged, or cross-question selections. |
-| Semantic Paperclip question | Durable tool-backed product interaction; prove its continuation independently of native question support. |
+| Semantic Nexus question | Durable tool-backed product interaction; prove its continuation independently of native question support. |
 | Permission | Only offered and policy-supported decisions; correlate with the exact tool operation. Denial must precede side effects. An “always” choice requires a proven scope. |
 | Native plan | Complete plan, correct revision, reject with feedback, revised display, accept/cancel, exact response delivery, and defined post-accept state. Reject oversize plans instead of approving a truncated document. |
 | Stale/duplicate answer | Reject wrong task/company/run/revision, late answer after Stop, repeated submission, and provider-loss answer. No second mutation or replacement run. |
@@ -608,7 +608,7 @@ Cursor's. Advertise unsupported controls honestly.
 ### 10.3 Prove terminal behavior and cleanup
 
 Separate provider prompt completion, native background-work settlement, accepted
-Paperclip result, task-state finalization, and resource retirement. Pi historically
+Nexus result, task-state finalization, and resource retirement. Pi historically
 required `agent_settled`; a partial tool JSON fragment or final-looking assistant
 message cannot substitute for the native terminal boundary.
 
@@ -662,15 +662,15 @@ must not make a stale provider pack compatible with a newer controller.
 ### 11.2 Prove ordinary installation
 
 Exercise the actual public-package lifecycle in a clean consumer as the OS user
-who will run Paperclip. Use the published-layout package/tarball path; a local
+who will run Nexus. Use the published-layout package/tarball path; a local
 source loader, private store, borrowed `dist`, or candidate environment override
 does not establish normal installation.
 
 Pi and Cursor currently have explicit setup commands:
 
 ```sh
-paperclipai runtime setup pi
-paperclipai runtime setup cursor
+nexusai runtime setup pi
+nexusai runtime setup cursor
 ```
 
 These are examples, not a generic command that already supports a new provider.
@@ -699,7 +699,7 @@ For remote execution, build on an appropriate host, record an immutable OCI
 digest, and verify contents through the production pack reader. Start a fresh
 consumer using normal secret bindings and normal provider admission. Test the
 actual networking route: loopback, outbound WSS, or authorized sandbox ingress
-have different contracts. Consult [Daytona networking](architecture/paperclip-runner-daytona-networking.md).
+have different contracts. Consult [Daytona networking](architecture/nexus-runner-daytona-networking.md).
 
 ### 11.3 Keep platform work proportional
 
@@ -741,9 +741,9 @@ steps. Author new cases alongside the maintained test families instead of buildi
 a one-off qualification system.
 
 **Provider and transport contracts:** use
-[`packages/paperclip-runner/test/`](../packages/paperclip-runner/test/) and the
+[`packages/nexus-runner/test/`](../packages/nexus-runner/test/) and the
 co-located driver tests. For example, the
-[installed ACPX model-selection test](../packages/paperclip-runner/test/acpx-model-selection-package-contract.test.mjs)
+[installed ACPX model-selection test](../packages/nexus-runner/test/acpx-model-selection-package-contract.test.mjs)
 loads the actual installed manager and replaces only the provider process with
 a controlled peer. Its advertised model list omits the requested model; the
 peer records the exact selection and can accept, reject, or acknowledge a
@@ -763,8 +763,8 @@ Cover at least the fragile contracts the new implementation introduces:
 - Process shutdown with pending work, child cleanup, late callbacks, and asset
   integrity failures. Assert the intended native boundary was reached.
 
-Use the existing [mock control plane](../packages/paperclip-runner/src/mock-core/)
-and [conformance suite](../packages/paperclip-runner/src/conformance/) when a
+Use the existing [mock control plane](../packages/nexus-runner/src/mock-core/)
+and [conformance suite](../packages/nexus-runner/src/conformance/) when a
 semantic/protocol check needs Runner plus a controlled server peer. Label synthetic
 provider responses as synthetic. A deterministic pass cannot qualify model
 behavior. Any additional live protocol campaign is a separate evidence family;
@@ -814,9 +814,9 @@ complete even when a contributor has no access to earlier campaigns.
 Start with targeted checks. Existing command entry points include:
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner check:acpx-profiles
-pnpm --filter @paperclipai/paperclip-runner typecheck
-pnpm --filter @paperclipai/paperclip-runner check:runner
+pnpm --filter @nexusai/nexus-runner check:acpx-profiles
+pnpm --filter @nexusai/nexus-runner typecheck
+pnpm --filter @nexusai/nexus-runner check:runner
 pnpm test:e2e:runner:typecheck
 pnpm test:e2e:runner:unit
 pnpm test:e2e:runner -- --list
@@ -1128,7 +1128,7 @@ and cleanup. Use existing observability and run logs; classify any new data by
 path under the repository's Telemetry/Observability/run-log rules. Do not send
 private prompts, credentials, or reasoning into a new reporting channel.
 
-For Paperclip issue work, upload deliverable files and register work products
+For Nexus issue work, upload deliverable files and register work products
 before final status, following the [artifact guide](AGENT-ARTIFACTS.md). Keep raw
 private evidence in its proper store; public summaries use sanitized evidence
 and immutable references. A local `/tmp` directory is not a release handoff.

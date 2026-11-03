@@ -31,8 +31,8 @@ import { Router } from "express";
 import path from "node:path";
 import fs from "node:fs";
 import crypto from "node:crypto";
-import type { Db } from "@paperclipai/db";
-import type { PluginRecord } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import type { PluginRecord } from "@nexusai/shared";
 import { pluginRegistryService } from "../services/plugin-registry.js";
 import { logger } from "../middleware/logger.js";
 import { assertCompanyAccess } from "./authz.js";
@@ -190,7 +190,7 @@ export interface PluginUiStaticRouteOptions {
   /**
    * The local plugin installation directory.
    * This is where plugins are installed via `npm install --prefix`.
-   * Defaults to the standard `~/.paperclip/plugins/` location.
+   * Defaults to the standard `~/.nexus/plugins/` location.
    */
   localPluginDir: string;
   resolvePackageRoot?: (plugin: PluginRecord) => string;

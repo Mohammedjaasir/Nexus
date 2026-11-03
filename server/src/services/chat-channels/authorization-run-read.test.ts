@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { agents, companies, createDb, heartbeatRuns } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRuns } from "@nexusai/db";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "../../__tests__/helpers/full-database-response-capture.js";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -58,7 +58,7 @@ describe.skipIf(!support.supported)("chat authorization run reads", () => {
       expect(selected.run).not.toHaveProperty("runnerProfileJson");
       expect(selected.run).not.toHaveProperty("stdoutExcerpt");
     } finally { capture.flush(); }
-    const summary = events.find(event => event.event === "paperclip.test_db_response_capture.summary.v1")!;
+    const summary = events.find(event => event.event === "nexus.test_db_response_capture.summary.v1")!;
     expect(summary.completedQueries).toBeGreaterThan(0);
     expect(summary.responseValueBytes).toBeLessThan(4096);
     const retry = await db.transaction(tx => readChatAuthorizationRun(tx, scope, false));

@@ -1,4 +1,4 @@
-import type { ToolRiskLevel } from "@paperclipai/shared";
+import type { ToolRiskLevel } from "@nexusai/shared";
 
 export function enterpretRisk(tool: { name: string }): ToolRiskLevel | null {
   const name = tool.name.replace(/([a-z0-9])([A-Z])/g, "$1-$2")

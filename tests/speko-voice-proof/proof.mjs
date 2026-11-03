@@ -1,5 +1,5 @@
 /**
- * Provider feasibility probe only. No Paperclip access, real tasks, or production
+ * Provider feasibility probe only. No Nexus access, real tasks, or production
  * credentials. A synthetic result is withheld for 60 seconds to test whether the
  * hosted voice worker keeps fetching it without another spoken user prompt.
  */
@@ -102,7 +102,7 @@ export function createProof({ signingSecret, now = Date.now, wait = sleep, delay
     if (!result && remaining > 0) await wait(Math.min(WAIT_MS, remaining));
     if (closed || now() - createdAt >= TTL_MS) return { status: 410, body: { error: "proof_expired" } };
     if (!result && now() >= startedAt + delayMs) {
-      result = { cursor: 1, text: `Paperclip proof complete. Verification number ${randomInt(1_000, 10_000)}. Follow-up count ${requests - 1}.` };
+      result = { cursor: 1, text: `Nexus proof complete. Verification number ${randomInt(1_000, 10_000)}. Follow-up count ${requests - 1}.` };
       emit("result_ready", { requestCount: requests, jobElapsedMs: now() - startedAt });
     }
     const updates = result && envelope.args.cursor < result.cursor ? [result] : [];

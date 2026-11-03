@@ -1,5 +1,5 @@
 import { and, asc, eq, gt } from "drizzle-orm";
-import { issueWatchdogs, type Db } from "@paperclipai/db";
+import { issueWatchdogs, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";
 import { DELIVERY_QUEUES } from "./delivery-work-notifications.js";
 import type { IssueRecoveryScope } from "./issue-recovery-notifications.js";

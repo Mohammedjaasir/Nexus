@@ -1,7 +1,7 @@
 import { context, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { InMemorySpanExporter, SimpleSpanProcessor, TracerProvider } from "@opentelemetry/sdk-trace";
-import { companies, createDb, executionWorkspaces, issueComments, issues, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { companies, createDb, executionWorkspaces, issueComments, issues, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
@@ -19,7 +19,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let companyId: string, workspaceId: string;
   let exporter: InMemorySpanExporter, provider: TracerProvider, manager: AsyncLocalStorageContextManager;
   beforeAll(async () => {
-    temporary = await startEmbeddedPostgresTestDatabase("paperclip-execution-timing-");
+    temporary = await startEmbeddedPostgresTestDatabase("nexus-execution-timing-");
     db = createDb(temporary.connectionString);
     const [company] = await db.insert(companies).values({ name: "Timing fixture", issuePrefix: "TIME" }).returning();
     companyId = company.id;

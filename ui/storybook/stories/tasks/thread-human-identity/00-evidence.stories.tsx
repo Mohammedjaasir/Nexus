@@ -11,7 +11,7 @@ function ReviewGuide() {
   </main>;
 }
 export default {
-  parameters: { paperclip: {
+  parameters: { nexus: {
       "capabilities": [
         "tasks/discussion"
       ],

@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { runnerMatrix } from "./catalog.js";
 import { assertInstalledCliSelection, installedCliKeys, probeInstalledCodexStartup, verifyInstalledCli } from "./installed-cli.js";
-import { buildPaperclipServerEnvironment, buildRunnerE2EProcessEnvironment } from "./harness-env.js";
+import { buildNexusServerEnvironment, buildRunnerE2EProcessEnvironment } from "./harness-env.js";
 const cells = runnerMatrix.filter(e => e.profile.id === "runner-acpx-pi");
 const roots: string[] = [];
 // pnpm's source test wrapper sets NODE_PATH; the disposable public-install fixture must start closed.
@@ -18,12 +18,12 @@ afterEach(async () => {
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 async function fixture() {
   const root = await realpath(await mkdtemp(join(tmpdir(), "e2e-installed-cli-"))); roots.push(root);
-  const cli = join(root, "node_modules/paperclipai"); const server = join(root, "node_modules/@paperclipai/server");
+  const cli = join(root, "node_modules/nexusai"); const server = join(root, "node_modules/@nexusai/server");
   await mkdir(join(cli, "dist"), { recursive: true }); await mkdir(join(server, "dist"), { recursive: true });
-  await writeFile(join(cli, "package.json"), JSON.stringify({ name: "paperclipai", version: "1.2.3", type: "module", bin: { paperclipai: "./dist/index.js" } }));
-  await writeFile(join(server, "package.json"), JSON.stringify({ name: "@paperclipai/server", version: "1.2.3", type: "module", exports: { ".": { import: "./dist/index.js" } } }));
+  await writeFile(join(cli, "package.json"), JSON.stringify({ name: "nexusai", version: "1.2.3", type: "module", bin: { nexusai: "./dist/index.js" } }));
+  await writeFile(join(server, "package.json"), JSON.stringify({ name: "@nexusai/server", version: "1.2.3", type: "module", exports: { ".": { import: "./dist/index.js" } } }));
   await writeFile(join(cli, "dist/index.js"), "// installed public CLI"); await writeFile(join(server, "dist/index.js"), "// installed public server");
-  const env = { PAPERCLIP_RUNNER_E2E_INSTALLED_CLI: join(cli, "dist/index.js"), PAPERCLIP_RUNNER_E2E_INSTALLED_CLI_SHA256: hash("// installed public CLI"), PAPERCLIP_RUNNER_E2E_INSTALLED_SERVER_ROOT: server, PAPERCLIP_RUNNER_E2E_INSTALLED_SERVER_SHA256: hash("// installed public server") };
+  const env = { NEXUS_RUNNER_E2E_INSTALLED_CLI: join(cli, "dist/index.js"), NEXUS_RUNNER_E2E_INSTALLED_CLI_SHA256: hash("// installed public CLI"), NEXUS_RUNNER_E2E_INSTALLED_SERVER_ROOT: server, NEXUS_RUNNER_E2E_INSTALLED_SERVER_SHA256: hash("// installed public server") };
   return { root, cli, server, env };
 }
 it("admits all26 current Pi cases through pinned installed public CLI/server with no overrides", async () => {
@@ -36,7 +36,7 @@ it("admits existing Codex onboarding, useful-file revision and restart journeys 
     const cell = runnerMatrix.find(e => e.id === id)!;
     expect(cell).toBeDefined();
     expect(await verifyInstalledCli(env, [cell])).toMatchObject({ serverRoot: server, defaultRuntimeResolution: true, qualificationOverride: false });
-    for (const key of ["PAPERCLIP_RUNNER_BINARY", "NODE_PATH"]) expect(() => assertInstalledCliSelection({ ...env, [key]: "foreign" }, [cell])).toThrow("forbids");
+    for (const key of ["NEXUS_RUNNER_BINARY", "NODE_PATH"]) expect(() => assertInstalledCliSelection({ ...env, [key]: "foreign" }, [cell])).toThrow("forbids");
   }
   for (const id of ["first-task.legacy-codex.local.task-card-accept", "first-task.runner-codex.local.interview-first-response", "everyday-workflows.runner-codex.daytona.build-revise"]) {
     const cell = runnerMatrix.find(e => e.id === id)!;
@@ -53,33 +53,33 @@ it("admits only the 20 agreed Copilot cells through normal installed resolution 
   for (const cell of selected) {
     expect(await verifyInstalledCli(env, [cell])).toMatchObject({ serverRoot: server, defaultRuntimeResolution: true, qualificationOverride: false });
     const child = buildRunnerE2EProcessEnvironment(env, [cell]);
-    expect(child.PAPERCLIP_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
-    for (const key of ["PAPERCLIP_RUNNER_BINARY", "PAPERCLIP_RUNNER_REMOTE_BINARY_PATH", "PAPERCLIP_RUNNER_ACPX_QUALIFICATION", "NODE_PATH"]) {
+    expect(child.NEXUS_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
+    for (const key of ["NEXUS_RUNNER_BINARY", "NEXUS_RUNNER_REMOTE_BINARY_PATH", "NEXUS_RUNNER_ACPX_QUALIFICATION", "NODE_PATH"]) {
       expect(() => assertInstalledCliSelection({ ...env, [key]: "foreign" }, [cell])).toThrow("forbids");
     }
     expect(() => assertInstalledCliSelection(env, [{ ...cell, id: `${cell.id}-unreviewed` }])).toThrow("explicit supported");
   }
 });
 it("qualified providers drop ambient admission without granting custom model overrides", () => {
-  for (const cell of cells) expect(buildRunnerE2EProcessEnvironment({ PAPERCLIP_RUNNER_ACPX_QUALIFICATION: "ambient" }, [cell]).PAPERCLIP_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
+  for (const cell of cells) expect(buildRunnerE2EProcessEnvironment({ NEXUS_RUNNER_ACPX_QUALIFICATION: "ambient" }, [cell]).NEXUS_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
   for (const agent of ["copilot"]) {
     const cell = runnerMatrix.find(e => e.profile.qualificationCandidate === agent)!;
-    expect(buildRunnerE2EProcessEnvironment({ PAPERCLIP_RUNNER_ACPX_QUALIFICATION: "ambient" }, [cell]).PAPERCLIP_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
+    expect(buildRunnerE2EProcessEnvironment({ NEXUS_RUNNER_ACPX_QUALIFICATION: "ambient" }, [cell]).NEXUS_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
   }
   const changed = { ...cells[0]!, profile: { ...cells[0]!.profile, model: "custom/explicit-model" } };
-  expect(buildRunnerE2EProcessEnvironment({}, [changed]).PAPERCLIP_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
+  expect(buildRunnerE2EProcessEnvironment({}, [changed]).NEXUS_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
 });
 it("rejects partial authority, unsupported cells and every runtime/path override", async () => {
   const { env } = await fixture();
   for (const key of installedCliKeys) { const changed = { ...env, [key]: undefined }; await expect(verifyInstalledCli(changed, [cells[0]!])).rejects.toThrow("complete pins"); }
   expect(() => assertInstalledCliSelection(env, [])).toThrow("explicit supported Pi");
   expect(() => assertInstalledCliSelection(env, [runnerMatrix.find(e => e.profile.qualificationCandidate === "cursor")!])).toThrow("explicit supported Pi");
-  for (const key of ["PAPERCLIP_RUNNER_BINARY", "PAPERCLIP_RUNNER_REMOTE_BINARY_PATH", "PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH", "PAPERCLIP_RUNNER_ACPX_QUALIFICATION", "PAPERCLIP_ACPX_BUILTIN_ROOT", "PAPERCLIP_ACPX_PROVIDER_PACKAGE_ROOT", "PAPERCLIP_ACPX_PROVIDER_PACKAGE_MANIFEST", "NODE_OPTIONS", "NODE_PATH"]) await expect(verifyInstalledCli({ ...env, [key]: "foreign" }, [cells[0]!])).rejects.toThrow("forbids");
+  for (const key of ["NEXUS_RUNNER_BINARY", "NEXUS_RUNNER_REMOTE_BINARY_PATH", "NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH", "NEXUS_RUNNER_ACPX_QUALIFICATION", "NEXUS_ACPX_BUILTIN_ROOT", "NEXUS_ACPX_PROVIDER_PACKAGE_ROOT", "NEXUS_ACPX_PROVIDER_PACKAGE_MANIFEST", "NODE_OPTIONS", "NODE_PATH"]) await expect(verifyInstalledCli({ ...env, [key]: "foreign" }, [cells[0]!])).rejects.toThrow("forbids");
 });
 it("rejects stale bytes and another server root instead of falling back to source", async () => {
   const f = await fixture(); const other = await fixture();
-  await expect(verifyInstalledCli({ ...f.env, PAPERCLIP_RUNNER_E2E_INSTALLED_SERVER_ROOT: other.server }, [cells[0]!])).rejects.toThrow("foreign server");
-  await expect(verifyInstalledCli({ ...f.env, PAPERCLIP_RUNNER_E2E_INSTALLED_CLI_SHA256: "0".repeat(64) }, [cells[0]!])).rejects.toThrow("reviewed pins");
+  await expect(verifyInstalledCli({ ...f.env, NEXUS_RUNNER_E2E_INSTALLED_SERVER_ROOT: other.server }, [cells[0]!])).rejects.toThrow("foreign server");
+  await expect(verifyInstalledCli({ ...f.env, NEXUS_RUNNER_E2E_INSTALLED_CLI_SHA256: "0".repeat(64) }, [cells[0]!])).rejects.toThrow("reviewed pins");
   await writeFile(join(f.server, "dist/index.js"), "changed");
   await expect(verifyInstalledCli(f.env, [cells[0]!])).rejects.toThrow("reviewed pins");
 });
@@ -88,18 +88,18 @@ it("rejects linked entrypoints and source-export package identities", async () =
   await rm(join(f.cli, "dist/index.js")); await symlink(join(other.cli, "dist/index.js"), join(f.cli, "dist/index.js"));
   await expect(verifyInstalledCli(f.env, [cells[0]!])).rejects.toThrow("canonical and unlinked");
   await rm(join(f.cli, "dist/index.js")); await writeFile(join(f.cli, "dist/index.js"), "// installed public CLI");
-  await writeFile(join(f.server, "package.json"), JSON.stringify({ name: "@paperclipai/server", version: "1.2.3", exports: { ".": "./src/index.ts" } }));
+  await writeFile(join(f.server, "package.json"), JSON.stringify({ name: "@nexusai/server", version: "1.2.3", exports: { ".": "./src/index.ts" } }));
   await expect(verifyInstalledCli(f.env, [cells[0]!])).rejects.toThrow("public package identity");
 });
 it("keeps installed proof inputs out of the production server environment", async () => {
-  const { env } = await fixture(); const server = buildPaperclipServerEnvironment(env);
+  const { env } = await fixture(); const server = buildNexusServerEnvironment(env);
   for (const key of installedCliKeys) expect(server[key]).toBeUndefined();
   await expect(verifyInstalledCli({}, [])).resolves.toBeUndefined();
 });
 
 it.skipIf(process.platform === "win32")("rejects a FIFO entrypoint without waiting for a writer", async () => {
-  const f = await fixture(); await rm(f.env.PAPERCLIP_RUNNER_E2E_INSTALLED_CLI);
-  execFileSync("/usr/bin/mkfifo", [f.env.PAPERCLIP_RUNNER_E2E_INSTALLED_CLI], { timeout: 5000, env: {} });
+  const f = await fixture(); await rm(f.env.NEXUS_RUNNER_E2E_INSTALLED_CLI);
+  execFileSync("/usr/bin/mkfifo", [f.env.NEXUS_RUNNER_E2E_INSTALLED_CLI], { timeout: 5000, env: {} });
   await expect(verifyInstalledCli(f.env, [cells[0]!])).rejects.toThrow("bounded regular file");
 });
 
@@ -129,8 +129,8 @@ it("startup-only accepts only explicit uncredentialed local hello and zero retri
 
 async function startupFixture(mode: "normal" | "wrong-model" | "ambient-codex" | "startup-and-cleanup-failed" | "cleanup-failed" = "normal") {
   const f = await fixture();
-  const vendor = join(f.server, "dist/vendor/paperclip-runner");
-  const daemon = join(vendor, "bin", `${process.platform}-${process.arch}`, "paperclip-runnerd");
+  const vendor = join(f.server, "dist/vendor/nexus-runner");
+  const daemon = join(vendor, "bin", `${process.platform}-${process.arch}`, "nexus-runnerd");
   const codex = join(f.root, "node_modules/@openai/codex/bin/codex");
   const observations = join(f.root, "startup-observations.json");
   await mkdir(join(vendor, "bin", `${process.platform}-${process.arch}`), { recursive: true });
@@ -139,7 +139,7 @@ async function startupFixture(mode: "normal" | "wrong-model" | "ambient-codex" |
   await writeFile(daemon, "fixture-daemon");
   await writeFile(codex, "#!/bin/sh\nprintf 'codex-cli 0.149.5\\n'\n");
   await chmod(codex, 0o755);
-  await writeFile(join(f.server, "dist/services/native-runtime/native-codex-runner.js"), `export function resolvePaperclipRunnerBinary() { return ${JSON.stringify(daemon)}; }`);
+  await writeFile(join(f.server, "dist/services/native-runtime/native-codex-runner.js"), `export function resolveNexusRunnerBinary() { return ${JSON.stringify(daemon)}; }`);
   await writeFile(join(vendor, "index.js"), `
     import {writeFileSync} from "node:fs";
     const state={calls:[],environmentKeys:[],fileAuthPinned:false};let retired=false;
@@ -158,7 +158,7 @@ async function startupFixture(mode: "normal" | "wrong-model" | "ambient-codex" |
         ${mode === "startup-and-cleanup-failed" ? 'throw new Error("fixture original provider startup failure");' : ''}
         const model=${JSON.stringify(mode === "wrong-model" ? "wrong-model" : "gpt-5.6-sol")};
         return {ids:()=>({driverSessionId:"PRIVATE-DRIVER-ID",providerSessionId:"PRIVATE-PROVIDER-ID"}),
-          events:()=>({async *[Symbol.asyncIterator](){yield {eventType:"session.started",payload:{context:{model,sandbox:{permissionProfile:{id:"paperclip-runner-workspace-read-only"}}}}};}}),
+          events:()=>({async *[Symbol.asyncIterator](){yield {eventType:"session.started",payload:{context:{model,sandbox:{permissionProfile:{id:"nexus-runner-workspace-read-only"}}}}};}}),
           startTurn(){state.calls.push("FORBIDDEN-TURN");save();throw new Error("No provider turn is permitted");},
           async close(){retired=true;state.calls.push("session-close");save();${mode === "cleanup-failed" ? 'throw new Error("fixture session cleanup failure");' : ''}}};}
     }
@@ -172,7 +172,7 @@ it.skipIf(process.platform === "win32")("installed native startup uses closed ho
   expect(receipt).toMatchObject({ nativeSessionStarted: true, cleanupConfirmed: true, providerTurns: 0, credentialsUsed: false,
     codexVersion: "codex-cli 0.149.5", defaultRuntimeResolution: true, reasoningEffortExercised: false });
   expect(await readFile(f.observations, "utf8").then(JSON.parse)).toMatchObject({ calls: ["open", "session-close"], fileAuthPinned: true,
-    environmentKeys: ["CODEX_HOME", "HOME", "LC_ALL", "PAPERCLIP_RUNNER_NETWORK_ACCESS", "PATH", "TMPDIR", "TZ"] });
+    environmentKeys: ["CODEX_HOME", "HOME", "LC_ALL", "NEXUS_RUNNER_NETWORK_ACCESS", "PATH", "TMPDIR", "TZ"] });
   expect(JSON.stringify(receipt)).not.toMatch(/PRIVATE-(?:DRIVER|PROVIDER)-ID/);
 });
 

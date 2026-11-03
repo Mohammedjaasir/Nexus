@@ -5,10 +5,10 @@ import { createRoot } from "react-dom/client";
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Browse } from "./Browse";
-import { aiConnectionRouterAppDefinition, getAppStoreDefinition } from "@paperclipai/shared";
+import { aiConnectionRouterAppDefinition, getAppStoreDefinition } from "@nexusai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { AggregatorAppCatalogEntry } from "@paperclipai/shared/aggregator-app-catalog";
+import type { AggregatorAppCatalogEntry } from "@nexusai/shared/aggregator-app-catalog";
 
 const aggregatorCatalogMock = vi.hoisted(() => [] as AggregatorAppCatalogEntry[]);
 const openNewIssueMock = vi.hoisted(() => vi.fn());
@@ -25,8 +25,8 @@ function genericResponse(value: { apps?: any[]; sync?: Record<string, unknown> }
       appName: snapshot.appName ?? snapshot.toolkit })) };
 }
 vi.mock("@/api/agents", () => ({ agentsApi: { list: (companyId: string) => listAgentsMock(companyId) } }));
-vi.mock("@paperclipai/shared/aggregator-app-catalog", async (importOriginal) => ({
-  ...await importOriginal<typeof import("@paperclipai/shared/aggregator-app-catalog")>(),
+vi.mock("@nexusai/shared/aggregator-app-catalog", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@nexusai/shared/aggregator-app-catalog")>(),
   AGGREGATOR_APP_CATALOG: aggregatorCatalogMock,
   findComposioCatalogApp: (toolkit: string) => aggregatorCatalogMock.find(app => app.aliases.includes(toolkit) || app.routes.some(route => route.provider === "composio" && route.toolkit === toolkit)),
 }));
@@ -95,7 +95,7 @@ vi.mock("@/lib/router", () => ({
 vi.mock("@/context/CompanyContext", () => ({
   useCompany: () => ({
     selectedCompanyId: "company-1",
-    selectedCompany: { id: "company-1", name: "Paperclip" },
+    selectedCompany: { id: "company-1", name: "Nexus" },
   }),
 }));
 
@@ -211,7 +211,7 @@ describe("Connectors landing page", () => {
           tagline: "Search and draft email.",
           availability: {
             available: false,
-            reason: "Gmail is not available on this Paperclip instance yet.",
+            reason: "Gmail is not available on this Nexus instance yet.",
           },
         }),
       ],
@@ -283,7 +283,7 @@ describe("Connectors landing page", () => {
     expect(chatSetupMock).not.toHaveBeenCalled();
   });
 
-  it("keeps assistant setup in the Paperclip catalog when filtering connection sources", async () => {
+  it("keeps assistant setup in the Nexus catalog when filtering connection sources", async () => {
     await renderBrowse(false);
     const assistantButton = () => container.querySelector('[aria-label="Set up Assistant Connection (MCP)"]');
     expect(assistantButton()).not.toBeNull();
@@ -297,7 +297,7 @@ describe("Connectors landing page", () => {
     expect(container.textContent).not.toContain("No connectors match");
   });
 
-  const assistantGrant = { id: "grant", companyId: "company-1", companyName: "Paperclip", clientName: "Claude", scopes: ["paperclip:read"], createdAt: "2026-10-06T00:00:00Z", revokedAt: null };
+  const assistantGrant = { id: "grant", companyId: "company-1", companyName: "Nexus", clientName: "Claude", scopes: ["nexus:read"], createdAt: "2026-10-06T00:00:00Z", revokedAt: null };
 
   it("shows active assistant grants in Installed and removes them after revocation", async () => {
     assistantConnectionsMock.mockResolvedValue([assistantGrant]);
@@ -408,16 +408,16 @@ describe("Connectors landing page", () => {
     return document.querySelector<HTMLElement>('[role="menu"]')!;
   }
 
-  it("defaults to Paperclip with five chips, expands search to All, and retains explicit source scope", async () => {
+  it("defaults to Nexus with five chips, expands search to All, and retains explicit source scope", async () => {
     aggregatorCatalogMock.push(indexedApp("Remote App", ["composio"]));
     await renderBrowse(false);
-    expect(container.querySelector('[aria-label="App filters"]')?.textContent).toBe("PaperclipComposioArcadeInstalledAll");
+    expect(container.querySelector('[aria-label="App filters"]')?.textContent).toBe("NexusComposioArcadeInstalledAll");
     expect(container.querySelector('[data-app-slug="remote-app"]')).toBeNull();
     await search("Remote App");
     expect(container.querySelector('[aria-checked="true"]')?.textContent).toBe("All");
     expect(container.querySelector('[data-app-slug="remote-app"]')).toBeTruthy();
     await search("");
-    expect(container.querySelector('[aria-checked="true"]')?.textContent).toBe("Paperclip");
+    expect(container.querySelector('[aria-checked="true"]')?.textContent).toBe("Nexus");
     await clickButton("Arcade", container);
     await search("Remote App");
     expect(container.querySelector('[aria-checked="true"]')?.textContent).toBe("Arcade");
@@ -947,45 +947,45 @@ describe("Connectors landing page", () => {
   });
 
   it("hides cached Notebook catalog entries until explicitly enabled", async () => {
-    listGalleryMock.mockResolvedValue({ apps: ["paperclip-notebook", "notion"].map(getAppStoreDefinition) });
+    listGalleryMock.mockResolvedValue({ apps: ["nexus-notebook", "notion"].map(getAppStoreDefinition) });
     const client = await renderBrowse();
-    expect(container.querySelector('[data-app-slug="paperclip-notebook"]')).toBeNull();
+    expect(container.querySelector('[data-app-slug="nexus-notebook"]')).toBeNull();
     expect(container.querySelector('[data-app-slug="notion"]')).not.toBeNull();
-    await act(() => { client.setQueryData(queryKeys.instance.experimentalSettings, { enablePaperclipNotebook: true }); });
+    await act(() => { client.setQueryData(queryKeys.instance.experimentalSettings, { enableNexusNotebook: true }); });
     await flushReact();
-    expect(container.querySelector('[data-app-slug="paperclip-notebook"]')).not.toBeNull();
-    await act(() => { client.setQueryData(queryKeys.instance.experimentalSettings, { enablePaperclipNotebook: false }); });
+    expect(container.querySelector('[data-app-slug="nexus-notebook"]')).not.toBeNull();
+    await act(() => { client.setQueryData(queryKeys.instance.experimentalSettings, { enableNexusNotebook: false }); });
     await flushReact();
-    expect(container.querySelector('[data-app-slug="paperclip-notebook"]')).toBeNull();
+    expect(container.querySelector('[data-app-slug="nexus-notebook"]')).toBeNull();
   });
 
   it("hides Notebook while settings load", async () => {
     experimentalMock.mockImplementation(() => new Promise(() => {}));
-    listGalleryMock.mockResolvedValue({ apps: [getAppStoreDefinition("paperclip-notebook")] });
+    listGalleryMock.mockResolvedValue({ apps: [getAppStoreDefinition("nexus-notebook")] });
     await renderBrowse();
-    expect(container.querySelector('[data-app-slug="paperclip-notebook"]')).toBeNull();
+    expect(container.querySelector('[data-app-slug="nexus-notebook"]')).toBeNull();
   });
 
   it("hides Notebook when a settings refresh fails with a cached opt-in", async () => {
-    experimentalMock.mockResolvedValue({ enablePaperclipNotebook: true });
-    listGalleryMock.mockResolvedValue({ apps: [getAppStoreDefinition("paperclip-notebook")] });
+    experimentalMock.mockResolvedValue({ enableNexusNotebook: true });
+    listGalleryMock.mockResolvedValue({ apps: [getAppStoreDefinition("nexus-notebook")] });
     const client = await renderBrowse();
-    expect(container.querySelector('[data-app-slug="paperclip-notebook"]')).not.toBeNull();
+    expect(container.querySelector('[data-app-slug="nexus-notebook"]')).not.toBeNull();
     experimentalMock.mockRejectedValue(new Error("Settings unavailable"));
     await act(async () => { await client.invalidateQueries({ queryKey: queryKeys.instance.experimentalSettings }); });
     await flushReact();
-    expect(client.getQueryData(queryKeys.instance.experimentalSettings)).toEqual({ enablePaperclipNotebook: true });
-    expect(container.querySelector('[data-app-slug="paperclip-notebook"]')).toBeNull();
+    expect(client.getQueryData(queryKeys.instance.experimentalSettings)).toEqual({ enableNexusNotebook: true });
+    expect(container.querySelector('[data-app-slug="nexus-notebook"]')).toBeNull();
   });
 
   it("keeps Notebook removal available while hiding reconnect and new-account controls", async () => {
-    listGalleryMock.mockResolvedValue({ apps: [getAppStoreDefinition("paperclip-notebook")] });
-    listApplicationsMock.mockResolvedValue({ applications: [application({ id: "notebook-app", name: "Paperclip Notebook",
-      applicationKey: "app-gallery:paperclip-notebook:one", metadata: { sourceTemplateKey: "paperclip-notebook" } })] });
+    listGalleryMock.mockResolvedValue({ apps: [getAppStoreDefinition("nexus-notebook")] });
+    listApplicationsMock.mockResolvedValue({ applications: [application({ id: "notebook-app", name: "Nexus Notebook",
+      applicationKey: "app-gallery:nexus-notebook:one", metadata: { sourceTemplateKey: "nexus-notebook" } })] });
     listConnectionsMock.mockResolvedValue({ connections: [connection({ id: "saved-notebook", applicationId: "notebook-app",
-      name: "Notebook account", config: { sourceTemplateKey: "paperclip-notebook" }, healthStatus: "error", requiresReauthorization: true })] });
+      name: "Notebook account", config: { sourceTemplateKey: "nexus-notebook" }, healthStatus: "error", requiresReauthorization: true })] });
     await renderBrowse();
-    const row = container.querySelector('[data-app-slug="paperclip-notebook"]')!;
+    const row = container.querySelector('[data-app-slug="nexus-notebook"]')!;
     expect(row).not.toBeNull();
     expect([...row.querySelectorAll("button")].some(button => /^(Connect|Add connection|Reconnect|Finish setup)$/.test(button.textContent?.trim() ?? ""))).toBe(false);
     await act(() => { row.querySelector<HTMLButtonElement>('button[aria-label^="Manage "]')!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); });
@@ -1509,7 +1509,7 @@ describe("Connectors landing page", () => {
     await flushReact();
     expect(chatSetupMock).not.toHaveBeenCalled();
     expect(emailControlMock).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain("Existing Paperclip tasks and conversation history remain available.");
+    expect(document.body.textContent).toContain("Existing Nexus tasks and conversation history remain available.");
     chatListMock.mockResolvedValue([]);
     await act(() => Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Remove connection")!.click());
     await flushReact();

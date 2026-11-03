@@ -13,12 +13,12 @@ import {
   decisionArchiveNotificationOutbox,
   decisionRetention,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { attentionService } from "../services/attention.js";
 import { decisionRetentionService } from "../services/decision-retention.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_RETENTION_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_RETENTION_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describePg = support.supported ? describe : describe.skip;
 
@@ -29,7 +29,7 @@ describePg("decision retention", () => {
   let stopWorker: (() => Promise<void>) | undefined;
 
   beforeAll(async () => {
-    if (!externalUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-decision-retention-");
+    if (!externalUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-decision-retention-");
     db = createDb(externalUrl ?? tempDb!.connectionString, { maxConnections: 6, idleTimeoutSeconds: 0, maxLifetimeSeconds: 0 });
   }, 30_000);
 

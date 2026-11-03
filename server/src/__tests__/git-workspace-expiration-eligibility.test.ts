@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { agents, companies, createDb, executionWorkspaces, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations, projects, projectWorkspaces } from "@paperclipai/db";
+import { agents, companies, createDb, executionWorkspaces, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations, projects, projectWorkspaces } from "@nexusai/db";
 import { isGitWorkspaceExpirationEligible } from "../services/git-workspace-expiration.js";
 import { createSystemRecovery } from "../services/system-recovery-state.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";

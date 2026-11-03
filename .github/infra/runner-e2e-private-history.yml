@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Private bounded Paperclip eval evidence and reports; no CDN reader
+Description: Private bounded Nexus eval evidence and reports; no CDN reader
 Parameters:
   BucketName:
     Type: String
@@ -71,7 +71,7 @@ Resources:
   PrivateHistoryRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: paperclip-runner-e2e-private-history-github
+      RoleName: nexus-runner-e2e-private-history-github
       MaxSessionDuration: 3600
       AssumeRolePolicyDocument:
         Version: '2012-10-17'

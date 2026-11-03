@@ -4,7 +4,7 @@ import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { OPENROUTER_ATTRIBUTION_HEADERS } from "@paperclipai/adapter-utils/openrouter-attribution";
+import { OPENROUTER_ATTRIBUTION_HEADERS } from "@nexusai/adapter-utils/openrouter-attribution";
 import { prepareOpenCodeRuntimeConfig } from "./runtime-config.js";
 
 const cleanupPaths = new Set<string>();
@@ -19,7 +19,7 @@ afterEach(async () => {
 });
 
 async function makeConfigHome(initialConfig?: Record<string, unknown>) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-opencode-test-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-opencode-test-"));
   cleanupPaths.add(root);
   const configDir = path.join(root, "opencode");
   await fs.mkdir(configDir, { recursive: true });
@@ -197,7 +197,7 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     await expect(fs.access(prepared.env.XDG_CONFIG_HOME)).rejects.toThrow();
   });
 
-  it("merges custom providers from PAPERCLIP_OPENCODE_PROVIDERS into the config", async () => {
+  it("merges custom providers from NEXUS_OPENCODE_PROVIDERS into the config", async () => {
     const configHome = await makeConfigHome({ permission: { read: "allow" } });
     const providers = {
       bifrost: {
@@ -214,7 +214,7 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     const prepared = await prepareOpenCodeRuntimeConfig({
       env: {
         XDG_CONFIG_HOME: configHome,
-        PAPERCLIP_OPENCODE_PROVIDERS: JSON.stringify(providers),
+        NEXUS_OPENCODE_PROVIDERS: JSON.stringify(providers),
       },
       config: {},
     });
@@ -231,10 +231,10 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     await prepared.cleanup();
   });
 
-  it("reads PAPERCLIP_OPENCODE_PROVIDERS from process.env when absent from the run env", async () => {
+  it("reads NEXUS_OPENCODE_PROVIDERS from process.env when absent from the run env", async () => {
     const configHome = await makeConfigHome({ permission: { read: "allow" } });
     const providers = { bifrost: { npm: "@ai-sdk/openai-compatible", models: { "example/model-a": {} } } };
-    process.env.PAPERCLIP_OPENCODE_PROVIDERS = JSON.stringify(providers);
+    process.env.NEXUS_OPENCODE_PROVIDERS = JSON.stringify(providers);
     try {
       const prepared = await prepareOpenCodeRuntimeConfig({
         env: { XDG_CONFIG_HOME: configHome },
@@ -247,7 +247,7 @@ describe("prepareOpenCodeRuntimeConfig", () => {
       expect(runtimeConfig).toMatchObject({ provider: providers });
       await prepared.cleanup();
     } finally {
-      delete process.env.PAPERCLIP_OPENCODE_PROVIDERS;
+      delete process.env.NEXUS_OPENCODE_PROVIDERS;
     }
   });
 
@@ -261,7 +261,7 @@ describe("prepareOpenCodeRuntimeConfig", () => {
       },
     };
     const prepared = await prepareOpenCodeRuntimeConfig({
-      env: { XDG_CONFIG_HOME: configHome, PAPERCLIP_OPENCODE_PROVIDERS: JSON.stringify(providers), ANTHROPIC_API_KEY: "sk-bf-REALVK" },
+      env: { XDG_CONFIG_HOME: configHome, NEXUS_OPENCODE_PROVIDERS: JSON.stringify(providers), ANTHROPIC_API_KEY: "sk-bf-REALVK" },
       config: {},
     });
     cleanupPaths.add(prepared.env.XDG_CONFIG_HOME);
@@ -278,7 +278,7 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     const configHome = await makeConfigHome({ permission: { read: "allow" } });
     const providers = { bifrost: { options: { apiKey: "{env:DEFINITELY_UNSET_VAR_XYZ}" }, models: { "x/y": {} } } };
     const prepared = await prepareOpenCodeRuntimeConfig({
-      env: { XDG_CONFIG_HOME: configHome, PAPERCLIP_OPENCODE_PROVIDERS: JSON.stringify(providers) },
+      env: { XDG_CONFIG_HOME: configHome, NEXUS_OPENCODE_PROVIDERS: JSON.stringify(providers) },
       config: {},
     });
     cleanupPaths.add(prepared.env.XDG_CONFIG_HOME);
@@ -289,10 +289,10 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     await prepared.cleanup();
   });
 
-  it("pins small_model from PAPERCLIP_OPENCODE_SMALL_MODEL", async () => {
+  it("pins small_model from NEXUS_OPENCODE_SMALL_MODEL", async () => {
     const configHome = await makeConfigHome({ permission: { read: "allow" } });
     const prepared = await prepareOpenCodeRuntimeConfig({
-      env: { XDG_CONFIG_HOME: configHome, PAPERCLIP_OPENCODE_SMALL_MODEL: "example/model-a" },
+      env: { XDG_CONFIG_HOME: configHome, NEXUS_OPENCODE_SMALL_MODEL: "example/model-a" },
       config: {},
     });
     cleanupPaths.add(prepared.env.XDG_CONFIG_HOME);
@@ -303,10 +303,10 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     await prepared.cleanup();
   });
 
-  it("ignores malformed PAPERCLIP_OPENCODE_PROVIDERS without writing a provider block and surfaces a note", async () => {
+  it("ignores malformed NEXUS_OPENCODE_PROVIDERS without writing a provider block and surfaces a note", async () => {
     const configHome = await makeConfigHome({ permission: { read: "allow" } });
     const prepared = await prepareOpenCodeRuntimeConfig({
-      env: { XDG_CONFIG_HOME: configHome, PAPERCLIP_OPENCODE_PROVIDERS: "not json" },
+      env: { XDG_CONFIG_HOME: configHome, NEXUS_OPENCODE_PROVIDERS: "not json" },
       config: {},
     });
     cleanupPaths.add(prepared.env.XDG_CONFIG_HOME);
@@ -315,15 +315,15 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     ) as Record<string, unknown>;
     expect(runtimeConfig.provider).toMatchObject({ openrouter: { options: { headers: { "HTTP-Referer": "https://paperclip.ing" } } } });
     expect(prepared.notes).toContain(
-      "PAPERCLIP_OPENCODE_PROVIDERS contains invalid JSON; custom providers ignored.",
+      "NEXUS_OPENCODE_PROVIDERS contains invalid JSON; custom providers ignored.",
     );
     await prepared.cleanup();
   });
 
-  it("surfaces a note when PAPERCLIP_OPENCODE_PROVIDERS is valid JSON but not an object", async () => {
+  it("surfaces a note when NEXUS_OPENCODE_PROVIDERS is valid JSON but not an object", async () => {
     const configHome = await makeConfigHome({ permission: { read: "allow" } });
     const prepared = await prepareOpenCodeRuntimeConfig({
-      env: { XDG_CONFIG_HOME: configHome, PAPERCLIP_OPENCODE_PROVIDERS: "[1,2,3]" },
+      env: { XDG_CONFIG_HOME: configHome, NEXUS_OPENCODE_PROVIDERS: "[1,2,3]" },
       config: {},
     });
     cleanupPaths.add(prepared.env.XDG_CONFIG_HOME);
@@ -332,7 +332,7 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     ) as Record<string, unknown>;
     expect(runtimeConfig.provider).toMatchObject({ openrouter: { options: { headers: { "HTTP-Referer": "https://paperclip.ing" } } } });
     expect(prepared.notes).toContain(
-      "PAPERCLIP_OPENCODE_PROVIDERS is set but is not a JSON object; custom providers ignored.",
+      "NEXUS_OPENCODE_PROVIDERS is set but is not a JSON object; custom providers ignored.",
     );
     await prepared.cleanup();
   });
@@ -342,7 +342,7 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     const prepared = await prepareOpenCodeRuntimeConfig({
       env: {
         XDG_CONFIG_HOME: configHome,
-        PAPERCLIP_OPENCODE_PROVIDERS: JSON.stringify({
+        NEXUS_OPENCODE_PROVIDERS: JSON.stringify({
           bifrost: "http://gateway.example/v1",
           usable: { options: { baseURL: "http://gateway.example/v1" } },
         }),
@@ -356,7 +356,7 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     expect(runtimeConfig.provider?.usable).toBeDefined();
     expect(runtimeConfig.provider?.bifrost).toBeUndefined();
     expect(prepared.notes).toContain(
-      "PAPERCLIP_OPENCODE_PROVIDERS: skipped provider(s) with non-object values: bifrost.",
+      "NEXUS_OPENCODE_PROVIDERS: skipped provider(s) with non-object values: bifrost.",
     );
     await prepared.cleanup();
   });
@@ -366,7 +366,7 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     const prepared = await prepareOpenCodeRuntimeConfig({
       env: {
         XDG_CONFIG_HOME: configHome,
-        PAPERCLIP_OPENCODE_PROVIDERS: JSON.stringify({ bifrost: "http://gateway.example/v1" }),
+        NEXUS_OPENCODE_PROVIDERS: JSON.stringify({ bifrost: "http://gateway.example/v1" }),
       },
       config: {},
     });
@@ -376,7 +376,7 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     ) as Record<string, unknown>;
     expect(runtimeConfig.provider).toMatchObject({ openrouter: { options: { headers: { "HTTP-Referer": "https://paperclip.ing" } } } });
     expect(prepared.notes).toContain(
-      "PAPERCLIP_OPENCODE_PROVIDERS: skipped provider(s) with non-object values: bifrost.",
+      "NEXUS_OPENCODE_PROVIDERS: skipped provider(s) with non-object values: bifrost.",
     );
     await prepared.cleanup();
   });
@@ -413,7 +413,7 @@ describe("prepareOpenCodeRuntimeConfig", () => {
     const prepared = await prepareOpenCodeRuntimeConfig({
       env: {
         XDG_CONFIG_HOME: configHome,
-        PAPERCLIP_OPENCODE_PROVIDERS: JSON.stringify(providers),
+        NEXUS_OPENCODE_PROVIDERS: JSON.stringify(providers),
       },
       config: { model: "openrouter/openai/gpt-oss-120b:nitro" },
     });

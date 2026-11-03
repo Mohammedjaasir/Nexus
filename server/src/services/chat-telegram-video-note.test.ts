@@ -222,7 +222,7 @@ describe("Telegram video-note MIME contract", () => {
       await runtime.initialize();
       const { raw } = fixture();
       const request = (secret: string) =>
-        new Request("https://paperclip.test/telegram", {
+        new Request("https://nexus.test/telegram", {
           method: "POST",
           headers: {
             "content-type": "application/json",

@@ -83,7 +83,7 @@ describe("RouteErrorBoundary", () => {
 
   it("reloads once for a failed route CSS preload instead of reporting it", async () => {
     const FailedPage = lazy(async () => {
-      throw new Error("Unable to preload CSS for https://paperclip.example/assets/issue-detail-CIbQo9zW.css");
+      throw new Error("Unable to preload CSS for https://nexus.example/assets/issue-detail-CIbQo9zW.css");
     });
     const root = createRoot(container);
     await act(async () => { root.render(<RouteErrorBoundary><FailedPage /></RouteErrorBoundary>); });
@@ -98,7 +98,7 @@ describe("RouteErrorBoundary", () => {
     vi.useFakeTimers();
     try {
       const FailedPage = lazy(async () => {
-        throw new Error("Unable to preload CSS for https://paperclip.example/assets/issue-detail-CIbQo9zW.css");
+        throw new Error("Unable to preload CSS for https://nexus.example/assets/issue-detail-CIbQo9zW.css");
       });
       const root = createRoot(container);
       await act(async () => { root.render(<RouteErrorBoundary><FailedPage /></RouteErrorBoundary>); });
@@ -126,7 +126,7 @@ describe("RouteErrorBoundary", () => {
   });
 
   it("contains a repeated chunk load failure and recovers when navigating back to a task", async () => {
-    window.sessionStorage.setItem("paperclip:chunk-load-reload-at", String(Date.now()));
+    window.sessionStorage.setItem("nexus:chunk-load-reload-at", String(Date.now()));
     const FailedPage = lazy(async () => { throw new Error("Failed to fetch dynamically imported module"); });
     const root = createRoot(container);
     await act(async () => { root.render(<RouteErrorBoundary><FailedPage /></RouteErrorBoundary>); });

@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { applyPendingMigrations, createDb, heartbeatRuns, issues, type Db } from "@paperclipai/db";
+import { applyPendingMigrations, createDb, heartbeatRuns, issues, type Db } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { captureIdentityQueries, seedIdentityProjection, type IdentityQuery } from "./helpers/run-identity-projection-fixture.js";
 import { captureRunIdentity } from "../services/run-identity.js";
 import { projectToolContext } from "../services/project-tool-context.js";
 import { boundRunIssueId } from "../services/run-task-binding.js";
 
-const externalDatabaseUrl = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const externalDatabaseUrl = process.env.NEXUS_TEST_DATABASE_URL;
 const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const scopes = ["identity", "task_authorization", "token_broker"] as const;
 (support.supported ? describe : describe.skip)("operation identity read projections", () => {
@@ -44,12 +44,12 @@ const scopes = ["identity", "task_authorization", "token_broker"] as const;
   it("preserves task binding types and legacy non-object contexts", async () => {
     const f = await seedIdentityProjection(db);
     for (const snapshot of [null, false, 42, "text", [], ["value"], {}, ...[null, false, 42, " 3 ", [], {}, { nested: true }]
-      .map(value => ({ issueId: f.issueId, conversationSessionGeneration: value, paperclipSkillTest: value }))]) {
+      .map(value => ({ issueId: f.issueId, conversationSessionGeneration: value, nexusSkillTest: value }))]) {
       await db.$client.unsafe("UPDATE heartbeat_runs SET context_snapshot = $1::jsonb WHERE id = $2", [JSON.stringify(snapshot), f.runId]);
       const full = await captureRunIdentity(db, f), narrow = await captureRunIdentity(db, f, { readScope: "task_authorization" });
       expect(boundRunIssueId(narrow.run)).toBe(boundRunIssueId(full.run));
       expect(Number(narrow.run.contextSnapshot?.conversationSessionGeneration ?? 0)).toBe(Number(full.run.contextSnapshot?.conversationSessionGeneration ?? 0));
-      expect(Boolean(narrow.run.contextSnapshot?.paperclipSkillTest)).toBe(Boolean(full.run.contextSnapshot?.paperclipSkillTest));
+      expect(Boolean(narrow.run.contextSnapshot?.nexusSkillTest)).toBe(Boolean(full.run.contextSnapshot?.nexusSkillTest));
     }
     for (const issueId of [true, 123, [], {}, "malformed"]) {
       await db.$client.unsafe("UPDATE heartbeat_runs SET context_snapshot = $1::jsonb WHERE id = $2", [JSON.stringify({ issueId }), f.runId]);
@@ -62,17 +62,17 @@ const scopes = ["identity", "task_authorization", "token_broker"] as const;
     const f = await seedIdentityProjection(db);
     for (const value of [null, true, 42, " padded ", [], {}, { retained: true }]) {
       const snapshot = { issueId: f.issueId, projectId: value, routineId: value, responsibleUserId: value,
-        responsible_user_id: value, paperclipIssue: { id: value, projectId: value, responsibleUserId: value,
+        responsible_user_id: value, nexusIssue: { id: value, projectId: value, responsibleUserId: value,
           responsible_user_id: value, savedDocument: f.payloads.contextSnapshot.savedInput } };
       await db.update(heartbeatRuns).set({ contextSnapshot: snapshot }).where(eq(heartbeatRuns.id, f.runId));
       const narrow = await captureRunIdentity(db, f, { readScope: "token_broker" });
       expect(narrow.run.invocationSource).toBe("automation");
-      expect(narrow.run.contextSnapshot).toEqual({ ...snapshot, paperclipIssue: { id: value,
+      expect(narrow.run.contextSnapshot).toEqual({ ...snapshot, nexusIssue: { id: value,
         projectId: value, responsibleUserId: value, responsible_user_id: value } });
     }
-    for (const paperclipIssue of [null, true, 42, "legacy", []]) {
-      await db.update(heartbeatRuns).set({ contextSnapshot: { paperclipIssue } }).where(eq(heartbeatRuns.id, f.runId));
-      expect((await captureRunIdentity(db, f, { readScope: "token_broker" })).run.contextSnapshot?.paperclipIssue).toBeNull();
+    for (const nexusIssue of [null, true, 42, "legacy", []]) {
+      await db.update(heartbeatRuns).set({ contextSnapshot: { nexusIssue } }).where(eq(heartbeatRuns.id, f.runId));
+      expect((await captureRunIdentity(db, f, { readScope: "token_broker" })).run.contextSnapshot?.nexusIssue).toBeNull();
     }
   });
 

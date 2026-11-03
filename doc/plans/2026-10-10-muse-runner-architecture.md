@@ -6,7 +6,7 @@ This refines [the accepted product plan](2026-10-09-muse-on-shared-external-runn
 
 ## User outcome and caller usage
 
-An operator chooses “Muse — Personal agent,” supplies name/role, and copies a short-lived setup instruction into their current Muse conversation. Muse approves the Paperclip hostname through its own UI, installs a small private client and managed detector, and exchanges the ticket itself. Paperclip shows paired, receiver detected, and independent background reply verified as separate evidence. Existing hiring approval and lifecycle readiness remain required. A normal assigned task uses the native Runner, existing questions/documents/deliverables and finalizer. Idle Muse can identify/read its permitted company work, create tasks and comment with named-agent attribution.
+An operator chooses “Muse — Personal agent,” supplies name/role, and copies a short-lived setup instruction into their current Muse conversation. Muse approves the Nexus hostname through its own UI, installs a small private client and managed detector, and exchanges the ticket itself. Nexus shows paired, receiver detected, and independent background reply verified as separate evidence. Existing hiring approval and lifecycle readiness remain required. A normal assigned task uses the native Runner, existing questions/documents/deliverables and finalizer. Idle Muse can identify/read its permitted company work, create tasks and comment with named-agent attribution.
 
 ```ts
 // Transport owns parsing/authentication, not lifecycle decisions.
@@ -26,7 +26,7 @@ await session.resolveRuntimeRequest({ requestId, turnId, resolution });
 // requestId is the native runtime request ID, NOT question_<interactionId>.
 ```
 
-The installed client exposes safe, durable work/open, operation/receipt, ask/answer and completion commands. It journals stable request IDs before network calls and exact receipts before returning success. Completing work first obtains the native paperclip_finish/paperclip_block receipt, then submits exactly that canonical report to the external finish operation.
+The installed client exposes safe, durable work/open, operation/receipt, ask/answer and completion commands. It journals stable request IDs before network calls and exact receipts before returning success. Completing work first obtains the native nexus_finish/nexus_block receipt, then submits exactly that canonical report to the external finish operation.
 
 ## Synthesis decision
 
@@ -37,7 +37,7 @@ Choose the deeper transactional broker boundary, with closed Dot/Muse storage ad
 ## Boundaries and ownership
 
 - `server/src/modules/external-agents/`: public act/inspect/attach/stop domain boundary and closed provider storage policies. Dot's existing service export is a compatibility facade. Identity, receiver transport and ordinary scheduler remain distinct owners. Routes cannot import private storage helpers.
-- `packages/paperclip-runner/`: one TS driver and one Rust external execution engine. Thin provider wrappers/codecs retain deployed Dot identities. No URL, connection token, cookie, signal poll or task callback enters Runner.
+- `packages/nexus-runner/`: one TS driver and one Rust external execution engine. Thin provider wrappers/codecs retain deployed Dot identities. No URL, connection token, cookie, signal poll or task callback enters Runner.
 - `server/src/services/muse-identity.ts`, `muse-receiver.ts`, `muse-invitations.ts`, `routes/muse.ts`: ticket/access/refresh/cleanup identities, opaque receiver signals, existing hire/lifecycle setup and bounded transport.
 - `packages/shared/src/muse-protocol.ts`: finite versioned wire contract and exact public route manifest. `muse-invitations.ts`: shared nonsecret UI DTOs. Provider/tool profiles are closed positive lists.
 - Existing native question bridge/response outbox owns question cards and saved answers; existing queue owns task/run admission; native finalizer alone completes work.
@@ -48,11 +48,11 @@ Use explicit named operations and types rather than generic CRUD/write-set escap
 
 ## Execution and compatibility contract
 
-Preserve Dot V6, `dot-provider-state.json`, `paperclip.runner.dot-provider-state.v1`, `openai_dot_mcp`, `dot-mcp-v1`, existing command/event identities and OAuth behavior. Dot's nonexpiring refresh and fence-only remote stop policy must not change. Dot's runtime-question capability remains disabled.
+Preserve Dot V6, `dot-provider-state.json`, `nexus.runner.dot-provider-state.v1`, `openai_dot_mcp`, `dot-mcp-v1`, existing command/event identities and OAuth behavior. Dot's nonexpiring refresh and fence-only remote stop policy must not change. Dot's runtime-question capability remains disabled.
 
 Muse has an explicit V7 native execution input, `muse_external` driver, `muse-v1` bridge, and advertised `muse_external_v1` artifact capability. Validate capability before managed launch. Recovery requires the exact target-owned checkpoint/process/session; missing checkpoint after dispatch requires reconciliation. Never start a new target to repeat uncertain work. Usage and cost remain unavailable/null.
 
-Extend external operations with request_user_input and consume_input. request_user_input persists a real pending runtime request and emits `runtime_request.created` with `paperclip.runtime_request.v2`, which the existing bridge projects. The saved answer travels through the existing `request.resolve` command. The existing local bridge, runtime resolution helper and session input carry an optional stable command ID; Muse uses it for its durable PRP lane while other providers retain their behavior. Command identity `question_<interactionId>` remains distinct from the original request ID. Rust checkpoints an exact input reference/digest and emits input_available; broker persists delivery before ACK. The client persists the canonical answer into the same run's continuation before consume_input. Pending/unconsumed input blocks finish. Fetch, transport ACK and prepared response do not prove ingestion. No different-turn injection.
+Extend external operations with request_user_input and consume_input. request_user_input persists a real pending runtime request and emits `runtime_request.created` with `nexus.runtime_request.v2`, which the existing bridge projects. The saved answer travels through the existing `request.resolve` command. The existing local bridge, runtime resolution helper and session input carry an optional stable command ID; Muse uses it for its durable PRP lane while other providers retain their behavior. Command identity `question_<interactionId>` remains distinct from the original request ID. Rust checkpoints an exact input reference/digest and emits input_available; broker persists delivery before ACK. The client persists the canonical answer into the same run's continuation before consume_input. Pending/unconsumed input blocks finish. Fetch, transport ACK and prepared response do not prove ingestion. No different-turn injection.
 
 The active first-party profile excludes connector and workspace command grants and includes native task/document/collaboration/completion operations and the question path. Muse may use its own approved tools. Replay rechecks current authority before returning data or dispatching effects.
 
@@ -124,7 +124,7 @@ Settings show last persisted receiver contact, authenticated worker activity, la
 
 Conservatively inhibit Cloud sleep while a receiver can poll or unresolved assignment/input/operation/stop/cleanup remains, even with the feature disabled. Measure polling cost before release (17,280 checks/day at five seconds). No Cloud local execution fallback.
 
-Validation order: existing Dot compatibility; synthetic Muse pair/background challenge/task/document/native finalization; authority/races/restart/unknown/stop/clarification/proactive tests; real components and Cloud ingress; required typecheck/test/build/token checks. Then actual personal Muse task, Paperclip clarification, follow-up and fresh-conversation proactive behavior. Finally a new bounded 24-hour qualification, at least twenty unattended samples, at least two hours sustained idle, requested five seconds and at least 90% steady gaps <=7 seconds. Report queue-to-claim and full response separately with missing evidence visible. Durable deadline cleanup must survive watcher/server restart. No silent sixty-second fallback. Keep default-off until all gates pass; elapsed time and successful simulations are not live qualification.
+Validation order: existing Dot compatibility; synthetic Muse pair/background challenge/task/document/native finalization; authority/races/restart/unknown/stop/clarification/proactive tests; real components and Cloud ingress; required typecheck/test/build/token checks. Then actual personal Muse task, Nexus clarification, follow-up and fresh-conversation proactive behavior. Finally a new bounded 24-hour qualification, at least twenty unattended samples, at least two hours sustained idle, requested five seconds and at least 90% steady gaps <=7 seconds. Report queue-to-claim and full response separately with missing evidence visible. Durable deadline cleanup must survive watcher/server restart. No silent sixty-second fallback. Keep default-off until all gates pass; elapsed time and successful simulations are not live qualification.
 
 ## Implementation partitions
 

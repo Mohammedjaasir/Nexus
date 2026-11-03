@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { isPerTurnRunProcess, observeRunProcesses, sameObservedProcess } from "./copilot-local-fixtures.js";
-import { readLinuxProcessStartedAt } from "../../packages/paperclip-runner/src/live/linux-process-start.js";
+import { readLinuxProcessStartedAt } from "../../packages/nexus-runner/src/live/linux-process-start.js";
 
 describe("Copilot local process ownership", () => {
   it("retains the kernel birth identity across proc-directory timestamp changes", () => {

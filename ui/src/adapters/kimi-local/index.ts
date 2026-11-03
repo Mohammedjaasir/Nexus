@@ -1,7 +1,7 @@
 import type { UIAdapterModule } from "../types";
-import { parseKimiStdoutLine } from "@paperclipai/adapter-kimi-local/ui";
+import { parseKimiStdoutLine } from "@nexusai/adapter-kimi-local/ui";
 import { KimiLocalConfigFields } from "./config-fields";
-import { buildKimiLocalConfig } from "@paperclipai/adapter-kimi-local/ui";
+import { buildKimiLocalConfig } from "@nexusai/adapter-kimi-local/ui";
 
 export const kimiLocalUIAdapter: UIAdapterModule = {
   type: "kimi_local",

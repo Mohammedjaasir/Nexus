@@ -6,7 +6,7 @@ import { once } from "node:events";
 import { setImmediate as yieldForIo } from "node:timers/promises";
 import { createCipheriv, createPublicKey, diffieHellman, generateKeyPairSync, hkdfSync, randomBytes, randomUUID, verify } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { companies, connectionEventDeliveries, connectionGrants, createDb, toolApplications, toolConnections } from "@paperclipai/db";
+import { companies, connectionEventDeliveries, connectionGrants, createDb, toolApplications, toolConnections } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { githubConnectionEventService } from "../services/github-connection-events.js";
@@ -14,8 +14,8 @@ import { registerGitHubConnectionEventWork } from "../services/github-connection
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 import { wakeConnectionEvents } from "../services/connection-event-wake.js";
-import { completePaperclipCloudConnectorEnrollment, loadPaperclipCloudConnectorIdentity, startPaperclipCloudConnectorEnrollment } from "../services/paperclip-cloud-connector-enrollment.js";
-import { paperclipCloudConnectorIdentityPath } from "../services/paperclip-cloud-connector-enrollment.js";
+import { completeNexusCloudConnectorEnrollment, loadNexusCloudConnectorIdentity, startNexusCloudConnectorEnrollment } from "../services/nexus-cloud-connector-enrollment.js";
+import { nexusCloudConnectorIdentityPath } from "../services/nexus-cloud-connector-enrollment.js";
 
 const support = await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("GitHub enrollment on a live event worker (real PostgreSQL and signed loopback Cloud)", () => {
@@ -29,8 +29,8 @@ const support = await getEmbeddedPostgresTestSupport();
 
   it("enrolls without recreation, drains an authenticated event, forgets removed identity and re-enrolls from quiet", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "github-live-enrollment-"));
-    const previous = { home: process.env.PAPERCLIP_HOME, instance: process.env.PAPERCLIP_INSTANCE_ID };
-    process.env.PAPERCLIP_HOME = root; process.env.PAPERCLIP_INSTANCE_ID = "enrollment-worker";
+    const previous = { home: process.env.NEXUS_HOME, instance: process.env.NEXUS_INSTANCE_ID };
+    process.env.NEXUS_HOME = root; process.env.NEXUS_INSTANCE_ID = "enrollment-worker";
     let server: Server | undefined;
     let worker: ReturnType<typeof registerGitHubConnectionEventWork> | undefined;
     let coordinator: ReturnType<typeof createDeliveryWorkCoordinator> | undefined;
@@ -88,7 +88,7 @@ const support = await getEmbeddedPostgresTestSupport();
       const [connection] = await db.insert(toolConnections).values({ companyId, applicationId: app!.id, uid: randomUUID(), name: "GitHub", status: "active", enabled: true, transport: "mcp_remote", authKind: "oauth", credentialPolicy: "per_user", config: { sourceTemplateKey: "github", oauth: { connectorProfile: "github.code" } }, transportConfig: {} }).returning();
       const [grant] = await db.insert(connectionGrants).values({ companyId, connectionId: connection!.id, kind: "user", subjectUserId: "owner", status: "active", providerTenant: { github: { userId: "42", login: "octocat", installationIds: ["101"], installationCount: 1, repositoryCount: 0, repositorySelection: "all", installationOwnerLogins: [], webhookHealth: "unhealthy" } } }).returning();
       grantId = grant!.id;
-      const env = { PAPERCLIP_CLOUD_CONNECTOR_BASE_URL: origin, PAPERCLIP_CLOUD_CONNECTOR_ENVIRONMENT: "test" };
+      const env = { NEXUS_CLOUD_CONNECTOR_BASE_URL: origin, NEXUS_CLOUD_CONNECTOR_ENVIRONMENT: "test" };
       const service = githubConnectionEventService(db, { env });
       vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
       coordinator = createDeliveryWorkCoordinator({ owner: db, canRun: () => true, onError: e => errors.push(e) });
@@ -127,10 +127,10 @@ const support = await getEmbeddedPostgresTestSupport();
       }
       await quiet("unenrolled startup"); expect(requests).toBe(0);
       async function enroll() {
-        await startPaperclipCloudConnectorEnrollment({ origin: "https://self-hosted.example.test", env, companyId });
-        const pending = loadPaperclipCloudConnectorIdentity()!;
-        await completePaperclipCloudConnectorEnrollment({ enrollmentId: pending.pending!.enrollmentId, state: pending.pending!.returnState, approvalCode: "approved", env });
-        return loadPaperclipCloudConnectorIdentity()!.instanceId;
+        await startNexusCloudConnectorEnrollment({ origin: "https://self-hosted.example.test", env, companyId });
+        const pending = loadNexusCloudConnectorIdentity()!;
+        await completeNexusCloudConnectorEnrollment({ enrollmentId: pending.pending!.enrollmentId, state: pending.pending!.returnState, approvalCode: "approved", env });
+        return loadNexusCloudConnectorIdentity()!.instanceId;
       }
       const firstIdentity = await enroll();
       expect(wakeConnectionEvents(db)).toBe(true);
@@ -142,7 +142,7 @@ const support = await getEmbeddedPostgresTestSupport();
       // Join that existing minimum-spacing pass once; the broker now has no debt.
       await drainFollowup(2);
       await quiet("first event plus its one empty follow-up");
-      await rm(paperclipCloudConnectorIdentityPath());
+      await rm(nexusCloudConnectorIdentityPath());
       const oldLeases = leases; expect(wakeConnectionEvents(db)).toBe(true); await vi.advanceTimersByTimeAsync(6_000);
       await quiet("removed identity"); expect(leases).toBe(oldLeases);
       eventId = randomUUID(); const secondIdentity = await enroll(); expect(secondIdentity).not.toBe(firstIdentity);
@@ -160,8 +160,8 @@ const support = await getEmbeddedPostgresTestSupport();
       releaseReplacementAck();
       await worker?.stop(); await coordinator?.stop(); vi.restoreAllMocks(); vi.useRealTimers();
       if (server) { const closed = once(server, "close"); server.close(); server.closeAllConnections(); await closed; }
-      if (previous.home === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previous.home;
-      if (previous.instance === undefined) delete process.env.PAPERCLIP_INSTANCE_ID; else process.env.PAPERCLIP_INSTANCE_ID = previous.instance;
+      if (previous.home === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = previous.home;
+      if (previous.instance === undefined) delete process.env.NEXUS_INSTANCE_ID; else process.env.NEXUS_INSTANCE_ID = previous.instance;
       await rm(root, { recursive: true, force: true });
     }
   }, 30_000);

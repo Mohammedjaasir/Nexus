@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import type { ExecutionWorkspace, Issue } from "@paperclipai/shared";
+import type { ExecutionWorkspace, Issue } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IssueWorkspaceCard } from "./IssueWorkspaceCard";
 
@@ -57,7 +57,7 @@ function createExecutionWorkspace(overrides: Partial<ExecutionWorkspace> = {}): 
     cwd: "/tmp/issue-sandbox",
     repoUrl: null,
     baseRef: null,
-    branchName: "paperclip/papa-81",
+    branchName: "nexus/papa-81",
     providerType: "git_worktree",
     providerRef: null,
     derivedFromExecutionWorkspaceId: null,

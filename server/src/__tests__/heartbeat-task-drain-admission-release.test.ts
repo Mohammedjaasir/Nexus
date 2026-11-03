@@ -22,7 +22,7 @@ import {
   heartbeatRuns,
   issues,
   plugins,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -101,7 +101,7 @@ describeEmbeddedPostgres("heartbeat task-drain admission release", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -252,7 +252,7 @@ describeEmbeddedPostgres("heartbeat task-drain admission release", () => {
     const counterDir = mkdtempSync(join(tmpdir(), "drain-executor-"));
     const counter = join(counterDir, "executions");
     await db.update(agents).set({ adapterConfig: { command: process.execPath,
-      args: ["-e", `require("node:fs").appendFileSync(${JSON.stringify(counter)}, process.env.PAPERCLIP_RUN_ID + "\\n")`] } })
+      args: ["-e", `require("node:fs").appendFileSync(${JSON.stringify(counter)}, process.env.NEXUS_RUN_ID + "\\n")`] } })
       .where(eq(agents.id, agentId));
     startTaskDrain({});
     await heartbeat.wakeup(agentId, {
@@ -324,7 +324,7 @@ describeEmbeddedPostgres("heartbeat task-drain admission release", () => {
         categories: ["automation"], status: "ready",
         manifestJson: {
           id: pluginKey, apiVersion: 1, version: "1.0.0", displayName: "Drain sandbox",
-          description: "Task-drain release fixture", author: "Paperclip", categories: ["automation"],
+          description: "Task-drain release fixture", author: "Nexus", categories: ["automation"],
           capabilities: ["environment.drivers.register"], entrypoints: { worker: "worker.js" },
           environmentDrivers: [{ driverKey: provider, kind: "sandbox_provider", displayName: "Drain sandbox", configSchema: { type: "object" } }],
         },

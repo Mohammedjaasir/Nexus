@@ -1,5 +1,5 @@
-import type { AdapterEnvironmentTestResult } from "@paperclipai/shared";
-import { ADAPTER_AUTH_MISSING_CHECK_CODE } from "@paperclipai/shared";
+import type { AdapterEnvironmentTestResult } from "@nexusai/shared";
+import { ADAPTER_AUTH_MISSING_CHECK_CODE } from "@nexusai/shared";
 import { agentsApi } from "../api/agents";
 
 /** Readiness alone does not authenticate a provider. Reuse the provider's key
@@ -8,10 +8,10 @@ export async function testAgentSetup(input: {
   companyId: string;
   agentId?: string;
   adapterType: string;
-  runner?: import("@paperclipai/shared").AgentRunnerChoice;
+  runner?: import("@nexusai/shared").AgentRunnerChoice;
   providerAdapter: string;
   adapterConfig: Record<string, unknown>;
-  aiConnection?: import("@paperclipai/shared").AiRuntimeConnectionBinding;
+  aiConnection?: import("@nexusai/shared").AiRuntimeConnectionBinding;
   testCredentials?: Record<string, string>;
   environmentId: string | null;
 }): Promise<AdapterEnvironmentTestResult> {
@@ -48,8 +48,8 @@ export async function testAgentSetup(input: {
       adapterConfig: {
         ...input.adapterConfig,
         engine: "cli",
-        ...(input.adapterType === "paperclip_runner" && input.providerAdapter === "grok_local"
-          ? { command: "/opt/paperclip/providers/grok/1.0.13/grok" }
+        ...(input.adapterType === "nexus_runner" && input.providerAdapter === "grok_local"
+          ? { command: "/opt/nexus/providers/grok/1.0.13/grok" }
           : {}),
       },
     },

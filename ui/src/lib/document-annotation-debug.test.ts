@@ -14,7 +14,7 @@ import {
 describe("document annotation selection diagnostics", () => {
   afterEach(() => {
     window.localStorage.removeItem(SELECTION_DEBUG_STORAGE_KEY);
-    delete window.__paperclipSelectionDebug;
+    delete window.__nexusSelectionDebug;
     vi.restoreAllMocks();
   });
 

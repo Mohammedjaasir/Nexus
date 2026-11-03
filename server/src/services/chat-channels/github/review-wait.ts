@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { HttpError } from "../../../errors.js";
 import { chatRunSourceMessageId } from "../run-origin.js";
 import { and, desc, eq, or, sql } from "drizzle-orm";
-import { chatActions, chatConversations, chatEndpointResources, chatEndpoints, chatGitHubReviews, chatMessageLinks, heartbeatRuns, toolConnections, type Db } from "@paperclipai/db";
+import { chatActions, chatConversations, chatEndpointResources, chatEndpoints, chatGitHubReviews, chatMessageLinks, heartbeatRuns, toolConnections, type Db } from "@nexusai/db";
 
 export async function hasPublishedGitHubReview(db: Db, binding: {
   companyId: string;
@@ -89,9 +89,9 @@ export async function readInheritedGitHubReviewWait(db: Db, run: WaitRun) {
   // policy. This normalized source is used only by the passive-wait boundary.
   return { kind: "published" as const, endpointId: review.endpointId, reviewId: review.id, reviewRunId: review.reviewRunId,
     headSha: review.headSha, context: {
-    source: "chat:github", paperclipHarnessCheckedOut: true,
+    source: "chat:github", nexusHarnessCheckedOut: true,
     wakeCommentId: commentId, wakeCommentIds: [commentId],
-    paperclipWake: { checkedOutByHarness: true, externalChatProvider: "github",
+    nexusWake: { checkedOutByHarness: true, externalChatProvider: "github",
       issue: { id: run.nativeIssueId }, commentIds: [commentId] },
   } };
 }

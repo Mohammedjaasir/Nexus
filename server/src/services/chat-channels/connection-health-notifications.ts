@@ -1,4 +1,4 @@
-import type { ChatProvider } from "@paperclipai/shared";
+import type { ChatProvider } from "@nexusai/shared";
 import { notifyToolConnectionHealth } from "../tool-connection-health-notifications.js";
 import { chatConnectionTransport } from "./provider-catalog.js";
 

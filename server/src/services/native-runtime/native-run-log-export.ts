@@ -1,11 +1,11 @@
 import { and, asc, desc, eq, gt, isNotNull, lte, not, or, sql } from "drizzle-orm";
 import { StringDecoder } from "node:string_decoder";
-import { heartbeatRunEvents, type Db } from "@paperclipai/db";
-import { validatePrpEvent, type PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import { heartbeatRunEvents, type Db } from "@nexusai/db";
+import { validatePrpEvent, type PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { nativeSha256 } from "./canonical.js";
 
 export function formatNativeRunLogEvent(event: PrpEvent) {
-  return `${JSON.stringify({ type: "paperclip.prp.event", event })}\n`;
+  return `${JSON.stringify({ type: "nexus.prp.event", event })}\n`;
 }
 export function nativeRunLogSourceWhere(companyId: string, runId: string) {
   return and(
@@ -96,7 +96,7 @@ export function createNativeRunLogCoverageVerifier(db: Db, companyId: string, ru
     } catch {
       throw unproven();
     }
-    if (typeof chunk !== "string" || !chunk.startsWith('{"type":"paperclip.prp.event"')) return;
+    if (typeof chunk !== "string" || !chunk.startsWith('{"type":"nexus.prp.event"')) return;
     let event: PrpEvent;
     try {
       const parsed = validatePrpEvent(JSON.parse(chunk).event);

@@ -9,8 +9,8 @@ import type {
   FeedbackVoteValue,
   Issue,
   IssueDocument,
-} from "@paperclipai/shared";
-import { isArtifactReviewDocumentKey, isSystemIssueDocumentKey } from "@paperclipai/shared";
+} from "@nexusai/shared";
+import { isArtifactReviewDocumentKey, isSystemIssueDocumentKey } from "@nexusai/shared";
 import { useLocation } from "@/lib/router";
 import { ApiError } from "../api/client";
 import { issuesApi } from "../api/issues";
@@ -91,7 +91,7 @@ type DocumentSubjectConfig = {
 
 const DOCUMENT_AUTOSAVE_DEBOUNCE_MS = 900;
 const DOCUMENT_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
-const getFoldedDocumentsStorageKey = (issueId: string) => `paperclip:issue-document-folds:${issueId}`;
+const getFoldedDocumentsStorageKey = (issueId: string) => `nexus:issue-document-folds:${issueId}`;
 
 function loadFoldedDocumentKeys(issueId: string) {
   if (typeof window === "undefined") return [];
@@ -161,7 +161,7 @@ function isLockedDocumentError(error: unknown) {
  * A null scope (the session is still loading) stores and restores nothing.
  */
 function documentDraftStorageKey(scope: string, key: string) {
-  return `paperclip:document-draft:v2:${scope}:${key}`;
+  return `nexus:document-draft:v2:${scope}:${key}`;
 }
 
 function loadStoredDocumentDraft(scope: string | null, key: string): DraftState | null {
@@ -187,7 +187,7 @@ function clearStoredDocumentDraft(scope: string | null, key: string) {
 }
 
 function newDocumentDraftStorageKey(scope: string) {
-  return `paperclip:new-document-draft:v1:${scope}`;
+  return `nexus:new-document-draft:v1:${scope}`;
 }
 
 function loadStoredNewDocumentDraft(scope: string | null): DraftState | null {
@@ -1086,7 +1086,7 @@ function AccountIssueDocumentsSection({
 
   const documentBodyShellClassName = "mt-3";
   const documentBodyPaddingClassName = "";
-  const documentBodyContentClassName = "paperclip-edit-in-place-content min-h-(--sz-220px) text-sm leading-7";
+  const documentBodyContentClassName = "nexus-edit-in-place-content min-h-(--sz-220px) text-sm leading-7";
   const toggleFoldedDocument = (key: string) => {
     setFoldedDocumentKeys((current) =>
       current.includes(key)

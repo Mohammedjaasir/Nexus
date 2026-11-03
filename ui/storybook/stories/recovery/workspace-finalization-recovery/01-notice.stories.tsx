@@ -8,7 +8,7 @@ const meta = {
   component: WorkspaceExportRecovery,
   args: { action: automaticAction },
   parameters: { layout: "fullscreen", docs: { story: { inline: false }, description: { component: "Controller recovery runs in the harness. The task shows a quiet status and removes it when saving finishes. Legacy receipts without platform identity require operator assistance through the documented API; no shutdown form is shown to users." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "recovery/workspace",
         "recovery/source-action"

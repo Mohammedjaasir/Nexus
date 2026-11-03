@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
-import { executionWorkspaceSnapshots, executionWorkspaces, heartbeatRuns, issueRecoveryActions, workspaceOperations, type Db } from "@paperclipai/db";
-import { readRemoteWorkspaceAuthority, type EnvironmentLease } from "@paperclipai/shared";
+import { executionWorkspaceSnapshots, executionWorkspaces, heartbeatRuns, issueRecoveryActions, workspaceOperations, type Db } from "@nexusai/db";
+import { readRemoteWorkspaceAuthority, type EnvironmentLease } from "@nexusai/shared";
 import { hasRemoteTerminationReceipt } from "./remote-execution-termination.js";
 import type { StorageService } from "../storage/types.js";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";
@@ -26,7 +26,7 @@ async function pinned(db: ReadDb, row: Snapshot) {
   const [operation] = await db.select({ id: workspaceOperations.id }).from(workspaceOperations).where(and(
     eq(workspaceOperations.companyId, row.companyId), eq(workspaceOperations.executionWorkspaceId, row.executionWorkspaceId),
     or(inArray(workspaceOperations.status, ["running", "pending"]),
-      sql`(${workspaceOperations.metadata}->'saveWork'->>'schema' = 'paperclip.remote-workspace-save-work.v1'
+      sql`(${workspaceOperations.metadata}->'saveWork'->>'schema' = 'nexus.remote-workspace-save-work.v1'
         and (${workspaceOperations.metadata}#>'{saveWork,unknown}' is distinct from 'false'::jsonb
           or case when jsonb_typeof(${workspaceOperations.metadata}#>'{saveWork,activeIds}') = 'array'
             then jsonb_array_length(${workspaceOperations.metadata}#>'{saveWork,activeIds}') <> 0 else true end))`),

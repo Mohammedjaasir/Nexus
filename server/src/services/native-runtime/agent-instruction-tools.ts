@@ -1,6 +1,6 @@
-import type { AgentInstructionCommitReceipt } from "@paperclipai/shared";
+import type { AgentInstructionCommitReceipt } from "@nexusai/shared";
 import { z } from "zod";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { badRequest, notFound } from "../../errors.js";
 import { agentInstructionRevisionService } from "../agent-instruction-revisions.js";
 import { agentInstructionWorkingCopyService } from "../agent-instruction-working-copies.js";

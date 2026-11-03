@@ -3,7 +3,7 @@
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CompanySecret, EnvSecretRefBinding } from "@paperclipai/shared";
+import type { CompanySecret, EnvSecretRefBinding } from "@nexusai/shared";
 
 const mockSecretPickerRender = vi.hoisted(() => vi.fn());
 
@@ -49,7 +49,7 @@ function makeSecret(id: string, name: string): CompanySecret {
     name,
     provider: "local_encrypted",
     status: "active",
-    managedMode: "paperclip_managed",
+    managedMode: "nexus_managed",
     externalRef: null,
     providerConfigId: null,
     providerMetadata: null,

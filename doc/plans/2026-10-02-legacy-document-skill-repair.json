@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.legacy-document-skill-repair.safe-comparison/v1",
+  "schema": "nexus.legacy-document-skill-repair.safe-comparison/v1",
   "asOf": "2026-10-02T21:22:00Z",
   "partial": false,
   "expectedCellsPerVariant": 4,
@@ -71,9 +71,9 @@
       }
     },
     {
-      "executionId": "stock-harness.legacy-claude.local.assigned-skill-paperclip-document",
+      "executionId": "stock-harness.legacy-claude.local.assigned-skill-nexus-document",
       "profileId": "legacy-claude",
-      "caseId": "assigned-skill-paperclip-document",
+      "caseId": "assigned-skill-nexus-document",
       "status": "passed",
       "model": "claude-sonnet-4-6",
       "durationMs": 50778,
@@ -175,9 +175,9 @@
       }
     },
     {
-      "executionId": "stock-harness.legacy-opencode.local.assigned-skill-paperclip-document",
+      "executionId": "stock-harness.legacy-opencode.local.assigned-skill-nexus-document",
       "profileId": "legacy-opencode",
-      "caseId": "assigned-skill-paperclip-document",
+      "caseId": "assigned-skill-nexus-document",
       "status": "failed",
       "model": "openrouter/deepseek/deepseek-v4-flash-0731",
       "durationMs": 217620,
@@ -282,9 +282,9 @@
       }
     },
     {
-      "executionId": "stock-harness.legacy-claude.local.assigned-skill-paperclip-document",
+      "executionId": "stock-harness.legacy-claude.local.assigned-skill-nexus-document",
       "profileId": "legacy-claude",
-      "caseId": "assigned-skill-paperclip-document",
+      "caseId": "assigned-skill-nexus-document",
       "status": "passed",
       "model": "claude-sonnet-4-6",
       "durationMs": 56928,
@@ -387,9 +387,9 @@
       }
     },
     {
-      "executionId": "stock-harness.legacy-opencode.local.assigned-skill-paperclip-document",
+      "executionId": "stock-harness.legacy-opencode.local.assigned-skill-nexus-document",
       "profileId": "legacy-opencode",
-      "caseId": "assigned-skill-paperclip-document",
+      "caseId": "assigned-skill-nexus-document",
       "status": "failed",
       "model": "openrouter/deepseek/deepseek-v4-flash-0731",
       "durationMs": 59941,
@@ -442,7 +442,7 @@
     }
   ],
   "matchedProfileProof": {
-    "schema": "paperclip.legacy-document-skill-repair.fixture-match-proof/v1",
+    "schema": "nexus.legacy-document-skill-repair.fixture-match-proof/v1",
     "cells": [
       {
         "executionId": "stock-harness.legacy-claude.local.assigned-skill-explicit-invocation",
@@ -450,7 +450,7 @@
         "model": "claude-sonnet-4-6"
       },
       {
-        "executionId": "stock-harness.legacy-claude.local.assigned-skill-paperclip-document",
+        "executionId": "stock-harness.legacy-claude.local.assigned-skill-nexus-document",
         "fixtureConfigSha256": "ea1cd67b0f68ef3830c011768d1a1133b5828c602d5ae3e021889dcd72708344",
         "model": "claude-sonnet-4-6"
       },
@@ -460,7 +460,7 @@
         "model": "openrouter/deepseek/deepseek-v4-flash-0731"
       },
       {
-        "executionId": "stock-harness.legacy-opencode.local.assigned-skill-paperclip-document",
+        "executionId": "stock-harness.legacy-opencode.local.assigned-skill-nexus-document",
         "fixtureConfigSha256": "b5173358d664ab6b3daa67d8758f18d59ec99cb9c485c02ccf953a9f8375e01e",
         "model": "openrouter/deepseek/deepseek-v4-flash-0731"
       }
@@ -469,7 +469,7 @@
   "identicalSourceCount": 203,
   "skillSources": [
     {
-      "path": "skills/paperclip/SKILL.md",
+      "path": "skills/nexus/SKILL.md",
       "candidate": {
         "present": true,
         "sha256": "65e379cab319bfef5911c0f6c9423cb262c9b8f1fef3fd08d45c1e4f32f8971a"
@@ -480,7 +480,7 @@
       }
     },
     {
-      "path": "skills/paperclip/references/issue-documents.md",
+      "path": "skills/nexus/references/issue-documents.md",
       "candidate": {
         "present": true,
         "sha256": "353845a406b1b4948487c348c86eb7b8c89a55ae67afe203100eee10aee46336"
@@ -492,11 +492,11 @@
     }
   ],
   "toolDeliveryAudit": {
-    "schema": "paperclip.legacy-document-repair.tool-audit/v1",
+    "schema": "nexus.legacy-document-repair.tool-audit/v1",
     "rows": [
       {
         "variant": "candidate",
-        "case": "assigned-skill-paperclip-document",
+        "case": "assigned-skill-nexus-document",
         "sourceSha": "abd0b628ca642c09a54a4edc56a5227402f6686e",
         "runOrdinal": 1,
         "runPurpose": "assignment",
@@ -517,7 +517,7 @@
           },
           {
             "tool": "skill",
-            "skill": "paperclip",
+            "skill": "nexus",
             "operationalSkillLoad": true,
             "earlyRecipeVisible": true,
             "newReferencePointerVisible": true,
@@ -659,7 +659,7 @@
         "toolCalls": [
           {
             "tool": "skill",
-            "skill": "paperclip",
+            "skill": "nexus",
             "operationalSkillLoad": true,
             "earlyRecipeVisible": true,
             "newReferencePointerVisible": true,
@@ -802,7 +802,7 @@
           },
           {
             "tool": "skill",
-            "skill": "paperclip",
+            "skill": "nexus",
             "operationalSkillLoad": true,
             "earlyRecipeVisible": false,
             "newReferencePointerVisible": false,
@@ -876,7 +876,7 @@
       },
       {
         "variant": "baseline",
-        "case": "assigned-skill-paperclip-document",
+        "case": "assigned-skill-nexus-document",
         "sourceSha": "bc83fe030234439ac51279502a28803958963e2e",
         "runOrdinal": 1,
         "runPurpose": "assignment",
@@ -897,7 +897,7 @@
           },
           {
             "tool": "skill",
-            "skill": "paperclip",
+            "skill": "nexus",
             "operationalSkillLoad": true,
             "earlyRecipeVisible": false,
             "newReferencePointerVisible": false,

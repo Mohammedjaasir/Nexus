@@ -1,4 +1,4 @@
-import type { AttentionItem, DecisionHistoryItem } from "@paperclipai/shared";
+import type { AttentionItem, DecisionHistoryItem } from "@nexusai/shared";
 import { queryKeys } from "./queryKeys";
 
 export const coordinatorAttentionQueryKey = (companyId: string) => [...queryKeys.attention(companyId), "coordinator", "pending"] as const;

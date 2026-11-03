@@ -5,7 +5,7 @@ import { VoiceTranscript } from "@/components/voice/VoiceTranscript";
 
 const meta = { ...voiceStoryLifecycle,
   id: "connections-speko-transcript", title: "Apps, channels, and extensions/External chat and email/Speko/Transcript", component: VoiceTranscript,
-  args: { agentName: "Company Phone Agent", entries: [] }, parameters: { layout: "padded", paperclip: {"capabilities": ["chat-channels/conversation"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production transcript with fixture partial/final, overlapping, interrupted and long turns. No speech recognition or audio playback proof."} },
+  args: { agentName: "Company Phone Agent", entries: [] }, parameters: { layout: "padded", nexus: {"capabilities": ["chat-channels/conversation"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production transcript with fixture partial/final, overlapping, interrupted and long turns. No speech recognition or audio playback proof."} },
 } satisfies Meta<typeof VoiceTranscript>;
 export default meta;
 type Story = StoryObj<typeof meta>;

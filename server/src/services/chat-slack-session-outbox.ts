@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { chatActions, type Db } from "@paperclipai/db";
+import { chatActions, type Db } from "@nexusai/db";
 
 import { notifyChatActionWork } from "./chat-work-notifications.js";
 

@@ -2,10 +2,10 @@ import type { LifecycleRuntimeFence } from "../runtime-types.js";
 
 import {
   chatPublications,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   SafeChatPublicationPayload,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
   function isExplicitOperatorPublication(
     publication: Pick<typeof chatPublications.$inferSelect, "idempotencyKey">,

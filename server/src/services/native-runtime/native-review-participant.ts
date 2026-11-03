@@ -7,7 +7,7 @@ import {
   issues,
   statusDecisions,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { and, eq, isNull, or } from "drizzle-orm";
 import { evaluateAgentInvokabilityFromDb } from "../agent-invokability.js";
 import { canonicalizeStoredResolverPolicy } from "../issue-thread-interaction-resolution.js";

@@ -1,17 +1,17 @@
-import { createIssueThreadInteractionSchema } from "@paperclipai/shared";
+import { createIssueThreadInteractionSchema } from "@nexusai/shared";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { issueComments, issueThreadInteractions, issues } from "@paperclipai/db";
+import { issueComments, issueThreadInteractions, issues } from "@nexusai/db";
 import { createLocalAgentJwt } from "../../agent-auth-jwt.js";
 import { startRunnerApiTestServer } from "../../__tests__/helpers/runner-api-server.js";
 import { issueThreadInteractionService } from "../issue-thread-interactions.js";
 
 describe("confirmation reply through the native API tool", () => {
   let server: Awaited<ReturnType<typeof startRunnerApiTestServer>>;
-  const oldSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
-  beforeAll(async () => { process.env.PAPERCLIP_AGENT_JWT_SECRET = randomUUID(); server = await startRunnerApiTestServer(); }, 60_000);
-  afterAll(async () => { await server?.close(); if (oldSecret === undefined) delete process.env.PAPERCLIP_AGENT_JWT_SECRET; else process.env.PAPERCLIP_AGENT_JWT_SECRET = oldSecret; });
+  const oldSecret = process.env.NEXUS_AGENT_JWT_SECRET;
+  beforeAll(async () => { process.env.NEXUS_AGENT_JWT_SECRET = randomUUID(); server = await startRunnerApiTestServer(); }, 60_000);
+  afterAll(async () => { await server?.close(); if (oldSecret === undefined) delete process.env.NEXUS_AGENT_JWT_SECRET; else process.env.NEXUS_AGENT_JWT_SECRET = oldSecret; });
   async function seed(mode: "standard" | "planning" | "ask" = "standard") {
     const f = await server.fixture({ conversation: true, disableWakeOnDemand: true, mode });
     const [issue] = await server.db.select().from(issues).where(eq(issues.id, f.issueId));
@@ -48,7 +48,7 @@ describe("confirmation reply through the native API tool", () => {
     const { f, card, call, comment } = await seed();
     const url = `${server.apiUrl}/api/issues/${f.issueId}/interactions/${card.id}/resolve-from-comment`;
     expect((await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(call.arguments.body) })).status).toBe(404);
-    const token = createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", f.runId, f.userId);
+    const token = createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", f.runId, f.userId);
     expect((await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...call.arguments.body, actorUserId: f.userId }) })).status).toBe(400);
   });
   it("preserves formal approval authority in the HTTP route", async () => {

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { agents, authUsers, companies, companyMemberships, createDb, decisionRetention, issueRecoveryActions, issueRelations, issues } from "@paperclipai/db";
-import type { AttentionSourceKind } from "@paperclipai/shared";
+import { agents, authUsers, companies, companyMemberships, createDb, decisionRetention, issueRecoveryActions, issueRelations, issues } from "@nexusai/db";
+import type { AttentionSourceKind } from "@nexusai/shared";
 import { attentionService } from "../services/attention.js";
 import { decisionRetentionService } from "../services/decision-retention.js";
 import { issueRecoveryActionService } from "../services/issue-recovery-actions.js";
@@ -10,7 +10,7 @@ import { issueService } from "../services/issues.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_RETENTION_MATERIALIZATION_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_RETENTION_MATERIALIZATION_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("retention first-materialization security", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;

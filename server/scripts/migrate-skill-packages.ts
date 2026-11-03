@@ -1,5 +1,5 @@
 /** Run from the server package with its configured storage and DATABASE_URL. */
-import { createDb } from "@paperclipai/db";
+import { createDb } from "@nexusai/db";
 import { loadStorageConfig } from "../src/storage/config.js";
 import { createStorageProviderFromConfig } from "../src/storage/provider-registry.js";
 import { createStorageService } from "../src/storage/service.js";

@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
-import { agentWakeupRequests, chatActions, chatConversations, chatDeliveries, chatEndpointResources, chatMessageLinks, issueComments, toolConnections } from "@paperclipai/db";
+import { agentWakeupRequests, chatActions, chatConversations, chatDeliveries, chatEndpointResources, chatMessageLinks, issueComments, toolConnections } from "@nexusai/db";
 import { chatWakeAuthorityDenied } from "../inbound/wakeup-authorization-error.js";
 import type { DbOrTransaction, EndpointRow, LifecycleRuntimeFence } from "../runtime-types.js";
 import { credentialFingerprint } from "../credential-fingerprint.js";

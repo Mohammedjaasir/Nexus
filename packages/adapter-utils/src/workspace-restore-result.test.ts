@@ -8,7 +8,7 @@ const completed: AdapterExecutionResult = {
   summary: "The plan is ready.", sessionId: "session", usage: { inputTokens: 4, outputTokens: 9 },
   resultJson: { requestId: "request" },
 };
-const unsafe = new Error("Daytona syncOut refusing tarball link whose target escapes the extraction dir: .claude/skills/paperclip -> /tmp/private-clone/secret-key");
+const unsafe = new Error("Daytona syncOut refusing tarball link whose target escapes the extraction dir: .claude/skills/nexus -> /tmp/private-clone/secret-key");
 
 describe("workspace restore settlement", () => {
   it("retains only the safe failed restore step alongside the original completed turn", async () => {
@@ -45,7 +45,7 @@ describe("workspace restore settlement", () => {
       summary: completed.summary, sessionId: "session", usage: completed.usage,
       errorCode: "workspace_restore_failed", timedOut: false,
       resultJson: { requestId: "request", workspaceRestoreFailure: "restore_unsafe_archive",
-        workspaceRestorePath: ".claude/skills/paperclip", finalResponseRecorded: true },
+        workspaceRestorePath: ".claude/skills/nexus", finalResponseRecorded: true },
     });
     expect(JSON.stringify(result)).not.toMatch(/private-clone|secret-key|\/tmp/);
     expect(applyWorkspaceRestoreFailure(result)).toBe(result);

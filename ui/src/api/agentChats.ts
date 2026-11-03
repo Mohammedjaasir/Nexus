@@ -1,4 +1,4 @@
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 import { api } from "./client";
 export const agentChatsApi = {
   list: (companyId: string) => api.get<Issue[]>(`/companies/${companyId}/chats`),

@@ -31,7 +31,7 @@ try {
   await fs.writeFile(baselineFile, oldSource.replace(/from "(\.{1,2}\/[^\"]+)"/g,
     (_match, specifier: string) => `from ${JSON.stringify(fileURLToPath(new URL(specifier, moduleUrl)))}`));
   const baseline = await import(pathToFileURL(baselineFile).href) as typeof import("../server/src/services/run-identity.js");
-  const externalUrl = process.env.PAPERCLIP_TEST_DATABASE_URL;
+  const externalUrl = process.env.NEXUS_TEST_DATABASE_URL;
   if (externalUrl) {
     const parsed = new URL(externalUrl);
     assert.ok(["127.0.0.1", "localhost"].includes(parsed.hostname) && /_test$/.test(parsed.pathname),
@@ -72,9 +72,9 @@ try {
       else {
         const snapshot = value as Record<string, unknown>;
         for (const [name, selected] of Object.entries(snapshot)) {
-          if (name !== "paperclipIssue") assert.deepEqual(selected, before.run.contextSnapshot?.[name] ?? null, `Retained context ${name}`);
+          if (name !== "nexusIssue") assert.deepEqual(selected, before.run.contextSnapshot?.[name] ?? null, `Retained context ${name}`);
           else for (const [nested, item] of Object.entries(selected as Record<string, unknown>))
-            assert.deepEqual(item, (before.run.contextSnapshot?.paperclipIssue as Record<string, unknown>)?.[nested] ?? null, `Retained nested ${nested}`);
+            assert.deepEqual(item, (before.run.contextSnapshot?.nexusIssue as Record<string, unknown>)?.[nested] ?? null, `Retained nested ${nested}`);
         }
       }
     }

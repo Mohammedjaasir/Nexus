@@ -9,7 +9,7 @@ storage architecture, unique work, and recovery data. Git restoration may depend
 on upstream availability; skill restoration must use saved database bytes alone.
 
 Apply dotta-kickoff, goal-poteto-style-definition, shorten-feedback-loop,
-paperclip-feature-to-production, and test-it-for-real. Retain one deployment owner.
+nexus-feature-to-production, and test-it-for-real. Retain one deployment owner.
 
 ## Acceptance matrix
 
@@ -59,7 +59,7 @@ fixes and real lifecycle controls. The updated head still needs review and CI.
 | Reclaim real finished backlog on staging | Oct 16 disk survey and skip reasons retained | Reviewed merge, one-target rollout, actual measured deletion | Existing deployment workflow / this task |
 | Ordinary reopening and subsequent work | Prior main-repository fixture proof only | Real expired nested workspace journey plus independent inspection | Product acceptance / this task |
 
-Retained experiment evidence: `/tmp/paperclip-disk-20261016/nested-baseline-built.log`.
+Retained experiment evidence: `/tmp/nexus-disk-20261016/nested-baseline-built.log`.
 After 17s dependency installation and one SDK build, the useful baseline took 12.23s
 (6.91s test, 3.07s transform), using bare upstream repositories and normal preparation,
 expiration, and reopening. It failed because nested HEAD became B instead of A.
@@ -87,7 +87,7 @@ The representative crash experiment took 20.84s, mostly fixture Git/process work
 
 The live pre-cleanup baseline records 50 old terminal workspaces in 74.543s,
 including 19 with nested copies and 21 dirty controls. Evidence is
-`/tmp/paperclip-cleanup-20261017/eligible-baseline.jsonl`; no file contents or
+`/tmp/nexus-cleanup-20261017/eligible-baseline.jsonl`; no file contents or
 credentials are printed. The ordinary staging UI is authenticated and reachable.
 Current disk observation: 129,519,296,512 bytes used and 17,779,265,536 free (88%).
 
@@ -109,9 +109,9 @@ First attempts exposed loopback sandbox denial and a missing SDK build; both set
 issues were corrected before judging behavior. Reuse this fixture for treatment.
 
 All prior temporary SSH keys have been revoked and removed. This iteration registered
-`paperclip-cleanup-20261017`, fingerprint `SHA256:h6kA+d64fu/OoA4bLNfjW0J3V5YsapuSWVbZpR+VcdA`.
-Revoke it and remove `/tmp/paperclip-cleanup-20261017/railway-key{,.pub}` and
-`~/.ssh/paperclip_cleanup_20261017{,.pub}` at completion. Historical details below describe prior
+`nexus-cleanup-20261017`, fingerprint `SHA256:h6kA+d64fu/OoA4bLNfjW0J3V5YsapuSWVbZpR+VcdA`.
+Revoke it and remove `/tmp/nexus-cleanup-20261017/railway-key{,.pub}` and
+`~/.ssh/nexus_cleanup_20261017{,.pub}` at completion. Historical details below describe prior
 revisions and must not be treated as current deployment or access state.
 
 ## Historical state (2026-10-15, 19:27 UTC)
@@ -175,8 +175,8 @@ revisions and must not be treated as current deployment or access state.
   roll back the verified build. Do not change the fleet default.
 
 
-Evidence root: `/tmp/paperclip-cleanup-staging/` locally and
-`/paperclip/instances/default/acceptance/recoverable-cache-20261015/` on staging.
+Evidence root: `/tmp/nexus-cleanup-staging/` locally and
+`/nexus/instances/default/acceptance/recoverable-cache-20261015/` on staging.
 This is the single delivery state record.
 
 - Prior Git lifecycle suite: 20/20 in 46.41s, 328 controls in 238.69s,
@@ -197,10 +197,10 @@ This is the single delivery state record.
 - Railway SSH defaults to root; service UID/GID is 1001. Root dry-run evidence
   is invalid due to Git ownership checks. All current service harnesses run as
   `gosu node`; only owned acceptance directories were corrected to service UID.
-- Temporary key `paperclip-cleanup-acceptance-2026-10-15`, fingerprint
+- Temporary key `nexus-cleanup-acceptance-2026-10-15`, fingerprint
   `SHA256:belt4FaWVyB6rtM4eRr5y9M6oFdgXDPf0a1wpndlRRQ`, must be revoked and
   both local copies removed at completion. Authorized key locations are the
-  private evidence directory and `~/.ssh/paperclip_cleanup_acceptance_20261015`.
+  private evidence directory and `~/.ssh/nexus_cleanup_acceptance_20261015`.
 
 ## Feedback-loop evidence
 

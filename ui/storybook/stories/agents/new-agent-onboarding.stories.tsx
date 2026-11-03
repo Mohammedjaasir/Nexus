@@ -9,7 +9,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     docs: { description: { component: "Interactive design prototype: name → adapter → simulated creation → connection → configuration → confirmation. Each screen is directly inspectable below. All state is local to the story; subscription and API-key connections are simulated, and actual hiring is deferred. Use Start over to replay. The adapter and runner are fixed after creation." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agents/hire"
       ],
@@ -26,7 +26,7 @@ const meta = {
     initialScreen: { control: "select", options: ["name", "adapter", "connect", "runtime", "saved"] },
     initialRunnerProvider: { control: "select", options: ["Codex (app server)", "Claude (ACPX)", "OpenCode"] },
     initialConnectionMethod: { control: "select", options: ["subscription", "api"] },
-    initialAdapter: { control: "select", options: [null, "claude_local", "codex_local", "cursor", "cursor_cloud", "gemini_local", "grok_local", "kimi_local", "opencode_local", "pi_local", "hermes_local", "paperclip_runner"] },
+    initialAdapter: { control: "select", options: [null, "claude_local", "codex_local", "cursor", "cursor_cloud", "gemini_local", "grok_local", "kimi_local", "opencode_local", "pi_local", "hermes_local", "nexus_runner"] },
   },
   // Remount when Storybook controls change; normal wizard navigation keeps drafts.
   render: args => <NewAgentWizard key={JSON.stringify(args)} {...args} />,
@@ -54,21 +54,21 @@ export const Confirmation: Story = { name: "06 · Confirmation", args: { initial
 export const NewAgentEntryPoint: Story = { name: "New agent entry point", args: { initialOpen: false } };
 export const MobileAdapterPicker: Story = { name: "Mobile · Adapter picker", args: { initialScreen: "adapter", initialName: "Darnold" }, globals: { viewport: { value: "mobile1", isRotated: false } } };
 
-export const RunnerAcpxClaude: Story = { name: "Runner · ACPX with Claude", args: { initialScreen: "runtime", initialName: "Darnold", initialAdapter: "paperclip_runner", initialRunnerProvider: "Claude (ACPX)" } };
-export const RunnerOpenCode: Story = { name: "Runner · OpenCode", args: { initialScreen: "runtime", initialName: "Darnold", initialAdapter: "paperclip_runner", initialRunnerProvider: "OpenCode" } };
+export const RunnerAcpxClaude: Story = { name: "Runner · ACPX with Claude", args: { initialScreen: "runtime", initialName: "Darnold", initialAdapter: "nexus_runner", initialRunnerProvider: "Claude (ACPX)" } };
+export const RunnerOpenCode: Story = { name: "Runner · OpenCode", args: { initialScreen: "runtime", initialName: "Darnold", initialAdapter: "nexus_runner", initialRunnerProvider: "OpenCode" } };
 
-export const NativeCodexRunner: Story = { name: "Runner · Native Codex app server", args: { initialScreen: "runtime", initialName: "Darnold", initialAdapter: "paperclip_runner", initialRunnerProvider: "Codex (app server)" } };
+export const NativeCodexRunner: Story = { name: "Runner · Native Codex app server", args: { initialScreen: "runtime", initialName: "Darnold", initialAdapter: "nexus_runner", initialRunnerProvider: "Codex (app server)" } };
 export const ClaudeAdapterApiKey: Story = { name: "Connect · Claude adapter · API key", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "claude_local", initialConnectionMethod: "api" } };
 export const CodexAdapterApiKey: Story = { name: "Connect · Codex adapter · API key", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "codex_local", initialConnectionMethod: "api" } };
-export const ClaudeRunnerApiKey: Story = { name: "Connect · Claude runner · API key", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "paperclip_runner", initialRunnerProvider: "Claude (ACPX)", initialConnectionMethod: "api" } };
-export const CodexRunnerApiKey: Story = { name: "Connect · Native Codex runner · API key", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "paperclip_runner", initialRunnerProvider: "Codex (app server)", initialConnectionMethod: "api" } };
+export const ClaudeRunnerApiKey: Story = { name: "Connect · Claude runner · API key", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "nexus_runner", initialRunnerProvider: "Claude (ACPX)", initialConnectionMethod: "api" } };
+export const CodexRunnerApiKey: Story = { name: "Connect · Native Codex runner · API key", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "nexus_runner", initialRunnerProvider: "Codex (app server)", initialConnectionMethod: "api" } };
 export const ClaudeAdapterSubscription: Story = { name: "Connect · Claude adapter · Subscription", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "claude_local", initialConnectionWaiting: true } };
 export const CodexAdapterSubscription: Story = { name: "Connect · Codex adapter · Subscription", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "codex_local", initialConnectionWaiting: true } };
-export const ClaudeRunnerSubscription: Story = { name: "Connect · Claude runner · Subscription", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "paperclip_runner", initialRunnerProvider: "Claude (ACPX)", initialConnectionWaiting: true } };
-export const CodexRunnerSubscription: Story = { name: "Connect · Native Codex runner · Subscription", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "paperclip_runner", initialRunnerProvider: "Codex (app server)", initialConnectionWaiting: true } };
+export const ClaudeRunnerSubscription: Story = { name: "Connect · Claude runner · Subscription", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "nexus_runner", initialRunnerProvider: "Claude (ACPX)", initialConnectionWaiting: true } };
+export const CodexRunnerSubscription: Story = { name: "Connect · Native Codex runner · Subscription", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "nexus_runner", initialRunnerProvider: "Codex (app server)", initialConnectionWaiting: true } };
 
 export const ConnectYourAgent: Story = { name: "Connect · Choose subscription or API key", args: { initialScreen: "connect", initialName: "Darnold", initialAdapter: "claude_local" } };
-export const CodexConfirmation: Story = { name: "Confirmation · Native Codex runner", args: { initialScreen: "saved", initialName: "Darnold", initialAdapter: "paperclip_runner", initialRunnerProvider: "Codex (app server)" } };
+export const CodexConfirmation: Story = { name: "Confirmation · Native Codex runner", args: { initialScreen: "saved", initialName: "Darnold", initialAdapter: "nexus_runner", initialRunnerProvider: "Codex (app server)" } };
 
 export const RuntimeTestSucceeded: Story = { name: "Test · Succeeded", args: { initialScreen: "runtime", initialName: "Darnold", initialAdapter: "pi_local", initialTestState: "pass" } };
 export const RuntimeTestFailed: Story = { name: "Test · Failed", args: { initialScreen: "runtime", initialName: "Darnold", initialAdapter: "pi_local", initialTestState: "fail", testOutcome: "fail" } };

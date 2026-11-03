@@ -1,15 +1,15 @@
 import { createHash } from "node:crypto";
 
 import { and, asc, eq, inArray } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   assets,
   heartbeatRuns,
   issueAttachments,
   issueComments,
   issues,
-} from "@paperclipai/db";
-import type { SourceTrustMetadata } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { SourceTrustMetadata } from "@nexusai/shared";
 
 import { createRunSecretRedactionRegistry } from "../run-secret-redaction.js";
 import { sanitizeQuarantinedCommentForHigherTrust } from "../source-trust.js";
@@ -18,9 +18,9 @@ import { getNativeReviewAssignment, readNativeReviewAssignmentContext } from "./
 export const READ_CURRENT_WAKE_COMMENTS_TOOL_NAME =
   "read_current_wake_comments";
 export const CURRENT_WAKE_COMMENTS_BINDING_SCHEMA =
-  "paperclip.current-wake-comments-binding.v1";
+  "nexus.current-wake-comments-binding.v1";
 export const CURRENT_WAKE_COMMENTS_RECEIPT_SCHEMA =
-  "paperclip.current-wake-comments-receipt.v1";
+  "nexus.current-wake-comments-receipt.v1";
 
 const CURRENT_WAKE_COMMENTS_RECEIPT_KEY = "currentWakeCommentsReceipt";
 const MAX_PAGE_BODY_CHARS = 12_000;
@@ -70,7 +70,7 @@ export const READ_CURRENT_WAKE_COMMENTS_TOOL_DEFINITION = Object.freeze({
     additionalProperties: false,
   },
   annotations: {
-    semanticContract: "paperclip.server-current-wake-comments.v1",
+    semanticContract: "nexus.server-current-wake-comments.v1",
     operationId: READ_CURRENT_WAKE_COMMENTS_TOOL_NAME,
     version: 1,
     exposure: "run_scoped",
@@ -114,7 +114,7 @@ type CurrentWakeCommentsSnapshot = {
 };
 
 type CurrentWakeCommentsCursor = {
-  schema: "paperclip.current-wake-comments-cursor.v1";
+  schema: "nexus.current-wake-comments-cursor.v1";
   bindingDigest: string;
   snapshotDigest: string;
   commentIndex: number;
@@ -128,7 +128,7 @@ type CurrentWakeCommentChunk = Omit<CurrentWakeComment, "body"> & {
 };
 
 export type CurrentWakeCommentsPage = {
-  schema: "paperclip.current-wake-comments-page.v1";
+  schema: "nexus.current-wake-comments-page.v1";
   bindingDigest: string;
   snapshotDigest: string;
   requestedCount: number;
@@ -225,7 +225,7 @@ function attachmentImportNotice(
   const reasons = entries
     .map(([reason, count]) => `${reason.replaceAll("_", " ")}: ${count}`)
     .join(", ");
-  return `Paperclip could not import every attachment from this exact external message: ${omitted} attachment${omitted === 1 ? " was" : "s were"} omitted (${reasons}). Treat omitted attachments as unavailable; do not infer their contents or substitute an older workspace file.`;
+  return `Nexus could not import every attachment from this exact external message: ${omitted} attachment${omitted === 1 ? " was" : "s were"} omitted (${reasons}). Treat omitted attachments as unavailable; do not infer their contents or substitute an older workspace file.`;
 }
 
 function bindingDigest(input: {
@@ -294,7 +294,7 @@ export async function resolveCurrentWakeCommentsBinding(
     return null;
   }
 
-  const wake = record(record(bound.run.contextSnapshot).paperclipWake);
+  const wake = record(record(bound.run.contextSnapshot).nexusWake);
   const provider = nonEmptyString(wake.externalChatProvider);
   const commentIds = commentIdsFromWakePayload(wake);
   const attachmentOmissions = attachmentOmissionsFromWakePayload(
@@ -309,7 +309,7 @@ export async function resolveCurrentWakeCommentsBinding(
       !(
         wake.externalChatExecutionBound === true &&
         record(bound.run.contextSnapshot)
-          .paperclipExternalChatExecutionBound === true
+          .nexusExternalChatExecutionBound === true
       )) ||
     wake.fallbackFetchNeeded !== true ||
     commentIds.length === 0 ||
@@ -353,14 +353,14 @@ function decodeCursor(
     value.length === 0 ||
     value.length > MAX_CURSOR_CHARS
   ) {
-    throw new Error("paperclip_current_wake_comments_cursor_invalid");
+    throw new Error("nexus_current_wake_comments_cursor_invalid");
   }
   try {
     const parsed = record(
       JSON.parse(Buffer.from(value, "base64url").toString("utf8")),
     );
     if (
-      parsed.schema !== "paperclip.current-wake-comments-cursor.v1" ||
+      parsed.schema !== "nexus.current-wake-comments-cursor.v1" ||
       parsed.bindingDigest !== binding.bindingDigest ||
       parsed.snapshotDigest !== snapshotDigest ||
       !Number.isSafeInteger(parsed.commentIndex) ||
@@ -368,17 +368,17 @@ function decodeCursor(
       Number(parsed.commentIndex) < 0 ||
       Number(parsed.bodyOffset) < 0
     ) {
-      throw new Error("paperclip_current_wake_comments_cursor_invalid");
+      throw new Error("nexus_current_wake_comments_cursor_invalid");
     }
     return parsed as CurrentWakeCommentsCursor;
   } catch (error) {
     if (
       error instanceof Error &&
-      error.message === "paperclip_current_wake_comments_cursor_invalid"
+      error.message === "nexus_current_wake_comments_cursor_invalid"
     ) {
       throw error;
     }
-    throw new Error("paperclip_current_wake_comments_cursor_invalid");
+    throw new Error("nexus_current_wake_comments_cursor_invalid");
   }
 }
 
@@ -394,7 +394,7 @@ function parseReceipt(value: unknown): CurrentWakeCommentsReceipt | null {
     ) ||
     !(receipt.nextCursor === null || typeof receipt.nextCursor === "string") ||
     typeof receipt.complete !== "boolean" ||
-    result.schema !== "paperclip.current-wake-comments-page.v1"
+    result.schema !== "nexus.current-wake-comments-page.v1"
   ) {
     return null;
   }
@@ -471,7 +471,7 @@ async function currentWakeCommentsSnapshot(
       filename: attachment.filename?.trim() || "attachment",
       contentType: attachment.contentType,
       byteSize: attachment.byteSize,
-      // This closed reader intentionally has no general Paperclip API key.
+      // This closed reader intentionally has no general Nexus API key.
       // Inline wake attachments are staged separately by the native harness;
       // overflow attachments remain visible as metadata so the agent can be
       // truthful rather than claiming it inspected bytes it cannot access.
@@ -546,7 +546,7 @@ function buildPage(
   let commentIndex = cursor?.commentIndex ?? 0;
   let bodyOffset = cursor?.bodyOffset ?? 0;
   if (commentIndex > snapshot.comments.length) {
-    throw new Error("paperclip_current_wake_comments_cursor_invalid");
+    throw new Error("nexus_current_wake_comments_cursor_invalid");
   }
   const chunks: CurrentWakeCommentChunk[] = [];
   let remainingChars = MAX_PAGE_BODY_CHARS;
@@ -558,7 +558,7 @@ function buildPage(
   ) {
     const comment = snapshot.comments[commentIndex]!;
     if (bodyOffset > comment.body.length) {
-      throw new Error("paperclip_current_wake_comments_cursor_invalid");
+      throw new Error("nexus_current_wake_comments_cursor_invalid");
     }
     const remainingBody = comment.body.slice(bodyOffset);
     const chunkSize = Math.min(
@@ -587,14 +587,14 @@ function buildPage(
   const nextCursor = complete
     ? null
     : encodeCursor({
-        schema: "paperclip.current-wake-comments-cursor.v1",
+        schema: "nexus.current-wake-comments-cursor.v1",
         bindingDigest: binding.bindingDigest,
         snapshotDigest: snapshot.snapshotDigest,
         commentIndex,
         bodyOffset,
       });
   return {
-    schema: "paperclip.current-wake-comments-page.v1",
+    schema: "nexus.current-wake-comments-page.v1",
     bindingDigest: binding.bindingDigest,
     snapshotDigest: snapshot.snapshotDigest,
     requestedCount: binding.commentIds.length,
@@ -618,7 +618,7 @@ export async function readCurrentWakeComments(
       typeof request.cursor === "string"
     )
   ) {
-    throw new Error("paperclip_current_wake_comments_input_invalid");
+    throw new Error("nexus_current_wake_comments_input_invalid");
   }
   const inputCursor = request.cursor ?? null;
 
@@ -655,7 +655,7 @@ export async function readCurrentWakeComments(
       locked.issueAssigneeAgentId !== binding.agentId ||
       locked.issueExecutionRunId !== binding.runId
     ) {
-      throw new Error("paperclip_current_wake_comments_binding_not_authorized");
+      throw new Error("nexus_current_wake_comments_binding_not_authorized");
     }
     const currentBinding = await resolveCurrentWakeCommentsBinding(
       tx as unknown as Db,
@@ -670,7 +670,7 @@ export async function readCurrentWakeComments(
       !currentBinding ||
       currentBinding.bindingDigest !== binding.bindingDigest
     ) {
-      throw new Error("paperclip_current_wake_comments_binding_changed");
+      throw new Error("nexus_current_wake_comments_binding_changed");
     }
 
     const snapshot = await currentWakeCommentsSnapshot(
@@ -693,15 +693,15 @@ export async function readCurrentWakeComments(
         prior.snapshotDigest !== snapshot.snapshotDigest)
     ) {
       if (inputCursor !== null) {
-        throw new Error("paperclip_current_wake_comments_snapshot_changed");
+        throw new Error("nexus_current_wake_comments_snapshot_changed");
       }
     } else if (!prior && inputCursor !== null) {
-      throw new Error("paperclip_current_wake_comments_cursor_out_of_order");
+      throw new Error("nexus_current_wake_comments_cursor_out_of_order");
     } else if (prior && prior.nextCursor !== inputCursor) {
       throw new Error(
         prior.complete
-          ? "paperclip_current_wake_comments_already_complete"
-          : "paperclip_current_wake_comments_cursor_out_of_order",
+          ? "nexus_current_wake_comments_already_complete"
+          : "nexus_current_wake_comments_cursor_out_of_order",
       );
     }
 

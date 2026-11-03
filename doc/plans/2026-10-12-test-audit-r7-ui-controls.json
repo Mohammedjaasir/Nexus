@@ -310,7 +310,7 @@
         "status": "failed",
         "jsonSha256": "a0cdaa7f1233d4f88d6abd92f61984343f41b27e2723b8ce28b16a8c97624366",
         "logSha256": "83b0ab380a65c7f9ec69f8ec36132dbafb6ef9cc2c4df220b20415144244eab3",
-        "intendedFailure": "AssertionError: expected 'Skip to Main ContentPaperclipCompany \u2026' to contain 'Company settings sidebar'"
+        "intendedFailure": "AssertionError: expected 'Skip to Main ContentNexusCompany \u2026' to contain 'Company settings sidebar'"
       }
     }
   ],

@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { Agent, Issue, IssueCommentMetadata } from "@paperclipai/shared";
+import type { Agent, Issue, IssueCommentMetadata } from "@nexusai/shared";
 import { heartbeatsApi } from "../api/heartbeats";
 import { issuesApi } from "../api/issues";
 import type { WorkspaceBaseRefRecoveryNoticeProps } from "./WorkspaceBaseRefRecoveryNotice";

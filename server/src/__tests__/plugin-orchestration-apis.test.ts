@@ -27,7 +27,7 @@ import {
   pluginManagedResources,
   plugins,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -66,7 +66,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
   const tempRoots: string[] = [];
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-plugin-orchestration-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-plugin-orchestration-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -134,7 +134,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     const agentId = randomUUID();
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: issuePrefix(companyId),
       requireBoardApprovalForNewAgents: false,
     });
@@ -153,7 +153,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
   }
 
   async function makeLocalRoot() {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-plugin-host-folder-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-plugin-host-folder-"));
     tempRoots.push(root);
     return root;
   }
@@ -183,28 +183,28 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       strategyType: "git_worktree",
       name: "Feature workspace",
       status: "active",
-      cwd: "/tmp/paperclip-feature",
-      repoUrl: "https://example.com/paperclip.git",
+      cwd: "/tmp/nexus-feature",
+      repoUrl: "https://example.com/nexus.git",
       baseRef: "main",
       branchName: "feature/workspace",
       providerType: "git_worktree",
-      providerRef: "/tmp/paperclip-feature",
+      providerRef: "/tmp/nexus-feature",
       metadata: {
         providerMetadata: { sandboxId: "sandbox-1" },
         workspaceRealizationRequest: { hiddenInternal: true },
       },
     });
 
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.workspace", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.workspace", createEventBusStub());
 
     await expect(services.executionWorkspaces.get({ workspaceId, companyId })).resolves.toMatchObject({
       id: workspaceId,
       companyId,
       projectId,
       projectWorkspaceId: null,
-      path: "/tmp/paperclip-feature",
-      cwd: "/tmp/paperclip-feature",
-      repoUrl: "https://example.com/paperclip.git",
+      path: "/tmp/nexus-feature",
+      cwd: "/tmp/nexus-feature",
+      repoUrl: "https://example.com/nexus.git",
       baseRef: "main",
       branchName: "feature/workspace",
       providerType: "git_worktree",
@@ -235,7 +235,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     });
 
 
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.missions", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.missions", createEventBusStub());
     const issue = await services.issues.create({
       companyId,
       title: "Plugin child issue",
@@ -249,7 +249,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     });
 
     const [stored] = await db.select().from(issues).where(eq(issues.id, issue.id));
-    expect(stored?.originKind).toBe("plugin:paperclip.missions");
+    expect(stored?.originKind).toBe("plugin:nexus.missions");
     expect(stored?.originId).toBe("mission-alpha");
     expect(stored?.billingCode).toBe("mission:alpha");
     expect(stored?.assigneeAgentId).toBe(agentId);
@@ -275,7 +275,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
           agentId,
           details: expect.objectContaining({
             sourcePluginId: "plugin-record-id",
-            sourcePluginKey: "paperclip.missions",
+            sourcePluginKey: "nexus.missions",
             initiatingActorType: "agent",
             initiatingActorId: agentId,
             initiatingRunId: originRunId,
@@ -287,15 +287,15 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
 
   it("enforces plugin origin namespaces", async () => {
     const { companyId } = await seedCompanyAndAgent();
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.missions", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.missions", createEventBusStub());
 
     const featureIssue = await services.issues.create({
       companyId,
       title: "Feature issue",
-      originKind: "plugin:paperclip.missions:feature",
+      originKind: "plugin:nexus.missions:feature",
       originId: "mission-alpha:feature-1",
     });
-    expect(featureIssue.originKind).toBe("plugin:paperclip.missions:feature");
+    expect(featureIssue.originKind).toBe("plugin:nexus.missions:feature");
 
     await expect(
       services.issues.create({
@@ -303,7 +303,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
         title: "Spoofed issue",
         originKind: "plugin:other.plugin:feature",
       }),
-    ).rejects.toThrow("Plugin may only use originKind values under plugin:paperclip.missions");
+    ).rejects.toThrow("Plugin may only use originKind values under plugin:nexus.missions");
 
     await expect(
       services.issues.update({
@@ -311,12 +311,12 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
         companyId,
         patch: { originKind: "plugin:other.plugin:feature" },
       }),
-    ).rejects.toThrow("Plugin may only use originKind values under plugin:paperclip.missions");
+    ).rejects.toThrow("Plugin may only use originKind values under plugin:nexus.missions");
   });
 
   it("creates plugin operation issues with the generic operation origin", async () => {
     const { companyId } = await seedCompanyAndAgent();
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.missions", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.missions", createEventBusStub());
 
     const issue = await services.issues.create({
       companyId,
@@ -325,7 +325,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       originId: "mission-alpha:operation-1",
     });
 
-    expect(issue.originKind).toBe("plugin:paperclip.missions:operation");
+    expect(issue.originKind).toBe("plugin:nexus.missions:operation");
     expect(issue.originId).toBe("mission-alpha:operation-1");
   });
 
@@ -334,16 +334,16 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     const pluginId = randomUUID();
     await db.insert(plugins).values({
       id: pluginId,
-      pluginKey: "paperclipai.plugin-llm-wiki",
-      packageName: "@paperclipai/plugin-llm-wiki",
+      pluginKey: "nexusai.plugin-llm-wiki",
+      packageName: "@nexusai/plugin-llm-wiki",
       version: "0.1.0",
       manifestJson: {
-        id: "paperclipai.plugin-llm-wiki",
+        id: "nexusai.plugin-llm-wiki",
         apiVersion: 1,
         version: "0.1.0",
         displayName: "LLM Wiki",
         description: "Local-file LLM Wiki plugin",
-        author: "Paperclip",
+        author: "Nexus",
         categories: ["automation"],
         capabilities: ["local.folders"],
         entrypoints: { worker: "./dist/worker.js" },
@@ -352,7 +352,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
             folderKey: "wiki-root",
             displayName: "Wiki root",
             access: "readWrite",
-            requiredDirectories: ["raw", "wiki", "wiki/concepts", ".paperclip"],
+            requiredDirectories: ["raw", "wiki", "wiki/concepts", ".nexus"],
             requiredFiles: ["WIKI.md", "AGENTS.md"],
           },
         ],
@@ -363,17 +363,17 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     const services = buildHostServices(
       db,
       pluginId,
-      "paperclipai.plugin-llm-wiki",
+      "nexusai.plugin-llm-wiki",
       createEventBusStub(),
       undefined,
       {
         manifest: {
-          id: "paperclipai.plugin-llm-wiki",
+          id: "nexusai.plugin-llm-wiki",
           apiVersion: 1,
           version: "0.1.0",
           displayName: "LLM Wiki",
           description: "Local-file LLM Wiki plugin",
-          author: "Paperclip",
+          author: "Nexus",
           categories: ["automation"],
           capabilities: ["local.folders"],
           entrypoints: { worker: "./dist/worker.js" },
@@ -382,7 +382,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
               folderKey: "wiki-root",
               displayName: "Wiki root",
               access: "readWrite",
-              requiredDirectories: ["raw", "wiki", "wiki/concepts", ".paperclip"],
+              requiredDirectories: ["raw", "wiki", "wiki/concepts", ".nexus"],
               requiredFiles: ["WIKI.md", "AGENTS.md"],
             },
           ],
@@ -395,7 +395,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       folderKey: "wiki-root",
       path: root,
       access: "readWrite",
-      requiredDirectories: ["raw", "wiki", "wiki/concepts", ".paperclip"],
+      requiredDirectories: ["raw", "wiki", "wiki/concepts", ".nexus"],
       requiredFiles: ["WIKI.md", "AGENTS.md"],
     });
     expect(configured.healthy).toBe(false);
@@ -431,16 +431,16 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     const pluginId = randomUUID();
     await db.insert(plugins).values({
       id: pluginId,
-      pluginKey: "paperclip.local-folders",
-      packageName: "@paperclip/plugin-local-folders",
+      pluginKey: "nexus.local-folders",
+      packageName: "@nexus/plugin-local-folders",
       version: "0.1.0",
       manifestJson: {
-        id: "paperclip.local-folders",
+        id: "nexus.local-folders",
         apiVersion: 1,
         version: "0.1.0",
         displayName: "Local Folders",
         description: "Local folder fixture",
-        author: "Paperclip",
+        author: "Nexus",
         categories: ["automation"],
         capabilities: ["local.folders"],
         entrypoints: { worker: "./dist/worker.js" },
@@ -457,17 +457,17 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     const services = buildHostServices(
       db,
       pluginId,
-      "paperclip.local-folders",
+      "nexus.local-folders",
       createEventBusStub(),
       undefined,
       {
         manifest: {
-          id: "paperclip.local-folders",
+          id: "nexus.local-folders",
           apiVersion: 1,
           version: "0.1.0",
           displayName: "Local Folders",
           description: "Local folder fixture",
-          author: "Paperclip",
+          author: "Nexus",
           categories: ["automation"],
           capabilities: ["local.folders"],
           entrypoints: { worker: "./dist/worker.js" },
@@ -504,19 +504,19 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     const pluginId = randomUUID();
     await db.insert(plugins).values({
       id: pluginId,
-      pluginKey: "paperclip.missions",
-      packageName: "@paperclip/plugin-missions",
+      pluginKey: "nexus.missions",
+      packageName: "@nexus/plugin-missions",
       version: "0.1.0",
       apiVersion: 1,
       categories: ["automation"],
       status: "ready",
       manifestJson: {
-        id: "paperclip.missions",
+        id: "nexus.missions",
         apiVersion: 1,
         version: "0.1.0",
         displayName: "Missions",
         description: "Mission orchestration",
-        author: "Paperclip",
+        author: "Nexus",
         categories: ["automation"],
         capabilities: ["projects.managed"],
         entrypoints: { worker: "./dist/worker.js" },
@@ -531,7 +531,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       },
     });
 
-    const services = buildHostServices(db, pluginId, "paperclip.missions", createEventBusStub());
+    const services = buildHostServices(db, pluginId, "nexus.missions", createEventBusStub());
     const missing = await services.projects.getManaged({ companyId, projectKey: "operations" });
     expect(missing.status).toBe("missing");
     expect(missing.projectId).toBeNull();
@@ -553,7 +553,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     expect(created.projectId).toEqual(expect.any(String));
     expect(created.project?.managedByPlugin).toMatchObject({
       pluginId,
-      pluginKey: "paperclip.missions",
+      pluginKey: "nexus.missions",
       pluginDisplayName: "Missions",
       resourceKind: "project",
       resourceKey: "operations",
@@ -567,12 +567,12 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       .update(plugins)
       .set({
         manifestJson: {
-          id: "paperclip.missions",
+          id: "nexus.missions",
           apiVersion: 1,
           version: "0.2.0",
           displayName: "Missions",
           description: "Mission orchestration",
-          author: "Paperclip",
+          author: "Nexus",
           categories: ["automation"],
           capabilities: ["projects.managed"],
           entrypoints: { worker: "./dist/worker.js" },
@@ -624,7 +624,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       executionRunId: runId,
     });
 
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.missions", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.missions", createEventBusStub());
     await expect(
       services.issues.assertCheckoutOwner({
         issueId,
@@ -668,7 +668,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       type: "blocks",
     });
 
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.missions", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.missions", createEventBusStub());
     await expect(
       services.issues.requestWakeup({
         issueId: blockedIssueId,
@@ -765,7 +765,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       },
     ]);
 
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.missions", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.missions", createEventBusStub());
     const summary = await services.issues.getOrchestrationSummary({
       companyId,
       issueId: rootIssueId,
@@ -794,7 +794,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       assigneeAgentId: agentId,
     });
 
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     await expect(
       services.issues.createComment({
         issueId,
@@ -821,7 +821,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       id: issueId, companyId, title: "Needs human input", status: "in_review", priority: "medium", assigneeAgentId: agentId,
     });
 
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     await expect(
       services.issues.createComment({ issueId, companyId, body: "Here's my answer", actorUserId: viewerUserId }),
     ).rejects.toThrow("viewer (read-only) access");
@@ -868,7 +868,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     const services = buildHostServices(
       db,
       "plugin-record-id",
-      "paperclip.gateway",
+      "nexus.gateway",
       createEventBusStub(),
       undefined,
       { heartbeatRuntimeEnv: {} },
@@ -926,7 +926,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       assigneeAgentId: agentId,
     });
 
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
 
     // Hold a row lock on the issue so createComment's own `UPDATE issues SET
     // updated_at` (inside addComment) blocks until this transaction commits a
@@ -989,7 +989,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       id: issueId, companyId, title: "Decision", status: "in_review", priority: "medium", assigneeAgentId: agentId,
     });
     const interactionId = await seedInteraction(companyId, issueId);
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     await expect(
       services.issues.respondInteraction({ issueId, interactionId, companyId, action: "accept" }),
     ).rejects.toThrow("actorUserId is required");
@@ -1002,7 +1002,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       id: issueId, companyId, title: "Decision", status: "in_review", priority: "medium", assigneeAgentId: agentId,
     });
     const interactionId = await seedInteraction(companyId, issueId);
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     await expect(
       services.issues.respondInteraction({
         issueId, interactionId, companyId, action: "accept", actorUserId: randomUUID(),
@@ -1028,7 +1028,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       id: issueId, companyId, title: "Decision", status: "in_review", priority: "medium", assigneeAgentId: agentId,
     });
     const interactionId = await seedInteraction(companyId, issueId);
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     await expect(
       services.issues.respondInteraction({
         issueId, interactionId, companyId, action: "accept", actorUserId: viewerUserId,
@@ -1053,7 +1053,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       id: issueId, companyId, title: "Decision", status: "in_review", priority: "medium",
     });
     const interactionId = await seedInteraction(companyId, issueId);
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     const result = await services.issues.respondInteraction({
       issueId, interactionId, companyId, action: "accept", actorUserId: operatorUserId,
     });
@@ -1083,7 +1083,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
         priority: "medium",
       });
       const interactionId = await seedInteraction(companyId, issueId);
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
 
       await expect(services.issues.respondInteraction({
         issueId,
@@ -1112,7 +1112,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       id: issueId, companyId, title: "Decision", status: "in_review", priority: "medium", assigneeAgentId: agentId,
     });
     const interactionId = await seedInteraction(companyId, issueId, { status: "rejected" });
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     const result = await services.issues.respondInteraction({
       issueId, interactionId, companyId, action: "accept", actorUserId: humanUserId,
     });
@@ -1126,7 +1126,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     await db.insert(approvals).values({
       id: approvalId, companyId, type: "request_board_approval", status: "pending", payload: { title: "Ship it" },
     });
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     await expect(
       services.approvals.decide({ approvalId, companyId, action: "approve" }),
     ).rejects.toThrow("actorUserId is required");
@@ -1140,7 +1140,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     await db.insert(approvals).values({
       id: approvalId, companyId, type: "request_board_approval", status: "pending", payload: { title: "Ship it" },
     });
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     await expect(
       services.approvals.decide({ approvalId, companyId, action: "approve", actorUserId: randomUUID() }),
     ).rejects.toThrow("is not an active human member of this company");
@@ -1161,7 +1161,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     await db.insert(approvals).values({
       id: approvalId, companyId, type: "request_board_approval", status: "pending", payload: { title: "Ship it" },
     });
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     await expect(
       services.approvals.decide({ approvalId, companyId, action: "approve", actorUserId: viewerUserId }),
     ).rejects.toThrow("viewer (read-only) access");
@@ -1180,7 +1180,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     await db.insert(approvals).values({
       id: approvalId, companyId, type: "request_board_approval", status: "pending", payload: { title: "Ship it" },
     });
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     const result = await services.approvals.decide({
       approvalId, companyId, action: "approve", actorUserId: adminUserId,
     });
@@ -1204,7 +1204,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       status: "pending",
       payload: { title: "Ship it", botToken: "xoxb-super-secret" },
     });
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     const result = await services.approvals.decide({
       approvalId, companyId, action: "approve", actorUserId: humanUserId, decisionNote: "lgtm",
     });
@@ -1234,7 +1234,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       id: randomUUID(), companyId: otherCompany, type: "request_board_approval", status: "pending",
       payload: { title: "Theirs" },
     });
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     const rows = await services.approvals.list({ companyId });
     expect(rows).toHaveLength(1);
     expect(rows[0]!.payload.title).toBe("Mine");
@@ -1260,7 +1260,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     await db.insert(issueAttachments).values({
       id: attachmentId, companyId: otherCompany, issueId: otherIssueId, assetId,
     });
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     // Requested under our own company: the cross-company id must be invisible.
     void agentId;
     const content = await services.issues.getAttachmentContent({ attachmentId, companyId });
@@ -1282,7 +1282,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     await db.insert(issueAttachments).values({
       id: attachmentId, companyId, issueId, assetId,
     });
-    const services = buildHostServices(db, "plugin-record-id", "paperclip.gateway", createEventBusStub());
+    const services = buildHostServices(db, "plugin-record-id", "nexus.gateway", createEventBusStub());
     await expect(
       services.issues.getAttachmentContent({ attachmentId, companyId, maxBytes: 1_000_000 }),
     ).rejects.toThrow("over the");
@@ -1295,12 +1295,12 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
   describe("non-member plugin issue-read privacy (PAP-16091)", () => {
     let previousMode: string | undefined;
     beforeEach(() => {
-      previousMode = process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-      process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "enforce";
+      previousMode = process.env.NEXUS_ISSUE_PRIVACY_MODE;
+      process.env.NEXUS_ISSUE_PRIVACY_MODE = "enforce";
 });
     afterEach(() => {
-      if (previousMode === undefined) delete process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-      else process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = previousMode;
+      if (previousMode === undefined) delete process.env.NEXUS_ISSUE_PRIVACY_MODE;
+      else process.env.NEXUS_ISSUE_PRIVACY_MODE = previousMode;
     });
 
     async function seedOpenAndPrivate() {
@@ -1316,7 +1316,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
 
     it("omits private issues from issues.list", async () => {
       const { companyId, openIssueId, privateIssueId } = await seedOpenAndPrivate();
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       const listed = await services.issues.list({ companyId });
       const ids = listed.map((issue) => issue.id);
       expect(ids).toContain(openIssueId);
@@ -1325,7 +1325,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
 
     it("returns null from issues.get for a private issue", async () => {
       const { companyId, openIssueId, privateIssueId } = await seedOpenAndPrivate();
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       await expect(services.issues.get({ issueId: privateIssueId, companyId })).resolves.toBeNull();
       // Sanity: the same path still returns readable (open) issues.
       await expect(services.issues.get({ issueId: openIssueId, companyId })).resolves.toMatchObject({ id: openIssueId });
@@ -1336,7 +1336,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       await db.insert(issueComments).values({
         id: randomUUID(), companyId, issueId: privateIssueId, body: "secret decision rationale",
       });
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       await expect(services.issues.listComments({ issueId: privateIssueId, companyId })).resolves.toEqual([]);
     });
 
@@ -1347,7 +1347,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
         id: assetId, companyId, provider: "local_disk", objectKey: "secret", contentType: "image/png", byteSize: 10, sha256: "z",
       });
       await db.insert(issueAttachments).values({ id: randomUUID(), companyId, issueId: privateIssueId, assetId });
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       await expect(services.issues.listAttachments({ issueId: privateIssueId, companyId })).resolves.toEqual([]);
     });
 
@@ -1359,7 +1359,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       });
       const attachmentId = randomUUID();
       await db.insert(issueAttachments).values({ id: attachmentId, companyId, issueId: privateIssueId, assetId });
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       await expect(
         services.issues.getAttachmentContent({ attachmentId, companyId, maxBytes: 1_000_000 }),
       ).resolves.toBeNull();
@@ -1382,7 +1382,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
         companyId, issueId: privateBlockerId, relatedIssueId: rootId, type: "blocks",
       });
 
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       const summary = await services.issues.getOrchestrationSummary({ companyId, issueId: rootId, includeSubtree: true });
 
       // Private descendant never enters the subtree.
@@ -1398,7 +1398,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
 
     it("reports a private root issue as not-found from getOrchestrationSummary", async () => {
       const { companyId, privateIssueId } = await seedOpenAndPrivate();
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       await expect(
         services.issues.getOrchestrationSummary({ companyId, issueId: privateIssueId, includeSubtree: true }),
       ).rejects.toThrow("Issue not found");
@@ -1413,7 +1413,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
 
     it("throws not-found from issues.getRelations for a private issue", async () => {
       const { companyId, privateIssueId } = await seedOpenAndPrivate();
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       await expect(
         services.issues.getRelations({ issueId: privateIssueId, companyId }),
       ).rejects.toThrow("Issue not found");
@@ -1425,7 +1425,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       await db.insert(issueRelations).values({
         companyId, issueId: privateIssueId, relatedIssueId: openIssueId, type: "blocks",
       });
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       const relations = await services.issues.getRelations({ issueId: openIssueId, companyId });
       const edgeIds = [...relations.blockedBy, ...relations.blocks].map((edge) => edge.id);
       expect(edgeIds).not.toContain(privateIssueId);
@@ -1433,7 +1433,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
 
     it("reports a private root issue as not-found from issues.getSubtree", async () => {
       const { companyId, privateIssueId } = await seedOpenAndPrivate();
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       await expect(
         services.issues.getSubtree({ issueId: privateIssueId, companyId }),
       ).rejects.toThrow("Issue not found");
@@ -1452,7 +1452,7 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
       // A document on the private child would surface in the subtree summary pre-fix.
       await seedIssueDocument(companyId, privateChildId, "plan", "confidential subtree plan");
 
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       const subtree = await services.issues.getSubtree({
         issueId: rootId, companyId, includeDocuments: true, includeRelations: true,
       });
@@ -1467,14 +1467,14 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
         id: randomUUID(), companyId, issueId: privateIssueId, kind: "request_confirmation",
         payload: { version: 1, prompt: "Confirm confidential action?" } as any,
       });
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       await expect(services.issues.listInteractions({ issueId: privateIssueId, companyId })).resolves.toEqual([]);
     });
 
     it("throws not-found from issueDocuments.list for a private issue", async () => {
       const { companyId, privateIssueId } = await seedOpenAndPrivate();
       await seedIssueDocument(companyId, privateIssueId, "plan", "confidential plan body");
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       await expect(
         services.issueDocuments.list({ issueId: privateIssueId, companyId }),
       ).rejects.toThrow("Issue not found");
@@ -1483,16 +1483,16 @@ describeEmbeddedPostgres("plugin orchestration APIs", () => {
     it("throws not-found from issueDocuments.get for a private issue", async () => {
       const { companyId, privateIssueId } = await seedOpenAndPrivate();
       await seedIssueDocument(companyId, privateIssueId, "plan", "confidential plan body");
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       await expect(
         services.issueDocuments.get({ issueId: privateIssueId, companyId, key: "plan" }),
       ).rejects.toThrow("Issue not found");
     });
 
     it("is pass-through when privacy mode is off (enforce flip is the single switch)", async () => {
-      process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "off";
+      process.env.NEXUS_ISSUE_PRIVACY_MODE = "off";
       const { companyId, privateIssueId } = await seedOpenAndPrivate();
-      const services = buildHostServices(db, "plugin-record-id", "paperclip.slack-digest", createEventBusStub());
+      const services = buildHostServices(db, "plugin-record-id", "nexus.slack-digest", createEventBusStub());
       const ids = (await services.issues.list({ companyId })).map((issue) => issue.id);
       expect(ids).toContain(privateIssueId);
       await expect(services.issues.get({ issueId: privateIssueId, companyId })).resolves.toMatchObject({ id: privateIssueId });

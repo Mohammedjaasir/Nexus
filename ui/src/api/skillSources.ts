@@ -1,6 +1,6 @@
-import type { ProjectRepositoryOptions, ProjectSkillRepository, SkillSourceSettingsRequest, SkillSourceFilePreview, SkillSourcePreviewRequest, SkillSource, SkillSourceCreateRequest, SkillSourceDiscovery, SkillSourceDiscoveryRequest, SkillSourceRefreshResult, SkillSourceSelectionRequest, SkillSourceScanUpdate, SkillSourceDiscoveryEvent, SkillSourceDisconnectRequest, SkillSourceDisconnectResult } from '@paperclipai/shared';
+import type { ProjectRepositoryOptions, ProjectSkillRepository, SkillSourceSettingsRequest, SkillSourceFilePreview, SkillSourcePreviewRequest, SkillSource, SkillSourceCreateRequest, SkillSourceDiscovery, SkillSourceDiscoveryRequest, SkillSourceRefreshResult, SkillSourceSelectionRequest, SkillSourceScanUpdate, SkillSourceDiscoveryEvent, SkillSourceDisconnectRequest, SkillSourceDisconnectResult } from '@nexusai/shared';
 import { api, ApiError, requestResponse } from './client';
-import type { SkillSourceBranches, SkillSourceBranchesQuery } from '@paperclipai/shared';
+import type { SkillSourceBranches, SkillSourceBranchesQuery } from '@nexusai/shared';
 const base = (companyId: string) => `/companies/${companyId}/skill-sources`;
 export const skillSourcesApi = {
   list: (companyId: string) => api.get<SkillSource[]>(base(companyId)),

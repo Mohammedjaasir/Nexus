@@ -130,7 +130,7 @@ if os.environ.get("AUDIT_RECONSTRUCT_ONLY") == "1":
     raise SystemExit(0)
 
 archive = subprocess.check_output(["git", "archive", spec["base"]])
-with tempfile.TemporaryDirectory(prefix="paperclip-audit-") as directory:
+with tempfile.TemporaryDirectory(prefix="nexus-audit-") as directory:
     root = Path(directory)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
         tar.extractall(root, filter="data")
@@ -146,7 +146,7 @@ with tempfile.TemporaryDirectory(prefix="paperclip-audit-") as directory:
         if spec["kind"] == "tap":
             command = ["node", "--test", "--test-reporter=tap", owner]
         elif spec["kind"] == "ui":
-            command = ["pnpm", "--filter", "@paperclipai/ui",
+            command = ["pnpm", "--filter", "@nexusai/ui",
                        "exec", "vitest", "run", "src/pages/CompanyExport.test.tsx",
                        "--maxWorkers=1", "--reporter=default", "--reporter=json",
                        "--outputFile.json=" + str(report)]

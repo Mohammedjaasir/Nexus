@@ -30,7 +30,7 @@ export async function createPerRunSecret(clients: KubeClients, input: CreatePerR
         namespace: input.namespace,
         labels: {
           "paperclip.io/run-id": input.runId,
-          "paperclip.io/managed-by": "paperclip-k8s-plugin",
+          "paperclip.io/managed-by": "nexus-k8s-plugin",
         },
         ownerReferences: [
           {

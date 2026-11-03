@@ -44,7 +44,7 @@ this slice alone does not make the whole orphan pass quiet.
 
 | Obligation / transition | Producer or durable source | Wake and stop condition |
 | --- | --- | --- |
-| First accepted result | `PaperclipControlPlanePort.completeRun` and `NativeRunCoordinatorStore.completeRun` (including terminal-event reconstruction) | Intent in the result's transaction; outer commit wakes, rollback creates no work |
+| First accepted result | `NexusControlPlanePort.completeRun` and `NativeRunCoordinatorStore.completeRun` (including terminal-event reconstruction) | Intent in the result's transaction; outer commit wakes, rollback creates no work |
 | Saved retry or finalization transition | Existing native-finalization notification fanout, coordinator and finalizer writers | Reconstruct `nextAttemptAt`; do not advance it on inspection |
 | Finalization lease | Existing coordinator row | Wait for the saved expiry; execution re-reads it before copy-back |
 | Workspace-operation progress/completion | Workspace recorder's `workspace_finalize` writes | Same-transaction scoped notification; any successful barrier disarms this worker |

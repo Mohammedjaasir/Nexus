@@ -1,5 +1,5 @@
 import { and, eq, or, sql } from "drizzle-orm";
-import { environmentLeases, sandboxCreationOperations, type Db } from "@paperclipai/db";
+import { environmentLeases, sandboxCreationOperations, type Db } from "@nexusai/db";
 import { hasDeferredEnvironmentCleanup } from "./environment-cleanup-notifications.js";
 
 export const ENVIRONMENT_CLEANUP_RETRY_MS = 5 * 60_000;

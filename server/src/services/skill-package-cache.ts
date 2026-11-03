@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { and, eq, inArray } from "drizzle-orm";
-import { companySkillRepositorySnapshots as snapshots, type Db } from "@paperclipai/db";
+import { companySkillRepositorySnapshots as snapshots, type Db } from "@nexusai/db";
 import { ensureSkillCacheDirectory } from "./skill-version-cache.js";
 
 const MAX_BYTES = 512 * 1024 * 1024;

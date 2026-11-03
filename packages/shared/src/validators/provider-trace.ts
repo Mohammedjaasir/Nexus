@@ -45,7 +45,7 @@ const dateValueSchema = z.union([z.string().datetime(), z.date()]);
 export const providerTraceFrameSchema = z
   .object({
     kind: z.literal("frame").optional(),
-    schema: z.literal("paperclip.provider_trace_frame.v1"),
+    schema: z.literal("nexus.provider_trace_frame.v1"),
     debugChannel: z.string().min(1),
     debugSequence: z.number().int().positive(),
     frameId: z.number().int().positive(),
@@ -62,7 +62,7 @@ export const providerTraceFrameSchema = z
 export const providerTraceInterpretationSchema = z
   .object({
     kind: z.literal("interpretation").optional(),
-    schema: z.literal("paperclip.provider_trace_interpretation.v1"),
+    schema: z.literal("nexus.provider_trace_interpretation.v1"),
     debugChannel: z.string().min(1),
     debugSequence: z.number().int().positive(),
     frameId: z.number().int().positive(),
@@ -78,7 +78,7 @@ export const providerTraceInterpretationSchema = z
 
 export const providerTraceMetadataSchema = z
   .object({
-    schema: z.literal("paperclip.provider_trace_metadata.v1"),
+    schema: z.literal("nexus.provider_trace_metadata.v1"),
     id: z.string().min(1),
     runId: z.string().min(1),
     companyId: z.string().min(1),
@@ -105,7 +105,7 @@ export const runPresentationSourceSchema = z.enum([
 
 export const runPresentationDecisionSchema = z
   .object({
-    schema: z.literal("paperclip.run_presentation_decision.v1"),
+    schema: z.literal("nexus.run_presentation_decision.v1"),
     resolverVersion: z.string().min(1),
     chosenSource: runPresentationSourceSchema,
     sourceEventId: z.string().nullable(),

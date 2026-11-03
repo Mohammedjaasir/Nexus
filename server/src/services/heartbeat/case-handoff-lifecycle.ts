@@ -2,7 +2,7 @@ import { lstat } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
-import { caseEvents, caseHandoffs, cases, environmentLeases, heartbeatRunEvents, heartbeatRuns, issues, type Db } from "@paperclipai/db";
+import { caseEvents, caseHandoffs, cases, environmentLeases, heartbeatRunEvents, heartbeatRuns, issues, type Db } from "@nexusai/db";
 import { persistActivity, type ActivityPublication } from "../activity-log.js";
 import { conflict } from "../../errors.js";
 import { getExecutionBlocker, hasPendingRunCleanup } from "../execution-blocker.js";
@@ -17,7 +17,7 @@ import { appendHeartbeatRunEvent } from "../heartbeat-run-events.js";
 import { cleanupHeartbeatRunScratch, type HeartbeatRunScratch } from "../run-scratch.js";
 
 const LEGACY_HANDOFF_CLEANUP_VERIFIED = "legacy.case_handoff_cleanup_verified";
-const LEGACY_HANDOFF_CLEANUP_SCHEMA = "paperclip.legacy-case-handoff-cleanup.v1";
+const LEGACY_HANDOFF_CLEANUP_SCHEMA = "nexus.legacy-case-handoff-cleanup.v1";
 const LEGACY_HANDOFF_CLEANUP_INTENT = "legacy.case_handoff_cleanup_intent";
 
 function localProcessAbsent(pid: number) {
@@ -38,7 +38,7 @@ export async function recordLegacyCaseHandoffCleanupIntent(db: Db, input: {
     await appendHeartbeatRunEvent(tx, { companyId: run.companyId, agentId: run.agentId, runId: run.id,
       eventType: LEGACY_HANDOFF_CLEANUP_INTENT, stream: "system", level: "info",
       message: "Recorded owned local cleanup before legacy provider dispatch.", payload: {
-        schema: "paperclip.legacy-case-handoff-cleanup-intent.v1", issueId: input.issueId, host: hostname(),
+        schema: "nexus.legacy-case-handoff-cleanup-intent.v1", issueId: input.issueId, host: hostname(),
         controllerBootId: run.controllerBootId, runStartedAt: run.startedAt?.toISOString() ?? null, scratch: input.scratch,
         processPid: run.processPid, processGroupId: run.processGroupId, processStartedAt: run.processStartedAt?.toISOString() ?? null,
       } });
@@ -85,7 +85,7 @@ async function recoverLegacyCaseHandoffCleanup(db: Db, run: typeof heartbeatRuns
   const receipt = event?.payload;
   const intent = event?.eventType === LEGACY_HANDOFF_CLEANUP_INTENT;
   const scratch = receipt?.scratch as HeartbeatRunScratch | null | undefined;
-  if (receipt?.schema !== (intent ? "paperclip.legacy-case-handoff-cleanup-intent.v1" : LEGACY_HANDOFF_CLEANUP_SCHEMA) ||
+  if (receipt?.schema !== (intent ? "nexus.legacy-case-handoff-cleanup-intent.v1" : LEGACY_HANDOFF_CLEANUP_SCHEMA) ||
       receipt.host !== hostname() || receipt.issueId !== issueId ||
       !run.controllerBootId || receipt.controllerBootId !== run.controllerBootId ||
       !run.processPid || !Number.isSafeInteger(run.processPid) || run.processPid <= 1 ||
@@ -103,7 +103,7 @@ async function recoverLegacyCaseHandoffCleanup(db: Db, run: typeof heartbeatRuns
   if (typeof scratch?.dir !== "string" || scratch.metadata?.companyId !== run.companyId ||
       scratch.metadata.agentId !== run.agentId || scratch.metadata.runId !== run.id || scratch.metadata.issueId !== issueId) return false;
   const relative = path.relative(path.resolve(tmpdir()), path.resolve(scratch.dir));
-  if (relative.startsWith("..") || path.isAbsolute(relative) || !path.basename(scratch.dir).startsWith("paperclip-run-")) return false;
+  if (relative.startsWith("..") || path.isAbsolute(relative) || !path.basename(scratch.dir).startsWith("nexus-run-")) return false;
   try { await lstat(scratch.dir); }
   catch (error) { return (error as NodeJS.ErrnoException).code === "ENOENT"; }
   // A crash immediately before removal can safely retry the same marked
@@ -236,7 +236,7 @@ export async function recordCaseHandoffExecutionReleased(db: Db, runId: string, 
     if (!handoff || handoff.issueId !== issueId) return;
     const at = new Date();
     const released = await tx.update(heartbeatRuns).set({ resultJson: sql`coalesce(${heartbeatRuns.resultJson}, '{}'::jsonb) ||
-      ${JSON.stringify({ caseHandoffExecutionReleased: { schema: "paperclip.case-handoff-release.v1", runId, issueId,
+      ${JSON.stringify({ caseHandoffExecutionReleased: { schema: "nexus.case-handoff-release.v1", runId, issueId,
         settledAt: at.toISOString() } })}::jsonb` }).where(and(eq(heartbeatRuns.id, runId),
       inArray(heartbeatRuns.status, ["succeeded", "failed", "cancelled", "interrupted", "timed_out"]))).returning({ id: heartbeatRuns.id });
     if (!released.length) return;
@@ -253,7 +253,7 @@ export async function isCaseHandoffSourceReleased(db: Db, input: { runId: string
   const marker = run.resultJson?.caseHandoffExecutionReleased as Record<string, unknown> | undefined;
   if (await hasPendingRunCleanup(db, run.companyId, run.id)) return false;
   if (await getExecutionBlocker(db, run.companyId, input.issueId)) return false;
-  if (marker?.schema === "paperclip.case-handoff-release.v1" && marker.runId === run.id && marker.issueId === input.issueId) return true;
+  if (marker?.schema === "nexus.case-handoff-release.v1" && marker.runId === run.id && marker.issueId === input.issueId) return true;
   // A controller may die after cleanup but before writing its marker. Recover
   // only from host/provider-owned stop evidence, never a terminal status or an
   // expired controller lease. Workspace recovery remains an independent gate.

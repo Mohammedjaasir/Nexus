@@ -8,7 +8,7 @@ const meta = {
   component: AgentObservabilitySettingsView,
   decorators: [Story => <main className="p-6"><Story /></main>],
   args: { companyId, settings: configured, onSave: fn(), onTest: fn(), onRemove: fn(), onReload: fn() },
-  parameters: { paperclip: { capabilities: ["companies/agent-observability"], implementation: "production", boundary: "fixtures",
+  parameters: { nexus: { capabilities: ["companies/agent-observability"], implementation: "production", boundary: "fixtures",
     notes: "Production view with saving, testing, accepted/partial/failed receipts, stale revisions, and restricted access. Receipts do not establish real destination delivery." } },
 } satisfies Meta<typeof AgentObservabilitySettingsView>;
 export default meta;

@@ -1,7 +1,7 @@
 {
-  "name": "@paperclipai/plugin-exe-dev",
+  "name": "@nexusai/plugin-exe-dev",
   "version": "0.1.2",
-  "description": "exe.dev sandbox provider plugin for Paperclip environments",
+  "description": "exe.dev sandbox provider plugin for Nexus environments",
   "license": "MIT",
   "homepage": "https://github.com/paperclipai/paperclip",
   "bugs": {
@@ -30,21 +30,21 @@
   "files": [
     "dist"
   ],
-  "paperclipPlugin": {
+  "nexusPlugin": {
     "manifest": "./dist/manifest.js",
     "worker": "./dist/worker.js"
   },
   "keywords": [
-    "paperclip",
+    "nexus",
     "plugin",
     "sandbox",
     "exe.dev"
   ],
   "scripts": {
-    "prebuild": "pnpm -C ../../../.. --filter @paperclipai/plugin-sdk ensure-build-deps",
+    "prebuild": "pnpm -C ../../../.. --filter @nexusai/plugin-sdk ensure-build-deps",
     "build": "rm -rf dist && tsc",
     "clean": "rm -rf dist",
-    "typecheck": "pnpm -C ../../../.. --filter @paperclipai/plugin-sdk ensure-build-deps && tsc --noEmit",
+    "typecheck": "pnpm -C ../../../.. --filter @nexusai/plugin-sdk ensure-build-deps && tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "prepack": "rm -f package.dev.json && cp package.json package.dev.json && node ../../../../scripts/generate-plugin-package-json.mjs",
     "postpack": "if [ -f package.dev.json ]; then mv package.dev.json package.json; fi"

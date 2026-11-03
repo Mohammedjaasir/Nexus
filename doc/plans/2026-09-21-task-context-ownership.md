@@ -2,14 +2,14 @@
 
 ## Purpose
 
-Paperclip assembles a task brief and a wake event for several adapter lanes.
+Nexus assembles a task brief and a wake event for several adapter lanes.
 Each task description or current comment has one automatic model-facing owner
 when its source can be verified. This contract makes the source explicit while keeping the existing
 task, wake, continuation, attachment, and custom-template fields intact.
 
 ## Ownership
 
-Heartbeat-generated context carries an additive `paperclipTurnContext` object:
+Heartbeat-generated context carries an additive `nexusTurnContext` object:
 
 ```ts
 {
@@ -30,7 +30,7 @@ match. A revision is evidence for the exact source body used to assemble the
 run context; it is not an authorization token. Current event rendering keeps
 its trust, author, attachment, omission, ordering, and follow-up rules.
 
-`buildPaperclipTaskMarkdown` defaults to its historical behavior for standalone
+`buildNexusTaskMarkdown` defaults to its historical behavior for standalone
 callers. Heartbeat full and compact assignment markdown selects assignment-only
 rendering, while the structured wake prompt owns current comment bodies. Missing
 ownership metadata uses the legacy wake behavior, which preserves third-party
@@ -69,8 +69,8 @@ drop an unverified source.
 
 ## Compatibility and rollback
 
-Schema identifiers `paperclip.native-execution-input.v5` and
-`paperclip.native-model-envelope.v3` are public redaction discriminators; v4
+Schema identifiers `nexus.native-execution-input.v5` and
+`nexus.native-model-envelope.v3` are public redaction discriminators; v4
 and v2 remain supported for retained sessions and older checkpoints. Session
 pinning must keep v4/v2 readers available while active sessions still reference
 them.
@@ -84,7 +84,7 @@ persisted schema and completion context until they reach a terminal state.
 
 ## Maintained harness selection repair (2026-09-22)
 
-`selectPaperclipPromptSections` selects assignment and wake sections together.
+`selectNexusPromptSections` selects assignment and wake sections together.
 Legacy CLI, ACP, cloud and gateway adapters use it. The native input builder uses
 it for the full bootstrap. The native runner keeps its existing prepared input
 and verified continuation rules. It does not import application adapter utilities.
@@ -95,12 +95,12 @@ the adapter selects the full brief, history, bootstrap and instructions again.
 The repair does not add a retry or decide whether an external action is safe to
 repeat. Existing session and recovery checks still make those decisions.
 
-Pi carries its default Paperclip rules in its system extension. The user prompt
+Pi carries its default Nexus rules in its system extension. The user prompt
 does not carry another default copy. Explicit custom templates retain their
 existing carriers and variables. A gateway with a separate execution-contract
 carrier can suppress the wake copy while retaining the current event delta.
 
-Paperclip owns task content and its source authority. The harness and execution
+Nexus owns task content and its source authority. The harness and execution
 environment own filesystem and command permissions. A working directory is not
 filesystem confinement. The approved removal of the workspace-only prompt line
 does not add confinement or change permission flags. Local harnesses retain the

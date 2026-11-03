@@ -18,7 +18,7 @@ afterEach(async () => {
 
 describeEmbeddedPostgres("Vercel Connect credential-source migration", () => {
   it("defaults legacy rows to the vault and rejects mixed credential custody", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-vercel-connect-migration-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-vercel-connect-migration-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     cleanups.push(async () => sql.end());
@@ -43,7 +43,7 @@ describeEmbeddedPostgres("Vercel Connect credential-source migration", () => {
     const [legacy] = await sql<{ credential_source: string; external_credential: unknown }[]>`
       SELECT "credential_source", "external_credential" FROM "tool_connections" WHERE "id" = ${connectionId}
     `;
-    expect(legacy).toEqual({ credential_source: "paperclip_vault", external_credential: null });
+    expect(legacy).toEqual({ credential_source: "nexus_vault", external_credential: null });
 
     await expect(sql`
       UPDATE "tool_connections" SET "credential_source" = 'vercel_connect' WHERE "id" = ${connectionId}
@@ -52,7 +52,7 @@ describeEmbeddedPostgres("Vercel Connect credential-source migration", () => {
     await sql`
       UPDATE "tool_connections" SET
         "credential_source" = 'vercel_connect',
-        "external_credential" = ${sql.json({ provider: "vercel_connect", connectorUid: "posthog-paperclip" })},
+        "external_credential" = ${sql.json({ provider: "vercel_connect", connectorUid: "posthog-nexus" })},
         "credential_refs" = '[]'::jsonb,
         "credential_secret_refs" = '[]'::jsonb
       WHERE "id" = ${connectionId}

@@ -3,12 +3,12 @@ import { hasDeliveredPiDenial, piPermissionRequests } from "./pi-native-evidence
 const identity = { runId: "run", turnId: "turn", requestId: "permission", toolCallId: "pi-tool-1", target: "pi-human-denied.txt" };
 function evidence(adapter = "acpx-runtime") {
   const wrap = (eventType: string, seq: number, payload: unknown) => ({ runId: "run", protocolSchemaVersion: 1, eventType, seq, payload: { prpEvent: {
-    schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", runId: "run", turnId: "turn", eventType, payload,
+    schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", runId: "run", turnId: "turn", eventType, payload,
   } } });
   return [wrap("runtime_request.created", 1, { request: { requestId: "permission", turnId: "turn", type: "permission", status: "pending", details: { toolCallId: "pi-tool-1" },
     origin: { adapter, provider: "pi", method: "session/request_permission" }, choices: [{ key: "decline" }] } }),
   wrap("runtime_request.resolved", 2, { requestId: "permission", turnId: "turn", action: "decline" }),
-  wrap("tool.execution.completed", 3, { schema: "paperclip.tool.execution.v1", executionId: "pi-tool-1", transport: "builtin", operation: "edit", name: "write", status: "failed", target: identity.target, output: "Pi operation was denied or cancelled" })];
+  wrap("tool.execution.completed", 3, { schema: "nexus.tool.execution.v1", executionId: "pi-tool-1", transport: "builtin", operation: "edit", name: "write", status: "failed", target: identity.target, output: "Pi operation was denied or cancelled" })];
 }
 it("requires the actual correlated durable browser denial and native tool failure", () => {
   expect(piPermissionRequests(evidence(), "run")).toHaveLength(1);

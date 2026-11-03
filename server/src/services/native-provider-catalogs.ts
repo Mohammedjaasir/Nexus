@@ -12,7 +12,7 @@ const methodConfig = (connection: ConnectionShape) => {
 };
 
 /** A provider whose action catalog is generated from its published HTTP API
- * and executed by a Paperclip bridge rather than a remote MCP server. Shared
+ * and executed by a Nexus bridge rather than a remote MCP server. Shared
  * connection code consumes this contract instead of naming providers. */
 export type NativeProviderCatalog = {
   slug: string;

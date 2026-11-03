@@ -96,7 +96,7 @@ names agent execution, not whether the application is Cloud-hosted.
 | --- | --- | --- | --- |
 | Attached self-hosted development target, same-host loopback local macOS ARM64, saved personal Google subscription, exact low model | Applicable with trusted candidate admission, account reuse and native lifecycle capabilities | Selected explicit cell | A+B exploratory live pass on native .5; converted fixed-driver acceptance is a separate attempt |
 | Compatible self-hosted staging target with the same local runner capabilities | Same user promise; revision, auth and target prerequisites differ | Remote observer/setup adapter gap; current observer requires same-host loopback | Not run; missing fixture is not an unsupported-product claim |
-| Paperclip Cloud with an admitted local macOS ARM64 execution target and equivalent account route | Conditional applicability; actual service/target capabilities must be established | Current config restricts hosting to self-hosted; Cloud adapter gap | Not run; no Cloud qualification |
+| Nexus Cloud with an admitted local macOS ARM64 execution target and equivalent account route | Conditional applicability; actual service/target capabilities must be established | Current config restricts hosting to self-hosted; Cloud adapter gap | Not run; no Cloud qualification |
 | Linux, macOS x64, Daytona or another remote target | Current native closure/admission unavailable for this case | Excluded from current execution cell | No platform/remote proof |
 | Fresh OAuth, API key or gateway | Meaningfully different authentication/setup variant | Excluded from saved-subscription case | No fresh-auth proof |
 

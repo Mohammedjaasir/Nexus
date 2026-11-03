@@ -1,4 +1,4 @@
-/** Test-only external Speko transport. Paperclip routes/DB/permissions stay real. */
+/** Test-only external Speko transport. Nexus routes/DB/permissions stay real. */
 import { createServer } from "node:http";
 import { createHmac, randomUUID } from "node:crypto";
 import { once } from "node:events";
@@ -15,7 +15,7 @@ export async function installSpekoTestProvider(origin: string, port: number) {
   const creditRejectedAgents = new Set<string>(), creationAttempts = new Map<string, number>();
   // The simulated external provider outlives an app restart, just as Speko does.
   // This file contains only deterministic fixture credentials, never a real key.
-  const stateFile = resolve(process.env.PAPERCLIP_HOME!, "speko-fixture-state.json");
+  const stateFile = resolve(process.env.NEXUS_HOME!, "speko-fixture-state.json");
   if (existsSync(stateFile)) {
     const state = JSON.parse(readFileSync(stateFile, "utf8"));
     for (const [key, value] of state.tools) tools.set(key, value);
@@ -57,7 +57,7 @@ export async function installSpekoTestProvider(origin: string, port: number) {
       creationAttempts.set(body.agentId, (creationAttempts.get(body.agentId) ?? 0) + 1);
       if (creditRejectedAgents.has(body.agentId)) return json({error: "private fixture provider detail", code: "INSUFFICIENT_CREDITS"},402);
       const id = randomUUID();
-      sessions.set(id, { id, agentId: body.agentId, token: body.toolSecrets.paperclip_session_token, endedAt: null, mode: url.pathname.endsWith("/phone") ? "outbound_phone" : "browser" });
+      sessions.set(id, { id, agentId: body.agentId, token: body.toolSecrets.nexus_session_token, endedAt: null, mode: url.pathname.endsWith("/phone") ? "outbound_phone" : "browser" });
       persist();
       if (url.pathname.endsWith("/phone")) return json({ sessionId: id, status: "dialing" });
       return json({ sessionId: id, transportToken: `fixture:${id}`, transportUrl: "wss://speko-transport.invalid" });
@@ -104,7 +104,7 @@ export async function installSpekoTestProvider(origin: string, port: number) {
         const response = await originalFetch(`${origin}${new URL(hook.url).pathname}`, {method: "POST", headers: {"content-type": "application/json", "webhook-id": webhookId, "webhook-timestamp": timestamp, "webhook-signature": `v1,${signature}`}, body});
         const payload = await response.json() as any;
         if (!response.ok) {res.writeHead(response.status).end(JSON.stringify(payload)); return;}
-        sessions.set(id, {id, agentId: command.agentId, token: payload.toolSecrets.paperclip_session_token, endedAt: null, mode: "inbound_phone"}); persist();
+        sessions.set(id, {id, agentId: command.agentId, token: payload.toolSecrets.nexus_session_token, endedAt: null, mode: "inbound_phone"}); persist();
         res.writeHead(200, {"content-type": "application/json"}).end(JSON.stringify({sessionId: id, firstMessage: payload.firstMessage})); return;
       }
       if (command.action === "messages") {

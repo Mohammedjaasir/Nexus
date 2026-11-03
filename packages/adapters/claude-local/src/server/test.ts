@@ -2,7 +2,7 @@ import type {
   AdapterEnvironmentCheck,
   AdapterEnvironmentTestContext,
   AdapterEnvironmentTestResult,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import {
   asString,
   asBoolean,
@@ -10,7 +10,7 @@ import {
   asStringArray,
   parseObject,
   ensurePathInEnv,
-} from "@paperclipai/adapter-utils/server-utils";
+} from "@nexusai/adapter-utils/server-utils";
 import {
   ensureAdapterExecutionTargetCommandResolvable,
   ensureAdapterExecutionTargetDirectory,
@@ -18,7 +18,7 @@ import {
   runAdapterExecutionTargetProcess,
   resolveAdapterExecutionTargetCwd,
   resolveAdapterExecutionTargetCommandForLogs,
-} from "@paperclipai/adapter-utils/execution-target";
+} from "@nexusai/adapter-utils/execution-target";
 import {
   detectClaudeLoginRequired,
   isClaudeProviderQuotaError,
@@ -177,7 +177,7 @@ export async function testEnvironment(
     });
   }
 
-  // When probing a remote target, the Paperclip host's process.env does not
+  // When probing a remote target, the Nexus host's process.env does not
   // reflect what the agent will actually see at runtime. Only consider env
   // vars from the adapter config in that case; the probe itself will surface
   // any auth issues on the remote box.
@@ -303,7 +303,7 @@ export async function testEnvironment(
           ? `Detected Claude Code ${detectedCliVersion}.`
           : "Could not determine the installed Claude Code version.",
         hint: targetIsSandbox && command === "claude"
-          ? "Paperclip could not prepare a compatible Claude runtime. Retry connecting."
+          ? "Nexus could not prepare a compatible Claude runtime. Retry connecting."
           : "Upgrade Claude Code or restore the default ACP lane, then retry the Test.",
       });
     }
@@ -324,8 +324,8 @@ export async function testEnvironment(
       checks.push({
         code: "claude_hello_probe_skipped_unresolved_command",
         level: "warn",
-        message: "Skipped the Claude hello probe because `claude` is not installed on the Paperclip host.",
-        hint: "Install the `claude` CLI on the Paperclip host, then retry the Test.",
+        message: "Skipped the Claude hello probe because `claude` is not installed on the Nexus host.",
+        hint: "Install the `claude` CLI on the Nexus host, then retry the Test.",
       });
     } else {
       const model = configuredModel;

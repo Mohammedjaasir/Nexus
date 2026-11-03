@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { skillSourceSettingsSchema } from '@paperclipai/shared';
+import { skillSourceSettingsSchema } from '@nexusai/shared';
 import { listSkillSourceBranches } from '../services/skill-source-branches.js';
 
 const source = { fullName: 'acme/skills', repositoryId: '42' };

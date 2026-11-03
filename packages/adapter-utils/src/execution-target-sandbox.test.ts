@@ -27,7 +27,7 @@ import {
   adapterExecutionTargetEnablesSandboxDuplexBridge,
   adapterExecutionTargetSessionIdentity,
   adapterExecutionTargetToRemoteSpec,
-  adapterExecutionTargetUsesPaperclipBridge,
+  adapterExecutionTargetUsesNexusBridge,
   ensureAdapterExecutionTargetCommandResolvable,
   formatAdapterExecutionTimeoutErrorMessage,
   formatAdapterExecutionTimeoutStartLogLine,
@@ -38,7 +38,7 @@ import {
   runAdapterExecutionTargetProcess,
   runAdapterExecutionTargetShellCommand,
   startAdapterExecutionTargetProcessSessionBridge,
-  startAdapterExecutionTargetPaperclipBridge,
+  startAdapterExecutionTargetNexusBridge,
   type AdapterSandboxExecutionTarget,
   type EffectiveExecutionCapabilities,
   type EffectiveSandboxCapabilities,
@@ -199,14 +199,14 @@ describe("sandbox adapter execution targets", () => {
     runId: string,
     target: AdapterSandboxExecutionTarget,
     hostApiUrl: string,
-    options: Omit<Parameters<typeof startAdapterExecutionTargetPaperclipBridge>[0],
+    options: Omit<Parameters<typeof startAdapterExecutionTargetNexusBridge>[0],
       "runId" | "target" | "runtimeRootDir" | "adapterKey" | "hostApiToken" | "hostApiUrl" | "enableSandboxDuplexBridge"
     > = {},
   ) {
-    return startAdapterExecutionTargetPaperclipBridge({
+    return startAdapterExecutionTargetNexusBridge({
       runId,
       target,
-      runtimeRootDir: path.join(target.remoteCwd, ".paperclip-runtime", "codex"),
+      runtimeRootDir: path.join(target.remoteCwd, ".nexus-runtime", "codex"),
       adapterKey: "codex",
       hostApiToken: "real-run-jwt",
       hostApiUrl,
@@ -277,11 +277,11 @@ describe("sandbox adapter execution targets", () => {
 
   function encodeTailTick(stdout: Buffer, stderr: Buffer): string {
     return [
-      "__PAPERCLIP_RUN_LOG_STDOUT__",
+      "__NEXUS_RUN_LOG_STDOUT__",
       stdout.toString("base64"),
-      "__PAPERCLIP_RUN_LOG_STDERR__",
+      "__NEXUS_RUN_LOG_STDERR__",
       stderr.toString("base64"),
-      "__PAPERCLIP_RUN_LOG_END__",
+      "__NEXUS_RUN_LOG_END__",
       "",
     ].join("\n");
   }
@@ -417,7 +417,7 @@ describe("sandbox adapter execution targets", () => {
     const target: AdapterSandboxExecutionTarget = localSandboxTarget(rootDir);
     const challenge = randomBytes(32);
     const result = await runAdapterExecutionTargetProcess("identity-remote", target, process.execPath,
-      ["-e", `const {sign}=require('node:crypto');process.stdout.write(sign(null,Buffer.from(process.argv[1],'hex'),process.env.PAPERCLIP_AGENT_PRIVATE_KEY).toString('base64'));`, challenge.toString("hex")], {
+      ["-e", `const {sign}=require('node:crypto');process.stdout.write(sign(null,Buffer.from(process.argv[1],'hex'),process.env.NEXUS_AGENT_PRIVATE_KEY).toString('base64'));`, challenge.toString("hex")], {
         cwd: rootDir, env: buildAgentIdentityEnv(identity), timeoutSec: 5, graceSec: 1, onLog: async () => {},
       });
     expect(result.exitCode).toBe(0);
@@ -478,7 +478,7 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("preserves stdin when wrapping sandbox adapter commands for run-log streaming", async () => {
-    const rootDir = await createSandboxRoot("paperclip-run-log-stdin-");
+    const rootDir = await createSandboxRoot("nexus-run-log-stdin-");
     const target: AdapterSandboxExecutionTarget = {
       kind: "remote",
       transport: "sandbox",
@@ -488,7 +488,7 @@ describe("sandbox adapter execution targets", () => {
       streamRunLogs: true,
       runner: createLocalSandboxRunner(),
     };
-    const logsDir = path.posix.join(rootDir, ".paperclip-runtime", "bridge", "logs");
+    const logsDir = path.posix.join(rootDir, ".nexus-runtime", "bridge", "logs");
     const runLogTail = createSandboxRunLogTailFactory({
       runner: target.runner!,
       remoteCwd: rootDir,
@@ -519,7 +519,7 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("creates the process session directories only in the launch exec, not in upfront makeDir execs", async () => {
-    const rootDir = await createSandboxRoot("paperclip-process-session-makedir-");
+    const rootDir = await createSandboxRoot("nexus-process-session-makedir-");
     const childPath = path.join(rootDir, "noop-acp-child.mjs");
     await writeFile(childPath, "process.stdin.on('data', () => {});\n", "utf8");
 
@@ -536,7 +536,7 @@ describe("sandbox adapter execution targets", () => {
     const bridge = await startAdapterExecutionTargetProcessSessionBridge(processSessionInput(
       "run-process-session-makedir",
       target,
-      path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+      path.posix.join(rootDir, ".nexus-runtime", "acpx"),
       process.execPath,
       [childPath],
       rootDir,
@@ -566,7 +566,7 @@ describe("sandbox adapter execution targets", () => {
   ])(
     "preserves an explicit remote PATH equal to host PATH in $outputMode mode",
     async ({ outputMode, streamOutputViaSession }) => {
-      const rootDir = await createSandboxRoot(`paperclip-process-session-${outputMode}-path-`);
+      const rootDir = await createSandboxRoot(`nexus-process-session-${outputMode}-path-`);
       const childPath = path.join(rootDir, "print-path-child.mjs");
       await writeFile(
         childPath,
@@ -597,7 +597,7 @@ describe("sandbox adapter execution targets", () => {
       const bridge = await startAdapterExecutionTargetProcessSessionBridge({
         runId: `run-process-session-${outputMode}-path`,
         target,
-        runtimeRootDir: path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+        runtimeRootDir: path.posix.join(rootDir, ".nexus-runtime", "acpx"),
         adapterKey: "acpx",
         command: process.execPath,
         args: [childPath],
@@ -620,7 +620,7 @@ describe("sandbox adapter execution targets", () => {
   );
 
   it.each([false, true])("launches a large environment without oversized exec arguments (streamed=%s)", async (streamOutputViaSession) => {
-    const rootDir = await createSandboxRoot("paperclip-large-process-env-");
+    const rootDir = await createSandboxRoot("nexus-large-process-env-");
     const value = "x".repeat(110_000);
     const childPath = path.join(rootDir, "child.mjs");
     await writeFile(childPath, 'process.stdout.write(process.env.LARGE_CONTEXT ?? "missing");\n');
@@ -634,7 +634,7 @@ describe("sandbox adapter execution targets", () => {
         if (strings.some((text) => Buffer.byteLength(text) >= 131_072)) {
           return { exitCode: 127, stdout: "", stderr: "argument list too long: env\n", timedOut: false, signal: null, pid: null, startedAt: null };
         }
-        if (input.env?.PAPERCLIP_PROCESS_SESSION_DIR || input.args?.[1]?.includes("nohup node")) {
+        if (input.env?.NEXUS_PROCESS_SESSION_DIR || input.args?.[1]?.includes("nohup node")) {
           const sessionRoot = path.join(runtimeRootDir, "process-sessions");
           const entries = await readdir(sessionRoot, { withFileTypes: true });
           const sessionDir = path.join(sessionRoot, entries.find((entry) => entry.isDirectory())!.name);
@@ -645,7 +645,7 @@ describe("sandbox adapter execution targets", () => {
         return delegate.execute(input);
       },
     };
-    const runtimeRootDir = path.join(rootDir, ".paperclip-runtime");
+    const runtimeRootDir = path.join(rootDir, ".nexus-runtime");
     const bridge = await startAdapterExecutionTargetProcessSessionBridge({
       runId: "large-process-env", adapterKey: "acpx", runtimeRootDir,
       target: { kind: "remote", transport: "sandbox", providerKey: "local-test", remoteCwd: rootDir, runner },
@@ -668,7 +668,7 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("logs a streamed wrapper launch failure before forwarding its exit", async () => {
-    const rootDir = await createSandboxRoot("paperclip-wrapper-launch-error-");
+    const rootDir = await createSandboxRoot("nexus-wrapper-launch-error-");
     const delegate = createLocalSandboxRunner();
     const logs: string[] = [];
     const bridge = await startAdapterExecutionTargetProcessSessionBridge({
@@ -693,14 +693,14 @@ describe("sandbox adapter execution targets", () => {
   }, 10_000);
 
   it("removes an incomplete private command payload when upload fails", async () => {
-    const rootDir = await createSandboxRoot("paperclip-payload-upload-error-");
+    const rootDir = await createSandboxRoot("nexus-payload-upload-error-");
     const delegate = createLocalSandboxRunner();
     await expect(startAdapterExecutionTargetProcessSessionBridge({
       runId: "payload-upload-error", adapterKey: "acpx", runtimeRootDir: rootDir,
       target: {
         kind: "remote", transport: "sandbox", providerKey: "local-test", remoteCwd: rootDir,
         runner: { execute: async (input) => {
-          if (/command\.b64\.[^/]+\.paperclip-upload\.b64/.test(input.args?.[1] ?? "") && input.args![1].includes(">>")) {
+          if (/command\.b64\.[^/]+\.nexus-upload\.b64/.test(input.args?.[1] ?? "") && input.args![1].includes(">>")) {
             throw new Error("Upload interrupted");
           }
           return delegate.execute(input);
@@ -720,14 +720,14 @@ describe("sandbox adapter execution targets", () => {
     { streamed: true, corrupt: false },
     { streamed: true, corrupt: true },
   ])("reports payload read failures without hanging (streamed=$streamed, corrupt=$corrupt)", async ({ streamed, corrupt }) => {
-    const rootDir = await createSandboxRoot("paperclip-payload-read-error-");
+    const rootDir = await createSandboxRoot("nexus-payload-read-error-");
     const delegate = createLocalSandboxRunner();
     const bridge = await startAdapterExecutionTargetProcessSessionBridge({
       runId: "payload-read-error", adapterKey: "acpx", runtimeRootDir: rootDir,
       target: {
         kind: "remote", transport: "sandbox", providerKey: "local-test", remoteCwd: rootDir,
         runner: { execute: async (input) => {
-          if (input.env?.PAPERCLIP_PROCESS_SESSION_DIR || input.args?.[1]?.includes("nohup node")) {
+          if (input.env?.NEXUS_PROCESS_SESSION_DIR || input.args?.[1]?.includes("nohup node")) {
             const sessionRoot = path.join(rootDir, "process-sessions");
             const entries = await readdir(sessionRoot, { withFileTypes: true });
             const payloadPath = path.join(sessionRoot, entries.find((entry) => entry.isDirectory())!.name, "command.b64");
@@ -758,7 +758,7 @@ describe("sandbox adapter execution targets", () => {
     // that token. This test drives the bridge with a getter that returns a known
     // token, lets the first poll tick fire, and proves the poll exec reads that
     // token from the active step store.
-    const rootDir = await createSandboxRoot("paperclip-process-session-poll-parent-");
+    const rootDir = await createSandboxRoot("nexus-process-session-poll-parent-");
     const childPath = path.join(rootDir, "noop-acp-child.mjs");
     await writeFile(childPath, "process.stdin.on('data', () => {});\n", "utf8");
 
@@ -789,7 +789,7 @@ describe("sandbox adapter execution targets", () => {
       ...processSessionInput(
         "run-process-session-poll-parent",
         target,
-        path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+        path.posix.join(rootDir, ".nexus-runtime", "acpx"),
         process.execPath,
         [childPath],
         rootDir,
@@ -816,7 +816,7 @@ describe("sandbox adapter execution targets", () => {
     // With no `getRuntimeParentContext`, the poll tick runs with an empty active
     // step store, exactly like the earlier `runWithoutActiveStep` behavior. So a
     // poll `sandbox.exec` span opens unparented with no stale startup flag.
-    const rootDir = await createSandboxRoot("paperclip-process-session-poll-nogetter-");
+    const rootDir = await createSandboxRoot("nexus-process-session-poll-nogetter-");
     const childPath = path.join(rootDir, "noop-acp-child.mjs");
     await writeFile(childPath, "process.stdin.on('data', () => {});\n", "utf8");
 
@@ -842,7 +842,7 @@ describe("sandbox adapter execution targets", () => {
     const bridge = await startAdapterExecutionTargetProcessSessionBridge(processSessionInput(
       "run-process-session-poll-nogetter",
       target,
-      path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+      path.posix.join(rootDir, ".nexus-runtime", "acpx"),
       process.execPath,
       [childPath],
       rootDir,
@@ -866,7 +866,7 @@ describe("sandbox adapter execution targets", () => {
     // message in the `data` handler, not once at connect time. This test opens a
     // socket while `connectParent` is live, switches the getter to `turnParent`,
     // sends one stdin line, and proves the stdin write ran under `turnParent`.
-    const rootDir = await createSandboxRoot("paperclip-process-session-stdin-parent-");
+    const rootDir = await createSandboxRoot("nexus-process-session-stdin-parent-");
     const childPath = path.join(rootDir, "noop-acp-child.mjs");
     await writeFile(childPath, "process.stdin.on('data', () => {});\n", "utf8");
 
@@ -884,10 +884,10 @@ describe("sandbox adapter execution targets", () => {
     const runner = {
       execute: async (input: Parameters<typeof delegate.execute>[0]) => {
         // Record the active step for the first exec that writes the stdin file.
-        // The `.paperclip-upload` temp path under the `stdin` directory is unique
+        // The `.nexus-upload` temp path under the `stdin` directory is unique
         // to the stdin-write path; the poll loop reads the `events` directory.
         const script = (input.args ?? []).join("\n");
-        if (stdinWriteStep === "unset" && /\/stdin\/[^\s']*paperclip-upload/.test(script)) {
+        if (stdinWriteStep === "unset" && /\/stdin\/[^\s']*nexus-upload/.test(script)) {
           stdinWriteStep = getActiveStepContext();
           resolveStdinWrite();
         }
@@ -900,7 +900,7 @@ describe("sandbox adapter execution targets", () => {
       ...processSessionInput(
         "run-process-session-stdin-parent",
         target,
-        path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+        path.posix.join(rootDir, ".nexus-runtime", "acpx"),
         process.execPath,
         [childPath],
         rootDir,
@@ -956,7 +956,7 @@ describe("sandbox adapter execution targets", () => {
     // message to the agent in a `sandbox.agentSession.sendInput` span. This test
     // connects a socket, sends one stdin line, and proves the handler opens that
     // wrapper span around the write.
-    const rootDir = await createSandboxRoot("paperclip-process-session-sendinput-span-");
+    const rootDir = await createSandboxRoot("nexus-process-session-sendinput-span-");
     const childPath = path.join(rootDir, "noop-acp-child.mjs");
     await writeFile(childPath, "process.stdin.on('data', () => {});\n", "utf8");
 
@@ -972,7 +972,7 @@ describe("sandbox adapter execution targets", () => {
       ...processSessionInput(
         "run-process-session-sendinput-span",
         target,
-        path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+        path.posix.join(rootDir, ".nexus-runtime", "acpx"),
         process.execPath,
         [childPath],
         rootDir,
@@ -1017,7 +1017,7 @@ describe("sandbox adapter execution targets", () => {
     // With a span runner injected, the poll timer wraps each 100 ms poll tick in
     // a `sandbox.agentSession.pollOutput` span. This test lets the first poll tick
     // fire and proves the timer opens that wrapper span.
-    const rootDir = await createSandboxRoot("paperclip-process-session-poll-span-");
+    const rootDir = await createSandboxRoot("nexus-process-session-poll-span-");
     const childPath = path.join(rootDir, "noop-acp-child.mjs");
     await writeFile(childPath, "process.stdin.on('data', () => {});\n", "utf8");
 
@@ -1033,7 +1033,7 @@ describe("sandbox adapter execution targets", () => {
       ...processSessionInput(
         "run-process-session-poll-span",
         target,
-        path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+        path.posix.join(rootDir, ".nexus-runtime", "acpx"),
         process.execPath,
         [childPath],
         rootDir,
@@ -1055,7 +1055,7 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("bridges bidirectional sandbox process sessions through a local ACPX-spawnable proxy", async () => {
-    const rootDir = await createSandboxRoot("paperclip-process-session-");
+    const rootDir = await createSandboxRoot("nexus-process-session-");
     const childPath = path.join(rootDir, "fake-acp-child.mjs");
     await writeFile(
       childPath,
@@ -1069,12 +1069,12 @@ describe("sandbox adapter execution targets", () => {
     );
     const target: AdapterSandboxExecutionTarget = localSandboxTarget(rootDir);
 
-    const bridge = await startAdapterExecutionTargetProcessSessionBridge(processSessionInput("run-process-session", target, path.posix.join(rootDir, ".paperclip-runtime", "acpx"), process.execPath, [childPath], rootDir));
+    const bridge = await startAdapterExecutionTargetProcessSessionBridge(processSessionInput("run-process-session", target, path.posix.join(rootDir, ".nexus-runtime", "acpx"), process.execPath, [childPath], rootDir));
     expect(bridge).not.toBeNull();
 
     try {
       const result = await runProxyWithInput(bridge!.agentCommand, "hello\n");
-      const report = await describeProxyRun(result, path.posix.join(rootDir, ".paperclip-runtime", "acpx"));
+      const report = await describeProxyRun(result, path.posix.join(rootDir, ".nexus-runtime", "acpx"));
       expect(result.code, report).toBe(0);
       expect(result.stdout, report).toBe("out:hello\n");
       expect(result.stderr, report).toBe("err:hello\n");
@@ -1094,7 +1094,7 @@ describe("sandbox adapter execution targets", () => {
     streamOutputViaSession,
     exitCode,
   }) => {
-    const rootDir = await createSandboxRoot("paperclip-process-session-open-stdin-");
+    const rootDir = await createSandboxRoot("nexus-process-session-open-stdin-");
     // ACP keeps stdin open while it waits for a handshake. A remote child can
     // exit before replying; that must close the proxy and fail the handshake.
     const output = "final output\n".repeat(16_384);
@@ -1108,7 +1108,7 @@ describe("sandbox adapter execution targets", () => {
         remoteCwd: rootDir,
         runner: createLocalSandboxRunner(),
       },
-      runtimeRootDir: path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+      runtimeRootDir: path.posix.join(rootDir, ".nexus-runtime", "acpx"),
       adapterKey: "acpx",
       command: exitCode === null ? path.join(rootDir, "missing-agent") : process.execPath,
       args: ["-e", `process.stdout.write("final output\\n".repeat(16_384)); process.stderr.write("final diagnostic\\n"); process.exitCode = ${exitCode};`],
@@ -1124,7 +1124,7 @@ describe("sandbox adapter execution targets", () => {
       expect(result.code).toBe(exitCode ?? 1);
       const terminal = logs.filter((line) => line.includes("ACP process session terminal:"));
       expect(terminal).toEqual([
-        `[paperclip] ACP process session terminal: source=remote_event outcome=${exitCode === null ? "error" : "exit"} exitCode=${exitCode ?? "unknown"} signal=unknown.\n`,
+        `[nexus] ACP process session terminal: source=remote_event outcome=${exitCode === null ? "error" : "exit"} exitCode=${exitCode ?? "unknown"} signal=unknown.\n`,
       ]);
       if (exitCode === null) {
         expect(result.stdout).toBe("");
@@ -1139,7 +1139,7 @@ describe("sandbox adapter execution targets", () => {
   }, 15_000);
 
   it("flushes remote errors under backpressure and retains only bounded terminal evidence", async () => {
-    const rootDir = await createSandboxRoot("paperclip-terminal-flush-");
+    const rootDir = await createSandboxRoot("nexus-terminal-flush-");
     const delegate = createLocalSandboxRunner();
     const logs: string[] = [];
     let emit!: (frame: string) => Promise<void>;
@@ -1214,7 +1214,7 @@ describe("sandbox adapter execution targets", () => {
       await closed;
       expect(JSON.parse(output)).toEqual(frame);
       expect(logs.filter((line) => line.includes("ACP process session terminal:"))).toEqual([
-        "[paperclip] ACP process session terminal: source=remote_event outcome=error exitCode=unknown signal=unknown.\n",
+        "[nexus] ACP process session terminal: source=remote_event outcome=error exitCode=unknown signal=unknown.\n",
       ]);
     } finally {
       failInput(new Error("test cleanup"));
@@ -1225,7 +1225,7 @@ describe("sandbox adapter execution targets", () => {
   }, 15_000);
 
   it("reports a streamed transport failure even when diagnostic persistence stalls", async () => {
-    const rootDir = await createSandboxRoot("paperclip-terminal-stream-");
+    const rootDir = await createSandboxRoot("nexus-terminal-stream-");
     const delegate = createLocalSandboxRunner();
     const logs: string[] = [];
     let releaseLog!: () => void;
@@ -1248,7 +1248,7 @@ describe("sandbox adapter execution targets", () => {
       const result = await runProxyWithInput(bridge!.agentCommand, "", true);
       expect(result.code).toBe(1);
       expect(logs).toEqual([
-        "[paperclip] ACP process session terminal: source=output_stream outcome=error exitCode=unknown signal=unknown.\n",
+        "[nexus] ACP process session terminal: source=output_stream outcome=error exitCode=unknown signal=unknown.\n",
       ]);
     } finally {
       releaseLog();
@@ -1257,7 +1257,7 @@ describe("sandbox adapter execution targets", () => {
   }, 10_000);
 
   it("closes a failed output poll without waiting for the run log", async () => {
-    const rootDir = await createSandboxRoot("paperclip-terminal-poll-");
+    const rootDir = await createSandboxRoot("nexus-terminal-poll-");
     const delegate = createLocalSandboxRunner();
     const logs: string[] = [];
     let releaseLog!: () => void;
@@ -1281,7 +1281,7 @@ describe("sandbox adapter execution targets", () => {
       const result = await runProxyWithInput(bridge!.agentCommand, "", true);
       expect(result.code).toBe(1);
       expect(logs).toEqual([
-        "[paperclip] ACP process session terminal: source=output_poll outcome=error exitCode=unknown signal=unknown.\n",
+        "[nexus] ACP process session terminal: source=output_poll outcome=error exitCode=unknown signal=unknown.\n",
       ]);
     } finally {
       releaseLog();
@@ -1290,7 +1290,7 @@ describe("sandbox adapter execution targets", () => {
   }, 10_000);
 
   it("records an unexpected authenticated proxy close once and ignores unauthenticated peers", async () => {
-    const rootDir = await createSandboxRoot("paperclip-terminal-proxy-");
+    const rootDir = await createSandboxRoot("nexus-terminal-proxy-");
     const logs: string[] = [];
     const bridge = await startAdapterExecutionTargetProcessSessionBridge({
       runId: "terminal-proxy", adapterKey: "acpx", runtimeRootDir: rootDir,
@@ -1315,7 +1315,7 @@ describe("sandbox adapter execution targets", () => {
       await waitForCondition(() => logs.length === 1, "Missing proxy-close diagnostic.");
       await bridge!.stop();
       expect(logs.filter((line) => line.includes("ACP process session terminal:"))).toEqual([
-        "[paperclip] ACP process session terminal: source=proxy_close outcome=error exitCode=unknown signal=unknown.\n",
+        "[nexus] ACP process session terminal: source=proxy_close outcome=error exitCode=unknown signal=unknown.\n",
       ]);
     } finally {
       await bridge?.stop();
@@ -1323,7 +1323,7 @@ describe("sandbox adapter execution targets", () => {
   }, 10_000);
 
   it("buffers sandbox process session output until the local proxy connects", async () => {
-    const rootDir = await createSandboxRoot("paperclip-process-session-buffer-");
+    const rootDir = await createSandboxRoot("nexus-process-session-buffer-");
     const childPath = path.join(rootDir, "fast-acp-child.mjs");
     await writeFile(
       childPath,
@@ -1339,7 +1339,7 @@ describe("sandbox adapter execution targets", () => {
     const bridge = await startAdapterExecutionTargetProcessSessionBridge(processSessionInput(
       "run-process-session-buffer",
       target,
-      path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+      path.posix.join(rootDir, ".nexus-runtime", "acpx"),
       process.execPath,
       [childPath],
       rootDir,
@@ -1358,7 +1358,7 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("delivers full output when the sandbox child exits immediately after writing", async () => {
-    const rootDir = await createSandboxRoot("paperclip-process-session-fast-exit-");
+    const rootDir = await createSandboxRoot("nexus-process-session-fast-exit-");
     const childPath = path.join(rootDir, "instant-exit-acp-child.mjs");
     await writeFile(
       childPath,
@@ -1373,7 +1373,7 @@ describe("sandbox adapter execution targets", () => {
     const bridge = await startAdapterExecutionTargetProcessSessionBridge(processSessionInput(
       "run-process-session-fast-exit",
       target,
-      path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+      path.posix.join(rootDir, ".nexus-runtime", "acpx"),
       process.execPath,
       [childPath],
       rootDir,
@@ -1391,7 +1391,7 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("ignores unauthenticated connections to the process session bridge", async () => {
-    const rootDir = await createSandboxRoot("paperclip-process-session-auth-");
+    const rootDir = await createSandboxRoot("nexus-process-session-auth-");
     const childPath = path.join(rootDir, "guarded-acp-child.mjs");
     await writeFile(childPath, "process.stdout.write('guarded-out\\n');", "utf8");
     const target: AdapterSandboxExecutionTarget = localSandboxTarget(rootDir);
@@ -1399,7 +1399,7 @@ describe("sandbox adapter execution targets", () => {
     const bridge = await startAdapterExecutionTargetProcessSessionBridge(processSessionInput(
       "run-process-session-auth",
       target,
-      path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+      path.posix.join(rootDir, ".nexus-runtime", "acpx"),
       process.execPath,
       [childPath],
       rootDir,
@@ -1445,7 +1445,7 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("streams sandbox process session output before the remote child exits", async () => {
-    const rootDir = await createSandboxRoot("paperclip-process-session-stream-");
+    const rootDir = await createSandboxRoot("nexus-process-session-stream-");
     const childPath = path.join(rootDir, "streaming-acp-child.mjs");
     await writeFile(
       childPath,
@@ -1467,7 +1467,7 @@ describe("sandbox adapter execution targets", () => {
     const bridge = await startAdapterExecutionTargetProcessSessionBridge(processSessionInput(
       "run-process-session-stream",
       target,
-      path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+      path.posix.join(rootDir, ".nexus-runtime", "acpx"),
       process.execPath,
       [childPath],
       rootDir,
@@ -1524,7 +1524,7 @@ describe("sandbox adapter execution targets", () => {
 
   describe("streamed output (streamOutputViaSession)", () => {
     it("bridges bidirectional sessions when the wrapper streams output to stdout", async () => {
-      const rootDir = await createSandboxRoot("paperclip-process-session-stream-echo-");
+      const rootDir = await createSandboxRoot("nexus-process-session-stream-echo-");
       const childPath = path.join(rootDir, "echo-acp-child.mjs");
       await writeFile(
         childPath,
@@ -1539,14 +1539,14 @@ describe("sandbox adapter execution targets", () => {
       const target: AdapterSandboxExecutionTarget = localSandboxTarget(rootDir);
 
       const bridge = await startAdapterExecutionTargetProcessSessionBridge({
-        ...processSessionInput("run-stream-echo", target, path.posix.join(rootDir, ".paperclip-runtime", "acpx"), process.execPath, [childPath], rootDir),
+        ...processSessionInput("run-stream-echo", target, path.posix.join(rootDir, ".nexus-runtime", "acpx"), process.execPath, [childPath], rootDir),
         streamOutputViaSession: true,
       });
       expect(bridge).not.toBeNull();
 
       try {
         const result = await runProxyWithInput(bridge!.agentCommand, "hello\n");
-        const report = await describeProxyRun(result, path.posix.join(rootDir, ".paperclip-runtime", "acpx"));
+        const report = await describeProxyRun(result, path.posix.join(rootDir, ".nexus-runtime", "acpx"));
         expect(result.code, report).toBe(0);
         expect(result.stdout, report).toBe("out:hello\n");
         expect(result.stderr, report).toBe("err:hello\n");
@@ -1561,7 +1561,7 @@ describe("sandbox adapter execution targets", () => {
       // step) and stay open around the launch. Record the opened span names and
       // prove `sandbox.agentProcess` is among them, and that a normal exchange
       // still works through the wrap.
-      const rootDir = await createSandboxRoot("paperclip-process-session-stream-span-");
+      const rootDir = await createSandboxRoot("nexus-process-session-stream-span-");
       const childPath = path.join(rootDir, "echo-acp-child.mjs");
       await writeFile(
         childPath,
@@ -1576,7 +1576,7 @@ describe("sandbox adapter execution targets", () => {
 
       const spanNames: string[] = [];
       const bridge = await startAdapterExecutionTargetProcessSessionBridge({
-        ...processSessionInput("run-stream-span", target, path.posix.join(rootDir, ".paperclip-runtime", "acpx"), process.execPath, [childPath], rootDir),
+        ...processSessionInput("run-stream-span", target, path.posix.join(rootDir, ".nexus-runtime", "acpx"), process.execPath, [childPath], rootDir),
         streamOutputViaSession: true,
         runtimeSpan: async (name, work) => {
           spanNames.push(name);
@@ -1590,7 +1590,7 @@ describe("sandbox adapter execution targets", () => {
         // frame flows, so it is observable as soon as the handle resolves.
         expect(spanNames).toContain("sandbox.agentProcess");
         const result = await runProxyWithInput(bridge!.agentCommand, "hello\n");
-        const report = await describeProxyRun(result, path.posix.join(rootDir, ".paperclip-runtime", "acpx"));
+        const report = await describeProxyRun(result, path.posix.join(rootDir, ".nexus-runtime", "acpx"));
         expect(result.code, report).toBe(0);
         expect(result.stdout, report).toBe("out:hello\n");
       } finally {
@@ -1604,7 +1604,7 @@ describe("sandbox adapter execution targets", () => {
       // `bridge.process-session` bring-up step — otherwise it dangles past its
       // parent and overlaps `agent.turn`. Build the real run-rooted runner from a
       // recording trace context and assert the recorded parent.
-      const rootDir = await createSandboxRoot("paperclip-process-session-stream-parent-");
+      const rootDir = await createSandboxRoot("nexus-process-session-stream-parent-");
       const childPath = path.join(rootDir, "noop-acp-child.mjs");
       await writeFile(childPath, "process.stdin.on('data', () => {});\n", "utf8");
       const target: AdapterSandboxExecutionTarget = localSandboxTarget(rootDir);
@@ -1617,7 +1617,7 @@ describe("sandbox adapter execution targets", () => {
       const runtimeSpan = createRuntimeSpanRunner(traceContext, () => runRootContext);
 
       const bridge = await startAdapterExecutionTargetProcessSessionBridge({
-        ...processSessionInput("run-stream-parent", target, path.posix.join(rootDir, ".paperclip-runtime", "acpx"), process.execPath, [childPath], rootDir),
+        ...processSessionInput("run-stream-parent", target, path.posix.join(rootDir, ".nexus-runtime", "acpx"), process.execPath, [childPath], rootDir),
         streamOutputViaSession: true,
         runtimeSpan,
       });
@@ -1638,7 +1638,7 @@ describe("sandbox adapter execution targets", () => {
       // at `stop()`, which the caller awaits before it ends `task.run`. Use a
       // child that ignores stdin and never exits on its own, so the launch
       // command stays pending across `stop()`, and prove the span ends anyway.
-      const rootDir = await createSandboxRoot("paperclip-process-session-stream-linger-");
+      const rootDir = await createSandboxRoot("nexus-process-session-stream-linger-");
       const childPath = path.join(rootDir, "linger-acp-child.mjs");
       await writeFile(
         childPath,
@@ -1657,7 +1657,7 @@ describe("sandbox adapter execution targets", () => {
       const bridge = await startAdapterExecutionTargetProcessSessionBridge({
         runId: "run-stream-linger",
         target,
-        runtimeRootDir: path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+        runtimeRootDir: path.posix.join(rootDir, ".nexus-runtime", "acpx"),
         adapterKey: "acpx",
         command: process.execPath,
         args: [childPath],
@@ -1695,7 +1695,7 @@ describe("sandbox adapter execution targets", () => {
     });
 
     it("buffers streamed output until the local proxy connects", async () => {
-      const rootDir = await createSandboxRoot("paperclip-process-session-stream-buffer-");
+      const rootDir = await createSandboxRoot("nexus-process-session-stream-buffer-");
       const childPath = path.join(rootDir, "fast-stream-child.mjs");
       await writeFile(
         childPath,
@@ -1709,7 +1709,7 @@ describe("sandbox adapter execution targets", () => {
       const target: AdapterSandboxExecutionTarget = localSandboxTarget(rootDir);
 
       const bridge = await startAdapterExecutionTargetProcessSessionBridge({
-        ...processSessionInput("run-stream-buffer", target, path.posix.join(rootDir, ".paperclip-runtime", "acpx"), process.execPath, [childPath], rootDir),
+        ...processSessionInput("run-stream-buffer", target, path.posix.join(rootDir, ".nexus-runtime", "acpx"), process.execPath, [childPath], rootDir),
         streamOutputViaSession: true,
       });
       expect(bridge).not.toBeNull();
@@ -1728,7 +1728,7 @@ describe("sandbox adapter execution targets", () => {
     });
 
     it("delivers full streamed output when the sandbox child exits immediately", async () => {
-      const rootDir = await createSandboxRoot("paperclip-process-session-stream-fast-exit-");
+      const rootDir = await createSandboxRoot("nexus-process-session-stream-fast-exit-");
       const childPath = path.join(rootDir, "instant-stream-child.mjs");
       await writeFile(
         childPath,
@@ -1741,7 +1741,7 @@ describe("sandbox adapter execution targets", () => {
       const target: AdapterSandboxExecutionTarget = localSandboxTarget(rootDir);
 
       const bridge = await startAdapterExecutionTargetProcessSessionBridge({
-        ...processSessionInput("run-stream-fast-exit", target, path.posix.join(rootDir, ".paperclip-runtime", "acpx"), process.execPath, [childPath], rootDir),
+        ...processSessionInput("run-stream-fast-exit", target, path.posix.join(rootDir, ".nexus-runtime", "acpx"), process.execPath, [childPath], rootDir),
         streamOutputViaSession: true,
       });
       expect(bridge).not.toBeNull();
@@ -1757,7 +1757,7 @@ describe("sandbox adapter execution targets", () => {
     });
 
     it("streams live output before the child exits and never writes output event files", async () => {
-      const rootDir = await createSandboxRoot("paperclip-process-session-stream-live-");
+      const rootDir = await createSandboxRoot("nexus-process-session-stream-live-");
       const childPath = path.join(rootDir, "live-stream-child.mjs");
       await writeFile(
         childPath,
@@ -1777,7 +1777,7 @@ describe("sandbox adapter execution targets", () => {
       const target: AdapterSandboxExecutionTarget = localSandboxTarget(rootDir);
 
       const bridge = await startAdapterExecutionTargetProcessSessionBridge({
-        ...processSessionInput("run-stream-live", target, path.posix.join(rootDir, ".paperclip-runtime", "acpx"), process.execPath, [childPath], rootDir),
+        ...processSessionInput("run-stream-live", target, path.posix.join(rootDir, ".nexus-runtime", "acpx"), process.execPath, [childPath], rootDir),
         streamOutputViaSession: true,
       });
       expect(bridge).not.toBeNull();
@@ -1825,7 +1825,7 @@ describe("sandbox adapter execution targets", () => {
         // The streamed path uses the stdout wrapper, not the output-file poll, so
         // no `events` directory is ever created under the session runtime tree.
         const hasEventsDir = await readdir(
-          path.posix.join(rootDir, ".paperclip-runtime", "acpx", "process-sessions"),
+          path.posix.join(rootDir, ".nexus-runtime", "acpx", "process-sessions"),
           { withFileTypes: true, recursive: true },
         )
           .then((entries) => entries.some((entry) => entry.isDirectory() && entry.name === "events"))
@@ -1848,7 +1848,7 @@ describe("sandbox adapter execution targets", () => {
       // teardown) must run concurrently with the agent, so each must force
       // itself off the session. On the session they queue behind the agent
       // command that never returns, and the first handshake write never drains.
-      const rootDir = await createSandboxRoot("paperclip-process-session-stream-isolation-");
+      const rootDir = await createSandboxRoot("nexus-process-session-stream-isolation-");
       const childPath = path.join(rootDir, "echo-acp-child.mjs");
       await writeFile(
         childPath,
@@ -1885,7 +1885,7 @@ describe("sandbox adapter execution targets", () => {
       const bridge = await startAdapterExecutionTargetProcessSessionBridge({
         runId: "run-stream-isolation",
         target,
-        runtimeRootDir: path.posix.join(rootDir, ".paperclip-runtime", "acpx"),
+        runtimeRootDir: path.posix.join(rootDir, ".nexus-runtime", "acpx"),
         adapterKey: "acpx",
         command: process.execPath,
         args: [childPath],
@@ -1903,7 +1903,7 @@ describe("sandbox adapter execution targets", () => {
         const result = await runProxyWithInput(bridge!.agentCommand, "hello\n");
         expect(
           result.stdout,
-          await describeProxyRun(result, path.posix.join(rootDir, ".paperclip-runtime", "acpx")),
+          await describeProxyRun(result, path.posix.join(rootDir, ".nexus-runtime", "acpx")),
         ).toBe("out:hello\n");
 
         // Exactly one exec runs on the persistent session: the long-lived agent
@@ -2295,7 +2295,7 @@ describe("sandbox adapter execution targets", () => {
       spec: {
         host: "ssh.example.test",
         port: 22,
-        username: "paperclip",
+        username: "nexus",
         remoteWorkspacePath: "/workspace",
         remoteCwd: "/workspace",
         privateKey: null,
@@ -2304,12 +2304,12 @@ describe("sandbox adapter execution targets", () => {
       },
     };
 
-    expect(adapterExecutionTargetUsesPaperclipBridge(target)).toBe(true);
+    expect(adapterExecutionTargetUsesNexusBridge(target)).toBe(true);
     expect(adapterExecutionTargetSessionIdentity(target)).toEqual({
       transport: "ssh",
       host: "ssh.example.test",
       port: 22,
-      username: "paperclip",
+      username: "nexus",
       remoteCwd: "/workspace",
     });
   });
@@ -2349,10 +2349,10 @@ describe("sandbox adapter execution targets", () => {
     }));
   });
 
-  it("starts a localhost Paperclip bridge for sandbox targets in bridge mode", async () => {
-    const rootDir = await createSandboxRoot("paperclip-execution-target-bridge-");
+  it("starts a localhost Nexus bridge for sandbox targets in bridge mode", async () => {
+    const rootDir = await createSandboxRoot("nexus-execution-target-bridge-");
     const remoteCwd = path.join(rootDir, "workspace");
-    const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "codex");
+    const runtimeRootDir = path.join(remoteCwd, ".nexus-runtime", "codex");
     await mkdir(runtimeRootDir, { recursive: true });
 
     const requests: Array<{ method: string; url: string; auth: string | null; runId: string | null }> = [];
@@ -2361,7 +2361,7 @@ describe("sandbox adapter execution targets", () => {
         method: req.method ?? "GET",
         url: req.url ?? "/",
         auth: req.headers.authorization ?? null,
-        runId: typeof req.headers["x-paperclip-run-id"] === "string" ? req.headers["x-paperclip-run-id"] : null,
+        runId: typeof req.headers["x-nexus-run-id"] === "string" ? req.headers["x-nexus-run-id"] : null,
       });
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
@@ -2377,7 +2377,7 @@ describe("sandbox adapter execution targets", () => {
 
     const target: AdapterSandboxExecutionTarget = queueSandboxTarget(remoteCwd);
 
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-bridge",
       target,
       runtimeRootDir,
@@ -2387,13 +2387,13 @@ describe("sandbox adapter execution targets", () => {
     });
     try {
       expect(bridge).not.toBeNull();
-      expect(bridge?.env.PAPERCLIP_API_URL).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-      expect(bridge?.env.PAPERCLIP_API_KEY).not.toBe("real-run-jwt");
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_URL).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+      expect(bridge?.env.NEXUS_API_KEY).not.toBe("real-run-jwt");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
 
-      const response = await fetch(`${bridge!.env.PAPERCLIP_API_URL}/api/agents/me`, {
+      const response = await fetch(`${bridge!.env.NEXUS_API_URL}/api/agents/me`, {
         headers: {
-          authorization: `Bearer ${bridge!.env.PAPERCLIP_API_KEY}`,
+          authorization: `Bearer ${bridge!.env.NEXUS_API_KEY}`,
           accept: "application/json",
         },
       });
@@ -2413,9 +2413,9 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("creates a sandbox run log tail factory when bridge streaming is enabled", async () => {
-    const rootDir = await createSandboxRoot("paperclip-execution-target-bridge-stream-");
+    const rootDir = await createSandboxRoot("nexus-execution-target-bridge-stream-");
     const remoteCwd = path.join(rootDir, "workspace");
-    const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "codex");
+    const runtimeRootDir = path.join(remoteCwd, ".nexus-runtime", "codex");
     await mkdir(runtimeRootDir, { recursive: true });
 
     const logs: Array<{ stream: "stdout" | "stderr"; chunk: string }> = [];
@@ -2431,7 +2431,7 @@ describe("sandbox adapter execution targets", () => {
       timeoutMs: 30_000,
     };
 
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-bridge-stream",
       target,
       runtimeRootDir,
@@ -2456,14 +2456,14 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("defaults sandbox run log streaming on and honors the explicit opt-out", async () => {
-    const rootDir = await createSandboxRoot("paperclip-execution-target-bridge-stream-default-");
+    const rootDir = await createSandboxRoot("nexus-execution-target-bridge-stream-default-");
     const remoteCwd = path.join(rootDir, "workspace");
-    const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "codex");
+    const runtimeRootDir = path.join(remoteCwd, ".nexus-runtime", "codex");
     await mkdir(runtimeRootDir, { recursive: true });
 
     const baseTarget: AdapterSandboxExecutionTarget = queueSandboxTarget(remoteCwd);
 
-    const defaultBridge = await startAdapterExecutionTargetPaperclipBridge({
+    const defaultBridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-bridge-stream-default",
       target: baseTarget,
       runtimeRootDir,
@@ -2477,7 +2477,7 @@ describe("sandbox adapter execution targets", () => {
       await defaultBridge?.stop();
     }
 
-    const optOutBridge = await startAdapterExecutionTargetPaperclipBridge({
+    const optOutBridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-bridge-stream-opt-out",
       target: { ...baseTarget, streamRunLogs: false },
       runtimeRootDir,
@@ -2533,7 +2533,7 @@ describe("sandbox adapter execution targets", () => {
     const tail = createSandboxRunLogTailFactory({
       runner,
       remoteCwd: "/workspace",
-      logsDir: "/workspace/.paperclip-runtime/codex/paperclip-bridge/queue/logs",
+      logsDir: "/workspace/.nexus-runtime/codex/nexus-bridge/queue/logs",
       pollIntervalMs: 1,
       maxChunkBytesPerTick: 4,
       tickTimeoutMs: 50,
@@ -2557,7 +2557,7 @@ describe("sandbox adapter execution targets", () => {
     expect(runner.execute).toHaveBeenCalledWith(expect.objectContaining({
       command: "sh",
       cwd: "/workspace",
-      env: { PAPERCLIP_SANDBOX_EXEC_CHANNEL: "bridge" },
+      env: { NEXUS_SANDBOX_EXEC_CHANNEL: "bridge" },
       timeoutMs: 50,
     }));
   });
@@ -2587,7 +2587,7 @@ describe("sandbox adapter execution targets", () => {
     const tail = createSandboxRunLogTailFactory({
       runner,
       remoteCwd: "/workspace",
-      logsDir: "/workspace/.paperclip-runtime/codex/paperclip-bridge/queue/logs",
+      logsDir: "/workspace/.nexus-runtime/codex/nexus-bridge/queue/logs",
       pollIntervalMs: 1,
       maxChunkBytesPerTick: 7,
       tickTimeoutMs: 50,
@@ -2621,7 +2621,7 @@ describe("sandbox adapter execution targets", () => {
     const tail = createSandboxRunLogTailFactory({
       runner,
       remoteCwd: "/workspace",
-      logsDir: "/workspace/.paperclip-runtime/codex/paperclip-bridge/queue/logs",
+      logsDir: "/workspace/.nexus-runtime/codex/nexus-bridge/queue/logs",
       pollIntervalMs: 1,
       tickTimeoutMs: 50,
       maxConsecutiveFailures: 1,
@@ -2636,14 +2636,14 @@ describe("sandbox adapter execution targets", () => {
 
     expect(combinedStream(events, "stdout")).toBe("final out\n");
     expect(combinedStream(events, "stderr")).toBe(
-      "final err\n[paperclip] Run log streaming degraded during the run; remaining output was delivered at completion.\n",
+      "final err\n[nexus] Run log streaming degraded during the run; remaining output was delivered at completion.\n",
     );
   });
 
-  it("exposes the Paperclip bridge to the sandbox shell surface", async () => {
-    const rootDir = await createSandboxRoot("paperclip-execution-target-bridge-shell-");
+  it("exposes the Nexus bridge to the sandbox shell surface", async () => {
+    const rootDir = await createSandboxRoot("nexus-execution-target-bridge-shell-");
     const remoteCwd = path.join(rootDir, "workspace");
-    const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "claude");
+    const runtimeRootDir = path.join(remoteCwd, ".nexus-runtime", "claude");
     await mkdir(runtimeRootDir, { recursive: true });
 
     const requests: Array<{ method: string; url: string; auth: string | null; runId: string | null }> = [];
@@ -2652,7 +2652,7 @@ describe("sandbox adapter execution targets", () => {
         method: req.method ?? "GET",
         url: req.url ?? "/",
         auth: req.headers.authorization ?? null,
-        runId: typeof req.headers["x-paperclip-run-id"] === "string" ? req.headers["x-paperclip-run-id"] : null,
+        runId: typeof req.headers["x-nexus-run-id"] === "string" ? req.headers["x-nexus-run-id"] : null,
       });
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
@@ -2681,7 +2681,7 @@ describe("sandbox adapter execution targets", () => {
       timeoutMs: 30_000,
     };
 
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-bridge-shell",
       target,
       runtimeRootDir,
@@ -2692,14 +2692,14 @@ describe("sandbox adapter execution targets", () => {
     try {
       expect(bridge).not.toBeNull();
       const shellProbe = [
-        "const url = `${process.env.PAPERCLIP_API_URL}/api/agents/me`;",
-        "fetch(url, { headers: { authorization: `Bearer ${process.env.PAPERCLIP_API_KEY}`, accept: 'application/json' } })",
+        "const url = `${process.env.NEXUS_API_URL}/api/agents/me`;",
+        "fetch(url, { headers: { authorization: `Bearer ${process.env.NEXUS_API_KEY}`, accept: 'application/json' } })",
         "  .then(async (response) => {",
         "    const body = await response.json();",
         "    process.stdout.write(JSON.stringify({",
         "      status: response.status,",
         "      body,",
-        "      bridgeMode: process.env.PAPERCLIP_API_BRIDGE_MODE,",
+        "      bridgeMode: process.env.NEXUS_API_BRIDGE_MODE,",
         "    }));",
         "  })",
         "  .catch((error) => {",
@@ -2729,7 +2729,7 @@ describe("sandbox adapter execution targets", () => {
         bridgeMode: "queue_v1",
       });
       expect(`${result.stdout}\n${result.stderr}`).not.toContain("real-run-jwt");
-      expect(`${result.stdout}\n${result.stderr}`).not.toContain(bridge!.env.PAPERCLIP_API_KEY);
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain(bridge!.env.NEXUS_API_KEY);
       const runnerCommandText = JSON.stringify(
         runner.execute.mock.calls.map(([call]) => ({
           command: call.command,
@@ -2737,10 +2737,10 @@ describe("sandbox adapter execution targets", () => {
         })),
       );
       expect(runnerCommandText).not.toContain("real-run-jwt");
-      expect(runnerCommandText).not.toContain(bridge!.env.PAPERCLIP_API_KEY);
+      expect(runnerCommandText).not.toContain(bridge!.env.NEXUS_API_KEY);
       const runtimeFiles = (await readRuntimeTextFiles(runtimeRootDir)).join("\n");
       expect(runtimeFiles).not.toContain("real-run-jwt");
-      expect(runtimeFiles).not.toContain(bridge!.env.PAPERCLIP_API_KEY);
+      expect(runtimeFiles).not.toContain(bridge!.env.NEXUS_API_KEY);
       expect(requests).toEqual([{
         method: "GET",
         url: "/api/agents/me",
@@ -2754,9 +2754,9 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("bounds callback bridge operations independently of the adapter run timeout", async () => {
-    const rootDir = await createSandboxRoot("paperclip-execution-target-bridge-timeout-");
+    const rootDir = await createSandboxRoot("nexus-execution-target-bridge-timeout-");
     const remoteCwd = path.join(rootDir, "workspace");
-    const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "codex");
+    const runtimeRootDir = path.join(remoteCwd, ".nexus-runtime", "codex");
     await mkdir(runtimeRootDir, { recursive: true });
 
     const delegateRunner = createLocalSandboxRunner();
@@ -2787,7 +2787,7 @@ describe("sandbox adapter execution targets", () => {
       timeoutMs: 30_000,
     };
 
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-bridge-timeout",
       target,
       runtimeRootDir,
@@ -2817,9 +2817,9 @@ describe("sandbox adapter execution targets", () => {
     // a retryable 502. The in-sandbox server maps the indeterminate 504 to a
     // non-retryable 409. A retryable status would repeat the mutation with a new
     // request id outside the broker deduplication set.
-    const rootDir = await createSandboxRoot("paperclip-execution-target-bridge-limit-");
+    const rootDir = await createSandboxRoot("nexus-execution-target-bridge-limit-");
     const remoteCwd = path.join(rootDir, "workspace");
-    const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "codex");
+    const runtimeRootDir = path.join(remoteCwd, ".nexus-runtime", "codex");
     await mkdir(runtimeRootDir, { recursive: true });
 
     const requests: Array<{ method: string; url: string; auth: string | null; runId: string | null }> = [];
@@ -2832,7 +2832,7 @@ describe("sandbox adapter execution targets", () => {
         method: req.method ?? "GET",
         url: req.url ?? "/",
         auth: req.headers.authorization ?? null,
-        runId: typeof req.headers["x-paperclip-run-id"] === "string" ? req.headers["x-paperclip-run-id"] : null,
+        runId: typeof req.headers["x-nexus-run-id"] === "string" ? req.headers["x-nexus-run-id"] : null,
       });
       res.writeHead(201, {
         "content-type": "application/json",
@@ -2851,7 +2851,7 @@ describe("sandbox adapter execution targets", () => {
 
     const target: AdapterSandboxExecutionTarget = queueSandboxTarget(remoteCwd);
 
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-bridge-limit",
       target,
       runtimeRootDir,
@@ -2861,10 +2861,10 @@ describe("sandbox adapter execution targets", () => {
       maxBodyBytes: 512,
     });
     try {
-      const response = await fetch(`${bridge!.env.PAPERCLIP_API_URL}/api/issues/issue-1/comments`, {
+      const response = await fetch(`${bridge!.env.NEXUS_API_URL}/api/issues/issue-1/comments`, {
         method: "POST",
         headers: {
-          authorization: `Bearer ${bridge!.env.PAPERCLIP_API_KEY}`,
+          authorization: `Bearer ${bridge!.env.NEXUS_API_KEY}`,
           "content-type": "application/json",
         },
         body: JSON.stringify({ body: "Status update." }),
@@ -2873,7 +2873,7 @@ describe("sandbox adapter execution targets", () => {
       // The indeterminate 504 maps to a non-retryable 409, so the caller does not
       // retry the committed mutation.
       expect(response.status).toBe(409);
-      expect(response.headers.get("x-paperclip-bridge-outcome")).toBe("indeterminate");
+      expect(response.headers.get("x-nexus-bridge-outcome")).toBe("indeterminate");
       await expect(response.json()).resolves.toEqual({
         error: "Bridge response body exceeded the configured size limit of 512 bytes.",
         outcome: "indeterminate",
@@ -2899,9 +2899,9 @@ describe("sandbox adapter execution targets", () => {
     // retryable 502 with no indeterminate marker, not the non-retryable 504 the
     // forward returns for a mutating method. The in-sandbox server passes the 502
     // through, so the caller can retry the safe read.
-    const rootDir = await createSandboxRoot("paperclip-execution-target-bridge-safe-limit-");
+    const rootDir = await createSandboxRoot("nexus-execution-target-bridge-safe-limit-");
     const remoteCwd = path.join(rootDir, "workspace");
-    const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "codex");
+    const runtimeRootDir = path.join(remoteCwd, ".nexus-runtime", "codex");
     await mkdir(runtimeRootDir, { recursive: true });
 
     const requests: Array<{ method: string; url: string; auth: string | null; runId: string | null }> = [];
@@ -2911,7 +2911,7 @@ describe("sandbox adapter execution targets", () => {
         method: req.method ?? "GET",
         url: req.url ?? "/",
         auth: req.headers.authorization ?? null,
-        runId: typeof req.headers["x-paperclip-run-id"] === "string" ? req.headers["x-paperclip-run-id"] : null,
+        runId: typeof req.headers["x-nexus-run-id"] === "string" ? req.headers["x-nexus-run-id"] : null,
       });
       res.writeHead(200, {
         "content-type": "application/json",
@@ -2930,7 +2930,7 @@ describe("sandbox adapter execution targets", () => {
 
     const target: AdapterSandboxExecutionTarget = queueSandboxTarget(remoteCwd);
 
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-bridge-safe-limit",
       target,
       runtimeRootDir,
@@ -2940,17 +2940,17 @@ describe("sandbox adapter execution targets", () => {
       maxBodyBytes: 512,
     });
     try {
-      const response = await fetch(`${bridge!.env.PAPERCLIP_API_URL}/api/issues/issue-1`, {
+      const response = await fetch(`${bridge!.env.NEXUS_API_URL}/api/issues/issue-1`, {
         method: "GET",
         headers: {
-          authorization: `Bearer ${bridge!.env.PAPERCLIP_API_KEY}`,
+          authorization: `Bearer ${bridge!.env.NEXUS_API_KEY}`,
         },
       });
 
       // The forward returns a retryable 502 with no indeterminate marker, so the
       // server passes it through instead of mapping it to a terminal 409.
       expect(response.status).toBe(502);
-      expect(response.headers.get("x-paperclip-bridge-outcome")).toBeNull();
+      expect(response.headers.get("x-nexus-bridge-outcome")).toBeNull();
       await expect(response.json()).resolves.toEqual({
         error: "Bridge response body exceeded the configured size limit of 512 bytes.",
       });
@@ -2968,20 +2968,20 @@ describe("sandbox adapter execution targets", () => {
 
   it("forwards the host indeterminate-outcome header so the sandbox server maps the 504 to a non-retryable 409", async () => {
     // The host marks a possibly-committed mutation with a 504 and the
-    // `x-paperclip-bridge-outcome: indeterminate` header. The forward must keep
+    // `x-nexus-bridge-outcome: indeterminate` header. The forward must keep
     // that header, so the in-sandbox server maps the 504 to a non-retryable 409.
     // If the forward drops the header, the client sees a retryable 504 and a
     // retry repeats a mutation that already committed.
-    const rootDir = await createSandboxRoot("paperclip-execution-target-bridge-outcome-");
+    const rootDir = await createSandboxRoot("nexus-execution-target-bridge-outcome-");
     const remoteCwd = path.join(rootDir, "workspace");
-    const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "codex");
+    const runtimeRootDir = path.join(remoteCwd, ".nexus-runtime", "codex");
     await mkdir(runtimeRootDir, { recursive: true });
 
     const responseBody = JSON.stringify({ error: "Mutation outcome is indeterminate.", outcome: "indeterminate", retryable: false });
     const apiServer = createServer((_req, res) => {
       res.writeHead(504, {
         "content-type": "application/json",
-        "x-paperclip-bridge-outcome": "indeterminate",
+        "x-nexus-bridge-outcome": "indeterminate",
       });
       res.end(responseBody);
     });
@@ -2996,7 +2996,7 @@ describe("sandbox adapter execution targets", () => {
 
     const target: AdapterSandboxExecutionTarget = queueSandboxTarget(remoteCwd);
 
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-bridge-outcome",
       target,
       runtimeRootDir,
@@ -3005,10 +3005,10 @@ describe("sandbox adapter execution targets", () => {
       hostApiUrl: `http://127.0.0.1:${address.port}`,
     });
     try {
-      const response = await fetch(`${bridge!.env.PAPERCLIP_API_URL}/api/issues/issue-1/comments`, {
+      const response = await fetch(`${bridge!.env.NEXUS_API_URL}/api/issues/issue-1/comments`, {
         method: "POST",
         headers: {
-          authorization: `Bearer ${bridge!.env.PAPERCLIP_API_KEY}`,
+          authorization: `Bearer ${bridge!.env.NEXUS_API_KEY}`,
           "content-type": "application/json",
         },
         body: JSON.stringify({ body: "Status update." }),
@@ -3018,7 +3018,7 @@ describe("sandbox adapter execution targets", () => {
       expect(response.status).toBe(409);
       // The outcome header and body still reach the client, so a caller that
       // reads them still sees the indeterminate result.
-      expect(response.headers.get("x-paperclip-bridge-outcome")).toBe("indeterminate");
+      expect(response.headers.get("x-nexus-bridge-outcome")).toBe("indeterminate");
       await expect(response.json()).resolves.toEqual({
         error: "Mutation outcome is indeterminate.",
         outcome: "indeterminate",
@@ -3031,9 +3031,9 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("forwards bridge traffic to the local listen origin even when public API URLs are configured", async () => {
-    const rootDir = await createSandboxRoot("paperclip-execution-target-bridge-local-");
+    const rootDir = await createSandboxRoot("nexus-execution-target-bridge-local-");
     const remoteCwd = path.join(rootDir, "workspace");
-    const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "claude");
+    const runtimeRootDir = path.join(remoteCwd, ".nexus-runtime", "claude");
     await mkdir(runtimeRootDir, { recursive: true });
 
     const requests: Array<{ method: string; url: string; auth: string | null; runId: string | null }> = [];
@@ -3042,7 +3042,7 @@ describe("sandbox adapter execution targets", () => {
         method: req.method ?? "GET",
         url: req.url ?? "/",
         auth: req.headers.authorization ?? null,
-        runId: typeof req.headers["x-paperclip-run-id"] === "string" ? req.headers["x-paperclip-run-id"] : null,
+        runId: typeof req.headers["x-nexus-run-id"] === "string" ? req.headers["x-nexus-run-id"] : null,
       });
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
@@ -3057,18 +3057,18 @@ describe("sandbox adapter execution targets", () => {
     }
 
     // Simulate a deployment where a public base URL is configured: server boot
-    // exports the public origin via PAPERCLIP_RUNTIME_API_URL / PAPERCLIP_API_URL
-    // and the local listen host/port via PAPERCLIP_LISTEN_HOST / PAPERCLIP_LISTEN_PORT.
+    // exports the public origin via NEXUS_RUNTIME_API_URL / NEXUS_API_URL
+    // and the local listen host/port via NEXUS_LISTEN_HOST / NEXUS_LISTEN_PORT.
     // The wildcard listen host must map to the loopback address of the same
     // family (0.0.0.0 -> 127.0.0.1), where the test API server is bound.
-    vi.stubEnv("PAPERCLIP_RUNTIME_API_URL", "https://public.example.invalid");
-    vi.stubEnv("PAPERCLIP_API_URL", "https://public.example.invalid");
-    vi.stubEnv("PAPERCLIP_LISTEN_HOST", "0.0.0.0");
-    vi.stubEnv("PAPERCLIP_LISTEN_PORT", String(address.port));
+    vi.stubEnv("NEXUS_RUNTIME_API_URL", "https://public.example.invalid");
+    vi.stubEnv("NEXUS_API_URL", "https://public.example.invalid");
+    vi.stubEnv("NEXUS_LISTEN_HOST", "0.0.0.0");
+    vi.stubEnv("NEXUS_LISTEN_PORT", String(address.port));
 
     const target: AdapterSandboxExecutionTarget = queueSandboxTarget(remoteCwd);
 
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-bridge-local",
       target,
       runtimeRootDir,
@@ -3077,9 +3077,9 @@ describe("sandbox adapter execution targets", () => {
     });
     try {
       expect(bridge).not.toBeNull();
-      const response = await fetch(`${bridge!.env.PAPERCLIP_API_URL}/api/agents/me`, {
+      const response = await fetch(`${bridge!.env.NEXUS_API_URL}/api/agents/me`, {
         headers: {
-          authorization: `Bearer ${bridge!.env.PAPERCLIP_API_KEY}`,
+          authorization: `Bearer ${bridge!.env.NEXUS_API_KEY}`,
           accept: "application/json",
         },
       });
@@ -3099,9 +3099,9 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("lets an explicit hostApiUrl input override the bridge forward target", async () => {
-    const rootDir = await createSandboxRoot("paperclip-execution-target-bridge-override-");
+    const rootDir = await createSandboxRoot("nexus-execution-target-bridge-override-");
     const remoteCwd = path.join(rootDir, "workspace");
-    const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "claude");
+    const runtimeRootDir = path.join(remoteCwd, ".nexus-runtime", "claude");
     await mkdir(runtimeRootDir, { recursive: true });
 
     const requests: string[] = [];
@@ -3121,14 +3121,14 @@ describe("sandbox adapter execution targets", () => {
 
     // Neither the public URL envs nor the listen host/port should matter when
     // the caller passes an explicit hostApiUrl.
-    vi.stubEnv("PAPERCLIP_RUNTIME_API_URL", "https://public.example.invalid");
-    vi.stubEnv("PAPERCLIP_API_URL", "https://public.example.invalid");
-    vi.stubEnv("PAPERCLIP_LISTEN_HOST", "203.0.113.1");
-    vi.stubEnv("PAPERCLIP_LISTEN_PORT", "9");
+    vi.stubEnv("NEXUS_RUNTIME_API_URL", "https://public.example.invalid");
+    vi.stubEnv("NEXUS_API_URL", "https://public.example.invalid");
+    vi.stubEnv("NEXUS_LISTEN_HOST", "203.0.113.1");
+    vi.stubEnv("NEXUS_LISTEN_PORT", "9");
 
     const target: AdapterSandboxExecutionTarget = queueSandboxTarget(remoteCwd);
 
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-bridge-override",
       target,
       runtimeRootDir,
@@ -3138,9 +3138,9 @@ describe("sandbox adapter execution targets", () => {
     });
     try {
       expect(bridge).not.toBeNull();
-      const response = await fetch(`${bridge!.env.PAPERCLIP_API_URL}/api/agents/me`, {
+      const response = await fetch(`${bridge!.env.NEXUS_API_URL}/api/agents/me`, {
         headers: {
-          authorization: `Bearer ${bridge!.env.PAPERCLIP_API_KEY}`,
+          authorization: `Bearer ${bridge!.env.NEXUS_API_KEY}`,
           accept: "application/json",
         },
       });
@@ -3213,8 +3213,8 @@ describe("sandbox adapter execution targets", () => {
     }): Promise<CommandManagedDuplexChannel> => {
       control.openCount += 1;
       const joined = openInput.command.join(" ");
-      const nonce = /PAPERCLIP_BRIDGE_NONCE='([^']*)'/.exec(joined)?.[1] ?? "";
-      const port = /PAPERCLIP_BRIDGE_PORT='([^']*)'/.exec(joined)?.[1] ?? "";
+      const nonce = /NEXUS_BRIDGE_NONCE='([^']*)'/.exec(joined)?.[1] ?? "";
+      const port = /NEXUS_BRIDGE_PORT='([^']*)'/.exec(joined)?.[1] ?? "";
       let dataListener: ((chunk: Uint8Array) => void) | null = null;
       let exitListener: ((exit: { exitCode: number | null }) => void) | null = null;
       const channel: CommandManagedDuplexChannel = {
@@ -3313,9 +3313,9 @@ describe("sandbox adapter execution targets", () => {
     }): Promise<CommandManagedDuplexChannel> => {
       control.openCount += 1;
       const joined = openInput.command.join(" ");
-      const nonce = /PAPERCLIP_BRIDGE_NONCE='([^']*)'/.exec(joined)?.[1] ?? "";
-      const port = /PAPERCLIP_BRIDGE_PORT='([^']*)'/.exec(joined)?.[1] ?? "";
-      const bridgeToken = /PAPERCLIP_BRIDGE_TOKEN='([^']*)'/.exec(joined)?.[1] ?? "";
+      const nonce = /NEXUS_BRIDGE_NONCE='([^']*)'/.exec(joined)?.[1] ?? "";
+      const port = /NEXUS_BRIDGE_PORT='([^']*)'/.exec(joined)?.[1] ?? "";
+      const bridgeToken = /NEXUS_BRIDGE_TOKEN='([^']*)'/.exec(joined)?.[1] ?? "";
       const [hostSide, sandboxSide] = duplexPair();
       const dataListeners: Array<(chunk: Uint8Array) => void> = [];
       const exitListeners: Array<(exit: { exitCode: number | null }) => void> = [];
@@ -3412,7 +3412,7 @@ describe("sandbox adapter execution targets", () => {
   // Build a minimal multipart/form-data request body with one binary file
   // part, plus the matching `content-type` header value.
   function buildMultipartAttachmentUpload(fileBytes: Buffer): { body: Buffer; contentType: string } {
-    const boundary = "paperclip-test-boundary";
+    const boundary = "nexus-test-boundary";
     const head = Buffer.from(
       `--${boundary}\r\n` +
         `Content-Disposition: form-data; name="file"; filename="upload.bin"\r\n` +
@@ -3461,7 +3461,7 @@ describe("sandbox adapter execution targets", () => {
           method: req.method ?? "GET",
           url: req.url ?? "/",
           auth: req.headers.authorization ?? null,
-          runId: typeof req.headers["x-paperclip-run-id"] === "string" ? req.headers["x-paperclip-run-id"] : null,
+          runId: typeof req.headers["x-nexus-run-id"] === "string" ? req.headers["x-nexus-run-id"] : null,
           headers,
           body: Buffer.concat(chunks),
         });
@@ -3496,7 +3496,7 @@ describe("sandbox adapter execution targets", () => {
     // The channel open itself fails (a provider startup fault, before any
     // READY line or preface is possible). The host must fall back to the
     // file bridge and record the typed open-failure reason, never hang.
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-startup-fail-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-startup-fail-");
     const api = await startRecordingApiServer();
     const base = createLocalSandboxRunner();
     let openCount = 0;
@@ -3514,7 +3514,7 @@ describe("sandbox adapter execution targets", () => {
     try {
       expect(bridge).not.toBeNull();
       expect(openCount).toBe(1);
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       const fallback = counters.find((c) => c.metric === DUPLEX_COUNTER_FALLBACK_TOTAL);
       expect(fallback?.dimensions.fallback_reason).toBe("channel_open_failed");
 
@@ -3522,11 +3522,11 @@ describe("sandbox adapter execution targets", () => {
       // it never admits a binary body, and it never forwards the request to
       // the host.
       const uploadResponse = await fetch(
-        `${bridge!.env.PAPERCLIP_API_URL}/api/companies/co-1/issues/issue-1/attachments`,
+        `${bridge!.env.NEXUS_API_URL}/api/companies/co-1/issues/issue-1/attachments`,
         {
           method: "POST",
           headers: {
-            authorization: `Bearer ${bridge!.env.PAPERCLIP_API_KEY}`,
+            authorization: `Bearer ${bridge!.env.NEXUS_API_KEY}`,
             "content-type": "application/octet-stream",
           },
           body: Buffer.from([0x50, 0x4b, 0x03, 0x04]),
@@ -3541,7 +3541,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("test_daytona_selects_http2_v1", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-select-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-select-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -3566,10 +3566,10 @@ describe("sandbox adapter execution targets", () => {
     try {
       expect(bridge).not.toBeNull();
       expect(control.openCount).toBe(1);
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       // The host builds the origin from the port it assigned, never from a frame.
-      expect(bridge?.env.PAPERCLIP_API_URL).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-      expect(bridge?.env.PAPERCLIP_API_KEY).not.toBe("real-run-jwt");
+      expect(bridge?.env.NEXUS_API_URL).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+      expect(bridge?.env.NEXUS_API_KEY).not.toBe("real-run-jwt");
 
       // The sandbox gateway forwards one agent request as one real HTTP/2
       // stream, over the one session that runs directly on the sandbox
@@ -3599,7 +3599,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("streams run logs on the http2 path under the same gate and log line as the file path", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-runlog-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-runlog-");
     const api = await startRecordingApiServer();
     const { runner } = makeHttp2SelectionRunner();
     const logs: Array<{ stream: "stdout" | "stderr"; chunk: string }> = [];
@@ -3622,7 +3622,7 @@ describe("sandbox adapter execution targets", () => {
     try {
       // The http2 transport served, and it still streams run logs with the same
       // gate and the same log line as the file path.
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       expect(bridge?.runLogTail).toBeTruthy();
       expect(combinedStream(logs, "stdout")).toContain("Sandbox run log streaming enabled");
       const wrapped = bridge!.runLogTail!.create().wrapCommand("agent-cli", ["--message", "hello world"]);
@@ -3635,7 +3635,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("returns no run-log tail on the http2 path when streaming is opted out", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-runlog-off-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-runlog-off-");
     const api = await startRecordingApiServer();
     const { runner } = makeHttp2SelectionRunner();
     const target: AdapterSandboxExecutionTarget = {
@@ -3651,7 +3651,7 @@ describe("sandbox adapter execution targets", () => {
 
     const bridge = await startTestDuplexBridge("run-http2-log-off", target, api.origin);
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       expect(bridge?.runLogTail ?? null).toBeNull();
     } finally {
       await bridge?.stop();
@@ -3660,7 +3660,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("routes http2 channel-open and fallback records to a recorder attached on the server seam", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-recorder-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-recorder-");
     const api = await startRecordingApiServer();
 
     const counters: DuplexObservabilityCounterRecord[] = [];
@@ -3685,10 +3685,10 @@ describe("sandbox adapter execution targets", () => {
       effectiveCapabilities: duplexCapabilities(true),
       duplexObservabilityRecorder: recorder,
     };
-    const openBridge = await startAdapterExecutionTargetPaperclipBridge({
+    const openBridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-http2-open",
       target: openTarget,
-      runtimeRootDir: path.join(remoteCwd, ".paperclip-runtime", "codex"),
+      runtimeRootDir: path.join(remoteCwd, ".nexus-runtime", "codex"),
       adapterKey: "codex",
       hostApiToken: "real-run-jwt",
       hostApiUrl: api.origin,
@@ -3696,7 +3696,7 @@ describe("sandbox adapter execution targets", () => {
       duplexObservabilityRecorder: adapterExecutionTargetDuplexObservabilityRecorder(openTarget),
     });
     try {
-      expect(openBridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(openBridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       const open = counters.find((record) => record.metric === DUPLEX_COUNTER_CHANNEL_OPEN_TOTAL);
       expect(open?.dimensions.transport).toBe("http2");
       expect(open?.dimensions.provider).toBe("daytona");
@@ -3717,10 +3717,10 @@ describe("sandbox adapter execution targets", () => {
       effectiveCapabilities: duplexCapabilities(true),
       duplexObservabilityRecorder: recorder,
     };
-    const fallbackBridge = await startAdapterExecutionTargetPaperclipBridge({
+    const fallbackBridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-duplex-fallback",
       target: fallbackTarget,
-      runtimeRootDir: path.join(remoteCwd, ".paperclip-runtime", "codex"),
+      runtimeRootDir: path.join(remoteCwd, ".nexus-runtime", "codex"),
       adapterKey: "codex",
       hostApiToken: "real-run-jwt",
       hostApiUrl: api.origin,
@@ -3728,7 +3728,7 @@ describe("sandbox adapter execution targets", () => {
       duplexObservabilityRecorder: adapterExecutionTargetDuplexObservabilityRecorder(fallbackTarget),
     });
     try {
-      expect(fallbackBridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(fallbackBridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       const fallback = counters.find((record) => record.metric === DUPLEX_COUNTER_FALLBACK_TOTAL);
       expect(fallback?.dimensions.fallback_reason).toBe("gate_off");
       expect(fallback?.dimensions.transport).toBe("file");
@@ -3742,7 +3742,7 @@ describe("sandbox adapter execution targets", () => {
     { name: "the kill switch is off with the capability granted", enable: false, capability: true },
     { name: "the capability is absent with the kill switch on", enable: true, capability: false },
   ])("selects the file bridge when $name", async ({ enable, capability }) => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-gate-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-gate-");
     const api = await startRecordingApiServer();
     const { runner, control } = makeDuplexSelectionRunner();
     const target: AdapterSandboxExecutionTarget = {
@@ -3755,10 +3755,10 @@ describe("sandbox adapter execution targets", () => {
       effectiveCapabilities: duplexCapabilities(capability),
     };
 
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-gate",
       target,
-      runtimeRootDir: path.join(remoteCwd, ".paperclip-runtime", "codex"),
+      runtimeRootDir: path.join(remoteCwd, ".nexus-runtime", "codex"),
       adapterKey: "codex",
       hostApiToken: "real-run-jwt",
       hostApiUrl: api.origin,
@@ -3768,7 +3768,7 @@ describe("sandbox adapter execution targets", () => {
       expect(bridge).not.toBeNull();
       // Neither gate combination opened a duplex channel; the file bridge serves.
       expect(control.openCount).toBe(0);
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
     } finally {
       await bridge?.stop();
       await api.close();
@@ -3798,7 +3798,7 @@ describe("sandbox adapter execution targets", () => {
       onOpen: () => {},
     },
   ])("fails closed to the file bridge on $name and leaves no live session", async ({ onOpen }) => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-fail-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-fail-");
     const api = await startRecordingApiServer();
     const { runner, control } = makeDuplexSelectionRunner(onOpen);
     const target: AdapterSandboxExecutionTarget = {
@@ -3818,7 +3818,7 @@ describe("sandbox adapter execution targets", () => {
       expect(bridge).not.toBeNull();
       expect(control.openCount).toBe(1);
       // Fail closed: the file bridge serves after the bounded cleanup.
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       // The bounded cleanup left no live provider session.
       expect(control.closeCount + control.stopCount).toBeGreaterThanOrEqual(1);
     } finally {
@@ -3841,7 +3841,7 @@ describe("sandbox adapter execution targets", () => {
   ])(
     "rejects a READY frame that carries $name and never sends the bridge token there",
     async ({ buildReady }) => {
-      const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-addr-");
+      const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-addr-");
 
       // An endpoint an attacker controls. No request that carries the bridge
       // token may reach it, because the host never derives the endpoint from a
@@ -3883,8 +3883,8 @@ describe("sandbox adapter execution targets", () => {
         expect(bridge).not.toBeNull();
         // The address-bearing READY frame failed the strict schema, so the host
         // fell closed to the file bridge and built no channel-supplied endpoint.
-        expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
-        expect(bridge?.env.PAPERCLIP_API_URL).not.toContain(String(attackerPort));
+        expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
+        expect(bridge?.env.NEXUS_API_URL).not.toContain(String(attackerPort));
         expect(control.closeCount + control.stopCount).toBeGreaterThanOrEqual(1);
         // Give any stray forward a moment, then assert the attacker got nothing.
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -3899,7 +3899,7 @@ describe("sandbox adapter execution targets", () => {
   );
 
   it("test_route_allowlist_header_cleanup_and_token_replacement_hold_on_http2", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-403-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-403-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -3912,7 +3912,7 @@ describe("sandbox adapter execution targets", () => {
 
     const bridge = await startTestDuplexBridge("run-http2-403", target, api.origin);
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
 
       // An unlisted route answers 403 over the real HTTP/2 stream and never
@@ -4008,7 +4008,7 @@ describe("sandbox adapter execution targets", () => {
       throw new Error("Expected the echo server to listen on a TCP port.");
     }
 
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-raw-bytes-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-raw-bytes-");
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
     const { runner } = makeHttp2SelectionRunner((ctx) => {
@@ -4020,7 +4020,7 @@ describe("sandbox adapter execution targets", () => {
 
     const bridge = await startTestDuplexBridge("run-raw-bytes", target, `http://127.0.0.1:${echoAddress.port}`);
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
 
       const response = await http2TestRequest(sessionRef.current!, {
@@ -4094,7 +4094,7 @@ describe("sandbox adapter execution targets", () => {
   });
 
   it("records an http2 request span with latency and the fixed dimension keys", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-obs-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-obs-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -4110,7 +4110,7 @@ describe("sandbox adapter execution targets", () => {
       duplexObservabilityRecorder: recorder,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const response = await http2TestRequest(sessionRef.current!, {
         method: "GET",
@@ -4148,7 +4148,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("increments the fallback counter with an approved reason when the capability is absent", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-fb-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-fb-");
     const api = await startRecordingApiServer();
     const { runner } = makeDuplexSelectionRunner();
     const { recorder, counters, events } = createRecordingDuplexRecorder();
@@ -4166,7 +4166,7 @@ describe("sandbox adapter execution targets", () => {
       duplexObservabilityRecorder: recorder,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       const fallback = counters.find((c) => c.metric === DUPLEX_COUNTER_FALLBACK_TOTAL);
       expect(fallback).toBeDefined();
       const approvedReasons = [
@@ -4210,7 +4210,7 @@ describe("sandbox adapter execution targets", () => {
   ])(
     "names the open-failure stage $expectedReason and falls back to the file bridge on $name",
     async ({ error, expectedReason }) => {
-      const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-stage-");
+      const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-stage-");
       const api = await startRecordingApiServer();
       // A runner whose duplex open rejects. The host binds the caught error and
       // names the exact open-failure stage.
@@ -4227,7 +4227,7 @@ describe("sandbox adapter execution targets", () => {
       });
       try {
         // The channel never opened, so the host serves the file bridge.
-        expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+        expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
         // The channel-open span and the fallback counter name the exact stage.
         const openSpan = spans.find(
           (s) => s.name === DUPLEX_SPAN_CHANNEL_OPEN && s.dimensions.outcome === "error",
@@ -4253,7 +4253,7 @@ describe("sandbox adapter execution targets", () => {
     { name: "before any dispatch", dispatchFirst: false, expectedClass: "pre_dispatch" },
     { name: "after a dispatch", dispatchFirst: true, expectedClass: "post_dispatch" },
   ])("increments the loss counter with the loss class $name", async ({ dispatchFirst, expectedClass }) => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-loss-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-loss-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -4271,7 +4271,7 @@ describe("sandbox adapter execution targets", () => {
       duplexObservabilityRecorder: recorder,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       if (dispatchFirst) {
         const response = await http2TestRequest(sessionRef.current!, {
@@ -4300,7 +4300,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("keeps serving the request path when the telemetry recorder throws", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-guard-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-guard-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -4317,7 +4317,7 @@ describe("sandbox adapter execution targets", () => {
     });
     try {
       // The throwing recorder never blocked the http2 selection.
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const response = await http2TestRequest(sessionRef.current!, {
         method: "GET",
@@ -4342,7 +4342,7 @@ describe("sandbox adapter execution targets", () => {
     // error string has no code path into a sink on the http2_v1 transport, so
     // this test proves the property that does need a live run: the route,
     // the query, the body, and both tokens never ride a sink either.
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-redact-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-redact-");
     const api = await startRecordingApiServer();
 
     const ROUTE_SENTINEL = "sentinelroute8f21";
@@ -4363,14 +4363,14 @@ describe("sandbox adapter execution targets", () => {
     const { recorder, spans, counters, events } = createRecordingDuplexRecorder();
     const target: AdapterSandboxExecutionTarget = duplexSandboxTarget(remoteCwd, runner);
 
-    const previousDebug = process.env.PAPERCLIP_BRIDGE_DEBUG;
-    process.env.PAPERCLIP_BRIDGE_DEBUG = "1";
-    let bridge: Awaited<ReturnType<typeof startAdapterExecutionTargetPaperclipBridge>> = null;
+    const previousDebug = process.env.NEXUS_BRIDGE_DEBUG;
+    process.env.NEXUS_BRIDGE_DEBUG = "1";
+    let bridge: Awaited<ReturnType<typeof startAdapterExecutionTargetNexusBridge>> = null;
     try {
-      bridge = await startAdapterExecutionTargetPaperclipBridge({
+      bridge = await startAdapterExecutionTargetNexusBridge({
         runId: "run-redact",
         target,
-        runtimeRootDir: path.join(remoteCwd, ".paperclip-runtime", "codex"),
+        runtimeRootDir: path.join(remoteCwd, ".nexus-runtime", "codex"),
         adapterKey: "codex",
         hostApiToken: AGENT_TOKEN_SENTINEL,
         hostApiUrl: api.origin,
@@ -4380,7 +4380,7 @@ describe("sandbox adapter execution targets", () => {
           logLines.push(chunk);
         },
       });
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
 
       // Dispatch one real HTTP/2 stream that carries the sentinel route,
@@ -4413,8 +4413,8 @@ describe("sandbox adapter execution targets", () => {
       // recording API server saw only the real token, never the bridge token.
       expect(api.requests[0]?.auth).toBe(`Bearer ${AGENT_TOKEN_SENTINEL}`);
     } finally {
-      if (previousDebug === undefined) delete process.env.PAPERCLIP_BRIDGE_DEBUG;
-      else process.env.PAPERCLIP_BRIDGE_DEBUG = previousDebug;
+      if (previousDebug === undefined) delete process.env.NEXUS_BRIDGE_DEBUG;
+      else process.env.NEXUS_BRIDGE_DEBUG = previousDebug;
       sessionRef.current?.close();
       await bridge?.stop();
       await api.close();
@@ -4422,7 +4422,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("maps a sentinel provider key to the constant other across every sink", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-prov-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-prov-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -4447,7 +4447,7 @@ describe("sandbox adapter execution targets", () => {
       duplexObservabilityRecorder: recorder,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const response = await http2TestRequest(sessionRef.current!, {
         method: "GET",
@@ -4482,7 +4482,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("caps the pre-READY readiness buffer and falls back with a contaminated reason", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-cap-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-cap-");
     const api = await startRecordingApiServer();
     // The fake gateway sends a large pre-READY blob with no newline, then one
     // more blob after the gate settles. The gate must cap the buffer, finish with
@@ -4506,7 +4506,7 @@ describe("sandbox adapter execution targets", () => {
       expect(bridge).not.toBeNull();
       expect(control.openCount).toBe(1);
       // The cap drove the failure, so the file bridge serves after the bounded cleanup.
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       const fallback = counters.find((c) => c.metric === DUPLEX_COUNTER_FALLBACK_TOTAL);
       expect(fallback?.dimensions.fallback_reason).toBe("contaminated");
       // The bounded cleanup left no live provider session.
@@ -4518,7 +4518,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("caps the pre-READY buffer under many small newline-less chunks", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-cap-small-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-cap-small-");
     const api = await startRecordingApiServer();
     // An adversarial provider controls the chunk size. It sends many small
     // newline-less chunks that together pass the cap. The gate must scan each
@@ -4546,7 +4546,7 @@ describe("sandbox adapter execution targets", () => {
       expect(bridge).not.toBeNull();
       expect(control.openCount).toBe(1);
       // The cap drove the failure, so the file bridge serves after the bounded cleanup.
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       const fallback = counters.find((c) => c.metric === DUPLEX_COUNTER_FALLBACK_TOTAL);
       expect(fallback?.dimensions.fallback_reason).toBe("contaminated");
       expect(control.closeCount + control.stopCount).toBeGreaterThanOrEqual(1);
@@ -4557,7 +4557,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("bounds the pre-READY newline-scan work by the bytes received", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-scan-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-scan-");
     const api = await startRecordingApiServer();
     // An adversarial provider sends many small newline-less chunks before the
     // cap fires. Each chunk must scan only the new bytes, not the whole buffer,
@@ -4598,7 +4598,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("bounds the pre-READY skip scan work by the bytes received", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-blank-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-blank-");
     const api = await startRecordingApiServer();
     // An adversarial provider sends one pre-READY chunk of many blank lines and a
     // noise line, then a valid READY frame. The gate must skip each blank line and
@@ -4632,7 +4632,7 @@ describe("sandbox adapter execution targets", () => {
       expect(scanUnits).toBeLessThanOrEqual(4 * totalBytes);
       // The gate skipped the noise and accepted the READY frame, so the http2
       // transport serves and no fallback fired.
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       const fallback = counters.find((c) => c.metric === DUPLEX_COUNTER_FALLBACK_TOTAL);
       expect(fallback).toBeUndefined();
     } finally {
@@ -4642,7 +4642,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("test_a_prologue_of_any_length_before_the_ready_line_is_discarded", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-noise-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-noise-");
     const api = await startRecordingApiServer();
     // A PTY channel echoes the launch wrapper line before it sets raw mode, so the
     // first line the host reads is a non-frame echo, not the READY frame. The gate
@@ -4651,7 +4651,7 @@ describe("sandbox adapter execution targets", () => {
     // in the code. The preface scan then starts only on the bytes the gate
     // retained after that accepted line.
     const { runner, control } = makeHttp2SelectionRunner((ctx) => {
-      ctx.emitRaw("sh -c exec env PAPERCLIP_BRIDGE_NONCE=... node gateway.mjs\n");
+      ctx.emitRaw("sh -c exec env NEXUS_BRIDGE_NONCE=... node gateway.mjs\n");
       ctx.emitRaw('{"version":2,"type":"ready"}\n');
       ctx.emitRaw("x".repeat(50_000)); // an arbitrarily long prologue, no fixed length
       ctx.emitReady();
@@ -4670,7 +4670,7 @@ describe("sandbox adapter execution targets", () => {
       // The gate skipped the echo, the partial frame, and the long prologue,
       // then accepted the READY frame, so the http2 transport serves and no
       // fallback fired.
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       const fallback = counters.find((c) => c.metric === DUPLEX_COUNTER_FALLBACK_TOTAL);
       expect(fallback).toBeUndefined();
     } finally {
@@ -4680,7 +4680,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("settles a wrong-nonce READY frame as a nonce mismatch, even after a noise line", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-noise-nonce-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-noise-nonce-");
     const api = await startRecordingApiServer();
     // The gate skips the echo line, then reads a READY frame that decodes cleanly
     // but carries a wrong nonce. A wrong-nonce READY authenticates as a failure,
@@ -4701,7 +4701,7 @@ describe("sandbox adapter execution targets", () => {
       expect(bridge).not.toBeNull();
       expect(control.openCount).toBe(1);
       // The wrong nonce failed the handshake, so the file bridge serves.
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       const fallback = counters.find((c) => c.metric === DUPLEX_COUNTER_FALLBACK_TOTAL);
       expect(fallback?.dimensions.fallback_reason).toBe("ready_nonce_mismatch");
       // The bounded cleanup left no live provider session.
@@ -4713,7 +4713,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("enforces the buffer cap on an over-cap blank prefix before it accepts a valid READY frame", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-capbypass-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-capbypass-");
     const api = await startRecordingApiServer();
     // The cap must bound every pre-READY path, including a skipped blank line. An
     // adversarial provider sends one chunk: an over-cap blank prefix followed by a
@@ -4741,7 +4741,7 @@ describe("sandbox adapter execution targets", () => {
       expect(bridge).not.toBeNull();
       expect(control.openCount).toBe(1);
       // The cap drove the failure before READY acceptance, so the file bridge serves.
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       const fallback = counters.find((c) => c.metric === DUPLEX_COUNTER_FALLBACK_TOTAL);
       expect(fallback?.dimensions.fallback_reason).toBe("contaminated");
       // The bounded cleanup left no live provider session.
@@ -4753,7 +4753,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("records the channel-open span with the fallback_reason dimension on the fallback path", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-duplex-openspan-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-duplex-openspan-");
     const api = await startRecordingApiServer();
     // A wrong-nonce READY frame fails the handshake, so the gate falls back. The
     // channel-open span records the failed attempt on the duplex transport and now
@@ -4770,7 +4770,7 @@ describe("sandbox adapter execution targets", () => {
       duplexObservabilityRecorder: recorder,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       const openSpan = spans.find((span) => span.name === DUPLEX_SPAN_CHANNEL_OPEN);
       expect(openSpan).toBeDefined();
       expect(openSpan?.dimensions).toMatchObject({
@@ -4788,7 +4788,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("drops a header outside the allowlist on the host http2 forward path", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-hdr-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-hdr-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -4801,7 +4801,7 @@ describe("sandbox adapter execution targets", () => {
 
     const bridge = await startTestDuplexBridge("run-hdr", target, api.origin);
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const response = await http2TestRequest(sessionRef.current!, {
         method: "GET",
@@ -4832,7 +4832,7 @@ describe("sandbox adapter execution targets", () => {
   }, 20000);
 
   it("selects the http2 transport for a large forward budget", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-budget-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-budget-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -4851,7 +4851,7 @@ describe("sandbox adapter execution targets", () => {
       forwardTimeoutMs: 60_000,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const response = await http2TestRequest(sessionRef.current!, {
         method: "GET",
@@ -4868,17 +4868,17 @@ describe("sandbox adapter execution targets", () => {
 
 
   it("test_disabled_flag_selects_queue_v1", async () => {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-disabled-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-disabled-");
     const api = await startRecordingApiServer();
     const { runner, control } = makeHttp2SelectionRunner();
     const { recorder, counters } = createRecordingDuplexRecorder();
     const target: AdapterSandboxExecutionTarget = duplexSandboxTarget(remoteCwd, runner);
 
     // The kill switch is off. The host must never open the channel at all.
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-disabled",
       target,
-      runtimeRootDir: path.join(remoteCwd, ".paperclip-runtime", "codex"),
+      runtimeRootDir: path.join(remoteCwd, ".nexus-runtime", "codex"),
       adapterKey: "codex",
       hostApiToken: "real-run-jwt",
       hostApiUrl: api.origin,
@@ -4888,7 +4888,7 @@ describe("sandbox adapter execution targets", () => {
     try {
       expect(bridge).not.toBeNull();
       expect(control.openCount).toBe(0);
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       const fallback = counters.find((c) => c.metric === DUPLEX_COUNTER_FALLBACK_TOTAL);
       expect(fallback?.dimensions.fallback_reason).toBe("gate_off");
     } finally {
@@ -4901,7 +4901,7 @@ describe("sandbox adapter execution targets", () => {
     // The open attempt runs once per run, with no retry loop: a preface
     // failure falls through to the file bridge exactly one time, and the
     // host never re-attempts http2_v1 afterward in the same run.
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-one-way-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-one-way-");
     const api = await startRecordingApiServer();
     const { runner, control } = makeHttp2SelectionRunner((ctx) => {
       ctx.emitReady();
@@ -4919,7 +4919,7 @@ describe("sandbox adapter execution targets", () => {
       // The host opened the channel exactly once for the whole run — no retry
       // loop re-attempted http2_v1 after the fallback.
       expect(control.openCount).toBe(1);
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       // Exactly one fallback record — the transition never repeats.
       const fallbacks = counters.filter((c) => c.metric === DUPLEX_COUNTER_FALLBACK_TOTAL);
       expect(fallbacks).toHaveLength(1);
@@ -4939,7 +4939,7 @@ describe("sandbox adapter execution targets", () => {
     // READY: it holds the channel open, with no client preface arriving
     // (so the http2 server, if bound, would try to write its own SETTINGS
     // frame), and asserts zero bytes crossed the channel the whole time.
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-no-early-write-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-no-early-write-");
     const api = await startRecordingApiServer();
     const base = createLocalSandboxRunner();
     const hostWrites: Buffer[] = [];
@@ -4949,7 +4949,7 @@ describe("sandbox adapter execution targets", () => {
       command: readonly string[];
     }): Promise<CommandManagedDuplexChannel> => {
       const joined = openInput.command.join(" ");
-      const nonce = /PAPERCLIP_BRIDGE_NONCE='([^']*)'/.exec(joined)?.[1] ?? "";
+      const nonce = /NEXUS_BRIDGE_NONCE='([^']*)'/.exec(joined)?.[1] ?? "";
       let dataListener: ((chunk: Uint8Array) => void) | null = null;
       const channel: CommandManagedDuplexChannel = {
         write: (data: Uint8Array) => {
@@ -4987,7 +4987,7 @@ describe("sandbox adapter execution targets", () => {
       // The preface never arrived, so the open fell back to the file bridge —
       // and across the whole open attempt, including the wait after READY,
       // the host wrote zero bytes to the channel.
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
       expect(hostWrites).toHaveLength(0);
     } finally {
       await bridge?.stop();
@@ -5001,7 +5001,7 @@ describe("sandbox adapter execution targets", () => {
     // bytes are deliberately sentinel-marked and syntactically invalid (not
     // valid UTF-8 JSON), then a valid READY frame. No log line — on any
     // stream — may contain the sentinel bytes.
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-invalid-ready-bytes-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-invalid-ready-bytes-");
     const api = await startRecordingApiServer();
     const INVALID_LINE_SENTINEL = "sentinelinvalidreadyline62fa";
     const logLines: string[] = [];
@@ -5021,7 +5021,7 @@ describe("sandbox adapter execution targets", () => {
     });
     try {
       // The invalid line was skipped as noise, and READY still passed.
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       const logDump = logLines.join("");
       expect(logDump).not.toContain(INVALID_LINE_SENTINEL);
     } finally {
@@ -5034,7 +5034,7 @@ describe("sandbox adapter execution targets", () => {
     // A loss ordered after a host-observed orderly completion is a normal
     // teardown, not a failure: the run already completed. The disposition
     // latch must keep the success and emit no loss event for it.
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-orderly-close-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-orderly-close-");
     const api = await startRecordingApiServer();
     let emitExit: (() => void) | null = null;
     const { runner } = makeHttp2SelectionRunner((ctx) => {
@@ -5049,7 +5049,7 @@ describe("sandbox adapter execution targets", () => {
       duplexObservabilityRecorder: recorder,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       // The agent turn completes cleanly before the channel ends.
       expect(bridge?.settleRunDisposition?.()).toEqual({ failed: false, lossReason: null });
       emitExit!();
@@ -5071,7 +5071,7 @@ describe("sandbox adapter execution targets", () => {
     // retryable: the host answers 502 with no indeterminate marker, the same
     // rule `forwardBridgeRequest` already applies on every transport. This
     // proves the http2_v1 forward handler reuses that one function unchanged.
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-safe-retry-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-safe-retry-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -5088,7 +5088,7 @@ describe("sandbox adapter execution targets", () => {
       maxBodyBytes: 1,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const response = await http2TestRequest(sessionRef.current!, {
         method: "GET",
@@ -5096,7 +5096,7 @@ describe("sandbox adapter execution targets", () => {
         headers: { authorization: `Bearer ${bridgeToken}` },
       });
       expect(response.status).toBe(502);
-      expect(response.headers["x-paperclip-bridge-outcome"]).toBeUndefined();
+      expect(response.headers["x-nexus-bridge-outcome"]).toBeUndefined();
     } finally {
       sessionRef.current?.close();
       await bridge?.stop();
@@ -5114,7 +5114,7 @@ describe("sandbox adapter execution targets", () => {
     // host and the gateway share one resolved ceiling: this request carries
     // no body, so only the mock host's own response — comfortably over one
     // byte — trips the size check this test exists to force.
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-unsafe-indeterminate-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-unsafe-indeterminate-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -5129,7 +5129,7 @@ describe("sandbox adapter execution targets", () => {
       maxBodyBytes: 1,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const response = await http2TestRequest(sessionRef.current!, {
         method: "POST",
@@ -5137,7 +5137,7 @@ describe("sandbox adapter execution targets", () => {
         headers: { authorization: `Bearer ${bridgeToken}`, "content-type": "application/json" },
       });
       expect(response.status).toBe(504);
-      expect(response.headers["x-paperclip-bridge-outcome"]).toBe("indeterminate");
+      expect(response.headers["x-nexus-bridge-outcome"]).toBe("indeterminate");
     } finally {
       sessionRef.current?.close();
       await bridge?.stop();
@@ -5172,7 +5172,7 @@ describe("sandbox adapter execution targets", () => {
     }
     const apiOrigin = `http://127.0.0.1:${apiAddress.port}`;
 
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-abort-forward-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-abort-forward-");
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
     const { runner } = makeHttp2SelectionRunner((ctx) => {
@@ -5188,7 +5188,7 @@ describe("sandbox adapter execution targets", () => {
       forwardTimeoutMs: 60_000,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const clientStream = sessionRef.current!.request({
         ":method": "GET",
@@ -5239,7 +5239,7 @@ describe("sandbox adapter execution targets", () => {
     }
     const apiOrigin = `http://127.0.0.1:${apiAddress.port}`;
 
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-denied-response-chunk-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-denied-response-chunk-");
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
     const { runner } = makeHttp2SelectionRunner((ctx) => {
@@ -5251,7 +5251,7 @@ describe("sandbox adapter execution targets", () => {
 
     const bridge = await startTestDuplexBridge("run-denied-response-chunk", target, apiOrigin);
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       // A capacity denial reaches the client as the retryable 503 the
       // HTTP/2 bridge server's own capacity-denial path answers
@@ -5308,7 +5308,7 @@ describe("sandbox adapter execution targets", () => {
     }
     const apiOrigin = `http://127.0.0.1:${apiAddress.port}`;
 
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-denied-response-concat-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-denied-response-concat-");
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
     const { runner } = makeHttp2SelectionRunner((ctx) => {
@@ -5322,7 +5322,7 @@ describe("sandbox adapter execution targets", () => {
     const concatSpy = vi.spyOn(Buffer, "concat");
     const readerCancelSpy = vi.spyOn(ReadableStreamDefaultReader.prototype, "cancel");
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       // A capacity denial must reach the client as the retryable 503 the
       // HTTP/2 bridge server's own capacity-denial path answers, not the
@@ -5404,7 +5404,7 @@ describe("sandbox adapter execution targets", () => {
     }
     const apiOrigin = `http://127.0.0.1:${apiAddress.port}`;
 
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-denied-response-mutation-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-denied-response-mutation-");
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
     const { runner } = makeHttp2SelectionRunner((ctx) => {
@@ -5416,7 +5416,7 @@ describe("sandbox adapter execution targets", () => {
 
     const bridge = await startTestDuplexBridge("run-denied-response-mutation", target, apiOrigin);
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const response = await http2TestRequest(sessionRef.current!, {
         method: "POST",
@@ -5424,7 +5424,7 @@ describe("sandbox adapter execution targets", () => {
         headers: { authorization: `Bearer ${bridgeToken}`, "content-type": "application/json" },
       });
       expect(response.status).toBe(504);
-      expect(response.headers["x-paperclip-bridge-outcome"]).toBe("indeterminate");
+      expect(response.headers["x-nexus-bridge-outcome"]).toBe("indeterminate");
       expect(JSON.parse(response.body.toString("utf8"))).toMatchObject({
         outcome: "indeterminate",
         retryable: false,
@@ -5465,7 +5465,7 @@ describe("sandbox adapter execution targets", () => {
     }
     const apiOrigin = `http://127.0.0.1:${apiAddress.port}`;
 
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-ceiling-aggregate-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-ceiling-aggregate-");
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
     const { runner } = makeHttp2SelectionRunner((ctx) => {
@@ -5476,7 +5476,7 @@ describe("sandbox adapter execution targets", () => {
     const target: AdapterSandboxExecutionTarget = duplexSandboxTarget(remoteCwd, runner);
     const bridge = await startTestDuplexBridge("run-ceiling-aggregate", target, apiOrigin);
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
 
       const responses = await Promise.all(
@@ -5520,7 +5520,7 @@ describe("sandbox adapter execution targets", () => {
       ctx.emitReady();
       sessionRef.current = ctx.connectHttp2();
     });
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-host-body-limit-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-host-body-limit-");
     const target: AdapterSandboxExecutionTarget = duplexSandboxTarget(remoteCwd, runner);
 
     const bridge = await startTestDuplexBridge("run-host-body-limit", target, api.origin, {
@@ -5532,7 +5532,7 @@ describe("sandbox adapter execution targets", () => {
       maxBodyBytes: 100,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const response = await http2TestRequest(sessionRef.current!, {
         method: "POST",
@@ -5561,9 +5561,9 @@ describe("sandbox adapter execution targets", () => {
     // with no `reservation` option at all. `readBridgeForwardResponseBody`
     // must behave exactly as it did before that option existed: it still
     // forwards the request and still returns the host's body.
-    const rootDir = await createSandboxRoot("paperclip-queue-no-reservation-");
+    const rootDir = await createSandboxRoot("nexus-queue-no-reservation-");
     const remoteCwd = path.join(rootDir, "workspace");
-    const runtimeRootDir = path.join(remoteCwd, ".paperclip-runtime", "codex");
+    const runtimeRootDir = path.join(remoteCwd, ".nexus-runtime", "codex");
     await mkdir(runtimeRootDir, { recursive: true });
 
     const apiServer = createServer((req, res) => {
@@ -5581,7 +5581,7 @@ describe("sandbox adapter execution targets", () => {
 
     const target: AdapterSandboxExecutionTarget = queueSandboxTarget(remoteCwd);
 
-    const bridge = await startAdapterExecutionTargetPaperclipBridge({
+    const bridge = await startAdapterExecutionTargetNexusBridge({
       runId: "run-queue-no-reservation",
       target,
       runtimeRootDir,
@@ -5590,11 +5590,11 @@ describe("sandbox adapter execution targets", () => {
       hostApiUrl: `http://127.0.0.1:${address.port}`,
     });
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
-      const response = await fetch(`${bridge!.env.PAPERCLIP_API_URL}/api/issues/abc/comments`, {
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
+      const response = await fetch(`${bridge!.env.NEXUS_API_URL}/api/issues/abc/comments`, {
         method: "POST",
         headers: {
-          authorization: `Bearer ${bridge!.env.PAPERCLIP_API_KEY}`,
+          authorization: `Bearer ${bridge!.env.NEXUS_API_KEY}`,
           "content-type": "application/json",
         },
         body: JSON.stringify({ body: "hello" }),
@@ -5618,7 +5618,7 @@ describe("sandbox adapter execution targets", () => {
   // ---------------------------------------------------------------------------
 
   async function runReadinessReplay(emit: (ctx: Http2OpenContext) => void) {
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-pty-replay-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-pty-replay-");
     const api = await startRecordingApiServer();
     const { runner, control } = makeHttp2SelectionRunner(emit);
     const target: AdapterSandboxExecutionTarget = {
@@ -5635,7 +5635,7 @@ describe("sandbox adapter execution targets", () => {
     const bridge = await startTestDuplexBridge("run-pty-replay", target, api.origin, {
       duplexReadinessTimeoutMs: 2_000,
     });
-    const mode = bridge?.env.PAPERCLIP_API_BRIDGE_MODE;
+    const mode = bridge?.env.NEXUS_API_BRIDGE_MODE;
     await bridge?.stop();
     await api.close();
     return { mode, control };
@@ -5647,8 +5647,8 @@ describe("sandbox adapter execution targets", () => {
   it("PTY replay: accepts READY after an echoed prompt and wrapper line", async () => {
     const { mode } = await runReadinessReplay((ctx) => {
       ctx.emitRaw(
-        "daytona@212487a7f3c9:~$ exec 2>'/tmp/paperclip-duplex-x.log'; stty raw -echo; " +
-          "exec 'bash' '-c' 'exec env PAPERCLIP_BRIDGE_NONCE=" + ctx.nonce + " node gateway.mjs'\r\n",
+        "daytona@212487a7f3c9:~$ exec 2>'/tmp/nexus-duplex-x.log'; stty raw -echo; " +
+          "exec 'bash' '-c' 'exec env NEXUS_BRIDGE_NONCE=" + ctx.nonce + " node gateway.mjs'\r\n",
       );
       ctx.emitRaw('{"version":2,"type":"ready","nonce":"' + ctx.nonce + '"}\n');
       ctx.connectHttp2();
@@ -5745,7 +5745,7 @@ describe("sandbox adapter execution targets", () => {
     // HTTP/2 server. A pre-preface byte would make the server report a
     // `PROTOCOL_ERROR`; this test proves the real session opens cleanly
     // instead, which only holds when the offset is exact.
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-preface-offset-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-preface-offset-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -5759,7 +5759,7 @@ describe("sandbox adapter execution targets", () => {
     const target: AdapterSandboxExecutionTarget = duplexSandboxTarget(remoteCwd, runner);
     const bridge = await startTestDuplexBridge("run-preface-offset", target, api.origin);
     try {
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const response = await http2TestRequest(sessionRef.current!, {
         method: "GET",
@@ -5781,7 +5781,7 @@ describe("sandbox adapter execution targets", () => {
     // the shell. This test embeds the exact preface bytes in the pre-READY
     // noise, then proves a session still starts only at the REAL preface
     // that follows READY.
-    const { rootDir, remoteCwd } = await createSandboxWorkspace("paperclip-http2-preface-lookalike-");
+    const { rootDir, remoteCwd } = await createSandboxWorkspace("nexus-http2-preface-lookalike-");
     const api = await startRecordingApiServer();
     const sessionRef: { current: http2.ClientHttp2Session | null } = { current: null };
     let bridgeToken = "";
@@ -5797,7 +5797,7 @@ describe("sandbox adapter execution targets", () => {
     try {
       expect(bridge).not.toBeNull();
       expect(control.openCount).toBe(1);
-      expect(bridge?.env.PAPERCLIP_API_BRIDGE_MODE).toBe("http2_v1");
+      expect(bridge?.env.NEXUS_API_BRIDGE_MODE).toBe("http2_v1");
       await waitForCondition(() => sessionRef.current !== null, "the http2 client session to open", 4000);
       const response = await http2TestRequest(sessionRef.current!, {
         method: "GET",

@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { RunProcessResult } from "@paperclipai/adapter-utils/server-utils";
+import type { RunProcessResult } from "@nexusai/adapter-utils/server-utils";
 
 const {
   runChildProcess,
@@ -11,7 +11,7 @@ const {
   prepareWorkspaceForSshExecution,
   restoreWorkspaceFromSshExecution,
   syncDirectoryToSsh,
-  startAdapterExecutionTargetPaperclipBridge,
+  startAdapterExecutionTargetNexusBridge,
 } = vi.hoisted(() => ({
   runChildProcess: vi.fn(async (_runId: string, _command: string, args: string[]): Promise<RunProcessResult> => ({
     exitCode: 0,
@@ -33,19 +33,19 @@ const {
   prepareWorkspaceForSshExecution: vi.fn(async () => ({ gitBacked: false })),
   restoreWorkspaceFromSshExecution: vi.fn(async () => undefined),
   syncDirectoryToSsh: vi.fn(async () => undefined),
-  startAdapterExecutionTargetPaperclipBridge: vi.fn(async () => ({
+  startAdapterExecutionTargetNexusBridge: vi.fn(async () => ({
     env: {
-      PAPERCLIP_API_URL: "http://127.0.0.1:4310",
-      PAPERCLIP_API_KEY: "bridge-token",
-      PAPERCLIP_API_BRIDGE_MODE: "queue_v1",
+      NEXUS_API_URL: "http://127.0.0.1:4310",
+      NEXUS_API_KEY: "bridge-token",
+      NEXUS_API_BRIDGE_MODE: "queue_v1",
     },
     stop: async () => {},
   })),
 }));
 
-vi.mock("@paperclipai/adapter-utils/server-utils", async () => {
-  const actual = await vi.importActual<typeof import("@paperclipai/adapter-utils/server-utils")>(
-    "@paperclipai/adapter-utils/server-utils",
+vi.mock("@nexusai/adapter-utils/server-utils", async () => {
+  const actual = await vi.importActual<typeof import("@nexusai/adapter-utils/server-utils")>(
+    "@nexusai/adapter-utils/server-utils",
   );
   return {
     ...actual,
@@ -55,9 +55,9 @@ vi.mock("@paperclipai/adapter-utils/server-utils", async () => {
   };
 });
 
-vi.mock("@paperclipai/adapter-utils/ssh", async () => {
-  const actual = await vi.importActual<typeof import("@paperclipai/adapter-utils/ssh")>(
-    "@paperclipai/adapter-utils/ssh",
+vi.mock("@nexusai/adapter-utils/ssh", async () => {
+  const actual = await vi.importActual<typeof import("@nexusai/adapter-utils/ssh")>(
+    "@nexusai/adapter-utils/ssh",
   );
   return {
     ...actual,
@@ -67,17 +67,17 @@ vi.mock("@paperclipai/adapter-utils/ssh", async () => {
   };
 });
 
-vi.mock("@paperclipai/adapter-utils/execution-target", async () => {
-  const actual = await vi.importActual<typeof import("@paperclipai/adapter-utils/execution-target")>(
-    "@paperclipai/adapter-utils/execution-target",
+vi.mock("@nexusai/adapter-utils/execution-target", async () => {
+  const actual = await vi.importActual<typeof import("@nexusai/adapter-utils/execution-target")>(
+    "@nexusai/adapter-utils/execution-target",
   );
   return {
     ...actual,
-    startAdapterExecutionTargetPaperclipBridge,
+    startAdapterExecutionTargetNexusBridge,
   };
 });
 
-import { createPromptContextFixture } from "@paperclipai/adapter-utils/test-fixtures/prompt-context";
+import { createPromptContextFixture } from "@nexusai/adapter-utils/test-fixtures/prompt-context";
 import { execute } from "./execute.js";
 import { resetClaudeCliCapabilitiesCacheForTests } from "./cli-capabilities.js";
 
@@ -98,12 +98,12 @@ describe("claude remote execution", () => {
   it("prepares the workspace, syncs Claude runtime assets, and restores workspace changes for remote SSH execution", async () => {
     vi.stubEnv("CLAUDE_CODE_USE_BEDROCK", "1");
     vi.stubEnv("ANTHROPIC_MODEL", "host-only-model");
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-claude-remote-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-claude-remote-"));
     cleanupDirs.push(rootDir);
     const workspaceDir = path.join(rootDir, "workspace");
     const alternateWorkspaceDir = path.join(rootDir, "workspace-other");
     const instructionsPath = path.join(rootDir, "instructions.md");
-    const managedRemoteWorkspace = "/remote/workspace/.paperclip-runtime/runs/run-1/workspace";
+    const managedRemoteWorkspace = "/remote/workspace/.nexus-runtime/runs/run-1/workspace";
     await mkdir(workspaceDir, { recursive: true });
     await mkdir(alternateWorkspaceDir, { recursive: true });
     await writeFile(instructionsPath, "Use the remote workspace.\n", "utf8");
@@ -134,7 +134,7 @@ describe("claude remote execution", () => {
         },
       },
       context: {
-        paperclipWorkspace: {
+        nexusWorkspace: {
           cwd: workspaceDir,
           source: "project_primary",
           strategy: "git_worktree",
@@ -144,7 +144,7 @@ describe("claude remote execution", () => {
           branchName: "feature/remote-claude",
           worktreePath: workspaceDir,
         },
-        paperclipWorkspaces: [
+        nexusWorkspaces: [
           {
             workspaceId: "workspace-1",
             cwd: workspaceDir,
@@ -182,11 +182,11 @@ describe("claude remote execution", () => {
     // One sync per registered runtime asset: skills and mcp-config.
     expect(syncDirectoryToSsh).toHaveBeenCalledTimes(2);
     expect(syncDirectoryToSsh).toHaveBeenCalledWith(expect.objectContaining({
-      remoteDir: `${managedRemoteWorkspace}/.paperclip-runtime/claude/skills`,
+      remoteDir: `${managedRemoteWorkspace}/.nexus-runtime/claude/skills`,
       followSymlinks: true,
     }));
     expect(syncDirectoryToSsh).toHaveBeenCalledWith(expect.objectContaining({
-      remoteDir: `${managedRemoteWorkspace}/.paperclip-runtime/claude/mcp-config`,
+      remoteDir: `${managedRemoteWorkspace}/.nexus-runtime/claude/mcp-config`,
       followSymlinks: true,
     }));
     expect(runChildProcess.mock.calls.filter(call => !call[2].includes("--version"))).toHaveLength(1);
@@ -198,13 +198,13 @@ describe("claude remote execution", () => {
     expect(call?.[2]).not.toContain("--allowedTools");
     expect(call?.[2]).toContain("--append-system-prompt-file");
     expect(call?.[2]).toContain(
-      `${managedRemoteWorkspace}/.paperclip-runtime/claude/skills/agent-instructions.md`,
+      `${managedRemoteWorkspace}/.nexus-runtime/claude/skills/agent-instructions.md`,
     );
     expect(call?.[2]).toContain("--add-dir");
-    expect(call?.[2]).toContain(`${managedRemoteWorkspace}/.paperclip-runtime/claude/skills`);
-    expect(call?.[3].env.PAPERCLIP_WORKSPACE_CWD).toBe(managedRemoteWorkspace);
-    expect(call?.[3].env.PAPERCLIP_WORKSPACE_WORKTREE_PATH).toBeUndefined();
-    expect(JSON.parse(call?.[3].env.PAPERCLIP_WORKSPACES_JSON ?? "[]")).toEqual([
+    expect(call?.[2]).toContain(`${managedRemoteWorkspace}/.nexus-runtime/claude/skills`);
+    expect(call?.[3].env.NEXUS_WORKSPACE_CWD).toBe(managedRemoteWorkspace);
+    expect(call?.[3].env.NEXUS_WORKSPACE_WORKTREE_PATH).toBeUndefined();
+    expect(JSON.parse(call?.[3].env.NEXUS_WORKSPACES_JSON ?? "[]")).toEqual([
       {
         workspaceId: "workspace-1",
         cwd: managedRemoteWorkspace,
@@ -217,13 +217,13 @@ describe("claude remote execution", () => {
         repoRef: "feature/other",
       },
     ]);
-    expect(call?.[3].env.PAPERCLIP_API_URL).toBe("http://127.0.0.1:4310");
-    expect(call?.[3].env.PAPERCLIP_API_BRIDGE_MODE).toBe("queue_v1");
+    expect(call?.[3].env.NEXUS_API_URL).toBe("http://127.0.0.1:4310");
+    expect(call?.[3].env.NEXUS_API_BRIDGE_MODE).toBe("queue_v1");
     expect(call?.[3].env.QA_PROJECT_WORKSPACE_CWD).toBe(managedRemoteWorkspace);
     expect(call?.[3].env.RANDOM_WORKSPACE_CWD).toBe(managedRemoteWorkspace);
     expect(call?.[3].env.OTHER_ENV).toBe(workspaceDir);
     expect(call?.[3].remoteExecution?.remoteCwd).toBe(managedRemoteWorkspace);
-    expect(startAdapterExecutionTargetPaperclipBridge).toHaveBeenCalledTimes(1);
+    expect(startAdapterExecutionTargetNexusBridge).toHaveBeenCalledTimes(1);
     expect(restoreWorkspaceFromSshExecution).toHaveBeenCalledTimes(1);
     expect(restoreWorkspaceFromSshExecution).toHaveBeenCalledWith(expect.objectContaining({
       localDir: workspaceDir,
@@ -232,7 +232,7 @@ describe("claude remote execution", () => {
   });
 
   it("does not resume saved Claude sessions for remote SSH execution without a matching remote identity", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-claude-remote-resume-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-claude-remote-resume-"));
     cleanupDirs.push(rootDir);
     const workspaceDir = path.join(rootDir, "workspace");
     await mkdir(workspaceDir, { recursive: true });
@@ -260,7 +260,7 @@ describe("claude remote execution", () => {
         command: "claude",
       },
       context: {
-        paperclipWorkspace: {
+        nexusWorkspace: {
           cwd: workspaceDir,
           source: "project_primary",
         },
@@ -286,9 +286,9 @@ describe("claude remote execution", () => {
   });
 
   it("explains a remote-to-local session reset even when the cwd matches", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-claude-local-reset-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-claude-local-reset-"));
     cleanupDirs.push(rootDir);
-    vi.stubEnv("PAPERCLIP_HOME", rootDir);
+    vi.stubEnv("NEXUS_HOME", rootDir);
     const onLog = vi.fn(async () => {});
 
     await execute({
@@ -303,7 +303,7 @@ describe("claude remote execution", () => {
         sessionDisplayId: null,
         taskKey: null,
       },
-      config: { model: "claude-opus-5", engine: "cli", command: "claude", cwd: rootDir, paperclipRuntimeSkills: [] },
+      config: { model: "claude-opus-5", engine: "cli", command: "claude", cwd: rootDir, nexusRuntimeSkills: [] },
       context: {},
       onLog,
     });
@@ -314,10 +314,10 @@ describe("claude remote execution", () => {
   });
 
   it("resumes saved Claude sessions for remote SSH execution when the remote identity matches", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-claude-remote-resume-match-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-claude-remote-resume-match-"));
     cleanupDirs.push(rootDir);
     const workspaceDir = path.join(rootDir, "workspace");
-    const managedRemoteWorkspace = "/remote/workspace/.paperclip-runtime/runs/run-ssh-resume/workspace";
+    const managedRemoteWorkspace = "/remote/workspace/.nexus-runtime/runs/run-ssh-resume/workspace";
     await mkdir(workspaceDir, { recursive: true });
 
     await execute({
@@ -350,7 +350,7 @@ describe("claude remote execution", () => {
         command: "claude",
       },
       context: {
-        paperclipWorkspace: {
+        nexusWorkspace: {
           cwd: workspaceDir,
           source: "project_primary",
         },
@@ -377,7 +377,7 @@ describe("claude remote execution", () => {
   });
 
   it("forwards the duplex_channel_lost transport code on the unparsed Claude result path", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-claude-remote-duplex-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-claude-remote-duplex-"));
     cleanupDirs.push(rootDir);
     const workspaceDir = path.join(rootDir, "workspace");
     await mkdir(workspaceDir, { recursive: true });
@@ -392,7 +392,7 @@ describe("claude remote execution", () => {
       timedOut: false,
       stdout: "not a Claude JSON result\n",
       stderr:
-        "[paperclip] The sandbox duplex control channel was lost (provider_exit) before the run completed.\n",
+        "[nexus] The sandbox duplex control channel was lost (provider_exit) before the run completed.\n",
       pid: 123,
       startedAt: new Date().toISOString(),
       errorCode: "duplex_channel_lost",
@@ -418,7 +418,7 @@ describe("claude remote execution", () => {
         command: "claude",
       },
       context: {
-        paperclipWorkspace: {
+        nexusWorkspace: {
           cwd: workspaceDir,
           source: "project_primary",
         },
@@ -469,7 +469,7 @@ describe("claude remote execution", () => {
           ...config,
         },
         context: {
-          paperclipWorkspace: {
+          nexusWorkspace: {
             cwd: workspaceDir,
             source: "project_primary",
           },
@@ -496,7 +496,7 @@ describe("claude remote execution", () => {
     }
 
     it.each(["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5"])("passes %s as --model on the CLI lane", async (model) => {
-      const { args } = await executeWithModel("paperclip-claude-model-direct-", {
+      const { args } = await executeWithModel("nexus-claude-model-direct-", {
         model,
       });
 
@@ -506,7 +506,7 @@ describe("claude remote execution", () => {
     });
 
     it("passes the Bedrock-native Fable 5.1 ID as --model under Bedrock auth", async () => {
-      const { args } = await executeWithModel("paperclip-claude-model-bedrock-", {
+      const { args } = await executeWithModel("nexus-claude-model-bedrock-", {
         model: "us.anthropic.claude-fable-5-1",
         env: { CLAUDE_CODE_USE_BEDROCK: "1" },
       });
@@ -517,7 +517,7 @@ describe("claude remote execution", () => {
     });
 
     it("skips --model for a direct Anthropic ID under Bedrock auth", async () => {
-      const { args } = await executeWithModel("paperclip-claude-model-bedrock-skip-", {
+      const { args } = await executeWithModel("nexus-claude-model-bedrock-skip-", {
         model: "claude-fable-5-1",
         env: { CLAUDE_CODE_USE_BEDROCK: "1" },
       });
@@ -540,7 +540,7 @@ describe("claude remote execution", () => {
         startedAt: new Date().toISOString(),
       });
 
-      const { args, result } = await executeWithModel("paperclip-claude-model-old-cli-", {
+      const { args, result } = await executeWithModel("nexus-claude-model-old-cli-", {
         model,
       });
 
@@ -554,8 +554,8 @@ describe("claude remote execution", () => {
     });
 
     it("leaves Fable compatibility to explicitly configured custom CLI wrappers", async () => {
-      const { args, result } = await executeWithModel("paperclip-claude-model-wrapper-", {
-        command: "/opt/paperclip/claude-wrapper",
+      const { args, result } = await executeWithModel("nexus-claude-model-wrapper-", {
+        command: "/opt/nexus/claude-wrapper",
         model: "claude-fable-5-1",
       });
 
@@ -570,7 +570,7 @@ describe("claude remote execution", () => {
 
 
   it("reselects the full assignment and bootstrap guidance after a failed resume", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-claude-cli-fallback-context-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-claude-cli-fallback-context-"));
     cleanupDirs.push(rootDir);
     const workspaceDir = path.join(rootDir, "workspace");
     await mkdir(workspaceDir, { recursive: true });
@@ -626,7 +626,7 @@ describe("claude remote execution", () => {
       },
       context: {
         ...createPromptContextFixture(),
-        paperclipWorkspace: { cwd: workspaceDir, source: "project_primary" },
+        nexusWorkspace: { cwd: workspaceDir, source: "project_primary" },
       },
       onLog: async () => {},
     });

@@ -11,7 +11,7 @@ const canonical = (v: unknown): string => Array.isArray(v) ? `[${v.map(canonical
 const digest = (v: unknown) => hash(canonical(v));
 const receiptKeys = ["callIdentitySha256", "inputSha256", "normalizedInputSha256", "operationId", "outcome", "resultSha256", "schema", "stage"].sort().join(",");
 export interface CopilotSemanticCompletionProof {
-  schema: "paperclip.e2e.copilot-semantic-completion.v2" | "paperclip.e2e.copilot-semantic-completion.v4";
+  schema: "nexus.e2e.copilot-semantic-completion.v2" | "nexus.e2e.copilot-semantic-completion.v4";
   contextRead?: CopilotContextReadProof;
   runId: string; turnId: string; nativeSessionId: string; normalizedSessionId: string; sourceInstanceId: string;
   nativeToolCallId: string; callIdentitySha256: string; inputSha256: string; normalizedInputSha256: string; resultSha256: string;
@@ -32,7 +32,7 @@ export function readCopilotSemanticCompletion(rows: readonly unknown[], expected
   function frame(r: Row, sourceKind: "runner" | "control_plane") {
     const e = rec(rec(r.payload).prpEvent);
     if (r.companyId !== expected.companyId || r.runId !== expected.runId || !Number.isSafeInteger(r.seq) || r.seq < 1
-      || e.schema !== "paperclip.prp.event.v1" || e.eventType !== r.eventType || e.sourceKind !== sourceKind
+      || e.schema !== "nexus.prp.event.v1" || e.eventType !== r.eventType || e.sourceKind !== sourceKind
       || e.runId !== expected.runId || e.turnId !== expected.turnId || e.normalizedSessionId !== base.normalizedSessionId
       || !id(e.sourceInstanceId) || r.sourceInstanceId !== e.sourceInstanceId || r.sourceSeq !== e.sourceSeq
       || !Number.isSafeInteger(e.sourceSeq) || e.sourceSeq < 1
@@ -49,20 +49,20 @@ export function readCopilotSemanticCompletion(rows: readonly unknown[], expected
   }
   if (expected.command.runId !== expected.runId || expected.command.turnId !== expected.turnId || expected.command.sessionId !== expected.nativeSessionId) fail("foreign command");
   const contextRead = readCopilotContextRead(rows, expected.command, expected.requireContextRead);
-  const authorityRows = all.filter(r => (rec(rec(rec(r.payload).prpEvent).payload).category === "paperclip_semantic_tool_receipt_v2" || rec(rec(rec(r.payload).prpEvent).payload).category === "paperclip_semantic_tool_receipt_v1") && ![contextRead?.receiptSeq, ...(contextRead?.discoveries.map(d => d.receiptSeq) ?? [])].includes(r.seq));
+  const authorityRows = all.filter(r => (rec(rec(rec(r.payload).prpEvent).payload).category === "nexus_semantic_tool_receipt_v2" || rec(rec(rec(r.payload).prpEvent).payload).category === "nexus_semantic_tool_receipt_v1") && ![contextRead?.receiptSeq, ...(contextRead?.discoveries.map(d => d.receiptSeq) ?? [])].includes(r.seq));
   // This authored case asks for one finish, not arbitrary semantic actions.
   if (authorityRows.length !== 1) fail("expected one authoritative finish receipt");
   const authorityRow = authorityRows[0]!, authority = frame(authorityRow, "runner"), payload = rec(authority.payload), origin = rec(payload.provenance);
-  if (payload.category !== "paperclip_semantic_tool_receipt_v2" || payload.schema !== "paperclip.provider.notice.v1" || payload.scope !== "turn" || authorityRow.eventType !== "provider.notice.recorded"
-    || origin.method !== "paperclip/semantic_tool_result" || origin.eventType !== "semantic_result"
+  if (payload.category !== "nexus_semantic_tool_receipt_v2" || payload.schema !== "nexus.provider.notice.v1" || payload.scope !== "turn" || authorityRow.eventType !== "provider.notice.recorded"
+    || origin.method !== "nexus/semantic_tool_result" || origin.eventType !== "semantic_result"
     || origin.sessionId !== expected.nativeSessionId || origin.turnId !== expected.turnId || !Array.isArray(payload.details) || payload.details.length !== 8) fail("invalid receipt provenance");
   const fields: Record<string, string> = {};
   for (const d of payload.details) {
     if (Object.keys(rec(d)).sort().join(",") !== "name,value" || typeof d.name !== "string" || typeof d.value !== "string" || d.value.length > 256 || Object.hasOwn(fields, d.name)) fail("malformed receipt detail");
     fields[d.name] = d.value;
   }
-  if (Object.keys(fields).sort().join(",") !== receiptKeys || fields.stage !== "semantic_result" || fields.schema !== "paperclip.semantic_tool_receipt.v2"
-    || fields.operationId !== "paperclip_finish" || fields.outcome !== "returned"
+  if (Object.keys(fields).sort().join(",") !== receiptKeys || fields.stage !== "semantic_result" || fields.schema !== "nexus.semantic_tool_receipt.v2"
+    || fields.operationId !== "nexus_finish" || fields.outcome !== "returned"
     || ![fields.callIdentitySha256, fields.inputSha256, fields.normalizedInputSha256, fields.resultSha256].every(v => /^[a-f0-9]{64}$/.test(v!))) fail("invalid finish receipt");
   const matches = notices.filter(n => n.semanticCallIdentitySha256 === fields.callIdentitySha256);
   if (matches.length !== 1) fail("missing or duplicate native match");
@@ -91,7 +91,7 @@ export function readCopilotSemanticCompletion(rows: readonly unknown[], expected
   // their separate digest remains joined to the native receipt above. Never
   // reconstruct or normalize a proposal here to make its digest match.
   if (digest(result) !== fields.normalizedInputSha256
-    || result.schema !== "paperclip.run_result.v1" || result.reportedWorkDisposition !== "done" || result.summary !== expected.summary
+    || result.schema !== "nexus.run_result.v1" || result.reportedWorkDisposition !== "done" || result.summary !== expected.summary
     || canonical(result) !== canonical(acceptedResult)) fail("canonical accepted result does not match exact finish");
   const pendingFrame = frame(all.find(r => r.seq === pending[0]!.seq)!, "runner");
   const completedFrame = frame(all.find(r => r.seq === native.seq)!, "runner");
@@ -99,7 +99,7 @@ export function readCopilotSemanticCompletion(rows: readonly unknown[], expected
     && authorityRow.seq < native.seq && native.seq < terminals[0]!.seq && terminals[0]!.seq < acceptedRows[0]!.seq)
     || !(base.sourceSeq < pendingFrame.sourceSeq && pendingFrame.sourceSeq < proposed.sourceSeq && proposed.sourceSeq < authority.sourceSeq
       && authority.sourceSeq < completedFrame.sourceSeq && completedFrame.sourceSeq < terminal.sourceSeq)) fail("invalid causal order");
-  return { schema: expected.requireContextRead ? "paperclip.e2e.copilot-semantic-completion.v4" : "paperclip.e2e.copilot-semantic-completion.v2", ...(contextRead ? { contextRead } : {}), runId: expected.runId, turnId: expected.turnId, nativeSessionId: expected.nativeSessionId,
+  return { schema: expected.requireContextRead ? "nexus.e2e.copilot-semantic-completion.v4" : "nexus.e2e.copilot-semantic-completion.v2", ...(contextRead ? { contextRead } : {}), runId: expected.runId, turnId: expected.turnId, nativeSessionId: expected.nativeSessionId,
     normalizedSessionId: base.normalizedSessionId, sourceInstanceId: base.sourceInstanceId, nativeToolCallId: native.toolCallId,
     callIdentitySha256: fields.callIdentitySha256!, inputSha256: fields.inputSha256!, normalizedInputSha256: fields.normalizedInputSha256!, resultSha256: fields.resultSha256!,
     nativePendingSeq: pending[0]!.seq, nativePendingObservedAtMs: pending[0]!.observedAtMs,
@@ -161,7 +161,7 @@ export function copilotFinishAttemptBeforeCommandExit(proof: CopilotSemanticComp
 
 /** Fixture scheduling only; final grading still verifies the complete durable receipt and acceptance. */
 export function copilotAttachedFinishReady(notices: readonly CopilotToolNotice[], command: CopilotToolNotice): CopilotToolNotice | undefined {
-  const matches = notices.filter(n => n.semanticOperationId === "paperclip_finish" && n.semanticOutcome === "returned" && n.stage === "tool" && n.status === "completed"
+  const matches = notices.filter(n => n.semanticOperationId === "nexus_finish" && n.semanticOutcome === "returned" && n.stage === "tool" && n.status === "completed"
     && n.runId === command.runId && n.turnId === command.turnId && n.sessionId === command.sessionId && n.seq > command.seq);
   if (!matches.length) return undefined;
   if (matches.length !== 1) throw new Error("Attached fixture has ambiguous finish receipts");

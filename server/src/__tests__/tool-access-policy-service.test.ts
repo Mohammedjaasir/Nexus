@@ -24,7 +24,7 @@ import {
   toolProfileEntries,
   toolProfiles,
   toolRateLimitCounters,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -35,7 +35,7 @@ import { createToolGatewayService, ToolGatewayHttpError } from "../services/tool
 import { canonicalToolArguments, signToolArguments } from "../services/tool-content-guards.js";
 
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
-const externalDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_TOOL_POLICY_TEST_DATABASE_URL");
+const externalDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_TOOL_POLICY_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -219,7 +219,7 @@ describeEmbeddedPostgres("tool access policy service", () => {
   beforeAll(async () => {
     if (externalDatabaseUrl) db = createDb(externalDatabaseUrl);
     else {
-      tempDb = await startEmbeddedPostgresTestDatabase("paperclip-tool-access-policy-");
+      tempDb = await startEmbeddedPostgresTestDatabase("nexus-tool-access-policy-");
       db = createDb(tempDb.connectionString);
     }
   }, 20_000);

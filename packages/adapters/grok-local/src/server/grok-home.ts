@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { resolvePaperclipInstanceRootForAdapter } from "@paperclipai/adapter-utils/server-utils";
+import { resolveNexusInstanceRootForAdapter } from "@nexusai/adapter-utils/server-utils";
 
 // `GROK_HOME` replaces `~/.grok` and holds `auth.json` plus session history.
 // Unlike Codex, a Grok `auth.json` has no fixed top-level key: it
@@ -40,7 +40,7 @@ export async function grokHomeHasSession(home: string, sessionId: string): Promi
 /**
  * The allowlist of managed `GROK_HOME` entries that the grok-local adapter
  * stages into the sandbox `home` asset (see {@link stageGrokHomeForSync}).
- * Paperclip writes instructions and skills under the workspace, not under the
+ * Nexus writes instructions and skills under the workspace, not under the
  * Grok home, so the credential file is the only entry a sandbox run needs.
  */
 export const GROK_SYNC_ALLOWLIST = ["auth.json"] as const;
@@ -110,7 +110,7 @@ export async function grokHomeHasUsableAuth(home: string): Promise<boolean> {
 
 /**
  * Resolves the managed Grok home directory. With a `companyId`, it resolves the
- * company-scoped home under the Paperclip instance tree, the same isolation
+ * company-scoped home under the Nexus instance tree, the same isolation
  * boundary `resolveManagedCodexHomeDir` uses. Without one, it resolves the
  * instance-global home, which a promotion must never write.
  */
@@ -118,9 +118,9 @@ export function resolveManagedGrokHomeDir(
   env: NodeJS.ProcessEnv,
   companyId?: string,
 ): string {
-  const instanceRoot = resolvePaperclipInstanceRootForAdapter({
-    homeDir: nonEmpty(env.PAPERCLIP_HOME) ?? undefined,
-    instanceId: nonEmpty(env.PAPERCLIP_INSTANCE_ID) ?? undefined,
+  const instanceRoot = resolveNexusInstanceRootForAdapter({
+    homeDir: nonEmpty(env.NEXUS_HOME) ?? undefined,
+    instanceId: nonEmpty(env.NEXUS_INSTANCE_ID) ?? undefined,
     env,
   });
   return companyId
@@ -170,7 +170,7 @@ export async function stageGrokHomeForSync(
 ): Promise<string> {
   const runIdPart = nonEmpty(options.runId ?? undefined);
   const stagedHome = await fs.mkdtemp(
-    path.join(os.tmpdir(), `paperclip-grok-home-sync-${runIdPart ? `${runIdPart}-` : ""}`),
+    path.join(os.tmpdir(), `nexus-grok-home-sync-${runIdPart ? `${runIdPart}-` : ""}`),
   );
   try {
     for (const entry of GROK_SYNC_ALLOWLIST) {

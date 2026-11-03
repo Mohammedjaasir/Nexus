@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 
 import { SANDBOX_PLATFORM_PROBE_METADATA_KEY } from "./environment-custom-image-runtime.js";
 import { and, asc, desc, eq, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   builtInManagedResources,
@@ -24,7 +24,7 @@ import {
   instanceSettings,
   issues,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   ENVIRONMENT_DRIVERS,
   ENVIRONMENT_LEASE_CLEANUP_STATUSES,
@@ -40,7 +40,7 @@ import {
   type EnvironmentLeasePolicy,
   type EnvironmentLeaseStatus,
   type UpdateEnvironment,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { conflict, forbidden } from "../errors.js";
 import { logActivity } from "./activity-log.js";
 import { isCloudManagedInstance } from "./cloud-instance.js";
@@ -91,7 +91,7 @@ type EnvironmentRow = typeof environments.$inferSelect;
 type EnvironmentLeaseRow = typeof environmentLeases.$inferSelect;
 const DEFAULT_LOCAL_ENVIRONMENT_NAME = "Local";
 const DEFAULT_LOCAL_ENVIRONMENT_DESCRIPTION =
-  "Default execution environment for Paperclip runs on this machine.";
+  "Default execution environment for Nexus runs on this machine.";
 
 const DEFAULT_KUBERNETES_ENVIRONMENT_NAME = "Kubernetes Sandbox";
 const DEFAULT_KUBERNETES_ENVIRONMENT_DESCRIPTION =
@@ -127,7 +127,7 @@ export interface KubernetesEnvironmentConfigInput {
    * environment config and validated by the sandbox config schema.
    */
   timeoutMs?: number;
-  adapters?: import("@paperclipai/shared").AdapterRegistryEntry[];
+  adapters?: import("@nexusai/shared").AdapterRegistryEntry[];
   [key: string]: unknown;
 }
 
@@ -155,7 +155,7 @@ export interface ManagedSandboxEnvironmentInput {
   stockVersion?: string;
   /**
    * Asserts the caller's deployment gives no operator any path to hand-edit
-   * this row (currently only true for the PAPERCLIP_MANAGED_CONFIG applier,
+   * this row (currently only true for the NEXUS_MANAGED_CONFIG applier,
    * where `enableManagedSandboxOnly` removes the tenant's own environment
    * choice entirely). When set, a plain content-hash mismatch against a real
    * prior binding is treated as ordinary stock drift instead of an operator
@@ -297,8 +297,8 @@ const MANAGED_ENVIRONMENT_BUNDLE_KEY = "managed-sandbox-environment";
 const MANAGED_ENVIRONMENT_RESOURCE_KIND = "environment";
 const MANAGED_ENVIRONMENT_RESOURCE_KEY = "managed-sandbox";
 const MANAGED_ENVIRONMENT_STOCK_VERSION = "managed-environment-v1";
-const MANAGED_ENVIRONMENT_ARCHIVE_TOKEN_METADATA_KEY = "_paperclipManagedArchiveToken";
-const MANAGED_ENVIRONMENT_ARCHIVE_TOKEN_DEFAULTS_KEY = "_paperclipManagedArchiveToken";
+const MANAGED_ENVIRONMENT_ARCHIVE_TOKEN_METADATA_KEY = "_nexusManagedArchiveToken";
+const MANAGED_ENVIRONMENT_ARCHIVE_TOKEN_DEFAULTS_KEY = "_nexusManagedArchiveToken";
 
 function managedEnvironmentBaselineDefaults(
   defaultsJson: Record<string, unknown>,
@@ -322,7 +322,7 @@ function managedMetadataKeys(
   bindings: Array<{ defaultsJson: Record<string, unknown> }>,
 ): string[] {
   const keys = new Set([
-    "managedByPaperclip",
+    "managedByNexus",
     "managedSandboxProvider",
     KUBERNETES_MANAGED_MARKER,
     ...Object.keys(desiredMetadata),
@@ -377,7 +377,7 @@ function preserveInvalidatedSnapshotProofs(replacement: SQL): SQL {
 
 export function environmentService(db: Db) {
   /**
-   * Idempotently ensure THE Paperclip-managed sandbox environment for this
+   * Idempotently ensure THE Nexus-managed sandbox environment for this
    * instance, configured for an arbitrary sandbox provider plugin. Mirrors
    * `ensureLocalEnvironment`; the partial unique index
    * `environments_managed_sandbox_idx` enforces at most one managed sandbox
@@ -398,7 +398,7 @@ export function environmentService(db: Db) {
       provider: input.provider,
     };
     const desiredMetadata: Record<string, unknown> = {
-      managedByPaperclip: true,
+      managedByNexus: true,
       managedSandboxProvider: input.provider,
       ...(input.extraMetadata ?? {}),
     };
@@ -446,7 +446,7 @@ export function environmentService(db: Db) {
         const keys = managedMetadataKeys(desiredMetadata, bindings);
 
         let row = sandboxRows.find(
-          (candidate) => (candidate.metadata as Record<string, unknown> | null)?.managedByPaperclip === true,
+          (candidate) => (candidate.metadata as Record<string, unknown> | null)?.managedByNexus === true,
         ) ?? sandboxRows.find((candidate) => candidate.name === input.name) ?? null;
 
         const writeBindings = async (
@@ -563,7 +563,7 @@ export function environmentService(db: Db) {
             .for("update")
             .then(
               (rows) => rows.find(
-                (candidate) => (candidate.metadata as Record<string, unknown> | null)?.managedByPaperclip === true,
+                (candidate) => (candidate.metadata as Record<string, unknown> | null)?.managedByNexus === true,
               ) ?? null,
             );
           if (!row) throw new Error("Failed to ensure managed sandbox environment");
@@ -621,7 +621,7 @@ export function environmentService(db: Db) {
         );
         if (operatorReaffirmedArchive) stockStatus = "operator_modified";
 
-        // `platformFullyManaged` callers (currently: the PAPERCLIP_MANAGED_CONFIG
+        // `platformFullyManaged` callers (currently: the NEXUS_MANAGED_CONFIG
         // applier) assert that nothing in their deployment can hand-edit this
         // row — the product gives a cloud-harness tenant no path to it, unlike
         // the general self-hosted contract this function otherwise protects
@@ -635,7 +635,7 @@ export function environmentService(db: Db) {
         //
         // Two things the bypass must never touch:
         // - A row with NO matching binding. `row` can be a same-name sandbox
-        //   row that was never Paperclip-managed (the fallback lookup above).
+        //   row that was never Nexus-managed (the fallback lookup above).
         //   It also reads as `operator_modified`, but there is no prior
         //   platform pass to have drifted from — adopting it would overwrite
         //   a tenant-created environment and stamp it managed. Require a
@@ -643,7 +643,7 @@ export function environmentService(db: Db) {
         //   just documented.
         // - Archive-reaffirmation. A `sandbox_image` update must never
         //   resurrect a row something else deliberately kept archived after
-        //   Paperclip's own provider-unavailability archival, so that path
+        //   Nexus's own provider-unavailability archival, so that path
         //   still skips below regardless of this flag.
         if (
           input.platformFullyManaged &&
@@ -662,7 +662,7 @@ export function environmentService(db: Db) {
           let baselineHash = baseline?.stockHash ?? latestStockHash;
 
           // Provider unavailability is an operational state transition, not
-          // an operator edit. If the binding records that Paperclip archived
+          // an operator edit. If the binding records that Nexus archived
           // this row, restore only its availability status. Keep every other
           // operator-modified field intact and leave the stock update pending.
           // A manually archived row still has an active binding baseline, so
@@ -808,7 +808,7 @@ export function environmentService(db: Db) {
   };
 
   /**
-   * Archive the Paperclip-managed sandbox row when its provider became
+   * Archive the Nexus-managed sandbox row when its provider became
    * unavailable (plugin missing, not ready, or its worker not running), so
    * run scheduling stops selecting an environment whose lease acquisition
    * cannot succeed (`resolveEnvironment` rejects non-active rows).
@@ -834,7 +834,7 @@ export function environmentService(db: Db) {
         .for("update")
         .then(
           (rows) => rows.find(
-            (row) => (row.metadata as Record<string, unknown> | null)?.managedByPaperclip === true,
+            (row) => (row.metadata as Record<string, unknown> | null)?.managedByNexus === true,
           ) ?? null,
         );
       if (!existing || existing.status !== "active") return null;
@@ -875,7 +875,7 @@ export function environmentService(db: Db) {
         .then((rows) => rows[0] ?? null);
       if (!archived) return null;
 
-      // Archival is a Paperclip-owned availability transition. Record only
+      // Archival is a Nexus-owned availability transition. Record only
       // that status change in each installed baseline. Deriving the new hash
       // from defaultsJson keeps operator-modified row fields out of stock.
       for (const binding of bindings) {
@@ -989,7 +989,7 @@ export function environmentService(db: Db) {
      * instance.
      *
      * On a cloud-managed instance an existing row is additionally ADOPTED —
-     * stamped `managedByPaperclip: true` (other metadata preserved) — so the
+     * stamped `managedByNexus: true` (other metadata preserved) — so the
      * single local slot is platform-owned there by construction, mirroring
      * `ensureManagedSandboxEnvironment`'s adoption of the sandbox slot. This
      * is what lets the environment-routes write floor treat a local row's
@@ -1011,7 +1011,7 @@ export function environmentService(db: Db) {
             config: {},
             envVars: {},
             metadata: {
-              managedByPaperclip: true,
+              managedByNexus: true,
               defaultForInstance: true,
             },
             createdAt: now,
@@ -1040,11 +1040,11 @@ export function environmentService(db: Db) {
         throw new Error("Failed to ensure local environment");
       }
       const existingMetadata = (existing.metadata ?? {}) as Record<string, unknown>;
-      if (isCloudManagedInstance() && existingMetadata.managedByPaperclip !== true) {
+      if (isCloudManagedInstance() && existingMetadata.managedByNexus !== true) {
         const adopted = await db
           .update(environments)
           .set({
-            metadata: { ...existingMetadata, managedByPaperclip: true },
+            metadata: { ...existingMetadata, managedByNexus: true },
             updatedAt: new Date(),
           })
           .where(eq(environments.id, existing.id))
@@ -1107,7 +1107,7 @@ export function environmentService(db: Db) {
 
     /**
      * Find the platform-managed sandbox environment (the single
-     * `managedByPaperclip`-marked slot row), if one exists. Read-only
+     * `managedByNexus`-marked slot row), if one exists. Read-only
      * counterpart to `ensureManagedSandboxEnvironment`. The default
      * (active-only) form serves the managed-sandbox-only run guard — which
      * must fail closed rather than create a config-less environment when
@@ -1133,7 +1133,7 @@ export function environmentService(db: Db) {
         )
         .orderBy(desc(environments.updatedAt));
       const match = rows.find(
-        (row) => (row.metadata as Record<string, unknown> | null)?.managedByPaperclip === true,
+        (row) => (row.metadata as Record<string, unknown> | null)?.managedByNexus === true,
       );
       return match ? toEnvironment(match) : null;
     },

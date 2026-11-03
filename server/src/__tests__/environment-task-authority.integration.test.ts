@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { agents, companies, createDb, environmentLeases, environments, heartbeatRuns, plugins, sandboxCreationOperations } from "@paperclipai/db";
+import { agents, companies, createDb, environmentLeases, environments, heartbeatRuns, plugins, sandboxCreationOperations } from "@nexusai/db";
 import { resolvePluginTaskResume } from "../services/environment-task-runtime.js";
 import { remoteTerminationReceipt } from "../services/remote-execution-termination.js";
 import { environmentRuntimeService } from "../services/environment-runtime.js";
@@ -24,7 +24,7 @@ databaseSuite("environment task lease authority", () => {
   it("replaces a stopped warm candidate within its tracked startup context", async () => {
     const companyId = randomUUID(), agentId = randomUUID(), environmentId = randomUUID(), pluginId = randomUUID(), runId = randomUUID(), leaseId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Warm candidate", issuePrefix: `T${companyId.slice(0, 7).replace(/-/g, "").toUpperCase()}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "nexus_runner" });
     await db.insert(plugins).values({ id: pluginId, pluginKey: pluginId, packageName: "fixture-warm-replacement", version: "1", status: "ready",
       manifestJson: { capabilities: ["environment.drivers.register"], environmentDrivers: [{ driverKey: "tasks", supportsTasks: true }] } as never });
     await db.insert(environments).values({ id: environmentId, companyId, name: `Fixture ${environmentId}`, driver: "plugin",
@@ -62,7 +62,7 @@ databaseSuite("environment task lease authority", () => {
   it.each(["late", "post-result", "retiring"])("queues a replacement instead of attaching after %s startup cancellation", async mode => {
     const companyId = randomUUID(), agentId = randomUUID(), environmentId = randomUUID(), pluginId = randomUUID(), runId = randomUUID(), leaseId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Warm candidate", issuePrefix: `T${companyId.slice(0, 7).replace(/-/g, "").toUpperCase()}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "nexus_runner" });
     await db.insert(plugins).values({ id: pluginId, pluginKey: pluginId, packageName: "fixture-warm-replacement", version: "1", status: "ready",
       manifestJson: { capabilities: ["environment.drivers.register"], environmentDrivers: [{ driverKey: "tasks", supportsTasks: true }] } as never });
     await db.insert(environments).values({ id: environmentId, companyId, name: `Fixture ${environmentId}`, driver: "plugin",
@@ -127,7 +127,7 @@ databaseSuite("environment task lease authority", () => {
     const companyId = randomUUID(), agentId = randomUUID(), environmentId = randomUUID(), pluginId = randomUUID();
     const oldRunId = randomUUID(), nextRunId = randomUUID(), oldLeaseId = randomUUID(), nextLeaseId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Lease transition", issuePrefix: `T${companyId.slice(0, 7).replace(/-/g, "").toUpperCase()}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", role: "engineer", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", role: "engineer", adapterType: "nexus_runner" });
     await db.insert(environments).values({ id: environmentId, companyId, name: `Fixture ${environmentId}`, driver: "plugin", config: {} });
     await db.insert(plugins).values({ id: pluginId, pluginKey: pluginId, packageName: "fixture-continuation", version: "1.0.0", status: "ready", manifestJson: {
       capabilities: ["environment.drivers.register"], environmentDrivers: [{ driverKey: "tasks", supportsTasks: true }],
@@ -166,7 +166,7 @@ databaseSuite("environment task lease authority", () => {
     const operations: string[] = [];
     const workers = { getWorker: () => ({ supportedMethods: ["environmentTask"] }),
       call: async (_id: string, _method: string, params: any) => ["read_state", "archive_state"].includes(params.operation.kind)
-        ? { kind: "state", taskId: params.taskId, state: { schema: "paperclip.runner.durable.state.v1", lifecycle: "suspended",
+        ? { kind: "state", taskId: params.taskId, state: { schema: "nexus.runner.durable.state.v1", lifecycle: "suspended",
             ...(params.operation.identity ?? params.operation.priorIdentity) } }
         : params.operation.kind === "status"
           ? (operations.push("status"), { kind: "status", taskId: params.taskId, phase: "completed", executionStopped: true, sessionStateAvailable })

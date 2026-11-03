@@ -19,13 +19,13 @@ afterEach(async () => { vi.mocked(sendChatMessage).mockReset(); await Promise.al
 async function fixture(options: { readError?: Error; mutate?(agents: Row[], tasks: Row[]): void; ownError?: Error; firstSendError?: Error; connectionList?: Row; connectionReadError?: Error } = {}) {
   const campaignId = "journey-1-deadbeef", names = hireDelegateNames(campaignId), owned: Row[] = [], comments: Row[] = [];
   const binding = { connectionId: "approved" }, lead = { id: "lead", companyId: "company", name: `Lead ${campaignId}`, permissions: { canCreateAgents: true }, runtimeConfig: { aiConnection: binding } };
-  const hire = { id: "hired", companyId: "company", name: names.hire, reportsTo: lead.id, adapterType: "paperclip_runner",
+  const hire = { id: "hired", companyId: "company", name: names.hire, reportsTo: lead.id, adapterType: "nexus_runner",
     adapterConfig: { model: "fixed-model" }, runtimeConfig: { aiConnection: binding } };
   const agents: Row[] = [lead, hire], tasks: Row[] = [];
   const chat = { id: "chat", companyId: "company", title: `Chat with ${lead.name}`, assigneeAgentId: lead.id, conversationAgentId: lead.id,
     conversationUserId: "user", createdByUserId: "user", status: "in_review", conversationState: "waiting" };
   const run = { id: "lead-run", companyId: "company", agentId: lead.id, issueId: chat.id, status: "succeeded", runtimeMode: "native",
-    contextSnapshot: { source: "issue.comment", wakeCommentId: "user-comment", paperclipEnvironment: { id: "environment" } }, runnerProfileJson: { nativeExecutionInput: { provider: { kind: "opencode", model: "fixed-model" } } } };
+    contextSnapshot: { source: "issue.comment", wakeCommentId: "user-comment", nexusEnvironment: { id: "environment" } }, runnerProfileJson: { nativeExecutionInput: { provider: { kind: "opencode", model: "fixed-model" } } } };
   options.mutate?.(agents, tasks);
   if ((lead.runtimeConfig.aiConnection as Row).mode === "delegated") Object.assign(run.contextSnapshot,
     { aiConnection: { ...lead.runtimeConfig.aiConnection, responsibleUserId: "user" } });
@@ -210,7 +210,7 @@ it.each(["stale", "foreign", "truncated", "late-reply", "wrong-author", "activit
     ? { provider: accountProvider, method, mode: "delegated", connectionId: "approved", grantId: "grant" } : { connectionId: "approved" };
   const lead = { id: "lead", companyId: "company", name: `Lead ${campaignId}`, permissions: { canCreateAgents: true },
     adapterConfig: { model: "fixed-model" }, runtimeConfig: { aiConnection: binding } };
-  const hired = { ...lead, id: "hired", name: names.hire, reportsTo: "lead", adapterType: "paperclip_runner" };
+  const hired = { ...lead, id: "hired", name: names.hire, reportsTo: "lead", adapterType: "nexus_runner" };
   if (fallback) Object.assign(hired, { runtimeConfig: { aiConnection: { provider: accountProvider, method: "api_key", mode: "responsible_user" } } });
   const chat = { id: "chat", companyId: "company", title: `Chat with ${lead.name}`, assigneeAgentId: "lead", conversationAgentId: "lead",
     conversationUserId: "user", createdByUserId: "user", status: "in_review", conversationState: "waiting" };
@@ -219,7 +219,7 @@ it.each(["stale", "foreign", "truncated", "late-reply", "wrong-author", "activit
   const replyPolls = new Map<string, number>(), nativeReads = new Map<string, number>();
   const run = (id: string, issueId: string, agentId: string, metadata: Row = {}) => {
     const value = { id, companyId: "company", agentId, issueId, status: "succeeded", runtimeMode: "native",
-      contextSnapshot: { issueId, paperclipEnvironment: { id: "environment" }, aiConnection: fallback
+      contextSnapshot: { issueId, nexusEnvironment: { id: "environment" }, aiConnection: fallback
         ? { ...binding, ...(snapshot === "fallback-subscription-wrong-method" && agentId !== "lead" ? { method: "api_key" } : {}),
           mode: agentId === "lead" ? "delegated" : "responsible_user", responsibleUserId: "user" } : binding, ...metadata },
       runnerProfileJson: { nativeExecutionInput: { provider: { kind: provider, model: "fixed-model" } } } };

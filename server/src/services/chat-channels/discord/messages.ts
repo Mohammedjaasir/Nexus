@@ -34,7 +34,7 @@ export function discordLifecycleFilesDigest(raw: unknown): string {
 export function discordMarkdownAttachment(text: string): FileUpload {
     return {
       data: Buffer.from(text, "utf8"),
-      filename: "paperclip-response.md",
+      filename: "nexus-response.md",
       mimeType: "text/markdown; charset=utf-8",
     };
   }

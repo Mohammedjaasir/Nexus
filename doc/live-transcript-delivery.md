@@ -138,7 +138,7 @@ establish delivery behavior, not native-provider or hosted-upgrade qualification
 
 `server/src/realtime/live-event-delivery.cost.test.ts` compares identical output
 with zero interests, one viewer, three browser connections, and simulated socket
-congestion. Set `PAPERCLIP_LIVE_DELIVERY_COST_REPORT` to retain its JSON report.
+congestion. Set `NEXUS_LIVE_DELIVERY_COST_REPORT` to retain its JSON report.
 This measures the in-process presentation boundary, not production network or
 database cost. CPU, heap deltas, and latency are diagnostic measurements, not
 performance assertions. Current acceptance evidence lives in

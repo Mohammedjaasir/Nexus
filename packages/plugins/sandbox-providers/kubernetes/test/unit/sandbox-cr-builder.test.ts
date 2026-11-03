@@ -2,12 +2,12 @@ import { describe, it, expect } from "vitest";
 import { buildSandboxCrManifest } from "../../src/sandbox-cr-builder.js";
 
 const baseInput = {
-  namespace: "paperclip-acme",
+  namespace: "nexus-acme",
   sandboxName: "pc-01h00000000000000000000000",
   adapterType: "claude_local",
   image: "ghcr.io/paperclipai/agent-runtime-claude:v1",
   envSecretName: "pc-01h00000000000000000000000-env",
-  serviceAccountName: "paperclip-tenant-sa",
+  serviceAccountName: "nexus-tenant-sa",
   labels: { "paperclip.io/run-id": "r1" },
   resources: {
     requests: { cpu: "250m", memory: "512Mi" },
@@ -78,8 +78,8 @@ describe("buildSandboxCrManifest", () => {
       .map((m: { mountPath: string }) => m.mountPath)
       .sort();
     expect(mountPaths).toEqual([
-      "/home/paperclip",
-      "/home/paperclip/.cache",
+      "/home/nexus",
+      "/home/nexus/.cache",
       "/tmp",
       "/workspace",
     ]);

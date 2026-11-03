@@ -35,7 +35,7 @@ const meta = {
   parameters: {
     layout: 'fullscreen',
     docs: { description: { component: 'Production Sources page and branch dialog in the app shell. Choose a new branch, search listed branches or enter any name, then Change branch. Provider loading, validation and saves use scoped API fixtures. In Validation failure, enter feature/missing, then choose master. Active project refs remain managed through project settings.' } },
-    paperclip: { capabilities: ['skills/discovery', 'skills/versions', 'projects/repositories'], status: 'current', implementation: 'production', boundary: 'fixtures', notes: 'Production shell, Sources page and API-connected branch dialog. Default branch, search, typed input during loading/list failure, retry, validation, concurrent-update recovery and connection repair. Provider responses are simulated; live GitHub saves are verified separately. Active project refs retain project configuration ownership.' },
+    nexus: { capabilities: ['skills/discovery', 'skills/versions', 'projects/repositories'], status: 'current', implementation: 'production', boundary: 'fixtures', notes: 'Production shell, Sources page and API-connected branch dialog. Default branch, search, typed input during loading/list failure, retry, validation, concurrent-update recovery and connection repair. Provider responses are simulated; live GitHub saves are verified separately. Active project refs retain project configuration ownership.' },
   },
 } satisfies Meta<typeof BranchSelectionJourney>;
 export default meta;

@@ -4,11 +4,11 @@ import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { and, eq } from "drizzle-orm";
-import { authUsers, companyMemberships, activityLog, agents, companies, createDb, heartbeatRuns, issues } from "@paperclipai/db";
+import { authUsers, companyMemberships, activityLog, agents, companies, createDb, heartbeatRuns, issues } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { documentService } from "../documents.js";
 import { issueService } from "../issues.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 
 describe("runner backlog task creation", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
@@ -22,20 +22,20 @@ describe("runner backlog task creation", () => {
   async function fixture(conversation: boolean) {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Backlog", issuePrefix: `B${companyId.slice(0, 6)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Planner", role: "ceo", status: "active", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Planner", role: "ceo", status: "active", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Coordinate", status: "in_progress", assigneeAgentId: agentId, conversationAgentId: conversation ? agentId : null, conversationUserId: conversation ? "operator" : null, conversationState: conversation ? "active" : null });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "running", runtimeMode: "native", nativeIssueId: issueId, invocationSource: "assignment", triggerDetail: "system", contextSnapshot: { issueId } });
     await db.update(issues).set({ executionRunId: runId }).where(eq(issues.id, issueId));
     const enqueueWakeup = vi.fn().mockResolvedValue(null);
     const binding = { companyId, agentId, issueId, runId, enqueueWakeup };
-    return { companyId, agentId, issueId, runId, binding, enqueueWakeup, authority: new PaperclipRunnerToolAuthority(db, binding) };
+    return { companyId, agentId, issueId, runId, binding, enqueueWakeup, authority: new NexusRunnerToolAuthority(db, binding) };
   }
 
   it("never repeats a completed or uncertain workspace mutation and fences replay", async () => {
     const f = await fixture(false);
     const root = await mkdtemp(join(tmpdir(), "dot-workspace-receipt-"));
     await db.update(agents).set({ adapterConfig: { provider: "openai_dot", dotWorkspaceAccess: true } }).where(eq(agents.id, f.agentId));
-    const authority = new PaperclipRunnerToolAuthority(db, { ...f.binding, workspaceRoot: root, workspaceBridge: true });
+    const authority = new NexusRunnerToolAuthority(db, { ...f.binding, workspaceRoot: root, workspaceBridge: true });
     try {
       const call = { tool: "workspace_write", callId: "write-once", arguments: { path: "report.txt", text: "first", expectedSha256: null } };
       const receipt = await authority.execute(call);
@@ -93,7 +93,7 @@ describe("runner backlog task creation", () => {
     const replacement = randomUUID();
     await db.insert(heartbeatRuns).values({ id: replacement, companyId: f.companyId, agentId: f.agentId, status: "running", runtimeMode: "native", nativeIssueId: f.issueId, invocationSource: "assignment", triggerDetail: "system" });
     await db.update(issues).set({ executionRunId: replacement }).where(eq(issues.id, f.issueId));
-    await expect(new PaperclipRunnerToolAuthority(db, { ...f.binding, runId: replacement }).execute(call)).resolves.toMatchObject({ task: { id: task!.id, status: "backlog" }, scheduledWakeIds: [] });
+    await expect(new NexusRunnerToolAuthority(db, { ...f.binding, runId: replacement }).execute(call)).resolves.toMatchObject({ task: { id: task!.id, status: "backlog" }, scheduledWakeIds: [] });
     expect(f.enqueueWakeup).not.toHaveBeenCalled();
     const events = await db.select().from(activityLog).where(and(eq(activityLog.entityId, task!.id), eq(activityLog.action, "issue.created")));
     expect(events).toHaveLength(1);

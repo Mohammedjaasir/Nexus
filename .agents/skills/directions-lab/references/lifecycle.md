@@ -84,7 +84,7 @@ Precondition: Tonio chose the direction. Then, in one product PR plus one lab PR
 2. A feature-home story modelled on `ui/storybook/stories/documents-artifacts/artifact-v1-primitives.stories.tsx:43-62`:
    meta id under the feature (`:44`, `components-artifact-v1-primitives`), title under the feature prefix
    (`:45`), a description that names the setting (`:51`, "behind Settings > Experimental > Artifacts V1"),
-   and `paperclip` with `capabilities` (`:55`), `status: "proposed"` (`:56`), `implementation: "production"`
+   and `nexus` with `capabilities` (`:55`), `status: "proposed"` (`:56`), `implementation: "production"`
    (`:57`), `boundary: "fixtures"` (`:58`), `notes` (`:59`); no `home`, no `exception`. Why `proposed`
    there: the status is legal anywhere (only the proposals home forces it, `storybook-catalog.mjs:99`) and it
    keeps a flagged presentation out of coverage counts (`:165`) until the flag goes.
@@ -172,7 +172,7 @@ after and diff the ids in `ui/storybook-static/index.json`: the set must be unch
 ## 7. Theme pairing: Storybook themes by default, the page is production by default
 
 The proposals decorator at `ui/storybook/.storybook/preview-base.tsx:853` wraps a story whose
-`parameters.paperclip.home` is `"design-proposals"` in `<AvatarInitialProvider><div className="design-proposal-theme">`
+`parameters.nexus.home` is `"design-proposals"` in `<AvatarInitialProvider><div className="design-proposal-theme">`
 unless `parameters.designProposalTheme === false`. The marker's CSS is scoped `html:has(...)`, so the
 whole iframe is themed, Today included, and Radix portals with it (`design-proposals-storybook.md` §2).
 Why that is right for Compare: every kit sits under one palette, so a difference between two cells is a
@@ -188,7 +188,7 @@ d5's `html:not(.dark)` idiom (`motion-spec.md` §4.3); it inverts the pairs on t
 
 ## 8. Sandbox: the step between Storybook and production
 
-`VITE_PAPERCLIP_DESIGN_SANDBOX=true` in a dev app (`ui/src/context/DesignSandboxContext.tsx:14`) adds
+`VITE_NEXUS_DESIGN_SANDBOX=true` in a dev app (`ui/src/context/DesignSandboxContext.tsx:14`) adds
 the same `design-proposal-theme` marker to `<body>` (`:23-25`) and a bottom-right "Design proposals:
 On/Off" button (`:31-37`); `DESIGN.md:724-727` names the switch and `:755` its status: "an integration
 experiment, not permission, scale or release acceptance". The sandbox mounts no lab kit. It themes the

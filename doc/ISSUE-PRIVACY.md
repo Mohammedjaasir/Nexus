@@ -1,6 +1,6 @@
 # Private tasks and projects
 
-Paperclip work is company-open by default. A task or project can instead be
+Nexus work is company-open by default. A task or project can instead be
 marked private when its title, discussion, documents, attachments, work
 products, or agent run traces should be limited to named participants.
 
@@ -53,7 +53,7 @@ content within its company scope. Ordinary users, agent API keys, and plugins
 cannot use that permit. Cloud enforces the inspection grant, expiration,
 revocation, replay protection, and audit trail; this path does not create a task
 grant or a task break-glass notice. Operators who require task ACLs on every
-content read must leave `PAPERCLIP_CUSTOMER_SUCCESS_INSPECTION_ENABLED` disabled.
+content read must leave `NEXUS_CUSTOMER_SUCCESS_INSPECTION_ENABLED` disabled.
 See [Cloud customer-success inspection support](CUSTOMER-SUCCESS-INSPECTION.md).
 
 ## Agent runs and shared-agent residual risk
@@ -70,7 +70,7 @@ those entities are deleted or the operation is relinked. Deletion preserves the
 audit record; unresolved sources make its details and log inaccessible. A
 company-scoped run does not override a private task linked to the operation.
 
-> **Residual risk — trusted agents (`trust-agent`).** Paperclip enforces privacy
+> **Residual risk — trusted agents (`trust-agent`).** Nexus enforces privacy
 > on reads from the control plane, but an agent that legitimately processes a
 > private task may write learned content into shared persistent memory, its home
 > directory, an external tool, or a later public response. V1 deliberately
@@ -127,7 +127,7 @@ oversight capability; none exists today.
 
 ## Rollout modes
 
-`PAPERCLIP_ISSUE_PRIVACY_MODE=enforce` is the default. `shadow` records
+`NEXUS_ISSUE_PRIVACY_MODE=enforce` is the default. `shadow` records
 structured would-deny decisions without enforcing them and exists only for
 rollout diagnosis. `off` disables the task predicate. Operators should not use
 `shadow` or `off` when private-task confidentiality is required.
@@ -151,7 +151,7 @@ Migration `0314_private_task_draft_assets.sql` accompanies enforcement and binds
 historical inline images to their first owned task. Unbound drafts remain
 uploader-only under the new asset-content guard.
 
-Both privacy migrations use the Paperclip migration executor's explicit
+Both privacy migrations use the Nexus migration executor's explicit
 nontransactional path. Indexes on existing tables build concurrently; invalid builds are repaired on
 retry. DDL statements commit individually and each 1,000-row
 keyset batch commits before advancing, releasing schema and row locks. The

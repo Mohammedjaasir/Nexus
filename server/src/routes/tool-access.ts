@@ -1,11 +1,11 @@
 import { isCrossSiteOAuthCallbackNavigation, oauthCallbackInterstitialHtml } from "../lib/oauth-browser-return.js";
-import { aiConnectionRouterPluginKey } from "@paperclipai/shared";
+import { aiConnectionRouterPluginKey } from "@nexusai/shared";
 import { aiConnectionRouterService } from "../services/ai-connection-router.js";
-import { composioAppSetupSchema, composioAppsRefreshSchema, composioAppsSyncSchema, composioAppAccountSchema } from "@paperclipai/shared";
-import { aggregatorAppsSyncSchema, aggregatorAppsRefreshSchema, arcadeDiscoverySetupSchema } from "@paperclipai/shared/aggregator-apps";
+import { composioAppSetupSchema, composioAppsRefreshSchema, composioAppsSyncSchema, composioAppAccountSchema } from "@nexusai/shared";
+import { aggregatorAppsSyncSchema, aggregatorAppsRefreshSchema, arcadeDiscoverySetupSchema } from "@nexusai/shared/aggregator-apps";
 import { Router, type Request, type Response } from "express";
-import type { Db } from "@paperclipai/db";
-import { agents, companies, connectionGrants, issueThreadInteractions, toolConnectionInstalls } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { agents, companies, connectionGrants, issueThreadInteractions, toolConnectionInstalls } from "@nexusai/db";
 import { and, eq, or } from "drizzle-orm";
 import {
   APP_STORE_DEFINITIONS,
@@ -57,7 +57,7 @@ import {
   updateToolPolicySchema,
   updateToolProfileEntrySchema,
   updateToolProfileWithEntriesSchema,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { filterConnectionManagementRows, filterConnectionManagementPolicies, connectionManagementGuard, requiredConnectionUserAction, connectionRequestActor, connectionRequestContext, connectionRequestUserId } from "./connection-management-authz.js";
 import { connectionManagementService } from "../services/connection-management.js";
 import { validate } from "../middleware/validate.js";
@@ -68,20 +68,20 @@ import { ToolGatewayHttpError, type ToolGatewayService } from "../services/tool-
 import { RailwayError } from "../services/railway.js";
 import type { VercelConnectClient } from "../services/vercel-connect.js";
 import {
-  appWithPaperclipCloudConnectorAvailability,
-  isPaperclipCloudConnectorStrategy,
-  invalidatePaperclipCloudConnectorCapabilities,
-  type PaperclipCloudConnector,
-  paperclipCloudConnectorCapabilitiesFromEnv,
-} from "../services/paperclip-cloud-connector.js";
+  appWithNexusCloudConnectorAvailability,
+  isNexusCloudConnectorStrategy,
+  invalidateNexusCloudConnectorCapabilities,
+  type NexusCloudConnector,
+  nexusCloudConnectorCapabilitiesFromEnv,
+} from "../services/nexus-cloud-connector.js";
 import { runtimeCanonicalOrigin } from "../services/cloud-runtime-identity.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import {
-  completePaperclipCloudConnectorEnrollment,
-  loadPaperclipCloudConnectorIdentity,
-  startPaperclipCloudConnectorEnrollment,
-} from "../services/paperclip-cloud-connector-enrollment.js";
-import { reconcilePaperclipCloudConnectorEnrollmentStatus } from "../services/paperclip-cloud-connector-status.js";
+  completeNexusCloudConnectorEnrollment,
+  loadNexusCloudConnectorIdentity,
+  startNexusCloudConnectorEnrollment,
+} from "../services/nexus-cloud-connector-enrollment.js";
+import { reconcileNexusCloudConnectorEnrollmentStatus } from "../services/nexus-cloud-connector-status.js";
 import {
   OAUTH_CLIENT_ID_METADATA_DOCUMENT_PATH,
   oauthClientIdMetadataDocument,
@@ -176,7 +176,7 @@ export function connectionIntentOAuthOutcomeHtml(input: {
   // authorization URL stay server-side; the opener refreshes the task from the
   // interaction id instead of trusting provider-window data.
   const message = JSON.stringify({
-    type: "paperclip.connection-intent.oauth",
+    type: "nexus.connection-intent.oauth",
     interactionId: input.interactionId,
     outcome: input.outcome,
   }).replace(/</g, "\\u003c");
@@ -196,15 +196,15 @@ export function connectionIntentOAuthOutcomeHtml(input: {
     }
   })();
   const targetOrigin = JSON.stringify(openerOrigin ?? "");
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Connection authorization</title></head><body><p>Returning to Paperclip…</p><script>const message=${message};const targetOrigin=${targetOrigin}||window.location.origin;if(window.opener&&window.opener!==window){window.opener.postMessage(message,targetOrigin);window.close();}else{window.location.replace(${fallback});}</script></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Connection authorization</title></head><body><p>Returning to Nexus…</p><script>const message=${message};const targetOrigin=${targetOrigin}||window.location.origin;if(window.opener&&window.opener!==window){window.opener.postMessage(message,targetOrigin);window.close();}else{window.location.replace(${fallback});}</script></body></html>`;
 }
 
 function normalizeCloudConnectorEnrollmentReturnTo(returnTo?: string | null): string | null {
   if (!returnTo || returnTo.length > 2_048) return null;
   try {
-    const parsed = new URL(returnTo, "http://paperclip.local");
+    const parsed = new URL(returnTo, "http://nexus.local");
     if (
-      parsed.origin !== "http://paperclip.local"
+      parsed.origin !== "http://nexus.local"
       || !["/apps/connect", "/apps/chat/connect"].includes(parsed.pathname)
       || parsed.username
       || parsed.password
@@ -222,14 +222,14 @@ export function cloudConnectorEnrollmentOutcomeHtml(issuePrefix: string, returnT
   const fallback = JSON.stringify(fallbackPath).replaceAll("<", "\\u003c");
   // This document is served only after server-verified enrollment. The parent
   // independently re-reads enrollment status; browser messages grant no access.
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Paperclip connected</title></head><body><p>Paperclip is connected. Return to your task to finish connecting the app.</p><script>if(window.opener&&window.opener!==window){window.close();}else{const link=document.createElement("a");link.href=${fallback};link.textContent=${JSON.stringify(issueId ? "Return to task" : "Continue setup")};document.body.append(link);}</script></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Nexus connected</title></head><body><p>Nexus is connected. Return to your task to finish connecting the app.</p><script>if(window.opener&&window.opener!==window){window.close();}else{const link=document.createElement("a");link.href=${fallback};link.textContent=${JSON.stringify(issueId ? "Return to task" : "Continue setup")};document.body.append(link);}</script></body></html>`;
 }
 
 export function cloudConnectorEnrollmentReturnPath(issuePrefix: string, returnTo?: string | null): string {
   const companyRoot = `/${encodeURIComponent(issuePrefix)}`;
   const normalizedReturnTo = normalizeCloudConnectorEnrollmentReturnTo(returnTo);
   if (normalizedReturnTo) {
-    const parsed = new URL(normalizedReturnTo, "http://paperclip.local");
+    const parsed = new URL(normalizedReturnTo, "http://nexus.local");
     parsed.searchParams.set("cloud_connector", "enrolled");
     return `${companyRoot}${parsed.pathname}${parsed.search}`;
   }
@@ -248,7 +248,7 @@ export function toolAccessRoutes(
     remoteHttpEndpointLookup?: NonNullable<Parameters<typeof toolAccessService>[1]>["remoteHttpEndpointLookup"];
     remoteHttpRequest?: NonNullable<Parameters<typeof toolAccessService>[1]>["remoteHttpRequest"];
     vercelConnectClient?: VercelConnectClient | null;
-    paperclipCloudConnector?: PaperclipCloudConnector | null;
+    nexusCloudConnector?: NexusCloudConnector | null;
     connectionIntentHeartbeat?: Pick<Heartbeat, "wakeup">;
   } = {},
 ) {
@@ -315,12 +315,12 @@ export function toolAccessRoutes(
     const runtimeOrigin = runtimeCanonicalOrigin();
     if (runtimeOrigin) return runtimeOrigin;
     const raw = (
-      process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL?.trim()
+      process.env.NEXUS_AUTH_PUBLIC_BASE_URL?.trim()
       || process.env.BETTER_AUTH_URL?.trim()
       || process.env.BETTER_AUTH_BASE_URL?.trim()
       || options.authPublicBaseUrl?.trim()
-      || process.env.PAPERCLIP_PUBLIC_URL?.trim()
-      || process.env.PAPERCLIP_MANAGED_RUNTIME_PUBLIC_URL?.trim()
+      || process.env.NEXUS_PUBLIC_URL?.trim()
+      || process.env.NEXUS_MANAGED_RUNTIME_PUBLIC_URL?.trim()
     );
     if (!raw) return null;
     try {
@@ -393,7 +393,7 @@ export function toolAccessRoutes(
     // request. The durable binding is only a callback/metadata fallback for
     // provider GETs, which do not carry the initiating browser's Origin.
     if (req.method !== "GET" && req.method !== "HEAD") return null;
-    const identity = loadPaperclipCloudConnectorIdentity();
+    const identity = loadNexusCloudConnectorIdentity();
     if (identity?.status !== "active") return null;
     const forwardedHost = req.header("x-forwarded-host")?.split(",")[0]?.trim();
     const requestHost = (forwardedHost || req.header("host")?.trim())?.toLowerCase();
@@ -423,7 +423,7 @@ export function toolAccessRoutes(
       ?? requestLoopbackBaseUrl(req, forInitiation);
     if (!baseUrl) {
       throw unprocessable(
-        "This Paperclip needs a browser-reachable HTTPS address (or loopback HTTP) before browser sign-in can start.",
+        "This Nexus needs a browser-reachable HTTPS address (or loopback HTTP) before browser sign-in can start.",
         { code: "oauth_redirect_origin_unsupported" },
       );
     }
@@ -815,7 +815,7 @@ function connectorEnrollmentPrincipal(req: Request): string {
       res.status(401).json({ error: "Agent run id required", code: "run_id_required" });
       return;
     }
-    const headerRunId = req.get("X-Paperclip-Run-Id")?.trim();
+    const headerRunId = req.get("X-Nexus-Run-Id")?.trim();
     if (headerRunId && headerRunId !== req.actor.runId) {
       res.status(403).json({ error: "Run id header does not match agent token", code: "run_id_mismatch" });
       return;
@@ -839,10 +839,10 @@ function connectorEnrollmentPrincipal(req: Request): string {
     assertBoardOrAgent(req);
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
-    const advertisedProfiles = options.paperclipCloudConnector === undefined
-      ? await paperclipCloudConnectorCapabilitiesFromEnv()
-      : options.paperclipCloudConnector
-        ? await options.paperclipCloudConnector.getCapabilities()
+    const advertisedProfiles = options.nexusCloudConnector === undefined
+      ? await nexusCloudConnectorCapabilitiesFromEnv()
+      : options.nexusCloudConnector
+        ? await options.nexusCloudConnector.getCapabilities()
         : [];
     const vercelConnect = vercelConnectIntegrationStatus();
     const settings = await instanceSettingsService(db).getExperimental();
@@ -872,13 +872,13 @@ function connectorEnrollmentPrincipal(req: Request): string {
           reason: vercelConnect.enabled
             ? vercelConnect.configured
               ? null
-              : "Vercel Connect needs workload OIDC or PAPERCLIP_VERCEL_CONNECT_ACCESS_TOKEN."
-            : "Vercel Connect setup is disabled on this Paperclip instance.",
+              : "Vercel Connect needs workload OIDC or NEXUS_VERCEL_CONNECT_ACCESS_TOKEN."
+            : "Vercel Connect setup is disabled on this Nexus instance.",
         },
       },
       apps: [...APP_STORE_DEFINITIONS.filter((app) => (settings.enableMemoryConnectors || !isMemoryConnectorId(app.slug))
         && isConnectorFeatureEnabled(app, settings)).map((app) =>
-        appWithPaperclipCloudConnectorAvailability(app, advertisedProfiles)
+        appWithNexusCloudConnectorAvailability(app, advertisedProfiles)
       ), ...await aiConnectionRouterService(db).catalog()],
     });
   });
@@ -892,13 +892,13 @@ function connectorEnrollmentPrincipal(req: Request): string {
   });
 
   /**
-   * Paperclip's Client ID Metadata Document (PAP-17087).
+   * Nexus's Client ID Metadata Document (PAP-17087).
    *
-   * The document's own URL is the `client_id` Paperclip presents to an
+   * The document's own URL is the `client_id` Nexus presents to an
    * authorization server that supports CIMD, so this endpoint has to be publicly
    * readable — an authorization server fetches it server-to-server with no
-   * Paperclip session. It contains only this deployment's callback and the
-   * grant/response/auth methods Paperclip uses: no company, connection or secret
+   * Nexus session. It contains only this deployment's callback and the
+   * grant/response/auth methods Nexus uses: no company, connection or secret
    * data of any kind.
    */
   router.get(OAUTH_CLIENT_ID_METADATA_DOCUMENT_PATH.replace(/^\/api/, ""), (_req, res) => {
@@ -1050,13 +1050,13 @@ function connectorEnrollmentPrincipal(req: Request): string {
 
   router.get("/tools/oauth/cloud-connector/enrollment", async (req, res) => {
     assertBoard(req);
-    res.json(await reconcilePaperclipCloudConnectorEnrollmentStatus());
+    res.json(await reconcileNexusCloudConnectorEnrollmentStatus());
   });
 
   router.post("/tools/oauth/cloud-connector/enrollment", async (req, res) => {
     assertInstanceAdmin(req);
     const companyId = typeof req.body?.companyId === "string" ? req.body.companyId : "";
-    if (!companyId) throw badRequest("Paperclip Cloud enrollment requires a company");
+    if (!companyId) throw badRequest("Nexus Cloud enrollment requires a company");
     assertCompanyAccess(req, companyId);
     const origin = new URL(oauthRedirectUri(req)).origin;
     const returnTo = normalizeCloudConnectorEnrollmentReturnTo(
@@ -1064,7 +1064,7 @@ function connectorEnrollmentPrincipal(req: Request): string {
     ) ?? undefined;
     let status;
     try {
-      status = await startPaperclipCloudConnectorEnrollment({
+      status = await startNexusCloudConnectorEnrollment({
         origin,
         companyId,
         initiatedBy: connectorEnrollmentPrincipal(req),
@@ -1072,15 +1072,15 @@ function connectorEnrollmentPrincipal(req: Request): string {
         returnTo,
       });
     } catch {
-      throw unprocessable("Paperclip Cloud enrollment could not be started", {
-        code: "paperclip_cloud_connector_enrollment_failed",
+      throw unprocessable("Nexus Cloud enrollment could not be started", {
+        code: "nexus_cloud_connector_enrollment_failed",
       });
     }
     await logActivity(db, {
       companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
-      action: "paperclip_cloud_connector.enrollment_started",
+      action: "nexus_cloud_connector.enrollment_started",
       entityType: "connector_instance",
       entityId: status.instanceId ?? "pending",
       details: { environment: status.environment, status: status.status },
@@ -1093,13 +1093,13 @@ function connectorEnrollmentPrincipal(req: Request): string {
     const enrollmentId = typeof req.query.enrollment_id === "string" ? req.query.enrollment_id : "";
     const approvalCode = typeof req.query.approval_code === "string" ? req.query.approval_code : "";
     const state = typeof req.query.state === "string" ? req.query.state : "";
-    if (!enrollmentId || !approvalCode || !state) throw badRequest("Invalid Paperclip Cloud enrollment callback");
-    const pending = loadPaperclipCloudConnectorIdentity()?.pending;
+    if (!enrollmentId || !approvalCode || !state) throw badRequest("Invalid Nexus Cloud enrollment callback");
+    const pending = loadNexusCloudConnectorIdentity()?.pending;
     if (pending?.companyId && !hasCompanyAccess(req, pending.companyId)) {
-      throw notFound("Paperclip Cloud enrollment not found");
+      throw notFound("Nexus Cloud enrollment not found");
     }
     if (pending?.initiatedBy && pending.initiatedBy !== connectorEnrollmentPrincipal(req)) {
-      throw notFound("Paperclip Cloud enrollment not found");
+      throw notFound("Nexus Cloud enrollment not found");
     }
     const [company] = pending?.companyId
       ? await db
@@ -1108,29 +1108,29 @@ function connectorEnrollmentPrincipal(req: Request): string {
         .where(eq(companies.id, pending.companyId))
         .limit(1)
       : [];
-    if (!company) throw notFound("Paperclip Cloud enrollment not found");
+    if (!company) throw notFound("Nexus Cloud enrollment not found");
     let status;
     try {
-      status = await completePaperclipCloudConnectorEnrollment({ enrollmentId, approvalCode, state });
-      invalidatePaperclipCloudConnectorCapabilities();
+      status = await completeNexusCloudConnectorEnrollment({ enrollmentId, approvalCode, state });
+      invalidateNexusCloudConnectorCapabilities();
     } catch {
-      throw badRequest("Invalid or expired Paperclip Cloud enrollment callback");
+      throw badRequest("Invalid or expired Nexus Cloud enrollment callback");
     }
     if (pending?.companyId) {
       await logActivity(db, {
         companyId: pending.companyId,
         actorType: "user",
         actorId: req.actor.userId ?? "board",
-        action: "paperclip_cloud_connector.enrollment_completed",
+        action: "nexus_cloud_connector.enrollment_completed",
         entityType: "connector_instance",
         entityId: status.instanceId ?? enrollmentId,
         details: { environment: status.environment, status: status.status },
       });
     }
     const returnTo = normalizeCloudConnectorEnrollmentReturnTo(pending?.returnTo);
-    if (returnTo && new URL(returnTo, "http://paperclip.local").searchParams.get("enrollment_host") === "dialog") {
+    if (returnTo && new URL(returnTo, "http://nexus.local").searchParams.get("enrollment_host") === "dialog") {
       res.set("Cache-Control", "no-store");
-      const intent = new URL(returnTo, "http://paperclip.local").searchParams.get("intent");
+      const intent = new URL(returnTo, "http://nexus.local").searchParams.get("intent");
       const parsedIntent = startToolOAuthSchema.safeParse({ interactionId: intent });
       const interactionId = parsedIntent.success ? parsedIntent.data.interactionId : undefined;
       const [interaction] = interactionId ? await db.select({ issueId: issueThreadInteractions.issueId })
@@ -1147,7 +1147,7 @@ function connectorEnrollmentPrincipal(req: Request): string {
     res.redirect(303, cloudConnectorEnrollmentReturnPath(company.issuePrefix, returnTo));
   });
 
-  const handlePaperclipCloudConnectorCallback = async (req: Request, res: Response) => {
+  const handleNexusCloudConnectorCallback = async (req: Request, res: Response) => {
     assertBoard(req);
     const state = typeof req.query.state === "string" ? req.query.state : "";
     const claimId = typeof req.query.claim_id === "string" ? req.query.claim_id : null;
@@ -1165,7 +1165,7 @@ function connectorEnrollmentPrincipal(req: Request): string {
     }
     const acceptsHtml = req.get("accept")?.includes("text/html") === true;
     try {
-      const result = await svc.completePaperclipCloudConnectorCallback({
+      const result = await svc.completeNexusCloudConnectorCallback({
         state,
         claimId,
         error,
@@ -1259,8 +1259,8 @@ function connectorEnrollmentPrincipal(req: Request): string {
       ));
     }
   };
-  router.get("/tools/oauth/cloud-connector/callback", handlePaperclipCloudConnectorCallback);
-  router.get("/tools/oauth/paperclip-id/callback", handlePaperclipCloudConnectorCallback);
+  router.get("/tools/oauth/cloud-connector/callback", handleNexusCloudConnectorCallback);
+  router.get("/tools/oauth/nexus-id/callback", handleNexusCloudConnectorCallback);
 
   router.get("/tools/vercel-connect/callback", async (req, res) => {
     assertBoard(req);
@@ -1362,7 +1362,7 @@ function connectorEnrollmentPrincipal(req: Request): string {
     const code = typeof req.query.code === "string" ? req.query.code : null;
     const error = typeof req.query.error === "string" ? req.query.error : null;
     // `error_description` / `error_uri` are read from neither the query nor the
-    // provider's body: they are provider-authored prose, and Paperclip maps the
+    // provider's body: they are provider-authored prose, and Nexus maps the
     // `error` code to its own copy instead of reflecting them (PAP-17108).
     const iss = typeof req.query.iss === "string" ? req.query.iss : null;
     const pendingState = state ? await svc.peekOAuthState(state) : null;
@@ -1422,7 +1422,7 @@ function connectorEnrollmentPrincipal(req: Request): string {
         details: {
           code: callbackFailureCode,
           status: callbackError instanceof HttpError ? callbackError.status : 500,
-          // HttpError messages are Paperclip-authored. Provider-authored
+          // HttpError messages are Nexus-authored. Provider-authored
           // error_description/error_uri values are never read above and cannot
           // be reflected into the activity stream.
           message: callbackError instanceof HttpError

@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { activityLog, agentWakeupRequests, heartbeatRuns } from "@paperclipai/db";
-import type { SuccessfulRunHandoffState } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { activityLog, agentWakeupRequests, heartbeatRuns } from "@nexusai/db";
+import type { SuccessfulRunHandoffState } from "@nexusai/shared";
 import { logActivity } from "./activity-log.js";
 
 export const SUCCESSFUL_RUN_HANDOFF_LIVE_RUN_STATUSES = ["queued", "running", "scheduled_retry"] as const;
@@ -15,8 +15,8 @@ const heartbeatRunIssueId = sql<string>`coalesce(
 const wakeRequestIssueId = sql<string>`coalesce(
   ${agentWakeupRequests.payload} ->> 'issueId',
   ${agentWakeupRequests.payload} ->> 'taskId',
-  ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'issueId',
-  ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'taskId'
+  ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'issueId',
+  ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'taskId'
 )`;
 
 export async function hydrateSuccessfulRunHandoffLiveness(

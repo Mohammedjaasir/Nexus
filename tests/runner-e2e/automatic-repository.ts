@@ -117,7 +117,7 @@ export function gradeAutomaticRepository(value: AutomaticRepositoryObservation) 
 
 export function automaticRepositoryDigest() {
   const hash = createHash("sha256");
-  for (const file of ["automatic-repository.ts", "automatic-repository-flow.ts", "registered-artifact.ts", "stock-harness.ts", "runner.spec.ts", "../../skills/paperclip/SKILL.md"])
+  for (const file of ["automatic-repository.ts", "automatic-repository-flow.ts", "registered-artifact.ts", "stock-harness.ts", "runner.spec.ts", "../../skills/nexus/SKILL.md"])
     hash.update(file).update(readFileSync(new URL(file, import.meta.url)));
   return hash.digest("hex");
 }

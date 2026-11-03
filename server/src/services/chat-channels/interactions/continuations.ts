@@ -16,7 +16,7 @@ import {
   or,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   agentWakeupRequests,
@@ -24,7 +24,7 @@ import {
   chatEndpoints,
   chatMessageLinks,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import { isUniqueViolation } from "../../../db-errors.js";
 

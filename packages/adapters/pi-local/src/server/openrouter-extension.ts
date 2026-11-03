@@ -1,4 +1,4 @@
-import { OPENROUTER_ATTRIBUTION_HEADERS } from "@paperclipai/adapter-utils/openrouter-attribution";
+import { OPENROUTER_ATTRIBUTION_HEADERS } from "@nexusai/adapter-utils/openrouter-attribution";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -15,7 +15,7 @@ function isOpenRouter(value) {
 function headers(existing = {}) {
   return { ...Object.fromEntries(Object.entries(existing).filter(([name]) => !names.has(name.toLowerCase()))), ...attribution };
 }
-export default function paperclipAttribution(pi) {
+export default function nexusAttribution(pi) {
   const patched = new WeakSet();
   function apply(_event, context) {
     const registry = context.modelRegistry;
@@ -54,7 +54,7 @@ export default function paperclipAttribution(pi) {
 }
 
 export async function preparePiOpenRouterExtension() {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-pi-attribution-"));
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-pi-attribution-"));
   const extensionPath = path.join(directory, "openrouter-attribution.mjs");
   try {
     await fs.writeFile(extensionPath, piOpenRouterExtensionSource(), "utf8");

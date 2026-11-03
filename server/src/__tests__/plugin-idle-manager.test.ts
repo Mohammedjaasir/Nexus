@@ -6,7 +6,7 @@ import { createPluginWorkerHandle } from "../services/plugin-worker-manager.js";
 import { startTaskDrain, stopTaskDrain } from "../services/task-admission.js";
 
 const manifest = { id: "test.idle", apiVersion: 1 as const, version: "1.0.0", displayName: "Idle fixture",
-  description: "Idle fixture", author: "Paperclip", categories: ["automation" as const], capabilities: [], entrypoints: { worker: "worker.cjs" } };
+  description: "Idle fixture", author: "Nexus", categories: ["automation" as const], capabilities: [], entrypoints: { worker: "worker.cjs" } };
 function worker(write = false, hostHandler = async () => undefined) {
   return createPluginWorkerHandle("test.idle", {
     entrypointPath: fileURLToPath(new URL("./fixtures/plugin-worker-idle.cjs", import.meta.url)),

@@ -60,16 +60,16 @@ const CONNECTIVITY_CODES = new Set(["tenant_app_unavailable", "tenant_app_starti
 // raw `body.error`/`body.code`) or an `ErrorKind` fallback. Never return a raw
 // code to the user: anything not in this table falls back to its kind's copy.
 
-const UNAVAILABLE_BODY = "Paperclip is temporarily unavailable. Please try again in a moment.";
+const UNAVAILABLE_BODY = "Nexus is temporarily unavailable. Please try again in a moment.";
 
 const CODE_COPY: Record<string, { title: string; body: string }> = {
   tenant_app_unavailable: {
-    title: "Reconnecting to Paperclip",
-    body: "Paperclip is restarting or updating. Please try again in a moment.",
+    title: "Reconnecting to Nexus",
+    body: "Nexus is restarting or updating. Please try again in a moment.",
   },
   tenant_app_starting: {
-    title: "Paperclip is starting",
-    body: "Paperclip is starting up. Please try again in a few seconds.",
+    title: "Nexus is starting",
+    body: "Nexus is starting up. Please try again in a few seconds.",
   },
   WORKER_UNAVAILABLE: {
     title: "Plugin unavailable",

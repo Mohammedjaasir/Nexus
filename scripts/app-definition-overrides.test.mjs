@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const makeFixture = () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-app-overrides-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-app-overrides-"));
   for (const relative of [
     "scripts/ingest-app-definitions.mjs",
     "scripts/app-definition-overrides",

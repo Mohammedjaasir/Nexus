@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { parseNativeAcpxDistributionEntries } from "../../packages/paperclip-runner/src/drivers/acpx/native-distribution-integrity.js";
+import { parseNativeAcpxDistributionEntries } from "../../packages/nexus-runner/src/drivers/acpx/native-distribution-integrity.js";
 import { isPerTurnRunProcess, type RunProcessAuthority } from "./native-local-fixtures.js";
 import { expectedNativeBootstrap, expectedNativeModuleGuard, KIMI_FAULT_ENTRY, kimiFaultRuntimeContract } from "./kimi-provider-fault-contract.js";
 
@@ -116,12 +116,12 @@ export function selectKimiLocalTarget(input: {
   const matches = [];
   for (const candidate of input.processes) {
     if (candidate.pid === root.pid || candidate.cwd !== input.workspacePath || candidate.bootId !== root.bootId) continue;
-    const match = /^(\/[^\u0000-\u0020]*\/paperclip-acpx-native-[A-Za-z0-9_-]+\/distribution)\/node\/bin\/node$/u.exec(candidate.executable);
+    const match = /^(\/[^\u0000-\u0020]*\/nexus-acpx-native-[A-Za-z0-9_-]+\/distribution)\/node\/bin\/node$/u.exec(candidate.executable);
     if (!match) continue;
     const distribution = match[1]!, parent = byPid.get(candidate.ppid);
     if (!parent || parent.cwd !== input.workspacePath || parent.bootId !== root.bootId) continue;
     if (!Array.isArray(parent.argv) || parent.argv.length !== 10 || parent.argv[1] !== "--eval" || parent.argv[3] !== distribution
-      || JSON.stringify(parent.argv.slice(4)) !== JSON.stringify([".paperclip-native-entry.cjs", "0", "0", "commonjs", "[]", "0"])
+      || JSON.stringify(parent.argv.slice(4)) !== JSON.stringify([".nexus-native-entry.cjs", "0", "0", "commonjs", "[]", "0"])
       || sha(parent.argv[2]!) !== input.guardLoaderSha256) continue;
     const ancestry = [candidate]; let cursor = candidate;
     while (cursor.pid !== root.pid) {
@@ -162,12 +162,12 @@ export function terminateKimiLocalProvider(input: { authority: RunProcessAuthori
     const stat = lstatSync(path);
     demand(stat.isDirectory() && !stat.isSymbolicLink() && (stat.mode & 0o222) === 0 && realpathSync(path) === path, "snapshot_seal");
   }
-  const metadata = JSON.parse(readFileSync(new URL("../../packages/paperclip-runner/provider-assets/kimi/darwin-arm64/native-closure.json", import.meta.url), "utf8"));
+  const metadata = JSON.parse(readFileSync(new URL("../../packages/nexus-runner/provider-assets/kimi/darwin-arm64/native-closure.json", import.meta.url), "utf8"));
   const entries = parseNativeAcpxDistributionEntries(metadata, contract.closureSha256);
   const node = sealedFile(join(before.distribution, "node/bin/node"), 256 * 1024 * 1024);
   const entry = sealedFile(join(before.distribution, KIMI_FAULT_ENTRY), 256 * 1024 * 1024);
-  const guard = sealedFile(join(before.distribution, ".paperclip-native-module-guard.cjs"), 4 * 1024 * 1024);
-  const bootstrap = sealedFile(join(before.distribution, ".paperclip-native-entry.cjs"), 65536);
+  const guard = sealedFile(join(before.distribution, ".nexus-native-module-guard.cjs"), 4 * 1024 * 1024);
+  const bootstrap = sealedFile(join(before.distribution, ".nexus-native-entry.cjs"), 65536);
   demand(node.dev === before.target.executableDev && node.ino === before.target.executableIno
     && node.digest === contract.nodeSha256 && node.digest === `sha256:${entries.find(row => row.path === "node/bin/node")?.sha256}`
     && entry.digest === `sha256:${entries.find(row => row.path === KIMI_FAULT_ENTRY)?.sha256}`
@@ -177,7 +177,7 @@ export function terminateKimiLocalProvider(input: { authority: RunProcessAuthori
   demand(JSON.stringify(fresh) === JSON.stringify(before), "native_identity_changed");
   process.kill(fresh.target.pid, "SIGKILL");
   const identity = ({ pid, ppid, pgid, startUs, bootId }: KimiLocalProcess) => ({ pid, ppid, pgid, startUs, bootId });
-  return { schema: "paperclip.e2e.kimi-local-provider-death.v1", runId: input.authority.runId, target: identity(before.target), ancestry: before.ancestry.map(identity),
+  return { schema: "nexus.e2e.kimi-local-provider-death.v1", runId: input.authority.runId, target: identity(before.target), ancestry: before.ancestry.map(identity),
     nodeSha256: node.digest, entrypointSha256: entry.digest, closureSha256: contract.closureSha256,
     guardLoaderSha256: contract.guardLoaderSha256, guardSha256: guard.digest, bootstrapSha256: bootstrap.digest,
     entrypointAttribution: "pinned_native_bootstrap_parent", signalled: true, signal: "SIGKILL", targetKind: "kimi_native_child", workerSignalled: false };

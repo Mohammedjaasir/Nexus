@@ -3,7 +3,7 @@ import { notifyTeamsConsentExpiry, unusedTeamsConsentPhases } from "./chat-chann
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq, gt, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import type { ChatFileTransferPhase } from "@paperclipai/shared";
+import type { ChatFileTransferPhase } from "@nexusai/shared";
 import { guardedRemoteHttpFetch } from "./remote-http-fetch.js";
 import {
   assets,
@@ -13,7 +13,7 @@ import {
   issueAttachments,
   issueComments,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   bindEarlyTeamsFileConsent,
   bindTeamsFileConsent,
@@ -78,13 +78,13 @@ export type TeamsFileTransferStage =
   "issue" | "consent" | "upload" | "file_info" | "response" | "status";
 const privateSchema = z
   .object({
-    schema: z.literal("paperclip.teams.transfer-private.v1"),
+    schema: z.literal("nexus.teams.transfer-private.v1"),
     binding: z.record(z.string(), z.unknown()),
     response: z.record(z.string(), z.unknown()).optional(),
     upload: z.record(z.string(), z.unknown()).optional(),
     resolution: z
       .object({
-        schema: z.literal("paperclip.teams.file-resolution.v1"),
+        schema: z.literal("nexus.teams.file-resolution.v1"),
         action: z.enum(["mark_delivered", "retry_anyway", "cancel"]),
         fromPhase: z.enum([
           "consent_unknown",
@@ -100,7 +100,7 @@ const privateSchema = z
       .optional(),
     quarantine: z
       .object({
-        schema: z.literal("paperclip.teams.file-quarantine.v1"),
+        schema: z.literal("nexus.teams.file-quarantine.v1"),
         fromPhase: z.string().min(1).max(64),
         fromVersion: z.number().int().positive(),
         attemptId: z.uuid().nullable(),
@@ -458,7 +458,7 @@ export function teamsFileTransferService(
   async function quarantine(tx: Tx, row: Row, reason: string) {
     const state = privateSchema.parse(row.privateState);
     state.quarantine ??= {
-      schema: "paperclip.teams.file-quarantine.v1",
+      schema: "nexus.teams.file-quarantine.v1",
       fromPhase: row.phase,
       fromVersion: row.version,
       attemptId: row.attemptId,
@@ -526,7 +526,7 @@ export function teamsFileTransferService(
         expiresAt: expiresAt.toISOString(),
       });
       const privateState: PrivateState = {
-        schema: "paperclip.teams.transfer-private.v1",
+        schema: "nexus.teams.transfer-private.v1",
         binding: await sealTeamsFileConsentBinding(
           {
             companyId: a.companyId,
@@ -626,7 +626,7 @@ export function teamsFileTransferService(
         providerActionId,
         status: "processed",
         payload: {
-          schema: "paperclip.teams.consent-receipt.v1",
+          schema: "nexus.teams.consent-receipt.v1",
           transferId: row.id,
           publicationId: row.publicationId,
           receiptDigest,
@@ -1126,7 +1126,7 @@ export function teamsFileTransferService(
         await verify(tx, authority(row), "file_info");
     }
     state.resolution = {
-      schema: "paperclip.teams.file-resolution.v1",
+      schema: "nexus.teams.file-resolution.v1",
       action: input.action,
       fromPhase: input.expectedPhase,
       fromVersion: row.version,

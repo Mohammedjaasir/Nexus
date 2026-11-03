@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { activityLog, agentApiKeys, agents, authUsers, chatCompletionDeliveries, chatTaskHandoffs, companyMemberships, heartbeatRuns, issueComments, issueThreadInteractions, issues, projects } from "@paperclipai/db";
-import type { AgentApiKeyScope } from "@paperclipai/shared";
+import { activityLog, agentApiKeys, agents, authUsers, chatCompletionDeliveries, chatTaskHandoffs, companyMemberships, heartbeatRuns, issueComments, issueThreadInteractions, issues, projects } from "@nexusai/db";
+import type { AgentApiKeyScope } from "@nexusai/shared";
 import { createLocalAgentJwt } from "../agent-auth-jwt.js";
 import { sendAgentChatMessage } from "../services/agent-chat-messages.js";
 import { withConversationReadState } from "../services/agent-chat-read-state.js";
@@ -11,30 +11,30 @@ import { issueService } from "../services/issues.js";
 import { activityService } from "../services/activity.js";
 import { recordAcceptedChatHandoff } from "../services/chat-completion-delivery.js";
 import { conversationReplay, deliverConversationComments, undeliveredConversationComments } from "../services/agent-conversations.js";
-import { PaperclipRunnerToolAuthority } from "../services/native-runtime/paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "../services/native-runtime/nexus-runner-tool-authority.js";
 import { CROSS_ISSUE_INFLUENCE_LIMIT } from "../services/cross-issue-influence-limit.js";
 import { startRunnerApiTestServer } from "./helpers/runner-api-server.js";
 import { recoveryPostgresSupport as support } from "./helpers/recovery-postgres.js";
 
 (support.supported ? describe : describe.skip)("proactive agent chat messages", () => {
   let server: Awaited<ReturnType<typeof startRunnerApiTestServer>>;
-  const originalSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
+  const originalSecret = process.env.NEXUS_AGENT_JWT_SECRET;
   beforeAll(async () => {
-    process.env.PAPERCLIP_AGENT_JWT_SECRET = randomUUID();
+    process.env.NEXUS_AGENT_JWT_SECRET = randomUUID();
     server = await startRunnerApiTestServer({ humanSessions: true });
     await instanceSettingsService(server.db).updateExperimental({ enableAgentChat: true });
   }, 60_000);
   afterAll(async () => {
     await server?.close();
-    if (originalSecret === undefined) delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
-    else process.env.PAPERCLIP_AGENT_JWT_SECRET = originalSecret;
+    if (originalSecret === undefined) delete process.env.NEXUS_AGENT_JWT_SECRET;
+    else process.env.NEXUS_AGENT_JWT_SECRET = originalSecret;
   });
   const fixture = () => server.fixture({ connectionScenario: "fresh", apiToolsEnabled: false, disableWakeOnDemand: true });
   type Fixture = Awaited<ReturnType<typeof fixture>>;
   const input = { body: "## Morning review\n\nThree PRs need your review.", idempotencyKey: "morning-pr-digest" };
   const send = (f: Fixture, value: unknown = input) => sendAgentChatMessage(server.db, f, value);
   const httpSend = (f: Fixture, value: unknown = input, keyScope: AgentApiKeyScope = { kind: "standard" }, authorizingUserId?: string) => fetch(`${server.apiUrl}/api/agents/me/chat/messages`, {
-    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", f.runId, f.responsibleUserId, keyScope, authorizingUserId)}` },
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", f.runId, f.responsibleUserId, keyScope, authorizingUserId)}` },
     body: JSON.stringify(value),
   });
   const apiKey = async (f: Fixture, scopeConfig: AgentApiKeyScope = { kind: "standard" }) => {
@@ -44,7 +44,7 @@ import { recoveryPostgresSupport as support } from "./helpers/recovery-postgres.
     return { ...key, token };
   };
   const keySend = (f: Fixture, token: string, value: unknown = input) => fetch(`${server.apiUrl}/api/agents/me/chat/messages`, {
-    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "x-paperclip-run-id": f.runId },
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "x-nexus-run-id": f.runId },
     body: JSON.stringify(value),
   });
   const spendInfluence = (f: Fixture, count: number) => server.db.insert(activityLog).values(Array.from({ length: count }, (_, index) => ({
@@ -123,9 +123,9 @@ import { recoveryPostgresSupport as support } from "./helpers/recovery-postgres.
 
   it.each(["admitted", "legacy", "saved-task"])("retains a persisted %s skill-test run boundary after task mode changes", async kind => {
     const f = await fixture();
-    const contextSnapshot = kind === "admitted" ? { paperclipAgentJwtScope: { kind: "skill_test", issueId: f.issueId } }
-      : kind === "legacy" ? { paperclipSkillTest: { id: randomUUID() } }
-      : { paperclipIssue: { id: f.issueId, workMode: "skill_test" } };
+    const contextSnapshot = kind === "admitted" ? { nexusAgentJwtScope: { kind: "skill_test", issueId: f.issueId } }
+      : kind === "legacy" ? { nexusSkillTest: { id: randomUUID() } }
+      : { nexusIssue: { id: f.issueId, workMode: "skill_test" } };
     await server.db.update(heartbeatRuns).set({ contextSnapshot }).where(eq(heartbeatRuns.id, f.runId));
     await server.db.update(issues).set({ workMode: "skill_test" }).where(eq(issues.id, f.issueId));
     await server.db.update(issues).set({ workMode: "standard" }).where(eq(issues.id, f.issueId));
@@ -257,7 +257,7 @@ import { recoveryPostgresSupport as support } from "./helpers/recovery-postgres.
       runtimeMode: "native", nativeIssueId: receipt.conversationId, responsibleUserId: f.responsibleUserId,
       contextSnapshot: { issueId: receipt.conversationId, conversationSessionGeneration: 0 } });
     await server.db.update(issues).set({ executionRunId: chatRunId, conversationState: "active" }).where(eq(issues.id, receipt.conversationId));
-    const chat = new PaperclipRunnerToolAuthority(server.db, { companyId: f.companyId, agentId: f.agentId,
+    const chat = new NexusRunnerToolAuthority(server.db, { companyId: f.companyId, agentId: f.agentId,
       issueId: receipt.conversationId, runId: chatRunId, apiUrl: server.apiUrl, apiToolsEnabled: false });
     let unlock!: () => void, ready!: (pid: number) => void;
     const locked = new Promise<number>(resolve => { ready = resolve; });

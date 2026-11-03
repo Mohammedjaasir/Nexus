@@ -11,7 +11,7 @@ describe("repository runtime delivery evidence", () => {
     const digest = "09a8b6d19d867b102dcb01a222d2dde7d3cb0054031af0d73ed93f3c718516a7";
     const local = { kind: "local" as const, instanceRoot: "/owned/instance", owner: { companyId: "owned-company", agentId: "owned-agent",
       driverKind: "codex_app_server", workspace: { cwd: "/owned/workspace", repoUrl: null, repoRef: null, branchName: null } } };
-    const localSessionRoot = "/owned/instance/runtime/paperclip-runner/durable-sessions/2881ee3ad02d8c09ec2af1ef786d588f92b7f25bb002b3da9ca19fa8d9331b5d";
+    const localSessionRoot = "/owned/instance/runtime/nexus-runner/durable-sessions/2881ee3ad02d8c09ec2af1ef786d588f92b7f25bb002b3da9ca19fa8d9331b5d";
     expect(repositoryRuntimeSessionRoot(local.instanceRoot, session, local.owner)).toBe(localSessionRoot);
     const localRoot = `${localSessionRoot}/codex-home/skills/architect`;
     expect(isOwnedRepositoryRuntimeRoot(localRoot, session, local)).toBe(true);
@@ -29,7 +29,7 @@ describe("repository runtime delivery evidence", () => {
     expect(isOwnedRepositoryRuntimeRoot(preparedRoot, session, { ...prepared, instanceRoot: "/foreign/instance" })).toBe(false);
     expect(isOwnedRepositoryRuntimeRoot("/owned/instance/skills/library", session, { ...local, contextSkills: { sessionId: session, roots: ["/owned/instance/skills/library"] } })).toBe(false);
     const remote = { kind: "daytona" as const, remoteCwd: "/home/daytona/workspace" };
-    const filesystem = `/home/daytona/workspace/.paperclip-runtime/paperclip-runner/sessions/${digest}/filesystem`;
+    const filesystem = `/home/daytona/workspace/.nexus-runtime/nexus-runner/sessions/${digest}/filesystem`;
     for (const root of [`${filesystem}/context/skills/0-digest`, `${filesystem}/codex-home/skills/architect`]) {
       expect(isOwnedRepositoryRuntimeRoot(root, session, remote)).toBe(true);
       expect(isOwnedRepositoryRuntimeRoot(root, "another-session", remote)).toBe(false);
@@ -41,11 +41,11 @@ describe("repository runtime delivery evidence", () => {
   it("checks actual bytes, binary files and executable bits locally and with the sandbox inspector", () => {
     const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "repository-delivery-")));
     try {
-      mkdirSync(path.join(root, ".paperclip-repository", "shared"), { recursive: true });
-      writeFileSync(path.join(root, "SKILL.md"), "Read .paperclip-repository/skills/main/SKILL.md");
-      const binary = path.join(root, ".paperclip-repository/shared/binary.dat");
+      mkdirSync(path.join(root, ".nexus-repository", "shared"), { recursive: true });
+      writeFileSync(path.join(root, "SKILL.md"), "Read .nexus-repository/skills/main/SKILL.md");
+      const binary = path.join(root, ".nexus-repository/shared/binary.dat");
       writeFileSync(binary, Buffer.from([0, 255, 128]));
-      const script = path.join(root, ".paperclip-repository/shared/run.sh");
+      const script = path.join(root, ".nexus-repository/shared/run.sh");
       writeFileSync(script, "#!/bin/sh\necho ready\n"); chmodSync(script, 0o755);
       const local = inspectRepositoryBundle(root);
       // Run the exact shell program sent to Daytona, without a fake SDK or fake filesystem.
@@ -57,12 +57,12 @@ describe("repository runtime delivery evidence", () => {
       expect(gradeRepositoryBundles([inspectRepositoryBundle(root)], local.files, ["main"]).at(-1)?.passed).toBe(false);
       writeFileSync(binary, Buffer.from([0, 255, 128])); chmodSync(script, 0o644);
       expect(gradeRepositoryBundles([inspectRepositoryBundle(root)], local.files, ["main"]).at(-1)?.passed).toBe(false);
-      symlinkSync("/etc", path.join(root, ".paperclip-repository/escape"));
+      symlinkSync("/etc", path.join(root, ".nexus-repository/escape"));
       expect(() => inspectRepositoryBundle(root)).toThrow("Non-regular repository file");
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
   it("rejects a missing selection or duplicate runtime directory", () => {
-    const bundle = { root: "/fixture/skills/main", wrapper: ".paperclip-repository/skills/main/SKILL.md", files: [] };
+    const bundle = { root: "/fixture/skills/main", wrapper: ".nexus-repository/skills/main/SKILL.md", files: [] };
     expect(gradeRepositoryBundles([bundle, bundle], [], ["main", "other"]).filter(check => !check.passed).map(check => check.id))
       .toEqual(["two-distinct-runtime-packages", "canonical-main", "canonical-other"]);
   });

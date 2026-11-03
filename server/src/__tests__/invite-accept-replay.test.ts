@@ -8,8 +8,8 @@ import {
 
 describe("assertLegacyAgentInviteAdapterType", () => {
   it("rejects native runner for new and pending agent-invite onboarding", () => {
-    expect(() => assertLegacyAgentInviteAdapterType("paperclip_runner")).toThrow(
-      "Paperclip Runner is not available through agent invite onboarding.",
+    expect(() => assertLegacyAgentInviteAdapterType("nexus_runner")).toThrow(
+      "Nexus Runner is not available through agent invite onboarding.",
     );
     expect(() => assertLegacyAgentInviteAdapterType("claude_local")).not.toThrow();
     expect(() => assertLegacyAgentInviteAdapterType(null)).not.toThrow();
@@ -73,14 +73,14 @@ describe("mergeJoinDefaultsPayloadForReplay", () => {
     const merged = mergeJoinDefaultsPayloadForReplay(
       {
         url: "ws://old.example:18789",
-        paperclipApiUrl: "http://host.docker.internal:3100",
+        nexusApiUrl: "http://host.docker.internal:3100",
         headers: {
           "x-openclaw-token": "old-token-1234567890",
           "x-custom": "keep-me",
         },
       },
       {
-        paperclipApiUrl: "https://paperclip.example.com",
+        nexusApiUrl: "https://nexus.example.com",
         headers: {
           "x-openclaw-token": "new-token-1234567890",
         },
@@ -94,7 +94,7 @@ describe("mergeJoinDefaultsPayloadForReplay", () => {
     }) as Record<string, unknown>;
 
     expect(normalized.url).toBe("ws://old.example:18789");
-    expect(normalized.paperclipApiUrl).toBe("https://paperclip.example.com");
+    expect(normalized.nexusApiUrl).toBe("https://nexus.example.com");
     expect(normalized.headers).toMatchObject({
       "x-openclaw-token": "new-token-1234567890",
       "x-custom": "keep-me",

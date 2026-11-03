@@ -52,7 +52,7 @@ describe("TaskChatMarker", () => {
       <ThemeProvider>
         <TaskChatPresentationProvider mode={mode}>
           <TaskChatThreadView scroll={false} onRetryFailedRun={retry} items={[
-            { id: "notice", kind: "message", author: "system", text: "Paperclip retried continuation, but it still has no live execution path." },
+            { id: "notice", kind: "message", author: "system", text: "Nexus retried continuation, but it still has no live execution path." },
             { id: "failed", kind: "marker", variant: "interrupted", label: "Run failed", collapsible: true, runId: "latest", detail: "Latest failure details" },
           ]} />
         </TaskChatPresentationProvider>
@@ -72,7 +72,7 @@ describe("TaskChatMarker", () => {
         <TaskChatPresentationProvider mode={mode}>
           <TaskChatThreadView scroll={false} onRetryFailedRun={retry} retryFailedRunId={pending ? "latest" : null} items={[
             { id: "failed", kind: "marker", variant: "interrupted", label: "Run failed", collapsible: true, runId: "latest" },
-            { id: "notice", kind: "message", author: "system", text: "Paperclip retried continuation, but it still has no live execution path." },
+            { id: "notice", kind: "message", author: "system", text: "Nexus retried continuation, but it still has no live execution path." },
           ]} />
         </TaskChatPresentationProvider>
       </ThemeProvider>,

@@ -4,11 +4,11 @@ import type { McpPrincipal } from "./oauth.js";
 
 export class McpApiError extends Error {
   constructor(readonly status: number, readonly details: Record<string, unknown> = {}) {
-    super(details.code === "MCP_ACTIVE_EXECUTION" ? "An agent currently owns execution. Wait for it to finish, or manage execution in Paperclip."
-      : details.code === "MCP_REVIEW_REQUIRED" ? "A review is pending. Make the review decision in Paperclip before changing status or ownership."
+    super(details.code === "MCP_ACTIVE_EXECUTION" ? "An agent currently owns execution. Wait for it to finish, or manage execution in Nexus."
+      : details.code === "MCP_REVIEW_REQUIRED" ? "A review is pending. Make the review decision in Nexus before changing status or ownership."
       : status === 409 ? "The operation conflicts with current state. Read the latest revision, version, dependencies or task state before submitting a revised action."
       : status === 422 || status === 400 ? "Validation failed. Check the operation schema, dependency cycles, assignment and required blocker or revision fields."
-      : `Paperclip rejected the operation (HTTP ${status}). Check your current organization permissions and connection scopes in Paperclip.`);
+      : `Nexus rejected the operation (HTTP ${status}). Check your current organization permissions and connection scopes in Nexus.`);
   }
 }
 
@@ -17,8 +17,8 @@ export class McpCapabilityError extends Error {}
 
 export type ApiDispatch = (principal: McpPrincipal, method: "GET" | "POST" | "PATCH" | "PUT", path: string, body?: unknown) => Promise<unknown>;
 
-export const company = { companyId: z.uuid().describe("The company explicitly authorized by this connection. Copy the exact companyId from paperclip_connection and wait for that result before dependent tool calls. Never guess an ID or use a placeholder.") };
-export const task = { ...company, taskId: z.uuid().describe("The exact task UUID returned by paperclip_search_tasks or paperclip_create_task. Search by title or human-readable identifier first; never derive a UUID from a title or identifier.") };
+export const company = { companyId: z.uuid().describe("The company explicitly authorized by this connection. Copy the exact companyId from nexus_connection and wait for that result before dependent tool calls. Never guess an ID or use a placeholder.") };
+export const task = { ...company, taskId: z.uuid().describe("The exact task UUID returned by nexus_search_tasks or nexus_create_task. Search by title or human-readable identifier first; never derive a UUID from a title or identifier.") };
 export const requestId = z.uuid().describe("A new UUID for this intended action. Reuse this UUID and identical arguments on retries; never invent a second ID after an uncertain result.");
 export const boundedLimit = z.number().int().min(1).max(100).default(30);
 export const object = (v: unknown): Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {};

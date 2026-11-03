@@ -371,7 +371,7 @@ publish_package_to_npm() {
   local publish_tool="${4:-pnpm}"
   local publish_log
 
-  publish_log="$(mktemp "${TMPDIR:-/tmp}/paperclip-npm-publish.XXXXXX")"
+  publish_log="$(mktemp "${TMPDIR:-/tmp}/nexus-npm-publish.XXXXXX")"
 
   if (set -o pipefail; run_package_publish "$publish_tool" "$dist_tag" false 2>&1 | tee "$publish_log"); then
     rm -f "$publish_log"
@@ -442,7 +442,7 @@ wait_for_npm_package_versions() {
     local pkg_version
     local i
 
-    status_dir="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-release-visibility.XXXXXX")"
+    status_dir="$(mktemp -d "${TMPDIR:-/tmp}/nexus-release-visibility.XXXXXX")"
 
     # shellcheck disable=SC2329 # invoked via the trap below
     reap_visibility_pollers() {
@@ -492,14 +492,14 @@ verify_npm_installable() {
   local install_dir
   local installed_version
 
-  install_dir="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-release-install.XXXXXX")"
+  install_dir="$(mktemp -d "${TMPDIR:-/tmp}/nexus-release-install.XXXXXX")"
 
   if ! npm install --prefix "$install_dir" "$package_spec" --no-audit --no-fund; then
     rm -rf "$install_dir"
     return 1
   fi
 
-  installed_version="$(node -e "console.log(require(process.argv[1]).version)" "$install_dir/node_modules/paperclipai/package.json")"
+  installed_version="$(node -e "console.log(require(process.argv[1]).version)" "$install_dir/node_modules/nexusai/package.json")"
   rm -rf "$install_dir"
 
   [ "$installed_version" = "$expected_version" ]

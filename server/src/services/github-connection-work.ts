@@ -1,6 +1,6 @@
 import { logger } from "../middleware/logger.js";
 import { registerScopedDeadlineWork } from "./scoped-deadline-work.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";
 import { registerDeadlineWork } from "./deadline-work.js";
 import { DELIVERY_QUEUES } from "./delivery-work-notifications.js";

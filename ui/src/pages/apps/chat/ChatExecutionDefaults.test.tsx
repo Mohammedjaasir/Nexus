@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ChatExecutionDefaults } from "./ChatExecutionDefaults";
-import type { ChatExecutionDefaults as Defaults } from "@paperclipai/shared";
+import type { ChatExecutionDefaults as Defaults } from "@nexusai/shared";
 const mocks = vi.hoisted(() => ({ projects: vi.fn(), workspaces: vi.fn(), save: vi.fn() }));
 vi.mock("@/api/projects", () => ({ projectsApi: { list: mocks.projects } }));
 vi.mock("@/api/execution-workspaces", () => ({ executionWorkspacesApi: { listSummaries: mocks.workspaces } }));

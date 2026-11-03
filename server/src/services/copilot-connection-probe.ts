@@ -1,8 +1,8 @@
-import { environmentTaskResultSchema } from "@paperclipai/plugin-sdk";
+import { environmentTaskResultSchema } from "@nexusai/plugin-sdk";
 import { randomUUID } from "node:crypto";
-import type { Db } from "@paperclipai/db";
-import { probeCopilotMetadata, validateCopilotMetadata } from "../vendor/paperclip-runner/live/index.js";
-import { runAdapterExecutionTargetShellCommand, type AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
+import type { Db } from "@nexusai/db";
+import { probeCopilotMetadata, validateCopilotMetadata } from "../vendor/nexus-runner/live/index.js";
+import { runAdapterExecutionTargetShellCommand, type AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
 import { environmentService } from "./environments.js";
 import { environmentRuntimeService } from "./environment-runtime.js";
 import { instanceSettingsService } from "./instance-settings.js";
@@ -39,7 +39,7 @@ export async function probeCopilotConnection(db: Db, companyId: string, token: s
   let probeFailed = false;
   try {
     if (environment.driver !== "ssh") {
-      lease = await runtime.acquireRunLease(buildLoginLeaseAcquireArgs({ metadata: { companyId, environment, adapterType: "paperclip_runner" }, targetAgentId, assertCompanyBinding: true, requestedExpiresAt: new Date(Date.now() + 90_000) }));
+      lease = await runtime.acquireRunLease(buildLoginLeaseAcquireArgs({ metadata: { companyId, environment, adapterType: "nexus_runner" }, targetAgentId, assertCompanyBinding: true, requestedExpiresAt: new Date(Date.now() + 90_000) }));
       if (environment.driver === "plugin" && await runtime.supportsTasks({ lease: lease.lease })) {
         const updated = await environments.updateLeaseMetadata(lease.lease.id, { ...lease.lease.metadata,
           runnerTaskProbe: { runId: randomUUID(), sessionId: randomUUID(), expiresAtMs: Date.now() + 90_000 } });
@@ -47,7 +47,7 @@ export async function probeCopilotConnection(db: Db, companyId: string, token: s
         lease.lease = updated;
       } else await runtime.realizeWorkspace({ environment, lease: lease.lease, workspace: {} });
     }
-    const target = await resolveEnvironmentExecutionTarget({ db, companyId, adapterType: "paperclip_runner", environment,
+    const target = await resolveEnvironmentExecutionTarget({ db, companyId, adapterType: "nexus_runner", environment,
       leaseId: lease?.lease.id, lease: lease?.lease, leaseMetadata: lease?.lease.metadata ?? null, environmentRuntime: runtime });
     if (!target || target.kind !== "remote") throw unprocessable("The selected environment cannot run the Copilot metadata probe.", { code: "copilot_environment_unavailable" });
     const verified = await probeCopilotExecutionTarget(token, target, model);
@@ -90,13 +90,13 @@ export async function probeCopilotExecutionTarget(token: string, target: Adapter
   // pack must not hide a valid home pack; account/model failures remain final.
   const deadlineAt = Date.now() + 35_000;
   let incompatibleMetadata: unknown;
-  for (const location of ["/opt/paperclip-runner/provider-pack", '"$HOME/.local/share/paperclip-runner/provider-pack"']) {
+  for (const location of ["/opt/nexus-runner/provider-pack", '"$HOME/.local/share/nexus-runner/provider-pack"']) {
     const remainingMs = deadlineAt - Date.now();
     if (remainingMs <= 0) throw unprocessable("Copilot metadata verification timed out.", { code: "COPILOT_REQUEST_FAILED" });
-    const command = `pack=${location}; if [ -f "$pack/provider-pack.json" ] && [ -f "$pack/dist/cli/copilot-metadata-probe.js" ] && [ -x "$pack/node_modules/node/bin/node" ]; then export PAPERCLIP_ACPX_PROVIDER_PACKAGE_ROOT="$pack" PAPERCLIP_ACPX_PROVIDER_PACKAGE_MANIFEST="$pack/package.json"; exec "$pack/node_modules/node/bin/node" "$pack/dist/cli/copilot-metadata-probe.js"; fi; exit 127`;
+    const command = `pack=${location}; if [ -f "$pack/provider-pack.json" ] && [ -f "$pack/dist/cli/copilot-metadata-probe.js" ] && [ -x "$pack/node_modules/node/bin/node" ]; then export NEXUS_ACPX_PROVIDER_PACKAGE_ROOT="$pack" NEXUS_ACPX_PROVIDER_PACKAGE_MANIFEST="$pack/package.json"; exec "$pack/node_modules/node/bin/node" "$pack/dist/cli/copilot-metadata-probe.js"; fi; exit 127`;
     // The selected token and exact model are environment values, never shell source.
     const response = await runAdapterExecutionTargetShellCommand(`copilot-metadata-${randomUUID()}`, target, command, {
-      cwd: target.remoteCwd, env: { COPILOT_GITHUB_TOKEN: token, ...(model ? { PAPERCLIP_COPILOT_PROBE_MODEL: model } : {}) }, timeoutSec: Math.ceil(remainingMs / 1000), graceSec: 3,
+      cwd: target.remoteCwd, env: { COPILOT_GITHUB_TOKEN: token, ...(model ? { NEXUS_COPILOT_PROBE_MODEL: model } : {}) }, timeoutSec: Math.ceil(remainingMs / 1000), graceSec: 3,
     });
     if (response.timedOut || response.stdout.length > 64 * 1024) throw unprocessable("Copilot metadata verification timed out.", { code: "COPILOT_REQUEST_FAILED" });
     let result: unknown;

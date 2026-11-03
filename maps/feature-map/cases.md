@@ -42,7 +42,7 @@ Open Cases in the company sidebar (`/:companyPrefix/cases`). The task-style head
 
 Open `/cases/:caseIdentifier` or a task’s linked case.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Enable cases and prepare related records with different types/statuses plus an associated task.
 
@@ -50,7 +50,7 @@ Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Enab
 
 Automated: [case list](../../ui/src/pages/Cases.test.tsx) covers the four header controls, read-only column visibility, URL filters/view state, server sort/group queries before pagination, group headers, detail/back navigation and loading/failure with mocked data.
 
-Provider-free browser regression: [cases read-only journey](../../tests/e2e/cases-read-only.spec.ts) seeds passive cases, nested objects, singleton/multiple object arrays, a related unassigned task and two document revisions through production APIs, then checks column visibility, server-backed title sorting/type grouping, Filter popover/count, semantic key/value table rows and dotted paths, Work-before-Details layout, document revision previews, case-scoped Audit history/action filtering and return navigation in Chromium. It creates no agents. Run `env -u DATABASE_URL -u DATABASE_MIGRATION_URL pnpm exec playwright test --config tests/e2e/playwright.config.ts tests/e2e/cases-read-only.spec.ts --project chromium` on an unused `PAPERCLIP_E2E_PORT`. The existing harness starts an isolated instance; this journey does not qualify agent handoffs or live agent avatars.
+Provider-free browser regression: [cases read-only journey](../../tests/e2e/cases-read-only.spec.ts) seeds passive cases, nested objects, singleton/multiple object arrays, a related unassigned task and two document revisions through production APIs, then checks column visibility, server-backed title sorting/type grouping, Filter popover/count, semantic key/value table rows and dotted paths, Work-before-Details layout, document revision previews, case-scoped Audit history/action filtering and return navigation in Chromium. It creates no agents. Run `env -u DATABASE_URL -u DATABASE_MIGRATION_URL pnpm exec playwright test --config tests/e2e/playwright.config.ts tests/e2e/cases-read-only.spec.ts --project chromium` on an unused `NEXUS_E2E_PORT`. The existing harness starts an isolated instance; this journey does not qualify agent handoffs or live agent avatars.
 
 Manual: Hide/show a field through Columns, choose a sort/direction, group by type/status/project, then use Filter for status/type/project including No project. Verify the badge counts active selectors. Open a row and return through the breadcrumb; reload to verify URL filters, columns, sort and grouping remain. Use keyboard and touch controls; include empty results, terminal cases, loading, and retry after a list failure. If there are more results, use Next/Previous without losing the view.
 

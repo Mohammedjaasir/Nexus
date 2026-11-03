@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Project } from "@paperclipai/shared";
+import type { Project } from "@nexusai/shared";
 import { ProjectProperties, type ProjectConfigFieldKey, type ProjectFieldSaveState } from "@/components/ProjectProperties";
 import { queryKeys } from "@/lib/queryKeys";
-import { storybookProjects } from "../../fixtures/paperclipData";
+import { storybookProjects } from "../../fixtures/nexusData";
 
 const COMPANY_ID = "company-storybook";
 const boardProject = storybookProjects.find((project) => project.id === "project-board-ui") ?? storybookProjects[0]!;
@@ -32,7 +32,7 @@ const meta: Meta<typeof ProjectProperties> = {
   title: "Projects and execution/Projects and repositories/Workspaces/Project runtime provision command",
   component: ProjectProperties,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "projects/defaults",
         "workspaces/provisioning"

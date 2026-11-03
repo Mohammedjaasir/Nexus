@@ -17,9 +17,9 @@ import {
   toolProfileBindings,
   toolProfileEntries,
   toolProfiles,
-} from "@paperclipai/db";
-import type { AdapterRuntimeMcpServer } from "@paperclipai/adapter-utils";
-import type { PaperclipSkillEntry } from "@paperclipai/adapter-utils/server-utils";
+} from "@nexusai/db";
+import type { AdapterRuntimeMcpServer } from "@nexusai/adapter-utils";
+import type { NexusSkillEntry } from "@nexusai/adapter-utils/server-utils";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -57,12 +57,12 @@ async function waitForRunToFinish(
 describeEmbeddedPostgres("heartbeat runtime skill version pins", () => {
   let db!: ReturnType<typeof createDb>;
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
-  let oldPaperclipHome: string | undefined;
-  let oldPaperclipApiUrl: string | undefined;
-  let paperclipHome: string | null = null;
+  let oldNexusHome: string | undefined;
+  let oldNexusApiUrl: string | undefined;
+  let nexusHome: string | null = null;
   const capturedRuns: Array<{
     agentId: string;
-    skills: PaperclipSkillEntry[];
+    skills: NexusSkillEntry[];
     mcpServers: AdapterRuntimeMcpServer[];
     config: Record<string, unknown>;
     serializedRuntimeInput: string;
@@ -72,14 +72,14 @@ describeEmbeddedPostgres("heartbeat runtime skill version pins", () => {
   beforeAll(async () => {
     tempDb = await startEmbeddedPostgresTestDatabase("heartbeat-runtime-skills-");
     db = createDb(tempDb.connectionString);
-    oldPaperclipHome = process.env.PAPERCLIP_HOME;
-    paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-skills-home-"));
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    // The server normalizes PAPERCLIP_API_URL into its own env at boot
+    oldNexusHome = process.env.NEXUS_HOME;
+    nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-skills-home-"));
+    process.env.NEXUS_HOME = nexusHome;
+    // The server normalizes NEXUS_API_URL into its own env at boot
     // (server/src/index.ts); heartbeat gateway delivery requires it, so pin
     // a deterministic value for tests that never boot the full server.
-    oldPaperclipApiUrl = process.env.PAPERCLIP_API_URL;
-    process.env.PAPERCLIP_API_URL = "http://127.0.0.1:3100/api";
+    oldNexusApiUrl = process.env.NEXUS_API_URL;
+    process.env.NEXUS_API_URL = "http://127.0.0.1:3100/api";
     registerServerAdapter({
       type: TEST_ADAPTER_TYPE,
       execute: async (ctx) => {
@@ -91,7 +91,7 @@ describeEmbeddedPostgres("heartbeat runtime skill version pins", () => {
         await ctx.onLog("stdout", `${serializedRuntimeInput}\n`);
         capturedRuns.push({
           agentId: ctx.agent.id,
-          skills: (ctx.config.paperclipRuntimeSkills ?? []) as PaperclipSkillEntry[],
+          skills: (ctx.config.nexusRuntimeSkills ?? []) as NexusSkillEntry[],
           mcpServers: ctx.runtimeMcp?.getServers() ?? [],
           config: ctx.config,
           serializedRuntimeInput,
@@ -138,12 +138,12 @@ describeEmbeddedPostgres("heartbeat runtime skill version pins", () => {
 
   afterAll(async () => {
     unregisterServerAdapter(TEST_ADAPTER_TYPE);
-    if (oldPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = oldPaperclipHome;
-    if (oldPaperclipApiUrl === undefined) delete process.env.PAPERCLIP_API_URL;
-    else process.env.PAPERCLIP_API_URL = oldPaperclipApiUrl;
-    if (paperclipHome) {
-      await fs.rm(paperclipHome, { recursive: true, force: true });
+    if (oldNexusHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = oldNexusHome;
+    if (oldNexusApiUrl === undefined) delete process.env.NEXUS_API_URL;
+    else process.env.NEXUS_API_URL = oldNexusApiUrl;
+    if (nexusHome) {
+      await fs.rm(nexusHome, { recursive: true, force: true });
     }
     await tempDb?.cleanup();
   });
@@ -151,7 +151,7 @@ describeEmbeddedPostgres("heartbeat runtime skill version pins", () => {
   it.each(["local_path", "catalog"] as const)("snapshots changed installed %s files for new executions and keeps resume versions", async (sourceType) => {
     const companyId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: 'Local skill snapshots', issuePrefix: 'LSK' });
-    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'paperclip-local-snapshot-'));
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'nexus-local-snapshot-'));
     cleanupDirs.add(directory);
     const [project] = await db.insert(projects).values({ companyId, name: 'Approved local workspace' }).returning();
     await db.insert(projectWorkspaces).values({ companyId, projectId: project!.id, name: 'Local skill workspace', sourceType: 'local_path', cwd: directory, isPrimary: true });
@@ -200,12 +200,12 @@ describeEmbeddedPostgres("heartbeat runtime skill version pins", () => {
     const secondAgentId = randomUUID();
     const issuePrefix = `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
     const skillKey = `company/${companyId}/runtime-coach`;
-    const skillDir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-versioned-runtime-skill-"));
+    const skillDir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-versioned-runtime-skill-"));
     cleanupDirs.add(skillDir);
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix,
       requireBoardApprovalForNewAgents: false,
       defaultResponsibleUserId: "responsible-user",
@@ -255,7 +255,7 @@ describeEmbeddedPostgres("heartbeat runtime skill version pins", () => {
         status: "idle",
         adapterType: TEST_ADAPTER_TYPE,
         adapterConfig: {
-          paperclipSkillSync: {
+          nexusSkillSync: {
             desiredSkills: [{ key: skillKey, versionId: versionOne.id }],
           },
         },
@@ -270,7 +270,7 @@ describeEmbeddedPostgres("heartbeat runtime skill version pins", () => {
         status: "idle",
         adapterType: TEST_ADAPTER_TYPE,
         adapterConfig: {
-          paperclipSkillSync: {
+          nexusSkillSync: {
             desiredSkills: [{ key: skillKey, versionId: versionTwo.id }],
           },
         },
@@ -353,7 +353,7 @@ describeEmbeddedPostgres("heartbeat runtime skill version pins", () => {
       .where(eq(agents.id, firstAgentId))
       .then((rows) => rows[0]?.adapterConfig);
     expect(storedPreference).toMatchObject({
-      paperclipSkillSync: {
+      nexusSkillSync: {
         desiredSkills: [{ key: skillKey, versionId: versionOne.id }],
       },
     });
@@ -461,7 +461,7 @@ describeEmbeddedPostgres("heartbeat runtime skill version pins", () => {
     expect(captured?.mcpServers).toHaveLength(1);
     expect(captured?.mcpServers[0]).toMatchObject({
       connectionId: expect.stringMatching(/^assignment:[a-f0-9]{64}$/),
-      name: "paperclip-assigned",
+      name: "nexus-assigned",
       token: expect.stringMatching(/^pcgw_/),
       url: expect.stringMatching(/\/mcp\/gateways\/gw_[a-f0-9]{32}$/),
     });
@@ -477,7 +477,7 @@ describeEmbeddedPostgres("heartbeat runtime skill version pins", () => {
     const bearer = captured?.mcpServers[0]?.token;
     expect(bearer).toMatch(/^pcgw_/);
     if (!bearer) throw new Error("Expected runtime MCP bearer");
-    expect(captured?.config).not.toHaveProperty("paperclipRuntimeMcpServers");
+    expect(captured?.config).not.toHaveProperty("nexusRuntimeMcpServers");
     expect(JSON.stringify(captured?.config)).not.toContain(bearer);
     expect(captured?.serializedRuntimeInput).not.toContain(bearer);
     const log = await heartbeat.readLog(run!.id);

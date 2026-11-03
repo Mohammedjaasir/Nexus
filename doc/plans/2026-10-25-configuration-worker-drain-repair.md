@@ -21,7 +21,7 @@ minute, then the saved work runs on resume without another producer.
 
 All 23 lifecycle cases pass in /tmp/sleep18-drain-tests.log; production server
 typecheck passes in /tmp/sleep18-drain-typecheck.log. The test database is the
-fresh migrated paperclip_sleep18_drain_20261025_test. No test failures were retried
+fresh migrated nexus_sleep18_drain_20261025_test. No test failures were retried
 blindly. Current master bf9a8551c3 has no changes to these three worker owners
 since the preceding aec86c794b inspection; full stack reconciliation remains open.
 
@@ -41,7 +41,7 @@ All 67 registration/store cases pass in /tmp/sleep19-drain-tests.log, including
 90 seconds of no SQL/provider calls and an unchanged idle snapshot during drain,
 followed by registration on resume without another producer. Production server
 typecheck passes in /tmp/sleep19-drain-typecheck.log. These tests use the migrated
-paperclip_sleep19_drain_20261025_test database. Remote CI/review must run on the
+nexus_sleep19_drain_20261025_test database. Remote CI/review must run on the
 new head; this is not evidence of provider suspension.
 
 ## Receiver discovery — slice 20 / #17572
@@ -52,7 +52,7 @@ retaining all dirty scopes and lease/retry deadlines. All 19 receiver lifecycle
 cases pass in /tmp/sleep20-drain-tests.log, including no SQL and an unchanged idle
 snapshot for a minute after settlement, then receiver acquisition on resume.
 Production server typecheck passes in /tmp/sleep20-drain-typecheck.log. The fresh
-migrated database is paperclip_sleep20_drain_20261025_test.
+migrated database is nexus_sleep20_drain_20261025_test.
 
 The three configuration owners now have measured drain activity as well as traffic
 checks. Their retained timers remain memory-only while paused; they do not provide

@@ -6,8 +6,8 @@ import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { and, eq, ne, or, sql } from "drizzle-orm";
 import { executionWorkspaces, projectWorkspaces, workspaceRuntimeServices, heartbeatRuns, nativeRunFinalizations, environmentLeases,
-  withDedicatedDbConnection, type Db } from "@paperclipai/db";
-import { PROJECT_REPOSITORIES_DIR } from "@paperclipai/adapter-utils/git-workspace-sync";
+  withDedicatedDbConnection, type Db } from "@nexusai/db";
+import { PROJECT_REPOSITORIES_DIR } from "@nexusai/adapter-utils/git-workspace-sync";
 import { IsolatedRepositorySourceBusy, isolatedRemoteSourcePath, verifiedRecordedIsolatedRemoteSource, withIsolatedRepositorySourceLock } from "./isolated-remote-workspace-source.js";
 import { acquireGitExpirationLocks, recoverGitExpirationLocks, type GitExpirationLockLocation } from "./git-workspace-expiration-locks.js";
 import { allocatedBytes, describeGitExpirationFailure, expirationScope, gitExpirationSkipReason, withAnonymousGitFallback, type GitExpirationFailure } from "./git-workspace-expiration.js";
@@ -24,7 +24,7 @@ import { loadGitRestorePoint } from "./git-restore-point-storage.js";
 import { nestedWorktreeBranchPrefix, readLinkedNestedCheckout, repairMovedNestedRepositoryWorktree, withNestedRepositoryBaseLock } from "./nested-repository-worktrees.js";
 import { getStorageService } from "../storage/index.js";
 import { createIssueGitRemoteAuthProvider } from "./git-credentials.js";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 
 const execFile = promisify(execFileCallback);
 const SHA = /^[0-9a-f]{40}$/;
@@ -36,7 +36,7 @@ const CLONE_HISTORY_BUDGET = 5_000;
 const CLONE_DIRECTORY_BUDGET = 1_000;
 const UNSAFE_BASE_CONFIG = /^(filter\.|include\.|includeif\.|core\.(fsmonitor|hookspath|attributesfile|worktree|gitproxy|sshcommand|askpass|editor|pager|alternaterefscommand)$|extensions\.worktreeconfig$)/;
 const GIB = 1024 * 1024 * 1024;
-const COMPACTION_TRASH_PATH = `.paperclip/worktrees/${WORKSPACE_COMPACTION_TRASH_DIR}`;
+const COMPACTION_TRASH_PATH = `.nexus/worktrees/${WORKSPACE_COMPACTION_TRASH_DIR}`;
 const SOURCE_ID = /^[a-zA-Z0-9_-]+$/;
 const ORPHAN_HANDLED_ELSEWHERE = new Set(["base_has_consumers", "rehome_pending", "rehome_cleanup_pending"]);
 const SOURCE_TRASH = /^\.(rehomed-checkout|rehomed-worktree|orphaned-checkout)-[a-zA-Z0-9_-]+$/;
@@ -100,7 +100,7 @@ export async function presentCommits(cwd: string, commits: Iterable<string>, sig
 }
 
 function lockToken(workspaceId: string) {
-  return createHash("sha256").update(`paperclip-isolated-repository-rehome:${workspaceId}`).digest("hex");
+  return createHash("sha256").update(`nexus-isolated-repository-rehome:${workspaceId}`).digest("hex");
 }
 
 async function recoverRehomeLocks(clone: string, branch: string | null, workspaceId: string) {
@@ -151,7 +151,7 @@ async function sharedManagedBase(workspace: Workspace) {
 
 function standardWorktreeSuffix(branch: string) {
   if (!branch || branch.split("/").some(part => !part || part === "." || part === "..") || branch.includes("\\")) throw new Error("unsupported_branch_name");
-  return path.join(".paperclip", "worktrees", branch);
+  return path.join(".nexus", "worktrees", branch);
 }
 
 async function targetWorktree(db: Db | Tx, workspace: Workspace, base: string, branch: string, signal?: AbortSignal) {
@@ -330,7 +330,7 @@ export async function assertTransferredItems(from: string, to: string, moves: st
     if (!base) continue;
     const linked = await readLinkedNestedCheckout(path.join(to, relative)).catch(() => null);
     const head = linked ? (await git(linked.checkout, ["symbolic-ref", "--quiet", "--short", "HEAD"]).catch(() => "")).trim() : "";
-    if (linked?.base !== base || (head.startsWith("paperclip/") && !head.startsWith(linked.branchPrefix))) throw new Error("transfer_incomplete");
+    if (linked?.base !== base || (head.startsWith("nexus/") && !head.startsWith(linked.branchPrefix))) throw new Error("transfer_incomplete");
   }
 }
 
@@ -717,7 +717,7 @@ async function sourceDirectories(parent: string) {
 }
 
 export async function sweepOrphanedIsolatedRepositorySources(db: Db, options: { dryRun?: boolean; signal?: AbortSignal; after?: string | null; limit?: number } = {}) {
-  const root = path.join(resolvePaperclipInstanceRoot(), "isolated-repository-sources");
+  const root = path.join(resolveNexusInstanceRoot(), "isolated-repository-sources");
   const results: OrphanedIsolatedSourceResult[] = [];
   const limit = options.limit ?? 8;
   let inspected = 0;

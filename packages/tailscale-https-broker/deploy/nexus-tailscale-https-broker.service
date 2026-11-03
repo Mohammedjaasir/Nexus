@@ -1,0 +1,26 @@
+[Unit]
+Description=Nexus Tailscale HTTPS broker
+After=tailscaled.service
+Requires=tailscaled.service
+
+[Service]
+Type=simple
+User=nexus-tsbroker
+Group=nexus-tsbroker-sock
+EnvironmentFile=/etc/nexus/tailscale-https-broker.env
+ExecStart=/usr/bin/node /opt/nexus/packages/tailscale-https-broker/dist/main.js
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+RuntimeDirectory=nexus-tailscale-broker
+RuntimeDirectoryMode=0750
+StateDirectory=nexus-tailscale-broker
+StateDirectoryMode=0700
+LogsDirectory=nexus-tailscale-broker
+LogsDirectoryMode=0700
+ReadWritePaths=/run/nexus-tailscale-broker /var/lib/nexus-tailscale-broker /var/log/nexus-tailscale-broker
+
+[Install]
+WantedBy=multi-user.target

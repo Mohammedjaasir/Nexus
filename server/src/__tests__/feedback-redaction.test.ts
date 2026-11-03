@@ -10,7 +10,7 @@ describe("feedback redaction", () => {
   it.each([
     "https://agents.staging.example.com/team/chats/assistant",
     "api.openai.com and deployment.credentials.example.md",
-    "paperclip.native-model-envelope.v3 and executor.coreTools.integrations.list",
+    "nexus.native-model-envelope.v3 and executor.coreTools.integrations.list",
     "Use bearer tokens for authentication and bearer authentication for requests.",
     "Document bearer authorization, bearer credentials, bearer schemes, and bearer flows.",
     "Use (bearer tokens). Preserve [bearer authentication] and {bearer credentials}.",

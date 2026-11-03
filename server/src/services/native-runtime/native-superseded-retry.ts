@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, isNotNull, sql } from "drizzle-orm";
-import { environmentLeases, heartbeatRuns, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { environmentLeases, heartbeatRuns, nativeRunFinalizations, type Db } from "@nexusai/db";
 import { notifyExecutionRunWork } from "../execution-control-notifications.js";
 import { hasRequiredWorkspaceRecovery, nativeRunHasNoWorkspaceAccess } from "../workspace-restore-recovery-state.js";
 import { preserveNativeFailedWorkspace } from "./native-failed-workspace-recovery.js";

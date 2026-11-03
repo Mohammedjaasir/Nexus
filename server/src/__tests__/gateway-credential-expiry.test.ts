@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { activityLog, agents, companies, createDb, heartbeatRuns, toolAccessAuditEvents, toolGatewaySessions,
-  toolMcpGateways, toolMcpGatewayTokens, toolProfiles } from "@paperclipai/db";
+  toolMcpGateways, toolMcpGatewayTokens, toolProfiles } from "@nexusai/db";
 import { createToolGatewayService } from "../services/tool-gateway.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { registerGatewayCredentialExpiryWork } from "../services/gateway-credential-expiry-work.js";
@@ -10,7 +10,7 @@ import { idleWorkSnapshot } from "../services/task-admission.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_GATEWAY_EXPIRY_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_GATEWAY_EXPIRY_TEST_DATABASE_URL");
 const supported = external ? true : (await getEmbeddedPostgresTestSupport()).supported;
 
 describe.skipIf(!supported)("gateway credential expiry", () => {

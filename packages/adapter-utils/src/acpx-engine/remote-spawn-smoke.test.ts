@@ -62,7 +62,7 @@ async function ensureRealAcpSession(input: {
   spawnCwd?: string;
   onAgentSpawn?: (meta: { pid: number; startedAt: string }) => Promise<void>;
 }) {
-  const stateRoot = await makeTempDir("paperclip-acpx-remote-spawn-state-");
+  const stateRoot = await makeTempDir("nexus-acpx-remote-spawn-state-");
   const stderrChunks: string[] = [];
   const agentCommand = `${JSON.stringify(process.execPath.replaceAll("\\", "/"))} ${JSON.stringify(fixturePath.replaceAll("\\", "/"))}`;
   const runtimeOptions: PatchedAcpRuntimeOptions = {
@@ -115,7 +115,7 @@ async function waitForProcessExit(pid: number, timeoutMs = 2_000): Promise<void>
 it("reproduces host-spawn ENOENT when the advertised session cwd is host-nonexistent", async () => {
   // The in-sandbox `remoteCwd` that does not exist on the host. Intentionally
   // NOT created: this is what trips the acpx host `spawn()` `chdir`.
-  const sandboxParent = await makeTempDir("paperclip-acpx-remote-spawn-sandbox-");
+  const sandboxParent = await makeTempDir("nexus-acpx-remote-spawn-sandbox-");
   const remoteCwd = path.join(sandboxParent, "does-not-exist-on-host", "workspace");
 
   const outcome = await ensureRealAcpSession({ cwd: remoteCwd });
@@ -130,11 +130,11 @@ it("reproduces host-spawn ENOENT when the advertised session cwd is host-nonexis
 });
 
 it("spawnCwd redirects the host spawn to a host-valid dir while the advertised session cwd stays remoteCwd", async () => {
-  const sandboxParent = await makeTempDir("paperclip-acpx-remote-spawn-sandbox-");
+  const sandboxParent = await makeTempDir("nexus-acpx-remote-spawn-sandbox-");
   // Host-nonexistent in-sandbox cwd — the advertised `session/new` cwd.
   const remoteCwd = path.join(sandboxParent, "does-not-exist-on-host", "workspace");
   // Host-valid dir the proxy actually spawns in (the engine's host `cwd`).
-  const hostSpawnCwd = await makeTempDir("paperclip-acpx-remote-spawn-host-");
+  const hostSpawnCwd = await makeTempDir("nexus-acpx-remote-spawn-host-");
 
   const outcome = await ensureRealAcpSession({ cwd: remoteCwd, spawnCwd: hostSpawnCwd });
 
@@ -149,7 +149,7 @@ it("spawnCwd redirects the host spawn to a host-valid dir while the advertised s
 });
 
 it("kills the ACP agent when process identity persistence rejects", async () => {
-  const hostCwd = await makeTempDir("paperclip-acpx-spawn-persistence-");
+  const hostCwd = await makeTempDir("nexus-acpx-spawn-persistence-");
   let spawnedPid: number | null = null;
 
   const outcome = await ensureRealAcpSession({

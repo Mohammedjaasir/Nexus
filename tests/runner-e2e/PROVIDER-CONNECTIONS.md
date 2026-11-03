@@ -75,17 +75,17 @@ Each command generates a separate campaign, preserving previous attempts.
 
 ## Authentication handoff
 
-Playwright drives Paperclip and opens the real provider sign-in page. When login
+Playwright drives Nexus and opens the real provider sign-in page. When login
 needs a person, the terminal prints the provider and account alias and writes
 `progress.json`. Complete Google/provider login, MFA, consent, and any code
-entry in the visible QA browser. The test resumes only after Paperclip reports
+entry in the visible QA browser. The test resumes only after Nexus reports
 a saved, connected credential. Do not paste passwords or OAuth codes into chat.
 
 The QA browser uses its own private profile. It refuses an existing unmarked
 profile, keeps a lock while running, and never uses your normal Chrome profile.
 `signed-in` permits previously saved website login; it still creates a fresh
-Paperclip connection. `signed-out` starts a temporary empty browser profile.
-Paperclip SSO and provider SSO may share an identity provider, so this records
+Nexus connection. `signed-out` starts a temporary empty browser profile.
+Nexus SSO and provider SSO may share an identity provider, so this records
 the browser's initial state, not a guarantee of another password challenge.
 
 Human help is recorded as `assisted`. A login deadline records `awaiting_user`,
@@ -117,7 +117,7 @@ To use an existing local server or staging, replace `target` with:
 For local attach use `http://127.0.0.1:PORT` and `local_trusted`. Health must
 match the expected revision and deployment mode before credentials are read.
 The target is never reset, restarted, or given instance-setting changes.
-Sign in to Paperclip in the QA browser if needed; that session supplies the
+Sign in to Nexus in the QA browser if needed; that session supplies the
 same public API permissions as the browser. The operator needs company/agent
 creation, connection management, and company archival permissions.
 
@@ -169,7 +169,7 @@ configured model and agent configuration; connection attribution proves the
 selected credential, not an upstream gateway's internal model mapping.
 
 The matrix covers Claude, Codex, Grok, Gemini, OpenCode, and Hermes local where
-Paperclip's managed-connection capability table admits them, with applicable
+Nexus's managed-connection capability table admits them, with applicable
 legacy/native variants and both UI entry points. Cursor local, Kimi, and Pi
 remain visible product gaps for managed connection onboarding. Remote OpenClaw
 and Hermes gateways, Cursor Cloud, managed Claude/AWS AgentCore, process/HTTP,
@@ -374,7 +374,7 @@ API-key turn.
 On 2026-10-06, host-side Grok transcript retention/restoration was removed after
 security review: other agents running as the same OS user could read restored
 transcripts regardless of private file modes. Managed Grok follow-ups now start
-fresh with the Paperclip task handoff. The historical Grok passes above precede
+fresh with the Nexus task handoff. The historical Grok passes above precede
 this change and do not qualify current transcript continuation; an isolated
 history solution and new live qualification remain required.
 
@@ -385,7 +385,7 @@ hit daily inference quota; a small request for `gemini-3.1-flash-lite` succeeded
 These are distinct from model-list and connection-probe success.
 
 Local Gemini turns now also receive the current selected skill root and
-explicit instructions to read the Paperclip artifact workflow before making
+explicit instructions to read the Nexus artifact workflow before making
 control-plane calls. A real follow-up exposed Gemini CLI's rejection of inline
 command substitution when building a JSON completion request. Its local turn
 guidance now uses workspace JSON body files with `curl --data-binary @file` or
@@ -440,7 +440,7 @@ shared/database/skill-catalog groups passed. Further isolated checks do not
 substitute for a successful complete PR verification run.
 
 The pinned native Grok executable is still absent at
-`/opt/paperclip/providers/grok/1.0.13/grok`. Installing it needs administrator
+`/opt/nexus/providers/grok/1.0.13/grok`. Installing it needs administrator
 access; retain the checked-in provisioning helper and its checksum verification.
 Subscriptions, staging/Daytona, and common-build release qualification remain
 outstanding.

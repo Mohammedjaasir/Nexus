@@ -6,17 +6,17 @@ import {
   and,
   eq,
 } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   chatConversations,
   chatExternalPrincipals,
   chatPublications,
   issueThreadInteractions,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   SafeChatPublicationPayload,
   AskUserQuestionsInteraction,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   forbidden,
@@ -65,7 +65,7 @@ type DiscordQuestionFormsOptions = {
 };
 export function createDiscordQuestionForms(db: Db, options: DiscordQuestionFormsOptions) {
   const { requireCurrentExternalActionAuthorization, isExternalActionAuthorizationChange, persistence } = options;
-  const denialError = () => forbidden("This chat form is not a current Paperclip question");
+  const denialError = () => forbidden("This chat form is not a current Nexus question");
   async function handleDiscordFormCorrection(input: DiscordFormCorrectionInput) {
     const { record, event, runtimeContext, conversation, principal, loaded, originalPublication, providerMessageId, interaction, payload, validation, deny } = input;
 

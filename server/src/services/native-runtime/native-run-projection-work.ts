@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, not, sql } from "drizzle-orm";
-import { heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { DELIVERY_QUEUES } from "../delivery-work-notifications.js";
 import type { NativeRunProjectionScope } from "../native-run-projection-notifications.js";

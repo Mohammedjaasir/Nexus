@@ -20,8 +20,8 @@ import {
   issues,
   toolApplications,
   toolConnections,
-} from "@paperclipai/db";
-import type { ChatProvider } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { ChatProvider } from "@nexusai/shared";
 import { enqueueIssueInteractionChatPublications, enqueueTerminalIssueInteractionChatPublications } from "../services/chat-interaction-publications.js";
 import { issueThreadInteractionService } from "../services/issue-thread-interactions.js";
 import {
@@ -31,7 +31,7 @@ import {
 
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_CHAT_PUBLICATIONS_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_CHAT_PUBLICATIONS_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported
   ? describe
@@ -44,19 +44,19 @@ describeEmbeddedPostgres(
     let tempDb: Awaited<
       ReturnType<typeof startEmbeddedPostgresTestDatabase>
     > | null = null;
-    const previousPublicUrl = process.env.PAPERCLIP_PUBLIC_URL;
+    const previousPublicUrl = process.env.NEXUS_PUBLIC_URL;
 
     beforeAll(async () => {
-      process.env.PAPERCLIP_PUBLIC_URL = "https://paperclip.example";
+      process.env.NEXUS_PUBLIC_URL = "https://nexus.example";
       if (externalUrl) await applyPendingMigrations(externalUrl);
-      else tempDb = await startEmbeddedPostgresTestDatabase("paperclip-terminal-chat-interaction-");
+      else tempDb = await startEmbeddedPostgresTestDatabase("nexus-terminal-chat-interaction-");
       db = createDb(externalUrl ?? tempDb!.connectionString);
     }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
 
     afterAll(async () => {
       if (previousPublicUrl === undefined)
-        delete process.env.PAPERCLIP_PUBLIC_URL;
-      else process.env.PAPERCLIP_PUBLIC_URL = previousPublicUrl;
+        delete process.env.NEXUS_PUBLIC_URL;
+      else process.env.NEXUS_PUBLIC_URL = previousPublicUrl;
       await db?.$client.end({ timeout: 1 });
       await tempDb?.cleanup();
     });
@@ -78,7 +78,7 @@ describeEmbeddedPostgres(
         name: "Native chat agent",
         role: "operator",
         status: "idle",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         adapterConfig: {},
         runtimeConfig: {},
         permissions: {},
@@ -295,7 +295,7 @@ describeEmbeddedPostgres(
       const service = issueThreadInteractionService(db);
       const interaction = await service.create({ id: fixture.issueId, companyId: fixture.companyId }, {
         kind: "ask_user_questions", title: "Identify the failed change",
-        payload: { version: 1, questionSet: { schema: "paperclip.question_set.v1", description: "The answer determines the next test.", questions: [question] } },
+        payload: { version: 1, questionSet: { schema: "nexus.question_set.v1", description: "The answer determines the next test.", questions: [question] } },
       } as Parameters<typeof service.create>[1], { agentId: fixture.agentId });
       const [publication] = await publicationsForInteraction(fixture.companyId, interaction.id);
       expect(publication.payload.card?.body).toContain(question.prompt);
@@ -317,7 +317,7 @@ describeEmbeddedPostgres(
         expect(tokens.map(token => token.kind).sort()).toEqual(["question_answer", "question_answer", "question_form_open", "question_form_submit"].sort());
       }
       if (shape === "oversized") {
-        expect(publication.payload.card?.actions).toEqual([{ type: "link", label: "Open in Paperclip", url: expect.stringContaining(fixture.issueId) }]);
+        expect(publication.payload.card?.actions).toEqual([{ type: "link", label: "Open in Nexus", url: expect.stringContaining(fixture.issueId) }]);
       } else if (shape !== "multi_select") {
         expect(publication.payload.card?.actions?.every(action => action.type === "callback")).toBe(true);
       }
@@ -329,7 +329,7 @@ describeEmbeddedPostgres(
       const options = Array.from({ length: count }, (_, index) => ({ id: `choice-${index}`, label: `Choice ${index}` }));
       const interaction = await service.create({ id: fixture.issueId, companyId: fixture.companyId }, {
         kind: "ask_user_questions",
-        payload: { version: 1, questionSet: { schema: "paperclip.question_set.v1", questions: [{
+        payload: { version: 1, questionSet: { schema: "nexus.question_set.v1", questions: [{
           id: "choice", prompt: "Choose a fixture", answerMode: "single_select", required: true,
           options, customAnswer: { enabled: true },
         }] } },
@@ -345,7 +345,7 @@ describeEmbeddedPostgres(
       } else {
         expect(publication.payload.card?.selection).toBeUndefined();
         expect(publication.payload.card?.actions).toEqual([
-          { type: "link", label: "Open in Paperclip", url: expect.stringContaining(fixture.issueId) },
+          { type: "link", label: "Open in Nexus", url: expect.stringContaining(fixture.issueId) },
         ]);
         expect(tokens).toEqual([]);
         await markInteractionCardsPublished(fixture.companyId, interaction.id);
@@ -382,7 +382,7 @@ describeEmbeddedPostgres(
         name: "Foreign agent",
         role: "operator",
         status: "idle",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         adapterConfig: {},
         runtimeConfig: {},
         permissions: {},
@@ -528,7 +528,7 @@ describeEmbeddedPostgres(
       expect(original?.endpointId).toBe(fixture.endpointIds.slack);
       expect(original?.payload.card?.body).toContain(expected);
       expect(original?.payload.card?.body).toContain("Verify preserved configuration");
-      expect(original?.payload.card?.actions).toEqual(kind === "request_item_verdicts" ? [{ type: "callback", actionId: expect.any(String), label: "Review decisions", style: "primary" }] : [{ type: "callback", actionId: expect.any(String), label: "Create task", style: "primary" }, { type: "callback", actionId: expect.any(String), label: "Dismiss", style: "default" }, { type: "link", label: "Revise in Paperclip", url: expect.stringContaining(fixture.issueId) }]);
+      expect(original?.payload.card?.actions).toEqual(kind === "request_item_verdicts" ? [{ type: "callback", actionId: expect.any(String), label: "Review decisions", style: "primary" }] : [{ type: "callback", actionId: expect.any(String), label: "Create task", style: "primary" }, { type: "callback", actionId: expect.any(String), label: "Dismiss", style: "default" }, { type: "link", label: "Revise in Nexus", url: expect.stringContaining(fixture.issueId) }]);
       await markInteractionCardsPublished(fixture.companyId, interaction.id);
       if (kind === "request_item_verdicts") {
         await service.submitItemVerdicts(issue, interaction.id, { verdicts: [{ id: "docs", verdict: "approve" }] }, { userId: "board-user" });
@@ -553,7 +553,7 @@ describeEmbeddedPostgres(
       expect(expired[0].status).toBe("expired");
       const publications = await publicationsForInteraction(fixture.companyId, interaction.id);
       expect(publications).toHaveLength(2);
-      expect(publications.find(row => row.id !== original.id)?.payload.card?.body).toBe("Expired in Paperclip");
+      expect(publications.find(row => row.id !== original.id)?.payload.card?.body).toBe("Expired in Nexus");
     });
 
     it.each(["decline", "reassign"] as const)("delivers, deduplicates and settles an addressed connection request on %s without a second wake owner", async outcome => {
@@ -575,7 +575,7 @@ describeEmbeddedPostgres(
       else await db.transaction(async tx => issueThreadInteractionService(tx as unknown as typeof db).expireConnectionIntentsForOwnershipChange(issue));
       const settled = await publicationsForInteraction(fixture.companyId, interaction.id);
       expect(settled).toHaveLength(2);
-      expect(settled.find(row => row.id !== original.id)?.payload.card?.body).toBe(outcome === "decline" ? "Declined: Notion. No access was granted." : "Expired in Paperclip");
+      expect(settled.find(row => row.id !== original.id)?.payload.card?.body).toBe(outcome === "decline" ? "Declined: Notion. No access was granted." : "Expired in Nexus");
       expect((await db.select().from(chatActions).where(eq(chatActions.companyId, fixture.companyId))).filter(action => action.kind === "interaction_wakeup")).toEqual([]);
     });
 
@@ -781,7 +781,7 @@ describeEmbeddedPostgres(
           "do-not-publish-this",
         );
         expect(JSON.stringify(settlement.payload)).not.toContain(
-          "Answered in Paperclip",
+          "Answered in Nexus",
         );
       }
     });
@@ -917,7 +917,7 @@ describeEmbeddedPostgres(
       expect(skippedSettlements).toHaveLength(2);
       expect(
         skippedSettlements.every(
-          (row) => row.payload.card?.body === "Skipped in Paperclip.",
+          (row) => row.payload.card?.body === "Skipped in Nexus.",
         ),
       ).toBe(true);
       expect(

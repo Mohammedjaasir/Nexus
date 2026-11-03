@@ -27,19 +27,19 @@ import {
   projectWorkspaces,
   projects,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
-import { ONBOARDING_FIRST_TASK_ORIGIN_KIND } from "@paperclipai/shared";
+import { ONBOARDING_FIRST_TASK_ORIGIN_KIND } from "@nexusai/shared";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import { issueService } from "../services/issues.js";
 import { issueThreadInteractionService } from "../services/issue-thread-interactions.js";
 import { agentService } from "../services/agents.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_INTERACTIONS_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_INTERACTIONS_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -51,7 +51,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
 
   beforeAll(async () => {
     if (externalUrl) await applyPendingMigrations(externalUrl);
-    else tempDb = await startEmbeddedPostgresTestDatabase("paperclip-issue-thread-interactions-");
+    else tempDb = await startEmbeddedPostgresTestDatabase("nexus-issue-thread-interactions-");
     db = createDb(externalUrl ?? tempDb!.connectionString);
     issuesSvc = issueService(db);
     interactionsSvc = issueThreadInteractionService(db);
@@ -89,7 +89,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
   function interactionCompanyRow(companyId: string): typeof companies.$inferInsert {
     return {
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     };
@@ -244,7 +244,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
   it("persists and answers a canonical-only mixed question form", async () => {
     const { companyId, issueId } = await seedSourceQuestionFixture({});
     const questionSet = {
-      schema: "paperclip.question_set.v1" as const,
+      schema: "nexus.question_set.v1" as const,
       questions: [
         { id: "repo", prompt: "Repository URL?", required: true, answerMode: "text" as const },
         { id: "scope", prompt: "Review scope?", required: true, answerMode: "single_select" as const, options: [{ id: "all", label: "All changes" }, { id: "selected", label: "Selected changes" }] },
@@ -283,7 +283,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
     for (const [index, entry] of cases.entries()) {
       const created = await interactionsSvc.create(issue, {
         kind: "ask_user_questions", payload: { version: 1, questionSet: {
-          schema: "paperclip.question_set.v1", questions: [{ id: "value", prompt: "Value?", required: true, answerMode: "text", textValidation: entry.textValidation }],
+          schema: "nexus.question_set.v1", questions: [{ id: "value", prompt: "Value?", required: true, answerMode: "text", textValidation: entry.textValidation }],
         } },
       }, { userId: "local-board" });
       for (const otherText of entry.invalid) {
@@ -294,7 +294,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
       expect((await interactionsSvc.answerQuestions(issue, created.id, { answers: [{ questionId: "value", optionIds: [], otherText: entry.valid }] }, { userId: "local-board" })).status).toBe("answered");
     }
     const custom = await interactionsSvc.create(issue, { kind: "ask_user_questions", payload: { version: 1, questionSet: {
-      schema: "paperclip.question_set.v1", questions: [{ id: "scope", prompt: "Scope?", required: true, answerMode: "single_select", options: [{ id: "all", label: "All" }, { id: "selected", label: "Selected" }], customAnswer: { enabled: true }, textValidation: { minLength: 3 } }],
+      schema: "nexus.question_set.v1", questions: [{ id: "scope", prompt: "Scope?", required: true, answerMode: "single_select", options: [{ id: "all", label: "All" }, { id: "selected", label: "Selected" }], customAnswer: { enabled: true }, textValidation: { minLength: 3 } }],
     } } }, { userId: "local-board" });
     await expect(interactionsSvc.answerQuestions(issue, custom.id, { answers: [{ questionId: "scope", optionIds: [], otherText: "ab" }] }, { userId: "local-board" })).rejects.toThrow("at least 3");
     expect((await interactionsSvc.answerQuestions(issue, custom.id, { answers: [{ questionId: "scope", optionIds: [], otherText: "abc" }] }, { userId: "local-board" })).status).toBe("answered");
@@ -307,7 +307,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
     const created = await interactionsSvc.create(issue, { kind: "ask_user_questions", payload: {
       version: 1,
       questions: [{ id: "scope", prompt: "Scope?", required: true, selectionMode: "single", options: [...options, { id: "existing-custom-id", label: "Other", freeText: true }] }],
-      questionSet: { schema: "paperclip.question_set.v1", questions: [{ id: "scope", prompt: "Scope?", required: true, answerMode: "single_select", options, customAnswer: { enabled: true }, textValidation: { minLength: 3 } }] },
+      questionSet: { schema: "nexus.question_set.v1", questions: [{ id: "scope", prompt: "Scope?", required: true, answerMode: "single_select", options, customAnswer: { enabled: true }, textValidation: { minLength: 3 } }] },
     } }, { userId: "local-board" });
     const answered = await interactionsSvc.answerQuestions(issue, created.id, { answers: [{ questionId: "scope", optionIds: ["existing-custom-id"], otherText: "Specific files" }] }, { userId: "local-board" });
     expect(answered).toMatchObject({ status: "answered", result: { answers: [{ questionId: "scope", optionIds: ["existing-custom-id"], otherText: "Specific files" }] } });
@@ -317,14 +317,14 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
     const { companyId, issueId } = await seedSourceQuestionFixture({});
     const issue = { id: issueId, companyId };
     const created = await interactionsSvc.create(issue, { kind: "ask_user_questions", payload: { version: 1, questionSet: {
-      schema: "paperclip.question_set.v1", questions: [{ id: "scope", prompt: "Scope?", required: true, answerMode: "single_select", options: [{ id: "all", label: "All" }, { id: "selected", label: "Selected" }], customAnswer: { enabled: true }, textValidation: { minLength: 3 } }],
+      schema: "nexus.question_set.v1", questions: [{ id: "scope", prompt: "Scope?", required: true, answerMode: "single_select", options: [{ id: "all", label: "All" }, { id: "selected", label: "Selected" }], customAnswer: { enabled: true }, textValidation: { minLength: 3 } }],
     } } }, { userId: "local-board" });
     if (created.kind !== "ask_user_questions") throw new Error("expected questions");
     const historicalPayload = structuredClone(created.payload);
     delete historicalPayload.questionSet!.questions[0].customAnswer;
     await db.update(issueThreadInteractions).set({ payload: historicalPayload }).where(eq(issueThreadInteractions.id, created.id));
-    await expect(interactionsSvc.answerQuestions(issue, created.id, { answers: [{ questionId: "scope", optionIds: ["paperclip_custom_answer"], otherText: "ab" }] }, { userId: "local-board" })).rejects.toThrow("at least 3");
-    const answered = await interactionsSvc.answerQuestions(issue, created.id, { answers: [{ questionId: "scope", optionIds: ["paperclip_custom_answer"], otherText: "Specific files" }] }, { userId: "local-board" });
+    await expect(interactionsSvc.answerQuestions(issue, created.id, { answers: [{ questionId: "scope", optionIds: ["nexus_custom_answer"], otherText: "ab" }] }, { userId: "local-board" })).rejects.toThrow("at least 3");
+    const answered = await interactionsSvc.answerQuestions(issue, created.id, { answers: [{ questionId: "scope", optionIds: ["nexus_custom_answer"], otherText: "Specific files" }] }, { userId: "local-board" });
     expect(answered.status).toBe("answered");
   });
 
@@ -335,7 +335,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
 
   async function seedChatQuestion() {
     const fixture = await seedSourceQuestionFixture({});
-    const userId = "paperclip-id:question-owner";
+    const userId = "nexus-id:question-owner";
     await seedQuestionUser(fixture.companyId, userId);
     await db.update(issues).set({
       conversationAgentId: fixture.agentId, conversationUserId: userId, conversationState: "active",
@@ -345,7 +345,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
   }
 
   it("derives the exact Cloud chat owner, denies other responders, and saves one answer delivery", async () => {
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "test-cloud-token");
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "test-cloud-token");
     const fixture = await seedChatQuestion();
     const scope = { id: fixture.issueId, companyId: fixture.companyId };
     const created = await interactionsSvc.create(scope, {
@@ -353,7 +353,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
     }, { agentId: fixture.agentId });
     expect(created.addresseeUserId).toBe(fixture.userId);
     const answer = { answers: [{ questionId: "scope", optionIds: ["phase-1"] }] };
-    for (const userId of ["question-owner", "paperclip-id:other-user"]) {
+    for (const userId of ["question-owner", "nexus-id:other-user"]) {
       await expect(interactionsSvc.answerQuestions(scope, created.id, answer, { userId }))
         .rejects.toMatchObject({ status: 403, details: { code: "interaction_addressee_mismatch" } });
     }
@@ -398,9 +398,9 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
     expect((await interactionsSvc.create(scope, input, actor)).id).toBe(omitted.id);
   });
 
-  it.each(["question-owner", "paperclip-id:another-member"])("rejects contradictory chat recipient %s before saving", async (addresseeUserId) => {
+  it.each(["question-owner", "nexus-id:another-member"])("rejects contradictory chat recipient %s before saving", async (addresseeUserId) => {
     const fixture = await seedChatQuestion();
-    await seedQuestionUser(fixture.companyId, "paperclip-id:another-member");
+    await seedQuestionUser(fixture.companyId, "nexus-id:another-member");
     await expect(interactionsSvc.create({ id: fixture.issueId, companyId: fixture.companyId }, {
       ...questionCreateInput(fixture.runId), addresseeUserId,
     }, { agentId: fixture.agentId })).rejects.toMatchObject({
@@ -416,7 +416,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
     const input = { kind: "request_confirmation" as const, payload: { version: 1 as const, prompt: "Proceed?" } };
     const actor = { agentId: fixture.agentId };
     expect(await interactionsSvc.create(scope, input, actor)).toMatchObject({ addresseeUserId: null });
-    const addresseeUserId = "paperclip-id:confirmation-reviewer";
+    const addresseeUserId = "nexus-id:confirmation-reviewer";
     await seedQuestionUser(fixture.companyId, addresseeUserId);
     expect(await interactionsSvc.create(scope, { ...input, addresseeUserId }, actor)).toMatchObject({ addresseeUserId });
   });
@@ -428,7 +428,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
     const actor = { agentId: fixture.agentId };
     const open = await interactionsSvc.create(scope, input, actor);
     expect(open.addresseeUserId).toBeNull();
-    const userId = "paperclip-id:task-recipient";
+    const userId = "nexus-id:task-recipient";
     await seedQuestionUser(fixture.companyId, userId);
     const addressed = await interactionsSvc.create(scope, { ...input, addresseeUserId: userId }, actor);
     expect(addressed.addresseeUserId).toBe(userId);
@@ -439,7 +439,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
 
   it.each(["unknown", "prefix-dropped", "cross-company", "inactive", "viewer"])("rejects %s explicit task recipients before saving", async (kind) => {
     const fixture = await seedSourceQuestionFixture({});
-    const userId = "paperclip-id:task-recipient";
+    const userId = "nexus-id:task-recipient";
     if (kind !== "unknown") {
       const companyId = kind === "cross-company" ? (await seedConfirmationIssue()).companyId : fixture.companyId;
       await seedQuestionUser(companyId, userId, kind === "viewer" ? "viewer" : "member", kind === "inactive" ? "inactive" : "active");
@@ -464,7 +464,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
   });
 
   it("lets the implicit local board answer chat questions without an auth row", async () => {
-    vi.stubEnv("PAPERCLIP_DEPLOYMENT_MODE", "local_trusted");
+    vi.stubEnv("NEXUS_DEPLOYMENT_MODE", "local_trusted");
     const fixture = await seedSourceQuestionFixture({});
     await db.update(issues).set({
       conversationAgentId: fixture.agentId, conversationUserId: "local-board", conversationState: "active",
@@ -481,8 +481,8 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
   });
 
   it.each(["authenticated", "cloud"])("does not infer local-board authority in %s mode", async (mode) => {
-    vi.stubEnv("PAPERCLIP_DEPLOYMENT_MODE", mode === "cloud" ? "local_trusted" : "authenticated");
-    if (mode === "cloud") vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "test-cloud-token");
+    vi.stubEnv("NEXUS_DEPLOYMENT_MODE", mode === "cloud" ? "local_trusted" : "authenticated");
+    if (mode === "cloud") vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "test-cloud-token");
     const fixture = await seedSourceQuestionFixture({});
     await expect(interactionsSvc.create({ id: fixture.issueId, companyId: fixture.companyId }, {
       ...questionCreateInput(fixture.runId), addresseeUserId: "local-board",
@@ -493,9 +493,9 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
   });
 
   it("does not accept a stale Cloud instance-admin row as recipient authority", async () => {
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "test-cloud-token");
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "test-cloud-token");
     const fixture = await seedSourceQuestionFixture({});
-    const userId = "paperclip-id:stale-admin";
+    const userId = "nexus-id:stale-admin";
     await db.insert(authUsers).values({ id: userId, name: "Stale admin", email: `${randomUUID()}@example.test`, createdAt: new Date(), updatedAt: new Date() });
     await db.insert(instanceUserRoles).values({ userId, role: "instance_admin" });
     await expect(interactionsSvc.create({ id: fixture.issueId, companyId: fixture.companyId }, {
@@ -505,7 +505,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
   });
 
   it("rejects a source-run question when a newer human comment was not delivered", async () => {
-    const fixture = await seedSourceQuestionFixture({ paperclipWake: { comments: [] } });
+    const fixture = await seedSourceQuestionFixture({ nexusWake: { comments: [] } });
     const commentId = randomUUID();
     await db.insert(issueComments).values({
       id: commentId,
@@ -534,7 +534,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
 
   it("allows a source-run question when the newer human comment is explicitly delivered", async () => {
     const commentId = randomUUID();
-    const fixture = await seedSourceQuestionFixture({ paperclipWake: { comments: [{ id: commentId }] } });
+    const fixture = await seedSourceQuestionFixture({ nexusWake: { comments: [{ id: commentId }] } });
     await db.insert(issueComments).values({
       id: commentId,
       companyId: fixture.companyId,
@@ -575,7 +575,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
   });
 
   it("does not apply the delivery guard to approval interactions", async () => {
-    const fixture = await seedSourceQuestionFixture({ paperclipWake: { comments: [] } });
+    const fixture = await seedSourceQuestionFixture({ nexusWake: { comments: [] } });
     await db.insert(issueComments).values({
       companyId: fixture.companyId,
       issueId: fixture.issueId,
@@ -600,7 +600,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
   });
 
   it("does not treat the board concierge reply as human direction", async () => {
-    const fixture = await seedSourceQuestionFixture({ paperclipWake: { comments: [] } });
+    const fixture = await seedSourceQuestionFixture({ nexusWake: { comments: [] } });
     await db.insert(issueComments).values({
       companyId: fixture.companyId,
       issueId: fixture.issueId,
@@ -620,7 +620,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
   });
 
   it("rejects an explicitly mismatched source-run issue or agent", async () => {
-    const fixture = await seedSourceQuestionFixture({ paperclipWake: { comments: [] } });
+    const fixture = await seedSourceQuestionFixture({ nexusWake: { comments: [] } });
     const otherAgentId = randomUUID();
     await db.insert(agents).values(activeCodexAgentRow(otherAgentId, fixture.companyId, "Other questioner", "engineer"));
 
@@ -637,7 +637,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
 
     await db.transaction(async (tx) => {
       await tx.execute(sql`set local session_replication_role = replica`);
-      await tx.update(heartbeatRuns).set({ nativeIssueId: null, contextSnapshot: { issueId: randomUUID(), paperclipWake: { comments: [] } } }).where(eq(heartbeatRuns.id, fixture.runId));
+      await tx.update(heartbeatRuns).set({ nativeIssueId: null, contextSnapshot: { issueId: randomUUID(), nexusWake: { comments: [] } } }).where(eq(heartbeatRuns.id, fixture.runId));
     });
     await expect(interactionsSvc.create(
       { id: fixture.issueId, companyId: fixture.companyId },
@@ -646,7 +646,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
     )).rejects.toMatchObject({ status: 422, message: "sourceRunId must belong to the same issue" });
 
     await db.update(heartbeatRuns)
-      .set({ contextSnapshot: { issueId: fixture.issueId, paperclipWake: { comments: [] } } })
+      .set({ contextSnapshot: { issueId: fixture.issueId, nexusWake: { comments: [] } } })
       .where(eq(heartbeatRuns.id, fixture.runId));
     await expect(interactionsSvc.create(
       { id: fixture.issueId, companyId: fixture.companyId },

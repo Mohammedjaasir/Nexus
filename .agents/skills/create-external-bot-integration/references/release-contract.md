@@ -11,7 +11,7 @@
 ## Make the requested outcome testable
 
 An external bot is an existing agent whose execution is hosted elsewhere. It may
-have memory, a browser, skills, accounts, and tools Paperclip neither supplies nor
+have memory, a browser, skills, accounts, and tools Nexus neither supplies nor
 controls. Decide whether this integration connects that existing agent or creates
 a separate API agent. They can have different identity, billing, tools, and memory.
 
@@ -26,11 +26,11 @@ Provider / existing bot or newly created API agent:
 Ordinary entry point and target users:
 Release targets: self-hosted / Cloud / both:
 Transport outward / return channel / provider evidence:
-Paperclip acting identity and company/agent mapping:
-Paperclip-originated work acceptance journey:
+Nexus acting identity and company/agent mapping:
+Nexus-originated work acceptance journey:
 Bot-originated idle work acceptance journey:
 Native tools policy:
-Required Paperclip capabilities / explicitly deferred capabilities:
+Required Nexus capabilities / explicitly deferred capabilities:
 Workspace access and execution placement:
 Allowed human setup steps:
 Connection lifetime / revocation / subscription renewal:
@@ -57,8 +57,8 @@ whether it works idle, during a run, after completion, and after revocation.
 | Idle intake | Can the bot create governed work when no task is assigned? Does the user see the intake and its attribution? |
 | Coordination | Search/read tasks; create and assign to agents or people; comment and edit authorized cross-task documents? |
 | Native tools | Can the bot use its existing Slack/browser/computer? What permissions remain provider-owned? |
-| Assigned tools | Pinned Paperclip skills, gateway apps, dynamically granted tools, permission changes during a turn? |
-| Attachments | Which task/company files may leave Paperclip, how are pages/integrity checked, and can access be revoked mid-read? |
+| Assigned tools | Pinned Nexus skills, gateway apps, dynamically granted tools, permission changes during a turn? |
+| Attachments | Which task/company files may leave Nexus, how are pages/integrity checked, and can access be revoked mid-read? |
 | Workspace | Files, shell, Git, artifact publishing; whose machine; explicit settings; which platforms? |
 | Human interaction | Questions, approval requests, replies, denial, resumption, and visibility in the task thread? |
 | Lifecycle | Follow-up, interruption, cancellation, restart, reconnect, lease renewal, and a terminal failure path? |
@@ -67,7 +67,7 @@ whether it works idle, during a run, after completion, and after revocation.
 | Identity presentation | Provider logo, agent name/avatar, export/import portability; optional profile work must not block connection. |
 
 Three separate grants deserve explicit treatment: persistent agent connection,
-access to task attachments, and Paperclip workspace execution. One does not imply
+access to task attachments, and Nexus workspace execution. One does not imply
 the others. For Dot, attachment and workspace settings were independently off by
 default and were never inherited automatically by a newly hired teammate.
 
@@ -97,7 +97,7 @@ not evidence that messages from another bot will wake it.
 
 ## Choose the execution model once, using stated criteria
 
-Paperclip's established preference is shared Runner infrastructure for remote
+Nexus's established preference is shared Runner infrastructure for remote
 agents. It preserves existing lifecycle/receipt semantics and a sandbox boundary
 if workspace capabilities are granted later. Remote reasoning does not eliminate
 the need for run coordination, nor does using Runner imply local model execution.
@@ -134,7 +134,7 @@ Useful final acceptance statement:
 > a chat nudge, an ordinary assigned task saves a verifiable result and completes.
 > From idle, the bot can initiate work and assign a task to the responsible human.
 > A follow-up and real controller restart preserve one assignment. Revocation
-> denies further Paperclip actions, and every managed resource is accounted for.
+> denies further Nexus actions, and every managed resource is accounted for.
 
 Adapt this to the actual release. If plugin attachment or reboot is required,
 include it as a supported visible step or report an onboarding gap; do not claim

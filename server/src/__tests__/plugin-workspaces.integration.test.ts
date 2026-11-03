@@ -11,7 +11,7 @@ import {
   issueWorkProducts,
   plugins,
   pluginCompanySettings,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   preparePluginWorkspace,
   inspectPluginWorkspace,

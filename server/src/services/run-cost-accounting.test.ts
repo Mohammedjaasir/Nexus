@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, companies, costEvents, createDb, heartbeatRuns, promptInjectionInvocations, type Db } from "@paperclipai/db";
+import { agents, companies, costEvents, createDb, heartbeatRuns, promptInjectionInvocations, type Db } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { accountRunCost, createCostAccountingReconciler, readCostAccountingWork } from "./run-cost-accounting.js";
 

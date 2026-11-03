@@ -8,32 +8,32 @@ import {
   type EmbeddedPostgresTestDatabase,
 } from "./test-embedded-postgres.js";
 
-const previousAdmin = process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL;
-const previousTemplate = process.env.PAPERCLIP_TEST_POSTGRES_TEMPLATE;
+const previousAdmin = process.env.NEXUS_TEST_POSTGRES_ADMIN_URL;
+const previousTemplate = process.env.NEXUS_TEST_POSTGRES_TEMPLATE;
 let server: EmbeddedPostgresTestDatabase;
 const databases: EmbeddedPostgresTestDatabase[] = [];
 const support = await getEmbeddedPostgresTestSupport();
 
 describe.skipIf(!support.supported)("shared PostgreSQL fixtures", () => {
   beforeAll(async () => {
-    server = await startEmbeddedPostgresTestDatabase("paperclip-admin-regression-");
-    process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL = server.connectionString;
+    server = await startEmbeddedPostgresTestDatabase("nexus-admin-regression-");
+    process.env.NEXUS_TEST_POSTGRES_ADMIN_URL = server.connectionString;
   }, 90_000);
 
   afterEach(async () => {
     __setEmbeddedPostgresCtorProviderForTests(null);
-    process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL = server.connectionString;
-    if (previousTemplate === undefined) delete process.env.PAPERCLIP_TEST_POSTGRES_TEMPLATE;
-    else process.env.PAPERCLIP_TEST_POSTGRES_TEMPLATE = previousTemplate;
+    process.env.NEXUS_TEST_POSTGRES_ADMIN_URL = server.connectionString;
+    if (previousTemplate === undefined) delete process.env.NEXUS_TEST_POSTGRES_TEMPLATE;
+    else process.env.NEXUS_TEST_POSTGRES_TEMPLATE = previousTemplate;
     while (databases.length) await databases.pop()!.cleanup();
   });
 
   afterAll(async () => {
     await server?.cleanup();
-    if (previousAdmin === undefined) delete process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL;
-    else process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL = previousAdmin;
-    if (previousTemplate === undefined) delete process.env.PAPERCLIP_TEST_POSTGRES_TEMPLATE;
-    else process.env.PAPERCLIP_TEST_POSTGRES_TEMPLATE = previousTemplate;
+    if (previousAdmin === undefined) delete process.env.NEXUS_TEST_POSTGRES_ADMIN_URL;
+    else process.env.NEXUS_TEST_POSTGRES_ADMIN_URL = previousAdmin;
+    if (previousTemplate === undefined) delete process.env.NEXUS_TEST_POSTGRES_TEMPLATE;
+    else process.env.NEXUS_TEST_POSTGRES_TEMPLATE = previousTemplate;
   });
 
   it("uses one server for isolated databases and closes clients before dropping them", async () => {
@@ -56,23 +56,23 @@ describe.skipIf(!support.supported)("shared PostgreSQL fixtures", () => {
   }, 90_000);
 
   it("rejects unavailable configured servers rather than reporting support", async () => {
-    process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL = "postgres://paperclip:paperclip@127.0.0.1:1/postgres";
+    process.env.NEXUS_TEST_POSTGRES_ADMIN_URL = "postgres://nexus:nexus@127.0.0.1:1/postgres";
     await expect(getEmbeddedPostgresTestSupport()).rejects.toThrow();
   });
 
   it("rejects unsafe templates and treats zero as a disabled template", async () => {
-    process.env.PAPERCLIP_TEST_POSTGRES_TEMPLATE = 'postgres"; DROP DATABASE postgres; --';
+    process.env.NEXUS_TEST_POSTGRES_TEMPLATE = 'postgres"; DROP DATABASE postgres; --';
     await expect(startEmbeddedPostgresTestDatabase("ignored-")).rejects.toThrow("Invalid disposable test template name");
-    process.env.PAPERCLIP_TEST_POSTGRES_TEMPLATE = "0";
+    process.env.NEXUS_TEST_POSTGRES_TEMPLATE = "0";
     databases.push(await startEmbeddedPostgresTestDatabase("ignored-"));
   }, 90_000);
 
   it("applies pending migrations when a supplied database template is not current", async () => {
-    const template = `paperclip_test_template_${randomUUID().replaceAll("-", "")}`;
+    const template = `nexus_test_template_${randomUUID().replaceAll("-", "")}`;
     const control = createDb(server.connectionString);
     await control.$client.unsafe(`CREATE DATABASE "${template}"`);
     try {
-      process.env.PAPERCLIP_TEST_POSTGRES_TEMPLATE = template;
+      process.env.NEXUS_TEST_POSTGRES_TEMPLATE = template;
       const database = await startEmbeddedPostgresTestDatabase("ignored-");
       databases.push(database);
       const db = createDb(database.connectionString);

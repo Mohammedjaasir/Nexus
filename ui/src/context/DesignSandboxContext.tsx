@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { FlyoutAppearanceProvider } from "@/components/ui/flyout";
 import { AvatarInitialProvider } from "@/components/ui/avatar-initials";
 
-const storageKey = "paperclip.design-proposals.sandbox";
+const storageKey = "nexus.design-proposals.sandbox";
 const DesignSandboxContext = createContext(false);
 
 export function useDesignSandbox() { return useContext(DesignSandboxContext); }
@@ -11,7 +11,7 @@ export function useDesignSandbox() { return useContext(DesignSandboxContext); }
 /** Local integration experiment. Neither production builds nor ordinary dev
  * instances enable this through browser storage alone. */
 export function DesignSandboxProvider({ children }: { children: ReactNode }) {
-  const available = import.meta.env.DEV && import.meta.env.VITE_PAPERCLIP_DESIGN_SANDBOX === "true";
+  const available = import.meta.env.DEV && import.meta.env.VITE_NEXUS_DESIGN_SANDBOX === "true";
   const [selected, setSelected] = useState(() => {
     try { return localStorage.getItem(storageKey) !== "off"; } catch { return true; }
   });

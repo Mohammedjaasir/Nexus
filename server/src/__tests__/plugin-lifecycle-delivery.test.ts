@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { eq } from "drizzle-orm";
-import { companies, createDb, companySecrets, projects, pluginConfig, plugins, resourceLifecycleEvents, type Db } from "@paperclipai/db";
+import { companies, createDb, companySecrets, projects, pluginConfig, plugins, resourceLifecycleEvents, type Db } from "@nexusai/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { logger } from "../middleware/logger.js";
@@ -23,7 +23,7 @@ describePostgres("durable plugin lifecycle delivery", () => {
   let db: Db;
   let companyId: string;
   let pluginId: string;
-  beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("paperclip-plugin-delivery-"); db = createDb(database.connectionString); }, 90_000);
+  beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("nexus-plugin-delivery-"); db = createDb(database.connectionString); }, 90_000);
   afterAll(async () => { await database?.cleanup(); });
   afterEach(() => { vi.restoreAllMocks(); });
   beforeEach(async () => {
@@ -55,7 +55,7 @@ describePostgres("durable plugin lifecycle delivery", () => {
     return { call, running, wake, lifecycle, worker, applied: () => { for (const listener of configApplied) listener(); }, run: () => task.run(new AbortController().signal), pending: () => task.hasPending(), nextRunAt: () => task.nextRunAt?.(), settled: () => task.onSettled?.() };
   }
   it("supplies project native credentials only to opted-in callbacks and saves returned patches before acknowledgment", async () => {
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
     await db.update(plugins).set({ manifestJson: { resourceLifecycle: ["project"], capabilities: ["events.subscribe", "projects.instance-secrets"] } as never }).where(eq(plugins.id, pluginId));
     const [project] = await db.insert(projects).values({ companyId, name: "Native credentials owner" }).returning();
     await event(project.id);

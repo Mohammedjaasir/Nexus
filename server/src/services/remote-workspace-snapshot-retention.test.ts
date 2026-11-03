@@ -7,7 +7,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { applyPendingMigrations, closeRegisteredClients, companies, createDb, executionWorkspaceSnapshots,
-  executionWorkspaces, issueRecoveryActions, issues, workspaceOperations } from "@paperclipai/db";
+  executionWorkspaces, issueRecoveryActions, issues, workspaceOperations } from "@nexusai/db";
 import { createLocalDiskStorageProvider } from "../storage/local-disk-provider.js";
 import { createStorageService } from "../storage/service.js";
 import { createS3StorageProvider } from "../storage/s3-provider.js";
@@ -18,7 +18,7 @@ import { idleWorkSnapshot } from "./task-admission.js";
 import { issueRecoveryActionService } from "./issue-recovery-actions.js";
 import { notifyRemoteWorkspaceSnapshots, registerRemoteWorkspaceSnapshotRetentionWork, remoteWorkspaceSnapshotRetentionService } from "./remote-workspace-snapshot-retention.js";
 
-const url = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const url = process.env.NEXUS_TEST_DATABASE_URL;
 if (url && !/^remote_workspace_[a-z_]*test$/.test(new URL(url).pathname.slice(1))) throw new Error("Disposable remote_workspace_*test database required");
 const support = url ? { supported: true } : await getEmbeddedPostgresTestSupport();
 

@@ -74,7 +74,7 @@
         "logSha256": "984bfe91fe92dcb4518504ae6fe21205466e3c775c2dde6806934471d73ab7d5",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected '/wrong-video.webm' to be '/api/attachments/video-attachment/con\u2026' // Object.is equality\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/IssueAttachmentsSection.test.tsx:206:40\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected '/wrong-video.webm' to be '/api/attachments/video-attachment/con\u2026' // Object.is equality\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/IssueAttachmentsSection.test.tsx:206:40\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -103,7 +103,7 @@
         "logSha256": "19e35c954f8972b9d86f893ee59877ad1ee28eaff8856c22fdeac4f4f49ebfab",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected null not to be null\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/IssueAttachmentsSection.test.tsx:207:49\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected null not to be null\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/IssueAttachmentsSection.test.tsx:207:49\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -132,7 +132,7 @@
         "logSha256": "130e9a50e1cb3db653a4324ce9aa86b785d9275436606793f823073f6432ab0d",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times\n\nReceived:\n\n  1st vi.fn() call:\n\n    Array [\n      \"/api/attachments/video-attachment/content\",\n    ]\n\n\nNumber of calls: 1\n\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2214:51)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/IssueAttachmentsSection.test.tsx:208:26\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times\n\nReceived:\n\n  1st vi.fn() call:\n\n    Array [\n      \"/api/attachments/video-attachment/content\",\n    ]\n\n\nNumber of calls: 1\n\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2214:51)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/IssueAttachmentsSection.test.tsx:208:26\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     }

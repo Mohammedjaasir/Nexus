@@ -5,8 +5,8 @@ import { constants } from "node:fs";
 import { Readable } from "node:stream";
 import path from "node:path";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { agents, activityLog, agentInstructionHeads, agentInstructionRevisions, resourceLifecycleEvents, fileStorageDb, type Db } from "@paperclipai/db";
-import { captureDirectorySnapshot, mergeDirectoryWithBaseline, type DirectorySnapshot } from "@paperclipai/adapter-utils/workspace-restore-merge";
+import { agents, activityLog, agentInstructionHeads, agentInstructionRevisions, resourceLifecycleEvents, fileStorageDb, type Db } from "@nexusai/db";
+import { captureDirectorySnapshot, mergeDirectoryWithBaseline, type DirectorySnapshot } from "@nexusai/adapter-utils/workspace-restore-merge";
 import { HttpError, conflict, notFound, unprocessable } from "../errors.js";
 import { authorizeInstructionCommit, authorizeInstructionRead } from "./agent-instruction-authorization.js";
 import { assertInstructionPathSafe, instructionPath, instructionBytes, materializeInstructionBytes, readInstructionBytes, MAX_INSTRUCTION_BYTES } from "./agent-instruction-files.js";
@@ -16,7 +16,7 @@ import { durableAgentFilesEnabled, invalidateAgentFileProjection, persistDurable
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 type Agent = typeof agents.$inferSelect;
-export const AGENT_FILES_CONTRACT = "paperclip.agent-files.v1";
+export const AGENT_FILES_CONTRACT = "nexus.agent-files.v1";
 export const MAX_AGENT_FILE_BYTES = 256 * 1024 * 1024;
 export const MAX_AGENT_DIRECTORY_BYTES = 2 * 1024 * 1024 * 1024;
 export const MAX_AGENT_DIRECTORY_ENTRIES = 100_000;
@@ -46,7 +46,7 @@ function storageWarning(size: number, count: number, fullFile?: string) {
 
 export function agentFilePath(value: string): string {
   const relative = instructionPath(value);
-  if (relative.split("/").includes(".paperclip-runtime") || relative === "promptTemplate.legacy.md") {
+  if (relative.split("/").includes(".nexus-runtime") || relative === "promptTemplate.legacy.md") {
     throw unprocessable(`${relative} is reserved and cannot be used for agent files`);
   }
   return relative;

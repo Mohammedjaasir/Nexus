@@ -14,7 +14,7 @@ import {
   statusDecisions,
   issueComments,
   issueThreadInteractions,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   startEmbeddedPostgresTestDatabase,
   getEmbeddedPostgresTestSupport,
@@ -24,13 +24,13 @@ import type {
   NativeExecutionInput,
   NativeSessionBackend,
   NativeSession,
-} from "@paperclipai/paperclip-runner";
+} from "@nexusai/nexus-runner";
 import {
   CONTROL_PLANE_CONFORMANCE_RESULT,
   CONTROL_PLANE_CONFORMANCE_TERMINAL,
-} from "../src/vendor/paperclip-runner/testing.js";
+} from "../src/vendor/nexus-runner/testing.js";
 import { observe } from "../../tests/lifecycle-baseline/observe.js";
-import { PaperclipRunnerToolAuthority } from "../src/services/native-runtime/paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "../src/services/native-runtime/nexus-runner-tool-authority.js";
 import { issueThreadInteractionService } from "../src/services/issue-thread-interactions.js";
 import { questionResponseDeliveryService } from "../src/services/question-response-delivery.js";
 const execute = vi.hoisted(() => vi.fn());
@@ -93,7 +93,7 @@ describe("LCA full heartbeat observation", () => {
       name: "Fixture worker",
       role: "engineer",
       status: "idle",
-      adapterType: mode === "native" ? "paperclip_runner" : "codex_local",
+      adapterType: mode === "native" ? "nexus_runner" : "codex_local",
       adapterConfig: { cwd: workspace, provider: "codex" },
       runtimeConfig: {
         heartbeat: {
@@ -190,7 +190,7 @@ describe("LCA full heartbeat observation", () => {
           providerTurns++;
           operations++;
           if (result.reportedWorkDisposition === "yielded") {
-            await new PaperclipRunnerToolAuthority(db, input.binding).execute({
+            await new NexusRunnerToolAuthority(db, input.binding).execute({
               tool: "request_human_input", callId: `step-${providerTurns}`,
               arguments: {
                 interactionKind: "questions", idempotencyKey: `step-${providerTurns}`,
@@ -213,7 +213,7 @@ describe("LCA full heartbeat observation", () => {
             .from(heartbeatRuns)
             .where(eq(heartbeatRuns.id, input.binding.runId));
           yield {
-            schema: "paperclip.prp.event.v1",
+            schema: "nexus.prp.event.v1",
             sourceEventId: `${row.runnerInstanceId}:terminal`,
             sourceSeq: 1,
             sourceInstanceId: row.runnerInstanceId!,
@@ -463,7 +463,7 @@ describe("LCA full heartbeat observation", () => {
         name: "Fixture worker",
         role: "engineer",
         status: gate === "paused" ? "paused" : "idle",
-        adapterType: mode === "native" ? "paperclip_runner" : "codex_local",
+        adapterType: mode === "native" ? "nexus_runner" : "codex_local",
         adapterConfig: { cwd: workspace, provider: "codex" },
         runtimeConfig: {
           heartbeat: {

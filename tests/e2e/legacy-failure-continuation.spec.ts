@@ -15,11 +15,11 @@ for (const action of ["task_retry", "retry_after_reload", "inbox_retry", "messag
   test(`legacy startup hold: ${action} reaches a new agent response`, async ({ page, request }) => {
     test.setTimeout(120_000);
     const root = await mkdtemp(path.join(os.tmpdir(), "legacy-recovery-browser-"));
-    const config = JSON.parse(await readFile(process.env.PAPERCLIP_E2E_SERVER_CONFIG!, "utf8"));
+    const config = JSON.parse(await readFile(process.env.NEXUS_E2E_SERVER_CONFIG!, "utf8"));
     // Use the running test server's actual port, including fallback allocation.
     const url = config.database.mode === "postgres" ? config.database.connectionString
-      : `postgres://paperclip:paperclip@127.0.0.1:${(await readFile(
-        path.join(config.database.embeddedPostgresDataDir, "postmaster.pid"), "utf8")).split("\n")[3]}/paperclip`;
+      : `postgres://nexus:nexus@127.0.0.1:${(await readFile(
+        path.join(config.database.embeddedPostgresDataDir, "postmaster.pid"), "utf8")).split("\n")[3]}/nexus`;
     const db = createDb(url);
     const company = await json(await request.post("/api/companies", { data: { name: `Legacy recovery ${action} ${Date.now()}` } }));
     try {
@@ -29,7 +29,7 @@ for (const action of ["task_retry", "retry_after_reload", "inbox_retry", "messag
         adapterConfig: { engine: "acp", cwd: root, stateDir: path.join(root, "state"),
           agentCommand: `${JSON.stringify(process.execPath)} ${JSON.stringify(path.resolve("scripts/mcp-fixtures/servers/acp-stop-agent.mjs"))}`,
           // The ACP fixture has no provider login. Use a fixture key to keep setup offline.
-          env: { ANTHROPIC_API_KEY: "acp-stop-fixture-key", PAPERCLIP_STOP_FIXTURE_ROOT: root, PAPERCLIP_STOP_FIXTURE_FINISH_TASK: "1" } },
+          env: { ANTHROPIC_API_KEY: "acp-stop-fixture-key", NEXUS_STOP_FIXTURE_ROOT: root, NEXUS_STOP_FIXTURE_FINISH_TASK: "1" } },
         runtimeConfig: { heartbeat: { enabled: false, wakeOnDemand: true } },
       } }));
       await expect.poll(async () => (await json(await request.get(`/api/agents/${agent.id}`))).lifecycleState,
@@ -73,7 +73,7 @@ for (const action of ["task_retry", "retry_after_reload", "inbox_retry", "messag
         await db.insert(agentWakeupRequests).values({ companyId: company.id, agentId: agent.id,
           source: "automation", reason: "issue_commented", status: "deferred_issue_execution",
           requestedByActorType: "system", payload: { issueId: issue.id, commentId,
-            _paperclipWakeContext: { issueId: issue.id, wakeCommentIds: [commentId], wakeCommentId: commentId } },
+            _nexusWakeContext: { issueId: issue.id, wakeCommentIds: [commentId], wakeCommentId: commentId } },
         });
       }
       const taskUrl = `/${company.issuePrefix}/issues/${issue.identifier}`;

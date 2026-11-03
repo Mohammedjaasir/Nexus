@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { setImmediate } from "node:timers/promises";
 import { expect, it, vi } from "vitest";
-import type { LiveEvent } from "@paperclipai/shared";
+import type { LiveEvent } from "@nexusai/shared";
 import { createLiveEventDelivery, LIVE_DELIVERY_MAX_BYTES, LIVE_DELIVERY_MAX_ITEMS } from "./live-event-delivery.js";
 
 it("bounds presentation cost for the same output with zero, one, multiple and congested viewers", async () => {
@@ -67,9 +67,9 @@ it("bounds presentation cost for the same output with zero, one, multiple and co
         else expect(deliveries[0].metrics().needsResync).toBe(true);
       } finally { for (const delivery of deliveries) delivery.dispose(); }
     }
-    const report = { schema: "paperclip.live-delivery-cost/v1", scope: "in-process presentation boundary; simulated socket congestion",
+    const report = { schema: "nexus.live-delivery-cost/v1", scope: "in-process presentation boundary; simulated socket congestion",
       sqlMeasured: false, networkMeasured: false, timingAndMemoryAreDiagnostic: true, reports };
-    if (process.env.PAPERCLIP_LIVE_DELIVERY_COST_REPORT) await writeFile(process.env.PAPERCLIP_LIVE_DELIVERY_COST_REPORT, `${JSON.stringify(report, null, 2)}\n`);
+    if (process.env.NEXUS_LIVE_DELIVERY_COST_REPORT) await writeFile(process.env.NEXUS_LIVE_DELIVERY_COST_REPORT, `${JSON.stringify(report, null, 2)}\n`);
     expect(source.every(event => event.payload.chunk === "x".repeat(2_048))).toBe(true);
   } finally { now.mockRestore(); }
 });

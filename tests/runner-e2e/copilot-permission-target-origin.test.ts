@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { copilotEditOriginForPermission, readCopilotToolEvidence } from "./copilot-evidence.js";
 import { observeActiveStopPending, readActiveStopCaller } from "./copilot-active-stop-evidence.js";
 const retained = JSON.parse(readFileSync(new URL("./fixtures/copilot-patch-permission-target-v15.json", import.meta.url), "utf8"));
-const caller = readActiveStopCaller({ deploymentMode: "local_trusted" }, { session: { userId: "local-board", id: "paperclip:local_implicit:local-board" } });
+const caller = readActiveStopCaller({ deploymentMode: "local_trusted" }, { session: { userId: "local-board", id: "nexus:local_implicit:local-board" } });
 function fixture() {
   const { rows: events, scope, run, issue } = structuredClone(retained);
   const notices = readCopilotToolEvidence(events, run.id);

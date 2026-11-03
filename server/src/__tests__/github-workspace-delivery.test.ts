@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { createGitHubWorkspaceDeliveryResolver, type GitHubWorkspaceDeliveryInput } from "../services/github-workspace-delivery.js";
 
 const HEAD = "1".repeat(40);

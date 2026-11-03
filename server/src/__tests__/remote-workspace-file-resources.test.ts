@@ -8,8 +8,8 @@ import { generateKeyPairSync, randomUUID, sign } from "node:crypto";
 import request from "supertest";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, companies, companySecrets, companySecretBindings, createDb, environmentLeases, environments, executionWorkspaces, executionWorkspaceSnapshots, heartbeatRuns, issues, plugins, projects, projectWorkspaces, secretAccessEvents, workspaceOperations, type Db } from "@paperclipai/db";
-import { INSPECTION_AUDIENCE, INSPECTION_HEADER, INSPECTION_PERMIT_TYPE, parseInspectionQuery, type InspectionQuery, type InspectionPermit, type RemoteWorkspaceAuthority } from "@paperclipai/shared";
+import { agents, companies, companySecrets, companySecretBindings, createDb, environmentLeases, environments, executionWorkspaces, executionWorkspaceSnapshots, heartbeatRuns, issues, plugins, projects, projectWorkspaces, secretAccessEvents, workspaceOperations, type Db } from "@nexusai/db";
+import { INSPECTION_AUDIENCE, INSPECTION_HEADER, INSPECTION_PERMIT_TYPE, parseInspectionQuery, type InspectionQuery, type InspectionPermit, type RemoteWorkspaceAuthority } from "@nexusai/shared";
 import { errorHandler } from "../middleware/index.js";
 import { notFound, unprocessable } from "../errors.js";
 import { fileResourceRoutes } from "../routes/file-resources.js";
@@ -38,7 +38,7 @@ vi.mock("node:fs/promises", async importOriginal => {
     return actual.rm(target, options);
   } };
 });
-const externalDatabase = process.env.PAPERCLIP_TEST_DATABASE_URL?.trim();
+const externalDatabase = process.env.NEXUS_TEST_DATABASE_URL?.trim();
 const support = externalDatabase ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeDatabase = support.supported ? describe : describe.skip;
 
@@ -120,7 +120,7 @@ describeDatabase("remote workspace ordinary file routes", () => {
     await fs.writeFile(path.join(root, ".env"), "private-key");
     const ids = { company: randomUUID(), workspace: randomUUID(), issue: randomUUID(), environment: randomUUID(), lease: randomUUID() };
     const authority: RemoteWorkspaceAuthority = {
-      schema: "paperclip.remote-workspace.v1", epoch: 1, snapshotId: null, writerRunId: null, dirty: false,
+      schema: "nexus.remote-workspace.v1", epoch: 1, snapshotId: null, writerRunId: null, dirty: false,
       source: { kind: "empty" }, location: { environmentId: ids.environment, leaseId: ids.lease,
         providerLeaseId: `allocation-${ids.lease}`, remoteCwd: root },
     };
@@ -189,22 +189,22 @@ describeDatabase("remote workspace ordinary file routes", () => {
     const other = await fixture();
     const keyDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "inspection-workspace-key-"));
     directories.push(keyDirectory);
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY_FILE", path.join(keyDirectory, "master.key"));
-    vi.stubEnv("PAPERCLIP_CUSTOMER_SUCCESS_INSPECTION_ENABLED", "true");
-    vi.stubEnv("PAPERCLIP_CLOUD_STACK_ID", "remote-inspection-fixture");
-    vi.stubEnv("PAPERCLIP_CUSTOMER_SUCCESS_CLOUD_ORIGIN", "https://cloud.example.test");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY_FILE", path.join(keyDirectory, "master.key"));
+    vi.stubEnv("NEXUS_CUSTOMER_SUCCESS_INSPECTION_ENABLED", "true");
+    vi.stubEnv("NEXUS_CLOUD_STACK_ID", "remote-inspection-fixture");
+    vi.stubEnv("NEXUS_CUSTOMER_SUCCESS_CLOUD_ORIGIN", "https://cloud.example.test");
     const keys = generateKeyPairSync("ed25519");
-    vi.stubEnv("PAPERCLIP_CUSTOMER_SUCCESS_INSPECTION_JWKS", JSON.stringify({ keys: [{ ...keys.publicKey.export({ format: "jwk" }), kid: "cloud" }] }));
+    vi.stubEnv("NEXUS_CUSTOMER_SUCCESS_INSPECTION_JWKS", JSON.stringify({ keys: [{ ...keys.publicKey.export({ format: "jwk" }), kid: "cloud" }] }));
     const consumed = vi.fn(async () => Response.json({ consumed: true }));
     vi.stubGlobal("fetch", consumed);
     try {
       const pluginId = randomUUID();
       const provider = `inspection-${pluginId}`;
-      const pluginKey = `paperclip.${provider}`;
-      await db.insert(plugins).values({ id: pluginId, pluginKey, packageName: `@paperclipai/${provider}`, version: "1.0.0", apiVersion: 1,
+      const pluginKey = `nexus.${provider}`;
+      await db.insert(plugins).values({ id: pluginId, pluginKey, packageName: `@nexusai/${provider}`, version: "1.0.0", apiVersion: 1,
         categories: ["automation"], status: "ready", manifestJson: {
-          id: pluginKey, apiVersion: 1, version: "1.0.0", displayName: "Inspection fixture", description: "Synthetic inspection provider", author: "Paperclip",
+          id: pluginKey, apiVersion: 1, version: "1.0.0", displayName: "Inspection fixture", description: "Synthetic inspection provider", author: "Nexus",
           categories: ["automation"], capabilities: ["environment.drivers.register"], entrypoints: { worker: "dist/worker.js" },
           environmentDrivers: [{ driverKey: provider, kind: "sandbox_provider", displayName: "Inspection fixture",
             configSchema: { type: "object", properties: { apiKey: { type: "string", format: "secret-ref" } } } }],
@@ -258,7 +258,7 @@ describeDatabase("remote workspace ordinary file routes", () => {
       const inspect = (value: InspectionQuery) => {
         const query = parseInspectionQuery(value);
         const now = Math.floor(Date.now() / 1000);
-        const claims: InspectionPermit = { v: 1, iss: "paperclip-cloud", aud: INSPECTION_AUDIENCE, sub: "remote-inspection-fixture",
+        const claims: InspectionPermit = { v: 1, iss: "nexus-cloud", aud: INSPECTION_AUDIENCE, sub: "remote-inspection-fixture",
           iat: now, exp: now + 60, jti: randomUUID(), bindingVersion: 1, grantId: randomUUID(), requestId: randomUUID(),
           agentId: randomUUID(), keyId: "sha256:synthetic-fixture", runId: randomUUID(), query };
         const header = Buffer.from(JSON.stringify({ alg: "EdDSA", typ: INSPECTION_PERMIT_TYPE, kid: "cloud" })).toString("base64url");
@@ -384,7 +384,7 @@ describeDatabase("remote workspace ordinary file routes", () => {
       await expect(fs.stat(extractedCopy!)).rejects.toMatchObject({ code: "ENOENT" });
     } finally {
       retrieve.mockRestore();
-      try { await app.locals.paperclipShutdown(); }
+      try { await app.locals.nexusShutdown(); }
       finally { if (originalTmpdir === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = originalTmpdir; }
     }
   }, 60_000);

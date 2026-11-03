@@ -31,7 +31,7 @@ const context = { company: { id: "company" }, user: { id: "board" }, environment
 function recording(paths: Array<"provider" | "semantic" | "api">, writtenReference = false) {
   const runs: Row[] = [], cards: Row[] = [], checkpoints: any[] = [];
   const createRun = (previous?: Row) => ({ id: `run-${runs.length}`, status: "running", runtimeMode: "native", companyId: "company", issueId: "task", agentId: "agent",
-    contextSnapshot: { paperclipEnvironment: { id: "daytona" }, ...(previous ? { issueId: "task", sourceRunId: previous.sourceRunId,
+    contextSnapshot: { nexusEnvironment: { id: "daytona" }, ...(previous ? { issueId: "task", sourceRunId: previous.sourceRunId,
       interactionId: previous.id, interactionKind: "ask_user_questions", interactionStatus: "answered" } : {}) },
     resultJson: { semanticToolReceipts: {} }, runnerProfileJson: { nativeExecutionInput: { task: { prompt: continuationScenario("question-answer-resume", "nonce").prompt }, provider: { kind: "opencode", model: "model" } } } });
   const document = { issueId: "task", companyId: "company", key: "welcome-note", latestRevisionId: "revision", createdByAgentId: "agent", updatedByAgentId: "agent", body: "Welcome to the afternoon meetup. Use AMBERnonce." };
@@ -46,7 +46,7 @@ function recording(paths: Array<"provider" | "semantic" | "api">, writtenReferen
       : { id: "reference", answerMode: "text" };
     const request = `request-${index}`, semantic = path !== "provider";
     const card: Row = { id: `question-${index}`, kind: "ask_user_questions", status: "pending", companyId: "company", issueId: "task", createdByAgentId: "agent", sourceRunId: run.id,
-      idempotencyKey: semantic ? `semantic-${index}` : `paperclip-runner-question:${run.id}:${request}`, continuationPolicy: semantic ? "wake_assignee" : "none", createdByUserId: null,
+      idempotencyKey: semantic ? `semantic-${index}` : `nexus-runner-question:${run.id}:${request}`, continuationPolicy: semantic ? "wake_assignee" : "none", createdByUserId: null,
       payload: { ...(semantic ? {} : { runtimeRequestId: request }), questionSet: { questions: [field] } } };
     cards.push(card);
     if (semantic) {
@@ -105,7 +105,7 @@ describe("attached clarification evidence", () => {
       if (kind === "premature-document") first.documents = [final.documents[0]];
       if (kind === "extra-child") final.children.push({ id: "extra-child" });
       if (kind === "foreign-model") final.runs[0].runnerProfileJson.nativeExecutionInput.provider.model = "other-model";
-      if (kind === "foreign-environment") final.runs[0].contextSnapshot.paperclipEnvironment.id = "local";
+      if (kind === "foreign-environment") final.runs[0].contextSnapshot.nexusEnvironment.id = "local";
       if (kind === "missing-native-input") delete final.runs[0].runnerProfileJson.nativeExecutionInput.task.prompt;
       if (kind === "duplicate-question") final.interactions.push(structuredClone(final.interactions[1]));
       if (kind === "wrong-answer") final.interactions[1].result.answers[0].otherText = "Use the old reference.";
@@ -117,7 +117,7 @@ describe("attached clarification evidence", () => {
     expect(gradeClarificationEvidence(context, "task", "AMBERnonce", f.checkpoints).some(c => c.id === "question-document-reloaded" && !c.passed)).toBe(true);
   });
   it("retains 1–3 bound native runs but rejects zero and excess work", () => {
-    const result = { schema: "paperclip.runner-e2e.result/v2", executionId: "product-journeys.attached.configured-agent.daytona.question-answer-resume", suiteId: "product-journeys", suiteDefinitionHash: "definition",
+    const result = { schema: "nexus.runner-e2e.result/v2", executionId: "product-journeys.attached.configured-agent.daytona.question-answer-resume", suiteId: "product-journeys", suiteDefinitionHash: "definition",
       attempt: 1, status: "passed", profileId: "configured-agent", environmentId: "daytona", caseId: "question-answer-resume", provider: "opencode", model: "model", runtimeMode: "native",
       startedAt: "2026-10-01T00:00:00Z", finishedAt: "2026-10-01T00:00:01Z", durationMs: 1000, cleanup: "passed", runIds: ["run-0"],
       productJourney: { targetId: "attached", outcome: "passed", startingState: "recipe", privacy: "private", resourceDisposition: "retained",

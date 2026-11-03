@@ -92,7 +92,7 @@ export async function executeInSandbox(params: BridgeExecuteParams) {
   const stdinPayload = typeof params.stdin === "string" && params.stdin.length > 0
     ? params.stdin
     : null;
-  const stdinFile = stdinPayload ? `/tmp/.paperclip-bridge-stdin-${randomToken()}` : null;
+  const stdinFile = stdinPayload ? `/tmp/.nexus-bridge-stdin-${randomToken()}` : null;
 
   if (stdinFile && stdinPayload) {
     await params.sandbox.writeFile(stdinFile, stdinPayload, { encoding: "utf8" });

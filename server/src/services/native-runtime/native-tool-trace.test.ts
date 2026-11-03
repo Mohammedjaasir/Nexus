@@ -9,7 +9,7 @@ function fixture() {
   trace.start("agent.turn");
   return { spans, timing: createNativeToolTrace(trace, () => now), at: (time: number) => { now = time; } };
 }
-const event = (kind: string, id: string, time: number, inputUpdated = false) => ({ eventType: `tool.execution.${kind}`, emittedAt: new Date(time).toISOString(), payload: { executionId: id, name: "mcp__paperclip__call_api", inputUpdated } });
+const event = (kind: string, id: string, time: number, inputUpdated = false) => ({ eventType: `tool.execution.${kind}`, emittedAt: new Date(time).toISOString(), payload: { executionId: id, name: "mcp__nexus__call_api", inputUpdated } });
 
 describe("native tool timing", () => {
   it("measures streamed input and server execution in their distinct ID namespaces", async () => {
@@ -75,7 +75,7 @@ describe("native tool timing", () => {
 
 it("marks the first completion tool request once per turn without arguments",async()=>{
  const {spans,timing}=fixture();
- const completion=(id:string)=>({...event("started",id,1000),payload:{executionId:id,name:"paperclip_finish",arguments:"private"}});
+ const completion=(id:string)=>({...event("started",id,1000),payload:{executionId:id,name:"nexus_finish",arguments:"private"}});
  await timing.observe(completion("a"));await timing.observe(completion("b"));
  expect(spans.filter(span=>span.span==="completion.request.first")).toHaveLength(1);
  expect(JSON.stringify(spans)).not.toContain("private");

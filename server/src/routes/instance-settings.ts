@@ -1,12 +1,12 @@
 import { trackIdleWork } from "../services/task-admission.js";
 import { Router, type Request } from "express";
-import { companies, type Db } from "@paperclipai/db";
+import { companies, type Db } from "@nexusai/db";
 import {
   patchInstanceSettingsSchema,
   patchInstanceExperimentalSettingsSchema,
   patchInstanceGeneralSettingsSchema,
   startTaskDrainRequestSchema,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { conflict, forbidden } from "../errors.js";
 import {
   cloudTenantPrimaryCompanyId,
@@ -525,7 +525,7 @@ export function instanceSettingsRoutes(db: Db, pluginWorkers?: PluginWorkerManag
     // endpoint is recorded as themselves, exactly like an in-product
     // unarchive.
     const actor = req.actor.source === "cloud_control"
-      ? { actorType: "system" as const, actorId: "paperclip-cloud", agentId: null, runId: null }
+      ? { actorType: "system" as const, actorId: "nexus-cloud", agentId: null, runId: null }
       : (() => {
           const info = getActorInfo(req);
           return {

@@ -17,7 +17,7 @@ The stories use fixture state and do not alter task execution. The current adapt
 | Kimi Code, CLI engine | Search/manual | Low, high, max on advertised capable models | No |
 | Gemini, Cursor, Grok, Hermes CLI | Search/manual | Not offered | No |
 | Cursor Cloud | Manual ID, account default | Not offered | No |
-| Paperclip Runner with Codex profile | Codex catalog only | Not offered until the Runner advertises model capabilities | No |
+| Nexus Runner with Codex profile | Codex catalog only | Not offered until the Runner advertises model capabilities | No |
 | Process, HTTP, OpenClaw Gateway, Hermes Gateway | No per-message model setting | Not offered | No |
 
 The fixture models reflect repository adapter contracts as of 2026-09-26; provider availability can still depend on the installed CLI, account, environment, or connection. Switching agents clears the draft run settings. The two remote gateway harnesses deliberately leave model choice with their upstream service.

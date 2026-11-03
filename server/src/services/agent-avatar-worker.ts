@@ -1,14 +1,14 @@
 import { parentPort } from "node:worker_threads";
 import sharp from "sharp";
-import { renderAgentSvg } from "@paperclipai/shared/cliplab/static";
-import { PAPERCLIP_DARK_AVATAR_BACKGROUND } from "@paperclipai/shared";
+import { renderAgentSvg } from "@nexusai/shared/cliplab/static";
+import { NEXUS_DARK_AVATAR_BACKGROUND } from "@nexusai/shared";
 import type { AgentAvatarRequest } from "./agent-avatars.js";
 
 parentPort!.on("message", async (request: AgentAvatarRequest) => {
   try {
     const svg = renderAgentSvg(request.appearance, request.size, request.scale, request.pose, request.muted);
     const image = sharp(Buffer.from(svg));
-    if (request.background === "paperclip-dark") image.flatten({ background: PAPERCLIP_DARK_AVATAR_BACKGROUND });
+    if (request.background === "nexus-dark") image.flatten({ background: NEXUS_DARK_AVATAR_BACKGROUND });
     const png = await image.png().toBuffer();
     parentPort!.postMessage({ png });
   } catch (error) {

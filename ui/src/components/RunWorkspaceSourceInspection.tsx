@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { ENVIRONMENT_LEASE_POLICIES, WORKSPACE_SOURCE_VERIFICATION_REASONS } from "@paperclipai/shared";
+import { ENVIRONMENT_LEASE_POLICIES, WORKSPACE_SOURCE_VERIFICATION_REASONS } from "@nexusai/shared";
 import { issuesApi } from "../api/issues";
 import { Button } from "./ui/button";
 import { formatDateTime } from "../lib/utils";

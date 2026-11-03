@@ -16,7 +16,7 @@ import { useDialogActions } from "@/context/DialogContext";
 import { useTaskListCollection } from "@/hooks/useTaskListCollection";
 import { allTaskListColumns, defaultTaskListColumns } from "@/lib/task-list";
 import { taskListViewStorageKey } from "@/lib/task-list-views";
-import { storybookAgents, storybookAuthSession, storybookIssueLabels, storybookProjects } from "../../fixtures/paperclipData";
+import { storybookAgents, storybookAuthSession, storybookIssueLabels, storybookProjects } from "../../fixtures/nexusData";
 
 const currentUserId = storybookAuthSession.user.id;
 const viewStorageKey = taskListViewStorageKey("design-proposals", currentUserId);
@@ -38,7 +38,7 @@ function TaskListPageContent({ allColumns = false, initialQuery = "" }: PreviewP
       items, companyId: selectedCompanyId, userId: currentUserId, viewStorageKey, initialQuery,
     });
   const emptyState = companyItems.length === 0
-    ? <EmptyState icon={ListChecks} message="No tasks in this organization" description="This preview has task fixtures for Paperclip Storybook." />
+    ? <EmptyState icon={ListChecks} message="No tasks in this organization" description="This preview has task fixtures for Nexus Storybook." />
     : <EmptyState icon={SearchX} message="No tasks match this view" description="Try another search or clear your filters." action="Clear filters" hideActionIcon onAction={clear} />;
   return (
     <TruncatedTextMarqueeProvider>

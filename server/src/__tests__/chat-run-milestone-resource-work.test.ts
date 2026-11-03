@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { chatConversations, chatDeliveries, chatEndpointResources, chatEndpoints, chatPublications, createDb, heartbeatRuns, issues, subscribeDatabaseWork } from "@paperclipai/db";
+import { chatConversations, chatDeliveries, chatEndpointResources, chatEndpoints, chatPublications, createDb, heartbeatRuns, issues, subscribeDatabaseWork } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createChatMilestoneFixtures } from "./helpers/chat-milestone-fixtures.js";
@@ -12,7 +12,7 @@ import { chatCredentialMutationLease } from "../services/chat-credential-mutatio
 import { createChatResourceReconciliation } from "../services/chat-channels/resource-reconciliation.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_MILESTONE_RESOURCE_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_MILESTONE_RESOURCE_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("chat milestones after resource recovery", () => {
   let db: ReturnType<typeof createDb>;

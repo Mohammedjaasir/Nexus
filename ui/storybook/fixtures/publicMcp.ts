@@ -1,4 +1,4 @@
-import { instanceExperimentalSettingsSchema, type InstanceExperimentalSettingsWithManaged, type McpConnection, type McpConnectionRequest } from "@paperclipai/shared";
+import { instanceExperimentalSettingsSchema, type InstanceExperimentalSettingsWithManaged, type McpConnection, type McpConnectionRequest } from "@nexusai/shared";
 import { fn } from "storybook/test";
 
 // Local portrait fixture keeps avatar previews independent of third-party image hosts.
@@ -14,8 +14,8 @@ export const request: McpConnectionRequest = {
   ], setupUrl: null,
 };
 const connections: McpConnection[] = [
-  { id: "codex", companyId: request.companies[0].id, companyName: "Acme Research", clientName: "Codex", user: connectedUser, scopes: ["paperclip:read", "paperclip:write"], createdAt: "2020-01-01T00:00:00Z", revokedAt: null },
-  { id: "claude", companyId: request.companies[1].id, companyName: "Design Partners", clientName: "Claude", user: connectedUser, scopes: ["paperclip:read"], createdAt: "2020-01-01T00:00:00Z", revokedAt: null },
+  { id: "codex", companyId: request.companies[0].id, companyName: "Acme Research", clientName: "Codex", user: connectedUser, scopes: ["nexus:read", "nexus:write"], createdAt: "2020-01-01T00:00:00Z", revokedAt: null },
+  { id: "claude", companyId: request.companies[1].id, companyName: "Design Partners", clientName: "Claude", user: connectedUser, scopes: ["nexus:read"], createdAt: "2020-01-01T00:00:00Z", revokedAt: null },
 ];
 export interface PublicMcpFixture {
   request?: Partial<McpConnectionRequest>;
@@ -37,7 +37,7 @@ export function installPublicMcpFixture(fixture: PublicMcpFixture = {}) {
   consentSubmission.mockClear();
   const original = window.fetch;
   let rows = fixture.empty ? [] : (fixture.connections ?? connections).map(row => ({ ...row, revokedAt: fixture.revoked ? "2020-01-02T00:00:00Z" : row.revokedAt }));
-  let settings: InstanceExperimentalSettingsWithManaged = { ...instanceExperimentalSettingsSchema.parse({}), enablePublicMcp: Boolean(fixture.enabled), managedKeys: fixture.managed ? { enablePublicMcp: { managed: true, managedBy: "paperclip-cloud" } } : {} };
+  let settings: InstanceExperimentalSettingsWithManaged = { ...instanceExperimentalSettingsSchema.parse({}), enablePublicMcp: Boolean(fixture.enabled), managedKeys: fixture.managed ? { enablePublicMcp: { managed: true, managedBy: "nexus-cloud" } } : {} };
   const error = (message: string, status = 503) => Response.json({ error: message }, { status });
   window.fetch = async (input, init) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, location.origin);
@@ -50,9 +50,9 @@ export function installPublicMcpFixture(fixture: PublicMcpFixture = {}) {
       if (fixture.loading) return new Promise<Response>(() => {});
       if (fixture.unavailable) return error("Assistant connections are unavailable. Check the experimental setting or reconnect.", 403);
       if (path === "/api/instance/settings/experimental") return Response.json(settings);
-      if (path === "/api/mcp/setup") return Response.json({ enabled: settings.enablePublicMcp, serverUrl: "https://paperclip.example/mcp/paperclip" });
+      if (path === "/api/mcp/setup") return Response.json({ enabled: settings.enablePublicMcp, serverUrl: "https://nexus.example/mcp/nexus" });
       if (path === "/api/mcp/connections") return fixture.connectionsUnavailable ? error("Connection status is unavailable.") : Response.json(rows);
-      if (path === "/api/mcp/device") return fixture.deviceExpired ? error("This code is expired. Start a new connection from your assistant.", 404) : Response.json({ ...request, clientName: "Paperclip CLI (device)", redirectOrigin: "", ...fixture.request });
+      if (path === "/api/mcp/device") return fixture.deviceExpired ? error("This code is expired. Start a new connection from your assistant.", 404) : Response.json({ ...request, clientName: "Nexus CLI (device)", redirectOrigin: "", ...fixture.request });
       if (path === `/api/mcp/requests/${request.id}`) return Response.json({ ...request, ...fixture.request });
     } else {
       if (fixture.pending) return new Promise<Response>(() => {});

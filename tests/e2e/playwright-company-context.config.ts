@@ -7,8 +7,8 @@ export default defineConfig({
   timeout: 30_000,
   use: {
     headless: true,
-    ...(process.env.PAPERCLIP_PLAYWRIGHT_CHANNEL
-      ? { channel: process.env.PAPERCLIP_PLAYWRIGHT_CHANNEL }
+    ...(process.env.NEXUS_PLAYWRIGHT_CHANNEL
+      ? { channel: process.env.NEXUS_PLAYWRIGHT_CHANNEL }
       : {}),
   },
   outputDir: "./test-results",

@@ -8,7 +8,7 @@ import path from "node:path";
 import express from "express";
 import type { Server } from "node:http";
 import sharp from "sharp";
-import { AGENT_PALETTE_IDS, appearanceForPalette, PAPERCLIP_DARK_AVATAR_BACKGROUND } from "@paperclipai/shared";
+import { AGENT_PALETTE_IDS, appearanceForPalette, NEXUS_DARK_AVATAR_BACKGROUND } from "@nexusai/shared";
 import { createLocalDiskStorageProvider } from "../storage/local-disk-provider.js";
 import { createAgentAvatarService, avatarCacheKey, type AgentAvatarRequest } from "../services/agent-avatars.js";
 import { createAgentAvatarPool } from "../services/agent-avatar-pool.js";
@@ -84,7 +84,7 @@ describe("on-demand agent avatars", () => {
     const send = vi.spyOn(S3Client.prototype, "send").mockImplementation(async (command: any) => {
       const key = command.input.Key as string;
       expect(command.input.Bucket).toBe("avatar-test");
-      expect(key).toMatch(/^paperclip\/generated-agent-avatars\/cap-v1\//);
+      expect(key).toMatch(/^nexus\/generated-agent-avatars\/cap-v1\//);
       if (command instanceof PutObjectCommand) { objects.set(key, Buffer.from(command.input.Body as Uint8Array)); return {}; }
       if (command instanceof DeleteObjectCommand) { objects.delete(key); return {}; }
       const bytes = objects.get(key);
@@ -94,7 +94,7 @@ describe("on-demand agent avatars", () => {
       throw new Error("Unexpected S3 command");
     });
     try {
-      const provider = createS3StorageProvider({ bucket: "avatar-test", region: "us-east-1", prefix: "paperclip" });
+      const provider = createS3StorageProvider({ bucket: "avatar-test", region: "us-east-1", prefix: "nexus" });
       const render = vi.fn(async () => Buffer.from("s3-avatar"));
       const first = await createAgentAvatarService(provider, render).get(request);
       const second = await createAgentAvatarService(provider, render).get(request);
@@ -124,24 +124,24 @@ describe("on-demand agent avatars", () => {
     }
     expect(data[(256 * info.width + 256) * info.channels + 3]).toBe(255);
   }, 20_000);
-  it("serves Slack exports on the Paperclip dark-mode color in a separate cache", async () => {
+  it("serves Slack exports on the Nexus dark-mode color in a separate cache", async () => {
     const css = await readFile(new URL("../../../ui/src/index.css", import.meta.url), "utf8");
     const lightness = Number(css.match(/\.dark\s*\{\s*--background:\s*oklch\(([\d.]+) 0 0\)/)?.[1]);
     // Neutral OKLCH converts to equal sRGB channels; PNG rounds to 8-bit color.
     const linear = lightness ** 3;
     const channel = Math.round((linear <= 0.0031308 ? 12.92 * linear : 1.055 * linear ** (1 / 2.4) - 0.055) * 255);
-    expect(PAPERCLIP_DARK_AVATAR_BACKGROUND).toBe(`#${channel.toString(16).padStart(2, "0").repeat(3)}`);
+    expect(NEXUS_DARK_AVATAR_BACKGROUND).toBe(`#${channel.toString(16).padStart(2, "0").repeat(3)}`);
     const service = createAgentAvatarService(await storage()); cleanups.push(() => service.close());
     const url = await serve(service);
     const clear = await fetch(url + "?size=512&scale=1");
-    const dark = await fetch(url + "?size=512&scale=1&background=paperclip-dark");
+    const dark = await fetch(url + "?size=512&scale=1&background=nexus-dark");
     expect(dark.status).toBe(200);
     expect(dark.headers.get("etag")).not.toBe(clear.headers.get("etag"));
     const clearPixels = await sharp(Buffer.from(await clear.arrayBuffer())).ensureAlpha().raw().toBuffer();
     const darkPixels = await sharp(Buffer.from(await dark.arrayBuffer())).ensureAlpha().raw().toBuffer();
     expect(Array.from(clearPixels.subarray(0, 4))).toEqual([0, 0, 0, 0]);
     expect(Array.from(darkPixels.subarray(0, 4))).toEqual([channel, channel, channel, 255]);
-    expect(avatarCacheKey({ ...request, background: "paperclip-dark" })).not.toBe(avatarCacheKey(request));
+    expect(avatarCacheKey({ ...request, background: "nexus-dark" })).not.toBe(avatarCacheKey(request));
     const invalid = await fetch(url + "?background=white");
     expect(invalid.status).toBe(400); await invalid.text();
   }, 20_000);

@@ -19,7 +19,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     initialEntries: ["/PAP/issues"],
-    paperclip: {
+    nexus: {
       capabilities: ["tasks/organize", "activity/overview"],
       status: "proposed", home: "design-proposals", implementation: "production", boundary: "fixtures",
       exception: "Proposed task preview appearance staged alongside the task list and shared popover tokens.",

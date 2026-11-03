@@ -3,7 +3,7 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RunnerGoalProjection } from "@paperclipai/shared";
+import type { RunnerGoalProjection } from "@nexusai/shared";
 import { issuesApi } from "@/api/issues";
 import { queryKeys } from "@/lib/queryKeys";
 import { RunnerGoalWidget, useRunnerGoalControl } from "./RunnerGoalWidget";
@@ -12,7 +12,7 @@ vi.mock("@/api/issues", () => ({ issuesApi: { getRunnerGoal: vi.fn(), actOnRunne
 vi.mock("@/context/LiveUpdatesProvider", () => ({ useCompanyLiveEvent: vi.fn() }));
 
 const projection: RunnerGoalProjection = {
-  issueId: "issue-goal", agentId: "agent-goal", adapterType: "paperclip_runner", sessionId: "session-goal",
+  issueId: "issue-goal", agentId: "agent-goal", adapterType: "nexus_runner", sessionId: "session-goal",
   capability: { availability: "available", verified: true, actions: ["set", "pause", "resume", "clear"], autonomousUpdates: true,
     persistentAcrossResume: true, maxObjectiveChars: 4_000, tokenBudgetControl: true, usageReporting: true },
   goal: { objective: "Original objective", status: "active", tokenBudget: null, tokensUsed: 20, elapsedSeconds: 2,

@@ -20,7 +20,7 @@ describe("Slack setup capabilities and progress", () => {
     expect(state(endpoint).toVisible(state(endpoint).availableStage)).toBe(1);
     endpoint.providerAccountId = "TWORKSPACE";
     endpoint.setup!.slackRegistration.status = "configured";
-    endpoint.setup!.slackAccount = { status: "linked", externalUserId: "UPERSON", paperclipUserId: "person", welcomeStatus: "sent" };
+    endpoint.setup!.slackAccount = { status: "linked", externalUserId: "UPERSON", nexusUserId: "person", welcomeStatus: "sent" };
     expect(state(endpoint).toVisible(state(endpoint).availableStage)).toBe(1);
     endpoint.setup!.step = "test";
     expect(state(endpoint).complete).toBe(true);

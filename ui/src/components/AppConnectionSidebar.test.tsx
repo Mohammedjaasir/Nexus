@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppDetailSidebar } from "./AppConnectionSidebar";
 import { AppDetailSidebar as ProductionAppDetailSidebar } from "./AppConnectionSidebar.production";
 import { queryKeys } from "@/lib/queryKeys";
-import { aiConnectionRouterAppDefinition } from "@paperclipai/shared";
+import { aiConnectionRouterAppDefinition } from "@nexusai/shared";
 
 const sidebarNavItemMock = vi.hoisted(() => vi.fn());
 const currentPath = vi.hoisted(() => ({ value: "/apps/conn-1/permissions" }));

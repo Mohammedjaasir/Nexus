@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Issue, IssueAttachment, IssueDocument } from "@paperclipai/shared";
+import type { Issue, IssueAttachment, IssueDocument } from "@nexusai/shared";
 import { issuesApi } from "@/api/issues";
 import { queryKeys } from "@/lib/queryKeys";
 import { uploadedDocumentKey } from "@/lib/issue-artifact-upload";

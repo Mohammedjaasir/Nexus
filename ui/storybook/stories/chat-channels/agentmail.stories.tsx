@@ -549,7 +549,7 @@ const meta = {
   title: "Apps, channels, and extensions/External chat and email/Connections/AgentMail tasks",
   component: EmailTaskExperience,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "chat-channels/conversation"
       ],

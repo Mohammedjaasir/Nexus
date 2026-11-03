@@ -4,7 +4,7 @@ import { AuditRuns } from "@/pages/audit/AuditRuns";
 import {
   storybookLiveRuns,
   storybookAgents,
-} from "../../fixtures/paperclipData";
+} from "../../fixtures/nexusData";
 import {
   prepareFixtureApi,
   type FixtureState,
@@ -16,7 +16,7 @@ const meta = {
   component: AuditRuns,
   args: { companyId: "company-storybook" },
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "activity/runs"
       ],

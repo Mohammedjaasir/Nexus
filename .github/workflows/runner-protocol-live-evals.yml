@@ -100,7 +100,7 @@ jobs:
             fi
           done
 
-      - name: Resolve requested Paperclip branch to an immutable commit
+      - name: Resolve requested Nexus branch to an immutable commit
         id: target
         env:
           GH_TOKEN: ${{ github.token }}
@@ -145,7 +145,7 @@ jobs:
             echo "evals_sha (or RUNNER_PROTOCOL_EVALS_SHA for schedules) must be an exact 40-character commit." >&2
             exit 1
           fi
-          resolved="$(gh api -X GET "repos/paperclipai/paperclip-evals/commits/$EVALS_SHA" --jq .sha)"
+          resolved="$(gh api -X GET "repos/nexusai/nexus-evals/commits/$EVALS_SHA" --jq .sha)"
           test "$resolved" = "$EVALS_SHA"
           echo "sha=$resolved" >> "$GITHUB_OUTPUT"
 
@@ -166,7 +166,7 @@ jobs:
               test "$TARGET_SHA" = "$GITHUB_SHA"
               test "$GITHUB_RUN_ATTEMPT" = 1
               test "$RETRIES" = 0
-              if ! jq -e '.schema == "paperclip.runner-eval.hosted-policy/v1"' <<< "${CONTROLLER_POLICY_JSON:-}" >/dev/null; then
+              if ! jq -e '.schema == "nexus.runner-eval.hosted-policy/v1"' <<< "${CONTROLLER_POLICY_JSON:-}" >/dev/null; then
                 echo 'Controlled runs require a reviewed RUNNER_PROTOCOL_EVAL_CONTROLLER_POLICY_JSON; no provider work started.' >&2
                 exit 1
               fi
@@ -187,7 +187,7 @@ jobs:
           set -euo pipefail
           if [ "$AWS_PAID_RUNNER_ENABLED" = true ]; then
             {
-              echo 'runner=runs-on/fleet=paperclip-public-pr-x64/env=public-ci'
+              echo 'runner=runs-on/fleet=nexus-public-pr-x64/env=public-ci'
               echo 'max_parallel_default=100'
               echo 'max_parallel_limit=100'
             } >> "$GITHUB_OUTPUT"
@@ -284,15 +284,15 @@ jobs:
         with:
           repository: paperclipai/paperclip-evals
           ref: ${{ needs.authorize.outputs.evals_sha }}
-          path: .paperclip-evals
+          path: .nexus-evals
           token: ${{ steps.evals_token.outputs.value }}
           persist-credentials: false
 
       - name: Build the two bounded roster-plus-case matrices
         id: catalog
         env:
-          PAPERCLIP_PROTOCOL_EVAL_SOURCE_SHA: ${{ needs.authorize.outputs.target_sha }}
-          PAPERCLIP_PROTOCOL_EVALS_SHA: ${{ needs.authorize.outputs.evals_sha }}
+          NEXUS_PROTOCOL_EVAL_SOURCE_SHA: ${{ needs.authorize.outputs.target_sha }}
+          NEXUS_PROTOCOL_EVALS_SHA: ${{ needs.authorize.outputs.evals_sha }}
           MAX_PARALLEL: ${{ vars.RUNNER_E2E_MAX_PARALLEL || needs.authorize.outputs.max_parallel_default }}
           MAX_PARALLEL_LIMIT: ${{ needs.authorize.outputs.max_parallel_limit }}
           REQUESTED_MAX_PARALLEL: ${{ inputs.max_parallel }}
@@ -313,8 +313,8 @@ jobs:
             fi
             MAX_PARALLEL="$REQUESTED_MAX_PARALLEL"
           fi
-          node packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs catalog \
-            --evals-root .paperclip-evals \
+          node packages/nexus-runner/scripts/runner-protocol-eval-campaign.mjs catalog \
+            --evals-root .nexus-evals \
             --rosters "$ROSTERS" \
             --grok-authentication "$GROK_AUTHENTICATION" \
             --campaign-id "gha-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
@@ -331,7 +331,7 @@ jobs:
       - name: Require the chat-report renderer before paid execution
         run: |
           set -euo pipefail
-          python3 .paperclip-evals/evals/paperclip-runner/tools/eval_program.py report --help | grep -q -- --public-viewer
+          python3 .nexus-evals/evals/nexus-runner/tools/eval_program.py report --help | grep -q -- --public-viewer
 
       - name: Upload immutable campaign catalog
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -394,40 +394,40 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Materialize the pinned OpenCode executable before packaging
-        run: node packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
+        run: node packages/nexus-runner/scripts/materialize-opencode-binary.mjs
 
       - name: Materialize the pinned Grok executable when the target includes it
         run: |
-          if [ -f packages/paperclip-runner/scripts/provision-grok.mjs ]; then
-            sudo node packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok
+          if [ -f packages/nexus-runner/scripts/provision-grok.mjs ]; then
+            sudo node packages/nexus-runner/scripts/provision-grok.mjs /opt/nexus/providers/grok/1.0.13/grok
           fi
 
       - name: Build runner CLI, daemon, and canonical attempt viewer
         run: |
           set -euo pipefail
-          pnpm --filter @paperclipai/paperclip-runner build:typescript
-          pnpm --filter @paperclipai/paperclip-runner build:runner-binaries
-          pnpm --filter @paperclipai/paperclip-runner build:issue-thread
+          pnpm --filter @nexusai/nexus-runner build:typescript
+          pnpm --filter @nexusai/nexus-runner build:runner-binaries
+          pnpm --filter @nexusai/nexus-runner build:issue-thread
           # Older target refs must fail before paid cells, not publish an empty viewer.
-          grep -q 'paperclip-eval-report' packages/paperclip-runner/dist-issue-thread/assets/*.js
-          grep -q 'evalbook-site' packages/paperclip-runner/dist-issue-thread/assets/*.css
+          grep -q 'nexus-eval-report' packages/nexus-runner/dist-issue-thread/assets/*.js
+          grep -q 'evalbook-site' packages/nexus-runner/dist-issue-thread/assets/*.css
 
       - name: Package a portable provider runtime
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/runner-protocol-build/package" "$RUNNER_TEMP/runner-protocol-build/portable"
-          pnpm --dir packages/paperclip-runner pack \
+          pnpm --dir packages/nexus-runner pack \
             --pack-destination "$RUNNER_TEMP/runner-protocol-build/package"
           package="$(find "$RUNNER_TEMP/runner-protocol-build/package" -maxdepth 1 -type f -name '*.tgz' -print -quit)"
           test -f "$package"
-          pnpm --filter @paperclipai/paperclip-runner deploy --prod \
+          pnpm --filter @nexusai/nexus-runner deploy --prod \
             "$RUNNER_TEMP/runner-protocol-build/portable"
-          cp "$package" "$RUNNER_TEMP/runner-protocol-build/paperclip-runner.tgz"
-          cp packages/paperclip-runner/runner/target/debug/paperclip-runnerd "$RUNNER_TEMP/runner-protocol-build/paperclip-runnerd"
-          cp -R packages/paperclip-runner/dist-issue-thread "$RUNNER_TEMP/runner-protocol-build/dist-issue-thread"
+          cp "$package" "$RUNNER_TEMP/runner-protocol-build/nexus-runner.tgz"
+          cp packages/nexus-runner/runner/target/debug/nexus-runnerd "$RUNNER_TEMP/runner-protocol-build/nexus-runnerd"
+          cp -R packages/nexus-runner/dist-issue-thread "$RUNNER_TEMP/runner-protocol-build/dist-issue-thread"
           test -f "$RUNNER_TEMP/runner-protocol-build/portable/dist/cli/eval-session.js"
           test -d "$RUNNER_TEMP/runner-protocol-build/portable/node_modules/.pnpm"
-          test -x "$RUNNER_TEMP/runner-protocol-build/paperclip-runnerd"
+          test -x "$RUNNER_TEMP/runner-protocol-build/nexus-runnerd"
           tar --create --gzip --file runner-protocol-build.tar.gz -C "$RUNNER_TEMP/runner-protocol-build" .
           sha256sum runner-protocol-build.tar.gz > runner-protocol-build.tar.gz.sha256
 
@@ -446,7 +446,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: runner-protocol-viewer-${{ github.run_id }}-${{ github.run_attempt }}
-          path: packages/paperclip-runner/dist-issue-thread/
+          path: packages/nexus-runner/dist-issue-thread/
           retention-days: 30
           if-no-files-found: error
 
@@ -503,7 +503,7 @@ jobs:
           test "$(sha256sum "$lock" | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
           cp "$lock" pnpm-lock.yaml
           pnpm install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/runner-controller-pnpm-store"
-          node packages/paperclip-runner/scripts/controlled-evals/build-runtime.mjs \
+          node packages/nexus-runner/scripts/controlled-evals/build-runtime.mjs \
             "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" > "$RUNNER_TEMP/controller-runtime-receipt.json"
           echo "runtime_receipt_sha256=$(jq -r .receiptSha256 "$RUNNER_TEMP/controller-runtime-receipt.json")" >> "$GITHUB_OUTPUT"
 
@@ -528,8 +528,8 @@ jobs:
       - name: Verify the real uploaded controller inventory before private preparation
         if: needs.authorize.outputs.accounting_mode == 'controlled'
         env:
-          PAPERCLIP_CONTROLLER_TRANSPORT_DIRECTORY: ${{ runner.temp }}/runner-controller-roundtrip
-          PAPERCLIP_CONTROLLER_RECEIPT_SHA256: ${{ steps.build.outputs.runtime_receipt_sha256 }}
+          NEXUS_CONTROLLER_TRANSPORT_DIRECTORY: ${{ runner.temp }}/runner-controller-roundtrip
+          NEXUS_CONTROLLER_RECEIPT_SHA256: ${{ steps.build.outputs.runtime_receipt_sha256 }}
         run: node --test .github/tests/runner-controller-artifact-transport.test.mjs
 
   prepare_controller:
@@ -571,7 +571,7 @@ jobs:
         with:
           repository: paperclipai/paperclip-evals
           ref: ${{ needs.authorize.outputs.evals_sha }}
-          path: .paperclip-evals
+          path: .nexus-evals
           token: ${{ steps.evals_token.outputs.value }}
           persist-credentials: false
 
@@ -608,21 +608,21 @@ jobs:
           RUNTIME_RECEIPT_SHA256: ${{ needs.build_controller.outputs.runtime_receipt_sha256 }}
         run: |
           set -euo pipefail
-          node packages/paperclip-runner/scripts/controlled-evals/verify-runtime.mjs "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
+          node packages/nexus-runner/scripts/controlled-evals/verify-runtime.mjs "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
           test "$(jq -r '.inputs["pnpm-lock.yaml"]' "$RUNNER_TEMP/runner-protocol-runtime/runtime.json")" = "$EXPECTED_LOCK_SHA256"
 
       - name: Compile requests and bind the reviewed operating policy
         if: needs.authorize.outputs.accounting_mode == 'controlled'
         id: prepare
         env:
-          PAPERCLIP_PROTOCOL_EVAL_SOURCE_SHA: ${{ needs.authorize.outputs.target_sha }}
-          PAPERCLIP_PROTOCOL_EVALS_SHA: ${{ needs.authorize.outputs.evals_sha }}
+          NEXUS_PROTOCOL_EVAL_SOURCE_SHA: ${{ needs.authorize.outputs.target_sha }}
+          NEXUS_PROTOCOL_EVALS_SHA: ${{ needs.authorize.outputs.evals_sha }}
           CONTROLLER_POLICY_JSON: ${{ vars.RUNNER_PROTOCOL_EVAL_CONTROLLER_POLICY_JSON }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git -C .paperclip-evals rev-parse HEAD)" = "$PAPERCLIP_PROTOCOL_EVALS_SHA"
-          python3 .paperclip-evals/evals/paperclip-runner/tools/eval_program.py report --help | grep -q -- --controller-manifest
+          test "$(git -C .nexus-evals rev-parse HEAD)" = "$NEXUS_PROTOCOL_EVALS_SHA"
+          python3 .nexus-evals/evals/nexus-runner/tools/eval_program.py report --help | grep -q -- --controller-manifest
           (cd runner-protocol-build && sha256sum --check runner-protocol-build.tar.gz.sha256)
           mkdir runner-protocol-build/extracted
           tar -xzf runner-protocol-build/runner-protocol-build.tar.gz -C runner-protocol-build/extracted
@@ -632,12 +632,12 @@ jobs:
           with os.fdopen(os.open(os.environ["POLICY_PATH"], os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as target:
               target.write(os.environ["CONTROLLER_POLICY_JSON"])
           PYTHON
-          worker="/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}"
-          python3 .paperclip-evals/evals/paperclip-runner/tools/prepare_controlled_campaign.py \
+          worker="/tmp/nexus-runner-controlled-${GITHUB_RUN_ID}"
+          python3 .nexus-evals/evals/nexus-runner/tools/prepare_controlled_campaign.py \
             --catalog runner-protocol-catalog/runner-protocol-eval-catalog.json \
-            --runnerd runner-protocol-build/extracted/paperclip-runnerd \
-            --worker-runnerd "$worker/runner/paperclip-runnerd" \
-            --github-run-id "$GITHUB_RUN_ID" --definitions-revision "$PAPERCLIP_PROTOCOL_EVALS_SHA" \
+            --runnerd runner-protocol-build/extracted/nexus-runnerd \
+            --worker-runnerd "$worker/runner/nexus-runnerd" \
+            --github-run-id "$GITHUB_RUN_ID" --definitions-revision "$NEXUS_PROTOCOL_EVALS_SHA" \
             --output "$RUNNER_TEMP/prepared-requests.json"
           control="$RUNNER_TEMP/runner-protocol-control"
           node "$RUNNER_TEMP/runner-protocol-runtime/controlled-evals/hosted.mjs" prepare \
@@ -725,7 +725,7 @@ jobs:
         with:
           repository: paperclipai/paperclip-evals
           ref: ${{ needs.authorize.outputs.evals_sha }}
-          path: .paperclip-evals
+          path: .nexus-evals
           token: ${{ steps.evals_token.outputs.value }}
           persist-credentials: false
 
@@ -746,14 +746,14 @@ jobs:
           sha256sum --check runner-protocol-build.tar.gz.sha256
           mkdir extracted
           tar --extract --gzip --file runner-protocol-build.tar.gz --directory extracted
-          test -x extracted/paperclip-runnerd
+          test -x extracted/nexus-runnerd
 
       - name: Download the trusted portable controller
         if: needs.authorize.outputs.accounting_mode == 'controlled'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           artifact-ids: ${{ needs.prepare_controller.outputs.artifact_id }}
-          path: /tmp/paperclip-runner-controlled-${{ github.run_id }}/runtime
+          path: /tmp/nexus-runner-controlled-${{ github.run_id }}/runtime
 
       - name: Verify controller code before archive access
         if: needs.authorize.outputs.accounting_mode == 'controlled'
@@ -762,8 +762,8 @@ jobs:
           RUNTIME_RECEIPT_SHA256: ${{ needs.prepare_controller.outputs.runtime_receipt_sha256 }}
         run: |
           set -euo pipefail
-          root="/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}"
-          node packages/paperclip-runner/scripts/controlled-evals/verify-runtime.mjs "$root/runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
+          root="/tmp/nexus-runner-controlled-${GITHUB_RUN_ID}"
+          node packages/nexus-runner/scripts/controlled-evals/verify-runtime.mjs "$root/runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
           cp -a runner-protocol-build/extracted "$root/runner"
 
       # Keep the host policy aligned with runner-full-stack-e2e.yml. This is
@@ -771,7 +771,7 @@ jobs:
       - name: Provision Codex sandbox on the disposable trusted runner
         if: matrix.provider == 'codex' || matrix.rosterId == 'protocol-live-acpx-codex-control'
         env:
-          CONTROLLED_RUNNER_ROOT: ${{ needs.authorize.outputs.accounting_mode == 'controlled' && format('/tmp/paperclip-runner-controlled-{0}/runner', github.run_id) || '' }}
+          CONTROLLED_RUNNER_ROOT: ${{ needs.authorize.outputs.accounting_mode == 'controlled' && format('/tmp/nexus-runner-controlled-{0}/runner', github.run_id) || '' }}
         run: |
           node --input-type=module <<'NODE'
           import { execFileSync } from "node:child_process";
@@ -796,8 +796,8 @@ jobs:
           if (!binary.startsWith(root + "/node_modules/.pnpm/") || !binary.endsWith(suffix) || !/^[/A-Za-z0-9_.@+\-]+$/.test(binary)) {
             throw new Error("Codex executable is outside the resolved dependency tree");
           }
-          const name = `paperclip-e2e-codex-${createHash("sha256").update(binary).digest("hex").slice(0,16)}`;
-          const profilePath = path.join(process.env.RUNNER_TEMP, "paperclip-codex-userns.apparmor");
+          const name = `nexus-e2e-codex-${createHash("sha256").update(binary).digest("hex").slice(0,16)}`;
+          const profilePath = path.join(process.env.RUNNER_TEMP, "nexus-codex-userns.apparmor");
           writeFileSync(profilePath, `abi <abi/4.0>,\ninclude <tunables/global>\nprofile ${name} "${binary}" flags=(unconfined) {\n  userns,\n}\n`, {mode:0o600, flag:"wx"});
           execFileSync("sudo", ["-n", "apparmor_parser", "-r", profilePath], {timeout:15000, stdio:"pipe"});
           NODE
@@ -823,27 +823,27 @@ jobs:
           AWS_SESSION_TOKEN: ${{ steps.private_history_credentials.outputs.aws-session-token }}
           AWS_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
           RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET }}
-        run: node "/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}/runtime/private-history.mjs" download protocol-control "$GITHUB_RUN_ID" "/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}/control" "$CELL_ID"
+        run: node "/tmp/nexus-runner-controlled-${GITHUB_RUN_ID}/runtime/private-history.mjs" download protocol-control "$GITHUB_RUN_ID" "/tmp/nexus-runner-controlled-${GITHUB_RUN_ID}/control" "$CELL_ID"
 
       - name: Verify current worker admission before provider credentials
         if: needs.authorize.outputs.accounting_mode == 'controlled'
         env:
           MANIFEST_SHA256: ${{ needs.prepare_controller.outputs.manifest_sha256 }}
-          PAPERCLIP_RUNNER_EVAL_EXECUTION_ID: ${{ matrix.cellId }}
+          NEXUS_RUNNER_EVAL_EXECUTION_ID: ${{ matrix.cellId }}
         run: |
           set -euo pipefail
-          root="/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}"
-          node "$root/runtime/controlled-evals/hosted.mjs" verify "$root/control/controller-manifest.json" "$MANIFEST_SHA256" "$PAPERCLIP_RUNNER_EVAL_EXECUTION_ID"
+          root="/tmp/nexus-runner-controlled-${GITHUB_RUN_ID}"
+          node "$root/runtime/controlled-evals/hosted.mjs" verify "$root/control/controller-manifest.json" "$MANIFEST_SHA256" "$NEXUS_RUNNER_EVAL_EXECUTION_ID"
           {
-            echo "PAPERCLIP_RUNNER_EVAL_CONTROL_MANIFEST=$root/control/controller-manifest.json"
-            echo "PAPERCLIP_RUNNER_EVAL_ARCHIVE_CLI=$root/runtime/controlled-evals/archive.mjs"
-            echo "PAPERCLIP_RUNNER_EVAL_EXECUTION_ID=$PAPERCLIP_RUNNER_EVAL_EXECUTION_ID"
+            echo "NEXUS_RUNNER_EVAL_CONTROL_MANIFEST=$root/control/controller-manifest.json"
+            echo "NEXUS_RUNNER_EVAL_ARCHIVE_CLI=$root/runtime/controlled-evals/archive.mjs"
+            echo "NEXUS_RUNNER_EVAL_EXECUTION_ID=$NEXUS_RUNNER_EVAL_EXECUTION_ID"
           } >> "$GITHUB_ENV"
 
       - name: Prepare short-lived AgentCore web identity
         if: matrix.credentialName == 'AWS_AGENTCORE_OIDC'
         env:
-          AGENTCORE_ROLE_ARN: ${{ vars.PAPERCLIP_AWS_AGENTCORE_EXECUTION_ROLE_ARN }}
+          AGENTCORE_ROLE_ARN: ${{ vars.NEXUS_AWS_AGENTCORE_EXECUTION_ROLE_ARN }}
         run: |
           set -euo pipefail
           test -n "$AGENTCORE_ROLE_ARN"
@@ -876,28 +876,28 @@ jobs:
           ANTHROPIC_API_KEY: ${{ matrix.credentialName == 'ANTHROPIC_API_KEY' && secrets.ANTHROPIC_API_KEY || '' }}
           OPENROUTER_API_KEY: ${{ matrix.credentialName == 'OPENROUTER_API_KEY' && secrets.OPENROUTER_API_KEY || '' }}
           XAI_API_KEY: ${{ matrix.credentialName == 'XAI_API_KEY' && secrets.XAI_API_KEY || '' }}
-          PAPERCLIP_ACPX_GROK_AUTH_JSON_SECRET: ${{ matrix.credentialName == 'PAPERCLIP_ACPX_GROK_AUTH_JSON_SECRET' && secrets.GROK_AUTH_JSON || '' }}
+          NEXUS_ACPX_GROK_AUTH_JSON_SECRET: ${{ matrix.credentialName == 'NEXUS_ACPX_GROK_AUTH_JSON_SECRET' && secrets.GROK_AUTH_JSON || '' }}
           COPILOT_GITHUB_TOKEN: ${{ matrix.credentialName == 'COPILOT_GITHUB_TOKEN' && secrets.COPILOT_GITHUB_TOKEN || '' }}
-          PAPERCLIP_CLAUDE_MANAGED_PROFILE_ID: ${{ vars.PAPERCLIP_CLAUDE_MANAGED_PROFILE_ID }}
-          PAPERCLIP_CLAUDE_MANAGED_AGENT_ID: ${{ vars.PAPERCLIP_CLAUDE_MANAGED_AGENT_ID }}
-          PAPERCLIP_CLAUDE_MANAGED_AGENT_VERSION: ${{ vars.PAPERCLIP_CLAUDE_MANAGED_AGENT_VERSION }}
-          PAPERCLIP_CLAUDE_MANAGED_ENVIRONMENT_ID: ${{ vars.PAPERCLIP_CLAUDE_MANAGED_ENVIRONMENT_ID }}
-          AWS_REGION: ${{ vars.PAPERCLIP_AWS_AGENTCORE_REGION }}
-          AWS_DEFAULT_REGION: ${{ vars.PAPERCLIP_AWS_AGENTCORE_REGION }}
-          PAPERCLIP_AWS_AGENTCORE_PROFILE_ID: ${{ vars.PAPERCLIP_AWS_AGENTCORE_PROFILE_ID }}
-          PAPERCLIP_AWS_AGENTCORE_ACCOUNT_ID: ${{ vars.PAPERCLIP_AWS_AGENTCORE_ACCOUNT_ID }}
-          PAPERCLIP_AWS_AGENTCORE_HARNESS_ARN: ${{ vars.PAPERCLIP_AWS_AGENTCORE_HARNESS_ARN }}
-          PAPERCLIP_AWS_AGENTCORE_HARNESS_VERSION: ${{ vars.PAPERCLIP_AWS_AGENTCORE_HARNESS_VERSION }}
-          PAPERCLIP_AWS_AGENTCORE_ENDPOINT_ARN: ${{ vars.PAPERCLIP_AWS_AGENTCORE_ENDPOINT_ARN }}
-          PAPERCLIP_AWS_AGENTCORE_ENDPOINT_QUALIFIER: ${{ vars.PAPERCLIP_AWS_AGENTCORE_ENDPOINT_QUALIFIER }}
-          PAPERCLIP_AWS_AGENTCORE_RUNTIME_ARN: ${{ vars.PAPERCLIP_AWS_AGENTCORE_RUNTIME_ARN }}
-          PAPERCLIP_AWS_AGENTCORE_MEMORY_ARN: ${{ vars.PAPERCLIP_AWS_AGENTCORE_MEMORY_ARN }}
-          PAPERCLIP_AWS_AGENTCORE_MEMORY_ID: ${{ vars.PAPERCLIP_AWS_AGENTCORE_MEMORY_ID }}
-          PAPERCLIP_AWS_AGENTCORE_INVOCATION_ROLE_ARN: ${{ vars.PAPERCLIP_AWS_AGENTCORE_INVOCATION_ROLE_ARN }}
-          PAPERCLIP_AWS_AGENTCORE_CONTEXT_BUCKET: ${{ vars.PAPERCLIP_AWS_AGENTCORE_CONTEXT_BUCKET }}
-          PAPERCLIP_AWS_AGENTCORE_CONTEXT_PREFIX: ${{ vars.PAPERCLIP_AWS_AGENTCORE_CONTEXT_PREFIX }}
-          PAPERCLIP_AWS_AGENTCORE_CONTEXT_KMS_KEY_ARN: ${{ vars.PAPERCLIP_AWS_AGENTCORE_CONTEXT_KMS_KEY_ARN }}
-          PAPERCLIP_AWS_AGENTCORE_QUALIFICATION_REVISION: ${{ vars.PAPERCLIP_AWS_AGENTCORE_QUALIFICATION_REVISION }}
+          NEXUS_CLAUDE_MANAGED_PROFILE_ID: ${{ vars.NEXUS_CLAUDE_MANAGED_PROFILE_ID }}
+          NEXUS_CLAUDE_MANAGED_AGENT_ID: ${{ vars.NEXUS_CLAUDE_MANAGED_AGENT_ID }}
+          NEXUS_CLAUDE_MANAGED_AGENT_VERSION: ${{ vars.NEXUS_CLAUDE_MANAGED_AGENT_VERSION }}
+          NEXUS_CLAUDE_MANAGED_ENVIRONMENT_ID: ${{ vars.NEXUS_CLAUDE_MANAGED_ENVIRONMENT_ID }}
+          AWS_REGION: ${{ vars.NEXUS_AWS_AGENTCORE_REGION }}
+          AWS_DEFAULT_REGION: ${{ vars.NEXUS_AWS_AGENTCORE_REGION }}
+          NEXUS_AWS_AGENTCORE_PROFILE_ID: ${{ vars.NEXUS_AWS_AGENTCORE_PROFILE_ID }}
+          NEXUS_AWS_AGENTCORE_ACCOUNT_ID: ${{ vars.NEXUS_AWS_AGENTCORE_ACCOUNT_ID }}
+          NEXUS_AWS_AGENTCORE_HARNESS_ARN: ${{ vars.NEXUS_AWS_AGENTCORE_HARNESS_ARN }}
+          NEXUS_AWS_AGENTCORE_HARNESS_VERSION: ${{ vars.NEXUS_AWS_AGENTCORE_HARNESS_VERSION }}
+          NEXUS_AWS_AGENTCORE_ENDPOINT_ARN: ${{ vars.NEXUS_AWS_AGENTCORE_ENDPOINT_ARN }}
+          NEXUS_AWS_AGENTCORE_ENDPOINT_QUALIFIER: ${{ vars.NEXUS_AWS_AGENTCORE_ENDPOINT_QUALIFIER }}
+          NEXUS_AWS_AGENTCORE_RUNTIME_ARN: ${{ vars.NEXUS_AWS_AGENTCORE_RUNTIME_ARN }}
+          NEXUS_AWS_AGENTCORE_MEMORY_ARN: ${{ vars.NEXUS_AWS_AGENTCORE_MEMORY_ARN }}
+          NEXUS_AWS_AGENTCORE_MEMORY_ID: ${{ vars.NEXUS_AWS_AGENTCORE_MEMORY_ID }}
+          NEXUS_AWS_AGENTCORE_INVOCATION_ROLE_ARN: ${{ vars.NEXUS_AWS_AGENTCORE_INVOCATION_ROLE_ARN }}
+          NEXUS_AWS_AGENTCORE_CONTEXT_BUCKET: ${{ vars.NEXUS_AWS_AGENTCORE_CONTEXT_BUCKET }}
+          NEXUS_AWS_AGENTCORE_CONTEXT_PREFIX: ${{ vars.NEXUS_AWS_AGENTCORE_CONTEXT_PREFIX }}
+          NEXUS_AWS_AGENTCORE_CONTEXT_KMS_KEY_ARN: ${{ vars.NEXUS_AWS_AGENTCORE_CONTEXT_KMS_KEY_ARN }}
+          NEXUS_AWS_AGENTCORE_QUALIFICATION_REVISION: ${{ vars.NEXUS_AWS_AGENTCORE_QUALIFICATION_REVISION }}
         run: |
           set -euo pipefail
           mkdir -p cell-output/runs
@@ -905,24 +905,24 @@ jobs:
             test -n "${!CREDENTIAL_NAME:-}"
           fi
           if [ "$PROVIDER" = "claude_managed" ]; then
-            test -n "$PAPERCLIP_CLAUDE_MANAGED_PROFILE_ID"
-            test -n "$PAPERCLIP_CLAUDE_MANAGED_AGENT_ID"
-            test -n "$PAPERCLIP_CLAUDE_MANAGED_AGENT_VERSION"
-            test -n "$PAPERCLIP_CLAUDE_MANAGED_ENVIRONMENT_ID"
+            test -n "$NEXUS_CLAUDE_MANAGED_PROFILE_ID"
+            test -n "$NEXUS_CLAUDE_MANAGED_AGENT_ID"
+            test -n "$NEXUS_CLAUDE_MANAGED_AGENT_VERSION"
+            test -n "$NEXUS_CLAUDE_MANAGED_ENVIRONMENT_ID"
           fi
           runner_cli=runner-protocol-build/extracted/portable/dist/cli/eval-session.js
-          runner_package=runner-protocol-build/extracted/paperclip-runner.tgz
-          runnerd=runner-protocol-build/extracted/paperclip-runnerd
+          runner_package=runner-protocol-build/extracted/nexus-runner.tgz
+          runnerd=runner-protocol-build/extracted/nexus-runnerd
           if [ "$ACCOUNTING_MODE" = controlled ]; then
             test -n "$BRAINTRUST_API_KEY"
-            root="/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}"
+            root="/tmp/nexus-runner-controlled-${GITHUB_RUN_ID}"
             runner_cli="$root/runtime/controlled-evals/run.mjs"
-            runner_package="$root/runner/paperclip-runner.tgz"
-            runnerd="$root/runner/paperclip-runnerd"
+            runner_package="$root/runner/nexus-runner.tgz"
+            runnerd="$root/runner/nexus-runnerd"
           fi
           set +e
-          python3 .paperclip-evals/evals/paperclip-runner/tools/run_live_roster.py run \
-            --roster ".paperclip-evals/evals/paperclip-runner/rosters/$ROSTER_FILE" \
+          python3 .nexus-evals/evals/nexus-runner/tools/run_live_roster.py run \
+            --roster ".nexus-evals/evals/nexus-runner/rosters/$ROSTER_FILE" \
             --case "$CASE_ID" \
             --runner-cli "$runner_cli" \
             --runner-package "$runner_package" \
@@ -937,7 +937,7 @@ jobs:
           import { readFileSync, writeFileSync } from "node:fs";
           let authenticationMode;
           let authenticationEvidenceFailure;
-          if (["XAI_API_KEY", "PAPERCLIP_ACPX_GROK_AUTH_JSON_SECRET"].includes(process.env.CREDENTIAL_NAME)) {
+          if (["XAI_API_KEY", "NEXUS_ACPX_GROK_AUTH_JSON_SECRET"].includes(process.env.CREDENTIAL_NAME)) {
             const expected = process.env.CREDENTIAL_NAME === "XAI_API_KEY" ? "api_key" : "subscription";
             try {
               const observed = JSON.parse(readFileSync("cell-output/roster-summary.json", "utf8")).authenticationMode;
@@ -949,7 +949,7 @@ jobs:
             }
           }
           writeFileSync("cell-output/cell.json", `${JSON.stringify({
-            schema: "paperclip.runner-protocol-eval.cell/v1",
+            schema: "nexus.runner-protocol-eval.cell/v1",
             cellId: process.env.CELL_ID,
             rosterFile: process.env.ROSTER_FILE,
             caseId: process.env.CASE_ID,
@@ -973,7 +973,7 @@ jobs:
           CELL_ID: ${{ matrix.cellId }}
         run: |
           test -d cell-output
-          node "/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}/runtime/private-history.mjs" upload "protocol-cell-$CELL_ID" "$GITHUB_RUN_ID" cell-output
+          node "/tmp/nexus-runner-controlled-${GITHUB_RUN_ID}/runtime/private-history.mjs" upload "protocol-cell-$CELL_ID" "$GITHUB_RUN_ID" cell-output
 
       - name: Upload legacy cell attempt
         if: always() && needs.authorize.outputs.accounting_mode == 'legacy'
@@ -1035,7 +1035,7 @@ jobs:
         with:
           repository: paperclipai/paperclip-evals
           ref: ${{ needs.authorize.outputs.evals_sha }}
-          path: .paperclip-evals
+          path: .nexus-evals
           token: ${{ steps.evals_token.outputs.value }}
           persist-credentials: false
 
@@ -1076,7 +1076,7 @@ jobs:
           RUNTIME_RECEIPT_SHA256: ${{ needs.prepare_controller.outputs.runtime_receipt_sha256 }}
         run: |
           set -euo pipefail
-          node packages/paperclip-runner/scripts/controlled-evals/verify-runtime.mjs "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
+          node packages/nexus-runner/scripts/controlled-evals/verify-runtime.mjs "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
 
       - name: Obtain private archive credentials for transfer steps only
         if: needs.authorize.outputs.accounting_mode == 'controlled'
@@ -1110,8 +1110,8 @@ jobs:
             node "$archive" download "protocol-cell-$cell" "$GITHUB_RUN_ID" "downloaded-runner-protocol-evals/runner-protocol-eval-$GITHUB_RUN_ID-1-$cell" || echo 'A private cell is unavailable; its allocation remains held.'
           done < <(jq -r '.attempts[].executionId' "$control/controller-manifest.json")
           {
-            echo "PAPERCLIP_RUNNER_EVAL_CONTROL_MANIFEST=$control/controller-manifest.json"
-            echo "PAPERCLIP_RUNNER_EVAL_ARCHIVE_CLI=$RUNNER_TEMP/runner-protocol-runtime/controlled-evals/archive.mjs"
+            echo "NEXUS_RUNNER_EVAL_CONTROL_MANIFEST=$control/controller-manifest.json"
+            echo "NEXUS_RUNNER_EVAL_ARCHIVE_CLI=$RUNNER_TEMP/runner-protocol-runtime/controlled-evals/archive.mjs"
           } >> "$GITHUB_ENV"
 
       - name: Download every legacy cell
@@ -1147,52 +1147,52 @@ jobs:
 
       - name: Aggregate every expected cell, including missing infrastructure cells
         env:
-          PAPERCLIP_PROTOCOL_EVAL_SOURCE_SHA: ${{ needs.authorize.outputs.target_sha }}
-          PAPERCLIP_PROTOCOL_EVAL_SOURCE_REF: ${{ needs.authorize.outputs.target_ref }}
-          PAPERCLIP_PROTOCOL_EVALS_SHA: ${{ needs.authorize.outputs.evals_sha }}
-          PAPERCLIP_PROTOCOL_EVAL_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          NEXUS_PROTOCOL_EVAL_SOURCE_SHA: ${{ needs.authorize.outputs.target_sha }}
+          NEXUS_PROTOCOL_EVAL_SOURCE_REF: ${{ needs.authorize.outputs.target_ref }}
+          NEXUS_PROTOCOL_EVALS_SHA: ${{ needs.authorize.outputs.evals_sha }}
+          NEXUS_PROTOCOL_EVAL_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          node packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs aggregate \
+          node packages/nexus-runner/scripts/runner-protocol-eval-campaign.mjs aggregate \
             --catalog runner-protocol-catalog/runner-protocol-eval-catalog.json \
             --downloads downloaded-runner-protocol-evals \
-            --evals-root .paperclip-evals \
+            --evals-root .nexus-evals \
             --runs-out runner-protocol-merged/runs \
             --campaign-out runner-protocol-merged/campaign.json
 
       - name: Render the access-controlled canonical Evalbook report
         run: |
           control_args=()
-          if [ -n "${PAPERCLIP_RUNNER_EVAL_CONTROL_MANIFEST:-}" ]; then
-            control_args=(--controller-manifest "$PAPERCLIP_RUNNER_EVAL_CONTROL_MANIFEST" --controller-archive-cli "$PAPERCLIP_RUNNER_EVAL_ARCHIVE_CLI")
+          if [ -n "${NEXUS_RUNNER_EVAL_CONTROL_MANIFEST:-}" ]; then
+            control_args=(--controller-manifest "$NEXUS_RUNNER_EVAL_CONTROL_MANIFEST" --controller-archive-cli "$NEXUS_RUNNER_EVAL_ARCHIVE_CLI")
           fi
           set +e
-          python3 .paperclip-evals/evals/paperclip-runner/tools/eval_program.py report "${control_args[@]}" \
+          python3 .nexus-evals/evals/nexus-runner/tools/eval_program.py report "${control_args[@]}" \
             --runs-root runner-protocol-merged/runs \
             --output runner-protocol-merged/report \
             --viewer-root runner-protocol-build/extracted/dist-issue-thread \
-            --inventory .paperclip-evals/evals/paperclip-runner/inventory.json \
-            --coverage-matrix .paperclip-evals/evals/paperclip-runner/coverage-matrix.json > runner-protocol-merged/accounting-report.json
+            --inventory .nexus-evals/evals/nexus-runner/inventory.json \
+            --coverage-matrix .nexus-evals/evals/nexus-runner/coverage-matrix.json > runner-protocol-merged/accounting-report.json
           status=$?
           set -e
           cp runner-protocol-merged/campaign.json runner-protocol-merged/report/campaign.json
-          if [ -n "${PAPERCLIP_RUNNER_EVAL_CONTROL_MANIFEST:-}" ]; then
-            cp "$PAPERCLIP_RUNNER_EVAL_CONTROL_MANIFEST" runner-protocol-merged/controller-manifest.json
+          if [ -n "${NEXUS_RUNNER_EVAL_CONTROL_MANIFEST:-}" ]; then
+            cp "$NEXUS_RUNNER_EVAL_CONTROL_MANIFEST" runner-protocol-merged/controller-manifest.json
           fi
           exit "$status"
 
       - name: Render the same canonical grid from a public-safe evidence projection
         if: needs.authorize.outputs.accounting_mode == 'legacy'
         run: |
-          node packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs sanitize \
+          node packages/nexus-runner/scripts/runner-protocol-eval-campaign.mjs sanitize \
             --runs-root runner-protocol-merged/runs \
             --output runner-protocol-merged/public-runs
-          python3 .paperclip-evals/evals/paperclip-runner/tools/eval_program.py report \
+          python3 .nexus-evals/evals/nexus-runner/tools/eval_program.py report \
             --runs-root runner-protocol-merged/public-runs \
             --output runner-protocol-merged/public-report \
             --viewer-root runner-protocol-build/extracted/dist-issue-thread \
             --public-viewer \
-            --inventory .paperclip-evals/evals/paperclip-runner/inventory.json \
-            --coverage-matrix .paperclip-evals/evals/paperclip-runner/coverage-matrix.json
+            --inventory .nexus-evals/evals/nexus-runner/inventory.json \
+            --coverage-matrix .nexus-evals/evals/nexus-runner/coverage-matrix.json
           cp runner-protocol-merged/campaign.json runner-protocol-merged/public-report/campaign.json
 
       - name: Set up report browser verification
@@ -1205,15 +1205,15 @@ jobs:
         if: needs.authorize.outputs.accounting_mode == 'legacy'
         run: |
           pnpm install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/runner-report-pnpm-store"
-          pnpm --filter @paperclipai/paperclip-runner exec playwright install --with-deps chromium
-          node packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/public-report --screenshots runner-protocol-merged/viewer-proof
-          node packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/report
+          pnpm --filter @nexusai/nexus-runner exec playwright install --with-deps chromium
+          node packages/nexus-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/public-report --screenshots runner-protocol-merged/viewer-proof
+          node packages/nexus-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/report
 
       - name: Enforce the static public allowlist
         if: needs.authorize.outputs.accounting_mode == 'legacy'
         id: public_report
         run: |
-          node --input-type=module -e 'import { validatePublicProtocolEvalReport } from "./packages/paperclip-runner/scripts/publish-runner-protocol-eval-history.mjs"; await validatePublicProtocolEvalReport("runner-protocol-merged/public-report", { viewerRoot: "runner-protocol-build/extracted/dist-issue-thread" });'
+          node --input-type=module -e 'import { validatePublicProtocolEvalReport } from "./packages/nexus-runner/scripts/publish-runner-protocol-eval-history.mjs"; await validatePublicProtocolEvalReport("runner-protocol-merged/public-report", { viewerRoot: "runner-protocol-build/extracted/dist-issue-thread" });'
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Add campaign result to the workflow summary
@@ -1222,7 +1222,7 @@ jobs:
           {
             echo '## Runner direct live protocol evals'
             echo
-            jq -r '"- Cells: \(.totals.passed)/\(.totals.selected) passed\n- Behavior failures: \(.totals.behaviorFailures)\n- Infrastructure failures: \(.totals.infrastructureFailures)\n- Paperclip: `\(.source.paperclip.sha)`\n- Evals: `\(.source.evals.sha)`"' runner-protocol-merged/campaign.json
+            jq -r '"- Cells: \(.totals.passed)/\(.totals.selected) passed\n- Behavior failures: \(.totals.behaviorFailures)\n- Infrastructure failures: \(.totals.infrastructureFailures)\n- Nexus: `\(.source.nexus.sha)`\n- Evals: `\(.source.evals.sha)`"' runner-protocol-merged/campaign.json
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Retain controlled Evalbook and accounting in private storage
@@ -1306,9 +1306,9 @@ jobs:
       - name: Publish versioned report and refresh the root index
         id: publish
         env:
-          PAPERCLIP_RUNNER_PROTOCOL_EVAL_PUBLIC_REPORT_DIR: ${{ github.workspace }}/runner-protocol-public-report
-          PAPERCLIP_RUNNER_PROTOCOL_EVAL_VIEWER_DIR: ${{ github.workspace }}/runner-protocol-trusted-viewer
+          NEXUS_RUNNER_PROTOCOL_EVAL_PUBLIC_REPORT_DIR: ${{ github.workspace }}/runner-protocol-public-report
+          NEXUS_RUNNER_PROTOCOL_EVAL_VIEWER_DIR: ${{ github.workspace }}/runner-protocol-trusted-viewer
           RUNNER_PROTOCOL_EVAL_HISTORY_S3_BUCKET: ${{ vars.RUNNER_PROTOCOL_EVAL_HISTORY_S3_BUCKET || vars.RUNNER_E2E_HISTORY_S3_BUCKET }}
           RUNNER_PROTOCOL_EVAL_HISTORY_PREFIX: ${{ vars.RUNNER_PROTOCOL_EVAL_HISTORY_PREFIX || 'runner-protocol-evals' }}
           RUNNER_PROTOCOL_EVAL_HISTORY_PUBLIC_BASE_URL: ${{ vars.RUNNER_PROTOCOL_EVAL_HISTORY_PUBLIC_BASE_URL || vars.RUNNER_E2E_HISTORY_PUBLIC_BASE_URL }}
-        run: node packages/paperclip-runner/scripts/publish-runner-protocol-eval-history.mjs
+        run: node packages/nexus-runner/scripts/publish-runner-protocol-eval-history.mjs

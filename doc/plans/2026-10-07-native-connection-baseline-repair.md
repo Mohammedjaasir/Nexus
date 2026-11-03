@@ -16,7 +16,7 @@ The original baseline remains **0 PASS / 15 FAIL**. It did not exercise the inte
 | Cells | Observed failure | Supported diagnosis |
 | --- | --- | --- |
 | 10 | Browser could not find the creation-time title; renamed title and pending interaction were visible | Stale-title harness assertion, before any intended user decision |
-| 2 Codex provider-choice cells | Native `request_human_input` schema denial before Paperclip execution | Rejected input; retained diagnostics omit the invalid field. Four rejections in the positive cell are calls within one run, not four paid harness attempts |
+| 2 Codex provider-choice cells | Native `request_human_input` schema denial before Nexus execution | Rejected input; retained diagnostics omit the invalid field. Four rejections in the positive cell are calls within one run, not four paid harness attempts |
 | 2 OpenCode provider-choice cells | Used the preinstalled HubSpot tool once without a choice card | Fixture had already granted real tool access. This does not prove a consent violation or disregard of a decline; no decline was sent |
 | 1 Claude provider-decline cell | `native_finalization_missing: session returned no semantic result` | Native session failed before choice; retained evidence does not establish the underlying cause |
 

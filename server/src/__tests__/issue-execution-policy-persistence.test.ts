@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { companies, createDb, issues } from "@paperclipai/db";
+import { companies, createDb, issues } from "@nexusai/db";
 import { buildExecutionPolicy } from "../../../ui/src/lib/issue-execution-policy.ts";
 import { normalizeIssueExecutionPolicy } from "../services/issue-execution-policy.js";
 import { issueService } from "../services/issues.js";
@@ -11,7 +11,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    temporary = await startEmbeddedPostgresTestDatabase("paperclip-policy-persistence-");
+    temporary = await startEmbeddedPostgresTestDatabase("nexus-policy-persistence-");
     db = createDb(temporary.connectionString);
   }, 30_000);
   afterAll(async () => { await temporary?.cleanup(); });

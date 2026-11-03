@@ -37,8 +37,8 @@ describe("looksLikeRepoUrl", () => {
 
 describe("isGithubShorthand", () => {
   it("matches owner/repo/path shorthands", () => {
-    expect(isGithubShorthand("paperclipai/companies/gstack")).toBe(true);
-    expect(isGithubShorthand("paperclipai/companies")).toBe(true);
+    expect(isGithubShorthand("nexusai/companies/gstack")).toBe(true);
+    expect(isGithubShorthand("nexusai/companies")).toBe(true);
   });
 
   it("rejects local-looking paths", () => {
@@ -50,13 +50,13 @@ describe("isGithubShorthand", () => {
 
 describe("normalizeGithubImportSource", () => {
   it("normalizes shorthand imports to canonical GitHub sources", () => {
-    expect(normalizeGithubImportSource("paperclipai/companies/gstack")).toBe(
+    expect(normalizeGithubImportSource("nexusai/companies/gstack")).toBe(
       "https://github.com/paperclipai/companies?ref=main&path=gstack",
     );
   });
 
   it("applies --ref to shorthand imports", () => {
-    expect(normalizeGithubImportSource("paperclipai/companies/gstack", "feature/demo")).toBe(
+    expect(normalizeGithubImportSource("nexusai/companies/gstack", "feature/demo")).toBe(
       "https://github.com/paperclipai/companies?ref=feature%2Fdemo&path=gstack",
     );
   });

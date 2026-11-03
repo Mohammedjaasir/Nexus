@@ -7,7 +7,7 @@ fields. It is separate from the normal instance settings row and is not exposed
 by the instance settings API.
 
 The canonical managed-instance predicate applies: a nonblank Cloud tenant token
-or the presence of `PAPERCLIP_MANAGED_CONFIG`, including a blank value, selects
+or the presence of `NEXUS_MANAGED_CONFIG`, including a blank value, selects
 this configuration path. Invalid managed feature documents still retain their
 existing validation at application startup.
 
@@ -25,7 +25,7 @@ existing validation at application startup.
    runtime configuration row. An existing invalid row or a database error stops
    startup. Neither condition selects a legacy file or an old process snapshot.
 3. If no row exists, startup imports the legacy config once. It uses
-   `PAPERCLIP_CONFIG` when supplied, otherwise the instance home config path.
+   `NEXUS_CONFIG` when supplied, otherwise the instance home config path.
    It does not search working-directory ancestors. A truly absent file saves
    an authoritative `config: null` marker. This retains the existing dynamic
    environment/image defaults, including authentication and secret strictness.
@@ -55,7 +55,7 @@ legacy file leaves no canonical row and can be corrected before retry.
 Environment overlays are not saved as operator choices. Correct that file before
 import, or use the existing absent-file/null-snapshot environment-only setup.
 Ordinary self-hosted file defaults remain unchanged.
-Already-canonical nonblank values, including `paperclip`, remain authoritative.
+Already-canonical nonblank values, including `nexus`, remain authoritative.
 Prior normalization cannot reliably distinguish an operator's deliberate name
 from a historical default, so this release does not invent retrospective
 provenance or replace those saved values.
@@ -99,7 +99,7 @@ and existing environment/secret mechanisms retain responsibility for those
 bytes. Restart tests prove configuration restoration under a different home;
 they do not prove durable file, secret, or backup storage.
 
-The decision signing service still uses `PAPERCLIP_DECISION_SIGNING_SECRET` when
+The decision signing service still uses `NEXUS_DECISION_SIGNING_SECRET` when
 supplied and otherwise reads or creates its instance key file. Managed Cloud
 performs that step after effective storage validation; self-hosted startup keeps
 its pre-connection ordering. The local encrypted secret provider still uses its environment key
@@ -131,7 +131,7 @@ interface.
 clients, concurrent writes, transaction rollback, changed homes, a fresh Node
 process, environment precedence, secret exclusion, invalid data and database
 failure. It uses embedded PostgreSQL by default. A dedicated disposable database
-can be selected with `PAPERCLIP_RUNTIME_CONFIG_TEST_DATABASE_URL` when the host
+can be selected with `NEXUS_RUNTIME_CONFIG_TEST_DATABASE_URL` when the host
 cannot start embedded PostgreSQL. That database must be reserved for this test.
 The test applies the current schema before use.
 

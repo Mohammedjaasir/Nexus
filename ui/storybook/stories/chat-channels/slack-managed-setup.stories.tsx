@@ -8,7 +8,7 @@ const meta = {
   title: "Apps, channels, and extensions/External chat and email/Connections/Slack/Managed setup", component: SlackSetupFixture,
   args: { managed: true },
   parameters: { layout: "fullscreen", initialEntries: [`${start}&resume=slack-story`],
-    paperclip: {
+    nexus: {
       "capabilities": [
         "chat-channels/providers",
         "connection-setup/channel-setup"

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { Db } from "@paperclipai/db";
-import { activityLog, agents, agentWakeupRequests, caseEvents, caseHandoffs, cases, companies, environmentLeases, heartbeatRuns, issueComments, issues, nativeRunFinalizations } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { activityLog, agents, agentWakeupRequests, caseEvents, caseHandoffs, cases, companies, environmentLeases, heartbeatRuns, issueComments, issues, nativeRunFinalizations } from "@nexusai/db";
 import { eq, inArray, sql } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runningProcesses } from "../../adapters/index.js";
@@ -130,7 +130,7 @@ describe("heartbeat run-control module boundary", () => {
 
 describe.skipIf(!runControlPostgresSupport.supported)("heartbeat run-control database wiring", () => {
   let db: Db;
-  const { fixture, liveRun } = setupRunControlDatabase("paperclip-heartbeat-run-control-module", value => { db = value; });
+  const { fixture, liveRun } = setupRunControlDatabase("nexus-heartbeat-run-control-module", value => { db = value; });
 
   it.each(["queued", "running", "cancelled", "succeeded"] as const)("does not supersede a retry that becomes %s between lookup and the cancellation fence", async status => {
     const { company, agent } = await fixture();
@@ -613,14 +613,14 @@ describe.skipIf(!runControlPostgresSupport.supported)("heartbeat run-control dat
       nativeIssueId: issue.id, runtimeMode: "native", status: proof === "still_running" ? "running" : "cancelled", finishedAt: proof === "still_running" ? null : new Date(),
       resultJson: { executionCancellation: { state: "requested", requestedAt: new Date().toISOString() },
         cancelledByActorType: "user", cancelledByUserId: "operator", nativeCancellation: {
-          schema: "paperclip.native-cancellation.v1", runId: proof === "wrong_intent" ? randomUUID() : runId, companyId: company.id, issueId: issue.id,
+          schema: "nexus.native-cancellation.v1", runId: proof === "wrong_intent" ? randomUUID() : runId, companyId: company.id, issueId: issue.id,
           scope: "run", reasonCode: "cancellation_run_only", dispatchState: proof === "unacknowledged" ? "pending" : "acknowledged", dispatched: true,
           intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID(),
         }, workspaceRestoreFailure: "restore_failed", workspaceRestoreRecovery: {
-          schema: "paperclip.workspace-restore-recovery.v1", leaseIds: [leaseId],
+          schema: "nexus.workspace-restore-recovery.v1", leaseIds: [leaseId],
         } },
     }).returning();
-    const receipt = { schema: "paperclip.remote-termination.v1", companyId: company.id, runId, leaseId,
+    const receipt = { schema: "nexus.remote-termination.v1", companyId: company.id, runId, leaseId,
       provider: "daytona", providerLeaseId: proof === "wrong_allocation" ? randomUUID() : providerLeaseId,
       state: "stopped", confirmedAt: new Date().toISOString() };
     await db.insert(environmentLeases).values({ id: leaseId, companyId: company.id, issueId: issue.id, heartbeatRunId: runId,
@@ -645,7 +645,7 @@ describe.skipIf(!runControlPostgresSupport.supported)("heartbeat run-control dat
     const [run] = await db.insert(heartbeatRuns).values({ id: runId, companyId: company.id, agentId: agent.id,
       nativeIssueId: issue.id, runtimeMode: "native", status: "cancelled", finishedAt: stoppedAt, processPid: 2_000_000_000,
       resultJson: { cancelledByActorType: "user", cancelledByUserId: "operator", nativeCancellation: {
-        schema: "paperclip.native-cancellation.v1", runId, companyId: company.id, issueId: issue.id,
+        schema: "nexus.native-cancellation.v1", runId, companyId: company.id, issueId: issue.id,
         scope: "run", reasonCode: "cancellation_run_only", dispatchState: "acknowledged", dispatched: true,
         intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID(),
       } },
@@ -655,7 +655,7 @@ describe.skipIf(!runControlPostgresSupport.supported)("heartbeat run-control dat
     const [earlier] = await db.insert(issueComments).values({ companyId: company.id, issueId: issue.id,
       authorType: "user", authorUserId: "operator", body: "Keep my changed label", createdAt: new Date(stoppedAt.getTime() - 1000) }).returning();
     const payload = (ids: string[]) => withQueuedCommentIdsInWakePayload({ issueId: issue.id, commentId: ids.at(-1),
-      _paperclipWakeContext: { issueId: issue.id, wakeReason: "issue_commented", wakeCommentId: ids.at(-1), wakeCommentIds: ids } }, ids);
+      _nexusWakeContext: { issueId: issue.id, wakeReason: "issue_commented", wakeCommentId: ids.at(-1), wakeCommentIds: ids } }, ids);
     const [wake] = await db.insert(agentWakeupRequests).values({ companyId: company.id, agentId: agent.id,
       source: "on_demand", reason: "issue_execution_deferred", status: "deferred_issue_execution",
       requestedByActorType: "user", requestedByActorId: "operator", payload: payload([earlier.id]) }).returning();
@@ -670,7 +670,7 @@ describe.skipIf(!runControlPostgresSupport.supported)("heartbeat run-control dat
     await control.resumeRemoteStopComments(run);
     expect(deps.enqueueWakeup).toHaveBeenCalledExactlyOnceWith(agent.id, expect.objectContaining({ requestedByActorType: "user",
       requestedByActorId: "operator", queuedCommentRequestId: wake.id,
-      payload: expect.objectContaining({ _paperclipWakeContext: expect.objectContaining({ wakeCommentIds: [earlier.id, later.id] }) }),
+      payload: expect.objectContaining({ _nexusWakeContext: expect.objectContaining({ wakeCommentIds: [earlier.id, later.id] }) }),
     }), wake.id);
   });
 
@@ -681,11 +681,11 @@ describe.skipIf(!runControlPostgresSupport.supported)("heartbeat run-control dat
     const runId = randomUUID(), leaseId = randomUUID(), providerLeaseId = randomUUID();
     await db.insert(heartbeatRuns).values({ id: runId, companyId: company.id, agentId: agent.id,
       issueId: issue.id, nativeIssueId: issue.id, runtimeMode: "native", status: "cancelled", finishedAt: new Date(),
-      runnerProfileJson: { nativeWorkspaceSync: { schema: "paperclip.native-workspace-sync/v3", state: "prepared",
+      runnerProfileJson: { nativeWorkspaceSync: { schema: "nexus.native-workspace-sync/v3", state: "prepared",
         descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null,
         workspaceId: randomUUID(), leaseId, providerLeaseId, remoteCwd: "/work", resourceDisposition: "destroy" } },
       resultJson: { cancelledByActorType: "user", cancelledByUserId: "operator", nativeCancellation: {
-        schema: "paperclip.native-cancellation.v1", runId, companyId: company.id, issueId: issue.id,
+        schema: "nexus.native-cancellation.v1", runId, companyId: company.id, issueId: issue.id,
         scope: "run", reasonCode: "cancellation_run_only", dispatchState: "acknowledged", dispatched: true,
         intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID(),
       } },

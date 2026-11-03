@@ -1,11 +1,11 @@
-import type { AdapterEnvironmentCheck } from "@paperclipai/adapter-utils";
+import type { AdapterEnvironmentCheck } from "@nexusai/adapter-utils";
 
 /**
  * The fixed label a Test result shows when the probe runs on the local
- * Paperclip host. The label is a constant, so a local target check never
+ * Nexus host. The label is a constant, so a local target check never
  * carries an environment ID, a config value, or a credential-derived string.
  */
-export const ADAPTER_TEST_HOST_TARGET_LABEL = "Paperclip host";
+export const ADAPTER_TEST_HOST_TARGET_LABEL = "Nexus host";
 
 // The login hint may show a login URL. The URL must be a normalized https URL
 // with an allowlisted Claude or Anthropic host and no query or fragment. A host
@@ -105,7 +105,7 @@ export function logSandboxProbeDiagnostic(
   }
   const errorClass = sanitizeErrorClassName(fields?.errorClass);
   if (errorClass) detail.errorClass = errorClass;
-  console.warn(`[paperclip] ${context}`, detail);
+  console.warn(`[nexus] ${context}`, detail);
 }
 
 /**
@@ -185,6 +185,6 @@ export function buildAdapterTestTargetCheck(input: {
     level: "info",
     message: input.targetIsRemote
       ? `Probing inside environment: ${label}`
-      : "Probing on the Paperclip host.",
+      : "Probing on the Nexus host.",
   };
 }

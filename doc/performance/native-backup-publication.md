@@ -11,7 +11,7 @@ symlinks into live trees.
 Run the focused correctness tests from an installed checkout:
 
 ```sh
-pnpm --filter @paperclipai/server exec vitest run src/services/native-runtime/native-harness-backup-cleanup.test.ts src/services/native-runtime/native-harness-backup-publication.test.ts
+pnpm --filter @nexusai/server exec vitest run src/services/native-runtime/native-harness-backup-cleanup.test.ts src/services/native-runtime/native-harness-backup-publication.test.ts
 ```
 
 Run the performance comparison from the repository root with the Node version
@@ -45,7 +45,7 @@ service diff. Compiled modules and source maps stay in the printed evidence
 directory. Successful fixtures are removed; failed fixtures remain for diagnosis.
 
 This is a service benchmark. The HTTP endpoint is a responsiveness probe, not
-the assembled Paperclip API. The lease-stamp callback resolves without database
+the assembled Nexus API. The lease-stamp callback resolves without database
 work. It does not prove a hosted latency or total-CPU improvement. Process CPU
 during publication includes foreground requests that the synchronous baseline
 cannot serve until cleanup completes. Async cleanup can consume more CPU while

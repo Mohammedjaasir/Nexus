@@ -9,9 +9,9 @@ import path from "node:path";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { agents, companies, companySkills, companySkillVersions, companySkillRepositorySnapshots as snapshots,
-  skillPackageDeletions, createDb, withDedicatedDbConnection } from "@paperclipai/db";
-import * as dbModule from "@paperclipai/db";
-import type { CompanySkillVersionFileInventoryEntry } from "@paperclipai/shared";
+  skillPackageDeletions, createDb, withDedicatedDbConnection } from "@nexusai/db";
+import * as dbModule from "@nexusai/db";
+import type { CompanySkillVersionFileInventoryEntry } from "@nexusai/shared";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import * as storageModule from "../storage/index.js";
 import { createStorageService } from "../storage/service.js";
@@ -32,7 +32,7 @@ describe.skipIf(!support.supported)("external skill packages", () => {
   let db: ReturnType<typeof createDb>;
   let home: string;
   let storage: storageModule.StorageService;
-  const previousHome = process.env.PAPERCLIP_HOME;
+  const previousHome = process.env.NEXUS_HOME;
   const files: CompanySkillVersionFileInventoryEntry[] = [
     { path: "skills/one/SKILL.md", kind: "skill", content: "---\nname: one\ndescription: Test one\n---\nUse ../../shared/run.sh\n" },
     { path: "skills/two/SKILL.md", kind: "skill", content: "---\nname: two\ndescription: Test two\n---\nUse ../../shared/run.sh\n" },
@@ -44,13 +44,13 @@ describe.skipIf(!support.supported)("external skill packages", () => {
     database = await startEmbeddedPostgresTestDatabase("skill-packages-");
     db = createDb(database.connectionString, { maxConnections: 1 });
     home = await fs.mkdtemp(path.join(os.tmpdir(), "skill-packages-"));
-    process.env.PAPERCLIP_HOME = home;
+    process.env.NEXUS_HOME = home;
     storage = createStorageService(createLocalDiskStorageProvider(path.join(home, "objects")));
   });
   afterEach(() => vi.restoreAllMocks());
   afterAll(async () => {
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = previousHome;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = previousHome;
     await db?.$client.end({ timeout: 1 });
     await database?.cleanup();
     if (home) await fs.rm(home, { recursive: true, force: true });
@@ -160,7 +160,7 @@ describe.skipIf(!support.supported)("external skill packages", () => {
     publishing = false;
     const saved = await f.service.getVersion(f.companyId, fork.id, fork.currentVersionId!);
     expect(saved!.fileInventory).toEqual(expect.arrayContaining([
-      expect.objectContaining({ path: ".paperclip-repository/shared/run.sh", content: files[2]!.content }),
+      expect.objectContaining({ path: ".nexus-repository/shared/run.sh", content: files[2]!.content }),
     ]));
   }, 15_000);
 
@@ -168,7 +168,7 @@ describe.skipIf(!support.supported)("external skill packages", () => {
     const f = await fixture();
     const original = f.skills[0]!.skill;
     const [agent] = await db.insert(agents).values({ companyId: f.companyId, name: "Fork user", adapterType: "codex_local",
-      adapterConfig: { paperclipSkillSync: { desiredSkills: [{ key: original.key }] } } }).returning();
+      adapterConfig: { nexusSkillSync: { desiredSkills: [{ key: original.key }] } } }).returning();
     await expect(f.service.forkSkill(f.companyId, original.id, { slug: "atomic-fork", reassignAgentIds: [agent!.id] }, null,
       { afterPublish: async () => { throw new Error("audit rollback"); } })).rejects.toThrow("audit rollback");
     expect(await f.service.getByKey(f.companyId, `company/${f.companyId}/atomic-fork`)).toBeNull();
@@ -548,7 +548,7 @@ describe.skipIf(!support.supported)("external skill packages", () => {
   it("repairs a same-size cached edit and restores old versions without upstream access", async () => {
     const f = await fixture();
     const entries = await f.resolve();
-    const target = path.join(entries[0]!.source, ".paperclip-repository/shared/run.sh");
+    const target = path.join(entries[0]!.source, ".nexus-repository/shared/run.sh");
     const stat = await fs.stat(target);
     await fs.chmod(target, 0o755);
     await fs.writeFile(target, "#!/bin/sh\necho modified\n");

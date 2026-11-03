@@ -1,6 +1,6 @@
 import { issueDisplayStatusSql } from "./issue-display-status.js";
 import { sql, type SQL } from "drizzle-orm";
-import { COMPANY_SEARCH_MAX_QUERY_LENGTH, COMPANY_SEARCH_MAX_TOKENS } from "@paperclipai/shared";
+import { COMPANY_SEARCH_MAX_QUERY_LENGTH, COMPANY_SEARCH_MAX_TOKENS } from "@nexusai/shared";
 import { visibleIssueCondition } from "./issue-visibility.js";
 
 // Only grammatical filler is ignored, only in multi-term queries, and never

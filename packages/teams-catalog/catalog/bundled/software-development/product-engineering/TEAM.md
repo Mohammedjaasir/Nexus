@@ -4,7 +4,7 @@ description: Bundled engineering team that pairs a CTO with a senior coder and a
 schema: agentcompanies/v1
 slug: product-engineering
 category: software-development
-key: paperclipai/bundled/software-development/product-engineering
+key: nexusai/bundled/software-development/product-engineering
 manager: agents/cto/AGENTS.md
 includes:
   - agents/senior-coder/AGENTS.md
@@ -21,10 +21,10 @@ tags:
   - qa
   - code-review
 requiredSkills:
-  - paperclipai/bundled/software-development/github-pr-workflow
-  - paperclipai/bundled/quality/qa-acceptance
-  - paperclipai/bundled/paperclip-operations/task-planning
-  - paperclipai/bundled/docs/doc-maintenance
+  - nexusai/bundled/software-development/github-pr-workflow
+  - nexusai/bundled/quality/qa-acceptance
+  - nexusai/bundled/nexus-operations/task-planning
+  - nexusai/bundled/docs/doc-maintenance
 ---
 
 # Product Engineering
@@ -48,4 +48,4 @@ An optional drop-in engineering pod for companies that want a working software-d
 
 ## Migration notes
 
-This entry is derived from the `Coder` and `QA` role templates in `skills/paperclip-create-agent/references/agents/` plus the historical CTO persona under `server/src/onboarding-assets/`. Adapter-type defaults (claude_local vs codex_local) are intentionally left out of frontmatter so the import preview can let operators choose per-agent. SecurityEngineer is intentionally deferred to the future `optional/quality/security-review` entry, since most installs will not want a dedicated security agent on day one.
+This entry is derived from the `Coder` and `QA` role templates in `skills/nexus-create-agent/references/agents/` plus the historical CTO persona under `server/src/onboarding-assets/`. Adapter-type defaults (claude_local vs codex_local) are intentionally left out of frontmatter so the import preview can let operators choose per-agent. SecurityEngineer is intentionally deferred to the future `optional/quality/security-review` entry, since most installs will not want a dedicated security agent on day one.

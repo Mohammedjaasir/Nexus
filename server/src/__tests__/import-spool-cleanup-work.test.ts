@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { companyTransferRuns, createDb, type Db } from "@paperclipai/db";
+import { companyTransferRuns, createDb, type Db } from "@nexusai/db";
 import { companyTransferRunService } from "../services/company-transfer-runs.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { registerImportSpoolCleanupWork } from "../services/import-spool-cleanup-work.js";
@@ -22,7 +22,7 @@ describe("import spool cleanup", () => {
   const errors: unknown[] = [];
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
   beforeAll(async () => {
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_IMPORT_SPOOL_TEST_DATABASE_URL");
+    const external = resolveExternalTestDatabaseUrl("NEXUS_IMPORT_SPOOL_TEST_DATABASE_URL");
     if (!external) temporary = await startEmbeddedPostgresTestDatabase("import-spool-");
     db = createDb(external ?? temporary!.connectionString, { idleTimeoutSeconds: 0, connectTimeoutSeconds: 0, maxLifetimeSeconds: 0 });
   }, 30_000);

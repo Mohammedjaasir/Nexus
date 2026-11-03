@@ -1,14 +1,14 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
-import type { PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import type { NexusPluginManifestV1 } from "@nexusai/shared";
 import { createPluginWorkerManager } from "../services/plugin-worker-manager.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
 it("bounds actual provider reads across caller timeouts, plugins, retries, and worker exit", async () => {
   const baseline = idleWorkSnapshot().active;
   const manager = createPluginWorkerManager();
-  const manifest: PaperclipPluginManifestV1 = { id: "fixture.inspect", apiVersion: 1, version: "1.0.0",
+  const manifest: NexusPluginManifestV1 = { id: "fixture.inspect", apiVersion: 1, version: "1.0.0",
     displayName: "Inspection fixture", categories: ["automation"], capabilities: [], entrypoints: { worker: "worker.cjs" } };
   const params = { driverKey: "fixture", companyId: "fixture-company", environmentId: "fixture-environment",
     config: {}, providerLeaseId: "fixture-resource", leaseMetadata: { holdInspection: true } };

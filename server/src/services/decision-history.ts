@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, ilike, inArray, isNotNull, notInArray, or, sql, type SQL } from "drizzle-orm";
-import { agents, companies, decisions, decisionTargetIssues, issues, issueThreadInteractions, projects, type Db } from "@paperclipai/db";
-import type { DecisionHistoryItem, DecisionHistoryPage, DecisionHistoryQuery } from "@paperclipai/shared";
+import { agents, companies, decisions, decisionTargetIssues, issues, issueThreadInteractions, projects, type Db } from "@nexusai/db";
+import type { DecisionHistoryItem, DecisionHistoryPage, DecisionHistoryQuery } from "@nexusai/shared";
 import { issueReadSqlCondition, type AuthorizationActor } from "./authorization.js";
 import { badRequest } from "../errors.js";
 

@@ -32,7 +32,7 @@ export function assertProviderLossSettlement(run: Row, issue: Row, events: reado
   fail(!frames.some(frame => frame.eventType === "turn.completed" || frame.eventType === "completion.accepted"
     || frame.eventType === "tool.execution.completed" && frame.payload?.executionId === bootstrapReadExecutionId(pending.toolCallId)
       && frame.payload?.status === "completed"), "no completion or completed mutation after loss");
-  return { schema: "paperclip.e2e.native-provider-loss.v1", requestId: pending.requestId, turnId: pending.turnId,
+  return { schema: "nexus.e2e.native-provider-loss.v1", requestId: pending.requestId, turnId: pending.turnId,
     requestClosure: closures[0].eventType, taskStillOpen: true, failedRun: true, replayAllowed: false };
 }
 

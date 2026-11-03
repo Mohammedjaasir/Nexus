@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { environmentLeases, heartbeatRuns, type Db } from "@paperclipai/db";
+import { environmentLeases, heartbeatRuns, type Db } from "@nexusai/db";
 import { hasNativeLocalProcessStop } from "./native-local-process-stop.js";
 import { hasRemoteTerminationReceipt } from "./remote-execution-termination.js";
 
@@ -10,7 +10,7 @@ export function hasAcknowledgedNativeRunStopReceipt(run: {
 }): boolean {
   const result = run.resultJson;
   const intent = result?.nativeCancellation as Record<string, unknown> | undefined;
-  return intent?.schema === "paperclip.native-cancellation.v1" && intent.runId === run.id &&
+  return intent?.schema === "nexus.native-cancellation.v1" && intent.runId === run.id &&
     intent.companyId === run.companyId && intent.issueId === run.nativeIssueId &&
     intent.scope === "run" && intent.reasonCode === "cancellation_run_only" &&
     intent.dispatchState === "acknowledged" && intent.dispatched === true &&

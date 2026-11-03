@@ -39,7 +39,7 @@ retained terminal history does not enlarge the deadline lookup. Expiry is due
 when `expiresAt <= now`, including equality. The old combined path skipped the
 exact equality despite selecting that row; this migration fixes that boundary.
 
-Each worker pass honors `PAPERCLIP_DECISIONS_SWEEP_BATCH_SIZE` (default 100),
+Each worker pass honors `NEXUS_DECISIONS_SWEEP_BATCH_SIZE` (default 100),
 ordered by expiry and ID.
 Its in-memory cursor advances across failures and wraps after the last page.
 Remaining overdue work retains a one-second continuation through the saved

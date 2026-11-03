@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { createDb } from "@paperclipai/db";
+import { createDb } from "@nexusai/db";
 import { cloudConfigurationMigrationService } from "./services/cloud-configuration-migration.js";
 import { qualifyCloudConfigurationForCurrentImage } from "./services/cloud-configuration-qualification.js";
 

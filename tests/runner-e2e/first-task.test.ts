@@ -64,7 +64,7 @@ function recording(caseId = "task-reply-accept"): FirstTaskEvidence {
     tasks: [task],
     agents: [{ id: "agent" }],
     comments: [
-      { id: "greeting", authorAgentId: "agent", body: "Welcome to Paperclip" },
+      { id: "greeting", authorAgentId: "agent", body: "Welcome to Nexus" },
     ],
     interactions: [
       {
@@ -180,7 +180,7 @@ function rejectionRecording(): FirstTaskEvidence {
 
 function result(e = recording()): RunnerE2EResult {
   return {
-    schema: "paperclip.runner-e2e.result/v2",
+    schema: "nexus.runner-e2e.result/v2",
     suiteId: "first-task",
     executionId: `first-task.legacy-codex.local.${e.caseId}`,
     attempt: 1,
@@ -230,15 +230,15 @@ describe("first-task public result projection", () => {
     e.instructions[0].content = sentinel;
     e.instructions[0].path = `/private/${sentinel}/AGENTS.md`;
     e.runtimeSettings = {
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: { provider: "codex", model: "gpt-5.6-sol", env: { OPENAI_API_KEY: sentinel }, codexHome: sentinel },
       runtimeConfig: { accountId: sentinel }, permissions: { privateTrace: sentinel },
-      onboardingRuntime: { mode: "production-wizard", originalAdapterType: "paperclip_runner", testedAdapterType: "paperclip_runner", accountId: sentinel },
+      onboardingRuntime: { mode: "production-wizard", originalAdapterType: "nexus_runner", testedAdapterType: "nexus_runner", accountId: sentinel },
       onboardingRuntimeBound: { timeoutSec: 180, maxConcurrentRuns: 1, before: { runtimeConfig: { accountId: sentinel } }, after: { runtimeConfig: { accountId: sentinel } } },
     };
     for (const checkpoint of e.checkpoints) {
       checkpoint.tasks.forEach(t => Object.assign(t, { executionState: { sessionId: sentinel }, responsibleUserId: sentinel }));
-      checkpoint.agents.forEach(a => Object.assign(a, { accountId: sentinel, metadata: { auth: sentinel }, adapterType: "paperclip_runner",
+      checkpoint.agents.forEach(a => Object.assign(a, { accountId: sentinel, metadata: { auth: sentinel }, adapterType: "nexus_runner",
         adapterConfig: { provider: "codex", model: "gpt-5.6-sol", env: { TOKEN: sentinel }, home: sentinel } }));
       checkpoint.comments.forEach(c => Object.assign(c, { hiddenReasoning: sentinel, metadata: { sessionId: sentinel },
         ...(c.authorUserId ? { authorUserId: sentinel } : {}) }));
@@ -269,7 +269,7 @@ describe("first-task public result projection", () => {
       .toEqual(e.checks.map(c => ({ id: c.id, passed: c.passed, notReached: Boolean(c.notReached) })));
     expect(projected.matcherResults!.map(c => ({ matcher: c.matcher, passed: c.passed })))
       .toEqual(raw.matcherResults.map(c => ({ matcher: c.matcher, passed: c.passed })));
-    expect(projected.firstTask!.runtimeSettings).toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" } });
+    expect(projected.firstTask!.runtimeSettings).toMatchObject({ adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" } });
     expect(projected.usage).toMatchObject({ runs: [{ runId: "parent-run", usage: { inputTokens: 100, outputTokens: 20,
       cachedInputTokens: 30, costUsdExact: "0.499592800", costStatus: "estimated", accountingReceiptReady: true,
       pricingProvenance: { source: "rate_card", version: "openai-standard-2026-09-30" } } }] });
@@ -326,7 +326,7 @@ describe("first-task question presentation grading", () => {
   it("documents an API-valid text card that renders without a one-option choice", async () => {
     const reference = await readFile(
       new URL(
-        "../../skills/paperclip/references/api-reference.md",
+        "../../skills/nexus/references/api-reference.md",
         import.meta.url,
       ),
       "utf8",
@@ -824,9 +824,9 @@ Accept the card above and I write it. This task stays in review until then.`;
     function harness(environment = "local", profile = "runner-codex") {
       const execution = runnerMatrix.find(entry => entry.task.flow === "first_task" && entry.profile.id === profile && entry.environment.id === environment)!;
       const original = {
-        id: "agent", companyId: "company", adapterType: "paperclip_runner",
+        id: "agent", companyId: "company", adapterType: "nexus_runner",
         adapterConfig: { provider: "codex", timeoutSec: 0, model: "gpt-5.6-sol", modelReasoningEffort: "high", codexPermissionMode: "readOnly",
-          env: { OPENAI_API_KEY: { type: "secret_ref", secretId: "encrypted-key", version: "latest" } }, paperclipSkillSync: { desiredSkills: ["paperclipai/paperclip/first-task"] } },
+          env: { OPENAI_API_KEY: { type: "secret_ref", secretId: "encrypted-key", version: "latest" } }, nexusSkillSync: { desiredSkills: ["paperclipai/paperclip/first-task"] } },
         runtimeConfig: { aiConnection: { provider: "openai", method: "api_key", mode: "responsible_user" },
           heartbeat: { maxConcurrentRuns: 20, enabled: false, intervalSec: 0, wakeOnAssignment: true, customHeartbeatSetting: "retained" }, customSetting: "retained" },
         permissions: { canCreateAgents: true }, defaultEnvironmentId: environment, budgetMonthlyCents: 500, metadata: { ownerUserId: "qa-user" },
@@ -904,7 +904,7 @@ Accept the card above and I write it. This task stays in review until then.`;
       if (field === "account") altered.runtimeConfig.aiConnection.mode = "fixed";
       if (field === "permissions") altered.permissions.canCreateAgents = false;
       if (field === "environment") altered.defaultEnvironmentId = "another-environment";
-      if (field === "instructions") altered.adapterConfig.paperclipSkillSync.desiredSkills = [];
+      if (field === "instructions") altered.adapterConfig.nexusSkillSync.desiredSkills = [];
       if (field === "heartbeat-policy") altered.runtimeConfig.heartbeat.wakeOnAssignment = false;
       if (field === "other-runtime") altered.runtimeConfig.customSetting = "lost";
       if (field === "missing-heartbeat") delete (altered.runtimeConfig as Partial<typeof altered.runtimeConfig>).heartbeat;
@@ -945,7 +945,7 @@ Accept the card above and I write it. This task stays in review until then.`;
       const original = {
         adapterConfig: {
           instructionsFilePath: "/managed/AGENTS.md",
-          paperclipSkillSync: { desiredSkills: ["first-task"] },
+          nexusSkillSync: { desiredSkills: ["first-task"] },
           model: null,
         },
         permissions: { canCreateAgents: true },
@@ -955,18 +955,18 @@ Accept the card above and I write it. This task stays in review until then.`;
         "adapterConfig",
         "adapterType",
       ]);
-      expect(patch.adapterType).toBe("paperclip_runner");
+      expect(patch.adapterType).toBe("nexus_runner");
       expect(patch.adapterConfig).toMatchObject({
         instructionsFilePath: "/managed/AGENTS.md",
-        paperclipSkillSync: original.adapterConfig.paperclipSkillSync,
+        nexusSkillSync: original.adapterConfig.nexusSkillSync,
         provider: execution.profile.provider,
       });
       expect(patch.adapterConfig).not.toHaveProperty("model");
       const withOperational = firstTaskNativeRuntimePatch(execution, fixtures, {
         adapterConfig: {
-          paperclipSkillSync: {
+          nexusSkillSync: {
             desiredSkills: [
-              "paperclipai/paperclip/paperclip",
+              "paperclipai/paperclip/nexus",
               "paperclipai/paperclip/first-task",
             ],
           },
@@ -974,7 +974,7 @@ Accept the card above and I write it. This task stays in review until then.`;
       });
       expect(
         (
-          withOperational.adapterConfig.paperclipSkillSync as {
+          withOperational.adapterConfig.nexusSkillSync as {
             desiredSkills: string[];
           }
         ).desiredSkills,
@@ -1147,7 +1147,7 @@ Accept the card above and I write it. This task stays in review until then.`;
   });
   it("keeps source and display hashes distinct when instruction examples are redacted", () => {
     const content = 'curl -H "Authorization: Bearer some-example-token"';
-    const snapshot = snapshotInstruction("paperclip/SKILL.md", content);
+    const snapshot = snapshotInstruction("nexus/SKILL.md", content);
     expect(snapshot.redacted).toBe(true);
     expect(snapshot.sha256).toBe(digestText(content));
     expect(snapshot.contentSha256).toBe(digestText(snapshot.content));
@@ -1829,7 +1829,7 @@ describe("managed onboarding through the production wizard", () => {
     h.emit("platform", { ok: true, details: { platformQualificationRecorded: true, leaseId: "platform" } });
     const request = h.start("adapter");
     h.fail(request);
-    h.respond(request, { adapterType: "paperclip_runner", status: "pass", checks: [{ code: "sandbox_test_identity", detail: "paperclipLeaseId=adapter" }] });
+    h.respond(request, { adapterType: "nexus_runner", status: "pass", checks: [{ code: "sandbox_test_identity", detail: "nexusLeaseId=adapter" }] });
     await stop(false);
     expect(h.fixtures.setupLeases!.map(row => row.leaseId)).toEqual(["platform", "adapter"]);
     expect(h.fixtures.setupLeaseAccountingIncomplete).toBe(true);
@@ -1841,8 +1841,8 @@ describe("managed onboarding through the production wizard", () => {
     const platform = { ok: true, details: { platformQualificationRecorded: true, leaseId: "platform" } };
     h.emit("platform", platform);
     if (mode === "duplicate") h.emit("platform", platform);
-    if (mode !== "missing-discovery") h.emit("discovery", [{ type: "codex_local", defaultRunner: "paperclip", supportedRunners: ["paperclip", "legacy"] }]);
-    h.emit("adapter", { adapterType: "paperclip_runner", status: "pass", checks: [{ code: "sandbox_test_identity", detail: "paperclipLeaseId=adapter; providerLeaseId=private-provider" }] }, mode === "explicit-runner" ? "paperclip" : undefined);
+    if (mode !== "missing-discovery") h.emit("discovery", [{ type: "codex_local", defaultRunner: "nexus", supportedRunners: ["nexus", "legacy"] }]);
+    h.emit("adapter", { adapterType: "nexus_runner", status: "pass", checks: [{ code: "sandbox_test_identity", detail: "nexusLeaseId=adapter; providerLeaseId=private-provider" }] }, mode === "explicit-runner" ? "nexus" : undefined);
     if (mode === "success") { await stop(true); expect(h.fixtures.setupLeases!.map(row => row.leaseId)).toEqual(["platform", "adapter"]); }
     else await expect(stop(true)).rejects.toThrow();
     expect(h.fixtures.setupLeases!.some(row => row.leaseId === "unrelated")).toBe(false);
@@ -1873,7 +1873,7 @@ describe("managed onboarding through the production wizard", () => {
     const h = setupHarness();
     const stop = await observeManagedFirstTaskSetup(h.page, h.api, h.fixtures, Date.now() + 1000);
     h.emit("platform", { ok: true, details: { leaseId: "platform", platformQualificationRecorded: true } });
-    h.emit("adapter", { adapterType: "paperclip_runner", status: "fail", checks: [{ code: "sandbox_test_identity", detail: "paperclipLeaseId=adapter; providerLeaseId=private-provider" }] });
+    h.emit("adapter", { adapterType: "nexus_runner", status: "fail", checks: [{ code: "sandbox_test_identity", detail: "nexusLeaseId=adapter; providerLeaseId=private-provider" }] });
     await stop(false);
     expect(h.fixtures.setupLeases!.map(row => row.leaseId)).toEqual(["platform", "adapter"]);
     expect(h.fixtures.setupQualification!.adapterType).toBeNull();

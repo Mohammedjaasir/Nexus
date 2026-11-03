@@ -1,7 +1,7 @@
 import { assertRemoteNativeEvidencePrerequisites } from "./prerequisites.js";
 import { describe, expect, it } from "vitest";
 import { runnerMatrix, runnerSuites, suiteDefinitionHash, extendedHarnessProfiles, extendedHarnessFileTask, daytonaWarmContinuityTask } from "./catalog.js";
-import { buildRunnerE2EProcessEnvironment, buildPaperclipServerEnvironment } from "./harness-env.js";
+import { buildRunnerE2EProcessEnvironment, buildNexusServerEnvironment } from "./harness-env.js";
 import { parseRunnerSelectors, selectRunnerExecutions } from "./selectors.js";
 import { findSecretLeak, redactText } from "./redaction.js";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -45,12 +45,12 @@ describe("extended ACP harness qualification", () => {
   });
   it("replaces ambient admission with the selected exact pairs and strips raw provider credentials from server", () => {
     const cell = selected[0]!;
-    const ambient = { PAPERCLIP_RUNNER_ACPX_QUALIFICATION: "ambient", CURSOR_AUTH_TOKEN: "cursor", CURSOR_API_KEY: "cursor-key", COPILOT_GITHUB_TOKEN: "copilot", GH_TOKEN: "github", GITHUB_TOKEN: "github" };
+    const ambient = { NEXUS_RUNNER_ACPX_QUALIFICATION: "ambient", CURSOR_AUTH_TOKEN: "cursor", CURSOR_API_KEY: "cursor-key", COPILOT_GITHUB_TOKEN: "copilot", GH_TOKEN: "github", GITHUB_TOKEN: "github" };
     const env = buildRunnerE2EProcessEnvironment(ambient, [cell]);
-    expect(env.PAPERCLIP_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
-    const server = buildPaperclipServerEnvironment(env);
-    for (const name of Object.keys(ambient).filter(name => name !== "PAPERCLIP_RUNNER_ACPX_QUALIFICATION")) expect(server[name]).toBeUndefined();
-    expect(buildRunnerE2EProcessEnvironment(ambient, []).PAPERCLIP_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
+    expect(env.NEXUS_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
+    const server = buildNexusServerEnvironment(env);
+    for (const name of Object.keys(ambient).filter(name => name !== "NEXUS_RUNNER_ACPX_QUALIFICATION")) expect(server[name]).toBeUndefined();
+    expect(buildRunnerE2EProcessEnvironment(ambient, []).NEXUS_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
     const copilot = selected.find(value => value.profile.qualificationCandidate === "copilot")!;
     expect(() => buildRunnerE2EProcessEnvironment({}, [{ ...copilot, suite: { ...copilot.suite, manualOnly: false } }])).toThrow("explicit");
   });
@@ -63,7 +63,7 @@ describe("extended ACP harness qualification", () => {
       expect(cell.task.buildMatchers("nonce", cell)).toContainEqual({ kind: "environment", expected: cell.environment.id });
       const config = cell.profile.buildAgent({ executionId: "warm", environmentId: "env", environmentFixtureId: cell.environment.id, workspacePath: "/tmp/workspace", secretRefs: { [cell.profile.credential]: { type: "secret_ref", secretId: "11111111-1111-4111-8111-111111111111", version: "latest" } } }).adapterConfig;
       expect(config).toMatchObject({ lifecycleMode: "warm", idleTimeoutMs: 300_000, timeoutSec: 120 });
-      const admission = buildRunnerE2EProcessEnvironment({}, [cell]).PAPERCLIP_RUNNER_ACPX_QUALIFICATION;
+      const admission = buildRunnerE2EProcessEnvironment({}, [cell]).NEXUS_RUNNER_ACPX_QUALIFICATION;
       expect(admission).toBeUndefined();
       expect(() => buildRunnerE2EProcessEnvironment({}, [{ ...cell, suite: { ...cell.suite, manualOnly: false } }])).toThrow("explicit");
     }
@@ -92,7 +92,7 @@ describe("extended ACP harness qualification", () => {
       const cells = runnerMatrix.filter(cell => cell.suite.id === suiteId);
       expect(new Set(cells.map(cell => cell.environment.id))).toEqual(new Set(["local", "daytona"]));
       for (const cell of cells) {
-        const admission = buildRunnerE2EProcessEnvironment({}, [cell]).PAPERCLIP_RUNNER_ACPX_QUALIFICATION;
+        const admission = buildRunnerE2EProcessEnvironment({}, [cell]).NEXUS_RUNNER_ACPX_QUALIFICATION;
         expect(admission).toBeUndefined();
         expect(() => buildRunnerE2EProcessEnvironment({}, [{ ...cell, profile: { ...cell.profile, qualificationCandidate: cell.profile.qualificationCandidate === "pi" ? "cursor" : "pi" } }])).toThrow("explicit");
       }
@@ -106,7 +106,7 @@ describe("extended ACP harness qualification", () => {
     );
     for (const cell of cells) {
       expect(cell.suite.manualOnly).toBe(true);
-      const admission = buildRunnerE2EProcessEnvironment({ PAPERCLIP_RUNNER_ACPX_QUALIFICATION: "ambient" }, [cell]).PAPERCLIP_RUNNER_ACPX_QUALIFICATION;
+      const admission = buildRunnerE2EProcessEnvironment({ NEXUS_RUNNER_ACPX_QUALIFICATION: "ambient" }, [cell]).NEXUS_RUNNER_ACPX_QUALIFICATION;
       expect(admission).toBeUndefined();
       expect(() => buildRunnerE2EProcessEnvironment({}, [{ ...cell, suite: { ...cell.suite, manualOnly: false } }])).toThrow("explicit");
       expect(() => buildRunnerE2EProcessEnvironment({}, [{ ...cell, profile: { ...cell.profile, qualificationCandidate: "pi" } }])).toThrow("explicit");
@@ -117,7 +117,7 @@ describe("extended ACP harness qualification", () => {
   });
   it("requires both image executable pins for remote native cases before setup", () => {
     const remote = runnerMatrix.filter(cell => cell.environment.id === "daytona" && ["cursor-native", "pi-native", "copilot-protection"].includes(cell.suite.id));
-    const valid = { PAPERCLIP_E2E_DAYTONA_NODE_SHA256: `sha256:${"a".repeat(64)}`, PAPERCLIP_E2E_DAYTONA_RUNNERD_SHA256: `sha256:${"b".repeat(64)}` };
+    const valid = { NEXUS_E2E_DAYTONA_NODE_SHA256: `sha256:${"a".repeat(64)}`, NEXUS_E2E_DAYTONA_RUNNERD_SHA256: `sha256:${"b".repeat(64)}` };
     expect(() => assertRemoteNativeEvidencePrerequisites(remote, valid)).not.toThrow();
     for (const field of Object.keys(valid)) expect(() => assertRemoteNativeEvidencePrerequisites(remote, { ...valid, [field]: "latest" })).toThrow(field);
     expect(() => assertRemoteNativeEvidencePrerequisites(remote, {})).toThrow("exact image executable digests");
@@ -138,7 +138,7 @@ describe("extended ACP harness qualification", () => {
         expect(cell.task.attemptTimeoutMs).toEqual(extendedHarnessFileTask.attemptTimeoutMs);
         expect(prompt).toContain("Create extended-nonce.txt");
         expect(prompt).toContain("Edit that file");
-        expect(prompt).toContain("Wait for paperclip_finish to succeed");
+        expect(prompt).toContain("Wait for nexus_finish to succeed");
       }
     }
   });

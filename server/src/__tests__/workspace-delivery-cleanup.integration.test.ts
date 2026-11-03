@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { createDb, executionWorkspaces, heartbeatRuns, issues, plugins, projectWorkspaces, workspaceOperations } from "@paperclipai/db";
+import { createDb, executionWorkspaces, heartbeatRuns, issues, plugins, projectWorkspaces, workspaceOperations } from "@nexusai/db";
 import { createPluginWorkspaceFixture } from "./helpers/plugin-workspaces.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { preparePluginWorkspace } from "../services/plugin-workspaces.js";

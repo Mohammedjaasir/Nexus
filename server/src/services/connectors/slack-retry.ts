@@ -1,6 +1,6 @@
 import { notifyChatPublicationWork } from "../chat-work-notifications.js";
 import { and, eq, sql, inArray } from "drizzle-orm";
-import { chatActions, toolInvocations, type Db } from "@paperclipai/db";
+import { chatActions, toolInvocations, type Db } from "@nexusai/db";
 import {
   resolveSlackTaskAuthority,
   type SlackTaskBinding,

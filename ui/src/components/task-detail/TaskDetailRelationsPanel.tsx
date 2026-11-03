@@ -1,5 +1,5 @@
 import { isLockedIssueStub, LockedIssueChip } from "@/components/LockedIssueChip";
-import type { Issue, IssueStatus, IssueLockedStub } from "@paperclipai/shared";
+import type { Issue, IssueStatus, IssueLockedStub } from "@nexusai/shared";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IssueRow } from "@/components/IssueRow";

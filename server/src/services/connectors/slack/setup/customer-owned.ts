@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { chatSlackRegistrations } from "@paperclipai/db";
-import { resolveAgentAppearance, buildSlackAppManifest, slackAppConfigurationSchema, type SlackRegistrationInput, type SlackAvatarState } from "@paperclipai/shared";
+import { chatSlackRegistrations } from "@nexusai/db";
+import { resolveAgentAppearance, buildSlackAppManifest, slackAppConfigurationSchema, type SlackRegistrationInput, type SlackAvatarState } from "@nexusai/shared";
 import { conflict } from "../../../../errors.js";
 import { logger } from "../../../../middleware/logger.js";
 import type { CredentialMutationLeaseGuard } from "../../../chat-credential-mutation-lease.js";
@@ -93,12 +93,12 @@ export function createCustomerOwnedSetup(store: SlackRegistrationStore) {
       await endpoint(row.endpointId, actor);
       await lease.assertOwned();
       // Cloud ingress requires a tenant session. Send the preset PNG bytes so
-      // Slack does not need to fetch an authenticated Paperclip URL.
+      // Slack does not need to fetch an authenticated Nexus URL.
       const render = renderAvatar;
       const appearance = { ...resolveAgentAppearance(current.agentAppearance, current.endpoint.assignedAgentId) };
       delete appearance.customAvatarAssetId; // The preset renderer cannot read private uploaded assets.
       const png = await render({ appearance,
-        size: 512, scale: 1, pose: "rest", muted: false, background: "paperclip-dark" });
+        size: 512, scale: 1, pose: "rest", muted: false, background: "nexus-dark" });
       await endpoint(row.endpointId, actor);
       await lease.assertOwned();
       const upload = new FormData();

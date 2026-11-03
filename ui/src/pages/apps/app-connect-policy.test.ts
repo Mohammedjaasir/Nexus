@@ -1,4 +1,4 @@
-import { APP_STORE_DEFINITIONS, aiConnectionRouterAppDefinition, appSupportsCatalogSetup } from "@paperclipai/shared";
+import { APP_STORE_DEFINITIONS, aiConnectionRouterAppDefinition, appSupportsCatalogSetup } from "@nexusai/shared";
 import { describe, expect, it } from "vitest";
 import {
   MCP_DIRECT_OAUTH_CONNECT_SLUGS,
@@ -21,7 +21,7 @@ describe("app connect policy", () => {
     expect(MCP_DIRECT_OAUTH_CONNECT_SLUGS).toEqual(expect.arrayContaining(["jira", "notion", "sentry"]));
     expect(isMcpDirectOAuthConnectSlug("notion")).toBe(true);
     expect(isMcpDirectOAuthConnectSlug("jira")).toBe(true);
-    // Asana and GitHub need an available Paperclip-managed profile for
+    // Asana and GitHub need an available Nexus-managed profile for
     // one-click sign-in. The static catalog defaults to their custom-app path.
     expect(isMcpDirectOAuthConnectSlug("asana")).toBe(false);
     expect(isMcpDirectOAuthConnectSlug("github")).toBe(false);
@@ -82,7 +82,7 @@ describe("app connect policy", () => {
 
   it("lets installed router connectors reach host catalog validation", () => {
     const pool = aiConnectionRouterAppDefinition("example.pool", { name: "AI connection pool", description: "Use saved connections" });
-    const params = new URL(appSourceConnectHref(pool.slug), "http://paperclip.test").searchParams;
+    const params = new URL(appSourceConnectHref(pool.slug), "http://nexus.test").searchParams;
     expect(canEnterAppsConnect(params)).toBe(true);
     expect(canEnterAppsConnect(new URLSearchParams("source=ai-router-invalid"))).toBe(false);
     expect(canEnterAppsConnect(new URLSearchParams("source=ai-router-1"))).toBe(false);
@@ -94,7 +94,7 @@ describe("app connect policy", () => {
     expect(connectableApps.length).toBeGreaterThan(0);
     for (const app of connectableApps) {
       const href = appSourceConnectHref(app.slug);
-      const searchParams = new URL(href, "http://paperclip.test").searchParams;
+      const searchParams = new URL(href, "http://nexus.test").searchParams;
 
       expect(canEnterAppsConnect(searchParams, { chatConnectorsEnabled: true, githubReviewBotsEnabled: true }), app.slug).toBe(true);
       expect(resolveAppsConnectRouteKey({ sourceSlug: searchParams.get("source") }), app.slug).toBe(app.slug);

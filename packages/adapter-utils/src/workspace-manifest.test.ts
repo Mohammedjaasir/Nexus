@@ -56,7 +56,7 @@ it("refuses new manifests and fails ongoing writes when the disk reserve is exha
 it("admits each snapshot against current disk capacity and rejects growth at its page allowance", async () => {
   const available = nodeFs.statfsSync(os.tmpdir(), { bigint: true });
   const reserve = 256 * 1024 * 1024;
-  vi.stubEnv("PAPERCLIP_WORKSPACE_MANIFEST_MIN_FREE_BYTES", String(reserve));
+  vi.stubEnv("NEXUS_WORKSPACE_MANIFEST_MIN_FREE_BYTES", String(reserve));
   const capacity = reserve + 128 * 1024;
   vi.spyOn(nodeFs, "statfsSync").mockReturnValue({ ...available, bsize: 1n, bavail: BigInt(capacity) } as never);
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -72,7 +72,7 @@ it("admits each snapshot against current disk capacity and rejects growth at its
 });
 
 it("fails a real Git scan at its disk allowance and removes the incomplete manifest", async () => {
-  const repo = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-scan-quota-"));
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-scan-quota-"));
   cleanup.push(repo);
   await runLocalGit(repo, ["init"]);
   await runLocalGit(repo, ["commit", "--allow-empty", "-qm", "fixture"], {
@@ -81,7 +81,7 @@ it("fails a real Git scan at its disk allowance and removes the incomplete manif
   for (let index = 0; index < 500; index++) await fs.writeFile(path.join(repo, `${index}-${"x".repeat(200)}`), "");
   const available = nodeFs.statfsSync(os.tmpdir(), { bigint: true });
   const reserve = 256 * 1024 * 1024;
-  vi.stubEnv("PAPERCLIP_WORKSPACE_MANIFEST_MIN_FREE_BYTES", String(reserve));
+  vi.stubEnv("NEXUS_WORKSPACE_MANIFEST_MIN_FREE_BYTES", String(reserve));
   vi.spyOn(nodeFs, "statfsSync").mockReturnValue({ ...available, bsize: 1n, bavail: BigInt(reserve + 128 * 1024) } as never);
   const temporary: string[] = [];
   const mkdtemp = fs.mkdtemp.bind(fs);
@@ -96,7 +96,7 @@ it("fails a real Git scan at its disk allowance and removes the incomplete manif
 });
 
 it("settles a late producer before removing shared storage after another scan fails", async () => {
-  const repo = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-scan-barrier-"));
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-scan-barrier-"));
   cleanup.push(repo);
   await runLocalGit(repo, ["init"]);
   await runLocalGit(repo, ["-c", "user.name=Test", "-c", "user.email=test@example.test", "commit", "--allow-empty", "-qm", "fixture"], {
@@ -109,7 +109,7 @@ it("settles a late producer before removing shared storage after another scan fa
   const removed: string[] = [];
   const originalRm = fs.rm.bind(fs);
   vi.spyOn(fs, "rm").mockImplementation(async (target, options) => {
-    if (String(target).includes("paperclip-workspace-manifest-")) {
+    if (String(target).includes("nexus-workspace-manifest-")) {
       expect(lateFinished).toBe(true);
       removed.push(String(target));
     }
@@ -136,7 +136,7 @@ it("settles a late producer before removing shared storage after another scan fa
 });
 
 it("fails a malformed completed scan instead of publishing a partial snapshot", async () => {
-  const repo = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-truncated-scan-"));
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-truncated-scan-"));
   cleanup.push(repo);
   await runLocalGit(repo, ["init"]);
   await runLocalGit(repo, ["-c", "user.name=Test", "-c", "user.email=test@example.test", "commit", "--allow-empty", "-qm", "fixture"], {

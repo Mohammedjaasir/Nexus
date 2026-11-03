@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "packageName": "@paperclipai/teams-catalog",
+  "packageName": "@nexusai/teams-catalog",
   "packageVersion": "0.1.0",
   "generatedAt": "2026-10-08T10:35:56.448Z",
   "teams": [
     {
-      "id": "paperclipai:bundled:company-defaults:core-exec-team",
-      "key": "paperclipai/bundled/company-defaults/core-exec-team",
+      "id": "nexusai:bundled:company-defaults:core-exec-team",
+      "key": "nexusai/bundled/company-defaults/core-exec-team",
       "kind": "bundled",
       "category": "company-defaults",
       "slug": "core-exec-team",
       "name": "Core Exec Team",
-      "description": "Default leadership and engineering team for bootstrapping a Paperclip company with a CEO, CTO, QA Engineer, starter project, and a recurring CEO heartbeat review task.",
+      "description": "Default leadership and engineering team for bootstrapping a Nexus company with a CEO, CTO, QA Engineer, starter project, and a recurring CEO heartbeat review task.",
       "path": "catalog/bundled/company-defaults/core-exec-team",
       "entrypoint": "TEAM.md",
       "schema": "agentcompanies/v1",
@@ -55,8 +55,8 @@
             "cto"
           ],
           "resolved": true,
-          "catalogSkillId": "paperclipai:bundled:software-development:github-pr-workflow",
-          "catalogSkillKey": "paperclipai/bundled/software-development/github-pr-workflow"
+          "catalogSkillId": "nexusai:bundled:software-development:github-pr-workflow",
+          "catalogSkillKey": "nexusai/bundled/software-development/github-pr-workflow"
         },
         {
           "type": "catalog",
@@ -65,8 +65,8 @@
             "ceo"
           ],
           "resolved": true,
-          "catalogSkillId": "paperclipai:bundled:paperclip-operations:issue-triage",
-          "catalogSkillKey": "paperclipai/bundled/paperclip-operations/issue-triage"
+          "catalogSkillId": "nexusai:bundled:nexus-operations:issue-triage",
+          "catalogSkillKey": "nexusai/bundled/nexus-operations/issue-triage"
         },
         {
           "type": "catalog",
@@ -75,8 +75,8 @@
             "qa"
           ],
           "resolved": true,
-          "catalogSkillId": "paperclipai:bundled:quality:qa-acceptance",
-          "catalogSkillKey": "paperclipai/bundled/quality/qa-acceptance"
+          "catalogSkillId": "nexusai:bundled:quality:qa-acceptance",
+          "catalogSkillKey": "nexusai/bundled/quality/qa-acceptance"
         },
         {
           "type": "catalog",
@@ -86,8 +86,8 @@
             "cto"
           ],
           "resolved": true,
-          "catalogSkillId": "paperclipai:bundled:paperclip-operations:task-planning",
-          "catalogSkillKey": "paperclipai/bundled/paperclip-operations/task-planning"
+          "catalogSkillId": "nexusai:bundled:nexus-operations:task-planning",
+          "catalogSkillKey": "nexusai/bundled/nexus-operations/task-planning"
         }
       ],
       "envInputs": [],
@@ -97,13 +97,13 @@
           "path": "TEAM.md",
           "kind": "team",
           "sizeBytes": 2014,
-          "sha256": "e0c38e9af1a5dd1888fb81a72feba75a9ab1be4c78d8ceb658e2e5cd621c5096"
+          "sha256": "01bc159f72dc3b6b37124f22932015c8987e879670eab8ad3c535296115054a0"
         },
         {
           "path": "agents/ceo/AGENTS.md",
           "kind": "agent",
           "sizeBytes": 263,
-          "sha256": "75848c6f794646a93e23bc73b80d31ef0eb8b83c105423eb98ea29e7685d2fd0"
+          "sha256": "61c5b3b1e08430218113beab86a8789d6a52a37558972ae1919b37f0c25a2632"
         },
         {
           "path": "agents/cto/AGENTS.md",
@@ -135,8 +135,8 @@
       "contentHash": "sha256:9d0416ebc0a81585dc51b73efb25decba9e1e3f3741940fc9fca74f3238f344d"
     },
     {
-      "id": "paperclipai:bundled:product:product-design",
-      "key": "paperclipai/bundled/product/product-design",
+      "id": "nexusai:bundled:product:product-design",
+      "key": "nexusai/bundled/product/product-design",
       "kind": "bundled",
       "category": "product",
       "slug": "product-design",
@@ -182,8 +182,8 @@
             "ux-designer"
           ],
           "resolved": true,
-          "catalogSkillId": "paperclipai:optional:product:design-critique",
-          "catalogSkillKey": "paperclipai/optional/product/design-critique"
+          "catalogSkillId": "nexusai:optional:product:design-critique",
+          "catalogSkillKey": "nexusai/optional/product/design-critique"
         },
         {
           "type": "catalog",
@@ -192,8 +192,8 @@
             "ux-designer"
           ],
           "resolved": true,
-          "catalogSkillId": "paperclipai:bundled:paperclip-operations:task-planning",
-          "catalogSkillKey": "paperclipai/bundled/paperclip-operations/task-planning"
+          "catalogSkillId": "nexusai:bundled:nexus-operations:task-planning",
+          "catalogSkillKey": "nexusai/bundled/nexus-operations/task-planning"
         },
         {
           "type": "catalog",
@@ -202,8 +202,8 @@
             "ux-designer"
           ],
           "resolved": true,
-          "catalogSkillId": "paperclipai:bundled:product:wireframe",
-          "catalogSkillKey": "paperclipai/bundled/product/wireframe"
+          "catalogSkillId": "nexusai:bundled:product:wireframe",
+          "catalogSkillKey": "nexusai/bundled/product/wireframe"
         }
       ],
       "envInputs": [],
@@ -213,7 +213,7 @@
           "path": "TEAM.md",
           "kind": "team",
           "sizeBytes": 2025,
-          "sha256": "f950f4f77a26afa458ca0696994b51353a6bcfac81471fdc00c05f63950fcac5"
+          "sha256": "fd04fcbd4f913ecf5af35ccd3c232c29b1e4906a8a9d4a12c35ed62ad8a0902d"
         },
         {
           "path": "agents/ux-designer/AGENTS.md",
@@ -239,8 +239,8 @@
       "contentHash": "sha256:67b041c3adc20583f844fd2415e1c67859a8342b59e46ec32b038b70b7af0108"
     },
     {
-      "id": "paperclipai:bundled:software-development:product-engineering",
-      "key": "paperclipai/bundled/software-development/product-engineering",
+      "id": "nexusai:bundled:software-development:product-engineering",
+      "key": "nexusai/bundled/software-development/product-engineering",
       "kind": "bundled",
       "category": "software-development",
       "slug": "product-engineering",
@@ -290,8 +290,8 @@
             "senior-coder"
           ],
           "resolved": true,
-          "catalogSkillId": "paperclipai:bundled:docs:doc-maintenance",
-          "catalogSkillKey": "paperclipai/bundled/docs/doc-maintenance"
+          "catalogSkillId": "nexusai:bundled:docs:doc-maintenance",
+          "catalogSkillKey": "nexusai/bundled/docs/doc-maintenance"
         },
         {
           "type": "catalog",
@@ -301,8 +301,8 @@
             "senior-coder"
           ],
           "resolved": true,
-          "catalogSkillId": "paperclipai:bundled:software-development:github-pr-workflow",
-          "catalogSkillKey": "paperclipai/bundled/software-development/github-pr-workflow"
+          "catalogSkillId": "nexusai:bundled:software-development:github-pr-workflow",
+          "catalogSkillKey": "nexusai/bundled/software-development/github-pr-workflow"
         },
         {
           "type": "catalog",
@@ -311,8 +311,8 @@
             "qa"
           ],
           "resolved": true,
-          "catalogSkillId": "paperclipai:bundled:quality:qa-acceptance",
-          "catalogSkillKey": "paperclipai/bundled/quality/qa-acceptance"
+          "catalogSkillId": "nexusai:bundled:quality:qa-acceptance",
+          "catalogSkillKey": "nexusai/bundled/quality/qa-acceptance"
         },
         {
           "type": "catalog",
@@ -321,8 +321,8 @@
             "cto"
           ],
           "resolved": true,
-          "catalogSkillId": "paperclipai:bundled:paperclip-operations:task-planning",
-          "catalogSkillKey": "paperclipai/bundled/paperclip-operations/task-planning"
+          "catalogSkillId": "nexusai:bundled:nexus-operations:task-planning",
+          "catalogSkillKey": "nexusai/bundled/nexus-operations/task-planning"
         }
       ],
       "envInputs": [],
@@ -332,13 +332,13 @@
           "path": "TEAM.md",
           "kind": "team",
           "sizeBytes": 2583,
-          "sha256": "7204eeef78a48714dd3f82b82e171a4039adc6325e91a6bdf51a442105ee33b0"
+          "sha256": "c6904e4264d882a6ed849ebcb2e6dabb3279fa5f2f8ff4867d6a3f8f164864ba"
         },
         {
-          "path": ".paperclip.yaml",
+          "path": ".nexus.yaml",
           "kind": "extension",
           "sizeBytes": 81,
-          "sha256": "54babf05ba130ec54a143abf01581d99c0ac2936fd0d929bf0e0edd00e29d861"
+          "sha256": "0a7feed89495f89e50aa55c765fc070d466548000c75df79083ce0675af88f18"
         },
         {
           "path": "agents/cto/AGENTS.md",
@@ -376,8 +376,8 @@
       "contentHash": "sha256:b9076b17a551b704a97df2e0204cefb83edfda4d36e909889071bb02d251e5ea"
     },
     {
-      "id": "paperclipai:optional:communications:speko-company-phone-agent",
-      "key": "paperclipai/optional/communications/speko-company-phone-agent",
+      "id": "nexusai:optional:communications:speko-company-phone-agent",
+      "key": "nexusai/optional/communications/speko-company-phone-agent",
       "kind": "optional",
       "category": "communications",
       "slug": "speko-company-phone-agent",
@@ -422,13 +422,13 @@
           "path": "TEAM.md",
           "kind": "team",
           "sizeBytes": 1097,
-          "sha256": "04c89ffaf7d8d778b1e18bae7cbea3c5740c359a61c42a139759eaad443b7f76"
+          "sha256": "09630c107b4ff84f7d6e3ac7ee266bea4e1b8b99ed08dc3350a6547e293c19dd"
         },
         {
           "path": "agents/speko-company-phone-agent/AGENTS.md",
           "kind": "agent",
           "sizeBytes": 3199,
-          "sha256": "922d60cfae8a469876390b3434a513f0b3eff09c8263b51c3f222d388417ac1d"
+          "sha256": "3fdc7d807e1ab5d35656011cdc46a9f45238a88ee131fb0f0c43edc9efa40424"
         },
         {
           "path": "LICENSE",
@@ -440,7 +440,7 @@
           "path": "README.md",
           "kind": "readme",
           "sizeBytes": 1417,
-          "sha256": "445c4b7ec5a201b73123aba1ce5dbb5a52352ed488364eed62a041c30656c7d7"
+          "sha256": "56ea8a65b39084eb3e7ac5db04e09a6232f27685893998b32585e4b6dede00c1"
         }
       ],
       "trustLevel": "assets",
@@ -448,8 +448,8 @@
       "contentHash": "sha256:e723a036948dcb292382fbcb116c68500c2247b004d0a8d8ef818b6725f91215"
     },
     {
-      "id": "paperclipai:optional:content:content-machine",
-      "key": "paperclipai/optional/content/content-machine",
+      "id": "nexusai:optional:content:content-machine",
+      "key": "nexusai/optional/content/content-machine",
       "kind": "optional",
       "category": "content",
       "slug": "content-machine",
@@ -504,7 +504,7 @@
           "path": "TEAM.md",
           "kind": "team",
           "sizeBytes": 1032,
-          "sha256": "f7c272c8b0c183fc840d49eb4851b7cdd1a30a5aa8d6415d215110f3238f6f13"
+          "sha256": "fe36cba9e464b984050f8bbbaa9041f7100e2b14b5c080397170766fc9138e3a"
         },
         {
           "path": "agents/content-lead/AGENTS.md",

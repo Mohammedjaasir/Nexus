@@ -19,7 +19,7 @@ it("meters finalization after the worker has closed without changing the origina
       expect(String(url)).toBe("https://api.braintrust.dev/otel/v1/traces");
       expect(init!.headers).toMatchObject({ authorization: "Bearer upstream-private" });
       const body = Buffer.from(init!.body as Uint8Array); sentBytes = body.length;
-      expect(body.toString()).toContain("paperclip.eval.finalization");
+      expect(body.toString()).toContain("nexus.eval.finalization");
       expect(body.includes(Buffer.from(input.receipt.traceId, "hex"))).toBe(true);
       return new Response(null, { status: 200, headers: { "content-type": "application/x-protobuf" } });
     });

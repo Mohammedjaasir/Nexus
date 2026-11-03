@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { and, eq, sql } from "drizzle-orm";
-import { agentWakeupRequests, createDb, heartbeatRuns, issueComments, issueRecoveryActions, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, createDb, heartbeatRuns, issueComments, issueRecoveryActions, type Db } from "@nexusai/db";
 import { getExecutionBlocker } from "../services/execution-blocker.js";
 import { captureQueuedCommentQuery, fixtureTime, planNodes, seedQueuedCommentConsumption } from "./helpers/queued-comment-consumption-fixture.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";

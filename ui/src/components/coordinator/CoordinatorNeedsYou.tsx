@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, History, Loader2 } from "lucide-react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
-import type { Agent, AttentionItem, DecisionHistoryItem } from "@paperclipai/shared";
+import type { Agent, AttentionItem, DecisionHistoryItem } from "@nexusai/shared";
 import { attentionApi } from "@/api/attention";
 import { agentsApi } from "@/api/agents";
 import { projectsApi } from "@/api/projects";

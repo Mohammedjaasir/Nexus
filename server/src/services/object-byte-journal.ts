@@ -112,7 +112,7 @@ async function qualifyConditionalWrites(
     qualification = current;
     current.work = (async () => {
       const objectKey = `${prefix}/conditional-probe-${randomUUID()}`;
-      const body = Buffer.from("paperclip-conditional-probe-v1");
+      const body = Buffer.from("nexus-conditional-probe-v1");
       const put = provider.putObjectConditional!.bind(provider);
       try {
         await retryObjectOperation(
@@ -129,7 +129,7 @@ async function qualifyConditionalWrites(
         );
         for (const condition of [
           { ifNoneMatch: "*" as const },
-          { ifMatch: '"paperclip-impossible-etag"' },
+          { ifMatch: '"nexus-impossible-etag"' },
         ]) {
           let rejected = false;
           try {

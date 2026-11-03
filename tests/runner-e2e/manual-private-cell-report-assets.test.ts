@@ -167,7 +167,7 @@ it.each(["missing", "same-version-tamper"])("actual preflight rejects %s produce
   const f = await fixture(), file = path.join(f.root, "preflight.json");
   const wrong = structuredClone(producer); wrong.producers[0]!.sha256 = "0".repeat(64);
   await writeFile(file, JSON.stringify({ ...f.context, status: "verified", cellReportProducer: kind === "missing" ? undefined : wrong }), { mode: 0o600 });
-  const env = { PAPERCLIP_RUNNER_E2E_PRIVATE_PREFLIGHT: file, RUNNER_TEMP: temporaryRoot, GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1", GITHUB_SHA: f.context.workflowSha, PAPERCLIP_RUNNER_E2E_SOURCE_SHA: f.context.targetSha };
+  const env = { NEXUS_RUNNER_E2E_PRIVATE_PREFLIGHT: file, RUNNER_TEMP: temporaryRoot, GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1", GITHUB_SHA: f.context.workflowSha, NEXUS_RUNNER_E2E_SOURCE_SHA: f.context.targetSha };
   let callbacks = 0;
   await expect(readManualPrivateHandoff(env, [f.id]).then(() => { callbacks++; })).rejects.toThrow(/producer/);
   expect(callbacks).toBe(0);
@@ -203,7 +203,7 @@ it("accepts the actual compact portable producer identity before callbacks", asy
   expect(Buffer.byteLength(serialized)).toBeLessThan(65536);
   expect(JSON.stringify(producer)).not.toContain(temporaryRoot);
   await writeFile(file, serialized, { mode: 0o600 });
-  const env = { PAPERCLIP_RUNNER_E2E_PRIVATE_PREFLIGHT: file, RUNNER_TEMP: temporaryRoot, GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1", GITHUB_SHA: f.context.workflowSha, PAPERCLIP_RUNNER_E2E_SOURCE_SHA: f.context.targetSha };
+  const env = { NEXUS_RUNNER_E2E_PRIVATE_PREFLIGHT: file, RUNNER_TEMP: temporaryRoot, GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1", GITHUB_SHA: f.context.workflowSha, NEXUS_RUNNER_E2E_SOURCE_SHA: f.context.targetSha };
   expect((await readManualPrivateHandoff(env, [f.id]))?.cellReportProducer).toEqual(producer);
 });
 
@@ -286,7 +286,7 @@ async function actualLauncherEvidenceBranch(packageCall = packageEvidence) {
   return { branch, publisher };
 }
 function failedLauncherResult(executionId: string): RunnerE2EResult {
-  return { schema: "paperclip.runner-e2e.result/v2", executionId, suiteId: "chat-features", profileId: "runner-opencode", environmentId: "local", caseId: "activity.agent-feedback",
+  return { schema: "nexus.runner-e2e.result/v2", executionId, suiteId: "chat-features", profileId: "runner-opencode", environmentId: "local", caseId: "activity.agent-feedback",
     attempt: 1, provider: "fixture", model: "fixture", runtimeMode: "native", status: "failed", cleanup: "not_started", failureClass: "candidate_failure",
     startedAt: "2026-10-29T00:00:00Z", finishedAt: "2026-10-29T00:00:01Z", durationMs: 1000 };
 }

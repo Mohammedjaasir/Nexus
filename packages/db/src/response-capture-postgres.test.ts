@@ -41,7 +41,7 @@ describe.skipIf(!support.supported)("database response capture PostgreSQL behavi
     expect(installDatabaseResponseCapture(db, { table, encodedTable }, capture)).toBe(db);
     return { db, capture, events };
   }
-  function summary(events: Array<Record<string, unknown>>) { return events.find(event => event.event === "paperclip.db_response_capture.summary.v2")!; }
+  function summary(events: Array<Record<string, unknown>>) { return events.find(event => event.event === "nexus.db_response_capture.summary.v2")!; }
 
   it("retains capture counts when ORM preparation is enabled", async () => {
     const f = fixture(true), id = randomUUID(), payload = "prepared-capture-value";
@@ -68,7 +68,7 @@ describe.skipIf(!support.supported)("database response capture PostgreSQL behavi
     expect(await f.db.delete(table).where(eq(table.id, id)).returning()).toEqual([{ id, payload: "changed" }]);
     f.capture.flush();
     expect(summary(f.events)).toMatchObject({ startedQueries: 4, completedQueries: 4 });
-    expect(f.events.filter(event => event.event === "paperclip.db_response_capture.entry.v2").map(event => event.operation).sort())
+    expect(f.events.filter(event => event.event === "nexus.db_response_capture.entry.v2").map(event => event.operation).sort())
       .toEqual(["delete", "insert", "select", "update"]);
     expect(JSON.stringify(f.events)).not.toContain(payload);
     expect(JSON.stringify(f.events)).not.toContain(id);
@@ -128,7 +128,7 @@ describe.skipIf(!support.supported)("database response capture PostgreSQL behavi
       }),
     ]);
     f.capture.flush();
-    const entries = f.events.filter(event => event.event === "paperclip.db_response_capture.entry.v2");
+    const entries = f.events.filter(event => event.event === "nexus.db_response_capture.entry.v2");
     const counts = (owner: string) => entries.filter(event => event.owner === owner).reduce((n, event) => n + Number(event.calls), 0);
     expect(counts("response.presentation")).toBe(2);
     expect(counts("budget.admission")).toBe(2);
@@ -190,7 +190,7 @@ describe.skipIf(!support.supported)("database response capture PostgreSQL behavi
       expect(await fromB(tx, id)).toEqual([{ id, payload: "caller-sentinel" }]);
     });
     f.capture.flush();
-    const entries = f.events.filter(event => event.event === "paperclip.db_response_capture.entry.v2");
+    const entries = f.events.filter(event => event.event === "nexus.db_response_capture.entry.v2");
     expect(entries).toHaveLength(2);
     for (const name of ["a", "b"]) {
       expect(entries.find(event => (event.callers as string[]).some(location => location.startsWith(`services/capture-caller-${name}.ts:`))))
@@ -250,17 +250,17 @@ describe.skipIf(!support.supported)("database response capture PostgreSQL behavi
   it.each([undefined, true])("covers automatically created dedicated pools with prepare %s and retains owner identity", async prepare => {
     const logs: string[] = [], now = Date.now();
     vi.spyOn(console, "info").mockImplementation(value => logs.push(String(value)));
-    vi.stubEnv("PAPERCLIP_DB_RESPONSE_CAPTURE_WINDOW", `${new Date(now - 100).toISOString()}/${new Date(now + 59_000).toISOString()}`);
+    vi.stubEnv("NEXUS_DB_RESPONSE_CAPTURE_WINDOW", `${new Date(now - 100).toISOString()}/${new Date(now + 59_000).toISOString()}`);
     const db = createDb(temporary.connectionString, { prepare }); clients.push(db);
     const capture = databaseResponseCaptureFromEnv()!; captures.push(capture);
     expect(await withDatabaseOperation("dedicated.owner", () => withDedicatedDbConnection(db, async dedicated => dedicated.execute(sql`select ${"dedicated-value"}::text as value`))))
       .toEqual([{ value: "dedicated-value" }]);
     capture.flush();
-    await vi.waitFor(() => expect(logs.some(line => JSON.parse(line).event === "paperclip.db_response_capture.summary.v2")).toBe(true),
+    await vi.waitFor(() => expect(logs.some(line => JSON.parse(line).event === "nexus.db_response_capture.summary.v2")).toBe(true),
       { timeout: 1_000, interval: 5 });
     const events = logs.map(line => JSON.parse(line) as Record<string, unknown>);
     expect(summary(events)).toMatchObject({ startedQueries: 1, completedQueries: 1 });
-    expect(events.find(event => event.event === "paperclip.db_response_capture.entry.v2")).toMatchObject({ owner: "dedicated.owner" });
+    expect(events.find(event => event.event === "nexus.db_response_capture.entry.v2")).toMatchObject({ owner: "dedicated.owner" });
     expect(logs.join("\n")).not.toContain("dedicated-value");
     expect(logs.join("\n")).not.toContain(temporary.connectionString);
   });

@@ -26,7 +26,7 @@ const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
 async function createTempDatabase(): Promise<string> {
-  const db = await startEmbeddedPostgresTestDatabase("paperclip-db-client-");
+  const db = await startEmbeddedPostgresTestDatabase("nexus-db-client-");
   cleanups.push(db.cleanup);
   return db.connectionString;
 }
@@ -120,21 +120,21 @@ describeEmbeddedPostgres("createDb pool defaults", () => {
     const [self] = await db.$client`select application_name from pg_stat_activity where pid = pg_backend_pid()`;
     expect(self?.application_name).toBe(DEFAULT_DATABASE_APPLICATION_NAME);
 
-    const shortLived = createDb(url, { applicationName: "paperclip-idle-test", idleTimeoutSeconds: 1 });
+    const shortLived = createDb(url, { applicationName: "nexus-idle-test", idleTimeoutSeconds: 1 });
     cleanups.push(async () => {
       await shortLived.$client.end({ timeout: 1 });
     });
     await shortLived.$client`select 1`;
-    expect(await backendsNamed("paperclip-idle-test")).toBe(1);
+    expect(await backendsNamed("nexus-idle-test")).toBe(1);
 
     // The driver closes the idle connection after `idle_timeout`; without the
     // option (the driver default) the backend would stay until the process
     // exits. Wait past the timeout, then poll PostgreSQL's own view.
     const deadline = Date.now() + 10_000;
-    let remaining = await backendsNamed("paperclip-idle-test");
+    let remaining = await backendsNamed("nexus-idle-test");
     while (remaining > 0 && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 250));
-      remaining = await backendsNamed("paperclip-idle-test");
+      remaining = await backendsNamed("nexus-idle-test");
     }
     expect(remaining).toBe(0);
   }, 30_000);
@@ -235,7 +235,7 @@ describeEmbeddedPostgres("merged Muse migration histories", () => {
     const [company] = await sql`INSERT INTO companies (name, issue_prefix) VALUES ('Retained migration company', 'MRG') RETURNING id`;
     const [agent] = await sql`
       INSERT INTO agents (company_id, name, adapter_type, adapter_config)
-      VALUES (${company.id}, 'Retained Muse', 'paperclip_runner', '{"provider":"muse"}'::jsonb) RETURNING id
+      VALUES (${company.id}, 'Retained Muse', 'nexus_runner', '{"provider":"muse"}'::jsonb) RETURNING id
     `;
     const [task] = await sql`
       INSERT INTO issues (company_id, title, assignee_agent_id)
@@ -244,13 +244,13 @@ describeEmbeddedPostgres("merged Muse migration histories", () => {
     const [run] = await sql`
       INSERT INTO heartbeat_runs (company_id, agent_id, invocation_source, trigger_detail, status, runtime_mode, native_issue_id, context_snapshot)
       VALUES (${company.id}, ${agent.id}, 'assignment', 'system', 'failed', 'native', ${task.id},
-        ${JSON.stringify({ paperclipIssue: { id: task.id }, issueId: task.id })}::jsonb) RETURNING id
+        ${JSON.stringify({ nexusIssue: { id: task.id }, issueId: task.id })}::jsonb) RETURNING id
     `;
     await sql`INSERT INTO "user" (id, name, email, created_at, updated_at) VALUES (${userId}, 'Migration operator', ${`${userId}@example.test`}, now(), now())`;
     await sql`INSERT INTO mcp_oauth_clients (id, name, redirect_uris) VALUES (${clientId}, 'Synthetic migration client', '["https://example.test/callback"]'::jsonb)`;
     const [grant] = await sql`
       INSERT INTO mcp_oauth_grants (company_id, user_id, client_id, resource, purpose, agent_id, scopes)
-      VALUES (${company.id}, ${userId}, ${clientId}, 'https://example.test/api/muse/v1', 'agent', ${agent.id}, '["paperclip:agent","offline_access"]'::jsonb) RETURNING id
+      VALUES (${company.id}, ${userId}, ${clientId}, 'https://example.test/api/muse/v1', 'agent', ${agent.id}, '["nexus:agent","offline_access"]'::jsonb) RETURNING id
     `;
     const [binding] = withMuse ? await sql`
       INSERT INTO muse_agent_bindings (company_id, agent_id, operator_id, grant_id, status)
@@ -324,7 +324,7 @@ describeEmbeddedPostgres("merged Muse migration histories", () => {
         SELECT c.relname, i.indisvalid, i.indisready, pg_get_indexdef(c.oid) AS definition
         FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid JOIN pg_namespace n ON n.oid = c.relnamespace
         WHERE n.nspname = 'public' AND c.relname IN (
-          'heartbeat_runs_company_ctx_paperclip_issue_created_idx', 'heartbeat_runs_company_origin_issue_idx', 'grok_dispatch_assignment_kind_idx'
+          'heartbeat_runs_company_ctx_nexus_issue_created_idx', 'heartbeat_runs_company_origin_issue_idx', 'grok_dispatch_assignment_kind_idx'
         ) ORDER BY c.relname
       `;
       expect(indexes).toHaveLength(3);
@@ -351,7 +351,7 @@ describeEmbeddedPostgres("applyPendingMigrations", () => {
     await ensurePostgresDatabase(clusterUrl.toString(), databaseName);
     clusterUrl.pathname = "/" + databaseName;
     const connectionString = clusterUrl.toString();
-    const prefixFolder = await fs.promises.mkdtemp(join(tmpdir(), "paperclip-migration-prefix-"));
+    const prefixFolder = await fs.promises.mkdtemp(join(tmpdir(), "nexus-migration-prefix-"));
     cleanups.push(() => fs.promises.rm(prefixFolder, { recursive: true, force: true }));
     await fs.promises.mkdir(join(prefixFolder, "meta"));
     const journal = JSON.parse(await fs.promises.readFile(new URL("./migrations/meta/_journal.json", import.meta.url), "utf8"));
@@ -1697,7 +1697,7 @@ describeEmbeddedPostgres("applyPendingMigrations", () => {
       legacyUrl.pathname = "/native_legacy";
       const connectionString = legacyUrl.href;
       cleanups.push(() => closeRegisteredClients(connectionString));
-      const directory = await fs.promises.mkdtemp(join(tmpdir(), "paperclip-native-prior-migrations-"));
+      const directory = await fs.promises.mkdtemp(join(tmpdir(), "nexus-native-prior-migrations-"));
       cleanups.push(() => fs.promises.rm(directory, { recursive: true, force: true }));
       const migrationsRoot = new URL("./migrations/", import.meta.url);
       const journal = JSON.parse(await fs.promises.readFile(new URL("meta/_journal.json", migrationsRoot), "utf8"));
@@ -1877,7 +1877,7 @@ describeEmbeddedPostgres("applyPendingMigrations", () => {
             risk, completion_authority, incomplete_criteria_policy, contract_json,
             canonical_sha256, created_by_actor_type, created_by_actor_id
           ) VALUES (
-            ${companyId}, ${otherIssueId}, 1, 'paperclip.completion-contract.v1',
+            ${companyId}, ${otherIssueId}, 1, 'nexus.completion-contract.v1',
             'policy-v1', 'low', 'server', 'review', ${JSON.stringify({ criteria: [] })}::jsonb,
             'cross-company-contract-sha', 'system', 'migration-test'
           )
@@ -1889,7 +1889,7 @@ describeEmbeddedPostgres("applyPendingMigrations", () => {
             risk, completion_authority, incomplete_criteria_policy, contract_json,
             canonical_sha256, created_by_actor_type, created_by_actor_id
           ) VALUES (
-            ${contractId}, ${companyId}, ${issueId}, 1, 'paperclip.completion-contract.v1',
+            ${contractId}, ${companyId}, ${issueId}, 1, 'nexus.completion-contract.v1',
             'policy-v1', 'low', 'server', 'review', ${JSON.stringify({ criteria: [] })}::jsonb,
             'contract-sha', 'system', 'migration-test'
           )
@@ -1901,7 +1901,7 @@ describeEmbeddedPostgres("applyPendingMigrations", () => {
             canonical_sha256, created_by_actor_type, created_by_actor_id
           ) VALUES (
             ${otherContractId}, ${otherCompanyId}, ${otherIssueId}, 1,
-            'paperclip.completion-contract.v1', 'policy-v1', 'low', 'server', 'review',
+            'nexus.completion-contract.v1', 'policy-v1', 'low', 'server', 'review',
             ${JSON.stringify({ criteria: [] })}::jsonb, 'other-contract-sha',
             'system', 'migration-test'
           )
@@ -2109,7 +2109,7 @@ describeEmbeddedPostgres("applyPendingMigrations", () => {
             (
               SELECT count(*)::int
               FROM pg_trigger
-              WHERE tgname = 'paperclip_issue_status_version_trigger'
+              WHERE tgname = 'nexus_issue_status_version_trigger'
                 AND NOT tgisinternal
             ) AS trigger_count,
             (
@@ -2145,7 +2145,7 @@ describeEmbeddedPostgres("applyPendingMigrations", () => {
         expect(await replaySql`SELECT status_version::int FROM issues WHERE id = ${issueId}`)
           .toEqual([{ status_version: 3 }]);
         expect(await replaySql`SELECT count(*)::int AS count FROM pg_trigger
-          WHERE tgname = 'paperclip_issue_assignment_version_trigger' AND NOT tgisinternal`)
+          WHERE tgname = 'nexus_issue_assignment_version_trigger' AND NOT tgisinternal`)
           .toEqual([{ count: 1 }]);
         await replaySql`UPDATE issues SET assignee_user_id = null WHERE id = ${issueId}`;
         expect(await replaySql`SELECT status_version::int FROM issues WHERE id = ${issueId}`)

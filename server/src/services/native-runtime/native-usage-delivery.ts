@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
-import { heartbeatRuns, runUsageReceipts, type Db } from "@paperclipai/db";
-import type { AdapterUsageCheckpoint } from "@paperclipai/adapter-utils";
-import type { NativeExecutionInput, PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import { heartbeatRuns, runUsageReceipts, type Db } from "@nexusai/db";
+import type { AdapterUsageCheckpoint } from "@nexusai/adapter-utils";
+import type { NativeExecutionInput, PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { priceAnthropicReceipt } from "../anthropic-pricing.js";
 import { priceCodexReceipt } from "../codex-pricing.js";
 import { liveRunUsageCostCents } from "../budget-live-usage.js";
@@ -93,7 +93,7 @@ function createNativeUsageReceiver(db: Db, input: NativeUsageDeliveryInput, sour
     const envelope = row.receipt as UsageReceiptEnvelope;
     if (!envelope.producerEvent) throw new Error("native_usage_receipt_missing_producer");
     if (verifySaved && (envelope.companyId !== input.companyId || envelope.runId !== input.runId
-      || envelope.sourceId !== sourceId || envelope.sequence !== row.sequence || envelope.adapterType !== "paperclip_runner"
+      || envelope.sourceId !== sourceId || envelope.sequence !== row.sequence || envelope.adapterType !== "nexus_runner"
       || envelope.id !== uuid(`${input.runId}:${input.runnerInstanceId}:${envelope.producerEvent.sourceEventId}`)
       || receiptFingerprint(envelope) !== row.hash || accepted.has(envelope.producerEvent.sourceEventId))) {
       throw new Error("native_usage_source_conflict");
@@ -119,9 +119,9 @@ function createNativeUsageReceiver(db: Db, input: NativeUsageDeliveryInput, sour
     if (accepted.has(event.sourceEventId)) return;
     if (pending && pending.producerEvent?.sourceEventId !== event.sourceEventId) throw new Error("native_usage_report_pending");
     if (!pending) {
-      const envelope: UsageReceiptEnvelope = { schema: "paperclip/accounting-receipt/v1",
+      const envelope: UsageReceiptEnvelope = { schema: "nexus/accounting-receipt/v1",
         id: uuid(`${input.runId}:${input.runnerInstanceId}:${event.sourceEventId}`), companyId: input.companyId,
-        runId: input.runId, adapterType: "paperclip_runner", sourceId, sequence: event.sourceSeq,
+        runId: input.runId, adapterType: "nexus_runner", sourceId, sequence: event.sourceSeq,
         receivedAt: event.emittedAt, producerEvent: fact, receipt: { complete: false } };
       const snapshot = observe(envelope);
       const usage = normalizeNativeUsage(snapshot.usage, { inputIncludesCacheReads: input.provider.kind === "codex" });

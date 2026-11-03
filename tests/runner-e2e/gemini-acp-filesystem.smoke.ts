@@ -8,7 +8,7 @@ import { createAcpRuntime, createAgentRegistry, createRuntimeStore } from "../..
 const argument = process.argv.indexOf("--agent-command");
 const command = argument < 0 ? "gemini --acp" : process.argv[argument + 1];
 if (!command) throw new Error("agent_command_required");
-const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-gemini-filesystem-smoke-"));
+const root = await mkdtemp(path.join(os.tmpdir(), "nexus-gemini-filesystem-smoke-"));
 const content = '{"nonce":"synthetic-file-smoke","total":28}\n';
 const results: Array<{ case: string; passed: boolean; completedTools: number; failedTools: number; missingFileSignal: boolean }> = [];
 let active: { calls: number; file: string; tool: string };

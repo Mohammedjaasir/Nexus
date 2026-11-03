@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const BROWSER_USE_API_URL = "https://api.browser-use.com/api/v4";
 export const BROWSER_USE_IDLE_MS = 10 * 60 * 1000;
-/** Remote viewport dimensions, not Paperclip layout tokens. */
+/** Remote viewport dimensions, not Nexus layout tokens. */
 export const BROWSER_USE_VIEWPORT_PRESETS = [
   { id: "phone", label: "Phone", width: 390, height: 844 },
   { id: "tablet", label: "Tablet", width: 768, height: 1024 },
@@ -83,7 +83,7 @@ export interface TaskBrowser {
 const session = {
   type: "string",
   format: "uuid",
-  description: "Paperclip browser conversation ID, never a provider ID.",
+  description: "Nexus browser conversation ID, never a provider ID.",
 };
 const task = {
   type: "string",
@@ -120,7 +120,7 @@ function tool(
 export const BROWSER_USE_TOOLS = [
   tool(
     "browser_start",
-    "Delegate a hosted browser task. The human can watch and interact in the task's Browser tab. Poll browser_status until finished; do not end your Paperclip run while the task is active.",
+    "Delegate a hosted browser task. The human can watch and interact in the task's Browser tab. Poll browser_status until finished; do not end your Nexus run while the task is active.",
     {
       task,
       profileId: { type: "string", format: "uuid" },

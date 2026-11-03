@@ -19,10 +19,10 @@ describe("readBuildCommit", () => {
     const commit = "0123456789abcdef0123456789abcdef01234567";
     expect(readBuildCommit({
       environmentCommit: null,
-      buildCommitPath: "/app/.paperclip-build-commit",
+      buildCommitPath: "/app/.nexus-build-commit",
       buildInfoPath: "/app/server/dist/build-info.json",
       readTextFile: (path) => {
-        if (path.endsWith(".paperclip-build-commit")) throw new Error("ENOENT");
+        if (path.endsWith(".nexus-build-commit")) throw new Error("ENOENT");
         return JSON.stringify({ commit });
       },
     })).toBe(commit);
@@ -53,9 +53,9 @@ describe("readBuildCommit", () => {
     expect(
       readBuildCommit({
         environmentCommit: null,
-        buildCommitPath: "/app/.paperclip-build-commit",
+        buildCommitPath: "/app/.nexus-build-commit",
         readTextFile: (path) => {
-          expect(path).toBe("/app/.paperclip-build-commit");
+          expect(path).toBe("/app/.nexus-build-commit");
           return "0123456789abcdef0123456789abcdef01234567\n";
         },
       }),

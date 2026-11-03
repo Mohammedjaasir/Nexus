@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
-import { agents, companies, environmentLeases, heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@paperclipai/db";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
-import { parseNativeExecutionInput, type NativeExecutionInput, type PersistedNativeSession } from "../../vendor/paperclip-runner/index.js";
+import { agents, companies, environmentLeases, heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@nexusai/db";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
+import { parseNativeExecutionInput, type NativeExecutionInput, type PersistedNativeSession } from "../../vendor/nexus-runner/index.js";
 import { currentNativeControllerIdentity, evaluateNativeControllerTakeover } from "./native-restart-recovery.js";
 import { readNativeControllerRecovery } from "./native-controller-recovery.js";
 
@@ -36,11 +36,11 @@ export function isSettledRemoteWarmControlState(control: Record<string, unknown>
     const payload = record(notification.payload);
     return record(event).eventType === "session.goal.snapshot" && matchesSession(event) &&
       Object.entries(identity).every(([key, value]) => envelope[key] === value) &&
-      (notification.schema === "paperclip.prp.event.v1" || notification.schema === "paperclip.prp.event.v2") &&
+      (notification.schema === "nexus.prp.event.v1" || notification.schema === "nexus.prp.event.v2") &&
       notification.eventType === "session.goal.snapshot" &&
       notification.sourceInstanceId === identity.runnerInstanceId && notification.sourceKind === "runner" &&
       notification.runId === identity.runId && notification.normalizedSessionId === identity.normalizedSessionId &&
-      payload.schema === "paperclip.session_goal.snapshot.v1" && payload.goal === null && payload.workingNow === false;
+      payload.schema === "nexus.session_goal.snapshot.v1" && payload.goal === null && payload.workingNow === false;
   });
 }
 

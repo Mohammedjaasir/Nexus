@@ -34,7 +34,7 @@ No agent defaults or saved model selections are migrated.
 
 The remote Codex compatibility window moves to `>=0.149.0 <0.161.0`. The
 minimum stays fixed. See
-[paperclip-runner-compatibility.md](architecture/paperclip-runner-compatibility.md).
+[nexus-runner-compatibility.md](architecture/nexus-runner-compatibility.md).
 
 ## Sources and verification
 

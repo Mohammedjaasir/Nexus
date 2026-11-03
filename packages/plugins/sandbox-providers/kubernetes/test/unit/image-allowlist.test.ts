@@ -35,9 +35,9 @@ describe("resolveImage", () => {
       resolveImage(
         { imageOverride: null },
         defaults,
-        { imageAllowList: [], imageRegistry: "registry.example.com/paperclip" },
+        { imageAllowList: [], imageRegistry: "registry.example.com/nexus" },
       ),
-    ).toBe("registry.example.com/paperclip/agent-runtime-claude:v1");
+    ).toBe("registry.example.com/nexus/agent-runtime-claude:v1");
   });
 
   it("accepts imageOverride when in allowlist", () => {

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { StringDecoder } from "node:string_decoder";
 import { setTimeout as delay } from "node:timers/promises";
-import type { PluginEnvironmentExecuteParams, PluginEnvironmentExecuteResult } from "@paperclipai/plugin-sdk";
+import type { PluginEnvironmentExecuteParams, PluginEnvironmentExecuteResult } from "@nexusai/plugin-sdk";
 import { CreateosApiError, CreateosClient, identifier, object } from "./client.js";
 
 const MAX_LINE_BYTES = 1_048_576;
@@ -96,7 +96,7 @@ export async function execute(
   log: (stream: "stdout" | "stderr", text: string) => void = () => {},
 ): Promise<PluginEnvironmentExecuteResult> {
   const id = identifier(params.lease.providerLeaseId);
-  const stdinPath = params.stdin != null ? `/tmp/paperclip-stdin-${randomUUID()}` : null;
+  const stdinPath = params.stdin != null ? `/tmp/nexus-stdin-${randomUUID()}` : null;
   const script = commandScript(params, stdinPath);
   const output = new Output(log);
   let processId: string | null = null;

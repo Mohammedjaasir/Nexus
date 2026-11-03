@@ -10,7 +10,7 @@ import {
   issues,
   projectWorkspaces,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -27,7 +27,7 @@ import {
   type ResolveRunReferencedProjectsOptions,
 } from "../services/heartbeat.ts";
 import type { AuthorizationActor, AuthorizationDecision } from "../services/authorization.ts";
-import { buildProjectMentionHref } from "@paperclipai/shared";
+import { buildProjectMentionHref } from "@nexusai/shared";
 
 const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
@@ -64,7 +64,7 @@ describeEmbeddedPostgres("resolveRunReferencedProjects", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-run-referenced-projects-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-run-referenced-projects-");
     db = createDb(tempDb.connectionString);
     issuesSvc = issueService(db);
     projectsSvc = projectService(db);
@@ -118,7 +118,7 @@ describeEmbeddedPostgres("resolveRunReferencedProjects", () => {
   const seedCompany = async (companyId: string) => {
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });

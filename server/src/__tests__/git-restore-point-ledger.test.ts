@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { agents, companies, createDb, executionWorkspaceRestorePoints, issues } from "@paperclipai/db";
+import { agents, companies, createDb, executionWorkspaceRestorePoints, issues } from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -43,7 +43,7 @@ describeEmbeddedPostgres("git restore point retention", () => {
   } as unknown as StorageService;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-git-restore-point-ledger-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-git-restore-point-ledger-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 

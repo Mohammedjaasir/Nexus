@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { copilotTaskModelCatalogOptions } from "./copilot-task-model-catalog";
 
 describe("Copilot task model catalog identity", () => {
-  const agent = { id: "copilot", adapterType: "paperclip_runner", adapterConfig: {
+  const agent = { id: "copilot", adapterType: "nexus_runner", adapterConfig: {
     provider: "acpx", acpxAgent: "copilot",
   } } as unknown as Agent;
   it("changes the catalog identity when a saved connection changes", () => {

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { museAgentBindings as bindings, museMailboxItems as mailbox, museRunnerAssignments as assignments, museReceiverContactBuckets as buckets, externalAgentHolds as holds, type Db } from "@paperclipai/db";
+import { museAgentBindings as bindings, museMailboxItems as mailbox, museRunnerAssignments as assignments, museReceiverContactBuckets as buckets, externalAgentHolds as holds, type Db } from "@nexusai/db";
 import { assertMuseReceiverAuthority, assertMuseCurrentAuthority, inspectMuseConnectionCredential, museIdentity, museStopControlBoundaryIds, hasMuseStopControlAccess } from "./muse-identity.js";
 import { canConfigureAgentConnection } from "../modules/agent-lifecycle/index.js";
 import { HttpError } from "../errors.js";

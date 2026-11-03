@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { posix } from "node:path";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 
 import { MAX_ATTACHMENT_BYTES } from "../../attachment-types.js";
 
 export const MAX_REMOTE_DELIVERABLE_BYTES = MAX_ATTACHMENT_BYTES;
-const PREFIX = "paperclip_runner_file_handoff_";
+const PREFIX = "nexus_runner_file_handoff_";
 const READ_TIMEOUT_MS = 10_000;
 
 // Runs only in the server-bound remote workspace. No file is opened on the
@@ -15,7 +15,7 @@ const fs = require('node:fs/promises');
 const { constants } = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
-const fail = code => { throw new Error('paperclip_runner_file_handoff_' + code); };
+const fail = code => { throw new Error('nexus_runner_file_handoff_' + code); };
 const same = (a, b) => ['dev', 'ino', 'size', 'mtimeNs', 'ctimeNs'].every(key => a[key] === b[key]);
 const within = (root, file) => {
   const relative = path.relative(root, file);
@@ -69,8 +69,8 @@ async function noSymlinks(root, relative, missingCode) {
     await new Promise((resolve, reject) => process.stdout.write(body.toString('base64'), error => error ? reject(error) : resolve()));
   } finally { await handle.close(); }
 })().catch(error => {
-  const allowed = /^paperclip_runner_file_handoff_(path_denied|symlink_denied|file_changed|hash_mismatch|workspace_file_missing)$/;
-  process.stderr.write(allowed.test(error.message) ? error.message : 'paperclip_runner_file_handoff_remote_read_failed');
+  const allowed = /^nexus_runner_file_handoff_(path_denied|symlink_denied|file_changed|hash_mismatch|workspace_file_missing)$/;
+  process.stderr.write(allowed.test(error.message) ? error.message : 'nexus_runner_file_handoff_remote_read_failed');
   process.exitCode = 1;
 });
 `;
@@ -108,7 +108,7 @@ export async function readVerifiedRemoteWorkspaceFile(input: {
   if (result.timedOut) throw new Error(`${PREFIX}remote_read_timeout`);
   if (result.exitCode !== 0) {
     const code = [result.stderr.trim(), result.stdout.trim()].find((output) =>
-      /^paperclip_runner_file_handoff_(path_denied|symlink_denied|file_changed|hash_mismatch|workspace_file_missing)$/u.test(output));
+      /^nexus_runner_file_handoff_(path_denied|symlink_denied|file_changed|hash_mismatch|workspace_file_missing)$/u.test(output));
     if (code === `${PREFIX}workspace_file_missing`) {
       throw new Error(`${code}: Create or copy the file into get_workspace.cwd, then retry with a workspace-relative contentRef. AGENT_HOME is for personal instructions and memory.`);
     }

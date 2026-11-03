@@ -3,11 +3,11 @@ import type { EndpointRow, RuntimeContext } from "../runtime-types.js";
 
 import { type CredentialMutationLeaseGuard } from "../../chat-credential-mutation-lease.js";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import type {
   ConfigureChatEndpointInput,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   unprocessable,
@@ -62,7 +62,7 @@ export function createTelegramSetup(db: Db, options: TelegramSetupOptions) {
                 "my_chat_member",
               ],
               // A first-time connection may inherit stale updates from a bot
-              // that was used before Paperclip owned it. Reconnect is
+              // that was used before Nexus owned it. Reconnect is
               // different: Telegram may be holding legitimate updates while
               // the old callback URL is unavailable. Preserve that backlog
               // even when an operator is rotating the public origin.

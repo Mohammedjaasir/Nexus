@@ -13,7 +13,7 @@ const meta = {
     docs: { description: { component:
       "The approved composer picker design and two matching stories using the production picker. The assignee capsule stays beside Send on desktop and mobile. The assignee determines the harness and catalog; changing assignees clears per-message overrides. Effort is selected only with a model-specific slider where levels are known. The picker animates its height as content changes and opens as a modal on mobile. Custom IDs are accepted for harnesses that support them, while OpenRouter requires openrouter/provider/model. A fast-mode icon sits to the left of the effort label only for supported known Codex models, and the reset icon sits to the right."
     } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "tasks/create",
         "runs-adapters/availability"

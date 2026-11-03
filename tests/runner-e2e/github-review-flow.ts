@@ -106,7 +106,7 @@ export async function runGitHubReviewFlow(input: {
     await expect(page.getByText(`GitHub account: ${input.githubUsername}`, { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Confirm my account", exact: true }).click();
   } else if (await page.getByRole("button", { name: "Confirm my account", exact: true }).isVisible()) {
-    await expect(page.getByText(`Connect GitHub account ${input.githubUsername} to your Paperclip account.`, { exact: true })).toBeVisible();
+    await expect(page.getByText(`Connect GitHub account ${input.githubUsername} to your Nexus account.`, { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Confirm my account", exact: true }).click();
   } else if (await page.getByRole("button", { name: "Connect my GitHub account", exact: true }).isVisible()) {
     throw new ConnectionBlock("blocked_target", "saved_github_user_connection_required");
@@ -188,7 +188,7 @@ export async function runGitHubReviewFlow(input: {
     completedRun = review!.runId ? await api.get(`/api/heartbeat-runs/${review!.runId}`) : undefined;
     evidence.execution = { reviewId: review!.id, issueId: review!.issueId, runId: review!.runId,
       runStatus: completedRun?.status, issueStatus: issue.status, runtimeMode: completedRun?.runtimeMode,
-      environmentId: completedRun?.contextSnapshot?.paperclipEnvironment?.id,
+      environmentId: completedRun?.contextSnapshot?.nexusEnvironment?.id,
       provider: completedRun?.runnerProfileJson?.nativeExecutionInput?.provider?.kind,
       model: completedRun?.runnerProfileJson?.nativeExecutionInput?.provider?.model };
     if (completedRun && (completedRun.companyId !== company.id || completedRun.agentId !== agent.id
@@ -230,7 +230,7 @@ export async function runGitHubReviewFlow(input: {
   await assertGitHubJourneyCheck(check, { repository: config.github.repository, url: review!.checkUrl, headSha, score: evidence.score });
   await input.checkpoint("check_projection", check);
   await input.phase("task_done");
-  await page.getByRole("link", { name: "Paperclip task", exact: true }).click();
+  await page.getByRole("link", { name: "Nexus task", exact: true }).click();
   await assertGitHubJourneyTaskDone(page);
   await input.checkpoint("task_done", page);
   await input.phase("persisted");

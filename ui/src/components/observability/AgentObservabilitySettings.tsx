@@ -4,7 +4,7 @@ import {
   DEFAULT_AGENT_OBSERVABILITY_CAPTURE, updateAgentObservabilitySchema, isSameOtlpOrigin,
   type AgentObservabilityCapture, type AgentObservabilitySettings, type AgentObservabilitySettingsResponse,
   type AgentObservabilityTestReceipt, type UpdateAgentObservabilityRequest,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { agentObservabilityApi } from "@/api/agent-observability";
 import { ApiError } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -143,7 +143,7 @@ export function AgentObservabilitySettingsView(props: AgentObservabilitySettings
       {hasConflict && <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => { reset(); onReload?.(); }}>Reload saved settings</Button>}
       {!dirty && receipt && <div role="status" className="space-y-1 text-sm">
         <p className="font-medium">{receipt.status === "accepted" ? "Test payload accepted" : receipt.status === "partial" ? "Some test records were rejected" : "Test payload failed"}</p>
-        <p className="text-xs text-muted-foreground">{new Date(receipt.finishedAt).toLocaleString()} · Sent from the Paperclip server.</p>
+        <p className="text-xs text-muted-foreground">{new Date(receipt.finishedAt).toLocaleString()} · Sent from the Nexus server.</p>
         {(["logs", "traces"] as const).map(signal => receipt.signals[signal].message && <p key={signal}>{signal === "logs" ? "Logs" : "Traces"}: {receipt.signals[signal].message}</p>)}
       </div>}
       <div className="flex items-center justify-between gap-3">

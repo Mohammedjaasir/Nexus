@@ -1,25 +1,25 @@
 import { access, mkdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AdapterEnvironmentTestContext } from "@paperclipai/adapter-utils";
+import type { AdapterEnvironmentTestContext } from "@nexusai/adapter-utils";
 
 const mocks = vi.hoisted(() => ({ probe: vi.fn(), admission: vi.fn(), credentials: vi.fn(), copyBack: vi.fn(), remove: vi.fn(), turn: vi.fn(), warn: vi.fn() }));
 vi.mock("../middleware/logger.js", () => ({ logger: { warn: mocks.warn } }));
-vi.mock("../vendor/paperclip-runner/index.js", async original => ({
+vi.mock("../vendor/nexus-runner/index.js", async original => ({
   ...await original<object>(), probeNativeRunnerEnvironment: mocks.probe,
 }));
 vi.mock("../services/native-runtime/acpx-qualification.js", () => ({ resolveAntigravityCandidateAdmission: mocks.admission }));
 vi.mock("../services/native-runtime/antigravity-runner-credentials.js", () => ({
   prepareAntigravityRunnerCredentials: mocks.credentials, antigravityCredentialTurn: mocks.turn,
 }));
-vi.mock("../services/native-runtime/native-codex-runner.js", () => ({ resolvePaperclipRunnerBinary: () => "/owned/runnerd" }));
+vi.mock("../services/native-runtime/native-codex-runner.js", () => ({ resolveNexusRunnerBinary: () => "/owned/runnerd" }));
 import { antigravityConnectionProbeFailure, testAntigravityConnection } from "../services/antigravity-connection-probe.js";
-import { NativeEnvironmentProbeCleanupError, resolveAcpxRuntimeRoot } from "../vendor/paperclip-runner/index.js";
+import { NativeEnvironmentProbeCleanupError, resolveAcpxRuntimeRoot } from "../vendor/nexus-runner/index.js";
 
 const model = "exact-google-model";
 const admission = { agent: "antigravity", model, companyId: "company-1" };
 const roots: string[] = [];
-const context: AdapterEnvironmentTestContext = { companyId: "company-1", adapterType: "paperclip_runner",
+const context: AdapterEnvironmentTestContext = { companyId: "company-1", adapterType: "nexus_runner",
   config: { provider: "acpx", acpxAgent: "antigravity", model, env: { GEMINI_HOME: "/selected/provider", PATH: "/selected/bin" } },
   managedAiCredentialHome: "/selected/provider", executionTarget: null,
 };
@@ -28,7 +28,7 @@ const receipt = { provider: "acpx", providerDriver: "acpx_runtime", effectiveMod
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.admission.mockReturnValue(admission);
-  mocks.credentials.mockImplementation(async input => ({ environment: { ...input.environment, PAPERCLIP_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "fixture-managed-credential" }, home: "/selected/provider", credential: "fixture-managed-credential" }));
+  mocks.credentials.mockImplementation(async input => ({ environment: { ...input.environment, NEXUS_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "fixture-managed-credential" }, home: "/selected/provider", credential: "fixture-managed-credential" }));
   mocks.turn.mockImplementation(() => ({ copyBack: mocks.copyBack, remove: mocks.remove }));
   mocks.probe.mockImplementation(async options => {
     roots.push(options.runtimeDirectory);
@@ -49,7 +49,7 @@ describe("Google Antigravity setup admission", () => {
       result: { code: "command_execution_failed", message: "failed to start ACPX provider: ACPX sidecar command session.open was rejected (retryable=false, classification=admission_installation)" } } });
     const result = antigravityConnectionProbeFailure("company-1", error);
     expect(result).toMatchObject({ status: "fail", checks: [{ code: "antigravity_installation_check_failed",
-      message: "Paperclip could not complete the local Google Antigravity installation check.", hint: expect.stringContaining("instance operator") }] });
+      message: "Nexus could not complete the local Google Antigravity installation check.", hint: expect.stringContaining("instance operator") }] });
     expect(mocks.warn).toHaveBeenCalledExactlyOnceWith({ companyId: "company-1", code: "antigravity_installation_check_failed",
       errorClass: "Error", commandCode: "command_execution_failed", classification: "admission_installation", retryable: false },
     "Antigravity installation check failed before account verification");
@@ -94,7 +94,7 @@ describe("Google Antigravity setup admission", () => {
       expect((await stat(root)).mode & 0o777).toBe(0o700);
       expect((await stat(options.transportOptions.acpxRuntimeDirectory)).mode & 0o777).toBe(0o700);
       expect(options).toMatchObject({ provider: "acpx", model, admissionOnly: true,
-        environment: { PATH: "/selected/bin", PAPERCLIP_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "fixture-managed-credential" },
+        environment: { PATH: "/selected/bin", NEXUS_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "fixture-managed-credential" },
         transportOptions: { runnerBinary: "/owned/runnerd", acpxAgent: "antigravity", acpxCandidateAdmission: admission,
           acpxPermissionMode: "approve-reads", acpxPermissionModePinned: true } });
       expect(options.environment.GEMINI_API_KEY).toBeUndefined();
@@ -131,7 +131,7 @@ describe("Google Antigravity setup admission", () => {
     mocks.admission.mockReturnValue(undefined);
     await expect(testAntigravityConnection(context, model)).rejects.toThrow("not available for this company");
     await expect(testAntigravityConnection({ ...context, executionTarget: { kind: "remote" } as AdapterEnvironmentTestContext["executionTarget"] }, model))
-      .rejects.toThrow("requires the Paperclip host");
+      .rejects.toThrow("requires the Nexus host");
     expect(mocks.credentials).not.toHaveBeenCalled();
     expect(mocks.probe).not.toHaveBeenCalled();
   });

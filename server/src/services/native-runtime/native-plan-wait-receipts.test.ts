@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { readCommittedPlanWaitReceipt } from "./native-plan-wait-receipts.js";
 
 describe("committed plan-wait receipt formats", () => {
-  const modern = { planWait: { schema: "paperclip.native_plan_wait.v1" }, planWaitResult: { resultId: "new" } };
-  const legacy = { cursorPlanWait: { schema: "paperclip.native_cursor_plan_wait.v1" }, cursorPlanWaitResult: { resultId: "old" } };
+  const modern = { planWait: { schema: "nexus.native_plan_wait.v1" }, planWaitResult: { resultId: "new" } };
+  const legacy = { cursorPlanWait: { schema: "nexus.native_cursor_plan_wait.v1" }, cursorPlanWaitResult: { resultId: "old" } };
 
   it("reads each format without rewriting its source or accepted result identity", () => {
     expect(readCommittedPlanWaitReceipt(modern)).toMatchObject({ source: modern.planWait, identity: modern.planWaitResult, format: { legacy: false } });
     expect(readCommittedPlanWaitReceipt(legacy)).toMatchObject({ source: legacy.cursorPlanWait, identity: legacy.cursorPlanWaitResult, format: { legacy: true } });
-    expect(legacy.cursorPlanWait.schema).toBe("paperclip.native_cursor_plan_wait.v1");
+    expect(legacy.cursorPlanWait.schema).toBe("nexus.native_cursor_plan_wait.v1");
   });
 
   it.each([

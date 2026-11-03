@@ -19,13 +19,13 @@ describe("GitHub grant metadata", () => {
       if (url.pathname === "/user/installations") {
         return json({ installations: secondPage
           ? [{ id: 102, repository_selection: "all", account: { login: "octocat" } }]
-          : [{ id: 101, repository_selection: "selected", html_url: "https://github.com/settings/installations/101", account: { login: "paperclipai" } }],
+          : [{ id: 101, repository_selection: "selected", html_url: "https://github.com/settings/installations/101", account: { login: "nexusai" } }],
         }, !secondPage);
       }
       if (url.pathname === "/user/installations/101/repositories") {
         return json({ total_count: 2, repositories: secondPage
-          ? [{ id: 2, full_name: "paperclipai/b", owner: { type: "Organization" }, private: true, description: "must-not-persist", clone_url: "must-not-persist" }]
-          : [{ id: 1, full_name: "paperclipai/a", owner: { type: "Organization" }, private: false }],
+          ? [{ id: 2, full_name: "nexusai/b", owner: { type: "Organization" }, private: true, description: "must-not-persist", clone_url: "must-not-persist" }]
+          : [{ id: 1, full_name: "nexusai/a", owner: { type: "Organization" }, private: false }],
         }, !secondPage);
       }
       if (url.pathname === "/user/installations/102/repositories") {
@@ -34,7 +34,7 @@ describe("GitHub grant metadata", () => {
       throw new Error(`Unexpected GitHub path: ${url.pathname}`);
     });
 
-    const metadata = await loadGitHubGrantMetadata("ghu_secret", request, "paperclip-development");
+    const metadata = await loadGitHubGrantMetadata("ghu_secret", request, "nexus-development");
     expect(metadata).toMatchObject({
       userId: "42",
       login: "octocat",
@@ -42,15 +42,15 @@ describe("GitHub grant metadata", () => {
       repositoryCount: 3,
       repositorySelection: "mixed",
       installationIds: ["101", "102"],
-      installationOwnerLogins: ["paperclipai", "octocat"],
+      installationOwnerLogins: ["nexusai", "octocat"],
       repositories: [
         { id: "3", fullName: "octocat/c", installationId: "102", ownerType: "personal" },
-        { id: "1", fullName: "paperclipai/a", installationId: "101", ownerType: "organization", private: false },
-        { id: "2", fullName: "paperclipai/b", installationId: "101", ownerType: "organization", private: true },
+        { id: "1", fullName: "nexusai/a", installationId: "101", ownerType: "organization", private: false },
+        { id: "2", fullName: "nexusai/b", installationId: "101", ownerType: "organization", private: true },
       ],
-      installationUrl: "https://github.com/apps/paperclip-development/installations/new",
+      installationUrl: "https://github.com/apps/nexus-development/installations/new",
       managementUrl: "https://github.com/settings/installations/101",
-      appSlug: "paperclip-development",
+      appSlug: "nexus-development",
       webhookHealth: "pending",
     });
     expect(metadata.repositories[0]).not.toHaveProperty("private");
@@ -65,11 +65,11 @@ describe("GitHub grant metadata", () => {
   it("recovers a legacy grant's app chooser from GitHub installation metadata", async () => {
     const request = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(json({ id: 42, login: "octocat" }))
-      .mockResolvedValueOnce(json({ installations: [{ id: 101, app_slug: "paperclip-staging", repository_selection: "selected" }] }))
+      .mockResolvedValueOnce(json({ installations: [{ id: 101, app_slug: "nexus-staging", repository_selection: "selected" }] }))
       .mockResolvedValueOnce(json({ repositories: [{ id: 1, full_name: "octocat/a" }] }));
     await expect(loadGitHubGrantMetadata("ghu_secret", request)).resolves.toMatchObject({
-      appSlug: "paperclip-staging",
-      installationUrl: "https://github.com/apps/paperclip-staging/installations/new",
+      appSlug: "nexus-staging",
+      installationUrl: "https://github.com/apps/nexus-staging/installations/new",
     });
   });
 
@@ -90,12 +90,12 @@ describe("GitHub grant metadata", () => {
       if (url.pathname === "/user") return json({ id: 42, login: "octocat" });
       if (url.pathname === "/user/installations") {
         return json({ installations: [
-          { id: 101, repository_selection: "all", suspended_at: "2026-10-22T01:33:41Z", html_url: "https://github.com/organizations/paperclipai/settings/installations/101", account: { login: "paperclipai" } },
+          { id: 101, repository_selection: "all", suspended_at: "2026-10-22T01:33:41Z", html_url: "https://github.com/organizations/nexusai/settings/installations/101", account: { login: "nexusai" } },
           { id: 102, repository_selection: "selected", suspended_at: null, account: { login: "octocat" } },
         ] });
       }
       if (url.pathname === "/user/installations/101/repositories") {
-        return json({ repositories: [{ id: 1, full_name: "paperclipai/a" }] });
+        return json({ repositories: [{ id: 1, full_name: "nexusai/a" }] });
       }
       if (url.pathname === "/user/installations/102/repositories") {
         return json({ repositories: [{ id: 2, full_name: "octocat/b" }] });
@@ -118,11 +118,11 @@ describe("GitHub grant metadata", () => {
       if (url.pathname === "/user") return json({ id: 42, login: "octocat" });
       if (url.pathname === "/user/installations") {
         return json({ installations: [
-          { id: 101, app_slug: "paperclip-staging", repository_selection: "all", suspended_at: "2026-10-22T01:33:41Z", html_url: "https://github.com/organizations/paperclipai/settings/installations/101" },
+          { id: 101, app_slug: "nexus-staging", repository_selection: "all", suspended_at: "2026-10-22T01:33:41Z", html_url: "https://github.com/organizations/nexusai/settings/installations/101" },
         ] });
       }
       if (url.pathname === "/user/installations/101/repositories") {
-        return json({ repositories: [{ id: 1, full_name: "paperclipai/a" }] });
+        return json({ repositories: [{ id: 1, full_name: "nexusai/a" }] });
       }
       throw new Error(`Unexpected GitHub path: ${url.pathname}`);
     });
@@ -130,8 +130,8 @@ describe("GitHub grant metadata", () => {
       message: expect.stringContaining("suspended"),
       details: {
         code: "github_installation_required",
-        installationUrl: "https://github.com/apps/paperclip-staging/installations/new",
-        managementUrl: "https://github.com/organizations/paperclipai/settings/installations/101",
+        installationUrl: "https://github.com/apps/nexus-staging/installations/new",
+        managementUrl: "https://github.com/organizations/nexusai/settings/installations/101",
       },
     });
   });

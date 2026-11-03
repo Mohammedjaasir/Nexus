@@ -1,9 +1,9 @@
-// Makes sure packages/paperclip-runner/dist is a current build before the
+// Makes sure packages/nexus-runner/dist is a current build before the
 // server build vendors it, rebuilding the Runner only when that is needed.
 //
 // The server build (and typecheck) used to run the Runner's full `build`
 // unconditionally here. That is what lets a standalone
-// `pnpm --filter @paperclipai/server build` produce a current vendored Runner
+// `pnpm --filter @nexusai/server build` produce a current vendored Runner
 // on its own, which the Dockerfile relies on. But inside `pnpm -r build` the
 // Runner has just been built by the same command, and repeating it cost
 // 12-16s on the CI Build job's critical path (six master runs, 2026-10-11)
@@ -11,13 +11,13 @@
 //
 // The Runner's `build` now records a digest of its inputs, captured before its
 // first step and confirmed after its last, together with a manifest of every
-// file it left under dist (packages/paperclip-runner/scripts/build-inputs.mjs).
+// file it left under dist (packages/nexus-runner/scripts/build-inputs.mjs).
 // This step recomputes the digest and reuses the build when the stamp matches
 // and every recorded output is still there at its recorded size; anything else
 // runs the full Runner build exactly as before. The standalone guarantee
 // therefore holds: a fresh checkout, a changed input, a deleted or truncated
 // output, or an edit that landed while the build ran always rebuilds. Set
-// PAPERCLIP_RUNNER_VENDOR_REBUILD=1 to rebuild regardless of the stamp.
+// NEXUS_RUNNER_VENDOR_REBUILD=1 to rebuild regardless of the stamp.
 //
 // Usage: node scripts/prepare-runner-vendor.mjs [--repo-root <dir>]
 // The repo root defaults to this checkout; the flag exists for tests that
@@ -30,12 +30,12 @@ import { fileURLToPath } from "node:url";
 import {
   assessRunnerBuild,
   removeBuildInputsStamp,
-} from "../../packages/paperclip-runner/scripts/build-inputs.mjs";
+} from "../../packages/nexus-runner/scripts/build-inputs.mjs";
 
 /** The command the server build has always run here; the rebuild path is unchanged. */
-export const RUNNER_VENDOR_BUILD_COMMAND = "pnpm --filter @paperclipai/paperclip-runner build";
-export const FORCE_REBUILD_VARIABLE = "PAPERCLIP_RUNNER_VENDOR_REBUILD";
-export const TIMING_SCHEMA = "paperclip.runner-vendor.timing.v1";
+export const RUNNER_VENDOR_BUILD_COMMAND = "pnpm --filter @nexusai/nexus-runner build";
+export const FORCE_REBUILD_VARIABLE = "NEXUS_RUNNER_VENDOR_REBUILD";
+export const TIMING_SCHEMA = "nexus.runner-vendor.timing.v1";
 
 export function decideRunnerVendorAction({ env, assessment }) {
   if (env[FORCE_REBUILD_VARIABLE] === "1") {
@@ -92,7 +92,7 @@ export function prepareRunnerVendor({
   log = console.log,
   now = () => performance.now(),
 }) {
-  const packageRoot = path.join(repoRoot, "packages", "paperclip-runner");
+  const packageRoot = path.join(repoRoot, "packages", "nexus-runner");
   const checkStart = now();
   const assessment = assessRunnerBuild({ repoRoot, packageRoot });
   const decision = decideRunnerVendorAction({ env, assessment });

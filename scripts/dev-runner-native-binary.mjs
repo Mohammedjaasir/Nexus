@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
-import { runnerBinaryTarget } from "../packages/paperclip-runner/src/live/runner-binary.ts";
+import { runnerBinaryTarget } from "../packages/nexus-runner/src/live/runner-binary.ts";
 
 export function resolveNativeRunnerRequirement({ exitCode, stdout }) {
   if (exitCode !== 0) {
@@ -44,8 +44,8 @@ export function resolveNativeRunnerDevBinary({
   platform = process.platform,
   architecture = process.arch,
 }) {
-  const executable = platform === "win32" ? "paperclip-runnerd.exe" : "paperclip-runnerd";
-  const packageRoot = path.join(repoRoot, "packages", "paperclip-runner");
+  const executable = platform === "win32" ? "nexus-runnerd.exe" : "nexus-runnerd";
+  const packageRoot = path.join(repoRoot, "packages", "nexus-runner");
   const target = path.join(packageRoot, "dist", "bin", `${platform}-${architecture}`, executable);
   const flat = path.join(packageRoot, "dist", "bin", executable);
   const targetStat = statSync(target, { throwIfNoEntry: false });
@@ -57,7 +57,7 @@ export function resolveNativeRunnerDevBinary({
   return targetStat?.isFile() ? { binary: target, sourceBuild: false } : null;
 }
 
-export function paperclipRunnerBinaryNeedsBuild({
+export function nexusRunnerBinaryNeedsBuild({
   repoRoot,
   nativeRunnerRequired,
   configuredBinary,
@@ -70,7 +70,7 @@ export function paperclipRunnerBinaryNeedsBuild({
   const selected = resolveNativeRunnerDevBinary({ repoRoot, platform, architecture });
   if (!selected) return true;
   const binaryStat = statSync(selected.binary);
-  const packageRoot = path.join(repoRoot, "packages", "paperclip-runner");
+  const packageRoot = path.join(repoRoot, "packages", "nexus-runner");
 
   const runnerRoot = path.join(packageRoot, "runner");
   const buildInputs = [

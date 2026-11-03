@@ -10,7 +10,7 @@ function valid(): TaskWorkspaceObservation {
       issue: { id: "issue", projectId: null, executionWorkspaceId: "workspace", status: "done" },
       workspace: { id: "workspace", projectId: null, cwd }, confinedTaskRoot: true,
       note: `task-files-turn-${turn}-${nonce}\n`,
-      repositories: [{ id: "repo", state: turn === 1 ? "pending" : "ready", relativePath: `.paperclip-repositories/task-repo-${"a".repeat(24)}`,
+      repositories: [{ id: "repo", state: turn === 1 ? "pending" : "ready", relativePath: `.nexus-repositories/task-repo-${"a".repeat(24)}`,
         pinnedCommit: turn === 1 ? null : pin, requestedByIssueId: "issue", requestKeys: [`repository-${nonce}`] }],
       run: { id: `run-${turn}`, status: "succeeded", runtimeMode: "native", nativePhase: "committed", nativeBinding: "workspace",
         nativeCwd: "/workspace/task", transport: "provider_ingress", authenticated: true, nativeCompleted: true },
@@ -40,12 +40,12 @@ describe("task workspace product E2E", () => {
   });
   it("keeps native tools and legacy authenticated API prompts distinct", () => {
     expect(taskWorkspacePrompt("fixture", 1, true)).toContain("Call prepare_repository twice");
-    expect(taskWorkspacePrompt("fixture", 1, false)).toContain("POST /api/issues/$PAPERCLIP_TASK_ID/workspace/repositories twice");
+    expect(taskWorkspacePrompt("fixture", 1, false)).toContain("POST /api/issues/$NEXUS_TASK_ID/workspace/repositories twice");
     expect(taskWorkspacePrompt("fixture", 3, true)).not.toContain(taskWorkspaceFiles("fixture").repositoryBytes.trim());
   });
   it("recognizes the normalized provider receipt and rejects claims from another source/run", () => {
     const receipt = { eventType: "tool.execution.completed", payload: { prpEvent: {
-      sourceKind: "runner", runId: "run-1", payload: { name: "paperclip_prepare_repository", status: "completed" },
+      sourceKind: "runner", runId: "run-1", payload: { name: "nexus_prepare_repository", status: "completed" },
     } } };
     expect(isRepositoryPreparationReceipt(receipt, "run-1")).toBe(true);
     expect(isRepositoryPreparationReceipt(receipt, "another-run")).toBe(false);

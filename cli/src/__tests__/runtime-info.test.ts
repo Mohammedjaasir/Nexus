@@ -6,7 +6,7 @@ import {
   readRuntimeInfo,
   removeRuntimeInfoForPid,
   writeRuntimeInfo,
-  type PaperclipRuntimeInfo,
+  type NexusRuntimeInfo,
 } from "../runtime-info.js";
 
 const roots: string[] = [];
@@ -15,8 +15,8 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
-function fixture(): { filePath: string; info: PaperclipRuntimeInfo } {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-runtime-info-"));
+function fixture(): { filePath: string; info: NexusRuntimeInfo } {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-runtime-info-"));
   roots.push(root);
   return {
     filePath: path.join(root, "runtime-info.json"),

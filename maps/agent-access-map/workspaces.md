@@ -63,7 +63,7 @@ Binding revisions and request keys fence retries;
 selection applies at the next normal admission without interrupting a live run.
 
 The managed `remoteWorkspaceStorageEnabled` setting defaults on for Cloud and
-self-hosted instances. New native Paperclip Runner sandbox workspaces with
+self-hosted instances. New native Nexus Runner sandbox workspaces with
 supported fresh sources reserve company/task-bound remote authority through
 existing admission only when durable Postgres, S3, and a stable key are configured.
 Existing host workspaces and configured local folders stay on the legacy path
@@ -158,7 +158,7 @@ is source-level evidence only.
 Child creation by an admitted agent checks an explicit prospective-task context before the child is saved. The creator run must have an authoritative saved policy and a verified company/agent/parent lineage. Current parent, prospective child and selected source configuration policies must fit that boundary. This creation path does not relax exact task/run checks for existing-task writes. The [child trust regression](../../server/src/__tests__/task-workspace-child-trust.test.ts) is automated source-level evidence, not live agent qualification.
 Source review for these additions: PR #15749 and
 [task workspace routes](../../server/src/routes/task-workspaces.ts),
-[native authority](../../server/src/services/native-runtime/paperclip-runner-tool-authority.ts),
+[native authority](../../server/src/services/native-runtime/nexus-runner-tool-authority.ts),
 and [semantic transport](../../server/src/services/task-workspace-tools.ts).
 
 Evidence: `source-only` —
@@ -210,7 +210,7 @@ for its own pending repository in its current workspace. An explicit yield may
 use that saved continuation; explicit completion remains completion. Existing
 status decisions and wake admission retain Stop and authorization gates. The
 [workspace API regression](../../server/src/__tests__/task-workspace-api.test.ts)
-and [driver regression](../../packages/paperclip-runner/src/drivers/completion-continuation.test.ts)
+and [driver regression](../../packages/nexus-runner/src/drivers/completion-continuation.test.ts)
 cover this contract; live qualification remains separate.
 
 Policy: Company/project/workspace visibility and runtime authority; active run, trust

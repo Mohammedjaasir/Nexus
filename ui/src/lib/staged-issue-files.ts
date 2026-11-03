@@ -10,7 +10,7 @@ let database: Promise<IDBDatabase> | undefined;
 
 function openDatabase(): Promise<IDBDatabase> {
   database ??= new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open("paperclip:issue-draft-files", 1);
+    const request = indexedDB.open("nexus:issue-draft-files", 1);
     request.onupgradeneeded = () => request.result.createObjectStore("files");
     request.onerror = () => reject(request.error);
     request.onblocked = () => reject(new Error("Draft file storage is blocked"));

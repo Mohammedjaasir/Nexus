@@ -2,13 +2,13 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { agents, companies, companyMemberships, companySecrets, connectionGrants, createDb,
-  ensurePostgresDatabase, applyPendingMigrations, heartbeatRuns, issues, toolCatalogEntries, toolConnections } from "@paperclipai/db";
+  ensurePostgresDatabase, applyPendingMigrations, heartbeatRuns, issues, toolCatalogEntries, toolConnections } from "@nexusai/db";
 import { toolAccessService } from "../services/tool-access.js";
 import { createToolGatewayService } from "../services/tool-gateway.js";
 import { UNIKRAFT_TOOLS, executeUnikraftTool, unikraftClient } from "../services/connectors/unikraft/client.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const external = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const external = process.env.NEXUS_TEST_DATABASE_URL;
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const actor = { actorType: "user" as const, actorId: "unikraft-reviewer" };
 const credential = "unikraft-fixture-token";

@@ -7,7 +7,7 @@ import type {
   CompanySkillForkPrecheckResult,
   CompanySkillForkSummary,
   CompanySkillUsageAgent,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { ForkSkillDialog } from "@/components/skill-studio/ForkSkillDialog";
 import {
   ProjectScanNotice,
@@ -155,7 +155,7 @@ const meta: Meta = {
   id: "skill-studio-editacopy",
   title: "Agents and reusable capabilities/Skills and Skill Studio/Skill Studio/EditACopy",
   parameters: { layout: "centered",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "skills/authoring"
       ],

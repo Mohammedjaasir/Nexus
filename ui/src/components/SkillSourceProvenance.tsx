@@ -1,4 +1,4 @@
-import type { CompanySkill } from '@paperclipai/shared';
+import type { CompanySkill } from '@nexusai/shared';
 import { Link } from '@/lib/router';
 export function SkillSourceProvenance({ skill }: { skill: CompanySkill }) {
   const id = skill.metadata?.skillSourceId ?? skill.metadata?.legacySkillSourceId;

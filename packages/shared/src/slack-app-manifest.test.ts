@@ -4,7 +4,7 @@ import { createChatEndpointSchema, slackAppConfigurationSchema } from "./validat
 
 describe("Slack app manifest", () => {
   it("preserves older account setup state and validates optional verification delivery state", () => {
-    const account = { externalUserId: "UINSTALLER", paperclipUserId: "board-user", status: "linked", welcomeStatus: "sent" };
+    const account = { externalUserId: "UINSTALLER", nexusUserId: "board-user", status: "linked", welcomeStatus: "sent" };
     expect(slackAccountStateSchema.safeParse(account).success).toBe(true);
     for (const verificationStatus of ["pending", "sending", "sent", "failed", "uncertain"]) {
       expect(slackAccountStateSchema.safeParse({ ...account, verificationStatus }).success).toBe(true);
@@ -12,7 +12,7 @@ describe("Slack app manifest", () => {
     expect(slackAccountStateSchema.safeParse({ ...account, verificationStatus: "delivered" }).success).toBe(false);
   });
   it("uses readable, valid agent defaults and accepts them atomically with a new Slack draft", () => {
-    expect(defaultSlackAppConfiguration("Maya")).toEqual({ appName: "maya-paperclip", botName: "maya", command: "/maya" });
+    expect(defaultSlackAppConfiguration("Maya")).toEqual({ appName: "maya-nexus", botName: "maya", command: "/maya" });
     for (const name of ["Research Lead", "Áda Lovelace", "A.B_C", "", "Very long agent name that needs truncating"]) {
       expect(slackAppConfigurationSchema.safeParse(defaultSlackAppConfiguration(name)).success).toBe(true);
     }

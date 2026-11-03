@@ -10,7 +10,7 @@ import { setupLiveFixtures } from "./live-fixtures.js";
 import { createAiConnectionSchema, aiConnectionBindingSchema } from "../../packages/shared/src/ai-connections.js";
 import type { RunnerApi } from "./api.js";
 import { beginEvalAgentPhase, readEvalAttemptPhase } from "./attempt-phase.js";
-import { applyEvalGatewayEnvironment, buildPaperclipServerEnvironment } from "./harness-env.js";
+import { applyEvalGatewayEnvironment, buildNexusServerEnvironment } from "./harness-env.js";
 const cell = runnerMatrix.find(e => e.suite.id === "core-compatibility" && e.profile.id === "runner-codex" && e.environment.id === "local")!;
 function manifest(): EvalOperationsManifest {
   return { version: 1, limits: { campaignId: "pilot", maxUsd: "100", deadlineAt: new Date(Date.now() + 60_000).toISOString(), maxRequests: 20, maxConcurrent: 1 },
@@ -89,7 +89,7 @@ it("retains a campaign summary and refuses changing its budget on restart", asyn
     const endpoint = await operations.start(cell, "attempt", 1);
     expect(endpoint.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:/);
     expect(await readEvalAttemptPhase(endpoint.phasePath, { executionId: cell.id, attemptId: "attempt" })).toMatchObject({ phase: "setup" });
-    await beginEvalAgentPhase(cell.id, { PAPERCLIP_E2E_GATEWAY_PHASE_PATH: endpoint.phasePath, PAPERCLIP_E2E_ACCOUNTING_ATTEMPT_ID: "attempt" });
+    await beginEvalAgentPhase(cell.id, { NEXUS_E2E_GATEWAY_PHASE_PATH: endpoint.phasePath, NEXUS_E2E_ACCOUNTING_ATTEMPT_ID: "attempt" });
     expect(await readEvalAttemptPhase(endpoint.phasePath, { executionId: cell.id, attemptId: "attempt" })).toMatchObject({ phase: "agent" });
     await endpoint.close(); await operations.close();
     expect(JSON.parse(await readFile(`${value.ledgerPath}.summary.json`, "utf8"))).toMatchObject({ limitUsd: "100.000000000", knownUsd: "0.000000000", requests: [] });
@@ -111,8 +111,8 @@ it("keeps both upstream keys on the controller and owns the trace relay lifetime
   const root = await mkdtemp(path.join(tmpdir(), "eval-ops-relay-"));
   const value = { ...manifest(), ledgerPath: path.join(root, "ledger.jsonl") }, file = path.join(root, "manifest.json");
   const env = { OPENAI_API_KEY: "provider-private", BRAINTRUST_API_KEY: "braintrust-private", BRAINTRUST_OTHER_KEY: "other-private",
-    GITHUB_SHA: "a".repeat(40), PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: "11111111-1111-4111-8111-111111111111",
-    PAPERCLIP_E2E_OTLP_RELAY_URL: "https://unowned.invalid/otel" };
+    GITHUB_SHA: "a".repeat(40), NEXUS_E2E_BRAINTRUST_PROJECT_ID: "11111111-1111-4111-8111-111111111111",
+    NEXUS_E2E_OTLP_RELAY_URL: "https://unowned.invalid/otel" };
   let operations: Awaited<ReturnType<typeof openEvalOperations>> | undefined;
   try {
     await writeFile(file, JSON.stringify(value));
@@ -121,20 +121,20 @@ it("keeps both upstream keys on the controller and owns the trace relay lifetime
     const worker: NodeJS.ProcessEnv = { ...env };
     applyEvalGatewayEnvironment(worker, cell.profile.credential, endpoint);
     expect(worker).toMatchObject({ OPENAI_API_KEY: endpoint.token, BRAINTRUST_API_KEY: endpoint.observability!.token,
-      PAPERCLIP_E2E_OTLP_RELAY_URL: endpoint.observability!.baseUrl, GITHUB_SHA: env.GITHUB_SHA });
+      NEXUS_E2E_OTLP_RELAY_URL: endpoint.observability!.baseUrl, GITHUB_SHA: env.GITHUB_SHA });
     expect(JSON.stringify(worker)).not.toMatch(/provider-private|braintrust-private|other-private/);
-    expect(buildPaperclipServerEnvironment(worker).BRAINTRUST_API_KEY).toBeUndefined();
+    expect(buildNexusServerEnvironment(worker).BRAINTRUST_API_KEY).toBeUndefined();
     expect((await fetch(endpoint.observability!.baseUrl + "/v1/traces", { method: "POST" })).status).toBe(401);
     await operations.close(); operations = undefined;
     await expect(fetch(endpoint.baseUrl)).rejects.toThrow();
     await expect(fetch(endpoint.observability!.baseUrl)).rejects.toThrow();
     const receipts = (await readFile(endpoint.observability!.receiptPath, "utf8")).trim().split("\n").map(line => JSON.parse(line));
     expect(receipts.map(row => row.type)).toEqual(["policy", "closed"]);
-    expect(receipts[0]).toMatchObject({ campaignId: "pilot", attemptId: "with-observability", projectId: env.PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID });
+    expect(receipts[0]).toMatchObject({ campaignId: "pilot", attemptId: "with-observability", projectId: env.NEXUS_E2E_BRAINTRUST_PROJECT_ID });
     const withoutTracing: NodeJS.ProcessEnv = { ...env };
     applyEvalGatewayEnvironment(withoutTracing, cell.profile.credential, { ...endpoint, observability: undefined });
     expect(withoutTracing.BRAINTRUST_API_KEY).toBeUndefined();
-    expect(withoutTracing.PAPERCLIP_E2E_OTLP_RELAY_URL).toBeUndefined();
+    expect(withoutTracing.NEXUS_E2E_OTLP_RELAY_URL).toBeUndefined();
   } finally { await operations?.close(); await rm(root, { recursive: true, force: true }); }
 });
 
@@ -142,7 +142,7 @@ it("rejects mismatched trace projects before opening the journal and retains fai
   const root = await mkdtemp(path.join(tmpdir(), "eval-ops-relay-failure-"));
   const value = { ...manifest(), ledgerPath: path.join(root, "ledger.jsonl"), route: "braintrust" as const,
     projectId: "11111111-1111-4111-8111-111111111111", maxAttemptsPerExecution: 1 }, file = path.join(root, "manifest.json");
-  const env = { BRAINTRUST_API_KEY: "braintrust-private", PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: "22222222-2222-4222-8222-222222222222" };
+  const env = { BRAINTRUST_API_KEY: "braintrust-private", NEXUS_E2E_BRAINTRUST_PROJECT_ID: "22222222-2222-4222-8222-222222222222" };
   let operations: Awaited<ReturnType<typeof openEvalOperations>> | undefined;
   try {
     await writeFile(file, JSON.stringify(value));
@@ -151,7 +151,7 @@ it("rejects mismatched trace projects before opening the journal and retains fai
     await mkdir(`${value.ledgerPath}.otlp`);
     const receipt = path.join(`${value.ledgerPath}.otlp`, `${createHash("sha256").update("collision").digest("hex")}.jsonl`);
     await writeFile(receipt, "retained-receipt");
-    operations = await openEvalOperations(file, [cell], 0, { ...env, PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: value.projectId });
+    operations = await openEvalOperations(file, [cell], 0, { ...env, NEXUS_E2E_BRAINTRUST_PROJECT_ID: value.projectId });
     await expect(operations.start(cell, "collision", 1)).rejects.toMatchObject({ code: "EEXIST" });
     await expect(operations.start(cell, "replacement", 1)).rejects.toThrow("attempt cap");
     await operations.close(); operations = undefined;
@@ -179,9 +179,9 @@ it.each([
   admitted.models[0]!.price.model = selected.profile.model;
   if (anthropic) Object.assign(admitted.models[0]!.price, { cacheWrite5mUsdPerMillion: "2", cacheWrite1hUsdPerMillion: "2" });
   expect(validateEvalOperationsManifest(admitted, [selected], 0)).toBe(admitted);
-  vi.stubEnv("PAPERCLIP_E2E_GATEWAY_BASE_URL", origin);
-  if (remote) vi.stubEnv("PAPERCLIP_E2E_REMOTE_GATEWAY_ORIGIN", origin);
-  vi.stubEnv("PAPERCLIP_E2E_GATEWAY_TOKEN", "ephemeral-fixture-token");
+  vi.stubEnv("NEXUS_E2E_GATEWAY_BASE_URL", origin);
+  if (remote) vi.stubEnv("NEXUS_E2E_REMOTE_GATEWAY_ORIGIN", origin);
+  vi.stubEnv("NEXUS_E2E_GATEWAY_TOKEN", "ephemeral-fixture-token");
   const id = "11111111-1111-4111-8111-111111111111", grantId = "22222222-2222-4222-8222-222222222222";
   let connection: unknown, agent: Record<string, any> | undefined, company: Record<string, unknown> | undefined;
   const api = {
@@ -191,7 +191,7 @@ it.each([
     async delete() {},
   } as unknown as RunnerApi;
   const fixtures = await setupLiveFixtures({ api, execution: selected, executionNonce: "fixture", workspacePath: "/tmp/fixture", credentials: { [selected.profile.credential]: "ephemeral-fixture-token", ...(remote ? { DAYTONA_API_KEY: "fixture-daytona" } : {}) },
-    ...(remote ? { daytonaImage: `ghcr.io/paperclip/image@sha256:${"a".repeat(64)}` } : {}) });
+    ...(remote ? { daytonaImage: `ghcr.io/nexus/image@sha256:${"a".repeat(64)}` } : {}) });
   await fixtures.teardown();
   expect(createAiConnectionSchema.parse(connection)).toMatchObject({ ownership: "shared", apiKey: "ephemeral-fixture-token", routing: { kind: "gateway", protocol: anthropic ? "messages" : "responses", baseUrl: `${origin}${anthropic ? "" : "/v1"}`, auth: "bearer" } });
   expect(aiConnectionBindingSchema.parse(agent!.runtimeConfig.aiConnection)).toEqual({ provider: anthropic ? "anthropic" : "openai", method: "api_key", mode: "shared", connectionId: id, grantId });
@@ -225,14 +225,14 @@ it("gives remote workers scoped gateway/relay URLs and closes both local listene
   const value = { ...manifest(), executionIds: [remote.id], remoteGateway: "cloudflare" as const, ledgerPath: path.join(root, "ledger.jsonl") };
   value.limits.deadlineAt = new Date(Date.now() + 24 * 3_600_000).toISOString();
   const file = path.join(root, "manifest.json"), env = { OPENAI_API_KEY: "provider-private", DAYTONA_API_KEY: "infra-private",
-    BRAINTRUST_API_KEY: "trace-private", PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: "11111111-1111-4111-8111-111111111111" };
+    BRAINTRUST_API_KEY: "trace-private", NEXUS_E2E_BRAINTRUST_PROJECT_ID: "11111111-1111-4111-8111-111111111111" };
   let operations: Awaited<ReturnType<typeof openEvalOperations>> | undefined;
   try {
     await writeFile(file, JSON.stringify(value)); operations = await openEvalOperations(file, [remote], 0, env);
     const endpoint = await operations.start(remote, "remote-one", 1);
     const worker: NodeJS.ProcessEnv = { ...env }; applyEvalGatewayEnvironment(worker, remote.profile.credential, endpoint);
-    expect(worker).toMatchObject({ PAPERCLIP_E2E_GATEWAY_BASE_URL: origin, PAPERCLIP_E2E_REMOTE_GATEWAY_ORIGIN: origin,
-      PAPERCLIP_E2E_OTLP_RELAY_URL: `${origin}/otel`, OPENAI_API_KEY: endpoint.token, BRAINTRUST_API_KEY: endpoint.observability!.token });
+    expect(worker).toMatchObject({ NEXUS_E2E_GATEWAY_BASE_URL: origin, NEXUS_E2E_REMOTE_GATEWAY_ORIGIN: origin,
+      NEXUS_E2E_OTLP_RELAY_URL: `${origin}/otel`, OPENAI_API_KEY: endpoint.token, BRAINTRUST_API_KEY: endpoint.observability!.token });
     expect(JSON.stringify(worker)).not.toMatch(/provider-private|infra-private|trace-private/);
     const local = start.mock.calls[0]![0];
     expect(local.gateway.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:/);

@@ -20,7 +20,7 @@ const meta = {
     "Automation and structured work/Status cards/Authoring, updates and archive",
   component: StatusCardHost,
   parameters: { layout: "padded", initialEntries: ["/status"],
-    paperclip: {
+    nexus: {
       "capabilities": [
         "status-cards/authoring",
         "status-cards/generation",

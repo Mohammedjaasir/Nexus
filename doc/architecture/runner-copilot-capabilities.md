@@ -4,7 +4,7 @@
 
 Copilot runs as **profile 92** on `@github/copilot` 1.0.88. Its `commandDigest`
 attests the upstream release: the package version and the complete patched
-distribution closure for each qualified platform. It does not bind Paperclip
+distribution closure for each qualified platform. It does not bind Nexus
 source or the shared ACPX layer. Every ACPX harness binds the shared ACPX layer the same way: saved inputs must
 match the current ACPX version, and the provider pack's `contractDigest` binds
 the Runner's ACPX patch with the other Runner contracts. `generate:acpx-profiles` writes the digest to `acpx-profiles.json`,
@@ -14,7 +14,7 @@ version still decode, so recovery can refuse them.
 
 ## Profile chronology
 
-Until 2026-10-30, these digests hashed Paperclip source files, so each change
+Until 2026-10-30, these digests hashed Nexus source files, so each change
 to a bound file advanced the profile version. The dated sections below record
 that period; their profile versions and digests are not current.
 
@@ -69,7 +69,7 @@ actual parsed sidecar command handler and the Rust subprocess transport,
 including rejection of a 300 KiB payload before pending-tool admission.
 
 Historical source candidate (2026-10-01): **Copilot profile v10 was unqualified**.
-Admitted Paperclip MCP calls append a bounded `paperclip.semantic_tool_receipt.v1`
+Admitted Nexus MCP calls append a bounded `nexus.semantic_tool_receipt.v1`
 text block after the original result blocks. It records the operation, call-ID
 hash, canonical argument hash, result hash and transport outcome. An invocation
 callback bound to the active turn emits matching durable evidence. Native tool
@@ -110,7 +110,7 @@ large, contains control/direction-format characters, or would be redacted, the
 request offers only the provider's one-time denial (when present) and cancellation.
 Forged once/session grants are rejected. Raw `kind: edit` is required; titles do
 not infer operation type. Non-edit permissions retain their existing behavior.
-Default/full-auto selection is unchanged: callbacks handled by Paperclip receive
+Default/full-auto selection is unchanged: callbacks handled by Nexus receive
 this check before any permission-mode fallback; no new automatic grant is added.
 The existing transport policy still applies before permission handling.
 
@@ -144,7 +144,7 @@ large, contains control/direction-format characters, or would be redacted, the
 request offers only the provider's one-time denial (when present) and cancellation.
 Forged once/session grants are rejected. Raw `kind: edit` is required; titles do
 not infer operation type. Non-edit permissions retain their existing behavior.
-Default/full-auto selection is unchanged: callbacks handled by Paperclip receive
+Default/full-auto selection is unchanged: callbacks handled by Nexus receive
 this check before any permission-mode fallback; no new automatic grant is added.
 The existing transport policy still applies before permission handling.
 
@@ -194,7 +194,7 @@ observed three equal-text messages with three native IDs, three empty starts,
 and attached-shell settlement. A separate actual ACPX transport fixture preserved
 empty boundaries across three warm turns. All three platform distributions were
 materialized; this is not native x64/Linux execution proof or paid qualification.
-The [complete candidate inventories](../../packages/paperclip-runner/test/fixtures/copilot-message-identity-distributions-1.0.88.json)
+The [complete candidate inventories](../../packages/nexus-runner/test/fixtures/copilot-message-identity-distributions-1.0.88.json)
 retain platform closure hashes. Private bounded probe receipts are under
 `runtime-6-6-9-eof-preparation/copilot-message-identity-candidate/` in the existing
 qualification artifact collection. Copilot v7 binds this candidate to a new profile and warm identity; v6 paid
@@ -259,7 +259,7 @@ guard terminates the connection; it never presents a form whose answer cannot
 be delivered. Unexpected blocking input remains a guarded safety condition,
 not a qualified responder.
 
-The [offline conformance record](../../packages/paperclip-runner/test/fixtures/copilot-policy-conformance-2026-09-29.json)
+The [offline conformance record](../../packages/nexus-runner/test/fixtures/copilot-policy-conformance-2026-09-29.json)
 retains every attempt and its evidence digest, including the isolated comparison release. A protected file outside the
 working directory was denied before its contents reached the fixture model.
 A durable conversation was closed and loaded, then requested permission for a
@@ -286,12 +286,12 @@ the failed empty-session attempt, stays in the private
 The prior Product question failure remains a model-behavior failure: the retained
 snapshot contains the exact requested marker in the task instructions, the
 answered Cobalt choice, and warm-session continuation. Copilot instead supplied
-`[terminal marker]` to `paperclip_finish`. Neither the grader nor the terminal
+`[terminal marker]` to `nexus_finish`. Neither the grader nor the terminal
 marker requirement changed. A final-runtime rerun remains required.
 
 ### Final v3 Product question attempt
 
-The [final v3 question receipt](../../packages/paperclip-runner/test/fixtures/copilot-product-v3-question-2026-09-29.json)
+The [final v3 question receipt](../../packages/nexus-runner/test/fixtures/copilot-product-v3-question-2026-09-29.json)
 retains the single reserved attempt at source `3d0c45920`, with the exact frozen
 controller distribution, native assets, pack, Node, daemon and sidecar hashes.
 The first turn produced the structured question and the board answered Cobalt.
@@ -309,7 +309,7 @@ This account-level delta is not a per-turn USD allocation. The Product aggregate
 zero reported cost with `unpriced`/incomplete coverage is not an authoritative
 zero-cost receipt. No additional live attempt is authorized by this result.
 
-A [credential-free native recovery reproduction](../../packages/paperclip-runner/test/fixtures/copilot-runtime-context-recovery-2026-09-29.json)
+A [credential-free native recovery reproduction](../../packages/nexus-runner/test/fixtures/copilot-runtime-context-recovery-2026-09-29.json)
 closes the provider, deletes the prior registered instruction copy, and reproduces
 `ENOENT` at `bindAcpxAgentFiles`. Reopening with the current registered copy
 succeeds with the same native session. A second explicit fixture turn proves
@@ -334,10 +334,10 @@ lease, including cancellation, so a late write cannot overwrite a successor.
 Profile v3 identities are rejected before native launch; historical evidence
 below remains labeled with its original profile and source.
 
-The [native model-request probe](../../packages/paperclip-runner/test/fixtures/copilot-native-instruction-delivery-2026-09-29.json)
+The [native model-request probe](../../packages/nexus-runner/test/fixtures/copilot-native-instruction-delivery-2026-09-29.json)
 retains a separate instruction-delivery failure: Copilot 1.0.88 ignores generic
 ACP `_meta.systemPrompt` on new sessions, and ACPX does not include it on load.
-Actual loopback model requests contained neither the Paperclip prompt nor the
+Actual loopback model requests contained neither the Nexus prompt nor the
 registered directory guidance. Passing a refreshed descriptor alone is insufficient.
 
 A credential-free follow-up wrote the composed text to the isolated provider
@@ -349,9 +349,9 @@ turn completed. The second model request contained the current directory and
 updated entry, with neither old value in its system message. Both attempts used
 two synthetic loopback responses and no paid calls. This probe is not a final
 built-production or authenticated qualification result. A follow-up
-[source-level v4 probe](../../packages/paperclip-runner/test/fixtures/copilot-v4-native-instruction-delivery-2026-09-29.json)
+[source-level v4 probe](../../packages/nexus-runner/test/fixtures/copilot-v4-native-instruction-delivery-2026-09-29.json)
 uses the actual production sandbox writer and confirms the same new/load model
-request behavior. The [post-lease source probe](../../packages/paperclip-runner/test/fixtures/copilot-v4-owned-instruction-delivery-2026-09-29.json)
+request behavior. The [post-lease source probe](../../packages/nexus-runner/test/fixtures/copilot-v4-owned-instruction-delivery-2026-09-29.json)
 reconfirms this after moving refresh under lifetime ownership, and retains an
 earlier zero-call lease-admission failure. The final frozen pack still requires
 independent verification.
@@ -404,7 +404,7 @@ The audit inspected the exact `@github/copilot@1.0.88` platform archives, the
 native executable's embedded `app.js`, `schemas/session-events.schema.json`, CLI
 help/config/environment output, and real ACP wire traffic. The embedded schema
 SHA-256 is `d8cb713c05d5278a68dde5c5d4482574f836e922ae13aa06f82474c209a7c6e9`.
-The [complete event/field inventory](../../packages/paperclip-runner/test/fixtures/copilot-event-inventory-1.0.88.json)
+The [complete event/field inventory](../../packages/nexus-runner/test/fixtures/copilot-event-inventory-1.0.88.json)
 contains all 150 native event types and their data field names, including every
 event we do not subscribe to. Fields in that file describe the native schema;
 they are not a claim that every event was observed on the wire.
@@ -451,10 +451,10 @@ credential path. Private configuration disables hooks, memory and automatic IDE
 attachment and has no trusted folders.
 
 Never set `COPILOT_ALLOW_ALL=true`: this exact string also trusts workspace
-hooks, plugins and MCP configuration. Paperclip's full-auto policy answers the
+hooks, plugins and MCP configuration. Nexus's full-auto policy answers the
 individual permission callback. It must not grant ambient configuration trust.
 Mode/config changes, including autopilot and the provider's `allow_all` option,
-must not bypass the admitted Paperclip policy. Slash-command discovery includes
+must not bypass the admitted Nexus policy. Slash-command discovery includes
 commands capable of changing permissions, cwd, remote/export, MCP and schedules;
 these are not authority to offer an unrestricted command UI. Adversarial
 workspace/config qualification remains required before release.
@@ -535,10 +535,10 @@ Daytona claims require the separate live product qualification.
 | Session list / explicit close | Initialize advertises both methods. | Runner owns its selected-session registry and process cleanup; it does not call Copilot's list or explicit close methods. | Observed initialize; P2 company-scoped history/session management before consuming these interfaces. |
 | Fork / history paging | Native CLI/SDK capabilities exist; no ACP fork advertised. | Unsupported. | Confirmed absent from initialize advertisement, not proof native harness lacks it; P2 upstream extension. |
 | Tools / correlation | Standard `tool_call`/`tool_call_update`; parent identity in `_meta["github.com/copilot"].agentId`. HTTP/SSE MCP supported. | Shared tool activity, authenticated runner-owned MCP bridge. | Real create/bash/read_bash traffic and canonical authenticated get-task-context pass; Product semantic question and plan calls observed. Full adversarial company-boundary coverage remains pending. |
-| MCP transport selection | Both HTTP and SSE are advertised. | The assigned Paperclip gateway uses the controlled HTTP bridge. Arbitrary SSE endpoint configuration is not exposed. | Observed initialize; SSE remains unused, P2 only if a governed connection requires it. |
+| MCP transport selection | Both HTTP and SSE are advertised. | The assigned Nexus gateway uses the controlled HTTP bridge. Arbitrary SSE endpoint configuration is not exposed. | Observed initialize; SSE remains unused, P2 only if a governed connection requires it. |
 | Scoped approvals | `session/request_permission`, actual options allow_once/allow_always/reject_once. | Shared durable permissions; only received decisions offered, policy enforced. | Real-service wire ID 0 denied before file creation, with no side effect through cleanup. Durable Product restrictive-mode recovery and wider tool denial remain unqualified. |
-| Structured questions | Native `ask_user` callback and `user_input.requested`; current ACP adapter does not wire the responder. | Emits capability-gap notice if native notification arrives; cannot claim answer delivery. | Actual agent-mode tool list omits `ask_user` without a suppression flag. Paperclip semantic questions are available: restart case passes, while the separate question case failed its exact marker. Pinned offline agent/plan catalogs now prove both tools unavailable; the production guard admits agent mode and terminates any unexpected native blocking request. |
-| Plan approval | Native `exit_plan_mode` callback; notification contains plan content/actions but lacks qualified ACP responder. | Capability-gap notice only; never synthesize plan acceptance. | Agent-mode tool list omits exit_plan_mode. Paperclip semantic plan/revision approval passes through the UI; Native plan-mode input is confirmed unavailable offline; production mode controls remain disabled. |
+| Structured questions | Native `ask_user` callback and `user_input.requested`; current ACP adapter does not wire the responder. | Emits capability-gap notice if native notification arrives; cannot claim answer delivery. | Actual agent-mode tool list omits `ask_user` without a suppression flag. Nexus semantic questions are available: restart case passes, while the separate question case failed its exact marker. Pinned offline agent/plan catalogs now prove both tools unavailable; the production guard admits agent mode and terminates any unexpected native blocking request. |
+| Plan approval | Native `exit_plan_mode` callback; notification contains plan content/actions but lacks qualified ACP responder. | Capability-gap notice only; never synthesize plan acceptance. | Agent-mode tool list omits exit_plan_mode. Nexus semantic plan/revision approval passes through the UI; Native plan-mode input is confirmed unavailable offline; production mode controls remain disabled. |
 | Plan progress | Standard plan from todos SQL; native `session.plan_changed` has operation only. | Existing ACP plan/activity; native operation preserved, `planContentAvailable:false`. | Source; plan document reads require native interface. P1. |
 | Models / reasoning / config | Source `session/set_model`, config options for model, reasoning, mode, custom agents, allow_all. | Explicit model admission. Mode/governance changes must remain policy-gated. | Authenticated catalog, exact set_model/config echo and real inference verified for gpt-5.6-luna. Other models and config-mode changes remain unqualified. |
 | Native notification attribution | Copilot passthrough identifies the session, optional subagent and timestamp, but no originating turn. | Bounded redacted session notices retain all admitted details; typed delegation/artifact/compaction projection is withheld. | Delayed same-session regression; P1 require a provider-origin turn correlation contract. Arrival time and optional payload IDs cannot establish it. |
@@ -597,17 +597,17 @@ calls and process lifetime and removes its owned workspace. The fixture model ID
 does not verify any GitHub model's availability.
 
 ```sh
-python3 packages/paperclip-runner/scripts/probe-copilot-acp.py --package-root /path/to/copilot-darwin-arm64/package --scenario deny-write
-python3 packages/paperclip-runner/scripts/probe-copilot-acp.py --package-root /path/to/copilot-darwin-arm64/package --scenario attached-shell
-node --test packages/paperclip-runner/scripts/materialize-copilot-binary.test.mjs packages/paperclip-runner/scripts/build-copilot-distribution.test.mjs
-pnpm --filter @paperclipai/paperclip-runner exec vitest run src/drivers/acpx/copilot-events.test.ts src/drivers/acpx/copilot-profile.test.ts src/drivers/acpx/copilot-evidence.test.ts
-pnpm --filter @paperclipai/paperclip-runner exec vitest run src/drivers/acpx/copilot-extension-adapter.test.ts src/drivers/acpx/copilot-registry.test.ts
+python3 packages/nexus-runner/scripts/probe-copilot-acp.py --package-root /path/to/copilot-darwin-arm64/package --scenario deny-write
+python3 packages/nexus-runner/scripts/probe-copilot-acp.py --package-root /path/to/copilot-darwin-arm64/package --scenario attached-shell
+node --test packages/nexus-runner/scripts/materialize-copilot-binary.test.mjs packages/nexus-runner/scripts/build-copilot-distribution.test.mjs
+pnpm --filter @nexusai/nexus-runner exec vitest run src/drivers/acpx/copilot-events.test.ts src/drivers/acpx/copilot-profile.test.ts src/drivers/acpx/copilot-evidence.test.ts
+pnpm --filter @nexusai/nexus-runner exec vitest run src/drivers/acpx/copilot-extension-adapter.test.ts src/drivers/acpx/copilot-registry.test.ts
 ```
 
 Retained real-binary evidence:
 
-- [Denial wire](../../packages/paperclip-runner/test/fixtures/copilot-acp-denial-1.0.88.json): request ID 0; reject_once; failed tool update; target file absent after end_turn. This narrow case did not reproduce #4537.
-- [Attached-shell settlement wire](../../packages/paperclip-runner/test/fixtures/copilot-acp-settlement-1.0.88.json): two-second async attached command; marker written; output consumed through read_bash; idle followed by end_turn. This narrow case did not reproduce #4743.
+- [Denial wire](../../packages/nexus-runner/test/fixtures/copilot-acp-denial-1.0.88.json): request ID 0; reject_once; failed tool update; target file absent after end_turn. This narrow case did not reproduce #4537.
+- [Attached-shell settlement wire](../../packages/nexus-runner/test/fixtures/copilot-acp-settlement-1.0.88.json): two-second async attached command; marker written; output consumed through read_bash; idle followed by end_turn. This narrow case did not reproduce #4743.
 - All three materialized platform executables match pinned digests. Only ARM64 wire behavior was exercised.
 
 These are local offline conformance probes, not product E2E or live GitHub
@@ -660,7 +660,7 @@ unrelated runner integrity errors keep their original classification.
 
 ## Complete provider-pack proof
 
-The [retained packaged-launch evidence](../../packages/paperclip-runner/test/fixtures/copilot-provider-pack-darwin-arm64-1.0.88.json)
+The [retained packaged-launch evidence](../../packages/nexus-runner/test/fixtures/copilot-provider-pack-darwin-arm64-1.0.88.json)
 records clean source revision `5272fc6398d42344d1888a3f97ca6909684eefbf`,
 provider-pack digest `sha256:4ba17b2455b0ab92cfe6ee223f77708379fe219792ccb66dbdef70060e6e22e1`,
 the profile and native closure digests, and the exact protocol-1 initialize response.
@@ -707,7 +707,7 @@ builder/materializer, candidate-registry and probe-cleanup tests, all six Dayton
 image-content tests, and the runner
 TypeScript build including generated schema checks and verified sidecar bundles.
 The evidence update itself passed the four evidence cases again. The complete
-pack remains inspectable at `/tmp/paperclip-copilot-launch-boundary-pack-20260928`
+pack remains inspectable at `/tmp/nexus-copilot-launch-boundary-pack-20260928`
 on the build host; the sanitized tracked fixture provides the portable proof.
 The exact Docker resolution command, seeded from the tracked lockfile, produced
 `650e23d20e967bcfbfced888e131199b9a06e66a1ba4f64cfb68383b59def4a8`, matching
@@ -716,8 +716,8 @@ lock changes remain uncommitted. These checks do not substitute for live GitHub
 or product/Daytona qualification.
 
 ```sh
-/path/to/standalone/node packages/paperclip-runner/scripts/build-provider-pack.mjs /absolute/provider-pack --candidate-providers=copilot
-/absolute/provider-pack/node_modules/node/bin/node packages/paperclip-runner/scripts/copilot-provider-pack-smoke.mjs /absolute/provider-pack
+/path/to/standalone/node packages/nexus-runner/scripts/build-provider-pack.mjs /absolute/provider-pack --candidate-providers=copilot
+/absolute/provider-pack/node_modules/node/bin/node packages/nexus-runner/scripts/copilot-provider-pack-smoke.mjs /absolute/provider-pack
 ```
 
 Both Copilot builder scripts are explicit Daytona image hash inputs. The selected
@@ -728,7 +728,7 @@ still requires the qualification cases above.
 
 ## Authenticated qualification preparation (2026-09-28)
 
-The [sanitized authenticated discovery](../../packages/paperclip-runner/test/fixtures/copilot-authenticated-discovery-1.0.88.json)
+The [sanitized authenticated discovery](../../packages/nexus-runner/test/fixtures/copilot-authenticated-discovery-1.0.88.json)
 uses the previously verified native pack and a dedicated, short-lived personal
 Copilot Requests token, explicitly bound as `COPILOT_GITHUB_TOKEN`. The token has
 no repository write authority. No credential, account identifier, provider
@@ -746,7 +746,7 @@ The initial paid qualification reservation is $2 within the provider's $25
 allocation and shared $100 budget. The account dashboard baseline is 0 of 1,500
 included AI credits; additional paid usage is disabled with a $0 cash budget.
 Included credit consumption must still be reconciled and reported separately
-from cash charges. The [sanitized first live proof](../../packages/paperclip-runner/test/fixtures/copilot-canonical-live-proof-2026-09-28.json)
+from cash charges. The [sanitized first live proof](../../packages/nexus-runner/test/fixtures/copilot-canonical-live-proof-2026-09-28.json)
 records one `get-task-context` turn completed in 33.383 seconds: one authenticated
 semantic call and successful result, completed terminal, complete transcript and
 mock-only boundary all pass the unchanged canonical scorer. The first attempt
@@ -776,7 +776,7 @@ local and Daytona qualification succeeds.
 
 ## First local Product result and accounting defect (2026-09-28)
 
-The [retained local Product proof](../../packages/paperclip-runner/test/fixtures/copilot-product-live-proof-2026-09-28.json)
+The [retained local Product proof](../../packages/nexus-runner/test/fixtures/copilot-product-live-proof-2026-09-28.json)
 records `extended-harnesses.runner-acpx-copilot.local.hello-complete` from committed
 source `bcc9c638a25b91b84065f12633f083bd4f7a689f`. The first attempt passed all six
 behavior matchers in 38.436 seconds, with one provider turn, no automatic retry,
@@ -812,7 +812,7 @@ result. Profiles remain pending until the outstanding qualification matrix passe
 
 ## Merged-source local Product coverage (2026-09-28)
 
-The [retained merged-source proof](../../packages/paperclip-runner/test/fixtures/copilot-product-merged-live-proof-2026-09-28.json)
+The [retained merged-source proof](../../packages/nexus-runner/test/fixtures/copilot-product-merged-live-proof-2026-09-28.json)
 records both successful behavior and failures without rewriting original results.
 The file and question cases used source `ee9536001fbe733b2386dd3379730a4e0be59488`,
 an immutable runnerd whose Rust tree matches that source, and verified native
@@ -841,7 +841,7 @@ remains unchanged as historical evidence; its failed question result is not eras
 
 ## Final shared-source packaging checkpoint
 
-The [final pack proof](../../packages/paperclip-runner/test/fixtures/copilot-provider-pack-final-2026-09-28.json)
+The [final pack proof](../../packages/nexus-runner/test/fixtures/copilot-provider-pack-final-2026-09-28.json)
 uses committed source `8aa867b64d5fc2fd62cff110bd000addf5dc54de` on foundation
 `f063fbf2b`, including the paused-cost and bounded native-copy fixes. Pack digest
 is `sha256:627992ea80e8be7154d07cbc9925b781519199e25690b02d4a044f44342e6bd8`.
@@ -867,8 +867,8 @@ JSON-RPC framing, numeric request ID 0, native option identity and process reapi
 Each live probe had a $2 reservation, 120-second prompt and 180-second outer
 deadline, an awake supervisor, and zero retries.
 
-- [Denied write](../../packages/paperclip-runner/test/fixtures/copilot-live-denial-2026-09-28.json): Copilot requested a native file edit at 7.177s. The client returned its exact `reject_once` option for request ID 0. The turn ended at 7.187s and all 79 filesystem observations through 12.837s remained absent. Native exit and owned process-group cleanup passed.
-- [Detached command](../../packages/paperclip-runner/test/fixtures/copilot-live-detached-2026-09-28.json): the native tool call explicitly requested `mode: async`, `detach: true`. Only the exact finite three-second marker command received `allow_once`. Native output confirmed the detached shell exited 0 at 10.083s; the marker was present before the 10.675s terminal response and remained correct through cleanup.
+- [Denied write](../../packages/nexus-runner/test/fixtures/copilot-live-denial-2026-09-28.json): Copilot requested a native file edit at 7.177s. The client returned its exact `reject_once` option for request ID 0. The turn ended at 7.187s and all 79 filesystem observations through 12.837s remained absent. Native exit and owned process-group cleanup passed.
+- [Detached command](../../packages/nexus-runner/test/fixtures/copilot-live-detached-2026-09-28.json): the native tool call explicitly requested `mode: async`, `detach: true`. Only the exact finite three-second marker command received `allow_once`. Native output confirmed the detached shell exited 0 at 10.083s; the marker was present before the 10.675s terminal response and remained correct through cleanup.
 
 These are actual GitHub-service results, distinct from the earlier loopback
 fixtures. They qualify these two narrow file/command oracles only. They do not
@@ -881,7 +881,7 @@ remains unknown. The overall candidate remains pending.
 
 ## Semantic plan after host capacity recovered
 
-A separately authorized [Product plan attempt](../../packages/paperclip-runner/test/fixtures/copilot-product-plan-live-proof-2026-09-28.json)
+A separately authorized [Product plan attempt](../../packages/nexus-runner/test/fixtures/copilot-product-plan-live-proof-2026-09-28.json)
 passed all six matchers in 45.625 seconds at source
 `c06fc5fccc88f5816450434493451b9d2d339125`, using the final provider pack and updated
 immutable daemon. The original PostgreSQL startup failure is retained separately;
@@ -889,7 +889,7 @@ this was one explicit new attempt with no automatic retry. Browser review shows
 the complete Plan revision 1, a confirmation targeting that exact revision,
 the approval message and the exact terminal marker once.
 
-This is Paperclip semantic planning. It does not enable Copilot's unwired native
+This is Nexus semantic planning. It does not enable Copilot's unwired native
 `exit_plan_mode` responder. The approved continuation deliberately opened a fresh
 session after the adapter configuration changed and `forceFreshSession` was
 requested, so this case does not prove warm-session reuse. Both paused and
@@ -907,7 +907,7 @@ per-turn cost receipt.
 
 ## Controller restart and pending question recovery
 
-The [retained restart proof](../../packages/paperclip-runner/test/fixtures/copilot-product-restart-live-proof-2026-09-28.json)
+The [retained restart proof](../../packages/nexus-runner/test/fixtures/copilot-product-restart-live-proof-2026-09-28.json)
 passed all six matchers in 50.875 seconds at source
 `19ca0f558d3aebddedc6ff14836ff3e71498e68e`, using the same final pack and immutable
 daemon. The exact pending Cobalt/Amber interaction remained visible after server
@@ -948,7 +948,7 @@ script digests. No additional provider prompt was sent.
 
 ## Linux image initialize-only proof
 
-The [Linux x64 pack proof](../../packages/paperclip-runner/test/fixtures/copilot-provider-pack-linux-x64-2026-09-28.json)
+The [Linux x64 pack proof](../../packages/nexus-runner/test/fixtures/copilot-provider-pack-linux-x64-2026-09-28.json)
 uses image `ghcr.io/paperclipai/paperclip-daytona-runner@sha256:5457769683fd310223d3b0d4f1ed9a6cf341bdb16514746b3aaeabca2e888fee`
 from the same source `8aa867b64d5fc2fd62cff110bd000addf5dc54de`. Its platform-specific
 pack digest is `sha256:b11984fe02bd5d5a36b01ed559d2f4c765663df09a46117d3092b1183be08ba4`.

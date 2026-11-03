@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, authUsers, companies, companyMemberships, createDb, heartbeatRuns, heartbeatRunEvents, issues, principalPermissionGrants } from "@paperclipai/db";
+import { agents, authUsers, companies, companyMemberships, createDb, heartbeatRuns, heartbeatRunEvents, issues, principalPermissionGrants } from "@nexusai/db";
 import { registerServerAdapter, unregisterServerAdapter } from "../adapters/index.js";
 import { heartbeatService } from "../services/heartbeat.js";
 import { resolveManagedInstructionsRoot } from "../services/agent-instructions.js";
@@ -36,7 +36,7 @@ describePostgres("heartbeat instruction working-copy lifecycle", () => {
   const adapterType = "instruction_working_copy_test";
   const entryFile = "policy/INSTRUCTIONS.txt";
   const initial = "\uFEFF# Original\r\n☃\n", edited = "\uFEFF# Saved\r\nKeep across runs. ☃\n";
-  const previousHome = process.env.PAPERCLIP_HOME;
+  const previousHome = process.env.NEXUS_HOME;
   let home: string;
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
@@ -46,7 +46,7 @@ describePostgres("heartbeat instruction working-copy lifecycle", () => {
 
   beforeAll(async () => {
     home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "heartbeat-instruction-copies-")));
-    process.env.PAPERCLIP_HOME = home;
+    process.env.NEXUS_HOME = home;
     temporary = await startEmbeddedPostgresTestDatabase("heartbeat-instruction-copies-db-");
     db = createDb(temporary.connectionString);
     heartbeat = heartbeatService(db);
@@ -70,7 +70,7 @@ describePostgres("heartbeat instruction working-copy lifecycle", () => {
     unregisterServerAdapter(adapterType);
     await db?.$client.end({ timeout: 0 });
     await temporary?.cleanup();
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previousHome;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = previousHome;
     if (home) {
       const makeRemovable = async (directory: string): Promise<void> => {
         await fs.chmod(directory, 0o700);
@@ -112,7 +112,7 @@ describePostgres("heartbeat instruction working-copy lifecycle", () => {
     expect(first.finished.status, first.finished.error ?? undefined).toBe("succeeded");
     expect(first.input.before).toBe(initial);
     expect(first.input.instructionPath).not.toBe(path.join(f.root, entryFile));
-    expect(first.input.context.paperclipTaskMarkdown).toContain("Your persistent agent directory is");
+    expect(first.input.context.nexusTaskMarkdown).toContain("Your persistent agent directory is");
     expect(first.finished.resultJson?.instructionSave).toMatchObject({ state: "saved", contract: "agent_files", entryFile });
     expect(first.events.some(event => event.eventType === "instruction_save" && event.payload?.state === "saved")).toBe(true);
     expect(await fs.readFile(path.join(f.root, entryFile), "utf8")).toBe(edited);
@@ -129,7 +129,7 @@ describePostgres("heartbeat instruction working-copy lifecycle", () => {
     const { finished, input, events } = await execute(f);
     expect(finished.status, finished.error ?? undefined).toBe("succeeded");
     expect(input.instructionPath).toBeNull();
-    expect(input.context.paperclipTaskMarkdown).toContain("No editable agent instruction working copy is registered");
+    expect(input.context.nexusTaskMarkdown).toContain("No editable agent instruction working copy is registered");
     expect(finished.resultJson?.instructionSave).toBeUndefined();
     expect(events.some(event => event.eventType === "instruction_save" && event.payload?.state === "unavailable")).toBe(true);
     expect(await fs.readFile(path.join(f.root, entryFile), "utf8")).toBe(initial);

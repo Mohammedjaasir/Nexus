@@ -8,7 +8,7 @@ export interface PlanObservation {
   comments: PlanRow[]; activity: PlanRow[]; interactions: PlanRow[]; wakes: PlanRow[];
 }
 export interface PlanCheck { id: string; passed: boolean; detail: string }
-export const PLAN_GRADER = "paperclip.plan-task-guidance.v1";
+export const PLAN_GRADER = "nexus.plan-task-guidance.v1";
 export function planDocumentJson(body: unknown): unknown {
   if (typeof body !== "string") return undefined;
   const text = body.trim();

@@ -5,7 +5,7 @@ import { SpekoCallHistoryView, SpekoCallReport, SpekoCallActivityItem, SpekoUnap
 import { callHistoryFixture } from "../../../support/speko/spekoCallHistory";
 import { voiceStoryLifecycle } from "../../../support/speko/voiceStoryLifecycle";
 const entry = callHistoryFixture;
-const meta = { ...voiceStoryLifecycle, id: "connections-speko-call-history", title: "Apps, channels, and extensions/External chat and email/Speko/Call history", component: SpekoCallHistoryView, args: { onRetry: fn() }, parameters: { layout: "padded", paperclip: {"capabilities": ["chat-channels/lifecycle", "chat-channels/conversation"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production call-history disclosure with fixture sessions, transcripts and partial costs. No provider report reconciliation or spoken playback proof."} } } satisfies Meta<typeof SpekoCallHistoryView>;
+const meta = { ...voiceStoryLifecycle, id: "connections-speko-call-history", title: "Apps, channels, and extensions/External chat and email/Speko/Call history", component: SpekoCallHistoryView, args: { onRetry: fn() }, parameters: { layout: "padded", nexus: {"capabilities": ["chat-channels/lifecycle", "chat-channels/conversation"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production call-history disclosure with fixture sessions, transcripts and partial costs. No provider report reconciliation or spoken playback proof."} } } satisfies Meta<typeof SpekoCallHistoryView>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Empty: Story = {};

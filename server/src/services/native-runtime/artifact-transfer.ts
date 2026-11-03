@@ -2,8 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { posix } from "node:path";
 import { z } from "zod";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
-import { SemanticToolOutcomeUnknownError } from "../../vendor/paperclip-runner/index.js";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
+import { SemanticToolOutcomeUnknownError } from "../../vendor/nexus-runner/index.js";
 import { RUNNER_API_MAX_BYTES } from "./runner-api-client.js";
 
 export const DOWNLOAD_ARTIFACT = "download_artifact";
@@ -104,9 +104,9 @@ export function createArtifactInstaller(workspaceRoot: string, runner: Pick<Comm
   return async input => {
     if (!posix.isAbsolute(workspaceRoot) || workspaceRoot.split("/").some(part => part === ".." || part === ".") || /[\u0000-\u001f\u007f\\]/u.test(workspaceRoot)
       || posix.isAbsolute(input.destination) || /[\u0000-\u001f\u007f\\]/u.test(input.destination)
-      || input.destination.split("/").some(part => !part || part === "." || part === ".." || part.toLowerCase() === ".paperclip" || part === ".git" || part.startsWith(".paperclip-artifact-"))) throw new Error("artifact_install_path_denied");
+      || input.destination.split("/").some(part => !part || part === "." || part === ".." || part.toLowerCase() === ".nexus" || part === ".git" || part.startsWith(".nexus-artifact-"))) throw new Error("artifact_install_path_denied");
     if (input.bytes.length !== input.byteSize || createHash("sha256").update(input.bytes).digest("hex") !== input.sha256) throw new Error("artifact_install_identity_mismatch");
-    const scratch = `.paperclip-artifact-${randomUUID()}`;
+    const scratch = `.nexus-artifact-${randomUUID()}`;
     const run = async (phase: string) => {
       const result = await runner.execute({ command: "node", args: ["--input-type=commonjs", "-e", INSTALL, JSON.stringify({ root: workspaceRoot, destination: input.destination, byteSize: input.byteSize, sha256: input.sha256, scratch, phase })],
         cwd: workspaceRoot, env: { NODE_OPTIONS: "", NODE_PATH: "" }, stdin: phase === "prepare" ? input.bytes.toString("base64") : undefined, timeoutMs: 30_000, bypassSession: true }).catch(() => { throw new Error("artifact_install_failed"); });

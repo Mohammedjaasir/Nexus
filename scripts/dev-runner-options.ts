@@ -1,9 +1,9 @@
 import path from "node:path";
 import {
-  DEFAULT_PAPERCLIP_INSTANCE_ID,
+  DEFAULT_NEXUS_INSTANCE_ID,
   expandHomePrefix,
-  resolvePaperclipConfigPathForInstance,
-  resolvePaperclipInstanceId,
+  resolveNexusConfigPathForInstance,
+  resolveNexusInstanceId,
 } from "../packages/shared/src/home-paths.ts";
 
 export interface AppliedDevRunnerOptions {
@@ -52,22 +52,22 @@ export function applyDevRunnerOptions(
   }
 
   const dataDir = path.resolve(cwd, expandHomePrefix(dataDirRaw));
-  const hasExplicitConfig = Boolean(env.PAPERCLIP_CONFIG?.trim());
-  const hasExplicitContext = Boolean(env.PAPERCLIP_CONTEXT?.trim());
+  const hasExplicitConfig = Boolean(env.NEXUS_CONFIG?.trim());
+  const hasExplicitContext = Boolean(env.NEXUS_CONTEXT?.trim());
 
-  env.PAPERCLIP_HOME = dataDir;
+  env.NEXUS_HOME = dataDir;
   if (!hasExplicitConfig) {
-    const instanceId = resolvePaperclipInstanceId(
-      env.PAPERCLIP_INSTANCE_ID ?? DEFAULT_PAPERCLIP_INSTANCE_ID,
+    const instanceId = resolveNexusInstanceId(
+      env.NEXUS_INSTANCE_ID ?? DEFAULT_NEXUS_INSTANCE_ID,
     );
-    env.PAPERCLIP_INSTANCE_ID = instanceId;
-    env.PAPERCLIP_CONFIG = resolvePaperclipConfigPathForInstance({
+    env.NEXUS_INSTANCE_ID = instanceId;
+    env.NEXUS_CONFIG = resolveNexusConfigPathForInstance({
       homeDir: dataDir,
       instanceId,
     });
   }
   if (!hasExplicitContext) {
-    env.PAPERCLIP_CONTEXT = path.resolve(dataDir, "context.json");
+    env.NEXUS_CONTEXT = path.resolve(dataDir, "context.json");
   }
 
   return { forwardedArgs, dataDir };

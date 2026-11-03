@@ -177,7 +177,7 @@ export function createOAuthClientProtocol({ fetchRemoteHttpUrl, assertOAuthEndpo
       // Some DCR servers restrict client_name to alphanumeric characters,
       // hyphens and spaces. Keep the deployment host recognizable without
       // sending punctuation such as dots, colons or parentheses.
-      client_name: `Paperclip ${clientNameHost}`,
+      client_name: `Nexus ${clientNameHost}`,
       redirect_uris: [input.redirectUri],
       grant_types: [
         "authorization_code",
@@ -188,7 +188,7 @@ export function createOAuthClientProtocol({ fetchRemoteHttpUrl, assertOAuthEndpo
       ],
       response_types: ["code"],
       token_endpoint_auth_method: tokenEndpointAuthMethod,
-      // RFC 7591: Paperclip's callback is a server-side HTTPS endpoint, so this
+      // RFC 7591: Nexus's callback is a server-side HTTPS endpoint, so this
       // is a `web` client, not a `native` one. Some authorization servers reject
       // an https redirect URI when the default (`web`) is left implicit, and
       // others apply native-client redirect rules without it.
@@ -229,7 +229,7 @@ export function createOAuthClientProtocol({ fetchRemoteHttpUrl, assertOAuthEndpo
       maxLength: MAX_OAUTH_DCR_CLIENT_SECRET_LENGTH,
     });
     // Some authorization servers add provider-owned metadata to the registered
-    // client. Paperclip still uses only the exact redirect, grant and response
+    // client. Nexus still uses only the exact redirect, grant and response
     // types it requested, so accept bounded supersets while requiring every
     // requested value to remain present. Hugging Face, for example, adds the
     // device-code grant to an otherwise valid authorization-code registration.
@@ -242,8 +242,8 @@ export function createOAuthClientProtocol({ fetchRemoteHttpUrl, assertOAuthEndpo
     // RFC 7591 registration responses do not consistently echo every accepted
     // request field. Supabase, for example, returns only the client material and
     // redirect URIs. Redirect binding remains mandatory; omitted grant/response
-    // metadata inherits the values Paperclip requested. Additional provider-owned
-    // values do not widen Paperclip's behavior because they are never persisted as
+    // metadata inherits the values Nexus requested. Additional provider-owned
+    // values do not widen Nexus's behavior because they are never persisted as
     // a flow choice or sent in authorization/token requests.
     assertOAuthDcrArray(record, "grant_types", requestedMetadata.grant_types, {
       allowAdditional: true,
@@ -347,9 +347,9 @@ export function createOAuthClientProtocol({ fetchRemoteHttpUrl, assertOAuthEndpo
 
     // The token URL can come from a connection row written before the endpoint
     // gate existed, so a client secret / authorization code never leaves
-    // Paperclip without re-checking the transport it would leave over.
+    // Nexus without re-checking the transport it would leave over.
     const tokenUrl = assertOAuthEndpointUrl("token", input.tokenUrl, {
-      // Paperclip's own callback origin, so a first-party token endpoint keeps
+      // Nexus's own callback origin, so a first-party token endpoint keeps
       // working on a deployment that is itself served over plaintext HTTP.
       firstPartyOrigin: originOf(input.redirectUri),
     });

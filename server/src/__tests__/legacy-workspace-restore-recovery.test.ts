@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "./helpers/full-database-response-capture.js";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, companies, createDb, environmentLeases, environments, executionWorkspaces, heartbeatRuns, issueRecoveryActions, issues, projects } from "@paperclipai/db";
+import { agents, companies, createDb, environmentLeases, environments, executionWorkspaces, heartbeatRuns, issueRecoveryActions, issues, projects } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { recordLegacyWorkspaceRestoreFailure, legacyExecutionNeedsReconciliationWithEvidence, terminalizeLegacyExecution } from "../services/legacy-execution-recovery.js";
 import { hasConversationContinuationPolicy, conversationRecoveryActionPredicate } from "../services/conversation-continuation.js";
@@ -12,7 +12,7 @@ import { environmentService } from "../services/environments.js";
 import { deliverExecutionStatuses } from "../services/execution-status-delivery.js";
 import { hasRequiredWorkspaceRecovery } from "../services/workspace-restore-recovery-state.js";
 
-const externalTestDatabaseUrl = process.env.PAPERCLIP_TEST_DATABASE_URL?.trim();
+const externalTestDatabaseUrl = process.env.NEXUS_TEST_DATABASE_URL?.trim();
 const support = externalTestDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("legacy remote workspace recovery", () => {
   let db: ReturnType<typeof createDb>;
@@ -59,7 +59,7 @@ const support = externalTestDatabaseUrl ? { supported: true } : await getEmbedde
     let returned: Awaited<ReturnType<typeof terminalizeLegacyExecution>>;
     try { returned = await terminalizeLegacyExecution({ db, run: saved!, status: "failed", patch }); }
     finally { capture.flush(); }
-    const groups = events.filter(event => event.event === "paperclip.test_db_response_capture.entry.v1");
+    const groups = events.filter(event => event.event === "nexus.test_db_response_capture.entry.v1");
     const reads = groups.filter(group => group.table === "heartbeat_runs" && group.operation === "select");
     expect(reads.reduce((sum, group) => sum + Number(group.calls), 0)).toBe(1);
     expect(reads.reduce((sum, group) => sum + Number(group.responseValueBytes), 0)).toBeLessThan(4096);
@@ -94,7 +94,7 @@ const support = externalTestDatabaseUrl ? { supported: true } : await getEmbedde
       ...(recordRestoreFailureOnly ? { patch: { resultJson: failed.resultJson } } : {}),
     }); }
     finally { capture.flush(); }
-    const writes = events.filter(event => event.event === "paperclip.test_db_response_capture.entry.v1"
+    const writes = events.filter(event => event.event === "nexus.test_db_response_capture.entry.v1"
       && event.table === "heartbeat_runs" && event.operation === "update");
     expect(writes.reduce((sum, group) => sum + Number(group.rows), 0)).toBe(1);
     expect(returned).toMatchObject({ id: f.runId, status: "failed", finishedAt: failed.finishedAt,
@@ -201,7 +201,7 @@ const support = externalTestDatabaseUrl ? { supported: true } : await getEmbedde
     expect(await db.select().from(issueRecoveryActions).where(and(eq(issueRecoveryActions.id, action.id), conversationRecoveryActionPredicate()))).toEqual([]);
     // A new controller uses the durable stop-only intent. It cannot turn a
     // successful stop into proof that the workspace files were restored.
-    const receipt = { schema: "paperclip.remote-termination.v1", runId: f.runId, companyId: f.companyId,
+    const receipt = { schema: "nexus.remote-termination.v1", runId: f.runId, companyId: f.companyId,
       leaseId: lease.id, provider: lease.provider, providerLeaseId: lease.providerLeaseId, state: "stopped", confirmedAt: new Date().toISOString() };
     await settleStopOnlyCleanup(db, lease, { attemptId: String(lease.metadata?.pendingCleanupAttemptId), receipt });
     expect(await readLease(lease.id)).toMatchObject({ status: "released", leasePolicy: "retain_on_failure", metadata: { remoteExecutionTermination: { state: "stopped" } } });
@@ -526,7 +526,7 @@ const support = externalTestDatabaseUrl ? { supported: true } : await getEmbedde
     const f = await seed();
     await recordLegacyWorkspaceRestoreFailure(db, f.run, patch.resultJson);
     const [run] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, f.runId));
-    const projection = { workspaceRestoreFailure: "restore_failed", workspaceRestoreRecovery: { schema: "paperclip.workspace-restore-recovery.v1" }, presentationDecision: "updated" };
+    const projection = { workspaceRestoreFailure: "restore_failed", workspaceRestoreRecovery: { schema: "nexus.workspace-restore-recovery.v1" }, presentationDecision: "updated" };
     const [updated] = await db.update(heartbeatRuns).set({ resultJson: preserveWorkspaceRestoreRecoveryMetadataSql(projection, mergeCurrent) })
       .where(eq(heartbeatRuns.id, f.runId)).returning();
     expect(updated.resultJson).toMatchObject({ presentationDecision: "updated", workspaceRestoreRecovery: run.resultJson!.workspaceRestoreRecovery });

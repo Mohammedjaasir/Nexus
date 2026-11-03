@@ -1,5 +1,5 @@
-import type { Db } from "@paperclipai/db";
-import type { Agent, EnvironmentProbeResult } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import type { Agent, EnvironmentProbeResult } from "@nexusai/shared";
 import { conflict, unprocessable } from "../errors.js";
 import { resolveAgentRunnerEnvironmentForCompany } from "./agent-runner-selection.js";
 import { probeEnvironment, readSandboxPlatformQualification } from "./environment-probe.js";
@@ -11,12 +11,12 @@ export async function qualifyAgentRunner(
   expectedEnvironmentId: string,
   pluginWorkerManager?: PluginWorkerManager,
 ): Promise<EnvironmentProbeResult> {
-  if (!["claude_local", "codex_local", "grok_local", "paperclip_runner"].includes(agent.adapterType)) {
+  if (!["claude_local", "codex_local", "grok_local", "nexus_runner"].includes(agent.adapterType)) {
     throw unprocessable("This agent does not support computer qualification.");
   }
   const { environment } = await resolveAgentRunnerEnvironmentForCompany(db, agent.companyId, agent.defaultEnvironmentId);
   if (!environment || environment.id !== expectedEnvironmentId) {
-    throw conflict(agent.adapterType === "paperclip_runner"
+    throw conflict(agent.adapterType === "nexus_runner"
       ? "The agent's computer changed. Save the computer selection, reload, and run its test again."
       : "The agent's computer changed. Save any environment changes, reload, and retry the upgrade.");
   }
@@ -25,7 +25,7 @@ export async function qualifyAgentRunner(
   }
   // A normal native-agent Test still probes its runtime. Reuse a valid saved
   // platform proof so that test does not invalidate a healthy computer first.
-  if (agent.adapterType === "paperclip_runner" && await readSandboxPlatformQualification(db, environment, agent.companyId)) {
+  if (agent.adapterType === "nexus_runner" && await readSandboxPlatformQualification(db, environment, agent.companyId)) {
     return { ok: true, driver: "sandbox", summary: "The agent's computer is qualified for runner selection.",
       details: { platformQualificationRecorded: true } };
   }
@@ -41,7 +41,7 @@ export async function qualifyAgentRunner(
     ok: result.ok,
     driver: "sandbox",
     summary: qualified ? "The agent's computer is qualified for runner selection."
-      : agent.adapterType === "paperclip_runner" ? "Could not verify the saved computer. Run test again."
+      : agent.adapterType === "nexus_runner" ? "Could not verify the saved computer. Run test again."
         : "Could not qualify the agent's computer. Retry the upgrade or keep Legacy runner.",
     details: {
       platformQualificationRecorded: qualified,

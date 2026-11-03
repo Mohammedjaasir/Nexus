@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { posix } from "node:path";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 import { runRemoteProviderVerification } from "./remote-provider-pack.js";
 
 export function canonicalProviderPackJson(value: unknown): string {

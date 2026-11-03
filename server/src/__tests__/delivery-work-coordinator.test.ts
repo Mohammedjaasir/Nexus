@@ -4,7 +4,7 @@ import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordin
 import { notifyDeliveryWork, DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { beginIdleTrackedWork, idleWorkSnapshot, isIdleTaskDrainActive, readTaskDrain, startTaskDrain, stopTaskDrain } from "../services/task-admission.js";
 import { readIdleSleepSafety } from "../services/idle-sleep-safety.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 const coordinators: ReturnType<typeof createDeliveryWorkCoordinator>[] = [];
 afterEach(async () => { stopTaskDrain(); for (const c of coordinators.splice(0)) await c.stop(); vi.useRealTimers(); });

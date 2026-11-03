@@ -9,7 +9,7 @@ const meta = {
   component: SlackSetupFixture,
   parameters: { layout: "fullscreen", initialEntries: [`${start}&resume=slack-story`],
     docs: { description: { component: "Production Slack setup pages in journey order. Automatic stories use the same four-step wizard; manual setup retains account linking. Slack creation, consent, verification, and identity discovery are simulated; use synthetic tokens only." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "chat-channels/providers",
         "connection-setup/channel-setup"
@@ -42,7 +42,7 @@ export const ChooseAgentSelected: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByText("Advanced", { selector: "summary" }));
-    await expect(canvas.getByLabelText("Slack app name", { exact: true })).toHaveValue("maya-paperclip");
+    await expect(canvas.getByLabelText("Slack app name", { exact: true })).toHaveValue("maya-nexus");
     await expect(canvas.getByLabelText("Bot display name", { exact: true })).toHaveValue("maya");
     await expect(canvas.getByLabelText("Slash command", { exact: true })).toHaveValue("/maya");
   },

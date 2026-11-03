@@ -1,4 +1,4 @@
-import type { ActivityEvent } from "@paperclipai/shared";
+import type { ActivityEvent } from "@nexusai/shared";
 
 export interface AssigneeSelection {
   assigneeAgentId: string | null;

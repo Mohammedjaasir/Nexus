@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agents, companies, createDb, heartbeatRuns, issueComments, issues, runIdentityContexts } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRuns, issueComments, issues, runIdentityContexts } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { boundRunIssueId, boundRunIssueIdSql } from "../run-task-binding.js";
 import { chatRunSourceMessageId } from "./run-origin.js";
@@ -12,7 +12,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let db: ReturnType<typeof createDb>;
 
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-channel-origin-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-channel-origin-");
     db = createDb(database.connectionString);
   }, 30_000);
   afterAll(async () => { await database?.cleanup(); }, 60_000);

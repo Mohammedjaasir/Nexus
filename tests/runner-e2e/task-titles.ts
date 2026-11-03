@@ -99,7 +99,7 @@ export function gradeTaskTitle(input: TaskTitleEvidenceInput) {
       && /(rotat|replac|renew|expir)/i.test(title) && /\b(api|keys?|credentials?)\b/i.test(title), "A concise title describes the key-rotation request instead of copying the prompt prefix or answer receipt.");
     const terminalIndex = input.events.findIndex(event => event.eventType === "run.terminal");
     const finishIndex = Math.min(
-      [...starts.values()].find(call => ["paperclip_finish", "finish_task"].includes(call.name))?.index ?? input.events.length,
+      [...starts.values()].find(call => ["nexus_finish", "finish_task"].includes(call.name))?.index ?? input.events.length,
       terminalIndex < 0 ? input.events.length : terminalIndex,
     );
     const proven = calls.filter(([id, call]) => {
@@ -118,7 +118,7 @@ export function gradeTaskTitle(input: TaskTitleEvidenceInput) {
       && record(record(titleWrites[0]?.details).previous).title === provisional, "The same assigned agent and initial run must own the single persisted title mutation.");
   }
   return {
-    schema: "paperclip.task-title-eval.v1", passed: checks.every(entry => entry.passed), checks,
+    schema: "nexus.task-title-eval.v1", passed: checks.every(entry => entry.passed), checks,
     initialTitle: initial.title, finalTitle: final.title,
     titleCalls: calls.map(([id, call]) => ({ id, position: call.position, completed: completions.has(id), result: results.get(id) ?? null })),
     titleWrites,

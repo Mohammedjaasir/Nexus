@@ -102,8 +102,8 @@ not presented as shipped integrations.
 ## Validation
 
 ```sh
-pnpm --filter @paperclipai/ui exec storybook dev --port 6143 --host 127.0.0.1 --no-open --ci -c storybook/.storybook
-pnpm --filter @paperclipai/ui typecheck
+pnpm --filter @nexusai/ui exec storybook dev --port 6143 --host 127.0.0.1 --no-open --ci -c storybook/.storybook
+pnpm --filter @nexusai/ui typecheck
 pnpm check:token-gates
 pnpm build-storybook
 ```

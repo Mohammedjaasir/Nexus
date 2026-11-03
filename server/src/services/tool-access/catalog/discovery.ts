@@ -7,24 +7,24 @@ import { oauthConfig } from "../oauth/metadata.js";
 import { projectedConnectionHeaders } from "../connection-methods.js";
 import { nativeProviderCatalogFor } from "../../native-provider-catalogs.js";
 import { restConnectorFor } from "../../connectors/rest-registry.js";
-import { GOOGLE_WORKSPACE_SERVICES, googleWorkspaceServiceGranted, googleWorkspaceToolName, googleWorkspaceGrantedScopes, isGoogleWorkspaceToolGranted, type GoogleWorkspaceService } from "@paperclipai/shared";
+import { GOOGLE_WORKSPACE_SERVICES, googleWorkspaceServiceGranted, googleWorkspaceToolName, googleWorkspaceGrantedScopes, isGoogleWorkspaceToolGranted, type GoogleWorkspaceService } from "@nexusai/shared";
 import { isInsufficientConnectionScope, INSUFFICIENT_CONNECTION_SCOPE_MESSAGE } from "../../connection-permission-errors.js";
 import { mcpDiscoveryHttpFailure, withMcpConnectionFailure } from "../../mcp-connection-failure.js";
-import { BROWSER_USE_TOOLS } from "@paperclipai/shared";
+import { BROWSER_USE_TOOLS } from "@nexusai/shared";
 import { browserUseClient, isBrowserUseConnection } from "../../browser-use-client.js";
 import { COGNEE_STDIO_TEMPLATE, cogneeCloudUrl } from "../../cognee-connection.js";
-import { isMemoryConnectorId } from "@paperclipai/shared";
+import { isMemoryConnectorId } from "@nexusai/shared";
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { connectionGrants, toolConnections } from "@paperclipai/db";
-import { GOOGLE_WORKSPACE_CONNECTOR_PROFILES, getConnectableAppDefinition } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { connectionGrants, toolConnections } from "@nexusai/db";
+import { GOOGLE_WORKSPACE_CONNECTOR_PROFILES, getConnectableAppDefinition } from "@nexusai/shared";
 import { badRequest, HttpError, unprocessable } from "../../../errors.js";
 import { isSlackMcpAccessDisabledResponse } from "../../slack-mcp-error.js";
 import { initializeMcpHttpSession, McpHttpInitializationError, getMcpHttpSession, forgetMcpHttpSessions, readMcpHttpResponse, mcpHttpRequestHeaders } from "../../mcp-http.js";
 import { secretService } from "../../secrets.js";
 import { agentmailApi } from "../../agentmail-api.js";
 import { createRailwayClient, discoverRailwayWorkspace, isRailwayConnection, normalizeRailwayToolName, RAILWAY_TOOLS, RAILWAY_TOOL_PREFIX, RailwayError } from "../../railway.js";
-import { isPaperclipCloudConnectorStrategy } from "../../paperclip-cloud-connector.js";
+import { isNexusCloudConnectorStrategy } from "../../nexus-cloud-connector.js";
 import { vercelTokenRequest, type VercelConnectClient } from "../../vercel-connect.js";
 
 import type { ToolAccessAudit } from "../audit.js";
@@ -112,7 +112,7 @@ export function createToolCatalogDiscovery(db: Db, { now, audit, secrets, creden
     // Pinned to the address the guard approved: `config.url` is operator-supplied,
     // so a second DNS resolution here would reopen the rebinding window that
     // PAP-17098 closed for the OAuth endpoints.
-    let listRequestId = "paperclip-catalog-refresh";
+    let listRequestId = "nexus-catalog-refresh";
     let sessionHeaders = headers;
     const sendRemote = (init: RequestInit) => withMcpConnectionFailure(() => requestRemoteHttpEndpoint(new URL(endpoint), init));
     const sendToolsList = (requestHeaders: Record<string, string>, cursor?: string) => {
@@ -155,7 +155,7 @@ export function createToolCatalogDiscovery(db: Db, { now, audit, secrets, creden
           const sessionHeaders = await initializeMcpHttpSession({
             send: sendRemote,
             headers,
-            requestId: "paperclip-catalog-refresh",
+            requestId: "nexus-catalog-refresh",
           });
           response = await sendToolsList(sessionHeaders);
           usedInitializedSession = response.ok;
@@ -224,7 +224,7 @@ export function createToolCatalogDiscovery(db: Db, { now, audit, secrets, creden
     if (
       response.status === 401 &&
       connection.authKind === "oauth" &&
-      connection.credentialSource === "paperclip_vault"
+      connection.credentialSource === "nexus_vault"
     ) {
       headers = {
         ...projectedConnectionHeaders(connection),
@@ -235,7 +235,7 @@ export function createToolCatalogDiscovery(db: Db, { now, audit, secrets, creden
       response = await sendToolsList(headers);
       if (
         response.status === 401 &&
-        isPaperclipCloudConnectorStrategy(oauthConfig(connection).strategy)
+        isNexusCloudConnectorStrategy(oauthConfig(connection).strategy)
       ) {
         const grant = await vaultGrantForConnection(connection, actor);
         if (grant) {
@@ -330,13 +330,13 @@ export function createToolCatalogDiscovery(db: Db, { now, audit, secrets, creden
       if (!cursor) break;
       if (seenCursors.has(cursor) || page >= 99 || descriptors.length > 20_000) throw new HttpError(502, "Remote MCP tool catalog pagination did not finish", { code: "mcp_catalog_pagination" });
       seenCursors.add(cursor);
-      listRequestId = `paperclip-catalog-refresh-${page + 1}`;
+      listRequestId = `nexus-catalog-refresh-${page + 1}`;
       response = await sendToolsList(sessionHeaders, cursor);
       if (!response.ok) throw mcpDiscoveryHttpFailure(response, "Remote MCP catalog page could not be read");
     }
     if (!isRailwayConnection(connection)) return descriptors;
     if (descriptors.some((tool) => normalizeRailwayToolName(tool.name).startsWith(RAILWAY_TOOL_PREFIX))) {
-      throw unprocessable("Railway advertised a reserved Paperclip action name. Refresh is blocked pending review.", { code: "railway_tool_name_collision" });
+      throw unprocessable("Railway advertised a reserved Nexus action name. Refresh is blocked pending review.", { code: "railway_tool_name_collision" });
     }
     let apiStatus = "available";
     let apiMessage = "Direct Railway service, log, and deployment tools are available.";
@@ -362,7 +362,7 @@ export function createToolCatalogDiscovery(db: Db, { now, audit, secrets, creden
   }
 
   async function validateCogneeConnection(connection: typeof toolConnections.$inferSelect, actor?: ActorInfo, probe = true) {
-    if (connection.config.templateId !== "paperclip.cognee-cloud") return;
+    if (connection.config.templateId !== "nexus.cognee-cloud") return;
     const grant = await vaultGrantForConnection(connection, actor);
     const refs = grant?.credentialSecretRefs ?? connection.credentialSecretRefs;
     const values: Record<string, string> = {};

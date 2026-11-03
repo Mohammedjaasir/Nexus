@@ -1,13 +1,13 @@
 import { and, desc, eq } from "drizzle-orm";
-import { agents, environments, plugins, pluginCompanySettings, resourceLifecycleEvents, fileStorageDb, type Db } from "@paperclipai/db";
-import type { PluginAgentRuntimeState, PluginAgentRuntimeIdentity } from "@paperclipai/plugin-sdk";
+import { agents, environments, plugins, pluginCompanySettings, resourceLifecycleEvents, fileStorageDb, type Db } from "@nexusai/db";
+import type { PluginAgentRuntimeState, PluginAgentRuntimeIdentity } from "@nexusai/plugin-sdk";
 import { agentRecordQueries } from "../lib/agent-records.js";
 import { conflict, forbidden, unprocessable } from "../errors.js";
 import { agentInstructionsService } from "./agent-instructions.js";
 import { pluginAgentConnectionAssignments } from "./plugin-agent-connections.js";
 import { companySkillService } from "./company-skills.js";
 import { withSkillActor } from "./skill-access.js";
-import { readPaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
+import { readNexusSkillSyncPreference } from "@nexusai/adapter-utils/server-utils";
 import { skillVersionSelectionMap } from "./runtime-skill-selections.js";
 import { instanceSettingsService } from "./instance-settings.js";
 import { agentInstanceSecretService } from "./agent-instance-secrets.js";
@@ -61,11 +61,11 @@ export async function pluginAgentRuntimeState(db: Db, pluginId: string, companyI
       ? await db.select().from(environments).where(eq(environments.id, effectiveEnvironmentId)) : [];
     if (environmentId && !environment) throw unprocessable("The selected environment is unavailable");
     const { config: selectionConfig, skillKeys: environmentSkills, shadowedSkills } = await environmentSkillConfig(db, companyId, environment, state.agent.adapterConfig, installEnvironmentSkills);
-    const preference = readPaperclipSkillSyncPreference(selectionConfig);
+    const preference = readNexusSkillSyncPreference(selectionConfig);
     const settings = instance.experimental;
     const skills = await withSkillActor({ type: "agent", agentId, companyId, source: "agent_key" }, () =>
       companySkillService(db).listRuntimeSkillEntries(companyId, {
-        selectionConfig, includeLegacy: state.agent.adapterType !== "paperclip_runner", snapshotLatest: true,
+        selectionConfig, includeLegacy: state.agent.adapterType !== "nexus_runner", snapshotLatest: true,
         versionSelections: skillVersionSelectionMap(preference.desiredSkillEntries, { versionPinsEnabled: settings.enableBetaSkills }),
       }));
     if (environmentSkills.some(key => !skills.some(skill => skill.key === key && skill.sourceStatus !== "missing"))) {

@@ -1,6 +1,6 @@
 import type { LifecycleRuntimeFence } from "../runtime-types.js";
 
-export const GITHUB_RECOVERY_STATE_KEY = "paperclip:github-webhook-recovery:v1";
+export const GITHUB_RECOVERY_STATE_KEY = "nexus:github-webhook-recovery:v1";
 export const GITHUB_RECOVERY_INTERVAL_MS = 60_000;
 export const GITHUB_RECOVERY_WINDOW_MS = 60 * 60_000;
 export const GITHUB_RECOVERY_SCAN_LEASE_MS = 5 * 60_000;

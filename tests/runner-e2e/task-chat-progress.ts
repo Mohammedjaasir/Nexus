@@ -24,7 +24,7 @@ export function taskChatProgress(runId: string, events: Row[], author: string): 
   });
   for (const event of ordered) {
     const envelope = event.payload?.prpEvent;
-    if (envelope?.schema !== "paperclip.prp.event.v1" || envelope.schemaVersion !== 1 ||
+    if (envelope?.schema !== "nexus.prp.event.v1" || envelope.schemaVersion !== 1 ||
       envelope.runId !== runId || envelope.eventType !== event.eventType ||
       !["item.started", "item.delta", "item.completed"].includes(event.eventType)) continue;
     if (envelope.sourceEventId && seen.has(envelope.sourceEventId)) continue;

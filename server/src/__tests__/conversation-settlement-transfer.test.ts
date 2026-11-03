@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agents, companies, createDb, heartbeatRuns, issueComments, issueThreadInteractions, issues } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRuns, issueComments, issueThreadInteractions, issues } from "@nexusai/db";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "./helpers/full-database-response-capture.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { settleConversationTurnForRun } from "../services/agent-conversations.js";
@@ -11,7 +11,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-conversation-settlement-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-conversation-settlement-");
     db = createDb(database.connectionString);
   }, 30_000);
   afterAll(async () => { await db?.$client.end({ timeout: 5 }); await database?.cleanup(); }, 60_000);
@@ -56,7 +56,7 @@ const support = await getEmbeddedPostgresTestSupport();
     installDatabaseResponseCapture(db, { heartbeatRuns, issues, issueComments }, capture);
     try { expect(await settleConversationTurnForRun(db, input.companyId, input.runId)).toBe(true); }
     finally { capture.flush(); }
-    const reads = events.filter(event => event.event === "paperclip.test_db_response_capture.entry.v1"
+    const reads = events.filter(event => event.event === "nexus.test_db_response_capture.entry.v1"
       && ["heartbeat_runs", "issues", "issue_comments"].includes(String(event.table))
       && (event.operation === "select" || event.operation === "execute"));
     expect(reads.reduce((sum, event) => sum + Number(event.calls), 0)).toBeGreaterThanOrEqual(4);

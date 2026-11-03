@@ -1,7 +1,7 @@
 import type {
   ChatAdapterCapabilities,
   ChatProvider,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 const PROVIDER_LABELS: Record<ChatProvider, string> = {
   speko: "Speko",
@@ -68,13 +68,13 @@ const CAPABILITIES: Record<ChatProvider, ChatAdapterCapabilities> = {
   "microsoft-teams": {
     threads: true,
     directMessages: true,
-    // Production webhook processing is deferred into Paperclip's durable
+    // Production webhook processing is deferred into Nexus's durable
     // ingress queue. The Teams adapter's request-scoped DM streamer is gone by
     // the time agent output is published, so advertise the durable behavior we
     // can actually provide. editMessage still lets one run coalesce its
     // queued, working, and final states in place.
     nativeStreaming: false,
-    // Paperclip supplements the pinned adapter's missing inbound Bot Framework
+    // Nexus supplements the pinned adapter's missing inbound Bot Framework
     // messageUpdate/messageDelete dispatch after provider authentication.
     messageEdits: true,
     messageDeletes: true,

@@ -13,7 +13,7 @@ import {
   buildInputsStampPath,
   readBuildInputsStamp,
   recordRunnerBuild,
-} from "../../packages/paperclip-runner/scripts/build-inputs.mjs";
+} from "../../packages/nexus-runner/scripts/build-inputs.mjs";
 import {
   FORCE_REBUILD_VARIABLE,
   RUNNER_VENDOR_BUILD_COMMAND,
@@ -26,9 +26,9 @@ import {
 const execFileAsync = promisify(execFile);
 const prepareScript = fileURLToPath(new URL("./prepare-runner-vendor.mjs", import.meta.url));
 const recordScript = fileURLToPath(
-  new URL("../../packages/paperclip-runner/scripts/record-build-inputs.mjs", import.meta.url),
+  new URL("../../packages/nexus-runner/scripts/record-build-inputs.mjs", import.meta.url),
 );
-const executable = process.platform === "win32" ? "paperclip-runnerd.exe" : "paperclip-runnerd";
+const executable = process.platform === "win32" ? "nexus-runnerd.exe" : "nexus-runnerd";
 
 const roots = [];
 
@@ -50,17 +50,17 @@ function makeRepo() {
     "pnpm-workspace.yaml": "packages:\n  - packages/*\n  - server\n",
     "tsconfig.base.json": "{}\n",
     "patches/acpx@0.13.1.patch": "--- a\n+++ b\n",
-    "server/package.json": '{"name":"@paperclipai/server"}\n',
-    "packages/paperclip-runner/package.json": '{"name":"@paperclipai/paperclip-runner"}\n',
-    "packages/paperclip-runner/src/index.ts": "export const one = 1;\n",
-    "packages/paperclip-runner/dist/index.js": "export const one = 1;\n",
-    "packages/paperclip-runner/dist/live/index.js": "export {};\n",
-    "packages/paperclip-runner/dist/testing.js": "export {};\n",
-    "packages/paperclip-runner/dist/cli/acpx-runtime-sidecar.cjs": "module.exports = {};\n",
-    [`packages/paperclip-runner/dist/bin/${executable}`]: "binary\n",
-    "packages/paperclip-eval-kernel/src/index.ts": "export const kernel = 1;\n",
+    "server/package.json": '{"name":"@nexusai/server"}\n',
+    "packages/nexus-runner/package.json": '{"name":"@nexusai/nexus-runner"}\n',
+    "packages/nexus-runner/src/index.ts": "export const one = 1;\n",
+    "packages/nexus-runner/dist/index.js": "export const one = 1;\n",
+    "packages/nexus-runner/dist/live/index.js": "export {};\n",
+    "packages/nexus-runner/dist/testing.js": "export {};\n",
+    "packages/nexus-runner/dist/cli/acpx-runtime-sidecar.cjs": "module.exports = {};\n",
+    [`packages/nexus-runner/dist/bin/${executable}`]: "binary\n",
+    "packages/nexus-eval-kernel/src/index.ts": "export const kernel = 1;\n",
   });
-  const packageRoot = path.join(repoRoot, "packages", "paperclip-runner");
+  const packageRoot = path.join(repoRoot, "packages", "nexus-runner");
   return { repoRoot, packageRoot };
 }
 
@@ -132,9 +132,9 @@ describe("resolvePnpmInvocation", () => {
 
 describe("prepareRunnerVendor", () => {
   it("still runs the Runner build the server build has always run", () => {
-    // The Dockerfile's standalone `pnpm --filter @paperclipai/server build`
+    // The Dockerfile's standalone `pnpm --filter @nexusai/server build`
     // depends on this exact command producing a current vendored Runner.
-    expect(RUNNER_VENDOR_BUILD_COMMAND).toBe("pnpm --filter @paperclipai/paperclip-runner build");
+    expect(RUNNER_VENDOR_BUILD_COMMAND).toBe("pnpm --filter @nexusai/nexus-runner build");
   });
 
   it("skips the rebuild when the recorded build is current and reports the check time", () => {
@@ -233,7 +233,7 @@ describe("prepareRunnerVendor", () => {
     expect(readBuildInputsStamp(buildInputsStampPath(packageRoot))).toBeNull();
   });
 
-  it("rebuilds a current build when PAPERCLIP_RUNNER_VENDOR_REBUILD=1", () => {
+  it("rebuilds a current build when NEXUS_RUNNER_VENDOR_REBUILD=1", () => {
     const { repoRoot, packageRoot } = makeRepo();
     recordCurrentBuild({ repoRoot, packageRoot });
     let runs = 0;
@@ -285,7 +285,7 @@ describe("prepareRunnerVendor", () => {
       const calls = () => readFileSync(argvLog, "utf8").split("\n").filter(Boolean);
 
       const first = await run();
-      expect(calls()).toEqual(["--filter @paperclipai/paperclip-runner build"]);
+      expect(calls()).toEqual(["--filter @nexusai/nexus-runner build"]);
       expect(first.stdout).toMatch(/action:rebuild,reason:no_stamp,/);
       expect(assessRunnerBuild({ repoRoot, packageRoot }).current).toBe(true);
 

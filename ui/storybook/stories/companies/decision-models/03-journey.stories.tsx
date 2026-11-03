@@ -8,7 +8,7 @@ import { CompanySettings } from "@/pages/CompanySettings";
 import { Costs } from "@/pages/Costs";
 import { PluginLauncherProvider } from "@/plugins/launchers";
 import { choices, companyId, configured, entry, result, unconfigured } from "../../../support/decision-models/fixtures";
-import type { DecisionHistoryEntry } from "@paperclipai/shared";
+import type { DecisionHistoryEntry } from "@nexusai/shared";
 
 /** Production pages and shell; only API responses and paid provider execution are simulated. */
 function Journey({ alreadyConfigured = false }: { alreadyConfigured?: boolean }) {
@@ -71,7 +71,7 @@ function Journey({ alreadyConfigured = false }: { alreadyConfigured?: boolean })
 const meta = { id: "decision-models-03-journey",
   title: "Getting started and access/Companies and portability/Decision models/03 Journey", component: Journey, parameters: {
   layout: "fullscreen", initialEntries: ["/PAP/company/settings"], docs: { story: { inline: false }, description: { component: "Select an existing shared connection, preserve the background setting, save, run the sample, and follow View usage. Paid calls are fixtures." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "companies/identity",
         "budgets-costs/cost-reporting",

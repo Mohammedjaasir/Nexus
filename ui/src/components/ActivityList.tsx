@@ -1,4 +1,4 @@
-import type { ActivityEvent } from "@paperclipai/shared";
+import type { ActivityEvent } from "@nexusai/shared";
 import { ActivityRow, type ActivityRowProps } from "./ActivityRow";
 
 /** Caller-ordered events, with the same row tokens and responsive metadata

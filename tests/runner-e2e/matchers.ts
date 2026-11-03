@@ -12,7 +12,7 @@ interface Ajv2020Instance {
 }
 
 const runnerRequire = createRequire(
-  new URL("../../packages/paperclip-runner/package.json", import.meta.url),
+  new URL("../../packages/nexus-runner/package.json", import.meta.url),
 );
 const Ajv2020 = runnerRequire("ajv/dist/2020.js").default as new (options: {
   allErrors: boolean;

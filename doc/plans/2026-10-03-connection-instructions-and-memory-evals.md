@@ -43,7 +43,7 @@ authenticated discovery on **2026-09-24**, explicitly not execution of every too
 
 These are observed names, not a cross-provider API or a claim that every
 operation works. Capture fresh schemas before writing live fixtures. In particular,
-Supermemory's `add_memory` is classified as destructive in Paperclip because
+Supermemory's `add_memory` is classified as destructive in Nexus because
 its action parameter can delete. Honcho has a richer context model than a simple
 key/value store. Show the real catalog through the existing Permissions screen.
 
@@ -55,7 +55,7 @@ The similarly named gateway-listing-memory and runner shared-memory tests concer
 resource usage, not semantic memory.
 
 Honcho's [official MCP guide](https://honcho.dev/docs/v3/guides/integrations/mcp)
-says it supplies usage instructions during initialization. Paperclip's
+says it supplies usage instructions during initialization. Nexus's
 `server/src/services/mcp-http.ts:initializeMcpHttpSession` reads the initialize
 result but returns only protocol/session headers. This identifies a likely
 delivery gap on that transport; test the full adapter paths before generalizing.
@@ -119,7 +119,7 @@ provides an instruction template. Keep the real identity controls, access picker
 action list on the same page. Do not add a new tab or duplicate page navigation. Display:
 
 - The checkbox and exact paragraph; **Edit instructions** and, after edits,
-  **Reset to default**. No “Suggested by Paperclip” badge.
+  **Reset to default**. No “Suggested by Nexus” badge.
 - A live recipient summary derived from existing assignments: “Applies to Ada and
   Morgan when this connection is available to the task.” Link to Permissions to
   change access. “All agents” explicitly includes future eligible agents.
@@ -183,7 +183,7 @@ Implement only after the UX has been reviewed. Suggested contracts:
 
 An enabled paragraph is user-controlled operating guidance, not authorization to
 bypass budgets, approvals, current user intent, or company boundaries. Templates
-are maintained by Paperclip; provider initialize instructions are external data
+are maintained by Nexus; provider initialize instructions are external data
 that can inform a reviewed template, not an automatic template update. Pin saved
 versions; show “Suggested instructions updated” with a diff and deliberate apply.
 Never replace custom text during catalog refresh or reconnect.
@@ -203,7 +203,7 @@ memory.” If private
 agent memory is promised later, enforce scope arguments server-side, disallow
 unscoped/list/bulk operations that bypass the boundary, and test alternate tool
 paths. Until then, use isolated provider credentials/workspaces for confidential
-scopes. Paperclip company access checks still apply to every connection.
+scopes. Nexus company access checks still apply to every connection.
 
 ## The smallest useful evaluation
 
@@ -235,10 +235,10 @@ ingestion, poll a documented status/read path with a bounded deadline (proposed
 amount then declare the model wrong. For Honcho, first prove raw message retrieval;
 inferred conclusions are a separate, slower capability.
 
-Use the existing Product E2E runner for through-Paperclip evidence; follow
-`add-product-e2e-eval` and `paperclip-evals` when implementing. Use a fixture MCP
+Use the existing Product E2E runner for through-Nexus evidence; follow
+`add-product-e2e-eval` and `nexus-evals` when implementing. Use a fixture MCP
 server in ordinary CI. Account-bound runs are opt-in; the fixture suite proves
-Paperclip behavior, not provider availability. Existing promptfoo response-text
+Nexus behavior, not provider availability. Existing promptfoo response-text
 tests cannot substitute for the tool loop.
 
 **Model candidates:** start with GPT-5 nano for the baseline, then Gemini 3.1
@@ -308,7 +308,7 @@ new memory service, transcript mirroring, memory browser, or automatic hooks.
 In the initial proposal, no production code was changed. Repo-wide server tests/builds and account-bound
 memory/model evals were not run for this design-only change. Run the full PR
 checks before a PR-ready implementation handoff. This local Codex chat has no
-Paperclip issue/run identity, so issue artifact upload and work-product creation
+Nexus issue/run identity, so issue artifact upload and work-product creation
 could not be associated with a destination. The plan and stories are retained in
 the repository; the built review is available through the local Storybook server.
 

@@ -5,7 +5,7 @@ import { afterEach, expect, it } from "vitest";
 import { resolveManagedGrokHomeDir } from "../../packages/adapters/grok-local/src/server/grok-home.js";
 import { stageGrokSubscriptionFixture } from "./grok-subscription-fixture.js";
 import { findSecretLeak, normalizedSecrets, sanitizeJson } from "./redaction.js";
-import { buildPaperclipServerEnvironment } from "./harness-env.js";
+import { buildNexusServerEnvironment } from "./harness-env.js";
 
 const companyId = "11111111-2222-4333-8444-555555555555";
 const raw = JSON.stringify({ [`https://auth.x.ai::${companyId}`]: {
@@ -16,9 +16,9 @@ afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {
 async function setup() {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), "grok-fixture-")));
   roots.push(root);
-  const home = path.join(root, "paperclip-home");
+  const home = path.join(root, "nexus-home");
   await mkdir(home);
-  return { PAPERCLIP_RUNNER_E2E_TEMP_ROOT: root, PAPERCLIP_HOME: home, PAPERCLIP_INSTANCE_ID: "runner-e2e-test" };
+  return { NEXUS_RUNNER_E2E_TEMP_ROOT: root, NEXUS_HOME: home, NEXUS_INSTANCE_ID: "runner-e2e-test" };
 }
 
 it("stages only the explicit company credential privately and cleans refreshed state", async () => {
@@ -37,7 +37,7 @@ it("refuses malformed credentials and nonisolated or redirected homes", async ()
   const environment = await setup();
   await expect(stageGrokSubscriptionFixture({ raw: "{}", companyId, environment })).rejects.toThrow("malformed");
   await expect(stageGrokSubscriptionFixture({ raw, companyId: "../outside", environment })).rejects.toThrow("isolated");
-  await expect(stageGrokSubscriptionFixture({ raw, companyId, environment: { ...environment, PAPERCLIP_HOME: tmpdir() } })).rejects.toThrow("outside");
+  await expect(stageGrokSubscriptionFixture({ raw, companyId, environment: { ...environment, NEXUS_HOME: tmpdir() } })).rejects.toThrow("outside");
   const home = resolveManagedGrokHomeDir(environment, companyId);
   await mkdir(path.dirname(home), { recursive: true });
   await symlink(tmpdir(), home);
@@ -45,7 +45,7 @@ it("refuses malformed credentials and nonisolated or redirected homes", async ()
 });
 
 it("strips subscription input from the server environment and masks token fragments", () => {
-  const env = buildPaperclipServerEnvironment({ GROK_AUTH_JSON: raw, XAI_API_KEY: "other-key" });
+  const env = buildNexusServerEnvironment({ GROK_AUTH_JSON: raw, XAI_API_KEY: "other-key" });
   expect(env.GROK_AUTH_JSON).toBeUndefined();
   expect(env.XAI_API_KEY).toBeUndefined();
   const secrets = normalizedSecrets([raw]);

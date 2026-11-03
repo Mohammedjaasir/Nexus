@@ -1,5 +1,5 @@
 import { sql, Subquery } from "drizzle-orm";
-import { chatConversations, heartbeatRuns } from "@paperclipai/db";
+import { chatConversations, heartbeatRuns } from "@nexusai/db";
 import { boundRunIssueIdSql } from "./run-task-binding.js";
 
 /**

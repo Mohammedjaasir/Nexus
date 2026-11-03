@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, isNotNull, lte, sql } from "drizzle-orm";
-import { toolActionRequests, toolInvocations, type Db } from "@paperclipai/db";
+import { toolActionRequests, toolInvocations, type Db } from "@nexusai/db";
 import { writeToolReviewChange } from "./tool-review-work-notifications.js";
 
 export function toolReviewExpiryService(db: Db, onExpired: (input: {

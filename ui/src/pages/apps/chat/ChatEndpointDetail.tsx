@@ -5,7 +5,7 @@ import { SpekoPhoneCallback } from "@/components/voice/SpekoPhoneCallback";
 import { deriveInitials } from "@/components/Identity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { agentAvatarUrl } from "@/lib/agent-avatar-url";
-import { resolveAgentAppearance } from "@paperclipai/shared";
+import { resolveAgentAppearance } from "@nexusai/shared";
 import { SlackTestMessageButton } from "./SlackTestMessageButton";
 import { slackConversationUrl } from "./slack/conversation-url";
 import { useAccountIdentity } from "@/api/companies-query";
@@ -94,32 +94,32 @@ const providerLifecycleGuidance: Record<
 > = {
   speko: {
     reconnect: "Reverify this voice persona and update its signed session tools. Existing task assignments stay attached to their history.",
-    remove: "Stop this connection from accepting voice requests. Accepted work and task history remain in Paperclip.",
+    remove: "Stop this connection from accepting voice requests. Accepted work and task history remain in Nexus.",
   },
   agentmail: { reconnect: "Reconnect the same email inbox.", remove: "Disconnect email and retain task history." },
   slack: {
     reconnect:
       "Reconnect verifies or replaces credentials for this same Slack app. It does not reinstall the app or change its workspace or channel membership.",
     remove:
-      "Paperclip archives the endpoint, stops new ingress, and retires its saved Slack credentials. It does not uninstall the Slack app: the app remains installed, and its bot remains in channels, until you remove them in Slack.",
+      "Nexus archives the endpoint, stops new ingress, and retires its saved Slack credentials. It does not uninstall the Slack app: the app remains installed, and its bot remains in channels, until you remove them in Slack.",
   },
   github: {
     reconnect:
       "Reconnect verifies this same App and installation, then updates its webhook URL, secret, and secure delivery settings. It does not reinstall the App or change repository access.",
     remove:
-      "Paperclip archives the endpoint, stops new ingress, and retires its saved App key and webhook secret. It does not uninstall the GitHub App: the App, its installations, and its webhook settings remain until you remove or update them on GitHub.",
+      "Nexus archives the endpoint, stops new ingress, and retires its saved App key and webhook secret. It does not uninstall the GitHub App: the App, its installations, and its webhook settings remain until you remove or update them on GitHub.",
   },
   discord: {
     reconnect:
       "Reconnect verifies this same Discord application and server installation. It does not add or remove the bot from the server.",
     remove:
-      "Paperclip archives the endpoint, stops its Paperclip Gateway connection, and retires its saved bot token. It does not uninstall the bot: the bot remains in the Discord server, and the application remains in the Developer Portal, until you remove them there.",
+      "Nexus archives the endpoint, stops its Nexus Gateway connection, and retires its saved bot token. It does not uninstall the bot: the bot remains in the Discord server, and the application remains in the Developer Portal, until you remove them there.",
   },
   "microsoft-teams": {
     reconnect:
       "Reconnect verifies this same Microsoft app, tenant, and bot identity. It does not upload or reinstall the Teams app.",
     remove:
-      "Paperclip archives the endpoint, stops new ingress, and retires its saved client secret. It does not uninstall the Teams app: the Entra app registration, Azure Bot, custom Teams app, and Teams installations remain until you remove them in Microsoft.",
+      "Nexus archives the endpoint, stops new ingress, and retires its saved client secret. It does not uninstall the Teams app: the Entra app registration, Azure Bot, custom Teams app, and Teams installations remain until you remove them in Microsoft.",
   },
   "imessage-photon": {
     reconnect: "Reconnect verifies the same Photon project and line allocation, then recovers eligible missed messages.",
@@ -127,9 +127,9 @@ const providerLifecycleGuidance: Record<
   },
   telegram: {
     reconnect:
-      "Reconnect verifies this same BotFather bot and automatically refreshes its Paperclip webhook and command menu.",
+      "Reconnect verifies this same BotFather bot and automatically refreshes its Nexus webhook and command menu.",
     remove:
-      "Paperclip archives the endpoint and queues durable removal of its Telegram webhook and command menu. After Telegram confirms that cleanup, Paperclip retires the saved token. The BotFather bot and its chat memberships remain until you remove them in Telegram.",
+      "Nexus archives the endpoint and queues durable removal of its Telegram webhook and command menu. After Telegram confirms that cleanup, Nexus retires the saved token. The BotFather bot and its chat memberships remain until you remove them in Telegram.",
   },
 };
 
@@ -194,8 +194,8 @@ export function activityResolutionDescription(item: ChatActivityItem): string {
   if (phase === "consent_unknown")
     return "The consent card may have reached Teams. File delivery is not confirmed. Cancelling here does not remove any card already sent.";
   if (phase)
-    return "The file may already exist in OneDrive. Cancelling stops this Paperclip transfer; it does not delete remote bytes. Uploads cannot be marked delivered or retried from this uncertain state.";
-  return "Paperclip lost confirmation after sending. Check the provider conversation first. Retrying can create a duplicate message.";
+    return "The file may already exist in OneDrive. Cancelling stops this Nexus transfer; it does not delete remote bytes. Uploads cannot be marked delivered or retried from this uncertain state.";
+  return "Nexus lost confirmation after sending. Check the provider conversation first. Retrying can create a duplicate message.";
 }
 
 export function isResolutionEligible(item: ChatActivityItem): boolean {
@@ -230,7 +230,7 @@ export function connectionHealthPresentation(
     paused: "Connection is paused. Resume it to receive new messages.",
     attention: "Connection needs attention.",
     revoked: "Connection access is revoked. Reconnect to verify access.",
-    archived: "Connection has been removed from Paperclip.",
+    archived: "Connection has been removed from Nexus.",
   };
   const lifecycleMessage =
     endpoint.status === "active" ? null : lifecycleMessages[endpoint.status];
@@ -389,8 +389,8 @@ export function ChatEndpointDetail() {
       {activeTab === "access" && endpoint.provider === "speko" && (
         <section className="max-w-3xl space-y-3">
           <h2 className="text-lg font-semibold">Private voice access</h2>
-          <p className="text-sm text-muted-foreground">Browser calls use the signed-in Paperclip user’s current company access. Each call stays bound to its selected agent and task.</p>
-          <p className="text-sm text-muted-foreground">Outgoing calls use your saved callback number and opt-in. For a private incoming call, enter the code spoken on the phone in signed-in Paperclip and select a task to approve that live call. Incoming calls can start a new conversation task without sign-in, under a task-scoped low-trust policy. Private mode is optional and requires approval before accessing existing tasks.</p>
+          <p className="text-sm text-muted-foreground">Browser calls use the signed-in Nexus user’s current company access. Each call stays bound to its selected agent and task.</p>
+          <p className="text-sm text-muted-foreground">Outgoing calls use your saved callback number and opt-in. For a private incoming call, enter the code spoken on the phone in signed-in Nexus and select a task to approve that live call. Incoming calls can start a new conversation task without sign-in, under a task-scoped low-trust policy. Private mode is optional and requires approval before accessing existing tasks.</p>
         </section>
       )}
 {activeTab === "access" && endpoint.provider === "agentmail" && <EmailAccess endpoint={endpoint} />}
@@ -690,7 +690,7 @@ function Access({
   const [joinCommandCopied, setJoinCommandCopied] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [confirmationFor, setConfirmationFor] = useState<string | null>(null);
-  const joinCommand = `${endpoint.setup?.slackApp?.command ?? endpoint.setup?.command ?? "/paperclip"} connect`;
+  const joinCommand = `${endpoint.setup?.slackApp?.command ?? endpoint.setup?.command ?? "/nexus"} connect`;
   const linksQuery = useQuery({
     queryKey: queryKeys.chatEndpoints.principals(endpointId),
     queryFn: () => chatEndpointsApi.listPrincipals(endpointId),
@@ -743,7 +743,7 @@ function Access({
             <div className="space-y-4 text-sm">
               <ol className="list-decimal space-y-3 pl-5">
                 <li>Send <code className="font-mono">{joinCommand}</code> in Slack.</li>
-                <li>Open the bot’s private link and sign in to Paperclip to confirm your Slack account.</li>
+                <li>Open the bot’s private link and sign in to Nexus to confirm your Slack account.</li>
                 <li>If you’re new to this organization, request access and wait for an admin to approve.</li>
               </ol>
               <p className="text-muted-foreground">The confirmation link is personal and expires after 15 minutes.</p>
@@ -753,14 +753,14 @@ function Access({
                 }}>{joinCommandCopied ? <Check className="size-4" /> : <Copy className="size-4" />}{joinCommandCopied ? "Copied" : "Copy command"}</Button>
                 <Button onClick={() => {
                   const workspace = endpoint.providerAccountId ? `https://app.slack.com/client/${encodeURIComponent(endpoint.providerAccountId)}` : "https://app.slack.com/";
-                  void copyTextToClipboard(`Talk to ${endpoint.assignedAgentName} in Slack: ${workspace}\nSend ${joinCommand}, then open the bot’s private link and sign in to Paperclip to confirm your account. If you’re new to the organization, request access for an admin to approve.`).then(() => setInviteCopied(true), () => pushToast({ title: "Couldn't copy invitation", tone: "error" }));
+                  void copyTextToClipboard(`Talk to ${endpoint.assignedAgentName} in Slack: ${workspace}\nSend ${joinCommand}, then open the bot’s private link and sign in to Nexus to confirm your account. If you’re new to the organization, request access for an admin to approve.`).then(() => setInviteCopied(true), () => pushToast({ title: "Couldn't copy invitation", tone: "error" }));
                 }}>{inviteCopied ? <Check className="size-4" /> : <Copy className="size-4" />}{inviteCopied ? "Invitation copied" : "Copy invitation"}</Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>}
       </div>
-      <p className="text-sm text-muted-foreground">People with linked accounts use their own Paperclip permissions. <Link className="underline underline-offset-4" to="/company/settings/members">Manage members</Link></p>
+      <p className="text-sm text-muted-foreground">People with linked accounts use their own Nexus permissions. <Link className="underline underline-offset-4" to="/company/settings/members">Manage members</Link></p>
       {confirmationUrl && (
         <div className="space-y-2 border-y border-border py-3">
           <p className="text-sm font-medium">Confirm {confirmationFor ?? "this account"}</p>
@@ -807,12 +807,12 @@ function Access({
               >
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                   <Avatar aria-hidden="true">
-                    {link.paperclipUserImage && <AvatarImage src={link.paperclipUserImage} alt="" />}
-                    <AvatarFallback>{deriveInitials(link.paperclipUserLabel ?? link.externalLabel)}</AvatarFallback>
+                    {link.nexusUserImage && <AvatarImage src={link.nexusUserImage} alt="" />}
+                    <AvatarFallback>{deriveInitials(link.nexusUserLabel ?? link.externalLabel)}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <p className="truncate text-sm" title={link.paperclipUserLabel ?? link.externalLabel}>{link.paperclipUserLabel ?? link.externalLabel}</p>
-                    {(link.status !== "linked" || link.externalLabel !== link.paperclipUserLabel) && <p className="text-xs text-muted-foreground">
+                    <p className="truncate text-sm" title={link.nexusUserLabel ?? link.externalLabel}>{link.nexusUserLabel ?? link.externalLabel}</p>
+                    {(link.status !== "linked" || link.externalLabel !== link.nexusUserLabel) && <p className="text-xs text-muted-foreground">
                       {link.status === "revoked" ? "Disconnected" : link.status === "linked"
                         ? link.externalLabel
                         : "Waiting for account confirmation"}
@@ -1077,7 +1077,7 @@ function Activity({
           <p className="text-xs text-muted-foreground">
             {endpoint.setup?.callbacksNeedUpdate
               ? "Slack callback URLs need an update. Save the current App Manifest, then exercise Events, Interactivity, and the registered command again."
-              : "Paperclip records each callback surface independently after Slack successfully calls it."}
+              : "Nexus records each callback surface independently after Slack successfully calls it."}
           </p>
           <div className="divide-y divide-border border-y border-border">
             {callbackSurfaceRows.map(([label, surface]) => (
@@ -1315,9 +1315,9 @@ function Activity({
             </AlertDialogTitle>
             <AlertDialogDescription>
               {resolutionItem?.actionType === "slash_task_start"
-                ? "Paperclip lost confirmation after asking Slack to start the task. Check Slack first. Retrying can create a duplicate starter message and task."
+                ? "Nexus lost confirmation after asking Slack to start the task. Check Slack first. Retrying can create a duplicate starter message and task."
                 : resolutionItem?.actionType === "provider_effect"
-                  ? "Paperclip lost confirmation after sending this provider reply. Check the provider first. Marking it delivered applies any pending Paperclip state change; retrying can create a duplicate message."
+                  ? "Nexus lost confirmation after sending this provider reply. Check the provider first. Marking it delivered applies any pending Nexus state change; retrying can create a duplicate message."
                   : resolutionItem
                     ? activityResolutionDescription(resolutionItem)
                     : ""}
@@ -1397,7 +1397,7 @@ function Activity({
             <AlertDialogTitle>Remove this connection?</AlertDialogTitle>
             <AlertDialogDescription>
               {endpoint.assignedAgentName} will stop receiving new work from
-              {` ${providerNames[endpoint.provider]}`}. Existing Paperclip tasks
+              {` ${providerNames[endpoint.provider]}`}. Existing Nexus tasks
               remain available.{" "}
               {providerLifecycleGuidance[endpoint.provider].remove}
               {endpoint.provider === "slack" && (

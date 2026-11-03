@@ -1,6 +1,6 @@
 # Release Automation Setup
 
-This document covers the GitHub and npm setup required for the current Paperclip release model:
+This document covers the GitHub and npm setup required for the current Nexus release model:
 
 - automatic canaries from `master`
 - manual stable promotion from a chosen source ref
@@ -29,13 +29,13 @@ Required files:
 
 ## 2. Configure npm Trusted Publishing
 
-Do this for every public package that Paperclip publishes.
+Do this for every public package that Nexus publishes.
 
 At minimum that includes:
 
-- `paperclipai`
-- `@paperclipai/server`
-- `@paperclipai/ui`
+- `nexusai`
+- `@nexusai/server`
+- `@nexusai/ui`
 - public packages under `packages/`
 
 ### 2.1. In npm, open each package settings page
@@ -104,7 +104,7 @@ Only after that should you remove old token-based access.
 After trusted publishing works:
 
 1. revoke any repository or organization `NPM_TOKEN` secrets used for publish
-2. revoke any personal automation token that used to publish Paperclip
+2. revoke any personal automation token that used to publish Nexus
 3. if npm offers a package-level setting to restrict publishing to trusted publishers, enable it
 
 Goal:
@@ -227,7 +227,7 @@ Resolution keeps locked versions, but it picks the newest matching version for a
 
 The merge uses a dedicated GitHub App. Do not reuse `commitperclip` or bypass the built-in `github-actions` app. Those identities are available to other workflows, including release jobs that run dependency install scripts, so a bypass for them would let any of those workflows land code on `master`.
 
-1. Create an organization-owned GitHub App, for example `paperclip-lockfile-bot`:
+1. Create an organization-owned GitHub App, for example `nexus-lockfile-bot`:
    - Disable the webhook.
    - Repository permissions: `Contents: Read and write`, `Pull requests: Read and write`. Leave everything else at `No access`.
    - Allow installation only on this account.
@@ -283,11 +283,11 @@ After setup:
 Install-path check:
 
 ```bash
-npm install --prefix "$(mktemp -d)" paperclipai@canary --no-audit --no-fund
+npm install --prefix "$(mktemp -d)" nexusai@canary --no-audit --no-fund
 ```
 
 The release script runs this clean-prefix install after publishing every workspace
-package dependency-first and publishing `paperclipai` last. A package that is not
+package dependency-first and publishing `nexusai` last. A package that is not
 yet registry-visible stops the train before the channel entrypoint can advance.
 
 ## 12. Verify the Stable Workflow
@@ -359,7 +359,7 @@ Check:
 
 ## Runner verification dependency cache
 
-`release-verify.yml` runs `Verify Paperclip Runner` on two independent runners.
+`release-verify.yml` runs `Verify Nexus Runner` on two independent runners.
 The protocol lane runs `check:eval-kernel` and `check:protocol`. The Rust lane
 runs `check:runner` and `check:api-authority`. Together they retain every check
 in `check:all`; both lanes must pass before Cloud source verification or
@@ -375,10 +375,10 @@ warm release dependencies. The cache writer is shorter than the protocol lane.
 
 GitHub matches a cache entry on its key and on a version hash of the absolute
 paths in the entry. The master writer runs on the RunsOn fleet, where the
-checkout is `/home/runner/_work/paperclip/paperclip`. The trusted PR workflow
+checkout is `/home/runner/_work/nexus/nexus`. The trusted PR workflow
 restores the same entry read-only on GitHub-hosted runners, where the checkout
-is `/home/runner/work/paperclip/paperclip`. A `Pin the Runner Rust workspace
-path` step in both workflows links `$HOME/paperclip-runner-rust` to the Runner
+is `/home/runner/work/nexus/nexus`. A `Pin the Runner Rust workspace
+path` step in both workflows links `$HOME/nexus-runner-rust` to the Runner
 crate and passes that path to the cache action, so both layouts hash the same
 paths and the PR lanes can restore master's entry. The guard tests under
 `.github/scripts/tests/` require this step, with identical text, before every
@@ -396,11 +396,11 @@ the shared-key version and let the next successful master verification warm it.
 
 The dependency entry leaves the Runner's own crate out, and a fresh checkout
 invalidates cargo's mtime fingerprints for workspace crates anyway, so every
-pull request build compiled `paperclip-runner-core` in release mode from
+pull request build compiled `nexus-runner-core` in release mode from
 scratch (28-49s per job on 2026-10-11) although most master commits leave its
 inputs untouched. A second, content-addressed entry holds only that crate's
 release artifacts: its fingerprints, the lib's rlib and rmeta, the
-`paperclip-runnerd` binary and their dep-info, about 70 MB. The path list and
+`nexus-runnerd` binary and their dep-info, about 70 MB. The path list and
 the key inputs live in `scripts/runner-release-crate-cache.mjs`, which both
 workflows call, and `scripts/__tests__/runner-release-crate-cache.test.mjs`
 holds the readers and the writer to them.
@@ -422,10 +422,10 @@ cargo another revision's output.
 
 The writer is the Rust lane of the same master-push verification, after its
 checks and the debug warm-up. It looks the key up first and, on a miss, runs
-`cargo clean --release -p paperclip-runner-core` and then the package's
+`cargo clean --release -p nexus-runner-core` and then the package's
 `build:binary` (the exact command the readers run) before saving, so the entry
 carries no test-profile variants. In the trusted PR workflow, the Typecheck,
-Build and Canary Dry Run jobs and the two Verify Paperclip Runner lanes that
+Build and Canary Dry Run jobs and the two Verify Nexus Runner lanes that
 build the crate (`rust` and the final vitest shard) restore the entry
 read-only right after the dependency restore. On a hit, `mark-current` sets
 the mtime of every restored artifact to now, so cargo's freshness check sees
@@ -486,8 +486,8 @@ accounts for it in both ordinary PR and release verification.
 
 ## Cloud readiness runner placement
 
-When AWS routing is enabled, Cloud image builds use `paperclip-cloud-build-x64`
-and source verification uses `paperclip-post-merge-x64`. The artifact wait and
+When AWS routing is enabled, Cloud image builds use `nexus-cloud-build-x64`
+and source verification uses `nexus-post-merge-x64`. The artifact wait and
 the `Cloud source verified v1` and `Cloud deployable v1` marker jobs run on
 GitHub-hosted runners. These small jobs must not hold or wait for capacity in
 the source-verification fleet. During a merge

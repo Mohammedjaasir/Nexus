@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { ENVIRONMENT_CLEANUP_RETRY_MS, nextEnvironmentCleanupAt } from "./environment-cleanup-state.js";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";
 import { DELIVERY_QUEUES, type DeliveryQueue } from "./delivery-work-notifications.js";

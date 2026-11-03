@@ -21,7 +21,7 @@ import {
   secretAccessEvents,
   userSecretDeclarations,
   userSecretDefinitions,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
 import { HttpError } from "../errors.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
@@ -43,12 +43,12 @@ const CLAUDE_NAME = "Claude Code OAuth token";
 describeEmbeddedPostgres("secretService Claude Code OAuth helper and compare-and-set", () => {
   let stopDb: (() => Promise<void>) | null = null;
   let db!: ReturnType<typeof createDb>;
-  const previousKeyFile = process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
-  const secretsTmpDir = path.join(os.tmpdir(), `paperclip-claude-oauth-${randomUUID()}`);
+  const previousKeyFile = process.env.NEXUS_SECRETS_MASTER_KEY_FILE;
+  const secretsTmpDir = path.join(os.tmpdir(), `nexus-claude-oauth-${randomUUID()}`);
 
   beforeAll(async () => {
     mkdirSync(secretsTmpDir, { recursive: true });
-    process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = path.join(secretsTmpDir, "master.key");
+    process.env.NEXUS_SECRETS_MASTER_KEY_FILE = path.join(secretsTmpDir, "master.key");
     const started = await startEmbeddedPostgresTestDatabase("claude-oauth-secrets");
     stopDb = started.cleanup;
     db = createDb(started.connectionString);
@@ -69,9 +69,9 @@ describeEmbeddedPostgres("secretService Claude Code OAuth helper and compare-and
   afterAll(async () => {
     if (stopDb) await stopDb();
     if (previousKeyFile === undefined) {
-      delete process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
+      delete process.env.NEXUS_SECRETS_MASTER_KEY_FILE;
     } else {
-      process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = previousKeyFile;
+      process.env.NEXUS_SECRETS_MASTER_KEY_FILE = previousKeyFile;
     }
     rmSync(secretsTmpDir, { recursive: true, force: true });
   });
@@ -121,7 +121,7 @@ describeEmbeddedPostgres("secretService Claude Code OAuth helper and compare-and
     expect(definition.key).toBe(CLAUDE_KEY);
     expect(definition.name).toBe(CLAUDE_NAME);
     expect(definition.provider).toBe("local_encrypted");
-    expect(definition.managedMode).toBe("paperclip_managed");
+    expect(definition.managedMode).toBe("nexus_managed");
     expect(definition.status).toBe("active");
   });
 

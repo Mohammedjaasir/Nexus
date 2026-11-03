@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { TaskBrowser } from "@paperclipai/shared";
+import type { TaskBrowser } from "@nexusai/shared";
 import { browserUseApi } from "@/api/browser-use";
 export function useTaskBrowsers(issueId?: string) {
   return useQuery({
@@ -18,7 +18,7 @@ export function useBrowserArrivals(accountScope: string, issueId: string | undef
   const [request, setRequest] = useState<{ scope: string; browserId: string; sessionId?: string } | null>(null);
   const acknowledged = useRef(new Set<string>());
   const key = useCallback((sessionId: string) =>
-    `paperclip:browser-arrival:v2:${accountScope}:${issueId}:${sessionId}`, [accountScope, issueId]);
+    `nexus:browser-arrival:v2:${accountScope}:${issueId}:${sessionId}`, [accountScope, issueId]);
   const current = request?.scope === scope ? request : null;
   useEffect(() => {
     if (!issueId || current) return;

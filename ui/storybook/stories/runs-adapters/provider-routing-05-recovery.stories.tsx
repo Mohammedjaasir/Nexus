@@ -8,7 +8,7 @@ const meta = {
   title: "Agents and reusable capabilities/Runs, harnesses, and model accounts/AI Connections/Provider routing/05 Recovery",
   component: Recovery,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "runs-adapters/validation"
       ],

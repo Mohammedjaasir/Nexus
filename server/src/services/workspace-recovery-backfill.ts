@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { agentWakeupRequests, environmentLeases, heartbeatRuns, issues, issueRecoveryActions, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, environmentLeases, heartbeatRuns, issues, issueRecoveryActions, type Db } from "@nexusai/db";
 import { adoptSystemRecovery } from "./system-recovery.js";
 import { terminalWorkspaceRunStates, workspaceExportCauses } from "./workspace-recovery-source.js";
 
@@ -9,7 +9,7 @@ export async function adoptHistoricalWorkspaceRecoveries(db: Db) {
   const rows = await db.select().from(issueRecoveryActions).where(and(
     sql`not (${issueRecoveryActions.evidence} ? 'systemRecovery')`,
     sql`${issueRecoveryActions.evidence}->>'runId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'`,
-    sql`(${issueRecoveryActions.evidence}->'workspaceRestoreRecovery'->>'schema' = 'paperclip.workspace-restore-recovery.v1'
+    sql`(${issueRecoveryActions.evidence}->'workspaceRestoreRecovery'->>'schema' = 'nexus.workspace-restore-recovery.v1'
       or ${inArray(issueRecoveryActions.cause, workspaceExportCauses)})`,
   )).orderBy(asc(issueRecoveryActions.id)).limit(50);
   for (const action of rows) await adoptSystemRecovery(db, {
@@ -21,7 +21,7 @@ export async function adoptHistoricalWorkspaceRecoveries(db: Db) {
   // covers old runs which predate the run-level restore descriptor. It never
   // searches for a replacement allocation or consults today's agent config.
   const candidates = sql`(
-    select id from ${heartbeatRuns} where result_json->'workspaceRestoreRecovery'->>'schema' = 'paperclip.workspace-restore-recovery.v1'
+    select id from ${heartbeatRuns} where result_json->'workspaceRestoreRecovery'->>'schema' = 'nexus.workspace-restore-recovery.v1'
       and not (coalesce(result_json, '{}'::jsonb) ? 'systemRecoveryAdoption')
       and status in ('failed', 'interrupted', 'timed_out', 'cancelled', 'succeeded')
     union
@@ -44,7 +44,7 @@ export async function adoptHistoricalWorkspaceRecoveries(db: Db) {
     const [existing] = await tx.select().from(issueRecoveryActions).where(and(
       eq(issueRecoveryActions.companyId, run.companyId), eq(issueRecoveryActions.sourceIssueId, issue.id),
       sql`${issueRecoveryActions.evidence}->>'runId' = ${run.id}`,
-      sql`(${issueRecoveryActions.evidence}->'workspaceRestoreRecovery'->>'schema' = 'paperclip.workspace-restore-recovery.v1'
+      sql`(${issueRecoveryActions.evidence}->'workspaceRestoreRecovery'->>'schema' = 'nexus.workspace-restore-recovery.v1'
         or ${inArray(issueRecoveryActions.cause, [...workspaceExportCauses,
           "legacy_execution_requires_reconciliation", "native_continuation_requires_reconciliation"])})`)).limit(1);
     const [active] = await tx.select({ id: issueRecoveryActions.id }).from(issueRecoveryActions).where(and(
@@ -54,7 +54,7 @@ export async function adoptHistoricalWorkspaceRecoveries(db: Db) {
       eq(environmentLeases.companyId, run.companyId), eq(environmentLeases.heartbeatRunId, run.id),
       eq(environmentLeases.issueId, issue.id), eq(environmentLeases.leasePolicy, "retain_on_failure"),
     )).orderBy(asc(environmentLeases.id)).for("update");
-    const historicalWorkspaceSource = { schema: "paperclip.historical-workspace-source.v1", runId: run.id,
+    const historicalWorkspaceSource = { schema: "nexus.historical-workspace-source.v1", runId: run.id,
       leaseIds: retained.map(lease => lease.id) };
     const action = existing ?? (await tx.insert(issueRecoveryActions).values({
       companyId: run.companyId, sourceIssueId: issue.id, kind: "active_run_watchdog", ownerType: "system",
@@ -65,7 +65,7 @@ export async function adoptHistoricalWorkspaceRecoveries(db: Db) {
       // the current task's active approval/user-action owner.
       status: active || ["done", "cancelled"].includes(issue.status) ? "resolved" : "active",
       outcome: active ? "blocked" : null,
-      nextAction: "Paperclip owns preservation of this historical source.",
+      nextAction: "Nexus owns preservation of this historical source.",
       evidence: { runId: run.id, workspaceRestoreRecovery: current.resultJson?.workspaceRestoreRecovery,
         workspaceRestoreFailure: current.resultJson?.workspaceRestoreFailure, historicalWorkspaceSource,
         automaticRecovery: { replay: "blocked" } },

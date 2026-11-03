@@ -3,7 +3,7 @@
 import { act } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { PROVIDER_QUOTA_MONITOR_SERVICE_NAME, type Issue, type IssueWorkProduct } from "@paperclipai/shared";
+import { PROVIDER_QUOTA_MONITOR_SERVICE_NAME, type Issue, type IssueWorkProduct } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {

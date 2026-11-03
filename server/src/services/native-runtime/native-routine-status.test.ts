@@ -2,14 +2,14 @@ import { resolveExternalTestDatabaseUrl } from "../../__tests__/helpers/external
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agents, companies, completionContracts, createDb, heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults, pluginManagedResources, plugins, routineRuns, routines, workAssessments } from "@paperclipai/db";
-import type { Db } from "@paperclipai/db";
+import { agents, companies, completionContracts, createDb, heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults, pluginManagedResources, plugins, routineRuns, routines, workAssessments } from "@nexusai/db";
+import type { Db } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { routineService } from "../routines.js";
 import { commitNativeStatusDecision } from "./status-decision-committer.js";
 import { NATIVE_STATUS_ARBITER_POLICY_VERSION, type NativeStatusDecision } from "./status-arbiter.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_NATIVE_ROUTINE_STATUS_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_NATIVE_ROUTINE_STATUS_TEST_DATABASE_URL");
 const support = external ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 if (!support.supported) console.warn(`Skipping native routine status tests: ${support.reason}`);
 (support.supported ? describe : describe.skip)("native routine history status projection", () => {
@@ -18,7 +18,7 @@ if (!support.supported) console.warn(`Skipping native routine status tests: ${su
   beforeAll(async () => {
     if (!external) database = await startEmbeddedPostgresTestDatabase("native-routine-status-"); db = createDb(external ?? database.connectionString, { maxConnections: 6 });
     await db.insert(companies).values({ id: companyId, name: "Routine status fixture", issuePrefix: "NRS" });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Routine worker", adapterType: "paperclip_runner", status: "running" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Routine worker", adapterType: "nexus_runner", status: "running" });
   }, 60_000);
   afterAll(async () => { await db?.$client.end(); await database?.cleanup(); });
   async function seed(mode = "matching") {
@@ -28,10 +28,10 @@ if (!support.supported) console.warn(`Skipping native routine status tests: ${su
     const otherCompanyId = randomUUID();
     if (mode === "foreign-company") await db.insert(companies).values({ id: otherCompanyId, name: "Other fixture", issuePrefix: `X${otherCompanyId.slice(0, 5)}` });
     if (mode === "custom-origin") {
-      const pluginKey = `paperclip.routine-status-${randomUUID()}`, originId = `operation:${randomUUID()}`;
+      const pluginKey = `nexus.routine-status-${randomUUID()}`, originId = `operation:${randomUUID()}`;
       const [plugin] = await db.insert(plugins).values({ pluginKey, packageName: pluginKey, version: "0.1.0",
         manifestJson: { id: pluginKey, apiVersion: 1, version: "0.1.0", displayName: "Routine fixture", description: "Routine fixture",
-          author: "Paperclip", categories: ["automation"], capabilities: ["routines.managed"], entrypoints: { worker: "./worker.js" } } }).returning();
+          author: "Nexus", categories: ["automation"], capabilities: ["routines.managed"], entrypoints: { worker: "./worker.js" } } }).returning();
       await db.insert(pluginManagedResources).values({ companyId, pluginId: plugin!.id, pluginKey, resourceKind: "routine", resourceKey: "summary",
         resourceId: routine!.id, defaultsJson: { issueTemplate: { originId } } });
       const invocation = await routineService(db, { heartbeat: { wakeup: async () => undefined } }).runRoutine(routine!.id, { source: "manual", idempotencyKey: randomUUID() });
@@ -47,7 +47,7 @@ if (!support.supported) console.warn(`Skipping native routine status tests: ${su
         routineId: routine!.id, linkedIssueId: mode === "wrong-issue" ? null : issueId, source: "manual", status: "issue_created", triggerPayload: { retainedInput: "Launch" } });
     }
     const [priorIssue] = await db.select().from(issues).where(eq(issues.id, issueId));
-    await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1, schemaVersion: "paperclip.completion-contract.v1",
+    await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1, schemaVersion: "nexus.completion-contract.v1",
       policyVersion: "routine-status-test", risk: "standard", completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "1", objective: "Save summary", criteria: [] }, canonicalSha256: `contract-${contractId}`, createdByActorType: "system", createdByActorId: "test" });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "running", runtimeMode: "native", nativeIssueId: issueId,

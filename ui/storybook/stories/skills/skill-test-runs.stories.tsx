@@ -21,7 +21,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     initialEntries: ["/PAP/skills/studio/skill-gap"],
-    paperclip: {
+    nexus: {
       "capabilities": [
         "skills/testing"
       ],

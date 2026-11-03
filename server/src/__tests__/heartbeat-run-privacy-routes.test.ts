@@ -21,8 +21,8 @@ import {
   toolApplications,
   toolConnections,
   workspaceOperations,
-} from "@paperclipai/db";
-import * as schema from "@paperclipai/db/schema/index";
+} from "@nexusai/db";
+import * as schema from "@nexusai/db/schema/index";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -34,19 +34,19 @@ import { authorizationService } from "../services/authorization.js";
 import { canActorReadWorkspaceOperation, getHeartbeatRunReadDecisions } from "../services/heartbeat-run-privacy.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 
-const externalDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_RUN_LOG_PRIVACY_TEST_DATABASE_URL");
+const externalDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_RUN_LOG_PRIVACY_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
 describeEmbeddedPostgres("heartbeat run privacy routes", { concurrent: false }, () => {
   let db!: ReturnType<typeof createDb>;
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
-  const previousPrivacyMode = process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
+  const previousPrivacyMode = process.env.NEXUS_ISSUE_PRIVACY_MODE;
 
   beforeAll(async () => {
-    if (!externalDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-run-privacy-routes-");
+    if (!externalDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-run-privacy-routes-");
     db = createDb(externalDatabaseUrl ?? tempDb!.connectionString);
-    process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "enforce";
+    process.env.NEXUS_ISSUE_PRIVACY_MODE = "enforce";
   }, 120_000);
 
   afterEach(async () => {
@@ -65,8 +65,8 @@ describeEmbeddedPostgres("heartbeat run privacy routes", { concurrent: false }, 
   });
 
   afterAll(async () => {
-    if (previousPrivacyMode === undefined) delete process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-    else process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = previousPrivacyMode;
+    if (previousPrivacyMode === undefined) delete process.env.NEXUS_ISSUE_PRIVACY_MODE;
+    else process.env.NEXUS_ISSUE_PRIVACY_MODE = previousPrivacyMode;
     await tempDb?.cleanup();
     if (externalDatabaseUrl) await db.$client.end({ timeout: 1 });
   });
@@ -509,14 +509,14 @@ describeEmbeddedPostgres("heartbeat run privacy routes", { concurrent: false }, 
 
   it("logs would-deny decisions without enforcing them in shadow mode", async () => {
     const fixture = await seedFixture();
-    process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "shadow";
+    process.env.NEXUS_ISSUE_PRIVACY_MODE = "shadow";
     try {
       const response = await request(createApp(fixture.companyId, fixture.otherAgentId))
         .get(`/api/heartbeat-runs/${fixture.privateRunId}`);
       expect(response.status).toBe(200);
       expect(response.body.resultJson.summary).toBe("Read the confidential email");
     } finally {
-      process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "enforce";
+      process.env.NEXUS_ISSUE_PRIVACY_MODE = "enforce";
     }
   });
   it("batches distinct issue bindings without changing current authorization decisions", async () => {
@@ -551,7 +551,7 @@ describeEmbeddedPostgres("heartbeat run privacy routes", { concurrent: false }, 
 
   it.each(["enforce", "shadow", "off"])("keeps missing and foreign issue bindings closed in %s mode", async mode => {
     const fixture = await seedFixture();
-    process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = mode;
+    process.env.NEXUS_ISSUE_PRIVACY_MODE = mode;
     try {
       const access = authorizationService(db);
       const actor = { type: "board" as const, userId: fixture.ownerUserId };
@@ -564,7 +564,7 @@ describeEmbeddedPostgres("heartbeat run privacy routes", { concurrent: false }, 
       expect(await getHeartbeatRunReadDecisions(db, access, actor, [binding])).toEqual(
         await getHeartbeatRunReadDecisions(db, { decide: access.decide }, actor, [binding]),
       );
-    } finally { process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "enforce"; }
+    } finally { process.env.NEXUS_ISSUE_PRIVACY_MODE = "enforce"; }
   });
 
   it("checks more than 500 task bindings with bounded company-scoped queries", async () => {

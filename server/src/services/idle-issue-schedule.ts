@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { AGENT_STATUSES, issueExecutionMonitorPolicySchema, PROVIDER_QUOTA_MONITOR_SERVICE_NAME } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { AGENT_STATUSES, issueExecutionMonitorPolicySchema, PROVIDER_QUOTA_MONITOR_SERVICE_NAME } from "@nexusai/shared";
 import type { ScheduledWake } from "./idle-scheduled-work.js";
 import { onboardingFirstTaskAwaitingUserSql } from "./recovery/onboarding-first-task-wait.js";
 import { completedAgentUnblockRequest, responseDrivenIssueWait } from "./idle-work-proof.js";

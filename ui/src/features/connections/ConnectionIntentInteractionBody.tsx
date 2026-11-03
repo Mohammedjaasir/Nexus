@@ -8,7 +8,7 @@ import {
   RotateCcw,
   XCircle,
 } from "lucide-react";
-import { AI_CONNECTION_CAPABILITIES, aiProviderSchema, type AiAuthMethod, type ConnectionIntentInteraction } from "@paperclipai/shared";
+import { AI_CONNECTION_CAPABILITIES, aiProviderSchema, type AiAuthMethod, type ConnectionIntentInteraction } from "@nexusai/shared";
 import { AgentMailIntentSetup } from "./AgentMailIntentSetup";
 import { connectionIntentsApi } from "@/api/connection-intents";
 import { aiConnectionsApi } from "@/api/ai-connections";

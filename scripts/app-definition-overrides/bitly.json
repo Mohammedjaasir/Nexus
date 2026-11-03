@@ -52,7 +52,7 @@
       "defaults": {
         "serverUrl": "https://api-ssl.bitly.com/v4/mcp"
       },
-      "guidanceMd": "Generate a Bitly API token under Settings → API. The token may authorize the MCP's full catalog under your Bitly account; Paperclip cannot narrow the token. Review discovered actions and keep writes and destructive operations disabled until explicitly needed.",
+      "guidanceMd": "Generate a Bitly API token under Settings → API. The token may authorize the MCP's full catalog under your Bitly account; Nexus cannot narrow the token. Review discovered actions and keep writes and destructive operations disabled until explicitly needed.",
       "riskTier": "S4",
       "label": "Use an API key",
       "credentialFields": [
@@ -63,7 +63,7 @@
           "required": true,
           "placeholder": "Paste your Bitly API token",
           "secret": true,
-          "helperMd": "Bitly's API token may authorize the MCP's broad catalog under your account. Paperclip cannot narrow the token; keep write and destructive actions Off unless you explicitly need them."
+          "helperMd": "Bitly's API token may authorize the MCP's broad catalog under your account. Nexus cannot narrow the token; keep write and destructive actions Off unless you explicitly need them."
         }
       ],
       "keyPlacement": {

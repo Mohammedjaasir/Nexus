@@ -14,12 +14,12 @@ The removed calls were at original lines 204, 274, 327, 371, 401, 473, 567, 633,
 
 All migration calls after journal or schema mutation remain, including the original calls at lines 191, 226, 295, 358, 433, 527, 598, 664, 735, 811, 971, 1045, 1297, 1384, 1510, 1604, 1930, 1998, and 2065. These preserve older-clone upgrades; renumbered recovery replay; inserted earlier migrations; 0044, 0046, 0047, 0048, 0050, and 0059 replay; built-in managed-resource history; 0134 inbox archives; all three 0135 repair/no-op passes; run-responsible-user repair; native persistence/status-versioning replay; provider-trace idempotence; and retired-model-profile cleanup. No replay call is removed from the board-key uniqueness test, which has no later mutation requiring migration.
 
-The fixture-helper tests remain unchanged, including `publishes a complete template and starts suites from a copy of it` and `runs the fresh initdb path when PAPERCLIP_TEST_POSTGRES_TEMPLATE=0`. Both assert that the returned database reports `upToDate`.
+The fixture-helper tests remain unchanged, including `publishes a complete template and starts suites from a copy of it` and `runs the fresh initdb path when NEXUS_TEST_POSTGRES_TEMPLATE=0`. Both assert that the returned database reports `upToDate`.
 
 ## Verification
 
 ```sh
-node_modules/.bin/vitest run --project @paperclipai/db packages/db/src/client.test.ts packages/db/src/test-embedded-postgres.test.ts
+node_modules/.bin/vitest run --project @nexusai/db packages/db/src/client.test.ts packages/db/src/test-embedded-postgres.test.ts
 ```
 
 Complete owner replay: **2 files passed, 35 tests passed, 0 failed, 0 skipped; 26.77 seconds**. Real embedded PostgreSQL executed, including the fresh and template fixture-owner tests. The first sandboxed invocation encountered `listen EPERM` on localhost and was interrupted; the successful identical command ran with local socket access. No baseline timing comparison was run.

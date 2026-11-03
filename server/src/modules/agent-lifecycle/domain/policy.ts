@@ -1,4 +1,4 @@
-import type { AgentLifecycleState } from "@paperclipai/shared";
+import type { AgentLifecycleState } from "@nexusai/shared";
 
 export type LifecycleCommand = "reconcile" | "approve" | "reject" | "pause" | "resume" | "terminate" | "complete" | "retry";
 export class AgentLifecycleConflict extends Error {

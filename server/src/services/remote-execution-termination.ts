@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { environmentLeases, type Db } from "@paperclipai/db";
+import { environmentLeases, type Db } from "@nexusai/db";
 import { retiredReusableLeasePredecessors } from "./environment-lease-handoff.js";
 
 type Lease = typeof environmentLeases.$inferSelect;
@@ -17,7 +17,7 @@ export function remoteTerminationReceipt(lease: LeaseIdentity, value: unknown) {
       !lease.providerLeaseId || receipt?.providerLeaseId !== lease.providerLeaseId ||
       !["stopped", "destroyed"].includes(String(receipt?.state))) return undefined;
   return {
-    schema: "paperclip.remote-termination.v1", companyId: lease.companyId,
+    schema: "nexus.remote-termination.v1", companyId: lease.companyId,
     runId: lease.heartbeatRunId, leaseId: lease.id, provider: lease.provider,
     providerLeaseId: lease.providerLeaseId, state: receipt!.state,
     confirmedAt: new Date().toISOString(),
@@ -31,7 +31,7 @@ export function hasRemoteTerminationReceipt(lease: LeaseIdentity & {
   const receipt = lease.metadata?.remoteExecutionTermination as Record<string, unknown> | undefined;
   return Boolean(lease.releasedAt && lease.cleanupStatus === "success" &&
     ["released", "expired", "failed"].includes(lease.status) && receipt &&
-    receipt.schema === "paperclip.remote-termination.v1" &&
+    receipt.schema === "nexus.remote-termination.v1" &&
     receipt.companyId === lease.companyId && receipt.runId === lease.heartbeatRunId &&
     receipt.leaseId === lease.id && receipt.provider === lease.provider &&
     remoteTerminationReceipt(lease, receipt));

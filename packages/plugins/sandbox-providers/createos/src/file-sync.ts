@@ -5,11 +5,11 @@ import { createReadStream, createWriteStream, promises as fs } from "node:fs";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import * as tar from "tar";
-import type { PluginEnvironmentSyncInParams, PluginEnvironmentSyncResult } from "@paperclipai/plugin-sdk";
+import type { PluginEnvironmentSyncInParams, PluginEnvironmentSyncResult } from "@nexusai/plugin-sdk";
 import { CreateosClient, identifier } from "./client.js";
 import { execute, shellQuote } from "./execute.js";
 
-const ROOT = "/paperclip-workspace";
+const ROOT = "/nexus-workspace";
 
 export function assertRemotePath(value: string): void {
   if (!path.posix.isAbsolute(value) || value.includes("\0") || value.split("/").includes("..")) {
@@ -110,11 +110,11 @@ export async function syncFiles(
       signal.throwIfAborted();
       const local = direction === "in" ? mapping.sourcePath : mapping.targetPath;
       const remote = direction === "in" ? mapping.targetPath : mapping.sourcePath;
-      const scratch = `/tmp/paperclip-createos-transfer-${randomUUID()}`;
+      const scratch = `/tmp/nexus-createos-transfer-${randomUUID()}`;
       // Outbound temporary files are on the target filesystem for atomic rename.
       const parent = direction === "out" ? path.dirname(local) : os.tmpdir();
       await fs.mkdir(parent, { recursive: true });
-      const temp = await fs.mkdtemp(path.join(parent, ".paperclip-createos-"));
+      const temp = await fs.mkdtemp(path.join(parent, ".nexus-createos-"));
       const transferFile = path.join(temp, "data");
       try {
         if (direction === "in") {

@@ -1,7 +1,7 @@
 import { notifyLiveRunRecovery } from "../live-run-recovery-notifications.js";
 import { and, eq, exists, gt, isNull, lte, inArray, notExists, or, sql } from "drizzle-orm";
-import { checkpointDb, heartbeatRuns, issues, nativeRunFinalizations, nativeRunnerCheckpoints, type Db } from "@paperclipai/db";
-import { inspectDurablePrpCheckpointHeader, decodeDurablePrpCheckpoint, type DurablePrpCheckpoint, type DurablePrpControlPlane } from "../../vendor/paperclip-runner/index.js";
+import { checkpointDb, heartbeatRuns, issues, nativeRunFinalizations, nativeRunnerCheckpoints, type Db } from "@nexusai/db";
+import { inspectDurablePrpCheckpointHeader, decodeDurablePrpCheckpoint, type DurablePrpCheckpoint, type DurablePrpControlPlane } from "../../vendor/nexus-runner/index.js";
 import { createLocalEncryptedCipher } from "../../secrets/local-encrypted-provider.js";
 import { legacyControllerBootId } from "../legacy-controller-lease.js";
 

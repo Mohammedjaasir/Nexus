@@ -1,5 +1,5 @@
-import type { AdapterExecutionContext } from "@paperclipai/adapter-utils";
-import { createPromptContextFixture } from "@paperclipai/adapter-utils/test-fixtures/prompt-context";
+import type { AdapterExecutionContext } from "@nexusai/adapter-utils";
+import { createPromptContextFixture } from "@nexusai/adapter-utils/test-fixtures/prompt-context";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const websocketState = vi.hoisted(() => ({
@@ -121,9 +121,9 @@ describe("openclaw_gateway execute dispatch boundary", () => {
     ctx.context = {
       ...ctx.context,
       conversationMode: true,
-      paperclipTaskMarkdown: directive,
-      paperclipTaskMarkdownCompact: directive,
-      paperclipWake: {
+      nexusTaskMarkdown: directive,
+      nexusTaskMarkdownCompact: directive,
+      nexusWake: {
         reason: "issue_commented",
         issue: { id: "issue-1", workMode: "planning", status: "in_progress" },
         interactionKind: "request_confirmation",
@@ -136,7 +136,7 @@ describe("openclaw_gateway execute dispatch boundary", () => {
     expect(websocketState.messages).toHaveLength(1);
     const prompt = websocketState.messages[0]!;
     expect(prompt).toContain(directive);
-    expect(prompt).toContain("X-Paperclip-Run-Id");
+    expect(prompt).toContain("X-Nexus-Run-Id");
     expect(prompt).not.toContain("Execution contract:");
     expect(prompt).not.toContain("Create child issues");
     expect(prompt).not.toContain('"status":"done"');

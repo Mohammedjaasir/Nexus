@@ -38,10 +38,10 @@ export type {
   QuotaWindow,
   ProviderQuotaResult,
   TranscriptEntry,
-  PaperclipQuestion,
-  PaperclipQuestionOption,
-  PaperclipQuestionResponse,
-  PaperclipQuestionSet,
+  NexusQuestion,
+  NexusQuestionOption,
+  NexusQuestionResponse,
+  NexusQuestionSet,
   StdoutLineParser,
   CLIAdapterModule,
   CreateConfigValues,
@@ -115,41 +115,41 @@ export type {
   LoginRunnerRaceResult,
 } from "./login-runner-lifecycle.js";
 export {
-  PAPERCLIP_RUNNER_IDLE_TIMEOUT_DEFAULT_MS,
-  PAPERCLIP_RUNNER_IDLE_TIMEOUT_MAX_MS,
-  PAPERCLIP_RUNNER_DEFAULT_MODELS,
-  PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES,
-  PAPERCLIP_RUNNER_ACPX_PROFILES,
-  isPaperclipRunnerProvider,
-  resolvePaperclipRunnerIdleTimeoutMs,
-  resolvePaperclipRunnerModel,
-  paperclipRunnerTransitionConfig,
+  NEXUS_RUNNER_IDLE_TIMEOUT_DEFAULT_MS,
+  NEXUS_RUNNER_IDLE_TIMEOUT_MAX_MS,
+  NEXUS_RUNNER_DEFAULT_MODELS,
+  NEXUS_RUNNER_PERMISSION_CAPABILITIES,
+  NEXUS_RUNNER_ACPX_PROFILES,
+  isNexusRunnerProvider,
+  resolveNexusRunnerIdleTimeoutMs,
+  resolveNexusRunnerModel,
+  nexusRunnerTransitionConfig,
   normalizeLegacyRunnerProvider,
-  resolvePaperclipRunnerPermissionMode,
-  resolvePaperclipRunnerCursorMode,
-  resolvePaperclipRunnerPiThinkingLevel,
-} from "./paperclip-runner-permissions.js";
+  resolveNexusRunnerPermissionMode,
+  resolveNexusRunnerCursorMode,
+  resolveNexusRunnerPiThinkingLevel,
+} from "./nexus-runner-permissions.js";
 export {
-  PAPERCLIP_RUNNER_INGRESS_PORT,
-  PAPERCLIP_RUNNER_CONNECT_PATH_PREFIX,
-  PaperclipRunnerTransportError,
+  NEXUS_RUNNER_INGRESS_PORT,
+  NEXUS_RUNNER_CONNECT_PATH_PREFIX,
+  NexusRunnerTransportError,
   buildDirectRunnerConnectUrl,
-  resolvePaperclipRunnerTransport,
+  resolveNexusRunnerTransport,
 } from "./runner-connectivity.js";
 export type {
   SecretHeader,
   RunnerIngressEndpoint,
-  PaperclipRunnerTransport,
+  NexusRunnerTransport,
 } from "./runner-connectivity.js";
 export type {
   AcpxPermissionMode,
   CodexPermissionMode,
   OpenCodePermissionMode,
-  PaperclipRunnerPermissionCapability,
-  PaperclipRunnerPermissionMode,
-  PaperclipRunnerPermissionOption,
-  PaperclipRunnerProvider,
-} from "./paperclip-runner-permissions.js";
+  NexusRunnerPermissionCapability,
+  NexusRunnerPermissionMode,
+  NexusRunnerPermissionOption,
+  NexusRunnerProvider,
+} from "./nexus-runner-permissions.js";
 // Keep the root adapter-utils entry browser-safe because the UI imports it.
 // The sandbox callback bridge stays available via its dedicated subpath export.
 export type {

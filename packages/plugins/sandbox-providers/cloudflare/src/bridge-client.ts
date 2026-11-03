@@ -53,9 +53,9 @@ function buildHeaders(config: CloudflareDriverConfig, extra: BridgeClientHeaders
   const headers = new Headers();
   headers.set("Authorization", `Bearer ${config.bridgeAuthToken}`);
   headers.set("Content-Type", "application/json");
-  if (extra.environmentId) headers.set("X-Paperclip-Environment-Id", extra.environmentId);
-  if (extra.runId) headers.set("X-Paperclip-Run-Id", extra.runId);
-  if (extra.issueId) headers.set("X-Paperclip-Issue-Id", extra.issueId);
+  if (extra.environmentId) headers.set("X-Nexus-Environment-Id", extra.environmentId);
+  if (extra.runId) headers.set("X-Nexus-Run-Id", extra.runId);
+  if (extra.issueId) headers.set("X-Nexus-Issue-Id", extra.issueId);
   return headers;
 }
 
@@ -271,7 +271,7 @@ async function consumeExecuteEventStream(
 
 export function createCloudflareBridgeClient(options: BridgeClientOptions) {
   const { config } = options;
-  const apiPrefix = "/api/paperclip-sandbox/v1";
+  const apiPrefix = "/api/nexus-sandbox/v1";
 
   return {
     health(extraHeaders?: BridgeClientHeaders): Promise<CloudflareBridgeHealthResponse> {

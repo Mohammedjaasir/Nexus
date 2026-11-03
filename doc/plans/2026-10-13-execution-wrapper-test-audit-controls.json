@@ -12,7 +12,7 @@
   },
   "removedAliasExecutions": 99,
   "restoration": {
-    "owner": "server/src/services/native-runtime/paperclip-control-plane-port.ts",
+    "owner": "server/src/services/native-runtime/nexus-control-plane-port.ts",
     "originalSha256": "621beee8a451e9cab4fc09f886bfb4d95512c1433f82b7f9cbd3ea83fd2f3d0c",
     "restoredSha256": "621beee8a451e9cab4fc09f886bfb4d95512c1433f82b7f9cbd3ea83fd2f3d0c",
     "restored": true
@@ -86,7 +86,7 @@
   "retainedOwnerSha256": {
     "server/src/services/native-runtime/runtime-mode.test.ts": "c32e6b5276fc30a78f5f91ad7c9b46438d4b08917a3d933bbb1d991ef2b4d7e1",
     "server/src/services/native-runtime/evidence-classifier.test.ts": "4567ab0fa44b311d83110c1fe7a5d6051cf099131db019f1024858cc3c6e7d0c",
-    "server/src/services/native-runtime/paperclip-control-plane-port.test.ts": "d236a5239fd4c7e15447740b04d160a51d268d555c7fb43c42e99cca4c417985"
+    "server/src/services/native-runtime/nexus-control-plane-port.test.ts": "d236a5239fd4c7e15447740b04d160a51d268d555c7fb43c42e99cca4c417985"
   },
   "mutationFailure": {
     "case": "revalidates every persisted native binding before open and completion",

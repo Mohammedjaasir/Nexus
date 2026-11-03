@@ -8,7 +8,7 @@ const describePostgres = support.supported ? describe : describe.skip;
 
 describePostgres("GitHub preview migration replay", () => {
   it("preserves existing relations and constraints when the renumbered migration runs again", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-github-migration-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-github-migration-");
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     try {
       const relations = () => sql`SELECT oid::text, relname FROM pg_class WHERE relname IN ('chat_github_configurations', 'chat_github_registrations', 'chat_github_reviews') ORDER BY relname`;

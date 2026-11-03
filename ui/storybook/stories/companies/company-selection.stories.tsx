@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Companies } from "@/pages/Companies";
 import { expect, userEvent, within, waitFor } from "storybook/test";
-import { storybookCompanies } from "../../fixtures/paperclipData";
+import { storybookCompanies } from "../../fixtures/nexusData";
 import {
   prepareFixtureApi,
   type FixtureState,
@@ -12,7 +12,7 @@ const meta = {
     "Getting started and access/Companies and portability/Selection and archived organizations",
   component: Companies,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "companies/selection",
         "companies/archive"
@@ -71,7 +71,7 @@ export const SelectOrganization: Story = {
     const card = await c.findByRole("button", { name: /Archived Research/ });
     await userEvent.click(card);
     await waitFor(() =>
-      expect(localStorage.getItem("paperclip.selectedCompanyId")).toBe(
+      expect(localStorage.getItem("nexus.selectedCompanyId")).toBe(
         "archived-gap",
       ),
     );

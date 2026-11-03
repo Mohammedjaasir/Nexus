@@ -1,4 +1,4 @@
-import { instanceExperimentalSettingsSchema } from "@paperclipai/shared";
+import { instanceExperimentalSettingsSchema } from "@nexusai/shared";
 import type { CaseSummary, CaseDetail, CaseEvent, CaseHandoffView } from "@/api/cases";
 import { prepareFixtureApi, type FixtureState } from "./api";
 export const caseItem: CaseSummary = {

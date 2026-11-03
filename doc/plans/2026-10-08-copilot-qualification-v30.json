@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.copilot.qualification-summary/v1",
+  "schema": "nexus.copilot.qualification-summary/v1",
   "recordedAt": "2026-10-08T12:31:43.458335+00:00",
   "sourceRevision": "c4b5d40bcfd51e6cacccc1ea1343305b05735641",
   "profileVersion": 30,

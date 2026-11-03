@@ -1,4 +1,4 @@
-import type { AiConnectionRouterSelection } from "@paperclipai/shared";
+import type { AiConnectionRouterSelection } from "@nexusai/shared";
 
 export function AiConnectionPoolRunDetails({ context }: { context: Record<string, unknown> | null }) {
   const selection = context?.aiRouterSelection as AiConnectionRouterSelection | undefined;

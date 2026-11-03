@@ -5,7 +5,7 @@ import {
   agents, companies, completionContracts, createDb, environments, environmentLeases, heartbeatRuns, issues, issueComments,
   nativeRunFinalizations, nativeRunResults, statusDecisionEffects, statusDecisions,
   workAssessments, workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { readIdleSleepSafety } from "../services/idle-sleep-safety.js";
 import { beginIdleTrackedWork } from "../services/task-admission.js";
@@ -43,7 +43,7 @@ if (!support.supported) console.warn(`Skipping finalization idle-sleep Postgres 
     await db.insert(agents).values({ id: agentId, companyId, name: "Idle worker", adapterType: "process", status: "idle" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Completed task", status: "done" });
     await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1", policyVersion: "fixture", risk: "standard",
+      schemaVersion: "nexus.completion-contract.v1", policyVersion: "fixture", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: {}, canonicalSha256: contractId, createdByActorType: "system", createdByActorId: "fixture" });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, nativeIssueId: issueId,
@@ -180,7 +180,7 @@ if (!support.supported) console.warn(`Skipping finalization idle-sleep Postgres 
   async function seedPendingReply() {
     const f = await seed();
     await db.update(nativeRunResults).set({ resultJson: {
-      result: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "done", summary: "Completed task" },
+      result: { schema: "nexus.run_result.v1", reportedWorkDisposition: "done", summary: "Completed task" },
       terminal: { runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "done" },
     } }).where(eq(nativeRunResults.id, f.resultId));
     return f;

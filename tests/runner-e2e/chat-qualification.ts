@@ -50,7 +50,7 @@ export function assertActiveHandoff(e: {
   expect(e.output.body).toContain(e.reference);
   expect(e.output.updatedByAgentId ?? e.output.createdByAgentId).toBe(e.successorId);
   expect(e.audit.filter(a => a.action === "issue.reassigned")).toHaveLength(1);
-  expect(e.audit.find(a => a.action === "issue.reassigned")?.details).toMatchObject({ source: "paperclip_runner_protocol" });
+  expect(e.audit.find(a => a.action === "issue.reassigned")?.details).toMatchObject({ source: "nexus_runner_protocol" });
 }
 
 export function assertCrashRecovered(e: {
@@ -100,11 +100,11 @@ export async function runActiveReassignment(context: Context) {
   const second = await api.post<Row>(`${company}/agents`, { ...config, name: "Morgan Successor", role: "engineer", reportsTo: f.agent.id });
   const wait = await brief(input, first.id);
   const reference = `REFERENCE${randomUUID().replaceAll("-", "")}`;
-  const workerInstructions = `First save a draft Paperclip document on the assigned task containing the reference from its plan. Then run node ${wait.scriptPath} and wait for the brief before finishing. Do not finish before the command returns.`;
+  const workerInstructions = `First save a draft Nexus document on the assigned task containing the reference from its plan. Then run node ${wait.scriptPath} and wait for the brief before finishing. Do not finish before the command returns.`;
   await api.saveAgentInstructions(first.id, workerInstructions);
   expect(await api.get(`/api/agents/${first.id}/instructions-bundle/file?path=AGENTS.md`)).toMatchObject({ content: workerInstructions });
   const task = await api.post<Row>(`${company}/issues`, { title: `Launch checklist ${input.nonce}`, status: "todo", assigneeAgentId: first.id,
-    description: `Write a short launch checklist as a Paperclip document on this existing task. Use the saved plan and preserve any draft. Include its reference and ${marker} in the final checklist, then complete this task.`,
+    description: `Write a short launch checklist as a Nexus document on this existing task. Use the saved plan and preserve any draft. Include its reference and ${marker} in the final checklist, then complete this task.`,
     initialPlan: `Welcome beginners on Friday at a free meetup. Reference: ${reference}` });
   try {
     const boundary = await activeAtGate(context, wait.ready, first.id);

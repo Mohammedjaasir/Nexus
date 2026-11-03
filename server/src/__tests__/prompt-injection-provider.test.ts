@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { describe, expect, it, vi } from "vitest";
-import { PROMPT_INJECTION_DEFAULT_MODEL, PROMPT_INJECTION_MAX_REQUEST_BYTES } from "@paperclipai/shared";
+import { PROMPT_INJECTION_DEFAULT_MODEL, PROMPT_INJECTION_MAX_REQUEST_BYTES } from "@nexusai/shared";
 import { parsePromptInjectionVerdict, promptInjectionInput, promptInjectionRequestFits, runPromptInjectionProvider } from "../services/prompt-injection-provider.js";
 const input = { credential: "fixture-key", model: PROMPT_INJECTION_DEFAULT_MODEL,
   prompt: promptInjectionInput("ordinary result", { name: "read", type: "builtin" }) };
@@ -19,7 +19,7 @@ describe("prompt injection provider", () => {
     expect(await runPromptInjectionProvider(input, { fetch })).toMatchObject({ verdict: { violation: false, findings: [] }, receipt: { costStatus: "reported", inputTokens: 100, outputTokens: 20 } });
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
-    expect(new Headers(init.headers).get("x-openrouter-title")).toBe("Paperclip");
+    expect(new Headers(init.headers).get("x-openrouter-title")).toBe("Nexus");
     expect(JSON.parse(String(init.body))).toMatchObject({ model: input.model, max_tokens: 4096, usage: { include: true }, messages: [
       { role: "system", content: [{ type: "text", text: expect.stringContaining("tool-result-v1") }] }, { role: "user", content: input.prompt },
     ] });

@@ -24,7 +24,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatActions,
@@ -36,11 +36,11 @@ import {
   companyMemberships,
   issues,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEndpointSetupState,
   ToolCredentialSecretRef,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import { logger } from "../../../middleware/logger.js";
 import { redactSensitiveText } from "../../../redaction.js";
@@ -415,7 +415,7 @@ export function createSlackTaskStart(db: Db, options: SlackTaskStartOptions) {
         );
       } else {
         // The provider-visible send is already confirmed. Wait for an
-        // operator to repair/resume the endpoint, then continue Paperclip-only
+        // operator to repair/resume the endpoint, then continue Nexus-only
         // admission without sending another Slack message.
         await db.transaction(async (tx) => {
           await notifyChatActionWork(tx, "slash_task_start");
@@ -502,7 +502,7 @@ export function createSlackTaskStart(db: Db, options: SlackTaskStartOptions) {
       return true;
     } catch (error) {
       // The provider post is already confirmed, so this retry is strictly a
-      // Paperclip admission retry. Preserve the root tuple and let the durable
+      // Nexus admission retry. Preserve the root tuple and let the durable
       // reconciler resume without ever posting to Slack again.
       await db.transaction(async (tx) => {
         await notifyChatActionWork(tx, "slash_task_start");
@@ -784,7 +784,7 @@ export function createSlackTaskStart(db: Db, options: SlackTaskStartOptions) {
           if (principal && !principal.isBot && principal.kind === "user") {
             const link = await db
               .select({
-                paperclipUserId: chatIdentityLinks.paperclipUserId,
+                nexusUserId: chatIdentityLinks.nexusUserId,
                 status: chatIdentityLinks.status,
               })
               .from(chatIdentityLinks)
@@ -795,7 +795,7 @@ export function createSlackTaskStart(db: Db, options: SlackTaskStartOptions) {
                 ),
               )
               .then((rows) => rows[0] ?? null);
-            if (link?.status === "linked" && link.paperclipUserId) {
+            if (link?.status === "linked" && link.nexusUserId) {
               principalAllowed = await db
                 .select({ id: companyMemberships.id })
                 .from(companyMemberships)
@@ -803,7 +803,7 @@ export function createSlackTaskStart(db: Db, options: SlackTaskStartOptions) {
                   and(
                     eq(companyMemberships.companyId, record.endpoint.companyId),
                     eq(companyMemberships.principalType, "user"),
-                    eq(companyMemberships.principalId, link.paperclipUserId),
+                    eq(companyMemberships.principalId, link.nexusUserId),
                     eq(companyMemberships.status, "active"),
                     ne(companyMemberships.membershipRole, "viewer"),
                   ),
@@ -1011,7 +1011,7 @@ export function createSlackTaskStart(db: Db, options: SlackTaskStartOptions) {
             );
           }
           // Provider transport and its durable confirmation remain fenced by
-          // the credential lease. Paperclip-only task admission happens after
+          // the credential lease. Nexus-only task admission happens after
           // this callback returns and releases that lease: normal admission
           // stages a receipt reaction, whose independently fenced worker must
           // acquire the same lease and would otherwise self-deadlock here.

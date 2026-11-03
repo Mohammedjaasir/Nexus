@@ -1,4 +1,4 @@
-import { closeRegisteredClients, createDb } from "@paperclipai/db";
+import { closeRegisteredClients, createDb } from "@nexusai/db";
 import { getStorageService } from "../src/storage/index.js";
 import { migrateRemoteWorkspace } from "../src/services/remote-workspace-migration.js";
 import { assertRemoteWorkspacePersistence } from "../src/services/remote-workspaces.js";

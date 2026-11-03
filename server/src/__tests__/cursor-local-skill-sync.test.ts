@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   listCursorSkills,
   syncCursorSkills,
-} from "@paperclipai/adapter-cursor-local/server";
+} from "@nexusai/adapter-cursor-local/server";
 
 async function makeTempDir(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -19,7 +19,7 @@ async function createSkillDir(root: string, name: string) {
 }
 
 describe("cursor local skill sync", () => {
-  const paperclipKey = "paperclipai/paperclip/paperclip";
+  const nexusKey = "paperclipai/paperclip/nexus";
   const cleanupDirs = new Set<string>();
 
   afterEach(async () => {
@@ -27,8 +27,8 @@ describe("cursor local skill sync", () => {
     cleanupDirs.clear();
   });
 
-  it("defaults and installs the operational Paperclip skill in the Cursor skills home", async () => {
-    const home = await makeTempDir("paperclip-cursor-skill-sync-");
+  it("defaults and installs the operational Nexus skill in the Cursor skills home", async () => {
+    const home = await makeTempDir("nexus-cursor-skill-sync-");
     cleanupDirs.add(home);
 
     const ctx = {
@@ -44,16 +44,16 @@ describe("cursor local skill sync", () => {
 
     const before = await listCursorSkills(ctx);
     expect(before.mode).toBe("persistent");
-    expect(before.desiredSkills).toContain(paperclipKey);
-    expect(before.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("missing");
+    expect(before.desiredSkills).toContain(nexusKey);
+    expect(before.entries.find((entry) => entry.key === nexusKey)?.state).toBe("missing");
 
-    const after = await syncCursorSkills(ctx, [paperclipKey]);
-    expect(after.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("installed");
-    expect((await fs.lstat(path.join(home, ".cursor", "skills", "paperclip"))).isSymbolicLink()).toBe(true);
+    const after = await syncCursorSkills(ctx, [nexusKey]);
+    expect(after.entries.find((entry) => entry.key === nexusKey)?.state).toBe("installed");
+    expect((await fs.lstat(path.join(home, ".cursor", "skills", "nexus"))).isSymbolicLink()).toBe(true);
   });
 
   it("keeps the operational skill installed after an explicit empty replacement", async () => {
-    const home = await makeTempDir("paperclip-cursor-required-skill-");
+    const home = await makeTempDir("nexus-cursor-required-skill-");
     cleanupDirs.add(home);
 
     const snapshot = await syncCursorSkills({
@@ -62,22 +62,22 @@ describe("cursor local skill sync", () => {
       adapterType: "cursor",
       config: {
         env: { HOME: home },
-        paperclipSkillSync: { desiredSkills: [] },
+        nexusSkillSync: { desiredSkills: [] },
       },
     }, []);
 
-    expect(snapshot.desiredSkills).toEqual([paperclipKey, "paperclipai/paperclip/complain", "paperclipai/paperclip/suggestion-box"]);
-    expect(snapshot.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("installed");
-    expect((await fs.lstat(path.join(home, ".cursor", "skills", "paperclip"))).isSymbolicLink()).toBe(true);
+    expect(snapshot.desiredSkills).toEqual([nexusKey, "paperclipai/paperclip/complain", "paperclipai/paperclip/suggestion-box"]);
+    expect(snapshot.entries.find((entry) => entry.key === nexusKey)?.state).toBe("installed");
+    expect((await fs.lstat(path.join(home, ".cursor", "skills", "nexus"))).isSymbolicLink()).toBe(true);
   });
 
-  it("recognizes company-library runtime skills supplied outside the bundled Paperclip directory", async () => {
-    const home = await makeTempDir("paperclip-cursor-runtime-skills-home-");
-    const runtimeSkills = await makeTempDir("paperclip-cursor-runtime-skills-src-");
+  it("recognizes company-library runtime skills supplied outside the bundled Nexus directory", async () => {
+    const home = await makeTempDir("nexus-cursor-runtime-skills-home-");
+    const runtimeSkills = await makeTempDir("nexus-cursor-runtime-skills-src-");
     cleanupDirs.add(home);
     cleanupDirs.add(runtimeSkills);
 
-    const paperclipDir = await createSkillDir(runtimeSkills, "paperclip");
+    const nexusDir = await createSkillDir(runtimeSkills, "nexus");
     const asciiHeartDir = await createSkillDir(runtimeSkills, "ascii-heart");
 
     const ctx = {
@@ -88,11 +88,11 @@ describe("cursor local skill sync", () => {
         env: {
           HOME: home,
         },
-        paperclipRuntimeSkills: [
+        nexusRuntimeSkills: [
           {
-            key: "paperclip",
-            runtimeName: "paperclip",
-            source: paperclipDir,
+            key: "nexus",
+            runtimeName: "nexus",
+            source: nexusDir,
           },
           {
             key: "ascii-heart",
@@ -100,7 +100,7 @@ describe("cursor local skill sync", () => {
             source: asciiHeartDir,
           },
         ],
-        paperclipSkillSync: {
+        nexusSkillSync: {
           desiredSkills: ["ascii-heart"],
         },
       },

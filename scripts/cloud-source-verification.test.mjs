@@ -41,7 +41,7 @@ test("source proof passes while image work is still running, or has failed", asy
 test("only the expected workflow, repository, master push, and full SHA can supply proof", async () => {
   for (const overrides of [
     { workflow_id: 999 }, { path: ".github/workflows/pr.yml" },
-    { repository: { full_name: "other/paperclip" } }, { head_repository: { full_name: "fork/paperclip" } },
+    { repository: { full_name: "other/nexus" } }, { head_repository: { full_name: "fork/nexus" } },
     { head_sha: "b".repeat(40) }, { head_branch: "feature" }, { event: "workflow_dispatch" },
     { run_attempt: undefined }, { run_attempt: 0 },
   ]) {

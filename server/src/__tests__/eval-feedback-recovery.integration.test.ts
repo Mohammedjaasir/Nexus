@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { agents, heartbeatRuns } from "@paperclipai/db";
+import { agents, heartbeatRuns } from "@nexusai/db";
 import { expect, it } from "vitest";
 import { createLocalAgentJwt } from "../agent-auth-jwt.js";
 import { startRunnerApiTestServer } from "./helpers/runner-api-server.js";
@@ -13,9 +13,9 @@ import { recoverInterruptedFeedback, readRecoveredFeedback } from "../../../test
 
 it("recovers real saved complaints and suggestions after their producer is killed", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "eval-feedback-interruption-"));
-  const previousHome = process.env.PAPERCLIP_HOME, previousSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
-  process.env.PAPERCLIP_HOME = path.join(root, "home");
-  process.env.PAPERCLIP_AGENT_JWT_SECRET = randomUUID();
+  const previousHome = process.env.NEXUS_HOME, previousSecret = process.env.NEXUS_AGENT_JWT_SECRET;
+  process.env.NEXUS_HOME = path.join(root, "home");
+  process.env.NEXUS_AGENT_JWT_SECRET = randomUUID();
   let server: Awaited<ReturnType<typeof startRunnerApiTestServer>> | undefined;
   let worker: ReturnType<typeof spawn> | undefined;
   try {
@@ -33,7 +33,7 @@ it("recovers real saved complaints and suggestions after their producer is kille
       for (const kind of ['complaint', 'suggestion']) {
         const response = await fetch(process.env.FEEDBACK_URL, {
           method: 'POST', headers: { 'content-type': 'application/json',
-            authorization: 'Bearer ' + process.env.FEEDBACK_TOKEN, 'X-Paperclip-Run-Id': process.env.FEEDBACK_RUN },
+            authorization: 'Bearer ' + process.env.FEEDBACK_TOKEN, 'X-Nexus-Run-Id': process.env.FEEDBACK_RUN },
           body: JSON.stringify({ kind, body: 'Synthetic interrupted producer ' + kind, idempotencyKey: kind }),
         });
         if (response.status !== 201) throw new Error('Synthetic feedback submission failed: ' + response.status);
@@ -80,8 +80,8 @@ it("recovers real saved complaints and suggestions after their producer is kille
       const exited = once(worker, "exit"); worker.kill("SIGKILL"); await exited;
     }
     await server?.close();
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previousHome;
-    if (previousSecret === undefined) delete process.env.PAPERCLIP_AGENT_JWT_SECRET; else process.env.PAPERCLIP_AGENT_JWT_SECRET = previousSecret;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = previousHome;
+    if (previousSecret === undefined) delete process.env.NEXUS_AGENT_JWT_SECRET; else process.env.NEXUS_AGENT_JWT_SECRET = previousSecret;
     await rm(root, { recursive: true, force: true });
   }
 }, 90_000);

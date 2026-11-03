@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { createDb } from "@paperclipai/db";
-import { enableDatabaseWorkNotifications, publishDatabaseWorkHint, signalDatabaseWork, subscribeDatabaseWork } from "@paperclipai/db/work-signals";
+import { createDb } from "@nexusai/db";
+import { enableDatabaseWorkNotifications, publishDatabaseWorkHint, signalDatabaseWork, subscribeDatabaseWork } from "@nexusai/db/work-signals";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { deploymentNotifications } from "../services/deployment-notifications.js";
@@ -31,7 +31,7 @@ async function open(handoffMs = 120_000) {
 }
 async function listenerCount() {
   const [row] = await b.execute<{ count: number }>(sql`select count(*)::int as count from pg_stat_activity
-    where datname = current_database() and application_name = 'paperclip-deployment-notifications'`);
+    where datname = current_database() and application_name = 'nexus-deployment-notifications'`);
   return row!.count;
 }
 
@@ -78,7 +78,7 @@ it("reconstructs on listener reconnect and scopes live refresh hints to the comp
     await eventually(async () => refreshed === 1);
     expect(other).toBe(0);
     await b.execute(sql`select pg_terminate_backend(pid) from pg_stat_activity where datname = current_database()
-      and application_name = 'paperclip-deployment-notifications'`);
+      and application_name = 'nexus-deployment-notifications'`);
     await eventually(async () => reconstructed > 0);
     // Reconnect cannot know which hints were lost, so it refreshes both company
     // subscriptions and existing durable queue consumers once.

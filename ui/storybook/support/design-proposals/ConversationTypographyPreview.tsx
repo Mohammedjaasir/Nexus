@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import DesignSandboxTaskThread from "@/components/design-sandbox/DesignSandboxTaskThread";
 import { Button } from "@/components/ui/button";
-import { storybookAgents } from "../../fixtures/paperclipData";
+import { storybookAgents } from "../../fixtures/nexusData";
 
 const agent = { ...storybookAgents[0]!, name: "Connector engineer" };
 type ObservedStyle = { key: string; family: string; size: string; leading: string; weight: string; color: string; emphasis: string; tracking: string; opacity: string; example: string; text: string };

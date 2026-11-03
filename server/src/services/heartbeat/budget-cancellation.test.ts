@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import type { Db } from "@paperclipai/db";
-import { agents, agentWakeupRequests, browserUseRuns, browserUseSessions, budgetPolicies, companies, connectionGrants, costEvents, environmentLeases, heartbeatRuns, issues, projects, toolApplications, toolConnections } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { agents, agentWakeupRequests, browserUseRuns, browserUseSessions, budgetPolicies, companies, connectionGrants, costEvents, environmentLeases, heartbeatRuns, issues, projects, toolApplications, toolConnections } from "@nexusai/db";
 import { eq, inArray } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 import { runningProcesses } from "../../adapters/index.js";
@@ -25,7 +25,7 @@ vi.mock("../local-service-supervisor.js", async (importOriginal) => ({
 
 describe.skipIf(!runControlPostgresSupport.supported)("scoped budget cancellation", () => {
   let db: Db;
-  const { fixture, liveRun } = setupRunControlDatabase("paperclip-heartbeat-budget-cancellation", value => { db = value; });
+  const { fixture, liveRun } = setupRunControlDatabase("nexus-heartbeat-budget-cancellation", value => { db = value; });
 
   it("rechecks stale budget enforcement before cancelling runs or queued wakes", async () => {
     const { company, agent } = await fixture();
@@ -143,7 +143,7 @@ describe.skipIf(!runControlPostgresSupport.supported)("scoped budget cancellatio
       expect(terminateLocalService).not.toHaveBeenCalled();
       expect(coordinator.nextWakeAt()).toBeNull();
       const startedAt = performance.now();
-      await persistUsageReceipt(db, { schema: "paperclip/accounting-receipt/v1", id: randomUUID(),
+      await persistUsageReceipt(db, { schema: "nexus/accounting-receipt/v1", id: randomUUID(),
         companyId: company.id, runId: run.id, sourceId, sequence: 1, receivedAt: new Date().toISOString(),
         adapterType: agent.adapterType, receipt: { complete: false, usageBasis: "per_run", costUsd: 1.1,
           provider: "test", biller: "test", model: "budget-stop-fixture", billingType: "metered_api", costStatus: "unpriced" },
@@ -336,7 +336,7 @@ describe.skipIf(!runControlPostgresSupport.supported)("scoped budget cancellatio
       const leaseId = randomUUID(), providerLeaseId = randomUUID();
       await db.insert(environmentLeases).values({ id: leaseId, companyId: company.id, heartbeatRunId: run.id,
         provider: "daytona", providerLeaseId, status: "released", releasedAt: new Date(), cleanupStatus: "success",
-        metadata: { remoteExecutionTermination: { schema: "paperclip.remote-termination.v1", companyId: company.id,
+        metadata: { remoteExecutionTermination: { schema: "nexus.remote-termination.v1", companyId: company.id,
           runId: run.id, leaseId, provider: "daytona", providerLeaseId, state: "stopped", confirmedAt: new Date().toISOString() } },
       });
     }
@@ -442,7 +442,7 @@ describe.skipIf(!runControlPostgresSupport.supported)("scoped budget cancellatio
       const invocationId = randomUUID();
       return { companyId: company.id, sessionId: session.id, heartbeatRunId: parent.id, invocationId,
         status: "running", detachedUntil: later, createdAt: old,
-        result: index === 2 ? null : { paperclipBudgetHold: { invocationId, amountCents: "10", state: "held",
+        result: index === 2 ? null : { nexusBudgetHold: { invocationId, amountCents: "10", state: "held",
           projectId: index === 0 ? project.id : index === 1 ? otherProject.id : null } },
       };
     }));

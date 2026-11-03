@@ -9,7 +9,7 @@ const identity = { processPid: 200, processGroupId: 200, processStartedAt: start
 const row = (pid: number, parentPid: number, group = pid, kind = "node"): ProcessObservation =>
   ({ pid, parentPid, processGroupId: group, started, kind, state: "S" });
 function fixture() {
-  let table = [row(process.pid, 1, 10), row(100, process.pid), row(200, 100, 200, "paperclip-runnerd"),
+  let table = [row(process.pid, 1, 10), row(100, process.pid), row(200, 100, 200, "nexus-runnerd"),
     row(201, 200), row(300, 100), row(900, process.pid)];
   const signals: Array<[number, string]> = [];
   const roots: Array<ChildProcess> = [];
@@ -148,10 +148,10 @@ it.skipIf(process.platform === "win32")("final cleanup still retires the old run
 
 
 it("normalizes only the exact Linux comm truncation, never a nearby role name", () => {
-  expect(diagnosticProcessKind("/tmp/paperclip-runne", "linux")).toBe("paperclip-runnerd");
-  expect(diagnosticProcessKind("/tmp/paperclip-runnerd", "darwin")).toBe("paperclip-runnerd");
-  expect(diagnosticProcessKind("paperclip-runne", "darwin")).toBe("other");
-  for (const name of ["paperclip-runn", "paperclip-runner", "paperclip-runneX", "paperclip-runnerd-other"]) {
+  expect(diagnosticProcessKind("/tmp/nexus-runne", "linux")).toBe("nexus-runnerd");
+  expect(diagnosticProcessKind("/tmp/nexus-runnerd", "darwin")).toBe("nexus-runnerd");
+  expect(diagnosticProcessKind("nexus-runne", "darwin")).toBe("other");
+  for (const name of ["nexus-runn", "nexus-runner", "nexus-runneX", "nexus-runnerd-other"]) {
     expect(diagnosticProcessKind(name, "linux")).toBe("other");
   }
 });

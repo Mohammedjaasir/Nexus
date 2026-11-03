@@ -1,7 +1,7 @@
-# Stock harness with Paperclip
+# Stock harness with Nexus
 
 This suite covers the instruction reductions tracked in the
-[working checklist](../../doc/plans/2026-10-02-stock-harness-paperclip-checklist.md).
+[working checklist](../../doc/plans/2026-10-02-stock-harness-nexus-checklist.md).
 Existing context-integrity and chat evals supplied a custom QA instruction
 bundle. Their passing results therefore did not qualify a hire with the tiny
 production default. The new suite omits that fixture bundle and lets the public
@@ -168,7 +168,7 @@ full matrix retry.
 The [fixed legacy pilot](https://github.com/paperclipai/paperclip/actions/runs/37039240025)
 at `4163dbfd0fd4d145bfa52b4d7f80eb59a362ee36` passed SDK setup, hire/shared
 prompt/oracle checks and the Rust additive test. It stopped before providers:
-the real daemon-frame test lacked the cold `paperclip-runnerd` binary. Setup now
+the real daemon-frame test lacked the cold `nexus-runnerd` binary. Setup now
 builds that daemon from the locked Rust source before TypeScript gates, retains
 `runnerd-build.txt`, and requires both setup exits in the admission receipt.
 The required daemon-frame test selects that built debug binary explicitly,
@@ -182,9 +182,9 @@ and its fixture; verification binds both binaries to the retained receipt.
 
 That final cold pilot passed all 537 prerequisites on GitHub and reached Claude
 Sonnet 4.6. It saved a workspace `task-output.md` and completed the issue, while
-the independent durable-document oracle found no Paperclip issue document.
+the independent durable-document oracle found no Nexus issue document.
 The pinned skill's phrase "task document" does not explicitly name storage in
-Paperclip; matched historical results must precede any regression attribution.
+Nexus; matched historical results must precede any regression attribution.
 The task, instruction delivery, budget, and cleanup receipts remain retained.
 
 Its trusted merged report rejected the prerequisite folder alongside the campaign
@@ -230,14 +230,14 @@ source hashes, all campaign and recovery links, timing/usage, cost coverage,
 security failures, clipping limits and publication-layout recovery. Candidate
 `f02d8d0df` has 24 retained results: 15 pass and nine fail. Historical
 `12c5433c6` also has 24 retained results: 15 pass and nine fail. Its single
-AWS-runner recovery timed out; original missing evidence remains recorded. Classic Claude/OpenCode skill runs save no Paperclip task document
+AWS-runner recovery timed out; original missing evidence remains recorded. Classic Claude/OpenCode skill runs save no Nexus task document
 where historical runs save one; the original oracle remains failed.
 
 The merged native Codex change is held constant. Same aggregate success counts
 would not establish equivalence: case outcomes differ, fixture storage wording
 is ambiguous, ACP credential guards fail, and some public prompt receipts are
 clipped. Native finish/block tool guidance belongs to native runners; legacy
-document-delivery guidance must use the actual Paperclip skill/API path. No
+document-delivery guidance must use the actual Nexus skill/API path. No
 production or skill instructions have been changed to turn the measured failures
 into passes. PR #14948 remains draft.
 
@@ -253,6 +253,6 @@ run. Use a separate frozen-source branch when independent campaigns must overlap
 
 ## Focused legacy delivery repair
 
-The original 24 cells and original assigned-skill request/procedure remain unchanged. Two added explicit Paperclip-document cells apply only to classic Claude and OpenCode, making 26 catalog cells (50 expected turns if every cell is selected). The repair campaign selects only the original skill case and new document case for those two profiles: four cells per variant, eight expected turns total. No full matrix rerun is planned.
+The original 24 cells and original assigned-skill request/procedure remain unchanged. Two added explicit Nexus-document cells apply only to classic Claude and OpenCode, making 26 catalog cells (50 expected turns if every cell is selected). The repair campaign selects only the original skill case and new document case for those two profiles: four cells per variant, eight expected turns total. No full matrix rerun is planned.
 
 Both skill sources are recorded in definition/admission digests. The pre-fix baseline restores the old SKILL.md and records the new reference as absent, without copying the new recipe into that baseline. It holds the tiny manual/shared prompts and all fixture/model/auth/effort inputs fixed. The explicit document oracle checks actual public content/revision and an exact same-app document link, with plausible-negative calibrations.

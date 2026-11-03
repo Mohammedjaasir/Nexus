@@ -1,7 +1,7 @@
 import { ThreadImpl, type Adapter, type Thread } from "chat";
-import type { ChatProvider } from "@paperclipai/shared";
+import type { ChatProvider } from "@nexusai/shared";
 import type { ChatSdkEndpointRuntime } from "../chat-sdk-runtime.js";
-import { createPaperclipChatSdkState, type ChatSdkStatePersistence } from "../chat-sdk-state.js";
+import { createNexusChatSdkState, type ChatSdkStatePersistence } from "../chat-sdk-state.js";
 
 /** Shared control-plane port. Provider SDK classes and voice implement it separately. */
 export type ChatEndpointRuntime = Omit<ChatSdkEndpointRuntime, "provider" | "sdkAdapterKey"> & { readonly provider: ChatProvider; readonly sdkAdapterKey: string };
@@ -27,7 +27,7 @@ export function createVoiceRuntime(options: CreateVoiceRuntimeOptions): ChatEndp
     fetchMessages: async () => { assertActive(); return { messages: [] }; },
     startTyping: async () => { assertActive(); },
   };
-  const state = createPaperclipChatSdkState({ ...options });
+  const state = createNexusChatSdkState({ ...options });
   const thread = (id: string): Thread => {
     assertActive();
     if (!/^speko:[0-9a-f-]{36}$/.test(id)) throw new Error("Invalid voice conversation identity");

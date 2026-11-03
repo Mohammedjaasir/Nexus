@@ -1,4 +1,4 @@
-import type { PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import type { NexusPluginManifestV1 } from "@nexusai/shared";
 import { z } from "zod";
 import { createBundledPluginPackageResolver, type BundledPluginRegistration } from "./bundled-plugin-package.js";
 import type { ResolvedBundledPlugin } from "./bundled-plugins.js";
@@ -21,7 +21,7 @@ export async function inspectCloudPackages(input: {
   installs: readonly ResolvedBundledPlugin[];
   registrations: readonly BundledPluginRegistration[];
   catalogRoot?: string;
-  loadManifest: (packageRoot: string) => Promise<PaperclipPluginManifestV1 | null>;
+  loadManifest: (packageRoot: string) => Promise<NexusPluginManifestV1 | null>;
 }) {
   const started = performance.now();
   const resolver = createBundledPluginPackageResolver(input.installs);

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type AiProvider, type AiAuthMethod, type AiConnectionLoginIntent } from "@paperclipai/shared";
+import { type AiProvider, type AiAuthMethod, type AiConnectionLoginIntent } from "@nexusai/shared";
 import { AgentProviderConnection } from "@/components/new-agent/AgentProviderConnection";
 import { ProviderApiKeyCard } from "@/components/AdapterLoginChrome";
 import { Button } from "@/components/ui/button";

@@ -13,14 +13,14 @@ async function workspaceArchive(input: {
   signal?: AbortSignal;
   maxEntries?: number;
   maxManifestBytes?: number;
-}): Promise<{ schema: "paperclip.remote-workspace-archive.v1"; manifestDigest: string; byteSize: number; sha256: string; entries: number }> {
+}): Promise<{ schema: "nexus.remote-workspace-archive.v1"; manifestDigest: string; byteSize: number; sha256: string; entries: number }> {
   const fs = await import("node:fs/promises");
   const { createReadStream } = await import("node:fs");
   const path = await import("node:path");
   const os = await import("node:os");
   const crypto = await import("node:crypto");
   const child = await import("node:child_process");
-  const schema = "paperclip.remote-workspace-archive.v1" as const;
+  const schema = "nexus.remote-workspace-archive.v1" as const;
   const magic = Buffer.from("PCWS1\n");
   type Entry = { path: string; type: "directory" | "file" | "symlink"; mode?: number; size?: number; sha256?: string; target?: string };
   const fail = (reason: string): never => { throw new Error(`remote_workspace_archive_${reason}`); };
@@ -45,7 +45,7 @@ async function workspaceArchive(input: {
     const command = child.execFile("git", ["-c", "core.fsmonitor=false", "-c", "pack.threads=1", "-c", `core.hooksPath=${os.devNull}`, "-C", cwd, ...args], {
       signal: input.signal, timeout: 300_000, maxBuffer: 64 * 1024 * 1024,
       env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: os.devNull, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0",
-        GIT_AUTHOR_NAME: "Paperclip", GIT_COMMITTER_NAME: "Paperclip", GIT_AUTHOR_EMAIL: "workspace@paperclip.invalid", GIT_COMMITTER_EMAIL: "workspace@paperclip.invalid",
+        GIT_AUTHOR_NAME: "Nexus", GIT_COMMITTER_NAME: "Nexus", GIT_AUTHOR_EMAIL: "workspace@nexus.invalid", GIT_COMMITTER_EMAIL: "workspace@nexus.invalid",
         GIT_AUTHOR_DATE: "@0 +0000", GIT_COMMITTER_DATE: "@0 +0000" },
     }, (error, stdout) => error ? reject(error) : resolve(stdout));
     if (stdin !== undefined) command.stdin?.end(stdin);
@@ -153,7 +153,7 @@ async function workspaceArchive(input: {
         check();
         const next = relative ? `${relative}/${name}` : name;
         if (!safeRelative(next)) fail("unsupported_filename");
-        if (input.exclude?.some(excluded => next === excluded || next.startsWith(`${excluded}/`)) || next === ".paperclip-runtime" || next.startsWith(".paperclip-runtime/")) {
+        if (input.exclude?.some(excluded => next === excluded || next.startsWith(`${excluded}/`)) || next === ".nexus-runtime" || next.startsWith(".nexus-runtime/")) {
           excludedPaths.add(next); continue;
         }
         const source = path.join(root, next);
@@ -243,7 +243,7 @@ async function workspaceArchive(input: {
       const originals = new Map(before.map(entry => [entry.path, entry]));
       const entries = [...before, ...(await walk(tree)).filter(entry => !originals.has(entry.path))]
         .sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
-      const manifest = { schema, exclusionPolicy: "paperclip.remote-workspace-exclusions.v1", excluded: [...excludedPaths].sort(), entries }, body = Buffer.from(JSON.stringify(manifest));
+      const manifest = { schema, exclusionPolicy: "nexus.remote-workspace-exclusions.v1", excluded: [...excludedPaths].sort(), entries }, body = Buffer.from(JSON.stringify(manifest));
       if (body.length > 64 * 1024 * 1024) fail("manifest_too_large");
       const digest = manifestHash(manifest), length = Buffer.alloc(4); length.writeUInt32BE(body.length);
       const output = await fs.open(input.archivePath, "wx", 0o600);

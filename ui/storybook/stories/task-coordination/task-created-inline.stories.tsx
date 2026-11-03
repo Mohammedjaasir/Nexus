@@ -2,9 +2,9 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, within } from "storybook/test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Issue, IssueComment, IssueDocumentSummary } from "@paperclipai/shared";
+import type { Issue, IssueComment, IssueDocumentSummary } from "@nexusai/shared";
 import { TaskChatThread } from "@/components/TaskChatThread";
-import { storybookAgents, storybookIssues } from "../../fixtures/paperclipData";
+import { storybookAgents, storybookIssues } from "../../fixtures/nexusData";
 import { queryKeys } from "@/lib/queryKeys";
 
 const parent = storybookIssues[0]!;
@@ -54,7 +54,7 @@ const meta = {
   component: TaskFeed,
   parameters: {
     layout: "fullscreen", initialEntries: ["/PAP/issues/parent"],
-    paperclip: {
+    nexus: {
       capabilities: ["task-coordination/delegation", "tasks/discussion"],
       implementation: "production", boundary: "fixtures",
       notes: "Production TaskChatThread assembles created task cards beside a saved document. Task reads and status are fixtures; no agent runs or task writes occur.",

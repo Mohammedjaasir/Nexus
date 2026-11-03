@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { MuseConnection, MuseBinding, MusePairing, MusePairingInput, MuseAttestStopInput, MuseDetectorCleanupAttestationInput } from "@paperclipai/shared";
+import type { MuseConnection, MuseBinding, MusePairing, MusePairingInput, MuseAttestStopInput, MuseDetectorCleanupAttestationInput } from "@nexusai/shared";
 import { museInvitationsApi } from "@/api/museInvitations";
 import { useAccountIdentity } from "@/api/companies-query";
 import type { MuseConnectionState } from "@/components/new-agent/ExternalAgentInviteContent";

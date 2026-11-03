@@ -1,4 +1,4 @@
-import { centsToUnits, unitsToCents } from "@paperclipai/shared";
+import { centsToUnits, unitsToCents } from "@nexusai/shared";
 import type { DecisionProviderReceipt } from "./decision-model-provider.js";
 
 const object = (v: unknown): Record<string, unknown> =>

@@ -121,11 +121,11 @@ export async function runCaseReceiptFlow(input: Input) {
         runtimeMode: row.runtimeMode, issueId: row.issueId, nativeIssueId: row.nativeIssueId,
         startedAt: row.startedAt, finishedAt: row.finishedAt, errorCode: row.errorCode,
         contextSnapshot: { issueId: row.contextSnapshot?.issueId, taskId: row.contextSnapshot?.taskId,
-          paperclipCase: row.contextSnapshot?.paperclipCase ? {
-            id: row.contextSnapshot.paperclipCase.id, taskId: row.contextSnapshot.paperclipCase.taskId,
-            phase: row.contextSnapshot.paperclipCase.phase, handoffVersion: row.contextSnapshot.paperclipCase.handoffVersion,
-            issueStatusVersion: row.contextSnapshot.paperclipCase.issueStatusVersion,
-            incomingHandoff: row.contextSnapshot.paperclipCase.incomingHandoff,
+          nexusCase: row.contextSnapshot?.nexusCase ? {
+            id: row.contextSnapshot.nexusCase.id, taskId: row.contextSnapshot.nexusCase.taskId,
+            phase: row.contextSnapshot.nexusCase.phase, handoffVersion: row.contextSnapshot.nexusCase.handoffVersion,
+            issueStatusVersion: row.contextSnapshot.nexusCase.issueStatusVersion,
+            incomingHandoff: row.contextSnapshot.nexusCase.incomingHandoff,
           } : undefined } })),
       receipt: projectDocument(receipt), receiptRevisions, review: projectDocument(review),
       handoffToolRunIds, verifierReadReceipt, builderReadReview, kickoffReplayed,
@@ -133,7 +133,7 @@ export async function runCaseReceiptFlow(input: Input) {
     };
     // Persist synthetic work products and allowlisted facts, never provider prompts/sessions.
     await input.evidence("case-receipt.json", {
-      schema: "paperclip.e2e.case-receipt.v1", stage, checks, observation: publicObservation,
+      schema: "nexus.e2e.case-receipt.v1", stage, checks, observation: publicObservation,
       ...(failure instanceof Error ? { failure: { message: failure.message.slice(0, 2000) } } : {}),
     });
     return checks;
@@ -238,7 +238,7 @@ Use observed case/task versions, persist findings before each handoff, and obey 
       if (hasNativeHandoffReceipt(events)) handoffToolRunIds.push(run.id);
       if (run.agentId === agents.triage) triageReadBrief ||= hasTaskDocumentRead(events, issue!.id, "brief");
       if (run.agentId === agents.verification) verifierReadReceipt ||= hasTaskDocumentRead(events, issue!.id, "receipt", true);
-      if (run.agentId === agents.implementation && run.contextSnapshot?.paperclipCase?.phase === "revision") {
+      if (run.agentId === agents.implementation && run.contextSnapshot?.nexusCase?.phase === "revision") {
         builderReadReview ||= hasTaskDocumentRead(events, issue!.id, "review", true);
       }
     }

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { agents, companies, companyMemberships, createDb, issueAccessGrants, issues, projectAccessMembers, projects, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { agents, companies, companyMemberships, createDb, issueAccessGrants, issues, projectAccessMembers, projects, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { canActorReadIssuePrivacy, issueReadSqlCondition, type AuthorizationActor } from "../services/authorization.js";
 import { issueService } from "../services/issues.js";

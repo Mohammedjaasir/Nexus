@@ -37,7 +37,7 @@ const meta = {
     "Getting started and access/Login, invitations, and access/Organization membership",
   component: MembershipHost,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "access/membership"
       ],

@@ -1,8 +1,8 @@
 import { notifyApprovalWork } from "./approval-work-notifications.js";
 import { RECOVERY_ORIGIN_KINDS, parseIssueGraphLivenessIncidentKey } from "./recovery/origins.js";
 import { sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import type { AttentionSourceKind } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import type { AttentionSourceKind } from "@nexusai/shared";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 
 export const ATTENTION_RETENTION_MAX_ISSUE_IDS = 100;

@@ -17,7 +17,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     initialEntries: ["/PAP/activity/commentary"],
-    paperclip: {
+    nexus: {
       capabilities: ["activity/agent-commentary"],
       status: "current",
       implementation: "production",

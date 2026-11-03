@@ -1,4 +1,4 @@
-import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -33,7 +33,7 @@ import {
   projects,
   projectWorkspaces,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -86,10 +86,10 @@ async function runGit(cwd: string, args: string[]) {
 }
 
 async function createGitRepo() {
-  const repoRoot = await mkdtemp(path.join(os.tmpdir(), "paperclip-finalize-branch-repo-"));
+  const repoRoot = await mkdtemp(path.join(os.tmpdir(), "nexus-finalize-branch-repo-"));
   await runGit(repoRoot, ["init"]);
-  await runGit(repoRoot, ["config", "user.email", "paperclip-test@example.com"]);
-  await runGit(repoRoot, ["config", "user.name", "Paperclip Test"]);
+  await runGit(repoRoot, ["config", "user.email", "nexus-test@example.com"]);
+  await runGit(repoRoot, ["config", "user.name", "Nexus Test"]);
   await writeFile(path.join(repoRoot, "README.md"), "finalization branch guard\n", "utf8");
   await runGit(repoRoot, ["add", "README.md"]);
   await runGit(repoRoot, ["commit", "-m", "initial"]);
@@ -139,7 +139,7 @@ async function deleteHeartbeatRowsAfterActivityLogDrains(db: Db) {
 
 function readAdapterWorkspace(input: unknown) {
   const context = (input as { context?: Record<string, unknown> }).context ?? {};
-  const workspace = context.paperclipWorkspace as Record<string, unknown> | undefined;
+  const workspace = context.nexusWorkspace as Record<string, unknown> | undefined;
   const cwd = typeof workspace?.cwd === "string" ? workspace.cwd : null;
   const branchName = typeof workspace?.branchName === "string" ? workspace.branchName : null;
   const executionWorkspaceId =
@@ -268,7 +268,7 @@ describeEmbeddedPostgres("heartbeat workspace finalization branch guard", () => 
   const tempRoots: string[] = [];
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-finalize-branch-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-finalize-branch-");
     db = createDb(tempDb.connectionString);
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
 

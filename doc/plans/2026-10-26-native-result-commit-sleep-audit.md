@@ -63,7 +63,7 @@ signals rather than worker-local counters or new recovery tables.
 
 | Producer | Boundary and purpose |
 | --- | --- |
-| `PaperclipControlPlanePort.completeRun` | Signal before the first accepted-result insert. Covers result arriving after an existing workspace barrier. |
+| `NexusControlPlanePort.completeRun` | Signal before the first accepted-result insert. Covers result arriving after an existing workspace barrier. |
 | `NativeRunCoordinatorStore.completeRun` | Same contract for the PRP coordinator's independent accepted-result writer. Terminal-event reconciliation delegates here. |
 | Workspace operation recorder | Signal before workspace-finalization receipt writes, including the successful barrier arriving after the accepted result. |
 | Direct workspace recovery | Signal the repaired successful receipt in the same transaction. |

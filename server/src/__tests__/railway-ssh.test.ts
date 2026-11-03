@@ -36,7 +36,7 @@ describe("Railway isolated container command runner", () => {
   it("requires remote completion and cleans its isolated directory", async () => {
     fakeProcess((child, script) => {
       expect(script).toContain("</dev/null");
-      const marker = script.match(/paperclip_railway_completed_[a-f0-9]+/)![0];
+      const marker = script.match(/nexus_railway_completed_[a-f0-9]+/)![0];
       child.stdout.write(`hello\n${marker}:7\n`);
       child.emit("close", 7);
     });

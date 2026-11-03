@@ -3,7 +3,7 @@ import { act, forwardRef, useImperativeHandle, type ForwardedRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ConversationTaskHandoff, Issue, IssueDocument, IssueThreadInteraction } from "@paperclipai/shared";
+import type { ConversationTaskHandoff, Issue, IssueDocument, IssueThreadInteraction } from "@nexusai/shared";
 import { TaskChatThread } from "./TaskChatThread";
 import { CoordinatorPresentation } from "./coordinator/CoordinatorPresentation";
 import { ThemeProvider } from "@/context/ThemeContext";
@@ -64,7 +64,7 @@ let root: Root;
 let client: QueryClient;
 const at = (second: number) => `2026-10-26T12:00:${String(second).padStart(2, "0")}Z`;
 const sourceRun: IssueChatLinkedRun = {
-  runId: "source-run", status: "succeeded", runtimeMode: "native", adapterType: "paperclip_runner",
+  runId: "source-run", status: "succeeded", runtimeMode: "native", adapterType: "nexus_runner",
   agentId: "agent", agentName: "Assistant", createdAt: at(0), startedAt: at(0), finishedAt: at(10),
 };
 const comment = (id: string, body: string, second: number, runId?: string) => ({
@@ -205,7 +205,7 @@ describe("Coordinator task creation ordering", () => {
 
   it("follows the live tail and stays after the final reply when the turn settles", async () => {
     state.handoffs = [handoff()];
-    const live: LiveRunForIssue = { id: "source-run", agentId: "agent", agentName: "Assistant", adapterType: "paperclip_runner",
+    const live: LiveRunForIssue = { id: "source-run", agentId: "agent", agentName: "Assistant", adapterType: "nexus_runner",
       runtimeMode: "native", status: "running", invocationSource: "on_demand", triggerDetail: null,
       createdAt: at(0), startedAt: at(0), finishedAt: null };
     await paint({ comments: [], linkedRuns: [{ ...sourceRun, status: "running", finishedAt: null }], liveRuns: [live] });

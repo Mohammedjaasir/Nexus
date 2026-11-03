@@ -1,6 +1,6 @@
 # Hosted MCP qualification — 2026-10-09
 
-This batch continues the verified connector work in [PR #15621](https://github.com/paperclipai/paperclip/pull/15621). Provider research was checked against the existing paperclip-content integration research and the canonical [connector playbook](CONNECTOR-PLAYBOOK.md). Luna workers researched and exercised separate providers in an isolated local Paperclip company.
+This batch continues the verified connector work in [PR #15621](https://github.com/paperclipai/paperclip/pull/15621). Provider research was checked against the existing nexus-content integration research and the canonical [connector playbook](CONNECTOR-PLAYBOOK.md). Luna workers researched and exercised separate providers in an isolated local Nexus company.
 
 ## Completed browser journeys
 

@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
-import { agents, companies, companyMemberships, authUsers, mcpOauthGrants, mcpOauthTokens, museAgentBindings as bindings, museCredentials as credentials, museRunnerAssignments as assignments, museMailboxItems as mailbox, externalAgentHolds as holds, type Db } from "@paperclipai/db";
-import { MUSE_ACCESS_TTL_MS, MUSE_REFRESH_INACTIVITY_MS, MUSE_RESOURCE_PATH, MUSE_CLEANUP_TTL_MS, type AgentConnectionSubject, type MuseCredentials } from "@paperclipai/shared";
+import { agents, companies, companyMemberships, authUsers, mcpOauthGrants, mcpOauthTokens, museAgentBindings as bindings, museCredentials as credentials, museRunnerAssignments as assignments, museMailboxItems as mailbox, externalAgentHolds as holds, type Db } from "@nexusai/db";
+import { MUSE_ACCESS_TTL_MS, MUSE_REFRESH_INACTIVITY_MS, MUSE_RESOURCE_PATH, MUSE_CLEANUP_TTL_MS, type AgentConnectionSubject, type MuseCredentials } from "@nexusai/shared";
 import { instanceSettingsService } from "./instance-settings.js";
 import { musePublicOrigin } from "./muse-setup.js";
 import { unauthorized, forbidden } from "../errors.js";
@@ -43,7 +43,7 @@ export async function assertMuseCurrentAuthority(db: MuseIdentityDatabase, b: ty
   const [agentMember] = await db.select({id:companyMemberships.id}).from(companyMemberships).where(and(eq(companyMemberships.companyId,b.companyId),eq(companyMemberships.principalType,"agent"),eq(companyMemberships.principalId,b.agentId),eq(companyMemberships.status,"active")));
   if (b.qualificationExpiresAt && b.qualificationExpiresAt<=new Date())throw forbidden("Muse qualification deadline elapsed; native effects are fenced.");
   if (!user || !agentMember || !member || member.membershipRole==="viewer" || !agent || company?.status!=="active"
-    || agent.adapterType!=="paperclip_runner" || agent.adapterConfig.provider!=="muse" || agent.adapterConfig.museBindingId!==b.id
+    || agent.adapterType!=="nexus_runner" || agent.adapterConfig.provider!=="muse" || agent.adapterConfig.museBindingId!==b.id
     || ["terminated","pending_approval"].includes(agent.status)
     || (!allowPaused && (allowSetup ? !canConfigureAgentConnection(agent) : agent.status==="paused"))
     || (!allowSetup && b.status!=="ready")) throw forbidden("Muse connection authority is unavailable.");
@@ -68,7 +68,7 @@ export async function assertMuseSubjectCredential(db: MuseIdentityDatabase, s: A
       .where(and(eq(mcpOauthTokens.id,s.credentialId),eq(mcpOauthTokens.grantId,s.grantId),eq(mcpOauthTokens.kind,"access"),
         isNull(mcpOauthTokens.usedAt),gt(mcpOauthTokens.expiresAt,new Date()),isNull(mcpOauthGrants.revokedAt),
         eq(mcpOauthGrants.purpose,"agent"),eq(mcpOauthGrants.companyId,s.companyId),eq(mcpOauthGrants.agentId,s.agentId),eq(mcpOauthGrants.userId,s.authorizingUserId)));
-    if (!row || b.grantId !== s.grantId || !row.grant.scopes.includes("paperclip:agent")
+    if (!row || b.grantId !== s.grantId || !row.grant.scopes.includes("nexus:agent")
         || !row.grant.scopes.includes("offline_access") || row.grant.resource !== expectedMuseResource(expectedResource)) throw unauthorized("Muse OAuth authority was fenced.");
   } else {
     const [c] = await db.select({id:credentials.id}).from(credentials).where(and(eq(credentials.id,s.credentialId),
@@ -111,11 +111,11 @@ export async function inspectMuseConnectionCredential(db:MuseIdentityDatabase,b:
   if(b.grantId){
     const [grant]=await db.select().from(mcpOauthGrants).where(and(eq(mcpOauthGrants.id,b.grantId),eq(mcpOauthGrants.companyId,b.companyId),
       eq(mcpOauthGrants.agentId,b.agentId),eq(mcpOauthGrants.userId,b.operatorId),eq(mcpOauthGrants.purpose,"agent")));
-    if(!grant||grant.revokedAt||!grant.scopes.includes("paperclip:agent")||!grant.scopes.includes("offline_access")||grant.resource!==expectedMuseResource(expectedResource))return result("revoked");
+    if(!grant||grant.revokedAt||!grant.scopes.includes("nexus:agent")||!grant.scopes.includes("offline_access")||grant.resource!==expectedMuseResource(expectedResource))return result("revoked");
     const [refresh]=await db.select({expiresAt:mcpOauthTokens.expiresAt}).from(mcpOauthTokens).where(and(eq(mcpOauthTokens.grantId,grant.id),
       eq(mcpOauthTokens.kind,"refresh"),isNull(mcpOauthTokens.usedAt),gt(mcpOauthTokens.expiresAt,now))).limit(1);
     if(refresh)return result("active",refresh.expiresAt);
-    const {mcpOauthRequests}=await import("@paperclipai/db");
+    const {mcpOauthRequests}=await import("@nexusai/db");
     const [code]=await db.select({id:mcpOauthRequests.id}).from(mcpOauthRequests).where(and(eq(mcpOauthRequests.grantId,grant.id),
       eq(mcpOauthRequests.resource,grant.resource),isNotNull(mcpOauthRequests.codeHash),isNotNull(mcpOauthRequests.decidedAt),isNull(mcpOauthRequests.consumedAt),gt(mcpOauthRequests.expiresAt,now))).limit(1);
     return result(code?"pending":"expired");

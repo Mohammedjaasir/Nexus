@@ -122,9 +122,9 @@ describe("chat provider conversation links", () => {
         provider: "telegram",
         threadId: "telegram:-100123456:77",
         providerMessageId: "88",
-        raw: { message_id: 88, chat: { username: "paperclip_e2e" } },
+        raw: { message_id: 88, chat: { username: "nexus_e2e" } },
       }),
-    ).toBe("https://t.me/paperclip_e2e/77/88");
+    ).toBe("https://t.me/nexus_e2e/77/88");
     expect(
       chatProviderConversationUrl({
         provider: "telegram",

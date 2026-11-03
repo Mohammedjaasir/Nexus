@@ -1,9 +1,9 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { eq, sql, type SQL } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createDb, plugins, type Db } from "@paperclipai/db";
+import { createDb, plugins, type Db } from "@nexusai/db";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "./helpers/full-database-response-capture.js";
-import type { PaperclipPluginManifestV1, PluginEnvironmentDriverDeclaration } from "@paperclipai/shared";
+import type { NexusPluginManifestV1, PluginEnvironmentDriverDeclaration } from "@nexusai/shared";
 import { resolvePluginSandboxProviderConfigSchema, resolvePluginSandboxProviderDriverByKey } from "../services/plugin-environment-driver.js";
 import { resolveEnvironmentDriverConfigForRuntime, resolveSandboxProviderSecretRefPaths } from "../services/environment-config.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
@@ -18,7 +18,7 @@ describe.skipIf(!support.supported)("sandbox provider schema reads", () => {
   const driver = (driverKey = key, configSchema: unknown = { type: "object" }) => ({
     driverKey, kind: "sandbox_provider", displayName: "Schema fixture", configSchema,
   }) as PluginEnvironmentDriverDeclaration;
-  const manifest = (id: string, declarations: PluginEnvironmentDriverDeclaration[]): PaperclipPluginManifestV1 => ({
+  const manifest = (id: string, declarations: PluginEnvironmentDriverDeclaration[]): NexusPluginManifestV1 => ({
     id: `test.schema.${id}`, apiVersion: 1, version: "1.0.0", displayName: "Schema fixture",
     description: "Fixture", author: "Test", categories: ["automation"],
     capabilities: ["environment.drivers.register"], entrypoints: { worker: "worker.js" }, environmentDrivers: declarations,
@@ -44,7 +44,7 @@ describe.skipIf(!support.supported)("sandbox provider schema reads", () => {
     try {
       const value = await operation();
       capture.flush();
-      const entries = events.filter(event => event.event === "paperclip.test_db_response_capture.entry.v1");
+      const entries = events.filter(event => event.event === "nexus.test_db_response_capture.entry.v1");
       return { value, bytes: entries.reduce((sum, entry) => sum + Number(entry.responseValueBytes), 0),
         calls: entries.reduce((sum, entry) => sum + Number(entry.calls), 0) };
     } finally { capture.flush(); }

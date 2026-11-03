@@ -44,7 +44,7 @@ function clickEvent(
 }
 
 afterEach(() => {
-  delete globalThis.__paperclipPluginBridge__;
+  delete globalThis.__nexusPluginBridge__;
 });
 
 function act(callback: () => void) {
@@ -253,7 +253,7 @@ describe("plugin SDK FileTree bridge", () => {
   });
 
   it("throws a clear error when the host FileTree implementation is missing", () => {
-    globalThis.__paperclipPluginBridge__ = {
+    globalThis.__nexusPluginBridge__ = {
       react: React,
       reactJsxRuntime: ReactJsxRuntime,
       reactDom: ReactDOM,
@@ -269,7 +269,7 @@ describe("plugin SDK FileTree bridge", () => {
           onSelectFile: () => undefined,
         }),
       ),
-    ).toThrow('Paperclip plugin UI runtime is not initialized for "FileTree"');
+    ).toThrow('Nexus plugin UI runtime is not initialized for "FileTree"');
   });
 });
 
@@ -277,7 +277,7 @@ describe("plugin SDK markdown component bridge", () => {
   it("injects markdown display and editor components through the bridge runtime", () => {
     initPluginBridge(React, ReactDOM);
 
-    const registry = globalThis.__paperclipPluginBridge__?.sdkUi ?? {};
+    const registry = globalThis.__nexusPluginBridge__?.sdkUi ?? {};
     expect(registry.MarkdownBlock).toBeTypeOf("function");
     expect(registry.MarkdownEditor).toBeTypeOf("function");
     expect(registry.IssuesList).toBeTypeOf("function");
@@ -287,7 +287,7 @@ describe("plugin SDK markdown component bridge", () => {
   });
 
   it("renders plugin-provided markdown components when registered by the host", () => {
-    globalThis.__paperclipPluginBridge__ = {
+    globalThis.__nexusPluginBridge__ = {
       react: React,
       reactJsxRuntime: ReactJsxRuntime,
       reactDom: ReactDOM,
@@ -341,7 +341,7 @@ describe("plugin jsx runtime bridge", () => {
   it("exposes the host jsx runtime on the bridge registry", () => {
     initPluginBridge(React, ReactDOM);
 
-    const runtime = globalThis.__paperclipPluginBridge__?.reactJsxRuntime as typeof ReactJsxRuntime;
+    const runtime = globalThis.__nexusPluginBridge__?.reactJsxRuntime as typeof ReactJsxRuntime;
     expect(runtime.jsx).toBeTypeOf("function");
     expect(runtime.jsxs).toBeTypeOf("function");
     expect(runtime.Fragment).toBe(ReactJsxRuntime.Fragment);
@@ -349,7 +349,7 @@ describe("plugin jsx runtime bridge", () => {
 
   it("renders unkeyed static children through the bridged runtime without key warnings", () => {
     initPluginBridge(React, ReactDOM);
-    const runtime = globalThis.__paperclipPluginBridge__?.reactJsxRuntime as typeof ReactJsxRuntime;
+    const runtime = globalThis.__nexusPluginBridge__?.reactJsxRuntime as typeof ReactJsxRuntime;
 
     // Mirror what a compiled plugin bundle emits for static multi-child JSX:
     // jsxs() with an unkeyed children array. The previous shim rebuilt this

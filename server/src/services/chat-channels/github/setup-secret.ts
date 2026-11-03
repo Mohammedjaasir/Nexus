@@ -13,17 +13,17 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatEndpoints,
   companySecretBindings,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEndpointSetupState,
   ToolCredentialSecretRef,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   conflict,

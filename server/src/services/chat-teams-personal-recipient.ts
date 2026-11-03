@@ -30,7 +30,7 @@ const admissionSchema = z
   .strict();
 const recipientSchema = z
   .object({
-    schema: z.literal("paperclip.teams.personal-recipient.v1"),
+    schema: z.literal("nexus.teams.personal-recipient.v1"),
     ...scopeFields,
     aadObjectId: z.uuid(),
     providerUserId: opaqueId,
@@ -53,7 +53,7 @@ const bindingScopeSchema = z
   .strict();
 const bindingSchema = z
   .object({
-    schema: z.literal("paperclip.teams.personal-recipient-binding.v1"),
+    schema: z.literal("nexus.teams.personal-recipient-binding.v1"),
     recipient: recipientSchema,
     ...bindingFields,
   })
@@ -105,7 +105,7 @@ export type TeamsPersonalRecipientBinding = Readonly<
   }
 >;
 
-// A route-free ID is Paperclip's durable identity. The pinned SDK's routed
+// A route-free ID is Nexus's durable identity. The pinned SDK's routed
 // form may omit its personal suffix. Neither that omission nor any prefix
 // (including a:) establishes personal scope; only the admitted proof does.
 function conversationFromThread(threadId: string): string | null {
@@ -162,7 +162,7 @@ export function deriveTeamsPersonalRecipient(
     return null;
   return parseTeamsPersonalRecipient(
     {
-      schema: "paperclip.teams.personal-recipient.v1",
+      schema: "nexus.teams.personal-recipient.v1",
       companyId: expected.data.companyId,
       endpointId: expected.data.endpointId,
       runtimeGeneration: expected.data.runtimeGeneration,
@@ -223,7 +223,7 @@ export function bindTeamsPersonalRecipient(
   if (!recipient || recipient.aadObjectId !== expected.data.externalPrincipalId)
     return null;
   return Object.freeze({
-    schema: "paperclip.teams.personal-recipient-binding.v1",
+    schema: "nexus.teams.personal-recipient-binding.v1",
     recipient,
     deliveryId: expected.data.deliveryId,
     principalId: expected.data.principalId,

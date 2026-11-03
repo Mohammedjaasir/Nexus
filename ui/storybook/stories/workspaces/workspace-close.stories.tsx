@@ -28,7 +28,7 @@ const meta = {
     "Projects and execution/Workspaces, services, and files/Close readiness",
   component: CloseWorkspace,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "workspaces/closure"
       ],

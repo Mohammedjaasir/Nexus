@@ -7,8 +7,8 @@ import { promisify } from "node:util";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { activityLog, applyPendingMigrations, closeRegisteredClients, companies, createDb, executionWorkspaceSnapshots,
-  executionWorkspaceRuntimeLeases, executionWorkspaces, issues, projects, projectWorkspaces, workspaceOperations, workspaceRuntimeServices } from "@paperclipai/db";
-import { readRemoteWorkspaceAuthority } from "@paperclipai/shared";
+  executionWorkspaceRuntimeLeases, executionWorkspaces, issues, projects, projectWorkspaces, workspaceOperations, workspaceRuntimeServices } from "@nexusai/db";
+import { readRemoteWorkspaceAuthority } from "@nexusai/shared";
 import { createLocalDiskStorageProvider } from "../storage/local-disk-provider.js";
 import { createStorageService } from "../storage/service.js";
 import type { StorageService } from "../storage/types.js";
@@ -23,7 +23,7 @@ const git = async (cwd: string, ...args: string[]) => (await execute("git", ["-C
   GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: os.devNull, GIT_AUTHOR_NAME: "Migration", GIT_COMMITTER_NAME: "Migration",
   GIT_AUTHOR_EMAIL: "migration@example.test", GIT_COMMITTER_EMAIL: "migration@example.test" } })).stdout.trim();
 
-const url = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const url = process.env.NEXUS_TEST_DATABASE_URL;
 if (url && !/^remote_workspace_[a-z_]*test$/.test(new URL(url).pathname.slice(1))) throw new Error("Disposable remote_workspace_*test database required");
 const support = url ? { supported: true } : await getEmbeddedPostgresTestSupport();
 describe.skipIf(!support.supported)("remote workspace migration", () => {
@@ -34,7 +34,7 @@ describe.skipIf(!support.supported)("remote workspace migration", () => {
     else { temporary = await startEmbeddedPostgresTestDatabase("workspace-migration-"); db = createDb(temporary.connectionString); }
   }, 90_000);
   afterAll(async () => { if (url) await closeRegisteredClients(url, { scope: "database" }); else await temporary?.cleanup(); });
-  beforeEach(async () => { vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "61".repeat(32));
+  beforeEach(async () => { vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "61".repeat(32));
     root = await fs.mkdtemp(path.join(os.tmpdir(), "pc-migration-test-")); storage = createStorageService(createLocalDiskStorageProvider(path.join(root, "objects"))); });
   afterEach(async () => {
     vi.unstubAllEnvs(); await db.delete(activityLog); await db.delete(workspaceOperations); await db.delete(executionWorkspaceSnapshots);

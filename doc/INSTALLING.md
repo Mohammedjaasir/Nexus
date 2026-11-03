@@ -1,6 +1,6 @@
-# Installing Paperclip
+# Installing Nexus
 
-Paperclip supports a managed installation, an ephemeral `npx` tryout, a
+Nexus supports a managed installation, an ephemeral `npx` tryout, a
 traditional global npm installation, and development from a source checkout.
 The managed installation is recommended because it provides atomic updates,
 rollback, git-ref installs, and a stable entrypoint for the background service.
@@ -24,7 +24,7 @@ The bootstrap script:
 
 1. verifies that the platform is supported;
 2. ensures Node.js 24.11 or newer is available;
-3. delegates installation to `paperclipai install`;
+3. delegates installation to `nexusai install`;
 4. starts interactive onboarding when stdin and stdout are terminals.
 
 The script prints and confirms any command that requires elevated privileges.
@@ -42,7 +42,7 @@ privileged commands are inspectable before execution:
 
 ```sh
 curl -fsSL https://paperclip.ing/install.sh | bash -s -- --no-prompt --no-onboard
-paperclipai onboard --yes
+nexusai onboard --yes
 ```
 
 If the vanity installer endpoint is unavailable, fetch the same
@@ -58,13 +58,13 @@ instead of `master` and download it first. That immutable GitHub URL provides a
 separate delivery path from `paperclip.ing`; do not treat a checksum served by
 the same origin as the artifact as an independent trust anchor.
 
-Each installer flag also has a `PAPERCLIP_INSTALL_*` environment-variable
+Each installer flag also has a `NEXUS_INSTALL_*` environment-variable
 equivalent. This helps where passing arguments through a pipe is awkward.
 
 Codex ACP workspace sessions enable networking so agents can report task outcomes.
 To disable it explicitly, set `extraArgs` to
 `["-c", "sandbox_workspace_write.network_access=false"]`, or set
-`env.PAPERCLIP_CODEX_ACP_NETWORK_ACCESS="false"`. Execution-target network denial
+`env.NEXUS_CODEX_ACP_NETWORK_ACCESS="false"`. Execution-target network denial
 also remains enforced. Read-only ACP mode remains read-only.
 
 ## Node runtime used by background services
@@ -74,12 +74,12 @@ in an interactive shell. Systemd and launchd do not load shell version-manager
 configuration. A newer Node installed elsewhere does not upgrade a running
 service or change a custom startup script's `PATH`.
 
-Managed installs pin the validated Node executable in the `paperclipai` shim
+Managed installs pin the validated Node executable in the `nexusai` shim
 and prepend its directory to `PATH` for child tools, including ACP servers with
 an `/usr/bin/env node` shebang. Re-run the installer using the supported
 Node runtime after changing runtime installations, then restart the service.
 For example, put the supported Node's bin directory first on `PATH` and run
-`npx paperclipai@latest install --yes`. Do not use the old managed shim to
+`npx nexusai@latest install --yes`. Do not use the old managed shim to
 re-pin Node: it intentionally continues launching its previously pinned runtime.
 Installs and updates refresh existing managed shims in place. Updates reject an
 unsupported running Node before installing or activating a payload; read-only
@@ -105,20 +105,20 @@ the adapter configuration documentation.
 Managed code is separate from instance data:
 
 ```text
-~/.paperclip/cli/
+~/.nexus/cli/
 ├── install.json
 ├── current -> installs/npm/2026.720.0
 └── installs/
     ├── npm/<version>/
     └── git/<sha12>/
 
-~/.local/bin/paperclipai
+~/.local/bin/nexusai
 ```
 
-The `paperclipai` shim remains stable while `current` switches atomically
-between complete payloads. Paperclip keeps the two previous managed payloads
+The `nexusai` shim remains stable while `current` switches atomically
+between complete payloads. Nexus keeps the two previous managed payloads
 for rollback. Configuration, databases, uploads, logs, secrets, and workspaces
-remain under `~/.paperclip/instances/` and are not stored inside CLI payloads.
+remain under `~/.nexus/instances/` and are not stored inside CLI payloads.
 
 If `~/.local/bin` is not on `PATH`, the installer offers to update the relevant
 shell startup file when running interactively. Non-interactive installs print
@@ -129,29 +129,29 @@ the exact `export PATH` command instead of editing shell files silently.
 Install the current stable release:
 
 ```sh
-npx --registry https://registry.npmjs.org paperclipai install
+npx --registry https://registry.npmjs.org nexusai install
 ```
 
 Install canary or pin an exact published version:
 
 ```sh
-npx --registry https://registry.npmjs.org paperclipai install --canary
-npx --registry https://registry.npmjs.org paperclipai install --version 2026.720.0
+npx --registry https://registry.npmjs.org nexusai install --canary
+npx --registry https://registry.npmjs.org nexusai install --version 2026.720.0
 ```
 
 Install a branch, tag, or commit from GitHub:
 
 ```sh
-npx --registry https://registry.npmjs.org paperclipai install --ref master
-npx --registry https://registry.npmjs.org paperclipai install --ref v2026.720.0
-npx --registry https://registry.npmjs.org paperclipai install --ref <commit-sha>
+npx --registry https://registry.npmjs.org nexusai install --ref master
+npx --registry https://registry.npmjs.org nexusai install --ref v2026.720.0
+npx --registry https://registry.npmjs.org nexusai install --ref <commit-sha>
 ```
 
 Use a fork by adding `--repo owner/repository`:
 
 ```sh
-npx --registry https://registry.npmjs.org paperclipai install \
-  --repo your-org/paperclip \
+npx --registry https://registry.npmjs.org nexusai install \
+  --repo your-org/nexus \
   --ref your-branch
 ```
 
@@ -164,17 +164,17 @@ revision's package installation and release build scripts on your machine.
 Run onboarding after a non-interactive installation:
 
 ```sh
-paperclipai onboard
+nexusai onboard
 ```
 
-Interactive onboarding asks whether Paperclip should run as a background
+Interactive onboarding asks whether Nexus should run as a background
 service when the platform supports one. Automated onboarding deliberately does
 not install a service unless explicitly requested:
 
 ```sh
-paperclipai onboard --yes                    # configure only; no service install
-paperclipai onboard --yes --install-service  # explicit automation opt-in
-paperclipai onboard --yes --no-install-service
+nexusai onboard --yes                    # configure only; no service install
+nexusai onboard --yes --install-service  # explicit automation opt-in
+nexusai onboard --yes --no-install-service
 ```
 
 After onboarding installs and starts the service, it waits for the service to
@@ -185,18 +185,18 @@ runs print the URL without trying to launch a browser.
 Service commands are namespaced:
 
 ```sh
-paperclipai service install
-paperclipai service status
-paperclipai service start
-paperclipai service stop
-paperclipai service restart
-paperclipai service logs -f
-paperclipai service uninstall
+nexusai service install
+nexusai service status
+nexusai service start
+nexusai service stop
+nexusai service restart
+nexusai service logs -f
+nexusai service uninstall
 ```
 
-Paperclip uses a systemd user service on Linux and WSL2 systems with user
+Nexus uses a systemd user service on Linux and WSL2 systems with user
 systemd, and a LaunchAgent on macOS. Containers, WSL1, and systems without a
-supported user service manager receive foreground `paperclipai run` guidance
+supported user service manager receive foreground `nexusai run` guidance
 instead of a hard failure.
 
 The service uses the stable managed-install shim, restarts after crashes, and
@@ -204,7 +204,7 @@ can start on login. On Linux, service installation may offer to enable user
 lingering so it can continue without an active login session. The command
 explains and confirms that system-level action before running it.
 
-Use one server process per instance. `paperclipai run` refuses to start when
+Use one server process per instance. `nexusai run` refuses to start when
 the same instance is already supervised; stop the service first or use
 `--force` only when you intentionally accept the single-writer risk.
 
@@ -213,31 +213,31 @@ the same instance is already supervised; stop the service first or use
 Update according to the source and channel recorded in the install manifest:
 
 ```sh
-paperclipai update
+nexusai update
 ```
 
 Select a different release source explicitly:
 
 ```sh
-paperclipai update --latest
-paperclipai update --canary
-paperclipai update --version 2026.720.0
+nexusai update --latest
+nexusai update --canary
+nexusai update --version 2026.720.0
 ```
 
 Managed updates create a database backup before switching payloads, verify the
 new CLI, atomically flip `current`, and restart an installed service. A failed
 install or verification leaves the previous payload active.
 
-If the service is stopped, start it with `paperclipai service start` before
-updating so Paperclip can take the safety backup. Use
-`paperclipai update --no-backup` only when you intentionally accept updating
+If the service is stopped, start it with `nexusai service start` before
+updating so Nexus can take the safety backup. Use
+`nexusai update --no-backup` only when you intentionally accept updating
 without that rollback safeguard. A never-onboarded instance with no config or
 instance data skips the backup automatically because there is nothing to save.
 
 Roll back to the previous retained payload:
 
 ```sh
-paperclipai update --rollback
+nexusai update --rollback
 ```
 
 The `upgrade` command is an alias for `update`. Exact versions and commit SHAs
@@ -248,26 +248,26 @@ are pinned; provide a new target when you want them to move.
 Ephemeral tryout with no managed install:
 
 ```sh
-npx --registry https://registry.npmjs.org paperclipai onboard --yes
+npx --registry https://registry.npmjs.org nexusai onboard --yes
 ```
 
 Traditional global npm install:
 
 ```sh
-npm install --global --registry https://registry.npmjs.org paperclipai
-paperclipai onboard
+npm install --global --registry https://registry.npmjs.org nexusai
+nexusai onboard
 ```
 
 Source checkout for development:
 
 ```sh
 git clone https://github.com/paperclipai/paperclip.git
-cd paperclip
+cd nexus
 pnpm install
 pnpm dev
 ```
 
-The managed `paperclipai update` command can update managed and global npm
+The managed `nexusai update` command can update managed and global npm
 installs. For source checkouts it reports the appropriate git workflow instead
 of modifying the checkout automatically.
 
@@ -276,8 +276,8 @@ of modifying the checkout automatically.
 Run:
 
 ```sh
-paperclipai doctor
-paperclipai service status
+nexusai doctor
+nexusai service status
 ```
 
 `doctor` checks the managed install store, manifest, `current` link, shim,
@@ -296,11 +296,11 @@ before it starts.
 Remove the background service and managed CLI payloads:
 
 ```sh
-paperclipai service uninstall
-paperclipai uninstall
+nexusai service uninstall
+nexusai uninstall
 ```
 
-`paperclipai uninstall` removes the managed shim, manifest, and CLI payloads.
-It deliberately preserves `~/.paperclip/instances/`, including configuration,
+`nexusai uninstall` removes the managed shim, manifest, and CLI payloads.
+It deliberately preserves `~/.nexus/instances/`, including configuration,
 databases, uploads, logs, secrets, backups, and workspaces. Back up and remove
-that data separately only when you intend to delete the Paperclip instance.
+that data separately only when you intend to delete the Nexus instance.

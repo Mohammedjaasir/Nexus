@@ -1,7 +1,7 @@
 import { generateKeyPairSync, sign, verify } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AdapterExecutionContext } from "@paperclipai/adapter-utils";
-import { createPromptContextFixture } from "@paperclipai/adapter-utils/test-fixtures/prompt-context";
+import type { AdapterExecutionContext } from "@nexusai/adapter-utils";
+import { createPromptContextFixture } from "@nexusai/adapter-utils/test-fixtures/prompt-context";
 import { execute } from "./execute.js";
 
 type MockRunOptions = {
@@ -120,7 +120,7 @@ function createContext(
     runtime,
     config,
     context,
-    authToken: "paperclip-run-jwt",
+    authToken: "nexus-run-jwt",
     onLog: async (stream, chunk) => {
       logs.push({ stream, chunk });
     },
@@ -153,8 +153,8 @@ describe("cursor_cloud execute", () => {
     ctx.context = {
       ...ctx.context,
       conversationMode: true,
-      paperclipTaskMarkdown: directive,
-      paperclipWake: {
+      nexusTaskMarkdown: directive,
+      nexusWake: {
         reason: "issue_commented",
         issue: { id: "issue-1", workMode: "planning", status: "in_progress" },
         interactionKind: "request_confirmation",
@@ -191,18 +191,18 @@ describe("cursor_cloud execute", () => {
     createMock.mockResolvedValue(sdkAgent);
     const ctx = createContext();
     const description = "start " + "context ".repeat(25_000) + " end";
-    ctx.config.env = { CURSOR_API_KEY: "cursor-secret", PAPERCLIP_WAKE_PAYLOAD_JSON: description };
-    ctx.context.paperclipWake = {
+    ctx.config.env = { CURSOR_API_KEY: "cursor-secret", NEXUS_WAKE_PAYLOAD_JSON: description };
+    ctx.context.nexusWake = {
       reason: "issue_assigned",
       issue: { id: "issue-1", description },
     };
     const result = await execute(ctx);
     expect(result.exitCode).toBe(0);
-    expect(createMock.mock.calls[0]?.[0]?.cloud?.envVars).not.toHaveProperty("PAPERCLIP_WAKE_PAYLOAD_JSON");
+    expect(createMock.mock.calls[0]?.[0]?.cloud?.envVars).not.toHaveProperty("NEXUS_WAKE_PAYLOAD_JSON");
     expect(sdkAgent.send.mock.calls[0]?.[0]).toContain(description);
   });
 
-  it("creates a fresh Cursor agent and injects Paperclip env without CURSOR_API_KEY", async () => {
+  it("creates a fresh Cursor agent and injects Nexus env without CURSOR_API_KEY", async () => {
     const run = createMockRun({
       agentId: "agent-fresh",
       streamMessages: [
@@ -225,7 +225,7 @@ describe("cursor_cloud execute", () => {
     expect(getRunMock).not.toHaveBeenCalled();
     expect(createMock.mock.calls[0]?.[0]).toMatchObject({
       apiKey: "cursor-secret",
-      name: "Paperclip Cursor Cloud Agent",
+      name: "Nexus Cursor Cloud Agent",
       model: { id: "gpt-5.4" },
       cloud: {
         env: { type: "cloud" },
@@ -234,14 +234,14 @@ describe("cursor_cloud execute", () => {
     });
     expect(createMock.mock.calls[0]?.[0]?.cloud?.envVars).toMatchObject({
       EXTRA_FLAG: "1",
-      PAPERCLIP_RUN_ID: "run-heartbeat-1",
-      PAPERCLIP_TASK_ID: "issue-1",
-      PAPERCLIP_WAKE_REASON: "issue_commented",
-      PAPERCLIP_API_KEY: "paperclip-run-jwt",
+      NEXUS_RUN_ID: "run-heartbeat-1",
+      NEXUS_TASK_ID: "issue-1",
+      NEXUS_WAKE_REASON: "issue_commented",
+      NEXUS_API_KEY: "nexus-run-jwt",
     });
     // When a run JWT is present the callback URL is retained so the worker can
-    // authenticate its Paperclip API calls.
-    expect(createMock.mock.calls[0]?.[0]?.cloud?.envVars).toHaveProperty("PAPERCLIP_API_URL");
+    // authenticate its Nexus API calls.
+    expect(createMock.mock.calls[0]?.[0]?.cloud?.envVars).toHaveProperty("NEXUS_API_URL");
     expect(createMock.mock.calls[0]?.[0]?.cloud?.envVars).not.toHaveProperty("CURSOR_API_KEY");
 
     expect(result).toMatchObject({
@@ -279,23 +279,23 @@ describe("cursor_cloud execute", () => {
     const ctx = createContext({ agentIdentity: identity });
     ctx.config.env = {
       CURSOR_API_KEY: "cursor-secret",
-      PAPERCLIP_AGENT_KEY_ID: "configured-override",
-      PAPERCLIP_AGENT_PRIVATE_KEY: "configured-override",
-      paperclip_agent_private_key: "configured-override",
+      NEXUS_AGENT_KEY_ID: "configured-override",
+      NEXUS_AGENT_PRIVATE_KEY: "configured-override",
+      nexus_agent_private_key: "configured-override",
     };
 
     await execute(ctx);
 
     const env = createMock.mock.calls[0]?.[0]?.cloud?.envVars;
     expect(env).toMatchObject({
-      PAPERCLIP_AGENT_KEY_ID: identity.keyId,
-      PAPERCLIP_AGENT_PUBLIC_KEY: identity.publicKeyPem,
-      PAPERCLIP_AGENT_PRIVATE_KEY: identity.privateKeyPem,
+      NEXUS_AGENT_KEY_ID: identity.keyId,
+      NEXUS_AGENT_PUBLIC_KEY: identity.publicKeyPem,
+      NEXUS_AGENT_PRIVATE_KEY: identity.privateKeyPem,
     });
-    expect(env).not.toHaveProperty("paperclip_agent_private_key");
+    expect(env).not.toHaveProperty("nexus_agent_private_key");
     const challenge = Buffer.from("managed cloud identity");
     expect(verify(null, challenge, identity.publicKeyPem,
-      sign(null, challenge, env.PAPERCLIP_AGENT_PRIVATE_KEY))).toBe(true);
+      sign(null, challenge, env.NEXUS_AGENT_PRIVATE_KEY))).toBe(true);
     const privateBody = identity.privateKeyPem.split("\n")[1];
     expect(JSON.stringify([ctx.meta, ctx.logs, sdkAgent.send.mock.calls])).not.toContain(privateBody);
   });
@@ -339,7 +339,7 @@ describe("cursor_cloud execute", () => {
     expect(onDispatch.mock.invocationCallOrder[0]).toBeLessThan(createMock.mock.invocationCallOrder[0]!);
   });
 
-  it("omits the Paperclip API callback when no run JWT is issued (remote worker cannot call home)", async () => {
+  it("omits the Nexus API callback when no run JWT is issued (remote worker cannot call home)", async () => {
     const run = createMockRun({ agentId: "agent-no-jwt" });
     const sdkAgent = createMockSdkAgent({ agentId: "agent-no-jwt", sendRun: run });
     createMock.mockResolvedValue(sdkAgent);
@@ -351,14 +351,14 @@ describe("cursor_cloud execute", () => {
     await execute(ctx);
 
     const envVars = (createMock.mock.calls[0]?.[0]?.cloud?.envVars ?? {}) as Record<string, string>;
-    expect(envVars).not.toHaveProperty("PAPERCLIP_API_KEY");
-    expect(envVars).not.toHaveProperty("PAPERCLIP_API_URL");
-    expect(envVars).not.toHaveProperty("PAPERCLIP_API_BRIDGE_MODE");
-    // Informational Paperclip env (non-credential) still flows through.
+    expect(envVars).not.toHaveProperty("NEXUS_API_KEY");
+    expect(envVars).not.toHaveProperty("NEXUS_API_URL");
+    expect(envVars).not.toHaveProperty("NEXUS_API_BRIDGE_MODE");
+    // Informational Nexus env (non-credential) still flows through.
     expect(envVars).toMatchObject({
-      PAPERCLIP_RUN_ID: "run-heartbeat-1",
-      PAPERCLIP_AGENT_ID: "agent-1",
-      PAPERCLIP_COMPANY_ID: "company-1",
+      NEXUS_RUN_ID: "run-heartbeat-1",
+      NEXUS_AGENT_ID: "agent-1",
+      NEXUS_COMPANY_ID: "company-1",
     });
   });
 
@@ -504,7 +504,7 @@ describe("cursor_cloud execute", () => {
     expect(sdkAgent.send).toHaveBeenCalledTimes(1);
   });
 
-  it("maps non-finished Cursor results to failing Paperclip runs", async () => {
+  it("maps non-finished Cursor results to failing Nexus runs", async () => {
     const cancelledRun = createMockRun({
       id: "run-cancelled",
       agentId: "agent-cancelled",

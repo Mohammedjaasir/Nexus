@@ -1,4 +1,4 @@
-import { closeRegisteredClients, createDb } from "@paperclipai/db";
+import { closeRegisteredClients, createDb } from "@nexusai/db";
 import { loadStorageConfig } from "../storage/config.js";
 import { createStorageProviderFromConfig } from "../storage/provider-registry.js";
 import { createStorageService } from "../storage/service.js";
@@ -24,7 +24,7 @@ try {
   const provider = createStorageProviderFromConfig(loadStorageConfig());
   if (provider.id !== "s3") throw new Error("Agent file maintenance requires shared object storage");
   if (phase === "eligibility") {
-    assertEphemeralServerConfig(loadConfig(), { ...process.env, PAPERCLIP_EPHEMERAL_SERVER: "true" });
+    assertEphemeralServerConfig(loadConfig(), { ...process.env, NEXUS_EPHEMERAL_SERVER: "true" });
     const result = await readEphemeralServerDataEligibility(db);
     console.log(JSON.stringify({ phase, ...result }));
     if (!result.eligible) process.exitCode = 1;

@@ -4,7 +4,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { subscribeDatabaseWork, authUsers, companyMemberships, agents, approvals, budgetIncidents, budgetPolicies, companies, createDb, applyPendingMigrations, decisionArchiveNotificationOutbox,
   decisionRetention, decisions, costEvents, heartbeatRunEvents, heartbeatRuns, issueApprovals, issueRecoveryActions,
-  issueRelations, issueThreadInteractions, issues, type Db } from "@paperclipai/db";
+  issueRelations, issueThreadInteractions, issues, type Db } from "@nexusai/db";
 import { attentionRetentionService, registerAttentionRetentionWork } from "../services/attention-retention.js";
 import { workspaceOperationService } from "../services/workspace-operations.js";
 import * as workspaceOperationLogs from "../services/workspace-operation-log-store.js";
@@ -26,7 +26,7 @@ import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } fro
 
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_ATTENTION_RETENTION_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_ATTENTION_RETENTION_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const delay = DEFAULT_DECISION_ARCHIVE_DAYS * 86_400_000;
 (support.supported ? describe : describe.skip)("remaining attention retention", () => {

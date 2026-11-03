@@ -33,7 +33,7 @@ offer Run now. **View all tasks** opens the Tasks list with **Routine tasks**
 selected, using `/issues?view=all&originKind=routine_execution&sortField=created&sortDir=desc`. Uncheck the
 filter to return to other tasks. **History** records configuration versions, not executions.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use a disposable routine, deterministic test agent, and harmless target. Record schedule timezone and enabled state.
 

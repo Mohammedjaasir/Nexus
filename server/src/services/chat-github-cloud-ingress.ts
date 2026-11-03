@@ -1,7 +1,7 @@
-import type { Db, chatEndpoints } from "@paperclipai/db";
-import { chatEndpoints as endpoints } from "@paperclipai/db";
+import type { Db, chatEndpoints } from "@nexusai/db";
+import { chatEndpoints as endpoints } from "@nexusai/db";
 import { and, eq, sql } from "drizzle-orm";
-import type { SealedConnectorEvents } from "./paperclip-cloud-connector.js";
+import type { SealedConnectorEvents } from "./nexus-cloud-connector.js";
 
 type Event = SealedConnectorEvents["events"][number];
 type Endpoint = typeof chatEndpoints.$inferSelect;
@@ -73,7 +73,7 @@ export async function dispatchGitHubBotCloudEvent(
   if (!handler) throw new Error("GitHub bot Cloud ingress is not ready");
   await handler(
     endpoint,
-    new Request("https://paperclip.invalid/github-cloud-ingress", {
+    new Request("https://nexus.invalid/github-cloud-ingress", {
       method: "POST",
       headers: {
         "content-type": "application/json",

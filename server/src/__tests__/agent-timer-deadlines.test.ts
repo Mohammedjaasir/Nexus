@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agents, activityLog, approvals, authUsers, applyPendingMigrations, companies, companyMemberships, companySkills, companySkillVersions, companySkillTestRuns, issueRecoveryActions, chatEndpoints, chatConversations, toolApplications, toolConnections, costEvents, createDb, heartbeatRuns, issues, issueComments, reconcileDatabaseWork, subscribeDatabaseWork, type Db } from "@paperclipai/db";
+import { agents, activityLog, approvals, authUsers, applyPendingMigrations, companies, companyMemberships, companySkills, companySkillVersions, companySkillTestRuns, issueRecoveryActions, chatEndpoints, chatConversations, toolApplications, toolConnections, costEvents, createDb, heartbeatRuns, issues, issueComments, reconcileDatabaseWork, subscribeDatabaseWork, type Db } from "@nexusai/db";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createHeartbeatQueueTestDependencies } from "./helpers/heartbeat-queue.js";
@@ -32,7 +32,7 @@ import { resumeExternalConversation } from "../services/slack-conversation-state
 import { idleWorkSnapshot, readTaskDrain, startTaskDrain, stopTaskDrain } from "../services/task-admission.js";
 
 vi.mock("../services/live-events.js", () => ({ publishLiveEvent: vi.fn() }));
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_AGENT_TIMER_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_AGENT_TIMER_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const now = new Date("2026-10-27T12:00:00Z");
 
@@ -711,7 +711,7 @@ describe.skipIf(!support.supported)("agent timer owned deadlines", () => {
 
   it("reads fresh worktree activation before deciding that no timer is due", async () => {
     const f = await fixture();
-    const runtimeEnv = { PAPERCLIP_IN_WORKTREE: "true", PAPERCLIP_INSTANCE_ID: "timer-fixture" };
+    const runtimeEnv = { NEXUS_IN_WORKTREE: "true", NEXUS_INSTANCE_ID: "timer-fixture" };
     const settings = instanceSettingsService(db, { runtimeEnv, now: () => now });
     await settings.updateExperimental({ enableWorktreeRunExecution: false });
     const heartbeat = heartbeatService(db, { runtimeEnv });
@@ -725,7 +725,7 @@ describe.skipIf(!support.supported)("agent timer owned deadlines", () => {
   });
 
   it("publishes a timer wake when the worktree activation setting changes", async () => {
-    const runtimeEnv = { PAPERCLIP_IN_WORKTREE: "true", PAPERCLIP_INSTANCE_ID: "timer-fixture" };
+    const runtimeEnv = { NEXUS_IN_WORKTREE: "true", NEXUS_INSTANCE_ID: "timer-fixture" };
     const settings = instanceSettingsService(db, { runtimeEnv, now: () => now });
     await settings.updateExperimental({ enableWorktreeRunExecution: false });
     const events: string[] = [];

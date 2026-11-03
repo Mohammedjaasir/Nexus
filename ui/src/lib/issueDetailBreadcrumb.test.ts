@@ -11,7 +11,7 @@ import {
   shouldArmIssueDetailInboxQuickArchive,
   withIssueDetailHeaderSeed,
 } from "./issueDetailBreadcrumb";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 
 const sessionStorageMock = (() => {
   const store = new Map<string, string>();
@@ -74,11 +74,11 @@ describe("issueDetailBreadcrumb", () => {
       project: {
         id: "project-1",
         companyId: "company-1",
-        urlKey: "paperclip-app",
+        urlKey: "nexus-app",
         goalId: null,
         goalIds: [],
         goals: [],
-        name: "Paperclip App",
+        name: "Nexus App",
         description: null,
         status: "in_progress",
         leadAgentId: null,
@@ -96,8 +96,8 @@ describe("issueDetailBreadcrumb", () => {
           defaultRef: null,
           repoName: null,
           localFolder: null,
-          managedFolder: "/tmp/paperclip-app",
-          effectiveLocalFolder: "/tmp/paperclip-app",
+          managedFolder: "/tmp/nexus-app",
+          effectiveLocalFolder: "/tmp/nexus-app",
           origin: "local_folder",
         },
         workspaces: [],
@@ -182,7 +182,7 @@ describe("issueDetailBreadcrumb", () => {
       status: "todo",
       priority: "medium",
       projectId: "project-1",
-      projectName: "Paperclip App",
+      projectName: "Nexus App",
       originKind: "manual",
       originId: null,
     });
@@ -205,7 +205,7 @@ describe("issueDetailBreadcrumb", () => {
       status: "todo",
       priority: "medium",
       projectId: "project-1",
-      projectName: "Paperclip App",
+      projectName: "Nexus App",
       originKind: "manual",
       originId: null,
     });

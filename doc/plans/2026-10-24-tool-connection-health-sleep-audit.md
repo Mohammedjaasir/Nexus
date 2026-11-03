@@ -15,7 +15,7 @@ expected one startup call after two maintenance ticks and observed three calls.
 The recorded command is:
 
 ```sh
-pnpm --filter @paperclipai/server exec vitest run \
+pnpm --filter @nexusai/server exec vitest run \
   src/__tests__/server-startup-feedback-export.test.ts \
   -t 'does not rescan idle tool health' --maxWorkers=1
 ```
@@ -42,7 +42,7 @@ Do not extend Cloud alarm coverage or remove active-connection sleep blockers in
 this slice.
 
 The current SQL excludes `chat_sdk`, `runtime_auth`, and applications of type
-`paperclip_plugin`. The schema couples AI purpose to `runtime_auth`, and
+`nexus_plugin`. The schema couples AI purpose to `runtime_auth`, and
 `checkConnectionHealth` returns immediately for AI purpose. Do not claim AI rows
 are an uncovered polling case without evidence of supported legacy rows outside
 those constraints. PR #14638 separately covers AI health behavior.

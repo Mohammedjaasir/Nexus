@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
-import type { IssueComment } from "@paperclipai/shared";
+import type { IssueComment } from "@nexusai/shared";
 import { issuesApi } from "@/api/issues";
 import { queryKeys } from "@/lib/queryKeys";
 

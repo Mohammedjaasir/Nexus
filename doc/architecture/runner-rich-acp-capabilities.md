@@ -19,7 +19,7 @@ them. A profile identity is not evidence of live qualification.
 
 ## Profile chronology
 
-Until 2026-10-30, these digests hashed Paperclip source files, so each change
+Until 2026-10-30, these digests hashed Nexus source files, so each change
 to a bound file advanced the profile version. The dated sections below record
 that period; their profile versions and digests are not current.
 
@@ -196,7 +196,7 @@ provider sequence remains permission-first.
 Historical source checkpoint (2026-09-30): **Cursor v9, Copilot v8 and Pi v10
 remain unqualified**. All three declarations bind shared ACPX patch SHA-256
 `bd5393058a218040d217fa85449d59a6f30507de54cd645bf0ef21422823f85e`.
-Cursor additionally binds newly materialized `paperclip-cursor-usage-v4` closures;
+Cursor additionally binds newly materialized `nexus-cursor-usage-v4` closures;
 Copilot and Pi native distribution bytes are unchanged. The new identities reject
 retained 7/7/9 sessions, plus Cursor v8 sessions. Claude, Codex and Grok profile declarations stay unchanged.
 The metadata is observation-only: native counters always remain partial, absent
@@ -212,7 +212,7 @@ Cursor v8 checkpoint and require a separate reviewed Cursor v9 update.
 
 Historical checkpoint (2026-09-30): **Cursor v9, Copilot v8 and Pi v10 remain unqualified.** The frozen runtime is `5c69b69ef2aeab8d8a367b25a8d894cc5308befa`; controller candidate is `a8df2064d68f40fbf4dec670c4b8478c4b1b1b3f`. All profiles bind shared ACPX patch SHA-256 `bd5393058a218040d217fa85449d59a6f30507de54cd645bf0ef21422823f85e`. No profile is promoted and no prior grade is changed.
 
-Current-profile protocol eval definitions merged in [paperclip-evals #36](https://github.com/paperclipai/paperclip-evals/pull/36) as `d987357461933baca0d4c10cc081f40e7eae5c1b`: 136 deterministic tests and 21 validated cells. These definitions do not supply paid qualification evidence.
+Current-profile protocol eval definitions merged in [nexus-evals #36](https://github.com/paperclipai/paperclip-evals/pull/36) as `d987357461933baca0d4c10cc081f40e7eae5c1b`: 136 deterministic tests and 21 validated cells. These definitions do not supply paid qualification evidence.
 
 | Profile | Latest status |
 | --- | --- |
@@ -226,15 +226,15 @@ Cursor's verified fixed $25 account-cycle cap resets October 28 and applies to a
 
 Latest Copilot attempt references: warm result `effadec7b6b134e3b31148cf7eea3c2b24d37ee0fc6ce36dbc90ec420b171560`, reconciliation `1ad1788161e34abf7ddcda15e08134a4c80d1f0af176d7b5397ea6dd810dace0`; Daytona denial result `050a239b6d86754d0f0045979b7c343c007729528546b49f069e7396cd167b38`, reconciliation `2ef9834cd53345c03c04bbfec1ad0bba24a2de1d7096d9225acdfa185241b82a`.
 
-Earlier current-profile case evidence (grades retained) is tied to Paperclip source `5c69b69ef2aeab8d8a367b25a8d894cc5308befa` and eval definitions `e4989bae1cedc36835da199826bf207d86b75761`. Copilot v8 protocol coverage totals seven cells: six passed and one behavior failure. The earlier `get_task_context` cell passed (result SHA-256 `7a30ad3de932f7e1bc3c3c3c766d8aa128c7003b35447ac0c73ef5f1f36914c0`); the remaining-batch reconciliation records five passes and one failure (SHA-256 `0e746a85e529a2fd45da4e553062753eabc1d8cb37d701529c5bc030a200cb81`). The `context-before-action` failure called `report_progress` before `get_task_context` and generated two comments. No native per-run USD was available; estimated model cost is separate. In local warm continuity, all nine matchers across three turns matched, but the candidate failed the stable-process requirement after observing three runner PIDs (result SHA-256 `e05e1af41a0c43396e8297ca0ac670065ff1f20bf3ce343930d5f45139277ed6`). For the Daytona permission-denial attempt, the recorded sandbox state was `building_snapshot` when the fixture lease wait expired, before the native permission operation or lease. That state can include queueing or image pulling; the evidence does not prove a snapshot was actually being built (result SHA-256 `fb928929a578403943707544e770ddc6ababe358c344a33c4af9028406804407`; state receipt SHA-256 `e32e5bf9b6ee18e8c2a4cb97436ceac7974b0fe1ed7cce02dae4ad2d3d58d875`). The later a8df attempt is recorded in the current checkpoint above; these earlier artifact grades remain unchanged and do not establish complete provider qualification.
+Earlier current-profile case evidence (grades retained) is tied to Nexus source `5c69b69ef2aeab8d8a367b25a8d894cc5308befa` and eval definitions `e4989bae1cedc36835da199826bf207d86b75761`. Copilot v8 protocol coverage totals seven cells: six passed and one behavior failure. The earlier `get_task_context` cell passed (result SHA-256 `7a30ad3de932f7e1bc3c3c3c766d8aa128c7003b35447ac0c73ef5f1f36914c0`); the remaining-batch reconciliation records five passes and one failure (SHA-256 `0e746a85e529a2fd45da4e553062753eabc1d8cb37d701529c5bc030a200cb81`). The `context-before-action` failure called `report_progress` before `get_task_context` and generated two comments. No native per-run USD was available; estimated model cost is separate. In local warm continuity, all nine matchers across three turns matched, but the candidate failed the stable-process requirement after observing three runner PIDs (result SHA-256 `e05e1af41a0c43396e8297ca0ac670065ff1f20bf3ce343930d5f45139277ed6`). For the Daytona permission-denial attempt, the recorded sandbox state was `building_snapshot` when the fixture lease wait expired, before the native permission operation or lease. That state can include queueing or image pulling; the evidence does not prove a snapshot was actually being built (result SHA-256 `fb928929a578403943707544e770ddc6ababe358c344a33c4af9028406804407`; state receipt SHA-256 `e32e5bf9b6ee18e8c2a4cb97436ceac7974b0fe1ed7cce02dae4ad2d3d58d875`). The later a8df attempt is recorded in the current checkpoint above; these earlier artifact grades remain unchanged and do not establish complete provider qualification.
 
 Cursor v9's current `get_task_context` cell passed four behavior checks, only one of which asserts a semantic operation. Root reconciliation classifies the attempt as `accounting_failure_account_bounded`, but the capture did not retain the bounded v4 usage envelope: the usage ledger was empty, the retained artifact records `provider_did_not_report_usage`, and native counters were not inspected. There is no usable provider aggregate or estimated cost, so this capture cannot live-qualify partial v4 diagnostics. The case and provider remain unqualified, and no native per-run USD is inferred. Result SHA-256 `7968dc62496feca03a7def6ee20b95ba825d42e9a98f1b6b763ccb8a263b35f4`; root reconciliation SHA-256 `3558c09a839a8aaf9a34970fb793e9c84ff8ca3c125f9543da9c208d4323c54f`.
-A later live-eval recorder review found that generic mapping and evidence fallback drop `paperclip/canonicalProviderEvent`. This identifies a recorder loss path; the prior artifact does not prove that the provider emitted the diagnostic, so the existing `accounting_failure_account_bounded` result and its accounting failure remain unchanged. Draft Paperclip PR [#14724](https://github.com/paperclipai/paperclip/pull/14724), targeting #14699, is at head `3adee6f3fc652d5f5ee40b2061a16cea0c7341f5`. Its non-native suite passed 73 tests with one explicit native exclusion. The initial Apex review identified two P1 issues, subsequently repaired and re-reviewed at the current head above. Evidence `cursor-eval-notice-fix/APEX-REPAIR-01.json` records `nativeExecuted: false` and `oldPaidFailuresRegraded: false` (SHA-256 `a792c3979e4a33801d44974b32fa9078294ec650641ca4e23b1b28212a62659e`). This TS-only repair does not establish deploy-pack or native-runtime reusability: the whole provider deploy pack includes live/eval files and its digest would change; native equalities remain unproven.
+A later live-eval recorder review found that generic mapping and evidence fallback drop `nexus/canonicalProviderEvent`. This identifies a recorder loss path; the prior artifact does not prove that the provider emitted the diagnostic, so the existing `accounting_failure_account_bounded` result and its accounting failure remain unchanged. Draft Nexus PR [#14724](https://github.com/paperclipai/paperclip/pull/14724), targeting #14699, is at head `3adee6f3fc652d5f5ee40b2061a16cea0c7341f5`. Its non-native suite passed 73 tests with one explicit native exclusion. The initial Apex review identified two P1 issues, subsequently repaired and re-reviewed at the current head above. Evidence `cursor-eval-notice-fix/APEX-REPAIR-01.json` records `nativeExecuted: false` and `oldPaidFailuresRegraded: false` (SHA-256 `a792c3979e4a33801d44974b32fa9078294ec650641ca4e23b1b28212a62659e`). This TS-only repair does not establish deploy-pack or native-runtime reusability: the whole provider deploy pack includes live/eval files and its digest would change; native equalities remain unproven.
 
 Startup preparation on controller `a8df2064d68f40fbf4dec670c4b8478c4b1b1b3f` with frozen runtime `5c69b69ef2aeab8d8a367b25a8d894cc5308befa` first failed because the frozen offline install recreated `node_modules` without the excluded Daytona workspace plugin-SDK link. The narrow `link-plugin-dev-sdk` export restored one symlink and its owned parent. The subsequent preparation digest is `b824a5dde48c94a7c64f2be273b1b03508bdbbd55dbc7cfe63a45a19371b0fd7`; readiness receipt `product-readiness.pending.json` SHA-256 `60fa994d929851670ce29d2dfb2cb773a06ee9e0c037142ccda44fb6e522a9d9` passed health, recovery, UI and plugin checks, retired 32 owned PIDs and observed clear IPC. Root review digest is `4be4f8ce295457b50c69683417bd3883b101089a994bae59be518fe781bf97ce`. This is setup evidence only: zero provider or cloud calls, not provider qualification.
 
 
-The preceding PR workflow on candidate `a027895ea66ac74578ff677d4c555c263773c0a7` ended with nine jobs reporting the same runner shutdown signal at approximately 13:50 UTC, followed by cancellation. Bounded job logs show no explicit failed-test summary, so this is recorded as runner interruption evidence, not a product qualification result or source-test failure. Final PR review snapshot (2026-09-30): paperclip/paperclip #14696 at exact head `9dbf9ae0d030d837a9a4d9241967ff5d3d5c974e` has 52/52 checks green. Greptile Apex reviewed that exact head at 5/5 with no new findings; all eight existing Greptile review threads are resolved. This confirms the PR review state only; provider production qualification remains pending. The preparation review itself records that no paid authority was granted (receipt `protocol-preparation/root-preparation-review.json`, SHA-256 `a716c6bb1d31a7c5bd6547d9295ac8b133f4ad86ab8fccf53683c3b92cab5dac`).
+The preceding PR workflow on candidate `a027895ea66ac74578ff677d4c555c263773c0a7` ended with nine jobs reporting the same runner shutdown signal at approximately 13:50 UTC, followed by cancellation. Bounded job logs show no explicit failed-test summary, so this is recorded as runner interruption evidence, not a product qualification result or source-test failure. Final PR review snapshot (2026-09-30): nexus/nexus #14696 at exact head `9dbf9ae0d030d837a9a4d9241967ff5d3d5c974e` has 52/52 checks green. Greptile Apex reviewed that exact head at 5/5 with no new findings; all eight existing Greptile review threads are resolved. This confirms the PR review state only; provider production qualification remains pending. The preparation review itself records that no paid authority was granted (receipt `protocol-preparation/root-preparation-review.json`, SHA-256 `a716c6bb1d31a7c5bd6547d9295ac8b133f4ad86ab8fccf53683c3b92cab5dac`).
 
 Cursor's native-question report has a [public upstream review finding](https://forum.cursor.com/t/agent-acp-never-offers-the-askquestion-tool-so-cursor-ask-question-is-never-sent/172976): the reported missing AskQuestion behavior was attributed to server-side ACP session identification, with no missing initialize capability identified and no verified fix release in the visible thread. This is diagnostic evidence, not confirmation that the pinned Cursor distribution supports the callback in every mode or proof that it is universally absent. Evidence identity: `root-findings.json`, SHA-256 `2fc34c1942e85ab58577b7cfa8ccdeafe520cc7c539aa67a7eef5a474848ad73`.
 
@@ -290,7 +290,7 @@ cleanup completed. Fresh Apex and CI are pending. This adds no paid warm proof.
 
 Cursor's pinned native `TurnEndedUpdate` has optional input, output, cache-read,
 cache-write and reasoning counters. Its vendor ACP prompt response does not
-project them. No evidence shows Paperclip dropped a supplied ACP usage receipt in
+project them. No evidence shows Nexus dropped a supplied ACP usage receipt in
 the failed attempt. The new candidate records bounded per-invocation observations
 as explicitly partial diagnostics. It must not sum parent/child totals, invent
 missing zeros or claim billing until the backend's aggregation/cache/reasoning
@@ -351,7 +351,7 @@ The [prior evidence checkpoint](runner-rich-acp-validation-2026-09-30-current.js
 | Pi v9 | Obtain an enforced provider spending bound, then run the unchanged required local/Daytona cases against the exact model and final runtime. Historical controls, question and hello passes do not qualify v9. |
 | All providers | Bind every required case to exact controller/runtime/profile and platform evidence, retain failures, complete source/dependency/pack end audits and owned cleanup, and reconcile actual spend within the $100 ceiling. CI and packaging do not substitute for this paid evidence; native Cursor/Copilot per-run USD remains unknown. |
 
-The field inventories and [prioritized follow-ups](#historical-gaps-and-follow-ups--october-2-2026) distinguish native SDK/RPC capability, ACP exposure and Paperclip projection. Image inputs, structured tool diffs/media/raw arguments, secondary locations and typed exit codes remain partial or unused in the common path. Cursor's richer child details and discovery/configuration fields, Copilot's session-scoped files/assets and uncorrelated native notices, and Pi's queue-delivery/configuration fields remain explicit follow-ups. These optional surfaces are not silently claimed as supported or treated as new blockers for unrelated declared cases. Copilot native steering/fork/ask-user APIs do not imply ACP responders; Pi native fork/clone/export likewise have no mapped runner controls. Pi confirm reports `negative_or_cancelled` because No and dismissal are indistinguishable; accepted empty or whitespace-only input/editor responses are not representable by the current canonical form.
+The field inventories and [prioritized follow-ups](#historical-gaps-and-follow-ups--october-2-2026) distinguish native SDK/RPC capability, ACP exposure and Nexus projection. Image inputs, structured tool diffs/media/raw arguments, secondary locations and typed exit codes remain partial or unused in the common path. Cursor's richer child details and discovery/configuration fields, Copilot's session-scoped files/assets and uncorrelated native notices, and Pi's queue-delivery/configuration fields remain explicit follow-ups. These optional surfaces are not silently claimed as supported or treated as new blockers for unrelated declared cases. Copilot native steering/fork/ask-user APIs do not imply ACP responders; Pi native fork/clone/export likewise have no mapped runner controls. Pi confirm reports `negative_or_cancelled` because No and dismissal are indistinguishable; accepted empty or whitespace-only input/editor responses are not representable by the current canonical form.
 
 | Retained paid observation | Outcome and limit |
 | --- | --- |
@@ -374,7 +374,7 @@ Copilot v7 source `70b186b3c` preserves real native message identity through the
 
 Cursor native AskQuestion remains unverified for the inspected exact models/modes. Pi v9 needs a verifiable OpenRouter spending bound before further paid runs. Its optional transport-budget candidate remains frozen: production allocation, launch scope, warm rotation, packaging and Daytona transport are incomplete. The provider-capped key remains the immediate path. Native Cursor/Copilot per-run USD remains unknown. Included usage and a disabled overage budget are billing coverage, not a native price receipt. The first 53 attempt records are closed. The table above separates corrected Cursor plan and Copilot hello passes from retained failed plan, warm and launcher attempts. The $100 campaign authorization remains in force, including failed attempts and infrastructure.
 
-Current profile identities bind shared runtime contract `paperclip.acpx-runtime-contract.v1`. All ACPX warm owners include that revision in their configuration fingerprint; incompatible owners retire without approval replay. Other transports retain their previous configuration digest. Legacy Cursor and Pi adapters remain unchanged.
+Current profile identities bind shared runtime contract `nexus.acpx-runtime-contract.v1`. All ACPX warm owners include that revision in their configuration fingerprint; incompatible owners retire without approval replay. Other transports retain their previous configuration digest. Legacy Cursor and Pi adapters remain unchanged.
 
 ## Historical v5/v5/v8 evidence
 
@@ -433,7 +433,7 @@ left no owned semaphores and passed post-run authority checks. Screenshots,
 durable events and original receipts are retained. All cases used zero automatic
 retries. Native priced USD remains unavailable for Cursor and Copilot; included
 usage is account billing coverage, not a fabricated native token price.
-Paperclip semantic questions and plans do not qualify native provider callbacks.
+Nexus semantic questions and plans do not qualify native provider callbacks.
 The campaign remains provisional until its full end audit and required cases
 pass.
 
@@ -543,7 +543,7 @@ Cursor's initialize probes needed forced cleanup after EOF, retained as a
 settlement limitation rather than reported as graceful exit.
 
 Current profile pins and prelaunch rejection checks are merged in
-[paperclip-evals #32](https://github.com/paperclipai/paperclip-evals/pull/32),
+[nexus-evals #32](https://github.com/paperclipai/paperclip-evals/pull/32),
 with 142 deterministic tests and 21 selected cells across all three explicit
 lanes. These definitions remain separate from authenticated qualification.
 
@@ -572,7 +572,7 @@ passed. No provider is exposed as qualified on this evidence.
 ## Historical production checkpoint (2026-09-29)
 
 The basic eval definitions and then-current profile pin follow-up merged in
-`paperclip-evals` PRs [#29](https://github.com/paperclipai/paperclip-evals/pull/29)
+`nexus-evals` PRs [#29](https://github.com/paperclipai/paperclip-evals/pull/29)
 and [#30](https://github.com/paperclipai/paperclip-evals/pull/30). The latter passed
 134 unit tests, CI and Greptile 5/5 at `4a15550d16ced37c6edbafa91a11783a64e4e649`;
 its merge commit is `0ad9c5a4275fbfbed3b32f261d3e603d9761a07c`. The Cursor/Copilot v4 and Pi v7 pin
@@ -670,7 +670,7 @@ at file-edit startup timeout. No automatic retries occurred. All campaign
 processes retired and post-run runtime/dependency checks passed. Additional
 GitHub usage remained disabled at $0/$0; these account counters do not supply a
 native per-run dollar receipt. The plan and question journeys use authenticated
-Paperclip semantic tools; they do not establish a native Copilot ask-user
+Nexus semantic tools; they do not establish a native Copilot ask-user
 responder.
 
 Pi Daytona attempt 01 used the previous `807feaecf` image and never reached
@@ -815,7 +815,7 @@ The provider reports above are the method/event and field inventories. Paid
 observations in the matrix refer to retained historical versions unless an
 explicit profile is named; the current checkpoint above controls qualification. In the
 table below, a method that is absent from a pinned implementation is distinct
-from an exposed method with no Paperclip control. Shared surfaces and their
+from an exposed method with no Nexus control. Shared surfaces and their
 deterministic evidence are mapped separately after the comparison.
 
 | Capability | Codex app-server benchmark | Cursor ACP candidate | Copilot ACP candidate | Pi ACP candidate |
@@ -828,7 +828,7 @@ deterministic evidence are mapped separately after the comparison.
 | Session continuity | Read/load/history/fork and durable identity | Session load/list observed; paid semantic warm continuation passed; native history replay unverified and fork absent in tested methods | Session load plus native history events; semantic pending-question controller recovery passed | Private Pi JSONL mapping/load; native RPC `fork`, `clone`, `get_fork_messages` are not mapped through this ACP wrapper; unresolved UI promises cannot survive provider death |
 | Questions | Typed input requests and response correlation | `cursor/ask_question`, option identity and multiple selection preserved | Native ask-user capability exists, but pinned ACP does not wire its responder; do not display a false answerable form | `select`, `confirm`, `input`, `editor` through typed form elicitation |
 | Permissions | Durable typed approvals | Standard ACP permission options; denied shell write had no observed side effects; separately labeled exact-correlation assessment | Standard ACP; real native reject_once prevented marker creation; session decision scope inspected | Native pre-tool gate; allow once, exact-operation session grant, deny; paths rechecked after wait |
-| Plans | Typed plan and collaboration mode | `cursor/create_plan` includes full plan and revision-bound accept/reject/cancel; todo activity separate | Native plan events displayed; native plan-decision callback not exposed in ACP | No native structured plan event; authenticated Paperclip planning tools available |
+| Plans | Typed plan and collaboration mode | `cursor/create_plan` includes full plan and revision-bound accept/reject/cancel; todo activity separate | Native plan events displayed; native plan-decision callback not exposed in ACP | No native structured plan event; authenticated Nexus planning tools available |
 | Authenticated tools | Runner bridge and governed operations | ACP HTTP MCP binding; paid context/history reads passed | ACP HTTP MCP binding; paid context read passed | Owned extension registers exact bound MCP tools; profile-13 paid Product completion/questions and seeded Runner context pass; no ambient servers |
 | Delegation | Typed agent roles and lifecycle | Opt-in subagent lifecycle, nested ownership and bounded child activity; never parent transcript flattening | Native session details retain agent/model fields with unknown originating turn; typed turn-owned delegation is not inferred | No built-in ACP delegation protocol; arbitrary extensions are excluded |
 | Files/diffs | Typed file changes and artifact references | Standard tool changes plus validated image references | Correlated ACP tool events remain available; native session file/workspace details are session notices, not attributed task file changes | Wrapper-retained read/write/edit diffs; common typed/UI projection remains partial; semantic artifact tools |
@@ -850,7 +850,7 @@ deterministic evidence are mapped separately after the comparison.
 | Session list/fork, generic configuration and commands | No added operator surface; exact owned session recovery and configured model remain available | Provider inventories identify native-only, ACP-exposed, confirmed-absent and unverified methods with follow-ups |
 
 Paths starting with `src/` or `runner/` in this evidence table are relative to
-`packages/paperclip-runner/`; other paths are repository-relative. Deterministic
+`packages/nexus-runner/`; other paths are repository-relative. Deterministic
 fixtures establish contract behavior, not successful paid provider execution.
 
 ## Shared event and interaction contract
@@ -938,7 +938,7 @@ qualification gates, not claims that a JavaScript path check confines a shell.
 | P0 | Cursor project and remote hooks; native shell boundaries | The verified v4 patch disables native ambient MCP/hooks at their actual initialization points on all three platforms. Retain real paid/remote isolation and command cleanup qualification before promotion. |
 | P1 | Native Pi queue selection in the product UI | The runner API exposes negotiated `follow_up` separately from active steering. The current composer has no native queue selector; add one without confusing it with controller-scheduled later turns. |
 | P1 | Pi `queue_update` contents and delivery state | RPC acknowledgment proves acceptance, not model consumption. Add bounded queued/delivered events and durable message correlation with explicit retention rules for user content; preserve this distinction on reconnect. The selected live marker-order probe proves its own consumed messages only. |
-| P1 | Pi retry/compaction field completeness and end-to-end evidence | The wrapper now emits bounded `paperclip/pi_notice` activity instead of assistant text. The adapter preserves source provenance, retry counters/delay, outcome flags and bounded reason/error text; package tests cover retry success/failure/unknown and compaction usage. `finalError` is not forwarded, and summarization retry currently has summary-only data. Extend field-by-field wrapper/canonical/UI coverage; these deterministic checks do not qualify live behavior or give notices terminal authority. |
+| P1 | Pi retry/compaction field completeness and end-to-end evidence | The wrapper now emits bounded `nexus/pi_notice` activity instead of assistant text. The adapter preserves source provenance, retry counters/delay, outcome flags and bounded reason/error text; package tests cover retry success/failure/unknown and compaction usage. `finalError` is not forwarded, and summarization retry currently has summary-only data. Extend field-by-field wrapper/canonical/UI coverage; these deterministic checks do not qualify live behavior or give notices terminal authority. |
 | P1 | Native Cursor/Copilot active steering and queues | ACP prompt replacement is not steering; native SDK capabilities may be richer. Require a dedicated bound method plus acknowledgment before advertising. |
 | P1 | Child tool media/diff/raw payloads | Bounded delegation summaries preserve lifecycle and identity. Large nested payloads need a child-owned canonical item model; current omission is a visible notice and provider report entry. |
 | P1 | Standard ACP parent tool `content` diffs/images, secondary locations and raw input bodies | The existing common normalizer projects bounded output text, input-presence, and the first safe relative location. Raw argument bodies can contain secrets; richer content needs bounded typed blocks and a separately validated workspace binding for each file. Provider-specific image/file notices do not close this standard-tool gap. |
@@ -1046,10 +1046,10 @@ Separate paid Product E2E evidence now records:
 | Copilot / file edit and validation | `ee9536001fbe733b2386dd3379730a4e0be59488` | 7/7 assertions and cleanup passed; independent bytes validated; GitHub biller and unpriced receipt verified |
 | Copilot / question continuation | `ee9536001fbe733b2386dd3379730a4e0be59488` | Question/answer and warm session reuse worked; 4/6 terminal assertions passed because the provider returned a literal placeholder instead of the required marker; failed attempt retained |
 | Cursor / controller restart | `d35b83074a018537f5475568d7410e3b1d676789` | 6/6 assertions in 57.865 seconds; pending semantic question survived server restart, Cobalt answer continued to Done, cleanup passed; earlier failed attempts retained |
-| Pi / completion | `dd78df1ef8b279c30c710c9b7a7f9fda22e321d6` | 6/6 assertions and cleanup passed in 32.668 seconds; one authenticated `paperclip_finish`, `turn.completed` and `run.terminal`; exclusive-key delta $0.000654767 |
+| Pi / completion | `dd78df1ef8b279c30c710c9b7a7f9fda22e321d6` | 6/6 assertions and cleanup passed in 32.668 seconds; one authenticated `nexus_finish`, `turn.completed` and `run.terminal`; exclusive-key delta $0.000654767 |
 | Copilot / semantic plan approval | `c06fc5fccc88f5816450434493451b9d2d339125` | 6/6 assertions in 45.625 seconds; accepted decision bound to displayed revision 1, exact marker and Done; both paused/completed receipts are GitHub/unpriced; cleanup passed |
 | Copilot / controller restart | `19ca0f558` (final runtime remains `8aa867b64d5fc2fd62cff110bd000addf5dc54de`) | 6/6 assertions in 50.875 seconds; same pending interaction survived restart and same persisted provider session continued; exact marker once, Done and cleanup passed |
-| Pi / file edit and validation | Runtime `dd78df1ef8b279c30c710c9b7a7f9fda22e321d6` | Failed at the 120-second active deadline after five rejected `paperclip_finish` calls; cleanup passed. The extension discarded validation details. Final bytes and completion arguments cannot be reconstructed from the retained projection. |
+| Pi / file edit and validation | Runtime `dd78df1ef8b279c30c710c9b7a7f9fda22e321d6` | Failed at the 120-second active deadline after five rejected `nexus_finish` calls; cleanup passed. The extension discarded validation details. Final bytes and completion arguments cannot be reconstructed from the retained projection. |
 | Pi / file edit and validation, v3 | Pack source `7710736ca3924c655c5b0efd172cfd3c0173766a`; execution fix `06cf356a8bc94f709fcd15606fe05e17933fe3b2` | 7/7 assertions in 49.427 seconds, exact file bytes and cleanup passed. One rejected completion exposed the missing registered deliverable; Pi corrected it, registered the artifact and finished. Exclusive-key delta $0.003324737. |
 | Pi / semantic question, v3 | Pack source `7710736ca3924c655c5b0efd172cfd3c0173766a` | 6/6 assertions in 158.388 seconds across two bounded turns; exact question/option IDs, Cobalt answer, warm continuation, final marker and cleanup passed. First waiting run has no usage receipt; exclusive-key delta covers both runs ($0.001413697). |
 | Pi / semantic plan, v3 first attempt | Pack source `7710736ca3924c655c5b0efd172cfd3c0173766a` | Failed the native write-boundary UI assertion in 119.553 seconds. The saved two-step plan, matching revision and confirmation controls were visible, but all retained DOM snapshots showed the fallback Plan card. Rust lost the MCP display name/namespace used for placement. Cleanup passed; exclusive-key delta $0.003090504. Matcher remains unchanged. |
@@ -1083,7 +1083,7 @@ These narrow native probes do not replace durable Product interaction, restart,
 or Daytona coverage. Their private wire evidence remains separate from sanitized
 public summaries. A private durable retention manifest also records hashes for the
 logs, screenshots, wire evidence and failed attempts; no credentials are published. The semantic Cursor question and plan cases above exercise
-Paperclip tools, not the native `cursor/ask_question` or `cursor/create_plan` RPCs.
+Nexus tools, not the native `cursor/ask_question` or `cursor/create_plan` RPCs.
 The failed Pi file case exposed two wrapper losses. Profile version 3 at
 `06cf356a8bc94f709fcd15606fe05e17933fe3b2` preserves bounded, redacted MCP validation
 errors and bounded Bash arguments/output; oversized values have an explicit

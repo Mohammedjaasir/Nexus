@@ -1,6 +1,6 @@
 import express from "express";
 import request from "supertest";
-import { companyMemberships, instanceUserRoles, issues, type Db } from "@paperclipai/db";
+import { companyMemberships, instanceUserRoles, issues, type Db } from "@nexusai/db";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "../middleware/error-handler.js";
 import { chatChannelRoutes } from "../routes/chat-channels.js";

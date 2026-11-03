@@ -1,6 +1,6 @@
-import type { IssueAttachment, IssueDocument, IssueDocumentSummary, IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueAttachment, IssueDocument, IssueDocumentSummary, IssueWorkProduct } from "@nexusai/shared";
 import type { AttachmentRef } from "@/components/task-chat/task-chat-attachments";
-import { getAttachmentArtifactWorkProductMetadata } from "@paperclipai/shared";
+import { getAttachmentArtifactWorkProductMetadata } from "@nexusai/shared";
 import { artifactUrl } from "@/lib/artifact-card-data";
 import { documentDisplayTitle, workProductHref } from "@/lib/issue-artifacts";
 import { attachmentDownloadPath, attachmentOpenPath } from "@/lib/issue-attachments";

@@ -2,11 +2,11 @@ import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { companies, createDb, issues, routineRuns, routines } from "@paperclipai/db";
+import { companies, createDb, issues, routineRuns, routines } from "@nexusai/db";
 import { routineService } from "../services/routines.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_ROUTINE_STATUS_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_ROUTINE_STATUS_TEST_DATABASE_URL");
 const support = external ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 if (!support.supported) console.warn(`Skipping routine status database tests: ${support.reason}`);
 (support.supported ? describe : describe.skip)("routine status reconciliation", () => {

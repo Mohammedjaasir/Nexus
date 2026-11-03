@@ -122,7 +122,7 @@ jobs:
           (cd .testops-trusted && node tests/runner-e2e/prepare-report-lock.mjs && pnpm install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/chat-completion-retention-store")
       - name: Qualify the pinned provider runtime and preinstalled browser
         run: |
-          node packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
+          node packages/nexus-runner/scripts/materialize-opencode-binary.mjs
           node -e 'const fs=require("node:fs");fs.chmodSync(process.execPath,fs.statSync(process.execPath).mode&~0o022);if(fs.statSync(process.execPath).mode&0o022)throw Error("Writable provider Node")'
           google-chrome --version
           pnpm exec playwright install ffmpeg
@@ -156,15 +156,15 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           ANTHROPIC_API_KEY: ${{ contains(fromJSON(inputs.cell).required_credentials, 'ANTHROPIC_API_KEY') && secrets.ANTHROPIC_API_KEY || '' }}
-          PAPERCLIP_CHAT_COMPLETION_TESTOPS: v1
+          NEXUS_CHAT_COMPLETION_TESTOPS: v1
           ALLURE_JOB_RUN_ID: ${{ inputs.ALLURE_JOB_RUN_ID }}
-          PAPERCLIP_RUNNER_E2E_PRIVATE_PREFLIGHT: ${{ steps.private.outputs.root }}/preflight.json
+          NEXUS_RUNNER_E2E_PRIVATE_PREFLIGHT: ${{ steps.private.outputs.root }}/preflight.json
           PRIVATE_EVIDENCE_ROOT: ${{ steps.private.outputs.root }}
-          PAPERCLIP_E2E_CAMPAIGN_ID: gha-${{ github.run_id }}-1-${{ fromJSON(inputs.cell).executionId }}
-          PAPERCLIP_E2E_ACCOUNTING_CAMPAIGN_ID: gha-${{ github.run_id }}-1
-          PAPERCLIP_RUNNER_E2E_SOURCE_SHA: ${{ inputs.target_sha }}
-          PAPERCLIP_RUNNER_E2E_SOURCE_REF: refs/heads/codex/chat-catalog-master-integration
-          PAPERCLIP_PLAYWRIGHT_CHANNEL: chrome
+          NEXUS_E2E_CAMPAIGN_ID: gha-${{ github.run_id }}-1-${{ fromJSON(inputs.cell).executionId }}
+          NEXUS_E2E_ACCOUNTING_CAMPAIGN_ID: gha-${{ github.run_id }}-1
+          NEXUS_RUNNER_E2E_SOURCE_SHA: ${{ inputs.target_sha }}
+          NEXUS_RUNNER_E2E_SOURCE_REF: refs/heads/codex/chat-catalog-master-integration
+          NEXUS_PLAYWRIGHT_CHANNEL: chrome
         run: pnpm test:e2e:runner -- --id "${{ fromJSON(inputs.cell).executionId }}" --max-parallel 1 --max-automatic-retries 0 > "$PRIVATE_EVIDENCE_ROOT/launcher-output.log" 2>&1
       - name: Retain original evidence after success or failure
         if: always() && steps.cell_credentials.outcome == 'success'
@@ -229,12 +229,12 @@ jobs:
         id: normalize
         continue-on-error: true
         env:
-          PAPERCLIP_RUNNER_E2E_REPORT_ROOT: ${{ github.workspace }}/selected-runner-e2e
-          PAPERCLIP_RUNNER_E2E_REPORT_OUT: ${{ github.workspace }}/runner-e2e-merged-report/normalized
-          PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: ${{ fromJSON(inputs.cell).private_ids }}
-          PAPERCLIP_E2E_CAMPAIGN_ID: gha-${{ github.run_id }}-1
-          PAPERCLIP_RUNNER_E2E_SOURCE_SHA: ${{ inputs.target_sha }}
-          PAPERCLIP_RUNNER_E2E_SOURCE_REF: refs/heads/codex/chat-catalog-master-integration
+          NEXUS_RUNNER_E2E_REPORT_ROOT: ${{ github.workspace }}/selected-runner-e2e
+          NEXUS_RUNNER_E2E_REPORT_OUT: ${{ github.workspace }}/runner-e2e-merged-report/normalized
+          NEXUS_RUNNER_E2E_EXPECTED_IDS: ${{ fromJSON(inputs.cell).private_ids }}
+          NEXUS_E2E_CAMPAIGN_ID: gha-${{ github.run_id }}-1
+          NEXUS_RUNNER_E2E_SOURCE_SHA: ${{ inputs.target_sha }}
+          NEXUS_RUNNER_E2E_SOURCE_REF: refs/heads/codex/chat-catalog-master-integration
         run: |
           mkdir -p runner-e2e-merged-report
           pnpm test:e2e:runner:report > runner-e2e-merged-report/report.log 2>&1
@@ -297,7 +297,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TESTOPS_ALLOWED_ACTOR_IDS: ${{ vars.RUNNER_E2E_ALLOWED_ACTOR_IDS }}
           ALLURE_TOKEN: ${{ secrets.ALLURE_TOKEN }}
-          ALLURE_ENDPOINT: https://paperclip.testops.cloud
+          ALLURE_ENDPOINT: https://nexus.testops.cloud
           ALLURE_PROJECT_ID: '1'
           ALLURE_JOB_RUN_ID: ${{ inputs.ALLURE_JOB_RUN_ID }}
           EXPECTED_SELECTION_SHA256: ${{ inputs.selection_sha256 }}

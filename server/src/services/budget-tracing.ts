@@ -1,5 +1,5 @@
 import { trace, type Span } from "@opentelemetry/api";
-import { withDatabaseOperation } from "@paperclipai/db";
+import { withDatabaseOperation } from "@nexusai/db";
 
 type BudgetOperation = "budget.accounting.lock_wait" | "budget.accounting.recover"
   | "budget.accounting.settlement" | "budget.accounting.transaction"
@@ -17,7 +17,7 @@ export function withBudgetSpan<T>(name: BudgetOperation, work: () => Promise<T>,
       try { span?.end(); } catch { /* Diagnostics cannot change accounting. */ }
     });
     try {
-      const traced = trace.getTracer("paperclip.budgets").startActiveSpan(name, { attributes }, span => run(span));
+      const traced = trace.getTracer("nexus.budgets").startActiveSpan(name, { attributes }, span => run(span));
       // Some external SDK implementations can fail before or after the callback.
       // Own the accounting promise so either failure still executes work once.
       void Promise.resolve(traced).catch(() => undefined);

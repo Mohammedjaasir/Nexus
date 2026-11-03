@@ -6,7 +6,7 @@ import express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
-import { companies, companyTransferRuns, createDb } from "@paperclipai/db";
+import { companies, companyTransferRuns, createDb } from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -89,7 +89,7 @@ vi.mock("../services/company-import-transfers.js", async (importOriginal) => {
   };
 });
 
-const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_IMPORT_TRANSFER_TEST_DATABASE_URL");
+const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_IMPORT_TRANSFER_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalTestDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported
   ? describe
@@ -190,7 +190,7 @@ function buildFixtureZip(): Buffer {
       "COMPANY.md": `---\nname: Chunked Import ${zipSeq}\n---\n`,
       "agents/ceo/AGENTS.md": "---\nname: CEO\n---\n",
     },
-    "paperclip",
+    "nexus",
   );
 }
 
@@ -256,12 +256,12 @@ describeEmbeddedPostgres("company import transfer routes", () => {
   }
 
   beforeAll(async () => {
-    if (!externalTestDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-import-transfer-routes-");
+    if (!externalTestDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-import-transfer-routes-");
     db = createDb(externalTestDatabaseUrl ?? tempDb!.connectionString);
     // The mocked import result points at this company; the ledger's
     // company_id foreign key needs the row to exist.
     await db.insert(companies).values({ id: companyId, name: "Chunked Import Target", issuePrefix: `IT${companyId.slice(0, 6)}` });
-    spoolRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-import-transfer-spool-"));
+    spoolRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-import-transfer-spool-"));
     app = await createApp();
   });
 
@@ -745,7 +745,7 @@ describeEmbeddedPostgres("company import transfer routes", () => {
     // caller can find the earlier import instead of reading it as data loss.
     mockCompanyService.getById.mockResolvedValue({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: "PAPA",
     });
     const redeclared = await request(app).post("/api/companies/import/transfers").send(body);
@@ -754,7 +754,7 @@ describeEmbeddedPostgres("company import transfer routes", () => {
     expect(redeclared.body.alreadyCompleted).toBe(true);
     expect(redeclared.body.missingParts).toEqual([]);
     expect(mockCompanyService.getById).toHaveBeenCalledWith(companyId);
-    expect(redeclared.body.company).toEqual({ id: companyId, name: "Paperclip", issuePrefix: "PAPA" });
+    expect(redeclared.body.company).toEqual({ id: companyId, name: "Nexus", issuePrefix: "PAPA" });
 
     // A company deleted since the apply (or an attach that never happened)
     // degrades to company: null, never a 500.

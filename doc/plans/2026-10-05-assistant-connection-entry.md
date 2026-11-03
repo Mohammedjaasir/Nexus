@@ -1,6 +1,6 @@
 # Assistant connection entry and Butter walkthrough
 
-Start inside the user’s Paperclip organization. Connections must explain how to
+Start inside the user’s Nexus organization. Connections must explain how to
 connect an outside assistant to this instance as the current person, with no
 agent selection.
 

@@ -2,7 +2,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AgentActionButtons } from "../components/AgentActionButtons";
-import type { Agent, HeartbeatRun } from "@paperclipai/shared";
+import type { Agent, HeartbeatRun } from "@nexusai/shared";
 import { describe, expect, it, vi } from "vitest";
 import { RunAccountingMetrics } from "./AgentDetail";
 import { hasUnavailableProviderAccounting } from "../lib/utils";
@@ -45,7 +45,7 @@ describe("provider trace support", () => {
     const agent: Agent = {
       id: "agent-1", companyId: "company-1", name: "Researcher", urlKey: "researcher", role: "researcher",
       title: null, icon: null, status: "active", reportsTo: null, capabilities: null,
-      adapterType: "paperclip_runner", adapterConfig: { provider }, runtimeConfig: {},
+      adapterType: "nexus_runner", adapterConfig: { provider }, runtimeConfig: {},
       budgetMonthlyCents: 0, spentMonthlyCents: 0, permissions: { canCreateAgents: false },
       pauseReason: null, pausedAt: null, lastHeartbeatAt: null, metadata: null,
       createdAt: new Date("2026-10-10T00:00:00Z"), updatedAt: new Date("2026-10-10T00:00:00Z"),

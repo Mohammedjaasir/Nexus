@@ -1,4 +1,4 @@
-import type { ConnectionFailure } from "@paperclipai/adapter-utils/connection-failure";
+import type { ConnectionFailure } from "@nexusai/adapter-utils/connection-failure";
 import { HttpError } from "../errors.js";
 import { classifyRemoteConnectionError, hasUnclassifiedRemoteConnectionAttempts, readRemoteConnectionFailure } from "./remote-connection-failure.js";
 

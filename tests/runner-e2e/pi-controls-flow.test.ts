@@ -41,7 +41,7 @@ async function exercise(taskId: string, remote: boolean, failure?: "mutation" | 
     const target = remote ? "pi-control-fixture.txt" : harness.target;
     f.scope.target = target; f.tool.target = target; f.issue.title = "Provider-generated task name"; f.issue.companyId = "company"; f.issue.assigneeAgentId = "agent";
   };
-  const queue = () => ({ queueId: "queue", targetRunId: "run", revision: "revision", protocol: "paperclip_runner_v1", steeringDisposition: "available", entries: harness.message ? [{ comment: { id: "comment", body: harness.message + (failure === "foreign-queued-body" ? " altered" : "") } }] : [] });
+  const queue = () => ({ queueId: "queue", targetRunId: "run", revision: "revision", protocol: "nexus_runner_v1", steeringDisposition: "available", entries: harness.message ? [{ comment: { id: "comment", body: harness.message + (failure === "foreign-queued-body" ? " altered" : "") } }] : [] });
   const api = {
     post: async (path: string, body: any) => {
       if (path.endsWith("/projects")) return { name: "Pi controls fixture" };
@@ -52,7 +52,7 @@ async function exercise(taskId: string, remote: boolean, failure?: "mutation" | 
     get: async (path: string) => {
       sync();
       if (path === "/api/health") return { deploymentMode: "local_trusted" };
-      if (path === "/api/auth/get-session") return { session: { userId: "local-board", id: "paperclip:local_implicit:local-board" } };
+      if (path === "/api/auth/get-session") return { session: { userId: "local-board", id: "nexus:local_implicit:local-board" } };
       if (path === "/api/agents/agent") return { adapterConfig: {} };
       if (path.endsWith("/issues?limit=100")) return [f.issue];
       if (path === "/api/issues/issue") return f.issue;
@@ -134,10 +134,10 @@ async function exercise(taskId: string, remote: boolean, failure?: "mutation" | 
     targets: { "pi-control-fixture.txt": { absent: true, sha256: null, complete: true, mutationCount: retired && harness.mutation ? 1 : 0, parent: { dev: "1", ino: "2" } } },
     watcher: { complete: !(retired && harness.incomplete), targetMutationCount: retired && harness.mutation ? 1 : 0, workspaceMutationCount: 0 },
     processes: { captured: true, root: retired && failure === "root-rotation" ? { ...root, startTicks: "201" } : root, journal: [root], live: retired ? [] : [50] },
-    setup: { path: ".paperclip-eval-action-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt", sha256: published ? `sha256:${"b".repeat(64)}` : null, published }, attached: null,
+    setup: { path: ".nexus-eval-action-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt", sha256: published ? `sha256:${"b".repeat(64)}` : null, published }, attached: null,
   });
   let seal: ReturnType<typeof snapshot> | undefined;
-  const fixture = { binding, remoteCwd: binding.remoteCwd, actionFile: ".paperclip-eval-action-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt", snapshot: async () => snapshot(), finish: async () => seal ??= snapshot(true), close: vi.fn() };
+  const fixture = { binding, remoteCwd: binding.remoteCwd, actionFile: ".nexus-eval-action-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt", snapshot: async () => snapshot(), finish: async () => seal ??= snapshot(true), close: vi.fn() };
   const remoteBootstrap = remote ? { prompt: () => "Read bootstrap only", bindAndRelease: async (input: any) => {
     expect(input.targets).toEqual(["pi-control-fixture.txt"]); harness.prompt = await input.actionPrompt(fixture); published = true; return fixture;
   } } : undefined;
@@ -159,7 +159,7 @@ async function exercise(taskId: string, remote: boolean, failure?: "mutation" | 
       expect(browserSteers).toBe(stopCase ? 0 : 1); expect(browserDeclines).toBe(stopCase ? 0 : 1);
       if (!stopCase) {
         const receipt = saved.get("pi-steering-presentation.json");
-        expect(receipt).toMatchObject({ schema: "paperclip.e2e.pi-steering-presentation.v1", phase: "final", companyId: "company", issueId: "issue", runId: "run", commentsApiPath: "/api/issues/issue/comments" });
+        expect(receipt).toMatchObject({ schema: "nexus.e2e.pi-steering-presentation.v1", phase: "final", companyId: "company", issueId: "issue", runId: "run", commentsApiPath: "/api/issues/issue/comments" });
         expect(receipt.comments).toEqual(publicComments.at(-1));
         expect(receipt.run.resultJson.presentationDecision).toEqual(f.run.resultJson.presentationDecision);
         expect(receipt).not.toHaveProperty("finalMessage");

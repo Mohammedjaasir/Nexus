@@ -99,7 +99,7 @@ describe("workspace handoff key derivation", () => {
 
   it("prefers a dedicated secret and otherwise derives one that is not the auth secret", () => {
     expect(
-      resolveWorkspaceHandoffRootSecret({ PAPERCLIP_WORKSPACE_HANDOFF_SECRET: "dedicated" }),
+      resolveWorkspaceHandoffRootSecret({ NEXUS_WORKSPACE_HANDOFF_SECRET: "dedicated" }),
     ).toEqual({ secret: "dedicated", source: "dedicated" });
 
     const derived = resolveWorkspaceHandoffRootSecret({ BETTER_AUTH_SECRET: "auth-secret" });
@@ -395,9 +395,9 @@ describe("handoff URL handling", () => {
     expect(redacted).toContain("next=%2F");
 
     const capability = "pcgw_secret-capability";
-    const gatewayLine = `POST /mcp/gateways/gw_test?paperclip_capability=${capability} 200`;
+    const gatewayLine = `POST /mcp/gateways/gw_test?nexus_capability=${capability} 200`;
     const redactedGatewayLine = redactWorkspaceHandoffTicket(gatewayLine);
     expect(redactedGatewayLine).not.toContain(capability);
-    expect(redactedGatewayLine).toContain("paperclip_capability=[redacted]");
+    expect(redactedGatewayLine).toContain("nexus_capability=[redacted]");
   });
 });

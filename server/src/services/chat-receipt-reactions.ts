@@ -7,7 +7,7 @@ import {
   chatMessageLinks,
   heartbeatRuns,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   parseGitHubReceiptIdentity,
   type GitHubReceiptIdentity,

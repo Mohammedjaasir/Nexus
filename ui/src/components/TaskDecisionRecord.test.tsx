@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, useNavigate } from "@/lib/router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { DecisionOutcome } from "@/api/decisions";
-import type { DecisionHistoryItem } from "@paperclipai/shared";
+import type { DecisionHistoryItem } from "@nexusai/shared";
 import { CoordinatorDecisionReceipt } from "./coordinator/CoordinatorDecisionReceipt";
 import { TaskDecisionRecord } from "./TaskDecisionRecord";
 

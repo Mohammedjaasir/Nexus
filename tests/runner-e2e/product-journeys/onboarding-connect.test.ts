@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { onboardingConnect, validateOnboardingConnectEvidence, type OnboardingConnectEvidence } from "./onboarding-connect.js";
 
 const origin = "https://tenant.example.test", companyId = "company-1";
-const validation = `/api/companies/${companyId}/adapters/paperclip_runner/test-environment`;
+const validation = `/api/companies/${companyId}/adapters/nexus_runner/test-environment`;
 const hire = `/api/companies/${companyId}/agent-hires`;
 const secret = "PRIVATE_SENTINEL_do_not_retain";
 function fixture(options: { ready?: boolean; durationMs?: number; click?: () => Promise<void> | void; wait?: () => Promise<void> } = {}) {
@@ -124,7 +124,7 @@ describe("one onboarding Connect diagnostic boundary", () => {
     const result = expect(f.run()).rejects.toMatchObject({ code: "onboarding_get_started_timeout" });
     await vi.advanceTimersByTimeAsync(101); await result;
     const sealed = JSON.stringify(f.receipt());
-    f.respond({ status: "pass", adapterType: "paperclip_runner", checks: [] });
+    f.respond({ status: "pass", adapterType: "nexus_runner", checks: [] });
     expect(JSON.stringify(f.receipt())).toBe(sealed);
     expect(f.receipt().validation.state).toBe("missing");
   });
@@ -172,10 +172,10 @@ describe("one onboarding Connect diagnostic boundary", () => {
 
   it("observes both successful responses and requires the visible review step", async () => {
     const f = fixture({ ready: true, click: () => {
-      f.respond({ adapterType: "paperclip_runner", status: "pass", checks: [{ code: "codex_hello_probe_passed", level: "info", message: secret }] }, 200, validation.replace("paperclip_runner", "codex_local"));
+      f.respond({ adapterType: "nexus_runner", status: "pass", checks: [{ code: "codex_hello_probe_passed", level: "info", message: secret }] }, 200, validation.replace("nexus_runner", "codex_local"));
       f.respond({ agent: { id: secret }, approval: null }, 201, hire);
     } });
-    expect(await f.run()).toMatchObject({ checkpoint: "review", validation: { requestedAdapter: "codex_local", adapter: "paperclip_runner", outcome: "pass", checks: [{ code: "codex_hello_probe_passed", level: "info" }] }, hire: { state: "json", httpStatus: 201 } });
+    expect(await f.run()).toMatchObject({ checkpoint: "review", validation: { requestedAdapter: "codex_local", adapter: "nexus_runner", outcome: "pass", checks: [{ code: "codex_hello_probe_passed", level: "info" }] }, hire: { state: "json", httpStatus: 201 } });
     expect(JSON.stringify(f.receipt())).not.toContain(secret);
     expect(f.events.eventNames()).toEqual([]);
   });

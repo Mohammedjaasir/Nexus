@@ -10,10 +10,10 @@ describe("operation-scoped local encryption", () => {
   let keyFile: string;
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "paperclip-encryption-batch-"));
+    root = mkdtempSync(join(tmpdir(), "nexus-encryption-batch-"));
     keyFile = join(root, "master.key");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY_FILE", keyFile);
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY_FILE", keyFile);
   });
 
   afterEach(() => {
@@ -68,7 +68,7 @@ describe("operation-scoped local encryption", () => {
     writeFileSync(keyFile, key, { mode: 0o600 });
     const fromFile = deriveLocalEncryptedInstanceSecret("trace-test", process.env, { allowCreate: false });
     unlinkSync(keyFile);
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", key);
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", key);
     expect(deriveLocalEncryptedInstanceSecret("trace-test", process.env, { allowCreate: false })).toBe(fromFile);
     expect(existsSync(keyFile)).toBe(false);
   });

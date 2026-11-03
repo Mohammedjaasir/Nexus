@@ -1,8 +1,8 @@
 import { lstat, mkdir, realpath } from "node:fs/promises";
 import path from "node:path";
-import type { ExecutionWorkspace } from "@paperclipai/shared";
+import type { ExecutionWorkspace } from "@nexusai/shared";
 import { parseObject } from "../adapters/utils.js";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 
 /** A repository-free sandbox task needs isolation, but has no Git base. */
 export function shouldUseIsolatedTaskDirectory(input: {
@@ -35,7 +35,7 @@ export async function materializeIsolatedTaskDirectory(input: {
   if (identities.some((value) => !/^[a-zA-Z0-9_-]+$/.test(value))) {
     throw new Error("Invalid isolated task workspace identity");
   }
-  const root = resolvePaperclipInstanceRoot();
+  const root = resolveNexusInstanceRoot();
   if (!input.reuseCwd) await mkdir(root, { recursive: true });
   let cwd = await realpath(root);
   let namespace = input.attemptId ? "isolated-workspace-attempts" : "isolated-workspaces";

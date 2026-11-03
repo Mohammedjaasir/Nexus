@@ -50,7 +50,7 @@ export async function runCaseHandoffsFlow(input: {
     const checks = gradeCaseHandoffs(observation);
     input.observe(issue, runs, checks, caseRecord);
     await input.evidence("case-handoffs.json", {
-      schema: "paperclip.e2e.case-handoffs.v1", phase, expectedTurns: 4, maximumTurns: CASE_HANDOFF_MAX_TURNS,
+      schema: "nexus.e2e.case-handoffs.v1", phase, expectedTurns: 4, maximumTurns: CASE_HANDOFF_MAX_TURNS,
       observation: { ...observation, issue: { id: issue.id, status: issue.status, assigneeAgentId: issue.assigneeAgentId },
         caseRecord: { id: caseRecord.id, workflowId: caseRecord.workflowId, workIssueId: caseRecord.workIssueId, phase: caseRecord.phase, handoffVersion: caseRecord.handoffVersion, pendingHandoff: caseRecord.pendingHandoff ? { id: caseRecord.pendingHandoff.id, state: caseRecord.pendingHandoff.state, lastErrorCode: caseRecord.pendingHandoff.lastErrorCode } : null },
         cases: records.map(row => ({ id: row.id, workIssueId: row.workIssueId })), tasks: tasks.map(row => ({ id: row.id, status: row.status })),

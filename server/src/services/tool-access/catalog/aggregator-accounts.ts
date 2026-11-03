@@ -2,16 +2,16 @@ import { connectionActorUserId } from "../actor.js";
 import { actorForSecret } from "../oauth/credential-store.js";
 import type { ActorInfo } from "../types.js";
 import { remoteEndpoint, projectedConnectionHeaders } from "../connection-methods.js";
-import { AGGREGATOR_NAMES, isAppAggregator, type AggregatorAppsResponse, type ArcadeDiscoverySetupInput } from "@paperclipai/shared/aggregator-apps";
-import { resolveAggregatorApp, type AppCatalogAggregator } from "@paperclipai/shared/aggregator-app-catalog";
+import { AGGREGATOR_NAMES, isAppAggregator, type AggregatorAppsResponse, type ArcadeDiscoverySetupInput } from "@nexusai/shared/aggregator-apps";
+import { resolveAggregatorApp, type AppCatalogAggregator } from "@nexusai/shared/aggregator-app-catalog";
 import { AggregatorDiscoveryUnavailableError, discoverArcadeApps, discoverExecutorApps, type DiscoveredApp } from "../../aggregator-app-discovery.js";
-import { COMPOSIO_APP_TOOLKITS, findComposioCatalogApp } from "@paperclipai/shared/aggregator-app-catalog";
-import type { ComposioAppAccount, ComposioAppAccountInput, ComposioAppSetupInput, ComposioAppSetupResult, ComposioAppSnapshot, ComposioAppsResponse } from "@paperclipai/shared";
+import { COMPOSIO_APP_TOOLKITS, findComposioCatalogApp } from "@nexusai/shared/aggregator-app-catalog";
+import type { ComposioAppAccount, ComposioAppAccountInput, ComposioAppSetupInput, ComposioAppSetupResult, ComposioAppSnapshot, ComposioAppsResponse } from "@nexusai/shared";
 import { composioAppAccounts, composioAppSetupResult } from "../../composio-app-setup.js";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { companySecrets, toolAccessAuditEvents, toolCatalogEntries, toolConnectionAppSnapshots, toolConnectionAppSyncs, toolConnections } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { companySecrets, toolAccessAuditEvents, toolCatalogEntries, toolConnectionAppSnapshots, toolConnectionAppSyncs, toolConnections } from "@nexusai/db";
 import { conflict, forbidden, HttpError, notFound, unprocessable } from "../../../errors.js";
 import { logActivity } from "../../activity-log.js";
 import { initializeMcpHttpSession, getMcpHttpSession, readMcpHttpResponse, mcpHttpRequestHeaders } from "../../mcp-http.js";
@@ -110,10 +110,10 @@ export function createAggregatorAccounts(db: Db, { options, secrets, audit, cred
     const credentialKey = await composioCredentialKey(await getConnectionRow(connectionId), actor);
     const send = (init: RequestInit) => requestRemoteHttpEndpoint(new URL(endpoint), { ...init, signal: AbortSignal.timeout(30_000) });
     let sessionHeaders = connection.config.mcpSessionRequired === true
-      ? await getMcpHttpSession({ send, headers, scope: `${connection.id}:app-setup:${actor.actorId}`, requestId: "paperclip-app-setup" }) : headers;
+      ? await getMcpHttpSession({ send, headers, scope: `${connection.id}:app-setup:${actor.actorId}`, requestId: "nexus-app-setup" }) : headers;
     async function manage(toolkits: { name: string; action: "list" | "add" | "rename" | "remove"; account_id?: string; alias?: string }[], tolerateToolkitErrors = false) {
       const checkedAt = new Date();
-      const id = `paperclip-app-setup-${randomUUID()}`;
+      const id = `nexus-app-setup-${randomUUID()}`;
       const request = () => send({ method: "POST", headers: mcpHttpRequestHeaders(sessionHeaders), body: JSON.stringify({
         jsonrpc: "2.0", id, method: "tools/call", params: { name: "COMPOSIO_MANAGE_CONNECTIONS", arguments: { toolkits } },
       }) });
@@ -315,10 +315,10 @@ export function createAggregatorAccounts(db: Db, { options, secrets, audit, cred
       } });
     }
     const send = (init: RequestInit) => requestRemoteHttpEndpoint(endpoint, { ...init, signal: AbortSignal.timeout(30_000) });
-    let sessionHeaders = connection.config.mcpSessionRequired === true ? await getMcpHttpSession({ send, headers, scope: `${connection.id}:inventory:${actor.actorId}`, requestId: "paperclip-account-inventory" }) : headers;
+    let sessionHeaders = connection.config.mcpSessionRequired === true ? await getMcpHttpSession({ send, headers, scope: `${connection.id}:inventory:${actor.actorId}`, requestId: "nexus-account-inventory" }) : headers;
     return discoverExecutorApps({ toolNames: tools.map(tool => tool.name), managementUrl: typeof connection.config.managementUrl === "string" ? connection.config.managementUrl : null,
       call: async (name, args) => {
-        const id = `paperclip-account-inventory-${randomUUID()}`;
+        const id = `nexus-account-inventory-${randomUUID()}`;
         const request = () => send({ method: "POST", headers: mcpHttpRequestHeaders(sessionHeaders), body: JSON.stringify({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } }) });
         let response = await request();
         if (response.status === 400 || response.status === 404) {

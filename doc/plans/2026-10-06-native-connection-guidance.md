@@ -18,11 +18,11 @@ qualification. Its results do not establish connection behavior.
 
 | Layer | Delivery | Relevant source |
 | --- | --- | --- |
-| Native fixed prompt | Session instruction context | packages/paperclip-runner/src/contracts/runtime-context.ts |
+| Native fixed prompt | Session instruction context | packages/nexus-runner/src/contracts/runtime-context.ts |
 | Connection discovery and request descriptions/schemas | Granted tool catalog; subject to provider/catalog delivery | server/src/services/connection-tool-definitions.ts and packages/shared/src/connection-intent-guidance.ts |
-| Shared connection guidance | Legacy prompt/environment delivery and native task-context tool results | packages/adapter-utils/src/server-utils.ts and server/src/services/native-runtime/paperclip-runner-tool-authority.ts |
+| Shared connection guidance | Legacy prompt/environment delivery and native task-context tool results | packages/adapter-utils/src/server-utils.ts and server/src/services/native-runtime/nexus-runner-tool-authority.ts |
 | Search, request, and outcome instructions | Returned as the operation/state is encountered | server/src/services/connection-intents.ts |
-| Assigned connection instructions | Optional per-connection runtime context, separate from fixed guidance | packages/paperclip-runner/src/contracts/runtime-context.ts |
+| Assigned connection instructions | Optional per-connection runtime context, separate from fixed guidance | packages/nexus-runner/src/contracts/runtime-context.ts |
 
 The fixed connection span is 98 whitespace-separated words / 654 UTF-8 bytes
 including its trailing space. The complete fixed prompt is 262 words / 1,713

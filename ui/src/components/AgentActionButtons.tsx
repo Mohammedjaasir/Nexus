@@ -48,7 +48,7 @@ import type {
   AgentInstructionsBundle,
   AgentInstructionsFileSummary,
   HeartbeatRun,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 export function RunButton({
   onClick,
@@ -375,7 +375,7 @@ export function AgentActionButtons({
     navigate(`/agents/new?${new URLSearchParams({
       name: agent.name, adapterType: agent.adapterType, setupAgentId: agent.id,
       runnerProvider: String(agent.adapterConfig.provider === "acpx" ? agent.adapterConfig.acpxAgent : agent.adapterConfig.provider ?? "codex"),
-      ...(agent.adapterType === "paperclip_runner" ? { runner: "paperclip" } : ["codex_local", "claude_local", "opencode_local", "pi_local"].includes(agent.adapterType) ? { runner: "legacy" } : {}),
+      ...(agent.adapterType === "nexus_runner" ? { runner: "nexus" } : ["codex_local", "claude_local", "opencode_local", "pi_local"].includes(agent.adapterType) ? { runner: "legacy" } : {}),
       ...pendingAgentSetupChoice(agent),
     })}`);
   };
@@ -570,7 +570,7 @@ export function AgentActionButtons({
           navigate(`/agents/new?${new URLSearchParams({
             name: agent.name, adapterType: agent.adapterType, setupAgentId: agent.id,
             runnerProvider: String(agent.adapterConfig.provider === "acpx" ? agent.adapterConfig.acpxAgent : agent.adapterConfig.provider ?? "codex"),
-            ...(agent.adapterType === "paperclip_runner" ? { runner: "paperclip" } : ["codex_local", "claude_local", "opencode_local", "pi_local"].includes(agent.adapterType) ? { runner: "legacy" } : {}),
+            ...(agent.adapterType === "nexus_runner" ? { runner: "nexus" } : ["codex_local", "claude_local", "opencode_local", "pi_local"].includes(agent.adapterType) ? { runner: "legacy" } : {}),
             ...pendingAgentSetupChoice(agent),
           })}`);
         }}>Finish setup</Button>

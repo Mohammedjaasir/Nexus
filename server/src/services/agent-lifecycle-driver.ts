@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { agents, plugins, pluginCompanySettings, type Db } from "@paperclipai/db";
+import { agents, plugins, pluginCompanySettings, type Db } from "@nexusai/db";
 import { heartbeatService } from "./heartbeat.js";
 import { listInvalidOrgChainDescendantIds } from "./agent-invokability.js";
 import type { PluginWorkerManager } from "./plugin-worker-manager.js";

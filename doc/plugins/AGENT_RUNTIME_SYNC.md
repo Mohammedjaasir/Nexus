@@ -61,7 +61,7 @@ snapshot or permission to change an active provider session. Execution admission
 and provider activation keep their existing checks. The private transport consumer
 is a separate integration.
 
-Filesystem changes outside Paperclip's managed write APIs do not emit these
+Filesystem changes outside Nexus's managed write APIs do not emit these
 hooks. Filesystem publication and the database journal are not one filesystem
 transaction. A failed managed write must be repaired through the same API before
 claiming synchronization. Upstream repository detection remains owned by the

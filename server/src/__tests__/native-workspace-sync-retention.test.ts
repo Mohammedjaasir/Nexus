@@ -13,7 +13,7 @@ import {
   issueRecoveryActions,
   issues,
   nativeRunFinalizations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -76,7 +76,7 @@ describeEmbeddedPostgres("native workspace sync retention", () => {
   const now = new Date();
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-native-workspace-sync-retention-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-native-workspace-sync-retention-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -98,7 +98,7 @@ describeEmbeddedPostgres("native workspace sync retention", () => {
   });
 
   async function root() {
-    if (!stateRoot) stateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-native-workspace-sync-"));
+    if (!stateRoot) stateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-native-workspace-sync-"));
     return stateRoot;
   }
 
@@ -125,7 +125,7 @@ describeEmbeddedPostgres("native workspace sync retention", () => {
     const profile: Record<string, unknown> = {};
     if (input.reference ?? true) {
       profile.nativeWorkspaceSync = {
-        schema: "paperclip.native-workspace-sync/v3",
+        schema: "nexus.native-workspace-sync/v3",
         state: "finalized",
         descriptorSha256: "a".repeat(64),
         baselineSha256: "b".repeat(64),
@@ -560,11 +560,11 @@ describeEmbeddedPostgres("native workspace sync retention", () => {
     });
 
     it("wakes the quiet coordinator when a run creates its folder", async () => {
-      const home = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-sync-home-"));
-      const originalHome = process.env.PAPERCLIP_HOME;
-      const originalInstance = process.env.PAPERCLIP_INSTANCE_ID;
-      process.env.PAPERCLIP_HOME = home;
-      process.env.PAPERCLIP_INSTANCE_ID = "retention";
+      const home = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-sync-home-"));
+      const originalHome = process.env.NEXUS_HOME;
+      const originalInstance = process.env.NEXUS_INSTANCE_ID;
+      process.env.NEXUS_HOME = home;
+      process.env.NEXUS_INSTANCE_ID = "retention";
       const coordinator = createDeliveryWorkCoordinator({ owner: db, canRun: () => true, onError: () => {} });
       const onResult = vi.fn();
       const worker = registerNativeWorkspaceSyncRetentionWork(
@@ -577,7 +577,7 @@ describeEmbeddedPostgres("native workspace sync retention", () => {
         expect(onResult).toHaveBeenCalledTimes(1);
         expect(coordinator.nextWakeAt()).toBeNull();
         await nativeWorkspaceSyncInternals.writeDescriptor({
-          schema: "paperclip.native-workspace-sync/v3",
+          schema: "nexus.native-workspace-sync/v3",
           state: "prepared",
           baselineSha256: "b".repeat(64),
           finalHostSha256: null,
@@ -590,10 +590,10 @@ describeEmbeddedPostgres("native workspace sync retention", () => {
       } finally {
         worker.unsubscribe();
         await coordinator.stop();
-        if (originalHome === undefined) delete process.env.PAPERCLIP_HOME;
-        else process.env.PAPERCLIP_HOME = originalHome;
-        if (originalInstance === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-        else process.env.PAPERCLIP_INSTANCE_ID = originalInstance;
+        if (originalHome === undefined) delete process.env.NEXUS_HOME;
+        else process.env.NEXUS_HOME = originalHome;
+        if (originalInstance === undefined) delete process.env.NEXUS_INSTANCE_ID;
+        else process.env.NEXUS_INSTANCE_ID = originalInstance;
         await fs.rm(home, { recursive: true, force: true });
       }
     });

@@ -1,6 +1,6 @@
 import express from "express";
 import request from "supertest";
-import { companyMemberships, instanceUserRoles, principalPermissionGrants, toolConnections, toolConnectionInstalls, type Db } from "@paperclipai/db";
+import { companyMemberships, instanceUserRoles, principalPermissionGrants, toolConnections, toolConnectionInstalls, type Db } from "@nexusai/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden } from "../errors.js";
 import { errorHandler } from "../middleware/error-handler.js";

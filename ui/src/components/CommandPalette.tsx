@@ -44,7 +44,7 @@ import {
   type SearchQueryParserContext,
 } from "../lib/search-query-parser";
 
-const SEARCH_ALL_VALUE = "__paperclip-search-all__";
+const SEARCH_ALL_VALUE = "__nexus-search-all__";
 
 export function buildFullSearchPath(query: string, context: SearchQueryParserContext = {}) {
   return buildSearchPathFromQuery(query, context);
@@ -330,7 +330,7 @@ export function CommandPalette() {
             <CommandItem
               onSelect={() => {
                 setOpen(false);
-                window.dispatchEvent(new CustomEvent("paperclip:open-file-viewer"));
+                window.dispatchEvent(new CustomEvent("nexus:open-file-viewer"));
               }}
             >
               <FileCode2 className="mr-2 h-4 w-4" />

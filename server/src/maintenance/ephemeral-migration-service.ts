@@ -22,7 +22,7 @@ export async function startEphemeralMigrationService(input: {
   let result: EphemeralMigrationResult | undefined;
   const startedAt = new Date().toISOString();
   let completedAt: string | undefined;
-  const receipt = () => ({ schema: "paperclip.ephemeral-migration.v1", id: input.id, commit: input.commit,
+  const receipt = () => ({ schema: "nexus.ephemeral-migration.v1", id: input.id, commit: input.commit,
     state, phase, startedAt, completedAt, failure, counts: result?.counts, eligibility: result?.eligibility });
   const server = createServer((request, response) => {
     response.setHeader("cache-control", "no-store");

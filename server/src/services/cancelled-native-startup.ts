@@ -1,6 +1,6 @@
 import { isPreDispatchReviewWait } from "./pre-dispatch-review-wait.js";
 import { and, eq, inArray, isNotNull, or } from "drizzle-orm";
-import { environmentLeases, heartbeatRunEvents, heartbeatRuns, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { environmentLeases, heartbeatRunEvents, heartbeatRuns, nativeRunFinalizations, type Db } from "@nexusai/db";
 import { claimedAdapterType } from "./conversation-continuation.js";
 import { PROCESS_IDENTITY_RECORDED, PROCESS_START_REQUESTED } from "./native-local-process-stop.js";
 import { hasRemoteTerminationReceipt } from "./remote-execution-termination.js";
@@ -40,13 +40,13 @@ export async function isCancelledNativeStartup(db: Db, run: Run, coordinator: Co
   // server boot; neither a missing PID nor mutable agent settings is proof.
   const historicalBeforeSelection = run.runtimeMode === "legacy" && !run.runtimeModeResolvedAt &&
     run.executionStage === "preparing" && !run.nativeIssueId && !run.nativeSessionId && !coordinator &&
-    claimedAdapterType(run) === "paperclip_runner" && run.errorCode === "operator_interrupted" &&
+    claimedAdapterType(run) === "nexus_runner" && run.errorCode === "operator_interrupted" &&
     (run.resultJson === null || cancellation?.beforeNativeSelection === true) &&
     Boolean(run.controllerBootId && run.controllerBootId !== legacyControllerBootId &&
       run.controllerLeaseExpiresAt && run.controllerLeaseExpiresAt <= new Date());
   const beforeReviewDispatch = isPreDispatchReviewWait(run) && !coordinator;
   const beforeSelection = beforeReviewDispatch || historicalBeforeSelection || run.runtimeMode === "legacy" && !run.runtimeModeResolvedAt &&
-    !run.nativeSessionId && !coordinator && claimedAdapterType(run) === "paperclip_runner" &&
+    !run.nativeSessionId && !coordinator && claimedAdapterType(run) === "nexus_runner" &&
     cancellation?.beforeNativeSelection === true;
   const neverClaimed = run.runtimeMode === "native" && coordinator &&
     ["observed", "terminal_failure"].includes(coordinator.phase) && coordinator.attempt === 0 &&

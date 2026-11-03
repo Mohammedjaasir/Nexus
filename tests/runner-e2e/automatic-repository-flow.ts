@@ -70,7 +70,7 @@ export async function runAutomaticRepositoryFlow(input: {
       input.observe(issue, runs, checks);
       await input.evidence("api-state.json", automaticRepositoryApiState(phase, issue, runs, checks));
     }
-    await input.evidence("automatic-repository.json", { schema: "paperclip.e2e.automatic-repository.v1", phase, observation, checks,
+    await input.evidence("automatic-repository.json", { schema: "nexus.e2e.automatic-repository.v1", phase, observation, checks,
       runs: runs.map(run => ({ id: run.id, status: run.status, nativePhase: run.nativePhase, source: run.contextSnapshot?.source,
         finalizationReason: run.resultJson?.finalizationReasonCode, startedAt: run.startedAt, finishedAt: run.finishedAt })) });
   }
@@ -97,7 +97,7 @@ export async function runAutomaticRepositoryFlow(input: {
     if (!cwd.startsWith(`${isolated}${path.sep}`) || !cwd.endsWith(`/isolated-workspaces/${fixtures.company.id}/${issue.id}`))
       throw new Error("Repository oracle requires the confined task directory");
     const repositories = view.repositories.filter((repo: Row) => repo.state === "ready" && repo.repoUrl === "https://github.com/octocat/Hello-World");
-    if (repositories.length !== 1 || !/^\.paperclip-repositories\/task-repo-[a-f0-9]{24}$/.test(repositories[0].relativePath))
+    if (repositories.length !== 1 || !/^\.nexus-repositories\/task-repo-[a-f0-9]{24}$/.test(repositories[0].relativePath))
       throw new Error("Expected one contained prepared repository");
     const checkout = await realpath(path.join(cwd, repositories[0].relativePath));
     if (!checkout.startsWith(`${cwd}${path.sep}`)) throw new Error("Prepared repository escaped the task directory");

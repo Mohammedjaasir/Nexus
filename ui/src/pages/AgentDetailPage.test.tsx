@@ -56,17 +56,17 @@ it.each(["plugin:test.plugin:insights", "overview"])("updates headings on entry 
     params.tab = initialTab;
     act(() => { root.render(view()); });
     if (initialTab === "overview") {
-      expect(document.title).toBe("Overview • Test company • Paperclip");
+      expect(document.title).toBe("Overview • Test company • Nexus");
       params.tab = "plugin:test.plugin:insights";
       act(() => { root.render(view()); });
     }
-    expect(document.title).toBe("Insights • Agent • Agents • Test company • Paperclip");
+    expect(document.title).toBe("Insights • Agent • Agents • Test company • Nexus");
     params.tab = "plugin:test.plugin:notes";
     act(() => { root.render(view()); });
-    expect(document.title).toBe("Notes • Agent • Agents • Test company • Paperclip");
+    expect(document.title).toBe("Notes • Agent • Agents • Test company • Nexus");
     params.tab = "plugin:removed:notes";
     act(() => { root.render(view()); });
-    expect(document.title).toBe("Plugin view • Agent • Agents • Test company • Paperclip");
+    expect(document.title).toBe("Plugin view • Agent • Agents • Test company • Nexus");
   } finally {
     act(() => { root.unmount(); });
     params.tab = "plugin:test.plugin:insights";

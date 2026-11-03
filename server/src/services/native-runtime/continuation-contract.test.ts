@@ -9,12 +9,12 @@ import {
   issues,
   nativeRunFinalizations,
   nativeRunResults,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
 } from "../../__tests__/helpers/embedded-postgres.js";
-import { parseNativeExecutionInput } from "../../vendor/paperclip-runner/index.js";
+import { parseNativeExecutionInput } from "../../vendor/nexus-runner/index.js";
 import { ensureNativeCompletionContract } from "./completion-contracts.js";
 import { rebindContinuationContract } from "./continuation-contract.js";
 const support = await getEmbeddedPostgresTestSupport();
@@ -51,7 +51,7 @@ const support = await getEmbeddedPostgresTestSupport();
           companyId,
           name: "Executor",
           role: "engineer",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
         });
       const [task] = await db
         .insert(issues)
@@ -84,7 +84,7 @@ const support = await getEmbeddedPostgresTestSupport();
         contract: value.contract,
       });
       const oldInput = parseNativeExecutionInput({
-        schema: "paperclip.native-execution-input.v1",
+        schema: "nexus.native-execution-input.v1",
         binding: {
           companyId,
           issueId,

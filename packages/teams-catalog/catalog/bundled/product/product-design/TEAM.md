@@ -4,7 +4,7 @@ description: Bundled product design team with a Principal Product Designer who o
 schema: agentcompanies/v1
 slug: product-design
 category: product
-key: paperclipai/bundled/product/product-design
+key: nexusai/bundled/product/product-design
 manager: agents/ux-designer/AGENTS.md
 includes:
   - projects/product-design/PROJECT.md
@@ -18,9 +18,9 @@ tags:
   - ux
   - product
 requiredSkills:
-  - paperclipai/bundled/product/wireframe
-  - paperclipai/optional/product/design-critique
-  - paperclipai/bundled/paperclip-operations/task-planning
+  - nexusai/bundled/product/wireframe
+  - nexusai/optional/product/design-critique
+  - nexusai/bundled/nexus-operations/task-planning
 ---
 
 # Product Design
@@ -41,4 +41,4 @@ A minimal design team built around a single Principal Product Designer. Install 
 
 ## Migration notes
 
-Derived from the `UXDesigner` template in `skills/paperclip-create-agent/references/agents/uxdesigner.md`. The agent has a short role description; installed design skills carry its work procedures. The catalog remains at trust level `markdown_only`. Adapter type is intentionally omitted from frontmatter; the import preview lets operators pick `claude_local`, `codex_local`, or another adapter at install time.
+Derived from the `UXDesigner` template in `skills/nexus-create-agent/references/agents/uxdesigner.md`. The agent has a short role description; installed design skills carry its work procedures. The catalog remains at trust level `markdown_only`. Adapter type is intentionally omitted from frontmatter; the import preview lets operators pick `claude_local`, `codex_local`, or another adapter at install time.

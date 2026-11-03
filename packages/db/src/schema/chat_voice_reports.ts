@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, timestamp, integer, jsonb, foreignKey, check, index } from "drizzle-orm/pg-core";
-import type { VoiceTranscriptEntry } from "@paperclipai/shared";
+import type { VoiceTranscriptEntry } from "@nexusai/shared";
 import { chatVoiceSessions } from "./chat_voice_sessions.js";
 /** One report per bound call. Provider metadata and recording URLs are never stored. */
 export const chatVoiceReports = pgTable("chat_voice_reports", {

@@ -37,7 +37,7 @@ export async function runRepositoryVerificationFlow(input: {
     const files = await Promise.all([...bundle.files].sort((a, b) => a.path.localeCompare(b.path)).map(async file => ({
       path: file.path, content: (await api.get<{ content: string }>(`/api/agents/${fixtures.agent.id}/instructions-bundle/file?path=${encodeURIComponent(file.path)}`)).content,
     })));
-    if (bundle.entryFile !== "AGENTS.md" || files.length !== 1 || files[0]?.content !== "You are an agent in a Paperclip company.\n")
+    if (bundle.entryFile !== "AGENTS.md" || files.length !== 1 || files[0]?.content !== "You are an agent in a Nexus company.\n")
       throw new Error("Repository proof requires the shipped default hire instructions, without a fixture manual");
     return createHash("sha256").update(JSON.stringify({ entryFile: bundle.entryFile, files })).digest("hex");
   }
@@ -54,7 +54,7 @@ export async function runRepositoryVerificationFlow(input: {
     const provider = runs[0]?.runnerProfileJson?.nativeExecutionInput?.provider;
     observation.actualModel = provider?.model ?? null;
     observation.actualProvider = provider ? provider.kind === "acpx" ? `acpx:${provider.agent}` : provider.kind : null;
-    observation.environmentRetained = runs.length === 1 && runs[0]?.contextSnapshot?.paperclipEnvironment?.id === fixtures.environment.id;
+    observation.environmentRetained = runs.length === 1 && runs[0]?.contextSnapshot?.nexusEnvironment?.id === fixtures.environment.id;
   }
   async function save(phase: string) {
     const checks = gradeRepositoryProof(observation);
@@ -71,7 +71,7 @@ export async function runRepositoryVerificationFlow(input: {
         checks,
       });
     }
-    await input.evidence("repository-verification.json", { schema: "paperclip.e2e.repository-verification.v1", phase, observation, checks,
+    await input.evidence("repository-verification.json", { schema: "nexus.e2e.repository-verification.v1", phase, observation, checks,
       runs: runs.map(run => ({ id: run.id, status: run.status, nativePhase: run.nativePhase, source: run.contextSnapshot?.source,
         startedAt: run.startedAt, finishedAt: run.finishedAt })) });
   }
@@ -94,7 +94,7 @@ export async function runRepositoryVerificationFlow(input: {
     const before = await api.get<Row>(`/api/agents/${fixtures.agent.id}`);
     const company = await api.get<Row>(`/api/companies/${fixtures.company.id}`);
     if (before.budgetMonthlyCents !== 1000 || company.budgetMonthlyCents !== 1000) throw new Error("Repository proof hard-stop budgets were not retained");
-    if (before.adapterType !== (conversion ? expectedLegacyAdapter : "paperclip_runner")) throw new Error("Initial adapter does not match the requested journey");
+    if (before.adapterType !== (conversion ? expectedLegacyAdapter : "nexus_runner")) throw new Error("Initial adapter does not match the requested journey");
     observation.originalAdapter = before.adapterType;
     observation.configurationBefore = repositoryConfigurationDigest(before);
     observation.instructionsBefore = await instructionsDigest();
@@ -106,7 +106,7 @@ export async function runRepositoryVerificationFlow(input: {
     observation.permissionsPreserved = (conversion ? before.adapterConfig?.dangerouslySkipPermissions === true : true) &&
       (execution.profile.provider === "codex" ? after.adapterConfig?.codexPermissionMode === "never" : after.adapterConfig?.acpxPermissionMode === "approve-all");
     if (after.defaultEnvironmentId !== fixtures.environment.id || observation.configurationBefore !== observation.configurationAfter ||
-        observation.instructionsBefore !== observation.instructionsAfter || !observation.permissionsPreserved || after.adapterType !== "paperclip_runner")
+        observation.instructionsBefore !== observation.instructionsAfter || !observation.permissionsPreserved || after.adapterType !== "nexus_runner")
       throw new Error("Production runner selection did not retain the configured agent context");
     await save("configured");
     const created = await createTaskThroughUi({ page, issuePrefix: fixtures.company.issuePrefix!, agentName: fixtures.agent.name,

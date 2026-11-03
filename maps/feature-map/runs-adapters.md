@@ -42,7 +42,7 @@ for future runs. The header shows Raw tracing on while that setting is enabled.
 
 Managed Git launchers let agents save local commits without a GitHub connection
 or manual author setup. Verify a fresh checkout and a second shell in the same
-workspace: both commits should use `Paperclip <noreply@paperclip.ing>` when no
+workspace: both commits should use `Nexus <noreply@paperclip.ing>` when no
 identity is configured. Repository and command settings override this default;
 an eligible managed identity still takes precedence. Inspect stored commit
 metadata and confirm the default did not change repository or host configuration.
@@ -72,7 +72,7 @@ Inspect `native.controller.<phase>` for backend construction, assigned-tool
 discovery and post-turn cleanup. Compare those intervals with the actual model
 turn; do not count a nested discovery interval twice.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Record adapter, model, account, native/legacy runtime, and environment. Capabilities vary; one harness result is not a matrix-wide qualification.
 
@@ -224,17 +224,17 @@ own login keys must remain unavailable. Verify the same delivery without an
 agent identity. Shell-policy metadata must contain names rather than values.
 
 Choose Codex as the harness; the UI displays its name/icon for both runners.
-Advanced identifies the automatic default and offers Paperclip Runner or Legacy.
+Advanced identifies the automatic default and offers Nexus Runner or Legacy.
 New Codex agents default to the native runner on supported macOS or GNU/Linux
 targets; the [shared selection contract](../../packages/shared/src/agent-runner.ts)
-and [runtime prerequisites](../../packages/paperclip-runner/README.md) define the
+and [runtime prerequisites](../../packages/nexus-runner/README.md) define the
 platform/libc boundary. Windows and Alpine/musl remain Legacy. Claude follows
 its qualified rollout described above. Disabled adapters, external overrides, and selected-target
 qualification also affect availability.
 
 Choose OpenCode with the native-runner experimental flag off on a qualified
 macOS or GNU/Linux x64 target. Linux ARM64 must retain Legacy because its pinned
-OpenCode runtime is not qualified. Advanced should show Paperclip Runner as the
+OpenCode runtime is not qualified. Advanced should show Nexus Runner as the
 automatic default on qualified targets. Save an inactive draft without a model,
 resume it, select an explicit `provider/model`,
 test, finish setup, and reload. Verify the saved provider is `opencode`. Repeat
@@ -244,7 +244,7 @@ resuming setup. Custom commands, arguments, variants, and inherited permissions
 must give Legacy remediation when native is selected. A live task with the
 selected account is separate proof from these setup and persistence controls.
 Repeat with Pi on macOS or GNU/Linux x64 after explicit operator setup of the
-pinned runtime (`paperclipai runtime setup pi`). Linux ARM64 retains Legacy.
+pinned runtime (`nexusai runtime setup pi`). Linux ARM64 retains Legacy.
 Resume an inactive model-free draft, connect an account, choose a `provider/model`,
 and finish setup with the generic native flag off. Verify Pi branding and native
 ACPX Pi execution by completing a simple assigned task. Preserve saved native
@@ -253,11 +253,11 @@ thinking supports `off`, `low`, `high`, `max`; legacy aliases must give remediat
 and returning to Legacy must reject settings it cannot honor.
 On a fresh forced-Kubernetes instance without an environment row, inspect discovery
 and create with automatic selection. Both must retain Legacy without provisioning;
-an explicit Paperclip request must give target-qualification guidance. Begin the
+an explicit Nexus request must give target-qualification guidance. Begin the
 ordinary task to exercise the existing lazy environment path. This live journey
 remains separate from the resolver's source controls.
 
-Managed Cloud images default to Paperclip Runner without a saved platform
+Managed Cloud images default to Nexus Runner without a saved platform
 qualification. A platform snapshot update must not change that default or
 require a separate qualification request before Test. Disabled or overridden
 adapters still restrict availability, and actual runtime startup can still fail.
@@ -369,7 +369,7 @@ revised-source live onboarding and follow-up proof.
 - Use [recovery](./recovery.md) for interrupted runs and [execution environments](./execution-environments.md) for local/SSH/sandbox differences.
 
 Native setup retirement joins owned startup before cleanup can be confirmed.
-[Transport ownership controls](../../packages/paperclip-runner/src/live/runnerd-codex-transport.test.ts)
+[Transport ownership controls](../../packages/nexus-runner/src/live/runnerd-codex-transport.test.ts)
 hold preparation or registration without launching a provider, then check bounded
 close, rejected duplicate requests, no later launch and retention of unconfirmed
 state. Readiness observes shutdown; resumed startup cannot reactivate ingress
@@ -394,7 +394,7 @@ See the canonical [delegated configuration guidance and acceptance evidence](con
 
 ### Kimi Code verification
 
-The qualified native Kimi profile uses `paperclipai runtime setup kimi` on Mac
+The qualified native Kimi profile uses `nexusai runtime setup kimi` on Mac
 ARM64 or Linux x64, an exact typed model, and a `KIMI_API_KEY` company secret.
 Ordinary setup, hiring and Runtime Test require no candidate grant. Runtime Test
 queries the authenticated Code model catalog without inference. Existing legacy
@@ -406,6 +406,6 @@ reply, semantic question/plan, file/download, Stop, and continuation cases.
 Verify the actual task result, persisted state and process cleanup. Run the
 ordinary New Agent draft → model/secret → Test → save/reopen → task journey
 through ordinary released selection. Native filesystem/shell tools are denied in read-only
-Kimi work; scoped Paperclip tools retain control-plane authorization. This recipe
+Kimi work; scoped Nexus tools retain control-plane authorization. This recipe
 is a test path, not a statement that live acceptance passed. Current evidence:
 [Kimi release ledger](../../doc/plans/2026-10-28-kimi-code-runner-integration.md).

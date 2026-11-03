@@ -13,12 +13,12 @@ import {
   issueThreadInteractions,
   toolApplications,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "../__tests__/helpers/external-test-database.js";
 import { hasChatRunOwnedProviderInteraction } from "./chat-interaction-arbitration.js";
 
-const externalDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_ARBITRATION_TEST_DATABASE_URL");
+const externalDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_ARBITRATION_TEST_DATABASE_URL");
 
 describe("provider-owned interaction arbitration", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -51,7 +51,7 @@ describe("provider-owned interaction arbitration", () => {
         id,
         companyId,
         name: "Chat agent",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         status: "active",
       })),
     );

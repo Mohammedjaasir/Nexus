@@ -1,7 +1,7 @@
 // Run before building, and again inside the protected deployment job on reruns.
 module.exports = async function authorizeStorybookDeploy({ github, context }) {
   const fail = (message) => { throw new Error(message); };
-  if (context.repo.owner !== "paperclipai" || context.repo.repo !== "paperclip") {
+  if (context.repo.owner !== "nexusai" || context.repo.repo !== "nexus") {
     fail("Storybook publishing is restricted to paperclipai/paperclip.");
   }
   if (context.eventName !== "workflow_dispatch" || !context.ref.startsWith("refs/heads/")) {

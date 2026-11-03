@@ -35,7 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           HONEYCOMB_CI_API_KEY: ${{ secrets.HONEYCOMB_CI_API_KEY }}
-          HONEYCOMB_CI_DATASET: paperclip-ci
-          HONEYCOMB_TEAM: paperclip
+          HONEYCOMB_CI_DATASET: nexus-ci
+          HONEYCOMB_TEAM: nexus
           HONEYCOMB_ENVIRONMENT: test
         run: node scripts/ci-profile/export.mjs

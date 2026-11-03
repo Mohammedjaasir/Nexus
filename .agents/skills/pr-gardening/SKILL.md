@@ -1,17 +1,17 @@
 ---
 name: pr-gardening
 description: >
-  Discover the pull requests this Paperclip instance opened (never community
+  Discover the pull requests this Nexus instance opened (never community
   contributions), report what each is for and how confident we are that it is
   merge-ready, and automatically drive the non-ready ones back to green with
-  /prepare-paperclip-pr — without ever merging.
-compatibility: Requires Node.js 20+, gh authenticated for GitHub read access, and Paperclip run credentials.
+  /prepare-nexus-pr — without ever merging.
+compatibility: Requires Node.js 20+, gh authenticated for GitHub read access, and Nexus run credentials.
 allowed-tools: Bash(node:*) Bash(gh:*) Bash(curl:*)
 ---
 
 # PR Gardening
 
-Actively garden the pull requests **this Paperclip instance opened** that are referenced by Paperclip issues active in a recent window (default 14 days). Candidate discovery and readiness checking are scripts, not LLM analysis. GitHub access is read-only throughout this workflow.
+Actively garden the pull requests **this Nexus instance opened** that are referenced by Nexus issues active in a recent window (default 14 days). Candidate discovery and readiness checking are scripts, not LLM analysis. GitHub access is read-only throughout this workflow.
 
 ## Scope — Our PRs Only
 
@@ -21,11 +21,11 @@ By default the workflow gardens only pull requests authored by this instance's G
 
 - **Never merge, approve, or close a pull request.**
 - **Never instruct another person or agent to merge, approve, or close a pull request.**
-- **Never garden, comment on, or run `/prepare-paperclip-pr` against a community PR.** Only PRs from the Stage A author allowlist are actionable.
+- **Never garden, comment on, or run `/prepare-nexus-pr` against a community PR.** Only PRs from the Stage A author allowlist are actionable.
 - Never use mutating `gh` commands or mutating GitHub API requests. The scripts only use `gh pr view` and read-only `gh api` GET requests.
 - Draft pull requests are report-only. Do not post gardening comments for drafts.
 - Comment only on existing originating issues. Never create a gardening issue per pull request.
-- `--dry-run` suppresses all Paperclip mutations, including gardening comments, prepare tasks, and inbox archives. Discovery and GitHub inspection remain read-only in every mode.
+- `--dry-run` suppresses all Nexus mutations, including gardening comments, prepare tasks, and inbox archives. Discovery and GitHub inspection remain read-only in every mode.
 
 ## Inputs
 
@@ -38,7 +38,7 @@ By default the workflow gardens only pull requests authored by this instance's G
 - `--cooldown-hours <N>`: repeat-gardening cooldown, default `48`.
 - `--max-rounds <N>`: maximum gardening rounds per PR, default `3`.
 
-Use a run-owned directory such as `$PAPERCLIP_RUN_SCRATCH_DIR/pr-gardening` for generated files.
+Use a run-owned directory such as `$NEXUS_RUN_SCRATCH_DIR/pr-gardening` for generated files.
 
 ## Stage A — Discover Candidates
 
@@ -78,18 +78,18 @@ If gardening decides a branch needs a follow-up task to create a single pull req
 
 For each branch, process one branch at a time and do this serially:
 
-1. Search open Paperclip issues for the exact branch name with statuses `backlog`, `todo`, `in_progress`, `in_review`, and `blocked`.
+1. Search open Nexus issues for the exact branch name with statuses `backlog`, `todo`, `in_progress`, `in_review`, and `blocked`.
 2. Inspect matching issue titles, descriptions, and recent comments for an equivalent open "create PR from this branch" task for the same branch.
 3. If an equivalent open task exists, reuse it: add a concise comment with the current PR/head/reason context and link it from the gardening issue or blocker list. Do not create another task.
 4. Only if no equivalent open task exists, create exactly one follow-up task for that branch.
 
 Never fan out follow-up task creation in parallel. Do not issue concurrent `POST /api/companies/:companyId/issues` calls for create-PR or prepare-PR tasks. After P1's issue-create idempotency support is available, every create-PR follow-up task creation must include `idempotencyKey: "pr-gardening:create-pr:{branch}"` and every prepare-PR task `idempotencyKey: "pr-gardening:prepare-pr:{owner/repo}#{number}"`.
 
-## Stage C — Drive Our PRs to Ready with /prepare-paperclip-pr
+## Stage C — Drive Our PRs to Ready with /prepare-nexus-pr
 
 Skip this stage in `--dry-run` mode and for `ready` or `report_only` entries.
 
-Every `needs_gardening` PR here was opened by this instance (Stage A guarantees it), so do not just report — actively get it merge-ready by running the `/prepare-paperclip-pr` skill against it. Process PRs one at a time:
+Every `needs_gardening` PR here was opened by this instance (Stage A guarantees it), so do not just report — actively get it merge-ready by running the `/prepare-nexus-pr` skill against it. Process PRs one at a time:
 
 1. **Cooldown and rounds.** Locate the `originatingIssue` from `candidates.json` (selection priority: issue carrying the exact PR URL as a `pull_request` work product; then issue whose comment mentions the PR; then most recently active mentioning issue). Fetch its comments and search for the marker:
 
@@ -99,17 +99,17 @@ Every `needs_gardening` PR here was opened by this instance (Stage A guarantees 
 
    Skip the PR if the latest matching marker is newer than the cooldown. Track rounds from matching markers; after three rounds, stop and report `not converging; recommend close or human decision`. That is a recommendation for human disposition, not an instruction to close the PR.
 
-2. **Deduplicate.** Search open Paperclip issues for the PR number/branch. If an equivalent open prepare-PR task already exists, reuse it with a concise status comment instead of creating another (see the deduplication section above).
+2. **Deduplicate.** Search open Nexus issues for the PR number/branch. If an equivalent open prepare-PR task already exists, reuse it with a concise status comment instead of creating another (see the deduplication section above).
 
-3. **Run the prepare skill.** Create one focused child task per PR assigned to a coder agent (prefer CodexCoder) instructing it to run `/prepare-paperclip-pr` for that PR — include the PR URL, branch, current head SHA, and the exact machine-detected `reasons[]` from `readiness.json`. If you are the gardener and already have the PR's branch checked out in a worktree, you may run `/prepare-paperclip-pr` directly instead of delegating. Either way, the prepare work must never merge, approve, or close the PR.
+3. **Run the prepare skill.** Create one focused child task per PR assigned to a coder agent (prefer CodexCoder) instructing it to run `/prepare-nexus-pr` for that PR — include the PR URL, branch, current head SHA, and the exact machine-detected `reasons[]` from `readiness.json`. If you are the gardener and already have the PR's branch checked out in a worktree, you may run `/prepare-nexus-pr` directly instead of delegating. Either way, the prepare work must never merge, approve, or close the PR.
 
-4. **Leave the marker comment.** Comment on the originating issue with the marker above, the current head SHA, the copied `reasons[]`, the round counter, and a link to the prepare task. Use `POST /api/issues/:issueId/comments` with `X-Paperclip-Run-Id`. Include `resume: true` when the issue is terminal so the comment creates a live continuation.
+4. **Leave the marker comment.** Comment on the originating issue with the marker above, the current head SHA, the copied `reasons[]`, the round counter, and a link to the prepare task. Use `POST /api/issues/:issueId/comments` with `X-Nexus-Run-Id`. Include `resume: true` when the issue is terminal so the comment creates a live continuation.
 
 Suggested body:
 
 ```markdown
 <!-- pr-gardening:paperclipai/paperclip#1234 -->
-Gardening: dispatched `/prepare-paperclip-pr` for https://github.com/paperclipai/paperclip/pull/1234 via PAP-XXXX.
+Gardening: dispatched `/prepare-nexus-pr` for https://github.com/paperclipai/paperclip/pull/1234 via PAP-XXXX.
 
 Current-head verification at `abc123` found:
 - failing check: test
@@ -124,9 +124,9 @@ Run this stage only when the caller explicitly supplied `--archive-inbox`. `--dr
 
 Stage D applies to a previously monitored candidate that transitions to merged. Rerun Stage B immediately before this stage and require GitHub to report `state: merged` for the same current head SHA recorded by that verification. Fresh Stage A discovery intentionally drops PRs that were already merged or closed.
 
-For each qualifying candidate, archive its `originatingIssue` from the responsible user's inbox with `POST /api/issues/:issueId/inbox-archive` and an empty JSON body. Do not pass `userId`; the Paperclip API resolves the responsible user from the gardener's run context and enforces that user's inbox-agent policy. GitHub access remains read-only.
+For each qualifying candidate, archive its `originatingIssue` from the responsible user's inbox with `POST /api/issues/:issueId/inbox-archive` and an empty JSON body. Do not pass `userId`; the Nexus API resolves the responsible user from the gardener's run context and enforces that user's inbox-agent policy. GitHub access remains read-only.
 
-Do not archive PRs that are merely `ready`, closed without merging, draft, pending, or merged at an unverified or stale head. Never archive an originating issue while the user is still awaiting review, a decision, approval, or other action on it. If Paperclip denies the mutation because the responsible user is unresolved, inbox management is disabled, the gardener is not allowlisted, or a trust boundary applies, report the denial and continue without retrying around policy.
+Do not archive PRs that are merely `ready`, closed without merging, draft, pending, or merged at an unverified or stale head. Never archive an originating issue while the user is still awaiting review, a decision, approval, or other action on it. If Nexus denies the mutation because the responsible user is unresolved, inbox management is disabled, the gardener is not allowlisted, or a trust boundary applies, report the denial and continue without retrying around policy.
 
 After a successful archive, leave a standard gardening marker comment on the originating issue that names the archived issue and merged PR:
 
@@ -137,7 +137,7 @@ Inbox tidy-up: archived [PAP-310](/PAP/issues/PAP-310) from the responsible user
 This archive is audited and reversible; later issue activity may resurface the item.
 ```
 
-Use `POST /api/issues/:issueId/comments` and include `X-Paperclip-Run-Id` on both the archive and comment requests. In `--dry-run`, report the archive and marker comment that would have been written, but perform neither mutation.
+Use `POST /api/issues/:issueId/comments` and include `X-Nexus-Run-Id` on both the archive and comment requests. In `--dry-run`, report the archive and marker comment that would have been written, but perform neither mutation.
 
 ## Stage E — Monitor to Termination
 
@@ -177,4 +177,4 @@ Run focused script tests:
 node --test .agents/skills/pr-gardening/scripts/pr-gardening.test.mjs
 ```
 
-For a live dry run, execute Stages A, B, and F with `--dry-run`, then sanity-check named PRs only if they are still open. Merged or closed examples should appear under `droppedClosedPullRequests`, not in readiness results, and community-authored PRs must appear only under `droppedCommunityPullRequests` — a candidate or report entry with an author outside the allowlist is a scope failure. If also exercising `--archive-inbox`, confirm the report describes the suppressed Stage D action and that no Paperclip archive or marker-comment mutation occurred.
+For a live dry run, execute Stages A, B, and F with `--dry-run`, then sanity-check named PRs only if they are still open. Merged or closed examples should appear under `droppedClosedPullRequests`, not in readiness results, and community-authored PRs must appear only under `droppedCommunityPullRequests` — a candidate or report entry with an author outside the allowlist is a scope failure. If also exercising `--archive-inbox`, confirm the report describes the suppressed Stage D action and that no Nexus archive or marker-comment mutation occurred.

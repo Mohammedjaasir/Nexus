@@ -1,7 +1,7 @@
 {
-  "schema": "paperclip.e2e.copilot-context-completion-fixture.v1",
+  "schema": "nexus.e2e.copilot-context-completion-fixture.v1",
   "provenance": {
-    "paperclipRevision": "e7e23797589333694fa2f51adcf6fc203268bb7a",
+    "nexusRevision": "e7e23797589333694fa2f51adcf6fc203268bb7a",
     "profileVersion": 15,
     "attempt": "local-2026-10-03T20-41-36-004Z",
     "originalDisposition": "candidate_failure",
@@ -25,11 +25,11 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -94,16 +94,16 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
-            "name": "paperclip-get_task_context",
+            "name": "nexus-get_task_context",
             "output": "null",
-            "schema": "paperclip.tool.execution.v1",
+            "schema": "nexus.tool.execution.v1",
             "status": "running",
             "target": null,
             "exitCode": null,
-            "progress": "paperclip-get_task_context (pending)",
+            "progress": "nexus-get_task_context (pending)",
             "readOnly": true,
             "namespace": null,
             "operation": "read",
@@ -148,11 +148,11 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -160,7 +160,7 @@
               },
               {
                 "name": "schema",
-                "value": "paperclip.semantic_tool_receipt.v2"
+                "value": "nexus.semantic_tool_receipt.v2"
               },
               {
                 "name": "operationId",
@@ -187,12 +187,12 @@
                 "value": "null"
               }
             ],
-            "summary": "Paperclip returned a semantic tool result.",
-            "category": "paperclip_semantic_tool_receipt_v2",
+            "summary": "Nexus returned a semantic tool result.",
+            "category": "nexus_semantic_tool_receipt_v2",
             "noticeId": "copilot-evidence-ae440745f9c60b9710ca3cff-2",
             "severity": "info",
             "provenance": {
-              "method": "paperclip/semantic_tool_result",
+              "method": "nexus/semantic_tool_result",
               "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
               "eventType": "semantic_result",
               "sessionId": "0c94e846-c188-4830-8107-868c912340d1"
@@ -233,11 +233,11 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -326,12 +326,12 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
-            "name": "paperclip-get_task_context",
-            "output": "{\"content\":\"{\\\"acceptedPlan\\\":null,\\\"activeTask\\\":{\\\"assigneeAgentId\\\":\\\"f4c7cef4-5228-4815-9880-3db2042dbcf3\\\",\\\"companyId\\\":\\\"6a051e4f-7ace-4ec9-8ab1-dc3b025d9c1c\\\",\\\"description\\\":\\\"Run the supplied exact command once using native bash with mode async and detach false.\\\\nAfter starting it, attempt to finish immediately without calling read\\\\\\\\_bash or another waiting tool. The attached-process runtime must settle the command before ending the turn.\\\\nDo not modify fixture code, manufacture its result, or start another command.\\\\nThe fixture-owned marker is a private diagnostic sentinel, not a requested file deliverable. Do not publish or attach it.\\\\nCall paperclip\\\\\\\\_finish with reportedWorkDisposition done, summary COPILOT-PROTECTION-attached-async-settlement-1b6ca90f2748-1, current completion contract revision, satisfied objective criterion, no remaining work, evidence \\\\\\\\[], verification \\\\\\\\[]. After acceptance reply with that exact summary.\\\\nThe exact supplied command is:\\\\n'/private/tmp/paperclip-pi-v5-node-20260928/darwin-arm64/node' '/tmp/pc-copilot-mt2vtc/client.cjs' '/tmp/pc-copilot-mt2vtc/private/socket' '22a1e053ebaa01263678e1942d9bfbfb'\\\\nDo not inspect or modify fixture code, fabricate its marker, or launch a substitute command.\\\",\\\"executionRunId\\\":\\\"63f9b9e9-4797-43eb-bf3d-4449d784c574\\\",\\\"goalId\\\":null,\\\"id\\\":\\\"d1c7dfa0-d11c-45d1-8632-88a8c91eadc6\\\",\\\"identifier\\\":\\\"RUN-1\\\",\\\"parentId\\\":null,\\\"priority\\\":\\\"medium\\\",\\\"projectId\\\":\\\"7c4c67a8-aa32-41e4-aa80-6517c6947b49\\\",\\\"status\\\":\\\"in_progress\\\",\\\"statusVersion\\\":1,\\\"title\\\":\\\"Copilot attached-async-settlement 1b6ca90f2748-1\\\",\\\"titleNeedsGeneration\\\":false,\\\"url\\\":null,\\\"workMode\\\":\\\"standard\\\"},\\\"actor\\\":{\\\"capabilities\\\":\\\"Completes deterministic standard, planning, and ask-mode runner acceptance tasks.\\\",\\\"companyId\\\":\\\"6a051e4f-7ace-4ec9-8ab1-dc3b025d9c1c\\\",\\\"id\\\":\\\"f4c7cef4-5228-4815-9880-3db2042dbcf3\\\",\\\"name\\\":\\\"Runner E2E runner-acpx-copilot 1b6ca90f2748-1\\\",\\\"reportsTo\\\":null,\\\"role\\\":\\\"qa\\\",\\\"status\\\":\\\"running\\\",\\\"title\\\":\\\"Paid full-stack runner acceptance fixture\\\"},\\\"childReviewOutcomes\\\":[],\\\"childTasks\\\":[],\\\"childTasksTruncated\\\":false,\\\"company\\\":{\\\"id\\\":\\\"6a051e4f-7ace-4ec9-8ab1-dc3b025d9c1c\\\"},\\\"connectionGuidance\\\":\\\"Connection tools:\\\\n- When the user asks to connect a service, call `connections_search` before any service tool, even if already installed. Also search when a task needs a service and usable access is uncertain. Search by its name or capability and follow the returned `instruction`.\\\\n- Use the returned service identifiers and connection tools for setup. Respect recorded user choices; never invent access or ask for credentials in comments.\\\\n- When waiting for user action, finish independent work, then yield without retrying or polling. On continuation, follow the recorded outcome and use the installed connection.\\\\n- Do not use connection tools for arbitrary MCP URLs or unrelated work.\\\",\\\"delegationGuidance\\\":\\\"Reuse existing child tasks for delegated work. Inspect a completed child's comments and documents before creating another task for the same deliverable. Use search_tasks if the child task list is truncated.\\\",\\\"run\\\":{\\\"id\\\":\\\"63f9b9e9-4797-43eb-bf3d-4449d784c574\\\",\\\"invocationSource\\\":\\\"assignment\\\",\\\"status\\\":\\\"running\\\"},\\\"sourcePlanApproval\\\":null}{\\\"schema\\\":\\\"paperclip.semantic_tool_receipt.v2\\\",\\\"operationId\\\":\\\"get_task_context\\\",\\\"callIdentitySha256\\\":\\\"4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce\\\",\\\"inputSha256\\\":\\\"44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\\\",\\\"resultSha256\\\":\\\"491c7c90831af3856eed247c429da34ee0ab38788d1295c7de318b38f9d8c5ed\\\",\\\"outcome\\\":\\\"returned\\\",\\\"normalizedInputSha256\\\":null}\",\"detailedContent\":\"{\\\"acceptedPlan\\\":null,\\\"activeTask\\\":{\\\"assigneeAgentId\\\":\\\"f4c7cef4-5228-4815-9880-3db2042dbcf3\\\",\\\"companyId\\\":\\\"6a051e4f-7ace-4ec9-8ab1-dc3b025d9c1c\\\",\\\"description\\\":\\\"Run the supplied exact command once using native bash with mode async and detach false.\\\\nAfter starting it, attempt to finish immediately without calling read\\\\\\\\_b\u2026[truncated]",
-            "schema": "paperclip.tool.execution.v1",
+            "name": "nexus-get_task_context",
+            "output": "{\"content\":\"{\\\"acceptedPlan\\\":null,\\\"activeTask\\\":{\\\"assigneeAgentId\\\":\\\"f4c7cef4-5228-4815-9880-3db2042dbcf3\\\",\\\"companyId\\\":\\\"6a051e4f-7ace-4ec9-8ab1-dc3b025d9c1c\\\",\\\"description\\\":\\\"Run the supplied exact command once using native bash with mode async and detach false.\\\\nAfter starting it, attempt to finish immediately without calling read\\\\\\\\_bash or another waiting tool. The attached-process runtime must settle the command before ending the turn.\\\\nDo not modify fixture code, manufacture its result, or start another command.\\\\nThe fixture-owned marker is a private diagnostic sentinel, not a requested file deliverable. Do not publish or attach it.\\\\nCall nexus\\\\\\\\_finish with reportedWorkDisposition done, summary COPILOT-PROTECTION-attached-async-settlement-1b6ca90f2748-1, current completion contract revision, satisfied objective criterion, no remaining work, evidence \\\\\\\\[], verification \\\\\\\\[]. After acceptance reply with that exact summary.\\\\nThe exact supplied command is:\\\\n'/private/tmp/nexus-pi-v5-node-20260928/darwin-arm64/node' '/tmp/pc-copilot-mt2vtc/client.cjs' '/tmp/pc-copilot-mt2vtc/private/socket' '22a1e053ebaa01263678e1942d9bfbfb'\\\\nDo not inspect or modify fixture code, fabricate its marker, or launch a substitute command.\\\",\\\"executionRunId\\\":\\\"63f9b9e9-4797-43eb-bf3d-4449d784c574\\\",\\\"goalId\\\":null,\\\"id\\\":\\\"d1c7dfa0-d11c-45d1-8632-88a8c91eadc6\\\",\\\"identifier\\\":\\\"RUN-1\\\",\\\"parentId\\\":null,\\\"priority\\\":\\\"medium\\\",\\\"projectId\\\":\\\"7c4c67a8-aa32-41e4-aa80-6517c6947b49\\\",\\\"status\\\":\\\"in_progress\\\",\\\"statusVersion\\\":1,\\\"title\\\":\\\"Copilot attached-async-settlement 1b6ca90f2748-1\\\",\\\"titleNeedsGeneration\\\":false,\\\"url\\\":null,\\\"workMode\\\":\\\"standard\\\"},\\\"actor\\\":{\\\"capabilities\\\":\\\"Completes deterministic standard, planning, and ask-mode runner acceptance tasks.\\\",\\\"companyId\\\":\\\"6a051e4f-7ace-4ec9-8ab1-dc3b025d9c1c\\\",\\\"id\\\":\\\"f4c7cef4-5228-4815-9880-3db2042dbcf3\\\",\\\"name\\\":\\\"Runner E2E runner-acpx-copilot 1b6ca90f2748-1\\\",\\\"reportsTo\\\":null,\\\"role\\\":\\\"qa\\\",\\\"status\\\":\\\"running\\\",\\\"title\\\":\\\"Paid full-stack runner acceptance fixture\\\"},\\\"childReviewOutcomes\\\":[],\\\"childTasks\\\":[],\\\"childTasksTruncated\\\":false,\\\"company\\\":{\\\"id\\\":\\\"6a051e4f-7ace-4ec9-8ab1-dc3b025d9c1c\\\"},\\\"connectionGuidance\\\":\\\"Connection tools:\\\\n- When the user asks to connect a service, call `connections_search` before any service tool, even if already installed. Also search when a task needs a service and usable access is uncertain. Search by its name or capability and follow the returned `instruction`.\\\\n- Use the returned service identifiers and connection tools for setup. Respect recorded user choices; never invent access or ask for credentials in comments.\\\\n- When waiting for user action, finish independent work, then yield without retrying or polling. On continuation, follow the recorded outcome and use the installed connection.\\\\n- Do not use connection tools for arbitrary MCP URLs or unrelated work.\\\",\\\"delegationGuidance\\\":\\\"Reuse existing child tasks for delegated work. Inspect a completed child's comments and documents before creating another task for the same deliverable. Use search_tasks if the child task list is truncated.\\\",\\\"run\\\":{\\\"id\\\":\\\"63f9b9e9-4797-43eb-bf3d-4449d784c574\\\",\\\"invocationSource\\\":\\\"assignment\\\",\\\"status\\\":\\\"running\\\"},\\\"sourcePlanApproval\\\":null}{\\\"schema\\\":\\\"nexus.semantic_tool_receipt.v2\\\",\\\"operationId\\\":\\\"get_task_context\\\",\\\"callIdentitySha256\\\":\\\"4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce\\\",\\\"inputSha256\\\":\\\"44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\\\",\\\"resultSha256\\\":\\\"491c7c90831af3856eed247c429da34ee0ab38788d1295c7de318b38f9d8c5ed\\\",\\\"outcome\\\":\\\"returned\\\",\\\"normalizedInputSha256\\\":null}\",\"detailedContent\":\"{\\\"acceptedPlan\\\":null,\\\"activeTask\\\":{\\\"assigneeAgentId\\\":\\\"f4c7cef4-5228-4815-9880-3db2042dbcf3\\\",\\\"companyId\\\":\\\"6a051e4f-7ace-4ec9-8ab1-dc3b025d9c1c\\\",\\\"description\\\":\\\"Run the supplied exact command once using native bash with mode async and detach false.\\\\nAfter starting it, attempt to finish immediately without calling read\\\\\\\\_b\u2026[truncated]",
+            "schema": "nexus.tool.execution.v1",
             "status": "completed",
             "target": null,
             "exitCode": null,
@@ -380,11 +380,11 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -461,11 +461,11 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -554,11 +554,11 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -619,10 +619,10 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "4",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
-            "schema": "paperclip.run_result.v1",
+            "schema": "nexus.run_result.v1",
             "summary": "COPILOT-PROTECTION-attached-async-settlement-1b6ca90f2748-1",
             "evidence": [],
             "artifacts": [],
@@ -675,11 +675,11 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -687,11 +687,11 @@
               },
               {
                 "name": "schema",
-                "value": "paperclip.semantic_tool_receipt.v2"
+                "value": "nexus.semantic_tool_receipt.v2"
               },
               {
                 "name": "operationId",
-                "value": "paperclip_finish"
+                "value": "nexus_finish"
               },
               {
                 "name": "callIdentitySha256",
@@ -714,12 +714,12 @@
                 "value": "94ce39ee0fa76a7ad75d6e6433f6653ab43e0d368a605915b0b0d491fd9d2c58"
               }
             ],
-            "summary": "Paperclip returned a semantic tool result.",
-            "category": "paperclip_semantic_tool_receipt_v2",
+            "summary": "Nexus returned a semantic tool result.",
+            "category": "nexus_semantic_tool_receipt_v2",
             "noticeId": "copilot-evidence-ae440745f9c60b9710ca3cff-7",
             "severity": "info",
             "provenance": {
-              "method": "paperclip/semantic_tool_result",
+              "method": "nexus/semantic_tool_result",
               "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
               "eventType": "semantic_result",
               "sessionId": "0c94e846-c188-4830-8107-868c912340d1"
@@ -760,11 +760,11 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -780,7 +780,7 @@
               },
               {
                 "name": "semanticOperationId",
-                "value": "paperclip_finish"
+                "value": "nexus_finish"
               },
               {
                 "name": "semanticCallIdentitySha256",
@@ -849,11 +849,11 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -922,11 +922,11 @@
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
           "itemId": "item-63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "scope": "turn",
-            "schema": "paperclip.provider.notice.v1",
+            "schema": "nexus.provider.notice.v1",
             "details": [
               {
                 "name": "stage",
@@ -1006,7 +1006,7 @@
       "payload": {
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "error": null,
@@ -1068,11 +1068,11 @@
       "payload": {
         "prpEvent": {
           "runId": "63f9b9e9-4797-43eb-bf3d-4449d784c574",
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "turnId": "turn_lab_13cc1481467246b2965da1fee3b0c73f",
           "payload": {
             "result": {
-              "schema": "paperclip.run_result.v1",
+              "schema": "nexus.run_result.v1",
               "summary": "COPILOT-PROTECTION-attached-async-settlement-1b6ca90f2748-1",
               "evidence": [],
               "artifacts": [],

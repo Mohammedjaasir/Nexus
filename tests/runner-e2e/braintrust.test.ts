@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { afterEach, expect, it, vi } from "vitest";
 import { EvalAttemptTrace, evalBraintrustConfig, exportBraintrustAttemptParent, finalizeEvalAttemptTrace } from "./braintrust.js";
 import { RunnerApi } from "./api.js";
-import { buildPaperclipServerEnvironment, buildRunnerE2EProcessEnvironment } from "./harness-env.js";
+import { buildNexusServerEnvironment, buildRunnerE2EProcessEnvironment } from "./harness-env.js";
 import { setupLiveFixtures } from "./live-fixtures.js";
 import { runnerMatrix } from "./catalog.js";
 import { buildProviderObservabilityLaunch } from "../../packages/adapter-utils/src/agent-observability.js";
@@ -18,19 +18,19 @@ afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 it("requires explicit export routing and keeps ingestion credentials out of server inheritance", () => {
   expect(evalBraintrustConfig({ BRAINTRUST_API_KEY: config.apiKey })).toBeUndefined();
-  expect(() => evalBraintrustConfig({ PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: projectId })).toThrow("API key");
-  expect(() => evalBraintrustConfig({ PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: "bad", BRAINTRUST_API_KEY: config.apiKey })).toThrow("UUID");
-  expect(buildPaperclipServerEnvironment({ BRAINTRUST_API_KEY: config.apiKey, BRAINTRUST_OTHER_KEY: "private", KEEP: "yes" })).toEqual({ KEEP: "yes" });
+  expect(() => evalBraintrustConfig({ NEXUS_E2E_BRAINTRUST_PROJECT_ID: projectId })).toThrow("API key");
+  expect(() => evalBraintrustConfig({ NEXUS_E2E_BRAINTRUST_PROJECT_ID: "bad", BRAINTRUST_API_KEY: config.apiKey })).toThrow("UUID");
+  expect(buildNexusServerEnvironment({ BRAINTRUST_API_KEY: config.apiKey, BRAINTRUST_OTHER_KEY: "private", KEEP: "yes" })).toEqual({ KEEP: "yes" });
 });
 
 it("accepts only explicit loopback relay destinations and strips inherited relay endpoints", async () => {
   const endpointBaseUrl = "http://127.0.0.1:43123/otel";
-  const env = { PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: projectId, BRAINTRUST_API_KEY: "attempt-token", PAPERCLIP_E2E_OTLP_RELAY_URL: endpointBaseUrl };
+  const env = { NEXUS_E2E_BRAINTRUST_PROJECT_ID: projectId, BRAINTRUST_API_KEY: "attempt-token", NEXUS_E2E_OTLP_RELAY_URL: endpointBaseUrl };
   expect(evalBraintrustConfig(env)).toEqual({ projectId, apiKey: "attempt-token", endpointBaseUrl });
-  expect(buildPaperclipServerEnvironment(env).PAPERCLIP_E2E_OTLP_RELAY_URL).toBeUndefined();
-  expect(buildRunnerE2EProcessEnvironment(env, []).PAPERCLIP_E2E_OTLP_RELAY_URL).toBeUndefined();
+  expect(buildNexusServerEnvironment(env).NEXUS_E2E_OTLP_RELAY_URL).toBeUndefined();
+  expect(buildRunnerE2EProcessEnvironment(env, []).NEXUS_E2E_OTLP_RELAY_URL).toBeUndefined();
   for (const invalid of ["https://foreign.invalid/otel", "http://127.0.0.1:43123/otel?key=secret", "http://localhost:43123/otel", "http://127.0.0.1:99999/otel"]) {
-    expect(() => evalBraintrustConfig({ ...env, PAPERCLIP_E2E_OTLP_RELAY_URL: invalid })).toThrow();
+    expect(() => evalBraintrustConfig({ ...env, NEXUS_E2E_OTLP_RELAY_URL: invalid })).toThrow();
   }
   const trace = new EvalAttemptTrace(evalBraintrustConfig(env)!, identity);
   const putSensitive = vi.fn(async () => ({ settings: { enabled: true, credentialsConfigured: true, revision: projectId,
@@ -88,20 +88,20 @@ it("sends real protobuf with parented phases, exact project routing, and no dupl
   expect(captured).toMatchObject({ method: "POST", redirect: "error", headers: { authorization: `Bearer ${config.apiKey}`, "x-bt-parent": `project_id:${projectId}`, "content-type": "application/x-protobuf" } });
   const bytes = captured!.body as Buffer;
   expect(bytes.includes(config.apiKey)).toBe(false);
-  const decoded = root.lookupType("paperclip.test.otlp.ExportTraceServiceRequest").decode(bytes).toJSON();
+  const decoded = root.lookupType("nexus.test.otlp.ExportTraceServiceRequest").decode(bytes).toJSON();
   const spans = decoded.resourceSpans[0].scopeSpans[0].spans;
-  expect(spans.map((span: { name: string }) => span.name)).toEqual(["paperclip.eval.attempt", "paperclip.eval.setup", "paperclip.eval.execution", "paperclip.eval.feedback", "paperclip.eval.cleanup"]);
+  expect(spans.map((span: { name: string }) => span.name)).toEqual(["nexus.eval.attempt", "nexus.eval.setup", "nexus.eval.execution", "nexus.eval.feedback", "nexus.eval.cleanup"]);
   expect(spans[0].parentSpanId).toBeUndefined();
   for (const span of spans.slice(1)) {
     expect(span.traceId).toBe(spans[0].traceId);
     expect(span.parentSpanId).toBe(spans[0].spanId);
   }
-  expect(JSON.stringify(decoded)).toContain("paperclip.eval.attempt_id");
+  expect(JSON.stringify(decoded)).toContain("nexus.eval.attempt_id");
   const attributes = Object.fromEntries(spans[0].attributes.map((attribute: { key: string; value: { stringValue: string } }) => [attribute.key, attribute.value.stringValue]));
   expect(attributes).toMatchObject({
-    "paperclip.eval.suite_id": provenance.suiteId, "paperclip.eval.suite_definition_hash": provenance.suiteDefinitionHash,
-    "paperclip.eval.profile_id": provenance.profileId, "paperclip.eval.case_id": provenance.caseId,
-    "paperclip.eval.source_revision": provenance.sourceRevision, "paperclip.eval.grader": "tests/runner-e2e/runner.spec.ts",
+    "nexus.eval.suite_id": provenance.suiteId, "nexus.eval.suite_definition_hash": provenance.suiteDefinitionHash,
+    "nexus.eval.profile_id": provenance.profileId, "nexus.eval.case_id": provenance.caseId,
+    "nexus.eval.source_revision": provenance.sourceRevision, "nexus.eval.grader": "tests/runner-e2e/runner.spec.ts",
   });
   expect(JSON.stringify(decoded)).not.toMatch(/gen_ai\.usage|cost_usd|private-ingestion/);
   expect(transport).toHaveBeenCalledTimes(1);
@@ -154,7 +154,7 @@ it.each([
 });
 
 it("never sends sensitive PUT bodies through Playwright and refuses redirects or foreign destinations", async () => {
-  vi.stubEnv("PAPERCLIP_RUNNER_E2E_PORT", "43123");
+  vi.stubEnv("NEXUS_RUNNER_E2E_PORT", "43123");
   const playwright = { put: vi.fn() };
   const api = new RunnerApi(playwright as never);
   api.setBrowserSession("session=private");
@@ -181,16 +181,16 @@ it.each([
   }, async (_url, init) => { captured = init; return new Response(null, { status: 200 }); });
   expect(finalization).toMatchObject({ status: "accepted", outcome: "failed", verification: "unverified" });
   expect(original).toEqual(saved);
-  const decoded = root.lookupType("paperclip.test.otlp.ExportTraceServiceRequest").decode(captured!.body as Buffer).toJSON();
+  const decoded = root.lookupType("nexus.test.otlp.ExportTraceServiceRequest").decode(captured!.body as Buffer).toJSON();
   const spans = decoded.resourceSpans[0].scopeSpans[0].spans;
-  expect(spans.map((span: { name: string }) => span.name)).toEqual(["paperclip.eval.attempt", "paperclip.eval.finalization"]);
+  expect(spans.map((span: { name: string }) => span.name)).toEqual(["nexus.eval.attempt", "nexus.eval.finalization"]);
   expect(Buffer.from(spans[0].traceId, "base64").toString("hex")).toBe(original.traceId);
   expect(Buffer.from(spans[0].spanId, "base64").toString("hex")).toBe(original.spanId);
   expect(spans[1].parentSpanId).toBe(spans[0].spanId);
   expect(spans.every((span: { status: { code: number } }) => span.status.code === 2)).toBe(true);
   const attributes = Object.fromEntries(spans[0].attributes.map((attribute: { key: string; value: { stringValue: string } }) => [attribute.key, attribute.value.stringValue]));
-  expect(attributes).toMatchObject({ "paperclip.eval.outcome_stage": "supervisor", "paperclip.eval.outcome": "failed",
-    "paperclip.eval.failure_class": outcome.failureClass, "paperclip.eval.source_revision": provenance.sourceRevision });
+  expect(attributes).toMatchObject({ "nexus.eval.outcome_stage": "supervisor", "nexus.eval.outcome": "failed",
+    "nexus.eval.failure_class": outcome.failureClass, "nexus.eval.source_revision": provenance.sourceRevision });
   expect(JSON.stringify(decoded)).not.toMatch(/private-ingestion|gen_ai\.usage|cost_usd/);
 });
 
@@ -215,9 +215,9 @@ it("retains finalization export failures without changing the recorded product r
 
 it("binds remote OTLP to the explicitly assigned eval gateway origin", () => {
   const origin = "https://synthetic-eval.trycloudflare.com";
-  const env = { PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: projectId, BRAINTRUST_API_KEY: "synthetic-token",
-    PAPERCLIP_E2E_REMOTE_GATEWAY_ORIGIN: origin, PAPERCLIP_E2E_OTLP_RELAY_URL: `${origin}/otel` };
+  const env = { NEXUS_E2E_BRAINTRUST_PROJECT_ID: projectId, BRAINTRUST_API_KEY: "synthetic-token",
+    NEXUS_E2E_REMOTE_GATEWAY_ORIGIN: origin, NEXUS_E2E_OTLP_RELAY_URL: `${origin}/otel` };
   expect(evalBraintrustConfig(env)).toMatchObject({ remoteOrigin: origin, endpointBaseUrl: `${origin}/otel` });
-  expect(() => evalBraintrustConfig({ ...env, PAPERCLIP_E2E_OTLP_RELAY_URL: "https://different-eval.trycloudflare.com/otel" })).toThrow();
-  expect(buildPaperclipServerEnvironment(env).PAPERCLIP_E2E_REMOTE_GATEWAY_ORIGIN).toBeUndefined();
+  expect(() => evalBraintrustConfig({ ...env, NEXUS_E2E_OTLP_RELAY_URL: "https://different-eval.trycloudflare.com/otel" })).toThrow();
+  expect(buildNexusServerEnvironment(env).NEXUS_E2E_REMOTE_GATEWAY_ORIGIN).toBeUndefined();
 });

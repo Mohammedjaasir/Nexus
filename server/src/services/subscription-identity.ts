@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { probeAiConnectionUsage, readUsage } from "./ai-connection-usage.js";
-import type { AiProvider } from "@paperclipai/shared";
+import type { AiProvider } from "@nexusai/shared";
 
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const string = (value: unknown): string | null => typeof value === "string" && value.length > 0 && value.length <= 200 ? value : null;

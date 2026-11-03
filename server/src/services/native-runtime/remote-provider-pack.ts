@@ -1,6 +1,6 @@
 import { redactSensitiveText } from "../../redaction.js";
 import type { NativeRunTrace } from "./native-run-trace.js";
-import type { NativeExecutionInput } from "../../vendor/paperclip-runner/index.js";
+import type { NativeExecutionInput } from "../../vendor/nexus-runner/index.js";
 
 /** Qualified ACPX releases carry their Linux image manifest and daemon. */
 export function shouldUseBundledAcpxImageAssets(input: {

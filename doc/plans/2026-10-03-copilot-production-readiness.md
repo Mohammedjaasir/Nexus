@@ -44,7 +44,7 @@ The earliest implementation blocker is the current-master reconciliation. Creden
 ## Keep the release finite
 
 - Required scope stays unchanged: Copilot 1.0.88 unless a demonstrated release blocker requires an upgrade; authenticated model discovery with exact `gpt-5.6-luna` for qualification if available; no substitution; 7 protocol cases, 20 selected Product cells, normal local/Daytona canaries, and the three promised installed-platform smokes.
-- Native steering, native plan mode, detached work, additional event presentation, and unrelated provider enablement remain deferred. Questions and plans use Paperclip semantic tools.
+- Native steering, native plan mode, detached work, additional event presentation, and unrelated provider enablement remain deferred. Questions and plans use Nexus semantic tools.
 - Prior effort went into repeated runtime/profile repairs and rebuilds, mainline reconciliation, approval waits, and a public handoff that was not completed. The last full-suite run was still pending in the chat after roughly 34 minutes; its terminal result cannot now be recovered. Do not report it as passed or restart a broad campaign merely to fill that gap.
 - Iterate with the smallest faithful failing boundary. Use the existing eval selectors and CI/check workflow. Run mandatory final checks once on the candidate handed over; repair demonstrated blockers rather than adding infrastructure or a wider matrix.
 - Fresh audit metadata and the non-mutating merge probe are stored privately outside `/tmp` under the task's `copilot-release-evidence/2026-10-17` directory. No build, provider prompt, credential transfer, source publication, or billing setting change occurred in this audit. This is an audit checkpoint, not qualification evidence.

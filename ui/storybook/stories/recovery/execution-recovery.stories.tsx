@@ -6,9 +6,9 @@ import { TaskChatRunnerTurn } from "@/components/task-chat/TaskChatRunnerTurn";
 import { TaskChatLiveRunPill } from "@/components/task-chat/TaskChatLiveRunPill";
 import { Textarea } from "@/components/ui/textarea";
 import { queryKeys } from "@/lib/queryKeys";
-import { createIssue, storybookLiveRuns } from "../../fixtures/paperclipData";
+import { createIssue, storybookLiveRuns } from "../../fixtures/nexusData";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { ExecutionProjection } from "@paperclipai/shared";
+import type { ExecutionProjection } from "@nexusai/shared";
 import { expect, userEvent, within } from "storybook/test";
 
 const base: ExecutionProjection = {
@@ -60,7 +60,7 @@ function QuietExecution({ execution }: { execution: ExecutionProjection }) {
   );
 }
 const meta = {
-  parameters: { paperclip: {
+  parameters: { nexus: {
       "capabilities": [
         "recovery/diagnosis"
       ],

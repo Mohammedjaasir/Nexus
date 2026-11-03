@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { companies, type Db } from "@paperclipai/db";
+import { companies, type Db } from "@nexusai/db";
 import { publishActivity, type ActivityPublication } from "./activity-log.js";
 import { notFound } from "../errors.js";
 import { logger } from "../middleware/logger.js";

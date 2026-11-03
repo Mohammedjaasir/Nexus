@@ -1,13 +1,13 @@
-import { asStringArray } from "@paperclipai/adapter-utils/server-utils";
-import { applyObservabilityEnvironment } from "@paperclipai/adapter-utils/agent-observability";
-import { prepareCodexObservabilityProfile, selectedCodexProfile, replaceCodexProfileArgs, disableCodexObservabilityArgs } from "@paperclipai/adapter-utils/codex-observability-profile";
-import { createProviderStoppedBoundary } from "@paperclipai/adapter-utils/provider-stopped-boundary";
-import { createUsageCheckpointLog } from "@paperclipai/adapter-utils/usage-checkpoint";
+import { asStringArray } from "@nexusai/adapter-utils/server-utils";
+import { applyObservabilityEnvironment } from "@nexusai/adapter-utils/agent-observability";
+import { prepareCodexObservabilityProfile, selectedCodexProfile, replaceCodexProfileArgs, disableCodexObservabilityArgs } from "@nexusai/adapter-utils/codex-observability-profile";
+import { createProviderStoppedBoundary } from "@nexusai/adapter-utils/provider-stopped-boundary";
+import { createUsageCheckpointLog } from "@nexusai/adapter-utils/usage-checkpoint";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { inferOpenAiCompatibleBiller, resolveManagedOpenAiBilling, type AdapterExecutionContext, type AdapterExecutionResult } from "@paperclipai/adapter-utils";
+import { inferOpenAiCompatibleBiller, resolveManagedOpenAiBilling, type AdapterExecutionContext, type AdapterExecutionResult } from "@nexusai/adapter-utils";
 import { buildCodexAuthInboundProvision } from "./codex-auth-merge-scripts.js";
 import { copyBackCodexAuth } from "./codex-auth-copyback.js";
 import {
@@ -23,7 +23,7 @@ import {
   overrideAdapterExecutionTargetRemoteCwd,
   adapterExecutionTargetSessionIdentity,
   adapterExecutionTargetSessionMatches,
-  adapterExecutionTargetUsesPaperclipBridge,
+  adapterExecutionTargetUsesNexusBridge,
   describeAdapterExecutionTarget,
   ensureAdapterExecutionTargetCommandResolvable,
   ensureAdapterExecutionTargetRuntimeCommandInstalled,
@@ -35,37 +35,37 @@ import {
   resolveAdapterExecutionTargetCommandForLogs,
   runAdapterExecutionTargetProcess,
   runAdapterExecutionTargetShellCommand,
-  startAdapterExecutionTargetPaperclipBridge,
-} from "@paperclipai/adapter-utils/execution-target";
+  startAdapterExecutionTargetNexusBridge,
+} from "@nexusai/adapter-utils/execution-target";
 import {
   asString,
   asNumber,
   parseObject,
-  buildPaperclipEnv,
+  buildNexusEnv,
   buildInvocationEnvForLogs,
   ensureAbsoluteDirectory,
-  ensurePaperclipSkillSymlink,
+  ensureNexusSkillSymlink,
   ensurePathInEnv,
-  refreshPaperclipWorkspaceEnvForExecution,
-  isPaperclipSkillSourceMissing,
-  readPaperclipRuntimeSkillEntries,
-  readPaperclipIssueWorkModeFromContext,
+  refreshNexusWorkspaceEnvForExecution,
+  isNexusSkillSourceMissing,
+  readNexusRuntimeSkillEntries,
+  readNexusIssueWorkModeFromContext,
   renderTemplate,
   hydrateFreshSessionHandoff,
   selectInitialCommunicationGuidance,
-  selectPaperclipPromptSections,
-  isPaperclipRecoveryWakePayload,
-  DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE,
-  DEFAULT_PAPERCLIP_CONVERSATION_PROMPT_TEMPLATE,
+  selectNexusPromptSections,
+  isNexusRecoveryWakePayload,
+  DEFAULT_NEXUS_AGENT_PROMPT_TEMPLATE,
+  DEFAULT_NEXUS_CONVERSATION_PROMPT_TEMPLATE,
   joinPromptSections,
-} from "@paperclipai/adapter-utils/server-utils";
+} from "@nexusai/adapter-utils/server-utils";
 import {
   parseLocalProcessFilesystemScope,
   parseLocalProcessSandboxExtraPaths,
   parseLocalProcessNetworkAllowlist,
   parseLocalProcessNetworkScope,
   type LocalProcessSandboxOptions,
-} from "@paperclipai/adapter-utils/local-process-sandbox";
+} from "@nexusai/adapter-utils/local-process-sandbox";
 import {
   parseCodexJsonl, createCodexJsonlParser,
   classifyCodexAuthRefreshFailure,
@@ -114,7 +114,7 @@ import {
   createCodexAcpExecutor,
   resolveCodexExecutionEngineForRun,
 } from "./acp.js";
-import { codexShellEnvironmentKeys } from "@paperclipai/adapter-utils/codex-shell-environment";
+import { codexShellEnvironmentKeys } from "@nexusai/adapter-utils/codex-shell-environment";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const executeCodexAcp = createCodexAcpExecutor();
@@ -148,12 +148,12 @@ function firstNonEmptyLine(text: string): string {
 // Benign stderr lines that never explain a nonzero exit and must not be
 // surfaced as the run error: Codex always prints the YOLO approvals warning
 // because this adapter passes the approvals-bypass flag itself, and
-// "[paperclip] ..." lines are diagnostics the adapter injected (e.g. ACP
+// "[nexus] ..." lines are diagnostics the adapter injected (e.g. ACP
 // fallback notes). Keep this list conservative so real errors are never
 // skipped.
 const BENIGN_CODEX_STDERR_LINE_RES: readonly RegExp[] = [
   /^YOLO mode is enabled\b/i,
-  /^\[paperclip\]/,
+  /^\[nexus\]/,
 ];
 
 function isBenignCodexStderrLine(line: string): boolean {
@@ -207,7 +207,7 @@ function resolveCodexBiller(env: Record<string, string>, billingType: "api" | "s
   return billingType === "subscription" ? "chatgpt" : openAiCompatibleBiller ?? "openai";
 }
 
-async function isLikelyPaperclipRepoRoot(candidate: string): Promise<boolean> {
+async function isLikelyNexusRepoRoot(candidate: string): Promise<boolean> {
   const [hasWorkspace, hasPackageJson, hasServerDir, hasAdapterUtilsDir] = await Promise.all([
     pathExists(path.join(candidate, "pnpm-workspace.yaml")),
     pathExists(path.join(candidate, "package.json")),
@@ -218,7 +218,7 @@ async function isLikelyPaperclipRepoRoot(candidate: string): Promise<boolean> {
   return hasWorkspace && hasPackageJson && hasServerDir && hasAdapterUtilsDir;
 }
 
-async function isLikelyPaperclipRuntimeSkillPath(
+async function isLikelyNexusRuntimeSkillPath(
   candidate: string,
   skillName: string,
   options: { requireSkillMarkdown?: boolean } = {},
@@ -232,7 +232,7 @@ async function isLikelyPaperclipRuntimeSkillPath(
 
   let cursor = path.dirname(skillsRoot);
   for (let depth = 0; depth < 6; depth += 1) {
-    if (await isLikelyPaperclipRepoRoot(cursor)) return true;
+    if (await isLikelyNexusRepoRoot(cursor)) return true;
     const parent = path.dirname(cursor);
     if (parent === cursor) break;
     cursor = parent;
@@ -241,7 +241,7 @@ async function isLikelyPaperclipRuntimeSkillPath(
   return false;
 }
 
-async function pruneBrokenUnavailablePaperclipSkillSymlinks(
+async function pruneBrokenUnavailableNexusSkillSymlinks(
   skillsHome: string,
   allowedSkillNames: Iterable<string>,
   onLog: AdapterExecutionContext["onLog"],
@@ -259,7 +259,7 @@ async function pruneBrokenUnavailablePaperclipSkillSymlinks(
     const resolvedLinkedPath = path.resolve(path.dirname(target), linkedPath);
     if (await pathExists(resolvedLinkedPath)) continue;
     if (
-      !(await isLikelyPaperclipRuntimeSkillPath(resolvedLinkedPath, entry.name, {
+      !(await isLikelyNexusRuntimeSkillPath(resolvedLinkedPath, entry.name, {
         requireSkillMarkdown: false,
       }))
     ) {
@@ -269,7 +269,7 @@ async function pruneBrokenUnavailablePaperclipSkillSymlinks(
     await fs.unlink(target).catch(() => {});
     await onLog(
       "stdout",
-      `[paperclip] Removed stale Codex skill "${entry.name}" from ${skillsHome}\n`,
+      `[nexus] Removed stale Codex skill "${entry.name}" from ${skillsHome}\n`,
     );
   }
 }
@@ -313,7 +313,7 @@ function fallbackModeUsesFreshSession(mode: CodexTransientFallbackMode | null): 
 }
 
 function managedMcpGatewaysFromContext(context: Record<string, unknown>): ManagedCodexMcpGateway[] {
-  const managedMcp = parseObject(context.paperclipManagedMcp);
+  const managedMcp = parseObject(context.nexusManagedMcp);
   if (managedMcp.managedMcpOnly !== true) return [];
   const gateways = Array.isArray(managedMcp.gateways) ? managedMcp.gateways : [];
   return gateways
@@ -494,7 +494,7 @@ function buildCodexTransientHandoffNote(input: {
   continuationSummaryBody: string | null;
 }): string {
   return [
-    "Paperclip session handoff:",
+    "Nexus session handoff:",
     input.previousSessionId ? `- Previous session: ${input.previousSessionId}` : "",
     "- Rotation reason: repeated Codex transient remote-compaction failures",
     `- Fallback mode: ${input.fallbackMode}`,
@@ -512,8 +512,8 @@ export async function ensureCodexSkillsInjected(
   options: EnsureCodexSkillsInjectedOptions = {},
 ) {
   const allSkillsEntries = options.skillsEntries
-    ?? (await readPaperclipRuntimeSkillEntries({}, __moduleDir)).filter(
-      (entry) => !isPaperclipSkillSourceMissing(entry),
+    ?? (await readNexusRuntimeSkillEntries({}, __moduleDir)).filter(
+      (entry) => !isNexusSkillSourceMissing(entry),
     );
   const desiredSkillNames =
     options.desiredSkillNames ?? allSkillsEntries.map((entry) => entry.key);
@@ -537,7 +537,7 @@ export async function ensureCodexSkillsInjected(
         if (
           resolvedLinkedPath &&
           resolvedLinkedPath !== entry.source &&
-          (await isLikelyPaperclipRuntimeSkillPath(resolvedLinkedPath, entry.runtimeName))
+          (await isLikelyNexusRuntimeSkillPath(resolvedLinkedPath, entry.runtimeName))
         ) {
           await fs.unlink(target);
           if (linkSkill) {
@@ -547,28 +547,28 @@ export async function ensureCodexSkillsInjected(
           }
           await onLog(
             "stdout",
-            `[paperclip] Repaired Codex skill "${entry.runtimeName}" into ${skillsHome}\n`,
+            `[nexus] Repaired Codex skill "${entry.runtimeName}" into ${skillsHome}\n`,
           );
           continue;
         }
       }
 
-      const result = await ensurePaperclipSkillSymlink(entry.source, target, linkSkill);
+      const result = await ensureNexusSkillSymlink(entry.source, target, linkSkill);
       if (result === "skipped") continue;
 
       await onLog(
         "stdout",
-        `[paperclip] ${result === "repaired" ? "Repaired" : "Injected"} Codex skill "${entry.runtimeName}" into ${skillsHome}\n`,
+        `[nexus] ${result === "repaired" ? "Repaired" : "Injected"} Codex skill "${entry.runtimeName}" into ${skillsHome}\n`,
       );
     } catch (err) {
       await onLog(
         "stderr",
-        `[paperclip] Failed to inject Codex skill "${entry.key}" into ${skillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
+        `[nexus] Failed to inject Codex skill "${entry.key}" into ${skillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
       );
     }
   }
 
-  await pruneBrokenUnavailablePaperclipSkillSymlinks(
+  await pruneBrokenUnavailableNexusSkillSymlinks(
     skillsHome,
     skillsEntries.map((entry) => entry.runtimeName),
     onLog,
@@ -599,13 +599,13 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const promptTemplate = asString(
     config.promptTemplate,
     context.conversationMode === true
-      ? DEFAULT_PAPERCLIP_CONVERSATION_PROMPT_TEMPLATE
-      : DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE,
+      ? DEFAULT_NEXUS_CONVERSATION_PROMPT_TEMPLATE
+      : DEFAULT_NEXUS_AGENT_PROMPT_TEMPLATE,
   );
   const command = asString(config.command, "codex");
   const model = asString(config.model, "");
 
-  const workspaceContext = parseObject(context.paperclipWorkspace);
+  const workspaceContext = parseObject(context.nexusWorkspace);
   const workspaceCwd = asString(workspaceContext.cwd, "");
   const workspaceSource = asString(workspaceContext.source, "");
   const workspaceStrategy = asString(workspaceContext.strategy, "");
@@ -615,22 +615,22 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const workspaceBranch = asString(workspaceContext.branchName, "");
   const workspaceWorktreePath = asString(workspaceContext.worktreePath, "");
   const agentHome = asString(workspaceContext.agentHome, "");
-  const workspaceHints = Array.isArray(context.paperclipWorkspaces)
-    ? context.paperclipWorkspaces.filter(
+  const workspaceHints = Array.isArray(context.nexusWorkspaces)
+    ? context.nexusWorkspaces.filter(
         (value): value is Record<string, unknown> => typeof value === "object" && value !== null,
       )
     : [];
-  const runtimeServiceIntents = Array.isArray(context.paperclipRuntimeServiceIntents)
-    ? context.paperclipRuntimeServiceIntents.filter(
+  const runtimeServiceIntents = Array.isArray(context.nexusRuntimeServiceIntents)
+    ? context.nexusRuntimeServiceIntents.filter(
         (value): value is Record<string, unknown> => typeof value === "object" && value !== null,
       )
     : [];
-  const runtimeServices = Array.isArray(context.paperclipRuntimeServices)
-    ? context.paperclipRuntimeServices.filter(
+  const runtimeServices = Array.isArray(context.nexusRuntimeServices)
+    ? context.nexusRuntimeServices.filter(
         (value): value is Record<string, unknown> => typeof value === "object" && value !== null,
       )
     : [];
-  const runtimePrimaryUrl = asString(context.paperclipRuntimePrimaryUrl, "");
+  const runtimePrimaryUrl = asString(context.nexusRuntimePrimaryUrl, "");
   const executionTarget = readAdapterExecutionTarget({
     executionTarget: ctx.executionTarget,
     legacyRemoteExecution: ctx.executionTransport?.remoteExecution,
@@ -653,15 +653,15 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       ? envConfig.OPENAI_API_KEY.trim()
       : null;
   const skillSourceHome = configuredCodexHome;
-  const connectorSkillDigest = typeof config.paperclipConnectorSkillDigest === "string"
-    && /^[a-f0-9]{64}$/.test(config.paperclipConnectorSkillDigest) ? config.paperclipConnectorSkillDigest : null;
-  const codexSkillEntries = (await readPaperclipRuntimeSkillEntries(config, __moduleDir))
-    .filter((entry) => !isPaperclipSkillSourceMissing(entry));
+  const connectorSkillDigest = typeof config.nexusConnectorSkillDigest === "string"
+    && /^[a-f0-9]{64}$/.test(config.nexusConnectorSkillDigest) ? config.nexusConnectorSkillDigest : null;
+  const codexSkillEntries = (await readNexusRuntimeSkillEntries(config, __moduleDir))
+    .filter((entry) => !isNexusSkillSourceMissing(entry));
   const desiredSkillNames = resolveCodexDesiredSkillNames(config, codexSkillEntries);
   const desiredSet = new Set(desiredSkillNames);
   // An explicit inventory is the server's authorized execution selection. Include
   // empty inventories: revocation must not fall back to a previously populated home.
-  let runtimeSkillDigest = Array.isArray(config.paperclipRuntimeSkills)
+  let runtimeSkillDigest = Array.isArray(config.nexusRuntimeSkills)
     ? createHash("sha256").update(JSON.stringify({ connectorSkillDigest,
       skills: codexSkillEntries.filter(entry => desiredSet.has(entry.key))
         .map(entry => [entry.key, entry.source]).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
@@ -692,7 +692,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   if (!executionTargetIsRemote) {
     await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
   }
-  // A configured CODEX_HOME that lives under the Paperclip-managed company tree
+  // A configured CODEX_HOME that lives under the Nexus-managed company tree
   // (the per-agent home set by the server isolation guard) still needs auth
   // seeded — it ships with no credentials and OPENAI_API_KEY="" by default.
   // Only a genuine external/user-supplied override is treated as self-managed
@@ -721,7 +721,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       // run: log and fall through to seed from the unrefreshed shared credential.
       await onLog(
         "stderr",
-        `[paperclip] Codex auth cache: vend skipped after an error; using the shared credential as-is.\n`,
+        `[nexus] Codex auth cache: vend skipped after an error; using the shared credential as-is.\n`,
       );
       void error;
     });
@@ -763,7 +763,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     cwd,
     onLog,
   });
-  // Merge custom model providers (PAPERCLIP_CODEX_PROVIDERS) into the managed
+  // Merge custom model providers (NEXUS_CODEX_PROVIDERS) into the managed
   // CODEX_HOME's config.toml BEFORE the home is shipped to a remote execution
   // target, so both local and sandboxed Codex processes pick up the routing.
   // A caller-owned home stays untouched. A generated skill home receives the
@@ -791,14 +791,14 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
             launch: ctx.observability, sourceProfile: selectedCodexProfile(buildCodexExecArgs(config).args) });
         } catch {
           observabilityPreparationFailed = true;
-          await onLog("stderr", "[paperclip] Company observability configuration could not be prepared; execution continues with export disabled.\n");
+          await onLog("stderr", "[nexus] Company observability configuration could not be prepared; execution continues with export disabled.\n");
         }
-      } else await onLog("stderr", "[paperclip] Company observability is unavailable for a caller-owned Codex home.\n");
+      } else await onLog("stderr", "[nexus] Company observability is unavailable for a caller-owned Codex home.\n");
     }
     for (const note of preparedRuntimeConfig.notes) {
-      await onLog("stdout", `[paperclip] ${note}\n`);
+      await onLog("stdout", `[nexus] ${note}\n`);
     }
-    const paperclipBaseEnv = buildPaperclipEnv(agent, ctx.agentIdentity);
+    const nexusBaseEnv = buildNexusEnv(agent, ctx.agentIdentity);
     const runtimeMcpGateways = (ctx.runtimeMcp?.getServers() ?? []).map((server) => ({
       name: server.name,
       endpointPath: server.url,
@@ -810,17 +810,17 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     );
     const managedMcp = await writeManagedCodexMcpConfig({
       codexHome: effectiveCodexHome,
-      apiBaseUrl: paperclipBaseEnv.PAPERCLIP_API_URL,
+      apiBaseUrl: nexusBaseEnv.NEXUS_API_URL,
       gateways: managedMcpGateways,
     });
     if (managedMcpGateways.length > 0) {
       await onLog(
         "stdout",
-        `[paperclip] Wrote ${managedMcpGateways.length} managed MCP gateway(s) into Codex config "${managedMcp.configPath}".\n`,
+        `[nexus] Wrote ${managedMcpGateways.length} managed MCP gateway(s) into Codex config "${managedMcp.configPath}".\n`,
       );
     }
     for (const warning of managedMcp.warnings) {
-      await onLog("stderr", `[paperclip] ${warning}\n`);
+      await onLog("stderr", `[nexus] ${warning}\n`);
     }
     // Inject skills into the same CODEX_HOME that Codex will actually run with
     // (managed home in the default case, or an explicit override from adapter config).
@@ -845,7 +845,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       ? await (async () => {
           await onLog(
             "stdout",
-            `[paperclip] Syncing ${targetWorkspaceRealization?.mode === "in_place" ? "CODEX_HOME" : "workspace and CODEX_HOME"} to ${describeAdapterExecutionTarget(executionTarget)}.\n`,
+            `[nexus] Syncing ${targetWorkspaceRealization?.mode === "in_place" ? "CODEX_HOME" : "workspace and CODEX_HOME"} to ${describeAdapterExecutionTarget(executionTarget)}.\n`,
           );
           // Stage only the files Codex actually needs into a curated temp dir and
           // ship THAT as the `home` asset, instead of the whole managed
@@ -922,10 +922,10 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     const restoreRemoteWorkspace = preparedExecutionTargetRuntime
       ? () => preparedExecutionTargetRuntime.restoreWorkspace((line) => onLog("stdout", line))
       : null;
-    let paperclipBridge: Awaited<ReturnType<typeof startAdapterExecutionTargetPaperclipBridge>> = null;
+    let nexusBridge: Awaited<ReturnType<typeof startAdapterExecutionTargetNexusBridge>> = null;
     const remoteCodexHome = executionTargetIsRemote
       ? preparedExecutionTargetRuntime?.assetDirs.home ??
-        path.posix.join(effectiveExecutionCwd, ".paperclip-runtime", "codex", "home")
+        path.posix.join(effectiveExecutionCwd, ".nexus-runtime", "codex", "home")
       : null;
     await emitSandboxAuthPrecedenceWarningIfNeeded({
       runId,
@@ -936,8 +936,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       onLog,
       onEvent,
     });
-    const env: Record<string, string> = { ...paperclipBaseEnv };
-    env.PAPERCLIP_RUN_ID = runId;
+    const env: Record<string, string> = { ...nexusBaseEnv };
+    env.NEXUS_RUN_ID = runId;
     const wakeTaskId =
       (typeof context.taskId === "string" && context.taskId.trim().length > 0 && context.taskId.trim()) ||
       (typeof context.issueId === "string" && context.issueId.trim().length > 0 && context.issueId.trim()) ||
@@ -961,29 +961,29 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     const linkedIssueIds = Array.isArray(context.issueIds)
       ? context.issueIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
       : [];
-    const issueWorkMode = readPaperclipIssueWorkModeFromContext(context);
+    const issueWorkMode = readNexusIssueWorkModeFromContext(context);
     if (wakeTaskId) {
-      env.PAPERCLIP_TASK_ID = wakeTaskId;
+      env.NEXUS_TASK_ID = wakeTaskId;
     }
     if (issueWorkMode) {
-      env.PAPERCLIP_ISSUE_WORK_MODE = issueWorkMode;
+      env.NEXUS_ISSUE_WORK_MODE = issueWorkMode;
     }
     if (wakeReason) {
-      env.PAPERCLIP_WAKE_REASON = wakeReason;
+      env.NEXUS_WAKE_REASON = wakeReason;
     }
     if (wakeCommentId) {
-      env.PAPERCLIP_WAKE_COMMENT_ID = wakeCommentId;
+      env.NEXUS_WAKE_COMMENT_ID = wakeCommentId;
     }
     if (approvalId) {
-      env.PAPERCLIP_APPROVAL_ID = approvalId;
+      env.NEXUS_APPROVAL_ID = approvalId;
     }
     if (approvalStatus) {
-      env.PAPERCLIP_APPROVAL_STATUS = approvalStatus;
+      env.NEXUS_APPROVAL_STATUS = approvalStatus;
     }
     if (linkedIssueIds.length > 0) {
-      env.PAPERCLIP_LINKED_ISSUE_IDS = linkedIssueIds.join(",");
+      env.NEXUS_LINKED_ISSUE_IDS = linkedIssueIds.join(",");
     }
-    refreshPaperclipWorkspaceEnvForExecution({
+    refreshNexusWorkspaceEnvForExecution({
       env,
       envConfig,
       workspaceCwd: effectiveWorkspaceCwd,
@@ -1000,25 +1000,25 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       executionCwd: effectiveExecutionCwd,
     });
     if (targetWorkspaceRealization) {
-      env.PAPERCLIP_WORKSPACE_REALIZATION_MODE = targetWorkspaceRealization.mode;
-      env.PAPERCLIP_WORKSPACE_AUTHORITATIVE_ROOT = targetWorkspaceRealization.authoritativeRoot;
+      env.NEXUS_WORKSPACE_REALIZATION_MODE = targetWorkspaceRealization.mode;
+      env.NEXUS_WORKSPACE_AUTHORITATIVE_ROOT = targetWorkspaceRealization.authoritativeRoot;
     }
     if (runtimeServiceIntents.length > 0) {
-      env.PAPERCLIP_RUNTIME_SERVICE_INTENTS_JSON = JSON.stringify(runtimeServiceIntents);
+      env.NEXUS_RUNTIME_SERVICE_INTENTS_JSON = JSON.stringify(runtimeServiceIntents);
     }
     if (runtimeServices.length > 0) {
-      env.PAPERCLIP_RUNTIME_SERVICES_JSON = JSON.stringify(runtimeServices);
+      env.NEXUS_RUNTIME_SERVICES_JSON = JSON.stringify(runtimeServices);
     }
     if (runtimePrimaryUrl) {
-      env.PAPERCLIP_RUNTIME_PRIMARY_URL = runtimePrimaryUrl;
+      env.NEXUS_RUNTIME_PRIMARY_URL = runtimePrimaryUrl;
     }
     env.CODEX_HOME = remoteCodexHome ?? effectiveCodexHome;
     if (ctx.observability && (observabilityProfile || observabilityPreparationFailed)) applyObservabilityEnvironment(env, ctx.observability);
     if (authToken) {
-      env.PAPERCLIP_API_KEY = authToken;
+      env.NEXUS_API_KEY = authToken;
     }
-    if (executionTargetIsRemote && adapterExecutionTargetUsesPaperclipBridge(runtimeExecutionTarget)) {
-      paperclipBridge = await startAdapterExecutionTargetPaperclipBridge({
+    if (executionTargetIsRemote && adapterExecutionTargetUsesNexusBridge(runtimeExecutionTarget)) {
+      nexusBridge = await startAdapterExecutionTargetNexusBridge({
         runId,
         target: runtimeExecutionTarget,
         enableSandboxDuplexBridge: adapterExecutionTargetEnablesSandboxDuplexBridge(runtimeExecutionTarget),
@@ -1026,11 +1026,11 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         runtimeRootDir: preparedExecutionTargetRuntime?.runtimeRootDir,
         adapterKey: "codex",
         timeoutSec,
-        hostApiToken: env.PAPERCLIP_API_KEY,
+        hostApiToken: env.NEXUS_API_KEY,
         onLog,
       });
-      if (paperclipBridge) {
-        Object.assign(env, paperclipBridge.env);
+      if (nexusBridge) {
+        Object.assign(env, nexusBridge.env);
       }
     }
     const effectiveEnv = Object.fromEntries(
@@ -1058,7 +1058,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
             networkScope,
             networkAllowlist: parseLocalProcessNetworkAllowlist(config.networkAllowlist),
             networkTrustedUrls: [
-              paperclipBaseEnv.PAPERCLIP_API_URL,
+              nexusBaseEnv.NEXUS_API_URL,
               ...runtimeMcpGateways.map((gateway) => gateway.endpointPath),
             ],
             command: asString(config.filesystemSandboxCommand, "bwrap"),
@@ -1070,7 +1070,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         .join(" and ");
       await onLog(
         "stdout",
-        `[paperclip] Confining Codex with ${scopes} scope.\n`,
+        `[nexus] Confining Codex with ${scopes} scope.\n`,
       );
     }
     const runtimeEnv = Object.fromEntries(
@@ -1102,7 +1102,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       if (!qualified) {
         await observabilityProfile.cleanup();
         observabilityProfile = null;
-        await onLog("stderr", "[paperclip] Company observability was not applied: this Codex executable is not the qualified 0.160.0 release.\n");
+        await onLog("stderr", "[nexus] Company observability was not applied: this Codex executable is not the qualified 0.160.0 release.\n");
       }
     }
     const loggedEnv = buildInvocationEnvForLogs(env, {
@@ -1115,12 +1115,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     if (monitorResolution.mode === "disabled") {
       await onLog(
         "stdout",
-        `[paperclip] Codex output inactivity monitor is DISABLED via adapterConfig.outputInactivityTimeoutMs=null. Hung codex runs will only be detected by the platform-level silent-run safety net.\n`,
+        `[nexus] Codex output inactivity monitor is DISABLED via adapterConfig.outputInactivityTimeoutMs=null. Hung codex runs will only be detected by the platform-level silent-run safety net.\n`,
       );
     } else if (monitorResolution.mode === "default" && "reason" in monitorResolution) {
       await onLog(
         "stdout",
-        `[paperclip] Ignoring non-positive adapterConfig.outputInactivityTimeoutMs; falling back to default ${monitorResolution.timeoutMs}ms.\n`,
+        `[nexus] Ignoring non-positive adapterConfig.outputInactivityTimeoutMs; falling back to default ${monitorResolution.timeoutMs}ms.\n`,
       );
     }
     const runtimeSessionParams = parseObject(runtime.sessionParams);
@@ -1138,12 +1138,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     if (executionTargetIsRemote && runtimeSessionId && !canResumeSession) {
       await onLog(
         "stdout",
-        `[paperclip] Codex session "${runtimeSessionId}" does not match the current remote execution identity and will not be resumed in "${effectiveExecutionCwd}". Starting a fresh remote session.\n`,
+        `[nexus] Codex session "${runtimeSessionId}" does not match the current remote execution identity and will not be resumed in "${effectiveExecutionCwd}". Starting a fresh remote session.\n`,
       );
     } else if (runtimeSessionId && !canResumeSession) {
       await onLog(
         "stdout",
-        `[paperclip] Codex session "${runtimeSessionId}" was saved for cwd "${runtimeSessionCwd}" and will not be resumed in "${effectiveExecutionCwd}".\n`,
+        `[nexus] Codex session "${runtimeSessionId}" was saved for cwd "${runtimeSessionCwd}" and will not be resumed in "${effectiveExecutionCwd}".\n`,
       );
     }
     const instructionsFilePath = asString(config.instructionsFilePath, "").trim();
@@ -1160,12 +1160,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         const reason = err instanceof Error ? err.message : String(err);
         await onLog(
           "stdout",
-          `[paperclip] Warning: could not read agent instructions file "${instructionsFilePath}": ${reason}\n`,
+          `[nexus] Warning: could not read agent instructions file "${instructionsFilePath}": ${reason}\n`,
         );
       }
     }
     const repoAgentsNote =
-      "Codex exec automatically applies repo-scoped AGENTS.md instructions from the current workspace; Paperclip does not currently suppress that discovery.";
+      "Codex exec automatically applies repo-scoped AGENTS.md instructions from the current workspace; Nexus does not currently suppress that discovery.";
     const bootstrapPromptTemplate = asString(config.bootstrapPromptTemplate, "");
     const templateData = {
       agentId: agent.id,
@@ -1176,7 +1176,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       run: { id: runId, source: "on_demand" },
       context,
     };
-    const continuationSummary = parseObject(context.paperclipContinuationSummary);
+    const continuationSummary = parseObject(context.nexusContinuationSummary);
     const continuationSummaryBody = asString(continuationSummary.body, "").trim() || null;
     const codexFallbackHandoffNote =
       forceFreshSession
@@ -1192,7 +1192,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         !resumeSessionId && bootstrapPromptTemplate.trim().length > 0
           ? renderTemplate(bootstrapPromptTemplate, templateData).trim()
           : "";
-      const { taskContextNote, wakePrompt } = selectPaperclipPromptSections(context, {
+      const { taskContextNote, wakePrompt } = selectNexusPromptSections(context, {
         resumedSession: Boolean(resumeSessionId),
         includeCommunicationGuidance: false,
       });
@@ -1257,10 +1257,10 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       if (preparedRuntimeConfig.notes.length > 0) {
         commandNotes.unshift(...preparedRuntimeConfig.notes);
       }
-      const renderedPrompt = shouldUseResumeDeltaPrompt || isPaperclipRecoveryWakePayload(context.paperclipWake)
+      const renderedPrompt = shouldUseResumeDeltaPrompt || isNexusRecoveryWakePayload(context.nexusWake)
         ? ""
         : renderTemplate(promptTemplate, templateData);
-      const sessionHandoffNote = asString(context.paperclipSessionHandoffMarkdown, "").trim();
+      const sessionHandoffNote = asString(context.nexusSessionHandoffMarkdown, "").trim();
       const prompt = joinPromptSections([
         promptInstructionsPrefix,
         renderedBootstrapPrompt,
@@ -1285,7 +1285,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         {
           resumeSessionId,
           skipGitRepoCheck: executionTargetIsSandbox,
-          networkAccess: env.PAPERCLIP_RUNNER_NETWORK_ACCESS !== "disabled",
+          networkAccess: env.NEXUS_RUNNER_NETWORK_ACCESS !== "disabled",
         },
       );
       const args = execArgs.args;
@@ -1339,7 +1339,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
                 const elapsedSec = Math.round(monitorElapsedMs / 1000);
                 const timeoutSecLabel = Math.round(monitorResolution.timeoutMs / 1000);
                 const logLine =
-                  `[paperclip] adapter.invoke ${message}; ` +
+                  `[nexus] adapter.invoke ${message}; ` +
                   `timeoutMs=${monitorResolution.timeoutMs} elapsedSinceLastEventMs=${monitorElapsedMs} ` +
                   `outputChunkCount=${state.outputChunkCount} outputBytes=${state.outputBytes} ` +
                   `parsedEvents=${state.parsedEventCount} processActivityCount=${state.processActivityCount} ` +
@@ -1410,8 +1410,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
             if (!cleaned.trim()) return;
             await onLog(stream, cleaned);
           },
-          runLogTail: paperclipBridge?.runLogTail,
-          settleRunDisposition: paperclipBridge?.settleRunDisposition,
+          runLogTail: nexusBridge?.runLogTail,
+          settleRunDisposition: nexusBridge?.settleRunDisposition,
           localProcessSandbox,
         });
         await accountingLog.flush();
@@ -1652,7 +1652,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       ) {
         await onLog(
           "stdout",
-          `[paperclip] Codex resume session "${sessionId}" is unavailable; retrying with a fresh session.\n`,
+          `[nexus] Codex resume session "${sessionId}" is unavailable; retrying with a fresh session.\n`,
         );
         const retry = await runAttempt(null);
         const retryResult = toResult(retry, true, true);
@@ -1674,21 +1674,21 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       try {
         await providerStop.collectBeforeRestore();
       } finally {
-        if (paperclipBridge) {
-          await paperclipBridge.stop();
+        if (nexusBridge) {
+          await nexusBridge.stop();
         }
         if (restoreRemoteWorkspace) {
           try {
             await onLog(
               "stdout",
-              `[paperclip] Restoring workspace changes from ${describeAdapterExecutionTarget(executionTarget)}.\n`,
+              `[nexus] Restoring workspace changes from ${describeAdapterExecutionTarget(executionTarget)}.\n`,
             );
             await restoreRemoteWorkspace();
           } catch (error) {
             await Promise.resolve(
               onLog(
                 "stderr",
-                `[paperclip] Failed to restore workspace changes from ${describeAdapterExecutionTarget(
+                `[nexus] Failed to restore workspace changes from ${describeAdapterExecutionTarget(
                   executionTarget,
                 )}: ${error instanceof Error ? error.message : String(error)}\n`,
               ),
@@ -1709,13 +1709,13 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       await fs.rm(stagedCodexHomeDir, { recursive: true, force: true }).catch(async (error) => {
         await onLog(
           "stderr",
-          `[paperclip] Failed to remove staged Codex home "${stagedCodexHomeDir}": ${
+          `[nexus] Failed to remove staged Codex home "${stagedCodexHomeDir}": ${
             error instanceof Error ? error.message : String(error)
           }\n`,
         );
       });
     }
-    // Restore the managed config.toml so PAPERCLIP_CODEX_PROVIDERS changes
+    // Restore the managed config.toml so NEXUS_CODEX_PROVIDERS changes
     // (or removal) between runs never leave stale provider routing behind. This
     // finally starts the moment prepareCodexRuntimeConfig returns, so a throw
     // anywhere in the remaining setup (skill injection, remote runtime

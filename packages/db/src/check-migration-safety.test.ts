@@ -482,7 +482,7 @@ describe("migration safety check", () => {
 
   it("honors suppressions only when they name a rule and reason", () => {
     const result = analyze(`
-      -- paperclip:migration-safety-ignore full-table-mutation-large-table: one-time metadata reset approved in issue thread
+      -- nexus:migration-safety-ignore full-table-mutation-large-table: one-time metadata reset approved in issue thread
       UPDATE "issue_comments"
       SET "derived_author_source" = NULL;
     `);

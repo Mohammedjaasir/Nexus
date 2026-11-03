@@ -1,6 +1,6 @@
 import { useMemo, type CSSProperties } from "react";
 import { Folder, GitBranch, GitBranchPlus, Monitor } from "lucide-react";
-import type { ExecutionWorkspaceSummary } from "@paperclipai/shared";
+import type { ExecutionWorkspaceSummary } from "@nexusai/shared";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { orderReusableExecutionWorkspaces } from "@/lib/reusable-execution-workspaces";
 

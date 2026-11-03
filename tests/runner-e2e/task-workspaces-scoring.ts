@@ -45,7 +45,7 @@ export function gradeTaskWorkspaces(value: TaskWorkspaceObservation) {
   check("deferred-idempotent-acquisition", complete && value.checkpoints.every(p => p.repositories.length === 1 &&
     p.repositories[0]?.requestedByIssueId === p.issue.id && p.repositories[0]?.requestKeys.length === 1 && p.repositories[0]?.requestKeys[0] === `repository-${value.nonce}`)
     && a?.state === "pending" && a.pinnedCommit === null && a.id === b?.id && a.id === c?.id
-    && /^\.paperclip-repositories\/task-repo-[a-f0-9]{24}$/.test(a.relativePath)
+    && /^\.nexus-repositories\/task-repo-[a-f0-9]{24}$/.test(a.relativePath)
     && a.relativePath === b?.relativePath && a.relativePath === c?.relativePath && b?.state === "ready" && c?.state === "ready"
     && /^[a-f0-9]{40,64}$/.test(b?.pinnedCommit ?? "") && b?.pinnedCommit === c?.pinnedCommit,
   "Duplicate preparation converges to one pending receipt, realized only on the next admission with a stable contained path and pinned source.");
@@ -79,5 +79,5 @@ export function isRepositoryPreparationReceipt(event: {
   const receipt = event.payload?.prpEvent;
   return event.eventType === "tool.execution.completed" && receipt?.sourceKind === "runner"
     && receipt.runId === runId && receipt.payload?.status === "completed"
-    && ["prepare_repository", "paperclip.prepare_repository", "paperclip_prepare_repository"].includes(receipt.payload.name ?? "");
+    && ["prepare_repository", "nexus.prepare_repository", "nexus_prepare_repository"].includes(receipt.payload.name ?? "");
 }

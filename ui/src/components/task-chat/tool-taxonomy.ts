@@ -207,9 +207,9 @@ const EXACT_ACTIONS: Record<string, ExactAction> = {
   write_document: { action: "update", running: "Writing a document", completed: "Wrote a document" },
   register_deliverable: { action: "create", running: "Registering a deliverable", completed: "Registered a deliverable" },
   finish_task: { action: "finish", running: "Reporting completion", completed: "Reported completion" },
-  paperclip_finish: { action: "finish", running: "Reporting completion", completed: "Reported completion" },
+  nexus_finish: { action: "finish", running: "Reporting completion", completed: "Reported completion" },
   block_task: { action: "block", running: "Reporting a blocker", completed: "Reported a blocker" },
-  paperclip_block: { action: "block", running: "Reporting a blocker", completed: "Reported a blocker" },
+  nexus_block: { action: "block", running: "Reporting a blocker", completed: "Reported a blocker" },
   request_review: { action: "request", running: "Requesting review", completed: "Requested review" },
   list_agents: { action: "list", running: "Listing agents", completed: "Listed agents" },
   get_agent: { action: "read", running: "Reading agent details", completed: "Read agent details" },
@@ -226,7 +226,7 @@ const EXACT_ACTIONS: Record<string, ExactAction> = {
   decide_approval: { action: "update", running: "Deciding an approval", completed: "Decided an approval" },
   comment_on_approval: { action: "post", running: "Commenting on an approval", completed: "Commented on an approval" },
   schedule_wake: { action: "create", running: "Scheduling a wake-up", completed: "Scheduled a wake-up", family: "wait" },
-  generic_api_request: { action: "request", running: "Calling the Paperclip API", completed: "Called the Paperclip API" },
+  generic_api_request: { action: "request", running: "Calling the Nexus API", completed: "Called the Nexus API" },
 };
 
 const ACTION_PREFIXES: Record<Action, readonly string[]> = {
@@ -350,8 +350,8 @@ function defaultSummaryGroup(action: Action): ToolSummaryGroup {
   }
 }
 
-function paperclipSummaryGroup(action: Action): ToolSummaryGroup {
-  if (action === "read" || action === "list") return group("paperclip_read", "Paperclip read", "Paperclip reads");
+function nexusSummaryGroup(action: Action): ToolSummaryGroup {
+  if (action === "read" || action === "list") return group("nexus_read", "Nexus read", "Nexus reads");
   return group("task_operation", "task operation", "task operations");
 }
 
@@ -401,8 +401,8 @@ export function toolActivityPresentation(input: ToolActivityPresentationInput): 
     : transport === "mcp"
       ? "MCP"
       : undefined;
-  const summaryGroup = namespace.toLowerCase() === "paperclip"
-    ? paperclipSummaryGroup(action)
+  const summaryGroup = namespace.toLowerCase() === "nexus"
+    ? nexusSummaryGroup(action)
     : exact?.group ?? defaultSummaryGroup(action);
 
   return {

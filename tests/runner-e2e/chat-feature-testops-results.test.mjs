@@ -19,9 +19,9 @@ async function fixture(t, changes = {}) {
     environmentId: 'local', model: 'openrouter/deepseek/deepseek-v4.1-flash-1017', runtimeMode: 'native', attempt: 1,
     source: { sha: expected.targetSha }, status: 'passed', cleanup: 'passed', runIds: ['synthetic-run'], durationMs: 1234,
     matcherResults: [{ matcher: { kind: 'json_path', path: 'chatFeature.createdTask', expected: true }, passed: true }], screenshots: [shot], ...changes };
-  const files = new Map([['normalized-results.json', Buffer.from(JSON.stringify({ schema: 'paperclip.runner-e2e.campaign/v2', campaignId: 'gha-123-1', complete: false, results: [result] }))],
+  const files = new Map([['normalized-results.json', Buffer.from(JSON.stringify({ schema: 'nexus.runner-e2e.campaign/v2', campaignId: 'gha-123-1', complete: false, results: [result] }))],
     ['junit.xml', Buffer.from('<testsuite tests="1"/>')], [`evidence/${executionId}/attempt-1/final-state.png`, png]]);
-  const binding = { schema: 'paperclip.chat-feature-testops-export/v1', ...expected, executionId, campaignId: 'gha-123-1', resultStatus: result.status, cleanup: result.cleanup,
+  const binding = { schema: 'nexus.chat-feature-testops-export/v1', ...expected, executionId, campaignId: 'gha-123-1', resultStatus: result.status, cleanup: result.cleanup,
     files: [...files].map(([name, bytes]) => ({ path: name, sha256: hash(bytes), bytes: bytes.length })) };
   for (const [name, bytes] of files) { await mkdir(path.dirname(path.join(root, name)), { recursive: true }); await writeFile(path.join(root, name), bytes); }
   await writeFile(path.join(root, 'binding.json'), JSON.stringify(binding));

@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { agents, companies, heartbeatRuns, issueComments, issues, type Db } from "@paperclipai/db";
+import { agents, companies, heartbeatRuns, issueComments, issues, type Db } from "@nexusai/db";
 import { initializeRunIdentity } from "../../services/run-identity.js";
 
 export async function seedIdentityProjection(db: Db) {
@@ -8,8 +8,8 @@ export async function seedIdentityProjection(db: Db) {
   await db.insert(agents).values({ id: agentId, companyId, name: "Identity reader", adapterType: "process" });
   await db.insert(issues).values({ id: issueId, companyId, title: "Identity task", assigneeAgentId: agentId,
     conversationAgentId: agentId, conversationUserId: "operator", conversationState: "active", conversationSessionGeneration: 3, workMode: "standard" });
-  const payloads = { contextSnapshot: { issueId, conversationSessionGeneration: 3, paperclipSkillTest: false,
-    projectId: randomUUID(), routineId: randomUUID(), paperclipIssue: { id: issueId, projectId: randomUUID(),
+  const payloads = { contextSnapshot: { issueId, conversationSessionGeneration: 3, nexusSkillTest: false,
+    projectId: randomUUID(), routineId: randomUUID(), nexusIssue: { id: issueId, projectId: randomUUID(),
       responsibleUserId: "nested-user", document: randomBytes(8_192).toString("base64") },
     savedInput: randomBytes(96 * 1_024).toString("base64") },
     runnerProfileJson: { nativeExecutionInput: { savedInput: randomBytes(48 * 1_024).toString("base64") },

@@ -24,7 +24,7 @@ test('inspect reconciles exact historical case identity and discards integration
 });
 
 test('multiple alias identities, foreign project and incomplete metadata stop before mutation', async () => {
-  const conflicts = await inspectChatMetadata(inspectApi([caseRow, { ...caseRow, id: 92, fullName: 'paperclip.Product E2E.chat-features.tasks.create-backlog' }]));
+  const conflicts = await inspectChatMetadata(inspectApi([caseRow, { ...caseRow, id: 92, fullName: 'nexus.Product E2E.chat-features.tasks.create-backlog' }]));
   assert.equal(conflicts.caseConflict, true); assert.deepEqual(conflicts.cases.map(row => row.id), [91, 92]);
   await assert.rejects(ensureChatPlan(() => assert.fail('no ambiguous write'), conflicts, () => assert.fail('no ambiguous marker'))); 
   await assert.rejects(inspectChatMetadata(inspectApi([{ ...caseRow, projectId: 2 }])), /identity_invalid/);
@@ -114,7 +114,7 @@ const launchEnv = { ...publicEnv, ALLURE_JOB_RUN_ID: '', CHAT_TESTOPS_OPERATION_
 const ownRun = { id: 123, workflow_id: 99, run_attempt: 1, run_number: 2, head_sha: 'a'.repeat(40), head_branch: 'master', event: 'workflow_dispatch',
   repository: { full_name: 'paperclipai/paperclip', private: false }, actor: { id: 34892728 }, triggering_actor: { id: 34892728 } };
 async function fence(env = launchEnv, changes = {}, workflowChanges = {}, repoChanges = {}) {
-  return admitLaunchPlan(env, async url => ({ ok: true, text: async () => JSON.stringify(url.endsWith('/repos/paperclipai/paperclip') ? { full_name: 'paperclipai/paperclip', private: false, default_branch: 'master', ...repoChanges }
+  return admitLaunchPlan(env, async url => ({ ok: true, text: async () => JSON.stringify(url.endsWith('/repos/nexusai/nexus') ? { full_name: 'paperclipai/paperclip', private: false, default_branch: 'master', ...repoChanges }
     : url.includes('/actions/runs/') ? { ...ownRun, ...changes }
     : { id: 99, path: '.github/workflows/chat-feature-testops.yml', state: 'active', ...workflowChanges }) }));
 }
@@ -150,7 +150,7 @@ test('backlog launch preflight sends the typed UTF-8 name filter required by Tes
   const server = launchServer();
   const api = async (route, ...args) => {
     if (route.startsWith('/api/launch?')) {
-      const wire = new URL(route, 'https://paperclip.testops.cloud').searchParams.get('search');
+      const wire = new URL(route, 'https://nexus.testops.cloud').searchParams.get('search');
       let filters;
       try { filters = JSON.parse(Buffer.from(wire, 'base64').toString('utf8')); }
       catch { throw new Error('TestOps HTTP 400: typed launch search required'); }
@@ -205,7 +205,7 @@ test('documented stable-ID list pagination is complete before locally matching e
       return { number, totalPages: 2, totalElements: 2, content: [{ id: number ? 92 : 91 }] };
     }
     if (route === '/api/testcase/91') return { ...caseRow, description: 'SYNTHETIC_PRIVATE_DESCRIPTION' };
-    if (route === '/api/testcase/92') return { id: 92, projectId: 1, fullName: 'paperclip.Product E2E.unrelated.case', automated: true, expectedResult: 'DO_NOT_EXPORT' };
+    if (route === '/api/testcase/92') return { id: 92, projectId: 1, fullName: 'nexus.Product E2E.unrelated.case', automated: true, expectedResult: 'DO_NOT_EXPORT' };
     return inspectApi([], [])(route);
   };
   const result = await inspectChatMetadata(api);
@@ -552,7 +552,7 @@ test('official observed legacy and existing workflow URLs pass all three actual 
 });
 
 test('official legacy URL admission rejects foreign workflow repo query credentials and fragment in all consumers', async () => {
-  for (const url of [observedLegacyJobUrl.replace('/paperclip/actions', '/paperclip-cloud/actions'),
+  for (const url of [observedLegacyJobUrl.replace('/nexus/actions', '/nexus-cloud/actions'),
     observedLegacyJobUrl.replace('Chat+feature+TestOps', 'Other+workflow'), `${observedLegacyJobUrl}&extra=1`,
     observedLegacyJobUrl.replace('https://github.com', 'https://user:password@github.com'), `${observedLegacyJobUrl}#extra`]) {
     await assert.rejects(validateChatSelection(selectedApi({ '/api/job/7': { id: 7, type: 'github', url } }), publicEnv), /chat_testops_job_mismatch/);

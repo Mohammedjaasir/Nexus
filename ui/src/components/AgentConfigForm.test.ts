@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { Environment } from "@paperclipai/shared";
+import type { Environment } from "@nexusai/shared";
 import {
-  resolvePaperclipRunnerTransitionModel,
+  resolveNexusRunnerTransitionModel,
   supportsAdapterModelRefresh,
 } from "./AgentConfigForm";
 import { resolveForcedKubernetesEnvironment } from "../lib/forced-kubernetes-environment";
@@ -15,22 +15,22 @@ describe("supportsAdapterModelRefresh", () => {
 
   it("keeps the refresh action hidden for adapters without a live refresh hook", () => {
     expect(supportsAdapterModelRefresh("opencode_local")).toBe(true);
-    expect(supportsAdapterModelRefresh("paperclip_runner")).toBe(true);
+    expect(supportsAdapterModelRefresh("nexus_runner")).toBe(true);
     expect(supportsAdapterModelRefresh("process")).toBe(false);
   });
 });
 
-describe("resolvePaperclipRunnerTransitionModel", () => {
+describe("resolveNexusRunnerTransitionModel", () => {
   it("preserves Claude custom model IDs", () => {
-    expect(resolvePaperclipRunnerTransitionModel("claude_local", "custom-claude-model")).toBe("custom-claude-model");
+    expect(resolveNexusRunnerTransitionModel("claude_local", "custom-claude-model")).toBe("custom-claude-model");
   });
   it("preserves an explicit model from codex_local", () => {
-    expect(resolvePaperclipRunnerTransitionModel("codex_local", "gpt-5.5"))
+    expect(resolveNexusRunnerTransitionModel("codex_local", "gpt-5.5"))
       .toBe("gpt-5.5");
   });
 
   it("uses the current Codex default when the source model is blank", () => {
-    expect(resolvePaperclipRunnerTransitionModel("codex_local", ""))
+    expect(resolveNexusRunnerTransitionModel("codex_local", ""))
       .toBe("gpt-5.6-sol");
   });
 });

@@ -37,7 +37,7 @@ function stepScript(name) {
 }
 
 function executeStep(name, overrides = {}) {
-  const directory = mkdtempSync(path.join(tmpdir(), "paperclip-routing-test-"));
+  const directory = mkdtempSync(path.join(tmpdir(), "nexus-routing-test-"));
   const output = path.join(directory, "output");
   try {
     const gh = path.join(directory, "gh");
@@ -83,7 +83,7 @@ function executeStep(name, overrides = {}) {
   }
 }
 
-const awsRunner = "runs-on/fleet=paperclip-public-pr-x64/env=public-ci";
+const awsRunner = "runs-on/fleet=nexus-public-pr-x64/env=public-ci";
 const stackedBase = {
   EVENT_BASE_REF: "trusted-stack-base",
   TEST_BASE_REF: "trusted-stack-base",

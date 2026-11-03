@@ -19,8 +19,8 @@ import { notifyVoiceChange } from "./voice/voice-recovery-notifications.js";
 import { notifyToolConnectionHealth } from "./tool-connection-health-notifications.js";
 import { notifyExternalObjectRefresh } from "./external-object-refresh-notifications.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
-import type { Db } from "@paperclipai/db";
-import { companies, instanceSettings } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { companies, instanceSettings } from "@nexusai/db";
 
 /**
  * A `Db` or an open transaction handle — the subset of query builders the
@@ -35,7 +35,7 @@ export type InstanceSettingsWriteDb = Pick<
 import {
   DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE,
   DEFAULT_BACKUP_RETENTION,
-  PAPERCLIP_CLOUD_MANAGED_BY,
+  NEXUS_CLOUD_MANAGED_BY,
   instanceGeneralSettingsSchema,
   type InstanceGeneralSettings,
   instanceExperimentalSettingsSchema,
@@ -47,12 +47,12 @@ import {
   type InstanceSettings,
   type PatchInstanceSettings,
   type PatchInstanceExperimentalSettings,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   INSTANCE_FEATURE_CATALOG,
   applyOperatorGeneralDefaults,
   stripOperatorGeneralEchoes,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { eq } from "drizzle-orm";
 import { getManagedInstanceConfig, type ManagedInstanceConfig } from "./managed-config.js";
 import { getOperatorSettingDefaults } from "./setting-defaults.js";
@@ -96,7 +96,7 @@ export function isTruthyRuntimeEnvValue(value: string | undefined) {
 }
 
 function getRuntimeInstanceId(env: Record<string, string | undefined>) {
-  const instanceId = env.PAPERCLIP_INSTANCE_ID?.trim();
+  const instanceId = env.NEXUS_INSTANCE_ID?.trim();
   return instanceId ? instanceId : null;
 }
 
@@ -144,7 +144,7 @@ export function applyExperimentalSettingsPatch(
   }
 
   const runtimeEnv = options.runtimeEnv ?? process.env;
-  if (!isTruthyRuntimeEnvValue(runtimeEnv.PAPERCLIP_IN_WORKTREE)) {
+  if (!isTruthyRuntimeEnvValue(runtimeEnv.NEXUS_IN_WORKTREE)) {
     return nextExperimental;
   }
 
@@ -208,7 +208,7 @@ export async function resolveWorktreeRunExecutionActivationState(options: {
   runtimeEnv?: Record<string, string | undefined>;
 }): Promise<WorktreeRunExecutionActivationState> {
   const runtimeEnv = options.runtimeEnv ?? process.env;
-  if (!isTruthyRuntimeEnvValue(runtimeEnv.PAPERCLIP_IN_WORKTREE)) {
+  if (!isTruthyRuntimeEnvValue(runtimeEnv.NEXUS_IN_WORKTREE)) {
     return suppressWorktreeRunExecution("not_worktree_runtime");
   }
   try {
@@ -264,7 +264,7 @@ export function normalizeExperimentalSettings(raw: unknown): InstanceExperimenta
       enableChatConnectors: parsed.data.enableChatConnectors ?? false,
       enableGitHubReviewBots: parsed.data.enableGitHubReviewBots ?? false,
       enableMemoryConnectors: parsed.data.enableMemoryConnectors ?? false,
-      enablePaperclipNotebook: parsed.data.enablePaperclipNotebook ?? false,
+      enableNexusNotebook: parsed.data.enableNexusNotebook ?? false,
       enableCases: parsed.data.enableCases ?? false,
       enableAgentChat: parsed.data.enableAgentChat ?? false,
       enableCombinedInboxTasks: parsed.data.enableCombinedInboxTasks ?? false,
@@ -283,7 +283,7 @@ export function normalizeExperimentalSettings(raw: unknown): InstanceExperimenta
       enableFastResponses: parsed.data.enableFastResponses ?? false,
       enableGoalsSidebarLink: parsed.data.enableGoalsSidebarLink ?? false,
       enableServerInfoDebugView: parsed.data.enableServerInfoDebugView ?? false,
-      enablePaperclipDeveloperMode: parsed.data.enablePaperclipDeveloperMode ?? false,
+      enableNexusDeveloperMode: parsed.data.enableNexusDeveloperMode ?? false,
       enableSimplifiedEnglishInteractions: parsed.data.enableSimplifiedEnglishInteractions ?? false,
       enableFirstTaskPlanProposal: parsed.data.enableFirstTaskPlanProposal ?? false,
       autoRestartDevServerWhenIdle: parsed.data.autoRestartDevServerWhenIdle ?? false,
@@ -321,7 +321,7 @@ export function normalizeExperimentalSettings(raw: unknown): InstanceExperimenta
     enableChatConnectors: false,
     enableGitHubReviewBots: false,
     enableMemoryConnectors: false,
-    enablePaperclipNotebook: false,
+    enableNexusNotebook: false,
     enableCases: false,
     enableAgentChat: false,
     enableCombinedInboxTasks: false,
@@ -340,7 +340,7 @@ export function normalizeExperimentalSettings(raw: unknown): InstanceExperimenta
     enableFastResponses: false,
     enableGoalsSidebarLink: false,
     enableServerInfoDebugView: false,
-    enablePaperclipDeveloperMode: false,
+    enableNexusDeveloperMode: false,
     enableSimplifiedEnglishInteractions: false,
     enableFirstTaskPlanProposal: false,
     autoRestartDevServerWhenIdle: false,
@@ -383,7 +383,7 @@ export function applyManagedExperimentalOverlay(
     // document during rollout, but never let retired flags disable Apps or MCP aggregators.
     if (key === "enableApps" || key === "enableMcpAggregators") continue;
     next[key] = value;
-    managedKeys[key] = { managed: true, managedBy: PAPERCLIP_CLOUD_MANAGED_BY };
+    managedKeys[key] = { managed: true, managedBy: NEXUS_CLOUD_MANAGED_BY };
   }
   return { experimental: next, managedKeys };
 }
@@ -465,7 +465,7 @@ export function stripCloudCatalogDefaultEchoes(
 }
 
 export function instanceSettingsService(db: Db, options: InstanceSettingsServiceOptions = {}) {
-  // Fail closed: a malformed PAPERCLIP_MANAGED_CONFIG throws here (and at
+  // Fail closed: a malformed NEXUS_MANAGED_CONFIG throws here (and at
   // boot in index.ts) rather than silently running without the overlay.
   const managedConfig = getManagedInstanceConfig(options.runtimeEnv ?? process.env);
   const staging = isCloudStagingInstance(options.runtimeEnv ?? process.env);
@@ -476,7 +476,7 @@ export function instanceSettingsService(db: Db, options: InstanceSettingsService
         .filter(([key, enabled]) => enabled || !isCloudStagingExperimentalSetting(key))),
     }
     : managedConfig;
-  // Same posture for PAPERCLIP_SETTING_DEFAULTS: parsed once, applied per
+  // Same posture for NEXUS_SETTING_DEFAULTS: parsed once, applied per
   // read, never persisted (see applyOperatorGeneralDefaults) — including on
   // the write path, where a full-GET echo of the overlaid value is stripped
   // back to the schema default (see stripOperatorGeneralEchoes).
@@ -610,7 +610,7 @@ export function instanceSettingsService(db: Db, options: InstanceSettingsService
     updateExperimental: async (patch: PatchInstanceExperimentalSettings): Promise<InstanceSettings> => {
       for (const [key, enabled] of Object.entries(managedConfig?.features ?? {})) {
         if (enabled && patch[key as ManagedExperimentalFeatureKey] === false) {
-          throw forbidden(`${key} is enabled by Paperclip Cloud and cannot be disabled on this instance`, {
+          throw forbidden(`${key} is enabled by Nexus Cloud and cannot be disabled on this instance`, {
             code: "settings_operator_managed",
           });
         }

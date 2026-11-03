@@ -1,4 +1,4 @@
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 import {
   attachRemoteRunnerRecoveryDiagnostic,
   RemoteRunnerRecoveryError,

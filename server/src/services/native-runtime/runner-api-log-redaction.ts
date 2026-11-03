@@ -5,7 +5,7 @@ const RECEIPT_FIELDS = new Set(["operationId", "apiOperationId", "callId", "ok",
 const REDACTED_FIELDS = new Set([...RECEIPT_FIELDS, "data", "apiPayloadRedacted", "apiPayloadSha256"]);
 const CASE_OPERATIONS = new Set(["create_case", "read_case", "update_case", "read_case_document", "write_case_document", "list_workflows", "read_workflow", "create_workflow", "update_workflow"]);
 const SCHEMA_DENIAL_STRINGS = ["provider", "operationId", "callId", "message", "inputSchemaGuidance"];
-const SCHEMA_DENIAL_FIELDS = new Set([...SCHEMA_DENIAL_STRINGS, "code", "paperclipExecuted"]);
+const SCHEMA_DENIAL_FIELDS = new Set([...SCHEMA_DENIAL_STRINGS, "code", "nexusExecuted"]);
 
 /** Only use after the PRP event's run and source bindings have been checked. */
 export function redactRunnerApiEvent<T extends { eventType: string; sourceKind: string; payload: unknown }>(event: T): T {
@@ -13,7 +13,7 @@ export function redactRunnerApiEvent<T extends { eventType: string; sourceKind: 
   // These scalar fields are authored by the runner's validation boundary, not
   // an API request or result. Never apply this exception inside arbitrary data.
   if (event.sourceKind === "runner" && event.eventType === "harness.diagnostic"
-    && payload.code === "semantic_tool_denied" && payload.paperclipExecuted === false
+    && payload.code === "semantic_tool_denied" && payload.nexusExecuted === false
     && Object.keys(payload).every(key => SCHEMA_DENIAL_FIELDS.has(key))
     && SCHEMA_DENIAL_STRINGS.every(key => typeof payload[key] === "string"
       && payload[key].length > 0 && payload[key].length <= 512 && /^[\x20-\x7e]+$/.test(payload[key]))) {

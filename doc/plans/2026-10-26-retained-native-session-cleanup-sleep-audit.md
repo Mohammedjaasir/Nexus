@@ -508,7 +508,7 @@ Local repair evidence preserves unsuccessful attempts: the first module repair
 still targeted the old import; the initial identity update retained an old digest
 literal; an overbroad replacement changed an unrelated historical expectation and
 was restored before acceptance. The first isolated Runner settlement attempt had
-no built `paperclip-runnerd` and failed all 19 cases at setup; the new checkout
+no built `nexus-runnerd` and failed all 19 cases at setup; the new checkout
 must build that binary before those tests count as executed.
 
 The full default local suite at the published head remains separate. It reported
@@ -609,7 +609,7 @@ expiries remain real obligations; this change does not discard them to claim qui
 
 The current profile 80 runtime selection passes 130 cases across four files in
 125.90 seconds. One existing opt-in closed Pi snapshot case is skipped because
-`PAPERCLIP_TEST_PI_DISTRIBUTION_ROOT` is not set. This skip is not counted as
+`NEXUS_TEST_PI_DISTRIBUTION_ROOT` is not set. This skip is not counted as
 acceptance of a live Pi installation. The Copilot installation/history and
 transport-settlement files have no skipped cases.
 

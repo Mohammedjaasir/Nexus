@@ -4,8 +4,8 @@ import { writeFile } from "node:fs/promises";
 import { cpus, platform, release, totalmem } from "node:os";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { companies, createDb, documents, issueComments, issueDocuments, issues, getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "@paperclipai/db";
-import { companySearchQuerySchema } from "@paperclipai/shared";
+import { companies, createDb, documents, issueComments, issueDocuments, issues, getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "@nexusai/db";
+import { companySearchQuerySchema } from "@nexusai/shared";
 import { companySearchService } from "../services/company-search.js";
 import { parseTaskSearch, taskSearchCtes, taskSearchScore } from "../services/task-search.js";
 import { issueService } from "../services/issues.js";
@@ -25,7 +25,7 @@ describe.skipIf(!support.supported)("task search relevance rubric (real PostgreS
   const report: Array<{ engine: string; name: string; q: string; keys: string[]; ndcg5: number; reciprocalRank: number; ms: number }> = [];
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-search-quality-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-search-quality-");
     db = createDb(tempDb.connectionString);
     postgresVersion = String((await db.execute(sql`SELECT version()`))[0]!.version);
     await db.insert(companies).values({ id: companyId, name: "Search benchmark", issuePrefix: "EVAL" });

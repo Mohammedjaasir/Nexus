@@ -4,7 +4,7 @@ import {
   heartbeatRunEvents,
   nativeRunFinalizations,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { redactCurrentUserText, type CurrentUserRedactionOptions } from "../../log-redaction.js";
 import type { RunLogHandle, RunLogReadOptions, RunLogStore } from "../run-log-store.js";
 import { instanceSettingsService } from "../instance-settings.js";

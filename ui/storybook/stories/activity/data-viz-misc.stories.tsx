@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { HeartbeatRun, Issue } from "@paperclipai/shared";
+import type { HeartbeatRun, Issue } from "@nexusai/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
@@ -50,15 +50,15 @@ import {
   storybookAgents,
   storybookIssues,
   storybookLiveRuns,
-} from "../../fixtures/paperclipData";
+} from "../../fixtures/nexusData";
 
 const companyId = "company-storybook";
 const primaryIssueId = "issue-storybook-1";
 
 function StoryShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="paperclip-story">
-      <main className="paperclip-story__inner space-y-6">{children}</main>
+    <div className="nexus-story">
+      <main className="nexus-story__inner space-y-6">{children}</main>
     </div>
   );
 }
@@ -73,9 +73,9 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="paperclip-story__frame overflow-hidden">
+    <section className="nexus-story__frame overflow-hidden">
       <div className="border-b border-border px-5 py-4">
-        <div className="paperclip-story__label">{eyebrow}</div>
+        <div className="nexus-story__label">{eyebrow}</div>
         <h2 className="mt-1 text-xl font-semibold">{title}</h2>
       </div>
       <div className="p-5">{children}</div>
@@ -192,8 +192,8 @@ const kanbanIssues: Issue[] = [
 ];
 
 const packageFiles: Record<string, string> = {
-  "COMPANY.md": "---\nname: Paperclip Storybook\nkind: company\n---\nFixture company package for UI review.",
-  "agents/codexcoder/AGENTS.md": "---\nname: CodexCoder\nskills:\n  - frontend-design\n  - paperclip\n---\nShips product UI and verifies changes.",
+  "COMPANY.md": "---\nname: Nexus Storybook\nkind: company\n---\nFixture company package for UI review.",
+  "agents/codexcoder/AGENTS.md": "---\nname: CodexCoder\nskills:\n  - frontend-design\n  - nexus\n---\nShips product UI and verifies changes.",
   "agents/qachecker/AGENTS.md": "---\nname: QAChecker\nskills:\n  - web-design-guidelines\n---\nReviews browser behavior and acceptance criteria.",
   "projects/board-ui/PROJECT.md": "---\ntitle: Board UI\nstatus: in_progress\n---\nStorybook and operator control-plane surfaces.",
   "tasks/PAP-1641.md": "---\ntitle: Create super-detailed storybooks\npriority: high\n---\nParent issue for Storybook coverage.",
@@ -558,7 +558,7 @@ function SwipeToArchiveDemo({ disabled = false }: { disabled?: boolean }) {
 
 function CompanyPatternIconMatrix() {
   const companies = [
-    "Paperclip Storybook",
+    "Nexus Storybook",
     "Research Bureau",
     "Launch Ops",
     "Atlas Finance",
@@ -591,7 +591,7 @@ function CompanyPatternIconMatrix() {
 function AsciiArtAnimationDemo({ loading = false }: { loading?: boolean }) {
   return (
     <StoryShell>
-      <Section eyebrow="AsciiArtAnimation" title={loading ? "Loading art surface" : "Animated ASCII paperclip field"}>
+      <Section eyebrow="AsciiArtAnimation" title={loading ? "Loading art surface" : "Animated ASCII nexus field"}>
         <div className="h-[360px] overflow-hidden rounded-xl border border-border bg-background">
           {loading ? (
             <div className="flex h-full items-center justify-center gap-3 text-sm text-muted-foreground">
@@ -651,7 +651,7 @@ const meta = {
           "Fixture-backed stories for charting, board, filtering, live run, onboarding, package preview, entity row, mobile gesture, generated icon, ASCII animation, and skeleton states.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "activity/overview"
       ],

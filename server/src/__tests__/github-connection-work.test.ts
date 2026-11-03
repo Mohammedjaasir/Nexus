@@ -7,10 +7,10 @@ import { createServer, type Server } from "node:http";
 import { once } from "node:events";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { applyPendingMigrations, companies, activityLog, companySecrets, connectionEventDeliveries, connectionGrants, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, toolApplications, toolConnections } from "@paperclipai/db";
+import { applyPendingMigrations, companies, activityLog, companySecrets, connectionEventDeliveries, connectionGrants, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, toolApplications, toolConnections } from "@nexusai/db";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createGitHubGrantContinuity, githubGrantContinuityDeadline, githubContinuityRevision } from "../services/tool-access/github-grant-continuity.js";
-import { createPaperclipCloudConnector } from "../services/paperclip-cloud-connector.js";
+import { createNexusCloudConnector } from "../services/nexus-cloud-connector.js";
 import { githubConnectionEventService } from "../services/github-connection-events.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { registerGitHubConnectionContinuityWork, registerGitHubConnectionEventWork } from "../services/github-connection-work.js";
@@ -20,11 +20,11 @@ import { createOAuthRefreshLeases } from "../services/tool-access/oauth/refresh-
 import { createOAuthGrantRefresh } from "../services/tool-access/oauth/grant-refresh.js";
 import { secretService } from "../services/secrets.js";
 import { writeConnectionCredential } from "../services/connection-credentials.js";
-import { GITHUB_CONNECTOR_PROFILES } from "@paperclipai/shared";
+import { GITHUB_CONNECTOR_PROFILES } from "@nexusai/shared";
 import { notifyToolConnectionHealth } from "../services/tool-connection-health-notifications.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const databaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_GITHUB_WORK_TEST_DATABASE_URL");
+const databaseUrl = resolveExternalTestDatabaseUrl("NEXUS_GITHUB_WORK_TEST_DATABASE_URL");
 const embeddedSupport = databaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeDatabase = embeddedSupport.supported ? describe : describe.skip;
 
@@ -44,7 +44,7 @@ describeDatabase("GitHub coordinator with PostgreSQL and controlled Cloud HTTP (
   let companyIds: string[] = [];
   beforeAll(async () => {
     if (databaseUrl) await applyPendingMigrations(databaseUrl);
-    else temporaryDatabase = await startEmbeddedPostgresTestDatabase("paperclip-github-work-");
+    else temporaryDatabase = await startEmbeddedPostgresTestDatabase("nexus-github-work-");
     // Only scheduler time is virtual here. Driver housekeeping must not expire
     // a real socket connection while that fake clock advances across idle windows.
     db = createDb(databaseUrl ?? temporaryDatabase!.connectionString, {
@@ -129,7 +129,7 @@ describeDatabase("GitHub coordinator with PostgreSQL and controlled Cloud HTTP (
         userId: "42", login: "octocat", installationCount: ids.length, repositoryCount: 1, repositorySelection: "all", installationIds: ids,
         installationOwnerLogins: ["octocat"], accessRevision: randomUUID(), lastAccessRefreshAt: new Date().toISOString(), webhookHealth: "healthy",
       } } }).returning();
-    const connector = createPaperclipCloudConnector({ config: { baseUrl: origin, instanceId: "instance", environment: "test",
+    const connector = createNexusCloudConnector({ config: { baseUrl: origin, instanceId: "instance", environment: "test",
       signPrivateKey: signing.privateKey.export({ format: "jwk" }).d!, sealPrivateKey: sealing.privateKey.export({ format: "jwk" }).d! } });
     type Dependencies = Parameters<typeof createGitHubGrantContinuity>[1];
     const dependencies: Dependencies = {
@@ -306,14 +306,14 @@ describeDatabase("GitHub coordinator with PostgreSQL and controlled Cloud HTTP (
 
   it("preserves webhook removal debt across an actual signed, held Cloud token rotation and lease cleanup", async () => {
     const f = await fixture(["101"]);
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "01234567890123456789012345678901");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "01234567890123456789012345678901");
     const refs = [];
     for (const path of ["oauth.access_token", "oauth.refresh_token"]) {
       const saved = await writeConnectionCredential(db, { companyId: f.company.id, connectionName: "GitHub", configPath: path, label: path, value: path, ownerUserId: "owner" });
       refs.push({ configPath: path, secretId: saved.secret.id, versionSelector: "latest" as const });
     }
-    const [connection] = await db.update(toolConnections).set({ credentialSource: "paperclip_vault", config: { ...f.connection.config,
-      oauth: { strategy: "paperclip_cloud_connector", connectorProfile: "github.code" } } }).where(eq(toolConnections.id, f.connection.id)).returning();
+    const [connection] = await db.update(toolConnections).set({ credentialSource: "nexus_vault", config: { ...f.connection.config,
+      oauth: { strategy: "nexus_cloud_connector", connectorProfile: "github.code" } } }).where(eq(toolConnections.id, f.connection.id)).returning();
     const [grant] = await db.update(connectionGrants).set({ credentialSecretRefs: refs }).where(eq(connectionGrants.id, f.grant.id)).returning();
     const getConnection = async () => (await db.select().from(toolConnections).where(eq(toolConnections.id, connection!.id)))[0]!;
     const store = createOAuthCredentialStore(db, secretService(db));
@@ -519,7 +519,7 @@ describeDatabase("GitHub coordinator with PostgreSQL and controlled Cloud HTTP (
 
   it("renews an installation created without metadata using the saved connection expiry", async () => {
     const f = await fixture();
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "01234567890123456789012345678901");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "01234567890123456789012345678901");
     try {
       const refs = [];
       for (const path of ["oauth.access_token", "oauth.refresh_token"]) {
@@ -527,7 +527,7 @@ describeDatabase("GitHub coordinator with PostgreSQL and controlled Cloud HTTP (
           value: path === "oauth.refresh_token" ? "saved-refresh" : "expired-access" });
         refs.push({ configPath: path, secretId: saved.secret.id, versionSelector: "latest" as const });
       }
-      await db.update(toolConnections).set({ credentialSource: "paperclip_vault", credentialPolicy: "shared", config: { oauth: {
+      await db.update(toolConnections).set({ credentialSource: "nexus_vault", credentialPolicy: "shared", config: { oauth: {
         provider: "fixture", tokenUrl: `${origin}/oauth/token`, clientId: "fixture-client", clientRegistrationSource: "dcr", clientTokenEndpointAuthMethod: "none",
         expiresAt: new Date(Date.now() - 60_000).toISOString(),
       } } }).where(eq(toolConnections.id, f.connection.id));

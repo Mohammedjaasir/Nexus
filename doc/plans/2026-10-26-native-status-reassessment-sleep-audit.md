@@ -841,7 +841,7 @@ cost for selected current history. A dedicated PostgreSQL 17 database now holds
 Every task initially selects its own completed decision; accepted products predate
 the assessment. This is distinct from 10,000 obsolete decisions on one task.
 Fixture: /tmp/sleep50-scale-fixture.sql and .log/.status; database
-paperclip_sleep50_scale_20261026_test (snapshot of the completed corpus database,
+nexus_sleep50_scale_20261026_test (snapshot of the completed corpus database,
 plus a separate synthetic company). All fixture inserts and measurements are
 local disposable test data, never deployed/customer data.
 
@@ -1040,7 +1040,7 @@ three workers; the explicit company authority boundary still wakes genuine globa
 changes. Actual coalesced input and concurrent Photon recovery exercise all three
 queues. Ten active Photon assertions produce zero hints/SELECTs per worker;
 three concurrent attention assertions produce one wake/SELECT, then return quiet.
-Paperclip callbacks and PostgreSQL are real; external Photon transport is mocked.
+Nexus callbacks and PostgreSQL are real; external Photon transport is mocked.
 
 Broad source `9fddb3f0b1157df32b64fb1f22e9d6e9624470e8` passes **2731
 distinct cases across 28 complete files**, with no skipped cases: 2458 across

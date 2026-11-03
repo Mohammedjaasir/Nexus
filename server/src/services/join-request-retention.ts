@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, isNull, lte, or, sql, type SQL } from "drizzle-orm";
-import { companies, decisionRetention, invites, joinRequests, type Db } from "@paperclipai/db";
+import { companies, decisionRetention, invites, joinRequests, type Db } from "@nexusai/db";
 import { DEFAULT_DECISION_ARCHIVE_DAYS } from "./decision-retention.js";
 import { createDecisionRetentionSweep } from "./decision-retention-sweep.js";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";

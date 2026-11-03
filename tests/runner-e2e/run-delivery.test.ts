@@ -6,7 +6,7 @@ function fixture() {
   return { binding, agentId: "agent", runCount: 1,
     run: { id: "run", agentId: "agent", companyId: "company", nativeIssueId: "task", status: "succeeded", issueCommentStatus: "satisfied",
       issueCommentSatisfiedByCommentId: "reply", resultJson: { nativeResult: { summary: "Internal saved result." },
-        presentationDecision: { schema: "paperclip.run_presentation_decision.v1", chosenSource: "final_agent_message", commentAction: "create", commentId: "reply" } } },
+        presentationDecision: { schema: "nexus.run_presentation_decision.v1", chosenSource: "final_agent_message", commentAction: "create", commentId: "reply" } } },
     comments: [{ id: "reply", companyId: "company", issueId: "task", authorAgentId: "agent", createdByRunId: "run",
       body: "Here is your downloadable proof.", deletedAt: null as string | null }] };
 }

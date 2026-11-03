@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { SLACK_TOOLS, type SlackSearchStatus } from "@paperclipai/shared";
+import { SLACK_TOOLS, type SlackSearchStatus } from "@nexusai/shared";
 import {
   SlackCapabilitiesView,
   SlackSearchView,
@@ -9,7 +9,7 @@ const base: SlackSearchStatus = {
   configured: false,
   connected: false,
   clientId: null,
-  redirectUri: "https://paperclip.example/api/slack/search/callback",
+  redirectUri: "https://nexus.example/api/slack/search/callback",
   nativeSearchAvailable: false,
   limitation:
     "This runtime uses bounded channel history search. Native search requires transient result delivery.",
@@ -56,7 +56,7 @@ export default {
   title: "Apps, channels, and extensions/External chat and email/Connections/Slack/Task tools",
   component: Preview,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "chat-channels/conversation"
       ],

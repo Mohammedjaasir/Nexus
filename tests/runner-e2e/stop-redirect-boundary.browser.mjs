@@ -7,9 +7,9 @@ const base = { id: "run", companyId: "company", agentId: "agent", nativeIssueId:
   usageJson: { accountingReceiptSourceId: "source", accountingReceiptSequence: 5 } };
 const event = (seq, type, payload = {}) => ({ seq, eventType: type, runId: base.id, companyId: base.companyId, agentId: base.agentId,
   protocolSchemaVersion: 1, sourceEventId: `event-${seq}`, sourceInstanceId: "runner", sourceSeq: seq,
-  payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, eventType: type, runId: base.id, turnId: "turn",
+  payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, eventType: type, runId: base.id, turnId: "turn",
     sourceKind: "runner", sourceEventId: `event-${seq}`, sourceInstanceId: "runner", sourceSeq: seq, payload } } });
-const command = { schema: "paperclip.tool.execution.v1", executionId: "sleep", transport: "process", operation: "execute", status: "running" };
+const command = { schema: "nexus.tool.execution.v1", executionId: "sleep", transport: "process", operation: "execute", status: "running" };
 const usage = { kind: "usage", usage: { runDeltaComplete: true, runDelta: { inputTokens: 120, outputTokens: 10 } } };
 let state = { phase: "startup", run: structuredClone(base), events: [event(1, "turn.started")] };
 let beforeStop = false, beforeRedirect = false, stops = 0, replies = 0, cancelled = false, boundary, journey, beforeEvents;

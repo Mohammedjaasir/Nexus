@@ -1,5 +1,5 @@
 import { and, asc, eq, gt } from "drizzle-orm";
-import { approvals, toolActionRequests, toolInvocations, type Db } from "@paperclipai/db";
+import { approvals, toolActionRequests, toolInvocations, type Db } from "@nexusai/db";
 
 import { readSignedToolArgumentsPayload } from "./tool-content-guards.js";
 import { notifyToolReviewChange } from "./tool-review-work-notifications.js";

@@ -14,7 +14,7 @@ export function caseSelection(selection, context, executionId) {
 const identity = (selection, context, executionId, selectionSha256) => {
   if (!/^[a-f0-9]{64}$/.test(selectionSha256)) reject('stream_binding');
   const scoped = caseSelection(selection, context, executionId), row = scoped.cases[0];
-  return { schema: 'paperclip.chat-catalog-testops-case-bundle/v1', ...context,
+  return { schema: 'nexus.chat-catalog-testops-case-bundle/v1', ...context,
     projectId: 1, planId: selection.planId, jobId: selection.jobId, launchId: selection.launchId,
     allureJobRunId: selection.allureJobRunId, executionId, caseId: row.caseId,
     fullSelectionSha256: selectionSha256, fullSelectionCount: selection.cases.length };
@@ -88,7 +88,7 @@ export async function publishCaseBundle(api, root, output, prepared, context, se
   const after = await api(`/api/jobrun/${selection.allureJobRunId}`);
   if (after.id !== Number(selection.allureJobRunId) || after.job?.id !== selection.jobId || after.launchId !== selection.launchId
     || after.url !== `https://github.com/paperclipai/paperclip/actions/runs/${context.runId}` || !['in_progress', 'finished'].includes(after.stage)) reject('jobrun_mismatch');
-  return { ...identity(selection, context, executionId, selectionSha256), schema: 'paperclip.chat-catalog-testops-case-publication/v1',
+  return { ...identity(selection, context, executionId, selectionSha256), schema: 'nexus.chat-catalog-testops-case-publication/v1',
     payloadSha256: prepared.payloadSha256, projectionBindingSha256: prepared.projectionBindingSha256, exported: prepared.exported[0],
     uploadSent: !before.present, uncertainUpload: uncertain, jobRunStageBefore: before.jobRunStage, jobRunStageAfter: after.stage,
     responseFilesCount: Number.isSafeInteger(response?.filesCount) && response.filesCount >= 0 ? response.filesCount : null,
@@ -122,7 +122,7 @@ export async function publicationSet(bundlesRoot, publicationsRoot, context, sel
     const prepared = await read(bundle, 'prepared.json');
     await readCaseBundle(path.join(bundle, 'projection'), path.join(bundle, 'allure'), prepared, context, selection, row.executionId, selectionSha256);
     const value = await read(publication, 'publication.json');
-    const expected = { ...identity(selection, context, row.executionId, selectionSha256), schema: 'paperclip.chat-catalog-testops-case-publication/v1' };
+    const expected = { ...identity(selection, context, row.executionId, selectionSha256), schema: 'nexus.chat-catalog-testops-case-publication/v1' };
     if (Object.entries(expected).some(([key, wanted]) => value[key] !== wanted)
       || value.payloadSha256 !== prepared.payloadSha256 || value.projectionBindingSha256 !== prepared.projectionBindingSha256
       || JSON.stringify(value.exported) !== JSON.stringify(prepared.exported[0]) || value.verification !== 'VERIFIED'

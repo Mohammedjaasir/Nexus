@@ -7,7 +7,7 @@ import {
   type LucideIcon,
   UserPlus,
 } from "lucide-react";
-import { hidesCompanyPage, type DeploymentMode } from "@paperclipai/shared";
+import { hidesCompanyPage, type DeploymentMode } from "@nexusai/shared";
 import { Link } from "@/lib/router";
 import { authApi } from "@/api/auth";
 import { queryKeys } from "@/lib/queryKeys";
@@ -242,7 +242,7 @@ export function SidebarAccountMenu({
               ) : null}
               <MenuAction
                 label="Documentation"
-                description="Open Paperclip docs in a new tab."
+                description="Open Nexus docs in a new tab."
                 icon={BookOpen}
                 href={DOCS_URL}
                 external

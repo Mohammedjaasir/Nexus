@@ -2,12 +2,12 @@ import { startNativeSessionExecutionLeaseRenewal, type NativeExecutionLeaseRenew
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { eq, sql } from "drizzle-orm";
-import { environmentLeases, environments, heartbeatRuns, nativeRunFinalizations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { environmentLeases, environments, heartbeatRuns, nativeRunFinalizations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { beforeAll, expect, it, vi } from "vitest";
-import { DurablePrpControlPlane } from "../../vendor/paperclip-runner/index.js";
+import { DurablePrpControlPlane } from "../../vendor/nexus-runner/index.js";
 import { buildNativeExecutionInput } from "./native-execution-input.js";
 import { nativeRuntimeContextFixture } from "./runtime-context.test-fixture.js";
-import { executePaperclipNativeSession } from "./native-session-executor.js";
+import { executeNexusNativeSession } from "./native-session-executor.js";
 import { registerNativeRunnerCheckpoint } from "./native-runner-checkpoint.js";
 import { claimNativeRestartRecoveries } from "./native-restart-recovery.js";
 import { remotePreparedWorkspace, nativeRestartFixture, describeEmbeddedPostgres } from "../../__tests__/helpers/native-restart.js";
@@ -33,7 +33,7 @@ describeEmbeddedPostgres("native runner restart recovery: preparation", () => {
       taskPrompt: "Prepare a fresh execution.", provider: "codex",
       workspace: { id: fixture.runId, cwd: runtimeRoot, repoUrl: null, repoRef: null, branchName: null },
       normalizedSessionId: fixture.native.normalizedSessionId, runtimeContext: nativeRuntimeContextFixture(),
-      completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "paperclip.run-result.v1",
+      completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "nexus.run-result.v1",
         contract: { revision: "1", objective: "Prepare once", criteria: [{ id: "objective", requirement: "Retain ownership" }] } },
     });
     // Stop at the provider boundary after checking ownership; no harness is launched.
@@ -58,7 +58,7 @@ describeEmbeddedPostgres("native runner restart recovery: preparation", () => {
       });
       await lockTaken;
     }
-    const running = executePaperclipNativeSession({ db: fixture.db, execution,
+    const running = executeNexusNativeSession({ db: fixture.db, execution,
       runnerInstanceId: fixture.native.runnerInstanceId, backend,
       runnerExecutionTarget: { kind: "remote", transport: "sandbox", environmentId, leaseId, remoteCwd: runtimeRoot },
       onEvent: async event => {

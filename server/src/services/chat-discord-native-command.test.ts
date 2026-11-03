@@ -70,7 +70,7 @@ function wire(overrides: Record<string, unknown> = {}) {
     entitlements: [],
     data: {
       id: commandId,
-      name: "paperclip",
+      name: "nexus",
       type: 1,
       options: [{ type: 1, name: "status" }],
     },
@@ -254,7 +254,7 @@ describe("Discord native command Gateway boundary", () => {
       provider: "discord",
       transport: "discord_gateway",
       event: {
-        command: "/paperclip status",
+        command: "/nexus status",
         text: "",
         channelId: `discord:${guildId}:${channelId}:${threadId}`,
         raw: {
@@ -262,7 +262,7 @@ describe("Discord native command Gateway boundary", () => {
           application_id: applicationId,
           data: {
             id: commandId,
-            name: "paperclip",
+            name: "nexus",
             options: [{ type: 1, name: "status" }],
           },
         },
@@ -330,7 +330,7 @@ describe("Discord native command Gateway boundary", () => {
         f.command({
           data: {
             id: commandId,
-            name: "paperclip",
+            name: "nexus",
             type: 1,
             options: [{ name, type: 1, options: [] }],
           },
@@ -339,7 +339,7 @@ describe("Discord native command Gateway boundary", () => {
       expect(callback).toHaveBeenCalledWith(
         expect.objectContaining({
           event: expect.objectContaining({
-            command: `/paperclip ${name}`,
+            command: `/nexus ${name}`,
             text: "",
           }),
         }),
@@ -406,7 +406,7 @@ describe("Discord native command Gateway boundary", () => {
       {
         data: {
           id: commandId,
-          name: "paperclip",
+          name: "nexus",
           type: 1,
           options: [{ name: "delete", type: 1 }],
         },
@@ -417,7 +417,7 @@ describe("Discord native command Gateway boundary", () => {
       {
         data: {
           id: commandId,
-          name: "paperclip",
+          name: "nexus",
           type: 1,
           options: [{ name: "status", type: 3, value: "secret" }],
         },
@@ -428,7 +428,7 @@ describe("Discord native command Gateway boundary", () => {
       {
         data: {
           id: commandId,
-          name: "paperclip",
+          name: "nexus",
           type: 1,
           options: [
             {
@@ -445,7 +445,7 @@ describe("Discord native command Gateway boundary", () => {
       {
         data: {
           id: commandId,
-          name: "paperclip",
+          name: "nexus",
           type: 1,
           options: [
             { name: "status", type: 1 },
@@ -458,7 +458,7 @@ describe("Discord native command Gateway boundary", () => {
       "missing command identity",
       {
         data: {
-          name: "paperclip",
+          name: "nexus",
           type: 1,
           options: [{ name: "status", type: 1 }],
         },
@@ -511,7 +511,7 @@ describe("Discord native command Gateway boundary", () => {
     expect(f.patch.mock.calls[0]?.[1]).toMatchObject({
       body: {
         content:
-          "This command is not available here. Open the Paperclip task or ask an operator to check your chat access.",
+          "This command is not available here. Open the Nexus task or ask an operator to check your chat access.",
         allowed_mentions: { parse: [] },
       },
     });
@@ -594,7 +594,7 @@ describe("Discord native command Gateway boundary", () => {
     const callback: NonNullable<
       ChatSdkRuntimeCallbacks["onSlashCommand"]
     > = async ({ event }) => {
-      if (event.command === "/paperclip status") await held;
+      if (event.command === "/nexus status") await held;
       return { kind: "accepted", content: event.command };
     };
     const f = await setup(callback);
@@ -607,7 +607,7 @@ describe("Discord native command Gateway boundary", () => {
         token: "private-close-token",
         data: {
           id: commandId,
-          name: "paperclip",
+          name: "nexus",
           type: 1,
           options: [{ name: "close", type: 1 }],
         },
@@ -618,11 +618,11 @@ describe("Discord native command Gateway boundary", () => {
     expect(f.patch.mock.calls).toMatchObject([
       [
         expect.stringContaining("private-close-token"),
-        { body: { content: "/paperclip close" } },
+        { body: { content: "/nexus close" } },
       ],
       [
         expect.stringContaining("private-status-token"),
-        { body: { content: "/paperclip status" } },
+        { body: { content: "/nexus status" } },
       ],
     ]);
     expect(JSON.stringify([...f.rows.values()])).not.toContain("private-");
@@ -644,7 +644,7 @@ describe("Discord native command Gateway boundary", () => {
       }
     ).chat;
     await sdk.handleSlashCommandEvent({
-      command: "/paperclip status",
+      command: "/nexus status",
       text: "",
       adapter: f.adapter,
       channelId: `discord:${guildId}:${channelId}:${threadId}`,

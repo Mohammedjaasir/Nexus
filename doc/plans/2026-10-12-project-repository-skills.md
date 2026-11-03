@@ -56,7 +56,7 @@ checkpoint.
 
 ## Current process/evidence pointers
 
-- Branch: `codex/project-repository-skills`; checkout `/Users/dotta/.codex/worktrees/4631/paperclip`.
+- Branch: `codex/project-repository-skills`; checkout `/Users/dotta/.codex/worktrees/4631/nexus`.
 - Owned Storybook: `http://127.0.0.1:6187`, exec session 14926. Port 6007 belongs to another process and was not changed.
 - IAB tab 1 shows the full Sources journey; browser binding 4. Preserve/reuse the binding when continuing.
 - Runner dependency build completed; exec session 59507 was its build handle.
@@ -100,7 +100,7 @@ build, recursive typecheck, Vitest and production build. Record actual results h
   Agent provisioning was an API fixture. Project/routine creation and execution
   used the real UI. No synthetic model response was used.
 
-Evidence directory: `/private/tmp/paperclip-project-skills-proof-BGunNG`.
+Evidence directory: `/private/tmp/nexus-project-skills-proof-BGunNG`.
 Non-secret records include `fixture.json`, `execution-v1.json`,
 `execution-v2.json`, marker files, `automatic-update.json`,
 `private-agent-access.json`, `private-union-access.json`, `connection-failure.json`

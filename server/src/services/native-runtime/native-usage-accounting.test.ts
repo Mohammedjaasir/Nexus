@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import type { PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { createNativeTurnAccounting, nativeUsageCostUsd, normalizeNativeUsage, usesNativeUsageDelivery } from "./native-usage-accounting.js";
 
 const provider = { kind: "opencode" as const, model: "test-model" };

@@ -204,7 +204,7 @@ This includes quiet absent and retained spool states without SQL or directory
 scans, strict saved deadlines, resume/apply races, nested commit/rollback, restart
 reconstruction, failed writes, permission and database errors, root/symlink
 boundaries, shutdown joining, and first/concurrent writes during drain. Storage
-is isolated with a task-owned PAPERCLIP_HOME and temporary spool roots. Three
+is isolated with a task-owned NEXUS_HOME and temporary spool roots. Three
 fresh PostgreSQL 17 databases use all 412 journal entries through tag/index
 0413_tired_kronos. No source adaptation, assertion, or timeout changes were needed.
 All eight test-file hashes remain exact.

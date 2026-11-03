@@ -1,7 +1,7 @@
 import type {
   FeedbackDataSharingPreference,
   FeedbackVoteValue,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { useCopyAction } from "@/lib/use-copy-action";
 import { IssueChatFeedbackButtons } from "@/components/AgentBubbleActionRow";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

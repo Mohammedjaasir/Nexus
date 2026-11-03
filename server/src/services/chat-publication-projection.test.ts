@@ -35,7 +35,7 @@ describe("chat publication projection", () => {
     const input = [
       `token: ${slackTokenCanary}`,
       `key ${openAiKeyCanary}`,
-      "database postgresql://paperclip:hunter2@example.com/db",
+      "database postgresql://nexus:hunter2@example.com/db",
       "-----BEGIN PRIVATE KEY-----",
       "definitely-private",
       "-----END PRIVATE KEY-----",
@@ -85,7 +85,7 @@ describe("chat publication projection", () => {
 
   it("uses a safe fallback if only private material remains", () => {
     expect(projectSafeChatPublicationText("<thinking>all private</thinking>")).toBe(
-      "Update available in Paperclip.",
+      "Update available in Nexus.",
     );
   });
 
@@ -107,8 +107,8 @@ describe("chat publication projection", () => {
             { type: "callback", actionId: "choice.one", label: "First", style: "primary" },
             {
               type: "link",
-              label: "Open Paperclip",
-              url: "https://paperclip.example/tasks/123?handoff=secret#private",
+              label: "Open Nexus",
+              url: "https://nexus.example/tasks/123?handoff=secret#private",
             },
             { type: "link", label: "Unsafe", url: "javascript:alert(1)" },
           ],
@@ -122,7 +122,7 @@ describe("chat publication projection", () => {
       progressState: "waiting_for_input",
       interactionId: "interaction:123",
       card: {
-        schema: "paperclip.chat.card.v1",
+        schema: "nexus.chat.card.v1",
         kind: "question",
         title: "Choose a path",
         body: "Do not leak token: [REDACTED]",
@@ -130,8 +130,8 @@ describe("chat publication projection", () => {
           { type: "callback", actionId: "choice.one", label: "First", style: "primary" },
           {
             type: "link",
-            label: "Open Paperclip",
-            url: "https://paperclip.example/tasks/123",
+            label: "Open Nexus",
+            url: "https://nexus.example/tasks/123",
           },
         ],
       },

@@ -45,7 +45,7 @@ export interface TelegramDraftControl {
   beforeFinal(): Promise<boolean>;
 }
 export interface TelegramDraftStopped {
-  paperclipDraftStopped: true;
+  nexusDraftStopped: true;
 }
 export function isTelegramDraftStopped(
   value: unknown,
@@ -54,7 +54,7 @@ export function isTelegramDraftStopped(
     typeof value === "object" &&
     value !== null &&
     Object.keys(value).length === 1 &&
-    (value as TelegramDraftStopped).paperclipDraftStopped === true
+    (value as TelegramDraftStopped).nexusDraftStopped === true
   );
 }
 

@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import {
   agents, companies, createDb, heartbeatRuns, issues, nativeRunFinalizations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS,
   issueRelations, issueTreeHolds, issueTreeHoldMembers,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { claimNativeSessionResumptions, dispatchNativeSessionResumptions } from "./native-finalization-reconciler.js";
 import { stageNativeRunnerWakeAttachments } from "./native-runner-file-handoff.js";
@@ -24,12 +24,12 @@ describe("native recovery execution binding", () => {
     const issueId = randomUUID();
     const runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Recovery binding", issuePrefix: "N" + companyId.replaceAll("-", "").slice(0, 6).toUpperCase() });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Recovery owner", status: "idle", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Recovery owner", status: "idle", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Resume original work", status: "in_progress", assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({
       id: runId, companyId, agentId, issueId, nativeIssueId: issueId, status: "failed", runtimeMode: "native",
       finishedAt: new Date(), contextSnapshot: { issueId }, runnerProfileJson: {
-        nativeExecutionInput: { schema: "paperclip.native-execution-input.v1", binding: { runId, companyId, agentId, issueId, executionWorkspaceId: runId } },
+        nativeExecutionInput: { schema: "nexus.native-execution-input.v1", binding: { runId, companyId, agentId, issueId, executionWorkspaceId: runId } },
         sessionCheckpoint: { sessionId: "provider-session", providerSessionId: "provider-session", identity: { runId, companyId, agentId, issueId } },
       },
     });

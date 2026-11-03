@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, not, sql } from "drizzle-orm";
-import { agents, approvals, companies, heartbeatRuns, issues, type Db } from "@paperclipai/db";
-import { isHeartbeatRunVisibleInMine, latestFailedRunsByAgent } from "@paperclipai/shared";
+import { agents, approvals, companies, heartbeatRuns, issues, type Db } from "@nexusai/db";
+import { isHeartbeatRunVisibleInMine, latestFailedRunsByAgent } from "@nexusai/shared";
 import type { sidebarBadgeService } from "../../services/sidebar-badges.js";
 
 export type BadgeOptions = Parameters<ReturnType<typeof sidebarBadgeService>["get"]>[1];

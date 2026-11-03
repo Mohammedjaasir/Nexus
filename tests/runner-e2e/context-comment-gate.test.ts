@@ -75,7 +75,7 @@ describe("context comment gate", () => {
   it("waits for a committed hold and releases it", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "context-comment-gate-"));
     roots.push(root);
-    vi.stubEnv("PAPERCLIP_RUNNER_E2E_PRIVATE_DIR", root);
+    vi.stubEnv("NEXUS_RUNNER_E2E_PRIVATE_DIR", root);
     const held = holdCommittedDocumentResponse("issue-1", Date.now() + 2_000);
     await waitUntilHeld("issue-1", Date.now() + 2_000);
     await release("issue-1");
@@ -87,7 +87,7 @@ describe("context comment gate", () => {
   it("arms only the selected conversation and clears stale gate state", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "completion-document-gate-"));
     roots.push(root);
-    vi.stubEnv("PAPERCLIP_RUNNER_E2E_PRIVATE_DIR", root);
+    vi.stubEnv("NEXUS_RUNNER_E2E_PRIVATE_DIR", root);
     expect(await isArmed("source")).toBe(false);
     await arm("source");
     expect(await isArmed("source")).toBe(true);
@@ -103,7 +103,7 @@ describe("context comment gate", () => {
   it("times out without release", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "context-comment-gate-"));
     roots.push(root);
-    vi.stubEnv("PAPERCLIP_RUNNER_E2E_PRIVATE_DIR", root);
+    vi.stubEnv("NEXUS_RUNNER_E2E_PRIVATE_DIR", root);
     await expect(holdCommittedDocumentResponse("issue-1", Date.now() + 10)).rejects.toThrow("gate release");
   });
 });

@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, companies, companyMemberships, connectionGrants, createDb, issues, toolApplications, toolCatalogEntries, toolConnections, toolConnectionAppSnapshots } from "@paperclipai/db";
-import { composioAppSetupSchema } from "@paperclipai/shared";
+import { agents, companies, companyMemberships, connectionGrants, createDb, issues, toolApplications, toolCatalogEntries, toolConnections, toolConnectionAppSnapshots } from "@nexusai/db";
+import { composioAppSetupSchema } from "@nexusai/shared";
 import { composioAppAccounts, composioAppSetupResult } from "../services/composio-app-setup.js";
 import { toolAccessService } from "../services/tool-access.js";
 import { toolAccessPolicyService } from "../services/tool-access-policy.js";
@@ -52,7 +52,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let db: ReturnType<typeof createDb>;
   let cleanup: (() => Promise<void>) | undefined;
   beforeAll(async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-composio-setup-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-composio-setup-");
     db = createDb(database.connectionString);
     cleanup = database.cleanup;
   }, 20_000);
@@ -246,7 +246,7 @@ const support = await getEmbeddedPostgresTestSupport();
   });
 
   it("shares a lease between concurrent syncs and bounds provider batches", async () => {
-    const { COMPOSIO_APP_TOOLKITS } = await import("@paperclipai/shared/aggregator-app-catalog");
+    const { COMPOSIO_APP_TOOLKITS } = await import("@nexusai/shared/aggregator-app-catalog");
     const names = ["circleback_mcp", ...COMPOSIO_APP_TOOLKITS.filter(name => name !== "circleback_mcp").slice(0, 35)];
     const f = await fixture(names); f.activate();
     let release!: () => void;

@@ -28,8 +28,8 @@ import {
   principalPermissionGrants,
   routines,
   routineTriggers,
-} from "@paperclipai/db";
-import { readPaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
+} from "@nexusai/db";
+import { readNexusSkillSyncPreference } from "@nexusai/adapter-utils/server-utils";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -57,8 +57,8 @@ const BUILT_IN_MARKER_UNIQUE_INDEX = "agents_company_built_in_agent_key_unique_i
 // test needs to simulate legacy duplicates that predate the constraint.
 const BUILT_IN_MARKER_UNIQUE_INDEX_DDL = `
   CREATE UNIQUE INDEX IF NOT EXISTS "${BUILT_IN_MARKER_UNIQUE_INDEX}"
-    ON "agents" ("company_id", ((metadata -> 'paperclipBuiltInAgent' ->> 'key')))
-    WHERE (metadata -> 'paperclipBuiltInAgent' ->> 'key') IS NOT NULL
+    ON "agents" ("company_id", ((metadata -> 'nexusBuiltInAgent' ->> 'key')))
+    WHERE (metadata -> 'nexusBuiltInAgent' ->> 'key') IS NOT NULL
       AND status <> 'terminated'
 `;
 
@@ -74,7 +74,7 @@ if (!embeddedPostgresSupport.supported) {
 
 describe("built-in agent asset loading", () => {
   it("uses the first readable candidate path", () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "paperclip-built-in-agent-"));
+    const dir = mkdtempSync(path.join(tmpdir(), "nexus-built-in-agent-"));
     try {
       const first = path.join(dir, "missing.md");
       const second = path.join(dir, "asset.md");
@@ -102,7 +102,7 @@ describe("built-in agent asset loading", () => {
 
   it("warns about non-missing read errors before falling back", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const dir = mkdtempSync(path.join(tmpdir(), "paperclip-built-in-agent-"));
+    const dir = mkdtempSync(path.join(tmpdir(), "nexus-built-in-agent-"));
     const label = "unreadable:" + randomUUID();
 
     try {
@@ -154,7 +154,7 @@ describeEmbeddedPostgres("built-in agents", () => {
 
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-built-in-agents-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-built-in-agents-");
     db = createDb(tempDb.connectionString);
     lifecycleWorker = configureAgentLifecycle(db, { requiredPluginIds: async () => [], runPlugin: async () => "complete", runHost: async () => "complete" });
   }, 20_000);
@@ -207,7 +207,7 @@ describeEmbeddedPostgres("built-in agents", () => {
     const companyId = randomUUID();
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: issuePrefix(companyId),
       defaultResponsibleUserId: "responsible-user",
       requireBoardApprovalForNewAgents: options.requireApproval ?? true,
@@ -293,14 +293,14 @@ describeEmbeddedPostgres("built-in agents", () => {
     expect(configured.status).toBe("ready");
     expect(configured.agentId).toBe(created.agentId);
     expect(configured.agent).toMatchObject({
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: { provider: "codex", model: "gpt-5.4" },
     });
 
     const reconciled = await svc.ensure(companyId, "briefs");
     expect(reconciled.status).toBe("ready");
     expect(reconciled.agent).toMatchObject({
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: { provider: "codex", model: "gpt-5.4" },
     });
 
@@ -319,25 +319,25 @@ describeEmbeddedPostgres("built-in agents", () => {
     const legacy = await svc.get(companyId, "briefs");
     expect(legacy.agent?.adapterType).toBe("codex_local");
     expect(legacy.agent?.adapterConfig).toEqual(created.agent?.adapterConfig);
-    const switched = await svc.ensure(companyId, "briefs", { runner: "paperclip" });
-    expect(switched.agent).toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { provider: "codex", ...savedSettings } });
+    const switched = await svc.ensure(companyId, "briefs", { runner: "nexus" });
+    expect(switched.agent).toMatchObject({ adapterType: "nexus_runner", adapterConfig: { provider: "codex", ...savedSettings } });
     await svc.ensure(companyId, "briefs", { budgetMonthlyCents: 200 });
     await reconcileBuiltInAgentsOnStartup(db);
     expect((await svc.get(companyId, "briefs")).agent?.adapterConfig).toEqual(switched.agent?.adapterConfig);
     const switchedBack = await svc.ensure(companyId, "briefs", { runner: "legacy" });
     expect(switchedBack.agent).toMatchObject({ adapterType: "codex_local", adapterConfig: savedSettings });
-    const switchedAgain = await svc.ensure(companyId, "briefs", { runner: "paperclip" });
-    expect(switchedAgain.agent).toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { provider: "codex", ...savedSettings } });
+    const switchedAgain = await svc.ensure(companyId, "briefs", { runner: "nexus" });
+    expect(switchedAgain.agent).toMatchObject({ adapterType: "nexus_runner", adapterConfig: { provider: "codex", ...savedSettings } });
     runnerTarget.platform = "win32";
     runnerTarget.architecture = "x64";
     const edited = await svc.ensure(companyId, "briefs", { adapterType: "codex_local", adapterConfig: { model: "gpt-5.4" } });
-    expect(edited.agent).toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.4" } });
+    expect(edited.agent).toMatchObject({ adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.4" } });
   });
 
   it("freezes Codex built-in execution in the reviewed hire through service restart", async () => {
     const companyId = await seedCompany({ requireApproval: true });
     const result = await builtInAgentService(db).provision(companyId, "briefs", { adapterType: "codex_local", adapterConfig: { model: "gpt-5.4" } }, { requestedByUserId: "board-user" });
-    expect(result.approval?.payload).toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.4" } });
+    expect(result.approval?.payload).toMatchObject({ adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.4" } });
     runnerTarget.platform = "win32";
     runnerTarget.architecture = "x64";
     await reconcileBuiltInAgentsOnStartup(db);
@@ -470,7 +470,7 @@ describeEmbeddedPostgres("built-in agents", () => {
     await expect(builtIns.get(companyId, "briefs")).resolves.toMatchObject({
       status: "ready",
       agentId: ready.agentId,
-      agent: { adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.4" } },
+      agent: { adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.4" } },
     });
   });
 
@@ -497,7 +497,7 @@ describeEmbeddedPostgres("built-in agents", () => {
       agentId: seeded.agentId,
       agent: {
         status: "idle",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         adapterConfig: { provider: "codex", model: "gpt-5.4" },
         budgetMonthlyCents: 2500,
       },
@@ -664,7 +664,7 @@ describeEmbeddedPostgres("built-in agents", () => {
         role: "general",
         title: null,
         capabilities: "Prepares concise operational briefs for the board and agent company.",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         adapterConfig: { provider: "codex", model: "gpt-5.4" },
       },
     });
@@ -711,7 +711,7 @@ describeEmbeddedPostgres("built-in agents", () => {
         role: "general",
         title: "Reflection Coach",
         icon: "eye",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         permissions: {
           canCreateAgents: false,
           canCreateSkills: false,
@@ -734,13 +734,13 @@ describeEmbeddedPostgres("built-in agents", () => {
     const [skill] = await db
       .select()
       .from(companySkills)
-      .where(eq(companySkills.key, "paperclipai/bundled/paperclip-operations/reflection-coach"));
+      .where(eq(companySkills.key, "nexusai/bundled/nexus-operations/reflection-coach"));
     expect(skill).toMatchObject({
-      key: "paperclipai/bundled/paperclip-operations/reflection-coach",
+      key: "nexusai/bundled/nexus-operations/reflection-coach",
       slug: "reflection-coach",
     });
-    expect(readPaperclipSkillSyncPreference(state.agent!.adapterConfig as Record<string, unknown>).desiredSkills).toContain(
-      "paperclipai/bundled/paperclip-operations/reflection-coach",
+    expect(readNexusSkillSyncPreference(state.agent!.adapterConfig as Record<string, unknown>).desiredSkills).toContain(
+      "nexusai/bundled/nexus-operations/reflection-coach",
     );
 
     const [routine] = await db.select().from(routines).where(eq(routines.companyId, companyId));
@@ -1085,7 +1085,7 @@ describeEmbeddedPostgres("built-in agents", () => {
       id: builtIn.agentId,
       metadata: {
         note: "allowed",
-        paperclipBuiltInAgent: { key: "briefs", featureKeys: ["briefs"] },
+        nexusBuiltInAgent: { key: "briefs", featureKeys: ["briefs"] },
       },
     });
   });
@@ -1327,7 +1327,7 @@ describeEmbeddedPostgres("built-in agents", () => {
       title: "Reflection Coach",
       icon: "eye",
       reportsTo: root.id,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       budgetMonthlyCents: 0,
     });
     expect(state.status).toBe("paused");
@@ -1352,12 +1352,12 @@ describeEmbeddedPostgres("built-in agents", () => {
     const [skill] = await db
       .select()
       .from(companySkills)
-      .where(eq(companySkills.key, "paperclipai/bundled/paperclip-operations/reflection-coach"));
+      .where(eq(companySkills.key, "nexusai/bundled/nexus-operations/reflection-coach"));
     expect(skill).toMatchObject({
-      key: "paperclipai/bundled/paperclip-operations/reflection-coach",
+      key: "nexusai/bundled/nexus-operations/reflection-coach",
       slug: "reflection-coach",
     });
-    expect(readPaperclipSkillSyncPreference(state.agent!.adapterConfig).desiredSkills).toContain(skill!.key);
+    expect(readNexusSkillSyncPreference(state.agent!.adapterConfig).desiredSkills).toContain(skill!.key);
 
     const [routine] = await db.select().from(routines).where(eq(routines.companyId, companyId));
     expect(routine).toMatchObject({
@@ -1403,7 +1403,7 @@ describeEmbeddedPostgres("built-in agents", () => {
       icon: "sparkles",
       role: "general",
       reportsTo: root.id,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: { provider: "acpx", acpxAgent: "claude", model: "claude-haiku-4-5" },
       budgetMonthlyCents: 0,
     });
@@ -1423,12 +1423,12 @@ describeEmbeddedPostgres("built-in agents", () => {
     const [skill] = await db
       .select()
       .from(companySkills)
-      .where(eq(companySkills.key, "paperclipai/bundled/paperclip-operations/summarize-status"));
+      .where(eq(companySkills.key, "nexusai/bundled/nexus-operations/summarize-status"));
     expect(skill).toMatchObject({
-      key: "paperclipai/bundled/paperclip-operations/summarize-status",
+      key: "nexusai/bundled/nexus-operations/summarize-status",
       slug: "summarize-status",
     });
-    expect(readPaperclipSkillSyncPreference(state.agent!.adapterConfig).desiredSkills).toContain(skill!.key);
+    expect(readNexusSkillSyncPreference(state.agent!.adapterConfig).desiredSkills).toContain(skill!.key);
 
     const [routine] = await db
       .select()

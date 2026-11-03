@@ -16,7 +16,7 @@ import {
   type DiscordAdapterConfig,
 } from "@chat-adapter/discord";
 import type { SlackAdapterConfig } from "@chat-adapter/slack";
-import { PaperclipSlackAdapter } from "./chat-channels/slack/adapter.js";
+import { NexusSlackAdapter } from "./chat-channels/slack/adapter.js";
 import {
   createTeamsAdapter,
   type TeamsAdapter,
@@ -117,7 +117,7 @@ import {
   type GitHubAttachmentCommentRequest,
 } from "./chat-github-attachments.js";
 import {
-  createPaperclipChatSdkState,
+  createNexusChatSdkState,
   type ChatSdkStatePersistence,
 } from "./chat-sdk-state.js";
 
@@ -133,7 +133,7 @@ const DISCORD_GATEWAY_SESSION_MS = 24 * 60 * 60_000;
 const DISCORD_GATEWAY_RESTART_MAX_DELAY_MS = 60_000;
 const DISCORD_GATEWAY_HEALTHY_SESSION_MS = 60_000;
 
-/** Public Paperclip provider ids. The Teams SDK name remains an internal detail. */
+/** Public Nexus provider ids. The Teams SDK name remains an internal detail. */
 export type ChatSdkProvider =
   "slack" | "github" | "discord" | "microsoft-teams" | "telegram" | "imessage-photon";
 type ChatSdkAdapterKey = "slack" | "github" | "discord" | "teams" | "telegram" | "imessage-photon";
@@ -385,7 +385,7 @@ function microsoftTeamsTenantIds(raw: unknown): string[] {
   );
 }
 
-/** Chat SDK-normalized inbound message plus Paperclip endpoint identity. */
+/** Chat SDK-normalized inbound message plus Nexus endpoint identity. */
 export interface ChatSdkMessageCallbackEvent {
   context?: MessageContext;
   endpointId: string;
@@ -461,7 +461,7 @@ export interface DiscordGatewayCallbackEvent extends ChatSdkCallbackEvent<Discor
 }
 
 /**
- * Provider-neutral callbacks consumed by the Paperclip control-plane service.
+ * Provider-neutral callbacks consumed by the Nexus control-plane service.
  * All provider events have already passed the installed adapter's verifier and
  * normalization. Raw provider payloads remain available only through the
  * Chat SDK event escape hatches; callers must never publish them directly.
@@ -558,7 +558,7 @@ const OFFICIAL_TEAMS_CONNECTOR_HOST_SUFFIXES = [
   // Signed Teams activity can carry regional Microsoft-owned Bot Framework
   // service URLs, so the egress trust boundary recognizes these exact domain
   // families. Host acceptance is defensive routing validation, not a claim
-  // that Paperclip's commercial-cloud-only credential flow supports every
+  // that Nexus's commercial-cloud-only credential flow supports every
   // Microsoft cloud represented by a first-party hostname.
   "botframework.com",
   "smba.trafficmanager.net",
@@ -626,10 +626,10 @@ export interface SlackFileUploadAcceptedReceipt {
 }
 
 interface SlackAdapterInternals {
-  paperclipFileUploadReceiptContext?: AsyncLocalStorage<
+  nexusFileUploadReceiptContext?: AsyncLocalStorage<
     (receipt: SlackFileUploadAcceptedReceipt) => Promise<void>
   >;
-  paperclipResolveFileUploadReceipt?: (
+  nexusResolveFileUploadReceipt?: (
     fileIds: string[],
     threadId: string,
   ) => Promise<string | null>;
@@ -637,7 +637,7 @@ interface SlackAdapterInternals {
 
 interface DiscordAdapterInternals {
   ensureRootThread?: unknown;
-  paperclipCompatibilityRevision?: unknown;
+  nexusCompatibilityRevision?: unknown;
   startGatewayListener?: unknown;
 }
 
@@ -736,9 +736,9 @@ function installDiscordNativeCommands(
   const snowflake = (value: unknown): value is string =>
     typeof value === "string" && /^[1-9][0-9]{16,19}$/.test(value);
   const denied =
-    "This command is not available here. Open the Paperclip task or ask an operator to check your chat access.";
+    "This command is not available here. Open the Nexus task or ask an operator to check your chat access.";
   const unconfirmed =
-    "This command could not be confirmed. Check the Paperclip task before trying again.";
+    "This command could not be confirmed. Check the Nexus task before trying again.";
   discord.handleGatewayInteraction = async (interaction) => {
     if (!interaction.isChatInputCommand()) return await original(interaction);
     const startedAt = Date.now();
@@ -785,7 +785,7 @@ function installDiscordNativeCommands(
       interaction.type === 2 &&
       interaction.commandType === 1 &&
       interaction.applicationId === applicationId &&
-      interaction.commandName === "paperclip" &&
+      interaction.commandName === "nexus" &&
       snowflake(interaction.commandId) &&
       snowflake(interaction.user?.id) &&
       !interaction.user.bot &&
@@ -819,7 +819,7 @@ function installDiscordNativeCommands(
         data: {
           id: interaction.commandId,
           type: 1,
-          name: "paperclip",
+          name: "nexus",
           options: [{ type: 1, name: option.name }],
         },
       };
@@ -830,7 +830,7 @@ function installDiscordNativeCommands(
         try {
           await dispatchContext.run(dispatch, () =>
             sdk.handleSlashCommandEvent({
-              command: `/paperclip ${option.name}`,
+              command: `/nexus ${option.name}`,
               text: "",
               adapter,
               raw,
@@ -880,9 +880,9 @@ function installDiscordNativeCommands(
 
 function assertDiscordAdapterCompatibility(adapter: Adapter, chat: Chat): void {
   const discord = adapter as unknown as DiscordAdapterInternals;
-  if (discord.paperclipCompatibilityRevision !== "paperclip-discord-v6") {
+  if (discord.nexusCompatibilityRevision !== "nexus-discord-v6") {
     throw new DiscordAdapterCompatibilityError(
-      "Paperclip patch revision paperclip-discord-v6 is unavailable",
+      "Nexus patch revision nexus-discord-v6 is unavailable",
     );
   }
   if (typeof discord.startGatewayListener !== "function") {
@@ -940,12 +940,12 @@ interface TeamsAdapterInternals {
   getIncomingUser?: (...args: unknown[]) => Promise<unknown>;
   getUser?: (...args: unknown[]) => Promise<unknown>;
   openDM?: (userId: string) => Promise<unknown>;
-  paperclipRecordAcceptedActivity?: (activity: unknown) => Promise<void>;
-  paperclipRecordThreadServiceUrl?: (
+  nexusRecordAcceptedActivity?: (activity: unknown) => Promise<void>;
+  nexusRecordThreadServiceUrl?: (
     threadId: string,
     serviceUrl: unknown,
   ) => Promise<void>;
-  paperclipSendFileCard?: (
+  nexusSendFileCard?: (
     threadId: string,
     kind: "consent" | "file_info",
     card: unknown,
@@ -1069,15 +1069,15 @@ export function scopeMicrosoftTeamsEgress(
     : null;
 
   // The pinned Teams adapter caches activity/user metadata and may query the
-  // members or Graph APIs before Chat dispatches to Paperclip's reach and
+  // members or Graph APIs before Chat dispatches to Nexus's reach and
   // tenant checks. Keep authenticated but unadmitted events observationally
   // inert. Accepted activities explicitly persist the minimum routing context
-  // through paperclipRecordAcceptedActivity below.
+  // through nexusRecordAcceptedActivity below.
   teams.cacheUserContext = () => {};
   teams.getIncomingUser = async () => null;
   teams.getUser = async () => null;
 
-  teams.paperclipRecordAcceptedActivity = async (activityValue: unknown) => {
+  teams.nexusRecordAcceptedActivity = async (activityValue: unknown) => {
     if (!isRecord(activityValue)) return;
     const from = isRecord(activityValue.from) ? activityValue.from : null;
     const conversation = isRecord(activityValue.conversation)
@@ -1241,7 +1241,7 @@ export function scopeMicrosoftTeamsEgress(
         "file-consent App hooks are unavailable",
       );
     }
-    teams.paperclipSendFileCard = async (threadId, kind, input) => {
+    teams.nexusSendFileCard = async (threadId, kind, input) => {
       const card =
         kind === "consent"
           ? parseTeamsFileConsentCard(input)
@@ -1297,7 +1297,7 @@ export function scopeMicrosoftTeamsEgress(
     };
   }
 
-  teams.paperclipRecordThreadServiceUrl = async (
+  teams.nexusRecordThreadServiceUrl = async (
     threadId: string,
     serviceUrlValue: unknown,
   ) => {
@@ -1340,7 +1340,7 @@ export function scopeMicrosoftTeamsEgress(
     return await withServiceUrl(serviceUrl, async () => {
       const threadId = await Reflect.apply(originalOpenDM, teams, [userId]);
       if (typeof threadId === "string") {
-        await teams.paperclipRecordThreadServiceUrl!(threadId, serviceUrl);
+        await teams.nexusRecordThreadServiceUrl!(threadId, serviceUrl);
       }
       return threadId;
     });
@@ -1365,7 +1365,7 @@ function createProviderAdapter(
         mode: "webhook",
         nativeStreaming: true,
         userName: config.userName,
-        // Paperclip's durable publication outbox owns retry timing and
+        // Nexus's durable publication outbox owns retry timing and
         // ambiguous-delivery handling. Slack's default client can otherwise
         // retry for roughly 30 minutes, well beyond the 60-second streaming
         // lease, allowing another worker to quarantine an in-flight send.
@@ -1375,10 +1375,10 @@ function createProviderAdapter(
           timeout: SLACK_WEB_API_TIMEOUT_MS,
         },
       };
-      const adapter = new PaperclipSlackAdapter(adapterConfig);
+      const adapter = new NexusSlackAdapter(adapterConfig);
       (
         adapter as unknown as SlackAdapterInternals
-      ).paperclipFileUploadReceiptContext = new AsyncLocalStorage<
+      ).nexusFileUploadReceiptContext = new AsyncLocalStorage<
         (receipt: SlackFileUploadAcceptedReceipt) => Promise<void>
       >();
       return adapter;
@@ -1396,7 +1396,7 @@ function createProviderAdapter(
       } as GitHubAdapterConfig;
       const adapter = createGitHubAdapter(adapterConfig);
       // Octokit otherwise delegates to fetch without a deadline. A hung token
-      // exchange or API request could outlive Paperclip's publication lease
+      // exchange or API request could outlive Nexus's publication lease
       // and make another worker quarantine a still-running send as ambiguous.
       // Wrap every request with a fresh deadline instead of creating one at
       // adapter construction time, which would expire for the whole runtime.
@@ -1430,7 +1430,7 @@ function createProviderAdapter(
         apiUrl: config.credentials.apiUrl,
         applicationId: config.credentials.applicationId,
         botToken: config.credentials.botToken,
-        // Paperclip receives Discord messages and interactions over its
+        // Nexus receives Discord messages and interactions over its
         // authenticated Gateway session. Keep the unused public HTTP
         // interaction surface closed instead of making setup collect a key it
         // does not need.
@@ -1765,14 +1765,14 @@ async function telegramWebhookUpdateId(
 
 /**
  * Chat SDK's message and provider-level retry markers are written before the
- * application callback runs. That ordering is unsafe for Paperclip: if the
+ * application callback runs. That ordering is unsafe for Nexus: if the
  * `chat_deliveries` insert fails, a provider retry can be discarded by the SDK
- * even though Paperclip never durably accepted it. Paperclip's delivery ledger
+ * even though Nexus never durably accepted it. Nexus's delivery ledger
  * is the authoritative dedupe boundary, so these early SDK markers are
  * deliberately bypassed while subscriptions and all other adapter state stay
  * durable.
  */
-function paperclipAuthoritativeIngressState(
+function nexusAuthoritativeIngressState(
   state: StateAdapter,
   recordFailure: (error: unknown) => void,
 ): StateAdapter {
@@ -1928,7 +1928,7 @@ function registerCallbacks(
       if (!acceptsProviderScope(event.raw)) {
         if (transport === "discord_gateway") {
           // Resolving would tell the Gateway adapter to acknowledge a click
-          // that never reached Paperclip's scoped action authorization.
+          // that never reached Nexus's scoped action authorization.
           throw Object.assign(
             new Error("Discord Gateway action is outside the configured guild"),
             { code: "chat_discord_gateway_action_rejected" },
@@ -2004,7 +2004,7 @@ function registerCallbacks(
   }
 }
 
-/** One isolated Chat instance and provider adapter for one Paperclip endpoint. */
+/** One isolated Chat instance and provider adapter for one Nexus endpoint. */
 export class ChatSdkEndpointRuntime {
   readonly companyId: string;
   readonly endpointId: string;
@@ -2173,13 +2173,13 @@ export class ChatSdkEndpointRuntime {
         processUpdate(update, webhookOptions);
       };
     }
-    const durableState = createPaperclipChatSdkState({
+    const durableState = createNexusChatSdkState({
       companyId: options.companyId,
       endpointId: options.endpointId,
       persistence: options.persistence,
       maxValueBytes: options.maxStateValueBytes,
     });
-    const state = paperclipAuthoritativeIngressState(durableState, (error) => {
+    const state = nexusAuthoritativeIngressState(durableState, (error) => {
       const attempt = this.webhookIngress.getStore();
       if (attempt && attempt.callbackError === undefined) {
         attempt.callbackError = error;
@@ -2187,7 +2187,7 @@ export class ChatSdkEndpointRuntime {
     });
     this.chat = new Chat({
       adapters: { [this.sdkAdapterKey]: this.adapter },
-      // Paperclip acknowledges only after its own durable ledger write and
+      // Nexus acknowledges only after its own durable ledger write and
       // drains that ledger under database leases. An SDK-side queue can accept
       // a webhook before the application callback has run, so it must not sit
       // in front of the authoritative receipt boundary.
@@ -2411,7 +2411,7 @@ export class ChatSdkEndpointRuntime {
       responseDeadlineAt ?? Number.POSITIVE_INFINITY,
     );
     const retryableTimeout = () =>
-      new Response("Paperclip could not durably accept the event in time", {
+      new Response("Nexus could not durably accept the event in time", {
         status: 503,
         headers: {
           "content-type": "text/plain; charset=utf-8",
@@ -2472,7 +2472,7 @@ export class ChatSdkEndpointRuntime {
           return retryableTimeout();
       }
       if (response.ok && attempt.callbackError !== undefined) {
-        return new Response("Paperclip could not durably accept the event", {
+        return new Response("Nexus could not durably accept the event", {
           status: 503,
           headers: {
             "content-type": "text/plain; charset=utf-8",
@@ -2494,7 +2494,7 @@ export class ChatSdkEndpointRuntime {
     control: TelegramDraftControl,
   ): Promise<{ id: string } | TelegramDraftStopped> {
     const adapter = this.adapter as unknown as {
-      paperclipDraftStopVersion?: number;
+      nexusDraftStopVersion?: number;
       stream(
         threadId: string,
         stream: AsyncIterable<string>,
@@ -2504,12 +2504,12 @@ export class ChatSdkEndpointRuntime {
     if (
       this.provider !== "telegram" ||
       !telegramPrivateDraftDestination(threadId) ||
-      adapter.paperclipDraftStopVersion !== 1
+      adapter.nexusDraftStopVersion !== 1
     ) {
       throw new Error("Telegram durable draft transport is unavailable");
     }
     return adapter.stream(threadId, textStream, {
-      paperclipDraftControl: control,
+      nexusDraftControl: control,
     });
   }
 
@@ -2533,14 +2533,14 @@ export class ChatSdkEndpointRuntime {
     }
     const slack = this.adapter as unknown as SlackAdapterInternals;
     if (
-      !slack.paperclipFileUploadReceiptContext ||
-      typeof slack.paperclipResolveFileUploadReceipt !== "function"
+      !slack.nexusFileUploadReceiptContext ||
+      typeof slack.nexusResolveFileUploadReceipt !== "function"
     ) {
       throw new SlackAdapterCompatibilityError(
         "file publication receipt capture is unavailable",
       );
     }
-    return await slack.paperclipFileUploadReceiptContext.run(
+    return await slack.nexusFileUploadReceiptContext.run(
       onUploadAccepted,
       async () => await this.chat.thread(threadId).post(message),
     );
@@ -2557,12 +2557,12 @@ export class ChatSdkEndpointRuntime {
       );
     }
     const slack = this.adapter as unknown as SlackAdapterInternals;
-    if (typeof slack.paperclipResolveFileUploadReceipt !== "function") {
+    if (typeof slack.nexusResolveFileUploadReceipt !== "function") {
       throw new SlackAdapterCompatibilityError(
         "file publication receipt lookup is unavailable",
       );
     }
-    return await slack.paperclipResolveFileUploadReceipt.call(
+    return await slack.nexusResolveFileUploadReceipt.call(
       this.adapter,
       fileIds,
       threadId,
@@ -2583,7 +2583,7 @@ export class ChatSdkEndpointRuntime {
   ): Promise<void> {
     if (this.provider !== "microsoft-teams") return;
     const teams = this.adapter as unknown as TeamsAdapterInternals;
-    const recorder = teams.paperclipRecordThreadServiceUrl;
+    const recorder = teams.nexusRecordThreadServiceUrl;
     if (typeof recorder !== "function") {
       throw new TeamsAdapterCompatibilityError(
         "durable route recorder is unavailable",
@@ -2591,7 +2591,7 @@ export class ChatSdkEndpointRuntime {
     }
     await recorder.call(this.adapter, threadId, serviceUrl);
     if (raw !== undefined) {
-      const acceptedActivityRecorder = teams.paperclipRecordAcceptedActivity;
+      const acceptedActivityRecorder = teams.nexusRecordAcceptedActivity;
       if (typeof acceptedActivityRecorder !== "function") {
         throw new TeamsAdapterCompatibilityError(
           "durable accepted-activity recorder is unavailable",
@@ -2623,13 +2623,13 @@ export class ChatSdkEndpointRuntime {
     const teams = this.adapter as unknown as TeamsAdapterInternals;
     if (
       !this.teamsFileConsentEnabled ||
-      typeof teams.paperclipSendFileCard !== "function"
+      typeof teams.nexusSendFileCard !== "function"
     ) {
       throw new TeamsAdapterCompatibilityError(
         "file-consent runtime is not enabled",
       );
     }
-    return await teams.paperclipSendFileCard(threadId, kind, card);
+    return await teams.nexusSendFileCard(threadId, kind, card);
   }
 
   channel(channelId: string): Channel {
@@ -2685,7 +2685,7 @@ export class ChatSdkEndpointRuntime {
   /**
    * Reuse the pinned provider parser when a Telegram slash command also
    * carries media in its caption. The Chat SDK exposes slash-command fields
-   * separately from the parsed Message, so without this bridge Paperclip
+   * separately from the parsed Message, so without this bridge Nexus
    * would silently discard a captioned document/photo/audio/video.
    */
   parseTelegramCommandMessage(raw: unknown): Message | null {
@@ -3174,7 +3174,7 @@ export class ChatSdkEndpointNotRegisteredError extends Error {
   }
 }
 
-/** Process-local lifecycle registry; durable state remains in Paperclip persistence. */
+/** Process-local lifecycle registry; durable state remains in Nexus persistence. */
 export class ChatSdkRuntime {
   private readonly endpoints = new Map<string, ChatSdkEndpointRuntime>();
   private readonly retiringEndpoints = new Map<

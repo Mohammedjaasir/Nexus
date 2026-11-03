@@ -27,12 +27,12 @@ async function verifyMacConsumer(packageDirectory, sourceRevision, receiptPath) 
   assert.match(sourceRevision, /^[a-f0-9]{40}$/);
   const packages = realpathSync(packageDirectory);
   const manifest = JSON.parse(readFileSync(join(packages, 'manifest.json'), 'utf8'));
-  assert.equal(manifest.schema, 'paperclip.runner.public-packages/v1');
+  assert.equal(manifest.schema, 'nexus.runner.public-packages/v1');
   assert.equal(manifest.sourceRevision, sourceRevision);
-  assert.ok(manifest.archives.some(entry => entry.name === '@paperclipai/server'));
-  assert.ok(manifest.archives.some(entry => entry.name === 'paperclipai'));
+  assert.ok(manifest.archives.some(entry => entry.name === '@nexusai/server'));
+  assert.ok(manifest.archives.some(entry => entry.name === 'nexusai'));
   assert.equal(new Set(manifest.archives.map(entry => entry.name)).size, manifest.archives.length);
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'paperclip-mac-public-install-')));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'nexus-mac-public-install-')));
   try {
     const consumer = join(root, 'consumer'), home = join(root, 'home'), tools = join(root, 'tools');
     for (const directory of [consumer, home, tools, join(root, 'tmp'), join(root, 'cache')]) mkdirSync(directory);
@@ -52,13 +52,13 @@ async function verifyMacConsumer(packageDirectory, sourceRevision, receiptPath) 
     });
     writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
     const sentinelSource = join(root, 'lifecycle-sentinel'); mkdirSync(sentinelSource);
-    writeFileSync(join(sentinelSource, 'package.json'), JSON.stringify({ name: 'paperclip-verification-lifecycle-sentinel', version: '1.0.0',
+    writeFileSync(join(sentinelSource, 'package.json'), JSON.stringify({ name: 'nexus-verification-lifecycle-sentinel', version: '1.0.0',
       scripts: { postinstall: 'node -e "require(\'node:fs\').writeFileSync(\'lifecycle-ran\', \'ok\')"' } }));
     run(process.execPath, [npmCli, 'pack', '--ignore-scripts', '--pack-destination', root], sentinelSource);
     const sentinelTar = join(root, readdirSync(root).find(name => name.endsWith('.tgz')));
     runMacInitialInstallWithDiagnostics(() => run(process.execPath, [npmCli, 'install', '--ignore-scripts', '--omit=dev', '--timing', ...tarballs, sentinelTar]),
       { sourceRevision, platform: process.platform, architecture: process.arch, cacheDirectory: join(root, 'cache'), receiptPath });
-    const sentinel = join(consumer, 'node_modules/paperclip-verification-lifecycle-sentinel/lifecycle-ran');
+    const sentinel = join(consumer, 'node_modules/nexus-verification-lifecycle-sentinel/lifecycle-ran');
     assert.equal(existsSync(sentinel), false);
     const lock = readFileSync(join(consumer, 'package-lock.json'), 'utf8');
     const profile = join(root, 'lifecycle.sb'); writeFileSync(profile, macPublicInstallLifecycleProfile(root));
@@ -81,7 +81,7 @@ async function verifyMacConsumer(packageDirectory, sourceRevision, receiptPath) 
     for (const entry of manifest.archives) {
       assert.equal(JSON.parse(readFileSync(join(consumer, 'node_modules', entry.name, 'package.json'))).version, manifest.releaseVersion);
     }
-    const server = join(consumer, 'node_modules/@paperclipai/server'), installed = join(server, 'dist/vendor/paperclip-runner');
+    const server = join(consumer, 'node_modules/@nexusai/server'), installed = join(server, 'dist/vendor/nexus-runner');
     const probe = (name, source) => { const file = join(root, name); writeFileSync(file, source); return JSON.parse(run(process.execPath, [file]).trim()); };
     const daemon = probe('daemon-probe.mjs', installedDaemonProbeSource(installed, consumer, sourceRevision));
     const codex = probe('codex-probe.mjs', installedCodexProbeSource(join(installed, 'index.js'), consumer, undefined, { nativeCodex: true }));
@@ -89,7 +89,7 @@ async function verifyMacConsumer(packageDirectory, sourceRevision, receiptPath) 
     const startupScript = macInstalledStartupProbeSource(consumer, server, daemon.sha256, join(repo, 'tests/runner-e2e/installed-cli.ts'));
     const startupFile = join(root, 'startup-probe.mts'); writeFileSync(startupFile, startupScript);
     const startup = JSON.parse(run(process.execPath, ['--import', 'tsx', startupFile], join(repo, 'server')).trim());
-    const receipt = { schema: 'paperclip.runner.mac-public-install.v1', sourceRevision, platform: process.platform, architecture: process.arch,
+    const receipt = { schema: 'nexus.runner.mac-public-install.v1', sourceRevision, platform: process.platform, architecture: process.arch,
       cleanNpmInstall: true, packageCount: manifest.archives.length, codexPackedPayloadsOmitted: true,
       consumerLockPreserved: true, lifecycleSentinelVerified: true, lifecycleNodeHeadersVerified: true, lifecycleNodeVersion: process.versions.node,
       lifecycleNetwork: 'sandbox-exec denied (loopback negative control)',
@@ -105,12 +105,12 @@ async function verifyLinuxArmConsumer(packageDirectory, sourceRevision, receiptP
   assert.match(sourceRevision, /^[a-f0-9]{40}$/);
   const packages = realpathSync(packageDirectory);
   const manifest = JSON.parse(readFileSync(join(packages, 'manifest.json'), 'utf8'));
-  assert.equal(manifest.schema, 'paperclip.runner.public-packages/v1');
+  assert.equal(manifest.schema, 'nexus.runner.public-packages/v1');
   assert.equal(manifest.sourceRevision, sourceRevision);
-  assert.ok(manifest.archives.some(entry => entry.name === '@paperclipai/server'));
-  assert.ok(manifest.archives.some(entry => entry.name === 'paperclipai'));
+  assert.ok(manifest.archives.some(entry => entry.name === '@nexusai/server'));
+  assert.ok(manifest.archives.some(entry => entry.name === 'nexusai'));
   assert.equal(new Set(manifest.archives.map(entry => entry.name)).size, manifest.archives.length);
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'paperclip-arm-public-install-')));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'nexus-arm-public-install-')));
   try {
     const assets = join(root, 'assets'), consumer = join(root, 'consumer'), cache = join(root, 'cache');
     for (const directory of [assets, consumer, cache]) mkdirSync(directory);
@@ -131,11 +131,11 @@ async function verifyLinuxArmConsumer(packageDirectory, sourceRevision, receiptP
     }
     writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
     const sentinelSource = join(root, 'lifecycle-sentinel'); mkdirSync(sentinelSource);
-    writeFileSync(join(sentinelSource, 'package.json'), JSON.stringify({ name: 'paperclip-verification-lifecycle-sentinel', version: '1.0.0',
+    writeFileSync(join(sentinelSource, 'package.json'), JSON.stringify({ name: 'nexus-verification-lifecycle-sentinel', version: '1.0.0',
       scripts: { postinstall: 'node -e "require(\'node:fs\').writeFileSync(\'lifecycle-ran\', \'ok\')"' } }));
     run('npm', ['pack', '--ignore-scripts', '--pack-destination', assets], sentinelSource);
     isolated(['npm', 'install', '--ignore-scripts', '--omit=dev', ...readdirSync(assets).filter(file => file.endsWith('.tgz')).map(file => `/packages/${file}`)], { download: true });
-    const sentinel = join(consumer, 'node_modules/paperclip-verification-lifecycle-sentinel/lifecycle-ran');
+    const sentinel = join(consumer, 'node_modules/nexus-verification-lifecycle-sentinel/lifecycle-ran');
     assert.equal(existsSync(sentinel), false);
     const lock = readFileSync(join(consumer, 'package-lock.json'), 'utf8');
     isolated(GROK_PUBLIC_INSTALL_LIFECYCLE);
@@ -144,7 +144,7 @@ async function verifyLinuxArmConsumer(packageDirectory, sourceRevision, receiptP
     for (const entry of manifest.archives) {
       assert.equal(JSON.parse(readFileSync(join(consumer, 'node_modules', entry.name, 'package.json'))).version, manifest.releaseVersion);
     }
-    const server = '/consumer/node_modules/@paperclipai/server', installed = server + '/dist/vendor/paperclip-runner';
+    const server = '/consumer/node_modules/@nexusai/server', installed = server + '/dist/vendor/nexus-runner';
     const probe = (name, source, options = {}) => { writeFileSync(join(assets, name), source); return JSON.parse(isolated(['node', '/packages/' + name], options).trim()); };
     const daemon = probe('daemon-probe.mjs', installedDaemonProbeSource(installed, '/consumer', sourceRevision));
     assert.equal(daemon.target, 'linux-arm64');
@@ -159,7 +159,7 @@ async function verifyLinuxArmConsumer(packageDirectory, sourceRevision, receiptP
       return JSON.parse(execFileSync(process.execPath, [file], { cwd: consumer, env: hostEnv,
         timeout: 120_000, maxBuffer: 1024 * 1024, encoding: 'utf8' }).trim());
     };
-    const hostServer = join(consumer, 'node_modules/@paperclipai/server'), hostInstalled = join(hostServer, 'dist/vendor/paperclip-runner');
+    const hostServer = join(consumer, 'node_modules/@nexusai/server'), hostInstalled = join(hostServer, 'dist/vendor/nexus-runner');
     const hostDaemon = () => hostProbe('host-daemon-probe.mjs', installedDaemonProbeSource(hostInstalled, consumer, sourceRevision));
     const hostCodex = () => hostProbe('host-codex-probe.mjs', installedCodexProbeSource(join(hostInstalled, 'index.js'), consumer, undefined, { nativeCodex: true }));
     const claude = hostProbe('host-claude-probe.mjs', installedClaudeProbeSource(join(hostInstalled, 'index.js')));
@@ -177,7 +177,7 @@ async function verifyLinuxArmConsumer(packageDirectory, sourceRevision, receiptP
     assertInstalledNativeConsumerContinuity(before, after);
     assert.equal(startup.runnerSha256, before.runnerSha256);
     assert.equal(startup.codexSha256, before.codexCommandSha256);
-    const receipt = { schema: 'paperclip.runner.linux-arm64-public-install.v1', sourceRevision, platform: process.platform, architecture: process.arch,
+    const receipt = { schema: 'nexus.runner.linux-arm64-public-install.v1', sourceRevision, platform: process.platform, architecture: process.arch,
       cleanNpmInstall: true, packageCount: manifest.archives.length, codexPackedPayloadsOmitted: true,
       consumerImage: GROK_PUBLIC_INSTALL_IMAGE, consumerImagePlatform: platform,
       consumerLockPreserved: true, lifecycleSentinelVerified: true, lifecycleNetwork: 'none',
@@ -197,11 +197,11 @@ if (process.argv[2] === '--linux-arm64-consumer') {
   await verifyMacConsumer(process.argv[3], process.argv[4], process.argv[5]);
 } else {
 assert.equal(process.platform, 'linux', 'Run this verification on disposable EC2 Linux, not a developer host');
-const root = mkdtempSync(join(tmpdir(), 'paperclip-grok-public-install-'));
+const root = mkdtempSync(join(tmpdir(), 'nexus-grok-public-install-'));
 const prerequisite = join(root, 'native/grok');
-const cache = process.env.PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE ? resolve(process.env.PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE) : join(root, 'cache');
+const cache = process.env.NEXUS_PUBLIC_INSTALL_NPM_CACHE ? resolve(process.env.NEXUS_PUBLIC_INSTALL_NPM_CACHE) : join(root, 'cache');
 mkdirSync(cache, { recursive: true });
-const env = { ...process.env, NODE_PATH: '', ...(process.env.PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE ? { npm_config_cache: cache } : {}), PAPERCLIP_RELEASE_REUSE_UI_DIST: '1', npm_config_ignore_scripts: 'false', npm_config_audit: 'false', npm_config_fund: 'false' };
+const env = { ...process.env, NODE_PATH: '', ...(process.env.NEXUS_PUBLIC_INSTALL_NPM_CACHE ? { npm_config_cache: cache } : {}), NEXUS_RELEASE_REUSE_UI_DIST: '1', npm_config_ignore_scripts: 'false', npm_config_audit: 'false', npm_config_fund: 'false' };
 const run = (cmd, args, cwd = root) => execFileSync(cmd, args, { cwd, env, stdio: 'pipe', maxBuffer: 32 * 1024 * 1024 });
 const sourceRevision = run('git', ['rev-parse', 'HEAD'], repo).toString().trim();
 const releaseVersion = grokPublicInstallVersion(sourceRevision);
@@ -219,7 +219,7 @@ const stagedGrok = join(prefetched, 'grok');
 const prefetches = [];
 const downloads = [];
 const timing = {};
-const piSetupContainer = `paperclip-pi-setup-${basename(root)}`;
+const piSetupContainer = `nexus-pi-setup-${basename(root)}`;
 let piSetupStarted = false;
 // A prefetch failure surfaces where its result is awaited, never as an
 // unhandled rejection that would mask an earlier staging error.
@@ -236,7 +236,7 @@ try {
   const imageReady = prefetch('image', 'docker', ['pull', '--platform', 'linux/amd64', GROK_PUBLIC_INSTALL_IMAGE]);
   // Provision as the unprivileged verification user, never into the host's /opt.
   // Only the positive probe sees this file at the canonical sandbox path.
-  const grokReady = prefetch('grok', process.execPath, [join(repo, 'packages/paperclip-runner/scripts/provision-grok.mjs'), stagedGrok]);
+  const grokReady = prefetch('grok', process.execPath, [join(repo, 'packages/nexus-runner/scripts/provision-grok.mjs'), stagedGrok]);
   // The server, the CLI and every public workspace package they reach through
   // `workspace:` specs. The npm cache warm-up reads the same closure, so both
   // take it from one module.
@@ -251,7 +251,7 @@ try {
   // read a standalone build is qualification-package retention at the end:
   // it packs the Daytona plugin from its `dist`, which only this build
   // produces, so the build runs when retention is requested and nowhere else.
-  const retainQualificationPackages = Boolean(process.env.PAPERCLIP_RUNNER_QUALIFICATION_PACKAGES_DIR);
+  const retainQualificationPackages = Boolean(process.env.NEXUS_RUNNER_QUALIFICATION_PACKAGES_DIR);
   if (retainQualificationPackages) {
     const standaloneStarted = performance.now();
     run(process.execPath, [join(repo, 'scripts/build-standalone-public-packages.mjs')], repo);
@@ -324,8 +324,8 @@ try {
   timing.stage_pack_ms = Math.round(performance.now() - packStarted);
   Object.assign(timing, packTimings(packs, concurrency));
 
-  if (process.env.PAPERCLIP_RUNNER_PUBLIC_PACKS_DIR) {
-    const output = resolve(process.env.PAPERCLIP_RUNNER_PUBLIC_PACKS_DIR);
+  if (process.env.NEXUS_RUNNER_PUBLIC_PACKS_DIR) {
+    const output = resolve(process.env.NEXUS_RUNNER_PUBLIC_PACKS_DIR);
     assert.equal(JSON.parse(readFileSync(join(repo, 'server/dist/build-info.json'))).commit, sourceRevision);
     assert.ok(!existsSync(output), 'Never replace retained public packages');
     mkdirSync(output, { recursive: true });
@@ -334,7 +334,7 @@ try {
       return { name, file, sha256: createHash('sha256').update(readFileSync(tarballs[index])).digest('hex') };
     });
     writeFileSync(join(output, 'manifest.json'), JSON.stringify({
-      schema: 'paperclip.runner.public-packages/v1', sourceRevision, releaseVersion,
+      schema: 'nexus.runner.public-packages/v1', sourceRevision, releaseVersion,
       publicInstallationVerified: false, providerCalls: 0, archives,
     }, null, 2) + '\n');
   }
@@ -352,11 +352,11 @@ try {
   // Prove lifecycle execution is real even if npm changes its script defaults.
   const sentinelSource = join(root, 'lifecycle-sentinel'); mkdirSync(sentinelSource);
   writeFileSync(join(sentinelSource, 'package.json'), JSON.stringify({
-    name: 'paperclip-verification-lifecycle-sentinel', version: '1.0.0', private: true,
+    name: 'nexus-verification-lifecycle-sentinel', version: '1.0.0', private: true,
     scripts: { postinstall: 'node -e "require(\'node:fs\').writeFileSync(\'lifecycle-ran\', \'ok\')"' },
   }));
   run('npm', ['pack', '--ignore-scripts', '--pack-destination', assets], sentinelSource);
-  const sentinel = join(consumer, 'node_modules/paperclip-verification-lifecycle-sentinel/lifecycle-ran');
+  const sentinel = join(consumer, 'node_modules/nexus-verification-lifecycle-sentinel/lifecycle-ran');
   const consumerUid = process.getuid();
   const isolated = (command, options = {}) => run('docker', grokConsumerDockerArgs({ assets, consumer, cache, uid: consumerUid, gid: process.getgid(), command, ...options }));
   phase('stage_packages');
@@ -378,9 +378,9 @@ try {
   assert.equal(readFileSync(sentinel, 'utf8'), 'ok', 'Offline lifecycle scripts must actually execute');
   assert.equal(readFileSync(join(consumer, 'package-lock.json'), 'utf8'), consumerLock, 'Lifecycle execution must preserve the resolved consumer lock');
   phase('lifecycle_rebuild');
-  const piSetupReceipt = join(consumer, '.paperclip-pi-setup.json');
+  const piSetupReceipt = join(consumer, '.nexus-pi-setup.json');
   const piSetupArgs = grokConsumerDockerArgs({ assets, consumer, cache, uid: consumerUid, gid: process.getgid(),
-    command: ['sh', '-c', 'exec node /consumer/node_modules/paperclipai/dist/index.js runtime setup pi > /consumer/.paperclip-pi-setup.json'],
+    command: ['sh', '-c', 'exec node /consumer/node_modules/nexusai/dist/index.js runtime setup pi > /consumer/.nexus-pi-setup.json'],
     download: true, temporarySizeMiB: 2048 });
   piSetupArgs.splice(1, 0, '--name', piSetupContainer);
   const piSetupReady = prefetch('pi_setup', 'docker', piSetupArgs);
@@ -390,25 +390,25 @@ try {
     assert.equal(installedManifest.version, releaseVersion, `Installed release version for ${name}`);
   }
   assert.equal(existsSync(prerequisite), false, 'npm must not provision Grok');
-  const server = join(consumer, 'node_modules/@paperclipai/server');
-  const installed = join(server, 'dist/vendor/paperclip-runner');
-  const codexVersion = JSON.parse(readFileSync(join(repo, 'packages/paperclip-runner/acpx-profiles.json'), 'utf8')).profiles.codex.agentRuntimeVersion;
+  const server = join(consumer, 'node_modules/@nexusai/server');
+  const installed = join(server, 'dist/vendor/nexus-runner');
+  const codexVersion = JSON.parse(readFileSync(join(repo, 'packages/nexus-runner/acpx-profiles.json'), 'utf8')).profiles.codex.agentRuntimeVersion;
   assert.match(codexVersion, /^\d+\.\d+\.\d+$/);
   writeFileSync(join(assets, 'codex-probe.mjs'), installedCodexProbeSource(
-    '/consumer/node_modules/@paperclipai/server/dist/vendor/paperclip-runner/index.js', '/consumer', codexVersion), { mode: 0o644 });
+    '/consumer/node_modules/@nexusai/server/dist/vendor/nexus-runner/index.js', '/consumer', codexVersion), { mode: 0o644 });
   const codex = JSON.parse(isolated(['node', '/packages/codex-probe.mjs']).toString().trim());
   phase('codex_probe');
   assert.equal(codex.codexConsumerHostOnly, true);
   assert.equal(codex.codexPlatformPackageSource, 'official npm');
   assert.ok(existsSync(join(installed, 'providers/grok/launcher.cjs')));
-  assert.equal(existsSync(join(consumer, 'node_modules/@paperclipai/grok-acp')), false);
+  assert.equal(existsSync(join(consumer, 'node_modules/@nexusai/grok-acp')), false);
   assert.equal(existsSync(join(installed, 'providers/grok/bin')), false);
   // Use real installed compiled code and its actual npm dependency graph. A
   // separate process prevents module resolution from borrowing this checkout.
   const probe = `
     import assert from 'node:assert/strict';
-    import { verifyQualifiedAcpxInstallation } from '/consumer/node_modules/@paperclipai/server/dist/vendor/paperclip-runner/drivers/acpx/installation-integrity.js';
-    import { resolveQualifiedAcpxProfile } from '/consumer/node_modules/@paperclipai/server/dist/vendor/paperclip-runner/drivers/acpx/qualified-profiles.js';
+    import { verifyQualifiedAcpxInstallation } from '/consumer/node_modules/@nexusai/server/dist/vendor/nexus-runner/drivers/acpx/installation-integrity.js';
+    import { resolveQualifiedAcpxProfile } from '/consumer/node_modules/@nexusai/server/dist/vendor/nexus-runner/drivers/acpx/qualified-profiles.js';
     const profile = resolveQualifiedAcpxProfile('grok', 'grok-4.7');
     const inspect = () => verifyQualifiedAcpxInstallation(profile, () => { throw new Error('Grok must not resolve an npm package'); });
     if (process.argv[2] === 'missing') await assert.rejects(inspect, /prerequisite missing/);
@@ -424,7 +424,7 @@ try {
   renameSync(stagedGrok, prerequisite);
   isolated(['node', '/packages/probe.mjs', 'present'], { prerequisite });
   phase('grok_probes');
-  console.log(JSON.stringify({ schema: 'paperclip.grok.public-npm-install.v1', artifactTransport: 'loopback-registry', sourceRevision, releaseVersion, lifecycleScriptsEnabled: true, lifecycleSentinelVerified: true, lifecycleNetwork: 'none', consumerImage: GROK_PUBLIC_INSTALL_IMAGE, consumerUid, consumerLockPreserved: true, cleanNpmInstall: true, packageCount: needed.size, codexPackedPayloadsOmitted: true, codexPackedPackagesChecked: tarballs.length, ...codex, builtinLauncherPresent: true, separateGrokPackage: false, npmProvisionedBinary: false, missingPrerequisiteRejected: true, provisionedBinaryVerified: true, commandLeaseVerified: true, providerCalls: 0 }));
+  console.log(JSON.stringify({ schema: 'nexus.grok.public-npm-install.v1', artifactTransport: 'loopback-registry', sourceRevision, releaseVersion, lifecycleScriptsEnabled: true, lifecycleSentinelVerified: true, lifecycleNetwork: 'none', consumerImage: GROK_PUBLIC_INSTALL_IMAGE, consumerUid, consumerLockPreserved: true, cleanNpmInstall: true, packageCount: needed.size, codexPackedPayloadsOmitted: true, codexPackedPackagesChecked: tarballs.length, ...codex, builtinLauncherPresent: true, separateGrokPackage: false, npmProvisionedBinary: false, missingPrerequisiteRejected: true, provisionedBinaryVerified: true, commandLeaseVerified: true, providerCalls: 0 }));
   // Exercise Pi's public CLI and installed server, never a private workspace
   // package or binary override. Public dependency downloads are explicit and
   // isolated; the actual admission probe runs without a network or credentials.
@@ -443,7 +443,7 @@ try {
   // Verified launch leases also materialize the runtime in private scratch.
   // Docker defaults tmpfs to noexec. The offline admission probe must execute
   // its verified private snapshot while keeping lifecycle/download scratch noexec.
-  console.log(isolated(['node', '/packages/pi-public-install-probe.mjs', '/consumer/node_modules/@paperclipai/server'], { temporarySizeMiB: 2048, temporaryExecutable: true }).toString().trim());
+  console.log(isolated(['node', '/packages/pi-public-install-probe.mjs', '/consumer/node_modules/@nexusai/server'], { temporarySizeMiB: 2048, temporaryExecutable: true }).toString().trim());
   phase('pi_probe');
   // Wall time per phase, so the slow part of this step is visible in the CI log
   // without re-running it. `*_prefetch_ms` runs from a download's start to its
@@ -454,9 +454,9 @@ try {
   // is each concurrent install. `stage_standalone_build_ms` appears only when
   // qualification-package retention made the standalone build necessary.
   const downloaded = Object.fromEntries(downloads.map(({ name, durationMs }) => [`${name}_prefetch_ms`, durationMs]));
-  console.log(JSON.stringify({ schema: 'paperclip.public-npm-install.timing.v1', ...timing, ...downloaded, ...bundledInstallTimings(installs) }));
+  console.log(JSON.stringify({ schema: 'nexus.public-npm-install.timing.v1', ...timing, ...downloaded, ...bundledInstallTimings(installs) }));
   if (retainQualificationPackages) {
-    const retained = retainRunnerQualificationPackages({ repo, output: process.env.PAPERCLIP_RUNNER_QUALIFICATION_PACKAGES_DIR, sourceRevision, releaseVersion, env,
+    const retained = retainRunnerQualificationPackages({ repo, output: process.env.NEXUS_RUNNER_QUALIFICATION_PACKAGES_DIR, sourceRevision, releaseVersion, env,
       publicArchives: [...needed].map((name, index) => ({ name, file: tarballs[index] })),
     });
     console.log(JSON.stringify(retained));

@@ -10,14 +10,14 @@ import {
   companies,
   createDb,
   principalPermissionGrants,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
 import { agentService } from "../services/agents.ts";
 import { approvalService } from "../services/approvals.ts";
-import { paperclipRunnerSupportsPlatform } from "@paperclipai/shared";
+import { nexusRunnerSupportsPlatform } from "@nexusai/shared";
 
 const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
@@ -37,7 +37,7 @@ describeEmbeddedPostgres("pending approval agent config integrity", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-pending-agent-config-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-pending-agent-config-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -58,7 +58,7 @@ describeEmbeddedPostgres("pending approval agent config integrity", () => {
     const companyId = randomUUID();
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: issuePrefix(companyId),
       requireBoardApprovalForNewAgents: true,
     });
@@ -72,8 +72,8 @@ describeEmbeddedPostgres("pending approval agent config integrity", () => {
     const native = await lifecycle.requestHire(companyId, { name: "New Codex", adapterType: "codex_local", adapterConfig: { modelReasoningEffort: "high" }, status: "pending_approval" });
     const legacy = await lifecycle.requestHire(companyId, { name: "Legacy Codex", adapterType: "codex_local", runner: "legacy", adapterConfig: { extraArgs: ["--search"] }, status: "pending_approval" });
     const reviewedLegacy = await lifecycle.requestHire(companyId, { name: "Historical approved hire", adapterType: "codex_local", adapterConfig: {}, status: "pending_approval" }, { runnerResolved: true });
-    if (paperclipRunnerSupportsPlatform("codex_local", process.platform, process.arch)) {
-      expect(native).toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { provider: "codex", modelReasoningEffort: "high" } });
+    if (nexusRunnerSupportsPlatform("codex_local", process.platform, process.arch)) {
+      expect(native).toMatchObject({ adapterType: "nexus_runner", adapterConfig: { provider: "codex", modelReasoningEffort: "high" } });
     } else {
       expect(native).toMatchObject({ adapterType: "codex_local", adapterConfig: { modelReasoningEffort: "high" } });
     }

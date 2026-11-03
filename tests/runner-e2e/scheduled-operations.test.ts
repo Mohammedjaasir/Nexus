@@ -54,11 +54,11 @@ it("fails closed before paid work if disabled, missing project identity, or pref
   const env = { EVAL_EVENT: "schedule", EVAL_SCHEDULE: "47 8 * * *", EVAL_OPERATIONS_ENABLED: "true",
     GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1", GITHUB_WORKSPACE: directory,
     EVAL_OPERATING_OVERHEAD_JSON: JSON.stringify(overhead), EVAL_TEST_RUNNER: "ubuntu-latest",
-    PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: input.projectId };
+    NEXUS_E2E_BRAINTRUST_PROJECT_ID: input.projectId };
   try {
     await expect(prepareScheduledCampaign({ ...env, EVAL_OPERATIONS_ENABLED: "false" }, input.now)).rejects.toThrow("not enabled");
     await expect(prepareScheduledCampaign({ ...env, EVAL_OPERATING_OVERHEAD_JSON: "" }, input.now)).rejects.toThrow("Missing reviewed");
-    await expect(prepareScheduledCampaign({ ...env, PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: "" }, input.now)).rejects.toThrow("UUID");
+    await expect(prepareScheduledCampaign({ ...env, NEXUS_E2E_BRAINTRUST_PROJECT_ID: "" }, input.now)).rejects.toThrow("UUID");
     const prepared = await prepareScheduledCampaign(env, input.now);
     expect(prepared.manifest.limits.campaignId).toBe(prepared.campaignId);
     const forecast = JSON.parse(await readFile(path.join(path.dirname(prepared.manifestPath), "forecast.json"), "utf8"));
@@ -87,7 +87,7 @@ it.each(["daily", "weekly"] as const)("prepares %s with its own reviewed operati
   const env = { EVAL_EVENT: "workflow_dispatch", EVAL_CADENCE: cadence, EVAL_OPERATIONS_ENABLED: "true",
     GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1", GITHUB_WORKSPACE: directory,
     EVAL_OPERATING_OVERHEAD_JSON: JSON.stringify(allowances), EVAL_TEST_RUNNER: "ubuntu-latest",
-    PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: input.projectId };
+    NEXUS_E2E_BRAINTRUST_PROJECT_ID: input.projectId };
   try {
     await expect(prepareScheduledCampaign({ ...env,
       EVAL_OPERATING_OVERHEAD_JSON: JSON.stringify({ ...allowances, [cadence]: undefined }) }, input.now)).rejects.toThrow();

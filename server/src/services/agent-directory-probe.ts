@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import childProcess from "node:child_process";
-import type { DirectorySnapshot } from "@paperclipai/adapter-utils/workspace-restore-merge";
+import type { DirectorySnapshot } from "@nexusai/adapter-utils/workspace-restore-merge";
 
 /** Only for a live unchanged-turn observation. Never a save or stop receipt. */
 export function agentDirectoryBaselineDigest(snapshot: DirectorySnapshot): string {
@@ -55,7 +55,7 @@ export function probeAgentDirectory(
       checkTime();
       const next = relative ? `${relative}/${name}` : name;
       if (next.length > 512 || name === "." || name === ".." || name.includes("\\") || name.includes("\0")
-        || name === ".paperclip-runtime" || next === "promptTemplate.legacy.md") throw new Error("Unsafe agent file path");
+        || name === ".nexus-runtime" || next === "promptTemplate.legacy.md") throw new Error("Unsafe agent file path");
       const filename = path.join(root, next);
       const s = fs.lstatSync(filename, { bigint: true });
       if (s.isDirectory()) {
@@ -134,7 +134,7 @@ export function retireAgentDirectoryTransferScratch(root: string, modules = { fs
   for (const segment of root.slice(ancestor.length).split(path.sep)) {
     ancestor = path.join(ancestor, segment); identities.set(ancestor, identify(ancestor));
   }
-  const parent = path.join(root, ".paperclip-runtime"), scratch = path.join(parent, "agent-files");
+  const parent = path.join(root, ".nexus-runtime"), scratch = path.join(parent, "agent-files");
   identities.set(parent, identify(parent)); identities.set(scratch, identify(scratch));
   const verify = () => {
     for (const [directory, expected] of identities) if (identify(directory) !== expected) throw new Error("Transfer scratch identity changed");

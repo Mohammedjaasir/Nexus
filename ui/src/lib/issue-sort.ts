@@ -1,4 +1,4 @@
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 import { issuePriorityOrder, issueStatusOrder } from "./issue-filters";
 import { workflowSort } from "./workflow-sort";
 

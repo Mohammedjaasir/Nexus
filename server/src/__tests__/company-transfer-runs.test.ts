@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDb } from "@paperclipai/db";
-import { sha256HexOfBytes } from "@paperclipai/shared/portability-hash";
+import { createDb } from "@nexusai/db";
+import { sha256HexOfBytes } from "@nexusai/shared/portability-hash";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -12,7 +12,7 @@ import {
   type CompanyTransferPartsIndex,
 } from "../services/company-transfer-runs.js";
 
-const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_TRANSFER_LEDGER_TEST_DATABASE_URL");
+const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_TRANSFER_LEDGER_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalTestDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -39,7 +39,7 @@ describeEmbeddedPostgres("companyTransferRunService", () => {
   let db!: ReturnType<typeof createDb>;
 
   beforeAll(async () => {
-    if (!externalTestDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-transfer-runs-");
+    if (!externalTestDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-transfer-runs-");
     db = createDb(externalTestDatabaseUrl ?? tempDb!.connectionString);
   });
 

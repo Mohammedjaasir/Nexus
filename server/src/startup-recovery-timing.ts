@@ -8,7 +8,7 @@ export async function timeStartupRecovery<T>(phase: StartupRecoveryPhase, work: 
   if (!process.env.OTEL_EXPORTER_OTLP_ENDPOINT?.trim()) return work();
   let span: Span | undefined;
   try {
-    span = trace.getTracer("paperclip.controller-startup").startSpan(
+    span = trace.getTracer("nexus.controller-startup").startSpan(
       `controller.startup.${phase}`, undefined, ROOT_CONTEXT,
     );
   } catch {}

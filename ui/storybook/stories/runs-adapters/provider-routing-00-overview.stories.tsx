@@ -7,7 +7,7 @@ const meta = {
   title: "Agents and reusable capabilities/Runs, harnesses, and model accounts/AI Connections/Provider routing/00 Overview",
   component: ReviewIndex,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "runs-adapters/validation"
       ],

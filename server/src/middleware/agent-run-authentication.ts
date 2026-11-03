@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { heartbeatRuns, type Db } from "@paperclipai/db";
+import { heartbeatRuns, type Db } from "@nexusai/db";
 
 export function loadAgentRunAuthentication(db: Db, input: {
   runId: string;

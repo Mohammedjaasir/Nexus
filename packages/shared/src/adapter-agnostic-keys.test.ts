@@ -11,7 +11,7 @@ const EXPECTED_ADAPTER_AGNOSTIC_KEYS = [
   "timeoutSec",
   "graceSec",
   "bootstrapPromptTemplate",
-  "paperclipSkillSync",
+  "nexusSkillSync",
 ] as const;
 
 function readRepoFile(pathFromRoot: string) {
@@ -31,11 +31,11 @@ describe("adapter-agnostic config keys", () => {
     const uiSource = readRepoFile("ui/src/lib/agent-config-patch.ts");
 
     expect(serverSource).toContain("ADAPTER_AGNOSTIC_KEYS");
-    expect(serverSource).toContain("from \"@paperclipai/shared\"");
+    expect(serverSource).toContain("from \"@nexusai/shared\"");
     expect(serverSource).not.toMatch(/const\s+ADAPTER_AGNOSTIC_KEYS\s*=/);
 
     expect(uiSource).toContain("ADAPTER_AGNOSTIC_KEYS");
-    expect(uiSource).toContain("from \"@paperclipai/shared\"");
+    expect(uiSource).toContain("from \"@nexusai/shared\"");
     expect(uiSource).not.toMatch(/const\s+ADAPTER_AGNOSTIC_KEYS\s*=/);
   });
 });

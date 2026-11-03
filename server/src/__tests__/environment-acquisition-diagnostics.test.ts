@@ -1,8 +1,8 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { JsonRpcCallError, readEnvironmentAcquisitionDiagnostic, readEnvironmentCreationCleanupError } from "@paperclipai/plugin-sdk";
-import type { heartbeatRuns } from "@paperclipai/db";
+import { JsonRpcCallError, readEnvironmentAcquisitionDiagnostic, readEnvironmentCreationCleanupError } from "@nexusai/plugin-sdk";
+import type { heartbeatRuns } from "@nexusai/db";
 import { createPluginWorkerHandle } from "../services/plugin-worker-manager.js";
 import { captureEnvironmentAcquisitionDiagnostic } from "../services/environment-acquisition-diagnostics.js";
 import { collectRunFailureDiagnostics } from "../services/run-failure-diagnostics.js";
@@ -12,7 +12,7 @@ describe("acquisition diagnostics through the built worker and real host client"
     const handle = createPluginWorkerHandle("test.acquisition", {
       entrypointPath: fileURLToPath(new URL("./fixtures/plugin-worker-acquisition-diagnostic.mjs", import.meta.url)),
       manifest: { id: "test.acquisition", apiVersion: 1, version: "1.0.0", displayName: "Acquisition fixture",
-        description: "Acquisition fixture", author: "Paperclip", categories: ["automation"], capabilities: [],
+        description: "Acquisition fixture", author: "Nexus", categories: ["automation"], capabilities: [],
         entrypoints: { worker: "fixture.mjs" } },
       config: {}, instanceInfo: { instanceId: "instance-fixture", hostVersion: "1.0.0" }, apiVersion: 1,
       hostHandlers: {}, rpcTimeoutMs: 5_000,

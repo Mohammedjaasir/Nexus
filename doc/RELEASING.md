@@ -1,6 +1,6 @@
-# Releasing Paperclip
+# Releasing Nexus
 
-Maintainer runbook for shipping Paperclip across npm, GitHub, and the website-facing changelog surface.
+Maintainer runbook for shipping Nexus across npm, GitHub, and the website-facing changelog surface.
 
 The release model is now commit-driven:
 
@@ -20,7 +20,7 @@ The user-facing guide to the channels is [`CHANNELS.md`](CHANNELS.md).
 
 ## Versioning Model
 
-Paperclip uses calendar versions that still fit semver syntax:
+Nexus uses calendar versions that still fit semver syntax:
 
 - stable: `YYYY.MDD.P`
 - canary: `YYYY.MDD.P-canary.N`
@@ -52,7 +52,7 @@ Important constraints:
 Every stable release has four separate surfaces:
 
 1. **Verification** — the exact git SHA passes typecheck, tests, and build
-2. **npm** — `paperclipai` and public workspace packages are published
+2. **npm** — `nexusai` and public workspace packages are published
 3. **GitHub** — the stable release gets a git tag and GitHub Release
 4. **Website / announcements** — the stable changelog is published externally and announced
 
@@ -101,9 +101,9 @@ It:
 - computes the canary version for the current UTC date
 - publishes workspace packages dependency-first under npm dist-tag `canary`
 - waits for each package version to become registry-visible before continuing
-- publishes the user-facing `paperclipai` package last, so `paperclipai@canary` does not advance before the full package set exists
+- publishes the user-facing `nexusai` package last, so `nexusai@canary` does not advance before the full package set exists
 - verifies that `canary` resolves to the just-published version and that published internal dependencies exist on npm
-- installs `paperclipai@canary` into a clean temporary prefix as the final npm gate
+- installs `nexusai@canary` into a clean temporary prefix as the final npm gate
 - starts the exact published canary through a separate fresh npm install for the onboarding smoke; npm `ETARGET` and verified canary tarball availability failures retry, up to three attempts within two minutes, before onboarding runs once under the existing five-minute startup deadline
 - fails by default if npm leaves `latest` pointing at a canary; use `--allow-canary-latest` only when that state is intentional
 - creates a git tag `canary/vYYYY.MDD.P-canary.N`
@@ -117,7 +117,7 @@ pending, without resolving new dependencies in the smoke job. The smoke still in
 the exact published canary version, not a workspace build.
 
 The tarball retry applies only to an unambiguous npm `E404` for a canonical
-public-registry tarball of a CI-published Paperclip package at that exact canary
+public-registry tarball of a CI-published Nexus package at that exact canary
 version. The helper queries npm's effective global and applicable scoped registry
 in the failed install's prefix, working directory, and environment. A custom or
 unknown effective registry fails. Configuration output stays private in memory.
@@ -140,9 +140,9 @@ artifact fails the job rather than falling back to a different dependency set.
 Users install canaries with:
 
 ```bash
-npx paperclipai@canary onboard
+npx nexusai@canary onboard
 # or
-npx paperclipai@canary onboard --data-dir "$(mktemp -d /tmp/paperclip-canary.XXXXXX)"
+npx nexusai@canary onboard --data-dir "$(mktemp -d /tmp/nexus-canary.XXXXXX)"
 ```
 
 ### Nightly
@@ -176,7 +176,7 @@ push, and the Docker dispatch.
 Users install nightlies with:
 
 ```bash
-npx paperclipai@nightly onboard
+npx nexusai@nightly onboard
 ```
 
 ### Beta
@@ -212,7 +212,7 @@ Betas are manual promotions. Dispatch
 Users install betas with:
 
 ```bash
-npx paperclipai@beta onboard
+npx nexusai@beta onboard
 ```
 
 #### Beta fix path: candidate branches
@@ -414,7 +414,7 @@ Recommended local generation flow:
 
 ```bash
 VERSION="$(./scripts/release.sh stable --date 2026-03-18 --print-version)"
-claude --print --output-format stream-json --verbose --dangerously-skip-permissions --model claude-opus-4-6 "Use the release-changelog skill to draft or update releases/v${VERSION}.md for Paperclip. Read doc/RELEASING.md and .agents/skills/release-changelog/SKILL.md, then generate the stable changelog for v${VERSION} from commits since the last stable tag. Do not create a canary changelog."
+claude --print --output-format stream-json --verbose --dangerously-skip-permissions --model claude-opus-4-6 "Use the release-changelog skill to draft or update releases/v${VERSION}.md for Nexus. Read doc/RELEASING.md and .agents/skills/release-changelog/SKILL.md, then generate the stable changelog for v${VERSION} from commits since the last stable tag. Do not create a canary changelog."
 ```
 
 The repo intentionally does not run this through GitHub Actions because:
@@ -428,29 +428,29 @@ The repo intentionally does not run this through GitHub Actions because:
 For a canary:
 
 ```bash
-PAPERCLIPAI_VERSION=canary ./scripts/docker-onboard-smoke.sh
+NEXUSAI_VERSION=canary ./scripts/docker-onboard-smoke.sh
 ```
 
 For the current stable:
 
 ```bash
-PAPERCLIPAI_VERSION=latest ./scripts/docker-onboard-smoke.sh
+NEXUSAI_VERSION=latest ./scripts/docker-onboard-smoke.sh
 ```
 
 Useful isolated variants:
 
 ```bash
-HOST_PORT=3232 DATA_DIR=./data/release-smoke-canary PAPERCLIPAI_VERSION=canary ./scripts/docker-onboard-smoke.sh
-HOST_PORT=3233 DATA_DIR=./data/release-smoke-stable PAPERCLIPAI_VERSION=latest ./scripts/docker-onboard-smoke.sh
+HOST_PORT=3232 DATA_DIR=./data/release-smoke-canary NEXUSAI_VERSION=canary ./scripts/docker-onboard-smoke.sh
+HOST_PORT=3233 DATA_DIR=./data/release-smoke-stable NEXUSAI_VERSION=latest ./scripts/docker-onboard-smoke.sh
 ```
 
 Automated browser smoke is also available:
 
 ```bash
-gh workflow run release-smoke.yml -f paperclip_version=canary
-gh workflow run release-smoke.yml -f paperclip_version=nightly
-gh workflow run release-smoke.yml -f paperclip_version=beta
-gh workflow run release-smoke.yml -f paperclip_version=latest
+gh workflow run release-smoke.yml -f nexus_version=canary
+gh workflow run release-smoke.yml -f nexus_version=nightly
+gh workflow run release-smoke.yml -f nexus_version=beta
+gh workflow run release-smoke.yml -f nexus_version=latest
 ```
 
 The nightly lane runs this same suite automatically against its candidate
@@ -459,7 +459,7 @@ post-publish verification.
 
 Minimum checks:
 
-- `npx paperclipai@canary onboard` installs
+- `npx nexusai@canary onboard` installs
 - onboarding completes without crashes
 - authenticated login works with the smoke credentials
 - the browser lands in onboarding on a fresh instance

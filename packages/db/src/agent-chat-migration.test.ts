@@ -59,7 +59,7 @@ async function assertConstraints(sql: postgres.Sql, row: Awaited<ReturnType<type
 
 describePostgres("persistent agent chat migration", () => {
   it("applies to a fresh database and enforces conversation identity and message retry uniqueness", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-chat-migration-fresh-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-chat-migration-fresh-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     try {
@@ -70,7 +70,7 @@ describePostgres("persistent agent chat migration", () => {
   }, 30_000);
 
   it("replays over pre-release columns and constraints without losing history or weakening the state guard", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-chat-migration-replay-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-chat-migration-replay-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     try {

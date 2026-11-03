@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { pluginManifestV1Schema, type Issue } from "@paperclipai/shared";
-import { createTestHarness } from "@paperclipai/plugin-sdk/testing";
+import { pluginManifestV1Schema, type Issue } from "@nexusai/shared";
+import { createTestHarness } from "@nexusai/plugin-sdk/testing";
 import manifest from "../src/manifest.js";
 import plugin from "../src/worker.js";
 
@@ -53,7 +53,7 @@ function issue(input: Partial<Issue> & Pick<Issue, "id" | "companyId" | "title">
 describe("orchestration smoke plugin", () => {
   it("declares the Phase 1 orchestration surfaces", () => {
     expect(pluginManifestV1Schema.parse(manifest)).toMatchObject({
-      id: "paperclipai.plugin-orchestration-smoke-example",
+      id: "nexusai.plugin-orchestration-smoke-example",
       database: {
         migrationsDir: "migrations",
         coreReadTables: ["issues"],

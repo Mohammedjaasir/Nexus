@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { sql } from "drizzle-orm";
 import { inspectNativeRunnerUpgradeHeader } from "./native-runner-checkpoint.js";
 
@@ -17,7 +17,7 @@ export async function readNativeControllerRecoveryInventory(db: Db, input: { aft
       pending: boolean;
     }>(sql`with selected as (
       select id, company_id, agent_id, last_run_id from agent_task_sessions
-      where adapter_type = 'paperclip_runner' ${input.afterId ? sql`and id > ${input.afterId}::uuid` : sql``}
+      where adapter_type = 'nexus_runner' ${input.afterId ? sql`and id > ${input.afterId}::uuid` : sql``}
       order by id limit ${limit + 1}
     ) select s.id, s.company_id as "companyId", r.id as "runId", r.native_issue_id as "issueId",
       r.native_session_id as "sessionId", r.runner_instance_id as "runnerId",
@@ -42,7 +42,7 @@ export async function readNativeControllerRecoveryInventory(db: Db, input: { aft
     let reason: string | null = null;
     if (row.pending) { outstandingObligations++; reason = "persistence_or_handoff_pending"; }
     else if (!row.runId || !row.issueId || !row.sessionId) reason = "selected_binding_missing";
-    else if (row.metadata?.schema !== "paperclip.native-controller-recovery.v1") reason = "metadata_unsupported_or_missing";
+    else if (row.metadata?.schema !== "nexus.native-controller-recovery.v1") reason = "metadata_unsupported_or_missing";
     else {
       const checkpoint = row.metadata.checkpoint as Record<string, unknown> | null;
       const header = row.material ? inspectNativeRunnerUpgradeHeader({ companyId: row.companyId, issueId: row.issueId, runId: row.runId }, row.material) : null;

@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import type { Db } from '@paperclipai/db';
+import type { Db } from '@nexusai/db';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { forbidden } from '../errors.js';
 const mocks = vi.hoisted(() => ({ headers: vi.fn(), connectionIds: vi.fn(), snapshot: vi.fn(), grantIds: vi.fn(), managed: vi.fn() }));

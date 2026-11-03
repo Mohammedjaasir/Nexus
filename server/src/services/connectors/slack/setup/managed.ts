@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { chatActions, chatSlackRegistrations } from "@paperclipai/db";
-import { type SlackManagedProvisionInput, type SlackManagedResult } from "@paperclipai/shared";
+import { chatActions, chatSlackRegistrations } from "@nexusai/db";
+import { type SlackManagedProvisionInput, type SlackManagedResult } from "@nexusai/shared";
 import { conflict } from "../../../../errors.js";
 import type { createCustomerOwnedSetup } from "./customer-owned.js";
 import type { createSlackManagerGrants } from "./manager-grants.js";
@@ -63,7 +63,7 @@ export function createManagedSlackSetup(store: SlackRegistrationStore, grants: R
         await store.endpoint(endpointId, actor);
         // Vault before auth.test/inventory so network failures never lose this installation.
         await store.saveSecrets(row, { botToken }, actor, lease, { status: "credentials_saved", workspaceId: grant.workspaceId, errorCode: null },
-          { externalUserId: grant.slackUserId, paperclipUserId: actor.userId, status: "pending", welcomeStatus: "pending" });
+          { externalUserId: grant.slackUserId, nexusUserId: actor.userId, status: "pending", welcomeStatus: "pending" });
       } catch (error) {
         const code = object(object(error).details).code;
         const safe = typeof code === "string" ? code : "slack_install_failed";

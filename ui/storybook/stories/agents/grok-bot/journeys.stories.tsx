@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import type { CreateGrokInvitation, GrokConnection } from "@paperclipai/shared";
+import type { CreateGrokInvitation, GrokConnection } from "@nexusai/shared";
 import { GrokBotSetupContent, type GrokSetupStep } from "@/components/new-agent/GrokBotSetupContent";
 import { AnimatedDialogContent } from "@/components/AnimatedDialogContent";
 import { Dialog } from "@/components/ui/dialog";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { GrokWorkJourney } from "./work-journey";
 
 const bindingId = "11111111-1111-4111-8111-111111111111";
-const connection: GrokConnection = { enabled: true, resourceUrl: "https://paperclip.example/mcp/runner", agentStatus: "idle",
+const connection: GrokConnection = { enabled: true, resourceUrl: "https://nexus.example/mcp/runner", agentStatus: "idle",
   agentLifecycleState: "ready", canConfigureConnection: true, recoveryNeeded: false,
   binding: { id: bindingId, providerKind: "grok_bot", status: "connected", connected: true, subscriptionVerified: false,
     hasPendingChallenge: false, pairingExpiresAt: null, challengeExpiresAt: null, wakeVerified: false, routine: null } };
@@ -45,7 +45,7 @@ function SetupPreview({ initialStep = 0, outboundOnly = false, rejected = false,
 const meta = {
   id: "onboarding-grok-bot-journeys",
   title: "Agents and reusable capabilities/Hiring, configuration, and organization/Onboarding/Grok Bot/Journeys",
-  component: SetupPreview, parameters: { layout: "fullscreen", paperclip: { capabilities: ["agents/grok-bot"], status: "proposed", implementation: "mixed", boundary: "fixtures", notes: "Production setup presentation with simulated connection evidence; the work journey mounts the production task thread, question form and document card with local synthetic responses. No live authorization, provider task or managed Runner proof." }, docs: { description: { component: "Production setup presentation with simulated server evidence. These stories create no OAuth connection, routine, task or managed job. A real authenticated challenge receipt is required in the app. The work journey uses the production task thread, input-card and document UI; provider callbacks, task persistence and recovery are simulated." } } },
+  component: SetupPreview, parameters: { layout: "fullscreen", nexus: { capabilities: ["agents/grok-bot"], status: "proposed", implementation: "mixed", boundary: "fixtures", notes: "Production setup presentation with simulated connection evidence; the work journey mounts the production task thread, question form and document card with local synthetic responses. No live authorization, provider task or managed Runner proof." }, docs: { description: { component: "Production setup presentation with simulated server evidence. These stories create no OAuth connection, routine, task or managed job. A real authenticated challenge receipt is required in the app. The work journey uses the production task thread, input-card and document UI; provider callbacks, task persistence and recovery are simulated." } } },
 } satisfies Meta<typeof SetupPreview>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -61,7 +61,7 @@ export const WaitingForAuthorization: Story = { args: { initialStep: 1, saved: t
 export const ConfigureRoutine: Story = { args: { initialStep: 2, saved: true } };
 export const OutboundOnly: Story = { args: { initialStep: 3, outboundOnly: true, saved: true }, play: async ({ canvasElement }) => {
   const page = within(canvasElement.ownerDocument.body);
-  await expect(page.getByText("The routine accepted delivery. Waiting for an authenticated reply to Paperclip.")).toBeVisible();
+  await expect(page.getByText("The routine accepted delivery. Waiting for an authenticated reply to Nexus.")).toBeVisible();
   await expect(page.queryByRole("button", { name: "Done" })).not.toBeInTheDocument();
 } };
 export const IncorrectCredentials: Story = { args: { initialStep: 3, rejected: true, saved: true }, play: async ({ canvasElement }) => {
@@ -98,8 +98,8 @@ export const GuidedWorkJourney: Story = { render: () => <GrokWorkJourney />, pla
   await userEvent.click(page.getByRole("button", { name: "Simulate Bot-initiated work" }));
   await expect(page.getByRole("button", { name: "One task admitted" })).toBeDisabled();
   await userEvent.click(page.getByRole("button", { name: /^Next$/ }));
-  await userEvent.click(page.getByRole("button", { name: "Stop Paperclip work" }));
-  await expect(page.getByText("Paperclip work-session authority revoked. Remote Grok execution remains unknown.")).toBeVisible();
+  await userEvent.click(page.getByRole("button", { name: "Stop Nexus work" }));
+  await expect(page.getByText("Nexus work-session authority revoked. Remote Grok execution remains unknown.")).toBeVisible();
   await userEvent.click(page.getByRole("button", { name: /^Next$/ }));
   await userEvent.click(page.getByRole("button", { name: "Simulate inspection and fresh verification" }));
   await expect(page.getByText("Fresh exchange verified. Ready for the next task.")).toBeVisible();

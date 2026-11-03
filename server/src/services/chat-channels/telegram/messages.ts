@@ -1,7 +1,7 @@
 import type { Attachment } from "chat";
 import { createHash } from "node:crypto";
-import type { chatDeliveries } from "@paperclipai/db";
-import type { ChatProvider } from "@paperclipai/shared";
+import type { chatDeliveries } from "@nexusai/db";
+import type { ChatProvider } from "@nexusai/shared";
 import { normalizeTelegramRichMessage } from "../../chat-telegram-rich-intake.js";
 import { MAX_INBOUND_TEXT, type LifecycleActor } from "../message-lifecycle.js";
 
@@ -228,7 +228,7 @@ export function telegramMarkdownAttachment(text: string): Attachment {
     return {
       data,
       mimeType: "text/markdown; charset=utf-8",
-      name: "paperclip-response.md",
+      name: "nexus-response.md",
       size: data.byteLength,
       type: "file",
     };

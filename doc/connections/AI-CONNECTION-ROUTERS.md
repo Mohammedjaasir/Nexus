@@ -92,18 +92,18 @@ plus the existing AI connection, retry accounting, run-dispatch and UI suites.
 
 ## UI review in Storybook
 
-Run `pnpm --filter @paperclipai/ui storybook` from Core, then open
+Run `pnpm --filter @nexusai/ui storybook` from Core, then open
 **AI Connections / Connection pools**. The 16 stories use production components
 for pool selection, legacy-session adoption, unavailable/read-only selections,
 mixed-provider composer models and effort, mobile composer settings, usage waits,
 run selections and override notes, and scheduled retries.
 `AllCoreSurfaces` provides an overview; individual stories expose the expanded
-menus and adoption dialog. Run `pnpm --filter @paperclipai/ui build-storybook`
+menus and adoption dialog. Run `pnpm --filter @nexusai/ui build-storybook`
 to build the preview.
 
 Pool configuration stories belong to the private Cloud plugin's own Storybook
 in `extensions/plugin-connection-pool/storybook/`. Both previews use fictional
-accounts; they do not call live providers or mutate a Paperclip instance.
+accounts; they do not call live providers or mutate a Nexus instance.
 Core also owns **Connectors / Pool host** stories for the generic native
 extension. The overview links to Cloud's **In Connectors** preview on port 6010;
 its stories mount these same production routes, header, sidebar and tokens.
@@ -117,7 +117,7 @@ enable the experimental flag, and use a company named for an E2E or test drive
 with two saved, authorized AI accounts. Run:
 
 ```sh
-PAPERCLIP_CONNECTION_POOL_E2E=1 \
+NEXUS_CONNECTION_POOL_E2E=1 \
 AI_CONNECTIONS_TEST_URL=http://127.0.0.1:3100 \
 AI_CONNECTIONS_TEST_COMPANY_ID=<test-company-id> \
 pnpm exec playwright test --config tests/ai-connections-app/playwright.config.ts connection-pools.spec.ts

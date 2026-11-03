@@ -160,7 +160,7 @@ describe("kubernetes onEnvironmentSyncIn (native single-exec transfer)", () => {
     // Secret landed 0600.
     expect((await fs.stat(path.join(remoteDir, "nested/auth.json"))).mode & 0o777).toBe(0o600);
     // No leftover reserved scratch dir in the workspace root.
-    const leftovers = (await fs.readdir(remoteDir)).filter((e) => e.startsWith(".paperclip-upload"));
+    const leftovers = (await fs.readdir(remoteDir)).filter((e) => e.startsWith(".nexus-upload"));
     expect(leftovers).toEqual([]);
     // Per-operation counts.
     expect(result.operations).toEqual([
@@ -419,7 +419,7 @@ describe("kubernetes onEnvironmentSyncOut (native single-exec transfer)", () => 
       { operationId: "op-out", filesTransferred: 2, bytesTransferred: expect.any(Number) },
     ]);
     // Reserved snapshot scratch cleaned up from the workspace root.
-    const leftovers = (await fs.readdir(remoteDir)).filter((e) => e.startsWith(".paperclip-upload"));
+    const leftovers = (await fs.readdir(remoteDir)).filter((e) => e.startsWith(".nexus-upload"));
     expect(leftovers).toEqual([]);
   });
 

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { expect, it, vi } from "vitest";
-import { heartbeatRuns, issues } from "@paperclipai/db";
+import { heartbeatRuns, issues } from "@nexusai/db";
 import { issueService } from "../services/issues.js";
 import { describeIssueRecovery, issueRecoveryFixture } from "./issue-recovery.test-fixture.js";
 

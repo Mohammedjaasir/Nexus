@@ -123,7 +123,7 @@
     }
   },
   "discardedAttempt": "Initial candidate clipped the suite-closing statement and failed to parse; regenerated from baseline before accepted full-file run. No result from that attempt counts as proof.",
-  "ciInclusion": "@paperclipai/ui project in general-workspaces-a; complete file remains included; no routing changes",
+  "ciInclusion": "@nexusai/ui project in general-workspaces-a; complete file remains included; no routing changes",
   "combinedNetTestLinesRemoved": 386,
   "combinedRegisteredInvocationsRemoved": 4,
   "combinedCompleteFileBaselineCases": 333,

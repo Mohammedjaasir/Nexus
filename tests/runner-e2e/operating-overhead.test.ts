@@ -90,7 +90,7 @@ it("requires fresh reviewed allowances tied to the actual CI runner before sched
   expect(() => scheduledOperatingOverhead("not json", runner, "20", now)).toThrow("JSON");
   expect(() => scheduledOperatingOverhead(JSON.stringify(allowance()), runner, "20", now)).toThrow("runner");
   expect(() => scheduledOperatingOverhead(JSON.stringify({ ...hosted, runner: "local" }), runner, "20", now)).toThrow("runner");
-  expect(() => scheduledOperatingOverhead(raw, "runs-on/fleet=paperclip-public-pr-x64/env=public-ci", "20", now)).toThrow("runner");
+  expect(() => scheduledOperatingOverhead(raw, "runs-on/fleet=nexus-public-pr-x64/env=public-ci", "20", now)).toThrow("runner");
   expect(() => scheduledOperatingOverhead(raw, "unrecognized", "20", now)).toThrow("runner");
   expect(() => scheduledOperatingOverhead(raw, runner, "20", Date.parse("2026-10-19T23:59:59Z"))).toThrow("needs review");
   expect(() => scheduledOperatingOverhead(raw, runner, "20", Date.parse("2026-11-18T20:00:00Z"))).toThrow("needs review");

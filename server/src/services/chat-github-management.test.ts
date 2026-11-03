@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { githubBotCredentials } from "./chat-github-client.js";
 import { githubChatManagementService } from "./chat-github-management.js";

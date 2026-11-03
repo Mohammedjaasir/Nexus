@@ -83,7 +83,7 @@ export function VoiceSessionView({ companyId, endpointId, issueId, agentName, au
       {boundIssueId && <Link className="text-sm text-primary underline" to={`/issues/${encodeURIComponent(boundIssueId)}`}>View conversation task</Link>}
       <VoiceConversationPanel agentName={agentName} autoStart={autoStart} accessRevoked={accessRevoked} onEndedChange={onEndedChange} dependencies={dependencies} notification={notification.data ?? undefined} />
       {(notification.isError || accessLost) && <p role="alert" className="text-sm text-destructive">{accessRevoked ? "Access to this call is no longer available. The call is being closed." : "Task updates are temporarily unavailable. The connection will retry; end the call if the problem continues."}</p>}
-      <p className="text-xs text-muted-foreground">Speko handles the audio and may retain recordings according to your workspace settings. Paperclip keeps task history. Speko usage is billed separately from agent work. Calls are limited to ten minutes.</p>
+      <p className="text-xs text-muted-foreground">Speko handles the audio and may retain recordings according to your workspace settings. Nexus keeps task history. Speko usage is billed separately from agent work. Calls are limited to ten minutes.</p>
     </div>
   );
 }

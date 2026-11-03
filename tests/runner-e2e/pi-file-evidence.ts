@@ -23,8 +23,8 @@ export function piFilePrompt(nonce: string) {
     `The fixture has already created ${c.filename} in your execution workspace with exactly ${JSON.stringify(c.before)}. Read it, then use your native edit tool once to replace those bytes with exactly ${JSON.stringify(c.after)}. Do not substitute write, bash, or an API for the edit.`,
     `Run this exact native bash command exactly once, without an added shell prefix or suffix:\n\`\`\`bash\n${c.validationCommand}\n\`\`\`\nIt independently reads the file, fails on incorrect bytes, and prints the validation marker only after success. This is the only bash call allowed for this task; do not run any other shell commands.`,
     `Deliver the edited text file as a downloadable attachment using the assigned register_deliverable semantic tool, with filename and workspace-relative contentRef ${c.filename}, contentType text/plain, byteSize ${c.byteSize}, sha256 ${c.sha256}, title ${c.filename}, and a fresh idempotencyKey. Use the supplied byteSize and sha256 for the exact validated post-edit bytes; do not run extra commands to obtain metadata. Wait for the real registration receipt. Do not upload a different file or claim publication from a disk path.`,
-    `After successful validation and registration, call paperclip_finish with reportedWorkDisposition done, summary EXTENDED-FILE-${nonce}, the current completion contract revision and satisfied objective criterion, no remaining work, the actual validation command/result, and the registered artifact reference.`,
-    `Wait for paperclip_finish to succeed, then emit exactly EXTENDED-FILE-${nonce} as your final response. Do not create unrelated files or work.`,
+    `After successful validation and registration, call nexus_finish with reportedWorkDisposition done, summary EXTENDED-FILE-${nonce}, the current completion contract revision and satisfied objective criterion, no remaining work, the actual validation command/result, and the registered artifact reference.`,
+    `Wait for nexus_finish to succeed, then emit exactly EXTENDED-FILE-${nonce} as your final response. Do not create unrelated files or work.`,
   ].join("\n");
 }
 export async function seedPiFile(workspace: string, nonce: string) {
@@ -32,14 +32,14 @@ export async function seedPiFile(workspace: string, nonce: string) {
   await writeFile(join(workspace, c.filename), c.before, { flag: "wx" });
   const bytes = await readFile(join(workspace, c.filename));
   requireEvidence(bytes.equals(Buffer.from(c.before)), "seed bytes changed before provider startup");
-  return { schema: "paperclip.e2e.pi-file-seed.v1", filename: c.filename, beforeSha256: sha(bytes), byteSize: bytes.length };
+  return { schema: "nexus.e2e.pi-file-seed.v1", filename: c.filename, beforeSha256: sha(bytes), byteSize: bytes.length };
 }
 
 export function gradePiCopyback(run: Row, lease: Row, companyId: string, environmentId: string) {
-  const context = rec(run.contextSnapshot), environment = rec(context.paperclipEnvironment);
+  const context = rec(run.contextSnapshot), environment = rec(context.nexusEnvironment);
   const reference = rec(rec(run.runnerProfileJson).nativeWorkspaceSync);
   const binding = rec(rec(rec(run.runnerProfileJson).nativeExecutionInput).binding);
-  requireEvidence(run.companyId === companyId && reference.schema === "paperclip.native-workspace-sync/v2"
+  requireEvidence(run.companyId === companyId && reference.schema === "nexus.native-workspace-sync/v2"
     && reference.state === "finalized" && [reference.baselineSha256, reference.descriptorSha256, reference.finalHostSha256]
       .every(value => typeof value === "string" && /^[a-f0-9]{64}$/u.test(value)), "finalized production copy-back hashes required");
   requireEvidence(typeof reference.workspaceId === "string" && reference.workspaceId.length > 0
@@ -72,7 +72,7 @@ export function gradePiFileEvidence(input: {
     : { kind: "independent_local_workspace" };
   requireEvidence(run.id && run.companyId === input.companyId && run.agentId === input.agentId
     && run.runtimeMode === "native" && run.status === "succeeded", "actual native run identity");
-  requireEvidence(seed.schema === "paperclip.e2e.pi-file-seed.v1" && seed.filename === c.filename
+  requireEvidence(seed.schema === "nexus.e2e.pi-file-seed.v1" && seed.filename === c.filename
     && seed.beforeSha256 === sha(c.before) && seed.byteSize === Buffer.byteLength(c.before), "independent pre-edit seed");
   requireEvidence(input.workspaceBytes.equals(Buffer.from(c.after)), "independent final workspace bytes");
   requireEvidence(input.events.length > 0 && input.events.length <= 20_000, "bounded run events");
@@ -99,7 +99,7 @@ export function gradePiFileEvidence(input: {
     const matches = tools.filter(x => x.p.executionId === end.p.executionId);
     const starts = matches.filter(x => x.e.eventType === "tool.execution.started");
     requireEvidence(typeof end.p.executionId === "string" && end.p.executionId.length > 0
-      && end.p.schema === "paperclip.tool.execution.v1" && end.p.status === "completed"
+      && end.p.schema === "nexus.tool.execution.v1" && end.p.status === "completed"
       && end.e.sourceKind === "runner" && end.e.sourceInstanceId === run.runnerInstanceId
       && end.e.normalizedSessionId === run.nativeSessionId && typeof end.e.turnId === "string" && end.e.turnId.length > 0
       && typeof end.e.normalizedSessionId === "string" && end.e.normalizedSessionId.length > 0
@@ -164,10 +164,10 @@ export function gradePiFileEvidence(input: {
     && rec(row.details).attachmentId === a.id);
   requireEvidence(publications.length === 1 && publications[0]!.companyId === input.companyId
     && publications[0]!.runId === run.id && publications[0]!.actorId === input.agentId
-    && publications[0]!.entityId === input.issueId && rec(publications[0]!.details).source === "paperclip_runner_protocol",
+    && publications[0]!.entityId === input.issueId && rec(publications[0]!.details).source === "nexus_runner_protocol",
   "publication activity must belong to this run and task");
   return {
-    schema: "paperclip.e2e.pi-file-evidence.v1", passed: true, workspaceProvenance,
+    schema: "nexus.e2e.pi-file-evidence.v1", passed: true, workspaceProvenance,
     runId: run.id, turnId: edit.e.turnId, nativeEditExecutionId: edit.p.executionId,
     validationExecutionId: validation.p.executionId, attachmentId: a.id,
     verification: { kind: "independent_exact_bytes", beforeSha256: sha(c.before), afterSha256: c.sha256,
@@ -213,7 +213,7 @@ export async function collectPiFileEvidence(input: {
   requireEvidence(downloadedBytes.length <= 4096, "bounded text attachment");
   const workspaceBytes = await readFile(join(input.workspace, c.filename));
   const activity = await input.api.get<Row[]>(`/api/issues/${input.issueId}/activity`);
-  await input.evidence({ schema: "paperclip.e2e.pi-file-observation.v1", attachments, attachmentId, activity,
+  await input.evidence({ schema: "nexus.e2e.pi-file-observation.v1", attachments, attachmentId, activity,
     workspaceBytes: workspaceBytes.toString("base64"), downloadedBytes: downloadedBytes.toString("base64"),
     encoding: "base64", expectedSha256: c.sha256, copybackReference: rec(run.runnerProfileJson).nativeWorkspaceSync,
     copybackLease: lease && { id: lease.id, companyId: lease.companyId, environmentId: lease.environmentId,

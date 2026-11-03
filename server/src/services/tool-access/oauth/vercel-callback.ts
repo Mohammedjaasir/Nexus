@@ -5,10 +5,10 @@ import type { ActorInfo } from "../types.js";
 import { connectionMethodForConnection, projectedConnectionHeaders } from "../connection-methods.js";
 import { emitConnectionUpdated } from "../../connector-telemetry.js";
 import { and, eq, ne } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { connectionGrants, companyMemberships, toolApplications, toolConnections } from "@paperclipai/db";
-import type { ConnectionGrantKind, ConnectToolAppResult } from "@paperclipai/shared";
-import { getConnectableAppDefinition, recommendedDefaultsForApp } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { connectionGrants, companyMemberships, toolApplications, toolConnections } from "@nexusai/db";
+import type { ConnectionGrantKind, ConnectToolAppResult } from "@nexusai/shared";
+import { getConnectableAppDefinition, recommendedDefaultsForApp } from "@nexusai/shared";
 import { badRequest, forbidden, HttpError } from "../../../errors.js";
 import { deriveVercelConnectSubject, vercelGrantReference, vercelTokenRequest, VercelConnectClientError, type VercelConnectClient } from "../../vercel-connect.js";
 

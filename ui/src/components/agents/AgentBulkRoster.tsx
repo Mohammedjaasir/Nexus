@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Filter, Pencil, X } from "lucide-react";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { aiConnectionsApi } from "@/api/ai-connections";
 import { getAdapterLabel } from "@/adapters/adapter-display-registry";
 import { agentConnection, agentDefaultModel, bulkAgentDisabledReason, bulkAgentHarness, bulkConnectionName } from "@/lib/bulk-agent-settings";

@@ -1,7 +1,7 @@
 import { ChevronLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { aiConnectionRouterPluginKey, aiConnectionRouterSlug, humanizeConnectionDisplayName } from "@paperclipai/shared";
-import type { ToolApplication, ToolConnection } from "@paperclipai/shared";
+import { aiConnectionRouterPluginKey, aiConnectionRouterSlug, humanizeConnectionDisplayName } from "@nexusai/shared";
+import type { ToolApplication, ToolConnection } from "@nexusai/shared";
 import { Link } from "@/lib/router";
 import { toolsApi } from "@/api/tools";
 import { useCompany } from "@/context/CompanyContext";

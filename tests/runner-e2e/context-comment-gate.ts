@@ -17,8 +17,8 @@ export function canonicalDocumentIssueId(url: string | undefined, body: unknown,
 }
 
 function privateDir(): string {
-  const value = process.env.PAPERCLIP_RUNNER_E2E_PRIVATE_DIR?.trim();
-  if (!value) throw new Error("PAPERCLIP_RUNNER_E2E_PRIVATE_DIR is required for the context comment gate");
+  const value = process.env.NEXUS_RUNNER_E2E_PRIVATE_DIR?.trim();
+  if (!value) throw new Error("NEXUS_RUNNER_E2E_PRIVATE_DIR is required for the context comment gate");
   return value;
 }
 
@@ -46,7 +46,7 @@ async function exists(file: string): Promise<boolean> {
   }
 }
 
-export function contextCommentGateSelected(executionIds: readonly string[] = JSON.parse(process.env.PAPERCLIP_RUNNER_E2E_EXECUTION_IDS ?? "[]")): boolean {
+export function contextCommentGateSelected(executionIds: readonly string[] = JSON.parse(process.env.NEXUS_RUNNER_E2E_EXECUTION_IDS ?? "[]")): boolean {
   return executionIds.some((id) => id.endsWith(".ordered-comment-continuation"));
 }
 

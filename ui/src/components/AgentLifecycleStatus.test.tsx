@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { AgentLifecycleState } from "@paperclipai/shared";
+import type { AgentLifecycleState } from "@nexusai/shared";
 import { expect, it, vi } from "vitest";
 import { AgentLifecycleStatus, agentLifecycleRefetchInterval } from "./AgentLifecycleStatus";
 
@@ -29,7 +29,7 @@ it.each([undefined, "ready", "paused", "pending_approval", "terminated", "reject
 it("does not promise automatic retry of a failed configuration check", () => {
   const html = renderToStaticMarkup(<AgentLifecycleStatus agent={{ lifecycleState: "verifying", lifecycleError: "Update Configuration or choose Retry now." }} onRetry={() => {}} retryPending={false} />);
   expect(html).toContain("Retry now");
-  expect(html).not.toContain("Paperclip retries automatically");
+  expect(html).not.toContain("Nexus retries automatically");
 });
 
 it("retries a failed step once while pending and removes the failure after recovery", async () => {
@@ -41,7 +41,7 @@ it("retries a failed step once while pending and removes the failure after recov
     await act(async () => root.render(<AgentLifecycleStatus agent={agent} onRetry={retry} retryPending={false} />));
     expect(container.textContent).toContain(agent.lifecycleError);
     expect(container.textContent).toContain("Agent cleanup failed");
-    expect(container.textContent).toContain("Paperclip retries automatically");
+    expect(container.textContent).toContain("Nexus retries automatically");
     expect(container.textContent).not.toContain("Required resources are being removed");
     await act(async () => container.querySelector("button")!.click());
     expect(retry).toHaveBeenCalledOnce();

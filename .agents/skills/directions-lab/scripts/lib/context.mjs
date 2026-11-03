@@ -106,7 +106,7 @@ export function runtimeCommit(root) {
 
 export function shellTasks(company) {
   return [
-    { identifier: `${company.issuePrefix}-1`, title: "Paperclip onboarding" },
+    { identifier: `${company.issuePrefix}-1`, title: "Nexus onboarding" },
     { identifier: `${company.issuePrefix}-2`, title: `Develop ${company.name} brand strategy and designer brief` },
     { identifier: `${company.issuePrefix}-3`, title: `Create visual directions and first ${company.name} brand deck` },
   ];
@@ -166,8 +166,8 @@ export function assembleContext({ root, slug, title, group, surfaces, directions
     company,
     tasks: shellTasks(company),
     tag: `[${slug}-directions]`,
-    publicUrl: `https://paperclip-${slug}-directions.vercel.app`,
-    vercelProject: `paperclip-${slug}-directions`,
+    publicUrl: `https://nexus-${slug}-directions.vercel.app`,
+    vercelProject: `nexus-${slug}-directions`,
     forceCount: Boolean(forceCount),
     provenance: provenance ?? { runtimeCommit: runtimeCommit(root), skillVersion: SKILL_VERSION, createdAt: today.toISOString().slice(0, 10) },
   };

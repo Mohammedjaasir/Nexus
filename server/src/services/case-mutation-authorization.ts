@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { cases, heartbeatRuns, issues, type Db } from "@paperclipai/db";
-import { isUuidLike } from "@paperclipai/shared";
+import { cases, heartbeatRuns, issues, type Db } from "@nexusai/db";
+import { isUuidLike } from "@nexusai/shared";
 import { assertAgentRunWriteAllowed } from "../agent-run-cancellation.js";
 import { forbidden, notFound } from "../errors.js";
 import type { AuthorizationActor } from "./authorization.js";

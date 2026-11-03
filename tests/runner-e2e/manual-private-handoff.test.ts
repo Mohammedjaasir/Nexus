@@ -40,7 +40,7 @@ it("does not copy an escaped or symlinked original",async()=>{
 });
 it("requires the complete preflight's exact attempt, owner-only file and target before selecting a private root",async()=>{
  const f=await fixture();const file=path.join(f.out,"preflight.json");await writeFile(file,JSON.stringify({...f.context,status:"verified",cellReportProducer:await inspectCellReportProducer()}),{mode:0o600});
- const env={GITHUB_SHA:f.context.workflowSha,RUNNER_TEMP:f.root,GITHUB_RUN_ID:"123",GITHUB_RUN_ATTEMPT:"1",PAPERCLIP_RUNNER_E2E_SOURCE_SHA:f.context.targetSha,PAPERCLIP_RUNNER_E2E_PRIVATE_PREFLIGHT:file};
+ const env={GITHUB_SHA:f.context.workflowSha,RUNNER_TEMP:f.root,GITHUB_RUN_ID:"123",GITHUB_RUN_ATTEMPT:"1",NEXUS_RUNNER_E2E_SOURCE_SHA:f.context.targetSha,NEXUS_RUNNER_E2E_PRIVATE_PREFLIGHT:file};
  expect((await readManualPrivateHandoff(env,f.context.executionIds))?.root).toBe(await realpath(f.out));
  await expect(readManualPrivateHandoff({...env,GITHUB_RUN_ID:"124"},f.context.executionIds)).rejects.toThrow(/exact attempt/);
  await expect(readManualPrivateHandoff(env,[MANUAL_PRIVATE_EXECUTIONS[1]!])).rejects.toThrow(/exact attempt/);

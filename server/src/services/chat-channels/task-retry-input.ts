@@ -1,7 +1,7 @@
 import { notifyDeferredExecutionWork } from "../deferred-execution-notifications.js";
 import { z } from "zod";
 import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
-import { agentWakeupRequests, chatActions, chatConversations, chatEndpoints, heartbeatRuns, issues, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, chatActions, chatConversations, chatEndpoints, heartbeatRuns, issues, type Db } from "@nexusai/db";
 import type { DbOrTransaction } from "./runtime-types.js";
 import { notifyChatInboundWakeNotices } from "../chat-inbound-wake-notice-notifications.js";
 

@@ -7,17 +7,17 @@ outstanding.
 Ditto (`dittowords.com`) is a single source of truth for product copy: text
 items, a reusable component library, variants and translations, and style
 guides that agents must follow when they write UI text. It appears in Apps and
-uses Paperclip's shared remote-MCP connection, vault, catalog, grants,
-policies, gateway, and audit trail. It is a resource connection, not Paperclip
+uses Nexus's shared remote-MCP connection, vault, catalog, grants,
+policies, gateway, and audit trail. It is a resource connection, not Nexus
 sign-in. No plugin or database migration is required. The only
 provider-specific runtime code is a reviewed risk-classification rule.
 
-Paperclip connects to Ditto's hosted MCP server at
+Nexus connects to Ditto's hosted MCP server at
 `https://api.dittowords.com/v2/mcp` (Streamable HTTP) with two methods:
 
 - `mcp-oauth`: browser sign-in through dynamic client registration on Ditto's
   Auth0 tenant. The connection acts as the Ditto user who signs in.
-- `mcp-api-key`: a workspace API key stored as a Paperclip secret and sent as
+- `mcp-api-key`: a workspace API key stored as a Nexus secret and sent as
   an `Authorization: token <key>` header. Ditto uses the `token` scheme, not
   `Bearer`.
 
@@ -32,9 +32,9 @@ be connected from **Connect your own MCP server**. See
 ## Service involvement
 
 Ditto hosts the MCP resource, and Auth0 hosts its authorization server.
-Paperclip stores the OAuth tokens or the key as secret references, discovers
+Nexus stores the OAuth tokens or the key as secret references, discovers
 tools with `tools/list`, and sends the credential on every governed call. No
-Paperclip-operated vendor relay is involved; cloud and self-hosted instances
+Nexus-operated vendor relay is involved; cloud and self-hosted instances
 use the same path.
 
 ## Endpoints
@@ -47,20 +47,20 @@ use the same path.
 | Authorize | `https://login.dittowords.com/authorize` |
 | Token | `https://login.dittowords.com/oauth/token` |
 | Dynamic client registration | `https://login.dittowords.com/oidc/register` |
-| Paperclip connect (wizard) | `POST /api/companies/:companyId/tools/apps/connect` |
-| Paperclip OAuth start | `POST /api/tools/oauth/:connectionId/start` |
-| Paperclip callback | `GET /api/tools/oauth/callback` |
+| Nexus connect (wizard) | `POST /api/companies/:companyId/tools/apps/connect` |
+| Nexus OAuth start | `POST /api/tools/oauth/:connectionId/start` |
+| Nexus callback | `GET /api/tools/oauth/callback` |
 
 Redirect constraints: `https-or-loopback-http`. Dynamic client registration
-needs no administrator setup: each Paperclip instance registers its own
+needs no administrator setup: each Nexus instance registers its own
 client with its own callback URL.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor U as User's browser
-    participant UI as Paperclip UI<br/>/apps/connect?source=ditto
-    participant S as Paperclip instance server<br/>(cloud or self-hosted, same path)
+    participant UI as Nexus UI<br/>/apps/connect?source=ditto
+    participant S as Nexus instance server<br/>(cloud or self-hosted, same path)
     participant M as api.dittowords.com<br/>(MCP resource)
     participant A as login.dittowords.com<br/>(Auth0 authorization server)
 
@@ -88,18 +88,18 @@ sequenceDiagram
     S-->>UI: Connection ready, open Permissions
 ```
 
-The API-key method skips the authorization server: Paperclip sends
+The API-key method skips the authorization server: Nexus sends
 `Authorization: token <key>` directly to `/v2/mcp` for discovery and every
 governed call.
 
 The authorization server supports `authorization_code` and `refresh_token`,
 PKCE `S256`, and public clients (`token_endpoint_auth_method: none`). It
-advertises only identity scopes. Paperclip sends the MCP resource URL as the
+advertises only identity scopes. Nexus sends the MCP resource URL as the
 `resource` parameter so Auth0 issues a token for the Ditto API.
 
 ## Scopes
 
-Paperclip requests `openid`, `profile`, `email` and `offline_access`. Ditto
+Nexus requests `openid`, `profile`, `email` and `offline_access`. Ditto
 publishes no API scopes: the signed-in user's Ditto permissions control
 access. `offline_access` is required because Auth0 issues a refresh token only
 when a client asks for it; without it the connection expires with the access
@@ -111,7 +111,7 @@ is recorded as an explicit review in
 
 Browser sign-in:
 
-1. In Paperclip, open **Apps → Browse → Ditto** and click
+1. In Nexus, open **Apps → Browse → Ditto** and click
    **Continue to sign in**.
 2. Sign in to Ditto and approve access.
 
@@ -120,14 +120,14 @@ API key:
 1. In Ditto, open **Developers** (`https://app.dittowords.com/developers`).
    Enable developer integrations if the page asks. Under **API keys**, click
    **+ Create API key** and copy the key. It is shown only once. Use a separate
-   key for Paperclip so it can be removed independently.
-2. In Paperclip, open **Apps → Browse → Ditto**, open **Advanced**, choose
+   key for Nexus so it can be removed independently.
+2. In Nexus, open **Apps → Browse → Ditto**, open **Advanced**, choose
    **Use an API key**, paste the key, and click **Connect**.
 
 After either method, set delete and link actions to **Ask first** or **Off**
 on the connection's **Permissions** screen if agents run unattended.
 
-To disconnect, remove the connection in Paperclip. For an API key, also delete
+To disconnect, remove the connection in Nexus. For an API key, also delete
 the key on Ditto's **Developers** page.
 
 ## Capabilities and policy
@@ -153,7 +153,7 @@ replaces its developer ID, so code that used the old ID stops matching.
 Unlinking gives each text item a new developer ID. Translate tools replace
 existing variant text.
 
-Paperclip applies a reviewed Ditto risk rule in `classifyRisk`, because the
+Nexus applies a reviewed Ditto risk rule in `classifyRisk`, because the
 generic classifier reads `translate_*`, `link_*` and `unlink_*` as reads.
 Only `list_*`, `get_*` and `search_*` tools, `suggest_edit`, and tools Ditto
 marks `readOnlyHint: true` are reads. `delete_*` tools are destructive.
@@ -167,7 +167,7 @@ annotation always makes a tool a write.
   above. Acts as the signed-in user.
 - API key: `Authorization: token <key>`. Keys reach all data in the
   workspace, are not scoped, and act as the user who created them. Keys
-  require developer integrations on the Ditto plan. Paperclip cannot narrow an
+  require developer integrations on the Ditto plan. Nexus cannot narrow an
   issued key.
 
 ## Resource filters

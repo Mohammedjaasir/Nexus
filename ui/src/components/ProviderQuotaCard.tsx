@@ -1,7 +1,7 @@
 import { AccountQuotaPanels } from "./AccountQuotaPanels";
 import { quotaUnavailableMessage } from "@/lib/quota-refresh";
 import { useMemo } from "react";
-import type { CostByProviderModel, CostWindowSpendRow, QuotaWindow, ProviderQuotaResult } from "@paperclipai/shared";
+import type { CostByProviderModel, CostWindowSpendRow, QuotaWindow, ProviderQuotaResult } from "@nexusai/shared";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QuotaBar } from "./QuotaBar";

@@ -24,7 +24,7 @@ export function normalizeClaudeRunnerOptions(config: Record<string, unknown>): {
     if (value !== undefined && value !== null && value !== false && value !== "" && value !== 0
       && !(Array.isArray(value) && value.length === 0)) {
       warnings.push({ code: "runner_option_ignored", field,
-        message: `${label} (${field}) is not supported by Paperclip Runner and is ignored. The agent can still run.` });
+        message: `${label} (${field}) is not supported by Nexus Runner and is ignored. The agent can still run.` });
     }
     delete normalized[field];
   }

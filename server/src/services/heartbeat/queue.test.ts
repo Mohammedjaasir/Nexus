@@ -1,6 +1,6 @@
 import { claimNativeSessionResumptions } from "../native-runtime/native-finalization-reconciler.js";
-import type { Db } from "@paperclipai/db";
-import { agents, agentWakeupRequests, caseHandoffs, cases, companies, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRuns, issueComments, issues, nativeRunFinalizations } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { agents, agentWakeupRequests, caseHandoffs, cases, companies, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRuns, issueComments, issues, nativeRunFinalizations } from "@nexusai/db";
 import { eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveExternalTestDatabaseUrl } from "../../__tests__/helpers/external-test-database.js";
@@ -68,21 +68,21 @@ describe("heartbeat queue module boundary", () => {
   it("uses the same policy limits for dispatch and execution", () => {
     const database = guardedDatabase();
     const queue = createHeartbeatQueue(database.db, callbacks(database.db));
-    const agent = { adapterType: "paperclip_runner", adapterConfig: { provider: "openai_dot" }, runtimeConfig: { heartbeat: { maxConcurrentRuns: 20, maxDailyRuns: 3.8 } } } as unknown as typeof agents.$inferSelect;
+    const agent = { adapterType: "nexus_runner", adapterConfig: { provider: "openai_dot" }, runtimeConfig: { heartbeat: { maxConcurrentRuns: 20, maxDailyRuns: 3.8 } } } as unknown as typeof agents.$inferSelect;
     expect(queue.parseHeartbeatPolicy(agent)).toMatchObject({ maxConcurrentRuns: 1, maxDailyRuns: 3 });
     expect(queue.parseHeartbeatPolicy({ ...agent, adapterConfig: { provider: "codex" } })).toMatchObject({ maxConcurrentRuns: 20, maxDailyRuns: 3 });
     expect(database.access).not.toHaveBeenCalled();
   });
 });
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_QUEUE_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_QUEUE_TEST_DATABASE_URL");
 const support = external ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 if (!support.supported) console.warn(`Skipping queue module database tests: ${support.reason}`);
 describe.skipIf(!support.supported)("heartbeat queue database wiring", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
   let db: Db;
   beforeAll(async () => {
-    if (!external) database = await startEmbeddedPostgresTestDatabase("paperclip-heartbeat-queue-module");
+    if (!external) database = await startEmbeddedPostgresTestDatabase("nexus-heartbeat-queue-module");
     db = createDb(external ?? database!.connectionString);
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
   afterAll(async () => {
@@ -98,7 +98,7 @@ describe.skipIf(!support.supported)("heartbeat queue database wiring", () => {
   ])("rejects direct taskless timer wakes for $provider before a run or request can be persisted", async adapterConfig => {
     const [company] = await db.insert(companies).values({ name: "Timer scope", issuePrefix: "TS" }).returning();
     const [agent] = await db.insert(agents).values({ companyId: company.id, name: "Ready for a task", status: "idle",
-      adapterType: "paperclip_runner", adapterConfig, runtimeConfig: { heartbeat: { enabled: true, intervalSec: 60 } } }).returning();
+      adapterType: "nexus_runner", adapterConfig, runtimeConfig: { heartbeat: { enabled: true, intervalSec: 60 } } }).returning();
     const deps = callbacks(db);
     deps.getAgent.mockResolvedValue(agent);
     const queue = createHeartbeatQueue(db, deps);
@@ -130,7 +130,7 @@ describe.skipIf(!support.supported)("heartbeat queue database wiring", () => {
     const [comment] = await db.insert(issueComments).values({ companyId: seeded.company.id, issueId: seeded.issue.id, body: "Saved feedback", authorAgentId: seeded.agent.id }).returning();
     const [pending] = await db.insert(agentWakeupRequests).values({ companyId: seeded.company.id, agentId: recipient.id,
       source: "automation", reason: "issue_execution_deferred", status: "deferred_issue_execution",
-      payload: { issueId: seeded.issue.id, _paperclipWakeContext: { issueId: seeded.issue.id, wakeReason: "issue_comment_mentioned", wakeCommentIds: [comment.id] } },
+      payload: { issueId: seeded.issue.id, _nexusWakeContext: { issueId: seeded.issue.id, wakeReason: "issue_comment_mentioned", wakeCommentIds: [comment.id] } },
     }).returning();
     return { ...seeded, recipient, pending };
   }
@@ -142,7 +142,7 @@ describe.skipIf(!support.supported)("heartbeat queue database wiring", () => {
         body: `Additional saved feedback ${index}`, authorAgentId: seeded.agent.id }).returning();
       const [wake] = await db.insert(agentWakeupRequests).values({ companyId: seeded.company.id, agentId: seeded.recipient.id,
         source: "automation", reason: "issue_execution_deferred", status: "deferred_issue_execution",
-        payload: { issueId: seeded.issue.id, _paperclipWakeContext: { issueId: seeded.issue.id,
+        payload: { issueId: seeded.issue.id, _nexusWakeContext: { issueId: seeded.issue.id,
           wakeReason: "issue_comment_mentioned", wakeCommentIds: [comment.id] } } }).returning();
       messages.push(wake);
     }
@@ -236,7 +236,7 @@ describe.skipIf(!support.supported)("heartbeat queue database wiring", () => {
       body: "Other task feedback", authorAgentId: seeded.agent.id }).returning();
     const [pending] = await db.insert(agentWakeupRequests).values({ companyId: seeded.company.id, agentId: seeded.recipient.id,
       source: "automation", reason: "issue_execution_deferred", status: "deferred_issue_execution",
-      payload: { issueId: issue.id, _paperclipWakeContext: { issueId: issue.id, wakeReason: "issue_comment_mentioned", wakeCommentIds: [comment.id] } } }).returning();
+      payload: { issueId: issue.id, _nexusWakeContext: { issueId: issue.id, wakeReason: "issue_comment_mentioned", wakeCommentIds: [comment.id] } } }).returning();
     const secondMessages = await addStrandedMessages({ ...seeded, issue, run, pending });
     const deps = callbacks(db);
     await createHeartbeatQueue(db, deps).resumeQueuedRuns();
@@ -316,8 +316,8 @@ describe.skipIf(!support.supported)("heartbeat queue database wiring", () => {
 
   it("preserves a former owner's ordinary messages for the assignment handoff", async () => {
     const { pending } = await strandedMention();
-    const payload = { ...pending.payload, _paperclipWakeContext: {
-      ...(pending.payload!._paperclipWakeContext as Record<string, unknown>), wakeReason: "issue_commented",
+    const payload = { ...pending.payload, _nexusWakeContext: {
+      ...(pending.payload!._nexusWakeContext as Record<string, unknown>), wakeReason: "issue_commented",
     } };
     await db.update(agentWakeupRequests).set({ payload }).where(eq(agentWakeupRequests.id, pending.id));
     const deps = callbacks(db);
@@ -391,7 +391,7 @@ describe.skipIf(!support.supported)("heartbeat queue database wiring", () => {
     const { run, agent, issue, wake } = await fixture("queued");
     await db.update(heartbeatRuns).set({ responsibleUserId: "queue-test-user" }).where(eq(heartbeatRuns.id, run.id));
     const deps = { ...callbacks(db), canStartNewExternalBotWork: vi.fn(async () => false) };
-    deps.getAgent.mockResolvedValue({ ...agent, adapterType: "paperclip_runner", adapterConfig: { provider: "grok_bot" } });
+    deps.getAgent.mockResolvedValue({ ...agent, adapterType: "nexus_runner", adapterConfig: { provider: "grok_bot" } });
     const queue = createHeartbeatQueue(db, deps);
     for (let attempt = 0; attempt < 3; attempt++) {
       if (path === "direct") expect(await queue.claimQueuedRun({ ...run, responsibleUserId: "queue-test-user" })).toBeNull();

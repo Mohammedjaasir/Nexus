@@ -1,7 +1,7 @@
 import { writeApprovalChange } from "./approval-work-notifications.js";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { approvals, issueApprovals, issues } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { approvals, issueApprovals, issues } from "@nexusai/db";
 import { notFound, unprocessable } from "../errors.js";
 import { redactEventPayload } from "../redaction.js";
 

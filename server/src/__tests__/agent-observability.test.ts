@@ -4,12 +4,12 @@ import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq, sql } from "drizzle-orm";
-import * as codexServer from "@paperclipai/adapter-codex-local/server";
+import * as codexServer from "@nexusai/adapter-codex-local/server";
 import express from "express";
 import request from "supertest";
-import { createDb, companies, companyMemberships, companyObservability, companySecrets, companySecretBindings, activityLog } from "@paperclipai/db";
-import { startEmbeddedPostgresTestDatabase } from "@paperclipai/db/test-embedded-postgres";
-import { DEFAULT_AGENT_OBSERVABILITY_CAPTURE, type UpdateAgentObservabilityRequest } from "@paperclipai/shared";
+import { createDb, companies, companyMemberships, companyObservability, companySecrets, companySecretBindings, activityLog } from "@nexusai/db";
+import { startEmbeddedPostgresTestDatabase } from "@nexusai/db/test-embedded-postgres";
+import { DEFAULT_AGENT_OBSERVABILITY_CAPTURE, type UpdateAgentObservabilityRequest } from "@nexusai/shared";
 import { agentObservabilityService } from "../services/agent-observability.js";
 import { deleteCompany } from "../services/company-deletion.js";
 import { agentObservabilityRoutes } from "../routes/agent-observability.js";
@@ -20,9 +20,9 @@ import { errorHandler } from "../middleware/index.js";
 let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
 let db: ReturnType<typeof createDb>, home: string;
 beforeAll(async () => {
-  home = await realpath(await mkdtemp(join(tmpdir(), "paperclip-observability-")));
-  vi.stubEnv("PAPERCLIP_HOME", home); vi.stubEnv("PAPERCLIP_INSTANCE_ID", "observability-test");
-  database = await startEmbeddedPostgresTestDatabase("paperclip-observability-db-");
+  home = await realpath(await mkdtemp(join(tmpdir(), "nexus-observability-")));
+  vi.stubEnv("NEXUS_HOME", home); vi.stubEnv("NEXUS_INSTANCE_ID", "observability-test");
+  database = await startEmbeddedPostgresTestDatabase("nexus-observability-db-");
   db = createDb(database.connectionString);
 }, 90000);
 afterAll(async () => { await database?.cleanup(); vi.unstubAllEnvs(); if (home) await rm(home, { recursive: true, force: true }); });
@@ -117,7 +117,7 @@ describe("company agent observability", () => {
     await Promise.all([
       f.service.configure(f.companyId, "alice", { expectedRevision: saved.revision, enabled: true, capture: saved.capture,
         destination: saved.destination as { provider: "otlp"; endpointBaseUrl: string }, credentials: { mode: "replace", headers: [{ name: "authorization" }] } }),
-      secretService(db).rotate(row.credentialsSecretId!, { value: JSON.stringify({ schema: "paperclip.agent_observability.credentials.v1", headers: { authorization: "rotated-value" } }) }),
+      secretService(db).rotate(row.credentialsSecretId!, { value: JSON.stringify({ schema: "nexus.agent_observability.credentials.v1", headers: { authorization: "rotated-value" } }) }),
     ]);
     expect((await secretService(db).getById(row.credentialsSecretId!))?.latestVersion).toBe(3);
     expect(await f.service.resolve(f.companyId)).toMatchObject({ headers: { authorization: "rotated-value" } });
@@ -149,7 +149,7 @@ describe("company agent observability", () => {
     const f = await fixture(); const saved = await f.service.configure(f.companyId, "alice", braintrust());
     const before = await f.service.resolve(f.companyId);
     const [row] = await db.select().from(companyObservability).where(eq(companyObservability.companyId, f.companyId));
-    await secretService(db).rotate(row.credentialsSecretId!, { value: JSON.stringify({ schema: "paperclip.agent_observability.credentials.v1", headers: { authorization: "Bearer rotated" } }) });
+    await secretService(db).rotate(row.credentialsSecretId!, { value: JSON.stringify({ schema: "nexus.agent_observability.credentials.v1", headers: { authorization: "Bearer rotated" } }) });
     const rotated = await f.service.resolve(f.companyId);
     expect(rotated.compatibilityKey).not.toBe(before.compatibilityKey);
     const projectId = randomUUID();
@@ -189,7 +189,7 @@ describe("company agent observability", () => {
       const service = original(executor);
       return { ...service, resolveSecretVersion: async (...args: Parameters<typeof service.resolveSecretVersion>) => {
         const version = await service.resolveSecretVersion(...args);
-        await original(db).rotate(args[1], { value: JSON.stringify({ schema: "paperclip.agent_observability.credentials.v1", headers: { authorization: "Bearer concurrently-rotated" } }) });
+        await original(db).rotate(args[1], { value: JSON.stringify({ schema: "nexus.agent_observability.credentials.v1", headers: { authorization: "Bearer concurrently-rotated" } }) });
         return version;
       } };
     });

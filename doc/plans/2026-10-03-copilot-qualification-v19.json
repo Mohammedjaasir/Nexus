@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.copilot.qualification-progress/v1",
+  "schema": "nexus.copilot.qualification-progress/v1",
   "status": "superseded-by-v20-current-grant-repair",
   "productionAdmission": "gated",
   "runtimeSourceRevision": "0c192bded19a9e000618ba21393ec0d46e7bceff",
@@ -232,7 +232,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.native-permission-deny-write",
       "status": "failed",
-      "paperclipSourceRevision": "90b14b00b7a56d48a6d203545d04753750f864d7",
+      "nexusSourceRevision": "90b14b00b7a56d48a6d203545d04753750f864d7",
       "definitionHash": "dcb4ee9b775ee3c739d5b5ddc1ccdafcd5e7ab6325e8d6f8a1e6a4d3d65a0de9",
       "attempt": 1,
       "cleanup": "passed",
@@ -247,7 +247,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.native-permission-deny-write",
       "status": "failed",
-      "paperclipSourceRevision": "8fba5cca4ae7d2d0d7346d76c05f43699f07049c",
+      "nexusSourceRevision": "8fba5cca4ae7d2d0d7346d76c05f43699f07049c",
       "definitionHash": "044e32cb8124e8f7a0fb8dd8bb168d807f8d0b5c1668456de96b6ee6184e0abc",
       "attempt": 1,
       "cleanup": "passed",
@@ -262,7 +262,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.native-permission-deny-write",
       "status": "failed",
-      "paperclipSourceRevision": "2dd62ad52b8b4348d286c59e11e36144305bca6c",
+      "nexusSourceRevision": "2dd62ad52b8b4348d286c59e11e36144305bca6c",
       "definitionHash": "ece61a911483026b573ac3e6eda89fd7943e9d481fb3dbbaa11435ec9e1f662a",
       "attempt": 1,
       "cleanup": "passed",
@@ -277,7 +277,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.native-permission-deny-write",
       "status": "failed",
-      "paperclipSourceRevision": "7dec03762eb8201f721b7a1c5116861c8ccd23b4",
+      "nexusSourceRevision": "7dec03762eb8201f721b7a1c5116861c8ccd23b4",
       "definitionHash": "9ad440a7514c33a6b1726915c11f18ca9f1b441aa4344c718ac993337ff7b938",
       "attempt": 1,
       "cleanup": "passed",
@@ -292,7 +292,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.attached-async-settlement",
       "status": "failed",
-      "paperclipSourceRevision": "7dec03762eb8201f721b7a1c5116861c8ccd23b4",
+      "nexusSourceRevision": "7dec03762eb8201f721b7a1c5116861c8ccd23b4",
       "definitionHash": "9ad440a7514c33a6b1726915c11f18ca9f1b441aa4344c718ac993337ff7b938",
       "attempt": 1,
       "cleanup": "passed",
@@ -307,7 +307,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.attached-async-settlement",
       "status": "passed",
-      "paperclipSourceRevision": "7f6238747165ba2b420fff48ec3a71f6ca594f21",
+      "nexusSourceRevision": "7f6238747165ba2b420fff48ec3a71f6ca594f21",
       "definitionHash": "bd4dad6fe54ba18cb380667faa770e10d9add836683d58341f7425aca94a0ff9",
       "attempt": 1,
       "cleanup": "passed",
@@ -322,7 +322,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.native-permission-deny-write",
       "status": "passed",
-      "paperclipSourceRevision": "7f6238747165ba2b420fff48ec3a71f6ca594f21",
+      "nexusSourceRevision": "7f6238747165ba2b420fff48ec3a71f6ca594f21",
       "definitionHash": "bd4dad6fe54ba18cb380667faa770e10d9add836683d58341f7425aca94a0ff9",
       "attempt": 1,
       "cleanup": "passed",
@@ -337,7 +337,7 @@
     {
       "selector": "native-active-stop.runner-acpx-copilot.local.pending-permission-stop",
       "status": "failed",
-      "paperclipSourceRevision": "7f6238747165ba2b420fff48ec3a71f6ca594f21",
+      "nexusSourceRevision": "7f6238747165ba2b420fff48ec3a71f6ca594f21",
       "definitionHash": "f3658b3294236a8d9abfdc0698cb4d9efc5547bcfc0aee9ebd00899f0b0bdf48",
       "attempt": 1,
       "cleanup": "failed",
@@ -352,7 +352,7 @@
     {
       "selector": "native-active-stop.runner-acpx-copilot.local.pending-permission-stop",
       "status": "passed",
-      "paperclipSourceRevision": "3f1d303c8ff41ea5ffdc7ffda9ec3613476d791c",
+      "nexusSourceRevision": "3f1d303c8ff41ea5ffdc7ffda9ec3613476d791c",
       "definitionHash": "b56fcb4d86b4c8aa280a3f619abb0091b2d18e51a4ecd8d3c33c19aed3302f94",
       "attempt": 1,
       "cleanup": "passed",
@@ -367,7 +367,7 @@
     {
       "selector": "copilot-provider-death.runner-acpx-copilot.local.pending-permission-provider-death",
       "status": "failed",
-      "paperclipSourceRevision": "3f1d303c8ff41ea5ffdc7ffda9ec3613476d791c",
+      "nexusSourceRevision": "3f1d303c8ff41ea5ffdc7ffda9ec3613476d791c",
       "definitionHash": "746e79093aaa137ac3038a7d9ee5a7f3ffe694dcf13f8c2c884010d1465ae96d",
       "attempt": 1,
       "cleanup": "failed",
@@ -382,7 +382,7 @@
     {
       "selector": "copilot-provider-death.runner-acpx-copilot.local.pending-permission-provider-death",
       "status": "failed",
-      "paperclipSourceRevision": "790ff2d0bb71fce9adb66f35d9847d57d3f7e88d",
+      "nexusSourceRevision": "790ff2d0bb71fce9adb66f35d9847d57d3f7e88d",
       "definitionHash": "746e79093aaa137ac3038a7d9ee5a7f3ffe694dcf13f8c2c884010d1465ae96d",
       "attempt": 1,
       "cleanup": "failed",
@@ -397,7 +397,7 @@
     {
       "selector": "copilot-provider-death.runner-acpx-copilot.local.pending-permission-provider-death",
       "status": "failed",
-      "paperclipSourceRevision": "e00fe7ba5952533f6036f7abb883d110992889f8",
+      "nexusSourceRevision": "e00fe7ba5952533f6036f7abb883d110992889f8",
       "definitionHash": "746e79093aaa137ac3038a7d9ee5a7f3ffe694dcf13f8c2c884010d1465ae96d",
       "attempt": 1,
       "cleanup": "failed",
@@ -412,7 +412,7 @@
     {
       "selector": "copilot-provider-death.runner-acpx-copilot.local.pending-permission-provider-death",
       "status": "failed",
-      "paperclipSourceRevision": "8bdf8358270fb8c8490ecfa003018bd09838d0f5",
+      "nexusSourceRevision": "8bdf8358270fb8c8490ecfa003018bd09838d0f5",
       "definitionHash": "fee2bd21509715d05fc4feac3f2e202ea3939bf909fc1031c65c425429847b61",
       "attempt": 1,
       "cleanup": "failed",
@@ -427,7 +427,7 @@
     {
       "selector": "copilot-provider-death.runner-acpx-copilot.local.pending-permission-provider-death",
       "status": "failed",
-      "paperclipSourceRevision": "221d65ed6db340df1cfcb7c704eaab11c024f11b",
+      "nexusSourceRevision": "221d65ed6db340df1cfcb7c704eaab11c024f11b",
       "definitionHash": "fee2bd21509715d05fc4feac3f2e202ea3939bf909fc1031c65c425429847b61",
       "attempt": 1,
       "cleanup": "failed",
@@ -442,7 +442,7 @@
     {
       "selector": "copilot-provider-death.runner-acpx-copilot.local.pending-permission-provider-death",
       "status": "failed",
-      "paperclipSourceRevision": "300463538363dcff3c06e765847fc57e16f652e2",
+      "nexusSourceRevision": "300463538363dcff3c06e765847fc57e16f652e2",
       "definitionHash": "f83100ccdae9a9726853346f6f34c0f8fec595f2a3c6b5059542ed91af76b22d",
       "attempt": 1,
       "cleanup": "failed",
@@ -457,7 +457,7 @@
     {
       "selector": "copilot-provider-death.runner-acpx-copilot.local.pending-permission-provider-death",
       "status": "failed",
-      "paperclipSourceRevision": "0c192bded19a9e000618ba21393ec0d46e7bceff",
+      "nexusSourceRevision": "0c192bded19a9e000618ba21393ec0d46e7bceff",
       "definitionHash": "f83100ccdae9a9726853346f6f34c0f8fec595f2a3c6b5059542ed91af76b22d",
       "attempt": 1,
       "cleanup": "passed",
@@ -472,7 +472,7 @@
     {
       "selector": "copilot-provider-death.runner-acpx-copilot.local.pending-permission-provider-death",
       "status": "failed",
-      "paperclipSourceRevision": "e91ca6e389222901474b1a6ac8d701c33617c4f0",
+      "nexusSourceRevision": "e91ca6e389222901474b1a6ac8d701c33617c4f0",
       "definitionHash": "126c626809f39d674ae5feaeac095e8a3c9c02841b7d9e9b1b629f5e294fa731",
       "attempt": 1,
       "cleanup": "failed",
@@ -487,7 +487,7 @@
     {
       "selector": "copilot-provider-death.runner-acpx-copilot.local.pending-permission-provider-death",
       "status": "passed",
-      "paperclipSourceRevision": "8fd0e05451ed3531855884fd4375ef3564620c2f",
+      "nexusSourceRevision": "8fd0e05451ed3531855884fd4375ef3564620c2f",
       "definitionHash": "080baff12a04bdf5a129f5a8060f57721d11254d7a29e878e7602623eb9e07f4",
       "attempt": 1,
       "cleanup": "passed",
@@ -502,7 +502,7 @@
     {
       "selector": "native-active-stop.runner-acpx-copilot.local.pending-permission-stop",
       "status": "passed",
-      "paperclipSourceRevision": "8fd0e05451ed3531855884fd4375ef3564620c2f",
+      "nexusSourceRevision": "8fd0e05451ed3531855884fd4375ef3564620c2f",
       "definitionHash": "18c06d7ab4fec4df3d11ea52af4e1f7b70e38d50418772befff1c3bf9ef0236e",
       "attempt": 1,
       "cleanup": "passed",
@@ -517,7 +517,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.attached-async-settlement",
       "status": "passed",
-      "paperclipSourceRevision": "8fd0e05451ed3531855884fd4375ef3564620c2f",
+      "nexusSourceRevision": "8fd0e05451ed3531855884fd4375ef3564620c2f",
       "definitionHash": "341901ee5b09a42368963a77dbfc3ea569d438952b9bb53001edb4e1cd6fb536",
       "attempt": 1,
       "cleanup": "passed",
@@ -532,7 +532,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.native-permission-deny-write",
       "status": "failed",
-      "paperclipSourceRevision": "8fd0e05451ed3531855884fd4375ef3564620c2f",
+      "nexusSourceRevision": "8fd0e05451ed3531855884fd4375ef3564620c2f",
       "definitionHash": "341901ee5b09a42368963a77dbfc3ea569d438952b9bb53001edb4e1cd6fb536",
       "attempt": 1,
       "cleanup": "passed",
@@ -547,7 +547,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.native-permission-deny-write",
       "status": "passed",
-      "paperclipSourceRevision": "56a5af9aff8dce145e5154576bd43820537dda1b",
+      "nexusSourceRevision": "56a5af9aff8dce145e5154576bd43820537dda1b",
       "definitionHash": "b6440cda129842dd041f64226b6e8643aeb23c2acffd3b2d2128b36caca99d5d",
       "attempt": 1,
       "cleanup": "passed",
@@ -562,7 +562,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.attached-async-settlement",
       "status": "passed",
-      "paperclipSourceRevision": "20f8e5389b9305745e6609c7fd0172a9517191bb",
+      "nexusSourceRevision": "20f8e5389b9305745e6609c7fd0172a9517191bb",
       "definitionHash": "b6440cda129842dd041f64226b6e8643aeb23c2acffd3b2d2128b36caca99d5d",
       "attempt": 1,
       "cleanup": "passed",
@@ -577,7 +577,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.daytona.attached-async-settlement",
       "status": "failed",
-      "paperclipSourceRevision": "20f8e5389b9305745e6609c7fd0172a9517191bb",
+      "nexusSourceRevision": "20f8e5389b9305745e6609c7fd0172a9517191bb",
       "definitionHash": "b6440cda129842dd041f64226b6e8643aeb23c2acffd3b2d2128b36caca99d5d",
       "attempt": 1,
       "cleanup": "not_started",
@@ -592,7 +592,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.daytona.attached-async-settlement",
       "status": "failed",
-      "paperclipSourceRevision": "20f8e5389b9305745e6609c7fd0172a9517191bb",
+      "nexusSourceRevision": "20f8e5389b9305745e6609c7fd0172a9517191bb",
       "definitionHash": "b6440cda129842dd041f64226b6e8643aeb23c2acffd3b2d2128b36caca99d5d",
       "attempt": 1,
       "cleanup": "passed",
@@ -607,7 +607,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.daytona.attached-async-settlement",
       "status": "failed",
-      "paperclipSourceRevision": "b65637614ee207da797b0b89633745338f322e75",
+      "nexusSourceRevision": "b65637614ee207da797b0b89633745338f322e75",
       "definitionHash": "b6440cda129842dd041f64226b6e8643aeb23c2acffd3b2d2128b36caca99d5d",
       "attempt": 1,
       "cleanup": "passed",
@@ -622,7 +622,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.daytona.attached-async-settlement",
       "status": "failed",
-      "paperclipSourceRevision": "b65637614ee207da797b0b89633745338f322e75",
+      "nexusSourceRevision": "b65637614ee207da797b0b89633745338f322e75",
       "definitionHash": "b6440cda129842dd041f64226b6e8643aeb23c2acffd3b2d2128b36caca99d5d",
       "attempt": 1,
       "cleanup": "passed",
@@ -637,7 +637,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.daytona.attached-async-settlement",
       "status": "passed",
-      "paperclipSourceRevision": "324d069bddc4240260c2e2b8bee40bef4640b778",
+      "nexusSourceRevision": "324d069bddc4240260c2e2b8bee40bef4640b778",
       "definitionHash": "8c25a7e654e01333a899310e3096f7eb8108b0e6b7e13c446e80c3258426a6a9",
       "attempt": 1,
       "cleanup": "passed",
@@ -652,7 +652,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.local.attached-async-settlement",
       "status": "passed",
-      "paperclipSourceRevision": "324d069bddc4240260c2e2b8bee40bef4640b778",
+      "nexusSourceRevision": "324d069bddc4240260c2e2b8bee40bef4640b778",
       "definitionHash": "8c25a7e654e01333a899310e3096f7eb8108b0e6b7e13c446e80c3258426a6a9",
       "attempt": 1,
       "cleanup": "passed",
@@ -667,7 +667,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.daytona.native-permission-deny-write",
       "status": "failed",
-      "paperclipSourceRevision": "324d069bddc4240260c2e2b8bee40bef4640b778",
+      "nexusSourceRevision": "324d069bddc4240260c2e2b8bee40bef4640b778",
       "definitionHash": "8c25a7e654e01333a899310e3096f7eb8108b0e6b7e13c446e80c3258426a6a9",
       "attempt": 1,
       "cleanup": "passed",
@@ -682,7 +682,7 @@
     {
       "selector": "copilot-protection.runner-acpx-copilot.daytona.native-permission-deny-write",
       "status": "passed",
-      "paperclipSourceRevision": "40de4e3f200c741985983cd269a935d2ab7a6e73",
+      "nexusSourceRevision": "40de4e3f200c741985983cd269a935d2ab7a6e73",
       "definitionHash": "823ae4239d90ca9080cb4a34e828691e68d404dbe1cc2a1ea28b63d462022218",
       "attempt": 1,
       "cleanup": "passed",
@@ -697,7 +697,7 @@
     {
       "selector": "native-active-stop.runner-acpx-copilot.daytona.pending-permission-stop",
       "status": "failed",
-      "paperclipSourceRevision": "40de4e3f200c741985983cd269a935d2ab7a6e73",
+      "nexusSourceRevision": "40de4e3f200c741985983cd269a935d2ab7a6e73",
       "definitionHash": "1691a5b4ca1280419d703fcd3df2c13b4d3189ed58d8e34c5cddd7e449dfd049",
       "attempt": 1,
       "cleanup": "failed",
@@ -712,7 +712,7 @@
     {
       "selector": "native-active-stop.runner-acpx-copilot.daytona.pending-permission-stop",
       "status": "failed",
-      "paperclipSourceRevision": "276415d2e8a8460aad21882651341658f3af5a72",
+      "nexusSourceRevision": "276415d2e8a8460aad21882651341658f3af5a72",
       "definitionHash": "95ed6666ca8d1f0f912d79cd84ddba326cb17dde26d6f54c864b62d11bd842be",
       "attempt": 1,
       "cleanup": "failed",

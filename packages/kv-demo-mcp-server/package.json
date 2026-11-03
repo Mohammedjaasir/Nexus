@@ -1,5 +1,5 @@
 {
-  "name": "@paperclipai/kv-demo-mcp-server",
+  "name": "@nexusai/kv-demo-mcp-server",
   "version": "0.1.0",
   "license": "MIT",
   "homepage": "https://github.com/paperclipai/paperclip",
@@ -13,7 +13,7 @@
   },
   "type": "module",
   "bin": {
-    "paperclip-kv-demo-mcp-server": "./dist/main.js"
+    "nexus-kv-demo-mcp-server": "./dist/main.js"
   },
   "exports": {
     ".": "./src/index.ts"
@@ -21,7 +21,7 @@
   "publishConfig": {
     "access": "public",
     "bin": {
-      "paperclip-kv-demo-mcp-server": "./dist/main.js"
+      "nexus-kv-demo-mcp-server": "./dist/main.js"
     },
     "exports": {
       ".": {

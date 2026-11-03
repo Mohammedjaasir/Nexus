@@ -1,9 +1,9 @@
-import { parseGitHubSkillRepositoryUrl } from "@paperclipai/shared";
-import type { AgentDesiredSkillEntry, CompanySkillDetail, CompanySkillListItem, CompanySkillVersion, CompanySkill, SkillSource, SkillPackageInspection, SkillSourceCandidate, SkillSourceEntry, SkillSourceRefreshResult, SkillRepositoryPackage } from "@paperclipai/shared";
+import { parseGitHubSkillRepositoryUrl } from "@nexusai/shared";
+import type { AgentDesiredSkillEntry, CompanySkillDetail, CompanySkillListItem, CompanySkillVersion, CompanySkill, SkillSource, SkillPackageInspection, SkillSourceCandidate, SkillSourceEntry, SkillSourceRefreshResult, SkillRepositoryPackage } from "@nexusai/shared";
 import { companySkillsApi } from "@/api/companySkills";
 import { agentsApi } from "@/api/agents";
 import { foldersApi } from "@/api/folders";
-import { storybookAgents } from "./paperclipData";
+import { storybookAgents } from "./nexusData";
 import { skillSourcesApi } from "@/api/skillSources";
 
 export const COMPANY_ID = "company-storybook";
@@ -45,7 +45,7 @@ Object.assign(repositoryContents, {
   '.agents/skills/shared/policy.md': '# Shared policy\n\nCheck company boundaries before changing access.',
   '.agents/skills/review/security/references/threat-model.md': '# Threat model\n\nReview caller authorization.',
   'NOTICE.md': 'Example upstream credits are preserved with this repository.',
-  'paperclip.skills.json': JSON.stringify({ version: 1, skills: ['.agents/skills/review/SKILL.md', 'skills/research/SKILL.md'], requirements: 'Python 3.11 and Git. Configure GitHub access for agents that review pull requests.' }, null, 2),
+  'nexus.skills.json': JSON.stringify({ version: 1, skills: ['.agents/skills/review/SKILL.md', 'skills/research/SKILL.md'], requirements: 'Python 3.11 and Git. Configure GitHub access for agents that review pull requests.' }, null, 2),
 });
 export type PackageScenario = 'ready' | 'warnings' | 'missing' | 'setup';
 export function repositoryFixture(scenario: PackageScenario = 'ready'): SkillRepositoryPackage {

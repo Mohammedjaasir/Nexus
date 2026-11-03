@@ -3,7 +3,7 @@ import { createChatMilestoneFixtures } from "./helpers/chat-milestone-fixtures.j
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agents, agentWakeupRequests, caseHandoffs, cases, chatConversations, chatEndpoints, chatPublications, completionContracts, createDb, nativeRunFinalizations, nativeRunResults, statusDecisions, statusDecisionEffects, workAssessments, subscribeDatabaseWork, heartbeatRuns, issueComments, issueQuestionResponseDeliveries, issueThreadInteractions, issues } from "@paperclipai/db";
+import { agents, agentWakeupRequests, caseHandoffs, cases, chatConversations, chatEndpoints, chatPublications, completionContracts, createDb, nativeRunFinalizations, nativeRunResults, statusDecisions, statusDecisionEffects, workAssessments, subscribeDatabaseWork, heartbeatRuns, issueComments, issueQuestionResponseDeliveries, issueThreadInteractions, issues } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
@@ -26,11 +26,11 @@ import { createChatPublicationResolution } from "../services/chat-channels/publi
 import { createChatPublicationWorker } from "../services/chat-channels/publications/worker.js";
 import { CAPABILITIES } from "../services/chat-channels/provider-catalog.js";
 import { createChatPublicationFailures } from "../services/chat-channels/publications/failures.js";
-import { PaperclipRunnerToolAuthority } from "../services/native-runtime/paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "../services/native-runtime/nexus-runner-tool-authority.js";
 import { finalizeNativeRun } from "../services/native-runtime/native-run-finalizer.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_MILESTONE_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_MILESTONE_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("chat lifecycle milestone worker", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -199,7 +199,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const context = runValues().contextSnapshot;
     await db.insert(agentWakeupRequests).values({ id: wakeId, companyId: f.companyId, agentId: f.agentId,
       source: "on_demand", status: "queued",
-      payload: kind === "queued_comments" ? { _paperclipWakeContext: { wakeCommentIds: [f.commentId] } } : {},
+      payload: kind === "queued_comments" ? { _nexusWakeContext: { wakeCommentIds: [f.commentId] } } : {},
     });
     const seeded = await run(f, { status: "queued", runtimeMode: "legacy", wakeupRequestId: wakeId,
       contextSnapshot: kind === "ordinary" ? context : { ...context, wakeCommentIds: [f.commentId] },
@@ -261,7 +261,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
   });
   it.each(["queued", "scheduled_retry"] as const)("publishes cancellation when admission replaces a reassigned %s owner", async status => {
     const old = await run(f, { status, runtimeMode: "legacy", scheduledRetryAt: status === "scheduled_retry" ? new Date(Date.now() + 60_000) : null });
-    const [replacement] = await db.insert(agents).values({ companyId: f.companyId, name: "Replacement", adapterType: "paperclip_runner" }).returning();
+    const [replacement] = await db.insert(agents).values({ companyId: f.companyId, name: "Replacement", adapterType: "nexus_runner" }).returning();
     await db.update(issues).set({ assigneeAgentId: replacement.id, executionRunId: old.id }).where(eq(issues.id, f.issueId));
     const { service, dependencies } = await queue();
     dependencies.getAgent.mockResolvedValue(replacement);
@@ -281,7 +281,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const wakeId = randomUUID();
     await db.update(issueComments).set({ authorUserId: f.userId }).where(eq(issueComments.id, f.commentId));
     await db.insert(agentWakeupRequests).values({ id: wakeId, companyId: f.companyId, agentId: f.agentId,
-      source: "on_demand", status: "queued", payload: { issueId: f.issueId, _paperclipWakeContext: { wakeCommentIds: [f.commentId] } },
+      source: "on_demand", status: "queued", payload: { issueId: f.issueId, _nexusWakeContext: { wakeCommentIds: [f.commentId] } },
     });
     const seeded = await run(f, { status: "queued", runtimeMode: "legacy", wakeupRequestId: wakeId,
       contextSnapshot: { ...runValues().contextSnapshot, wakeCommentId: staleContext ? randomUUID() : f.commentId },
@@ -352,7 +352,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     await db.update(issues).set({ executionRunId: source.id }).where(eq(issues.id, f.issueId));
     await start(); await flush(); await quiet();
     const nextCheckAt = new Date(Date.now() + 60_000).toISOString();
-    const authority = new PaperclipRunnerToolAuthority(db, { ...f, runId: source.id });
+    const authority = new NexusRunnerToolAuthority(db, { ...f, runId: source.id });
     const request = { tool: "set_task_monitor", callId: randomUUID(), arguments: {
       idempotencyKey: "milestone-monitor", monitor: { nextCheckAt, notes: "Check the saved task" },
     } };
@@ -381,7 +381,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const contractId = randomUUID(), resultId = randomUUID();
     await db.insert(completionContracts).values({
       id: contractId, companyId: f.companyId, issueId: f.issueId, revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1", policyVersion: "phase6-v1", risk: "standard",
+      schemaVersion: "nexus.completion-contract.v1", policyVersion: "phase6-v1", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { objective: "Respond to chat" }, canonicalSha256: "milestone-contract",
       createdByActorType: "system", createdByActorId: "test",
@@ -421,7 +421,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
   it("wakes from a governed native reviewer claim and leaves repeated claims quiet", async () => {
     const input = await continuationDecisionFixture();
     const { decision } = await commitNativeStatusDecision({ db, ...input });
-    const [reviewer] = await db.insert(agents).values({ companyId: f.companyId, name: "Reviewer", adapterType: "paperclip_runner" }).returning();
+    const [reviewer] = await db.insert(agents).values({ companyId: f.companyId, name: "Reviewer", adapterType: "nexus_runner" }).returning();
     await db.update(statusDecisions).set({ decisionJson: { ...decision.decisionJson, projectedStatusVersion: 1 } }).where(eq(statusDecisions.id, decision.id));
     await db.update(issues).set({ status: "in_review", statusVersion: 1, lastStatusDecisionId: decision.id, executionRunId: null }).where(eq(issues.id, f.issueId));
     await db.update(chatEndpoints).set({ assignedAgentId: reviewer.id }).where(eq(chatEndpoints.id, f.endpointId));
@@ -603,7 +603,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const interactions = issueThreadInteractionService(db);
     const issue = { id: f.issueId, companyId: f.companyId, status: "in_progress" };
     const addressee = action === "addressee deletion"
-      ? (await db.insert(agents).values({ companyId: f.companyId, name: "Reviewer", adapterType: "paperclip_runner" }).returning())[0] : null;
+      ? (await db.insert(agents).values({ companyId: f.companyId, name: "Reviewer", adapterType: "nexus_runner" }).returning())[0] : null;
     const createInteraction = (sourceRunId: string, supersedePendingSiblingInteractions = true) => interactions.create(issue, kind === "confirmation" ? {
       kind: "request_confirmation", continuationPolicy: "wake_assignee", sourceRunId, addresseeAgentId: addressee?.id,
       title: "Confirm", payload: { version: 1, prompt: "Continue?", supersedeOnUserComment: true },

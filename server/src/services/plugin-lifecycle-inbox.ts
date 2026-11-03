@@ -1,8 +1,8 @@
-import { withAccountHomeSecretMutationLock } from "@paperclipai/adapter-codex-local/server";
+import { withAccountHomeSecretMutationLock } from "@nexusai/adapter-codex-local/server";
 import { projectInstanceSecretService, type ProjectSecretSnapshot } from "./project-instance-secrets.js";
 import { publishActivity, type ActivityPublication } from "./activity-log.js";
-import { pluginCompanySettings, pluginLifecycleAcknowledgments, plugins, resourceLifecycleEvents, type Db } from "@paperclipai/db";
-import type { ResourceLifecycleEvent } from "@paperclipai/plugin-sdk";
+import { pluginCompanySettings, pluginLifecycleAcknowledgments, plugins, resourceLifecycleEvents, type Db } from "@nexusai/db";
+import type { ResourceLifecycleEvent } from "@nexusai/plugin-sdk";
 import { z } from "zod";
 import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";

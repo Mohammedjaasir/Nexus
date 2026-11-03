@@ -1,5 +1,5 @@
-import { AGENT_ADAPTER_TYPES } from "@paperclipai/shared";
-import { isAdapterExecutionPhase } from "@paperclipai/adapter-utils/execution-phase";
+import { AGENT_ADAPTER_TYPES } from "@nexusai/shared";
+import { isAdapterExecutionPhase } from "@nexusai/adapter-utils/execution-phase";
 import { MAX_EXECUTION_PHASE_ELAPSED_MS } from "./adapter-execution-phase.js";
 
 export interface AdapterStopContext {

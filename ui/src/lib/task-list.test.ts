@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildIssueTree } from "./issue-tree";
 import { sortTaskListItems, type TaskListSort } from "./task-list";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 
 describe("task-list sorting", () => {
   it("sorts identifiers naturally and names case-insensitively without mutating the input", () => {

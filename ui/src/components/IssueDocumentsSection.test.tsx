@@ -5,8 +5,8 @@ import type { ComponentProps } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { DocumentRevision, Issue, IssueDocument } from "@paperclipai/shared";
-import { ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY } from "@paperclipai/shared";
+import type { DocumentRevision, Issue, IssueDocument } from "@nexusai/shared";
+import { ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IssueDocumentsSection } from "./IssueDocumentsSection";
 import { queryKeys } from "../lib/queryKeys";
@@ -457,8 +457,8 @@ describe("IssueDocumentsSection", () => {
       expect(container.querySelector('input[placeholder="Document key"]')).toBeNull();
       expect(container.textContent).toContain(revised.body);
       expect(titleAfterCreate).toBe("Title typed during creation");
-      expect(localStorage.getItem(`paperclip:new-document-draft:v1:user-1:${issue.id}:${generalDocumentsOnly ? "general" : "all"}`)).toBeNull();
-      const editBackup = localStorage.getItem(`paperclip:document-draft:v2:user-1:${issue.id}:notes`);
+      expect(localStorage.getItem(`nexus:new-document-draft:v1:user-1:${issue.id}:${generalDocumentsOnly ? "general" : "all"}`)).toBeNull();
+      const editBackup = localStorage.getItem(`nexus:document-draft:v2:user-1:${issue.id}:notes`);
       if (saveOutcome === "failed") {
         expect(container.querySelector('[data-testid="markdown-editor"]')?.textContent).toBe(revised.body);
         expect(container.querySelector<HTMLInputElement>('input[placeholder="Optional title"]')?.value).toBe(revised.title);
@@ -627,7 +627,7 @@ describe("IssueDocumentsSection", () => {
     client.setQueryData(queryKeys.auth.session, { user: { id: "user-1" } });
     const write = localStorage.setItem.bind(localStorage);
     const methodOwner: Storage = Object.hasOwn(localStorage, "setItem") ? localStorage : Object.getPrototypeOf(localStorage);
-    const editKey = `paperclip:document-draft:v2:user-1:${issue.id}:notes`;
+    const editKey = `nexus:document-draft:v2:user-1:${issue.id}:notes`;
     const setItem = vi.spyOn(methodOwner, "setItem").mockImplementation((key, value) => {
       if (key === editKey) throw new Error("Storage full");
       write(key, value);
@@ -648,10 +648,10 @@ describe("IssueDocumentsSection", () => {
       await flush();
       expect(container.querySelector('[data-testid="markdown-editor"]')?.textContent).toBe("Keep the unsaved pending-create edits");
       expect(localStorage.getItem(editKey)).toBeNull();
-      const retained = localStorage.getItem(`paperclip:new-document-draft:v1:user-1:${issue.id}:general`);
+      const retained = localStorage.getItem(`nexus:new-document-draft:v1:user-1:${issue.id}:general`);
       expect(JSON.parse(retained!)).toMatchObject({ key: "notes", body: "Keep the unsaved pending-create edits", baseRevisionId: saved.latestRevisionId, isNew: false });
       await act(async () => container.querySelector('[data-testid="markdown-editor"]')!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
-      expect(localStorage.getItem(`paperclip:new-document-draft:v1:user-1:${issue.id}:general`)).toBeNull();
+      expect(localStorage.getItem(`nexus:new-document-draft:v1:user-1:${issue.id}:general`)).toBeNull();
     } finally {
       setItem.mockRestore();
       await act(async () => root.unmount());
@@ -729,7 +729,7 @@ describe("IssueDocumentsSection", () => {
     const root = createRoot(container);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mockLocation.hash = "#document-plan&revision=revision-3&interaction=review-1";
-    localStorage.setItem("paperclip:issue-document-folds:issue-1", JSON.stringify(["plan"]));
+    localStorage.setItem("nexus:issue-document-folds:issue-1", JSON.stringify(["plan"]));
     mockIssuesApi.listDocuments.mockResolvedValue([createIssueDocument({ body: "Newer unreviewed text" })]);
     let loadHistory!: (value: DocumentRevision[]) => void;
     mockIssuesApi.listDocumentRevisions.mockReturnValue(new Promise<DocumentRevision[]>((resolve) => { loadHistory = resolve; }));
@@ -779,7 +779,7 @@ describe("IssueDocumentsSection", () => {
   it.each(["loaded", "failed"])("preserves an unsaved draft when linked revision loading %s", async (outcome) => {
     const root = createRoot(container);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const storageKey = "paperclip:document-draft:v2:user-1:issue-1:plan";
+    const storageKey = "nexus:document-draft:v2:user-1:issue-1:plan";
     localStorage.setItem(storageKey, JSON.stringify({ key: "plan", title: "Plan", body: "My unsaved draft", baseRevisionId: "revision-4", isNew: false }));
     mockIssuesApi.listDocuments.mockResolvedValue([createIssueDocument({ body: "Saved latest body" })]);
     let load!: (value: DocumentRevision[]) => void;
@@ -1385,7 +1385,7 @@ describe("IssueDocumentsSection", () => {
     const document = createIssueDocument({ body: "Server body" });
     const issue = createIssue();
     window.localStorage.setItem(
-      `paperclip:document-draft:v2:user-2:${issue.id}:plan`,
+      `nexus:document-draft:v2:user-2:${issue.id}:plan`,
       JSON.stringify({ key: "plan", title: "Plan", body: "Someone else's draft", baseRevisionId: "revision-4", isNew: false }),
     );
     mockIssuesApi.listDocuments.mockResolvedValue([document]);
@@ -1416,7 +1416,7 @@ describe("IssueDocumentsSection", () => {
     const issue = createIssue();
     const document = createIssueDocument({ body: "Server plan" });
     mockIssuesApi.listDocuments.mockResolvedValue([document]);
-    window.localStorage.setItem(`paperclip:document-draft:v2:user-1:${issue.id}:plan`, JSON.stringify({
+    window.localStorage.setItem(`nexus:document-draft:v2:user-1:${issue.id}:plan`, JSON.stringify({
       key: "plan", title: document.title ?? "", body: "Private unpublished text", baseRevisionId: "revision-4", isNew: false,
     }));
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } } });
@@ -1427,7 +1427,7 @@ describe("IssueDocumentsSection", () => {
     expect(container.textContent).toContain("Private unpublished text");
     await act(async () => { queryClient.setQueryData(queryKeys.auth.session, { user: { id: "user-2" } }); });
     await flush();
-    expect(window.localStorage.getItem(`paperclip:document-draft:v2:user-2:${issue.id}:plan`)).toBeNull();
+    expect(window.localStorage.getItem(`nexus:document-draft:v2:user-2:${issue.id}:plan`)).toBeNull();
     expect(container.textContent).not.toContain("Private unpublished text");
     act(() => root.unmount()); queryClient.clear();
   });
@@ -1436,7 +1436,7 @@ describe("IssueDocumentsSection", () => {
     const b = { ...a, id: "task-b", identifier: "DOC-2" };
     const document = createIssueDocument({ body: "Server plan" });
     mockIssuesApi.listDocuments.mockResolvedValue([document]);
-    const key = (id: string) => `paperclip:document-draft:v2:user-1:${id}:plan`;
+    const key = (id: string) => `nexus:document-draft:v2:user-1:${id}:plan`;
     const stored = (body: string) => JSON.stringify({ key: "plan", title: "Plan", body, baseRevisionId: "revision-4", isNew: false });
     localStorage.setItem(key(a.id), stored("Task A private edit"));
     const originalB = stored("Task B private edit");
@@ -1461,7 +1461,7 @@ describe("IssueDocumentsSection", () => {
     const document = createIssueDocument({ body: "Server body" });
     const issue = createIssue();
     window.localStorage.setItem(
-      `paperclip:document-draft:v2:user-1:${issue.id}:plan`,
+      `nexus:document-draft:v2:user-1:${issue.id}:plan`,
       JSON.stringify({ key: "plan", title: "Plan", body: "Typed before the outage", baseRevisionId: "revision-4", isNew: false }),
     );
     mockIssuesApi.listDocuments.mockResolvedValue([document]);
@@ -1496,7 +1496,7 @@ describe("IssueDocumentsSection", () => {
     const issue = createIssue();
     // An edit typed before a reload; its save may have landed with a lost response.
     window.localStorage.setItem(
-      `paperclip:document-draft:v2:user-1:${issue.id}:plan`,
+      `nexus:document-draft:v2:user-1:${issue.id}:plan`,
       JSON.stringify({ key: "plan", title: "Plan", body: "Edited during the outage", baseRevisionId: "revision-4", isNew: false }),
     );
     const saved = createIssueDocument({ body: "Edited during the outage", latestRevisionId: "revision-5" });
@@ -1531,7 +1531,7 @@ describe("IssueDocumentsSection", () => {
       baseRevisionId: "revision-4",
     }));
     expect(container.textContent).not.toContain("Out of date");
-    expect(window.localStorage.getItem(`paperclip:document-draft:v2:user-1:${issue.id}:plan`)).toBeNull();
+    expect(window.localStorage.getItem(`nexus:document-draft:v2:user-1:${issue.id}:plan`)).toBeNull();
 
     await act(async () => {
       root.unmount();

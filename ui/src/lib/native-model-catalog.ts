@@ -1,4 +1,4 @@
-import { aiConnectionBindingSchema, type Agent } from "@paperclipai/shared";
+import { aiConnectionBindingSchema, type Agent } from "@nexusai/shared";
 import { COPILOT_MODEL_DISCOVERY_QUERY_OPTIONS, copilotTaskModelCatalogOptions } from "./copilot-task-model-catalog";
 
 /** These ACP catalogs resolve the selected account rather than a generic list. */
@@ -7,7 +7,7 @@ export function isAccountBoundAcpxAgent(agent: unknown): agent is "copilot" | "a
 }
 
 export function nativeTaskModelCatalogOptions(agent: Agent | null | undefined) {
-  if (agent?.adapterType === "paperclip_runner" && agent.adapterConfig.provider === "acpx" && agent.adapterConfig.acpxAgent === "antigravity") {
+  if (agent?.adapterType === "nexus_runner" && agent.adapterConfig.provider === "acpx" && agent.adapterConfig.acpxAgent === "antigravity") {
     return { acpxAgent: "antigravity", agentId: agent.id,
       aiConnection: aiConnectionBindingSchema.safeParse(agent.runtimeConfig?.aiConnection).data };
   }

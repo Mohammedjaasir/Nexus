@@ -115,13 +115,13 @@ export const apiResponseReadingTask: RunnerTaskFixture = {
   // Delivered files render as an attachment card, which can replace the finish summary.
   buildVisibleMarker: () => "api-response-proof.txt",
   buildPrompt: nonce => [
-    "Inspect diagnostic evidence task {{API_RESPONSE_SOURCE_ID}} using the Paperclip API tools.",
+    "Inspect diagnostic evidence task {{API_RESPONSE_SOURCE_ID}} using the Nexus API tools.",
     "Discover GET /api/issues/{id}, call it for that task, and retain the returned response artifact.",
     "Read the saved artifact through GET /api/assets/{assetId}/content with responseText: {offsetBytes:0,limitBytes:8192}.",
     "Continue using responseText.nextOffsetBytes until null. Extract the Evidence code at the end of its description.",
     "The large response must be read with bounded responseText pages. Do not use other tools or API routes to obtain the evidence; if bounded reading fails, report the failure instead of substituting a different reader.",
     "Write only that code followed by a newline to api-response-proof.txt in the current workspace and deliver that file as an attachment. Do not edit the evidence task or create child tasks.",
-    `Verify the proof file and finish this task with paperclip_finish, reportedWorkDisposition done, and summary API_RESPONSE_READ_${nonce}.`,
+    `Verify the proof file and finish this task with nexus_finish, reportedWorkDisposition done, and summary API_RESPONSE_READ_${nonce}.`,
   ].join("\n"),
   buildMatchers: (nonce, execution) => [
     { kind: "file_exact", path: "api-response-proof.txt", expected: `${responseEvidenceCode(nonce)}\n` },

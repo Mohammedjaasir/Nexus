@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { toolCatalogEntries, toolConnections, toolProfiles, toolProfileEntries, toolPolicies, toolProfileBindings } from "@paperclipai/db";
-import type { ConnectionIntentInteraction } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { toolCatalogEntries, toolConnections, toolProfiles, toolProfileEntries, toolPolicies, toolProfileBindings } from "@nexusai/db";
+import type { ConnectionIntentInteraction } from "@nexusai/shared";
 import { conflict } from "../errors.js";
 import { toolAccessPolicyService } from "./tool-access-policy.js";
 import { logActivity } from "./activity-log.js";

@@ -1,5 +1,5 @@
-import { toolApplications } from "@paperclipai/db";
-import type { ToolApplication } from "@paperclipai/shared";
+import { toolApplications } from "@nexusai/db";
+import type { ToolApplication } from "@nexusai/shared";
 
 export function toApplication(
   row: typeof toolApplications.$inferSelect,

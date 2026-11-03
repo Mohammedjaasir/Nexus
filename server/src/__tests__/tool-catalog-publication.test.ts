@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
-import { agents, companies, createDb, toolApplications, toolConnections, toolCatalogEntries, toolProfiles, toolProfileBindings, toolProfileEntries, type Db } from "@paperclipai/db";
+import { agents, companies, createDb, toolApplications, toolConnections, toolCatalogEntries, toolProfiles, toolProfileBindings, toolProfileEntries, type Db } from "@nexusai/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { toolAccessService } from "../services/tool-access.js";
@@ -15,7 +15,7 @@ describeDatabase("catalog publication", () => {
   let companyId: string;
   let applicationId: string;
   let connectionId: string;
-  beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("paperclip-catalog-publication-"); db = createDb(database.connectionString); }, 90_000);
+  beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("nexus-catalog-publication-"); db = createDb(database.connectionString); }, 90_000);
   afterAll(async () => { await database?.cleanup(); });
   afterEach(() => vi.restoreAllMocks());
   beforeEach(async () => {

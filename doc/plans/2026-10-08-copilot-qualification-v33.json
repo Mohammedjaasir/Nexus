@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.copilot.production-qualification/v33",
+  "schema": "nexus.copilot.production-qualification/v33",
   "updatedAt": "2026-10-09T15:05:45.536425+00:00",
   "qualifiedApplicationSource": "024e1422f9c7b43ff1b083e7d8a25e1969dc4acf",
   "reviewedApplicationSource": "50d54d78e552869cae154d88ade68063191a547e",

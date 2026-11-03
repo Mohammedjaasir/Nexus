@@ -50,7 +50,7 @@ function retentionReads(insideTransaction: () => boolean) {
 describe("workProductService", () => {
   it("extracts runner totals and enriches work-product metadata", () => {
     const summary = workProductDiffSummaryFromEventPayload({
-      schema: "paperclip.workspace.diff.v1",
+      schema: "nexus.workspace.diff.v1",
       totals: { files: 3, additions: 17, deletions: 5 },
     });
 
@@ -63,7 +63,7 @@ describe("workProductService", () => {
     });
 
     const prpEvent = {
-      schema: "paperclip.prp.event.v1",
+      schema: "nexus.prp.event.v1",
       payload: { totals: { files: 2, additions: 9, deletions: 4 } },
     };
     expect(workProductDiffSummaryFromEventPayload({ prpEvent })).toEqual({
@@ -108,8 +108,8 @@ describe("workProductService", () => {
 
     expect(resolve).toHaveBeenCalledWith("company-1", {
       host: "github.com",
-      owner: "paperclipai",
-      repo: "paperclip",
+      owner: "nexusai",
+      repo: "nexus",
       number: 42,
     });
     expect(refreshed?.metadata).toMatchObject({
@@ -156,8 +156,8 @@ describe("workProductService", () => {
     })).resolves.toEqual({ additions: 13, deletions: 2, changedFiles: 3 });
     expect(resolveCommitDetails).toHaveBeenCalledWith("company-1", {
       host: "github.com",
-      owner: "paperclipai",
-      repo: "paperclip",
+      owner: "nexusai",
+      repo: "nexus",
       sha: "9c12ae7b41e5",
     });
   });

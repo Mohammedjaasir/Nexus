@@ -1,14 +1,14 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { agentApiKeyScopeSchema } from "@paperclipai/shared";
-import { agentApiKeys, agents, authSessions, boardApiKeys, dotAgentBindings, heartbeatRuns, mcpOauthGrants, museAgentBindings, type caseHandoffs, type issues, type Db } from "@paperclipai/db";
+import { agentApiKeyScopeSchema } from "@nexusai/shared";
+import { agentApiKeys, agents, authSessions, boardApiKeys, dotAgentBindings, heartbeatRuns, mcpOauthGrants, museAgentBindings, type caseHandoffs, type issues, type Db } from "@nexusai/db";
 import { forbidden } from "../errors.js";
 import { resolveDeploymentMode } from "../config-file.js";
 import { isCloudManagedInstance } from "./cloud-instance.js";
 import { boardAuthService } from "./board-auth.js";
 import { isCurrentCloudOwnerInstanceAdmin, isCurrentCloudTenantAuthority, loadCurrentCloudOwnerAuthority, type CurrentCloudOwnerAuthority } from "./cloud-tenant-authority.js";
 import { withExternalAdmissionGuard, type ExternalAdmissionTransaction } from "../modules/external-agents/index.js";
-import { parseNativeExecutionInput } from "../vendor/paperclip-runner/index.js";
+import { parseNativeExecutionInput } from "../vendor/nexus-runner/index.js";
 import { authorizeExternalBotBinding } from "./external-bot-authority.js";
 import { canActorReceiveCase } from "./case-access.js";
 import type { AuthorizationActor } from "./authorization.js";
@@ -19,7 +19,7 @@ type Issue = typeof issues.$inferSelect;
 // Server-owned provenance, not a cached permission decision. Never serialize
 // this column into case history, events, prompts, or other public responses.
 const actorContextSchema = z.object({
-  schema: z.literal("paperclip.case-handoff-actor.v1"),
+  schema: z.literal("nexus.case-handoff-actor.v1"),
   actorType: z.enum(["agent", "user"]),
   actorId: z.string().min(1),
   companyId: z.string().min(1),
@@ -34,7 +34,7 @@ const actorContextSchema = z.object({
 
 export function caseHandoffActorContext(actor: AuthorizationActor, companyId: string): Record<string, unknown> {
   return actorContextSchema.parse({
-    schema: "paperclip.case-handoff-actor.v1",
+    schema: "nexus.case-handoff-actor.v1",
     actorType: actor.type === "agent" ? "agent" : "user",
     actorId: actor.type === "agent" ? actor.agentId : actor.userId ?? "board",
     companyId, source: actor.source === "none" ? null : actor.source ?? null,
@@ -134,10 +134,10 @@ export async function assertCaseHandoffSourceAuthority(db: Db, row: Handoff, iss
     if (execution.binding.companyId !== row.companyId || execution.binding.agentId !== run.agentId || execution.binding.runId !== run.id ||
       execution.binding.issueId !== (run.nativeIssueId ?? run.issueId ?? run.contextSnapshot?.issueId)) throw forbidden("Pinned handoff source identity changed");
     await withExternalAdmissionGuard(db as unknown as ExternalAdmissionTransaction, row.companyId, run.agentId, async () => {
-      if (execution.schema === "paperclip.native-execution-input.v8") {
+      if (execution.schema === "nexus.native-execution-input.v8") {
         const { museRunnerBroker } = await import("./muse-runner-broker.js");
         sourceAuthorizer = await museRunnerBroker(db).authorizingUserIdForBinding(execution.provider.binding);
-      } else if (execution.schema === "paperclip.native-execution-input.v6") {
+      } else if (execution.schema === "nexus.native-execution-input.v6") {
         const ref = execution.provider.binding;
         const [binding] = await db.select().from(dotAgentBindings).where(and(eq(dotAgentBindings.id, ref.bindingId), eq(dotAgentBindings.companyId, row.companyId),
           eq(dotAgentBindings.agentId, run.agentId), eq(dotAgentBindings.generation, ref.bindingGeneration), isNull(dotAgentBindings.revokedAt)));

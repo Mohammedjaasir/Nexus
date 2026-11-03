@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { activityLog, approvals, applyPendingMigrations, databaseWorkPending, budgetIncidents, budgetPolicies, companies, costEvents, createDb, externalObjects, externalObjectMentions, issues, issueComments, plugins } from "@paperclipai/db";
+import { activityLog, approvals, applyPendingMigrations, databaseWorkPending, budgetIncidents, budgetPolicies, companies, costEvents, createDb, externalObjects, externalObjectMentions, issues, issueComments, plugins } from "@nexusai/db";
 import { externalObjectService, type ExternalObjectResolveResult } from "../services/external-objects.js";
-import type { PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import type { NexusPluginManifestV1 } from "@nexusai/shared";
 import type { PluginWorkerManager } from "../services/plugin-worker-manager.js";
 import { issueService } from "../services/issues.js";
 import { documentService } from "../services/documents.js";
@@ -19,7 +19,7 @@ import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordin
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const url = resolveExternalTestDatabaseUrl("PAPERCLIP_EXTERNAL_OBJECT_REFRESH_TEST_DATABASE_URL");
+const url = resolveExternalTestDatabaseUrl("NEXUS_EXTERNAL_OBJECT_REFRESH_TEST_DATABASE_URL");
 const support = url ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const terminal: ExternalObjectResolveResult = { ok: true, snapshot: {
   statusKey: "done", statusCategory: "succeeded", statusTone: "success", isTerminal: true,
@@ -222,9 +222,9 @@ const active: ExternalObjectResolveResult = { ok: true, snapshot: {
 
   it("activates a newly ready plugin and fences a result after company permission is withdrawn", async () => {
     clock(); const registry = pluginRegistryService(db);
-    const manifest: PaperclipPluginManifestV1 = {
-      id: `paperclip.refresh-${randomUUID()}`, apiVersion: 1, version: "1.0.0", displayName: "Refresh fixture",
-      description: "Simulated external object provider", author: "Paperclip", categories: ["connector"],
+    const manifest: NexusPluginManifestV1 = {
+      id: `nexus.refresh-${randomUUID()}`, apiVersion: 1, version: "1.0.0", displayName: "Refresh fixture",
+      description: "Simulated external object provider", author: "Nexus", categories: ["connector"],
       capabilities: ["external.objects.detect", "external.objects.read"], entrypoints: { worker: "worker.js" },
       objectReferences: [{ providerKey: "tracker", displayName: "Tracker", objectTypes: ["ticket"], urlPatterns: ["https://example.com/:id"] }],
     };
@@ -261,9 +261,9 @@ const active: ExternalObjectResolveResult = { ok: true, snapshot: {
   it.each(["company setting", "status", "uninstall", "manifest", "other company"] as const)(
     "revalidates the selected plugin after %s changes even while the built-in fallback remains available", async change => {
       clock(); const registry = pluginRegistryService(db);
-      const manifest: PaperclipPluginManifestV1 = {
-        id: `paperclip.selected-${randomUUID()}`, apiVersion: 1, version: "1.0.0", displayName: "Selected provider",
-        description: "Selected resolver fixture", author: "Paperclip", categories: ["connector"],
+      const manifest: NexusPluginManifestV1 = {
+        id: `nexus.selected-${randomUUID()}`, apiVersion: 1, version: "1.0.0", displayName: "Selected provider",
+        description: "Selected resolver fixture", author: "Nexus", categories: ["connector"],
         capabilities: ["external.objects.detect", "external.objects.read"], entrypoints: { worker: "worker.js" },
         objectReferences: [{ providerKey: "github", displayName: "GitHub", objectTypes: ["pull_request"], urlPatterns: ["https://github.com/:owner/:repo/pull/:id"] }],
       };

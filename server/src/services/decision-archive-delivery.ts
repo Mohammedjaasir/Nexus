@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
-import { decisionArchiveNotificationOutbox, type Db } from "@paperclipai/db";
-import type { AttentionSourceKind } from "@paperclipai/shared";
+import { decisionArchiveNotificationOutbox, type Db } from "@nexusai/db";
+import type { AttentionSourceKind } from "@nexusai/shared";
 
 const CLAIM_MS = 5 * 60_000;
 export const DECISION_ARCHIVE_RETRY_MS = 30_000;

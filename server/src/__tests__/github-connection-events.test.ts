@@ -16,18 +16,18 @@ import {
   EMBEDDED_POSTGRES_TEST_TIMEOUT_MS,
   toolApplications,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { githubConnectionEventService } from "../services/github-connection-events.js";
 import { subscribeCompanyLiveEvents } from "../services/live-events.js";
 import { logger } from "../middleware/logger.js";
-import type { PaperclipCloudConnector } from "../services/paperclip-cloud-connector.js";
+import type { NexusCloudConnector } from "../services/nexus-cloud-connector.js";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
 
-const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_GITHUB_EVENTS_TEST_DATABASE_URL");
+const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_GITHUB_EVENTS_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalTestDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -36,7 +36,7 @@ describeEmbeddedPostgres("GitHub connection event delivery", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    if (!externalTestDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-github-events-");
+    if (!externalTestDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-github-events-");
     if (externalTestDatabaseUrl) await applyPendingMigrations(externalTestDatabaseUrl);
     db = createDb(externalTestDatabaseUrl ?? tempDb!.connectionString, { maxConnections: 1 });
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
@@ -64,7 +64,7 @@ describeEmbeddedPostgres("GitHub connection event delivery", () => {
     const applicationId = randomUUID();
     const connectionId = randomUUID();
     const grantId = randomUUID();
-    await db.insert(companies).values({ id: companyId, name: "Paperclip", issuePrefix: "GHE" });
+    await db.insert(companies).values({ id: companyId, name: "Nexus", issuePrefix: "GHE" });
     await db.insert(toolApplications).values({
       id: applicationId,
       companyId,
@@ -96,7 +96,7 @@ describeEmbeddedPostgres("GitHub connection event delivery", () => {
       status: "active",
       isDefault: false,
       providerTenant: {
-        oauth: { strategy: "paperclip_cloud_connector", accessTokenExpiresAt: null },
+        oauth: { strategy: "nexus_cloud_connector", accessTokenExpiresAt: null },
         github: {
           userId: "42",
           login: "octocat",
@@ -104,8 +104,8 @@ describeEmbeddedPostgres("GitHub connection event delivery", () => {
           repositoryCount: 3,
           repositorySelection: "selected",
           installationIds: ["101"],
-          installationOwnerLogins: ["paperclipai"],
-          repositories: [{ id: "203", fullName: "paperclipai/removed", installationId: "101" }],
+          installationOwnerLogins: ["nexusai"],
+          repositories: [{ id: "203", fullName: "nexusai/removed", installationId: "101" }],
           webhookHealth: "pending",
         },
       },
@@ -163,7 +163,7 @@ describeEmbeddedPostgres("GitHub connection event delivery", () => {
       setWebhookBinding: vi.fn(async () => undefined),
       leaseEvents: vi.fn(async () => ({ leaseId: `lease-${++poll}`, events: [leasedEvent], failedEventIds: ["undecryptable-delivery"] })),
       acknowledgeEvents: vi.fn(async () => 1),
-    } as unknown as PaperclipCloudConnector;
+    } as unknown as NexusCloudConnector;
     let currentTime = new Date("2026-09-04T12:00:05.000Z");
     const service = githubConnectionEventService(db, { connector, now: () => currentTime });
 
@@ -281,7 +281,7 @@ describeEmbeddedPostgres("GitHub connection event delivery", () => {
     const applicationId = randomUUID();
     const connectionId = randomUUID();
     const grantId = randomUUID();
-    await db.insert(companies).values({ id: companyId, name: "Paperclip", issuePrefix: "GHI" });
+    await db.insert(companies).values({ id: companyId, name: "Nexus", issuePrefix: "GHI" });
     await db.insert(toolApplications).values({
       id: applicationId,
       companyId,
@@ -314,7 +314,7 @@ describeEmbeddedPostgres("GitHub connection event delivery", () => {
       status: "active",
       isDefault: false,
       providerTenant: {
-        oauth: { strategy: "paperclip_cloud_connector", accessTokenExpiresAt: null },
+        oauth: { strategy: "nexus_cloud_connector", accessTokenExpiresAt: null },
         github: {
           userId: "42",
           login: "octocat",
@@ -322,8 +322,8 @@ describeEmbeddedPostgres("GitHub connection event delivery", () => {
           repositoryCount: 3,
           repositorySelection: "selected",
           installationIds: ["101"],
-          installationOwnerLogins: ["paperclipai"],
-          repositories: [{ id: "203", fullName: "paperclipai/removed", installationId: "101" }],
+          installationOwnerLogins: ["nexusai"],
+          repositories: [{ id: "203", fullName: "nexusai/removed", installationId: "101" }],
           webhookHealth: "pending",
         },
       },
@@ -363,7 +363,7 @@ describeEmbeddedPostgres("GitHub connection event delivery", () => {
         return ({ leaseId: `lease-${++poll}`, events: [leasedEvent] });
       }),
       acknowledgeEvents: vi.fn(async () => 1),
-    } as unknown as PaperclipCloudConnector;
+    } as unknown as NexusCloudConnector;
     let currentTime = new Date("2026-09-04T12:00:05.000Z");
     const service = githubConnectionEventService(db, { connector, now: () => currentTime });
 

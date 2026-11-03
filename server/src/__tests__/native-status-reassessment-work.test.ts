@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { workspaceOperationService } from "../services/workspace-operations.js";
 import request from "supertest";
-import { LOW_TRUST_REVIEW_PRESET } from "@paperclipai/shared";
+import { LOW_TRUST_REVIEW_PRESET } from "@nexusai/shared";
 import { issueRoutes } from "../routes/issues.js";
 import { errorHandler } from "../middleware/index.js";
 import { workProductService } from "../services/work-products.js";
@@ -23,7 +23,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { agents, companies, completionContracts, createDb, heartbeatRuns, issues, issueWorkProducts, issueThreadInteractions,
-  nativeRunFinalizations, nativeRunResults, statusDecisions, workAssessments, workspaceOperations } from "@paperclipai/db";
+  nativeRunFinalizations, nativeRunResults, statusDecisions, workAssessments, workspaceOperations } from "@nexusai/db";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 import { nativeStatusReassessmentWork } from "../services/native-runtime/native-status-reassessment-work.js";
@@ -45,8 +45,8 @@ describe("native reassessment worker lifecycle", () => {
   beforeAll(async () => {
     logRoot = await mkdtemp(join(tmpdir(), "reassessment-workspace-logs-"));
     process.env.WORKSPACE_OPERATION_LOG_BASE_PATH = logRoot;
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_STATUS_REASSESSMENT_TEST_DATABASE_URL");
-    if (!external) temporary = await startEmbeddedPostgresTestDatabase("paperclip-status-reassessment-");
+    const external = resolveExternalTestDatabaseUrl("NEXUS_STATUS_REASSESSMENT_TEST_DATABASE_URL");
+    if (!external) temporary = await startEmbeddedPostgresTestDatabase("nexus-status-reassessment-");
     db = createDb(external ?? temporary!.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Reassessment lifecycle", issuePrefix: `RS${randomUUID().slice(0, 8)}` });
     await db.insert(agents).values({ id: agentId, companyId, name: "Reassessment agent", adapterType: "codex_local", status: "idle" });
@@ -98,7 +98,7 @@ describe("native reassessment worker lifecycle", () => {
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "succeeded", runtimeMode: "native",
       nativeIssueId: issueId, completionContractId: contractId, contextSnapshot: { issueId }, finishedAt: new Date() });
     await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1", policyVersion: "phase6-v1", risk: "low",
+      schemaVersion: "nexus.completion-contract.v1", policyVersion: "phase6-v1", risk: "low",
       completionAuthority: "agent_claim_policy", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "test-v1", criteria: [{ id: "objective", requirement: "Verified artifact" }] },
       canonicalSha256: contractId, createdByActorType: "system", createdByActorId: "reassessment-test" });
@@ -109,7 +109,7 @@ describe("native reassessment worker lifecycle", () => {
           criteria: [{ criterionId: "objective", status: "satisfied", evidenceRefs: [evidenceRef ?? `work_product:${workProductId}`] }] },
         verification: [{ commandOrCheck: "artifact", status: "passed", artifactRef: evidenceRef ?? `work_product:${workProductId}` }],
       }, terminal: { runTerminalState: "succeeded" } } });
-    await db.insert(issueWorkProducts).values({ id: workProductId, companyId, issueId, type: "artifact", provider: "paperclip",
+    await db.insert(issueWorkProducts).values({ id: workProductId, companyId, issueId, type: "artifact", provider: "nexus",
       title: "Verified artifact", status: "ready_for_review", reviewState: "approved",
       createdAt: new Date(Date.now() - 1000), updatedAt: new Date(Date.now() - 1000) });
     await db.insert(workAssessments).values({ id: assessmentId, companyId, issueId, runId, contractId, resultId,
@@ -519,11 +519,11 @@ describe("native reassessment worker lifecycle", () => {
     if (writer === "update") await products.update(seeded.workProductId, { reviewState: "approved" });
     if (writer === "create" || writer === "primary replacement") await products.createForIssue(seeded.issueId, companyId, {
       ...(writer === "create" ? { id: seeded.workProductId } : {}),
-      type: "artifact", provider: "paperclip", title: "Verified artifact", status: "approved", reviewState: "approved",
+      type: "artifact", provider: "nexus", title: "Verified artifact", status: "approved", reviewState: "approved",
       isPrimary: writer === "primary replacement",
     });
     if (writer === "import") await products.createManyForImport([{ companyId, issueId: seeded.issueId, projectId: null,
-      type: "artifact", provider: "paperclip", externalId: null, title: "Imported evidence", url: null, status: "approved",
+      type: "artifact", provider: "nexus", externalId: null, title: "Imported evidence", url: null, status: "approved",
       reviewState: "approved", isPrimary: false, healthStatus: "unknown", summary: null, metadata: null,
       executionWorkspaceId: null, runtimeServiceId: null, createdByRunId: null, sourceTrust: null }]);
     if (writer === "attachment") await issueService(db).createAttachment({ issueId: seeded.issueId, provider: "local_disk",

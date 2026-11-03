@@ -42,7 +42,7 @@ describe("announcement contract", () => {
     ]) expect(announcementManifestSchema.safeParse(value).success).toBe(false);
   });
   it("checks expiration and minimum versions numerically, including prereleases", () => {
-    const item = announcementSchema.parse({ ...announcement, expiresAt: "2027-01-01T00:00:00Z", minimumPaperclipVersion: "2026.913.0" });
+    const item = announcementSchema.parse({ ...announcement, expiresAt: "2027-01-01T00:00:00Z", minimumNexusVersion: "2026.913.0" });
     for (const version of ["2026.912.0", "2026.913.0-canary.1", "unknown"]) expect(isAnnouncementEligible(item, version, 0)).toBe(false);
     for (const version of ["2026.913.0", "2026.913.0+1.git.abc", "2026.1001.0"]) expect(isAnnouncementEligible(item, version, 0)).toBe(true);
     expect(isAnnouncementEligible(item, "2026.913.0", Date.parse(item.expiresAt!))).toBe(false);

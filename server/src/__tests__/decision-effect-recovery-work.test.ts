@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { activityLog, agents, applyPendingMigrations, authUsers, companies, companyMemberships, createDb, decisionEffectExecutions,
-  decisions, decisionRetention, decisionTargetIssues, heartbeatRuns, issueComments, issues } from "@paperclipai/db";
+  decisions, decisionRetention, decisionTargetIssues, heartbeatRuns, issueComments, issues } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { decisionService } from "../services/decisions.js";
@@ -12,10 +12,10 @@ import { registerDecisionContinuationWork } from "../services/decision-continuat
 import { writeDecisionChange } from "../services/decision-work-notifications.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { hashAttentionArchiveManifest } from "../services/decision-retention.js";
-import type { AttentionArchiveManifestEntry } from "@paperclipai/shared";
+import type { AttentionArchiveManifestEntry } from "@nexusai/shared";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_DECISION_EFFECTS_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_DECISION_EFFECTS_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("decision effect recovery worker", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -34,7 +34,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
     db = createDb(externalUrl ?? temporary!.connectionString, { maxConnections: 6, idleTimeoutSeconds: 0, maxLifetimeSeconds: 0 });
   }, 30_000);
   beforeEach(async () => {
-    vi.stubEnv("PAPERCLIP_DECISION_SIGNING_SECRET", "0123456789abcdef0123456789abcdef");
+    vi.stubEnv("NEXUS_DECISION_SIGNING_SECRET", "0123456789abcdef0123456789abcdef");
     companyId = randomUUID(); agentId = randomUUID(); originId = randomUUID(); targetId = randomUUID(); runId = randomUUID(); userId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Recovery", issuePrefix: `R${companyId.slice(0, 6)}`, requireBoardApprovalForNewAgents: false });
     await db.insert(authUsers).values({ id: userId, name: "Decider", email: `${userId}@example.test`, createdAt: new Date(), updatedAt: new Date() });
@@ -205,7 +205,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
     const row = await create(), at = new Date(); await claim(row.id, at);
     expect(await service().recoverEffects(new Date(at.getTime() + 59_999))).toEqual({ resumed: 0 });
     expect(await service().recoverEffects(new Date(at.getTime() + 60_000))).toEqual({ resumed: 1 });
-    vi.stubEnv("PAPERCLIP_DECISIONS_RECOVERY_GRACE_MS", "0");
+    vi.stubEnv("NEXUS_DECISIONS_RECOVERY_GRACE_MS", "0");
     const second = await create(); await claim(second.id, at);
     expect(await service().recoverEffects(at)).toEqual({ resumed: 1 }); expect(await comments()).toHaveLength(2);
   });
@@ -417,7 +417,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
   });
 
   it("settles invalid legacy claims without inventing authority or blocking later effects", async () => {
-    vi.stubEnv("PAPERCLIP_DECISIONS_SWEEP_BATCH_SIZE", "1");
+    vi.stubEnv("NEXUS_DECISIONS_SWEEP_BATCH_SIZE", "1");
     const invalid = await create(), valid = await create();
     await claim(invalid.id, new Date(Date.now() - 180_000)); await claim(valid.id, new Date(Date.now() - 120_000));
     await db.update(decisions).set({ decidedByUserId: null }).where(eq(decisions.id, invalid.id));

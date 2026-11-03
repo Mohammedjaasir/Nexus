@@ -3,18 +3,18 @@
 Run Storybook:
 
 ```sh
-pnpm --filter @paperclipai/ui exec storybook dev --port 6010 --host 127.0.0.1 --no-open -c storybook/.storybook
+pnpm --filter @nexusai/ui exec storybook dev --port 6010 --host 127.0.0.1 --no-open -c storybook/.storybook
 ```
 
 ## Connector catalog chips
 
 **Apps → Catalog source selection → Chips** is the focused catalog preview.
-The five text chips are **Paperclip**, **Composio**, **Arcade**, **Installed**, and **All**.
+The five text chips are **Nexus**, **Composio**, **Arcade**, **Installed**, and **All**.
 The selected chip has a neutral pill background; the other choices are plain text.
 Connected accounts stay above discovery. Installed shows only saved native and
 Composio apps. All includes every catalog source, including Arcade. Searching
-from Paperclip includes aggregator apps; choosing a chip explicitly scopes the
-search. Clearing that automatic global search returns to Paperclip, while
+from Nexus includes aggregator apps; choosing a chip explicitly scopes the
+search. Clearing that automatic global search returns to Nexus, while
 explicit All or Installed selections remain selected.
 
 Stories cover each chip, global and installed-account search, empty results,
@@ -47,7 +47,7 @@ through Connect → Configure → Confirmation. Other adapters go straight to
 configuration. No working directory, instructions, advanced settings, role,
 permissions, or scheduling steps are shown.
 
-Paperclip Runner has exactly three choices, selected before creation:
+Nexus Runner has exactly three choices, selected before creation:
 
 - Codex (app server): the native Codex runner.
 - Claude (ACPX): the Claude runner.
@@ -114,7 +114,7 @@ are cleaned up on unmount.
 
 **Agents / Configuration refresh** covers Overview, Instructions, Skills,
 Harness / Runtime, Secrets & variables, Tools, Permissions / Trust, API Keys, and Revisions.
-Additional runtime stories cover Codex, OpenCode, Pi, and Paperclip Runner, plus
+Additional runtime stories cover Codex, OpenCode, Pi, and Nexus Runner, plus
 interactive test-failure and save-failure fixtures.
 
 This preview composes the existing `AgentContextualSidebar`, `AgentOverview`,

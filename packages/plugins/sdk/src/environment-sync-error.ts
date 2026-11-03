@@ -64,7 +64,7 @@ export async function withEnvironmentSyncTransferStep<T>(step: EnvironmentSyncTr
   }
 }
 
-const SCHEMA = "paperclip/environment-sync-error/v1";
+const SCHEMA = "nexus/environment-sync-error/v1";
 // Match the host's workspace restore diagnostic allowlist. Both sides validate
 // independently: plugin-supplied data must never widen the host's log surface.
 const ERROR_CODES = new Set([

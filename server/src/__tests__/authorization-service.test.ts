@@ -15,8 +15,8 @@ import {
   projectAccessMembers,
   projects,
   userInboxAgentPolicies,
-} from "@paperclipai/db";
-import { LOW_TRUST_REVIEW_PRESET, type PermissionKey } from "@paperclipai/shared";
+} from "@nexusai/db";
+import { LOW_TRUST_REVIEW_PRESET, type PermissionKey } from "@nexusai/shared";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -194,22 +194,22 @@ describeEmbeddedPostgres("authorization service", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   it("defaults issue privacy to enforce while retaining explicit rollout overrides", () => {
-    const previousMode = process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
+    const previousMode = process.env.NEXUS_ISSUE_PRIVACY_MODE;
     try {
-      delete process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
+      delete process.env.NEXUS_ISSUE_PRIVACY_MODE;
       expect(issuePrivacyMode()).toBe("enforce");
-      process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "shadow";
+      process.env.NEXUS_ISSUE_PRIVACY_MODE = "shadow";
       expect(issuePrivacyMode()).toBe("shadow");
-      process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "off";
+      process.env.NEXUS_ISSUE_PRIVACY_MODE = "off";
       expect(issuePrivacyMode()).toBe("off");
     } finally {
-      if (previousMode === undefined) delete process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-      else process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = previousMode;
+      if (previousMode === undefined) delete process.env.NEXUS_ISSUE_PRIVACY_MODE;
+      else process.env.NEXUS_ISSUE_PRIVACY_MODE = previousMode;
     }
   });
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-authorization-service-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-authorization-service-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -2822,10 +2822,10 @@ describeEmbeddedPostgres("authorization service", () => {
   });
 
   it("enforces private issue implicit principals, grants, revocation, and subtree inheritance", async () => {
-    const previousMode = process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-    const previousTtl = process.env.PAPERCLIP_ISSUE_PRIVACY_CACHE_TTL_MS;
-    process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "enforce";
-    process.env.PAPERCLIP_ISSUE_PRIVACY_CACHE_TTL_MS = "5000";
+    const previousMode = process.env.NEXUS_ISSUE_PRIVACY_MODE;
+    const previousTtl = process.env.NEXUS_ISSUE_PRIVACY_CACHE_TTL_MS;
+    process.env.NEXUS_ISSUE_PRIVACY_MODE = "enforce";
+    process.env.NEXUS_ISSUE_PRIVACY_CACHE_TTL_MS = "5000";
     try {
       const company = await createCompany(db, "IssuePrivacy");
       const ownerId = await createUser(db);
@@ -2899,7 +2899,7 @@ describeEmbeddedPostgres("authorization service", () => {
         reason: "deny_issue_private",
       });
 
-      process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "shadow";
+      process.env.NEXUS_ISSUE_PRIVACY_MODE = "shadow";
       const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
       await expect(decide(userActor(memberId), privateRoot)).resolves.toMatchObject({ allowed: true });
       expect(warn).toHaveBeenCalledWith(
@@ -2912,16 +2912,16 @@ describeEmbeddedPostgres("authorization service", () => {
       );
       warn.mockRestore();
     } finally {
-      if (previousMode === undefined) delete process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-      else process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = previousMode;
-      if (previousTtl === undefined) delete process.env.PAPERCLIP_ISSUE_PRIVACY_CACHE_TTL_MS;
-      else process.env.PAPERCLIP_ISSUE_PRIVACY_CACHE_TTL_MS = previousTtl;
+      if (previousMode === undefined) delete process.env.NEXUS_ISSUE_PRIVACY_MODE;
+      else process.env.NEXUS_ISSUE_PRIVACY_MODE = previousMode;
+      if (previousTtl === undefined) delete process.env.NEXUS_ISSUE_PRIVACY_CACHE_TTL_MS;
+      else process.env.NEXUS_ISSUE_PRIVACY_CACHE_TTL_MS = previousTtl;
     }
   });
 
   it("uses private-project membership as the same issue-read predicate while preserving issue grants", async () => {
-    const previousMode = process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-    process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "enforce";
+    const previousMode = process.env.NEXUS_ISSUE_PRIVACY_MODE;
+    process.env.NEXUS_ISSUE_PRIVACY_MODE = "enforce";
     try {
       const company = await createCompany(db, "ProjectPrivacy");
       const memberId = await createUser(db);
@@ -3008,8 +3008,8 @@ describeEmbeddedPostgres("authorization service", () => {
         reason: "deny_issue_private",
       });
     } finally {
-      if (previousMode === undefined) delete process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-      else process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = previousMode;
+      if (previousMode === undefined) delete process.env.NEXUS_ISSUE_PRIVACY_MODE;
+      else process.env.NEXUS_ISSUE_PRIVACY_MODE = previousMode;
     }
   });
 

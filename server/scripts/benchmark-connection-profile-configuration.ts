@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createDb, type Db } from "@paperclipai/db";
+import { createDb, type Db } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../src/__tests__/helpers/embedded-postgres.js";
 import { createToolProfileService } from "../src/services/tool-access/profiles/service.js";
 import { createConnectionProfileConfigurationFixture, legacyConnectionConfiguration } from "../src/__tests__/helpers/connection-profile-configuration-fixture.js";

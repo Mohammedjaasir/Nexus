@@ -120,7 +120,7 @@
       "actualFailedCases": 1,
       "intendedAssertionFailed": true,
       "sourceRestored": true,
-      "failure": "AssertionError: expected '<div class=\"paperclip-markdown prose \u2026' to contain '<a href=\"https://example.com/docs\"'\n    at <workspace>/ui/src/components/MarkdownBody.test.tsx:587:18\n    at file://<workspace>/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:1628:35\n    at file://<workspace>/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_"
+      "failure": "AssertionError: expected '<div class=\"nexus-markdown prose \u2026' to contain '<a href=\"https://example.com/docs\"'\n    at <workspace>/ui/src/components/MarkdownBody.test.tsx:587:18\n    at file://<workspace>/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:1628:35\n    at file://<workspace>/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_"
     },
     {
       "id": "server-cancelled-reopen",

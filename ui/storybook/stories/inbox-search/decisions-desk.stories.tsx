@@ -7,7 +7,7 @@ import type {
   AttentionItem,
   AttentionSeverity,
   AttentionSourceKind,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { Routes, Route } from "@/lib/router";
 import { WhatNeedsMe } from "@/pages/WhatNeedsMe";
 import { DecisionQueuePage } from "@/pages/DecisionQueuePage";
@@ -447,7 +447,7 @@ const meta: Meta = {
   id: "pages-decisions-desk",
   title: "Tasks and conversations/Inbox, decisions, and search/Pages/Decisions Desk",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "inbox-search/decisions"
       ],

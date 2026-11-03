@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { applyPendingMigrations, createDb, companies, authUsers, companyMemberships, mcpOauthClients, mcpOauthGrants, issues, agents, dotAgentBindings, dotMailboxItems, dotRunnerAssignments, heartbeatRuns, mcpEventDeliveries, mcpEventSubscriptions } from "@paperclipai/db";
+import { applyPendingMigrations, createDb, companies, authUsers, companyMemberships, mcpOauthClients, mcpOauthGrants, issues, agents, dotAgentBindings, dotMailboxItems, dotRunnerAssignments, heartbeatRuns, mcpEventDeliveries, mcpEventSubscriptions } from "@nexusai/db";
 import { resolveExternalTestDatabaseUrl } from "../../__tests__/helpers/external-test-database.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { createPublicMcpEvents } from "./events.js";
@@ -13,7 +13,7 @@ import { insertIssueComment } from "../issue-comment-writes.js";
 import { dotRunnerBroker } from "../dot-runner-broker.js";
 import { idleWorkSnapshot } from "../task-admission.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_MCP_SLEEP_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_MCP_SLEEP_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 
 describe.skipIf(!support.supported)("MCP event committed work", () => {
@@ -28,7 +28,7 @@ describe.skipIf(!support.supported)("MCP event committed work", () => {
   let failRead: boolean;
   let duringDelivery: (() => Promise<void>) | undefined;
   beforeAll(async () => {
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
     if (externalUrl) await applyPendingMigrations(externalUrl);
     else temporary = await startEmbeddedPostgresTestDatabase("mcp-sleep-");
     db = createDb(externalUrl ?? temporary.connectionString, { maxConnections: 6 });
@@ -54,12 +54,12 @@ describe.skipIf(!support.supported)("MCP event committed work", () => {
 
   async function fixture(dot = false, scope = { companyId, taskId }) {
     const { companyId, taskId } = scope;
-    const config = { origin: "https://paperclip.example", resource: `https://paperclip.example/mcp/${dot ? "runner" : "paperclip"}` };
+    const config = { origin: "https://nexus.example", resource: `https://nexus.example/mcp/${dot ? "runner" : "nexus"}` };
     const clientId = randomUUID();
     await db.insert(mcpOauthClients).values({ id: clientId, name: "Sleep fixture", redirectUris: ["https://receiver.example/oauth"] });
     const agentId = dot ? randomUUID() : null;
-    if (agentId) await db.insert(agents).values({ id: agentId, companyId, name: "Dot", status: "active", adapterType: "paperclip_runner", adapterConfig: { provider: "openai_dot" } });
-    const [grant] = await db.insert(mcpOauthGrants).values({ companyId, userId, clientId, resource: config.resource, purpose: dot ? "agent" : "personal", agentId, scopes: [dot ? "paperclip:agent" : "paperclip:read"] }).returning();
+    if (agentId) await db.insert(agents).values({ id: agentId, companyId, name: "Dot", status: "active", adapterType: "nexus_runner", adapterConfig: { provider: "openai_dot" } });
+    const [grant] = await db.insert(mcpOauthGrants).values({ companyId, userId, clientId, resource: config.resource, purpose: dot ? "agent" : "personal", agentId, scopes: [dot ? "nexus:agent" : "nexus:read"] }).returning();
     const bindingId = dot ? randomUUID() : null;
     if (bindingId && agentId) {
       await db.insert(dotAgentBindings).values({ id: bindingId, companyId, agentId, operatorId: userId, grantId: grant.id, status: "connected" });
@@ -75,7 +75,7 @@ describe.skipIf(!support.supported)("MCP event committed work", () => {
     } });
     const oauth = createPublicMcpOAuth(observed, config);
     const principal = await oauth.authorizeGrant(grant.id);
-    const input = { name: dot ? "paperclip.dot.mailbox_updated" : "paperclip.task.status_changed", arguments: { companyId, ...(dot ? { bindingId } : { taskId }) },
+    const input = { name: dot ? "nexus.dot.mailbox_updated" : "nexus.task.status_changed", arguments: { companyId, ...(dot ? { bindingId } : { taskId }) },
       delivery: { mode: "webhook", url: "https://receiver.example/events", secret: "whsec_" + randomBytes(32).toString("base64") } };
     const makeService = () => createPublicMcpEvents(observed, oauth, async () => ({ id: taskId, companyId }), { enableDotRunner: dot,
       isBackgroundWorkEnabled: () => !draining && !standby,

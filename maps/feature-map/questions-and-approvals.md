@@ -74,7 +74,7 @@ its output card. Skill-test authority is narrower than an ordinary company run.
 ### `external-channel`
 
 In a configured chat channel, answer a published question or confirmation as a
-linked sender. Open the associated Paperclip task to inspect the saved outcome.
+linked sender. Open the associated Nexus task to inspect the saved outcome.
 Channel-specific forms and identity linking require separate provider evidence.
 
 ## Driving it
@@ -200,7 +200,7 @@ suggested tasks use Create, selection, and Dismiss. Connection requests offer
 Review connection and native Not now, without granting access from Slack.
 
 Governed approvals, unsupported mixed forms, attachments, and oversized requests
-retain the full Paperclip review path. Link clicks navigate without attempting an
+retain the full Nexus review path. Link clicks navigate without attempting an
 answer. Terminal edits preserve the submitted response in the same authorized
 conversation and remove stale controls. Inspect the saved interaction, exactly
 one continuation, and useful reply independently. See the

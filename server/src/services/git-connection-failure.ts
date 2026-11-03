@@ -1,4 +1,4 @@
-import type { GitConnectionFailure } from "@paperclipai/adapter-utils/connection-failure";
+import type { GitConnectionFailure } from "@nexusai/adapter-utils/connection-failure";
 
 const classifiedErrors = new WeakMap<Error, GitConnectionFailure>();
 

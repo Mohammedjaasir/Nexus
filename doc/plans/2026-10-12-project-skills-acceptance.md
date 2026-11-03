@@ -8,7 +8,7 @@ gated on its exact head. This report separates real outcomes from test fixtures.
 
 ## Environment and artifacts
 
-Implementation checkout: `~/.codex/worktrees/4631/paperclip`, branch
+Implementation checkout: `~/.codex/worktrees/4631/nexus`, branch
 `codex/project-repository-skills`, PR [#16066](https://github.com/paperclipai/paperclip/pull/16066).
 The isolated instance uses embedded PostgreSQL and a retained disposable data
 directory outside the checkout. Doctor verified the served source revision and
@@ -22,7 +22,7 @@ contains the original four captures and a final post-reconciliation capture and 
 [version receipt](../../ui/storybook/public/project-skills-evidence/versions.json).
 It is included in the existing Storybook build artifact and branch publication.
 Credential files, full provider logs, human authentication keys, and connection
-secrets are excluded. This direct Codex task has no driving Paperclip issue or
+secrets are excluded. This direct Codex task has no driving Nexus issue or
 injected artifact-upload context; the PR and Storybook artifact provide the
 review access path.
 

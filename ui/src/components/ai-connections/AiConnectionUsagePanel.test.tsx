@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { AiManagedConnectionSummary, AiConnectionUsage } from "@paperclipai/shared";
+import type { AiManagedConnectionSummary, AiConnectionUsage } from "@nexusai/shared";
 import { AiConnectionUsagePanel } from "./AiConnectionUsagePanel";
 
 const api = vi.hoisted(() => ({ probeUsage: vi.fn() }));

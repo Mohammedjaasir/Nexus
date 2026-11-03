@@ -1,19 +1,19 @@
 # In-app announcements
 
-Paperclip displays one optional announcement card in the board UI. Its feed is
+Nexus displays one optional announcement card in the board UI. Its feed is
 `https://pages.paperclip.ing/announcements/v1/current.json`. The instance fetches
 JSON on demand and renders it with native components.
 
 ## Operator configuration
 
-- `PAPERCLIP_ANNOUNCEMENTS_ENABLED=false` disables fetching and display.
-- `PAPERCLIP_ANNOUNCEMENTS_FEED_URL` overrides the public HTTPS manifest URL.
+- `NEXUS_ANNOUNCEMENTS_ENABLED=false` disables fetching and display.
+- `NEXUS_ANNOUNCEMENTS_FEED_URL` overrides the public HTTPS manifest URL.
   Credentials, query strings, private destinations and redirects are rejected.
 
 Announcements are independent of telemetry. Feed/media requests originate from
 the instance without account IDs, company data, cookies or event tracking. The
 host sees ordinary server network request metadata. The browser requests only
-its own Paperclip API.
+its own Nexus API.
 
 ## Authoring and publishing
 
@@ -24,7 +24,7 @@ The shared `announcementManifestSchema` defines the format:
   "schemaVersion": 1,
   "announcement": {
     "id": "2026-09-projects",
-    "eyebrow": "New in Paperclip",
+    "eyebrow": "New in Nexus",
     "title": "Your next idea starts here",
     "description": "Bring your agents and work together in a project.",
     "secondaryLink": { "kind": "external", "label": "Learn more", "url": "https://paperclip.ing" },
@@ -36,7 +36,7 @@ The shared `announcementManifestSchema` defines the format:
 Content is plain text. Every manifest object rejects unknown fields, including
 misspellings in actions and media. Optional fields: `image: { path, alt }`,
 `animation: { path, alt }`, `expiresAt` (ISO
-timestamp), and `minimumPaperclipVersion` (stable `major.minor.patch`). Internal
+timestamp), and `minimumNexusVersion` (stable `major.minor.patch`). Internal
 actions accept stable pages in `ANNOUNCEMENT_APP_ROUTES` and use the selected
 company. External HTTPS links open a new tab. Actions only navigate.
 
@@ -55,11 +55,11 @@ then run:
 node cli/node_modules/tsx/dist/cli.mjs scripts/publish-announcements.ts announcements --dry-run
 ```
 
-Set `PAPERCLIP_PAGE_BUCKET`, optionally `PAPERCLIP_PAGE_BASE_URL`, and the page
-uploader's namespaced `PAPERCLIP_PAGE_AWS_ACCESS_KEY_ID` and
-`PAPERCLIP_PAGE_AWS_SECRET_ACCESS_KEY` (optional `PAPERCLIP_PAGE_AWS_SESSION_TOKEN`),
-or `PAPERCLIP_PAGE_AWS_PROFILE`. Ambient AWS credentials also work.
-For a host serving a subdirectory, `PAPERCLIP_PAGE_DEFAULT_PREFIX` prepends a
+Set `NEXUS_PAGE_BUCKET`, optionally `NEXUS_PAGE_BASE_URL`, and the page
+uploader's namespaced `NEXUS_PAGE_AWS_ACCESS_KEY_ID` and
+`NEXUS_PAGE_AWS_SECRET_ACCESS_KEY` (optional `NEXUS_PAGE_AWS_SESSION_TOKEN`),
+or `NEXUS_PAGE_AWS_PROFILE`. Ambient AWS credentials also work.
+For a host serving a subdirectory, `NEXUS_PAGE_DEFAULT_PREFIX` prepends a
 validated path to both S3 keys and public URLs. Use lowercase letters, numbers
 and hyphens in each segment, without leading/trailing slashes.
 
@@ -86,7 +86,7 @@ ETags improve fetching but never determine redisplay.
 
 An announcement can show a self-contained **HTML/CSS animation** in its hero
 area. The headline, description, close button and actions remain native
-Paperclip controls. Add an `animation` alongside the required static `image`:
+Nexus controls. Add an `animation` alongside the required static `image`:
 
 ```json
 "image": { "path": "assets/<image-sha256>.png", "alt": "A team working together" },
@@ -105,7 +105,7 @@ requests and imports are blocked by CSP; keep all styling self-contained.
 The publisher and server use the same strict DOMPurify allowlist and reject
 unsupported markup rather than publishing a silently changed animation.
 
-Paperclip verifies the digest, validates the HTML, and renders the result in an
+Nexus verifies the digest, validates the HTML, and renders the result in an
 opaque sandboxed iframe with no permissions. A Content Security Policy blocks
 scripts and network resources both inside the card and on direct API visits.
 The browser fetches HTML from its own authenticated instance; it never loads
@@ -115,22 +115,22 @@ See [iframe sandboxing](https://developer.mozilla.org/en-US/docs/Web/HTML/Refere
 
 The animation plays automatically without playback controls. The static image
 stays visible while loading and on failure. With reduced motion enabled,
-Paperclip does not request or play the animation. Also include a
+Nexus does not request or play the animation. Also include a
 `prefers-reduced-motion` CSS rule in authored documents for standalone previews.
 Animations share the feed's constrained host, three-second server timeout,
 bounded cache, request deduplication and fifteen-minute failure cooldown.
 Dismissal and ID reuse rules are identical for animated and static cards.
-Older Paperclip builds that do not recognize `animation` treat that feed as
+Older Nexus builds that do not recognize `animation` treat that feed as
 unsupported and quietly show no card.
 
 The complete authoring example is `announcements/examples/animated/`. Preview
 it with the same staging/test-drive workflow below:
 
 ```sh
-cp -R announcements/examples/animated .paperclip/announcement-animation-preview
+cp -R announcements/examples/animated .nexus/announcement-animation-preview
 # Edit HTML; recompute its digest and rename it; update current.json.
-node cli/node_modules/tsx/dist/cli.mjs scripts/publish-announcements.ts .paperclip/announcement-animation-preview --staging animated-preview --dry-run
-node cli/node_modules/tsx/dist/cli.mjs scripts/publish-announcements.ts .paperclip/announcement-animation-preview --staging animated-preview --publish
+node cli/node_modules/tsx/dist/cli.mjs scripts/publish-announcements.ts .nexus/announcement-animation-preview --staging animated-preview --dry-run
+node cli/node_modules/tsx/dist/cli.mjs scripts/publish-announcements.ts .nexus/announcement-animation-preview --staging animated-preview --publish
 ```
 
 Point the isolated instance at the printed URL and restart it. Verify movement,
@@ -147,21 +147,21 @@ cannot overwrite the production manifest. With no source directory it uses
 `announcements/examples/staging/`, including a sample banner. Commands default
 to dry-run unless `--publish` is supplied.
 
-For Paperclip's existing preview host, use the branch preview area that
+For Nexus's existing preview host, use the branch preview area that
 CloudFront already has permission to read:
 
 ```sh
-aws sso login --profile paperclip-dev
-export PAPERCLIP_PAGE_AWS_PROFILE=paperclip-dev
-export PAPERCLIP_PAGE_BUCKET=paperclipai-runner-e2e-history-078455283791-us-east-1
-export PAPERCLIP_PAGE_BASE_URL=https://d1p6rlowie26tp.cloudfront.net
-export PAPERCLIP_PAGE_DEFAULT_PREFIX=storybook/branches/codex-announcements
+aws sso login --profile nexus-dev
+export NEXUS_PAGE_AWS_PROFILE=nexus-dev
+export NEXUS_PAGE_BUCKET=nexusai-runner-e2e-history-078455283791-us-east-1
+export NEXUS_PAGE_BASE_URL=https://d1p6rlowie26tp.cloudfront.net
+export NEXUS_PAGE_DEFAULT_PREFIX=storybook/branches/codex-announcements
 
 # Copy the public fixture into an ignored directory and edit current.json there.
-mkdir -p .paperclip
-cp -R announcements/examples/staging .paperclip/announcement-preview
-node cli/node_modules/tsx/dist/cli.mjs scripts/publish-announcements.ts .paperclip/announcement-preview --staging my-preview --dry-run
-node cli/node_modules/tsx/dist/cli.mjs scripts/publish-announcements.ts .paperclip/announcement-preview --staging my-preview --publish
+mkdir -p .nexus
+cp -R announcements/examples/staging .nexus/announcement-preview
+node cli/node_modules/tsx/dist/cli.mjs scripts/publish-announcements.ts .nexus/announcement-preview --staging my-preview --dry-run
+node cli/node_modules/tsx/dist/cli.mjs scripts/publish-announcements.ts .nexus/announcement-preview --staging my-preview --publish
 ```
 
 Choose a unique staging name for your test and use the printed manifest URL.
@@ -174,23 +174,23 @@ prefix, then verify its matching cache behavior as described above.
 
 Create a test-drive configuration in this worktree. Put the feed override in
 the **selected instance's `.env`**, not just the invoking shell: test-drive
-deliberately clears inherited `PAPERCLIP_*` variables.
+deliberately clears inherited `NEXUS_*` variables.
 
 ```sh
-mkdir -p .paperclip/announcement-test-drive/instances/default
+mkdir -p .nexus/announcement-test-drive/instances/default
 # On a new test directory, create this file. On reuse, update these entries
 # while preserving the file's existing keys.
-cat > .paperclip/announcement-test-drive/instances/default/.env <<'EOF'
-PAPERCLIP_ANNOUNCEMENTS_FEED_URL=https://d1p6rlowie26tp.cloudfront.net/storybook/branches/codex-announcements/announcements/staging/my-preview/v1/current.json
-PAPERCLIP_ANNOUNCEMENTS_ENABLED=true
-PAPERCLIP_DB_BACKUP_ENABLED=false
+cat > .nexus/announcement-test-drive/instances/default/.env <<'EOF'
+NEXUS_ANNOUNCEMENTS_FEED_URL=https://d1p6rlowie26tp.cloudfront.net/storybook/branches/codex-announcements/announcements/staging/my-preview/v1/current.json
+NEXUS_ANNOUNCEMENTS_ENABLED=true
+NEXUS_DB_BACKUP_ENABLED=false
 HEARTBEAT_SCHEDULER_ENABLED=false
 EOF
 
 # A fresh test-drive needs a provider key for its initial CEO. Use your usual
 # provider environment variable; never put a real key into a manifest or commit.
 # Reusing an initialized data directory does not require a bootstrap key.
-node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts test-drive --data-dir .paperclip/announcement-test-drive --no-browser
+node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts test-drive --data-dir .nexus/announcement-test-drive --no-browser
 ```
 
 See [test-drive setup](DEVELOPING.md#one-command-isolated-manual-test-drive) for harness/key options.
@@ -248,7 +248,7 @@ removes a visible card when its deadline arrives.
 
 ## Timing and persistence
 
-Show after three seconds when opening or returning to Paperclip, after company
+Show after three seconds when opening or returning to Nexus, after company
 selection and onboarding. Dialogs and toasts take priority. Phones show it above
 bottom navigation. No automatic timeout, outside-click dismissal or carousel.
 Tab visibility controls the return check: moving focus to the address bar or

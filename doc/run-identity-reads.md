@@ -26,10 +26,10 @@ five-query reconciliation transaction, checks the unchanged stored run, records
 plans and alternating timings, and measures raw PostgreSQL DataRow bytes:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-run-identity-projections.ts --baseline-ref=623f1dc289a14a699ebbe3f09b94179d38fc2ae2
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-run-identity-projections.ts --baseline-ref=623f1dc289a14a699ebbe3f09b94179d38fc2ae2
 ```
 
-The default uses disposable embedded PostgreSQL. `PAPERCLIP_TEST_DATABASE_URL`
+The default uses disposable embedded PostgreSQL. `NEXUS_TEST_DATABASE_URL`
 can select a disposable local database whose name ends in `_test`. DataRow bytes
 exclude response metadata, TLS and TCP. Byte reduction does not establish a
 production latency or billing change.

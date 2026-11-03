@@ -14,7 +14,7 @@ let server: ReturnType<typeof createServer>;
 let port: number;
 
 beforeAll(async () => {
-  root = await mkdtemp(path.join(tmpdir(), "paperclip-static-compression-"));
+  root = await mkdtemp(path.join(tmpdir(), "nexus-static-compression-"));
   await writeFile(path.join(root, "app.js"), source);
   const app = express();
   app.get("/mcp/runner", (_req, res) => res.status(401).json({ error: "invalid_token" }));

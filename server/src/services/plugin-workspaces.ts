@@ -12,11 +12,11 @@ import {
   projects,
   projectWorkspaces,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   readWorkspaceProviderBinding,
   type WorkspaceProviderBinding,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   parseWorkspaceProviderResult,
   workspaceProviderOperationSchema,
@@ -24,7 +24,7 @@ import {
   type PluginWorkspaceRecoveryPullRequest,
   type PluginWorkspaceParams,
   type PluginFreshWorkspace,
-} from "@paperclipai/plugin-sdk";
+} from "@nexusai/plugin-sdk";
 import type { PluginWorkerManager } from "./plugin-worker-manager.js";
 import { notifyTerminalWorkspaceWork } from "./terminal-workspace-work.js";
 import { withExecutionWorkspaceLifecycleLock } from "./execution-workspace-lifecycle-lock.js";

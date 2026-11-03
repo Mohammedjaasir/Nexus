@@ -17,9 +17,9 @@ import {
   toolProfileEntries,
   toolProfiles,
   toolMcpGatewayTokens,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
-import type { ToolAccessDecisionInput } from "@paperclipai/shared";
+import type { ToolAccessDecisionInput } from "@nexusai/shared";
 import {
   createToolAccessDecisionCache,
   toolAccessPolicyService,
@@ -42,7 +42,7 @@ describeEmbeddedPostgres("tool gateway listing memory", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-tool-gateway-listing-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-tool-gateway-listing-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 

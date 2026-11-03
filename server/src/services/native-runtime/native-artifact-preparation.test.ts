@@ -4,15 +4,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setImmediate } from "node:timers/promises";
 import { afterEach, describe, expect, it } from "vitest";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 import { createRemoteNativeArtifactPreparation } from "./native-session-executor.js";
 
 type Request = Parameters<CommandManagedRuntimeRunner["execute"]>[0];
 const roots: string[] = [];
 const metadata = {
-  schema: "paperclip-runner/runnerd-build-metadata/v1",
-  binaryName: "paperclip-runnerd",
-  packageName: "@paperclipai/paperclip-runner",
+  schema: "nexus-runner/runnerd-build-metadata/v1",
+  binaryName: "nexus-runnerd",
+  packageName: "@nexusai/nexus-runner",
   binaryContractVersion: 2,
   durableSessionCapabilities: ["unlimited_runtime", "connection_lease_renewal"],
   prpTransportModes: ["dial_ws_loopback", "dial_wss", "listen_ws"],
@@ -29,7 +29,7 @@ async function fixture(input: {
   const cwd = join(root, "workspace");
   await mkdir(bin, { recursive: true });
   await mkdir(cwd);
-  const runnerSource = join(bin, "paperclip-runnerd");
+  const runnerSource = join(bin, "nexus-runnerd");
   const codexSource = join(bin, "codex");
   const runnerScript = `#!/bin/sh\n[ "$1" = --build-metadata ] || exit 17\nprintf '%s\\n' '${JSON.stringify(metadata)}'\n`;
   await writeFile(runnerSource, runnerScript, { mode: 0o700 });
@@ -64,8 +64,8 @@ async function fixture(input: {
       }
     },
   };
-  const runtimeRoot = join(cwd, ".paperclip-runtime");
-  const runnerTarget = join(runtimeRoot, "bin", "paperclip-runnerd");
+  const runtimeRoot = join(cwd, ".nexus-runtime");
+  const runnerTarget = join(runtimeRoot, "bin", "nexus-runnerd");
   const codexTarget = join(runtimeRoot, "bin", "codex");
   const options: Parameters<typeof createRemoteNativeArtifactPreparation>[0] = {
     target: { kind: "remote", transport: "sandbox", providerKey: "daytona", remoteCwd: cwd, runner },
@@ -81,7 +81,7 @@ async function fixture(input: {
 }
 
 const discovers = (request: Request, name: string) => request.command === "sh"
-  && request.args?.some(value => value.includes(`for candidate in /opt/paperclip-runner/bin/${name} `));
+  && request.args?.some(value => value.includes(`for candidate in /opt/nexus-runner/bin/${name} `));
 
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
@@ -102,7 +102,7 @@ describe("remote native artifact preparation", () => {
 
   it("reads installed pack metadata in the existing final runner probe", async () => {
     const f = await fixture();
-    const installation = { root: "/opt/paperclip-runner/provider-pack", manifest: { digest: "selected" }, immutable: true };
+    const installation = { root: "/opt/nexus-runner/provider-pack", manifest: { digest: "selected" }, immutable: true };
     await writeFile(f.runnerSource, `#!/bin/sh\n[ "$1" = --build-metadata ] || exit 17\nprintf '%s\\n' '${JSON.stringify({ ...metadata, providerPacks: [installation, { ...installation, root: "/unrequested" }] })}'\n`, { mode: 0o700 });
     const artifacts = createRemoteNativeArtifactPreparation({ ...f.options, providerPackRoots: [installation.root] });
     await artifacts.prepare("listen_ws");
@@ -116,11 +116,11 @@ describe("remote native artifact preparation", () => {
   it("reattaches an older runner without the optional pack metadata argument", async () => {
     const f = await fixture();
     await writeFile(f.runnerSource, `#!/bin/sh\n[ "$#" = 1 ] && [ "$1" = --build-metadata ] || exit 17\nprintf '%s\\n' '${JSON.stringify(metadata)}'\n`, { mode: 0o700 });
-    const artifacts = createRemoteNativeArtifactPreparation({ ...f.options, providerPackRoots: ["/opt/paperclip-runner/provider-pack"] });
+    const artifacts = createRemoteNativeArtifactPreparation({ ...f.options, providerPackRoots: ["/opt/nexus-runner/provider-pack"] });
     await artifacts.verifyRemoteRunner("listen_ws", f.runnerSource, true);
     expect(artifacts.providerPackInventory()).toEqual([]);
     expect(f.requests.map(request => request.args)).toEqual([
-      ["--build-metadata", "--provider-pack-root", "/opt/paperclip-runner/provider-pack"], ["--build-metadata"],
+      ["--build-metadata", "--provider-pack-root", "/opt/nexus-runner/provider-pack"], ["--build-metadata"],
     ]);
   });
 
@@ -146,7 +146,7 @@ describe("remote native artifact preparation", () => {
     const harnessGate = new Promise<void>(resolve => { releaseHarness = resolve; });
     let harnessStarted = false;
     const f = await fixture({ before: async request => {
-      if (discovers(request, "paperclip-runnerd")) throw failure;
+      if (discovers(request, "nexus-runnerd")) throw failure;
       if (discovers(request, "codex")) { harnessStarted = true; await harnessGate; }
     } });
     let rejected = false;
@@ -170,7 +170,7 @@ describe("remote native artifact preparation", () => {
     const runnerFailure = new Error("runner discovery unavailable");
     const harnessFailure = new Error("harness discovery unavailable");
     const f = await fixture({ before: async request => {
-      if (discovers(request, "paperclip-runnerd")) throw runnerFailure;
+      if (discovers(request, "nexus-runnerd")) throw runnerFailure;
       if (discovers(request, "codex")) throw harnessFailure;
     } });
     await expect(createRemoteNativeArtifactPreparation(f.options).prepare("listen_ws")).rejects.toBe(runnerFailure);

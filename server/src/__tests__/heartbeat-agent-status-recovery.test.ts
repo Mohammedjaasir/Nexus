@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { agents, companies, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRuns, type Db } from "@paperclipai/db";
+import { agents, companies, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRuns, type Db } from "@nexusai/db";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
@@ -14,7 +14,7 @@ describePostgres("heartbeat recovery of a stranded agent", () => {
   let db: Db;
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-heartbeat-agent-status-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-heartbeat-agent-status-");
     db = createDb(database.connectionString);
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
   afterAll(async () => { await database?.cleanup(); });

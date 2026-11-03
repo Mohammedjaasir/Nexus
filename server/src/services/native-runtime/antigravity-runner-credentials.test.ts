@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { antigravityCredentialTurn, bindAntigravityCredentialTurn, bindAntigravityTransportRetirement, prepareAntigravityRunnerCredentials } from "./antigravity-runner-credentials.js";
 import { completeManagedNativeCredentialTurn } from "./managed-native-credentials.js";
-import type { NativeSession, createRunnerdCodexTransport } from "../../vendor/paperclip-runner/index.js";
+import type { NativeSession, createRunnerdCodexTransport } from "../../vendor/nexus-runner/index.js";
 import { bindRetainedGoogleCredentialHome } from "../retained-google-credential-cleanup.js";
 
 const copyFault = vi.hoisted(() => ({ phase: "", destination: "", source: "", collisionPath: "", failedRemoval: "", removals: [] as string[], hits: 0 }));
@@ -80,7 +80,7 @@ const credential = (token: string) => JSON.stringify({
   refresh_token: token, token_uri: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/cloud-platform", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/aicode"],
 });
 async function home() { const root = await realpath(await mkdtemp(join(tmpdir(), "antigravity-controller-test-"))); roots.push(root); await mkdir(join(root, "antigravity-acp"), { mode: 0o700 }); return root; }
-beforeEach(async () => { vi.stubEnv("PAPERCLIP_HOME", await home()); });
+beforeEach(async () => { vi.stubEnv("NEXUS_HOME", await home()); });
 afterEach(async () => { copyFault.phase = ""; copyFault.destination = ""; copyFault.source = ""; copyFault.collisionPath = ""; copyFault.failedRemoval = ""; copyFault.removals = []; copyFault.hits = 0; vi.unstubAllEnvs(); await Promise.all(roots.splice(0).map(path => rm(path, { recursive: true, force: true }))); });
 
 describe("Antigravity managed Runner credentials", () => {
@@ -89,19 +89,19 @@ describe("Antigravity managed Runner credentials", () => {
     await writeFile(join(ambient, "antigravity-acp", "acp_token.json"), credential("fixture-ambient"), { mode: 0o600 });
     vi.stubEnv("GEMINI_HOME", ambient);
     vi.stubEnv("GEMINI_API_KEY", "fixture-ambient-key");
-    await expect(prepareAntigravityRunnerCredentials({ remote: false, environment: { GEMINI_HOME: ambient, PAPERCLIP_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: credential("fixture-spoofed") } })).rejects.toThrow("selected managed Google account");
+    await expect(prepareAntigravityRunnerCredentials({ remote: false, environment: { GEMINI_HOME: ambient, NEXUS_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: credential("fixture-spoofed") } })).rejects.toThrow("selected managed Google account");
   });
   it("uses the explicit API key while removing all subscription home and payload inputs", async () => {
     expect(await prepareAntigravityRunnerCredentials({ remote: true, environment: {
       GEMINI_API_KEY: "fixture-selected", GOOGLE_API_KEY: "other", GEMINI_HOME: "/ambient", GOOGLE_APPLICATION_CREDENTIALS: "/ambient.json",
-      GOOGLE_CLOUD_ACCESS_TOKEN: "ambient", PAPERCLIP_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "spoofed",
+      GOOGLE_CLOUD_ACCESS_TOKEN: "ambient", NEXUS_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "spoofed",
     } })).toEqual({ home: null, environment: { GEMINI_API_KEY: "fixture-selected" } });
   });
   it("projects only the selected private token and rejects remote subscription delivery", async () => {
     const managedHome = await home();
     await writeFile(join(managedHome, "antigravity-acp", "acp_token.json"), credential("fixture-selected"), { mode: 0o600 });
     expect(await prepareAntigravityRunnerCredentials({ remote: false, managedHome, environment: { GEMINI_HOME: "/untrusted" } })).toEqual({
-      home: managedHome, credential: credential("fixture-selected"), environment: { PAPERCLIP_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: credential("fixture-selected") },
+      home: managedHome, credential: credential("fixture-selected"), environment: { NEXUS_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: credential("fixture-selected") },
     });
     await expect(prepareAntigravityRunnerCredentials({ remote: true, managedHome, environment: {} })).rejects.toThrow("not qualified for remote");
     await expect(prepareAntigravityRunnerCredentials({ remote: false, managedHome, environment: {}, lifecycleMode: "warm" })).rejects.toThrow("warm sessions are not qualified");

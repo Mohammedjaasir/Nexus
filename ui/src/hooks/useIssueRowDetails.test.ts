@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 import { mergeIssueRowDetails } from "./useIssueRowDetails";
 
 const index = {

@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { authorizationService, issueReadSqlCondition } from "../services/authorization.js";
 import { validate } from "../middleware/validate.js";
 import { decisionTrainingService, logActivity } from "../services/index.js";

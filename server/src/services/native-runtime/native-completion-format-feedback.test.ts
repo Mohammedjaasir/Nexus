@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { heartbeatRuns, issues, issueThreadInteractions, issueApprovals, type Db } from "@paperclipai/db";
-import type { PrpStructuredRunResult } from "../../vendor/paperclip-runner/index.js";
+import { heartbeatRuns, issues, issueThreadInteractions, issueApprovals, type Db } from "@nexusai/db";
+import type { PrpStructuredRunResult } from "../../vendor/nexus-runner/index.js";
 import { nativeCompletionFeedback } from "./native-completion-feedback.js";
 
 const state = vi.hoisted(() => ({ blockers: 0 }));
@@ -12,7 +12,7 @@ vi.mock("./automatic-completion-reviews.js", () => ({ findAutomaticCompletionRev
 vi.mock("../agent-invokability.js", () => ({ evaluateAgentInvokabilityFromDb: vi.fn() }));
 vi.mock("../issues.js", () => ({ issueService: () => ({ getDependencyReadiness: async () => ({ unresolvedBlockerCount: state.blockers }) }) }));
 vi.mock("./native-review-participant.js", () => ({ readNativeReviewAssignmentContext: () => null, getNativeReviewAssignment: vi.fn() }));
-vi.mock("../../vendor/paperclip-runner/index.js", () => ({ normalizePrpResultSignals: () => ({ verification: [], actionableAttentionRequests: [] }) }));
+vi.mock("../../vendor/nexus-runner/index.js", () => ({ normalizePrpResultSignals: () => ({ verification: [], actionableAttentionRequests: [] }) }));
 
 const result = { reportedWorkDisposition: "done", summary: "EXACT_PRIVATE_MARKER", completionClaim: { objectiveSatisfied: true, criteria: [], remainingWork: [] } } as unknown as PrpStructuredRunResult;
 function database(options: { interaction?: boolean; approval?: boolean; review?: boolean } = {}): Db {

@@ -12,7 +12,7 @@ const migrations = [
 
 (support.supported ? describe : describe.skip)("execution identity migration", () => {
   it("can replay without inventing historical authorship or losing accepted contexts", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-identity-migration-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-identity-migration-");
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     try {
       const companyId = randomUUID(), agentId = randomUUID(), historicalRunId = randomUUID(), runId = randomUUID(), contextId = randomUUID();

@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import type { AgentConfigurationPatch, UpdateAgentOptions } from "../lib/agent-records.js";
 import { conflict } from "../errors.js";
 import { updateAgentConfiguration } from "../modules/agent-lifecycle/configuration.js";

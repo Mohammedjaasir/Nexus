@@ -20,7 +20,7 @@ on:
         type: string
         required: false
       release_base_image:
-        description: "Immutable Paperclip Daytona base image for the release-artifact consumer"
+        description: "Immutable Nexus Daytona base image for the release-artifact consumer"
         type: string
         required: false
       verify_source:
@@ -41,9 +41,9 @@ on:
       - Dockerfile
       - .dockerignore
       - scripts/check-docker-runner-cache.sh
-      - packages/paperclip-runner/rust-toolchain.toml
-      - packages/paperclip-runner/runner/**
-      - packages/paperclip-runner/protocol/**
+      - packages/nexus-runner/rust-toolchain.toml
+      - packages/nexus-runner/runner/**
+      - packages/nexus-runner/protocol/**
 
 permissions: {}
 
@@ -216,9 +216,9 @@ jobs:
           fi
           docker buildx build --platform linux/amd64 \
             --file docker/daytona-runner/Dockerfile \
-            --build-arg "PAPERCLIP_RUNNER_SOURCE_REVISION=$SOURCE_SHA" \
-            --build-arg "PAPERCLIP_RUNNER_CONTENT_ID=$content_id" \
-            --build-arg "PAPERCLIP_RUNNER_LOCK_SHA256=$lock_sha" \
+            --build-arg "NEXUS_RUNNER_SOURCE_REVISION=$SOURCE_SHA" \
+            --build-arg "NEXUS_RUNNER_CONTENT_ID=$content_id" \
+            --build-arg "NEXUS_RUNNER_LOCK_SHA256=$lock_sha" \
             --cache-from type=registry,ref=ghcr.io/paperclipai/paperclip-daytona-runner:e2e-buildcache-amd64 \
             --tag "$image" --metadata-file remote-verification/image.json "${output_args[@]}" .
           digest="$(jq -r '."containerimage.digest"' remote-verification/image.json)"
@@ -257,11 +257,11 @@ jobs:
           digest="$(jq -r '."containerimage.digest"' remote-verification/image.json)"
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           immutable="${image%:*}@$digest"
-          docker run --rm --entrypoint cat "$immutable" /opt/paperclip-runner/provider-pack/provider-pack.json \
+          docker run --rm --entrypoint cat "$immutable" /opt/nexus-runner/provider-pack/provider-pack.json \
             > remote-verification/image-provider-pack.json
           cmp remote-verification/release-context/provider-pack.json remote-verification/image-provider-pack.json
           test "$(docker run --rm --entrypoint id "$immutable" -un)" = daytona
-          docker run --rm --entrypoint sha256sum "$immutable" /usr/local/bin/paperclip-runnerd \
+          docker run --rm --entrypoint sha256sum "$immutable" /usr/local/bin/nexus-runnerd \
             > remote-verification/image-daemon.sha256
           expected="$(jq -r .daemonSha256 remote-verification/release-image-inputs.json)"
           test "$(cut -d ' ' -f 1 remote-verification/image-daemon.sha256)" = "$expected"
@@ -299,15 +299,15 @@ jobs:
           pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile > remote-verification/npm-setup.log 2>&1
           pnpm install --frozen-lockfile --ignore-scripts >> remote-verification/npm-setup.log 2>&1
           pnpm build > remote-verification/npm-build.log 2>&1
-          PAPERCLIP_RUNNER_QUALIFICATION_PACKAGES_DIR="$PWD/remote-verification/qualification-packages" \
+          NEXUS_RUNNER_QUALIFICATION_PACKAGES_DIR="$PWD/remote-verification/qualification-packages" \
             node scripts/verify-grok-npm-install.mjs > remote-verification/public-npm-install.log 2>&1
       - name: Build canonical eval report viewer
         if: always() && (inputs.verify_source || inputs.build_eval_viewer)
         run: |
           set -euo pipefail
-          pnpm install --frozen-lockfile --ignore-scripts --filter '@paperclipai/paperclip-runner...'
-          pnpm --filter @paperclipai/paperclip-runner build:issue-thread > remote-verification/viewer-build.log 2>&1
-          tar -czf remote-verification/eval-viewer.tar.gz -C packages/paperclip-runner dist-issue-thread
+          pnpm install --frozen-lockfile --ignore-scripts --filter '@nexusai/nexus-runner...'
+          pnpm --filter @nexusai/nexus-runner build:issue-thread > remote-verification/viewer-build.log 2>&1
+          tar -czf remote-verification/eval-viewer.tar.gz -C packages/nexus-runner dist-issue-thread
           sha256sum remote-verification/eval-viewer.tar.gz > remote-verification/eval-viewer.sha256
       - name: Retain source, image and verification evidence
         if: always()

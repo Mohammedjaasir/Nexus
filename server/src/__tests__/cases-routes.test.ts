@@ -27,7 +27,7 @@ import {
   issues,
   labels,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -70,7 +70,7 @@ describeEmbeddedPostgres("cases routes", () => {
 
   let db!: ReturnType<typeof createDb>;
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
-  const previousAgentJwtSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
+  const previousAgentJwtSecret = process.env.NEXUS_AGENT_JWT_SECRET;
   const liveEventUnsubscribers: Array<() => void> = [];
 
   const storage: StorageService = {
@@ -95,8 +95,8 @@ describeEmbeddedPostgres("cases routes", () => {
   };
 
   beforeAll(async () => {
-    process.env.PAPERCLIP_AGENT_JWT_SECRET = "cases-routes-test-secret";
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-cases-routes-");
+    process.env.NEXUS_AGENT_JWT_SECRET = "cases-routes-test-secret";
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-cases-routes-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -127,9 +127,9 @@ describeEmbeddedPostgres("cases routes", () => {
   afterAll(async () => {
     await tempDb?.cleanup();
     if (previousAgentJwtSecret === undefined) {
-      delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
+      delete process.env.NEXUS_AGENT_JWT_SECRET;
     } else {
-      process.env.PAPERCLIP_AGENT_JWT_SECRET = previousAgentJwtSecret;
+      process.env.NEXUS_AGENT_JWT_SECRET = previousAgentJwtSecret;
     }
   });
 
@@ -409,7 +409,7 @@ describeEmbeddedPostgres("cases routes", () => {
     const createResponse = await http
       .post(`/api/companies/${company.id}/cases`)
       .set("Authorization", `Bearer ${token}`)
-      .set("X-Paperclip-Run-Id", runId)
+      .set("X-Nexus-Run-Id", runId)
       .send({
         caseType: "blog_post",
         key: "launch-post",
@@ -422,14 +422,14 @@ describeEmbeddedPostgres("cases routes", () => {
     await http
       .put(`/api/cases/${createResponse.body.identifier}/documents/body`)
       .set("Authorization", `Bearer ${token}`)
-      .set("X-Paperclip-Run-Id", runId)
+      .set("X-Nexus-Run-Id", runId)
       .send({ body: "# Launch\n\nDraft body." })
       .expect(200);
 
     await http
       .patch(`/api/cases/${caseId}`)
       .set("Authorization", `Bearer ${token}`)
-      .set("X-Paperclip-Run-Id", runId)
+      .set("X-Nexus-Run-Id", runId)
       .send({
         status: "in_review",
         fields: { slug: "launch-post", target_audience: "operators", publish_url: "https://example.com/launch" },
@@ -439,7 +439,7 @@ describeEmbeddedPostgres("cases routes", () => {
     await http
       .post(`/api/cases/${caseId}/attachments`)
       .set("Authorization", `Bearer ${token}`)
-      .set("X-Paperclip-Run-Id", runId)
+      .set("X-Nexus-Run-Id", runId)
       .attach("file", Buffer.from("asset"), "asset.txt")
       .expect(201);
 
@@ -456,7 +456,7 @@ describeEmbeddedPostgres("cases routes", () => {
     const detail = await http
       .get(`/api/cases/${createResponse.body.identifier}`)
       .set("Authorization", `Bearer ${token}`)
-      .set("X-Paperclip-Run-Id", runId)
+      .set("X-Nexus-Run-Id", runId)
       .expect(200);
     expect(detail.body.status).toBe("in_review");
     expect(detail.body.documents).toHaveLength(1);
@@ -987,7 +987,7 @@ describeEmbeddedPostgres("cases routes", () => {
       companyId: company.id, caseId: record.id, issueId: work[index]!.id, version: 1,
       fromAgentId: sender.id, toAgentId: recipient.id, phase: "verification", instructions: "Check the saved work.",
       actorType: "user" as const, actorId: "board-user", wakeupRequestId: randomUUID(),
-      actorContext: { schema: "paperclip.case-handoff-actor.v1", companyId: company.id, actorType: "user", actorId: "board-user",
+      actorContext: { schema: "nexus.case-handoff-actor.v1", companyId: company.id, actorType: "user", actorId: "board-user",
         source: "session", runId: null, keyId: null, sessionId: "INTERNAL_SESSION_CANARY", keyScope: { kind: "standard" },
         onBehalfOfUserId: null, authorizingUserId: null },
       idempotencyKey: randomUUID(), inputFingerprint: "a".repeat(64), state: "pending_dispatch" as const,

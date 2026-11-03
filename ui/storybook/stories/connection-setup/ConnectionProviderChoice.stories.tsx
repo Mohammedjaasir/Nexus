@@ -6,7 +6,7 @@ import {
   AGGREGATOR_NAMES,
   type ConnectionSearchResultItem,
   type RemoteMcpConnectorId,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { RemoteMcpAccountChoice } from "@/features/connections/remote-mcp/RemoteMcpAccountChoice";
 import { QuestionForm } from "@/components/task-chat/QuestionForm";
 import { RemoteMcpConnectionReview } from "../../prototypes/RemoteMcpConnectionReview";
@@ -82,7 +82,7 @@ function ProviderChoice({
       <QuestionForm
         id="provider-choice-review"
         questionSet={{
-          schema: "paperclip.question_set.v1",
+          schema: "nexus.question_set.v1",
           questions: [
             {
               id: question.id,
@@ -113,7 +113,7 @@ const meta = {
   title: "Apps, channels, and extensions/Connection setup/Apps/Connections/Provider choice",
   component: ProviderChoice,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/identity-and-access"
       ],

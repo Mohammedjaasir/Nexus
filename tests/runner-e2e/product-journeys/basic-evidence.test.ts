@@ -6,7 +6,7 @@ function evidence() {
   return { companyId: "company", agentId: "agent", environmentId: "daytona", marker: "answer", model: "model", provider: "opencode", runtimeMode: "native",
     issue: { id: "task", companyId: "company", workMode: "ask", status: "done", assigneeAgentId: "agent" },
     runs: [{ id: "run", companyId: "company", agentId: "agent", issueId: "task", status: "succeeded", runtimeMode: "native",
-      contextSnapshot: { paperclipEnvironment: { id: "daytona" } }, runnerProfileJson: { nativeExecutionInput: { provider: { kind: "opencode", model: "model" } } } }],
+      contextSnapshot: { nexusEnvironment: { id: "daytona" } }, runnerProfileJson: { nativeExecutionInput: { provider: { kind: "opencode", model: "model" } } } }],
     comments: [{ authorAgentId: "agent", body: "answer" }] };
 }
 describe("attached basic journey oracle", () => {
@@ -18,7 +18,7 @@ describe("attached basic journey oracle", () => {
       (e: ReturnType<typeof evidence>) => { e.runs[0]!.issueId = "other"; },
       (e: ReturnType<typeof evidence>) => { e.runs[0]!.status = "failed"; },
       (e: ReturnType<typeof evidence>) => { e.runs.push(e.runs[0]!); },
-      (e: ReturnType<typeof evidence>) => { e.runs[0]!.contextSnapshot.paperclipEnvironment.id = "local"; },
+      (e: ReturnType<typeof evidence>) => { e.runs[0]!.contextSnapshot.nexusEnvironment.id = "local"; },
       (e: ReturnType<typeof evidence>) => { e.runs[0]!.runnerProfileJson.nativeExecutionInput.provider.model = "other"; },
       (e: ReturnType<typeof evidence>) => { e.runtimeMode = "legacy"; e.runs[0]!.runtimeMode = "legacy"; },
       (e: ReturnType<typeof evidence>) => { e.environmentId = ""; },

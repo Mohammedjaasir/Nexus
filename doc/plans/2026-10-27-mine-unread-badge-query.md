@@ -41,7 +41,7 @@ The pinned baseline is `70c864633744cd96c0dc7394d631fc7119cd17d2`. Both owning p
 Environment: PostgreSQL 17.11 ARM64 Linux Docker, Node 26.4.0, postgres.js 3.4.9, Drizzle 0.45.2, shared_buffers 128 MiB, work_mem 4 MiB, jit on, jit_above_cost 100000 and full optimization/inlining thresholds 500000. Hosted PostgreSQL version/architecture and planner settings match; compute, storage and network differ.
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-mine-unread-badge.ts --baseline-ref=70c864633744cd96c0dc7394d631fc7119cd17d2 --history-decoys=240000 --verify-migration --assert-performance --evidence-dir=<directory>
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-mine-unread-badge.ts --baseline-ref=70c864633744cd96c0dc7394d631fc7119cd17d2 --history-decoys=240000 --verify-migration --assert-performance --evidence-dir=<directory>
 ```
 
 The default harness starts disposable embedded PostgreSQL and ignores DATABASE_URL. Recorded runs used a scratch constructor provider for Linux PostgreSQL 17 because the host native runtime can hit semaphore limits. Database creation, schema migration, clients and cleanup remain the normal repository path. A saved report can be checked with `--validate-report=<report>`; source hashes must still match. Add `--validate-baseline` for the original compiler-work red. `--diagnostic` runs one pair per visibility/JIT setting with a plain plan first. `--diagnostic-dense` selects dense instead of sparse. `--fixture=sparse --history-decoys=940000` selects a million-row control. `--hold-after-report=<directory>` retains one selected disposable fixture for bounded query iteration, with a private ready file and explicit release.

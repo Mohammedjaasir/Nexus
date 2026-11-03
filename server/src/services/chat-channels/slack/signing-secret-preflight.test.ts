@@ -1,7 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
-import type { ToolCredentialSecretRef } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import type { ToolCredentialSecretRef } from "@nexusai/shared";
 import { createChatCredentials } from "../credentials.js";
 import type { EndpointRow } from "../runtime-types.js";
 import { createSlackWebhookCallbacks } from "./webhook-callbacks.js";
@@ -32,7 +32,7 @@ function fixture() {
     const body = JSON.stringify({ type: "event_callback", team_id: teamId, event: { type: "message", text: "hello" } });
     const timestamp = String(Math.floor(Date.now() / 1000));
     const signature = `v0=${createHmac("sha256", secret).update(`v0:${timestamp}:${body}`).digest("hex")}`;
-    return new Request("https://paperclip.example/api/chat-webhooks/public/slack", { method: "POST", body,
+    return new Request("https://nexus.example/api/chat-webhooks/public/slack", { method: "POST", body,
       headers: { "content-type": "application/json", "x-slack-request-timestamp": timestamp, "x-slack-signature": signature } });
   }
   return { refs, endpoint, rows, db, credentials, callbacks, resolveSecretValue, request,

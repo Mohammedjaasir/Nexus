@@ -17,13 +17,13 @@ are retained here.
 ## What the user actually wanted
 
 - The existing personal Dot, not a replacement generic API agent.
-- Paperclip could initiate work; Dot could read/write and initiate work while idle.
+- Nexus could initiate work; Dot could read/write and initiate work while idle.
 - Shared new Runner infrastructure.
 - Eventually a full company participant: people, tasks, skills, apps, optional files.
 - An external-agent invitation with a copy prompt and live checks.
-- Persistent Paperclip connection until revoked.
+- Persistent Nexus connection until revoked.
 - Cloud deployment with managed execution and no arbitrary host execution.
-- Dot uses its own relevant tools and returns the result to Paperclip.
+- Dot uses its own relevant tools and returns the result to Nexus.
 
 Idle autonomy was explicit on day one and in the first production plan. Shipping
 task-only access was an implementation omission, not missing user specification.
@@ -47,7 +47,7 @@ latency/concurrency needed an earlier explicit release contract.
 | Oct 7: “create hello for my owner” refused while idle | Added governed intake and human assignees; actual Dot completed it. | Both directions are first-class acceptance journeys. |
 | Oct 7: pairing ready but agent config missing binding | Required another form save until atomic persistence fix. | One logical setup operation must persist all required state. |
 | Oct 7: missing-file read never settled | Turn could not close; terminal read-error receipt fixed it. | Distinguish definite failure from ambiguous mutation outcome. |
-| Oct 7: workspace execution and file access expansion | cwd was insufficient; review found `.paperclip` leakage and API bypasses; macOS commands later disabled. | Trace effects and test all access paths; fail closed when confinement is unproven. |
+| Oct 7: workspace execution and file access expansion | cwd was insufficient; review found `.nexus` leakage and API bypasses; macOS commands later disabled. | Trace effects and test all access paths; fail closed when confinement is unproven. |
 | Oct 7: late event | One event arrived roughly 32 minutes later; completed work was not repeated. | Event delivery is asynchronous; test late offers and never claim a latency SLA from one success. |
 | Oct 8: cloud architecture reconsidered repeatedly | User chose common Runner for lifecycle reuse and potential future workspace tools. | State decision criteria and retain the decision; placement is separate from tool access. |
 | Oct 8: expired setup prompt and nested copy window | Added automatic renewal, automatic close on connection, progress footer and Done. | Normal asynchronous progress should not require manual repair. |
@@ -63,7 +63,7 @@ latency/concurrency needed an earlier explicit release contract.
 ## Historical Dot protocol and tools
 
 Transport was authenticated MCP inward and signed MCP Events outward. The
-qualified event was `paperclip.dot.mailbox_updated`. Subscription methods included
+qualified event was `nexus.dot.mailbox_updated`. Subscription methods included
 `events/list`, `events/subscribe`, and `events/unsubscribe`; these are protocol
 methods, not extra callable tools. The experiment used MCP version `2026-07-28`.
 Verify current support and account eligibility instead of copying that version.
@@ -72,23 +72,23 @@ The final top-level MCP catalog had 16 tools:
 
 | Purpose | Tool names |
 | --- | --- |
-| Identity and proactive work | `paperclip_dot_capabilities`, `paperclip_dot_request_turn`, `paperclip_dot_tasks`, `paperclip_dot_request_work` |
-| Setup and inbox | `paperclip_dot_pair`, `paperclip_dot_inbox`, `paperclip_dot_confirm_event` |
-| Assignment | `paperclip_dot_read`, `paperclip_dot_accept`, `paperclip_dot_tool` |
-| Lifecycle and receipts | `paperclip_dot_progress`, `paperclip_dot_finish`, `paperclip_dot_operation_status`, `paperclip_dot_renew`, `paperclip_dot_control_ack` |
-| Optional profile | `paperclip_dot_set_avatar` |
+| Identity and proactive work | `nexus_dot_capabilities`, `nexus_dot_request_turn`, `nexus_dot_tasks`, `nexus_dot_request_work` |
+| Setup and inbox | `nexus_dot_pair`, `nexus_dot_inbox`, `nexus_dot_confirm_event` |
+| Assignment | `nexus_dot_read`, `nexus_dot_accept`, `nexus_dot_tool` |
+| Lifecycle and receipts | `nexus_dot_progress`, `nexus_dot_finish`, `nexus_dot_operation_status`, `nexus_dot_renew`, `nexus_dot_control_ack` |
+| Optional profile | `nexus_dot_set_avatar` |
 
-The nested Runner catalog was read per assignment. Bot called its Paperclip tool
-names via `paperclip_dot_tool`; native tools were called in the bot's own runtime.
-Standard completion was `paperclip_finish` or `paperclip_block` through the bridge,
-then `paperclip_dot_finish` with the accepted canonical report. Do not collapse
+The nested Runner catalog was read per assignment. Bot called its Nexus tool
+names via `nexus_dot_tool`; native tools were called in the bot's own runtime.
+Standard completion was `nexus_finish` or `nexus_block` through the bridge,
+then `nexus_dot_finish` with the accepted canonical report. Do not collapse
 these steps into an unverified conversational “done.”
 
 Historical constants help reproduce old cases, not set new-provider defaults:
 
 - Instance settings: **Assistant connections (MCP)** and **OpenAI Dot**, with
-  authenticated sign-in and a stable `PAPERCLIP_PUBLIC_URL`. The old
-  `PAPERCLIP_ENABLE_OPENAI_DOT` environment flag no longer enabled the provider.
+  authenticated sign-in and a stable `NEXUS_PUBLIC_URL`. The old
+  `NEXUS_ENABLE_OPENAI_DOT` environment flag no longer enabled the provider.
   Self-hosted Dot did not require the general Runner picker flag; Cloud additionally
   required native Runner configuration and the managed execution plugin.
 - Pairing code: 15 minutes, one use. Access token: 15 minutes.
@@ -101,7 +101,7 @@ Historical constants help reproduce old cases, not set new-provider defaults:
   metadata/digest checks and live authority checks.
 - Cloud workspace access: off. Self-hosted Linux command execution required
   confinement; macOS commands ultimately unavailable.
-- Avatar: `paperclip_dot_set_avatar` accepted `{ "imageBase64": "<raw bytes>" }`
+- Avatar: `nexus_dot_set_avatar` accepted `{ "imageBase64": "<raw bytes>" }`
   or `null` to restore the preset. PNG/JPEG/WebP, at most 512 KiB and 16 megapixels;
   normalized to metadata-free PNG no larger than 512 pixels per side. The agent
   route was `PUT /api/companies/:companyId/agents/:agentId/avatar`, self-only for
@@ -115,7 +115,7 @@ together; it is not a measured percentile or guaranteed delay.
 
 The prototype used TypeScript `HarnessDriverBackend` and synthetic admission; it
 did not qualify Rust Runner. The dedicated endpoint later completed ordinary
-Paperclip tasks with actual Dot, and the expansion proved idle work, human
+Nexus tasks with actual Dot, and the expansion proved idle work, human
 assignment, pinned skills, documents, attachments, and verified artifacts. A
 workspace command succeeded in the earlier macOS prototype but that capability
 was subsequently disabled for containment reasons; do not cite the early success
@@ -124,7 +124,7 @@ as support for the final platform capability.
 Managed qualification used both a scripted MCP client and the real Dot. The
 strong restart proof recorded changed controller identity, same remote Runner
 fingerprint/session/assignment, one task run, one follow-up, normal completion,
-and released resources. Cancellation records distinguished Paperclip fencing
+and released resources. Cancellation records distinguished Nexus fencing
 from global external stop.
 
 The deployed Cloud tenant completed three task checks in both directions and all
@@ -155,15 +155,15 @@ recurs across unrelated providers.
 
 Implementation/review trail:
 
-- [Paperclip #15402](https://github.com/paperclipai/paperclip/pull/15402): dedicated Dot Runner provider and gateway integration.
-- [Paperclip #15414](https://github.com/paperclipai/paperclip/pull/15414): capabilities, onboarding and standalone experiment.
-- [Paperclip #15581](https://github.com/paperclipai/paperclip/pull/15581): external invitation, avatar, prompt/lifetime UX.
-- [Paperclip #15691](https://github.com/paperclipai/paperclip/pull/15691): managed Runner and recovery.
+- [Nexus #15402](https://github.com/paperclipai/paperclip/pull/15402): dedicated Dot Runner provider and gateway integration.
+- [Nexus #15414](https://github.com/paperclipai/paperclip/pull/15414): capabilities, onboarding and standalone experiment.
+- [Nexus #15581](https://github.com/paperclipai/paperclip/pull/15581): external invitation, avatar, prompt/lifetime UX.
+- [Nexus #15691](https://github.com/paperclipai/paperclip/pull/15691): managed Runner and recovery.
 - A separate Cloud ingress change enabled tenant routing. Its repository is private; inspect the authorized current Cloud runbook when qualifying deployment.
-- [Paperclip #15722](https://github.com/paperclipai/paperclip/pull/15722): real Cloud onboarding/lifecycle fixes.
-- [Paperclip #15734](https://github.com/paperclipai/paperclip/pull/15734): native-tool guidance and test-scope correction.
+- [Nexus #15722](https://github.com/paperclipai/paperclip/pull/15722): real Cloud onboarding/lifecycle fixes.
+- [Nexus #15734](https://github.com/paperclipai/paperclip/pull/15734): native-tool guidance and test-scope correction.
 
-Historical documentation can be recovered from the Paperclip checkout:
+Historical documentation can be recovered from the Nexus checkout:
 
 ```sh
 git show 27888cabdf7e2fa074dc16cb18ed36b074ba4763:doc/openai-dot-runner.md

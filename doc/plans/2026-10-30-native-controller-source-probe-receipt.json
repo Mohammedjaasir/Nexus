@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.native-controller.release-qualification-receipt/v1",
+  "schema": "nexus.native-controller.release-qualification-receipt/v1",
   "finishedAt": "2026-10-30T19:33:20.587023+00:00",
   "sourceIntegrity": {
     "A": {
@@ -20,7 +20,7 @@
     "runnerArtifact": {
       "role": "admitted Runner artifact A, unchanged through every controller",
       "sourceRevision": "59ff89a18fe1312b5f0bb908439bbdb1237b0252",
-      "binary": "/private/tmp/native-controller-qualification-20261030-1833/installed-A/consumer/node_modules/@paperclipai/server/dist/vendor/paperclip-runner/bin/linux-arm64/paperclip-runnerd",
+      "binary": "/private/tmp/native-controller-qualification-20261030-1833/installed-A/consumer/node_modules/@nexusai/server/dist/vendor/nexus-runner/bin/linux-arm64/nexus-runnerd",
       "sha256": "b1f04caa1ce04e720dec7eb62ede170eb3621948c0849b8f305ea5c5116bced8",
       "bytes": 35345144,
       "installationReceipt": "/private/tmp/native-controller-qualification-20261030-1833/installed-A/receipt.json"
@@ -33,7 +33,7 @@
   ],
   "failed": [
     "Fresh B2 retained continuation rejected after B1 completed because durable control journal has a null-goal snapshot after run.terminal",
-    "Final 98f05fc live probe still rejects actual paperclip.prp.event.v2 because proposed guard accepts only v1"
+    "Final 98f05fc live probe still rejects actual nexus.prp.event.v2 because proposed guard accepts only v1"
   ],
   "notQualified": [
     "Complete A/B/A native installed-application startup/rollback gate",
@@ -55,7 +55,7 @@
     "earlierThreeTurnBusinessContinuation": "/tmp/native-controller-release-qualification-20261030/evidence-run-06.json"
   },
   "finalProbeFailure": {
-    "message": "Error: runner_state_identity_mismatch: prior_owner_terminal_state_indeterminate\n    at deny (/private/tmp/native-controller-release-qualification-qualified-A-20261030/B-98f05f/server/src/services/native-runtime/remote-warm-session-recovery.ts:56:37)\n    at inspectRemoteWarmSessionRecovery (/private/tmp/native-controller-release-qualification-qualified-A-20261030/B-98f05f/server/src/services/native-runtime/remote-warm-session-recovery.ts:85:67)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async executePaperclipNativeSessionWithinScope (/private/tmp/native-controller-release-qualification-qualified-A-20261030/B-98f05f/server/src/services/native-runtime/native-session-executor.ts:8237:28)\n    at async executePaperclipNativeSession (/private/tmp/native-controller-release-qualification-qualified-A-20261030/B-98f05f/server/src/services/native-runtime/native-session-executor.ts:8057:12)\n    at async process.<anonymous> (/private/tmp/native-controller-release-qualification-qualified-A-20261030/controller-worker.mjs:36:16)",
+    "message": "Error: runner_state_identity_mismatch: prior_owner_terminal_state_indeterminate\n    at deny (/private/tmp/native-controller-release-qualification-qualified-A-20261030/B-98f05f/server/src/services/native-runtime/remote-warm-session-recovery.ts:56:37)\n    at inspectRemoteWarmSessionRecovery (/private/tmp/native-controller-release-qualification-qualified-A-20261030/B-98f05f/server/src/services/native-runtime/remote-warm-session-recovery.ts:85:67)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async executeNexusNativeSessionWithinScope (/private/tmp/native-controller-release-qualification-qualified-A-20261030/B-98f05f/server/src/services/native-runtime/native-session-executor.ts:8237:28)\n    at async executeNexusNativeSession (/private/tmp/native-controller-release-qualification-qualified-A-20261030/B-98f05f/server/src/services/native-runtime/native-session-executor.ts:8057:12)\n    at async process.<anonymous> (/private/tmp/native-controller-release-qualification-qualified-A-20261030/controller-worker.mjs:36:16)",
     "cause": null
   },
   "candidateCorrection": {

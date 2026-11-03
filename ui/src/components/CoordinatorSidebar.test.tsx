@@ -3,7 +3,7 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AttentionFeed, AttentionItem } from "@paperclipai/shared";
+import type { AttentionFeed, AttentionItem } from "@nexusai/shared";
 import { CoordinatorSidebar } from "./CoordinatorSidebar";
 import { TooltipProvider } from "./ui/tooltip";
 import { coordinatorAttentionQueryKey, coordinatorAttentionSummaryQueryKey } from "@/lib/coordinator-attention";
@@ -98,7 +98,7 @@ describe("Coordinator pinned pages", () => {
   });
 
   it("keeps pins personal and only renders known destinations", async () => {
-    localStorage.setItem("paperclip.coordinator.pinned-nav.v1:reviewer", JSON.stringify(["/projects", "/unknown", "https://example.com"]));
+    localStorage.setItem("nexus.coordinator.pinned-nav.v1:reviewer", JSON.stringify(["/projects", "/unknown", "https://example.com"]));
     await renderSidebar();
     expect(pinnedPages()?.querySelectorAll("a")).toHaveLength(1);
     fixture.userId = "other-user";
@@ -111,7 +111,7 @@ describe("Coordinator pinned pages", () => {
 
   it("reflects pins changed in another browser tab", async () => {
     await renderSidebar();
-    const key = "paperclip.coordinator.pinned-nav.v1:reviewer";
+    const key = "nexus.coordinator.pinned-nav.v1:reviewer";
     await act(async () => {
       localStorage.setItem(key, JSON.stringify(["/agents/all"]));
       window.dispatchEvent(new StorageEvent("storage", { key }));

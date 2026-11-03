@@ -108,7 +108,7 @@ function TaskExecutionExample({
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [draftKey] = useState(() => {
-    const key = "paperclip:storybook:composer-stop";
+    const key = "nexus:storybook:composer-stop";
     clearDraft(key);
     if (draft) saveDraft(key, draft);
     return key;
@@ -322,7 +322,7 @@ const meta = {
   title: "Tasks and conversations/Steering and queued messages/Composer/Execution controls",
   component: TaskExecutionExample,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "steering/stop-and-pause"
       ],

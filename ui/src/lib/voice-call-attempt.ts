@@ -12,7 +12,7 @@ export interface VoiceCallJournal {
 
 /** Tab-scoped recovery identity only. Never persist media tokens or transcripts. */
 export function voiceCallJournal(storage: Pick<Storage, "getItem" | "setItem" | "removeItem">, companyId: string, callerId: string): VoiceCallJournal {
-  const key = `paperclip:voice-attempt:${encodeURIComponent(companyId)}:${encodeURIComponent(callerId)}`;
+  const key = `nexus:voice-attempt:${encodeURIComponent(companyId)}:${encodeURIComponent(callerId)}`;
   return {
     read() {
       const raw = storage.getItem(key);

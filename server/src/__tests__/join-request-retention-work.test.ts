@@ -5,7 +5,7 @@ import request from "supertest";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { activityLog, agents, authUsers, chatEndpoints, chatExternalPrincipals, chatIdentityLinks, companies, companyMemberships, companySecretProviderConfigs, companySecrets, companySecretVersions, createDb, decisionArchiveNotificationOutbox,
-  decisionRetention, invites, joinRequests, principalPermissionGrants, toolApplications, toolConnections, type Db } from "@paperclipai/db";
+  decisionRetention, invites, joinRequests, principalPermissionGrants, toolApplications, toolConnections, type Db } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { joinRequestRetentionService, registerJoinRequestRetentionWork } from "../services/join-request-retention.js";
@@ -16,7 +16,7 @@ import { writeJoinRequestChange } from "../services/retention-work-notifications
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_JOIN_RETENTION_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_JOIN_RETENTION_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const delay = DEFAULT_DECISION_ARCHIVE_DAYS * 86_400_000;
 (support.supported ? describe : describe.skip)("join request retention worker", () => {
@@ -32,7 +32,7 @@ const delay = DEFAULT_DECISION_ARCHIVE_DAYS * 86_400_000;
     db = createDb(externalUrl ?? temporary!.connectionString, { maxConnections: 6, idleTimeoutSeconds: 0, maxLifetimeSeconds: 0 });
   }, 30_000);
   beforeEach(async () => {
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "0123456789abcdef0123456789abcdef");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "0123456789abcdef0123456789abcdef");
     companyId = randomUUID(); userId = randomUUID(); draining = false; errors.length = 0;
     await db.insert(companies).values({ id: companyId, name: "Join retention", issuePrefix: `J${companyId.slice(0, 6)}` });
     await db.insert(authUsers).values({ id: userId, name: "Owner", email: `${userId}@example.test`, createdAt: new Date(), updatedAt: new Date() });

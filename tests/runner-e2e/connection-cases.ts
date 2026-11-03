@@ -59,13 +59,13 @@ export function buildConnectionSuite(profiles: readonly RunnerProfileFixture[], 
     const existing = profiles.find(p => p.generation === generation && (p.adapterType === h.adapter || (generation === "native" && p.id === (h.id === "claude" || h.id === "grok" ? `runner-acpx-${h.id}` : `runner-${h.id}`))));
     const id = `connection-${h.id}-${generation}`;
     return {
-      id, label: `${h.label} ${generation}`, generation, groups: [generation], adapterType: generation === "native" ? "paperclip_runner" : h.adapter,
+      id, label: `${h.label} ${generation}`, generation, groups: [generation], adapterType: generation === "native" ? "nexus_runner" : h.adapter,
       provider: h.id, model: existing?.model ?? "configured-in-connection-file",
       modelQualification: existing?.modelQualification ?? { source: "candidate_runner_profile", qualificationId: "operator-configured-model" },
       credential: h.key,
       supportedEnvironments: ["local", "daytona"], expectedRuntimeMode: generation,
-      expectedRuntimeMetadata: { adapterType: generation === "native" ? "paperclip_runner" : h.adapter, provider: generation === "native" && ["claude", "grok"].includes(h.id) ? "acpx" : h.id },
-      buildAgent: () => ({ name: id, role: "qa", adapterType: generation === "native" ? "paperclip_runner" : h.adapter, adapterConfig: {}, runtimeConfig: {} }),
+      expectedRuntimeMetadata: { adapterType: generation === "native" ? "nexus_runner" : h.adapter, provider: generation === "native" && ["claude", "grok"].includes(h.id) ? "acpx" : h.id },
+      buildAgent: () => ({ name: id, role: "qa", adapterType: generation === "native" ? "nexus_runner" : h.adapter, adapterConfig: {}, runtimeConfig: {} }),
     } satisfies RunnerProfileFixture;
   }));
   const tasks: RunnerTaskFixture[] = (["agent", "apps"] as const).flatMap(entry => connectionModes.map(mode => ({

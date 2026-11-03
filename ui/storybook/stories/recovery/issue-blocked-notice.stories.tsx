@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { IssueRelationIssueSummary } from "@paperclipai/shared";
+import type { IssueRelationIssueSummary } from "@nexusai/shared";
 import { IssueBlockedNotice } from "@/components/IssueBlockedNotice";
 import {
   resolveTaskChatLiveWork,
@@ -46,7 +46,7 @@ const meta = {
           "Blocked/recovery notice on the issue thread. Rule C: a `blocked` issue with a genuinely unresolved (not-done) blocker tells the human that a message won't reopen it yet and names the unresolved leaf with its status. Done-but-pending-finalize blockers are `done`, so they fall into the Rule B reopen path and are NOT shown as reopen-suppressed.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "recovery/diagnosis",
         "task-coordination/dependencies"

@@ -51,12 +51,12 @@ describe("agent detail tabs", () => {
     expect(restoreAgentConfigHistoryEntry(history, {
       index: undefined,
       state: currentState,
-      url: "https://paperclip.test/agents/eng/secrets",
+      url: "https://nexus.test/agents/eng/secrets",
     }, undefined)).toBe(false);
     expect(history.pushState).toHaveBeenCalledWith(
       currentState,
       "",
-      "https://paperclip.test/agents/eng/secrets",
+      "https://nexus.test/agents/eng/secrets",
     );
     expect(history.go).not.toHaveBeenCalled();
   });

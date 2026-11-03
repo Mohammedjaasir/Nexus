@@ -1,5 +1,5 @@
 import type { ActorInfo } from "../types.js";
-import { toolApplications, toolConnections } from "@paperclipai/db";
+import { toolApplications, toolConnections } from "@nexusai/db";
 import { badRequest, HttpError, unprocessable } from "../../../errors.js";
 import { parseRemoteHttpEndpoint } from "../../remote-http-endpoint-guard.js";
 import { guardedRemoteHttpFetch } from "../../remote-http-fetch.js";

@@ -1,4 +1,4 @@
-import type { ExecutionProjection, IssueRecoveryAction } from "@paperclipai/shared";
+import type { ExecutionProjection, IssueRecoveryAction } from "@nexusai/shared";
 import type { IssueChatComment } from "@/lib/issue-chat-messages";
 import { isTerminalIssueStatus } from "@/lib/liveIssueIds";
 import type { TaskChatItem } from "./task-chat-model";

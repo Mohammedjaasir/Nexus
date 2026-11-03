@@ -4,19 +4,19 @@ import { spawn } from "node:child_process";
 import { readFile, mkdtemp, rm, writeFile, unlink, rename, mkdir, symlink } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createCopilotToolEvidence } from "../../packages/paperclip-runner/src/drivers/acpx/copilot-tool-evidence.js";
-import { validateAcpxRichEvent } from "../../packages/paperclip-runner/src/drivers/acpx/profile-extensions.js";
+import { createCopilotToolEvidence } from "../../packages/nexus-runner/src/drivers/acpx/copilot-tool-evidence.js";
+import { validateAcpxRichEvent } from "../../packages/nexus-runner/src/drivers/acpx/profile-extensions.js";
 import { copilotOrigin, readCopilotToolEvidence } from "./copilot-evidence.js";
 import { copilotProtectionCases, gradeCopilotAttachedSettlement, gradeCopilotDeniedWrite } from "./copilot-protection-cases.js";
 import { createAttachedCommandFixture, createDeniedTargetFixture, bindDeniedTargetPrompt, watchDeniedTarget, exists, isPerTurnRunProcess, retainRunProcessIdentity } from "./copilot-local-fixtures.js";
 import { runnerMatrix, suiteDefinitionHash } from "./catalog.js";
 import { selectRunnerExecutions, parseRunnerSelectors } from "./selectors.js";
 
-const fixture = JSON.parse(await readFile(new URL("../../packages/paperclip-runner/src/drivers/acpx/fixtures/copilot-tool-evidence.json", import.meta.url), "utf8"));
+const fixture = JSON.parse(await readFile(new URL("../../packages/nexus-runner/src/drivers/acpx/fixtures/copilot-tool-evidence.json", import.meta.url), "utf8"));
 function projected(name: string, target = "copilot-denied-nonce.txt") {
   const frames = JSON.parse(JSON.stringify(fixture[name]).replaceAll("copilot-denied-nonce.txt", target)), rows: any[] = []; let clock = 10;
   const projector = createCopilotToolEvidence({ sessionId: frames[0].params.sessionId, turnId: "turn", workingDirectory: "/fixture/workspace", active: () => true,
-    emit: event => { validateAcpxRichEvent(event); rows.push({ seq: rows.length + 1, eventType: event.eventType, payload: { prpEvent: { schema: "paperclip.prp.event.v1", sourceKind: "runner", eventType: event.eventType, runId: "run", turnId: "turn", emittedAt: new Date(clock++).toISOString(), payload: event.payload } } }); } });
+    emit: event => { validateAcpxRichEvent(event); rows.push({ seq: rows.length + 1, eventType: event.eventType, payload: { prpEvent: { schema: "nexus.prp.event.v1", sourceKind: "runner", eventType: event.eventType, runId: "run", turnId: "turn", emittedAt: new Date(clock++).toISOString(), payload: event.payload } } }); } });
   for (const frame of frames) {
     if (frame.method === "session/update") projector.tool({ ...frame.params.update, type: "tool_call", tag: frame.params.update.sessionUpdate });
     else projector.permission({ raw: frame.params }, "permission", ["decline"])?.("reject_once");
@@ -27,7 +27,7 @@ describe("Copilot Product protection integration", () => {
   it("registers two explicit cases on both environments with honest terminal expectations", () => {
     const cells = runnerMatrix.filter(x => x.suite.id === "copilot-protection");
     expect(cells[0]!.suite.definitionMetadata).toMatchObject({ version: 24, denialIssueOutcome: "in-progress-or-proven-blocked-recovery", titleCreation: "explicit-search-composer", taskBinding: "browser-creation-response-id", naturalSettlementObservationMs: 2000, denialTerminal: "correlated-provider-settlement-and-audited-run-stop",
-      denialSettlementEvidence: "paperclip.e2e.copilot-denial-settlement.v4", activeTurnCancellation: "not-implied-by-completed-provider-turn" });
+      denialSettlementEvidence: "nexus.e2e.copilot-denial-settlement.v4", activeTurnCancellation: "not-implied-by-completed-provider-turn" });
     expect(suiteDefinitionHash(cells[0]!.suite)).not.toBe(suiteDefinitionHash({ ...cells[0]!.suite, definitionMetadata: { version: 2 } }));
     expect(cells).toHaveLength(4); expect(new Set(cells.map(c => c.environment.id))).toEqual(new Set(["local", "daytona"]));
     expect(cells.every(c => c.profile.qualificationCandidate === "copilot" && c.task.expectedRunCount === 1)).toBe(true);
@@ -41,10 +41,10 @@ describe("Copilot Product protection integration", () => {
       request: { ...request, requestId: "permission", method: "session/request_permission" as const, targetRelativePath: request.target!, offeredActions: request.declineOffered ? ["decline"] : [] },
       decision: { ...delivered, requestId: "permission", browserRequestId: "permission", action: delivered.outcome === "reject_once" ? "decline" : "accept" },
       deliveredDecision: { ...delivered, requestId: "permission", outcome: delivered.outcome! },
-      toolResult: { ...failed, status: "failed" as const }, terminal: { runId: "run", turnId: "turn", observedAtMs: 50, status: "cancelled" as const }, settlement: { schema: "paperclip.e2e.copilot-denial-settlement.v4" as const, ...copilotOrigin(request), requestId: "permission",
+      toolResult: { ...failed, status: "failed" as const }, terminal: { runId: "run", turnId: "turn", observedAtMs: 50, status: "cancelled" as const }, settlement: { schema: "nexus.e2e.copilot-denial-settlement.v4" as const, ...copilotOrigin(request), requestId: "permission",
         branch: "provider_cancelled_or_interrupted" as const, providerCancellationTerminalObserved: true,
-        preStop: { schema: "paperclip.e2e.copilot-pre-stop-observation.v2" as const, ...copilotOrigin(request), requestId: "permission", companyId: "company", normalizedSessionId: "normalized", sourceInstanceId: "runner", failedToolSourceSeq: 5, failedToolRowSha256: `sha256:${"a".repeat(64)}`, terminal: null, apiReadCompletedMonotonicNs: "10", cancellationRequestId: "11111111-1111-4111-8111-111111111111" }, stopDispatchMonotonicNs: "20",
-      stopAcknowledgement: { schema: "paperclip.e2e.copilot-stop-acknowledgement.v1" as const, companyId: "company", runId: "run", issueId: "issue", callerUserId: "local-board", fixtureCorrelationId: "11111111-1111-4111-8111-111111111111", dispatchMonotonicNs: "20", apiResponseObservedMonotonicNs: "21", intentId: "native-cancellation:11111111-1111-4111-8111-111111111111", intentAuditId: "intent-audit", acknowledgementAuditId: "ack-audit", responseMetadataSha256: `sha256:${"c".repeat(64)}` },
+        preStop: { schema: "nexus.e2e.copilot-pre-stop-observation.v2" as const, ...copilotOrigin(request), requestId: "permission", companyId: "company", normalizedSessionId: "normalized", sourceInstanceId: "runner", failedToolSourceSeq: 5, failedToolRowSha256: `sha256:${"a".repeat(64)}`, terminal: null, apiReadCompletedMonotonicNs: "10", cancellationRequestId: "11111111-1111-4111-8111-111111111111" }, stopDispatchMonotonicNs: "20",
+      stopAcknowledgement: { schema: "nexus.e2e.copilot-stop-acknowledgement.v1" as const, companyId: "company", runId: "run", issueId: "issue", callerUserId: "local-board", fixtureCorrelationId: "11111111-1111-4111-8111-111111111111", dispatchMonotonicNs: "20", apiResponseObservedMonotonicNs: "21", intentId: "native-cancellation:11111111-1111-4111-8111-111111111111", intentAuditId: "intent-audit", acknowledgementAuditId: "ack-audit", responseMetadataSha256: `sha256:${"c".repeat(64)}` },
       providerTerminal: { rowSha256: `sha256:${"b".repeat(64)}`, failedToolRowSha256: `sha256:${"a".repeat(64)}`, eventType: "turn.cancelled" as const, normalizedSessionId: "normalized", sourceInstanceId: "runner", requestSourceSeq: 1, resolvedSourceSeq: 2, deliveredSourceSeq: 3, failedNoticeSourceSeq: 4, failedToolSourceSeq: 5, failedToolRowCreatedAtMs: 31, sourceSeq: 6, emittedAtMs: 50, rowCreatedAtMs: 51 },
         runStop: { companyId: "company", issueId: "issue", scope: "run" as const, status: "cancelled" as const, issueStatus: "in_progress" as const, intentId: "native-cancellation:11111111-1111-4111-8111-111111111111", intentAuditId: "intent-audit", acknowledgementAuditId: "ack-audit", requestedAtMs: 40, recordedAtMs: 41, acknowledgedAtMs: 52, finishedAtMs: 53 } },
       cleanup: { observedAtMs: 60, ownedProcessesRemaining: 0 }, nativeAttemptsForTarget: 1,

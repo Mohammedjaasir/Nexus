@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { agents, chatActions, chatEndpoints, companies, toolApplications, toolConnections, type Db } from "@paperclipai/db";
+import { agents, chatActions, chatEndpoints, companies, toolApplications, toolConnections, type Db } from "@nexusai/db";
 import { chatCredentialMutationLease } from "../../services/chat-credential-mutation-lease.js";
 import { createGitHubWebhookIngress, type GitHubWebhookIngressPayload } from "../../services/chat-channels/github/webhook-ingress.js";
 

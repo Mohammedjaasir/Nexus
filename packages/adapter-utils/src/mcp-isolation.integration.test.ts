@@ -106,7 +106,7 @@ async function startUnauthorizedAnthropicFixture(): Promise<{
 
 describe("same-machine MCP isolation", () => {
   it("passes disjoint MCP server sets through acpx session/new and tools/list", async () => {
-    const root = await createMcpIsolationRoot("paperclip-acpx-mcp-isolation-");
+    const root = await createMcpIsolationRoot("nexus-acpx-mcp-isolation-");
     cleanupRoots.push(root);
 
     const [alpha, beta, zero] = await Promise.all([
@@ -131,7 +131,7 @@ describe("same-machine MCP isolation", () => {
     expect(claudeVersionMatch).not.toBeNull();
     expect(Number(claudeVersionMatch?.[1])).toBeGreaterThanOrEqual(207);
 
-    const root = await createMcpIsolationRoot("paperclip-claude-mcp-isolation-");
+    const root = await createMcpIsolationRoot("nexus-claude-mcp-isolation-");
     cleanupRoots.push(root);
     const home = path.join(root, "home");
     const alphaConfig = path.join(root, "alpha.json");
@@ -165,7 +165,7 @@ describe("same-machine MCP isolation", () => {
           ...process.env,
           HOME: home,
           CLAUDE_CONFIG_DIR: undefined,
-          ANTHROPIC_API_KEY: "paperclip-invalid-test-key",
+          ANTHROPIC_API_KEY: "nexus-invalid-test-key",
           ANTHROPIC_BASE_URL: apiFixture.baseUrl,
         },
       });
@@ -198,7 +198,7 @@ describe("same-machine MCP isolation", () => {
     if (!version) return;
     expect(version).toMatch(/^codex-cli \d+\.\d+\.\d+$/);
 
-    const root = await createMcpIsolationRoot("paperclip-codex-mcp-isolation-");
+    const root = await createMcpIsolationRoot("nexus-codex-mcp-isolation-");
     cleanupRoots.push(root);
     const home = path.join(root, "home");
     const alphaHome = path.join(root, "codex-alpha");

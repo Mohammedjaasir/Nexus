@@ -79,7 +79,7 @@ describe("task search journey reporting contract", () => {
     expect(preview.modelProfileId).toBeNull();
   });
   function result(): RunnerE2EResult {
-    return { schema: "paperclip.runner-e2e.result/v2", suiteId: "product-journeys", suiteDefinitionHash: "test",
+    return { schema: "nexus.runner-e2e.result/v2", suiteId: "product-journeys", suiteDefinitionHash: "test",
       executionId: "product-journeys.qa.browser.daytona.task-search-filter", profileId: "browser", environmentId: "daytona",
       caseId: "task-search-filter", provider: null, model: null, runtimeMode: "none", status: "passed", cleanup: "passed",
       attempt: 1, startedAt: "2026-01-01T00:00:00Z", finishedAt: "2026-01-01T00:00:01Z", durationMs: 1000,

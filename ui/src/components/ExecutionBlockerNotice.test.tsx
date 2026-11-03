@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TaskInterruptionPresentation } from "@paperclipai/shared";
+import type { TaskInterruptionPresentation } from "@nexusai/shared";
 import { ExecutionBlockerNotice } from "./ExecutionBlockerNotice";
 
 const failed: TaskInterruptionPresentation = {

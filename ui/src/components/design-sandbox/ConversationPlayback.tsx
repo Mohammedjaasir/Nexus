@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { Button } from "../ui/button";
 import { TaskChatThreadView } from "../task-chat/TaskChatThreadView";
 import { transcriptToTaskChatItems } from "../task-chat/transcript-adapter";

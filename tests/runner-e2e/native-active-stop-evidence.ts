@@ -12,7 +12,7 @@ export interface ActiveStopCaller { type: "board"; userId: "local-board"; source
 export type ActiveStopProvider = "cursor" | "copilot";
 export interface ActiveStopScope { provider: ActiveStopProvider; companyId: string; issueId: string; runId: string; target: string; commandSha256?: string }
 export interface ActiveStopPending {
-  schema: "paperclip.e2e.native-active-stop-pending.v2";
+  schema: "nexus.e2e.native-active-stop-pending.v2";
   caller: ActiveStopCaller; scope: ActiveStopScope; requestId: string; toolCallId: string; nativeSessionId: string; turnId: string;
   normalizedSessionId: string; sourceInstanceId: string; requestSourceSeq: number; permissionSourceSeq: number;
   requestRowSha256: string; permissionRowSha256: string; cancellationRequestId: string; observedMonotonicNs: string;
@@ -28,7 +28,7 @@ function fail(condition: unknown, reason: string): asserts condition { if (!cond
 export function readActiveStopCaller(health: unknown, authentication: unknown): ActiveStopCaller {
   const session = rec(rec(authentication).session);
   fail(rec(health).deploymentMode === "local_trusted" && session.userId === "local-board"
-    && session.id === "paperclip:local_implicit:local-board", "expected isolated board caller missing");
+    && session.id === "nexus:local_implicit:local-board", "expected isolated board caller missing");
   return { type: "board", userId: "local-board", source: "local_implicit" };
 }
 function isActiveStopCaller(caller: unknown): caller is ActiveStopCaller {
@@ -73,7 +73,7 @@ function origin(events: readonly unknown[], scope: ActiveStopScope, bootstrap?: 
   const created = rows.filter(x => x.event.eventType === "runtime_request.created");
   fail(permission && created.length === 1, "one durable native card required");
   const request = rec(rec(created[0]!.event.payload).request), p = permission.event;
-  fail(request.schema === "paperclip.runtime_request.v2" && request.type === "permission" && request.requestKind === "permission_approval"
+  fail(request.schema === "nexus.runtime_request.v2" && request.type === "permission" && request.requestKind === "permission_approval"
     && request.status === "pending" && request.requestId === notice.requestId && request.turnId === notice.turnId
     && rec(request.details).toolCallId === notice.toolCallId && hasAcpxNativeOrigin(request.origin, scope.provider, "session/request_permission")
     && id(p.normalizedSessionId) && p.turnId === notice.turnId && created[0]!.event.turnId === notice.turnId
@@ -101,7 +101,7 @@ function origin(events: readonly unknown[], scope: ActiveStopScope, bootstrap?: 
   const executions = rows.filter(x => x.event.eventType.startsWith("tool.execution.") && rec(x.event.payload).executionId === bootstrapReadExecutionId(notice.toolCallId));
   fail(executions.filter(x => x.event.eventType === "tool.execution.started").length === 1
     && executions.filter(x => x.event.eventType === "tool.execution.completed").length <= 1
-    && executions.every(x => rec(x.event.payload).schema === "paperclip.tool.execution.v1" && rec(x.event.payload).transport === "builtin"
+    && executions.every(x => rec(x.event.payload).schema === "nexus.tool.execution.v1" && rec(x.event.payload).transport === "builtin"
       && ["tool.execution.started", "tool.execution.progressed", "tool.execution.completed"].includes(x.event.eventType)
       && rec(x.event.payload).status === (x.event.eventType === "tool.execution.completed" ? "failed" : "running")), "duplicate canonical operation lifecycle");
   // ACP permits a permission request before its tool notification. Require
@@ -123,7 +123,7 @@ export function observeActiveStopPending(input: { events: readonly unknown[]; ru
   fail(!(scope.provider === "cursor" ? readCursorToolEvidence(input.events, scope.runId) : readCopilotToolEvidence(input.events, scope.runId)).some(n => n.stage === "permission_delivered"), "permission already answered");
   fail(!proof.rows.some(x => terminals.has(x.event.eventType) || closures.has(x.event.eventType)), "request or provider already settled");
   fail(!proof.rows.some(x => x.event.eventType === "tool.execution.completed" && rec(x.event.payload).executionId === bootstrapReadExecutionId(proof.notice.toolCallId)), "operation already ended");
-  return { schema: "paperclip.e2e.native-active-stop-pending.v2", scope, caller: input.caller, requestId: proof.notice.requestId!, toolCallId: proof.notice.toolCallId,
+  return { schema: "nexus.e2e.native-active-stop-pending.v2", scope, caller: input.caller, requestId: proof.notice.requestId!, toolCallId: proof.notice.toolCallId,
     nativeSessionId: proof.notice.sessionId, turnId: proof.notice.turnId, normalizedSessionId: proof.permission.event.normalizedSessionId,
     sourceInstanceId: proof.permission.event.sourceInstanceId, requestSourceSeq: proof.created.event.sourceSeq, permissionSourceSeq: proof.permission.event.sourceSeq,
     requestRowSha256: hash(proof.created.row), permissionRowSha256: hash(proof.permission.row), cancellationRequestId: input.cancellationRequestId,
@@ -133,7 +133,7 @@ export function observeActiveStopPending(input: { events: readonly unknown[]; ru
 }
 export function readActiveStopSettlement(input: { events: readonly unknown[]; run: Row; issue: Row; pending: ActiveStopPending; dispatchMonotonicNs: string; bootstrap?: BootstrapReadProof }) {
   const before = input.pending, { run, issue } = input;
-  fail(before?.schema === "paperclip.e2e.native-active-stop-pending.v2" && isActiveStopCaller(before.caller) && uuid(before.cancellationRequestId)
+  fail(before?.schema === "nexus.e2e.native-active-stop-pending.v2" && isActiveStopCaller(before.caller) && uuid(before.cancellationRequestId)
     && /^[1-9][0-9]{0,29}$/u.test(before.observedMonotonicNs) && /^[1-9][0-9]{0,29}$/u.test(input.dispatchMonotonicNs)
     && BigInt(before.observedMonotonicNs) < BigInt(input.dispatchMonotonicNs), "pre-dispatch pending observation missing");
   const proof = origin(input.events, before.scope, input.bootstrap);
@@ -166,12 +166,12 @@ export function readActiveStopSettlement(input: { events: readonly unknown[]; ru
     && issue.id === before.scope.issueId && issue.companyId === before.scope.companyId && issue.status === "in_progress"
     && rec(startup.requestedBy).type === before.caller.type && rec(startup.requestedBy).userId === before.caller.userId
     && startup.cancellationRequestId === before.cancellationRequestId && stop.intentId === `native-cancellation:${before.cancellationRequestId}`
-    && stop.schema === "paperclip.native-cancellation.v1" && stop.companyId === before.scope.companyId && stop.runId === run.id && stop.issueId === issue.id
+    && stop.schema === "nexus.native-cancellation.v1" && stop.companyId === before.scope.companyId && stop.runId === run.id && stop.issueId === issue.id
     && stop.scope === "run" && stop.dispatched === true && stop.dispatchState === "acknowledged" && stop.reasonCode === "cancellation_run_only"
     && Array.isArray(stop.effects) && stop.effects.length === 1 && stop.effects[0] === "release_run_resources"
     && id(stop.intentAuditId) && id(stop.acknowledgementAuditId) && stop.intentAuditId !== stop.acknowledgementAuditId,
   "same-scope caller Stop acknowledgement missing");
-  return { schema: "paperclip.e2e.native-active-stop-settlement.v2", pending: before, dispatchMonotonicNs: input.dispatchMonotonicNs,
+  return { schema: "nexus.e2e.native-active-stop-settlement.v2", pending: before, dispatchMonotonicNs: input.dispatchMonotonicNs,
     branch: "pending_permission_cancelled" as const, closedRequestSourceSeq: c.event.sourceSeq, terminalSourceSeq: t.event.sourceSeq,
     closedRequestRowSha256: hash(c.row), terminalRowSha256: hash(t.row), intentId: stop.intentId as string,
     intentAuditId: stop.intentAuditId as string, acknowledgementAuditId: stop.acknowledgementAuditId as string,
@@ -210,7 +210,7 @@ export function readActiveStopRemoteRetirement(input: {
     fail(snapshot.processes.journal.every(p => terminal.processes.journal.some(q =>
       p.pid === q.pid && p.startTicks === q.startTicks && p.bootId === q.bootId)), "remote descendant journal lost");
   }
-  return { schema: "paperclip.e2e.native-active-stop-remote-retirement.v1" as const,
+  return { schema: "nexus.e2e.native-active-stop-remote-retirement.v1" as const,
     coverage: "continuous-through-owned-process-retirement" as const, filesystemAfterRetirementObserved: false as const,
     binding: terminal.binding, target: input.scope.target,
     observations: observations.map(o => ({ phase: o.phase, source: o.source,

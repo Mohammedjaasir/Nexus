@@ -13,7 +13,7 @@ const meta = {
   title: "Tasks and conversations/Documents, attachments, and work products/Explorations/Artifact cards/Commit",
   component: CommitCard,
   decorators,
-  parameters: { ...parameters, paperclip: {
+  parameters: { ...parameters, nexus: {
       "capabilities": [
         "documents-artifacts/work-products"
       ],

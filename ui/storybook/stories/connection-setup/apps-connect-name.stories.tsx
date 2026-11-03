@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { CONNECTABLE_APP_DEFINITIONS, type AppDefinition } from "@paperclipai/shared";
+import { CONNECTABLE_APP_DEFINITIONS, type AppDefinition } from "@nexusai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { AppsConnect } from "@/pages/apps/AppsConnect";
 
@@ -85,7 +85,7 @@ const meta: Meta = {
   id: "apps-connect-name-at-create-time-pap-11283",
   title: "Apps, channels, and extensions/Connection setup/Apps/Connect name at create time (PAP-11283)",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/identity-and-access"
       ],

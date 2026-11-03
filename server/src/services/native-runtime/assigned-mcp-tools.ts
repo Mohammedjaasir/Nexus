@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { deduplicateToolDescriptors, ToolGatewayHttpError, type ToolGatewayDescriptor, type ToolGatewayService } from "../tool-gateway.js";
 
 type WorkMode = "standard" | "planning" | "ask" | "skill_test";
 type ToolDefinition = Record<string, unknown>;
 
-const SEARCH_TOOL = "paperclip_search_assigned_tools";
-const CALL_TOOL = "paperclip_call_assigned_tool";
+const SEARCH_TOOL = "nexus_search_assigned_tools";
+const CALL_TOOL = "nexus_call_assigned_tool";
 // A single valid runner schema can be 512 KiB. Leave room for its description
 // while keeping the complete result below the 768 KiB provider-result bound.
 const SEARCH_PAGE_BYTES = 640 * 1024;
@@ -14,7 +14,7 @@ const SCHEMA_CHUNK_CHARACTERS = 64 * 1024;
 const ON_DEMAND_TOOLS: ToolDefinition[] = [
   {
     name: SEARCH_TOOL,
-    description: "Search your assigned app tools by name or description and read their input schemas. Pass {\"query\":\"search terms\"}, or an empty query to browse. Use limit from 1 to 20 (default 5). Omit unused optional fields instead of sending null. To fetch the next page, pass the returned nextOffset as offset. A large definition returns inputSchemaRef: set schemaTool to that name with an empty query, then pass the returned nextSchemaOffset as schemaOffset until null. Concatenate schemaJson chunks and parse JSON. Use paperclip_call_assigned_tool with a returned name and arguments matching its inputSchema.",
+    description: "Search your assigned app tools by name or description and read their input schemas. Pass {\"query\":\"search terms\"}, or an empty query to browse. Use limit from 1 to 20 (default 5). Omit unused optional fields instead of sending null. To fetch the next page, pass the returned nextOffset as offset. A large definition returns inputSchemaRef: set schemaTool to that name with an empty query, then pass the returned nextSchemaOffset as schemaOffset until null. Concatenate schemaJson chunks and parse JSON. Use nexus_call_assigned_tool with a returned name and arguments matching its inputSchema.",
     inputSchema: {
       type: "object", additionalProperties: false,
       properties: {
@@ -29,7 +29,7 @@ const ON_DEMAND_TOOLS: ToolDefinition[] = [
   },
   {
     name: CALL_TOOL,
-    description: "Call an assigned app tool discovered with paperclip_search_assigned_tools. Use its exact returned name and arguments matching its inputSchema. The same permissions, approvals, and audit rules apply as for direct app tools.",
+    description: "Call an assigned app tool discovered with nexus_search_assigned_tools. Use its exact returned name and arguments matching its inputSchema. The same permissions, approvals, and audit rules apply as for direct app tools.",
     inputSchema: {
       type: "object", additionalProperties: false,
       properties: { name: { type: "string" }, arguments: { type: "object", additionalProperties: true } },
@@ -201,7 +201,7 @@ export async function createAssignedMcpTools(input: {
       }
       const descriptor = tools.get(name);
       if (!descriptor) throw new Error("assigned_mcp_tool_unknown");
-      if (!permits(descriptor) || !permits(descriptor, currentWorkMode)) throw new Error("paperclip_runner_tool_mode_denied");
+      if (!permits(descriptor) || !permits(descriptor, currentWorkMode)) throw new Error("nexus_runner_tool_mode_denied");
       // Reauthorize through the existing gateway on every call. Discovery is
       // not a grant: revocation, policy, approval, and audit remain server-owned.
       const result = await input.gateway.executeTool({

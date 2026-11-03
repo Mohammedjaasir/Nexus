@@ -5,7 +5,7 @@ import { emailApi } from "@/api/email";
 import { useEmailThread } from "@/hooks/useEmailThread";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { EmailPublicationSummary } from "@paperclipai/shared";
+import type { EmailPublicationSummary } from "@nexusai/shared";
 
 // Email actions belong to the agent's task conversation. Only surface mail
 // without a task comment yet and delivery outcomes that need attention here.

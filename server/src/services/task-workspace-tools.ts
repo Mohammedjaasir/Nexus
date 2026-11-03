@@ -1,6 +1,6 @@
-import { prepareWorkspaceRepositorySchema, selectTaskWorkspaceSchema } from "@paperclipai/shared";
+import { prepareWorkspaceRepositorySchema, selectTaskWorkspaceSchema } from "@nexusai/shared";
 import { badRequest } from "../errors.js";
-import { executionWorkspaceRepositories, type Db } from "@paperclipai/db";
+import { executionWorkspaceRepositories, type Db } from "@nexusai/db";
 import { and, asc, eq, inArray } from "drizzle-orm";
 
 export async function pendingTaskRepository(db: Pick<Db, "select">, input: {
@@ -48,7 +48,7 @@ export async function callTaskWorkspaceTool(input: { name: string; arguments: Re
   if (input.name === "prepare_repository") {
     const { operationId, ...rest } = result;
     return { ...rest, ...(result.repository ? { repository: repositoryView(result.repository) } : {}), preparationId: operationId,
-      ...(result.kind === "requires_next_admission" ? { instruction: "The repository is staged for the next admission. If unfinished work needs this checkout, finish independent work, then call paperclip_finish with reportedWorkDisposition=\"yielded\" and omit continuation (or use null). Paperclip will select the saved workspace continuation. Repository admission is routine setup; do not call paperclip_block or ask the user to restart. No timer is needed." } : {}),
+      ...(result.kind === "requires_next_admission" ? { instruction: "The repository is staged for the next admission. If unfinished work needs this checkout, finish independent work, then call nexus_finish with reportedWorkDisposition=\"yielded\" and omit continuation (or use null). Nexus will select the saved workspace continuation. Repository admission is routine setup; do not call nexus_block or ask the user to restart. No timer is needed." } : {}),
     };
   }
   if (input.name === "get_workspace") {

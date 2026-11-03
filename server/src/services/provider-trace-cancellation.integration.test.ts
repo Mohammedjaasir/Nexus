@@ -16,13 +16,13 @@ import { createS3StorageProvider } from "../storage/s3-provider.js";
 import { createProviderTraceObjectStore } from "./provider-trace-object-store.js";
 import { idleWorkSnapshot } from "./task-admission.js";
 
-const endpoint = process.env.PAPERCLIP_LOG_TEST_S3_ENDPOINT;
+const endpoint = process.env.NEXUS_LOG_TEST_S3_ENDPOINT;
 afterEach(() => vi.unstubAllEnvs());
 describe.skipIf(!endpoint)("trace migration cancellation through the real S3 SDK", () => {
   it.each(["open", "probe", "upload", "restore", "read"])(
     "cancels a stalled %s and releases its capture",
     async (stage) => {
-      vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "a".repeat(64));
+      vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "a".repeat(64));
       const bucket = `pc-trace-abort-${randomUUID()}`;
       const directory = await fs.mkdtemp(path.join(tmpdir(), "trace-abort-"));
       const client = new S3Client({ endpoint, region: "us-east-1", forcePathStyle: true });

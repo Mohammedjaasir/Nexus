@@ -17,8 +17,8 @@ import {
   issueThreadInteractions,
   issueWorkProducts,
   issues,
-} from "@paperclipai/db";
-import type { AttentionItem } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { AttentionItem } from "@nexusai/shared";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -27,7 +27,7 @@ import { errorHandler } from "../middleware/index.js";
 import { decisionQueueRoutes } from "../routes/decision-queues.js";
 import { decisionQueueService } from "../services/decision-queues.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_DECISION_QUEUES_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_DECISION_QUEUES_TEST_DATABASE_URL");
 const embeddedPostgresSupport = external ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -43,7 +43,7 @@ describeEmbeddedPostgres("decision queue routes", () => {
 
   beforeAll(async () => {
     if (external) await applyPendingMigrations(external);
-    else tempDb = await startEmbeddedPostgresTestDatabase("paperclip-decision-queues-");
+    else tempDb = await startEmbeddedPostgresTestDatabase("nexus-decision-queues-");
     db = createDb(external ?? tempDb!.connectionString);
   }, 30_000);
 

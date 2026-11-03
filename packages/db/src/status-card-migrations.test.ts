@@ -27,7 +27,7 @@ describeEmbeddedPostgres("status card migrations", () => {
   // default. This suite has not tripped yet only because it replays fewer
   // statements than its neighbours — it is the same latent failure.
   it("can be reapplied after the schema already exists", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-status-card-migrations-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-status-card-migrations-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1 });
     cleanups.push(async () => sql.end());

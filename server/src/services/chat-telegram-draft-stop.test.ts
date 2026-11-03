@@ -11,7 +11,7 @@ import {
 // Local qualification uses a physical candidate package, not a transport mock.
 // Default/CI execution resolves the normally installed pinned dependency.
 vi.mock("@chat-adapter/telegram", async (importOriginal) => {
-  const candidate = process.env.PAPERCLIP_TELEGRAM_STOP_ADAPTER_MODULE;
+  const candidate = process.env.NEXUS_TELEGRAM_STOP_ADAPTER_MODULE;
   return candidate ? import(/* @vite-ignore */ candidate) : importOriginal();
 });
 
@@ -62,14 +62,14 @@ describe("Telegram exact private draft Stop transport", () => {
       }
       const result = await adapter.stream("telegram:456:42", chunks(), {
         updateIntervalMs: 0,
-        paperclipDraftControl: {
+        nexusDraftControl: {
           version: 1,
           draftId: 1337,
           beforeDraft,
           beforeFinal,
         },
       } as never);
-      expect(result).toEqual({ paperclipDraftStopped: true });
+      expect(result).toEqual({ nexusDraftStopped: true });
       expect(requests.every(({ method }) => method.endsWith("Draft"))).toBe(
         true,
       );
@@ -109,7 +109,7 @@ describe("Telegram exact private draft Stop transport", () => {
       }
       await expect(
         adapter.stream("telegram:456", chunks(), {
-          paperclipDraftControl: {
+          nexusDraftControl: {
             version: 1,
             draftId: 44,
             beforeDraft: async () => {
@@ -143,7 +143,7 @@ describe("Telegram exact private draft Stop transport", () => {
       }
       await expect(
         adapter.stream("telegram:456", chunks(), {
-          paperclipDraftControl: {
+          nexusDraftControl: {
             version: 1,
             draftId,
             beforeDraft: async () => true,
@@ -168,7 +168,7 @@ describe("Telegram exact private draft Stop transport", () => {
     }
     await expect(
       adapter.stream("telegram:-100456:42", chunks(), {
-        paperclipDraftControl: {
+        nexusDraftControl: {
           version: 1,
           draftId: 4,
           beforeDraft: async () => true,
@@ -208,7 +208,7 @@ describe("Telegram private draft Stop binding", () => {
       messageThreadId: 42,
     });
     expect(
-      isTelegramDraftStopped({ paperclipDraftStopped: true, id: "fake" }),
+      isTelegramDraftStopped({ nexusDraftStopped: true, id: "fake" }),
     ).toBe(false);
     expect(parseTelegramDraftBinding({})).toBeNull();
   });

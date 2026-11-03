@@ -1,5 +1,5 @@
 import { resolveExternalTestDatabaseUrl } from './helpers/external-test-database.js';
-import { applyPendingMigrations } from '@paperclipai/db';
+import { applyPendingMigrations } from '@nexusai/db';
 import { reserveInitialSkillWork } from '../services/skill-source-import-budget.js';
 import { admitDeferredSkillImports, lockSkillImportQueue, MAX_COMPANY_PENDING_SKILL_IMPORTS, MAX_PROJECT_PENDING_SKILL_IMPORTS, SKILL_IMPORT_CAPACITY_WAIT } from '../services/skill-source-import-queue.js';
 import { randomUUID } from 'node:crypto';
@@ -9,7 +9,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { and, eq, sql } from 'drizzle-orm';
 import { activityLog, agents, authUsers, companies, companyMemberships, companySkillSources, companySkillImportBudgets, companySkills, companySkillVersions, createDb, projects,
-  projectWorkspaces, projectSkillSources, projectAccessMembers } from '@paperclipai/db';
+  projectWorkspaces, projectSkillSources, projectAccessMembers } from '@nexusai/db';
 import { startEmbeddedPostgresTestDatabase, getEmbeddedPostgresTestSupport } from './helpers/embedded-postgres.js';
 import { githubFixture } from './helpers/github-skills.js';
 import { enqueueProjectSkillSource, detachProjectSkillSource, projectSkillSetupIdentity } from '../services/project-skill-source-bindings.js';
@@ -22,13 +22,13 @@ import { skillAccessService, withSkillActor } from '../services/skill-access.js'
 import type { AuthorizationActor } from '../services/authorization.js';
 import { forbidden, unprocessable } from '../errors.js';
 
-const externalUrl = resolveExternalTestDatabaseUrl('PAPERCLIP_PROJECT_SKILLS_TEST_DATABASE_URL');
+const externalUrl = resolveExternalTestDatabaseUrl('NEXUS_PROJECT_SKILLS_TEST_DATABASE_URL');
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 describe.skipIf(!support.supported)('automatic project skill sources', () => {
   let testDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   let home: string;
-  const oldHome = process.env.PAPERCLIP_HOME;
+  const oldHome = process.env.NEXUS_HOME;
   const companyId = randomUUID();
   const md = (name: string) => `---\nname: ${name}\ndescription: Test workflow\n---\nFollow the workflow.\n`;
   let files: Record<string, string> = {};
@@ -42,10 +42,10 @@ describe.skipIf(!support.supported)('automatic project skill sources', () => {
     }, authorize: async () => {}, audit: async () => {} };
   beforeAll(async () => {
     if (externalUrl) await applyPendingMigrations(externalUrl);
-    else testDb = await startEmbeddedPostgresTestDatabase('paperclip-project-skills-');
+    else testDb = await startEmbeddedPostgresTestDatabase('nexus-project-skills-');
     db = createDb(externalUrl ?? testDb.connectionString);
-    home = await fs.mkdtemp(path.join(os.tmpdir(), 'paperclip-project-skills-home-'));
-    process.env.PAPERCLIP_HOME = home;
+    home = await fs.mkdtemp(path.join(os.tmpdir(), 'nexus-project-skills-home-'));
+    process.env.NEXUS_HOME = home;
     await db.insert(companies).values({ id: companyId, name: 'Project skills', issuePrefix: 'PSK' });
   }, 30000);
   it('rechecks the locked source ref when branch repair races with project attachment', async () => {
@@ -97,7 +97,7 @@ describe.skipIf(!support.supported)('automatic project skill sources', () => {
     } finally { provider.mockRestore(); }
   });
   afterAll(async () => {
-    if (oldHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = oldHome;
+    if (oldHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = oldHome;
     await db?.$client.end({ timeout: 1 });
     await testDb?.cleanup();
     if (home) await fs.rm(home, { recursive: true, force: true });
@@ -577,8 +577,8 @@ describe.skipIf(!support.supported)('automatic project skill sources', () => {
       let retainedVersionId = original.currentVersionId;
       if (choice === 'copy') {
         expect(await skills.getById(companyId, original.id)).toMatchObject({ sourceType: 'managed', sourceLocator: null, accessSourceId: source.id });
-        expect((await skills.readFile(companyId, original.id, '.paperclip-repository/private/SKILL.md'))?.content).toBe(md('retained private workflow'));
-        expect((await skills.readFile(companyId, original.id, 'SKILL.md'))?.content).toContain('.paperclip-repository/private/SKILL.md');
+        expect((await skills.readFile(companyId, original.id, '.nexus-repository/private/SKILL.md'))?.content).toBe(md('retained private workflow'));
+        expect((await skills.readFile(companyId, original.id, 'SKILL.md'))?.content).toContain('.nexus-repository/private/SKILL.md');
         await skills.updateFile(companyId, original.id, 'SKILL.md', md('Private copy edits') + '\nConfidential original-project notes.\n');
         retainedVersionId = (await skills.createVersion(companyId, original.id, { label: 'Private edited copy' })).id;
       } else expect(await skills.getById(companyId, original.id)).toBeNull();
@@ -619,7 +619,7 @@ describe.skipIf(!support.supported)('automatic project skill sources', () => {
           expect(await skills.readFile(companyId, original.id, 'SKILL.md')).toBeNull();
           expect(await skills.getVersion(companyId, original.id, retainedVersionId!)).toBeNull();
         }
-        expect((await skills.readFile(companyId, upstream, '.paperclip-repository/private/SKILL.md'))?.content).not.toContain('Confidential');
+        expect((await skills.readFile(companyId, upstream, '.nexus-repository/private/SKILL.md'))?.content).not.toContain('Confidential');
         // A guessed hidden slug cannot replace or erase someone else's private fork.
         const publicFork = await skills.forkSkill(companyId, upstream, { slug: `retained-${choice}-fork` });
         expect(publicFork.skill.id).not.toBe(fork.skill.id);
@@ -818,7 +818,7 @@ describe.skipIf(!support.supported)('automatic project skill sources', () => {
     const complete = await service.refresh(companyId, original.id, context);
     expect(complete.source.packageMode).toBe('repository');
     expect(complete.source.entries.find(entry => entry.path === 'small/SKILL.md')!.skillId).toBe(skillId);
-    expect((await companySkillService(db).readFile(companyId, skillId, '.paperclip-repository/shared/guide.md'))?.content)
+    expect((await companySkillService(db).readFile(companyId, skillId, '.nexus-repository/shared/guide.md'))?.content)
       .toBe('Now fits in the repository package.');
   });
 

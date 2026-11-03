@@ -19,5 +19,5 @@ export function reportTargetUrl(result: RunnerE2EResult | undefined): string | n
 /** Evidence may live beside the report or at an explicit HTTP(S) destination. */
 export function reportEvidenceHref(value: string): string | null {
   const href = value.trim();
-  return href && httpUrl(href, "https://paperclip-report.invalid/") ? href : null;
+  return href && httpUrl(href, "https://nexus-report.invalid/") ? href : null;
 }

@@ -1,5 +1,5 @@
-import { centsToUsd, unitsToCents, usdToUnits } from "@paperclipai/shared";
-import type { AdapterUsageCheckpoint } from "@paperclipai/adapter-utils";
+import { centsToUsd, unitsToCents, usdToUnits } from "@nexusai/shared";
+import type { AdapterUsageCheckpoint } from "@nexusai/adapter-utils";
 
 const RATE_CARDS: Record<string, { rates: readonly string[]; version: string }> = {
   "claude-sonnet-5": { rates: ["2", "0.2", "4", "10"], version: "anthropic-standard-2026-10-07" },

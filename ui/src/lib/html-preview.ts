@@ -1,4 +1,4 @@
-/** HTML previews are documents, never nodes in the Paperclip DOM. */
+/** HTML previews are documents, never nodes in the Nexus DOM. */
 export function isHtmlPreview(contentType: string | null | undefined, filename: string | null | undefined) {
   const type = contentType?.toLowerCase().split(";")[0].trim();
   return type === "text/html" || type === "application/xhtml+xml" || /\.html?$/i.test(filename ?? "");

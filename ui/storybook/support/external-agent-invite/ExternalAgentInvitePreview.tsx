@@ -41,7 +41,7 @@ export function ExternalAgentInvitePreview({
   initialScreen = "entry", initialPreset = "dot", initialConnection = { phase: "waiting" },
   initialMuseConnection = { paired: false, receiverDetected: false, backgroundReplyVerified: false, ready: false },
   museDetails = false, museEnabled = false, pendingApproval = false,
-  companyName = "Paperclip", simulate = true, failTest = false, stepDelayMs = 2000, beforeMuseSimulation, shell = true, preparing = false, invitationUnavailable = false, error,
+  companyName = "Nexus", simulate = true, failTest = false, stepDelayMs = 2000, beforeMuseSimulation, shell = true, preparing = false, invitationUnavailable = false, error,
 }: ExternalAgentInvitePreviewProps) {
   const [screen, setScreen] = useState<"entry" | "picker" | "setup" | "closed">(initialScreen);
   const [preset, setPreset] = useState<ExternalAgentPreset>(initialPreset);

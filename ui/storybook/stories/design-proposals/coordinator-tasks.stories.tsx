@@ -7,12 +7,12 @@ import { NewIssueDialog } from "@/components/NewIssueDialog";
 import { initialItems } from "../../support/design-proposals/task-page-data";
 import { DesignProposalAccess } from "../../support/design-proposals/DesignProposalAccess";
 import { prepareFixtureApi } from "../../support/capability-gaps/api";
-import { storybookIssueLabels } from "../../fixtures/paperclipData";
+import { storybookIssueLabels } from "../../fixtures/nexusData";
 
 function CoordinatorTasksPreview() {
   return <DesignProposalAccess><div className="coordinator-workspace"><DesignPageShell title="Tasks"
     sidebar={<><CoordinatorSidebar /><div className="design-sidebar-account"><SidebarAccountMenu forceExpanded /></div></>}
-    sidebarStorageKey="paperclip.storybook.coordinator-sidebar-width"><CoordinatorTasks /></DesignPageShell><NewIssueDialog /></div></DesignProposalAccess>;
+    sidebarStorageKey="nexus.storybook.coordinator-sidebar-width"><CoordinatorTasks /></DesignPageShell><NewIssueDialog /></div></DesignProposalAccess>;
 }
 
 const meta = {
@@ -21,7 +21,7 @@ const meta = {
   component: CoordinatorTasksPreview,
   parameters: {
     layout: "fullscreen", initialEntries: ["/PAP/issues"], designProposalTheme: false,
-    paperclip: {
+    nexus: {
       capabilities: ["tasks/organize", "tasks/create", "navigation-preferences/navigation", "inbox-search/decisions"],
       status: "proposed", home: "design-proposals",
       exception: "Coordinator experimental workspace in an isolated worktree, awaiting review.",

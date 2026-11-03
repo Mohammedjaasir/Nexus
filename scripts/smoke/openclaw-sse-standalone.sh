@@ -24,18 +24,18 @@ OPENCLAW_METHOD="${OPENCLAW_METHOD:-POST}"
 OPENCLAW_AUTH_HEADER="${OPENCLAW_AUTH_HEADER:-}"
 OPENCLAW_TIMEOUT_SEC="${OPENCLAW_TIMEOUT_SEC:-180}"
 OPENCLAW_MODEL="${OPENCLAW_MODEL:-openclaw}"
-OPENCLAW_USER="${OPENCLAW_USER:-paperclip-smoke}"
+OPENCLAW_USER="${OPENCLAW_USER:-nexus-smoke}"
 
-PAPERCLIP_RUN_ID="${PAPERCLIP_RUN_ID:-smoke-run-$(date +%s)}"
-PAPERCLIP_AGENT_ID="${PAPERCLIP_AGENT_ID:-openclaw-smoke-agent}"
-PAPERCLIP_COMPANY_ID="${PAPERCLIP_COMPANY_ID:-openclaw-smoke-company}"
-PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://localhost:3100}"
-PAPERCLIP_TASK_ID="${PAPERCLIP_TASK_ID:-openclaw-smoke-task}"
-PAPERCLIP_WAKE_REASON="${PAPERCLIP_WAKE_REASON:-openclaw_smoke_test}"
-PAPERCLIP_WAKE_COMMENT_ID="${PAPERCLIP_WAKE_COMMENT_ID:-}"
-PAPERCLIP_APPROVAL_ID="${PAPERCLIP_APPROVAL_ID:-}"
-PAPERCLIP_APPROVAL_STATUS="${PAPERCLIP_APPROVAL_STATUS:-}"
-PAPERCLIP_LINKED_ISSUE_IDS="${PAPERCLIP_LINKED_ISSUE_IDS:-}"
+NEXUS_RUN_ID="${NEXUS_RUN_ID:-smoke-run-$(date +%s)}"
+NEXUS_AGENT_ID="${NEXUS_AGENT_ID:-openclaw-smoke-agent}"
+NEXUS_COMPANY_ID="${NEXUS_COMPANY_ID:-openclaw-smoke-company}"
+NEXUS_API_URL="${NEXUS_API_URL:-http://localhost:3100}"
+NEXUS_TASK_ID="${NEXUS_TASK_ID:-openclaw-smoke-task}"
+NEXUS_WAKE_REASON="${NEXUS_WAKE_REASON:-openclaw_smoke_test}"
+NEXUS_WAKE_COMMENT_ID="${NEXUS_WAKE_COMMENT_ID:-}"
+NEXUS_APPROVAL_ID="${NEXUS_APPROVAL_ID:-}"
+NEXUS_APPROVAL_STATUS="${NEXUS_APPROVAL_STATUS:-}"
+NEXUS_LINKED_ISSUE_IDS="${NEXUS_LINKED_ISSUE_IDS:-}"
 OPENCLAW_TEXT_PREFIX="${OPENCLAW_TEXT_PREFIX:-Standalone OpenClaw SSE smoke test.}"
 
 [[ -n "$OPENCLAW_URL" ]] || fail "OPENCLAW_URL is required"
@@ -43,51 +43,51 @@ OPENCLAW_TEXT_PREFIX="${OPENCLAW_TEXT_PREFIX:-Standalone OpenClaw SSE smoke test
 read -r -d '' TEXT_BODY <<EOF || true
 ${OPENCLAW_TEXT_PREFIX}
 
-PAPERCLIP_RUN_ID=${PAPERCLIP_RUN_ID}
-PAPERCLIP_AGENT_ID=${PAPERCLIP_AGENT_ID}
-PAPERCLIP_COMPANY_ID=${PAPERCLIP_COMPANY_ID}
-PAPERCLIP_API_URL=${PAPERCLIP_API_URL}
-PAPERCLIP_TASK_ID=${PAPERCLIP_TASK_ID}
-PAPERCLIP_WAKE_REASON=${PAPERCLIP_WAKE_REASON}
-PAPERCLIP_WAKE_COMMENT_ID=${PAPERCLIP_WAKE_COMMENT_ID}
-PAPERCLIP_APPROVAL_ID=${PAPERCLIP_APPROVAL_ID}
-PAPERCLIP_APPROVAL_STATUS=${PAPERCLIP_APPROVAL_STATUS}
-PAPERCLIP_LINKED_ISSUE_IDS=${PAPERCLIP_LINKED_ISSUE_IDS}
+NEXUS_RUN_ID=${NEXUS_RUN_ID}
+NEXUS_AGENT_ID=${NEXUS_AGENT_ID}
+NEXUS_COMPANY_ID=${NEXUS_COMPANY_ID}
+NEXUS_API_URL=${NEXUS_API_URL}
+NEXUS_TASK_ID=${NEXUS_TASK_ID}
+NEXUS_WAKE_REASON=${NEXUS_WAKE_REASON}
+NEXUS_WAKE_COMMENT_ID=${NEXUS_WAKE_COMMENT_ID}
+NEXUS_APPROVAL_ID=${NEXUS_APPROVAL_ID}
+NEXUS_APPROVAL_STATUS=${NEXUS_APPROVAL_STATUS}
+NEXUS_LINKED_ISSUE_IDS=${NEXUS_LINKED_ISSUE_IDS}
 
-Run your Paperclip heartbeat procedure now.
+Run your Nexus heartbeat procedure now.
 EOF
 
 PAYLOAD="$(jq -nc \
   --arg text "$TEXT_BODY" \
   --arg model "$OPENCLAW_MODEL" \
   --arg user "$OPENCLAW_USER" \
-  --arg runId "$PAPERCLIP_RUN_ID" \
-  --arg agentId "$PAPERCLIP_AGENT_ID" \
-  --arg companyId "$PAPERCLIP_COMPANY_ID" \
-  --arg apiUrl "$PAPERCLIP_API_URL" \
-  --arg taskId "$PAPERCLIP_TASK_ID" \
-  --arg wakeReason "$PAPERCLIP_WAKE_REASON" \
-  --arg wakeCommentId "$PAPERCLIP_WAKE_COMMENT_ID" \
-  --arg approvalId "$PAPERCLIP_APPROVAL_ID" \
-  --arg approvalStatus "$PAPERCLIP_APPROVAL_STATUS" \
-  --arg linkedIssueIds "$PAPERCLIP_LINKED_ISSUE_IDS" \
+  --arg runId "$NEXUS_RUN_ID" \
+  --arg agentId "$NEXUS_AGENT_ID" \
+  --arg companyId "$NEXUS_COMPANY_ID" \
+  --arg apiUrl "$NEXUS_API_URL" \
+  --arg taskId "$NEXUS_TASK_ID" \
+  --arg wakeReason "$NEXUS_WAKE_REASON" \
+  --arg wakeCommentId "$NEXUS_WAKE_COMMENT_ID" \
+  --arg approvalId "$NEXUS_APPROVAL_ID" \
+  --arg approvalStatus "$NEXUS_APPROVAL_STATUS" \
+  --arg linkedIssueIds "$NEXUS_LINKED_ISSUE_IDS" \
   '{
     model: $model,
     user: $user,
     input: $text,
     stream: true,
     metadata: {
-      PAPERCLIP_RUN_ID: $runId,
-      PAPERCLIP_AGENT_ID: $agentId,
-      PAPERCLIP_COMPANY_ID: $companyId,
-      PAPERCLIP_API_URL: $apiUrl,
-      PAPERCLIP_TASK_ID: $taskId,
-      PAPERCLIP_WAKE_REASON: $wakeReason,
-      PAPERCLIP_WAKE_COMMENT_ID: $wakeCommentId,
-      PAPERCLIP_APPROVAL_ID: $approvalId,
-      PAPERCLIP_APPROVAL_STATUS: $approvalStatus,
-      PAPERCLIP_LINKED_ISSUE_IDS: $linkedIssueIds,
-      paperclip_session_key: ("paperclip:run:" + $runId)
+      NEXUS_RUN_ID: $runId,
+      NEXUS_AGENT_ID: $agentId,
+      NEXUS_COMPANY_ID: $companyId,
+      NEXUS_API_URL: $apiUrl,
+      NEXUS_TASK_ID: $taskId,
+      NEXUS_WAKE_REASON: $wakeReason,
+      NEXUS_WAKE_COMMENT_ID: $wakeCommentId,
+      NEXUS_APPROVAL_ID: $approvalId,
+      NEXUS_APPROVAL_STATUS: $approvalStatus,
+      NEXUS_LINKED_ISSUE_IDS: $linkedIssueIds,
+      nexus_session_key: ("nexus:run:" + $runId)
     }
   }')"
 
@@ -105,7 +105,7 @@ args=(
   -X "$OPENCLAW_METHOD"
   -H "content-type: application/json"
   -H "accept: text/event-stream"
-  -H "x-openclaw-session-key: paperclip:run:${PAPERCLIP_RUN_ID}"
+  -H "x-openclaw-session-key: nexus:run:${NEXUS_RUN_ID}"
   -D "$headers_file"
   -o "$body_file"
   --data "$PAYLOAD"

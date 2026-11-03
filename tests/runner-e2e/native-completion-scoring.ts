@@ -34,7 +34,7 @@ function gradeObservation(input: NativeCompletionObservation, finalAnswer: boole
   const blocked = input.caseId === "native-blocked-report";
   const run = input.runs[0] ?? {};
   const expectedDisposition = blocked ? "blocked" : "done";
-  const expectedTool = blocked ? "paperclip_block" : "paperclip_finish";
+  const expectedTool = blocked ? "nexus_block" : "nexus_finish";
   const nativeResult = row(row(run.resultJson).nativeResult);
   check("one-native-attempt", input.runs.length === 1 && run.status === "succeeded" && run.runtimeMode === "native"
     && typeof run.id === "string" && run.id.length > 0 && typeof input.issue.id === "string" && input.issue.id.length > 0
@@ -145,6 +145,6 @@ function gradeObservation(input: NativeCompletionObservation, finalAnswer: boole
     check("no-deployment-or-file-work", !input.workspaceChanged && !forbidden,
       "The fixture workspace is unchanged and no process/file/deployment or extra-work tool is observed.");
   }
-  return { schema: finalAnswer ? "paperclip.native-completion-observation.v3" : "paperclip.native-completion-observation.v2", passed: checks.every(value => value.passed), checks,
+  return { schema: finalAnswer ? "nexus.native-completion-observation.v3" : "nexus.native-completion-observation.v2", passed: checks.every(value => value.passed), checks,
     limitations: ["Exact provider feedback identity/consumption is not measured by the public sequence."] };
 }

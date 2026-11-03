@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { DaytonaPtyCreateOptions } from "./login-pty.js";
 
 vi.mock("./plugin.js", async () => {
-  const { NOOP_PLUGIN_TRACER } = await import("@paperclipai/plugin-sdk");
+  const { NOOP_PLUGIN_TRACER } = await import("@nexusai/plugin-sdk");
   return { getPluginTracer: () => NOOP_PLUGIN_TRACER };
 });
 import { performSyncOut } from "./file-sync.js";
@@ -129,5 +129,5 @@ it.skipIf(Object.values(requiredTools).some(tool => !tool)).each(["success", "pr
   expect(await fs.readlink(path.join(output, "safe-link"))).toBe("result.bin");
   expect(await fs.readdir(output)).not.toContain("unsafe-link");
   expect(await fs.readlink(path.join(remote, "unsafe-link"))).toBe("/etc/passwd");
-  expect((await fs.readdir(remote)).filter(name => name.startsWith(".paperclip-upload"))).toEqual([]);
+  expect((await fs.readdir(remote)).filter(name => name.startsWith(".nexus-upload"))).toEqual([]);
 }, 40_000);

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   activityLog,
   authUsers,
@@ -9,7 +9,7 @@ import {
   companies,
   companyMemberships,
   instanceUserRoles,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { conflict, forbidden, notFound } from "../errors.js";
 import { logActivity, publishActivity, type ActivityPublication } from "./activity-log.js";
 import { logger } from "../middleware/logger.js";
@@ -298,7 +298,7 @@ export function boardAuthService(db: Db) {
     const challengeSecret = createCliAuthSecret();
     const pendingBoardToken = createBoardApiToken();
     const expiresAt = cliAuthChallengeExpiresAt();
-    const labelBase = input.clientName?.trim() || "paperclipai cli";
+    const labelBase = input.clientName?.trim() || "nexusai cli";
     const pendingKeyName =
       input.requestedAccess === "instance_admin_required"
         ? `${labelBase} (instance admin)`

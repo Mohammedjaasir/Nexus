@@ -12,13 +12,13 @@ const startup = setInterval(() => undefined, 1000);
 async function startAcceptanceDatabase() {
   let failure: unknown;
   for (let attempt = 0; attempt < 30; attempt++) {
-    try { return await startEmbeddedPostgresTestDatabase("paperclip-aggregator-browser-"); }
+    try { return await startEmbeddedPostgresTestDatabase("nexus-aggregator-browser-"); }
     catch (error) { failure = error; await new Promise(resolve => setTimeout(resolve, 2000)); }
   }
   throw failure;
 }
 const database = await startAcceptanceDatabase();
-fs.writeFileSync("/tmp/paperclip-aggregator-acceptance-db.json", JSON.stringify({ connectionString: database.connectionString }), { mode: 0o600 });
+fs.writeFileSync("/tmp/nexus-aggregator-acceptance-db.json", JSON.stringify({ connectionString: database.connectionString }), { mode: 0o600 });
 const db = createDb(database.connectionString);
 const [company] = await db.insert(companies).values({ name: "Managed accounts test drive", issuePrefix: "AGG" }).returning();
 const userId = randomUUID();
@@ -73,7 +73,7 @@ app.use(errorHandler);
 const server = app.listen(4310, "127.0.0.1", () => { clearInterval(startup); console.log("Managed-account fixture API ready at http://localhost:4310/fixture"); });
 async function stop() {
   server.close();
-  fs.rmSync("/tmp/paperclip-aggregator-acceptance-db.json", { force: true });
+  fs.rmSync("/tmp/nexus-aggregator-acceptance-db.json", { force: true });
   await database.cleanup();
   process.exit(0);
 }

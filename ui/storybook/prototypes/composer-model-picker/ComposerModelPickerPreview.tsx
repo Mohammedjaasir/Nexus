@@ -5,7 +5,7 @@ import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ComposerAddMenu, ComposerModeChip } from "@/components/task-chat/ComposerAddMenu";
 import { nextWorkMode } from "@/lib/work-mode-meta";
-import type { IssueWorkMode } from "@paperclipai/shared";
+import type { IssueWorkMode } from "@nexusai/shared";
 import { cn } from "@/lib/utils";
 import { composerAgentAppearance, composerAgents, effortChoices, effortLabels, fastModeAvailable, modelLabel, type ComposerAgent } from "./fixtures";
 import "./picker.css";

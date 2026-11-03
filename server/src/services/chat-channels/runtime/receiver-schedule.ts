@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, ne, or } from "drizzle-orm";
-import { chatEndpoints, chatEndpointLeases, toolConnections, type Db } from "@paperclipai/db";
-import type { ChatProvider } from "@paperclipai/shared";
+import { chatEndpoints, chatEndpointLeases, toolConnections, type Db } from "@nexusai/db";
+import type { ChatProvider } from "@nexusai/shared";
 import { RECEIVER_LEASE_KEYS, receiverLeaseKey } from "./receiver-policy.js";
 import type { ReceiverScope } from "./receiver-work-notifications.js";
 

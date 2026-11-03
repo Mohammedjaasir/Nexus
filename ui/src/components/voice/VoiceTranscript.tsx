@@ -15,7 +15,7 @@ export function VoiceTranscript({ entries, agentName, unavailable = false }: Voi
       {entries.map((entry) => (
         <li key={entry.id} className="flex min-w-0 flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground break-words">
-            {entry.source === "user" ? "You" : entry.source === "application" ? "Paperclip" : agentName}
+            {entry.source === "user" ? "You" : entry.source === "application" ? "Nexus" : agentName}
             {!entry.final && !entry.interrupted && <span> · Speaking</span>}
             {entry.interrupted && <span> · Interrupted</span>}
           </span>

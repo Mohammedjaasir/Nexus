@@ -10,7 +10,7 @@ import {
   goals,
   issueThreadInteractions,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   extractGitHubPullRequestReferences,
   getMergeConfirmationPullRequestReferences,
@@ -40,17 +40,17 @@ describe("merged pull-request confirmation extraction", () => {
   it("extracts and deduplicates full GitHub URLs and owner/repo#N shorthand", () => {
     expect(extractGitHubPullRequestReferences([
       "Merge https://github.com/PaperclipAI/paperclip/pull/39.",
-      "Also paperclipai/paperclip#40 and PAPERCLIPAI/paperclip#40.",
+      "Also paperclipai/paperclip#40 and NEXUSAI/nexus#40.",
     ])).toEqual([
-      { host: "github.com", owner: "PaperclipAI", repo: "paperclip", number: 39 },
-      { host: "github.com", owner: "paperclipai", repo: "paperclip", number: 40 },
+      { host: "github.com", owner: "NexusAI", repo: "nexus", number: 39 },
+      { host: "github.com", owner: "nexusai", repo: "nexus", number: 40 },
     ]);
   });
 
   it("requires merge intent and excludes document and tool-action confirmations", () => {
     const base = {
       kind: "request_confirmation",
-      title: "Merge PaperclipAI/paperclip#39?",
+      title: "Merge NexusAI/nexus#39?",
       summary: null,
       payload: { version: 1, prompt: "Merge the pull request?" },
     } as const;
@@ -85,8 +85,8 @@ describe("merged pull-request confirmation extraction", () => {
         },
       },
     })).toEqual([
-      { host: "github.com", owner: "paperclipai", repo: "paperclip", number: 39 },
-      { host: "github.com", owner: "paperclipai", repo: "paperclip", number: 40 },
+      { host: "github.com", owner: "nexusai", repo: "nexus", number: 39 },
+      { host: "github.com", owner: "nexusai", repo: "nexus", number: 40 },
     ]);
   });
 
@@ -132,7 +132,7 @@ describe("merged pull-request confirmation extraction", () => {
   });
 });
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_MERGE_SWEEP_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_MERGE_SWEEP_TEST_DATABASE_URL");
 const embeddedPostgresSupport = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -141,7 +141,7 @@ describeEmbeddedPostgres("merged pull-request confirmation sweep", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-merged-pr-confirmations-");
+    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("nexus-merged-pr-confirmations-");
     db = createDb(external ?? tempDb!.connectionString, { maxConnections: 6 });
   }, 20_000);
 
@@ -166,7 +166,7 @@ describeEmbeddedPostgres("merged pull-request confirmation sweep", () => {
     const agentId = randomUUID();
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: "MPR",
       requireBoardApprovalForNewAgents: false,
     });
@@ -275,8 +275,8 @@ describeEmbeddedPostgres("merged pull-request confirmation sweep", () => {
 
     await expect(service.sweepMergedPullRequestConfirmations([{
       companyId,
-      owner: "paperclipai",
-      repo: "paperclip",
+      owner: "nexusai",
+      repo: "nexus",
       number: 39,
     }])).resolves.toEqual({
       checked: 3,

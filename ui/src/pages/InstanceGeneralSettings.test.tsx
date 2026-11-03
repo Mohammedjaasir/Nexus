@@ -39,7 +39,7 @@ const CLOUD_HEALTH = {
   ...SELF_HOSTED_HEALTH,
   cloud: {
     managed: true as const,
-    managedBy: "paperclip-cloud" as const,
+    managedBy: "nexus-cloud" as const,
     stackSlug: "acme",
     cloudBaseUrl: "https://cloud.example.test",
   },

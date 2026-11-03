@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { HeartbeatRun } from "@paperclipai/shared";
+import type { HeartbeatRun } from "@nexusai/shared";
 import { heartbeatsApi } from "../api/heartbeats";
 import { queryKeys } from "../lib/queryKeys";
 

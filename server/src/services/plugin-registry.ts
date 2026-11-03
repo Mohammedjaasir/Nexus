@@ -2,7 +2,7 @@ import { notifyExternalObjectRefresh } from "./external-object-refresh-notificat
 import { isDeepStrictEqual } from "node:util";
 import { writePluginJobChange } from "./plugin-job-work-notifications.js";
 import { asc, eq, isNull, ne, sql, and } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   plugins,
   pluginConfig,
@@ -11,9 +11,9 @@ import {
   pluginJobs,
   pluginJobRuns,
   pluginWebhookDeliveries,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
-  PaperclipPluginManifestV1,
+  NexusPluginManifestV1,
   PluginStatus,
   InstallPlugin,
   UpdatePluginStatus,
@@ -29,11 +29,11 @@ import type {
   PluginJobRunStatus,
   PluginJobRunTrigger,
   PluginWebhookDeliveryStatus,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { conflict, notFound } from "../errors.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 
-function sameBundledPluginRegistration(existing: typeof plugins.$inferSelect, packageName: string, manifest: PaperclipPluginManifestV1): boolean {
+function sameBundledPluginRegistration(existing: typeof plugins.$inferSelect, packageName: string, manifest: NexusPluginManifestV1): boolean {
   return existing.pluginKey === manifest.id && existing.packageName === packageName && existing.version === manifest.version && isDeepStrictEqual(existing.manifestJson, manifest);
 }
 
@@ -59,7 +59,7 @@ function isPluginKeyConflict(error: unknown): boolean {
 /**
  * PluginRegistry – CRUD operations for the `plugins` and `plugin_config`
  * tables.  Follows the same factory-function pattern used by the rest of
- * the Paperclip service layer.
+ * the Nexus service layer.
  *
  * This is the lowest-level persistence layer for plugins. Higher-level
  * concerns such as lifecycle state-machine enforcement and capability
@@ -154,7 +154,7 @@ export function pluginRegistryService(db: Db) {
      * manifest from the package.  This method persists the plugin row and
      * assigns the next install order.
      */
-    install: async (input: InstallPlugin, manifest: PaperclipPluginManifestV1, options: { idempotent?: boolean } = {}) => {
+    install: async (input: InstallPlugin, manifest: NexusPluginManifestV1, options: { idempotent?: boolean } = {}) => {
       const existing = await getByKey(manifest.id);
       if (existing) {
         if (existing.status !== "uninstalled") {
@@ -226,7 +226,7 @@ export function pluginRegistryService(db: Db) {
         packagePath?: string;
         status?: "upgrade_pending";
         version?: string;
-        manifest?: PaperclipPluginManifestV1;
+        manifest?: NexusPluginManifestV1;
       },
     ) => {
       const plugin = await getById(id);
@@ -591,7 +591,7 @@ export function pluginRegistryService(db: Db) {
     },
 
     /**
-     * Create or update a persistent mapping between a Paperclip object and an
+     * Create or update a persistent mapping between a Nexus object and an
      * external entity.
      *
      * @param pluginId - The UUID of the plugin.

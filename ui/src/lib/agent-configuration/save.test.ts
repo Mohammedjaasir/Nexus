@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { appearanceForPalette, type AgentConfigurationDocument, type AgentConfigurationInput } from "@paperclipai/shared";
+import { appearanceForPalette, type AgentConfigurationDocument, type AgentConfigurationInput } from "@nexusai/shared";
 import { parseAgentConfigurationYaml, serializeAgentConfigurationDocument } from "../agent-configuration-yaml";
 import { loadAgentConfiguration } from "./load";
 import { ConfigurationSaveInterrupted, planAgentConfiguration, saveAgentConfiguration } from "./save";
@@ -20,7 +20,7 @@ const resourceId = "22222222-2222-4222-8222-222222222222";
 const agent = {
   id: agentId, companyId: "company", name: "Codie", role: "engineer", title: null, icon: null,
   appearance: appearanceForPalette("bubblegum-sky"), reportsTo: null, capabilities: null,
-  adapterType: "process", adapterConfig: { command: "echo", instructionsBundleMode: "managed", paperclipSkillSync: { desiredSkills: ["paperclip"] } },
+  adapterType: "process", adapterConfig: { command: "echo", instructionsBundleMode: "managed", nexusSkillSync: { desiredSkills: ["nexus"] } },
   runtimeConfig: {}, defaultEnvironmentId: null, budgetMonthlyCents: 0, metadata: null,
   permissions: { canCreateAgents: false, canCreateSkills: true }, access: { canAssignTasks: false },
   configurationRevision: "a".repeat(64),
@@ -39,7 +39,7 @@ beforeEach(() => {
   api.agents.getConfiguration.mockResolvedValue(copy(agent)); api.agents.get.mockResolvedValue(copy(agent));
   api.agents.instructionsBundle.mockResolvedValue({ mode: "managed", rootPath: "/managed/codie", entryFile: "AGENTS.md", editable: true, files: [file], warnings: [] });
   api.agents.instructionsFile.mockResolvedValue(file);
-  api.agents.skills.mockResolvedValue({ desiredSkills: ["paperclip"], desiredSkillEntries: [{ key: "paperclip", versionId: resourceId }], warnings: [] });
+  api.agents.skills.mockResolvedValue({ desiredSkills: ["nexus"], desiredSkillEntries: [{ key: "nexus", versionId: resourceId }], warnings: [] });
   api.agents.listKeys.mockResolvedValue([{ id: "key", name: "Previous", scope: { kind: "standard" }, revokedAt: null }]);
   api.agents.listConfigRevisions.mockResolvedValue([{ id: "revision", source: "board", changedKeys: ["name"] }]);
   api.tools.listConnections.mockResolvedValue({ connections: [copy(connection)] });
@@ -59,7 +59,7 @@ describe("complete agent configuration", () => {
     const saved = await snapshot();
     const doc = roundTrip(saved.document);
     expect(doc.spec.instructions?.files?.["AGENTS.md"]).toBe(file.content);
-    expect(doc.spec.skills).toEqual([{ key: "paperclip", versionId: resourceId }]);
+    expect(doc.spec.skills).toEqual([{ key: "nexus", versionId: resourceId }]);
     expect(doc.spec.adapterConfig).toEqual({ command: "echo" });
     expect(doc.observed).toBeUndefined();
     expect(planAgentConfiguration(saved, doc)).toEqual([]);
@@ -110,7 +110,7 @@ describe("complete agent configuration", () => {
   it("rejects ignored managed-root changes and impossible task-assignment permissions", async () => {
     const saved = await snapshot(); const doc = copy(saved.document);
     doc.spec.instructions!.rootPath = "/ignored/root";
-    await expect(saveAgentConfiguration(saved, doc, receipt, progress)).rejects.toThrow("assigned by Paperclip");
+    await expect(saveAgentConfiguration(saved, doc, receipt, progress)).rejects.toThrow("assigned by Nexus");
     doc.spec.instructions = saved.document.spec.instructions;
     doc.spec.permissions!.canCreateAgents = true;
     await expect(saveAgentConfiguration(saved, doc, receipt, progress)).rejects.toThrow("task assignment authority");
@@ -317,7 +317,7 @@ describe("complete agent configuration", () => {
 });
 
 describe("compact agent configuration", () => {
-  const input = (spec: AgentConfigurationInput["spec"]): AgentConfigurationInput => ({ apiVersion: "paperclip/v1", kind: "Agent", spec });
+  const input = (spec: AgentConfigurationInput["spec"]): AgentConfigurationInput => ({ apiVersion: "nexus/v1", kind: "Agent", spec });
   const profile = (id = "profile", bound = true) => ({
     id, profileKey: id, name: id, description: null, status: "active", defaultAction: "deny", metadata: null,
     bindings: bound ? [{ targetType: "agent", targetId: agentId, priority: 100, metadata: null }] : [],
@@ -355,10 +355,10 @@ describe("compact agent configuration", () => {
   });
 
   it("round trips unpinned skill shorthand without synchronizing unchanged skills", async () => {
-    api.agents.skills.mockResolvedValue({ desiredSkills: ["paperclip"], desiredSkillEntries: [{ key: "paperclip", versionId: null }], warnings: [] });
+    api.agents.skills.mockResolvedValue({ desiredSkills: ["nexus"], desiredSkillEntries: [{ key: "nexus", versionId: null }], warnings: [] });
     const saved = await snapshot();
     const compact = compactAgentConfiguration(saved.document);
-    expect(compact.spec.skills).toEqual(["paperclip"]);
+    expect(compact.spec.skills).toEqual(["nexus"]);
     expect(planAgentConfiguration(saved, compact)).toEqual([]);
     compact.spec.title = "Engineer";
     await saveAgentConfiguration(saved, compact, receipt, progress);
@@ -366,7 +366,7 @@ describe("compact agent configuration", () => {
   });
 
   it("restores a revision with unpinned skills and mixed enabled/disabled channel resources", async () => {
-    api.agents.skills.mockResolvedValue({ desiredSkills: ["paperclip"], desiredSkillEntries: [{ key: "paperclip", versionId: null }], warnings: [] });
+    api.agents.skills.mockResolvedValue({ desiredSkills: ["nexus"], desiredSkillEntries: [{ key: "nexus", versionId: null }], warnings: [] });
     api.channels.listResources.mockResolvedValue([{ id: resourceId, enabled: true }, { id: agentId, enabled: false }]);
     const saved = await snapshot();
     const compact = compactAgentConfiguration(saved.document);

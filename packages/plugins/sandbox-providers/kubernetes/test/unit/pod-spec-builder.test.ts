@@ -2,12 +2,12 @@ import { describe, it, expect } from "vitest";
 import { buildJobManifest } from "../../src/pod-spec-builder.js";
 
 const baseInput = {
-  namespace: "paperclip-acme",
+  namespace: "nexus-acme",
   jobName: "r-01h00000000000000000000000",
   adapterType: "claude_local",
   image: "ghcr.io/paperclipai/agent-runtime-claude:v1",
   envSecretName: "r-01h00000000000000000000000-env",
-  serviceAccountName: "paperclip-tenant-sa",
+  serviceAccountName: "nexus-tenant-sa",
   labels: { "paperclip.io/run-id": "r1" },
   resources: { requests: { cpu: "250m", memory: "512Mi" }, limits: { cpu: "2", memory: "4Gi" } },
   runtimeClassName: undefined,
@@ -47,14 +47,14 @@ describe("buildJobManifest", () => {
   it("wraps the entrypoint in tini for PID 1", () => {
     const job = buildJobManifest(baseInput);
     const container = job.spec.template.spec.containers[0];
-    expect(container.command).toEqual(["/usr/bin/tini", "--", "/usr/local/bin/paperclip-agent-shim"]);
+    expect(container.command).toEqual(["/usr/bin/tini", "--", "/usr/local/bin/nexus-agent-shim"]);
   });
 
   it("declares explicit writable emptyDir mounts for the standard agent paths", () => {
     const job = buildJobManifest(baseInput);
     const mounts = job.spec.template.spec.containers[0].volumeMounts;
     const mountPaths = mounts.map((m: { mountPath: string }) => m.mountPath).sort();
-    expect(mountPaths).toEqual(["/home/paperclip", "/home/paperclip/.cache", "/tmp", "/workspace"]);
+    expect(mountPaths).toEqual(["/home/nexus", "/home/nexus/.cache", "/tmp", "/workspace"]);
 
     const volumes = job.spec.template.spec.volumes;
     expect(volumes.every((v: { emptyDir?: unknown }) => v.emptyDir !== undefined)).toBe(true);

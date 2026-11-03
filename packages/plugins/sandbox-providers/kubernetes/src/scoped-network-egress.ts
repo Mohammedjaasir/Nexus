@@ -46,7 +46,7 @@ export async function createScopedNetworkEgressPolicy(input: {
   if (input.mode === "cilium") {
     const manifest = buildCiliumNetworkPolicyManifest({
       namespace: input.namespace,
-      paperclipServerNamespace: "",
+      nexusServerNamespace: "",
       egressAllowFqdns: input.grant.allowFqdns,
       egressAllowCidrs: input.grant.allowCidrs,
       name,
@@ -64,7 +64,7 @@ export async function createScopedNetworkEgressPolicy(input: {
   } else {
     const [, manifest] = buildNetworkPolicyManifests({
       namespace: input.namespace,
-      paperclipServerNamespace: "",
+      nexusServerNamespace: "",
       egressAllowFqdns: input.grant.allowFqdns,
       egressAllowCidrs: input.grant.allowCidrs,
       name,
@@ -102,5 +102,5 @@ export function appendNetworkEgressDenyHint(stderr: string, grant: ScopedNetwork
   }
   const allowed = [...grant.allowFqdns, ...grant.allowCidrs];
   const detail = allowed.length > 0 ? ` Current task grant: ${allowed.join(", ")}.` : " No task-scoped destinations are granted.";
-  return `${stderr.trimEnd()}\nPaperclip network policy denied or could not route this request.${detail} Request access through ${NETWORK_EGRESS_GRANT_PATH}.\n`;
+  return `${stderr.trimEnd()}\nNexus network policy denied or could not route this request.${detail} Request access through ${NETWORK_EGRESS_GRANT_PATH}.\n`;
 }

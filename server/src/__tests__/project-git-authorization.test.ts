@@ -4,8 +4,8 @@ import request from "supertest";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
-import { createDb, authUsers, companyMemberships, connectionGrants, executionWorkspaces, heartbeatRuns, instanceUserRoles, issues, projectAccessMembers, projects, projectWorkspaces, resourceLifecycleEvents, toolConnectionInstalls, toolConnections } from "@paperclipai/db";
-import { LOW_TRUST_REVIEW_PRESET } from "@paperclipai/shared";
+import { createDb, authUsers, companyMemberships, connectionGrants, executionWorkspaces, heartbeatRuns, instanceUserRoles, issues, projectAccessMembers, projects, projectWorkspaces, resourceLifecycleEvents, toolConnectionInstalls, toolConnections } from "@nexusai/db";
+import { LOW_TRUST_REVIEW_PRESET } from "@nexusai/shared";
 import { ghFetch } from "../services/github-fetch.js";
 import { projectRoutes } from "../routes/projects.js";
 import { createGitHubWorkspaceDeliveryResolver } from "../services/github-workspace-delivery.js";
@@ -22,13 +22,13 @@ vi.mock("../services/github-fetch.js", async importOriginal => ({
   ...await importOriginal<typeof import("../services/github-fetch.js")>(),
   ghFetch: vi.fn(async () => new Response(null, { status: 404 })),
 }));
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_PROJECT_GIT_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_PROJECT_GIT_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("explicit project Git authorization", () => {
   let db: ReturnType<typeof createDb>, database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   const { seed, grant, switchTo } = githubCredentialsFixture(() => db);
   beforeAll(async () => {
-    if (!external) database = await startEmbeddedPostgresTestDatabase("paperclip-project-git-authorization-");
+    if (!external) database = await startEmbeddedPostgresTestDatabase("nexus-project-git-authorization-");
     db = createDb(external ?? database!.connectionString);
     await db.insert(authUsers).values(["A", "B"].map(id => ({
       id, name: id, email: `${id}@example.invalid`, createdAt: new Date(), updatedAt: new Date(),
@@ -133,11 +133,11 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     it("rechecks current Cloud owner elevation for consent on another user's private project", async () => {
       const f = await projectAuthorizationFixture();
       await db.update(projects).set({ visibility: "private", privacyOwnerUserId: "B" }).where(eq(projects.id, f.project.id));
-      vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "fixture-tenant-token");
-      vi.stubEnv("PAPERCLIP_CLOUD_API_ORIGIN", "https://cloud.example.invalid");
-      vi.stubEnv("PAPERCLIP_CLOUD_STACK_ID", "fixture-stack");
-      vi.stubEnv("PAPERCLIP_STACK_SLUG", "fixture-stack");
-      const managed = (enabled: boolean) => vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", JSON.stringify({
+      vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "fixture-tenant-token");
+      vi.stubEnv("NEXUS_CLOUD_API_ORIGIN", "https://cloud.example.invalid");
+      vi.stubEnv("NEXUS_CLOUD_STACK_ID", "fixture-stack");
+      vi.stubEnv("NEXUS_STACK_SLUG", "fixture-stack");
+      const managed = (enabled: boolean) => vi.stubEnv("NEXUS_MANAGED_CONFIG", JSON.stringify({
         v: 1, mode: "cloud", catalogVersion: "test", features: { enableOwnerInstanceAdmin: enabled }, plugins: { autoInstall: [] },
       }));
       const portfolio = (role = "owner", stackSlug = "fixture-stack") => Response.json({ stacks: [{ stackSlug, role, isCurrent: true }] });
@@ -153,7 +153,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
         const cleanup = { ...f.scope, workspaceId: f.workspace.id, operation: "remove" as const };
         expect(await f.service.resolve(f.request, cleanup)).toBe("test-token-A");
         expect(fetch).toHaveBeenCalledWith(new URL("https://cloud.example.invalid/v1/tenant/portfolio"), expect.objectContaining({
-          headers: expect.objectContaining({ "x-paperclip-cloud-user-id": "A", "x-paperclip-cloud-stack-id": "fixture-stack" }),
+          headers: expect.objectContaining({ "x-nexus-cloud-user-id": "A", "x-nexus-cloud-stack-id": "fixture-stack" }),
         }));
         // Stale local roles must never replace current Cloud authority.
         await db.insert(instanceUserRoles).values({ userId: "A", role: "instance_admin" });
@@ -342,7 +342,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
       await db.update(projects).set({ visibility: "private" })
         .where(eq(projects.id, privateProject === "task" ? taskProject.id : f.project.id));
       vault.resolveUserSecretValue.mockClear();
-      vi.stubEnv("PAPERCLIP_ISSUE_PRIVACY_MODE", "enforce");
+      vi.stubEnv("NEXUS_ISSUE_PRIVACY_MODE", "enforce");
       try {
         await expect(f.service.resolve(f.request, { ...f.scope, runId: f.input.runId, agentId: f.input.agentId })).rejects.toThrow();
         expect(vault.resolveUserSecretValue).not.toHaveBeenCalled();

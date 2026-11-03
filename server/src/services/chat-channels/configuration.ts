@@ -37,7 +37,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatConversations,
@@ -45,13 +45,13 @@ import {
   chatEndpoints,
   toolApplications,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEndpoint,
   ChatEndpointSetupState,
   ChatProvider,
   ConfigureChatEndpointInput,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   MAX_ATTACHMENT_BYTES,
@@ -318,7 +318,7 @@ export function createChatConfiguration(db: Db, options: ChatConfigurationOption
           }
           // Fail closed for any legacy or racing delivery that remained open
           // while this endpoint was paused. Resume must never execute traffic
-          // that Paperclip acknowledged during the inactive interval.
+          // that Nexus acknowledged during the inactive interval.
           await notifyChatDeliveryWork(tx);
           await tx
             .update(chatDeliveries)
@@ -564,7 +564,7 @@ export function createChatConfiguration(db: Db, options: ChatConfigurationOption
     }
     if (!getWebhookPublicBaseUrl() && endpoint.provider !== "discord" && endpoint.provider !== "imessage-photon" && !(endpoint.provider === "github" && endpoint.setup.github?.cloudRegistrationId)) {
       throw unprocessable(
-        `A public HTTPS Paperclip URL is required before connecting ${PROVIDER_LABELS[endpoint.provider]}`,
+        `A public HTTPS Nexus URL is required before connecting ${PROVIDER_LABELS[endpoint.provider]}`,
       );
     }
     if (
@@ -573,7 +573,7 @@ export function createChatConfiguration(db: Db, options: ChatConfigurationOption
       !isSupportedTelegramWebhookBaseUrl(getWebhookPublicBaseUrl())
     ) {
       throw unprocessable(
-        "Telegram webhooks require PAPERCLIP_CHAT_WEBHOOK_PUBLIC_URL to use HTTPS on port 443, 80, 88, or 8443",
+        "Telegram webhooks require NEXUS_CHAT_WEBHOOK_PUBLIC_URL to use HTTPS on port 443, 80, 88, or 8443",
         {
           code: "chat_telegram_webhook_url_unsupported",
           provider: "telegram",
@@ -595,7 +595,7 @@ export function createChatConfiguration(db: Db, options: ChatConfigurationOption
         );
       }
       if (!endpoint.setup.webhookVerifiedAt) {
-        throw conflict("Paperclip has not received a verified Slack callback yet", {
+        throw conflict("Nexus has not received a verified Slack callback yet", {
           code: "chat_webhook_not_verified",
         });
       }

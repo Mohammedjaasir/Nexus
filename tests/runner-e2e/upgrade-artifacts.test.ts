@@ -11,27 +11,27 @@ afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {
 const cell = runnerMatrix.find(e => e.id === "everyday-workflows.runner-codex.daytona.recover-controller")!;
 async function fixture(revision = "a".repeat(40)): Promise<UpgradeArtifact> {
   const root = await realpath(await mkdtemp(join(tmpdir(), "upgrade-artifact-"))); roots.push(root);
-  const cli = join(root, "node_modules/paperclipai");
-  const server = join(root, "node_modules/@paperclipai/server");
+  const cli = join(root, "node_modules/nexusai");
+  const server = join(root, "node_modules/@nexusai/server");
   for (const directory of [cli, server]) await mkdir(join(directory, "dist"), { recursive: true });
-  await writeFile(join(cli, "package.json"), JSON.stringify({ name: "paperclipai", version: "1.2.3", type: "module", bin: { paperclipai: "./dist/index.js" } }));
-  await writeFile(join(server, "package.json"), JSON.stringify({ name: "@paperclipai/server", version: "1.2.3", type: "module", exports: { ".": { import: "./dist/index.js" } } }));
+  await writeFile(join(cli, "package.json"), JSON.stringify({ name: "nexusai", version: "1.2.3", type: "module", bin: { nexusai: "./dist/index.js" } }));
+  await writeFile(join(server, "package.json"), JSON.stringify({ name: "@nexusai/server", version: "1.2.3", type: "module", exports: { ".": { import: "./dist/index.js" } } }));
   await writeFile(join(cli, "dist/index.js"), "// public cli");
   await writeFile(join(server, "dist/index.js"), `// public server ${revision}`);
   await writeFile(join(server, "dist/build-info.json"), JSON.stringify({ commit: revision }));
   const hash = async (path: string) => createHash("sha256").update(await readFile(path)).digest("hex");
   return { root, revision, treeSha256: await installedTreeSha256(root), evidence: "development-build", pins: {
-    PAPERCLIP_RUNNER_E2E_INSTALLED_CLI: join(cli, "dist/index.js"),
-    PAPERCLIP_RUNNER_E2E_INSTALLED_CLI_SHA256: await hash(join(cli, "dist/index.js")),
-    PAPERCLIP_RUNNER_E2E_INSTALLED_SERVER_ROOT: server,
-    PAPERCLIP_RUNNER_E2E_INSTALLED_SERVER_SHA256: await hash(join(server, "dist/index.js")),
+    NEXUS_RUNNER_E2E_INSTALLED_CLI: join(cli, "dist/index.js"),
+    NEXUS_RUNNER_E2E_INSTALLED_CLI_SHA256: await hash(join(cli, "dist/index.js")),
+    NEXUS_RUNNER_E2E_INSTALLED_SERVER_ROOT: server,
+    NEXUS_RUNNER_E2E_INSTALLED_SERVER_SHA256: await hash(join(server, "dist/index.js")),
   } };
 }
 it("verifies distinct A/B artifacts and a real serving revision at the same package version", async () => {
   const A = await fixture(); const B = await fixture("b".repeat(40));
   const manifest = join(tmpdir(), `upgrade-${process.pid}-${Date.now()}.json`);
   try {
-    await writeFile(manifest, JSON.stringify({ schema: "paperclip.e2e.upgrade-artifacts/v1", artifacts: { A, B }, sequence: ["A", "B", "A"] }));
+    await writeFile(manifest, JSON.stringify({ schema: "nexus.e2e.upgrade-artifacts/v1", artifacts: { A, B }, sequence: ["A", "B", "A"] }));
     expect((await readUpgradeArtifacts(manifest))!.sequence).toEqual(["A", "B", "A"]);
     for (const artifact of [A, B, A]) {
       const verified = await verifyUpgradeArtifact(artifact, {}, [cell]);
@@ -40,7 +40,7 @@ it("verifies distinct A/B artifacts and a real serving revision at the same pack
       expect(() => assertServingArtifact({ status: "ok" }, verified.receipt)).toThrow("serving server revision");
       expect(() => assertServingArtifact({ status: "ok", commit: "c".repeat(40) }, verified.receipt)).toThrow("serving server revision");
     }
-    await writeFile(manifest, JSON.stringify({ schema: "paperclip.e2e.upgrade-artifacts/v1", artifacts: { A, B: A }, sequence: ["A", "B", "A"] }));
+    await writeFile(manifest, JSON.stringify({ schema: "nexus.e2e.upgrade-artifacts/v1", artifacts: { A, B: A }, sequence: ["A", "B", "A"] }));
     await expect(readUpgradeArtifacts(manifest)).rejects.toThrow("genuinely different");
   } finally { await rm(manifest, { force: true }); }
 });

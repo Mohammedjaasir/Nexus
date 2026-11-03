@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { issueExecutionPolicySchema, type IssueExecutionPolicy } from "@paperclipai/shared";
+import { issueExecutionPolicySchema, type IssueExecutionPolicy } from "@nexusai/shared";
 import { buildExecutionPolicy, stageParticipantValues } from "./issue-execution-policy";
 
 const AGENT_ID = "00000000-0000-4000-8000-000000000001";

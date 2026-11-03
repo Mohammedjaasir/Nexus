@@ -6,7 +6,7 @@ import {
   CONNECTABLE_APP_DEFINITIONS,
   type AppDefinition,
   type ToolConnection,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { Browse } from "@/pages/apps/Browse";
 import {
@@ -112,7 +112,7 @@ function enterpretConnection(
     ownership: "dcr",
     transport: "mcp_remote",
     authKind: "oauth",
-    credentialSource: "paperclip_vault",
+    credentialSource: "nexus_vault",
     credentialPolicy: "per_user",
     status: "active",
     transportConfig: { url: "https://wisdom-api.enterpret.com/server/mcp" },
@@ -235,7 +235,7 @@ const meta: Meta = {
           "Design review for the Enterpret catalog connector using production components and the real generated definition. Organization auth token is primary; its account-bound QA is required before release. Browser OAuth targets the same official read-only MCP; fresh live OAuth validation remains required. No real sign-in, token, or provider call.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/credentials",
         "connection-setup/failure"
@@ -279,7 +279,7 @@ export const OAuthError: Story = {
   render: () => (
     <OAuthStateHost
       phase="error"
-      error="Paperclip could not reach Enterpret's authorization service. Check the connection and try again."
+      error="Nexus could not reach Enterpret's authorization service. Check the connection and try again."
     />
   ),
   play: async ({ canvasElement }) => {

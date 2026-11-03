@@ -99,7 +99,7 @@ For an ordinary native task, deferred workspace finalization must preserve the f
 
 Use the privacy control in New task, or open an existing task’s menu and choose **Make private**, **Share…**, or **Make public** where allowed. The share sheet lists direct grants and inherited access from private ancestors or project membership. Inherited rows have no local revoke action; manage that access at its source.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use a
 disposable project. Persistence checks can assign work to Me or leave it

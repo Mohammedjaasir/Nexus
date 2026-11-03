@@ -1,10 +1,10 @@
 import { and, desc, eq, getTableColumns, gte, lte, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { agents, costEvents, financeEvents, goals, heartbeatRuns, issues, projects } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { agents, costEvents, financeEvents, goals, heartbeatRuns, issues, projects } from "@nexusai/db";
 import { notFound, unprocessable, conflict } from "../errors.js";
 
 import { resolveCostDateRange, type CostDateRange as FinanceDateRange } from "./cost-date-range.js";
-import { createFinanceEventSchema, normalizeCents, subtractCents, type MoneyInput } from "@paperclipai/shared";
+import { createFinanceEventSchema, normalizeCents, subtractCents, type MoneyInput } from "@nexusai/shared";
 import { receiptFingerprint } from "./receipt-fingerprint.js";
 import { withAccountingTransaction } from "./accounting-transaction.js";
 import { logActivity, type LogActivityInput, type ActivityPublication } from "./activity-log.js";

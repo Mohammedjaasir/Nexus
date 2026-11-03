@@ -75,8 +75,8 @@ function ProjectHealthContent({ initialQuery = "", initialView = "all", initialP
   return <>
     <DesignPageShell
       title="Project health"
-      sidebarStorageKey="paperclip.design-proposal.project-health-trial.sidebar"
-      rightSidebarStorageKey="paperclip.design-proposal.project-health-trial.aside"
+      sidebarStorageKey="nexus.design-proposal.project-health-trial.sidebar"
+      rightSidebarStorageKey="nexus.design-proposal.project-health-trial.aside"
       sidebar={<DesignSidebar recentTasks={tasks.toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 5)} onNewTask={() => openNewIssue()} />}
       rightSidebarTitle="Recent tasks"
       rightSidebarControls={selectedProject && <Button variant="ghost" size="icon-sm" aria-label="Clear project selection" onClick={closeSelection}><X aria-hidden /></Button>}

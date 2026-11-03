@@ -2,7 +2,7 @@ import { notifyStatusCardIssueChange } from "./status-card-notifications.js";
 import { notifyIssueRecovery } from "./issue-recovery-notifications.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 import { notifyUnsafeWorkspaceExportRecovery } from "./unsafe-workspace-export-notifications.js";
-import { FAST_RESPONSE_AGENT_GUIDANCE, fastResponseHistoryBody } from "@paperclipai/shared";
+import { FAST_RESPONSE_AGENT_GUIDANCE, fastResponseHistoryBody } from "@nexusai/shared";
 import {
   persistActivity,
   publishActivity,
@@ -20,7 +20,7 @@ import {
   issueThreadInteractions,
   issues,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import { notifyChatRunMilestones } from "./chat-run-milestone-notifications.js";
 import { sanitizeQuarantinedCommentForHigherTrust } from "./source-trust.js";
@@ -109,11 +109,11 @@ Create ordinary assigned tasks, never subtasks of this conversation. Give each t
 
 For review or follow-up tasks, include the existing source materials the assignee needs, not just task identifiers or a rubric. Read the source task's saved documents and comments, then copy the relevant existing content into the handoff or attach resources the recipient can actually read. A new task's tools may only expose its own documents and history. Supplying existing source material is coordination, not creating the assigned deliverable.
 
-For task links, use the company-prefixed relative path /<prefix>/issues/<identifier>, deriving the prefix from the returned task identifier. An absolute URL is appropriate only when its actual origin was supplied by the platform. Never invent a hostname for a Paperclip link.
+For task links, use the company-prefixed relative path /<prefix>/issues/<identifier>, deriving the prefix from the returned task identifier. An absolute URL is appropriate only when its actual origin was supplied by the platform. Never invent a hostname for a Nexus link.
 
 For status updates, distinguish recorded task status from active execution and verified progress. Read the latest relevant comments and run outcome before explaining a blocker or claiming work is underway. Use the advertised API tools for another task's details when needed. A completed dependency does not prove a block is stale; report the assignee's recorded reason. Agent configuration may be redacted: an empty configuration object without configuration-read permission does not prove settings are disabled or at their defaults. If the evidence is unavailable, say what you could verify and what remains unknown rather than guessing or recommending a status change.
 
-Keep discussion here and leave the conversation available for the next message. Link handed-off tasks in your reply; do not make this conversation blocked by their completion or wait for them. Paperclip will bring completed handed-off tasks back as a new input here so you can explain the result and link it without another user message. After creating an assigned task, let its own run execute the work; do not create its deliverables or change its execution status from this chat. Reply normally and end your turn; Paperclip manages the conversation waiting state. Do not change its status, create a review confirmation just to finish a reply, mark it complete, or poll for another reply. An accepted plan authorizes handoff to execution tasks, never implementation on this conversation. Honor normal approvals. Ask mode is non-mutating. Plan mode supports research and writing/revising the plan; hand off for execution only through the normal authorized workflow.`;
+Keep discussion here and leave the conversation available for the next message. Link handed-off tasks in your reply; do not make this conversation blocked by their completion or wait for them. Nexus will bring completed handed-off tasks back as a new input here so you can explain the result and link it without another user message. After creating an assigned task, let its own run execute the work; do not create its deliverables or change its execution status from this chat. Reply normally and end your turn; Nexus manages the conversation waiting state. Do not change its status, create a review confirmation just to finish a reply, mark it complete, or poll for another reply. An accepted plan authorizes handoff to execution tasks, never implementation on this conversation. Honor normal approvals. Ask mode is non-mutating. Plan mode supports research and writing/revising the plan; hand off for execution only through the normal authorized workflow.`;
 
 /** Presentation guidance for the opted-in Coordinator experience; not authority. */
 export const COORDINATOR_CHAT_HANDOFF_DIRECTIVE = `For an exploratory conversation that has become a concrete work opportunity, distinguish recommending work from the user's authorization to start it. Once the outcome and success criteria are clear, use request_human_input with interactionKind: "suggest_tasks", a stable idempotencyKey, and payload.tasks containing a clientKey, concise title, description with success criteria, assigneeAgentId defaulting to this conversation's agent (yourself), projectId and relevant initialPlan. Preserve a different agent or person only when the user explicitly specifies that assignee. Omit parentId: the accepted task is standalone. The suggestion card is a proposal, not a created task. Wait for its recorded acceptance before claiming a task exists; acceptance creates the task atomically, so read result.createdTasks instead of creating it again. Revise or clarify an ambiguous proposal in chat. If the user explicitly authorized task creation, use create_task directly with an idempotencyKey and initialPlan, verify the returned task, and link it without asking for redundant confirmation. An existing approved plan also retains its normal handoff authority. Ask mode remains non-mutating.`;
@@ -513,7 +513,7 @@ export async function conversationReplay(
     .reverse()
     .map((row) =>
       JSON.stringify({
-        author: row.origin === "fast_response" ? "paperclip_receipt" : row.authorAgentId ? "agent" : "user",
+        author: row.origin === "fast_response" ? "nexus_receipt" : row.authorAgentId ? "agent" : "user",
         body: fastResponseHistoryBody(sanitizeQuarantinedCommentForHigherTrust(row)).slice(0, 8000),
       }),
     )

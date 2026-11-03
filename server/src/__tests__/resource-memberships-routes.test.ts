@@ -13,7 +13,7 @@ import {
   documents,
   projectMemberships,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -59,7 +59,7 @@ describeEmbeddedPostgres("resource membership routes", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-resource-memberships-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-resource-memberships-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -92,7 +92,7 @@ describeEmbeddedPostgres("resource membership routes", () => {
     await db.insert(companies).values([
       {
         id: companyId,
-        name: "Paperclip",
+        name: "Nexus",
         issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
         requireBoardApprovalForNewAgents: false,
       },

@@ -1,6 +1,6 @@
 import { SkillsNavigationTabs } from "@/components/skill-studio/SkillsNavigationTabs";
 import { RoutinesToolbar, type RoutineSortField, type RoutineSortDir, type RoutineGroupBy } from "@/components/RoutinesToolbar";
-import type { AttentionItem } from "@paperclipai/shared";
+import type { AttentionItem } from "@nexusai/shared";
 import { useState, type ReactNode } from "react";
 import { DecisionsToolbar } from "@/components/DecisionsToolbar";
 import { ProjectsToolbar, type ProjectSortField, type ProjectSortDir } from "@/components/ProjectsToolbar";
@@ -13,7 +13,7 @@ import { FlyoutAppearanceProvider } from "@/components/ui/flyout";
 import { useCompany } from "@/context/CompanyContext";
 import { useTaskListCollection } from "@/hooks/useTaskListCollection";
 import { defaultAttentionFilterState, countActiveAttentionFilters, filterAttentionItems, type AttentionFilterOptions, type AttentionGroupBy, type AttentionSortOrder } from "@/lib/attention";
-import { storybookAgents, storybookAuthSession, storybookIssueLabels, storybookProjects } from "../../fixtures/paperclipData";
+import { storybookAgents, storybookAuthSession, storybookIssueLabels, storybookProjects } from "../../fixtures/nexusData";
 import { DesignProposalAccess } from "./DesignProposalAccess";
 import { initialItems } from "./task-page-data";
 
@@ -49,7 +49,7 @@ function Specimen({ title, source, children }: { title: string; source: string; 
 
 function TaskToolbarSpecimen() {
   const { selectedCompanyId } = useCompany();
-  const collection = useTaskListCollection({ items: initialItems, companyId: selectedCompanyId, userId: storybookAuthSession.user.id, viewStorageKey: "paperclip:design-proposals:toolbars:task-view" });
+  const collection = useTaskListCollection({ items: initialItems, companyId: selectedCompanyId, userId: storybookAuthSession.user.id, viewStorageKey: "nexus:design-proposals:toolbars:task-view" });
   const [action, setAction] = useState("");
   return <Specimen title="Task toolbar" source="TaskListToolbar · canonical task controls used by Pages / Tasks and the sandbox Tasks page">
     <TaskListToolbar view={collection.view} onViewChange={collection.setView} query={collection.query} onQueryChange={collection.setQuery}

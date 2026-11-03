@@ -62,8 +62,8 @@ it.each(["openai", "anthropic"] as const)("correlates %s gateway logs before res
     const bytes = Buffer.from(encoded, "base64");
     expect([...bytes.subarray(0, 3)]).toEqual([4, 2, 0]);
     expect(JSON.parse(bytes.subarray(3).toString())).toEqual({ object_id: route.projectId, propagated_event: { metadata: {
-      paperclip_eval_request_id: initialReceipts[index]!.requestId, paperclip_eval_campaign_id: "campaign",
-      paperclip_eval_execution_id: identity.executionId, paperclip_eval_attempt_id: identity.attemptId, paperclip_eval_phase: "agent",
+      nexus_eval_request_id: initialReceipts[index]!.requestId, nexus_eval_campaign_id: "campaign",
+      nexus_eval_execution_id: identity.executionId, nexus_eval_attempt_id: identity.attemptId, nexus_eval_phase: "agent",
     } } });
     expect(initialReceipts[index]).toMatchObject({ braintrustParent: encoded, final: false, costUsd: null });
   }
@@ -248,7 +248,7 @@ it("uses the loopback gateway through real HTTP while withholding upstream crede
   const accepted = await fetch(`${gateway.baseUrl}/v1/responses`, { method: "POST", headers: { authorization: `Bearer ${gateway.token}`, "content-type": "application/json" }, body: JSON.stringify(f.payload) });
   expect(accepted.status).toBe(200); expect(await accepted.json()).toEqual(usage);
   expect(gateway.token).not.toBe(route.apiKey);
-  expect(accepted.headers.get("x-paperclip-eval-request-id")).toBeTruthy();
+  expect(accepted.headers.get("x-nexus-eval-request-id")).toBeTruthy();
   expect([...accepted.headers.values()].join(" ")).not.toContain(route.apiKey);
 });
 it.each([
@@ -409,7 +409,7 @@ it("attributes setup at admission, preserves it during execution, and blocks mis
   const f = await fixture();
   const phasePath = path.join(path.dirname(f.file), "phase.json");
   await createEvalAttemptPhase(phasePath, identity);
-  const env = { PAPERCLIP_E2E_GATEWAY_PHASE_PATH: phasePath, PAPERCLIP_E2E_ACCOUNTING_ATTEMPT_ID: identity.attemptId };
+  const env = { NEXUS_E2E_GATEWAY_PHASE_PATH: phasePath, NEXUS_E2E_ACCOUNTING_ATTEMPT_ID: identity.attemptId };
   let started!: () => void, release!: () => void, calls = 0;
   const firstStarted = new Promise<void>(resolve => { started = resolve; });
   const continuation = new Promise<void>(resolve => { release = resolve; });
@@ -444,7 +444,7 @@ it("refuses missing or unreviewed attribution checkpoints before request dispatc
   expect(response.status).toBe(503);
   expect(transport).not.toHaveBeenCalled();
   expect(f.ledger.snapshot().requests).toEqual([]);
-  await expect(beginEvalAgentPhase(identity.executionId, { PAPERCLIP_E2E_GATEWAY_BASE_URL: gateway.baseUrl })).rejects.toThrow("Missing eval phase");
+  await expect(beginEvalAgentPhase(identity.executionId, { NEXUS_E2E_GATEWAY_BASE_URL: gateway.baseUrl })).rejects.toThrow("Missing eval phase");
   await createEvalAttemptPhase(phasePath, identity);
   await expect(createEvalAttemptPhase(phasePath, identity)).rejects.toThrow();
   await writeFile(phasePath, JSON.stringify({ version: 1, ...identity, providerResponse: "private" }));

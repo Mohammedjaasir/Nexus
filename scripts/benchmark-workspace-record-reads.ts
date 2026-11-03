@@ -23,7 +23,7 @@ try {
   const git = (...args: string[]) => run("git", ["-C", repo, ...args]);
   await git("init", "-b", "main");
   await git("config", "user.name", "Workspace benchmark");
-  await git("config", "user.email", "benchmark@paperclip.local");
+  await git("config", "user.email", "benchmark@nexus.local");
   await fs.writeFile(path.join(repo, "README.md"), "Synthetic workspace\n");
   await git("add", "README.md");
   await git("commit", "-m", "Fixture");

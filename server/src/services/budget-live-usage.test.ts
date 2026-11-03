@@ -1,4 +1,4 @@
-import type { AdapterUsageCheckpoint } from "@paperclipai/adapter-utils";
+import type { AdapterUsageCheckpoint } from "@nexusai/adapter-utils";
 import { describe, expect, it } from "vitest";
 import { createLiveRunUsageProjection, liveRunUsageCostCents } from "./budget-live-usage.js";
 

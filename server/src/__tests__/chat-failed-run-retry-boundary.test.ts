@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { chatActions, type Db } from "@paperclipai/db";
+import { chatActions, type Db } from "@nexusai/db";
 import { chatChannelService, type ChatChannelService, type ChatChannelServiceOptions } from "../services/chat-channels.js";
 import { authorizeCommittedChatResponse, CommittedChatResponseAuthorizationError } from "../services/durable-chat-wakeup.js";
 

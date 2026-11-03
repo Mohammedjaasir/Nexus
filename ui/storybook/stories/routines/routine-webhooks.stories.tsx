@@ -7,7 +7,7 @@ const meta = {
   title: "Automation and structured work/Routines, schedules, and triggers/Product/Routines/Webhooks",
   component: WebhookReview,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "routines/triggers",
         "routines/history",
@@ -77,6 +77,6 @@ const warningSetup: NonNullable<Story["play"]> = async (context) => {
 const deliveryPath = "/api/routine-triggers/public/0123456789abcdef01234567/fire";
 export const LocalhostWarning: Story = { name: "11 · Localhost warning", args: { state: "credentials", webhookUrl: `http://localhost:3100${deliveryPath}` }, play: warningSetup };
 export const TailscaleWarning: Story = { name: "12 · Tailscale public access warning", args: { state: "credentials", webhookUrl: `https://paperclip.example-tailnet.ts.net${deliveryPath}` }, play: warningSetup };
-export const PrivateNetworkWarning: Story = { name: "13 · Internal domain warning", args: { state: "credentials", webhookUrl: `https://paperclip.internal${deliveryPath}` }, play: warningSetup };
-export const HttpWarning: Story = { name: "14 · HTTP warning", args: { state: "credentials", webhookUrl: `http://paperclip.example.com${deliveryPath}` }, play: warningSetup };
+export const PrivateNetworkWarning: Story = { name: "13 · Internal domain warning", args: { state: "credentials", webhookUrl: `https://nexus.internal${deliveryPath}` }, play: warningSetup };
+export const HttpWarning: Story = { name: "14 · HTTP warning", args: { state: "credentials", webhookUrl: `http://nexus.example.com${deliveryPath}` }, play: warningSetup };
 export const ExistingWebhookWarning: Story = { name: "15 · Existing private webhook warning", args: { webhookUrl: `https://192.168.1.10${deliveryPath}` }, play: openSavedWebhook };

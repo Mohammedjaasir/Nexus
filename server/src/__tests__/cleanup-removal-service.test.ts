@@ -28,7 +28,7 @@ import {
   issueReadStates,
   issues,
   routines,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -36,7 +36,7 @@ import {
 import { agentService } from "../services/agents.ts";
 import { companyService } from "../services/companies.ts";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_CLEANUP_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_CLEANUP_TEST_DATABASE_URL");
 const embeddedPostgresSupport = external ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -51,7 +51,7 @@ describeEmbeddedPostgres("cleanup removal services", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-cleanup-removal-");
+    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("nexus-cleanup-removal-");
     if (external) await applyPendingMigrations(external);
     db = createDb(external ?? tempDb!.connectionString);
     configureAgentLifecycle(db, { requiredPluginIds: async () => [], runPlugin: async () => "complete", runHost: async () => "complete" });
@@ -92,7 +92,7 @@ describeEmbeddedPostgres("cleanup removal services", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix,
       requireBoardApprovalForNewAgents: false,
     });
@@ -191,10 +191,10 @@ describeEmbeddedPostgres("cleanup removal services", () => {
     await db.insert(companySkills).values({
       id: randomUUID(),
       companyId,
-      key: "paperclipai/paperclip/paperclip",
-      slug: "paperclip",
-      name: "Paperclip",
-      markdown: "# Paperclip",
+      key: "paperclipai/paperclip/nexus",
+      slug: "nexus",
+      name: "Nexus",
+      markdown: "# Nexus",
     });
 
     await db.insert(activityLog).values({

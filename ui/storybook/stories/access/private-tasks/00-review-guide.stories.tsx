@@ -268,7 +268,7 @@ export default {
   id: "private-tasks-00-review-guide",
   title: "Getting started and access/Login, invitations, and access/Private tasks/00 Review guide",
   parameters: { layout: "fullscreen", docs: { story: { inline: false } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "access/resources",
         "tasks/properties"

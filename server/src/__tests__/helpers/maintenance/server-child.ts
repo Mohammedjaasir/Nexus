@@ -1,10 +1,10 @@
 import { channel } from "node:diagnostics_channel";
 import { mock } from "node:test";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import type { Socket } from "node:net";
 
 const realTimeout = globalThis.setTimeout, realInterval = globalThis.setInterval, clearRealInterval = globalThis.clearInterval, realNow = Date.now;
-const fakeClock = process.env.PAPERCLIP_MAINTENANCE_FAKE_CLOCK === "true";
+const fakeClock = process.env.NEXUS_MAINTENANCE_FAKE_CLOCK === "true";
 let bootClock: ReturnType<typeof setInterval> | undefined;
 function runClock() {
   if (bootClock) clearRealInterval(bootClock);
@@ -16,12 +16,12 @@ if (fakeClock) {
   runClock();
 }
 
-if (process.env.PAPERCLIP_MAINTENANCE_GITHUB_ORIGIN) {
+if (process.env.NEXUS_MAINTENANCE_GITHUB_ORIGIN) {
   const fetch = globalThis.fetch;
   globalThis.fetch = (input, init) => {
     const url = new URL(input instanceof Request ? input.url : input.toString());
     return fetch(url.origin === "https://api.github.com"
-      ? new URL(url.pathname + url.search, process.env.PAPERCLIP_MAINTENANCE_GITHUB_ORIGIN) : input, init);
+      ? new URL(url.pathname + url.search, process.env.NEXUS_MAINTENANCE_GITHUB_ORIGIN) : input, init);
   };
 }
 
@@ -45,7 +45,7 @@ try {
   const { idleWorkSnapshot, startTaskDrain, stopTaskDrain } = await import("../../../services/task-admission.js");
   const { getStartupRecoveryState } = await import("../../../startup-recovery-state.js");
   const server = await startServer();
-  const app = server.server.listeners("request")[0] as unknown as { locals: { paperclipDb: Db } };
+  const app = server.server.listeners("request")[0] as unknown as { locals: { nexusDb: Db } };
   process.send?.({ kind: "ready", port: server.listenPort });
   process.on("message", async (message: { id: number; command: string; ms?: number; issueUpdate?: { id: string; status: "done" }; orphanLease?: { companyId: string }; publication?: { companyId: string; scopeDigest: string; backupRoot: string; pendingRoot: string } }) => {
     try {
@@ -62,11 +62,11 @@ try {
         process.send?.({ id: message.id, kind: "snapshot", idle: idleWorkSnapshot(), startup: getStartupRecoveryState(), outgoingHttpRequests, network: network(), now: Date.now() });
       } else if (message.command === "createOrphanLease") {
         if (!message.orphanLease) throw new Error("Missing orphan lease fixture");
-        const { environmentLeases } = await import("@paperclipai/db");
+        const { environmentLeases } = await import("@nexusai/db");
         const { writeEnvironmentCleanup } = await import("../../../services/environment-cleanup-notifications.js");
         const old = new Date(Date.now() - 6 * 60_000);
         const companyId = message.orphanLease.companyId;
-        const [lease] = await writeEnvironmentCleanup(app.locals.paperclipDb, tx => tx.insert(environmentLeases).values({
+        const [lease] = await writeEnvironmentCleanup(app.locals.nexusDb, tx => tx.insert(environmentLeases).values({
           companyId, provider: "local", providerLeaseId: null, status: "active", leasePolicy: "ephemeral", metadata: { driver: "local" },
           acquiredAt: old, lastUsedAt: old, createdAt: old, updatedAt: old,
         }).returning(), { companyId });
@@ -74,12 +74,12 @@ try {
       } else if (message.command === "updateIssue") {
         if (!message.issueUpdate) throw new Error("Missing issue update");
         const { issueService } = await import("../../../services/issues.js");
-        await issueService(app.locals.paperclipDb).update(message.issueUpdate.id, { status: message.issueUpdate.status });
+        await issueService(app.locals.nexusDb).update(message.issueUpdate.id, { status: message.issueUpdate.status });
         process.send?.({ id: message.id, kind: "updated" });
       } else if (message.command === "publishBackup") {
         if (!message.publication) throw new Error("Missing backup publication");
         const { publishNativeHarnessBackup } = await import("../../../services/native-runtime/native-harness-backup-publication.js");
-        await publishNativeHarnessBackup({ db: app.locals.paperclipDb, ...message.publication });
+        await publishNativeHarnessBackup({ db: app.locals.nexusDb, ...message.publication });
         process.send?.({ id: message.id, kind: "published" });
       } else if (message.command === "shutdown") {
         if (fakeClock) runClock();

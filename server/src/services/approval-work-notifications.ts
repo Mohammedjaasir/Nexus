@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { approvals, issueApprovals, type Db } from "@paperclipai/db";
+import { approvals, issueApprovals, type Db } from "@nexusai/db";
 import { notifyIssueReviewState } from "./issue-review-state-notifications.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 

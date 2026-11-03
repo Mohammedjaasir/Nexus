@@ -1,7 +1,7 @@
 /**
  * App-wide connectivity state.
  *
- * One small external store answers "can we reach the Paperclip server right
+ * One small external store answers "can we reach the Nexus server right
  * now?" for the whole app. Inputs:
  *
  * - React Query cache events: a connectivity-level failure (network drop, proxy

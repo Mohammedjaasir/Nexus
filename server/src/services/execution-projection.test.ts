@@ -60,7 +60,7 @@ describe("execution truth projection", () => {
         automaticRecovery: { policy: "preserve_without_replay_v1", actionOutcome: "unknown", replay: "blocked" },
         continuationDelivery: "invalidated",
         workspaceRecovery: {
-          schema: "paperclip.workspace-recovery.v1", runId: sourceRunId, status,
+          schema: "nexus.workspace-recovery.v1", runId: sourceRunId, status,
           stage: "saving_receipts", attempt: 1, requestIds: [],
           ...(status === "blocked" ? { message: "The saved source cannot be read safely." } : {}),
         },

@@ -13,14 +13,14 @@ import {
   issueDocuments,
   issueThreadInteractions,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
 import { documentAnnotationService } from "../services/document-annotations.js";
 import { documentService } from "../services/documents.js";
-import { buildPaperclipWakePayload } from "../services/heartbeat.js";
+import { buildNexusWakePayload } from "../services/heartbeat.js";
 import { buildDocumentReviewContext, buildPlanReviewContext, PLAN_REVIEW_CONTEXT_LIMITS } from "../services/plan-review-context.js";
 
 const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
@@ -49,7 +49,7 @@ describeEmbeddedPostgres("documentAnnotationService", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-document-annotations-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-document-annotations-");
     db = createDb(tempDb.connectionString);
     annotations = documentAnnotationService(db);
     docs = documentService(db);
@@ -78,7 +78,7 @@ describeEmbeddedPostgres("documentAnnotationService", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -505,7 +505,7 @@ describeEmbeddedPostgres("documentAnnotationService", () => {
       })
       .returning();
 
-    const payload = await buildPaperclipWakePayload({
+    const payload = await buildNexusWakePayload({
       db,
       companyId,
       contextSnapshot: {
@@ -585,7 +585,7 @@ describeEmbeddedPostgres("documentAnnotationService", () => {
       })
       .returning();
 
-    const payload = await buildPaperclipWakePayload({
+    const payload = await buildNexusWakePayload({
       db,
       companyId,
       contextSnapshot: {
@@ -648,7 +648,7 @@ describeEmbeddedPostgres("documentAnnotationService", () => {
       { actorType: "user", actorId: "board-user", userId: "board-user" },
     );
 
-    const payload = await buildPaperclipWakePayload({
+    const payload = await buildNexusWakePayload({
       db,
       companyId,
       contextSnapshot: {
@@ -679,7 +679,7 @@ describeEmbeddedPostgres("documentAnnotationService", () => {
       { actorType: "user", actorId: "board-user", userId: "board-user" },
     );
 
-    const payload = await buildPaperclipWakePayload({
+    const payload = await buildNexusWakePayload({
       db,
       companyId,
       contextSnapshot: {
@@ -761,7 +761,7 @@ describeEmbeddedPostgres("documentAnnotationService", () => {
       })
       .returning();
 
-    const payload = await buildPaperclipWakePayload({
+    const payload = await buildNexusWakePayload({
       db,
       companyId,
       contextSnapshot: {

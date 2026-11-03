@@ -99,7 +99,7 @@ earlier parent PR's mutation proof is recorded in its report.
 - Complete baseline: seven files, 990 passed, zero failed/skipped.
 - Complete candidate: the same seven files, 990 passed, zero failed/skipped.
 - Rebased candidate: the same seven files, 990 passed, zero failed/skipped.
-- `pnpm --filter @paperclipai/ui typecheck`: pass before integration.
+- `pnpm --filter @nexusai/ui typecheck`: pass before integration.
 - `pnpm -r typecheck`: pass before integration and at the verified code commit.
 - `pnpm build`: pass at the verified code commit.
 - Token gates, palette synchronization and character synchronization: pass.

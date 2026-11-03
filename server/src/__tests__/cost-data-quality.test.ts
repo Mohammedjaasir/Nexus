@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { appearanceForPalette } from "@paperclipai/shared";
-import { agents, companies, costEvents, createDb, heartbeatRuns, issues, nativeRunFinalizations } from "@paperclipai/db";
+import { appearanceForPalette } from "@nexusai/shared";
+import { agents, companies, costEvents, createDb, heartbeatRuns, issues, nativeRunFinalizations } from "@nexusai/db";
 import { costDataQualityReport, RECEIPT_WAIT_MS } from "../services/cost-data-quality.js";
 import { accountingIntegrityService } from "../services/accounting-integrity.js";
 import { costService } from "../services/costs.js";
@@ -13,7 +13,7 @@ describe("actionable cost data quality", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-cost-quality-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-cost-quality-");
     db = createDb(database.connectionString);
   }, 90_000);
   afterAll(async () => { await database?.cleanup(); });

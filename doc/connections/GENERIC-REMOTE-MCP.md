@@ -1,12 +1,12 @@
 # Connecting any remote MCP server
 
-Paperclip can connect a standards-compliant remote HTTP MCP server without a
-Paperclip code change. A curated `AppDefinition` is a **convenience layer** —
+Nexus can connect a standards-compliant remote HTTP MCP server without a
+Nexus code change. A curated `AppDefinition` is a **convenience layer** —
 branding, tailored fields, scoped defaults, support copy — not a prerequisite.
 
 This is the documented baseline for connecting anything. Read
 [Connection authoring runbook](./CONNECTOR-PLAYBOOK.md) when you want to add the branded
-convenience layer on top for a vendor Paperclip should promote.
+convenience layer on top for a vendor Nexus should promote.
 
 Accepted in the [generic remote MCP plan](/PAP/issues/PAP-17078#document-plan),
 implemented in [PAP-17087](/PAP/issues/PAP-17087).
@@ -15,8 +15,8 @@ implemented in [PAP-17087](/PAP/issues/PAP-17087).
 
 | Route | Where | Use it when |
 | --- | --- | --- |
-| Guided URL | **Apps → Connect an app → Connect your own MCP server** | You have the server's address. Paperclip probes it and walks you through whatever it needs. |
-| Paste a config | **Advanced → Paste a config** | A README gave you an `mcpServers` snippet, or the server needs headers with names Paperclip could not guess. |
+| Guided URL | **Apps → Connect an app → Connect your own MCP server** | You have the server's address. Nexus probes it and walks you through whatever it needs. |
+| Paste a config | **Advanced → Paste a config** | A README gave you an `mcpServers` snippet, or the server needs headers with names Nexus could not guess. |
 
 Both routes normalize through the same backend contract, so auth discovery,
 secret handling, catalog refresh and review cannot diverge between them.
@@ -28,13 +28,13 @@ Don't know the address or the headers? The question-mark control beside
 **Paste a config** gives you a request you can hand to an agent: it asks the
 agent to consult the vendor's current documentation and reply with one
 paste-ready `mcpServers` JSON object using credential *placeholders*, plus notes
-on how to obtain each credential. Paste only the JSON block back into Paperclip;
-Paperclip reads the header names from it and asks you for the values, which it
-stores as Paperclip secrets.
+on how to obtain each credential. Paste only the JSON block back into Nexus;
+Nexus reads the header names from it and asks you for the values, which it
+stores as Nexus secrets.
 
 ## What the guided URL flow does
 
-After you paste an address and press **Check link**, Paperclip probes the
+After you paste an address and press **Check link**, Nexus probes the
 endpoint and branches:
 
 | Endpoint says | You get |
@@ -51,9 +51,9 @@ state-changing actions start off; newly discovered actions are quarantined until
 reviewed. That is the same treatment a curated connection gets.
 
 For **Just me**, the first probe of a new URL with no supplied credentials runs
-before a personal authorization exists. If the server requires OAuth, Paperclip
+before a personal authorization exists. If the server requires OAuth, Nexus
 creates the personal grant only after sign-in succeeds. If the server is public,
-Paperclip creates a personal grant with no credentials after the probe succeeds.
+Nexus creates a personal grant with no credentials after the probe succeeds.
 That successful public probe saves the draft identity and its grant. A later
 catalog-refresh failure leaves them available for retry instead of undoing a
 grant that another setup attempt may already be using.
@@ -69,7 +69,7 @@ agent to connect the app. Runs start without probing optional apps or warning
 about another user's missing credentials. The installed app's cached tools stay
 available even when its shared health check needs attention.
 
-Authorization happens when the agent calls an app tool. Paperclip uses the run's
+Authorization happens when the agent calls an app tool. Nexus uses the run's
 responsible user, never another user's personal grant. If that user has not
 connected the app, the tool returns `user_authorization_required` and adds an
 inline connection request. Unrelated work can continue without using the app.
@@ -83,7 +83,7 @@ Apps. An unrelated run does not need to act on that state.
 
 If Slack reports that MCP access is disabled for the app, ask the Slack app
 owner to enable MCP access in the app's Slack settings, then refresh the
-connection. Signing in alone does not enable that app setting. Paperclip shows
+connection. Signing in alone does not enable that app setting. Nexus shows
 this as a setup error and keeps the connection available for retry. See
 [Slack's MCP app requirements](https://docs.slack.dev/ai/slack-mcp-server/#app-identity).
 
@@ -97,11 +97,11 @@ Collapsed by default. Open it when the server's docs are specific:
 - **Browser sign-in** — optionally with a client ID and secret you registered
   yourself, for providers that require preregistration.
 
-Every value you enter becomes a Paperclip secret. Values are write-only: they
+Every value you enter becomes a Nexus secret. Values are write-only: they
 never appear in stored config JSON, logs, activity details, API responses after
 write, or UI readback. Only header *names* are shown in review and diagnostics.
 
-Paperclip refuses to send header names it manages or that belong to the
+Nexus refuses to send header names it manages or that belong to the
 transport — `Host`, `Cookie`, `Content-Length`, `Transfer-Encoding`,
 hop-by-hop headers, and anything under `Proxy-*` or `Sec-*` — and rejects
 values containing line breaks or control characters. This is enforced in shared
@@ -111,23 +111,23 @@ real request.
 
 ## How sign-in gets a client
 
-You never choose this; Paperclip resolves it and the wizard shows none of it.
+You never choose this; Nexus resolves it and the wizard shows none of it.
 Recorded here for security review and diagnostics. In preference order:
 
-1. **Deployment-preconfigured client.** `PAPERCLIP_TOOL_OAUTH_<PROVIDER>_CLIENT_ID`
-   / `_SECRET`, or the unsuffixed `PAPERCLIP_TOOL_OAUTH_CLIENT_ID` / `_SECRET`.
+1. **Deployment-preconfigured client.** `NEXUS_TOOL_OAUTH_<PROVIDER>_CLIENT_ID`
+   / `_SECRET`, or the unsuffixed `NEXUS_TOOL_OAUTH_CLIENT_ID` / `_SECRET`.
    Always wins when set.
 2. **Client ID Metadata Document (CIMD).** When the authorization server
-   advertises `client_id_metadata_document_supported`, Paperclip presents the URL
+   advertises `client_id_metadata_document_supported`, Nexus presents the URL
    of its own published metadata document as the `client_id`. Nothing is
-   registered. **Requires a public HTTPS base URL** (`PAPERCLIP_PUBLIC_URL`):
+   registered. **Requires a public HTTPS base URL** (`NEXUS_PUBLIC_URL`):
    the authorization server has to fetch that document server-to-server, so
    loopback and plain-HTTP deployments fall through to the next tier.
    The document is served unauthenticated at `/api/tools/oauth/client-metadata`
    and contains only this deployment's callback and the grant/response/auth
-   methods Paperclip uses — no company, connection or secret data.
+   methods Nexus uses — no company, connection or secret data.
 3. **Dynamic client registration (RFC 7591).** When the authorization server
-   advertises a `registration_endpoint`. Paperclip registers a public client
+   advertises a `registration_endpoint`. Nexus registers a public client
    (`token_endpoint_auth_method: none`, `application_type: web`, PKCE S256).
 4. **Manual preregistered client.** The client ID and secret you paste under
    **Advanced authentication → Browser sign-in**.
@@ -142,8 +142,8 @@ that merely returns a 401 does not earn a registration.
 Client material is bound to the authorization-server issuer, the MCP resource
 URL, the callback URI, and the company. If any of those change:
 
-- a Paperclip-minted client (CIMD or DCR) is **re-registered**;
-- a client you supplied yourself is **not** — Paperclip stops and asks you to
+- a Nexus-minted client (CIMD or DCR) is **re-registered**;
+- a client you supplied yourself is **not** — Nexus stops and asks you to
   re-enter it, because it cannot register on your behalf in a console it does
   not control.
 
@@ -155,13 +155,13 @@ Every OAuth endpoint address is chosen by the remote server — in discovered
 metadata, in a `WWW-Authenticate` hint, in a pasted config, or in a gallery
 default — and the authorization endpoint additionally becomes a top-level browser
 navigation. All of them are parsed by one shared validator
-(`checkOAuthEndpointUrl` in `@paperclipai/shared`) and must be:
+(`checkOAuthEndpointUrl` in `@nexusai/shared`) and must be:
 
 - **`https:`.** Plain `http:` is refused, except for a loopback host under the
   local-development policy (the same policy that allows private remote
   endpoints), and except for this deployment's own origin.
 - **Free of embedded credentials.** `https://accounts.google.com@evil.test/…`
-  reads as the wrong site to a human, so Paperclip refuses it.
+  reads as the wrong site to a human, so Nexus refuses it.
 - **Free of a fragment**, and a well-formed absolute URL.
 
 `javascript:`, `data:`, `file:` and friends are therefore refused before they can
@@ -201,11 +201,11 @@ falling back to `authKind: none` semantics.
 
 ### Staying connected after access-token expiry
 
-For generic MCP connections, Paperclip adds `offline_access` to the selected
+For generic MCP connections, Nexus adds `offline_access` to the selected
 tool scopes when the **authorization server** advertises it in
 `scopes_supported` and does not explicitly exclude the refresh-token grant.
 This works even when the MCP server's challenge or protected-resource metadata
-lists only tool scopes. Paperclip requests `prompt=consent`, stores the actual
+lists only tool scopes. Nexus requests `prompt=consent`, stores the actual
 requested scopes for callback completion and reconnect, and refreshes access
 tokens using its existing encrypted-vault and rotating-token lease paths.
 Curated Apps continue to use their reviewed scope and authorization-parameter
@@ -226,7 +226,7 @@ node scripts/mcp-fixtures/servers/oauth-refresh-fixture.mjs
 
 It binds only to `127.0.0.1` and prints an MCP URL. Add that URL through
 **Apps → Connect an app → Connect your own MCP server** on a local/private
-Paperclip instance with a loopback HTTP callback URL, approve the test consent
+Nexus instance with a loopback HTTP callback URL, approve the test consent
 page, and use **read_status**.
 Access tokens last two minutes; later calls should refresh without another
 sign-in. Stop the fixture with Ctrl-C; all provider state is in memory.
@@ -237,7 +237,7 @@ consent and a registered refresh grant, enforces PKCE/client/resource binding,
 rejects expired access tokens, and rotates refresh tokens after every use.
 Diagnostics record only protocol events and scope names, never token values.
 
-Run the fixture controls and Paperclip integration regressions:
+Run the fixture controls and Nexus integration regressions:
 
 ```sh
 node --test scripts/mcp-fixtures/servers/oauth-refresh-fixture.test.mjs
@@ -279,13 +279,13 @@ QA but is not required for deterministic verification.
 `pnpm smoke:notion-generic-live` exercises the generic **Advanced → Paste a
 config** route against `https://mcp.notion.com/mcp`. It is intentionally outside
 the normal unit, browser, and CI-required suites. Run it only against an
-already-running, browser-reachable HTTPS Paperclip instance with these bindings
+already-running, browser-reachable HTTPS Nexus instance with these bindings
 provided by the execution environment:
 
-- `PAPERCLIP_E2E_BASE_URL`, `PAPERCLIP_E2E_EMAIL`, and
-  `PAPERCLIP_DEV_LOGIN_PASSWORD` for the target instance;
-- `PAPERCLIP_API_URL`, `PAPERCLIP_API_KEY`, `PAPERCLIP_RUN_ID`, and
-  `PAPERCLIP_TASK_ID` for the control plane;
+- `NEXUS_E2E_BASE_URL`, `NEXUS_E2E_EMAIL`, and
+  `NEXUS_DEV_LOGIN_PASSWORD` for the target instance;
+- `NEXUS_API_URL`, `NEXUS_API_KEY`, `NEXUS_RUN_ID`, and
+  `NEXUS_TASK_ID` for the control plane;
 - the approved on-demand secret binding
   `access.notion_generic_flow_test_account`, delivered by the agent secret API
   under its normalized key `generic-flow-test-account`, for the existing Notion
@@ -305,12 +305,12 @@ pnpm smoke:notion-generic-live -- --dry-run
 ```
 
 The live command retrieves the credential only after the safe preflight and
-Paperclip login succeed. It disables trace, video, and HAR capture, takes only
+Nexus login succeed. It disables trace, video, and HAR capture, takes only
 post-callback screenshots, enables and invokes only `notion-get-self`, proves
 `notion-create-pages` remains locally denied, and removes its uniquely named
 connection in a `finally` cleanup. Its `summary.json` and PNG files contain
 sanitized IDs, decisions, outcomes, and endpoint origins/paths only; they
-default to `PAPERCLIP_RUN_SCRATCH_DIR`, or to `NOTION_EVIDENCE_DIR` when set.
+default to `NEXUS_RUN_SCRATCH_DIR`, or to `NOTION_EVIDENCE_DIR` when set.
 
 Run the credential-free harness checks with:
 

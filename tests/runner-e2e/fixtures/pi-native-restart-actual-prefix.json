@@ -28,7 +28,7 @@
         "sourceRunId": "run",
         "continuationPolicy": "none",
         "resolverPolicy": "human_only",
-        "idempotencyKey": "paperclip-runner-question:run:request",
+        "idempotencyKey": "nexus-runner-question:run:request",
         "payload": {
           "version": 1,
           "title": "Pi native restart",
@@ -44,7 +44,7 @@
               "allowOther": true,
               "options": [
                 {
-                  "id": "paperclip_text_answer",
+                  "id": "nexus_text_answer",
                   "label": "Pi native restart",
                   "description": "Expected text input",
                   "freeText": true
@@ -53,7 +53,7 @@
             }
           ],
           "questionSet": {
-            "schema": "paperclip.question_set.v1",
+            "schema": "nexus.question_set.v1",
             "title": "Pi native restart",
             "submitLabel": "Submit answers",
             "questions": [
@@ -83,7 +83,7 @@
       "eventType": "turn.submitted",
       "payload": {
         "prpEvent": {
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "schemaVersion": 1,
           "sourceKind": "runner",
           "eventType": "turn.submitted",
@@ -106,7 +106,7 @@
       "eventType": "turn.started",
       "payload": {
         "prpEvent": {
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "schemaVersion": 1,
           "sourceKind": "runner",
           "eventType": "turn.started",
@@ -130,7 +130,7 @@
       "eventType": "runtime_request.created",
       "payload": {
         "prpEvent": {
-          "schema": "paperclip.prp.event.v1",
+          "schema": "nexus.prp.event.v1",
           "schemaVersion": 1,
           "sourceKind": "runner",
           "eventType": "runtime_request.created",
@@ -146,7 +146,7 @@
               "type": "input",
               "input": {
                 "title": "Pi native restart",
-                "schema": "paperclip.question_set.v1",
+                "schema": "nexus.question_set.v1",
                 "questions": [
                   {
                     "id": "answer",
@@ -168,7 +168,7 @@
                 "provider": "pi"
               },
               "prompt": "Pi native restart",
-              "schema": "paperclip.runtime_request.v2",
+              "schema": "nexus.runtime_request.v2",
               "status": "pending",
               "turnId": "turn",
               "requestId": "request",

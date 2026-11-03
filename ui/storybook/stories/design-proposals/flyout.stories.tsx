@@ -13,7 +13,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     docs: { description: { component: "Reusable Flyout, FlyoutContent, FlyoutHeader and FlyoutOptions composed from the existing Popover and Button primitives. Dropdown menus share the same sections and appearance while preserving menu-specific keyboard behavior. Muted-foreground labels and checkmarks become foreground on muted-highlight during hover or focus. The Shadow control is a local preview; --shadow-flyout in the shared token layer owns the saved default." } },
-    paperclip: {
+    nexus: {
       capabilities: ["tasks/organize"],
       status: "proposed",
       home: "design-proposals",

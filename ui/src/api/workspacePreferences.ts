@@ -1,4 +1,4 @@
-import type { UpdateWorkspacePreference, WorkspacePreference } from "@paperclipai/shared";
+import type { UpdateWorkspacePreference, WorkspacePreference } from "@nexusai/shared";
 import { api, detachInflightGet } from "./client";
 
 export const workspacePreferencesApi = {

@@ -4,7 +4,7 @@ import type { RunnerApi } from "./api.js";
 import { collectAttemptFeedback, emptyFeedbackSummary, feedbackReview, observeFeedbackInvocations, summarizeCampaignFeedback, FEEDBACK_COLLECTION_LIMITS, type FeedbackEvidence } from "./feedback.js";
 import { runCleanupWithObservers } from "./cleanup-verification.js";
 import { isHistoricalBundlePathAllowed } from "./history-publish.js";
-import { canonicalProviderEventsFromOpenCodePart } from "../../packages/paperclip-runner/src/provider-events.js";
+import { canonicalProviderEventsFromOpenCodePart } from "../../packages/nexus-runner/src/provider-events.js";
 
 function entry(id: string, body = "Please preserve the original tool error."): AgentCommentaryDetail {
   return { id, kind: "complaint", preview: body.slice(0, 280), body,
@@ -69,7 +69,7 @@ it("retains partial bodies and failed submissions without inventing persistence 
 
 it("binds native invocations to their run, ignores prose, and recognizes compatibility receipts", () => {
   const events = [
-    event(1, "item.started", { kind: "tool_call", item: { type: "tool_call", id: "call", name: "paperclip.submit_complaint" } }),
+    event(1, "item.started", { kind: "tool_call", item: { type: "tool_call", id: "call", name: "nexus.submit_complaint" } }),
     event(2, "item.completed", { kind: "tool_result", item: { type: "tool_result", id: "call", status: "completed", isError: true } }),
     event(3, "tool.execution.started", { name: "submit_suggestion", executionId: "foreign" }, "foreign-run"),
     event(4, "item.completed", { item: { type: "agentMessage", text: "I used submit_complaint" } }),
@@ -77,7 +77,7 @@ it("binds native invocations to their run, ignores prose, and recognizes compati
   expect(observeFeedbackInvocations("run", events)).toEqual([{ runId: "run", callId: "call", kind: "complaint", outcome: "failed" }]);
 });
 
-it.each(["paperclip_", "paperclip__", "mcp__paperclip__"])("maps namespaced feedback receipts through native events: %s", prefix => {
+it.each(["nexus_", "nexus__", "mcp__nexus__"])("maps namespaced feedback receipts through native events: %s", prefix => {
   const events = [
     event(1, "tool.execution.started", { executionId: "failed", name: `${prefix}submit_complaint` }),
     event(2, "tool.execution.completed", { executionId: "failed", name: `${prefix}submit_complaint`, status: "failed" }),
@@ -110,7 +110,7 @@ function workspaceDeferral(): Record<string, unknown> {
     runtimeModeResolvedAt: null, processStartedAt: null, processPid: null, processStartTicks: null,
     runnerInstanceId: null, nativeSessionId: null, sessionIdAfter: null, lastOutputSeq: 0, costUsd: null,
     usageJson: { ledgerScope: { issueId: "child" } },
-    runnerProfileJson: { adapterDispatch: { adapterType: "paperclip_runner" } },
+    runnerProfileJson: { adapterDispatch: { adapterType: "nexus_runner" } },
     resultJson: {
       executionRecovery: { kind: "workspace_wait", providerWorkStarted: false },
       cancellation: { source: "control_plane", expected: true, initiator: { type: "system" } },
@@ -313,9 +313,9 @@ it("retains partial evidence if the run-detail lookup fails", async () => {
 
 it("retains OpenCode feedback whose first observed update is running or terminal", () => {
   const updates = [
-    { id: "running", status: "running", tool: "paperclip_submit_suggestion" },
-    { id: "failed", status: "error", tool: "paperclip_submit_complaint" },
-    { id: "completed", status: "completed", tool: "paperclip_submit_suggestion" },
+    { id: "running", status: "running", tool: "nexus_submit_suggestion" },
+    { id: "failed", status: "error", tool: "nexus_submit_complaint" },
+    { id: "completed", status: "completed", tool: "nexus_submit_suggestion" },
   ].flatMap(update => canonicalProviderEventsFromOpenCodePart({
     id: update.id, messageID: "message", type: "tool", callID: update.id, tool: update.tool,
     state: { status: update.status, input: {}, output: "fixture result", error: "fixture failure", time: { start: 1, end: 2 } },

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { applyPendingMigrations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, agents, chatConversations, chatEndpoints, chatVoiceInboundCalls, chatVoiceSessions, companies, createDb, issues, toolApplications, toolConnections } from "@paperclipai/db";
+import { applyPendingMigrations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, agents, chatConversations, chatEndpoints, chatVoiceInboundCalls, chatVoiceSessions, companies, createDb, issues, toolApplications, toolConnections } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
@@ -9,7 +9,7 @@ import { idleWorkSnapshot } from "../services/task-admission.js";
 import { voiceInboundRetention } from "../services/voice/voice-inbound-retention.js";
 import { notifyVoiceInbound } from "../services/voice/voice-inbound-notifications.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_VOICE_RETENTION_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_VOICE_RETENTION_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("inbound voice retention lifecycle", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -28,7 +28,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     fixtureCompanies.push(companyId);
     const applicationId = randomUUID(), connectionId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Inbound cleanup", issuePrefix: `V${companyId.slice(0, 7)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Voice", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Voice", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Voice", assigneeAgentId: agentId, status: "in_progress" });
     await db.insert(toolApplications).values({ id: applicationId, companyId, name: "Voice", type: "chat" });
     await db.insert(toolConnections).values({ id: connectionId, companyId, applicationId, name: "Voice", uid: connectionId, transport: "voice", connectionPurpose: "channel", enabled: true, status: "active" });

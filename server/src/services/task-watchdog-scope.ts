@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { heartbeatRuns, issues, issueWatchdogs } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { heartbeatRuns, issues, issueWatchdogs } from "@nexusai/db";
 
 const MAX_WATCHDOG_SCOPE_ANCESTRY_DEPTH = 100;
 export const TASK_WATCHDOG_ORIGIN_KIND = "task_watchdog";

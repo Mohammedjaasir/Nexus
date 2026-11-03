@@ -114,7 +114,7 @@ API: `present` — representative operation IDs:
 Agent access: `available` — REST / native call_api / CLI run. Sandbox agents can
 use these diagnostic GET paths through the default queue and HTTP/2
 [callback bridge](../../packages/adapter-utils/src/sandbox-callback-bridge.ts).
-Use the injected run credential; see the [bounded read workflow](../../skills/paperclip/references/run-diagnostics.md).
+Use the injected run credential; see the [bounded read workflow](../../skills/nexus/references/run-diagnostics.md).
 
 Policy: Same-company and `company_scope:read` checks apply to company run
 inventory. Run content requires run/task visibility; private run list entries

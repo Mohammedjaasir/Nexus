@@ -2,25 +2,25 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
 
 // Keep the real directory, command and adapter checks. Runtime staging is a
 // separate operation and must not copy files or contact a provider in this test.
-vi.mock("@paperclipai/adapter-utils/execution-target", async importOriginal => ({
-  ...await importOriginal<typeof import("@paperclipai/adapter-utils/execution-target")>(),
+vi.mock("@nexusai/adapter-utils/execution-target", async importOriginal => ({
+  ...await importOriginal<typeof import("@nexusai/adapter-utils/execution-target")>(),
   prepareAdapterExecutionTargetRuntime: async () => ({
-    workspaceRemoteDir: "/workspace", runtimeRootDir: "/workspace/.paperclip-runtime",
+    workspaceRemoteDir: "/workspace", runtimeRootDir: "/workspace/.nexus-runtime",
     assetDirs: {}, restoreWorkspace: async () => {},
   }),
 }));
 
-import { testEnvironment } from "@paperclipai/adapter-opencode-local/server";
+import { testEnvironment } from "@nexusai/adapter-opencode-local/server";
 import { assertHarnessTestPassed } from "../services/agent-harness-verification.js";
 import { lifecycleFailureMessage, lifecycleVerificationNeedsRetry } from "../modules/agent-lifecycle/application/failure.js";
 
 describe("remote harness verification recovery", () => {
   let configHome: string;
-  beforeAll(async () => { configHome = await mkdtemp(path.join(os.tmpdir(), "paperclip-remote-verification-")); });
+  beforeAll(async () => { configHome = await mkdtemp(path.join(os.tmpdir(), "nexus-remote-verification-")); });
   afterAll(async () => { if (configHome) await rm(configHome, { recursive: true, force: true }); });
   const context = { stage: "host" as const, phase: "verifying" as const, verificationFailures: 100 };
 

@@ -17,8 +17,8 @@ async function fixture() {
   const directory = await mkdtemp(path.join(tmpdir(), "budgeted-setup-"));
   const file = path.join(directory, "phase.json");
   await createEvalAttemptPhase(file, identity);
-  return { directory, file, env: { PAPERCLIP_E2E_GATEWAY_BASE_URL: "http://127.0.0.1:12345",
-    PAPERCLIP_E2E_GATEWAY_PHASE_PATH: file, PAPERCLIP_E2E_ACCOUNTING_ATTEMPT_ID: identity.attemptId } };
+  return { directory, file, env: { NEXUS_E2E_GATEWAY_BASE_URL: "http://127.0.0.1:12345",
+    NEXUS_E2E_GATEWAY_PHASE_PATH: file, NEXUS_E2E_ACCOUNTING_ATTEMPT_ID: identity.attemptId } };
 }
 
 it("keeps asynchronous hello probes in setup until the same agent is ready", async () => {
@@ -107,7 +107,7 @@ it("waits for the same agent to be ready before changing Kimi lifecycle policy w
   const configured = { ...ready, adapterConfig: { model: "kimi-for-coding" } };
   const get = vi.fn(async (url: string) => {
     if (url === "/api/health") return { deploymentMode: "local_trusted" };
-    if (url === "/api/auth/get-session") return { session: { userId: "local-board", id: "paperclip:local_implicit:local-board" } };
+    if (url === "/api/auth/get-session") return { session: { userId: "local-board", id: "nexus:local_implicit:local-board" } };
     if (url === "/api/agents/agent") {
       order.push(order.length === 0 ? "verifying" : order.length === 1 ? "ready" : "policy-read");
       return order.length === 1 ? { ...configured, lifecycleState: "verifying" } : configured;
@@ -130,7 +130,7 @@ it("waits for the same agent to be ready before changing Kimi lifecycle policy w
 it("does not change Kimi lifecycle policy after readiness fails", async () => {
   const execution = selectRunnerExecutions(parseRunnerSelectors(["--id", "kimi-qualification.runner-acpx-kimi.daytona.native-write-provider-loss"]))[0]!;
   const get = vi.fn(async (url: string) => url === "/api/health" ? { deploymentMode: "local_trusted" }
-    : url === "/api/auth/get-session" ? { session: { userId: "local-board", id: "paperclip:local_implicit:local-board" } }
+    : url === "/api/auth/get-session" ? { session: { userId: "local-board", id: "nexus:local_implicit:local-board" } }
       : { ...ready, lifecycleError: "harness_command_unavailable" });
   const patch = vi.fn();
   await expect(runKimiLifecycleFlow({ page: {} as any, api: { get, patch } as unknown as RunnerApi,

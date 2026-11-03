@@ -21,14 +21,14 @@ Create a service account with access only to the vaults the selected agents need
 Grant **Read Items** and **Write Items** for reading and managing items. An existing
 read-only token can connect; provider permissions still deny its writes. Vault
 access and permissions are immutable: create a replacement service account and
-reconnect in Paperclip to change them. Built-in Personal, Private, Employee, and
+reconnect in Nexus to change them. Built-in Personal, Private, Employee, and
 default Shared vaults cannot be selected. Creating a service account requires a
 1Password subscription and the appropriate account permissions.
 
 The method is `1password/service-account`. Its configured URL
 `https://my.1password.com/` is a routing identity, not a public REST or MCP endpoint.
 The SDK uses the account address in the token and handles regional API access.
-Paperclip accepts only HTTPS account addresses under `1password.com`,
+Nexus accepts only HTTPS account addresses under `1password.com`,
 `1password.ca`, or `1password.eu`, without custom ports, paths, or URL credentials.
 There are no OAuth metadata, registration, callback, refresh, or revocation
 endpoints in this method. Reconnect replaces the token through the normal vault
@@ -87,7 +87,7 @@ oversized-result rejection before posting a result to the gateway.
 credential ownership, personal declarations, reads and writes through a running
 agent's gateway session, classification, refresh, reconnect, action policy,
 cross-company denial, and revocation of a retained session. The ordinary suite
-uses provider fixtures. `PAPERCLIP_ONEPASSWORD_LIVE=1` plus an environment-supplied
+uses provider fixtures. `NEXUS_ONEPASSWORD_LIVE=1` plus an environment-supplied
 `OP_SERVICE_ACCOUNT_TOKEN` enables the account-bound variant, which creates and
 deletes only synthetic test items. Never put a token in a command argument.
 
@@ -137,7 +137,7 @@ Official source: 1Password's product site, retrieved 2026-10-22:
 - Dark theme: `https://1password.com/favicon/icon-v2-light.svg`
 
 The native icon shapes and colors are preserved. Each SVG adds only an explicit
-matching `viewBox` so the official icon scales inside Paperclip's standard gray
+matching `viewBox` so the official icon scales inside Nexus's standard gray
 frame. The browser-served manifest contains asset paths only.
 
 ## Shared changes

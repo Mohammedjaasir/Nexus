@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, gt, gte, inArray, like, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import type { Db } from "@paperclipai/db";
-import { agents, chatConversations, chatEndpoints, chatPublications, heartbeatRunEvents, heartbeatRuns, issueComments, issues } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { agents, chatConversations, chatEndpoints, chatPublications, heartbeatRunEvents, heartbeatRuns, issueComments, issues } from "@nexusai/db";
 import { notifyChatPublicationWork } from "./chat-work-notifications.js";
 import { projectSafeChatPublication } from "./chat-publication-projection.js";
 import { hasChatRunOwnedProviderInteraction } from "./chat-interaction-arbitration.js";
@@ -385,7 +385,7 @@ export async function reconcileNativeChatProgress(db: Db, options: NativeProgres
               eq(issueComments.authorType, "agent"),
               eq(issueComments.createdByRunId, row.runId),
               sql`(
-                ${issueComments.metadata} ->> 'authorizationReason' = 'paperclip_runner_protocol'
+                ${issueComments.metadata} ->> 'authorizationReason' = 'nexus_runner_protocol'
                 or left(coalesce(${issueComments.metadata} ->> 'authorizationReason', ''), 6) = 'allow_'
               )`,
             ),

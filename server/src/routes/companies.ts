@@ -3,14 +3,14 @@ import express, { Router, type NextFunction, type Request, type Response } from 
 import multer from "multer";
 import { and, count as countFn, eq } from "drizzle-orm";
 import { z } from "zod";
-import type { Db } from "@paperclipai/db";
-import { agents as agentsTable } from "@paperclipai/db";
-import type { CompanyPortabilityImportResult } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { agents as agentsTable } from "@nexusai/db";
+import type { CompanyPortabilityImportResult } from "@nexusai/shared";
 import {
   MAX_ZIP_ENTRY_DECOMPRESSED_BYTES,
   MAX_ZIP_TOTAL_DECOMPRESSED_BYTES,
   readZipArchive,
-} from "@paperclipai/shared/portability-zip";
+} from "@nexusai/shared/portability-zip";
 import {
   DEFAULT_FEEDBACK_DATA_SHARING_TERMS_VERSION,
   SETTINGS_OPERATOR_MANAGED_ERROR_CODE,
@@ -25,7 +25,7 @@ import {
   hidesCompanyPage,
   updateCompanyBrandingSchema,
   updateCompanySchema,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   COMPANY_IMPORT_TRANSFERS_ROUTE_PATH,
   companyImportTransferDeclarationSchema,
@@ -33,7 +33,7 @@ import {
   type CompanyImportTransferDeclaration,
   type CompanyImportTransferPartUploadResult,
   type CompanyImportTransferStatus,
-} from "@paperclipai/shared/company-import-transfer";
+} from "@nexusai/shared/company-import-transfer";
 import { badRequest, conflict, forbidden, notFound, unprocessable } from "../errors.js";
 import { PORTABLE_ZIP_UPLOAD_LIMIT_BYTES } from "../http/body-limits.js";
 import { logger } from "../middleware/logger.js";
@@ -100,7 +100,7 @@ const zipPackageUpload = multer({
 const IMPORT_TRANSFER_PART_SIZE_LIMIT_BYTES = 64 * 1024 * 1024;
 
 // The declaration body and response shapes are the shared wire contract in
-// @paperclipai/shared/company-import-transfer — the browser and CLI clients
+// @nexusai/shared/company-import-transfer — the browser and CLI clients
 // type against the same schemas and path builders.
 const importTransferManifestSchema = companyImportTransferDeclarationSchema;
 
@@ -259,15 +259,15 @@ async function readImportZipArchive(zipBytes: Buffer) {
 }
 
 /**
- * Async job opt-in. Cloud tenants set the `x-paperclip-cloud-async-import`
+ * Async job opt-in. Cloud tenants set the `x-nexus-cloud-async-import`
  * header server-side (they are not a browser, so it is never stripped). Board
  * browsers cannot use that header — the Cloud harness proxy strips every
- * inbound `x-paperclip-cloud-*` header as anti-spoofing — so they opt in with
+ * inbound `x-nexus-cloud-*` header as anti-spoofing — so they opt in with
  * the proxy-safe `?async=1` query parameter instead. Either signal enters the
  * async path.
  */
 function wantsAsyncImport(req: Request) {
-  return req.query.async === "1" || req.header("x-paperclip-cloud-async-import") === "1";
+  return req.query.async === "1" || req.header("x-nexus-cloud-async-import") === "1";
 }
 
 export interface CompanyRoutesOptions {
@@ -552,7 +552,7 @@ export function companyRoutes(db: Db, storage?: StorageService, options?: Compan
    *   provisions the company, so materializing imported companies on a
    *   managed instance is disabled unconditionally;
    * - the operator hiding the Import page (`company.import` in
-   *   `PAPERCLIP_HIDDEN_SETTINGS` → `settings_operator_managed`): hiding the
+   *   `NEXUS_HIDDEN_SETTINGS` → `settings_operator_managed`): hiding the
    *   page also disables its API, so the hide is real rather than cosmetic.
    *
    * Export routes stay open either way — they are the tenant's
@@ -1197,7 +1197,7 @@ export function companyRoutes(db: Db, storage?: StorageService, options?: Compan
   router.post("/", (req, _res, next) => {
     assertBoard(req);
     if (isCloudManagedInstance()) {
-      throw forbidden("Company creation is managed by Paperclip Cloud", {
+      throw forbidden("Company creation is managed by Nexus Cloud", {
         code: "cloud_managed",
       });
     }
@@ -1427,8 +1427,8 @@ interface ImportedCompanyActivityContext {
 function cloudTenantRequestKey(req: Request) {
   return [
     req.actor.userId ?? "",
-    req.header("x-paperclip-cloud-stack-id")?.trim() ?? "",
-    req.header("x-paperclip-cloud-paperclip-company-id")?.trim() ?? "",
+    req.header("x-nexus-cloud-stack-id")?.trim() ?? "",
+    req.header("x-nexus-cloud-nexus-company-id")?.trim() ?? "",
   ].join(":");
 }
 

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, afterEach, expect, it, vi } from "vitest";
-import { agents, companies, issues, heartbeatRuns, nativeRunFinalizations, createDb } from "@paperclipai/db";
+import { agents, companies, issues, heartbeatRuns, nativeRunFinalizations, createDb } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { deploymentNotifications } from "../services/deployment-notifications.js";
@@ -57,7 +57,7 @@ afterAll(async () => {
 it("routes a committed Stop from B to its live owner A and returns only A's acknowledgement", async () => {
   await b.transaction(async tx => {
     await notifyNativeCancellation(tx);
-    await tx.update(heartbeatRuns).set({ resultJson: { nativeCancellation: { schema: "paperclip.native-cancellation.v1", intentId,
+    await tx.update(heartbeatRuns).set({ resultJson: { nativeCancellation: { schema: "nexus.native-cancellation.v1", intentId,
       scope: "run", dispatchState: "pending" } } }).where(eq(heartbeatRuns.id, runId));
   });
   await expect(waitForNativeCancellation(b, { companyId, runId, intentId })).resolves.toEqual({ dispatched: true, decisionId: null, auditId: "fixture-audit" });
@@ -70,13 +70,13 @@ it("fails closed on a different intent and never accepts a no-op acknowledgement
   await expect(waitForNativeCancellation(b, { companyId, runId, intentId }, 50)).rejects.toThrow("pending_recovery");
 });
 it("keeps Stop pending across lease release and delivers after normal ownership resumes", async () => {
-  vi.stubEnv("PAPERCLIP_EPHEMERAL_SERVER", "true");
+  vi.stubEnv("NEXUS_EPHEMERAL_SERVER", "true");
   expect(await nativeCancellationHasUnsettledOwner(b, runId)).toBe(true);
   await b.update(nativeRunFinalizations).set({ controllerBootId: "another-controller" }).where(eq(nativeRunFinalizations.runId, runId));
   expect(await nativeCancellationHasUnsettledOwner(b, runId)).toBe(true);
   await b.update(nativeRunFinalizations).set({ leaseExpiresAt: new Date(0) }).where(eq(nativeRunFinalizations.runId, runId));
   expect(await nativeCancellationHasUnsettledOwner(b, runId)).toBe(true);
-  await b.update(heartbeatRuns).set({ resultJson: { nativeCancellation: { schema: "paperclip.native-cancellation.v1", intentId,
+  await b.update(heartbeatRuns).set({ resultJson: { nativeCancellation: { schema: "nexus.native-cancellation.v1", intentId,
     scope: "run", dispatchState: "pending" } } }).where(eq(heartbeatRuns.id, runId));
   const acknowledged = waitForNativeCancellation(b, { companyId, runId, intentId });
   const identity = await currentNativeControllerIdentity();
@@ -91,6 +91,6 @@ it("keeps Stop pending across lease release and delivers after normal ownership 
   expect(provider.stop).toHaveBeenCalledTimes(1);
   await a.update(heartbeatRuns).set({ status: "cancelled" }).where(eq(heartbeatRuns.id, runId));
   expect(await nativeCancellationHasUnsettledOwner(b, runId)).toBe(false);
-  vi.stubEnv("PAPERCLIP_EPHEMERAL_SERVER", "false");
+  vi.stubEnv("NEXUS_EPHEMERAL_SERVER", "false");
   expect(await nativeCancellationHasUnsettledOwner(b, runId)).toBe(false);
 });

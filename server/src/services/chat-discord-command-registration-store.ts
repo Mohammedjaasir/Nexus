@@ -5,7 +5,7 @@ import {
   chatActions,
   chatDiscordCommandOwners,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   createDiscordCommandRegistration,
   parseDiscordCommandRegistration,
@@ -20,7 +20,7 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 type Database = Db | Tx;
 type Registered = Extract<DiscordCommandRegistration, { phase: "registered" }>;
 const kind = "discord_command_registration";
-const resultSchema = "paperclip.discord.command-registration-result.v1";
+const resultSchema = "nexus.discord.command-registration-result.v1";
 const actionKey = (applicationId: string) =>
   `discord-command-registration:${applicationId}`;
 const same = (a: unknown, b: unknown) =>

@@ -99,7 +99,7 @@ async function fixture(options: { failComments?: boolean; remote?: boolean; inco
     ...(options.remote ? { registerCleanupAssertion: (fn: () => Promise<unknown>) => cleanupAssertions.push(fn), remoteBootstrap: {
       prompt: () => "Read the bootstrap file only",
       bindAndRelease: async (value: { targets: string[]; actionPrompt(fixture: any): Promise<string> | string }) => {
-        expect(value.targets).toEqual(["pi-native-answers.json"]); const prompt = await value.actionPrompt(remoteFixture); expect(prompt).toContain("paperclip_native_question"); return remoteFixture;
+        expect(value.targets).toEqual(["pi-native-answers.json"]); const prompt = await value.actionPrompt(remoteFixture); expect(prompt).toContain("nexus_native_question"); return remoteFixture;
       },
     } } : {}),
   };

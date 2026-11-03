@@ -23,7 +23,7 @@ describe("GitHub review summary", () => {
 
   it.each(["4/5", "2/5", "Incomplete"])("replaces copied %s headings with the structured score", rating => {
     expect(githubReviewSummary({ ...identity,
-      summary: `## New Review Bot — ${rating}\n\n## Paperclip Review — 3/5\n\nReview body.`,
+      summary: `## New Review Bot — ${rating}\n\n## Nexus Review — 3/5\n\nReview body.`,
       rationale: `## New Review Bot — ${rating}\n\nScore evidence.`,
     })).toBe("## New Review Bot — 4/5\n\nReview body.\n\nScore evidence.");
   });

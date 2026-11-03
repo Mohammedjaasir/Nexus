@@ -1,6 +1,6 @@
-import type { AgentRunner, AgentRunnerChoice } from "@paperclipai/shared";
+import type { AgentRunner, AgentRunnerChoice } from "@nexusai/shared";
 import { needsClaudeSetupQualification, qualifyClaudeSetup } from "../lib/qualify-claude-setup";
-import { agentHarnessType } from "@paperclipai/shared";
+import { agentHarnessType } from "@nexusai/shared";
 import { adaptersApi, type AdapterInfo } from "../api/adapters";
 import { AgentRunnerSelect } from "./AgentRunnerSelect";
 import { healthApi } from "@/api/health";
@@ -9,11 +9,11 @@ import { useLocalAiLogin } from "./ai-connections/useLocalAiLogin";
 import { aiConnectionsApi } from "@/api/ai-connections";
 import { aiProviderForAdapter } from "./ai-connections/AiConnectionField";
 import { useConnectionModelsState } from "./ai-connections/useConnectionModels";
-import type { AiConnectionBinding } from "@paperclipai/shared";
+import type { AiConnectionBinding } from "@nexusai/shared";
 import { storeProviderApiKey } from "../lib/provider-credential";
 import { SavedProviderKeySelect, useSavedProviderKeys } from "./onboarding/SavedProviderKeySelect";
 import { OnboardingGatewaySetup } from "./onboarding/OnboardingGatewaySetup";
-import { randomAgentAppearance, resolveAgentAppearance, agentAppearanceSchema } from "@paperclipai/shared";
+import { randomAgentAppearance, resolveAgentAppearance, agentAppearanceSchema } from "@nexusai/shared";
 import { OnboardingCharacter } from "./onboarding/OnboardingCharacter";
 import { useEffect, useState, useMemo, useRef } from "react";
 import type { ComponentType, CSSProperties } from "react";
@@ -26,8 +26,8 @@ import type {
   ClaudeOAuthTokenStatusResponse,
   Environment,
   InstanceSettings,
-} from "@paperclipai/shared";
-import { AGENT_ROLES, AGENT_ROLE_LABELS, ADAPTER_AUTH_MISSING_CHECK_CODE } from "@paperclipai/shared";
+} from "@nexusai/shared";
+import { AGENT_ROLES, AGENT_ROLE_LABELS, ADAPTER_AUTH_MISSING_CHECK_CODE } from "@nexusai/shared";
 import { AdapterLoginPanel, ModelDropdown } from "./AgentConfigForm";
 import {
   CONNECT_SOURCE_NAMES,
@@ -112,11 +112,11 @@ import {
   selectReusableOnboardingProject,
 } from "../lib/onboarding-launch";
 import { buildNewAgentRuntimeConfig } from "../lib/new-agent-runtime-config";
-import { DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX } from "@paperclipai/adapter-codex-local";
-import { DEFAULT_CURSOR_LOCAL_MODEL } from "@paperclipai/adapter-cursor-local";
-import { DEFAULT_GEMINI_LOCAL_MODEL } from "@paperclipai/adapter-gemini-local";
-import { DEFAULT_KIMI_LOCAL_MODEL } from "@paperclipai/adapter-kimi-local";
-import { DEFAULT_OPENCODE_LOCAL_MODEL, isValidOpenCodeModelId } from "@paperclipai/adapter-opencode-local";
+import { DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX } from "@nexusai/adapter-codex-local";
+import { DEFAULT_CURSOR_LOCAL_MODEL } from "@nexusai/adapter-cursor-local";
+import { DEFAULT_GEMINI_LOCAL_MODEL } from "@nexusai/adapter-gemini-local";
+import { DEFAULT_KIMI_LOCAL_MODEL } from "@nexusai/adapter-kimi-local";
+import { DEFAULT_OPENCODE_LOCAL_MODEL, isValidOpenCodeModelId } from "@nexusai/adapter-opencode-local";
 import {
   canGoBackFromOnboardingStep,
   canJumpToOnboardingStep,
@@ -158,10 +158,10 @@ type AdapterType = string;
 const ONBOARDING_ADAPTER_TYPES = new Set(["claude_local", "codex_local"]);
 
 function restoreOnboardingAdapterType(savedAdapterType: unknown, provider?: unknown, savedCopilot?: unknown): AdapterType {
-  if (savedAdapterType === "paperclip_runner" && provider === "pi") return "pi_local";
-  if (savedAdapterType === "paperclip_runner" && provider === "opencode") return "opencode_local";
-  if (savedAdapterType === "paperclip_runner" && savedCopilot !== true && (provider === undefined || provider === "codex")) return "codex_local";
-  return typeof savedAdapterType === "string" && savedAdapterType !== "paperclip_runner"
+  if (savedAdapterType === "nexus_runner" && provider === "pi") return "pi_local";
+  if (savedAdapterType === "nexus_runner" && provider === "opencode") return "opencode_local";
+  if (savedAdapterType === "nexus_runner" && savedCopilot !== true && (provider === undefined || provider === "codex")) return "codex_local";
+  return typeof savedAdapterType === "string" && savedAdapterType !== "nexus_runner"
     ? savedAdapterType
     : "claude_local";
 }
@@ -277,8 +277,8 @@ function ModelSourceMark({
 
 // Exported so tests write/read the exact key the component uses, instead of
 // duplicating the literal and silently drifting from it if it's ever renamed.
-export const ONBOARDING_STORAGE_KEY = "paperclip-onboarding-state";
-const DEFAULT_TASK_TITLE = "Paperclip onboarding";
+export const ONBOARDING_STORAGE_KEY = "nexus-onboarding-state";
+const DEFAULT_TASK_TITLE = "Nexus onboarding";
 /**
  * The onboarding draft in `localStorage`, via a browser that is allowed to say
  * no.
@@ -597,12 +597,12 @@ function OnboardingWizardInner({
     // one.
     (saved?.agentRole as AgentRole) || DEFAULT_AGENT_ROLE,
   );
-  const savedCopilotDraft = saved?.adapterType === "paperclip_runner" && saved?.onboardingCopilot === true;
+  const savedCopilotDraft = saved?.adapterType === "nexus_runner" && saved?.onboardingCopilot === true;
   const [adapterType, setAdapterType] = useState<AdapterType>(() =>
     restoreOnboardingAdapterType(saved?.adapterType, saved?.runnerProvider, saved?.onboardingCopilot),
   );
-  const [runner, setRunner] = useState<AgentRunnerChoice>(() => savedCopilotDraft ? "auto" : saved?.runner === "legacy" || saved?.runner === "paperclip"
-    ? saved.runner : saved?.adapterType === "paperclip_runner" && (saved?.runnerProvider === undefined || ["codex", "claude", "acpx", "opencode", "pi"].includes(String(saved?.runnerProvider))) ? "paperclip" : "auto");
+  const [runner, setRunner] = useState<AgentRunnerChoice>(() => savedCopilotDraft ? "auto" : saved?.runner === "legacy" || saved?.runner === "nexus"
+    ? saved.runner : saved?.adapterType === "nexus_runner" && (saved?.runnerProvider === undefined || ["codex", "claude", "acpx", "opencode", "pi"].includes(String(saved?.runnerProvider))) ? "nexus" : "auto");
   /**
    * Whether a model source has been chosen, as opposed to which one
    * `adapterType` happens to hold.
@@ -630,19 +630,19 @@ function OnboardingWizardInner({
   const [gatewayConnection, setGatewayConnection] = useState<{
     companyId: string; adapterType: string; binding: AiConnectionBinding;
   }>();
-  const savedNativeRunnerDraft = saved?.adapterType === "paperclip_runner" && !savedCopilotDraft;
+  const savedNativeRunnerDraft = saved?.adapterType === "nexus_runner" && !savedCopilotDraft;
   const [cwd, setCwd] = useState((saved?.cwd as string) ?? "");
   const [model, setModel] = useState(
     savedCopilotDraft || (savedNativeRunnerDraft && saved?.runnerProvider !== undefined && !["codex", "claude", "acpx", "opencode", "pi"].includes(String(saved.runnerProvider))) ? "" : (saved?.model as string) ?? "",
   );
   const [command, setCommand] = useState(
-    saved?.adapterType === "paperclip_runner" ? "" : (saved?.command as string) ?? "",
+    saved?.adapterType === "nexus_runner" ? "" : (saved?.command as string) ?? "",
   );
   const [args, setArgs] = useState(
-    saved?.adapterType === "paperclip_runner" ? "" : (saved?.args as string) ?? "",
+    saved?.adapterType === "nexus_runner" ? "" : (saved?.args as string) ?? "",
   );
   const [url, setUrl] = useState(
-    saved?.adapterType === "paperclip_runner" ? "" : (saved?.url as string) ?? "",
+    saved?.adapterType === "nexus_runner" ? "" : (saved?.url as string) ?? "",
   );
   const [adapterEnvResult, setAdapterEnvResult] =
     useState<AdapterEnvironmentTestResult | null>(null);
@@ -1037,7 +1037,7 @@ function OnboardingWizardInner({
   // Automatic selection uses native Claude/Codex on qualified execution targets and
   // silently falls back to legacy on Windows, keeping the same onboarding UI.
   // When Windows native execution is qualified, enable it in
-  // paperclipRunnerSupportsPlatform so Windows onboarding defaults to native too.
+  // nexusRunnerSupportsPlatform so Windows onboarding defaults to native too.
   const needsRunnerDiscovery = ["codex_local", "claude_local", "opencode_local", "pi_local"].includes(adapterType) && runner === "auto";
   const resolvedRunner = runner === "auto"
     ? runnerDiscovery.data?.find(item => item.type === adapterType)?.defaultRunner
@@ -1343,7 +1343,7 @@ function OnboardingWizardInner({
             setArgs(Array.isArray(config.args) ? config.args.join(" ") : "");
             setUrl(typeof config.url === "string" ? config.url : "");
             setRunner(ONBOARDING_ADAPTER_TYPES.has(agentHarnessType(agent.adapterType, config))
-              ? agent.adapterType === "paperclip_runner" ? "paperclip" : "legacy" : "auto");
+              ? agent.adapterType === "nexus_runner" ? "nexus" : "legacy" : "auto");
             const binding = agent.runtimeConfig?.aiConnection as AiConnectionBinding | undefined;
             if (binding) setCredentialMode(binding.method === "api_key" ? "api" : "subscription");
             else if ((config.env as Record<string, unknown> | undefined)?.[apiKeyEnvKeyFor(adapterType)]) setCredentialMode("api");
@@ -2200,12 +2200,12 @@ function OnboardingWizardInner({
           queryFn: () => adaptersApi.list({ companyId: createdCompanyId, environmentId }) });
         if (!testIsCurrent()) return null;
         const codex = adapters.find(adapter => adapter.type === "codex_local");
-        const native = adapters.find(adapter => adapter.type === "paperclip_runner");
-        if (!codex || (codex.defaultRunner !== "paperclip" && codex.defaultRunner !== "legacy")
+        const native = adapters.find(adapter => adapter.type === "nexus_runner");
+        if (!codex || (codex.defaultRunner !== "nexus" && codex.defaultRunner !== "legacy")
           || !codex.supportedRunners?.includes(codex.defaultRunner)) {
           throw new Error("Could not confirm Codex runner availability for this environment. Retry setup.");
         }
-        if (codex.defaultRunner !== "paperclip" && !codex?.disabled && !codex?.overriddenBuiltin
+        if (codex.defaultRunner !== "nexus" && !codex?.disabled && !codex?.overriddenBuiltin
           && !native?.disabled && !native?.overriddenBuiltin) {
           const probe = await environmentsApi.probe(environmentId!, createdCompanyId);
           if (!testIsCurrent()) return null;
@@ -2220,7 +2220,7 @@ function OnboardingWizardInner({
           if (!testIsCurrent()) return null;
           const refreshedCodex = refreshed.find(adapter => adapter.type === "codex_local");
           const defaultRunner = refreshedCodex?.defaultRunner;
-          if ((defaultRunner !== "paperclip" && defaultRunner !== "legacy")
+          if ((defaultRunner !== "nexus" && defaultRunner !== "legacy")
             || !refreshedCodex?.supportedRunners?.includes(defaultRunner)) {
             throw new Error("Could not confirm the environment's default runner. Retry setup.");
           }
@@ -2452,12 +2452,12 @@ function OnboardingWizardInner({
         // pass or a warn result that reports missing authentication — the
         // agent cannot run without one of those.
         if (blocksAgentCreate(result)) {
-          const nativeCodexError = adapterType === "codex_local" && result.adapterType === "paperclip_runner"
+          const nativeCodexError = adapterType === "codex_local" && result.adapterType === "nexus_runner"
             ? result.checks.find(check => check.level === "error")?.message : undefined;
           setError(
             nativeCodexError || (result.status === "fail"
               ? cloudInstance
-                ? "Paperclip couldn't finish connecting this agent. Try connecting again."
+                ? "Nexus couldn't finish connecting this agent. Try connecting again."
                 : "The environment test failed. Fix the reported checks before you hire this agent."
               : "No working authentication was found. Fix the reported checks before you hire this agent."),
           );
@@ -2895,7 +2895,7 @@ function OnboardingWizardInner({
                       <p className="pt-2 text-base leading-relaxed text-muted-foreground">
                         <motion.span key={step} {...titleSwapMotion} className="inline-block">
                           {step === 4
-                            ? "Paperclip works with your subscription or API keys."
+                            ? "Nexus works with your subscription or API keys."
                             : `${agentName.trim() || "Your first agent"} is ready to work!`}
                         </motion.span>
                       </p>

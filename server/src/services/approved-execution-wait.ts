@@ -1,4 +1,4 @@
-import type { ToolInvocationStatus } from "@paperclipai/shared";
+import type { ToolInvocationStatus } from "@nexusai/shared";
 
 const PREPARATION_STATUSES = new Set<ToolInvocationStatus>([
   "pending",

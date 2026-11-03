@@ -98,13 +98,13 @@ export async function channelsCommand(
     return;
   }
 
-  console.log(pc.bold("Paperclip release channels"));
+  console.log(pc.bold("Nexus release channels"));
   console.log("");
   for (const entry of state) {
     const version = entry.version ?? pc.yellow("unavailable");
     console.log(`  ${pc.bold(entry.channel.padEnd(8))} ${version}`);
     console.log(`  ${" ".repeat(8)} ${pc.dim(`${entry.cadence} — ${entry.audience}`)}`);
-    console.log(`  ${" ".repeat(8)} ${pc.dim(`npx paperclipai@${entry.distTag} onboard`)}`);
+    console.log(`  ${" ".repeat(8)} ${pc.dim(`npx nexusai@${entry.distTag} onboard`)}`);
     console.log("");
   }
 

@@ -1,6 +1,6 @@
 import { notifyNativeFinalizationWork } from "./native-finalization-notifications.js";
 import { and, desc, eq, gte, ne, or, sql } from "drizzle-orm";
-import { agentWakeupRequests, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations, nativeRunResults, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations, nativeRunResults, type Db } from "@nexusai/db";
 import { readSystemRecovery } from "./system-recovery-state.js";
 
 /** Re-enter the existing finalizer only after preservation. This does not

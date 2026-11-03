@@ -23,7 +23,7 @@ workers remain independently registered with the delivery coordinator.
 
 Durability already exists:
 
-- `chat_sdk_state`, key `paperclip:github-webhook-recovery:v1`, stores the
+- `chat_sdk_state`, key `nexus:github-webhook-recovery:v1`, stores the
   versioned runtime epoch, App identity, callback URL, floor, and `nextScanAt`.
 - `chat_actions` recovery receipts store immutable source fences, attempts,
   cancellation decisions, and unknown transport outcomes.
@@ -162,7 +162,7 @@ persist restoration, still requires conservative durable uncertainty handling.
   filename, so it did not run that suite and is not three-suite acceptance.
   The corrected complete command includes `chat-interaction-publications.test.ts`.
 - Final workspace typecheck/build passed. Corrected three-suite acceptance on
-  `paperclip_sleep38_final_20261025_1837_test` passed 1,605 cases and failed one
+  `nexus_sleep38_final_20261025_1837_test` passed 1,605 cases and failed one
   resume timing assertion in 571.32 seconds (`/tmp/sleep38-final-chat.log`).
   The test observed the newly committed checkpoint before `check` reloaded its
   deadline and the coordinator scheduled it. It now waits for idle tracking to
@@ -344,7 +344,7 @@ complete attachment receipt journeys pass**, retries zero, in 38.7 seconds.
 Every journey body, receipt/content assertion, 60-second test budget and
 120-second startup budget is unchanged. The full run uses a fresh database on
 the existing local PostgreSQL 17 test server and the canonical throwaway
-Paperclip home, CLI onboarding, server, UI, storage and HTTP paths. An earlier
+Nexus home, CLI onboarding, server, UI, storage and HTTP paths. An earlier
 full-run attempt failed during embedded PostgreSQL initialization before any
 browser test started; host semaphore usage was near capacity. That startup
 failure is retained and is not counted as a test pass. No shared host resources

@@ -10,7 +10,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     docs: { description: { component: "Light mode inherits the production palette; dark mode retains the Paper proposal palette. Use the theme toolbar to compare. The neutral palette comes from Paper’s Dark mode frame; the focus ring derives from dark-color-foreground. Token reference reads current CSS theme values; Surfaces & elevation uses shared Card and Input primitives; Text & interaction uses TaskList and its real Columns menu. The proposal decorator scopes the dark semantic theme, including portals, without changing production stories. This palette is staged for design review; task-status colors are outside this reference." } },
-    paperclip: {
+    nexus: {
       capabilities: [],
       home: "design-proposals",
       status: "proposed",

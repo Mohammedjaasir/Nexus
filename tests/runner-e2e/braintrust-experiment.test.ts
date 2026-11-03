@@ -16,7 +16,7 @@ const projectId = "11111111-1111-4111-8111-111111111111";
 const experimentId = "22222222-2222-4222-8222-222222222222";
 function fixture() {
   const cell = runnerMatrix.find(cell => cell.id === "core-compatibility.runner-codex.local.message-marker")!;
-  const first: RunnerE2EResult = { schema: "paperclip.runner-e2e.result/v2", executionId: cell.id,
+  const first: RunnerE2EResult = { schema: "nexus.runner-e2e.result/v2", executionId: cell.id,
     suiteId: cell.suite.id, suiteDefinitionHash: cell.suiteDefinitionHash,
     accountingIdentity: { campaignId: "retained-pilot", attemptId: "first" }, source: { sha: "a".repeat(40), ref: null, workflowRunUrl: null },
     attempt: 1, status: "failed", cleanup: "passed", profileId: cell.profile.id, caseId: cell.task.id,
@@ -211,9 +211,9 @@ it("rebuilds a report with a missing cell and its saved experiment without rerun
     const result = await promisify(execFile)(process.execPath,
       [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
         cwd: repositoryRoot,
-        env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: input, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output,
-          PAPERCLIP_E2E_CAMPAIGN_ID: "retained-pilot", PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([original.executionId, missing.id]),
-          PAPERCLIP_E2E_BRAINTRUST_EXPERIMENT: savedReceipt },
+        env: { ...process.env, NEXUS_RUNNER_E2E_REPORT_ROOT: input, NEXUS_RUNNER_E2E_REPORT_OUT: output,
+          NEXUS_E2E_CAMPAIGN_ID: "retained-pilot", NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([original.executionId, missing.id]),
+          NEXUS_E2E_BRAINTRUST_EXPERIMENT: savedReceipt },
       }).catch(error => error as { code: number; stderr: string });
     // Missing coverage still fails the campaign, but must not prevent rendering it.
     expect(result).toMatchObject({ code: 1 });

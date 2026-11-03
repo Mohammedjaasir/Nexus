@@ -18,7 +18,7 @@ describe("createHostClientHandlers invocation company scope", () => {
     } as unknown as HostServices;
 
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["secrets.read-ref"],
       services,
     });
@@ -45,7 +45,7 @@ describe("createHostClientHandlers invocation company scope", () => {
     } as unknown as HostServices;
 
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["secrets.read-ref"],
       services,
     });
@@ -77,7 +77,7 @@ describe("createHostClientHandlers invocation company scope", () => {
     } as unknown as HostServices;
 
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["projects.read"],
       services,
     });
@@ -110,7 +110,7 @@ describe("createHostClientHandlers invocation company scope", () => {
     } as unknown as HostServices;
 
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["companies.read"],
       services,
     });
@@ -132,7 +132,7 @@ describe("createHostClientHandlers invocation company scope", () => {
     } as unknown as HostServices;
 
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["plugin.state.read"],
       services,
     });
@@ -192,7 +192,7 @@ describe("createHostClientHandlers invocation company scope", () => {
         },
       } as unknown as HostServices;
       const handlers = createHostClientHandlers({
-        pluginId: "paperclip.test",
+        pluginId: "nexus.test",
         capabilities: [],
         services,
       });
@@ -218,7 +218,7 @@ describe("createHostClientHandlers invocation company scope", () => {
       },
     } as unknown as HostServices;
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["authorization.audit.read"],
       services,
     });
@@ -238,7 +238,7 @@ describe("createHostClientHandlers invocation company scope", () => {
       issues: { createComment },
     } as unknown as HostServices;
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["issue.comments.create"],
       services,
     });
@@ -261,7 +261,7 @@ describe("createHostClientHandlers invocation company scope", () => {
       issues: { createComment },
     } as unknown as HostServices;
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["issue.comments.create", "issue.comments.create_human_attributed"],
       services,
     });
@@ -289,7 +289,7 @@ describe("createHostClientHandlers invocation company scope", () => {
       issues: { createComment },
     } as unknown as HostServices;
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["issue.comments.create"],
       services,
     });
@@ -314,7 +314,7 @@ describe("createHostClientHandlers capability gating for LOOA-641 methods", () =
     const respondInteraction = vi.fn(async () => ({ interaction: { id: "i" }, applied: true }));
     const services = { issues: { respondInteraction } } as unknown as HostServices;
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       // A read grant must not confer the ability to respond.
       capabilities: ["issue.interactions.read"],
       services,
@@ -331,7 +331,7 @@ describe("createHostClientHandlers capability gating for LOOA-641 methods", () =
     const respondInteraction = vi.fn(async () => ({ interaction: { id: "i" }, applied: true }));
     const services = { issues: { respondInteraction } } as unknown as HostServices;
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["issue.interactions.respond"],
       services,
     });
@@ -347,7 +347,7 @@ describe("createHostClientHandlers capability gating for LOOA-641 methods", () =
     const decide = vi.fn(async () => ({ approval: { id: "a" }, applied: true }));
     const services = { approvals: { decide } } as unknown as HostServices;
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       // A read grant must not confer the ability to decide.
       capabilities: ["approvals.read"],
       services,
@@ -364,7 +364,7 @@ describe("createHostClientHandlers capability gating for LOOA-641 methods", () =
     const decide = vi.fn(async () => ({ approval: { id: "a" }, applied: true }));
     const services = { approvals: { decide } } as unknown as HostServices;
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["approvals.respond"],
       services,
     });
@@ -385,7 +385,7 @@ describe("createHostClientHandlers capability gating for LOOA-641 methods", () =
       approvals: { list },
     } as unknown as HostServices;
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: [],
       services,
     });
@@ -407,7 +407,7 @@ describe("createHostClientHandlers capability gating for LOOA-641 methods", () =
     const list = vi.fn(async () => []);
     const services = { approvals: { list } } as unknown as HostServices;
     const handlers = createHostClientHandlers({
-      pluginId: "paperclip.test",
+      pluginId: "nexus.test",
       capabilities: ["approvals.read"],
       services,
     });

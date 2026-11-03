@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { museQualificationRoutes } from "../routes/muse-qualification.js";
 import { museBoardRoutes } from "../routes/muse.js";
 const mocks = vi.hoisted(() => ({ beginQualification: vi.fn(), endQualification: vi.fn(), readQualificationEvidence: vi.fn(), verify: vi.fn(), attestDetectorCleanup: vi.fn(), decide: vi.fn(), getById: vi.fn() }));
@@ -98,7 +98,7 @@ describe("board Muse verification attribution", () => {
 
 describe("board-only exact Muse detector cleanup", () => {
   const cleanupPath = `/companies/${companyId}/agents/${agentId}/muse-binding/attest-detector-cleanup`;
-  const input = { bindingId, qualificationId, generation: 1, expectedRevision: 2, hookScript: `~/hooks/scripts/paperclip-muse-${bindingId}.sh`, detectorRemoved: true,
+  const input = { bindingId, qualificationId, generation: 1, expectedRevision: 2, hookScript: `~/hooks/scripts/nexus-muse-${bindingId}.sh`, detectorRemoved: true,
     observation: { method: "hooks.list", includeDisabled: true, hookId: "test-hook", outcome: "exact_hook_absent", observedAt: "2099-01-02T00:00:01.000Z", sha256: "a".repeat(64) } };
   it("uses actual Board caller and normal change-grant authorization", async () => {
     const actor = { type: "board", source: "session", userId: "actual-operator", companyIds: [companyId] };

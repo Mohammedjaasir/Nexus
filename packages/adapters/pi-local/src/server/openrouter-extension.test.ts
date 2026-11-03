@@ -1,6 +1,6 @@
 import { readFile, access } from "node:fs/promises";
 import { describe, expect, it, vi } from "vitest";
-import { OPENROUTER_ATTRIBUTION_HEADERS } from "@paperclipai/adapter-utils/openrouter-attribution";
+import { OPENROUTER_ATTRIBUTION_HEADERS } from "@nexusai/adapter-utils/openrouter-attribution";
 import { piOpenRouterExtensionSource, preparePiOpenRouterExtension } from "./openrouter-extension.js";
 
 async function loadExtension() {

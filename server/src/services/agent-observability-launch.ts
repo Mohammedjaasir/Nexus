@@ -1,5 +1,5 @@
-import { DEFAULT_AGENT_OBSERVABILITY_CAPTURE } from "@paperclipai/shared";
-import { buildProviderObservabilityLaunch } from "@paperclipai/adapter-utils/agent-observability";
+import { DEFAULT_AGENT_OBSERVABILITY_CAPTURE } from "@nexusai/shared";
+import { buildProviderObservabilityLaunch } from "@nexusai/adapter-utils/agent-observability";
 import type { ResolvedAgentObservability } from "./agent-observability.js";
 
 export function agentObservabilityLaunch(snapshot: ResolvedAgentObservability, input: { kind: "codex" | "claude" | "opencode"; companyId: string; agentId: string }) {

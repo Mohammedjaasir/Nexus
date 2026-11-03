@@ -15,15 +15,15 @@ const frame = (r: Row) => r.payload.prpEvent;
 const payload = (r: Row) => frame(r).payload;
 const setDetail = (r: Row, name: string, value: string) => { payload(r).details.find((d: Row) => d.name === name).value = value; };
 const scope = { provider: "copilot" as const, companyId: "company", issueId: "issue", runId: "run", target: "target.txt", requireContextRead: true };
-const caller = readActiveStopCaller({ deploymentMode: "local_trusted" }, { session: { userId: "local-board", id: "paperclip:local_implicit:local-board" } });
+const caller = readActiveStopCaller({ deploymentMode: "local_trusted" }, { session: { userId: "local-board", id: "nexus:local_implicit:local-board" } });
 const cancellationRequestId = "11111111-2222-4333-8444-555555555555";
 function row(seq: number, eventType: string, p: Row): Row {
   return { companyId: "company", runId: "run", seq, eventType, protocolSchemaVersion: 1, sourceInstanceId: "source", sourceSeq: seq,
-    payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn",
+    payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn",
       normalizedSessionId: "session", sourceInstanceId: "source", sourceSeq: seq, sourceEventId: `source:run:${seq}`, emittedAt: "2026-10-03T00:00:00Z", payload: p } } };
 }
 function notice(seq: number, toolCallId: string, stage: string, fields: Row) {
-  return row(seq, "provider.notice.recorded", { schema: "paperclip.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1",
+  return row(seq, "provider.notice.recorded", { schema: "nexus.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1",
     provenance: { sessionId: "native-session", turnId: "turn", eventType: stage, method: stage === "tool" ? "session/update" : "session/request_permission" },
     details: Object.entries({ stage, toolCallId, ...fields }).map(([name, value]) => ({ name, value: String(value) })) });
 }
@@ -44,8 +44,8 @@ function fixture() {
     notice(6, contextId, "permission_delivered", { requestId: "context-request", outcome: "allow_once" }),
     row(7, context[2].eventType, payload(context[2])), row(8, context[3].eventType, payload(context[3])), row(9, context[4].eventType, payload(context[4])),
     notice(10, "edit-tool", "tool", { status: "pending", operation: "edit", target: "target.txt" }),
-    row(11, "tool.execution.started", { schema: "paperclip.tool.execution.v1", executionId: "edit-tool", transport: "builtin", status: "running", operation: "edit", target: "target.txt" }),
-    row(12, "runtime_request.created", { request: { schema: "paperclip.runtime_request.v2", requestKind: "permission_approval", type: "permission", status: "pending",
+    row(11, "tool.execution.started", { schema: "nexus.tool.execution.v1", executionId: "edit-tool", transport: "builtin", status: "running", operation: "edit", target: "target.txt" }),
+    row(12, "runtime_request.created", { request: { schema: "nexus.runtime_request.v2", requestKind: "permission_approval", type: "permission", status: "pending",
       requestId: "edit-request", turnId: "turn", itemId: "edit-item", details: { toolCallId: "edit-tool" }, origin: { adapter: "acpx-runtime-sidecar", provider: "copilot", method: "session/request_permission" } } }),
     notice(13, "edit-tool", "permission_requested", { requestId: "edit-request", declineOffered: true, operation: "edit", target: "target.txt" })];
   const run: Row = { id: "run", companyId: "company", nativeIssueId: "issue", runtimeMode: "native", status: "running", resultJson: {} };
@@ -101,7 +101,7 @@ describe("successful context read with an explicit permission decision", () => {
       row(15, "turn.cancelled", { status: "cancelled", error: null }));
     f.run.status = "cancelled";
     f.run.resultJson = { startupCancellation: { cancellationRequestId, requestedBy: { type: "board", userId: "local-board" } }, nativeCancellation: {
-      schema: "paperclip.native-cancellation.v1", intentId: `native-cancellation:${cancellationRequestId}`, companyId: "company", runId: "run", issueId: "issue", scope: "run",
+      schema: "nexus.native-cancellation.v1", intentId: `native-cancellation:${cancellationRequestId}`, companyId: "company", runId: "run", issueId: "issue", scope: "run",
       dispatched: true, dispatchState: "acknowledged", reasonCode: "cancellation_run_only", effects: ["release_run_resources"], intentAuditId: "intent-audit", acknowledgementAuditId: "ack-audit" } };
     applyMainlineStopMetadata(f.run);
     const stopAcknowledgement = stopAcknowledgementForTest(f.run, cancellationRequestId, (BigInt(pending.observedMonotonicNs) + 1n).toString());
@@ -153,7 +153,7 @@ describe("optional exact context discovery", () => {
     expect(f.pending()).toMatchObject({ requestId: "edit-request" });
   });
   it.each([
-    ["another query", (rows: Row[]) => { payload(rows[2]).progress = "paperclip-search_api (pending): create_task"; }],
+    ["another query", (rows: Row[]) => { payload(rows[2]).progress = "nexus-search_api (pending): create_task"; }],
     ["mutation projection", (rows: Row[]) => { payload(rows[2]).readOnly = false; }],
     ["missing receipt", (rows: Row[]) => { rows.splice(6, 1); }],
     ["wrong receipt operation", (rows: Row[]) => { setDetail(rows[6], "operationId", "write_document"); }],
@@ -181,7 +181,7 @@ describe("optional exact context discovery", () => {
     const f = withDiscovery(), pending = f.pending(); f.run.status = "cancelled";
     f.events.push(row(23, "runtime_request.cancelled", { requestId: "edit-request", turnId: "turn", requestKind: "permission_approval", itemId: "edit-item", reason: "turn_terminal" }), row(24, "turn.cancelled", { status: "cancelled", error: null }));
     f.run.resultJson = { startupCancellation: { cancellationRequestId, requestedBy: { type: "board", userId: "local-board" } }, nativeCancellation: {
-      schema: "paperclip.native-cancellation.v1", intentId: `native-cancellation:${cancellationRequestId}`, companyId: "company", runId: "run", issueId: "issue", scope: "run",
+      schema: "nexus.native-cancellation.v1", intentId: `native-cancellation:${cancellationRequestId}`, companyId: "company", runId: "run", issueId: "issue", scope: "run",
       dispatched: true, dispatchState: "acknowledged", reasonCode: "cancellation_run_only", effects: ["release_run_resources"], intentAuditId: "intent-audit", acknowledgementAuditId: "ack-audit" } };
     applyMainlineStopMetadata(f.run);
     const stopAcknowledgement = stopAcknowledgementForTest(f.run, cancellationRequestId, (BigInt(pending.observedMonotonicNs) + 1n).toString());
@@ -200,7 +200,7 @@ function withTwoDiscoveries() {
   for (const r of second) {
     advance(r, 9);
     const p = payload(r);
-    if (p.name === "paperclip-search_api") p.progress = "paperclip-search_api (pending): dedicated get_task_context tool";
+    if (p.name === "nexus-search_api") p.progress = "nexus-search_api (pending): dedicated get_task_context tool";
     for (const d of p.details ?? []) {
       if (["callIdentitySha256", "semanticCallIdentitySha256"].includes(d.name)) d.value = "c".repeat(64);
       if (["inputSha256", "semanticInputSha256"].includes(d.name)) d.value = "d".repeat(64);

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import type { DecisionHistoryItem, DecisionHistoryPage } from "@paperclipai/shared";
+import type { DecisionHistoryItem, DecisionHistoryPage } from "@nexusai/shared";
 import { ArrowUpRight, Check, MessageSquare, RotateCcw, X } from "lucide-react";
 import { api, detachInflightGet } from "@/api/client";
 import { Link } from "@/lib/router";

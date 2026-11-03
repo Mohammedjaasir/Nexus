@@ -213,7 +213,7 @@ describe("Teams opt-in file-consent runtime", () => {
       authorization = "Bearer fixture-token",
     ) =>
       runtime.handleWebhook(
-        new Request("https://paperclip.test/webhook", {
+        new Request("https://nexus.test/webhook", {
           method: "POST",
           headers: { "content-type": "application/json", authorization },
           body: JSON.stringify(activity),

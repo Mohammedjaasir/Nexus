@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { environmentRuntimeService } from "../services/environment-runtime.js";
 import type { PluginWorkerManager } from "../services/plugin-worker-manager.js";
 const mocks = vi.hoisted(() => ({ metadata: vi.fn(), command: vi.fn(), environment: vi.fn(), bindings: vi.fn(), acquire: vi.fn(), realize: vi.fn(), release: vi.fn(), resolve: vi.fn(), general: vi.fn(), experimental: vi.fn(), defaults: vi.fn(), kubernetes: vi.fn(), managed: vi.fn(), supportsTasks: vi.fn(), updateLeaseMetadata: vi.fn() }));
-vi.mock("../vendor/paperclip-runner/live/index.js", async importOriginal => ({ ...await importOriginal<object>(), probeCopilotMetadata: mocks.metadata }));
-vi.mock("@paperclipai/adapter-utils/execution-target", () => ({ runAdapterExecutionTargetShellCommand: mocks.command }));
+vi.mock("../vendor/nexus-runner/live/index.js", async importOriginal => ({ ...await importOriginal<object>(), probeCopilotMetadata: mocks.metadata }));
+vi.mock("@nexusai/adapter-utils/execution-target", () => ({ runAdapterExecutionTargetShellCommand: mocks.command }));
 vi.mock("../middleware/logger.js", () => ({ logger: { warn: vi.fn() } }));
 vi.mock("../services/environments.js", () => ({ environmentService: () => ({ getById: mocks.environment, listBoundCompanyIds: mocks.bindings, findKubernetesEnvironment: mocks.kubernetes, findManagedSandboxEnvironment: mocks.managed, updateLeaseMetadata: mocks.updateLeaseMetadata }) }));
 vi.mock("../services/instance-settings.js", () => ({ instanceSettingsService: () => ({ get: mocks.defaults, getGeneral: mocks.general, getExperimental: mocks.experimental }) }));
@@ -11,9 +11,9 @@ vi.mock("../services/environment-runtime.js", () => ({ environmentRuntimeService
 vi.mock("../services/environment-execution-target.js", () => ({ resolveEnvironmentExecutionTarget: mocks.resolve }));
 import { logger } from "../middleware/logger.js";
 import { probeCopilotConnection, probeCopilotExecutionTarget } from "../services/copilot-connection-probe.js";
-import { QUALIFIED_ACPX_PROFILES } from "../../../packages/paperclip-runner/src/drivers/acpx/qualified-profiles.js";
-import type { Db } from "@paperclipai/db";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
+import { QUALIFIED_ACPX_PROFILES } from "../../../packages/nexus-runner/src/drivers/acpx/qualified-profiles.js";
+import type { Db } from "@nexusai/db";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
 const verified = { status: "verified", version: "1.0.88", profileDigest: QUALIFIED_ACPX_PROFILES.copilot.commandDigest, promptSent: false, models: [{ id: "gpt-5.6-luna", label: "GPT" }] };
 const remote = { kind: "remote", remoteCwd: "/workspace" } as AdapterExecutionTarget;
 beforeEach(() => {
@@ -58,7 +58,7 @@ describe("Copilot connection verification", () => {
     expect(await probeCopilotConnection(db, "company", "private-token", "selected", "gpt-5.6-luna", { pluginWorkerManager })).toEqual(verified);
     expect(environmentRuntimeService).toHaveBeenCalledWith(db, { pluginWorkerManager });
     expect(mocks.metadata).not.toHaveBeenCalled(); expect(mocks.acquire).toHaveBeenCalledOnce();
-    expect(mocks.command.mock.calls[0]![3]).toMatchObject({ env: { COPILOT_GITHUB_TOKEN: "private-token", PAPERCLIP_COPILOT_PROBE_MODEL: "gpt-5.6-luna" }, timeoutSec: 35 });
+    expect(mocks.command.mock.calls[0]![3]).toMatchObject({ env: { COPILOT_GITHUB_TOKEN: "private-token", NEXUS_COPILOT_PROBE_MODEL: "gpt-5.6-luna" }, timeoutSec: 35 });
     expect(mocks.command.mock.calls[0]![2]).not.toContain("private-token");
     expect(mocks.release).toHaveBeenCalledWith(expect.objectContaining({ status: "released" }));
   });
@@ -126,11 +126,11 @@ describe("remote Copilot installation fallback", () => {
     mocks.command.mockResolvedValueOnce(rejected).mockResolvedValueOnce({ timedOut: false, stdout: JSON.stringify(verified), exitCode: 0 });
     await expect(probeCopilotExecutionTarget("private-token", remote, "gpt-5.6-luna")).resolves.toEqual(verified);
     expect(mocks.command).toHaveBeenCalledTimes(2);
-    expect(mocks.command.mock.calls[0]![2]).toContain("/opt/paperclip-runner/provider-pack");
-    expect(mocks.command.mock.calls[1]![2]).toContain("$HOME/.local/share/paperclip-runner/provider-pack");
+    expect(mocks.command.mock.calls[0]![2]).toContain("/opt/nexus-runner/provider-pack");
+    expect(mocks.command.mock.calls[1]![2]).toContain("$HOME/.local/share/nexus-runner/provider-pack");
     for (const call of mocks.command.mock.calls) {
       expect(call[2]).not.toContain("private-token");
-      expect(call[3].env).toMatchObject({ COPILOT_GITHUB_TOKEN: "private-token", PAPERCLIP_COPILOT_PROBE_MODEL: "gpt-5.6-luna" });
+      expect(call[3].env).toMatchObject({ COPILOT_GITHUB_TOKEN: "private-token", NEXUS_COPILOT_PROBE_MODEL: "gpt-5.6-luna" });
       expect(call[3].timeoutSec).toBeLessThanOrEqual(35);
     }
   });

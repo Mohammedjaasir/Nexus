@@ -52,7 +52,7 @@ it("forwards real attempt protobuf over HTTP using only the controller credentia
   expect(await trace.export({ failed: false, runIds: [], cleanup: "passed", complaints: 0, suggestions: 0 })).toMatchObject({ status: "accepted" });
   expect(received).toHaveLength(1);
   expect(received[0]).toMatchObject({ authorization: `Bearer ${apiKey}`, parent: `project_id:${projectId}` });
-  expect(received[0]!.body.toString()).toContain("paperclip.eval.attempt");
+  expect(received[0]!.body.toString()).toContain("nexus.eval.attempt");
   expect(received[0]!.body.toString()).not.toContain(f.relay.token);
   await f.relay.close();
   const records = await f.records();
@@ -60,7 +60,7 @@ it("forwards real attempt protobuf over HTTP using only the controller credentia
   expect(records[2]).toMatchObject({ outcome: "accepted", dispatched: true, httpStatus: 200, rejectedRecords: 0 });
   expect(records[3]).toMatchObject({ admittedRequests: 1, admittedBytes: received[0]!.body.length,
     attemptedForwardBytes: received[0]!.body.length, acceptedRequests: 1, incompleteRequests: 0 });
-  expect(JSON.stringify(records)).not.toMatch(/upstream-private-fixture|paperclip.eval.attempt/);
+  expect(JSON.stringify(records)).not.toMatch(/upstream-private-fixture|nexus.eval.attempt/);
   expect((await stat(f.policy.receiptPath)).mode & 0o777).toBe(0o600);
   await expect(startEvalOtlpRelay(f.policy)).rejects.toMatchObject({ code: "EEXIST" });
 });

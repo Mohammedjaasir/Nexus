@@ -4,7 +4,7 @@ import { act, useState, type ComponentProps } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { agentsApi } from "@/api/agents";
 import { ComposerRunSettingsPicker } from "./ComposerRunSettingsPicker";
@@ -277,7 +277,7 @@ describe("composer assignee picker", () => {
   });
 
   it.each(["copilot", "antigravity"])("keeps %s discovery passive during reconnect reconciliation and refreshes on opening", async acpxAgent => {
-    const copilot = { ...agent, adapterType: "paperclip_runner", defaultEnvironmentId: "daytona-1",
+    const copilot = { ...agent, adapterType: "nexus_runner", defaultEnvironmentId: "daytona-1",
       adapterConfig: { provider: "acpx", acpxAgent, model: "gpt-5.6-luna" } } as Agent;
     const loadModels = vi.spyOn(agentsApi, "adapterModels")
       .mockResolvedValueOnce([{ id: "gpt-5.6-luna", label: "Copilot Luna" }])
@@ -306,14 +306,14 @@ describe("composer assignee picker", () => {
     { name: "Antigravity", acpxAgent: "antigravity", provider: "google", method: "subscription", model: "gemini-exact", label: "Personal Gemini" },
   ] as const)("discovers $name task models with the assignee connection and environment", async ({ acpxAgent, provider, method, model, label }) => {
     const binding = { provider, method, mode: "shared", connectionId: "11111111-1111-4111-8111-111111111111", grantId: "33333333-3333-4333-8333-333333333333" } as const;
-    const selectedAgent = { ...agent, adapterType: "paperclip_runner", defaultEnvironmentId: "daytona-1",
+    const selectedAgent = { ...agent, adapterType: "nexus_runner", defaultEnvironmentId: "daytona-1",
       adapterConfig: { provider: "acpx", acpxAgent, model }, runtimeConfig: { aiConnection: binding } } as Agent;
     const loadModels = vi.spyOn(agentsApi, "adapterModels").mockResolvedValueOnce([{ id: model, label }]);
     render(vi.fn(), vi.fn(), true, { agents: new Map([[agent.id, selectedAgent]]), settings: null });
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
     expect(loadModels).not.toHaveBeenCalled();
     await click("Select model and effort");
-    expect(loadModels).toHaveBeenCalledWith("company-1", "paperclip_runner", {
+    expect(loadModels).toHaveBeenCalledWith("company-1", "nexus_runner", {
       environmentId: "daytona-1", provider: "acpx", poolId: undefined,
       acpxAgent, agentId: agent.id, aiConnection: binding,
     });
@@ -323,7 +323,7 @@ describe("composer assignee picker", () => {
   });
 
   it.each(["subscription", "api_key"] as const)("allows an exact Antigravity model absent from its %s catalog", async method => {
-    const selectedAgent = { ...agent, adapterType: "paperclip_runner",
+    const selectedAgent = { ...agent, adapterType: "nexus_runner",
       adapterConfig: { provider: "acpx", acpxAgent: "antigravity", model: "gemini-default" },
       runtimeConfig: { aiConnection: { provider: "google", method, mode: "responsible_user" } } } as Agent;
     vi.spyOn(agentsApi, "adapterModels").mockResolvedValue([{ id: "gemini-listed", label: "Listed native model" }]);
@@ -381,7 +381,7 @@ describe("composer assignee picker", () => {
   it.each([false, true])("hides unsupported Muse settings without loading a catalog (mobile: %s)", async (mobile) => {
     const loadModels = vi.spyOn(agentsApi, "adapterModels").mockResolvedValue([]);
     const onSettingsChange = vi.fn();
-    const muse = { ...agent, adapterType: "paperclip_runner", adapterConfig: { provider: "muse", model: "old-model" } } as Agent;
+    const muse = { ...agent, adapterType: "nexus_runner", adapterConfig: { provider: "muse", model: "old-model" } } as Agent;
     rememberComposerEffort("company-1", "high");
     render(vi.fn(), onSettingsChange, true, { mobile, settings: null, agents: new Map([[muse.id, muse]]) });
     expect(container!.querySelector('[aria-label="Select model and effort"]')).toBeNull();
@@ -400,7 +400,7 @@ describe("composer assignee picker", () => {
       const [muse, setMuse] = useState(false);
       const [settings, setSettings] = useState<ComposerRunSettings | null>({ model: "gpt-6-sol", effort: "high", fast: true });
       const selectedAgent = muse
-        ? { ...agent, adapterType: "paperclip_runner", adapterConfig: { provider: "muse" } } as Agent
+        ? { ...agent, adapterType: "nexus_runner", adapterConfig: { provider: "muse" } } as Agent
         : agent;
       return <>
         <button type="button" aria-label="Switch to Muse" onClick={() => setMuse(true)}>Switch to Muse</button>

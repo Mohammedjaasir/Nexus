@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { createDb, toolProfileBindings, toolProfileEntries } from "@paperclipai/db";
+import { createDb, toolProfileBindings, toolProfileEntries } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createConnectionProfileConfigurationFixture, legacyConnectionConfiguration } from "./helpers/connection-profile-configuration-fixture.js";
 import { createToolProfileService } from "../services/tool-access/profiles/service.js";

@@ -22,8 +22,8 @@ BOOT = '12345678-1234-1234-1234-123456789abc'
 ROOT = {'pid': 21, 'ppid': 1, 'startTicks': '100', 'bootId': BOOT}
 PARENT = {'pid': 22, 'ppid': 21, 'startTicks': '101', 'bootId': BOOT}
 TARGET = {'pid': 23, 'ppid': 22, 'startTicks': '102', 'bootId': BOOT}
-DIST = '/tmp/paperclip-acpx-native-fixture/distribution'
-RUNTIME = '/workspace/.paperclip-runtime/paperclip-runner'
+DIST = '/tmp/nexus-acpx-native-fixture/distribution'
+RUNTIME = '/workspace/.nexus-runtime/nexus-runner'
 HOST_NODE = fault.PACK + '/node_modules/node/bin/node'
 LOADER = 'admitted guarded loader'
 CANCELLED = False
@@ -44,10 +44,10 @@ class IdentityTests(unittest.TestCase):
         bootstrap, guard = fault.expected_sources(self.config, DIST, self.entries)
         self.files = {DIST + '/' + fault.NODE: (fault.NODE.encode(), (1, 100)), DIST + '/' + fault.ENTRY: (fault.ENTRY.encode(), (1, 101)),
                       DIST + '/' + fault.BOOTSTRAP: (bootstrap, (1, 102)), DIST + '/' + fault.GUARD: (guard, (1, 103)),
-                      RUNTIME + '/bin/paperclip-runnerd': (b'runner', (1, 90)), HOST_NODE: (fault.NODE.encode(), (1, 110)),
+                      RUNTIME + '/bin/nexus-runnerd': (b'runner', (1, 90)), HOST_NODE: (fault.NODE.encode(), (1, 110)),
                       fault.PACK + '/provider-assets/kimi/linux-x64/native-closure.json': (json.dumps({'entries': self.entries}, indent=2).encode(), (1, 80))}
         self.table = {21: ROOT, 22: PARENT, 23: TARGET}
-        self.args = {21: [RUNTIME + '/bin/paperclip-runnerd', '--run-id', 'run', '--environment-lease-id', 'workspace-id', '--lifecycle-mode', 'per_turn', '--state-dir', RUNTIME + '/sessions/' + 'a' * 64 + '/runner'],
+        self.args = {21: [RUNTIME + '/bin/nexus-runnerd', '--run-id', 'run', '--environment-lease-id', 'workspace-id', '--lifecycle-mode', 'per_turn', '--state-dir', RUNTIME + '/sessions/' + 'a' * 64 + '/runner'],
                      22: [HOST_NODE, '--eval', LOADER, DIST, fault.BOOTSTRAP, '0', '0', 'commonjs', '[]', '0'], 23: ['kimi-code']}
         self.stats = {'/proc/21/exe': (90, stat.S_IFREG), '/proc/23/exe': (100, stat.S_IFREG), '/proc/23/fd/7': (100, stat.S_IFREG),
                       '/proc/24/exe': (100, stat.S_IFREG), '/proc/24/fd/7': (100, stat.S_IFREG),
@@ -77,12 +77,12 @@ class IdentityTests(unittest.TestCase):
                 return metadata(self.stats[path][0])
             return original_stat(path)
         kernel = SimpleNamespace(F_GET_SEALS=1034, F_SEAL_SEAL=1, F_SEAL_SHRINK=2, F_SEAL_GROW=4, F_SEAL_WRITE=8, fcntl=lambda fd, op: 15)
-        with patch.object(os, 'open', return_value=42), patch.object(os, 'close'), patch.object(os, 'fstat', side_effect=lambda fd: metadata()), patch.object(os, 'read', side_effect=[content, b'']), patch.object(os, 'stat', side_effect=proc_stat), patch.object(os, 'readlink', side_effect=lambda path: '/memfd:paperclip-verified-launch (deleted)' if path == '/proc/self/fd/42' else '/workspace'), patch.object(fault, 'fcntl', kernel, create=True):
+        with patch.object(os, 'open', return_value=42), patch.object(os, 'close'), patch.object(os, 'fstat', side_effect=lambda fd: metadata()), patch.object(os, 'read', side_effect=[content, b'']), patch.object(os, 'stat', side_effect=proc_stat), patch.object(os, 'readlink', side_effect=lambda path: '/memfd:nexus-verified-launch (deleted)' if path == '/proc/self/fd/42' else '/workspace'), patch.object(fault, 'fcntl', kernel, create=True):
             yield
 
     def test_memfd_parent_uses_the_live_descriptor_without_reopening_deleted_alias(self):
         self.args[22][0] = '/proc/self/fd/10'
-        with patch.object(os.path, 'realpath', side_effect=lambda name: '/memfd:paperclip-verified-launch (deleted)' if name == '/proc/22/exe' else name), self.parent_descriptor(True):
+        with patch.object(os.path, 'realpath', side_effect=lambda name: '/memfd:nexus-verified-launch (deleted)' if name == '/proc/22/exe' else name), self.parent_descriptor(True):
             receipt = fault.inspect(self.config)
         self.assertEqual(receipt['target'], TARGET)
         self.assertFalse(any('/memfd:' in str(call) for call in fault.checked_file.call_args_list))
@@ -179,7 +179,7 @@ class ParentDescriptorTests(unittest.TestCase):
         self.closed = Mock()
         self.fstat = Mock(side_effect=lambda fd: self.before)
         self.read = Mock(side_effect=[self.content, b''])
-        self.readlink = Mock(return_value='/memfd:paperclip-verified-launch (deleted)')
+        self.readlink = Mock(return_value='/memfd:nexus-verified-launch (deleted)')
         self.kernel = SimpleNamespace(F_GET_SEALS=1034, F_SEAL_SEAL=1, F_SEAL_SHRINK=2, F_SEAL_GROW=4, F_SEAL_WRITE=8, fcntl=Mock(return_value=15))
         patches = [patch.object(os, 'open', self.opened), patch.object(os, 'close', self.closed), patch.object(os, 'fstat', self.fstat), patch.object(os, 'read', self.read), patch.object(os, 'stat', side_effect=lambda path: self.stats[path]), patch.object(os, 'readlink', self.readlink), patch.object(fault, 'fcntl', self.kernel, create=True)]
         for mocked in patches:
@@ -315,18 +315,18 @@ class PidfdTests(unittest.TestCase):
         node = shutil.which('node')
         self.assertIsNotNone(node)
         base = Path(tempfile.mkdtemp(prefix='kimi-fault-calibration-', dir='/tmp'))
-        snapshot = Path(tempfile.mkdtemp(prefix='paperclip-acpx-native-', dir='/tmp'))
+        snapshot = Path(tempfile.mkdtemp(prefix='nexus-acpx-native-', dir='/tmp'))
         distribution = snapshot / 'distribution'
         workspace = base / 'workspace'
-        runtime = workspace / '.paperclip-runtime/paperclip-runner'
+        runtime = workspace / '.nexus-runtime/nexus-runner'
         pack = base / 'pack'
         host_node = pack / 'node_modules/node/bin/node'
         root_child = None
         owned = []
         try:
-            for path in [distribution / fault.NODE, distribution / fault.ENTRY, runtime / 'bin/paperclip-runnerd', host_node]:
+            for path in [distribution / fault.NODE, distribution / fault.ENTRY, runtime / 'bin/nexus-runnerd', host_node]:
                 path.parent.mkdir(parents=True, exist_ok=True)
-            for path in [distribution / fault.NODE, runtime / 'bin/paperclip-runnerd', host_node]:
+            for path in [distribution / fault.NODE, runtime / 'bin/nexus-runnerd', host_node]:
                 shutil.copyfile(node, path)
                 path.chmod(0o500)
             ready = workspace / 'ready.json'
@@ -337,7 +337,7 @@ class PidfdTests(unittest.TestCase):
             closure.write_text(json.dumps({'entries': entries}))
             loader = 'const source=require("node:fs").readFileSync(3,"utf8");require("node:vm").runInThisContext(source);'
             template = 'const fs=require("node:fs"),cp=require("node:child_process");const fd=fs.openSync(' + json.dumps(fault.PLACEHOLDER + '/' + fault.NODE) + ',"r");const child=cp.spawn("/proc/self/fd/7",["--require",' + json.dumps(fault.PLACEHOLDER + '/' + fault.GUARD) + ',' + json.dumps(fault.PLACEHOLDER + '/' + fault.ENTRY) + ',"acp"],{stdio:["ignore","ignore","ignore","ignore","ignore","ignore","ignore",fd]});fs.closeSync(fd);child.on("exit",()=>process.exit(0));process.on("SIGTERM",()=>child.kill("SIGTERM"));'
-            config = {'binding': {'remoteCwd': str(workspace), 'runId': 'fixture'}, 'runtimeEnvironmentLeaseId': 'workspace-id', 'runnerdSha256': 'sha256:' + fault.digest((runtime / 'bin/paperclip-runnerd').read_bytes()),
+            config = {'binding': {'remoteCwd': str(workspace), 'runId': 'fixture'}, 'runtimeEnvironmentLeaseId': 'workspace-id', 'runnerdSha256': 'sha256:' + fault.digest((runtime / 'bin/nexus-runnerd').read_bytes()),
                       'closureSha256': fault.digest(json.dumps(entries, separators=(',', ':'), ensure_ascii=False).encode()), 'nodeSha256': 'sha256:' + fault.digest((distribution / fault.NODE).read_bytes()),
                       'guardLoaderSha256': 'sha256:' + fault.digest(loader.encode()), 'bootstrapTemplate': template, 'guardTemplate': 'const digests={};'}
             bootstrap, guard = fault.expected_sources(config, str(distribution), entries)
@@ -351,7 +351,7 @@ class PidfdTests(unittest.TestCase):
                     path.chmod(0o500 if path == distribution / fault.NODE else 0o400)
                 Path(directory).chmod(0o500)
             check_cancelled()
-            root_child = subprocess.Popen([str(runtime / 'bin/paperclip-runnerd'), str(script), '--run-id', 'fixture', '--environment-lease-id', 'workspace-id', '--lifecycle-mode', 'per_turn', '--state-dir', str(runtime / 'sessions' / ('a' * 64) / 'runner')], cwd=workspace, env={'PATH': '/usr/bin:/bin'}, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            root_child = subprocess.Popen([str(runtime / 'bin/nexus-runnerd'), str(script), '--run-id', 'fixture', '--environment-lease-id', 'workspace-id', '--lifecycle-mode', 'per_turn', '--state-dir', str(runtime / 'sessions' / ('a' * 64) / 'runner')], cwd=workspace, env={'PATH': '/usr/bin:/bin'}, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             owned.append(os.pidfd_open(root_child.pid))
             deadline = time.monotonic() + 5
             while not ready.exists() and time.monotonic() < deadline:

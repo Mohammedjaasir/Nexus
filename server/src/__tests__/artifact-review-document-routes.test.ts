@@ -32,7 +32,7 @@ const mockEnsureForWorkProduct = vi.hoisted(() => vi.fn());
 const mockSyncDocumentSafely = vi.hoisted(() => vi.fn(async () => undefined));
 
 function registerRouteMocks() {
-  vi.doMock("@paperclipai/shared/telemetry", () => ({
+  vi.doMock("@nexusai/shared/telemetry", () => ({
     trackAgentTaskCompleted: vi.fn(),
     trackErrorHandlerCrash: vi.fn(),
   }));
@@ -177,7 +177,7 @@ function makeWorkProduct(overrides: Record<string, unknown> = {}) {
     companyId: "company-1",
     issueId: ISSUE_ID,
     type: "artifact",
-    provider: "paperclip",
+    provider: "nexus",
     title: "Verification report",
     metadata: {
       attachmentId,

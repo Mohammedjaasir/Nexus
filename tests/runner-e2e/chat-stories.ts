@@ -98,7 +98,7 @@ export async function runChatInterruption(context: Context & { refreshIssue(): P
       boundaryRun = (await allRuns()).find(run => run.status === "running");
       return Boolean(boundaryRun);
     }, { timeout: 120_000 }).toBe(true);
-    expect(boundaryRun!.contextSnapshot?.paperclipWorkspace).toMatchObject({ cwd: agentWorkspace });
+    expect(boundaryRun!.contextSnapshot?.nexusWorkspace).toMatchObject({ cwd: agentWorkspace });
     await context.refreshIssue();
     await sendChatMessage(input.page, followup);
     await expect.poll(async () => (await comments()).filter(comment => !comment.authorAgentId && comment.body === followup).length,

@@ -376,7 +376,7 @@ describe("Discord native modal Gateway bridge", () => {
     expect(click.reply).toHaveBeenCalledWith(
       expect.objectContaining({
         content:
-          "This form could not be opened. Open the linked Paperclip task.",
+          "This form could not be opened. Open the linked Nexus task.",
         flags: 64,
       }),
     );
@@ -429,7 +429,7 @@ describe("Discord native modal Gateway bridge", () => {
       await adapter.handleGatewayInteraction(input);
       expect(input.reply).toHaveBeenCalledWith({
         content:
-          "This response was not accepted. Open the linked Paperclip task or reopen the question to try again.",
+          "This response was not accepted. Open the linked Nexus task or reopen the question to try again.",
         flags: 64,
         allowedMentions: { parse: [] },
       });
@@ -453,7 +453,7 @@ describe("Discord native modal Gateway bridge", () => {
       onModalSubmit: async () => ({
         action: "errors",
         errors: { field: "Required" },
-        paperclipDiscordCorrection: {
+        nexusDiscordCorrection: {
           version: 1,
           actionId,
           message: "Release note: Please provide an answer.",

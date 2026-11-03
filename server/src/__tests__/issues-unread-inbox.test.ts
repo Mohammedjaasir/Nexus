@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
 import request from "supertest";
 import { expect, it } from "vitest";
-import { activityLog, issueComments, issueInboxArchives, issueReadStates, issues, issueThreadInteractions, issueAccessGrants, projectAccessMembers, projects } from "@paperclipai/db";
+import { activityLog, issueComments, issueInboxArchives, issueReadStates, issues, issueThreadInteractions, issueAccessGrants, projectAccessMembers, projects } from "@nexusai/db";
 import { sidebarBadgeRoutes } from "../routes/sidebar-badges.js";
 import { issueReadSqlCondition } from "../services/authorization.js";
 import { issueService } from "../services/issues.js";
@@ -14,7 +14,7 @@ const newer = new Date("2026-01-03T00:00:00Z");
 const readable = sql<boolean>`true`;
 
 describeEmbeddedPostgres("Mine unread badge", () => {
-  const ctx = useEmbeddedPostgres("paperclip-mine-unread-");
+  const ctx = useEmbeddedPostgres("nexus-mine-unread-");
 
   it("ranks all visible Mine tasks before unread with canonical activity and exact ID ties", async () => {
     const { companyId, userId } = await seedCompanyWithBoardAccess(ctx.db, "Mine top100");

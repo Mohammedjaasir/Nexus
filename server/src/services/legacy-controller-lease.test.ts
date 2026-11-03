@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, closeLivenessDb, companies, createDb, heartbeatRuns, livenessDb, subscribeDatabaseWork } from "@paperclipai/db";
+import { agents, closeLivenessDb, companies, createDb, heartbeatRuns, livenessDb, subscribeDatabaseWork } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "../__tests__/helpers/external-test-database.js";
 import { DELIVERY_QUEUES } from "./delivery-work-notifications.js";
@@ -18,7 +18,7 @@ function fakeRenewalDb(returning: () => Promise<unknown>) {
   return fake as unknown as WatchArgs[0];
 }
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_LEGACY_CONTROLLER_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_LEGACY_CONTROLLER_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("durable legacy controller ownership", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
@@ -186,7 +186,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     try {
       await watch.assertOwned();
       const [{ name }] = await pool.execute<{ name: string }>(sql`select current_setting('application_name') as name`);
-      expect(name).toBe("paperclip-controller-lease");
+      expect(name).toBe("nexus-controller-lease");
     } finally { watch.stop(); }
     await closeLivenessDb(owner, 1);
     await expect(livenessDb(owner).execute(sql`select 1`)).rejects.toThrow();

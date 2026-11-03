@@ -5,14 +5,14 @@ import { fileURLToPath } from "node:url";
 import type {
   AdapterSkillContext,
   AdapterSkillSnapshot,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import {
   buildPersistentSkillSnapshot,
-  ensurePaperclipSkillSymlink,
-  readPaperclipRuntimeSkillEntries,
+  ensureNexusSkillSymlink,
+  readNexusRuntimeSkillEntries,
   readInstalledSkillTargets,
-  resolveLegacyPaperclipDesiredSkillNames,
-} from "@paperclipai/adapter-utils/server-utils";
+  resolveLegacyNexusDesiredSkillNames,
+} from "@nexusai/adapter-utils/server-utils";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -37,8 +37,8 @@ function resolveKimiSkillsHome(config: Record<string, unknown>) {
 }
 
 async function buildKimiSkillSnapshot(config: Record<string, unknown>): Promise<AdapterSkillSnapshot> {
-  const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
-  const desiredSkills = resolveLegacyPaperclipDesiredSkillNames(config, availableEntries);
+  const availableEntries = await readNexusRuntimeSkillEntries(config, __moduleDir);
+  const desiredSkills = resolveLegacyNexusDesiredSkillNames(config, availableEntries);
   const skillsHome = resolveKimiSkillsHome(config);
   const installed = await readInstalledSkillTargets(skillsHome);
   return buildPersistentSkillSnapshot({
@@ -50,7 +50,7 @@ async function buildKimiSkillSnapshot(config: Record<string, unknown>): Promise<
     locationLabel: "~/.kimi-code/skills",
     missingDetail: "Configured but not currently linked into the Kimi skills home.",
     externalConflictDetail: "Skill name is occupied by an external installation.",
-    externalDetail: "Installed outside Paperclip management.",
+    externalDetail: "Installed outside Nexus management.",
   });
 }
 
@@ -62,9 +62,9 @@ export async function syncKimiSkills(
   ctx: AdapterSkillContext,
   desiredSkills: string[],
 ): Promise<AdapterSkillSnapshot> {
-  const availableEntries = await readPaperclipRuntimeSkillEntries(ctx.config, __moduleDir);
+  const availableEntries = await readNexusRuntimeSkillEntries(ctx.config, __moduleDir);
   const desiredSet = new Set([
-    ...resolveLegacyPaperclipDesiredSkillNames({}, availableEntries),
+    ...resolveLegacyNexusDesiredSkillNames({}, availableEntries),
     ...desiredSkills,
   ]);
   const skillsHome = resolveKimiSkillsHome(ctx.config);
@@ -75,7 +75,7 @@ export async function syncKimiSkills(
   for (const available of availableEntries) {
     if (!desiredSet.has(available.key)) continue;
     const target = path.join(skillsHome, available.runtimeName);
-    await ensurePaperclipSkillSymlink(available.source, target);
+    await ensureNexusSkillSymlink(available.source, target);
   }
 
   for (const [name, installedEntry] of installed.entries()) {

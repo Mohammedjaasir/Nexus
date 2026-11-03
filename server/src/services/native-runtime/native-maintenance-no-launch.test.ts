@@ -25,7 +25,7 @@ function event(
   payload: Record<string, unknown>,
 ) {
   return {
-    schema: "paperclip.prp.event.v1",
+    schema: "nexus.prp.event.v1",
     schemaVersion: 1,
     sourceInstanceId: identity.runnerInstanceId,
     sourceEventId: `event_${identity.runnerInstanceId}_${String(seq).padStart(16, "0")}`,
@@ -48,7 +48,7 @@ function wrapped(raw: ReturnType<typeof event>) {
     eventType: raw.eventType,
     priority: raw.priority,
     envelope: {
-      protocol: "paperclip.runner",
+      protocol: "nexus.runner",
       version: 1,
       kind: "event",
       ...identity,
@@ -107,7 +107,7 @@ function fixture(): RetainedMaintenanceNoLaunchInput {
   ];
   const original = seal({
     control: {
-      schema: "paperclip.runner.durable.control-plane-state.v1",
+      schema: "nexus.runner.durable.control-plane-state.v1",
       identity,
       commands,
       committedEvents: [wrapped(oldEvent)],
@@ -115,7 +115,7 @@ function fixture(): RetainedMaintenanceNoLaunchInput {
       runAttachTemplate: { provider: "codex" },
     },
     runner: {
-      schema: "paperclip.runner.durable.state.v1",
+      schema: "nexus.runner.durable.state.v1",
       ...identity,
       lifecycle: "ready",
       outbox: [wrapped(retained)],
@@ -128,7 +128,7 @@ function fixture(): RetainedMaintenanceNoLaunchInput {
       processedCommandFingerprints: { attach: "old-fingerprint" },
     },
     provider: {
-      schema: "paperclip.runner.codex-provider-state.v1",
+      schema: "nexus.runner.codex-provider-state.v1",
       config: {
         provider: "codex",
         command: "codex",
@@ -304,7 +304,7 @@ function fixture(): RetainedMaintenanceNoLaunchInput {
     ],
     receipts: [retained, reconciled].map((raw) => {
       const receipt = {
-        schema: "paperclip.native_cleanup_event.v1",
+        schema: "nexus.native_cleanup_event.v1",
         requestId,
         rawSourceInstanceId: identity.runnerInstanceId,
         rawSourceEventId: raw.sourceEventId,

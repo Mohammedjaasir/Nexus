@@ -2,14 +2,14 @@
 
 **TL;DR: one newly passing case (Claude original document delivery), one unchanged pass (Claude explicit storage), two unchanged OpenCode failures, and no pending pairs or new overall machine failures. OpenCode's explicit-case clickable handoff nevertheless got worse:** baseline supplied a clickable API document URL, while candidate supplied only a code-formatted path. Both fail the original UI-only link oracle, whose intended route was narrower than the request's "usable link" wording. This result does not establish general non-regression.
 
-This focused repair keeps the eight-word manual, reduced shared prompts and merged Codex base fix #14920 fixed. It varies only the early operational Paperclip skill recipe and the presence of the new `issue-documents.md` reference. The earlier combined prompt-removal comparison retains its two new classic Claude/OpenCode storage failures; this trial repairs Claude's original case but leaves OpenCode's original regression unresolved.
+This focused repair keeps the eight-word manual, reduced shared prompts and merged Codex base fix #14920 fixed. It varies only the early operational Nexus skill recipe and the presence of the new `issue-documents.md` reference. The earlier combined prompt-removal comparison retains its two new classic Claude/OpenCode storage failures; this trial repairs Claude's original case but leaves OpenCode's original regression unresolved.
 
 | Classic profile | Case | Pre-fix skill → repaired skill | Retained evidence |
 | --- | --- | --- | --- |
 | Claude | Original assigned skill | Fail → Pass | Baseline lacks a durable task document; candidate saves one containing the skill marker. |
-| Claude | Explicit Paperclip document | Pass → Pass | Both save the document/revision and provide a canonical UI link. |
+| Claude | Explicit Nexus document | Pass → Pass | Both save the document/revision and provide a canonical UI link. |
 | OpenCode | Original assigned skill | Fail → Fail | Both write a workspace file rather than a public task document. Candidate requires automatic disposition recovery. |
-| OpenCode | Explicit Paperclip document | Fail → Fail | Both save the document/revision. Baseline provides a clickable API URL; candidate gives a code-formatted UI path without an anchor. Original UI-link checks fail in both. |
+| OpenCode | Explicit Nexus document | Fail → Fail | Both save the document/revision. Baseline provides a clickable API URL; candidate gives a code-formatted UI path without an anchor. Original UI-link checks fail in both. |
 
 Original machine verdicts and evidence hashes are retained in the [safe evidence projection](2026-10-02-legacy-document-skill-repair.json). No model was rerun to improve these results.
 
@@ -23,13 +23,13 @@ Original machine verdicts and evidence hashes are retained in the [safe evidence
 
 ## What OpenCode actually received
 
-The repaired original assignment invokes only its assigned Context integrity output skill, then writes `task-document.md`. There is no operational Paperclip skill load or issue-document reference read before that local write. A separate automatic `issue_disposition_repair` run then loads Paperclip. Its returned content contains the new early saved-document paragraph and reference pointer even though the overall skill result is marked truncated; it never reads the reference or saves a document, and only finalizes the issue's status.
+The repaired original assignment invokes only its assigned Context integrity output skill, then writes `task-document.md`. There is no operational Nexus skill load or issue-document reference read before that local write. A separate automatic `issue_disposition_repair` run then loads Nexus. Its returned content contains the new early saved-document paragraph and reference pointer even though the overall skill result is marked truncated; it never reads the reference or saves a document, and only finalizes the issue's status.
 
-This is evidence of operational-skill selection after work, not evidence that the assignment saw and ignored the new recipe. The pre-fix original run also writes locally before loading the old Paperclip skill. Whether the adapter should activate operational Paperclip guidance before work is a production-delivery question for review; expanding a skill the first assignment never opened would not address the observed sequence.
+This is evidence of operational-skill selection after work, not evidence that the assignment saw and ignored the new recipe. The pre-fix original run also writes locally before loading the old Nexus skill. Whether the adapter should activate operational Nexus guidance before work is a production-delivery question for review; expanding a skill the first assignment never opened would not address the observed sequence.
 
-The explicit candidate loads the assigned skill, then Paperclip, receives the new early paragraph, reads `issue-documents.md`, and calls the document API successfully. Its saved document has a persisted revision. The remaining defect is its comment's non-clickable path. Baseline supplied an actual Markdown link to the issue-document API GET endpoint. Read-only source review confirms that this endpoint returns the document in board context, and the unprefixed UI issue route redirects through the selected company's prefix while preserving the document hash. Actual authenticated browser navigation against these cleaned-up measured instances was not replayed, so neither URL is classified as a proven broken route. Candidate's missing clickable anchor is directly observable.
+The explicit candidate loads the assigned skill, then Nexus, receives the new early paragraph, reads `issue-documents.md`, and calls the document API successfully. Its saved document has a persisted revision. The remaining defect is its comment's non-clickable path. Baseline supplied an actual Markdown link to the issue-document API GET endpoint. Read-only source review confirms that this endpoint returns the document in board context, and the unprefixed UI issue route redirects through the selected company's prefix while preserving the document hash. Actual authenticated browser navigation against these cleaned-up measured instances was not replayed, so neither URL is classified as a proven broken route. Candidate's missing clickable anchor is directly observable.
 
-A future explicit fixture should name a clickable Paperclip UI document link if that is the intended contract. This clarification would not retroactively pass or fail either original result. A short canonical Markdown UI-link example can be considered separately from operational-skill delivery. No further production instruction change or paid rerun was made for this diagnosis.
+A future explicit fixture should name a clickable Nexus UI document link if that is the intended contract. This clarification would not retroactively pass or fail either original result. A short canonical Markdown UI-link example can be considered separately from operational-skill delivery. No further production instruction change or paid rerun was made for this diagnosis.
 
 ## Runs, timing and cost
 

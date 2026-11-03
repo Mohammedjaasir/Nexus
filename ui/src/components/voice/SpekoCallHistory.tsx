@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import type { VoiceCallHistoryEntry, VoiceCallReport, VoiceUnapprovedCallHistoryEntry } from "@paperclipai/shared";
+import type { VoiceCallHistoryEntry, VoiceCallReport, VoiceUnapprovedCallHistoryEntry } from "@nexusai/shared";
 import { Button } from "@/components/ui/button";
 import { voiceSessionsApi } from "@/api/voiceSessions";
 import { voicePhoneApi } from "@/api/voicePhone";
@@ -18,7 +18,7 @@ export function SpekoCallReport({ report }: { report: VoiceCallReport }) {
     <dl className="flex flex-wrap gap-4 text-sm"><div><dt className="text-muted-foreground">Speko charge</dt><dd>{charge(report.costMicroUsd)}</dd></div>{report.durationSeconds !== null && <div><dt className="text-muted-foreground">Duration</dt><dd>{report.durationSeconds} seconds</dd></div>}</dl>
     <p className="text-xs text-muted-foreground">Agent costs are separate. Recordings remain in Speko.</p>
     {report.transcript.length ? <ol aria-label="Call transcript" className="space-y-3">{report.transcript.map(turn => <li key={turn.id} className="min-w-0"><p className="text-xs font-medium text-muted-foreground">{turn.speaker === "caller" ? "You" : "Agent"}{turn.interrupted ? " · interrupted" : ""}</p><p className="whitespace-pre-wrap break-words text-sm">{turn.text}</p></li>)}</ol>
-      : <p className="text-sm text-muted-foreground">{report.status === "unavailable" ? "The transcript is unavailable. Paperclip will retry while Speko finishes the report." : report.status === "pending" ? "The transcript will appear after Speko finishes the call report." : "Speko did not provide a transcript for this call."}</p>}
+      : <p className="text-sm text-muted-foreground">{report.status === "unavailable" ? "The transcript is unavailable. Nexus will retry while Speko finishes the report." : report.status === "pending" ? "The transcript will appear after Speko finishes the call report." : "Speko did not provide a transcript for this call."}</p>}
   </div>;
 }
 const modeNames = { browser: "Browser voice", inbound_phone: "Incoming call", outbound_phone: "Outgoing call" } as const;

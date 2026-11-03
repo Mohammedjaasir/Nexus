@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
-import { CONNECTABLE_APP_DEFINITIONS } from "@paperclipai/shared";
+import { CONNECTABLE_APP_DEFINITIONS } from "@nexusai/shared";
 import { Browse } from "@/pages/apps/Browse";
 import { ChatEndpointSetup } from "@/pages/apps/chat/ChatEndpointSetup";
 import { ChatEndpointDetail } from "@/pages/apps/chat/ChatEndpointDetail";
@@ -40,7 +40,7 @@ function PageFixture({ path, agents = [spekoAgent] }: { path: string; agents?: (
   </div></QueryClientProvider>;
 }
 const meta: Meta = {
-  ...voiceStoryLifecycle, id: "connections-speko-pages", title: "Apps, channels, and extensions/External chat and email/Speko/Pages", parameters: { layout: "fullscreen", paperclip: {"capabilities": ["chat-channels/providers", "chat-channels/lifecycle", "connection-setup/channel-setup", "connection-setup/draft-recovery"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production setup and endpoint pages with fixture company, agent, session and credential responses. No provider verification, real billing or permission proof."} },
+  ...voiceStoryLifecycle, id: "connections-speko-pages", title: "Apps, channels, and extensions/External chat and email/Speko/Pages", parameters: { layout: "fullscreen", nexus: {"capabilities": ["chat-channels/providers", "chat-channels/lifecycle", "connection-setup/channel-setup", "connection-setup/draft-recovery"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production setup and endpoint pages with fixture company, agent, session and credential responses. No provider verification, real billing or permission proof."} },
   beforeEach(context) {
     const cleanup = voiceStoryLifecycle.beforeEach(), original = window.fetch;
     const state = (context.parameters.speko ?? {}) as State;

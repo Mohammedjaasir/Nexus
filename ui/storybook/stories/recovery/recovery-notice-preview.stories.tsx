@@ -13,7 +13,7 @@ const meta = {
         component: "Production recovery notice with a simulated request. Rendering, disclosure, pending, failure, and acknowledgement use the same component as both task interfaces. No real task is changed.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "recovery/diagnosis",
         "recovery/source-action"

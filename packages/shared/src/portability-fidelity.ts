@@ -6,7 +6,7 @@ export interface PortabilityFidelityWarning {
   message: string;
 }
 
-export const EXPORT_FIDELITY_REPORT_SCHEMA = "paperclip-export-fidelity-v1";
+export const EXPORT_FIDELITY_REPORT_SCHEMA = "nexus-export-fidelity-v1";
 
 export const EXPORT_FIDELITY_COUNT_KEYS = [
   "labelDefinitions",

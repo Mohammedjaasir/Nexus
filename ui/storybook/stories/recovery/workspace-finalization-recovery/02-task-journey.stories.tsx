@@ -35,7 +35,7 @@ const meta = {
   id: "workspace-finalization-recovery-02-task-journey",
   title: "Projects and execution/Recovery/Workspace finalization recovery/02 Task journey", component: Journey, args: { saved: false },
   parameters: { layout: "fullscreen", initialEntries: ["/PAP/issues/PAP-24"], docs: { description: { component: "A composed task conversation in the production app shell, using the shipped recovery notice, task bubbles and composer. Recovery happens automatically with no form or user action. This is a composed UI preview; finalization and approval resolution are verified separately by server tests." }, story: { inline: false } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "recovery/workspace",
         "recovery/source-action"

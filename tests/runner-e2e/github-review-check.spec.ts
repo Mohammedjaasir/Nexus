@@ -6,7 +6,7 @@ const expected = { repository: "fixture/repo", url: "https://github.com/fixture/
 async function openCheck(page: Page, input: { status?: string; score?: number; headSha?: string; unrelatedFailure?: boolean; url?: string } = {}) {
   const body = `<button style="display:none">Re-run failed checks</button>
     <section aria-label="Check run summary"><div id="check_run_123">
-      <div class="border-bottom">Fixture bot / Paperclip Review <span>${input.status ?? "failed"} <time>2 minutes ago</time></span></div>
+      <div class="border-bottom">Fixture bot / Nexus Review <span>${input.status ?? "failed"} <time>2 minutes ago</time></span></div>
       <h2>${input.score ?? expected.score}/5</h2>
       <p>Reviewed commit: <code>${input.headSha ?? expected.headSha}</code></p>
       <p>Review rationale: failed tests are discussed in the summary.</p>

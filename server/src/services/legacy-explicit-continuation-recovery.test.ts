@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { agents, companies, createDb, heartbeatRuns, issueComments, issueRecoveryActions, issues } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRuns, issueComments, issueRecoveryActions, issues } from "@nexusai/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { getExecutionBlocker } from "./execution-blocker.js";
@@ -82,7 +82,7 @@ describe("legacy recovery after an explicit user continuation", () => {
     const f = await fixture();
     await terminalizeLegacyExecution({ db, run: f.source, status: "failed", fromStatuses: ["failed"], patch: {
       resultJson: { workspaceRestoreFailure: "restore_failed", workspaceRestoreRecovery: {
-        schema: "paperclip.workspace-restore-recovery.v1", leaseIds: [],
+        schema: "nexus.workspace-restore-recovery.v1", leaseIds: [],
       } },
     } });
 

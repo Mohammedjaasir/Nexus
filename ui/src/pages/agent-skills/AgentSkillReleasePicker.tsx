@@ -1,4 +1,4 @@
-import type { CompanySkillVersionSummary } from "@paperclipai/shared";
+import type { CompanySkillVersionSummary } from "@nexusai/shared";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -57,7 +57,7 @@ export interface AgentSkillReleasePickerProps {
 }
 
 /**
- * Release picker for the paperclip core skill. Only rendered when the
+ * Release picker for the nexus core skill. Only rendered when the
  * `enableBetaSkills` experimental flag is on and the skill has seeded releases.
  * Selecting a release pins the agent to that frozen snapshot; "Default" clears
  * the pin and returns the agent to the live skill.

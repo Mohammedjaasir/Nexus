@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { toolActionRequests, toolInvocations, type Db } from "@paperclipai/db";
-import type { ToolRedactedValueSummary } from "@paperclipai/shared";
+import { toolActionRequests, toolInvocations, type Db } from "@nexusai/db";
+import type { ToolRedactedValueSummary } from "@nexusai/shared";
 import { notifyToolReviewChange } from "./tool-review-work-notifications.js";
 
 export type ToolApprovalClaim = { actionRequestId: string; invocationId: string; claimedAt: Date };

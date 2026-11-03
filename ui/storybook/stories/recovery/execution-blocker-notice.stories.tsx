@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { TaskInterruptionPresentation } from "@paperclipai/shared";
+import type { TaskInterruptionPresentation } from "@nexusai/shared";
 import { useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { ExecutionBlockerNotice } from "@/components/ExecutionBlockerNotice";
@@ -14,7 +14,7 @@ const meta = {
   id: "task-chat-recovery-notice",
   title: "Projects and execution/Recovery/Task chat/Recovery notice",
   component: ExecutionBlockerNotice,
-  parameters: { paperclip: {
+  parameters: { nexus: {
     capabilities: ["recovery/diagnosis", "recovery/exhaustion"], implementation: "production", boundary: "fixtures",
     notes: "Production task status driven by the shared presentation contract. Former inspection and certification examples now exercise ordinary Retry, quiet preparation, and permission gating. Fixture transitions do not prove provider recovery or durable admission.",
   } },

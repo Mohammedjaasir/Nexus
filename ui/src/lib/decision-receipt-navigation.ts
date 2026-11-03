@@ -1,4 +1,4 @@
-import type { RequestConfirmationTarget } from "@paperclipai/shared";
+import type { RequestConfirmationTarget } from "@nexusai/shared";
 import { buildDocumentAnnotationHash } from "./document-annotation-hash";
 
 /** Receipt links stay inside the task and pin the exact reviewed work product. */

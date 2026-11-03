@@ -15,8 +15,8 @@ import type { Plugin } from "vite";
  * from the bundle makes `sw.js` change exactly when the app does.
  */
 
-export const SERVICE_WORKER_BUILD_ID_PLACEHOLDER = "__PAPERCLIP_BUILD_ID__";
-export const SERVICE_WORKER_OFFLINE_STYLES_PLACEHOLDER = "__PAPERCLIP_OFFLINE_STYLES__";
+export const SERVICE_WORKER_BUILD_ID_PLACEHOLDER = "__NEXUS_BUILD_ID__";
+export const SERVICE_WORKER_OFFLINE_STYLES_PLACEHOLDER = "__NEXUS_OFFLINE_STYLES__";
 
 export function embedServiceWorkerOfflineStyles(source: string, css: string): string {
   const styles = css.match(/\/\* offline-recovery:start \*\/([\s\S]*?)\/\* offline-recovery:end \*\//)?.[1].trim();
@@ -69,7 +69,7 @@ export function serviceWorkerBuildIdPlugin(
   let root = "";
 
   return {
-    name: "paperclip-sw-build-id",
+    name: "nexus-sw-build-id",
     apply: "build",
     configResolved(config) {
       root = config.root;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { workspaceProviderBindingSchema } from "@paperclipai/shared";
+import { workspaceProviderBindingSchema } from "@nexusai/shared";
 
 const recoveryFile = z.object({
   path: z.string().min(1),

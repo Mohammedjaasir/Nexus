@@ -1,6 +1,6 @@
 import { and, eq, inArray, or } from "drizzle-orm";
-import { isUuidLike } from "@paperclipai/shared";
-import { agents, agentApiKeys, heartbeatRuns, runIdentityContexts, issues, projects, toolApplications, toolCatalogEntries, toolConnections, toolConnectionInstalls, toolProfiles, toolProfileEntries, toolProfileBindings, toolMcpGateways, aiConnectionPools, connectionGrants, routines, type Db } from "@paperclipai/db";
+import { isUuidLike } from "@nexusai/shared";
+import { agents, agentApiKeys, heartbeatRuns, runIdentityContexts, issues, projects, toolApplications, toolCatalogEntries, toolConnections, toolConnectionInstalls, toolProfiles, toolProfileEntries, toolProfileBindings, toolMcpGateways, aiConnectionPools, connectionGrants, routines, type Db } from "@nexusai/db";
 import { forbidden } from "../errors.js";
 import { authorizationService, canActorReadIssuePrivacy, canActorReadProjectPrivacy, type AuthorizationActor, type AuthorizationDecision } from "./authorization.js";
 import { captureRunIdentity, runIdentityTaskFields, type RunIdentityCapture } from "./run-identity.js";
@@ -81,7 +81,7 @@ export function connectionManagementService(db: Db) {
         const [issue] = issueId ? await db.select().from(issues).where(and(eq(issues.id, issueId), eq(issues.companyId, resource.companyId))) : [];
         workContext = { runId: run.id, issueId, projectId: issue?.projectId ?? null };
         if (issueId && (!issue || issue.assigneeAgentId !== actor.agentId || ["cancelled", "done"].includes(issue.status))) throw forbidden("Run no longer owns an eligible task");
-        if (snapshot.paperclipSkillTest || issue?.workMode === "skill_test") throw forbidden("Skill tests cannot administer connections");
+        if (snapshot.nexusSkillTest || issue?.workMode === "skill_test") throw forbidden("Skill tests cannot administer connections");
         if ((options.mutation ?? action !== "connections:read") && issue && issue.workMode !== "standard") throw forbidden("Connection changes are unavailable in Ask and Plan modes");
       }
     }

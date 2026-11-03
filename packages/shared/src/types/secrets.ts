@@ -209,8 +209,8 @@ export interface SecretProviderConfigDiscoverySignal {
   kmsKeyId: string | null;
   hasKmsKey: boolean;
   sampleCount: number;
-  paperclipManagedSampleCount: number;
-  skippedForeignPaperclipSampleCount: number;
+  nexusManagedSampleCount: number;
+  skippedForeignNexusSampleCount: number;
 }
 
 export interface SecretProviderConfigDiscoverySample {
@@ -233,7 +233,7 @@ export interface SecretProviderConfigDiscoveryPreviewResult {
   provider: SecretProvider;
   nextToken: string | null;
   sampledSecretCount: number;
-  skippedForeignPaperclipSampleCount: number;
+  skippedForeignNexusSampleCount: number;
   candidates: SecretProviderConfigDiscoveryCandidate[];
   warnings: string[];
 }

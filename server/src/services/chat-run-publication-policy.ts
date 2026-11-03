@@ -1,5 +1,5 @@
 import { ne, notExists, or, sql } from "drizzle-orm";
-import { chatEndpoints, chatGitHubConfigurations } from "@paperclipai/db";
+import { chatEndpoints, chatGitHubConfigurations } from "@nexusai/db";
 
 // Only upgraded GitHub bots have the task-scoped response tools. Legacy
 // connections retain automatic progress and final-answer publication.

@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
-import type { Db } from "@paperclipai/db";
-import type { PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import type { Db } from "@nexusai/db";
+import type { PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { hasCompletedNativePermissionDecline, readCompletedNativePermissionDecline } from "./native-permission-decline.js";
 
 const provider = { kind: "acpx", agent: "cursor" };
 const binding = { companyId: "company", runId: "run", agentId: "agent" };
 function row(seq: number, eventType: string, payload: unknown): any {
-  const event = { schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", runId: "run", turnId: "turn",
+  const event = { schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", runId: "run", turnId: "turn",
     normalizedSessionId: "session", sourceInstanceId: "runner", sourceEventId: `runner:${seq}`, sourceSeq: seq, eventType, payload };
   return { ...binding, seq, eventType, protocolSchemaVersion: 1, sourceInstanceId: "runner", sourceEventId: event.sourceEventId, sourceSeq: seq, payload: { prpEvent: event } };
 }

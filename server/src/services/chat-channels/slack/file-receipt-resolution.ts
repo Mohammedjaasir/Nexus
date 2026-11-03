@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { chatActions } from "@paperclipai/db";
+import { chatActions } from "@nexusai/db";
 import type { DbTransaction } from "../runtime-types.js";
-import type { chatPublications } from "@paperclipai/db";
+import type { chatPublications } from "@nexusai/db";
 export async function resolveSlackFileReceipt(tx: DbTransaction, publication: typeof chatPublications.$inferSelect, action: "mark_delivered" | "retry_anyway" | "cancel", now: Date): Promise<void> {
   const receiptProviderActionId = `slack-file-receipt:${publication.id}:${publication.attempts}`;
   if (action === "mark_delivered") {

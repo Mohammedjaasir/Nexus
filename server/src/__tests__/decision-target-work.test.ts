@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { activityLog, agents, authUsers, companies, companyMemberships, createDb, subscribeDatabaseWork, decisionEffectExecutions,
-  decisions, decisionRetention, decisionTargetIssues, heartbeatRuns, issueComments, issues } from "@paperclipai/db";
+  decisions, decisionRetention, decisionTargetIssues, heartbeatRuns, issueComments, issues } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { decisionService } from "../services/decisions.js";
@@ -18,7 +18,7 @@ import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { deleteCompany } from "../services/company-deletion.js";
 import { notifyDecisionTargetIssueRemoval } from "../services/decision-targets.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_DECISION_TARGETS_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_DECISION_TARGETS_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("decision target worker", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -36,7 +36,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
     db = createDb(externalUrl ?? temporary!.connectionString, { maxConnections: 6, idleTimeoutSeconds: 0, maxLifetimeSeconds: 0 });
   }, 30_000);
   beforeEach(async () => {
-    vi.stubEnv("PAPERCLIP_DECISION_SIGNING_SECRET", "0123456789abcdef0123456789abcdef");
+    vi.stubEnv("NEXUS_DECISION_SIGNING_SECRET", "0123456789abcdef0123456789abcdef");
     companyId = randomUUID(); agentId = randomUUID(); originId = randomUUID(); targetId = randomUUID(); runId = randomUUID(); userId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Recovery", issuePrefix: `R${companyId.slice(0, 6)}`, requireBoardApprovalForNewAgents: false });
     await db.insert(authUsers).values({ id: userId, name: "Decider", email: `${userId}@example.test`, createdAt: new Date(), updatedAt: new Date() });
@@ -183,7 +183,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
     const emptyCompanyId = randomUUID();
     await db.insert(companies).values({ id: emptyCompanyId, name: "Empty", issuePrefix: `E${emptyCompanyId.slice(0, 6)}` });
     const home = await mkdtemp(join(tmpdir(), "decision-target-company-"));
-    vi.stubEnv("PAPERCLIP_HOME", home);
+    vi.stubEnv("NEXUS_HOME", home);
     const settled = vi.fn();
     const unsubscribe = subscribeDatabaseWork(db, DELIVERY_QUEUES.decisionTargets, event => { if (event === "settled") settled(); });
     try {

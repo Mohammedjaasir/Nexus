@@ -19,8 +19,8 @@ import {
 
 import type { ChatEndpointRuntime } from "../../voice/voice-runtime.js";
 
-import { chatGitHubConfigurations } from "@paperclipai/db";
-import type { GitHubReviewEventContext, GitHubIssueEventContext, GitHubReviewPolicy } from "@paperclipai/shared";
+import { chatGitHubConfigurations } from "@nexusai/db";
+import type { GitHubReviewEventContext, GitHubIssueEventContext, GitHubReviewPolicy } from "@nexusai/shared";
 
 import { photonReplyReference } from "../../photon/adapter.js";
 
@@ -29,14 +29,14 @@ import {
   eq,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatEndpointResources,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEventKind,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   normalizeContentType,
@@ -323,7 +323,7 @@ export function createInboundEnvelope(db: Db, options: InboundEnvelopeOptions) {
     };
     // Teams RSC can deliver messages from every installed channel, and a
     // Telegram bot can receive addressed traffic from a provider-available
-    // group that the operator has not enabled in Paperclip. Until the reach
+    // group that the operator has not enabled in Nexus. Until the reach
     // gate admits that destination, retain only identifiers required for
     // deduplication and operator-visible filtering—not user text, attachment
     // metadata, or an external principal profile.

@@ -5,8 +5,8 @@ branch. It runs a deterministic process adapter, with no external model calls.
 Use a disposable local-trusted instance. The seed changes that instance's
 experimental workspace and task-interface flags and creates a test company.
 
-1. Start a disposable Paperclip instance from this checkout. Set a separate
-   `PAPERCLIP_HOME` and port. Keep it bound to loopback in `local_trusted` mode.
+1. Start a disposable Nexus instance from this checkout. Set a separate
+   `NEXUS_HOME` and port. Keep it bound to loopback in `local_trusted` mode.
 2. Run `node tests/e2e/workspace-base-ref/seed.mjs http://127.0.0.1:PORT`.
 3. Open the returned issue in the browser. Wait for it to become blocked.
 4. Confirm the thread says the starting branch is unavailable and shows the

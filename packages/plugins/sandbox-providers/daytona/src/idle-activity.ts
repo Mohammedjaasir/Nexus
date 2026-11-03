@@ -1,4 +1,4 @@
-import type { PluginDefinition } from "@paperclipai/plugin-sdk";
+import type { PluginDefinition } from "@nexusai/plugin-sdk";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 type Scope = { resources: Set<string>; active: number };

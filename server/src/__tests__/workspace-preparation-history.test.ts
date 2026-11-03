@@ -7,7 +7,7 @@ import request from "supertest";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { createDb, executionWorkspaceRepositories, executionWorkspaceRepositoryRoots, executionWorkspaces, heartbeatRuns, issues, projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { createDb, executionWorkspaceRepositories, executionWorkspaceRepositoryRoots, executionWorkspaces, heartbeatRuns, issues, projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { authorizationService, canActorReadExecutionWorkspace } from "../services/authorization.js";
 import { assertExecutionWorkspaceRecordAccess, assertTaskWorkspaceExecutionAccess } from "../services/task-workspace-access.js";
 import { executionWorkspaceRepositoryService } from "../services/execution-workspace-repositories.js";
@@ -23,7 +23,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let directory: string;
   let fixture: Awaited<ReturnType<typeof createWorkspacePreparationHistoryFixture>>;
   beforeAll(async () => {
-    vi.stubEnv("PAPERCLIP_ISSUE_PRIVACY_MODE", "enforce");
+    vi.stubEnv("NEXUS_ISSUE_PRIVACY_MODE", "enforce");
     database = await startEmbeddedPostgresTestDatabase("workspace-preparation-history-regression-");
     db = createDb(database.connectionString);
     directory = await fs.mkdtemp(path.join(os.tmpdir(), "workspace-preparation-history-regression-"));
@@ -158,7 +158,7 @@ const support = await getEmbeddedPostgresTestSupport();
     let repositoryId: string | undefined;
     try {
       const repository = await request(app).post(`${endpoint}/repositories`).send({
-        repository: { kind: "url", url: "https://github.com/paperclip-synthetic/route-request" }, requestKey: randomUUID(),
+        repository: { kind: "url", url: "https://github.com/nexus-synthetic/route-request" }, requestKey: randomUUID(),
       }).expect(200);
       repositoryId = repository.body.operationId;
       expect(repository.body.kind).toBe("requires_next_admission");
@@ -216,7 +216,7 @@ const support = await getEmbeddedPostgresTestSupport();
   it("permits a current trusted repository request despite a historical anonymous-only root", async () => {
     const { queries, service } = record();
     const intent = await service.request({ companyId: fixture.companyId, issueId: fixture.issueId, actor: fixture.actor,
-      request: { repository: { kind: "url", url: "https://github.com/paperclip-synthetic/new-current-request" }, requestKey: randomUUID() } });
+      request: { repository: { kind: "url", url: "https://github.com/nexus-synthetic/new-current-request" }, requestKey: randomUUID() } });
     expect(intent.kind).toBe("requires_next_admission");
     expectNoHistory(queries);
     await db.delete(executionWorkspaceRepositories).where(eq(executionWorkspaceRepositories.id, intent.operationId));
@@ -224,7 +224,7 @@ const support = await getEmbeddedPostgresTestSupport();
 
   it("keeps current low-trust acquisition restrictions even though directory policy is retired", async () => {
     const intent = await executionWorkspaceRepositoryService(db).request({ companyId: fixture.companyId, issueId: fixture.issueId,
-      actor: fixture.actor, request: { repository: { kind: "url", url: "https://github.com/paperclip-synthetic/low-trust-request" },
+      actor: fixture.actor, request: { repository: { kind: "url", url: "https://github.com/nexus-synthetic/low-trust-request" },
         requestKey: randomUUID() } });
     await db.update(heartbeatRuns).set({ contextSnapshot: { issueId: fixture.issueId, executionPolicy: {
       trustPreset: "low_trust_review", authorizationPolicy: { trustPreset: "low_trust_review", trustBoundary: {

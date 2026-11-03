@@ -2,7 +2,7 @@ import { api, detachInflightGet } from "./client";
 import type {
   MuseInvitation, MuseInvitationInput, MuseConnection, MusePairing, MusePairingInput,
   MuseVerifyInput, MuseVerifyResult, MuseRevokeInput, MuseDetectorCleanupAttestationInput, MuseAttestStopInput,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 const path = (companyId: string, agentId: string) => `/companies/${companyId}/agents/${agentId}/muse-binding`;
 function accountScopedRead<T>(path: string, signal?: AbortSignal) {

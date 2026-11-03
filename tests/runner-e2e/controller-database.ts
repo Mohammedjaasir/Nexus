@@ -8,10 +8,10 @@ import { pathToFileURL } from "node:url";
 import { createEmbeddedPostgresLogBuffer, ensurePostgresDatabase, loadWithoutEmbeddedPostgresExitHooks,
   prepareEmbeddedPostgresNativeRuntime } from "../../packages/db/src/index.js";
 import { recordControllerDatabaseOwnership } from "./instance-isolation.js";
-import { paperclipConfigSchema } from "../../packages/shared/src/config-schema.js";
+import { nexusConfigSchema } from "../../packages/shared/src/config-schema.js";
 
 export async function prepareControllerDatabase(configPath: string, temporaryRoot: string) {
-  const config = paperclipConfigSchema.parse(JSON.parse(await readFile(configPath, "utf8")));
+  const config = nexusConfigSchema.parse(JSON.parse(await readFile(configPath, "utf8")));
   if (config.database.mode === "postgres") return { cleanup: async () => {} };
   const directory = path.resolve(config.database.embeddedPostgresDataDir);
   const relative = path.relative(path.resolve(temporaryRoot), directory);
@@ -20,7 +20,7 @@ export async function prepareControllerDatabase(configPath: string, temporaryRoo
   const module = await loadWithoutEmbeddedPostgresExitHooks(() => import(pathToFileURL(require.resolve("embedded-postgres")).href));
   await prepareEmbeddedPostgresNativeRuntime();
   const logs = createEmbeddedPostgresLogBuffer();
-  const database = new module.default({ databaseDir: directory, user: "paperclip", password: "paperclip",
+  const database = new module.default({ databaseDir: directory, user: "nexus", password: "nexus",
     port: config.database.embeddedPostgresPort, persistent: true,
     initdbFlags: ["--encoding=UTF8", "--locale=C", "--lc-messages=C"],
     onLog: (message: unknown) => logs.append(message), onError: (message: unknown) => logs.append(message) });
@@ -29,11 +29,11 @@ export async function prepareControllerDatabase(configPath: string, temporaryRoo
     if (!existsSync(path.join(directory, "PG_VERSION"))) await database.initialise();
     await database.start();
     started = true;
-    const base = `postgres://paperclip:paperclip@127.0.0.1:${config.database.embeddedPostgresPort}`;
-    await ensurePostgresDatabase(`${base}/postgres`, "paperclip");
+    const base = `postgres://nexus:nexus@127.0.0.1:${config.database.embeddedPostgresPort}`;
+    await ensurePostgresDatabase(`${base}/postgres`, "nexus");
     await recordControllerDatabaseOwnership({ configPath, temporaryRoot, dataDirectory: directory,
-      connectionString: `${base}/paperclip` });
-    config.database = { ...config.database, mode: "postgres", connectionString: `${base}/paperclip` };
+      connectionString: `${base}/nexus` });
+    config.database = { ...config.database, mode: "postgres", connectionString: `${base}/nexus` };
     await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
     return { cleanup: async () => { await database.stop(); } };
   } catch (error) {

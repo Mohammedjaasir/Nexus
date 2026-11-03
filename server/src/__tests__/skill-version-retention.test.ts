@@ -12,7 +12,7 @@ import { notifyInstructionCollection } from "../services/instruction-collection-
 import { notifyNativeEnvironmentSettlement } from "../services/native-environment-settlement-notifications.js";
 import { idleWorkSnapshot, trackIdleWork } from "../services/task-admission.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
-import { applyPendingMigrations } from "@paperclipai/db";
+import { applyPendingMigrations } from "@nexusai/db";
 import { touchSkillVersionCache, lastUsedAt, skillVersionCachePaths } from "../services/skill-version-cache.js";
 import { randomUUID } from "node:crypto";
 import os from "node:os";
@@ -27,7 +27,7 @@ import {
   companySkillVersions,
   createDb,
   heartbeatRuns,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -39,7 +39,7 @@ import {
   skillVersionRetentionService,
 } from "../services/skill-version-retention.ts";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_SKILL_RETENTION_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_SKILL_RETENTION_TEST_DATABASE_URL");
 const embeddedPostgresSupport = external ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -65,18 +65,18 @@ async function makeWritable(target: string): Promise<void> {
 describeEmbeddedPostgres("skill version snapshot retention", () => {
   let db!: ReturnType<typeof createDb>;
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
-  let oldPaperclipHome: string | undefined;
-  let oldPaperclipInstanceId: string | undefined;
-  let paperclipHome: string | null = null;
+  let oldNexusHome: string | undefined;
+  let oldNexusInstanceId: string | undefined;
+  let nexusHome: string | null = null;
 
   beforeAll(async () => {
-    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-skill-version-retention-");
+    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("nexus-skill-version-retention-");
     if (external) await applyPendingMigrations(external);
-    oldPaperclipHome = process.env.PAPERCLIP_HOME;
-    oldPaperclipInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
-    paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-skill-version-retention-home-"));
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = "default";
+    oldNexusHome = process.env.NEXUS_HOME;
+    oldNexusInstanceId = process.env.NEXUS_INSTANCE_ID;
+    nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-skill-version-retention-home-"));
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = "default";
     db = createDb(external ?? tempDb!.connectionString, { maxConnections: 6, idleTimeoutSeconds: 0, maxLifetimeSeconds: 0 });
   }, 20_000);
 
@@ -95,19 +95,19 @@ describeEmbeddedPostgres("skill version snapshot retention", () => {
     await db.delete(agents);
     await db.delete(companySkills);
     await db.delete(companies);
-    if (paperclipHome) {
-      const skillsRoot = path.join(paperclipHome, "instances", "default", "skills");
+    if (nexusHome) {
+      const skillsRoot = path.join(nexusHome, "instances", "default", "skills");
       await makeWritable(skillsRoot);
       await fs.rm(skillsRoot, { recursive: true, force: true });
     }
   });
 
   afterAll(async () => {
-    if (oldPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = oldPaperclipHome;
-    if (oldPaperclipInstanceId === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-    else process.env.PAPERCLIP_INSTANCE_ID = oldPaperclipInstanceId;
-    if (paperclipHome) await fs.rm(paperclipHome, { recursive: true, force: true });
+    if (oldNexusHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = oldNexusHome;
+    if (oldNexusInstanceId === undefined) delete process.env.NEXUS_INSTANCE_ID;
+    else process.env.NEXUS_INSTANCE_ID = oldNexusInstanceId;
+    if (nexusHome) await fs.rm(nexusHome, { recursive: true, force: true });
     await db?.$client.end({ timeout: 1 });
     await tempDb?.cleanup();
   });
@@ -324,9 +324,9 @@ describeEmbeddedPostgres("skill version snapshot retention", () => {
     const { skillId, key, versionIds } = await createSkill(companyId, 2);
     const directory = await writeSnapshot(companyId, skillId, versionIds[0]!);
     const [agent] = await db.insert(agents).values({ companyId, name: "Pinned", adapterType: "codex_local",
-      adapterConfig: { paperclipSkillSync: { desiredSkills: [{ key, versionId: versionIds[0] }] } } }).returning();
+      adapterConfig: { nexusSkillSync: { desiredSkills: [{ key, versionId: versionIds[0] }] } } }).returning();
     await startRetention(); await settled(); await quiet(); expect(await exists(directory)).toBe(true);
-    const patch = { adapterConfig: { paperclipSkillSync: { desiredSkills: [] } } };
+    const patch = { adapterConfig: { nexusSkillSync: { desiredSkills: [] } } };
     if (mode === "configuration") await createAgentLifecycle(db).updateConfiguration(agent!.id, patch);
     else await db.transaction(async tx => {
       const approved = await prepareAgentHireApproval(tx as unknown as typeof db, agent!, patch);
@@ -489,7 +489,7 @@ describeEmbeddedPostgres("skill version snapshot retention", () => {
   it("wakes the missing-local-source reconciliation deletion path", async () => {
     const companyId = await createCompany();
     const { skillId, versionIds } = await createSkill(companyId, 1);
-    const source = path.join(paperclipHome!, "local-source");
+    const source = path.join(nexusHome!, "local-source");
     await fs.mkdir(source, { recursive: true }); await fs.writeFile(path.join(source, "SKILL.md"), "# Local source");
     await db.update(companySkills).set({ sourceType: "local_path", sourceLocator: source }).where(eq(companySkills.id, skillId));
     const service = companySkillService(db); await service.list(companyId);
@@ -618,7 +618,7 @@ describeEmbeddedPostgres("skill version snapshot retention", () => {
     await startRetention(20_000, undefined, false);
     const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
     const reading = trackIdleWork((async () => {
-      const directory = await fs.opendir(paperclipHome!);
+      const directory = await fs.opendir(nexusHome!);
       try { entered.resolve(); await release.promise; }
       finally { await directory.close(); }
     })());
@@ -684,7 +684,7 @@ describeEmbeddedPostgres("skill version snapshot retention", () => {
     const { skillId, key, versionIds: v } = await createSkill(companyId, 7);
     const [agent] = await db.insert(agents).values({
       companyId, name: "Pinned agent",
-      adapterConfig: { paperclipSkillSync: { desiredSkills: [{ key, versionId: v[0] }] } },
+      adapterConfig: { nexusSkillSync: { desiredSkills: [{ key, versionId: v[0] }] } },
     }).returning({ id: agents.id });
     await db.insert(heartbeatRuns).values([
       { companyId, agentId: agent!.id, status: "running", contextSnapshot: { skillVersions: { [key]: v[1] } } },
@@ -807,7 +807,7 @@ describeEmbeddedPostgres("skill version snapshot retention", () => {
     const { skillId, versionIds } = await createSkill(companyId, 3);
     const other = await createSkill(otherCompanyId, 3);
     const otherDirs = await Promise.all(other.versionIds.map(id => writeSnapshot(otherCompanyId, other.skillId, id)));
-    const outside = await fs.mkdtemp(path.join(paperclipHome!, "outside-"));
+    const outside = await fs.mkdtemp(path.join(nexusHome!, "outside-"));
     await fs.writeFile(path.join(outside, "keep.txt"), "keep");
     const root = resolveCompanySkillVersionsRoot(companyId);
     const victim = await writeSnapshot(companyId, skillId, versionIds[0]!);

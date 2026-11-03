@@ -9,10 +9,10 @@ scenarios:
       - onboarding/instance
       - instance-operations/diagnostics
     context: >-
-      No Paperclip server or company exists yet, so in-app Agent Chat cannot execute this
+      No Nexus server or company exists yet, so in-app Agent Chat cannot execute this
       request. This is a setup-guidance boundary for a future browser/operator journey.
     query: >-
-      Help me set up Paperclip on this machine.
+      Help me set up Nexus on this machine.
     expected_outcome: >-
       The scenario reaches the supported operator onboarding path, selects the intended instance
       configuration and checks real service readiness. No nonexistent CEO conversation is

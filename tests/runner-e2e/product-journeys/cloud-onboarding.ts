@@ -67,18 +67,18 @@ export async function cloudOnboarding(input: CloudOnboardingInput): Promise<Jour
   await page.getByRole("combobox", { name: "Model", exact: true }).selectOption(input.gateway.model);
   await page.locator("summary").filter({ hasText: "Advanced" }).click();
   await page.getByRole("button", { name: "Runner", exact: true }).click();
-  await page.getByRole("option", { name: /^Paperclip Runner/ }).click();
+  await page.getByRole("option", { name: /^Nexus Runner/ }).click();
   await input.qualify(context, connection.id);
   // Connect performs the production probe and agent creation. Never press Retry.
   const connect = await onboardingConnect({ page, origin: api.origin, companyId: company.id, deadlineAt: input.deadlineAt,
     retain: value => { evidence.onboardingConnect = value; } });
   const agents = await api.get<Row[]>(`/api/companies/${company.id}/agents`);
   const agent = agents.find(a => a.name === name);
-  if (!agent || agents.length !== 1 || agent.adapterType !== "paperclip_runner" || agent.adapterConfig?.provider !== "codex" || agent.adapterConfig?.model !== input.gateway.model) throw new JourneyError("failed", "onboarding_agent_configuration_mismatch");
+  if (!agent || agents.length !== 1 || agent.adapterType !== "nexus_runner" || agent.adapterConfig?.provider !== "codex" || agent.adapterConfig?.model !== input.gateway.model) throw new JourneyError("failed", "onboarding_agent_configuration_mismatch");
   connect.checkpoint = "agent-verification";
   await input.own({ kind: "agent", name, id: agent.id });
   evidence.checks.push({ id: "ui-connection-and-native-agent", passed: true });
-  await input.own({ kind: "issue", name: "Paperclip onboarding" });
+  await input.own({ kind: "issue", name: "Nexus onboarding" });
   await page.getByRole("button", { name: "Get started", exact: true }).click();
   await input.phase("agent");
   const completed = await onboardingFirstTask({ context, agent: { id: agent.id }, connectionId: connection.id,

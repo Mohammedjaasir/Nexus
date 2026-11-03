@@ -30,7 +30,7 @@ async function fixture() {
 
 function result(status: "passed" | "failed" = "passed"): RunnerE2EResult {
   return {
-    schema: "paperclip.runner-e2e.result/v2", executionId: "suite.profile.local.case",
+    schema: "nexus.runner-e2e.result/v2", executionId: "suite.profile.local.case",
     suiteId: "suite", profileId: "profile", environmentId: "local", caseId: "case",
     attempt: 1, provider: "fixture", model: "fixture", runtimeMode: "native", status,
     startedAt: "2026-10-29T00:00:00Z", finishedAt: "2026-10-29T00:00:01Z",
@@ -153,7 +153,7 @@ async function shadowLauncher(dotenv: string, host?: { platform: NodeJS.Platform
     try {
       return { code: 0, ...await promisify(execFile)(process.execPath,
         ["--import", path.resolve(import.meta.dirname, "../../cli/node_modules/tsx/dist/loader.mjs"), path.join(directory, "launch.ts"), ...args],
-        { cwd: repository, timeout: 20_000, env: { PATH: process.env.PATH, HOME: home, PAPERCLIP_E2E_CAMPAIGN_ID: "dotenv-probe", ...environment } }) };
+        { cwd: repository, timeout: 20_000, env: { PATH: process.env.PATH, HOME: home, NEXUS_E2E_CAMPAIGN_ID: "dotenv-probe", ...environment } }) };
     } catch (error) {
       const result = error as { code: number; stdout: string; stderr: string };
       return { code: result.code, stdout: result.stdout, stderr: result.stderr };
@@ -190,7 +190,7 @@ syncBuiltinESMExports();
 });
 
 it("uses the actual dotenv output root before a normal native campaign fails credential admission", async () => {
-  const f = await shadowLauncher("export PAPERCLIP_RUNNER_E2E_RESULTS_ROOT='OUTPUT_ROOT'\n");
+  const f = await shadowLauncher("export NEXUS_RUNNER_E2E_RESULTS_ROOT='OUTPUT_ROOT'\n");
   const result = await f.launch(["--id", "kimi-qualification.runner-acpx-kimi.local.message-marker"]);
   expect(result.code).toBe(1);
   expect(result.stderr).toContain("Missing runner E2E credentials: KIMI_API_KEY");
@@ -222,9 +222,9 @@ async function verifiedPrivateLaunch(f: Awaited<ReturnType<typeof shadowLauncher
   const identity = { workflowSha: "a".repeat(40), targetSha: "b".repeat(40), runId: "123", attempt: "1" };
   await writeFile(file, JSON.stringify({ protocol: MANUAL_PRIVATE_PROTOCOL, status: "verified", private: true,
     root: privateRoot, ...identity, executionIds: [executionId], cellReportProducer: await inspectCellReportProducer() }), { mode: 0o600 });
-  return { privateRoot, environment: { PAPERCLIP_RUNNER_E2E_PRIVATE_PREFLIGHT: file, RUNNER_TEMP: f.root,
+  return { privateRoot, environment: { NEXUS_RUNNER_E2E_PRIVATE_PREFLIGHT: file, RUNNER_TEMP: f.root,
     GITHUB_SHA: identity.workflowSha, GITHUB_RUN_ID: identity.runId, GITHUB_RUN_ATTEMPT: identity.attempt,
-    PAPERCLIP_RUNNER_E2E_SOURCE_SHA: identity.targetSha } };
+    NEXUS_RUNNER_E2E_SOURCE_SHA: identity.targetSha } };
 }
 
 it.each([

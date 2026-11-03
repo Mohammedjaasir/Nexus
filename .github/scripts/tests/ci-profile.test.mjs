@@ -132,7 +132,7 @@ test("trusted policy commands work with both current and pre-profile checkouts",
         mkdirSync(path.join(directory, "scripts"));
         symlinkSync(fileURLToPath(new URL("../../../scripts/ci-profile", import.meta.url)), path.join(directory, "scripts/ci-profile"));
       }
-      const env = { ...process.env, GITHUB_ENV: path.join(directory, "env"), PAPERCLIP_CI_PROFILE: "false" };
+      const env = { ...process.env, GITHUB_ENV: path.join(directory, "env"), NEXUS_CI_PROFILE: "false" };
       delete env.NODE_TEST_CONTEXT;
       const result = spawnSync("bash", ["-c", `${script}\nsource "$GITHUB_ENV"\nnode "$CI_NODE_TEST" probe.test.cjs`], {
         cwd: directory, env, encoding: "utf8",
@@ -201,8 +201,8 @@ test("profiling uses only infrastructure CODEOWNERS resolved at trusted master",
     return { id: endpoint === '/users/owner' ? 123 : 456, type: 'User' };
   }), [123, 456]);
   assert.deepEqual(endpoints, [
-    '/repos/paperclipai/paperclip/git/ref/heads/master',
-    `/repos/paperclipai/paperclip/contents/.github/CODEOWNERS?ref=${sha}`, '/users/owner', '/users/second',
+    '/repos/nexusai/nexus/git/ref/heads/master',
+    `/repos/nexusai/nexus/contents/.github/CODEOWNERS?ref=${sha}`, '/users/owner', '/users/second',
   ]);
 });
 
@@ -210,8 +210,8 @@ test("export paces batches and retries only rejected transient events", async ()
   const events = Array.from({ length: 501 }, () => ({ data: {} }));
   const sizes = [];
   const pauses = [];
-  await sendEvents(events, "test-only", "paperclip-ci", async (url, options) => {
-    assert.equal(url, "https://api.honeycomb.io/1/batch/paperclip-ci");
+  await sendEvents(events, "test-only", "nexus-ci", async (url, options) => {
+    assert.equal(url, "https://api.honeycomb.io/1/batch/nexus-ci");
     assert.equal(options.redirect, "error");
     const size = JSON.parse(options.body).length;
     sizes.push(size);
@@ -221,7 +221,7 @@ test("export paces batches and retries only rejected transient events", async ()
   assert.deepEqual(pauses, [1000, 1000]);
   let calls = 0;
   const retried = [];
-  await sendEvents([{ data: { id: 1 } }, { data: { id: 2 } }], "test-only", "paperclip-ci", async (_url, options) => {
+  await sendEvents([{ data: { id: 1 } }, { data: { id: 2 } }], "test-only", "nexus-ci", async (_url, options) => {
     const batch = JSON.parse(options.body);
     retried.push(batch.map((event) => event.data.id));
     calls += 1;
@@ -229,7 +229,7 @@ test("export paces batches and retries only rejected transient events", async ()
   }, async (ms) => { pauses.push(ms); });
   assert.deepEqual(retried, [[1, 2], [2]]);
   assert.equal(pauses.at(-1), 1000);
-  await assert.rejects(sendEvents([events[0]], "test-only", "paperclip-ci", async () => ({ ok: true, json: async () => [{ status: 400 }] })), /status 400/);
+  await assert.rejects(sendEvents([events[0]], "test-only", "nexus-ci", async () => ({ ok: true, json: async () => [{ status: 400 }] })), /status 400/);
 });
 
 function secretReference(text, includeQuoted = false) {
@@ -328,9 +328,9 @@ test("workflow exporter runs trusted code and keeps keys out of the PR jobs", ()
   assert.deepEqual(JSON.parse(boundedScan.stdout), [[false, false], [true, true], [true, true], [false, false], [true, true], [true, true]]);
   assert.equal(secretReference(pr), false);
   assertNoPrWorkflowCredentials(pr);
-  assert.match(pr, /if: always\(\) && env.PAPERCLIP_CI_PROFILE == 'true'/);
-  assert.doesNotMatch(pr, /PAPERCLIP_CI_PROFILE:.*labels/);
-  assert.equal(pr.match(/PAPERCLIP_CI_PROFILE: \$\{\{ needs.gate.outputs.profile_ci \}\}/g).length, 9);
+  assert.match(pr, /if: always\(\) && env.NEXUS_CI_PROFILE == 'true'/);
+  assert.doesNotMatch(pr, /NEXUS_CI_PROFILE:.*labels/);
+  assert.equal(pr.match(/NEXUS_CI_PROFILE: \$\{\{ needs.gate.outputs.profile_ci \}\}/g).length, 9);
   // upload-artifact excludes files inside dot-directories by default. Keep
   // this opt-in scoped to timing NDJSON, never the workspace or other secrets.
   assert.equal(pr.match(/path: \.ci-profile\/\*\.ndjson\n {10}include-hidden-files: true/g).length, 9);

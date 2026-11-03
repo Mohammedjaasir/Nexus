@@ -1,16 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { databaseWorkPending } from "@paperclipai/db/work-signals";
+import { databaseWorkPending } from "@nexusai/db/work-signals";
 import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { PluginEnvironmentTaskOperation } from "@paperclipai/plugin-sdk";
-import type { PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import type { PluginEnvironmentTaskOperation } from "@nexusai/plugin-sdk";
+import type { NexusPluginManifestV1 } from "@nexusai/shared";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   activityLog, agents, companies, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, environmentLeases,
   environments, heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults, plugins, sandboxCreationOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { recoveryPostgresSupport, startRecoveryPostgres } from "./helpers/recovery-postgres.js";
 import { createIsolatedTestHome } from "./helpers/isolated-test-home.js";
 import { prepareNativeHeartbeatRun } from "../services/native-runtime/prepare-native-run.js";
@@ -22,7 +22,7 @@ import { isNativeRunnerOwnershipHeld } from "../services/native-runtime/native-r
 import { cancelNativeSession } from "../services/native-runtime/native-session-executor.js";
 import * as nativeSessionExecutor from "../services/native-runtime/native-session-executor.js";
 import { NativeExecutionContext } from "../services/native-runtime/native-execution-context.js";
-import type { NativeExecutionInput } from "../vendor/paperclip-runner/index.js";
+import type { NativeExecutionInput } from "../vendor/nexus-runner/index.js";
 import { callbacks } from "../services/heartbeat/__tests__/run-control-fixtures.js";
 import { createHeartbeatRunControl } from "../services/heartbeat/run-control.js";
 import { nextEnvironmentCleanupAt } from "../services/environment-cleanup-state.js";
@@ -43,24 +43,24 @@ describePostgres("durable cleanup after a native startup timeout", () => {
   let temporary: Awaited<ReturnType<typeof startRecoveryPostgres>>;
   let db: ReturnType<typeof createDb>;
   let home: ReturnType<typeof createIsolatedTestHome>;
-  const originalHome = process.env.PAPERCLIP_HOME;
+  const originalHome = process.env.NEXUS_HOME;
   const companyId = randomUUID(), agentId = randomUUID();
 
   beforeAll(async () => {
     home = createIsolatedTestHome();
-    process.env.PAPERCLIP_HOME = home.home;
+    process.env.NEXUS_HOME = home.home;
     temporary = await startRecoveryPostgres("native-startup-cleanup-");
     db = createDb(temporary.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Startup cleanup", issuePrefix: "NSC" });
     await db.insert(agents).values({ id: agentId, companyId, name: "Runner", role: "engineer", status: "running",
-      adapterType: "paperclip_runner", adapterConfig: { provider: "codex" }, runtimeConfig: {}, permissions: {} });
+      adapterType: "nexus_runner", adapterConfig: { provider: "codex" }, runtimeConfig: {}, permissions: {} });
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
 
   afterAll(async () => {
     await temporary?.cleanup();
     home?.cleanup();
-    if (originalHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = originalHome;
+    if (originalHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = originalHome;
   });
 
   async function fixture(requiresPreparationStop = false) {
@@ -93,7 +93,7 @@ describePostgres("durable cleanup after a native startup timeout", () => {
       const current = await reload(), resultId = randomUUID();
       await db.insert(nativeRunResults).values({ id: resultId, companyId, issueId, runId,
         completionContractId: current.completionContractId!, serverFingerprint: resultId, schemaStatus: "accepted",
-        resultJson: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "done", summary: "Completed work" }, canonicalSha256: "a".repeat(64) });
+        resultJson: { schema: "nexus.run_result.v1", reportedWorkDisposition: "done", summary: "Completed work" }, canonicalSha256: "a".repeat(64) });
       await db.update(nativeRunFinalizations).set({ resultId, phase: "workspace_finalizing" }).where(eq(nativeRunFinalizations.runId, runId));
       return resultId;
     };
@@ -102,7 +102,7 @@ describePostgres("durable cleanup after a native startup timeout", () => {
 
   async function saveEarlyContext(f: Awaited<ReturnType<typeof fixture>>) {
     const run = await f.reload(), owner = await f.owner(), lease = await f.lease();
-    const context = { schema: "paperclip.native-startup-context.v1", companyId, agentId, runId: run.id,
+    const context = { schema: "nexus.native-startup-context.v1", companyId, agentId, runId: run.id,
       contextId: f.request.contextId, deadlineAtMs: f.request.deadlineAtMs, leaseId: lease.id,
       leaseOwner: owner.leaseOwner, controllerGeneration: owner.controllerGeneration, attempt: owner.attempt };
     await db.update(heartbeatRuns).set({ runnerProfileJson: { ...run.runnerProfileJson, nativeStartupContext: context } }).where(eq(heartbeatRuns.id, run.id));
@@ -345,8 +345,8 @@ rl.on("line",line=>{const m=JSON.parse(line);
  else if(m.method==="shutdown"){send(m.id,{});setImmediate(()=>process.exit(0));}
 });
 `, { mode: 0o600 });
-    const manifest: PaperclipPluginManifestV1 = { id: "test.startup-cleanup", apiVersion: 1, version: "1.0.0",
-      displayName: "Cleanup fixture", description: "Cleanup fixture", author: "Paperclip", categories: ["automation"],
+    const manifest: NexusPluginManifestV1 = { id: "test.startup-cleanup", apiVersion: 1, version: "1.0.0",
+      displayName: "Cleanup fixture", description: "Cleanup fixture", author: "Nexus", categories: ["automation"],
       capabilities: [], entrypoints: { worker: "worker.cjs" } };
     const manager = createPluginWorkerManager();
     await manager.startWorker(manifest.id, { entrypointPath, manifest, config: {},
@@ -354,7 +354,7 @@ rl.on("line",line=>{const m=JSON.parse(line);
     const context = new NativeExecutionContext({ binding: { companyId, agentId, runId: f.request.runId } } as NativeExecutionInput, 100);
     const params = { companyId, agentId, runId: f.request.runId, environmentId: lease.environmentId, issueId: lease.issueId,
       driverKey: "tasks", taskId: lease.providerLeaseId!, config: {}, projectIds: [], lease: { providerLeaseId: lease.providerLeaseId! } };
-    const operation = { kind: "prepare", projectIds: [], requirements: { schema: "paperclip.runner.launch-requirements.v1",
+    const operation = { kind: "prepare", projectIds: [], requirements: { schema: "nexus.runner.launch-requirements.v1",
       identity: { runnerInstanceId: "fixture", environmentLeaseId: lease.id, runId: f.request.runId,
         normalizedSessionId: "session", turnId: "turn", itemId: "item" }, provider: "codex", model: null,
       instructions: "Synthetic", runtimeContext: null, settings: {}, approvalPolicy: "never", readOnly: false,
@@ -385,8 +385,8 @@ rl.on("line",line=>{const m=JSON.parse(line);
   });
 
   it.each([false, true])("verifies an abandoned ephemeral startup without an inactive-owner acknowledgement (receipt=%s)", async stopped => {
-    const prior = process.env.PAPERCLIP_EPHEMERAL_SERVER;
-    process.env.PAPERCLIP_EPHEMERAL_SERVER = "true";
+    const prior = process.env.NEXUS_EPHEMERAL_SERVER;
+    process.env.NEXUS_EPHEMERAL_SERVER = "true";
     try {
       const f = await fixture(true);
       await requestNativeStartupCleanup(db, f.request);
@@ -403,8 +403,8 @@ rl.on("line",line=>{const m=JSON.parse(line);
       }
       expect(deps.verifyStartupCleanup).toHaveBeenCalled();
     } finally {
-      if (prior === undefined) delete process.env.PAPERCLIP_EPHEMERAL_SERVER;
-      else process.env.PAPERCLIP_EPHEMERAL_SERVER = prior;
+      if (prior === undefined) delete process.env.NEXUS_EPHEMERAL_SERVER;
+      else process.env.NEXUS_EPHEMERAL_SERVER = prior;
     }
   }, 30_000);
 

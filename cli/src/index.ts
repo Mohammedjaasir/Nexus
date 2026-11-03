@@ -2,7 +2,7 @@ import { registerRuntimeCommands } from "./commands/runtime.js";
 import { registerEmailCommands } from "./commands/client/email.js";
 import { registerMcpCommands } from "./commands/mcp.js";
 import { Command } from "commander";
-import { warnIfUnsupportedNodeVersion } from "@paperclipai/shared/node-version";
+import { warnIfUnsupportedNodeVersion } from "@nexusai/shared/node-version";
 import { onboard } from "./commands/onboard.js";
 import { doctor } from "./commands/doctor.js";
 import { envCommand } from "./commands/env.js";
@@ -29,7 +29,7 @@ import { registerSecretCommands } from "./commands/client/secrets.js";
 import { registerSkillsCommands } from "./commands/client/skills.js";
 import { registerTeamCommands } from "./commands/client/teams.js";
 import { applyDataDirOverride, type DataDirOptionLike } from "./config/data-dir.js";
-import { loadPaperclipEnvFile } from "./config/env.js";
+import { loadNexusEnvFile } from "./config/env.js";
 import { initTelemetryFromConfigFile, flushTelemetry } from "./telemetry.js";
 import { registerWorktreeCommands } from "./commands/worktree.js";
 import { registerPluginCommands } from "./commands/client/plugin.js";
@@ -62,18 +62,18 @@ import {
 
 const program = new Command();
 const DATA_DIR_OPTION_HELP =
-  "Paperclip data directory root (isolates state from ~/.paperclip)";
+  "Nexus data directory root (isolates state from ~/.nexus)";
 
 program.enablePositionalOptions();
 
 program
-  .name("paperclipai")
-  .description("Paperclip CLI — setup, diagnose, and configure your instance")
+  .name("nexusai")
+  .description("Nexus CLI — setup, diagnose, and configure your instance")
   .version(cliVersion);
 
 program
   .command("install")
-  .description("Install Paperclip into a managed per-user CLI store")
+  .description("Install Nexus into a managed per-user CLI store")
   .option("--canary", "Install the npm canary channel")
   .option("--version <version>", "Install an exact published npm version")
   .option("--ref <ref>", "Install a GitHub branch, tag, or commit SHA")
@@ -89,7 +89,7 @@ program
 program
   .command("update")
   .alias("upgrade")
-  .description("Check, update, or roll back the Paperclip CLI")
+  .description("Check, update, or roll back the Nexus CLI")
   .option("--latest", "Switch to the latest stable channel")
   .option("--canary", "Switch to the canary channel")
   .option("--version <version>", "Install an exact published version")
@@ -118,7 +118,7 @@ program.hook("preAction", async (_thisCommand, actionCommand) => {
     hasConfigOption: optionNames.has("config"),
     hasContextOption: optionNames.has("context"),
   });
-  loadPaperclipEnvFile(options.config);
+  loadNexusEnvFile(options.config);
   if (actionCommand.name() === "test-drive") {
     assertTestDriveDatabaseIsolation(options.config);
   }
@@ -137,12 +137,12 @@ program
   .option("-y, --yes", "Accept quickstart defaults (trusted local loopback unless --bind is set) and start immediately", false)
   .option("--install-service", "Install and start the background service after onboarding")
   .option("--no-install-service", "Do not install or suggest the background service")
-  .option("--run", "Start Paperclip immediately after saving config", false)
+  .option("--run", "Start Nexus immediately after saving config", false)
   .action(onboard);
 
 program
   .command("doctor")
-  .description("Run diagnostic checks on your Paperclip setup")
+  .description("Run diagnostic checks on your Nexus setup")
   .option("-c, --config <path>", "Path to config file")
   .option("-d, --data-dir <path>", DATA_DIR_OPTION_HELP)
   .option("--repair", "Attempt to repair issues automatically")
@@ -182,7 +182,7 @@ program
   .option("-d, --data-dir <path>", DATA_DIR_OPTION_HELP)
   .option("--dir <path>", "Backup output directory (overrides config)")
   .option("--retention-days <days>", "Retention window used for pruning", (value) => Number(value))
-  .option("--filename-prefix <prefix>", "Backup filename prefix", "paperclip")
+  .option("--filename-prefix <prefix>", "Backup filename prefix", "nexus")
   .option("--json", "Print backup metadata as JSON")
   .action(async (opts) => {
     await dbBackupCommand(opts);
@@ -198,7 +198,7 @@ program
 
 const run = program
   .command("run")
-  .description("Bootstrap local setup (onboard + doctor) and run Paperclip")
+  .description("Bootstrap local setup (onboard + doctor) and run Nexus")
   .option("-c, --config <path>", "Path to config file")
   .option("-d, --data-dir <path>", DATA_DIR_OPTION_HELP)
   .option("-i, --instance <id>", "Local instance id (default: default)")
@@ -221,7 +221,7 @@ heartbeat
   .option("-d, --data-dir <path>", DATA_DIR_OPTION_HELP)
   .option("--context <path>", "Path to CLI context file")
   .option("--profile <name>", "CLI context profile name")
-  .option("--api-base <url>", "Base URL for the Paperclip server API")
+  .option("--api-base <url>", "Base URL for the Nexus server API")
   .option("--api-key <token>", "Bearer token for agent-authenticated calls")
   .option(
     "--source <source>",

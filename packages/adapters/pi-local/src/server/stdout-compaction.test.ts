@@ -300,7 +300,7 @@ describe("compact mode", () => {
 });
 
 describe("tool_execution_update liveness", () => {
-  it("compact emits schema-distinct Paperclip progress at 0/5000ms boundaries", () => {
+  it("compact emits schema-distinct Nexus progress at 0/5000ms boundaries", () => {
     let now = 0;
     const compact = createPiStdoutCompactor("compact", { now: () => now });
     const line = toolExecutionUpdate("tc-1", "a".repeat(50_000));
@@ -315,7 +315,7 @@ describe("tool_execution_update liveness", () => {
     expect(beforeBoundary).toBeNull();
     expect(atBoundary).not.toBeNull();
     expect(JSON.parse(first!)).toEqual({
-      type: "paperclip_progress",
+      type: "nexus_progress",
       sourceEventType: "tool_execution_update",
       toolCallId: "tc-1",
     });
@@ -328,7 +328,7 @@ describe("tool_execution_update liveness", () => {
   });
 });
 
-describe("replay through Paperclip parsers", () => {
+describe("replay through Nexus parsers", () => {
   const raw = buildTranscript();
 
   it("compact preserves full parsePiJsonl output (finalMessage, usage, toolCalls, errors, messages)", () => {
@@ -348,9 +348,9 @@ describe("replay through Paperclip parsers", () => {
     expect(render(filterTranscript(raw, "compact"))).toEqual(render(raw));
   });
 
-  it("Paperclip progress events stay out of the UI transcript", () => {
+  it("Nexus progress events stay out of the UI transcript", () => {
     const event = {
-      type: "paperclip_progress",
+      type: "nexus_progress",
       sourceEventType: "tool_execution_update",
       toolCallId: "tc-1",
     };

@@ -9,9 +9,9 @@ import { skillSourceRetryAt } from './skill-source-retry.js';
 import path from 'node:path';
 import { folderService } from './folders.js';
 import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
-import { companySkillSources as sources, companySkillSourceEntries as entries, companySkills, companySkillRepositorySnapshots, projectSkillSources, projects, type Db, type SkillPackageRestoreRecipe, authUsers } from '@paperclipai/db';
-import type { CompanySkill, SkillSource, SkillSourceCreateRequest, SkillSourceDiscoveryRequest, SkillSourceSelectionRequest, SkillSourceRefreshResult, SkillSourcePreviewRequest, SkillSourceSettingsRequest, SkillSourceDisconnectRequest, SkillSourceDisconnectResult, SkillSourceBranchesQuery } from '@paperclipai/shared';
-import { normalizeAgentUrlKey } from '@paperclipai/shared';
+import { companySkillSources as sources, companySkillSourceEntries as entries, companySkills, companySkillRepositorySnapshots, projectSkillSources, projects, type Db, type SkillPackageRestoreRecipe, authUsers } from '@nexusai/db';
+import type { CompanySkill, SkillSource, SkillSourceCreateRequest, SkillSourceDiscoveryRequest, SkillSourceSelectionRequest, SkillSourceRefreshResult, SkillSourcePreviewRequest, SkillSourceSettingsRequest, SkillSourceDisconnectRequest, SkillSourceDisconnectResult, SkillSourceBranchesQuery } from '@nexusai/shared';
+import { normalizeAgentUrlKey } from '@nexusai/shared';
 import { conflict, notFound, unprocessable } from '../errors.js';
 import { companySkillService, parseSkillImportSourceInput } from './company-skills.js';
 import { scanGitHubSkillsWithPackageFallback as scanGitHubSkills, previewGitHubSkillFile, type GitHubRead, type ScannedSkillSource, type SkillScanOptions } from './github-skill-source.js';
@@ -125,7 +125,7 @@ export function skillSourceService(db: Db) {
     return `github/${scan.repositoryId}/${identity}/${normalizeAgentUrlKey(name) || 'skill'}`;
   }
   async function publish(tx: Tx, source: SourceRow, scan: ScannedSkillSource, selectedPaths: string[], excludedFolders: string[], context: SkillSourceContext, selectionReviewed: boolean, prepared: PreparedPackages): Promise<Omit<SkillSourceRefreshResult, 'source'>> {
-    await tx.execute(sql`SET CONSTRAINTS paperclip_skill_runtime_changed DEFERRED`);
+    await tx.execute(sql`SET CONSTRAINTS nexus_skill_runtime_changed DEFERRED`);
     const mode = scan.packageMode ?? 'skills';
     if (mode === 'repository' && scan.skills.length > 0 && (scan.repositoryPackage?.error || !scan.repositoryFiles?.length)) {
       throw unprocessable(scan.repositoryPackage?.error ?? 'Repository package has no files. Scan it again before importing.');
@@ -452,7 +452,7 @@ export function skillSourceService(db: Db) {
     const prepared: Array<Awaited<ReturnType<typeof skills.prepareImportedSkillEditable>>> = [];
     for (const skillId of skillIds) prepared.push(await skills.prepareImportedSkillEditable(companyId, skillId));
     return db.transaction(async tx => {
-      await tx.execute(sql`SET CONSTRAINTS paperclip_skill_runtime_changed DEFERRED`);
+      await tx.execute(sql`SET CONSTRAINTS nexus_skill_runtime_changed DEFERRED`);
       await lock(tx);
       for (const candidate of prepared) await skills.makeImportedSkillEditable(candidate, context.actor, folderId, tx);
       await remove(tx, skillIds.length, 0);

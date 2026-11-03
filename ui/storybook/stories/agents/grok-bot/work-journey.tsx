@@ -1,18 +1,18 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Agent, AskUserQuestionsInteraction, IssueAttachment, IssueComment } from "@paperclipai/shared";
+import type { Agent, AskUserQuestionsInteraction, IssueAttachment, IssueComment } from "@nexusai/shared";
 import { TaskChatThread } from "@/components/TaskChatThread";
 import { DocumentCard } from "@/components/artifacts/RichArtifactCards";
 import { Button } from "@/components/ui/button";
 import { pendingAskUserQuestionsInteraction } from "@/fixtures/issueThreadInteractionFixtures";
 import { queryKeys } from "@/lib/queryKeys";
-import { storybookAgents } from "../../../fixtures/paperclipData";
+import { storybookAgents } from "../../../fixtures/nexusData";
 
 const companyId = "company-storybook";
 const taskId = "grok-comparison-task";
 const proactiveTaskId = "grok-investigation-task";
 const agent: Agent = { ...storybookAgents[0]!, id: "agent-night-shift", name: "Night Shift", urlKey: "night-shift",
-  role: "researcher", adapterType: "paperclip_runner", adapterConfig: { provider: "grok_bot", allowUnmeteredProvider: true } };
+  role: "researcher", adapterType: "nexus_runner", adapterConfig: { provider: "grok_bot", allowUnmeteredProvider: true } };
 const agentMap = new Map([[agent.id, agent]]);
 const stages = ["First assignment", "Question and answer", "Result and review", "Proactive work", "Broken connection", "Recovery"];
 const question: AskUserQuestionsInteraction = { ...pendingAskUserQuestionsInteraction, id: "grok-comparison-scope", issueId: taskId,
@@ -43,22 +43,22 @@ export function GrokWorkJourney() {
     for (const id of [taskId, proactiveTaskId]) cache.setQueryData([...queryKeys.issues.documents(id), "plan"], null);
     return cache;
   });
-  const comments = stage === 3 ? proactive ? [comment("proactive", "I created this task from our Grok conversation and accepted its Paperclip work session. I am checking the three observations for follow-up questions.", 6, proactiveTaskId)] : [] : [
+  const comments = stage === 3 ? proactive ? [comment("proactive", "I created this task from our Grok conversation and accepted its Nexus work session. I am checking the three observations for follow-up questions.", 6, proactiveTaskId)] : [] : [
     comment("request", "Research three competitors and write a comparison.", 0, taskId, true),
     comment("progress", "I accepted the assignment and retrieved its current context. I have three candidates and need to confirm the audience.", 1),
     ...(answered ? [comment("answer-received", "Your answer resumed the same task. I am writing the comparison and CSV now.", 3)] : []),
-    ...(stage >= 2 ? [comment("completion", "The comparison document and CSV are ready for review. I submitted the completion result to Paperclip.", 5)] : []),
+    ...(stage >= 2 ? [comment("completion", "The comparison document and CSV are ready for review. I submitted the completion result to Nexus.", 5)] : []),
   ];
   return <QueryClientProvider client={client}><main className="space-y-4 p-6">
-    <div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">Night Shift in Paperclip</h1><p className="text-sm text-muted-foreground">Runs in Grok Bot · Usage not reported</p></div>
+    <div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">Night Shift in Nexus</h1><p className="text-sm text-muted-foreground">Runs in Grok Bot · Usage not reported</p></div>
       <Button disabled={stage === stages.length - 1 || stage === 1 && !answered} onClick={() => setStage(stage + 1)}>Next</Button></div>
-    <p className="text-xs text-muted-foreground">Guided fixture: task state, provider replies, admission and recovery are simulated. No Grok routine or Paperclip API is called.</p>
+    <p className="text-xs text-muted-foreground">Guided fixture: task state, provider replies, admission and recovery are simulated. No Grok routine or Nexus API is called.</p>
     <h2 className="text-lg font-medium">{stages[stage]}</h2>
     {stage <= 3 ? <>
       {stage === 0 && <p role="status" className="text-sm text-muted-foreground">Assignment delivered · Night Shift acknowledged · Working</p>}
       {stage === 1 && <p role="status" className="text-sm text-muted-foreground">{answered ? "Answer received · Continuation delivered" : "Waiting for your answer"}</p>}
       {stage === 2 && <p role="status" className="text-sm text-muted-foreground">Reported completion · Awaiting normal review</p>}
-      {stage === 3 && <div className="space-y-2"><p className="text-sm">In Grok, ask: “Track this investigation in Paperclip.” The existing request admits one task without sending the same initial assignment back.</p><Button disabled={proactive} onClick={() => setProactive(true)}>{proactive ? "One task admitted" : "Simulate Bot-initiated work"}</Button></div>}
+      {stage === 3 && <div className="space-y-2"><p className="text-sm">In Grok, ask: “Track this investigation in Nexus.” The existing request admits one task without sending the same initial assignment back.</p><Button disabled={proactive} onClick={() => setProactive(true)}>{proactive ? "One task admitted" : "Simulate Bot-initiated work"}</Button></div>}
       <div className="flex h-screen flex-col rounded-lg border bg-background text-foreground">
         <TaskChatThread key={stage === 3 ? proactiveTaskId : taskId} conversationMode={false} comments={comments}
           interactions={stage >= 1 && stage <= 2 ? [answered ?? question] : []} attachments={stage === 2 ? [file] : []}
@@ -71,9 +71,9 @@ export function GrokWorkJourney() {
       </div>
       {stage === 2 && <DocumentCard title="Competitor comparison" author="Night Shift" updatedAt="Oct 13, 2026" filename="competitor-comparison.md" revision={1} summary="" body={report} />}
     </> : <section className="space-y-3 rounded-lg border p-4">
-      <p role="alert" className="text-sm">{recovered ? "Fresh exchange verified. Ready for the next task." : "Recovery needed. Delivery is uncertain; Paperclip will not resend it automatically."}</p>
-      <p className="text-sm text-muted-foreground">{stopped ? "Paperclip work-session authority revoked. Remote Grok execution remains unknown." : "Open the Grok Bot desktop app to inspect Night Shift’s activity."}</p>
-      {!stopped && <Button onClick={() => setStopped(true)}>Stop Paperclip work</Button>}
+      <p role="alert" className="text-sm">{recovered ? "Fresh exchange verified. Ready for the next task." : "Recovery needed. Delivery is uncertain; Nexus will not resend it automatically."}</p>
+      <p className="text-sm text-muted-foreground">{stopped ? "Nexus work-session authority revoked. Remote Grok execution remains unknown." : "Open the Grok Bot desktop app to inspect Night Shift’s activity."}</p>
+      {!stopped && <Button onClick={() => setStopped(true)}>Stop Nexus work</Button>}
       {stage === 5 && stopped && !recovered && <Button onClick={() => setRecovered(true)}>Simulate inspection and fresh verification</Button>}
     </section>}
   </main></QueryClientProvider>;

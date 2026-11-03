@@ -3,13 +3,13 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import type {
   ToolMcpGatewayToken,
   ToolMcpGatewayWithTokens,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   toolMcpGatewayAuthConfigSchema,
   toolMcpGatewayHeaderPolicySchema,
   toolMcpGatewayMetadataPolicySchema,
   toolMcpGatewayOnDemandToolsConfigSchema,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { expect, userEvent, within } from "storybook/test";
 import { toolsApi } from "@/api/tools";
 import { TokensPanel } from "@/pages/apps/gateways/panels/TokensPanel";
@@ -95,7 +95,7 @@ const meta = {
     "Apps, channels, and extensions/Tool gateways and access profiles/Named gateway tokens",
   component: Tokens,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "gateways-profiles/tokens"
       ],

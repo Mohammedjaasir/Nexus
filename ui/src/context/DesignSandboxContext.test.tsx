@@ -14,7 +14,7 @@ function render() { act(() => root.render(<StrictMode><DesignSandboxProvider><Su
 beforeEach(() => {
   localStorage.clear();
   vi.stubEnv("DEV", true);
-  vi.stubEnv("VITE_PAPERCLIP_DESIGN_SANDBOX", "true");
+  vi.stubEnv("VITE_NEXUS_DESIGN_SANDBOX", "true");
   host = document.createElement("div"); document.body.append(host); root = createRoot(host);
 });
 afterEach(() => { act(() => root.unmount()); host.remove(); document.body.classList.remove("design-proposal-theme"); localStorage.clear(); vi.unstubAllEnvs(); });
@@ -26,7 +26,7 @@ it("requires a dev instance opt-in; browser storage cannot activate a production
   expect(document.body.classList.contains("design-proposal-theme")).toBe(false);
 });
 it("does not affect ordinary development instances", () => {
-  vi.stubEnv("VITE_PAPERCLIP_DESIGN_SANDBOX", "false"); render();
+  vi.stubEnv("VITE_NEXUS_DESIGN_SANDBOX", "false"); render();
   expect(host.querySelector("output")?.textContent).toBe("false:default");
   expect(document.body.classList.contains("design-proposal-theme")).toBe(false);
 });
@@ -39,10 +39,10 @@ it("toggles the exact proposal theme and portaled-menu appearance together and r
   expect(host.querySelector("output")?.textContent).toBe("false:default");
   expect(host.querySelector('[data-testid="avatar-initials"]')?.textContent).toBe("BO");
   expect(document.body.classList.contains("design-proposal-theme")).toBe(false);
-  expect(localStorage.getItem("paperclip.design-proposals.sandbox")).toBe("off");
+  expect(localStorage.getItem("nexus.design-proposals.sandbox")).toBe("off");
 });
 it("honors the saved off preference and cleans up the marker when unmounted", () => {
-  localStorage.setItem("paperclip.design-proposals.sandbox", "off"); render();
+  localStorage.setItem("nexus.design-proposals.sandbox", "off"); render();
   expect(host.querySelector("output")?.textContent).toBe("false:default");
   act(() => host.querySelector("button")!.click());
   expect(document.body.classList.contains("design-proposal-theme")).toBe(true);

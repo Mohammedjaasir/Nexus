@@ -320,7 +320,7 @@ Initial slice 07 local verification: 815 selected tests passed, with workspace
 typecheck and build passing. One initial interaction cleanup-hook timeout is recorded in
 the behavior document; the complete isolated suite then passed. Both parent
 PRs #17454 and #17458 now have every check passed and are mergeable, including
-the additional Paperclip Review checks. Full CI/review for slice 07 is next.
+the additional Nexus Review checks. Full CI/review for slice 07 is next.
 
 
 Slice 07 current integration: master `f6bc653f7f` contains the first six landed
@@ -450,7 +450,7 @@ query probe pass. Initial fixture type/error-shape failures are recorded in the
 behavior document. PR creation and full CI/review are next.
 
 Parent #17475 at `692e3ee02c` now has passing checks and Greptile 5/5; the extra
-Paperclip Review check was skipped. Fresh master is `fe85fd7ac4`, still at
+Nexus Review check was skipped. Fresh master is `fe85fd7ac4`, still at
 migration 0377. The stack remains open and unmerged. The full inventory above
 remains the completion scope.
 
@@ -1157,7 +1157,7 @@ approval retention #17497; do not accept that migration as functionally complete
 without preserving queue population. Other source seeding remains to be migrated.
 
 #17505 now has all latest-head checks accepted at `28a197cdfdab7977eecf591df39612009d725e17`
-(Paperclip Review skipped), with Greptile 5/5. #17508 at
+(Nexus Review skipped), with Greptile 5/5. #17508 at
 `9c5c4fbf65628589b466ce5650e8969388213716` has Greptile 5/5 and no unresolved
 threads. Its unchanged login-cleanup consume test failed in CI; all 16 local
 login-cleanup tests pass. One justified retry of failed run 40139410144 was
@@ -1234,7 +1234,7 @@ after cleanup while the pool is open, with persistent errors still reported.
 The final 48 shutdown/plugin cases and earlier 75-case consumer selection pass
 (76 unique cases), with server types/build passing. Fresh remote gates remain.
 Approval #17510 has passing latest-head CI and Greptile 5/5 at 0c7109c103, but
-Paperclip review identified persistent-failure backoff and duplicated PR matching
+Nexus review identified persistent-failure backoff and duplicated PR matching
 that still require repair. Tool health remains the next new migration after
 these owning-PR repairs.
 
@@ -1308,7 +1308,7 @@ consumers and publication gates remain open. This is not a completed PR yet.
 
 Fresh remote inspection: approval queue #17510 at `0d3100665d` has no failed or
 pending checks. Plugin #17518 at `ba0b6752cd` has no failed checks and one pending
-Paperclip Review check. The full original inventory and #17490 E2E cancellation
+Nexus Review check. The full original inventory and #17490 E2E cancellation
 failure remain required; no PR was merged.
 
 Health consumer follow-up: 72 access/email/GitHub/smoke-lab cases pass using a
@@ -1345,7 +1345,7 @@ before removing the backstop.
 
 Tool-health #17554 at `da4089960619d3da2112a4eed3cc7a3d97dbebf8` has passing
 Actions checks and fresh Greptile 5/5 after the failed-probe warning repair.
-Paperclip Review remains queued, so final acceptance is still open. Its PR body
+Nexus Review remains queued, so final acceptance is still open. Its PR body
 now records 771 selected local tests and the outstanding gate. No PR was merged.
 
 
@@ -1359,7 +1359,7 @@ Local selected coverage is 639 unique passing tests, with workspace types/build
 passing before the final fair-batch addition. Final server typechecking and build
 also pass. Remote publication/gates remain open.
 
-The latest health Paperclip Review completed neutral, with a 4/5 assessment and
+The latest health Nexus Review completed neutral, with a 4/5 assessment and
 follow-ups for cross-company backlog fairness and direct service-producer tests.
 These remain owning-PR work despite green Actions and Greptile 5/5. The same
 fairness defect was reproduced and repaired in the Discord worker. Shared helper
@@ -1375,7 +1375,7 @@ verification. CI run **40168371442** and review run **40168371311** are confirme
 live on that head. Fresh CI and review remain required; no merge is authorized.
 The source and detailed producer audit are on the Discord child branch.
 
-The health parent Paperclip Review completed neutral with 4/5 at `da40899606`.
+The health parent Nexus Review completed neutral with 4/5 at `da40899606`.
 It requests fair company batching and direct real-service producer coverage.
 The existing probes are already scoped by connection ID, so the review's concern
 about full inventory scans around each probe needs clarification rather than
@@ -1401,12 +1401,12 @@ isolated PostgreSQL databases, alongside the prior 22 fairness/health cases and
 fresh server typecheck/build. Initial fixture expectations and the retained-user
 DB setup failure are preserved in the health document. Publish these changes with
 the fair company selector, request fresh review, and propagate to Discord #17557.
-The Discord initial head has Greptile 5/5; its CI and Paperclip review were still
+The Discord initial head has Greptile 5/5; its CI and Nexus review were still
 running when inspected. The remaining original inventory and #17490 failure
 remain open; no stack PR is merged or declared fully accepted.
 
 
-Discord's first Paperclip review (4/5) identified a dispatch-capacity issue shared
+Discord's first Nexus review (4/5) identified a dispatch-capacity issue shared
 by health: 25 checks per 30 seconds delays a large already-due backlog. Health's
 actual-probe timestamp regression failed with a 30.7-second gap, then passed when
 only a remaining due batch receives a one-second continuation. All 22 health and
@@ -1462,7 +1462,7 @@ review thread is resolved at parent head `e7c29e4840`; fresh review/CI still app
 Discord inherits that parent at `33954efd2e` and registers its company intent
 before the earlier cleanup. Seven producer integrations and all six cleanup cases
 pass on the merged branch. The 1,413 deselected broad chat cases are not passes.
-Health `f8ad26f0ff` now has fresh Greptile 5/5 and no failed checks; Paperclip Review
+Health `f8ad26f0ff` now has fresh Greptile 5/5 and no failed checks; Nexus Review
 was still queued at the last inspection. The full goal remains active.
 
 
@@ -1503,7 +1503,7 @@ completion of the slice or the full stack. Master is refreshed at 0d73505098;
 final stack/master reconciliation remains required.
 
 Parent Discord #17557 at d3187f76a4 and company cleanup #17561 at e8febb30eb now
-have no failed or pending checks (Paperclip Review skipped). No merge was made.
+have no failed or pending checks (Nexus Review skipped). No merge was made.
 The older #17490 E2E cancellation failure remains unresolved. The entire original
 inventory stays in scope, with voice the next separate reason after receivers.
 
@@ -1590,7 +1590,7 @@ handoff, retention/deletion protection and safe same-account rotation are verifi
 All 205 selected tests, workspace types and build pass; publication and remote
 acceptance remain pending. History retention and call reports remain separate next
 slices. Parent #17578 at 90caaf3fa9 has no pending/failed checks and exact-head
-Greptile 5/5; the second Paperclip reviewer stopped before completion. The original
+Greptile 5/5; the second Nexus reviewer stopped before completion. The original
 remaining inventory, #17490 E2E failure and final reconciliation remain in scope.
 
 
@@ -1823,7 +1823,7 @@ attempts; these are the next distinct reason. No new table or Cloud alarm policy
 is included. The [audit](2026-10-25-teams-consent-expiry-sleep-audit.md) records
 222 unique selected passing cases, workspace types/build, and initial fixture
 failures. Publication and fresh remote checks/review remain required.
-Parent #17586 Actions/security/Greptile pass at 250fca6cff; Paperclip Review is
+Parent #17586 Actions/security/Greptile pass at 250fca6cff; Nexus Review is
 still running. The original full inventory, older E2E failure, deletion-policy
 finding and master reconciliation remain outstanding. No stack PR is merged.
 
@@ -1906,7 +1906,7 @@ reproduced. All 56 milestone/queue cases, 13 existing dependency cases and serve
 production types pass; four native cases were rerun after fixing external-test
 fixture cleanup. The audit preserves setup failures and provider-acceptance
 limits. No periodic projector has been removed yet. Fresh remote inspection
-still finds #17590 Paperclip Review queued, #17592 neutral, and #17490 E2E shard
+still finds #17590 Nexus Review queued, #17592 neutral, and #17490 E2E shard
 3 plus aggregate failing. Those gates and all remaining original scope stay open.
 
 
@@ -2028,7 +2028,7 @@ Verified selection at the combined tip:
 
 Fresh current-head rollup is saved at
 /tmp/sleep-stack-checks-after-drain-20261025.json. #17490 still fails E2E shard 3
-and aggregate at 31bcd19888. #17518 Paperclip Review remains pending. #17578 and
+and aggregate at 31bcd19888. #17518 Nexus Review remains pending. #17578 and
 newer propagated heads have pending checks, with no failures in that snapshot.
 The inbound cleanup/company-deletion review and security finding is NOT repaired
 by this drain change; current pending checks do not discharge that finding.
@@ -2261,7 +2261,7 @@ required. No stack PR has been merged.
 [#17649](https://github.com/paperclipai/paperclip/pull/17649) at
 `2384384eeec4f32d073242ebf597b81df2df1ccb` has all 53 checks passing,
 fresh Greptile 5/5, and no inline review findings. Full chat/startup acceptance
-passes all 1,505 cases on fresh `paperclip_sleep31_native_full_20261025_test`
+passes all 1,505 cases on fresh `nexus_sleep31_native_full_20261025_test`
 (`/tmp/sleep31-native-full-chat.log`, 446.10 seconds, exit 0). The lease service
 passes 51 tests; focused native/notice acceptance passes 36; final server
 typecheck and build pass. This supersedes the earlier slice-31 pending statuses.
@@ -3164,7 +3164,7 @@ workspace copy-back/validation; accepted-result commit/projection; and resource
 settlement after finalization. Current committed-history upkeep repeatedly calls
 finalization and best-effort cleanup, including swallowed resource-release
 failures. A completed result cannot be used as proof that those residual duties
-are finished. Audit first-result publication in `paperclip-control-plane-port.ts`,
+are finished. Audit first-result publication in `nexus-control-plane-port.ts`,
 workspace operation writes, durable workspace-owner release, retry updates and
 cleanup completion before disabling their existing recovery paths. No migration
 of these next duties is claimed by slice 51.

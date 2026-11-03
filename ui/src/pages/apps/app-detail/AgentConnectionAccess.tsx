@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Agent, ToolCatalogEntry, ToolPolicy, ToolProfileConfiguration } from "@paperclipai/shared";
+import type { Agent, ToolCatalogEntry, ToolPolicy, ToolProfileConfiguration } from "@nexusai/shared";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { Button } from "@/components/ui/button";
 

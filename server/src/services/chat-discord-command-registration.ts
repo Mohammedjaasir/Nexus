@@ -23,7 +23,7 @@ const fenceSchema = z
   })
   .strict();
 const common = {
-  schema: z.literal("paperclip.discord.command-registration.v1"),
+  schema: z.literal("nexus.discord.command-registration.v1"),
   scope: scopeSchema,
   ownerId,
 };
@@ -97,18 +97,18 @@ function freezeState(
 }
 
 /** The public marker is an identifier, never a credential or standalone proof. */
-export function discordPaperclipCommandDefinition(publicOwnerId: string) {
+export function discordNexusCommandDefinition(publicOwnerId: string) {
   if (!ownerId.safeParse(publicOwnerId).success)
     throw new Error("Invalid Discord command owner identifier");
   return {
     type: 1,
-    name: "paperclip",
-    description: `Paperclip session controls [pc:${publicOwnerId}]`,
+    name: "nexus",
+    description: `Nexus session controls [pc:${publicOwnerId}]`,
     options: [
       {
         type: 1,
         name: "status",
-        description: "Show the current Paperclip task",
+        description: "Show the current Nexus task",
       },
       {
         type: 1,
@@ -131,8 +131,8 @@ export function discordPaperclipCommandDefinition(publicOwnerId: string) {
 // One explicitly shipped prior definition. This is maintenance evidence only:
 // it never enables command handling before a current definition is confirmed.
 function priorCloseCopyDefinition(id: string) {
-  const definition = discordPaperclipCommandDefinition(id);
-  definition.options[2]!.description = "Close the current Paperclip task";
+  const definition = discordNexusCommandDefinition(id);
+  definition.options[2]!.description = "Close the current Nexus task";
   return definition;
 }
 
@@ -142,7 +142,7 @@ function definitionDigest(id: string, priorCloseCopy = false): string {
       JSON.stringify(
         priorCloseCopy
           ? priorCloseCopyDefinition(id)
-          : discordPaperclipCommandDefinition(id),
+          : discordNexusCommandDefinition(id),
       ),
     )
     .digest("hex");
@@ -157,7 +157,7 @@ export function createDiscordCommandRegistration(
   if (!parsed.success)
     throw new Error("Invalid Discord command registration scope");
   return freezeState({
-    schema: "paperclip.discord.command-registration.v1",
+    schema: "nexus.discord.command-registration.v1",
     scope: parsed.data,
     ownerId: randomBytes(16).toString("hex"),
     phase: "prepared",
@@ -274,7 +274,7 @@ function exactDefinition(
     JSON.stringify(
       priorCloseCopy
         ? priorCloseCopyDefinition(id)
-        : discordPaperclipCommandDefinition(id),
+        : discordNexusCommandDefinition(id),
     )
   );
 }
@@ -285,7 +285,7 @@ function markedOwner(
 ): boolean {
   return (
     command.type === 1 &&
-    command.name === "paperclip" &&
+    command.name === "nexus" &&
     command.application_id === state.scope.applicationId &&
     command.guild_id === undefined &&
     command.description.endsWith(`[pc:${state.ownerId}]`)
@@ -338,7 +338,7 @@ async function request(
             ? {}
             : {
                 body: JSON.stringify(
-                  discordPaperclipCommandDefinition(
+                  discordNexusCommandDefinition(
                     (input.state as DiscordCommandRegistration).ownerId,
                   ),
                 ),
@@ -510,7 +510,7 @@ export async function reconcileDiscordCommandRegistration(
         };
   }
   const namespace = commands.filter(
-    (command) => command.type === 1 && command.name === "paperclip",
+    (command) => command.type === 1 && command.name === "nexus",
   );
   if (namespace.length > 1)
     return { kind: "unavailable", reason: "invalid_response" };

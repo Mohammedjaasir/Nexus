@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ConnectToolAppResult, McpJsonImportPreview } from "@paperclipai/shared";
+import type { ConnectToolAppResult, McpJsonImportPreview } from "@nexusai/shared";
 import { PasteConfigTab } from "./PasteConfigTab";
 
 const toolsApiMock = vi.hoisted(() => ({
@@ -91,7 +91,7 @@ function connectResult(overrides: Partial<ConnectToolAppResult> = {}): ConnectTo
       ownership: "customer",
       transport: "mcp_remote",
       authKind: "none",
-      credentialSource: "paperclip_vault",
+      credentialSource: "nexus_vault",
       credentialPolicy: "shared",
       status: "draft",
       enabled: false,
@@ -349,7 +349,7 @@ describe("PasteConfigTab — activation handoff (PAP-11092)", () => {
               prefix: null,
               required: true,
             }],
-            warnings: ["Header Authorization will be stored as a Paperclip secret before activation."],
+            warnings: ["Header Authorization will be stored as a Nexus secret before activation."],
           },
         ],
       },
@@ -422,7 +422,7 @@ describe("PasteConfigTab — activation handoff (PAP-11092)", () => {
     const result = oauthConnectResult("https://my.paperclip.app/connections/confirm?session=legacy");
     result.auth = {
       ...result.auth!,
-      handoff: { kind: "paperclip_cloud", session },
+      handoff: { kind: "nexus_cloud", session },
     };
     toolsApiMock.connectApp.mockResolvedValue(result);
 
@@ -521,7 +521,7 @@ describe("PasteConfigTab — activation handoff (PAP-11092)", () => {
             config: { importedCommand: "npx -y @modelcontextprotocol/server-github", importedArgs: [] },
             credentialRefs: [{ name: "GITHUB_TOKEN", secretId: "draft-token", placement: "env", key: "GITHUB_TOKEN" }],
             credentialFields: [],
-            warnings: ["Imported stdio commands stay draft-only unless mapped to an approved Paperclip template."],
+            warnings: ["Imported stdio commands stay draft-only unless mapped to an approved Nexus template."],
           },
         ],
       },

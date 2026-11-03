@@ -1,6 +1,6 @@
 # Customer-success inspection foundation
 
-Approved scope: one designated Paperclip agent uses its existing persistent
+Approved scope: one designated Nexus agent uses its existing persistent
 Ed25519 identity plus a verified, active managed-run credential. Cloud owns
 short-lived grants, older-stack human approvals, durable replay fencing and audit.
 Customer stacks expose an explicit read-only API before ordinary auth middleware.
@@ -10,8 +10,8 @@ schedule are separate work.
 
 ## Implementation and qualification
 
-- Paperclip: `codex/customer-success-inspection`, updated to master `ac8f3eb14`.
-- Cloud: same branch name, isolated worktree `/private/tmp/paperclip-cloud-customer-success`, updated to master `044160d0`.
+- Nexus: `codex/customer-success-inspection`, updated to master `ac8f3eb14`.
+- Cloud: same branch name, isolated worktree `/private/tmp/nexus-cloud-customer-success`, updated to master `044160d0`.
 - Core strict JWT/run-authority, versioned permit routes, explicit resource catalog,
   read-only transactions, instruction/workspace/asset/snapshot readers implemented.
 - Cloud broker, dedicated signer, durable store/migration, admin-session/capability

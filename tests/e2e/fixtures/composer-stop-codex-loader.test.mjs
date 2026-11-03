@@ -7,10 +7,10 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 const loader = fileURLToPath(new URL("./composer-stop-codex-loader.mjs", import.meta.url));
-const resolver = new URL("../../../packages/paperclip-runner/src/drivers/codex/codex-command.ts", import.meta.url).href;
+const resolver = new URL("../../../packages/nexus-runner/src/drivers/codex/codex-command.ts", import.meta.url).href;
 function launch(env, source = "") {
   return spawnSync(process.execPath, ["--import", loader, "--input-type=module", "-e", source], {
-    encoding: "utf8", env: { ...process.env, NODE_ENV: "test", PAPERCLIP_STOP_CODEX_COMMAND: "", ...env },
+    encoding: "utf8", env: { ...process.env, NODE_ENV: "test", NEXUS_STOP_CODEX_COMMAND: "", ...env },
   });
 }
 
@@ -19,7 +19,7 @@ test("pins the fixture even when a bundled Codex dependency is installed", () =>
   const command = join(dir, "codex");
   try {
     writeFileSync(command, "#!/bin/sh\nprintf 'composer-stop-fixture'\n", { mode: 0o755 });
-    const result = launch({ PAPERCLIP_STOP_CODEX_COMMAND: command }, `
+    const result = launch({ NEXUS_STOP_CODEX_COMMAND: command }, `
       import { resolveCodexCommand, resolvePinnedCodexCommand } from ${JSON.stringify(resolver)};
       import { execFileSync } from "node:child_process";
       import assert from "node:assert/strict";
@@ -32,7 +32,7 @@ test("pins the fixture even when a bundled Codex dependency is installed", () =>
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-for (const env of [{}, { PAPERCLIP_STOP_CODEX_COMMAND: "codex" }, { NODE_ENV: "production", PAPERCLIP_STOP_CODEX_COMMAND: process.execPath }]) {
+for (const env of [{}, { NEXUS_STOP_CODEX_COMMAND: "codex" }, { NODE_ENV: "production", NEXUS_STOP_CODEX_COMMAND: process.execPath }]) {
   test(`rejects a missing or unsafe fixture configuration: ${JSON.stringify(env)}`, () => {
     const result = launch(env);
     assert.notEqual(result.status, 0);

@@ -1,4 +1,4 @@
-import { resolveQualifiedAcpxProfile } from "../../../vendor/paperclip-runner/index.js";
+import { resolveQualifiedAcpxProfile } from "../../../vendor/nexus-runner/index.js";
 import type { LifecycleRecord, NativeProviderLifecycleAdapter } from "../provider-lifecycle.js";
 
 const record = (value: unknown): LifecycleRecord => value && typeof value === "object" && !Array.isArray(value) ? value : {};

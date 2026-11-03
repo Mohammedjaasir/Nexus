@@ -34,8 +34,8 @@ diff --git a/dist/index.js b/dist/index.js
              },
 @@ -26988,4 +26988,18 @@
  };
-+function paperclipBaseInstructions(request) {
-+  if (process.env.PAPERCLIP_ACPX_ISOLATED_CONTEXT !== "1" && process.env.PAPERCLIP_RUNNER_HOME_MODE !== "preconfigured") return void 0;
++function nexusBaseInstructions(request) {
++  if (process.env.NEXUS_ACPX_ISOLATED_CONTEXT !== "1" && process.env.NEXUS_RUNNER_HOME_MODE !== "preconfigured") return void 0;
 +  const prompt = request?._meta?.systemPrompt;
 +  if (typeof prompt === "string") return prompt;
 +  if (prompt && typeof prompt === "object" && typeof prompt.append === "string") {
@@ -43,10 +43,10 @@ diff --git a/dist/index.js b/dist/index.js
 +  }
 +  return void 0;
 +}
-+function paperclipSandboxPolicy(sandboxPolicy) {
-+  const networkAccess = process.env.PAPERCLIP_CODEX_ACP_NETWORK_ACCESS;
++function nexusSandboxPolicy(sandboxPolicy) {
++  const networkAccess = process.env.NEXUS_CODEX_ACP_NETWORK_ACCESS;
 +  if (sandboxPolicy.type !== "workspaceWrite" || !["true", "false"].includes(networkAccess)) return sandboxPolicy;
-+  return { ...sandboxPolicy, networkAccess: networkAccess === "true" && process.env.PAPERCLIP_RUNNER_NETWORK_ACCESS !== "disabled" };
++  return { ...sandboxPolicy, networkAccess: networkAccess === "true" && process.env.NEXUS_RUNNER_NETWORK_ACCESS !== "disabled" };
 +}
  var CodexAcpClient = class {
    codexClient;
@@ -55,7 +55,7 @@ diff --git a/dist/index.js b/dist/index.js
      const response = await this.codexClient.threadResume({
        config: await this.createSessionConfig(request.cwd, additionalDirectories, request.mcpServers ?? []),
        cwd: request.cwd,
-+      baseInstructions: paperclipBaseInstructions(request),
++      baseInstructions: nexusBaseInstructions(request),
        modelProvider: await this.getResumeModelProvider(),
        threadId: request.sessionId
      });
@@ -63,7 +63,7 @@ diff --git a/dist/index.js b/dist/index.js
      const response = await this.codexClient.threadResume({
        config: await this.createSessionConfig(request.cwd, additionalDirectories, request.mcpServers ?? []),
        cwd: request.cwd,
-+      baseInstructions: paperclipBaseInstructions(request),
++      baseInstructions: nexusBaseInstructions(request),
        modelProvider: await this.getResumeModelProvider(),
        threadId: request.sessionId
      });
@@ -71,13 +71,13 @@ diff --git a/dist/index.js b/dist/index.js
      const response = await this.codexClient.threadStart({
        config: await this.createSessionConfig(request.cwd, additionalDirectories, request.mcpServers),
        modelProvider: this.getModelProvider(),
-+      baseInstructions: paperclipBaseInstructions(request),
++      baseInstructions: nexusBaseInstructions(request),
        cwd: request.cwd
      });
 @@ -27437,5 +27449,12 @@
      const mergedConfig = {
        ...mergeGatewayConfig(this.config, this.gatewayConfig),
-+      ...(process.env.PAPERCLIP_ACPX_ISOLATED_CONTEXT === "1" ? {
++      ...(process.env.NEXUS_ACPX_ISOLATED_CONTEXT === "1" ? {
 +        "include_apps_instructions": false,
 +        "features.apps": false,
 +        "features.memory_tool": false,
@@ -92,7 +92,7 @@ diff --git a/dist/index.js b/dist/index.js
      }));
      let serversToConfigure = requestedServers;
 -    if (shouldDeduplicateMcpConflicts()) {
-+    if (process.env.PAPERCLIP_ACPX_ISOLATED_CONTEXT !== "1" && shouldDeduplicateMcpConflicts()) {
++    if (process.env.NEXUS_ACPX_ISOLATED_CONTEXT !== "1" && shouldDeduplicateMcpConflicts()) {
        const existingNames = await this.getConfigMcpServerNames(projectPath);
        serversToConfigure = requestedServers.filter((mcp) => !existingNames.has(mcp.name));
      }
@@ -102,7 +102,7 @@ diff --git a/dist/index.js b/dist/index.js
        return;
      }
 -    const skillExtraRoots = additionalRoots.map((root) => path6.join(root, ".agents", "skills"));
-+    const isolated = process.env.PAPERCLIP_ACPX_ISOLATED_CONTEXT === "1";
++    const isolated = process.env.NEXUS_ACPX_ISOLATED_CONTEXT === "1";
 +    const skillExtraRoots = isolated ? [] : additionalRoots.map((root) => path6.join(root, ".agents", "skills"));
      if (!arraysEqual(this.skillExtraRoots, skillExtraRoots)) {
        await this.codexClient.skillsExtraRootsSet({ extraRoots: skillExtraRoots });
@@ -119,7 +119,7 @@ diff --git a/dist/index.js b/dist/index.js
        input,
        approvalPolicy: agentMode.approvalPolicy,
 -      sandboxPolicy: addAdditionalDirectoriesToSandboxPolicy(agentMode.sandboxPolicy, additionalDirectories),
-+      sandboxPolicy: addAdditionalDirectoriesToSandboxPolicy(paperclipSandboxPolicy(agentMode.sandboxPolicy), additionalDirectories),
++      sandboxPolicy: addAdditionalDirectoriesToSandboxPolicy(nexusSandboxPolicy(agentMode.sandboxPolicy), additionalDirectories),
        summary: disableSummary ? "none" : "auto",
        effort,
        model: modelId.model,

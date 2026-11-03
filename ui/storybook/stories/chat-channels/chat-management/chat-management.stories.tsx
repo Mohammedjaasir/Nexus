@@ -10,7 +10,7 @@ import { ChatEndpointDetail } from "@/pages/apps/chat/ChatEndpointDetail";
 import { useCompany } from "@/context/CompanyContext";
 import type { ChatEndpoint, ChatEndpointResource, ChatIdentityLink } from "@/api/chatEndpoints";
 import userAvatar from "../../../prototypes/slack-avatar/ceo-cliptoon.png";
-import { storybookAgents, storybookExecutionWorkspaces } from "../../../fixtures/paperclipData";
+import { storybookAgents, storybookExecutionWorkspaces } from "../../../fixtures/nexusData";
 
 type Scenario = "populated" | "empty" | "error" | "channel-added" | "unlinked" | "invitation-expired";
 function ChatManagementPage({ tab = "settings", scenario = "populated" }: { tab?: string; scenario?: Scenario }) {
@@ -25,7 +25,7 @@ function ChatManagementPage({ tab = "settings", scenario = "populated" }: { tab?
     let endpoint: ChatEndpoint = {
       id: "chat-management", companyId: "company-storybook", provider: "slack", status: "active",
       assignedAgentId: agent.id, assignedAgentName: agent.name, providerAccountId: "TSTORY",
-      providerAccountLabel: "Paperclip", botExternalId: "UARLO", botLabel: "Arlo", botUsername: "arlo-paperclip",
+      providerAccountLabel: "Nexus", botExternalId: "UARLO", botLabel: "Arlo", botUsername: "arlo-nexus",
       allowUnlinkedPeople: false, allowDirectMessages: true,
       setup: { step: "complete", slackRegistration: { status: "configured", appId: "ASTORY" }, slackApp: { appName: "Arlo", botName: "Arlo", command: "/arlo" } },
     };
@@ -34,8 +34,8 @@ function ChatManagementPage({ tab = "settings", scenario = "populated" }: { tab?
       { id: "general", type: "channel", providerResourceId: "CGENERAL", label: "#general", availability: "available", enabled: false },
     ];
     let principals: ChatIdentityLink[] = scenario === "empty" ? [] : [
-      { id: "ada", principalId: "ada", externalLabel: "@ada", paperclipUserLabel: "Ada Lovelace", paperclipUserId: "ada", paperclipUserImage: userAvatar, status: "linked" },
-      { id: "alan", principalId: "alan", externalLabel: "@alan", paperclipUserLabel: "Alan Turing", paperclipUserImage: null, status: "linked" },
+      { id: "ada", principalId: "ada", externalLabel: "@ada", nexusUserLabel: "Ada Lovelace", nexusUserId: "ada", nexusUserImage: userAvatar, status: "linked" },
+      { id: "alan", principalId: "alan", externalLabel: "@alan", nexusUserLabel: "Alan Turing", nexusUserImage: null, status: "linked" },
       { id: "grace", principalId: "grace", externalLabel: "Grace Hopper", status: "pending" },
     ];
     let resourceReads = 0;
@@ -84,7 +84,7 @@ function ChatManagementPage({ tab = "settings", scenario = "populated" }: { tab?
       }
       if (route.endsWith("/link-intent")) return json({ confirmationUrl: "https://example.test/chat-identity/confirm?token=storybook-only" });
       if (route.endsWith("/link") && init?.method === "DELETE") {
-        principals = principals.map(person => route.includes(person.id) ? { ...person, status: "revoked", paperclipUserId: null } : person);
+        principals = principals.map(person => route.includes(person.id) ? { ...person, status: "revoked", nexusUserId: null } : person);
         return json({ ok: true });
       }
       if (route === "conversations") return json(scenario === "empty" ? [] : [
@@ -115,7 +115,7 @@ const meta = {
   title: "Apps, channels, and extensions/External chat and email/Connections/Chat management",
   component: ChatManagementPage,
   parameters: { layout: "fullscreen", a11y: { test: "off" },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "chat-channels/lifecycle",
         "chat-channels/identity",

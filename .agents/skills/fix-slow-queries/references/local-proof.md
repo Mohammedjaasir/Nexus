@@ -14,7 +14,7 @@ This work produced these examples; use those present in the current checkout:
   SQL, wide JSON projection, complete positional-row comparison.
 - `scripts/benchmark-recovery-queries.ts`: ownership/blocker/delivery queries and
   baseline helper dependency isolation.
-- `startEmbeddedPostgresTestDatabase` from `@paperclipai/db`: disposable real
+- `startEmbeddedPostgresTestDatabase` from `@nexusai/db`: disposable real
   PostgreSQL lifecycle, used by these benchmarks and service integration tests.
 
 Inspect a harness before running it. Use disposable synthetic fixtures by default;
@@ -27,7 +27,7 @@ Prefer the hosted major version when practical and disclose version differences.
 Set `SLOW_QUERY_BASELINE` to a verified pre-fix commit and pass it explicitly:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-run-history.ts --baseline-ref="$SLOW_QUERY_BASELINE"
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-run-history.ts --baseline-ref="$SLOW_QUERY_BASELINE"
 ```
 
 Resolve the ref to a SHA in the report. `origin/master` may already contain the

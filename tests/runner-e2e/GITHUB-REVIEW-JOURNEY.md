@@ -8,7 +8,7 @@ bot mention, and checks the matching automatic task, review, GitHub delivery,
 failed check, task completion, and persistence.
 
 The suite is applicable to self-hosted deployments with public GitHub webhook
-ingress and to Paperclip Cloud with GitHub App support. Hosting is independent of
+ingress and to Nexus Cloud with GitHub App support. Hosting is independent of
 the configured agent's `local` or `daytona` execution environment. Both cells are
 registered; select exactly one and bind it in the private setup profile. Browser
 registration and oracle tests do not establish live qualification of either cell.
@@ -50,7 +50,7 @@ pnpm test:e2e:runner -- \
 ```
 
 The private definition, reference-only setup example, credential setup utilities,
-and source-step mapping live in `paperclip-evals/evals/product-journeys/ponytail`.
+and source-step mapping live in `nexus-evals/evals/product-journeys/ponytail`.
 Its wrapper supports the host's Keychain bootstrap without putting a token in
 shell arguments. The suite is excluded from `--all` and generated CI matrices.
 It has no scheduler, public upload, or automatic retry. A full setup needs

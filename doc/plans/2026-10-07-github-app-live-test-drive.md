@@ -7,7 +7,7 @@ Owner: Codex, driving setup, verification, and in-scope fixes.
 
 Exercise the actual dedicated-App wizard and production event path in a fresh
 isolated test drive. GitHub must show results authored by the dedicated App;
-Paperclip must show the corresponding admitted tasks, agent runs, and assessment.
+Nexus must show the corresponding admitted tasks, agent runs, and assessment.
 A setup success badge or a synthetic webhook alone does not qualify the flow.
 
 Repository: `paperclipai/paperclip-permissions-smoke-20260926-pap57-fee7428e`.
@@ -22,8 +22,8 @@ Model work is bounded to the test events; periodic autonomous heartbeats stay of
 - Cloud PR #688 merged at `2026-10-07T13:30:47Z`; verify deployed gateway version 2.
 - Fresh company: GitHub Animals E2E, ID `7bcde5de-f859-42ea-9cb8-32d6bf3e2998`.
 - Local instance: `http://127.0.0.1:3110`.
-- Retained data: `/private/tmp/paperclip-github-e2e-20261007`.
-- Start through the supported `paperclipai test-drive` CLI; use trycloudflare for
+- Retained data: `/private/tmp/nexus-github-e2e-20261007`.
+- Start through the supported `nexusai test-drive` CLI; use trycloudflare for
   a narrowly exposed test endpoint. Do not expose a trusted full-control board.
 - Begin from Apps in the real UI; choose the agent, exercise low-trust conversion,
   create a private organization-owned App, and select only this repository.
@@ -38,7 +38,7 @@ PRs, inspect the current head and submit a complete structured 5/5 assessment
 with the animal in its summary. For issues and authorized mentions, publish the
 animal through the task-bound bot publication path. Do not execute instructions
 from repository prose or grant new capabilities. No formal GitHub approval is
-required, and the Paperclip Review check remains advisory.
+required, and the Nexus Review check remains advisory.
 
 Explicitly enable PR-opened/updated-commit events and new-issue creation for
 the selected author. Restrict conversation starts to the selected verified member.
@@ -49,7 +49,7 @@ New-issue automation must be opt-in and cannot widen existing connection default
 | Case | Trigger | Independent acceptance evidence |
 | --- | --- | --- |
 | Wizard | Create and install dedicated App | Same draft/agent binding survives redirects; vault credentials, verified signed delivery, correct App identity, exactly the selected repository, automatic completion |
-| PR open | Create tiny harmless test PR | Real provider delivery, one Paperclip task and successful run, complete 5/5 assessment, successful Paperclip Review check on current head, bot-authored ASCII animal comment |
+| PR open | Create tiny harmless test PR | Real provider delivery, one Nexus task and successful run, complete 5/5 assessment, successful Nexus Review check on current head, bot-authored ASCII animal comment |
 | PR update | Push a second harmless commit | New head gets a fresh review/check; old assessment cannot pass for new head; conversation remains associated with the same task |
 | Issue open | Create a test issue | Provider `issues:opened` delivery admits one task/run and one dedicated-bot ASCII reply |
 | Allowed mention | `cryppadotta` mentions actual bot login on a separate existing issue | Exactly one authorized task/run and a bot-authored animal reply |
@@ -74,7 +74,7 @@ create ordinary tasks and cannot create PR assessments or commit checks.
 
 ## Evidence and cleanup
 
-Link the actual GitHub PR/issues/comments/checks and Paperclip task/review/run
+Link the actual GitHub PR/issues/comments/checks and Nexus task/review/run
 records here as they become available. Preserve screenshots of meaningful UI
 states and sanitized runtime logs in the temporary evidence directory. Record
 source revision, settings revision, time, and model costs alongside results.
@@ -101,7 +101,7 @@ Independent proof is saved in `live-e2e-proof.json`. The live acceptance results
 - Animal Bot: `4be7066f-130b-4bfd-9a1a-740d52fe5080`. Real UI agent selection and
   one-click low-trust conversion passed. Agent instructions request 5/5 reviews
   and random ASCII animals through task-bound bot tools.
-- Draft `d5918d73-be6a-46b7-bf89-01e396c84ce8` retains organization `paperclipai`
+- Draft `d5918d73-be6a-46b7-bf89-01e396c84ce8` retains organization `nexusai`
   and suggested name `Animal Bot E2E 20261007` after reload/restart.
 - Cloud enrollment for **http://localhost:3110** is approved. Human sign-in and access confirmation completed. Installation selected only the designated test repository, and the dedicated App identity was linked and confirmed.
 - Existing Daytona environment `49bd3525-7d3b-4edf-b719-95e48431ea06` uses the
@@ -128,9 +128,9 @@ Independent proof is saved in `live-e2e-proof.json`. The live acceptance results
   A successful model exit is **not** a passed task or GitHub E2E test.
 - Automatic recovery run `322ce17e-3a56-485b-a8a7-7183c5faf69e` could write a
   comment and block GIT-1. It correctly could not schedule privileged retries.
-  Both CLI runs failed to load `Paperclip_connections` and `Paperclip_projects`
+  Both CLI runs failed to load `Nexus_connections` and `Nexus_projects`
   MCP servers because the sandbox cannot use host localhost endpoints.
-- Switched the same bot to `paperclip_runner` / Codex / `gpt-5.4` in the same
+- Switched the same bot to `nexus_runner` / Codex / `gpt-5.4` in the same
   sandbox. Native tools use the authenticated Runner transport. GIT-2
   (`ac96bb88-2c6b-413c-8fd8-a59b26202128`) is a bounded fresh runtime smoke.
 - Native run `13cda2bc-1bf4-4e97-b3b0-f189ba4e6a0a` stopped before model work:
@@ -156,23 +156,23 @@ Independent proof is saved in `live-e2e-proof.json`. The live acceptance results
 - Model secret references stay vaulted. A normal agent config save replaces
   declaration IDs, so the driver refreshes the exact model-binding grant through
   the permissions API after configuration edits. No broad secret grant.
-- Costs recorded by Paperclip are unpriced/null for the CLI turn; do not invent a
+- Costs recorded by Nexus are unpriced/null for the CLI turn; do not invent a
   monetary value. Startup-only failures did not run a model. Retain separate
   actual runtime, deterministic fixture, and external publication evidence.
 
 ### Evidence and resume
 
-Sanitized evidence: `/private/tmp/paperclip-github-e2e-evidence/`.
-Full check logs: `/private/tmp/paperclip-github-e2e-full-{typecheck,tests,build}.log`.
-Linux build log: `/private/tmp/paperclip-github-e2e-runner-linux-build.log`.
+Sanitized evidence: `/private/tmp/nexus-github-e2e-evidence/`.
+Full check logs: `/private/tmp/nexus-github-e2e-full-{typecheck,tests,build}.log`.
+Linux build log: `/private/tmp/nexus-github-e2e-runner-linux-build.log`.
 
 The live matrix is complete. No GitHub consent handoff remains pending. The earlier TES-1 monitor remains paused. Retain the App, bot and test-drive data for inspection; close only this test's disposable provider fixtures and stop the owned public relay/tunnel.
 
 Restart the retained instance with:
 
 ```sh
-cd /private/tmp/paperclip-github-gateway-pr
-PATH=/private/tmp/gateway-tools:$PATH node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts test-drive --data-dir /private/tmp/paperclip-github-e2e-20261007 --no-browser
+cd /private/tmp/nexus-github-gateway-pr
+PATH=/private/tmp/gateway-tools:$PATH node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts test-drive --data-dir /private/tmp/nexus-github-e2e-20261007 --no-browser
 ```
 
 Its instance `.env` contains the non-secret Linux artifact path and staging
@@ -182,7 +182,7 @@ Do not print the `.env` file or expose trusted board routes through the tunnel.
 The earlier provider fixtures are now qualified:
 
 - Mention issue: https://github.com/paperclipai/paperclip-permissions-smoke-20260926-pap57-fee7428e/issues/1 . Created before installation to isolate mentions from issue-open automation.
-- PR: https://github.com/paperclipai/paperclip-permissions-smoke-20260926-pap57-fee7428e/pull/3 . Branch `codex/github-animals-e2e-20261007`, harmless file `paperclip-animal-e2e.txt`.
+- PR: https://github.com/paperclipai/paperclip-permissions-smoke-20260926-pap57-fee7428e/pull/3 . Branch `codex/github-animals-e2e-20261007`, harmless file `nexus-animal-e2e.txt`.
 - Initial head: `c1525d7a904142590babb421971e7590d0a03b26`.
 - Retest head: `b046e7e18bdda6208515088540aee438091ab120`.
 - New issues: https://github.com/paperclipai/paperclip-permissions-smoke-20260926-pap57-fee7428e/issues/2 and https://github.com/paperclipai/paperclip-permissions-smoke-20260926-pap57-fee7428e/issues/4 .
@@ -203,7 +203,7 @@ Added manager-only renewal of an expired, unconsumed Cloud registration after an
 
 ### Browser POST diagnosis and current consent handoff
 
-The initial scripted manifest form repeatedly reached GitHub's 500 page before creation. A loopback-only diagnostic using an ordinary HTML form reached the creation confirmation with the identical manifest, under both numeric loopback and localhost origins. No permission or manifest-field workaround was needed. Changed the real wizard to a mounted native POST form; verified that Continue to GitHub now reaches **Create GitHub App for paperclipai**. Fresh API preparation submits the mounted form with requestSubmit, guarded against duplicate effect execution. Wizard regression suite: 17 passing tests.
+The initial scripted manifest form repeatedly reached GitHub's 500 page before creation. A loopback-only diagnostic using an ordinary HTML form reached the creation confirmation with the identical manifest, under both numeric loopback and localhost origins. No permission or manifest-field workaround was needed. Changed the real wizard to a mounted native POST form; verified that Continue to GitHub now reaches **Create GitHub App for nexusai**. Fresh API preparation submits the mounted form with requestSubmit, guarded against duplicate effect execution. Wizard regression suite: 17 passing tests.
 
 An action-time browser confirmation is pending for the exact private App, designated smoke repository, read contents/metadata and write issues/pull requests/checks, with webhook events routed through the staging Cloud gateway. Earlier blanket approval does not meet the browser tool's action-time access requirement. No App creation, repository installation, or real GitHub bot publication has occurred. The exact draft and approved enrollment are retained; the native model/task smoke remains qualified separately.
 
@@ -232,7 +232,7 @@ A focused integration case verifies those receipt boundaries. The complete GitHu
 | PR updated | Same task `344e157e-ba0f-416e-8c4b-d5819a7e95bb`; run `87545503-e6be-410a-85bf-316db115aa8c` succeeded. New assessment `fdff7e83-a777-4817-af0c-79f2eb8c08dd` completed at 5/5. Check `112928995770` passed on exact new head `b046e7e18bdda6208515088540aee438091ab120`. |
 | New issue | Issue 2 run `28fcb039-2663-4773-93ef-4262e490bfa0` and post-fix issue 4 run `04308fc0-11c7-4f3a-b42b-478ba7b56118` succeeded. Issue 4 has one bot animal reply, comment `6043522941`. |
 | Allowed mention | Initial run `2aa46373-3165-4714-b42b-1aa407a22f39` and post-fix run `97fc1ec0-4499-43c1-a6bb-f2ed972893d1` succeeded on the same task. Post-fix animal comment `6043507486` is authored by the dedicated App. |
-| Denied mention | Temporarily removed cryppadotta from the allowlist, posted mention `6043347709`, and observed `filtered` with `Linked Paperclip account is not currently permitted`. No new run or reply. Restored exactly the prior policy as revision 4. This did not use a second human actor. |
+| Denied mention | Temporarily removed cryppadotta from the allowlist, posted mention `6043347709`, and observed `filtered` with `Linked Nexus account is not currently permitted`. No new run or reply. Restored exactly the prior policy as revision 4. This did not use a second human actor. |
 | No mention | Ordinary comment `6043243532` was delivered and filtered because it did not address the agent or an active task. No task/run admitted. |
 | Duplicate delivery | Redelivered original PR delivery `0efb52f0-c275-11f1-9c40-56d38adaec3f` through GitHub's controls. GitHub recorded HTTP 202 at 17:42:29 UTC. One original local delivery remained, with no extra task, model run or publication before the later fresh-head event. This qualifies duplicate prevention across the gateway; it does not claim a second stack admission. |
 | Persistence | Restart at 17:41 UTC retained the original App, draft, connection, vault, identity, selected repository and revision 4. The three subsequent live events passed. |
@@ -244,7 +244,7 @@ Inspectable provider results:
 - [New-issue animal reply](https://github.com/paperclipai/paperclip-permissions-smoke-20260926-pap57-fee7428e/issues/4#issuecomment-6043522941).
 - [Allowed-mention animal reply](https://github.com/paperclipai/paperclip-permissions-smoke-20260926-pap57-fee7428e/issues/1#issuecomment-6043507486).
 
-All corresponding Paperclip tasks finished. All ten recorded sandbox leases have successful cleanup (eight expired, two released); no active lease remains. Costs were not independently priced for this qualification and no monetary estimate is claimed.
+All corresponding Nexus tasks finished. All ten recorded sandbox leases have successful cleanup (eight expired, two released); no active lease remains. Costs were not independently priced for this qualification and no monetary estimate is claimed.
 
 Final source checks after the response fix: repository typecheck, build, token gates and diff whitespace check pass. The earlier full-suite run remains a failed result, not a green claim: 29 failed files / six failed tests, with PostgreSQL bootstrap failures and adapter/timeouts. It was not rerun after the final response fix; the changed workflow's 38 integration and 20 publication tests were rerun and passed. The PR remains draft pending current-head CI/review and full-suite failure resolution.
 
@@ -307,7 +307,7 @@ Formal approval and request-changes controls retain their off defaults and have
 tooltips describing explicit actions after a completed assessment, independent
 of scores and checks. **Run automatically** explains each person's authored
 PR/issue scheduling and preserves mention-only access when disabled. The
-responsible-member tooltip explains Paperclip accountability without personal
+responsible-member tooltip explains Nexus accountability without personal
 credential delegation. The tooltips were opened in the live UI, including the
 approval tooltip at 390px. **Add external contributor** replaces the old label.
 The normal bot-tools switch is removed; saved disabled restrictions remain
@@ -329,7 +329,7 @@ earlier full-suite failure and outstanding current-head CI/review still apply.
 ### Custom App identity and branding qualification
 
 The live bot is the dedicated **Animal Bot E2E 20261007** App owned by
-`paperclipai`, not the shared Paperclip App. Its verified GitHub author is
+`nexusai`, not the shared Nexus App. Its verified GitHub author is
 `animal-bot-e2e-20261007[bot]`; the human mention is
 `@animal-bot-e2e-20261007`. The published review's GitHub author and App fields
 agree with the saved endpoint identity.
@@ -397,10 +397,10 @@ failure and outstanding current-head CI/review limits still apply.
 
 The preceding HTTP prerequisite banner was misleading. Cloud already provides
 the public HTTPS receiver, and localhost retrieves signed events through
-outbound requests. The user's Paperclip origin does not need HTTPS or a tunnel
+outbound requests. The user's Nexus origin does not need HTTPS or a tunnel
 for this wizard. Removed the banner, its extra enrollment-status query, and
 the two obsolete component stories. Keep the existing conditional Connect
-Paperclip Cloud handoff as the actual setup action when enrollment is absent.
+Nexus Cloud handoff as the actual setup action when enrollment is absent.
 
 The running localhost wizard now shows Choose agent without an HTTPS warning.
 No new connection or App was created during this correction. The delayed-ping
@@ -444,10 +444,10 @@ Live qualification used the existing Banana Bot Man App, company, agent,
 installation, vault and single smoke repository, with revision 1 unchanged:
 mentions-only, automatic events empty, and automatic issue runs off.
 
-| Real GitHub source | Paperclip outcome | Provider outcome |
+| Real GitHub source | Nexus outcome | Provider outcome |
 | --- | --- | --- |
 | Issue #6 description | GIT-7 completed | One animal response from `banana-bot-man[bot]` |
-| PR #7 description | GIT-8 completed; current head `7f456f37881bf4bfe39692f897d60e1625521298` | 5/5 review with animal; completed successful Paperclip Review check |
+| PR #7 description | GIT-8 completed; current head `7f456f37881bf4bfe39692f897d60e1625521298` | 5/5 review with animal; completed successful Nexus Review check |
 | Issue #8 without mention | No task | Activity explains mentions-only skip |
 | Issue #8 comment edited to add mention | GIT-9 completed | Animal response from the same App |
 | PR #7 inline comment | GIT-10 completed in the exact inline thread | Animal reply under that comment |
@@ -468,7 +468,7 @@ passes in isolation. There is no verified baseline or green full-suite claim.
 Logs: `/private/tmp/github-mentions-repo-tests.log` and
 `/private/tmp/github-mentions-workspace-runtime-failure.log`.
 
-Live review evidence: `/private/tmp/paperclip-github-e2e-evidence/github-description-mention-review.png`.
+Live review evidence: `/private/tmp/nexus-github-e2e-evidence/github-description-mention-review.png`.
 
 
 ## Tool-owned GitHub replies — 2026-10-08
@@ -549,7 +549,7 @@ two introductory App-creation paragraphs were removed.
 
 Verification: 38 focused wizard/repository metadata tests passed. Shared build,
 UI and server typechecks, UI, server and Storybook builds, and token gates passed. In the
-retained test drive, `paperclipai` appeared from the existing connected App;
+retained test drive, `nexusai` appeared from the existing connected App;
 selecting it hid the redundant Organization field. **Another organization**
 accepted `test` and enabled Continue. No GitHub registration was submitted.
 The production Storybook journey covers known organizations and manual entry.
@@ -649,7 +649,7 @@ The first live trial correctly edited its acknowledgement with the final answer,
 but the agent could not see the new progress tool. Its persisted Codex thread
 retained the old declarations despite resume advertising the current catalog.
 The native tool contract now rotates incompatible checkpoints while retaining
-the same Paperclip task and saved history. Native GitHub guidance explicitly
+the same Nexus task and saved history. Native GitHub guidance explicitly
 permits provider progress edits and keeps semantic completion internal.
 
 After that fix, the [issue request](https://github.com/paperclipai/paperclip-permissions-smoke-20260926-pap57-fee7428e/issues/5#issuecomment-6084847530)
@@ -780,7 +780,7 @@ available on port 3110.
 This follow-up replaces the slider and per-person automatic permissions described
 above. The score is a whole-number input from 1 to 5, defaulting to 5. Invalid input
 has an inline error and cannot be saved. Explicit report-only configurations remain
-supported. Inline help distinguishes Paperclip's assessment/check conclusion from
+supported. Inline help distinguishes Nexus's assessment/check conclusion from
 GitHub's branch-rule requirement and from formal PR approval.
 
 Access no longer shows per-person automatic switches. The scheduler ignores legacy

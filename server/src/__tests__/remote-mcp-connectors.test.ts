@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, heartbeatRuns, issues, toolCatalogEntries, toolConnectionInstalls, toolInvocations, companies, companyMemberships, instanceSettings, createDb, toolConnections, toolPolicies, toolProfileEntries } from "@paperclipai/db";
+import { agents, heartbeatRuns, issues, toolCatalogEntries, toolConnectionInstalls, toolInvocations, companies, companyMemberships, instanceSettings, createDb, toolConnections, toolPolicies, toolProfileEntries } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { toolAccessService } from "../services/tool-access.js";
@@ -20,7 +20,7 @@ describe("remote connector lifecycle", () => {
   let keyDir: string;
   beforeAll(async () => {
     keyDir = await mkdtemp(join(tmpdir(), "mcp-connector-secrets-"));
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY_FILE", join(keyDir, "key"));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY_FILE", join(keyDir, "key"));
     fixture = await startEmbeddedPostgresTestDatabase("mcp-connectors-test-");
     db = createDb(fixture.connectionString);
   });
@@ -54,24 +54,24 @@ describe("remote connector lifecycle", () => {
     const org = await company();
     const app = express();
     app.use((req, _res, next) => { req.actor = { type: "board", userId: actor.actorId, source: "local_implicit", isInstanceAdmin: true }; next(); });
-    app.use("/api", toolAccessRoutes(db, { paperclipCloudConnector: null }));
+    app.use("/api", toolAccessRoutes(db, { nexusCloudConnector: null }));
 
-    const publicBaseUrlEnv = process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL;
-    const otherPublicUrlNames = ["BETTER_AUTH_URL", "BETTER_AUTH_BASE_URL", "PAPERCLIP_PUBLIC_URL", "PAPERCLIP_MANAGED_RUNTIME_PUBLIC_URL"] as const;
+    const publicBaseUrlEnv = process.env.NEXUS_AUTH_PUBLIC_BASE_URL;
+    const otherPublicUrlNames = ["BETTER_AUTH_URL", "BETTER_AUTH_BASE_URL", "NEXUS_PUBLIC_URL", "NEXUS_MANAGED_RUNTIME_PUBLIC_URL"] as const;
     const otherPublicUrlEnv = Object.fromEntries(otherPublicUrlNames.map((name) => [name, process.env[name]]));
     try {
       for (const name of otherPublicUrlNames) process.env[name] = "";
-      process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL = "https://paperclip.example.test";
+      process.env.NEXUS_AUTH_PUBLIC_BASE_URL = "https://nexus.example.test";
       const configured = await request(app).get(`/api/companies/${org.id}/tools/gallery`);
       expect(configured.status).toBe(200);
-      expect(configured.body.oauthCallbackUrl).toBe("https://paperclip.example.test/api/tools/oauth/callback");
+      expect(configured.body.oauthCallbackUrl).toBe("https://nexus.example.test/api/tools/oauth/callback");
 
-      process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL = "http://127.0.0.1:3105";
+      process.env.NEXUS_AUTH_PUBLIC_BASE_URL = "http://127.0.0.1:3105";
       const configuredLoopback = await request(app).get(`/api/companies/${org.id}/tools/gallery`);
       expect(configuredLoopback.status).toBe(200);
       expect(configuredLoopback.body.oauthCallbackUrl).toBe("http://127.0.0.1:3105/api/tools/oauth/callback");
 
-      delete process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL;
+      delete process.env.NEXUS_AUTH_PUBLIC_BASE_URL;
       const inferredLoopback = await request(app)
         .get(`/api/companies/${org.id}/tools/gallery`)
         .set("host", "127.0.0.1:3105");
@@ -80,12 +80,12 @@ describe("remote connector lifecycle", () => {
 
       const unsupported = await request(app)
         .get(`/api/companies/${org.id}/tools/gallery`)
-        .set("host", "paperclip.internal.test");
+        .set("host", "nexus.internal.test");
       expect(unsupported.status).toBe(200);
       expect(unsupported.body).not.toHaveProperty("oauthCallbackUrl");
     } finally {
-      if (publicBaseUrlEnv === undefined) delete process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL;
-      else process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL = publicBaseUrlEnv;
+      if (publicBaseUrlEnv === undefined) delete process.env.NEXUS_AUTH_PUBLIC_BASE_URL;
+      else process.env.NEXUS_AUTH_PUBLIC_BASE_URL = publicBaseUrlEnv;
       for (const name of otherPublicUrlNames) {
         const value = otherPublicUrlEnv[name];
         if (value === undefined) delete process.env[name];
@@ -101,7 +101,7 @@ describe("remote connector lifecycle", () => {
     const org = await company(); const remote = remoteFixture();
     const app = express();
     app.use((req, _res, next) => { req.actor = { type: "board", userId: actor.actorId, source: "local_implicit", isInstanceAdmin: true }; next(); });
-    app.use("/api", toolAccessRoutes(db, { paperclipCloudConnector: null }));
+    app.use("/api", toolAccessRoutes(db, { nexusCloudConnector: null }));
     const gallery = await request(app).get(`/api/companies/${org.id}/tools/gallery`);
     expect(gallery.status).toBe(200);
     expect(gallery.body.apps.map((entry: { slug: string }) => entry.slug)).toEqual(expect.arrayContaining(["zapier", "arcade", "composio", "executor", "notion"]));
@@ -230,7 +230,7 @@ describe("remote connector lifecycle", () => {
     await callback();
     expect((await service.listConnectionInstalls(connected.connectionId))).toHaveLength(0);
   });
-  it("enforces agent and action permissions before dispatch, and preserves provider resume after Paperclip approval", async () => {
+  it("enforces agent and action permissions before dispatch, and preserves provider resume after Nexus approval", async () => {
     const org = await company();
     const [allowed, denied] = await db.insert(agents).values(["Allowed", "Denied"].map((name) => ({ companyId: org.id, name, role: "engineer", adapterType: "process", adapterConfig: {}, runtimeConfig: {} }))).returning();
     const calls: { name: string; arguments: unknown; session: string | null }[] = [];

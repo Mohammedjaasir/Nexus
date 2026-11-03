@@ -17,11 +17,11 @@ process.stderr.write(`SPAWN_CWD=${process.cwd()}\n`);
 
 async function handleRequest(request) {
   if (request.method === "initialize") {
-    process.stderr.write("paperclip-acp-cwd-report-agent started\n");
+    process.stderr.write("nexus-acp-cwd-report-agent started\n");
     return {
       protocolVersion: 1,
       agentCapabilities: { loadSession: false, sessionCapabilities: { close: {} } },
-      agentInfo: { name: "paperclip-acp-cwd-report-agent", version: "1.0.0" },
+      agentInfo: { name: "nexus-acp-cwd-report-agent", version: "1.0.0" },
     };
   }
   if (request.method === "session/new") {

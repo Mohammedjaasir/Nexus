@@ -81,7 +81,7 @@ after repeated embedded PostgreSQL initialization failures prevented suites from
 executing. It is not a full local pass; the PR description records this. Affected
 database suites did execute against separate disposable PostgreSQL databases.
 Receiver #17572 has passing latest-head checks and Greptile 5/5 at 1604a9fcba;
-its second Paperclip reviewer stopped before completion, so do not invent a fresh
+its second Nexus reviewer stopped before completion, so do not invent a fresh
 completed review result. No stack PR was merged. The complete original inventory,
 older #17490 failure and final master reconciliation remain outstanding.
 
@@ -207,7 +207,7 @@ Remote CI/review remains pending until this branch is published.
 
 ## Review follow-up: shared scheduling and real authority restoration
 
-Paperclip review at `439d0a86eb` requested one scheduling implementation and a
+Nexus review at `439d0a86eb` requested one scheduling implementation and a
 production-wiring regression. `scoped-deadline-work.ts` now owns coalescing,
 scoped reconstruction, bounded fair batches, per-entry/scope backoff and drain
 retention for both voice workers. The adapters retain their own scope matching,

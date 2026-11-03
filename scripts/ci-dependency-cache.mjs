@@ -70,13 +70,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     `cacheable=${plan.cacheable}`,
     `dependency-key=${plan.dependencyKey}`,
     `build-key=${plan.buildKey}`,
-    "dependency-paths<<PAPERCLIP_CACHE_PATHS",
+    "dependency-paths<<NEXUS_CACHE_PATHS",
     ...plan.dependencyPaths.map((file) => path.join(root, file)),
-    "PAPERCLIP_CACHE_PATHS",
-    "build-paths<<PAPERCLIP_BUILD_PATHS",
+    "NEXUS_CACHE_PATHS",
+    "build-paths<<NEXUS_BUILD_PATHS",
     path.join(root, "packages/shared/dist"),
     path.join(root, "packages/plugins/sdk/dist"),
-    "PAPERCLIP_BUILD_PATHS",
+    "NEXUS_BUILD_PATHS",
   ].join("\n") + "\n";
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, output);
   else console.log(JSON.stringify(plan, null, 2));

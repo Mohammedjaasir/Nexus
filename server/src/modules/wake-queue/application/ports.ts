@@ -76,7 +76,7 @@ export type DeferredWakeCandidate = {
   queuedCommentIds: string[];
   /** True when the wake carries an independent reason to continue even with no live queued comments. */
   preservesIndependentContinuation: boolean;
-  /** `payload._paperclipWakeContext`, already parsed to a plain object. */
+  /** `payload._nexusWakeContext`, already parsed to a plain object. */
   deferredContextSeed: Record<string, unknown>;
   /** The comment ids the wake's context snapshot carries (a separate set from queuedCommentIds), used for the reopen check. */
   deferredCommentIds: string[];
@@ -341,7 +341,7 @@ export type ExistingDeferredWake = {
   id: string;
   runId?: string | null;
   payload: Record<string, unknown>;
-  /** `payload._paperclipWakeContext`, already parsed to a plain object. */
+  /** `payload._nexusWakeContext`, already parsed to a plain object. */
   deferredContext: Record<string, unknown>;
   coalescedCount: number | null;
 };

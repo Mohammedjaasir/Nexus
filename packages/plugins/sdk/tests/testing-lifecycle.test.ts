@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createTestHarness } from "../src/testing.js";
-import type { PaperclipPluginManifestV1, ResourceLifecycleEvent } from "../src/types.js";
+import type { NexusPluginManifestV1, ResourceLifecycleEvent } from "../src/types.js";
 
-const manifest: PaperclipPluginManifestV1 = {
+const manifest: NexusPluginManifestV1 = {
   id: "fixture.lifecycle", apiVersion: 1, version: "1.0.0", displayName: "Lifecycle", description: "Fixture",
   author: "Tests", categories: ["automation"], capabilities: ["events.subscribe"], entrypoints: {},
 };

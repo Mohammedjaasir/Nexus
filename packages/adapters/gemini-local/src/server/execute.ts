@@ -1,11 +1,11 @@
-import { createProviderStoppedBoundary } from "@paperclipai/adapter-utils/provider-stopped-boundary";
-import { createUsageCheckpointLog } from "@paperclipai/adapter-utils/usage-checkpoint";
+import { createProviderStoppedBoundary } from "@nexusai/adapter-utils/provider-stopped-boundary";
+import { createUsageCheckpointLog } from "@nexusai/adapter-utils/usage-checkpoint";
 import fs from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AdapterExecutionContext, AdapterExecutionResult } from "@paperclipai/adapter-utils";
+import type { AdapterExecutionContext, AdapterExecutionResult } from "@nexusai/adapter-utils";
 import {
   adapterExecutionTargetIsRemote,
   adapterExecutionTargetRemoteCwd,
@@ -13,7 +13,7 @@ import {
   adapterExecutionTargetSessionIdentity,
   adapterExecutionTargetSessionMatches,
   adapterExecutionTargetUsesManagedHome,
-  adapterExecutionTargetUsesPaperclipBridge,
+  adapterExecutionTargetUsesNexusBridge,
   describeAdapterExecutionTarget,
   ensureAdapterExecutionTargetCommandResolvable,
   ensureAdapterExecutionTargetRuntimeCommandInstalled,
@@ -26,36 +26,36 @@ import {
   resolveAdapterExecutionTargetCommandForLogs,
   runAdapterExecutionTargetProcess,
   runAdapterExecutionTargetShellCommand,
-  startAdapterExecutionTargetPaperclipBridge,
-} from "@paperclipai/adapter-utils/execution-target";
+  startAdapterExecutionTargetNexusBridge,
+} from "@nexusai/adapter-utils/execution-target";
 import {
   asBoolean,
   asNumber,
   asString,
   asStringArray,
-  buildPaperclipEnv,
+  buildNexusEnv,
   buildRuntimeToolsEnv,
   buildInvocationEnvForLogs,
   ensureAbsoluteDirectory,
-  ensurePaperclipSkillSymlink,
+  ensureNexusSkillSymlink,
   joinPromptSections,
   ensurePathInEnv,
-  refreshPaperclipWorkspaceEnvForExecution,
-  isPaperclipSkillSourceMissing,
-  readPaperclipRuntimeSkillEntries,
-  readPaperclipIssueWorkModeFromContext,
-  resolveLegacyPaperclipDesiredSkillNames,
+  refreshNexusWorkspaceEnvForExecution,
+  isNexusSkillSourceMissing,
+  readNexusRuntimeSkillEntries,
+  readNexusIssueWorkModeFromContext,
+  resolveLegacyNexusDesiredSkillNames,
   removeMaintainerOnlySkillSymlinks,
   parseObject,
   renderTemplate,
   hydrateFreshSessionHandoff,
-  selectPaperclipPromptSections,
+  selectNexusPromptSections,
   selectInitialCommunicationGuidance,
-  isPaperclipRecoveryWakePayload,
-  DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE,
-  DEFAULT_PAPERCLIP_CONVERSATION_PROMPT_TEMPLATE,
+  isNexusRecoveryWakePayload,
+  DEFAULT_NEXUS_AGENT_PROMPT_TEMPLATE,
+  DEFAULT_NEXUS_CONVERSATION_PROMPT_TEMPLATE,
   runChildProcess,
-} from "@paperclipai/adapter-utils/server-utils";
+} from "@nexusai/adapter-utils/server-utils";
 import { DEFAULT_GEMINI_LOCAL_MODEL, SANDBOX_INSTALL_COMMAND } from "../index.js";
 import {
   describeGeminiFailure,
@@ -108,14 +108,14 @@ function buildGeminiRuntimeEnv(env: Record<string, string>): Record<string, stri
   );
 }
 
-function renderPaperclipEnvNote(env: Record<string, string>): string {
-  const paperclipKeys = Object.keys(env)
-    .filter((key) => key.startsWith("PAPERCLIP_"))
+function renderNexusEnvNote(env: Record<string, string>): string {
+  const nexusKeys = Object.keys(env)
+    .filter((key) => key.startsWith("NEXUS_"))
     .sort();
-  if (paperclipKeys.length === 0) return "";
+  if (nexusKeys.length === 0) return "";
   return [
-    "Paperclip runtime note:",
-    `The following PAPERCLIP_* environment variables are available in this run: ${paperclipKeys.join(", ")}`,
+    "Nexus runtime note:",
+    `The following NEXUS_* environment variables are available in this run: ${nexusKeys.join(", ")}`,
     "Do not assume these variables are missing without checking your shell environment.",
     "",
     "",
@@ -123,22 +123,22 @@ function renderPaperclipEnvNote(env: Record<string, string>): string {
 }
 
 function renderApiAccessNote(env: Record<string, string>): string {
-  if (!hasNonEmptyEnvValue(env, "PAPERCLIP_API_URL") || !hasNonEmptyEnvValue(env, "PAPERCLIP_API_KEY")) return "";
+  if (!hasNonEmptyEnvValue(env, "NEXUS_API_URL") || !hasNonEmptyEnvValue(env, "NEXUS_API_KEY")) return "";
   return [
-    "Paperclip API access note:",
-    "Use run_shell_command with curl to make Paperclip API requests.",
+    "Nexus API access note:",
+    "Use run_shell_command with curl to make Nexus API requests.",
     "GET example:",
-    `  run_shell_command({ command: "curl -s -H \\"Authorization: Bearer $PAPERCLIP_API_KEY\\" \\"$PAPERCLIP_API_URL/api/agents/me\\"" })`,
+    `  run_shell_command({ command: "curl -s -H \\"Authorization: Bearer $NEXUS_API_KEY\\" \\"$NEXUS_API_URL/api/agents/me\\"" })`,
     "POST/PATCH example:",
-    `  run_shell_command({ command: "curl -s -X POST -H \\"Authorization: Bearer $PAPERCLIP_API_KEY\\" -H 'Content-Type: application/json' -H \\"X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID\\" -d '{...}' \\"$PAPERCLIP_API_URL/api/issues/$PAPERCLIP_TASK_ID/checkout\\"" })`,
-    "When PAPERCLIP_TASK_ID is not set, substitute a real issue id from the current context; never send a placeholder like {id} in the URL.",
+    `  run_shell_command({ command: "curl -s -X POST -H \\"Authorization: Bearer $NEXUS_API_KEY\\" -H 'Content-Type: application/json' -H \\"X-Nexus-Run-Id: $NEXUS_RUN_ID\\" -d '{...}' \\"$NEXUS_API_URL/api/issues/$NEXUS_TASK_ID/checkout\\"" })`,
+    "When NEXUS_TASK_ID is not set, substitute a real issue id from the current context; never send a placeholder like {id} in the URL.",
     "",
     "",
   ].join("\n");
 }
 
 /**
- * Inject Paperclip skills directly into the effective Gemini skills home.
+ * Inject Nexus skills directly into the effective Gemini skills home.
  * This avoids needing GEMINI_CLI_HOME overrides, so the CLI naturally finds
  * both its auth credentials and the injected skills under the child HOME.
  */
@@ -157,7 +157,7 @@ async function ensureGeminiSkillsInjected(
   } catch (err) {
     await onLog(
       "stderr",
-      `[paperclip] Failed to prepare Gemini skills directory ${skillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
+      `[nexus] Failed to prepare Gemini skills directory ${skillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
     );
     return;
   }
@@ -168,7 +168,7 @@ async function ensureGeminiSkillsInjected(
   for (const skillName of removedSkills) {
     await onLog(
       "stderr",
-      `[paperclip] Removed maintainer-only Gemini skill "${skillName}" from ${skillsHome}\n`,
+      `[nexus] Removed maintainer-only Gemini skill "${skillName}" from ${skillsHome}\n`,
     );
   }
 
@@ -176,16 +176,16 @@ async function ensureGeminiSkillsInjected(
     const target = path.join(skillsHome, entry.runtimeName);
 
     try {
-      const result = await ensurePaperclipSkillSymlink(entry.source, target);
+      const result = await ensureNexusSkillSymlink(entry.source, target);
       if (result === "skipped") continue;
       await onLog(
         "stderr",
-        `[paperclip] ${result === "repaired" ? "Repaired" : "Linked"} Gemini skill: ${entry.key}\n`,
+        `[nexus] ${result === "repaired" ? "Repaired" : "Linked"} Gemini skill: ${entry.key}\n`,
       );
     } catch (err) {
       await onLog(
         "stderr",
-        `[paperclip] Failed to link Gemini skill "${entry.key}": ${err instanceof Error ? err.message : String(err)}\n`,
+        `[nexus] Failed to link Gemini skill "${entry.key}": ${err instanceof Error ? err.message : String(err)}\n`,
       );
     }
   }
@@ -194,14 +194,14 @@ async function ensureGeminiSkillsInjected(
 async function buildGeminiSkillsDir(
   config: Record<string, unknown>,
 ): Promise<string> {
-  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-gemini-skills-"));
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-gemini-skills-"));
   const target = path.join(tmp, "skills");
   await fs.mkdir(target, { recursive: true });
-  const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
-  const desiredNames = new Set(resolveLegacyPaperclipDesiredSkillNames(config, availableEntries));
+  const availableEntries = await readNexusRuntimeSkillEntries(config, __moduleDir);
+  const desiredNames = new Set(resolveLegacyNexusDesiredSkillNames(config, availableEntries));
   for (const entry of availableEntries) {
     if (!desiredNames.has(entry.key)) continue;
-    if (isPaperclipSkillSourceMissing(entry)) continue;
+    if (isNexusSkillSourceMissing(entry)) continue;
     await fs.symlink(entry.source, path.join(target, entry.runtimeName));
   }
   return target;
@@ -236,22 +236,22 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const promptTemplate = asString(
     config.promptTemplate,
     context.conversationMode === true
-      ? DEFAULT_PAPERCLIP_CONVERSATION_PROMPT_TEMPLATE
-      : DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE,
+      ? DEFAULT_NEXUS_CONVERSATION_PROMPT_TEMPLATE
+      : DEFAULT_NEXUS_AGENT_PROMPT_TEMPLATE,
   );
   const command = asString(config.command, "gemini");
   const model = asString(config.model, DEFAULT_GEMINI_LOCAL_MODEL).trim();
   const sandbox = asBoolean(config.sandbox, false);
 
-  const workspaceContext = parseObject(context.paperclipWorkspace);
+  const workspaceContext = parseObject(context.nexusWorkspace);
   const workspaceCwd = asString(workspaceContext.cwd, "");
   const workspaceSource = asString(workspaceContext.source, "");
   const workspaceId = asString(workspaceContext.workspaceId, "");
   const workspaceRepoUrl = asString(workspaceContext.repoUrl, "");
   const workspaceRepoRef = asString(workspaceContext.repoRef, "");
   const agentHome = asString(workspaceContext.agentHome, "");
-  const workspaceHints = Array.isArray(context.paperclipWorkspaces)
-    ? context.paperclipWorkspaces.filter(
+  const workspaceHints = Array.isArray(context.nexusWorkspaces)
+    ? context.nexusWorkspaces.filter(
       (value): value is Record<string, unknown> => typeof value === "object" && value !== null,
     )
     : [];
@@ -261,12 +261,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const cwd = effectiveWorkspaceCwd || configuredCwd || process.cwd();
   let effectiveExecutionCwd = adapterExecutionTargetRemoteCwd(executionTarget, cwd);
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
-  const geminiSkillEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
-  const desiredGeminiSkillNames = resolveLegacyPaperclipDesiredSkillNames(config, geminiSkillEntries);
+  const geminiSkillEntries = await readNexusRuntimeSkillEntries(config, __moduleDir);
+  const desiredGeminiSkillNames = resolveLegacyNexusDesiredSkillNames(config, geminiSkillEntries);
   if (!executionTargetIsRemote) {
     await ensureGeminiSkillsInjected(
       onLog,
-      geminiSkillEntries.filter((entry) => !isPaperclipSkillSourceMissing(entry)),
+      geminiSkillEntries.filter((entry) => !isNexusSkillSourceMissing(entry)),
       desiredGeminiSkillNames,
       resolveGeminiSkillsHome(config),
     );
@@ -274,10 +274,10 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
 
   const envConfig = parseObject(config.env);
   const env: Record<string, string> = {
-    ...buildPaperclipEnv(agent, ctx.agentIdentity),
+    ...buildNexusEnv(agent, ctx.agentIdentity),
     ...buildRuntimeToolsEnv(ctx.runtimeTools),
   };
-  env.PAPERCLIP_RUN_ID = runId;
+  env.NEXUS_RUN_ID = runId;
   const wakeTaskId =
     (typeof context.taskId === "string" && context.taskId.trim().length > 0 && context.taskId.trim()) ||
     (typeof context.issueId === "string" && context.issueId.trim().length > 0 && context.issueId.trim()) ||
@@ -301,15 +301,15 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const linkedIssueIds = Array.isArray(context.issueIds)
     ? context.issueIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
     : [];
-  const issueWorkMode = readPaperclipIssueWorkModeFromContext(context);
-  if (wakeTaskId) env.PAPERCLIP_TASK_ID = wakeTaskId;
-  if (issueWorkMode) env.PAPERCLIP_ISSUE_WORK_MODE = issueWorkMode;
-  if (wakeReason) env.PAPERCLIP_WAKE_REASON = wakeReason;
-  if (wakeCommentId) env.PAPERCLIP_WAKE_COMMENT_ID = wakeCommentId;
-  if (approvalId) env.PAPERCLIP_APPROVAL_ID = approvalId;
-  if (approvalStatus) env.PAPERCLIP_APPROVAL_STATUS = approvalStatus;
-  if (linkedIssueIds.length > 0) env.PAPERCLIP_LINKED_ISSUE_IDS = linkedIssueIds.join(",");
-  refreshPaperclipWorkspaceEnvForExecution({
+  const issueWorkMode = readNexusIssueWorkModeFromContext(context);
+  if (wakeTaskId) env.NEXUS_TASK_ID = wakeTaskId;
+  if (issueWorkMode) env.NEXUS_ISSUE_WORK_MODE = issueWorkMode;
+  if (wakeReason) env.NEXUS_WAKE_REASON = wakeReason;
+  if (wakeCommentId) env.NEXUS_WAKE_COMMENT_ID = wakeCommentId;
+  if (approvalId) env.NEXUS_APPROVAL_ID = approvalId;
+  if (approvalStatus) env.NEXUS_APPROVAL_STATUS = approvalStatus;
+  if (linkedIssueIds.length > 0) env.NEXUS_LINKED_ISSUE_IDS = linkedIssueIds.join(",");
+  refreshNexusWorkspaceEnvForExecution({
     env,
     envConfig,
     workspaceCwd: effectiveWorkspaceCwd,
@@ -326,7 +326,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     env.GEMINI_CLI_TRUST_WORKSPACE = "true";
   }
   if (authToken) {
-    env.PAPERCLIP_API_KEY = authToken;
+    env.NEXUS_API_KEY = authToken;
   }
   const runtimeEnv = buildGeminiRuntimeEnv(env);
   const billingType = resolveGeminiBillingType(runtimeEnv);
@@ -360,14 +360,14 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   let remoteSkillsDir: string | null = null;
   let localSkillsDir: string | null = null;
   let remoteRuntimeRootDir: string | null = null;
-  let paperclipBridge: Awaited<ReturnType<typeof startAdapterExecutionTargetPaperclipBridge>> = null;
+  let nexusBridge: Awaited<ReturnType<typeof startAdapterExecutionTargetNexusBridge>> = null;
 
   if (executionTargetIsRemote) {
     try {
       localSkillsDir = await buildGeminiSkillsDir(config);
       await onLog(
         "stdout",
-        `[paperclip] Syncing workspace and Gemini runtime assets to ${describeAdapterExecutionTarget(executionTarget)}.\n`,
+        `[nexus] Syncing workspace and Gemini runtime assets to ${describeAdapterExecutionTarget(executionTarget)}.\n`,
       );
       const preparedExecutionTargetRuntime = await prepareAdapterExecutionTargetRuntime({
         runId,
@@ -388,7 +388,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       restoreRemoteWorkspace = () =>
         preparedExecutionTargetRuntime.restoreWorkspace((line) => onLog("stdout", line));
       effectiveExecutionCwd = preparedExecutionTargetRuntime.workspaceRemoteDir ?? effectiveExecutionCwd;
-      refreshPaperclipWorkspaceEnvForExecution({
+      refreshNexusWorkspaceEnvForExecution({
         env,
         envConfig,
         workspaceCwd: effectiveWorkspaceCwd,
@@ -469,8 +469,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     }
   }
   const runtimeExecutionTarget = overrideAdapterExecutionTargetRemoteCwd(executionTarget, effectiveExecutionCwd);
-  if (executionTargetIsRemote && adapterExecutionTargetUsesPaperclipBridge(executionTarget)) {
-    paperclipBridge = await startAdapterExecutionTargetPaperclipBridge({
+  if (executionTargetIsRemote && adapterExecutionTargetUsesNexusBridge(executionTarget)) {
+    nexusBridge = await startAdapterExecutionTargetNexusBridge({
       runId,
       target: runtimeExecutionTarget,
       enableSandboxDuplexBridge: adapterExecutionTargetEnablesSandboxDuplexBridge(runtimeExecutionTarget),
@@ -478,11 +478,11 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       runtimeRootDir: remoteRuntimeRootDir,
       adapterKey: "gemini",
       timeoutSec,
-      hostApiToken: env.PAPERCLIP_API_KEY,
+      hostApiToken: env.NEXUS_API_KEY,
       onLog,
     });
-    if (paperclipBridge) {
-      Object.assign(env, paperclipBridge.env);
+    if (nexusBridge) {
+      Object.assign(env, nexusBridge.env);
     }
   }
 
@@ -498,12 +498,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   if (executionTargetIsRemote && runtimeSessionId && !canResumeSession) {
     await onLog(
       "stdout",
-      `[paperclip] Gemini session "${runtimeSessionId}" does not match the current remote execution identity and will not be resumed in "${effectiveExecutionCwd}". Starting a fresh remote session.\n`,
+      `[nexus] Gemini session "${runtimeSessionId}" does not match the current remote execution identity and will not be resumed in "${effectiveExecutionCwd}". Starting a fresh remote session.\n`,
     );
   } else if (runtimeSessionId && !canResumeSession) {
     await onLog(
       "stdout",
-      `[paperclip] Gemini session "${runtimeSessionId}" was saved for cwd "${runtimeSessionCwd}" and will not be resumed in "${effectiveExecutionCwd}".\n`,
+      `[nexus] Gemini session "${runtimeSessionId}" was saved for cwd "${runtimeSessionCwd}" and will not be resumed in "${effectiveExecutionCwd}".\n`,
     );
   }
 
@@ -521,7 +521,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       const reason = err instanceof Error ? err.message : String(err);
       await onLog(
         "stdout",
-        `[paperclip] Warning: could not read agent instructions file "${instructionsFilePath}": ${reason}\n`,
+        `[nexus] Warning: could not read agent instructions file "${instructionsFilePath}": ${reason}\n`,
       );
     }
   }
@@ -561,16 +561,16 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       !resumedSession && bootstrapPromptTemplate.trim().length > 0
         ? renderTemplate(bootstrapPromptTemplate, templateData).trim()
         : "";
-    const { taskContextNote, wakePrompt } = selectPaperclipPromptSections(context, {
+    const { taskContextNote, wakePrompt } = selectNexusPromptSections(context, {
       resumedSession,
       includeCommunicationGuidance: false,
     });
     const shouldUseResumeDeltaPrompt = resumedSession && wakePrompt.length > 0;
-    const renderedPrompt = shouldUseResumeDeltaPrompt || isPaperclipRecoveryWakePayload(context.paperclipWake)
+    const renderedPrompt = shouldUseResumeDeltaPrompt || isNexusRecoveryWakePayload(context.nexusWake)
       ? ""
       : renderTemplate(promptTemplate, templateData);
-    const sessionHandoffNote = asString(context.paperclipSessionHandoffMarkdown, "").trim();
-    const paperclipEnvNote = renderPaperclipEnvNote(env);
+    const sessionHandoffNote = asString(context.nexusSessionHandoffMarkdown, "").trim();
+    const nexusEnvNote = renderNexusEnvNote(env);
     const apiAccessNote = renderApiAccessNote(env);
     const basePrompt = joinPromptSections([
       instructionsPrefix,
@@ -578,7 +578,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       wakePrompt,
       taskContextNote,
       sessionHandoffNote,
-      paperclipEnvNote,
+      nexusEnvNote,
       apiAccessNote,
       renderedPrompt,
     ]);
@@ -591,7 +591,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         wakePromptChars: wakePrompt.length,
         taskContextChars: taskContextNote.length,
         sessionHandoffChars: sessionHandoffNote.length,
-        runtimeNoteChars: paperclipEnvNote.length + apiAccessNote.length,
+        runtimeNoteChars: nexusEnvNote.length + apiAccessNote.length,
         heartbeatPromptChars: renderedPrompt.length,
       },
     };
@@ -657,8 +657,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       onSpawn,
       onRuntimeProgress: ctx.onRuntimeProgress,
       onLog: accountingLog,
-      runLogTail: paperclipBridge?.runLogTail,
-      settleRunDisposition: paperclipBridge?.settleRunDisposition,
+      runLogTail: nexusBridge?.runLogTail,
+      settleRunDisposition: nexusBridge?.settleRunDisposition,
     });
     await accountingLog.flush();
     return {
@@ -799,7 +799,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     ) {
       await onLog(
         "stdout",
-        `[paperclip] Gemini resume session "${sessionId}" is unavailable; retrying with a fresh session.\n`,
+        `[nexus] Gemini resume session "${sessionId}" is unavailable; retrying with a fresh session.\n`,
       );
       const retry = await runAttempt(null);
       return toResult(retry, true, true);
@@ -811,7 +811,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       await providerStop.collectBeforeRestore();
     } finally {
       await Promise.all([
-        paperclipBridge?.stop(),
+        nexusBridge?.stop(),
         restoreRemoteWorkspace?.(),
         localSkillsDir ? fs.rm(path.dirname(localSkillsDir), { recursive: true, force: true }).catch(() => undefined) : Promise.resolve(),
       ]);

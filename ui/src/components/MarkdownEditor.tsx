@@ -44,7 +44,7 @@ import {
   buildProjectMentionHref,
   buildRoutineMentionHref,
   buildUserMentionHref,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { Boxes, CalendarClock, Flag, Hash, User, X } from "lucide-react";
 import { applyMentionChipDecoration, clearMentionChipDecoration, parseMentionChipHref } from "../lib/mention-chips";
 import { MentionAwareLinkNode, mentionAwareLinkNodeReplacement } from "../lib/mention-aware-link-node";
@@ -68,7 +68,7 @@ export interface MentionOption {
   kind?: "agent" | "project" | "user" | "issue";
   agentId?: string;
   agentIcon?: string | null;
-  agentAppearance?: import("@paperclipai/shared").AgentAppearance | null;
+  agentAppearance?: import("@nexusai/shared").AgentAppearance | null;
   projectId?: string;
   projectColor?: string | null;
   userId?: string;
@@ -1328,7 +1328,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
       <div
         ref={containerRef}
         className={cn(
-          "relative paperclip-mdxeditor-scope",
+          "relative nexus-mdxeditor-scope",
           bordered ? "rounded-md border border-border bg-transparent" : "bg-transparent",
           className,
         )}
@@ -1385,7 +1385,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
     <div
       ref={containerRef}
       className={cn(
-        "relative paperclip-mdxeditor-scope",
+        "relative nexus-mdxeditor-scope",
         bordered ? "rounded-md border border-border bg-transparent" : "bg-transparent",
         isDragOver && "ring-1 ring-primary/60 bg-accent/20",
         className,
@@ -1572,9 +1572,9 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
           onError={(payload) => {
             handleRichEditorParseError(payload.error);
           }}
-          className={cn("paperclip-mdxeditor", !bordered && "paperclip-mdxeditor--borderless")}
+          className={cn("nexus-mdxeditor", !bordered && "nexus-mdxeditor--borderless")}
           contentEditableClassName={cn(
-            "paperclip-mdxeditor-content focus:outline-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:list-item",
+            "nexus-mdxeditor-content focus:outline-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:list-item",
             contentClassName,
           )}
           additionalLexicalNodes={[MentionAwareLinkNode, mentionAwareLinkNodeReplacement]}
@@ -1586,7 +1586,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
       {mentionActive && filteredMentions.length > 0 && mentionMenuPosition &&
         createPortal(
           <div
-            data-paperclip-floating-ui=""
+            data-nexus-floating-ui=""
             data-testid="mention-autocomplete-menu"
             className="pointer-events-auto fixed z-(--z-9999) min-w-(--sz-180px) max-w-(--sz-calc-15) max-h-(--sz-208px) overflow-y-auto overscroll-contain rounded-md border border-border bg-popover shadow-md"
             style={{

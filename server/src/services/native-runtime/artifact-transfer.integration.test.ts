@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { Readable } from "node:stream";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { agents, assets, companies, createDb, heartbeatRuns, issues, runnerApiResponseReservations } from "@paperclipai/db";
+import { agents, assets, companies, createDb, heartbeatRuns, issues, runnerApiResponseReservations } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
-import { SemanticToolOutcomeUnknownError } from "../../vendor/paperclip-runner/index.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
+import { SemanticToolOutcomeUnknownError } from "../../vendor/nexus-runner/index.js";
 import { createArtifactInstaller } from "./artifact-transfer.js";
 import type { StorageService } from "../../storage/types.js";
 
@@ -24,7 +24,7 @@ describe.skipIf(process.platform !== "linux")("native authenticated artifact ins
   it("materializes all 388131 synthetic bytes without model transcription and verifies a retry", async () => {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), runId = randomUUID(), artifactId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Synthetic transfer", issuePrefix: `A${companyId.slice(0, 6)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Transfer", role: "ceo", status: "active", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Transfer", role: "ceo", status: "active", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Transfer synthetic bytes", status: "in_progress", assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "running", runtimeMode: "native", nativeIssueId: issueId, invocationSource: "assignment", triggerDetail: "system", contextSnapshot: { issueId } });
     await db.update(issues).set({ executionRunId: runId }).where(eq(issues.id, issueId));
@@ -39,7 +39,7 @@ describe.skipIf(process.platform !== "linux")("native authenticated artifact ins
     const storage = { getObject } as unknown as StorageService;
     const root = await mkdtemp(join(tmpdir(), "native-artifact-transfer-"));
     try {
-      const authority = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId, workspaceRoot: root, storage, apiToolsEnabled: true });
+      const authority = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId, workspaceRoot: root, storage, apiToolsEnabled: true });
       expect(authority.definitions().some(tool => tool.name === "download_artifact")).toBe(true);
       const call = { tool: "download_artifact", callId: "synthetic-install", arguments: { artifactId, destination: "synthetic.bin", byteSize: bytes.length, sha256 } };
       const result = await authority.execute(call);
@@ -58,7 +58,7 @@ describe.skipIf(process.platform !== "linux")("native authenticated artifact ins
         await realInstaller(input);
         if (loseReceipt && !input.verifyOnly) { loseReceipt = false; throw new SemanticToolOutcomeUnknownError("lost commit receipt"); }
       });
-      const remoteAuthority = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId, workspaceRoot: root, storage,
+      const remoteAuthority = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId, workspaceRoot: root, storage,
         executionTargetKind: "remote", installRemoteArtifact: remoteInstaller });
       const remoteCall = { ...call, arguments: { ...call.arguments, destination: "remote-synthetic.bin" } };
       await expect(remoteAuthority.execute(remoteCall)).rejects.toThrow("lost commit receipt");
@@ -81,7 +81,7 @@ describe.skipIf(process.platform !== "linux")("native authenticated artifact ins
 
       // The content-read ACL retains capture ownership, independently of company membership.
       const foreignRun = randomUUID(), foreignAgent = randomUUID(), privateAsset = randomUUID();
-      await db.insert(agents).values({ id: foreignAgent, companyId, name: "Other", status: "active", adapterType: "paperclip_runner" });
+      await db.insert(agents).values({ id: foreignAgent, companyId, name: "Other", status: "active", adapterType: "nexus_runner" });
       await db.insert(heartbeatRuns).values({ id: foreignRun, companyId, agentId: foreignAgent, status: "succeeded", invocationSource: "assignment", triggerDetail: "system" });
       await db.insert(assets).values({ id: privateAsset, companyId, provider: "local_disk", objectKey: `${companyId}/assets/runner-api/private`, contentType: "application/json", byteSize: bytes.length, sha256 });
       await db.insert(runnerApiResponseReservations).values({ companyId, runId: foreignRun, assetId: privateAsset, reservedBytes: bytes.length });
@@ -92,7 +92,7 @@ describe.skipIf(process.platform !== "linux")("native authenticated artifact ins
       expect(getObject).not.toHaveBeenCalled();
 
       for (const binding of [{ workMode: "planning" as const }, { executionTargetKind: "remote" as const }, { firstPartyOnly: true }, { dotRuntime: true }, { museRuntime: true }, { apiToolsEnabled: false }]) {
-        const restricted = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId, workspaceRoot: root, storage, ...binding });
+        const restricted = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId, workspaceRoot: root, storage, ...binding });
         expect(restricted.definitions().some(tool => tool.name === "download_artifact")).toBe(false);
         await expect(restricted.execute(call)).rejects.toThrow();
       }

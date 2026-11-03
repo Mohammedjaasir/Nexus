@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { createDb, executionWorkspaces, heartbeatRuns, issues, plugins } from "@paperclipai/db";
+import { createDb, executionWorkspaces, heartbeatRuns, issues, plugins } from "@nexusai/db";
 import { preparePluginWorkspace, removePluginWorkspace } from "../services/plugin-workspaces.js";
 import { executionWorkspaceService } from "../services/execution-workspaces.js";
 import { reserveFreshPluginTaskWorkspace } from "../services/provider-fresh-workspace.js";

@@ -16,13 +16,13 @@ import type {
   IssueQueuedCommentQueue,
   IssueThreadInteraction,
   TaskBrowser,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { heartbeatsApi } from "@/api/heartbeats";
 import { nativeRunEventsToTranscript } from "./transcript/native-run-events";
 import { pendingConnectionIntentInteraction } from "@/fixtures/issueThreadInteractionFixtures";
 import { TaskChatScrollNavigation, useTaskChatScrollNavigation } from "./task-chat/scroll-navigation";
 import { CoordinatorPresentation } from "./coordinator/CoordinatorPresentation";
-import type { HeartbeatRunEvent } from "@paperclipai/shared";
+import type { HeartbeatRunEvent } from "@nexusai/shared";
 
 const transcriptState = vi.hoisted(() => ({
   transcriptByRun: new Map(),
@@ -179,7 +179,7 @@ async function settleThreadLayout() {
 describe.each(["legacy", "native"] as const)("historical %s system status", (runtimeMode) => {
   const run = (id: string, status: string, minute: number) => ({
     runId: id, status, runtimeMode, agentId: "agent", agentName: "Assistant",
-    adapterType: runtimeMode === "native" ? "paperclip_runner" : "claude_local",
+    adapterType: runtimeMode === "native" ? "nexus_runner" : "claude_local",
     createdAt: `2025-01-01T10:0${minute}:00Z`, startedAt: `2025-01-01T10:0${minute}:01Z`,
     finishedAt: `2025-01-01T10:0${minute}:30Z`,
   });
@@ -545,7 +545,7 @@ it("shows Queued during admission and clears it when the saved follow-up enters 
       nextRetryAt: new Date(Date.now() + 30_000).toISOString(), canRetry: true, userAction: null,
       sourceRunIds: ["failed-run"], observedRunId: "failed-run" } : null}
     onAdd={async () => {}} issueAssigneeAgentId="agent"
-    agentMap={new Map([["agent", { id: "agent", name: "Worker", adapterType: "paperclip_runner" } as Agent]])} />);
+    agentMap={new Map([["agent", { id: "agent", name: "Worker", adapterType: "nexus_runner" } as Agent]])} />);
   show(false);
   expect(container.textContent).toContain("Confirm the existing result.");
   expect(container.textContent).toContain("Queued");
@@ -563,7 +563,7 @@ it.each((["task", "legacy"] as const).flatMap(surface =>
   const Component = surface === "task" ? TaskChatThread : IssueChatThread;
   const props = { comments: [], issueId: "issue", issueAssigneeAgentId: "agent", issueStatus: "todo", onAdd,
     onRefreshLatestComments: refresh,
-    agentMap: new Map([["agent", { id: "agent", name: "Worker", adapterType: "paperclip_runner" } as Agent]]) };
+    agentMap: new Map([["agent", { id: "agent", name: "Worker", adapterType: "nexus_runner" } as Agent]]) };
   render(<Component {...props}
     interruption={previousState ? { intentId: "previous-intent", responsibility: "system", state: previousState,
       nextRetryAt: null, canRetry: previousState === "failed", userAction: null,
@@ -609,7 +609,7 @@ it.each((["task", "legacy"] as const).flatMap(surface =>
     authorAgentId: "agent", authorUserId: null, body: "Here is the previous answer.", presentation: null, metadata: null,
     createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-01") };
   const props = { issueId: "issue", issueStatus: "in_progress", currentUserId: "board", issueAssigneeAgentId: "agent", onAdd,
-    comments: [prior], agentMap: new Map([["agent", { id: "agent", name: "Worker", adapterType: "paperclip_runner" } as Agent]]) };
+    comments: [prior], agentMap: new Map([["agent", { id: "agent", name: "Worker", adapterType: "nexus_runner" } as Agent]]) };
   render(<Component {...props} />);
   await act(async () => { editorCallbacks.change("Please check again."); });
   const send = surface === "task" ? container.querySelector<HTMLButtonElement>('[data-testid="task-chat-composer-send"]')
@@ -644,7 +644,7 @@ it.each((["task", "legacy"] as const).flatMap(surface => [
 ]))("does not show startup work with $reason in $surface chat", async ({ surface, status, orgChainHealth }) => {
   const Component = surface === "task" ? TaskChatThread : IssueChatThread;
   const onAdd = vi.fn<ComponentProps<typeof TaskChatThread>["onAdd"]>().mockResolvedValue(undefined);
-  const agentMap = new Map([["agent", { id: "agent", name: "Worker", status, orgChainHealth, adapterType: "paperclip_runner" } as Agent]]);
+  const agentMap = new Map([["agent", { id: "agent", name: "Worker", status, orgChainHealth, adapterType: "nexus_runner" } as Agent]]);
   const props = { issueId: "issue", comments: [], issueStatus: "todo", issueAssigneeAgentId: "agent", agentMap, onAdd };
   render(<Component {...props} />);
   await act(async () => { editorCallbacks.change("Save a note for later."); });
@@ -657,7 +657,7 @@ it.each((["task", "legacy"] as const).flatMap(surface => [
   expect(container.textContent).not.toContain("Taking longer than usual");
 });
 
-it.each([null, "previous-agent"].flatMap(previousAgentId => ["paperclip_runner", "process"].map(adapterType => ({ previousAgentId, adapterType }))))("keeps the selected responder mounted across reassignment, acknowledgement and $adapterType startup (previous=$previousAgentId)", async ({ previousAgentId, adapterType }) => {
+it.each([null, "previous-agent"].flatMap(previousAgentId => ["nexus_runner", "process"].map(adapterType => ({ previousAgentId, adapterType }))))("keeps the selected responder mounted across reassignment, acknowledgement and $adapterType startup (previous=$previousAgentId)", async ({ previousAgentId, adapterType }) => {
   let acknowledge!: () => void;
   const onAdd = vi.fn<ComponentProps<typeof TaskChatThread>["onAdd"]>(() => new Promise<void>(resolve => { acknowledge = resolve; }));
   const props = {
@@ -665,7 +665,7 @@ it.each([null, "previous-agent"].flatMap(previousAgentId => ["paperclip_runner",
     suggestedAssigneeValue: "agent:next-agent",
     reassignOptions: [{ id: "agent:next-agent", label: "Next worker" }, { id: "agent:previous-agent", label: "Previous worker" }],
     agentMap: new Map([
-      ["previous-agent", { id: "previous-agent", name: "Previous worker", adapterType: "paperclip_runner" } as Agent],
+      ["previous-agent", { id: "previous-agent", name: "Previous worker", adapterType: "nexus_runner" } as Agent],
       ["next-agent", { id: "next-agent", name: "Next worker", adapterType } as Agent],
     ]),
   };
@@ -690,7 +690,7 @@ it.each([null, "previous-agent"].flatMap(previousAgentId => ["paperclip_runner",
   await act(async () => container.querySelector<HTMLButtonElement>('[data-testid="task-chat-composer-assignee"]')!.click());
   await act(async () => document.querySelector('[data-assignee-identity="agent:previous-agent"]')!.closest("button")!.click());
   expect(container.querySelector('[data-testid="task-chat-agent-identity"]')).toBe(identity);
-  const live = { ...nativeRunningRun(), runtimeMode: adapterType === "paperclip_runner" ? "native" as const : "legacy" as const, adapterType, agentId: "next-agent", agentName: "Next worker" };
+  const live = { ...nativeRunningRun(), runtimeMode: adapterType === "nexus_runner" ? "native" as const : "legacy" as const, adapterType, agentId: "next-agent", agentName: "Next worker" };
   render(<TaskChatThread {...props} comments={[saved]} issueStatus="in_progress" issueAssigneeAgentId="next-agent" currentAssigneeValue="agent:next-agent" activeRun={live} liveRuns={[live]} />);
   expect(container.querySelector('[data-testid="task-chat-agent-identity"]')).toBe(identity);
 });
@@ -766,7 +766,7 @@ describe.each(["legacy", "native"] as const)("%s task history readiness", (runti
     runtimeMode,
     status: "scheduled_retry",
     agentId: "agent-1",
-    adapterType: runtimeMode === "native" ? "paperclip_runner" : "codex_local",
+    adapterType: runtimeMode === "native" ? "nexus_runner" : "codex_local",
     createdAt: "2026-08-25T18:00:00.000Z",
     startedAt: null,
   };
@@ -808,8 +808,8 @@ describe.each(["legacy", "native"] as const)("%s task history readiness", (runti
       issueId: "required-output", compactHistory: true, onAdd: async () => {}, onExpandHistory: vi.fn(),
       conversationMode: scenario === "chat",
       linkedRuns: [{ ...retryRun, runId: "saved-run", status: ["running", "failed"].includes(scenario) ? scenario : "succeeded", startedAt: retryRun.createdAt,
-        resultJson: scenario === "yielded" ? { nativeResult: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "yielded" } }
-          : scenario === "no-presentation" ? { presentationDecision: { schema: "paperclip.run_presentation_decision.v1", commentId: null } }
+        resultJson: scenario === "yielded" ? { nativeResult: { schema: "nexus.run_result.v1", reportedWorkDisposition: "yielded" } }
+          : scenario === "no-presentation" ? { presentationDecision: { schema: "nexus.run_presentation_decision.v1", commentId: null } }
           : scenario === "progress" ? { semanticToolReceipts: { progress: { operationId: "report_progress", result: { commentId: "saved-answer" } } } } : {} }],
       comments: scenario === "no-reply" ? [] : [{ ...createLongThreadComments()[3], id: "saved-answer", authorType: "agent" as const,
         authorAgentId: "agent-1", body: scenario === "placeholder" ? "Run completed. Agent did not post a summary comment this run (transcript withheld — see run log)." : "Saved investigation result", runId: "saved-run" }],
@@ -1160,7 +1160,7 @@ function nativeRunningRun() {
     createdAt: "2026-08-25T18:00:00.000Z",
     agentId: "agent-1",
     agentName: "Runner",
-    adapterType: "paperclip_runner",
+    adapterType: "nexus_runner",
   };
 }
 
@@ -1175,7 +1175,7 @@ function nativePlanRun(id: string): NonNullable<ComponentProps<typeof TaskChatTh
     createdAt: "2026-08-25T18:00:00.000Z",
     agentId: "agent-1",
     agentName: "Runner",
-    adapterType: "paperclip_runner",
+    adapterType: "nexus_runner",
     runtimeMode: "native",
   };
 }
@@ -1289,7 +1289,7 @@ describe("TaskChatThread runtime transcript selection", () => {
     const props = {
       issueId: "native-live", comments: [], onAdd: async () => {},
       linkedRuns: [{ runId: "native-run", runtimeMode: "native" as const,
-        status, agentId: "agent-1", adapterType: "paperclip_runner",
+        status, agentId: "agent-1", adapterType: "nexus_runner",
         createdAt: "2026-08-25T18:00:00.000Z", startedAt: "2026-08-25T18:00:00.000Z" }],
     };
     render(<TaskChatThread {...props} />);
@@ -1303,7 +1303,7 @@ describe("TaskChatThread runtime transcript selection", () => {
     const props = {
       issueId: "native-history", comments: [], onAdd: async () => {},
       linkedRuns: [{ runId: "native-run", runtimeMode: "native" as const,
-        status: "succeeded", agentId: "agent-1", adapterType: "paperclip_runner",
+        status: "succeeded", agentId: "agent-1", adapterType: "nexus_runner",
         createdAt: "2026-08-25T18:00:00.000Z", startedAt: "2026-08-25T18:00:00.000Z" }],
     };
     nativeTranscriptState.hydratedRunIds = new Set();
@@ -1337,7 +1337,7 @@ describe("TaskChatThread runtime transcript selection", () => {
             runtimeMode: "native",
             status: "succeeded",
             agentId: "agent-1",
-            adapterType: "paperclip_runner",
+            adapterType: "nexus_runner",
             createdAt: "2026-08-25T18:00:00.000Z",
             startedAt: "2026-08-25T18:00:00.000Z",
           },
@@ -1379,7 +1379,7 @@ describe("TaskChatThread runtime transcript selection", () => {
     const props = {
       comments: [comment], onAdd: async () => {}, issueStatus: "in_progress",
       currentUserId: "board", issueAssigneeAgentId: "agent-1",
-      agentMap: new Map([["agent-1", { id: "agent-1", name: "Runner", adapterType: "paperclip_runner", icon: "code" } as Agent]]),
+      agentMap: new Map([["agent-1", { id: "agent-1", name: "Runner", adapterType: "nexus_runner", icon: "code" } as Agent]]),
     };
     renderThread({ ...props, comments: [] });
     await act(async () => { editorCallbacks.change(comment.body); });
@@ -1430,7 +1430,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       const summary = "The report contains a longer account of the completed work.";
       const finalText = "The final reply is complete.";
       const result = {
-        schema: "paperclip.run_result.v1", reportedWorkDisposition: "done", summary,
+        schema: "nexus.run_result.v1", reportedWorkDisposition: "done", summary,
         completionClaim: { objectiveSatisfied: true, remainingWork: [] },
       };
       const events: HeartbeatRunEvent[] = [];
@@ -1441,7 +1441,7 @@ describe("TaskChatThread runtime transcript selection", () => {
           companyId: "company", agentId: run.agentId, stream: "system", level: "info", color: null, message: null,
           createdAt: new Date(`2026-08-25T18:00:0${seq}.000Z`),
           payload: { prpEvent: {
-            schema: "paperclip.prp.event.v1", schemaVersion: 1,
+            schema: "nexus.prp.event.v1", schemaVersion: 1,
             runId: run.id, eventType, sourceEventId: `event-${seq}`,
             itemId: "final-reply", payload,
           } },
@@ -1506,7 +1506,7 @@ describe("TaskChatThread runtime transcript selection", () => {
     const linkedRun = {
       ...run, runId: run.id, status: "succeeded", finishedAt: "2026-08-25T18:00:10.000Z",
       resultJson: response === "empty" ? null : {
-        nativeResult: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "done", summary },
+        nativeResult: { schema: "nexus.run_result.v1", reportedWorkDisposition: "done", summary },
       },
     };
     renderThread({ ...props, linkedRuns: [linkedRun] });
@@ -1587,7 +1587,7 @@ describe("TaskChatThread runtime transcript selection", () => {
         runId: "restore-run", runtimeMode: "legacy", status: "failed", errorCode: "workspace_restore_failed",
         agentId: "agent-1", agentName: "Runner", adapterType: "grok_local",
         createdAt: "2026-08-25T18:00:00.000Z", startedAt: "2026-08-25T18:00:00.000Z", finishedAt: "2026-08-25T18:00:02.000Z",
-        resultJson: { workspaceRestoreFailure: code, workspaceRestorePath: ".claude/skills/paperclip", finalResponseRecorded: false,
+        resultJson: { workspaceRestoreFailure: code, workspaceRestorePath: ".claude/skills/nexus", finalResponseRecorded: false,
           ...(evidence === "document_only" ? { savedPlanRevisionId: "revision-3" } : {}),
         },
       }],
@@ -1597,7 +1597,7 @@ describe("TaskChatThread runtime transcript selection", () => {
     flushSync(() => marker!.querySelector<HTMLButtonElement>('button[aria-expanded]')!.click());
     expect(marker?.textContent).toContain("Workspace files need recovery");
     expect(marker?.textContent).toContain("No final response was recorded");
-    expect(marker?.textContent).toContain(".claude/skills/paperclip");
+    expect(marker?.textContent).toContain(".claude/skills/nexus");
     expect(marker?.querySelector('a[href*="/runs/restore-run"]')).not.toBeNull();
     expect(marker?.textContent.includes("after the plan was saved")).toBe(evidence === "matching" || evidence === "document_only");
     expect(Boolean(marker?.querySelector('a[href*="document-plan"]'))).toBe(evidence === "matching" || evidence === "document_only");
@@ -1640,7 +1640,7 @@ describe("TaskChatThread runtime transcript selection", () => {
   it.each(["legacy", "native"] as const)("keeps a %s credential denial expanded and replaces it after a successful attempt", (runtimeMode) => {
     const denied = {
       runId: "credential-run", runtimeMode, status: "failed", errorCode: "configuration_incomplete",
-      agentId: "agent-1", agentName: "Codie", adapterType: runtimeMode === "native" ? "paperclip_runner" : "codex_local",
+      agentId: "agent-1", agentName: "Codie", adapterType: runtimeMode === "native" ? "nexus_runner" : "codex_local",
       responsibleUserId: "nicky", createdAt: "2026-08-25T18:00:00Z", startedAt: null, finishedAt: "2026-08-25T18:00:02Z",
       resultJson: { configurationIncomplete: { selectionFailure: "ai_connection_credential_not_shared", credentialAccess: { connectionName: "Dotta’s API Key" } } },
     };
@@ -1689,7 +1689,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       comments: [{ ...createLongThreadComments()[3], id: "saved-plan-reply", authorType: "agent" as const,
         authorAgentId: "agent-1", body: "The saved Plan is ready.", runId }],
       interactions: owner === "resolved-review" ? [planReviewInteraction("accepted", "revision-3", runId)] : [],
-      linkedRuns: [{ runId, runtimeMode: "native" as const, status: "succeeded", agentId: "agent-1", adapterType: "paperclip_runner",
+      linkedRuns: [{ runId, runtimeMode: "native" as const, status: "succeeded", agentId: "agent-1", adapterType: "nexus_runner",
         createdAt: "2026-08-25T18:00:00.000Z", startedAt: "2026-08-25T18:00:00.000Z", finishedAt: "2026-08-25T18:00:03.000Z" }],
     };
     const show = (compactHistory: boolean) => render(<CoordinatorPresentation.Provider value={coordinator}>
@@ -1754,7 +1754,7 @@ describe("TaskChatThread runtime transcript selection", () => {
 
   it.each([
     { name: "write_document", anchored: true },
-    { name: "mcp__paperclip__write_document", anchored: false },
+    { name: "mcp__nexus__write_document", anchored: false },
   ])("anchors a settled ACP Plan only at the normalized display name $name", ({ name, anchored }) => {
     const runId = "acpx-plan";
     planState.data = planDocument({ updatedAt: new Date("2026-08-25T18:00:02.000Z") });
@@ -1772,7 +1772,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       createdAt: new Date(`2026-08-25T18:00:0${index + 1}.000Z`),
       payload: {
         prpEvent: {
-          schema: "paperclip.prp.event.v1",
+          schema: "nexus.prp.event.v1",
           schemaVersion: 1,
           runId,
           eventType: `tool.execution.${phase}`,
@@ -1783,10 +1783,10 @@ describe("TaskChatThread runtime transcript selection", () => {
           normalizedSessionId: "session-1",
           emittedAt: `2026-08-25T18:00:0${index + 1}.000Z`,
           payload: {
-            schema: "paperclip.tool.execution.v1",
+            schema: "nexus.tool.execution.v1",
             executionId: "write-plan",
             transport: anchored ? "mcp" : "builtin",
-            namespace: anchored ? "paperclip" : null,
+            namespace: anchored ? "nexus" : null,
             name,
             operation: "execute",
             readOnly: false,
@@ -1812,7 +1812,7 @@ describe("TaskChatThread runtime transcript selection", () => {
         status: "succeeded",
         agentId: "agent-1",
         agentName: "Runner",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         createdAt: "2026-08-25T18:00:00.000Z",
         startedAt: "2026-08-25T18:00:00.000Z",
         finishedAt: "2026-08-25T18:00:03.000Z",
@@ -2005,7 +2005,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       outputTokens: 5,
       cachedTokens: 0,
       costUsd: 0,
-      subtype: "paperclip_runner_usage",
+      subtype: "nexus_runner_usage",
       isError: false,
       errors: [],
     });
@@ -2057,7 +2057,7 @@ describe("TaskChatThread runtime transcript selection", () => {
           errorCode: "provider_transport_failed",
           agentId: "agent-1",
           agentName: "Runner",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:00:00.000Z",
           startedAt: "2026-08-25T18:00:00.000Z",
           finishedAt: "2026-08-25T18:00:02.000Z",
@@ -2089,7 +2089,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       linkedRuns: [
         {
           runId: "old-native", runtimeMode: "native", status: "failed", errorCode: "adapter_failed",
-          agentId: "agent-1", agentName: "Runner", adapterType: "paperclip_runner",
+          agentId: "agent-1", agentName: "Runner", adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:00:00.000Z", startedAt: "2026-08-25T18:00:00.000Z",
           finishedAt: "2026-08-25T18:00:02.000Z",
           execution: {
@@ -2101,7 +2101,7 @@ describe("TaskChatThread runtime transcript selection", () => {
         },
         {
           runId: "failed-bootstrap", runtimeMode: "legacy", status: "failed", errorCode: "setup_failed",
-          agentId: "agent-1", agentName: "Runner", adapterType: "paperclip_runner",
+          agentId: "agent-1", agentName: "Runner", adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:01:00.000Z", startedAt: "2026-08-25T18:01:00.000Z",
           finishedAt: "2026-08-25T18:01:02.000Z",
         },
@@ -2126,7 +2126,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       onRetryFailedRun: vi.fn(),
       linkedRuns: [{
         runId: "quarantined", runtimeMode: "native", status: "failed", errorCode: "native_session_cleanup_quarantined",
-        agentId: "agent-1", agentName: "Runner", adapterType: "paperclip_runner",
+        agentId: "agent-1", agentName: "Runner", adapterType: "nexus_runner",
         createdAt: "2026-08-25T18:00:00.000Z", startedAt: "2026-08-25T18:00:00.000Z", finishedAt: "2026-08-25T18:00:02.000Z",
         ...(continued ? { execution: { phase: "completed" as const, label: "Continued in another run", cause: "native_session_cleanup_quarantined",
           lastConfirmedActivityAt: null, retryAt: null, attempt: 2, maxAttempts: 3, recoveryOwner: null, nextAction: null,
@@ -2152,7 +2152,7 @@ describe("TaskChatThread runtime transcript selection", () => {
           errorCode: "native_provider_usage_limit",
           agentId: "agent-1",
           agentName: "Runner",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:00:00.000Z",
           startedAt: "2026-08-25T18:00:00.000Z",
           finishedAt: "2026-08-25T18:00:02.000Z",
@@ -2206,7 +2206,7 @@ describe("TaskChatThread runtime transcript selection", () => {
   it.each(["legacy", "native"] as const)("groups repeated %s pre-start holds without hiding executed work", (runtimeMode) => {
     const heldRun = (id: string, recoveryActionId: string, startedAt: string | null = null) => ({
       runId: id, runtimeMode, status: "cancelled", errorCode: "execution_reconciliation_required",
-      agentId: "agent-1", adapterType: runtimeMode === "native" ? "paperclip_runner" : "claude_local",
+      agentId: "agent-1", adapterType: runtimeMode === "native" ? "nexus_runner" : "claude_local",
       createdAt: "2026-09-10T18:00:00.000Z", finishedAt: "2026-09-10T18:00:01.000Z", startedAt,
       resultJson: { executionWait: { recoveryActionId } },
     });
@@ -2240,7 +2240,7 @@ describe("TaskChatThread runtime transcript selection", () => {
           status: "cancelled",
           agentId: "agent-1",
           agentName: "Runner",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:00:00.000Z",
           startedAt: "2026-08-25T18:00:00.000Z",
           finishedAt: "2026-08-25T18:00:02.000Z",
@@ -2288,7 +2288,7 @@ describe("TaskChatThread runtime transcript selection", () => {
               errorCode: `native_${status}`,
               agentId: "agent-1",
               agentName: "Runner",
-              adapterType: "paperclip_runner",
+              adapterType: "nexus_runner",
               createdAt: "2026-08-25T18:00:00.000Z",
               startedAt: "2026-08-25T18:00:00.000Z",
               finishedAt: "2026-08-25T18:00:02.000Z",
@@ -2332,7 +2332,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       linkedRuns: [{
         runId: "approval-required", runtimeMode: "native", status: "failed",
         errorCode: "native_provider_approval_required",
-        agentId: "agent-1", agentName: "Runner", adapterType: "paperclip_runner",
+        agentId: "agent-1", agentName: "Runner", adapterType: "nexus_runner",
         startedAt: "2026-09-14T15:00:00.000Z", createdAt: "2026-09-14T15:00:00.000Z",
         finishedAt: "2026-09-14T15:00:02.000Z",
       }],
@@ -2363,7 +2363,7 @@ describe("TaskChatThread runtime transcript selection", () => {
         runId: "model-rejected", runtimeMode: "native", status: "failed",
         errorCode: "native_provider_model_rejected",
         error,
-        agentId: "agent-1", agentName: "Runner", adapterType: "paperclip_runner",
+        agentId: "agent-1", agentName: "Runner", adapterType: "nexus_runner",
         createdAt: "2026-08-25T18:00:00.000Z", startedAt: "2026-08-25T18:00:00.000Z",
         finishedAt: "2026-08-25T18:00:02.000Z",
       }],
@@ -2382,7 +2382,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       onAdd: async () => {},
       linkedRuns: [{
         runId: "workspace-wait", runtimeMode: "native", status: "cancelled", errorCode: "workspace_busy",
-        agentId: "agent-1", agentName: "Runner", adapterType: "paperclip_runner", startedAt: null,
+        agentId: "agent-1", agentName: "Runner", adapterType: "nexus_runner", startedAt: null,
         createdAt: "2026-09-12T18:00:00.000Z", finishedAt: "2026-09-12T18:00:01.000Z",
       }],
     });
@@ -2425,7 +2425,7 @@ describe("TaskChatThread runtime transcript selection", () => {
             startedAt: null,
             agentId: "agent-1",
             agentName: "Runner",
-            adapterType: "paperclip_runner",
+            adapterType: "nexus_runner",
             createdAt: "2026-09-07T18:00:00.000Z",
             finishedAt: "2026-09-07T18:00:01.000Z",
           },
@@ -2455,7 +2455,7 @@ describe("TaskChatThread runtime transcript selection", () => {
             errorCode: "issue_terminal_status",
             agentId: "agent-1",
             agentName: "Runner",
-            adapterType: "paperclip_runner",
+            adapterType: "nexus_runner",
             createdAt: "2026-09-07T18:00:00.000Z",
             startedAt: "2026-09-07T18:00:00.500Z",
             finishedAt: "2026-09-07T18:00:01.000Z",
@@ -2499,13 +2499,13 @@ describe("TaskChatThread runtime transcript selection", () => {
           errorCode: "provider_transport_failed",
           agentId: "agent-1",
           agentName: "Runner",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:00:00.000Z",
           startedAt: "2026-08-25T18:00:00.000Z",
           finishedAt: "2026-08-25T18:00:02.000Z",
           resultJson: {
             presentationDecision: {
-              schema: "paperclip.run_presentation_decision.v1",
+              schema: "nexus.run_presentation_decision.v1",
               chosenSource: "none",
               commentId: null,
             },
@@ -2564,13 +2564,13 @@ describe("TaskChatThread runtime transcript selection", () => {
           status: "succeeded",
           agentId: "agent-1",
           agentName: "Runner",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:00:00.000Z",
           startedAt: "2026-08-25T18:00:00.000Z",
           finishedAt: "2026-08-25T18:00:03.000Z",
           resultJson: {
             presentationDecision: {
-              schema: "paperclip.run_presentation_decision.v1",
+              schema: "nexus.run_presentation_decision.v1",
               chosenSource: "final_agent_message",
               commentId: "native-repeated-final-comment",
             },
@@ -2644,13 +2644,13 @@ describe("TaskChatThread runtime transcript selection", () => {
           status: "succeeded",
           agentId: "agent-1",
           agentName: "Runner",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:00:00.000Z",
           startedAt: "2026-08-25T18:00:00.000Z",
           finishedAt: "2026-08-25T18:00:05.000Z",
           resultJson: {
             presentationDecision: {
-              schema: "paperclip.run_presentation_decision.v1",
+              schema: "nexus.run_presentation_decision.v1",
               chosenSource: "final_agent_message",
               commentId: "native-steered-repetition-final",
             },
@@ -2706,7 +2706,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       activeRun: {
         id: runId, runtimeMode: "native", status: "running", invocationSource: "issue", triggerDetail: null,
         startedAt: "2026-08-25T18:00:00.000Z", finishedAt: null, createdAt: "2026-08-25T18:00:00.000Z",
-        agentId: "agent-1", agentName: "Runner", adapterType: "paperclip_runner",
+        agentId: "agent-1", agentName: "Runner", adapterType: "nexus_runner",
       },
     });
     const deny = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).filter(button => button.textContent === "Deny");
@@ -2730,7 +2730,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       issueId: "issue-1", currentUserId: "user-board", comments: [], onAdd: async () => {}, issueStatus: "in_progress",
       activeRun: { id: runId, runtimeMode: "native", status: "running", invocationSource: "issue", triggerDetail: null,
         startedAt: "2026-08-25T18:00:00.000Z", finishedAt: null, createdAt: "2026-08-25T18:00:00.000Z",
-        agentId: "agent-1", agentName: "Runner", adapterType: "paperclip_runner" },
+        agentId: "agent-1", agentName: "Runner", adapterType: "nexus_runner" },
     });
     show();
     const takeover = () => container.querySelector('[data-testid="task-chat-composer-takeover"]');
@@ -2794,7 +2794,7 @@ describe("TaskChatThread runtime transcript selection", () => {
         createdAt: "2026-08-25T18:00:00.000Z",
         agentId: "agent-1",
         agentName: "Runner",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
       },
     });
 
@@ -2827,7 +2827,7 @@ describe("TaskChatThread runtime transcript selection", () => {
     const summary =
       "**Before release**\n- Test and rehearse rollback.\n\n**During release**\n- Deploy incrementally and watch errors.\n\n**After release**\n- Verify workflows and record follow-ups.";
     const result = {
-      schema: "paperclip.run_result.v1",
+      schema: "nexus.run_result.v1",
       reportedWorkDisposition: "yielded",
       summary,
       completionClaim: { objectiveSatisfied: true, remainingWork: [] },
@@ -2869,7 +2869,7 @@ describe("TaskChatThread runtime transcript selection", () => {
         createdAt: new Date("2026-08-25T18:00:00Z"),
         payload: {
           prpEvent: {
-            schema: "paperclip.prp.event.v1",
+            schema: "nexus.prp.event.v1",
             schemaVersion: 1,
             runId,
             eventType,
@@ -2905,7 +2905,7 @@ describe("TaskChatThread runtime transcript selection", () => {
           ? []
           : [event(3, "run.result.accepted", { result })]),
         event(4, "run.terminal", {
-          schema: "paperclip.prp.terminal.v1",
+          schema: "nexus.prp.terminal.v1",
           turnTerminalState: "completed",
           runTerminalState: "succeeded",
           reportedWorkDisposition: "yielded",
@@ -2967,7 +2967,7 @@ describe("TaskChatThread runtime transcript selection", () => {
           triggerDetail: null,
           agentId: "agent-1",
           agentName: "Runner",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:00:00Z",
           startedAt: "2026-08-25T18:00:00Z",
           finishedAt: null,
@@ -2985,7 +2985,7 @@ describe("TaskChatThread runtime transcript selection", () => {
                 : "succeeded",
           agentId: "agent-1",
           agentName: "Runner",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:00:00Z",
           startedAt: "2026-08-25T18:00:00Z",
           finishedAt: mode === "live" ? null : "2026-08-25T18:00:30Z",
@@ -2996,7 +2996,7 @@ describe("TaskChatThread runtime transcript selection", () => {
                 ...(mode === "persisted_response_comment"
                   ? {
                       presentationDecision: {
-                        schema: "paperclip.run_presentation_decision.v1",
+                        schema: "nexus.run_presentation_decision.v1",
                         chosenSource: "existing_issue_comment",
                         commentId: "private-board-response",
                       },
@@ -3069,18 +3069,18 @@ describe("TaskChatThread runtime transcript selection", () => {
           status: "succeeded",
           agentId: "agent-1",
           agentName: "Runner",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:00:00.000Z",
           startedAt: "2026-08-25T18:00:00.000Z",
           finishedAt: "2026-08-25T18:00:03.000Z",
           resultJson: {
             nativeResult: {
-              schema: "paperclip.run_result.v1",
+              schema: "nexus.run_result.v1",
               reportedWorkDisposition: "yielded",
               summary: "Waiting for Choose the verification word.",
             },
             presentationDecision: {
-              schema: "paperclip.run_presentation_decision.v1",
+              schema: "nexus.run_presentation_decision.v1",
               chosenSource: "none",
               commentId: null,
             },
@@ -3092,18 +3092,18 @@ describe("TaskChatThread runtime transcript selection", () => {
           status: "succeeded",
           agentId: "agent-1",
           agentName: "Runner",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           createdAt: "2026-08-25T18:01:00.000Z",
           startedAt: "2026-08-25T18:01:00.000Z",
           finishedAt: "2026-08-25T18:01:02.000Z",
           resultJson: {
             nativeResult: {
-              schema: "paperclip.run_result.v1",
+              schema: "nexus.run_result.v1",
               reportedWorkDisposition: "done",
               summary: "Cobalt was selected and the task is complete.",
             },
             presentationDecision: {
-              schema: "paperclip.run_presentation_decision.v1",
+              schema: "nexus.run_presentation_decision.v1",
               chosenSource: "none",
               commentId: null,
             },
@@ -3259,7 +3259,7 @@ describe("TaskChatThread runtime transcript selection", () => {
         status: "queued",
         agentId: "external-agent",
         agentName: provider,
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         createdAt: "2026-08-25T18:01:00.000Z",
         startedAt: null,
         finishedAt: null,
@@ -3371,7 +3371,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       "pi_local", "grok_local", "kimi_local", "hermes_local"].flatMap((adapterType) =>
       ["failed", "timed_out"].map((status) => ({ adapterType, status, runtimeMode: "legacy" as const,
         cause: "legacy_execution_requires_reconciliation", canRetry: true }))),
-    { adapterType: "paperclip_runner", status: "failed", runtimeMode: "native" as const,
+    { adapterType: "nexus_runner", status: "failed", runtimeMode: "native" as const,
       cause: "legacy_execution_requires_reconciliation", canRetry: false },
     { adapterType: "process", status: "failed", runtimeMode: "legacy" as const,
       cause: "legacy_execution_requires_reconciliation", canRetry: false },
@@ -3386,7 +3386,7 @@ describe("TaskChatThread runtime transcript selection", () => {
       comments: testCase.withRecoveryNotice ? [{
         id: "recovery-after-stop", companyId: "company", issueId: "issue", metadata: null,
         authorType: "system", authorAgentId: null, authorUserId: null,
-        body: "Paperclip retried continuation, but it still has no live execution path.",
+        body: "Nexus retried continuation, but it still has no live execution path.",
         presentation: { kind: "system_notice", title: "No live execution path", tone: "danger", detailsDefaultOpen: false },
         createdAt: new Date("2026-08-25T18:00:03.000Z"), updatedAt: new Date("2026-08-25T18:00:03.000Z"),
       }] : [],
@@ -3823,7 +3823,7 @@ describe.each([true, false])("Unanswered question history (conversationMode=%s)"
   it("preserves a question dismissal saved by another tab", async () => {
     render(<TaskChatThread {...props} comments={[]} interactions={[old]} />);
     // The other tab saves after this thread has loaded its dismissal state.
-    localStorage.setItem("paperclip:task-question-dismissals:user-board:issue-1", JSON.stringify([newer.id]));
+    localStorage.setItem("nexus:task-question-dismissals:user-board:issue-1", JSON.stringify([newer.id]));
     await dismiss();
     flushSync(() => root!.unmount());
     root = createRoot(container);
@@ -3868,7 +3868,7 @@ describe("TaskChatThread composer alignment", () => {
     const dock = container.querySelector(
       '[data-testid="task-chat-composer-dock"]',
     );
-    const composer = container.querySelector(".paperclip-task-chat-composer");
+    const composer = container.querySelector(".nexus-task-chat-composer");
     const send = container.querySelector(
       '[data-testid="task-chat-composer-send"]',
     );
@@ -3893,7 +3893,7 @@ describe("TaskChatThread no-live-execution-path recovery", () => {
     authorType: "system" as const,
     authorAgentId: null,
     authorUserId: null,
-    body: "Paperclip retried continuation, but it still has no live execution path.",
+    body: "Nexus retried continuation, but it still has no live execution path.",
     presentation: {
       kind: "system_notice" as const,
       tone: "danger" as const,
@@ -3913,7 +3913,7 @@ describe("TaskChatThread no-live-execution-path recovery", () => {
         onTryAgainNoLiveExecutionPath={async () => {}}
         linkedRuns={[{
           runId: "failed-run", status: "failed", runtimeMode, agentId: "agent-1", agentName: "Coder",
-          adapterType: runtimeMode === "native" ? "paperclip_runner" : "claude_local",
+          adapterType: runtimeMode === "native" ? "nexus_runner" : "claude_local",
           createdAt: "2026-08-26T11:58:00.000Z", startedAt: "2026-08-26T11:58:01.000Z",
           finishedAt: recoveryIsLatest ? "2026-08-26T11:59:00.000Z" : "2026-08-26T12:01:00.000Z",
           errorCode: "runner_exited",
@@ -4416,7 +4416,7 @@ describe("TaskChatThread queued message actions", () => {
   });
 });
 
-describe("TaskChatThread Paperclip Runner queue", () => {
+describe("TaskChatThread Nexus Runner queue", () => {
   const queuedComment = {
     id: "queued-prp-1",
     companyId: "company-1",
@@ -4436,7 +4436,7 @@ describe("TaskChatThread Paperclip Runner queue", () => {
     state: "deferred",
     targetRunId: "run-1",
     revision: "revision-1",
-    protocol: "paperclip_runner_v1",
+    protocol: "nexus_runner_v1",
     steeringDisposition: "available",
     entries: [
       { comment: queuedComment, position: 0, canEdit: true, canDiscard: true },
@@ -4704,7 +4704,7 @@ describe("TaskChatThread live transcript", () => {
       createdAt: "2026-08-24T12:00:00.000Z",
       agentId: "agent-1",
       agentName: "Codex",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       runtimeMode: "native" as const,
     };
 
@@ -4792,7 +4792,7 @@ describe("TaskChatThread live transcript", () => {
         createdAt: "2026-08-21T15:44:00.000Z",
         agentId: "agent-1",
         agentName: "Runner",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         runtimeMode: "native",
       },
     });
@@ -4964,7 +4964,7 @@ describe("TaskChatThread live transcript", () => {
         choices: [],
         fields: [],
         questionSet: {
-          schema: "paperclip.question_set.v1",
+          schema: "nexus.question_set.v1",
           questions: [
             {
               id: "goal",
@@ -5008,7 +5008,7 @@ describe("TaskChatThread live transcript", () => {
           agentId: "agent-1",
           agentName: "Runner",
           // Reproduces the lag that caused DOT-202: the transcript already has
-          // a Paperclip request while the linked-run adapter classification is
+          // a Nexus request while the linked-run adapter classification is
           // still stale.
           adapterType: "codex_local",
         }}
@@ -5035,7 +5035,7 @@ describe("TaskChatThread live transcript", () => {
       resolution: {
         action: "submit",
         response: {
-          schema: "paperclip.question_response.v1",
+          schema: "nexus.question_response.v1",
           answers: { goal: { selectedOptionIds: ["api"] } },
         },
       },
@@ -5089,7 +5089,7 @@ describe("TaskChatThread live transcript", () => {
         finishedAt: null,
         agentId: "agent-1",
         agentName: "Runner",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
       };
       const linkedRun = {
         ...activeRun,
@@ -5098,12 +5098,12 @@ describe("TaskChatThread live transcript", () => {
         finishedAt: "2026-08-07T00:00:05Z",
         resultJson: {
           nativeResult: {
-            schema: "paperclip.run_result.v1",
+            schema: "nexus.run_result.v1",
             reportedWorkDisposition: disposition,
             summary,
           },
           presentationDecision: {
-            schema: "paperclip.run_presentation_decision.v1",
+            schema: "nexus.run_presentation_decision.v1",
             chosenSource: "existing_issue_comment",
             commentId: "delayed-comment",
           },
@@ -5221,7 +5221,7 @@ describe("TaskChatThread live transcript", () => {
 });
 
 describe("TaskChatThread composer execution controls", () => {
-  it.each(["process", "paperclip_runner"])("passes the task's stop action through for %s execution", async (adapterType) => {
+  it.each(["process", "nexus_runner"])("passes the task's stop action through for %s execution", async (adapterType) => {
     const onStop = vi.fn(async () => {});
     const run = {
       id: "task-run", status: "running", runtimeMode: adapterType === "process" ? "legacy" as const : "native" as const,
@@ -5248,13 +5248,13 @@ it("explains a missing provider runtime with an installation repair", () => {
     onAdd: async () => {},
     linkedRuns: [{
       runId: "missing-runtime", runtimeMode: "native", status: "failed", errorCode: "native_provider_runtime_missing",
-      agentId: "agent-1", agentName: "Content Strategist", adapterType: "paperclip_runner",
+      agentId: "agent-1", agentName: "Content Strategist", adapterType: "nexus_runner",
       createdAt: "2026-10-11T11:19:08Z", startedAt: "2026-10-11T11:19:08Z", finishedAt: "2026-10-11T11:19:14Z",
     }],
   });
   expect(container.textContent).toContain("Runtime missing");
   const toggle = container.querySelector<HTMLButtonElement>('[data-testid="task-chat-collapsible-marker"] button[aria-expanded]')!;
   flushSync(() => toggle.click());
-  expect(container.textContent).toContain("Reinstall or rebuild Paperclip");
+  expect(container.textContent).toContain("Reinstall or rebuild Nexus");
   expect(container.textContent).toContain("test the agent's runtime");
 });

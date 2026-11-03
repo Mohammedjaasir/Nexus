@@ -1,5 +1,5 @@
 import { sql, type SQLWrapper } from "drizzle-orm";
-import { ONBOARDING_FIRST_TASK_ORIGIN_KIND } from "@paperclipai/shared";
+import { ONBOARDING_FIRST_TASK_ORIGIN_KIND } from "@nexusai/shared";
 
 export function onboardingFirstTaskAwaitingUserSql(companyId: SQLWrapper, issueId: SQLWrapper, originKind: SQLWrapper) {
   return sql`${originKind} = ${ONBOARDING_FIRST_TASK_ORIGIN_KIND}

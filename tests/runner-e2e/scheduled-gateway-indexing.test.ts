@@ -25,7 +25,7 @@ it.each(["verified", "incomplete", "unavailable"] as const)("retains %s gateway 
   const cell = runnerMatrix.find(row => row.id === "core-compatibility.runner-acpx-claude.local.message-marker")!;
   const root = path.join(workspace, "tests/runner-e2e/results", campaignId), resultPath = path.join(root, ...cell.id.split("."), "attempt-1");
   await mkdir(directory, { recursive: true }); await mkdir(resultPath, { recursive: true });
-  const result: RunnerE2EResult = { schema: "paperclip.runner-e2e.result/v2", executionId: cell.id,
+  const result: RunnerE2EResult = { schema: "nexus.runner-e2e.result/v2", executionId: cell.id,
     suiteId: cell.suite.id, suiteDefinitionHash: cell.suiteDefinitionHash,
     accountingIdentity: { campaignId, attemptId: "one" }, source: { sha: "a".repeat(40), ref: null, workflowRunUrl: null },
     attempt: 1, status: "passed", cleanup: "passed", profileId: cell.profile.id, caseId: cell.task.id,
@@ -43,8 +43,8 @@ it.each(["verified", "incomplete", "unavailable"] as const)("retains %s gateway 
   const indexReceipt = { version: 1 as const, projectId, campaignId, checkedAt: result.finishedAt,
     ledgerCheckpoint: "d".repeat(64), status, expectedRequests: 2, verifiedRequests: status === "verified" ? 2 : 1, requests: [] };
   vi.mocked(verifyBraintrustGatewayIndexing).mockResolvedValue(indexReceipt);
-  const findings = await finalizeScheduledCampaign({ GITHUB_WORKSPACE: workspace, PAPERCLIP_E2E_OPERATIONS_MANIFEST: manifestPath,
-    PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: projectId, BRAINTRUST_API_KEY: "private-key-canary" });
+  const findings = await finalizeScheduledCampaign({ GITHUB_WORKSPACE: workspace, NEXUS_E2E_OPERATIONS_MANIFEST: manifestPath,
+    NEXUS_E2E_BRAINTRUST_PROJECT_ID: projectId, BRAINTRUST_API_KEY: "private-key-canary" });
   expect(findings.includes("gateway_indexing_incomplete")).toBe(status !== "verified");
   expect(findings).not.toContain("trace_or_experiment_indexing_incomplete");
   expect(JSON.parse(await readFile(path.join(directory, "gateway-indexing-receipt.json"), "utf8"))).toEqual(indexReceipt);

@@ -66,7 +66,7 @@ describe("incremental managed file checkpoints", () => {
     await fs.writeFile(path.join(output, "files", "note"), "tampered");
     await expect(validateAgentFileCheckpoint(output, { entries: [] })).rejects.toThrow("payload mismatch");
   });
-  it.each(["../escape", "/absolute", "nested/.paperclip-runtime/secret"])("rejects a forged checkpoint path %s", async name => {
+  it.each(["../escape", "/absolute", "nested/.nexus-runtime/secret"])("rejects a forged checkpoint path %s", async name => {
     const output = path.join(root, "delta"); await fs.mkdir(output);
     await fs.writeFile(path.join(output, "checkpoint.json"), JSON.stringify({ version: 1, entries: [[name, { kind: "dir" }]] }));
     await expect(validateAgentFileCheckpoint(output, { entries: [] })).rejects.toThrow("AGENT_FILES_UNSAFE_PATH");
@@ -113,8 +113,8 @@ describe("incremental managed file checkpoints", () => {
     expect((await fs.stat(path.join(root, "delta", "files", "script"))).mode & 0o777).toBe(0o755);
   });
   it("excludes only the remote transport's reserved root, never user file paths", async () => {
-    await fs.mkdir(path.join(live(), ".paperclip-runtime"));
-    await fs.symlink("/missing", path.join(live(), ".paperclip-runtime", "transport-only"));
+    await fs.mkdir(path.join(live(), ".nexus-runtime"));
+    await fs.symlink("/missing", path.join(live(), ".nexus-runtime", "transport-only"));
     await fs.writeFile(path.join(live(), "note"), "saved");
     await expect(captureAgentFiles(live())).rejects.toThrow("AGENT_FILES_UNSAFE_PATH");
     const captured = await captureAgentFiles(live(), undefined, undefined, true, true);

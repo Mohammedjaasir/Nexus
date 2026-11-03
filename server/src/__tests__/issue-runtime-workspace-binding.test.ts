@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { companies, createDb, executionWorkspaces, issues, projects } from "@paperclipai/db";
+import { companies, createDb, executionWorkspaces, issues, projects } from "@nexusai/db";
 import { issueService } from "../services/issues.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
@@ -10,7 +10,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    temporary = await startEmbeddedPostgresTestDatabase("paperclip-runtime-workspace-binding-");
+    temporary = await startEmbeddedPostgresTestDatabase("nexus-runtime-workspace-binding-");
     db = createDb(temporary.connectionString);
     await instanceSettingsService(db).updateExperimental({ enableIsolatedWorkspaces: false });
   }, 30_000);

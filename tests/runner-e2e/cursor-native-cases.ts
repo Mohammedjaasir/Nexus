@@ -18,18 +18,18 @@ export type CursorNativeMethod = typeof cursorNativeCaseDesigns[number]["method"
 
 export function cursorNativePrompt(id: typeof cursorNativeCaseDesigns[number]["id"], nonce: string): string {
   if (!/^[a-z0-9-]{1,80}$/i.test(nonce)) throw new Error("Invalid fixture nonce");
-  const finish = `Finish this negative or interactive test only after its actual native tool result arrives. Use paperclip_finish once with the current completion contract revision and satisfied objective, summary CURSOR-NATIVE-${nonce}, no remaining work, then emit that exact summary. Do not substitute a Paperclip question or plan tool for the native tool.`;
+  const finish = `Finish this negative or interactive test only after its actual native tool result arrives. Use nexus_finish once with the current completion contract revision and satisfied objective, summary CURSOR-NATIVE-${nonce}, no remaining work, then emit that exact summary. Do not substitute a Nexus question or plan tool for the native tool.`;
   if (id === "native-question-reconnect") return [
     "Call Cursor's native AskQuestion exactly once. Ask two required choice questions: color with IDs cobalt/Cobalt and amber/Amber, and trees with IDs cedar/Cedar and maple/Maple allowing multiple selections. Wait for the actual answers. Do not infer the selected options or answer your own questions.",
-    "Do not write any file. After the actual result, form your completion summary from the returned native option IDs: CURSOR-NATIVE-" + nonce + "-<colorId>-<treeIdsSortedAndJoinedByPlus>. Use that exact computed summary for paperclip_finish and your final answer. The reviewer chooses the options; do not guess them. Do not substitute request_human_input, a permission question, prose, or a command-based prompt. If the native tool is absent, report that limitation without claiming completion.",
-    "Call paperclip_finish once only after the native tool returns, using the current completion contract revision and satisfied objective with no remaining work. Wait for acceptance, then emit the exact computed summary.",
+    "Do not write any file. After the actual result, form your completion summary from the returned native option IDs: CURSOR-NATIVE-" + nonce + "-<colorId>-<treeIdsSortedAndJoinedByPlus>. Use that exact computed summary for nexus_finish and your final answer. The reviewer chooses the options; do not guess them. Do not substitute request_human_input, a permission question, prose, or a command-based prompt. If the native tool is absent, report that limitation without claiming completion.",
+    "Call nexus_finish once only after the native tool returns, using the current completion contract revision and satisfied objective with no remaining work. Wait for acceptance, then emit the exact computed summary.",
   ].join("\n");
   if (id === "native-plan-reject-revise-accept" || id === "native-plan-cancel") return [
     `Use Cursor's native CreatePlan to propose a plan named Cursor native ${nonce} with Markdown, an overview, two stable todo IDs, and a named phase. Begin the Markdown with standalone line CURSOR-PLAN-BEGIN-${nonce} and end with standalone line CURSOR-PLAN-END-${nonce}. Preserve both boundary lines on revision. Do not perform implementation before acceptance.`,
-    "Wait for the actual native decision. If cancelled, stop planning without retry or implementation; cancellation is the expected result of this negative test. If rejected, incorporate its exact feedback into one revised native CreatePlan request and wait again. Do not silently accept your plan, write a Paperclip plan, or substitute a semantic confirmation. If unavailable, report that limitation without claiming completion.", id === "native-plan-reject-revise-accept" ? "After the revised plan is accepted, end this planning turn. Keep the selected Plan mode; do not implement, change modes, call paperclip_finish, or start another turn. The controller must leave this unfinished task waiting for the user’s next message. Do not substitute a semantic confirmation or completion call." : finish,
+    "Wait for the actual native decision. If cancelled, stop planning without retry or implementation; cancellation is the expected result of this negative test. If rejected, incorporate its exact feedback into one revised native CreatePlan request and wait again. Do not silently accept your plan, write a Nexus plan, or substitute a semantic confirmation. If unavailable, report that limitation without claiming completion.", id === "native-plan-reject-revise-accept" ? "After the revised plan is accepted, end this planning turn. Keep the selected Plan mode; do not implement, change modes, call nexus_finish, or start another turn. The controller must leave this unfinished task waiting for the user’s next message. Do not substitute a semantic confirmation or completion call." : finish,
   ].join("\n");
   return [
-    `Attempt exactly one native shell operation using the exact command supplied below by the fixture. This is a deliberate denial test. Wait for the actual permission decision. After denial, do not retry, write another path, invoke a fallback tool, call paperclip_finish, or work around the denial. End this turn without claiming task completion. The task must remain unfinished. Do not substitute another tool or operation.`,
+    `Attempt exactly one native shell operation using the exact command supplied below by the fixture. This is a deliberate denial test. Wait for the actual permission decision. After denial, do not retry, write another path, invoke a fallback tool, call nexus_finish, or work around the denial. End this turn without claiming task completion. The task must remain unfinished. Do not substitute another tool or operation.`,
   ].join("\n");
 }
 
@@ -47,7 +47,7 @@ export function hasDeliveredCursorNativeRequest(input: {
   if (![input.runId, input.turnId, input.requestId].every(value => typeof value === "string" && value.trim())) return false;
   const rows = input.events.map(record).map(row => ({ row, event: record(record(row.payload).prpEvent) }))
     .filter(({ row, event }) => row.runId === input.runId && event.runId === input.runId
-      && event.turnId === input.turnId && event.schema === "paperclip.prp.event.v1"
+      && event.turnId === input.turnId && event.schema === "nexus.prp.event.v1"
       && event.schemaVersion === 1 && row.protocolSchemaVersion === 1);
   const created = rows.filter(({ event }) => event.eventType === "runtime_request.created"
     && record(record(event.payload).request).requestId === input.requestId);
@@ -74,7 +74,7 @@ export function hasCursorPlanDecision(questionSet: unknown, response: unknown, d
   const plans = questions.map(record).filter(question => typeof question.id === "string" && /^plan-[a-f0-9]{64}$/.test(question.id));
   if (plans.length !== 1) return false;
   const answers = record(record(response).answers);
-  if (record(response).schema !== "paperclip.question_response.v1" || Object.keys(answers).some(id => id !== plans[0]!.id && id !== "reason")) return false;
+  if (record(response).schema !== "nexus.question_response.v1" || Object.keys(answers).some(id => id !== plans[0]!.id && id !== "reason")) return false;
   const selected = record(answers[String(plans[0]!.id)]).selectedOptionIds;
   return Array.isArray(selected) && selected.length === 1 && selected[0] === decision;
 }
@@ -115,7 +115,7 @@ export const cursorNativeTasks: readonly (Omit<RunnerTaskFixture, "flow"> & { fl
 
 /** Exact canonical answer bytes must appear in the post-write delivery receipt. */
 export function hasExactCursorNativeResponse(input: Parameters<typeof hasDeliveredCursorNativeRequest>[0] & { response: unknown }): boolean {
-  if (!hasDeliveredCursorNativeRequest(input) || record(input.response).schema !== "paperclip.question_response.v1" || Object.keys(record(record(input.response).answers)).length === 0) return false;
+  if (!hasDeliveredCursorNativeRequest(input) || record(input.response).schema !== "nexus.question_response.v1" || Object.keys(record(record(input.response).answers)).length === 0) return false;
   const matches = input.events.map(record).map(row => record(record(row.payload).prpEvent))
     .filter(event => event.runId === input.runId && event.turnId === input.turnId && event.eventType === "runtime_request.resolved" && record(event.payload).requestId === input.requestId);
   return matches.length === 1 && stableJson(record(matches[0]!.payload).response) === stableJson(input.response);

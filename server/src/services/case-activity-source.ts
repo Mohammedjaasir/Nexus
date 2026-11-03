@@ -1,6 +1,6 @@
 import { and, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
-import { activityLog, caseEvents, cases, type Db } from "@paperclipai/db";
+import { activityLog, caseEvents, cases, type Db } from "@nexusai/db";
 
 /** Exact case identifiers are useful to operators; UUIDs remain valid links. */
 export function activityEntityIdCondition(entityType: string | undefined, entityId: string) {

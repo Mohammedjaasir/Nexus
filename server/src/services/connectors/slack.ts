@@ -3,7 +3,7 @@ import { slackDelivery } from "./slack-delivery.js";
 import { slackMessage } from "./slack-message.js";
 import { executeSlackWrite } from "./slack-writes.js";
 import { slackBotCatalogIsCurrent, syncSlackBotTools } from "./slack-catalog.js";
-import { SLACK_TOOLS } from "@paperclipai/shared";
+import { SLACK_TOOLS } from "@nexusai/shared";
 import { measureRunPhase } from "../execution-preparation-timing.js";
 import { measureRunTransaction } from "../execution-transaction-timing.js";
 import { prepareSlackEndpoints } from "./slack-endpoint-preparation.js";
@@ -12,7 +12,7 @@ import {
   toolProfileBindings,
   toolProfileEntries,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
 import { badRequest, forbidden } from "../../errors.js";
 import {

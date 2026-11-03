@@ -500,7 +500,7 @@ already-passing suites. The original skipped output remains retained. Counts:
 | server/src/services/native-runtime/native-session-executor.test.ts | 968 |
 | server/src/services/native-runtime/native-workspace-export-retry.test.ts | 80 |
 | server/src/services/native-runtime/native-workspace-reconstruction.test.ts | 50 |
-| server/src/services/native-runtime/paperclip-control-plane-port.test.ts | 55 |
+| server/src/services/native-runtime/nexus-control-plane-port.test.ts | 55 |
 
 The complete 94-case status-authority corpus also passes again on the same
 database. The repeat is not double-counted. Retained PSC/OUT/sentinel rows
@@ -590,7 +590,7 @@ three concurrent attention assertions cause exactly one hint and one SELECT,
 then return to quiet. The finding was resolved with that evidence and its
 current-head security check became successful. No production change was needed.
 The regression is retained here and covers both response workers with real
-Paperclip callbacks and PostgreSQL; the external Photon transport is mocked.
+Nexus callbacks and PostgreSQL; the external Photon transport is mocked.
 The complete 22-case Photon file passes on this combined source. An earlier
 single-worker 21-case acceptance retains its own parent source scope.
 

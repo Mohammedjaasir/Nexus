@@ -34,7 +34,7 @@ The 10 MiB partial-final-chunk case, omitted-capability case, cleanup-failure ca
 ## Validation
 
 - `pnpm exec vitest run packages/adapter-utils/src/command-managed-runtime.test.ts --maxWorkers=1 --reporter=json --outputFile=/private/tmp/test-audit-r19-command-managed-runtime-candidate.json`: **27/27 passed**. Recorded command wall time: 7.421 s, including collection and startup.
-- `pnpm --filter @paperclipai/adapter-utils typecheck`: passed.
+- `pnpm --filter @nexusai/adapter-utils typecheck`: passed.
 - `git diff --check`: passed.
 - Exact diff inspection confirmed the encoded threshold semantics and fixed overhead in the chunk count. A declaration comparison confirmed exactly one removed case, exactly two changed keepers, and all other 25 cases byte-for-byte unchanged.
 - No production mutation experiments ran. No production code, dependencies, contracts, UI, or CI routing changed.

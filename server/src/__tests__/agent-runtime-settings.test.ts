@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { agentRuntimeSettingsPatchSchema, type AgentRuntimeSettingsPatch } from "@paperclipai/shared";
+import { agentRuntimeSettingsPatchSchema, type AgentRuntimeSettingsPatch } from "@nexusai/shared";
 import { prepareRuntimeSettingsPatch } from "../services/agent-runtime-settings.js";
 
 const connection = { provider: "openai", method: "api_key", mode: "responsible_user" } as const;
-const existing = { adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "old", cwd: "/workspace", env: { PRESERVE: "value" } }, runtimeConfig: { heartbeat: { intervalSec: 900 }, aiConnection: connection }, status: "paused" };
+const existing = { adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "old", cwd: "/workspace", env: { PRESERVE: "value" } }, runtimeConfig: { heartbeat: { intervalSec: 900 }, aiConnection: connection }, status: "paused" };
 const settings: AgentRuntimeSettingsPatch = { harness: "codex_local", model: "new", expected: { model: "old", aiConnection: connection } };
 
 describe("roster runtime settings patches", () => {

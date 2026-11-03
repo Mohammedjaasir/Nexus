@@ -1,4 +1,4 @@
-import { heartbeatRuns, type Db } from "@paperclipai/db";
+import { heartbeatRuns, type Db } from "@nexusai/db";
 import { and, eq, sql } from "drizzle-orm";
 
 type Database = Db | Parameters<Parameters<Db["transaction"]>[0]>[0];

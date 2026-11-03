@@ -47,14 +47,14 @@ test("testEnvironment accepts config.command when hermesCommand is absent", asyn
   }
 });
 
-test("execute renders prompt API base from adapter env PAPERCLIP_API_URL", async () => {
+test("execute renders prompt API base from adapter env NEXUS_API_URL", async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "hermes-prompt-api-url-"));
   const cliPath = path.join(tempDir, "fake-hermes");
   const argvPath = path.join(tempDir, "argv.txt");
-  const originalApiUrl = process.env.PAPERCLIP_API_URL;
+  const originalApiUrl = process.env.NEXUS_API_URL;
 
   try {
-    process.env.PAPERCLIP_API_URL = "https://public.example.com/api";
+    process.env.NEXUS_API_URL = "https://public.example.com/api";
     await writeFile(
       cliPath,
       [
@@ -77,7 +77,7 @@ test("execute renders prompt API base from adapter env PAPERCLIP_API_URL", async
       config: {
         hermesCommand: cliPath,
         env: {
-          PAPERCLIP_API_URL: { type: "plain", value: "http://127.0.0.1:3101" },
+          NEXUS_API_URL: { type: "plain", value: "http://127.0.0.1:3101" },
         },
       },
       runtime: {},
@@ -89,9 +89,9 @@ test("execute renders prompt API base from adapter env PAPERCLIP_API_URL", async
     expect(argv).not.toContain("https://public.example.com/api");
   } finally {
     if (originalApiUrl === undefined) {
-      delete process.env.PAPERCLIP_API_URL;
+      delete process.env.NEXUS_API_URL;
     } else {
-      process.env.PAPERCLIP_API_URL = originalApiUrl;
+      process.env.NEXUS_API_URL = originalApiUrl;
     }
     await rm(tempDir, { recursive: true, force: true });
   }

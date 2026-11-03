@@ -1,8 +1,8 @@
 import { notifyGitHubReviewProjection } from "./review-projection-work.js";
 import { notifyGitHubReviewChecks } from "./review-check-work.js";
-import { agents, chatDeliveries, chatGitHubReviews } from "@paperclipai/db";
+import { agents, chatDeliveries, chatGitHubReviews } from "@nexusai/db";
 import { and, eq, sql } from "drizzle-orm";
-import { LOW_TRUST_REVIEW_PRESET, type GitHubReviewEventContext, type GitHubIssueEventContext, type GitHubReviewPolicy } from "@paperclipai/shared";
+import { LOW_TRUST_REVIEW_PRESET, type GitHubReviewEventContext, type GitHubIssueEventContext, type GitHubReviewPolicy } from "@nexusai/shared";
 import type { DbOrTransaction, EndpointRow } from "../runtime-types.js";
 import { githubManualMessagePrompt } from "../../chat-github-review-policy.js";
 

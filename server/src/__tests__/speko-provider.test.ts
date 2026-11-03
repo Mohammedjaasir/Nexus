@@ -8,7 +8,7 @@ describe("Speko hosted provider transport", () => {
     const transport = vi.fn<typeof fetch>(async () => Response.json({ ...session, providerKey: "must-not-leak" }));
     expect(await createSpekoProvider("private-key", transport).createBrowserSession(input)).toEqual(session);
     const [url, options] = transport.mock.calls[0]!; expect(url).toBe("https://api.speko.dev/v1/sessions"); expect(options?.redirect).toBe("error");
-    const body = JSON.parse(String(options?.body)); expect(body).toMatchObject({ mode: "cascade", firstMessage: "Hi, what would you like me to work on?", ttlSeconds: 120, maxDurationSeconds: 600, toolSecrets: { paperclip_session_token: "scoped-tool-token" } });
+    const body = JSON.parse(String(options?.body)); expect(body).toMatchObject({ mode: "cascade", firstMessage: "Hi, what would you like me to work on?", ttlSeconds: 120, maxDurationSeconds: 600, toolSecrets: { nexus_session_token: "scoped-tool-token" } });
     expect(body.systemPrompt).not.toContain("scoped-tool-token");
     // The real browser-session endpoint rejects this agent-only field.
     expect(body).not.toHaveProperty("idleRePrompts");
@@ -87,7 +87,7 @@ describe("Speko hosted provider transport", () => {
     expect(transport.mock.calls[0]![1]?.method).toBe("PATCH");
     const body = JSON.parse(String(transport.mock.calls[0]![1]?.body));
     expect(body).toMatchObject({runMode: "s2s", idleRePrompts: {enabled: false}});
-    expect(body.systemPrompt).toContain("Paperclip pushes approved task answers");
+    expect(body.systemPrompt).toContain("Nexus pushes approved task answers");
     expect(body.systemPrompt).toContain("do not call submit_request for it");
     expect(body.systemPrompt).toContain("submit_request exactly once");
     expect(body.systemPrompt).toContain("answer_question with its exact interaction and question IDs");
@@ -98,7 +98,7 @@ describe("Speko hosted provider transport", () => {
     expect(await createSpekoProvider("private-key", transport).createPhoneSession({ ...input, to: "+12015551234" })).toEqual({ sessionId: "phone_test", status: "dialing" });
     expect(transport).toHaveBeenCalledOnce();
     expect(transport.mock.calls[0]![0]).toBe("https://api.speko.dev/v1/sessions/phone");
-    expect(JSON.parse(String(transport.mock.calls[0]![1]?.body))).toMatchObject({ runMode: "s2s", maxDurationSeconds: 600, toolSecrets: { paperclip_session_token: input.toolToken } });
+    expect(JSON.parse(String(transport.mock.calls[0]![1]?.body))).toMatchObject({ runMode: "s2s", maxDurationSeconds: 600, toolSecrets: { nexus_session_token: input.toolToken } });
   });
   it("validates phone parameters before changing the persona or placing a call", async () => {
     const transport = vi.fn<typeof fetch>(); const provider = createSpekoProvider("key", transport);

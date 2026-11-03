@@ -3,7 +3,7 @@ import { idleWorkSnapshot } from "../services/task-admission.js";
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { expect, it, vi } from "vitest";
-import { agents, heartbeatRuns, issueRecoveryActions, issueRelations, issues, issueWatchdogs } from "@paperclipai/db";
+import { agents, heartbeatRuns, issueRecoveryActions, issueRelations, issues, issueWatchdogs } from "@nexusai/db";
 import { heartbeatService } from "../services/heartbeat.js";
 import { issueService } from "../services/issues.js";
 import { issueRecoveryActionService } from "../services/issue-recovery-actions.js";

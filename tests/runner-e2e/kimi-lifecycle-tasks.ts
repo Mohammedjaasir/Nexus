@@ -9,6 +9,6 @@ export const kimiLifecycleTasks: readonly RunnerTaskFixture[] = (["stop", "loss"
   automaticRetryPolicy: "single_attempt",
   buildTitle: nonce => `Kimi native Write ${branch} ${nonce}`,
   buildVisibleMarker: nonce => `KIMI-NATIVE-WRITE-${branch.toUpperCase()}-${nonce}`,
-  buildPrompt: () => "Use the native Kimi Write tool exactly once for the supplied absolute path and content MUST_NOT_EXIST. Leave its permission request unanswered for the board operator. Do not use Bash, Edit, delegation, another path or any semantic tool. Do not reject, approve, retry, cancel yourself, call paperclip_finish, or claim completion. The operator has already supplied the exact task title. This unfinished task will end while your real Write permission is still pending.",
+  buildPrompt: () => "Use the native Kimi Write tool exactly once for the supplied absolute path and content MUST_NOT_EXIST. Leave its permission request unanswered for the board operator. Do not use Bash, Edit, delegation, another path or any semantic tool. Do not reject, approve, retry, cancel yourself, call nexus_finish, or claim completion. The operator has already supplied the exact task title. This unfinished task will end while your real Write permission is still pending.",
   buildMatchers: () => [],
 }));

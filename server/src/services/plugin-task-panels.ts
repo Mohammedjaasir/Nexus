@@ -1,5 +1,5 @@
 import { and, eq, ne, sql } from "drizzle-orm";
-import { heartbeatRunEvents, plugins, type Db } from "@paperclipai/db";
+import { heartbeatRunEvents, plugins, type Db } from "@nexusai/db";
 
 export const RUNTIME_ACTIVITY_EVENT = "runtime.activity.recorded";
 export interface TaskPanelActivation { pluginKey: string; slotId: string }

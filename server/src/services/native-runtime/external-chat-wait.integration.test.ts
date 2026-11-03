@@ -48,12 +48,12 @@ import {
   toolOauthStates,
   chatVoiceSessions, chatVoiceReplies, chatVoiceToolCalls,
   workspaceOperations,
-} from "@paperclipai/db";
-import { validatePrpStructuredRunResult } from "../../vendor/paperclip-runner/index.js";
+} from "@nexusai/db";
+import { validatePrpStructuredRunResult } from "../../vendor/nexus-runner/index.js";
 import type {
   PrpStructuredRunResult,
   PrpTerminalState,
-} from "../../vendor/paperclip-runner/index.js";
+} from "../../vendor/nexus-runner/index.js";
 
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { finalizeNativeRun, recoverCommittedNativeReviewResponse } from "./native-run-finalizer.js";
@@ -72,7 +72,7 @@ import { hasPublishedGitHubReview, readInheritedGitHubReviewWait } from "../chat
 import * as chatWaitAuthority from "./chat-attachment-reuse.js";
 import * as publishedReviewAuthority from "../chat-channels/github/review-wait.js";
 import { toolAccessService } from "../tool-access.js";
-import { PaperclipControlPlanePort } from "./paperclip-control-plane-port.js";
+import { NexusControlPlanePort } from "./nexus-control-plane-port.js";
 import {
   authorizeNativeChatReviewPresentation,
   hasMaterializedNativeReviewResponse,
@@ -88,7 +88,7 @@ import {
   isExternalChatWaitAuthorizationContention,
   resolveExternalChatResponseWaitAuthorization,
 } from "./chat-attachment-reuse.js";
-import { attestReviewedExternalChatRun, buildPaperclipWakePayload } from "../heartbeat.js";
+import { attestReviewedExternalChatRun, buildNexusWakePayload } from "../heartbeat.js";
 import { voiceCredentialFingerprint } from "../voice/voice-session-store.js";
 import { nativeSha256 } from "./canonical.js";
 import { questionResponseDeliveryValues } from "../question-response-delivery.js";
@@ -96,14 +96,14 @@ import { resolveExternalChatQuestionResponse } from "./external-chat-question-re
 import { listExternalReviewWaits } from "./external-review-wait.js";
 import { materializeExternalChatQuestionResponseInput } from "./external-chat-question-response-input.js";
 import * as nativeInteractionBridge from "./native-interaction-bridge.js";
-import { defaultGitHubReviewPolicy, type AskUserQuestionsInteraction } from "@paperclipai/shared";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { defaultGitHubReviewPolicy, type AskUserQuestionsInteraction } from "@nexusai/shared";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 import { createLocalDiskStorageProvider } from "../../storage/local-disk-provider.js";
 import { createStorageService } from "../../storage/service.js";
 import { subscribeAllCompanyLiveEvents } from "../live-events.js";
 
 describe("native external-chat response wait", () => {
-  const externalTestDatabaseUrl = process.env.PAPERCLIP_TEST_DATABASE_URL;
+  const externalTestDatabaseUrl = process.env.NEXUS_TEST_DATABASE_URL;
   let temporary: Awaited<
     ReturnType<typeof startEmbeddedPostgresTestDatabase>
   > | null = null;
@@ -169,7 +169,7 @@ describe("native external-chat response wait", () => {
       id: agentId,
       companyId,
       name: "Waiting chat agent",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: { provider: "codex" },
       runtimeConfig: {},
       status: "active",
@@ -189,7 +189,7 @@ describe("native external-chat response wait", () => {
       companyId,
       issueId,
       revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1",
+      schemaVersion: "nexus.completion-contract.v1",
       policyVersion: "phase6-v3",
       risk: "low",
       completionAuthority: "agent_claim_policy",
@@ -260,10 +260,10 @@ describe("native external-chat response wait", () => {
       endpointId,
       type: provider === "github" ? "repository" : "direct_message",
       providerResourceId:
-        provider === "github" ? "paperclip/test-repository" : "telegram-user",
+        provider === "github" ? "nexus/test-repository" : "telegram-user",
       label:
         provider === "github"
-          ? "Paperclip test repository"
+          ? "Nexus test repository"
           : "Telegram direct message",
       availability: "available",
       enabled: true,
@@ -293,7 +293,7 @@ describe("native external-chat response wait", () => {
       companyId,
       endpointId,
       principalId,
-      paperclipUserId: userId,
+      nexusUserId: userId,
       status: "linked",
     });
     await db.insert(authUsers).values({ id: userId, name: "Review owner", email: `${userId}@example.test`,
@@ -341,11 +341,11 @@ describe("native external-chat response wait", () => {
       .set({
         contextSnapshot: {
           source: `chat:${provider}`,
-          paperclipHarnessCheckedOut: true,
+          nexusHarnessCheckedOut: true,
           issueId,
           wakeCommentId: commentId,
           wakeCommentIds: [commentId],
-          paperclipWake: {
+          nexusWake: {
             reason: "External chat message received",
             externalChatProvider: provider,
             checkedOutByHarness: true,
@@ -356,7 +356,7 @@ describe("native external-chat response wait", () => {
       })
       .where(eq(heartbeatRuns.id, runId));
 
-    const port = new PaperclipControlPlanePort(db, {
+    const port = new NexusControlPlanePort(db, {
       companyId,
       issueId,
       runId,
@@ -373,7 +373,7 @@ describe("native external-chat response wait", () => {
       sourceInstanceId: runnerInstanceId,
     });
     const result: PrpStructuredRunResult = {
-      schema: "paperclip.run_result.v1",
+      schema: "nexus.run_result.v1",
       reportedWorkDisposition: "yielded",
       summary:
         "The requested photo is prepared. I will wait for your next message.",
@@ -401,7 +401,7 @@ describe("native external-chat response wait", () => {
       ...resultOverrides,
     };
     const terminal: PrpTerminalState = {
-      schema: "paperclip.prp.terminal.v1",
+      schema: "nexus.prp.terminal.v1",
       turnTerminalState: "completed",
       runTerminalState: "succeeded",
       reportedWorkDisposition: result.reportedWorkDisposition,
@@ -537,7 +537,7 @@ describe("native external-chat response wait", () => {
                 allowOther: true,
                 options: [
                   {
-                    id: "__paperclip_text__",
+                    id: "__nexus_text__",
                     label: "Type an answer",
                     freeText: true,
                   },
@@ -773,9 +773,9 @@ describe("native external-chat response wait", () => {
       })
       .where(eq(chatDeliveries.id, fixture.deliveryId));
     const interactionSvc = issueThreadInteractionService(db);
-    const previousPublicUrl = process.env.PAPERCLIP_PUBLIC_URL;
-    process.env.PAPERCLIP_PUBLIC_URL = withLink
-      ? "https://board.paperclip.example"
+    const previousPublicUrl = process.env.NEXUS_PUBLIC_URL;
+    process.env.NEXUS_PUBLIC_URL = withLink
+      ? "https://board.nexus.example"
       : "http://127.0.0.1:3103";
     let interaction: Awaited<ReturnType<typeof interactionSvc.create>>;
     try {
@@ -810,8 +810,8 @@ describe("native external-chat response wait", () => {
       );
     } finally {
       if (previousPublicUrl === undefined)
-        delete process.env.PAPERCLIP_PUBLIC_URL;
-      else process.env.PAPERCLIP_PUBLIC_URL = previousPublicUrl;
+        delete process.env.NEXUS_PUBLIC_URL;
+      else process.env.NEXUS_PUBLIC_URL = previousPublicUrl;
     }
     const publicationKey = `interaction:${interaction.id}:${fixture.endpointId}`;
     const [publication] = await db
@@ -941,11 +941,11 @@ describe("native external-chat response wait", () => {
     },
   );
 
-  it("resumes an oversized Slack multi-select answered through its Paperclip handoff", async () => {
+  it("resumes an oversized Slack multi-select answered through its Nexus handoff", async () => {
     const fixture = await seedBoardAnsweredTurn(true, "slack", true);
     const [publication] = await db.select().from(chatPublications).where(eq(chatPublications.id, fixture.publicationId));
     expect(publication!.payload.card?.actions).toEqual([
-      { type: "link", label: "Open in Paperclip", url: expect.stringContaining(fixture.issueId) },
+      { type: "link", label: "Open in Nexus", url: expect.stringContaining(fixture.issueId) },
     ]);
     expect(publication!.payload.card?.selection).toBeUndefined();
     await expect(db.select().from(chatActions).where(eq(chatActions.companyId, fixture.companyId))).resolves.toEqual([]);
@@ -975,7 +975,7 @@ describe("native external-chat response wait", () => {
         ),
       ).not.toBeNull();
       await attestAnswer(fixture);
-      expect(fixture.context.paperclipWake).toMatchObject({
+      expect(fixture.context.nexusWake).toMatchObject({
         externalChatProvider: provider,
       });
       await db
@@ -1166,7 +1166,7 @@ describe("native external-chat response wait", () => {
         }),
       ).toBe(false);
       expect(
-        fixture.context.paperclipExternalChatQuestionResponse,
+        fixture.context.nexusExternalChatQuestionResponse,
       ).toBeUndefined();
       await expect(
         db
@@ -1263,7 +1263,7 @@ describe("native external-chat response wait", () => {
     await attestAnswer(f);
     expect(await authorizeChatConversationForBoundRun(db, f, f.context, "read")).toMatchObject({ conversationId: f.conversationId });
     await db.update(companyMemberships).set({ status: "removed" }).where(eq(companyMemberships.principalId, f.userId));
-    await expect(authorizeChatConversationForBoundRun(db, f, f.context, "read")).rejects.toThrow(answerRoute === "board" ? "paperclip_runner_chat_attachment_binding_denied" : "paperclip_runner_chat_attachment_principal_denied");
+    await expect(authorizeChatConversationForBoundRun(db, f, f.context, "read")).rejects.toThrow(answerRoute === "board" ? "nexus_runner_chat_attachment_binding_denied" : "nexus_runner_chat_attachment_principal_denied");
     await db.update(companyMemberships).set({ status: "active" }).where(eq(companyMemberships.principalId, f.userId));
     if (receipt) await db.update(chatVoiceToolCalls).set({ response: { ...receipt.response, resultSha256: "different-answer" } }).where(eq(chatVoiceToolCalls.id, receipt.id));
     else await db.update(issueComments).set({authorUserId: randomUUID()}).where(eq(issueComments.id, f.commentId));
@@ -1277,8 +1277,8 @@ describe("native external-chat response wait", () => {
       const context = source!.contextSnapshot as Record<string, unknown>;
       await db.update(heartbeatRuns).set({
         runtimeMode: "legacy", nativeIssueId: null,
-        contextSnapshot: { ...context, paperclipWake: {
-          ...(context.paperclipWake as Record<string, unknown>),
+        contextSnapshot: { ...context, nexusWake: {
+          ...(context.nexusWake as Record<string, unknown>),
           issue: { id: condition === "wrong_task" ? randomUUID() : fixture.issueId },
         } },
       }).where(eq(heartbeatRuns.id, fixture.sourceRunId));
@@ -1290,9 +1290,9 @@ describe("native external-chat response wait", () => {
       }
       expect(await attestReviewedExternalChatRun({ db, ...fixture, contextSnapshot: fixture.context })).toBe(condition === "valid");
       if (condition === "valid") {
-        expect(fixture.context.paperclipExternalChatQuestionResponse).toMatchObject({ interactionId: fixture.interactionId });
+        expect(fixture.context.nexusExternalChatQuestionResponse).toMatchObject({ interactionId: fixture.interactionId });
       } else {
-        expect(fixture.context.paperclipExternalChatQuestionResponse).toBeUndefined();
+        expect(fixture.context.nexusExternalChatQuestionResponse).toBeUndefined();
       }
     },
   );
@@ -1309,16 +1309,16 @@ describe("native external-chat response wait", () => {
         contextSnapshot: fixture.context,
       }),
     ).toBe(true);
-    expect(fixture.context.paperclipExternalChatQuestionResponse).toMatchObject(
+    expect(fixture.context.nexusExternalChatQuestionResponse).toMatchObject(
       {
-        schema: "paperclip.external_chat_question_response.v1",
+        schema: "nexus.external_chat_question_response.v1",
         interactionId: fixture.interactionId,
         sourceRunId: fixture.sourceRunId,
         responseDeliveryId: fixture.responseDeliveryId,
       },
     );
-    fixture.context.paperclipExternalChatExecutionBound = true;
-    fixture.context.paperclipWake = await buildPaperclipWakePayload({
+    fixture.context.nexusExternalChatExecutionBound = true;
+    fixture.context.nexusWake = await buildNexusWakePayload({
       db,
       companyId: fixture.companyId,
       agentId: fixture.agentId,
@@ -1356,7 +1356,7 @@ describe("native external-chat response wait", () => {
       const body = Buffer.from("Cobalt\n");
       const filename = "answer.txt";
       await writeFile(path.join(workspaceRoot, filename), body);
-      const runner = new PaperclipRunnerToolAuthority(db, {
+      const runner = new NexusRunnerToolAuthority(db, {
         ...fixture,
         workspaceRoot,
         storage,
@@ -1560,8 +1560,8 @@ describe("native external-chat response wait", () => {
         contextSnapshot: fixture.context,
       }),
     ).resolves.toBe(true);
-    expect(fixture.context.paperclipExternalChatQuestionResponse).toMatchObject({
-      schema: "paperclip.external_chat_question_response.v1",
+    expect(fixture.context.nexusExternalChatQuestionResponse).toMatchObject({
+      schema: "nexus.external_chat_question_response.v1",
       interactionId: fixture.interactionId,
       responseDeliveryId: fixture.responseDeliveryId,
       sourceRunId: fixture.sourceRunId,
@@ -1674,7 +1674,7 @@ describe("native external-chat response wait", () => {
         }),
       ).resolves.toBe(false);
       expect(fixture.context).not.toHaveProperty(
-        "paperclipExternalChatQuestionResponse",
+        "nexusExternalChatQuestionResponse",
       );
     },
   );
@@ -1695,7 +1695,7 @@ describe("native external-chat response wait", () => {
         async ({ fixture, invoke }) => {
           // Answer text is intentionally ephemeral. A prompt-shape predicate on
           // the durable wake is not the authority for this file delivery mode.
-          expect(fixture.context.paperclipWake).not.toHaveProperty(
+          expect(fixture.context.nexusWake).not.toHaveProperty(
             "questionResponse",
           );
           const first = await invoke();
@@ -1705,7 +1705,7 @@ describe("native external-chat response wait", () => {
               provider,
               mode:
                 provider === "github"
-                  ? "paperclip_task_only"
+                  ? "nexus_task_only"
                   : "provider_attachment",
               preparationState: "prepared",
               providerDeliveryConfirmed: false,
@@ -1745,7 +1745,7 @@ describe("native external-chat response wait", () => {
               .where(eq(chatEndpoints.id, fixture.endpointId));
           }
           await expect(invoke()).rejects.toThrow(
-            "paperclip_runner_chat_attachment_destination_denied",
+            "nexus_runner_chat_attachment_destination_denied",
           );
           expect(
             await db
@@ -1771,7 +1771,7 @@ describe("native external-chat response wait", () => {
             .where(eq(issueAttachments.issueId, fixture.issueId));
           const context = structuredClone(fixture.context);
           (
-            context.paperclipExternalChatQuestionResponse as Record<
+            context.nexusExternalChatQuestionResponse as Record<
               string,
               unknown
             >
@@ -1781,7 +1781,7 @@ describe("native external-chat response wait", () => {
             .set({ contextSnapshot: context })
             .where(eq(heartbeatRuns.id, fixture.runId));
           await expect(invoke()).rejects.toThrow(
-            "paperclip_runner_chat_attachment_binding_denied",
+            "nexus_runner_chat_attachment_binding_denied",
           );
           await expect(
             db
@@ -1819,7 +1819,7 @@ describe("native external-chat response wait", () => {
           if (mutation === "forged_marker") {
             const context = structuredClone(fixture.context);
             const marker =
-              context.paperclipExternalChatQuestionResponse as Record<
+              context.nexusExternalChatQuestionResponse as Record<
                 string,
                 unknown
               >;
@@ -1846,8 +1846,8 @@ describe("native external-chat response wait", () => {
           }
           await expect(invoke()).rejects.toThrow(
             mutation === "membership_revoked"
-              ? "paperclip_runner_chat_attachment_principal_denied"
-              : "paperclip_runner_chat_attachment_binding_denied",
+              ? "nexus_runner_chat_attachment_principal_denied"
+              : "nexus_runner_chat_attachment_binding_denied",
           );
           expect(
             await db
@@ -1929,7 +1929,7 @@ describe("native external-chat response wait", () => {
         );
       // Neither a caller timestamp nor an untrusted marker field is the source.
       fixture.context.answeredAtMs = 1;
-      fixture.context.paperclipExternalChatQuestionResponse = {
+      fixture.context.nexusExternalChatQuestionResponse = {
         answeredAtMs: 2,
       };
       const onQuestionResponseAttested = vi.fn();
@@ -1947,7 +1947,7 @@ describe("native external-chat response wait", () => {
       expect(fixture.context.sourceCommentId).toBe(fixture.commentId);
       expect(fixture.context.wakeCommentIds).toEqual([fixture.commentId]);
       expect(
-        fixture.context.paperclipExternalChatQuestionResponse,
+        fixture.context.nexusExternalChatQuestionResponse,
       ).not.toHaveProperty("answeredAtMs");
       const [comment] = await db
         .select()
@@ -2086,7 +2086,7 @@ describe("native external-chat response wait", () => {
         }),
       ).rejects.toThrow(
         kind === "membership_revoked"
-          ? "paperclip_runner_chat_attachment_principal_denied"
+          ? "nexus_runner_chat_attachment_principal_denied"
           : "reviewed_chat_execution_binding_not_authorized",
       );
     },
@@ -2206,7 +2206,7 @@ describe("native external-chat response wait", () => {
       const parent = parents[0]!;
       if (kind === "missing_parent_marker") {
         const context = { ...parent.context };
-        delete context.paperclipExternalChatQuestionResponse;
+        delete context.nexusExternalChatQuestionResponse;
         await db
           .update(heartbeatRuns)
           .set({ contextSnapshot: context })
@@ -2322,7 +2322,7 @@ describe("native external-chat response wait", () => {
         }),
       ).toBe(false);
       expect(
-        fixture.context.paperclipExternalChatQuestionResponse,
+        fixture.context.nexusExternalChatQuestionResponse,
       ).toBeUndefined();
     },
   );
@@ -2436,7 +2436,7 @@ describe("native external-chat response wait", () => {
             companyId: fixture.companyId,
             endpointId: fixture.endpointId,
             principalId,
-            paperclipUserId: "second-user",
+            nexusUserId: "second-user",
             status: "linked",
           });
         await db
@@ -2548,7 +2548,7 @@ describe("native external-chat response wait", () => {
         }),
       ).toBe(false);
       expect(
-        fixture.context.paperclipExternalChatQuestionResponse,
+        fixture.context.nexusExternalChatQuestionResponse,
       ).toBeUndefined();
       expect(
         await db
@@ -2772,7 +2772,7 @@ describe("native external-chat response wait", () => {
       await Promise.allSettled([holder, reader]);
     }
     expect(await reader).toBe(
-      "paperclip_runner_chat_attachment_binding_denied",
+      "nexus_runner_chat_attachment_binding_denied",
     );
   });
 
@@ -2808,7 +2808,7 @@ describe("native external-chat response wait", () => {
       .update(issues)
       .set({ executionRunId: runId })
       .where(eq(issues.id, fixture.issueId));
-    const port = new PaperclipControlPlanePort(db, {
+    const port = new NexusControlPlanePort(db, {
       companyId: fixture.companyId,
       issueId: fixture.issueId,
       agentId: fixture.agentId,
@@ -3544,7 +3544,7 @@ describe("native external-chat response wait", () => {
         fixture.issueId,
         "Prepared exactly these files for this chat response.",
         { agentId: fixture.agentId, runId: fixture.runId },
-        { authorizationReason: "paperclip_runner_protocol" },
+        { authorizationReason: "nexus_runner_protocol" },
       );
       const selected = [];
       for (const [originalFilename, contentType] of [
@@ -4184,7 +4184,7 @@ describe("native external-chat response wait", () => {
       .update(issues)
       .set({ executionRunId: runId })
       .where(eq(issues.id, fixture.issueId));
-    const port = new PaperclipControlPlanePort(db, {
+    const port = new NexusControlPlanePort(db, {
       companyId: fixture.companyId,
       issueId: fixture.issueId,
       agentId: fixture.agentId,
@@ -4316,7 +4316,7 @@ describe("native external-chat response wait", () => {
         fixture.issueId,
         "Prepared the original file",
         { agentId: fixture.agentId, runId: fixture.runId },
-        { authorizationReason: "paperclip_runner_protocol" },
+        { authorizationReason: "nexus_runner_protocol" },
       );
       const attachment = await issueService(db).createAttachment({
         issueId: fixture.issueId,
@@ -4575,10 +4575,10 @@ describe("native external-chat response wait", () => {
       .where(eq(heartbeatRuns.id, fixture.runId));
     const context = {
       ...run!.contextSnapshot,
-      paperclipRuntimeServices: [
+      nexusRuntimeServices: [
         { name: "preview", url: "http://127.0.0.1:9000" },
       ],
-      paperclipRuntimePrimaryUrl: "http://127.0.0.1:9000",
+      nexusRuntimePrimaryUrl: "http://127.0.0.1:9000",
     };
     await db
       .update(heartbeatRuns)
@@ -5079,15 +5079,15 @@ describe("native external-chat response wait", () => {
       createdByUserId: fixture.userId, responsibleUserId: fixture.userId }).where(eq(issues.id, fixture.issueId));
     const oldRequest = score === 3 && !resumed ? await seedPriorCompletionReview(fixture) : null;
     if (continuationKind === "monitor") {
-      await new PaperclipRunnerToolAuthority(db, fixture).execute({ tool: "set_task_monitor", callId: randomUUID(),
+      await new NexusRunnerToolAuthority(db, fixture).execute({ tool: "set_task_monitor", callId: randomUUID(),
         arguments: { idempotencyKey: "review-monitor", monitor: { nextCheckAt: new Date(Date.now() + 60_000).toISOString(), notes: "Check PR status." } } });
     }
     const [review] = await db.insert(chatGitHubReviews).values({
       companyId: fixture.companyId, endpointId: fixture.endpointId, issueId: fixture.issueId,
-      runId: fixture.runId, repositoryId: "1", repository: "paperclip/test-repository", pullNumber: 1,
+      runId: fixture.runId, repositoryId: "1", repository: "nexus/test-repository", pullNumber: 1,
       headSha: "a".repeat(40), deliveryId: fixture.deliveryId, configurationRevision: 1,
       policySnapshot: defaultGitHubReviewPolicy(), event: {
-        event: "opened", deliveryId: fixture.deliveryId, repositoryId: "1", repository: "paperclip/test-repository",
+        event: "opened", deliveryId: fixture.deliveryId, repositoryId: "1", repository: "nexus/test-repository",
         pullNumber: 1, title: "Review the pull request", body: "", baseSha: "b".repeat(40), headSha: "a".repeat(40),
         baseBranch: "master", author: { id: "1", login: "author", isBot: false }, sender: { id: "1", login: "author" },
         draft: false, labels: [],
@@ -5105,7 +5105,7 @@ describe("native external-chat response wait", () => {
       companyId: fixture.companyId, endpointId: fixture.endpointId, kind: "github_review_publication",
       providerActionId: `github_publication:${fixture.issueId}:assessment:${createHash("sha256").update(JSON.stringify(published!.id)).digest("hex")}`,
       status: "processed", payload: { operation: "assessment", reviewId: published!.id },
-      result: { reviewId: published!.id, checkUrl: "https://github.com/paperclip/test-repository/runs/123" },
+      result: { reviewId: published!.id, checkUrl: "https://github.com/nexus/test-repository/runs/123" },
     });
     if (oldRequest) {
       const [older] = await db.insert(chatGitHubReviews).values({
@@ -5119,7 +5119,7 @@ describe("native external-chat response wait", () => {
     let inheritedOriginalRunId: string | null = null;
     if (resumed) {
       await db.update(chatEndpointResources).set({ metadata: { providerRepositoryId: "1" } }).where(eq(chatEndpointResources.id, fixture.resourceId));
-      await db.update(chatConversations).set({ externalThreadId: "github:paperclip/test-repository:1" }).where(eq(chatConversations.id, fixture.conversationId));
+      await db.update(chatConversations).set({ externalThreadId: "github:nexus/test-repository:1" }).where(eq(chatConversations.id, fixture.conversationId));
       // A tree resume inherits its requester through the accepted identity
       // ledger, while its immediate wake correctly has no chat envelope.
       const [run] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, fixture.runId));
@@ -5139,8 +5139,8 @@ describe("native external-chat response wait", () => {
       await db.update(heartbeatRuns).set({ activeIdentityContextId: continuation!.id,
         responsibleUserId: fixture.userId, contextSnapshot: {
           source: "issue.tree_resume", wakeReason: "issue_tree_resumed",
-          issueId: fixture.issueId, paperclipHarnessCheckedOut: true,
-          paperclipWake: { checkedOutByHarness: true, issue: { id: fixture.issueId }, commentIds: [] },
+          issueId: fixture.issueId, nexusHarnessCheckedOut: true,
+          nexusWake: { checkedOutByHarness: true, issue: { id: fixture.issueId }, commentIds: [] },
         },
       }).where(eq(heartbeatRuns.id, fixture.runId));
     }
@@ -5163,9 +5163,9 @@ describe("native external-chat response wait", () => {
       await db.update(heartbeatRuns).set({ responsibleUserId: "different-requester" }).where(eq(heartbeatRuns.id, fixture.runId));
       await expect(resolveExternalChatResponseWaitAuthorization({ db, binding: fixture })).resolves.not.toBe("authorized");
       await db.update(heartbeatRuns).set({ responsibleUserId: fixture.userId }).where(eq(heartbeatRuns.id, fixture.runId));
-      await db.update(chatConversations).set({ externalThreadId: "github:paperclip/other-repository:1" }).where(eq(chatConversations.id, fixture.conversationId));
+      await db.update(chatConversations).set({ externalThreadId: "github:nexus/other-repository:1" }).where(eq(chatConversations.id, fixture.conversationId));
       await expect(resolveExternalChatResponseWaitAuthorization({ db, binding: fixture })).resolves.not.toBe("authorized");
-      await db.update(chatConversations).set({ externalThreadId: "github:paperclip/test-repository:1" }).where(eq(chatConversations.id, fixture.conversationId));
+      await db.update(chatConversations).set({ externalThreadId: "github:nexus/test-repository:1" }).where(eq(chatConversations.id, fixture.conversationId));
       await db.update(chatEndpointResources).set({ metadata: { providerRepositoryId: "2" } }).where(eq(chatEndpointResources.id, fixture.resourceId));
       await expect(resolveExternalChatResponseWaitAuthorization({ db, binding: fixture })).resolves.not.toBe("authorized");
       await db.update(chatEndpointResources).set({ metadata: { providerRepositoryId: "1" } }).where(eq(chatEndpointResources.id, fixture.resourceId));
@@ -5247,7 +5247,7 @@ describe("native external-chat response wait", () => {
     const fixture = await seedWaitTurn("github", [], {}, true, contractOverride);
     await db.update(chatEndpointResources).set({ metadata: { providerRepositoryId: "1" } })
       .where(eq(chatEndpointResources.id, fixture.resourceId));
-    await db.update(chatConversations).set({ externalThreadId: "github:paperclip/test-repository:1" })
+    await db.update(chatConversations).set({ externalThreadId: "github:nexus/test-repository:1" })
       .where(eq(chatConversations.id, fixture.conversationId));
     const [identity] = await db.insert(runIdentityContexts).values({ companyId: fixture.companyId,
       runId: fixture.runId, revision: 1, messageId: fixture.commentId, responsibleUserId: fixture.userId,
@@ -5256,9 +5256,9 @@ describe("native external-chat response wait", () => {
       .where(eq(heartbeatRuns.id, fixture.runId));
     const [review] = await db.insert(chatGitHubReviews).values({ companyId: fixture.companyId,
       endpointId: fixture.endpointId, issueId: fixture.issueId, runId: fixture.runId,
-      repositoryId: "1", repository: "paperclip/test-repository", pullNumber: 1, headSha: "a".repeat(40),
+      repositoryId: "1", repository: "nexus/test-repository", pullNumber: 1, headSha: "a".repeat(40),
       deliveryId: fixture.deliveryId, configurationRevision: 1, policySnapshot: defaultGitHubReviewPolicy(),
-      event: { event: "opened", deliveryId: fixture.deliveryId, repositoryId: "1", repository: "paperclip/test-repository",
+      event: { event: "opened", deliveryId: fixture.deliveryId, repositoryId: "1", repository: "nexus/test-repository",
         pullNumber: 1, title: "Review", body: "", baseSha: "b".repeat(40), headSha: "a".repeat(40),
         baseBranch: "master", author: { id: "1", login: "author", isBot: false }, sender: { id: "1", login: "author" }, draft: false, labels: [] },
       state: "completed", assessment: { complete: true, score: 3, reviewedCommit: "a".repeat(40),
@@ -5288,9 +5288,9 @@ describe("native external-chat response wait", () => {
     await initializeRunIdentity(db, { companyId: fixture.companyId, issueId: fixture.issueId,
       runId: fixture.runId, responsibleUserId: fixture.userId, parentRunId: previousRunId,
       messageIds: acceptedSource ? [fixture.commentId] : [], cause: "retry_failed_run" });
-    const authority = new PaperclipRunnerToolAuthority(db, fixture);
+    const authority = new NexusRunnerToolAuthority(db, fixture);
     const read = () => authority.execute({ tool: "get_task_context", callId: randomUUID(), arguments: {} });
-    const { resolveCompletionContinuation } = await import(new URL("../../../../packages/paperclip-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
+    const { resolveCompletionContinuation } = await import(new URL("../../../../packages/nexus-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
     const report = { ...fixture.result, continuation: undefined, completionClaim: {
       ...fixture.result.completionClaim, objectiveSatisfied: false,
       criteria: [{ criterionId: "response", status: "unknown" as const, evidenceRefs: [] }],
@@ -5329,8 +5329,8 @@ describe("native external-chat response wait", () => {
       await db.update(runIdentityContexts).set({ messageId: null, parentContextId: origin!.id,
         cause: "issue_tree_resumed" }).where(eq(runIdentityContexts.id, run!.activeIdentityContextId!));
       await db.update(heartbeatRuns).set({ contextSnapshot: { source: "issue.tree_resume", wakeReason: "issue_tree_resumed",
-        issueId: fixture.issueId, paperclipHarnessCheckedOut: true,
-        paperclipWake: { checkedOutByHarness: true, issue: { id: fixture.issueId }, commentIds: [] } },
+        issueId: fixture.issueId, nexusHarnessCheckedOut: true,
+        nexusWake: { checkedOutByHarness: true, issue: { id: fixture.issueId }, commentIds: [] } },
       }).where(eq(heartbeatRuns.id, fixture.runId));
     }
     return { ...fixture, predecessorId };
@@ -5338,9 +5338,9 @@ describe("native external-chat response wait", () => {
 
   it.each([undefined, null, "malformed-first"] as const)("derives an omitted inherited GitHub review wait after normal tree resume: %s", async absent => {
     const fixture = await seedInheritedReviewCompletionTurn(true);
-    const authority = new PaperclipRunnerToolAuthority(db, fixture);
+    const authority = new NexusRunnerToolAuthority(db, fixture);
     const read = () => authority.execute({ tool: "get_task_context", callId: randomUUID(), arguments: {} });
-    const { resolveCompletionContinuation } = await import(new URL("../../../../packages/paperclip-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
+    const { resolveCompletionContinuation } = await import(new URL("../../../../packages/nexus-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
     const report = { ...fixture.result, continuation: absent === "malformed-first" ? "response_wake" : absent };
     if (absent === "malformed-first") {
       expect(await resolveCompletionContinuation(report, fixture.runId, read)).toEqual(report);
@@ -5367,7 +5367,7 @@ describe("native external-chat response wait", () => {
       kind: "github_review_publication", status: "processed", providerActionId: `github_publication:${fixture.issueId}:comment:${randomUUID()}`,
       payload: { operation: "comment", session: { companyId: fixture.companyId, issueId: fixture.issueId,
         runId: fixture.runId, agentId: fixture.agentId }, body: "Quantity is ignored by the current total calculation." },
-      result: { id: "123", url: "https://github.com/paperclip/test-repository/pull/1#issuecomment-123" },
+      result: { id: "123", url: "https://github.com/nexus/test-repository/pull/1#issuecomment-123" },
     }).returning();
     return reply!;
   }
@@ -5375,8 +5375,8 @@ describe("native external-chat response wait", () => {
   it.each([undefined, null] as const)("derives an omitted inherited review wait only after this author reply is delivered: %s", async continuation => {
     const fixture = await seedInheritedReviewCompletionTurn(false);
     await seedCurrentAuthorReply(fixture);
-    const authority = new PaperclipRunnerToolAuthority(db, fixture);
-    const { resolveCompletionContinuation } = await import(new URL("../../../../packages/paperclip-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
+    const authority = new NexusRunnerToolAuthority(db, fixture);
+    const { resolveCompletionContinuation } = await import(new URL("../../../../packages/nexus-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
     const resolved = await resolveCompletionContinuation({ ...fixture.result, continuation }, fixture.runId,
       () => authority.execute({ tool: "get_task_context", callId: randomUUID(), arguments: {} })) as PrpStructuredRunResult;
     expect(resolved).toMatchObject({ continuation: { kind: "response_wake" } });
@@ -5402,7 +5402,7 @@ describe("native external-chat response wait", () => {
         createdAt: new Date(Date.now() + 1000) });
       if (gate === "pending_publication") await db.update(chatActions).set({ status: "received" })
         .where(eq(chatActions.companyId, fixture.companyId));
-      const context = new PaperclipRunnerToolAuthority(db, fixture)
+      const context = new NexusRunnerToolAuthority(db, fixture)
         .execute({ tool: "get_task_context", callId: randomUUID(), arguments: {} });
       if (gate === "principal_revoked") await expect(context).rejects.toThrow("task is no longer available");
       else expect(await context).toMatchObject({ completionContinuation: null });
@@ -5432,7 +5432,7 @@ describe("native external-chat response wait", () => {
       if (gate === "partial_assessment") {
         const [partial] = await db.insert(chatGitHubReviews).values({ ...fixture.review, id: randomUUID(),
           runId: fixture.runId, deliveryId: randomUUID(), createdAt: new Date(Date.now() - 86_400_000), publicationReceipts: {
-            partial: { id: "123", url: "https://github.com/paperclip/test-repository/pull/1#issuecomment-123", digest: "partial" },
+            partial: { id: "123", url: "https://github.com/nexus/test-repository/pull/1#issuecomment-123", digest: "partial" },
           } }).returning();
         await db.update(chatActions).set({ status: "failed", payload: { ...reply.payload,
           operation: "assessment", reviewId: partial!.id }, result: { code: "publication_failed" } })
@@ -5445,7 +5445,7 @@ describe("native external-chat response wait", () => {
         createdAt: new Date(Date.now() + 1000) });
       if (gate === "revoked") await db.update(toolConnections).set({ enabled: false })
         .where(eq(toolConnections.companyId, fixture.companyId));
-      const context = await new PaperclipRunnerToolAuthority(db, fixture)
+      const context = await new NexusRunnerToolAuthority(db, fixture)
         .execute({ tool: "get_task_context", callId: randomUUID(), arguments: {} });
       expect(context).toMatchObject({ completionContinuation: null });
     });
@@ -5457,7 +5457,7 @@ describe("native external-chat response wait", () => {
     const payload = "unused-saved-review-rendering".repeat(32768);
     await db.update(heartbeatRuns).set({ runnerProfileJson: { retained: payload }, stdoutExcerpt: payload, stderrExcerpt: payload,
       contextSnapshot: { ...run.contextSnapshot, executionContinuation: { savedInput: payload },
-        paperclipTaskMarkdown: payload, paperclipWake: { ...(run.contextSnapshot!.paperclipWake as object), retainedPayload: payload } },
+        nexusTaskMarkdown: payload, nexusWake: { ...(run.contextSnapshot!.nexusWake as object), retainedPayload: payload } },
     }).where(eq(heartbeatRuns.id, fixture.runId));
     if (reply) await db.update(chatActions).set({ result: { ...reply.result, savedProviderOutput: payload } }).where(eq(chatActions.id, reply.id));
     const observed = createDb(temporary?.connectionString ?? externalTestDatabaseUrl!);
@@ -5465,7 +5465,7 @@ describe("native external-chat response wait", () => {
     const capture = createFullDatabaseResponseCapture({ start: now - 100, end: now + 59_000 }, event => events.push(event));
     installDatabaseResponseCapture(observed, { heartbeatRuns, chatActions }, capture);
     try {
-      const context = await new PaperclipRunnerToolAuthority(observed, fixture)
+      const context = await new NexusRunnerToolAuthority(observed, fixture)
         .execute({ tool: "get_task_context", callId: randomUUID(), arguments: {} });
       expect(context).toMatchObject({ completionContinuation: { kind: "response_wake" } });
       capture.flush();
@@ -5480,9 +5480,9 @@ describe("native external-chat response wait", () => {
 
   it.each([undefined, null, "malformed-first"] as const)("derives an omitted published GitHub review wait through current task context: %s", async absent => {
     const fixture = await seedPublishedReviewCompletionTurn();
-    const authority = new PaperclipRunnerToolAuthority(db, fixture);
+    const authority = new NexusRunnerToolAuthority(db, fixture);
     const read = () => authority.execute({ tool: "get_task_context", callId: randomUUID(), arguments: {} });
-    const { resolveCompletionContinuation } = await import(new URL("../../../../packages/paperclip-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
+    const { resolveCompletionContinuation } = await import(new URL("../../../../packages/nexus-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
     const report = { ...fixture.result, continuation: absent === "malformed-first" ? "response_wake" : absent };
     if (absent === "malformed-first") {
       // Explicit malformed input remains invalid; the next omitted report can
@@ -5530,8 +5530,8 @@ describe("native external-chat response wait", () => {
         .where(eq(chatEndpoints.id, fixture.endpointId));
       if (gate === "ownership_changed") await db.update(issues).set({ executionRunId: null })
         .where(eq(issues.id, fixture.issueId));
-      const authority = new PaperclipRunnerToolAuthority(db, fixture);
-      const { resolveCompletionContinuation } = await import(new URL("../../../../packages/paperclip-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
+      const authority = new NexusRunnerToolAuthority(db, fixture);
+      const { resolveCompletionContinuation } = await import(new URL("../../../../packages/nexus-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
       await expect(resolveCompletionContinuation({ ...fixture.result, continuation: undefined }, fixture.runId,
         () => authority.execute({ tool: "get_task_context", callId: randomUUID(), arguments: {} }))).rejects.toThrow();
       expect(await db.select().from(agentWakeupRequests).where(eq(agentWakeupRequests.companyId, fixture.companyId))).toHaveLength(0);
@@ -5540,8 +5540,8 @@ describe("native external-chat response wait", () => {
 
   it("serializes an actual connection disable against the final status committer proof", async () => {
     const fixture = await seedPublishedReviewCompletionTurn();
-    const authority = new PaperclipRunnerToolAuthority(db, fixture);
-    const { resolveCompletionContinuation } = await import(new URL("../../../../packages/paperclip-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
+    const authority = new NexusRunnerToolAuthority(db, fixture);
+    const { resolveCompletionContinuation } = await import(new URL("../../../../packages/nexus-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
     const result = await resolveCompletionContinuation({ ...fixture.result, continuation: null }, fixture.runId,
       () => authority.execute({ tool: "get_task_context", callId: randomUUID(), arguments: {} })) as PrpStructuredRunResult;
     await nativeCompletionFeedback(db, fixture.runId, result);
@@ -5594,8 +5594,8 @@ describe("native external-chat response wait", () => {
     "rechecks a projected GitHub completion wait $turn $phase", async ({ turn, phase }) => {
       const fixture = turn === "current" ? await seedPublishedReviewCompletionTurn() : await seedInheritedReviewCompletionTurn(turn === "resume");
       const reply = turn === "reply" ? await seedCurrentAuthorReply(fixture as Awaited<ReturnType<typeof seedInheritedReviewCompletionTurn>>) : null;
-      const authority = new PaperclipRunnerToolAuthority(db, fixture);
-      const { resolveCompletionContinuation } = await import(new URL("../../../../packages/paperclip-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
+      const authority = new NexusRunnerToolAuthority(db, fixture);
+      const { resolveCompletionContinuation } = await import(new URL("../../../../packages/nexus-runner/src/drivers/completion-continuation.ts", import.meta.url).href);
       const result = await resolveCompletionContinuation({ ...fixture.result, continuation: null }, fixture.runId,
         () => authority.execute({ tool: "get_task_context", callId: randomUUID(), arguments: {} })) as PrpStructuredRunResult;
       const revoke = () => reply

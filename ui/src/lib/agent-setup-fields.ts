@@ -1,6 +1,6 @@
-import { DEFAULT_CODEX_LOCAL_MODEL } from "@paperclipai/adapter-codex-local";
-import { claudeLocalReasoningEffortsForModel, DEFAULT_CLAUDE_LOCAL_MODEL } from "@paperclipai/adapter-claude-local";
-import { grokLocalReasoningEffortsForModel } from "@paperclipai/adapter-grok-local";
+import { DEFAULT_CODEX_LOCAL_MODEL } from "@nexusai/adapter-codex-local";
+import { claudeLocalReasoningEffortsForModel, DEFAULT_CLAUDE_LOCAL_MODEL } from "@nexusai/adapter-claude-local";
+import { grokLocalReasoningEffortsForModel } from "@nexusai/adapter-grok-local";
 import { codexReasoningEffortOptions } from "./codex-reasoning-effort";
 import { PROVIDER_ENV_KEYS } from "./provider-credential";
 

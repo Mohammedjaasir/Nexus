@@ -1,5 +1,5 @@
 import { and, eq, sql, ne, or, inArray } from "drizzle-orm";
-import { heartbeatRuns, toolInvocations, type Db } from "@paperclipai/db";
+import { heartbeatRuns, toolInvocations, type Db } from "@nexusai/db";
 import { getSecretProvider } from "../secrets/provider-registry.js";
 import { recoveryRunAncestry } from "./recovery-run-ancestry.js";
 

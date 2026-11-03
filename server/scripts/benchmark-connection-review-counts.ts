@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createDb, startEmbeddedPostgresTestDatabase, type Db } from "@paperclipai/db";
+import { createDb, startEmbeddedPostgresTestDatabase, type Db } from "@nexusai/db";
 import { createConnectionReviewCountsFixture } from "../src/__tests__/helpers/tool-connection-review-counts-fixture.js";
 import { createToolAppAttention } from "../src/services/tool-access/catalog/attention.js";
 import { getToolConnectionReviewCounts } from "../src/services/tool-access/catalog/review-counts.js";

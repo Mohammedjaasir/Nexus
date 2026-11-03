@@ -2,12 +2,12 @@ import type {
   AdapterEnvironmentCheck,
   AdapterEnvironmentTestContext,
   AdapterEnvironmentTestResult,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import {
   asString,
   parseObject,
   ensurePathInEnv,
-} from "@paperclipai/adapter-utils/server-utils";
+} from "@nexusai/adapter-utils/server-utils";
 import {
   ensureAdapterExecutionTargetCommandResolvable,
   ensureAdapterExecutionTargetDirectory,
@@ -17,7 +17,7 @@ import {
   describeAdapterExecutionTarget,
   resolveAdapterExecutionTargetCwd,
   prepareAdapterExecutionTargetRuntime,
-} from "@paperclipai/adapter-utils/execution-target";
+} from "@nexusai/adapter-utils/execution-target";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -75,7 +75,7 @@ function summarizeProbeDetail(stdout: string, stderr: string, parsedError: strin
 const CODEX_AUTH_REQUIRED_RE =
   /(?:not\s+logged\s+in|login\s+required|authentication\s+required|unauthorized|invalid(?:\s+or\s+missing)?\s+api(?:[_\s-]?key)?|openai[_\s-]?api[_\s-]?key|api[_\s-]?key.*required|please\s+run\s+`?codex\s+login`?)/i;
 
-const PROBE_CLEANUP_WARNING = "[paperclip] Codex probe cleanup incomplete";
+const PROBE_CLEANUP_WARNING = "[nexus] Codex probe cleanup incomplete";
 
 async function prepareCodexHelloProbe(input: {
   runId: string;
@@ -112,7 +112,7 @@ async function prepareCodexHelloProbe(input: {
     // Prepare the exact home a real run would use, mirroring execute.ts: vend
     // the shared credential's freshest same-identity cached copy, then seed the
     // effective home — the company default when no CODEX_HOME is configured, a
-    // Paperclip-managed override (the per-agent home) seeded in place — and
+    // Nexus-managed override (the per-agent home) seeded in place — and
     // stage that home's credentials. A genuine external override manages its
     // own auth: its bytes are staged as-is and it is never seeded or mutated.
     // Without this mirror the probe exercises a different credential than the
@@ -154,7 +154,7 @@ async function prepareCodexHelloProbe(input: {
     // and streaming all of it into the sandbox made the environment Test probe
     // take many minutes and look like it hung. The hello probe only needs auth.
     probeHomeLocalDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), `paperclip-codex-probe-home-${input.runId}-`),
+      path.join(os.tmpdir(), `nexus-codex-probe-home-${input.runId}-`),
     );
     let seededAuth = false;
     let seededConfig = false;
@@ -183,7 +183,7 @@ async function prepareCodexHelloProbe(input: {
     }
 
     preparedRuntimeWorkspaceLocalDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), `paperclip-codex-envtest-${input.runId}-`),
+      path.join(os.tmpdir(), `nexus-codex-envtest-${input.runId}-`),
     );
     preparedRuntime = await prepareAdapterExecutionTargetRuntime({
       runId: input.runId,
@@ -192,7 +192,7 @@ async function prepareCodexHelloProbe(input: {
       workspaceLocalDir: preparedRuntimeWorkspaceLocalDir,
       // Pass `input.cwd` as the base (not a pre-built per-run subdir).
       // `prepareRemoteManagedRuntime` itself appends
-      // `.paperclip-runtime/runs/<runId>/workspace` to whatever it gets, so
+      // `.nexus-runtime/runs/<runId>/workspace` to whatever it gets, so
       // pre-building a per-run path here would double-nest the run ID.
       workspaceRemoteDir: input.cwd,
       installCommand: SANDBOX_INSTALL_COMMAND,
@@ -220,22 +220,22 @@ async function prepareCodexHelloProbe(input: {
 
   if (input.probeApiKey) {
     const probeHome = input.targetIsRemote
-      ? path.posix.join(input.cwd, ".paperclip-runtime", "codex", `probe-home-${input.runId}`)
-      : path.join(os.tmpdir(), `paperclip-codex-probe-${input.runId}`);
+      ? path.posix.join(input.cwd, ".nexus-runtime", "codex", `probe-home-${input.runId}`)
+      : path.join(os.tmpdir(), `nexus-codex-probe-${input.runId}`);
     // The local finally path retries cleanup independently of the model result.
     if (!input.targetIsRemote) probeHomeLocalDir = probeHome;
     return {
       command: "sh",
       args: [
         "-c",
-        `set -e; umask 077; mkdir -p "$CODEX_HOME"; printf "%s" "$_PAPERCLIP_CODEX_AUTH_JSON" > "$CODEX_HOME/auth.json"; unset _PAPERCLIP_CODEX_AUTH_JSON; cleanup() { result=$?; trap - EXIT; rm -f "$CODEX_HOME/auth.json" || true; rm -rf "$CODEX_HOME" || printf '%s\\n' '${PROBE_CLEANUP_WARNING}' >&2; exit "$result"; }; trap cleanup EXIT; trap 'exit 130' INT; trap 'exit 143' TERM; "$0" "$@"`,
+        `set -e; umask 077; mkdir -p "$CODEX_HOME"; printf "%s" "$_NEXUS_CODEX_AUTH_JSON" > "$CODEX_HOME/auth.json"; unset _NEXUS_CODEX_AUTH_JSON; cleanup() { result=$?; trap - EXIT; rm -f "$CODEX_HOME/auth.json" || true; rm -rf "$CODEX_HOME" || printf '%s\\n' '${PROBE_CLEANUP_WARNING}' >&2; exit "$result"; }; trap cleanup EXIT; trap 'exit 130' INT; trap 'exit 143' TERM; "$0" "$@"`,
         input.command,
         ...input.args,
       ],
       env: {
         ...input.env,
         CODEX_HOME: probeHome,
-        _PAPERCLIP_CODEX_AUTH_JSON: JSON.stringify({ OPENAI_API_KEY: input.probeApiKey }),
+        _NEXUS_CODEX_AUTH_JSON: JSON.stringify({ OPENAI_API_KEY: input.probeApiKey }),
       },
       cleanup,
     };
@@ -543,7 +543,7 @@ export async function testEnvironment(
             ...(detail ? { detail } : {}),
             hint: probeApiKey
               ? "OPENAI_API_KEY was provided but Codex still rejected the request. Verify the key is valid for the OpenAI Responses API (e.g. `curl -H \"Authorization: Bearer $OPENAI_API_KEY\" https://api.openai.com/v1/models`), or run `codex login` and seed `~/.codex/auth.json`."
-              : "Codex CLI does not read OPENAI_API_KEY from the environment; set OPENAI_API_KEY in this adapter's config (so Paperclip writes it to `$CODEX_HOME/auth.json`) or run `codex login` on the host first.",
+              : "Codex CLI does not read OPENAI_API_KEY from the environment; set OPENAI_API_KEY in this adapter's config (so Nexus writes it to `$CODEX_HOME/auth.json`) or run `codex login` on the host first.",
           });
           if (targetIsSandbox) {
             // Emit the neutral canonical check so the user interface can decide

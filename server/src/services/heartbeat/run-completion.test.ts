@@ -1,8 +1,8 @@
 import { createNativeUsageDelivery } from "../native-runtime/native-usage-delivery.js";
-import type { PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import type { PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { randomUUID } from "node:crypto";
-import type { Db } from "@paperclipai/db";
-import { agents, agentWakeupRequests, caseHandoffs, cases, companies, costEvents, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRuns, issues, nativeRunFinalizations } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { agents, agentWakeupRequests, caseHandoffs, cases, companies, costEvents, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRuns, issues, nativeRunFinalizations } from "@nexusai/db";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
@@ -80,17 +80,17 @@ it("constructs completion handlers without querying or starting work", () => {
 });
 
 const support = await getEmbeddedPostgresTestSupport();
-describe.skipIf(!support.supported && !process.env.PAPERCLIP_TEST_DATABASE_URL)("heartbeat run completion boundary", () => {
+describe.skipIf(!support.supported && !process.env.NEXUS_TEST_DATABASE_URL)("heartbeat run completion boundary", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
   let db: Db;
   beforeAll(async () => {
     // Keep the accounting transaction real without reading provider receipt files.
     vi.spyOn(usageReceipts, "indexPendingUsageReceipts").mockResolvedValue(new Map());
     vi.spyOn(usageReceipts, "recoverPendingRunUsageReceipts").mockResolvedValue([]);
-    const external = process.env.PAPERCLIP_TEST_DATABASE_URL;
+    const external = process.env.NEXUS_TEST_DATABASE_URL;
     if (external) db = createDb(external);
     else {
-      database = await startEmbeddedPostgresTestDatabase("paperclip-heartbeat-completion");
+      database = await startEmbeddedPostgresTestDatabase("nexus-heartbeat-completion");
       db = createDb(database.connectionString);
     }
     await db.execute(sql`set client_min_messages = warning`);
@@ -309,14 +309,14 @@ describe.skipIf(!support.supported && !process.env.PAPERCLIP_TEST_DATABASE_URL)(
   it("retains native completion metadata when reconciliation already committed the same terminal status", async () => {
     const finishedAt = new Date("2026-10-09T12:00:00Z");
     const f = await fixture({ runtimeMode: "native", status: "succeeded", finishedAt, resultJson: { durable: "accepted" }, usageJson: { durableReceipt: "native" } });
-    await db.update(agents).set({ adapterType: "paperclip_runner" }).where(eq(agents.id, f.agent.id));
-    f.agent.adapterType = "paperclip_runner";
+    await db.update(agents).set({ adapterType: "nexus_runner" }).where(eq(agents.id, f.agent.id));
+    f.agent.adapterType = "nexus_runner";
     f.input.sessionCodec = getAdapterSessionCodec(f.agent.adapterType);
     const nativeSessionId = randomUUID(), providerSessionId = randomUUID();
     f.input.adapterResult.sessionId = nativeSessionId;
     delete f.input.adapterResult.sessionParams;
     f.input.adapterResult.sessionDisplayId = providerSessionId;
-    f.input.adapterResult.nativeFinalization = { schema: "paperclip.native-finalization.v1", runtimeMode: "native", runId: f.run.id, companyId: f.run.companyId, issueId: "unused", result: {}, terminal: { schema: "paperclip.prp.terminal.v1", turnTerminalState: "completed", runTerminalState: "succeeded", reportedWorkDisposition: "done" }, turnId: null, sourceInstanceId: "test", normalizedSessionId: nativeSessionId, providerSessionId, driverKind: "test", driverVersion: "1", nativeEventCount: 1, highestContiguousSourceSeq: 1, workspaceFinalizeStatus: "succeeded" };
+    f.input.adapterResult.nativeFinalization = { schema: "nexus.native-finalization.v1", runtimeMode: "native", runId: f.run.id, companyId: f.run.companyId, issueId: "unused", result: {}, terminal: { schema: "nexus.prp.terminal.v1", turnTerminalState: "completed", runTerminalState: "succeeded", reportedWorkDisposition: "done" }, turnId: null, sourceInstanceId: "test", normalizedSessionId: nativeSessionId, providerSessionId, driverKind: "test", driverVersion: "1", nativeEventCount: 1, highestContiguousSourceSeq: 1, workspaceFinalizeStatus: "succeeded" };
     await f.completion.completeRun(f.input);
     expect(await read(f.run.id)).toMatchObject({ status: "succeeded", finishedAt, sessionIdAfter: providerSessionId, resultJson: { durable: "accepted" }, usageJson: { durableReceipt: "native", inputTokens: 20 } });
     expect(f.deps.updateRuntimeState).toHaveBeenCalledOnce();

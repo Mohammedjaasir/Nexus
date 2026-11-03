@@ -10,7 +10,7 @@ import {
   secretAccessEvents,
   toolApplications,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import {
   getEmbeddedPostgresTestSupport,
@@ -39,7 +39,7 @@ describeEmbeddedPostgres("tool OAuth legacy backfill", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-tool-oauth-backfill-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-tool-oauth-backfill-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -199,7 +199,7 @@ describeEmbeddedPostgres("tool OAuth legacy backfill", () => {
     }).returning();
 
     const externalRef =
-      `arn:aws:secretsmanager:us-east-1:123456789012:secret:paperclip/oauth/${connection!.id}`;
+      `arn:aws:secretsmanager:us-east-1:123456789012:secret:nexus/oauth/${connection!.id}`;
     const createVersionSpy = vi.spyOn(awsSecretsManagerProvider, "createVersion").mockResolvedValue({
       material: {
         scheme: "aws_secrets_manager_v1",
@@ -216,7 +216,7 @@ describeEmbeddedPostgres("tool OAuth legacy backfill", () => {
     const awsVault = await secrets.createProviderConfig(company.id, {
       provider: "aws_secrets_manager",
       displayName: "AWS OAuth vault",
-      config: { region: "us-east-1", namespace: "oauth-test", secretNamePrefix: "paperclip" },
+      config: { region: "us-east-1", namespace: "oauth-test", secretNamePrefix: "nexus" },
     });
     const resolveSpy = vi.spyOn(awsSecretsManagerProvider, "resolveVersion").mockImplementation(async (input) => {
       expect(input.material).toMatchObject({
@@ -238,7 +238,7 @@ describeEmbeddedPostgres("tool OAuth legacy backfill", () => {
       provider: "aws_secrets_manager",
       providerConfigId: awsVault.id,
       status: "active",
-      managedMode: "paperclip_managed",
+      managedMode: "nexus_managed",
       externalRef,
       latestVersion: 1,
       createdByUserId: "test",

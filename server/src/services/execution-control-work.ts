@@ -1,6 +1,6 @@
 import { nextWorkspaceRecoveryAt } from "./system-recovery.js";
 import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
-import { adapterAuthSessions, heartbeatRuns, issueRecoveryActions, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { adapterAuthSessions, heartbeatRuns, issueRecoveryActions, nativeRunFinalizations, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";
 import { type DeliveryQueue } from "./delivery-work-notifications.js";
 import { EXECUTION_RECONCILIATION_INTERVAL_MS } from "./execution-control-deadline.js";

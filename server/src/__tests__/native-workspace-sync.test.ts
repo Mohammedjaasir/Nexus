@@ -7,7 +7,7 @@ import {
   serializeDirectorySnapshot,
   captureDirectorySnapshot,
   disposeDirectorySnapshot,
-} from "@paperclipai/adapter-utils/workspace-restore-merge";
+} from "@nexusai/adapter-utils/workspace-restore-merge";
 
 import {
   classifyNativeWorkspaceInbound,
@@ -22,16 +22,16 @@ import {
 const digest = "a".repeat(64);
 
 describe("native workspace sync durable metadata", () => {
-  const originalPaperclipHome = process.env.PAPERCLIP_HOME;
-  const originalPaperclipInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
+  const originalNexusHome = process.env.NEXUS_HOME;
+  const originalNexusInstanceId = process.env.NEXUS_INSTANCE_ID;
   const cleanupDirs: string[] = [];
 
   afterEach(async () => {
-    if (originalPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = originalPaperclipHome;
-    if (originalPaperclipInstanceId === undefined)
-      delete process.env.PAPERCLIP_INSTANCE_ID;
-    else process.env.PAPERCLIP_INSTANCE_ID = originalPaperclipInstanceId;
+    if (originalNexusHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = originalNexusHome;
+    if (originalNexusInstanceId === undefined)
+      delete process.env.NEXUS_INSTANCE_ID;
+    else process.env.NEXUS_INSTANCE_ID = originalNexusInstanceId;
     await Promise.all(
       cleanupDirs
         .splice(0)
@@ -115,7 +115,7 @@ describe("native workspace sync durable metadata", () => {
 
   it("reads backward-compatible references and the resource disposition", () => {
     const base = {
-      schema: "paperclip.native-workspace-sync/v1",
+      schema: "nexus.native-workspace-sync/v1",
       state: "prepared",
       descriptorSha256: digest,
       baselineSha256: digest,
@@ -154,11 +154,11 @@ describe("native workspace sync durable metadata", () => {
   });
 
   it.each(["corrupt", "symlink", "foreign"] as const)("persists compact v2 manifests and rejects %s recovery storage", async (tamper) => {
-    const paperclipHome = await mkdtemp(path.join(os.tmpdir(), "paperclip-native-manifest-"));
-    cleanupDirs.push(paperclipHome);
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = "manifest-test";
-    const workspace = path.join(paperclipHome, "workspace");
+    const nexusHome = await mkdtemp(path.join(os.tmpdir(), "nexus-native-manifest-"));
+    cleanupDirs.push(nexusHome);
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = "manifest-test";
+    const workspace = path.join(nexusHome, "workspace");
     await mkdir(workspace);
     await writeFile(path.join(workspace, "private-filename-雪"), "baseline");
     const baseline = await captureDirectorySnapshot(workspace, { diskBacked: true });
@@ -173,7 +173,7 @@ describe("native workspace sync durable metadata", () => {
     const serialized = serializeDirectorySnapshot(baseline);
     if (serialized.version !== 2) throw new Error("Expected v2");
     const descriptor = {
-      schema: "paperclip.native-workspace-sync/v2" as const,
+      schema: "nexus.native-workspace-sync/v2" as const,
       binding: { runId, companyId: "company", workspaceId: "workspace", leaseId: "lease", providerLeaseId: "sandbox", localCwd: workspace, remoteCwd: "/workspace" },
       state: "prepared" as const, baselineSha256: directorySnapshotSha256(baseline),
       baseline: serialized, gitSnapshot: null, seed: null,
@@ -192,12 +192,12 @@ describe("native workspace sync durable metadata", () => {
     if (tamper === "corrupt") {
       await appendFile(serialized.entries.filePath, "corrupt");
     } else if (tamper === "symlink") {
-      const copy = path.join(paperclipHome, "copied.sqlite");
+      const copy = path.join(nexusHome, "copied.sqlite");
       await writeFile(copy, await readFile(serialized.entries.filePath));
       await rm(serialized.entries.filePath);
       await symlink(copy, serialized.entries.filePath);
     } else {
-      descriptor.baseline.entries.filePath = path.join(paperclipHome, "foreign.sqlite");
+      descriptor.baseline.entries.filePath = path.join(nexusHome, "foreign.sqlite");
       reference = await nativeWorkspaceSyncInternals.writeDescriptor(descriptor);
     }
     await expect(nativeWorkspaceSyncInternals.readDescriptor({ runId, reference })).rejects.toThrow();
@@ -206,14 +206,14 @@ describe("native workspace sync durable metadata", () => {
   });
 
   it.each([false, true])("writes one immutable descriptor when the same state is replayed (multiple repositories: %s)", async (multipleRepositories) => {
-    const paperclipHome = await mkdtemp(
-      path.join(os.tmpdir(), "paperclip-native-workspace-sync-"),
+    const nexusHome = await mkdtemp(
+      path.join(os.tmpdir(), "nexus-native-workspace-sync-"),
     );
-    cleanupDirs.push(paperclipHome);
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = "descriptor-test";
+    cleanupDirs.push(nexusHome);
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = "descriptor-test";
     const baseline = {
-      exclude: [".paperclip-runtime"],
+      exclude: [".nexus-runtime"],
       entries: new Map([
         [
           "continuity.txt",
@@ -222,14 +222,14 @@ describe("native workspace sync durable metadata", () => {
       ]),
     };
     const descriptor = {
-      schema: "paperclip.native-workspace-sync/v1" as const,
+      schema: "nexus.native-workspace-sync/v1" as const,
       binding: {
         runId: "run-idempotent",
         companyId: "company-1",
         workspaceId: "workspace-1",
         leaseId: "lease-1",
         providerLeaseId: "sandbox-1",
-        localCwd: path.join(paperclipHome, "workspace"),
+        localCwd: path.join(nexusHome, "workspace"),
         remoteCwd: "/workspace",
       },
       state: "prepared" as const,
@@ -237,7 +237,7 @@ describe("native workspace sync durable metadata", () => {
       baseline: serializeDirectorySnapshot(baseline),
       gitSnapshot: multipleRepositories ? {
         headCommit: "a".repeat(40), branchName: "main", overlayPaths: [], deletedPaths: [], ignoredPaths: [],
-        repositories: [{ path: ".paperclip-repositories/backend", snapshot: {
+        repositories: [{ path: ".nexus-repositories/backend", snapshot: {
           headCommit: "b".repeat(40), branchName: "backend-work", overlayPaths: ["dirty.txt"], deletedPaths: [], ignoredPaths: ["secret.txt"],
         } }],
       } : null,
@@ -274,14 +274,14 @@ describe("native workspace sync durable metadata", () => {
   });
 
   it("repairs finalized remote and lease stamps after an interrupted commit", async () => {
-    const paperclipHome = await mkdtemp(
-      path.join(os.tmpdir(), "paperclip-native-workspace-sync-repair-"),
+    const nexusHome = await mkdtemp(
+      path.join(os.tmpdir(), "nexus-native-workspace-sync-repair-"),
     );
-    cleanupDirs.push(paperclipHome);
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = "descriptor-repair-test";
+    cleanupDirs.push(nexusHome);
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = "descriptor-repair-test";
     const baseline = {
-      exclude: [".paperclip-runtime"],
+      exclude: [".nexus-runtime"],
       entries: new Map([
         [
           "continuity.txt",
@@ -291,14 +291,14 @@ describe("native workspace sync durable metadata", () => {
     };
     const finalHostSha256 = "b".repeat(64);
     const descriptor = {
-      schema: "paperclip.native-workspace-sync/v1" as const,
+      schema: "nexus.native-workspace-sync/v1" as const,
       binding: {
         runId: "run-finalized-repair",
         companyId: "company-1",
         workspaceId: "workspace-1",
         leaseId: "lease-1",
         providerLeaseId: "sandbox-1",
-        localCwd: path.join(paperclipHome, "workspace"),
+        localCwd: path.join(nexusHome, "workspace"),
         remoteCwd: "/workspace",
       },
       state: "finalized" as const,
@@ -369,7 +369,7 @@ describe("native workspace sync durable metadata", () => {
     expect(persistedLeaseMetadata).toMatchObject({
       retained: true,
       nativeWorkspaceSync: {
-        schema: "paperclip.native-workspace-stamp/v1",
+        schema: "nexus.native-workspace-stamp/v1",
         workspaceId: descriptor.binding.workspaceId,
         providerLeaseId: descriptor.binding.providerLeaseId,
         remoteCwd: descriptor.binding.remoteCwd,

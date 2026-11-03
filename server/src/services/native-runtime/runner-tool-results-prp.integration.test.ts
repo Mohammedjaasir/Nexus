@@ -4,26 +4,26 @@ import { chmod, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { startRunnerApiTestServer } from "../../__tests__/helpers/runner-api-server.js";
-import { createRunnerdCodexTransport, defaultCapabilityRunnerdBinary } from "../../vendor/paperclip-runner/index.js";
+import { createRunnerdCodexTransport, defaultCapabilityRunnerdBinary } from "../../vendor/nexus-runner/index.js";
 import { createAssignedMcpTools } from "./assigned-mcp-tools.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 import { RUNNER_TOOL_RESULT_MAX_BYTES } from "./runner-tool-results.js";
 import type { ToolGatewayService } from "../tool-gateway.js";
 
 describe("saved assigned results through actual PRP", () => {
   let server: Awaited<ReturnType<typeof startRunnerApiTestServer>>;
-  const oldSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
+  const oldSecret = process.env.NEXUS_AGENT_JWT_SECRET;
   beforeAll(async () => {
-    process.env.PAPERCLIP_AGENT_JWT_SECRET = randomUUID();
+    process.env.NEXUS_AGENT_JWT_SECRET = randomUUID();
     server = await startRunnerApiTestServer();
   }, 60_000);
   afterAll(async () => {
     await server?.close();
-    if (oldSecret === undefined) delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
-    else process.env.PAPERCLIP_AGENT_JWT_SECRET = oldSecret;
+    if (oldSecret === undefined) delete process.env.NEXUS_AGENT_JWT_SECRET;
+    else process.env.NEXUS_AGENT_JWT_SECRET = oldSecret;
   });
 
-  it.skipIf(!process.env.PAPERCLIP_REQUIRE_RUNNER_API_INTEGRATION && !existsSync(defaultCapabilityRunnerdBinary()))("delivers escape-heavy 500 KB pages through actual PRP without truncation", async () => {
+  it.skipIf(!process.env.NEXUS_REQUIRE_RUNNER_API_INTEGRATION && !existsSync(defaultCapabilityRunnerdBinary()))("delivers escape-heavy 500 KB pages through actual PRP without truncation", async () => {
     const fixture = await server.fixture({ apiToolsEnabled: false });
     const original = { content: '🧭é"\\\n\u0000'.repeat(60_000), last: "complete-result" };
     const expected = JSON.stringify(original);
@@ -42,7 +42,7 @@ describe("saved assigned results through actual PRP", () => {
         executeTool,
       } as unknown as ToolGatewayService,
     });
-    const authority = new PaperclipRunnerToolAuthority(server.db, { ...fixture.authority.binding, assignedMcpTools });
+    const authority = new NexusRunnerToolAuthority(server.db, { ...fixture.authority.binding, assignedMcpTools });
     const provider = join(server.root, "scripted-saved-result-provider.mjs");
     await writeFile(provider, `#!${process.execPath}
 import { createInterface } from 'node:readline';

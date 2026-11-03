@@ -1,6 +1,6 @@
 import { registerTaskWatchdogWork } from "../task-watchdog-work.js";
 import { and, asc, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
-import { issueRecoveryActions, issueRelations, issues, type Db } from "@paperclipai/db";
+import { issueRecoveryActions, issueRelations, issues, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { DELIVERY_QUEUES, type DeliveryQueue } from "../delivery-work-notifications.js";
 import type { IssueRecoveryScope } from "../issue-recovery-notifications.js";

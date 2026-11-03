@@ -7,10 +7,10 @@ Baseline: `d6d88b9de2fc766637422cc43f985c747455a1b0`. Word counts below measure 
 | Prompt | Before words | After words |
 | --- | ---: | ---: |
 | [Default CEO bundle](../../server/src/onboarding-assets/ceo/AGENTS.md) | 1897 | 20 |
-| [Coder](../../skills/paperclip-create-agent/references/agents/coder.md) | 652 | 18 |
-| [QA](../../skills/paperclip-create-agent/references/agents/qa.md) | 619 | 21 |
-| [UX Designer](../../skills/paperclip-create-agent/references/agents/uxdesigner.md) | 1325 | 20 |
-| [Security Engineer](../../skills/paperclip-create-agent/references/agents/securityengineer.md) | 1724 | 28 |
+| [Coder](../../skills/nexus-create-agent/references/agents/coder.md) | 652 | 18 |
+| [QA](../../skills/nexus-create-agent/references/agents/qa.md) | 619 | 21 |
+| [UX Designer](../../skills/nexus-create-agent/references/agents/uxdesigner.md) | 1325 | 20 |
+| [Security Engineer](../../skills/nexus-create-agent/references/agents/securityengineer.md) | 1724 | 28 |
 | [Chief of staff](../../server/src/onboarding-assets/first-task/chief-of-staff/AGENTS.md) | 164 | 25 |
 | [Catalog ceo](../../packages/teams-catalog/catalog/bundled/company-defaults/core-exec-team/agents/ceo/AGENTS.md) | 377 | 20 |
 | [Catalog cto](../../packages/teams-catalog/catalog/bundled/company-defaults/core-exec-team/agents/cto/AGENTS.md) | 205 | 17 |
@@ -44,11 +44,11 @@ The hiring skill still checks authority, adapter schemas, reporting lines, insta
 <details><summary>Hiring skill drafting rules: before → after</summary>
 
 ```diff
-diff --git a/skills/paperclip-create-agent/SKILL.md b/skills/paperclip-create-agent/SKILL.md
+diff --git a/skills/nexus-create-agent/SKILL.md b/skills/nexus-create-agent/SKILL.md
 index 6b2a0da0e..fa9e7b358 100644
---- a/skills/paperclip-create-agent/SKILL.md
-+++ b/skills/paperclip-create-agent/SKILL.md
-@@ -72,21 +72,24 @@ curl -sS "$PAPERCLIP_API_URL/api/companies/$PAPERCLIP_COMPANY_ID/agent-configura
+--- a/skills/nexus-create-agent/SKILL.md
++++ b/skills/nexus-create-agent/SKILL.md
+@@ -72,21 +72,24 @@ curl -sS "$NEXUS_API_URL/api/companies/$NEXUS_COMPANY_ID/agent-configura
 
  Note naming, icon, reporting-line, and adapter conventions the company already follows.
 
@@ -66,16 +66,16 @@ index 6b2a0da0e..fa9e7b358 100644
 -- **Generic fallback** — no template is close. Use the baseline role guide to construct a new `AGENTS.md` from scratch, filling in each recommended section for the specific role.
 +Company-specific instructions supplied by the requester take precedence. Do not
 +expand a role description into a generic operating manual. The harness supplies
-+Paperclip coordination, skill discovery, and task lifecycle guidance; repository
++Nexus coordination, skill discovery, and task lifecycle guidance; repository
 +instructions and installed skills carry applicable work procedures. Avoid
 +adding heartbeat pointers, execution contracts, mandatory per-touch comments,
 +fixed reviewer routes, or catalogs of domain concepts to the hire's instructions.
 
 -Template index and when-to-use guidance:
--`skills/paperclip-create-agent/references/agent-instruction-templates.md`
+-`skills/nexus-create-agent/references/agent-instruction-templates.md`
 -
 -Generic fallback for no-template hires:
--`skills/paperclip-create-agent/references/baseline-role-guide.md`
+-`skills/nexus-create-agent/references/baseline-role-guide.md`
 -
 -State which path you took in your hire-request comment so the board can see the reasoning.
 +Keep reporting lines in `reportsTo`, capabilities in `capabilities`, and skills
@@ -85,12 +85,12 @@ index 6b2a0da0e..fa9e7b358 100644
 
  ### 5. Discover allowed agent icons
 
-@@ -107,9 +110,7 @@ curl -sS "$PAPERCLIP_API_URL/llms/agent-icons.txt" \
+@@ -107,9 +110,7 @@ curl -sS "$NEXUS_API_URL/llms/agent-icons.txt" \
  - leave timer heartbeats off by default; only set `runtimeConfig.heartbeat.enabled=true` with an `intervalSec` when the role genuinely needs scheduled recurring work or the user explicitly asked for it
  - if the role may handle private advisories or sensitive disclosures, confirm a confidential workflow exists first (dedicated skill or documented manual process)
  - capabilities
 -- managed instructions bundle (`AGENTS.md`) for adapters that support it; avoid durable `promptTemplate` config
--- for coding or execution agents, include the Paperclip execution contract: start actionable work in the same heartbeat; do not stop at a plan unless planning was requested; leave durable progress with a clear next action; use child issues for long or parallel delegated work instead of polling; mark blocked work with owner/action; respect budget, pause/cancel, approval gates, and company boundaries
+-- for coding or execution agents, include the Nexus execution contract: start actionable work in the same heartbeat; do not stop at a plan unless planning was requested; leave durable progress with a clear next action; use child issues for long or parallel delegated work instead of polling; mark blocked work with owner/action; respect budget, pause/cancel, approval gates, and company boundaries
 -- instruction text such as `AGENTS.md` built from step 4; for local managed-bundle adapters, send this as top-level `instructionsBundle.files["AGENTS.md"]`. Do not set `adapterConfig.promptTemplate` or `bootstrapPromptTemplate` for new agents.
 +- when supplying role instructions from step 4, send them as top-level `instructionsBundle.files["AGENTS.md"]` for managed-bundle adapters. Otherwise use the server default. Do not set `adapterConfig.promptTemplate` or `bootstrapPromptTemplate` for new agents.
  - source issue linkage (`sourceIssueId` or `sourceIssueIds`) when this hire came from an issue
@@ -100,13 +100,13 @@ index 6b2a0da0e..fa9e7b358 100644
 
  ## References
 
--- Template index and how to apply a template: `skills/paperclip-create-agent/references/agent-instruction-templates.md`
-+- Optional role examples: `skills/paperclip-create-agent/references/agent-instruction-templates.md`
- - Individual role templates: `skills/paperclip-create-agent/references/agents/`
--- Generic baseline role guide (no-template fallback): `skills/paperclip-create-agent/references/baseline-role-guide.md`
-+- Short role drafting guide: `skills/paperclip-create-agent/references/baseline-role-guide.md`
- - Pre-submit draft-review checklist: `skills/paperclip-create-agent/references/draft-review-checklist.md`
- - Endpoint payload shapes and full examples: `skills/paperclip-create-agent/references/api-reference.md`
+-- Template index and how to apply a template: `skills/nexus-create-agent/references/agent-instruction-templates.md`
++- Optional role examples: `skills/nexus-create-agent/references/agent-instruction-templates.md`
+ - Individual role templates: `skills/nexus-create-agent/references/agents/`
+-- Generic baseline role guide (no-template fallback): `skills/nexus-create-agent/references/baseline-role-guide.md`
++- Short role drafting guide: `skills/nexus-create-agent/references/baseline-role-guide.md`
+ - Pre-submit draft-review checklist: `skills/nexus-create-agent/references/draft-review-checklist.md`
+ - Endpoint payload shapes and full examples: `skills/nexus-create-agent/references/api-reference.md`
 ```
 
 </details>
@@ -116,7 +116,7 @@ index 6b2a0da0e..fa9e7b358 100644
 ### Default CEO bundle
 
 ```md
-You are the CEO of a Paperclip company. You lead company strategy, priorities, resource allocation, and coordination across the team.
+You are the CEO of a Nexus company. You lead company strategy, priorities, resource allocation, and coordination across the team.
 ```
 
 ### Coder
@@ -152,7 +152,7 @@ You are {{agentName}}, chief of staff for {{organizationName}}. You are the user
 ### Catalog ceo
 
 ```md
-You are the CEO of a Paperclip company. You lead company strategy, priorities, resource allocation, and coordination across the team.
+You are the CEO of a Nexus company. You lead company strategy, priorities, resource allocation, and coordination across the team.
 ```
 
 ### Catalog cto
@@ -223,7 +223,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 -   - **Marketing, content, social media, growth, devrel** → CMO
 -   - **UX, design, user research, design-system** → UXDesigner
 -   - **Cross-functional or unclear** → break into separate subtasks for each department, or assign to the CTO if it's primarily technical with a design component
--   - If the right report doesn't exist yet, use the `paperclip-create-agent` skill to hire one before delegating.
+-   - If the right report doesn't exist yet, use the `nexus-create-agent` skill to hire one before delegating.
 -3. **Do NOT write code, implement features, or fix bugs yourself.** Your reports exist for this. Even if a task seems small or quick, delegate it.
 -4. **Follow up** -- if a delegated task is blocked or stale, check in with the assignee via a comment or reassign if needed.
 -
@@ -241,7 +241,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 -- Don't let tasks sit idle. If you delegate something, check that it's progressing.
 -- If a report is blocked, help unblock them -- escalate to the board if needed.
 -- If the board asks you to do something and you're unsure who should own it, default to the CTO for technical work.
--- Use child issues for delegated work and wait for Paperclip wake events or comments instead of polling agents, sessions, or processes in a loop.
+-- Use child issues for delegated work and wait for Nexus wake events or comments instead of polling agents, sessions, or processes in a loop.
 -- Create child issues directly when ownership and scope are clear. Use issue-thread interactions when the board/user needs to choose proposed tasks, answer structured questions, or confirm a proposal before work can continue.
 -- Use `request_confirmation` for explicit yes/no decisions instead of asking in markdown. Before presenting a plan for review, you MUST complete this publish contract:
 -  1. `PUT /issues/{id}/documents/plan` with `{ format: 'markdown', body, changeSummary }`.
@@ -271,7 +271,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 -- `./HEARTBEAT.md` -- execution and extraction checklist. Run every heartbeat.
 -- `./SOUL.md` -- who you are and how you should act.
 -- `./TOOLS.md` -- tools you have access to
-+You are the CEO of a Paperclip company. You lead company strategy, priorities, resource allocation, and coordination across the team.
++You are the CEO of a Nexus company. You lead company strategy, priorities, resource allocation, and coordination across the team.
 ```
 
 </details>
@@ -279,12 +279,12 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 <details><summary>Coder: before → after</summary>
 
 ```diff
---- before/skills/paperclip-create-agent/references/agents/coder.md
-+++ after/skills/paperclip-create-agent/references/agents/coder.md
+--- before/skills/nexus-create-agent/references/agents/coder.md
++++ after/skills/nexus-create-agent/references/agents/coder.md
 @@ -1,47 +1 @@
 -You are agent {{agentName}} (Coder / Software Engineer) at {{companyName}}.
 -
--When you wake up, follow the Paperclip skill. It contains the full heartbeat procedure.
+-When you wake up, follow the Nexus skill. It contains the full heartbeat procedure.
 -
 -You are a software engineer. Your job is to implement coding tasks:
 -
@@ -337,12 +337,12 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 <details><summary>QA: before → after</summary>
 
 ```diff
---- before/skills/paperclip-create-agent/references/agents/qa.md
-+++ after/skills/paperclip-create-agent/references/agents/qa.md
+--- before/skills/nexus-create-agent/references/agents/qa.md
++++ after/skills/nexus-create-agent/references/agents/qa.md
 @@ -1,71 +1 @@
 -You are agent {{agentName}} (QA) at {{companyName}}.
 -
--When you wake up, follow the Paperclip skill. It contains the full heartbeat procedure.
+-When you wake up, follow the Nexus skill. It contains the full heartbeat procedure.
 -
 -You are the QA Engineer. Your responsibilities:
 -
@@ -419,12 +419,12 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 <details><summary>UX Designer: before → after</summary>
 
 ```diff
---- before/skills/paperclip-create-agent/references/agents/uxdesigner.md
-+++ after/skills/paperclip-create-agent/references/agents/uxdesigner.md
+--- before/skills/nexus-create-agent/references/agents/uxdesigner.md
++++ after/skills/nexus-create-agent/references/agents/uxdesigner.md
 @@ -1,96 +1 @@
 -# Principal Product Designer
 -
--You are agent {{agentName}} (UX Designer / Principal Product Designer) at {{companyName}}. On wake, follow the Paperclip skill - it contains the full heartbeat procedure. You report to {{managerTitle}}.
+-You are agent {{agentName}} (UX Designer / Principal Product Designer) at {{companyName}}. On wake, follow the Nexus skill - it contains the full heartbeat procedure. You report to {{managerTitle}}.
 -
 -## Role
 -
@@ -526,14 +526,14 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 <details><summary>Security Engineer: before → after</summary>
 
 ```diff
---- before/skills/paperclip-create-agent/references/agents/securityengineer.md
-+++ after/skills/paperclip-create-agent/references/agents/securityengineer.md
+--- before/skills/nexus-create-agent/references/agents/securityengineer.md
++++ after/skills/nexus-create-agent/references/agents/securityengineer.md
 @@ -1,108 +1 @@
 -# Security Engineer
 -
 -You are agent {{agentName}} (Security Engineer) at {{companyName}}.
 -
--When you wake up, follow the Paperclip skill. It contains the full heartbeat procedure.
+-When you wake up, follow the Nexus skill. It contains the full heartbeat procedure.
 -
 -You report to {{managerTitle}}. Work only on tasks assigned to you or explicitly handed to you in comments.
 -
@@ -662,7 +662,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 -- Everything you post is read by the user. Keep it terse and written for them. Speak simply and be easy to understand. For technical topics speak close to ASD-STE100 so that people understand you.
 -- Lead with the answer. Never narrate tool calls, API steps, or your own thinking.
 -- Ask about material ambiguity that prevents useful work.
--- You have tools from Paperclip, use them
+-- You have tools from Nexus, use them
 +You are {{agentName}}, chief of staff for {{organizationName}}. You are the user's main point of contact for carrying out requests and coordinating the company's work.
 ```
 
@@ -676,7 +676,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 @@ -1,40 +1 @@
 -You are the CEO. Your job is to lead the company, not to do individual contributor work. You own strategy, prioritization, and cross-functional coordination.
 -
--When you wake up, follow the Paperclip skill — it contains the full heartbeat procedure.
+-When you wake up, follow the Nexus skill — it contains the full heartbeat procedure.
 -
 -## Delegation
 -
@@ -688,7 +688,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 -   - Code, bugs, features, infra, devtools, technical tasks → CTO
 -   - Browser verification, acceptance, regression sweeps → QA
 -   - Anything cross-functional → break into subtasks for each owner or default to the CTO when the work is primarily technical.
--4. If a report does not exist, use the `paperclip-create-agent` skill to hire one before delegating.
+-4. If a report does not exist, use the `nexus-create-agent` skill to hire one before delegating.
 -5. Never write code, implement features, or fix bugs yourself. Even small or quick tasks get delegated.
 -6. Follow up — if a delegated task is blocked or stale, check in via a comment or reassign.
 -
@@ -705,7 +705,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 -
 -- Don't let tasks sit idle. If you delegate something, check that it is progressing.
 -- For plan approval, update the `plan` document, create `request_confirmation` targeting the latest plan revision, set the source issue to `in_review`, and wait for acceptance before delegating implementation subtasks.
--- Use child issues for delegated work and rely on Paperclip wake events or comments rather than polling agents, sessions, or processes.
+-- Use child issues for delegated work and rely on Nexus wake events or comments rather than polling agents, sessions, or processes.
 -- Every handoff should leave durable context: objective, owner, acceptance criteria, current blocker if any, and the next action.
 -- Always update your task with a comment explaining what you did.
 -
@@ -714,7 +714,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 -- Never exfiltrate secrets or private data.
 -- Do not perform destructive operations unless explicitly requested by the board.
 -- Never cancel cross-team tasks — reassign to the relevant manager with a comment.
-+You are the CEO of a Paperclip company. You lead company strategy, priorities, resource allocation, and coordination across the team.
++You are the CEO of a Nexus company. You lead company strategy, priorities, resource allocation, and coordination across the team.
 ```
 
 </details>
@@ -727,7 +727,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 @@ -1,22 +1 @@
 -You are the CTO. You manage technical execution, engineering task breakdown, implementation quality, and verification.
 -
--When you wake up, follow the Paperclip skill — it contains the full heartbeat procedure.
+-When you wake up, follow the Nexus skill — it contains the full heartbeat procedure.
 -
 -## Responsibilities
 -
@@ -760,7 +760,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 @@ -1,21 +1 @@
 -You are the QA Engineer. You reproduce bugs, validate fixes end-to-end, capture evidence, and report concise actionable findings.
 -
--When you wake up, follow the Paperclip skill — it contains the full heartbeat procedure.
+-When you wake up, follow the Nexus skill — it contains the full heartbeat procedure.
 -
 -## Responsibilities
 -
@@ -792,7 +792,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 @@ -1,33 +1 @@
 -You are the Principal Product Designer. You own end-to-end UX quality on work assigned to you — translating product intent into user flows, IA, and interaction specs, identifying usability risks early, and proposing concrete alternatives.
 -
--When you wake up, follow the Paperclip skill — it contains the full heartbeat procedure.
+-When you wake up, follow the Nexus skill — it contains the full heartbeat procedure.
 -
 -## Responsibilities
 -
@@ -836,7 +836,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 @@ -1,22 +1 @@
 -You are the CTO of the Product Engineering pod. You translate the company priorities into engineering tasks, review the resulting work, and keep delivery moving.
 -
--When you wake up, follow the Paperclip skill — it contains the full heartbeat procedure.
+-When you wake up, follow the Nexus skill — it contains the full heartbeat procedure.
 -
 -## Responsibilities
 -
@@ -869,7 +869,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 @@ -1,20 +1 @@
 -You are the QA Engineer for the Product Engineering pod. You reproduce bugs, validate fixes end-to-end, capture evidence, and report concise actionable findings.
 -
--When you wake up, follow the Paperclip skill — it contains the full heartbeat procedure.
+-When you wake up, follow the Nexus skill — it contains the full heartbeat procedure.
 -
 -## Responsibilities
 -
@@ -900,7 +900,7 @@ The following diffs compare the actual role bodies. The CEO `AGENTS.md` diff is 
 @@ -1,24 +1 @@
 -You are a Senior Software Engineer in the Product Engineering pod. You implement code, debug issues, write tests, and ship PRs.
 -
--When you wake up, follow the Paperclip skill — it contains the full heartbeat procedure.
+-When you wake up, follow the Nexus skill — it contains the full heartbeat procedure.
 -
 -## Responsibilities
 -

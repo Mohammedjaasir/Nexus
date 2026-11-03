@@ -9,7 +9,7 @@ import type { RunnerProfileFixture } from "./types.js";
 import { runnerSuites } from "./catalog.js";
 import { contextIntegrityTasks } from "./context-integrity-cases.js";
 
-const receipt = (): NativeDefaultReceipt => ({ schema: "paperclip.native-completion-default.v1", agentId: "agent", companyId: "company",
+const receipt = (): NativeDefaultReceipt => ({ schema: "nexus.native-completion-default.v1", agentId: "agent", companyId: "company",
   entryFile: "AGENTS.md", files: [{ path: "AGENTS.md", sha256: NATIVE_MASTER_DEFAULT_SHA256, bytes: 100 }], budgets: { company: 1000, agent: 1000 } });
 describe("native production defaults", () => {
   it("hashes scoped file and symlink identity without reading an outside target", async () => {

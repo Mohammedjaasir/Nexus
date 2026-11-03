@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
-import { toolApplications, toolConnections } from "@paperclipai/db";
-import type { ConnectionTokenIssuancePath, ConnectionTokenRequest } from "@paperclipai/shared";
+import { toolApplications, toolConnections } from "@nexusai/db";
+import type { ConnectionTokenIssuancePath, ConnectionTokenRequest } from "@nexusai/shared";
 import { forbidden, unprocessable } from "../../../errors.js";
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -102,9 +102,9 @@ export function isPagesTokenConnection(
   const broker = tokenBrokerConfig(connection);
   const applicationKey = application?.applicationKey ?? "";
   return Boolean(
-    applicationKey === "paperclip-pages" ||
-    applicationKey === "paperclip.pages" ||
-    applicationKey === "pages.paperclip" ||
+    applicationKey === "nexus-pages" ||
+    applicationKey === "nexus.pages" ||
+    applicationKey === "pages.nexus" ||
     readConfigString(config, "connectionType") === "pages" ||
     readConfigString(config, "service") === "pages" ||
     readConfigString(broker, "connectionType") === "pages" ||
@@ -216,7 +216,7 @@ export function exchangeTokenUrl(
     readConfigString(config, "tokenExchangeUrl") ??
     readConfigString(config, "pagesTokenExchangeUrl");
   if (url) return url;
-  const pagesApiBase = process.env.PAPERCLIP_PAGES_API_URL?.trim();
+  const pagesApiBase = process.env.NEXUS_PAGES_API_URL?.trim();
   if (isPages && pagesApiBase)
     return new URL(
       "/v1/tokens/exchange",

@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
-import { heartbeatRuns, nativeRunFinalizations, type Db } from "@paperclipai/db";
-import { subscribeDatabaseWork } from "@paperclipai/db/work-signals";
+import { heartbeatRuns, nativeRunFinalizations, type Db } from "@nexusai/db";
+import { subscribeDatabaseWork } from "@nexusai/db/work-signals";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "../delivery-work-notifications.js";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { activeNativeExecutionRunIds, subscribeActiveNativeExecutions } from "./native-active-runs.js";
@@ -13,7 +13,7 @@ export const notifyNativeCancellation = (tx: object) => notifyDeliveryWork(tx, D
  * Expiry/release authorizes recovery, not a no-op acknowledgement: the remote
  * execution can still be alive while its next controller is attaching. */
 export async function nativeCancellationHasUnsettledOwner(db: Db, runId: string): Promise<boolean> {
-  if (process.env.PAPERCLIP_EPHEMERAL_SERVER !== "true") return false;
+  if (process.env.NEXUS_EPHEMERAL_SERVER !== "true") return false;
   const [owner] = await db.select({ runId: nativeRunFinalizations.runId }).from(nativeRunFinalizations)
     .innerJoin(heartbeatRuns, and(eq(heartbeatRuns.id, nativeRunFinalizations.runId),
       eq(heartbeatRuns.companyId, nativeRunFinalizations.companyId)))
@@ -77,7 +77,7 @@ export function registerNativeCancellationDelivery(db: Db, coordinator: ReturnTy
         signal.throwIfAborted();
         if (!activeNativeExecutionRunIds.has(row.id)) continue;
         const intent = object(row.result?.nativeCancellation), startup = object(row.result?.startupCancellation);
-        if (intent.schema !== "paperclip.native-cancellation.v1" || !["run", "issue", "turn"].includes(String(intent.scope))) continue;
+        if (intent.schema !== "nexus.native-cancellation.v1" || !["run", "issue", "turn"].includes(String(intent.scope))) continue;
         const { cancelNativeSession } = await import("./native-session-executor.js");
         await cancelNativeSession(row.id, typeof intent.reason === "string" ? intent.reason : "Operator requested Stop", {
           db, scope: intent.scope as "run" | "issue" | "turn",

@@ -1,16 +1,16 @@
-import type { PaperclipPluginManifestV1 } from "@paperclipai/plugin-sdk";
+import type { NexusPluginManifestV1 } from "@nexusai/plugin-sdk";
 
-const PLUGIN_ID = "paperclip.exe-dev-sandbox-provider";
+const PLUGIN_ID = "nexus.exe-dev-sandbox-provider";
 const PLUGIN_VERSION = "0.1.2";
 
-const manifest: PaperclipPluginManifestV1 = {
+const manifest: NexusPluginManifestV1 = {
   id: PLUGIN_ID,
   apiVersion: 1,
   version: PLUGIN_VERSION,
   displayName: "exe.dev Sandbox Provider",
   description:
-    "Sandbox provider plugin that provisions exe.dev VMs as Paperclip execution environments.",
-  author: "Paperclip",
+    "Sandbox provider plugin that provisions exe.dev VMs as Nexus execution environments.",
+  author: "Nexus",
   categories: ["automation"],
   capabilities: ["environment.drivers.register"],
   entrypoints: {
@@ -22,7 +22,7 @@ const manifest: PaperclipPluginManifestV1 = {
       kind: "sandbox_provider",
       displayName: "exe.dev VM",
       description:
-        "Provisions exe.dev VMs through the HTTPS API, then runs commands over direct SSH for long-lived Paperclip workloads.",
+        "Provisions exe.dev VMs through the HTTPS API, then runs commands over direct SSH for long-lived Nexus workloads.",
       configSchema: {
         type: "object",
         properties: {
@@ -31,7 +31,7 @@ const manifest: PaperclipPluginManifestV1 = {
             type: "string",
             format: "secret-ref",
             description:
-              "Paste your exe.dev API token, or pick a saved Paperclip secret. Create one at exe.dev → Settings → API tokens with `/exec` scope (`new`, `ls`, `rm`, plus `cp` if you use Source VM).",
+              "Paste your exe.dev API token, or pick a saved Nexus secret. Create one at exe.dev → Settings → API tokens with `/exec` scope (`new`, `ls`, `rm`, plus `cp` if you use Source VM).",
           },
           sshPrivateKey: {
             type: "string",
@@ -45,58 +45,58 @@ const manifest: PaperclipPluginManifestV1 = {
             type: "string",
             description:
               "Login user on the VM. Leave blank to use the image default, usually `root`.",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "SSH access",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "SSH access",
           },
           sshIdentityFile: {
             type: "string",
             description:
-              "Absolute path to a private key on the Paperclip host. Used only when SSH Private Key is empty.",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "SSH access",
+              "Absolute path to a private key on the Nexus host. Used only when SSH Private Key is empty.",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "SSH access",
           },
           sshPort: {
             type: "number",
             description: "SSH port for direct VM access.",
             default: 22,
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "SSH access",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "SSH access",
           },
           strictHostKeyChecking: {
             type: "string",
             description:
               "Host key policy passed to ssh via StrictHostKeyChecking. Typical values are `accept-new`, `yes`, or `no`.",
             default: "accept-new",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "SSH access",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "SSH access",
           },
           // ---- Advanced: VM resources ----
           image: {
             type: "string",
             description: "Optional container image to use when creating the VM.",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM resources",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM resources",
           },
           cpu: {
             type: "number",
             description: "Optional CPU count passed to `exe.dev new --cpu`.",
             default: 4,
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM resources",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM resources",
           },
           memory: {
             type: "string",
             description: "Optional memory size such as `4GB`.",
             default: "4GB",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM resources",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM resources",
           },
           disk: {
             type: "string",
             description: "Optional disk size such as `20GB`.",
             default: "20GB",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM resources",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM resources",
           },
           // ---- Advanced: VM creation ----
           sourceVm: {
@@ -104,83 +104,83 @@ const manifest: PaperclipPluginManifestV1 = {
             title: "Source VM",
             description:
               "Name of an existing exe.dev VM to copy for each run with `exe.dev cp`, disk and config included. Leave blank to create a fresh VM with `exe.dev new`. Your API token must allow `cp`: tokens list their permitted commands, and one without `cp` fails with a 403. When set, leave image, command, env, integrations, tags, setup script, prompt, and comment empty: `cp` cannot apply them, and saving fails until they are cleared.",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM creation",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM creation",
           },
           command: {
             type: "string",
             description: "Optional container command passed to `exe.dev new --command`.",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM creation",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM creation",
           },
           env: {
             type: "object",
             description: "Optional environment variables applied at VM creation time.",
             additionalProperties: { type: "string" },
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM creation",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM creation",
           },
           integrations: {
             type: "array",
             description: "Optional exe.dev integrations to attach during VM creation.",
             items: { type: "string" },
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM creation",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM creation",
           },
           tags: {
             type: "array",
             description: "Optional tags to apply during VM creation.",
             items: { type: "string" },
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM creation",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM creation",
           },
           setupScript: {
             type: "string",
             description: "Optional first-boot setup script passed to `exe.dev new --setup-script`.",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM creation",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM creation",
           },
           prompt: {
             type: "string",
             description: "Optional Shelley prompt passed to `exe.dev new --prompt`.",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM creation",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM creation",
           },
           comment: {
             type: "string",
             description: "Optional short note attached to created VMs.",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM creation",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM creation",
           },
           namePrefix: {
             type: "string",
             description: "Optional prefix used when generating VM names.",
-            default: "paperclip",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "VM creation",
+            default: "nexus",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "VM creation",
           },
           // ---- Advanced: API + runtime ----
           apiUrl: {
             type: "string",
             description:
               "Optional exe.dev HTTPS API base URL or /exec endpoint. Defaults to https://exe.dev/exec.",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "API + runtime",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "API + runtime",
           },
           timeoutMs: {
             type: "number",
             description: "Timeout for VM lifecycle and SSH operations in milliseconds.",
             default: 300000,
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "API + runtime",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "API + runtime",
           },
           reuseLease: {
             type: "boolean",
             description:
               "Whether to keep the VM alive between runs instead of deleting it on release.",
             default: false,
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "API + runtime",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "API + runtime",
           },
         },
       },

@@ -1,4 +1,4 @@
-import { heartbeatRuns, type Db } from "@paperclipai/db";
+import { heartbeatRuns, type Db } from "@nexusai/db";
 import { and, eq, getTableColumns, sql } from "drizzle-orm";
 
 type Run = typeof heartbeatRuns.$inferSelect;
@@ -9,10 +9,10 @@ export async function readReleaseRun(db: Db, scope: { companyId: string; runId: 
     ...getTableColumns(heartbeatRuns),
     contextSnapshot: sql<Run["contextSnapshot"]>`case when ${heartbeatRuns.runtimeMode} = 'native'
       and jsonb_typeof(${heartbeatRuns.contextSnapshot}) = 'object'
-      then ${heartbeatRuns.contextSnapshot} - array['executionContinuation', 'paperclipWake', 'paperclipWakeComment',
-        'paperclipTaskMarkdown', 'paperclipTaskMarkdownCompact', 'paperclipTaskMarkdownAssignment',
-        'paperclipTaskMarkdownAssignmentCompact', 'paperclipWorkspace', 'paperclipEnvironment',
-        'paperclipContinuationSummary']
+      then ${heartbeatRuns.contextSnapshot} - array['executionContinuation', 'nexusWake', 'nexusWakeComment',
+        'nexusTaskMarkdown', 'nexusTaskMarkdownCompact', 'nexusTaskMarkdownAssignment',
+        'nexusTaskMarkdownAssignmentCompact', 'nexusWorkspace', 'nexusEnvironment',
+        'nexusContinuationSummary']
       else ${heartbeatRuns.contextSnapshot} end`,
     runnerProfileJson: sql<Run["runnerProfileJson"]>`case when ${heartbeatRuns.runtimeMode} = 'native'
       then null else ${heartbeatRuns.runnerProfileJson} end`,

@@ -4,11 +4,11 @@ import { flushSync } from "react-dom";
 import { MemoryRouter } from "react-router-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { INSTANCE_FEATURE_KEYS } from "@paperclipai/shared";
+import { INSTANCE_FEATURE_KEYS } from "@nexusai/shared";
 import type {
   InstanceExperimentalSettings as InstanceExperimentalSettingsPayload,
   InstanceExperimentalSettingsWithManaged,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InstanceExperimentalSettings } from "./InstanceExperimentalSettings";
 import { queryKeys } from "../lib/queryKeys";
@@ -62,8 +62,8 @@ const DECISIONS_TOGGLE_SELECTOR =
   'button[aria-label="Toggle decisions experimental setting"]';
 const SERVER_INFO_TOGGLE_SELECTOR =
   'button[aria-label="Toggle server info debug view experimental setting"]';
-const PAPERCLIP_DEVELOPER_MODE_TOGGLE_SELECTOR =
-  'button[aria-label="Toggle Paperclip developer mode experimental setting"]';
+const NEXUS_DEVELOPER_MODE_TOGGLE_SELECTOR =
+  'button[aria-label="Toggle Nexus developer mode experimental setting"]';
 const BUILT_IN_AGENTS_TOGGLE_SELECTOR =
   'button[aria-label="Toggle built-in agents experimental setting"]';
 const BETA_SKILLS_TOGGLE_SELECTOR =
@@ -72,8 +72,8 @@ const SUMMARIES_TOGGLE_SELECTOR =
   'button[aria-label="Toggle summaries experimental setting"]';
 const STATUS_CARDS_TOGGLE_SELECTOR =
   'button[aria-label="Toggle status cards experimental setting"]';
-const PAPERCLIP_RUNNER_TOGGLE_SELECTOR =
-  'button[aria-label="Toggle Paperclip Runner experimental setting"]';
+const NEXUS_RUNNER_TOGGLE_SELECTOR =
+  'button[aria-label="Toggle Nexus Runner experimental setting"]';
 
 function defaultExperimentalSettings(): InstanceExperimentalSettingsPayload {
   return {
@@ -95,7 +95,7 @@ function defaultExperimentalSettings(): InstanceExperimentalSettingsPayload {
     enableChatConnectors: false,
     enableGitHubReviewBots: false,
     enableMemoryConnectors: false,
-    enablePaperclipNotebook: false,
+    enableNexusNotebook: false,
     enableCases: false,
     enableAgentChat: false,
     enableCombinedInboxTasks: false,
@@ -113,7 +113,7 @@ function defaultExperimentalSettings(): InstanceExperimentalSettingsPayload {
     enableFastResponses: false,
     enableGoalsSidebarLink: false,
     enableServerInfoDebugView: false,
-    enablePaperclipDeveloperMode: false,
+    enableNexusDeveloperMode: false,
     enableSimplifiedEnglishInteractions: false,
     enableFirstTaskPlanProposal: false,
     enableSmokeLab: false,
@@ -139,7 +139,7 @@ const ISOLATED_WORKSPACES_BY_DEFAULT_TOGGLE_SELECTOR =
   'button[aria-label="Toggle isolated workspaces by default experimental setting"]';
 
 function setWorktreeRuntimeMeta(enabled: boolean) {
-  const name = "paperclip-worktree-enabled";
+  const name = "nexus-worktree-enabled";
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
   if (enabled) {
     if (!meta) {
@@ -154,7 +154,7 @@ function setWorktreeRuntimeMeta(enabled: boolean) {
 }
 
 function setWorktreeInstanceIdMeta(instanceId: string | null) {
-  const name = "paperclip-instance-id";
+  const name = "nexus-instance-id";
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
   if (instanceId) {
     if (!meta) {
@@ -394,13 +394,13 @@ describe("InstanceExperimentalSettings — Conference Room Chat card (PAP-11233)
     )).toBeNull();
   });
 
-  it("keeps Paperclip Runner default-off and exposes an explicit opt-in", async () => {
+  it("keeps Nexus Runner default-off and exposes an explicit opt-in", async () => {
     await renderPage();
 
-    expect(container.textContent).toContain("Paperclip Runner");
+    expect(container.textContent).toContain("Nexus Runner");
     expect(container.textContent).toContain("First-run setup offers qualified GitHub Copilot");
     const toggle = container.querySelector<HTMLButtonElement>(
-      PAPERCLIP_RUNNER_TOGGLE_SELECTOR,
+      NEXUS_RUNNER_TOGGLE_SELECTOR,
     );
     expect(toggle?.getAttribute("aria-checked")).toBe("false");
 
@@ -688,7 +688,7 @@ describe("InstanceExperimentalSettings — Conference Room Chat card (PAP-11233)
     await renderPage();
 
     expect(container.textContent).toContain("Built-in Agents");
-    expect(container.textContent).toContain("Show Paperclip-managed built-in agent surfaces");
+    expect(container.textContent).toContain("Show Nexus-managed built-in agent surfaces");
 
     const toggle = container.querySelector<HTMLButtonElement>(BUILT_IN_AGENTS_TOGGLE_SELECTOR);
     expect(toggle?.getAttribute("aria-checked")).toBe("false");
@@ -708,7 +708,7 @@ describe("InstanceExperimentalSettings — Conference Room Chat card (PAP-11233)
     await renderPage();
 
     expect(container.textContent).toContain("Beta skills");
-    expect(container.textContent).toContain("pin beta releases of the Paperclip core skill");
+    expect(container.textContent).toContain("pin beta releases of the Nexus core skill");
 
     const toggle = container.querySelector<HTMLButtonElement>(BETA_SKILLS_TOGGLE_SELECTOR);
     expect(toggle?.getAttribute("aria-checked")).toBe("false");
@@ -814,14 +814,14 @@ describe("InstanceExperimentalSettings — Conference Room Chat card (PAP-11233)
     expect(toggle?.getAttribute("aria-checked")).toBe("true");
   });
 
-  it("renders and patches Paperclip Developer Mode", async () => {
+  it("renders and patches Nexus Developer Mode", async () => {
     await renderPage();
 
-    expect(container.textContent).toContain("Paperclip Developer Mode");
+    expect(container.textContent).toContain("Nexus Developer Mode");
     expect(container.textContent).toContain("including Honeycomb trace queries on run pages");
 
     const toggle = container.querySelector<HTMLButtonElement>(
-      PAPERCLIP_DEVELOPER_MODE_TOGGLE_SELECTOR,
+      NEXUS_DEVELOPER_MODE_TOGGLE_SELECTOR,
     );
     expect(toggle?.getAttribute("aria-checked")).toBe("false");
 
@@ -831,7 +831,7 @@ describe("InstanceExperimentalSettings — Conference Room Chat card (PAP-11233)
     await flushReact();
 
     expect(mockInstanceSettingsApi.updateExperimental).toHaveBeenCalledWith({
-      enablePaperclipDeveloperMode: true,
+      enableNexusDeveloperMode: true,
     });
     expect(toggle?.getAttribute("aria-checked")).toBe("true");
   });
@@ -839,7 +839,7 @@ describe("InstanceExperimentalSettings — Conference Room Chat card (PAP-11233)
 });
 
 describe("InstanceExperimentalSettings — cloud-managed keys", () => {
-  const MANAGED_BADGE_TEXT = "Managed by Paperclip Cloud";
+  const MANAGED_BADGE_TEXT = "Managed by Nexus Cloud";
 
   let container: HTMLDivElement;
   let root: Root | null = null;
@@ -887,7 +887,7 @@ describe("InstanceExperimentalSettings — cloud-managed keys", () => {
       ...defaultExperimentalSettings(),
       enableBuiltInAgents: true,
       managedKeys: {
-        enableBuiltInAgents: { managed: true, managedBy: "paperclip-cloud" },
+        enableBuiltInAgents: { managed: true, managedBy: "nexus-cloud" },
       },
     });
 
@@ -919,7 +919,7 @@ describe("InstanceExperimentalSettings — cloud-managed keys", () => {
       enableIsolatedWorkspaces: true,
       enableIsolatedWorkspacesByDefault: true,
       managedKeys: {
-        enableIsolatedWorkspacesByDefault: { managed: true, managedBy: "paperclip-cloud" },
+        enableIsolatedWorkspacesByDefault: { managed: true, managedBy: "nexus-cloud" },
       },
     });
 
@@ -938,7 +938,7 @@ describe("InstanceExperimentalSettings — cloud-managed keys", () => {
   it("keeps a managed chat connectors setting locked", async () => {
     await renderPage({
       ...defaultExperimentalSettings(),
-      managedKeys: { enableChatConnectors: { managed: true, managedBy: "paperclip-cloud" } },
+      managedKeys: { enableChatConnectors: { managed: true, managedBy: "nexus-cloud" } },
     });
     const toggle = container.querySelector<HTMLButtonElement>('button[aria-label="Toggle chat connectors experimental setting"]');
     expect(toggle?.disabled).toBe(true);
@@ -952,7 +952,7 @@ describe("InstanceExperimentalSettings — cloud-managed keys", () => {
     await renderPage({
       ...defaultExperimentalSettings(),
       managedKeys: {
-        enableSummaries: { managed: true, managedBy: "paperclip-cloud" },
+        enableSummaries: { managed: true, managedBy: "nexus-cloud" },
       },
     });
 
@@ -970,7 +970,7 @@ describe("InstanceExperimentalSettings — cloud-managed keys", () => {
       enableSummaries: true,
       enableStatusCards: true,
       managedKeys: {
-        enableStatusCards: { managed: true, managedBy: "paperclip-cloud" },
+        enableStatusCards: { managed: true, managedBy: "nexus-cloud" },
       },
     });
 
@@ -1046,7 +1046,7 @@ describe("InstanceExperimentalSettings — card ordering and headings (PAP-393)"
     );
     expect(headings).toEqual([
       "Experimental features",
-      "Paperclip Developer Mode",
+      "Nexus Developer Mode",
       "Legacy",
     ]);
 
@@ -1144,7 +1144,7 @@ describe("InstanceExperimentalSettings — operator-hidden cards", () => {
     await renderPage(undefined, {
       ...defaultExperimentalSettings(),
       enableAiConnectionRouters: enabled,
-      ...(cloud ? { managedKeys: { enableAiConnectionRouters: { managed: true, managedBy: "paperclip-cloud" as const } } } : {}),
+      ...(cloud ? { managedKeys: { enableAiConnectionRouters: { managed: true, managedBy: "nexus-cloud" as const } } } : {}),
     });
 
     expect(container.textContent).toContain("Experimental features");
@@ -1157,13 +1157,13 @@ describe("InstanceExperimentalSettings — operator-hidden cards", () => {
     { enabled: false, developerMode: false }, { enabled: true, developerMode: false },
     { enabled: false, developerMode: true }, { enabled: true, developerMode: true },
   ])("never offers a Notebook control with enabled=$enabled and developerMode=$developerMode", async ({ enabled, developerMode }) => {
-    await renderPage(undefined, { ...defaultExperimentalSettings(), enablePaperclipNotebook: enabled,
-      enablePaperclipDeveloperMode: developerMode,
-      managedKeys: { enablePaperclipNotebook: { managed: true, managedBy: "paperclip-cloud" } },
+    await renderPage(undefined, { ...defaultExperimentalSettings(), enableNexusNotebook: enabled,
+      enableNexusDeveloperMode: developerMode,
+      managedKeys: { enableNexusNotebook: { managed: true, managedBy: "nexus-cloud" } },
     });
     expect(container.textContent).toContain("Experimental features");
-    expect(container.textContent).not.toContain("Paperclip Notebook");
-    expect(container.querySelector('button[aria-label="Toggle Paperclip Notebook experimental setting"]')).toBeNull();
+    expect(container.textContent).not.toContain("Nexus Notebook");
+    expect(container.querySelector('button[aria-label="Toggle Nexus Notebook experimental setting"]')).toBeNull();
     expect(mockInstanceSettingsApi.updateExperimental).not.toHaveBeenCalled();
   });
 
@@ -1184,9 +1184,9 @@ describe("InstanceExperimentalSettings — operator-hidden cards", () => {
         ...defaultExperimentalSettings(),
         enableIsolatedWorkspaces: true,
         enableIsolatedWorkspacesByDefault: true,
-        enablePaperclipDeveloperMode: true,
+        enableNexusDeveloperMode: true,
         managedKeys: {
-          enableIsolatedWorkspacesByDefault: { managed: true, managedBy: "paperclip-cloud" },
+          enableIsolatedWorkspacesByDefault: { managed: true, managedBy: "nexus-cloud" },
         },
       },
     );
@@ -1204,9 +1204,9 @@ describe("InstanceExperimentalSettings — operator-hidden cards", () => {
   });
 
   it("retains a section when one of its controls is visible", async () => {
-    const visible = new Set(["enablePaperclipDeveloperMode", "enableGoalsSidebarLink"]);
+    const visible = new Set(["enableNexusDeveloperMode", "enableGoalsSidebarLink"]);
     await renderPage(INSTANCE_FEATURE_KEYS.filter((key) => !visible.has(key)).map((key) => `instance.experimental.${key}`));
-    expect(container.querySelector('[aria-labelledby="developer-mode-heading"] h3')?.textContent).toBe("Paperclip Developer Mode");
+    expect(container.querySelector('[aria-labelledby="developer-mode-heading"] h3')?.textContent).toBe("Nexus Developer Mode");
     expect(container.querySelector('[aria-labelledby="legacy-heading"] h3')?.textContent).toBe("Goals Sidebar Link");
   });
 

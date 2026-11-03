@@ -12,7 +12,7 @@ import {
 const temporaryRoots: string[] = [];
 
 function makeTemporaryRoot(): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-port-registry-lock-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-port-registry-lock-"));
   temporaryRoots.push(root);
   return root;
 }

@@ -1,5 +1,5 @@
 // Separate process: only the provider command sink is simulated.
-import { createDb } from "@paperclipai/db";
+import { createDb } from "@nexusai/db";
 import { createDeliveryWorkCoordinator } from "../../services/delivery-work-coordinator.ts";
 import { deploymentNotifications } from "../../services/deployment-notifications.ts";
 import { questionResponseDeliveryService, registerQuestionResponseDeliveryWork } from "../../services/question-response-delivery.ts";

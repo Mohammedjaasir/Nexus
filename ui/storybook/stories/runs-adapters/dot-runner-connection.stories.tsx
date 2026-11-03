@@ -17,7 +17,7 @@ function installFixture(connected: boolean) {
       binding = connection("pairing");
       return Response.json({ bindingId: binding.id, pairingCode: "dot_pair_SYNTHETIC_PREVIEW_CODE", expiresAt: new Date(Date.now() + 600_000).toISOString() });
     }
-    return Response.json({ enabled: true, resourceUrl: "https://paperclip.example/mcp/runner", binding });
+    return Response.json({ enabled: true, resourceUrl: "https://nexus.example/mcp/runner", binding });
   };
   return () => { window.fetch = original; };
 }
@@ -36,7 +36,7 @@ const meta = {
   id: "assistant-connections-dot-runner",
   title: "Agents and reusable capabilities/Runs, harnesses, and model accounts/Assistant connections/Dot Runner", component: ConnectionForm,
   parameters: { layout: "padded", docs: { description: { component: "Production Dot pairing component. API responses, pairing code and account state are synthetic. This preview does not qualify a real Dot account." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "runs-adapters/validation",
         "gateways-profiles/client-connect"

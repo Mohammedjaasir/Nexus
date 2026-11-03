@@ -20,7 +20,7 @@ describe("local heartbeat process-tree settlement", () => {
   });
 
   it.skipIf(process.platform === "win32")("holds a closed-stdio background writer after its real adapter parent returns, without scratch", async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), "paperclip-process-settlement-"));
+    const dir = await mkdtemp(path.join(tmpdir(), "nexus-process-settlement-"));
     const output = path.join(dir, "background-writes.txt");
     let identity: Parameters<typeof hasStoppedLocalProcessTree>[0] | null = null;
     const writer = "const fs=require('node:fs');setInterval(()=>fs.appendFileSync(process.argv[1],'write\\n'),20)";

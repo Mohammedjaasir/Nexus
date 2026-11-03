@@ -1,4 +1,4 @@
-# Paperclip — Product Definition
+# Nexus — Product Definition
 
 Reusable workflows stay inside the Cases experiment. A workflow is a company-shared
 name and Markdown prompt; a case may adopt, leave and revisit workflows without
@@ -10,7 +10,7 @@ workflow information and history.
 
 ## What It Is
 
-Paperclip is the control plane for autonomous AI companies. One instance of Paperclip can run multiple companies. A **company** is a first-order object.
+Nexus is the control plane for autonomous AI companies. One instance of Nexus can run multiple companies. A **company** is a first-order object.
 
 ## Core Concepts
 
@@ -30,7 +30,7 @@ Every employee is an agent. When you create a company, you start by defining the
 
 Each employee has:
 
-- **Adapter type + config** — how this agent runs and what defines its identity/behavior. This is adapter-specific (e.g., an OpenClaw agent might use SOUL.md and HEARTBEAT.md files; a Claude Code agent might use CLAUDE.md; a bare script might use CLI args). Paperclip doesn't prescribe the format — the adapter does.
+- **Adapter type + config** — how this agent runs and what defines its identity/behavior. This is adapter-specific (e.g., an OpenClaw agent might use SOUL.md and HEARTBEAT.md files; a Claude Code agent might use CLAUDE.md; a bare script might use CLI args). Nexus doesn't prescribe the format — the adapter does.
 - **Role & reporting** — their title, who they report to, who reports to them
 - **Capabilities description** — a short paragraph on what this agent does and when they're relevant (helps other agents discover who can help with what)
 
@@ -56,7 +56,7 @@ It edits the same configuration as the regular settings pages, validates before 
 stale edits. See [Agent configuration YAML](agent-configuration-yaml.md).
 
 Existing Claude, Codex, and Grok Build agents can upgrade from the legacy runner on their
-Harness / Runtime page when Paperclip Runner is the qualified default for their
+Harness / Runtime page when Nexus Runner is the qualified default for their
 environment. One action saves pending edits and translates compatible settings
 while keeping the harness, selected model, account bindings, instructions, and
 history. Unsupported settings produce an actionable error without changing the
@@ -67,14 +67,14 @@ configuration permission as saving the upgrade. The server checks the saved
 computer and its company binding. Company owners do not need instance-admin
 access for this step; general instance environment management remains restricted.
 
-Paperclip supports several ways to run an agent's heartbeat:
+Nexus supports several ways to run an agent's heartbeat:
 
-1. **Local CLI/session adapters** — Paperclip starts or resumes local coding-tool sessions such as Claude Code, Codex, Gemini, OpenCode, Pi, and Cursor, then tracks the run.
-2. **Run a command** — Paperclip kicks off a process (shell command, Python script, etc.) and tracks it. The heartbeat is "execute this and monitor it."
-3. **Fire and forget a request** — Paperclip sends a webhook/API call to an externally running agent. The heartbeat is "notify this agent to wake up." OpenClaw-style hooks work this way.
-4. **External adapter plugins** — Paperclip loads adapter packages through the plugin/adapter flow so self-hosted installs can add runtimes without hardcoding them in core.
+1. **Local CLI/session adapters** — Nexus starts or resumes local coding-tool sessions such as Claude Code, Codex, Gemini, OpenCode, Pi, and Cursor, then tracks the run.
+2. **Run a command** — Nexus kicks off a process (shell command, Python script, etc.) and tracks it. The heartbeat is "execute this and monitor it."
+3. **Fire and forget a request** — Nexus sends a webhook/API call to an externally running agent. The heartbeat is "notify this agent to wake up." OpenClaw-style hooks work this way.
+4. **External adapter plugins** — Nexus loads adapter packages through the plugin/adapter flow so self-hosted installs can add runtimes without hardcoding them in core.
 
-Agent runs can use project and execution workspaces, managed runtime services such as preview/dev servers, adapter-specific session state, and HTTP/webhook-style execution. We provide sensible defaults, but the adapter is still the boundary: if a runtime can be invoked, observed, and authorized, Paperclip can coordinate it.
+Agent runs can use project and execution workspaces, managed runtime services such as preview/dev servers, adapter-specific session state, and HTTP/webhook-style execution. We provide sensible defaults, but the adapter is still the boundary: if a runtime can be invoked, observed, and authorized, Nexus can coordinate it.
 
 ### Task Management
 
@@ -199,7 +199,7 @@ Source feeds and project task lists retain their existing access rules.
 
 Company skills are shared operating capabilities, not privileged objects by default. Every authenticated agent in a company can create, import, install, edit, update, test, reset, and remove that company's skills unless the company has configured an explicit restriction.
 
-Paperclip-managed skills are immutable saved versions. Studio and API authoring
+Nexus-managed skills are immutable saved versions. Studio and API authoring
 publish complete content before acknowledging a save; stale edits return a version
 conflict and Studio retains the draft. Installed repository skills use the same
 version-based reads and execution selection. Web-server files are disposable caches
@@ -211,10 +211,10 @@ for conversion, compatibility and qualification boundaries.
 
 The governing rule is: **skill permissions are opt-in restrictions, not opt-in capabilities**. Missing skill grants never create a denial in an otherwise unconfigured company, and ordinary skill work does not require board confirmation, a draft-only workflow, or an activation approval.
 
-Core Paperclip owns the skill runtime, company-boundary enforcement, policy evaluation contract, API denials, validation, path containment, secret redaction, and activity logging. Those safety invariants cannot be disabled by policy. Open-by-default skill work never authorizes arbitrary host-path reads, unsafe executable content, or policy edits: local imports and scans must stay within Paperclip-known workspace or managed-skill roots, remote sources must resolve to validated immutable content, and platform safety denials must stay distinct from optional administrative restrictions. Paperclip EE may provide detailed administration for per-agent, per-role, per-action, per-source, and protected-skill rules, but EE is not required to use skills and is not an enforcement boundary. Without EE, companies remain open by default and any already-configured restrictions continue to be enforced by core.
+Core Nexus owns the skill runtime, company-boundary enforcement, policy evaluation contract, API denials, validation, path containment, secret redaction, and activity logging. Those safety invariants cannot be disabled by policy. Open-by-default skill work never authorizes arbitrary host-path reads, unsafe executable content, or policy edits: local imports and scans must stay within Nexus-known workspace or managed-skill roots, remote sources must resolve to validated immutable content, and platform safety denials must stay distinct from optional administrative restrictions. Nexus EE may provide detailed administration for per-agent, per-role, per-action, per-source, and protected-skill rules, but EE is not required to use skills and is not an enforcement boundary. Without EE, companies remain open by default and any already-configured restrictions continue to be enforced by core.
 
 GitHub repositories attached to new projects automatically become skill sources.
-Paperclip imports their skills and checks the configured branch every five minutes,
+Nexus imports their skills and checks the configured branch every five minutes,
 using the setup person's authorized GitHub connection. New skills import automatically
 unless excluded. Existing projects can adopt their repositories from Skills → Sources;
 existing manually imported sources preserve their selections and gain automatic updates.
@@ -224,7 +224,7 @@ default branch marked. People can also enter a branch name that is not listed.
 Saving checks GitHub access and the selected ref before changing tracking; failed
 saves keep the selection and installed content. Project refs remain owned by project
 configuration so changing a source cannot redirect another project's tracking.
-If a repository exceeds the supported package size, Paperclip first packages its
+If a repository exceeds the supported package size, Nexus first packages its
 skill folders and referenced repository files, preserving their original paths.
 Missing references are advisory: a valid selected skill can still be imported.
 Unavailable files are listed, and existing installed dependencies are retained
@@ -262,19 +262,19 @@ An explicit restricted policy may deny selected operations or switch to a defaul
 
 ## Principles
 
-1. **Unopinionated about how you run your agents.** Your agents could be OpenClaw bots, Python scripts, Node scripts, Claude Code sessions, Codex instances — we don't care. Paperclip defines the control plane for communication and provides utility infrastructure for heartbeats. It does not mandate an agent runtime.
+1. **Unopinionated about how you run your agents.** Your agents could be OpenClaw bots, Python scripts, Node scripts, Claude Code sessions, Codex instances — we don't care. Nexus defines the control plane for communication and provides utility infrastructure for heartbeats. It does not mandate an agent runtime.
 
-2. **Company is the unit of organization.** Everything lives under a company. One Paperclip instance, many companies.
+2. **Company is the unit of organization.** Everything lives under a company. One Nexus instance, many companies.
 
 3. **Adapter config defines the agent.** Every agent has an adapter type and configuration that controls its identity and behavior. The minimum contract is just "be callable."
 
 4. **All work traces to the goal.** Hierarchical task management means nothing exists in isolation. If you can't explain why a task matters to the company goal, it shouldn't exist.
 
-5. **Control plane, not execution plane.** Paperclip orchestrates. Agents run wherever they run and phone home.
+5. **Control plane, not execution plane.** Nexus orchestrates. Agents run wherever they run and phone home.
 
 ## User Flow (Dream Scenario)
 
-1. Open Paperclip, create a new company
+1. Open Nexus, create a new company
 2. Define the company's goal: "Create the #1 AI note-taking app, $1M MRR in 3 months"
 3. Create the CEO
    - Choose an adapter (e.g., process adapter for Claude Code, HTTP adapter for OpenClaw)
@@ -288,7 +288,7 @@ An explicit restricted policy may deny selected operations or switch to a defaul
 
 ## Guidelines
 
-There are two runtime modes Paperclip must support:
+There are two runtime modes Nexus must support:
 
 - `local_trusted` (default): single-user local trusted deployment with no login friction
 - `authenticated`: login-required mode that supports both private-network and public deployment exposure policies
@@ -301,9 +301,9 @@ See [SPEC.md](./SPEC.md) for the full technical specification and [TASKS.md](./T
 
 ---
 
-Paperclip’s core identity is a **control plane for autonomous AI companies**, centered on **companies, org charts, goals, issues/comments, heartbeats, budgets, approvals, and board governance**. The public docs are also explicit about the current boundaries: **tasks/comments are the built-in communication model**, Paperclip is **not a chatbot**, and it is **not a code review tool**. The roadmap already points toward **easier onboarding, cloud agents, easier agent configuration, plugins, better docs, and ClipMart/ClipHub-style reusable companies/templates**.
+Nexus’s core identity is a **control plane for autonomous AI companies**, centered on **companies, org charts, goals, issues/comments, heartbeats, budgets, approvals, and board governance**. The public docs are also explicit about the current boundaries: **tasks/comments are the built-in communication model**, Nexus is **not a chatbot**, and it is **not a code review tool**. The roadmap already points toward **easier onboarding, cloud agents, easier agent configuration, plugins, better docs, and ClipMart/ClipHub-style reusable companies/templates**.
 
-## What Paperclip should do vs. not do
+## What Nexus should do vs. not do
 
 **Do**
 
@@ -318,8 +318,8 @@ Paperclip’s core identity is a **control plane for autonomous AI companies**, 
 **Do not**
 
 - Do not make the core product a general chat app. The current product definition is explicitly task/comment-centric and “not a chatbot,” and that boundary is valuable.
-- Do not build a complete Jira/GitHub replacement. The repo/docs already position Paperclip as organization orchestration, not focused on pull-request review.
-- Do not build enterprise-grade RBAC first. Paperclip now has authenticated mode, company memberships, instance roles, and permission grants, but fine-grained enterprise governance should remain secondary to the core company control plane.
+- Do not build a complete Jira/GitHub replacement. The repo/docs already position Nexus as organization orchestration, not focused on pull-request review.
+- Do not build enterprise-grade RBAC first. Nexus now has authenticated mode, company memberships, instance roles, and permission grants, but fine-grained enterprise governance should remain secondary to the core company control plane.
 - Do not interpret agent-profile privacy flags as project/issue privacy. Work remains company-open by default, while explicitly private issues and projects use their own task ACLs.
 - Do not lead with raw bash logs and transcripts. Default view should be human-readable intent/progress, with raw detail beneath.
 - Do not force users to understand provider/API-key plumbing unless absolutely necessary. There are active onboarding/auth issues already; friction here is clearly real.
@@ -359,13 +359,13 @@ A Photon Cloud project can represent one agent through the existing
 experimental channel subsystem. DMs and explicitly enabled groups create or
 continue task-bound conversations. Linked sender identity is the default;
 telephone numbers, email addresses, names, and group membership do not grant
-Paperclip authority. Photos/files and ordinary questions/confirmations use the
+Nexus authority. Photos/files and ordinary questions/confirmations use the
 existing attachment, interaction, continuation, and publication contracts.
 Pause and Disconnect govern runtime behavior independently of the UI gate.
 Local Mac access, unsolicited conversations, and SMS/RCS
 fallback are excluded. Live qualification is required before release readiness.
 Pro shared allocation supports DMs only, with sender enrollment in Photon and
-separate identity linking in Paperclip. Shared channels reserve one project, not
+separate identity linking in Nexus. Shared channels reserve one project, not
 a pool phone number; group admission and publication are disabled. Dedicated
 allocation retains one selected number and individually enabled groups.
 
@@ -396,7 +396,7 @@ Confirmed project creation appears as a durable card in the shared task transcri
 ### In-app announcements
 
 An optional announcement card shares product news with board users on opening
-or returning to Paperclip. Dismissals persist per user across companies and
+or returning to Nexus. Dismissals persist per user across companies and
 browsers within an instance. Operators can disable fetching independently of
 telemetry. See [Announcements](ANNOUNCEMENTS.md).
 
@@ -438,7 +438,7 @@ limited. Download retains the complete file.
 ### Filesystem access boundary (2026-10-20)
 
 Filesystem isolation belongs to the OS, execution environment, and storage layout.
-Paperclip authorizes the current task/run, company, explicitly selected configuration,
+Nexus authorizes the current task/run, company, explicitly selected configuration,
 execution policy, and repository credentials. It does not infer file permissions from
 other tasks or agents that previously used the same directory, overlapping roots,
 symlink aliases, or shared Git storage. Existing files under an authorized task root

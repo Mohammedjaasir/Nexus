@@ -10,12 +10,12 @@ import {
 
 describe("pi models", () => {
   afterEach(() => {
-    delete process.env.PAPERCLIP_PI_COMMAND;
+    delete process.env.NEXUS_PI_COMMAND;
     resetPiModelsCacheForTests();
   });
 
   it("returns an empty list when discovery command is unavailable", async () => {
-    process.env.PAPERCLIP_PI_COMMAND = "__paperclip_missing_pi_command__";
+    process.env.NEXUS_PI_COMMAND = "__nexus_missing_pi_command__";
     await expect(listPiModels()).resolves.toEqual([]);
   });
 
@@ -26,7 +26,7 @@ describe("pi models", () => {
   });
 
   it("rejects when discovery cannot run for configured model", async () => {
-    process.env.PAPERCLIP_PI_COMMAND = "__paperclip_missing_pi_command__";
+    process.env.NEXUS_PI_COMMAND = "__nexus_missing_pi_command__";
     await expect(
       ensurePiModelConfiguredAndAvailable({
         model: "xai/grok-4",
@@ -35,7 +35,7 @@ describe("pi models", () => {
   });
 
   it("does not embed the model catalogue when the configured model is unavailable", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "paperclip-pi-models-"));
+    const directory = await mkdtemp(join(tmpdir(), "nexus-pi-models-"));
     const command = join(directory, "pi");
     const modelIds = Array.from({ length: 13 }, (_, index) => `provider/model-${index}`);
     await writeFile(

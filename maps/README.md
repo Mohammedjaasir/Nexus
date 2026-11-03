@@ -1,4 +1,4 @@
-# Paperclip maps
+# Nexus maps
 
 The maps describe the same capabilities from two perspectives:
 
@@ -149,7 +149,7 @@ conditions rather than treating an API path as conversational coverage.
 owns reconciliation of both maps. It follows changed source and authorization,
 checks real agent reachability, and records product gaps without implementing
 them during a maintenance pass. The creation skill uses this structure.
-[verify-paperclip](../.agents/skills/verify-paperclip/SKILL.md) consumes the relevant
+[verify-nexus](../.agents/skills/verify-nexus/SKILL.md) consumes the relevant
 recipes and reports evidence/drift; map editing belongs to maintenance.
 
 Run the structural check after map changes:
@@ -163,7 +163,7 @@ does not certify endpoint authorization, production bindings, operation
 completeness, or live behavior. Source audits must check those against the
 existing API and tool contracts; avoid a second schema catalog or runtime.
 
-For live access proof, use Paperclip's existing API/runner/MCP fixtures or an owned
+For live access proof, use Nexus's existing API/runner/MCP fixtures or an owned
 isolated instance. Use the actual agent identity, target and work mode. Assert the
 allowed result and relevant denial (another company/private resource, wrong
 owner, missing grant, invalid run, restricted mode or resolver). Mutations also
@@ -175,7 +175,7 @@ separate from generated `maps/generated/coverage.json`, which lists page referen
 
 Change only the recipes, access contracts and stories whose behavior or intent
 changed. Feature recipes own navigation metadata; stories own small
-`parameters.paperclip` annotations. Keep the feature-map README's readable ID
+`parameters.nexus` annotations. Keep the feature-map README's readable ID
 index aligned with those sources; it does not register entries for generation.
 Do not refresh counts in shared READMEs, inventories, fingerprints or review
 journals.

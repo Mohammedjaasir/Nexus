@@ -5,7 +5,7 @@ import { expect, it } from "vitest";
 import { makeDirectoryTreeRemovable } from "./directory-cleanup.js";
 
 it("removes a retired home with immutable bundles without changing linked dependencies", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "paperclip-retired-home-"));
+  const root = await mkdtemp(path.join(tmpdir(), "nexus-retired-home-"));
   const home = path.join(root, "controller"), external = path.join(root, "external");
   const bundle = path.join(home, "runtime-context-assets/bundles/digest");
   try {

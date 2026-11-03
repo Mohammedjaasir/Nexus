@@ -14,7 +14,7 @@ current master before merge.
 ## Native browser acceptance
 
 A fresh test-drive instance started without tasks or prior runs. The test agent
-used paperclip_runner with Codex. Browser actions created a task in the fixture
+used nexus_runner with Codex. Browser actions created a task in the fixture
 project, requested the notes, and sent two follow-up messages. The test server
 was restarted between the first answer and the follow-ups.
 
@@ -55,7 +55,7 @@ follow-up all succeeded on the same provider thread.
 - A separate warning about missing system bubblewrap remained visible.
   Codex used its bundled copy. The change does not suppress that warning.
 
-The sandbox was deleted after evidence collection. Remote Paperclip UI and
+The sandbox was deleted after evidence collection. Remote Nexus UI and
 remote Rust execution were not tested.
 
 ## Hook trust and experience limits

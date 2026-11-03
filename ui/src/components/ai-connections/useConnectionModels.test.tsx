@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { AiConnectionBinding, AiManagedConnectionSummary } from "@paperclipai/shared";
+import type { AiConnectionBinding, AiManagedConnectionSummary } from "@nexusai/shared";
 import { aiConnectionsApi } from "@/api/ai-connections";
 import { agentsApi } from "@/api/agents";
 import { useConnectionModels } from "./useConnectionModels";
@@ -75,7 +75,7 @@ it("does not reuse public OpenRouter models after switching to a custom gateway"
   await vi.waitFor(() => expect(result?.models).toEqual(catalog));
   await render({ provider: "openai", method: "api_key", mode: "shared", connectionId: gateway.id, grantId: gateway.grantId });
   expect(result?.models).toEqual([]);
-  expect(result?.resolveModel("private-model")).toBe("paperclip/private-model");
+  expect(result?.resolveModel("private-model")).toBe("nexus/private-model");
   expect(result?.refreshModels).toBeUndefined();
 });
 

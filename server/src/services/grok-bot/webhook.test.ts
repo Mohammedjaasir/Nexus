@@ -6,7 +6,7 @@ vi.mock("../remote-http-fetch.js", () => ({ guardedRemoteHttpFetch: vi.fn() }));
 afterEach(() => vi.resetAllMocks());
 
 const secret = { webhookUrl: "https://bot.example.test/routines/synthetic/trigger", webhookKey: "qualification-only-secret" };
-const wake: GrokRoutineWake = { schema: "paperclip.external_bot_wake.v1", kind: "verify",
+const wake: GrokRoutineWake = { schema: "nexus.external_bot_wake.v1", kind: "verify",
   bindingId: "12345678-1234-4234-8234-123456789012", bindingGeneration: 1,
   correlationId: "87654321-1234-4234-8234-123456789012", challenge: "a-unique-challenge-for-mcp" };
 

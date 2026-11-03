@@ -29,10 +29,10 @@ No sampling inside a selected run.
 - Branch: `codex/ci-honeycomb-profiling` in the existing `76aa` worktree.
 - PR: https://github.com/paperclipai/paperclip/pull/16378
 - Baseline: GitHub run `38671274294`, 48 jobs, 479 seconds from creation to last
-  job completion. Raw GitHub evidence is in `/tmp/paperclip-ci-profile-evidence`.
-- Honeycomb: existing `paperclip` team / `test` environment; dedicated `paperclip-ci`
+  job completion. Raw GitHub evidence is in `/tmp/nexus-ci-profile-evidence`.
+- Honeycomb: existing `nexus` team / `test` environment; dedicated `nexus-ci`
   dataset. Authorized local configuration key ingested the historical baseline;
-  verified 731 spans and 7m 59s in the [live Honeycomb waterfall](https://ui.honeycomb.io/paperclip/environments/test/datasets/paperclip-ci/trace/oaPMzw8zGwG).
+  verified 731 spans and 7m 59s in the [live Honeycomb waterfall](https://ui.honeycomb.io/nexus/environments/test/datasets/nexus-ci/trace/oaPMzw8zGwG).
 - Implemented label selection, full-suite override, test timing reporters, trusted
   post-run exporter, direct waterfall link, and missing-data diagnostics.
 - Verified: 48-job / 731-span historical reconstruction; 508 workflow/reporter/shard
@@ -43,7 +43,7 @@ No sampling inside a selected run.
   with the unchanged base configuration and test/service files on this macOS
   Node 24.11.0 host. The PR body records the latest remote CI and review results.
 - Created and verified the repository `profile-ci` label. Dedicated Honeycomb
-  ingest key `paperclip-ci-profile` has no dataset-creation permission. It is
+  ingest key `nexus-ci-profile` has no dataset-creation permission. It is
   stored only as `HONEYCOMB_CI_API_KEY` in the `ci-profiling` GitHub environment,
   restricted to the `master` branch. Temporary key file removed; both credentials
   scanned absent from repository files and branch history.

@@ -21,7 +21,7 @@ import {
   principalPermissionGrants,
   userSecretDeclarations,
   userSecretDefinitions,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { errorHandler } from "../middleware/index.js";
 import { agentRoutes } from "../routes/agents.js";
@@ -69,13 +69,13 @@ function createApp(db: Db, actor: Express.Request["actor"]) {
 describeEmbeddedPostgres("hired agent provider credential inheritance", () => {
   let db!: Db;
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
-  const previousKeyFile = process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
-  const secretsTmpDir = path.join(os.tmpdir(), `paperclip-agent-hire-auth-inheritance-${randomUUID()}`);
+  const previousKeyFile = process.env.NEXUS_SECRETS_MASTER_KEY_FILE;
+  const secretsTmpDir = path.join(os.tmpdir(), `nexus-agent-hire-auth-inheritance-${randomUUID()}`);
 
   beforeAll(async () => {
     mkdirSync(secretsTmpDir, { recursive: true });
-    process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = path.join(secretsTmpDir, "master.key");
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-agent-hire-auth-inheritance-");
+    process.env.NEXUS_SECRETS_MASTER_KEY_FILE = path.join(secretsTmpDir, "master.key");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-agent-hire-auth-inheritance-");
     db = createDb(tempDb.connectionString);
   }, 60_000);
 
@@ -98,9 +98,9 @@ describeEmbeddedPostgres("hired agent provider credential inheritance", () => {
   afterAll(async () => {
     await tempDb?.cleanup();
     if (previousKeyFile === undefined) {
-      delete process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
+      delete process.env.NEXUS_SECRETS_MASTER_KEY_FILE;
     } else {
-      process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = previousKeyFile;
+      process.env.NEXUS_SECRETS_MASTER_KEY_FILE = previousKeyFile;
     }
     rmSync(secretsTmpDir, { recursive: true, force: true });
   });
@@ -268,11 +268,11 @@ describeEmbeddedPostgres("hired agent provider credential inheritance", () => {
   it.each(["create", "hire"] as const)("blocks native Claude credential redirection before %s inheritance", async mode => {
     const companyId = await seedCompany();
     const secret = await createCompanySecret(companyId, "fixture-parent-credential");
-    const parent = await seedParentAgent(companyId, "paperclip_runner", { ANTHROPIC_API_KEY: secretRef(secret.id) });
+    const parent = await seedParentAgent(companyId, "nexus_runner", { ANTHROPIC_API_KEY: secretRef(secret.id) });
     await db.update(agents).set({ adapterConfig: { provider: "acpx", acpxAgent: "claude", env: { ANTHROPIC_API_KEY: secretRef(secret.id) } } }).where(eq(agents.id, parent.id));
     const app = createApp(db, agentActor(companyId, parent.id));
     const res = await request(app).post(`/api/companies/${companyId}/${mode === "hire" ? "agent-hires" : "agents"}`).send({
-      name: "Redirected child", role: "engineer", adapterType: "paperclip_runner",
+      name: "Redirected child", role: "engineer", adapterType: "nexus_runner",
       adapterConfig: { provider: "acpx", acpxAgent: "claude", env: { ANTHROPIC_BASE_URL: "https://untrusted.example.test" } },
     });
     expect(res.status, JSON.stringify(res.body)).toBe(403);
@@ -285,11 +285,11 @@ describeEmbeddedPostgres("hired agent provider credential inheritance", () => {
     const secret = await createCompanySecret(companyId, "fixture-parent-credential");
     const parent = await seedParentAgent(companyId, "claude_local", { ANTHROPIC_API_KEY: secretRef(secret.id) });
     const res = await hire(agentActor(companyId, parent.id), companyId, {
-      name: "Native child", role: "engineer", adapterType: "paperclip_runner",
+      name: "Native child", role: "engineer", adapterType: "nexus_runner",
       adapterConfig: { provider: "acpx", acpxAgent: "claude" },
     });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
-    expect(res.body.agent.adapterType).toBe("paperclip_runner");
+    expect(res.body.agent.adapterType).toBe("nexus_runner");
     expect(childEnvOf(res).ANTHROPIC_API_KEY).toMatchObject({ type: "secret_ref", secretId: secret.id });
   });
 
@@ -492,30 +492,30 @@ describeEmbeddedPostgres("hired agent provider credential inheritance", () => {
 
   it("rejects native runtime inheritance for a board actor", async () => {
     const companyId = await seedCompany();
-    const parent = await seedParentAgent(companyId, "paperclip_runner", {});
+    const parent = await seedParentAgent(companyId, "nexus_runner", {});
     const res = await hire(userActor(), companyId, {
-      name: "Board Inheritance Attempt", role: "engineer", adapterType: "paperclip_runner", inheritRuntimeFrom: "caller",
+      name: "Board Inheritance Attempt", role: "engineer", adapterType: "nexus_runner", inheritRuntimeFrom: "caller",
     });
     expect(res.status).toBe(403);
-    expect(parent.adapterType).toBe("paperclip_runner");
+    expect(parent.adapterType).toBe("nexus_runner");
   });
 
   it("rejects inheritance from a legacy caller", async () => {
     const companyId = await seedCompany();
     const parent = await seedParentAgent(companyId, "codex_local", {});
     const res = await hire(agentActor(companyId, parent.id), companyId, {
-      name: "Legacy Inheritance Attempt", role: "engineer", adapterType: "paperclip_runner", inheritRuntimeFrom: "caller",
+      name: "Legacy Inheritance Attempt", role: "engineer", adapterType: "nexus_runner", inheritRuntimeFrom: "caller",
     });
     expect(res.status).toBe(422);
-    expect(res.body.error).toContain("paperclip_runner adapter");
+    expect(res.body.error).toContain("nexus_runner adapter");
   });
 
   it("rejects native runtime inheritance across companies", async () => {
     const parentCompanyId = await seedCompany();
     const targetCompanyId = await seedCompany();
-    const parent = await seedParentAgent(parentCompanyId, "paperclip_runner", { provider: "codex", model: "gpt-5.6-sol" });
+    const parent = await seedParentAgent(parentCompanyId, "nexus_runner", { provider: "codex", model: "gpt-5.6-sol" });
     const res = await hire(agentActor(targetCompanyId, parent.id), targetCompanyId, {
-      name: "Cross Company Inheritance Attempt", role: "engineer", adapterType: "paperclip_runner", inheritRuntimeFrom: "caller",
+      name: "Cross Company Inheritance Attempt", role: "engineer", adapterType: "nexus_runner", inheritRuntimeFrom: "caller",
     });
     expect(res.status).toBe(403);
     expect(await db.select().from(agents).where(eq(agents.companyId, targetCompanyId))).toHaveLength(0);
@@ -524,14 +524,14 @@ describeEmbeddedPostgres("hired agent provider credential inheritance", () => {
   it("records only inherited safe settings in an approval snapshot", async () => {
     const companyId = await seedCompany();
     await db.update(companies).set({ requireBoardApprovalForNewAgents: true }).where(eq(companies.id, companyId));
-    const parent = await seedParentAgent(companyId, "paperclip_runner", {});
+    const parent = await seedParentAgent(companyId, "nexus_runner", {});
     await db.update(agents).set({ adapterConfig: {
       provider: "acpx", acpxAgent: "claude", model: "claude-sonnet-5", acpxPermissionMode: "approve-all",
       env: { PRIVATE_PARENT_TOKEN: secretRef("parent-secret") }, cwd: "/private/parent",
       invocationLimits: { maxIterations: 3, credentials: "never-copy" },
     } }).where(eq(agents.id, parent.id));
     const res = await hire(agentActor(companyId, parent.id), companyId, {
-      name: "Approval Snapshot Child", role: "engineer", adapterType: "paperclip_runner", inheritRuntimeFrom: "caller",
+      name: "Approval Snapshot Child", role: "engineer", adapterType: "nexus_runner", inheritRuntimeFrom: "caller",
     });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     expect(res.body.agent.status).toBe("pending_approval");
@@ -547,12 +547,12 @@ describeEmbeddedPostgres("hired agent provider credential inheritance", () => {
     ["aws_agentcore", "agentCoreProfileId", "agentCoreRetentionAcknowledged", "Remote Agent"],
   ])("revalidates the inherited %s company profile before creating a hire", async (provider, profileKey, retentionKey, label) => {
     const companyId = await seedCompany();
-    const parent = await seedParentAgent(companyId, "paperclip_runner", {});
+    const parent = await seedParentAgent(companyId, "nexus_runner", {});
     await db.update(agents).set({ adapterConfig: {
       provider, [profileKey]: randomUUID(), [retentionKey]: true,
     } }).where(eq(agents.id, parent.id));
     const res = await hire(agentActor(companyId, parent.id), companyId, {
-      name: "Missing Profile Child", role: "engineer", adapterType: "paperclip_runner", inheritRuntimeFrom: "caller",
+      name: "Missing Profile Child", role: "engineer", adapterType: "nexus_runner", inheritRuntimeFrom: "caller",
     });
     expect(res.status, JSON.stringify(res.body)).toBe(404);
     expect(res.body.error).toBe(`${label} profile not found`);
@@ -561,12 +561,12 @@ describeEmbeddedPostgres("hired agent provider credential inheritance", () => {
 
   it("validates and preserves an inherited caller default environment", async () => {
     const companyId = await seedCompany();
-    const parent = await seedParentAgent(companyId, "paperclip_runner", {});
+    const parent = await seedParentAgent(companyId, "nexus_runner", {});
     const environmentId = randomUUID();
     await db.insert(environments).values({ id: environmentId, name: `Local ${environmentId}`, driver: "local" });
     await db.update(agents).set({ defaultEnvironmentId: environmentId }).where(eq(agents.id, parent.id));
     const res = await hire(agentActor(companyId, parent.id), companyId, {
-      name: "Invalid Environment Child", role: "engineer", adapterType: "paperclip_runner", inheritRuntimeFrom: "caller",
+      name: "Invalid Environment Child", role: "engineer", adapterType: "nexus_runner", inheritRuntimeFrom: "caller",
     });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     expect(res.body.agent.defaultEnvironmentId).toBe(environmentId);

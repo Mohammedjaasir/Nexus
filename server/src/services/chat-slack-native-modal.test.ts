@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import type { AskUserQuestionsInteraction } from "@paperclipai/shared";
+import type { AskUserQuestionsInteraction } from "@nexusai/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildChatQuestionFormModal,
@@ -27,7 +27,7 @@ const channelId = "C-MODAL";
 const threadTs = "1788.100";
 const messageTs = "1788.200";
 const userId = "U-OPERATOR";
-const botUserId = "U-PAPERCLIP-BOT";
+const botUserId = "U-NEXUS-BOT";
 type SubmitCallback = NonNullable<ChatSdkRuntimeCallbacks["onModalSubmit"]>;
 type SubmitEvent = Parameters<SubmitCallback>[0];
 
@@ -72,7 +72,7 @@ function formFixture(configure?: (interaction: AskUserQuestionsInteraction) => v
           allowOther: true,
           options: [
             {
-              id: "__paperclip_text__",
+              id: "__nexus_text__",
               label: "Type an answer",
               freeText: true,
             },
@@ -80,7 +80,7 @@ function formFixture(configure?: (interaction: AskUserQuestionsInteraction) => v
         },
       ],
       questionSet: {
-        schema: "paperclip.question_set.v1",
+        schema: "nexus.question_set.v1",
         title: "Deployment details",
         submitLabel: "Continue",
         questions: [
@@ -156,7 +156,7 @@ function signedRequest(payload: unknown, secret = signingSecret) {
   }).toString();
   const timestamp = String(Math.floor(Date.now() / 1_000));
   const signature = `v0=${createHmac("sha256", secret).update(`v0:${timestamp}:${body}`).digest("hex")}`;
-  return new Request("https://paperclip.test/webhooks/slack", {
+  return new Request("https://nexus.test/webhooks/slack", {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
@@ -193,7 +193,7 @@ function submission(view: SlackView) {
   )!;
   return {
     type: "view_submission",
-    team: { id: "T-PAPERCLIP" },
+    team: { id: "T-NEXUS" },
     user: { id: userId, username: "operator", name: "Operator Name" },
     view: {
       id: "V-MODAL",
@@ -281,10 +281,10 @@ describe("Slack native multi-question modal adapter-to-runtime boundary", () => 
           ok: true,
           user: {
             id: params.get("user"),
-            name: "paperclip-agent",
-            real_name: "Paperclip Agent",
+            name: "nexus-agent",
+            real_name: "Nexus Agent",
             is_bot: true,
-            profile: { display_name: "Paperclip Agent" },
+            profile: { display_name: "Nexus Agent" },
           },
         };
       } else if (method === "views.open") {
@@ -339,7 +339,7 @@ describe("Slack native multi-question modal adapter-to-runtime boundary", () => 
       persistence: options.persistence ?? memoryPersistence(),
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           apiUrl,
           botToken: "xoxb-synthetic",
@@ -354,7 +354,7 @@ describe("Slack native multi-question modal adapter-to-runtime boundary", () => 
       const response = await runtime.handleWebhook(
         signedRequest({
           type: "block_actions",
-          team: { id: "T-PAPERCLIP" },
+          team: { id: "T-NEXUS" },
           user: { id: userId, username: "operator", name: "Operator Name" },
           channel: { id: channelId },
           container: {
@@ -413,7 +413,7 @@ describe("Slack native multi-question modal adapter-to-runtime boundary", () => 
     expect(test.validations).toEqual([{ ok: true, answers: expect.any(Array) }]);
   });
 
-  it("round-trips the actual Paperclip modal, opaque metadata and Slack state into canonical answers", async () => {
+  it("round-trips the actual Nexus modal, opaque metadata and Slack state into canonical answers", async () => {
     const test = await harness();
     const view = await test.open();
     expect(view.callback_id).toBe(test.form.draft.submitActionId);

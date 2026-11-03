@@ -1,8 +1,8 @@
-import { announcementIdSchema } from "@paperclipai/shared";
+import { announcementIdSchema } from "@nexusai/shared";
 
 const memory = new Map<string, boolean>();
 export function announcementStoragePrefix(userId: string) {
-  return `paperclip.announcement-dismissals.v1:${encodeURIComponent(userId)}:`;
+  return `nexus.announcement-dismissals.v1:${encodeURIComponent(userId)}:`;
 }
 
 export function readAnnouncementDismissals(userId: string): Map<string, boolean> {

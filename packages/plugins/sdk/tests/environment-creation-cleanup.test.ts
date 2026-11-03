@@ -7,11 +7,11 @@ import { createRequest, isJsonRpcResponse, JsonRpcCallError, parseMessage, seria
 import { startWorkerRpcHost } from "../src/worker-rpc-host.js";
 
 const ownership = {
-  providerLeaseId: "paperclip-create-attempt-1", companyId: "company-1", environmentId: "environment-1",
+  providerLeaseId: "nexus-create-attempt-1", companyId: "company-1", environmentId: "environment-1",
   runId: "run-1", attemptId: "attempt-1", accountFingerprint: "a".repeat(64),
-  labels: { "paperclip-provider": "daytona" },
+  labels: { "nexus-provider": "daytona" },
 };
-const schema = "paperclip/environment-creation-cleanup/v1";
+const schema = "nexus/environment-creation-cleanup/v1";
 
 async function invoke(method: string, error: Error) {
   const stdin = new PassThrough();
@@ -61,8 +61,8 @@ describe("failed environment creation ownership", () => {
   it.each([
     { providerLeaseId: "../other" }, { companyId: "" }, { environmentId: null }, { attemptId: "a".repeat(201) },
     { runId: "other/run" }, { observedProviderLeaseId: "../other" }, { accountFingerprint: "secret-key" }, { labels: { apiKey: "secret-key" } },
-    { labels: { "paperclip-provider": "Bearer secret-key" } }, { labels: [] },
-    { labels: Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`paperclip-${String.fromCharCode(97 + i)}`, "x"])) },
+    { labels: { "nexus-provider": "Bearer secret-key" } }, { labels: [] },
+    { labels: Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`nexus-${String.fromCharCode(97 + i)}`, "x"])) },
   ])("rejects malformed evidence %j", (invalid) => {
     const cleanup = { ...ownership, ...invalid } as typeof ownership;
     expect(readEnvironmentCreationCleanupError({ data: { schema, cleanup } })).toBeNull();

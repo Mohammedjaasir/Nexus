@@ -6,7 +6,7 @@ import {
   type GitHubReviewAssessment,
   type GitHubReviewEventContext,
   type GitHubIssueEventContext,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   githubManualMessagePrompt,
   githubConfiguredInstructionSources,
@@ -63,7 +63,7 @@ describe("configured GitHub instruction skills", () => {
     expect(githubConfiguredInstructionSources({ message: "untrusted /skill", raw: { policy } })).toEqual([]);
   });
   it.each(["opened", "synchronize", "reopened", "ready_for_review", "mention", "comment"] as const)("carries the configured %s skill into its task prompt only", (event) => {
-    const skill = "[/review](paperclip://skills/11111111-1111-4111-8111-111111111111?slug=review)";
+    const skill = "[/review](nexus://skills/11111111-1111-4111-8111-111111111111?slug=review)";
     const policy = defaultGitHubReviewPolicy();
     policy.prompts[event] = `Use ${skill}.`;
     const manual = event === "mention" || event === "comment";
@@ -77,7 +77,7 @@ describe("configured GitHub instruction skills", () => {
     expect(githubConfiguredInstructionSources({ githubAutomatic: { context: { ...context, event: other }, policy } }).join("\n")).not.toContain(skill);
   });
   it("keeps skill guidance and configured links separate from untrusted event data", () => {
-    const policy = { ...defaultGitHubReviewPolicy(), instructions: "Use [/review](paperclip://skills/11111111-1111-4111-8111-111111111111?slug=review)." };
+    const policy = { ...defaultGitHubReviewPolicy(), instructions: "Use [/review](nexus://skills/11111111-1111-4111-8111-111111111111?slug=review)." };
     const manual = githubManualMessagePrompt({ event: "mention", policy, repository: "test/repo", thread: "thread", sender: context.sender, message: "untrusted text" });
     const automatic = githubReviewConfigurationPrompt(policy, 1);
     for (const prompt of [manual, automatic]) {
@@ -404,7 +404,7 @@ describe("GitHub task message guidance", () => {
       i.policy.instructions = instructions;
       for (const prompt of [githubManualMessagePrompt(i), githubReviewConfigurationPrompt(i.policy, 1)]) {
         expect(prompt).toContain("summary is review body only");
-        expect(prompt).toContain("Paperclip adds the bot-name/score heading");
+        expect(prompt).toContain("Nexus adds the bot-name/score heading");
         expect(prompt).toContain("Do not copy a previously published comment");
       }
     }

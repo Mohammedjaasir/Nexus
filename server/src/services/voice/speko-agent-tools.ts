@@ -4,11 +4,11 @@ import { forbidden, HttpError } from "../../errors.js";
 import { authorizationService } from "../authorization.js";
 import { captureRunIdentity } from "../run-identity.js";
 import { boundRunIssueId } from "../run-task-binding.js";
-import { chatVoiceCallbacks, instanceUserRoles, companyMemberships } from "@paperclipai/db";
+import { chatVoiceCallbacks, instanceUserRoles, companyMemberships } from "@nexusai/db";
 import type { VoiceCaller } from "./voice-session-store.js";
 import { z } from "zod";
 import { instanceSettingsService } from "../instance-settings.js";
-const SPEKO_TOOLS = [{ name: "call_my_phone", description: "Call the responsible person's saved phone number to discuss this task with the assigned Paperclip agent. Requires that person's callback opt-in. Never chooses another recipient, cancels work or grants approvals. Do not redial an uncertain attempt.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, risk: "write", scopes: [] }] as const;
+const SPEKO_TOOLS = [{ name: "call_my_phone", description: "Call the responsible person's saved phone number to discuss this task with the assigned Nexus agent. Requires that person's callback opt-in. Never chooses another recipient, cancels work or grants approvals. Do not redial an uncertain attempt.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, risk: "write", scopes: [] }] as const;
 type SpekoTaskSession = Pick<ToolGatewaySession, "companyId" | "agentId" | "runId" | "issueId" | "identityContextId">;
 interface Binding { companyId: string; endpointId: string; issueId: string; caller: VoiceCaller }
 const runtimes = new WeakMap<Db, (binding: Binding, invocationId: string) => Promise<unknown>>();
@@ -48,7 +48,7 @@ import {
   toolProfileEntries,
   toolProfileBindings,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ToolGatewayDescriptor,
   ToolGatewaySession,
@@ -223,7 +223,7 @@ async function spekoToolsForEndpoint(db: Db, session: SpekoTaskSession, endpoint
     .where(and(eq(toolCatalogEntries.companyId, session.companyId), eq(toolCatalogEntries.connectionId, authority.endpoint.connectionId), eq(toolCatalogEntries.status, "active"), isNull(toolCatalogEntries.quarantinedAt), eq(toolConnections.enabled, true), eq(toolConnections.status, "active")));
   return entries.filter(({entry}) => entry.toolName === "call_my_phone").map(({entry, applicationId}) => ({
     name: `speko-voice.${endpointId}:call_my_phone`, displayName: "Call my phone", description: entry.description ?? "", parametersSchema: entry.inputSchema,
-    pluginId: `speko-voice:${endpointId}`, providerType: "paperclip_speko_voice", risk: "write", applicationId, applicationKey: "speko-voice",
+    pluginId: `speko-voice:${endpointId}`, providerType: "nexus_speko_voice", risk: "write", applicationId, applicationKey: "speko-voice",
     applicationDisplayName: "Speko voice", connectionId: authority.endpoint.connectionId, catalogEntryId: entry.id,
     upstreamToolName: "call_my_phone", providerMetadata: { endpointId },
   }));

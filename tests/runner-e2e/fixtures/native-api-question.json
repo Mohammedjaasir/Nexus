@@ -52,7 +52,7 @@
                     }
                   ],
                   "questionSet": {
-                    "schema": "paperclip.question_set.v1",
+                    "schema": "nexus.question_set.v1",
                     "questions": [
                       {
                         "id": "time_choice",
@@ -115,7 +115,7 @@
           }
         ],
         "questionSet": {
-          "schema": "paperclip.question_set.v1",
+          "schema": "nexus.question_set.v1",
           "questions": [
             {
               "id": "time_choice",

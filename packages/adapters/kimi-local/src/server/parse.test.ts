@@ -36,13 +36,13 @@ describe("extractKimiRuntimeEvents", () => {
 describe("parseKimiJsonl", () => {
   it("collects assistant text from content events", () => {
     const stdout = [
-      '{"role":"assistant","content":"PAPERCLIP_ADAPTER_TEST_OK"}',
+      '{"role":"assistant","content":"NEXUS_ADAPTER_TEST_OK"}',
       '{"role":"meta","type":"session.resume_hint","session_id":"session_769ddab9-0a25-4edd-99f4-cdfebdc90879","command":"kimi -r session_769ddab9-0a25-4edd-99f4-cdfebdc90879","content":"To resume this session: kimi -r session_769ddab9-0a25-4edd-99f4-cdfebdc90879"}',
     ].join("\n");
 
     const parsed = parseKimiJsonl(stdout);
 
-    expect(parsed.summary).toBe("PAPERCLIP_ADAPTER_TEST_OK");
+    expect(parsed.summary).toBe("NEXUS_ADAPTER_TEST_OK");
     expect(parsed.sessionId).toBe("session_769ddab9-0a25-4edd-99f4-cdfebdc90879");
     expect(parsed.errorMessage).toBeNull();
   });
@@ -75,13 +75,13 @@ describe("parseKimiJsonl", () => {
   it("collects tool results keyed by tool_call_id", () => {
     const stdout = [
       '{"role":"assistant","tool_calls":[{"type":"function","id":"tool_8c1OWyRBe68OMTbWY6NqnkMm","function":{"name":"Read","arguments":"{\\"path\\":\\"probe.txt\\"}"}}]}',
-      '{"role":"tool","tool_call_id":"tool_8c1OWyRBe68OMTbWY6NqnkMm","content":"1\\thello paperclip"}',
+      '{"role":"tool","tool_call_id":"tool_8c1OWyRBe68OMTbWY6NqnkMm","content":"1\\thello nexus"}',
     ].join("\n");
 
     const parsed = parseKimiJsonl(stdout);
 
     expect(parsed.toolResults).toEqual([
-      { toolCallId: "tool_8c1OWyRBe68OMTbWY6NqnkMm", content: "1\thello paperclip" },
+      { toolCallId: "tool_8c1OWyRBe68OMTbWY6NqnkMm", content: "1\thello nexus" },
     ]);
   });
 

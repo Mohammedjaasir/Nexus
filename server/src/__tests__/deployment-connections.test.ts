@@ -5,17 +5,17 @@ import {
   activityLog, agents, applyPendingMigrations, companies, companyMemberships, companySecrets,
   connectionGrants, createDb, ensurePostgresDatabase, heartbeatRuns, issues, issueThreadInteractions,
   toolAccessAuditEvents, toolActionRequests, toolApplications, toolCatalogEntries, toolConnections, toolInvocations, userSecretDeclarations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { toolAccessService } from "../services/tool-access.js";
 import { createToolGatewayService } from "../services/tool-gateway.js";
 import { summarizeToolValue } from "../services/tool-content-guards.js";
 import { connectionIntentService } from "../services/connection-intents.js";
 import { resolveNativeRuntimeMcpSnapshot } from "../services/native-runtime/runtime-context.js";
-import { buildPaperclipRuntimeMcpServers } from "../services/heartbeat/run-preparation.js";
+import { buildNexusRuntimeMcpServers } from "../services/heartbeat/run-preparation.js";
 import { createAssignedMcpTools } from "../services/native-runtime/assigned-mcp-tools.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-// These provider fixtures exercise Paperclip's real setup, vault, policy, and
+// These provider fixtures exercise Nexus's real setup, vault, policy, and
 // run gateway. They do not establish live provider permissions or deployment.
 const actor = { actorType: "user" as const, actorId: "deployment-connector-owner" };
 const projectRef = "abcdefghijklmnopqrst";
@@ -66,7 +66,7 @@ const providers = [
   },
 ] as const;
 type Provider = typeof providers[number];
-const external = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const external = process.env.NEXUS_TEST_DATABASE_URL;
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 
 (support.supported ? describe : describe.skip)("Deployment connector governance", () => {
@@ -75,7 +75,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
   beforeAll(async () => {
     if (external) {
       const url = new URL(external);
-      if (process.env.PAPERCLIP_TEST_REUSE_DEPLOYMENT_DATABASE === "1") {
+      if (process.env.NEXUS_TEST_REUSE_DEPLOYMENT_DATABASE === "1") {
         // Only an explicitly named synthetic fixture database may be reused.
         // Each test still creates its own company and connection identities.
         if (!/^\/deployment_connectors_[a-f0-9]{32}$/.test(url.pathname)) {
@@ -212,7 +212,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     });
 
     it("delivers reviewed REST actions through native assignments without admitting unsupported or inactive connections", async () => {
-      vi.stubEnv("PAPERCLIP_API_URL", "http://127.0.0.1:3100");
+      vi.stubEnv("NEXUS_API_URL", "http://127.0.0.1:3100");
       onTestFinished(() => vi.unstubAllEnvs());
       const f = await fixture(provider, true);
       await f.service.putConnectionInstalls(f.connected.connectionId, {
@@ -220,14 +220,14 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
       }, actor);
       const snapshot = await resolveNativeRuntimeMcpSnapshot({ db, agent: f.agent, runId: f.run.id });
       expect(snapshot.bindingId).not.toBeNull();
-      const servers = await buildPaperclipRuntimeMcpServers({ db, agent: f.agent, runId: f.run.id,
+      const servers = await buildNexusRuntimeMcpServers({ db, agent: f.agent, runId: f.run.id,
         expectedAssignmentDigest: snapshot.digest });
       expect(servers).toHaveLength(1);
       const assigned = await createAssignedMcpTools({ gateway: f.gateway,
         gatewayPublicId: new URL(servers[0].url).pathname.split("/").at(-1)!, bearerToken: servers[0].token! });
-      const found = await assigned.execute({ tool: "paperclip_search_assigned_tools", arguments: { query: provider.read.name } }) as { tools: Array<{ name: string }> };
+      const found = await assigned.execute({ tool: "nexus_search_assigned_tools", arguments: { query: provider.read.name } }) as { tools: Array<{ name: string }> };
       expect(found.tools).toHaveLength(1);
-      expect(JSON.stringify(await assigned.execute({ tool: "paperclip_call_assigned_tool",
+      expect(JSON.stringify(await assigned.execute({ tool: "nexus_call_assigned_tool",
         arguments: { name: found.tools[0].name, arguments: provider.read.parameters } }))).toContain(provider.read.receipt);
 
       const intents = connectionIntentService(db);
@@ -243,7 +243,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
         expect(await intents.usableConnectionForAgent({ companyId: f.company.id, agentId: f.agent.id,
           responsibleUserId: actor.actorId, serviceSlug: provider.slug })).toBeNull();
         expect((await resolveNativeRuntimeMcpSnapshot({ db, agent: f.agent, runId: f.run.id })).bindingId).toBeNull();
-        expect(await buildPaperclipRuntimeMcpServers({ db, agent: f.agent, runId: f.run.id })).toEqual([]);
+        expect(await buildNexusRuntimeMcpServers({ db, agent: f.agent, runId: f.run.id })).toEqual([]);
       }
       expect(f.request).not.toHaveBeenCalled();
     });

@@ -8,9 +8,9 @@ import { buildPiSetupEnvironment, registerRuntimeCommands, resolvePiProvisioner,
 const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
 async function fixture() {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "paperclip-cli-runtime-"))); roots.push(root);
-  const cli = join(root, "dist/vendor/paperclip-runner/cli"); await mkdir(cli, { recursive: true });
-  await writeFile(join(root, "package.json"), '{"name":"@paperclipai/server"}');
+  const root = await realpath(await mkdtemp(join(tmpdir(), "nexus-cli-runtime-"))); roots.push(root);
+  const cli = join(root, "dist/vendor/nexus-runner/cli"); await mkdir(cli, { recursive: true });
+  await writeFile(join(root, "package.json"), '{"name":"@nexusai/server"}');
   await writeFile(join(root, "dist/index.js"), "throw new Error('server must not start during setup resolution')");
   await writeFile(join(cli, "provision-pi.cjs"), "fixture");
   return { root, cli, url: pathToFileURL(join(root, "dist/index.js")).href };
@@ -22,13 +22,13 @@ it("rejects foreign package identity and a setup entrypoint outside that package
   const f = await fixture(); const other = await fixture();
   await writeFile(join(f.root, "package.json"), '{"name":"foreign"}');
   await expect(resolvePiProvisioner(f.url)).rejects.toThrow("identity");
-  await writeFile(join(f.root, "package.json"), '{"name":"@paperclipai/server"}');
+  await writeFile(join(f.root, "package.json"), '{"name":"@nexusai/server"}');
   await rm(join(f.cli, "provision-pi.cjs")); await symlink(join(other.cli, "provision-pi.cjs"), join(f.cli, "provision-pi.cjs"));
   await expect(resolvePiProvisioner(f.url)).rejects.toThrow("escapes");
 });
 it("rejects unsupported runtime setup providers before resolution", async () => {
   const program = new Command(); registerRuntimeCommands(program);
-  await expect(program.parseAsync(["node", "paperclipai", "runtime", "setup", "untrusted"])).rejects.toThrow("Supported runtime setup: paperclipai runtime setup pi, cursor, kimi, or antigravity");
+  await expect(program.parseAsync(["node", "nexusai", "runtime", "setup", "untrusted"])).rejects.toThrow("Supported runtime setup: nexusai runtime setup pi, cursor, kimi, or antigravity");
 });
 
 it("resolves the companion importer only inside the actual public server tar layout", async () => {
@@ -41,7 +41,7 @@ it("resolves the companion importer only inside the actual public server tar lay
 });
 it("requires an explicit digest for the companion import command", async () => {
   const program = new Command(); program.exitOverride().configureOutput({ writeErr() {} }); registerRuntimeCommands(program);
-  await expect(program.parseAsync(["node", "paperclipai", "runtime", "import-remote", "/unused"])).rejects.toThrow("sha256");
+  await expect(program.parseAsync(["node", "nexusai", "runtime", "import-remote", "/unused"])).rejects.toThrow("sha256");
 });
 
 it("passes explicit setup network settings without provider keys or ambient Node/npm configuration", () => {

@@ -11,7 +11,7 @@ import { validateRetainedRunnerResult } from "./result-validation.js";
 
 function result(overrides: Partial<RunnerE2EResult> = {}): RunnerE2EResult {
   return {
-    schema: "paperclip.runner-e2e.result/v1",
+    schema: "nexus.runner-e2e.result/v1",
     executionId: "legacy-claude.local.message-marker",
     attempt: 1,
     status: "passed",

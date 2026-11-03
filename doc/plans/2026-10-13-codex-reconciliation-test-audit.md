@@ -68,7 +68,7 @@ exact parent `c1ae082a7a49c239a22e5149e223a41325b0ba2d`. No test execution overl
 the ZIP proof; a process scan confirmed its test processes had exited first.
 
 ```sh
-node node_modules/vitest/vitest.mjs run --project @paperclipai/server server/src/__tests__/heartbeat-retry-scheduling.test.ts server/src/services/heartbeat/retries.test.ts --exclude '**/dist/**' --pool=forks --maxWorkers=1
+node node_modules/vitest/vitest.mjs run --project @nexusai/server server/src/__tests__/heartbeat-retry-scheduling.test.ts server/src/services/heartbeat/retries.test.ts --exclude '**/dist/**' --pool=forks --maxWorkers=1
 ```
 
 The unmutated selected keeper passes 1/1. The actual mutation replaces the one

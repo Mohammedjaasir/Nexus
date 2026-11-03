@@ -17,7 +17,7 @@
 
 ---
 
-A **task watchdog** is an agent you assign to verify a stopped issue tree and put it back into motion when stopping was a mistake. You configure it on a single issue, and it watches that issue plus its non-watchdog descendants. When every leaf in that subtree comes to rest — done, cancelled, blocked, in review, or waiting on an interaction — and there is no live continuation path, Paperclip wakes the watchdog agent to read the evidence and decide whether the stop is legitimate.
+A **task watchdog** is an agent you assign to verify a stopped issue tree and put it back into motion when stopping was a mistake. You configure it on a single issue, and it watches that issue plus its non-watchdog descendants. When every leaf in that subtree comes to rest — done, cancelled, blocked, in review, or waiting on an interaction — and there is no live continuation path, Nexus wakes the watchdog agent to read the evidence and decide whether the stop is legitimate.
 
 Watchdogs are opt-in per issue. There is no global "watch everything" mode.
 
@@ -35,7 +35,7 @@ It is **not** an output-silence monitor for active runs. That is a separate mech
 
 ## Mental model
 
-Three concepts share the word "watchdog" inside Paperclip. Keep them separate:
+Three concepts share the word "watchdog" inside Nexus. Keep them separate:
 
 | Concept                       | What it watches                                                       | When it fires                                                     |
 | ----------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------- |
@@ -80,11 +80,11 @@ DELETE /api/issues/:issueId/watchdog
 
 ## How a scan works
 
-Paperclip runs a watchdog reconciliation tick at server startup, at the end of each heartbeat cycle, and on demand after any mutation that could change the watched subtree (status, blockers, assignment, interactions). The tick is per-company and only walks active rows.
+Nexus runs a watchdog reconciliation tick at server startup, at the end of each heartbeat cycle, and on demand after any mutation that could change the watched subtree (status, blockers, assignment, interactions). The tick is per-company and only walks active rows.
 
 For each active watchdog the tick:
 
-1. **Walks the watched subtree.** Starts at the configured issue and follows `parent_id` downward, excluding every issue whose `originKind = 'task_watchdog'` and everything below it. This excludes the watchdog's own review tasks so it cannot trigger itself. The scan includes at most 100 levels, with the watched issue at level 1. If an eligible child remains beyond that limit, the result is **incomplete**. Paperclip skips review dispatch and rejects watchdog mutation revalidation until it can read the full subtree. A leaf at level 100 does not by itself make the scan incomplete. Reconciliation reports these cases separately through `incomplete` and `incompleteIssueIds`. Startup and periodic reconciliation warn when a watched issue first becomes incomplete. The warning contains the newly affected issue IDs. An unchanged incomplete issue does not produce repeated warnings. Once a successful scan no longer reports that issue as incomplete, a later incomplete scan can warn again.
+1. **Walks the watched subtree.** Starts at the configured issue and follows `parent_id` downward, excluding every issue whose `originKind = 'task_watchdog'` and everything below it. This excludes the watchdog's own review tasks so it cannot trigger itself. The scan includes at most 100 levels, with the watched issue at level 1. If an eligible child remains beyond that limit, the result is **incomplete**. Nexus skips review dispatch and rejects watchdog mutation revalidation until it can read the full subtree. A leaf at level 100 does not by itself make the scan incomplete. Reconciliation reports these cases separately through `incomplete` and `incompleteIssueIds`. Startup and periodic reconciliation warn when a watched issue first becomes incomplete. The warning contains the newly affected issue IDs. An unchanged incomplete issue does not produce repeated warnings. Once a successful scan no longer reports that issue as incomplete, a later incomplete scan can warn again.
 2. **Checks for live paths.** If any included issue has a live run (`queued`, `running`, `scheduled_retry`), a queued wake request, or a scheduled retry, the subtree is **live** and the watchdog does not fire.
 3. **Computes a stop fingerprint.** A SHA-256 hash over the stopped leaves' identifiers, statuses, blockers, pending interactions, and the current watchdog configuration. The configuration is part of the fingerprint, so changing the agent or instructions invalidates the previously reviewed state.
 4. **Compares against `lastReviewedFingerprint`.** Match → suppress (the watchdog already saw this exact stopped state). New → proceed.

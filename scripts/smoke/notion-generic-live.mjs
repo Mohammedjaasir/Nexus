@@ -80,7 +80,7 @@ function assertNoCredentialMaterial(value, credentials, checkpoint) {
 
 function issueMutationHeaders(config, method, pathname) {
   if (method === "GET" || !pathname.startsWith("/api/issues/")) return {};
-  return { "X-Paperclip-Run-Id": config.runId };
+  return { "X-Nexus-Run-Id": config.runId };
 }
 
 async function apiJson(request, config, method, pathname, data, checkpoint, expectedStatuses = [200]) {
@@ -145,7 +145,7 @@ async function gotoWithVisibleMarker(
         return;
       }
     } catch {
-      // A credential-free Paperclip navigation is safe to repeat once. Do not
+      // A credential-free Nexus navigation is safe to repeat once. Do not
       // retry provider pages or any mutation from this helper.
     }
     if (attempt < attempts) await page.waitForTimeout(500);
@@ -153,27 +153,27 @@ async function gotoWithVisibleMarker(
   fail(checkpoint, code);
 }
 
-async function loginPaperclipBoard(page, context, config) {
+async function loginNexusBoard(page, context, config) {
   const loginUrl = new URL("/auth?next=/", config.baseUrl).toString();
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     await gotoWithVisibleMarker(
       page,
       loginUrl,
       () => page.getByLabel(/^email$/i),
-      "A.paperclip-login",
+      "A.nexus-login",
       "email_field_missing",
     );
-    const paperclipEmailInput = page.getByLabel(/^email$/i);
-    const paperclipPasswordInput = page.getByLabel(/^password$/i);
-    await expectVisible(paperclipPasswordInput, "A.paperclip-login", "password_field_missing");
-    await paperclipEmailInput.fill(config.paperclipEmail);
-    await paperclipPasswordInput.fill(config.paperclipPassword);
+    const nexusEmailInput = page.getByLabel(/^email$/i);
+    const nexusPasswordInput = page.getByLabel(/^password$/i);
+    await expectVisible(nexusPasswordInput, "A.nexus-login", "password_field_missing");
+    await nexusEmailInput.fill(config.nexusEmail);
+    await nexusPasswordInput.fill(config.nexusPassword);
     const loginResponsePromise = page.waitForResponse((response) =>
       response.request().method() === "POST" && new URL(response.url()).pathname === "/api/auth/sign-in/email",
     );
     await page.getByRole("button", { name: /^sign in$/i }).click();
     const loginResponse = await loginResponsePromise;
-    if (!loginResponse.ok()) fail("A.paperclip-login", `http_${loginResponse.status()}`);
+    if (!loginResponse.ok()) fail("A.nexus-login", `http_${loginResponse.status()}`);
 
     // A redirect is a UI implementation detail; the authenticated session is
     // the prerequisite the smoke actually needs. A successful sign-in response
@@ -185,7 +185,7 @@ async function loginPaperclipBoard(page, context, config) {
     if (session.ok()) return;
     if (attempt < 2) await page.waitForTimeout(500);
   }
-  fail("A.paperclip-login", "session_cookie_missing");
+  fail("A.nexus-login", "session_cookie_missing");
 }
 
 async function clickVisibleButton(page, names) {
@@ -263,7 +263,7 @@ async function fetchNotionVerificationCodeFromAgentMail({ notBefore }) {
 }
 
 async function completeNotionAuthorization(page, config, credential, connectionId) {
-  const paperclipOrigin = new URL(config.baseUrl).origin;
+  const nexusOrigin = new URL(config.baseUrl).origin;
   const permissionsPath = `/${TARGET_COMPANY_PREFIX}/apps/${connectionId}/permissions`;
   const deadline = Date.now() + 6 * 60_000;
   const verificationNotBefore = new Date();
@@ -276,7 +276,7 @@ async function completeNotionAuthorization(page, config, credential, connectionI
     } catch {
       fail("C.oauth-callback", "invalid_navigation_url");
     }
-    if (current.origin === paperclipOrigin) {
+    if (current.origin === nexusOrigin) {
       if (providerSeen && current.pathname === permissionsPath) return;
       await page.waitForTimeout(300);
       continue;
@@ -347,12 +347,12 @@ async function completeNotionAuthorization(page, config, credential, connectionI
 
 async function safeScreenshot(page, outputPath, config, credential, checkpoint) {
   const current = new URL(page.url());
-  if (current.origin !== new URL(config.baseUrl).origin) fail(checkpoint, "screenshot_not_on_paperclip");
+  if (current.origin !== new URL(config.baseUrl).origin) fail(checkpoint, "screenshot_not_on_nexus");
   for (const queryKey of ["code", "state", "token", "access_token", "refresh_token"]) {
     if (current.searchParams.has(queryKey)) fail(checkpoint, "credential_query_in_screenshot_url");
   }
   const bodyText = await page.locator("body").innerText();
-  if (bodyText.includes(config.paperclipPassword)
+  if (bodyText.includes(config.nexusPassword)
     || bodyText.includes(credential.password)
     || /[?&](?:code|state|access_token|refresh_token)=/i.test(bodyText)) {
     fail(checkpoint, "credential_material_in_screenshot");
@@ -362,7 +362,7 @@ async function safeScreenshot(page, outputPath, config, credential, checkpoint) 
     fullPage: true,
     animations: "disabled",
     mask: [
-      page.getByText(config.paperclipEmail, { exact: false }),
+      page.getByText(config.nexusEmail, { exact: false }),
       page.getByText(credential.username, { exact: false }),
     ],
   });
@@ -548,7 +548,7 @@ async function runSmoke({ config, chromium }) {
   const connectionName = `Notion generic self-test ${startedAt.toISOString()}`;
   const outputDirectory = process.env.NOTION_EVIDENCE_DIR
     ? path.resolve(process.env.NOTION_EVIDENCE_DIR)
-    : path.join(process.env.PAPERCLIP_RUN_SCRATCH_DIR || process.cwd(), `notion-generic-live-${runKey}`);
+    : path.join(process.env.NEXUS_RUN_SCRATCH_DIR || process.cwd(), `notion-generic-live-${runKey}`);
   await mkdir(outputDirectory, { recursive: true });
 
   const summary = {
@@ -577,7 +577,7 @@ async function runSmoke({ config, chromium }) {
   let companyId = null;
   let cleanupComplete = false;
   let caughtFailure = null;
-  let activeCheckpoint = "A.paperclip-login";
+  let activeCheckpoint = "A.nexus-login";
 
   try {
     browser = await chromium.launch({ headless: process.env.NOTION_SMOKE_HEADED !== "1" });
@@ -588,7 +588,7 @@ async function runSmoke({ config, chromium }) {
     });
     const page = await context.newPage();
 
-    await loginPaperclipBoard(page, context, config);
+    await loginNexusBoard(page, context, config);
 
     activeCheckpoint = "A.company-selection";
     const companies = await apiJson(context.request, config, "GET", "/api/companies", undefined, "A.company-selection");
@@ -621,7 +621,7 @@ async function runSmoke({ config, chromium }) {
       fail("A.connection-isolation", "connection_name_collision");
     }
 
-    // Fetch only after URL, health, Paperclip login, company, agent, and binding
+    // Fetch only after URL, health, Nexus login, company, agent, and binding
     // metadata have all passed. The value remains in this process and is never
     // written to browser artifacts or command arguments.
     activeCheckpoint = "A.secret-binding";
@@ -680,12 +680,12 @@ async function runSmoke({ config, chromium }) {
     const connectionNameInput = page.getByText("Connection name", { exact: true }).locator("input");
     await expectVisible(connectionNameInput, "B.generic-connect", "connection_name_input_missing");
     await connectionNameInput.fill(connectionName);
-    const paperclipOrigin = new URL(config.baseUrl).origin;
+    const nexusOrigin = new URL(config.baseUrl).origin;
     const authorizationRequestPromise = page.waitForRequest((request) => {
       if (!request.isNavigationRequest() || request.frame() !== page.mainFrame()) return false;
       try {
         const target = new URL(request.url());
-        return target.protocol === "https:" && target.origin !== paperclipOrigin;
+        return target.protocol === "https:" && target.origin !== nexusOrigin;
       } catch {
         return false;
       }
@@ -798,7 +798,7 @@ async function runSmoke({ config, chromium }) {
       fail("C.connection-detail", "generic_provenance_lost");
     }
     const endpointProof = oauthEndpointProof(connection, startResult, config);
-    assertNoCredentialMaterial(connection, [config.paperclipPassword, credential.username, credential.password], "C.connection-detail");
+    assertNoCredentialMaterial(connection, [config.nexusPassword, credential.username, credential.password], "C.connection-detail");
     summary.connection = {
       id: connectionId,
       applicationId: connection.applicationId,
@@ -984,7 +984,7 @@ async function runSmoke({ config, chromium }) {
         "Invoke exactly one installed action: the read-only `notion-get-self` tool with an empty `{}` input.",
         "Make no Notion mutation and do not invoke any other Notion action.",
         `Require workspace ID ${boardIdentity.workspaceId} and workspace name ${boardIdentity.workspaceName}.`,
-        "Post exactly one JSON object with keys `workspaceId`, `workspaceName`, and `invocationId` (the Paperclip invocation ID), then mark this issue done.",
+        "Post exactly one JSON object with keys `workspaceId`, `workspaceName`, and `invocationId` (the Nexus invocation ID), then mark this issue done.",
         "Do not report tokens, cookies, headers, authorization data, raw payloads, or any other fields.",
       ].join("\n\n"),
       status: "todo",
@@ -993,7 +993,7 @@ async function runSmoke({ config, chromium }) {
       assigneeAgentId: agent.id,
       acceptanceCriteria: [
         "The installed notion-get-self action succeeds with empty input.",
-        "Only sanitized workspace ID/name and Paperclip invocation ID are reported.",
+        "Only sanitized workspace ID/name and Nexus invocation ID are reported.",
         "No Notion mutation is attempted.",
       ],
     }, "E.fresh-agent");

@@ -72,8 +72,8 @@ closed. Recovery preserves the journal and the provider's existing state owner.
 Do not delete a quarantine or change database ownership to force continuation.
 
 Use a disposable Linux container with Node.js, `sh`, `tar`, `base64`, `ps`, and
-`setsid`. Build `paperclip-runnerd` and `fake-codex-app-server` from the checkout's
-`packages/paperclip-runner/runner/Cargo.toml` for that container's architecture.
+`setsid`. Build `nexus-runnerd` and `fake-codex-app-server` from the checkout's
+`packages/nexus-runner/runner/Cargo.toml` for that container's architecture.
 Keep the Linux runner binary on the host as well: the product hashes and stages
 that artifact. Put the fake provider at `/opt/continuity/fake-codex-app-server`
 inside the container. Do not put credentials in this container.
@@ -107,11 +107,11 @@ Run the test with the container name, current host port, and Linux artifact path
 
 ```sh
 NODE_EXTRA_CA_CERTS=/tmp/continuity-test.crt \
-PAPERCLIP_TEST_RUNNER_TLS_KEY=/tmp/continuity-test.key \
-PAPERCLIP_TEST_RUNNER_CONTAINER=CONTAINER \
-PAPERCLIP_TEST_RUNNER_PORT=HOST_PORT \
-PAPERCLIP_TEST_LINUX_RUNNER_BINARY=/path/to/linux/paperclip-runnerd \
-PAPERCLIP_TEST_FAKE_CODEX_WRAPPER=/tmp/continuity-fake-codex \
+NEXUS_TEST_RUNNER_TLS_KEY=/tmp/continuity-test.key \
+NEXUS_TEST_RUNNER_CONTAINER=CONTAINER \
+NEXUS_TEST_RUNNER_PORT=HOST_PORT \
+NEXUS_TEST_LINUX_RUNNER_BINARY=/path/to/linux/nexus-runnerd \
+NEXUS_TEST_FAKE_CODEX_WRAPPER=/tmp/continuity-fake-codex \
 pnpm exec vitest run \
   server/src/services/native-runtime/native-runner-restart-recovery.integration.test.ts \
   -t 'preserves remote warm continuity' --maxWorkers=1
@@ -301,7 +301,7 @@ it cannot reserve or repeat a filesystem write. Missing receipts remain held,
 including a receipt removed between inspection and locked replay. The real
 Postgres/filesystem integration tests lose the commit acknowledgement for both
 tools and verify one write, one audit effect, current-permission revocation and
-Stop precedence. The optional `PAPERCLIP_TEST_DATABASE_URL` test host always uses
+Stop precedence. The optional `NEXUS_TEST_DATABASE_URL` test host always uses
 a new owned database, never its existing data.
 
 The first rollout does not extend grace already configured in an old runner.
@@ -316,7 +316,7 @@ restores the transport checkpoint, so it does not prove application startup
 discovery by itself. Build the host runner and fake provider first, then run:
 
 ```sh
-PAPERCLIP_TEST_CONTROLLER_OUTAGE_MS=300000 pnpm exec vitest run \
+NEXUS_TEST_CONTROLLER_OUTAGE_MS=300000 pnpm exec vitest run \
   server/src/services/native-runtime/native-runner-restart-recovery.integration.test.ts \
   -t 'adopts the same runner from Postgres' --maxWorkers=1
 ```
@@ -340,7 +340,7 @@ The dedicated suite's version 6 uses the existing reusable warm environment,
 with a 15-minute provider idle window and unchanged 60/300/420-second ownership,
 outage and reconnect limits. Its prior per-turn/no-reuse measurement failed
 retained native/provider identity and remains failed. The test retires the whole
-`runtime/paperclip-runner` directory, including provider failover-backup bytes.
+`runtime/nexus-runner` directory, including provider failover-backup bytes.
 Per-turn application qualification after sandbox disposal and this disk loss
 therefore awaits the provider-backup owner's durable storage contract; logical
 native checkpoints do not replace provider history or weaken the identity oracle.

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { heartbeatRuns, type Db } from "@paperclipai/db";
-import type { AdapterExecutionResult } from "@paperclipai/adapter-utils";
+import { heartbeatRuns, type Db } from "@nexusai/db";
+import type { AdapterExecutionResult } from "@nexusai/adapter-utils";
 import { parseObject } from "../../adapters/utils.js";
 import { assertLowTrustRuntimeServicesAllowed } from "../low-trust-runtime-containment.js";
 import {
@@ -83,9 +83,9 @@ export function prepareHeartbeatRuntimeServiceIntents(input: {
     runtimeServiceCount: runtimeServiceIntents.length,
   });
   if (runtimeServiceIntents.length > 0) {
-    context.paperclipRuntimeServiceIntents = runtimeServiceIntents;
+    context.nexusRuntimeServiceIntents = runtimeServiceIntents;
   } else {
-    delete context.paperclipRuntimeServiceIntents;
+    delete context.nexusRuntimeServiceIntents;
   }
 }
 
@@ -119,8 +119,8 @@ export async function startHeartbeatRuntimeServices(db: Db, input: RuntimeServic
     recorder: workspaceOperationRecorder,
   });
   if (runtimeServices.length > 0) {
-    context.paperclipRuntimeServices = runtimeServices;
-    context.paperclipRuntimePrimaryUrl =
+    context.nexusRuntimeServices = runtimeServices;
+    context.nexusRuntimePrimaryUrl =
       runtimeServices.find((service) => readNonEmptyString(service.url))
         ?.url ?? null;
     await db
@@ -148,7 +148,7 @@ export async function startHeartbeatRuntimeServices(db: Db, input: RuntimeServic
     } catch (err) {
       await onLog(
         "stderr",
-        `[paperclip] Failed to post workspace-ready comment: ${err instanceof Error ? err.message : String(err)}\n`,
+        `[nexus] Failed to post workspace-ready comment: ${err instanceof Error ? err.message : String(err)}\n`,
       );
     }
   }
@@ -181,8 +181,8 @@ export async function recordHeartbeatAdapterRuntimeServices(db: Db, input: Runti
       ...runtimeServices,
       ...adapterManagedRuntimeServices,
     ];
-    context.paperclipRuntimeServices = combinedRuntimeServices;
-    context.paperclipRuntimePrimaryUrl =
+    context.nexusRuntimeServices = combinedRuntimeServices;
+    context.nexusRuntimePrimaryUrl =
       combinedRuntimeServices.find((service) =>
         readNonEmptyString(service.url),
       )?.url ?? null;
@@ -206,7 +206,7 @@ export async function recordHeartbeatAdapterRuntimeServices(db: Db, input: Runti
       } catch (err) {
         await onLog(
           "stderr",
-          `[paperclip] Failed to post adapter-managed runtime comment: ${err instanceof Error ? err.message : String(err)}\n`,
+          `[nexus] Failed to post adapter-managed runtime comment: ${err instanceof Error ? err.message : String(err)}\n`,
         );
       }
     }

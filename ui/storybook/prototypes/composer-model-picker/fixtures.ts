@@ -1,8 +1,8 @@
-import { codexLocalReasoningEffortsForModel, isCodexLocalFastModeSupported, isCodexLocalKnownModel } from "@paperclipai/adapter-codex-local";
-import { claudeLocalReasoningEffortsForModel } from "@paperclipai/adapter-claude-local";
-import { DEFAULT_GROK_LOCAL_MODEL, grokLocalReasoningEffortsForModel } from "@paperclipai/adapter-grok-local";
-import { DEFAULT_KIMI_LOCAL_MODEL, modelSupportsEffort, KIMI_SUPPORTED_EFFORTS } from "@paperclipai/adapter-kimi-local";
-import { AGENT_PALETTE_IDS, appearanceForPalette } from "@paperclipai/shared";
+import { codexLocalReasoningEffortsForModel, isCodexLocalFastModeSupported, isCodexLocalKnownModel } from "@nexusai/adapter-codex-local";
+import { claudeLocalReasoningEffortsForModel } from "@nexusai/adapter-claude-local";
+import { DEFAULT_GROK_LOCAL_MODEL, grokLocalReasoningEffortsForModel } from "@nexusai/adapter-grok-local";
+import { DEFAULT_KIMI_LOCAL_MODEL, modelSupportsEffort, KIMI_SUPPORTED_EFFORTS } from "@nexusai/adapter-kimi-local";
+import { AGENT_PALETTE_IDS, appearanceForPalette } from "@nexusai/shared";
 
 export type ModelOption = { id: string; label: string; detail?: string };
 export type ComposerAgent = {
@@ -62,7 +62,7 @@ export const composerAgents: ComposerAgent[] = [
     { id: "sonnet-4.6", label: "Sonnet 4.6" },
   ], manualPattern: "Cursor model ID" },
   { id: "cursor-cloud", name: "Cloudy", role: "Remote engineering", harness: "Cursor Cloud", adapterType: "cursor_cloud", defaultLabel: "Account default", models: [], manualPattern: "Cursor Cloud model ID" },
-  { id: "runner", name: "Runa", role: "Operations", harness: "Paperclip Runner", adapterType: "paperclip_runner", provider: "Codex profile", defaultModel: "gpt-5.6-sol", models: codexModels, manualPattern: "Codex model ID" },
+  { id: "runner", name: "Runa", role: "Operations", harness: "Nexus Runner", adapterType: "nexus_runner", provider: "Codex profile", defaultModel: "gpt-5.6-sol", models: codexModels, manualPattern: "Codex model ID" },
   { id: "grok", name: "Grok", role: "Investigation", harness: "Grok CLI", adapterType: "grok_local", defaultModel: "grok-build", models: [
     { id: "grok-build", label: "Grok Build" },
     { id: "grok-4.7", label: "Grok 4.7" },
@@ -72,8 +72,8 @@ export const composerAgents: ComposerAgent[] = [
   { id: "hermes", name: "Hermes", role: "Operations", harness: "Hermes CLI", adapterType: "hermes_local", defaultModel: "auto", models: [{ id: "auto", label: "Auto" }], manualPattern: "Hermes model ID" },
   { id: "process", name: "Relay", role: "Automation", harness: "Process", adapterType: "process", models: [], noModelReason: "This agent runs a command. Its harness does not expose a model or effort setting." },
   { id: "http", name: "Hook", role: "Integration", harness: "HTTP", adapterType: "http", models: [], noModelReason: "This agent calls an HTTP endpoint. The destination service chooses its model." },
-  { id: "openclaw", name: "Ollie", role: "Support", harness: "OpenClaw Gateway", adapterType: "openclaw_gateway", models: [], noModelReason: "This gateway chooses its model remotely; Paperclip has no model catalog or per-message setting for it." },
-  { id: "hermes-gateway", name: "Hera", role: "Remote operations", harness: "Hermes Gateway", adapterType: "hermes_gateway", models: [], noModelReason: "This Hermes gateway chooses its model remotely; Paperclip cannot override it here." },
+  { id: "openclaw", name: "Ollie", role: "Support", harness: "OpenClaw Gateway", adapterType: "openclaw_gateway", models: [], noModelReason: "This gateway chooses its model remotely; Nexus has no model catalog or per-message setting for it." },
+  { id: "hermes-gateway", name: "Hera", role: "Remote operations", harness: "Hermes Gateway", adapterType: "hermes_gateway", models: [], noModelReason: "This Hermes gateway chooses its model remotely; Nexus cannot override it here." },
   { id: "kimi-acp", name: "Kima", role: "Planning", harness: "Kimi Code", adapterType: "kimi_local", provider: "ACP engine", engine: "acp", defaultModel: "kimi-code/k3", models: [
     { id: "kimi-code/k3", label: "K3" },
     { id: "kimi-code/kimi-for-coding", label: "K2.8 Preview" },

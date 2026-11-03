@@ -9,7 +9,7 @@ const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
 const itEmbeddedPostgres = embeddedPostgresSupport.supported ? it : it.skip;
 
 itEmbeddedPostgres("backfills owned draft images without attaching another uploader's images", async () => {
-  const database = await startEmbeddedPostgresTestDatabase("paperclip-draft-privacy-");
+  const database = await startEmbeddedPostgresTestDatabase("nexus-draft-privacy-");
   const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
   try {
     const migration = await fs.readFile(new URL("./migrations/0314_private_task_draft_assets.sql", import.meta.url), "utf8");

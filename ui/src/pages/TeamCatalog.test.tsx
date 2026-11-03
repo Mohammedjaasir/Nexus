@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type {
   CatalogTeam,
   CatalogTeamImportPreviewResult,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   TeamCatalog,
@@ -34,7 +34,7 @@ const mockPushToast = vi.hoisted(() => vi.fn());
 const mockSetBreadcrumbs = vi.hoisted(() => vi.fn());
 const mockNavigate = vi.hoisted(() => vi.fn());
 const mockAdapterAvailability = vi.hoisted(() => ({
-  disabled: new Set<string>(["paperclip_runner"]),
+  disabled: new Set<string>(["nexus_runner"]),
   loaded: true,
 }));
 
@@ -101,27 +101,27 @@ if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
 
 describe("TeamCatalog routes", () => {
   it("round-trips file paths containing literal tildes", () => {
-    const route = teamRoute("paperclipai/bundled/test/team", "agents/a~b/AGENTS.md");
+    const route = teamRoute("nexusai/bundled/test/team", "agents/a~b/AGENTS.md");
 
-    expect(route).toBe("/teams-catalog/paperclipai%2Fbundled%2Ftest%2Fteam/files/agents%7Ea~b%7EAGENTS.md");
+    expect(route).toBe("/teams-catalog/nexusai%2Fbundled%2Ftest%2Fteam/files/agents%7Ea~b%7EAGENTS.md");
     expect(parseTeamRoute(route.replace("/teams-catalog/", ""))).toEqual({
-      catalogRef: "paperclipai/bundled/test/team",
+      catalogRef: "nexusai/bundled/test/team",
       filePath: "agents/a~b/AGENTS.md",
     });
   });
 
-  it("fails closed for Paperclip Runner until adapter availability is loaded and enabled", () => {
-    expect(listTeamInstallAdapterTypes(new Set(), false)).not.toContain("paperclip_runner");
+  it("fails closed for Nexus Runner until adapter availability is loaded and enabled", () => {
+    expect(listTeamInstallAdapterTypes(new Set(), false)).not.toContain("nexus_runner");
     expect(listTeamInstallAdapterTypes(new Set(), false)).not.toContain("process");
     expect(listTeamInstallAdapterTypes(new Set(), false)).not.toContain("http");
-    expect(listTeamInstallAdapterTypes(new Set(["paperclip_runner"]), true))
-      .not.toContain("paperclip_runner");
-    expect(listTeamInstallAdapterTypes(new Set(), true)).toContain("paperclip_runner");
-    expect(resolveTeamInstallAdapterType("paperclip_runner", ["claude_local", "codex_local"]))
+    expect(listTeamInstallAdapterTypes(new Set(["nexus_runner"]), true))
+      .not.toContain("nexus_runner");
+    expect(listTeamInstallAdapterTypes(new Set(), true)).toContain("nexus_runner");
+    expect(resolveTeamInstallAdapterType("nexus_runner", ["claude_local", "codex_local"]))
       .toBe("claude_local");
-    expect(resolveTeamInstallAdapterType("paperclip_runner", ["codex_local"]))
+    expect(resolveTeamInstallAdapterType("nexus_runner", ["codex_local"]))
       .toBe("codex_local");
-    expect(resolveTeamInstallAdapterType("paperclip_runner", []))
+    expect(resolveTeamInstallAdapterType("nexus_runner", []))
       .toBeNull();
   });
 });
@@ -144,7 +144,7 @@ async function flushReact() {
 function makeTeam(overrides: Partial<CatalogTeam> = {}): CatalogTeam {
   return {
     id: "team-no-deps",
-    key: "paperclipai/bundled/company-defaults/team-no-deps",
+    key: "nexusai/bundled/company-defaults/team-no-deps",
     kind: "bundled",
     category: "company-defaults",
     slug: "team-no-deps",
@@ -185,7 +185,7 @@ function makePreview(): CatalogTeamImportPreviewResult {
     portabilityPreview: {
       include: { company: false, agents: true, projects: true, issues: false, skills: true },
       targetCompanyId: "company-1",
-      targetCompanyName: "Paperclip",
+      targetCompanyName: "Nexus",
       collisionStrategy: "rename",
       selectedAgentSlugs: ["ceo", "cto"],
       plan: {
@@ -239,7 +239,7 @@ describe("TeamCatalog install preview path", () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
-    mockAdapterAvailability.disabled = new Set(["paperclip_runner"]);
+    mockAdapterAvailability.disabled = new Set(["nexus_runner"]);
     mockAdapterAvailability.loaded = true;
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -251,7 +251,7 @@ describe("TeamCatalog install preview path", () => {
     mockTeamCatalogApi.install.mockResolvedValue({
       team: makeTeam(),
       portabilityImport: {
-        company: { id: "company-1", name: "Paperclip", action: "unchanged" },
+        company: { id: "company-1", name: "Nexus", action: "unchanged" },
         agents: [],
         projects: [],
         envInputs: [],
@@ -437,7 +437,7 @@ describe("TeamCatalog install preview path", () => {
     mockTeamCatalogApi.installed.mockResolvedValue([
       {
         catalogId: "team-no-deps",
-        catalogKey: "paperclipai/bundled/company-defaults/team-no-deps",
+        catalogKey: "nexusai/bundled/company-defaults/team-no-deps",
         present: true,
         currentContentHash: "sha256:deadbeefdeadbeefdeadbeef",
         installedOriginHashes: ["sha256:stale"],
@@ -465,7 +465,7 @@ describe("TeamCatalog install preview path", () => {
     mockTeamCatalogApi.installed.mockResolvedValue([
       {
         catalogId: "team-no-deps",
-        catalogKey: "paperclipai/bundled/company-defaults/team-no-deps",
+        catalogKey: "nexusai/bundled/company-defaults/team-no-deps",
         present: true,
         currentContentHash: "sha256:deadbeefdeadbeefdeadbeef",
         installedOriginHashes: ["sha256:deadbeefdeadbeefdeadbeef"],

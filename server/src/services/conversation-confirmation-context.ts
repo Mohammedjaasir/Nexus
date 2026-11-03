@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, inArray, isNotNull, sql } from "drizzle-orm";
-import { issueComments, issues, issueThreadInteractions, type Db } from "@paperclipai/db";
+import { issueComments, issues, issueThreadInteractions, type Db } from "@nexusai/db";
 
 /** Supply current card identities even when they were created outside the provider session. */
 export async function getConversationConfirmationContext(input: {

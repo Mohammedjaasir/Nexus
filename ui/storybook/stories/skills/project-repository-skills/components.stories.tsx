@@ -13,7 +13,7 @@ function Components({ state = 'available' }: { state?: 'available' | 'pending' |
     <SkillSourceSyncControls automaticUpdates={automatic} refreshing={state === 'refreshing'} onAutomaticUpdates={setAutomatic} onRefresh={() => setImported(true)} />
   </div>;
 }
-const meta = { id: 'skills-project-repository-skills-01-components', title: 'Agents and reusable capabilities/Skills and Skill Studio/Project repository skills/01 Components', component: Components, parameters: { paperclip: {"capabilities": ["skills/discovery", "skills/versions"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production repository row and source controls cover legacy availability, import progress, errors, private access, paused updates and refresh. Existing-source adoption is covered by the journey story. Provider access, persistence and runtime delivery require live acceptance."}, layout: 'fullscreen' } } satisfies Meta<typeof Components>;
+const meta = { id: 'skills-project-repository-skills-01-components', title: 'Agents and reusable capabilities/Skills and Skill Studio/Project repository skills/01 Components', component: Components, parameters: { nexus: {"capabilities": ["skills/discovery", "skills/versions"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production repository row and source controls cover legacy availability, import progress, errors, private access, paused updates and refresh. Existing-source adoption is covered by the journey story. Provider access, persistence and runtime delivery require live acceptance."}, layout: 'fullscreen' } } satisfies Meta<typeof Components>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Available: Story = {};

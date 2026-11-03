@@ -1,6 +1,6 @@
 // A real receiver process for the credential-loss boundary test. No provider
 // credentials leave this process through logs, IPC, or diagnostic exceptions.
-import { createDb } from "@paperclipai/db";
+import { createDb } from "@nexusai/db";
 import { aiConnectionService } from "../../services/ai-connections.js";
 
 const db = createDb(process.env.CREDENTIAL_TEST_DATABASE_URL!);

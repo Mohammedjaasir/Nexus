@@ -18,8 +18,8 @@ import { IssueSiblingNavigation } from "@/components/IssueSiblingNavigation";
 import { AgentTaskCard } from "@/components/chat/AgentWorkPanels";
 import { installFixtureApi } from "../../support/capability-gaps/api";
 import { makeStatusCard } from "../../support/capability-gaps/status-cards";
-import { storybookIssues, storybookAgents } from "../../fixtures/paperclipData";
-import { instanceExperimentalSettingsSchema, type Issue } from "@paperclipai/shared";
+import { storybookIssues, storybookAgents } from "../../fixtures/nexusData";
+import { instanceExperimentalSettingsSchema, type Issue } from "@nexusai/shared";
 
 const companyId = "company-storybook";
 const nextCheckAt = new Date(Date.now() + 10 * 60_000);
@@ -83,7 +83,7 @@ function MonitoringPage({ path }: { path: string }) {
 const meta = {
   id: "tasks-monitoring-status",
   title: "Tasks and conversations/Task creation and lifecycle/Monitoring",
-  parameters: { layout: "fullscreen", paperclip: { capabilities: ["tasks/organize", "tasks/properties"], implementation: "production", boundary: "fixtures", notes: "Production task pages and shared indicators with isolated API fixtures. Database projection and execution boundaries are tested separately." } },
+  parameters: { layout: "fullscreen", nexus: { capabilities: ["tasks/organize", "tasks/properties"], implementation: "production", boundary: "fixtures", notes: "Production task pages and shared indicators with isolated API fixtures. Database projection and execution boundaries are tested separately." } },
   beforeEach: fixtures,
 } satisfies Meta;
 export default meta;

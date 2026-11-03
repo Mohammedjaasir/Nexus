@@ -3,8 +3,8 @@ name: Release Smoke
 on:
   workflow_dispatch:
     inputs:
-      paperclip_version:
-        description: Published Paperclip dist-tag to test
+      nexus_version:
+        description: Published Nexus dist-tag to test
         required: true
         default: canary
         type: choice
@@ -30,7 +30,7 @@ on:
         type: string
   workflow_call:
     inputs:
-      paperclip_version:
+      nexus_version:
         required: true
         type: string
       host_port:
@@ -89,7 +89,7 @@ jobs:
 
       - name: Onboard with the background service
         env:
-          PAPERCLIPAI_VERSION: ${{ inputs.paperclip_version }}
+          NEXUSAI_VERSION: ${{ inputs.nexus_version }}
           DATA_DIR: ${{ runner.temp }}/service-smoke-data
           SMOKE_CLEANUP: "false"
         run: ./scripts/service-onboard-smoke.sh
@@ -98,16 +98,16 @@ jobs:
         if: always()
         run: |
           {
-            systemctl --user --no-pager status paperclipai.service || true
-            journalctl --user -u paperclipai.service --no-pager || true
-          } > "$RUNNER_TEMP/paperclipai-service.log" 2>&1
+            systemctl --user --no-pager status nexusai.service || true
+            journalctl --user -u nexusai.service --no-pager || true
+          } > "$RUNNER_TEMP/nexusai-service.log" 2>&1
 
       - name: Upload service diagnostics
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.artifact_name }}-service
-          path: ${{ runner.temp }}/paperclipai-service.log
+          path: ${{ runner.temp }}/nexusai-service.log
           retention-days: 14
 
   smoke:
@@ -149,7 +149,7 @@ jobs:
         run: |
           HOST_PORT="${{ inputs.host_port }}" \
           DATA_DIR="$RUNNER_TEMP/release-smoke-data" \
-          PAPERCLIPAI_VERSION="${{ inputs.paperclip_version }}" \
+          NEXUSAI_VERSION="${{ inputs.nexus_version }}" \
           SMOKE_READY_TIMEOUT_SECONDS=420 \
           SMOKE_DETACH=true \
           SMOKE_METADATA_FILE="${{ runner.temp }}/release-smoke.env" \
@@ -164,15 +164,15 @@ jobs:
             echo "SMOKE_ADMIN_PASSWORD=$SMOKE_ADMIN_PASSWORD"
             echo "SMOKE_DATA_DIR=$SMOKE_DATA_DIR"
             echo "SMOKE_IMAGE_NAME=$SMOKE_IMAGE_NAME"
-            echo "SMOKE_PAPERCLIPAI_VERSION=$SMOKE_PAPERCLIPAI_VERSION"
+            echo "SMOKE_NEXUSAI_VERSION=$SMOKE_NEXUSAI_VERSION"
           } >> "$GITHUB_ENV"
 
       - name: Run release smoke Playwright suite
         env:
-          PAPERCLIP_RELEASE_SMOKE_BASE_URL: ${{ env.SMOKE_BASE_URL }}
-          PAPERCLIP_RELEASE_SMOKE_EMAIL: ${{ env.SMOKE_ADMIN_EMAIL }}
-          PAPERCLIP_RELEASE_SMOKE_PASSWORD: ${{ env.SMOKE_ADMIN_PASSWORD }}
-          PAPERCLIP_PLAYWRIGHT_CHANNEL: "chrome"
+          NEXUS_RELEASE_SMOKE_BASE_URL: ${{ env.SMOKE_BASE_URL }}
+          NEXUS_RELEASE_SMOKE_EMAIL: ${{ env.SMOKE_ADMIN_EMAIL }}
+          NEXUS_RELEASE_SMOKE_PASSWORD: ${{ env.SMOKE_ADMIN_PASSWORD }}
+          NEXUS_PLAYWRIGHT_CHANNEL: "chrome"
         run: pnpm run test:release-smoke
 
       - name: Capture Docker logs
@@ -268,15 +268,15 @@ jobs:
         run: |
           pack_args=()
           if [[ -d "$RUNNER_TEMP/release-provider-pack-inputs" ]]; then pack_args=("$RUNNER_TEMP/release-provider-pack-inputs"); fi
-          node packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs \
+          node packages/nexus-runner/scripts/stage-release-runner-binaries.mjs \
             assemble-daemons "$RUNNER_TEMP/release-runner-inputs" "$SOURCE_SHA" "${pack_args[@]}"
-          cp -R packages/paperclip-runner/dist/bin/. server/dist/vendor/paperclip-runner/bin/
-          if [[ -d packages/paperclip-runner/dist/remote-provider-packs ]]; then
-            cp -R packages/paperclip-runner/dist/remote-provider-packs server/dist/vendor/paperclip-runner/
+          cp -R packages/nexus-runner/dist/bin/. server/dist/vendor/nexus-runner/bin/
+          if [[ -d packages/nexus-runner/dist/remote-provider-packs ]]; then
+            cp -R packages/nexus-runner/dist/remote-provider-packs server/dist/vendor/nexus-runner/
           fi
       - name: Verify clean public installation and retain the same package bytes
         env:
-          PAPERCLIP_RUNNER_PUBLIC_PACKS_DIR: ${{ runner.temp }}/public-runner-packs
+          NEXUS_RUNNER_PUBLIC_PACKS_DIR: ${{ runner.temp }}/public-runner-packs
         run: node scripts/verify-grok-npm-install.mjs
       - name: Locate completed package assembly
         id: pack_identity
@@ -349,7 +349,7 @@ jobs:
           import { createHash } from 'node:crypto';
           import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
           import { join } from 'node:path';
-          const directory = join(process.env.RUNNER_TEMP, 'paperclip-arm-bwrap-prerequisite');
+          const directory = join(process.env.RUNNER_TEMP, 'nexus-arm-bwrap-prerequisite');
           mkdirSync(directory, { recursive: true });
           const helper = '.qualification-tooling/scripts/prepare-linux-arm64-qualification.sh';
           writeFileSync(join(directory, 'qualification-identity.json'), JSON.stringify({
@@ -380,6 +380,6 @@ jobs:
           name: ${{ inputs.artifact_name }}-${{ matrix.target }}
           path: |
             ${{ runner.temp }}/native-public-install.json
-            ${{ runner.temp }}/paperclip-arm-bwrap-prerequisite/
+            ${{ runner.temp }}/nexus-arm-bwrap-prerequisite/
           if-no-files-found: warn
           retention-days: 14

@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   agents, chatConversations, chatEndpoints, companies, createDb, heartbeatRuns,
   issues, toolApplications, toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { chatRunMilestoneSource } from "../services/chat-run-milestone-candidates.js";
 import { boundRunIssueIdSql } from "../services/run-task-binding.js";

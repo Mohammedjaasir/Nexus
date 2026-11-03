@@ -13,7 +13,7 @@ function fixture() {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "image-plugin-runtime-")));
   roots.push(root);
   fs.mkdirSync(path.join(root, "server", "dist-runtime"), { recursive: true });
-  fs.writeFileSync(path.join(root, "server", "package.json"), JSON.stringify({ name: "@paperclipai/server", type: "module" }));
+  fs.writeFileSync(path.join(root, "server", "package.json"), JSON.stringify({ name: "@nexusai/server", type: "module" }));
   const loader = path.join(root, "cli", "node_modules", "tsx", "dist", "loader.mjs");
   fs.mkdirSync(path.dirname(loader), { recursive: true });
   fs.writeFileSync(loader, "export {};\n");

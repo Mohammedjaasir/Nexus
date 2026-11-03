@@ -119,8 +119,8 @@ describe("deployment manifest parity", () => {
     // Same reasoning as compose `init: true`: initProcessEnabled would put the
     // ECS-managed init in front of tini. Asserted rather than merely reviewed so
     // the parity decision survives the next edit to the task definition.
-    const server = ecsTaskDefinition.containerDefinitions.find((c) => c.name === "paperclip-server");
-    expect(server, "the task definition must define a paperclip-server container").toBeDefined();
+    const server = ecsTaskDefinition.containerDefinitions.find((c) => c.name === "nexus-server");
+    expect(server, "the task definition must define a nexus-server container").toBeDefined();
     expect(server?.linuxParameters?.initProcessEnabled).toBeUndefined();
   });
 });

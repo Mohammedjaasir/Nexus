@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { heartbeatRuns } from "@paperclipai/db";
+import { heartbeatRuns } from "@nexusai/db";
 
 export const runTaskContextColumn = sql<Record<string, unknown>>`jsonb_build_object(
   'issueId', ${heartbeatRuns.contextSnapshot}->'issueId',

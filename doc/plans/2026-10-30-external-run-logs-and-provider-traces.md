@@ -11,7 +11,7 @@ Parent effort: near-zero-downtime Railway deployment of the main web/API server.
 
 ## Goal and boundary
 
-After the main Paperclip web server and its local filesystem disappear, a
+After the main Nexus web server and its local filesystem disappear, a
 replacement connected to the same Postgres, object storage, and secrets can
 read all acknowledged run-log output and retained provider traces, then continue
 recording the same remote execution without gaps or duplicate records.
@@ -75,7 +75,7 @@ from a trace's local `acknowledgedDebugSequence`. Neither proves remote commit.
 Generic stdout/stderr and raw traces cannot be reconstructed from
 `heartbeat_run_events`. The implementation investigation found a narrower
 surviving source: native control ingestion already commits the exact validated
-PRP event before ACK. Its canonical `paperclip.prp.event` log export can replay
+PRP event before ACK. Its canonical `nexus.prp.event` log export can replay
 that existing source with an S3 cursor, without adding payload writes. This
 replaces the tentative second Runner spool below for canonical native output.
 
@@ -513,7 +513,7 @@ claim live-provider or fleet evidence from deterministic fixtures.
   The native Postgres package initially lacked its postinstall-created library
   symlinks; its standard hydration helper repaired that local test prerequisite.
 - Native pending-tail qualification passed with the real Rust recovery fixture,
-  `PaperclipControlPlanePort`, production recorder, real Postgres and Moto. A
+  `NexusControlPlanePort`, production recorder, real Postgres and Moto. A
   received ACK released 32 records from the Runner while S3's source cursor was
   still zero. After `SIGKILL` and deletion of the old controller directory, B
   exported all 64 records once while the same Runner PID continued. Snapshot and
@@ -563,5 +563,5 @@ claim live-provider or fleet evidence from deterministic fixtures.
   environment or volume was changed.
 - Next gate: finish fresh-source checks and PR review; retain actual-provider,
   live remote capture, and parent cutover gates before any volume-free rollout.
-- No Paperclip issue/run context was supplied. This repository plan is the state
+- No Nexus issue/run context was supplied. This repository plan is the state
   record; no issue work product or production migration is claimed.

@@ -19,7 +19,7 @@ import type {
   FinanceEvent,
   QuotaWindow,
   ProviderQuotaResult,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, Coins, DollarSign, ReceiptText } from "lucide-react";
 import { budgetsApi } from "../api/budgets";
 import { costsApi } from "../api/costs";
@@ -187,7 +187,7 @@ export function Costs({
     queryFn: () => agentsApi.get(scopedAgentId!, selectedCompanyId!),
     enabled: Boolean(selectedCompanyId && scopedAgentId),
   });
-  const museUsageUnavailable = scopedAgent?.adapterType === "paperclip_runner" && scopedAgent.adapterConfig.provider === "muse";
+  const museUsageUnavailable = scopedAgent?.adapterType === "nexus_runner" && scopedAgent.adapterConfig.provider === "muse";
   const [mainTab, setMainTab] = useState<CostsMainTab>(initialTab);
   const [activeProvider, setActiveProvider] = useState("all");
   const [activeBiller, setActiveBiller] = useState("all");
@@ -611,7 +611,7 @@ export function Costs({
       )}
       {museUsageUnavailable && (
         <p role="status" className="text-sm text-muted-foreground">
-          {scopedAgent.name}'s Muse activity has no reported usage or cost. Totals below show recorded organization charges only. Paperclip cannot enforce a Muse spend ceiling.
+          {scopedAgent.name}'s Muse activity has no reported usage or cost. Totals below show recorded organization charges only. Nexus cannot enforce a Muse spend ceiling.
         </p>
       )}
       {showSummaryChrome ? (
@@ -778,7 +778,7 @@ export function Costs({
                           const isExpanded = expandedAgents.has(row.agentId);
                           const hasBreakdown = modelRows.length > 0;
                           return (
-                            <div key={row.agentId ?? "services"} role="group" aria-label={`${row.agentName ?? row.agentId ?? "Paperclip services"} costs`} className="border border-border px-4 py-3">
+                            <div key={row.agentId ?? "services"} role="group" aria-label={`${row.agentName ?? row.agentId ?? "Nexus services"} costs`} className="border border-border px-4 py-3">
                               <div
                                 className={cn("flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between", hasBreakdown ? "cursor-pointer select-none" : "")}
                                 onClick={() => hasBreakdown && toggleAgent(row.agentId)}
@@ -791,7 +791,7 @@ export function Costs({
                                   ) : (
                                     <span className="h-3 w-3 shrink-0" />
                                   )}
-                                  {row.agentId ? <AgentIdentity agent={{ id: row.agentId, name: row.agentName ?? row.agentId, appearance: row.agentAppearance }} size="sm" /> : <span className="font-medium">Paperclip services</span>}
+                                  {row.agentId ? <AgentIdentity agent={{ id: row.agentId, name: row.agentName ?? row.agentId, appearance: row.agentAppearance }} size="sm" /> : <span className="font-medium">Nexus services</span>}
                                   {row.agentStatus === "terminated" ? <StatusBadge status="terminated" /> : null}
                                 </div>
                                 <div className="text-right text-sm tabular-nums">

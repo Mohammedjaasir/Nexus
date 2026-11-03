@@ -1,20 +1,20 @@
 ---
 name: add-product-e2e-eval
-description: Add or extend a Paperclip full-stack runner E2E workflow, fixture, matcher, or report evidence path for local or Daytona execution.
+description: Add or extend a Nexus full-stack runner E2E workflow, fixture, matcher, or report evidence path for local or Daytona execution.
 ---
 
 # Add a Product E2E Eval
 
-Use this skill for **Product E2E Evals**: real Chromium, Paperclip server,
+Use this skill for **Product E2E Evals**: real Chromium, Nexus server,
 database, runner, provider, and optionally Daytona. Everyday Workflows are in
 this family even when their packaged results are imported into Evalbook. Runner
 protocol cases against the mock control plane belong in
 [add-runner-eval](../add-runner-eval/SKILL.md).
 
-Locate the repository using `PAPERCLIP_ROOT` when supplied, or
+Locate the repository using `NEXUS_ROOT` when supplied, or
 `git rev-parse --show-toplevel` from a checkout. From outside Git, inspect
-workspace roots such as `~/paperclipai/paperclip`; verify the selected root
-contains `tests/runner-e2e` and `packages/paperclip-runner`. Run commands from
+workspace roots such as `~/nexusai/nexus`; verify the selected root
+contains `tests/runner-e2e` and `packages/nexus-runner`. Run commands from
 that repository root. The copied skill may live outside the checkout.
 Read `doc/evals.md`, then the authoritative
 `tests/runner-e2e/README.md`, `FIXTURES.md`, `SECURITY.md`, and
@@ -68,7 +68,7 @@ cannot override the independent oracle.
 
 Classify a completed wrong workflow as product or model/provider behavior as
 the assertions warrant. Startup, transport, and timeout symptoms require
-evidence-based attribution: they may indicate a Paperclip/Runner product bug,
+evidence-based attribution: they may indicate a Nexus/Runner product bug,
 provider behavior, or infrastructure. Preserve the observed failure and cause
 separately, keep the existing machine grade/classifier unchanged, and retain
 partial attempts, retries, source SHA, catalog/definition digest, model/profile,

@@ -16,7 +16,7 @@ test('keeps an existing source compact while allowing project import from its me
   await page.goto(story('existing-source-more-projects'));
   const source = page.getByRole('region', { name: 'acme/team-skills', exact: true });
   await expect(source.getByRole('link', { name: 'acme/team-skills', exact: true })).toHaveCount(1);
-  await expect(source).not.toContainText('Paperclip Cloud');
+  await expect(source).not.toContainText('Nexus Cloud');
   await expect(source).not.toContainText('Sentry');
   await expect(source).not.toContainText('Other projects with this repo');
   await expect(page.getByRole('link', { name: 'Installed skills', exact: true })).toHaveCount(0);
@@ -30,7 +30,7 @@ test('keeps an existing source compact while allowing project import from its me
   await expect(page.getByRole('menuitem', { name: /^(Import (remaining )?project skills|Retry project import)$/ })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(source).toBeVisible();
-  await expect(source).not.toContainText('Paperclip Cloud');
+  await expect(source).not.toContainText('Nexus Cloud');
   await expect(source).not.toContainText('Sentry');
 });
 

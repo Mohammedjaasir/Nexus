@@ -19,8 +19,8 @@ const files = sourceFiles();
 const execution = executionPlan(config, task, args, files);
 // Validate before Turbo can return a cache hit. The hash separates selected
 // executions from full executions and from every different selected file set.
-if (process.env.PAPERCLIP_CI_TEST_SELECTION) {
-  process.env.PAPERCLIP_CI_SELECTION_HASH = selectionHash(loadSelection());
+if (process.env.NEXUS_CI_TEST_SELECTION) {
+  process.env.NEXUS_CI_SELECTION_HASH = selectionHash(loadSelection());
 }
 mkdirSync(".turbo/task-configs", { recursive: true });
 const runtimeConfig = `.turbo/task-configs/${task.replace(":", "-")}.json`;

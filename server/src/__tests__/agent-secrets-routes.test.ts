@@ -17,8 +17,8 @@ import {
   createDb,
   heartbeatRuns,
   secretAccessEvents,
-} from "@paperclipai/db";
-import { LOW_TRUST_REVIEW_PRESET, type AgentApiKeyScope } from "@paperclipai/shared";
+} from "@nexusai/db";
+import { LOW_TRUST_REVIEW_PRESET, type AgentApiKeyScope } from "@nexusai/shared";
 import { REDACTED_EVENT_VALUE } from "../redaction.js";
 import { errorHandler } from "../middleware/error-handler.js";
 import { secretRoutes } from "../routes/secrets.js";
@@ -35,12 +35,12 @@ const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : 
 describeEmbeddedPostgres("agent secret routes", () => {
   let stopDb: (() => Promise<void>) | null = null;
   let db!: ReturnType<typeof createDb>;
-  const previousKeyFile = process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
-  const secretsTmpDir = path.join(os.tmpdir(), `paperclip-agent-secret-routes-${randomUUID()}`);
+  const previousKeyFile = process.env.NEXUS_SECRETS_MASTER_KEY_FILE;
+  const secretsTmpDir = path.join(os.tmpdir(), `nexus-agent-secret-routes-${randomUUID()}`);
 
   beforeAll(async () => {
     mkdirSync(secretsTmpDir, { recursive: true });
-    process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = path.join(secretsTmpDir, "master.key");
+    process.env.NEXUS_SECRETS_MASTER_KEY_FILE = path.join(secretsTmpDir, "master.key");
     const started = await startEmbeddedPostgresTestDatabase("agent-secret-routes");
     stopDb = started.cleanup;
     db = createDb(started.connectionString);
@@ -60,8 +60,8 @@ describeEmbeddedPostgres("agent secret routes", () => {
 
   afterAll(async () => {
     await stopDb?.();
-    if (previousKeyFile === undefined) delete process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
-    else process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = previousKeyFile;
+    if (previousKeyFile === undefined) delete process.env.NEXUS_SECRETS_MASTER_KEY_FILE;
+    else process.env.NEXUS_SECRETS_MASTER_KEY_FILE = previousKeyFile;
     rmSync(secretsTmpDir, { recursive: true, force: true });
   });
 
@@ -171,7 +171,7 @@ describeEmbeddedPostgres("agent secret routes", () => {
     });
     await db.update(heartbeatRuns).set({
       contextSnapshot: {
-        paperclipSecrets: {
+        nexusSecrets: {
           manifest: [{
             bindingId: projectBinding.id,
             secretId: projectSecret.id,
@@ -201,7 +201,7 @@ describeEmbeddedPostgres("agent secret routes", () => {
     const [registeredRun] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, fixture.heartbeatRunId));
     expect(JSON.stringify(registeredRun.contextSnapshot)).not.toContain("env-secret-value");
     expect(registeredRun.contextSnapshot).toMatchObject({
-      paperclipSecretRedactions: [expect.objectContaining({ fingerprintSha256: expect.any(String), material: expect.any(Object) })],
+      nexusSecretRedactions: [expect.objectContaining({ fingerprintSha256: expect.any(String), material: expect.any(Object) })],
     });
     expect(await db.select().from(secretAccessEvents)).toEqual([
       expect.objectContaining({ secretId: envSecret.id, outcome: "success", consumerType: "agent_api" }),
@@ -244,9 +244,9 @@ describeEmbeddedPostgres("agent secret routes", () => {
 
     const [run] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, fixture.heartbeatRunId));
     expect(run.contextSnapshot).toMatchObject({
-      paperclipSecretRedactions: [expect.objectContaining({ fingerprintSha256: expect.any(String) })],
+      nexusSecretRedactions: [expect.objectContaining({ fingerprintSha256: expect.any(String) })],
     });
-    expect((run.contextSnapshot as { paperclipSecretRedactions: unknown[] }).paperclipSecretRedactions).toHaveLength(1);
+    expect((run.contextSnapshot as { nexusSecretRedactions: unknown[] }).nexusSecretRedactions).toHaveLength(1);
   });
 
   it("redacts batched runs from projected registries and enforces company scope", async () => {

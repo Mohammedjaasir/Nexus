@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { agents, applyPendingMigrations, companies, createDb, executionWorkspaceRestorePoints, executionWorkspaces, heartbeatRuns, issues, projects } from "@paperclipai/db";
+import { agents, applyPendingMigrations, companies, createDb, executionWorkspaceRestorePoints, executionWorkspaces, heartbeatRuns, issues, projects } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveManagedProjectWorkspaceDir } from "../home-paths.js";
 import { materializeManagedProjectWorkspace, ensureManagedRepositoriesIgnored } from "../services/managed-repository-checkout.js";
@@ -27,23 +27,23 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_ISOLATED_REHOME_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_ISOLATED_REHOME_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = support.supported ? describe : describe.skip;
 describeEmbeddedPostgres("isolated repository source re-home", () => {
   let db: ReturnType<typeof createDb>;
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
   let root: string;
-  const previousHome = process.env.PAPERCLIP_HOME;
-  const previousInstance = process.env.PAPERCLIP_INSTANCE_ID;
+  const previousHome = process.env.NEXUS_HOME;
+  const previousInstance = process.env.NEXUS_INSTANCE_ID;
   beforeAll(async () => {
     if (external) await applyPendingMigrations(external);
     else database = await startEmbeddedPostgresTestDatabase("isolated-repository-rehome-");
     db = createDb(external ?? database!.connectionString);
-    root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-isolated-rehome-"));
-    process.env.PAPERCLIP_HOME = path.join(root, "home");
-    process.env.PAPERCLIP_INSTANCE_ID = "default";
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "41".repeat(32));
+    root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-isolated-rehome-"));
+    process.env.NEXUS_HOME = path.join(root, "home");
+    process.env.NEXUS_INSTANCE_ID = "default";
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "41".repeat(32));
   });
   afterEach(async () => {
     await db.delete(executionWorkspaceRestorePoints);
@@ -52,8 +52,8 @@ describeEmbeddedPostgres("isolated repository source re-home", () => {
   });
   afterAll(async () => {
     vi.unstubAllEnvs();
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previousHome;
-    if (previousInstance === undefined) delete process.env.PAPERCLIP_INSTANCE_ID; else process.env.PAPERCLIP_INSTANCE_ID = previousInstance;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = previousHome;
+    if (previousInstance === undefined) delete process.env.NEXUS_INSTANCE_ID; else process.env.NEXUS_INSTANCE_ID = previousInstance;
     await db.$client.end({ timeout: 1 }); await database?.cleanup(); await fs.rm(root, { recursive: true, force: true });
   });
 
@@ -82,10 +82,10 @@ describeEmbeddedPostgres("isolated repository source re-home", () => {
     await db.insert(executionWorkspaces).values({ id: workspaceId, companyId, projectId, sourceIssueId: issueId, mode: "isolated_workspace", strategyType: "git_worktree",
       name: "Fixture", status: "active", providerType: "local_fs", cwd: realized.cwd, providerRef: realized.cwd, repoUrl, baseRef: "origin/main",
       branchName: realized.branchName, metadata: { createdByRuntime: realized.branchCreatedByRuntime, gitBranchOwnershipVersion: 1, baseRefSha: realized.baseRefSha,
-        isolatedRemoteSource: { schema: "paperclip.isolated-remote-source.v1", companyId, issueId, repoUrl } } });
+        isolatedRemoteSource: { schema: "nexus.isolated-remote-source.v1", companyId, issueId, repoUrl } } });
     await db.update(issues).set({ executionWorkspaceId: workspaceId }).where(eq(issues.id, issueId));
     const row = () => db.select().from(executionWorkspaces).where(eq(executionWorkspaces.id, workspaceId)).then(rows => rows[0]!);
-    const target = path.join(await fs.realpath(root), path.relative(root, sharedPath), ".paperclip", "worktrees", "fixture-task");
+    const target = path.join(await fs.realpath(root), path.relative(root, sharedPath), ".nexus", "worktrees", "fixture-task");
     return { companyId, issueId, workspaceId, projectId, cwd: realized.cwd, clone, sharedPath, target, repoUrl, remote, author, row };
   }
 
@@ -118,7 +118,7 @@ describeEmbeddedPostgres("isolated repository source re-home", () => {
     const repoUrl = pathToFileURL(remote).href;
     const base = (await materializeManagedProjectWorkspace(nestedRepositoryBaseCandidates({ companyId: f.companyId, projectId: f.projectId, repoUrl })[0]!, { repoUrl })).cwd;
     await ensureManagedRepositoriesIgnored(f.cwd);
-    const checkout = path.join(f.cwd, ".paperclip-repositories", "docs-linked");
+    const checkout = path.join(f.cwd, ".nexus-repositories", "docs-linked");
     await fs.mkdir(path.dirname(checkout), { recursive: true });
     const { branchName } = await addNestedRepositoryWorktree({ base, cwd: checkout, repoUrl, repoRef: null });
     await fs.writeFile(path.join(checkout, "guide.md"), "edited in the nested worktree\n");
@@ -144,8 +144,8 @@ describeEmbeddedPostgres("isolated repository source re-home", () => {
     const f = await fixture();
     const unpushed = await makeWork(f.cwd);
     await ensureManagedRepositoriesIgnored(f.cwd);
-    await fs.appendFile(path.join(f.cwd, ".gitignore"), "/.paperclip-repositories/\n");
-    const nested = path.join(f.cwd, ".paperclip-repositories", "docs");
+    await fs.appendFile(path.join(f.cwd, ".gitignore"), "/.nexus-repositories/\n");
+    const nested = path.join(f.cwd, ".nexus-repositories", "docs");
     await fs.mkdir(nested, { recursive: true });
     git(nested, "init", "--initial-branch=main");
     await fs.writeFile(path.join(nested, "readme.md"), "nested\n");
@@ -171,8 +171,8 @@ describeEmbeddedPostgres("isolated repository source re-home", () => {
     expect(await fs.readFile(path.join(f.target, "node_modules", "pkg", "index.js"), "utf8")).toBe("module.exports = 1;\n");
     expect(await fs.readFile(path.join(f.target, ".env"), "utf8")).toBe("LOCAL_SETTING=1\n");
     expect(await fs.readFile(path.join(f.target, ".claude", "settings.local.json"), "utf8")).toBe("{\"local\":true}\n");
-    expect(git(path.join(f.target, ".paperclip-repositories", "docs"), "log", "-1", "--format=%s")).toBe("nested");
-    expect(await fs.readFile(path.join(f.target, ".paperclip-repositories", "docs", "node_modules", "dep", "index.js"), "utf8")).toBe("nested dependency\n");
+    expect(git(path.join(f.target, ".nexus-repositories", "docs"), "log", "-1", "--format=%s")).toBe("nested");
+    expect(await fs.readFile(path.join(f.target, ".nexus-repositories", "docs", "node_modules", "dep", "index.js"), "utf8")).toBe("nested dependency\n");
 
     const row = await f.row();
     expect(row).toMatchObject({ cwd: f.target, providerRef: f.target, branchName: "fixture-task" });
@@ -194,7 +194,7 @@ describeEmbeddedPostgres("isolated repository source re-home", () => {
     const result = await rehomeIsolatedRepositoryWorkspace(db, await f.row());
     expect(result).toMatchObject({ rehomed: true, cloneRemoved: true, reason: null });
     expect(await currentRestorePointSnapshot(f.target)).toEqual(before);
-    const moved = path.join(f.target, ".paperclip-repositories", "docs-linked");
+    const moved = path.join(f.target, ".nexus-repositories", "docs-linked");
     expect(await readLinkedNestedCheckout(moved)).toMatchObject({ base: nested.realBase, checkout: moved });
     expect(worktreePaths(nested.base)).toContain(moved);
     expect(worktreePaths(nested.base)).not.toContain(oldCheckout);
@@ -213,7 +213,7 @@ describeEmbeddedPostgres("isolated repository source re-home", () => {
     const nested = await addLinkedNested(f);
     const oldCheckout = await fs.realpath(nested.checkout);
     const result = await rehomeIsolatedRepositoryWorkspace(db, await f.row(), { hooks: { beforeVerify: async ({ from, to }) => {
-      expect(worktreePaths(nested.base)).toContain(path.join(to, ".paperclip-repositories", "docs-linked"));
+      expect(worktreePaths(nested.base)).toContain(path.join(to, ".nexus-repositories", "docs-linked"));
       await fs.writeFile(path.join(from, "late.txt"), "written by a concurrent run\n");
     } } });
     expect(result).toMatchObject({ rehomed: false, reason: "snapshot_mismatch" });
@@ -378,7 +378,7 @@ describeEmbeddedPostgres("isolated repository source re-home", () => {
     await makeWork(f.cwd);
     await db.insert(executionWorkspaces).values({ companyId: f.companyId, projectId: f.projectId, sourceIssueId: f.issueId, mode: "isolated_workspace",
       strategyType: "git_worktree", name: "Sibling", status: "active", providerType: "local_fs", cwd: path.join(f.clone, "sibling"), repoUrl: f.repoUrl,
-      metadata: { isolatedRemoteSource: { schema: "paperclip.isolated-remote-source.v1", companyId: f.companyId, issueId: f.issueId, repoUrl: f.repoUrl } } });
+      metadata: { isolatedRemoteSource: { schema: "nexus.isolated-remote-source.v1", companyId: f.companyId, issueId: f.issueId, repoUrl: f.repoUrl } } });
     const result = await rehomeIsolatedRepositoryWorkspace(db, await f.row());
     expect(result).toMatchObject({ rehomed: true, cloneRemoved: false, cloneKeptReason: "base_has_consumers" });
     expect(await exists(f.clone)).toBe(true);
@@ -505,7 +505,7 @@ describeEmbeddedPostgres("isolated repository source re-home", () => {
     const f = await fixture();
     await makeWork(f.cwd);
     const { feature, release } = await publishUnfetchedHistory(f);
-    await fs.appendFile(path.join(f.clone, ".git", "info", "exclude"), "\n.paperclip/\n");
+    await fs.appendFile(path.join(f.clone, ".git", "info", "exclude"), "\n.nexus/\n");
     await crashedRehome(f);
     expect(() => git(f.sharedPath, "cat-file", "-e", `${release}^{commit}`)).toThrow();
     expect(() => git(f.sharedPath, "cat-file", "-e", `${feature}^{commit}`)).toThrow();

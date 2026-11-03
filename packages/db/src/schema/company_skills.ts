@@ -10,7 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import type { CompanySkillFileInventoryEntry, CompanySkillSharingScope } from "@paperclipai/shared";
+import type { CompanySkillFileInventoryEntry, CompanySkillSharingScope } from "@nexusai/shared";
 import { agents } from "./agents.js";
 import { companies } from "./companies.js";
 import { issues } from "./issues.js";
@@ -114,7 +114,7 @@ export type SkillPackageRestoreRecipe = {
   commitSha: string;
   skillPath: string | null;
   manifest: {
-    format: "paperclip-skill-package/v1";
+    format: "nexus-skill-package/v1";
     contentHash: string;
     totalBytes: number;
     files: Array<{ path: string; kind: CompanySkillFileInventoryEntry["kind"]; encoding: "utf8" | "base64";

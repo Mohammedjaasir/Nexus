@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
-import type { ToolConnection } from "@paperclipai/shared";
-import { findComposioCatalogApp, type AggregatorAppCatalogEntry } from "@paperclipai/shared/aggregator-app-catalog";
+import type { ToolConnection } from "@nexusai/shared";
+import { findComposioCatalogApp, type AggregatorAppCatalogEntry } from "@nexusai/shared/aggregator-app-catalog";
 import { toolsApi } from "@/api/tools";
 import { queryKeys } from "@/lib/queryKeys";
 import { COMPOSIO_APP_MANAGEMENT_URL } from "@/lib/aggregator-app-setup";

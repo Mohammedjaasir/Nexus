@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act } from "react";
-import { PAPERCLIP_RUNNER_ACPX_PROFILES } from "@paperclipai/adapter-utils";
+import { NEXUS_RUNNER_ACPX_PROFILES } from "@nexusai/adapter-utils";
 import { describe, expect, it, vi } from "vitest";
 import { queryKeys } from "@/lib/queryKeys";
 import { ApiError } from "@/api/client";
@@ -17,7 +17,7 @@ describe("New agent setup", () => {
     ["claude_local", "Claude", "kubernetes"], ["codex_local", "OpenAI", "kubernetes"],
   ] as const)("connects an inherited %s draft through the saved %s account under %s policy", async (adapter, provider, policy) => {
     const id = "00000000-0000-4000-8000-000000000093";
-    const draft = { id, companyId: "company-1", name: "Atlas", role: "general", adapterType: "paperclip_runner",
+    const draft = { id, companyId: "company-1", name: "Atlas", role: "general", adapterType: "nexus_runner",
       adapterConfig: adapter === "claude_local" ? { provider: "acpx", acpxAgent: "claude" } : { provider: "codex" },
       runtimeConfig: {}, lifecycleState: "paused", pauseReason: "setup", defaultEnvironmentId: null, status: "paused" };
     state.params = new URLSearchParams({ name: "Atlas", adapterType: adapter, runner: "auto", setupAgentId: id });
@@ -87,7 +87,7 @@ describe("New agent setup", () => {
     expect(container.textContent).toContain("Configure your agent");
     expect(container.textContent).toContain("Environment save unavailable");
     await act(async () => finishDiscovery(state.adapters.map((adapter: any) => adapter.type === "codex_local"
-      ? { ...adapter, defaultRunner: "paperclip", supportedRunners: ["paperclip", "legacy"] } : adapter)));
+      ? { ...adapter, defaultRunner: "nexus", supportedRunners: ["nexus", "legacy"] } : adapter)));
     await settle();
     expect(container.textContent).toContain("Environment save unavailable");
     await click("Run test");
@@ -131,7 +131,7 @@ describe("New agent setup", () => {
 
   it.each([null, "computer"])("waits for background preparation and tests the same saved computer (environment=%s)", async (defaultEnvironmentId) => {
     const id = "00000000-0000-4000-8000-000000000092";
-    const draft = { id, companyId: "company-1", name: "Atlas", adapterType: "paperclip_runner", adapterConfig: { provider: "codex" },
+    const draft = { id, companyId: "company-1", name: "Atlas", adapterType: "nexus_runner", adapterConfig: { provider: "codex" },
       runtimeConfig: {}, lifecycleState: "preparing", pauseReason: "setup", defaultEnvironmentId, status: "paused" };
     state.params = new URLSearchParams({ name: "Atlas", adapterType: "codex_local", setupAgentId: id });
     api.get.mockResolvedValue(draft);
@@ -270,12 +270,12 @@ describe("New agent setup", () => {
     expect(secrets.create).toHaveBeenCalledTimes(1);
   });
 
-  it("retains an unfinished legacy harness when the current target defaults to Paperclip Runner", async () => {
+  it("retains an unfinished legacy harness when the current target defaults to Nexus Runner", async () => {
     await render("codex_local");
     const setupId = api.create.mock.calls[0][1].setupId;
     await act(async () => root.render(null));
     cache.clear();
-    state.adapters = state.adapters.map((adapter: any) => adapter.type === "codex_local" ? { ...adapter, defaultRunner: "paperclip", supportedRunners: ["paperclip", "legacy"] } : adapter);
+    state.adapters = state.adapters.map((adapter: any) => adapter.type === "codex_local" ? { ...adapter, defaultRunner: "nexus", supportedRunners: ["nexus", "legacy"] } : adapter);
     state.params = new URLSearchParams({ name: "Atlas", adapterType: "codex_local", setupAgentId: setupId });
     await renderCurrentParams();
     await settle();
@@ -285,9 +285,9 @@ describe("New agent setup", () => {
   });
 
   it.each([
-    ["paperclip", "Connect", "image"], ["legacy", "Connect", "image"],
-    ["paperclip", "Finish setup", "image"], ["legacy", "Finish setup", "image"],
-    ["paperclip", "Connect", "snapshot"], ["paperclip", "Finish setup", "snapshot"],
+    ["nexus", "Connect", "image"], ["legacy", "Connect", "image"],
+    ["nexus", "Finish setup", "image"], ["legacy", "Finish setup", "image"],
+    ["nexus", "Connect", "snapshot"], ["nexus", "Finish setup", "snapshot"],
   ] as const)("qualifies new managed Claude and saves measured %s defaults through %s from %s", async (measured, step, source) => {
     const image = `registry.example.test/runtime@sha256:${"a".repeat(64)}`;
     envApi.list.mockResolvedValue([{ id: "sandbox-1", driver: "sandbox", config: { provider: "daytona", ...(source === "snapshot" ? { snapshot: "managed-snapshot" } : { image }) } }]);
@@ -342,7 +342,7 @@ describe("New agent setup", () => {
     const saved = api.hire.mock.calls[0][1];
     expect(saved).not.toHaveProperty("runner");
     expect(saved.adapterConfig).toEqual(tested);
-    if (measured === "paperclip") expect(tested).not.toHaveProperty("maxTurnsPerRun");
+    if (measured === "nexus") expect(tested).not.toHaveProperty("maxTurnsPerRun");
     else expect(tested.maxTurnsPerRun).toBe(1000);
   });
 
@@ -399,7 +399,7 @@ describe("New agent setup", () => {
     cache.setQueryData(queryKeys.environments.list("company-1"), environments);
     cache.setQueryData(queryKeys.instance.settings, { defaultEnvironmentId: "linux-ssh" });
     adapterApi.list.mockImplementation(async (context?: { environmentId?: string | null }) => state.adapters.map((adapter: any) => adapter.type === "claude_local"
-      ? { ...adapter, supportedRunners: ["paperclip", "legacy"], defaultRunner: context?.environmentId === "local-1" ? "paperclip" : "legacy" } : adapter));
+      ? { ...adapter, supportedRunners: ["nexus", "legacy"], defaultRunner: context?.environmentId === "local-1" ? "nexus" : "legacy" } : adapter));
     await render("claude_local");
     await connect("Claude");
     expect(api.testEnvironment).not.toHaveBeenCalled();
@@ -415,7 +415,7 @@ describe("New agent setup", () => {
 
   it("keeps the API key draft while waiting for refreshed discovery", async () => {
     state.adapters = state.adapters.map((adapter: any) => adapter.type === "claude_local"
-      ? { ...adapter, defaultRunner: "paperclip", supportedRunners: ["paperclip", "legacy"] } : adapter);
+      ? { ...adapter, defaultRunner: "nexus", supportedRunners: ["nexus", "legacy"] } : adapter);
     await render("claude_local");
     await click("ClaudeAPI key");
     await fill("API key", "example-test-secret");
@@ -443,16 +443,16 @@ describe("New agent setup", () => {
     expect(api.hire.mock.calls[0][1].adapterConfig).not.toHaveProperty("maxTurnsPerRun");
   });
 
-  it.each(["paperclip", "legacy", undefined] as const)("uses Claude's discovered %s default for Auto setup and hire", async (defaultRunner) => {
+  it.each(["nexus", "legacy", undefined] as const)("uses Claude's discovered %s default for Auto setup and hire", async (defaultRunner) => {
     settings.getExperimental.mockResolvedValue({ enableNativeRunner: false });
     state.adapters = (state.adapters as any[]).map(adapter => adapter.type === "claude_local"
-      ? { ...adapter, supportedRunners: ["paperclip", "legacy"], defaultRunner } : adapter);
+      ? { ...adapter, supportedRunners: ["nexus", "legacy"], defaultRunner } : adapter);
     await render("claude_local");
     await connect("Claude");
     await click("Finish setup");
     expect(api.hire).toHaveBeenCalledTimes(1);
     for (const config of [api.testEnvironment.mock.calls[0][2].adapterConfig, api.hire.mock.calls[0][1].adapterConfig]) {
-      if (defaultRunner === "paperclip") expect(config).not.toHaveProperty("maxTurnsPerRun");
+      if (defaultRunner === "nexus") expect(config).not.toHaveProperty("maxTurnsPerRun");
       else expect(config.maxTurnsPerRun).toBe(1000);
       expect(config).not.toHaveProperty("resolvedRunner");
     }
@@ -462,8 +462,8 @@ describe("New agent setup", () => {
   it("finishes ordinary native Claude API setup when the key is verified without a CLI hello", async () => {
     settings.getExperimental.mockResolvedValue({ enableNativeRunner: false });
     state.adapters = (state.adapters as any[]).map(adapter => adapter.type === "claude_local"
-      ? { ...adapter, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" } : adapter);
-    api.testEnvironment.mockResolvedValue({ ...pass, adapterType: "paperclip_runner", checks: [
+      ? { ...adapter, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" } : adapter);
+    api.testEnvironment.mockResolvedValue({ ...pass, adapterType: "nexus_runner", checks: [
       { code: "acpx_runtime_ready", level: "info", message: "Runtime verified" },
       { code: "ai_connection_api_key_reverified", level: "info", message: "Key verified" },
     ] });
@@ -482,7 +482,7 @@ describe("New agent setup", () => {
       { id: "linux-ssh", name: "Linux", driver: "ssh", status: "active", config: {} },
     ]);
     adapterApi.list.mockImplementation(async (context?: { environmentId?: string | null }) => state.adapters.map((adapter: any) =>
-      adapter.type === "codex_local" ? { ...adapter, supportedRunners: context?.environmentId === "linux-ssh" ? ["paperclip", "legacy"] : ["legacy"], defaultRunner: context?.environmentId === "linux-ssh" ? "paperclip" : "legacy" } : adapter));
+      adapter.type === "codex_local" ? { ...adapter, supportedRunners: context?.environmentId === "linux-ssh" ? ["nexus", "legacy"] : ["legacy"], defaultRunner: context?.environmentId === "linux-ssh" ? "nexus" : "legacy" } : adapter));
     await render("codex_local");
     await act(async () => (container.querySelector("summary") as HTMLElement).click());
     const runner = container.querySelector<HTMLButtonElement>('[aria-label="Runner"]')!;
@@ -504,14 +504,14 @@ describe("New agent setup", () => {
     settings.getExperimental.mockResolvedValue({ enableNativeRunner: false });
     adapterApi.list.mockImplementation(async () => state.adapters.map((adapter: any) => adapter.type === "codex_local" ? { ...adapter, supportedRunners: ["legacy"], defaultRunner: "legacy" } : adapter));
     api.testEnvironment.mockImplementation(async (_company, adapterType, payload) => {
-      if (adapterType === "codex_local" && payload.runner === "paperclip") throw new Error("This target is not qualified for a new native default.");
-      return { ...pass, adapterType, checks: [{ code: "paperclip_runner_codex_hello_probe_passed", level: "info", message: "Native runtime replied" }] };
+      if (adapterType === "codex_local" && payload.runner === "nexus") throw new Error("This target is not qualified for a new native default.");
+      return { ...pass, adapterType, checks: [{ code: "nexus_runner_codex_hello_probe_passed", level: "info", message: "Native runtime replied" }] };
     });
-    await render("paperclip_runner", "codex");
+    await render("nexus_runner", "codex");
     await connect("OpenAI");
     await click("Finish setup");
-    expect(api.testEnvironment).toHaveBeenCalledWith("company-1", "paperclip_runner", expect.objectContaining({ runner: "paperclip", adapterConfig: expect.objectContaining({ provider: "codex" }) }));
-    expect(api.hire.mock.calls[0][1]).toMatchObject({ adapterType: "paperclip_runner", runner: "paperclip", adapterConfig: { provider: "codex" } });
+    expect(api.testEnvironment).toHaveBeenCalledWith("company-1", "nexus_runner", expect.objectContaining({ runner: "nexus", adapterConfig: expect.objectContaining({ provider: "codex" }) }));
+    expect(api.hire.mock.calls[0][1]).toMatchObject({ adapterType: "nexus_runner", runner: "nexus", adapterConfig: { provider: "codex" } });
   });
 
   it("discovers the runner for the selected target and rechecks after changing environments", async () => {
@@ -521,10 +521,10 @@ describe("New agent setup", () => {
       { id: "linux-ssh", name: "Linux", driver: "ssh", status: "active", config: {} },
     ]);
     adapterApi.list.mockImplementation(async (context?: { companyId: string; environmentId?: string | null }) => state.adapters.map((adapter: any) =>
-      adapter.type === "codex_local" ? { ...adapter, supportedRunners: ["paperclip", "legacy"], defaultRunner: context?.environmentId === "linux-ssh" ? "paperclip" : "legacy" } : adapter));
+      adapter.type === "codex_local" ? { ...adapter, supportedRunners: ["nexus", "legacy"], defaultRunner: context?.environmentId === "linux-ssh" ? "nexus" : "legacy" } : adapter));
     await render("codex_local");
     await act(async () => (container.querySelector("summary") as HTMLElement).click());
-    expect(container.querySelector('[aria-label="Runner"]')?.textContent).toBe("Paperclip Runner (default)");
+    expect(container.querySelector('[aria-label="Runner"]')?.textContent).toBe("Nexus Runner (default)");
     expect(adapterApi.list).toHaveBeenCalledWith({ companyId: "company-1", environmentId: "linux-ssh" });
     await connect("OpenAI");
     expect(api.testEnvironment.mock.calls[0][2].environmentId).toBe("linux-ssh");
@@ -564,10 +564,10 @@ describe("New agent setup", () => {
   it.each(["Linux x64", "Mac arm64", "Mac x64"])("uses automatic Codex resolution through setup and hire without the experimental gate (%s)", async name => {
     settings.getExperimental.mockResolvedValue({ enableNativeRunner: false });
     envApi.list.mockResolvedValue([{ id: "local-1", name, driver: "local", status: "active", config: {} }]);
-    state.adapters = (state.adapters as any[]).map(adapter => adapter.type === "codex_local" ? { ...adapter, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" } : adapter);
+    state.adapters = (state.adapters as any[]).map(adapter => adapter.type === "codex_local" ? { ...adapter, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" } : adapter);
     await render("codex_local");
     await act(async () => (container.querySelector("summary") as HTMLElement).click());
-    expect(container.querySelector('[aria-label="Runner"]')?.textContent).toBe("Paperclip Runner (default)");
+    expect(container.querySelector('[aria-label="Runner"]')?.textContent).toBe("Nexus Runner (default)");
     await connect("OpenAI");
     await click("Finish setup");
     expect(api.hire.mock.calls[0][1].adapterType).toBe("codex_local");
@@ -578,7 +578,7 @@ describe("New agent setup", () => {
   });
 
   it("allows the explicit legacy override before authentication and rechecks it after a runner change", async () => {
-    state.adapters = (state.adapters as any[]).map(adapter => adapter.type === "codex_local" ? { ...adapter, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" } : adapter);
+    state.adapters = (state.adapters as any[]).map(adapter => adapter.type === "codex_local" ? { ...adapter, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" } : adapter);
     await render("codex_local");
     await act(async () => (container.querySelector("summary") as HTMLElement).click());
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Runner"]')!.click());
@@ -587,13 +587,13 @@ describe("New agent setup", () => {
     expect(api.testEnvironment.mock.calls[0][2].runner).toBe("legacy");
     await act(async () => (container.querySelector("summary") as HTMLElement).click());
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Runner"]')!.click());
-    await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')].find(option => option.textContent === "Paperclip Runner (default)")!.click());
+    await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')].find(option => option.textContent === "Nexus Runner (default)")!.click());
     await click("Finish setup");
-    expect(api.testEnvironment).toHaveBeenLastCalledWith("company-1", "codex_local", expect.objectContaining({ runner: "paperclip" }));
-    expect(api.hire.mock.calls[0][1]).toMatchObject({ adapterType: "codex_local", runner: "paperclip" });
+    expect(api.testEnvironment).toHaveBeenLastCalledWith("company-1", "codex_local", expect.objectContaining({ runner: "nexus" }));
+    expect(api.hire.mock.calls[0][1]).toMatchObject({ adapterType: "codex_local", runner: "nexus" });
   });
   it("opens pending Antigravity configuration without creating or admitting a native agent", async () => {
-    await render("paperclip_runner", "antigravity");
+    await render("nexus_runner", "antigravity");
     expect(api.create).not.toHaveBeenCalled();
     expect(api.adapterModels).not.toHaveBeenCalled();
     expect(container.textContent).toContain("Google Antigravity is not available yet");
@@ -605,11 +605,11 @@ describe("New agent setup", () => {
   it.each([false, true])("connects, saves and finishes the exact company-authorized Antigravity candidate with cached setup %s while release qualification stays pending", async cached => {
     const id = "00000000-0000-4000-8000-000000000091", model = "exact-antigravity-model";
     const draft = { id, companyId: "company-1", name: "Atlas", adapterType: "process", adapterConfig: {}, runtimeConfig: {},
-      metadata: { setupAdapterPending: true, setupAdapterChoice: { adapterType: "paperclip_runner", runnerProvider: "antigravity", runner: "auto" } }, pauseReason: "setup", status: "paused" };
-    state.params = new URLSearchParams({ name: "Atlas", adapterType: "paperclip_runner", runnerProvider: "antigravity", setupAgentId: id });
+      metadata: { setupAdapterPending: true, setupAdapterChoice: { adapterType: "nexus_runner", runnerProvider: "antigravity", runner: "auto" } }, pauseReason: "setup", status: "paused" };
+    state.params = new URLSearchParams({ name: "Atlas", adapterType: "nexus_runner", runnerProvider: "antigravity", setupAgentId: id });
     api.get.mockResolvedValue(draft);
     api.update.mockImplementation(async (_id, patch) => ({ ...draft, ...patch }));
-    state.adapters = state.adapters.map((adapter: any) => adapter.type === "paperclip_runner"
+    state.adapters = state.adapters.map((adapter: any) => adapter.type === "nexus_runner"
       ? { ...adapter, candidateHarnesses: [{ agent: "antigravity", model }] } : adapter);
     if (cached) {
       cache.setQueryData(queryKeys.instance.settings, { defaultEnvironmentId: "local-1" });
@@ -628,22 +628,22 @@ describe("New agent setup", () => {
     expect(container.textContent).toContain("Google Antigravity candidate is enabled");
     await click("Use saved subscription");
     expect(api.update).toHaveBeenCalledWith(id, expect.objectContaining({
-      adapterType: "paperclip_runner", adapterConfig: expect.objectContaining({ provider: "acpx", acpxAgent: "antigravity", model }),
+      adapterType: "nexus_runner", adapterConfig: expect.objectContaining({ provider: "acpx", acpxAgent: "antigravity", model }),
       metadata: expect.objectContaining({ setupAdapterPending: false }),
     }), "company-1");
     await click("Finish setup");
-    expect(api.testEnvironment).toHaveBeenCalledWith("company-1", "paperclip_runner", expect.objectContaining({ adapterConfig: expect.objectContaining({ model, acpxAgent: "antigravity" }) }));
+    expect(api.testEnvironment).toHaveBeenCalledWith("company-1", "nexus_runner", expect.objectContaining({ adapterConfig: expect.objectContaining({ model, acpxAgent: "antigravity" }) }));
     expect(api.hire).toHaveBeenCalledWith("company-1", expect.objectContaining({ setupAgentId: id, adapterConfig: expect.objectContaining({ provider: "acpx", acpxAgent: "antigravity", model }) }));
-    expect(PAPERCLIP_RUNNER_ACPX_PROFILES.find(profile => profile.value === "antigravity")?.qualified).toBe(false);
+    expect(NEXUS_RUNNER_ACPX_PROFILES.find(profile => profile.value === "antigravity")?.qualified).toBe(false);
   });
   it("restores the saved Antigravity choice from a reopened physical Process draft", async () => {
     const id = "00000000-0000-4000-8000-000000000091";
     state.params = new URLSearchParams({ name: "Atlas", adapterType: "process", runnerProvider: "codex", setupAgentId: id });
     api.get.mockResolvedValue({ id, companyId: "company-1", name: "Atlas", adapterType: "process", adapterConfig: {}, runtimeConfig: {},
-      metadata: { setupAdapterPending: true, setupAdapterChoice: { adapterType: "paperclip_runner", runnerProvider: "antigravity", runner: "auto" } }, pauseReason: "setup", status: "paused" });
+      metadata: { setupAdapterPending: true, setupAdapterChoice: { adapterType: "nexus_runner", runnerProvider: "antigravity", runner: "auto" } }, pauseReason: "setup", status: "paused" });
     await renderCurrentParams();
     const params = new URL(state.navigate.mock.calls.at(-1)![0], "http://local").searchParams;
-    expect(Object.fromEntries(params)).toMatchObject({ adapterType: "paperclip_runner", runnerProvider: "antigravity", runner: "auto", setupAgentId: id });
+    expect(Object.fromEntries(params)).toMatchObject({ adapterType: "nexus_runner", runnerProvider: "antigravity", runner: "auto", setupAgentId: id });
     state.params = params;
     await renderCurrentParams();
     expect(container.textContent).toContain("Google Antigravity is not available yet");
@@ -662,7 +662,7 @@ describe("New agent setup", () => {
   });
   it.each(["api_key", "subscription"] as const)("reviews pending Antigravity %s settings from the held Add agent draft without execution", async method => {
     const id = "00000000-0000-4000-8000-000000000091";
-    state.params = new URLSearchParams({ name: "Atlas", adapterType: "paperclip_runner", runnerProvider: "antigravity", setupAgentId: id });
+    state.params = new URLSearchParams({ name: "Atlas", adapterType: "nexus_runner", runnerProvider: "antigravity", setupAgentId: id });
     api.get.mockResolvedValue({ id, companyId: "company-1", name: "Atlas", adapterType: "process", adapterConfig: {},
       runtimeConfig: {}, metadata: { setupAdapterPending: true }, pauseReason: "setup", status: "paused" });
     managedApi.list.mockResolvedValue({ currentUserId: "user-1", connections: [{
@@ -687,7 +687,7 @@ describe("New agent setup", () => {
     expect(api.update).not.toHaveBeenCalled();
     expect(api.testEnvironment).not.toHaveBeenCalled();
     expect(api.hire).not.toHaveBeenCalled();
-    expect(api.adapterModels.mock.calls.every(call => call[1] === "paperclip_runner" && call[2]?.acpxAgent === "antigravity" && !call[2]?.agentId)).toBe(true);
+    expect(api.adapterModels.mock.calls.every(call => call[1] === "nexus_runner" && call[2]?.acpxAgent === "antigravity" && !call[2]?.agentId)).toBe(true);
     if (method === "api_key") expect(api.adapterModels).not.toHaveBeenCalled();
     else expect(api.adapterModels).toHaveBeenCalled();
     await click("Back to agents");
@@ -696,7 +696,7 @@ describe("New agent setup", () => {
   it.each(["api_key", "subscription"] as const)("wires a future qualified Antigravity %s account to metadata discovery and the exact model", async method => {
     // Simulate a future release declaration only inside this mocked UI fixture.
     // The production declaration remains pending and API execution stays gated.
-    const profile = PAPERCLIP_RUNNER_ACPX_PROFILES.find(item => item.value === "antigravity")! as unknown as { qualified: boolean };
+    const profile = NEXUS_RUNNER_ACPX_PROFILES.find(item => item.value === "antigravity")! as unknown as { qualified: boolean };
     const qualified = profile.qualified;
     profile.qualified = true;
     try {
@@ -708,12 +708,12 @@ describe("New agent setup", () => {
       api.adapterModels.mockResolvedValue([{ id: "google-exact-model", label: "My Google model" }]);
       cache.setQueryDefaults(queryKeys.health, { staleTime: Infinity });
       cache.setQueryData(queryKeys.health, { status: "ok", deploymentMode: "local_trusted", localAiLoginSupported: true });
-      await render("paperclip_runner", "antigravity");
+      await render("nexus_runner", "antigravity");
       await click(method === "subscription" ? "Use saved subscription" : "Use saved API key");
       expect(api.testEnvironment).not.toHaveBeenCalled();
       expect(container.textContent).toContain("Configure your agent");
       if (method === "api_key") expect(api.adapterModels).not.toHaveBeenCalled();
-      else await vi.waitFor(() => expect(api.adapterModels).toHaveBeenLastCalledWith("company-1", "paperclip_runner", expect.objectContaining({
+      else await vi.waitFor(() => expect(api.adapterModels).toHaveBeenLastCalledWith("company-1", "nexus_runner", expect.objectContaining({
         provider: "acpx", acpxAgent: "antigravity", aiConnection: expect.objectContaining({ provider: "google", method }), environmentId: "local-1",
       })));
       await click("Finish setup");
@@ -721,18 +721,18 @@ describe("New agent setup", () => {
       expect(container.textContent).toContain("exact Google Antigravity model ID");
       await fill("Model", "manual-exact-google-model");
       await click("Finish setup");
-      expect(api.hire).toHaveBeenCalledWith("company-1", expect.objectContaining({ adapterType: "paperclip_runner",
+      expect(api.hire).toHaveBeenCalledWith("company-1", expect.objectContaining({ adapterType: "nexus_runner",
         adapterConfig: expect.objectContaining({ provider: "acpx", acpxAgent: "antigravity", model: "manual-exact-google-model" }),
         runtimeConfig: expect.objectContaining({ aiConnection: expect.objectContaining({ provider: "google", method }) }),
       }));
-      expect(api.adapterModels.mock.calls.every(call => call[1] === "paperclip_runner" && call[2]?.acpxAgent === "antigravity")).toBe(true);
+      expect(api.adapterModels.mock.calls.every(call => call[1] === "nexus_runner" && call[2]?.acpxAgent === "antigravity")).toBe(true);
     } finally { profile.qualified = qualified; }
   });
 
   it("keeps saved-token Copilot discovery passive while new-agent setup is idle", async () => {
     api.adapterModels.mockResolvedValue([{ id: "gpt-5.6-luna", label: "Copilot Luna" }]);
-    await render("paperclip_runner", "copilot");
-    await vi.waitFor(() => expect(api.adapterModels).toHaveBeenLastCalledWith("company-1", "paperclip_runner", expect.objectContaining({ environmentId: "local-1", acpxAgent: "copilot" })));
+    await render("nexus_runner", "copilot");
+    await vi.waitFor(() => expect(api.adapterModels).toHaveBeenLastCalledWith("company-1", "nexus_runner", expect.objectContaining({ environmentId: "local-1", acpxAgent: "copilot" })));
     await settle();
     const initialDiscoveries = api.adapterModels.mock.calls.length;
     await act(async () => { await cache.invalidateQueries({ type: "active" }, { cancelRefetch: false }); });
@@ -741,7 +741,7 @@ describe("New agent setup", () => {
   });
   it("refuses an undiscovered Copilot model before hiring with a saved connection", async () => {
     api.adapterModels.mockResolvedValue([{ id: "gpt-5.6-luna", label: "GPT" }]);
-    await render("paperclip_runner", "copilot");
+    await render("nexus_runner", "copilot");
     await fill("Model", "unavailable-copilot-model");
     await click("Finish setup");
     expect(api.hire).not.toHaveBeenCalled();
@@ -749,11 +749,11 @@ describe("New agent setup", () => {
   });
   it("preserves the authenticated Copilot model when hiring with a saved connection", async () => {
     api.adapterModels.mockResolvedValue([{ id: "gpt-5.6-luna", label: "GPT" }]);
-    await render("paperclip_runner", "copilot");
+    await render("nexus_runner", "copilot");
     await fill("Model", "gpt-5.6-luna");
     await click("Finish setup");
     expect(api.hire).toHaveBeenCalledWith("company-1", expect.objectContaining({
-      adapterType: "paperclip_runner", adapterConfig: expect.objectContaining({ provider: "acpx", acpxAgent: "copilot", model: "gpt-5.6-luna" }),
+      adapterType: "nexus_runner", adapterConfig: expect.objectContaining({ provider: "acpx", acpxAgent: "copilot", model: "gpt-5.6-luna" }),
       runtimeConfig: expect.objectContaining({ aiConnection: { provider: "github", method: "api_key", mode: "responsible_user" } }),
     }));
   });
@@ -764,7 +764,7 @@ describe("New agent setup", () => {
       if (!defaultSaved) throw new ApiError("Connect Copilot first", 422, null);
       return [{ id: "gpt-5.6-luna", label: "GPT" }];
     });
-    await render("paperclip_runner", "copilot");
+    await render("nexus_runner", "copilot");
     const beforeConnection = api.adapterModels.mock.calls.length;
     expect(beforeConnection).toBeGreaterThan(0);
     const trigger = document.querySelector('[role="combobox"][aria-label="Connection"]')!;
@@ -787,14 +787,14 @@ describe("New agent setup", () => {
     expect(managedApi.setDefault).toHaveBeenCalledWith("company-1", "managed-grant");
     expect(api.adapterModels).toHaveBeenCalledTimes(beforeConnection + 1);
     expect(api.adapterModels.mock.invocationCallOrder[beforeConnection]).toBeGreaterThan(managedApi.setDefault.mock.invocationCallOrder[0]);
-    expect(api.adapterModels).toHaveBeenLastCalledWith("company-1", "paperclip_runner", expect.objectContaining({
+    expect(api.adapterModels).toHaveBeenLastCalledWith("company-1", "nexus_runner", expect.objectContaining({
       provider: "acpx", acpxAgent: "copilot", aiConnection: { provider: "github", method: "api_key", mode: "responsible_user" },
     }));
   });
 
   it("creates Dot through its independent choice without CLI or model setup, then routes to pairing", async () => {
     settings.getExperimental.mockResolvedValue({ enableNativeRunner: false, enableOpenAiDot: true, enablePublicMcp: true });
-    await render("paperclip_runner", "openai_dot");
+    await render("nexus_runner", "openai_dot");
     expect(container.textContent).toContain("OpenAI Dot");
     expect(container.querySelector('[aria-label="Model"]')).toBeNull();
     expect(container.textContent).not.toContain("Connect a model");
@@ -805,7 +805,7 @@ describe("New agent setup", () => {
     expect(container.textContent).toContain("Acknowledge external provider billing");
     await act(async () => container.querySelector<HTMLButtonElement>('[role="switch"]')!.click());
     await click("Finish setup");
-    expect(api.hire).toHaveBeenCalledWith("company-1", expect.objectContaining({ adapterType: "paperclip_runner", adapterConfig: {
+    expect(api.hire).toHaveBeenCalledWith("company-1", expect.objectContaining({ adapterType: "nexus_runner", adapterConfig: {
       provider: "openai_dot", lifecycleMode: "per_turn", allowUnmeteredProvider: true, dotWorkspaceAccess: false, dotAttachmentAccess: false,
     } }));
     expect(container.textContent).toContain("Your Dot agent has been created");
@@ -867,7 +867,7 @@ describe("New agent setup", () => {
       definition: { id: "grok-key", companyId: "company-1", key: "XAI_API_KEY", name: "Grok key", status: "active" },
       secret: { companyId: "company-1", status: "active" },
     }]);
-    await render("paperclip_runner", "grok");
+    await render("nexus_runner", "grok");
     expect(container.querySelector('select[aria-label="Environment"]')).toBeNull();
     await click("GrokAPI key");
     await click("Use saved API key");
@@ -881,24 +881,24 @@ describe("New agent setup", () => {
     await settle();
     expect(container.textContent).toContain("Configure your agent");
     await click("Run test");
-    expect(api.testEnvironment).toHaveBeenCalledWith("company-1", "paperclip_runner", expect.objectContaining({ environmentId: "grok-sandbox" }));
+    expect(api.testEnvironment).toHaveBeenCalledWith("company-1", "nexus_runner", expect.objectContaining({ environmentId: "grok-sandbox" }));
     await click("Finish setup");
     expect(api.hire.mock.calls[0][1].defaultEnvironmentId).toBe("grok-sandbox");
   });
   it.each([false, true])("keeps other native setup links gated when the experiment is disabled (cloud=%s)", async (cloud) => {
     cache.setQueryData(queryKeys.health, { status: "ok", cloud: { managed: cloud } });
     settings.getExperimental.mockResolvedValue({ enableNativeRunner: false });
-    await render("paperclip_runner", "grok");
+    await render("nexus_runner", "grok");
     expect(container.textContent).toContain("This adapter is unavailable");
     expect(api.hire).not.toHaveBeenCalled();
   });
   it.each([false, true])("restores native Claude setup intent and its connection flow with experiment=false (cloud=%s)", async cloud => {
     cache.setQueryData(queryKeys.health, { status: "ok", cloud: { managed: cloud } });
     settings.getExperimental.mockResolvedValue({ enableNativeRunner: false });
-    await render("paperclip_runner", "claude");
+    await render("nexus_runner", "claude");
     expect(container.textContent).not.toContain("This adapter is unavailable");
     expect(container.textContent).toContain("Claude Code");
-    expect(container.textContent).toContain("Paperclip Runner");
+    expect(container.textContent).toContain("Nexus Runner");
     expect(container.textContent).toContain("Connect a model");
     expect(api.hire).not.toHaveBeenCalled();
   });
@@ -913,14 +913,14 @@ describe("New agent setup", () => {
   });
   it.each([
     ["grok_local", "subscription"], ["grok_local", "api_key"],
-    ["paperclip_runner", "subscription"], ["paperclip_runner", "api_key"],
+    ["nexus_runner", "subscription"], ["nexus_runner", "api_key"],
   ])("configures %s Grok on Cloud with an xAI %s connection", async (adapterType, method) => {
     cache.setQueryData(queryKeys.health, {
       status: "ok",
       cloud: { managed: true },
     });
     envApi.list.mockResolvedValue([
-      { id: "sandbox-1", name: "Paperclip Cloud", driver: "sandbox", config: { provider: "daytona" } },
+      { id: "sandbox-1", name: "Nexus Cloud", driver: "sandbox", config: { provider: "daytona" } },
     ]);
     envApi.capabilities.mockResolvedValue({
       sandboxProviders: { daytona: { supportsLoginPty: true } },
@@ -943,13 +943,13 @@ describe("New agent setup", () => {
         provider: "xai", method: "api_key", apiKey: "example-test-secret",
       }));
     }
-    const model = adapterType === "paperclip_runner" ? "grok-4.7" : "grok-code-fast-1";
+    const model = adapterType === "nexus_runner" ? "grok-4.7" : "grok-code-fast-1";
     await fill("Model", model);
     await click("Run test");
     const binding = { provider: "xai", method, mode: "responsible_user" };
     expect(api.testEnvironment).toHaveBeenLastCalledWith("company-1", adapterType, expect.objectContaining({
       environmentId: "sandbox-1",
-      adapterConfig: expect.objectContaining({ model, ...(adapterType === "paperclip_runner" ? { provider: "acpx", acpxAgent: "grok", acpxPermissionMode: "approve-all" } : {}) }),
+      adapterConfig: expect.objectContaining({ model, ...(adapterType === "nexus_runner" ? { provider: "acpx", acpxAgent: "grok", acpxPermissionMode: "approve-all" } : {}) }),
       aiConnection: binding,
       testCredentials: {},
     }));
@@ -958,7 +958,7 @@ describe("New agent setup", () => {
     expect(api.hire.mock.calls[0][1]).toMatchObject({
       adapterType,
       defaultEnvironmentId: "sandbox-1",
-      adapterConfig: { model, ...(adapterType === "paperclip_runner" ? { provider: "acpx", acpxAgent: "grok", acpxPermissionMode: "approve-all" } : {}) },
+      adapterConfig: { model, ...(adapterType === "nexus_runner" ? { provider: "acpx", acpxAgent: "grok", acpxPermissionMode: "approve-all" } : {}) },
       runtimeConfig: { aiConnection: binding, heartbeat: { enabled: false } },
     });
     expect(JSON.stringify(api.testEnvironment.mock.calls)).not.toContain("example-test-secret");
@@ -1015,7 +1015,7 @@ describe("New agent setup", () => {
     expect(container.querySelector('[aria-label="Thinking effort"]')).toBeNull();
   });
   it("offers native Kimi separately from the existing legacy Kimi under a qualified release fixture", async () => {
-    const profile = PAPERCLIP_RUNNER_ACPX_PROFILES.find(entry => entry.value === "kimi") as { qualified: boolean };
+    const profile = NEXUS_RUNNER_ACPX_PROFILES.find(entry => entry.value === "kimi") as { qualified: boolean };
     const previousQualified = profile.qualified;
     profile.qualified = true;
     try {
@@ -1030,17 +1030,17 @@ describe("New agent setup", () => {
       await act(async () => native!.click());
       await act(async () => [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Configure agent")!.click());
       await settle();
-      expect(api.update).toHaveBeenCalledWith(setupId, expect.objectContaining({ adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "kimi" } }), "company-1");
+      expect(api.update).toHaveBeenCalledWith(setupId, expect.objectContaining({ adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "kimi" } }), "company-1");
       expect(state.navigate).toHaveBeenLastCalledWith(expect.stringContaining("runnerProvider=kimi"), { replace: true });
     } finally { profile.qualified = previousQualified; }
   });
 
   it("keeps an unqualified native Kimi declaration behind qualification", async () => {
-    const profile = PAPERCLIP_RUNNER_ACPX_PROFILES.find(entry => entry.value === "kimi") as { qualified: boolean };
+    const profile = NEXUS_RUNNER_ACPX_PROFILES.find(entry => entry.value === "kimi") as { qualified: boolean };
     const previousQualified = profile.qualified;
     try {
       profile.qualified = false;
-      await render("paperclip_runner", "kimi");
+      await render("nexus_runner", "kimi");
       await fill("KIMI_API_KEY", "kimi-test-key");
       await fill("Model", "explicit-kimi-model");
       await click("Finish setup");
@@ -1051,11 +1051,11 @@ describe("New agent setup", () => {
   });
 
   it("saves and reopens native Kimi with its exact model and one organization secret under a qualified release fixture", async () => {
-    const profile = PAPERCLIP_RUNNER_ACPX_PROFILES.find(entry => entry.value === "kimi") as { qualified: boolean };
+    const profile = NEXUS_RUNNER_ACPX_PROFILES.find(entry => entry.value === "kimi") as { qualified: boolean };
     const previousQualified = profile.qualified;
     profile.qualified = true;
     try {
-      await render("paperclip_runner", "kimi");
+      await render("nexus_runner", "kimi");
       expect(container.querySelector('[aria-label="Kimi API model name"]')).toBeNull();
       await click("Run test");
       expect(api.testEnvironment).not.toHaveBeenCalled();
@@ -1063,7 +1063,7 @@ describe("New agent setup", () => {
       await fill("Model", "explicit-unlisted-kimi-model");
       await fill("KIMI_API_KEY", "kimi-test-key");
       await click("Run test");
-      expect(api.testEnvironment).toHaveBeenLastCalledWith("company-1", "paperclip_runner", expect.objectContaining({
+      expect(api.testEnvironment).toHaveBeenLastCalledWith("company-1", "nexus_runner", expect.objectContaining({
         adapterConfig: expect.objectContaining({ provider: "acpx", acpxAgent: "kimi", model: "explicit-unlisted-kimi-model" }),
         testCredentials: { KIMI_API_KEY: "kimi-test-key" },
       }));
@@ -1075,14 +1075,14 @@ describe("New agent setup", () => {
       });
       await act(async () => root.render(null));
       cache.clear();
-      state.params = new URLSearchParams({ name: "Atlas", adapterType: "paperclip_runner", runnerProvider: "kimi", setupAgentId: setupId });
+      state.params = new URLSearchParams({ name: "Atlas", adapterType: "nexus_runner", runnerProvider: "kimi", setupAgentId: setupId });
       await renderCurrentParams();
       await settle();
       expect((container.querySelector('[aria-label="Model"]') as HTMLInputElement).value).toBe("explicit-unlisted-kimi-model");
       expect(container.querySelector('[aria-label="KIMI_API_KEY"]')?.getAttribute("placeholder")).toBe("Using saved key");
       await click("Finish setup");
       expect(api.hire).toHaveBeenCalledWith("company-1", expect.objectContaining({
-        adapterType: "paperclip_runner", adapterConfig: expect.objectContaining({ provider: "acpx", acpxAgent: "kimi", model: "explicit-unlisted-kimi-model" }),
+        adapterType: "nexus_runner", adapterConfig: expect.objectContaining({ provider: "acpx", acpxAgent: "kimi", model: "explicit-unlisted-kimi-model" }),
       }));
       expect(secrets.create).toHaveBeenCalledTimes(1);
     } finally { profile.qualified = previousQualified; }
@@ -1288,8 +1288,8 @@ describe("New agent setup", () => {
   it.each([
     ["claude_local", "claude", "Claude", "ANTHROPIC_API_KEY"],
     ["codex_local", "codex", "OpenAI", "OPENAI_API_KEY"],
-    ["paperclip_runner", "claude", "Claude", "ANTHROPIC_API_KEY"],
-    ["paperclip_runner", "codex", "OpenAI", "OPENAI_API_KEY"],
+    ["nexus_runner", "claude", "Claude", "ANTHROPIC_API_KEY"],
+    ["nexus_runner", "codex", "OpenAI", "OPENAI_API_KEY"],
   ])("stores %s %s as a reusable connection before hiring", async (adapter, runner, provider, key) => {
     await render(adapter, runner);
     await click(provider + "API key");
@@ -1310,8 +1310,8 @@ describe("New agent setup", () => {
   it.each([
     ["claude_local", "claude", "Claude", "ANTHROPIC_API_KEY"],
     ["codex_local", "codex", "OpenAI", "OPENAI_API_KEY"],
-    ["paperclip_runner", "claude", "Claude", "ANTHROPIC_API_KEY"],
-    ["paperclip_runner", "codex", "OpenAI", "OPENAI_API_KEY"],
+    ["nexus_runner", "claude", "Claude", "ANTHROPIC_API_KEY"],
+    ["nexus_runner", "codex", "OpenAI", "OPENAI_API_KEY"],
   ])("defaults %s %s to a saved key and preserves its reference through hire", async (adapter, runner, provider, key) => {
     secrets.listMyUserSecrets.mockResolvedValue([{
       definition: { id: "existing-key", companyId: "company-1", key, name: "Existing key", status: "active" },
@@ -1330,7 +1330,7 @@ describe("New agent setup", () => {
     expect(secrets.createMyUserSecret).not.toHaveBeenCalled();
     expect(secrets.rotateMyUserSecret).not.toHaveBeenCalled();
   });
-  it.each(["codex_local", "paperclip_runner"])("keeps a saved connection chosen in Connect when hiring %s", async (adapter) => {
+  it.each(["codex_local", "nexus_runner"])("keeps a saved connection chosen in Connect when hiring %s", async (adapter) => {
     await render(adapter, "codex");
     managedApi.list.mockResolvedValue({
       currentUserId: "user-1",
@@ -1425,8 +1425,8 @@ describe("New agent setup", () => {
     settings.getExperimental.mockResolvedValue({ enableNativeRunner: false });
     state.params = new URLSearchParams({ name: "Pi", adapterType: "pi_local", setupAgentId: id });
     state.adapters = state.adapters.map((adapter: any) => adapter.type === "pi_local"
-      ? { ...adapter, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" } : adapter);
-    api.get.mockResolvedValue({ id, companyId: "company-1", name: "Pi", adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "pi", model: "", piThinkingLevel: "max" }, runtimeConfig: {}, pauseReason: "setup", status: "paused" });
+      ? { ...adapter, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" } : adapter);
+    api.get.mockResolvedValue({ id, companyId: "company-1", name: "Pi", adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "pi", model: "", piThinkingLevel: "max" }, runtimeConfig: {}, pauseReason: "setup", status: "paused" });
     await renderCurrentParams();
     await settle();
     expect(container.querySelector('[role="combobox"][aria-label="Connection"]')).not.toBeNull();
@@ -1440,12 +1440,12 @@ describe("New agent setup", () => {
   it.each(["auto", "legacy"] as const)("keeps OpenCode %s selection consistent between testing and hiring", async runner => {
     settings.getExperimental.mockResolvedValue({ enableNativeRunner: false });
     state.adapters = state.adapters.map((adapter: any) => adapter.type === "opencode_local"
-      ? { ...adapter, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" } : adapter);
+      ? { ...adapter, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" } : adapter);
     await render("opencode_local");
     const model = "openrouter/anthropic/claude-sonnet-4.6";
     await fill("Model", model);
     const select = container.querySelector<HTMLButtonElement>('[aria-label="Runner"]')!;
-    expect(select.textContent).toContain("Paperclip Runner");
+    expect(select.textContent).toContain("Nexus Runner");
     if (runner === "legacy") {
       await act(async () => select.click());
       await act(async () => document.querySelector<HTMLButtonElement>('[role="option"][data-value="legacy"]')!.click());
@@ -1476,19 +1476,19 @@ describe("New agent setup", () => {
     expect(api.create).toHaveBeenCalledOnce();
   });
 
-  it.each(["opencode_local", "paperclip_runner"])("resumes OpenCode's saved %s setup after a default change", async adapterType => {
+  it.each(["opencode_local", "nexus_runner"])("resumes OpenCode's saved %s setup after a default change", async adapterType => {
     const id = "00000000-0000-4000-8000-000000000092";
     state.params = new URLSearchParams({ name: "OpenCode", adapterType: "opencode_local", setupAgentId: id });
     state.adapters = state.adapters.map((adapter: any) => adapter.type === "opencode_local"
-      ? { ...adapter, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" } : adapter);
-    const savedPolicy = adapterType === "paperclip_runner"
+      ? { ...adapter, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" } : adapter);
+    const savedPolicy = adapterType === "nexus_runner"
       ? { provider: "opencode", opencodePermissionMode: "ask", lifecycleMode: "persistent", idleTimeoutMs: 30000 }
       : { command: "custom-opencode", dangerouslySkipPermissions: false };
     api.get.mockResolvedValue({ id, companyId: "company-1", name: "OpenCode", adapterType, adapterConfig: { ...savedPolicy, model: "openrouter/anthropic/claude-sonnet-4.6" }, runtimeConfig: {}, pauseReason: "setup", status: "paused" });
     await renderCurrentParams();
     await settle();
     await click("Finish setup");
-    expect(api.hire.mock.calls[0][1].runner).toBe(adapterType === "paperclip_runner" ? "paperclip" : "legacy");
+    expect(api.hire.mock.calls[0][1].runner).toBe(adapterType === "nexus_runner" ? "nexus" : "legacy");
     expect(api.hire.mock.calls[0][1]).toMatchObject({ adapterType, adapterConfig: savedPolicy });
   });
 
@@ -1550,15 +1550,15 @@ describe("New agent setup", () => {
   it.each(["codex", "claude", "opencode"])(
     "uses the correct native %s runner",
     async (runner) => {
-      await render("paperclip_runner", runner);
+      await render("nexus_runner", runner);
       if (runner !== "opencode")
         await connect(runner === "claude" ? "Claude" : "OpenAI");
       else await fill("Model", "openrouter/anthropic/claude-sonnet-4.6");
       await click("Finish setup");
       const config = api.hire.mock.calls[0][1].adapterConfig;
       if (runner === "codex") {
-        expect(api.hire.mock.calls[0][1]).toMatchObject({ adapterType: "paperclip_runner", runner: "paperclip" });
-        expect(api.testEnvironment).toHaveBeenCalledWith("company-1", "paperclip_runner", expect.objectContaining({ runner: "paperclip" }));
+        expect(api.hire.mock.calls[0][1]).toMatchObject({ adapterType: "nexus_runner", runner: "nexus" });
+        expect(api.testEnvironment).toHaveBeenCalledWith("company-1", "nexus_runner", expect.objectContaining({ runner: "nexus" }));
       } else expect(config.provider).toBe(runner === "claude" ? "acpx" : runner);
       if (runner === "claude") {
         expect(config.acpxAgent).toBe("claude");
@@ -1658,9 +1658,9 @@ describe("New agent setup", () => {
   it("blocks a disabled runner even when opened through a URL", async () => {
     state.adapters = [
       { type: "codex_local", loaded: true, disabled: false },
-      { type: "paperclip_runner", loaded: true, disabled: true },
+      { type: "nexus_runner", loaded: true, disabled: true },
     ];
-    await render("paperclip_runner");
+    await render("nexus_runner");
     expect(container.textContent).toContain("This adapter is unavailable");
     expect(api.testEnvironment).not.toHaveBeenCalled();
     expect(api.hire).not.toHaveBeenCalled();

@@ -9,8 +9,8 @@ import { resolveDecisionSigningSecret, signDecisionSpec, verifyDecisionSpec } fr
 let home: string;
 beforeEach(async () => {
   home = await mkdtemp(path.join(tmpdir(), "decision-migration-"));
-  vi.stubEnv("PAPERCLIP_HOME", home);
-  vi.stubEnv("PAPERCLIP_DECISION_SIGNING_SECRET", "");
+  vi.stubEnv("NEXUS_HOME", home);
+  vi.stubEnv("NEXUS_DECISION_SIGNING_SECRET", "");
 });
 afterEach(async () => { vi.unstubAllEnvs(); await rm(home, { recursive: true, force: true }); });
 it("does not manufacture a replacement key when the legacy volume is missing", () => {
@@ -24,7 +24,7 @@ it("preserves decision signatures after the original key moves to environment st
   const signature = signDecisionSpec(spec);
   expect(resolveDecisionSigningSecret({ allowCreate: false })).toBe(original);
   await rm(home, { recursive: true, force: true });
-  vi.stubEnv("PAPERCLIP_DECISION_SIGNING_SECRET", original);
+  vi.stubEnv("NEXUS_DECISION_SIGNING_SECRET", original);
   expect(resolveDecisionSigningSecret({ allowCreate: false })).toBe(original);
   expect(verifyDecisionSpec(spec, signature)).toBe(true);
 });

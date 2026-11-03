@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { toolAccessAuditEvents, toolConnections, toolCallEvents, toolRuntimeMetricCounters, toolRuntimeSlots } from "@paperclipai/db";
-import type { DeploymentExposure, DeploymentMode, ToolRuntimeAlertRecommendation, ToolRuntimeHealthSummary } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { toolAccessAuditEvents, toolConnections, toolCallEvents, toolRuntimeMetricCounters, toolRuntimeSlots } from "@nexusai/db";
+import type { DeploymentExposure, DeploymentMode, ToolRuntimeAlertRecommendation, ToolRuntimeHealthSummary } from "@nexusai/shared";
 import { TOOL_RUNTIME_AUDIT_WRITE_FAILURE_METRIC } from "../../tool-runtime-metrics.js";
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -82,7 +82,7 @@ function buildRuntimeAlerts(input: {
       description:
         "Tool gateway calls are timing out or being runtime-deferred at an elevated rate.",
       firstResponderAction:
-        "Check upstream MCP health, Paperclip runtime capacity, and recent gateway audit failures before retrying workloads.",
+        "Check upstream MCP health, Nexus runtime capacity, and recent gateway audit failures before retrying workloads.",
       runbookSection,
     }),
     runtimeAlert({

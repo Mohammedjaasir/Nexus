@@ -1,4 +1,4 @@
-import type { AskUserQuestionsInteraction } from "@paperclipai/shared";
+import type { AskUserQuestionsInteraction } from "@nexusai/shared";
 import type { ModalResponse } from "chat";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -116,7 +116,7 @@ function questionForm() {
           allowOther: true,
           options: [
             {
-              id: "__paperclip_text__",
+              id: "__nexus_text__",
               label: "Type an answer",
               freeText: true,
             },
@@ -124,7 +124,7 @@ function questionForm() {
         },
       ],
       questionSet: {
-        schema: "paperclip.question_set.v1",
+        schema: "nexus.question_set.v1",
         title: "Release details",
         submitLabel: "Continue",
         questions: [
@@ -200,7 +200,7 @@ function invoke(
 }
 
 // This crosses the real pinned HTTP bridge, Teams event dispatch, adapter and
-// Chat SDK into Paperclip's callbacks. Only the instance JWT check is replaced;
+// Chat SDK into Nexus's callbacks. Only the instance JWT check is replaced;
 // this is not Microsoft tenant authentication, DB authorization or live proof.
 describe("Teams native task module adapter-to-runtime boundary", () => {
   const runtimes: ChatSdkEndpointRuntime[] = [];
@@ -278,7 +278,7 @@ describe("Teams native task module adapter-to-runtime boundary", () => {
     ) => {
       const response = await runtime.handleWebhook(
         new Request(
-          "https://paperclip.test/api/chat-webhooks/synthetic/microsoft-teams",
+          "https://nexus.test/api/chat-webhooks/synthetic/microsoft-teams",
           {
             method: "POST",
             headers: {
@@ -303,7 +303,7 @@ describe("Teams native task module adapter-to-runtime boundary", () => {
     return { runtime, check, dispatch, onMessage };
   }
 
-  it("round-trips the Paperclip form through task/fetch and task/submit with exact opaque fields and source", async () => {
+  it("round-trips the Nexus form through task/fetch and task/submit with exact opaque fields and source", async () => {
     const form = questionForm();
     const onAction = vi.fn<ActionCallback>(async ({ event }) => {
       await event.openModal(form.modal);

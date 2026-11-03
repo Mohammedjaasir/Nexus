@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import type { EndpointRow, RuntimeContext } from "../runtime-types.js";
 import { readRegisteredDiscordCommandRegistration } from "../../chat-discord-command-registration-store.js";
 

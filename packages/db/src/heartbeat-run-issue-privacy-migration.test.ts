@@ -25,7 +25,7 @@ afterEach(async () => {
 
 describeEmbeddedPostgres("heartbeat run issue privacy migration", () => {
   it("backfills every valid context issue binding and preserves maintenance runs", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-run-issue-privacy-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-run-issue-privacy-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     cleanups.push(async () => sql.end());
@@ -136,7 +136,7 @@ describeEmbeddedPostgres("heartbeat run issue privacy migration", () => {
   }, 30_000);
 
   it("fails closed when a legacy issue claim cannot be resolved", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-run-issue-privacy-invalid-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-run-issue-privacy-invalid-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     cleanups.push(async () => sql.end());
@@ -185,7 +185,7 @@ describeEmbeddedPostgres("heartbeat run issue privacy migration", () => {
   }, 30_000);
 
   it("releases schema and completed-batch row locks and resumes after interruption", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-privacy-batch-commits-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-privacy-batch-commits-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     cleanups.push(async () => sql.end());
@@ -231,7 +231,7 @@ describeEmbeddedPostgres("heartbeat run issue privacy migration", () => {
         const [row] = await sql`SELECT count(*)::int AS n FROM pg_stat_activity
           WHERE datname = current_database() AND query LIKE '%SELECT pg_try_advisory_lock%'
             AND query NOT LIKE '%FROM pg_stat_activity%'
-            AND strpos(query, 'paperclip:migrations') > 0`;
+            AND strpos(query, 'nexus:migrations') > 0`;
         return row.n;
       }, { timeout: 10_000 }).toBe(1);
       expect(await sql`SELECT hash FROM drizzle.__drizzle_migrations WHERE hash = ${hash}`).toHaveLength(0);
@@ -261,7 +261,7 @@ describeEmbeddedPostgres("heartbeat run issue privacy migration", () => {
   }, 30_000);
 
   it("keeps all privacy triggers installed when replacement is interrupted", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-privacy-trigger-atomic-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-privacy-trigger-atomic-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     cleanups.push(async () => sql.end());

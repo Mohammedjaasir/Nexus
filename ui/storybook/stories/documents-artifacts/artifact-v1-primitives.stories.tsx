@@ -51,7 +51,7 @@ const meta = {
           "The Artifacts V1 primitives behind Settings > Experimental > Artifacts V1: stack and single tiles for the Artifacts page, and the row the panel's Artifacts tab and the task thread share. Fixtures only.",
       },
     },
-    paperclip: {
+    nexus: {
       capabilities: ["documents-artifacts/library", "documents-artifacts/work-products", "documents-artifacts/attachments"],
       status: "proposed",
       implementation: "production",

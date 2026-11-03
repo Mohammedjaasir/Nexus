@@ -8,7 +8,7 @@ import test from "node:test";
 import { executionPlan, sourceFiles } from "./execution-plan.mjs";
 
 const repositoryRoot = new URL("../../", import.meta.url);
-const turbo = process.env.PAPERCLIP_CI_TEST_TURBO ?? new URL("node_modules/.bin/turbo", repositoryRoot).pathname;
+const turbo = process.env.NEXUS_CI_TEST_TURBO ?? new URL("node_modules/.bin/turbo", repositoryRoot).pathname;
 
 test("real Turbo keeps full runs and different selected test sets in separate cache entries", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "ci-selection-cache-"));
@@ -27,7 +27,7 @@ test("real Turbo keeps full runs and different selected test sets in separate ca
     json("package.json", { name: "selection-cache-proof", private: true, packageManager: "npm@10.0.0", workspaces: ["packages/*"], scripts: { "test:run:general": "node check.cjs" } });
     json("packages/fixture/package.json", { name: "fixture", private: true });
     json("package-lock.json", { name: "selection-cache-proof", lockfileVersion: 3, packages: { "": { name: "selection-cache-proof" } } });
-    json("turbo.json", { globalDependencies: ["doc/**", "docs/**"], globalEnv: ["CI_TASK_CACHE_SCOPE", "PAPERCLIP_*"], tasks: {
+    json("turbo.json", { globalDependencies: ["doc/**", "docs/**"], globalEnv: ["CI_TASK_CACHE_SCOPE", "NEXUS_*"], tasks: {
       "//#ci:server": { inputs: ["check.cjs", "server/**"], outputs: ["result.txt"], cache: true },
     } });
     mkdirSync(path.join(directory, "doc/plans"), { recursive: true });
@@ -35,7 +35,7 @@ test("real Turbo keeps full runs and different selected test sets in separate ca
     write("doc/DEVELOPING.md", "before"); write("doc/plans/example.md", "before");
     write("docs/api/issues.md", "before");
     write("server/src/a.test.ts", "// a"); write("server/src/b.test.ts", "// b");
-    write("check.cjs", `const fs=require('node:fs');fs.appendFileSync('calls.txt','call\\n');const file=process.env.PAPERCLIP_CI_TEST_SELECTION;fs.writeFileSync('result.txt',file?JSON.parse(fs.readFileSync(file)).lanes['general-server-without-chat'].shards[0]['@paperclipai/server'].join(','):'full');`);
+    write("check.cjs", `const fs=require('node:fs');fs.appendFileSync('calls.txt','call\\n');const file=process.env.NEXUS_CI_TEST_SELECTION;fs.writeFileSync('result.txt',file?JSON.parse(fs.readFileSync(file)).lanes['general-server-without-chat'].shards[0]['@nexusai/server'].join(','):'full');`);
     write("bin/pnpm", `#!${process.execPath}\nconst {spawnSync}=require('node:child_process');const args=process.argv.slice(2);if(args[0]==='--version')console.log('9.15.4');else{const r=spawnSync(${JSON.stringify(turbo)},args.slice(2),{stdio:'inherit'});process.exit(r.status??1);}`);
     chmodSync(path.join(directory, "bin/pnpm"), 0o755);
     git("add", ".");
@@ -45,12 +45,12 @@ test("real Turbo keeps full runs and different selected test sets in separate ca
     const run = (testFile) => {
       const selection = path.join(directory, ".ci-test-selection/manifest.json");
       json(".ci-test-selection/manifest.json", { version: 1, head, lanes: {
-        "general-server-without-chat": { shards: [{ "@paperclipai/server": [testFile ?? "server/src/a.test.ts"] }] },
+        "general-server-without-chat": { shards: [{ "@nexusai/server": [testFile ?? "server/src/a.test.ts"] }] },
       } });
       const result = spawnSync(process.execPath, [path.join(directory, "scripts/ci/run-task.mjs")], {
         cwd: directory, encoding: "utf8", env: { ...process.env, PATH: `${directory}/bin:${process.env.PATH}`,
           CI_TASK: "ci:server", CI_TASK_ARGS: "[]", CI_FORCE_TASKS: "false", CI_TASK_DRY_RUN: "false",
-          PAPERCLIP_CI_TEST_SELECTION: testFile ? selection : "", PAPERCLIP_CI_SELECTION_HASH: "",
+          NEXUS_CI_TEST_SELECTION: testFile ? selection : "", NEXUS_CI_SELECTION_HASH: "",
           TURBO_TOKEN: "", TURBO_TEAM: "", TURBO_TELEMETRY_DISABLED: "1" },
       });
       assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -73,7 +73,7 @@ test("every cached lane maps to an existing package script with complete inputs"
     const plan = executionPlan(config, name.slice(3), ["--shard-index", "0"]);
     const rootTask = plan.target.startsWith("//#");
     const manifest = JSON.parse(readFileSync(new URL(rootTask ? "package.json"
-      : "packages/paperclip-runner/package.json", repositoryRoot), "utf8"));
+      : "packages/nexus-runner/package.json", repositoryRoot), "utf8"));
     const script = plan.target.split("#")[1];
     assert.equal(typeof manifest.scripts[script], "string", plan.target);
     assert.ok(plan.config.tasks[plan.target].inputs.length > 0);

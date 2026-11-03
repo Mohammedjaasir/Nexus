@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { materializePaperclipSkillCopy } from '@paperclipai/adapter-utils/server-utils';
+import { materializeNexusSkillCopy } from '@nexusai/adapter-utils/server-utils';
 import { repositorySkillProjection } from '../services/skill-repository-package.js';
 import { skillPackageManifest } from '../services/skill-package-files.js';
 import { snapshotFile, skillFileBytes } from '../services/skill-snapshot.js';
@@ -24,16 +24,16 @@ describe('repository skill delivery', () => {
         const target = path.join(source, file.path); await fs.mkdir(path.dirname(target), { recursive: true });
         await fs.writeFile(target, skillFileBytes(file), { mode: file.executable ? 0o755 : 0o644 });
       }
-      await materializePaperclipSkillCopy(source, sandbox);
+      await materializeNexusSkillCopy(source, sandbox);
       await fs.rm(source, { recursive: true });
       const entrypoint = await fs.readFile(path.join(sandbox, 'SKILL.md'), 'utf8');
       expect(entrypoint).toContain('disable-model-invocation: true');
-      expect(entrypoint).toContain('.paperclip-repository/skills/main/SKILL.md');
-      const canonical = path.join(sandbox, '.paperclip-repository/skills/main');
+      expect(entrypoint).toContain('.nexus-repository/skills/main/SKILL.md');
+      const canonical = path.join(sandbox, '.nexus-repository/skills/main');
       expect(await fs.readFile(path.join(canonical, 'SKILL.md'), 'utf8')).toBe(md);
       expect(await fs.readFile(path.join(canonical, '../runtime/SKILL.md'), 'utf8')).toBe('Runtime instructions');
       expect(await fs.readFile(path.join(canonical, '../../agents/worker.md'), 'utf8')).toBe('Worker instructions');
-      for (const file of files) expect(await fs.readFile(path.join(sandbox, '.paperclip-repository', file.path))).toEqual(skillFileBytes(file));
+      for (const file of files) expect(await fs.readFile(path.join(sandbox, '.nexus-repository', file.path))).toEqual(skillFileBytes(file));
       expect((await fs.stat(path.join(canonical, '../../shared/run.sh'))).mode & 0o111).toBeTruthy();
       expect(await fs.readFile(path.join(sandbox, 'agents/openai.yaml'), 'utf8')).toContain('allow_implicit_invocation: false');
     } finally { await fs.rm(root, { recursive: true, force: true }); }

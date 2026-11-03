@@ -4,7 +4,7 @@ import { webcrypto } from "node:crypto";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { AgentRunnerChoice, CompanyPortabilityImportResult, CompanyPortabilityPreviewResult } from "@paperclipai/shared";
+import type { AgentRunnerChoice, CompanyPortabilityImportResult, CompanyPortabilityPreviewResult } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import type { CompanyImportJobAccepted } from "../api/companies";
@@ -102,7 +102,7 @@ vi.mock("../context/BreadcrumbContext", () => ({
 vi.mock("../context/CompanyContext", () => ({
   useCompany: () => ({
     selectedCompanyId: "company-1",
-    selectedCompany: { id: "company-1", name: "Paperclip" },
+    selectedCompany: { id: "company-1", name: "Nexus" },
     setSelectedCompanyId: mockSetSelectedCompanyId,
   }),
   useOptionalCompany: mockOptionalCompany,
@@ -155,7 +155,7 @@ async function settle(times = 6) {
 }
 
 const previewFiles = {
-  ".paperclip.yaml": 'schema: "paperclip/v1"\n',
+  ".nexus.yaml": 'schema: "nexus/v1"\n',
   "agents/coder/AGENTS.md": "---\nname: Coder\n---\n\nYou write code.\n",
   "tasks/weekly-report/TASK.md": "---\nname: Weekly Report\nrecurring: true\n---\n\nSend the report.\n",
 };
@@ -215,7 +215,7 @@ function buildMixedAdapterPreviewResult(): CompanyPortabilityPreviewResult {
       company: null,
     },
     files: {
-      ".paperclip.yaml": 'schema: "paperclip/v1"\n',
+      ".nexus.yaml": 'schema: "nexus/v1"\n',
       "agents/coder/AGENTS.md": "---\nname: Coder\n---\n\nYou write code.\n",
       "agents/researcher/AGENTS.md": "---\nname: Researcher\n---\n\nYou research.\n",
     },
@@ -440,7 +440,7 @@ describe("CompanyImport", () => {
       rootPath: "big-package",
       files: {
         "COMPANY.md": "---\nname: Big\n---\n",
-        ".paperclip.yaml": 'schema: "paperclip/v1"\n',
+        ".nexus.yaml": 'schema: "nexus/v1"\n',
         "blobs/4f2d1c9a": {
           encoding: "base64",
           data: "A".repeat(57 * 1024 * 1024),
@@ -1023,7 +1023,7 @@ describe("CompanyImport", () => {
     // A previous page load persisted a running job; reloading must resume
     // watching it rather than showing the stale form.
     sessionStorage.setItem(
-      "paperclip:company-import-job:company-1:acme/starter",
+      "nexus:company-import-job:company-1:acme/starter",
       JSON.stringify({ jobId: "job-resume", pauseAutomations: false }),
     );
 
@@ -1051,7 +1051,7 @@ describe("CompanyImport", () => {
     expect(container.textContent).not.toContain("Resume watching import");
     expect(container.textContent).toContain("Import complete");
     // The stored entry is cleared once the job settles.
-    expect(sessionStorage.getItem("paperclip:company-import-job:company-1:acme/starter")).toBeNull();
+    expect(sessionStorage.getItem("nexus:company-import-job:company-1:acme/starter")).toBeNull();
   });
 
   /** Adapter selects in the picker list, in manifest order (excludes the target/collision selects). */
@@ -1107,32 +1107,32 @@ describe("CompanyImport", () => {
     });
   });
 
-  it("hides Paperclip Runner import configuration while its experimental flag is off", async () => {
+  it("hides Nexus Runner import configuration while its experimental flag is off", async () => {
     mockAdaptersApi.list.mockResolvedValue([
       { type: "claude_local", disabled: false },
       { type: "codex_local", disabled: false },
-      { type: "paperclip_runner", disabled: true },
+      { type: "nexus_runner", disabled: true },
     ]);
     await previewMixedAdapterPackage();
 
     for (const select of findAdapterSelects()) {
       expect(Array.from(select.options).map((option) => option.value))
-        .not.toContain("paperclip_runner");
+        .not.toContain("nexus_runner");
     }
   });
 
-  it("offers Paperclip Runner import configuration after its experimental flag is enabled", async () => {
+  it("offers Nexus Runner import configuration after its experimental flag is enabled", async () => {
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableNativeRunner: true, enableOpenAiDot: false });
     mockAdaptersApi.list.mockResolvedValue([
       { type: "claude_local", disabled: false },
       { type: "codex_local", disabled: false },
-      { type: "paperclip_runner", disabled: false },
+      { type: "nexus_runner", disabled: false },
     ]);
     await previewMixedAdapterPackage();
 
     for (const select of findAdapterSelects()) {
       expect(Array.from(select.options).map((option) => option.value))
-        .toContain("paperclip_runner");
+        .toContain("nexus_runner");
     }
   });
 
@@ -1140,12 +1140,12 @@ describe("CompanyImport", () => {
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableNativeRunner: false, enableOpenAiDot: true });
     mockAdaptersApi.list.mockResolvedValue([
       { type: "claude_local", disabled: false },
-      { type: "paperclip_runner", disabled: false },
+      { type: "nexus_runner", disabled: false },
     ]);
     const preview = buildMixedAdapterPreviewResult();
-    preview.manifest.agents[0]!.adapterType = "paperclip_runner";
+    preview.manifest.agents[0]!.adapterType = "nexus_runner";
     preview.manifest.agents[0]!.adapterConfig = { provider: "openai_dot", allowUnmeteredProvider: true };
-    preview.manifest.agents[1]!.adapterType = "paperclip_runner";
+    preview.manifest.agents[1]!.adapterType = "nexus_runner";
     preview.manifest.agents[1]!.adapterConfig = { provider: "codex" };
     mockCompaniesApi.importPreview.mockResolvedValue(preview);
     await renderPage();
@@ -1156,7 +1156,7 @@ describe("CompanyImport", () => {
     for (const select of findAdapterSelects()) {
       const choices = Array.from(select.options).map((option) => option.value);
       expect(choices).toContain("openai_dot");
-      expect(choices).not.toContain("paperclip_runner");
+      expect(choices).not.toContain("nexus_runner");
     }
     await clickButton((text) => text.startsWith("Import 3 file"));
     await settle();
@@ -1167,11 +1167,11 @@ describe("CompanyImport", () => {
     mockAdaptersApi.list.mockResolvedValue([
       { type: "claude_local", disabled: false },
       { type: "codex_local", disabled: false },
-      { type: "paperclip_runner", disabled: false },
+      { type: "nexus_runner", disabled: false },
     ]);
     const preview = buildMixedAdapterPreviewResult();
-    preview.manifest.agents[1]!.adapterType = "paperclip_runner";
-    preview.manifest.agents[1]!.runner = "paperclip";
+    preview.manifest.agents[1]!.adapterType = "nexus_runner";
+    preview.manifest.agents[1]!.runner = "nexus";
     preview.manifest.agents[1]!.adapterConfig = { ...(provider ? { provider } : {}), model: "gpt-5.6-sol", reasoningEffort: "high" };
     mockCompaniesApi.importPreview.mockResolvedValue(preview);
     await renderPage();
@@ -1190,18 +1190,18 @@ describe("CompanyImport", () => {
   ])("keeps gated native $provider identity instead of falling back to another harness", async adapterConfig => {
     mockAdaptersApi.list.mockResolvedValue([
       { type: "claude_local", disabled: false },
-      { type: "paperclip_runner", disabled: false },
+      { type: "nexus_runner", disabled: false },
     ]);
     const preview = buildMixedAdapterPreviewResult();
-    preview.manifest.agents[0]!.adapterType = "paperclip_runner";
+    preview.manifest.agents[0]!.adapterType = "nexus_runner";
     preview.manifest.agents[0]!.adapterConfig = adapterConfig;
     mockCompaniesApi.importPreview.mockResolvedValue(preview);
     await renderPage();
     await enterGithubUrl();
     await clickButton(text => text === "Preview import");
-    expect(findAdapterSelects()[0]!.value).toBe("paperclip_runner");
+    expect(findAdapterSelects()[0]!.value).toBe("nexus_runner");
     expect(container.textContent).toContain("requires its experimental feature to be enabled");
-    expect(container.textContent).not.toContain("source adapter paperclip_runner is not installed here");
+    expect(container.textContent).not.toContain("source adapter nexus_runner is not installed here");
     await clickButton(text => text.startsWith("Import 3 file"));
     await settle();
     expect(lastImportMeta().adapterOverrides?.coder).toBeUndefined();
@@ -1210,11 +1210,11 @@ describe("CompanyImport", () => {
   it("keeps native OpenCode identity and saved policies with the experimental flag off", async () => {
     mockAdaptersApi.list.mockResolvedValue([
       { type: "claude_local", disabled: false },
-      { type: "opencode_local", disabled: false, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" },
-      { type: "paperclip_runner", disabled: false },
+      { type: "opencode_local", disabled: false, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" },
+      { type: "nexus_runner", disabled: false },
     ]);
     const preview = buildMixedAdapterPreviewResult();
-    preview.manifest.agents[0]!.adapterType = "paperclip_runner";
+    preview.manifest.agents[0]!.adapterType = "nexus_runner";
     preview.manifest.agents[0]!.adapterConfig = { provider: "opencode", model: "provider/model", opencodePermissionMode: "ask", lifecycleMode: "persistent" };
     mockCompaniesApi.importPreview.mockResolvedValue(preview);
     await renderPage();
@@ -1230,11 +1230,11 @@ describe("CompanyImport", () => {
   it("keeps native Pi identity and saved policies with the experimental flag off", async () => {
     mockAdaptersApi.list.mockResolvedValue([
       { type: "claude_local", disabled: false },
-      { type: "pi_local", disabled: false, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" },
-      { type: "paperclip_runner", disabled: false },
+      { type: "pi_local", disabled: false, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" },
+      { type: "nexus_runner", disabled: false },
     ]);
     const preview = buildMixedAdapterPreviewResult();
-    preview.manifest.agents[0]!.adapterType = "paperclip_runner";
+    preview.manifest.agents[0]!.adapterType = "nexus_runner";
     preview.manifest.agents[0]!.adapterConfig = { provider: "acpx", acpxAgent: "pi", model: "provider/model", piThinkingLevel: "max", acpxPermissionMode: "approve-reads", lifecycleMode: "warm" };
     mockCompaniesApi.importPreview.mockResolvedValue(preview);
     await renderPage();
@@ -1248,11 +1248,11 @@ describe("CompanyImport", () => {
   });
 
   it.each([
-    { sourceType: "codex_local", sourceRunner: "legacy" as const, runner: "paperclip" as const, sourcePolicy: {}, expectedBypass: undefined },
+    { sourceType: "codex_local", sourceRunner: "legacy" as const, runner: "nexus" as const, sourcePolicy: {}, expectedBypass: undefined },
     { sourceType: "codex_local", sourceRunner: undefined, runner: "legacy" as const, sourcePolicy: { dangerouslyBypassApprovalsAndSandbox: false }, expectedBypass: false },
-    { sourceType: "paperclip_runner", sourceRunner: "paperclip" as const, runner: "legacy" as const, sourcePolicy: { codexPermissionMode: "never" }, expectedBypass: true },
-    { sourceType: "paperclip_runner", sourceRunner: "paperclip" as const, runner: "legacy" as const, sourcePolicy: {}, expectedBypass: true },
-    { sourceType: "paperclip_runner", sourceRunner: "paperclip" as const, runner: "legacy" as const, sourcePolicy: { codexPermissionMode: "never", dangerouslyBypassApprovalsAndSandbox: false }, expectedBypass: false },
+    { sourceType: "nexus_runner", sourceRunner: "nexus" as const, runner: "legacy" as const, sourcePolicy: { codexPermissionMode: "never" }, expectedBypass: true },
+    { sourceType: "nexus_runner", sourceRunner: "nexus" as const, runner: "legacy" as const, sourcePolicy: {}, expectedBypass: true },
+    { sourceType: "nexus_runner", sourceRunner: "nexus" as const, runner: "legacy" as const, sourcePolicy: { codexPermissionMode: "never", dangerouslyBypassApprovalsAndSandbox: false }, expectedBypass: false },
     { sourceType: "codex_local", sourceRunner: undefined, runner: "legacy" as const, sourcePolicy: { dangerouslyBypassSandbox: false }, expectedBypass: false },
     { sourceType: "codex_local", sourceRunner: undefined, runner: "legacy" as const, sourcePolicy: { dangerouslyBypassApprovalsAndSandbox: true }, expectedBypass: true },
     { sourceType: "codex_local", sourceRunner: undefined, runner: "legacy" as const, sourcePolicy: { extraArgs: ["--sandbox", "read-only"] }, expectedBypass: false },
@@ -1267,14 +1267,14 @@ describe("CompanyImport", () => {
     mockOptionalCompany.mockReturnValue({ selectedCompanyId: "company-1" });
     mockAdaptersApi.list.mockResolvedValue([
       { type: "claude_local", disabled: false },
-      { type: "codex_local", disabled: false, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" },
-      { type: "paperclip_runner", disabled: false },
+      { type: "codex_local", disabled: false, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" },
+      { type: "nexus_runner", disabled: false },
     ]);
     const preview = buildPreviewResult();
     preview.manifest.agents[0]!.adapterType = sourceType;
     preview.manifest.agents[0]!.runner = sourceRunner;
     preview.manifest.agents[0]!.adapterConfig = {
-      ...(sourceType === "paperclip_runner" ? { provider: "codex" } : {}),
+      ...(sourceType === "nexus_runner" ? { provider: "codex" } : {}),
       model: "gpt-5.6-sol", modelReasoningEffort: "high", env: { CODEX_HOME: "/saved/account" },
       ...sourcePolicy,
     };
@@ -1299,20 +1299,20 @@ describe("CompanyImport", () => {
     }
     await clickButton(text => text.startsWith("Import 3 file"));
     await settle();
-    expect(lastImportMeta().adapterOverrides).toEqual({ coder: { adapterType: sourceType === "paperclip_runner" ? "paperclip_runner" : "codex_local", runner } });
+    expect(lastImportMeta().adapterOverrides).toEqual({ coder: { adapterType: sourceType === "nexus_runner" ? "nexus_runner" : "codex_local", runner } });
     expect(preview.manifest.agents[0]!.adapterConfig).toEqual(savedSourceConfig);
   });
 
-  it.each(["deny-all", "approve-reads"].flatMap(permission => ["paperclip_runner", "claude_local"].map(sourceType => ({ permission, sourceType }))))("saves the selected Claude permission from $sourceType ($permission)", async ({ permission, sourceType }) => {
+  it.each(["deny-all", "approve-reads"].flatMap(permission => ["nexus_runner", "claude_local"].map(sourceType => ({ permission, sourceType }))))("saves the selected Claude permission from $sourceType ($permission)", async ({ permission, sourceType }) => {
     mockOptionalCompany.mockReturnValue({ selectedCompanyId: "company-1" });
     mockAdaptersApi.list.mockResolvedValue([
-      { type: "claude_local", disabled: false, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" },
-      { type: "paperclip_runner", disabled: false },
+      { type: "claude_local", disabled: false, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" },
+      { type: "nexus_runner", disabled: false },
     ]);
     const preview = buildPreviewResult();
     const source = { provider: "acpx", acpxAgent: "claude", model: "claude-opus-5-5", modelReasoningEffort: "high", acpxPermissionMode: permission, timeoutSec: 180, lifecycleMode: "per_turn" };
     preview.manifest.agents[0]!.adapterType = sourceType;
-    preview.manifest.agents[0]!.runner = sourceType === "paperclip_runner" ? "paperclip" : "legacy";
+    preview.manifest.agents[0]!.runner = sourceType === "nexus_runner" ? "nexus" : "legacy";
     preview.manifest.agents[0]!.adapterConfig = source;
     mockCompaniesApi.importPreview.mockResolvedValue(preview);
     await renderPage();
@@ -1322,22 +1322,22 @@ describe("CompanyImport", () => {
     if (sourceType === "claude_local") {
       await clickButton(text => text.includes("Advanced"));
       await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Runner"]')!.click());
-      await act(async () => document.querySelector<HTMLButtonElement>('[role="option"][data-value="paperclip"]')!.click());
+      await act(async () => document.querySelector<HTMLButtonElement>('[role="option"][data-value="nexus"]')!.click());
       await flushReact();
     }
     const select = container.querySelector<HTMLButtonElement>('[aria-label="Permission mode"]');
-    if (sourceType === "paperclip_runner") expect(select?.textContent).toContain(permission === "deny-all" ? "Deny all" : "Allow Paperclip reads");
+    if (sourceType === "nexus_runner") expect(select?.textContent).toContain(permission === "deny-all" ? "Deny all" : "Allow Nexus reads");
     await act(async () => select!.click());
     const nextPermission = permission === "deny-all" ? "approve-reads" : "deny-all";
-    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(element => element.textContent === (nextPermission === "deny-all" ? "Deny all" : "Allow Paperclip reads"));
+    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(element => element.textContent === (nextPermission === "deny-all" ? "Deny all" : "Allow Nexus reads"));
     expect(option).toBeTruthy();
     await act(async () => option!.click());
     await flushReact();
     await clickButton(text => text.startsWith("Import 3 file"));
     await settle();
     expect(lastImportMeta().adapterOverrides?.coder).toMatchObject({
-      runner: "paperclip",
-      adapterConfig: sourceType === "paperclip_runner" ? { ...source, acpxPermissionMode: nextPermission } : { provider: "acpx", acpxAgent: "claude", acpxPermissionMode: nextPermission },
+      runner: "nexus",
+      adapterConfig: sourceType === "nexus_runner" ? { ...source, acpxPermissionMode: nextPermission } : { provider: "acpx", acpxAgent: "claude", acpxPermissionMode: nextPermission },
     });
     expect(preview.manifest.agents[0]!.adapterConfig).toEqual(source);
   });
@@ -1345,13 +1345,13 @@ describe("CompanyImport", () => {
   it("keeps native Claude configuration at the server translation boundary when switching an import to Legacy", async () => {
     mockOptionalCompany.mockReturnValue({ selectedCompanyId: "company-1" });
     mockAdaptersApi.list.mockResolvedValue([
-      { type: "claude_local", disabled: false, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" },
-      { type: "paperclip_runner", disabled: false },
+      { type: "claude_local", disabled: false, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" },
+      { type: "nexus_runner", disabled: false },
     ]);
     const preview = buildPreviewResult();
     const source = { provider: "acpx", acpxAgent: "claude", model: "claude-opus-5-5", modelReasoningEffort: "high", acpxPermissionMode: "approve-all", timeoutSec: 180, lifecycleMode: "per_turn" };
-    preview.manifest.agents[0]!.adapterType = "paperclip_runner";
-    preview.manifest.agents[0]!.runner = "paperclip";
+    preview.manifest.agents[0]!.adapterType = "nexus_runner";
+    preview.manifest.agents[0]!.runner = "nexus";
     preview.manifest.agents[0]!.adapterConfig = source;
     mockCompaniesApi.importPreview.mockResolvedValue(preview);
     await renderPage();
@@ -1364,7 +1364,7 @@ describe("CompanyImport", () => {
     await flushReact();
     await clickButton(text => text.startsWith("Import 3 file"));
     await settle();
-    expect(lastImportMeta().adapterOverrides?.coder).toMatchObject({ adapterType: "paperclip_runner", runner: "legacy" });
+    expect(lastImportMeta().adapterOverrides?.coder).toMatchObject({ adapterType: "nexus_runner", runner: "legacy" });
     expect(preview.manifest.agents[0]!.adapterConfig).toEqual(source);
   });
 
@@ -1403,9 +1403,9 @@ describe("CompanyImport", () => {
   it.each(["codex_local", "claude_local"].flatMap(harness => ["model-clear", "effort-clear", "env-remove", "legacy-model", "changed-harness"].map(edit => ({ harness, edit }))))("preserves native source configuration during an ordinary import edit ($harness, $edit)", async ({ harness, edit }) => {
     mockOptionalCompany.mockReturnValue({ selectedCompanyId: "company-1" });
     mockAdaptersApi.list.mockResolvedValue([
-      { type: "claude_local", disabled: false, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" },
-      { type: "codex_local", disabled: false, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" },
-      { type: "paperclip_runner", disabled: false },
+      { type: "claude_local", disabled: false, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" },
+      { type: "codex_local", disabled: false, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" },
+      { type: "nexus_runner", disabled: false },
     ]);
     const preview = buildPreviewResult();
     const sourceConfig = {
@@ -1417,8 +1417,8 @@ describe("CompanyImport", () => {
       workspaceRuntime: { services: [{ name: "app", command: "pnpm dev" }] },
       lifecycleMode: "per_turn", idleTimeoutMs: 45000,
     };
-    preview.manifest.agents[0]!.adapterType = "paperclip_runner";
-    preview.manifest.agents[0]!.runner = "paperclip";
+    preview.manifest.agents[0]!.adapterType = "nexus_runner";
+    preview.manifest.agents[0]!.runner = "nexus";
     preview.manifest.agents[0]!.adapterConfig = sourceConfig;
     mockCompaniesApi.importPreview.mockResolvedValue(preview);
     await renderPage();
@@ -1465,15 +1465,15 @@ describe("CompanyImport", () => {
       return;
     }
     expect(lastImportMeta().adapterOverrides?.coder).toEqual({
-      adapterType: "paperclip_runner", runner: edit === "legacy-model" ? "legacy" : "paperclip", adapterConfig: expected,
+      adapterType: "nexus_runner", runner: edit === "legacy-model" ? "legacy" : "nexus", adapterConfig: expected,
     });
     expect(preview.manifest.agents[0]!.adapterConfig).toEqual(sourceConfig);
   });
 
   it("does not reinterpret an unknown native provider as Codex when its configuration is edited", async () => {
-    mockAdaptersApi.list.mockResolvedValue([{ type: "paperclip_runner", disabled: false }]);
+    mockAdaptersApi.list.mockResolvedValue([{ type: "nexus_runner", disabled: false }]);
     const preview = buildPreviewResult();
-    preview.manifest.agents[0]!.adapterType = "paperclip_runner";
+    preview.manifest.agents[0]!.adapterType = "nexus_runner";
     preview.manifest.agents[0]!.adapterConfig = { provider: "unknown-provider", customSetting: "keep" };
     mockCompaniesApi.importPreview.mockResolvedValue(preview);
     await renderPage();
@@ -1495,14 +1495,14 @@ describe("CompanyImport", () => {
     await clickButton(text => text.startsWith("Import 3 file"));
     await settle();
     expect(mockCompaniesApi.importBundleAsync).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Unknown Paperclip Runner provider unknown-provider");
+    expect(container.textContent).toContain("Unknown Nexus Runner provider unknown-provider");
   });
 
   it("requires billing acknowledgement and serializes the standalone Dot import choice as Runner", async () => {
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableNativeRunner: false, enableOpenAiDot: true });
     mockAdaptersApi.list.mockResolvedValue([
       { type: "claude_local", disabled: false },
-      { type: "paperclip_runner", disabled: false },
+      { type: "nexus_runner", disabled: false },
     ]);
     await previewMixedAdapterPackage();
     const select = findAdapterSelects()[0]!;
@@ -1528,7 +1528,7 @@ describe("CompanyImport", () => {
     await clickButton((text) => text.startsWith("Import 3 file"));
     await settle();
     expect(lastImportMeta().adapterOverrides?.coder).toEqual({
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: {
         provider: "openai_dot", lifecycleMode: "per_turn", allowUnmeteredProvider: true,
         dotAttachmentAccess: false, dotWorkspaceAccess: false,
@@ -1538,11 +1538,11 @@ describe("CompanyImport", () => {
 
   it("does not expose Dot when only the general Runner option is enabled", async () => {
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableNativeRunner: true, enableOpenAiDot: false });
-    mockAdaptersApi.list.mockResolvedValue([{ type: "paperclip_runner", disabled: false }]);
+    mockAdaptersApi.list.mockResolvedValue([{ type: "nexus_runner", disabled: false }]);
     await previewMixedAdapterPackage();
     for (const select of findAdapterSelects()) {
       const choices = Array.from(select.options).map((option) => option.value);
-      expect(choices).toContain("paperclip_runner");
+      expect(choices).toContain("nexus_runner");
       expect(choices).not.toContain("openai_dot");
     }
   });

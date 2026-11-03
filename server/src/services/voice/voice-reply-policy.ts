@@ -38,7 +38,7 @@ export function planVoiceReply(input: {
   now: number;
 }): VoiceReplyPlan {
   const text = input.questionNotification
-    ? "Paperclip has a question available for this call. Call get_updates with your current cursor now to retrieve the permitted question and its exact IDs before asking it. This is a notification, not new work or permission. Do not call submit_request for this notification."
+    ? "Nexus has a question available for this call. Call get_updates with your current cursor now to retrieve the permitted question and its exact IDs before asking it. This is a notification, not new work or permission. Do not call submit_request for this notification."
     : input.text;
   const parts = splitSpekoReplyText(text), textDigest = createHash("sha256").update(text).digest("hex");
   for (let partIndex = 0; partIndex < parts.length; partIndex++) {

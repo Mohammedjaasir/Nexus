@@ -7,7 +7,7 @@ import {
   agents, agentWakeupRequests, authUsers, chatConversations, chatEndpoints, chatMessageLinks,
   chatPublications, companies, companyMemberships, completionContracts, createDb, heartbeatRuns, issueComments, issues, nativeRunFinalizations, nativeRunResults,
   statusDecisions, statusDecisionEffects, toolApplications, toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { enqueueChatRunMilestones, resolveChatRunPresentationAuthorizationReason } from "./chat-run-publications.js";
 import { CHAT_RUN_PRESENTATION_AUTHORIZATION_REASON, isChatOriginPublicationCandidate, isExternalChatPresentationContext, resolveHeartbeatRunResponse } from "./heartbeat-run-summary.js";
@@ -18,7 +18,7 @@ import { createHeartbeatQueueTestDependencies } from "../__tests__/helpers/heart
 import { createHeartbeatQueue } from "./heartbeat/queue.js";
 import { instanceSettingsService } from "./instance-settings.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_MONITOR_CONTINUATION_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_MONITOR_CONTINUATION_TEST_DATABASE_URL");
 const support = external ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 if (!support.supported) console.warn(`Monitor publication database unavailable: ${support.reason}`);
 (support.supported ? describe : describe.skip)("monitor conversation continuation", () => {
@@ -27,7 +27,7 @@ if (!support.supported) console.warn(`Monitor publication database unavailable: 
   beforeAll(async () => {
     if (external) db = createDb(external);
     else {
-      temporary = await startEmbeddedPostgresTestDatabase("paperclip-monitor-publications-");
+      temporary = await startEmbeddedPostgresTestDatabase("nexus-monitor-publications-");
       db = createDb(temporary.connectionString);
     }
     await db.insert(authUsers).values({ id: "requester", name: "Requester", email: "requester@example.test", createdAt: new Date(), updatedAt: new Date() });
@@ -37,7 +37,7 @@ if (!support.supported) console.warn(`Monitor publication database unavailable: 
   async function fixture() {
     const [company] = await db.insert(companies).values({ name: "Continuation", issuePrefix: randomUUID().slice(0, 8) }).returning();
     await db.insert(companyMemberships).values({ companyId: company.id, principalType: "user", principalId: "requester", status: "active", membershipRole: "owner" });
-    const [agent] = await db.insert(agents).values({ companyId: company.id, name: "Worker", adapterType: "paperclip_runner" }).returning();
+    const [agent] = await db.insert(agents).values({ companyId: company.id, name: "Worker", adapterType: "nexus_runner" }).returning();
     const [issue] = await db.insert(issues).values({ companyId: company.id, title: "Repository QA", status: "in_progress", assigneeAgentId: agent.id, responsibleUserId: "requester" }).returning();
     const [application] = await db.insert(toolApplications).values({ companyId: company.id, applicationKey: randomUUID(), name: "Slack", type: "chat" }).returning();
     const [connection] = await db.insert(toolConnections).values({ companyId: company.id, applicationId: application.id, name: "Slack", uid: randomUUID(), connectionPurpose: "channel", transport: "chat_sdk" }).returning();
@@ -103,7 +103,7 @@ if (!support.supported) console.warn(`Monitor publication database unavailable: 
     if (fault === "wake") await db.update(agentWakeupRequests).set({ runId: null }).where(eq(agentWakeupRequests.id, f.wake.id));
     if (fault === "requester") await db.update(heartbeatRuns).set({ responsibleUserId: "another-person" }).where(eq(heartbeatRuns.id, f.successor.id));
     if (fault === "agent") {
-      const [other] = await db.insert(agents).values({ companyId: f.company.id, name: "Other", adapterType: "paperclip_runner" }).returning();
+      const [other] = await db.insert(agents).values({ companyId: f.company.id, name: "Other", adapterType: "nexus_runner" }).returning();
       await db.update(heartbeatRuns).set({ agentId: other.id }).where(eq(heartbeatRuns.id, f.source.id));
     }
     if (fault === "schedule") await db.update(agentWakeupRequests).set({ idempotencyKey: randomUUID() }).where(eq(agentWakeupRequests.id, f.wake.id));
@@ -137,7 +137,7 @@ if (!support.supported) console.warn(`Monitor publication database unavailable: 
     const f = await fixture();
     await db.update(heartbeatRuns).set({ status: "succeeded", resultJson: {
       presentationDecision: { commentAction: "none" },
-      nativeResult: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "yielded", continuation: { kind: "monitor" } },
+      nativeResult: { schema: "nexus.run_result.v1", reportedWorkDisposition: "yielded", continuation: { kind: "monitor" } },
     } }).where(eq(heartbeatRuns.id, f.source.id));
     await enqueueChatRunMilestones(db);
     expect(await db.select().from(chatPublications).where(and(eq(chatPublications.issueId, f.issue.id), eq(chatPublications.idempotencyKey, `run:${f.source.id}:completed:${f.endpoint.id}`)))).toEqual([]);
@@ -146,7 +146,7 @@ if (!support.supported) console.warn(`Monitor publication database unavailable: 
   async function continuedTaskFixture() {
     const f = await fixture();
     const [contract] = await db.insert(completionContracts).values({ companyId: f.company.id, issueId: f.issue.id,
-      revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "test", risk: "standard",
+      revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "test", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "test", objective: "Verify repository migration", criteria: [] }, canonicalSha256: "workspace-contract",
       createdByActorType: "system", createdByActorId: "test",
@@ -163,11 +163,11 @@ if (!support.supported) console.warn(`Monitor publication database unavailable: 
       completionContractRevision: "test", completionContractCriterionIds: [],
     });
     const summary = "The repository is staged. I will continue QA automatically when it is prepared.";
-    await port.completeRun({ result: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "yielded", summary,
+    await port.completeRun({ result: { schema: "nexus.run_result.v1", reportedWorkDisposition: "yielded", summary,
       completionClaim: { contractRevision: "test", objectiveSatisfied: false, criteria: [], remainingWork: [{ description: "Complete QA", blocksCompletion: true }] },
       continuation: { kind: "same_agent", summary: "Continue QA with the prepared checkout", idempotencyKey: "repository-admission" },
       evidence: [], verification: [], attentionRequests: [], artifacts: [],
-    }, terminal: { schema: "paperclip.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" }, turnId: "prepare-turn" });
+    }, terminal: { schema: "nexus.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" }, turnId: "prepare-turn" });
     await finalizeNativeRun({ db, runId: f.source.id, workspaceFinalizeStatus: "succeeded", projectRunStatus: true });
     const [wake] = await db.select().from(agentWakeupRequests).where(and(eq(agentWakeupRequests.companyId, f.company.id), eq(agentWakeupRequests.reason, "issue_status_changed")));
     expect(wake).toBeDefined();
@@ -235,7 +235,7 @@ if (!support.supported) console.warn(`Monitor publication database unavailable: 
       eq(agentWakeupRequests.companyId, f.company.id), eq(agentWakeupRequests.requestedByActorId, `native-status-wake-dispatch:${f.continuationWake.id}`)));
     if (fault === "requester") await db.update(heartbeatRuns).set({ responsibleUserId: "another-person" }).where(eq(heartbeatRuns.id, f.successor.id));
     if (fault === "agent") {
-      const [other] = await db.insert(agents).values({ companyId: f.company.id, name: "Other", adapterType: "paperclip_runner" }).returning();
+      const [other] = await db.insert(agents).values({ companyId: f.company.id, name: "Other", adapterType: "nexus_runner" }).returning();
       await db.update(heartbeatRuns).set({ agentId: other.id }).where(eq(heartbeatRuns.id, f.source.id));
     }
     expect(await f.bindings()).toEqual([]);
@@ -246,11 +246,11 @@ if (!support.supported) console.warn(`Monitor publication database unavailable: 
     const executionPayload = randomBytes(128 * 1024).toString("base64");
     await db.update(heartbeatRuns).set({
       contextSnapshot: { ...f.source.contextSnapshot, largePrompt: executionPayload,
-        paperclipWake: { prompt: executionPayload } },
+        nexusWake: { prompt: executionPayload } },
       runnerProfileJson: { instructions: executionPayload }, stdoutExcerpt: executionPayload,
     }).where(eq(heartbeatRuns.id, f.source.id));
     const [contract] = await db.insert(completionContracts).values({ companyId: f.company.id, issueId: f.issue.id,
-      revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "test", risk: "standard",
+      revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "test", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "test", objective: "Verify repository migration", criteria: [] }, canonicalSha256: "monitor-contract",
       createdByActorType: "system", createdByActorId: "test",
@@ -269,11 +269,11 @@ if (!support.supported) console.warn(`Monitor publication database unavailable: 
       completionContractRevision: "test", completionContractCriterionIds: [],
     });
     const summary = "The repository is being prepared. I will continue QA automatically.";
-    await port.completeRun({ result: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "yielded", summary,
+    await port.completeRun({ result: { schema: "nexus.run_result.v1", reportedWorkDisposition: "yielded", summary,
       completionClaim: { contractRevision: "test", objectiveSatisfied: false, criteria: [], remainingWork: [{ description: "Complete QA", blocksCompletion: true }] },
       continuation: { kind: "monitor", summary: "Continue QA", idempotencyKey: "prepare-source" },
       evidence: [], verification: [], attentionRequests: [], artifacts: [],
-    }, terminal: { schema: "paperclip.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" }, turnId: "work-turn" });
+    }, terminal: { schema: "nexus.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" }, turnId: "work-turn" });
     await finalizeNativeRun({ db, runId: f.source.id, workspaceFinalizeStatus: "failed", projectRunStatus: true });
     const repair = () => repairCommittedNativeChatResponse(db, { companyId: f.company.id, issueId: f.issue.id, runId: f.source.id });
     expect(await repair()).toBe(false);

@@ -1,4 +1,4 @@
-import { getActiveStepContext } from "@paperclipai/adapter-utils/acpx-engine/startup-timing";
+import { getActiveStepContext } from "@nexusai/adapter-utils/acpx-engine/startup-timing";
 import { createHash } from "node:crypto";
 import { context, trace, TraceFlags } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
@@ -76,7 +76,7 @@ it("parents overlapping preparation and response work to their own execution att
   expect(attempts).toHaveLength(2);
   expect(new Set(attempts.map(span => span.spanContext().traceId)).size).toBe(2);
   for (const runId of ["one", "two"]) {
-    const attempt = attempts.find(span => span.attributes["paperclip.task.run.run_id"] === createHash("sha256").update(runId).digest("hex").slice(0, 12))!;
+    const attempt = attempts.find(span => span.attributes["nexus.task.run.run_id"] === createHash("sha256").update(runId).digest("hex").slice(0, 12))!;
     expect(attempt.parentSpanContext).toBeUndefined();
     expect(attempt.links[0].context).toEqual(trigger);
     const owned = spans.filter(span => span.spanContext().traceId === attempt.spanContext().traceId);
@@ -129,7 +129,7 @@ it("keeps queued discovery under its initiating run when another run releases th
     expect(getRunExecutionTraceContext("discovery-owner")).toBeUndefined();
     expect(getRunExecutionTraceContext("discovery-waiter")).toBeDefined();
     expect(exporter.getFinishedSpans().filter(span => span.name === "connectors.discovery.queue"
-      && span.attributes["paperclip.task.run.run_id"] === runHash)).toHaveLength(1);
+      && span.attributes["nexus.task.run.run_id"] === runHash)).toHaveLength(1);
     await measureRunPhase("connectors.discovery.policy", () => undefined);
     return value;
   });
@@ -139,7 +139,7 @@ it("keeps queued discovery under its initiating run when another run releases th
   await waiting;
   try {
     expect(work).not.toHaveBeenCalled();
-    expect(exporter.getFinishedSpans().some(span => span.attributes["paperclip.task.run.run_id"] === runHash)).toBe(false);
+    expect(exporter.getFinishedSpans().some(span => span.attributes["nexus.task.run.run_id"] === runHash)).toBe(false);
   } finally {
     release();
     await first;
@@ -147,7 +147,7 @@ it("keeps queued discovery under its initiating run when another run releases th
   await expect(second).resolves.toBe(value);
   expect(work).toHaveBeenCalledOnce();
   const spans = exporter.getFinishedSpans();
-  const owned = spans.filter(span => span.attributes["paperclip.task.run.run_id"] === runHash);
+  const owned = spans.filter(span => span.attributes["nexus.task.run.run_id"] === runHash);
   const attempt = owned.find(span => span.name === "task.execution_attempt")!;
   const scheduled = owned.find(span => span.name === "connectors.discovery.scheduled")!;
   const build = owned.find(span => span.name === "connectors.discovery.build")!;
@@ -173,7 +173,7 @@ it("caps repeated detail spans and ends failed scopes without content or excepti
   const spans = exporter.getFinishedSpans();
   expect(spans.filter(span => span.name === "workspace.readers.identity")).toHaveLength(16);
   expect(spans.filter(span => span.name === "workspace.transaction.entry")).toHaveLength(16);
-  for (const span of spans) expect(Object.keys(span.attributes)).toEqual(["paperclip.task.run.run_id"]);
+  for (const span of spans) expect(Object.keys(span.attributes)).toEqual(["nexus.task.run.run_id"]);
   expect(spans.filter(span => span.status.code === 2).map(span => span.name).sort()).toEqual(["task.execution_attempt", "workspace.readers.trust"]);
   expect(JSON.stringify(spans.map(span => ({ attributes: span.attributes, events: span.events, status: span.status })))).not.toContain(failure.message);
   expect(getRunExecutionTraceContext("bounded")).toBeUndefined();
@@ -208,7 +208,7 @@ it.each(["staged", "preinstalled", "uploaded", "failed"] as const)("records prov
   await native.finish(source === "failed" ? "failed" : "ok");
   const span = exporter.getFinishedSpans().find(span => span.name === "provider_pack.select")!;
   expect(span.status.code).toBe(source === "failed" ? 2 : 0);
-  if (source !== "failed") expect(span.attributes["paperclip.native.span.stateSource"]).toBe(source);
+  if (source !== "failed") expect(span.attributes["nexus.native.span.stateSource"]).toBe(source);
   expect(JSON.stringify({ attributes: span.attributes, events: span.events })).not.toContain(failure.message);
 });
 
@@ -221,12 +221,12 @@ it("exports only the declared count attributes and rejects unsafe numbers or ext
   const spans = exporter.getFinishedSpans();
   const materialize = spans.find(span => span.name === "runtime_context.asset_materialize")!;
   expect(materialize.attributes).toEqual({
-    "paperclip.task.run.run_id": createHash("sha256").update("counts").digest("hex").slice(0, 12),
-    "paperclip.execution.fileCount": 3,
-    "paperclip.execution.bytes": 99,
+    "nexus.task.run.run_id": createHash("sha256").update("counts").digest("hex").slice(0, 12),
+    "nexus.execution.fileCount": 3,
+    "nexus.execution.bytes": 99,
   });
   const verify = spans.find(span => span.name === "runtime_context.asset_verify")!;
-  expect(Object.keys(verify.attributes)).toEqual(["paperclip.task.run.run_id"]);
+  expect(Object.keys(verify.attributes)).toEqual(["nexus.task.run.run_id"]);
 });
 
 it("does not inherit another run when a new attempt's tracer lookup fails", async () => {
@@ -241,7 +241,7 @@ it("does not inherit another run when a new attempt's tracer lookup fails", asyn
   const inner = spans.find(span => span.name === "workspace.sources")!;
   expect(inner.parentSpanContext).toBeUndefined();
   expect(inner.spanContext().traceId).not.toBe(outer.spanContext().traceId);
-  expect(inner.attributes["paperclip.task.run.run_id"]).toBe(createHash("sha256").update("inner").digest("hex").slice(0, 12));
+  expect(inner.attributes["nexus.task.run.run_id"]).toBe(createHash("sha256").update("inner").digest("hex").slice(0, 12));
 });
 
 it("does not attach native children to an ambient run when native context construction fails", async () => {

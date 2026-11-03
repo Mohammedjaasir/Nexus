@@ -1,11 +1,11 @@
 import { and, eq, sql } from "drizzle-orm";
-import { executionWorkspaces, executionWorkspaceSnapshots, heartbeatRuns, issueRecoveryActions, workspaceOperations, type Db } from "@paperclipai/db";
-import { readRemoteWorkspaceAuthority, remoteWorkspaceRunReferenceSchema, type ExecutionBlocker } from "@paperclipai/shared";
+import { executionWorkspaces, executionWorkspaceSnapshots, heartbeatRuns, issueRecoveryActions, workspaceOperations, type Db } from "@nexusai/db";
+import { readRemoteWorkspaceAuthority, remoteWorkspaceRunReferenceSchema, type ExecutionBlocker } from "@nexusai/shared";
 import { z } from "zod";
 import { readNativeWorkspaceSyncReference } from "./native-runtime/native-workspace-sync.js";
 
 export const workspaceRecoverySchema = z.object({
-  schema: z.literal("paperclip.workspace-recovery.v1"),
+  schema: z.literal("nexus.workspace-recovery.v1"),
   runId: z.string().guid(),
   status: z.enum(["queued", "recovering", "blocked", "recovered"]),
   stage: z.enum(["verifying_stop", "restoring_files", "saving_receipts"]),
@@ -29,7 +29,7 @@ export function workspaceRecoveryDisplay(evidence: Record<string, unknown>, runI
     canRetry: state.status === "blocked" && state.retryable === true,
     message: state.status === "queued" || state.status === "recovering" ? "Recovering saved work…"
       : state.status === "recovered" ? "Saved work recovered. Send a message to continue."
-        : state.message ?? "Paperclip couldn’t safely recover this task. This task needs service attention.",
+        : state.message ?? "Nexus couldn’t safely recover this task. This task needs service attention.",
   };
 }
 

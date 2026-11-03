@@ -29,7 +29,7 @@ export async function readPilotExport(root, context, selection) {
   const bindingBytes = await readFile(path.join(root, 'binding.json'));
   if (bindingBytes.length > (context.catalog === 'full' ? 262_144 : 32_768)) reject('export_binding');
   const binding = JSON.parse(bindingBytes);
-  if (binding.schema !== 'paperclip.chat-completion-testops-export/v1' || binding.runId !== context.runId || binding.attempt !== '1'
+  if (binding.schema !== 'nexus.chat-completion-testops-export/v1' || binding.runId !== context.runId || binding.attempt !== '1'
     || binding.workflowSha !== context.workflowSha || binding.targetSha !== targetSha || binding.campaignId !== `gha-${context.runId}-1`
     || JSON.stringify(binding.executionIds) !== JSON.stringify(selected.map(row => row.executionId)) || !Array.isArray(binding.files)
     || binding.files.length !== 2 || !Array.isArray(binding.privateEvidence) || binding.privateEvidence.length !== selected.length
@@ -50,7 +50,7 @@ export async function readPilotExport(root, context, selection) {
   const normalized = retained.get('normalized-results.json');
   if (normalized.length > (context.catalog === 'full' ? 16_000_000 : 2_000_000)) reject('export_inventory');
   const campaign = JSON.parse(normalized);
-  if (campaign.schema !== 'paperclip.runner-e2e.campaign/v2' || campaign.campaignId !== binding.campaignId || campaign.retries !== 0
+  if (campaign.schema !== 'nexus.runner-e2e.campaign/v2' || campaign.campaignId !== binding.campaignId || campaign.retries !== 0
     || !Array.isArray(campaign.results) || campaign.results.length !== selected.length
     || new Set(campaign.results.map(row => row.executionId)).size !== selected.length) reject('export_results');
   for (const row of campaign.results) {
@@ -90,7 +90,7 @@ export async function exportPilotAllure(root, output, context, selection) {
       attachments.push({ name, source, type }); metadata.push({ name, contentType: type, contentLength: bytes.length });
     };
     const numeric = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
-    const provenance = { schema: 'paperclip.chat-completion-testops-provenance/v1', campaignId: campaign.campaignId,
+    const provenance = { schema: 'nexus.chat-completion-testops-provenance/v1', campaignId: campaign.campaignId,
       runId: context.runId, attempt: 1, workflowSha: context.workflowSha, sourceSha: targetSha,
       executionId: selectedCase.executionId, scenario: selectedCase.scenario, status: result.status, cleanup: result.cleanup,
       definitionHash: /^[a-f0-9]{64}$/.test(result.suiteDefinitionHash ?? '') ? result.suiteDefinitionHash : null,
@@ -102,7 +102,7 @@ export async function exportPilotAllure(root, output, context, selection) {
       note: 'Original case clocks, one attempt and no eval retries. Setup usage and AWS accounting may be incomplete. Private original evidence remains separate.' };
     await attach('Execution provenance and checks', 'application/json', Buffer.from(JSON.stringify(provenance, null, 2)), 'json');
     const evidence = privateEvidence.find(row => row.executionId === result.executionId);
-    const evidenceReceipt = { schema: 'paperclip.chat-completion-testops-private-evidence/v1', runId: context.runId, attempt: 1,
+    const evidenceReceipt = { schema: 'nexus.chat-completion-testops-private-evidence/v1', runId: context.runId, attempt: 1,
       executionId: result.executionId, ...evidence, storage: 'existing protected Runner E2E history',
       archiveKind: `manual-cell-${hash(result.executionId)}`,
       note: 'Only this availability receipt and checksum are attached. Original screenshots and diagnostics require authenticated private-history retrieval.' };
@@ -113,7 +113,7 @@ export async function exportPilotAllure(root, output, context, selection) {
       statusDetails: { message: status === 'passed' ? 'Real Product E2E assertions and cleanup passed' : 'Original evaluation or cleanup failed' },
       labels: [{ name: 'AS_ID', value: String(selectedCase.caseId) }, { name: 'parentSuite', value: 'Product E2E' },
         { name: 'suite', value: 'chat-features' }, { name: 'area', value: 'Chat and collaboration' },
-        { name: 'framework', value: 'Paperclip Evals' }, { name: 'tag', value: 'chat-completion-testops' }],
+        { name: 'framework', value: 'Nexus Evals' }, { name: 'tag', value: 'chat-completion-testops' }],
       parameters: [{ name: 'canonicalScenario', value: selectedCase.canonicalScenario ?? selectedCase.scenario }, { name: 'model', value: model },
         { name: 'environment', value: 'GitHub Actions / AWS' }],
       links: [{ name: 'GitHub Actions run', type: 'custom', url: `https://github.com/paperclipai/paperclip/actions/runs/${context.runId}` },

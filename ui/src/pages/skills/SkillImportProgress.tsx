@@ -1,5 +1,5 @@
 import { AlertCircle, Check, FileText, LoaderCircle } from 'lucide-react';
-import type { SkillSourceCandidate, SkillSourceScanProgress } from '@paperclipai/shared';
+import type { SkillSourceCandidate, SkillSourceScanProgress } from '@nexusai/shared';
 import { formatBytes } from '@/lib/issue-output';
 import { GithubIcon } from '@/components/icons/github-icon';
 

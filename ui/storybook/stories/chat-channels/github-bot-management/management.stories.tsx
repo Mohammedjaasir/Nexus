@@ -25,7 +25,7 @@ import {
   GitHubAppBranding,
   GitHubBotMention,
 } from "@/pages/apps/chat/GitHubAppIdentity";
-import { resolveAgentAppearance } from "@paperclipai/shared";
+import { resolveAgentAppearance } from "@nexusai/shared";
 import { agentAvatarUrl } from "@/lib/agent-avatar-url";
 import {
   endpoint,
@@ -48,7 +48,7 @@ const meta = {
           "Production pages and components. Start with **01 Journey / Settings**, then use the actual contextual sidebar to visit Access, Reviews, and Conversations. Try editing instructions, switch tabs, and save or discard the shared draft. **01 Journey / Connected** opens the production confirmation modal over the same bot Settings. Close it with Done, the ×, or Escape and continue editing Settings. **02 States** covers empty, loading, recoverable error, long content, and mobile. **03 Components** isolates the policy editor, people access, repository access, review rows and detail, pending review, and conversations. Provider operations use isolated fixture APIs; these stories are not live GitHub evidence.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "chat-channels/providers",
         "chat-channels/conversation",

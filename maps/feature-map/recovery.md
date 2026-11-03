@@ -296,14 +296,14 @@ metadata import, bounded discovery, ownership holds and incomplete-publication
 retention. These cases do not qualify full webserver disk loss, distinct releases,
 HTTP traffic continuity, or the live Daytona provider path.
 
-The [Runner transport regressions](../../packages/paperclip-runner/runner/crates/runner-core/src/durable/transport.rs)
+The [Runner transport regressions](../../packages/nexus-runner/runner/crates/runner-core/src/durable/transport.rs)
 exercise a real WebSocket welcome delayed beyond two seconds. Authentication
 uses the ten-second connection setup budget, clipped by the current lifecycle
 deadline. The cases also retain failed-welcome ticket fencing, identity checks,
 and reconnect replay without repeated provider effects. These transport cases
 do not establish hosted provider acceptance.
 
-The [native provider regression](../../packages/paperclip-runner/runner/crates/runner-core/tests/native_provider_backend.rs)
+The [native provider regression](../../packages/nexus-runner/runner/crates/runner-core/tests/native_provider_backend.rs)
 sends malformed activity from a real ACPX sidecar process. It checks a structured
 transport error, one failed terminal, a closed session, and no provider reopening.
 It proves the error contract and retained failure boundary, not the cause of a
@@ -320,7 +320,7 @@ during its metadata read, keep unknown adopted-process ownership held, and rejec
 launch before detachment when Node is unavailable. The diagnostic tests cover
 permission failures and generation-bound zombie receipts. This coverage does not prove recovery of a
 historical retained sandbox or behavior during a live provider outage.
-The [transport regression](../../packages/paperclip-runner/src/live/runnerd-codex-transport.test.ts)
+The [transport regression](../../packages/nexus-runner/src/live/runnerd-codex-transport.test.ts)
 also retains a real authenticated Runner and its journal when its close probe
 rejects, without signalling it, checkpointing it, or starting a replacement.
 The failed close still retires its local connections, event timers and
@@ -337,7 +337,7 @@ They do not prove a historical retained sandbox was recovered.
 For completion recovery, restart after a native completion proposal is appended
 but before its session checkpoint. Verify that the original result is finalized
 after provider termination, with no new provider turn or repeated external action.
-The [runtime regressions](../../packages/paperclip-runner/src/native-session-runtime.test.ts)
+The [runtime regressions](../../packages/nexus-runner/src/native-session-runtime.test.ts)
 exercise the real Codex driver with a simulated transport, including a still-active
 provider and invalid, conflicting, duplicate, or stale proposals. This does not
 qualify a hosted sandbox restart.

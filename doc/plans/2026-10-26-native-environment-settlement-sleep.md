@@ -272,7 +272,7 @@ Acceptance covers 4,172 distinct passing cases in 64 complete server test
 files, plus 20 targeted chat cases (4,192 selected cases total). The main
 62-file command reports 3,440 passes and 49 skips. All skips belong to the two
 Stop/control-read files: their indirect shared fixture has its own supported
-PAPERCLIP_RUN_CONTROL_TEST_DATABASE_URL override. The initial live log showed
+NEXUS_RUN_CONTROL_TEST_DATABASE_URL override. The initial live log showed
 43 Stop skips; the final report includes another six read cases. Both complete
 files then pass on separate fresh databases: 51 control cases and six read
 cases. Their eight already-passing pure cases are counted once. This closes

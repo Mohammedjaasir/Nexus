@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { CostByAgent } from "@paperclipai/shared";
+import type { CostByAgent } from "@nexusai/shared";
 import { formatCents } from "../lib/utils";
 import { CostEstimateLabel } from "./CostEstimateLabel";
 import { Badge } from "./ui/badge";

@@ -49,7 +49,7 @@ export function parseSpekoDeliveryDiagnostics(call: unknown, events: unknown, se
       kind: choice(pipeline.kind, ["s2s", "cascade"] as const),
       topLevelPromptCharacters: prompt.length, s2sPromptCharacters: nestedPrompt.length,
       promptsMatch: prompt && nestedPrompt ? prompt === nestedPrompt : null,
-      automaticPushInstruction: prompt.includes("Paperclip pushes approved task answers"),
+      automaticPushInstruction: prompt.includes("Nexus pushes approved task answers"),
       topLevelTools: toolNames(pipeline.tools), s2sTools: toolNames(s2s.tools),
       idleRepromptsEnabled: typeof idle.enabled === "boolean" ? idle.enabled : null,
       idleRepromptDelayMs: integer(idle.delayMs), idleRepromptMaxPrompts: integer(idle.maxPrompts),

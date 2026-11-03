@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gt, lte, sql, type SQL } from "drizzle-orm";
-import { approvals, companies, issues, issueWorkProducts, type Db } from "@paperclipai/db";
+import { approvals, companies, issues, issueWorkProducts, type Db } from "@nexusai/db";
 import { firstApprovalIssueId } from "./approval-visibility.js";
 import { executionIssueCondition } from "./issue-visibility.js";
 import { pullRequestSeedProductCondition } from "./decision-queue-seed-rules.js";

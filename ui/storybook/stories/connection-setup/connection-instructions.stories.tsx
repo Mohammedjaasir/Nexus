@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within, waitFor } from "storybook/test";
 import { useQueryClient } from "@tanstack/react-query";
-import { getConnectableAppDefinition } from "@paperclipai/shared";
+import { getConnectableAppDefinition } from "@nexusai/shared";
 import { Route, Routes, useNavigate } from "@/lib/router";
 import { useCompany } from "@/context/CompanyContext";
 import { PluginLauncherProvider } from "@/plugins/launchers";
@@ -67,7 +67,7 @@ const meta = {
   component: ConnectionInstructionsPrototype,
   args: { providedInstructions: HONCHO },
   parameters: { layout: "fullscreen", docs: { description: { component: "Production Layout, ConnectionSetupFlow, AppDetail, identity/access controls, and searchable Actions list with local API fixtures. The production instructions editor saves and reloads through mocked APIs. Baseline stories omit template metadata. No provider calls." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/credentials",
         "agents/instructions"

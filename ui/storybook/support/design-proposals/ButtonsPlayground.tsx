@@ -25,7 +25,7 @@ export function ButtonsPlayground({ onSettingsChange, ...settings }: ButtonsPlay
   return <main id="button-playground-top" data-testid="buttons-playground" className="min-h-screen bg-background px-6 py-10 text-foreground">
     <div className="mx-auto max-w-7xl space-y-10">
       <header className="space-y-3">
-        <p className="text-xs text-muted-foreground">Paperclip · Design proposals · Components</p>
+        <p className="text-xs text-muted-foreground">Nexus · Design proposals · Components</p>
         <h1 className="text-3xl font-semibold">Buttons playground</h1>
         <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">Style the buttons and contextual controls used in the design sandbox. Every example uses its shared component with the sandbox’s proposal theme. Hover and Tab through the controls; actions use local fixture state.</p>
       </header>

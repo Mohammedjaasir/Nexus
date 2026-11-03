@@ -88,7 +88,7 @@ function buildZip(entries: ZipInput[], rootPath: string): Uint8Array {
 describe("isBlobStorePath", () => {
   it("matches blobs/ entries at the archive root and under a package root", () => {
     expect(isBlobStorePath("blobs/4f2d1c9a")).toBe(true);
-    expect(isBlobStorePath("paperclip-demo/blobs/4f2d1c9a")).toBe(true);
+    expect(isBlobStorePath("nexus-demo/blobs/4f2d1c9a")).toBe(true);
     expect(isBlobStorePath("tasks/pap-1/TASK.md")).toBe(false);
     expect(isBlobStorePath("blobs/nested/file")).toBe(false);
   });
@@ -100,7 +100,7 @@ describe("readZipArchive", () => {
     const invalidUtf8 = new Uint8Array([0x68, 0x69, 0xff, 0xfe, 0xc0]);
     // A text body large and repetitive enough that DEFLATE actually shrinks it,
     // so the DEFLATE decode path is exercised, not just written.
-    const deflated = `# Weekly report\n${"paperclip ".repeat(512)}\n`;
+    const deflated = `# Weekly report\n${"nexus ".repeat(512)}\n`;
 
     const archive = buildZip(
       [
@@ -110,11 +110,11 @@ describe("readZipArchive", () => {
         { path: "tasks/pap-1/TASK.md", bytes: new TextEncoder().encode("# Notes\n\ncafé ✅\n"), method: 0 },
         { path: "notes/raw", bytes: invalidUtf8, method: 0 },
       ],
-      "paperclip-demo",
+      "nexus-demo",
     );
 
     await expect(readZipArchive(archive)).resolves.toEqual({
-      rootPath: "paperclip-demo",
+      rootPath: "nexus-demo",
       files: {
         "COMPANY.md": "---\nname: Demo\n---\n",
         "reports/weekly.md": deflated,
@@ -136,7 +136,7 @@ describe("readZipArchive", () => {
   it("throws on a truncated archive so a partial upload fails closed", async () => {
     const archive = buildZip(
       [{ path: "COMPANY.md", bytes: new TextEncoder().encode("---\nname: Demo\n---\n") }],
-      "paperclip-demo",
+      "nexus-demo",
     );
     // Chop the tail so a declared entry body runs past the end of the buffer.
     const truncated = archive.slice(0, 40);
@@ -146,7 +146,7 @@ describe("readZipArchive", () => {
   it("rejects data-descriptor entries the writer never emits", async () => {
     const archive = buildZip(
       [{ path: "COMPANY.md", bytes: new TextEncoder().encode("hi") }],
-      "paperclip-demo",
+      "nexus-demo",
     );
     // Flip bit 0x0008 in the local header's general-purpose flag (offset 6).
     archive[6] = archive[6]! | 0x08;
@@ -170,7 +170,7 @@ describe("readZipArchive", () => {
         { path: "COMPANY.md", bytes: new TextEncoder().encode("---\nname: Demo\n---\n") },
         { path: "agents/ceo/AGENTS.md", bytes: new TextEncoder().encode("---\nname: CEO\n---\n") },
       ],
-      "paperclip-demo",
+      "nexus-demo",
     );
     // Keep every local entry intact but drop the directory + EOCD, mimicking an
     // upload cut at a record boundary. The reader must not import the fragment.
@@ -181,7 +181,7 @@ describe("readZipArchive", () => {
   it("rejects an archive whose end-of-central-directory record is missing", async () => {
     const archive = buildZip(
       [{ path: "COMPANY.md", bytes: new TextEncoder().encode("---\nname: Demo\n---\n") }],
-      "paperclip-demo",
+      "nexus-demo",
     );
     // The central directory survives but the trailing 22-byte EOCD is gone.
     await expect(readZipArchive(archive.slice(0, archive.length - 22))).rejects.toThrow(
@@ -192,7 +192,7 @@ describe("readZipArchive", () => {
   it("rejects an archive whose central directory count does not match the entries read", async () => {
     const archive = buildZip(
       [{ path: "COMPANY.md", bytes: new TextEncoder().encode("---\nname: Demo\n---\n") }],
-      "paperclip-demo",
+      "nexus-demo",
     );
     // Overstate the total-entries field (EOCD offset +10 → last 12 bytes in) so a
     // silently-dropped central-directory record is caught.
@@ -209,7 +209,7 @@ describe("readZipArchive", () => {
     // wave it through; validating the central directory it points at must not.
     const archive = buildZip(
       [{ path: "COMPANY.md", bytes: new TextEncoder().encode("---\nname: Demo\n---\n") }],
-      "paperclip-demo",
+      "nexus-demo",
     );
     // Keep only the intact local entry (everything before the first central record).
     const localOnly = archive.slice(0, centralDirectoryOffset(archive));
@@ -228,7 +228,7 @@ describe("readZipArchive", () => {
   it("rejects a forged EOCD whose central directory offset points at non-directory bytes", async () => {
     const archive = buildZip(
       [{ path: "COMPANY.md", bytes: new TextEncoder().encode("---\nname: Demo\n---\n") }],
-      "paperclip-demo",
+      "nexus-demo",
     );
     const firstEntryOnly = archive.slice(0, centralDirectoryOffset(archive));
     // A forged EOCD whose offset+size abut the record (passing the location
@@ -250,7 +250,7 @@ describe("readZipArchive", () => {
         { path: "docs/x.md", bytes: new TextEncoder().encode("first") },
         { path: "docs//x.md", bytes: new TextEncoder().encode("second") },
       ],
-      "paperclip-demo",
+      "nexus-demo",
     );
     await expect(readZipArchive(archive)).rejects.toThrow(/duplicate entry path "docs\/x\.md"/i);
   });
@@ -259,7 +259,7 @@ describe("readZipArchive", () => {
     // Compresses tiny but expands to 8 KiB; a 1 KiB cap must reject it before it
     // materializes. Real packages sit far under the 512 MB production default.
     const bomb = new TextEncoder().encode("a".repeat(8 * 1024));
-    const archive = buildZip([{ path: "bomb.txt", bytes: bomb, method: 8 }], "paperclip-demo");
+    const archive = buildZip([{ path: "bomb.txt", bytes: bomb, method: 8 }], "nexus-demo");
     await expect(
       readZipArchive(archive, { maxEntryDecompressedBytes: 1024, maxTotalDecompressedBytes: 1 << 30 }),
     ).rejects.toThrow(/per-entry limit/i);
@@ -267,7 +267,7 @@ describe("readZipArchive", () => {
 
   it("bounds a stored entry at the per-entry decompressed limit", async () => {
     const stored = new TextEncoder().encode("b".repeat(4 * 1024));
-    const archive = buildZip([{ path: "big.bin", bytes: stored, method: 0 }], "paperclip-demo");
+    const archive = buildZip([{ path: "big.bin", bytes: stored, method: 0 }], "nexus-demo");
     await expect(
       readZipArchive(archive, { maxEntryDecompressedBytes: 1024, maxTotalDecompressedBytes: 1 << 30 }),
     ).rejects.toThrow(/per-entry limit/i);
@@ -280,7 +280,7 @@ describe("readZipArchive", () => {
         { path: "a.txt", bytes: chunk, method: 0 },
         { path: "b.txt", bytes: chunk, method: 0 },
       ],
-      "paperclip-demo",
+      "nexus-demo",
     );
     // Each entry is under the per-entry cap, but together they cross the total.
     await expect(

@@ -6,7 +6,7 @@ import { watch, lstatSync, readFileSync, readlinkSync, statSync, type FSWatcher 
 import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Socket } from "node:net";
 import { basename, join, relative } from "node:path";
-import { readLinuxProcessStartedAt } from "../../packages/paperclip-runner/src/live/linux-process-start.js";
+import { readLinuxProcessStartedAt } from "../../packages/nexus-runner/src/live/linux-process-start.js";
 
 export const sha256 = (value: string) => `sha256:${createHash("sha256").update(value).digest("hex")}`;
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
@@ -150,7 +150,7 @@ export function observeRunProcesses() {
       providerDeathDispatched = true;
       const dispatchedMonotonicNs = process.hrtime.bigint().toString();
       process.kill(child.pid, "SIGKILL");
-      return { schema: "paperclip.e2e.copilot-owned-provider-death.v1", root, child, signal: "SIGKILL", commandSha256: copilotDeathCommandDigest(command), dispatchedMonotonicNs };
+      return { schema: "nexus.e2e.copilot-owned-provider-death.v1", root, child, signal: "SIGKILL", commandSha256: copilotDeathCommandDigest(command), dispatchedMonotonicNs };
     },
     sample(authority?: RunProcessAuthority) {
       const table = processTable();

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, approvals, budgetIncidents, budgetPolicies, companies, costEvents, createDb, projects, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { agents, approvals, budgetIncidents, budgetPolicies, companies, costEvents, createDb, projects, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { budgetService } from "../services/budgets.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
@@ -12,7 +12,7 @@ describe.skipIf(!support.supported)("budget history for deleted scopes", () => {
   let db: ReturnType<typeof createDb>;
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-budget-history-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-budget-history-");
     db = createDb(database.connectionString);
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
   afterEach(async () => {

@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   agents, companies, createDb, dotAgentBindings, dotRunnerAssignments, dotRunnerOperations, heartbeatRuns,
   issues, museAgentBindings, museRunnerAssignments, museRunnerOperations, nativeRunFinalizations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { executionProjectionsForRuns } from "./execution-projection.js";
 
@@ -27,7 +27,7 @@ const now = new Date("2026-10-13T18:36:00Z");
     const companyId = options.companyId ?? randomUUID(), agentId = randomUUID();
     const issueId = randomUUID(), runId = randomUUID(), bindingId = randomUUID(), assignmentId = randomUUID();
     if (!options.companyId) await db.insert(companies).values({ id: companyId, name: "Projection test", issuePrefix: `W${companyId.slice(0, 8)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "External agent", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "External agent", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Assigned work", assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, nativeIssueId: issueId,
       runtimeMode: "native", status: "running", driverKind: provider === "muse" ? "muse_external" : "openai_dot_mcp", startedAt: now });

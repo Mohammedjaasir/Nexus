@@ -2,7 +2,7 @@
 
 ## Summary
 
-When an agent hands off work from Agent Chat, Paperclip will bring the finished result back to that conversation automatically. The original agent will write the update using the task’s recorded status and saved output.
+When an agent hands off work from Agent Chat, Nexus will bring the finished result back to that conversation automatically. The original agent will write the update using the task’s recorded status and saved output.
 
 Report tasks as they finish. Combine completions already waiting for the same reply. A `/new` reset suppresses updates from the previous conversation session.
 

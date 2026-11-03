@@ -6,7 +6,7 @@ const meta = {
   title: "Apps, channels, and extensions/Secrets and proposals/Task credential access/01 Notice",
   component: TaskChatMarker,
   parameters: { layout: "centered",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "secrets/runtime-delivery",
         "recovery/diagnosis"

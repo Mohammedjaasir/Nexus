@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
-import type { ComposioAppSetupInput, ComposioAppSetupResult, ToolConnection } from "@paperclipai/shared";
+import type { ComposioAppSetupInput, ComposioAppSetupResult, ToolConnection } from "@nexusai/shared";
 import { toolsApi } from "@/api/tools";
 import { useAccountIdentity } from "@/api/companies-query";
 import { queryKeys } from "@/lib/queryKeys";

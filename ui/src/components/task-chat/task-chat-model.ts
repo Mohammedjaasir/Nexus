@@ -24,13 +24,13 @@ import type {
   DecisionHistoryItem,
   ConversationTaskHandoff,
   AttentionItem,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import type {
-  PaperclipQuestionResponse,
-  PaperclipQuestionSet,
-} from "@paperclipai/adapter-utils";
+  NexusQuestionResponse,
+  NexusQuestionSet,
+} from "@nexusai/adapter-utils";
 
-export type { PaperclipQuestionResponse, PaperclipQuestionSet };
+export type { NexusQuestionResponse, NexusQuestionSet };
 
 export type TaskChatProviderActivityFamily =
   | "plan"
@@ -431,15 +431,15 @@ export interface TaskChatRuntimeRequestItem {
   prompt: string;
   choices: Array<{ key: string; label: string }>;
   fields: Array<{ name: string; label: string; placeholder: string | null }>;
-  questionSet?: PaperclipQuestionSet | null;
+  questionSet?: NexusQuestionSet | null;
   resolvedAction?: string | null;
-  response?: PaperclipQuestionResponse | null;
+  response?: NexusQuestionResponse | null;
 }
 
 export type TaskChatRuntimeRequestDecision =
   | { action: "accept" | "accept_for_session" | "decline" | "cancel" }
   | { action: "submit"; values: Record<string, string> }
-  | { action: "submit"; response: PaperclipQuestionResponse };
+  | { action: "submit"; response: NexusQuestionResponse };
 
 export interface TaskChatRunResultItem {
   id: string;
@@ -542,7 +542,7 @@ export interface TaskChatTurnItem {
   standaloneHeader?: boolean;
   /** This segment resumes the same native run after a steering input. */
   continuedAfterSteering?: boolean;
-  /** Durable response shown after the ordered Paperclip Runner timeline. */
+  /** Durable response shown after the ordered Nexus Runner timeline. */
   finalResponse?: TaskChatMessageItem;
   summary: {
     /** e.g. "38s" — omitted when unknown. */

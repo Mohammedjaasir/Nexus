@@ -10,7 +10,7 @@ import time
 
 started = time.monotonic()
 iterations = 0
-value = b"paperclip-speko-acceptance"
+value = b"nexus-speko-acceptance"
 while time.monotonic() - started < 65:
     for _ in range(1024):
         value = hashlib.sha256(value).digest()

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, companies, companyMemberships, createDb, environmentLeases, environments, heartbeatRuns, plugins } from "@paperclipai/db";
+import { agents, companies, companyMemberships, createDb, environmentLeases, environments, heartbeatRuns, plugins } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { aiConnectionService } from "../services/ai-connections.js";
 import { prepareManagedAiRuntime } from "../services/ai-connection-runtime.js";
@@ -22,7 +22,7 @@ suite("durable plugin task credential handoff", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>, db: ReturnType<typeof createDb>, home: string;
   beforeAll(async () => {
     home = await realpath(await mkdtemp(join(tmpdir(), "plugin-task-secret-")));
-    vi.stubEnv("PAPERCLIP_HOME", home); vi.stubEnv("PAPERCLIP_INSTANCE_ID", "plugin-task-fixture");
+    vi.stubEnv("NEXUS_HOME", home); vi.stubEnv("NEXUS_INSTANCE_ID", "plugin-task-fixture");
     database = await startEmbeddedPostgresTestDatabase("plugin-task-credential-"); db = createDb(database.connectionString);
   }, 90_000);
   afterAll(async () => { await database?.cleanup(); vi.unstubAllEnvs(); if (home) await rm(home, { recursive: true, force: true }); });
@@ -30,12 +30,12 @@ suite("durable plugin task credential handoff", () => {
     const companyId = randomUUID(), agentId = randomUUID(), runId = randomUUID(), pluginId = randomUUID(), environmentId = randomUUID(), leaseId = randomUUID();
     const owner = `fixture-${randomUUID()}`;
     await db.insert(companies).values({ id: companyId, name: "Task credential fixture", issuePrefix: `C${companyId.slice(0, 6)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "nexus_runner" });
     await db.insert(companyMemberships).values({ companyId, principalId: owner, principalType: "user", status: "active", membershipRole: "member" });
     const service = aiConnectionService(db);
     await service.save(companyId, owner, { provider: "openai", method: "subscription", ownership: "personal", name: "Fixture Codex", loginSessionId: "fixture", agentIds: [], allAgents: true }, auth("fixture-original"));
     const [selection] = await service.quotaAccounts(companyId, owner);
-    const managed = await prepareManagedAiRuntime(db, { companyId, agentId, responsibleUserId: owner, adapterType: "paperclip_runner",
+    const managed = await prepareManagedAiRuntime(db, { companyId, agentId, responsibleUserId: owner, adapterType: "nexus_runner",
       binding: { mode: "responsible_user", provider: "openai", method: "subscription" }, config: { provider: "codex" } });
     expect(managed.credentialWriteback).toBeDefined();
     await db.insert(environments).values({ id: environmentId, name: `Fixture ${environmentId}`, driver: "plugin", status: "active", config: { pluginKey: pluginId, driverKey: "tasks", driverConfig: {} } });

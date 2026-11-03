@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
-import { createDb } from "@paperclipai/db";
-import { DurablePrpControlPlane, decodeDurablePrpCheckpoint, type DurablePrpCheckpoint } from "../../../vendor/paperclip-runner/index.js";
+import { createDb } from "@nexusai/db";
+import { DurablePrpControlPlane, decodeDurablePrpCheckpoint, type DurablePrpCheckpoint } from "../../../vendor/nexus-runner/index.js";
 import { createNativeUsageDelivery } from "../native-usage-delivery.js";
 
 type Start = {

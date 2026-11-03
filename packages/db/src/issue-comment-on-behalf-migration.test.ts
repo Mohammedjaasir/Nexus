@@ -24,7 +24,7 @@ afterEach(async () => {
 
 describeEmbeddedPostgres("issue comment on-behalf attribution migration", () => {
   it("reapplies the migration and round-trips the nullable user attribution FK", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-comment-on-behalf-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-comment-on-behalf-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     const historicalCompanyId = randomUUID();

@@ -1,4 +1,4 @@
-# Public Paperclip MCP paid evaluation results
+# Public Nexus MCP paid evaluation results
 
 Date: 2026-10-01
 
@@ -55,7 +55,7 @@ These three complete campaigns contain 63 retained attempts for 63 cells and com
 | Haiku feedback, matrix C | The assistant guessed a task UUID and failed to add feedback. Updated real tool descriptions and shared plugin instructions to search for named tasks and copy returned IDs. |
 | Sonnet injection, matrix D | An earlier rejected placeholder-company lookup was wrongly attributed to a later document read. The causal oracle still rejects all writes, successful foreign reads and foreign attempts after retrieval. |
 | Haiku/Sonnet paused cases, matrix E | Recovery legitimately moved waiting tasks from `todo` to `blocked`. Both are accepted only with the correct assignee, paused agent and zero runs; queued state is now retained explicitly. |
-| Mini document, final A | The worker attempted POST where document creation requires PUT, then saved a comment instead. Clarified generic document creation and read-back in the production Paperclip skill. The missing-document failure remains a failure. |
+| Mini document, final A | The worker attempted POST where document creation requires PUT, then saved a comment instead. Clarified generic document creation and read-back in the production Nexus skill. The missing-document failure remains a failure. |
 | Haiku UUID, final A | A pre-execution schema rejection was repaired with a valid UUID, leaving one task/run. The oracle now permits that repair, while requiring stable identity after execution may have begun. |
 | Post-rebase smoke | The secret guard caught an OAuth callback query in a browser navigation diagnostic and blocked evidence output. Diagnostic URLs now omit query, fragment and userinfo; the raw-body credential guard remains strict. The subsequent smoke passed. |
 | PR qualification startup failures | Stale, detached PostgreSQL shared-memory segments exhausted the macOS host limit. The incomplete campaigns are retained; only unused segments with no live creator were reclaimed. A fresh complete campaign then passed all 21 cells. |
@@ -96,7 +96,7 @@ The source manifests describe each measured working tree. The latest full matrix
 
 This proves the selected local public MCP workflows across three models. It does not prove hosted newcomer provisioning, store installation, desktop chat UI interoperability, or production deployment. Cloud/instance migrations, feature opt-ins, broker secrets, stable HTTPS packaging and hosted acceptance remain release gates. External-agent leases and third-party tool gateways remain later releases.
 
-The [implementation plan](2026-09-30-paperclip-public-mcp-and-plugins.md) retains initial broad-run failures and the current PR qualification record. Paid success does not substitute for repository checks, review, or hosted acceptance.
+The [implementation plan](2026-09-30-nexus-public-mcp-and-plugins.md) retains initial broad-run failures and the current PR qualification record. Paid success does not substitute for repository checks, review, or hosted acceptance.
 
 ## Reproduce
 

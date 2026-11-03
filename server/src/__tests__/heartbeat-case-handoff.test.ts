@@ -6,8 +6,8 @@ import { hostname } from "node:os";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { agents, agentWakeupRequests, authSessions, authUsers, caseEvents, caseHandoffs, cases, companies, companyMemberships,
-  createDb, heartbeatRunEvents, heartbeatRuns, issueComments, issues } from "@paperclipai/db";
-import { issueRecoveryActions, issueRelations } from "@paperclipai/db";
+  createDb, heartbeatRunEvents, heartbeatRuns, issueComments, issues } from "@nexusai/db";
+import { issueRecoveryActions, issueRelations } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { heartbeatService } from "../services/heartbeat.js";
 import { runningProcesses } from "../adapters/index.js";
@@ -199,7 +199,7 @@ describe("durable case handoff queue admission", () => {
       });
       const handlers = await output.begin(source);
       await handlers.onAdapterEvent({ eventType: "legacy.case_handoff_cleanup_verified", stream: "system", payload: {
-        schema: "paperclip.legacy-case-handoff-cleanup.v1", issueId: f.issueId, host: hostname(), controllerBootId,
+        schema: "nexus.legacy-case-handoff-cleanup.v1", issueId: f.issueId, host: hostname(), controllerBootId,
         processPid: processId, processGroupId: processId, processStartedAt: processStartedAt.toISOString(), scratch,
       } });
       expect(await db.select().from(heartbeatRunEvents).where(and(eq(heartbeatRunEvents.runId, sourceRunId),

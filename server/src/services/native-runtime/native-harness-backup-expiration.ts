@@ -11,7 +11,7 @@ import {
   nativeRunFinalizations,
   nativeRunnerCheckpoints,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { logger } from "../../middleware/logger.js";
 import { nativeHarnessStateBase } from "./native-harness-backup-stamp.js";
 import { nativeSessionScopeDigestIsBusy } from "./native-session-executor.js";
@@ -189,7 +189,7 @@ async function sessionRetentionBlocker(
       id: heartbeatRuns.id,
       status: heartbeatRuns.status,
       finishedAt: heartbeatRuns.finishedAt,
-      incompleteRecovery: sql<boolean>`(${heartbeatRuns.runnerProfileJson}->'nativeControllerRecovery'->>'schema' = 'paperclip.native-controller-recovery.v1'
+      incompleteRecovery: sql<boolean>`(${heartbeatRuns.runnerProfileJson}->'nativeControllerRecovery'->>'schema' = 'nexus.native-controller-recovery.v1'
         and ${heartbeatRuns.runnerProfileJson}->'nativeControllerRecovery'->'checkpoint' = 'null'::jsonb) is true`,
       issueId: sql<string | null>`coalesce(${heartbeatRuns.nativeIssueId}, ${heartbeatRuns.issueId})`,
     })

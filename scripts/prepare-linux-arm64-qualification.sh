@@ -11,9 +11,9 @@ test "$ID" = ubuntu
 test "$VERSION_ID" = 24.04
 test "$(dpkg --print-architecture)" = arm64
 test "$(uname -m)" = aarch64
-prerequisite_report_dir=${RUNNER_TEMP:?}/paperclip-arm-bwrap-prerequisite
+prerequisite_report_dir=${RUNNER_TEMP:?}/nexus-arm-bwrap-prerequisite
 mkdir -p "$prerequisite_report_dir"
-prerequisite_download_dir=$(mktemp -d "${RUNNER_TEMP}/paperclip-arm-stock-packages.XXXXXX")
+prerequisite_download_dir=$(mktemp -d "${RUNNER_TEMP}/nexus-arm-stock-packages.XXXXXX")
 before_userns=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns)
 before_apparmor=$(cat /sys/module/apparmor/parameters/enabled)
 before_clone=$(sysctl -n kernel.unprivileged_userns_clone)

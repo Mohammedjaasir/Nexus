@@ -1,16 +1,16 @@
 import { createHash } from "node:crypto";
 import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
-import { KIMI_DISTRIBUTION_CLOSURE_SHA256, KIMI_NODE_DISTRIBUTIONS } from "../../packages/paperclip-runner/src/drivers/acpx/kimi-closure-pins.js";
+import { KIMI_DISTRIBUTION_CLOSURE_SHA256, KIMI_NODE_DISTRIBUTIONS } from "../../packages/nexus-runner/src/drivers/acpx/kimi-closure-pins.js";
 import type { RemoteNativeBinding, RemoteProcessIdentity } from "./remote-native-fixtures.js";
 
 export const KIMI_FAULT_ENTRY = "node_modules/@moonshot-ai/kimi-code/dist/main.mjs";
-export const KIMI_FAULT_SNAPSHOT = "/__paperclip_kimi_fault_snapshot__/distribution";
+export const KIMI_FAULT_SNAPSHOT = "/__nexus_kimi_fault_snapshot__/distribution";
 const sha = (bytes: string | Buffer) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const requireValue = (value: unknown, code: string): void => { if (!value) throw new Error(`kimi_provider_fault:${code}`); };
 
 function compiledBuilders() {
-  const path = new URL("../../packages/paperclip-runner/dist/cli/acpx-runtime-sidecar.cjs", import.meta.url);
+  const path = new URL("../../packages/nexus-runner/dist/cli/acpx-runtime-sidecar.cjs", import.meta.url);
   const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   let source: string;
   try {
@@ -49,7 +49,7 @@ export function expectedNativeBootstrap(distribution: string, nodeSha256: string
   const digest = nodeSha256.replace(/^sha256:/u, "");
   requireValue(/^[a-f0-9]{64}$/u.test(digest), "node_digest");
   return compiledBuilders().nativeBootstrap(`${distribution}/node/bin/node`, digest,
-    ["--require", `${distribution}/.paperclip-native-module-guard.cjs`, `${distribution}/${KIMI_FAULT_ENTRY}`, "acp"]);
+    ["--require", `${distribution}/.nexus-native-module-guard.cjs`, `${distribution}/${KIMI_FAULT_ENTRY}`, "acp"]);
 }
 
 export function expectedNativeModuleGuard(distribution: string, entries: readonly { path: string; sha256: string }[]): string {
@@ -57,7 +57,7 @@ export function expectedNativeModuleGuard(distribution: string, entries: readonl
 }
 
 export interface KimiProviderDeathReceipt {
-  schema: "paperclip.e2e.kimi-provider-death.v1"; binding: RemoteNativeBinding; runtimeEnvironmentLeaseId: string;
+  schema: "nexus.e2e.kimi-provider-death.v1"; binding: RemoteNativeBinding; runtimeEnvironmentLeaseId: string;
   target: RemoteProcessIdentity; ancestry: RemoteProcessIdentity[]; nodeSha256: string; entrypointSha256: string; closureSha256: string;
   guardLoaderSha256: string; guardSha256: string; bootstrapSha256: string;
   entrypointAttribution: "pinned_native_bootstrap_parent"; originalChildArgvAvailable: false; observedChildTitle: "kimi-code";
@@ -70,7 +70,7 @@ export function validateKimiProviderDeathReceipt(value: unknown, binding: Remote
   const contract = kimiFaultRuntimeContract("linux-x64");
   const keys = ["schema", "binding", "runtimeEnvironmentLeaseId", "target", "ancestry", "nodeSha256", "entrypointSha256", "closureSha256", "guardLoaderSha256", "guardSha256", "bootstrapSha256", "entrypointAttribution", "originalChildArgvAvailable", "observedChildTitle", "signalled", "signal", "targetKind", "workerSignalled"];
   requireValue(Object.keys(row).length === keys.length && Object.keys(row).every(key => keys.includes(key))
-    && row.schema === "paperclip.e2e.kimi-provider-death.v1" && JSON.stringify(row.binding) === JSON.stringify(binding)
+    && row.schema === "nexus.e2e.kimi-provider-death.v1" && JSON.stringify(row.binding) === JSON.stringify(binding)
     && row.runtimeEnvironmentLeaseId === lease && row.nodeSha256 === contract.nodeSha256 && row.closureSha256 === contract.closureSha256
     && row.guardLoaderSha256 === contract.guardLoaderSha256 && [row.entrypointSha256, row.guardSha256, row.bootstrapSha256].every(value => typeof value === "string" && /^sha256:[a-f0-9]{64}$/u.test(value))
     && row.entrypointAttribution === "pinned_native_bootstrap_parent" && row.originalChildArgvAvailable === false && row.observedChildTitle === "kimi-code"

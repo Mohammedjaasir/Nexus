@@ -1,6 +1,6 @@
 // Opt-in provider qualification, separate from the cheap default suite:
-// PAPERCLIP_RECOVERY_LIVE=1 DAYTONA_API_KEY=... PAPERCLIP_DAYTONA_SDK_PATH=...
-// PAPERCLIP_RECOVERY_IMAGE=ghcr.io/...@sha256:... vitest run --config vitest.config.ts scripts/workspace-recovery-provider.test.mjs
+// NEXUS_RECOVERY_LIVE=1 DAYTONA_API_KEY=... NEXUS_DAYTONA_SDK_PATH=...
+// NEXUS_RECOVERY_IMAGE=ghcr.io/...@sha256:... vitest run --config vitest.config.ts scripts/workspace-recovery-provider.test.mjs
 import { randomUUID, createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -10,8 +10,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { eq } from "drizzle-orm";
 import { expect, it, vi } from "vitest";
 import { agents, companies, createDb, environmentLeases, environments, heartbeatRuns, issueRecoveryActions,
-  issues, workspaceOperations } from "@paperclipai/db";
-import { NOOP_PLUGIN_TRACER } from "@paperclipai/plugin-sdk";
+  issues, workspaceOperations } from "@nexusai/db";
+import { NOOP_PLUGIN_TRACER } from "@nexusai/plugin-sdk";
 import { startEmbeddedPostgresTestDatabase } from "../src/__tests__/helpers/embedded-postgres.js";
 import { readSystemRecovery } from "../src/services/system-recovery-state.js";
 import { recoverRetainedWorkspace } from "../src/services/workspace-recovery.js";
@@ -27,20 +27,20 @@ vi.mock("../../packages/plugins/sandbox-providers/daytona/src/plugin.js", () => 
   getPluginTracer: () => NOOP_PLUGIN_TRACER,
 }));
 
-const live = process.env.PAPERCLIP_RECOVERY_LIVE === "1";
-const worker = process.env.PAPERCLIP_RECOVERY_WORKER;
+const live = process.env.NEXUS_RECOVERY_LIVE === "1";
+const worker = process.env.NEXUS_RECOVERY_WORKER;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const quote = value => `'${value.replaceAll("'", "'\\''")}'`;
 async function client() {
-  const modulePath = process.env.PAPERCLIP_DAYTONA_SDK_PATH;
+  const modulePath = process.env.NEXUS_DAYTONA_SDK_PATH;
   if (!modulePath || !process.env.DAYTONA_API_KEY) throw new Error("Explicit Daytona qualification settings are required");
   const { Daytona } = await import(/* @vite-ignore */ pathToFileURL(modulePath).href);
   return new Daytona({ apiKey: process.env.DAYTONA_API_KEY, requestTimeoutMs: 120_000 });
 }
 
 it.skipIf(!live || !worker)("provider controller", async () => {
-  const f = JSON.parse(await readFile(process.env.PAPERCLIP_RECOVERY_FIXTURE, "utf8"));
-  process.env.PAPERCLIP_STORAGE_LOCAL_DIR = path.join(f.directory, "storage");
+  const f = JSON.parse(await readFile(process.env.NEXUS_RECOVERY_FIXTURE, "utf8"));
+  process.env.NEXUS_STORAGE_LOCAL_DIR = path.join(f.directory, "storage");
   const db = createDb(f.connectionString);
   try {
     const sandbox = await (await client()).get(f.providerLeaseId);
@@ -95,15 +95,15 @@ it.skipIf(!live || !worker)("provider controller", async () => {
 }, 300_000);
 
 it.skipIf(!live || Boolean(worker))("preserves provider files across an interrupted export and controller restart without restarting the old agent", async () => {
-  const image = process.env.PAPERCLIP_RECOVERY_IMAGE;
-  const snapshotId = process.env.PAPERCLIP_RECOVERY_SNAPSHOT_ID;
+  const image = process.env.NEXUS_RECOVERY_IMAGE;
+  const snapshotId = process.env.NEXUS_RECOVERY_SNAPSHOT_ID;
   if (!image?.includes("@sha256:") && !/^[0-9a-f-]{36}$/i.test(snapshotId ?? ""))
     throw new Error("An immutable qualification image or snapshot ID is required");
-  const directory = await mkdtemp(path.join(os.tmpdir(), "paperclip-provider-recovery-"));
-  const priorHome = process.env.PAPERCLIP_HOME;
-  process.env.PAPERCLIP_HOME = path.join(directory, "home");
-  const priorStorage = process.env.PAPERCLIP_STORAGE_LOCAL_DIR;
-  process.env.PAPERCLIP_STORAGE_LOCAL_DIR = path.join(directory, "storage");
+  const directory = await mkdtemp(path.join(os.tmpdir(), "nexus-provider-recovery-"));
+  const priorHome = process.env.NEXUS_HOME;
+  process.env.NEXUS_HOME = path.join(directory, "home");
+  const priorStorage = process.env.NEXUS_STORAGE_LOCAL_DIR;
+  process.env.NEXUS_STORAGE_LOCAL_DIR = path.join(directory, "storage");
   const database = await startEmbeddedPostgresTestDatabase("provider-recovery-");
   const db = createDb(database.connectionString);
   const daytona = await client();
@@ -117,8 +117,8 @@ it.skipIf(!live || Boolean(worker))("preserves provider files across an interrup
       expect(snapshot.state).toBe("active");
     }
     sandbox = await daytona.create({ ...(snapshotId ? { snapshot: snapshotId } : { image, resources: { cpu: 2, memory: 4, disk: 10 } }),
-      autoStopInterval: 10, autoArchiveInterval: 60, labels: { purpose: "paperclip-recovery-qualification" } }, { timeout: 300 });
-    const remoteCwd = "/tmp/paperclip-recovery-fixture";
+      autoStopInterval: 10, autoArchiveInterval: 60, labels: { purpose: "nexus-recovery-qualification" } }, { timeout: 300 });
+    const remoteCwd = "/tmp/nexus-recovery-fixture";
     await sandbox.process.executeCommand(`mkdir -p ${remoteCwd}`, undefined, undefined, 30);
     await sandbox.process.createSession("old-agent");
     await sandbox.process.executeSessionCommand("old-agent", {
@@ -129,7 +129,7 @@ it.skipIf(!live || Boolean(worker))("preserves provider files across an interrup
       .toContain("saved work");
     const companyId = randomUUID(), issueId = randomUUID(), runId = randomUUID(), actionId = randomUUID(), agentId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Disposable provider qualification", issuePrefix: "LIVE" });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Disposable preservation fixture", status: "blocked", assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, issueId, agentId, status: "failed", runtimeMode: "legacy",
       contextSnapshot: { issueId }, finishedAt: new Date() });
@@ -138,8 +138,8 @@ it.skipIf(!live || Boolean(worker))("preserves provider files across an interrup
       environmentId: environment.id, provider: "daytona", providerLeaseId: sandbox.id,
       leasePolicy: "retain_on_failure", status: "released", releasedAt: new Date(),
       metadata: { remoteCwd, driver: "sandbox", pluginId: randomUUID(), sandboxProviderPlugin: true,
-        workspaceRestoreRecovery: { schema: "paperclip.workspace-restore-recovery.v1", runId } } }).returning();
-    const recovery = { schema: "paperclip.workspace-restore-recovery.v1", leaseIds: [lease.id] };
+        workspaceRestoreRecovery: { schema: "nexus.workspace-restore-recovery.v1", runId } } }).returning();
+    const recovery = { schema: "nexus.workspace-restore-recovery.v1", leaseIds: [lease.id] };
     await db.update(heartbeatRuns).set({ resultJson: { workspaceRestoreRecovery: recovery, workspaceRestoreFailure: "restore_failed" } })
       .where(eq(heartbeatRuns.id, runId));
     await db.insert(issueRecoveryActions).values({ id: actionId, companyId, sourceIssueId: issueId,
@@ -151,7 +151,7 @@ it.skipIf(!live || Boolean(worker))("preserves provider files across an interrup
     async function runController(phase) {
       const child = spawn(process.execPath, [path.join(root, "node_modules/vitest/vitest.mjs"), "run", "--config", "vitest.config.ts",
         "scripts/workspace-recovery-provider.test.mjs", "-t", "provider controller"], {
-        cwd: path.join(root, "server"), env: { ...process.env, PAPERCLIP_RECOVERY_WORKER: phase, PAPERCLIP_RECOVERY_FIXTURE: fixture },
+        cwd: path.join(root, "server"), env: { ...process.env, NEXUS_RECOVERY_WORKER: phase, NEXUS_RECOVERY_FIXTURE: fixture },
         stdio: ["ignore", "pipe", "pipe"],
       });
       evidence.controllerProcesses.push(child.pid);
@@ -193,10 +193,10 @@ it.skipIf(!live || Boolean(worker))("preserves provider files across an interrup
   } finally {
     // This test owns the disposable source. Production recovery never destroys it.
     if (sandbox) await sandbox.delete(120);
-    if (process.env.PAPERCLIP_RECOVERY_EVIDENCE) await writeFile(process.env.PAPERCLIP_RECOVERY_EVIDENCE, JSON.stringify(evidence, null, 2));
+    if (process.env.NEXUS_RECOVERY_EVIDENCE) await writeFile(process.env.NEXUS_RECOVERY_EVIDENCE, JSON.stringify(evidence, null, 2));
     await db.$client.end(); await database.cleanup();
-    if (priorHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = priorHome;
-    if (priorStorage === undefined) delete process.env.PAPERCLIP_STORAGE_LOCAL_DIR; else process.env.PAPERCLIP_STORAGE_LOCAL_DIR = priorStorage;
+    if (priorHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = priorHome;
+    if (priorStorage === undefined) delete process.env.NEXUS_STORAGE_LOCAL_DIR; else process.env.NEXUS_STORAGE_LOCAL_DIR = priorStorage;
     if (evidence.restored) await rm(directory, { recursive: true, force: true });
   }
 }, 900_000);

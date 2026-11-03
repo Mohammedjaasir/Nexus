@@ -3,7 +3,7 @@ import { enableRunFailureReporting } from "../__tests__/helpers/run-failure-repo
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, companies, completionContracts, createDb, environmentLeases, environments, heartbeatRuns, issues, issueRecoveryActions, issueThreadInteractions, nativeRunFinalizations, nativeRunResults, statusDecisions, workAssessments } from "@paperclipai/db";
+import { agents, companies, completionContracts, createDb, environmentLeases, environments, heartbeatRuns, issues, issueRecoveryActions, issueThreadInteractions, nativeRunFinalizations, nativeRunResults, statusDecisions, workAssessments } from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -20,7 +20,7 @@ vi.mock("../sentry.js", async () => {
 
 import { reconcileAbandonedExecutionControl } from "./execution-control-reconciliation.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_EXECUTION_CONTROL_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_EXECUTION_CONTROL_TEST_DATABASE_URL");
 const embeddedPostgresSupport = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -214,7 +214,7 @@ describeEmbeddedPostgres("reconcileAbandonedExecutionControl reports a genuine f
       status: "active", leasePolicy: "reuse_by_environment", metadata: { remoteCwd: "/work" },
     }).returning();
     await db.update(heartbeatRuns).set({ runtimeMode: "native", nativeIssueId: f.issueId, runnerProfileJson: {
-      nativeWorkspaceSync: { schema: "paperclip.native-workspace-sync/v3", state: state === "finalized" ? state : "prepared",
+      nativeWorkspaceSync: { schema: "nexus.native-workspace-sync/v3", state: state === "finalized" ? state : "prepared",
         descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null,
         workspaceId: f.runId, leaseId: lease.id, providerLeaseId: state === "mismatched" ? randomUUID() : lease.providerLeaseId,
         remoteCwd: "/work", resourceDisposition: "keep_running" },

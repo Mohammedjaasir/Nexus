@@ -74,7 +74,7 @@ export type ToolConnectionAuthKind = "oauth" | "api_key" | "none";
 export type ToolConnectionOwnership =
   "platform_shared" | "platform_provisioned" | "customer" | "dcr";
 export type ToolConnectionCredentialSource =
-  "paperclip_vault" | "vercel_connect";
+  "nexus_vault" | "vercel_connect";
 export type ToolConnectionStatus = "draft" | "active" | "disabled" | "archived";
 export type ToolConnectionInstallTargetType = "company" | "agent";
 export type ConnectionGrantKind = "organization" | "user" | "agent";
@@ -1184,7 +1184,7 @@ export interface ToolAppConnectionActionSummary {
 }
 
 /**
- * How Paperclip obtained the OAuth client it will use for a connection
+ * How Nexus obtained the OAuth client it will use for a connection
  * (PAP-17087). Ordered by preference: a client the deployment preconfigured for
  * that issuer, then a Client ID Metadata Document, then dynamic registration,
  * then client credentials the operator preregistered and pasted in.
@@ -1194,12 +1194,12 @@ export type ToolOAuthClientRegistrationSource =
 
 /** Opaque managed-Cloud exchange; clients never treat the session as a URL. */
 export interface ToolOAuthHandoff {
-  kind: "paperclip_cloud";
+  kind: "nexus_cloud";
   session: string;
 }
 
 /**
- * What an unknown remote MCP endpoint told Paperclip it needs, so the wizard can
+ * What an unknown remote MCP endpoint told Nexus it needs, so the wizard can
  * branch without re-probing. `manualClientRequired` means discovery succeeded but
  * the authorization server supports neither CIMD nor DCR, so the operator has to
  * supply a preregistered client under Advanced authentication.
@@ -1257,7 +1257,7 @@ export interface ToolOAuthStartResult {
   /** Null until the addressed human starts provider authorization from a saved setup. */
   expiresAt: string | null;
   /**
-   * Opaque Paperclip Cloud authorization handoff. The board submits this only
+   * Opaque Nexus Cloud authorization handoff. The board submits this only
    * to its fixed same-origin Cloud endpoint; it is never treated as a URL.
    */
   handoff?: ToolOAuthHandoff;
@@ -1541,7 +1541,7 @@ export interface ToolPolicyConditions {
     applicationKey?: string;
     applicationKeys?: string[];
     remoteHttpOnly?: boolean;
-    paperclipSelfOnly?: boolean;
+    nexusSelfOnly?: boolean;
   };
   timeWindow?: {
     startAt?: string;
@@ -1719,7 +1719,7 @@ export interface ToolConnectionTestCallResult {
   error?: { message: string; reasonCode: ToolAccessReasonCode | string | null };
   /** Present (with `decision: "ask_first"`) — the parked approval request. */
   actionRequestId?: string;
-  /** Provider handoff, distinct from a Paperclip permission approval. */
+  /** Provider handoff, distinct from a Nexus permission approval. */
   upstreamPending?: ToolUpstreamPending;
 }
 

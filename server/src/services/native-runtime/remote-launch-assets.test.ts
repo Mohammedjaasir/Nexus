@@ -4,10 +4,10 @@ import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createTarballFromDirectory } from "@paperclipai/adapter-utils/sandbox-managed-runtime";
+import { createTarballFromDirectory } from "@nexusai/adapter-utils/sandbox-managed-runtime";
 import { nativeRuntimeContextFixture } from "./runtime-context.test-fixture.js";
 import { stageRemoteLaunchAssets } from "./remote-launch-assets.js";
-import { prepareIsolatedCodexHome, releaseMaterializedNativeRuntimeSkills, resolveRunnerdCodexSkillInputs } from "../../vendor/paperclip-runner/testing.js";
+import { prepareIsolatedCodexHome, releaseMaterializedNativeRuntimeSkills, resolveRunnerdCodexSkillInputs } from "../../vendor/nexus-runner/testing.js";
 
 function deferred() {
   let resolve!: () => void;
@@ -183,7 +183,7 @@ it("replaces poisoned provider routing before restoring credentials and keeps re
 it.each(["missing", "routing"] as const)("removes stale remote authentication when the admitted launch has no auth file (%s)", async mode => {
   const f = await filesystemFixture();
   expect(existsSync(join(f.root, "codex-home", "auth.json"))).toBe(false);
-  if (mode === "routing") writeFileSync(join(f.root, "codex-home", "config.toml"), 'model_provider = "paperclip"\n[model_providers.paperclip]\nbase_url = "https://example.com/v1"\nwire_api = "responses"\nrequires_openai_auth = false\n');
+  if (mode === "routing") writeFileSync(join(f.root, "codex-home", "config.toml"), 'model_provider = "nexus"\n[model_providers.nexus]\nbase_url = "https://example.com/v1"\nwire_api = "responses"\nrequires_openai_auth = false\n');
   mkdirSync(join(f.remote, "skills"), { recursive: true });
   writeFileSync(join(f.remote, "skills", "retained"), "source skills");
   writeFileSync(join(f.remote, "auth.json"), "previous account credential", { mode: 0o600 });

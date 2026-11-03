@@ -75,13 +75,13 @@ export function createRemoteNativeBootstrap(input: {
       if (!/^[A-Za-z0-9_-]{1,128}$/u.test(nonce) || bindings.has(nonce)) throw new Error("Invalid or reused remote bootstrap nonce");
       // Keep Copilot setup paths short enough to copy without dropping hex pairs.
       // The isolated run still binds the exact random path before action delivery.
-      const path = `.paperclip-eval-action-${randomBytes(input.requireCopilotTaskContext ? 6 : 18).toString("hex")}.txt`;
+      const path = `.nexus-eval-action-${randomBytes(input.requireCopilotTaskContext ? 6 : 18).toString("hex")}.txt`;
       bindings.set(nonce, { path, consumed: false });
       return [
         `Your task instructions will be published by the operator in the workspace file ${path}.`,
         "Use your native file-read tool to read that exact relative file in the current execution workspace. If it is not present yet, retry the read for up to 20 seconds, then report the setup failure.",
         ...(input.requireCopilotTaskContext ? [
-          "The dedicated Paperclip get_task_context tool is already available directly. Read this setup file first, then invoke get_task_context exactly once and wait for its successful returned context before performing the supplied native command or edit.",
+          "The dedicated Nexus get_task_context tool is already available directly. Read this setup file first, then invoke get_task_context exactly once and wait for its successful returned context before performing the supplied native command or edit.",
           "No discovery is needed. search_api discovers HTTP routes, not semantic tools. Do not call search_api or use call_api or an HTTP route as a substitute for get_task_context.",
         ] : []),
         "Before reading those instructions: do not infer the task. Do not run shell commands. Do not create or modify any file.",

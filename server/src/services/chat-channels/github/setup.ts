@@ -6,7 +6,7 @@ import { type CredentialMutationLeaseGuard } from "../../chat-credential-mutatio
 
 import { githubAppJwt } from "../../chat-github-client.js";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   forbidden,

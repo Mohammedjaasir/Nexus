@@ -15,7 +15,7 @@ Within each pair, the stream array, runId, running state, parser call and messag
 
 Live running=true and settled running=false remain distinct. **`marks no message streaming when the tail is a tool call` remains byte-identical.** Every other case remains byte-identical, including saved plans, final replies, provider activity, native response-wake authority, thinking state, tool identity, usage, grouping and timeline boundaries.
 
-TaskChatThread calls the actual transcript parser and settledRunChildren for its run segments. The parser assigns each message timestamp from its first transcript entry and resets non-tail streaming state after the full input. The owner is `ui/src/components/task-chat/transcript-adapter.ts`. The complete suite remains included in `@paperclipai/ui` / `general-workspaces-a`; no CI routing or skip policy changes.
+TaskChatThread calls the actual transcript parser and settledRunChildren for its run segments. The parser assigns each message timestamp from its first transcript entry and resets non-tail streaming state after the full input. The owner is `ui/src/components/task-chat/transcript-adapter.ts`. The complete suite remains included in `@nexusai/ui` / `general-workspaces-a`; no CI routing or skip policy changes.
 
 ## Evidence
 

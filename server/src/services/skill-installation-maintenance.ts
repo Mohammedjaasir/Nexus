@@ -1,8 +1,8 @@
 import { constants, promises as fs } from "node:fs";
 import path from "node:path";
 import { and, asc, eq, gt, sql } from "drizzle-orm";
-import { companySkills, companySkillVersions, type Db } from "@paperclipai/db";
-import { parseFrontmatterMarkdown, type CompanySkillVersionFileInventoryEntry } from "@paperclipai/shared";
+import { companySkills, companySkillVersions, type Db } from "@nexusai/db";
+import { parseFrontmatterMarkdown, type CompanySkillVersionFileInventoryEntry } from "@nexusai/shared";
 import { conflict } from "../errors.js";
 import { classifyInventoryKind, companySkillService } from "./company-skills.js";
 import { managedSkillContent } from "./managed-skill-content.js";
@@ -18,7 +18,7 @@ type Conversion = Page & { apply?: boolean; writersStopped?: boolean };
 const limit = (options: Page) => Math.min(50, Math.max(1, options.limit ?? 10));
 const legacyManaged = (skill: typeof companySkills.$inferSelect) => skill.sourceType === "local_path" && skill.metadata?.sourceKind === "managed_local";
 const linkedLocal = (skill: typeof companySkills.$inferSelect) => skill.sourceType === "local_path"
-  && !legacyManaged(skill) && skill.metadata?.sourceKind !== "paperclip_bundled";
+  && !legacyManaged(skill) && skill.metadata?.sourceKind !== "nexus_bundled";
 function coversInstalledInventory(skill: typeof companySkills.$inferSelect, files: Array<{ path: string }>) {
   const paths = new Set(files.map(file => file.path));
   return paths.has("SKILL.md") && skill.fileInventory.every(file => typeof file.path === "string" && paths.has(file.path));

@@ -2,7 +2,7 @@ import {
   asString,
   parseObject,
   parseJson,
-} from "@paperclipai/adapter-utils/server-utils";
+} from "@nexusai/adapter-utils/server-utils";
 
 const CODEX_TRANSIENT_UPSTREAM_RE =
   /(?:we(?:'|’)re\s+currently\s+experiencing\s+high\s+demand|temporary\s+errors|rate[-\s]?limit(?:ed)?|too\s+many\s+requests|\b429\b|server\s+overloaded|service\s+unavailable|try\s+again\s+later)/i;
@@ -100,7 +100,7 @@ export function createCodexJsonlParser() {
     return {
       sessionId,
       summary: finalMessage?.trim() ?? "",
-      // Codex includes cache hits in input_tokens; Paperclip stores them separately.
+      // Codex includes cache hits in input_tokens; Nexus stores them separately.
       usage: { ...usage, inputTokens: Math.max(0, usage.inputTokens - usage.cachedInputTokens) },
       usageBasis: "per_run" as const,
       errorMessage,

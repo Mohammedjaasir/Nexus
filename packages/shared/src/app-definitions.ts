@@ -21,7 +21,7 @@ export const CONNECTABLE_APP_SLUGS = new Set([
   "executor",
   "slack",
   "notion",
-  "paperclip-notebook",
+  "nexus-notebook",
   "railway",
   "posthog",
   "linear",
@@ -147,8 +147,8 @@ export function getRecommendedConnectionMethod(
     return capabilityKey === "write" || capabilityKey === "draft";
   });
   const managedMethods = methods.filter((method) =>
-    method.oauthStrategy === "paperclip_cloud_connector"
-    || method.oauthStrategy === "paperclip_id_connector"
+    method.oauthStrategy === "nexus_cloud_connector"
+    || method.oauthStrategy === "nexus_id_connector"
   );
 
   // Prefer the permissions needed for agent work, then the simplest sign-in.
@@ -172,7 +172,7 @@ export function getAvailableConnectionMethod(
 
 export function connectionMethodSupportsAutomaticOAuth(method: ConnectionMethodDef | null | undefined): boolean {
   return method?.auth === "oauth" && (
-    (method.oauthStrategy === "paperclip_cloud_connector" || method.oauthStrategy === "paperclip_id_connector")
+    (method.oauthStrategy === "nexus_cloud_connector" || method.oauthStrategy === "nexus_id_connector")
     || method.ownershipModes.includes("dcr")
   );
 }

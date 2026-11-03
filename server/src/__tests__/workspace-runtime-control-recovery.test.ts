@@ -9,7 +9,7 @@ import {
   executionWorkspaces,
   projects,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
 import { setTimeout as delay } from "node:timers/promises";
 import {
@@ -49,10 +49,10 @@ describeEmbeddedPostgres("managed runtime-control operation recovery", () => {
   let previousLogRoot: string | undefined;
 
   beforeAll(async () => {
-    const started = await startEmbeddedPostgresTestDatabase("paperclip-runtime-control-recovery-");
+    const started = await startEmbeddedPostgresTestDatabase("nexus-runtime-control-recovery-");
     stopDb = started.cleanup;
     db = createDb(started.connectionString);
-    logRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-control-logs-"));
+    logRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-control-logs-"));
     previousLogRoot = process.env.WORKSPACE_OPERATION_LOG_BASE_PATH;
     process.env.WORKSPACE_OPERATION_LOG_BASE_PATH = logRoot;
   }, 60_000);

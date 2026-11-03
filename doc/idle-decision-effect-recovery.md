@@ -8,7 +8,7 @@ in that tick; TTL expiry and continuation delivery have their own workers.
 
 The existing decision row is durable truth. A row with `status = decided` and
 `executionStatus = running` owes effect recovery. Its next deadline is
-`updatedAt + PAPERCLIP_DECISIONS_RECOVERY_GRACE_MS`, default 60 seconds. Zero is
+`updatedAt + NEXUS_DECISIONS_RECOVERY_GRACE_MS`, default 60 seconds. Zero is
 supported; invalid or negative values retain the existing default. Reads do not
 move the timestamp. Open decisions and completed history create no recovery debt.
 

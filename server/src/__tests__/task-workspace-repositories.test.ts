@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { prepareWorkspaceRepositorySchema } from "@paperclipai/shared";
+import { prepareWorkspaceRepositorySchema } from "@nexusai/shared";
 import { resolveTaskRepository, taskRepositoryRelativePath, assertRepositoryRetryMatches } from "../services/execution-workspace-repositories.js";
 
 const repository = { id: "123", fullName: "team/source", url: "https://github.com/team/source", connections: [] };
@@ -20,7 +20,7 @@ describe("task repository acquisition authority", () => {
     const source = resolveTaskRepository({ kind: "catalog", id: "123" }, [repository]);
     const alias = resolveTaskRepository({ kind: "url", url: "https://github.com/TEAM/SOURCE.git" }, [repository]);
     expect(taskRepositoryRelativePath(source.repositoryIdentity)).toBe(taskRepositoryRelativePath(alias.repositoryIdentity));
-    expect(taskRepositoryRelativePath(source.repositoryIdentity)).toMatch(/^\.paperclip-repositories\/task-repo-[a-f0-9]{24}$/);
+    expect(taskRepositoryRelativePath(source.repositoryIdentity)).toMatch(/^\.nexus-repositories\/task-repo-[a-f0-9]{24}$/);
     const receipt = { repositoryIdentity: source.repositoryIdentity, requestedRef: "main" };
     expect(() => assertRepositoryRetryMatches(receipt, source.repositoryIdentity, "main")).not.toThrow();
     expect(() => assertRepositoryRetryMatches(receipt, source.repositoryIdentity, "release")).toThrow(/different ref/);

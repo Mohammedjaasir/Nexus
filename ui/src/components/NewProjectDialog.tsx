@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { PROJECT_COLORS, type ProjectRepository } from "@paperclipai/shared";
+import { PROJECT_COLORS, type ProjectRepository } from "@nexusai/shared";
 import { X } from "lucide-react";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";

@@ -41,7 +41,7 @@ The two event writers register awaited intent before insertion, after duplicate
 and ownership checks, inside their existing transaction boundaries:
 
 - `appendHeartbeatRunEvent` covers native ingress through
-  `PaperclipControlPlanePort`, direct allowlisted events and recovered trace diffs.
+  `NexusControlPlanePort`, direct allowlisted events and recovered trace diffs.
   It reads only runtime mode and bound issue alongside the existing binding
   fields. Ordinary non-progress direct log events retain their atomic-statement
   path. Direct allowlisted event writes now use a transaction even for legacy

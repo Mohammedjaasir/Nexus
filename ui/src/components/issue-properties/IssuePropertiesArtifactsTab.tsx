@@ -7,13 +7,13 @@ import type {
   Issue,
   IssueDocument,
   IssueWorkProduct,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   MARKDOWN_REVIEW_DOCUMENT_MAX_BYTES,
   artifactReviewDocumentKey,
   getMarkdownWorkProductAttachmentMetadata,
   isArtifactReviewDocumentKey,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { Download, ExternalLink, FileText } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { issuesApi } from "@/api/issues";

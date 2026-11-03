@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { agents, companies, createDb, heartbeatRuns, issues, nativeRunFinalizations } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRuns, issues, nativeRunFinalizations } from "@nexusai/db";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { rethrowNativeCancellationLockConflict, nativeRetryCancellationCommitCondition, cancellationIntentId, claimCancellationRequest, startupCancellationFence } from "../services/native-runtime/native-cancellation-request.js";
@@ -12,7 +12,7 @@ describe("atomic caller cancellation request ownership", () => {
   let cancelNativeSession: typeof import("../services/native-runtime/native-session-executor.js").cancelNativeSession;
   beforeAll(async () => {
     ({ cancelNativeSession } = await import("../services/native-runtime/native-session-executor.js"));
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_NATIVE_CANCELLATION_TEST_DATABASE_URL");
+    const external = resolveExternalTestDatabaseUrl("NEXUS_NATIVE_CANCELLATION_TEST_DATABASE_URL");
     if (!external) database = await startEmbeddedPostgresTestDatabase("caller-stop-");
     db = createDb(external ?? database!.connectionString, { maxConnections: 6 });
   }, 90_000);
@@ -52,7 +52,7 @@ describe("atomic caller cancellation request ownership", () => {
   it("accepts only the original acknowledged identity on a terminal run", async () => {
     const { companyId, runId } = await fixture(), id = randomUUID();
     const run = await claimCancellationRequest(db, runId, companyId, id, "board-user");
-    await db.update(heartbeatRuns).set({ status: "cancelled", resultJson: { ...run.resultJson, nativeCancellation: { schema: "paperclip.native-cancellation.v1", intentId: cancellationIntentId(id), runId, companyId, scope: "run", dispatched: true, dispatchState: "acknowledged", intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID() } } }).where(eq(heartbeatRuns.id, runId));
+    await db.update(heartbeatRuns).set({ status: "cancelled", resultJson: { ...run.resultJson, nativeCancellation: { schema: "nexus.native-cancellation.v1", intentId: cancellationIntentId(id), runId, companyId, scope: "run", dispatched: true, dispatchState: "acknowledged", intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID() } } }).where(eq(heartbeatRuns.id, runId));
     await expect(claimCancellationRequest(db, runId, companyId, id, "board-user")).resolves.toMatchObject({ status: "cancelled" });
     await expect(claimCancellationRequest(db, runId, companyId, randomUUID(), "board-user")).rejects.toMatchObject({ status: 409 });
     await db.update(heartbeatRuns).set({ resultJson: { ...run.resultJson, nativeCancellation: { intentId: cancellationIntentId(id) } } }).where(eq(heartbeatRuns.id, runId));

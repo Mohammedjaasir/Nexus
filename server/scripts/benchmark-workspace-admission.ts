@@ -17,7 +17,7 @@ import {
   heartbeatRuns,
   issues,
   startEmbeddedPostgresTestDatabase,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import { createAgentLifecycle } from "../src/services/agent-lifecycle.js";
 
@@ -93,9 +93,9 @@ fs.realpath = (async (...args: Parameters<typeof fs.realpath>) => {
 
 const { executionWorkspaceRepositoryService } = await import(serviceUrl.href);
 
-const temp = await startEmbeddedPostgresTestDatabase("paperclip-workspace-admission-bench-");
+const temp = await startEmbeddedPostgresTestDatabase("nexus-workspace-admission-bench-");
 const db = createDb(temp.connectionString);
-const scratchRoot = await fs.realpath(await mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-admission-")));
+const scratchRoot = await fs.realpath(await mkdtemp(path.join(os.tmpdir(), "nexus-workspace-admission-")));
 const repoRoot = path.join(scratchRoot, "shared-repository");
 const unrelatedRoot = path.join(scratchRoot, "unrelated-workspaces");
 

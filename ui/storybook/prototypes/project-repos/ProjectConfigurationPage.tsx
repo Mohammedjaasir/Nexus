@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Project } from "@paperclipai/shared";
+import type { Project } from "@nexusai/shared";
 import { Boxes, ChevronRight, ChevronsUpDown, CircleCheck, Folder, History, Inbox, LayoutDashboard, Menu, Package, Repeat, Search, SquarePen, Star, Unplug, Users } from "lucide-react";
 import { ProjectProperties } from "@/components/ProjectProperties";
 import { PageTabBar } from "@/components/PageTabBar";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
-import { storybookProjects } from "../../fixtures/paperclipData";
+import { storybookProjects } from "../../fixtures/nexusData";
 import { RepositoryConfigurationSection, type PrototypeProps } from "./ProjectReposPrototype";
 
 const navigation = [

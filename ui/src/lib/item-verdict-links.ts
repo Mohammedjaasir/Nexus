@@ -1,4 +1,4 @@
-import type { RequestItemVerdictsItem } from "@paperclipai/shared";
+import type { RequestItemVerdictsItem } from "@nexusai/shared";
 import { buildDocumentAnnotationHash } from "./document-annotation-hash";
 import { normalizeRequestConfirmationTargetHref } from "./issue-thread-interactions";
 

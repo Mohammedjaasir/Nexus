@@ -45,7 +45,7 @@ describe("removeTestHome", () => {
   it("removes a home whose runtime-context bundle directories are read-only", () => {
     const home = makeHome();
     const bundle = leaveReadOnlyBundle(home);
-    fs.writeFileSync(path.join(home, "instances", "default", "paperclip.json"), "{}\n");
+    fs.writeFileSync(path.join(home, "instances", "default", "nexus.json"), "{}\n");
 
     // The plain removal the setup file used to run is what fails in CI.
     if (process.platform !== "win32" && process.getuid?.() !== 0) {
@@ -60,7 +60,7 @@ describe("removeTestHome", () => {
   it("removes an ordinary home and tolerates one that is already gone", () => {
     const home = makeHome();
     fs.mkdirSync(path.join(home, "instances", "default"), { recursive: true });
-    fs.writeFileSync(path.join(home, "instances", "default", "paperclip.json"), "{}\n");
+    fs.writeFileSync(path.join(home, "instances", "default", "nexus.json"), "{}\n");
     const error = Object.assign(new Error("unrelated nonempty directory"), { code: "ENOTEMPTY" });
     const removal = vi.spyOn(fs, "rmSync").mockImplementation(() => { throw error; });
     const permissionChange = vi.spyOn(fs, "chmodSync");

@@ -1,6 +1,6 @@
 /**
  * Disposable synthetic PostgreSQL + real Git proof. Never accepts DATABASE_URL.
- * pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-workspace-preparation-history.ts \
+ * pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-workspace-preparation-history.ts \
  *   --baseline-ref=df80616d98119cbf5abd40549794d9980a5fabf6 --output=/tmp/workspace-history.json
  */
 import assert from "node:assert/strict";
@@ -28,11 +28,11 @@ assert.ok(Number.isInteger(samples) && samples >= 5, "At least five measured sam
 assert.ok(Number.isInteger(warmups) && warmups >= 2, "At least two warmups are required");
 const selectedSizes = (argument("sizes") ?? "small,stress").split(",");
 assert.ok(selectedSizes.length && selectedSizes.every(size => size === "small" || size === "stress"));
-process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "enforce";
+process.env.NEXUS_ISSUE_PRIVACY_MODE = "enforce";
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const originalSourceRoot = path.join(repositoryRoot, "server", "src");
-const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-history-"));
-const baselineDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-history-baseline-"));
+const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-workspace-history-"));
+const baselineDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-workspace-history-baseline-"));
 const keepAlive = setInterval(() => {}, 1000);
 let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
 let db: Db | undefined;

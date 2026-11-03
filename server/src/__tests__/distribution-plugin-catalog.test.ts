@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, symlinkSync, realpathSyn
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import type { NexusPluginManifestV1 } from "@nexusai/shared";
 import { distributionBundleDigest, distributionPluginActivationGuard, readDistributionPluginCatalog } from "../services/distribution-plugin-catalog.js";
 import { BUNDLED_PLUGIN_CATALOG, resolveBundledPluginInstalls } from "../services/bundled-plugins.js";
 
@@ -12,7 +12,7 @@ function fixture() {
   const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "distribution-plugin-"))); roots.push(root);
   const localPath = path.join(root, "distribution", "acme.widget");
   mkdirSync(path.join(localPath, "dist", "ui"), { recursive: true });
-  writeFileSync(path.join(localPath, "package.json"), JSON.stringify({ name: "@acme/plugin-widget", version: "1.0.0", paperclipPlugin: { manifest: "./dist/manifest.js", worker: "./dist/worker.js", ui: "./dist/ui/" } }));
+  writeFileSync(path.join(localPath, "package.json"), JSON.stringify({ name: "@acme/plugin-widget", version: "1.0.0", nexusPlugin: { manifest: "./dist/manifest.js", worker: "./dist/worker.js", ui: "./dist/ui/" } }));
   writeFileSync(path.join(localPath, "dist", "manifest.js"), "export default {};");
   writeFileSync(path.join(localPath, "dist", "worker.js"), "export default {};");
   const entry = { key: "acme.widget", pluginKey: "acme.widget", version: "1.0.0", directory: "acme.widget", digest: distributionBundleDigest(localPath) };
@@ -36,7 +36,7 @@ describe("image-owned plugin catalogs", () => {
   });
   it("rejects duplicate keys, plugin identities and built-in replacement", () => {
     const { root, entry, save } = fixture();
-    for (const plugins of [[entry, entry], [{ ...entry, key: "daytona" }], [{ ...entry, pluginKey: "paperclip.daytona-sandbox-provider" }]]) {
+    for (const plugins of [[entry, entry], [{ ...entry, key: "daytona" }], [{ ...entry, pluginKey: "nexus.daytona-sandbox-provider" }]]) {
       save(plugins);
       expect(() => readDistributionPluginCatalog(root, BUNDLED_PLUGIN_CATALOG)).toThrow(/Duplicate or built-in/);
     }
@@ -74,7 +74,7 @@ describe("image-owned plugin catalogs", () => {
     const entries = readDistributionPluginCatalog(root, BUNDLED_PLUGIN_CATALOG);
     const guard = distributionPluginActivationGuard(root, entries, ["acme.widget"]);
     for (const manifest of [{ id: "other.plugin", version: "1.0.0" }, { id: "acme.widget", version: "2.0.0" }]) {
-      expect(() => guard({ pluginKey: "acme.widget", packageRoot: localPath, manifest: manifest as PaperclipPluginManifestV1 })).toThrow(/identity\/version/);
+      expect(() => guard({ pluginKey: "acme.widget", packageRoot: localPath, manifest: manifest as NexusPluginManifestV1 })).toThrow(/identity\/version/);
     }
   });
 
@@ -82,11 +82,11 @@ describe("image-owned plugin catalogs", () => {
     const { root, localPath } = fixture();
     const entries = readDistributionPluginCatalog(root, BUNDLED_PLUGIN_CATALOG);
     const guard = distributionPluginActivationGuard(root, entries, ["acme.widget"]);
-    const manifest = { id: "acme.widget", version: "1.0.0", capabilities: [], entrypoints: { worker: "dist/worker.js", ui: "./dist/ui" } } as unknown as PaperclipPluginManifestV1;
+    const manifest = { id: "acme.widget", version: "1.0.0", capabilities: [], entrypoints: { worker: "dist/worker.js", ui: "./dist/ui" } } as unknown as NexusPluginManifestV1;
     expect(() => guard({ packageRoot: localPath, manifest })).not.toThrow();
     for (const name of ["worker", "ui"] as const) {
       for (const value of ["/outside/worker.js", "../outside", "dist/../worker.js", "C:/outside", "dist\\worker.js", "dist/other", "", undefined]) {
-        const invalid = { ...manifest, entrypoints: { ...manifest.entrypoints, [name]: value } } as PaperclipPluginManifestV1;
+        const invalid = { ...manifest, entrypoints: { ...manifest.entrypoints, [name]: value } } as NexusPluginManifestV1;
         expect(() => guard({ packageRoot: localPath, manifest: invalid })).toThrow(/entrypoint/);
       }
     }
@@ -94,10 +94,10 @@ describe("image-owned plugin catalogs", () => {
 
   it("accepts worker-only bundles but rejects a UI path absent from verified metadata", () => {
     const { root, localPath, entry, save } = fixture();
-    writeFileSync(path.join(localPath, "package.json"), JSON.stringify({ version: "1.0.0", paperclipPlugin: { manifest: "./dist/manifest.js", worker: "./dist/worker.js" } }));
+    writeFileSync(path.join(localPath, "package.json"), JSON.stringify({ version: "1.0.0", nexusPlugin: { manifest: "./dist/manifest.js", worker: "./dist/worker.js" } }));
     save([{ ...entry, digest: distributionBundleDigest(localPath) }]);
     const guard = distributionPluginActivationGuard(root, readDistributionPluginCatalog(root, BUNDLED_PLUGIN_CATALOG), null);
-    const manifest = { id: "acme.widget", version: "1.0.0", capabilities: [], entrypoints: { worker: "./dist/worker.js" } } as unknown as PaperclipPluginManifestV1;
+    const manifest = { id: "acme.widget", version: "1.0.0", capabilities: [], entrypoints: { worker: "./dist/worker.js" } } as unknown as NexusPluginManifestV1;
     expect(() => guard({ packageRoot: localPath, manifest })).not.toThrow();
     manifest.entrypoints.ui = "./dist/ui";
     expect(() => guard({ packageRoot: localPath, manifest })).toThrow(/verified package/);
@@ -106,7 +106,7 @@ describe("image-owned plugin catalogs", () => {
   it("rejects inconsistent capabilities and unapproved runtime refreshes", () => {
     const { root, localPath } = fixture();
     const guard = distributionPluginActivationGuard(root, readDistributionPluginCatalog(root, BUNDLED_PLUGIN_CATALOG), null);
-    const previousManifest = { id: "acme.widget", version: "1.0.0", capabilities: [], entrypoints: { worker: "./dist/worker.js", ui: "./dist/ui" } } as unknown as PaperclipPluginManifestV1;
+    const previousManifest = { id: "acme.widget", version: "1.0.0", capabilities: [], entrypoints: { worker: "./dist/worker.js", ui: "./dist/ui" } } as unknown as NexusPluginManifestV1;
     const manifest = { ...previousManifest, capabilities: ["issues.read" as const] };
     expect(() => guard({ packageRoot: localPath, manifest, previousManifest })).toThrow(/require approval/);
     expect(() => guard({ packageRoot: localPath, manifest, previousManifest: manifest })).not.toThrow();

@@ -1,7 +1,7 @@
-import { connectionGrants, toolConnections } from "@paperclipai/db";
+import { connectionGrants, toolConnections } from "@nexusai/db";
 import { and, eq, sql } from "drizzle-orm";
 import { ghFetch } from "./github-fetch.js";
-import type { ProjectRepository, ProjectWorkspace } from "@paperclipai/shared";
+import type { ProjectRepository, ProjectWorkspace } from "@nexusai/shared";
 import { unprocessable } from "../errors.js";
 import { isConnectionGrantAudienceAllowed } from "./tool-gateway.js";
 
@@ -66,7 +66,7 @@ export function normalizeProjectRepositoryUrl(value: string): { fullName: string
 /** Use the freshest active catalog visibility (the UI lock), then retained selections. Legacy URL-only
  * sources need anonymous discovery; unknown visibility must never start a private clone. */
 export async function projectRepositoryIsPrivate(
-  db: import("@paperclipai/db").Db,
+  db: import("@nexusai/db").Db,
   companyId: string,
   workspace: Pick<ProjectWorkspace, "repoUrl" | "metadata">,
 ): Promise<boolean> {

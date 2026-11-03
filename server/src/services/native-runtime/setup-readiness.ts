@@ -2,15 +2,15 @@ import { constants } from "node:fs";
 import { lstat, mkdir, mkdtemp, open, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, posix } from "node:path";
-import { CODEX_CHATGPT_MODEL_REJECTION_RE, codexChatGptRetirementHint } from "@paperclipai/adapter-codex-local";
-import { copyBackCodexAuth } from "@paperclipai/adapter-codex-local/server";
-import type { AdapterEnvironmentTestContext, AdapterEnvironmentTestResult } from "@paperclipai/adapter-utils";
-import { ADAPTER_AUTH_MISSING_CHECK_CODE } from "@paperclipai/shared";
-import { NativeEnvironmentProbeCleanupError, probeNativeRunnerEnvironment, resolveSourceCodexHome } from "../../vendor/paperclip-runner/index.js";
-import { resolvePaperclipRunnerBinary, resolveRemotePaperclipRunnerBinary } from "./native-codex-runner.js";
+import { CODEX_CHATGPT_MODEL_REJECTION_RE, codexChatGptRetirementHint } from "@nexusai/adapter-codex-local";
+import { copyBackCodexAuth } from "@nexusai/adapter-codex-local/server";
+import type { AdapterEnvironmentTestContext, AdapterEnvironmentTestResult } from "@nexusai/adapter-utils";
+import { ADAPTER_AUTH_MISSING_CHECK_CODE } from "@nexusai/shared";
+import { NativeEnvironmentProbeCleanupError, probeNativeRunnerEnvironment, resolveSourceCodexHome } from "../../vendor/nexus-runner/index.js";
+import { resolveNexusRunnerBinary, resolveRemoteNexusRunnerBinary } from "./native-codex-runner.js";
 import { readLocalAiCredentialFile } from "../local-ai-credential-file.js";
 import { createNativeSshCommandRunner } from "./native-ssh-command-runner.js";
-import { resolvePaperclipRunnerTransport } from "@paperclipai/adapter-utils/runner-connectivity";
+import { resolveNexusRunnerTransport } from "@nexusai/adapter-utils/runner-connectivity";
 import { createNativeRunnerExecutionDriver } from "./native-runner-execution-driver.js";
 
 
@@ -100,27 +100,27 @@ async function probeRemoteNativeCodex(options: {
   const id = crypto.randomUUID();
   const runnerInstanceId = `setup-${id}`;
   const ingress = target.transport === "sandbox" && target.effectiveCapabilities?.runnerWebSocketIngress === true;
-  const outbound = !ingress ? await resolvePaperclipRunnerTransport({ target, runId: id, localConnectUrl: "ws://127.0.0.1/unused",
-    runnerPublicUrl: process.env.PAPERCLIP_RUNNER_PUBLIC_URL?.trim() || null,
-    runnerCaBundlePath: process.env.PAPERCLIP_RUNNER_CA_BUNDLE_PATH?.trim() || null, runnerIngressAuthorized: true }) : null;
+  const outbound = !ingress ? await resolveNexusRunnerTransport({ target, runId: id, localConnectUrl: "ws://127.0.0.1/unused",
+    runnerPublicUrl: process.env.NEXUS_RUNNER_PUBLIC_URL?.trim() || null,
+    runnerCaBundlePath: process.env.NEXUS_RUNNER_CA_BUNDLE_PATH?.trim() || null, runnerIngressAuthorized: true }) : null;
   if (outbound && outbound.mode !== "direct_outbound") throw new Error("runner_transport_ineligible: expected outbound native transport");
   if (outbound?.mode === "direct_outbound" && outbound.caBundlePath) await stat(outbound.caBundlePath).catch(() => { throw new Error("runner_direct_wss_failed: configured runner CA bundle is unavailable"); });
-  const remoteRoot = posix.join(target.remoteCwd, ".paperclip-runtime", `paperclip-native-setup-${id}`);
-  const remoteBinary = posix.join(remoteRoot, "bin", "paperclip-runnerd");
+  const remoteRoot = posix.join(target.remoteCwd, ".nexus-runtime", `nexus-native-setup-${id}`);
+  const remoteBinary = posix.join(remoteRoot, "bin", "nexus-runnerd");
   const remoteStateDirectory = posix.join(remoteRoot, "runner");
   const remoteFilesystemRoot = posix.join(remoteRoot, "filesystem");
   const remoteWorkspace = posix.join(remoteFilesystemRoot, "workspace");
-  const remoteCodexNpmSpec = process.env.PAPERCLIP_RUNNER_REMOTE_CODEX_NPM_SPEC?.trim() || null;
+  const remoteCodexNpmSpec = process.env.NEXUS_RUNNER_REMOTE_CODEX_NPM_SPEC?.trim() || null;
   const remoteCodexBinary = remoteCodexNpmSpec ? posix.join(remoteRoot, "harnesses", "codex", "node_modules", ".bin", "codex") : posix.join(remoteRoot, "bin", "codex");
-  const explicitRunner = process.env.PAPERCLIP_RUNNER_REMOTE_BINARY_PATH?.trim() || null;
-  const controllerRunnerBinary = await resolveRemotePaperclipRunnerBinary({ runner, remoteCwd: target.remoteCwd, configuredPath: explicitRunner });
+  const explicitRunner = process.env.NEXUS_RUNNER_REMOTE_BINARY_PATH?.trim() || null;
+  const controllerRunnerBinary = await resolveRemoteNexusRunnerBinary({ runner, remoteCwd: target.remoteCwd, configuredPath: explicitRunner });
   const artifacts = createRemoteNativeArtifactPreparation({ target, runner, remoteBinary, controllerRunnerBinary, remoteRuntimeRoot: remoteRoot, remoteCodexBinary,
     targetPlatformArtifactVerified: true,
-    runnerRemoteBinaryPath: explicitRunner, runnerRemoteCodexPath: process.env.PAPERCLIP_RUNNER_REMOTE_CODEX_PATH?.trim(), runnerRemoteCodexNpmSpec: remoteCodexNpmSpec, model: options.model });
+    runnerRemoteBinaryPath: explicitRunner, runnerRemoteCodexPath: process.env.NEXUS_RUNNER_REMOTE_CODEX_PATH?.trim(), runnerRemoteCodexNpmSpec: remoteCodexNpmSpec, model: options.model });
   const requireSuccess = (result: { timedOut: boolean; exitCode: number | null }, message: string) => {
     if (result.timedOut || result.exitCode !== 0) throw new Error(message);
   };
-  const runtimeDirectory = await realpath(await mkdtemp(join(tmpdir(), "paperclip-native-setup-")));
+  const runtimeDirectory = await realpath(await mkdtemp(join(tmpdir(), "nexus-native-setup-")));
   return probePreparedNativeRuntime(runtimeDirectory, async () => {
     const sourceCodexHome = await prepareProbeCodexSource(runtimeDirectory, options.sourceCodexHome, options.sourceAuthJson);
     let remoteDirectoryCreated = false;
@@ -136,12 +136,12 @@ async function probeRemoteNativeCodex(options: {
         ...createNativeRunnerExecutionDriver({
           target, binding: { companyId: options.context.companyId, runId: id },
           runnerIngressAuthorized: true,
-          runnerPublicUrl: process.env.PAPERCLIP_RUNNER_PUBLIC_URL?.trim() || null,
-          runnerCaBundlePath: process.env.PAPERCLIP_RUNNER_CA_BUNDLE_PATH?.trim() || null,
+          runnerPublicUrl: process.env.NEXUS_RUNNER_PUBLIC_URL?.trim() || null,
+          runnerCaBundlePath: process.env.NEXUS_RUNNER_CA_BUNDLE_PATH?.trim() || null,
           processStarted: spawned,
           prepareRemote: async mode => {
             const created = await runner.execute({ command: "sh", args: ["-c", 'set -eu; umask 077; mkdir -p -- "$1"; test -d "$1" && test ! -L "$1"; mkdir -- "$2"; install -d -m 0700 "$3" "$4" "$5"',
-              "paperclip-native-setup", posix.dirname(remoteRoot), remoteRoot, remoteFilesystemRoot, remoteWorkspace, posix.join(remoteFilesystemRoot, "probe-home")], cwd: target.remoteCwd, bypassSession: true, timeoutMs: 10_000 });
+              "nexus-native-setup", posix.dirname(remoteRoot), remoteRoot, remoteFilesystemRoot, remoteWorkspace, posix.join(remoteFilesystemRoot, "probe-home")], cwd: target.remoteCwd, bypassSession: true, timeoutMs: 10_000 });
             requireSuccess(created, "Native setup could not claim a private runtime directory.");
             remoteDirectoryCreated = true;
             await artifacts.prepare(mode);
@@ -169,7 +169,7 @@ async function probeRemoteNativeCodex(options: {
       ...(options.credentialRefreshAuthPath ? { onCodexCredentialRefresh: async (filename: string) => {
         if (filename !== posix.join(remoteFilesystemRoot, "codex-home", "auth.json")) throw new Error("The native Codex credential refresh handoff is invalid.");
         await copyBackCodexAuth({ hostAuthPath: options.credentialRefreshAuthPath!, log: () => {}, readSandboxAuth: async () => {
-          const read = await runner.execute({ command: "sh", args: ["-c", 'set -eu; file=$1; test -f "$file" || exit 66; test ! -L "$file"; parent=$(dirname -- "$file"); while test "$parent" != /; do test -d "$parent" && test ! -L "$parent"; parent=$(dirname -- "$parent"); done; metadata=$(stat -c "%u %a %s" "$file" 2>/dev/null || stat -f "%u %Lp %z" "$file"); set -- $metadata; test "$1" = "$(id -u)" && test "$2" = 600 && test "$3" -le 65536; head -c 65537 -- "$file" | base64', "paperclip-native-refresh", filename], bypassSession: true, timeoutMs: 10_000 });
+          const read = await runner.execute({ command: "sh", args: ["-c", 'set -eu; file=$1; test -f "$file" || exit 66; test ! -L "$file"; parent=$(dirname -- "$file"); while test "$parent" != /; do test -d "$parent" && test ! -L "$parent"; parent=$(dirname -- "$parent"); done; metadata=$(stat -c "%u %a %s" "$file" 2>/dev/null || stat -f "%u %Lp %z" "$file"); set -- $metadata; test "$1" = "$(id -u)" && test "$2" = 600 && test "$3" -le 65536; head -c 65537 -- "$file" | base64', "nexus-native-refresh", filename], bypassSession: true, timeoutMs: 10_000 });
           if (read.timedOut || read.exitCode !== 0) throw Object.assign(new Error("Native Codex credential refresh handoff unavailable."), { code: read.exitCode === 66 ? "ENOENT" : "INVALID_CREDENTIAL" });
           const body = Buffer.from(read.stdout, "base64");
           if (body.length > 65_536) throw new Error("Native Codex credential refresh handoff exceeds the credential size limit.");
@@ -195,8 +195,8 @@ export async function testNativeRunnerAuthentication(context: AdapterEnvironment
     ...Object.entries(configured && typeof configured === "object" && !Array.isArray(configured) ? configured : {})
       .filter((entry): entry is [string, string] => typeof entry[1] === "string"),
   ]);
-  const authKey = "_PAPERCLIP_NATIVE_SETUP_CODEX_AUTH_JSON_SECRET";
-  const configKey = "_PAPERCLIP_NATIVE_SETUP_CODEX_CONFIG_TOML_SECRET";
+  const authKey = "_NEXUS_NATIVE_SETUP_CODEX_AUTH_JSON_SECRET";
+  const configKey = "_NEXUS_NATIVE_SETUP_CODEX_CONFIG_TOML_SECRET";
   delete environment[authKey];
   delete environment[configKey];
   let sourceCodexHome: string | null | undefined;
@@ -210,14 +210,14 @@ export async function testNativeRunnerAuthentication(context: AdapterEnvironment
       sourceCodexHome = context.managedAiCredentialHome ?? resolveSourceCodexHome(buildNativeProviderEnvironment(environment));
     }
     let credentialRefreshAuthPath: string | undefined;
-    if (sourceCodexHome && !environment.CODEX_API_KEY?.trim() && !environment.OPENAI_API_KEY?.trim() && !environment.PAPERCLIP_AI_PROVIDER_KEY?.trim()) {
+    if (sourceCodexHome && !environment.CODEX_API_KEY?.trim() && !environment.OPENAI_API_KEY?.trim() && !environment.NEXUS_AI_PROVIDER_KEY?.trim()) {
       let linked = false;
       try {
         const authPath = join(sourceCodexHome, "auth.json");
         linked = (await lstat(authPath)).isSymbolicLink();
         if (linked && !context.managedAiCredentialHome?.trim()) {
           const field = environment.CODEX_HOME?.trim() ? "env.CODEX_HOME" : "operator CODEX_HOME";
-          throw new Error(`${field} uses a linked auth.json that Paperclip Runner tasks cannot read. Choose Legacy runner in Advanced or use a managed Codex Connection.`);
+          throw new Error(`${field} uses a linked auth.json that Nexus Runner tasks cannot read. Choose Legacy runner in Advanced or use a managed Codex Connection.`);
         }
         const resolvedAuthPath = await realpath(authPath);
         const source = await stat(resolvedAuthPath);
@@ -234,8 +234,8 @@ export async function testNativeRunnerAuthentication(context: AdapterEnvironment
       receipt = await probeRemoteNativeCodex({ context, model, environment, sourceCodexHome: sourceCodexHome ?? "", credentialRefreshAuthPath, sourceAuthJson, timeoutMs,
         ...(typeof effort === "string" && effort ? { reasoningEffort: effort } : {}) });
     } else {
-      const runnerBinary = resolvePaperclipRunnerBinary();
-      runtimeDirectory = await realpath(await mkdtemp(join(tmpdir(), "paperclip-native-setup-")));
+      const runnerBinary = resolveNexusRunnerBinary();
+      runtimeDirectory = await realpath(await mkdtemp(join(tmpdir(), "nexus-native-setup-")));
       receipt = await probePreparedNativeRuntime(runtimeDirectory, async () => {
         const probeSourceCodexHome = await prepareProbeCodexSource(runtimeDirectory!, sourceCodexHome ?? "", sourceAuthJson);
         return { runtimeDirectory: runtimeDirectory!, provider, model, environment, timeoutMs,
@@ -251,15 +251,15 @@ export async function testNativeRunnerAuthentication(context: AdapterEnvironment
     }
     if (receipt.helloProbePassed !== true || receipt.provider !== provider || typeof receipt.effectiveModel !== "string" || !receipt.effectiveModel.trim() || receipt.effectiveModel === "unknown" || (model !== null && receipt.effectiveModel !== model)
       || receipt.providerDriver !== "codex_app_server") throw new Error("The selected native runtime returned an incompatible account or model verification receipt.");
-    return { adapterType: "paperclip_runner", status: "pass", testedAt: new Date().toISOString(), checks: [{ code: `${provider}_hello_probe_passed`, level: "info",
-      message: `The native ${provider} runtime verified the selected account and model in ${remote ? "the selected environment" : "the Paperclip host"}.` }] };
+    return { adapterType: "nexus_runner", status: "pass", testedAt: new Date().toISOString(), checks: [{ code: `${provider}_hello_probe_passed`, level: "info",
+      message: `The native ${provider} runtime verified the selected account and model in ${remote ? "the selected environment" : "the Nexus host"}.` }] };
   } catch (error) {
     if (error instanceof NativeEnvironmentProbeCleanupError) throw error;
     const message = redactNativeProbeMessage(error instanceof Error ? error.message : "The selected native runtime could not verify this account.", { ...environment, ...(sourceAuthJson ? { [authKey]: sourceAuthJson } : {}) });
     const authentication = /(?:invalid (?:api[- ]?key|auth(?:entication)? token)|authentication (?:failed|required)|unauthenticated|unauthorized|not authenticated|please (?:log|sign) in|not logged in|\b(?:401|403)\b)/i.test(message);
     const rejectedModel = provider === "codex" ? CODEX_CHATGPT_MODEL_REJECTION_RE.exec(message)?.[1] : undefined;
     const retirementHint = rejectedModel ? codexChatGptRetirementHint(rejectedModel) : null;
-    return { adapterType: "paperclip_runner", status: "fail", testedAt: new Date().toISOString(), checks: [{ code: `${provider}_hello_probe_${authentication ? "auth_required" : /timed out/i.test(message) ? "timeout" : "failed"}`, level: "error", message,
+    return { adapterType: "nexus_runner", status: "fail", testedAt: new Date().toISOString(), checks: [{ code: `${provider}_hello_probe_${authentication ? "auth_required" : /timed out/i.test(message) ? "timeout" : "failed"}`, level: "error", message,
       hint: retirementHint ?? "Check the selected account, model access, and native runtime prerequisites, then retry. Legacy runner is available explicitly in Advanced." },
       ...(authentication && provider === "codex" ? [{ code: ADAPTER_AUTH_MISSING_CHECK_CODE, level: "error" as const,
         message: "The selected Codex account needs authentication.",

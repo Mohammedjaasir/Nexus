@@ -14,7 +14,7 @@ vi.mock("@/api/agents", () => ({ agentsApi: { list: () => Promise.resolve([]) } 
 vi.mock("@/context/ToastContext", () => ({ useToastActions: () => ({ pushToast: vi.fn() }) }));
 import { IssuePrivacyActions } from "./IssuePrivacyActions";
 import { ProjectAccessMembers } from "./ProjectAccessMembers";
-import type { Project } from "@paperclipai/shared";
+import type { Project } from "@nexusai/shared";
 async function settle() {
   for (let i = 0; i < 8; i++) { await new Promise(resolve => setTimeout(resolve, 0)); flushSync(() => {}); }
 }

@@ -2,9 +2,9 @@ import { assertEphemeralAgentInstructions } from "./agent-instructions.js";
 import { initializeDurableAgentFiles } from "./agent-file-durability.js";
 import { notifyAttentionRetentionWork } from "./retention-work-notifications.js";
 import { notifySkillVersionRetention, notifySkillVersionPinChange } from "./skill-version-retention-notifications.js";
-import { agentAppearanceSchema, randomAgentAppearance } from "@paperclipai/shared";
-import { normalizePaperclipRunnerAdapterConfig } from "@paperclipai/adapter-utils/server-utils";
-import { agents, toolConnectionInstalls, principalPermissionGrants, type Db } from "@paperclipai/db";
+import { agentAppearanceSchema, randomAgentAppearance } from "@nexusai/shared";
+import { normalizeNexusRunnerAdapterConfig } from "@nexusai/adapter-utils/server-utils";
+import { agents, toolConnectionInstalls, principalPermissionGrants, type Db } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { unprocessable } from "../errors.js";
 import { agentRecordQueries, isPlainRecord, configPatchFromApprovalPayload, normalizeRuntimeConfigForNewAgent,
@@ -48,8 +48,8 @@ export async function prepareAgentHire(db: Db, companyId: string, input: CreateA
   const rawAdapterConfig = isPlainRecord(data.adapterConfig)
     ? await secretService(db).normalizeAdapterConfigForPersistence(companyId, data.adapterConfig, { adapterType })
     : {};
-  const adapterConfig = normalizePaperclipRunnerAdapterConfig(adapterType, rawAdapterConfig);
-  if (adapterType === "paperclip_runner" && !["openai_dot", "grok_bot", "muse"].includes(String(adapterConfig.provider)) &&
+  const adapterConfig = normalizeNexusRunnerAdapterConfig(adapterType, rawAdapterConfig);
+  if (adapterType === "nexus_runner" && !["openai_dot", "grok_bot", "muse"].includes(String(adapterConfig.provider)) &&
       (await resolveAgentRunnerTaskDriverForCompany(db, companyId, data.defaultEnvironmentId))?.warmTaskVersion === 1) {
     adapterConfig.lifecycleMode = "warm";
   }
@@ -110,7 +110,7 @@ export async function prepareAgentHireApproval(txDb: Db, existing: AgentHireReco
     const normalizedAdapterConfig = await secretService(txDb).normalizeAdapterConfigForPersistence(
       existing.companyId, patch.adapterConfig, { adapterType: (patch.adapterType ?? existing.adapterType) as string },
     );
-    patch.adapterConfig = normalizePaperclipRunnerAdapterConfig(
+    patch.adapterConfig = normalizeNexusRunnerAdapterConfig(
       (patch.adapterType ?? existing.adapterType) as string,
       normalizedAdapterConfig,
     );
@@ -118,7 +118,7 @@ export async function prepareAgentHireApproval(txDb: Db, existing: AgentHireReco
     Object.prototype.hasOwnProperty.call(patch, "adapterType")
     && isPlainRecord(existing.adapterConfig)
   ) {
-    patch.adapterConfig = normalizePaperclipRunnerAdapterConfig(
+    patch.adapterConfig = normalizeNexusRunnerAdapterConfig(
       patch.adapterType as string,
       existing.adapterConfig,
     );

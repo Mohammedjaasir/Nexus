@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { buildAgentUpdatePatch, type AgentConfigOverlay } from "./agent-config-patch";
 
 function makeAgent(): Agent {
@@ -150,15 +150,15 @@ describe("buildAgentUpdatePatch", () => {
     });
   });
 
-  it("preserves paperclip skill-sync selections when changing adapter types", () => {
+  it("preserves nexus skill-sync selections when changing adapter types", () => {
     // Desired skills are adapter-agnostic (company-level selections) but are
-    // persisted inside the per-adapter config under `paperclipSkillSync`. A
+    // persisted inside the per-adapter config under `nexusSkillSync`. A
     // patch that switches adapters must carry them over instead of wiping the
     // agent's skills.
     const agent = makeAgent();
     agent.adapterConfig = {
       ...agent.adapterConfig,
-      paperclipSkillSync: { desiredSkills: ["research", "code-review"] },
+      nexusSkillSync: { desiredSkills: ["research", "code-review"] },
     };
 
     const patch = buildAgentUpdatePatch(
@@ -169,7 +169,7 @@ describe("buildAgentUpdatePatch", () => {
       }),
     );
 
-    expect((patch.adapterConfig as Record<string, unknown>).paperclipSkillSync).toEqual({
+    expect((patch.adapterConfig as Record<string, unknown>).nexusSkillSync).toEqual({
       desiredSkills: ["research", "code-review"],
     });
   });

@@ -50,7 +50,7 @@ export function parseTimings(log, inventory) {
     }
     // Bootstrap from pre-reporter runs. These values omit import/setup cost;
     // structured measurements take precedence as soon as master emits them.
-    const match = line.match(/@paperclipai\/server\s+([^\s]+\.test\.[cm]?[jt]s)\s+\(\d+ tests?[^)]*\)\s+(\d+)ms\s*$/);
+    const match = line.match(/@nexusai\/server\s+([^\s]+\.test\.[cm]?[jt]s)\s+\(\d+ tests?[^)]*\)\s+(\d+)ms\s*$/);
     if (!match) continue;
     const file = `server/${match[1]}`, ms = Number(match[2]);
     if (inventory.has(file) && ms <= 3_600_000) fallback.set(file, Math.max(fallback.get(file) ?? 0, ms));
@@ -86,7 +86,7 @@ export function updatedDurations(previous, inventory, samples, sources) {
 export async function refreshDurations(runIds = []) {
   const inventory = JSON.parse(execFileSync(process.execPath, ["scripts/run-vitest-stable.mjs", "--mode", "general",
     "--group", "general-server", "--shard-index", "0", "--shard-count", "1", "--dry-run"], {
-    encoding: "utf8", env: { ...process.env, GITHUB_WORKFLOW: "PR", PAPERCLIP_CI_TEST_SELECTION: "" },
+    encoding: "utf8", env: { ...process.env, GITHUB_WORKFLOW: "PR", NEXUS_CI_TEST_SELECTION: "" },
   }));
   const lanes = {
     general: { files: new Set(inventory.selectedGeneralServerSuites), path: "scripts/general-server-shard-durations.json", samples: [] },

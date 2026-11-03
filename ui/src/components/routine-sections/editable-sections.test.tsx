@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RoutineDetail, RoutineTrigger } from "@paperclipai/shared";
+import type { RoutineDetail, RoutineTrigger } from "@nexusai/shared";
 import { BreadcrumbProvider } from "@/context/BreadcrumbContext";
 import { queryKeys } from "@/lib/queryKeys";
 import { TriggersSection } from "./editable-sections";
@@ -51,7 +51,7 @@ beforeEach(() => {
   routine = { id: "routine-1", companyId: "company-1", title: "Verify deployment", status: "active", triggers: [] } as unknown as RoutineDetail;
   api.get.mockImplementation(async () => routine);
   api.createTrigger.mockImplementation(async (_id, input) => {
-    const trigger = { id: "trigger-1", enabled: true, webhookUrl: "https://paperclip.example/api/routine-triggers/public/0123456789abcdef01234567/fire", ...input } as RoutineTrigger;
+    const trigger = { id: "trigger-1", enabled: true, webhookUrl: "https://nexus.example/api/routine-triggers/public/0123456789abcdef01234567/fire", ...input } as RoutineTrigger;
     routine = { ...routine, triggers: [...routine.triggers, trigger] };
     return { trigger, secretMaterial: { webhookUrl: trigger.webhookUrl, webhookSecret: "one-time-secret" } };
   });
@@ -97,7 +97,7 @@ describe("TriggersSection", () => {
   });
 
   it("warns about private URLs without blocking webhook setup or completion", async () => {
-    routine.triggers = [{ id: "trigger-1", kind: "webhook", enabled: true, setupPending: true, signingMode: "bearer", webhookUrl: "https://paperclip.internal/webhook" }] as RoutineTrigger[];
+    routine.triggers = [{ id: "trigger-1", kind: "webhook", enabled: true, setupPending: true, signingMode: "bearer", webhookUrl: "https://nexus.internal/webhook" }] as RoutineTrigger[];
     await render();
     await click("Resume setup");
     expect(container.textContent).toContain("This webhook URL appears to be private");
@@ -113,7 +113,7 @@ describe("TriggersSection", () => {
   });
 
   it("shows polled connection results even when routine context is stale", async () => {
-    routine.triggers = [{ id: "trigger-1", kind: "webhook", enabled: true, setupPending: true, signingMode: "bearer", webhookUrl: "https://paperclip.example/webhook" }] as RoutineTrigger[];
+    routine.triggers = [{ id: "trigger-1", kind: "webhook", enabled: true, setupPending: true, signingMode: "bearer", webhookUrl: "https://nexus.example/webhook" }] as RoutineTrigger[];
     await render(undefined, routine);
     await click("Resume setup");
     await click("Check connection");
@@ -127,7 +127,7 @@ describe("TriggersSection", () => {
   });
 
   it("shows restored one-time credentials on the triggers screen", async () => {
-    await render({ title: "Webhook key restored", entries: [{ webhookUrl: "https://paperclip.example/webhook", webhookSecret: "restored-secret" }] });
+    await render({ title: "Webhook key restored", entries: [{ webhookUrl: "https://nexus.example/webhook", webhookSecret: "restored-secret" }] });
     expect(container.textContent).toContain("restored-secret");
     expect(container.querySelector('[aria-label="Copy Secret key"]')).not.toBeNull();
     expect(button("Done")).toBeTruthy();

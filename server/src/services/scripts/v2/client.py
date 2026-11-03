@@ -13,7 +13,7 @@ import urllib.request
 import uuid
 from urllib.parse import urlparse
 VERSION = "2"
-ROOT = Path.home() / ".config" / "paperclip-muse"
+ROOT = Path.home() / ".config" / "nexus-muse"
 HOOK_ROOT = Path.home() / "hooks" / "scripts"
 AUTHD_HELPER_PATH = Path("/opt/hatch/skills/skill-creator/bin/dynamic_credentials.py")
 AUTHD = None
@@ -36,13 +36,13 @@ def save(path, value):
 def origin(value):
     parsed = urlparse(value)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ("", "/"):
-        raise RuntimeError("A public HTTPS Paperclip origin is required")
+        raise RuntimeError("A public HTTPS Nexus origin is required")
     return value.rstrip("/")
 def authd():
     global AUTHD
     if AUTHD is None:
         try:
-            spec = importlib.util.spec_from_file_location("paperclip_muse_dynamic_credentials", AUTHD_HELPER_PATH)
+            spec = importlib.util.spec_from_file_location("nexus_muse_dynamic_credentials", AUTHD_HELPER_PATH)
             if spec is None or spec.loader is None: raise RuntimeError()
             helper = importlib.util.module_from_spec(spec); spec.loader.exec_module(helper)
             AUTHD = helper
@@ -55,15 +55,15 @@ class BoundedResponse:
     def read(self, amount=None):
         limit = self.remaining + 1 if amount is None or amount < 0 else min(amount, self.remaining + 1)
         data = self.response.read(limit)
-        if len(data) > self.remaining: raise RuntimeError("Paperclip response exceeds transport limit")
+        if len(data) > self.remaining: raise RuntimeError("Nexus response exceeds transport limit")
         self.remaining -= len(data); return data
 def http(url, body=None, credential_name=None):
     parsed = urlparse(url)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise RuntimeError("Invalid Paperclip endpoint")
+        raise RuntimeError("Invalid Nexus endpoint")
     if parsed.path not in ("/api/muse/v1/queries", "/api/muse/v1/commands", "/api/muse/v1/cleanup", "/api/muse/v1/detector-cleanup"):
         raise RuntimeError("Unsupported worker transport endpoint")
-    if not credential_name or not credential_name.startswith("custom.paperclip-muse-"):
+    if not credential_name or not credential_name.startswith("custom.nexus-muse-"):
         raise RuntimeError("Configure this binding's Muse Secure Vault connection first")
     headers = {"Accept": "application/json"}
     if body is not None: headers["Content-Type"] = "application/json"
@@ -77,14 +77,14 @@ def http(url, body=None, credential_name=None):
         raise RuntimeError("Muse Secure Vault authorization unavailable; reconnect using the supported consent flow") from None
     try:
         with HTTP.open(request, timeout=30) as response:
-            if response.status != 200 or response.headers.get_content_type() != "application/json": raise RuntimeError("Incomplete Paperclip protocol response")
+            if response.status != 200 or response.headers.get_content_type() != "application/json": raise RuntimeError("Incomplete Nexus protocol response")
             try: value = helper.read_json_response(BoundedResponse(response))
-            except RuntimeError: raise RuntimeError("Paperclip response is invalid or exceeds the transport limit") from None
-            except Exception: raise RuntimeError("Paperclip response is unavailable") from None
-            if not isinstance(value, dict): raise RuntimeError("Invalid Paperclip protocol response")
+            except RuntimeError: raise RuntimeError("Nexus response is invalid or exceeds the transport limit") from None
+            except Exception: raise RuntimeError("Nexus response is unavailable") from None
+            if not isinstance(value, dict): raise RuntimeError("Invalid Nexus protocol response")
             return value
     except urllib.error.HTTPError as error:
-        raise RuntimeError("Paperclip HTTP %d; inspect connection or receipt before retrying" % error.code) from None
+        raise RuntimeError("Nexus HTTP %d; inspect connection or receipt before retrying" % error.code) from None
 class Client:
     def __init__(self, binding):
         if str(uuid.UUID(binding)) != binding: raise RuntimeError("A canonical binding UUID is required")
@@ -105,17 +105,17 @@ class Client:
         return self.config["credentialName"]
     def validate_profile(self, value):
         required = {"version", "bindingId", "origin", "credentialName"}
-        if not isinstance(value, dict) or not required.issubset(value) or set(value) - required - {"generation"} or value["version"] != 1 or value["bindingId"] != self.binding or value["credentialName"] != "custom.paperclip-muse-" + self.binding:
+        if not isinstance(value, dict) or not required.issubset(value) or set(value) - required - {"generation"} or value["version"] != 1 or value["bindingId"] != self.binding or value["credentialName"] != "custom.nexus-muse-" + self.binding:
             raise RuntimeError("Unexpected connection profile")
         origin(value["origin"])
         if "generation" in value and (type(value["generation"]) is not int or value["generation"] < 1): raise RuntimeError("Invalid connection generation")
     def configure(self, base):
-        value = {"version": 1, "bindingId": self.binding, "origin": origin(base), "credentialName": "custom.paperclip-muse-" + self.binding}
+        value = {"version": 1, "bindingId": self.binding, "origin": origin(base), "credentialName": "custom.nexus-muse-" + self.binding}
         if self.config is not None:
             if self.config["origin"] != value["origin"]: raise RuntimeError("Configured connection origin changed; use a fresh binding")
             if "generation" in self.config: value["generation"] = self.config["generation"]
         save(self.publication, value); self._publish_profile(value); self.publication.unlink(); self.sync_directory()
-        return {"configured": True, "bindingId": self.binding, "provider": "paperclip-muse-" + self.binding, "version": VERSION}
+        return {"configured": True, "bindingId": self.binding, "provider": "nexus-muse-" + self.binding, "version": VERSION}
     def sync_directory(self):
         descriptor = os.open(self.directory, os.O_RDONLY)
         try: os.fsync(descriptor)
@@ -124,9 +124,9 @@ class Client:
         self.config = value; save(self.path, value)
         save(self.directory / "receiver.json", {"version": 1, "origin": value["origin"], "bindingId": self.binding})
         HOOK_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
-        wrapper = HOOK_ROOT / ("paperclip-muse-" + self.binding + ".sh")
+        wrapper = HOOK_ROOT / ("nexus-muse-" + self.binding + ".sh")
         temporary = wrapper.with_name(wrapper.name + ".tmp")
-        content = '#!/usr/bin/env bash\nexec bash "$HOME/.config/paperclip-muse/detector.sh" "' + self.binding + '"\n'
+        content = '#!/usr/bin/env bash\nexec bash "$HOME/.config/nexus-muse/detector.sh" "' + self.binding + '"\n'
         descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o700)
         with os.fdopen(descriptor, "w") as stream:
             stream.write(content); stream.flush(); os.fsync(stream.fileno())
@@ -247,7 +247,7 @@ def main():
     configure = sub.add_parser("configure", help="Write only a nonsecret binding profile; OAuth consent belongs to Muse Secure Vault"); configure.add_argument("--origin", required=True)
     sub.add_parser("query", help="Read JSON from stdin; see installed instructions.md for exact envelopes")
     sub.add_parser("status", help="Inspect bound identity and local pending command count")
-    sub.add_parser("help", help="Read persistent Paperclip instructions")
+    sub.add_parser("help", help="Read persistent Nexus instructions")
     receipt = sub.add_parser("receipt", help="Inspect the original durable command without resending it"); receipt.add_argument("--key", required=True)
     mailbox = sub.add_parser("mailbox", help="Durably save mailbox references; explicitly acknowledge only after incorporating them"); mailbox.add_argument("--ack", type=int)
     command = sub.add_parser("command"); command.add_argument("--key", required=True)
@@ -283,5 +283,5 @@ if __name__ == "__main__":
     try: main()
     except Exception as error:
         # Never echo exception payloads, request bodies, credentials or URLs.
-        print("Paperclip client stopped: " + (str(error) if isinstance(error, RuntimeError) else "private state or transport failure"), file=sys.stderr)
+        print("Nexus client stopped: " + (str(error) if isinstance(error, RuntimeError) else "private state or transport failure"), file=sys.stderr)
         sys.exit(1)

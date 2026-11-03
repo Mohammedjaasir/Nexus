@@ -1,10 +1,10 @@
-import type { HeartbeatRunEvent } from "@paperclipai/shared";
+import type { HeartbeatRunEvent } from "@nexusai/shared";
 import { describe, expect, it } from "vitest";
 
 import {
   localIntegrityBoundaryGolden as fixture,
   localIntegrityEventsFor,
-} from "../../../../packages/paperclip-runner/test-support/local-integrity-boundary-golden";
+} from "../../../../packages/nexus-runner/test-support/local-integrity-boundary-golden";
 import { nativeRunEventsToTranscript } from "./native-run-events";
 
 function persistedEventsFor(
@@ -112,7 +112,7 @@ describe("canonical native event UI boundary corpus", () => {
           requestType: "input",
           status: "pending",
           questionSet: expect.objectContaining({
-            schema: "paperclip.question_set.v1",
+            schema: "nexus.question_set.v1",
             questions: [expect.objectContaining({ id: "boundary-mode" })],
           }),
         }),
@@ -120,7 +120,7 @@ describe("canonical native event UI boundary corpus", () => {
       expect(transcript).toContainEqual(
         expect.objectContaining({
           kind: "result",
-          subtype: "paperclip_runner_usage",
+          subtype: "nexus_runner_usage",
           inputTokens: 20,
           outputTokens: 6,
           cachedTokens: 2,

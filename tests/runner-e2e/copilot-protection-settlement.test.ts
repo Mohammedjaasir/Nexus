@@ -13,23 +13,23 @@ const date = (ms: number) => new Date(Date.UTC(2026, 8, 30, 15, 13, 7, ms)).toIS
 function fixture(eventType = "turn.completed") {
   const frame = (seq: number, type: string, payload: unknown, persisted = 305, emitted = 129): any => ({
     seq: seq + 40, companyId: "company", runId: "run", eventType: type, createdAt: date(persisted),
-    payload: { prpEvent: { schema: "paperclip.prp.event.v1", sourceKind: "runner", runId: "run", turnId: "turn",
+    payload: { prpEvent: { schema: "nexus.prp.event.v1", sourceKind: "runner", runId: "run", turnId: "turn",
       normalizedSessionId: "normalized-session", sourceInstanceId: "runner-instance", sourceSeq: seq,
       sourceEventId: `runner-instance:run:${seq}`, eventType: type, emittedAt: date(emitted), payload } },
   });
   const notice = (seq: number, stage: string, details: Record<string, string>) => frame(seq, "provider.notice.recorded", {
-    schema: "paperclip.provider.notice.v1", category: "copilot_tool_evidence_v1", scope: "turn",
+    schema: "nexus.provider.notice.v1", category: "copilot_tool_evidence_v1", scope: "turn",
     provenance: { sessionId: "native-session", turnId: "turn", eventType: stage, method: stage === "tool" ? "session/update" : "session/request_permission" },
     details: Object.entries({ stage, toolCallId: "denied-edit", operation: "edit", ...details }).map(([name, value]) => ({ name, value })),
   });
   const events = [notice(111, "permission_requested", { requestId: "request", target: "copilot-denied-nonce.txt", declineOffered: "true" }),
     notice(113, "permission_delivered", { requestId: "request", outcome: "reject_once" }), notice(114, "tool", { status: "failed" }),
-    frame(115, "tool.execution.completed", { schema: "paperclip.tool.execution.v1", executionId: "denied-edit", operation: "edit", status: "failed" }, 317),
+    frame(115, "tool.execution.completed", { schema: "nexus.tool.execution.v1", executionId: "denied-edit", operation: "edit", status: "failed" }, 317),
     frame(121, eventType, { status: eventType.slice(5), error: null }, 900, 887),
     frame(112, "runtime_request.resolved", { requestId: "request", turnId: "turn", requestKind: "permission_approval", action: "decline" })];
   const run: any = { id: "run", companyId: "company", nativeIssueId: "issue", status: "cancelled", finishedAt: date(910),
     resultJson: { startupCancellation: { requestedAt: date(892), cancellationRequestId: "11111111-1111-4111-8111-111111111111" }, nativeCancellation: {
-      schema: "paperclip.native-cancellation.v1", companyId: "company", runId: "run", issueId: "issue", scope: "run", dispatched: true,
+      schema: "nexus.native-cancellation.v1", companyId: "company", runId: "run", issueId: "issue", scope: "run", dispatched: true,
       dispatchState: "acknowledged", reasonCode: "cancellation_run_only", effects: ["release_run_resources"], intentId: "native-cancellation:11111111-1111-4111-8111-111111111111",
       intentAuditId: "intent-audit", acknowledgementAuditId: "ack-audit", recordedAt: date(901), acknowledgedAt: date(909),
     } } };

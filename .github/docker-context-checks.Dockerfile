@@ -2,7 +2,7 @@
 # context the image builds see — same .dockerignore semantics — so a
 # context-slimming change that strips a committed build input fails the
 # pull request instead of every post-merge image build. (2026-09-04: a new
-# `packages/paperclip-runner/**/*.md` ignore rule stripped the committed
+# `packages/nexus-runner/**/*.md` ignore rule stripped the committed
 # capability contract out of the context; every Docker build on master then
 # failed its drift check, and no cloud image published for eight hours
 # while PR CI stayed green.)
@@ -23,18 +23,18 @@ FROM node:24-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d52
 WORKDIR /context
 COPY . .
 # Verify ACPX release declarations against the exact Docker context.
-RUN node packages/paperclip-runner/scripts/generate-acpx-profiles.mjs --check
+RUN node packages/nexus-runner/scripts/generate-acpx-profiles.mjs --check
 # The provider-pack builder imports this offline smoke helper during image builds.
-RUN node -e 'import("./packages/paperclip-runner/scripts/kimi-provider-pack-smoke.mjs")'
+RUN node -e 'import("./packages/nexus-runner/scripts/kimi-provider-pack-smoke.mjs")'
 # Committed artifacts the image build reads whose drift checks cannot run
 # here (they need the locked dependency tree or compiled dist/). Existence
 # in the context is the property this probe guards; content correctness is
 # the real build's job. If a path is intentionally removed from the repo,
 # update this list in the same PR.
-RUN test -f packages/paperclip-runner/generated/capability/semantic-tool-contracts.json \
- && test -f packages/paperclip-runner/generated/semantic-action-catalog.json \
- && test -f packages/paperclip-runner/spec/evals/stress-workflow-traceability.json \
- && test -d packages/paperclip-runner/protocol/fixtures/replay
+RUN test -f packages/nexus-runner/generated/capability/semantic-tool-contracts.json \
+ && test -f packages/nexus-runner/generated/semantic-action-catalog.json \
+ && test -f packages/nexus-runner/spec/evals/stress-workflow-traceability.json \
+ && test -d packages/nexus-runner/protocol/fixtures/replay
 # check:runner-workflow-traceability access()es every regression test its
 # spec names (it needs dist/ to RUN, so it cannot run here) — replicate
 # exactly its existence walk, driven by the spec itself so this never
@@ -42,23 +42,23 @@ RUN test -f packages/paperclip-runner/generated/capability/semantic-tool-contrac
 # *.test.ts ignore rule stripped src/contracts/native-execution.test.ts
 # and the image build failed there once the capability checks were fixed.)
 RUN node -e ' \
-  const manifest = require("/context/packages/paperclip-runner/spec/evals/stress-workflow-traceability.json"); \
+  const manifest = require("/context/packages/nexus-runner/spec/evals/stress-workflow-traceability.json"); \
   const { accessSync } = require("node:fs"); \
   const { resolve } = require("node:path"); \
   let count = 0; \
   for (const finding of manifest.findings) \
     for (const path of finding.regressionTests) { \
-      accessSync(resolve("/context/packages/paperclip-runner", path)); \
+      accessSync(resolve("/context/packages/nexus-runner", path)); \
       count += 1; \
     } \
   console.log(`traceability regression-test paths present: ${count}`);'
 # ajv is installed in an isolated directory (the runner's own package.json
 # uses workspace: ranges npm cannot install from) and symlinked in so ESM
 # resolution finds it from the scripts' location.
-RUN AJV_RANGE="$(node -p "require('/context/packages/paperclip-runner/package.json').dependencies.ajv")" \
+RUN AJV_RANGE="$(node -p "require('/context/packages/nexus-runner/package.json').dependencies.ajv")" \
  && mkdir /probe-deps && cd /probe-deps && npm init -y >/dev/null \
  && npm install --ignore-scripts --no-audit --no-fund "ajv@${AJV_RANGE}" \
- && ln -s /probe-deps/node_modules /context/packages/paperclip-runner/node_modules \
- && cd /context/packages/paperclip-runner \
+ && ln -s /probe-deps/node_modules /context/packages/nexus-runner/node_modules \
+ && cd /context/packages/nexus-runner \
  && node scripts/generate-capability-contract.mjs --check \
  && node scripts/check-capability-inventory.mjs

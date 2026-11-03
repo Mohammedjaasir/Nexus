@@ -5,14 +5,14 @@ export const onboardingServerCodes = ["agent_runner_config_incompatible", "agent
 export const onboardingCheckCodes = ["adapter_auth_missing", "codex_hello_probe_failed", "codex_hello_probe_passed", "codex_hello_probe_timeout", "codex_hello_probe_auth_required", "environment_lease_acquire_failed", "environment_workspace_realize_failed", "environment_target_failed", "environment_target_unsupported", "environment_not_found", "environment_target_unavailable", "managed_sandbox_unavailable", "environment_env_binding_missing", "environment_env_resolution_failed", "ai_connection_api_key_rejected", "ai_connection_verification_failed", "sandbox_test_identity"] as const;
 const checkpoints = ["connect", "validation", "hire", "review", "agent-verification"] as const;
 const states = ["missing", "pending", "json", "unreadable", "oversized"] as const;
-const requestedAdapters = ["codex_local", "paperclip_runner"] as const;
-const adapters = ["codex_local", "paperclip_runner", "unrecognized"] as const;
+const requestedAdapters = ["codex_local", "nexus_runner"] as const;
+const adapters = ["codex_local", "nexus_runner", "unrecognized"] as const;
 const outcomes = ["pass", "warn", "fail", "unrecognized"] as const;
 const levels = ["info", "warn", "error", "unrecognized"] as const;
 type Known<T extends readonly string[]> = T[number] | "unrecognized";
 export interface OnboardingResponseEvidence {
   state: typeof states[number]; httpStatus: number | null;
-  requestedAdapter: "codex_local" | "paperclip_runner" | null;
+  requestedAdapter: "codex_local" | "nexus_runner" | null;
   adapter: typeof adapters[number] | null; outcome: typeof outcomes[number] | null;
   serverCode: Known<typeof onboardingServerCodes> | null;
   checks: Array<{ code: Known<typeof onboardingCheckCodes>; level: typeof levels[number] }>;
@@ -52,13 +52,13 @@ export async function onboardingConnect(input: { page: Page; origin: string; com
     if (checkpoints.indexOf(checkpoint) > checkpoints.indexOf(receipt.checkpoint)) receipt.checkpoint = checkpoint;
   };
   const reject = (code: string) => { failure ??= new JourneyError("failed", code); signalFailure(failure); };
-  const route = (request: Request): { kind: "validation" | "hire"; adapter: "codex_local" | "paperclip_runner" | null } | null => {
+  const route = (request: Request): { kind: "validation" | "hire"; adapter: "codex_local" | "nexus_runner" | null } | null => {
     try {
       const url = new URL(request.url());
       if (request.method() !== "POST" || url.origin !== input.origin || url.search || url.hash) return null;
       const prefix = `/api/companies/${encodeURIComponent(input.companyId)}`;
       if (url.pathname === `${prefix}/agent-hires`) return { kind: "hire", adapter: null };
-      for (const adapter of ["codex_local", "paperclip_runner"] as const) if (url.pathname === `${prefix}/adapters/${adapter}/test-environment`) return { kind: "validation", adapter };
+      for (const adapter of ["codex_local", "nexus_runner"] as const) if (url.pathname === `${prefix}/adapters/${adapter}/test-environment`) return { kind: "validation", adapter };
     } catch { /* An unrelated or malformed URL is not this action's evidence. */ }
     return null;
   };

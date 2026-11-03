@@ -249,7 +249,7 @@ function safeActivityHref(value: string | null | undefined): string | undefined 
   try {
     // A fixed HTTPS base accepts relative app paths and fragments as well as
     // external HTTP(S) resources, but never executable or local-file schemes.
-    const url = new URL(value, "https://paperclip.invalid");
+    const url = new URL(value, "https://nexus.invalid");
     return url.protocol === "https:" || url.protocol === "http:" ? value : undefined;
   } catch {
     return undefined;

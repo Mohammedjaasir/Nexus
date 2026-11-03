@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import os from "node:os";
 import path from "node:path";
-import type { QuotaWindow } from "@paperclipai/adapter-utils";
+import type { QuotaWindow } from "@nexusai/adapter-utils";
 
 // Pure utility functions — import directly from adapter source
 import {
@@ -11,7 +11,7 @@ import {
   parseClaudeCliUsageText,
   readClaudeToken,
   claudeConfigDir,
-} from "@paperclipai/adapter-claude-local/server";
+} from "@nexusai/adapter-claude-local/server";
 
 import {
   secondsToWindowLabel,
@@ -20,7 +20,7 @@ import {
   fetchCodexQuota,
   mapCodexRpcQuota,
   codexHomeDir,
-} from "@paperclipai/adapter-codex-local/server";
+} from "@nexusai/adapter-codex-local/server";
 
 // ---------------------------------------------------------------------------
 // toPercent
@@ -235,13 +235,13 @@ describe("readClaudeToken", () => {
 
   it("returns null when credentials.json does not exist", async () => {
     // Point to a directory that does not have credentials.json
-    process.env.CLAUDE_CONFIG_DIR = "/tmp/__no_such_paperclip_dir__";
+    process.env.CLAUDE_CONFIG_DIR = "/tmp/__no_such_nexus_dir__";
     const token = await readClaudeToken();
     expect(token).toBe(null);
   });
 
   it("returns null for malformed JSON", async () => {
-    const tmpDir = path.join(os.tmpdir(), `paperclip-test-claude-${Date.now()}`);
+    const tmpDir = path.join(os.tmpdir(), `nexus-test-claude-${Date.now()}`);
     await import("node:fs/promises").then((fs) =>
       fs.mkdir(tmpDir, { recursive: true }).then(() =>
         fs.writeFile(path.join(tmpDir, "credentials.json"), "not-json"),
@@ -254,7 +254,7 @@ describe("readClaudeToken", () => {
   });
 
   it("returns null when claudeAiOauth key is missing", async () => {
-    const tmpDir = path.join(os.tmpdir(), `paperclip-test-claude-${Date.now()}`);
+    const tmpDir = path.join(os.tmpdir(), `nexus-test-claude-${Date.now()}`);
     await import("node:fs/promises").then((fs) =>
       fs.mkdir(tmpDir, { recursive: true }).then(() =>
         fs.writeFile(path.join(tmpDir, "credentials.json"), JSON.stringify({ other: "data" })),
@@ -267,7 +267,7 @@ describe("readClaudeToken", () => {
   });
 
   it("returns null when accessToken is an empty string", async () => {
-    const tmpDir = path.join(os.tmpdir(), `paperclip-test-claude-${Date.now()}`);
+    const tmpDir = path.join(os.tmpdir(), `nexus-test-claude-${Date.now()}`);
     const creds = { claudeAiOauth: { accessToken: "" } };
     await import("node:fs/promises").then((fs) =>
       fs.mkdir(tmpDir, { recursive: true }).then(() =>
@@ -281,7 +281,7 @@ describe("readClaudeToken", () => {
   });
 
   it("returns the token when credentials file is well-formed", async () => {
-    const tmpDir = path.join(os.tmpdir(), `paperclip-test-claude-${Date.now()}`);
+    const tmpDir = path.join(os.tmpdir(), `nexus-test-claude-${Date.now()}`);
     const creds = { claudeAiOauth: { accessToken: "my-test-token" } };
     await import("node:fs/promises").then((fs) =>
       fs.mkdir(tmpDir, { recursive: true }).then(() =>
@@ -295,7 +295,7 @@ describe("readClaudeToken", () => {
   });
 
   it("reads the token from .credentials.json when that is the available Claude auth file", async () => {
-    const tmpDir = path.join(os.tmpdir(), `paperclip-test-claude-${Date.now()}`);
+    const tmpDir = path.join(os.tmpdir(), `nexus-test-claude-${Date.now()}`);
     const creds = { claudeAiOauth: { accessToken: "dotfile-token" } };
     await import("node:fs/promises").then((fs) =>
       fs.mkdir(tmpDir, { recursive: true }).then(() =>
@@ -384,13 +384,13 @@ describe("readCodexAuthInfo", () => {
   });
 
   it("returns null when auth.json does not exist", async () => {
-    process.env.CODEX_HOME = "/tmp/__no_such_paperclip_codex_dir__";
+    process.env.CODEX_HOME = "/tmp/__no_such_nexus_codex_dir__";
     const result = await readCodexAuthInfo();
     expect(result).toBe(null);
   });
 
   it("returns null for malformed JSON", async () => {
-    const tmpDir = path.join(os.tmpdir(), `paperclip-test-codex-${Date.now()}`);
+    const tmpDir = path.join(os.tmpdir(), `nexus-test-codex-${Date.now()}`);
     await import("node:fs/promises").then((fs) =>
       fs.mkdir(tmpDir, { recursive: true }).then(() =>
         fs.writeFile(path.join(tmpDir, "auth.json"), "{bad json"),
@@ -403,7 +403,7 @@ describe("readCodexAuthInfo", () => {
   });
 
   it("returns null when accessToken is absent", async () => {
-    const tmpDir = path.join(os.tmpdir(), `paperclip-test-codex-${Date.now()}`);
+    const tmpDir = path.join(os.tmpdir(), `nexus-test-codex-${Date.now()}`);
     await import("node:fs/promises").then((fs) =>
       fs.mkdir(tmpDir, { recursive: true }).then(() =>
         fs.writeFile(path.join(tmpDir, "auth.json"), JSON.stringify({ accountId: "acc-1" })),
@@ -416,7 +416,7 @@ describe("readCodexAuthInfo", () => {
   });
 
   it("reads the legacy flat auth shape", async () => {
-    const tmpDir = path.join(os.tmpdir(), `paperclip-test-codex-${Date.now()}`);
+    const tmpDir = path.join(os.tmpdir(), `nexus-test-codex-${Date.now()}`);
     const auth = { accessToken: "codex-token", accountId: "acc-123" };
     await import("node:fs/promises").then((fs) =>
       fs.mkdir(tmpDir, { recursive: true }).then(() =>
@@ -435,7 +435,7 @@ describe("readCodexAuthInfo", () => {
   });
 
   it("reads the modern nested auth shape", async () => {
-    const tmpDir = path.join(os.tmpdir(), `paperclip-test-codex-${Date.now()}`);
+    const tmpDir = path.join(os.tmpdir(), `nexus-test-codex-${Date.now()}`);
     const jwtPayload = Buffer.from(
       JSON.stringify({
         email: "codex@example.com",
@@ -485,7 +485,7 @@ describe("readCodexToken", () => {
   });
 
   it("returns token and accountId from the nested auth shape", async () => {
-    const tmpDir = path.join(os.tmpdir(), `paperclip-test-codex-${Date.now()}`);
+    const tmpDir = path.join(os.tmpdir(), `nexus-test-codex-${Date.now()}`);
     await import("node:fs/promises").then((fs) =>
       fs.mkdir(tmpDir, { recursive: true }).then(() =>
         fs.writeFile(path.join(tmpDir, "auth.json"), JSON.stringify({

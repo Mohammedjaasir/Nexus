@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { adapterAuthSessions, applyPendingMigrations, companies, createDb, environmentLeases, environments, type Db } from "@paperclipai/db";
+import { adapterAuthSessions, applyPendingMigrations, companies, createDb, environmentLeases, environments, type Db } from "@nexusai/db";
 import { installDatabaseWorkSignals } from "../../../packages/db/src/work-signals.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
@@ -79,7 +79,7 @@ describe("login cleanup lifecycle", () => {
   });
 });
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_LOGIN_CLEANUP_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_LOGIN_CLEANUP_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 describe.skipIf(!support.supported)("durable login cleanup", () => {
   let db: ReturnType<typeof createDb>, observed: typeof db;

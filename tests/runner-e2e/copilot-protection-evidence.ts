@@ -204,7 +204,7 @@ export async function readCopilotRemoteMarkerAfterRetirement(fixture: CopilotRem
 
 export interface CopilotDenialSettlement {
   stopAcknowledgement: CopilotStopAcknowledgement;
-  schema: "paperclip.e2e.copilot-denial-settlement.v4";
+  schema: "nexus.e2e.copilot-denial-settlement.v4";
   branch: "provider_cancelled_or_interrupted" | "provider_completed_observed_before_stop";
   /** A cancelled terminal alone does not prove Stop reached active work. */
   providerCancellationTerminalObserved: boolean;
@@ -231,7 +231,7 @@ const settlementTime = (v: unknown): v is number => Number.isSafeInteger(v) && (
 const settlementDate = (v: unknown): number => typeof v === "string" && /^\d{4}-\d{2}-\d{2}T.*Z$/u.test(v) ? Date.parse(v) : NaN;
 
 export function validCopilotDenialSettlement(s: CopilotDenialSettlement): boolean {
-  if (!s || s.schema !== "paperclip.e2e.copilot-denial-settlement.v4") return false;
+  if (!s || s.schema !== "nexus.e2e.copilot-denial-settlement.v4") return false;
   const t = s.providerTerminal, c = s.runStop;
   if (!t || !c || ![s.runId, s.sessionId, s.turnId, s.toolCallId, s.requestId, t.normalizedSessionId, t.sourceInstanceId,
     c.companyId, c.issueId, c.intentId, c.intentAuditId, c.acknowledgementAuditId].every(settlementId)
@@ -242,11 +242,11 @@ export function validCopilotDenialSettlement(s: CopilotDenialSettlement): boolea
     || !Number.isSafeInteger(t.failedToolSourceSeq) || t.failedToolSourceSeq <= 0 || !Number.isSafeInteger(t.sourceSeq) || t.sourceSeq <= t.failedToolSourceSeq
     || c.requestedAtMs > c.recordedAtMs || c.recordedAtMs > c.acknowledgedAtMs || c.acknowledgedAtMs > c.finishedAtMs) return false;
   const before = s.preStop;
-  if (!before || before.schema !== "paperclip.e2e.copilot-pre-stop-observation.v2"
+  if (!before || before.schema !== "nexus.e2e.copilot-pre-stop-observation.v2"
     || !["runId", "sessionId", "turnId", "toolCallId", "requestId"].every(k => before[k as keyof CopilotPreStopObservation] === s[k as keyof CopilotDenialSettlement])
     || typeof before.cancellationRequestId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(before.cancellationRequestId)
     || typeof s.stopDispatchMonotonicNs !== "string" || !/^[1-9][0-9]{0,29}$/.test(s.stopDispatchMonotonicNs)
-    || !s.stopAcknowledgement || s.stopAcknowledgement.schema !== "paperclip.e2e.copilot-stop-acknowledgement.v1"
+    || !s.stopAcknowledgement || s.stopAcknowledgement.schema !== "nexus.e2e.copilot-stop-acknowledgement.v1"
     || s.stopAcknowledgement.fixtureCorrelationId !== before.cancellationRequestId || s.stopAcknowledgement.dispatchMonotonicNs !== s.stopDispatchMonotonicNs
     || s.stopAcknowledgement.intentId !== c.intentId || s.stopAcknowledgement.intentAuditId !== c.intentAuditId || s.stopAcknowledgement.acknowledgementAuditId !== c.acknowledgementAuditId
     || s.stopAcknowledgement.companyId !== c.companyId || s.stopAcknowledgement.issueId !== c.issueId || s.stopAcknowledgement.runId !== s.runId || s.stopAcknowledgement.callerUserId !== "local-board"
@@ -291,7 +291,7 @@ export function readCopilotDeniedEdit(input: { events: readonly unknown[]; reque
   const get = (row: Record<string, any>) => {
     const f = settlementRecord(settlementRecord(row.payload).prpEvent);
     if (row.runId !== request.runId || row.companyId !== companyId || !Number.isSafeInteger(row.seq) || row.seq <= 0
-      || f.schema !== "paperclip.prp.event.v1" || f.sourceKind !== "runner" || f.eventType !== row.eventType || f.runId !== request.runId || f.turnId !== request.turnId
+      || f.schema !== "nexus.prp.event.v1" || f.sourceKind !== "runner" || f.eventType !== row.eventType || f.runId !== request.runId || f.turnId !== request.turnId
       || !settlementId(f.normalizedSessionId) || !settlementId(f.sourceInstanceId) || !Number.isSafeInteger(f.sourceSeq) || f.sourceSeq <= 0
       || f.sourceEventId !== `${f.sourceInstanceId}:${request.runId}:${f.sourceSeq}` || !settlementTime(settlementDate(row.createdAt)) || !settlementTime(settlementDate(f.emittedAt))) throw invalid();
     return f;
@@ -312,12 +312,12 @@ export function readCopilotDeniedEdit(input: { events: readonly unknown[]; reque
   if (toolRows.length !== 1) throw invalid();
   const tool = get(toolRows[0]!), toolPayload = settlementRecord(tool.payload);
   if (!stream(tool) || tool.sourceSeq <= failure.sourceSeq || toolRows[0]!.seq <= failed[0]!.seq
-    || toolPayload.schema !== "paperclip.tool.execution.v1" || toolPayload.status !== "failed" || toolPayload.operation !== "edit") throw invalid();
+    || toolPayload.schema !== "nexus.tool.execution.v1" || toolPayload.status !== "failed" || toolPayload.operation !== "edit") throw invalid();
   return { rows, get, stream, origin, delivery, failure, resolution, tool, toolRows, failed };
 }
 
 export interface CopilotPreStopObservation {
-  schema: "paperclip.e2e.copilot-pre-stop-observation.v2";
+  schema: "nexus.e2e.copilot-pre-stop-observation.v2";
   companyId: string; runId: string; sessionId: string; turnId: string; toolCallId: string; requestId: string;
   normalizedSessionId: string; sourceInstanceId: string;
   failedToolSourceSeq: number; failedToolRowSha256: string;
@@ -362,7 +362,7 @@ function readDeniedIncompleteRecovery(events: readonly unknown[], request: Copil
 export function observeCopilotPreStop(input: { events: readonly unknown[]; request: CopilotToolNotice; companyId: string; cancellationRequestId: string }): CopilotPreStopObservation {
   const proof = readCopilotDeniedEdit(input), observed = readDeniedTerminal(proof), r = input.request;
   const incompleteRecovery = readDeniedIncompleteRecovery(input.events, r, input.companyId, observed);
-  return { schema: "paperclip.e2e.copilot-pre-stop-observation.v2", companyId: input.companyId,
+  return { schema: "nexus.e2e.copilot-pre-stop-observation.v2", companyId: input.companyId,
     runId: r.runId, sessionId: r.sessionId, turnId: r.turnId, toolCallId: r.toolCallId, requestId: r.requestId!,
     normalizedSessionId: proof.origin.normalizedSessionId, sourceInstanceId: proof.origin.sourceInstanceId,
     failedToolSourceSeq: proof.tool.sourceSeq, failedToolRowSha256: denialRowSha(proof.toolRows[0]),
@@ -383,7 +383,7 @@ export function readCopilotDenialSettlement(input: {
   const stop = settlementRecord(settlementRecord(run.resultJson).nativeCancellation);
   if (events.length > 20_000 || run.id !== request.runId || issue.id !== run.nativeIssueId
     || !settlementId(issue.companyId) || run.companyId !== issue.companyId || !["in_progress", "blocked"].includes(issue.status) || run.status !== "cancelled"
-    || stop.schema !== "paperclip.native-cancellation.v1" || stop.runId !== run.id || stop.companyId !== issue.companyId || stop.issueId !== issue.id
+    || stop.schema !== "nexus.native-cancellation.v1" || stop.runId !== run.id || stop.companyId !== issue.companyId || stop.issueId !== issue.id
     || stop.scope !== "run" || typeof stop.dispatched !== "boolean"
     || (!stop.dispatched && input.preStop?.terminal?.eventType !== "turn.completed") || stop.dispatchState !== "acknowledged" || stop.reasonCode !== "cancellation_run_only"
     || !Array.isArray(stop.effects) || stop.effects.length !== 1 || stop.effects[0] !== "release_run_resources") throw invalid();
@@ -407,7 +407,7 @@ export function readCopilotDenialSettlement(input: {
     incompleteRecovery = { ...recovery, actionId: action.id };
   }
   const result: CopilotDenialSettlement = {
-    schema: "paperclip.e2e.copilot-denial-settlement.v4",
+    schema: "nexus.e2e.copilot-denial-settlement.v4",
     branch: row.eventType === "turn.completed" ? "provider_completed_observed_before_stop" : "provider_cancelled_or_interrupted",
     providerCancellationTerminalObserved: row.eventType !== "turn.completed",
     runId: run.id, sessionId: request.sessionId, turnId: request.turnId, toolCallId: request.toolCallId, requestId: request.requestId!,
@@ -442,7 +442,7 @@ export function copilotDenialSampleCursor(events: readonly unknown[], request: C
     || ![origin.normalizedSessionId, origin.sourceInstanceId].every(settlementId)) throw invalid();
   const seen = new Set<number>();
   for (const { row, f } of frames) {
-    if (row.runId !== request.runId || f.runId !== request.runId || f.schema !== "paperclip.prp.event.v1" || f.sourceKind !== "runner"
+    if (row.runId !== request.runId || f.runId !== request.runId || f.schema !== "nexus.prp.event.v1" || f.sourceKind !== "runner"
       || row.eventType !== f.eventType || f.normalizedSessionId !== origin.normalizedSessionId || f.sourceInstanceId !== origin.sourceInstanceId
       || !Number.isSafeInteger(f.sourceSeq) || f.sourceSeq <= 0 || seen.has(f.sourceSeq)
       || f.sourceEventId !== `${f.sourceInstanceId}:${f.runId}:${f.sourceSeq}`) throw invalid();

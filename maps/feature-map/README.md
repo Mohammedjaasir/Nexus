@@ -1,4 +1,4 @@
-# Paperclip feature map
+# Nexus feature map
 
 Start here when reproducing a user-facing bug, verifying a change, or deciding
 which surfaces a fix must cover. Each recipe describes what a person can do,
@@ -147,11 +147,11 @@ metadata; generation does not depend on this high-level index.
    evidence; creating state through the API does not prove the creation UI.
 
 For agent-driven acceptance work, start with the
-[Paperclip verification skill](../../.agents/skills/verify-paperclip/SKILL.md) for an
+[Nexus verification skill](../../.agents/skills/verify-nexus/SKILL.md) for an
 isolated launch, ownership/readiness checks, browser driving, evidence, and cleanup.
 It uses this directory as its feature map. The existing
-[dev-workspace run/verify skill](../../.agents/skills/paperclip-dev-workspace-run-verify-fix/SKILL.md)
-and [evaluation skill](../../.agents/skills/paperclip-evals/SKILL.md) describe runtime
+[dev-workspace run/verify skill](../../.agents/skills/nexus-dev-workspace-run-verify-fix/SKILL.md)
+and [evaluation skill](../../.agents/skills/nexus-evals/SKILL.md) describe runtime
 ownership and evidence handling. Reuse them; this map introduces no environment
 launcher, credentials, scheduled job, or second test framework.
 
@@ -168,7 +168,7 @@ without secrets.
 A fix is verified across its affected surfaces only when each has evidence or
 an explicit reason it does not apply. Shared code alone does not prove parity.
 Keep product regressions visible; do not change the recipe to bless a failure.
-For Paperclip-assigned work, attach evidence through the
+For Nexus-assigned work, attach evidence through the
 [artifact workflow](../../doc/AGENT-ARTIFACTS.md).
 
 ## Inventory and remaining depth
@@ -232,4 +232,4 @@ New or updated entries follow
 Existing entries with a `Driving it` heading can adopt the named harness when
 their recipes are updated. The original format was inspired by
 [Omnigent's feature map](https://github.com/omnigent-ai/omnigent/tree/91acfbbb59f6fc210ff95a9e9428aadd62e06582/feature-map).
-Paperclip's recipes and checks follow its own task model and test infrastructure.
+Nexus's recipes and checks follow its own task model and test infrastructure.

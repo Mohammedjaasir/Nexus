@@ -1,7 +1,7 @@
 import { recoveryActionAttentionCondition, ATTENTION_BUDGET_WARNING_PERCENT, ATTENTION_AGENT_ERROR_STATUS, collapsePendingConfirmationsToNewest, readRunIssueId, listFailedRunsWithNewerRun, requiresReviewAttention, terminalBlockerRequiresAttention } from "./attention-source-eligibility.js";
 import { approvalExecutionIssueCondition, firstApprovalIssueId } from "./approval-visibility.js";
 import { and, asc, desc, eq, inArray, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   approvals,
@@ -27,8 +27,8 @@ import {
   documents,
   projects,
   projectWorkspaces,
-} from "@paperclipai/db";
-import { deriveProjectUrlKey } from "@paperclipai/shared";
+} from "@nexusai/db";
+import { deriveProjectUrlKey } from "@nexusai/shared";
 import type {
   AttentionDecisionVerb,
   AttentionFeed,
@@ -50,7 +50,7 @@ import type {
   IssueThreadInteractionEffectiveResolverPolicySource,
   IssueThreadInteractionResolverPolicyProvenance,
   IssueReviewPolicy,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { badRequest } from "../errors.js";
 import { listAttentionExhaustedRuns } from "./attention-exhausted-runs.js";
 import { budgetService } from "./budgets.js";

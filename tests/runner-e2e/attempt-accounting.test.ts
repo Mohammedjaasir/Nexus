@@ -5,7 +5,7 @@ import type { RunnerE2EResult } from "./types.js";
 
 function result(attempt: number, cost: number, overrides: Partial<RunnerE2EResult> = {}): RunnerE2EResult {
   return {
-    schema: "paperclip.runner-e2e.result/v2",
+    schema: "nexus.runner-e2e.result/v2",
     accountingIdentity: { campaignId: "campaign", attemptId: `attempt-${attempt}` },
     executionId: "core-compatibility.runner-codex.local.message-marker", suiteId: "core-compatibility",
     attempt, status: attempt === 1 ? "failed" : "passed", profileId: "runner-codex",

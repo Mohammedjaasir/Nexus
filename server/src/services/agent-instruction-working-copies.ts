@@ -12,12 +12,12 @@ import { promisify } from "node:util";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { and, asc, desc, eq, gt, inArray, not, notInArray, lte, or, isNull, isNotNull, sql, type SQL } from "drizzle-orm";
-import { agents, heartbeatRuns, agentInstructionWorkingCopies as copies, databaseWorkScopeKey, type Db } from "@paperclipai/db";
+import { agents, heartbeatRuns, agentInstructionWorkingCopies as copies, databaseWorkScopeKey, type Db } from "@nexusai/db";
 import {
   prepareAdapterExecutionTargetRuntime,
   runAdapterExecutionTargetShellCommand,
   type AdapterExecutionTarget,
-} from "@paperclipai/adapter-utils/execution-target";
+} from "@nexusai/adapter-utils/execution-target";
 import { conflict, notFound } from "../errors.js";
 import { agentInstructionsService, agentInstructionsBundleMode } from "./agent-instructions.js";
 import { agentInstructionRevisionService } from "./agent-instruction-revisions.js";
@@ -49,7 +49,7 @@ export async function hasUnsettledLocalInstructionCopies(db: Db): Promise<boolea
   return (await db.select({ runId: copies.runId }).from(copies).where(and(
     eq(copies.location, "local"), notInArray(copies.state, ["saved", "unchanged", "resolved", "superseded"]),
     not(and(eq(copies.state, "unavailable"), isNotNull(copies.processStoppedAt),
-      sql`coalesce(${copies.receipt}->>'schema', '') = 'paperclip.agent-files.v1'`,
+      sql`coalesce(${copies.receipt}->>'schema', '') = 'nexus.agent-files.v1'`,
       sql`coalesce(${copies.receipt}->>'cleanupPending', '') = 'false'`)!),
   )).limit(1)).length > 0;
 }
@@ -84,8 +84,8 @@ export async function collectStoppedInstructionCopyWithRetries<T extends Pick<Co
 }
 
 export function instructionWorkingCopyGuidance(copy: Pick<Copy, "executionRoot" | "entryFile" | "receipt">) {
-  if (isAgentDirectoryCopy(copy)) return `Your persistent agent directory is ${copy.executionRoot} (AGENT_HOME). Your instruction entry is ${copy.executionRoot}/${copy.entryFile}. Read and write your own files and subfolders there. This directory belongs to this agent across tasks and sessions; task files belong in the task working directory. Paperclip restores this directory before execution and saves validated changes at turn boundaries. A warm native Codex session keeps the same writable directory between turns. Other sessions collect after the provider stops. Regular files, including binary files, persist; symlinks and special files are unsupported. Check the agent-files save receipt before claiming persistence; Only files you change or delete are synchronized. If another run changes the same file, the last completed synchronization wins. Temporary copies are removed when the owning session stops; there is no per-run file history. Storage allows 256 MiB per file, 2 GiB total, and 100,000 entries; the instruction entry must remain UTF-8 and at most 1 MiB. Reaching a storage limit never prevents this or future tasks from running. Remove or shrink files to free space; changes that exceed the limits will not be saved.${typeof copy.receipt?.storageWarning === "string" ? `\n\n${copy.receipt.storageWarning}` : ""}`;
-  return `Your editable agent instruction file is ${copy.executionRoot}/${copy.entryFile}. Edit this registered private copy normally. After this run stops, Paperclip saves changed content as a persistent revision if your responsible user still has permission and the baseline has not changed. Check the run's instruction-save receipt before claiming persistence. Use read_agent_instructions, update_agent_instructions, get_agent_instruction_history, and restore_agent_instructions for immediate saves and history. Read first and pin the returned revision. Preserve conflicts; never silently retry against a newer head. Repository instructions, skills, and the loaded prompt are separate and are not collected.`;
+  if (isAgentDirectoryCopy(copy)) return `Your persistent agent directory is ${copy.executionRoot} (AGENT_HOME). Your instruction entry is ${copy.executionRoot}/${copy.entryFile}. Read and write your own files and subfolders there. This directory belongs to this agent across tasks and sessions; task files belong in the task working directory. Nexus restores this directory before execution and saves validated changes at turn boundaries. A warm native Codex session keeps the same writable directory between turns. Other sessions collect after the provider stops. Regular files, including binary files, persist; symlinks and special files are unsupported. Check the agent-files save receipt before claiming persistence; Only files you change or delete are synchronized. If another run changes the same file, the last completed synchronization wins. Temporary copies are removed when the owning session stops; there is no per-run file history. Storage allows 256 MiB per file, 2 GiB total, and 100,000 entries; the instruction entry must remain UTF-8 and at most 1 MiB. Reaching a storage limit never prevents this or future tasks from running. Remove or shrink files to free space; changes that exceed the limits will not be saved.${typeof copy.receipt?.storageWarning === "string" ? `\n\n${copy.receipt.storageWarning}` : ""}`;
+  return `Your editable agent instruction file is ${copy.executionRoot}/${copy.entryFile}. Edit this registered private copy normally. After this run stops, Nexus saves changed content as a persistent revision if your responsible user still has permission and the baseline has not changed. Check the run's instruction-save receipt before claiming persistence. Use read_agent_instructions, update_agent_instructions, get_agent_instruction_history, and restore_agent_instructions for immediate saves and history. Read first and pin the returned revision. Preserve conflicts; never silently retry against a newer head. Repository instructions, skills, and the loaded prompt are separate and are not collected.`;
 }
 
 /** Remote reads use the registered entry only; never scan for files called AGENTS.md. */
@@ -159,7 +159,7 @@ export function agentInstructionWorkingCopyService(db: Db, options: { environmen
     if (isAgentDirectoryCopy(existing) || (!existing && !input.legacy)) return directories.prepare(input);
     let refreshStoppedCopy = false;
     const workspace = await fs.realpath(input.cwd);
-    const expectedLocalRoot = path.join(workspace, ".paperclip-runtime", `instruction-edits-${input.runId}`, "instructions");
+    const expectedLocalRoot = path.join(workspace, ".nexus-runtime", `instruction-edits-${input.runId}`, "instructions");
     if (existing && existing.localRoot !== expectedLocalRoot) throw conflict("The registered instruction copy belongs to a different run workspace");
     const location = input.target?.kind === "remote" ? `remote:${input.target.environmentId ?? ""}` : "local";
     if (existing && (existing.agentId !== input.agentId || existing.location !== location)) {
@@ -214,7 +214,7 @@ export function agentInstructionWorkingCopyService(db: Db, options: { environmen
     const localRoot = existing?.localRoot ?? expectedLocalRoot;
     const target = input.target?.kind === "remote" ? input.target : null;
     const executionRoot = target
-      ? path.posix.join(target.remoteCwd, ".paperclip-runtime", `instruction-edits-${input.runId}`, "instructions")
+      ? path.posix.join(target.remoteCwd, ".nexus-runtime", `instruction-edits-${input.runId}`, "instructions")
       : localRoot;
     if (!existing) {
       await db.transaction(async tx => {
@@ -268,7 +268,7 @@ export function agentInstructionWorkingCopyService(db: Db, options: { environmen
     if (row.location === "local") return readInstructionBytes(row.localRoot, row.entryFile);
     if (target?.kind !== "remote") throw new Error("The original execution environment is needed to retrieve this instruction copy");
     if (row.location !== `remote:${target.environmentId ?? ""}`) throw new Error("Instruction copy execution environment changed");
-    const expected = path.posix.join(target.remoteCwd, ".paperclip-runtime", `instruction-edits-${row.runId}`, "instructions");
+    const expected = path.posix.join(target.remoteCwd, ".nexus-runtime", `instruction-edits-${row.runId}`, "instructions");
     if (expected !== row.executionRoot) throw new Error("Instruction copy execution environment changed");
     const result = await runAdapterExecutionTargetShellCommand(row.runId, target, instructionCollectionScript(row.executionRoot, row.entryFile), { cwd: target.remoteCwd, env: {}, timeoutSec: 30 });
     if (result.exitCode !== 0 || result.timedOut) throw new Error("Could not safely retrieve the stopped run's instruction file");
@@ -394,9 +394,9 @@ export function agentInstructionWorkingCopyService(db: Db, options: { environmen
   function collectionPredicate() {
     return and(sql`NOT (coalesce(${copies.receipt}, '{}'::jsonb) ? 'retainedByRunId') AND (
       (${copies.attempts} < 3 AND (${copies.state} IN ('prepared', 'pending_collection', 'unchanged_turn', 'warm_saved')
-        OR (${copies.state} = 'preparing' AND ${copies.receipt}->>'schema' = 'paperclip.agent-files.v1')))
+        OR (${copies.state} = 'preparing' AND ${copies.receipt}->>'schema' = 'nexus.agent-files.v1')))
       OR (${copies.state} = 'unavailable' AND ${copies.processStoppedAt} IS NULL
-        AND ${copies.location} LIKE 'remote:%' AND ${copies.receipt}->>'schema' = 'paperclip.agent-files.v1'))`,
+        AND ${copies.location} LIKE 'remote:%' AND ${copies.receipt}->>'schema' = 'nexus.agent-files.v1'))`,
       inArray(heartbeatRuns.status, ["succeeded", "failed", "cancelled", "timed_out", "interrupted"]));
   }
   async function collectRecovered(row: Copy, runtimeMode: string | null) {
@@ -506,7 +506,7 @@ export function agentInstructionWorkingCopyService(db: Db, options: { environmen
   function directoryCleanupPredicate() {
     return sql`${copies.state} IN ('saved', 'unchanged', 'resolved', 'unavailable')
       AND ${copies.processStoppedAt} IS NOT NULL
-      AND ${copies.receipt}->>'schema' = 'paperclip.agent-files.v1'
+      AND ${copies.receipt}->>'schema' = 'nexus.agent-files.v1'
       AND coalesce(${copies.receipt}->>'retainedByRunId', '') = ''
       AND ((${copies.receipt}->>'cleanupPending' = 'false' AND ${copies.nextAttemptAt} IS NOT NULL)
         OR (${copies.receipt}->>'cleanupPending' IS DISTINCT FROM 'false'

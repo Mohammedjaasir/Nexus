@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { agents, toolConnections, toolProfileBindings, toolProfileEntries, toolProfiles, type Db } from "@paperclipai/db";
-import type { ToolProfileConfiguration, ToolProfileWithDetails } from "@paperclipai/shared";
+import { agents, toolConnections, toolProfileBindings, toolProfileEntries, toolProfiles, type Db } from "@nexusai/db";
+import type { ToolProfileConfiguration, ToolProfileWithDetails } from "@nexusai/shared";
 import { createProfileProjectionFixture } from "./tool-profile-projection-fixture.js";
 
 export async function createConnectionProfileConfigurationFixture(db: Db, options: Parameters<typeof createProfileProjectionFixture>[1] = {}) {

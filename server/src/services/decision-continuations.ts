@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, sql } from "drizzle-orm";
-import { databaseWorkScopeKey, decisions, type Db } from "@paperclipai/db";
+import { databaseWorkScopeKey, decisions, type Db } from "@nexusai/db";
 
 export type DecisionContinuationWake = (input: {
   companyId: string; agentId: string; issueId: string; decisionId: string;

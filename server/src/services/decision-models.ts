@@ -4,12 +4,12 @@ import { and, desc, eq, gte, lt, lte, or, sql } from "drizzle-orm";
 import {
   agents, authUsers, budgetReservations, companies, companyMemberships, companyDecisionModels, costEvents,
   decisionInvocations, heartbeatRuns, issues, projects, companySecrets, type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   DECISION_MODELS, decisionProviderForConnection, decisionRequestSchema, updateDecisionModelSchema,
   centsToUnits, unitsToCents, type DecisionAvailability, type DecisionConnectionChoice, type DecisionHistoryEntry,
   type DecisionModelSettings, type DecisionProvider, type DecisionRequest, type DecisionResult, type DecisionUnavailableReason, type UpdateDecisionModel,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { HttpError, forbidden, unprocessable } from "../errors.js";
 import { aiConnectionService } from "./ai-connections.js";
 import { accessService } from "./access.js";
@@ -128,7 +128,7 @@ export function decisionModelService(db: Db, options: { provider?: typeof runDec
     if (connection.provider !== config.provider || config.model !== DECISION_MODELS[connection.provider].id) throw new DecisionUnavailable("incompatible_connection");
     return { config, connection, userId, agentId, runId, identityContextId, issueId, projectId,
       actorType: actor.type === "board" ? "user" as const : actor.type === "agent" ? "agent" as const : "system" as const,
-      actorId: actor.type === "system" ? "paperclip-decisions" : agentId ?? userId! };
+      actorId: actor.type === "system" ? "nexus-decisions" : agentId ?? userId! };
   }
   async function availability(context: DecisionContext): Promise<DecisionAvailability> {
     try { await resolve(context); return { available: true }; }

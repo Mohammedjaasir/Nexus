@@ -9,9 +9,9 @@ import { notifyInstructionCollection } from "../../../services/instruction-colle
 import { notifyChatInboundWakeNotices } from "../../../services/chat-inbound-wake-notice-notifications.js";
 import { notifyChatRunMilestones } from "../../../services/chat-run-milestone-notifications.js";
 import { and, eq, inArray } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { agentWakeupRequests, agents, heartbeatRuns, issueComments, issues } from "@paperclipai/db";
-import type { IssueComment, IssueQueuedCommentQueue } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { agentWakeupRequests, agents, heartbeatRuns, issueComments, issues } from "@nexusai/db";
+import type { IssueComment, IssueQueuedCommentQueue } from "@nexusai/shared";
 import {
   buildQueuedCommentQueueSnapshot,
   decideQueuedCommentQueueSteering,

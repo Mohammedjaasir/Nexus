@@ -50,7 +50,7 @@ Latest local evidence:
   retained history, first producer, outer rollback/commit, retry, restart,
   drain/resume and shutdown tests; not every case runs the full HTTP app.
 - All 16 project-chat Playwright cases pass against a fresh assembled app at
-  port 32658, database paperclip_sleep28_production_e2e_20261025_test.
+  port 32658, database nexus_sleep28_production_e2e_20261025_test.
   Log /tmp/sleep28-production-e2e.log; traces /tmp/sleep28-production-e2e-results.
   This includes split-handoff cancellation and experiment restoration, but local
   success does not resolve the observed remote cancellation deadlock.
@@ -201,9 +201,9 @@ has different lock/contention behavior and must not inherit that conclusion.
 
 Parent #17592 at `f53ae3d6d27c2642e7dfe647a2c0a9bbf2d582ac` now has passing
 Actions/security/Greptile gates, no inline review findings, and a neutral
-Paperclip Review result. Neutral is not a completed positive review. #17590 at
-`e501d6c99d721d6428f8c490206417765c76f4f6` has passing gates with Paperclip Review
-queued at inspection. #17586 also has a neutral Paperclip Review. Final review
+Nexus Review result. Neutral is not a completed positive review. #17590 at
+`e501d6c99d721d6428f8c490206417765c76f4f6` has passing gates with Nexus Review
+queued at inspection. #17586 also has a neutral Nexus Review. Final review
 acceptance remains separate. Refreshed master is `2e47c42fad`; stack reconciliation
 remains required. No stack PR was merged.
 
@@ -442,9 +442,9 @@ Verification and failures:
   These do not claim provider execution or a full native reviewer admission test.
 - All 92 existing queue-module and wake-admission policy tests pass:
   `/tmp/sleep28-queue-module-tests.log`. The queue module now accepts the standard
-  guarded external test URL through `PAPERCLIP_QUEUE_TEST_DATABASE_URL`; its
+  guarded external test URL through `NEXUS_QUEUE_TEST_DATABASE_URL`; its
   destructive per-case fixture reset ran only on the new isolated database
-  `paperclip_sleep28_queue_claim_20261025_test`. Embedded tests remain the default.
+  `nexus_sleep28_queue_claim_20261025_test`. Embedded tests remain the default.
 - Server production typecheck passes: `/tmp/sleep28-queue-producers-typecheck.log`.
   This excludes test files and is not workspace/PR acceptance.
 
@@ -530,7 +530,7 @@ Evidence and limitations:
   scheduling cases pass on a new isolated PostgreSQL database. The suite logs
   responsible-user setup denial for some existing fixture paths; this is not
   evidence of successful provider execution or full product acceptance.
-- The dependency suite now accepts guarded `PAPERCLIP_DEPENDENCY_TEST_DATABASE_URL`
+- The dependency suite now accepts guarded `NEXUS_DEPENDENCY_TEST_DATABASE_URL`
   and removes its fixed fixture user/closes its client during teardown. Its
   existing broad cleanup must run only on a dedicated database. Initial reuse
   retained the old fixture user; a manual cleanup command used the wrong physical
@@ -631,9 +631,9 @@ Evidence:
 - `/tmp/sleep28-queued-comment-typecheck.log`: server production types pass;
   test files are outside that command. `git diff --check` passes.
 - The existing queued-comment adapter tests now accept guarded
-  `PAPERCLIP_QUEUED_COMMENT_TEST_DATABASE_URL` and close their client. Their broad
+  `NEXUS_QUEUED_COMMENT_TEST_DATABASE_URL` and close their client. Their broad
   fixture cleanup ran only on freshly created/migrated
-  `paperclip_sleep28_queued_comment_20261025_test`; embedded mode remains default.
+  `nexus_sleep28_queued_comment_20261025_test`; embedded mode remains default.
 
 The queued-comment producer and native reviewer claim gaps are closed for this
 slice. Publication/interaction, conversation/configuration, question claim/retry,
@@ -679,9 +679,9 @@ Verification:
   Test files are outside that compiler configuration. `git diff --check` passed.
 
 Existing question-delivery tests now support guarded
-`PAPERCLIP_QUESTION_DELIVERY_TEST_DATABASE_URL`, retaining embedded mode by default
+`NEXUS_QUESTION_DELIVERY_TEST_DATABASE_URL`, retaining embedded mode by default
 and closing their client. Their broad cleanup ran only on the dedicated migrated
-`paperclip_sleep28_question_delivery_20261025_test` database. Milestone fixtures
+`nexus_sleep28_question_delivery_20261025_test` database. Milestone fixtures
 used their separate dedicated database.
 
 Fresh origin/master inspected at `8c6bd5a83b`; reconciliation of the stack remains
@@ -692,7 +692,7 @@ removal are still pending, so this checkpoint is not a completed migration PR.
 ## Monitor receipt ordering checkpoint
 
 The normal native monitor owner does not need another milestone signal when it
-saves a schedule. `PaperclipRunnerToolAuthority.#setTaskMonitor` writes the issue
+saves a schedule. `NexusRunnerToolAuthority.#setTaskMonitor` writes the issue
 monitor and its semantic tool receipt inside the same `#withMutationReceipt`
 transaction. The future deadline cannot be consumed before that commit. A later
 monitor wake's real queue admission already signals the issue scope, and the
@@ -721,7 +721,7 @@ instead of manufacturing a missing signal for an unsupported ordering.
 
 Remote gates refreshed at this checkpoint: #17490 at `31bcd1988823` still has
 failed E2E shard 3 and aggregate checks; #17590 at `e501d6c99d72` still has queued
-Paperclip Review; #17592 at `f53ae3d6d27c` still has neutral Paperclip Review.
+Nexus Review; #17592 at `f53ae3d6d27c` still has neutral Nexus Review.
 These are not claimed ready and no merge was attempted.
 
 ## Publication outcome and operator-resolution checkpoint
@@ -766,9 +766,9 @@ Real PostgreSQL regression evidence:
 - `/tmp/sleep28-publication-final-tests.log`: all 48 milestone and 35 error-policy
   cases passed. The three arbitration cases did not run because their embedded
   PostgreSQL setup failed after its own startup retries. That suite now supports
-  guarded `PAPERCLIP_ARBITRATION_TEST_DATABASE_URL`, closes its client, and uses
+  guarded `NEXUS_ARBITRATION_TEST_DATABASE_URL`, closes its client, and uses
   unique company prefixes. `/tmp/sleep28-arbitration-tests.log` shows all three
-  pass against dedicated `paperclip_sleep28_arbitration_20261025_test`.
+  pass against dedicated `nexus_sleep28_arbitration_20261025_test`.
 - `/tmp/sleep28-publication-acceptance.log`: four existing chat integration cases
   pass: malformed/transient preparation, parsed Discord question continuation,
   expired provider-accepted receipt ownership, and ambiguous close confirmation.
@@ -808,12 +808,12 @@ The actual answer transaction now owns its notification without reopening work.
 - `/tmp/sleep28-interaction-transitions-tests.log`: notice assertions pass after
   the fix; cancel/withdraw still fail the missing chat-action cleanup. Cleanup
   now deletes this fixture's actions before its conversations. The old
-  `paperclip_sleep28_worker_final_20261025_test` database retains partial failed
+  `nexus_sleep28_worker_final_20261025_test` database retains partial failed
   fixtures and must not be reused for global worker quiet assertions.
 - `/tmp/sleep28-interaction-final-tests.log`: all 160 cases pass across the full
   milestone and existing interaction-service suites, on fresh separate databases
-  `paperclip_sleep28_interaction_worker_20261025_test` and
-  `paperclip_sleep28_interaction_service_20261025_test`. The former is the new
+  `nexus_sleep28_interaction_worker_20261025_test` and
+  `nexus_sleep28_interaction_service_20261025_test`. The former is the new
   self-cleaning milestone test database; the latter is exclusive to the service
   suite's broad cleanup.
 - `/tmp/sleep28-interaction-typecheck.log`: production server typecheck passes;
@@ -967,8 +967,8 @@ also lineage inputs; their broader writer audit remains required separately.
 No provider execution, signing policy or request ownership changed.
 
 `chat-run-milestone-governed-work.test.ts` is a separate cohesive suite using
-`PAPERCLIP_MILESTONE_GOVERNED_TEST_DATABASE_URL`, currently the dedicated migrated
-`paperclip_sleep28_governed_worker_20261025_test` database. It reuses only the
+`NEXUS_MILESTONE_GOVERNED_TEST_DATABASE_URL`, currently the dedicated migrated
+`nexus_sleep28_governed_worker_20261025_test` database. It reuses only the
 company/chat fixture helper; worker startup, clock, settlement and quiet assertions
 remain explicit. Cleanup is company-scoped and runs after worker shutdown.
 
@@ -992,8 +992,8 @@ remain explicit. Cleanup is company-scoped and runs after worker shutdown.
   worker, 9 governed producer, 106 interaction integration and 13 interaction
   unit cases on separate isolated PostgreSQL databases.
 - `/tmp/sleep28-tool-review-acceptance.log`: all 109 existing tool-gateway cases
-  pass on newly migrated `paperclip_sleep28_tool_review_20261025_test`, selected
-  through its existing PAPERCLIP_TOOL_REVIEW_TEST_DATABASE_URL guard.
+  pass on newly migrated `nexus_sleep28_tool_review_20261025_test`, selected
+  through its existing NEXUS_TOOL_REVIEW_TEST_DATABASE_URL guard.
 - `/tmp/sleep28-governed-typecheck.log`: production server typecheck passes;
   it excludes tests. `git diff --check` passes.
 
@@ -1165,7 +1165,7 @@ Slack membership/reinstall, Slack archive/unarchive, Teams/Telegram lifecycle,
 GitHub resource identity preservation, durable lifecycle retry, and canonical
 Chat SDK resource identifiers. Server typecheck passes in
 /tmp/sleep28-resource-typecheck.log. The dedicated resource database is
-paperclip_sleep28_resource_20261025_test.
+nexus_sleep28_resource_20261025_test.
 
 The earlier three configuration-owner drain repairs are now propagated. All 109
 health/Discord/receiver cases pass together at 9775b2bc4a in
@@ -1271,7 +1271,7 @@ passes 12 cases: ordinary ingress reactivation, three existing Slack/Teams/Teleg
 reach-revocation cases, and eight Telegram migration cases
 (/tmp/sleep28-inbound-acceptance.log; 1,419 deselected). Server production
 typecheck/build pass in /tmp/sleep28-inbound-{typecheck,build}.log. The isolated
-DB is paperclip_sleep28_inbound_20261025_test. Existing resource and lifecycle
+DB is nexus_sleep28_inbound_20261025_test. Existing resource and lifecycle
 proofs remain recorded at their prior checkpoints; the whole integration file
 was not run locally for this edit.
 
@@ -1400,7 +1400,7 @@ Evidence: /tmp/sleep28-classification-before.log fails on the missing notice;
 /tmp/sleep28-classification-tests.log passes all three recovery milestone cases.
 All 89 existing recovery-action cases pass in
 /tmp/sleep28-recovery-actions-acceptance.log. Their guarded external DB harness
-uses paperclip_sleep28_recovery_actions_20261025_test, separately from worker
+uses nexus_sleep28_recovery_actions_20261025_test, separately from worker
 fixtures. Server typecheck/build pass in
 /tmp/sleep28-classification-{typecheck,build}.log. The earlier 40 stale-lock and
 43 identity/credential cases passed at their recorded checkpoints and were not
@@ -1561,7 +1561,7 @@ Evidence:
   `/tmp/sleep28-review-github-scoped.log`.
 - `/tmp/sleep28-voice-callback-fixed.log`: 28 failures on a reused database with
   retained voice sessions/reports. Preserve this failed run. The full suite on
-  fresh migrated `paperclip_sleep28_review_voice_20261025_test` passes all 122
+  fresh migrated `nexus_sleep28_review_voice_20261025_test` passes all 122
   cases (`/tmp/sleep28-review-voice-fresh.log`). Global reconstruction tests need
   an isolated database; reusing a previous suite's retained obligations is invalid.
 - `/tmp/sleep28-review-cloud-fakes-final.log`: 38 Cloud-auth/session tests pass.
@@ -1569,7 +1569,7 @@ Evidence:
   still verifies the exact own-user/active filter on the authorization read.
 - `/tmp/sleep28-review-long-board.log`: reproduces the `Owner 1` fixture leak.
 - `/tmp/sleep28-review-chat-isolation.log`: 28 cases pass together on fresh
-  `paperclip_sleep28_review_chat_20261025_test`: all ten authority-restoration
+  `nexus_sleep28_review_chat_20261025_test`: all ten authority-restoration
   cases, both GitHub signal cases, and all 16 long-publication cases.
 - `/tmp/sleep28-review-typecheck.log` and `/tmp/sleep28-review-build.log`: server
   production typecheck and build pass. Test files are not typechecked.
@@ -1590,7 +1590,7 @@ locks and transaction. No production transaction contract changed.
 
 The project suite initially skipped all 30 cases because embedded PostgreSQL was
 unavailable. It now supports the existing validated external-test-database option
-through `PAPERCLIP_PROJECT_GIT_TEST_DATABASE_URL` and closes that pool. Use a fresh
+through `NEXUS_PROJECT_GIT_TEST_DATABASE_URL` and closes that pool. Use a fresh
 disposable database per run: the suite seeds fixed A/B user IDs. Reusing the red
 run's database caused a duplicate-user setup failure; a new database resolved
 that fixture setup issue without changing product behavior. All 25 credential

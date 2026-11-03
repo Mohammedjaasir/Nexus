@@ -11,7 +11,7 @@ import express from "express";
 import request from "supertest";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
-import { createDb, agents, approvals, principalPermissionGrants, authUsers, companies, companyMemberships, dotAgentBindings, activityLog } from "@paperclipai/db";
+import { createDb, agents, approvals, principalPermissionGrants, authUsers, companies, companyMemberships, dotAgentBindings, activityLog } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { dotInvitationService } from "../services/dot-invitations.js";
 import { dotRunnerBroker } from "../services/dot-runner-broker.js";
@@ -25,8 +25,8 @@ beforeAll(async () => {
   temporary = await startEmbeddedPostgresTestDatabase("dot-invitations-");
   db = createDb(temporary.connectionString);
   root = await mkdtemp(join(tmpdir(), "dot-invite-home-"));
-  vi.stubEnv("PAPERCLIP_HOME", root);
-  vi.stubEnv("PAPERCLIP_IN_WORKTREE", "false");
+  vi.stubEnv("NEXUS_HOME", root);
+  vi.stubEnv("NEXUS_IN_WORKTREE", "false");
   await instanceSettingsService(db).updateExperimental({ enableOpenAiDot: true, enablePublicMcp: true });
 }, 120000);
 afterAll(async () => { await temporary?.cleanup(); if (root) await rm(root, { recursive: true, force: true }); vi.unstubAllEnvs(); });
@@ -106,7 +106,7 @@ it("keeps invite routes company-scoped and denies viewers and agent actors", asy
         memberships: [{ companyId: f.companyId, membershipRole: mode === "viewer" ? "viewer" : "owner", status: "active" }] };
     next();
   });
-  app.use(dotRunnerRoutes(db, "https://paperclip.example/mcp/runner"));
+  app.use(dotRunnerRoutes(db, "https://nexus.example/mcp/runner"));
   app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     res.status(error instanceof HttpError ? error.status : 500).json({ error: error.message });
   });
@@ -122,7 +122,7 @@ it("keeps invite routes company-scoped and denies viewers and agent actors", asy
 
 it("does not trust editable agent metadata as an invitation ownership receipt", async () => {
   const f = await fixture();
-  const [spoof] = await db.insert(agents).values({ companyId: f.companyId, name: "Unrelated agent", adapterType: "paperclip_runner",
+  const [spoof] = await db.insert(agents).values({ companyId: f.companyId, name: "Unrelated agent", adapterType: "nexus_runner",
     adapterConfig: { provider: "openai_dot" }, metadata: { dotInvitation: { operatorId: f.userId } } }).returning();
   const service = dotInvitationService(db);
   expect(await service.resume(f.companyId, f.userId)).toBeNull();
@@ -138,7 +138,7 @@ it("reports connection setup authority separately from compatibility status", as
       memberships: [{ companyId: f.companyId, membershipRole: "owner", status: "active" }] };
     next();
   });
-  app.use(dotRunnerRoutes(db, "https://paperclip.example/mcp/runner"));
+  app.use(dotRunnerRoutes(db, "https://nexus.example/mcp/runner"));
   const path = `/companies/${f.companyId}/agents/${invite.agent.id}/dot-binding`;
   const cases = [
     { lifecycleState: "preparing", status: "paused", allowed: true },

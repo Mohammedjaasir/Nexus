@@ -22,14 +22,14 @@ for (const parallel of [false, true]) test(`isolated forks retain fresh state wi
       import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
       it('starts clean and can contaminate only its own worker', async () => {
         expect(globalThis.serializedLeak).toBeUndefined();
-        expect(process.env.PAPERCLIP_SERIALIZED_LEAK).toBeUndefined();
+        expect(process.env.NEXUS_SERIALIZED_LEAK).toBeUndefined();
         expect(vi.isFakeTimers()).toBe(false);
-        expect(existsSync(process.env.PAPERCLIP_CONFIG)).toBe(false);
+        expect(existsSync(process.env.NEXUS_CONFIG)).toBe(false);
         appendFileSync(${JSON.stringify(record)}, JSON.stringify({
-          name: ${JSON.stringify(file)}, pid: process.pid, home: process.env.PAPERCLIP_HOME,
-          config: process.env.PAPERCLIP_CONFIG, instance: process.env.PAPERCLIP_INSTANCE_ID,
+          name: ${JSON.stringify(file)}, pid: process.pid, home: process.env.NEXUS_HOME,
+          config: process.env.NEXUS_CONFIG, instance: process.env.NEXUS_INSTANCE_ID,
         }) + '\\n');
-        writeFileSync(process.env.PAPERCLIP_CONFIG, '{}');
+        writeFileSync(process.env.NEXUS_CONFIG, '{}');
         // In parallel mode both real workers must arrive before either exits.
         // This fails if the controller silently falls back to serial execution.
         if (${parallel}) {
@@ -41,7 +41,7 @@ for (const parallel of [false, true]) test(`isolated forks retain fresh state wi
           }
         }
         globalThis.serializedLeak = true;
-        process.env.PAPERCLIP_SERIALIZED_LEAK = 'leaked';
+        process.env.NEXUS_SERIALIZED_LEAK = 'leaked';
         vi.useFakeTimers();
       });
     `);
@@ -61,8 +61,8 @@ for (const parallel of [false, true]) test(`isolated forks retain fresh state wi
       }`);
       const result = spawnSync(process.execPath, [vitest, 'run', '--config', config], {
         cwd: root, encoding: 'utf8', timeout: 60_000,
-        env: { ...process.env, PAPERCLIP_HOME: path.join(directory, 'controller-home'),
-          PAPERCLIP_CONFIG: path.join(directory, 'controller-config.json'), PAPERCLIP_INSTANCE_ID: 'controller' },
+        env: { ...process.env, NEXUS_HOME: path.join(directory, 'controller-home'),
+          NEXUS_CONFIG: path.join(directory, 'controller-config.json'), NEXUS_INSTANCE_ID: 'controller' },
       });
       assert.equal(result.status, 0, `${result.error ?? ''}\n${result.stdout}\n${result.stderr}`);
       const workers = readFileSync(record, 'utf8').trim().split('\n').map((line) => JSON.parse(line));

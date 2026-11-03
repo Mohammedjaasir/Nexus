@@ -31,7 +31,7 @@ function skill(overrides: Record<string, unknown> = {}) {
   return {
     id: "11111111-1111-1111-1111-111111111111",
     companyId: "company-1",
-    key: "paperclip/review-prs",
+    key: "nexus/review-prs",
     slug: "review-prs",
     name: "Review PRs",
     description: "Review pull requests",
@@ -57,8 +57,8 @@ function skill(overrides: Record<string, unknown> = {}) {
 
 function catalogSkill(overrides: Record<string, unknown> = {}) {
   return {
-    id: "paperclipai:bundled:software-development:github-pr-workflow",
-    key: "paperclipai/bundled/software-development/github-pr-workflow",
+    id: "nexusai:bundled:software-development:github-pr-workflow",
+    key: "nexusai/bundled/software-development/github-pr-workflow",
     kind: "bundled",
     category: "software-development",
     slug: "github-pr-workflow",
@@ -101,19 +101,19 @@ function agent(overrides: Record<string, unknown> = {}) {
 describe("skills CLI helpers", () => {
   it("resolves skill refs by id, key, or unique normalized slug", () => {
     const rows = [
-      skill({ id: "skill-a", key: "paperclip/a", slug: "alpha", name: "Alpha" }),
-      skill({ id: "skill-b", key: "paperclip/b", slug: "beta-skill", name: "Beta" }),
+      skill({ id: "skill-a", key: "nexus/a", slug: "alpha", name: "Alpha" }),
+      skill({ id: "skill-b", key: "nexus/b", slug: "beta-skill", name: "Beta" }),
     ];
 
-    expect(resolveCompanySkillReference(rows, "skill-a").key).toBe("paperclip/a");
-    expect(resolveCompanySkillReference(rows, "paperclip/b").id).toBe("skill-b");
+    expect(resolveCompanySkillReference(rows, "skill-a").key).toBe("nexus/a");
+    expect(resolveCompanySkillReference(rows, "nexus/b").id).toBe("skill-b");
     expect(resolveCompanySkillReference(rows, "Beta Skill").id).toBe("skill-b");
   });
 
   it("rejects ambiguous slug refs", () => {
     const rows = [
-      skill({ id: "skill-a", key: "paperclip/a", slug: "same", name: "A" }),
-      skill({ id: "skill-b", key: "paperclip/b", slug: "same", name: "B" }),
+      skill({ id: "skill-a", key: "nexus/a", slug: "same", name: "A" }),
+      skill({ id: "skill-b", key: "nexus/b", slug: "same", name: "B" }),
     ];
 
     expect(() => resolveCompanySkillReference(rows, "same")).toThrow(/Ambiguous skill slug/);
@@ -127,9 +127,9 @@ describe("skills CLI commands", () => {
 
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
-    delete process.env.PAPERCLIP_API_URL;
-    delete process.env.PAPERCLIP_API_KEY;
-    delete process.env.PAPERCLIP_COMPANY_ID;
+    delete process.env.NEXUS_API_URL;
+    delete process.env.NEXUS_API_KEY;
+    delete process.env.NEXUS_COMPANY_ID;
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
@@ -156,14 +156,14 @@ describe("skills CLI commands", () => {
       "--company-id",
       "company-1",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "token",
       "--json",
     ]);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://paperclip.test/api/companies/company-1/skills",
+      "http://nexus.test/api/companies/company-1/skills",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({ authorization: "Bearer token" }),
@@ -184,7 +184,7 @@ describe("skills CLI commands", () => {
       "--company-id",
       "company-1",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "token",
       "--json",
@@ -192,7 +192,7 @@ describe("skills CLI commands", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "http://paperclip.test/api/companies/company-1/skills/11111111-1111-1111-1111-111111111111",
+      "http://nexus.test/api/companies/company-1/skills/11111111-1111-1111-1111-111111111111",
       expect.objectContaining({ method: "GET" }),
     );
   });
@@ -217,7 +217,7 @@ describe("skills CLI commands", () => {
       "--company-id",
       "company-1",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "token",
     ]);
@@ -239,18 +239,18 @@ describe("skills CLI commands", () => {
       "--query",
       "github",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "token",
     ]);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://paperclip.test/api/skills/catalog?kind=bundled&category=software-development&q=github",
+      "http://nexus.test/api/skills/catalog?kind=bundled&category=software-development&q=github",
       expect.objectContaining({ method: "GET" }),
     );
     const rendered = logSpy.mock.calls.map((call: unknown[]) => String(call[0])).join("\n");
     expect(rendered).toContain("id");
-    expect(rendered).toContain("paperclipai:bundled:software-development:github-pr-workflow");
+    expect(rendered).toContain("nexusai:bundled:software-development:github-pr-workflow");
     expect(rendered).toContain("roles");
   });
 
@@ -265,14 +265,14 @@ describe("skills CLI commands", () => {
       "--kind",
       "bundled",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "token",
       "--json",
     ]);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://paperclip.test/api/skills/catalog?kind=bundled&q=pull+requests",
+      "http://nexus.test/api/skills/catalog?kind=bundled&q=pull+requests",
       expect.objectContaining({ method: "GET" }),
     );
     expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(rows);
@@ -285,16 +285,16 @@ describe("skills CLI commands", () => {
     await runCommand([
       "skills",
       "inspect",
-      "paperclipai/bundled/software-development/github-pr-workflow",
+      "nexusai/bundled/software-development/github-pr-workflow",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "token",
       "--json",
     ]);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://paperclip.test/api/skills/catalog/ref?ref=paperclipai%2Fbundled%2Fsoftware-development%2Fgithub-pr-workflow",
+      "http://nexus.test/api/skills/catalog/ref?ref=nexusai%2Fbundled%2Fsoftware-development%2Fgithub-pr-workflow",
       expect.objectContaining({ method: "GET" }),
     );
     expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(detail);
@@ -304,7 +304,7 @@ describe("skills CLI commands", () => {
     const result = {
       action: "created",
       skill: skill({
-        key: "paperclipai/bundled/software-development/github-pr-workflow",
+        key: "nexusai/bundled/software-development/github-pr-workflow",
         slug: "pr-flow",
         sourceType: "catalog",
       }),
@@ -323,14 +323,14 @@ describe("skills CLI commands", () => {
       "--company-id",
       "company-1",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "token",
       "--json",
     ]);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://paperclip.test/api/companies/company-1/skills/install-catalog",
+      "http://nexus.test/api/companies/company-1/skills/install-catalog",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
@@ -356,7 +356,7 @@ describe("skills CLI commands", () => {
       "--company-id",
       "company-1",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "token",
       "--json",
@@ -364,7 +364,7 @@ describe("skills CLI commands", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "http://paperclip.test/api/companies/company-1/skills/11111111-1111-1111-1111-111111111111/install-update",
+      "http://nexus.test/api/companies/company-1/skills/11111111-1111-1111-1111-111111111111/install-update",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ force: true }),
@@ -399,7 +399,7 @@ describe("skills CLI commands", () => {
       "--company-id",
       "company-1",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "token",
       "--json",
@@ -407,7 +407,7 @@ describe("skills CLI commands", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "http://paperclip.test/api/companies/company-1/skills/11111111-1111-1111-1111-111111111111/audit",
+      "http://nexus.test/api/companies/company-1/skills/11111111-1111-1111-1111-111111111111/audit",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({}),
@@ -430,7 +430,7 @@ describe("skills CLI commands", () => {
       "--company-id",
       "company-1",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "token",
       "--json",
@@ -438,7 +438,7 @@ describe("skills CLI commands", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "http://paperclip.test/api/companies/company-1/skills/11111111-1111-1111-1111-111111111111/reset",
+      "http://nexus.test/api/companies/company-1/skills/11111111-1111-1111-1111-111111111111/reset",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ force: true }),
@@ -451,10 +451,10 @@ describe("skills CLI commands", () => {
       adapterType: "codex_local",
       supported: true,
       mode: "persistent",
-      desiredSkills: ["paperclip/review-prs"],
+      desiredSkills: ["nexus/review-prs"],
       entries: [
         {
-          key: "paperclip/review-prs",
+          key: "nexus/review-prs",
           runtimeName: "review-prs",
           desired: true,
           managed: true,
@@ -478,13 +478,13 @@ describe("skills CLI commands", () => {
       "--skill",
       "review-prs",
       "--skill",
-      "paperclip/qa",
+      "nexus/qa",
       "--mode",
       "add",
       "--company-id",
       "company-1",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "token",
       "--json",
@@ -492,15 +492,15 @@ describe("skills CLI commands", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      "http://paperclip.test/api/agents/coder?companyId=company-1",
+      "http://nexus.test/api/agents/coder?companyId=company-1",
       expect.objectContaining({ method: "GET" }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "http://paperclip.test/api/agents/agent-1/skills/sync",
+      "http://nexus.test/api/agents/agent-1/skills/sync",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ desiredSkills: ["review-prs", "paperclip/qa"], mode: "add" }),
+        body: JSON.stringify({ desiredSkills: ["review-prs", "nexus/qa"], mode: "add" }),
       }),
     );
     expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(snapshot);

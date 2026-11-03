@@ -1,5 +1,5 @@
-import { VOICE_RESULT_NOTIFICATION, VOICE_REPEAT_NOTIFICATION } from "@paperclipai/shared";
-export { VOICE_RESULT_NOTIFICATION, VOICE_REPEAT_NOTIFICATION } from "@paperclipai/shared";
+import { VOICE_RESULT_NOTIFICATION, VOICE_REPEAT_NOTIFICATION } from "@nexusai/shared";
+export { VOICE_RESULT_NOTIFICATION, VOICE_REPEAT_NOTIFICATION } from "@nexusai/shared";
 import type { VoiceControlState } from "../components/voice/VoiceControls";
 import { updateVoiceTranscript, type VoiceTranscriptEntry, type VoiceTranscriptUpdate } from "./voice-transcript";
 

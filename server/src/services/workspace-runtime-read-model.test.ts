@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { workspaceRuntimeServices } from "@paperclipai/db";
+import { workspaceRuntimeServices } from "@nexusai/db";
 import { describe, expect, it } from "vitest";
 import { selectConfiguredRuntimeServiceRows } from "./workspace-runtime-read-model.js";
 
@@ -23,7 +23,7 @@ function runtimeServiceRow(
     lifecycle: "shared",
     reuseKey: randomUUID(),
     command: "pnpm dev",
-    cwd: "/tmp/paperclip",
+    cwd: "/tmp/nexus",
     port: null,
     url: null,
     provider: "local_process",
@@ -89,7 +89,7 @@ describe("selectConfiguredRuntimeServiceRows", () => {
 
   it("keeps an exposed dev runtime tracked after its bind command is hardened", () => {
     const exposedWeb = runtimeServiceRow({
-      serviceName: "paperclip-dev",
+      serviceName: "nexus-dev",
       command: "pnpm dev --bind loopback",
       exposure: {
         provider: "tailscale_https",
@@ -105,7 +105,7 @@ describe("selectConfiguredRuntimeServiceRows", () => {
 
     const selected = selectConfiguredRuntimeServiceRows(
       [exposedWeb],
-      { services: [{ name: "paperclip-dev", command: "pnpm dev --bind lan" }] },
+      { services: [{ name: "nexus-dev", command: "pnpm dev --bind lan" }] },
     );
 
     expect(selected).toEqual([

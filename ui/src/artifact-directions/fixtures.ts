@@ -25,7 +25,7 @@ export const CEO = "CEO";
 export const AVATARS: Record<string, string> = { [DESIGNER]: avatarDesigner, [CEO]: avatarCeo };
 
 export const TASKS = {
-  "ACM-1": "Paperclip onboarding",
+  "ACM-1": "Nexus onboarding",
   "ACM-2": "Develop acmehats brand strategy and designer brief",
   "ACM-3": "Create visual directions and first acmehats brand deck",
   "ACM-4": "Write the launch email sequence",
@@ -173,7 +173,7 @@ export const THREAD_ATTACHMENTS: LabArtifact[] = [icImage, icPptx, icPdf, icGuid
 export const THREAD_WORK_PRODUCTS: LabArtifact[] = [docCritique, docGuideVerification, icPptx, icPdf, icImage, docSuppliedSource];
 
 // ---------------------------------------------------------------------------
-// ACM-1 — Paperclip onboarding (7)
+// ACM-1 — Nexus onboarding (7)
 // ---------------------------------------------------------------------------
 
 const T1 = { task: "ACM-1", author: CEO } as const;

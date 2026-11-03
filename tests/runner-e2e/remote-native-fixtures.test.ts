@@ -10,7 +10,7 @@ import { Script } from "node:vm";
 import { describe, expect, it, vi } from "vitest";
 import { REMOTE_FIXTURE_MIN_SETUP_BUDGET_MS, bindRemoteNativeFixture, validatePiProviderDeathReceipt, createRemoteTargetWatch, isRemoteRunRoot, parseRemoteProcStat, remoteProcEntryDisappeared, remoteNativeFixtureDiagnostics, remoteNativeIncompleteTerminalEvidence, type RemoteNativeFixtureOptions, type RemoteNativeSnapshot } from "./remote-native-fixtures.js";
 
-import { PI_DISTRIBUTION_CLOSURE_SHA256 } from "../../packages/paperclip-runner/src/drivers/acpx/pi-closure-pins.js";
+import { PI_DISTRIBUTION_CLOSURE_SHA256 } from "../../packages/nexus-runner/src/drivers/acpx/pi-closure-pins.js";
 import { createRemoteNativeBootstrap } from "./remote-native-bootstrap.js";
 import { kimiFaultRuntimeContract } from "./kimi-provider-fault-contract.js";
 
@@ -20,20 +20,20 @@ const authority = { companyId: "company", environmentId: "environment", runId: "
 const binding = { ...authority, remoteCwd: "/workspace" };
 const root = { pid: 21, ppid: 1, startTicks: "100", bootId };
 function kimiWorker(overrides: Record<string, unknown> = {}) {
-  return { schema: "paperclip.kimi11.remote-fault-diagnostic.v1", qualification: false, status: "FAIL", stage: "inspect_before", failingGuard: "parent_bootstrap", errno: null,
+  return { schema: "nexus.kimi11.remote-fault-diagnostic.v1", qualification: false, status: "FAIL", stage: "inspect_before", failingGuard: "parent_bootstrap", errno: null,
     signalAttempted: false, signalDispatched: false, receipt: null, externalModelCalls: 0, ...overrides };
 }
 function snapshot(): RemoteNativeSnapshot {
   return { binding, observedAtMs: 1000, observedMonotonicNs: "10000", receivedAtMs: 1000, complete: true, workspace: { "existing.txt": hash("original") },
     targets: { "result.txt": { absent: true, sha256: null, parent: { dev: "1", ino: "2" }, mutationCount: 0, complete: true } },
     watcher: { complete: true, targetMutationCount: 0, workspaceMutationCount: 0 },
-    processes: { captured: true, root, journal: [root], live: [21] }, scope: { kind: "user_workspace", excludedRuntime: { relativePath: ".paperclip-runtime/paperclip-runner", absolutePath: "/workspace/.paperclip-runtime/paperclip-runner", dev: "1", ino: "4", runnerExecutableSha256: hash("runnerd") }, observedPrpEnvironmentLeaseId: "workspace-id", prpEnvironmentLeaseIdVerified: false }, setup: { path: "action.txt", sha256: null, published: false }, attached: null };
+    processes: { captured: true, root, journal: [root], live: [21] }, scope: { kind: "user_workspace", excludedRuntime: { relativePath: ".nexus-runtime/nexus-runner", absolutePath: "/workspace/.nexus-runtime/nexus-runner", dev: "1", ino: "4", runnerExecutableSha256: hash("runnerd") }, observedPrpEnvironmentLeaseId: "workspace-id", prpEnvironmentLeaseIdVerified: false }, setup: { path: "action.txt", sha256: null, published: false }, attached: null };
 }
 function readiness() { return { ready: true, binding, root, runtime: { dev: "1", ino: "4", runnerExecutableSha256: hash("runnerd") } }; }
 function harness() {
   let lease: Record<string, unknown> = { id: "lease", companyId: "company", environmentId: "environment", heartbeatRunId: "run", provider: "daytona", providerLeaseId: "sandbox", status: "active", releasedAt: null,
-    metadata: { sandboxId: "sandbox", image: authority.image, reuseLease: false, remoteCwd: "/workspace", workspaceSentinel: { path: "/workspace/.paperclip-runtime/reusable-sandbox-lease.json", token: "fixture-sentinel-token", result: "written", runId: "run", providerLeaseId: "sandbox" } } };
-  const labels: Record<string, string> = { "paperclip-provider": "daytona", "paperclip-company-id": "company", "paperclip-environment-id": "environment", "paperclip-run-id": "run", "paperclip-reuse-lease": "false" };
+    metadata: { sandboxId: "sandbox", image: authority.image, reuseLease: false, remoteCwd: "/workspace", workspaceSentinel: { path: "/workspace/.nexus-runtime/reusable-sandbox-lease.json", token: "fixture-sentinel-token", result: "written", runId: "run", providerLeaseId: "sandbox" } } };
+  const labels: Record<string, string> = { "nexus-provider": "daytona", "nexus-company-id": "company", "nexus-environment-id": "environment", "nexus-run-id": "run", "nexus-reuse-lease": "false" };
   const calls: Array<{ command: string; request: Record<string, any>; timeout: number | undefined }> = [];
   let resolveTerminal!: (v: unknown) => void, rejectTerminal!: (e: unknown) => void;
   const terminal = new Promise((resolve, reject) => { resolveTerminal = resolve; rejectTerminal = reject; });
@@ -82,7 +82,7 @@ describe("remote native lease admission", () => {
     await expect(bindRemoteNativeFixture(h.options)).rejects.toThrow("lease_scope"); expect(h.executeCommand).not.toHaveBeenCalled();
   });
   it("rejects protected runtime targets and insufficient setup budget before SDK access", async () => {
-    for (const patch of [{ targets: [".paperclip-runtime/paperclip-runner/bin/forbidden"] }, { actionFile: ".paperclip-runtime/paperclip-runner/task.txt" }, { deadlineAt: Date.now() + 1000 }]) {
+    for (const patch of [{ targets: [".nexus-runtime/nexus-runner/bin/forbidden"] }, { actionFile: ".nexus-runtime/nexus-runner/task.txt" }, { deadlineAt: Date.now() + 1000 }]) {
       const h = harness(); await expect(bindRemoteNativeFixture({ ...h.options, ...patch })).rejects.toThrow(); expect(h.get).not.toHaveBeenCalled();
     }
   });
@@ -98,7 +98,7 @@ describe("remote native lease admission", () => {
     }
   });
   it("rejects wrong ownership labels and never discovers a sandbox by name", async () => {
-    const h = harness(); h.labels["paperclip-run-id"] = "other";
+    const h = harness(); h.labels["nexus-run-id"] = "other";
     await expect(bindRemoteNativeFixture(h.options)).rejects.toThrow("sandbox_labels"); expect(h.get).toHaveBeenCalledExactlyOnceWith("sandbox"); expect(h.executeCommand).not.toHaveBeenCalled();
   });
   it("waits beyond the old 20s install subdeadline for staging, then installs exactly once before action", async () => {
@@ -516,10 +516,10 @@ describe("independent filesystem and process observations", () => {
   it("parses Linux start ticks around unusual comm names and excludes shared/wrong-run daemons", () => {
     const fields = ["S", "1", "21", ...Array(16).fill("0"), "123456"];
     const p = parseRemoteProcStat(21, `21 (name with ) parens) ${fields.join(" ")}`, bootId);
-    expect(p.startTicks).toBe("123456"); expect(isRemoteRunRoot(["/opt/paperclip-runnerd", "--run-id", "run", "--lifecycle-mode", "per_turn"], "run", p)).toBe(true);
-    expect(isRemoteRunRoot(["/opt/paperclip-runnerd", "--run-id", "foreign", "--lifecycle-mode", "per_turn"], "run", p)).toBe(false);
-    expect(isRemoteRunRoot(["/opt/paperclip-runnerd", "--run-id", "run", "--lifecycle-mode", "persistent"], "run", p)).toBe(false);
-    expect(isRemoteRunRoot(["/opt/paperclip-runnerd", "--run-id", "run", "--lifecycle-mode", "per_turn"], "run", { ...p, group: 1 })).toBe(false);
+    expect(p.startTicks).toBe("123456"); expect(isRemoteRunRoot(["/opt/nexus-runnerd", "--run-id", "run", "--lifecycle-mode", "per_turn"], "run", p)).toBe(true);
+    expect(isRemoteRunRoot(["/opt/nexus-runnerd", "--run-id", "foreign", "--lifecycle-mode", "per_turn"], "run", p)).toBe(false);
+    expect(isRemoteRunRoot(["/opt/nexus-runnerd", "--run-id", "run", "--lifecycle-mode", "persistent"], "run", p)).toBe(false);
+    expect(isRemoteRunRoot(["/opt/nexus-runnerd", "--run-id", "run", "--lifecycle-mode", "per_turn"], "run", { ...p, group: 1 })).toBe(false);
     expect(parseRemoteProcStat(21, `21 (reused) ${fields.slice(0, -1).join(" ")} 999999`, bootId).startTicks).not.toBe(p.startTicks);
   });
 });
@@ -534,7 +534,7 @@ describe("actual generated observer state machine", () => {
     }
     const { source, config } = install.request;
     const intervals: Array<() => void> = [], timers: Array<{ fn: () => void; ms: number }> = [];
-    const proc = new Map<number, { ppid: number; group: number; ticks: string; argv: string[] }>([[21, { ppid: 1, group: 21, ticks: "100", argv: ["/workspace/.paperclip-runtime/paperclip-runner/bin/paperclip-runnerd", "--run-id", "run", "--environment-lease-id", "workspace-id", "--lifecycle-mode", "per_turn", "--state-dir", "/workspace/.paperclip-runtime/paperclip-runner/sessions/" + "a".repeat(64) + "/runner"] }]]);
+    const proc = new Map<number, { ppid: number; group: number; ticks: string; argv: string[] }>([[21, { ppid: 1, group: 21, ticks: "100", argv: ["/workspace/.nexus-runtime/nexus-runner/bin/nexus-runnerd", "--run-id", "run", "--environment-lease-id", "workspace-id", "--lifecycle-mode", "per_turn", "--state-dir", "/workspace/.nexus-runtime/nexus-runner/sessions/" + "a".repeat(64) + "/runner"] }]]);
     const files = new Map<string, Buffer>([[`${config.root}/observer.cjs`, Buffer.from(source)], [config.sentinel.path, Buffer.from(JSON.stringify({ version: 1, provider: "daytona", token: config.sentinel.token, companyId: "company", environmentId: "environment" }))]]);
     const watches: Array<{ path: string; callback: (_kind: string, name: string | null) => void; closed: boolean }> = [];
     const handlers: Array<(socket: any) => void> = [], children: any[] = [];
@@ -542,7 +542,7 @@ describe("actual generated observer state machine", () => {
     const fds = new Map<number, string>(); let nextFd = 50, runtimeInode = 4n;
     const symbolicLinks = new Set<string>(), directoryInodes = new Map<string, bigint>();
     const processExecutables = new Map<string, { path: string; dev: bigint; ino: bigint }>();
-    const directories = new Set(["/tmp", "/workspace", "/workspace/.paperclip-runtime", "/workspace/.paperclip-runtime/paperclip-runner", "/workspace/.paperclip-runtime/paperclip-runner/sessions"]);
+    const directories = new Set(["/tmp", "/workspace", "/workspace/.nexus-runtime", "/workspace/.nexus-runtime/nexus-runner", "/workspace/.nexus-runtime/nexus-runner/sessions"]);
     if (!deferStartup) directories.add(config.root);
     const listeners = new Map<string, (socket: any) => void>();
     const fs = {
@@ -565,11 +565,11 @@ describe("actual generated observer state machine", () => {
       lstatSync(path: string) {
         const directory = directories.has(path);
         if (!directory && !files.has(path) && !symbolicLinks.has(path)) return missing();
-        return { dev: 1n, ino: directoryInodes.get(path) ?? (path === config.root ? 2n : path === "/workspace/.paperclip-runtime/paperclip-runner" ? runtimeInode : 3n), mtimeNs: 4n, ctimeNs: 5n, isDirectory: () => directory, isFile: () => !directory, isSymbolicLink: () => symbolicLinks.has(path), size: files.get(path)?.length ?? 0 };
+        return { dev: 1n, ino: directoryInodes.get(path) ?? (path === config.root ? 2n : path === "/workspace/.nexus-runtime/nexus-runner" ? runtimeInode : 3n), mtimeNs: 4n, ctimeNs: 5n, isDirectory: () => directory, isFile: () => !directory, isSymbolicLink: () => symbolicLinks.has(path), size: files.get(path)?.length ?? 0 };
       },
       realpathSync: (path: string) => processExecutables.get(path)?.path ?? (/^\/proc\/\d+\/exe$/u.test(path) ? proc.get(Number(path.split("/")[2]))?.argv[0] : path),
       statSync(path: string) { const identity = processExecutables.get(path); if (!identity) return missing(); return identity; },
-      readdirSync(path: string) { if (path === "/proc") return [...proc.keys()].map(String); if (path.startsWith("/workspace/.paperclip-runtime/paperclip-runner")) throw new Error("excluded runtime must not be traversed"); return [...new Set([...files.keys(), ...directories, ...symbolicLinks].filter(p => p.startsWith(path + "/") && !p.slice(path.length + 1).includes("/")).map(p => p.slice(path.length + 1)))]; },
+      readdirSync(path: string) { if (path === "/proc") return [...proc.keys()].map(String); if (path.startsWith("/workspace/.nexus-runtime/nexus-runner")) throw new Error("excluded runtime must not be traversed"); return [...new Set([...files.keys(), ...directories, ...symbolicLinks].filter(p => p.startsWith(path + "/") && !p.slice(path.length + 1).includes("/")).map(p => p.slice(path.length + 1)))]; },
       watch(path: string, options: unknown, callback?: (_kind: string, name: string | null) => void) {
         const entry = { path, callback: (callback ?? options) as (_kind: string, name: string | null) => void, closed: false }; watches.push(entry);
         return Object.assign(new EventEmitter(), { close: () => { entry.closed = true; } });
@@ -758,9 +758,9 @@ describe("actual generated observer state machine", () => {
       const lease = { id: binding.leaseId, companyId: binding.companyId, environmentId: binding.environmentId, heartbeatRunId: binding.runId,
         provider: 'daytona', providerLeaseId: binding.sandboxId, status: 'active', releasedAt: null,
         metadata: { sandboxId: binding.sandboxId, image: binding.image, reuseLease: false, remoteCwd: binding.remoteCwd,
-          workspaceSentinel: { path: binding.remoteCwd+'/.paperclip-runtime/reusable-sandbox-lease.json', token: 'fixture-sentinel-token', result: 'written', runId: binding.runId, providerLeaseId: binding.sandboxId } } };
+          workspaceSentinel: { path: binding.remoteCwd+'/.nexus-runtime/reusable-sandbox-lease.json', token: 'fixture-sentinel-token', result: 'written', runId: binding.runId, providerLeaseId: binding.sandboxId } } };
       let programs;
-      const sandbox = { id: binding.sandboxId, labels: { 'paperclip-provider':'daytona','paperclip-company-id':binding.companyId,'paperclip-environment-id':binding.environmentId,'paperclip-run-id':binding.runId,'paperclip-reuse-lease':'false' },
+      const sandbox = { id: binding.sandboxId, labels: { 'nexus-provider':'daytona','nexus-company-id':binding.companyId,'nexus-environment-id':binding.environmentId,'nexus-run-id':binding.runId,'nexus-reuse-lease':'false' },
         process: { async executeCommand(command) {
           const encoded = command.slice(command.lastIndexOf(" '")+2,-1), request = JSON.parse(Buffer.from(encoded,'base64'));
           if(request.op==='runtime-ready') return {exitCode:0,result:JSON.stringify({ok:true,result:ready})};
@@ -796,7 +796,7 @@ describe("actual generated observer state machine", () => {
     expect(changed.spawn).not.toHaveBeenCalled(); expect(o.fs.mkdirSync).not.toHaveBeenCalled();
   });
   it.each(["absent", "foreign-run", "foreign-group", "ambiguous", "wrong-binary", "symlink", "disappeared"])("checks generated runtime readiness: %s", async variant => {
-    const o = await observerHarness(true), runtimePath = "/workspace/.paperclip-runtime/paperclip-runner";
+    const o = await observerHarness(true), runtimePath = "/workspace/.nexus-runtime/nexus-runner";
     if (variant === "absent") o.directories.delete(runtimePath);
     if (variant === "foreign-run") o.proc.get(21)!.argv[2] = "foreign";
     if (variant === "foreign-group") o.proc.get(21)!.group = 99;
@@ -889,7 +889,7 @@ describe("actual generated observer state machine", () => {
   it.each(["valid", "wrong-inode", "foreign-executable", "ambiguous", "wrong-arguments"])("dispatches generated provider death only for verified descriptor ownership: %s", async variant => {
     const o = await observerHarness();
     o.request("snapshot"); o.request("publish", { path: "action.txt", text: "do task" });
-    const executable = "/tmp/paperclip-acpx-native-owned/distribution/copilot";
+    const executable = "/tmp/nexus-acpx-native-owned/distribution/copilot";
     o.proc.set(22, { ppid: 21, group: 21, ticks: "200", argv: ["/node"] });
     o.proc.set(23, { ppid: 22, group: 21, ticks: "300", argv: ["/proc/self/fd/7", ...copilotDeathArguments] });
     o.processExecutables.set("/proc/23/exe", { path: executable, dev: 1n, ino: 40n });
@@ -900,7 +900,7 @@ describe("actual generated observer state machine", () => {
     if (variant === "ambiguous") o.proc.set(24, { ppid: 22, group: 21, ticks: "400", argv: [executable, ...copilotDeathArguments] });
     const replies = o.request("provider-death");
     if (variant === "valid") {
-      expect(replies[0]).toMatchObject({ ok: true, result: { schema: "paperclip.e2e.copilot-owned-provider-death.v1", signal: "SIGKILL", child: { pid: 23 } } });
+      expect(replies[0]).toMatchObject({ ok: true, result: { schema: "nexus.e2e.copilot-owned-provider-death.v1", signal: "SIGKILL", child: { pid: 23 } } });
       expect(o.context.process.kill).toHaveBeenCalledExactlyOnceWith(23, "SIGKILL");
       expect(o.request("provider-death")[0].ok).toBe(false);
     } else { expect(replies[0].ok).toBe(false); expect(o.context.process.kill).not.toHaveBeenCalled(); }
@@ -964,18 +964,18 @@ describe("actual generated observer state machine", () => {
   });
   it("scopes actual runtime symlinks/state churn out while retaining sentinel and sibling coverage", async () => {
     const o = await observerHarness();
-    o.symbolicLinks.add("/workspace/.paperclip-runtime/paperclip-runner/provider-pack");
-    o.files.set("/workspace/.paperclip-runtime/paperclip-runner/bin/paperclip-runnerd", Buffer.alloc(100000));
-    o.fs.writeFileSync("/workspace/.paperclip-runtime/paperclip-runner/sessions/state.json", "runtime churn", { flag: "wx" });
+    o.symbolicLinks.add("/workspace/.nexus-runtime/nexus-runner/provider-pack");
+    o.files.set("/workspace/.nexus-runtime/nexus-runner/bin/nexus-runnerd", Buffer.alloc(100000));
+    o.fs.writeFileSync("/workspace/.nexus-runtime/nexus-runner/sessions/state.json", "runtime churn", { flag: "wx" });
     const before = o.request("snapshot")[0].result;
     expect(before.complete).toBe(true); expect(before.watcher.workspaceMutationCount).toBe(0);
-    expect(Object.keys(before.workspace)).toContain(".paperclip-runtime/reusable-sandbox-lease.json");
-    expect(Object.keys(before.workspace).some(p => p.startsWith(".paperclip-runtime/paperclip-runner"))).toBe(false);
+    expect(Object.keys(before.workspace)).toContain(".nexus-runtime/reusable-sandbox-lease.json");
+    expect(Object.keys(before.workspace).some(p => p.startsWith(".nexus-runtime/nexus-runner"))).toBe(false);
     expect(before.scope.excludedRuntime.ino).toBe("4"); expect(before.scope.observedPrpEnvironmentLeaseId).toBe("workspace-id");
     expect(before.scope.prpEnvironmentLeaseIdVerified).toBe(false);
-    o.fs.writeFileSync("/workspace/.paperclip-runtime/user-file", "not runtime internal", { flag: "wx" });
+    o.fs.writeFileSync("/workspace/.nexus-runtime/user-file", "not runtime internal", { flag: "wx" });
     const after = o.request("snapshot")[0].result;
-    expect(after.watcher.workspaceMutationCount).toBe(1); expect(after.workspace[".paperclip-runtime/user-file"]).toBe(hash("not runtime internal"));
+    expect(after.watcher.workspaceMutationCount).toBe(1); expect(after.workspace[".nexus-runtime/user-file"]).toBe(hash("not runtime internal"));
   });
   it("rejects runtime root replacement, foreign workspace symlinks and sentinel tampering", async () => {
     const replaced = await observerHarness(); replaced.replaceRuntimeRoot(); expect(replaced.request("snapshot")[0].ok).toBe(false);
@@ -1008,7 +1008,7 @@ describe("actual generated observer state machine", () => {
 
 function piFaultReceipt() {
   const parent = { pid: 22, ppid: 21, startTicks: "101", bootId }, target = { pid: 23, ppid: 22, startTicks: "102", bootId };
-  return { schema: "paperclip.e2e.pi-provider-death.v1", binding, runtimeEnvironmentLeaseId: "workspace-id", target, ancestry: [target, parent, root],
+  return { schema: "nexus.e2e.pi-provider-death.v1", binding, runtimeEnvironmentLeaseId: "workspace-id", target, ancestry: [target, parent, root],
     nodeSha256: hash("node"), entrypointSha256: hash("entry"), closureSha256: PI_DISTRIBUTION_CLOSURE_SHA256["linux-x64"],
     entrypointAttribution: "pinned_wrapper_parent", originalChildArgvAvailable: false, observedChildTitle: "pi", signalled: true, signal: "SIGKILL", targetKind: "pi_native_child", workerSignalled: false };
 }
@@ -1082,7 +1082,7 @@ describe("exact Kimi-child fault capability", () => {
     const calls = h.calls.filter(call => call.request.op === "kimi-provider-death");
     expect(calls).toHaveLength(1);
     expect(calls[0]!.request.contract).toEqual(kimiFaultRuntimeContract("linux-x64"));
-    expect(calls[0]!.request.bootstrapTemplate).toContain("/__paperclip_kimi_fault_snapshot__/distribution");
+    expect(calls[0]!.request.bootstrapTemplate).toContain("/__nexus_kimi_fault_snapshot__/distribution");
     expect(calls[0]!.request.guardTemplate).toContain("const digests={};");
     expect(h.calls.some(call => call.request.op === "inject-loss")).toBe(false);
     await fixture.close();
@@ -1091,7 +1091,7 @@ describe("exact Kimi-child fault capability", () => {
     const h = harness(), fixture = await bindRemoteNativeFixture(h.options);
     await fixture.publishAction("action.txt", "Use the native read tool");
     const parent = { pid: 22, ppid: 21, startTicks: "101", bootId }, target = { pid: 23, ppid: 22, startTicks: "102", bootId };
-    const receipt = { schema: "paperclip.e2e.kimi-provider-death.v1", binding, runtimeEnvironmentLeaseId: "workspace-id", target, ancestry: [target, parent, root],
+    const receipt = { schema: "nexus.e2e.kimi-provider-death.v1", binding, runtimeEnvironmentLeaseId: "workspace-id", target, ancestry: [target, parent, root],
       ...kimiFaultRuntimeContract("linux-x64"), entrypointSha256: hash("entry"), guardSha256: hash("guard"), bootstrapSha256: hash("bootstrap"),
       entrypointAttribution: "pinned_native_bootstrap_parent", originalChildArgvAvailable: false, observedChildTitle: "kimi-code", signalled: true, signal: "SIGKILL", targetKind: "kimi_native_child", workerSignalled: false };
     h.override(request => request.op === "kimi-provider-death" ? { exitCode: 0, result: JSON.stringify({ ok: true, result: receipt }) } : undefined);

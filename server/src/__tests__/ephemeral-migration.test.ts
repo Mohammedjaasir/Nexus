@@ -10,7 +10,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { S3Client, CreateBucketCommand, DeleteBucketCommand, DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { activityLog, agents, agentFileRoots, agentInstructionWorkingCopies, companies, createDb, closeFileStorageDb, heartbeatRuns, providerTraceRecords } from "@paperclipai/db";
+import { activityLog, agents, agentFileRoots, agentInstructionWorkingCopies, companies, createDb, closeFileStorageDb, heartbeatRuns, providerTraceRecords } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { migrateEphemeralServerData } from "../maintenance/ephemeral-migration-data.js";
 import { agentFileStore } from "../services/agent-file-store.js";
@@ -22,23 +22,23 @@ import { resolveDecisionSigningSecret } from "../services/decision-signing.js";
 
 // Explicit real-dependency qualification. Never contacts off-host storage in
 // the default test path; use a disposable S3-compatible service and PostgreSQL.
-describe.skipIf(!process.env.PAPERCLIP_TEST_S3_ENDPOINT)("existing-volume enrollment with PostgreSQL and S3", () => {
+describe.skipIf(!process.env.NEXUS_TEST_S3_ENDPOINT)("existing-volume enrollment with PostgreSQL and S3", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>, s3: S3Client;
   let home: string, companyId: string, bucket: string;
   beforeAll(async () => {
     database = await startEmbeddedPostgresTestDatabase("ephemeral-migration-"); db = createDb(database.connectionString);
-    s3 = new S3Client({ endpoint: process.env.PAPERCLIP_TEST_S3_ENDPOINT, region: "us-east-1", forcePathStyle: true });
+    s3 = new S3Client({ endpoint: process.env.NEXUS_TEST_S3_ENDPOINT, region: "us-east-1", forcePathStyle: true });
   }, 90_000);
   beforeEach(async () => {
     companyId = randomUUID(); bucket = `enrollment-${randomUUID()}`;
     home = await fs.mkdtemp(path.join(os.tmpdir(), "ephemeral-migration-"));
     await s3.send(new CreateBucketCommand({ Bucket: bucket }));
-    vi.stubEnv("PAPERCLIP_HOME", home); vi.stubEnv("PAPERCLIP_DURABLE_AGENT_FILES", "true");
-    vi.stubEnv("PAPERCLIP_EPHEMERAL_SERVER", "false"); vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "s3");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_BUCKET", bucket); vi.stubEnv("PAPERCLIP_STORAGE_S3_REGION", "us-east-1");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_ENDPOINT", process.env.PAPERCLIP_TEST_S3_ENDPOINT!);
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE", "true");
+    vi.stubEnv("NEXUS_HOME", home); vi.stubEnv("NEXUS_DURABLE_AGENT_FILES", "true");
+    vi.stubEnv("NEXUS_EPHEMERAL_SERVER", "false"); vi.stubEnv("NEXUS_STORAGE_PROVIDER", "s3");
+    vi.stubEnv("NEXUS_STORAGE_S3_BUCKET", bucket); vi.stubEnv("NEXUS_STORAGE_S3_REGION", "us-east-1");
+    vi.stubEnv("NEXUS_STORAGE_S3_ENDPOINT", process.env.NEXUS_TEST_S3_ENDPOINT!);
+    vi.stubEnv("NEXUS_STORAGE_S3_FORCE_PATH_STYLE", "true");
     await db.insert(companies).values({ id: companyId, name: "Enrollment fixture", issuePrefix: "MIG" });
   });
   afterEach(async () => {
@@ -75,8 +75,8 @@ describe.skipIf(!process.env.PAPERCLIP_TEST_S3_ENDPOINT)("existing-volume enroll
     await materializeInstructionBytes(rows[0]!.root, "empty.txt", Buffer.alloc(0));
     expect(await migrate()).toMatchObject({ eligibility: { eligible: true }, counts: { agentFiles: 26, verifiedAgentObjects: 28 } });
     await fs.rm(home, { recursive: true, force: true });
-    home = await fs.mkdtemp(path.join(os.tmpdir(), "ephemeral-successor-")); vi.stubEnv("PAPERCLIP_HOME", home);
-    vi.stubEnv("PAPERCLIP_EPHEMERAL_SERVER", "true"); vi.stubEnv("PAPERCLIP_DURABLE_AGENT_FILES", "false");
+    home = await fs.mkdtemp(path.join(os.tmpdir(), "ephemeral-successor-")); vi.stubEnv("NEXUS_HOME", home);
+    vi.stubEnv("NEXUS_EPHEMERAL_SERVER", "true"); vi.stubEnv("NEXUS_DURABLE_AGENT_FILES", "false");
     // The service's normal board actor uses instance-operator authority.
     const actor = { type: "board" as const, source: "local_implicit" as const, userId: "local-board" };
     const store = agentFileStore(db);
@@ -93,7 +93,7 @@ describe.skipIf(!process.env.PAPERCLIP_TEST_S3_ENDPOINT)("existing-volume enroll
   const entry = fileURLToPath(new URL("../../dist-runtime/ephemeral-migration.mjs", import.meta.url));
   it.skipIf(!existsSync(entry))("runs the actual bundled maintenance entry with plain Node and exits cleanly", async () => {
     await agent();
-    vi.stubEnv("PAPERCLIP_DECISION_SIGNING_SECRET", "");
+    vi.stubEnv("NEXUS_DECISION_SIGNING_SECRET", "");
     const original = resolveDecisionSigningSecret();
     const listener = createServer();
     await new Promise<void>(resolve => listener.listen(0, "127.0.0.1", resolve));
@@ -103,9 +103,9 @@ describe.skipIf(!process.env.PAPERCLIP_TEST_S3_ENDPOINT)("existing-volume enroll
     const id = randomUUID(), token = randomBytes(32).toString("base64url");
     const stamp = JSON.parse(await fs.readFile(new URL("../../dist/build-info.json", import.meta.url), "utf8"));
     const child = spawn(process.execPath, [entry], { env: { ...process.env, DATABASE_URL: database.connectionString,
-      PAPERCLIP_DATABASE_LISTEN_URL: database.connectionString, PAPERCLIP_SECRETS_MASTER_KEY: randomBytes(32).toString("hex"),
-      PAPERCLIP_SHARED_UI_ASSETS: "true", PAPERCLIP_EPHEMERAL_MIGRATION: "true", PAPERCLIP_EPHEMERAL_MIGRATION_ID: id,
-      PAPERCLIP_EPHEMERAL_MIGRATION_TOKEN: token, PORT: String(address.port) }, stdio: ["ignore", "pipe", "pipe"] });
+      NEXUS_DATABASE_LISTEN_URL: database.connectionString, NEXUS_SECRETS_MASTER_KEY: randomBytes(32).toString("hex"),
+      NEXUS_SHARED_UI_ASSETS: "true", NEXUS_EPHEMERAL_MIGRATION: "true", NEXUS_EPHEMERAL_MIGRATION_ID: id,
+      NEXUS_EPHEMERAL_MIGRATION_TOKEN: token, PORT: String(address.port) }, stdio: ["ignore", "pipe", "pipe"] });
     let diagnostic = "";
     child.stderr.on("data", chunk => { diagnostic = (diagnostic + String(chunk)).slice(-8_192); });
     child.stdout.resume();
@@ -182,9 +182,9 @@ describe.skipIf(!process.env.PAPERCLIP_TEST_S3_ENDPOINT)("existing-volume enroll
     await db.insert(agentInstructionWorkingCopies).values({ runId: run!.id, companyId, agentId: row.id,
       responsibleUserId: "fixture", entryFile: "AGENTS.md", baseHash: "fixture", localRoot: path.join(home, "rejected-copy"),
       executionRoot: path.join(home, "rejected-copy"), location: "local", state: "unavailable",
-      errorCode: "AGENT_FILES_LIMIT_EXCEEDED", receipt: { schema: "paperclip.agent-files.v1", cleanupPending: true } });
+      errorCode: "AGENT_FILES_LIMIT_EXCEEDED", receipt: { schema: "nexus.agent-files.v1", cleanupPending: true } });
     await expect(migrate()).rejects.toThrow("local_instruction_copies_require_settlement");
-    await db.update(agentInstructionWorkingCopies).set({ receipt: { schema: "paperclip.agent-files.v1", cleanupPending: false } })
+    await db.update(agentInstructionWorkingCopies).set({ receipt: { schema: "nexus.agent-files.v1", cleanupPending: false } })
       .where(eq(agentInstructionWorkingCopies.runId, run!.id));
     await expect(migrate()).rejects.toThrow("local_instruction_copies_require_settlement");
     await db.update(agentInstructionWorkingCopies).set({ processStoppedAt: new Date() })

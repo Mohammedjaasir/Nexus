@@ -22,7 +22,7 @@ vi.mock("node:child_process", async importOriginal => {
 });
 
 it.each([14_000, 16_000])("separates transfer and probe budgets (probe duration %s)", async probeDurationMs => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-git-probe-budget-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "nexus-git-probe-budget-"));
   const git = async (cwd: string, args: string[]) => (await runLocalGit(cwd, args)).stdout.trim();
   const realNow = Date.now.bind(Date);
   try {
@@ -38,7 +38,7 @@ it.each([14_000, 16_000])("separates transfer and probe budgets (probe duration 
     const head = await git(source, ["rev-parse", "HEAD"]);
     await git(root, ["clone", "--depth=1", `file://${source}`, remote]);
     const bundlePath = path.join(root, "work.bundle"), shallowPath = path.join(remote, ".git", "shallow");
-    const exportRef = `refs/paperclip/export/${randomUUID()}`, importedRef = `refs/paperclip/import/${randomUUID()}`;
+    const exportRef = `refs/nexus/export/${randomUUID()}`, importedRef = `refs/nexus/import/${randomUUID()}`;
     await git(remote, ["update-ref", exportRef, head]);
     await git(remote, ["bundle", "create", bundlePath, exportRef]);
     vi.spyOn(Date, "now").mockImplementation(() => realNow() + timing.elapsedProbeMs);

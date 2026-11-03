@@ -9,22 +9,22 @@ import {
   resolveDefaultSecretsKeyFilePath as resolveSharedDefaultSecretsKeyFilePath,
   resolveDefaultStorageDir as resolveSharedDefaultStorageDir,
   resolveHomeAwarePath,
-  resolvePaperclipConfigPathForInstance,
-  resolvePaperclipHomeDir,
-  resolvePaperclipInstanceId,
-  resolvePaperclipInstanceRoot,
-} from "@paperclipai/shared/home-paths";
+  resolveNexusConfigPathForInstance,
+  resolveNexusHomeDir,
+  resolveNexusInstanceId,
+  resolveNexusInstanceRoot,
+} from "@nexusai/shared/home-paths";
 
 export {
   expandHomePrefix,
   resolveHomeAwarePath,
-  resolvePaperclipHomeDir,
-  resolvePaperclipInstanceId,
-  resolvePaperclipInstanceRoot,
+  resolveNexusHomeDir,
+  resolveNexusInstanceId,
+  resolveNexusInstanceRoot,
 };
 
 export function resolveDefaultConfigPath(): string {
-  return resolvePaperclipConfigPathForInstance();
+  return resolveNexusConfigPathForInstance();
 }
 
 export function resolveDefaultEmbeddedPostgresDir(): string {
@@ -52,7 +52,7 @@ export function resolveDefaultAgentWorkspaceDir(agentId: string): string {
   if (!PATH_SEGMENT_RE.test(trimmed)) {
     throw new Error(`Invalid agent id for workspace path '${agentId}'.`);
   }
-  return path.resolve(resolvePaperclipInstanceRoot(), "workspaces", trimmed);
+  return path.resolve(resolveNexusInstanceRoot(), "workspaces", trimmed);
 }
 
 function sanitizeFriendlyPathSegment(value: string | null | undefined, fallback = "_default"): string {
@@ -85,7 +85,7 @@ export function resolveManagedProjectWorkspaceDir(input: {
     throw new Error("Managed project workspace path requires companyId and projectId.");
   }
   return path.resolve(
-    resolvePaperclipInstanceRoot(),
+    resolveNexusInstanceRoot(),
     "projects",
     sanitizeFriendlyPathSegment(companyId, "company"),
     sanitizeFriendlyPathSegment(projectId, "project"),

@@ -1,5 +1,5 @@
 import { and, eq, getTableColumns, inArray } from "drizzle-orm";
-import { agents, caseHandoffs, issues, workflows, type Db } from "@paperclipai/db";
+import { agents, caseHandoffs, issues, workflows, type Db } from "@nexusai/db";
 import { authorizationService, issueReadSqlCondition, type AuthorizationActor } from "./authorization.js";
 
 type CaseSummaryDb = Db | Parameters<Parameters<Db["transaction"]>[0]>[0];

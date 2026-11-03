@@ -12,7 +12,7 @@ function fail(): never { throw new Error("invalid_onboarding_artifact_evidence")
 export function validateOnboardingArtifact(value: unknown): asserts value is OnboardingArtifactEvidence {
   if (!exactKeys(value, ["schema", "id", "originatingRunId", "filename", "byteSize", "sha256", "contentBase64", "input", "expected"])) fail();
   const receipt = value as unknown as OnboardingArtifactEvidence;
-  if (receipt.schema !== "paperclip.product-journey.artifact/v1" || receipt.filename !== "connection-proof.json" ||
+  if (receipt.schema !== "nexus.product-journey.artifact/v1" || receipt.filename !== "connection-proof.json" ||
     ![receipt.id, receipt.originatingRunId].every(id => typeof id === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(id)) ||
     !Number.isSafeInteger(receipt.byteSize) || receipt.byteSize < 1 || receipt.byteSize > maxBytes ||
     typeof receipt.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(receipt.sha256) ||
@@ -48,7 +48,7 @@ export function retainOnboardingArtifact(input: {
   id: string; originatingRunId: string; bytes: Buffer; proof: ReturnType<typeof createConnectionProof>;
 }): OnboardingArtifactEvidence {
   const receipt: OnboardingArtifactEvidence = {
-    schema: "paperclip.product-journey.artifact/v1", id: input.id, originatingRunId: input.originatingRunId,
+    schema: "nexus.product-journey.artifact/v1", id: input.id, originatingRunId: input.originatingRunId,
     filename: "connection-proof.json", byteSize: input.bytes.byteLength, sha256: hash(input.bytes),
     contentBase64: input.bytes.toString("base64"), input: input.proof.input,
     expected: { ...input.proof.expected },

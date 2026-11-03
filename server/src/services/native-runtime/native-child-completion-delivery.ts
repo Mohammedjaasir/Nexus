@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { agentWakeupRequests, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, type Db } from "@nexusai/db";
 
 export interface NativeChildCompletionRecipient {
   companyId: string;
@@ -16,13 +16,13 @@ export async function hasPendingNativeChildCompletion(db: Db, input: NativeChild
     eq(agentWakeupRequests.agentId, input.agentId),
     or(eq(agentWakeupRequests.reason, "issue_children_completed"),
       and(eq(agentWakeupRequests.reason, "issue_execution_deferred"),
-        sql`${agentWakeupRequests.payload}->'_paperclipWakeContext'->>'wakeReason' = 'issue_children_completed'`)),
+        sql`${agentWakeupRequests.payload}->'_nexusWakeContext'->>'wakeReason' = 'issue_children_completed'`)),
     eq(agentWakeupRequests.requestedByActorType, "system"),
     or(eq(agentWakeupRequests.requestedByActorId, "native-status-committer"),
       sql`${agentWakeupRequests.requestedByActorId} like 'native-status-wake-dispatch:%'`),
     inArray(agentWakeupRequests.status, ["queued", "claimed", "deferred_issue_execution"]),
     sql`${agentWakeupRequests.payload}->>'issueId' = ${input.issueId}`,
-    sql`nullif(${agentWakeupRequests.payload}->'_paperclipWakeContext'->>'nativeChildCompletionDecisionId', '') is not null`,
+    sql`nullif(${agentWakeupRequests.payload}->'_nexusWakeContext'->>'nativeChildCompletionDecisionId', '') is not null`,
     or(isNull(agentWakeupRequests.runId), ne(agentWakeupRequests.runId, input.runId)),
     input.sourceIntentId ? ne(agentWakeupRequests.id, input.sourceIntentId) : undefined,
   )).limit(1);

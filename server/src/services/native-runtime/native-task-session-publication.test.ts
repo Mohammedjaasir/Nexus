@@ -4,19 +4,19 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { agents, agentTaskSessions, companies, completionContracts, createDb, heartbeatRuns, issues,
-  nativeRunFinalizations, nativeRunResults, type Db } from "@paperclipai/db";
+  nativeRunFinalizations, nativeRunResults, type Db } from "@nexusai/db";
 import { CONTROL_PLANE_CONFORMANCE_OPEN, CONTROL_PLANE_CONFORMANCE_RESULT,
-  CONTROL_PLANE_CONFORMANCE_TERMINAL } from "../../vendor/paperclip-runner/testing.js";
-import type { PersistedNativeSession } from "../../vendor/paperclip-runner/index.js";
+  CONTROL_PLANE_CONFORMANCE_TERMINAL } from "../../vendor/nexus-runner/testing.js";
+import type { PersistedNativeSession } from "../../vendor/nexus-runner/index.js";
 import { resolveExternalTestDatabaseUrl } from "../../__tests__/helpers/external-test-database.js";
 import { startRecoveryPostgres } from "../../__tests__/helpers/recovery-postgres.js";
 import { redactRegisteredSecretValues } from "../run-secret-redaction.js";
 import { nativeSha256 } from "./canonical.js";
-import { PaperclipControlPlanePort, type PaperclipControlPlaneBinding } from "./paperclip-control-plane-port.js";
+import { NexusControlPlanePort, type NexusControlPlaneBinding } from "./nexus-control-plane-port.js";
 import { nativeTaskSessionPublicationHandled, publishNativeTaskSessionInTransaction, NATIVE_TASK_SESSION_PUBLICATION_KEY,
   type NativeTaskSessionPublicationContext } from "./native-task-session-publication.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_NATIVE_PUBLICATION_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_NATIVE_PUBLICATION_TEST_DATABASE_URL");
 describe("accepted native task session publication", () => {
   let temporary: Awaited<ReturnType<typeof startRecoveryPostgres>> | null = null;
   let db: Db;
@@ -28,7 +28,7 @@ describe("accepted native task session publication", () => {
     const url = external ?? temporary!.connectionString;
     db = createDb(url, { maxConnections: 2 });
     // Test-only wire observer. Production still uses the existing Db/pools.
-    const postgres = createRequire(import.meta.resolve("@paperclipai/db"))("postgres") as
+    const postgres = createRequire(import.meta.resolve("@nexusai/db"))("postgres") as
       (url: string, options: object) => Db["$client"];
     client = postgres(url, { max: 1, prepare: false, connection: { application_name: "native-publication-observer" },
       debug: (_id: number, query: string) => { statements.push(query); } });
@@ -47,7 +47,7 @@ describe("accepted native task session publication", () => {
     await db.insert(agents).values({ id: agentId, companyId, name: "Native pointer", adapterType: "codex_local", status: "running" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Native pointer", status: "in_progress", assigneeAgentId: agentId });
     await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1", policyVersion: "standalone-v1", risk: "standard",
+      schemaVersion: "nexus.completion-contract.v1", policyVersion: "standalone-v1", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "standalone-v1", objective: "Conformance", criteria: [{ id: "objective", requirement: "Complete" }] },
       canonicalSha256: "publication-contract", createdByActorType: "system", createdByActorId: "test" });
@@ -59,17 +59,17 @@ describe("accepted native task session publication", () => {
     await db.insert(nativeRunFinalizations).values({ runId, companyId, issueId, phase: "observed",
       controllerBootId: owner.bootId, controllerGeneration: owner.generation, leaseOwner: owner.leaseOwner,
       leaseExpiresAt: new Date(Date.now() + 60_000) });
-    const binding: PaperclipControlPlaneBinding = { companyId, agentId, issueId, runId, sessionId,
+    const binding: NexusControlPlaneBinding = { companyId, agentId, issueId, runId, sessionId,
       completionContractId: contractId, completionContractSha256: "publication-contract", sourceInstanceId: runner,
       controlPlaneSourceInstanceId: control };
     const context: NativeTaskSessionPublicationContext = { taskKey: issueId, adapterType: "codex_local",
-      sessionParamsJson: { cwd: "/working", paperclipSessionConfigFingerprint: "prepared-once", opaque: "private-prepared-param" } };
+      sessionParamsJson: { cwd: "/working", nexusSessionConfigFingerprint: "prepared-once", opaque: "private-prepared-param" } };
     const snapshot: PersistedNativeSession = { backendKind: "mock", sessionId, identity: { companyId, agentId, issueId, runId, sessionId },
       providerSessionId: "provider-thread", activeTurnId: null, pendingRuntimeRequests: [], goal: null,
       semanticResult: CONTROL_PLANE_CONFORMANCE_RESULT, terminal: CONTROL_PLANE_CONFORMANCE_TERMINAL };
-    const port = new PaperclipControlPlanePort(measured, binding, { taskSessionPublication: context, taskSessionPublicationOwner: owner });
+    const port = new NexusControlPlanePort(measured, binding, { taskSessionPublication: context, taskSessionPublicationOwner: owner });
     await port.openRun({ ...CONTROL_PLANE_CONFORMANCE_OPEN, identity: snapshot.identity, sourceInstanceId: runner });
-    if (accepted) await new PaperclipControlPlanePort(db, binding).completeRun({ result: CONTROL_PLANE_CONFORMANCE_RESULT,
+    if (accepted) await new NexusControlPlanePort(db, binding).completeRun({ result: CONTROL_PLANE_CONFORMANCE_RESULT,
       terminal: CONTROL_PLANE_CONFORMANCE_TERMINAL, turnId: "publication-turn" });
     await db.insert(agentTaskSessions).values({ companyId, agentId, adapterType: context.adapterType, taskKey: issueId,
       goalSourceId: `${source === "runner" ? runner : control}:${runId}`, goalSourceCursor: 4 });
@@ -137,7 +137,7 @@ describe("accepted native task session publication", () => {
   it("does not hold the issue parent lock while a result replay waits for the status coordinator", async () => {
     const f = await fixture();
     let committed = 0;
-    const port = new PaperclipControlPlanePort(db, f.binding, { nativeRecovery: { owner: f.owner,
+    const port = new NexusControlPlanePort(db, f.binding, { nativeRecovery: { owner: f.owner,
       compatibility: { configDigest: nativeSha256("config"), processConfigDigest: null } },
       onResultCommitted: async () => { committed++; } });
     await port.openRun({ ...CONTROL_PLANE_CONFORMANCE_OPEN, identity: f.snapshot.identity, sourceInstanceId: f.binding.sourceInstanceId });
@@ -198,14 +198,14 @@ describe("accepted native task session publication", () => {
   it("keeps unsupported task keys and missing remote recovery headers outside handled publication", async () => {
     const f = await fixture();
     const context = { ...f.context, taskKey: "custom-task" };
-    const port = new PaperclipControlPlanePort(measured, f.binding, { taskSessionPublication: context, taskSessionPublicationOwner: f.owner });
+    const port = new NexusControlPlanePort(measured, f.binding, { taskSessionPublication: context, taskSessionPublicationOwner: f.owner });
     await port.openRun({ ...CONTROL_PLANE_CONFORMANCE_OPEN, identity: f.snapshot.identity, sourceInstanceId: f.binding.sourceInstanceId });
     await port.checkpointSession(f.snapshot);
     const { run, session } = await f.read();
     expect(session?.sessionParamsJson).toBeNull();
     expect(nativeTaskSessionPublicationHandled(run.runnerProfileJson, { ...f.binding, ...context })).toBe(false);
     const remote = await fixture();
-    const remotePort = new PaperclipControlPlanePort(measured, remote.binding, { taskSessionPublication: remote.context,
+    const remotePort = new NexusControlPlanePort(measured, remote.binding, { taskSessionPublication: remote.context,
       taskSessionPublicationOwner: remote.owner, nativeRecovery: { owner: remote.owner,
         compatibility: { configDigest: nativeSha256("config"), processConfigDigest: null } } });
     await remotePort.openRun({ ...CONTROL_PLANE_CONFORMANCE_OPEN, identity: remote.snapshot.identity, sourceInstanceId: remote.binding.sourceInstanceId });

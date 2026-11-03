@@ -1,4 +1,4 @@
-import type { PromptInjectionModelOutcome, PromptInjectionDetectorMetadata } from "@paperclipai/shared";
+import type { PromptInjectionModelOutcome, PromptInjectionDetectorMetadata } from "@nexusai/shared";
 import { createCipheriv, createDecipheriv, createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
 import { redactEventPayload, redactSensitiveText, REDACTED_EVENT_VALUE } from "../redaction.js";
 import { deriveLocalEncryptedInstanceSecret, type LocalEncryptedKeyEnv } from "../secrets/local-encrypted-provider.js";
@@ -22,7 +22,7 @@ const PROMPT_INJECTION_PATTERNS: Array<{ code: string; re: RegExp }> = [
 ];
 
 type ToolActionSigningSecretEnv = LocalEncryptedKeyEnv & Partial<
-  Record<"PAPERCLIP_TOOL_ACTION_SIGNING_SECRET" | "PAPERCLIP_AGENT_JWT_SECRET" | "BETTER_AUTH_SECRET", string | undefined>
+  Record<"NEXUS_TOOL_ACTION_SIGNING_SECRET" | "NEXUS_AGENT_JWT_SECRET" | "BETTER_AUTH_SECRET", string | undefined>
 >;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -51,7 +51,7 @@ export class ToolActionSigningSecretMissingError extends Error {
   constructor(cause?: unknown) {
     super(
       "The tool action signing key could not be loaded. Restore this instance's secrets master key " +
-        "or configure PAPERCLIP_TOOL_ACTION_SIGNING_SECRET; existing approvals require their original key.",
+        "or configure NEXUS_TOOL_ACTION_SIGNING_SECRET; existing approvals require their original key.",
       { cause },
     );
     this.name = "ToolActionSigningSecretMissingError";
@@ -64,7 +64,7 @@ export class ToolActionSigningSecretMissingError extends Error {
 export const TOOL_ACTION_REQUEST_SIGNING_GRACE_MS = 2 * 60 * 1000;
 
 export function resolveToolActionSigningSecret(env: ToolActionSigningSecretEnv = process.env as ToolActionSigningSecretEnv) {
-  const secret = env.PAPERCLIP_TOOL_ACTION_SIGNING_SECRET?.trim();
+  const secret = env.NEXUS_TOOL_ACTION_SIGNING_SECRET?.trim();
   if (secret) return secret;
   try {
     // Existing deployments already persist this master key with their instance
@@ -96,12 +96,12 @@ export function toolRequestIdentityHash(value: unknown, explicitSigningSecret?: 
   // cannot be used to guess low-entropy passwords or configuration secrets.
   return containsSensitiveToolArguments(canonical)
     ? createHmac("sha256", signingSecret(explicitSigningSecret))
-      .update("paperclip:tool-request-identity:v1\0").update(canonical).digest("hex")
+      .update("nexus:tool-request-identity:v1\0").update(canonical).digest("hex")
     : createHash("sha256").update(canonical).digest("hex");
 }
 
 type SignedToolArgumentsEnvelope = { payload: string; signature: string };
-const TOOL_ARGUMENTS_ENCRYPTION_CONTEXT = "paperclip:tool-action-arguments:v2:A256GCM";
+const TOOL_ARGUMENTS_ENCRYPTION_CONTEXT = "nexus:tool-action-arguments:v2:A256GCM";
 
 function toolArgumentsEncryptionKey(secret: string) {
   // Separate the encryption key from the existing HS256 signing key. The

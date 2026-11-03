@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { companies, heartbeatRuns, issues, type Db } from "@paperclipai/db";
+import { companies, heartbeatRuns, issues, type Db } from "@nexusai/db";
 import type { SentryRunLinkResolver } from "../sentry-links.js";
 
 /** Two indexed, company-bound metadata reads; no prompt, output, or credentials. */

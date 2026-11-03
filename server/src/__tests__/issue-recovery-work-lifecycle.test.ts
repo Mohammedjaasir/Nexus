@@ -1,6 +1,6 @@
 import { PgDialect } from "drizzle-orm/pg-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { issueRecoveryActions, issueWatchdogs } from "@paperclipai/db";
+import { issueRecoveryActions, issueWatchdogs } from "@nexusai/db";
 import { installDatabaseWorkSignals } from "../../../packages/db/src/work-signals.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { notifyIssueRecovery } from "../services/issue-recovery-notifications.js";

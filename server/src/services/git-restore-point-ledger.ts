@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
-import { executionWorkspaceRestorePoints, type Db } from "@paperclipai/db";
+import { executionWorkspaceRestorePoints, type Db } from "@nexusai/db";
 import type { StorageService } from "../storage/types.js";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";

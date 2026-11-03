@@ -123,7 +123,7 @@ function parseStdoutLine(line, ts) {
   const trimmed = stripAnsi(line).trim();
   if (!trimmed) return [];
 
-  if (trimmed.startsWith("[hermes]") || trimmed.startsWith("[paperclip]")) {
+  if (trimmed.startsWith("[hermes]") || trimmed.startsWith("[nexus]")) {
     return [{ kind: "system", ts, text: trimmed }];
   }
 

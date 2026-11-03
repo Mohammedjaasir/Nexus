@@ -1,4 +1,4 @@
-import type { IssueRelationIssueSummary } from "@paperclipai/shared";
+import type { IssueRelationIssueSummary } from "@nexusai/shared";
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
@@ -114,7 +114,7 @@ const meta = {
   title: "Getting started and access/Login, invitations, and access/Private tasks/04 References and blockers",
   decorators: [privacyDecorator],
   parameters: { ...privacyParameters, docs: { description: { component: "Task references, parent navigation and blockers redact unreadable task content. Inspect all existing reference variants and mobile." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "access/resources",
         "tasks/properties"

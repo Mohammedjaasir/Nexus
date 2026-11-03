@@ -4,8 +4,8 @@ import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
-import { SemanticToolOutcomeUnknownError } from "../../vendor/paperclip-runner/index.js";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
+import { SemanticToolOutcomeUnknownError } from "../../vendor/nexus-runner/index.js";
 import { createArtifactInstaller } from "./artifact-transfer.js";
 
 type Runner = Pick<CommandManagedRuntimeRunner, "execute">;
@@ -40,7 +40,7 @@ describe.skipIf(process.platform !== "linux")("artifact filesystem installation"
     }
   });
 
-  it.each(["../escape", "/tmp/escape", "a/../escape", "a//escape", "a\\escape", ".paperclip/state", ".git/config", ".paperclip-artifact-owned"])("rejects destination %s before dispatch", async destination => {
+  it.each(["../escape", "/tmp/escape", "a/../escape", "a//escape", "a\\escape", ".nexus/state", ".git/config", ".nexus-artifact-owned"])("rejects destination %s before dispatch", async destination => {
     const runner = { execute: vi.fn(execute) };
     await expect(createArtifactInstaller(root, runner)({ ...request(), destination })).rejects.toThrow("path_denied");
     expect(runner.execute).not.toHaveBeenCalled();

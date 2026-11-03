@@ -3,7 +3,7 @@ import { constants } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { PROJECT_REPOSITORIES_DIR } from "@paperclipai/adapter-utils/git-workspace-sync";
+import { PROJECT_REPOSITORIES_DIR } from "@nexusai/adapter-utils/git-workspace-sync";
 import { localEncryptedProvider } from "../secrets/local-encrypted-provider.js";
 import type { StoredSecretVersionMaterial } from "../secrets/types.js";
 import type { GitRemoteAuthProvider } from "./git-credentials.js";
@@ -29,7 +29,7 @@ export type ManagedCheckoutContents = {
   restorePoint?: GitRestorePointRef;
 };
 export type GitWorkspaceContents = {
-  schema: "paperclip.git-workspace-contents.v1";
+  schema: "nexus.git-workspace-contents.v1";
   settings: Settings;
   checkouts: Array<ManagedCheckoutContents & { settings: Settings }>;
 };
@@ -99,7 +99,7 @@ export function validateGitWorkspaceContents(contents: GitWorkspaceContents | un
   if (contents === undefined) return;
   const settingsValid = (settings: Settings) => settings === null || !!settings && typeof settings.material === "object"
     && settings.material !== null && JSON.stringify(settings.material).length <= SETTINGS_LIMIT * 2;
-  if (!contents || contents.schema !== "paperclip.git-workspace-contents.v1" || !settingsValid(contents.settings)
+  if (!contents || contents.schema !== "nexus.git-workspace-contents.v1" || !settingsValid(contents.settings)
     || !Array.isArray(contents.checkouts) || contents.checkouts.length > CHECKOUT_LIMIT) throw new GitCacheRestorationFailure();
   const names = new Set<string>();
   for (const checkout of contents.checkouts) {
@@ -141,7 +141,7 @@ export async function readManagedCheckoutContents(checkout: string, name: string
 
 export async function captureGitWorkspaceContents(cwd: string, identity: Identity, checkouts: ManagedCheckoutContents[]): Promise<GitWorkspaceContents> {
   if (checkouts.length > CHECKOUT_LIMIT) throw new Error("managed_checkout_budget");
-  const contents: GitWorkspaceContents = { schema: "paperclip.git-workspace-contents.v1",
+  const contents: GitWorkspaceContents = { schema: "nexus.git-workspace-contents.v1",
     settings: await saveSettings(cwd, identity, CLAUDE_SETTINGS_PATH), checkouts: [] };
   for (const checkout of checkouts.sort((a, b) => a.name.localeCompare(b.name))) {
     const relative = `${PROJECT_REPOSITORIES_DIR}/${checkout.name}`;

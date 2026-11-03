@@ -1,4 +1,4 @@
-import type { IssueCreationSource } from "@paperclipai/shared";
+import type { IssueCreationSource } from "@nexusai/shared";
 import { GitBranch } from "lucide-react";
 import {
   createIssueDetailPath,
@@ -15,7 +15,7 @@ export interface IssueCreatedFromNoteProps {
 }
 
 /**
- * "Created from PAP-168 by Paperclip QA": the task a run was executing when it
+ * "Created from PAP-168 by Nexus QA": the task a run was executing when it
  * created this one. Provenance only; it is not the structural parent and it is
  * not a blocker. Renders nothing when the viewer may not see the source.
  */

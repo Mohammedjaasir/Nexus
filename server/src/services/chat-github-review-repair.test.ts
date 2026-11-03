@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { createDb, getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase, type Db } from "@paperclipai/db";
+import { createDb, getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase, type Db } from "@nexusai/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { githubReviewCheckService } from "./chat-github-checks.js";
 

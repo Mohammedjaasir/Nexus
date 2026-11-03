@@ -2,7 +2,7 @@ import type { TaskChatItem, TaskChatMarkerItem, TaskChatMessageItem } from "./ta
 
 export function isNoLiveExecutionPathNotice(item: TaskChatMessageItem): boolean {
   if (item.author !== "system") return false;
-  const recoveryStatement = /^Paperclip (?:automatically )?retried (?:dispatch|continuation|this issue's run)\b[^\r\n]*\bit still has no live execution path\b/i.test(item.text.trim());
+  const recoveryStatement = /^Nexus (?:automatically )?retried (?:dispatch|continuation|this issue's run)\b[^\r\n]*\bit still has no live execution path\b/i.test(item.text.trim());
   if (item.presentation) {
     if (item.presentation.title?.trim().toLowerCase() === "no live execution path") return true;
     // The stranded-recovery producer can replace the family title with

@@ -9,11 +9,11 @@ const scope: HireScope = { companyId: "company", leadId: "lead", chatId: "chat",
   model: "fixed-model", provider: "opencode", environmentId: "daytona", connectionBinding: { connectionId: "connection" } };
 function fixture() {
   const names = hireDelegateNames(scope.campaignId);
-  const agent = { id: "hire", companyId: scope.companyId, name: names.hire, reportsTo: scope.leadId, adapterType: "paperclip_runner",
+  const agent = { id: "hire", companyId: scope.companyId, name: names.hire, reportsTo: scope.leadId, adapterType: "nexus_runner",
     adapterConfig: { model: scope.model }, runtimeConfig: { aiConnection: scope.connectionBinding } };
   const task = { id: "task", title: names.checklist, identifier: "TEST-1", companyId: scope.companyId, projectId: scope.projectId, status: "done", assigneeAgentId: agent.id };
   const run = (id: string, issueId: string, agentId: string) => ({ id, companyId: scope.companyId, agentId, issueId, status: "succeeded", runtimeMode: "native",
-    contextSnapshot: { issueId, paperclipEnvironment: { id: scope.environmentId } }, runnerProfileJson: { nativeExecutionInput: { provider: { kind: scope.provider, model: scope.model } } } });
+    contextSnapshot: { issueId, nexusEnvironment: { id: scope.environmentId } }, runnerProfileJson: { nativeExecutionInput: { provider: { kind: scope.provider, model: scope.model } } } });
   const leadRun = run("lead-run", scope.chatId, scope.leadId), taskRun = run("task-run", task.id, agent.id);
   const event = (action: string, entityId: string): Row => ({ companyId: scope.companyId, actorType: "agent", actorId: scope.leadId, agentId: scope.leadId, runId: leadRun.id, action, entityId, entityType: action.startsWith("agent.") ? "agent" : "issue",
     details: { assigneeAgentId: agent.id, assigneeUserId: null, status: "todo" } });
@@ -76,7 +76,7 @@ describe("deployment hiring qualification", () => {
   });
   it("uses the production delegated fallback and the actual requesting user's same approved personal default", async () => {
     const binding = { provider: "openrouter", method: "api_key", mode: "delegated", connectionId: "00000000-0000-4000-8000-000000000001", grantId: "00000000-0000-4000-8000-000000000002" };
-    expect(defaultAiConnectionForHire("paperclip_runner", { provider: "opencode", model: "openrouter/deepseek/deepseek-v4.1-flash-1017" }, binding))
+    expect(defaultAiConnectionForHire("nexus_runner", { provider: "opencode", model: "openrouter/deepseek/deepseek-v4.1-flash-1017" }, binding))
       .toEqual({ provider: "openrouter", method: "api_key", mode: "responsible_user" });
     const selected = { id: binding.connectionId, grantId: binding.grantId, companyId: scope.companyId, provider: binding.provider,
       method: binding.method, ownership: "personal", ownerUserId: "user", isDefault: true, status: "connected" };
@@ -96,7 +96,7 @@ describe("deployment hiring qualification", () => {
   it("distinguishes the subscription hire placeholder from the approved resolved native method", async () => {
     const f = fixture(), binding = { provider: "openai", method: "subscription", mode: "delegated",
       connectionId: "00000000-0000-4000-8000-000000000001", grantId: "00000000-0000-4000-8000-000000000002" };
-    const placeholder = defaultAiConnectionForHire("paperclip_runner", { provider: "codex", model: "fixed-model" }, binding);
+    const placeholder = defaultAiConnectionForHire("nexus_runner", { provider: "codex", model: "fixed-model" }, binding);
     expect(placeholder).toEqual({ provider: "openai", method: "api_key", mode: "responsible_user" });
     const selected = { id: binding.connectionId, grantId: binding.grantId, companyId: scope.companyId, provider: binding.provider,
       method: binding.method, ownership: "personal", ownerUserId: "user", isDefault: true, status: "connected" };
@@ -139,7 +139,7 @@ describe("deployment hiring qualification", () => {
   it("binds lead and worker runs to their exact tasks, provider, model and environment", () => {
     const f = fixture(); expect(() => assertHireRuns(scope, f.agent.id, [f.task], [f.leadRun, f.taskRun])).not.toThrow();
     for (const change of [{ companyId: "other" }, { agentId: scope.leadId }, { issueId: "other" }, { status: "failed" },
-      { runtimeMode: "legacy" }, { contextSnapshot: { paperclipEnvironment: { id: "local" } } },
+      { runtimeMode: "legacy" }, { contextSnapshot: { nexusEnvironment: { id: "local" } } },
       { runnerProfileJson: { nativeExecutionInput: { provider: { kind: "opencode", model: "other" } } } }]) {
       expect(() => assertHireRuns(scope, f.agent.id, [f.task], [f.leadRun, { ...f.taskRun, ...change }])).toThrow();
     }

@@ -6,8 +6,8 @@ import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { agents, companies, completionContracts, createDb, environmentLeases, environments, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, nativeRunResults, agentWakeupRequests, plugins } from "@paperclipai/db";
-import type { Environment, EnvironmentLease } from "@paperclipai/shared";
+import { agents, companies, completionContracts, createDb, environmentLeases, environments, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, nativeRunResults, agentWakeupRequests, plugins } from "@nexusai/db";
+import type { Environment, EnvironmentLease } from "@nexusai/shared";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { environmentRuntimeService } from "../environment-runtime.js";
 import type { PluginWorkerManager } from "../plugin-worker-manager.js";
@@ -17,9 +17,9 @@ import { retryNativeWorkspaceExport } from "./native-workspace-export-retry.js";
 import { recordNativeFinalizationFailure } from "./native-run-finalizer.js";
 import { classifyNativeWorkspaceFailure } from "./native-workspace-failure.js";
 
-const enabled = process.env.PAPERCLIP_LIVE_EXPORT_RESUME === "1";
+const enabled = process.env.NEXUS_LIVE_EXPORT_RESUME === "1";
 const describeLive = enabled ? describe : describe.skip;
-const image = process.env.PAPERCLIP_LIVE_EXPORT_RESUME_IMAGE ?? "";
+const image = process.env.NEXUS_LIVE_EXPORT_RESUME_IMAGE ?? "";
 const quote = (s: string) => `'${s.replaceAll("'", "'\\''")}'`;
 
 describeLive("live Daytona export-resume failure recovery", () => {
@@ -100,13 +100,13 @@ describeLive("live Daytona export-resume failure recovery", () => {
     plugin = plugin.definition;
     ({ default: manifest } = await import(new URL("../../../../packages/plugins/sandbox-providers/daytona/dist/manifest.js", import.meta.url).href));
     await db.insert(companies).values({ id: ids.company, name: "Disposable export lifecycle", issuePrefix: "LXR" });
-    await db.insert(agents).values({ id: ids.agent, companyId: ids.company, name: "No provider turn", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: ids.agent, companyId: ids.company, name: "No provider turn", adapterType: "nexus_runner" });
     await db.insert(environments).values({ id: ids.environment, name: `Lifecycle ${nonce}`, driver: "sandbox", config });
     environment = (await db.select().from(environments).where(eq(environments.id, ids.environment)))[0] as unknown as Environment;
-    await db.insert(plugins).values({ id: ids.plugin, pluginKey: manifest.id, packageName: "@paperclipai/plugin-daytona", version: manifest.version,
+    await db.insert(plugins).values({ id: ids.plugin, pluginKey: manifest.id, packageName: "@nexusai/plugin-daytona", version: manifest.version,
       apiVersion: 1, categories: ["automation"], manifestJson: manifest, status: "ready", installOrder: 1 });
     await db.insert(issues).values({ id: ids.issue, companyId: ids.company, title: "Preserved accepted result", status: "blocked", assigneeAgentId: ids.agent });
-    await db.insert(completionContracts).values({ id: ids.contract, companyId: ids.company, issueId: ids.issue, revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "live-test", risk: "standard", completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal", contractJson: { objective: "Preserve saved work" }, canonicalSha256: digest, createdByActorType: "system", createdByActorId: "live-test" });
+    await db.insert(completionContracts).values({ id: ids.contract, companyId: ids.company, issueId: ids.issue, revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "live-test", risk: "standard", completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal", contractJson: { objective: "Preserve saved work" }, canonicalSha256: digest, createdByActorType: "system", createdByActorId: "live-test" });
     await db.insert(heartbeatRuns).values({ id: ids.run, companyId: ids.company, agentId: ids.agent, status: "failed", runtimeMode: "native", nativeIssueId: ids.issue, nativePhase: "terminal_failure", completionContractId: ids.contract });
     await db.insert(nativeRunResults).values({ id: ids.result, companyId: ids.company, issueId: ids.issue, runId: ids.run, completionContractId: ids.contract, serverFingerprint: digest, schemaStatus: "accepted", resultJson: { work: "preserve saved work" }, canonicalSha256: digest });
     await db.insert(nativeRunFinalizations).values({ runId: ids.run, companyId: ids.company, issueId: ids.issue, phase: "terminal_failure", resultId: ids.result, failureCode: "native_workspace_sync_out_retry_exhausted" });
@@ -114,7 +114,7 @@ describeLive("live Daytona export-resume failure recovery", () => {
     let setupPhase = "acquire";
     try {
       const acquired = await plugin.onEnvironmentAcquireLease({ driverKey: "daytona", companyId: ids.company, environmentId: ids.environment,
-        issueId: ids.issue, runId: ids.run, agentId: ids.agent, adapterType: "paperclip_runner", config });
+        issueId: ids.issue, runId: ids.run, agentId: ids.agent, adapterType: "nexus_runner", config });
       setupPhase = "sdk_lookup";
       const require = createRequire(new URL("../../../../packages/plugins/sandbox-providers/daytona/package.json", import.meta.url));
       const { Daytona } = require("@daytonaio/sdk");
@@ -131,7 +131,7 @@ describeLive("live Daytona export-resume failure recovery", () => {
       expect(receipt.state).toBe("stopped");
       await db.update(environmentLeases).set({ status: "released", cleanupStatus: "success", releasedAt: new Date(),
         metadata: { ...metadata, remoteExecutionTermination: remoteTerminationReceipt(lease, receipt) } }).where(eq(environmentLeases.id, ids.lease));
-      await db.update(heartbeatRuns).set({ runnerProfileJson: { nativeWorkspaceSync: { schema: "paperclip.native-workspace-sync/v1", state: "prepared", descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null, workspaceId: randomUUID(), leaseId: ids.lease, providerLeaseId: lease.providerLeaseId, remoteCwd: metadata.remoteCwd, resourceDisposition: "destroy" } } }).where(eq(heartbeatRuns.id, ids.run));
+      await db.update(heartbeatRuns).set({ runnerProfileJson: { nativeWorkspaceSync: { schema: "nexus.native-workspace-sync/v1", state: "prepared", descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null, workspaceId: randomUUID(), leaseId: ids.lease, providerLeaseId: lease.providerLeaseId, remoteCwd: metadata.remoteCwd, resourceDisposition: "destroy" } } }).where(eq(heartbeatRuns.id, ids.run));
     } catch (error) {
       evidence.setupFailure = { phase: setupPhase, errorType: (error as Error).name };
       throw new Error(`Live fixture setup failed at ${setupPhase}; provider details withheld`);
@@ -140,14 +140,14 @@ describeLive("live Daytona export-resume failure recovery", () => {
   afterAll(async () => {
     try {
       if (sandbox) {
-        if (sandbox.labels?.["paperclip-company-id"] !== ids.company || sandbox.labels?.["paperclip-environment-id"] !== ids.environment || sandbox.labels?.["paperclip-run-id"] !== ids.run) throw new Error("Fixture cleanup ownership mismatch");
+        if (sandbox.labels?.["nexus-company-id"] !== ids.company || sandbox.labels?.["nexus-environment-id"] !== ids.environment || sandbox.labels?.["nexus-run-id"] !== ids.run) throw new Error("Fixture cleanup ownership mismatch");
         await sandbox.delete(60);
         evidence.cleanupPassed = true;
       }
     } catch { throw new Error("Exact live fixture cleanup failed; provider details withheld"); }
     finally {
       if (temporary) await temporary.cleanup();
-      if (process.env.PAPERCLIP_EXPORT_RESUME_EVIDENCE_PATH) await writeFile(process.env.PAPERCLIP_EXPORT_RESUME_EVIDENCE_PATH, JSON.stringify(evidence, null, 2), { mode: 0o600 });
+      if (process.env.NEXUS_EXPORT_RESUME_EVIDENCE_PATH) await writeFile(process.env.NEXUS_EXPORT_RESUME_EVIDENCE_PATH, JSON.stringify(evidence, null, 2), { mode: 0o600 });
     }
   }, 90_000);
   it("stops after a failed probe, and recovers a failed stop through a fresh runtime", async () => {

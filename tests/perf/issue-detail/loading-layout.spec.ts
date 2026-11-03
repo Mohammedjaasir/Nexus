@@ -8,7 +8,7 @@ type Frame = { time: number; ready: boolean; visibleHeader: boolean; loading: Bo
 
 test.use({ video: "on", trace: "retain-on-failure", serviceWorkers: "block", colorScheme: "dark" });
 test.setTimeout(60_000);
-test.skip(!process.env.PAPERCLIP_ISSUE_PERF_DATABASE_URL, "The rich loading fixture requires disposable PostgreSQL");
+test.skip(!process.env.NEXUS_ISSUE_PERF_DATABASE_URL, "The rich loading fixture requires disposable PostgreSQL");
 
 let fixture: RichLoadingFixture;
 test.beforeAll(async ({ request }) => { fixture = await richLoadingFixture(request); });
@@ -52,8 +52,8 @@ for (const entry of ["direct", "list", "delayed fonts", "delayed preferences"] a
         return { family: style.fontFamily, size: style.fontSize, lineHeight: style.lineHeight, weight: style.fontWeight };
       };
       frames.push({ time: performance.now(), ready: !!ready, visibleHeader, loading: box(loading), latest: box(last), scrollHeight: scroller?.scrollHeight,
-        loadingComposer: box(document.querySelector('[data-testid="task-chat-loading-composer"] .paperclip-task-chat-composer')),
-        composer: box(document.querySelector('[data-testid="task-chat-composer-stack"] .paperclip-task-chat-composer')),
+        loadingComposer: box(document.querySelector('[data-testid="task-chat-loading-composer"] .nexus-task-chat-composer')),
+        composer: box(document.querySelector('[data-testid="task-chat-composer-stack"] .nexus-task-chat-composer')),
         loadingFont: font(document.querySelector('[data-slot="task-loading-title"]')),
         titleFont: font(document.querySelector('[data-testid="task-chat-history-content"] [data-testid="issue-detail-header"] h2')),
         identifier: box(identifier), identifierFont: font(identifier ?? null),

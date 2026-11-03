@@ -14,11 +14,11 @@ const git = (cwd: string, ...args: string[]) => execFile("git", ["-C", cwd, ...a
 const exclude = (cwd: string) => execFile(process.execPath, ["-e", instructionGitExcludeProgram, cwd]);
 
 async function assertPrivateFilesIgnored(cwd: string) {
-  const runtime = path.join(cwd, ".paperclip-runtime");
+  const runtime = path.join(cwd, ".nexus-runtime");
   await fs.writeFile(path.join(runtime, "private.md"), "agent instructions");
   await git(cwd, "add", "-A");
-  expect((await git(cwd, "diff", "--cached", "--name-only")).stdout).not.toContain(".paperclip-runtime");
-  expect((await git(cwd, "check-ignore", "--", ".paperclip-runtime/private.md", ".paperclip-runtime/.gitignore")).stdout.trim().split("\n")).toHaveLength(2);
+  expect((await git(cwd, "diff", "--cached", "--name-only")).stdout).not.toContain(".nexus-runtime");
+  expect((await git(cwd, "check-ignore", "--", ".nexus-runtime/private.md", ".nexus-runtime/.gitignore")).stdout.trim().split("\n")).toHaveLength(2);
 }
 
 it("excludes runtime files without changing tracked ignore rules or Git metadata", async () => {
@@ -65,7 +65,7 @@ it.each(["directory", "file"])("rejects a symlink at the runtime exclusion %s", 
   await fs.mkdir(outside);
   const externalFile = path.join(outside, ".gitignore");
   await fs.writeFile(externalFile, "untouched\n");
-  const runtime = path.join(workspace, ".paperclip-runtime");
+  const runtime = path.join(workspace, ".nexus-runtime");
   if (kind === "directory") await fs.symlink(outside, runtime);
   else {
     await fs.mkdir(runtime);
@@ -77,7 +77,7 @@ it.each(["directory", "file"])("rejects a symlink at the runtime exclusion %s", 
 
 it("replaces a linked ignore file without writing through its external inode", async () => {
   const externalFile = path.join(root, "outside-ignore"), workspace = path.join(root, "workspace");
-  const runtime = path.join(workspace, ".paperclip-runtime");
+  const runtime = path.join(workspace, ".nexus-runtime");
   await fs.mkdir(runtime, { recursive: true });
   await fs.writeFile(externalFile, "untouched\n");
   await fs.link(externalFile, path.join(runtime, ".gitignore"));

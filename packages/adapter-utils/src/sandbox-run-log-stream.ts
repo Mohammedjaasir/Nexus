@@ -12,7 +12,7 @@ import { shellQuote } from "./ssh.js";
 // base64 transport, mirroring the callback-bridge queue client) and emits
 // incremental `onLog` chunks through the existing run-log pipeline.
 
-const SANDBOX_EXEC_CHANNEL_ENV = "PAPERCLIP_SANDBOX_EXEC_CHANNEL";
+const SANDBOX_EXEC_CHANNEL_ENV = "NEXUS_SANDBOX_EXEC_CHANNEL";
 const SANDBOX_EXEC_CHANNEL_BRIDGE = "bridge";
 
 const DEFAULT_TAIL_POLL_INTERVAL_MS = 250;
@@ -20,9 +20,9 @@ const DEFAULT_TAIL_MAX_CHUNK_BYTES = 64 * 1024;
 const DEFAULT_TAIL_TICK_TIMEOUT_MS = 15_000;
 const DEFAULT_TAIL_MAX_CONSECUTIVE_FAILURES = 3;
 
-const TAIL_MARKER_STDOUT = "__PAPERCLIP_RUN_LOG_STDOUT__";
-const TAIL_MARKER_STDERR = "__PAPERCLIP_RUN_LOG_STDERR__";
-const TAIL_MARKER_END = "__PAPERCLIP_RUN_LOG_END__";
+const TAIL_MARKER_STDOUT = "__NEXUS_RUN_LOG_STDOUT__";
+const TAIL_MARKER_STDERR = "__NEXUS_RUN_LOG_STDERR__";
+const TAIL_MARKER_END = "__NEXUS_RUN_LOG_END__";
 
 export type SandboxRunLogSink = (stream: "stdout" | "stderr", chunk: string) => Promise<void>;
 
@@ -264,7 +264,7 @@ export function createSandboxRunLogTailFactory(
         if (degraded) {
           await sink(
             "stderr",
-            "[paperclip] Run log streaming degraded during the run; remaining output was delivered at completion.\n",
+            "[nexus] Run log streaming degraded during the run; remaining output was delivered at completion.\n",
           );
         }
       },

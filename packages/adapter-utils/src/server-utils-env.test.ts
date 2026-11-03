@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeInheritedPaperclipEnv } from "./server-utils.js";
+import { sanitizeInheritedNexusEnv } from "./server-utils.js";
 
-describe("sanitizeInheritedPaperclipEnv", () => {
-  it("drops the host-only Paperclip CLI command pointer", () => {
-    expect(sanitizeInheritedPaperclipEnv({
-      PAPERCLIPAI_CMD: "node /missing/paperclipai/dist/index.js",
-      PAPERCLIP_RUNTIME_API_URL: "http://127.0.0.1:3100",
+describe("sanitizeInheritedNexusEnv", () => {
+  it("drops the host-only Nexus CLI command pointer", () => {
+    expect(sanitizeInheritedNexusEnv({
+      NEXUSAI_CMD: "node /missing/nexusai/dist/index.js",
+      NEXUS_RUNTIME_API_URL: "http://127.0.0.1:3100",
       PATH: "/usr/bin",
     })).toEqual({
-      PAPERCLIP_RUNTIME_API_URL: "http://127.0.0.1:3100",
+      NEXUS_RUNTIME_API_URL: "http://127.0.0.1:3100",
       PATH: "/usr/bin",
     });
   });

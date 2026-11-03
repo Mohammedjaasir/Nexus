@@ -152,7 +152,7 @@ export interface DatabaseClientOptions {
   maxLifetimeSeconds?: number;
   /**
    * postgres.js `connection.application_name`, shown in
-   * `pg_stat_activity.application_name`. Lets an operator tell Paperclip's
+   * `pg_stat_activity.application_name`. Lets an operator tell Nexus's
    * pool apart from other clients of the same database (driver default:
    * `postgres.js`).
    */
@@ -168,7 +168,7 @@ export interface DatabaseClientOptions {
  */
 export const DEFAULT_DATABASE_IDLE_TIMEOUT_SECONDS = 60;
 /** `application_name` reported to PostgreSQL unless `DATABASE_APPLICATION_NAME` overrides it. */
-export const DEFAULT_DATABASE_APPLICATION_NAME = "paperclip";
+export const DEFAULT_DATABASE_APPLICATION_NAME = "nexus";
 
 function envBoolean(env: NodeJS.ProcessEnv, name: string): boolean | undefined {
   const value = env[name]?.trim().toLowerCase();
@@ -207,7 +207,7 @@ function envNonEmptyString(env: NodeJS.ProcessEnv, name: string): string | undef
  * adapt to their connection topology (pooled endpoints, network latency)
  * without editing source. Every variable is optional. This function returns
  * only the values the environment sets; `resolveDatabaseClientOptions` adds
- * Paperclip's own defaults on top, and the driver defaults apply to the rest
+ * Nexus's own defaults on top, and the driver defaults apply to the rest
  * — self-hosted setups need none of these.
  */
 export function databaseClientOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): DatabaseClientOptions {
@@ -229,7 +229,7 @@ export function databaseClientOptionsFromEnv(env: NodeJS.ProcessEnv = process.en
 }
 
 /**
- * Fills in Paperclip's defaults for the options the caller left unset: idle
+ * Fills in Nexus's defaults for the options the caller left unset: idle
  * connections are reaped after `DEFAULT_DATABASE_IDLE_TIMEOUT_SECONDS`, and the
  * pool identifies itself as `DEFAULT_DATABASE_APPLICATION_NAME`. Everything
  * else stays at the driver default. An explicit value (including
@@ -359,16 +359,16 @@ function createDbClient(url: string, resolved: DatabaseClientOptions, owner?: ob
   const db = installDatabaseWorkSignals(drizzlePg(sql, { schema }), owner);
   installDatabaseResponseCapture(db, schema);
   dedicatedDbFactories.set(db, () => createDbClient(url, {
-    ...resolved, maxConnections: 1, applicationName: "paperclip-workspace-finalization-lock",
+    ...resolved, maxConnections: 1, applicationName: "nexus-workspace-finalization-lock",
   }, db));
   livenessDbFactories.set(db, () => createDbClient(url, {
-    ...resolved, maxConnections: LIVENESS_POOL_MAX_CONNECTIONS, applicationName: "paperclip-controller-lease",
+    ...resolved, maxConnections: LIVENESS_POOL_MAX_CONNECTIONS, applicationName: "nexus-controller-lease",
   }, db));
   checkpointDbFactories.set(db, () => createDbClient(url, {
-    ...resolved, maxConnections: CHECKPOINT_POOL_MAX_CONNECTIONS, applicationName: "paperclip-runner-checkpoint",
+    ...resolved, maxConnections: CHECKPOINT_POOL_MAX_CONNECTIONS, applicationName: "nexus-runner-checkpoint",
   }, db));
   fileStorageDbFactories.set(db, () => createDbClient(url, {
-    ...resolved, maxConnections: 2, applicationName: "paperclip-file-storage",
+    ...resolved, maxConnections: 2, applicationName: "nexus-file-storage",
   }, db));
   return db;
 }
@@ -591,6 +591,7 @@ const MIGRATIONS_WITH_TOP_LEVEL_STATEMENTS = new Set([
   "0413_tired_kronos.sql",
   "0414_closed_edwin_jarvis.sql",
   "0419_slippery_impossible_man.sql",
+  "0424_rename_to_nexus_run_context_index.sql",
 
 
   "0384_funny_adam_warlock.sql",
@@ -619,7 +620,7 @@ async function applyPendingMigrationsManually(
       // A partial concurrent index build can wait for that snapshot, forming a
       // deadlock with this lock. Each failed try ends its snapshot before sleep.
       while (!(await sql<{ locked: boolean }[]>`
-        SELECT pg_try_advisory_lock(hashtextextended('paperclip:migrations', 0)) AS locked`)[0]?.locked) {
+        SELECT pg_try_advisory_lock(hashtextextended('nexus:migrations', 0)) AS locked`)[0]?.locked) {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       const { migrationTableSchema, columnNames } = await ensureMigrationJournalTable(sql);
@@ -681,7 +682,7 @@ async function applyPendingMigrationsManually(
       }
     } finally {
       try {
-        await sql`SELECT pg_advisory_unlock(hashtextextended('paperclip:migrations', 0))`;
+        await sql`SELECT pg_advisory_unlock(hashtextextended('nexus:migrations', 0))`;
       } catch {
         // Preserve the migration error if the session died; PostgreSQL releases
         // its lock on disconnect, and pool.end() closes any remaining connection.

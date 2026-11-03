@@ -5,7 +5,7 @@ Base: `77408fa6c3d7c916d7160760eae2144aaa0f8fe7` (#16072). This batch removes ni
 | Retired proof | Keeper and preserved contract | Owner mutation caught by keeper |
 | --- | --- | --- |
 | CLI ZIP: separate binary blob and invalid UTF-8 fallback cases | Archive round-trip keeps blob bytes and invalid UTF-8 note bytes exact; valid UTF-8 blob input is covered there too. | Bypass blob storage or decode invalid UTF-8 lossily; exact round-trip fails. |
-| Daytona: first execute creates a session before the second reuses it | Persistent-shell case checks one created session, a `paperclip-` id, and the same session id for both commands. | Break the id prefix or session-store hit; the keeper fails. |
+| Daytona: first execute creates a session before the second reuses it | Persistent-shell case checks one created session, a `nexus-` id, and the same session id for both commands. | Break the id prefix or session-store hit; the keeper fails. |
 | Shared account handle: plain `acct-42` acceptance | Whitespace-rejection case retains the exact accepted input and checks it is not trimmed. | Return null for the accepted identifier; the keeper fails. |
 | Loopback bind: bare `pnpm dev` rewrite | Loopback-preset case retains the same bare command and checks the rewritten command plus preset behavior. | Stop rewriting the bare command; the keeper fails. |
 | Native runner: generic remote-runner acceptance | Remote Dot capability case retains generic-remote acceptance alongside the Dot-specific rejection and acceptance controls. | Require Dot capability for generic remote runners; the keeper fails. |

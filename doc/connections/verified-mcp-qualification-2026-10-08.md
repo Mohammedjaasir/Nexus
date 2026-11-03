@@ -1,7 +1,7 @@
 # Verified MCP connectors — 2026-10-08
 
 This change includes eleven providers with successful bounded reads through
-Paperclip's real browser action tester. Seven are new catalog entries: Calendly,
+Nexus's real browser action tester. Seven are new catalog entries: Calendly,
 Exa, Firecrawl, GSC Wizard, Parallel Search, Tavily, and Windsor.ai. Airtable,
 Linear, Make, and PostHog already have catalog entries. AgentMail uses the
 existing full integration; this change adds no AgentMail method or channel.

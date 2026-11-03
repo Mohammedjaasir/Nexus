@@ -42,14 +42,14 @@ catch (error) {
   fixture = { company, tasks, application, connection, agent, userId: session?.user?.id ?? null };
   await fs.writeFile(fixturePath, JSON.stringify(fixture, null, 2));
 }
-const variants = process.env.PAPERCLIP_APPS_BENCH_BASELINE_DIST ? [
-  { label: "baseline-paired", dist: process.env.PAPERCLIP_APPS_BENCH_BASELINE_DIST },
-  { label: "candidate-paired", dist: process.env.PAPERCLIP_APPS_BENCH_CANDIDATE_DIST },
+const variants = process.env.NEXUS_APPS_BENCH_BASELINE_DIST ? [
+  { label: "baseline-paired", dist: process.env.NEXUS_APPS_BENCH_BASELINE_DIST },
+  { label: "candidate-paired", dist: process.env.NEXUS_APPS_BENCH_CANDIDATE_DIST },
 ] : [{ label: phase, dist: null }];
 if (variants.length > 1) {
-  if (!variants[1].dist) throw new Error("Paired mode requires PAPERCLIP_APPS_BENCH_CANDIDATE_DIST");
-  const serverAssets = process.env.PAPERCLIP_APPS_BENCH_SERVER_DIST
-    ? `${process.env.PAPERCLIP_APPS_BENCH_SERVER_DIST}/assets`
+  if (!variants[1].dist) throw new Error("Paired mode requires NEXUS_APPS_BENCH_CANDIDATE_DIST");
+  const serverAssets = process.env.NEXUS_APPS_BENCH_SERVER_DIST
+    ? `${process.env.NEXUS_APPS_BENCH_SERVER_DIST}/assets`
     : new URL("../ui/dist/assets/", import.meta.url);
   await fs.mkdir(serverAssets, { recursive: true });
   const serverAssetsPath = await fs.realpath(serverAssets);
@@ -74,8 +74,8 @@ try {
           id: task.id, companyId: task.companyId, title: task.title, identifier: task.identifier,
           status: task.status, recordedAt: index + 1, snapshotUpdatedAt: new Date(task.updatedAt).getTime(),
         }));
-        localStorage.setItem("paperclip.selectedCompanyId", fixture.company.id);
-        localStorage.setItem(`paperclip.recentTasks.v2:${fixture.company.id}:${fixture.userId ?? "__local_board__"}`, JSON.stringify(entries));
+        localStorage.setItem("nexus.selectedCompanyId", fixture.company.id);
+        localStorage.setItem(`nexus.recentTasks.v2:${fixture.company.id}:${fixture.userId ?? "__local_board__"}`, JSON.stringify(entries));
         window.__appsLongTasks = [];
         new PerformanceObserver(list => window.__appsLongTasks.push(...list.getEntries().map(e => ({ start: e.startTime, duration: e.duration }))))
           .observe({ type: "longtask", buffered: true });

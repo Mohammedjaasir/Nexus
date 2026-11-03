@@ -10,7 +10,7 @@ const meta: Meta<typeof TextAttachmentPreview> = {
   title: "Tasks and conversations/Documents, attachments, and work products/Components/CSV File Tab",
   component: TextAttachmentPreview,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "documents-artifacts/attachments"
       ],

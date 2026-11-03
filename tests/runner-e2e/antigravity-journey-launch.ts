@@ -74,7 +74,7 @@ export async function runAntigravityJourneyCampaign(input: {
 }) {
   if (input.executions.length !== 1 || input.executions[0]!.id !== ANTIGRAVITY_JOURNEY_EXECUTION)
     throw new ConnectionFailure("Select exactly the registered Antigravity journey cell separately");
-  if (process.env.PAPERCLIP_E2E_OPERATIONS_MANIFEST) throw new ConnectionFailure("Antigravity journey has no budgeted routing qualification");
+  if (process.env.NEXUS_E2E_OPERATIONS_MANIFEST) throw new ConnectionFailure("Antigravity journey has no budgeted routing qualification");
   if (input.preflight && input.recoverFile) throw new ConnectionFailure("Preflight and recovery are separate operations");
   const config = await loadAntigravityJourneyConfig(input.configFile);
   return withConnectionCampaignCancellation(async campaignSignal => {
@@ -97,7 +97,7 @@ export async function runAntigravityJourneyCampaign(input: {
     const resources: AntigravityJourneyResources = { version: 1, executionId: execution.id, origin: config.target.baseURL,
       companyId: config.target.companyId, environmentId: config.target.environmentId, connectionId: config.savedConnection.id,
       agentName: `Antigravity QA ${nonce}`, runIds: [], retained: false, setupProbe: "not_started", processes: {}, sourceProvenance: provenance };
-    const result: RunnerE2EResult = { schema: "paperclip.runner-e2e.result/v2", executionId: execution.id, suiteId: execution.suite.id,
+    const result: RunnerE2EResult = { schema: "nexus.runner-e2e.result/v2", executionId: execution.id, suiteId: execution.suite.id,
       suiteDefinitionHash: execution.suiteDefinitionHash, source: { sha: provenance.head,
         ref: `${execFileSync("git", ["branch", "--show-current"], { cwd: input.repositoryRoot, encoding: "utf8" }).trim()}${provenance.dirty ? " (working tree)" : ""}`, workflowRunUrl: null }, attempt: 1, status: "failed", profileId: execution.profile.id, environmentId: execution.environment.id,
       caseId: execution.task.id, provider: "acpx", model: ANTIGRAVITY_JOURNEY_MODEL, runtimeMode: "native", startedAt, finishedAt: startedAt,

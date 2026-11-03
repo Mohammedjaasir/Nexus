@@ -2,12 +2,12 @@ import { join } from "node:path";
 import { probePluginRunnerEnvironment } from "./native-runtime/plugin-runner-probe.js";
 import { registerPluginTaskCredentialHandoff } from "./plugin-task-credential-writeback.js";
 import { randomUUID } from "node:crypto";
-import { agents, companies, type Db } from "@paperclipai/db";
+import { agents, companies, type Db } from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
-import type { AdapterEnvironmentCheck, AdapterEnvironmentTestContext, AdapterEnvironmentTestResult } from "@paperclipai/adapter-utils";
-import { parseObject } from "@paperclipai/adapter-utils/server-utils";
-import { aiRoutingHarness, ADAPTER_AUTH_MISSING_CHECK_CODE, AI_CONNECTION_CAPABILITIES, type AiConnectionBinding } from "@paperclipai/shared";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
+import type { AdapterEnvironmentCheck, AdapterEnvironmentTestContext, AdapterEnvironmentTestResult } from "@nexusai/adapter-utils";
+import { parseObject } from "@nexusai/adapter-utils/server-utils";
+import { aiRoutingHarness, ADAPTER_AUTH_MISSING_CHECK_CODE, AI_CONNECTION_CAPABILITIES, type AiConnectionBinding } from "@nexusai/shared";
 import { requireServerAdapter } from "../adapters/index.js";
 import { forbidden, HttpError, unprocessable } from "../errors.js";
 import { isCloudManagedInstance } from "./cloud-instance.js";
@@ -25,13 +25,13 @@ import { pluginEnvironmentRequiresAgent } from "./plugin-environment-driver.js";
 const asRecord = (value: unknown): Record<string, unknown> | null => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 function finishManagedConnectionTest(adapterType: string, context: AdapterEnvironmentTestContext, result: AdapterEnvironmentTestResult): AdapterEnvironmentTestResult {
   const target = context.executionTarget;
-  if (result.status === "fail" || adapterType !== "paperclip_runner" || context.config.provider !== "acpx"
+  if (result.status === "fail" || adapterType !== "nexus_runner" || context.config.provider !== "acpx"
     || !isCloudManagedInstance() || target?.kind !== "remote" || target.transport !== "sandbox" || target.runnerTask
     || !result.checks.some(check => /hello_probe_(passed|succeeded)$/.test(check.code) || check.code === "ai_connection_api_key_reverified")
     || !result.checks.some(check => check.code === "acpx_remote_runtime_unverified" && check.level === "warn")) return result;
   const checks = result.checks.map(check => check.code === "acpx_remote_runtime_unverified" && check.level === "warn"
     ? { ...check, code: "acpx_remote_runtime_managed", level: "info" as const,
-        message: "The remote platform is supported. Paperclip manages Runner preparation and verifies its runtime before execution." }
+        message: "The remote platform is supported. Nexus manages Runner preparation and verifies its runtime before execution." }
     : check);
   return { ...result, checks, status: checks.some(check => check.level === "error") ? "fail" : checks.some(check => check.level === "warn") ? "warn" : "pass" };
 }
@@ -55,7 +55,7 @@ export function agentEnvironmentTestService(db: Db, pluginWorkerManager?: Plugin
     if ((await instanceSettings.getExperimental()).enableManagedSandboxOnly === true) {
       const managed = await environmentsSvc.findManagedSandboxEnvironment(companyId);
       if (!managed) {
-        throw unprocessable("The managed sandbox is unavailable. Restore Paperclip Computer and retry.", {
+        throw unprocessable("The managed sandbox is unavailable. Restore Nexus Computer and retry.", {
           code: "managed_sandbox_unavailable",
         });
       }
@@ -68,7 +68,7 @@ export function agentEnvironmentTestService(db: Db, pluginWorkerManager?: Plugin
    * Resolve the execution target the adapter should run its test probes against.
    *
    * - No environmentId / local environment → returns a local target so the
-   *   adapter probes the Paperclip host (legacy behavior).
+   *   adapter probes the Nexus host (legacy behavior).
    * - SSH environment → builds an SSH execution target from the environment
    *   config so the adapter probes the remote box. No lease is required:
    *   the SSH spec is fully derived from the saved environment config.
@@ -263,7 +263,7 @@ export function agentEnvironmentTestService(db: Db, pluginWorkerManager?: Plugin
         companyId: input.companyId,
         agentId: input.agentId,
         adapterType: input.adapterType,
-        ...(environment.driver === "plugin" && input.adapterType === "paperclip_runner"
+        ...(environment.driver === "plugin" && input.adapterType === "nexus_runner"
           ? { requestedExpiresAt: new Date(Date.now() + 180_000) } : {}),
         environment: testEnvironment,
         configuredEnvironment: environment,
@@ -321,7 +321,7 @@ export function agentEnvironmentTestService(db: Db, pluginWorkerManager?: Plugin
 
     let realizedCwd: string | null = null;
     try {
-      if (environment.driver === "plugin" && input.adapterType === "paperclip_runner") {
+      if (environment.driver === "plugin" && input.adapterType === "nexus_runner") {
         if (!await environmentRuntime.supportsTasks({ lease: leaseRecord.lease })) throw new Error("Plugin environment does not provide native Runner task execution");
         const updated = await environmentsSvc.updateLeaseMetadata(leaseRecord.lease.id, {
           ...leaseRecord.lease.metadata, runnerTaskProbe: {
@@ -473,7 +473,7 @@ export function agentEnvironmentTestService(db: Db, pluginWorkerManager?: Plugin
       "template_ref_kind",
     ]);
     const detailParts = [
-      `paperclipLeaseId=${input.lease.id}`,
+      `nexusLeaseId=${input.lease.id}`,
       input.lease.providerLeaseId ? `providerLeaseId=${input.lease.providerLeaseId}` : null,
       provider ? `provider=${provider}` : null,
       sandboxId ? `sandboxId=${sandboxId}` : null,
@@ -510,7 +510,7 @@ export function agentEnvironmentTestService(db: Db, pluginWorkerManager?: Plugin
   ): Promise<void> {
     if (!await assertAdapterTestEnvironmentBinding(companyId, environmentId)) return;
     await assertEnvironmentSelectionForCompany(environmentsSvc, companyId, environmentId, {
-      allowedDrivers: adapterType === "paperclip_runner" ? [...ADAPTER_TEST_ALLOWED_ENVIRONMENT_DRIVERS, "plugin"] : ADAPTER_TEST_ALLOWED_ENVIRONMENT_DRIVERS,
+      allowedDrivers: adapterType === "nexus_runner" ? [...ADAPTER_TEST_ALLOWED_ENVIRONMENT_DRIVERS, "plugin"] : ADAPTER_TEST_ALLOWED_ENVIRONMENT_DRIVERS,
     });
   }
 
@@ -533,7 +533,7 @@ export function agentEnvironmentTestService(db: Db, pluginWorkerManager?: Plugin
 
   async function testManagedEnvironment(adapterType: string, context: Parameters<ReturnType<typeof requireServerAdapter>["testEnvironment"]>[0], binding: AiConnectionBinding, managed: Awaited<ReturnType<typeof prepareManagedAiRuntime>>, agentId?: string) {
     const startedAt = new Date();
-    if (adapterType === "paperclip_runner" && binding.provider === "google" && context.config.provider === "acpx"
+    if (adapterType === "nexus_runner" && binding.provider === "google" && context.config.provider === "acpx"
       && context.config.acpxAgent === "antigravity" && managed.home) {
       const selectedHome = join(managed.home, "provider");
       if (context.managedAiCredentialHome && context.managedAiCredentialHome !== selectedHome) {
@@ -575,21 +575,21 @@ export function agentEnvironmentTestService(db: Db, pluginWorkerManager?: Plugin
     }
     await assertManagedAiProjectAuth(context.config, binding.provider, context.executionTarget);
     const target = context.executionTarget;
-    const result = adapterType === "paperclip_runner" && target?.kind === "remote" && target.transport === "sandbox" && target.runnerTask
+    const result = adapterType === "nexus_runner" && target?.kind === "remote" && target.transport === "sandbox" && target.runnerTask
       ? await probePluginRunnerEnvironment(context, { identity: managed.identity, accountIdentity: managed.sessionIdentity,
           home: managed.home ? join(managed.home, "provider") : undefined })
       : await requireServerAdapter(adapterType).testEnvironment(context);
     if (result.status === "fail") return result;
     // Antigravity's native admission checks the selected managed account and
     // exact model without a billable turn. Do not invoke another Google CLI.
-    if (adapterType === "paperclip_runner" && context.config.provider === "acpx" && context.config.acpxAgent === "antigravity") {
+    if (adapterType === "nexus_runner" && context.config.provider === "acpx" && context.config.acpxAgent === "antigravity") {
       if (result.status === "pass" && result.checks.some(check => check.code === "antigravity_metadata_verified" && check.level === "info")) return result;
       return { ...result, status: "fail", checks: [...result.checks, { code: "ai_connection_validation_incomplete", level: "error",
         message: "The selected Google account has not completed native account and model verification. Retry before adopting it." }] };
     }
     // The resolved method, not binding.method — on a responsible_user binding
     // that field is wire-compat only and the default connection decides.
-    if (adapterType === "paperclip_runner" && context.executionTarget?.kind === "remote"
+    if (adapterType === "nexus_runner" && context.executionTarget?.kind === "remote"
       && context.executionTarget.transport === "sandbox" && context.executionTarget.runnerTask) return result;
     const resolvedMethod = (context.config as { managedAiConnection?: { method?: string } }).managedAiConnection?.method;
     // An api_key account does not take the CLI hello probe below: a key
@@ -605,7 +605,7 @@ export function agentEnvironmentTestService(db: Db, pluginWorkerManager?: Plugin
     // requirement stays for subscriptions: a stored login is a file layout
     // only a provider CLI reads, so proving the runtime lane can consume it
     // takes a real hello turn.
-    const nativePiOpenRouter = adapterType === "paperclip_runner" && context.config.provider === "acpx"
+    const nativePiOpenRouter = adapterType === "nexus_runner" && context.config.provider === "acpx"
       && context.config.acpxAgent === "pi" && binding.provider === "openrouter"
       && asRecord(context.config.managedAiRouting)?.kind === "openrouter";
     if (resolvedMethod === "api_key" && (!context.config.managedAiRouting || nativePiOpenRouter)) {

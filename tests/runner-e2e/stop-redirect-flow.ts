@@ -52,7 +52,7 @@ export function nativeStopAcknowledged(run: Row, companyId: string, issueId: str
   const startup = result.startupCancellation;
   const cancellation = result.cancellation;
   return run.runtimeMode === "native" && run.status === "cancelled" && run.companyId === companyId && (run.nativeIssueId ?? run.issueId) === issueId
-    && stop?.schema === "paperclip.native-cancellation.v1" && stop.companyId === companyId
+    && stop?.schema === "nexus.native-cancellation.v1" && stop.companyId === companyId
     && stop.runId === run.id && stop.issueId === issueId && stop.scope === "run" && stop.dispatched === true
     && stop.dispatchState === "acknowledged" && stop.reasonCode === "cancellation_run_only"
     && stop.effects?.length === 1 && stop.effects[0] === "release_run_resources"

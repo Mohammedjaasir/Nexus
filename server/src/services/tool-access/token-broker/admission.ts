@@ -1,9 +1,9 @@
 import type { DbTransaction } from "../types.js";
 import { captureRunIdentity, runIdentityBrokerFields } from "../../run-identity.js";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { connectionTokenIssuances, companyMemberships, heartbeatRuns, toolConnections, toolProfileBindings, toolProfileEntries, toolProfiles } from "@paperclipai/db";
-import type { ConnectionTokenIssuancePath } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { connectionTokenIssuances, companyMemberships, heartbeatRuns, toolConnections, toolProfileBindings, toolProfileEntries, toolProfiles } from "@nexusai/db";
+import type { ConnectionTokenIssuancePath } from "@nexusai/shared";
 import { forbidden, HttpError } from "../../../errors.js";
 import { narrowestScopeBindings, profileIdsInBindingOrder } from "../../tool-profile-binding-precedence.js";
 
@@ -94,7 +94,7 @@ export function createTokenBrokerAdmission(db: Db, now: () => Date) {
       throw forbidden("Agent run is not active");
     }
     const snapshot = asRecord(run.contextSnapshot);
-    const paperclipIssue = asRecord(snapshot.paperclipIssue);
+    const nexusIssue = asRecord(snapshot.nexusIssue);
     const responsibleUserId = run.activeIdentityContextId
       ? run.responsibleUserId
       : (runSnapshotString(
@@ -103,7 +103,7 @@ export function createTokenBrokerAdmission(db: Db, now: () => Date) {
           "responsible_user_id",
         ) ??
         runSnapshotString(
-          paperclipIssue,
+          nexusIssue,
           "responsibleUserId",
           "responsible_user_id",
         ) ??
@@ -141,10 +141,10 @@ export function createTokenBrokerAdmission(db: Db, now: () => Date) {
       run,
       issueId:
         runSnapshotString(snapshot, "issueId") ??
-        runSnapshotString(paperclipIssue, "id"),
+        runSnapshotString(nexusIssue, "id"),
       projectId:
         runSnapshotString(snapshot, "projectId") ??
-        runSnapshotString(paperclipIssue, "projectId"),
+        runSnapshotString(nexusIssue, "projectId"),
       routineId: runSnapshotString(snapshot, "routineId"),
       responsibleUserId,
     };

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Paperclip planned chat scenarios for one feature area",
+  "title": "Nexus planned chat scenarios for one feature area",
   "description": "Applies to area YAML files, excluding defaults.yaml. Structural validity does not establish runnable or passing coverage.",
   "type": "object",
   "additionalProperties": false,

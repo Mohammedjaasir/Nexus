@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildSkillMentionHref } from "@paperclipai/shared";
+import { buildSkillMentionHref } from "@nexusai/shared";
 import {
   LOW_TRUST_REVIEW_PRESET,
   applyRunScopedMentionedSkillKeys,
@@ -22,9 +22,9 @@ import { resolveManagedProjectWorkspaceDir } from "../home-paths.ts";
 
 describe("resolveExecutionRunAdapterConfig", () => {
   it("strips stored task shell selectors before secret resolution and provider projection", async () => {
-    const unsafe = {BASH_ENV:"/workspace/hook.sh",ZDOTDIR:"/workspace",GH_CONFIG_DIR:"/workspace/gh",PAPERCLIP_GITHUB_LAUNCHER_DIR:"/workspace/forged"};
+    const unsafe = {BASH_ENV:"/workspace/hook.sh",ZDOTDIR:"/workspace",GH_CONFIG_DIR:"/workspace/gh",NEXUS_GITHUB_LAUNCHER_DIR:"/workspace/forged"};
     const resolveAdapterConfigForRuntime = vi.fn(async (_companyId, config) => ({config,secretKeys:new Set(),manifest:[]}));
-    const result = await resolveExecutionRunAdapterConfig({companyId:"company-1",adapterType:"paperclip_runner",
+    const result = await resolveExecutionRunAdapterConfig({companyId:"company-1",adapterType:"nexus_runner",
       executionRunConfig:{env:{...unsafe,CUSTOM_VALUE:"allowed"}},
       secretsSvc:{resolveAdapterConfigForRuntime} as any});
     expect(resolveAdapterConfigForRuntime.mock.calls[0]?.[1]).toMatchObject({env:{CUSTOM_VALUE:"allowed"}});
@@ -45,11 +45,11 @@ describe("resolveExecutionRunAdapterConfig", () => {
   });
 
   it("captures scoped resolved task values and rejects configured markers", async () => {
-    const key = "PAPERCLIP_CONFIGURED_ENV_KEYS";
+    const key = "NEXUS_CONFIGURED_ENV_KEYS";
     const secret = { type: "secret_ref", secretId: "pages-secret" };
     const result = await resolveExecutionRunAdapterConfig({
       companyId: "company-1", agentId: "agent-1", environmentId: "environment-1", projectId: "project-1", routineId: "routine-1",
-      executionRunConfig: { env: { PAPERCLIP_PAGE_AWS_SECRET_ACCESS_KEY: secret, SHARED: "agent", [key]: '["HOST_SECRET"]' } },
+      executionRunConfig: { env: { NEXUS_PAGE_AWS_SECRET_ACCESS_KEY: secret, SHARED: "agent", [key]: '["HOST_SECRET"]' } },
       environmentEnv: { SHARED: "environment", [key]: '["HOST_SECRET"]' },
       projectEnv: { SHARED: "project", [key]: '["HOST_SECRET"]' },
       routineEnv: { SHARED: "routine", [key]: '["HOST_SECRET"]' },
@@ -57,7 +57,7 @@ describe("resolveExecutionRunAdapterConfig", () => {
         resolveAdapterConfigForRuntime: vi.fn(async (companyId, config) => {
           expect(companyId).toBe("company-1");
           expect(config.env[key]).toBeUndefined();
-          return { config: { ...config, env: { ...config.env, PAPERCLIP_PAGE_AWS_SECRET_ACCESS_KEY: "resolved-task-secret" } }, secretKeys: new Set(["PAPERCLIP_PAGE_AWS_SECRET_ACCESS_KEY"]), manifest: [] };
+          return { config: { ...config, env: { ...config.env, NEXUS_PAGE_AWS_SECRET_ACCESS_KEY: "resolved-task-secret" } }, secretKeys: new Set(["NEXUS_PAGE_AWS_SECRET_ACCESS_KEY"]), manifest: [] };
         }),
         resolveEnvBindings: vi.fn(async (companyId, env) => {
           expect(companyId).toBe("company-1");
@@ -67,7 +67,7 @@ describe("resolveExecutionRunAdapterConfig", () => {
       } as any,
     });
     expect(result.configuredTaskEnvironment).toEqual({
-      PAPERCLIP_PAGE_AWS_SECRET_ACCESS_KEY: "resolved-task-secret", SHARED: "routine",
+      NEXUS_PAGE_AWS_SECRET_ACCESS_KEY: "resolved-task-secret", SHARED: "routine",
     });
     expect(result.resolvedConfig.env).not.toHaveProperty(key);
     expect(result.configuredTaskEnvironment).not.toHaveProperty(key);
@@ -75,7 +75,7 @@ describe("resolveExecutionRunAdapterConfig", () => {
 
   it("does not preflight or resolve legacy GitHub token bindings for managed executions", async () => {
     const assertNoGitHubBinding = (env: Record<string, unknown>) => {
-      for (const key of Object.keys(env)) if (/^(GH_TOKEN|GITHUB_TOKEN|GH_ENTERPRISE_TOKEN|GITHUB_ENTERPRISE_TOKEN|PAPERCLIP_GIT_TOKEN)$/.test(key)) {
+      for (const key of Object.keys(env)) if (/^(GH_TOKEN|GITHUB_TOKEN|GH_ENTERPRISE_TOKEN|GITHUB_ENTERPRISE_TOKEN|NEXUS_GIT_TOKEN)$/.test(key)) {
         throw new Error("Unavailable legacy GitHub secret must not be resolved at startup");
       }
     };
@@ -86,7 +86,7 @@ describe("resolveExecutionRunAdapterConfig", () => {
       executionRunConfig: { env: { GH_TOKEN: missing, AGENT_VALUE: "ok" } },
       environmentEnv: { GITHUB_TOKEN: missing, ENVIRONMENT_VALUE: "ok" },
       projectEnv: { GH_ENTERPRISE_TOKEN: missing, PROJECT_VALUE: "ok" },
-      routineEnv: { GITHUB_ENTERPRISE_TOKEN: missing, PAPERCLIP_GIT_TOKEN: missing, ROUTINE_VALUE: "ok" },
+      routineEnv: { GITHUB_ENTERPRISE_TOKEN: missing, NEXUS_GIT_TOKEN: missing, ROUTINE_VALUE: "ok" },
       secretsSvc: {
         collectMissingRuntimeBindings: vi.fn(async (_companyId, env) => { assertNoGitHubBinding(env); return []; }),
         resolveAdapterConfigForRuntime: vi.fn(async (_companyId, config) => {
@@ -223,7 +223,7 @@ describe("resolveExecutionRunAdapterConfig", () => {
     });
   });
 
-  it("drops PAPERCLIP_API_KEY bindings but forwards other PAPERCLIP_-named env to resolution", async () => {
+  it("drops NEXUS_API_KEY bindings but forwards other NEXUS_-named env to resolution", async () => {
     const resolveAdapterConfigForRuntime = vi.fn(async (_companyId, config: Record<string, unknown>) => ({
       config: {
         ...config,
@@ -245,30 +245,30 @@ describe("resolveExecutionRunAdapterConfig", () => {
       agentId: "agent-1",
       environmentId: "environment-1",
       environmentEnv: {
-        PAPERCLIP_API_KEY: "environment-api-key",
-        PAPERCLIP_RUNNER_NETWORK_ACCESS: "enabled",
-        PAPERCLIP_RUNNER_PREPARED_HARNESS_HOME: "/environment/claude",
-        PAPERCLIP_CLOUD_PROVIDER_TOKEN_ENV: "environment-cloud",
+        NEXUS_API_KEY: "environment-api-key",
+        NEXUS_RUNNER_NETWORK_ACCESS: "enabled",
+        NEXUS_RUNNER_PREPARED_HARNESS_HOME: "/environment/claude",
+        NEXUS_CLOUD_PROVIDER_TOKEN_ENV: "environment-cloud",
         ENV_ONLY: "environment-only",
       },
       executionRunConfig: {
         env: {
-          PAPERCLIP_API_KEY: { type: "secret_ref", secretId: "secret-api-key", version: "latest" },
-          PAPERCLIP_CLOUD_PROVIDER_TOKEN_AGENT: "agent-cloud",
-          PAPERCLIP_RUNNER_PREPARED_HARNESS_HOME: "/agent/claude",
+          NEXUS_API_KEY: { type: "secret_ref", secretId: "secret-api-key", version: "latest" },
+          NEXUS_CLOUD_PROVIDER_TOKEN_AGENT: "agent-cloud",
+          NEXUS_RUNNER_PREPARED_HARNESS_HOME: "/agent/claude",
           AGENT_ONLY: "agent-only",
         },
       },
       projectEnv: {
-        PAPERCLIP_API_KEY: "project-api-key",
-        paperclip_runner_prepared_harness_home: "/project/claude",
-        PAPERCLIP_CLOUD_PROVIDER_TOKEN_PROJECT: "project-cloud",
+        NEXUS_API_KEY: "project-api-key",
+        nexus_runner_prepared_harness_home: "/project/claude",
+        NEXUS_CLOUD_PROVIDER_TOKEN_PROJECT: "project-cloud",
         PROJECT_ONLY: "project-only",
       },
       routineEnv: {
-        PAPERCLIP_API_KEY: "routine-api-key",
-        PAPERCLIP_RUNNER_PREPARED_HARNESS_HOME: "/routine/claude",
-        PAPERCLIP_CLOUD_PROVIDER_TOKEN_ROUTINE: "routine-cloud",
+        NEXUS_API_KEY: "routine-api-key",
+        NEXUS_RUNNER_PREPARED_HARNESS_HOME: "/routine/claude",
+        NEXUS_CLOUD_PROVIDER_TOKEN_ROUTINE: "routine-cloud",
         ROUTINE_ONLY: "routine-only",
       },
       routineId: "routine-1",
@@ -279,35 +279,35 @@ describe("resolveExecutionRunAdapterConfig", () => {
     });
 
     expect(resolveEnvBindings.mock.calls[0]?.[1]).toEqual({
-      PAPERCLIP_CLOUD_PROVIDER_TOKEN_ENV: "environment-cloud",
+      NEXUS_CLOUD_PROVIDER_TOKEN_ENV: "environment-cloud",
       ENV_ONLY: "environment-only",
     });
     expect(resolveAdapterConfigForRuntime.mock.calls[0]?.[1]).toEqual({
       env: {
-        PAPERCLIP_CLOUD_PROVIDER_TOKEN_AGENT: "agent-cloud",
+        NEXUS_CLOUD_PROVIDER_TOKEN_AGENT: "agent-cloud",
         AGENT_ONLY: "agent-only",
       },
     });
     expect(resolveEnvBindings.mock.calls[1]?.[1]).toEqual({
-      PAPERCLIP_CLOUD_PROVIDER_TOKEN_PROJECT: "project-cloud",
+      NEXUS_CLOUD_PROVIDER_TOKEN_PROJECT: "project-cloud",
       PROJECT_ONLY: "project-only",
     });
     expect(resolveEnvBindings.mock.calls[2]?.[1]).toEqual({
-      PAPERCLIP_CLOUD_PROVIDER_TOKEN_ROUTINE: "routine-cloud",
+      NEXUS_CLOUD_PROVIDER_TOKEN_ROUTINE: "routine-cloud",
       ROUTINE_ONLY: "routine-only",
     });
     expect(result.resolvedConfig.env).toEqual({
-      PAPERCLIP_CLOUD_PROVIDER_TOKEN_ENV: "environment-cloud",
+      NEXUS_CLOUD_PROVIDER_TOKEN_ENV: "environment-cloud",
       ENV_ONLY: "environment-only",
-      PAPERCLIP_CLOUD_PROVIDER_TOKEN_AGENT: "agent-cloud",
+      NEXUS_CLOUD_PROVIDER_TOKEN_AGENT: "agent-cloud",
       AGENT_ONLY: "agent-only",
-      PAPERCLIP_CLOUD_PROVIDER_TOKEN_PROJECT: "project-cloud",
+      NEXUS_CLOUD_PROVIDER_TOKEN_PROJECT: "project-cloud",
       PROJECT_ONLY: "project-only",
-      PAPERCLIP_CLOUD_PROVIDER_TOKEN_ROUTINE: "routine-cloud",
+      NEXUS_CLOUD_PROVIDER_TOKEN_ROUTINE: "routine-cloud",
       ROUTINE_ONLY: "routine-only",
     });
-    expect(JSON.stringify(result.resolvedConfig.env)).not.toContain("PAPERCLIP_API_KEY");
-    expect(JSON.stringify(result.resolvedConfig.env)).not.toContain("PAPERCLIP_RUNNER_NETWORK_ACCESS");
+    expect(JSON.stringify(result.resolvedConfig.env)).not.toContain("NEXUS_API_KEY");
+    expect(JSON.stringify(result.resolvedConfig.env)).not.toContain("NEXUS_RUNNER_NETWORK_ACCESS");
   });
 
   it("skips project env resolution when the project has no bindings", async () => {
@@ -650,9 +650,9 @@ describe("resolveExecutionRunAdapterConfig codex_local credential pre-dispatch g
   });
 
   async function stubManagedCodexEnv(options: { seedSharedAuth: boolean }) {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-codex-gate-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-codex-gate-"));
     cleanupDirs.push(root);
-    const paperclipHome = path.join(root, "paperclip-home");
+    const nexusHome = path.join(root, "nexus-home");
     const sharedCodexHome = path.join(root, "shared-codex-home");
     await fs.mkdir(sharedCodexHome, { recursive: true });
     if (options.seedSharedAuth) {
@@ -662,11 +662,11 @@ describe("resolveExecutionRunAdapterConfig codex_local credential pre-dispatch g
         "utf8",
       );
     }
-    vi.stubEnv("PAPERCLIP_HOME", paperclipHome);
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "default");
+    vi.stubEnv("NEXUS_HOME", nexusHome);
+    vi.stubEnv("NEXUS_INSTANCE_ID", "default");
     vi.stubEnv("CODEX_HOME", sharedCodexHome);
     const managedAgentHome = path.join(
-      paperclipHome,
+      nexusHome,
       "instances",
       "default",
       "companies",
@@ -865,30 +865,30 @@ describe("applyRunScopedMentionedSkillKeys", () => {
   it("adds mentioned skills without mutating the original config", () => {
     const originalConfig = {
       command: "codex",
-      paperclipSkillSync: {
-        desiredSkills: ["paperclipai/paperclip/paperclip"],
+      nexusSkillSync: {
+        desiredSkills: ["paperclipai/paperclip/nexus"],
       },
     };
 
     const updatedConfig = applyRunScopedMentionedSkillKeys(originalConfig, [
       "company/company-1/release-changelog",
-      "paperclipai/paperclip/paperclip",
+      "paperclipai/paperclip/nexus",
       "company/company-1/release-changelog",
     ]);
 
     expect(updatedConfig).toEqual({
       command: "codex",
-      paperclipSkillSync: {
+      nexusSkillSync: {
         desiredSkills: [
-          "paperclipai/paperclip/paperclip",
+          "paperclipai/paperclip/nexus",
           "company/company-1/release-changelog",
         ],
       },
     });
     expect(originalConfig).toEqual({
       command: "codex",
-      paperclipSkillSync: {
-        desiredSkills: ["paperclipai/paperclip/paperclip"],
+      nexusSkillSync: {
+        desiredSkills: ["paperclipai/paperclip/nexus"],
       },
     });
   });
@@ -896,7 +896,7 @@ describe("applyRunScopedMentionedSkillKeys", () => {
   it("preserves existing version pins when adding mentioned skills", () => {
     const originalConfig = {
       command: "codex",
-      paperclipSkillSync: {
+      nexusSkillSync: {
         desiredSkills: [
           { key: "company/company-1/release-changelog", versionId: "version-1" },
         ],
@@ -909,7 +909,7 @@ describe("applyRunScopedMentionedSkillKeys", () => {
 
     expect(updatedConfig).toEqual({
       command: "codex",
-      paperclipSkillSync: {
+      nexusSkillSync: {
         desiredSkills: [
           { key: "company/company-1/release-changelog", versionId: "version-1" },
           { key: "company/company-1/security-review", versionId: null },

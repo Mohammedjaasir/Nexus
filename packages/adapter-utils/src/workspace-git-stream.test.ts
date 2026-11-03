@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 async function repository() {
-  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-git-scan-locks-"));
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-git-scan-locks-"));
   roots.push(cwd);
   await git(cwd, ["init"]);
   await git(cwd, ["config", "user.name", "Test"]);

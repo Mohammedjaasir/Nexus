@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { companies, companyMemberships, createDb, principalPermissionGrants } from "@paperclipai/db";
+import { companies, companyMemberships, createDb, principalPermissionGrants } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
 describe("commentary permission upgrade", () => {
@@ -10,7 +10,7 @@ describe("commentary permission upgrade", () => {
   let db: ReturnType<typeof createDb>;
 
   beforeAll(async () => {
-    temporary = await startEmbeddedPostgresTestDatabase("paperclip-commentary-permission-");
+    temporary = await startEmbeddedPostgresTestDatabase("nexus-commentary-permission-");
     db = createDb(temporary.connectionString);
   }, 90_000);
 

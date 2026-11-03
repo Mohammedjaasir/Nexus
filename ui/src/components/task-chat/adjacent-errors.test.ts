@@ -6,7 +6,7 @@ const failed: TaskChatMarkerItem = {
   id: "failure", kind: "marker", variant: "interrupted", label: "Run failed", runId: "run-1",
 };
 const recovery: TaskChatMessageItem = {
-  id: "recovery", kind: "message", author: "system", text: "Paperclip retried continuation, but it still has no live execution path.",
+  id: "recovery", kind: "message", author: "system", text: "Nexus retried continuation, but it still has no live execution path.",
   presentation: { kind: "system_notice", title: "No live execution path", tone: "danger", detailsDefaultOpen: false },
 };
 
@@ -39,9 +39,9 @@ describe("compactAdjacentErrors", () => {
 
   it.each([
     recovery.text,
-    "Paperclip automatically retried dispatch for this assigned `todo` issue during terminal run recovery, but it still has no live execution path.",
-    "Paperclip automatically retried continuation for this assigned `in_progress` issue and the retry made progress, but it still has no live execution path.",
-    "Paperclip retried this issue's run after it ended without finishing, but the bounded retry budget is spent and it still has no live execution path.",
+    "Nexus automatically retried dispatch for this assigned `todo` issue during terminal run recovery, but it still has no live execution path.",
+    "Nexus automatically retried continuation for this assigned `in_progress` issue and the retry made progress, but it still has no live execution path.",
+    "Nexus retried this issue's run after it ended without finishing, but the bounded retry budget is spent and it still has no live execution path.",
   ])("recognizes an old unstructured recovery comment: %s", (text) => {
     const legacy = { ...recovery, text, presentation: null };
     expect(compactAdjacentErrors([failed, legacy]).items).toEqual([legacy]);
@@ -53,7 +53,7 @@ describe("compactAdjacentErrors", () => {
       // its default or source-run title replaces the recovery-family title.
       const notice: TaskChatMessageItem = {
         ...recovery,
-        text: "Paperclip automatically retried continuation for this assigned `in_progress` issue and the retry made progress, but it still has no live execution path. Moving it to `blocked` so it is visible for intervention.",
+        text: "Nexus automatically retried continuation for this assigned `in_progress` issue and the retry made progress, but it still has no live execution path. Moving it to `blocked` so it is visible for intervention.",
         presentation: { ...recovery.presentation!, title },
         metadata: { version: 1, sourceRunId: "run-1", sections: [{ title: "Recovery", rows: [
           { type: "key_value", label: "Recovery action", value: "recovery-action-1" },
@@ -78,7 +78,7 @@ describe("compactAdjacentErrors", () => {
       version: 1 as const, sections: [{ title: "Recovery", rows: [{ type: "key_value" as const, label: "Recovery action", value: "child-action" }] }],
     }, presentation: { ...recovery.presentation!, title: "Child task blocked" } },
     { ...recovery, presentation: null, text: "Child task has no live execution path. Parent must review its result." },
-    { ...recovery, presentation: null, text: "Child task report: Paperclip retried continuation, but it still has no live execution path." },
+    { ...recovery, presentation: null, text: "Child task report: Nexus retried continuation, but it still has no live execution path." },
   ])("preserves unrelated notices and their retry boundaries: $text ($presentation.title)", (boundary) => {
     const lastFailure = { ...failed, id: "last-failure", runId: "last-run" };
     for (const last of [recovery, lastFailure]) {

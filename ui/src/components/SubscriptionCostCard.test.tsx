@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SubscriptionCostReport } from "@paperclipai/shared";
+import type { SubscriptionCostReport } from "@nexusai/shared";
 import { SubscriptionCostCard } from "./SubscriptionCostCard";
 
 const mocks = vi.hoisted(() => ({ update: vi.fn(), link: vi.fn() }));

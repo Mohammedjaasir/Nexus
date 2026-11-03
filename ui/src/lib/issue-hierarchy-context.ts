@@ -1,4 +1,4 @@
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 
 /** Context never promotes an unrelated or orphaned automated task to a result. */
 export function includeIssueHierarchyContext(matches: Issue[], context: Issue[]): Issue[] {

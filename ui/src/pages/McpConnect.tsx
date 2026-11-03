@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Globe, Paperclip } from "lucide-react";
 import { Link, useParams } from "@/lib/router";
-import type { McpConnection, McpConnectionRequest, McpDotPairingPreview } from "@paperclipai/shared";
+import type { McpConnection, McpConnectionRequest, McpDotPairingPreview } from "@nexusai/shared";
 import { deriveInitials, Identity } from "@/components/Identity";
 import { assistantConnectionDisplayName } from "./apps/connection-owner";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ export function McpDevicePage({ initialCode }: { initialCode?: string } = {}) {
   const [code, setCode] = useState(initialCode ?? new URLSearchParams(window.location.search).get("user_code") ?? "");
   const [submitted, setSubmitted] = useState(code);
   if (submitted) return <McpConnectRequest key={submitted} id={submitted} device onEditCode={() => setSubmitted("")} />;
-  return <div className="mx-auto max-w-xl py-10"><Card className="space-y-4 p-6"><div className="flex items-center gap-3"><Paperclip className="size-8 shrink-0" /><h1 className="min-w-0 text-xl font-semibold">Connect your assistant to Paperclip</h1></div>
+  return <div className="mx-auto max-w-xl py-10"><Card className="space-y-4 p-6"><div className="flex items-center gap-3"><Paperclip className="size-8 shrink-0" /><h1 className="min-w-0 text-xl font-semibold">Connect your assistant to Nexus</h1></div>
     <form className="space-y-4" onSubmit={event => { event.preventDefault(); setSubmitted(code.trim()); }}>
       <label htmlFor="device-code" className="text-sm">Enter the code shown by your assistant</label>
       <Input id="device-code" autoComplete="off" value={code} onChange={event => setCode(event.target.value)} required maxLength={12} />
@@ -84,13 +84,13 @@ function McpConnectRequest({ id, device = false, agentPairingOnly = false, onEdi
     mutationFn: () => api.post<{ redirectUrl: string }>(`${requestPrefix}/${encodeURIComponent(id)}/dot-pairing`, { pairingCode: pairingCode.trim() }),
     onSuccess: ({ redirectUrl }) => { setPairingCode(""); window.location.assign(redirectUrl); },
   });
-  if (deviceResult) return <div className="mx-auto max-w-xl py-10"><Card className="block space-y-4 p-6"><Paperclip className="size-8" /><h1 className="text-xl font-semibold">{deviceResult === "approved" ? "Access approved" : "Connection declined"}</h1><p className="text-sm">{deviceResult === "approved" ? "Return to your assistant. It will finish connecting automatically." : "No access was granted. You can start a new connection from your assistant."}</p><Button variant="outline" asChild><Link to="/">Back to Paperclip</Link></Button></Card></div>;
+  if (deviceResult) return <div className="mx-auto max-w-xl py-10"><Card className="block space-y-4 p-6"><Paperclip className="size-8" /><h1 className="text-xl font-semibold">{deviceResult === "approved" ? "Access approved" : "Connection declined"}</h1><p className="text-sm">{deviceResult === "approved" ? "Return to your assistant. It will finish connecting automatically." : "No access was granted. You can start a new connection from your assistant."}</p><Button variant="outline" asChild><Link to="/">Back to Nexus</Link></Button></Card></div>;
   const returnPath = device ? `/mcp-device?user_code=${encodeURIComponent(id)}` : `${agentPairingOnly ? "/dot-connect" : "/mcp-connect"}/${id}`;
   return <div className="mx-auto max-w-xl py-10">
     <Card className="block space-y-4 p-6">
       <div className="flex items-center gap-3">
-        <Paperclip className="size-8 shrink-0 text-foreground" role="img" aria-label="Paperclip" />
-        <h1 className="min-w-0 break-words text-xl font-semibold">Connect <bdi>{assistantName}</bdi> to Paperclip</h1>
+        <Paperclip className="size-8 shrink-0 text-foreground" role="img" aria-label="Nexus" />
+        <h1 className="min-w-0 break-words text-xl font-semibold">Connect <bdi>{assistantName}</bdi> to Nexus</h1>
       </div>
       {clientOrigin && <ClientOrigin key={clientOrigin} origin={clientOrigin} />}
       {!device && data?.redirectOrigin && data.redirectOrigin !== clientOrigin && <ClientOrigin key={data.redirectOrigin} origin={data.redirectOrigin} />}
@@ -99,7 +99,7 @@ function McpConnectRequest({ id, device = false, agentPairingOnly = false, onEdi
       {request.error && <p className="text-sm text-destructive">{request.error.message} Start a new connection from your assistant.</p>}
       {device && request.error && <Button variant="outline" onClick={onEditCode}>Enter a different code</Button>}
       {data?.agentConnection && !device && <form className="space-y-3" onSubmit={event => { event.preventDefault(); pairDot.mutate(); }}>
-        <p className="text-sm">Enter the one-use code from Paperclip’s agent setup to review this connection’s access. Keep the code out of Bot chat. Access is granted only when you approve the named agent below.</p>
+        <p className="text-sm">Enter the one-use code from Nexus’s agent setup to review this connection’s access. Keep the code out of Bot chat. Access is granted only when you approve the named agent below.</p>
         <label htmlFor="dot-pairing-code" className="text-sm">Pairing code</label>
         <Input id="dot-pairing-code" type="password" autoComplete="off" value={pairingCode} onChange={event => { setPairingPreview(null); setPairingPreviewError(""); setPairingCode(event.target.value); }} required maxLength={32} />
         {pairingPreview?.providerKind === "grok_bot" && <p className="text-sm font-medium">Allow this connection to work as {pairingPreview.agent.name} in {pairingPreview.company.name}.</p>}
@@ -131,12 +131,12 @@ function McpConnectRequest({ id, device = false, agentPairingOnly = false, onEdi
             </label>)}
             {!data.companies.length && <p className="text-sm text-muted-foreground">This account has no available organizations. Ask an organization owner to add you, then reconnect from your assistant.</p>}
           </fieldset>}
-          <p className="text-sm">{data.agentConnection ? "Connect Dot as a Paperclip agent. Pair it with an agent after connecting; assigned work uses that agent’s permissions." : "Read all of your Paperclip data"}</p>
+          <p className="text-sm">{data.agentConnection ? "Connect Dot as a Nexus agent. Pair it with an agent after connecting; assigned work uses that agent’s permissions." : "Read all of your Nexus data"}</p>
           {(data.requestedWrite || data.requestedConfigure) && !data.agentConnection && <label htmlFor="mcp-allow-writes" className="flex items-start gap-3 text-sm leading-6">
             <span className="flex h-6 shrink-0 items-center">
               <Checkbox id="mcp-allow-writes" checked={canApproveWrites} disabled={!company?.canWrite || consent.isPending} onCheckedChange={(checked) => setWriteEnabled(checked === true)} />
             </span>
-            <span>Write all of your Paperclip data</span>
+            <span>Write all of your Nexus data</span>
           </label>}
           {company && !company.canWrite && <p className="text-sm text-muted-foreground">Your role in this organization is read-only.</p>}
           {consent.error && <p className="text-sm text-destructive">{consent.error.message}</p>}
@@ -168,10 +168,10 @@ export function AssistantConnectionsPage() {
       <h2 className="font-medium"><Identity name={assistantConnectionDisplayName(connection)} avatarUrl={connection.user?.image} initials={deriveInitials(connection.user?.name ?? "You")} /></h2>
       <p className="text-sm text-muted-foreground">Organization: {connection.companyName}</p>
       {connection.agent && <p className="text-sm">Works as <Link className="underline" to={`/${connection.companyPrefix ?? connection.companyId}/agents/${connection.agent.id}/runtime`}>{connection.agent.name}</Link>{connection.user ? ` · Authorized by ${connection.user.name}` : ""}</p>}
-      <p className="text-sm">{connection.scopes.includes("paperclip:agent") ? "Agent connection" : connection.scopes.includes("paperclip:write") ? "Read and edit work" : "Read only"}</p>
-      {connection.scopes.includes("paperclip:configure") && <p className="text-sm">Configure agents, projects and skills</p>}
+      <p className="text-sm">{connection.scopes.includes("nexus:agent") ? "Agent connection" : connection.scopes.includes("nexus:write") ? "Read and edit work" : "Read only"}</p>
+      {connection.scopes.includes("nexus:configure") && <p className="text-sm">Configure agents, projects and skills</p>}
       <Button variant="outline" disabled={revoke.isPending} onClick={() => revoke.mutate(connection.id)}>Revoke connection</Button>
     </Card>)}
-    <Link className="text-sm underline" to="/">Back to Paperclip</Link>
+    <Link className="text-sm underline" to="/">Back to Nexus</Link>
   </div>;
 }

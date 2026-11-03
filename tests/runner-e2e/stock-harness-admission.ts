@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "../..");
-export const STOCK_PREFLIGHT_ENV = "PAPERCLIP_RUNNER_E2E_STOCK_PREFLIGHT";
+export const STOCK_PREFLIGHT_ENV = "NEXUS_RUNNER_E2E_STOCK_PREFLIGHT";
 
 // An allowlist keeps every provider credential, ambient auth override, and GH
 // token out of the prerequisite subprocess, including secrets added later.

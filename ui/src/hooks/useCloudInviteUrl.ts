@@ -5,7 +5,7 @@ import { cloudStackInviteUrl } from "@/lib/cloudLinks";
 import { useCloudInstance } from "./useCloudInstance";
 
 /**
- * Where the signed-in user invites people on a Paperclip Cloud instance, or
+ * Where the signed-in user invites people on a Nexus Cloud instance, or
  * null when no Cloud invite link should be offered.
  *
  * Mirrors the Members page: Cloud manages human invitations in the current

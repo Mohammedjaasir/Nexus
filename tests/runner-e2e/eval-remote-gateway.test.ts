@@ -44,7 +44,7 @@ it("admits only HTTPS quick-tunnel origins and bounded loopback destinations", a
 
 it("fails before remote admission when the tunnel executable is unavailable", async () => {
   await expect(startEvalRemoteGateway({ gateway: { baseUrl: "http://127.0.0.1:1", token: "a".repeat(64) },
-    deadlineAt: Date.now() + 5000 }, { PAPERCLIP_EVAL_CLOUDFLARED: "/missing/synthetic-cloudflared", PATH: "" }))
+    deadlineAt: Date.now() + 5000 }, { NEXUS_EVAL_CLOUDFLARED: "/missing/synthetic-cloudflared", PATH: "" }))
     .rejects.toThrow("Remote eval tunnel executable unavailable");
 });
 
@@ -80,7 +80,7 @@ setInterval(() => {}, 1000);
   let remote: Awaited<ReturnType<typeof startEvalRemoteGateway>> | undefined;
   try {
     remote = await startEvalRemoteGateway({ gateway: { baseUrl: "http://127.0.0.1:1", token: "a".repeat(64) },
-      deadlineAt: Date.now() + 10_000 }, { PAPERCLIP_EVAL_CLOUDFLARED: mode === "explicit" ? executable : "", PATH: root, OPENAI_API_KEY: "must-not-leave" });
+      deadlineAt: Date.now() + 10_000 }, { NEXUS_EVAL_CLOUDFLARED: mode === "explicit" ? executable : "", PATH: root, OPENAI_API_KEY: "must-not-leave" });
     expect(remote.baseUrl).toBe(origin); expect(healthChecks).toBe(2);
     const { baseUrl, pid, env } = JSON.parse(await readFile(state, "utf8"));
     expect(env.OPENAI_API_KEY).toBeUndefined(); expect(env.HOME).not.toBe(process.env.HOME);
@@ -96,6 +96,6 @@ setInterval(() => {}, 1000);
 it("cleans the private tunnel home after synchronous spawn rejection", async () => {
   const before = new Set((await readdir(tmpdir())).filter(name => name.startsWith("eval-cloudflare-")));
   await expect(startEvalRemoteGateway({ gateway: { baseUrl: "http://127.0.0.1:1", token: "a".repeat(64) },
-    deadlineAt: Date.now() + 60_000 }, { PAPERCLIP_EVAL_CLOUDFLARED: "invalid\0executable", PATH: "" })).rejects.toThrow();
+    deadlineAt: Date.now() + 60_000 }, { NEXUS_EVAL_CLOUDFLARED: "invalid\0executable", PATH: "" })).rejects.toThrow();
   expect((await readdir(tmpdir())).filter(name => name.startsWith("eval-cloudflare-") && !before.has(name))).toEqual([]);
 });

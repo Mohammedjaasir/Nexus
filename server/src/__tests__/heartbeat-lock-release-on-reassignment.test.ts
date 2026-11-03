@@ -11,7 +11,7 @@ import {
   heartbeatRunEvents,
   heartbeatRuns,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -25,9 +25,9 @@ vi.mock("../telemetry.js", () => ({
   getTelemetryClient: () => mockTelemetryClient,
 }));
 
-vi.mock("@paperclipai/shared/telemetry", async () => {
-  const actual = await vi.importActual<typeof import("@paperclipai/shared/telemetry")>(
-    "@paperclipai/shared/telemetry",
+vi.mock("@nexusai/shared/telemetry", async () => {
+  const actual = await vi.importActual<typeof import("@nexusai/shared/telemetry")>(
+    "@nexusai/shared/telemetry",
   );
   return {
     ...actual,
@@ -85,7 +85,7 @@ describeEmbeddedPostgres("heartbeat lock release on cross-agent reassignment", (
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix,
       requireBoardApprovalForNewAgents: false,
       defaultResponsibleUserId: "responsible-user",

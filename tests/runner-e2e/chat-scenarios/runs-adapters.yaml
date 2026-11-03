@@ -67,7 +67,7 @@ scenarios:
       Morgan is an existing legacy Claude agent on a qualified target with compatible saved
       settings; conversion is a supported human configuration action.
     query: >-
-      Move Morgan to Paperclip Runner and keep the same model and instructions.
+      Move Morgan to Nexus Runner and keep the same model and instructions.
     expected_outcome: >-
       The person reaches the supported upgrade action, which preserves compatible harness,
       model, bindings, instructions and history. Unsupported settings produce an actionable

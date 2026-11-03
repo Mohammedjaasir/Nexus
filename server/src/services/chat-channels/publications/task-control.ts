@@ -13,16 +13,16 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatConversations,
   chatPublications,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   SafeChatPublicationPayload,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import { projectSafeChatPublication } from "../../chat-publication-projection.js";
 

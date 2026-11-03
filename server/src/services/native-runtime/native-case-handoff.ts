@@ -1,6 +1,6 @@
-import { caseHandoffs, type Db } from "@paperclipai/db";
+import { caseHandoffs, type Db } from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
-import type { PrpStructuredRunResult } from "../../vendor/paperclip-runner/index.js";
+import type { PrpStructuredRunResult } from "../../vendor/nexus-runner/index.js";
 import { pendingCaseHandoffForRun } from "../heartbeat/case-handoff-lifecycle.js";
 
 /** Server-issued semantic yield. The provider does not need a second finish call. */
@@ -12,7 +12,7 @@ export async function nativeCaseHandoffResult(db: Db, input: {
   if (!handoff || handoff.issueId !== input.issueId) return null;
   const ref = `case-handoff:${handoff.id}`;
   return {
-    schema: "paperclip.run_result.v1", reportedWorkDisposition: "yielded", summary: "Work handed off.",
+    schema: "nexus.run_result.v1", reportedWorkDisposition: "yielded", summary: "Work handed off.",
     completionClaim: { contractRevision: input.completionContract.revision, objectiveSatisfied: false,
       criteria: input.completionContract.criteria.map(criterion => ({ criterionId: criterion.id, status: "unknown", evidenceRefs: [ref] })),
       remainingWork: [{ description: "The next agent continues the same task.", blocksCompletion: true }] },

@@ -11,7 +11,7 @@ import {
 } from "./chat-github-webhook-config.js";
 
 const webhookUrl =
-  "https://paperclip.example:8443/api/chat-webhooks/public-id/github";
+  "https://nexus.example:8443/api/chat-webhooks/public-id/github";
 const appToken = "test-app-jwt-private";
 const webhookSecret = "test-webhook-secret-private";
 const config = { url: webhookUrl, content_type: "json", insecure_ssl: "0" };
@@ -90,7 +90,7 @@ describe("GitHub App webhook reconnect", () => {
     "fails closed when the applied configuration does not match",
     async (value) => {
       await expect(resync(async () => json(value))).rejects.toThrow(
-        "did not confirm the expected secure Paperclip webhook",
+        "did not confirm the expected secure Nexus webhook",
       );
     },
   );
@@ -105,10 +105,10 @@ describe("GitHub App webhook reconnect", () => {
   );
 
   it.each([
-    "http://paperclip.example/hook",
-    "https://user:password@paperclip.example/hook",
-    "https://paperclip.example/hook?private=secret",
-    "https://paperclip.example/hook#secret",
+    "http://nexus.example/hook",
+    "https://user:password@nexus.example/hook",
+    "https://nexus.example/hook?private=secret",
+    "https://nexus.example/hook#secret",
   ])(
     "rejects unsafe callback inputs before sending credentials",
     async (url) => {
@@ -124,7 +124,7 @@ describe("GitHub App webhook reconnect", () => {
 const deliveryId = "3841617089160847360";
 const guid = "ab0f5340-abb3-11f1-9eed-2b258532ab82";
 const deliveredAt = "2026-09-08T18:32:39.082Z";
-const repositoryFullName = "paperclip/example";
+const repositoryFullName = "nexus/example";
 const commentBody = "synthetic-private-comment-must-not-return";
 const bodySha256 = createHash("sha256").update(commentBody).digest("hex");
 const comment = {
@@ -133,7 +133,7 @@ const comment = {
   updated_at: "2026-09-08T18:32:36Z",
   body: commentBody,
   user: { id: "9007199254740995", type: "User", login: "private-login" },
-  issue_url: "https://api.github.com/repos/paperclip/example/issues/3",
+  issue_url: "https://api.github.com/repos/nexus/example/issues/3",
 };
 const delivery = {
   id: deliveryId,
@@ -311,7 +311,7 @@ describe("GitHub App webhook recovery HTTP boundaries", () => {
       issueNumber: "3",
     });
     expect(fetch).toHaveBeenCalledWith(
-      `https://api.github.com/repos/paperclip/example/issues/comments/${comment.id}`,
+      `https://api.github.com/repos/nexus/example/issues/comments/${comment.id}`,
       expect.objectContaining({
         method: "GET",
         redirect: "error",
@@ -601,7 +601,7 @@ describe("GitHub App webhook recovery HTTP boundaries", () => {
           ...comment,
           issue_url: undefined,
           pull_request_url:
-            "https://api.github.com/repos/paperclip/example/pulls/4",
+            "https://api.github.com/repos/nexus/example/pulls/4",
         }),
       )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
@@ -616,7 +616,7 @@ describe("GitHub App webhook recovery HTTP boundaries", () => {
       }),
     ).resolves.toMatchObject({ issueNumber: null, pullRequestNumber: "4" });
     expect(fetch.mock.calls[1]?.[0]).toBe(
-      `https://api.github.com/repos/paperclip/example/pulls/comments/${comment.id}`,
+      `https://api.github.com/repos/nexus/example/pulls/comments/${comment.id}`,
     );
     expect(fetch).toHaveBeenCalledTimes(3);
   });
@@ -629,7 +629,7 @@ describe("GitHub App webhook recovery HTTP boundaries", () => {
     },
     {
       ...comment,
-      issue_url: "https://evil.example/repos/paperclip/example/issues/3",
+      issue_url: "https://evil.example/repos/nexus/example/issues/3",
     },
     { ...comment, issue_url: `${comment.issue_url}?secret=private` },
     { ...comment, body: null },

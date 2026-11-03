@@ -1,8 +1,8 @@
-import type { AdapterUsageCheckpoint } from "@paperclipai/adapter-utils";
+import type { AdapterUsageCheckpoint } from "@nexusai/adapter-utils";
 import { priceAnthropicReceipt } from "./anthropic-pricing.js";
 import { knownRunCostCents } from "./budget-exposure.js";
 import { priceCodexReceipt } from "./codex-pricing.js";
-import { addCents, compareCents, normalizeCents } from "@paperclipai/shared";
+import { addCents, compareCents, normalizeCents } from "@nexusai/shared";
 
 /** Live admission can use a reviewed rate-card estimate before a receipt is
  * final. The original receipt stays incomplete/unpriced for ledger settlement. */

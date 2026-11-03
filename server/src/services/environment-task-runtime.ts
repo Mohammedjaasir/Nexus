@@ -2,12 +2,12 @@ import { attachSandboxCreation, environmentService } from "./environments.js";
 import { createOwnedSandbox, queueSandboxCreationCleanup, recordSandboxCreationResource } from "./sandbox-creation-operations.js";
 import { writeEnvironmentCleanup } from "./environment-cleanup-notifications.js";
 import { releaseProviderRecoveryTransfers, stageProviderFreshWorkspace } from "./provider-fresh-workspace.js";
-import { readWorkspaceProviderBinding } from "@paperclipai/shared";
+import { readWorkspaceProviderBinding } from "@nexusai/shared";
 import { settlePluginTaskCredentialHandoff } from "./plugin-task-credential-writeback.js";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
-import { environmentLeases, executionWorkspaces, environments, heartbeatRuns, issues, projects, type Db } from "@paperclipai/db";
+import { environmentLeases, executionWorkspaces, environments, heartbeatRuns, issues, projects, type Db } from "@nexusai/db";
 import { freshWorkspaceSchema, environmentTaskOperationSchema, parseEnvironmentTaskResult,
-  type HostToWorkerMethodName, type HostToWorkerMethods, type PluginEnvironmentTaskOperation } from "@paperclipai/plugin-sdk";
+  type HostToWorkerMethodName, type HostToWorkerMethods, type PluginEnvironmentTaskOperation } from "@nexusai/plugin-sdk";
 import { pluginRegistryService } from "./plugin-registry.js";
 import { hasRemoteTerminationReceipt, remoteExecutionHasStopped, remoteTerminationReceipt } from "./remote-execution-termination.js";
 import type { PluginWorkerManager } from "./plugin-worker-manager.js";
@@ -275,7 +275,7 @@ export async function executeEnvironmentTask(db: Db, workers: PluginWorkerManage
         }, async identity => {
           const params = { driverKey: replacementDriverKey, companyId: input.companyId, environmentId: environment!.id,
             issueId: lease.issueId, config: driverConfig, runId: identity.runId, creationOperationId: identity.id,
-            agentId: run!.agentId, adapterType: "paperclip_runner",
+            agentId: run!.agentId, adapterType: "nexus_runner",
             ...(typeof metadata.runnerTaskRequestedExpiresAt === "string" ? { requestedExpiresAt: metadata.runnerTaskRequestedExpiresAt } : {}) };
           if (!context) return workers.call(plugin.id, "environmentAcquireLease", params, 30_000);
           const settled = context.trackWorker();

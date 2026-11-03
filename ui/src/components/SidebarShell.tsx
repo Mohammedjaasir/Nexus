@@ -95,7 +95,7 @@ export function SidebarShell({
   collapsed = false,
   peeking = false,
   resizable = false,
-  storageKey = "paperclip.sidebar.width",
+  storageKey = "nexus.sidebar.width",
   className,
   onPanelMouseEnter,
   onPanelMouseLeave,

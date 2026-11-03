@@ -2,12 +2,12 @@ import { access, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AiConnectionLoginIntent } from "@paperclipai/shared";
+import type { AiConnectionLoginIntent } from "@nexusai/shared";
 import type { LocalBrowserLoginState } from "../services/local-ai-browser-login.js";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 const mocks = vi.hoisted(() => ({ root: vi.fn(), browser: vi.fn(), credential: vi.fn(), save: vi.fn(), notify: vi.fn(), activity: vi.fn() }));
-vi.mock("../home-paths.js", () => ({ resolvePaperclipInstanceRoot: mocks.root }));
+vi.mock("../home-paths.js", () => ({ resolveNexusInstanceRoot: mocks.root }));
 vi.mock("../services/local-ai-browser-login.js", () => ({ startLocalBrowserLogin: mocks.browser }));
 vi.mock("../services/local-ai-credentials.js", () => ({ readVerifiedLocalAiCredentialDetails: mocks.credential }));
 vi.mock("../services/ai-connections.js", () => ({ aiConnectionService: () => ({ save: mocks.save }) }));
@@ -75,7 +75,7 @@ function database() {
 }
 
 async function fixture() {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "paperclip-google-local-login-service-"))); roots.push(root);
+  const root = await realpath(await mkdtemp(join(tmpdir(), "nexus-google-local-login-service-"))); roots.push(root);
   mocks.root.mockReturnValue(root);
   let release: () => void;
   const retirement = new Promise<void>(resolve => { release = resolve; });

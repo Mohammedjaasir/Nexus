@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { agents, companies, completionContracts, createDb, environmentLeases, heartbeatRunEvents, heartbeatRuns, issueComments, issues, nativeRunFinalizations, nativeRunResults, type Db } from "@paperclipai/db";
+import { agents, companies, completionContracts, createDb, environmentLeases, heartbeatRunEvents, heartbeatRuns, issueComments, issues, nativeRunFinalizations, nativeRunResults, type Db } from "@nexusai/db";
 import { eq, type SQL } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { trace } from "@opentelemetry/api";
@@ -14,7 +14,7 @@ import { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";
 
 import { resolveExternalTestDatabaseUrl } from "../__tests__/helpers/external-test-database.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_PRESENTATION_READ_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_PRESENTATION_READ_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 describe.skipIf(!support.supported)("presentation and ownership PostgreSQL read projections", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -36,7 +36,7 @@ describe.skipIf(!support.supported)("presentation and ownership PostgreSQL read 
     const [run] = await db.insert(heartbeatRuns).values({ companyId, agentId, nativeIssueId: issueId,
       status: "failed", runtimeMode: "legacy", finishedAt: new Date("2020-01-01T00:00:00Z"),
       contextSnapshot: { issueId, source: "chat:fixture", prompt: payload,
-        paperclipWake: { externalInteractionContinuation: true, prompt: payload } },
+        nexusWake: { externalInteractionContinuation: true, prompt: payload } },
       runnerProfileJson: { adapterDispatch: { adapterType: "codex_local", instructions: payload }, nativeExecutionInput: { prompt: payload } },
       resultJson: { unknownFutureRecoveryReceipt: { preserved: true } }, stdoutExcerpt: payload, stderrExcerpt: payload,
       ...patch,
@@ -113,7 +113,7 @@ describe.skipIf(!support.supported)("presentation and ownership PostgreSQL read 
       issueId: f.issueId, provider: "daytona", providerLeaseId: "retained-fixture", status: "released",
       releasedAt: new Date("2020-01-01T00:00:00Z"), cleanupStatus: "success" }).returning();
     const result = { ...f.run.resultJson, workspaceRestoreFailure: "restore_unsafe_archive",
-      workspaceRestoreRecovery: { schema: "paperclip.workspace-restore-recovery.v1", leaseIds: [lease.id] } };
+      workspaceRestoreRecovery: { schema: "nexus.workspace-restore-recovery.v1", leaseIds: [lease.id] } };
     await db.update(heartbeatRuns).set({ resultJson: result }).where(eq(heartbeatRuns.id, f.run.id));
     expect(await compareOwnership(f)).toMatchObject({ runId: f.run.id, cause: "execution_owner_active" });
     expect((await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, f.run.id)))[0].resultJson).toEqual(result);
@@ -144,9 +144,9 @@ describe.skipIf(!support.supported)("presentation and ownership PostgreSQL read 
   async function unpublishedAcceptedReply(id?: string, identity?: { companyId: string; agentId: string }) {
     const payload = randomBytes(128 * 1024).toString("base64");
     const f = await fixture({ id, runtimeMode: "native", status: "running", finishedAt: null,
-      contextSnapshot: { source: "internal", prompt: payload, paperclipWake: { prompt: payload } } }, identity);
+      contextSnapshot: { source: "internal", prompt: payload, nexusWake: { prompt: payload } } }, identity);
     const [contract] = await db.insert(completionContracts).values({ companyId: f.companyId, issueId: f.issueId,
-      revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "test", risk: "standard",
+      revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "test", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "test", objective: "Finish the fixture task", criteria: [] },
       canonicalSha256: "read-fixture-contract", createdByActorType: "system", createdByActorId: "test" }).returning();
@@ -162,10 +162,10 @@ describe.skipIf(!support.supported)("presentation and ownership PostgreSQL read 
     await db.insert(heartbeatRunEvents).values({ companyId: f.companyId, runId: f.run.id, agentId: f.agentId,
       seq: 1_000_000, eventType: "item.completed", payload: { prpEvent: { turnId: "reply-turn", sourceEventId: "fixture-final-answer",
         payload: { kind: "agentMessage", channel: "final", text: reply } } } });
-    await port.completeRun({ result: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "done",
+    await port.completeRun({ result: { schema: "nexus.run_result.v1", reportedWorkDisposition: "done",
       summary: "The accepted summary differs from its final answer.", completionClaim: { contractRevision: "test",
         objectiveSatisfied: true, criteria: [], remainingWork: [] }, evidence: [], verification: [], attentionRequests: [], artifacts: [] },
-      terminal: { schema: "paperclip.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "done" },
+      terminal: { schema: "nexus.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "done" },
       turnId: "reply-turn" });
     await finalizeNativeRun({ db, runId: f.run.id, workspaceFinalizeStatus: "succeeded", projectRunStatus: false });
     expect((await db.select().from(nativeRunFinalizations).where(eq(nativeRunFinalizations.runId, f.run.id)))[0]).toMatchObject({ phase: "committed" });
@@ -273,7 +273,7 @@ describe.skipIf(!support.supported)("presentation and ownership PostgreSQL read 
       expect(roots).toHaveLength(lane === "discovery and worker" ? 2 : 1);
       for (const root of roots) {
         expect(root.parentSpanContext).toBeUndefined();
-        expect(root.attributes).toEqual({ "paperclip.task.run.run_id": createHash("sha256").update(f.run.id).digest("hex").slice(0, 12) });
+        expect(root.attributes).toEqual({ "nexus.task.run.run_id": createHash("sha256").update(f.run.id).digest("hex").slice(0, 12) });
       }
       const root = roots.at(-1)!;
       for (const name of ["response.transaction", "response.transaction.entry"]) {
@@ -297,10 +297,10 @@ describe.skipIf(!support.supported)("presentation and ownership PostgreSQL read 
     }
   });
 
-  it.each([null, [], "scalar", 42, { source: 42, skipIssueComment: "true", paperclipWake: [] },
+  it.each([null, [], "scalar", 42, { source: 42, skipIssueComment: "true", nexusWake: [] },
     { source: "issue.comment.created", externalChatContinuation: true },
-    { source: "chat:fixture", skipIssueComment: true, paperclipWake: { externalInteractionContinuation: "true" } },
-    { source: "internal", paperclipWake: { externalInteractionContinuation: true } },
+    { source: "chat:fixture", skipIssueComment: true, nexusWake: { externalInteractionContinuation: "true" } },
+    { source: "internal", nexusWake: { externalInteractionContinuation: true } },
   ].map(context => ({ context })))("preserves typed publication flags for $context", async ({ context }) => {
     const f = await repairFixture({ contextSnapshot: context as Record<string, unknown> | null });
     const row = await compareRepair(f);

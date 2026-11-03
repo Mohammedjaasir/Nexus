@@ -1,4 +1,4 @@
-import type { CaseHandoff, DocumentRevision, HandoffCaseInput, HandoffCaseResult, IssueDocument, IssueLabel } from "@paperclipai/shared";
+import type { CaseHandoff, DocumentRevision, HandoffCaseInput, HandoffCaseResult, IssueDocument, IssueLabel } from "@nexusai/shared";
 import { api } from "./client";
 
 // -----------------------------------------------------------------------------

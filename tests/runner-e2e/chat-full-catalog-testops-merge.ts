@@ -44,7 +44,7 @@ export async function mergeCatalogProjections(root: string, output: string, sele
   if ([...files.values()].reduce((sum, bytes) => sum + bytes.length, 0) > 32 * 1024 * 1024) throw new Error("Projection exceeds allowance");
   await mkdir(output, { mode: 0o700 });
   for (const [name, data] of files) await writeFile(path.join(output, name), data, { flag: "wx", mode: 0o600 });
-  const binding = { schema: "paperclip.chat-completion-testops-export/v1", ...context, campaignId: campaign.campaignId,
+  const binding = { schema: "nexus.chat-completion-testops-export/v1", ...context, campaignId: campaign.campaignId,
     executionIds: selected.map(row => row.executionId), privateEvidence,
     files: [...files].map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: hash(bytes) })) };
   await writeFile(path.join(output, "binding.json"), JSON.stringify(binding, null, 2), { flag: "wx", mode: 0o600 });
@@ -53,7 +53,7 @@ export async function mergeCatalogProjections(root: string, output: string, sele
 }
 
 export interface RetainedDisposition {
-  schema: "paperclip.chat-catalog-retained-disposition/v1";
+  schema: "nexus.chat-catalog-retained-disposition/v1";
   origin: PilotContext & { projectId: number; planId: number; jobId: number; launchId: number; allureJobRunId: string };
   selectionSha256: string;
   upstream: { status: "completed"; jobsSha256: string };
@@ -77,7 +77,7 @@ export async function prepareRetainedCatalogReport(root: string, output: string,
   if (context.catalog !== "full" || context.targetSha !== catalogDefinition(context).targetSha || context.attempt !== "1"
     || !/^[1-9][0-9]{0,15}$/.test(context.runId) || !/^[a-f0-9]{40}$/.test(context.workflowSha)
     || !keys(disposition, ["schema", "origin", "selectionSha256", "upstream", "custodySha256", "gaps"])
-    || disposition.schema !== "paperclip.chat-catalog-retained-disposition/v1"
+    || disposition.schema !== "nexus.chat-catalog-retained-disposition/v1"
     || !keys(disposition.origin, Object.keys(origin)) || Object.entries(origin).some(([key, value]) => disposition.origin[key as keyof typeof origin] !== value)
     || disposition.selectionSha256 !== hash(JSON.stringify(selection, null, 2))
     || !keys(disposition.upstream, ["status", "jobsSha256"]) || disposition.upstream.status !== "completed" || !sha(disposition.upstream.jobsSha256)
@@ -116,14 +116,14 @@ export async function prepareRetainedCatalogReport(root: string, output: string,
     exported = await exportPilotAllure(merged, allure, context, originalSelection);
   } else await mkdir(allure, { mode: 0o700 });
   for (const row of selected.filter(value => gaps.has(value.executionId))) {
-    const dto = { schema: "paperclip.chat-catalog-reporting-gap/v1", outcome: "reporting_gap", originalStatus: null,
+    const dto = { schema: "nexus.chat-catalog-reporting-gap/v1", outcome: "reporting_gap", originalStatus: null,
       nativeRunCount: null, checks: null, cleanup: null, doesNotAttestFeatureOutcome: true,
       executionId: row.executionId, caseId: row.caseId, fullName: row.registeredFullName ?? row.fullName,
       origin, recoveryExecutor: executor, reason: "retained_archive_unavailable",
       selectionSha256: disposition.selectionSha256, terminalJobsSha256: disposition.upstream.jobsSha256, custodySha256: disposition.custodySha256 };
     const attachments = [];
     for (const [name, value] of [["Reporting gap (original grade UNKNOWN)", dto],
-      ["Retained evidence custody", { schema: "paperclip.chat-catalog-reporting-gap-custody/v1", executionId: row.executionId,
+      ["Retained evidence custody", { schema: "nexus.chat-catalog-reporting-gap-custody/v1", executionId: row.executionId,
         archiveStatus: "not_found_at_expected_retained_key", originalEvidenceAvailable: false, doesNotAttestFeatureOutcome: true,
         custodySha256: disposition.custodySha256 }]] as const) {
       const source = `${randomUUID()}-attachment.json`;
@@ -137,7 +137,7 @@ export async function prepareRetainedCatalogReport(root: string, output: string,
       historyId: hash(JSON.stringify([row.registeredFullName ?? row.fullName, "runner-opencode", model, "local"])),
       status: "broken", stage: "finished", statusDetails: { message: "Reporting gap: retained original unavailable. Original evaluation grade is UNKNOWN. No evaluation was rerun." },
       labels: [{ name: "AS_ID", value: String(row.caseId) }, { name: "parentSuite", value: "Product E2E" },
-        { name: "suite", value: "chat-features" }, { name: "framework", value: "Paperclip Evals" }, { name: "tag", value: "reporting-gap" }],
+        { name: "suite", value: "chat-features" }, { name: "framework", value: "Nexus Evals" }, { name: "tag", value: "reporting-gap" }],
       parameters: [{ name: "canonicalScenario", value: row.key }, { name: "originalGrade", value: "UNKNOWN" }],
       links: [{ name: "Original GitHub Actions run", type: "custom", url: `https://github.com/paperclipai/paperclip/actions/runs/${context.runId}` }],
       steps: [], attachments }), { flag: "wx", mode: 0o600 });
@@ -149,7 +149,7 @@ export async function prepareRetainedCatalogReport(root: string, output: string,
     files.push({ path: name, bytes: bytes.length, sha256: hash(bytes) });
   }
   if (files.length !== selected.length * 3 || files.reduce((sum, row) => sum + row.bytes, 0) > 32 * 1024 * 1024) throw new Error("Invalid reporting payload inventory");
-  const receipt = { schema: "paperclip.chat-catalog-retained-report/v1", origin, recoveryExecutor: executor,
+  const receipt = { schema: "nexus.chat-catalog-retained-report/v1", origin, recoveryExecutor: executor,
     selectionSha256: disposition.selectionSha256, dispositionSha256: hash(JSON.stringify(disposition)),
     coverage: { selected: selected.length, gradedOriginals: originals.size,
       originalPassed: exported.filter(row => row.status === "passed").length, originalFailed: exported.filter(row => row.status !== "passed").length,

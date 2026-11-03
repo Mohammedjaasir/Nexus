@@ -1,13 +1,13 @@
 import {
   agentConfigurationSpec, canonicalAgentConfiguration,
   type AgentConfigurationDocument, type AgentInstructionsFileDetail, type ToolProfileWithDetails, type ToolPolicy,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { agentsApi } from "../../api/agents";
 import { toolsApi } from "../../api/tools";
 import { chatEndpointsApi } from "../../api/chatEndpoints";
 import { secretsApi } from "../../api/secrets";
 
-export const ownedAdapterKeys = ["paperclipSkillSync", "instructionsBundleMode", "instructionsRootPath", "instructionsEntryFile", "instructionsFilePath"] as const;
+export const ownedAdapterKeys = ["nexusSkillSync", "instructionsBundleMode", "instructionsRootPath", "instructionsEntryFile", "instructionsFilePath"] as const;
 export const equal = (a: unknown, b: unknown) => canonicalAgentConfiguration(a) === canonicalAgentConfiguration(b);
 export const jsonValue = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -67,7 +67,7 @@ export async function loadAgentConfiguration(id: string, companyId: string) {
     return binding ? [{ profileId: profile.id, updateSharedDefinition: false, priority: binding.priority, metadata: binding.metadata, configuration: profileConfiguration(profile) }] : [];
   });
   const document = jsonValue({
-    apiVersion: "paperclip/v1", kind: "Agent",
+    apiVersion: "nexus/v1", kind: "Agent",
     spec: {
       ...agentConfigurationSpec(core), adapterConfig,
       permissions: {

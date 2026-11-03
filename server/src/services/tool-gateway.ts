@@ -12,13 +12,13 @@ import type { runPromptInjectionProvider } from "./prompt-injection-provider.js"
 import { promptInjectionPreventionService } from "./prompt-injection-prevention.js";
 import { adapterExecutionControls } from "./adapter-execution-control.js";
 import type { BudgetServiceHooks } from "./budgets.js";
-import type { PromptInjectionDetectorMetadata } from "@paperclipai/shared";
+import type { PromptInjectionDetectorMetadata } from "@nexusai/shared";
 import { connectionManagementService, type ConnectionManagementContext } from "./connection-management.js";
 import { notifyDeliveryWork, DELIVERY_QUEUES } from "./delivery-work-notifications.js";
 import { measureToolDiscovery, measureRunPhase } from "./execution-preparation-timing.js";
 import { nativeProviderCatalogFor } from "./native-provider-catalogs.js";
 import { composeConnectionInstructions } from "./connection-instructions.js";
-import { googleWorkspaceToolTarget, googleWorkspaceGrantedScopes, isGoogleWorkspaceToolGranted } from "@paperclipai/shared";
+import { googleWorkspaceToolTarget, googleWorkspaceGrantedScopes, isGoogleWorkspaceToolGranted } from "@nexusai/shared";
 import { isInsufficientConnectionScope, INSUFFICIENT_CONNECTION_SCOPE_MESSAGE } from "./connection-permission-errors.js";
 import { boundedMcpToolName } from "./mcp-tool-names.js";
 import { browserUseService } from "./browser-use.js";
@@ -28,20 +28,20 @@ import { HttpError } from "../errors.js";
 import { authorizationService, canActorReadIssuePrivacy, type AuthorizationActor } from "./authorization.js";
 import { claimSlackRateLimitRetry } from "./connectors/slack-retry.js";
 import { resolveSlackTaskAuthority } from "./connectors/slack-authority.js";
-import { SLACK_TOOLS } from "@paperclipai/shared";
+import { SLACK_TOOLS } from "@nexusai/shared";
 import { slackToolsForSession } from "./connectors/slack-catalog.js";
 import { boundRunIssueIdSql } from "./run-task-binding.js";
 import { executeSlackTool } from "./connectors/slack.js";
 import { githubGuestBotConnectionForSession, githubBotToolsForSession } from "./chat-github-tools.js";
 import { githubChatReviewService } from "./chat-github-reviews.js";
-import { runIdentityContexts } from "@paperclipai/db";
+import { runIdentityContexts } from "@nexusai/db";
 import { executeSpekoVoiceTool, spekoToolsForSession } from "./voice/speko-agent-tools.js";
 import { captureRunIdentity } from "./run-identity.js";
 import { emitConnectionInvoked } from "./connector-telemetry.js";
 import { resolveManagedGitHubIdentitySelection } from "./git-credentials.js";
 import { extractRemoteMcpPending } from "./remote-mcp-pending.js";
 import { logger } from "../middleware/logger.js";
-import { getAppDefinitionForApplicationKey, isConnectorFeatureEnabled } from "@paperclipai/shared";
+import { getAppDefinitionForApplicationKey, isConnectorFeatureEnabled } from "@nexusai/shared";
 import { instanceSettingsService } from "./instance-settings.js";
 import { spawn } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
@@ -58,7 +58,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   approvals,
@@ -92,8 +92,8 @@ import {
   toolProfileEntries,
   toolProfiles,
   toolStdioCommandTemplates,
-} from "@paperclipai/db";
-import type { ToolRunContext } from "@paperclipai/plugin-sdk";
+} from "@nexusai/db";
+import type { ToolRunContext } from "@nexusai/plugin-sdk";
 import type {
   CreateToolMcpGateway,
   CreateToolMcpGatewayToken,
@@ -114,14 +114,14 @@ import type {
   ToolMcpGatewayTokenCreated,
   ToolMcpGatewayWithTokens,
   UpdateToolMcpGateway,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   getConnectableAppDefinition,
   isGitHubConnectorProfileId,
   isGoogleWorkspaceConnectorProfileId,
   type GitHubConnectorProfileId,
   type GoogleWorkspaceConnectorProfileId,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import type {
   AgentToolDescriptor,
   PluginToolDispatcher,
@@ -174,14 +174,14 @@ import {
 } from "./tool-runtime-supervisor.js";
 import { recordToolRuntimeAuditWriteFailure } from "./tool-runtime-metrics.js";
 import { unresolvedRecoveryToolInvocation } from "./recovery-effect-receipts.js";
-import { isRetiredComposioConnection, RETIRED_COMPOSIO_MESSAGE } from "@paperclipai/shared";
+import { isRetiredComposioConnection, RETIRED_COMPOSIO_MESSAGE } from "@nexusai/shared";
 import {
-  createPaperclipCloudConnector,
-  isPaperclipCloudConnectorStrategy,
-  paperclipCloudConnectorConfigFromEnv,
-  PaperclipCloudConnectorError,
-  type PaperclipCloudConnector,
-} from "./paperclip-cloud-connector.js";
+  createNexusCloudConnector,
+  isNexusCloudConnectorStrategy,
+  nexusCloudConnectorConfigFromEnv,
+  NexusCloudConnectorError,
+  type NexusCloudConnector,
+} from "./nexus-cloud-connector.js";
 import {
   createVercelConnectClient,
   vercelGrantReference,
@@ -299,12 +299,12 @@ export type ToolGatewayProviderType =
   | "provider_rest"
   | "mcp_remote_http"
   | "mcp_local_stdio"
-  | "paperclip_self"
-  | "paperclip_plugin"
-  | "paperclip_virtual"
-  | "paperclip_github_chat"
-  | "paperclip_slack_chat"
-  | "paperclip_speko_voice";
+  | "nexus_self"
+  | "nexus_plugin"
+  | "nexus_virtual"
+  | "nexus_github_chat"
+  | "nexus_slack_chat"
+  | "nexus_speko_voice";
 
 export interface ConnectedMcpGatewayMetadata {
   applicationId: string;
@@ -498,9 +498,9 @@ const BUILTIN_LOCAL_STDIO_RUNTIME_TEMPLATES: Record<
   string,
   Omit<LocalStdioRuntimeTemplate, "templateId">
 > = {
-  "paperclip.cognee-cloud": COGNEE_STDIO_TEMPLATE,
-  "paperclip.google-sheets": {
-    command: "paperclip-google-sheets-mcp-server",
+  "nexus.cognee-cloud": COGNEE_STDIO_TEMPLATE,
+  "nexus.google-sheets": {
+    command: "nexus-google-sheets-mcp-server",
     args: [],
     envKeys: [
       "GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON",
@@ -508,12 +508,12 @@ const BUILTIN_LOCAL_STDIO_RUNTIME_TEMPLATES: Record<
       "GOOGLE_SHEETS_ALLOWED_SPREADSHEET_IDS",
     ],
   },
-  "paperclip.echo-calculator-time": {
+  "nexus.echo-calculator-time": {
     command: null,
     args: [],
     envKeys: [],
   },
-  "paperclip.synthetic-todo-kv": {
+  "nexus.synthetic-todo-kv": {
     command: null,
     args: [],
     envKeys: [],
@@ -581,12 +581,12 @@ const sensitivePassthroughHeaderNames = new Set([
   "proxy-authorization",
   "cookie",
   "set-cookie",
-  "x-paperclip-tool-gateway-token",
+  "x-nexus-tool-gateway-token",
 ]);
 
 function isSensitivePassthroughHeader(name: string) {
   return (
-    name.startsWith("x-paperclip-") ||
+    name.startsWith("x-nexus-") ||
     sensitivePassthroughHeaderNames.has(name) ||
     sensitivePassthroughHeaderPattern.test(name)
   );
@@ -668,41 +668,41 @@ function mcpGatewayProtocolLimits(
   const envDefaults: McpGatewayProtocolLimitOptions = {
     authFailures: {
       windowMs: positiveInt(
-        process.env.PAPERCLIP_MCP_GATEWAY_AUTH_FAILURE_WINDOW_MS,
+        process.env.NEXUS_MCP_GATEWAY_AUTH_FAILURE_WINDOW_MS,
         DEFAULT_MCP_GATEWAY_PROTOCOL_LIMITS.authFailures.windowMs,
       ),
       max: positiveInt(
-        process.env.PAPERCLIP_MCP_GATEWAY_AUTH_FAILURE_LIMIT,
+        process.env.NEXUS_MCP_GATEWAY_AUTH_FAILURE_LIMIT,
         DEFAULT_MCP_GATEWAY_PROTOCOL_LIMITS.authFailures.max,
       ),
     },
     gatewayRequests: {
       windowMs: positiveInt(
-        process.env.PAPERCLIP_MCP_GATEWAY_REQUEST_WINDOW_MS,
+        process.env.NEXUS_MCP_GATEWAY_REQUEST_WINDOW_MS,
         DEFAULT_MCP_GATEWAY_PROTOCOL_LIMITS.gatewayRequests.windowMs,
       ),
       max: positiveInt(
-        process.env.PAPERCLIP_MCP_GATEWAY_REQUEST_LIMIT,
+        process.env.NEXUS_MCP_GATEWAY_REQUEST_LIMIT,
         DEFAULT_MCP_GATEWAY_PROTOCOL_LIMITS.gatewayRequests.max,
       ),
     },
     tokenRequests: {
       windowMs: positiveInt(
-        process.env.PAPERCLIP_MCP_GATEWAY_TOKEN_REQUEST_WINDOW_MS,
+        process.env.NEXUS_MCP_GATEWAY_TOKEN_REQUEST_WINDOW_MS,
         DEFAULT_MCP_GATEWAY_PROTOCOL_LIMITS.tokenRequests.windowMs,
       ),
       max: positiveInt(
-        process.env.PAPERCLIP_MCP_GATEWAY_TOKEN_REQUEST_LIMIT,
+        process.env.NEXUS_MCP_GATEWAY_TOKEN_REQUEST_LIMIT,
         DEFAULT_MCP_GATEWAY_PROTOCOL_LIMITS.tokenRequests.max,
       ),
     },
     sessionSetup: {
       windowMs: positiveInt(
-        process.env.PAPERCLIP_MCP_GATEWAY_SESSION_SETUP_WINDOW_MS,
+        process.env.NEXUS_MCP_GATEWAY_SESSION_SETUP_WINDOW_MS,
         DEFAULT_MCP_GATEWAY_PROTOCOL_LIMITS.sessionSetup.windowMs,
       ),
       max: positiveInt(
-        process.env.PAPERCLIP_MCP_GATEWAY_SESSION_SETUP_LIMIT,
+        process.env.NEXUS_MCP_GATEWAY_SESSION_SETUP_LIMIT,
         DEFAULT_MCP_GATEWAY_PROTOCOL_LIMITS.sessionSetup.max,
       ),
     },
@@ -749,7 +749,7 @@ function safeClientMetadata(
   headers: Record<string, string | string[] | undefined> | undefined,
 ) {
   const clientName =
-    safeHeaderValue(headers, "x-paperclip-client-name", 120) ??
+    safeHeaderValue(headers, "x-nexus-client-name", 120) ??
     safeHeaderValue(headers, "mcp-client-name", 120) ??
     null;
   const correlationId =
@@ -784,7 +784,7 @@ function gatewaySessionFromRow(
 }
 
 function timeoutMs(value: number | undefined, tool?: ToolGatewayDescriptor) {
-  if (!Number.isFinite(value)) return tool?.providerType === "paperclip_github_chat"
+  if (!Number.isFinite(value)) return tool?.providerType === "nexus_github_chat"
     ? GITHUB_BOT_TOOL_TIMEOUT_MS
     : DEFAULT_TOOL_TIMEOUT_MS;
   return Math.max(
@@ -1050,31 +1050,31 @@ const BUILTIN_TOOLS: ToolGatewayDescriptor[] = [
     risk: "write",
   },
   {
-    name: "paperclip-self:list_my_issues",
-    displayName: "List my Paperclip issues",
+    name: "nexus-self:list_my_issues",
+    displayName: "List my Nexus issues",
     description:
-      "Paperclip self-MCP read fixture that lists the authenticated agent's current issues.",
+      "Nexus self-MCP read fixture that lists the authenticated agent's current issues.",
     parametersSchema: {
       type: "object",
       properties: { limit: { type: "number" } },
       additionalProperties: false,
     },
-    pluginId: "paperclip-self",
-    providerType: "paperclip_self",
+    pluginId: "nexus-self",
+    providerType: "nexus_self",
     risk: "read",
   },
   {
-    name: "paperclip-self:get_issue_context",
+    name: "nexus-self:get_issue_context",
     displayName: "Get issue context",
     description:
-      "Paperclip self-MCP read fixture that returns scoped issue context and plan document metadata.",
+      "Nexus self-MCP read fixture that returns scoped issue context and plan document metadata.",
     parametersSchema: {
       type: "object",
       properties: { issueId: { type: "string" } },
       additionalProperties: false,
     },
-    pluginId: "paperclip-self",
-    providerType: "paperclip_self",
+    pluginId: "nexus-self",
+    providerType: "nexus_self",
     risk: "read",
   },
   {
@@ -1111,7 +1111,7 @@ const VIRTUAL_SEARCH_TOOLS: ToolGatewayDescriptor = {
   name: "search_tools",
   displayName: "Search available tools",
   description:
-    "Search the tools available through this Paperclip gateway without loading every target tool into the tool list.",
+    "Search the tools available through this Nexus gateway without loading every target tool into the tool list.",
   parametersSchema: {
     type: "object",
     properties: {
@@ -1120,8 +1120,8 @@ const VIRTUAL_SEARCH_TOOLS: ToolGatewayDescriptor = {
     },
     additionalProperties: false,
   },
-  pluginId: "paperclip-gateway",
-  providerType: "paperclip_virtual",
+  pluginId: "nexus-gateway",
+  providerType: "nexus_virtual",
   risk: "read",
 };
 
@@ -1129,7 +1129,7 @@ const VIRTUAL_RUN_TOOL: ToolGatewayDescriptor = {
   name: "run_tool",
   displayName: "Run a selected tool",
   description:
-    "Run a target tool by name after Paperclip applies the target tool's profile, policy, approval, and rate-limit checks.",
+    "Run a target tool by name after Nexus applies the target tool's profile, policy, approval, and rate-limit checks.",
   parametersSchema: {
     type: "object",
     properties: {
@@ -1139,8 +1139,8 @@ const VIRTUAL_RUN_TOOL: ToolGatewayDescriptor = {
     required: ["tool"],
     additionalProperties: false,
   },
-  pluginId: "paperclip-gateway",
-  providerType: "paperclip_virtual",
+  pluginId: "nexus-gateway",
+  providerType: "nexus_virtual",
   risk: "write",
 };
 
@@ -1162,9 +1162,9 @@ export function createToolGatewayService(
     /** Test seam for deterministic remote MCP protocol fixtures. */
     remoteHttpRequest?: (url: string, init: RequestInit) => Promise<Response>;
     /** Test seam for refreshing personal Gmail grants. */
-    paperclipCloudConnector?: PaperclipCloudConnector | null;
-    /** @deprecated Use paperclipCloudConnector. */
-    paperclipIdGmailConnector?: PaperclipCloudConnector | null;
+    nexusCloudConnector?: NexusCloudConnector | null;
+    /** @deprecated Use nexusCloudConnector. */
+    nexusIdGmailConnector?: NexusCloudConnector | null;
     /** Refreshes customer-owned/DCR OAuth grants before remote MCP execution. */
     oauthGrantRefresher?: (input: {
       companyId: string;
@@ -1340,17 +1340,17 @@ export function createToolGatewayService(
     }
   >();
   const configuredCloudConnector =
-    options.paperclipCloudConnector ?? options.paperclipIdGmailConnector;
+    options.nexusCloudConnector ?? options.nexusIdGmailConnector;
   const connectorWasProvided =
-    options.paperclipCloudConnector !== undefined ||
-    options.paperclipIdGmailConnector !== undefined;
+    options.nexusCloudConnector !== undefined ||
+    options.nexusIdGmailConnector !== undefined;
   let cachedCloudConnector = configuredCloudConnector ?? null;
-  const currentCloudConnector = (): PaperclipCloudConnector | null => {
+  const currentCloudConnector = (): NexusCloudConnector | null => {
     if (cachedCloudConnector || connectorWasProvided)
       return cachedCloudConnector;
-    const config = paperclipCloudConnectorConfigFromEnv();
+    const config = nexusCloudConnectorConfigFromEnv();
     cachedCloudConnector = config
-      ? createPaperclipCloudConnector({ config, now: options.now })
+      ? createNexusCloudConnector({ config, now: options.now })
       : null;
     return cachedCloudConnector;
   };
@@ -1433,7 +1433,7 @@ export function createToolGatewayService(
   function pluginTools(): ToolGatewayDescriptor[] {
     return (pluginToolDispatcher?.listToolsForAgent() ?? []).map((tool) => ({
       ...tool,
-      providerType: "paperclip_plugin" as const,
+      providerType: "nexus_plugin" as const,
       risk: inferToolRisk(tool.name),
     }));
   }
@@ -2987,8 +2987,8 @@ export function createToolGatewayService(
       .filter(
         (candidate) =>
           session.agentId ||
-          (candidate.providerType !== "paperclip_self" &&
-            candidate.providerType !== "paperclip_plugin"),
+          (candidate.providerType !== "nexus_self" &&
+            candidate.providerType !== "nexus_plugin"),
       )
       .find((candidate) => candidate.name === toolName);
     if (!tool) {
@@ -3000,7 +3000,7 @@ export function createToolGatewayService(
       );
     }
     const guestBotConnection = await githubGuestBotConnectionForSession(db, session);
-    if (guestBotConnection && tool.connectionId && (tool.connectionId !== guestBotConnection || tool.providerType !== "paperclip_github_chat"))
+    if (guestBotConnection && tool.connectionId && (tool.connectionId !== guestBotConnection || tool.providerType !== "nexus_github_chat"))
       throw new ToolGatewayHttpError(403, "Sponsored GitHub runs can only use their bot's governed connection; sponsorship does not grant personal credentials", "guest_connection_denied");
     if (session.identityContextId && session.agentId && tool.connectionId) {
       const [connection] = await db
@@ -3202,7 +3202,7 @@ export function createToolGatewayService(
   async function connectionToolsForContext(session: ToolGatewaySession): Promise<ToolGatewayDescriptor[]> {
     const guestBotConnection = await measureRunPhase("connectors.discovery.github", () => githubGuestBotConnectionForSession(db, session));
     let connectedTools = (await measureRunPhase("connectors.discovery.connections", () => connectedMcpToolsForCompany(session.companyId)))
-      .filter(tool => !guestBotConnection || !tool.connectionId || (tool.connectionId === guestBotConnection && tool.providerType === "paperclip_github_chat"));
+      .filter(tool => !guestBotConnection || !tool.connectionId || (tool.connectionId === guestBotConnection && tool.providerType === "nexus_github_chat"));
     const connectionIds = [...new Set(connectedTools.flatMap((tool) => tool.connectionId ? [tool.connectionId] : []))];
     if (connectionIds.length) {
       const connections = await db.select().from(toolConnections).where(and(
@@ -3240,8 +3240,8 @@ export function createToolGatewayService(
     ].filter(
       (tool) =>
         session.agentId ||
-        (tool.providerType !== "paperclip_self" &&
-          tool.providerType !== "paperclip_plugin"),
+        (tool.providerType !== "nexus_self" &&
+          tool.providerType !== "nexus_plugin"),
     );
     const decisionCache = createToolAccessDecisionCache();
     const decisions = await measureRunPhase("connectors.discovery.policy", () => decideToolsForListing(
@@ -3295,7 +3295,7 @@ export function createToolGatewayService(
   ) {
     const params = asRecord(parameters) ?? {};
 
-    if (tool.providerType === "paperclip_speko_voice") {
+    if (tool.providerType === "nexus_speko_voice") {
       try {
         const data = await executeSpekoVoiceTool(db, session, String(asRecord(tool.providerMetadata)?.endpointId ?? ""), parameters, invocationId);
         return { content: JSON.stringify(data), data };
@@ -3304,7 +3304,7 @@ export function createToolGatewayService(
         throw error;
       }
     }
-    if (tool.providerType === "paperclip_slack_chat") {
+    if (tool.providerType === "nexus_slack_chat") {
       if (!session.agentId || !session.runId || !session.issueId) throw new ToolGatewayHttpError(403, "Slack task binding required", "slack_task_required");
       try {
       const data = await executeSlackTool(db, { companyId: session.companyId, agentId: session.agentId, runId: session.runId, issueId: session.issueId, endpointId: String(asRecord(tool.providerMetadata)?.endpointId ?? ""), identityContextId: session.identityContextId, approvedInvocationId: session.approvedSlackInvocationId }, tool.upstreamToolName ?? "", parameters, fetch, invocationId);
@@ -3317,7 +3317,7 @@ export function createToolGatewayService(
         throw error;
       }
     }
-    if (tool.providerType === "paperclip_github_chat") {
+    if (tool.providerType === "nexus_github_chat") {
       try {
         const data = await githubChatReviewService(db).execute(session, tool.upstreamToolName ?? "", parameters, invocationId);
         return { content: JSON.stringify(data), data };
@@ -3385,11 +3385,11 @@ export function createToolGatewayService(
       };
     }
 
-    if (tool.name === "paperclip-self:list_my_issues") {
+    if (tool.name === "nexus-self:list_my_issues") {
       if (!session.agentId) {
         throw new ToolGatewayHttpError(
           403,
-          "Paperclip self tools require an agent-scoped gateway session",
+          "Nexus self tools require an agent-scoped gateway session",
           "agent_context_required",
         );
       }
@@ -3418,11 +3418,11 @@ export function createToolGatewayService(
       };
     }
 
-    if (tool.name === "paperclip-self:get_issue_context") {
+    if (tool.name === "nexus-self:get_issue_context") {
       if (!session.agentId) {
         throw new ToolGatewayHttpError(
           403,
-          "Paperclip self tools require an agent-scoped gateway session",
+          "Nexus self tools require an agent-scoped gateway session",
           "agent_context_required",
         );
       }
@@ -3739,7 +3739,7 @@ export function createToolGatewayService(
     };
     for (const key of policy.metadataHeaders) {
       const value = values[key];
-      if (value) headers[`x-paperclip-${key.replace(/_/g, "-")}`] = value;
+      if (value) headers[`x-nexus-${key.replace(/_/g, "-")}`] = value;
     }
     return headers;
   }
@@ -3926,14 +3926,14 @@ export function createToolGatewayService(
     }
   }
 
-  async function maybeRefreshPaperclipCloudGrant(
+  async function maybeRefreshNexusCloudGrant(
     session: ToolGatewaySession,
     connection: typeof toolConnections.$inferSelect,
     grant: typeof connectionGrants.$inferSelect,
     forceRefresh = false,
   ): Promise<typeof connectionGrants.$inferSelect> {
     const oauth = asRecord(asRecord(connection.config)?.oauth);
-    if (!oauth || !isPaperclipCloudConnectorStrategy(oauth.strategy))
+    if (!oauth || !isNexusCloudConnectorStrategy(oauth.strategy))
       return grant;
     const configuredProfile = oauth.connectorProfile;
     const connectorProfile:
@@ -3991,10 +3991,10 @@ export function createToolGatewayService(
       !rotationDue
     )
       return grant;
-    if (oauth.strategy === "paperclip_id_connector") {
-      // Paperclip ID used different endpoints, signing metadata, envelope
+    if (oauth.strategy === "nexus_id_connector") {
+      // Nexus ID used different endpoints, signing metadata, envelope
       // purposes, and a different Google client. Its refresh token cannot be
-      // exchanged through Paperclip Cloud. Let an unexpired access token finish
+      // exchanged through Nexus Cloud. Let an unexpired access token finish
       // its useful life, then require an explicit managed-connector enrollment
       // and provider reconnect instead of sending it to the wrong client.
       await db
@@ -4006,7 +4006,7 @@ export function createToolGatewayService(
         .where(eq(connectionGrants.id, grant.id));
       throw new ToolGatewayHttpError(
         409,
-        "Legacy authorization must be reconnected through Paperclip Cloud",
+        "Legacy authorization must be reconnected through Nexus Cloud",
         "connector_reauthorization_required",
         {
           connectionId: connection.id,
@@ -4085,7 +4085,7 @@ export function createToolGatewayService(
           ...(grant.providerTenant ?? {}),
           oauth: {
             ...(grant.providerTenant?.oauth ?? {}),
-            strategy: "paperclip_cloud_connector",
+            strategy: "nexus_cloud_connector",
             accessTokenExpiresAt: credentials.accessTokenExpiresAt,
             scopes: credentials.scopes,
             tokenType: credentials.tokenType,
@@ -4123,7 +4123,7 @@ export function createToolGatewayService(
       } catch (error) {
         if (error instanceof ToolGatewayHttpError) throw error;
         if (
-          error instanceof PaperclipCloudConnectorError &&
+          error instanceof NexusCloudConnectorError &&
           error.code === "REAUTHORIZATION_REQUIRED"
         ) {
           await db
@@ -4341,12 +4341,12 @@ export function createToolGatewayService(
     }
     const oauth = asRecord(asRecord(connection.config)?.oauth);
     if (
-      isPaperclipCloudConnectorStrategy(oauth?.strategy) &&
+      isNexusCloudConnectorStrategy(oauth?.strategy) &&
       !options.oauthGrantRefresher
     ) {
       // Compatibility fallback for isolated service consumers. The production
       // app supplies tool-access's lease/CAS refresher below.
-      grant = await maybeRefreshPaperclipCloudGrant(
+      grant = await maybeRefreshNexusCloudGrant(
         session,
         connection,
         grant,
@@ -4355,7 +4355,7 @@ export function createToolGatewayService(
     }
     if (
       connection.authKind === "oauth" &&
-      connection.credentialSource === "paperclip_vault" &&
+      connection.credentialSource === "nexus_vault" &&
       options.oauthGrantRefresher
     ) {
       try {
@@ -4590,7 +4590,7 @@ export function createToolGatewayService(
       detailsMarkdown:
         grantKind === "organization"
           ? "Vercel Connect reports that the shared organization identity needs authorization."
-          : "This run needs your personal authorization. Paperclip will not use another user's identity.",
+          : "This run needs your personal authorization. Nexus will not use another user's identity.",
       target: {
         type: "custom" as const,
         key: `connection:${connection.uid}:user:${userId}`,
@@ -5247,7 +5247,7 @@ export function createToolGatewayService(
         );
       }
     }
-    if (template.templateId === "paperclip.cognee-cloud") {
+    if (template.templateId === "nexus.cognee-cloud") {
       try { cogneeCloudUrl(env.COGNEE_BASE_URL ?? ""); }
       catch {
         throw new ToolGatewayHttpError(422, "Reconnect Cognee with the tenant API Base URL from its API Keys page.", "cognee_cloud_url_invalid");
@@ -5278,7 +5278,7 @@ export function createToolGatewayService(
     protocolParams?: Record<string, unknown>;
     timeoutMs: number;
   }): Promise<unknown> {
-    if (input.template.templateId === "paperclip.cognee-cloud") {
+    if (input.template.templateId === "nexus.cognee-cloud") {
       if (input.protocolMethod === "resources/list") return { resources: [] };
       if (input.protocolMethod === "prompts/list") return { prompts: [] };
       if (input.protocolMethod && input.protocolMethod !== "tools/call") {
@@ -5451,7 +5451,7 @@ export function createToolGatewayService(
       await request("initialize", {
         protocolVersion: "2024-11-05",
         capabilities: {},
-        clientInfo: { name: "paperclip-tool-gateway", version: "0.3.1" },
+        clientInfo: { name: "nexus-tool-gateway", version: "0.3.1" },
       });
       child.stdin.write(
         `${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} })}\n`,
@@ -5542,7 +5542,7 @@ export function createToolGatewayService(
         headers: mcpHttpRequestHeaders(headers),
         body: JSON.stringify({
           jsonrpc: "2.0",
-          id: `paperclip-context-${randomUUID()}`,
+          id: `nexus-context-${randomUUID()}`,
           method: input.method,
           params: input.params,
         }),
@@ -5640,7 +5640,7 @@ export function createToolGatewayService(
       template,
       grant,
     );
-    if (template.templateId === "paperclip.cognee-cloud") {
+    if (template.templateId === "nexus.cognee-cloud") {
       return callLocalStdioMcp({ connection: input.connection, template, env,
         protocolMethod: input.method, protocolParams: input.params ?? {}, timeoutMs: DEFAULT_TOOL_TIMEOUT_MS });
     }
@@ -5676,13 +5676,13 @@ export function createToolGatewayService(
     connectionId: string,
     value: string,
   ) {
-    return `paperclip-${kind}://${connectionId}/${Buffer.from(value, "utf8").toString("base64url")}`;
+    return `nexus-${kind}://${connectionId}/${Buffer.from(value, "utf8").toString("base64url")}`;
   }
 
   function parseContextHandle(kind: "resource" | "prompt", value: unknown) {
     if (typeof value !== "string") return null;
     const match = value.match(
-      new RegExp(`^paperclip-${kind}://([0-9a-f-]{36})/([A-Za-z0-9_-]+)$`, "i"),
+      new RegExp(`^nexus-${kind}://([0-9a-f-]{36})/([A-Za-z0-9_-]+)$`, "i"),
     );
     if (!match) return null;
     try {
@@ -5813,7 +5813,7 @@ export function createToolGatewayService(
     tool: ToolGatewayDescriptor,
     options: { requireResolvedCredentials?: boolean } = {},
   ): Promise<Record<string, unknown> | null> {
-    if (tool.providerType === "paperclip_slack_chat") {
+    if (tool.providerType === "nexus_slack_chat") {
       if (!session.agentId || !session.runId || !session.issueId) throw new ToolGatewayHttpError(403, "Slack task binding required", "slack_task_required");
       const authority = await resolveSlackTaskAuthority(db, { companyId: session.companyId, agentId: session.agentId, runId: session.runId, issueId: session.issueId, endpointId: String(asRecord(tool.providerMetadata)?.endpointId ?? ""), identityContextId: session.identityContextId, approvedInvocationId: session.approvedSlackInvocationId });
       return { endpointId: authority.endpoint.id, userId: authority.userId, revision: authority.revision, identityContextId: authority.identityContextId };
@@ -6075,7 +6075,7 @@ export function createToolGatewayService(
         status: "awaiting_approval",
         errorCode: "elicitation_required",
         errorMessage:
-          "Remote MCP tool requested elicitation; Paperclip created an issue interaction for the response.",
+          "Remote MCP tool requested elicitation; Nexus created an issue interaction for the response.",
         updatedAt: now,
       })
       .where(eq(toolInvocations.id, input.invocationId));
@@ -6250,7 +6250,7 @@ export function createToolGatewayService(
     });
     let headers = builtHeaders.headers;
     let headerSummary = builtHeaders.summary;
-    const requestId = `paperclip-tool-${randomUUID()}`;
+    const requestId = `nexus-tool-${randomUUID()}`;
     const execution: RemoteHttpExecutionAudit = {
       transport: "mcp_remote",
       request: {
@@ -6390,8 +6390,8 @@ export function createToolGatewayService(
       if (
         response.status === 401 &&
         connection.authKind === "oauth" &&
-        connection.credentialSource === "paperclip_vault" &&
-        isPaperclipCloudConnectorStrategy(oauth?.strategy)
+        connection.credentialSource === "nexus_vault" &&
+        isNexusCloudConnectorStrategy(oauth?.strategy)
       ) {
         credentialHeaders = {
           ...projectedConnectionHeaders(connection),
@@ -6412,8 +6412,8 @@ export function createToolGatewayService(
       if (
         response.status === 401 &&
         connection.authKind === "oauth" &&
-        connection.credentialSource === "paperclip_vault" &&
-        !isPaperclipCloudConnectorStrategy(oauth?.strategy) &&
+        connection.credentialSource === "nexus_vault" &&
+        !isNexusCloudConnectorStrategy(oauth?.strategy) &&
         options.oauthGrantRefresher
       ) {
         credentialHeaders = {
@@ -6685,10 +6685,10 @@ export function createToolGatewayService(
       grant,
     );
     const invoke = () => callLocalStdioMcp({ connection, entry, template, env, parameters,
-      timeoutMs: useProviderDefaultTimeout && template.templateId === "paperclip.cognee-cloud" ? 60_000 : ms });
+      timeoutMs: useProviderDefaultTimeout && template.templateId === "nexus.cognee-cloud" ? 60_000 : ms });
     // Cognee is a bundled HTTP client. Provider failures are tool failures, not
     // crashed local processes, and must never consume slots or restart budgets.
-    const result = template.templateId === "paperclip.cognee-cloud"
+    const result = template.templateId === "nexus.cognee-cloud"
       ? await invoke()
       : await runtimeSupervisor.useConnectionSlot(
       {
@@ -6713,7 +6713,7 @@ export function createToolGatewayService(
       },
     );
     return {
-      result: normalizeMcpToolResult(result, template.templateId === "paperclip.cognee-cloud" ? "cognee_cloud" : "local_stdio", template.templateId !== "paperclip.cognee-cloud"),
+      result: normalizeMcpToolResult(result, template.templateId === "nexus.cognee-cloud" ? "cognee_cloud" : "local_stdio", template.templateId !== "nexus.cognee-cloud"),
     };
   }
 
@@ -6767,7 +6767,7 @@ export function createToolGatewayService(
             },
           },
         },
-        notes: ["Use the full Paperclip origin before the endpoint path."],
+        notes: ["Use the full Nexus origin before the endpoint path."],
       },
       {
         client: "claude_desktop",
@@ -6827,7 +6827,7 @@ export function createToolGatewayService(
             },
           },
         },
-        notes: ["Use the full Paperclip origin before the endpoint path."],
+        notes: ["Use the full Nexus origin before the endpoint path."],
       },
     ];
   }
@@ -7333,7 +7333,7 @@ export function createToolGatewayService(
     // The immutable native profile also identifies legacy assignments when an
     // update has cleared the gateway metadata. Missing metadata must fail closed.
     const nativeAssignment = Object.hasOwn(nativeMetadata ?? {}, "nativeRuntimeAssignmentDigest") ||
-      profile?.profileKey.startsWith("native:") || profile?.source === "paperclip_runner";
+      profile?.profileKey.startsWith("native:") || profile?.source === "nexus_runner";
     const nativeOwner = nativeMetadata?.agentId;
     if (nativeAssignment && (
       typeof nativeOwner !== "string" || !uuidPattern.test(nativeOwner) ||
@@ -7348,7 +7348,7 @@ export function createToolGatewayService(
       });
     }
     if (nativeAssignment) {
-      if (profile?.status !== "active" || profile.source !== "paperclip_runner" ||
+      if (profile?.status !== "active" || profile.source !== "nexus_runner" ||
           profile.agentId !== nativeOwner ||
           profile.assignmentDigest !== nativeMetadata!.nativeRuntimeAssignmentDigest) {
         return recordNamedGatewayAuthFailure({
@@ -8453,7 +8453,7 @@ export function createToolGatewayService(
                   executionTimeoutMs,
                 )
               ).result
-            : tool.providerType !== "paperclip_plugin"
+            : tool.providerType !== "nexus_plugin"
               ? await runWithTimeout(
                   executeBuiltinTool(session, tool, parameters, invocation.id),
                   executionTimeoutMs,
@@ -10356,7 +10356,7 @@ export function createToolGatewayService(
         }
       }
       let tool = await findToolForSession(session, input.tool);
-      if (tool.providerType === "paperclip_slack_chat") {
+      if (tool.providerType === "nexus_slack_chat") {
         const definition = SLACK_TOOLS.find(t => t.name === tool.upstreamToolName);
         const args = definition?.schema.parse(input.parameters ?? {}) as Record<string, unknown> | undefined;
         if (!args) throw new ToolGatewayHttpError(403, "Unknown Slack operation", "slack_task_required");
@@ -10373,7 +10373,7 @@ export function createToolGatewayService(
 
       if (
         tool.name === "search_tools" &&
-        tool.providerType === "paperclip_virtual"
+        tool.providerType === "nexus_virtual"
       ) {
         const argumentValidation = await validateToolContent({
           value: requestedParameters,
@@ -10412,7 +10412,7 @@ export function createToolGatewayService(
             agentId: session.agentId,
             issueId: session.issueId,
             runId: session.runId,
-            providerType: "paperclip_virtual",
+            providerType: "nexus_virtual",
             upstreamToolName: "search_tools",
             riskLevel: "read",
             toolName: "search_tools",
@@ -10475,7 +10475,7 @@ export function createToolGatewayService(
 
       if (
         tool.name === "run_tool" &&
-        tool.providerType === "paperclip_virtual"
+        tool.providerType === "nexus_virtual"
       ) {
         const { targetToolName, targetParameters } =
           virtualRunToolInput(requestedParameters);
@@ -10518,7 +10518,7 @@ export function createToolGatewayService(
 
       if (session.runId && session.issueId && tool.connectionId && tool.risk !== "read" &&
           // This owner has an exact publication receipt/reconciliation protocol.
-          !(tool.providerType === "paperclip_github_chat" &&
+          !(tool.providerType === "nexus_github_chat" &&
             ["comment", "update_comment", "submit_review"].includes(tool.upstreamToolName ?? ""))) {
         const unresolved = await unresolvedRecoveryToolInvocation(db, {
           companyId: session.companyId, issueId: session.issueId, runId: session.runId,
@@ -10538,7 +10538,7 @@ export function createToolGatewayService(
         });
         if (replay?.matched) {
           let replayResult: unknown = replay.result;
-          if (tool.providerType === "paperclip_github_chat" && ["comment", "update_comment", "submit_review"].includes(tool.upstreamToolName ?? "")) {
+          if (tool.providerType === "nexus_github_chat" && ["comment", "update_comment", "submit_review"].includes(tool.upstreamToolName ?? "")) {
             const access = await policyService.decide(policyInputForTool({ session, tool, parameters: effectiveParameters, consumeRateLimit: false }));
             if (!access.allowed && access.decision !== "require_approval")
               throw new ToolGatewayHttpError(policyErrorStatus(access), access.explanation, access.reasonCode);
@@ -10950,7 +10950,7 @@ export function createToolGatewayService(
           consumeRateLimit: true,
         });
         let accessDecision = await policyService.decide(decisionInput);
-        if (accessDecision.allowed && tool.providerType === "paperclip_slack_chat" && SLACK_TOOLS.some(t => t.name === tool.upstreamToolName && t.risk === "approval")) {
+        if (accessDecision.allowed && tool.providerType === "nexus_slack_chat" && SLACK_TOOLS.some(t => t.name === tool.upstreamToolName && t.risk === "approval")) {
           accessDecision = { ...accessDecision, allowed: false, decision: "require_approval", reasonCode: "requires_approval_policy", explanation: "Slack destructive actions, channel creation and invitations require approval." };
         }
         const recorded = await recordToolInvocation(
@@ -10959,11 +10959,11 @@ export function createToolGatewayService(
         );
         await policyService.writeAudit(decisionInput, accessDecision);
         invocationId = recorded.invocation.id;
-        const retryingSlackRateLimit = recorded.replayed && accessDecision.allowed && tool.providerType === "paperclip_slack_chat" && session.agentId && session.runId && session.issueId
+        const retryingSlackRateLimit = recorded.replayed && accessDecision.allowed && tool.providerType === "nexus_slack_chat" && session.agentId && session.runId && session.issueId
           ? await claimSlackRateLimitRetry(db, { companyId: session.companyId, agentId: session.agentId, runId: session.runId, issueId: session.issueId, endpointId: String(asRecord(tool.providerMetadata)?.endpointId ?? ""), identityContextId: session.identityContextId }, invocationId)
           : false;
         const gitHubPublicationReplay = recorded.replayed &&
-          tool.providerType === "paperclip_github_chat" &&
+          tool.providerType === "nexus_github_chat" &&
           ["begin_review", "comment", "update_comment", "submit_review"].includes(tool.upstreamToolName ?? "") &&
           recorded.invocation.approvalState === "not_required";
         const gitHubReplayPolicyAllowed = accessDecision.allowed;
@@ -11110,7 +11110,7 @@ export function createToolGatewayService(
         await assertCurrentGatewayIssuer(session, tool, effectiveParameters, invocationId, !!input.approvedActionRequestId);
         const executionTimeoutMs = timeoutMs(input.timeoutMs, tool);
         if (
-          tool.providerType === "paperclip_plugin" &&
+          tool.providerType === "nexus_plugin" &&
           (!session.agentId || !session.runId)
         ) {
           throw new ToolGatewayHttpError(
@@ -11141,7 +11141,7 @@ export function createToolGatewayService(
               : null;
         const result = recoveredGitHubPublication ?? (connectedMcpExecution
           ? connectedMcpExecution.result
-          : tool.providerType === "paperclip_plugin"
+          : tool.providerType === "nexus_plugin"
             ? await runWithTimeout(
                 pluginToolDispatcher!.executeTool(
                   tool.name,
@@ -11459,7 +11459,7 @@ export function createToolGatewayService(
 
       const tool = findStaticTool(input.tool);
 
-      if (tool.providerType !== "paperclip_plugin") {
+      if (tool.providerType !== "nexus_plugin") {
         throw new ToolGatewayHttpError(
           404,
           `Tool "${input.tool}" is not a plugin tool`,

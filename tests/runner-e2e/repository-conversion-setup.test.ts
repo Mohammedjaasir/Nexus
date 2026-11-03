@@ -31,7 +31,7 @@ describe("real legacy conversion prerequisites", () => {
     await expect(convertRepositoryProofAgent(api as any, fixture)).resolves.toBeUndefined();
     expect(api.post).toHaveBeenCalledWith("/api/environments/environment/probe?companyId=company", {}, { timeout: 330_000 });
     expect(fixture.setupProbe).toMatchObject({ leaseId: "lease" });
-    expect(api.patch).toHaveBeenCalledExactlyOnceWith("/api/agents/agent", { runner: "paperclip" });
+    expect(api.patch).toHaveBeenCalledExactlyOnceWith("/api/agents/agent", { runner: "nexus" });
   });
   it("does not attempt conversion when platform qualification is absent", async () => {
     const fixture = fixtures(); const api = { post: vi.fn(async () => ({ ok: true, details: { leaseId: "lease" } })), patch: vi.fn() };

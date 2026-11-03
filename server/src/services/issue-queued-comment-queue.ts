@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import type { IssueComment, IssueQueuedCommentQueue } from "@paperclipai/shared";
+import type { IssueComment, IssueQueuedCommentQueue } from "@nexusai/shared";
 
-const QUEUE_CONTEXT_KEY = "_paperclipWakeContext";
+const QUEUE_CONTEXT_KEY = "_nexusWakeContext";
 const QUEUE_IDS_KEY = "wakeCommentIds";
 
 function record(value: unknown): Record<string, unknown> {
@@ -98,28 +98,28 @@ export function withQueuedCommentIdsInRunContext(
 
   // These projections are generated immediately before dispatch. Any queue
   // mutation must force them to be rebuilt from the canonical comment ids.
-  delete context.paperclipWake;
-  delete context.paperclipWakeComment;
-  delete context.paperclipTaskMarkdown;
-  delete context.paperclipTaskMarkdownCompact;
-  delete context.paperclipTaskMarkdownAssignment;
-  delete context.paperclipTaskMarkdownAssignmentCompact;
-  delete context.paperclipTurnContext;
+  delete context.nexusWake;
+  delete context.nexusWakeComment;
+  delete context.nexusTaskMarkdown;
+  delete context.nexusTaskMarkdownCompact;
+  delete context.nexusTaskMarkdownAssignment;
+  delete context.nexusTaskMarkdownAssignmentCompact;
+  delete context.nexusTurnContext;
   return context;
 }
 
-export type QueuedCommentQueueProtocol = "paperclip_runner_v1" | "legacy";
+export type QueuedCommentQueueProtocol = "nexus_runner_v1" | "legacy";
 
 export type QueuedCommentQueueSteeringDecision =
   | { protocol: QueuedCommentQueueProtocol; kind: "unsupported" }
   | { protocol: QueuedCommentQueueProtocol; kind: "temporarily_unavailable" }
   /** Only the caller can probe the live runner. `steeringRunId` names the run to probe. */
-  | { protocol: "paperclip_runner_v1"; kind: "probe"; steeringRunId: string };
+  | { protocol: "nexus_runner_v1"; kind: "probe"; steeringRunId: string };
 
 /**
  * Decides the queue protocol and the steering answer for one queued-comment
  * queue, from plain facts. This is the one place that resolves the
- * `paperclip_runner_v1`/`legacy` protocol and the steering answer; every
+ * `nexus_runner_v1`/`legacy` protocol and the steering answer; every
  * caller that builds a queue response must call this function instead of
  * repeating the rule.
  *
@@ -143,7 +143,7 @@ export function decideQueuedCommentQueueSteering(facts: {
   // Use the run's immutable dispatch choice, never the agent's mutable settings.
   const preparingNative = facts.state === "deferred" && facts.activeRun?.runtimeMode === "legacy" &&
     facts.activeRun.runtimeModeResolvedAt === null &&
-    record(facts.activeRun.runnerProfileJson?.adapterDispatch).adapterType === "paperclip_runner";
+    record(facts.activeRun.runnerProfileJson?.adapterDispatch).adapterType === "nexus_runner";
   const persistedRuntimeMode = preparingNative ? null :
     facts.state === "queued"
       ? facts.queueRunRuntimeMode
@@ -153,11 +153,11 @@ export function decideQueuedCommentQueueSteering(facts: {
 
   const protocol: QueuedCommentQueueProtocol =
     preparingNative || persistedRuntimeMode === "native"
-      || (persistedRuntimeMode === null && facts.assignedAgentAdapterType === "paperclip_runner")
-      ? "paperclip_runner_v1"
+      || (persistedRuntimeMode === null && facts.assignedAgentAdapterType === "nexus_runner")
+      ? "nexus_runner_v1"
       : "legacy";
 
-  if (protocol !== "paperclip_runner_v1") {
+  if (protocol !== "nexus_runner_v1") {
     return { protocol, kind: "unsupported" };
   }
 

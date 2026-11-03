@@ -47,7 +47,7 @@ const meta = {
           "Pick a direction and a surface. Today is the shipped components fed with the lab's fixtures; 1–5 are the explored directions.",
       },
     },
-    paperclip: {
+    nexus: {
       capabilities: ["documents-artifacts/library", "documents-artifacts/work-products", "documents-artifacts/attachments"],
       status: "proposed",
       home: "design-proposals",

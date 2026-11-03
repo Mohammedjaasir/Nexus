@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agents, companies, createDb, heartbeatRuns, issueComments, issueThreadInteractions, issues } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRuns, issueComments, issueThreadInteractions, issues } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { buildExecutionContinuation, currentContinuationOrigins } from "./execution-continuation.js";
 
@@ -10,7 +10,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-continuation-provenance-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-continuation-provenance-");
     db = createDb(database.connectionString);
   }, 30_000);
   afterAll(async () => { await database?.cleanup(); });
@@ -19,7 +19,7 @@ const support = await getEmbeddedPostgresTestSupport();
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), producerIssueId = randomUUID();
     const producerRunId = randomUUID(), interactionId = randomUUID(), targetCommentId = randomUUID(), producerCommentId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Provenance fixture", issuePrefix: `PRV${companyId.slice(0, 8)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Executor", role: "engineer", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Executor", role: "engineer", adapterType: "nexus_runner" });
     await db.insert(issues).values([
       { id: issueId, companyId, title: "Target task", status: "in_progress", assigneeAgentId: agentId },
       { id: producerIssueId, companyId, title: "Producer task", status: "in_progress", assigneeAgentId: agentId },

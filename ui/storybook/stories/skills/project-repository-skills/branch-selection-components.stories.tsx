@@ -17,7 +17,7 @@ const meta = {
   component: BranchPicker,
   parameters: {
     layout: 'fullscreen',
-    paperclip: { capabilities: ['skills/discovery', 'projects/repositories'], status: 'current', implementation: 'production', boundary: 'fixtures', notes: 'Shared production branch selector with default, unlisted, loading, failed-list and long-name states. Branch discovery responses use fixtures; Sources owns real API loading and saving.' },
+    nexus: { capabilities: ['skills/discovery', 'projects/repositories'], status: 'current', implementation: 'production', boundary: 'fixtures', notes: 'Shared production branch selector with default, unlisted, loading, failed-list and long-name states. Branch discovery responses use fixtures; Sources owns real API loading and saving.' },
   },
 } satisfies Meta<typeof BranchPicker>;
 export default meta;

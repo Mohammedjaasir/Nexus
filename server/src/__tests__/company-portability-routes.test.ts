@@ -135,7 +135,7 @@ const exportRequest = {
 
 function createExportResult() {
   return {
-    rootPath: "paperclip",
+    rootPath: "nexus",
     manifest: {
       agents: [],
       skills: [],
@@ -161,8 +161,8 @@ const importRequest = {
 };
 
 const cloudHeaders = {
-  "x-paperclip-cloud-stack-id": "stack-alpha",
-  "x-paperclip-cloud-paperclip-company-id": companyId,
+  "x-nexus-cloud-stack-id": "stack-alpha",
+  "x-nexus-cloud-nexus-company-id": companyId,
 };
 
 function cloudTenantActor() {
@@ -345,13 +345,13 @@ describe("company portability routes", () => {
     mockAgentService.list.mockResolvedValue([]);
     mockCompanyPortabilityService.exportBundle.mockResolvedValue(createExportResult());
     mockCompanyPortabilityService.previewExport.mockResolvedValue({
-      rootPath: "paperclip",
+      rootPath: "nexus",
       manifest: { agents: [], skills: [], projects: [], issues: [], envInputs: [], includes: { company: true, agents: true, projects: true, issues: false, skills: false }, company: null, schemaVersion: 1, generatedAt: new Date().toISOString(), source: null },
       files: {},
       fileInventory: [],
       counts: { files: 0, agents: 0, skills: 0, projects: 0, issues: 0 },
       warnings: [],
-      paperclipExtensionPath: ".paperclip.yaml",
+      nexusExtensionPath: ".nexus.yaml",
     });
     mockCompanyPortabilityService.previewImport.mockResolvedValue({ ok: true });
     mockCompanyPortabilityService.importBundle.mockResolvedValue({
@@ -417,13 +417,13 @@ describe("company portability routes", () => {
 
   it("allows CEO agents to use company-scoped export preview routes", async () => {
     mockCompanyPortabilityService.previewExport.mockResolvedValue({
-      rootPath: "paperclip",
+      rootPath: "nexus",
       manifest: { agents: [], skills: [], projects: [], issues: [], envInputs: [], includes: { company: true, agents: true, projects: true, issues: false, skills: false }, company: null, schemaVersion: 1, generatedAt: new Date().toISOString(), source: null },
       files: {},
       fileInventory: [],
       counts: { files: 0, agents: 0, skills: 0, projects: 0, issues: 0 },
       warnings: [],
-      paperclipExtensionPath: ".paperclip.yaml",
+      nexusExtensionPath: ".nexus.yaml",
     });
     const app = await createApp({
       type: "agent",
@@ -438,7 +438,7 @@ describe("company portability routes", () => {
       .send(exportRequest);
 
     expect(res.status).toBe(200);
-    expect(res.body.rootPath).toBe("paperclip");
+    expect(res.body.rootPath).toBe("nexus");
   });
 
   it("allows CEO agents to export through legacy and CEO-safe bundle routes", async () => {
@@ -455,7 +455,7 @@ describe("company portability routes", () => {
       const res = await request(app).post(path).send(exportRequest);
 
       expect(res.status).toBe(200);
-      expect(res.body.rootPath).toBe("paperclip");
+      expect(res.body.rootPath).toBe("nexus");
     }
     expect(mockCompanyPortabilityService.exportBundle).toHaveBeenCalledTimes(2);
     expect(mockCompanyPortabilityService.exportBundle).toHaveBeenNthCalledWith(
@@ -486,7 +486,7 @@ describe("company portability routes", () => {
       const res = await request(app).post(path).send(exportRequest);
 
       expect(res.status).toBe(200);
-      expect(res.body.rootPath).toBe("paperclip");
+      expect(res.body.rootPath).toBe("nexus");
     }
     expect(mockCompanyPortabilityService.exportBundle).toHaveBeenCalledTimes(2);
   });
@@ -497,7 +497,7 @@ describe("company portability routes", () => {
       companyId,
       adapterConfig: {
         instructionsBundleMode: "external",
-        instructionsRootPath: "/srv/paperclip/external-agent",
+        instructionsRootPath: "/srv/nexus/external-agent",
       },
     }]);
     const nonAdminActors = [
@@ -541,7 +541,7 @@ describe("company portability routes", () => {
       companyId,
       adapterConfig: {
         instructionsBundleMode: "external",
-        instructionsRootPath: "/srv/paperclip/external-agent",
+        instructionsRootPath: "/srv/nexus/external-agent",
       },
     }]);
     const app = await createApp({
@@ -573,7 +573,7 @@ describe("company portability routes", () => {
         metadata: null,
         adapterConfig: {
           instructionsBundleMode: "external",
-          instructionsRootPath: "/srv/paperclip/external-agent",
+          instructionsRootPath: "/srv/nexus/external-agent",
         },
       },
       {
@@ -618,7 +618,7 @@ describe("company portability routes", () => {
       companyId,
       adapterConfig: {
         instructionsBundleMode: "external",
-        instructionsRootPath: "/srv/paperclip/external-agent",
+        instructionsRootPath: "/srv/nexus/external-agent",
       },
     }]);
     const app = await createApp({
@@ -933,7 +933,7 @@ describe("company portability routes", () => {
 
     const accepted = await request(app)
       .post("/api/companies/import")
-      .set("x-paperclip-cloud-async-import", "1")
+      .set("x-nexus-cloud-async-import", "1")
       .set(cloudHeaders)
       .send(importRequest);
 
@@ -994,7 +994,7 @@ describe("company portability routes", () => {
 
     const accepted = await request(app)
       .post("/api/companies/import")
-      .set("x-paperclip-cloud-async-import", "1")
+      .set("x-nexus-cloud-async-import", "1")
       .set(cloudHeaders)
       .send(importRequest);
 
@@ -1014,7 +1014,7 @@ describe("company portability routes", () => {
 
     const accepted = await request(app)
       .post("/api/companies/import")
-      .set("x-paperclip-cloud-async-import", "1")
+      .set("x-nexus-cloud-async-import", "1")
       .set(cloudHeaders)
       .send({ target: { mode: "existing_company", companyId } });
 
@@ -1036,7 +1036,7 @@ describe("company portability routes", () => {
     // purpose: the import floor keys on isCloudManagedInstance(), not on the
     // actor. With the signal present, even the trusted tenant actor is
     // floored — importing is disabled on cloud-managed instances outright.
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "tenant-secret");
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "tenant-secret");
     try {
       const app = await createApp(cloudTenantActor());
 
@@ -1081,7 +1081,7 @@ describe("company portability routes", () => {
 
     const accepted = await request(app)
       .post("/api/companies/import")
-      .set("x-paperclip-cloud-async-import", "1")
+      .set("x-nexus-cloud-async-import", "1")
       .set(TEST_USER_HEADER, "board-user-a")
       .send(importRequest);
 
@@ -1117,7 +1117,7 @@ describe("company portability routes", () => {
 
     const accepted = await request(app)
       .post("/api/companies/import")
-      .set("x-paperclip-cloud-async-import", "1")
+      .set("x-nexus-cloud-async-import", "1")
       .set(TEST_USER_HEADER, "board-user-a")
       .send(importRequest);
 
@@ -1138,7 +1138,7 @@ describe("company portability routes", () => {
 
     const first = await request(app)
       .post("/api/companies/import")
-      .set("x-paperclip-cloud-async-import", "1")
+      .set("x-nexus-cloud-async-import", "1")
       .set(TEST_USER_HEADER, "board-user-a")
       .send(importRequest);
 
@@ -1146,7 +1146,7 @@ describe("company portability routes", () => {
 
     const duplicate = await request(app)
       .post("/api/companies/import")
-      .set("x-paperclip-cloud-async-import", "1")
+      .set("x-nexus-cloud-async-import", "1")
       .set(TEST_USER_HEADER, "board-user-a")
       .send(importRequest);
 
@@ -1160,7 +1160,7 @@ describe("company portability routes", () => {
     mockCompanyPortabilityService.importBundle.mockReturnValueOnce(new Promise(() => undefined));
     const otherUser = await request(app)
       .post("/api/companies/import")
-      .set("x-paperclip-cloud-async-import", "1")
+      .set("x-nexus-cloud-async-import", "1")
       .set(TEST_USER_HEADER, "board-user-b")
       .send(importRequest);
 
@@ -1176,7 +1176,7 @@ describe("company portability routes", () => {
 
       const first = await request(app)
         .post("/api/companies/import")
-        .set("x-paperclip-cloud-async-import", "1")
+        .set("x-nexus-cloud-async-import", "1")
         .set(TEST_USER_HEADER, "board-user-a")
         .send(importRequest);
 
@@ -1188,7 +1188,7 @@ describe("company portability routes", () => {
       // job to watch, and no second import starts.
       const different = await request(app)
         .post("/api/companies/import")
-        .set("x-paperclip-cloud-async-import", "1")
+        .set("x-nexus-cloud-async-import", "1")
         .set(TEST_USER_HEADER, "board-user-a")
         .send({ ...importRequest, target: { mode: "new_company", newCompanyName: "A Different Destination" } });
 
@@ -1206,7 +1206,7 @@ describe("company portability routes", () => {
 
     const accepted = await request(app)
       .post("/api/companies/import")
-      .set("x-paperclip-cloud-async-import", "1")
+      .set("x-nexus-cloud-async-import", "1")
       .set(TEST_USER_HEADER, "board-user-a")
       .send(importRequest);
 
@@ -1275,20 +1275,20 @@ describe("company portability routes", () => {
   it("imports a company from a multipart zip upload, unzipping into the same inline bundle", async () => {
     const app = await createBoardApp();
     const files = { "COMPANY.md": "---\nname: Test\n---\n", "agents/ceo/AGENTS.md": "---\nname: CEO\n---\n" };
-    const zip = buildStoreZip(files, "paperclip");
+    const zip = buildStoreZip(files, "nexus");
 
     const res = await request(app)
       .post("/api/companies/import")
       .set(TEST_USER_HEADER, "board-user-a")
       .field("meta", JSON.stringify(importMeta))
-      .attach("package", zip, "paperclip-demo.zip");
+      .attach("package", zip, "nexus-demo.zip");
 
     expect(res.status).toBe(200);
     expect(mockCompanyPortabilityService.importBundle).toHaveBeenCalledTimes(1);
     const call = mockCompanyPortabilityService.importBundle.mock.calls[0]!;
     // The uploaded zip is unzipped into the exact inline source the importer
     // consumes; the other import fields ride along from the JSON meta field.
-    expect(call[0]).toEqual({ ...importMeta, source: { type: "inline", rootPath: "paperclip", files } });
+    expect(call[0]).toEqual({ ...importMeta, source: { type: "inline", rootPath: "nexus", files } });
     expect(call[1]).toBe("board-user-a");
     expect(call[2]).toEqual({ pauseAutomations: false });
   });
@@ -1296,18 +1296,18 @@ describe("company portability routes", () => {
   it("previews a company from a multipart zip upload", async () => {
     const app = await createBoardApp();
     const files = { "COMPANY.md": "---\nname: Test\n---\n" };
-    const zip = buildStoreZip(files, "paperclip");
+    const zip = buildStoreZip(files, "nexus");
 
     const res = await request(app)
       .post("/api/companies/import/preview")
       .set(TEST_USER_HEADER, "board-user-a")
       .field("meta", JSON.stringify(importMeta))
-      .attach("package", zip, "paperclip-demo.zip");
+      .attach("package", zip, "nexus-demo.zip");
 
     expect(res.status).toBe(200);
     expect(mockCompanyPortabilityService.previewImport).toHaveBeenCalledTimes(1);
     const call = mockCompanyPortabilityService.previewImport.mock.calls[0]!;
-    expect(call[0]).toEqual({ ...importMeta, source: { type: "inline", rootPath: "paperclip", files } });
+    expect(call[0]).toEqual({ ...importMeta, source: { type: "inline", rootPath: "nexus", files } });
   });
 
   it("runs a multipart zip import as an async board job via ?async=1", async () => {
@@ -1318,13 +1318,13 @@ describe("company portability routes", () => {
     mockCompanyPortabilityService.importBundle.mockReturnValueOnce(pendingImport);
     const app = await createBoardApp();
     const files = { "COMPANY.md": "---\nname: Test\n---\n" };
-    const zip = buildStoreZip(files, "paperclip");
+    const zip = buildStoreZip(files, "nexus");
 
     const accepted = await request(app)
       .post("/api/companies/import?async=1")
       .set(TEST_USER_HEADER, "board-user-a")
       .field("meta", JSON.stringify(importMeta))
-      .attach("package", zip, "paperclip-demo.zip");
+      .attach("package", zip, "nexus-demo.zip");
 
     expect(accepted.status).toBe(202);
     expect(accepted.body.job.status).toBe("running");
@@ -1335,7 +1335,7 @@ describe("company portability routes", () => {
     );
     expect(mockCompanyPortabilityService.importBundle.mock.calls[0]![0]).toEqual({
       ...importMeta,
-      source: { type: "inline", rootPath: "paperclip", files },
+      source: { type: "inline", rootPath: "nexus", files },
     });
 
     const fullResult = createImportResult("created");
@@ -1351,7 +1351,7 @@ describe("company portability routes", () => {
     mockCompanyPortabilityService.importBundle.mockReturnValueOnce(new Promise(() => undefined));
     const app = await createBoardApp();
 
-    // The Cloud harness strips inbound x-paperclip-cloud-* headers, so a browser
+    // The Cloud harness strips inbound x-nexus-cloud-* headers, so a browser
     // can only opt into async with the proxy-safe query parameter.
     const accepted = await request(app)
       .post("/api/companies/import?async=1")
@@ -1375,13 +1375,13 @@ describe("company portability routes", () => {
     expect(res.body.company.id).toBe(companyId);
   });
 
-  it("still engages the async path for cloud tenants via the x-paperclip-cloud-async-import header", async () => {
+  it("still engages the async path for cloud tenants via the x-nexus-cloud-async-import header", async () => {
     mockCompanyPortabilityService.importBundle.mockReturnValueOnce(new Promise(() => undefined));
     const app = await createApp(cloudTenantActor());
 
     const accepted = await request(app)
       .post("/api/companies/import")
-      .set("x-paperclip-cloud-async-import", "1")
+      .set("x-nexus-cloud-async-import", "1")
       .set(cloudHeaders)
       .send(importRequest);
 
@@ -1391,14 +1391,14 @@ describe("company portability routes", () => {
 
   it("rejects a truncated zip upload without importing anything", async () => {
     const app = await createBoardApp();
-    const zip = buildStoreZip({ "COMPANY.md": "---\nname: Test\n---\n" }, "paperclip");
+    const zip = buildStoreZip({ "COMPANY.md": "---\nname: Test\n---\n" }, "nexus");
     const truncated = zip.subarray(0, 40);
 
     const res = await request(app)
       .post("/api/companies/import")
       .set(TEST_USER_HEADER, "board-user-a")
       .field("meta", JSON.stringify(importMeta))
-      .attach("package", truncated, "paperclip-demo.zip");
+      .attach("package", truncated, "nexus-demo.zip");
 
     expect(res.status).toBe(400);
     expect(mockCompanyPortabilityService.importBundle).not.toHaveBeenCalled();

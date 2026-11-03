@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { MotionConfig, motion } from "motion/react";
-import { isValidBrowserCode } from "@paperclipai/shared";
+import { isValidBrowserCode } from "@nexusai/shared";
 import {
   CARD_ENTER,
   CARD_EXIT,
@@ -110,7 +110,7 @@ const POLL_DELAY_MS = 3000;
 const DISPLAYED_CODE = "Q2RJ-E1YIF";
 
 const OAUTH_URL: Record<string, string> = {
-  claude_local: "https://claude.ai/oauth/authorize?code=true&client=paperclip",
+  claude_local: "https://claude.ai/oauth/authorize?code=true&client=nexus",
   codex_local: "https://auth.openai.com/codex/device",
 };
 
@@ -312,7 +312,7 @@ function ConnectFlowPreview({
             lede={
               done
                 ? "The step advances straight to Review — there is no success screen."
-                : "Paperclip works with your existing subscription or API keys."
+                : "Nexus works with your existing subscription or API keys."
             }
           />
         </div>

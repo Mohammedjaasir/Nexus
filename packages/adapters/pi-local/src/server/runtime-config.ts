@@ -1,4 +1,4 @@
-import { isOpenRouterUrl, openRouterAttributionHeaders } from "@paperclipai/adapter-utils/openrouter-attribution";
+import { isOpenRouterUrl, openRouterAttributionHeaders } from "@nexusai/adapter-utils/openrouter-attribution";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -63,7 +63,7 @@ function parseProviderConfig(
     if (!isPlainObject(parsed)) {
       return {
         providers: null,
-        warning: "PAPERCLIP_PI_PROVIDERS is set but is not a JSON object; custom providers ignored.",
+        warning: "NEXUS_PI_PROVIDERS is set but is not a JSON object; custom providers ignored.",
       };
     }
     // Only keep provider entries that are themselves objects; surface the ones
@@ -77,18 +77,18 @@ function parseProviderConfig(
     return {
       providers: Object.keys(providers).length > 0 ? providers : null,
       warning: skipped.length > 0
-        ? `PAPERCLIP_PI_PROVIDERS: skipped provider(s) with non-object values: ${skipped.join(", ")}.`
+        ? `NEXUS_PI_PROVIDERS: skipped provider(s) with non-object values: ${skipped.join(", ")}.`
         : null,
     };
   } catch {
     return {
       providers: null,
-      warning: "PAPERCLIP_PI_PROVIDERS contains invalid JSON; custom providers ignored.",
+      warning: "NEXUS_PI_PROVIDERS contains invalid JSON; custom providers ignored.",
     };
   }
 }
 
-// Materialize custom Pi providers supplied via PAPERCLIP_PI_PROVIDERS (a JSON
+// Materialize custom Pi providers supplied via NEXUS_PI_PROVIDERS (a JSON
 // object in Pi's models.json "providers" shape) into a managed agent-config dir.
 //
 // Pi has no base-url CLI flag or env var: the only mechanism for pointing it at a
@@ -99,7 +99,7 @@ function parseProviderConfig(
 // provider entry to enumerate its models explicitly. We accept the providers as
 // config (not hard-coded) so the gateway URL, key, and model list stay declarative.
 //
-// When PAPERCLIP_PI_PROVIDERS is set we write {"providers": ...} to a fresh temp
+// When NEXUS_PI_PROVIDERS is set we write {"providers": ...} to a fresh temp
 // dir and point PI_CODING_AGENT_DIR at it; the managed dir intentionally replaces
 // the host agent dir (credentials travel inside the providers config itself, via
 // a literal apiKey or a server-side-expanded {env:VAR} placeholder). For remote
@@ -110,7 +110,7 @@ export async function preparePiRuntimeConfig(input: {
 }): Promise<PreparedPiRuntimeConfig> {
   const resolveEnv = (name: string): string | undefined => input.env[name] ?? process.env[name];
   const { providers, warning } = parseProviderConfig(
-    input.env.PAPERCLIP_PI_PROVIDERS ?? process.env.PAPERCLIP_PI_PROVIDERS,
+    input.env.NEXUS_PI_PROVIDERS ?? process.env.NEXUS_PI_PROVIDERS,
     resolveEnv,
   );
   if (!providers) {
@@ -135,7 +135,7 @@ export async function preparePiRuntimeConfig(input: {
       }
     }
   }
-  const agentConfigDir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-pi-agent-config-"));
+  const agentConfigDir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-pi-agent-config-"));
   try {
     await fs.writeFile(
       path.join(agentConfigDir, "models.json"),
@@ -156,7 +156,7 @@ export async function preparePiRuntimeConfig(input: {
     },
     notes: [
       ...(warning ? [warning] : []),
-      `Injected ${Object.keys(providers).length} custom Pi provider(s) from PAPERCLIP_PI_PROVIDERS into a managed models.json: ${Object.keys(providers).join(", ")}.`,
+      `Injected ${Object.keys(providers).length} custom Pi provider(s) from NEXUS_PI_PROVIDERS into a managed models.json: ${Object.keys(providers).join(", ")}.`,
     ],
     agentConfigDir,
     cleanup: async () => {

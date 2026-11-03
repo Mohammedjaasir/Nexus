@@ -6,7 +6,7 @@ const meta = {
   id: "chat-comments-task-chat-unanswered-questions",
   title: "Tasks and conversations/Questions and approvals/Chat & Comments/Task Chat Unanswered Questions",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "questions-and-approvals/dismiss-and-reopen",
         "tasks/discussion"
@@ -31,7 +31,7 @@ export const AnsweredHistory: Story = { args: { answered: true } };
 export const Mobile: Story = { args: { movedOn: true }, globals: { viewport: { value: "mobile", isRotated: false } } };
 export const DismissAndAnswerLater: Story = {
   beforeEach: () => {
-    localStorage.removeItem("paperclip:task-question-dismissals:user-board:task-unanswered-questions-demo");
+    localStorage.removeItem("nexus:task-question-dismissals:user-board:task-unanswered-questions-demo");
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

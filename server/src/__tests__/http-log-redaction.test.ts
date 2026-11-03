@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { HttpError } from "../errors.js";
 import { HTTP_LOG_REDACT_PATHS } from "../middleware/http-log-redaction.js";
 import { errorHandler } from "../middleware/error-handler.js";
-import { testAdapterEnvironmentSchema } from "@paperclipai/shared";
+import { testAdapterEnvironmentSchema } from "@nexusai/shared";
 import { createHttpLogger } from "../middleware/logger.js";
 
 describe("HTTP logger redaction", () => {
@@ -63,12 +63,12 @@ describe("HTTP logger redaction", () => {
     const app = express();
     app.use(express.json());
     app.use(createHttpLogger(pino({ redact: [...HTTP_LOG_REDACT_PATHS] }, stream)));
-    app.post("/mcp/paperclip", (_req, res) => res.status(400).json({ error: "invalid_request" }));
+    app.post("/mcp/nexus", (_req, res) => res.status(400).json({ error: "invalid_request" }));
     app.post("/mcp/oauth/token", (_req, res) => res.status(400).json({ error: "invalid_grant" }));
     app.get("/mcp/oauth/authorize", (_req, res) => res.redirect("https://client.example/callback?code=redirect-canary"));
     await request(app).post("/mcp/oauth/token").send({ code: "code-canary", code_verifier: "pkce-canary", refresh_token: "refresh-canary" });
     await request(app).get("/mcp/oauth/authorize?state=state-canary");
-    await request(app).post("/mcp/paperclip").send({ params: { delivery: { url: "https://receiver.example/callback-path-canary", secret: "whsec_callback-secret-canary" }, _meta: { "ai.paperclip/cloudAuthority": { token: "cloud-authority-canary" } } } });
+    await request(app).post("/mcp/nexus").send({ params: { delivery: { url: "https://receiver.example/callback-path-canary", secret: "whsec_callback-secret-canary" }, _meta: { "ai.nexus/cloudAuthority": { token: "cloud-authority-canary" } } } });
     expect(chunks.join("")).not.toMatch(/callback-path-canary|callback-secret-canary|cloud-authority-canary/);
     expect(chunks.join("")).not.toMatch(/code-canary|pkce-canary|refresh-canary|redirect-canary|state-canary/);
   });
@@ -508,24 +508,24 @@ describe("HTTP logger redaction", () => {
 
     await request(app)
       .post("/runtime-tools/github/credentials")
-      .set("X-Paperclip-Github-Capability", capability)
+      .set("X-Nexus-Github-Capability", capability)
       .send({})
       .expect(status);
 
     const output = chunks.join("");
     expect(output).not.toContain(capability);
     const log = JSON.parse(output.trim());
-    expect(log.req.headers["x-paperclip-github-capability"]).toBe("[Redacted]");
+    expect(log.req.headers["x-nexus-github-capability"]).toBe("[Redacted]");
     expect(log.req.url).toBe("/runtime-tools/github/credentials");
     expect(log.res.statusCode).toBe(status);
   });
 
   it.each([200, 403, 500])("redacts cloud credentials and assertions from HTTP %i logs", async (status) => {
     const headers = {
-      "X-Paperclip-Cloud-Tenant-Token": "cloud-tenant-token-canary",
-      "X-Paperclip-Cloud-Session-Id": "cloud-session-id-canary",
-      "X-Paperclip-Cloud-Runtime-Identity": "cloud-runtime-identity-canary",
-      "X-Paperclip-Cloud-Control": "cloud-control-canary",
+      "X-Nexus-Cloud-Tenant-Token": "cloud-tenant-token-canary",
+      "X-Nexus-Cloud-Session-Id": "cloud-session-id-canary",
+      "X-Nexus-Cloud-Runtime-Identity": "cloud-runtime-identity-canary",
+      "X-Nexus-Cloud-Control": "cloud-control-canary",
     };
     const chunks: string[] = [];
     const stream = new Writable({

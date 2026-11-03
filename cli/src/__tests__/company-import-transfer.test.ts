@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readZipArchive } from "@paperclipai/shared/portability-zip";
+import { readZipArchive } from "@nexusai/shared/portability-zip";
 import {
   CHUNKED_IMPORT_THRESHOLD_BYTES,
   IMPORT_TRANSFER_PART_SIZE_BYTES,
@@ -22,7 +22,7 @@ const ORIGINAL_ENV = { ...process.env };
 const tempDirs: string[] = [];
 
 async function makeTempDir(): Promise<string> {
-  const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-company-import-transfer-"));
+  const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-company-import-transfer-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -126,7 +126,7 @@ describe("resolveChunkedImportZip", () => {
     // ~64 MB of repetitive text DEFLATEs to a tiny file: far under the raw
     // 48 MB threshold, but the inline body would carry the inflated entries,
     // so the estimated request size sends the zip down the chunked path.
-    const zipBytes = buildDeflateZip("dense-package/NOTES.md", "paperclip agent docs\n".repeat(3_200_000));
+    const zipBytes = buildDeflateZip("dense-package/NOTES.md", "nexus agent docs\n".repeat(3_200_000));
     await writeFile(zipPath, zipBytes);
 
     const resolved = await resolveChunkedImportZip(zipPath);
@@ -329,12 +329,12 @@ describe("uploadCompanyImportTransfer", () => {
         alreadyCompleted: true,
         totalParts: 2,
         missingParts: [],
-        company: { id: "company-2", name: "Paperclip", issuePrefix: "PAPA" },
+        company: { id: "company-2", name: "Nexus", issuePrefix: "PAPA" },
       }),
     });
 
     await expect(uploadCompanyImportTransfer(api, zipBytes)).rejects.toThrow(
-      /landed in the company "Paperclip" \(PAPA\)/,
+      /landed in the company "Nexus" \(PAPA\)/,
     );
     expect(putRaw).not.toHaveBeenCalled();
   });
@@ -346,9 +346,9 @@ describe("company import command over the chunked transfer path", () => {
 
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
-    delete process.env.PAPERCLIP_API_URL;
-    delete process.env.PAPERCLIP_API_KEY;
-    delete process.env.PAPERCLIP_COMPANY_ID;
+    delete process.env.NEXUS_API_URL;
+    delete process.env.NEXUS_API_KEY;
+    delete process.env.NEXUS_COMPANY_ID;
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
@@ -430,14 +430,14 @@ describe("company import command over the chunked transfer path", () => {
       "--yes",
       "--json",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "board-token",
     ]);
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      "http://paperclip.test/api/companies/import/transfers",
+      "http://nexus.test/api/companies/import/transfers",
       expect.objectContaining({ method: "POST" }),
     );
     const declared = JSON.parse(String(fetchMock.mock.calls[0]![1].body));
@@ -446,7 +446,7 @@ describe("company import command over the chunked transfer path", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "http://paperclip.test/api/companies/import/transfers/transfer-1/parts/0",
+      "http://nexus.test/api/companies/import/transfers/transfer-1/parts/0",
       expect.objectContaining({
         method: "PUT",
         headers: expect.objectContaining({ "content-type": "application/octet-stream" }),
@@ -454,12 +454,12 @@ describe("company import command over the chunked transfer path", () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
-      "http://paperclip.test/api/companies/import/transfers/transfer-1/parts/1",
+      "http://nexus.test/api/companies/import/transfers/transfer-1/parts/1",
       expect.objectContaining({ method: "PUT" }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       4,
-      "http://paperclip.test/api/companies/import/transfers/transfer-1/preview",
+      "http://nexus.test/api/companies/import/transfers/transfer-1/preview",
       expect.objectContaining({ method: "POST" }),
     );
     // Preview and apply carry the meta fields, never an inline source.
@@ -468,7 +468,7 @@ describe("company import command over the chunked transfer path", () => {
     expect(previewBody).not.toHaveProperty("source");
     expect(fetchMock).toHaveBeenNthCalledWith(
       5,
-      "http://paperclip.test/api/companies/import/transfers/transfer-1/apply",
+      "http://nexus.test/api/companies/import/transfers/transfer-1/apply",
       expect.objectContaining({ method: "POST" }),
     );
     const applyBody = JSON.parse(String(fetchMock.mock.calls[4]![1].body));
@@ -495,14 +495,14 @@ describe("company import command over the chunked transfer path", () => {
       "--dry-run",
       "--json",
       "--api-base",
-      "http://paperclip.test",
+      "http://nexus.test",
       "--api-key",
       "board-token",
     ]);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://paperclip.test/api/companies/import/preview",
+      "http://nexus.test/api/companies/import/preview",
       expect.objectContaining({ method: "POST" }),
     );
     const body = JSON.parse(String(fetchMock.mock.calls[0]![1].body));

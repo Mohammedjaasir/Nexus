@@ -1,4 +1,4 @@
-import { agentWakeupRequests, heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db, type issues } from "@paperclipai/db";
+import { agentWakeupRequests, heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db, type issues } from "@nexusai/db";
 import { and, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { boundRunIssueIdSql } from "../run-task-binding.js";

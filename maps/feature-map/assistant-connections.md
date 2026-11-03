@@ -4,7 +4,7 @@ navigation: {"section":"Apps, channels, and extensions","sectionOrder":50,"order
 
 # Assistant connections (MCP)
 
-A person connects an external assistant to one Paperclip company, approves its requested access, uses company-scoped tools, and can revoke the personal connection. Browser consent, device login, and client execution have separate evidence requirements.
+A person connects an external assistant to one Nexus company, approves its requested access, uses company-scoped tools, and can revoke the personal connection. Browser consent, device login, and client execution have separate evidence requirements.
 
 Feature ID: `assistant-connections`.
 
@@ -32,17 +32,17 @@ Start connection from the external MCP client or scoped invitation, then open it
 
 ### `device-authorization`
 
-Run `paperclipai mcp login --device --url <exact-mcp-url> --company <company-uuid>`. For the current CLI journey, the configured authorization origin must equal the MCP issuer origin. Open the displayed verification page at `/mcp-device`, enter or inspect its code, choose the company/access, and approve or decline before returning to the waiting client.
+Run `nexusai mcp login --device --url <exact-mcp-url> --company <company-uuid>`. For the current CLI journey, the configured authorization origin must equal the MCP issuer origin. Open the displayed verification page at `/mcp-device`, enter or inspect its code, choose the company/access, and approve or decline before returning to the waiting client.
 
 ### `assistant-client`
 
-Use the assistant’s configured MCP client, or start `paperclipai mcp proxy --url <exact-mcp-url>` after device login. The local stdio proxy exposes initialize/ping/tools/list/tools/call and forwards authorized tool calls to the configured Paperclip resource.
+Use the assistant’s configured MCP client, or start `nexusai mcp proxy --url <exact-mcp-url>` after device login. The local stdio proxy exposes initialize/ping/tools/list/tools/call and forwards authorized tool calls to the configured Nexus resource.
 
 ### `manage-connections`
 
 Open the current-company Assistant Connection card or `/assistant-connections` for your personal grants. Revoke the selected connection, then retry the same client credential. Client-side OAuth revocation is a separate supported transport.
 
-## Driving it with Playwright, an MCP client, and the Paperclip CLI
+## Driving it with Playwright, an MCP client, and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use an owned authenticated instance with Assistant connections (MCP) enabled and the configured public MCP/authorization origin. Use HTTPS, or the documented HTTP loopback development exception, a real signed-in person, a disposable company, and an actual MCP client. Local implicit board access does not prove human consent. Record client, resource URL, requested/granted scopes, company, and experimental settings without codes, credentials, or tokens. See [Public MCP](../../doc/public-mcp.md) for the instance configuration and release limits.
 
@@ -58,7 +58,7 @@ Sources: [Apps setup](../../ui/src/pages/apps/AssistantConnection.tsx), [public 
 
 Automated: [Public MCP integration](../../server/src/__tests__/public-mcp.test.ts) uses PostgreSQL and controlled clients for OAuth/device, protocol, scopes, company/gate checks, refresh, replay, and revocation. [Consent/device UI](../../ui/src/pages/McpConnect.test.tsx) mocks API responses. These tests do not qualify every external assistant or a live consent flow.
 
-Manual: Request a disposable connection from an actual MCP client. As the intended person, inspect the exact company and requested read/write/configuration access, approve the chosen scopes, and verify the client returns to the approved resource. Call paperclip_connection and one harmless permitted read; compare person/company/scopes, then reload Apps and inspect the saved grant. Repeat Cancel, expired request, a viewer requesting write access, missing company membership, a mismatched pinned company, and write opt-out. Verify no requested scope is silently upgraded and that the browser origin/return path cannot be replaced by an unrelated site.
+Manual: Request a disposable connection from an actual MCP client. As the intended person, inspect the exact company and requested read/write/configuration access, approve the chosen scopes, and verify the client returns to the approved resource. Call nexus_connection and one harmless permitted read; compare person/company/scopes, then reload Apps and inspect the saved grant. Repeat Cancel, expired request, a viewer requesting write access, missing company membership, a mismatched pinned company, and write opt-out. Verify no requested scope is silently upgraded and that the browser origin/return path cannot be replaced by an unrelated site.
 
 Sources: [Public MCP routes](../../server/src/routes/public-mcp.ts), [OAuth policy](../../server/src/services/public-mcp/oauth.ts), and [consent/device UI](../../ui/src/pages/McpConnect.tsx).
 
@@ -66,7 +66,7 @@ Sources: [Public MCP routes](../../server/src/routes/public-mcp.ts), [OAuth poli
 
 Automated: [Public MCP integration](../../server/src/__tests__/public-mcp.test.ts) uses PostgreSQL and controlled clients for OAuth/device, protocol, scopes, company/gate checks, refresh, replay, and revocation. [Consent/device UI](../../ui/src/pages/McpConnect.test.tsx) mocks API responses. These tests do not qualify every external assistant or a live consent flow. [MCP credential transport](../../cli/src/__tests__/mcp-auth.test.ts) covers credential protection, refresh serialization, resource/issuer validation, and failures; it does not run the complete device CLI command against a real server.
 
-Manual: Start a device request against the owned instance with explicit company and matching issuer/authorization origin. A server with separate browser authorization origin needs separate CLI qualification; do not report its rejected verification URL as a successful device flow. Compare terminal/browser request identity, approve as the real person, and verify the CLI’s paperclip_connection result matches the approved company before credentials are saved. Restart an owned client/proxy using the saved credential and prove a harmless remote call. In separate requests test a mistyped, declined, expired, or reused code, a wrong company/resource/issuer, and polling backoff. Keep codes and tokens out of captured artifacts; record outcomes and nonsecret request identity instead.
+Manual: Start a device request against the owned instance with explicit company and matching issuer/authorization origin. A server with separate browser authorization origin needs separate CLI qualification; do not report its rejected verification URL as a successful device flow. Compare terminal/browser request identity, approve as the real person, and verify the CLI’s nexus_connection result matches the approved company before credentials are saved. Restart an owned client/proxy using the saved credential and prove a harmless remote call. In separate requests test a mistyped, declined, expired, or reused code, a wrong company/resource/issuer, and polling backoff. Keep codes and tokens out of captured artifacts; record outcomes and nonsecret request identity instead.
 
 Sources: [Public MCP routes](../../server/src/routes/public-mcp.ts), [OAuth policy](../../server/src/services/public-mcp/oauth.ts), and [consent/device UI](../../ui/src/pages/McpConnect.tsx). [MCP commands](../../cli/src/commands/mcp.ts) and [device/credential client](../../cli/src/client/mcp-auth.ts).
 
@@ -74,7 +74,7 @@ Sources: [Public MCP routes](../../server/src/routes/public-mcp.ts), [OAuth poli
 
 Automated: [Public MCP integration](../../server/src/__tests__/public-mcp.test.ts) exercises controlled protocol clients and real domain dispatch. [MCP credential transport](../../cli/src/__tests__/mcp-auth.test.ts) covers saved credentials, refresh, and resource/issuer checks. The fixtures do not prove an actual assistant’s tool discovery or useful output.
 
-Manual: With a read-only personal grant, list tools, call paperclip_connection, and read a known accessible task in the approved company. Check a private/foreign task and an ungranted write. With a separate explicitly write-authorized grant, create a disposable task or document and verify its persisted contents, attribution, and discoverability through a second view. Confirm application permissions still restrict the person. Restart the proxy and exercise safe credential refresh. Reject an arbitrary REST operation through paperclip_call_api and a direct ordinary-REST request with the MCP bearer. Disable the gate or remove membership and verify later remote calls stop.
+Manual: With a read-only personal grant, list tools, call nexus_connection, and read a known accessible task in the approved company. Check a private/foreign task and an ungranted write. With a separate explicitly write-authorized grant, create a disposable task or document and verify its persisted contents, attribution, and discoverability through a second view. Confirm application permissions still restrict the person. Restart the proxy and exercise safe credential refresh. Reject an arbitrary REST operation through nexus_call_api and a direct ordinary-REST request with the MCP bearer. Disable the gate or remove membership and verify later remote calls stop.
 
 Sources: [MCP capabilities](../../server/src/services/public-mcp/capabilities.ts), [per-call authorization](../../server/src/services/public-mcp/oauth.ts), [public MCP routes](../../server/src/routes/public-mcp.ts), and [stdio proxy](../../cli/src/commands/mcp.ts).
 

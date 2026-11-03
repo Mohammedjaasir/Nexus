@@ -28,7 +28,7 @@ async function task(
 async function running(
   request: APIRequestContext,
   issueId: string,
-  adapter: "process" | "paperclip_runner",
+  adapter: "process" | "nexus_runner",
 ) {
   let run:
     | { id: string; status: string; runtimeMode?: string; processPid?: number }
@@ -132,14 +132,14 @@ function processAlive(pid: number) {
 
 test.setTimeout(120_000);
 
-for (const adapter of ["process", "paperclip_runner"] as const) {
+for (const adapter of ["process", "nexus_runner"] as const) {
   test(`${adapter}: queue, composer Stop, subtree pause/cancel, and resume`, async ({
     page,
     request,
   }, testInfo) => {
     test.skip(
-      adapter === "paperclip_runner" && !process.env.PAPERCLIP_STOP_FAKE_CODEX,
-      "Set PAPERCLIP_STOP_FAKE_CODEX and PAPERCLIP_RUNNER_BINARY for real runnerd with the deterministic provider.",
+      adapter === "nexus_runner" && !process.env.NEXUS_STOP_FAKE_CODEX,
+      "Set NEXUS_STOP_FAKE_CODEX and NEXUS_RUNNER_BINARY for real runnerd with the deterministic provider.",
     );
     const company = await json(
       await request.post("/api/companies", {
@@ -247,14 +247,14 @@ for (const adapter of ["process", "paperclip_runner"] as const) {
       const parentRun = await running(request, parent.id, adapter);
       const childRun = await running(request, child.id, adapter);
       const otherRun = await running(request, other.id, adapter);
-      if (adapter === "paperclip_runner") {
+      if (adapter === "nexus_runner") {
         // A run row becomes live before its provider turn starts. Prove that the
         // deterministic provider is active before attempting interruption.
         await expect
           .poll(
             async () => {
               const calls = await readFile(
-                process.env.PAPERCLIP_STOP_CODEX_LOG!,
+                process.env.NEXUS_STOP_CODEX_LOG!,
                 "utf8",
               ).catch(() => "");
               return calls.split("turn/start").length - 1;
@@ -319,7 +319,7 @@ for (const adapter of ["process", "paperclip_runner"] as const) {
           "acknowledged",
         );
         expect(
-          await readFile(process.env.PAPERCLIP_STOP_CODEX_LOG!, "utf8"),
+          await readFile(process.env.NEXUS_STOP_CODEX_LOG!, "utf8"),
         ).toContain("turn/interrupt");
       }
       await testInfo.attach(`${adapter}-timing`, {
@@ -360,7 +360,7 @@ for (const adapter of ["process", "paperclip_runner"] as const) {
       await expect(
         page.getByRole("button", { name: "Dismiss notification" }),
       ).toHaveCount(0);
-      if (adapter === "paperclip_runner") {
+      if (adapter === "nexus_runner") {
         await expect(
           page.getByRole("button", { name: /^Run cancelled/ }),
         ).toHaveClass(/text-muted-foreground/);
@@ -409,9 +409,9 @@ for (const adapter of ["process", "paperclip_runner"] as const) {
       const resumedChildRun = await running(request, child.id, adapter);
       expect(resumedParentRun.id).not.toBe(parentRun.id);
       expect(resumedChildRun.id).not.toBe(childRun.id);
-      if (adapter === "paperclip_runner") {
+      if (adapter === "nexus_runner") {
         await expect.poll(async () => {
-          const calls = await readFile(process.env.PAPERCLIP_STOP_CODEX_LOG!, "utf8");
+          const calls = await readFile(process.env.NEXUS_STOP_CODEX_LOG!, "utf8");
           return calls.split("turn/start").length - 1;
         }, { timeout: 30_000 }).toBeGreaterThanOrEqual(5);
         await page.screenshot({ path: testInfo.outputPath("native-resumed.png"), fullPage: true });

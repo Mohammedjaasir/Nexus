@@ -1,6 +1,6 @@
 ## Thinking Path
 
-> - Paperclip is the open source app people use to manage AI agents for work.
+> - Nexus is the open source app people use to manage AI agents for work.
 > - Contributors need predictable CI feedback.
 > - Test shards use historical per-file costs to distribute their work.
 > - New and changed tests make those costs stale.
@@ -48,12 +48,12 @@ Run `node scripts/ci/refresh-test-durations.mjs` with GitHub Actions read access
 - [x] I have checked ROADMAP.md and confirmed this PR does not duplicate planned core work (routine CI timing maintenance)
 - [x] I have searched GitHub for duplicate or related PRs (the workflow pauses while a refresh PR is open)
 - [x] I have described the issue in-PR following the bug issue template
-- [x] I have not referenced internal/instance-local Paperclip issues or links
-- [x] My branch name describes the change and contains no internal Paperclip ticket id or instance-derived details
+- [x] I have not referenced internal/instance-local Nexus issues or links
+- [x] My branch name describes the change and contains no internal Nexus ticket id or instance-derived details
 - [x] I have run the relevant timing and shard tests and they pass
 - [x] I have added or updated tests where applicable (existing timing and shard tests cover these generated values)
 - [x] I have updated relevant documentation (the manifests record source runs and coverage)
 - [x] I have considered and documented any risks above
-- [ ] All Paperclip CI gates are green
+- [ ] All Nexus CI gates are green
 - [ ] Greptile is 5/5 with no open P2s, recommendations, or follow-ups
 - [x] I will address all Greptile and reviewer comments before requesting merge

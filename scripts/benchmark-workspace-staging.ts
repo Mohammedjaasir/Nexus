@@ -21,8 +21,8 @@ assert.ok(Number.isSafeInteger(samples) && samples > 0 && samples <= 10);
 assert.ok(Number.isSafeInteger(transferDelayMs) && transferDelayMs >= 0 && transferDelayMs <= 10000);
 const repository = path.resolve(import.meta.dirname, "..");
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "workspace-staging-benchmark-"));
-const previousHome = process.env.PAPERCLIP_HOME;
-process.env.PAPERCLIP_HOME = path.join(root, "home");
+const previousHome = process.env.NEXUS_HOME;
+process.env.NEXUS_HOME = path.join(root, "home");
 const moduleDirectory = path.join(repository, "packages/adapter-utils/src");
 const token = randomUUID();
 const baselineModule = path.join(moduleDirectory, `sandbox-managed-runtime.benchmark-${token}.ts`);
@@ -110,7 +110,7 @@ try {
   console.log(JSON.stringify({ node: process.version, platform: process.platform, baselineRef: revision,
     files, samples, transferDelayMs, transport: "local copy and shell extraction; optional controlled transfer delay", summary, results }, null, 2));
 } finally {
-  if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-  else process.env.PAPERCLIP_HOME = previousHome;
+  if (previousHome === undefined) delete process.env.NEXUS_HOME;
+  else process.env.NEXUS_HOME = previousHome;
   await Promise.all([root, baselineModule, baselineCache].map(file => fs.rm(file, { force: true, recursive: true })));
 }

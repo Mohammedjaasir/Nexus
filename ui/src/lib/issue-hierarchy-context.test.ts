@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 import { includeIssueHierarchyContext, loadIssueHierarchyChildren } from "./issue-hierarchy-context";
 
 const task = (id: string, parentId: string | null = null) => ({ id, parentId, companyId: "company" } as Issue);

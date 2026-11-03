@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 import { IssuePropertiesArtifactsTab } from "@/components/issue-properties/IssuePropertiesArtifactsTab";
 import type { LabArtifact } from "../../kit";
 import { COMPANY } from "../../fixtures";

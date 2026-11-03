@@ -10,10 +10,10 @@ import { FixtureRegistry } from "./fixture-registry.js";
 import { classifyFailure, shouldRetryFailure } from "./failure-classifier.js";
 import {
   assertIsolatedServerEnvironment,
-  buildPaperclipServerEnvironment,
+  buildNexusServerEnvironment,
   buildRunnerE2EProcessEnvironment,
-  resolvePaperclipRemoteRunnerBinaryForHarness,
-  resolvePaperclipRunnerBinaryForHarness,
+  resolveNexusRemoteRunnerBinaryForHarness,
+  resolveNexusRunnerBinaryForHarness,
   runnerE2EServerControlPaths,
 } from "./harness-env.js";
 import { runnerExecutionById, runnerMatrix } from "./catalog.js";
@@ -131,7 +131,7 @@ describe("runner E2E local binary resolution", () => {
 
   it("uses the debug runner binary built by the E2E workflow", () => {
     expect(
-      resolvePaperclipRunnerBinaryForHarness(
+      resolveNexusRunnerBinaryForHarness(
         [localNativeExecution],
         "/repository",
         undefined,
@@ -140,24 +140,24 @@ describe("runner E2E local binary resolution", () => {
     ).toBe(
       path.join(
         "/repository",
-        "packages/paperclip-runner/runner/target/debug/paperclip-runnerd",
+        "packages/nexus-runner/runner/target/debug/nexus-runnerd",
       ),
     );
   });
 
   it("preserves an explicit runner binary override", () => {
     expect(
-      resolvePaperclipRunnerBinaryForHarness(
+      resolveNexusRunnerBinaryForHarness(
         [localNativeExecution],
         "/repository",
-        "/custom/paperclip-runnerd",
+        "/custom/nexus-runnerd",
         "linux",
       ),
-    ).toBe("/custom/paperclip-runnerd");
+    ).toBe("/custom/nexus-runnerd");
   });
 
   it("uses and stages the same build-once binary for remote native cells", () => {
-    const runnerBinary = resolvePaperclipRunnerBinaryForHarness(
+    const runnerBinary = resolveNexusRunnerBinaryForHarness(
       [remoteNativeExecution],
       "/repository",
       undefined,
@@ -166,11 +166,11 @@ describe("runner E2E local binary resolution", () => {
     expect(runnerBinary).toBe(
       path.join(
         "/repository",
-        "packages/paperclip-runner/runner/target/debug/paperclip-runnerd",
+        "packages/nexus-runner/runner/target/debug/nexus-runnerd",
       ),
     );
     expect(
-      resolvePaperclipRemoteRunnerBinaryForHarness(
+      resolveNexusRemoteRunnerBinaryForHarness(
         [remoteNativeExecution],
         runnerBinary,
         undefined,
@@ -179,7 +179,7 @@ describe("runner E2E local binary resolution", () => {
       ),
     ).toBe(runnerBinary);
     expect(
-      resolvePaperclipRemoteRunnerBinaryForHarness(
+      resolveNexusRemoteRunnerBinaryForHarness(
         [localNativeExecution],
         runnerBinary,
         undefined,
@@ -188,7 +188,7 @@ describe("runner E2E local binary resolution", () => {
       ),
     ).toBeUndefined();
     expect(
-      resolvePaperclipRemoteRunnerBinaryForHarness(
+      resolveNexusRemoteRunnerBinaryForHarness(
         [remoteNativeExecution],
         runnerBinary,
         undefined,
@@ -196,17 +196,17 @@ describe("runner E2E local binary resolution", () => {
       ),
     ).toBeUndefined();
     expect(
-      resolvePaperclipRemoteRunnerBinaryForHarness(
+      resolveNexusRemoteRunnerBinaryForHarness(
         [remoteNativeExecution],
         runnerBinary,
-        "/cross-compiled/paperclip-runnerd",
+        "/cross-compiled/nexus-runnerd",
         "darwin",
       ),
-    ).toBe("/cross-compiled/paperclip-runnerd");
-    expect(resolvePaperclipRemoteRunnerBinaryForHarness(
+    ).toBe("/cross-compiled/nexus-runnerd");
+    expect(resolveNexusRemoteRunnerBinaryForHarness(
       [remoteNativeExecution], runnerBinary, undefined, "linux", "arm64",
     )).toBeUndefined();
-    expect(resolvePaperclipRemoteRunnerBinaryForHarness(
+    expect(resolveNexusRemoteRunnerBinaryForHarness(
       [remoteNativeExecution], runnerBinary, "/cross-compiled/linux-x64-runnerd", "linux", "arm64",
     )).toBe("/cross-compiled/linux-x64-runnerd");
   });
@@ -234,7 +234,7 @@ describe("runner E2E provider environment", () => {
           { KEEP_ME: "yes", OPENCODE_ALLOW_ALL_MODELS: "ambient" },
           [execution],
         ),
-      ).toEqual({ KEEP_ME: "yes", OPENCODE_ALLOW_ALL_MODELS: "true", PAPERCLIP_ANNOUNCEMENTS_ENABLED: "false" });
+      ).toEqual({ KEEP_ME: "yes", OPENCODE_ALLOW_ALL_MODELS: "true", NEXUS_ANNOUNCEMENTS_ENABLED: "false" });
     }
 
     for (const execution of [nativeOpenCode, breadthOpenCode]) {
@@ -243,16 +243,16 @@ describe("runner E2E provider environment", () => {
           { KEEP_ME: "yes", OPENCODE_ALLOW_ALL_MODELS: "ambient" },
           [execution],
         ),
-      ).toEqual({ KEEP_ME: "yes", PAPERCLIP_ANNOUNCEMENTS_ENABLED: "false" });
+      ).toEqual({ KEEP_ME: "yes", NEXUS_ANNOUNCEMENTS_ENABLED: "false" });
     }
   });
 
   it("disables announcements through the server boundary for every runner cell", () => {
     for (const execution of runnerMatrix) {
-      const source = { PAPERCLIP_ANNOUNCEMENTS_ENABLED: "true" };
+      const source = { NEXUS_ANNOUNCEMENTS_ENABLED: "true" };
       const env = buildRunnerE2EProcessEnvironment(source, [execution]);
-      expect(buildPaperclipServerEnvironment(env).PAPERCLIP_ANNOUNCEMENTS_ENABLED).toBe("false");
-      expect(source.PAPERCLIP_ANNOUNCEMENTS_ENABLED).toBe("true");
+      expect(buildNexusServerEnvironment(env).NEXUS_ANNOUNCEMENTS_ENABLED).toBe("false");
+      expect(source.NEXUS_ANNOUNCEMENTS_ENABLED).toBe("true");
     }
   });
 });
@@ -261,9 +261,9 @@ describe("hiring capability opt-in", () => {
   it("enables API tools only when the manual hiring story is selected", () => {
     const hire = runnerMatrix.find((e) => e.suite.id === "everyday-workflows" && e.task.id === "hire-reuse")!;
     const delegate = runnerMatrix.find((e) => e.suite.id === "everyday-workflows" && e.task.id === "delegate-feedback")!;
-    expect(buildRunnerE2EProcessEnvironment({}, [hire]).PAPERCLIP_RUNNER_API_TOOLS_ENABLED).toBe("true");
-    expect(buildRunnerE2EProcessEnvironment({}, [delegate]).PAPERCLIP_RUNNER_API_TOOLS_ENABLED).toBeUndefined();
-    expect(buildRunnerE2EProcessEnvironment({}, []).PAPERCLIP_RUNNER_API_TOOLS_ENABLED).toBeUndefined();
+    expect(buildRunnerE2EProcessEnvironment({}, [hire]).NEXUS_RUNNER_API_TOOLS_ENABLED).toBe("true");
+    expect(buildRunnerE2EProcessEnvironment({}, [delegate]).NEXUS_RUNNER_API_TOOLS_ENABLED).toBeUndefined();
+    expect(buildRunnerE2EProcessEnvironment({}, []).NEXUS_RUNNER_API_TOOLS_ENABLED).toBeUndefined();
   });
 });
 
@@ -299,7 +299,7 @@ describe("runner E2E server port allocation", () => {
 
 describe("runner E2E sensitive API boundary", () => {
   it("uses the authenticated browser session for encrypted secret provisioning", async () => {
-    vi.stubEnv("PAPERCLIP_RUNNER_E2E_PORT", "43123");
+    vi.stubEnv("NEXUS_RUNNER_E2E_PORT", "43123");
     const fetchMock = vi.fn().mockResolvedValue(Response.json({ id: "secret-id" }));
     vi.stubGlobal("fetch", fetchMock);
     const api = new RunnerApi({} as never);
@@ -308,7 +308,7 @@ describe("runner E2E sensitive API boundary", () => {
     expect(fetchMock).toHaveBeenCalledWith(new URL("http://127.0.0.1:43123/api/companies/company/secrets"), expect.objectContaining({ headers: { "content-type": "application/json", Cookie: "fixture.session=opaque", Origin: "http://127.0.0.1:43123" } }));
   });
   it("keeps secret request bodies out of Playwright API tracing", async () => {
-    vi.stubEnv("PAPERCLIP_RUNNER_E2E_PORT", "43123");
+    vi.stubEnv("NEXUS_RUNNER_E2E_PORT", "43123");
     const playwrightPost = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: "secret-id" }), {
@@ -453,17 +453,17 @@ describe("runner E2E matchers", () => {
   it("normalizes message text and evaluates state invariants", async () => {
     const results = await evaluateMatchers(
       [
-        { kind: "message_contains", expected: "PAPERCLIP_E2E_OK_nonce" },
+        { kind: "message_contains", expected: "NEXUS_E2E_OK_nonce" },
         {
           kind: "message_occurrences",
-          expected: "PAPERCLIP_E2E_OK_nonce",
+          expected: "NEXUS_E2E_OK_nonce",
           count: 1,
         },
         { kind: "issue_status", expected: "done" },
         { kind: "runtime_mode", expected: "native" },
       ],
       {
-        message: "  complete   PAPERCLIP\\_E2E\\_OK\\_nonce  ",
+        message: "  complete   NEXUS\\_E2E\\_OK\\_nonce  ",
         issueStatus: "done",
         runtimeMode: "native",
       },
@@ -577,9 +577,9 @@ describe("runner E2E run observations", () => {
       taskId: "hello-complete",
       expectedMarker,
       finalRunMessage:
-        "I'll complete this deterministic hello task by calling paperclip_finish once.",
+        "I'll complete this deterministic hello task by calling nexus_finish once.",
       allAgentMessages:
-        "I'll complete this deterministic hello task by calling paperclip_finish once.",
+        "I'll complete this deterministic hello task by calling nexus_finish once.",
       semanticSummary: expectedMarker,
       issueStatus: "done",
       runStatuses: ["succeeded"],
@@ -672,12 +672,12 @@ describe("runner E2E run observations", () => {
       eventType: "run.result.accepted",
       payload: {
         prpEvent: {
-          schema: "paperclip.prp.event.v1",
+          schema: "nexus.prp.event.v1",
           eventType: "run.result.accepted",
           sourceKind: "control_plane",
           payload: {
             result: {
-              schema: "paperclip.run_result.v1",
+              schema: "nexus.run_result.v1",
               reportedWorkDisposition: "yielded",
               evidence: [{ ref: "interaction:pending" }],
               artifacts: [
@@ -883,7 +883,7 @@ describe("runner E2E failure policy", () => {
     expect(
       classifyFailure(
         new Error(
-          "runner_ingress_unavailable: paperclip-runnerd: cumulative ACK cannot move beyond the produced source cursor",
+          "runner_ingress_unavailable: nexus-runnerd: cumulative ACK cannot move beyond the produced source cursor",
         ),
       ),
     ).toBe("transient_infrastructure");
@@ -918,8 +918,8 @@ describe("runner E2E server isolation", () => {
     });
   });
 
-  it("strips database and paid-provider credentials from the Paperclip process", () => {
-    const env = buildPaperclipServerEnvironment(
+  it("strips database and paid-provider credentials from the Nexus process", () => {
+    const env = buildNexusServerEnvironment(
       {
         PATH: "/bin",
         DATABASE_URL: "postgres://existing",
@@ -936,21 +936,21 @@ describe("runner E2E server isolation", () => {
         XAI_ORG_ID: "xai-sensitive",
         GROK_HOME: "/outside/grok",
         OPENAI_ORG_ID: "also-provider-sensitive",
-        PAPERCLIP_API_KEY: "ambient-board-key",
-        PAPERCLIP_AGENT_API_KEY: "ambient-agent-key",
-        PAPERCLIP_TASK_BRIDGE_TOKEN: "ambient-task-token",
-        PAPERCLIP_SETUP_TOKEN: "ambient-setup-token",
-        PAPERCLIP_SECRETS_MASTER_KEY: "ambient-master-key",
-        PAPERCLIP_SECRETS_MASTER_KEY_FILE: "/outside/master.key",
-        PAPERCLIP_STORAGE_S3_BUCKET: "production-bucket",
+        NEXUS_API_KEY: "ambient-board-key",
+        NEXUS_AGENT_API_KEY: "ambient-agent-key",
+        NEXUS_TASK_BRIDGE_TOKEN: "ambient-task-token",
+        NEXUS_SETUP_TOKEN: "ambient-setup-token",
+        NEXUS_SECRETS_MASTER_KEY: "ambient-master-key",
+        NEXUS_SECRETS_MASTER_KEY_FILE: "/outside/master.key",
+        NEXUS_STORAGE_S3_BUCKET: "production-bucket",
       },
       {
-        PAPERCLIP_HOME: "/tmp/cell/paperclip-home",
-        PAPERCLIP_CONFIG: "/tmp/cell/paperclip-home/instances/e2e/config.json",
+        NEXUS_HOME: "/tmp/cell/nexus-home",
+        NEXUS_CONFIG: "/tmp/cell/nexus-home/instances/e2e/config.json",
         XDG_CACHE_HOME: "/tmp/cell/xdg-cache",
-        PAPERCLIP_AGENT_JWT_SECRET: "generated-agent-jwt",
-        PAPERCLIP_DECISION_SIGNING_SECRET: "generated-decision-key",
-        PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: "generated-tool-key",
+        NEXUS_AGENT_JWT_SECRET: "generated-agent-jwt",
+        NEXUS_DECISION_SIGNING_SECRET: "generated-decision-key",
+        NEXUS_TOOL_ACTION_SIGNING_SECRET: "generated-tool-key",
         BETTER_AUTH_SECRET: "generated-auth-key",
       },
     );
@@ -965,31 +965,31 @@ describe("runner E2E server isolation", () => {
     expect(env.OPENAI_ORG_ID).toBeUndefined();
     expect(env.XAI_ORG_ID).toBeUndefined();
     expect(env.GROK_HOME).toBeUndefined();
-    expect(env.PAPERCLIP_API_KEY).toBeUndefined();
-    expect(env.PAPERCLIP_AGENT_API_KEY).toBeUndefined();
+    expect(env.NEXUS_API_KEY).toBeUndefined();
+    expect(env.NEXUS_AGENT_API_KEY).toBeUndefined();
     expect(env.XDG_CACHE_HOME).toBe("/tmp/cell/xdg-cache");
-    expect(env.PAPERCLIP_AGENT_JWT_SECRET).toBe("generated-agent-jwt");
-    expect(env.PAPERCLIP_TASK_BRIDGE_TOKEN).toBeUndefined();
-    expect(env.PAPERCLIP_SETUP_TOKEN).toBeUndefined();
-    expect(env.PAPERCLIP_SECRETS_MASTER_KEY).toBeUndefined();
-    expect(env.PAPERCLIP_SECRETS_MASTER_KEY_FILE).toBeUndefined();
-    expect(env.PAPERCLIP_STORAGE_S3_BUCKET).toBeUndefined();
+    expect(env.NEXUS_AGENT_JWT_SECRET).toBe("generated-agent-jwt");
+    expect(env.NEXUS_TASK_BRIDGE_TOKEN).toBeUndefined();
+    expect(env.NEXUS_SETUP_TOKEN).toBeUndefined();
+    expect(env.NEXUS_SECRETS_MASTER_KEY).toBeUndefined();
+    expect(env.NEXUS_SECRETS_MASTER_KEY_FILE).toBeUndefined();
+    expect(env.NEXUS_STORAGE_S3_BUCKET).toBeUndefined();
     expect(() =>
       assertIsolatedServerEnvironment(env, {
         temporaryRoot: "/tmp/cell",
-        paperclipHome: "/tmp/cell/paperclip-home",
-        configPath: "/tmp/cell/paperclip-home/instances/e2e/config.json",
+        nexusHome: "/tmp/cell/nexus-home",
+        configPath: "/tmp/cell/nexus-home/instances/e2e/config.json",
       }),
     ).not.toThrow();
   });
 
   it("uses absolute repository paths for the Playwright web server", () => {
-    const command = runnerE2EWebServerCommand("/workspace/paperclip");
+    const command = runnerE2EWebServerCommand("/workspace/nexus");
     expect(command).toContain(
-      "'/workspace/paperclip/cli/node_modules/tsx/dist/cli.mjs'",
+      "'/workspace/nexus/cli/node_modules/tsx/dist/cli.mjs'",
     );
     expect(command).toContain(
-      "'/workspace/paperclip/tests/runner-e2e/server.ts'",
+      "'/workspace/nexus/tests/runner-e2e/server.ts'",
     );
   });
 
@@ -998,14 +998,14 @@ describe("runner E2E server isolation", () => {
       path.join(os.tmpdir(), "runner-e2e-instance-isolation-test-"),
     );
     cleanupDirectories.push(root);
-    const database = path.join(root, "paperclip-home", "db");
+    const database = path.join(root, "nexus-home", "db");
     const secretsKey = path.join(
       root,
-      "paperclip-home",
+      "nexus-home",
       "secrets",
       "master.key",
     );
-    const configPath = path.join(root, "paperclip-home", "config.json");
+    const configPath = path.join(root, "nexus-home", "config.json");
     await mkdir(database, { recursive: true });
     await mkdir(path.dirname(secretsKey), { recursive: true });
     await writeFile(secretsKey, "generated-master-key");
@@ -1073,8 +1073,8 @@ describe("runner E2E evidence redaction", () => {
         apiKeyRef: "DAYTONA_API_KEY",
       },
     });
-    expect(sanitizeJson("paperclip.runner-e2e.evidence/v1", [secret])).toBe(
-      "paperclip.runner-e2e.evidence/v1",
+    expect(sanitizeJson("nexus.runner-e2e.evidence/v1", [secret])).toBe(
+      "nexus.runner-e2e.evidence/v1",
     );
   });
 
@@ -1236,7 +1236,7 @@ describe("runner E2E evidence redaction", () => {
   });
 
   it("recognizes managed and durable Codex runtime auth files", () => {
-    const root = path.join(os.tmpdir(), "paperclip-home");
+    const root = path.join(os.tmpdir(), "nexus-home");
     expect(
       isEphemeralCodexRuntimeAuthFile(
         root,
@@ -1251,7 +1251,7 @@ describe("runner E2E evidence redaction", () => {
         root,
         path.join(
           root,
-          "instances/instance-1/runtime/paperclip-runner/acpx/acpx/session-1/codex-home/auth.json",
+          "instances/instance-1/runtime/nexus-runner/acpx/acpx/session-1/codex-home/auth.json",
         ),
       ),
     ).toBe(true);
@@ -1260,7 +1260,7 @@ describe("runner E2E evidence redaction", () => {
         root,
         path.join(
           root,
-          "instances/instance-1/runtime/paperclip-runner/durable-sessions/session-1/codex-home/auth.json",
+          "instances/instance-1/runtime/nexus-runner/durable-sessions/session-1/codex-home/auth.json",
         ),
       ),
     ).toBe(true);
@@ -1275,7 +1275,7 @@ describe("runner E2E evidence redaction", () => {
         root,
         path.join(
           root,
-          "instances/instance-1/runtime/paperclip-runner/durable-sessions/session-1/codex-home/config.toml",
+          "instances/instance-1/runtime/nexus-runner/durable-sessions/session-1/codex-home/config.toml",
         ),
       ),
     ).toBe(false);
@@ -1379,7 +1379,7 @@ describe("runner E2E evidence redaction", () => {
     await writeFile(
       path.join(privateDir, "snapshots", "api-state.json"),
       JSON.stringify({
-        log: String.raw`curl -H \"Authorization: Bearer temporary-run-token\" \\\n+  \"$PAPERCLIP_API_URL/api/issues\"`,
+        log: String.raw`curl -H \"Authorization: Bearer temporary-run-token\" \\\n+  \"$NEXUS_API_URL/api/issues\"`,
       }),
     );
     await packageEvidence({
@@ -1483,20 +1483,20 @@ describe("warm continuity grading scope", () => {
     const execution = runnerMatrix.find((cell) => cell.task.flow === "warm_three_turn")!;
     const matchers = execution.task.buildMatchers("test-nonce", execution);
     expect(matchers).toContainEqual({
-      kind: "message_occurrences", expected: "PAPERCLIP_E2E_WARM_T1_test-nonce", count: 1,
+      kind: "message_occurrences", expected: "NEXUS_E2E_WARM_T1_test-nonce", count: 1,
     });
     expect(matchers).toContainEqual({
-      kind: "message_occurrences", expected: "PAPERCLIP_E2E_WARM_T2_test-nonce", count: 1,
+      kind: "message_occurrences", expected: "NEXUS_E2E_WARM_T2_test-nonce", count: 1,
     });
     expect(matchers).toContainEqual({
-      kind: "message_occurrences", expected: "PAPERCLIP_E2E_WARM_T3_test-nonce", count: 1,
+      kind: "message_occurrences", expected: "NEXUS_E2E_WARM_T3_test-nonce", count: 1,
     });
     expect(matchers).toContainEqual({
       kind: "message_ordered",
       expected: [
-        "PAPERCLIP_E2E_WARM_T1_test-nonce",
-        "PAPERCLIP_E2E_WARM_T2_test-nonce",
-        "PAPERCLIP_E2E_WARM_T3_test-nonce",
+        "NEXUS_E2E_WARM_T1_test-nonce",
+        "NEXUS_E2E_WARM_T2_test-nonce",
+        "NEXUS_E2E_WARM_T3_test-nonce",
       ],
     });
     expect(matchers).toContainEqual({
@@ -1514,17 +1514,17 @@ describe("warm continuity grading scope", () => {
       .filter((matcher) => matcher.kind.startsWith("message_"));
     const passing = await evaluateMatchers(matchers, {
       message: [
-        "Turn one is complete: PAPERCLIP_E2E_WARM_T1_test-nonce.",
-        "Turn two is complete: PAPERCLIP_E2E_WARM_T2_test-nonce.",
-        "Turn three is complete: PAPERCLIP_E2E_WARM_T3_test-nonce.",
+        "Turn one is complete: NEXUS_E2E_WARM_T1_test-nonce.",
+        "Turn two is complete: NEXUS_E2E_WARM_T2_test-nonce.",
+        "Turn three is complete: NEXUS_E2E_WARM_T3_test-nonce.",
       ].join("\n"),
     });
     expect(passing.every((result) => result.passed)).toBe(true);
 
     const invalidMessages = [
-      "PAPERCLIP_E2E_WARM_T1_test-nonce PAPERCLIP_E2E_WARM_T1_test-nonce PAPERCLIP_E2E_WARM_T2_test-nonce PAPERCLIP_E2E_WARM_T3_test-nonce",
-      "PAPERCLIP_E2E_WARM_T1_test-nonce PAPERCLIP_E2E_WARM_T3_test-nonce",
-      "PAPERCLIP_E2E_WARM_T3_test-nonce PAPERCLIP_E2E_WARM_T2_test-nonce PAPERCLIP_E2E_WARM_T1_test-nonce",
+      "NEXUS_E2E_WARM_T1_test-nonce NEXUS_E2E_WARM_T1_test-nonce NEXUS_E2E_WARM_T2_test-nonce NEXUS_E2E_WARM_T3_test-nonce",
+      "NEXUS_E2E_WARM_T1_test-nonce NEXUS_E2E_WARM_T3_test-nonce",
+      "NEXUS_E2E_WARM_T3_test-nonce NEXUS_E2E_WARM_T2_test-nonce NEXUS_E2E_WARM_T1_test-nonce",
     ];
     for (const message of invalidMessages) {
       const results = await evaluateMatchers(matchers, { message });

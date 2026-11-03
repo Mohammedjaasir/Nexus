@@ -33,7 +33,7 @@ function Registry() {
 
 const meta = { id: "apps-canonical-icon-registry",
   title: "Apps, channels, and extensions/Connection setup/Apps/Canonical icon registry", component: Registry, parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/catalog"
       ],

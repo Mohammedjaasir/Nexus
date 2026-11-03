@@ -16,7 +16,7 @@ afterEach(async () => {
 });
 
 async function makeCodexHome(configToml?: string): Promise<string> {
-  const home = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-codex-home-"));
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-codex-home-"));
   cleanupPaths.add(home);
   if (configToml !== undefined) {
     await fs.writeFile(path.join(home, "config.toml"), configToml, "utf8");
@@ -44,7 +44,7 @@ describe("prepareCodexRuntimeConfig", () => {
   it("attributes OpenRouter aliases without replacing credentials or unrelated providers", async () => {
     const home = await makeCodexHome();
     const prepared = await prepareCodexRuntimeConfig({
-      env: { PAPERCLIP_CODEX_PROVIDERS: JSON.stringify({ providers: {
+      env: { NEXUS_CODEX_PROVIDERS: JSON.stringify({ providers: {
         router: {
           base_url: "https://openrouter.ai/api/v1", env_key: "ROUTER_KEY",
           http_headers: { "http-referer": "https://harness.example", "X-Route": "selected" },
@@ -64,7 +64,7 @@ describe("prepareCodexRuntimeConfig", () => {
     await prepared.cleanup();
   });
 
-  it("is a no-op when PAPERCLIP_CODEX_PROVIDERS is unset", async () => {
+  it("is a no-op when NEXUS_CODEX_PROVIDERS is unset", async () => {
     const home = await makeCodexHome("model = \"gpt-5.1-codex\"\n");
     const prepared = await prepareCodexRuntimeConfig({ env: { FOO: "bar" }, codexHome: home });
 
@@ -85,7 +85,7 @@ describe("prepareCodexRuntimeConfig", () => {
   it("merges providers + model_provider into a fresh config.toml and cleans it up", async () => {
     const home = await makeCodexHome();
     const prepared = await prepareCodexRuntimeConfig({
-      env: { PAPERCLIP_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
+      env: { NEXUS_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
       codexHome: home,
     });
 
@@ -111,7 +111,7 @@ describe("prepareCodexRuntimeConfig", () => {
     ].join("\n");
     const home = await makeCodexHome(original);
     const prepared = await prepareCodexRuntimeConfig({
-      env: { PAPERCLIP_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
+      env: { NEXUS_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
       codexHome: home,
     });
 
@@ -149,7 +149,7 @@ describe("prepareCodexRuntimeConfig", () => {
     ].join("\n");
     const home = await makeCodexHome(original);
     const prepared = await prepareCodexRuntimeConfig({
-      env: { PAPERCLIP_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
+      env: { NEXUS_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
       codexHome: home,
     });
 
@@ -172,7 +172,7 @@ describe("prepareCodexRuntimeConfig", () => {
     const home = await makeCodexHome();
     const prepared = await prepareCodexRuntimeConfig({
       env: {
-        PAPERCLIP_CODEX_PROVIDERS: JSON.stringify({
+        NEXUS_CODEX_PROVIDERS: JSON.stringify({
           providers: {
             gw: {
               base_url: "http://gw.example/v1",
@@ -200,24 +200,24 @@ describe("prepareCodexRuntimeConfig", () => {
 
   it("expands {env:VAR} placeholders from the run env and process.env, leaving unresolvable ones intact", async () => {
     const home = await makeCodexHome();
-    process.env.PAPERCLIP_CODEX_TEST_PROCESS_KEY = "from-process-env";
+    process.env.NEXUS_CODEX_TEST_PROCESS_KEY = "from-process-env";
     try {
       const prepared = await prepareCodexRuntimeConfig({
         env: {
-          PAPERCLIP_CODEX_PROVIDERS: JSON.stringify({
+          NEXUS_CODEX_PROVIDERS: JSON.stringify({
             providers: {
               gw: {
                 base_url: "http://gw.example/v1",
                 http_headers: {
-                  "X-Run": "{env:PAPERCLIP_CODEX_TEST_RUN_KEY}",
-                  "X-Process": "{env:PAPERCLIP_CODEX_TEST_PROCESS_KEY}",
+                  "X-Run": "{env:NEXUS_CODEX_TEST_RUN_KEY}",
+                  "X-Process": "{env:NEXUS_CODEX_TEST_PROCESS_KEY}",
                   "X-Missing": "{env:DEFINITELY_UNSET_VAR_XYZ}",
                 },
               },
             },
             model_provider: "gw",
           }),
-          PAPERCLIP_CODEX_TEST_RUN_KEY: "from-run-env",
+          NEXUS_CODEX_TEST_RUN_KEY: "from-run-env",
         },
         codexHome: home,
       });
@@ -229,24 +229,24 @@ describe("prepareCodexRuntimeConfig", () => {
 
       await prepared.cleanup();
     } finally {
-      delete process.env.PAPERCLIP_CODEX_TEST_PROCESS_KEY;
+      delete process.env.NEXUS_CODEX_TEST_PROCESS_KEY;
     }
   });
 
-  it("reads PAPERCLIP_CODEX_PROVIDERS from process.env when absent from the run env", async () => {
+  it("reads NEXUS_CODEX_PROVIDERS from process.env when absent from the run env", async () => {
     const home = await makeCodexHome();
-    process.env.PAPERCLIP_CODEX_PROVIDERS = JSON.stringify(BIFROST_PROVIDERS);
+    process.env.NEXUS_CODEX_PROVIDERS = JSON.stringify(BIFROST_PROVIDERS);
     try {
       const prepared = await prepareCodexRuntimeConfig({ env: {}, codexHome: home });
       const content = await readConfigToml(home);
       expect(content).toContain("[model_providers.bifrost]");
       await prepared.cleanup();
     } finally {
-      delete process.env.PAPERCLIP_CODEX_PROVIDERS;
+      delete process.env.NEXUS_CODEX_PROVIDERS;
     }
   });
 
-  it("surfaces a note for malformed PAPERCLIP_CODEX_PROVIDERS without touching config.toml", async () => {
+  it("surfaces a note for malformed NEXUS_CODEX_PROVIDERS without touching config.toml", async () => {
     const home = await makeCodexHome("model = \"gpt-5.1-codex\"\n");
     const cases: Array<[raw: string, noteFragment: string]> = [
       ["not json", "contains invalid JSON"],
@@ -257,7 +257,7 @@ describe("prepareCodexRuntimeConfig", () => {
     ];
     for (const [raw, noteFragment] of cases) {
       const prepared = await prepareCodexRuntimeConfig({
-        env: { PAPERCLIP_CODEX_PROVIDERS: raw },
+        env: { NEXUS_CODEX_PROVIDERS: raw },
         codexHome: home,
       });
       expect(prepared.notes).toHaveLength(1);
@@ -268,12 +268,12 @@ describe("prepareCodexRuntimeConfig", () => {
     }
   });
 
-  it("stays silent when PAPERCLIP_CODEX_PROVIDERS is unset or empty", async () => {
+  it("stays silent when NEXUS_CODEX_PROVIDERS is unset or empty", async () => {
     const home = await makeCodexHome("model = \"gpt-5.1-codex\"\n");
     const envs: Array<Record<string, string>> = [
       {},
-      { PAPERCLIP_CODEX_PROVIDERS: "" },
-      { PAPERCLIP_CODEX_PROVIDERS: "  " },
+      { NEXUS_CODEX_PROVIDERS: "" },
+      { NEXUS_CODEX_PROVIDERS: "  " },
     ];
     for (const env of envs) {
       const prepared = await prepareCodexRuntimeConfig({ env, codexHome: home });
@@ -287,7 +287,7 @@ describe("prepareCodexRuntimeConfig", () => {
     const home = await makeCodexHome();
     const prepared = await prepareCodexRuntimeConfig({
       env: {
-        PAPERCLIP_CODEX_PROVIDERS: JSON.stringify({
+        NEXUS_CODEX_PROVIDERS: JSON.stringify({
           providers: {
             bad: "http://gateway.example/v1",
             good: { base_url: "http://gateway.example/v1", env_key: "OPENAI_API_KEY" },
@@ -313,7 +313,7 @@ describe("prepareCodexRuntimeConfig", () => {
     const home = await makeCodexHome();
     const prepared = await prepareCodexRuntimeConfig({
       env: {
-        PAPERCLIP_CODEX_PROVIDERS: JSON.stringify({
+        NEXUS_CODEX_PROVIDERS: JSON.stringify({
           providers: { gw: { base_url: "http://gw.example/v1", name: `del${del}name` } },
         }),
       },
@@ -338,7 +338,7 @@ describe("prepareCodexRuntimeConfig", () => {
     // Simulate a crash: the merge excises the user's same-name provider
     // section (the managed definition must win), and cleanup() never runs.
     await prepareCodexRuntimeConfig({
-      env: { PAPERCLIP_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
+      env: { NEXUS_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
       codexHome: home,
     });
     expect(await readConfigToml(home)).toContain('env_key = "OPENAI_API_KEY"');
@@ -346,17 +346,17 @@ describe("prepareCodexRuntimeConfig", () => {
     const prepared = await prepareCodexRuntimeConfig({ env: {}, codexHome: home });
     expect(prepared.notes.some((n) => n.includes("backup"))).toBe(true);
     expect(await readConfigToml(home)).toBe(userConfig);
-    await expect(fs.access(path.join(home, "config.toml.paperclip-backup"))).rejects.toThrow();
+    await expect(fs.access(path.join(home, "config.toml.nexus-backup"))).rejects.toThrow();
     await prepared.cleanup();
   });
 
   it("removes the pre-run backup on cleanup", async () => {
     const home = await makeCodexHome('approval_policy = "never"\n');
     const prepared = await prepareCodexRuntimeConfig({
-      env: { PAPERCLIP_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
+      env: { NEXUS_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
       codexHome: home,
     });
-    const backupPath = path.join(home, "config.toml.paperclip-backup");
+    const backupPath = path.join(home, "config.toml.nexus-backup");
     expect(await fs.readFile(backupPath, "utf8")).toBe('approval_policy = "never"\n');
 
     await prepared.cleanup();
@@ -366,7 +366,7 @@ describe("prepareCodexRuntimeConfig", () => {
 
   it("skips the merge and surfaces a note when CODEX_HOME is explicitly configured", async () => {
     const prepared = await prepareCodexRuntimeConfig({
-      env: { PAPERCLIP_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
+      env: { NEXUS_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
       codexHome: null,
     });
 
@@ -378,7 +378,7 @@ describe("prepareCodexRuntimeConfig", () => {
   it("self-heals stale managed blocks when the env is no longer set", async () => {
     const home = await makeCodexHome();
     const crashed = await prepareCodexRuntimeConfig({
-      env: { PAPERCLIP_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
+      env: { NEXUS_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
       codexHome: home,
     });
     // Simulate a crash: cleanup never runs, the managed blocks persist.
@@ -396,13 +396,13 @@ describe("prepareCodexRuntimeConfig", () => {
   it("re-running with changed providers replaces the previous managed blocks", async () => {
     const home = await makeCodexHome("approval_policy = \"never\"\n");
     const first = await prepareCodexRuntimeConfig({
-      env: { PAPERCLIP_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
+      env: { NEXUS_CODEX_PROVIDERS: JSON.stringify(BIFROST_PROVIDERS) },
       codexHome: home,
     });
     void first; // simulate crash: no cleanup
     const second = await prepareCodexRuntimeConfig({
       env: {
-        PAPERCLIP_CODEX_PROVIDERS: JSON.stringify({
+        NEXUS_CODEX_PROVIDERS: JSON.stringify({
           providers: { gw2: { base_url: "http://gw2.example/v1", env_key: "OPENAI_API_KEY" } },
           model_provider: "gw2",
         }),
@@ -423,7 +423,7 @@ describe("prepareCodexRuntimeConfig", () => {
     const home = await makeCodexHome("model = \"gpt-5.1-codex\"\n");
     const prepared = await prepareCodexRuntimeConfig({
       env: {
-        PAPERCLIP_CODEX_PROVIDERS: JSON.stringify({
+        NEXUS_CODEX_PROVIDERS: JSON.stringify({
           providers: { good: { base_url: "https://gateway.example/v1" }, bad: "not-an-object" },
           model_provider: "bad",
         }),
@@ -431,7 +431,7 @@ describe("prepareCodexRuntimeConfig", () => {
       codexHome: home,
     });
     expect(prepared.notes).toContain(
-      'PAPERCLIP_CODEX_PROVIDERS: model_provider "bad" does not match any usable provider entry; custom providers ignored.',
+      'NEXUS_CODEX_PROVIDERS: model_provider "bad" does not match any usable provider entry; custom providers ignored.',
     );
     const content = await readConfigToml(home);
     expect(content).toBe("model = \"gpt-5.1-codex\"\n");

@@ -1,5 +1,5 @@
 import { and, desc, eq, getTableColumns, or, sql } from "drizzle-orm";
-import { agents, heartbeatRuns, issues, type Db } from "@paperclipai/db";
+import { agents, heartbeatRuns, issues, type Db } from "@nexusai/db";
 import { isWaitingConversation } from "../agent-conversations.js";
 import { logActivity, publishActivity, type ActivityPublication } from "../activity-log.js";
 import { issueRecoveryActionService } from "../issue-recovery-actions.js";
@@ -104,7 +104,7 @@ export async function escalateExhaustedIssueReviewPathRecovery(
       seed: {
         title: "No follow-up scheduled",
         tone: "danger",
-        body: "The automatic review-path repair finished without saving a scheduled check, reviewer, approval, or other maintained path. Paperclip has blocked this task for a board decision; no further automatic follow-up is scheduled.",
+        body: "The automatic review-path repair finished without saving a scheduled check, reviewer, approval, or other maintained path. Nexus has blocked this task for a board decision; no further automatic follow-up is scheduled.",
         nextAction,
       },
       recoveryCause: ISSUE_REVIEW_PATH_LOST_WAKE_REASON,

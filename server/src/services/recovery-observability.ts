@@ -1,7 +1,7 @@
 import { historicalRecoveryCounts } from "./workspace-recovery-backfill.js";
 import { and, eq, gte, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { heartbeatRuns, issueRecoveryActions, issues } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { heartbeatRuns, issueRecoveryActions, issues } from "@nexusai/db";
 
 // Default alert threshold: the recovery rate that a regression like the 07-06
 // week (3.26% of runs) blew past while nobody noticed by feel. See the plan on

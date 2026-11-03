@@ -5,9 +5,9 @@ import { realpathSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { and, eq, inArray, isNotNull, lte, notInArray, sql } from "drizzle-orm";
-import { adapterAuthSessions, ADAPTER_AUTH_SESSION_ACTIVE_STATES, databaseWorkScopeKey, environments, type Db } from "@paperclipai/db";
-import type { AiConnectionLoginIntent, LocalAiLoginAttempt, LocalAiLoginStatus } from "@paperclipai/shared";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { adapterAuthSessions, ADAPTER_AUTH_SESSION_ACTIVE_STATES, databaseWorkScopeKey, environments, type Db } from "@nexusai/db";
+import type { AiConnectionLoginIntent, LocalAiLoginAttempt, LocalAiLoginStatus } from "@nexusai/shared";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 import { notFound, unprocessable } from "../errors.js";
 import { aiConnectionService } from "./ai-connections.js";
 import { readVerifiedLocalAiCredentialDetails } from "./local-ai-credentials.js";
@@ -22,7 +22,7 @@ const RETIREMENT_PENDING = "local_login_retirement_pending";
 const CLEANUP_BATCH_SIZE = 16;
 const CLEANUP_CONCURRENCY = 4;
 function loginHome(id: string) {
-  const root = resolvePaperclipInstanceRoot();
+  const root = resolveNexusInstanceRoot();
   // macOS exposes /var through a system symlink to /private/var. Credential
   // reads use O_NOFOLLOW_ANY, so generate login homes from the canonical root.
   // A fresh instance root may not exist yet; prepareHome creates it first.
@@ -202,7 +202,7 @@ export function localAiLoginService(db: Db) {
     // Expiry is owned by the durable localLoginCleanup deadline. Starting a
     // sign-in must not wait for another user's or provider's native retirement.
     await managementContext?.reauthorize();
-    const adapterType = intent.provider === "google" ? "paperclip_runner" : intent.provider === "openai" ? "codex_local" : intent.provider === "anthropic" ? "claude_local" : "grok_local";
+    const adapterType = intent.provider === "google" ? "nexus_runner" : intent.provider === "openai" ? "codex_local" : intent.provider === "anthropic" ? "claude_local" : "grok_local";
     let retiredAttemptId: string | undefined;
     if (restart) {
       const [existing] = await db.select().from(adapterAuthSessions).where(and(

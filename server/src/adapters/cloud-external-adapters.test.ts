@@ -17,7 +17,7 @@ function writePackage(packageDir: string, type: string): void {
     name: `fixture-${type}`,
     type: "module",
     exports: { ".": "./index.mjs", "./ui-parser": "./ui-parser.mjs" },
-    paperclip: { adapterUiParser: "1.0.0" },
+    nexus: { adapterUiParser: "1.0.0" },
   }));
   fs.writeFileSync(path.join(packageDir, "index.mjs"), `
     import fs from "node:fs";
@@ -37,10 +37,10 @@ function writePackage(packageDir: string, type: string): void {
 
 beforeEach(() => {
   vi.resetModules();
-  vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", undefined);
-  vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", undefined);
-  home = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-cloud-adapters-"));
-  vi.stubEnv("PAPERCLIP_HOME", home);
+  vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", undefined);
+  vi.stubEnv("NEXUS_MANAGED_CONFIG", undefined);
+  home = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-cloud-adapters-"));
+  vi.stubEnv("NEXUS_HOME", home);
   sentinel = path.join(home, "external-code-executed");
   localPackage = path.join(home, "local-package");
   npmPackage = path.join(home, "adapter-plugins", "node_modules", "fixture-npm");
@@ -60,10 +60,10 @@ afterEach(() => {
 });
 
 describe("Cloud image adapter boundary", () => {
-  it.each(["PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "PAPERCLIP_MANAGED_CONFIG"])(
+  it.each(["NEXUS_CLOUD_TENANT_SERVER_TOKEN", "NEXUS_MANAGED_CONFIG"])(
     "cold boots built-ins without reading or executing persisted packages with %s",
     async (signal) => {
-      vi.stubEnv(signal, signal === "PAPERCLIP_MANAGED_CONFIG" ? "" : "test-token");
+      vi.stubEnv(signal, signal === "NEXUS_MANAGED_CONFIG" ? "" : "test-token");
       const registrationBefore = fs.readFileSync(storePath, "utf8");
       const reads = vi.spyOn(fs, "readFileSync");
       const registry = await import("./registry.js");
@@ -128,7 +128,7 @@ describe("Cloud image adapter boundary", () => {
     await loader.loadExternalAdapterPackage("fixture-local", localPackage);
     expect(loader.getUiParserSource("codex_local")).toBe(parserSource);
     expect(store.listAdapterPlugins()).toHaveLength(2);
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", "{}");
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", "{}");
     expect(store.listAdapterPlugins()).toEqual([]);
     expect(loader.getUiParserSource("codex_local")).toBeUndefined();
     expect(loader.getOrExtractUiParserSource("codex_local")).toBeUndefined();

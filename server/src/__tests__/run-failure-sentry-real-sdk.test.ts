@@ -7,14 +7,14 @@ import path from "node:path";
 import { buildHeartbeatRunStopMetadata, mergeHeartbeatRunStopMetadata } from "../services/heartbeat-stop-metadata.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { collectRunFailureDiagnostics, sanitizeRunFailureDiagnostics } from "../services/run-failure-diagnostics.js";
-import type { heartbeatRuns } from "@paperclipai/db";
+import type { heartbeatRuns } from "@nexusai/db";
 import {
   preserveWorkspaceRestoreErrorDiagnostic,
   withWorkspaceRestoreDiagnostics,
   withWorkspaceRestoreStep,
   withWorkspaceRestoreGitCommand,
-} from "@paperclipai/adapter-utils/workspace-restore-diagnostics";
-import { createWorkspaceRestoreTeardown } from "@paperclipai/adapter-utils/workspace-restore-teardown";
+} from "@nexusai/adapter-utils/workspace-restore-diagnostics";
+import { createWorkspaceRestoreTeardown } from "@nexusai/adapter-utils/workspace-restore-teardown";
 
 // Sentry is an optional peer. When installed, exercise the real SDK with an
 // in-memory transport, including its context behavior without an OTel manager.
@@ -35,7 +35,7 @@ const sentryPackage = (() => {
   }
 })();
 
-if (process.env.PAPERCLIP_REQUIRE_SENTRY_TEST_SDK === "1" && !sentryPackage) {
+if (process.env.NEXUS_REQUIRE_SENTRY_TEST_SDK === "1" && !sentryPackage) {
   throw new Error("The Sentry SDK contract job requires the audited optional peer");
 }
 
@@ -44,7 +44,7 @@ afterEach(async () => {
   vi.unstubAllEnvs();
   vi.doUnmock("@sentry/node");
   vi.doUnmock("../peer-version-check.js");
-  vi.doUnmock("@paperclipai/adapter-utils/execution-target");
+  vi.doUnmock("@nexusai/adapter-utils/execution-target");
   vi.resetModules();
 });
 
@@ -52,7 +52,7 @@ describe.skipIf(!sentryPackage)("run failure context with the real Sentry SDK", 
   it("captures an early OpenCode timeout without inventing a deadline or exporting provider output", async () => {
     const Sentry = sentryPackage!;
     const events: Array<Record<string, unknown>> = [];
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-opencode-sentry-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-opencode-sentry-"));
     const restore = vi.fn(async () => {});
     const stop = vi.fn(async () => {});
     const processResult = {
@@ -75,8 +75,8 @@ describe.skipIf(!sentryPackage)("run failure context with the real Sentry SDK", 
     }));
     // Only external execution/setup seams are replaced. The real adapter owns
     // the message/policy, and the real finalization/collector/SDK send the event.
-    vi.doMock("@paperclipai/adapter-utils/execution-target", async (importOriginal) => ({
-      ...await importOriginal<typeof import("@paperclipai/adapter-utils/execution-target")>(),
+    vi.doMock("@nexusai/adapter-utils/execution-target", async (importOriginal) => ({
+      ...await importOriginal<typeof import("@nexusai/adapter-utils/execution-target")>(),
       ensureAdapterExecutionTargetRuntimeCommandInstalled: vi.fn(),
       ensureAdapterExecutionTargetCommandResolvable: vi.fn(),
       prepareAdapterExecutionTargetRuntime: vi.fn(async () => ({
@@ -84,12 +84,12 @@ describe.skipIf(!sentryPackage)("run failure context with the real Sentry SDK", 
         assetDirs: {}, restoreWorkspace: restore,
       })),
       readAdapterExecutionTargetHomeDir: vi.fn(async () => "/home/fixture"),
-      startAdapterExecutionTargetPaperclipBridge: vi.fn(async () => ({ env: {}, stop })),
+      startAdapterExecutionTargetNexusBridge: vi.fn(async () => ({ env: {}, stop })),
       runAdapterExecutionTargetProcess: runProcess,
     }));
     vi.resetModules();
     try {
-      const { execute } = await import("@paperclipai/adapter-opencode-local/server");
+      const { execute } = await import("@nexusai/adapter-opencode-local/server");
       const { sentryReady, captureRunFailure, captureException } = await import("../sentry.js");
       await sentryReady;
       const result = await execute({
@@ -385,7 +385,7 @@ describe.skipIf(!sentryPackage)("run failure context with the real Sentry SDK", 
       exitCode: 1,
       signal: null,
     };
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", "https://paperclip.example.com");
+    vi.stubEnv("NEXUS_PUBLIC_URL", "https://nexus.example.com");
     const { setSentryRunLinkResolver } = await import("../sentry-links.js");
     setSentryRunLinkResolver(async ({ runId }) => ({
       companyId: first.companyId, companyPrefix: "TEAM", agentId: first.agentId,
@@ -455,15 +455,15 @@ describe.skipIf(!sentryPackage)("run failure context with the real Sentry SDK", 
     });
     expect(JSON.stringify(events)).not.toContain("private-signal-payload");
     const firstCapture = captured(first.errorMessage)!;
-    expect(firstCapture).toHaveProperty("contexts.paperclip.runPath", `/api/heartbeat-runs/${first.runId}`);
+    expect(firstCapture).toHaveProperty("contexts.nexus.runPath", `/api/heartbeat-runs/${first.runId}`);
     expect(firstCapture).toMatchObject({ tags: {
-      task_url: "https://paperclip.example.com/TEAM/issues/TEAM-42",
-      run_url: `https://paperclip.example.com/TEAM/agents/${first.agentId}/runs/${first.runId}`,
-    }, contexts: { paperclip: { taskUrl: "https://paperclip.example.com/TEAM/issues/TEAM-42" } } });
-    expect(captured(second.errorMessage)).toHaveProperty("tags.task_url", "https://paperclip.example.com/TEAM/issues/TEAM-43");
-    expect(captured("run-related request error")).toHaveProperty("tags.task_url", "https://paperclip.example.com/TEAM/issues/TEAM-42");
+      task_url: "https://nexus.example.com/TEAM/issues/TEAM-42",
+      run_url: `https://nexus.example.com/TEAM/agents/${first.agentId}/runs/${first.runId}`,
+    }, contexts: { nexus: { taskUrl: "https://nexus.example.com/TEAM/issues/TEAM-42" } } });
+    expect(captured(second.errorMessage)).toHaveProperty("tags.task_url", "https://nexus.example.com/TEAM/issues/TEAM-43");
+    expect(captured("run-related request error")).toHaveProperty("tags.task_url", "https://nexus.example.com/TEAM/issues/TEAM-42");
     expect(events.find(event => (event.tags as Record<string, unknown>)?.error_code === "adapter_stop_unconfirmed"))
-      .toHaveProperty("tags.task_url", "https://paperclip.example.com/TEAM/issues/TEAM-42");
+      .toHaveProperty("tags.task_url", "https://nexus.example.com/TEAM/issues/TEAM-42");
     const exceptions = (firstCapture.exception as { values: Array<Record<string, unknown>> }).values;
     expect(exceptions).toHaveLength(2);
     expect(JSON.stringify(exceptions)).toContain("originalAdapter");

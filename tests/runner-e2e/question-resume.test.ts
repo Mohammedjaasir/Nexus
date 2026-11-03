@@ -29,7 +29,7 @@ function recording(paths: QuestionPath[] = ["provider", "semantic"]) {
     const run = runs.at(-1)!;
     const provider = paths[n] === "provider", api = paths[n] === "api";
     const request = `request-${n}`;
-    const idempotencyKey = provider ? `paperclip-runner-question:${run.id}:${request}` : `question-${n}`;
+    const idempotencyKey = provider ? `nexus-runner-question:${run.id}:${request}` : `question-${n}`;
     const field = n === 0 ? { id: "field-1-question_0-hash", answerMode: "single_select", options: [
       { id: "am", label: "Morning" }, { id: "pm", label: "Afternoon" },
     ] } : { id: "reference", answerMode: "text" };

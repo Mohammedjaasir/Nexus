@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { and, asc, eq, gt } from "drizzle-orm";
-import { assets, issueAttachments, type Db } from "@paperclipai/db";
+import { assets, issueAttachments, type Db } from "@nexusai/db";
 import { z } from "zod";
 import { getStorageService } from "../../storage/index.js";
 import type { StorageService } from "../../storage/types.js";

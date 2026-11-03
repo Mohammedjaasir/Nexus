@@ -1,5 +1,5 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { companySkillImportBudgets, projectSkillSources, type Db } from '@paperclipai/db';
+import { companySkillImportBudgets, projectSkillSources, type Db } from '@nexusai/db';
 import { conflict, tooManyRequests } from '../errors.js';
 import { automaticSkillWorkAvailable, automaticSkillWorkRefund, AUTOMATIC_SKILL_WORK_CAPACITY_BYTES,
   AUTOMATIC_SKILL_WORK_RESERVATION_BYTES, REFILL_WINDOW_MS } from './skill-source-refresh-budget.js';

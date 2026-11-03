@@ -1,11 +1,11 @@
-import { createDb } from "@paperclipai/db";
+import { createDb } from "@nexusai/db";
 import { createAgentLifecycle } from "../src/services/agent-lifecycle.js";
 import {
   companies,
   goals,
   projects,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL is required");
@@ -17,7 +17,7 @@ console.log("Seeding database...");
 const [company] = await db
   .insert(companies)
   .values({
-    name: "Paperclip Demo Co",
+    name: "Nexus Demo Co",
     description: "A demo autonomous company",
     status: "active",
     budgetMonthlyCents: 50000,

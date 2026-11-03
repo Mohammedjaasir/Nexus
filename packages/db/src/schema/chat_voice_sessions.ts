@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, integer, timestamp, jsonb, index, unique, uniqueIndex, foreignKey, check } from "drizzle-orm/pg-core";
-import type { VoiceSessionState, VoiceSessionMode, VoiceCallerAuthority } from "@paperclipai/shared";
+import type { VoiceSessionState, VoiceSessionMode, VoiceCallerAuthority } from "@nexusai/shared";
 import { companies } from "./companies.js";
 import { agents } from "./agents.js";
 import { issues } from "./issues.js";

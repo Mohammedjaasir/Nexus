@@ -58,7 +58,7 @@ export async function runAntigravityBrowserCalibration(page: Page) {
       payload: { name, operation, target, status, executionId, transport: 'builtin' },
     });
     const entries = [event('edit', 'completed', 'edit'), event('read', 'completed', 'read'),
-      event('execute', 'failed', 'finish', 'paperclip_paperclip_finish')];
+      event('execute', 'failed', 'finish', 'nexus_nexus_finish')];
     if (scenario === 'failed-read-activity') entries.unshift(event('read', 'failed', 'failed-read'));
     if (scenario === 'interrupted-edit-activity') entries.unshift(event('edit', 'interrupted', 'interrupted-edit'));
     if (scenario === 'running-read-activity') entries.unshift(event('read', 'running', 'running-read'));
@@ -70,7 +70,7 @@ export async function runAntigravityBrowserCalibration(page: Page) {
     const transcriptOf = values => legacy ? values.flatMap(entry => {
       const { operation, target, executionId } = entry.payload;
       const call = { kind: 'tool_call', ts: entry.ts, toolUseId: executionId,
-        name: operation === 'read' ? 'Running client_view_file' : operation === 'edit' ? 'exec_command' : operation === 'write' ? 'write' : 'paperclip_paperclip_finish',
+        name: operation === 'read' ? 'Running client_view_file' : operation === 'edit' ? 'exec_command' : operation === 'write' ? 'write' : 'nexus_nexus_finish',
         input: { operation, target } };
       if (['interrupted', 'pending'].includes(entry.status)) return [call];
       return [call, { kind: 'tool_result', ts: entry.ts, toolUseId: executionId, isError: entry.status === 'failed',
@@ -101,7 +101,7 @@ export async function runAntigravityBrowserCalibration(page: Page) {
     const first = ${JSON.stringify(artifactBytes.toString('utf8'))}, second = ${JSON.stringify(followupBytes.toString('utf8'))};
     const bytes = id => id === secondId ? second : first;
     const product = (id, size = bytes(id).length) => ({ id: 'product-' + id, companyId: 'synthetic-company', issueId: 'synthetic-issue',
-      type: 'artifact', provider: 'paperclip', externalId: id, title: 'Prepared proof file', status: 'active', reviewState: 'none',
+      type: 'artifact', provider: 'nexus', externalId: id, title: 'Prepared proof file', status: 'active', reviewState: 'none',
       healthStatus: 'unknown', createdAt: '2026-10-29T00:00:00Z', updatedAt: '2026-10-29T00:00:00Z',
       metadata: { attachmentId: id, originalFilename: 'antigravity-proof.txt', contentType: 'text/plain', byteSize: size,
         contentPath: '/api/attachments/' + id + '/content', openPath: '/api/attachments/' + id + '/content', downloadPath: '/api/attachments/' + id + '/content?download=1' } });
@@ -153,7 +153,7 @@ export async function runAntigravityBrowserCalibration(page: Page) {
     if (name === "creation-client.js") { response.writeHead(200, { "Content-Type": "text/javascript" }).end(creationBundle.outputFiles[0]!.text); return; }
     if (name === "creation") { response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end('<!doctype html><html><body><div id="creation-root"></div><script src="/creation-client.js"></script></body></html>'); return; }
     if (name === "api/instance/settings/experimental") { response.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ enableNativeRunner: true })); return; }
-    if (name === "api/adapters") { response.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify([{ type: "paperclip_runner", loaded: true, candidateHarnesses: [{ agent: "antigravity", model }] }])); return; }
+    if (name === "api/adapters") { response.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify([{ type: "nexus_runner", loaded: true, candidateHarnesses: [{ agent: "antigravity", model }] }])); return; }
     if (name === `api/companies/${creationCompanyId}/agents`) {
       if (request.method === "POST") {
         let raw = ""; for await (const chunk of request) raw += chunk;

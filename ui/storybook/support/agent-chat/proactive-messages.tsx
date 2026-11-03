@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { instanceExperimentalSettingsSchema, type Issue } from "@paperclipai/shared";
+import { instanceExperimentalSettingsSchema, type Issue } from "@nexusai/shared";
 import { Sidebar } from "@/components/Sidebar";
 import { CoordinatorSidebar } from "@/components/CoordinatorSidebar";
 import { AgentConversationsSidebar } from "@/components/AgentConversationsSidebar";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { AgentChatReadProvider } from "@/hooks/useAgentChatRead";
 import { PluginLauncherProvider } from "@/plugins/launchers";
 import { useLocation, useNavigate } from "@/lib/router";
-import { storybookAgents, storybookIssues } from "../../fixtures/paperclipData";
+import { storybookAgents, storybookIssues } from "../../fixtures/nexusData";
 import { prepareFixtureApi } from "../capability-gaps/api";
 
 export const proactiveCompanyId = "company-storybook";
@@ -81,28 +81,28 @@ export function ProactiveMessageReview() {
   const { pathname } = useLocation();
   const open = pathname.endsWith("/chats/kodi");
   const [opened, setOpened] = useState(false);
-  return <main className="paperclip-story">
-    <div className="paperclip-story__inner space-y-6">
+  return <main className="nexus-story">
+    <div className="nexus-story__inner space-y-6">
       <header className="space-y-2">
-        <p className="paperclip-story__label">Proactive agent messages · changed UX</p>
+        <p className="nexus-story__label">Proactive agent messages · changed UX</p>
         <h1 className="text-2xl font-semibold">Kodi’s morning digest is waiting in chat</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">Both Chat navigation variants count unread chats. Each agent has its own unread dot. Open Kodi at the latest message to clear its dot and reduce the count; Mira stays unread.</p>
       </header>
       <div className="grid gap-4 md:grid-cols-3">
-        <section aria-label="Classic navigation" className="paperclip-story__frame overflow-hidden">
+        <section aria-label="Classic navigation" className="nexus-story__frame overflow-hidden">
           <h2 className="border-b border-border px-4 py-3 text-sm font-medium">Classic navigation</h2>
           <div className="h-80 overflow-auto"><PluginLauncherProvider><Sidebar /></PluginLauncherProvider></div>
         </section>
-        <section aria-label="Coordinator navigation" className="paperclip-story__frame overflow-hidden">
+        <section aria-label="Coordinator navigation" className="nexus-story__frame overflow-hidden">
           <h2 className="border-b border-border px-4 py-3 text-sm font-medium">Coordinator navigation</h2>
           <div className="coordinator-workspace h-80 overflow-auto"><CoordinatorSidebar /></div>
         </section>
-        <section aria-label="Agent unread messages" className="paperclip-story__frame overflow-hidden">
+        <section aria-label="Agent unread messages" className="nexus-story__frame overflow-hidden">
           <h2 className="border-b border-border px-4 py-3 text-sm font-medium">Unread by agent</h2>
           <div className="h-80"><AgentConversationsSidebar /></div>
         </section>
       </div>
-      <section aria-label="Kodi proactive digest" className="paperclip-story__frame overflow-hidden">
+      <section aria-label="Kodi proactive digest" className="nexus-story__frame overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div><h2 className="text-sm font-medium">Chat with Kodi</h2><p className="text-xs text-muted-foreground">A normal agent message with a link to its source task</p></div>
           <Button variant="outline" onClick={() => { setOpened(true); navigate("/chats/kodi"); }}>Open Kodi chat</Button>

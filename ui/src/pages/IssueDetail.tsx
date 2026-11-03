@@ -8,7 +8,7 @@ import { CoordinatorAgentSwitcher } from "@/components/CoordinatorAgentSwitcher"
 import { TaskDecisionRecord } from "@/components/TaskDecisionRecord";
 import { useAccountBoundMutation } from "@/hooks/useAccountBoundMutation";
 import { mergeWindowComments, useIssueHistoryWindow } from "../hooks/useIssueHistoryWindow";
-import type { IssueQueuedCommentQueue } from "@paperclipai/shared";
+import type { IssueQueuedCommentQueue } from "@nexusai/shared";
 import { useTaskRunLiveUpdates } from "../context/LiveUpdatesProvider";
 import { liveRunRefetchInterval } from "../lib/live-runs-cache";
 import { useTaskRetry } from "../hooks/useTaskRetry";
@@ -398,7 +398,7 @@ import {
   type WorkspaceFileRef,
   workspaceFileRefSchema,
   isUuidLike,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 // Stable empty array for React Query `data` defaults. A literal `= []` default
 // creates a new array reference on every render while `data` is undefined
@@ -1202,7 +1202,7 @@ type IssueDetailChatTabProps = {
   retryPreparing?: boolean;
   queryIssueId?: string;
   hasLiveConnection: boolean;
-  browsers?: import("@paperclipai/shared").TaskBrowser[];
+  browsers?: import("@nexusai/shared").TaskBrowser[];
   onOpenBrowser?: (browserId: string) => void;
   onOpenSkill?: (skillId: string, name: string) => void;
   issueId: string;
@@ -1546,9 +1546,9 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
       resolveIssueActiveRun({ status: issueStatus, executionRunId }, activeRun, liveRuns),
     [activeRun, executionRunId, issueStatus, liveRuns],
   );
-  const assigneeUsesPaperclipRunner = Boolean(
+  const assigneeUsesNexusRunner = Boolean(
     issueAssigneeAgentId &&
-    agentMap.get(issueAssigneeAgentId)?.adapterType === "paperclip_runner",
+    agentMap.get(issueAssigneeAgentId)?.adapterType === "nexus_runner",
   );
   const liveRuntimeRun =
     resolvedActiveRun ??
@@ -1558,7 +1558,7 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
     null;
   // Do not briefly select queue behavior from the current assignee while the
   // authoritative active-run lookup is still loading. The active runtime owns
-  // the protocol: native Paperclip turns can steer in place, while legacy
+  // the protocol: native Nexus turns can steer in place, while legacy
   // adapters expose the same composer queue with an interrupt fallback.
   const runtimeSelectionKnown =
     liveRunsFetched && (!activeRunQueryEnabled || activeRunFetched);
@@ -1721,7 +1721,7 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
     [resolvedActiveRun, resolvedLiveRuns],
   );
   const currentRunAgent = interruptibleIssueRun ? agentMap.get(interruptibleIssueRun.agentId) : null;
-  const grokWork = currentRunAgent?.adapterType === "paperclip_runner" && currentRunAgent.adapterConfig.provider === "grok_bot";
+  const grokWork = currentRunAgent?.adapterType === "nexus_runner" && currentRunAgent.adapterConfig.provider === "grok_bot";
   const stopGrokWork = useMutation({
     mutationFn: (run: { id: string; agentId: string }) => grokBotApi.stop(companyId, run.agentId, run.id),
     onSettled: (_data, _error, run) => Promise.all([
@@ -2117,7 +2117,7 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
           const queuedTargetRunId =
             interaction.sourceRunId &&
             interruptibleIssueRun?.id === interaction.sourceRunId &&
-            interruptibleIssueRun.adapterType !== "paperclip_runner"
+            interruptibleIssueRun.adapterType !== "nexus_runner"
               ? interaction.sourceRunId
               : null;
           const body =
@@ -2219,9 +2219,9 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
       return targetRunId ? [{ comment, targetRunId }] : [];
     });
     const fallbackProtocol =
-      liveRuntimeRun?.adapterType === "paperclip_runner" ||
-      (!liveRuntimeRun && assigneeUsesPaperclipRunner)
-        ? "paperclip_runner_v1"
+      liveRuntimeRun?.adapterType === "nexus_runner" ||
+      (!liveRuntimeRun && assigneeUsesNexusRunner)
+        ? "nexus_runner_v1"
         : "legacy";
     return mergePendingIssueQueuedComments({
       issueId,
@@ -2236,7 +2236,7 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
     discardedQueuedCommentIds,
     issueId,
     liveRuntimeRun,
-    assigneeUsesPaperclipRunner,
+    assigneeUsesNexusRunner,
     locallyQueuedCommentRunIds,
     queuedCommentQueueEnabled,
   ]);
@@ -2536,7 +2536,7 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
         if (code === "queued_comment_already_dispatching") {
           pushToast({
             title: "Message is already being sent",
-            body: "The continuation started before the discard was confirmed, so Paperclip could not unsend it.",
+            body: "The continuation started before the discard was confirmed, so Nexus could not unsend it.",
             tone: "error",
             ttlMs: 15_000,
             dedupeKey: `queued-comment-already-dispatching:${issueId}:${commentId}`,
@@ -2762,7 +2762,7 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
                     const selectedRun = resolvedLiveRuns.find(run => run.id === runId)
                       ?? (resolvedActiveRun?.id === runId ? resolvedActiveRun : null);
                     const selectedAgent = selectedRun ? agentMap.get(selectedRun.agentId) : null;
-                    if (selectedRun && selectedAgent?.adapterType === "paperclip_runner" && selectedAgent.adapterConfig.provider === "grok_bot") {
+                    if (selectedRun && selectedAgent?.adapterType === "nexus_runner" && selectedAgent.adapterConfig.provider === "grok_bot") {
                       await stopGrokWork.mutateAsync(selectedRun).catch(() => undefined);
                     } else if (onPauseWorkRun) {
                       await onPauseWorkRun(runId).catch(() => undefined);
@@ -2770,8 +2770,8 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
                   }
                 : undefined
             }
-            stopRunLabel={grokWork ? "Stop Paperclip work" : "Pause work"}
-            stoppingRunLabel={grokWork ? "Stopping Paperclip work…" : "Pausing..."}
+            stopRunLabel={grokWork ? "Stop Nexus work" : "Pause work"}
+            stoppingRunLabel={grokWork ? "Stopping Nexus work…" : "Pausing..."}
             stopRunVariant={grokWork ? "stop" : "pause"}
             runFinalizationActions={runFinalizationActions}
             onAcceptInteraction={onAcceptInteraction}
@@ -2803,7 +2803,7 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
               tryAgainNoLiveExecutionPathPending
             }
             footer={grokWork || stopGrokWork.error || classicQueuedDeliveryError ? <>
-              {grokWork && <p className="text-xs text-muted-foreground">Runs in Grok Bot · Usage not reported. Stop Paperclip work revokes this session’s authority; remote execution may continue. Open the Grok Bot desktop app to inspect it.</p>}
+              {grokWork && <p className="text-xs text-muted-foreground">Runs in Grok Bot · Usage not reported. Stop Nexus work revokes this session’s authority; remote execution may continue. Open the Grok Bot desktop app to inspect it.</p>}
               {stopGrokWork.error && <p role="alert" className="text-sm text-destructive">{describeError(stopGrokWork.error).body}</p>}
               {classicQueuedDeliveryError && <p role="status" className="text-sm text-destructive">{classicQueuedDeliveryError}</p>}
               {footer}
@@ -4872,7 +4872,7 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
           projects={projects}
           liveIssueIds={liveIssueIds}
           projectId={issue.projectId ?? undefined}
-          viewStateKey={`paperclip:issue-detail:${issue.id}:subissues-view`}
+          viewStateKey={`nexus:issue-detail:${issue.id}:subissues-view`}
           issueLinkState={resolvedIssueDetailState ?? location.state}
           searchFilters={{ descendantOf: issue.id, includeBlockedBy: true }}
           searchWithinLoadedIssues
@@ -6632,12 +6632,12 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
       setFileViewerPromptOpen(true);
     };
     window.addEventListener(
-      "paperclip:open-file-viewer",
+      "nexus:open-file-viewer",
       handleOpenFileViewer as EventListener,
     );
     return () => {
       window.removeEventListener(
-        "paperclip:open-file-viewer",
+        "nexus:open-file-viewer",
         handleOpenFileViewer as EventListener,
       );
     };
@@ -7503,7 +7503,7 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
         </span>
       </nav>
     ) : null;
-  // Creation provenance ("Created from PAP-168 by Paperclip QA"). Distinct from
+  // Creation provenance ("Created from PAP-168 by Nexus QA"). Distinct from
   // the parent chain above; the streamlined Tasks tab renders it instead.
   const createdFromNote =
     !streamlinedTaskDetailEnabled && issue.createdFrom ? (
@@ -8177,7 +8177,7 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
                 mutedIssueIds={mutedChildIssueIds}
                 issueBadgeById={childPauseBadgeById}
                 projectId={issue.projectId ?? undefined}
-                viewStateKey={`paperclip:issue-detail:${issue.id}:subissues-view`}
+                viewStateKey={`nexus:issue-detail:${issue.id}:subissues-view`}
                 issueLinkState={resolvedIssueDetailState ?? location.state}
                 searchFilters={{
                   descendantOf: issue.id,
@@ -8580,7 +8580,7 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
                   currentUserId={currentUserId}
                   userLabelMap={userLabelMap}
                   userProfileMap={userProfileMap}
-                  draftKey={conversationAgent ? `paperclip:agent-chat-draft:${issue.companyId}:${currentUserId}:${conversationAgent.id}` : `paperclip:issue-comment-draft:${issue.id}`}
+                  draftKey={conversationAgent ? `nexus:agent-chat-draft:${issue.companyId}:${currentUserId}:${conversationAgent.id}` : `nexus:issue-comment-draft:${issue.id}`}
                   reassignOptions={commentReassignOptions}
                   currentAssigneeValue={actualAssigneeValue}
                   suggestedAssigneeValue={suggestedAssigneeValue}

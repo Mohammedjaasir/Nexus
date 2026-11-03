@@ -2,7 +2,7 @@ import { notifyRetainedNativeSessionCleanup } from "../retained-native-session-c
 import { writeEnvironmentCleanup } from "../environment-cleanup-notifications.js";
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
-import { environmentLeases, heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db } from "@paperclipai/db";
+import { environmentLeases, heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db } from "@nexusai/db";
 import { remoteTerminationReceipt } from "../remote-execution-termination.js";
 import { readNativeWorkspaceSyncReference } from "./native-workspace-sync.js";
 
@@ -25,7 +25,7 @@ export function readNativeWorkspaceExportResume(lease: Lease) {
   const value = lease.metadata?.[NATIVE_WORKSPACE_EXPORT_RESUME_KEY];
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const marker = value as Record<string, unknown>;
-  if (!["paperclip.workspace-export-resume.v1", "paperclip.workspace-export-resume.v2"].includes(String(marker.schema))
+  if (!["nexus.workspace-export-resume.v1", "nexus.workspace-export-resume.v2"].includes(String(marker.schema))
     || marker.companyId !== lease.companyId || marker.runId !== lease.heartbeatRunId || !lease.heartbeatRunId
     || marker.leaseId !== lease.id || marker.provider !== lease.provider || !lease.provider
     || marker.providerLeaseId !== lease.providerLeaseId || !lease.providerLeaseId
@@ -34,7 +34,7 @@ export function readNativeWorkspaceExportResume(lease: Lease) {
   // v1 preceded the intent's explicit plugin pin. Its exact lease already
   // recorded the acquiring plugin; never reconstruct that owner from a driver
   // name, and never override an explicit (even invalid) intent pin.
-  const pluginId = marker.schema === "paperclip.workspace-export-resume.v1" && marker.pluginId === undefined
+  const pluginId = marker.schema === "nexus.workspace-export-resume.v1" && marker.pluginId === undefined
     ? lease.metadata?.pluginId : marker.pluginId;
   if (typeof pluginId !== "string" || !pluginId || pluginId !== lease.metadata?.pluginId) return null;
   return { ...marker, requestId: marker.requestId, resultId: marker.resultId, pluginId };
@@ -60,7 +60,7 @@ export async function preserveNativeWorkspaceExportLease(db: Db, run: typeof hea
   await writeEnvironmentCleanup(db, tx => tx.update(environmentLeases).set({ status: "pending_cleanup", cleanupStatus: "failed",
     failureReason: "workspace_export_stop_pending", releasedAt: now, updatedAt: now,
     metadata: { ...lease.metadata, remoteExecutionTermination: undefined,
-      [NATIVE_WORKSPACE_EXPORT_RESUME_KEY]: { schema: "paperclip.workspace-export-resume.v2", requestId,
+      [NATIVE_WORKSPACE_EXPORT_RESUME_KEY]: { schema: "nexus.workspace-export-resume.v2", requestId,
         purpose: "terminal_export", companyId: run.companyId, runId: run.id, resultId,
         leaseId: lease.id, provider: lease.provider, providerLeaseId: lease.providerLeaseId,
         pluginId: lease.metadata?.pluginId },

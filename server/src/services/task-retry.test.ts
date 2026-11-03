@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agents, agentWakeupRequests, companies, createDb, environmentLeases, environments, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, toolApplications, toolConnections, toolInvocations, applyPendingMigrations } from "@paperclipai/db";
+import { agents, agentWakeupRequests, companies, createDb, environmentLeases, environments, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, toolApplications, toolConnections, toolInvocations, applyPendingMigrations } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { priorRecoveryApiReceipt, unresolvedRecoveryToolInvocation } from "./recovery-effect-receipts.js";
 import { requestTaskRetry } from "./task-retry.js";
@@ -16,7 +16,7 @@ describe("durable task Retry admission", () => {
   let postgres: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    const externalUrl = process.env.PAPERCLIP_TASK_RETRY_TEST_DATABASE_URL;
+    const externalUrl = process.env.NEXUS_TASK_RETRY_TEST_DATABASE_URL;
     if (externalUrl) {
       await applyPendingMigrations(externalUrl);
       db = createDb(externalUrl);
@@ -29,7 +29,7 @@ describe("durable task Retry admission", () => {
   async function seed() {
     const companyId = randomUUID(), issueId = randomUUID(), agentId = randomUUID(), runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Retry company", issuePrefix: `T${companyId.slice(0, 6)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", adapterType: "paperclip_runner", status: "idle" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", adapterType: "nexus_runner", status: "idle" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Continue saved work", status: "blocked", assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, issueId, status: "failed",
       contextSnapshot: { issueId }, finishedAt: new Date() });
@@ -67,7 +67,7 @@ describe("durable task Retry admission", () => {
     }).returning();
     await db.update(heartbeatRuns).set({ runtimeMode: "native", nativeIssueId: input.issueId,
       nativePhase: "terminal_failure", errorCode: "execution_finalization_deadline_exceeded", runnerProfileJson: {
-        nativeWorkspaceSync: { schema: "paperclip.native-workspace-sync/v3", state: "prepared",
+        nativeWorkspaceSync: { schema: "nexus.native-workspace-sync/v3", state: "prepared",
           descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null,
           workspaceId: input.observedRunId, leaseId: lease.id,
           providerLeaseId: state === "mismatched" ? randomUUID() : lease.providerLeaseId,

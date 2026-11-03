@@ -7,7 +7,7 @@ import type {
   EnvBinding,
   UserSecretCoverageSummary,
   UserSecretDefinition,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { Secrets } from "@/pages/Secrets";
 import { SecretBindingPicker, type SecretBindingValue } from "@/components/SecretBindingPicker";
 import { EnvironmentVariablesEditor } from "@/components/environment-variables-editor";
@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useCompany } from "@/context/CompanyContext";
 import { queryKeys } from "@/lib/queryKeys";
-import { storybookCompanies, storybookSecrets } from "../../fixtures/paperclipData";
+import { storybookCompanies, storybookSecrets } from "../../fixtures/nexusData";
 
 const COMPANY_ID = "company-storybook";
 
@@ -28,7 +28,7 @@ const storybookUserSecretDefinitions: UserSecretDefinition[] = [
     description: "Used when the responsible user's own repos must be reached.",
     status: "active",
     provider: "local_encrypted",
-    managedMode: "paperclip_managed",
+    managedMode: "nexus_managed",
     providerConfigId: null,
     providerMetadata: null,
     usageGuidance: "Create a fine-grained PAT with repo read access.",
@@ -48,7 +48,7 @@ const storybookUserSecretDefinitions: UserSecretDefinition[] = [
     description: "Each member bills agent experiments to their own account.",
     status: "active",
     provider: "local_encrypted",
-    managedMode: "paperclip_managed",
+    managedMode: "nexus_managed",
     providerConfigId: null,
     providerMetadata: null,
     usageGuidance: "Create a project-scoped OpenAI key.",
@@ -79,7 +79,7 @@ const storybookUserSecretCoverage: Record<string, UserSecretCoverageSummary> = {
 
 // Seed localStorage before CompanyContext mounts so its `useState` initializer reads the right id.
 if (typeof window !== "undefined") {
-  window.localStorage.setItem("paperclip.selectedCompanyId", COMPANY_ID);
+  window.localStorage.setItem("nexus.selectedCompanyId", COMPANY_ID);
 }
 
 function StorybookSecretsFixtures({ children }: { children: ReactNode }) {
@@ -125,7 +125,7 @@ const meta: Meta = {
     a11y: {
       test: "off",
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "secrets/company-secrets",
         "secrets/vault-import"

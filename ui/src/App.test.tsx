@@ -107,7 +107,7 @@ describe("CloudAccessGate", () => {
   });
 
   it("renews a missing Cloud instance session without opening local auth", async () => {
-    mockHealthApi.get.mockResolvedValue({ deploymentMode: "authenticated", cloud: { managed: true, managedBy: "paperclip-cloud", cloudBaseUrl: "https://my-staging.paperclip.app", stackSlug: "team" } });
+    mockHealthApi.get.mockResolvedValue({ deploymentMode: "authenticated", cloud: { managed: true, managedBy: "nexus-cloud", cloudBaseUrl: "https://my-staging.paperclip.app", stackSlug: "team" } });
     mockAuthApi.getSession.mockResolvedValue(null);
     beginCloudSignInMock.mockReturnValue(true);
     const root = renderGate(container);
@@ -121,7 +121,7 @@ describe("CloudAccessGate", () => {
   it("does not mistake a session service failure for a signed-out user", async () => {
     mockAuthApi.getSession.mockRejectedValue(new Error("Session service unavailable"));
     const root = renderGate(container);
-    await waitForText(container, "Unable to load Paperclip");
+    await waitForText(container, "Unable to load Nexus");
     expect(container.querySelector("button")?.textContent).toBe("Try again");
     expect(container.textContent).not.toContain("Outlet content");
     expect(container.textContent).not.toContain("Navigate:/auth");
@@ -129,7 +129,7 @@ describe("CloudAccessGate", () => {
     unmountRoot(root);
   });
 
-  it.each([undefined, { managed: true, managedBy: "paperclip-cloud", cloudBaseUrl: "https://my.paperclip.app", stackSlug: "team" }])(
+  it.each([undefined, { managed: true, managedBy: "nexus-cloud", cloudBaseUrl: "https://my.paperclip.app", stackSlug: "team" }])(
     "does not require a session in local trusted mode, including with Cloud metadata %j", async (cloud) => {
     mockHealthApi.get.mockResolvedValue({ deploymentMode: "local_trusted", cloud });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -186,7 +186,7 @@ describe("CloudAccessGate", () => {
     mockHealthApi.get.mockResolvedValue({ deploymentMode: "authenticated", deploymentExposure: "public", bootstrapStatus: "bootstrap_pending" });
     mockAuthApi.getSession.mockResolvedValue({ user: { id: "invitee" } });
     const root = renderGate(container, true);
-    await waitForText(container, "This Paperclip is waiting on its first admin");
+    await waitForText(container, "This Nexus is waiting on its first admin");
     expect(container.textContent).not.toContain("Outlet content");
     unmountRoot(root);
   });
@@ -195,7 +195,7 @@ describe("CloudAccessGate", () => {
     mockAuthApi.getSession.mockResolvedValue({ user: { id: "invitee" } });
     mockAccessApi.getCurrentBoardAccess.mockRejectedValueOnce(new Error("Access check unavailable"));
     const root = renderGate(container, true);
-    await waitForText(container, "Unable to load Paperclip");
+    await waitForText(container, "Unable to load Nexus");
     expect(container.querySelector("button")?.textContent).toBe("Try again");
     expect(container.textContent).not.toContain("Outlet content");
     unmountRoot(root);
@@ -235,11 +235,11 @@ describe("CloudAccessGate", () => {
     mockAuthApi.getSession.mockResolvedValue(null);
 
     const root = renderGate(container);
-    await waitForText(container, "Finish setting up this Paperclip");
+    await waitForText(container, "Finish setting up this Nexus");
 
-    expect(container.textContent).toContain("Finish setting up this Paperclip");
+    expect(container.textContent).toContain("Finish setting up this Nexus");
     expect(container.textContent).toContain("Sign in / Create account");
-    expect(container.textContent).toContain("npx paperclipai auth bootstrap-ceo");
+    expect(container.textContent).toContain("npx nexusai auth bootstrap-ceo");
     expect(mockAccessApi.getCurrentBoardAccess).not.toHaveBeenCalled();
 
     unmountRoot(root);
@@ -296,9 +296,9 @@ describe("CloudAccessGate", () => {
     });
 
     const root = renderGate(container);
-    await waitForText(container, "This Paperclip is waiting on its first admin");
+    await waitForText(container, "This Nexus is waiting on its first admin");
 
-    expect(container.textContent).toContain("This Paperclip is waiting on its first admin");
+    expect(container.textContent).toContain("This Nexus is waiting on its first admin");
     expect(container.textContent).toContain("invite-only mode");
     expect(container.textContent).not.toContain("Claim this instance");
     expect(container.textContent).not.toContain("Sign in / Create account");

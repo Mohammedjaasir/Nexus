@@ -86,7 +86,7 @@ describe("validateLoginSessionHome", () => {
   it("rejects an empty, relative, traversal, whitespace, control, or metacharacter candidate", () => {
     const candidates = [
       "",
-      "paperclip-adapter-login/" + UUID,
+      "nexus-adapter-login/" + UUID,
       `${LOGIN_SESSION_HOME_ROOT}/../${UUID}`,
       `${LOGIN_SESSION_HOME_ROOT}/${UUID}/..`,
       `${LOGIN_SESSION_HOME_ROOT}/ ${UUID}`,

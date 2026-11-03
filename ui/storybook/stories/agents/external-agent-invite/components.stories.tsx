@@ -7,7 +7,7 @@ const meta = {
   title: "Agents and reusable capabilities/Hiring, configuration, and organization/Onboarding/External agent invitation/Components",
   component: DotConnectionChecks,
   parameters: { layout: "centered", docs: { description: { component: "Controlled presentation states. Connection checks must be driven by server evidence. Subscription verification alone must never mark the connection ready." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agents/hire",
         "access/invitations"

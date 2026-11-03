@@ -229,7 +229,7 @@ inventory reasons remain separate PRs. The full stack is not complete.
 
 Master was fetched again at 0d73505098. Company prerequisite #17561 at e8febb30eb
 and Discord parent #17557 at d3187f76a4 now have no failed or pending checks;
-Paperclip Review is skipped. Fresh review-content reconciliation and final stack
+Nexus Review is skipped. Fresh review-content reconciliation and final stack
 rebasing/verification remain distinct from these check results.
 
 

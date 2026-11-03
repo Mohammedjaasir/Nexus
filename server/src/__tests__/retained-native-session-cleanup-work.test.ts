@@ -9,7 +9,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { agents, companies, completionContracts, createDb, environmentLeases, heartbeatRunEvents, heartbeatRuns, issues, nativeRunFinalizations,
-  nativeRunResults, statusDecisions, workAssessments, type Db } from "@paperclipai/db";
+  nativeRunResults, statusDecisions, workAssessments, type Db } from "@nexusai/db";
 import { settleAbsentSandbox, settleStopOnlyCleanup } from "../services/sandbox-stop-and-retain.js";
 import { settleNativeWorkspaceExportResume } from "../services/native-runtime/native-workspace-export-resume.js";
 import type { SandboxAbsenceProof } from "../services/sandbox-absence-proof.js";
@@ -46,8 +46,8 @@ describe("retained native cleanup scheduled lifecycle", () => {
   }
   const cleanup = vi.fn(settle);
   beforeAll(async () => {
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_RETAINED_CLEANUP_TEST_DATABASE_URL");
-    if (!external) temporary = await startEmbeddedPostgresTestDatabase("paperclip-retained-cleanup-");
+    const external = resolveExternalTestDatabaseUrl("NEXUS_RETAINED_CLEANUP_TEST_DATABASE_URL");
+    if (!external) temporary = await startEmbeddedPostgresTestDatabase("nexus-retained-cleanup-");
     db = createDb(external ?? temporary!.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Retained cleanup lifecycle", issuePrefix: `RC${randomUUID().slice(0, 8)}` });
     await db.insert(agents).values({ id: agentId, companyId, name: "Cleanup agent", adapterType: "codex_local" });
@@ -119,7 +119,7 @@ describe("retained native cleanup scheduled lifecycle", () => {
       companyId: owner.companyId,
       issueId,
       revision: options.revision ?? 1,
-      schemaVersion: "paperclip.completion-contract.v1",
+      schemaVersion: "nexus.completion-contract.v1",
       policyVersion: "phase6-v3",
       risk: "standard",
       completionAuthority: "server_arbiter",
@@ -323,14 +323,14 @@ describe("retained native cleanup scheduled lifecycle", () => {
     const leaseId = randomUUID(), providerLeaseId = randomUUID(), attemptId = randomUUID(), pluginId = randomUUID();
     const binding = { companyId, runId, leaseId, provider: "daytona" as const, providerLeaseId };
     const marker = { ...binding, requestId: attemptId, pluginId,
-      schema: method === "export-resume" ? "paperclip.workspace-export-resume.v2" : "paperclip.sandbox-stop-and-retain.v1",
+      schema: method === "export-resume" ? "nexus.workspace-export-resume.v2" : "nexus.sandbox-stop-and-retain.v1",
       resultId: randomUUID() };
     const [lease] = await db.insert(environmentLeases).values({ id: leaseId, companyId, heartbeatRunId: runId,
       issueId: run!.nativeIssueId, provider: "daytona", providerLeaseId, status: "pending_cleanup", cleanupStatus: "failed",
       metadata: { pluginId, pendingCleanupAttemptId: attemptId,
         [method === "export-resume" ? "nativeWorkspaceExportResume" : "sandboxStopAndRetain"]: marker } }).returning();
     const proof: SandboxAbsenceProof = { ...binding, issueId: run!.nativeIssueId!, ownerToken, v: 1,
-      iss: "paperclip-cloud", aud: "paperclip-sandbox-absence/v1", sub: "fixture", absent: true,
+      iss: "nexus-cloud", aud: "nexus-sandbox-absence/v1", sub: "fixture", absent: true,
       iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 60 };
     cleanup.mockImplementation(async input => {
       const [current] = await db.select().from(environmentLeases).where(eq(environmentLeases.id, leaseId));

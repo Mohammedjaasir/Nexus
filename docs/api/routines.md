@@ -195,15 +195,15 @@ Fires a run immediately, bypassing the schedule. Concurrency policy still applie
 POST /api/routine-triggers/public/{publicId}/fire
 ```
 
-Fires a webhook trigger from an external system without a Paperclip login. Send
+Fires a webhook trigger from an external system without a Nexus login. Send
 `Content-Type: application/json` and a JSON object. The trigger authenticates the
 request using its own secret; an agent or board API key is not a substitute.
 
 | Mode | Headers and signature |
 |------|-----------------------|
 | `bearer` | `Authorization: Bearer <webhookSecret>` |
-| `hmac_sha256` | `X-Paperclip-Timestamp` (Unix seconds or milliseconds) and `X-Paperclip-Signature: sha256=<hex>`; HMAC-SHA256 over the timestamp string, a dot, and the exact body bytes |
-| `github_hmac` | `X-Hub-Signature-256: sha256=<hex>`; HMAC-SHA256 over the exact body bytes, without a timestamp. `X-Paperclip-Signature` is also accepted. Configure GitHub to send JSON. |
+| `hmac_sha256` | `X-Nexus-Timestamp` (Unix seconds or milliseconds) and `X-Nexus-Signature: sha256=<hex>`; HMAC-SHA256 over the timestamp string, a dot, and the exact body bytes |
+| `github_hmac` | `X-Hub-Signature-256: sha256=<hex>`; HMAC-SHA256 over the exact body bytes, without a timestamp. `X-Nexus-Signature` is also accepted. Configure GitHub to send JSON. |
 | `none` | No signature. Anyone with the generated URL can fire the trigger; keep it private. |
 
 For a bearer trigger:
@@ -228,8 +228,8 @@ const response = await fetch(process.env.WEBHOOK_URL, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
-    "X-Paperclip-Timestamp": timestamp,
-    "X-Paperclip-Signature": `sha256=${signature}`,
+    "X-Nexus-Timestamp": timestamp,
+    "X-Nexus-Signature": `sha256=${signature}`,
   },
   body,
 });
@@ -251,7 +251,7 @@ required variables return `422`; non-JSON media types return `415` and invalid
 JSON objects return `400`. Rotating a secret immediately invalidates the old one.
 
 Cloud installations use their canonical public origin for generated URLs.
-Self-hosted installations should set `PAPERCLIP_PUBLIC_URL` to their HTTPS
+Self-hosted installations should set `NEXUS_PUBLIC_URL` to their HTTPS
 origin. The reverse proxy must forward this POST endpoint and its authorization,
 signature, timestamp, and idempotency headers without requiring a browser login.
 For local HTTPS testing, proxy an isolated test instance through Tailscale Serve;
@@ -264,7 +264,7 @@ execution controls still apply, including the isolated-worktree execution gate.
 POST /api/routine-triggers/public/{publicId}/sentry-run-failures
 ```
 
-Use this endpoint for a routine that repairs failed Paperclip tasks. Create a
+Use this endpoint for a routine that repairs failed Nexus tasks. Create a
 `bearer` webhook trigger and replace `/fire` in its URL with
 `/sentry-run-failures`. Configure a Sentry custom integration to send the
 trigger's `Authorization: Bearer <webhookSecret>` header. Keep that credential

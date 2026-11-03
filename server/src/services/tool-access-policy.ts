@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { boundRunIssueIdSql } from "./run-task-binding.js";
 import type { ToolApprovalClaim } from "./tool-approval-execution.js";
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   heartbeatRuns,
@@ -25,7 +25,7 @@ import {
   toolProfileEntries,
   toolProfiles,
   toolRateLimitCounters,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ToolAccessDecision,
   ToolAccessDecisionInput,
@@ -44,8 +44,8 @@ import type {
   ToolRedactedValueSummary,
   ToolTrustRuleArgumentFilters,
   ToolRiskLevel,
-} from "@paperclipai/shared";
-import { toolPolicyConditionsSchema } from "@paperclipai/shared";
+} from "@nexusai/shared";
+import { toolPolicyConditionsSchema } from "@nexusai/shared";
 import { badRequest, conflict, notFound, unprocessable } from "../errors.js";
 import {
   effectiveToolProfileBindings,
@@ -606,8 +606,8 @@ function evaluatePolicyConditions(
     if (boolCondition(boundary.remoteHttpOnly) === true && ctx.providerType !== "mcp_remote_http") {
       return conditionGroupFail("trustBoundary", "Policy condition requires a remote HTTP MCP tool.");
     }
-    if (boolCondition(boundary.paperclipSelfOnly) === true && ctx.providerType !== "paperclip_self") {
-      return conditionGroupFail("trustBoundary", "Policy condition requires a Paperclip self tool.");
+    if (boolCondition(boundary.nexusSelfOnly) === true && ctx.providerType !== "nexus_self") {
+      return conditionGroupFail("trustBoundary", "Policy condition requires a Nexus self tool.");
     }
     matchedGroups.push("trustBoundary");
   }

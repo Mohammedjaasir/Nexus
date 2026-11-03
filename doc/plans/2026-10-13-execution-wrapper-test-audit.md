@@ -9,8 +9,8 @@ Delivery base: `770cc3be7e294d606d83599c6f6a3232d47d4c70`, the merged root after
 | Retired server acceptance alias | Complete retained owner | Repeated cases | Removed test lines | Historical CI weight |
 |---|---|---:|---:|---:|
 | `heartbeat-native-runner-selection.test.ts` | `services/native-runtime/runtime-mode.test.ts` | 27 | 2 | 1,173 ms |
-| `native-runner-phase6.integration.test.ts` | `services/native-runtime/paperclip-control-plane-port.test.ts` | 34 | 3 | 19,600 ms |
-| `native-run-finalizer.test.ts` | `services/native-runtime/paperclip-control-plane-port.test.ts` plus `services/native-runtime/evidence-classifier.test.ts` | 38 | 4 | 19,882 ms |
+| `native-runner-phase6.integration.test.ts` | `services/native-runtime/nexus-control-plane-port.test.ts` | 34 | 3 | 19,600 ms |
+| `native-run-finalizer.test.ts` | `services/native-runtime/nexus-control-plane-port.test.ts` plus `services/native-runtime/evidence-classifier.test.ts` | 38 | 4 | 19,882 ms |
 
 Every retired executable line imports one of those test modules. There are no alias-owned assertions, fixtures, mocks, hooks, filters, configuration, or entry-point actions. All aliases originated unchanged in `25cf079ec5` (#12591, 2026-08-31), when server Vitest already included the colocated owners. The shared `src/**/*.test.ts` configuration, setup file, isolated forks, and default server walker execute the same owners. An actual current-Vitest run of runtime-mode plus its alias passes 54/54, demonstrating the duplicate registration.
 
@@ -23,7 +23,7 @@ The protocol-coverage generator and generated artifact now name the actual runti
 ## Qualification and reversal
 
 - Baseline: runtime-mode 27/27, evidence-classifier 4/4, and the complete real-Postgres control-plane owner 34/34. Final candidate: the same three files, 65/65, zero failures/skips.
-- Mutation: bypass only the persisted `run.nativeIssueId === this.#binding.issueId` comparison in `PaperclipControlPlanePort`. The retained `revalidates every persisted native binding before open and completion` fails at its rejection assertion (line 1131): the first corrupted task-binding open resolves `undefined` instead of rejecting. Setup completed; this was neither a timeout nor a harness failure.
+- Mutation: bypass only the persisted `run.nativeIssueId === this.#binding.issueId` comparison in `NexusControlPlanePort`. The retained `revalidates every persisted native binding before open and completion` fails at its rejection assertion (line 1131): the first corrupted task-binding open resolves `undefined` instead of rejecting. Setup completed; this was neither a timeout nor a harness failure.
 - Reversal: restore the production owner byte for byte, then the exact selected guard passes. Its 33 excluded cases are intentional name-filter skips, not a complete-file control claim. Restoration SHA-256: `621beee8a451e9cab4fc09f886bfb4d95512c1433f82b7f9cbd3ea83fd2f3d0c`.
 - Default routing: 886 unique general-server files across all 12 stock shards; each retained owner appears exactly once, retired aliases zero times, and the required package-input alias once. Stock shard-routing tests pass 29/29.
 - Runner `build:typescript`, generated protocol-coverage `--check`, generator syntax check, owner byte comparisons, and `git diff --check` pass.
@@ -31,10 +31,10 @@ The protocol-coverage generator and generated artifact now name the actual runti
 Focused candidate command:
 
 ```sh
-pnpm --filter @paperclipai/server exec vitest run \
+pnpm --filter @nexusai/server exec vitest run \
   src/services/native-runtime/runtime-mode.test.ts \
   src/services/native-runtime/evidence-classifier.test.ts \
-  src/services/native-runtime/paperclip-control-plane-port.test.ts
+  src/services/native-runtime/nexus-control-plane-port.test.ts
 ```
 
 ## Cost and limits

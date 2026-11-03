@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { aggregatorManagementUrl } from "@paperclipai/shared/aggregator-apps";
+import { aggregatorManagementUrl } from "@nexusai/shared/aggregator-apps";
 import { Label } from "@/components/ui/label";
 import { ExternalLink } from "lucide-react";
-import type { AggregatorAppCatalogEntry, AggregatorAppRoute } from "@paperclipai/shared/aggregator-app-catalog";
-import { isToolConnectionAttentionHealth, type ToolConnection } from "@paperclipai/shared";
+import type { AggregatorAppCatalogEntry, AggregatorAppRoute } from "@nexusai/shared/aggregator-app-catalog";
+import { isToolConnectionAttentionHealth, type ToolConnection } from "@nexusai/shared";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AppLogo } from "./AppLogo";

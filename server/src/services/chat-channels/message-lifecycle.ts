@@ -1,4 +1,4 @@
-import type { ChatProvider } from "@paperclipai/shared";
+import type { ChatProvider } from "@nexusai/shared";
 import type { Author } from "chat";
 import { normalizeMicrosoftTeamsExternalPrincipalId } from "../chat-teams-credentials.js";
 

@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { createServer } from "node:http";
 import { createReadStream } from "node:fs";
 import { afterEach, expect, it, vi } from "vitest";
-import { withDirectoryMergeLock } from "@paperclipai/adapter-utils/workspace-restore-merge";
+import { withDirectoryMergeLock } from "@nexusai/adapter-utils/workspace-restore-merge";
 import { materializeManagedProjectWorkspace } from "../services/managed-repository-checkout.js";
 import { assertReproducibleBaseGitStorage } from "../services/git-workspace-restoration.js";
 import { readRepositoryObjectCache, resolveRepositoryObjectCache, publishRepositoryObjectCache } from "../services/repository-object-cache.js";
@@ -22,7 +22,7 @@ afterEach(async () => {
 });
 async function fixture() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "repository-object-cache-")); roots.push(root);
-  vi.stubEnv("PAPERCLIP_HOME", path.join(root, "home"));
+  vi.stubEnv("NEXUS_HOME", path.join(root, "home"));
   const source = path.join(root, "source"); await fs.mkdir(source);
   const git = async (cwd: string, ...args: string[]) => (await execFile("git", ["-C", cwd, ...args])).stdout.trim();
   await git(source, "init", "-b", "main");

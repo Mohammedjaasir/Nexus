@@ -10,9 +10,9 @@ import { queryKeys } from "../lib/queryKeys";
 import { getRememberedInvitePath } from "../lib/invite-memory";
 import { Button } from "@/components/ui/button";
 import { AsciiArtAnimation } from "@/components/AsciiArtAnimation";
-import { PaperclipLoading } from "@/components/AnimatedPaperclipIcon";
+import { NexusLoading } from "@/components/AnimatedNexusIcon";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { PaperclipLockup } from "../components/PaperclipLockup";
+import { NexusLockup } from "../components/NexusLockup";
 
 type AuthMode = "sign_in" | "sign_up";
 
@@ -85,7 +85,7 @@ export function AuthPage() {
   if (healthQuery.isLoading || isSessionLoading || session) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
-        <PaperclipLoading className="min-h-0" />
+        <NexusLoading className="min-h-0" />
       </div>
     );
   }
@@ -108,11 +108,11 @@ export function AuthPage() {
       <div className="w-full md:w-1/2 flex flex-col overflow-y-auto">
         <div className="w-full max-w-md mx-auto my-auto px-8 py-12">
           <div className="mb-8">
-            <PaperclipLockup className="h-5 w-auto" />
+            <NexusLockup className="h-5 w-auto" />
           </div>
 
           <h1 className="text-xl font-semibold">
-            {mode === "sign_in" ? "Sign in to Paperclip" : "Create your Paperclip account"}
+            {mode === "sign_in" ? "Sign in to Nexus" : "Create your Nexus account"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {mode === "sign_in"

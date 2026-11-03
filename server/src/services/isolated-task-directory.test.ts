@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { materializeIsolatedTaskDirectory, shouldUseIsolatedTaskDirectory } from "./isolated-task-directory.js";
-import { prepareSandboxManagedRuntime, type SandboxManagedRuntimeClient, type SandboxSyncOperation } from "@paperclipai/adapter-utils/sandbox-managed-runtime";
+import { prepareSandboxManagedRuntime, type SandboxManagedRuntimeClient, type SandboxSyncOperation } from "@nexusai/adapter-utils/sandbox-managed-runtime";
 
 const execFile = promisify(execFileCallback);
 
@@ -46,8 +46,8 @@ describe("isolated task directories", () => {
   });
 
   async function setup() {
-    root = await mkdtemp(path.join(os.tmpdir(), "paperclip-isolated-task-"));
-    vi.stubEnv("PAPERCLIP_HOME", root);
+    root = await mkdtemp(path.join(os.tmpdir(), "nexus-isolated-task-"));
+    vi.stubEnv("NEXUS_HOME", root);
     return { companyId: "company-1", issueId: "issue-1" };
   }
 

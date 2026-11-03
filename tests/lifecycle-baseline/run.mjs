@@ -89,7 +89,7 @@ for (const path of git("ls-files", "--others", "--exclude-standard")
   hash.update(path).update(readFileSync(join(root, path)));
 }
 const report = {
-  schema: "paperclip.lifecycle-baseline/v1",
+  schema: "nexus.lifecycle-baseline/v1",
   commit: git("rev-parse", "HEAD").trim(),
   fingerprint: hash.digest("hex"),
   measuredAt: new Date().toISOString(),

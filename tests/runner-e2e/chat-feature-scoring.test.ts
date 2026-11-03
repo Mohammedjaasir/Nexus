@@ -101,7 +101,7 @@ describe("chat feature saved-state oracle", () => {
   it("rejects an invented completion URL even when the earlier handoff link was correct", () => {
     const input = outcome(true);
     input.comments[2]!.body = "Done! Read the result here.";
-    input.renderedLinks.push({ commentId: "completion", href: "http://paperclip.local/EVA/issues/EVA-2" });
+    input.renderedLinks.push({ commentId: "completion", href: "http://nexus.local/EVA/issues/EVA-2" });
     expect(failures(input)).toContain("completion-result-access");
   });
 });
@@ -138,7 +138,7 @@ describe("chat feature selection", () => {
     const secret = { type: "secret_ref", secretId: "fixture-openrouter", version: "latest" } as const;
     const input = { environmentId: "env", environmentFixtureId: "local", workspacePath: "/tmp/fixture", executionId: "backlog" } as const;
     const agent = cell.profile.buildAgent({ ...input, secretRefs: { OPENROUTER_API_KEY: secret } });
-    expect(agent).toMatchObject({ role: "ceo", adapterType: "paperclip_runner", budgetMonthlyCents: 500,
+    expect(agent).toMatchObject({ role: "ceo", adapterType: "nexus_runner", budgetMonthlyCents: 500,
       adapterConfig: { provider: "opencode", model: "openrouter/deepseek/deepseek-v4.1-flash-1017", timeoutSec: 120,
         env: { OPENROUTER_API_KEY: secret } },
       runtimeConfig: { heartbeat: { enabled: false, maxConcurrentRuns: 1, maxDailyRuns: 3, maxDailyCostCents: 500 } } });

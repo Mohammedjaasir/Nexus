@@ -2,30 +2,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { chmod, lstat, mkdir, mkdtemp, readFile, readlink, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, posix } from "node:path";
-import { ADAPTER_AUTH_MISSING_CHECK_CODE } from "@paperclipai/shared";
+import { ADAPTER_AUTH_MISSING_CHECK_CODE } from "@nexusai/shared";
 import * as localCredentialFile from "../local-ai-credential-file.js";
-import * as codexCredentials from "@paperclipai/adapter-codex-local/server";
-const { prepareIsolatedCodexHome } = await import(new URL("../../../../packages/paperclip-runner/src/drivers/runtime-context-materializer.ts", import.meta.url).href);
+import * as codexCredentials from "@nexusai/adapter-codex-local/server";
+const { prepareIsolatedCodexHome } = await import(new URL("../../../../packages/nexus-runner/src/drivers/runtime-context-materializer.ts", import.meta.url).href);
 const { execute, nativeProbe, selectedRunner, selectedRemoteRunner, sshExecute, sshRunner, nativeArtifacts, remoteLauncher, registerPrp, ingressConnect } = vi.hoisted(() => ({ execute: vi.fn(), nativeProbe: vi.fn(), selectedRunner: vi.fn(), selectedRemoteRunner: vi.fn(), sshExecute: vi.fn(), sshRunner: vi.fn(), nativeArtifacts: vi.fn(), remoteLauncher: vi.fn(), registerPrp: vi.fn(), ingressConnect: vi.fn() }));
 const nativeProbeRuntimeDirectories = vi.hoisted(() => [] as string[]);
 vi.mock("node:fs/promises", async original => {
   const filesystem = await original<typeof import("node:fs/promises")>();
   return { ...filesystem, mkdtemp: async (...args: Parameters<typeof filesystem.mkdtemp>) => {
     const directory = await filesystem.mkdtemp(...args);
-    if (typeof args[0] === "string" && args[0].endsWith("paperclip-native-setup-") && typeof directory === "string") nativeProbeRuntimeDirectories.push(directory);
+    if (typeof args[0] === "string" && args[0].endsWith("nexus-native-setup-") && typeof directory === "string") nativeProbeRuntimeDirectories.push(directory);
     return directory;
   } };
 });
-vi.mock("@paperclipai/adapter-utils/execution-target", () => ({ runAdapterExecutionTargetShellCommand: execute }));
+vi.mock("@nexusai/adapter-utils/execution-target", () => ({ runAdapterExecutionTargetShellCommand: execute }));
 vi.mock("./native-ssh-command-runner.js", () => ({ createNativeSshCommandRunner: sshRunner }));
 vi.mock("../../realtime/runner-prp-ws.js", () => ({ registerRunnerPrpAuthority: registerPrp }));
 vi.mock("../../realtime/runner-prp-outbound.js", () => ({ connectRunnerPrpIngress: ingressConnect }));
-vi.mock("./native-codex-runner.js", () => ({ resolvePaperclipRunnerBinary: selectedRunner, resolveRemotePaperclipRunnerBinary: selectedRemoteRunner }));
-vi.mock("../../vendor/paperclip-runner/index.js", async original => ({ ...await original<typeof import("../../vendor/paperclip-runner/index.js")>(), probeNativeRunnerEnvironment: nativeProbe }));
+vi.mock("./native-codex-runner.js", () => ({ resolveNexusRunnerBinary: selectedRunner, resolveRemoteNexusRunnerBinary: selectedRemoteRunner }));
+vi.mock("../../vendor/nexus-runner/index.js", async original => ({ ...await original<typeof import("../../vendor/nexus-runner/index.js")>(), probeNativeRunnerEnvironment: nativeProbe }));
 vi.mock("./native-session-executor.js", async original => ({ ...await original<typeof import("./native-session-executor.js")>(), createRemoteNativeArtifactPreparation: nativeArtifacts, createRemoteRunnerProcessLauncher: remoteLauncher }));
 import { testNativeRunnerAuthentication } from "./setup-readiness.js";
 const context = {
-  companyId: "company", adapterType: "paperclip_runner", config: { externallySandboxed: false, env: { PAPERCLIP_RUNNER_EXTERNAL_SANDBOX: "false" } },
+  companyId: "company", adapterType: "nexus_runner", config: { externallySandboxed: false, env: { NEXUS_RUNNER_EXTERNAL_SANDBOX: "false" } },
   executionTarget: { kind: "remote" as const, transport: "sandbox" as const, providerKey: "test", remoteCwd: "/workspace", runner: { execute: vi.fn() } },
 };
 describe("Codex selected native account verification", () => {
@@ -37,14 +37,14 @@ describe("Codex selected native account verification", () => {
     nativeArtifacts.mockReset().mockReturnValue({ prepare: vi.fn().mockResolvedValue(undefined) });
     remoteLauncher.mockReset().mockReturnValue(vi.fn());
     registerPrp.mockReset().mockImplementation(async () => ({ release: vi.fn() }));
-    vi.stubEnv("PAPERCLIP_RUNNER_PUBLIC_URL", "wss://paperclip.example.test");
-    vi.stubEnv("PAPERCLIP_RUNNER_CA_BUNDLE_PATH", "");
-    vi.stubEnv("PAPERCLIP_RUNNER_REMOTE_CODEX_PATH", "");
-    vi.stubEnv("PAPERCLIP_RUNNER_REMOTE_CODEX_NPM_SPEC", "");
-    selectedRunner.mockReset().mockReturnValue("/fixture/bin/paperclip-runnerd");
-    selectedRemoteRunner.mockReset().mockResolvedValue("/fixture/bin/paperclip-runnerd");
-    vi.stubEnv("PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH", "");
-    vi.stubEnv("PAPERCLIP_RUNNER_REMOTE_BINARY_PATH", "");
+    vi.stubEnv("NEXUS_RUNNER_PUBLIC_URL", "wss://nexus.example.test");
+    vi.stubEnv("NEXUS_RUNNER_CA_BUNDLE_PATH", "");
+    vi.stubEnv("NEXUS_RUNNER_REMOTE_CODEX_PATH", "");
+    vi.stubEnv("NEXUS_RUNNER_REMOTE_CODEX_NPM_SPEC", "");
+    selectedRunner.mockReset().mockReturnValue("/fixture/bin/nexus-runnerd");
+    selectedRemoteRunner.mockReset().mockResolvedValue("/fixture/bin/nexus-runnerd");
+    vi.stubEnv("NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH", "");
+    vi.stubEnv("NEXUS_RUNNER_REMOTE_BINARY_PATH", "");
   });
   afterEach(async () => {
     vi.unstubAllGlobals();
@@ -55,11 +55,11 @@ describe("Codex selected native account verification", () => {
     vi.stubEnv(key, "ambient-account");
     vi.stubEnv("ANTHROPIC_API_KEY", "ambient-anthropic");
     nativeProbe.mockImplementation(async input => { await input.onCleanupConfirmed(); return receipt(provider, model); });
-    const result = await testNativeRunnerAuthentication({ companyId: "company", adapterType: "paperclip_runner", config: { externallySandboxed: true, env: { [key]: "bound-account", PAPERCLIP_RUNNER_EXTERNAL_SANDBOX: "true" }, modelReasoningEffort: "low" } }, provider, model);
+    const result = await testNativeRunnerAuthentication({ companyId: "company", adapterType: "nexus_runner", config: { externallySandboxed: true, env: { [key]: "bound-account", NEXUS_RUNNER_EXTERNAL_SANDBOX: "true" }, modelReasoningEffort: "low" } }, provider, model);
     expect(result.status).toBe("pass");
     const input = nativeProbe.mock.calls[0][0];
     expect(input).toMatchObject({ provider, model, timeoutMs: 45_000, environment: { [key]: "bound-account" } });
-    expect(input.transportOptions.runnerBinary).toBe("/fixture/bin/paperclip-runnerd");
+    expect(input.transportOptions.runnerBinary).toBe("/fixture/bin/nexus-runnerd");
     expect(input.transportOptions.externallySandboxed).toBe(false);
     expect(selectedRunner).toHaveBeenCalledOnce();
     expect(input.environment.ANTHROPIC_API_KEY).toBeUndefined();
@@ -76,7 +76,7 @@ describe("Codex selected native account verification", () => {
       await writeFile(join(home, "account-store.json"), auth, { mode: 0o600 });
       await symlink(join(home, "account-store.json"), join(home, "auth.json"));
       selectedRunner.mockImplementation(() => { throw new Error("native executable is missing"); });
-      const result = await testNativeRunnerAuthentication({ companyId: "company", adapterType: "paperclip_runner", managedAiCredentialHome: home, config: {} }, "codex", "gpt-6.1-sol");
+      const result = await testNativeRunnerAuthentication({ companyId: "company", adapterType: "nexus_runner", managedAiCredentialHome: home, config: {} }, "codex", "gpt-6.1-sol");
       expect(result.status).toBe("fail");
       expect(result.checks[0].message).toBe("native executable is missing");
       expect(readCredential).toHaveBeenCalledOnce();
@@ -94,7 +94,7 @@ describe("Codex selected native account verification", () => {
       await writeFile(join(home, "account-store.json"), auth, { mode: 0o600 });
       await symlink(join(home, "account-store.json"), join(home, "auth.json"));
       await writeFile(join(home, "config.toml"), "x".repeat(1024 * 1024 + 1), { mode: 0o600 });
-      const selectedContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "paperclip_runner", config: {} };
+      const selectedContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "nexus_runner", config: {} };
       const result = await testNativeRunnerAuthentication({ ...selectedContext, managedAiCredentialHome: home }, "codex", "gpt-6.1-sol");
       expect(result.status).toBe("fail");
       expect(result.checks[0].message).toContain("configuration exceeds its size limit");
@@ -113,7 +113,7 @@ describe("Codex selected native account verification", () => {
     vi.stubEnv("OPENAI_API_KEY", "ambient-key-is-not-authorized");
     nativeProbe.mockResolvedValue(receipt("codex", "observed-model"));
     const config = mode === "configured-home" || mode === "managed-home" ? { env: { CODEX_HOME: "/configured-codex" } } : {};
-    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "paperclip_runner", config,
+    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "nexus_runner", config,
       ...(mode === "managed-home" ? { managedAiCredentialHome: "/managed-codex" } : {}) }, "codex", null)).status).toBe("pass");
     const input = nativeProbe.mock.calls[0][0];
     expect(input.transportOptions.sourceCodexHome).toBe({ "host-home": "/host-home/.codex", "host-codex-home": "/host-codex", "configured-home": "/configured-codex", "managed-home": "/managed-codex" }[mode]);
@@ -138,7 +138,7 @@ describe("Codex selected native account verification", () => {
         await input.onCleanupConfirmed();
         return receipt("codex", "gpt-6.1-sol");
       });
-      const result = await testNativeRunnerAuthentication({ companyId: "company", adapterType: "paperclip_runner", managedAiCredentialHome: home, config: { env: { CODEX_HOME: home, ...(mode === "bound-key" ? { OPENAI_API_KEY: "selected-key" } : {}) } } }, "codex", "gpt-6.1-sol");
+      const result = await testNativeRunnerAuthentication({ companyId: "company", adapterType: "nexus_runner", managedAiCredentialHome: home, config: { env: { CODEX_HOME: home, ...(mode === "bound-key" ? { OPENAI_API_KEY: "selected-key" } : {}) } } }, "codex", "gpt-6.1-sol");
       expect(result.status).toBe(mode === "invalid-handoff" ? "fail" : "pass");
       expect(JSON.parse(await readFile(store, "utf8")).tokens.access_token).toBe(mode === "same-account" ? "access-new" : "access-old");
       expect((await stat(store)).mode & 0o777).toBe(0o600);
@@ -147,7 +147,7 @@ describe("Codex selected native account verification", () => {
       if (mode !== "invalid-handoff") await expect(stat(nativeProbe.mock.calls[0][0].runtimeDirectory)).rejects.toMatchObject({ code: "ENOENT" });
     } finally { await rm(home, { recursive: true, force: true }); }
   });
-  const sshContext = { companyId: "company", adapterType: "paperclip_runner", config: {}, executionTarget: {
+  const sshContext = { companyId: "company", adapterType: "nexus_runner", config: {}, executionTarget: {
     kind: "remote" as const, transport: "ssh" as const, remoteCwd: "/qa-workspace", spec: { host: "qa-host", username: "qa-user", port: 22, remoteCwd: "/qa-workspace", remoteWorkspacePath: "/qa-workspace", privateKey: null, knownHosts: null, strictHostKeyChecking: true },
   } };
   it.each(["local", "remote"].flatMap(transport => ["configured", "operator"].flatMap(source => [false, true].map(linked => ({ transport, source, linked })))))
@@ -170,7 +170,7 @@ describe("Codex selected native account verification", () => {
         await input.onCleanupConfirmed();
         return receipt("codex", "gpt-6.1-sol");
       });
-      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "paperclip_runner", config: {} };
+      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "nexus_runner", config: {} };
       const result = await testNativeRunnerAuthentication({ ...testContext, config: {
         managedAiCredentialHome: home,
         env: source === "configured" ? { CODEX_HOME: home } : {},
@@ -212,7 +212,7 @@ describe("Codex selected native account verification", () => {
         if (authState === "probe-error") throw new Error("authentication failed: configured-fixture-key");
         return receipt("codex", "gpt-6.1-sol");
       });
-      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "paperclip_runner", config: {} };
+      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "nexus_runner", config: {} };
       const result = await testNativeRunnerAuthentication({ ...testContext, config: { env: { CODEX_HOME: home, [key]: "configured-fixture-key" } } }, "codex", "gpt-6.1-sol");
       expect(result.status).toBe(authState === "probe-error" ? "fail" : "pass");
       if (authState === "probe-error") expect(result.checks[0]).toMatchObject({ code: "codex_hello_probe_auth_required", message: "authentication failed: [REDACTED]" });
@@ -239,7 +239,7 @@ describe("Codex selected native account verification", () => {
       await writeFile(join(home, "config.toml"), 'cli_auth_credentials_store = "file"\n[mcp_servers.host_only]\ncommand = "untrusted-host-tool"\n', { mode: 0o600 });
       await writeFile(join(home, "unassigned-private-file"), "must-not-copy");
       nativeProbe.mockImplementation(async input => {
-        expect(input.environment._PAPERCLIP_NATIVE_SETUP_CODEX_AUTH_JSON_SECRET).toBeUndefined();
+        expect(input.environment._NEXUS_NATIVE_SETUP_CODEX_AUTH_JSON_SECRET).toBeUndefined();
         const codexHome = join(input.runtimeDirectory, "codex-home");
         await prepareIsolatedCodexHome({ context: null, codexHome, sourceCodexHome: input.transportOptions.sourceCodexHome,
           apiKey: input.environment.CODEX_API_KEY ?? input.environment.OPENAI_API_KEY });
@@ -264,8 +264,8 @@ describe("Codex selected native account verification", () => {
         await input.onCleanupConfirmed();
         return receipt("codex", "gpt-6.1-sol");
       });
-      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "paperclip_runner", config: {} };
-      const result = await testNativeRunnerAuthentication({ ...testContext, config: { env: { CODEX_HOME: "/untrusted-configured-home", _PAPERCLIP_NATIVE_SETUP_CODEX_AUTH_JSON_SECRET: "spoofed-auth" } }, managedAiCredentialHome: home }, "codex", "gpt-6.1-sol");
+      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "nexus_runner", config: {} };
+      const result = await testNativeRunnerAuthentication({ ...testContext, config: { env: { CODEX_HOME: "/untrusted-configured-home", _NEXUS_NATIVE_SETUP_CODEX_AUTH_JSON_SECRET: "spoofed-auth" } }, managedAiCredentialHome: home }, "codex", "gpt-6.1-sol");
       expect(result.status).toBe("pass");
       expect(seeded).toBe(true);
       expect(await readFile(stored, "utf8")).toBe(auth);
@@ -285,7 +285,7 @@ describe("Codex selected native account verification", () => {
       if (mode === "unsafe-mode") await chmod(stored, 0o644);
       if (mode === "foreign-owner") owner = vi.spyOn(process, "getuid").mockReturnValue(process.getuid!() + 1);
       nativeProbe.mockResolvedValue(receipt("codex", "gpt-6.1-sol"));
-      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "paperclip_runner", config: {} };
+      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "nexus_runner", config: {} };
       const result = await testNativeRunnerAuthentication({ ...testContext, managedAiCredentialHome: home }, "codex", "gpt-6.1-sol");
       expect(result.status).toBe("fail");
       expect(nativeProbe).not.toHaveBeenCalled();
@@ -300,10 +300,10 @@ describe("Codex selected native account verification", () => {
       await writeFile(join(home, "account-store.json"), auth, { mode: 0o600 });
       await symlink(join(home, "account-store.json"), join(home, "auth.json"));
       nativeProbe.mockImplementation(async input => {
-        expect(input.environment._PAPERCLIP_NATIVE_SETUP_CODEX_AUTH_JSON_SECRET).toBeUndefined();
+        expect(input.environment._NEXUS_NATIVE_SETUP_CODEX_AUTH_JSON_SECRET).toBeUndefined();
         throw new Error("authentication failed: " + auth + " fixture-access fixture-refresh");
       });
-      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "paperclip_runner", config: {} };
+      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "nexus_runner", config: {} };
       const result = await testNativeRunnerAuthentication({ ...testContext, managedAiCredentialHome: home }, "codex", "gpt-6.1-sol");
       expect(result.status).toBe("fail");
       expect(JSON.stringify(result)).not.toMatch(/fixture-account|fixture-access|fixture-refresh|fixture-id/);
@@ -322,7 +322,7 @@ describe("Codex selected native account verification", () => {
         if (confirmed) await input.onCleanupConfirmed();
         throw new Error("Native provider setup canceled");
       });
-      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "paperclip_runner", config: {} };
+      const testContext = transport === "remote" ? sshContext : { companyId: "company", adapterType: "nexus_runner", config: {} };
       expect((await testNativeRunnerAuthentication({ ...testContext, managedAiCredentialHome: home }, "codex", "gpt-6.1-sol")).status).toBe("fail");
       const root = nativeProbe.mock.calls[0][0].runtimeDirectory;
       if (confirmed) await expect(stat(root)).rejects.toMatchObject({ code: "ENOENT" });
@@ -331,20 +331,20 @@ describe("Codex selected native account verification", () => {
     } finally { await rm(home, { recursive: true, force: true }); }
   });
   it.each(["linux-arm64", "linux-x64"])("uses task staging and the selected %s SSH daemon without a provider pack", async target => {
-    const selectedBinary = `/fixture/bin/${target}/paperclip-runnerd`;
+    const selectedBinary = `/fixture/bin/${target}/nexus-runnerd`;
     selectedRemoteRunner.mockResolvedValue(selectedBinary);
     let released = false;
     registerPrp.mockResolvedValue({ release: async () => { released = true; } });
     nativeProbe.mockImplementation(async input => {
       const registration = await input.transportOptions.controlPlaneRegistration({ marker: "native-authority" });
-      expect(registration.connection).toMatchObject({ mode: "connect", connectUrl: expect.stringMatching(/^wss:\/\/paperclip\.example\.test\/api\/runner\/v1\/connect\//) });
+      expect(registration.connection).toMatchObject({ mode: "connect", connectUrl: expect.stringMatching(/^wss:\/\/nexus\.example\.test\/api\/runner\/v1\/connect\//) });
       await registration.release();
       await input.onCleanupConfirmed();
       return receipt("codex", "gpt-6.1-sol");
     });
-    expect((await testNativeRunnerAuthentication({ ...sshContext, config: { externallySandboxed: true, env: { OPENAI_API_KEY: "company-account", PAPERCLIP_RUNNER_EXTERNAL_SANDBOX: "true" }, modelReasoningEffort: "low" } }, "codex", "gpt-6.1-sol")).status).toBe("pass");
+    expect((await testNativeRunnerAuthentication({ ...sshContext, config: { externallySandboxed: true, env: { OPENAI_API_KEY: "company-account", NEXUS_RUNNER_EXTERNAL_SANDBOX: "true" }, modelReasoningEffort: "low" } }, "codex", "gpt-6.1-sol")).status).toBe("pass");
     const input = nativeProbe.mock.calls[0][0];
-    expect(input).toMatchObject({ reasoningEffort: "low", environment: { OPENAI_API_KEY: "company-account" }, workingDirectory: expect.stringMatching(/^\/qa-workspace\/.paperclip-runtime\/paperclip-native-setup-.*\/filesystem\/workspace$/) });
+    expect(input).toMatchObject({ reasoningEffort: "low", environment: { OPENAI_API_KEY: "company-account" }, workingDirectory: expect.stringMatching(/^\/qa-workspace\/.nexus-runtime\/nexus-native-setup-.*\/filesystem\/workspace$/) });
     expect(input.transportOptions).toMatchObject({ runnerBinary: selectedBinary, codexCommand: expect.stringMatching(/\/bin\/codex$/), runnerFilesystemRoot: expect.stringMatching(/\/filesystem$/), externallySandboxed: false });
     expect(nativeArtifacts).toHaveBeenCalledWith(expect.objectContaining({ controllerRunnerBinary: selectedBinary, model: "gpt-6.1-sol", targetPlatformArtifactVerified: true }));
     expect(selectedRemoteRunner).toHaveBeenCalledExactlyOnceWith({ runner: { execute: sshExecute }, remoteCwd: "/qa-workspace", configuredPath: null });
@@ -353,7 +353,7 @@ describe("Codex selected native account verification", () => {
     expect(registerPrp).toHaveBeenCalledWith({ companyId: "company", runId: input.transportOptions.prpIdentity.runId, authority: { marker: "native-authority" } });
     expect(remoteLauncher).toHaveBeenCalledWith(expect.objectContaining({ runnerInstanceId: input.transportOptions.prpIdentity.runnerInstanceId }));
     expect(released).toBe(true);
-    expect(sshExecute.mock.calls.at(-1)![0]).toMatchObject({ command: "rm", args: ["-rf", "--", expect.stringContaining("paperclip-native-setup-")] });
+    expect(sshExecute.mock.calls.at(-1)![0]).toMatchObject({ command: "rm", args: ["-rf", "--", expect.stringContaining("nexus-native-setup-")] });
     expect(sshExecute.mock.calls.some(([value]) => JSON.stringify(value).includes("company-account"))).toBe(false);
     expect(execute).not.toHaveBeenCalled();
   });
@@ -366,14 +366,14 @@ describe("Codex selected native account verification", () => {
     expect((await stat(nativeProbe.mock.calls[0][0].runtimeDirectory)).isDirectory()).toBe(true);
   });
   it("fails SSH transport eligibility before staging or opening the native provider", async () => {
-    vi.stubEnv("PAPERCLIP_RUNNER_PUBLIC_URL", "");
+    vi.stubEnv("NEXUS_RUNNER_PUBLIC_URL", "");
     expect((await testNativeRunnerAuthentication(sshContext, "codex", null)).status).toBe("fail");
     expect(sshExecute).not.toHaveBeenCalled(); expect(nativeArtifacts).not.toHaveBeenCalled(); expect(nativeProbe).not.toHaveBeenCalled();
   });
   it("reports an unavailable SSH target daemon before probing credentials or switching runtimes", async () => {
-    selectedRemoteRunner.mockRejectedValue(new Error("runner_remote_artifact_unavailable: install the matching linux-arm64 Paperclip release"));
+    selectedRemoteRunner.mockRejectedValue(new Error("runner_remote_artifact_unavailable: install the matching linux-arm64 Nexus release"));
     const result = await testNativeRunnerAuthentication(sshContext, "codex", null);
-    expect(result.status).toBe("fail"); expect(result.checks[0].message).toContain("matching linux-arm64 Paperclip release");
+    expect(result.status).toBe("fail"); expect(result.checks[0].message).toContain("matching linux-arm64 Nexus release");
     expect(nativeArtifacts).not.toHaveBeenCalled(); expect(nativeProbe).not.toHaveBeenCalled();
     expect(selectedRunner).not.toHaveBeenCalled(); expect(execute).not.toHaveBeenCalled();
   });
@@ -396,8 +396,8 @@ describe("Codex selected native account verification", () => {
       await writeFile(join(home, "account-store.json"), auth("qa-account", "old", 120_000), { mode: 0o600 });
       await symlink(join(home, "account-store.json"), join(home, "auth.json"));
       const refreshed = auth(mode === "another-account" ? "different-account" : "qa-account", "new", 60_000);
-      sshExecute.mockImplementation(async input => ({ exitCode: input.args?.[2] === "paperclip-native-refresh" && mode === "read-failure" ? 1 : 0, timedOut: false,
-        stdout: input.args?.[2] === "paperclip-native-refresh" ? Buffer.from(refreshed).toString("base64") : "", stderr: "" }));
+      sshExecute.mockImplementation(async input => ({ exitCode: input.args?.[2] === "nexus-native-refresh" && mode === "read-failure" ? 1 : 0, timedOut: false,
+        stdout: input.args?.[2] === "nexus-native-refresh" ? Buffer.from(refreshed).toString("base64") : "", stderr: "" }));
       nativeProbe.mockImplementation(async input => {
         const registration = await input.transportOptions.controlPlaneRegistration({});
         await registration.release();
@@ -412,7 +412,7 @@ describe("Codex selected native account verification", () => {
       expect(JSON.parse(await readFile(join(home, "auth.json"), "utf8")).tokens.access_token).toBe(mode === "same-account" || mode === "uncertain-close" ? "access-new" : "access-old");
       expect(sshExecute.mock.calls.some(([input]) => input.command === "rm")).toBe(mode === "same-account" || mode === "another-account");
       expect(JSON.stringify(result)).not.toContain("access-new");
-      const read = sshExecute.mock.calls.find(([input]) => input.args?.[2] === "paperclip-native-refresh")![0];
+      const read = sshExecute.mock.calls.find(([input]) => input.args?.[2] === "nexus-native-refresh")![0];
       expect(read.command).toBe("sh"); expect(read.args[1]).toContain("head -c 65537"); expect(read.args[1]).toContain("test ! -L");
       expect(nativeProbe.mock.calls[0][0].transportOptions.sourceCodexHome).toBe(join(nativeProbe.mock.calls[0][0].runtimeDirectory, "codex-credential-source"));
       if (mode === "read-failure") expect(result.checks[0].message).toContain("refresh handoff unavailable");
@@ -424,7 +424,7 @@ describe("Codex selected native account verification", () => {
     ["Model is unavailable", "failed"], ["native executable is missing", "failed"], ["native provider returned no response", "failed"],
   ])("fails closed and redacts native failures (%s)", async (message, code) => {
     nativeProbe.mockRejectedValue(new Error(message));
-    const result = await testNativeRunnerAuthentication({ companyId: "company", adapterType: "paperclip_runner", config: { env: { OPENAI_API_KEY: "bound-account" } } }, "codex", "gpt-6.1-sol");
+    const result = await testNativeRunnerAuthentication({ companyId: "company", adapterType: "nexus_runner", config: { env: { OPENAI_API_KEY: "bound-account" } } }, "codex", "gpt-6.1-sol");
     expect(result.status).toBe("fail");
     expect(result.checks[0]).toMatchObject({ code: `codex_hello_probe_${code}`, level: "error" });
     expect(result.checks.some(check => check.code === ADAPTER_AUTH_MISSING_CHECK_CODE)).toBe(code === "auth_required");
@@ -464,23 +464,23 @@ describe("Codex selected native account verification", () => {
     { helloProbePassed: undefined }, { effectiveModel: "another-model" }, { effectiveModel: null }, { effectiveModel: "" }, { provider: "opencode" }, { providerDriver: "codex_cli" },
   ])("rejects installation-only, legacy, or mismatched receipts", async override => {
     nativeProbe.mockResolvedValue({ ...receipt("codex", "gpt-6.1-sol"), ...override });
-    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "paperclip_runner", config: {} }, "codex", "gpt-6.1-sol")).status).toBe("fail");
+    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "nexus_runner", config: {} }, "codex", "gpt-6.1-sol")).status).toBe("fail");
   });
   it("accepts an automatic Codex model only when the native provider observed a nonempty model", async () => {
     nativeProbe.mockResolvedValue(receipt("codex", "gpt-6.1-sol"));
-    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "paperclip_runner", config: {} }, "codex", null)).status).toBe("pass");
+    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "nexus_runner", config: {} }, "codex", null)).status).toBe("pass");
     expect(nativeProbe.mock.calls[0][0].model).toBeNull();
     nativeProbe.mockResolvedValue(receipt("codex", null));
-    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "paperclip_runner", config: {} }, "codex", null)).status).toBe("fail");
+    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "nexus_runner", config: {} }, "codex", null)).status).toBe("fail");
     nativeProbe.mockResolvedValue(receipt("codex", "unknown"));
-    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "paperclip_runner", config: {} }, "codex", null)).status).toBe("fail");
+    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "nexus_runner", config: {} }, "codex", null)).status).toBe("fail");
   });
   it.each([true, false])("removes failed local probe state only after confirmed teardown (%s)", async confirmed => {
     nativeProbe.mockImplementation(async input => {
       if (confirmed) await input.onCleanupConfirmed();
       throw new Error("authentication failed");
     });
-    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "paperclip_runner", config: {} }, "codex", null)).status).toBe("fail");
+    expect((await testNativeRunnerAuthentication({ companyId: "company", adapterType: "nexus_runner", config: {} }, "codex", null)).status).toBe("fail");
     const root = nativeProbe.mock.calls[0][0].runtimeDirectory;
     if (confirmed) await expect(stat(root)).rejects.toThrow();
     else expect((await stat(root)).isDirectory()).toBe(true);
@@ -488,9 +488,9 @@ describe("Codex selected native account verification", () => {
   it.each(["arm64", "x64"].flatMap(controllerArch => ["arm64", "x64"].flatMap(targetArch => [false, true].map(explicit => ({ controllerArch, targetArch, explicit })))))
   ("uses target $targetArch artifacts and controller PRP from Mac $controllerArch for sandbox setup (override=$explicit)", async ({ controllerArch, targetArch, explicit }) => {
     vi.stubGlobal("process", { ...process, platform: "darwin", arch: controllerArch });
-    const selectedBinary = `/controller/artifacts/linux-${targetArch}/paperclip-runnerd`;
+    const selectedBinary = `/controller/artifacts/linux-${targetArch}/nexus-runnerd`;
     selectedRemoteRunner.mockResolvedValue(selectedBinary);
-    if (explicit) vi.stubEnv("PAPERCLIP_RUNNER_REMOTE_BINARY_PATH", selectedBinary);
+    if (explicit) vi.stubEnv("NEXUS_RUNNER_REMOTE_BINARY_PATH", selectedBinary);
     nativeProbe.mockImplementation(async input => {
       const registration = await input.transportOptions.controlPlaneRegistration({});
       expect(registration.connection.mode).toBe("connect");

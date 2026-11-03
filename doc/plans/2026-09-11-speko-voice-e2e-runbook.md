@@ -40,7 +40,7 @@ implementation still requires live audio requalification; see the
 Run deterministic integration without a Speko account, microphone or public tunnel:
 
 ```sh
-npx --yes pnpm@9.15.4 --filter @paperclipai/ui build
+npx --yes pnpm@9.15.4 --filter @nexusai/ui build
 npx --yes pnpm@9.15.4 exec tsc -p tests/speko-native/tsconfig.json
 npx --yes pnpm@9.15.4 exec playwright test --config tests/speko-native/playwright.config.ts
 npx --yes pnpm@9.15.4 exec playwright test --config tests/speko-native/playwright-auth.config.ts
@@ -58,7 +58,7 @@ without creating sessions, comments or runs. The
 second uses 3482/3483, real Better Auth signup and invitation APIs, and separate
 operator/member/outsider/anonymous contexts. It checks two-company isolation,
 private tasks, caller ownership and mid-call membership revocation. Only Speko
-transport/media and execution are stubbed. No Paperclip API response is mocked.
+transport/media and execution are stubbed. No Nexus API response is mocked.
 
 Each suite shuts down its own server/database. Its generated HTML report stays
 under `tests/speko-native/playwright-report/` or `playwright-report-auth/`.
@@ -72,7 +72,7 @@ Use pnpm 9.15.4 to honor this checkout's dependency patches. Build the static UI
 before starting the temporary server:
 
 ```sh
-npx --yes pnpm@9.15.4 --filter @paperclipai/ui build
+npx --yes pnpm@9.15.4 --filter @nexusai/ui build
 SPEKO_NATIVE_PORT=3449 SPEKO_NATIVE_CALLBACK_ORIGIN=https://your-test-origin.example \
   server/node_modules/.bin/tsx tests/speko-native/server.ts
 ```
@@ -93,7 +93,7 @@ word `marigold`; do not point acceptance work at private project files.
 
 Create a dedicated hosted Speko persona per endpoint. Its signed tools are managed
 by the actual setup UI. Save a private fixture at
-`~/.paperclip/speko-proof/native-fixture.json` (existing agent) or
+`~/.nexus/speko-proof/native-fixture.json` (existing agent) or
 `native-template-fixture.json` (template), mode 0600:
 
 ```json
@@ -101,7 +101,7 @@ by the actual setup UI. Save a private fixture at
   "companyId": "temporary-company-uuid",
   "companyPrefix": "SPE",
   "agentId": "selected-agent-uuid",
-  "agentName": "Existing Paperclip Agent",
+  "agentName": "Existing Nexus Agent",
   "providerAgentId": "agent_dedicated_persona",
   "endpointId": "optional-resumable-endpoint-uuid"
 }
@@ -112,7 +112,7 @@ using `SPEKO_MCP_API_KEY` from `~/.secrets` and persists only the endpoint ID in
 fixture. Do not record Playwright traces around credential entry.
 
 Prepare synthetic input using `say` and `ffmpeg`, saving mono 48 kHz signed 16-bit
-little-endian PCM files under `.paperclip-local/speko-proof-audio/`:
+little-endian PCM files under `.nexus-local/speko-proof-audio/`:
 
 - `start.pcm`: “Start the test.”
 - `followup.pcm`: “Add a follow-up.”
@@ -146,7 +146,7 @@ normal integration pass.
 Inspect `instance.json`, `evidence.json` and `execution.jsonl` in the temporary
 home for durable session/delivery/publication/task evidence. Each browser run
 writes a private source manifest, report, screenshots and received audio under
-`~/.paperclip/speko-proof/native-browser-*`. The checked-in reports contain only
+`~/.nexus/speko-proof/native-browser-*`. The checked-in reports contain only
 synthetic results and numeric references. On cleanup, end active provider calls,
 stop only this launcher, and remove only this test's proxy path.
 
@@ -168,7 +168,7 @@ two-company E01–E16 browser suite described below.
 
 Build a native experimental Apps voice connection beside Slack/Discord. Speko
 owns hosted audio, conversational acknowledgment, and telephony; the selected
-Paperclip agent keeps its runtime, tools, task context, and work. Support browser
+Nexus agent keeps its runtime, tools, task context, and work. Support browser
 voice, inbound telephone, and authenticated “Call my phone.” Recommend the
 optional **Speko Company Phone Agent** catalog template, while permitting any
 existing agent. Do not automatically install the template in every company.
@@ -201,7 +201,7 @@ research input, not the live voice runtime. Keep general MCP tools separate.
    `enableChatConnectors` as the discovery/setup gate.
 2. Reuse company endpoints, identities, task bindings, durable deliveries,
    external publications and activity logging. Vault API/signing secrets. Each
-   endpoint binds one Speko persona and one Paperclip agent; preserve historical
+   endpoint binds one Speko persona and one Nexus agent; preserve historical
    assignments when configuration changes.
 3. Persist session company, endpoint, provider ID, caller authority, task,
    generation, lifecycle, expiry and reply cursor. Authenticated APIs create,
@@ -230,17 +230,17 @@ Callbacks require reachable HTTPS; local instances need a configured tunnel or
 reverse proxy. No private relay is included. Retain transcripts/task history,
 explain provider recording behavior and do not download recordings by default.
 Set session-duration limits separately from join-token TTL and display Speko
-charges separately from Paperclip agent costs. Exclude SMS, WhatsApp, campaigns,
+charges separately from Nexus agent costs. Exclude SMS, WhatsApp, campaigns,
 autonomous outbound calls and general telephony administration.
 
 ## A. Deterministic UI and integrated browser qualification
 
 Extend the existing chat UI suite for fixtures. Add a separate integration suite
-with a real Paperclip server, isolated database, permissions, queues and external
+with a real Nexus server, isolated database, permissions, queues and external
 publication path. Stub **only** Speko's transport and the execution provider.
 Use temporary instances, two companies, operator/member/guest contexts, the
 template agent and an existing agent. Do not reuse the existing UI suite's
-mocked Paperclip responses as evidence that the backend works.
+mocked Nexus responses as evidence that the backend works.
 
 Every row must assert visible UI, resulting task state and durable session and
 delivery records. Wait on observable transitions and receipts, not fixed sleeps.
@@ -354,7 +354,7 @@ approvals, human audio, Safari or telephone journeys.
    signed voice callbacks through explicitly configured reachable HTTPS.
 2. In connection **Settings → Call my phone**, save your own E.164 number and
    enable **Allow this agent to call me about my tasks**. Speko charges and
-   recording settings apply; Paperclip does not download recordings.
+   recording settings apply; Nexus does not download recordings.
 3. Create an ordinary task assigned to that agent with yourself as responsible
    person, requesting one call using the assigned `call_my_phone` connection
    tool. The tool accepts no destination parameter and returns no media token.
@@ -366,7 +366,7 @@ approvals, human audio, Safari or telephone journeys.
    add an instruction. Assert signed callbacks, durable ordered comments,
    selected runtime execution and correct approved audio without repeated caller
    prompting. Measure acknowledgment/result/interruption with the stated targets.
-5. Hang up and verify provider/Paperclip reconciliation. Rejoin only on an
+5. Hang up and verify provider/Nexus reconciliation. Rejoin only on an
    explicitly authorized fresh attempt; uncertain creation must not blindly
    redial. Revoking personal opt-in/current access must stop private delivery.
 6. Retain sanitized task/session references and status. Do not include personal
@@ -374,7 +374,7 @@ approvals, human audio, Safari or telephone journeys.
    consent before any audio capture; never automatically download recordings.
 
 The integrated `tests/speko-native/integrated.spec.ts` E10 extension uses real
-Paperclip routes, database, task queue, run identity and runtime MCP. Only external
+Nexus routes, database, task queue, run identity and runtime MCP. Only external
 Speko and execution are fixtures. It saves callback settings through the UI,
 reloads, asks the execution fixture to discover/call its actual assigned tool,
 rejects a simultaneous second request, verifies one outgoing durable/provider
@@ -383,7 +383,7 @@ opt-in. It does not qualify real telephone audio or call-screening behavior.
 
 ## October 7 completion-audit procedure
 
-Current private PSTN setup uses per-live-call approval in Paperclip; caller ID alone grants no access. A signed call creates one short-lived admission without a task. Approve its exact six-digit code while selecting an authorized task, or deny it; expiry and hangup close admission. Discard speech submitted before approval. Guest mode must be explicitly enabled and writes bounded low-trust intake without waking an agent, exposing private work or approving governed actions. Promote only the exact live call through authenticated Paperclip approval.
+Current private PSTN setup uses per-live-call approval in Nexus; caller ID alone grants no access. A signed call creates one short-lived admission without a task. Approve its exact six-digit code while selecting an authorized task, or deny it; expiry and hangup close admission. Discard speech submitted before approval. Guest mode must be explicitly enabled and writes bounded low-trust intake without waking an agent, exposing private work or approving governed actions. Promote only the exact live call through authenticated Nexus approval.
 
 Phone polling is enabled in signed phone pre-call hints, never by mutating shared persona defaults on each dial. Verify that a subsequent browser call never reads idle polling instructions aloud. Provider final-report timestamps may be camelCase and durations fractional; the safe projection excludes application control hints, keys, system turns and recording URLs. Check both new and existing history entries.
 
@@ -411,7 +411,7 @@ Run the real-server native suite and the 44 page/call-entry Storybook stories. F
 
 After activating a Speko connection, open Settings and verify the bundled provider logo and Open Speko link. There must be no browser Conversation selector, Start voice button, Your calls region or callback introduction. Save/reload outgoing phone settings and incoming number settings normally. Setup's optional voice test remains available, and assigned tasks retain their task voice launcher. E10 checks the simplified Settings surface before saving callback preferences; E08/E09 still exercise signed incoming approval and restricted guest intake.
 
-The current private inbound flow requires the caller to also use signed-in Paperclip: enter the code spoken during this live call, select a permitted task and approve. The pending private admission expires after two minutes. This is a browser-mediated pairing flow, not sign-in by phone. Guest intake can record a message as quarantined work for review; it does not run the agent or expose private task information. This UI change preserves those authorization semantics.
+The current private inbound flow requires the caller to also use signed-in Nexus: enter the code spoken during this live call, select a permitted task and approve. The pending private admission expires after two minutes. This is a browser-mediated pairing flow, not sign-in by phone. Guest intake can record a message as quarantined work for review; it does not run the agent or expose private task information. This UI change preserves those authorization semantics.
 
 The Conversations empty state now directs users to Talk to agent on an assigned task. The Settings cleanup passed three real-server integrated journeys, 180 page/form/task-launcher interaction/accessibility checks plus four long-header checks, UI typecheck/build and token gates. Test evidence uses `/tmp/speko-settings-cleanup-*.log`; microphone/provider calls were not made for this change. Visual review covers the changed header and shorter forms in both themes; broader live-provider and repository-wide acceptance remains separate.
 
@@ -423,7 +423,7 @@ New calls admitted with **Let callers start new low-trust tasks without sign-in*
 
 For E09, configure an active sandbox on the incoming line (or use the selected agent's sandbox), enable isolated workspaces, and supply an approved agent-scoped model connection. This affects only new low-trust incoming tasks; it does not change the agent/instance default environment or historical task assignments. Missing isolation fails closed. Browser/outgoing task conversations keep their existing authenticated authority.
 
-1. Call the configured company number from a telephone. Verify the greeting asks what to work on without a Paperclip code or sign-in. Confirm exactly one new task/session/admission.
+1. Call the configured company number from a telephone. Verify the greeting asks what to work on without a Nexus code or sign-in. Confirm exactly one new task/session/admission.
 2. Submit work, interrupt playback, and add a follow-up. Verify both requests and approved agent replies remain on that task, in order. A playback interruption does not cancel work.
 3. Ask for another private task or a governed approval. Verify the low-trust boundary refuses it. Do not expand privileges or copy a caller-ID identity to make the test pass.
 4. End the call. The task and already accepted work survive hangup; new call requests fail. When Speko's report arrives, verify the task's **Phone conversation transcript** document contains both caller and voice-agent turns, interruptions included, with quarantined source trust. Repeated reports must not create duplicate documents or revisions. No recording is downloaded.

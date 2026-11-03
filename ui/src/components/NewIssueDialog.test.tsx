@@ -43,7 +43,7 @@ const companyState = vi.hoisted(() => ({
   companies: [
     {
       id: "company-1",
-      name: "Paperclip",
+      name: "Nexus",
       status: "active",
       issuePrefix: "PAP",
     },
@@ -51,7 +51,7 @@ const companyState = vi.hoisted(() => ({
   selectedCompanyId: "company-1",
   selectedCompany: {
     id: "company-1",
-    name: "Paperclip",
+    name: "Nexus",
     status: "active",
     issuePrefix: "PAP",
   },
@@ -563,7 +563,7 @@ describe("NewIssueDialog", () => {
     primaryState.primaryAgentId = primary;
     if (recent) trackRecentAssignee(recent, "company-1");
     if (explicit) dialogState.newIssueDefaults = { assigneeAgentId: explicit };
-    if (draft) localStorage.setItem("paperclip:issue-draft:user-1", JSON.stringify({ title: "Saved request", description: "", assigneeValue: `agent:${draft}`, projectId: "" }));
+    if (draft) localStorage.setItem("nexus:issue-draft:user-1", JSON.stringify({ title: "Saved request", description: "", assigneeValue: `agent:${draft}`, projectId: "" }));
     const { root } = renderDialog(container);
     await waitForAssertion(() => expect(container.querySelector('[data-testid="task-chat-composer-assignee-label"]')?.textContent).toBe(expected));
     act(() => root.unmount());
@@ -598,7 +598,7 @@ describe("NewIssueDialog", () => {
     act(() => container.querySelector<HTMLButtonElement>('[aria-label="Select assignee"]')!.click());
     const me = [...container.querySelectorAll<HTMLButtonElement>('[role="option"]')].find((button) => button.textContent?.includes("Me"))!;
     act(() => me.click());
-    expect(localStorage.getItem("paperclip:recent-assignees:company-1")).toContain("user:user-1");
+    expect(localStorage.getItem("nexus:recent-assignees:company-1")).toContain("user:user-1");
     expect(container.querySelector('[data-testid="task-chat-composer-model-label"]')).toBeNull();
     expect(container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Describe a task…"]')?.value).toBe("");
     act(() => root.unmount());
@@ -665,7 +665,7 @@ describe("NewIssueDialog", () => {
     mockAgentsApi.list.mockResolvedValue([{ id: "agent-1", name: "Coder", status: "active", adapterType: "codex_local", adapterConfig: {}, runtimeConfig: {}, permissions: {} }]);
     const { root } = renderDialog(container);
     await flush();
-    const composer = container.querySelector(".paperclip-task-chat-composer");
+    const composer = container.querySelector(".nexus-task-chat-composer");
     expect(composer).not.toBeNull();
     expect(composer?.querySelector('[data-testid="task-chat-composer-input"]')).not.toBeNull();
     expect(composer?.querySelector('[aria-label="Create task"]')).not.toBeNull();
@@ -760,7 +760,7 @@ describe("NewIssueDialog", () => {
   });
 
   it("restores private visibility from a saved draft without a project", async () => {
-    localStorage.setItem("paperclip:issue-draft:user-1", JSON.stringify({ title: "Private draft", description: "", status: "todo", priority: "", projectId: "", isPrivate: true }));
+    localStorage.setItem("nexus:issue-draft:user-1", JSON.stringify({ title: "Private draft", description: "", status: "todo", priority: "", projectId: "", isPrivate: true }));
     const { root } = renderDialog(container);
     await flush();
     const toggle = container.querySelector<HTMLButtonElement>('button[data-testid="composer-private-chip"]')!;
@@ -820,7 +820,7 @@ describe("NewIssueDialog", () => {
     // Saving this form must retain only the explicit toggle choice. A later
     // standalone draft must not acquire a sticky private flag from its parent.
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 850)); });
-    expect(JSON.parse(localStorage.getItem("paperclip:issue-draft:user-1")!).isPrivate).toBe(false);
+    expect(JSON.parse(localStorage.getItem("nexus:issue-draft:user-1")!).isPrivate).toBe(false);
     const submit = Array.from(container.querySelectorAll("button")).find(button => button.getAttribute("aria-label") === "Create sub-task")!;
     await act(async () => submit.click());
     await flush();
@@ -1069,7 +1069,7 @@ describe("NewIssueDialog", () => {
       id: "project-1", name: "Alpha", workspaces: [{ id: "source-default", isPrimary: true }],
       executionWorkspacePolicy: { enabled: true, defaultMode: "isolated_workspace" },
     }]);
-    localStorage.setItem("paperclip:issue-draft:user-1", JSON.stringify({
+    localStorage.setItem("nexus:issue-draft:user-1", JSON.stringify({
       title: "Draft task", description: "", status: "todo", priority: "medium", assigneeValue: "",
       reviewerValue: "", approverValue: "", projectId: "project-1",
       projectWorkspaceId: "stale-source", selectedExecutionWorkspaceId: "stale-workspace", executionWorkspaceMode: "reuse_existing",
@@ -1340,7 +1340,7 @@ describe("NewIssueDialog", () => {
 
 
   it("restores a description-only draft", async () => {
-    localStorage.setItem("paperclip:issue-draft:user-1", JSON.stringify({
+    localStorage.setItem("nexus:issue-draft:user-1", JSON.stringify({
       title: "", description: "Keep the request without a title", status: "todo", priority: "medium",
       assigneeValue: "", reviewerValue: "", approverValue: "", projectId: "",
       assigneeModelOverride: "", assigneeThinkingEffort: "", assigneeChrome: false,
@@ -1396,7 +1396,7 @@ describe("NewIssueDialog", () => {
     { enabled: true, description: "Write the launch post", criteria: " \n ", expected: "Write the launch post" },
   ])("restores legacy draft criteria into the editable description (Coordinator $enabled, criteria '$criteria')", async ({ enabled, description, criteria, expected }) => {
     coordinatorState.enabled = enabled;
-    localStorage.setItem("paperclip:issue-draft:user-1", JSON.stringify({
+    localStorage.setItem("nexus:issue-draft:user-1", JSON.stringify({
       title: "", description, successCriteria: criteria, status: "todo", priority: "medium",
       assigneeValue: "", reviewerValue: "", approverValue: "", projectId: "",
       assigneeModelOverride: "", assigneeThinkingEffort: "", assigneeChrome: false,
@@ -1409,7 +1409,7 @@ describe("NewIssueDialog", () => {
     const editedDescription = `${expected}\nKeep this edit.`;
     await typeTextareaValue(descriptionInput, editedDescription);
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 850)); });
-    const savedDraft = JSON.parse(localStorage.getItem("paperclip:issue-draft:user-1")!);
+    const savedDraft = JSON.parse(localStorage.getItem("nexus:issue-draft:user-1")!);
     expect(savedDraft.description).toBe(editedDescription);
     expect(savedDraft).not.toHaveProperty("successCriteria");
     await act(async () => root.unmount());
@@ -1647,7 +1647,7 @@ describe("NewIssueDialog", () => {
     act(() => button("Create task").click());
     await waitForAssertion(() => expect(container.textContent).toContain("Sending when reconnected…"));
     expect(container.textContent).not.toContain("tenant_app_unavailable");
-    expect(localStorage.getItem("paperclip:issue-draft:pending-create:user-1")).toContain(
+    expect(localStorage.getItem("nexus:issue-draft:pending-create:user-1")).toContain(
       mockIssuesApi.create.mock.calls[0][1].idempotencyKey,
     );
 
@@ -1658,7 +1658,7 @@ describe("NewIssueDialog", () => {
     await waitForAssertion(() => expect(mockIssuesApi.create).toHaveBeenCalledTimes(2));
     expect(mockIssuesApi.create.mock.calls[1][1].idempotencyKey).toBe(mockIssuesApi.create.mock.calls[0][1].idempotencyKey);
     await waitForAssertion(() => expect(dialogState.closeNewIssue).toHaveBeenCalled());
-    expect(localStorage.getItem("paperclip:issue-draft:pending-create:user-1")).toBeNull();
+    expect(localStorage.getItem("nexus:issue-draft:pending-create:user-1")).toBeNull();
     act(() => root.unmount());
   });
 
@@ -1684,9 +1684,9 @@ describe("NewIssueDialog", () => {
 
   it("never creates a restored task without the files it was submitted with", async () => {
     dialogState.newIssueDefaults = { title: "Has files" };
-    localStorage.setItem("paperclip:issue-draft:pending-create:user-1", JSON.stringify({
+    localStorage.setItem("nexus:issue-draft:pending-create:user-1", JSON.stringify({
       version: 1,
-      key: "paperclip:issue-draft:pending-create:user-1",
+      key: "nexus:issue-draft:pending-create:user-1",
       idempotencyKey: "create-key-123",
       createdAt: Date.now(),
       payload: {
@@ -1703,15 +1703,15 @@ describe("NewIssueDialog", () => {
     await act(async () => { container.querySelector<HTMLButtonElement>('[aria-label="Create task"]')!.click(); });
     await flush();
     expect(mockIssuesApi.create).not.toHaveBeenCalled();
-    expect(localStorage.getItem("paperclip:issue-draft:pending-create:user-1")).toBeNull();
+    expect(localStorage.getItem("nexus:issue-draft:pending-create:user-1")).toBeNull();
     // The original key outlives the rejection, so it survives another reload.
-    expect(localStorage.getItem("paperclip:issue-draft:create-awaiting-files:user-1")).toContain("create-key-123");
+    expect(localStorage.getItem("nexus:issue-draft:create-awaiting-files:user-1")).toContain("create-key-123");
     act(() => root.unmount());
 
     const reloaded = renderDialog(container);
     await flush();
     expect(container.querySelector('[role="alert"]')?.textContent).toContain("spec.pdf");
-    expect(localStorage.getItem("paperclip:issue-draft:create-awaiting-files:user-1")).toContain("create-key-123");
+    expect(localStorage.getItem("nexus:issue-draft:create-awaiting-files:user-1")).toContain("create-key-123");
     expect(mockIssuesApi.create).not.toHaveBeenCalled();
     act(() => reloaded.root.unmount());
   });
@@ -1722,9 +1722,9 @@ describe("NewIssueDialog", () => {
     dialogState.newIssueDefaults = { title: "Has files" };
     const spec = new File(["a"], "spec.pdf", { lastModified: 1 });
     const notes = new File(["bb"], "notes.pdf", { lastModified: 2 });
-    localStorage.setItem("paperclip:issue-draft:pending-create:user-1", JSON.stringify({
+    localStorage.setItem("nexus:issue-draft:pending-create:user-1", JSON.stringify({
       version: 1,
-      key: "paperclip:issue-draft:pending-create:user-1",
+      key: "nexus:issue-draft:pending-create:user-1",
       idempotencyKey: "create-key-123",
       createdAt: Date.now(),
       payload: {
@@ -1761,8 +1761,8 @@ describe("NewIssueDialog", () => {
   it("drops an account's restored create and staged files when the account changes", async () => {
     dialogState.newIssueDefaults = { title: "Account A saved task" };
     const file = new File(["a"], "spec.pdf", { lastModified: 1 });
-    const original = JSON.stringify({ version: 1, key: "paperclip:issue-draft:create-awaiting-files:user-1", idempotencyKey: "account-a-create-key", createdAt: Date.now(), payload: { fingerprint: JSON.stringify({ stagedFiles: ["attachment::spec.pdf:1:1"] }), data: { companyId: "company-1", title: "Account A saved task" }, stagedFileNames: ["spec.pdf"] } });
-    localStorage.setItem("paperclip:issue-draft:create-awaiting-files:user-1", original);
+    const original = JSON.stringify({ version: 1, key: "nexus:issue-draft:create-awaiting-files:user-1", idempotencyKey: "account-a-create-key", createdAt: Date.now(), payload: { fingerprint: JSON.stringify({ stagedFiles: ["attachment::spec.pdf:1:1"] }), data: { companyId: "company-1", title: "Account A saved task" }, stagedFileNames: ["spec.pdf"] } });
+    localStorage.setItem("nexus:issue-draft:create-awaiting-files:user-1", original);
     const { root, queryClient } = renderDialog(container);
     try {
       await waitForAssertion(() => expect(container.textContent).toContain("spec.pdf"));
@@ -1773,7 +1773,7 @@ describe("NewIssueDialog", () => {
       queryClient.setQueryData(queryKeys.auth.session, { user: { id: "user-2" } });
       await waitForAssertion(() => expect(container.querySelector<HTMLInputElement>('input[aria-label="Task title"]')?.value ?? "").toBe(""));
       expect(container.textContent).not.toContain("spec.pdf");
-      expect(localStorage.getItem("paperclip:issue-draft:create-awaiting-files:user-1")).toBe(original);
+      expect(localStorage.getItem("nexus:issue-draft:create-awaiting-files:user-1")).toBe(original);
       await typeTextareaValue(container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Describe a task…"]')!, "Account B fresh task");
       mockIssuesApi.create.mockResolvedValue({ id: "task-b", identifier: "PAP-2", companyId: "company-1" });
       await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Create task"]')!.click());
@@ -1786,7 +1786,7 @@ describe("NewIssueDialog", () => {
 
   it.each([false, true])("retains a restored task backup after the debounce (session known=%s)", async (sessionKnown) => {
     if (!sessionKnown) mockAuthApi.getSession.mockReturnValue(new Promise(() => {}));
-    localStorage.setItem("paperclip:issue-draft:user-1", JSON.stringify({
+    localStorage.setItem("nexus:issue-draft:user-1", JSON.stringify({
       title: "", description: "Keep this restored backup", status: "todo", priority: "",
       assigneeValue: "", reviewerValue: "", approverValue: "", watchdogAgentId: "", watchdogInstructions: "",
       projectId: "", projectWorkspaceId: "", assigneeModelLane: "primary", assigneeModelOverride: "",
@@ -1799,7 +1799,7 @@ describe("NewIssueDialog", () => {
       if (!sessionKnown) queryClient.setQueryData(queryKeys.auth.session, { user: { id: "user-1" } });
       await waitForAssertion(() => expect(container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Describe a task…"]')?.value).toBe("Keep this restored backup"));
       await act(async () => { await new Promise((resolve) => setTimeout(resolve, 850)); });
-      expect(JSON.parse(localStorage.getItem("paperclip:issue-draft:user-1") ?? "null")?.description).toBe("Keep this restored backup");
+      expect(JSON.parse(localStorage.getItem("nexus:issue-draft:user-1") ?? "null")?.description).toBe("Keep this restored backup");
       dialogState.newIssueOpen = false;
       act(() => root.render(<QueryClientProvider client={queryClient}><NewIssueDialog /></QueryClientProvider>));
       await flush();
@@ -1812,7 +1812,7 @@ describe("NewIssueDialog", () => {
 
   it.each([false, true])("keeps erased task text erased after reopening (session known=%s)", async (sessionKnown) => {
     if (!sessionKnown) mockAuthApi.getSession.mockReturnValue(new Promise(() => {}));
-    localStorage.setItem("paperclip:issue-draft:user-1", JSON.stringify({ title: "", description: "Older saved text" }));
+    localStorage.setItem("nexus:issue-draft:user-1", JSON.stringify({ title: "", description: "Older saved text" }));
     const { root, queryClient } = renderDialog(container);
     try {
       await flush();
@@ -1821,7 +1821,7 @@ describe("NewIssueDialog", () => {
       await typeTextareaValue(editor, "");
       if (!sessionKnown) queryClient.setQueryData(queryKeys.auth.session, { user: { id: "user-1" } });
       await act(async () => { await new Promise((resolve) => setTimeout(resolve, 850)); });
-      await waitForAssertion(() => expect(localStorage.getItem("paperclip:issue-draft:user-1")).toBeNull());
+      await waitForAssertion(() => expect(localStorage.getItem("nexus:issue-draft:user-1")).toBeNull());
       dialogState.newIssueOpen = false;
       act(() => root.render(<QueryClientProvider client={queryClient}><NewIssueDialog /></QueryClientProvider>));
       await flush();
@@ -1844,7 +1844,7 @@ describe("NewIssueDialog", () => {
       queryClient.setQueryData(queryKeys.auth.session, { user: { id: "user-1" } });
       await flush(); await flush();
       expect(container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Describe a task…"]')?.value).toBe("Typed before account lookup");
-      if (!unavailable) expect(localStorage.getItem("paperclip:issue-draft:user-1")).toContain("Typed before account lookup");
+      if (!unavailable) expect(localStorage.getItem("nexus:issue-draft:user-1")).toContain("Typed before account lookup");
       expect(mockIssuesApi.create).not.toHaveBeenCalled();
     } finally { storage?.mockRestore(); act(() => root.unmount()); queryClient.clear(); }
   });
@@ -1927,7 +1927,7 @@ describe("NewIssueDialog", () => {
       });
       expect(mockIssuesApi.uploadAttachment).toHaveBeenCalledTimes(during === "create" ? 0 : 1);
       expect(dialogState.closeNewIssue).not.toHaveBeenCalled();
-      expect(localStorage.getItem("paperclip:issue-draft:pending-create:user-1")).toContain(key);
+      expect(localStorage.getItem("nexus:issue-draft:pending-create:user-1")).toContain(key);
       expect(container.textContent).not.toContain("Account A in-flight task");
     } finally { act(() => root.unmount()); queryClient.clear(); }
   });
@@ -1938,7 +1938,7 @@ describe("NewIssueDialog", () => {
     mockIssuesApi.upsertDocument.mockResolvedValue({});
     const markdown = new File(["a"], "notes.md", { type: "text/markdown", lastModified: 1 });
     const text = new File(["bb"], "notes.txt", { type: "text/plain", lastModified: 2 });
-    localStorage.setItem("paperclip:issue-draft:create-awaiting-files:user-1", JSON.stringify({ version: 1, key: "paperclip:issue-draft:create-awaiting-files:user-1", idempotencyKey: "original-doc-create-key", createdAt: Date.now(), payload: { fingerprint: JSON.stringify({ stagedFiles: ["document:notes:notes.md:1:1", "document:notes-2:notes.txt:2:2"] }), data: { companyId: "company-1", title: "Has documents" }, stagedFileNames: ["notes.md", "notes.txt"] } }));
+    localStorage.setItem("nexus:issue-draft:create-awaiting-files:user-1", JSON.stringify({ version: 1, key: "nexus:issue-draft:create-awaiting-files:user-1", idempotencyKey: "original-doc-create-key", createdAt: Date.now(), payload: { fingerprint: JSON.stringify({ stagedFiles: ["document:notes:notes.md:1:1", "document:notes-2:notes.txt:2:2"] }), data: { companyId: "company-1", title: "Has documents" }, stagedFileNames: ["notes.md", "notes.txt"] } }));
     const { root } = renderDialog(container);
     try {
       await waitForAssertion(() => expect(container.textContent).toContain("notes.md"));
@@ -1959,9 +1959,9 @@ describe("NewIssueDialog", () => {
     mockIssuesApi.create.mockResolvedValue({ id: "issue-1", identifier: "PAP-1", companyId: "company-1" });
     mockIssuesApi.uploadAttachment.mockResolvedValue({});
     mockIssuesApi.get.mockResolvedValue({ id: "parent-1", identifier: "PAP-2", title: "Parent", isPrivate: false });
-    localStorage.setItem("paperclip:issue-draft:user-1", JSON.stringify({ title: "Saved subtask", description: "", status: "todo", priority: "", projectId: "", assigneeValue: "" }));
-    localStorage.setItem("paperclip:issue-draft:create-awaiting-files:user-1", JSON.stringify({
-      version: 1, key: "paperclip:issue-draft:create-awaiting-files:user-1", idempotencyKey: "subtask-key-123", createdAt: Date.now(),
+    localStorage.setItem("nexus:issue-draft:user-1", JSON.stringify({ title: "Saved subtask", description: "", status: "todo", priority: "", projectId: "", assigneeValue: "" }));
+    localStorage.setItem("nexus:issue-draft:create-awaiting-files:user-1", JSON.stringify({
+      version: 1, key: "nexus:issue-draft:create-awaiting-files:user-1", idempotencyKey: "subtask-key-123", createdAt: Date.now(),
       payload: { fingerprint: JSON.stringify({ stagedFiles: ["attachment::spec.pdf:1:1"] }),
         data: { companyId: "company-1", title: "Saved subtask", parentId: "parent-1", goalId: "goal-1" }, stagedFileNames: ["spec.pdf"] },
     }));
@@ -2103,7 +2103,7 @@ describe("NewIssueDialog", () => {
     expect(modeChip()).toBeNull();
 
     await act(async () => {
-      container.querySelector(".paperclip-task-chat-composer")?.dispatchEvent(new KeyboardEvent("keydown", {
+      container.querySelector(".nexus-task-chat-composer")?.dispatchEvent(new KeyboardEvent("keydown", {
         bubbles: true,
         code: "",
         key: ".",
@@ -2114,7 +2114,7 @@ describe("NewIssueDialog", () => {
     expect(modeChip()?.textContent).toContain("Plan mode");
 
     await act(async () => {
-      container.querySelector(".paperclip-task-chat-composer")?.dispatchEvent(new KeyboardEvent("keydown", {
+      container.querySelector(".nexus-task-chat-composer")?.dispatchEvent(new KeyboardEvent("keydown", {
         bubbles: true,
         code: "Period",
         key: ".",
@@ -2125,7 +2125,7 @@ describe("NewIssueDialog", () => {
     expect(modeChip()?.textContent).toContain("Ask mode");
 
     await act(async () => {
-      container.querySelector(".paperclip-task-chat-composer")?.dispatchEvent(new KeyboardEvent("keydown", {
+      container.querySelector(".nexus-task-chat-composer")?.dispatchEvent(new KeyboardEvent("keydown", {
         bubbles: true,
         code: "Period",
         key: ".",
@@ -2195,7 +2195,7 @@ describe("NewIssueDialog", () => {
     expect(modeChip()).toBeNull();
 
     await act(async () => {
-      container.querySelector(".paperclip-task-chat-composer")?.dispatchEvent(new KeyboardEvent("keydown", {
+      container.querySelector(".nexus-task-chat-composer")?.dispatchEvent(new KeyboardEvent("keydown", {
         bubbles: true,
         code: "Period",
         key: ".",
@@ -2425,7 +2425,7 @@ describe("NewIssueDialog", () => {
     await flush();
 
     const menu = document.createElement("div");
-    menu.setAttribute("data-paperclip-floating-ui", "");
+    menu.setAttribute("data-nexus-floating-ui", "");
     const option = document.createElement("button");
     menu.appendChild(option);
     document.body.appendChild(menu);
@@ -2448,7 +2448,7 @@ describe("NewIssueDialog", () => {
       enableIsolatedWorkspaces: false,
     });
     localStorage.setItem(
-      "paperclip:issue-draft:user-1",
+      "nexus:issue-draft:user-1",
       JSON.stringify({
         title: "Watched task",
         description: "",
@@ -2512,7 +2512,7 @@ describe("NewIssueDialog", () => {
 
   it("restores shared model, effort, and fast settings into the created task", async () => {
     mockAgentsApi.list.mockResolvedValue([{ id: "agent-1", name: "Coder", status: "active", adapterType: "codex_local", adapterConfig: {}, runtimeConfig: {}, permissions: {} }]);
-    localStorage.setItem("paperclip:issue-draft:user-1", JSON.stringify({
+    localStorage.setItem("nexus:issue-draft:user-1", JSON.stringify({
       title: "", description: "Use the saved run settings", status: "todo", priority: "medium",
       assigneeValue: "agent:agent-1", projectId: "", workMode: "planning",
       composerSettings: { model: "gpt-6-astra", effort: "ultra", fast: true },

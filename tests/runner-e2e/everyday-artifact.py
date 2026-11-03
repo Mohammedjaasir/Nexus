@@ -21,7 +21,7 @@ class ArtifactSandbox:
         self.root = root
         self.cwd = '/project/' + str(source.parent.relative_to(root))
         self.source = '/project/' + str(source.relative_to(root))
-        self.name = 'paperclip-artifact-oracle-' + uuid.uuid4().hex
+        self.name = 'nexus-artifact-oracle-' + uuid.uuid4().hex
 
     def __enter__(self):
         preflight()
@@ -87,7 +87,7 @@ def inspect(archive, mode):
     checks = []
     def check(name, passed, detail=""):
         checks.append(dict(id=name, passed=bool(passed), detail=detail))
-    with tempfile.TemporaryDirectory(prefix="paperclip-artifact-oracle-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="nexus-artifact-oracle-") as tmp:
         root=pathlib.Path(tmp)
         with zipfile.ZipFile(archive) as z:
             entries=z.infolist()

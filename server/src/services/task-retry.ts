@@ -5,7 +5,7 @@ import { DELIVERY_QUEUES } from "./delivery-work-notifications.js";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
-import { agentWakeupRequests, chatActions, chatConversations, chatEndpoints, heartbeatRuns, issues, issueComments, runIdentityContexts, issueRecoveryActions, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, chatActions, chatConversations, chatEndpoints, heartbeatRuns, issues, issueComments, runIdentityContexts, issueRecoveryActions, type Db } from "@nexusai/db";
 import { conflict, forbidden, notFound, HttpError } from "../errors.js";
 import { persistActivity } from "./activity-log.js";
 import { createSystemRecovery, readSystemRecovery } from "./system-recovery-state.js";
@@ -46,7 +46,7 @@ export async function assertTaskRetryConversationAllowed(
 }
 
 const taskRetryIntentSchema = z.object({
-  schema: z.literal("paperclip.task-retry.v1"), generationId: z.string().uuid(), sourceRunId: z.string().uuid(),
+  schema: z.literal("nexus.task-retry.v1"), generationId: z.string().uuid(), sourceRunId: z.string().uuid(),
   actorId: z.string().min(1), actorSource: z.enum(["local_implicit", "session", "board_key", "cloud_tenant"]).default("session"), strategy: z.enum(["evaluate", "continue", "fresh_isolated_workspace", "finalize_result"]),
   chatActionId: z.string().uuid().optional(), canonicalIntentId: z.string().uuid().optional(),
   queuedChatRequestId: z.string().uuid().optional(),
@@ -91,7 +91,7 @@ async function readBoardMessageRetrySource(db: Db, input: {
       sql`not exists (select 1 from jsonb_object_keys(case when jsonb_typeof(${heartbeatRuns.resultJson}) = 'object'
         then ${heartbeatRuns.resultJson} else '{}'::jsonb end) key
         where key not in ('effectiveTimeoutSec', 'executionRecovery', 'stopReason', 'timeoutConfigured', 'timeoutFired', 'timeoutSource'))`,
-      sql`${heartbeatRuns.runnerProfileJson}->'adapterDispatch' = '{"adapterType":"paperclip_runner"}'::jsonb`,
+      sql`${heartbeatRuns.runnerProfileJson}->'adapterDispatch' = '{"adapterType":"nexus_runner"}'::jsonb`,
       sql`not exists (select 1 from jsonb_object_keys(case when jsonb_typeof(${heartbeatRuns.runnerProfileJson}) = 'object'
         then ${heartbeatRuns.runnerProfileJson} else '{}'::jsonb end) key
         where key not in ('adapterDispatch', 'aiConnectionNonAssigneeCommentWake', 'chatControlRecoveryAdmission'))`,
@@ -241,7 +241,7 @@ export async function requestTaskRetry(input: {
     let active = (await tx.select().from(agentWakeupRequests).where(and(
       eq(agentWakeupRequests.companyId, issue.companyId), eq(agentWakeupRequests.agentId, issue.assigneeAgentId),
       sql`${agentWakeupRequests.payload}->>'issueId' = ${issue.id}`,
-      sql`${agentWakeupRequests.payload}->'taskRetry'->>'schema' = 'paperclip.task-retry.v1'`,
+      sql`${agentWakeupRequests.payload}->'taskRetry'->>'schema' = 'nexus.task-retry.v1'`,
       inArray(agentWakeupRequests.status, ["deferred_issue_execution", "queued", "claimed"]),
     )).orderBy(desc(agentWakeupRequests.requestedAt)).limit(1)).at(0);
     const activeIntent = readTaskRetryIntent(active?.payload);
@@ -280,7 +280,7 @@ export async function requestTaskRetry(input: {
       active = undefined;
     }
     const id = randomUUID();
-    const intent: TaskRetryIntent = { schema: "paperclip.task-retry.v1", generationId: active?.id ?? id,
+    const intent: TaskRetryIntent = { schema: "nexus.task-retry.v1", generationId: active?.id ?? id,
       sourceRunId: latest.id, actorId: input.actorId,
       actorSource: taskRetryIntentSchema.shape.actorSource.parse(input.actorSource ?? "session"), strategy: "evaluate",
       ...(active && activeIntent?.chatActionId ? { chatActionId: activeIntent.chatActionId } : {}),

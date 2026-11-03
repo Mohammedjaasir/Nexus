@@ -10,7 +10,7 @@ type ReadTextFile = (path: string) => string;
 // through the same parser used for a live checkout. A resolved version set
 // directly is accepted verbatim.
 const DEFAULT_BUILD_VERSION_PATH = fileURLToPath(
-  new URL("../../.paperclip-build-version", import.meta.url),
+  new URL("../../.nexus-build-version", import.meta.url),
 );
 
 export function parseBuildVersion(value: string | null | undefined): string | null {
@@ -30,7 +30,7 @@ export function readBuildVersion(
 ): string | null {
   const environmentVersion = parseBuildVersion(
     opts.environmentVersion === undefined
-      ? process.env.PAPERCLIP_BUILD_VERSION
+      ? process.env.NEXUS_BUILD_VERSION
       : opts.environmentVersion,
   );
   if (environmentVersion) return environmentVersion;

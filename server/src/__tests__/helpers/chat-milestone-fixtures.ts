@@ -9,7 +9,7 @@ import {
   statusDecisions, statusDecisionEffects, workAssessments, heartbeatRunEvents,
   heartbeatRuns, issueComments, issueQuestionResponseDeliveries, issueThreadInteractions,
   issues, toolApplications, toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 // This owns only fixture data. Each test retains its worker, clock and quiet
 // assertions, and must stop the worker before cleanup.
@@ -25,7 +25,7 @@ export function createChatMilestoneFixtures(db: Db) {
     fixtureUsers.push(userId);
     await db.insert(authUsers).values({ id: userId, name: "Owner", email: `${userId}@example.test`, createdAt: new Date(), updatedAt: new Date() });
     await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: userId, status: "active", membershipRole: "owner" });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Maya", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Maya", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Chat task", status: "in_progress", assigneeAgentId: agentId, responsibleUserId: userId });
     const applicationId = randomUUID(), connectionId = randomUUID();
     await db.insert(toolApplications).values({ id: applicationId, companyId, name: `Chat ${applicationId}`, type: "chat" });

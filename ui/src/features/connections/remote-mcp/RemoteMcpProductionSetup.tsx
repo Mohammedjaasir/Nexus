@@ -1,8 +1,8 @@
 import { ConnectionInstructionsEditor } from "../ConnectionInstructions";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { isAppAggregator, aggregatorManagementUrl } from "@paperclipai/shared/aggregator-apps";
-import { REMOTE_MCP_CONNECTOR_METHODS, defaultConnectionAgentInstructions, getConnectableAppDefinition, type ToolConnection } from "@paperclipai/shared";
+import { isAppAggregator, aggregatorManagementUrl } from "@nexusai/shared/aggregator-apps";
+import { REMOTE_MCP_CONNECTOR_METHODS, defaultConnectionAgentInstructions, getConnectableAppDefinition, type ToolConnection } from "@nexusai/shared";
 import { askFirstCatalogEntryIdsFor } from "../connection-defaults";
 import { RemoteMcpAccountChoice } from "./RemoteMcpAccountChoice";
 import { readConnectionIntentOAuthOutcome, type ConnectionSetupFlowProps } from "../ConnectionSetupFlow";
@@ -10,7 +10,7 @@ import { agentsApi } from "@/api/agents";
 import { toolsApi } from "@/api/tools";
 import { resolveAccountUserId } from "@/api/companies-query";
 import { useCompany } from "@/context/CompanyContext";
-import { findAggregatorApp } from "@paperclipai/shared/aggregator-app-catalog";
+import { findAggregatorApp } from "@nexusai/shared/aggregator-app-catalog";
 import { useNavigate, useSearchParams } from "@/lib/router";
 import { resolveAuthorizationTarget } from "@/lib/authorizationUrl";
 import { navigateTopLevel } from "@/lib/browserNavigation";
@@ -41,15 +41,15 @@ export function RemoteMcpProductionSetup({ providerId, connection, host = "page"
   const [searchParams] = useSearchParams();
   let targetToolkit = searchParams.get("targetToolkit");
   if (!targetToolkit && connection && host === "page") {
-    try { targetToolkit = sessionStorage.getItem(`paperclip:mcp-upstream-app:${selectedCompanyId}:${connection.id}`); } catch { /* Storage may be disabled. */ }
+    try { targetToolkit = sessionStorage.getItem(`nexus:mcp-upstream-app:${selectedCompanyId}:${connection.id}`); } catch { /* Storage may be disabled. */ }
   }
   const targetApp = findAggregatorApp(providerId, targetToolkit);
   const targetRoute = targetApp?.routes.find((route) => route.provider === providerId);
   upstreamServiceName ??= targetApp?.name;
   const oauthOutcome = connection ? searchParams.get("oauth") : null;
   const queries = useQueryClient();
-  const accessDraftKey = `paperclip:mcp-access-draft:${selectedCompanyId}:${interactionId || providerId}`;
-  const intentDraftKey = `paperclip:mcp-intent-draft:${selectedCompanyId}:${interactionId}`;
+  const accessDraftKey = `nexus:mcp-access-draft:${selectedCompanyId}:${interactionId || providerId}`;
+  const intentDraftKey = `nexus:mcp-intent-draft:${selectedCompanyId}:${interactionId}`;
   const popup = useRef<Window | null>(null);
   useEffect(() => () => {
     popup.current?.close();
@@ -116,11 +116,11 @@ export function RemoteMcpProductionSetup({ providerId, connection, host = "page"
     }
     if (onComplete) onComplete({ connectionId: id });
     else if (providerId === "composio") {
-      try { sessionStorage.removeItem(`paperclip:mcp-upstream-app:${selectedCompanyId}:${id}`); } catch { /* Storage may be disabled. */ }
+      try { sessionStorage.removeItem(`nexus:mcp-upstream-app:${selectedCompanyId}:${id}`); } catch { /* Storage may be disabled. */ }
       navigate(`/apps/${id}/permissions`);
     }
     else if (host === "page" && targetApp && targetRoute) {
-      try { sessionStorage.removeItem(`paperclip:mcp-upstream-app:${selectedCompanyId}:${id}`); } catch { /* Storage may be disabled. */ }
+      try { sessionStorage.removeItem(`nexus:mcp-upstream-app:${selectedCompanyId}:${id}`); } catch { /* Storage may be disabled. */ }
       navigate("/apps");
     } else if (isAppAggregator(providerId)) navigate("/apps");
     else navigate(`/apps/${id}/permissions`);
@@ -135,7 +135,7 @@ export function RemoteMcpProductionSetup({ providerId, connection, host = "page"
     // discard the later OAuth response. URL/token-only providers never need it.
     if (!saveDraft && host === "dialog" && state.auth === "auto" && (!popup.current || popup.current.closed)) {
       try {
-        popup.current = window.open("about:blank", "paperclip-connection-oauth", "popup,width=720,height=760,resizable=yes,scrollbars=yes");
+        popup.current = window.open("about:blank", "nexus-connection-oauth", "popup,width=720,height=760,resizable=yes,scrollbars=yes");
       } catch { popup.current = null; }
     }
     busy.current = true;
@@ -167,7 +167,7 @@ export function RemoteMcpProductionSetup({ providerId, connection, host = "page"
       }
       savedConnection.current = result.connection;
       if (host === "page" && targetRoute) {
-        try { sessionStorage.setItem(`paperclip:mcp-upstream-app:${selectedCompanyId}:${result.connectionId}`, targetRoute.toolkit); } catch { /* Storage may be disabled. */ }
+        try { sessionStorage.setItem(`nexus:mcp-upstream-app:${selectedCompanyId}:${result.connectionId}`, targetRoute.toolkit); } catch { /* Storage may be disabled. */ }
       }
       if (interactionId) {
         try { sessionStorage.setItem(intentDraftKey, result.connectionId); } catch { /* Storage may be disabled. */ }
@@ -195,7 +195,7 @@ export function RemoteMcpProductionSetup({ providerId, connection, host = "page"
         } catch {
           // The connection and OAuth session already exist. Preserve them and
           // let the native sign-in link recover a blocked browser handoff.
-          edit({ notice: "Paperclip couldn’t open sign-in. Use the sign-in link below to continue." });
+          edit({ notice: "Nexus couldn’t open sign-in. Use the sign-in link below to continue." });
           onPhaseChange?.("needs_retry");
         }
         return;

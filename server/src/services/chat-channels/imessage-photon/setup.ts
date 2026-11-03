@@ -5,21 +5,21 @@ import type { EndpointRow } from "../runtime-types.js";
 import { type CredentialMutationLeaseGuard } from "../../chat-credential-mutation-lease.js";
 
 import { photonSharedScope, photonSharedIdentity } from "../../photon/cloud.js";
-import { photonChannelConfigurationSchema } from "@paperclipai/shared";
+import { photonChannelConfigurationSchema } from "@nexusai/shared";
 
 import {
   and,
   eq,
   ne,
 } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   chatEndpoints,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ConfigureChatEndpointInput,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   conflict,

@@ -3,7 +3,7 @@ import { idleWorkSnapshot } from "../services/task-admission.js";
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, vi } from "vitest";
-import { agents, authUsers, companies, companyMemberships, createDb, heartbeatRuns } from "@paperclipai/db";
+import { agents, authUsers, companies, companyMemberships, createDb, heartbeatRuns } from "@nexusai/db";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { heartbeatService } from "../services/heartbeat.js";
@@ -13,7 +13,7 @@ import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordin
 
 vi.setConfig({ testTimeout: 90_000 });
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_ISSUE_RECOVERY_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_ISSUE_RECOVERY_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 export const describeIssueRecovery: ReturnType<typeof describe.skipIf> = describe.skipIf(!support.supported);
 
@@ -109,7 +109,7 @@ export function issueRecoveryFixture() {
     await new Promise<void>(resolve => listener.listen(0, "127.0.0.1", resolve));
     extraStops.push(async () => { listener.closeAllConnections(); await new Promise<void>(resolve => listener.close(() => resolve())); });
     const port = (listener.address() as { port: number }).port;
-    const script = `fetch("http://127.0.0.1:${port}/complete", {method:"POST", body:JSON.stringify({runId:process.env.PAPERCLIP_RUN_ID})}).then(async response=>{if(!response.ok)throw new Error(await response.text());console.log("recovery-proof")}).catch(error=>{console.error(error);process.exitCode=1})`;
+    const script = `fetch("http://127.0.0.1:${port}/complete", {method:"POST", body:JSON.stringify({runId:process.env.NEXUS_RUN_ID})}).then(async response=>{if(!response.ok)throw new Error(await response.text());console.log("recovery-proof")}).catch(error=>{console.error(error);process.exitCode=1})`;
     await db.update(agents).set({ adapterConfig: { command: process.execPath, args: ["-e", script], cwd: process.cwd() } })
       .where(eq(agents.id, f.agentId));
     return failures;
@@ -210,7 +210,7 @@ export function issueRecoveryFixture() {
     await new Promise<void>(resolve => listener.listen(0, "127.0.0.1", resolve));
     extraStops.push(async () => { listener.closeAllConnections(); await new Promise<void>(resolve => listener.close(() => resolve())); });
     const port = (listener.address() as { port: number }).port;
-    const script = `fetch("http://127.0.0.1:${port}/reply", {method:"POST", body:JSON.stringify({runId:process.env.PAPERCLIP_RUN_ID})}).then(async response=>{if(!response.ok)throw new Error(await response.text());console.log("recovery-proof")}).catch(error=>{console.error(error);process.exitCode=1})`;
+    const script = `fetch("http://127.0.0.1:${port}/reply", {method:"POST", body:JSON.stringify({runId:process.env.NEXUS_RUN_ID})}).then(async response=>{if(!response.ok)throw new Error(await response.text());console.log("recovery-proof")}).catch(error=>{console.error(error);process.exitCode=1})`;
     await db.update(agents).set({ adapterConfig: { command: process.execPath, args: ["-e", script], cwd: process.cwd() } })
       .where(eq(agents.id, f.agentId));
     const chat = await issueService(db).create(f.companyId, { title: "Saved conversation", status: "in_review",

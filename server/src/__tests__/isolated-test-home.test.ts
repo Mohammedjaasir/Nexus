@@ -26,13 +26,13 @@ it("removes immutable cache directories at process exit even after filesystem sp
     console.log(owned.home);
   `, helper], { encoding: "utf8" });
   const home = result.trim();
-  expect(path.basename(home)).toMatch(/^paperclip-vitest-home-/);
+  expect(path.basename(home)).toMatch(/^nexus-vitest-home-/);
   expect(fs.existsSync(home)).toBe(false);
 });
 
 it("never follows links from an owned home into another directory", () => {
   const owned = createIsolatedTestHome();
-  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-cleanup-outside-"));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-cleanup-outside-"));
   try {
     fs.writeFileSync(path.join(outside, "private"), "retained");
     fs.chmodSync(outside, 0o555);

@@ -1,4 +1,4 @@
-import { isPaperclipExternalChatContractTurn, normalizePaperclipWakePayload } from "@paperclipai/adapter-utils/server-utils";
+import { isNexusExternalChatContractTurn, normalizeNexusWakePayload } from "@nexusai/adapter-utils/server-utils";
 import type { CaseExecutionContext, projectCaseContinuation } from "../case-context.js";
 import { caseInstructionAlreadyRepresented } from "../case-context.js";
 
@@ -16,7 +16,7 @@ export function buildNativeContinuationPrompt(input: {
   workflowCase?: ReturnType<typeof projectCaseContinuation>;
   previousGitHubReviewConfigurationKeys?: readonly string[];
 }): string | null {
-  const wake = normalizePaperclipWakePayload(input.wakePayload);
+  const wake = normalizeNexusWakePayload(input.wakePayload);
   const continuation = wake?.executionContinuation;
   const delta = continuation?.resumeDelta;
   if (!wake || !delta || delta.baseRunId !== input.previousRunId) return null;
@@ -36,7 +36,7 @@ export function buildNativeContinuationPrompt(input: {
         ((comment as Record<string, unknown>).attachments as unknown[]).length > 0)));
   const externalChat = input.allowExternalChat === true &&
     (wake.externalChatProvider === "slack" || wake.externalChatProvider === "github") &&
-    isPaperclipExternalChatContractTurn(input.wakePayload) &&
+    isNexusExternalChatContractTurn(input.wakePayload) &&
     !hasAttachmentContext && wake.commentIds.length > 0 &&
     wake.latestCommentId === wake.commentIds.at(-1) &&
     new Set(wake.commentIds).size === wake.commentIds.length &&

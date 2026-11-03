@@ -1,18 +1,18 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { nativeSystemInstructions } from "../../../packages/paperclip-runner/src/backends/runtime-context.js";
-import type { NativeExecutionInput } from "../vendor/paperclip-runner/index.js";
+import { nativeSystemInstructions } from "../../../packages/nexus-runner/src/backends/runtime-context.js";
+import type { NativeExecutionInput } from "../vendor/nexus-runner/index.js";
 import { randomUUID } from "node:crypto";
 import { access, mkdtemp, writeFile, rm, readFile } from "node:fs/promises";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agents, companies, companyMemberships, connectionGrants, createDb, heartbeatRuns, issues, toolApplications, toolCatalogEntries, toolConnections, toolPolicies, toolProfileBindings, toolActionRequests } from "@paperclipai/db";
+import { agents, companies, companyMemberships, connectionGrants, createDb, heartbeatRuns, issues, toolApplications, toolCatalogEntries, toolConnections, toolPolicies, toolProfileBindings, toolActionRequests } from "@nexusai/db";
 import { createToolGatewayService } from "../services/tool-gateway.js";
 import { toolDiscoveryScheduler } from "../services/tool-discovery-scheduler.js";
 import { toolAccessService, projectedConnectionToolArguments, projectedConnectionToolInputSchema } from "../services/tool-access.js";
 import { composeConnectionInstructions, prepareConnectionInstructionDelivery } from "../services/connection-instructions.js";
-import { renderPaperclipWakePrompt } from "@paperclipai/adapter-utils/server-utils";
-import { canonicalNativeRuntimeContextDigest, parseNativeRuntimeContext } from "../vendor/paperclip-runner/index.js";
+import { renderNexusWakePrompt } from "@nexusai/adapter-utils/server-utils";
+import { canonicalNativeRuntimeContextDigest, parseNativeRuntimeContext } from "../vendor/nexus-runner/index.js";
 import { nativeRuntimeContextFixture } from "../services/native-runtime/runtime-context.test-fixture.js";
 import { execute as executeProcess } from "../adapters/process/execute.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
@@ -99,7 +99,7 @@ async function createRemoteMcpToolFixture(db: ReturnType<typeof createDb>, compa
 (support.supported ? describe : describe.skip)("generic connection instruction delivery", () => {
   let db: ReturnType<typeof createDb>;
   let temp: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
-  beforeAll(async () => { temp = await startEmbeddedPostgresTestDatabase("paperclip-connection-instructions-"); db = createDb(temp.connectionString); }, 30000);
+  beforeAll(async () => { temp = await startEmbeddedPostgresTestDatabase("nexus-connection-instructions-"); db = createDb(temp.connectionString); }, 30000);
   afterAll(async () => { await temp?.cleanup(); });
   async function fixture() {
     const run = await createRunFixture(db);
@@ -134,12 +134,12 @@ async function createRemoteMcpToolFixture(db: ReturnType<typeof createDb>, compa
   it("persists a non-memory paragraph and captures it in actual process input and both prompt composers", async () => {
     const f = await fixture();
     expect((await f.service.getConnection(f.connection.id)).agentInstructions).toEqual({ enabled: true, text: paragraph });
-    const context: Record<string, unknown> = { connectionInstructions: { text: "forged" }, paperclipWake: { connectionInstructions: { text: "forged wake" } } };
-    const config = await prepareConnectionInstructionDelivery({ resolve: f.resolve, context, config: { paperclipConnectionInstructions: { text: "forged config" } }, native: false });
-    const snapshot = config.paperclipConnectionInstructions as { text: string; digest: string };
+    const context: Record<string, unknown> = { connectionInstructions: { text: "forged" }, nexusWake: { connectionInstructions: { text: "forged wake" } } };
+    const config = await prepareConnectionInstructionDelivery({ resolve: f.resolve, context, config: { nexusConnectionInstructions: { text: "forged config" } }, native: false });
+    const snapshot = config.nexusConnectionInstructions as { text: string; digest: string };
     expect(snapshot.text).toContain(paragraph);
     expect(snapshot.text).not.toContain("forged");
-    expect(renderPaperclipWakePrompt(context.paperclipWake)).toContain(paragraph);
+    expect(renderNexusWakePrompt(context.nexusWake)).toContain(paragraph);
     const runtimeContext = { ...nativeRuntimeContextFixture(), connectionInstructions: snapshot };
     runtimeContext.aggregateDigest = canonicalNativeRuntimeContextDigest(runtimeContext);
     const parsed = parseNativeRuntimeContext(runtimeContext);
@@ -153,7 +153,7 @@ async function createRemoteMcpToolFixture(db: ReturnType<typeof createDb>, compa
     expect(parseNativeRuntimeContext(nativeRuntimeContextFixture()).connectionInstructions).toBeUndefined();
     const captured: string[] = [];
     const result = await executeProcess({ runId: f.run.id, agent: { ...f.agent, adapterType: "process" }, runtime: { sessionId: null, sessionParams: null, sessionDisplayId: null, taskKey: null }, context,
-      config: { command: process.execPath, args: ["-e", "const fs=require('node:fs');const file=process.env.PAPERCLIP_CONNECTION_INSTRUCTIONS_FILE;console.log(JSON.stringify({file,mode:fs.statSync(file).mode&511,snapshot:JSON.parse(fs.readFileSync(file,'utf8'))}))"], env: { PAPERCLIP_CONNECTION_INSTRUCTIONS_FILE: "/forged" } },
+      config: { command: process.execPath, args: ["-e", "const fs=require('node:fs');const file=process.env.NEXUS_CONNECTION_INSTRUCTIONS_FILE;console.log(JSON.stringify({file,mode:fs.statSync(file).mode&511,snapshot:JSON.parse(fs.readFileSync(file,'utf8'))}))"], env: { NEXUS_CONNECTION_INSTRUCTIONS_FILE: "/forged" } },
       onLog: async (_stream, text) => { captured.push(text); },
     });
     expect(result.exitCode).toBe(0);
@@ -185,10 +185,10 @@ async function createRemoteMcpToolFixture(db: ReturnType<typeof createDb>, compa
     expect(await f.resolve()).toBeNull();
     const session = await f.gateway.createSession(f.binding);
     expect((await f.gateway.listToolsForSession(session.token)).some(tool => tool.connectionId === f.connection.id)).toBe(true);
-    const context: Record<string, unknown> = { connectionInstructions: first, paperclipWake: { connectionInstructions: first } };
-    const config = await prepareConnectionInstructionDelivery({ resolve: f.resolve, context, config: { paperclipConnectionInstructions: first }, native: false });
-    expect(config.paperclipConnectionInstructions).toBeNull();
-    expect(renderPaperclipWakePrompt(context.paperclipWake)).not.toContain(paragraph);
+    const context: Record<string, unknown> = { connectionInstructions: first, nexusWake: { connectionInstructions: first } };
+    const config = await prepareConnectionInstructionDelivery({ resolve: f.resolve, context, config: { nexusConnectionInstructions: first }, native: false });
+    expect(config.nexusConnectionInstructions).toBeNull();
+    expect(renderNexusWakePrompt(context.nexusWake)).not.toContain(paragraph);
   });
 
   it("follows assignment, action policy, grant revocation, and company boundaries", async () => {

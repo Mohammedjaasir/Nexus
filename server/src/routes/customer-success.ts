@@ -1,6 +1,6 @@
 import { createPublicKey, verify } from "node:crypto";
 import { Router } from "express";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   canonicalJson,
   parseInspectionQuery,
@@ -8,7 +8,7 @@ import {
   INSPECTION_PERMIT_TYPE,
   INSPECTION_HEADER,
   type InspectionPermit,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import type { StorageService } from "../storage/types.js";
 import { getCloudRuntimeIdentity } from "../services/cloud-runtime-identity.js";
 import { customerSuccessRunAuthority } from "../services/customer-success-authority.js";
@@ -44,7 +44,7 @@ export function verifyInspectionPermit(
     const seconds = Math.floor(now / 1000);
     if (
       claims.v !== 1 ||
-      claims.iss !== "paperclip-cloud" ||
+      claims.iss !== "nexus-cloud" ||
       claims.aud !== INSPECTION_AUDIENCE ||
       claims.sub !== stackId ||
       !Number.isInteger(claims.iat) ||
@@ -77,7 +77,7 @@ export function customerSuccessRoutes(db: Db, storage: StorageService, options: 
     next();
   });
   router.get("/run-authority", async (req, res) => {
-    if (process.env.PAPERCLIP_CUSTOMER_SUCCESS_AUTHORITY_ENABLED !== "true")
+    if (process.env.NEXUS_CUSTOMER_SUCCESS_AUTHORITY_ENABLED !== "true")
       throw forbidden("Run authority is disabled");
     if (req.headers.cookie) throw forbidden("Browser credentials are not run authority");
     const match = req.headers.authorization?.match(/^Bearer ([A-Za-z0-9_.-]+)$/);
@@ -85,13 +85,13 @@ export function customerSuccessRoutes(db: Db, storage: StorageService, options: 
     res.json(await customerSuccessRunAuthority(db, match[1]));
   });
   router.post("/read", async (req, res) => {
-    if (process.env.PAPERCLIP_CUSTOMER_SUCCESS_INSPECTION_ENABLED !== "true")
+    if (process.env.NEXUS_CUSTOMER_SUCCESS_INSPECTION_ENABLED !== "true")
       throw forbidden("Inspection is disabled");
     if (req.headers.authorization || req.headers.cookie)
       throw forbidden("Only a Cloud inspection permit is accepted");
-    const stackId = getCloudRuntimeIdentity()?.stackId ?? process.env.PAPERCLIP_CLOUD_STACK_ID;
-    const rawKeys = process.env.PAPERCLIP_CUSTOMER_SUCCESS_INSPECTION_JWKS;
-    const origin = process.env.PAPERCLIP_CUSTOMER_SUCCESS_CLOUD_ORIGIN;
+    const stackId = getCloudRuntimeIdentity()?.stackId ?? process.env.NEXUS_CLOUD_STACK_ID;
+    const rawKeys = process.env.NEXUS_CUSTOMER_SUCCESS_INSPECTION_JWKS;
+    const origin = process.env.NEXUS_CUSTOMER_SUCCESS_CLOUD_ORIGIN;
     const token = req.get(INSPECTION_HEADER);
     if (!stackId || !rawKeys || !origin || !token)
       throw forbidden("Inspection trust is unavailable");

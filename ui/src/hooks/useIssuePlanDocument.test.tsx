@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { Issue, IssueDocument } from "@paperclipai/shared";
+import type { Issue, IssueDocument } from "@nexusai/shared";
 import { ApiError } from "@/api/client";
 import { issuesApi } from "@/api/issues";
 import { fetchIssueDetail, seedIssueDetailCache } from "@/lib/issueDetailCache";

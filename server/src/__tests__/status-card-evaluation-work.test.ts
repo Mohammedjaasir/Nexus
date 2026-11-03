@@ -7,8 +7,8 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { activityLog, agentWakeupRequests, agents, approvals, budgetIncidents, budgetPolicies, costEvents, companies, companyMemberships, createDb, documents, withDedicatedDbConnection,
-  heartbeatRuns, instanceSettings, issueComments, issueWorkProducts, issues, projects, statusCards, statusCardUpdates, documentRevisions } from "@paperclipai/db";
-import { companySearchQuerySchema, statusCardRefreshPolicySchema } from "@paperclipai/shared";
+  heartbeatRuns, instanceSettings, issueComments, issueWorkProducts, issues, projects, statusCards, statusCardUpdates, documentRevisions } from "@nexusai/db";
+import { companySearchQuerySchema, statusCardRefreshPolicySchema } from "@nexusai/shared";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
@@ -18,7 +18,7 @@ import { issueService } from "../services/issues.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_STATUS_CARD_EVALUATION_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_STATUS_CARD_EVALUATION_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("status-card evaluation work", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -130,7 +130,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const project = await projectService(db).create(companyId, { name: "Launch project" });
     await db.insert(agents).values({ companyId, name: "Launch agent", role: "general", status: "idle", adapterType: "process" });
     const holder = await issueService(db).create(companyId, { title: "Artifact holder", status: "todo", priority: "medium" });
-    await db.insert(issueWorkProducts).values({ companyId, issueId: holder.id, type: "artifact", provider: "paperclip",
+    await db.insert(issueWorkProducts).values({ companyId, issueId: holder.id, type: "artifact", provider: "nexus",
       title: "Launch artifact", status: "ready" });
     compiledQuery = companySearchQuerySchema.parse({ q: "launch", scope: "all", sort: "updated", limit: 1 });
     const created = await card();
@@ -527,7 +527,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
       const created = await card("reactive", { ...policy(), debounceSeconds: 1 });
       const countLocks = async () => Number((await db.execute<{ count: string }>(sql`
         select count(*) from pg_stat_activity where datname = current_database()
-        and application_name = 'paperclip-workspace-finalization-lock'`))[0]!.count);
+        and application_name = 'nexus-workspace-finalization-lock'`))[0]!.count);
       const baseline = await countLocks();
       await issueService(db).create(companyId, { title: "Pool-one blocker", status: "blocked", priority: "medium" });
       const service = statusCardEvaluationService(db, { wakeup });

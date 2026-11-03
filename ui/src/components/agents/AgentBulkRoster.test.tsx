@@ -3,7 +3,7 @@
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentBulkRoster } from "./AgentBulkRoster";
 
@@ -40,7 +40,7 @@ describe("pending agent roster display", () => {
 
   it("retains the pending harness label while keeping the placeholder unavailable for bulk editing", () => {
     const row = render({ setupAdapterPending: true,
-      setupAdapterChoice: { adapterType: "paperclip_runner", runnerProvider: "antigravity", runner: "auto" } });
+      setupAdapterChoice: { adapterType: "nexus_runner", runnerProvider: "antigravity", runner: "auto" } });
     expect([...row.querySelectorAll("td")].slice(2).map(cell => cell.textContent)).toEqual([
       "Google Antigravity", "Not configured", "Not available yet",
     ]);

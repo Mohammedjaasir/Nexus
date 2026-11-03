@@ -114,7 +114,7 @@ export function compactRunLogChunk(
   const headChars = Math.max(0, Math.floor(maxChars * 0.6));
   const tailChars = Math.max(0, Math.floor(maxChars * 0.25));
   const omittedChars = Math.max(0, normalized.length - headChars - tailChars);
-  const marker = `\n[paperclip truncated run log chunk: omitted ${omittedChars} chars]\n`;
+  const marker = `\n[nexus truncated run log chunk: omitted ${omittedChars} chars]\n`;
   return `${normalized.slice(0, headChars)}${marker}${normalized.slice(normalized.length - tailChars)}`;
 }
 

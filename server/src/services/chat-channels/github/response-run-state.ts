@@ -1,5 +1,5 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
-import { chatMessageLinks, heartbeatRuns, type Db } from "@paperclipai/db";
+import { chatMessageLinks, heartbeatRuns, type Db } from "@nexusai/db";
 import { chatRunSourceMessageId } from "../run-origin.js";
 
 export const responseRunColumns = {
@@ -18,7 +18,7 @@ export const responseRunColumns = {
     ${heartbeatRuns.status} = 'succeeded'
     and ${heartbeatRuns.runtimeMode} = 'native'
     and (${heartbeatRuns.nativePhase} is distinct from 'committed'
-      or ${heartbeatRuns.resultJson}->'presentationDecision'->>'schema' is distinct from 'paperclip.run_presentation_decision.v1'
+      or ${heartbeatRuns.resultJson}->'presentationDecision'->>'schema' is distinct from 'nexus.run_presentation_decision.v1'
       or coalesce(${heartbeatRuns.resultJson}->'presentationDecision'->>'commentAction', '') not in ('none', 'create', 'reuse')),
     false
   )`,
@@ -30,10 +30,10 @@ export const responseRunColumns = {
     and ${heartbeatRuns.nativePhase} = 'committed'
     and ${heartbeatRuns.resultJson}->>'finalizationPhase' = 'committed'
     and ${heartbeatRuns.resultJson}->>'finalizationReasonCode' = 'external_chat_response_waiting'
-    and ${heartbeatRuns.resultJson}->'nativeResult'->>'schema' = 'paperclip.run_result.v1'
+    and ${heartbeatRuns.resultJson}->'nativeResult'->>'schema' = 'nexus.run_result.v1'
     and ${heartbeatRuns.resultJson}->'nativeResult'->>'reportedWorkDisposition' = 'yielded'
     and ${heartbeatRuns.resultJson}->'nativeResult'->'continuation'->>'kind' = 'response_wake'
-    and ${heartbeatRuns.resultJson}->'presentationDecision'->>'schema' = 'paperclip.run_presentation_decision.v1'
+    and ${heartbeatRuns.resultJson}->'presentationDecision'->>'schema' = 'nexus.run_presentation_decision.v1'
     and ${heartbeatRuns.resultJson}->'presentationDecision'->>'chosenSource' = 'none'
     and ${heartbeatRuns.resultJson}->'presentationDecision'->>'commentAction' = 'none'
     and ${heartbeatRuns.resultJson}->'presentationDecision'->'reasonCodes' @> '["yielded_control_plane_wait"]'::jsonb,

@@ -15,7 +15,7 @@ import {
   runIdentityContexts,
   toolApplications,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { GITHUB_BOT_TOOLS, githubGuestBotConnectionForSession } from "./chat-github-tools.js";
 
@@ -37,7 +37,7 @@ describe("GitHub review tool contract", () => {
     });
     expect(submit.schema).not.toHaveProperty("properties.findings.items.properties.category.enum");
   });
-  it("tells new bots which review sections Paperclip renders", () => {
+  it("tells new bots which review sections Nexus renders", () => {
     const submit = GITHUB_BOT_TOOLS.find(tool => tool.name === "submit_review")!;
     const properties = submit.schema.properties!;
     expect(properties.summary).toMatchObject({
@@ -45,7 +45,7 @@ describe("GitHub review tool contract", () => {
       maxLength: 24000,
     });
     expect(properties.summary).toMatchObject({
-      description: expect.stringContaining("Paperclip adds"),
+      description: expect.stringContaining("Nexus adds"),
     });
     expect(properties.rationale).toMatchObject({
       description: expect.stringContaining("Do not repeat the summary"),
@@ -60,7 +60,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let db: ReturnType<typeof createDb>;
 
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-github-guest-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-github-guest-");
     db = createDb(database.connectionString);
   }, 30_000);
   afterAll(async () => { await database?.cleanup(); }, 60_000);

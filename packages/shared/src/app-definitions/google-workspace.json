@@ -25,11 +25,11 @@
   "redirectConstraints": "https-or-loopback-http",
   "methods": [
     {
-      "key": "paperclip-workspace",
-      "label": "Connect with Paperclip",
+      "key": "nexus-workspace",
+      "label": "Connect with Nexus",
       "transport": "mcp_remote",
       "auth": "oauth",
-      "oauthStrategy": "paperclip_cloud_connector",
+      "oauthStrategy": "nexus_cloud_connector",
       "connectorProfile": "workspace.all",
       "capabilityProfile": {
         "key": "workspace",
@@ -43,7 +43,7 @@
       "ownershipModes": [
         "platform_shared"
       ],
-      "whenToUse": "Use one Paperclip-managed sign-in for your selected Google services.",
+      "whenToUse": "Use one Nexus-managed sign-in for your selected Google services.",
       "defaults": {
         "serverUrl": "https://workspacemcp.googleapis.com/mcp/v1",
         "scopesHint": [
@@ -110,7 +110,7 @@
           "prompt": "consent"
         }
       },
-      "guidanceMd": "Enable the Google Workspace MCP APIs and register Paperclip's callback URI. Choose which permissions to grant on Google's consent screen; declined permissions disable only the corresponding actions.",
+      "guidanceMd": "Enable the Google Workspace MCP APIs and register Nexus's callback URI. Choose which permissions to grant on Google's consent screen; declined permissions disable only the corresponding actions.",
       "consoleLinks": {
         "register": "https://console.cloud.google.com/auth/clients",
         "docs": "https://developers.google.com/workspace/guides/configure-mcp-servers"

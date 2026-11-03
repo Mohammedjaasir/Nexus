@@ -8,10 +8,10 @@ import { agentService } from "./agents.js";
 import { createHash } from "node:crypto";
 import { logActivity } from "./activity-log.js";
 import { aiConnectionService } from "./ai-connections.js";
-import { aiConnectionBindingSchema, aiConnectionRouterBindingSchema } from "@paperclipai/shared";
+import { aiConnectionBindingSchema, aiConnectionRouterBindingSchema } from "@nexusai/shared";
 import { aiBindingForAuthRecovery, isAiAuthenticationFailure, isAiAuthenticationRepairable } from "./ai-auth-failure.js";
 import { and, eq, desc, isNull, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   aiConnectionTaskPins,
@@ -29,7 +29,7 @@ import {
   issueThreadInteractions,
   issueComments,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   APP_STORE_DEFINITIONS,
   isUuidLike,
@@ -53,7 +53,7 @@ import {
   type ToolConnection,
   type AiConnectionAttribution,
   type AiConnectionBinding,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { instanceSettingsService } from "./instance-settings.js";
 import { conflict, forbidden, notFound, unprocessable } from "../errors.js";
 import type { RuntimeToolsTokenClaims } from "../runtime-tools-token.js";
@@ -654,7 +654,7 @@ export function connectionIntentService(db: Db) {
     if (!offered.length) return { version: 1, query, results: [], instruction: "The requested external provider is unavailable. Do not switch providers automatically." };
     const providerQuestion = aggregatorProviderQuestion(targetService, targetName, offered);
     return { version: 1, query, results: offered, providerQuestion, providerQuestionSet: aggregatorProviderQuestionSet(providerQuestion),
-      instruction: "No matching built-in Paperclip connection was found. Ask the responsible user with providerQuestion exactly as returned (including its id, full prompt, and options). With native request_human_input, use interactionKind questions, continuationPolicy wake_assignee, and payload {version:1, questionSet:providerQuestionSet} exactly as returned. Otherwise use ask_user_questions with payload {version:1, questions:[providerQuestion]}. These are external services. Wait for the saved answer; then call connection_request with the selected service identifier and selectionInteractionId set to the answered question interaction ID. None for now means do not connect. Do not claim app access yet." };
+      instruction: "No matching built-in Nexus connection was found. Ask the responsible user with providerQuestion exactly as returned (including its id, full prompt, and options). With native request_human_input, use interactionKind questions, continuationPolicy wake_assignee, and payload {version:1, questionSet:providerQuestionSet} exactly as returned. Otherwise use ask_user_questions with payload {version:1, questions:[providerQuestion]}. These are external services. Wait for the saved answer; then call connection_request with the selected service identifier and selectionInteractionId set to the answered question interaction ID. None for now means do not connect. Do not claim app access yet." };
 
     function discoverySuggestions(results: ConnectionSearchResultItem[]): ConnectionsSearchResult {
       return { version: 1, query, results: results.slice(0, 40),

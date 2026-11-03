@@ -106,7 +106,7 @@ function recording(): FirstTaskEvidence {
 }
 function result(): RunnerE2EResult {
   return {
-    schema: "paperclip.runner-e2e.result/v2",
+    schema: "nexus.runner-e2e.result/v2",
     suiteId: "first-task",
     executionId: "first-task.legacy-codex.local.clear-task-first-response",
     attempt: 1,
@@ -125,7 +125,7 @@ function result(): RunnerE2EResult {
     firstTask: recording(),
     failureClass: "secret_leak",
     error:
-      "Credential detected in persisted Paperclip home: sessions/example.json",
+      "Credential detected in persisted Nexus home: sessions/example.json",
   };
 }
 

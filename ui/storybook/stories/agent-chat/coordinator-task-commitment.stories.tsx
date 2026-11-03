@@ -8,7 +8,7 @@ import type { SuggestTasksInteraction } from "@/lib/issue-thread-interactions";
 import { CoordinatorChatDecisionReceipt } from "@/components/coordinator/CoordinatorChatDecisionReceipts";
 import { Button } from "@/components/ui/button";
 import { prepareFixtureApi } from "../../support/capability-gaps/api";
-import { storybookIssueDocuments } from "../../fixtures/paperclipData";
+import { storybookIssueDocuments } from "../../fixtures/nexusData";
 
 function suggestion(): SuggestTasksInteraction {
   return { ...pendingSuggestedTasksInteraction, id: `story-suggestion-${Date.now()}`, status: "pending", result: null,
@@ -29,7 +29,7 @@ function TaskCommitment() {
   </div></div></CoordinatorPresentation.Provider>;
 }
 const meta = { id: "coordinator-task-commitment", title: "Tasks and conversations/Agent conversations and project handoff/Coordinator task commitment", component: TaskCommitment,
-  parameters: { layout: "fullscreen", paperclip: { capabilities: ["agent-chat/handoff", "agent-chat/history"], status: "proposed", implementation: "production", boundary: "fixtures", notes: "Production Suggested Task card with Reject, Revise and Create, contained task motion, compact saved-plan link, created-task link and exact-revision receipt. Story-only canonical-shaped data and resolution callbacks; no agent execution, real task creation, delivery, task-detail destination or approval. Motion respects prefers-reduced-motion." } },
+  parameters: { layout: "fullscreen", nexus: { capabilities: ["agent-chat/handoff", "agent-chat/history"], status: "proposed", implementation: "production", boundary: "fixtures", notes: "Production Suggested Task card with Reject, Revise and Create, contained task motion, compact saved-plan link, created-task link and exact-revision receipt. Story-only canonical-shaped data and resolution callbacks; no agent execution, real task creation, delivery, task-detail destination or approval. Motion respects prefers-reduced-motion." } },
   beforeEach: () => prepareFixtureApi([
     { path: "/api/workspace-preferences/me", read: () => ({ userId: "user-board", coordinatorWorkspaceEnabled: true, updatedAt: new Date().toISOString() }) },
     { path: /\/api\/companies\/[^/]+\/issues\/summaries$/, read: () => [{ id: "storybook-task", identifier: "PAPER-108", title: "Write the launch post", status: "todo" }] },

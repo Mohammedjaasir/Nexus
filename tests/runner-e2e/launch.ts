@@ -48,8 +48,8 @@ import { readEvalOperationsReport } from "./operations-report.js";
 import {
   applyEvalGatewayEnvironment,
   buildRunnerE2EProcessEnvironment,
-  resolvePaperclipRemoteRunnerBinaryForHarness,
-  resolvePaperclipRunnerBinaryForHarness,
+  resolveNexusRemoteRunnerBinaryForHarness,
+  resolveNexusRunnerBinaryForHarness,
 } from "./harness-env.js";
 import { assertEmbeddedDatabaseIsolation } from "./instance-isolation.js";
 import {
@@ -151,7 +151,7 @@ async function terminateProcessGroup(pid: number) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   return processGroupIsAlive(pid)
-    ? `Paperclip/Playwright process group ${pid} survived SIGKILL`
+    ? `Nexus/Playwright process group ${pid} survived SIGKILL`
     : null;
 }
 
@@ -242,7 +242,7 @@ async function prepareProviderPath(
   const toolBin = path.join(temporaryRoot, "provider-bin");
   await mkdir(toolBin, { recursive: true });
   const runnerRequire = createRequire(
-    path.join(repositoryRoot, "packages/paperclip-runner/package.json"),
+    path.join(repositoryRoot, "packages/nexus-runner/package.json"),
   );
   const codexAcpPackage = runnerRequire.resolve(
     "@agentclientprotocol/codex-acp/package.json",
@@ -266,7 +266,7 @@ async function prepareProviderPath(
   );
   const packageBin = path.join(
     repositoryRoot,
-    "packages/paperclip-runner/node_modules/.bin",
+    "packages/nexus-runner/node_modules/.bin",
   );
   return [toolBin, packageBin, inheritedPath]
     .filter(Boolean)
@@ -417,7 +417,7 @@ function syntheticResult(
 ): RunnerE2EResult {
   const finishedAtMs = Date.now();
   return {
-    schema: "paperclip.runner-e2e.result/v2",
+    schema: "nexus.runner-e2e.result/v2",
     executionId: execution.id,
     suiteId: execution.suite.id,
     suiteDefinitionHash: execution.suiteDefinitionHash,
@@ -459,9 +459,9 @@ async function runAttempt(input: {
   operations?: EvalOperations;
 }): Promise<RunnerE2EResult[]> {
   const { executions, attempt, campaignId, options } = input;
-  const accountingCampaignId = input.operations?.manifest.limits.campaignId ?? process.env.PAPERCLIP_E2E_ACCOUNTING_CAMPAIGN_ID ?? campaignId;
+  const accountingCampaignId = input.operations?.manifest.limits.campaignId ?? process.env.NEXUS_E2E_ACCOUNTING_CAMPAIGN_ID ?? campaignId;
   const accountingAttemptId = randomBytes(16).toString("hex");
-  const traceConfig = evalBraintrustConfig({ ...process.env, PAPERCLIP_E2E_OTLP_RELAY_URL: undefined });
+  const traceConfig = evalBraintrustConfig({ ...process.env, NEXUS_E2E_OTLP_RELAY_URL: undefined });
   const execution = executions[0];
   if (!execution) throw new Error("A runner E2E cell must contain a task case");
   if (
@@ -503,23 +503,23 @@ async function runAttempt(input: {
   let gateway: Awaited<ReturnType<EvalOperations["start"]>> | undefined;
   const rawCleanupResults: Array<{ cleanup: string; synthetic: boolean; status: string }> = [];
   try {
-    const paperclipHome = path.join(temporaryRoot, "paperclip-home");
+    const nexusHome = path.join(temporaryRoot, "nexus-home");
     const workspace = path.join(temporaryRoot, "workspace");
     const instanceId = `runner-e2e-${randomBytes(8).toString("hex")}`;
     const configPath = path.join(
-      paperclipHome,
+      nexusHome,
       "instances",
       instanceId,
       "config.json",
     );
     const port = await reserveRunnerE2EServerPort();
-    if (process.env.PAPERCLIP_RUNNER_E2E_POSTGRES_ADMIN_URL) {
+    if (process.env.NEXUS_RUNNER_E2E_POSTGRES_ADMIN_URL) {
       externalDatabase = await createExternalControllerDatabase({
-        adminUrl: process.env.PAPERCLIP_RUNNER_E2E_POSTGRES_ADMIN_URL, temporaryRoot, configPath, serverPort: port,
+        adminUrl: process.env.NEXUS_RUNNER_E2E_POSTGRES_ADMIN_URL, temporaryRoot, configPath, serverPort: port,
       });
     }
     await Promise.all([
-      mkdir(paperclipHome, { recursive: true }),
+      mkdir(nexusHome, { recursive: true }),
       mkdir(workspace, { recursive: true }),
       mkdir(privateDir, { recursive: true }),
     ]);
@@ -536,12 +536,12 @@ async function runAttempt(input: {
     const betterAuthSecret = secret(48);
     gateway = await input.operations?.start(execution, accountingAttemptId, attempt);
     const credentialSources = {
-      PAPERCLIP_E2E_GATEWAY_TOKEN: gateway?.token,
-      PAPERCLIP_E2E_OTLP_RELAY_TOKEN: gateway?.observability?.token,
+      NEXUS_E2E_GATEWAY_TOKEN: gateway?.token,
+      NEXUS_E2E_OTLP_RELAY_TOKEN: gateway?.observability?.token,
       ...Object.fromEntries([...CREDENTIAL_NAMES, ...EVAL_OBSERVABILITY_SECRET_NAMES].map((name) => [name, process.env[name]])),
-      PAPERCLIP_AGENT_JWT_SECRET: agentJwtSecret,
-      PAPERCLIP_DECISION_SIGNING_SECRET: decisionSigningSecret,
-      PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: toolActionSigningSecret,
+      NEXUS_AGENT_JWT_SECRET: agentJwtSecret,
+      NEXUS_DECISION_SIGNING_SECRET: decisionSigningSecret,
+      NEXUS_TOOL_ACTION_SIGNING_SECRET: toolActionSigningSecret,
       BETTER_AUTH_SECRET: betterAuthSecret,
     };
     const credentials = normalizedSecrets(Object.values(credentialSources));
@@ -549,34 +549,34 @@ async function runAttempt(input: {
     if (manualPrivateHandoff) for (const credential of credentials) manualEvidenceSecrets.add(credential);
     if (installedCli) await writeFile(path.join(privateDir, "installed-cli-admission.json"), `${JSON.stringify(installedCli, null, 2)}\n`, { mode: 0o600 });
     if (installedPlugin) await writeFile(path.join(privateDir, "installed-daytona-plugin-admission.json"), `${JSON.stringify(installedPlugin, null, 2)}\n`, { mode: 0o600 });
-    const runnerBinary = installedCli ? undefined : resolvePaperclipRunnerBinaryForHarness(
+    const runnerBinary = installedCli ? undefined : resolveNexusRunnerBinaryForHarness(
       executions,
       repositoryRoot,
     );
     const childEnv: NodeJS.ProcessEnv = {
       ...buildRunnerE2EProcessEnvironment(process.env, executions),
       PATH: providerPath,
-      PAPERCLIP_RUNNER_E2E_EXECUTION_IDS: JSON.stringify(
+      NEXUS_RUNNER_E2E_EXECUTION_IDS: JSON.stringify(
         executions.map((candidate) => candidate.id),
       ),
-      PAPERCLIP_RUNNER_E2E_ATTEMPT: String(attempt),
-      PAPERCLIP_E2E_ACCOUNTING_CAMPAIGN_ID: accountingCampaignId,
-      PAPERCLIP_E2E_ACCOUNTING_ATTEMPT_ID: accountingAttemptId,
-      PAPERCLIP_RUNNER_E2E_INSTALLED_STARTUP_ONLY: options.installedStartupOnly ? "1" : undefined,
-      PAPERCLIP_RUNNER_E2E_PUBLIC_MCP: executions.some(candidate => candidate.task.flow === "public_mcp") ? "1" : "0",
-      PAPERCLIP_RUNNER_E2E_PORT: String(port),
-      PAPERCLIP_RUNNER_E2E_TEMP_ROOT: temporaryRoot,
-      PAPERCLIP_RUNNER_E2E_PRIVATE_DIR: privateDir,
-      PAPERCLIP_RUNNER_E2E_WORKSPACE: workspace,
-      PAPERCLIP_RUNNER_E2E_SERVER_LOG: path.join(privateDir, "server.log"),
-      PAPERCLIP_RUNNER_BINARY: runnerBinary,
-      PAPERCLIP_RUNNER_REMOTE_BINARY_PATH:
-        installedCli ? undefined : resolvePaperclipRemoteRunnerBinaryForHarness(executions, runnerBinary),
+      NEXUS_RUNNER_E2E_ATTEMPT: String(attempt),
+      NEXUS_E2E_ACCOUNTING_CAMPAIGN_ID: accountingCampaignId,
+      NEXUS_E2E_ACCOUNTING_ATTEMPT_ID: accountingAttemptId,
+      NEXUS_RUNNER_E2E_INSTALLED_STARTUP_ONLY: options.installedStartupOnly ? "1" : undefined,
+      NEXUS_RUNNER_E2E_PUBLIC_MCP: executions.some(candidate => candidate.task.flow === "public_mcp") ? "1" : "0",
+      NEXUS_RUNNER_E2E_PORT: String(port),
+      NEXUS_RUNNER_E2E_TEMP_ROOT: temporaryRoot,
+      NEXUS_RUNNER_E2E_PRIVATE_DIR: privateDir,
+      NEXUS_RUNNER_E2E_WORKSPACE: workspace,
+      NEXUS_RUNNER_E2E_SERVER_LOG: path.join(privateDir, "server.log"),
+      NEXUS_RUNNER_BINARY: runnerBinary,
+      NEXUS_RUNNER_REMOTE_BINARY_PATH:
+        installedCli ? undefined : resolveNexusRemoteRunnerBinaryForHarness(executions, runnerBinary),
       // Vite's optimized dependency cache embeds revision query strings. A
       // private per-attempt cache prevents an earlier cell or local rebuild
       // from producing `504 Outdated Optimize Dep` during browser bootstrap.
-      PAPERCLIP_VITE_CACHE_DIR: path.join(temporaryRoot, "vite-cache"),
-      PAPERCLIP_RUNNER_E2E_TEST_TIMEOUT_MS: String(
+      NEXUS_VITE_CACHE_DIR: path.join(temporaryRoot, "vite-cache"),
+      NEXUS_RUNNER_E2E_TEST_TIMEOUT_MS: String(
         Math.max(
           ...executions.map(
             (candidate) =>
@@ -584,12 +584,12 @@ async function runAttempt(input: {
           ),
         ),
       ),
-      PAPERCLIP_HOME: paperclipHome,
-      PAPERCLIP_INSTANCE_ID: instanceId,
-      PAPERCLIP_CONFIG: configPath,
-      PAPERCLIP_AGENT_JWT_SECRET: agentJwtSecret,
-      PAPERCLIP_DECISION_SIGNING_SECRET: decisionSigningSecret,
-      PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: toolActionSigningSecret,
+      NEXUS_HOME: nexusHome,
+      NEXUS_INSTANCE_ID: instanceId,
+      NEXUS_CONFIG: configPath,
+      NEXUS_AGENT_JWT_SECRET: agentJwtSecret,
+      NEXUS_DECISION_SIGNING_SECRET: decisionSigningSecret,
+      NEXUS_TOOL_ACTION_SIGNING_SECRET: toolActionSigningSecret,
       BETTER_AUTH_SECRET: betterAuthSecret,
     };
     if (gateway) {
@@ -701,7 +701,7 @@ async function runAttempt(input: {
       try {
         const expectedEphemeralCredentials = new Set<string>();
         for (const [label, directory] of [
-          ["Paperclip home", paperclipHome],
+          ["Nexus home", nexusHome],
           ["workspace", workspace],
         ] as const) {
           while (true) {
@@ -710,16 +710,16 @@ async function runAttempt(input: {
             const leak = await findSecretLeakInDirectory(directory, credentials, {
               includeShapes: false,
               sources: credentialSources,
-              ...(label === "Paperclip home" ? { privateCodexRuntimeIdentityRoot: paperclipHome } : {}),
+              ...(label === "Nexus home" ? { privateCodexRuntimeIdentityRoot: nexusHome } : {}),
               ignoreFile: (file) => expectedEphemeralCredentials.has(file),
               allowDisappearedFile: (file) =>
-                label === "Paperclip home" &&
-                isEphemeralPostgresScanFile(paperclipHome, file),
+                label === "Nexus home" &&
+                isEphemeralPostgresScanFile(nexusHome, file),
             });
             if (!leak) break;
             const isManagedCodexRuntimeAuth =
-              label === "Paperclip home" &&
-              isEphemeralCodexRuntimeAuthFile(paperclipHome, leak.file);
+              label === "Nexus home" &&
+              isEphemeralCodexRuntimeAuthFile(nexusHome, leak.file);
             if (isManagedCodexRuntimeAuth) {
               const metadata = await lstat(leak.file);
               if (metadata.isFile() && (metadata.mode & 0o777) === 0o600) {
@@ -898,7 +898,7 @@ async function runAttempt(input: {
       await chmod(temporaryRoot, 0o700);
       cleanupError = new Error(`Preserving private recovery state after unconfirmed cleanup: ${temporaryRoot}`);
     } else if (shouldKeepFailedDiagnostics({
-      enabled: process.env.PAPERCLIP_RUNNER_E2E_KEEP_FAILED_PRIVATE === "1",
+      enabled: process.env.NEXUS_RUNNER_E2E_KEEP_FAILED_PRIVATE === "1",
       expectedResults: executions.length,
       results: publishedResults,
     })) {
@@ -907,7 +907,7 @@ async function runAttempt(input: {
       await chmod(temporaryRoot, 0o700);
       console.warn(`Retained private failed-case diagnostics: ${temporaryRoot}`);
     } else if (
-      temporaryRoot.startsWith(`${temporaryParent}${path.sep}paperclip-runner-e2e-`)
+      temporaryRoot.startsWith(`${temporaryParent}${path.sep}nexus-runner-e2e-`)
     ) {
       for (let cleanupAttempt = 1; cleanupAttempt <= 3; cleanupAttempt += 1) {
         try {
@@ -1070,7 +1070,7 @@ async function main() {
   if (options.installedStartupOnly) {
     assertInstalledStartupOnly(process.env, executions, options);
     assertRunnerE2EPrerequisites(executions);
-    const campaignId = cleanId(process.env.PAPERCLIP_E2E_CAMPAIGN_ID ?? `installed-startup-${Date.now()}`);
+    const campaignId = cleanId(process.env.NEXUS_E2E_CAMPAIGN_ID ?? `installed-startup-${Date.now()}`);
     await runAttempt({ executions, attempt: 1, campaignId, options });
     console.log(`PASS installed launch chain (no provider qualification) -> ${path.join(resultsRoot, campaignId, "installed-startup-only")}`);
     return;
@@ -1091,7 +1091,7 @@ async function main() {
     return;
   }
 
-  if (process.env.PAPERCLIP_E2E_OPERATIONS_MANIFEST && executions.some(execution => execution.task.flow === "provider_connection")) throw new Error("Provider connection campaign has no budgeted routing qualification");
+  if (process.env.NEXUS_E2E_OPERATIONS_MANIFEST && executions.some(execution => execution.task.flow === "provider_connection")) throw new Error("Provider connection campaign has no budgeted routing qualification");
   if (executions.some(execution => execution.task.flow === "antigravity_agent_journey")) {
     if (options.connectionConfig || options.githubReviewConfig || options.provisionGitHubRepository) throw new Error("Use --antigravity-journey-config for the Antigravity journey.");
     const { runAntigravityJourneyCampaign } = await import("./antigravity-journey-launch.js");
@@ -1120,7 +1120,7 @@ async function main() {
   assertNativeCompletionSelection(executions);
   assertNativeInstructionSelection(executions);
   const campaignId = cleanId(
-    process.env.PAPERCLIP_E2E_CAMPAIGN_ID ??
+    process.env.NEXUS_E2E_CAMPAIGN_ID ??
       `local-${new Date().toISOString().replace(/[:.]/g, "-")}`,
   );
   await loadLocalEnvironment(process.env);
@@ -1137,7 +1137,7 @@ async function main() {
   }
 
   assertRemoteNativeEvidencePrerequisites(executions, process.env);
-  const missingCredentials = process.env.PAPERCLIP_E2E_OPERATIONS_MANIFEST ? [] : [
+  const missingCredentials = process.env.NEXUS_E2E_OPERATIONS_MANIFEST ? [] : [
     ...new Set(
       executions.flatMap((execution) => execution.requiredCredentials),
     ),
@@ -1149,10 +1149,10 @@ async function main() {
   }
   if (
     executions.some((execution) => execution.environment.id === "daytona") &&
-    !isImmutableDaytonaImage(process.env.PAPERCLIP_E2E_DAYTONA_IMAGE)
+    !isImmutableDaytonaImage(process.env.NEXUS_E2E_DAYTONA_IMAGE)
   ) {
     throw new Error(
-      "PAPERCLIP_E2E_DAYTONA_IMAGE must be an immutable image@sha256 digest for Daytona cells",
+      "NEXUS_E2E_DAYTONA_IMAGE must be an immutable image@sha256 digest for Daytona cells",
     );
   }
 
@@ -1181,8 +1181,8 @@ async function main() {
     `Running ${executions.length} isolated execution(s) with max parallelism ${requestedParallelism}`,
   );
   const attempts: RunnerE2EResult[] = [];
-  const operations = process.env.PAPERCLIP_E2E_OPERATIONS_MANIFEST
-    ? await openEvalOperations(process.env.PAPERCLIP_E2E_OPERATIONS_MANIFEST, executions, options.maxAutomaticRetries, process.env) : undefined;
+  const operations = process.env.NEXUS_E2E_OPERATIONS_MANIFEST
+    ? await openEvalOperations(process.env.NEXUS_E2E_OPERATIONS_MANIFEST, executions, options.maxAutomaticRetries, process.env) : undefined;
   let finalResults: RunnerE2EResult[] = [];
   let campaignFailed = false;
   try {

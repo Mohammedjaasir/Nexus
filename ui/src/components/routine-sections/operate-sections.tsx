@@ -40,7 +40,7 @@ export function RunsSection() {
       agents={agents}
       projects={projects}
       liveIssueIds={new Set(hasLiveRun && activeIssueId ? [activeIssueId] : [])}
-      viewStateKey={`paperclip:routine-runs:${companyId}:${routine.id}`}
+      viewStateKey={`nexus:routine-runs:${companyId}:${routine.id}`}
       searchFilters={filters}
       issueLinkState={createIssueDetailLocationState("Runs", routineDetailHref(routine.id, "runs"))}
       rowPresentation="task"

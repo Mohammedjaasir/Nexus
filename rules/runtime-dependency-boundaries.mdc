@@ -1,6 +1,6 @@
 ---
 description: Account for dependency cost on shared runtime paths and test the assumptions that mocks can hide.
-globs: server/src/**,packages/adapter-utils/src/**,packages/adapters/*/src/**,packages/paperclip-runner/src/**,packages/paperclip-runner/runner/**
+globs: server/src/**,packages/adapter-utils/src/**,packages/adapters/*/src/**,packages/nexus-runner/src/**,packages/nexus-runner/runner/**
 alwaysApply: false
 ---
 

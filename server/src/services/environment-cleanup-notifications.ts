@@ -1,8 +1,8 @@
 import { and, eq, or, sql } from "drizzle-orm";
-import { environmentLeases } from "@paperclipai/db";
+import { environmentLeases } from "@nexusai/db";
 import { notifyLiveResourceRecovery } from "./live-run-recovery-notifications.js";
 import { notifyNativeEnvironmentSettlement, type NativeEnvironmentSettlementScope } from "./native-environment-settlement-notifications.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 
 export type EnvironmentCleanupWorkScope = NativeEnvironmentSettlementScope & { leaseId?: string };
@@ -12,7 +12,7 @@ export async function notifyEnvironmentCleanup(transaction: object, scope?: Envi
   if (scope && (scope.runId || scope.leaseId) && typeof (transaction as Db).select === "function") {
     // A stopped/released allocation can still owe shutdown workspace preservation.
     // Its peer's owning release must reactivate that exact marker as well.
-    const pendingShutdown = sql<boolean>`${environmentLeases.metadata}#>>'{legacyShutdownWorkspaceSettlement,schema}' = 'paperclip.legacy-shutdown-workspace-settlement.v1'
+    const pendingShutdown = sql<boolean>`${environmentLeases.metadata}#>>'{legacyShutdownWorkspaceSettlement,schema}' = 'nexus.legacy-shutdown-workspace-settlement.v1'
       and ${environmentLeases.metadata}#>>'{legacyShutdownWorkspaceSettlement,state}' = 'pending'
       and ${environmentLeases.metadata}#>>'{legacyShutdownWorkspaceSettlement,runId}' = ${environmentLeases.heartbeatRunId}::text`;
     const peers = await (transaction as Db).select({ id: environmentLeases.id, companyId: environmentLeases.companyId,

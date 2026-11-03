@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { heartbeatRuns, museAgentBindings as bindings, museRunnerAssignments as assignments,
-  museRunnerOperations as operations, externalAgentHolds as holds, type Db } from "@paperclipai/db";
+  museRunnerOperations as operations, externalAgentHolds as holds, type Db } from "@nexusai/db";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "../../services/delivery-work-notifications.js";
 
 export type ExternalAgentSettlementScope = { companyId: string; bindingId?: string; runId?: string; issueId?: string };

@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { setTimeout as delay } from "node:timers/promises";
 import { fork } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { createDb, companies, agents, issues, heartbeatRuns, authUsers, companyMemberships, issueQuestionResponseDeliveries } from "@paperclipai/db";
+import { createDb, companies, agents, issues, heartbeatRuns, authUsers, companyMemberships, issueQuestionResponseDeliveries } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { questionResponseDeliveryService } from "../services/question-response-delivery.js";
 import { deliverNativeQuestionResponse, projectNativeRuntimeRequest } from "../services/native-runtime/native-question-bridge.js";
@@ -93,7 +93,7 @@ it("delivers a B-to-A native answer promptly after a competing claim and becomes
       id: agentId,
       companyId,
       name: "Handoff fixture",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       status: "running",
       adapterConfig: {
         provider: "codex"
@@ -132,7 +132,7 @@ it("delivers a B-to-A native answer promptly after a competing claim and becomes
         runnerSourceInstanceId: runnerId
       },
       event: {
-        schema: "paperclip.prp.event.v1",
+        schema: "nexus.prp.event.v1",
         sourceEventId: requestId,
         sourceSeq: 1,
         sourceInstanceId: runnerId,
@@ -145,13 +145,13 @@ it("delivers a B-to-A native answer promptly after a competing claim and becomes
         emittedAt: new Date().toISOString(),
         payload: {
           request: {
-            schema: "paperclip.runtime_request.v2",
+            schema: "nexus.runtime_request.v2",
             requestKind: "runtime",
             requestId,
             type: "input",
             status: "pending",
             input: {
-              schema: "paperclip.question_set.v1",
+              schema: "nexus.question_set.v1",
               questions: [{
                 id: "color",
                 prompt: "Which color?",
@@ -220,7 +220,7 @@ it("delivers a B-to-A native answer promptly after a competing claim and becomes
       commandId: `question_${interaction!.id}`,
       payload: {
         response: {
-          schema: "paperclip.question_response.v1",
+          schema: "nexus.question_response.v1",
           answers: {
             color: {
               selectedOptionIds: ["green"]

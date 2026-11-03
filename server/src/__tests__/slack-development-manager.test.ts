@@ -2,7 +2,7 @@ import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SLACK_MANAGER_SCOPES } from "@paperclipai/shared";
+import { SLACK_MANAGER_SCOPES } from "@nexusai/shared";
 import { developmentSlackManager } from "../services/connectors/slack/setup/development-manager.js";
 
 const roots: string[] = [];
@@ -11,7 +11,7 @@ function fixture() {
   const root = mkdtempSync(join(tmpdir(), "slack-development-")); roots.push(root);
   const path = join(root, "manager.json");
   writeFileSync(path, JSON.stringify({ appId: "A123", clientId: "123.456", clientSecret: "client-secret-canary" }), { mode: 0o600 });
-  return { path, env: { NODE_ENV: "development", PAPERCLIP_SLACK_MANAGED_SETUP_ENABLED: "true", PAPERCLIP_SLACK_MANAGER_DEVELOPMENT_CONFIG: path } };
+  return { path, env: { NODE_ENV: "development", NEXUS_SLACK_MANAGED_SETUP_ENABLED: "true", NEXUS_SLACK_MANAGER_DEVELOPMENT_CONFIG: path } };
 }
 const origin = () => "https://local-test.trycloudflare.com";
 const identity = { subject: "actor", companyId: "company", profile: "slack.manager" as const };
@@ -23,7 +23,7 @@ describe("local managed Slack qualification", () => {
     const { env } = fixture();
     expect(developmentSlackManager(origin, {})).toBeNull();
     expect(developmentSlackManager(origin, { ...env, NODE_ENV: "production" })).toBeNull();
-    expect(developmentSlackManager(origin, { ...env, PAPERCLIP_SLACK_MANAGED_SETUP_ENABLED: "false" })).toBeNull();
+    expect(developmentSlackManager(origin, { ...env, NEXUS_SLACK_MANAGED_SETUP_ENABLED: "false" })).toBeNull();
   });
   it("rejects readable secrets and invalid HTTPS origins", async () => {
     const { env, path } = fixture(); chmodSync(path, 0o644);
@@ -44,9 +44,9 @@ describe("local managed Slack qualification", () => {
   });
   it("exchanges the code against the exact callback and preserves actor/workspace identity", async () => {
     const { env } = fixture();
-    const fetcher = vi.fn().mockResolvedValue(response({ ok: true, app_id: "A123", team: { id: "T123", name: "Paperclip" }, authed_user: user }));
+    const fetcher = vi.fn().mockResolvedValue(response({ ok: true, app_id: "A123", team: { id: "T123", name: "Nexus" }, authed_user: user }));
     const result = await developmentSlackManager(origin, env, fetcher)!.claim({ ...identity, claimId: "code-canary", redemptionId: "once" });
-    expect(result.slackManager).toEqual({ appId: "A123", workspaceId: "T123", workspaceName: "Paperclip", userId: "U123" });
+    expect(result.slackManager).toEqual({ appId: "A123", workspaceId: "T123", workspaceName: "Nexus", userId: "U123" });
     expect(result.subject).toBe("actor"); expect(result.companyId).toBe("company");
     const [url, request] = fetcher.mock.calls[0];
     expect(url).toBe("https://slack.com/api/oauth.v2.access");
@@ -56,7 +56,7 @@ describe("local managed Slack qualification", () => {
   });
   it.each(["wrong-app", "missing-scope", "provider-echo"])("rejects %s without echoing secrets", async reason => {
     const { env } = fixture();
-    const value = reason === "provider-echo" ? { ok: false, error: "client-secret-canary code-canary" } : { ok: true, app_id: reason === "wrong-app" ? "AOTHER" : "A123", team: { id: "T123", name: "Paperclip" }, authed_user: { ...user, scope: reason === "missing-scope" ? "" : user.scope } };
+    const value = reason === "provider-echo" ? { ok: false, error: "client-secret-canary code-canary" } : { ok: true, app_id: reason === "wrong-app" ? "AOTHER" : "A123", team: { id: "T123", name: "Nexus" }, authed_user: { ...user, scope: reason === "missing-scope" ? "" : user.scope } };
     const client = developmentSlackManager(origin, env, vi.fn().mockResolvedValue(response(value)))!;
     const error = await client.claim({ ...identity, claimId: "code-canary", redemptionId: "once" }).catch(error => error);
     expect(error).toBeInstanceOf(Error);

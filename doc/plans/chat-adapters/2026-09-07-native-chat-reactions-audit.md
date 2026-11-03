@@ -3,7 +3,7 @@
 ## Environment and journey
 
 Isolated Board `http://127.0.0.1:3103`, company Chat Adapter E2E, native Maya
-E2E (`paperclip_runner` → `codex` → `gpt-5.6-luna`). The running backend was
+E2E (`nexus_runner` → `codex` → `gpt-5.6-luna`). The running backend was
 `639bf1a20`; the updated UI was served through the development middleware.
 These tests do not start model turns and do not qualify model quota recovery.
 
@@ -78,7 +78,7 @@ must retain stable provider dispatch identity so actual duplicate delivery is
 still deduplicated while distinct add/remove cycles remain auditable. No
 history row was fabricated or replayed to claim a pass.
 
-The follow-up adapter revision `paperclip-discord-v5` preserves the Gateway
+The follow-up adapter revision `nexus-discord-v5` preserves the Gateway
 session fingerprint, shard, event type, and sequence with the exact raw packet.
 Only a one-way session fingerprint is carried, never the resumable session ID.
 A packet-scoped WeakMap and a guarded, synchronous packet-handler wrapper keep
@@ -98,7 +98,7 @@ needed. Live repeated-cycle qualification still requires the restart below.
 
 In the same signed-in browser, added thumbs-up to the native file-reading reply
 at **18:39:26.594 UTC** and removed it at **18:40:13.685**. Telegram showed the
-reaction, but Paperclip recorded neither event. That provider message
+reaction, but Nexus recorded neither event. That provider message
 `417200359:43` belongs to completed DM generation **5**, conversation
 `3f13f43b-b9a7-44d9-9b8c-846ce77b0305`.
 
@@ -171,7 +171,7 @@ freshness retests pass and supersede the failed reaction baselines above.
 Replay/startup-buffer behavior has deterministic coverage, not an injected
 live Gateway outage qualification.
 
-The Maya agent was rechecked as `paperclip_runner` → `codex` → `gpt-5.6-luna`.
+The Maya agent was rechecked as `nexus_runner` → `codex` → `gpt-5.6-luna`.
 The current Codex usage tool still reports the general weekly limit exhausted;
 no reset, billing change, or model-starting prompt was attempted in this batch.
 

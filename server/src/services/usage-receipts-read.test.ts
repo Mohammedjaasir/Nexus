@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agents, companies, createDb, heartbeatRuns, runUsageReceipts, type Db } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRuns, runUsageReceipts, type Db } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { persistUsageReceipt, type UsageReceiptEnvelope } from "./usage-receipts.js";
 
@@ -24,7 +24,7 @@ describe.skipIf(!support.supported)("usage receipt PostgreSQL reads", () => {
       resultJson: { stdout: payload }, stdoutExcerpt: payload, stderrExcerpt: payload };
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "running", ...evidence,
       usageJson: { accountingReceiptSourceId: sourceId, accountingReceiptSequence: 0, preserved: "receipt metadata" } });
-    const receipt = (sequence: number): UsageReceiptEnvelope => ({ schema: "paperclip/accounting-receipt/v1",
+    const receipt = (sequence: number): UsageReceiptEnvelope => ({ schema: "nexus/accounting-receipt/v1",
       id: randomUUID(), companyId, runId, sourceId, sequence, receivedAt: new Date().toISOString(), adapterType: "process",
       receipt: { complete: false, usageBasis: "per_run", costUsd: sequence / 100, billingType: "metered_api" } });
     return { companyId, runId, evidence, receipt };

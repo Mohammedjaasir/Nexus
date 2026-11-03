@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { agents, assets, chatTaskHandoffs, companies, companyMemberships, createDb, applyPendingMigrations, decisionRetention, decisionTriage, documentRevisions, documents, heartbeatRuns,
-  inboxDismissals, issueAttachments, issueComments, issueDocuments, issues, issueThreadInteractions } from "@paperclipai/db";
-import { requestConfirmationTargetSchema, suggestedTaskDraftSchema } from "@paperclipai/shared";
+  inboxDismissals, issueAttachments, issueComments, issueDocuments, issues, issueThreadInteractions } from "@nexusai/db";
+import { requestConfirmationTargetSchema, suggestedTaskDraftSchema } from "@nexusai/shared";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { issueThreadInteractionService } from "../services/issue-thread-interactions.js";
 import { issueService } from "../services/issues.js";
@@ -21,7 +21,7 @@ describe("Coordinator task and artifact contracts", () => {
   });
 });
 
-const externalDatabase = resolveExternalTestDatabaseUrl("PAPERCLIP_COORDINATOR_HANDOFF_TEST_DATABASE_URL");
+const externalDatabase = resolveExternalTestDatabaseUrl("NEXUS_COORDINATOR_HANDOFF_TEST_DATABASE_URL");
 const support = externalDatabase ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("Coordinator canonical handoffs", () => {
   let db: ReturnType<typeof createDb>;

@@ -8,7 +8,7 @@ export type WorkspaceWorker = {
 };
 export type WorkspaceStopBinding = { runId: string; ownerToken: string; worker: WorkspaceWorker };
 export type WorkspaceWorkerStopProof = WorkspaceStopBinding & {
-  v: 1; iss: "paperclip-cloud"; aud: "paperclip-workspace-worker-stop/v1"; sub: string;
+  v: 1; iss: "nexus-cloud"; aud: "nexus-workspace-worker-stop/v1"; sub: string;
   stopped: true; iat: number; exp: number;
 };
 function validWorker(worker: unknown): worker is WorkspaceWorker {
@@ -30,12 +30,12 @@ export function verifyWorkspaceWorkerStopReceipt(
     const parts = receipt.split(".");
     if (parts.length !== 3 || parts.some(part => !/^[A-Za-z0-9_-]+$/.test(part))) return null;
     const header = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8"));
-    if (header.alg !== "EdDSA" || header.typ !== "paperclip-workspace-worker-stop+jwt" || typeof header.kid !== "string") return null;
+    if (header.alg !== "EdDSA" || header.typ !== "nexus-workspace-worker-stop+jwt" || typeof header.kid !== "string") return null;
     if (!verify(null, Buffer.from(`${parts[0]}.${parts[1]}`, "ascii"), cloudRuntimePublicKeyForKid(env, header.kid), Buffer.from(parts[2], "base64url"))) return null;
     const proof = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as WorkspaceWorkerStopProof;
     const seconds = Math.floor(now.getTime()/1000);
-    if (proof.v !== 1 || proof.iss !== "paperclip-cloud" || proof.aud !== "paperclip-workspace-worker-stop/v1"
-      || !env.PAPERCLIP_CLOUD_STACK_ID || proof.sub !== env.PAPERCLIP_CLOUD_STACK_ID || proof.stopped !== true
+    if (proof.v !== 1 || proof.iss !== "nexus-cloud" || proof.aud !== "nexus-workspace-worker-stop/v1"
+      || !env.NEXUS_CLOUD_STACK_ID || proof.sub !== env.NEXUS_CLOUD_STACK_ID || proof.stopped !== true
       || proof.runId !== binding.runId || proof.ownerToken !== binding.ownerToken
       || !Number.isInteger(proof.iat) || !Number.isInteger(proof.exp) || proof.iat > seconds+30
       || proof.exp <= seconds || proof.exp <= proof.iat || proof.exp-proof.iat > 60
@@ -54,14 +54,14 @@ export async function requestWorkspaceWorkerStopProof(binding: WorkspaceStopBind
 } = {}): Promise<WorkspaceWorkerStopCheck> {
   const env = options.env ?? process.env;
   const context = getCloudStackContext(env);
-  const token = env.PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN?.trim();
+  const token = env.NEXUS_CLOUD_TENANT_SERVER_TOKEN?.trim();
   if (!context?.stackId || !context.cloudOrigin || !token || !validWorker(binding.worker)) return { status: "unsupported" };
   let origin: URL;
   try { origin = new URL(context.cloudOrigin); } catch { return { status: "unsupported" }; }
   if (origin.protocol !== "https:" || origin.username || origin.password) return { status: "unsupported" };
   try {
     const response = await (options.fetchImpl ?? fetch)(`${origin.origin}/v1/tenant/workspace-worker-stop`, {
-      method: "POST", redirect: "error", headers: { authorization: `Bearer ${token}`, "x-paperclip-cloud-stack-id": context.stackId, "content-type": "application/json" },
+      method: "POST", redirect: "error", headers: { authorization: `Bearer ${token}`, "x-nexus-cloud-stack-id": context.stackId, "content-type": "application/json" },
       body: JSON.stringify(binding), signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) return { status: "pending" };

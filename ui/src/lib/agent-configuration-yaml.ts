@@ -6,10 +6,10 @@ import {
   type AgentConfigurationDocument,
   type AgentConfigurationInput,
   type AgentConfigurationSource,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 export function serializeAgentConfiguration(agent: AgentConfigurationSource): string {
-  return serializeAgentConfigurationDocument({ apiVersion: "paperclip/v1", kind: "Agent", spec: agentConfigurationSpec(agent) } as AgentConfigurationDocument);
+  return serializeAgentConfigurationDocument({ apiVersion: "nexus/v1", kind: "Agent", spec: agentConfigurationSpec(agent) } as AgentConfigurationDocument);
 }
 
 export function serializeAgentConfigurationDocument(document: AgentConfigurationDocument | AgentConfigurationInput): string {

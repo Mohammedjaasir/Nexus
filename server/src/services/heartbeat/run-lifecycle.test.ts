@@ -1,7 +1,7 @@
 import { resolveExternalTestDatabaseUrl } from "../../__tests__/helpers/external-test-database.js";
 import { randomBytes } from "node:crypto";
-import type { Db } from "@paperclipai/db";
-import { agents, agentWakeupRequests, companies, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRunEvents, heartbeatRuns, issues, subscribeDatabaseWork } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { agents, agentWakeupRequests, companies, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRunEvents, heartbeatRuns, issues, subscribeDatabaseWork } from "@nexusai/db";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
@@ -108,14 +108,14 @@ describe("heartbeat lifecycle module boundary", () => {
   });
 });
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_LIFECYCLE_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_LIFECYCLE_TEST_DATABASE_URL");
 const support = external ? { supported: true as const } : await getEmbeddedPostgresTestSupport();
 if (!support.supported) console.warn(`Skipping lifecycle module database tests: ${support.reason}`);
 describe.skipIf(!support.supported)("heartbeat lifecycle database wiring", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: Db;
   beforeAll(async () => {
-    if (!external) database = await startEmbeddedPostgresTestDatabase("paperclip-heartbeat-lifecycle-module");
+    if (!external) database = await startEmbeddedPostgresTestDatabase("nexus-heartbeat-lifecycle-module");
     db = createDb(external ?? database.connectionString);
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
   afterAll(async () => {

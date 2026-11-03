@@ -14,8 +14,8 @@ All complete-owner runs exited 0, with no failures or skips. Both production mut
 Use a clean checkout at the proof base with dependencies installed. Run commands from the repository root.
 
 ```sh
-pnpm --filter @paperclipai/ui exec vitest run src/pages/CompanyImport.test.tsx --maxWorkers=1
-pnpm --filter @paperclipai/ui exec vitest run src/pages/CompanyEnvironments.test.tsx --maxWorkers=1
+pnpm --filter @nexusai/ui exec vitest run src/pages/CompanyImport.test.tsx --maxWorkers=1
+pnpm --filter @nexusai/ui exec vitest run src/pages/CompanyEnvironments.test.tsx --maxWorkers=1
 ```
 
 Expected original counts: 29 and 32 passing tests. Apply the PR's two test-file changes and rerun the same commands: 28 and 31 passing tests. Restore both complete original test files from the proof-base commit and rerun: 29 and 32 passing. Reapply the candidate changes and rerun: 28 and 31 passing.
@@ -37,7 +37,7 @@ await queryClient.invalidateQueries({ queryKey: ["audit-unrelated-company-query"
 Run only the keeper:
 
 ```sh
-pnpm --filter @paperclipai/ui exec vitest run src/pages/CompanyImport.test.tsx --maxWorkers=1 -t 'submits the import as an async job, then activates selected agents and routines'
+pnpm --filter @nexusai/ui exec vitest run src/pages/CompanyImport.test.tsx --maxWorkers=1 -t 'submits the import as an async job, then activates selected agents and routines'
 ```
 
 Expected result: exit 1 at the `invalidateQueries` query-key assertion. The control observed the unrelated key in the real QueryClient call. Restore `CompanyImport.tsx` from the proof-base commit and verify its SHA-256 is `872d67109ab968fada24f126ad92974c5d060f7552dc4e8299a6185d2b87fe6c`.
@@ -57,7 +57,7 @@ null
 Run only the keeper:
 
 ```sh
-pnpm --filter @paperclipai/ui exec vitest run src/pages/CompanyEnvironments.test.tsx --maxWorkers=1 -t 'opens the add-environment form on a standalone page and closes it on cancel'
+pnpm --filter @nexusai/ui exec vitest run src/pages/CompanyEnvironments.test.tsx --maxWorkers=1 -t 'opens the add-environment form on a standalone page and closes it on cancel'
 ```
 
 Expected result: exit 1 at the migrated `Local` option assertion. Restore `CompanyEnvironments.tsx` from the proof-base commit and verify its SHA-256 is `871d93af7394090ccdb6ffaaa518c7462055ffb75766e6b9736afdd34e18884b`.

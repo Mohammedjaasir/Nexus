@@ -101,7 +101,7 @@ function ActivityCard({
 }
 
 const meta: Meta = {
-  parameters: { paperclip: {
+  parameters: { nexus: {
       "capabilities": [
         "steering/interrupt"
       ],

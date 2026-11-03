@@ -11,13 +11,13 @@ export function buildAntigravityJourneySuite(environments: readonly EnvironmentF
   const profile: RunnerProfileFixture = { id: "runner-antigravity", label: "Google Antigravity candidate", generation: "native", groups: [],
     // The catalog's legacy required field is never resolved for this flow;
     // requiredCredentials is empty and the saved product connection is verified.
-    adapterType: "paperclip_runner", provider: "acpx", model: ANTIGRAVITY_JOURNEY_MODEL, credential: "GEMINI_API_KEY",
-    supportedEnvironments: ["local"], expectedRuntimeMode: "native", expectedRuntimeMetadata: { adapterType: "paperclip_runner", provider: "acpx" },
+    adapterType: "nexus_runner", provider: "acpx", model: ANTIGRAVITY_JOURNEY_MODEL, credential: "GEMINI_API_KEY",
+    supportedEnvironments: ["local"], expectedRuntimeMode: "native", expectedRuntimeMetadata: { adapterType: "nexus_runner", provider: "acpx" },
     modelQualification: { source: "candidate_runner_profile", qualificationId: "antigravity:operator-admitted-darwin-arm64-saved-subscription" },
     buildAgent: () => { throw new Error("The measured Antigravity agent must be created through the ordinary UI"); } };
   const hash = createHash("sha256");
   for (const file of ["antigravity-journey-cases.ts", "antigravity-journey-config.ts", "antigravity-journey-fixtures.ts", "antigravity-journey-flow.ts", "antigravity-journey-launch.ts", "antigravity-journey-evidence.ts", "antigravity-journey-report.ts", "antigravity-journey-ui.ts", "copilot-local-fixtures.ts", "user-actions.ts",
-    "../../packages/paperclip-runner/src/drivers/acpx/generated-profiles.ts", "../../packages/paperclip-runner/antigravity-distributions.json"])
+    "../../packages/nexus-runner/src/drivers/acpx/generated-profiles.ts", "../../packages/nexus-runner/antigravity-distributions.json"])
     hash.update(file).update(readFileSync(new URL(`./${file}`, import.meta.url)));
   return { id: ANTIGRAVITY_JOURNEY_SUITE, label: "Antigravity additional-agent setup and two-turn task", groups: [], manualOnly: true,
     description: "Ordinary agent picker, saved Google subscription, exact Low model, native setup test, instruction-only file proof and persisted follow-up.",

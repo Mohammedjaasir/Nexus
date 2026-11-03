@@ -41,7 +41,7 @@ describe("generic connection instructions", () => {
 
   it("regenerates templates from each app definition, including non-memory edits and removal", () => {
     const root = fileURLToPath(new URL("../../../", import.meta.url));
-    const fixture = mkdtempSync(join(tmpdir(), "paperclip-app-instructions-"));
+    const fixture = mkdtempSync(join(tmpdir(), "nexus-app-instructions-"));
     const definitions = join(fixture, "packages/shared/src/app-definitions");
     const readApp = (slug: string) => JSON.parse(readFileSync(join(definitions, `${slug}.json`), "utf8"));
     const writeApp = (slug: string, app: unknown) => writeFileSync(join(definitions, `${slug}.json`), JSON.stringify(app));

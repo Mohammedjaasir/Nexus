@@ -4,9 +4,9 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   prepareAdapterExecutionTargetRuntime,
-  startAdapterExecutionTargetPaperclipBridge,
+  startAdapterExecutionTargetNexusBridge,
   startAdapterExecutionTargetProcessSessionBridge,
-} from "@paperclipai/adapter-utils/execution-target";
+} from "@nexusai/adapter-utils/execution-target";
 import { runChildProcess } from "../server-utils.js";
 import { classifyWorkspaceRestoreFailure } from "../workspace-restore-merge.js";
 
@@ -27,12 +27,12 @@ import { classifyWorkspaceRestoreFailure } from "../workspace-restore-merge.js";
 
 // Wrap the staging seam and both sandbox bridges so a test can stub them without
 // changing behavior for the other tests.
-vi.mock("@paperclipai/adapter-utils/execution-target", async (importActual) => {
-  const actual = await importActual<typeof import("@paperclipai/adapter-utils/execution-target")>();
+vi.mock("@nexusai/adapter-utils/execution-target", async (importActual) => {
+  const actual = await importActual<typeof import("@nexusai/adapter-utils/execution-target")>();
   return {
     ...actual,
     prepareAdapterExecutionTargetRuntime: vi.fn(actual.prepareAdapterExecutionTargetRuntime),
-    startAdapterExecutionTargetPaperclipBridge: vi.fn(actual.startAdapterExecutionTargetPaperclipBridge),
+    startAdapterExecutionTargetNexusBridge: vi.fn(actual.startAdapterExecutionTargetNexusBridge),
     startAdapterExecutionTargetProcessSessionBridge: vi.fn(actual.startAdapterExecutionTargetProcessSessionBridge),
   };
 });
@@ -57,7 +57,7 @@ function makeStagingLocks() {
 }
 
 async function makeTempRoot() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-acpx-fault-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-acpx-fault-"));
   tempRoots.push(root);
   return root;
 }
@@ -146,7 +146,7 @@ function completedRuntime() {
 // fails after the session handshake and before the turn starts.
 function throwingHandoffContext(): Record<string, unknown> {
   const context: Record<string, unknown> = {};
-  Object.defineProperty(context, "paperclipSessionHandoffMarkdown", {
+  Object.defineProperty(context, "nexusSessionHandoffMarkdown", {
     enumerable: false,
     get() {
       throw new Error("prompt build boom");
@@ -165,7 +165,7 @@ function stubBridges(options: { stopRejects?: boolean } = {}) {
   const controlStop = makeStop();
   const agentStop = makeStop();
   bridgeStops.push(controlStop, agentStop);
-  vi.mocked(startAdapterExecutionTargetPaperclipBridge).mockImplementation(async () => {
+  vi.mocked(startAdapterExecutionTargetNexusBridge).mockImplementation(async () => {
     return { env: {}, stop: controlStop } as never;
   });
   vi.mocked(startAdapterExecutionTargetProcessSessionBridge).mockImplementation(async () => {
@@ -335,8 +335,8 @@ describe("composed ACPX run fault matrix", () => {
     const { stateDir, localCwd, executionTarget } = await setupRemoteSandbox();
     const capture = captureDisposition();
     const stop = vi.fn(async () => {});
-    vi.mocked(startAdapterExecutionTargetPaperclipBridge).mockImplementationOnce(async () => {
-      throw new Error("paperclip bridge boom");
+    vi.mocked(startAdapterExecutionTargetNexusBridge).mockImplementationOnce(async () => {
+      throw new Error("nexus bridge boom");
     });
     vi.mocked(startAdapterExecutionTargetProcessSessionBridge).mockImplementationOnce(
       async () => ({ agentCommand: null, stop }) as never,
@@ -351,7 +351,7 @@ describe("composed ACPX run fault matrix", () => {
 
     await expect(
       execute({ runId: "fault-bridge", ...remoteArgs(stateDir, localCwd, executionTarget) } as never),
-    ).rejects.toThrow("paperclip bridge boom");
+    ).rejects.toThrow("nexus bridge boom");
 
     assertDispositionReport(capture.last(), { acquired: ["staged_runtime", "staging_lease"] });
   });
@@ -808,7 +808,7 @@ describe("composed ACPX run fault matrix", () => {
     const { stateDir, localCwd, executionTarget } = await setupRemoteSandbox();
     stubBridges();
     const eaccesError: NodeJS.ErrnoException = new Error(
-      `EACCES: permission denied, mkdir '/srv/telemetry-backend.paperclip-restore.lock' (pid ${process.pid})`,
+      `EACCES: permission denied, mkdir '/srv/telemetry-backend.nexus-restore.lock' (pid ${process.pid})`,
     );
     eaccesError.code = "EACCES";
     const execute = createAcpxEngineExecutor({

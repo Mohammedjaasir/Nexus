@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { publishLiveEvent } from "../services/live-events.js";
-import { heartbeatRuns } from "@paperclipai/db";
+import { heartbeatRuns } from "@nexusai/db";
 import { createRunSecretRedactionRegistry } from "../services/run-secret-redaction.js";
 import { REDACTED_EVENT_VALUE } from "../redaction.js";
 import { homedir } from "node:os";
@@ -77,13 +77,13 @@ describe("plugin agent sessions", () => {
     resolveSecretVersion.mockReset().mockImplementation(async ({ material }) => material.synthetic);
   });
   it("redacts registered native run secrets before notifying the plugin worker", async () => {
-    const session = { id: "session-1", companyId: "company-1", agentId: "agent-1", taskKey: "plugin:paperclip.gateway:session:session-1" };
+    const session = { id: "session-1", companyId: "company-1", agentId: "agent-1", taskKey: "plugin:nexus.gateway:session:session-1" };
     const db = createRunRedactionDb(session);
     const secret = "synthetic-registered-run-secret";
     await createRunSecretRedactionRegistry(db as never).register(session.companyId, "run-1", secret);
     const notifyWorker = vi.fn();
     mockWakeup.mockResolvedValue({ id: "run-1" });
-    const services = buildHostServices(db as never, "plugin-record-id", "paperclip.gateway", createEventBusStub(), notifyWorker);
+    const services = buildHostServices(db as never, "plugin-record-id", "nexus.gateway", createEventBusStub(), notifyWorker);
     try {
       await services.agentSessions.sendMessage({ sessionId: session.id, companyId: session.companyId, prompt: "synthetic" });
       const native = { runId: "run-1", seq: 1, message: `output ${secret}`, payload: {
@@ -110,13 +110,13 @@ describe("plugin agent sessions", () => {
   });
 
   it.each(["settings", "registered secret"])("ends plugin delivery with a safe error when final-status %s redaction fails", async source => {
-    const session = { id: "session-1", companyId: "company-1", agentId: "agent-1", taskKey: "plugin:paperclip.gateway:session:session-1" };
+    const session = { id: "session-1", companyId: "company-1", agentId: "agent-1", taskKey: "plugin:nexus.gateway:session:session-1" };
     const db = createRunRedactionDb(session);
     const secret = "synthetic-final-run-secret";
     await createRunSecretRedactionRegistry(db as never).register(session.companyId, "run-1", secret);
     mockWakeup.mockResolvedValue({ id: "run-1" });
     const notifyWorker = vi.fn();
-    const services = buildHostServices(db as never, "plugin-record-id", "paperclip.gateway", createEventBusStub(), notifyWorker);
+    const services = buildHostServices(db as never, "plugin-record-id", "nexus.gateway", createEventBusStub(), notifyWorker);
     try {
       await services.agentSessions.sendMessage({ sessionId: session.id, companyId: session.companyId, prompt: "synthetic" });
       if (source === "settings") readSettings.mockRejectedValueOnce(new Error(`unavailable ${secret}`));
@@ -144,10 +144,10 @@ describe("plugin agent sessions", () => {
 
   it("finishes an expired plugin subscription with a delivery error", async () => {
     vi.useFakeTimers();
-    const session = { id: "session-1", companyId: "company-1", agentId: "agent-1", taskKey: "plugin:paperclip.gateway:session:session-1" };
+    const session = { id: "session-1", companyId: "company-1", agentId: "agent-1", taskKey: "plugin:nexus.gateway:session:session-1" };
     mockWakeup.mockResolvedValue({ id: "run-1" });
     const notifyWorker = vi.fn();
-    const services = buildHostServices(createSessionLookupDb(session), "plugin-record-id", "paperclip.gateway", createEventBusStub(), notifyWorker);
+    const services = buildHostServices(createSessionLookupDb(session), "plugin-record-id", "nexus.gateway", createEventBusStub(), notifyWorker);
     try {
       await services.agentSessions.sendMessage({ sessionId: session.id, companyId: session.companyId, prompt: "synthetic" });
       await vi.advanceTimersByTimeAsync(30 * 60 * 1_000);
@@ -167,10 +167,10 @@ describe("plugin agent sessions", () => {
   it("cannot notify a disposed plugin when an earlier redaction read settles", async () => {
     let release!: (value: { censorUsernameInLogs: boolean }) => void;
     readSettings.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
-    const session = { id: "session-1", companyId: "company-1", agentId: "agent-1", taskKey: "plugin:paperclip.gateway:session:session-1" };
+    const session = { id: "session-1", companyId: "company-1", agentId: "agent-1", taskKey: "plugin:nexus.gateway:session:session-1" };
     mockWakeup.mockResolvedValue({ id: "run-1" });
     const notifyWorker = vi.fn();
-    const services = buildHostServices(createSessionLookupDb(session), "plugin-record-id", "paperclip.gateway", createEventBusStub(), notifyWorker);
+    const services = buildHostServices(createSessionLookupDb(session), "plugin-record-id", "nexus.gateway", createEventBusStub(), notifyWorker);
     await services.agentSessions.sendMessage({ sessionId: session.id, companyId: session.companyId, prompt: "synthetic" });
     publishLiveEvent({ companyId: session.companyId, type: "heartbeat.run.event", payload: { runId: "run-1", seq: 1 } });
     await vi.waitFor(() => expect(readSettings).toHaveBeenCalledOnce());
@@ -196,10 +196,10 @@ describe("plugin agent sessions", () => {
         id: sessionId,
         companyId,
         agentId,
-        taskKey: "plugin:paperclip.gateway:session:session-1",
+        taskKey: "plugin:nexus.gateway:session:session-1",
       }),
       "plugin-record-id",
-      "paperclip.gateway",
+      "nexus.gateway",
       createEventBusStub(),
       notifyWorker,
     );
@@ -218,14 +218,14 @@ describe("plugin agent sessions", () => {
       expect.objectContaining({
         payload: { prompt: "hello" },
         contextSnapshot: {
-          taskKey: "plugin:paperclip.gateway:session:session-1",
+          taskKey: "plugin:nexus.gateway:session:session-1",
           wakeReason: "gateway_chat_message",
           wakeSource: "automation",
           wakeTriggerDetail: "system",
-          paperclipAgentMessage: {
+          nexusAgentMessage: {
             text: "hello",
             source: "plugin_session",
-            pluginKey: "paperclip.gateway",
+            pluginKey: "nexus.gateway",
             sessionId,
           },
         },

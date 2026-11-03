@@ -1,13 +1,13 @@
 # Telemetry Data Contract
 
-This document explains how contributors should use Paperclip's public telemetry
+This document explains how contributors should use Nexus's public telemetry
 contract. It does not duplicate the full list of individual events or
 dimensions. It documents extra semantic and privacy rules where the generated
 shape is not sufficient.
 
 The canonical source for first-party event names, dimensions, optionality,
 allowed primitive value types, and enum descriptions is
-`packages/shared/src/telemetry/generated/paperclip-telemetry.ts`.
+`packages/shared/src/telemetry/generated/nexus-telemetry.ts`.
 
 Shared enum constants live in `packages/shared/src/constants.ts`. Use those
 constants when code needs a reusable domain, but treat the generated telemetry
@@ -19,10 +19,10 @@ Use these files when reviewing or changing telemetry code:
 
 | Contract item                                 | Public source                                                                            |
 | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| First-party event names                       | `PaperclipEventName` in `generated/paperclip-telemetry.ts`                               |
-| Per-event dimensions and optionality          | `EventDimensionsMap` in `generated/paperclip-telemetry.ts`                               |
-| Enum descriptions for telemetry dimensions    | `PAPERCLIP_ENUM_DESCRIPTIONS` in `generated/paperclip-telemetry.ts`                      |
-| Schema version and event envelope helpers     | `SCHEMA_VERSION`, `makeEvent()`, and `makeBatch()` in `generated/paperclip-telemetry.ts` |
+| First-party event names                       | `NexusEventName` in `generated/nexus-telemetry.ts`                               |
+| Per-event dimensions and optionality          | `EventDimensionsMap` in `generated/nexus-telemetry.ts`                               |
+| Enum descriptions for telemetry dimensions    | `NEXUS_ENUM_DESCRIPTIONS` in `generated/nexus-telemetry.ts`                      |
+| Schema version and event envelope helpers     | `SCHEMA_VERSION`, `makeEvent()`, and `makeBatch()` in `generated/nexus-telemetry.ts` |
 | Runtime-safe event names and dimensions       | `TelemetryEventName` and `TelemetryEventDimensions` in `types.ts`                        |
 | Allowed primitive dimension values            | `TelemetryDimensionValue` in `types.ts`                                                  |
 | Shared reusable enum domains                  | Named exports in `constants.ts`                                                          |
@@ -35,7 +35,7 @@ will drift as the generated contract changes.
 
 ## Emission Boundary
 
-Paperclip telemetry uses named events with explicit dimension fields. Treat
+Nexus telemetry uses named events with explicit dimension fields. Treat
 open-ended string dimensions as public contract values, not as a place for user
 content or private operational data. Do not send PII, secrets, credentials,
 private paths, prompts, model output, or other sensitive values through
@@ -104,7 +104,7 @@ the authority for its exact dimensions and optionality.
 
 ### Other Data Paths
 
-This document covers Paperclip Telemetry only. The generated Telemetry
+This document covers Nexus Telemetry only. The generated Telemetry
 contract covers neither the Observability path nor the run-log path. Two other
 data paths document their own contract in their own file:
 
@@ -157,7 +157,7 @@ generated schema registers the event name.
 
 For stable event work:
 
-1. Start from `generated/paperclip-telemetry.ts`. The generated types are what
+1. Start from `generated/nexus-telemetry.ts`. The generated types are what
    reviewers use to verify event names, dimensions, optionality, value types,
    enum descriptions, and schema version.
 2. Choose stable event and dimension names. Do not include user content, local

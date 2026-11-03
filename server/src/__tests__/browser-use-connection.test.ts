@@ -1,5 +1,5 @@
 import { budgetService, computeObservedSpend } from "../services/budgets.js";
-import { buildPaperclipRuntimeMcpServers } from "../services/heartbeat.js";
+import { buildNexusRuntimeMcpServers } from "../services/heartbeat.js";
 import { resolveNativeRuntimeMcpSnapshot } from "../services/native-runtime/runtime-context.js";
 import express from "express";
 import http from "supertest";
@@ -36,7 +36,7 @@ import {
   financeEvents,
   budgetPolicies,
   budgetReservations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { toolAccessService } from "../services/tool-access.js";
 import { createToolGatewayService } from "../services/tool-gateway.js";
 import { browserUseViewports } from "../services/browser-use-viewport.js";
@@ -45,7 +45,7 @@ import { registerBrowserUseCleanup } from "../services/browser-use-work.js";
 import { browserUseService } from "../services/browser-use.js";
 import { applyConnectorSkills, prepareConnectorSkillDelivery, resolveConnectorAssignments } from "../services/connector-runtime.js";
 import { registerAssignedMcpGateway } from "../services/native-runtime/assigned-mcp-tools.js";
-import { listPaperclipSkillEntries } from "@paperclipai/adapter-utils/server-utils";
+import { listNexusSkillEntries } from "@nexusai/adapter-utils/server-utils";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import {
@@ -59,16 +59,16 @@ const actor = { actorType: "user" as const, actorId: "browser-reviewer" };
   () => {
     let db: ReturnType<typeof createDb>;
     let temp: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
-    const originalApiUrl = process.env.PAPERCLIP_API_URL;
+    const originalApiUrl = process.env.NEXUS_API_URL;
     beforeAll(async () => {
-      process.env.PAPERCLIP_API_URL = "http://127.0.0.1:3100";
-      temp = await startEmbeddedPostgresTestDatabase("paperclip-browser-use-");
+      process.env.NEXUS_API_URL = "http://127.0.0.1:3100";
+      temp = await startEmbeddedPostgresTestDatabase("nexus-browser-use-");
       db = createDb(temp.connectionString);
     }, 30000);
     afterAll(async () => {
       await temp?.cleanup();
-      if (originalApiUrl === undefined) delete process.env.PAPERCLIP_API_URL;
-      else process.env.PAPERCLIP_API_URL = originalApiUrl;
+      if (originalApiUrl === undefined) delete process.env.NEXUS_API_URL;
+      else process.env.NEXUS_API_URL = originalApiUrl;
     });
     async function fixture(personal = false) {
       const [company] = await db
@@ -368,18 +368,18 @@ const actor = { actorType: "user" as const, actorId: "browser-reviewer" };
       }
     });
     it("keeps Cloud instructions out of universal skills and unassigned runtime overlays", async () => {
-      const skills = await listPaperclipSkillEntries(fileURLToPath(new URL("../", import.meta.url)), [fileURLToPath(new URL("../../../skills", import.meta.url))]);
-      expect(skills.some(skill => skill.runtimeName === "paperclip")).toBe(true);
+      const skills = await listNexusSkillEntries(fileURLToPath(new URL("../", import.meta.url)), [fileURLToPath(new URL("../../../skills", import.meta.url))]);
+      expect(skills.some(skill => skill.runtimeName === "nexus")).toBe(true);
       expect(skills.some(skill => ["browser-use", "browser-use-cloud"].includes(skill.runtimeName))).toBe(false);
-      const base = { paperclipSkillSync: { desiredSkills: ["paperclipai/paperclip/browser-use", "paperclipai/paperclip/browser-use-cloud"] } };
+      const base = { nexusSkillSync: { desiredSkills: ["paperclipai/paperclip/browser-use", "paperclipai/paperclip/browser-use-cloud"] } };
       const unassigned = await applyConnectorSkills(base, [
         { key: "paperclipai/paperclip/browser-use", runtimeName: "browser-use", source: "/retired-browser-skill" },
         { key: "paperclipai/paperclip/browser-use-cloud", runtimeName: "browser-use-cloud", source: "/unassigned-cloud-skill" },
         { key: "custom/browser-use", runtimeName: "browser-use", source: "/another-browser-skill" },
       ], []);
-      expect(unassigned.paperclipRuntimeSkills).toEqual([{ key: "custom/browser-use", runtimeName: "browser-use", source: "/another-browser-skill" }]);
-      expect(unassigned.paperclipConnectorSkillDigest).toBeNull();
-      expect(base.paperclipSkillSync.desiredSkills).toHaveLength(2);
+      expect(unassigned.nexusRuntimeSkills).toEqual([{ key: "custom/browser-use", runtimeName: "browser-use", source: "/another-browser-skill" }]);
+      expect(unassigned.nexusConnectorSkillDigest).toBeNull();
+      expect(base.nexusSkillSync.desiredSkills).toHaveLength(2);
     });
     it("delivers the Cloud skill only with authorized connection tools in a task run", async () => {
       const f = await fixture();
@@ -396,26 +396,26 @@ const actor = { actorType: "user" as const, actorId: "browser-reviewer" };
       const assignments = await resolveConnectorAssignments(db, f.binding);
       expect(assignments).toMatchObject([{ key: "browser-use-cloud", skillKey: "paperclipai/paperclip/browser-use-cloud", resources: [{ connectionId: f.connection.connectionId }] }]);
       const config = await applyConnectorSkills({}, [], assignments);
-      const skill = config.paperclipRuntimeSkills[0];
+      const skill = config.nexusRuntimeSkills[0];
       expect(skill.runtimeName).toBe("browser-use-cloud");
       const markdown = await readFile(path.join(skill.source, "SKILL.md"), "utf8");
       expect(markdown).toContain("name: browser-use-cloud");
       expect(markdown).toContain("browser_start");
       expect(markdown).toContain(f.connection.connectionId);
       expect(markdown).not.toContain("bu_fixture_secret");
-      for (const adapterType of ["paperclip_runner", "codex_local", "claude_local", "kimi_local"]) {
+      for (const adapterType of ["nexus_runner", "codex_local", "claude_local", "kimi_local"]) {
         const delivery = await prepareConnectorSkillDelivery({ ...config, engine: "cli" }, adapterType);
-        expect(delivery.config.paperclipRuntimeSkills).toEqual([skill]);
+        expect(delivery.config.nexusRuntimeSkills).toEqual([skill]);
       }
       const sharedHome = await prepareConnectorSkillDelivery(config, "cursor_local");
-      expect(sharedHome.config.paperclipRuntimeSkills).toEqual([]);
+      expect(sharedHome.config.nexusRuntimeSkills).toEqual([]);
       expect(sharedHome.instructions).toContain("name: browser-use-cloud");
-      expect(sharedHome.config.paperclipConnectorSkillDigest).toBe(config.paperclipConnectorSkillDigest);
+      expect(sharedHome.config.nexusConnectorSkillDigest).toBe(config.nexusConnectorSkillDigest);
       await db.update(connectionGrants).set({ status: "revoked" }).where(eq(connectionGrants.id, f.grant.id));
       expect(await resolveConnectorAssignments(db, f.binding)).toEqual([]);
-      const revoked = await applyConnectorSkills(config, config.paperclipRuntimeSkills, []);
-      expect(revoked.paperclipRuntimeSkills).toEqual([]);
-      expect(revoked.paperclipConnectorSkillDigest).toBeNull();
+      const revoked = await applyConnectorSkills(config, config.nexusRuntimeSkills, []);
+      expect(revoked.nexusRuntimeSkills).toEqual([]);
+      expect(revoked.nexusConnectorSkillDigest).toBeNull();
       expect((await prepareConnectorSkillDelivery(revoked, "cursor_local")).instructions).toBe("");
     });
     it.each([false, true])("skips tool discovery without an active company Browser Use connection (foreign: %s)", async foreign => {
@@ -542,7 +542,7 @@ const actor = { actorType: "user" as const, actorId: "browser-reviewer" };
         runId: f.run.id,
       });
       expect(snapshot.bindingId).not.toBeNull();
-      const servers = await buildPaperclipRuntimeMcpServers({
+      const servers = await buildNexusRuntimeMcpServers({
         db,
         agent: f.agent,
         runId: f.run.id,
@@ -1432,7 +1432,7 @@ const actor = { actorType: "user" as const, actorId: "browser-reviewer" };
       const barrier = vi.spyOn(db, "transaction").mockImplementation(async (callback, config) => {
         const result = await transaction(callback, config);
         const [run] = await db.select().from(browserUseRuns).where(eq(browserUseRuns.invocationId, invocationId));
-        if (!injected && run?.status === "creating" && !(run.result as { paperclipBudgetHold?: { dispatchCommittedAt?: string } })?.paperclipBudgetHold?.dispatchCommittedAt) {
+        if (!injected && run?.status === "creating" && !(run.result as { nexusBudgetHold?: { dispatchCommittedAt?: string } })?.nexusBudgetHold?.dispatchCommittedAt) {
           injected = true;
           if (race === "reduction" || race === "new_policy") await budgetService(db).upsertPolicy(f.company.id,
             { scopeType: "company", scopeId: f.company.id, amount: race === "new_policy" ? 100 : 10, hardStopEnabled: true }, actor.actorId);
@@ -1453,7 +1453,7 @@ const actor = { actorType: "user" as const, actorId: "browser-reviewer" };
       expect(injected).toBe(true);
       expect(f.request.mock.calls.filter(([url, init]) => url.endsWith("/runs") && init.method === "POST")).toHaveLength(0);
       const [run] = await db.select().from(browserUseRuns).where(eq(browserUseRuns.invocationId, invocationId));
-      expect(run).toMatchObject({ status: "failed", eventsDrained: 1, result: { paperclipBudgetHold: { state: "released" } } });
+      expect(run).toMatchObject({ status: "failed", eventsDrained: 1, result: { nexusBudgetHold: { state: "released" } } });
     });
     it.each(["default_allow", "tool_name"])("retains valid %s profile authorization at browser admission", async selector => {
       const f = await fixture();
@@ -1488,12 +1488,12 @@ const actor = { actorType: "user" as const, actorId: "browser-reviewer" };
       const invocationId = randomUUID();
       const [run] = await db.insert(browserUseRuns).values({ companyId: f.company.id, sessionId: session.id,
         heartbeatRunId: f.run.id, invocationId, createdAt: new Date(Date.now() - 61_000),
-        result: { paperclipBudgetHold: { invocationId, amountCents: "50.0000000", state: "held", projectId: null } } }).returning();
+        result: { nexusBudgetHold: { invocationId, amountCents: "50.0000000", state: "held", projectId: null } } }).returning();
       f.request.mockClear();
       await f.tick();
       const [policyRow] = await db.select().from(budgetPolicies).where(eq(budgetPolicies.id, policy.policyId));
       expect((await computeObservedSpend(db, policyRow)).effectiveHeldCents).toBe("0.0000000");
-      expect((await db.select().from(browserUseRuns).where(eq(browserUseRuns.id, run.id)))[0]).toMatchObject({ status: "failed", eventsDrained: 1, result: { paperclipBudgetHold: { state: "released" } } });
+      expect((await db.select().from(browserUseRuns).where(eq(browserUseRuns.id, run.id)))[0]).toMatchObject({ status: "failed", eventsDrained: 1, result: { nexusBudgetHold: { state: "released" } } });
       expect((await db.select().from(browserUseSessions).where(eq(browserUseSessions.id, session.id)))[0].status).toBe("failed");
       expect(f.request.mock.calls.some(([url]) => new URL(url).pathname === "/api/v4/runs")).toBe(false);
     });
@@ -1518,7 +1518,7 @@ const actor = { actorType: "user" as const, actorId: "browser-reviewer" };
         const invocation = randomUUID();
         await expect(f.service.execute(f.binding, f.grant, invocation, "browser_start", { task: "Uncapped running work" })).resolves.toMatchObject({ status: "running" });
         const [run] = await db.select().from(browserUseRuns).where(eq(browserUseRuns.invocationId, invocation));
-        expect(run.result).toMatchObject({ paperclipBudgetHold: { amountCents: "0.0000000", uncapped: true } });
+        expect(run.result).toMatchObject({ nexusBudgetHold: { amountCents: "0.0000000", uncapped: true } });
         expect(JSON.parse(String(f.request.mock.calls.find(([url, init]) => url.endsWith("/runs") && init.method === "POST")![1].body))).not.toHaveProperty("maxCostUsd");
         if (legacy) await db.update(browserUseRuns).set({ result: null }).where(eq(browserUseRuns.id, run.id));
         const scopeId = scopeType === "company" ? f.company.id : scopeType === "agent" ? f.agent.id : project.id;
@@ -1550,7 +1550,7 @@ const actor = { actorType: "user" as const, actorId: "browser-reviewer" };
       const invocationId = randomUUID();
       await db.insert(browserUseRuns).values({ companyId: f.company.id, sessionId: session.id, heartbeatRunId: f.run.id,
         invocationId, status: item.status, providerRunId: item.dispatched ? randomUUID() : null, eventsDrained: item.status === "failed" ? 1 : 0,
-        result: { paperclipBudgetHold: { invocationId, amountCents: "0.0000000", projectId: null, state: item.state,
+        result: { nexusBudgetHold: { invocationId, amountCents: "0.0000000", projectId: null, state: item.state,
           ...(item.uncapped === undefined ? {} : { uncapped: item.uncapped }),
           ...(item.dispatched ? { dispatchCommittedAt: new Date().toISOString() } : {}) } } });
       const policy = await budgetService(db).upsertPolicy(f.company.id,
@@ -1593,9 +1593,9 @@ const actor = { actorType: "user" as const, actorId: "browser-reviewer" };
       await f.tick();
       expect(await computeObservedSpend(db, row)).toMatchObject({ ledgerCents: "15.0000001", effectiveHeldCents: "0.0000000" });
       const [run] = await db.select().from(browserUseRuns).where(eq(browserUseRuns.invocationId, invocation));
-      expect(run.result).toMatchObject({ paperclipBudgetHold: { state: "settled", accountedCentsExact: "15.0000001" } });
+      expect(run.result).toMatchObject({ nexusBudgetHold: { state: "settled", accountedCentsExact: "15.0000001" } });
       const replay = await f.service.execute(f.binding, f.grant, invocation, "browser_start", { task: "Read" });
-      expect(JSON.stringify(replay)).not.toContain("paperclipBudgetHold");
+      expect(JSON.stringify(replay)).not.toContain("nexusBudgetHold");
       expect(await db.select().from(costEvents).where(eq(costEvents.companyId, f.company.id))).toHaveLength(1);
     });
     it("retains exact cumulative accounting when an older browser row has no hold projection", async () => {
@@ -1610,7 +1610,7 @@ const actor = { actorType: "user" as const, actorId: "browser-reviewer" };
       const [total] = await db.select({ cents: sql<string>`sum(${costEvents.costCents})::text` }).from(costEvents).where(eq(costEvents.companyId, f.company.id));
       expect(total.cents).toBe("15.0000002");
       expect((await db.select().from(browserUseRuns).where(eq(browserUseRuns.id, run.id)))[0].result)
-        .toMatchObject({ paperclipBudgetHold: { state: "settled", accountedCentsExact: "15.0000002" } });
+        .toMatchObject({ nexusBudgetHold: { state: "settled", accountedCentsExact: "15.0000002" } });
     });
     it("caps paid work at the remaining hard budget and enforces reported spend", async () => {
       const f = await fixture();

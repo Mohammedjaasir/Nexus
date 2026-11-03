@@ -95,7 +95,7 @@ describe("Shared Costs surfaces", () => {
   });
 
   it.each(["overview", "budgets"] as const)("explains unavailable Muse accounting on its scoped %s page", async (tab) => {
-    scopedAgentMock.mockResolvedValue({ id: "muse-agent", name: "Researcher", adapterType: "paperclip_runner", adapterConfig: { provider: "muse" } });
+    scopedAgentMock.mockResolvedValue({ id: "muse-agent", name: "Researcher", adapterType: "nexus_runner", adapterConfig: { provider: "muse" } });
     for (const mock of Object.values(costsApiMocks)) mock.mockResolvedValue([]);
     costsApiMocks.byUser.mockResolvedValue({ activeUserCount: 1, rows: [] });
     costsApiMocks.summary.mockResolvedValue({ spendCents: 0, budgetCents: 0, pricingComplete: true });
@@ -106,7 +106,7 @@ describe("Shared Costs surfaces", () => {
     await act(async () => { await vi.waitFor(() => expect(container.textContent).toContain("Researcher's Muse activity has no reported usage or cost")); });
     expect(scopedAgentMock).toHaveBeenCalledWith("muse-agent", "company-1");
     expect(container.textContent).toContain("Totals below show recorded organization charges only");
-    expect(container.textContent).toContain("Paperclip cannot enforce a Muse spend ceiling");
+    expect(container.textContent).toContain("Nexus cannot enforce a Muse spend ceiling");
     queryClient.clear();
   });
 

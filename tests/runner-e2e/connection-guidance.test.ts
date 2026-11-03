@@ -28,7 +28,7 @@ describe("neutral connection guidance selection", () => {
       const original = everydayTasks.find(row => row.id === task.id)!;
       if (task.id.endsWith("decline")) {
         expect(task.buildPrompt("nonce")).toMatch(/brief explanation is enough/);
-        expect(task.buildPrompt("nonce")).not.toMatch(/declin|Not now|None for now|do not|retry|try again|connection_request|connections_search|paperclip_|yield|poll/i);
+        expect(task.buildPrompt("nonce")).not.toMatch(/declin|Not now|None for now|do not|retry|try again|connection_request|connections_search|nexus_|yield|poll/i);
         expect(task.buildPrompt("nonce")).not.toBe(original.buildPrompt("nonce"));
       } else expect(task.buildPrompt("nonce")).toBe(original.buildPrompt("nonce"));
     }

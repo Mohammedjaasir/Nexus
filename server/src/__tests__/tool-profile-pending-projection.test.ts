@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pendingNewToolsForProfile, profileCoversCatalogScope, profileEntryMatchesCatalog, type ProfileCatalogEntry } from "../services/tool-access/profiles/projection.js";
-import type { toolProfiles, toolProfileEntries } from "@paperclipai/db";
+import type { toolProfiles, toolProfileEntries } from "@nexusai/db";
 
 type Input = Parameters<typeof pendingNewToolsForProfile>[0];
 const date = new Date("2026-01-01T00:00:00Z");

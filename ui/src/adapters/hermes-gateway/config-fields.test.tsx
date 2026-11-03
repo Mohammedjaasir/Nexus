@@ -55,7 +55,7 @@ describe("HermesGatewayConfigFields", () => {
       config: {
         apiBaseUrl: "http://127.0.0.1:8642",
         apiKey: { type: "secret_ref", secretId: "11111111-1111-4111-8111-111111111111", version: "latest" },
-        paperclipApiUrl: "http://127.0.0.1:3100",
+        nexusApiUrl: "http://127.0.0.1:3100",
         sessionKeyStrategy: "issue",
       },
     });
@@ -64,7 +64,7 @@ describe("HermesGatewayConfigFields", () => {
     const text = result.container.textContent ?? "";
     expect(text).toContain("API base URL");
     expect(text).toContain("API key");
-    expect(text).toContain("Paperclip API URL");
+    expect(text).toContain("Nexus API URL");
     expect(text).toContain("Session key strategy");
     expect(text).toContain("Timeout seconds");
     expect(text).toContain("Event reconnect ms");

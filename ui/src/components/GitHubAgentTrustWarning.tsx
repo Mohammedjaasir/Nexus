@@ -1,5 +1,5 @@
 import { AlertTriangle, ExternalLink } from "lucide-react";
-import type { AgentPermissions } from "@paperclipai/shared";
+import type { AgentPermissions } from "@nexusai/shared";
 import { getTrustPreset } from "@/lib/trust-policy-ui";
 import { Button } from "@/components/ui/button";
 

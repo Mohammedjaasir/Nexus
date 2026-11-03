@@ -9,7 +9,7 @@ import {
   issues,
   nativeRunFinalizations,
   statusDecisionEffects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -51,7 +51,7 @@ describeEmbeddedPostgres("native finalization candidate selection", () => {
   let issueId: string;
 
   beforeAll(async () => {
-    temporary = await startEmbeddedPostgresTestDatabase("paperclip-native-settled-candidates-");
+    temporary = await startEmbeddedPostgresTestDatabase("nexus-native-settled-candidates-");
     db = createDb(temporary.connectionString);
   }, 30_000);
 

@@ -53,11 +53,11 @@ describe("live runner fixtures", () => {
     ["receipt-smoke", 100], ["same-task-roundtrip", 1_000],
   ] as const)("bounds %s before creating its initial subscription agent", async (taskId, budget) => {
     const root = await realpath(await mkdtemp(path.join(tmpdir(), "case-fixture-limits-")));
-    const home = path.join(root, "paperclip-home");
+    const home = path.join(root, "nexus-home");
     await mkdir(home);
-    vi.stubEnv("PAPERCLIP_RUNNER_E2E_TEMP_ROOT", root);
-    vi.stubEnv("PAPERCLIP_HOME", home);
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "runner-e2e-case-fixture-test");
+    vi.stubEnv("NEXUS_RUNNER_E2E_TEMP_ROOT", root);
+    vi.stubEnv("NEXUS_HOME", home);
+    vi.stubEnv("NEXUS_INSTANCE_ID", "runner-e2e-case-fixture-test");
     const execution = runnerMatrix.find(row => row.id === `case-handoffs.runner-codex-subscription.local.${taskId}`)!;
     const companyId = "11111111-2222-4333-8444-555555555555";
     let companyBody: any;
@@ -266,7 +266,7 @@ describe("live runner fixtures", () => {
           );
           return {
             id: "plugin-daytona",
-            pluginKey: "paperclip.daytona-sandbox-provider",
+            pluginKey: "nexus.daytona-sandbox-provider",
             status: "ready",
           };
         }
@@ -307,7 +307,7 @@ describe("live runner fixtures", () => {
         DAYTONA_API_KEY: "daytona-test-value",
       },
       daytonaImage:
-        "ghcr.io/paperclip/image@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ghcr.io/nexus/image@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     });
 
     expect(calls.indexOf("POST /api/plugins/install")).toBeLessThan(
@@ -324,14 +324,14 @@ describe("live runner fixtures", () => {
     const original = runnerMatrix.find(row => row.id === "core-compatibility.runner-codex.daytona.message-marker")!;
     const execution = { ...original, profile: { ...original.profile, buildAgent(input: Parameters<typeof original.profile.buildAgent>[0]) {
       const payload = original.profile.buildAgent(input);
-      return { ...payload, adapterType: mode === "auto" ? "codex_local" : "paperclip_runner",
-        runner: mode === "auto" ? "auto" : "paperclip" };
+      return { ...payload, adapterType: mode === "auto" ? "codex_local" : "nexus_runner",
+        runner: mode === "auto" ? "auto" : "nexus" };
     } } };
     const calls: string[] = [];
     const api = {
       async get(path: string) {
         calls.push(`GET ${path}`);
-        return [{ type: "codex_local", defaultRunner: "paperclip", supportedRunners: ["paperclip", "legacy"] }];
+        return [{ type: "codex_local", defaultRunner: "nexus", supportedRunners: ["nexus", "legacy"] }];
       },
       async post(path: string, data: any, options: any) {
         calls.push(`POST ${path}`);
@@ -344,8 +344,8 @@ describe("live runner fixtures", () => {
         }
         if (path.endsWith("/agents")) {
           expect(calls).toContain("POST /api/environments/environment/probe?companyId=company");
-          expect(data.adapterType).toBe(mode === "auto" ? "codex_local" : "paperclip_runner");
-          expect(data.runner).toBe(mode === "auto" ? "auto" : "paperclip");
+          expect(data.adapterType).toBe(mode === "auto" ? "codex_local" : "nexus_runner");
+          expect(data.runner).toBe(mode === "auto" ? "auto" : "nexus");
           if (mode === "auto") expect(calls).toContain("GET /api/adapters?companyId=company&environmentId=environment");
           return { id: "agent", companyId: "company", ...data };
         }
@@ -357,7 +357,7 @@ describe("live runner fixtures", () => {
     const fixtures = await setupLiveFixtures({ api, execution, executionNonce: "nonce", workspacePath: "/tmp/fixture",
       credentials: { OPENAI_API_KEY: "fixture-key", DAYTONA_API_KEY: "fixture-provider-key" },
       daytonaImage: `registry.example.test/runtime@sha256:${"a".repeat(64)}` });
-    expect(fixtures.setupProbe).toMatchObject({ leaseId: "setup-probe", ...(mode === "auto" ? { defaultRunner: "paperclip" } : {}) });
+    expect(fixtures.setupProbe).toMatchObject({ leaseId: "setup-probe", ...(mode === "auto" ? { defaultRunner: "nexus" } : {}) });
     expect(calls.filter(call => call.includes("/probe?"))).toHaveLength(1);
     expect(calls.filter(call => call.startsWith("GET"))).toHaveLength(mode === "auto" ? 1 : 0);
     await fixtures.teardown();
@@ -414,7 +414,7 @@ describe("live runner fixtures", () => {
         if (path === "/api/plugins/install") {
           return {
             id: "plugin-daytona",
-            pluginKey: "paperclip.daytona-sandbox-provider",
+            pluginKey: "nexus.daytona-sandbox-provider",
             status: "ready",
           };
         }
@@ -454,7 +454,7 @@ describe("live runner fixtures", () => {
         }
         throw new Error(`Unexpected POST ${path}`);
       },
-      async get() { return [{ type: "codex_local", defaultRunner: "paperclip", supportedRunners: ["paperclip", "legacy"] }]; },
+      async get() { return [{ type: "codex_local", defaultRunner: "nexus", supportedRunners: ["nexus", "legacy"] }]; },
       async postSensitive(_path: string, data?: Record<string, unknown>) {
         return { id: `secret-${String(data?.key).toLowerCase()}` };
       },
@@ -476,7 +476,7 @@ describe("live runner fixtures", () => {
         DAYTONA_API_KEY: "daytona-test-value",
       },
       daytonaImage:
-        "ghcr.io/paperclip/image@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ghcr.io/nexus/image@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     });
 
     expect(fixtures.project?.primaryWorkspace?.id).toBe("project-workspace-1");
@@ -518,7 +518,7 @@ describe("managed setup runtime cost coverage", () => {
 describe("Daytona fixture readiness after candidate startup", () => {
   const companyId = "11111111-2222-4333-8444-555555555555";
   const pluginId = "22222222-2222-4333-8444-555555555555";
-  const pluginKey = "paperclip.daytona-sandbox-provider";
+  const pluginKey = "nexus.daytona-sandbox-provider";
   const waitReady = () => (fixtureReadiness as unknown as {
     waitForFixtureDaytonaProvider: (api: Pick<RunnerApi, "get">, input: { companyId: string; deadlineAt: number }) => Promise<void>;
   }).waitForFixtureDaytonaProvider;
@@ -528,7 +528,7 @@ describe("Daytona fixture readiness after candidate startup", () => {
     const end = source.indexOf("    const api = new RunnerApi(request);", start);
     expect(start).toBeGreaterThan(0); expect(end).toBeGreaterThan(start);
     const js = transformSync(source.slice(start, end), { loader: "ts", format: "cjs" }).code;
-    return new Function("kimiCandidateAdmissionForExecution", "execution", "api", "nonce", "startedAtMs", "deadlineMs", "trace", "saveTrace", "restartIsolatedPaperclipServer", "waitForFixtureDaytonaProvider", js + ";return onCompanyCreated;")(
+    return new Function("kimiCandidateAdmissionForExecution", "execution", "api", "nonce", "startedAtMs", "deadlineMs", "trace", "saveTrace", "restartIsolatedNexusServer", "waitForFixtureDaytonaProvider", js + ";return onCompanyCreated;")(
       () => ({}), execution, api, "fixture", 0, deadlineAt, undefined, async () => {}, restart, waitReady(),
     ) as (id: string) => Promise<void>;
   }

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { rehydrateRunnerdItemNotification } from "../../packages/paperclip-runner/src/live/runnerd-codex-transport.js";
+import { rehydrateRunnerdItemNotification } from "../../packages/nexus-runner/src/live/runnerd-codex-transport.js";
 import { gradeNativeCompletion as gradeLegacyNativeCompletion, gradeNativeCompletionFinalAnswer as gradeNativeCompletion, type NativeCompletionObservation } from "./native-completion-scoring.js";
 type Row = Record<string, unknown>;
 function sample(blocked = true, compatibility = false): NativeCompletionObservation {
@@ -8,14 +8,14 @@ function sample(blocked = true, compatibility = false): NativeCompletionObservat
   const result = { reportedWorkDisposition: blocked ? "blocked" : "done", ...(blocked ? { blocker: { owner: { name: "Release Owner" }, unblockAction: "Grant deployment access", scope: "task_wide" } } : {}) };
   const event = (seq: number, eventType: string, payload: Row, sourceKind = "runner"): Row => ({ seq, eventType, protocolSchemaVersion: 1,
     sourceEventId: `event${seq}`, sourceInstanceId: sourceKind, sourceSeq: seq,
-    payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, runId: "run", eventType,
+    payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, runId: "run", eventType,
       sourceKind, sourceEventId: `event${seq}`, sourceInstanceId: sourceKind, sourceSeq: seq, payload } } });
-  const tool = blocked ? "paperclip_block" : "paperclip_finish";
+  const tool = blocked ? "nexus_block" : "nexus_finish";
   return { caseId: blocked ? "native-blocked-report" : "assigned-skill-explicit-invocation", companyId: "company", agentId: "agent", marker: "BLOCKED_probe",
     issue: { id: "issue", companyId: "company", assigneeAgentId: "agent", status: result.reportedWorkDisposition },
     runs: [{ id: "run", nativeIssueId: "issue", companyId: "company", agentId: "agent", status: "succeeded", runtimeMode: "native", resultJson: { nativeResult: result } }],
     comments: [{ createdByRunId: "run", authorAgentId: "agent", body }],
-    documentLinkContext: { appOrigin: "https://paperclip.example", issuePrefix: "RUN", issueIdentifier: "RUN-1",
+    documentLinkContext: { appOrigin: "https://nexus.example", issuePrefix: "RUN", issueIdentifier: "RUN-1",
       documents: blocked ? [] : [{ key: "output", latestRevisionId: "revision", latestRevisionNumber: 1 }] },
     initial: { issueIds: [], agentIds: ["agent"] }, state: { issueIds: ["issue"], agentIds: ["agent"], documentCount: blocked ? 0 : 1, interactionCount: 0 }, workspaceChanged: false,
     events: [compatibility ? event(1, "item.started", { kind: "tool_call", item: { type: "tool_call", id: "tool", name: tool } }) : event(1, "tool.execution.started", { name: tool, executionId: "tool" }), event(2, "run.result.proposed", result),
@@ -30,8 +30,8 @@ describe("native completion independent oracle", () => {
     const value = sample(false);
     const text = "Saved the requested document.";
     (payload(value, 3).item as Row).text = text; value.comments[0]!.body = text;
-    expect(gradeLegacyNativeCompletion(value)).toMatchObject({ schema: "paperclip.native-completion-observation.v2", passed: true });
-    expect(gradeNativeCompletion(value)).toMatchObject({ schema: "paperclip.native-completion-observation.v3", passed: false });
+    expect(gradeLegacyNativeCompletion(value)).toMatchObject({ schema: "nexus.native-completion-observation.v2", passed: true });
+    expect(gradeNativeCompletion(value)).toMatchObject({ schema: "nexus.native-completion-observation.v3", passed: false });
     expect(gradeLegacyNativeCompletion(value).checks.some(check => check.id === "saved-document-final-link")).toBe(false);
   });
 
@@ -57,7 +57,7 @@ describe("native completion independent oracle", () => {
     expect(gradeNativeCompletion(value).passed).toBe(false);
   });
   it.each([[true, false], [true, true], [false, false], [false, true]])("accepts disposition %s compatibility %s with final before late control-plane acceptance", (blocked, compatibility) => expect(gradeNativeCompletion(sample(blocked, compatibility)).passed).toBe(true));
-  it.each(["paperclip_finish", "paperclip_block"])("carries normalized %s identity through rehydration into the exact-call oracle", name => {
+  it.each(["nexus_finish", "nexus_block"])("carries normalized %s identity through rehydration into the exact-call oracle", name => {
     // The Rust normalization calibration asserts these exact fixture bytes.
     const fixture = JSON.parse(readFileSync(new URL("./fixtures/native-completion/terminal-tool-carrier.json", import.meta.url), "utf8")) as {
       cases: Array<{ name: string; normalizedPayload: Row }>;
@@ -66,7 +66,7 @@ describe("native completion independent oracle", () => {
     const started = rehydrateRunnerdItemNotification(normalized, "thread", "turn");
     expect(started.item).toMatchObject({ id: "terminal-call", type: "tool_call", name });
     const completed = rehydrateRunnerdItemNotification({ provider: "codex", itemId: "terminal-call", kind: "tool_result", status: "completed", channel: "detail", text: null }, "thread", "turn");
-    const value = sample(name === "paperclip_block", true);
+    const value = sample(name === "nexus_block", true);
     payload(value, 0).item = started.item;
     payload(value, 2).item = completed.item;
     expect(gradeNativeCompletion(value).passed).toBe(true);

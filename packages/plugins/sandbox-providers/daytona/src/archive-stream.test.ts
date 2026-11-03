@@ -26,7 +26,7 @@ it.each(["missing receipt", "tar failure", "transport loss", "invalid base64", "
   const close = vi.fn(async () => {});
   if (fault === "host reserve") vi.mocked(statfs).mockResolvedValue({ bavail: 0, bsize: 4096 } as never);
   openSession.mockImplementation(async (_process, command: string[]) => {
-    const marker = command.join(" ").match(/paperclip-archive-[a-f0-9-]+/)![0];
+    const marker = command.join(" ").match(/nexus-archive-[a-f0-9-]+/)![0];
     let listener: (bytes: Uint8Array) => void;
     let end!: (exit: { exitCode: number | null; transportClosed: boolean }) => void;
     const completion = new Promise<{ exitCode: number | null; transportClosed: boolean }>(resolve => { end = resolve; });

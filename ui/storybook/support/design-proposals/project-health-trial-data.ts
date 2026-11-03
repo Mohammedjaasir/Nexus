@@ -1,9 +1,9 @@
-import type { Issue, Project } from "@paperclipai/shared";
+import type { Issue, Project } from "@nexusai/shared";
 import {
   createIssue,
   storybookAuthSession,
   storybookCompanies,
-} from "../../fixtures/paperclipData";
+} from "../../fixtures/nexusData";
 
 export const projectHealthProjectIds = {
   onboarding: "project-health-trial-onboarding",

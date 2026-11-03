@@ -1,177 +1,177 @@
 [
   {
     "dir": "packages/adapter-utils",
-    "name": "@paperclipai/adapter-utils",
+    "name": "@nexusai/adapter-utils",
     "publishFromCi": true
   },
   {
     "dir": "packages/adapters/claude-local",
-    "name": "@paperclipai/adapter-claude-local",
+    "name": "@nexusai/adapter-claude-local",
     "publishFromCi": true
   },
   {
     "dir": "packages/adapters/codex-local",
-    "name": "@paperclipai/adapter-codex-local",
+    "name": "@nexusai/adapter-codex-local",
     "publishFromCi": true
   },
   {
     "dir": "packages/adapters/cursor-cloud",
-    "name": "@paperclipai/adapter-cursor-cloud",
+    "name": "@nexusai/adapter-cursor-cloud",
     "publishFromCi": true
   },
   {
     "dir": "packages/adapters/cursor-local",
-    "name": "@paperclipai/adapter-cursor-local",
+    "name": "@nexusai/adapter-cursor-local",
     "publishFromCi": true
   },
   {
     "dir": "packages/adapters/gemini-local",
-    "name": "@paperclipai/adapter-gemini-local",
+    "name": "@nexusai/adapter-gemini-local",
     "publishFromCi": true
   },
   {
     "dir": "packages/adapters/grok-local",
-    "name": "@paperclipai/adapter-grok-local",
+    "name": "@nexusai/adapter-grok-local",
     "publishFromCi": true
   },
   {
     "dir": "packages/adapters/hermes",
-    "name": "@paperclipai/hermes-paperclip-adapter",
+    "name": "@nexusai/hermes-nexus-adapter",
     "publishFromCi": true
   },
   {
     "dir": "packages/adapters/hermes-gateway",
-    "name": "@paperclipai/adapter-hermes-gateway",
+    "name": "@nexusai/adapter-hermes-gateway",
     "publishFromCi": false
   },
   {
     "dir": "packages/adapters/kimi-local",
-    "name": "@paperclipai/adapter-kimi-local",
+    "name": "@nexusai/adapter-kimi-local",
     "publishFromCi": true
   },
   {
     "dir": "packages/adapters/opencode-local",
-    "name": "@paperclipai/adapter-opencode-local",
+    "name": "@nexusai/adapter-opencode-local",
     "publishFromCi": true
   },
   {
     "dir": "packages/adapters/pi-local",
-    "name": "@paperclipai/adapter-pi-local",
+    "name": "@nexusai/adapter-pi-local",
     "publishFromCi": true
   },
   {
     "dir": "packages/adapters/openclaw-gateway",
-    "name": "@paperclipai/adapter-openclaw-gateway",
+    "name": "@nexusai/adapter-openclaw-gateway",
     "publishFromCi": true
   },
   {
     "dir": "packages/shared",
-    "name": "@paperclipai/shared",
+    "name": "@nexusai/shared",
     "publishFromCi": true
   },
   {
     "dir": "packages/skills-catalog",
-    "name": "@paperclipai/skills-catalog",
+    "name": "@nexusai/skills-catalog",
     "publishFromCi": true
   },
   {
     "dir": "packages/teams-catalog",
-    "name": "@paperclipai/teams-catalog",
+    "name": "@nexusai/teams-catalog",
     "publishFromCi": true
   },
   {
     "dir": "packages/db",
-    "name": "@paperclipai/db",
+    "name": "@nexusai/db",
     "publishFromCi": true
   },
   {
     "dir": "packages/plugins/sdk",
-    "name": "@paperclipai/plugin-sdk",
+    "name": "@nexusai/plugin-sdk",
     "publishFromCi": true
   },
   {
     "dir": "packages/plugins/plugin-workspace-diff",
-    "name": "@paperclipai/plugin-workspace-diff",
+    "name": "@nexusai/plugin-workspace-diff",
     "publishFromCi": true
   },
   {
     "dir": "server",
-    "name": "@paperclipai/server",
+    "name": "@nexusai/server",
     "publishFromCi": true
   },
   {
     "dir": "cli",
-    "name": "paperclipai",
+    "name": "nexusai",
     "publishFromCi": true
   },
   {
     "dir": "packages/mcp-server",
-    "name": "@paperclipai/mcp-server",
+    "name": "@nexusai/mcp-server",
     "publishFromCi": true
   },
   {
     "dir": "packages/google-sheets-mcp-server",
-    "name": "@paperclipai/google-sheets-mcp-server",
+    "name": "@nexusai/google-sheets-mcp-server",
     "publishFromCi": false
   },
   {
     "dir": "packages/kv-demo-mcp-server",
-    "name": "@paperclipai/kv-demo-mcp-server",
+    "name": "@nexusai/kv-demo-mcp-server",
     "publishFromCi": false
   },
   {
-    "dir": "packages/plugins/create-paperclip-plugin",
-    "name": "@paperclipai/create-paperclip-plugin",
+    "dir": "packages/plugins/create-nexus-plugin",
+    "name": "@nexusai/create-nexus-plugin",
     "publishFromCi": true
   },
   {
     "dir": "packages/plugins/sandbox-providers/boxd",
-    "name": "@paperclipai/plugin-boxd",
+    "name": "@nexusai/plugin-boxd",
     "publishFromCi": false
   },
   {
     "dir": "packages/plugins/sandbox-providers/cloudflare",
-    "name": "@paperclipai/plugin-cloudflare-sandbox",
+    "name": "@nexusai/plugin-cloudflare-sandbox",
     "publishFromCi": true
   },
   {
     "dir": "packages/plugins/sandbox-providers/createos",
-    "name": "@paperclipai/plugin-createos",
+    "name": "@nexusai/plugin-createos",
     "publishFromCi": false
   },
   {
     "dir": "packages/plugins/sandbox-providers/daytona",
-    "name": "@paperclipai/plugin-daytona",
+    "name": "@nexusai/plugin-daytona",
     "publishFromCi": true
   },
   {
     "dir": "packages/plugins/sandbox-providers/exe-dev",
-    "name": "@paperclipai/plugin-exe-dev",
+    "name": "@nexusai/plugin-exe-dev",
     "publishFromCi": true
   },
   {
     "dir": "packages/plugins/sandbox-providers/e2b",
-    "name": "@paperclipai/plugin-e2b",
+    "name": "@nexusai/plugin-e2b",
     "publishFromCi": true
   },
   {
     "dir": "packages/plugins/sandbox-providers/modal",
-    "name": "@paperclipai/plugin-modal",
+    "name": "@nexusai/plugin-modal",
     "publishFromCi": true
   },
   {
     "dir": "packages/plugins/sandbox-providers/kubernetes",
-    "name": "@paperclipai/plugin-kubernetes",
+    "name": "@nexusai/plugin-kubernetes",
     "publishFromCi": true
   },
   {
     "dir": "packages/plugins/sandbox-providers/novita",
-    "name": "@paperclipai/plugin-novita-sandbox",
+    "name": "@nexusai/plugin-novita-sandbox",
     "publishFromCi": true
   },
   {
     "dir": "ui",
-    "name": "@paperclipai/ui",
+    "name": "@nexusai/ui",
     "publishFromCi": true
   }
 ]

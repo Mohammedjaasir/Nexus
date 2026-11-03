@@ -7,7 +7,7 @@ import {
   type FastResponseTestResult,
   type UpdateFastResponse,
   type AiProvider,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { fastResponsesApi } from "@/api/fast-responses";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -201,7 +201,7 @@ export function FastResponseSettingsView({
             />
             <p className="text-xs text-muted-foreground">
               Covers accepted external messages from people without a linked
-              Paperclip account.
+              Nexus account.
             </p>
           </div>
         </fieldset>

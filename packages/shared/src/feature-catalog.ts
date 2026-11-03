@@ -14,7 +14,7 @@ import { instanceExperimentalSettingsSchema } from "./validators/instance.js";
  * - `preference`: tenant-controllable taste setting; the cloud harness does
  *   not manage it.
  * - `managed`: the cloud harness may set this per fleet/stack via
- *   `PAPERCLIP_MANAGED_CONFIG`.
+ *   `NEXUS_MANAGED_CONFIG`.
  * - `floor`: pinned by code on managed instances; no flag value may widen it.
  */
 export const FEATURE_TIERS = ["preference", "managed", "floor"] as const;
@@ -56,13 +56,13 @@ export const INSTANCE_FEATURE_CATALOG: Record<InstanceFeatureKey, FeatureCatalog
     tier: "managed", cloudDefault: false, selfHostedDefault: false,
   },
   enableNativeRunner: {
-    title: "Paperclip Runner",
+    title: "Nexus Runner",
     description:
-      "Allow explicitly configured local Codex, OpenCode, and qualified ACPX agents to use the experimental Rust Paperclip Runner, including authenticated sandbox ingress when required. Onboarding remains on legacy adapters.",
+      "Allow explicitly configured local Codex, OpenCode, and qualified ACPX agents to use the experimental Rust Nexus Runner, including authenticated sandbox ingress when required. Onboarding remains on legacy adapters.",
     tier: "managed",
     cloudDefault: false,
     // On by default for self-hosted instances. Requires a Rust toolchain (or
-    // PAPERCLIP_RUNNER_BINARY) for `pnpm dev`, which builds runnerd whenever
+    // NEXUS_RUNNER_BINARY) for `pnpm dev`, which builds runnerd whenever
     // this is on.
     selfHostedDefault: true,
   },
@@ -143,14 +143,14 @@ export const INSTANCE_FEATURE_CATALOG: Record<InstanceFeatureKey, FeatureCatalog
   },
   enableGrokBot: {
     title: "Grok Bot",
-    description: "Connect an existing Grok Bot as an experimental Paperclip agent. Requires Assistant connections (MCP), Paperclip Runner, and an authenticated public HTTPS instance. Provider spending is not reported.",
+    description: "Connect an existing Grok Bot as an experimental Nexus agent. Requires Assistant connections (MCP), Nexus Runner, and an authenticated public HTTPS instance. Provider spending is not reported.",
     tier: "managed",
     cloudDefault: false,
     selfHostedDefault: false,
   },
   enableMuse: {
     title: "Muse — Personal agent",
-    description: "Connect your personal Meta Muse through its managed background receiver and the external Paperclip Runner. Experimental; requires authenticated public HTTPS and Paperclip Runner.",
+    description: "Connect your personal Meta Muse through its managed background receiver and the external Nexus Runner. Experimental; requires authenticated public HTTPS and Nexus Runner.",
     tier: "managed", cloudDefault: false, selfHostedDefault: false,
   },
   enableChatConnectors: {
@@ -168,9 +168,9 @@ export const INSTANCE_FEATURE_CATALOG: Record<InstanceFeatureKey, FeatureCatalog
     cloudDefault: false,
     selfHostedDefault: false,
   },
-  enablePaperclipNotebook: {
-    title: "Paperclip Notebook",
-    description: "Allow Paperclip Notebook connections and publishing through an explicitly enabled instance rollout.",
+  enableNexusNotebook: {
+    title: "Nexus Notebook",
+    description: "Allow Nexus Notebook connections and publishing through an explicitly enabled instance rollout.",
     tier: "managed",
     cloudDefault: false,
     selfHostedDefault: false,
@@ -272,14 +272,14 @@ export const INSTANCE_FEATURE_CATALOG: Record<InstanceFeatureKey, FeatureCatalog
   enableBuiltInAgents: {
     title: "Built-in Agents",
     description:
-      "Show Paperclip-managed built-in agent surfaces, including roster badges, the Built-in agents tab, and setup controls.",
+      "Show Nexus-managed built-in agent surfaces, including roster badges, the Built-in agents tab, and setup controls.",
     tier: "managed",
     cloudDefault: false,
     selfHostedDefault: false,
   },
   enableBetaSkills: {
     title: "Beta skills",
-    description: "Allow agents to pin beta releases of the Paperclip core skill.",
+    description: "Allow agents to pin beta releases of the Nexus core skill.",
     tier: "preference",
     cloudDefault: false,
     selfHostedDefault: false,
@@ -331,10 +331,10 @@ export const INSTANCE_FEATURE_CATALOG: Record<InstanceFeatureKey, FeatureCatalog
     cloudDefault: false,
     selfHostedDefault: false,
   },
-  enablePaperclipDeveloperMode: {
-    title: "Paperclip Developer Mode",
+  enableNexusDeveloperMode: {
+    title: "Nexus Developer Mode",
     description:
-      "Show internal Paperclip maintainer tools and observability links, including Honeycomb trace queries on run pages.",
+      "Show internal Nexus maintainer tools and observability links, including Honeycomb trace queries on run pages.",
     tier: "preference",
     cloudDefault: false,
     selfHostedDefault: false,
@@ -382,7 +382,7 @@ export const INSTANCE_FEATURE_CATALOG: Record<InstanceFeatureKey, FeatureCatalog
   enableRunnerPreviewIngress: {
     title: "Runner Preview Ingress (Deprecated)",
     description:
-      "Compatibility-only key retained for older managed configs. Runner ingress follows the Paperclip Runner setting.",
+      "Compatibility-only key retained for older managed configs. Runner ingress follows the Nexus Runner setting.",
     tier: "managed",
     cloudDefault: false,
     selfHostedDefault: false,

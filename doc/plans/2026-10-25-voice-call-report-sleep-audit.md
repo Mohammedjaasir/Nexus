@@ -133,7 +133,7 @@ and deletion with unconfirmed provider cleanup. These remain open. The older
 #17490 E2E failure and final master reconciliation remain part of completion.
 
 Final local acceptance after the revision fix: 137 full voice/app wiring cases
-passed on `paperclip_sleep25_projection_fixed_20261025_test`; 37 report/cleanup/
+passed on `nexus_sleep25_projection_fixed_20261025_test`; 37 report/cleanup/
 retention worker cases passed serially on the isolated worker database. Workspace
 `pnpm -r typecheck` and `pnpm build` passed. Logs: `/tmp/sleep25-voice-fixed-acceptance.log`,
 `/tmp/sleep25-voice-workers-acceptance.log`, `/tmp/sleep25-workspace-types.log`,
@@ -153,7 +153,7 @@ and reviews are required for the final pushed head. Parent #17580's company
 deletion finding remains unresolved; denial latency finding is resolved.
 
 
-## Paperclip review: report window index and writer scope
+## Nexus review: report window index and writer scope
 
 Review findings 4370594150 and 4370594357 identified deployment-contract clarity
 and expensive report reconstruction. The supported writer model is now explicit:

@@ -1,6 +1,6 @@
 import { blockerWelcomeNote, type BlockerCase } from "./blocker-cases.js";
 type Row = Record<string, any>;
-export const BLOCKER_GRADER_VERSION = "paperclip.blocker-guidance.v6";
+export const BLOCKER_GRADER_VERSION = "nexus.blocker-guidance.v6";
 export const BLOCKER_INPUT_KINDS = ["ask_user_questions", "request_confirmation", "request_checkbox_confirmation"];
 
 export function pendingBlockerInput(checkpoint: BlockerCheckpoint | undefined) {

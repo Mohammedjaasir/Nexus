@@ -93,20 +93,20 @@ describe("Discord actor-scoped correction drafts", () => {
       input,
       now,
     );
-    expect(response.paperclipDiscordCorrection.actionId).toMatch(
+    expect(response.nexusDiscordCorrection.actionId).toMatch(
       /^pcfr:[\w-]{43}$/,
     );
-    expect(response.paperclipDiscordCorrection.message).toContain(
+    expect(response.nexusDiscordCorrection.message).toContain(
       "Release note: Too long",
     );
-    expect(response.paperclipDiscordCorrection.message).toContain(
+    expect(response.nexusDiscordCorrection.message).toContain(
       "shortened to 12",
     );
-    expect(response.paperclipDiscordCorrection.message).not.toContain(inputId);
+    expect(response.nexusDiscordCorrection.message).not.toContain(inputId);
     const draft = await loadDiscordQuestionFormCorrection(
       persistence,
       scope,
-      response.paperclipDiscordCorrection.actionId,
+      response.nexusDiscordCorrection.actionId,
       owner,
       threadId,
       now,
@@ -122,8 +122,8 @@ describe("Discord actor-scoped correction drafts", () => {
       { ...input, values: { [inputId]: "New note" } },
       now,
     );
-    expect(retried.paperclipDiscordCorrection.actionId).toBe(
-      response.paperclipDiscordCorrection.actionId,
+    expect(retried.nexusDiscordCorrection.actionId).toBe(
+      response.nexusDiscordCorrection.actionId,
     );
     expect(rows.size).toBe(1);
     expect(JSON.stringify([...rows])).not.toContain("foreign");
@@ -161,7 +161,7 @@ describe("Discord actor-scoped correction drafts", () => {
         readScope,
         kind === "handle"
           ? `pcfr:${"X".repeat(43)}`
-          : response.paperclipDiscordCorrection.actionId,
+          : response.nexusDiscordCorrection.actionId,
         readOwner,
         kind === "thread" ? "other" : threadId,
         now,
@@ -181,7 +181,7 @@ describe("Discord actor-scoped correction drafts", () => {
       await loadDiscordQuestionFormCorrection(
         persistence,
         scope,
-        response.paperclipDiscordCorrection.actionId,
+        response.nexusDiscordCorrection.actionId,
         owner,
         threadId,
         new Date(input.parentExpiresAt),
@@ -213,7 +213,7 @@ describe("Discord actor-scoped correction drafts", () => {
     const draft = await loadDiscordQuestionFormCorrection(
       persistence,
       scope,
-      response.paperclipDiscordCorrection.actionId,
+      response.nexusDiscordCorrection.actionId,
       owner,
       threadId,
       now,

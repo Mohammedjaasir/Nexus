@@ -2,7 +2,7 @@
 
 ## Goal and boundary
 
-Upgrade the main Paperclip server while native agents keep running in their
+Upgrade the main Nexus server while native agents keep running in their
 existing Daytona sandboxes. A server outage of up to five minutes may delay
 server-dependent tools and queued launches, but must not interrupt the provider
 turn, create a replacement run, repeat completed effects, or require an operator
@@ -62,7 +62,7 @@ No provider turn or uncertain business operation may be restarted to fill it.
 
 ## Findings at kickoff
 
-Base: `eaacadeba3`; worktree `/Users/dotta/.codex/worktrees/a2c4/paperclip`;
+Base: `eaacadeba3`; worktree `/Users/dotta/.codex/worktrees/a2c4/nexus`;
 branch `codex/daytona-hot-upgrades`.
 
 - Native graceful shutdown already detaches instead of cancelling provider work.
@@ -341,7 +341,7 @@ one removed key instead of 4,097 retained keys. A controlled 32-event burst make
 one checkpoint commit with 33 records instead of 32 checkpoint commits. These are
 fixture byte and transaction counts, not production throughput, WAL, encryption
 size, CPU, or cost measurements. Low-rate events may still commit individually.
-Reproduce the size comparison with `PAPERCLIP_CHECKPOINT_COST_REPORT=1` and the
+Reproduce the size comparison with `NEXUS_CHECKPOINT_COST_REPORT=1` and the
 `keeps the checkpoint header` test in the runner package; use Vitest's
 `--disableConsoleIntercept` to print the report.
 
@@ -492,7 +492,7 @@ plugin tasks and built-in drivers use the same registration helper, and a reused
 backend resolves current authority when it registers instead of capturing the
 previous run's lease. Losing that authority still fences subsequent writes.
 
-The recovery integration suite accepts `PAPERCLIP_TEST_DATABASE_URL` for an
+The recovery integration suite accepts `NEXUS_TEST_DATABASE_URL` for an
 explicit disposable Postgres instance when native embedded Postgres is unavailable.
 It creates and removes a fresh database for each invocation; it does not reuse the
 URL's database as fixture storage. This option changes test setup only.
@@ -562,7 +562,7 @@ transactions and fourteen changed rows, with zero streaming or idle SQL.
 `create_project` stores its committed result identity in the existing
 `project.created` activity receipt, scoped to company, actor, source task and
 idempotency key. Recovery asks the normal authenticated project creation route
-for that receipt with `X-Paperclip-Receipt-Only: true`. The route retains its
+for that receipt with `X-Nexus-Receipt-Only: true`. The route retains its
 normal parsed input, fingerprint validation and access checks. It checks current
 run authority again after acquiring the receipt lock. A matching receipt returns
 the existing project. An absent receipt returns HTTP 204 before any project or

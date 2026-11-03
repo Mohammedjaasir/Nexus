@@ -8,7 +8,7 @@ scenarios:
     capabilities:
       - assistant-connections/setup
     context: >-
-      Public MCP is enabled at a configured origin; the person asks their Paperclip CEO how to
+      Public MCP is enabled at a configured origin; the person asks their Nexus CEO how to
       connect an external assistant.
     query: >-
       How do I connect ChatGPT to this company?
@@ -49,7 +49,7 @@ scenarios:
       A supported CLI client initiated device authorization against a compatible configured
       issuer and resource; the human has not entered the code.
     query: >-
-      Help me finish connecting this CLI to Paperclip.
+      Help me finish connecting this CLI to Nexus.
     expected_outcome: >-
       The person uses the exact supported verification page and current code, sees the company
       and scope decision, and completes authorization as themselves. The waiting client accepts
@@ -65,7 +65,7 @@ scenarios:
     query: >-
       Create a website task for Morgan in Acorn.
     expected_outcome: >-
-      The external assistant uses the granted Paperclip capability to create one task in Acorn
+      The external assistant uses the granted Nexus capability to create one task in Acorn
       under the person's current permissions and returns its real link. The grant cannot be used
       as a general REST board bearer or target another company. This is a companion
       external-client scenario, not evidence that Agent Chat has inherited its credentials.

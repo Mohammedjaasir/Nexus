@@ -16,8 +16,8 @@ import {
   updateIssueSchema,
   upsertIssueDocumentSchema,
   linkIssueApprovalSchema,
-} from "@paperclipai/shared";
-import { PaperclipApiClient } from "./client.js";
+} from "@nexusai/shared";
+import { NexusApiClient } from "./client.js";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
 
 export interface ToolDefinition {
@@ -56,13 +56,13 @@ function parseOptionalJson(raw: string | undefined | null): unknown {
 }
 
 async function callRuntimeConnectionTool(
-  endpointEnv: "PAPERCLIP_RUNTIME_TOOLS_CONNECTIONS_SEARCH_URL" | "PAPERCLIP_RUNTIME_TOOLS_CONNECTION_REQUEST_URL",
+  endpointEnv: "NEXUS_RUNTIME_TOOLS_CONNECTIONS_SEARCH_URL" | "NEXUS_RUNTIME_TOOLS_CONNECTION_REQUEST_URL",
   body: unknown,
 ) {
   const endpoint = process.env[endpointEnv]?.trim();
-  const token = process.env.PAPERCLIP_RUNTIME_TOOLS_TOKEN?.trim();
+  const token = process.env.NEXUS_RUNTIME_TOOLS_TOKEN?.trim();
   if (!endpoint || !token) {
-    throw new Error("Connection intent tools are available only inside an active Paperclip heartbeat run");
+    throw new Error("Connection intent tools are available only inside an active Nexus heartbeat run");
   }
   const response = await fetch(endpoint, {
     method: "POST",
@@ -257,7 +257,7 @@ function selectRuntimeService(
     ?? null;
 }
 
-async function getIssueWorkspaceRuntime(client: PaperclipApiClient, issueId: string) {
+async function getIssueWorkspaceRuntime(client: NexusApiClient, issueId: string) {
   const context = await client.requestJson("GET", `/issues/${encodeURIComponent(issueId)}/heartbeat-context`);
   const workspace = readCurrentExecutionWorkspace(context);
   return {
@@ -267,14 +267,14 @@ async function getIssueWorkspaceRuntime(client: PaperclipApiClient, issueId: str
   };
 }
 
-export function createToolDefinitions(client: PaperclipApiClient): ToolDefinition[] {
+export function createToolDefinitions(client: NexusApiClient): ToolDefinition[] {
   return [
     makeTool(
       "connections_search",
       CONNECTIONS_SEARCH_TOOL_DESCRIPTION,
       connectionsSearchInputSchema,
       async (input) => callRuntimeConnectionTool(
-        "PAPERCLIP_RUNTIME_TOOLS_CONNECTIONS_SEARCH_URL",
+        "NEXUS_RUNTIME_TOOLS_CONNECTIONS_SEARCH_URL",
         input,
       ),
     ),
@@ -283,36 +283,36 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       CONNECTION_REQUEST_TOOL_DESCRIPTION,
       connectionRequestInputSchema,
       async (input) => callRuntimeConnectionTool(
-        "PAPERCLIP_RUNTIME_TOOLS_CONNECTION_REQUEST_URL",
+        "NEXUS_RUNTIME_TOOLS_CONNECTION_REQUEST_URL",
         input,
       ),
     ),
     makeTool(
-      "paperclipMe",
-      "Get the current authenticated Paperclip actor details",
+      "nexusMe",
+      "Get the current authenticated Nexus actor details",
       z.object({}),
       async () => client.requestJson("GET", "/agents/me"),
     ),
     makeTool(
-      "paperclipInboxLite",
+      "nexusInboxLite",
       "Get the current authenticated agent inbox-lite assignment list",
       z.object({}),
       async () => client.requestJson("GET", "/agents/me/inbox-lite"),
     ),
     makeTool(
-      "paperclipListAgents",
+      "nexusListAgents",
       "List agents in a company",
       z.object({ companyId: companyIdOptional }),
       async ({ companyId }) => client.requestJson("GET", `/companies/${client.resolveCompanyId(companyId)}/agents`),
     ),
     makeTool(
-      "paperclipListSkills",
+      "nexusListSkills",
       "List the company skill library (all installed skills, independent of which agents have them enabled)",
       z.object({ companyId: companyIdOptional }),
       async ({ companyId }) => client.requestJson("GET", `/companies/${client.resolveCompanyId(companyId)}/skills`),
     ),
     makeTool(
-      "paperclipGetAgent",
+      "nexusGetAgent",
       "Get a single agent by id",
       z.object({ agentId: z.string().min(1), companyId: companyIdOptional }),
       async ({ agentId, companyId }) => {
@@ -321,7 +321,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       },
     ),
     makeTool(
-      "paperclipListIssues",
+      "nexusListIssues",
       "List issues for a company with optional filters",
       listIssuesSchema,
       async (input) => {
@@ -336,13 +336,13 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       },
     ),
     makeTool(
-      "paperclipGetIssue",
+      "nexusGetIssue",
       "Get a single issue by UUID or identifier",
       z.object({ issueId: issueIdSchema }),
       async ({ issueId }) => client.requestJson("GET", `/issues/${encodeURIComponent(issueId)}`),
     ),
     makeTool(
-      "paperclipGetHeartbeatContext",
+      "nexusGetHeartbeatContext",
       "Get compact heartbeat context for an issue",
       z.object({ issueId: issueIdSchema, wakeCommentId: z.string().guid().optional() }),
       async ({ issueId, wakeCommentId }) => {
@@ -351,7 +351,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       },
     ),
     makeTool(
-      "paperclipListComments",
+      "nexusListComments",
       "List issue comments with incremental options",
       listCommentsSchema,
       async ({ issueId, after, order, limit }) => {
@@ -364,33 +364,33 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       },
     ),
     makeTool(
-      "paperclipGetComment",
+      "nexusGetComment",
       "Get a specific issue comment by id",
       z.object({ issueId: issueIdSchema, commentId: z.string().guid() }),
       async ({ issueId, commentId }) =>
         client.requestJson("GET", `/issues/${encodeURIComponent(issueId)}/comments/${encodeURIComponent(commentId)}`),
     ),
     makeTool(
-      "paperclipListIssueApprovals",
+      "nexusListIssueApprovals",
       "List approvals linked to an issue",
       z.object({ issueId: issueIdSchema }),
       async ({ issueId }) => client.requestJson("GET", `/issues/${encodeURIComponent(issueId)}/approvals`),
     ),
     makeTool(
-      "paperclipListDocuments",
+      "nexusListDocuments",
       "List issue documents",
       z.object({ issueId: issueIdSchema }),
       async ({ issueId }) => client.requestJson("GET", `/issues/${encodeURIComponent(issueId)}/documents`),
     ),
     makeTool(
-      "paperclipGetDocument",
+      "nexusGetDocument",
       "Get one issue document by key",
       z.object({ issueId: issueIdSchema, key: documentKeySchema }),
       async ({ issueId, key }) =>
         client.requestJson("GET", `/issues/${encodeURIComponent(issueId)}/documents/${encodeURIComponent(key)}`),
     ),
     makeTool(
-      "paperclipListDocumentRevisions",
+      "nexusListDocumentRevisions",
       "List revisions for an issue document",
       z.object({ issueId: issueIdSchema, key: documentKeySchema }),
       async ({ issueId, key }) =>
@@ -400,13 +400,13 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         ),
     ),
     makeTool(
-      "paperclipListProjects",
+      "nexusListProjects",
       "List projects in a company",
       z.object({ companyId: companyIdOptional }),
       async ({ companyId }) => client.requestJson("GET", `/companies/${client.resolveCompanyId(companyId)}/projects`),
     ),
     makeTool(
-      "paperclipGetProject",
+      "nexusGetProject",
       "Get a project by id or company-scoped short reference",
       z.object({ projectId: projectIdSchema, companyId: companyIdOptional }),
       async ({ projectId, companyId }) => {
@@ -415,13 +415,13 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       },
     ),
     makeTool(
-      "paperclipGetIssueWorkspaceRuntime",
+      "nexusGetIssueWorkspaceRuntime",
       "Get the current execution workspace and runtime services for an issue, including service URLs",
       z.object({ issueId: issueIdSchema }),
       async ({ issueId }) => getIssueWorkspaceRuntime(client, issueId),
     ),
     makeTool(
-      "paperclipControlIssueWorkspaceServices",
+      "nexusControlIssueWorkspaceServices",
       "Start, stop, or restart the current issue execution workspace runtime services",
       issueWorkspaceRuntimeControlSchema,
       async ({ issueId, action, ...target }) => {
@@ -438,7 +438,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       },
     ),
     makeTool(
-      "paperclipWaitForIssueWorkspaceService",
+      "nexusWaitForIssueWorkspaceService",
       "Wait until an issue execution workspace runtime service is running and has a URL when one is exposed",
       waitForIssueWorkspaceServiceSchema,
       async ({ issueId, runtimeServiceId, serviceName, timeoutSeconds }) => {
@@ -464,19 +464,19 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       },
     ),
     makeTool(
-      "paperclipListGoals",
+      "nexusListGoals",
       "List goals in a company",
       z.object({ companyId: companyIdOptional }),
       async ({ companyId }) => client.requestJson("GET", `/companies/${client.resolveCompanyId(companyId)}/goals`),
     ),
     makeTool(
-      "paperclipGetGoal",
+      "nexusGetGoal",
       "Get a goal by id",
       z.object({ goalId: goalIdSchema }),
       async ({ goalId }) => client.requestJson("GET", `/goals/${encodeURIComponent(goalId)}`),
     ),
     makeTool(
-      "paperclipListApprovals",
+      "nexusListApprovals",
       "List approvals in a company",
       z.object({ companyId: companyIdOptional, status: z.string().optional() }),
       async ({ companyId, status }) => {
@@ -485,7 +485,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       },
     ),
     makeTool(
-      "paperclipCreateApproval",
+      "nexusCreateApproval",
       "Create a board approval request, optionally linked to one or more issues",
       createApprovalToolSchema,
       async ({ companyId, ...body }) =>
@@ -494,39 +494,39 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         }),
     ),
     makeTool(
-      "paperclipGetApproval",
+      "nexusGetApproval",
       "Get an approval by id",
       z.object({ approvalId: approvalIdSchema }),
       async ({ approvalId }) => client.requestJson("GET", `/approvals/${encodeURIComponent(approvalId)}`),
     ),
     makeTool(
-      "paperclipGetApprovalIssues",
+      "nexusGetApprovalIssues",
       "List issues linked to an approval",
       z.object({ approvalId: approvalIdSchema }),
       async ({ approvalId }) => client.requestJson("GET", `/approvals/${encodeURIComponent(approvalId)}/issues`),
     ),
     makeTool(
-      "paperclipListApprovalComments",
+      "nexusListApprovalComments",
       "List comments for an approval",
       z.object({ approvalId: approvalIdSchema }),
       async ({ approvalId }) => client.requestJson("GET", `/approvals/${encodeURIComponent(approvalId)}/comments`),
     ),
     makeTool(
-      "paperclipCreateIssue",
+      "nexusCreateIssue",
       "Create a new issue",
       createIssueToolSchema,
       async ({ companyId, ...body }) =>
         client.requestJson("POST", `/companies/${client.resolveCompanyId(companyId)}/issues`, { body }),
     ),
     makeTool(
-      "paperclipUpdateIssue",
+      "nexusUpdateIssue",
       "Patch an issue, optionally including a comment; include resume=true when intentionally requesting follow-up on resumable closed work",
       updateIssueToolSchema,
       async ({ issueId, ...body }) =>
         client.requestJson("PATCH", `/issues/${encodeURIComponent(issueId)}`, { body }),
     ),
     makeTool(
-      "paperclipCheckoutIssue",
+      "nexusCheckoutIssue",
       "Checkout an issue for an agent",
       checkoutIssueToolSchema,
       async ({ issueId, agentId, expectedStatuses }) =>
@@ -538,20 +538,20 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         }),
     ),
     makeTool(
-      "paperclipReleaseIssue",
+      "nexusReleaseIssue",
       "Release an issue checkout",
       z.object({ issueId: issueIdSchema }),
       async ({ issueId }) => client.requestJson("POST", `/issues/${encodeURIComponent(issueId)}/release`, { body: {} }),
     ),
     makeTool(
-      "paperclipAddComment",
+      "nexusAddComment",
       "Add a comment to an issue; include resume=true when intentionally requesting follow-up on resumable closed work",
       addCommentToolSchema,
       async ({ issueId, ...body }) =>
         client.requestJson("POST", `/issues/${encodeURIComponent(issueId)}/comments`, { body }),
     ),
     makeTool(
-      "paperclipSuggestTasks",
+      "nexusSuggestTasks",
       "Create a suggest_tasks interaction on an issue",
       createSuggestTasksToolSchema,
       async ({ issueId, ...body }) =>
@@ -563,7 +563,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         }),
     ),
     makeTool(
-      "paperclipAskUserQuestions",
+      "nexusAskUserQuestions",
       "Create an ask_user_questions interaction on an issue",
       createAskUserQuestionsToolSchema,
       async ({ issueId, ...body }) =>
@@ -575,7 +575,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         }),
     ),
     makeTool(
-      "paperclipRequestConfirmation",
+      "nexusRequestConfirmation",
       "Create a request_confirmation interaction on an issue",
       createRequestConfirmationToolSchema,
       async ({ issueId, ...body }) =>
@@ -587,7 +587,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         }),
     ),
     makeTool(
-      "paperclipRequestCheckboxConfirmation",
+      "nexusRequestCheckboxConfirmation",
       "Create a request_checkbox_confirmation interaction on an issue",
       createRequestCheckboxConfirmationToolSchema,
       async ({ issueId, ...body }) =>
@@ -599,7 +599,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         }),
     ),
     makeTool(
-      "paperclipUpsertIssueDocument",
+      "nexusUpsertIssueDocument",
       "Create or update an issue document",
       upsertDocumentToolSchema,
       async ({ issueId, key, ...body }) =>
@@ -610,7 +610,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         ),
     ),
     makeTool(
-      "paperclipRestoreIssueDocumentRevision",
+      "nexusRestoreIssueDocumentRevision",
       "Restore a prior revision of an issue document",
       z.object({
         issueId: issueIdSchema,
@@ -625,7 +625,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         ),
     ),
     makeTool(
-      "paperclipLinkIssueApproval",
+      "nexusLinkIssueApproval",
       "Link an approval to an issue",
       z.object({ issueId: issueIdSchema }).merge(linkIssueApprovalSchema),
       async ({ issueId, approvalId }) =>
@@ -634,7 +634,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         }),
     ),
     makeTool(
-      "paperclipUnlinkIssueApproval",
+      "nexusUnlinkIssueApproval",
       "Unlink an approval from an issue",
       z.object({ issueId: issueIdSchema, approvalId: approvalIdSchema }),
       async ({ issueId, approvalId }) =>
@@ -644,7 +644,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         ),
     ),
     makeTool(
-      "paperclipApprovalDecision",
+      "nexusApprovalDecision",
       "Approve, reject, request revision, or resubmit an approval",
       approvalDecisionSchema,
       async ({ approvalId, action, decisionNote, payloadJson }) => {
@@ -666,7 +666,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       },
     ),
     makeTool(
-      "paperclipAddApprovalComment",
+      "nexusAddApprovalComment",
       "Add a comment to an approval",
       z.object({ approvalId: approvalIdSchema, body: z.string().min(1) }),
       async ({ approvalId, body }) =>
@@ -675,8 +675,8 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         }),
     ),
     makeTool(
-      "paperclipApiRequest",
-      "Make a JSON request to an existing Paperclip /api endpoint for unsupported operations",
+      "nexusApiRequest",
+      "Make a JSON request to an existing Nexus /api endpoint for unsupported operations",
       apiRequestSchema,
       async ({ method, path, jsonBody }) => {
         if (!path.startsWith("/") || path.includes("..")) {

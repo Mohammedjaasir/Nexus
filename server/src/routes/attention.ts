@@ -1,6 +1,6 @@
 import { Router } from "express";
-import type { Db } from "@paperclipai/db";
-import type { AttentionSortMode } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import type { AttentionSortMode } from "@nexusai/shared";
 import { attentionService } from "../services/attention.js";
 import { decisionHistoryService } from "../services/decision-history.js";
 import { z } from "zod";

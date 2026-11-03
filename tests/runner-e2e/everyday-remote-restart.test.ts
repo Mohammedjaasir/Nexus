@@ -16,7 +16,7 @@ function fixture() {
   const event = (seq: number, eventType: string, payload: Record<string, unknown> = {}, sourceKind = "runner", sourceSeq = seq) => {
     const sourceInstanceId = sourceKind === "runner" ? "runner" : "runner:control";
     return { seq, runId: "run", companyId: "company", eventType, protocolSchemaVersion: 1, payload: { prpEvent: {
-      schema: "paperclip.prp.event.v1", schemaVersion: 1, runId: "run", normalizedSessionId: "session", sourceKind,
+      schema: "nexus.prp.event.v1", schemaVersion: 1, runId: "run", normalizedSessionId: "session", sourceKind,
       sourceInstanceId, sourceSeq, sourceEventId: `${sourceInstanceId}:run:${sourceSeq}`, eventType,
       turnId: eventType === "turn.submitted" ? null : "turn", payload,
     } } };
@@ -35,7 +35,7 @@ function fixture() {
   const final = { observedAt: "2026-10-22T00:02:00.000Z", run: finished, events: projectRemoteRestartEvents(finished, finalRows),
     operations: [{ companyId: "company", heartbeatRunId: "run", issueId: "task", executionWorkspaceId: "workspace",
       phase: "workspace_finalize", status: "succeeded" }], scheduledRetry: null as unknown, recoveryActions: [] as Record<string, unknown>[] };
-  const outage: ControllerOutageReceipt = { schema: "paperclip.e2e.controller-outage/v1", requestId: "story-test",
+  const outage: ControllerOutageReceipt = { schema: "nexus.e2e.controller-outage/v1", requestId: "story-test",
     signal: "SIGKILL", holdMs: 1000, previousPid: 100, replacementPid: 200,
     startedAt: "2026-10-22T00:00:00.000Z", stoppedAfterMs: 100, cacheDiscarded: true,
     replacementStartedAfterMs: 1100, readyAfterMs: 4000,

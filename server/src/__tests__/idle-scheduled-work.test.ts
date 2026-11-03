@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { readIdleRoutineSchedule } from "../services/idle-scheduled-work.js";
 
 const now = Date.UTC(2020, 0, 1);

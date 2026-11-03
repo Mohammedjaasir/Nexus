@@ -1,4 +1,4 @@
-import type { AskUserQuestionsPayload, PaperclipQuestionSetPayload } from "./types/issue.js";
+import type { AskUserQuestionsPayload, NexusQuestionSetPayload } from "./types/issue.js";
 
 function syntheticOptionId(existing: readonly string[], preferred: string): string {
   const ids = new Set(existing);
@@ -9,7 +9,7 @@ function syntheticOptionId(existing: readonly string[], preferred: string): stri
 
 /** Project a complete canonical form into the legacy storage/answer contract. */
 export function questionSetToAskUserQuestionsPayload(
-  questionSet: PaperclipQuestionSetPayload,
+  questionSet: NexusQuestionSetPayload,
 ): AskUserQuestionsPayload {
   return {
     version: 1,
@@ -22,7 +22,7 @@ export function questionSetToAskUserQuestionsPayload(
       }));
       const freeTextOption = question.answerMode === "text"
         ? {
-            id: "paperclip_text_answer",
+            id: "nexus_text_answer",
             label: question.header || "Type an answer",
             ...(question.textValidation?.inputType
               ? { description: `Expected ${question.textValidation.inputType} input` } : {}),
@@ -30,7 +30,7 @@ export function questionSetToAskUserQuestionsPayload(
           }
         : question.customAnswer?.enabled
           ? {
-              id: syntheticOptionId(options.map((option) => option.id), "paperclip_custom_answer"),
+              id: syntheticOptionId(options.map((option) => option.id), "nexus_custom_answer"),
               label: question.customAnswer.label || "Other",
               ...(question.customAnswer.placeholder !== undefined
                 ? { description: question.customAnswer.placeholder } : {}),

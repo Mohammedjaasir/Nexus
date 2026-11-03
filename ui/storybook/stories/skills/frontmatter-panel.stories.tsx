@@ -62,7 +62,7 @@ allowed-tools:
   - Grep
   - Bash
 metadata:
-  author: Paperclip
+  author: Nexus
   version: 2`;
 
 const meta: Meta<typeof Harness> = {
@@ -70,7 +70,7 @@ const meta: Meta<typeof Harness> = {
   title: "Agents and reusable capabilities/Skills and Skill Studio/Product/Skill Studio · FrontmatterPanel",
   component: Harness,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "skills/authoring"
       ],
@@ -151,7 +151,7 @@ allowed-tools:
   - Read
   - Grep
 metadata:
-  author: Paperclip`,
+  author: Nexus`,
     hasFrontmatter: true,
     fileName: "reference/notes.md",
   },

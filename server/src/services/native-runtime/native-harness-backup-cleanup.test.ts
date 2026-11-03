@@ -5,7 +5,7 @@ import { expect, it } from "vitest";
 import { removeNativeHarnessBackup } from "./native-harness-backup-cleanup.js";
 
 it("removes retired backups containing immutable skills without modifying live files or symlink targets", async () => {
-  const base = mkdtempSync(join(tmpdir(), "paperclip-backup-cleanup-"));
+  const base = mkdtempSync(join(tmpdir(), "nexus-backup-cleanup-"));
   const retired = join(base, "previous");
   const nested = join(retired, "claude", "skills", "first-task");
   const live = join(base, "current");

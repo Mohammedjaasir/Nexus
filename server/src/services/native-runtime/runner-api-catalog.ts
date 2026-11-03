@@ -3,7 +3,7 @@ import { z } from "zod";
 import { buildOpenApiDocument } from "../../routes/openapi.js";
 import { badRequest, notFound } from "../../errors.js";
 import { runnerApiReference } from "./runner-api-reference.js";
-import { CAPABILITY_SEMANTIC_TOOL_CATALOG } from "../../vendor/paperclip-runner/index.js";
+import { CAPABILITY_SEMANTIC_TOOL_CATALOG } from "../../vendor/nexus-runner/index.js";
 
 type Json = Record<string, any>;
 export interface RunnerApiOperation {
@@ -90,7 +90,7 @@ export function buildRunnerApiCatalog(document: Json = buildOpenApiDocument()): 
         && /^\/api\/issues\/\{[^}]+\}\/interactions\/\{[^}]+\}\/resolve-from-comment$/.test(path);
       const taskTitleUpdate = method === "PUT" && /^\/api\/issues\/\{[^}]+\}\/title$/.test(path);
       const skillReference = runnerApiReference[`${method} ${path.replace(/\{[^}]+\}/g, "{}")}`];
-      const protocol = operation["x-paperclip-transport"] === "protocol" || (operation["x-paperclip-transport"] !== "rest" && (!path.startsWith("/api/") || /\/(oauth|auth|runtime-tools|mcp|ws)(\/|$)/.test(path)
+      const protocol = operation["x-nexus-transport"] === "protocol" || (operation["x-nexus-transport"] !== "rest" && (!path.startsWith("/api/") || /\/(oauth|auth|runtime-tools|mcp|ws)(\/|$)/.test(path)
         || /\/(claude-login|login-sessions|start-authorization|finalize-oauth-access)(\/|$)/.test(path)
         || /event-stream|websocket/i.test(JSON.stringify(operation.responses))));
       result.push({
@@ -100,7 +100,7 @@ export function buildRunnerApiCatalog(document: Json = buildOpenApiDocument()): 
         parameters: dereference([...(item.parameters ?? []), ...(operation.parameters ?? [])]),
         ...(operation.requestBody ? { requestBody: dereference(operation.requestBody) } : {}),
         responses: dereference(operation.responses ?? {}),
-        authorization: operation["x-paperclip-authorization"] ?? { actor: "board_or_agent" },
+        authorization: operation["x-nexus-authorization"] ?? { actor: "board_or_agent" },
         transport: protocol ? "protocol" : "rest",
         callPolicy: protocol ? "protocol" : "rest",
         dedicatedTools: dedicatedTools(method, path),
@@ -115,7 +115,7 @@ export function buildRunnerApiCatalog(document: Json = buildOpenApiDocument()): 
         dedicatedToolGuidance: dedicatedTools(method, path).includes("hire_agent")
           ? "Prefer hire_agent for native teammate identity and persona fields. It fixes the reportsTo and source task context and inherits the caller's native runtime. Additional API fields use the route's existing agent permissions."
           : "Prefer an available dedicated tool for its supported fields. call_api supports the route's other operations and fields under the same agent permissions.",
-        allowedModes: operation["x-paperclip-connection-management"] ? (method === "GET" ? ["standard", "ask", "planning"] : ["standard"]) : method !== "GET" && (path.endsWith("/case-handoffs") || /\/handoffs\//.test(path)) ? ["standard"]
+        allowedModes: operation["x-nexus-connection-management"] ? (method === "GET" ? ["standard", "ask", "planning"] : ["standard"]) : method !== "GET" && (path.endsWith("/case-handoffs") || /\/handoffs\//.test(path)) ? ["standard"]
           : method === "GET" || method === "HEAD" || taskTitleUpdate ? ["standard", "ask", "planning", "skill_test"]
           : conversationalConfirmation ? ["standard", "planning", "skill_test"] : ["standard", "skill_test"],
         ...(skillReference ? { skillReference } : {}),

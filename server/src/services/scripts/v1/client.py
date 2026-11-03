@@ -13,7 +13,7 @@ import urllib.request
 import uuid
 from urllib.parse import urlparse
 VERSION = "1"
-ROOT = Path.home() / ".config" / "paperclip-muse"
+ROOT = Path.home() / ".config" / "nexus-muse"
 MAX_BYTES = 2_000_000
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl): return None
@@ -33,12 +33,12 @@ def save(path, value):
 def origin(value):
     parsed = urlparse(value)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ("", "/"):
-        raise RuntimeError("A public HTTPS Paperclip origin is required")
+        raise RuntimeError("A public HTTPS Nexus origin is required")
     return value.rstrip("/")
 def http(url, body=None, token=None):
     parsed = urlparse(url)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise RuntimeError("Invalid Paperclip endpoint")
+        raise RuntimeError("Invalid Nexus endpoint")
     headers = {"Accept": "application/json"}
     if token: headers["Authorization"] = "Bearer " + token
     if body is not None: headers["Content-Type"] = "application/json"
@@ -47,14 +47,14 @@ def http(url, body=None, token=None):
     request = urllib.request.Request(url, encoded, headers)
     try:
         with HTTP.open(request, timeout=30) as response:
-            if response.status != 200 or response.headers.get_content_type() != "application/json": raise RuntimeError("Incomplete Paperclip protocol response")
+            if response.status != 200 or response.headers.get_content_type() != "application/json": raise RuntimeError("Incomplete Nexus protocol response")
             data = response.read(MAX_BYTES + 1)
-            if len(data) > MAX_BYTES: raise RuntimeError("Paperclip response exceeds transport limit")
+            if len(data) > MAX_BYTES: raise RuntimeError("Nexus response exceeds transport limit")
             value = json.loads(data)
-            if not isinstance(value, dict): raise RuntimeError("Invalid Paperclip protocol response")
+            if not isinstance(value, dict): raise RuntimeError("Invalid Nexus protocol response")
             return value
     except urllib.error.HTTPError as error:
-        raise RuntimeError("Paperclip HTTP %d; inspect connection or receipt before retrying" % error.code) from None
+        raise RuntimeError("Nexus HTTP %d; inspect connection or receipt before retrying" % error.code) from None
 class Client:
     def __init__(self, binding):
         uuid.UUID(binding)
@@ -204,7 +204,7 @@ def main():
     pair = sub.add_parser("pair"); pair.add_argument("--origin", required=True); pair.add_argument("--ticket", required=True)
     sub.add_parser("query", help="Read JSON from stdin; see installed instructions.md for exact envelopes")
     sub.add_parser("status", help="Inspect bound identity and local pending command count")
-    sub.add_parser("help", help="Read persistent Paperclip instructions")
+    sub.add_parser("help", help="Read persistent Nexus instructions")
     receipt = sub.add_parser("receipt", help="Inspect the original durable command without resending it"); receipt.add_argument("--key", required=True)
     mailbox = sub.add_parser("mailbox", help="Durably save mailbox references; explicitly acknowledge only after incorporating them"); mailbox.add_argument("--ack", type=int)
     command = sub.add_parser("command"); command.add_argument("--key", required=True)
@@ -244,5 +244,5 @@ if __name__ == "__main__":
     try: main()
     except Exception as error:
         # Never echo exception payloads, request bodies, credentials or URLs.
-        print("Paperclip client stopped: " + (str(error) if isinstance(error, RuntimeError) else "private state or transport failure"), file=sys.stderr)
+        print("Nexus client stopped: " + (str(error) if isinstance(error, RuntimeError) else "private state or transport failure"), file=sys.stderr)
         sys.exit(1)

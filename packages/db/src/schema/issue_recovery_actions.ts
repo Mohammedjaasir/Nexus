@@ -52,11 +52,11 @@ export const issueRecoveryActions = pgTable(
     systemRecoveryAdoptionIdx: index("issue_recovery_actions_system_recovery_adoption_idx")
       .on(table.id)
       .where(sql`not (${table.evidence} ? 'systemRecovery') and (
-        ${table.evidence}->'workspaceRestoreRecovery'->>'schema' = 'paperclip.workspace-restore-recovery.v1'
+        ${table.evidence}->'workspaceRestoreRecovery'->>'schema' = 'nexus.workspace-restore-recovery.v1'
         or ${table.cause} in ('native_workspace_sync_out_unrecoverable', 'native_workspace_sync_out_retry_exhausted')
       )`),
     retainedWorkspaceRecoveryIdx: index("issue_recovery_actions_retained_workspace_recovery_idx").on(table.id).where(sql`
-      (${table.evidence}->'workspaceRestoreRecovery'->>'schema' = 'paperclip.workspace-restore-recovery.v1'
+      (${table.evidence}->'workspaceRestoreRecovery'->>'schema' = 'nexus.workspace-restore-recovery.v1'
         or ${table.cause} in ('native_workspace_sync_out_unrecoverable', 'native_workspace_sync_out_retry_exhausted'))
       and (${table.evidence}->'executionReconciliation' is null
         or ${table.evidence}#>>'{workspaceRecovery,status}' = 'recovered')

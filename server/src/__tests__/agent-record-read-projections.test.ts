@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { agents, companies, costEvents, createDb } from "@paperclipai/db";
+import { agents, companies, costEvents, createDb } from "@nexusai/db";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "./helpers/full-database-response-capture.js";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";

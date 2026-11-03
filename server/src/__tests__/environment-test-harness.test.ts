@@ -8,10 +8,10 @@ import {
   assertWorkspaceRealizationLifecycle,
   assertExecutionLifecycle,
   assertEnvironmentError,
-} from "@paperclipai/plugin-sdk/testing";
-import type { PaperclipPluginManifestV1 } from "@paperclipai/shared";
+} from "@nexusai/plugin-sdk/testing";
+import type { NexusPluginManifestV1 } from "@nexusai/shared";
 
-const FAKE_MANIFEST: PaperclipPluginManifestV1 = {
+const FAKE_MANIFEST: NexusPluginManifestV1 = {
   id: "test-env-plugin",
   apiVersion: 1,
   version: "0.1.0",

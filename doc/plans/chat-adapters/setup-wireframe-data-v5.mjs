@@ -9,7 +9,7 @@ export const setupWizards = [
         slug: "slack-add",
         title: "Add Maya to Slack",
         subtitle:
-          "Approve one agent installation. Paperclip handles credentials and delivery in the background.",
+          "Approve one agent installation. Nexus handles credentials and delivery in the background.",
         rail: ["Agent selected", "Add Maya to Slack", "Try Maya"],
         active: 1,
         mode: "default",
@@ -17,7 +17,7 @@ export const setupWizards = [
           {
             title: "Agent",
             intro:
-              "This connection is permanently assigned to one Paperclip agent.",
+              "This connection is permanently assigned to one Nexus agent.",
             rows: [["Maya", "Support engineer · active", "Locked"]],
           },
           {
@@ -37,24 +37,24 @@ export const setupWizards = [
               ],
               [
                 "Installation",
-                "Slack returns the authorized agent installation to this Paperclip company.",
+                "Slack returns the authorized agent installation to this Nexus company.",
                 "Automatic return",
               ],
             ],
           },
           {
-            title: "What Paperclip handles",
+            title: "What Nexus handles",
             intro:
               "No token, signing secret, webhook, relay, or Socket Mode choice appears in this path.",
             rows: [
               [
                 "Credentials",
-                "Store the returned Slack installation in Paperclip's secret store; never reveal it in connector settings.",
+                "Store the returned Slack installation in Nexus's secret store; never reveal it in connector settings.",
                 "Automatic",
               ],
               [
                 "Delivery",
-                "Select and verify the correct callback path for this Paperclip deployment.",
+                "Select and verify the correct callback path for this Nexus deployment.",
                 "Automatic",
               ],
               [
@@ -70,7 +70,7 @@ export const setupWizards = [
         actions: [
           [
             "Add Maya to Slack",
-            "Opens Slack's agent-installation authorization, then returns to Paperclip with the scoped installation stored internally.",
+            "Opens Slack's agent-installation authorization, then returns to Nexus with the scoped installation stored internally.",
           ],
           [
             "Use a custom Slack app",
@@ -91,7 +91,7 @@ export const setupWizards = [
         slug: "slack-try",
         title: "Try Maya in Slack",
         subtitle:
-          "Mention Maya once. Paperclip verifies the real workspace event and creates the first task thread.",
+          "Mention Maya once. Nexus verifies the real workspace event and creates the first task thread.",
         rail: ["Agent selected", "Add Maya to Slack", "Try Maya"],
         active: 2,
         mode: "default",
@@ -125,7 +125,7 @@ export const setupWizards = [
               ],
               [
                 "3. Continue in the thread",
-                "Maya replies in a new thread; that thread is one Paperclip task.",
+                "Maya replies in a new thread; that thread is one Nexus task.",
                 "Expected",
               ],
             ],
@@ -133,12 +133,12 @@ export const setupWizards = [
           {
             title: "Live verification",
             intro:
-              "Paperclip waits for an actual signed Slack event rather than claiming setup works after a token check.",
+              "Nexus waits for an actual signed Slack event rather than claiming setup works after a token check.",
             rows: [
               ["Workspace event", "No test mention received yet.", "Waiting"],
               [
                 "If Maya is not in the channel",
-                "Slack prompts you to add the agent; no Paperclip setting is required.",
+                "Slack prompts you to add the agent; no Nexus setting is required.",
                 "Handled in Slack",
               ],
             ],
@@ -149,7 +149,7 @@ export const setupWizards = [
         actions: [
           [
             "Open Slack",
-            "Opens the installed workspace; Paperclip remains on this step and listens for the first valid event.",
+            "Opens the installed workspace; Nexus remains on this step and listens for the first valid event.",
           ],
           [
             "Finish without testing",
@@ -187,7 +187,7 @@ export const setupWizards = [
             ],
           },
           {
-            title: "Paperclip prepared the app",
+            title: "Nexus prepared the app",
             intro:
               "A versioned Slack manifest contains the bot name, callback URLs, scopes, events, actions, modals, commands, and files configuration.",
             rows: [
@@ -198,7 +198,7 @@ export const setupWizards = [
               ],
               [
                 "Callback",
-                "Chosen automatically for this Paperclip deployment.",
+                "Chosen automatically for this Nexus deployment.",
                 "Prepared",
               ],
               [
@@ -231,7 +231,7 @@ export const setupWizards = [
         actions: [
           [
             "Open prefilled Slack setup",
-            "Opens Slack's app-from-manifest URL with Paperclip's generated manifest already encoded.",
+            "Opens Slack's app-from-manifest URL with Nexus's generated manifest already encoded.",
           ],
           [
             "Back to Add to Slack",
@@ -241,18 +241,18 @@ export const setupWizards = [
         annotations: [
           "The rail clearly marks this as a separate custom-app branch.",
           "Agent assignment remains immutable in the advanced path.",
-          "Paperclip precomputes identity, callbacks, permissions, and events; none become user choices.",
+          "Nexus precomputes identity, callbacks, permissions, and events; none become user choices.",
           "One external action replaces the old manifest copy, delivery selection, and provider-configuration rows.",
         ],
         rationale:
-          "A custom app remains possible, but Paperclip collapses it to the provider action that only the customer can perform.",
+          "A custom app remains possible, but Nexus collapses it to the provider action that only the customer can perform.",
       },
       {
         id: "43",
         slug: "slack-custom-connect",
         title: "Connect the custom Slack app",
         subtitle:
-          "Provide only the two secrets Slack cannot return to Paperclip for a customer-owned app.",
+          "Provide only the two secrets Slack cannot return to Nexus for a customer-owned app.",
         rail: ["Agent selected", "Create Slack app", "Connect app", "Verify"],
         active: 2,
         mode: "advanced",
@@ -272,7 +272,7 @@ export const setupWizards = [
           {
             title: "Stored securely",
             intro:
-              "Values are submitted once into Paperclip's secret store. Connector rows retain only secret references and redacted suffixes.",
+              "Values are submitted once into Nexus's secret store. Connector rows retain only secret references and redacted suffixes.",
             rows: [
               [
                 "Who can view them",
@@ -322,7 +322,7 @@ export const setupWizards = [
         ],
         annotations: [
           "Only provider credentials that cannot be recovered automatically are shown.",
-          "Help text explains exactly why Paperclip needs each secret.",
+          "Help text explains exactly why Nexus needs each secret.",
           "Webhook, relay, Socket Mode, and app-token choices are absent from endpoint onboarding.",
           "Saving is write-only and immediately followed by provider verification.",
         ],
@@ -334,7 +334,7 @@ export const setupWizards = [
         slug: "slack-custom-verify",
         title: "Verify the custom Slack app",
         subtitle:
-          "Paperclip checks identity, callbacks, permissions, and installation before activation.",
+          "Nexus checks identity, callbacks, permissions, and installation before activation.",
         rail: ["Agent selected", "Create Slack app", "Connect app", "Verify"],
         active: 3,
         mode: "advanced",
@@ -361,7 +361,7 @@ export const setupWizards = [
               ],
               [
                 "Event subscriptions",
-                "Mention, message, interaction, and command callbacks reach Paperclip.",
+                "Mention, message, interaction, and command callbacks reach Nexus.",
                 "Passed",
               ],
             ],
@@ -406,7 +406,7 @@ export const setupWizards = [
         slug: "github-create",
         title: "Create Maya in GitHub",
         subtitle:
-          "GitHub creates a dedicated App from Paperclip's manifest and returns its credentials automatically.",
+          "GitHub creates a dedicated App from Nexus's manifest and returns its credentials automatically.",
         rail: [
           "Agent selected",
           "Create GitHub App",
@@ -419,7 +419,7 @@ export const setupWizards = [
           {
             title: "Agent",
             intro:
-              "The GitHub App is permanently assigned to this Paperclip agent.",
+              "The GitHub App is permanently assigned to this Nexus agent.",
             rows: [
               [
                 "Maya",
@@ -431,11 +431,11 @@ export const setupWizards = [
           {
             title: "What GitHub will create",
             intro:
-              "Paperclip submits an App Manifest; GitHub shows the owner and app-name confirmation.",
+              "Nexus submits an App Manifest; GitHub shows the owner and app-name confirmation.",
             rows: [
               [
                 "App identity",
-                "paperclip-maya[bot] · native mention and avatar",
+                "nexus-maya[bot] · native mention and avatar",
                 "Dedicated",
               ],
               [
@@ -453,11 +453,11 @@ export const setupWizards = [
           {
             title: "What returns automatically",
             intro:
-              "GitHub redirects with a one-time code that Paperclip exchanges within the provider deadline.",
+              "GitHub redirects with a one-time code that Nexus exchanges within the provider deadline.",
             rows: [
               [
                 "App ID and private key",
-                "Stored directly in Paperclip's secret store.",
+                "Stored directly in Nexus's secret store.",
                 "Automatic",
               ],
               [
@@ -478,7 +478,7 @@ export const setupWizards = [
         actions: [
           [
             "Create in GitHub",
-            "Posts Paperclip's manifest to GitHub; GitHub confirms the App, redirects back, and Paperclip exchanges the one-time code for credentials.",
+            "Posts Nexus's manifest to GitHub; GitHub confirms the App, redirects back, and Nexus exchanges the one-time code for credentials.",
           ],
           [
             "Use an existing GitHub App",
@@ -515,7 +515,7 @@ export const setupWizards = [
               "GitHub returned the dedicated App configuration successfully.",
             rows: [
               ["Agent", "Maya · permanently assigned", "Locked"],
-              ["GitHub App", "paperclip-maya[bot]", "Created"],
+              ["GitHub App", "nexus-maya[bot]", "Created"],
               ["Webhook", "Signed delivery endpoint", "Verified"],
             ],
           },
@@ -531,7 +531,7 @@ export const setupWizards = [
               ],
               [
                 "Repository access",
-                "Choose all repositories or a selected set; Paperclip can narrow this later.",
+                "Choose all repositories or a selected set; Nexus can narrow this later.",
                 "In GitHub",
               ],
               [
@@ -548,12 +548,12 @@ export const setupWizards = [
             rows: [
               [
                 "Installation",
-                "Paperclip links the App installation to this endpoint.",
+                "Nexus links the App installation to this endpoint.",
                 "Automatic return",
               ],
               [
                 "Repository inventory",
-                "Paperclip reads the installed repository IDs and labels.",
+                "Nexus reads the installed repository IDs and labels.",
                 "Automatic",
               ],
             ],
@@ -575,7 +575,7 @@ export const setupWizards = [
           "The App-creation phase is complete before repository installation begins.",
           "The agent and App identity are read-only results.",
           "All organization and repository choices happen at GitHub, where policy and approval live.",
-          "Paperclip receives the installation ID and repository inventory automatically.",
+          "Nexus receives the installation ID and repository inventory automatically.",
         ],
         rationale:
           "Repository scope is the only meaningful default-flow choice, and GitHub already owns its UI.",
@@ -598,7 +598,7 @@ export const setupWizards = [
           {
             title: "Installation complete",
             intro:
-              "Paperclip verified the App, installation, selected repositories, events, and signatures.",
+              "Nexus verified the App, installation, selected repositories, events, and signatures.",
             rows: [
               ["Agent", "Maya · permanently assigned", "Locked"],
               ["Installation", "Acme · acme/api and acme/web", "Connected"],
@@ -612,7 +612,7 @@ export const setupWizards = [
           {
             title: "Start the first task",
             intro:
-              "Use an existing GitHub conversation; Paperclip does not create a second native thread.",
+              "Use an existing GitHub conversation; Nexus does not create a second native thread.",
             rows: [
               [
                 "1. Open an issue or PR",
@@ -621,7 +621,7 @@ export const setupWizards = [
               ],
               [
                 "2. Mention the App",
-                "Comment “@paperclip-maya investigate this.”",
+                "Comment “@nexus-maya investigate this.”",
                 "Starts task",
               ],
               [
@@ -645,7 +645,7 @@ export const setupWizards = [
         actions: [
           [
             "Open GitHub",
-            "Opens an installed repository while Paperclip waits for the first signed mention event.",
+            "Opens an installed repository while Nexus waits for the first signed mention event.",
           ],
           [
             "Finish without testing",
@@ -701,11 +701,11 @@ export const setupWizards = [
           {
             title: "Required App configuration",
             intro:
-              "Paperclip verifies rather than asks the user to re-enter provider configuration.",
+              "Nexus verifies rather than asks the user to re-enter provider configuration.",
             rows: [
               [
                 "Webhook and events",
-                "Paperclip callback · issue comments · PR review comments",
+                "Nexus callback · issue comments · PR review comments",
                 "Will verify",
               ],
               [
@@ -736,7 +736,7 @@ export const setupWizards = [
         annotations: [
           "The existing-App rail is a distinct advanced branch.",
           "Only App ID, private key, webhook secret, and optional GHES host are requested.",
-          "Paperclip verifies events and permissions instead of adding more setup switches.",
+          "Nexus verifies events and permissions instead of adding more setup switches.",
           "The primary action stores write-only secrets and proves App authentication before continuing.",
         ],
         rationale:
@@ -754,7 +754,7 @@ export const setupWizards = [
         slug: "teams-register",
         title: "Register Maya for Microsoft Teams",
         subtitle:
-          "Run one guided Microsoft command to create the customer-owned bot identity and point it at Paperclip.",
+          "Run one guided Microsoft command to create the customer-owned bot identity and point it at Nexus.",
         rail: [
           "Agent selected",
           "Register Teams bot",
@@ -789,7 +789,7 @@ export const setupWizards = [
               ],
               [
                 "Messaging endpoint",
-                "Paperclip generated the verified endpoint used by the command.",
+                "Nexus generated the verified endpoint used by the command.",
                 "Prepared",
               ],
               [
@@ -802,7 +802,7 @@ export const setupWizards = [
           {
             title: "What the command does",
             intro:
-              "The copied command contains Maya's name and Paperclip endpoint; it never contains a Paperclip secret.",
+              "The copied command contains Maya's name and Nexus endpoint; it never contains a Nexus secret.",
             rows: [
               [
                 "Microsoft sign-in",
@@ -848,7 +848,7 @@ export const setupWizards = [
         slug: "teams-identity",
         title: "Connect the Microsoft bot identity",
         subtitle:
-          "Paste the three values created by Microsoft so Paperclip can authenticate as Maya.",
+          "Paste the three values created by Microsoft so Nexus can authenticate as Maya.",
         rail: [
           "Agent selected",
           "Register Teams bot",
@@ -872,18 +872,18 @@ export const setupWizards = [
           [
             "Client secret",
             "••••••••••••",
-            "Lets Paperclip authenticate outbound bot messages; stored write-only.",
+            "Lets Nexus authenticate outbound bot messages; stored write-only.",
           ],
         ],
         groups: [
           {
             title: "Why these values are visible",
             intro:
-              "Microsoft created a customer-owned identity. It does not send those credentials to Paperclip through an installation callback.",
+              "Microsoft created a customer-owned identity. It does not send those credentials to Nexus through an installation callback.",
             rows: [
               [
                 "Storage",
-                "Client secret enters Paperclip's secret store; configuration keeps only its reference.",
+                "Client secret enters Nexus's secret store; configuration keeps only its reference.",
                 "Write only",
               ],
               [
@@ -893,7 +893,7 @@ export const setupWizards = [
               ],
               [
                 "Managed identity",
-                "Available only when the Paperclip deployment already runs with a compatible Azure identity.",
+                "Available only when the Nexus deployment already runs with a compatible Azure identity.",
                 "Instance advanced",
               ],
             ],
@@ -939,10 +939,10 @@ export const setupWizards = [
           {
             title: "Package ready",
             intro:
-              "Paperclip inserted Maya's immutable identity, bot App ID, supported scopes, commands, and icons into a validated Teams package.",
+              "Nexus inserted Maya's immutable identity, bot App ID, supported scopes, commands, and icons into a validated Teams package.",
             rows: [
               ["Agent", "Maya · permanently assigned", "Locked"],
-              ["Package", "maya-paperclip-teams.zip", "Validated"],
+              ["Package", "maya-nexus-teams.zip", "Validated"],
               ["Scopes", "Personal, team, and group chat", "Included"],
             ],
           },
@@ -984,7 +984,7 @@ export const setupWizards = [
         annotations: [
           "Registration and identity steps are complete before a package can be generated.",
           "Agent, package name, validation, and scopes are read-only.",
-          "The screen branches only on Microsoft tenant policy, not Paperclip preferences.",
+          "The screen branches only on Microsoft tenant policy, not Nexus preferences.",
           "The two actions correspond to the two external operations: obtain the package, then install it.",
         ],
         rationale:
@@ -1009,7 +1009,7 @@ export const setupWizards = [
           {
             title: "Installation checks",
             intro:
-              "Paperclip verifies Microsoft identity and waits for the installed package to deliver a real activity.",
+              "Nexus verifies Microsoft identity and waits for the installed package to deliver a real activity.",
             rows: [
               ["Agent", "Maya · permanently assigned", "Locked"],
               ["Bot authentication", "Single tenant · Acme", "Passed"],
@@ -1031,17 +1031,17 @@ export const setupWizards = [
             rows: [
               [
                 "Channel",
-                "Create a new post with @Maya; its replies become one Paperclip task.",
+                "Create a new post with @Maya; its replies become one Nexus task.",
                 "Post thread",
               ],
               [
                 "Personal or group chat",
-                "Send a message; the conversation exposes one active Paperclip task.",
+                "Send a message; the conversation exposes one active Nexus task.",
                 "Active task",
               ],
               [
                 "Unmentioned channel replies",
-                "Paperclip detects actual manifest/RSC delivery and explains if another mention is required.",
+                "Nexus detects actual manifest/RSC delivery and explains if another mention is required.",
                 "Verified live",
               ],
             ],
@@ -1052,7 +1052,7 @@ export const setupWizards = [
         actions: [
           [
             "Open Microsoft Teams",
-            "Opens Teams while Paperclip waits for the first authenticated activity from an installed scope.",
+            "Opens Teams while Nexus waits for the first authenticated activity from an installed scope.",
           ],
           [
             "Finish without testing",
@@ -1100,7 +1100,7 @@ export const setupWizards = [
           {
             title: "Agent",
             intro:
-              "The Telegram bot is permanently assigned to this Paperclip agent.",
+              "The Telegram bot is permanently assigned to this Nexus agent.",
             rows: [
               [
                 "Maya",
@@ -1131,8 +1131,8 @@ export const setupWizards = [
             ],
           },
           {
-            title: "What Paperclip handles",
-            intro: "The token is enough for Paperclip to configure the rest.",
+            title: "What Nexus handles",
+            intro: "The token is enough for Nexus to configure the rest.",
             rows: [
               [
                 "Identity",
@@ -1161,7 +1161,7 @@ export const setupWizards = [
           ],
           [
             "Open BotFather",
-            "Opens Telegram's verified BotFather conversation; it cannot return the token to Paperclip automatically.",
+            "Opens Telegram's verified BotFather conversation; it cannot return the token to Nexus automatically.",
           ],
         ],
         annotations: [
@@ -1191,7 +1191,7 @@ export const setupWizards = [
           {
             title: "Bot connected",
             intro:
-              "Paperclip verified the BotFather token and configured delivery automatically.",
+              "Nexus verified the BotFather token and configured delivery automatically.",
             rows: [
               ["Agent", "Maya · permanently assigned", "Locked"],
               [
@@ -1209,11 +1209,11 @@ export const setupWizards = [
           {
             title: "Choose reach in Telegram",
             intro:
-              "Telegram owns chat membership; Paperclip learns stable IDs when the bot receives an addressed message.",
+              "Telegram owns chat membership; Nexus learns stable IDs when the bot receives an addressed message.",
             rows: [
               [
                 "Direct messages",
-                "Anyone who opens the bot can start an active task, subject to Paperclip access policy.",
+                "Anyone who opens the bot can start an active task, subject to Nexus access policy.",
                 "Available",
               ],
               [
@@ -1255,7 +1255,7 @@ export const setupWizards = [
           ],
           [
             "Continue",
-            "Advances to live verification; Paperclip does not require pre-entered numeric chat IDs during setup.",
+            "Advances to live verification; Nexus does not require pre-entered numeric chat IDs during setup.",
           ],
         ],
         annotations: [
@@ -1265,14 +1265,14 @@ export const setupWizards = [
           "Privacy remains on and admin rights are intentionally excluded from initial setup.",
         ],
         rationale:
-          "People choose Telegram reach by adding the bot in Telegram, not by configuring a Paperclip allowlist before any chat IDs exist.",
+          "People choose Telegram reach by adding the bot in Telegram, not by configuring a Nexus allowlist before any chat IDs exist.",
       },
       {
         id: "52",
         slug: "telegram-try",
         title: "Try Maya in Telegram",
         subtitle:
-          "Send one addressed message so Paperclip can verify the bot, chat, and task boundary.",
+          "Send one addressed message so Nexus can verify the bot, chat, and task boundary.",
         rail: [
           "Agent selected",
           "Create Telegram bot",
@@ -1307,7 +1307,7 @@ export const setupWizards = [
             rows: [
               [
                 "Direct message",
-                "Send any message; it creates Maya's active Paperclip task.",
+                "Send any message; it creates Maya's active Nexus task.",
                 "DM",
               ],
               [
@@ -1325,7 +1325,7 @@ export const setupWizards = [
           {
             title: "Live verification",
             intro:
-              "Paperclip records the first stable chat/user IDs and verifies a safe reply, post/edit behavior, and callbacks.",
+              "Nexus records the first stable chat/user IDs and verifies a safe reply, post/edit behavior, and callbacks.",
             rows: [
               [
                 "Telegram update",
@@ -1340,7 +1340,7 @@ export const setupWizards = [
         actions: [
           [
             "Open Telegram",
-            "Opens Maya's bot profile while Paperclip waits for the first verified update.",
+            "Opens Maya's bot profile while Nexus waits for the first verified update.",
           ],
           [
             "Finish without testing",

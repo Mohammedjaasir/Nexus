@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { IssueAttachment } from "@paperclipai/shared";
+import type { IssueAttachment } from "@nexusai/shared";
 import { TaskChatBubble } from "@/components/task-chat/TaskChatBubble";
 import { expect, within, waitFor } from "storybook/test";
 const attachment: IssueAttachment = {
@@ -9,7 +9,7 @@ const attachment: IssueAttachment = {
   issueCommentId: "message-gap",
   assetId: "asset-gap",
   contentPath: "/api/assets/asset-gap/content",
-  provider: "paperclip",
+  provider: "nexus",
   objectKey: "fixture/report.txt",
   contentType: "text/plain",
   byteSize: 42,
@@ -43,7 +43,7 @@ const meta = {
           "Production task bubble with the saved attachment receipt and channel attribution. Provider upload, delivery, download authority and replay require production tests.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "chat-channels/attachments"
       ],

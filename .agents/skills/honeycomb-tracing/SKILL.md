@@ -1,7 +1,7 @@
 ---
 name: honeycomb-tracing
 description: >-
-  Trace Paperclip runs, requests, and full CI suites in Honeycomb. Use to find
+  Trace Nexus runs, requests, and full CI suites in Honeycomb. Use to find
   traces, diagnose latency, design readable and foldable waterfalls, configure
   opt-in OpenTelemetry, or add missing spans.
 ---
@@ -32,7 +32,7 @@ Keep the repository's three paths distinct:
 - **Observability:** operator-configured OpenTelemetry export to Honeycomb or
   another OTLP destination. With no endpoint, this tracing stays off.
 - **Telemetry:** first-party events under `packages/shared/src/telemetry/`, sent
-  to Paperclip by default unless opted out. Adding these requires the generated
+  to Nexus by default unless opted out. Adding these requires the generated
   contract, Telemetry README, and privacy-review workflow in `AGENTS.md`.
 - **Run log:** local `heartbeat_run_events` and measured performance events.
   Useful for correlation, but a local event is not proof of Honeycomb export.
@@ -47,12 +47,12 @@ Telemetry privacy review. Preserve the endpoint gate and no-operation behavior.
    and actual deployed revision. A task identifier is not a run UUID; one task
    can have several runs, and one run can have several execution attempts.
 2. Prefer existing Honeycomb tools when exposed and authorized. Otherwise use
-   the signed-in browser. The current project link targets team `paperclip`,
-   environment `test`, dataset `paperclip`, and `service.name = paperclip`.
+   the signed-in browser. The current project link targets team `nexus`,
+   environment `test`, dataset `nexus`, and `service.name = nexus`.
    These are defaults in `ui/src/lib/honeycomb-run-link.ts`, not proof of every
    deployment's destination. Verify the target before comparing data.
 3. Open **View in Honeycomb** on the run page when available. It requires
-   Paperclip Developer Mode and local implicit board or instance-admin access.
+   Nexus Developer Mode and local implicit board or instance-admin access.
    This link queries existing data. **Re-run with provider trace** is a different
    action: it starts work and is not needed to read Honeycomb.
 4. Without the link, calculate the same correlation value locally:
@@ -62,7 +62,7 @@ Telemetry privacy review. Preserve the endpoint gate and no-operation behavior.
    node -e 'console.log(require("node:crypto").createHash("sha256").update(process.argv[1]).digest("hex").slice(0, 12))' "$RUN_ID"
    ```
 
-   Filter `paperclip.task.run.run_id` to that 12-character lowercase hash and
+   Filter `nexus.task.run.run_id` to that 12-character lowercase hash and
    `service.name` to the observed service. Start with the run's absolute time
    window. The product link defaults to the last seven days; widen it for older
    runs. Group `COUNT` by `trace.trace_id` to discover matching traces.
@@ -113,7 +113,7 @@ Neither proves that the user saw the response. Choose the boundary the user aske
 to improve, then measure the whole path to that boundary.
 
 For slow issue pages, combine `issue.read.<phase>` with `Server-Timing`
-(`paperclip_issue`, `issue_<phase>`) and the browser's request waterfall and
+(`nexus_issue`, `issue_<phase>`) and the browser's request waterfall and
 `issue-detail:navigate→content-paint` measure. Concurrent reads overlap. Fast
 API completion does not establish fast conversation reveal or rendering.
 

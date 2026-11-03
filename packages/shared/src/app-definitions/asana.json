@@ -23,21 +23,21 @@
       "ownershipModes": [
         "platform_shared"
       ],
-      "whenToUse": "Connect your Asana account with Paperclip's app.",
+      "whenToUse": "Connect your Asana account with Nexus's app.",
       "defaults": {
         "serverUrl": "https://mcp.asana.com/v2/mcp",
         "scopesHint": [
           "default"
         ]
       },
-      "guidanceMd": "Sign in to Asana with Paperclip. Asana gives this connection access to the workspaces available to your account.",
+      "guidanceMd": "Sign in to Asana with Nexus. Asana gives this connection access to the workspaces available to your account.",
       "riskTier": "S3",
       "label": "Sign in with Asana",
       "consoleLinks": {
         "docs": "https://developers.asana.com/docs/integrating-with-asanas-mcp-server"
       },
       "warnings": [],
-      "oauthStrategy": "paperclip_cloud_connector",
+      "oauthStrategy": "nexus_cloud_connector",
       "connectorProfile": "asana.mcp",
       "grantKinds": [
         "user",

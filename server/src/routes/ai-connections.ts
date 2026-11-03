@@ -14,7 +14,7 @@ import {
   toolConnections,
   connectionGrants,
   agents,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   createAiConnectionSchema,
   aiConnectionLoginIntentSchema,
@@ -27,7 +27,7 @@ import {
   type AiConnectionBinding,
   type AiConnectionList,
   aiConnectionPoolConfigSchema,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { assertBoard, assertBoardOrAgent, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { forbidden, notFound, unprocessable } from "../errors.js";
 import { accessService } from "../services/access.js";

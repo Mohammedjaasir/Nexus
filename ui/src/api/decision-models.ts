@@ -1,4 +1,4 @@
-import type { DecisionConnectionChoice, DecisionHistoryEntry, DecisionModelSettings, DecisionResult, UpdateDecisionModel } from "@paperclipai/shared";
+import type { DecisionConnectionChoice, DecisionHistoryEntry, DecisionModelSettings, DecisionResult, UpdateDecisionModel } from "@nexusai/shared";
 import { api } from "./client";
 export interface DecisionSettingsResponse { canManage: boolean; settings: DecisionModelSettings | null; choices: DecisionConnectionChoice[] }
 export const decisionModelsApi = {

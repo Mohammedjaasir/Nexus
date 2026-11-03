@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { createDb, plugins, pluginJobs, pluginJobRuns } from "@paperclipai/db";
+import { createDb, plugins, pluginJobs, pluginJobRuns } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createPluginJobScheduler } from "../services/plugin-job-scheduler.js";
@@ -13,7 +13,7 @@ import type { PluginWorkerManager } from "../services/plugin-worker-manager.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_PLUGIN_SCHEDULE_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_PLUGIN_SCHEDULE_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("plugin job scheduling without idle polling", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;

@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import WebSocket from "ws";
-import type { DurablePrpControlPlane } from "../vendor/paperclip-runner/index.js";
+import type { DurablePrpControlPlane } from "../vendor/nexus-runner/index.js";
 import {
   __runnerPrpOutboundTesting,
   connectRunnerPrpIngress,

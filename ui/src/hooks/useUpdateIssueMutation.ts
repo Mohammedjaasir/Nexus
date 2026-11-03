@@ -6,7 +6,7 @@ import {
   type QueryKey,
 } from "@tanstack/react-query";
 import { useAccountBoundMutation } from "./useAccountBoundMutation";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 import { describeError, isTransientError } from "@/api/errors";
 import { issuesApi, type IssueUpdateResponse } from "@/api/issues";
 import { useToastActions } from "@/context/ToastContext";

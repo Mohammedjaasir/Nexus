@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, inArray, isNotNull, not, or, sql } from "drizzle-orm";
-import { heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, type Db } from "@nexusai/db";
 import { issueRecoveryActionService } from "../issue-recovery-actions.js";
 import type { NativeRecoveryNoticeScope } from "../native-recovery-notice-notifications.js";
 import { nativeRunnerOwnershipNotHeldCondition } from "./native-runner-ownership.js";

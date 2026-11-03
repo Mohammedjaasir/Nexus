@@ -1,4 +1,4 @@
-import { heartbeatRuns, type Db } from "@paperclipai/db";
+import { heartbeatRuns, type Db } from "@nexusai/db";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "../../../../__tests__/helpers/full-database-response-capture.js";
 import { eq } from "drizzle-orm";
 import { expect } from "vitest";
@@ -14,7 +14,7 @@ export async function verifyCommittedReplayPayloadReads(
   await db.update(heartbeatRuns).set({
     contextSnapshot: { ...original.contextSnapshot, savedInput: bulk },
     runnerProfileJson: { savedInput: bulk, nativeExecutionInput: {
-      schema: "paperclip.native-execution-input.v8", savedInput: bulk,
+      schema: "nexus.native-execution-input.v8", savedInput: bulk,
       provider: { kind: "muse", binding: { companyId, agentId, bindingId: runId } },
     } }, stdoutExcerpt: bulk, stderrExcerpt: bulk,
   }).where(eq(heartbeatRuns.id, runId));
@@ -25,7 +25,7 @@ export async function verifyCommittedReplayPayloadReads(
   installDatabaseResponseCapture(db, { heartbeatRuns }, capture);
   try { await replay(); }
   finally { capture.flush(); }
-  const summary = events.find(event => event.event === "paperclip.test_db_response_capture.summary.v1")!;
+  const summary = events.find(event => event.event === "nexus.test_db_response_capture.summary.v1")!;
   expect(summary.completedQueries).toBeGreaterThan(0);
   expect(summary.responseValueBytes).toBeLessThan(100_000);
   const [after] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, runId));

@@ -31,11 +31,11 @@ describe("runner E2E report aggregation", () => {
     const executionId = "core-compatibility.runner-codex.local.message-marker";
     const at = "2026-10-28T12:00:00Z";
     const result: RunnerE2EResult = {
-      schema: "paperclip.runner-e2e.result/v2", executionId, suiteId: "core-compatibility", attempt: 1,
+      schema: "nexus.runner-e2e.result/v2", executionId, suiteId: "core-compatibility", attempt: 1,
       status: "passed", profileId: "runner-codex", environmentId: "local", caseId: "message-marker",
       provider: "codex", model: "fixture", runtimeMode: "native", startedAt: at, finishedAt: at,
       durationMs: 0, cleanup: "passed", taskChat: {
-        schema: "paperclip.runner-e2e.task-chat/v1", capturedAt: at, status: "complete", missing: [],
+        schema: "nexus.runner-e2e.task-chat/v1", capturedAt: at, status: "complete", missing: [],
         threads: [projectTaskChatThread({ id: "task", title: "Saved task conversation", description: "Original user request", createdAt: at },
           [{ id: "reply", authorAgentId: "agent", createdAt: at, body: "Entire persisted response <script>unsafe()</script>" }], [], new Map([["agent", "Morgan"]]))],
       },
@@ -45,8 +45,8 @@ describe("runner E2E report aggregation", () => {
     await writeFile(path.join(directory, "evidence-manifest.json"), JSON.stringify({ files: ["final-state.png"], leaks: [], missing: [] }));
     const output = path.join(root, "merged");
     await execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
-      cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output,
-        PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
+      cwd: repositoryRoot, env: { ...process.env, NEXUS_RUNNER_E2E_REPORT_ROOT: root, NEXUS_RUNNER_E2E_REPORT_OUT: output,
+        NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
     });
     const normalized = JSON.parse(await readFile(path.join(output, "normalized-results.json"), "utf8"));
     expect(normalized.results[0].taskChat).toEqual(result.taskChat);
@@ -68,7 +68,7 @@ describe("runner E2E report aggregation", () => {
     const directory = path.join(root, "attempt-1");
     await mkdir(directory);
     const result: RunnerE2EResult = {
-      schema: "paperclip.runner-e2e.result/v2", executionId, suiteId: "core-compatibility",
+      schema: "nexus.runner-e2e.result/v2", executionId, suiteId: "core-compatibility",
       attempt: 1, status: "passed", profileId: "runner-codex", environmentId: "local",
       caseId: "message-marker", provider: "codex", model: "fixture-model", runtimeMode: "native",
       startedAt: "2026-10-20T00:00:00Z", finishedAt: "2026-10-20T00:00:01Z", durationMs: 1000, cleanup: "passed",
@@ -86,8 +86,8 @@ describe("runner E2E report aggregation", () => {
     const journal = path.join(root, "journal.jsonl"), output = path.join(root, "merged");
     await writeFile(journal, '{"damaged-journal":');
     await expect(execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
-      cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output,
-        PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]), PAPERCLIP_E2E_OPERATIONS_LEDGER: journal },
+      cwd: repositoryRoot, env: { ...process.env, NEXUS_RUNNER_E2E_REPORT_ROOT: root, NEXUS_RUNNER_E2E_REPORT_OUT: output,
+        NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]), NEXUS_E2E_OPERATIONS_LEDGER: journal },
     })).rejects.toMatchObject({ code: 1 });
     const normalized = JSON.parse(await readFile(path.join(output, "normalized-results.json"), "utf8"));
     expect(normalized).toMatchObject({ passed: 1, failed: 0, operations: { status: "unavailable" } });
@@ -114,7 +114,7 @@ describe("runner E2E report aggregation", () => {
     const acknowledgement = classifyLatency(observationTiming({ event: "acknowledgement", lastAbsentMs: 1_901, firstPresentMs: 2_427, resolutionMs: 0 }), { operator: "<=", ms: 2_000 });
     const response = classifyLatency(observationTiming({ event: "first_visible_response", lastAbsentMs: 52_965, firstPresentMs: 53_334, resolutionMs: 0 }), { operator: "<=", ms: 30_000 });
     const result: RunnerE2EResult = {
-      schema: "paperclip.runner-e2e.result/v2", executionId, suiteId: "core-compatibility", attempt: 1, status: "passed",
+      schema: "nexus.runner-e2e.result/v2", executionId, suiteId: "core-compatibility", attempt: 1, status: "passed",
       profileId: "runner-codex", environmentId: "local", caseId: "message-marker", provider: "codex", model: "fixture-model", runtimeMode: "native",
       startedAt: "2026-10-18T00:00:00Z", finishedAt: "2026-10-18T00:01:00Z", durationMs: 60_000, cleanup: "passed",
       // An old report called the crossing interval a failure (or a pass).
@@ -126,7 +126,7 @@ describe("runner E2E report aggregation", () => {
     await writeFile(path.join(directory, "evidence-manifest.json"), JSON.stringify({ files: ["final-state.png"], leaks: [], missing: [] }));
     const output = path.join(root, "merged");
     await execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
-      cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
+      cwd: repositoryRoot, env: { ...process.env, NEXUS_RUNNER_E2E_REPORT_ROOT: root, NEXUS_RUNNER_E2E_REPORT_OUT: output, NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
     });
     const normalized = JSON.parse(await readFile(path.join(output, "normalized-results.json"), "utf8"));
     expect(normalized.results[0].latencyProbes).toEqual([
@@ -157,7 +157,7 @@ describe("runner E2E report aggregation", () => {
       }))),
     }));
     const result: RunnerE2EResult = {
-      schema: "paperclip.runner-e2e.result/v2", executionId, suiteId: "core-compatibility",
+      schema: "nexus.runner-e2e.result/v2", executionId, suiteId: "core-compatibility",
       attempt: 1, status: "passed", profileId: "runner-codex", environmentId: "local",
       caseId: "message-marker", provider: "codex", model: "fixture-model", runtimeMode: "native",
       startedAt: "2026-09-23T00:00:00Z", finishedAt: "2026-09-23T00:00:01Z", durationMs: 1000,
@@ -169,7 +169,7 @@ describe("runner E2E report aggregation", () => {
     const output = path.join(root, "merged");
     await execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
       cwd: repositoryRoot,
-      env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
+      env: { ...process.env, NEXUS_RUNNER_E2E_REPORT_ROOT: root, NEXUS_RUNNER_E2E_REPORT_OUT: output, NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
     });
     const normalized = JSON.parse(await readFile(path.join(output, "normalized-results.json"), "utf8"));
     expect(normalized.results[0].startupReuse).toEqual(startupReuse);
@@ -192,7 +192,7 @@ describe("runner E2E report aggregation", () => {
     const directory = path.join(root, "attempt-1");
     await mkdir(directory);
     const result: RunnerE2EResult = {
-      schema: "paperclip.runner-e2e.result/v2", executionId, suiteId: "core-compatibility",
+      schema: "nexus.runner-e2e.result/v2", executionId, suiteId: "core-compatibility",
       attempt: 1, status: "passed", profileId: "runner-codex", environmentId: "local",
       caseId: "message-marker", provider: "codex", model: "fixture-model", runtimeMode: "native",
       startedAt: "2026-09-23T00:00:00Z", finishedAt: "2026-09-23T00:00:01Z", durationMs: 1000,
@@ -205,7 +205,7 @@ describe("runner E2E report aggregation", () => {
     const output = path.join(root, "merged");
     await execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
       cwd: repositoryRoot,
-      env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
+      env: { ...process.env, NEXUS_RUNNER_E2E_REPORT_ROOT: root, NEXUS_RUNNER_E2E_REPORT_OUT: output, NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
     });
     const markdown = await readFile(path.join(output, "summary.md"), "utf8");
     expect(markdown.split("\n").find((line) => line.startsWith("Tokens: "))).toBe(`Tokens: ${tokens}`);
@@ -237,7 +237,7 @@ describe("runner E2E report aggregation", () => {
       const directory = path.join(root, caseId);
       await mkdir(directory);
       await writeFile(path.join(directory, "result.json"), JSON.stringify({
-        schema: "paperclip.runner-e2e.result/v2", executionId, suiteId: "first-task",
+        schema: "nexus.runner-e2e.result/v2", executionId, suiteId: "first-task",
         attempt: 1, status: "failed", failureClass: "candidate_failure", error: "Recording stopped before acceptance",
         profileId: "runner-codex", environmentId: "local", caseId, provider: "codex", model: "fixture-model", runtimeMode: "native",
         startedAt: "2026-09-15T00:00:00Z", finishedAt: "2026-09-15T00:01:00Z", durationMs: 60_000, cleanup: "passed",
@@ -248,7 +248,7 @@ describe("runner E2E report aggregation", () => {
     }
     const output = path.join(root, "merged");
     await expect(execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
-      cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify(ids) },
+      cwd: repositoryRoot, env: { ...process.env, NEXUS_RUNNER_E2E_REPORT_ROOT: root, NEXUS_RUNNER_E2E_REPORT_OUT: output, NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify(ids) },
     })).rejects.toBeDefined();
     const normalized = JSON.parse(await readFile(path.join(output, "normalized-results.json"), "utf8"));
     expect(normalized).toMatchObject({ passed: 0, failed: 1, incomplete: 1 });
@@ -266,7 +266,7 @@ describe("runner E2E report aggregation", () => {
     cleanupDirectories.push(root);
     const executionId = "legacy-codex.local.message-marker";
     const base: RunnerE2EResult = {
-      schema: "paperclip.runner-e2e.result/v1",
+      schema: "nexus.runner-e2e.result/v1",
       executionId,
       attempt: 2,
       status: "passed",
@@ -323,7 +323,7 @@ describe("runner E2E report aggregation", () => {
                 {
                   matcher: {
                     kind: "message_contains" as const,
-                    expected: "PAPERCLIP_E2E_OK",
+                    expected: "NEXUS_E2E_OK",
                   },
                   passed: true,
                   detail: "matched",
@@ -379,21 +379,21 @@ describe("runner E2E report aggregation", () => {
         cwd: repositoryRoot,
         env: {
           ...process.env,
-          PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root,
-          PAPERCLIP_RUNNER_E2E_REPORT_OUT: output,
-          PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]),
-          PAPERCLIP_RUNNER_E2E_SOURCE_SHA:
+          NEXUS_RUNNER_E2E_REPORT_ROOT: root,
+          NEXUS_RUNNER_E2E_REPORT_OUT: output,
+          NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]),
+          NEXUS_RUNNER_E2E_SOURCE_SHA:
             "0123456789abcdef0123456789abcdef01234567",
-          PAPERCLIP_RUNNER_E2E_SOURCE_REF:
+          NEXUS_RUNNER_E2E_SOURCE_REF:
             "refs/heads/fix/runner-paid-source-attribution",
           GITHUB_SHA: "trusted-default-workflow-sha",
           GITHUB_REF: "refs/heads/master",
           GITHUB_SERVER_URL: "https://github.com",
           GITHUB_REPOSITORY: "paperclipai/paperclip",
           GITHUB_RUN_ID: "123456",
-          PAPERCLIP_RUNNER_E2E_HISTORY_PUBLIC_BASE_URL:
+          NEXUS_RUNNER_E2E_HISTORY_PUBLIC_BASE_URL:
             "https://reports.example.test/",
-          PAPERCLIP_RUNNER_E2E_HISTORY_PREFIX: "/runner-e2e/",
+          NEXUS_RUNNER_E2E_HISTORY_PREFIX: "/runner-e2e/",
         },
       },
     );
@@ -401,7 +401,7 @@ describe("runner E2E report aggregation", () => {
       await readFile(path.join(output, "normalized-results.json"), "utf8"),
     );
     expect(normalized).toMatchObject({
-      schema: "paperclip.runner-e2e.campaign/v2",
+      schema: "nexus.runner-e2e.campaign/v2",
       selected: 1,
       executed: 1,
       passed: 1,
@@ -541,7 +541,7 @@ describe("runner E2E report aggregation", () => {
     cleanupDirectories.push(root);
     const executionId = "runner-opencode.local.ask-question";
     const common: RunnerE2EResult = {
-      schema: "paperclip.runner-e2e.result/v1",
+      schema: "nexus.runner-e2e.result/v1",
       executionId,
       attempt: 2,
       status: "failed",
@@ -600,9 +600,9 @@ describe("runner E2E report aggregation", () => {
         cwd: repositoryRoot,
         env: {
           ...process.env,
-          PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root,
-          PAPERCLIP_RUNNER_E2E_REPORT_OUT: output,
-          PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]),
+          NEXUS_RUNNER_E2E_REPORT_ROOT: root,
+          NEXUS_RUNNER_E2E_REPORT_OUT: output,
+          NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]),
         },
       },
     );
@@ -634,7 +634,7 @@ describe("runner E2E report aggregation", () => {
     await writeFile(
       path.join(directory, "result.json"),
       JSON.stringify({
-        schema: "paperclip.runner-e2e.result/v1",
+        schema: "nexus.runner-e2e.result/v1",
         executionId,
         attempt: 1,
         status: "passed",
@@ -682,9 +682,9 @@ describe("runner E2E report aggregation", () => {
         cwd: repositoryRoot,
         env: {
           ...process.env,
-          PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root,
-          PAPERCLIP_RUNNER_E2E_REPORT_OUT: output,
-          PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]),
+          NEXUS_RUNNER_E2E_REPORT_ROOT: root,
+          NEXUS_RUNNER_E2E_REPORT_OUT: output,
+          NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]),
         },
       },
     );
@@ -707,7 +707,7 @@ describe("runner E2E report aggregation", () => {
     await writeFile(
       path.join(directory, "result.json"),
       JSON.stringify({
-        schema: "paperclip.runner-e2e.result/v1",
+        schema: "nexus.runner-e2e.result/v1",
         executionId,
         attempt: 1,
         status: "failed",
@@ -742,9 +742,9 @@ describe("runner E2E report aggregation", () => {
           cwd: repositoryRoot,
           env: {
             ...process.env,
-            PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root,
-            PAPERCLIP_RUNNER_E2E_REPORT_OUT: output,
-            PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]),
+            NEXUS_RUNNER_E2E_REPORT_ROOT: root,
+            NEXUS_RUNNER_E2E_REPORT_OUT: output,
+            NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]),
           },
         },
       ),
@@ -772,7 +772,7 @@ it("retains selector-approved successes and their spending when only failed work
     const directory = path.join(artifactRoot, artifactName, `gha-12345-${workflowAttempt}-${executionId}`, "attempt-1");
     await mkdir(directory, { recursive: true });
     const result: RunnerE2EResult = {
-      schema: "paperclip.runner-e2e.result/v2", executionId, suiteId: "core-compatibility", source,
+      schema: "nexus.runner-e2e.result/v2", executionId, suiteId: "core-compatibility", source,
       accountingIdentity: { campaignId: `gha-12345-${workflowAttempt}`, attemptId: `attempt-${index}` },
       attempt: 1, status: "passed", profileId: index ? "runner-claude" : "runner-codex", environmentId: "local",
       caseId: "message-marker", provider: index ? "claude" : "codex", model: "fixture", runtimeMode: "native",
@@ -792,8 +792,8 @@ it("retains selector-approved successes and their spending when only failed work
   });
   const output = path.join(root, "report");
   await execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
-    cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_E2E_CAMPAIGN_ID: "gha-12345-2", PAPERCLIP_RUNNER_E2E_REPORT_ROOT: selectedRoot,
-      PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify(executions) },
+    cwd: repositoryRoot, env: { ...process.env, NEXUS_E2E_CAMPAIGN_ID: "gha-12345-2", NEXUS_RUNNER_E2E_REPORT_ROOT: selectedRoot,
+      NEXUS_RUNNER_E2E_REPORT_OUT: output, NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify(executions) },
   });
   const campaign = JSON.parse(await readFile(path.join(output, "normalized-results.json"), "utf8"));
   expect(campaign).toMatchObject({ passed: 2, failed: 0, billing: { reportedLlmCostUsd: 0.03 }, accounting: { excludedArtifacts: 0 } });

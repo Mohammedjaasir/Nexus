@@ -25,7 +25,7 @@ function remPaddingLeft(selector: string): number {
 
 describe("rendered markdown list styles", () => {
   it("keeps unordered-list gutters compact while giving ordered markers enough room", () => {
-    expect(remPaddingLeft(".paperclip-markdown :where(ul, ol)")).toBeLessThan(2.5);
-    expect(remPaddingLeft(".paperclip-markdown ol")).toBeGreaterThanOrEqual(2.5);
+    expect(remPaddingLeft(".nexus-markdown :where(ul, ol)")).toBeLessThan(2.5);
+    expect(remPaddingLeft(".nexus-markdown ol")).toBeGreaterThanOrEqual(2.5);
   });
 });

@@ -17,8 +17,8 @@ test("E01/E03–E11/E13/E15/E16: setup, delayed work, duplicate input, navigatio
   const other = await post("/companies", { name: "Separate company", issuePrefix: "OTH" });
   const policy = await page.request.patch(`${origin}/api/companies/${company.id}`, { headers: { Origin: origin }, data: { requireBoardApprovalForNewAgents: false } });
   expect(policy.ok()).toBe(true);
-  const agent = await post(`/companies/${company.id}/agents`, { name: "Existing Paperclip Agent", role: "general", adapterType: "process", adapterConfig: { command: "fixture" }, runtimeConfig: { heartbeat: { enabled: false, wakeOnDemand: true } } });
-  // Discover the built SDK chunk by its export, rather than mock any Paperclip API.
+  const agent = await post(`/companies/${company.id}/agents`, { name: "Existing Nexus Agent", role: "general", adapterType: "process", adapterConfig: { command: "fixture" }, runtimeConfig: { heartbeat: { enabled: false, wakeOnDemand: true } } });
+  // Discover the built SDK chunk by its export, rather than mock any Nexus API.
   const assets = resolve(root, "ui/dist/assets");
   const candidates = await Promise.all((await readdir(assets)).filter(name => name.endsWith(".js")).map(async name => ({ name, source: await readFile(resolve(assets, name), "utf8") })));
   const sdk = candidates.filter(file => /export\{[^}]* as VoiceConversation\}/.test(file.source));
@@ -79,10 +79,10 @@ test("E01/E03–E11/E13/E15/E16: setup, delayed work, duplicate input, navigatio
   expect(await page.evaluate(() => (window as any).__spekoTransport.open)).toBe(false);
   // Prove connection guidance reaches the ordinary execution provider without
   // installing a template or replacing the selected agent's instructions.
-  await expect.poll(async () => (await evidence()).runs.find((row: any) => row.context.issueId === started.session.issueId)?.context.paperclipTaskCommunicationGuidance).toContain("Keep your existing identity, runtime, tools, and task assignment");
-  const deliveredGuidance = (await evidence()).runs.find((row: any) => row.context.issueId === started.session.issueId).context.paperclipTaskCommunicationGuidance;
+  await expect.poll(async () => (await evidence()).runs.find((row: any) => row.context.issueId === started.session.issueId)?.context.nexusTaskCommunicationGuidance).toContain("Keep your existing identity, runtime, tools, and task assignment");
+  const deliveredGuidance = (await evidence()).runs.find((row: any) => row.context.issueId === started.session.issueId).context.nexusTaskCommunicationGuidance;
   expect(deliveredGuidance).toContain("one focused clarification");
-  expect(deliveredGuidance).toContain("durable Paperclip continuation");
+  expect(deliveredGuidance).toContain("durable Nexus continuation");
   expect(deliveredGuidance).toContain("does not cancel work");
   expect(deliveredGuidance).toContain("Spoken consent does not replace governed approval");
   const foreign = await page.request.get(`${origin}/api/companies/${other.id}/voice-sessions/${started.session.id}`);
@@ -92,7 +92,7 @@ test("E01/E03–E11/E13/E15/E16: setup, delayed work, duplicate input, navigatio
   const rejoining = nextSession(); await page.getByRole("button", { name: "Start voice", exact: true }).click(); const resumed = await rejoining;
   expect(resumed.session.issueId).toBe(started.session.issueId); expect(resumed.session.id).not.toBe(started.session.id);
   await expect(page.getByRole("button", { name: "Mute", exact: true })).toBeEnabled();
-  const journal = await page.evaluate(() => Object.entries(sessionStorage).filter(([key]) => key.startsWith("paperclip:voice-attempt:")));
+  const journal = await page.evaluate(() => Object.entries(sessionStorage).filter(([key]) => key.startsWith("nexus:voice-attempt:")));
   expect(journal).toHaveLength(1);
   expect(journal[0][1]).not.toContain(resumed.media.transportToken);
   // Reload must reconcile the exact old call before it offers a new connection.

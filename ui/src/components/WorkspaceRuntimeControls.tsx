@@ -3,11 +3,11 @@ import type {
   RuntimeExposureStatus,
   WorkspaceRuntimeControlTarget,
   WorkspaceRuntimeService,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   listWorkspaceCommandDefinitions,
   matchWorkspaceRuntimeServiceToCommand,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { Activity, ExternalLink, Loader2, Play, RotateCcw, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useManagedSandboxOnly } from "@/hooks/useManagedSandboxOnly";
@@ -550,7 +550,7 @@ export function WorkspaceRuntimeControls({
 
       <CommandSection
         title="Services"
-        description="Long-running commands that Paperclip can supervise for this workspace."
+        description="Long-running commands that Nexus can supervise for this workspace."
         items={sections.services}
         emptyMessage={serviceEmptyMessage}
         disabledHint={visibleDisabledHint}

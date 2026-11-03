@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { describe, expect, it, vi } from "vitest";
 import type { AuthorizationActor, AuthorizationDecision } from "../services/authorization.js";
 import { canActorReadHeartbeatRun } from "../services/heartbeat-run-privacy.js";

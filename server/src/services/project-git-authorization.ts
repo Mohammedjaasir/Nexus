@@ -9,8 +9,8 @@ import {
   toolConnections,
   toolConnectionInstalls,
   type Db,
-} from "@paperclipai/db";
-import type { ProjectGitAuthorization } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { ProjectGitAuthorization } from "@nexusai/shared";
 import { forbidden, notFound } from "../errors.js";
 import { resolveManagedGitHubCredential } from "./git-credentials.js";
 import { resolveGitHubOperationCredentials } from "./github-operation-credentials.js";
@@ -212,7 +212,7 @@ export function projectGitAuthorizationService(db: Db) {
           agentId: scope.agentId,
         });
         if (result.status !== "available") throw forbidden(result.reason ?? "Run GitHub authorization unavailable");
-        return transientGitToken(result.env.PAPERCLIP_GIT_TOKEN);
+        return transientGitToken(result.env.NEXUS_GIT_TOKEN);
       }
       if (!isPrivate) return null;
       if (!row.gitAuthorizationGrantId)

@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   activityLog, agents, agentWakeupRequests, companies, createDb,
   environmentLeases, heartbeatRuns, issueRecoveryActions, issues, chatConversations, chatEndpoints, toolApplications, toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { errorHandler } from "../middleware/index.js";
 import { issueRoutes } from "../routes/issues.js";
@@ -14,7 +14,7 @@ import { getExecutionBlocker } from "../services/execution-blocker.js";
 import { remoteTerminationReceipt } from "../services/remote-execution-termination.js";
 import { LEGACY_WORKSPACE_RECOVERY_SCHEMA } from "../services/workspace-restore-recovery-state.js";
 
-const external = process.env.PAPERCLIP_TEST_DATABASE_URL?.trim();
+const external = process.env.NEXUS_TEST_DATABASE_URL?.trim();
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 
 (support.supported ? describe : describe.skip)("retained workspace repair route", () => {

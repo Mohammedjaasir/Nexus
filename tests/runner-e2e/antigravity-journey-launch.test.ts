@@ -130,7 +130,7 @@ beforeEach(() => {
       companyId: "11111111-1111-4111-8111-111111111111", environmentId: "22222222-2222-4222-8222-222222222222" },
     browser: { headed: true, channel: "chromium", freshness: "signed-in" },
     savedConnection: { id: "33333333-3333-4333-8333-333333333333", name: "Synthetic subscription", ownerUserId: "synthetic-operator" },
-    candidate: { platform: "darwin", architecture: "arm64", nativeVersion: "1.4.3-paperclip.5", profileDigest: `sha256:${"b".repeat(64)}`, nativeClosureDigest: `sha256:${"c".repeat(64)}` },
+    candidate: { platform: "darwin", architecture: "arm64", nativeVersion: "1.4.3-nexus.5", profileDigest: `sha256:${"b".repeat(64)}`, nativeClosureDigest: `sha256:${"c".repeat(64)}` },
     limits: { durationMs: 900_000, turnTimeoutMs: 300_000, maxRuns: 2, budgetCents: 100 } });
   scenario.prepare.mockResolvedValue({ identity: { commit: "a".repeat(40) }, company: { issuePrefix: "QA" },
     connection: { id: scenario.config.savedConnection.id, grantId: "synthetic-grant", ownerUserId: "synthetic-operator", isDefault: true, method: "subscription" }, accounting: {} });
@@ -360,8 +360,8 @@ it.each(["missing_screenshot", "late_assets"])("preserves the primary failure an
     expect(JSON.parse(await readFile(path.join(output, "packaging-source-evidence-manifest.json"), "utf8")).missing).toEqual([]);
   }
   const env = Object.fromEntries(["PATH", "HOME", "USER", "TMPDIR", "LANG"].flatMap(key => process.env[key] ? [[key, process.env[key]!]] : []));
-  Object.assign(env, { PAPERCLIP_RUNNER_E2E_REPORT_ROOT: output, PAPERCLIP_RUNNER_E2E_REPORT_OUT: path.join(output, "rebuilt"),
-    PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([ANTIGRAVITY_JOURNEY_EXECUTION]), PAPERCLIP_E2E_CAMPAIGN_ID: path.basename(output) });
+  Object.assign(env, { NEXUS_RUNNER_E2E_REPORT_ROOT: output, NEXUS_RUNNER_E2E_REPORT_OUT: path.join(output, "rebuilt"),
+    NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([ANTIGRAVITY_JOURNEY_EXECUTION]), NEXUS_E2E_CAMPAIGN_ID: path.basename(output) });
   const rebuilt = spawnSync(process.execPath, ["cli/node_modules/tsx/dist/cli.mjs", "tests/runner-e2e/report.ts"], { cwd: repositoryRoot, env, timeout: 25_000, encoding: "utf8" });
   expect(rebuilt.status).toBe(1);
   const normalized = JSON.parse(await readFile(path.join(output, "rebuilt/normalized-results.json"), "utf8")).results[0];

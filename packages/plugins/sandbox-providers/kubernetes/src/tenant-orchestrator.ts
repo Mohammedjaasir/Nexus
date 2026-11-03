@@ -5,7 +5,7 @@ import { buildCiliumNetworkPolicyManifest } from "./cilium-network-policy.js";
 export interface EnsureTenantInput {
   namespace: string;
   companyId: string;
-  paperclipServerNamespace: string;
+  nexusServerNamespace: string;
   serviceAccountAnnotations: Record<string, string>;
   egressMode: "standard" | "cilium";
   egressAllowFqdns: string[];
@@ -19,11 +19,11 @@ export interface EnsureTenantInput {
   };
 }
 
-const SERVICE_ACCOUNT_NAME = "paperclip-tenant-sa";
-const ROLE_NAME = "paperclip-tenant-role";
-const ROLE_BINDING_NAME = "paperclip-tenant-rb";
-const RESOURCE_QUOTA_NAME = "paperclip-quota";
-const LIMIT_RANGE_NAME = "paperclip-limits";
+const SERVICE_ACCOUNT_NAME = "nexus-tenant-sa";
+const ROLE_NAME = "nexus-tenant-role";
+const ROLE_BINDING_NAME = "nexus-tenant-rb";
+const RESOURCE_QUOTA_NAME = "nexus-quota";
+const LIMIT_RANGE_NAME = "nexus-limits";
 
 /**
  * Lazy, first-write-wins tenant provisioning. Each helper checks if the named
@@ -38,7 +38,7 @@ const LIMIT_RANGE_NAME = "paperclip-limits";
  * reconciliation here.
  *
  * Particular gotcha: switching egressMode "standard" → "cilium" leaves the
- * old paperclip-egress-allow NetworkPolicy in place alongside the new
+ * old nexus-egress-allow NetworkPolicy in place alongside the new
  * CiliumNetworkPolicy. Both apply; the effective egress is the intersection.
  */
 export async function ensureTenant(clients: KubeClients, input: EnsureTenantInput): Promise<void> {
@@ -67,7 +67,7 @@ async function ensureNamespace(clients: KubeClients, input: EnsureTenantInput): 
             name: input.namespace,
             labels: {
               "paperclip.io/company-id": input.companyId,
-              "paperclip.io/managed-by": "paperclip-k8s-plugin",
+              "paperclip.io/managed-by": "nexus-k8s-plugin",
               "pod-security.kubernetes.io/enforce": "restricted",
               "pod-security.kubernetes.io/audit": "restricted",
               "pod-security.kubernetes.io/warn": "restricted",
@@ -95,7 +95,7 @@ async function ensureServiceAccount(clients: KubeClients, input: EnsureTenantInp
             name: SERVICE_ACCOUNT_NAME,
             namespace: input.namespace,
             annotations: input.serviceAccountAnnotations,
-            labels: { "paperclip.io/managed-by": "paperclip-k8s-plugin" },
+            labels: { "paperclip.io/managed-by": "nexus-k8s-plugin" },
           },
         },
       }),
@@ -209,7 +209,7 @@ async function ensureLimitRange(clients: KubeClients, input: EnsureTenantInput):
 async function ensureNetworkPolicies(clients: KubeClients, input: EnsureTenantInput): Promise<void> {
   const [denyAll, egressStd] = buildNetworkPolicyManifests({
     namespace: input.namespace,
-    paperclipServerNamespace: input.paperclipServerNamespace,
+    nexusServerNamespace: input.nexusServerNamespace,
     egressAllowCidrs: input.egressAllowCidrs,
     egressAllowFqdns: input.egressAllowFqdns,
   });
@@ -219,7 +219,7 @@ async function ensureNetworkPolicies(clients: KubeClients, input: EnsureTenantIn
   if (input.egressMode === "cilium") {
     const cnp = buildCiliumNetworkPolicyManifest({
       namespace: input.namespace,
-      paperclipServerNamespace: input.paperclipServerNamespace,
+      nexusServerNamespace: input.nexusServerNamespace,
       egressAllowFqdns: input.egressAllowFqdns,
       egressAllowCidrs: input.egressAllowCidrs,
     });

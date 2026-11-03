@@ -29,7 +29,7 @@ export interface ProviderTraceFieldMapping {
 
 export interface ProviderTraceFrame {
   kind?: "frame";
-  schema: "paperclip.provider_trace_frame.v1";
+  schema: "nexus.provider_trace_frame.v1";
   debugChannel: string;
   debugSequence: number;
   frameId: number;
@@ -44,7 +44,7 @@ export interface ProviderTraceFrame {
 
 export interface ProviderTraceInterpretation {
   kind?: "interpretation";
-  schema: "paperclip.provider_trace_interpretation.v1";
+  schema: "nexus.provider_trace_interpretation.v1";
   debugChannel: string;
   debugSequence: number;
   frameId: number;
@@ -61,7 +61,7 @@ export type ProviderTraceStatus =
   "capturing" | "complete" | "incomplete" | "truncated" | "deleted" | "expired";
 
 export interface ProviderTraceMetadata {
-  schema: "paperclip.provider_trace_metadata.v1";
+  schema: "nexus.provider_trace_metadata.v1";
   id: string;
   runId: string;
   companyId: string;
@@ -85,7 +85,7 @@ export type RunPresentationSource =
   | "none";
 
 export interface RunPresentationDecision {
-  schema: "paperclip.run_presentation_decision.v1";
+  schema: "nexus.run_presentation_decision.v1";
   resolverVersion: string;
   chosenSource: RunPresentationSource;
   sourceEventId: string | null;

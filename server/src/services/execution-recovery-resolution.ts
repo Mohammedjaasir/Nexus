@@ -4,7 +4,7 @@ import { notifyUnsafeWorkspaceExportRecovery } from "./unsafe-workspace-export-n
 import { notifyChatResponseAvailability } from "./chat-response-availability.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 import { notifyExecutionRunWork } from "./execution-control-notifications.js";
-import { hasWorkspaceRestoreFailure } from "@paperclipai/shared";
+import { hasWorkspaceRestoreFailure } from "@nexusai/shared";
 import { randomUUID } from "node:crypto";
 import { canonicalExecutionUuid } from "./execution-identity.js";
 import { claimedAdapterType, conversationRecoveryActionPredicate, getConversationOwnershipBlocker } from "./conversation-continuation.js";
@@ -20,13 +20,13 @@ import {
   issues,
   nativeRunFinalizations,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { conflict } from "../errors.js";
 import { buildExecutionContinuation } from "./execution-continuation.js";
 import {
   EXECUTION_RECONCILIATION_CAUSES,
   type ExecutionReconciliation,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { parseIssueExecutionState } from "./issue-execution-policy.js";
 import { isSupersededConversationRun } from "./agent-conversations.js";
 import { hasRequiredWorkspaceRecovery } from "./workspace-restore-recovery-state.js";
@@ -363,7 +363,7 @@ function supersedingNativeWorkspaceHold(db: Db, input: {
     eq(supersedingWorkspaceHold.cause, "native_continuation_requires_reconciliation"),
     sql`${supersedingWorkspaceHold.evidence}->>'runId' = ${input.runId}::text`,
     sql`${supersedingWorkspaceHold.evidence}->'automaticRecovery'->>'replay' = 'blocked'`,
-    sql`${supersedingWorkspaceHold.evidence}->'workspaceRestoreRecovery'->>'schema' = 'paperclip.workspace-restore-recovery.v1'`,
+    sql`${supersedingWorkspaceHold.evidence}->'workspaceRestoreRecovery'->>'schema' = 'nexus.workspace-restore-recovery.v1'`,
   ));
 }
 
@@ -613,7 +613,7 @@ export async function settleUnrecoverableExecutions(
             nativeFailureBlock = { runId: run.id, statusVersion: projected!.statusVersion };
           }
           if (task.status !== "blocked" && run.runtimeMode === "legacy" && !run.runtimeModeResolvedAt &&
-              run.errorCode === "server_shutdown_interrupted" && claimedAdapterType(run) === "paperclip_runner") {
+              run.errorCode === "server_shutdown_interrupted" && claimedAdapterType(run) === "nexus_runner") {
             nativeBootstrapFailureBlock = { runId: run.id, statusVersion: projected!.statusVersion, previousStatus: task.status };
           }
         }

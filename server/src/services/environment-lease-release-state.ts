@@ -1,5 +1,5 @@
 import { and, eq, lte, or, sql } from "drizzle-orm";
-import { environmentLeases, type Db } from "@paperclipai/db";
+import { environmentLeases, type Db } from "@nexusai/db";
 import type { ProviderResourceDisposition } from "./environment-runtime.js";
 import { ENVIRONMENT_CLEANUP_RETRY_MS, pendingCleanupDeadlineSql } from "./environment-cleanup-state.js";
 

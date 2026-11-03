@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
-import { agentWakeupRequests, caseHandoffs, cases, heartbeatRuns, issues, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, caseHandoffs, cases, heartbeatRuns, issues, type Db } from "@nexusai/db";
 import { caseHandoffService, recordCaseHandoffEvent, type CaseHandoffRow } from "./case-handoffs.js";
 import { publishActivity, type ActivityPublication } from "./activity-log.js";
 import { instanceSettingsService } from "./instance-settings.js";
@@ -52,7 +52,7 @@ export function caseHandoffDeliveryService(db: Db, options: { heartbeat: Heartbe
     const nextAttemptAt = row.state === "awaiting_release" && row.sourceRunId ? sql<Date>`case when exists (
       select 1 from ${heartbeatRuns} released where released.id = ${row.sourceRunId}::uuid
         and released.company_id = ${row.companyId}::uuid
-        and released.result_json->'caseHandoffExecutionReleased'->>'schema' = 'paperclip.case-handoff-release.v1'
+        and released.result_json->'caseHandoffExecutionReleased'->>'schema' = 'nexus.case-handoff-release.v1'
         and released.result_json->'caseHandoffExecutionReleased'->>'runId' = ${row.sourceRunId}
         and released.result_json->'caseHandoffExecutionReleased'->>'issueId' = ${row.issueId}
     ) then ${at.toISOString()}::timestamptz else ${later.toISOString()}::timestamptz end` : later;

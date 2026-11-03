@@ -1,5 +1,5 @@
-import type { Db } from "@paperclipai/db";
-import type { PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import type { Db } from "@nexusai/db";
+import type { PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { describe, expect, it, vi } from "vitest";
 import { projectNativeRuntimeRequest } from "./native-question-bridge.js";
 
@@ -10,12 +10,12 @@ const binding = {
 
 function permissionEvent(): PrpEvent {
   return {
-    schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceEventId: "permission-1",
+    schema: "nexus.prp.event.v1", schemaVersion: 1, sourceEventId: "permission-1",
     sourceSeq: 1, sourceKind: "runner", sourceInstanceId: "runner-1", runId: "run-1",
     normalizedSessionId: "session-1", turnId: "turn-1", itemId: "item-1",
     eventType: "runtime_request.created", priority: 0, emittedAt: "2026-09-28T12:00:00Z",
     payload: { request: {
-      schema: "paperclip.runtime_request.v2", requestKind: "permission_approval", type: "permission",
+      schema: "nexus.runtime_request.v2", requestKind: "permission_approval", type: "permission",
       requestId: "permission-1", turnId: "turn-1", itemId: "item-1", status: "pending",
       prompt: "Allow editing src/example.ts?",
       choices: [{ key: "accept", label: "Allow once" }, { key: "decline", label: "Deny" }],

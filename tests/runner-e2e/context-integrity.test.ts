@@ -23,7 +23,7 @@ function recording(id: "ordered-comment-continuation" | "assigned-skill-explicit
     issue: { id: "issue", status: "done" },
     comments: scenario.comments.map((body, index) => ({ body, authorType: "user", id: `comment-${index}` })),
     documents: [{ key: "output", body: id === "ordered-comment-continuation" ? `passport\ncharger\n## Ordered request ledger\n${scenario.comments.join("\n")}\n## Final scope\nLaunch checklist` : `Final ${scenario.marker}` }],
-    runs: [{ id: "run-1", status: "succeeded", startedAt: "2026-01-01T00:00:00Z" }, { id: "run-2", status: "succeeded", startedAt: "2026-01-01T00:01:00Z", contextSnapshot: { paperclipWake: { commentIds: ["comment-0", "comment-1", "comment-2"] } } }],
+    runs: [{ id: "run-1", status: "succeeded", startedAt: "2026-01-01T00:00:00Z" }, { id: "run-2", status: "succeeded", startedAt: "2026-01-01T00:01:00Z", contextSnapshot: { nexusWake: { commentIds: ["comment-0", "comment-1", "comment-2"] } } }],
   };
   const queued = {
     ...initial,
@@ -112,7 +112,7 @@ describe("context integrity Product E2E contract", () => {
     (missingScope[2].documents[0] as { body: string }).body = `passport\ncharger\n${scenario.comments.join("\n")}\n${scenario.marker}`;
     expect(gradeContextIntegrity({ id: scenario.id, marker: scenario.marker, comments: scenario.comments, checkpoints: missingScope })).toEqual(expect.arrayContaining([expect.objectContaining({ id: "final-scope-applied", passed: false })]));
     const fragmentedWake = structuredClone(checkpoints);
-    (fragmentedWake[2].runs[1] as { contextSnapshot: { paperclipWake: { commentIds: string[] } } }).contextSnapshot.paperclipWake.commentIds = ["comment-0", "comment-2"];
+    (fragmentedWake[2].runs[1] as { contextSnapshot: { nexusWake: { commentIds: string[] } } }).contextSnapshot.nexusWake.commentIds = ["comment-0", "comment-2"];
     expect(gradeContextIntegrity({ id: scenario.id, marker: scenario.marker, comments: scenario.comments, checkpoints: fragmentedWake })).toEqual(expect.arrayContaining([expect.objectContaining({ id: "continuation-wake-comment-ids", passed: false })]));
   });
 

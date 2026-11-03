@@ -4,7 +4,7 @@ import type { Duplex } from "node:stream";
 import type {
   DurablePrpControlPlane,
   HarnessRuntimeRequestResolution,
-} from "../vendor/paperclip-runner/index.js";
+} from "../vendor/nexus-runner/index.js";
 import {
   assertNativeRuntimeRequestResolverAuthorized,
   type NativeRuntimeRequestResolver,
@@ -35,7 +35,7 @@ interface CurrentLiveAuthority {
 }
 
 interface RunnerPrpUpgradeRequest extends IncomingMessage {
-  paperclipWebSocketHandled?: boolean;
+  nexusWebSocketHandled?: boolean;
 }
 
 const registrations = new Map<string, RegisteredAuthority>();
@@ -86,12 +86,12 @@ export function setupRunnerPrpWebSocketServer(
   server.on(
     "upgrade",
     (request: IncomingMessage, socket: Duplex, head: Buffer) => {
-      const url = new URL(request.url ?? "/", "http://paperclip.invalid");
+      const url = new URL(request.url ?? "/", "http://nexus.invalid");
       if (!url.pathname.startsWith(CONNECT_PATH_PREFIX)) return;
 
       const ownedRequest = request as RunnerPrpUpgradeRequest;
-      if (ownedRequest.paperclipWebSocketHandled) return;
-      ownedRequest.paperclipWebSocketHandled = true;
+      if (ownedRequest.nexusWebSocketHandled) return;
+      ownedRequest.nexusWebSocketHandled = true;
       socket.on("error", (error) => {
         logger.warn(
           { errorName: error.name },

@@ -7,7 +7,7 @@ import { createHeartbeatRunPreparation } from "../services/heartbeat/run-prepara
 import { heartbeatService } from "../services/heartbeat.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import { reconcileTaskChatRetryReceipts } from "../services/task-retry.js";
-import { chatActions } from "@paperclipai/db";
+import { chatActions } from "@nexusai/db";
 import { createChatPublicationResolution } from "../services/chat-channels/publications/resolution.js";
 import { createChatPublicationTaskControl } from "../services/chat-channels/publications/task-control.js";
 import { chatCredentialMutationLease } from "../services/chat-credential-mutation-lease.js";
@@ -34,26 +34,26 @@ import {
   chatMessageLinks, chatPublications, companies, createDb, heartbeatRuns, issueApprovals,
   issueComments, issueRelations, issueThreadInteractions, issues, nativeRunFinalizations,
   toolApplications, toolConnections, subscribeDatabaseWork, type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { pendingExternalConversationSettlement, externalConversationSettlementCandidates, settleSlackConversation } from "../services/slack-conversation-lifecycle.js";
 import { externalConversationStateSql, resumeExternalConversation } from "../services/slack-conversation-state.js";
 import { executionIssueCondition } from "../services/issue-visibility.js";
 import { dashboardService } from "../services/dashboard.js";
 import { attentionService } from "../services/attention.js";
-import { companySearchQuerySchema } from "@paperclipai/shared";
+import { companySearchQuerySchema } from "@nexusai/shared";
 import { companySearchService } from "../services/company-search.js";
 import { recoveryService } from "../services/recovery/service.js";
 import { issueService } from "../services/issues.js";
 
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_EXTERNAL_CONVERSATION_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_EXTERNAL_CONVERSATION_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("Slack conversation idle lifecycle", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    if (!external) database = await startEmbeddedPostgresTestDatabase("paperclip-slack-idle-");
+    if (!external) database = await startEmbeddedPostgresTestDatabase("nexus-slack-idle-");
     db = createDb(external ?? database!.connectionString);
   }, 90000);
   afterAll(async () => {
@@ -331,8 +331,8 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     });
     it.each(["restore", "worktree"])("preserves %s suppression and activation", async mode => {
       const f = await fixture();
-      const runtimeEnv = mode === "restore" ? { PAPERCLIP_DATABASE_RESTORE_IN_PROGRESS: "true" }
-        : { PAPERCLIP_IN_WORKTREE: "true", PAPERCLIP_INSTANCE_ID: "conversation-settlement-test" };
+      const runtimeEnv = mode === "restore" ? { NEXUS_DATABASE_RESTORE_IN_PROGRESS: "true" }
+        : { NEXUS_IN_WORKTREE: "true", NEXUS_INSTANCE_ID: "conversation-settlement-test" };
       const settings = instanceSettingsService(db, { runtimeEnv });
       if (mode === "worktree") await settings.updateExperimental({ enableWorktreeRunExecution: false });
       vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"], shouldAdvanceTime: true });
@@ -392,7 +392,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
         kind: "failed_run_retry", providerActionId: actionId, status: "failed", payload: { issueId: f.issueId } });
       await db.insert(agentWakeupRequests).values({ id: wakeId, companyId: f.companyId, agentId: f.agentId, source: "on_demand",
         reason: "task_retry", status: "deferred_issue_execution", payload: { issueId: f.issueId, taskRetry: {
-          schema: "paperclip.task-retry.v1", generationId: wakeId, sourceRunId: f.runId, actorId: "local-board",
+          schema: "nexus.task-retry.v1", generationId: wakeId, sourceRunId: f.runId, actorId: "local-board",
           strategy: "evaluate", chatActionId: actionId } } });
       await start(); await flush(); await quiet();
       await reconcileTaskChatRetryReceipts(db);

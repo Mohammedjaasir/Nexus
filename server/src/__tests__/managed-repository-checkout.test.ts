@@ -10,7 +10,7 @@ const execFile = promisify(execFileCallback);
 const directories: string[] = [];
 afterEach(async () => { vi.unstubAllEnvs(); await Promise.all(directories.splice(0).map(dir => rm(dir, { recursive: true, force: true }))); });
 async function fixture() {
-  const root = await mkdtemp(path.join(tmpdir(), "paperclip-repository-publication-"));
+  const root = await mkdtemp(path.join(tmpdir(), "nexus-repository-publication-"));
   directories.push(root);
   const source = path.join(root, "source");
   await mkdir(source);
@@ -31,21 +31,21 @@ describe("atomic managed repository publication", () => {
     await ensureManagedRepositoriesIgnored(nestedPlainRoot);
     expect(await readFile(path.join(source, ".git", "info", "exclude"), "utf8")).toBe(original);
     await ensureManagedRepositoriesIgnored(source);
-    expect(await readFile(path.join(source, ".git", "info", "exclude"), "utf8")).toContain("/.paperclip-repositories/");
+    expect(await readFile(path.join(source, ".git", "info", "exclude"), "utf8")).toContain("/.nexus-repositories/");
   });
   it("allows a declared plain task directory with inert Git metadata without changing its files", async () => {
     const { target } = await fixture();
     await mkdir(path.join(target, ".git", "info"), { recursive: true });
     const file = path.join(target, ".git", "info", "exclude");
-    await writeFile(file, "/.paperclip-repositories/\n");
+    await writeFile(file, "/.nexus-repositories/\n");
     await expect(ensureManagedRepositoriesIgnored(target, { plainTaskDirectory: true })).resolves.toBeUndefined();
-    expect(await readFile(file, "utf8")).toBe("/.paperclip-repositories/\n");
+    expect(await readFile(file, "utf8")).toBe("/.nexus-repositories/\n");
     await expect(ensureManagedRepositoriesIgnored(target)).rejects.toThrow("not a git repository");
   });
   it("still excludes managed repositories when a task directory contains a real checkout", async () => {
     const { source } = await fixture();
     await ensureManagedRepositoriesIgnored(source, { plainTaskDirectory: true });
-    expect(await readFile(path.join(source, ".git", "info", "exclude"), "utf8")).toContain("/.paperclip-repositories/");
+    expect(await readFile(path.join(source, ".git", "info", "exclude"), "utf8")).toContain("/.nexus-repositories/");
   });
   it("retains unexpected Git errors for declared plain task directories", async () => {
     const { root, target } = await fixture();
@@ -66,10 +66,10 @@ describe("atomic managed repository publication", () => {
     const result = await materializeManagedProjectWorkspace(target, { repoUrl: "https://github.com/test/source", localSource: source, beforePublish: async clone => {
       expect(await stat(target).catch(() => null)).toBeNull();
       const commit = (await execFile("git", ["-C", clone, "rev-parse", "HEAD"])).stdout.trim();
-      await writeFile(path.join(clone, ".git", "paperclip-workspace-owner.json"), JSON.stringify({ repositoryId: "receipt", pinnedCommit: commit }));
+      await writeFile(path.join(clone, ".git", "nexus-workspace-owner.json"), JSON.stringify({ repositoryId: "receipt", pinnedCommit: commit }));
     } });
     expect(result.warning).toBeNull();
-    expect(JSON.parse(await readFile(path.join(target, ".git", "paperclip-workspace-owner.json"), "utf8"))).toMatchObject({ repositoryId: "receipt", pinnedCommit: expect.stringMatching(/^[a-f0-9]{40}$/) });
+    expect(JSON.parse(await readFile(path.join(target, ".git", "nexus-workspace-owner.json"), "utf8"))).toMatchObject({ repositoryId: "receipt", pinnedCommit: expect.stringMatching(/^[a-f0-9]{40}$/) });
     expect(await readFile(path.join(target, "source.txt"), "utf8")).toBe("initial\n");
   });
   it("authorizes the empty staging root before copying any source bytes", async () => {

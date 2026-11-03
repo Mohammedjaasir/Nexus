@@ -30,7 +30,7 @@ const root = await createRunnerE2ETemporaryRoot();
 const reportPath = path.join(root, "rolling-deployment-evidence.json");
 const checks: { name: string; passed: boolean; error?: string }[] = [];
 const report: Record<string, unknown> = {
-  schema: "paperclip.e2e.rolling-deployment-smoke/v1", startedAt: new Date().toISOString(),
+  schema: "nexus.e2e.rolling-deployment-smoke/v1", startedAt: new Date().toISOString(),
   sourceRevision: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim(),
   sourceDirty: execFileSync("git", ["status", "--porcelain"], { cwd: repositoryRoot, encoding: "utf8" }).trim().length > 0,
   sourcePatchSha256: patchHash.digest("hex"), nodeVersion: process.version,
@@ -67,8 +67,8 @@ async function check(name: string, run: () => Promise<void>) {
   await saveReport();
 }
 try {
-  const storageFile = process.env.PAPERCLIP_ROLLING_TEST_STORAGE_CONFIG;
-  if (!storageFile) throw new Error("Set PAPERCLIP_ROLLING_TEST_STORAGE_CONFIG to private disposable S3 connection JSON");
+  const storageFile = process.env.NEXUS_ROLLING_TEST_STORAGE_CONFIG;
+  if (!storageFile) throw new Error("Set NEXUS_ROLLING_TEST_STORAGE_CONFIG to private disposable S3 connection JSON");
   const storage = JSON.parse(await readFile(storageFile, "utf8")) as {
     endpoint: string; accessKeyId: string; secretAccessKey: string;
   };
@@ -82,8 +82,8 @@ try {
   await s3.send(new CreateBucketCommand({ Bucket: bucket })); bucketCreated = true;
   storageProxy = await startRollingStorageProxy(storage.endpoint);
   const setupStarted = performance.now();
-  if (process.env.PAPERCLIP_ROLLING_TEST_DATABASE_CONFIG) {
-    const { url } = JSON.parse(await readFile(process.env.PAPERCLIP_ROLLING_TEST_DATABASE_CONFIG, "utf8")) as { url: string };
+  if (process.env.NEXUS_ROLLING_TEST_DATABASE_CONFIG) {
+    const { url } = JSON.parse(await readFile(process.env.NEXUS_ROLLING_TEST_DATABASE_CONFIG, "utf8")) as { url: string };
     const configPath = path.join(root, "database-owner/config.json");
     const owned = await createExternalControllerDatabase({ adminUrl: url, temporaryRoot: root,
       configPath, serverPort: await reserveRunnerE2EServerPort() });
@@ -96,20 +96,20 @@ try {
   }
   proxy = await startRollingDeploymentProxy();
   const sharedEnvironment = {
-    PAPERCLIP_DURABLE_AGENT_FILES: "true",
-    PAPERCLIP_SHARED_UI_ASSETS: "true",
-    PAPERCLIP_DATABASE_LISTEN_URL: database.connectionString,
-    PAPERCLIP_SECRETS_MASTER_KEY: randomBytes(32).toString("base64"),
-    PAPERCLIP_AGENT_JWT_SECRET: randomUUID(), PAPERCLIP_DECISION_SIGNING_SECRET: randomUUID(),
-    PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: randomUUID(), BETTER_AUTH_SECRET: randomUUID(),
-    PAPERCLIP_STORAGE_PROVIDER: "s3", PAPERCLIP_STORAGE_S3_BUCKET: bucket,
-    PAPERCLIP_STORAGE_S3_REGION: "us-east-1", PAPERCLIP_STORAGE_S3_ENDPOINT: storageProxy.endpoint,
-    PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE: "true", AWS_ACCESS_KEY_ID: storage.accessKeyId,
+    NEXUS_DURABLE_AGENT_FILES: "true",
+    NEXUS_SHARED_UI_ASSETS: "true",
+    NEXUS_DATABASE_LISTEN_URL: database.connectionString,
+    NEXUS_SECRETS_MASTER_KEY: randomBytes(32).toString("base64"),
+    NEXUS_AGENT_JWT_SECRET: randomUUID(), NEXUS_DECISION_SIGNING_SECRET: randomUUID(),
+    NEXUS_TOOL_ACTION_SIGNING_SECRET: randomUUID(), BETTER_AUTH_SECRET: randomUUID(),
+    NEXUS_STORAGE_PROVIDER: "s3", NEXUS_STORAGE_S3_BUCKET: bucket,
+    NEXUS_STORAGE_S3_REGION: "us-east-1", NEXUS_STORAGE_S3_ENDPOINT: storageProxy.endpoint,
+    NEXUS_STORAGE_S3_FORCE_PATH_STYLE: "true", AWS_ACCESS_KEY_ID: storage.accessKeyId,
     AWS_SECRET_ACCESS_KEY: storage.secretAccessKey, AWS_EC2_METADATA_DISABLED: "true",
     RUN_LOG_S3_BUCKET: bucket, RUN_LOG_S3_ENDPOINT: storage.endpoint,
     RUN_LOG_S3_REGION: "us-east-1", RUN_LOG_S3_FORCE_PATH_STYLE: "true",
   };
-  const browserEnabled = process.env.PAPERCLIP_ROLLING_TEST_BROWSER === "true";
+  const browserEnabled = process.env.NEXUS_ROLLING_TEST_BROWSER === "true";
   report.artifactKind = browserEnabled ? "compiled-server-with-workspace-dependencies" : "source";
   const omittedAssets = browserEnabled ? (await readdir(path.join(repositoryRoot, "ui/dist/assets"))).filter(name => /^CompanyActivity(?:\.production)?-[^.]+\.js$/.test(name)) : [];
   if (browserEnabled && !omittedAssets.length) throw new Error("Build the UI before browser qualification");
@@ -117,7 +117,7 @@ try {
     const server = await startRollingDeploymentProcess({ root, name, repositoryRoot,
       databaseUrl: database!.connectionString, ingressOrigin: proxy!.origin,
       ...(browserEnabled ? { browser: name === "A" ? {} : { omitAssets: omittedAssets } } : {}),
-      sharedEnvironment: { ...sharedEnvironment, PAPERCLIP_EPHEMERAL_SERVER: String(durableAgentFiles), PAPERCLIP_DURABLE_AGENT_FILES: String(durableAgentFiles) } });
+      sharedEnvironment: { ...sharedEnvironment, NEXUS_EPHEMERAL_SERVER: String(durableAgentFiles), NEXUS_DURABLE_AGENT_FILES: String(durableAgentFiles) } });
     processes.push(server);
     report[`${name}Ready`] = await server.waitForReady();
     return server;
@@ -154,7 +154,7 @@ try {
   await check("Unready replacement leaves the healthy server serving", async () => {
     const unready = await startRollingDeploymentProcess({ root, name: "unready", repositoryRoot,
       databaseUrl: database!.connectionString, ingressOrigin: proxy!.origin,
-      sharedEnvironment: { ...sharedEnvironment, PAPERCLIP_EPHEMERAL_SERVER: "true", PAPERCLIP_DECISION_SIGNING_SECRET: "" } });
+      sharedEnvironment: { ...sharedEnvironment, NEXUS_EPHEMERAL_SERVER: "true", NEXUS_DECISION_SIGNING_SECRET: "" } });
     processes.push(unready);
     await assert.rejects(unready.waitForReady(), /exited before readiness/);
     assert.equal((await api(proxy!.origin, `/issues/${task.id}`)).id, task.id);

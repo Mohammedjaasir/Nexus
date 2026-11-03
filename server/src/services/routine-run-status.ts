@@ -1,7 +1,7 @@
 import { notifyRoutineExecutionStatus, type RoutineExecutionStatusScope } from "./routine-execution-status-notifications.js";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { issues, routineRuns, routines } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { issues, routineRuns, routines } from "@nexusai/db";
 
 const EXECUTION_ISSUE_TRANSIENT_FAILURE_CODE = "execution_issue_status";
 const EXECUTION_ISSUE_TRANSIENT_FAILURE_STATUSES = ["blocked", "cancelled"] as const;

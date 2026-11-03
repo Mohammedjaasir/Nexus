@@ -1,10 +1,10 @@
 import { useCompany } from "@/context/CompanyContext";
-import { PAPERCLIP_RUNNER_ACPX_PROFILES } from "@paperclipai/adapter-utils";
+import { NEXUS_RUNNER_ACPX_PROFILES } from "@nexusai/adapter-utils";
 import { useAgentAppearanceDraft } from "@/hooks/useAgentAppearanceDraft";
 import { AdapterMark } from "../AdapterMark";
 import { AgentCharacter } from "../AgentCharacter";
 import { useEffect, useId, useRef, useState } from "react";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { agentsApi } from "@/api/agents";
 import { buildNewAgentRuntimeConfig } from "@/lib/new-agent-runtime-config";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -89,18 +89,18 @@ export function AgentBasicsDialog({
     queryFn: () => adaptersApi.list({ companyId: companyId! }),
     enabled: open && Boolean(companyId),
   });
-  const nativeRunner = adapters?.find(adapter => adapter.type === "paperclip_runner" && adapter.loaded && !adapter.disabled);
-  const copilotAvailable = Boolean(nativeRunner) && PAPERCLIP_RUNNER_ACPX_PROFILES.some(profile => profile.value === "copilot" && profile.qualified);
+  const nativeRunner = adapters?.find(adapter => adapter.type === "nexus_runner" && adapter.loaded && !adapter.disabled);
+  const copilotAvailable = Boolean(nativeRunner) && NEXUS_RUNNER_ACPX_PROFILES.some(profile => profile.value === "copilot" && profile.qualified);
   const kimiAvailable = Boolean(nativeRunner) && experimental.data?.enableNativeRunner === true
-    && PAPERCLIP_RUNNER_ACPX_PROFILES.some(profile => profile.value === "kimi" && profile.qualified);
-  const antigravityQualified = PAPERCLIP_RUNNER_ACPX_PROFILES.some(profile => profile.value === "antigravity" && profile.qualified);
+    && NEXUS_RUNNER_ACPX_PROFILES.some(profile => profile.value === "kimi" && profile.qualified);
+  const antigravityQualified = NEXUS_RUNNER_ACPX_PROFILES.some(profile => profile.value === "antigravity" && profile.qualified);
   const antigravityCandidate = nativeRunner?.candidateHarnesses?.some(candidate => candidate.agent === "antigravity");
   const antigravityAvailable = Boolean(nativeRunner);
   const choices = [...(adapters ?? []).filter(
     (adapter) =>
       adapter.loaded &&
       !adapter.disabled &&
-      adapter.type !== "paperclip_runner" &&
+      adapter.type !== "nexus_runner" &&
       isNewAgentAdapterAllowed(adapter.type, {
         cloud,
         nativeRunnerEnabled: experimental.data?.enableNativeRunner === true,
@@ -111,9 +111,9 @@ export function AgentBasicsDialog({
     ...(antigravityAvailable ? [{ ...nativeRunner!, type: "antigravity_runtime" }] : []),
     ...(kimiAvailable ? [{ ...nativeRunner!, type: "kimi_runtime" }] : [])];
   const experimentalRunnerAvailable = experimental.data?.enableNativeRunner === true
-    && adapters?.some(adapter => adapter.type === "paperclip_runner" && adapter.loaded && !adapter.disabled);
+    && adapters?.some(adapter => adapter.type === "nexus_runner" && adapter.loaded && !adapter.disabled);
   const validAdapter = choices.some((adapter) => adapter.type === adapterType)
-    || (experimentalRunnerAvailable && adapterType === "paperclip_runner" && (runnerProvider !== "antigravity" || antigravityQualified));
+    || (experimentalRunnerAvailable && adapterType === "nexus_runner" && (runnerProvider !== "antigravity" || antigravityQualified));
   async function submit() {
     if (busy.current || !name.trim() || (step === "adapter" && !validAdapter)) return;
     busy.current = true;
@@ -134,7 +134,7 @@ export function AgentBasicsDialog({
         agent = await agentsApi.create(companyId, {
           setupId: setupId.current, name: name.trim(), appearance: appearanceDraft.appearance,
           role: existing.length ? "general" : "ceo", ...(leader ? { reportsTo: leader.id } : {}),
-          adapterType: ["copilot_runtime", "antigravity_runtime", "kimi_runtime"].includes(provisionalAdapter) ? "paperclip_runner" : provisionalAdapter,
+          adapterType: ["copilot_runtime", "antigravity_runtime", "kimi_runtime"].includes(provisionalAdapter) ? "nexus_runner" : provisionalAdapter,
           ...(["copilot_runtime", "antigravity_runtime", "kimi_runtime"].includes(provisionalAdapter) ? { adapterConfig: { provider: "acpx", acpxAgent: provisionalAdapter === "copilot_runtime" ? "copilot" : provisionalAdapter === "kimi_runtime" ? "kimi" : "antigravity" } } : {}),
           metadata: { setupAdapterPending: true },
           runtimeConfig: buildNewAgentRuntimeConfig({ heartbeatEnabled: false }),
@@ -142,8 +142,8 @@ export function AgentBasicsDialog({
         if (active.current) setName(agent.name);
       }
       saved.current = agent;
-      const nextAdapter = ["openai_dot", "copilot_runtime", "antigravity_runtime", "kimi_runtime"].includes(adapterType) ? "paperclip_runner" : adapterType;
-      const nextProvider = adapterType === "kimi_runtime" ? "kimi" : adapterType === "antigravity_runtime" ? "antigravity" : adapterType === "copilot_runtime" ? "copilot" : adapterType === "openai_dot" ? "openai_dot" : adapterType === "paperclip_runner" ? runnerProvider : "codex";
+      const nextAdapter = ["openai_dot", "copilot_runtime", "antigravity_runtime", "kimi_runtime"].includes(adapterType) ? "nexus_runner" : adapterType;
+      const nextProvider = adapterType === "kimi_runtime" ? "kimi" : adapterType === "antigravity_runtime" ? "antigravity" : adapterType === "copilot_runtime" ? "copilot" : adapterType === "openai_dot" ? "openai_dot" : adapterType === "nexus_runner" ? runnerProvider : "codex";
       // Pending providers can show setup while the saved name-only draft stays held.
       const pendingAntigravity = nextProvider === "antigravity" && !antigravityQualified;
       if (step === "adapter" || (!creatingRecord && agent.name !== name.trim())) {
@@ -156,7 +156,7 @@ export function AgentBasicsDialog({
           } : {}),
           ...(step === "adapter" && !pendingAntigravity ? {
             adapterType: nextAdapter, runner: "auto" as const,
-            adapterConfig: nextAdapter === "paperclip_runner" ? {
+            adapterConfig: nextAdapter === "nexus_runner" ? {
               provider: ["claude", "grok", "copilot", "antigravity", "kimi"].includes(nextProvider) ? "acpx" : nextProvider,
               ...(["claude", "grok", "copilot", "antigravity", "kimi"].includes(nextProvider) ? { acpxAgent: nextProvider } : {}),
               ...(nextProvider === "grok" ? { model: "grok-4.7" } : {}),
@@ -315,12 +315,12 @@ export function AgentBasicsDialog({
                   <div className="space-y-2">
                     <label className="text-sm text-muted-foreground">Experimental harness</label>
                     <SelectPopover aria-label="Experimental harness"
-                      value={adapterType === "paperclip_runner" ? runnerProvider : ""}
+                      value={adapterType === "nexus_runner" ? runnerProvider : ""}
                       placeholder="Choose a native harness…"
-                      onValueChange={provider => { setRunnerProvider(provider); setAdapterType("paperclip_runner"); }}
+                      onValueChange={provider => { setRunnerProvider(provider); setAdapterType("nexus_runner"); }}
                       options={[
-                        { value: "grok", label: "Grok Build (Paperclip Runner)" },
-                        { value: "opencode", label: "OpenCode (Paperclip Runner)" },
+                        { value: "grok", label: "Grok Build (Nexus Runner)" },
+                        { value: "opencode", label: "OpenCode (Nexus Runner)" },
                       ]} />
                   </div>
                 </details>}

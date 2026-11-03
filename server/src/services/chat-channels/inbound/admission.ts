@@ -21,18 +21,18 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatDeliveries,
   chatEndpointResources,
   chatEndpoints,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEndpointSetupState,
   ToolCredentialSecretRef,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import type {
   Message,
@@ -207,7 +207,7 @@ export function createInboundAdmission(db: Db, options: InboundAdmissionOptions)
             ? "Message did not @mention the bot"
           : endpoint.provider === "telegram" && !thread.isDM && !addressed
             ? "Message did not address the agent"
-            : "Destination is not enabled in Paperclip";
+            : "Destination is not enabled in Nexus";
       let candidate = admittedDeliveryId
         ? await tx
             .select()

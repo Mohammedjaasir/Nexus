@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { observeCheckoutActivity } from "./checkout-activity.js";
 
 const run = { id: "run", companyId: "company", agentId: "agent", status: "succeeded",
-  contextSnapshot: { issueId: "issue", paperclipWake: { checkedOutByHarness: true } } };
+  contextSnapshot: { issueId: "issue", nexusWake: { checkedOutByHarness: true } } };
 const receipt = { id: "receipt", companyId: "company", agentId: "agent", actorType: "agent",
   entityType: "issue", entityId: "issue", action: "issue.checked_out", runId: "run" };
 const input = { companyId: "company", issueId: "issue", agentId: "agent", runs: [run], activity: [] };

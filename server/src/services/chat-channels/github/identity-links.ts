@@ -1,4 +1,4 @@
-import type { chatExternalPrincipals } from "@paperclipai/db";
+import type { chatExternalPrincipals } from "@nexusai/db";
 
 export function githubIdentityFields(
   principal: Pick<typeof chatExternalPrincipals.$inferSelect, "externalId" | "handle">,

@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { AiConnectionAccountIdentity, AiManagedConnectionSummary, ConnectionGrant, ToolConnection } from "@paperclipai/shared";
+import type { AiConnectionAccountIdentity, AiManagedConnectionSummary, ConnectionGrant, ToolConnection } from "@nexusai/shared";
 import { AiConnectionAccountDetails } from "./AiConnectionAccountDetails";
 import { ManagedAiConnectionDetails } from "./ManagedAiConnectionDetails";
 
@@ -68,7 +68,7 @@ async function render(value = account, selectedGrant = grant, completePanel = fa
 }
 const identityCalls = () => fetchMock.mock.calls.filter(([url]) => url.includes("/identity?"));
 
-it("shows the provider email and organization separately from the Paperclip owner", async () => {
+it("shows the provider email and organization separately from the Nexus owner", async () => {
   await render();
   expect(host.textContent).toContain("avery@example.test");
   expect(host.textContent).toContain("Example team");

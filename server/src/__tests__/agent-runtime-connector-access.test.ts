@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
-import { agents, chatEndpoints, authUsers, heartbeatRuns, issues, companies, companyMemberships, principalPermissionGrants, companySecrets, companySecretBindings, companySecretProviderConfigs, connectionGrants, connectionGrantMembers, connectionGrantDelegations, userSecretDefinitions, createDb, plugins, toolApplications, toolConnections, toolCatalogEntries, toolConnectionInstalls, toolProfiles, toolProfileBindings, resourceLifecycleEvents, type Db } from "@paperclipai/db";
+import { agents, chatEndpoints, authUsers, heartbeatRuns, issues, companies, companyMemberships, principalPermissionGrants, companySecrets, companySecretBindings, companySecretProviderConfigs, connectionGrants, connectionGrantMembers, connectionGrantDelegations, userSecretDefinitions, createDb, plugins, toolApplications, toolConnections, toolCatalogEntries, toolConnectionInstalls, toolProfiles, toolProfileBindings, resourceLifecycleEvents, type Db } from "@nexusai/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { toolAccessService } from "../services/tool-access.js";
@@ -23,14 +23,14 @@ describeDatabase("connector access runtime synchronization", () => {
   let pluginId: string;
   let applicationId: string;
   let connectionId: string;
-  beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("paperclip-runtime-access-"); db = createDb(database.connectionString); }, 90_000);
+  beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("nexus-runtime-access-"); db = createDb(database.connectionString); }, 90_000);
   afterAll(async () => { await database?.cleanup(); });
   afterEach(() => vi.unstubAllEnvs());
   beforeEach(async () => {
     companyId = randomUUID(); agentId = randomUUID(); peerId = randomUUID(); pluginId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Connector runtime fixture", issuePrefix: `C${companyId.slice(0, 6)}` });
     await db.insert(plugins).values({ id: pluginId, pluginKey: pluginId, packageName: "runtime-fixture", version: "1.0.0", status: "ready", manifestJson: { resourceLifecycle: ["agent_runtime"], capabilities: ["events.subscribe", "agents.lifecycle.manage"] } as never });
-    await db.insert(agents).values([agentId, peerId].map(id => ({ id, companyId, name: id, adapterType: "paperclip_runner", lifecycleRequiredPluginIds: [pluginId] })));
+    await db.insert(agents).values([agentId, peerId].map(id => ({ id, companyId, name: id, adapterType: "nexus_runner", lifecycleRequiredPluginIds: [pluginId] })));
     const [application] = await db.insert(toolApplications).values({ companyId, name: "Fixture MCP", type: "mcp_http" }).returning(); applicationId = application.id;
     const [connection] = await db.insert(toolConnections).values({ companyId, applicationId, name: "Fixture connection", uid: randomUUID(), transport: "mcp_remote", authKind: "none", enabled: true, status: "active" }).returning(); connectionId = connection.id;
   });
@@ -194,7 +194,7 @@ describeDatabase("connector access runtime synchronization", () => {
       await tx.execute(sql`SET LOCAL lock_timeout = '8s'`);
       const [row] = await tx.execute(sql`SELECT pg_backend_pid() AS pid`);
       started(Number(row.pid));
-      return slackSearchOAuthService(tx as unknown as Db, "https://paperclip.example").disconnect(companyId, endpoint.id, "alice");
+      return slackSearchOAuthService(tx as unknown as Db, "https://nexus.example").disconnect(companyId, endpoint.id, "alice");
     });
     const completed = Promise.allSettled([creation, disconnect]);
     try {
@@ -236,7 +236,7 @@ describeDatabase("connector access runtime synchronization", () => {
         throw error;
       }
     }) as typeof db.transaction);
-    const disconnect = slackSearchOAuthService(db, "https://paperclip.example").disconnect(companyId, endpoint.id, "alice");
+    const disconnect = slackSearchOAuthService(db, "https://nexus.example").disconnect(companyId, endpoint.id, "alice");
     const disconnectResult = Promise.allSettled([disconnect]);
     try {
       await vi.waitFor(async () => {
@@ -298,7 +298,7 @@ describeDatabase("connector access runtime synchronization", () => {
     expect(await db.select().from(connectionGrantDelegations).where(eq(connectionGrantDelegations.grantId, grant.id))).toEqual([]);
   }, 15000);
   it("invalidates both delegation targets on reassignment and ignores unchanged updates or rollback", async () => {
-    await db.insert(agents).values({ companyId, name: "Unrelated delegation peer", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ companyId, name: "Unrelated delegation peer", adapterType: "nexus_runner" });
     const [grant] = await db.insert(connectionGrants).values({ companyId, connectionId, kind: "user", subjectUserId: "alice" }).returning();
     const [delegation] = await db.insert(connectionGrantDelegations).values({ companyId, grantId: grant.id, agentId, createdByUserId: "alice" }).returning();
     const before = await events();

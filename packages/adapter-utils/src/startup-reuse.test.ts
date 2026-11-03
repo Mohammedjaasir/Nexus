@@ -48,7 +48,7 @@ describe("startup reuse evidence", () => {
     expect(summarizeStartupReuse([...fullReuse(), receipt("provider_process", "fresh", "created", 2), receipt("provider_process", "fresh", "created", 2)]).providerLaunchCount).toBe(2);
   });
   it("reads the existing native physical Runner launch receipt without inferring provider launches", () => {
-    expect(summarizeStartupReuse([{ eventType: "run.performance.span", payload: { schema: "paperclip.run-performance-span.v1", span: "runner.process.launch", outcome: "ok" } }]))
+    expect(summarizeStartupReuse([{ eventType: "run.performance.span", payload: { schema: "nexus.run-performance-span.v1", span: "runner.process.launch", outcome: "ok" } }]))
       .toMatchObject({ warmth: "unknown", providerLaunchCount: null, layers: { runner: { state: "fresh" }, provider_process: { state: "unknown" } } });
   });
   it("drops unknown reasons and never projects identifiers or free-form payloads", () => {

@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it } from "vitest";
-import { appearanceForPalette } from "@paperclipai/shared";
+import { appearanceForPalette } from "@nexusai/shared";
 import { AgentAvatar } from "./AgentAvatar";
 import { AgentCharacter } from "./AgentCharacter";
 

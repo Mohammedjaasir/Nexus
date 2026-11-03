@@ -24,7 +24,7 @@ async function render() {
 }
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-  vi.stubGlobal("__paperclipPluginBridge__", {});
+  vi.stubGlobal("__nexusPluginBridge__", {});
   client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   container = document.createElement("div"); document.body.append(container); root = createRoot(container);
 });

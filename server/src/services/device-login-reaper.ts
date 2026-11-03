@@ -1,5 +1,5 @@
 import { orphanLoginLeases } from "./login-cleanup-state.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   decodePendingTerminal,
   observeSandboxDelete,

@@ -15,10 +15,10 @@ function fixture(responder?: (query: string) => Response | undefined) {
 describe("Railway governed operations", () => {
   it("binds project listing and the access probe to an explicit workspace", async () => {
     const f = fixture(() => Response.json({ data: { projects: { edges: [] } } }));
-    await expect(f.client.call("paperclip-railway-list-projects", {})).rejects.toMatchObject({ code: "railway_invalid_arguments" });
+    await expect(f.client.call("nexus-railway-list-projects", {})).rejects.toMatchObject({ code: "railway_invalid_arguments" });
     expect(f.request).not.toHaveBeenCalled();
     await f.client.probe(target.projectId);
-    await f.client.call("paperclip-railway-list-projects", { workspaceId: target.projectId, first: 5 });
+    await f.client.call("nexus-railway-list-projects", { workspaceId: target.projectId, first: 5 });
     expect(f.request.mock.calls.map(([, init]) => JSON.parse(String(init.body)).variables)).toEqual([
       { workspaceId: target.projectId, first: 1 }, { workspaceId: target.projectId, first: 5 },
     ]);
@@ -27,7 +27,7 @@ describe("Railway governed operations", () => {
 
   it.each(["structured", "sse"])("discovers workspace access from the hosted %s response without account profile scopes", async (format) => {
     const data = { workspaces: [{ id: target.projectId }] };
-    const payload = { jsonrpc: "2.0", id: "paperclip-railway-workspace-probe", result: format === "structured" ? { structuredContent: data } : { content: [{ type: "text", text: JSON.stringify(data) }] } };
+    const payload = { jsonrpc: "2.0", id: "nexus-railway-workspace-probe", result: format === "structured" ? { structuredContent: data } : { content: [{ type: "text", text: JSON.stringify(data) }] } };
     const request = vi.fn(async () => format === "structured" ? Response.json(payload) : new Response(`data: ${JSON.stringify(payload)}\n\n`, { headers: { "content-type": "text/event-stream" } }));
     await expect(discoverRailwayWorkspace({ authorization: "Bearer fixture", request, signal: new AbortController().signal })).resolves.toBe(target.projectId);
     expect(request).toHaveBeenCalledWith(RAILWAY_MCP_URL, expect.objectContaining({ redirect: "error", body: expect.stringContaining('"name":"list-workspaces"') }));
@@ -48,13 +48,13 @@ describe("Railway governed operations", () => {
   it("requires exact provider identity and treats shell and remote agents as privileged", () => {
     expect(isRailwayEndpoint("https://mcp.railway.com/")).toBe(true);
     for (const url of ["https://mcp.railway.com/path", "https://mcp.railway.com?token=x", "https://mcp.railway.com.evil.test", "http://mcp.railway.com"]) expect(isRailwayEndpoint(url)).toBe(false);
-    expect(isRailwayConnection({ transport: "mcp_remote", authKind: "oauth", credentialSource: "paperclip_vault", config: { url: "https://mcp.railway.com", sourceTemplateKey: "railway", connectionMethodKey: "mcp-oauth" } })).toBe(true);
+    expect(isRailwayConnection({ transport: "mcp_remote", authKind: "oauth", credentialSource: "nexus_vault", config: { url: "https://mcp.railway.com", sourceTemplateKey: "railway", connectionMethodKey: "mcp-oauth" } })).toBe(true);
     expect(railwayRisk("railwayAgent")).toBe("destructive");
     expect(isRailwayToolBlocked("accept_deploy")).toBe(true);
-    expect(railwayRisk("paperclip-railway-run-command")).toBe("destructive");
+    expect(railwayRisk("nexus-railway-run-command")).toBe("destructive");
     expect(railwayRisk("unfamiliar-tool")).toBe("write");
     expect(RAILWAY_TOOLS).toHaveLength(11);
-    expect(RAILWAY_TOOLS.map((tool) => tool.name)).not.toContain("paperclip-railway-deploy-revision");
+    expect(RAILWAY_TOOLS.map((tool) => tool.name)).not.toContain("nexus-railway-deploy-revision");
   });
 
   it("gives container commands time for target checks without exceeding the gateway limit", () => {
@@ -66,7 +66,7 @@ describe("Railway governed operations", () => {
 
   it("checks full deployment membership before a single fixed mutation", async () => {
     const f = fixture();
-    await expect(f.client.call("paperclip-railway-restart", target)).resolves.toEqual({ deploymentRestart: true, targetDeploymentId: target.deploymentId });
+    await expect(f.client.call("nexus-railway-restart", target)).resolves.toEqual({ deploymentRestart: true, targetDeploymentId: target.deploymentId });
     expect(f.request.mock.calls.map(([, init]) => JSON.parse(String(init.body)).query)).toEqual([RAILWAY_QUERIES.target, RAILWAY_QUERIES.deployment, RAILWAY_QUERIES.restart]);
     for (const [url, init] of f.request.mock.calls) {
       expect(url).toBe(RAILWAY_API_URL);
@@ -81,23 +81,23 @@ describe("Railway governed operations", () => {
       if (field === "deployment" && q === RAILWAY_QUERIES.deployment) return Response.json({ data: { deployment: { ...deploymentData.deployment, serviceId: instanceId } } });
       if (field !== "deployment" && q === RAILWAY_QUERIES.target) return Response.json({ data: { ...targetData, [field]: { ...targetData[field as keyof typeof targetData], id: instanceId } } });
     });
-    await expect(f.client.call("paperclip-railway-restart", target)).rejects.toMatchObject({ code: "railway_target_mismatch" });
+    await expect(f.client.call("nexus-railway-restart", target)).rejects.toMatchObject({ code: "railway_target_mismatch" });
     expect(f.request.mock.calls.every(([, init]) => !JSON.parse(String(init.body)).query.startsWith("mutation"))).toBe(true);
   });
 
   it("bounds and redacts logs without selecting variables", async () => {
     const f = fixture((q) => q === RAILWAY_QUERIES.runtimeLogs ? Response.json({ data: { deploymentLogs: Array.from({ length: 20 }, () => ({ message: `railway-fixture-secret ${"x".repeat(9000)}`, severity: "INFO" })) } }) : undefined);
-    const result = await f.client.call("paperclip-railway-read-logs", { ...target, limit: 10 });
+    const result = await f.client.call("nexus-railway-read-logs", { ...target, limit: 10 });
     expect(JSON.stringify(result)).not.toContain("railway-fixture-secret");
     expect(Buffer.byteLength(JSON.stringify(result))).toBeLessThan(66000);
     expect(result).toMatchObject({ truncated: true });
-    await expect(f.client.call("paperclip-railway-read-logs", { ...target, limit: 501 })).rejects.toMatchObject({ code: "railway_invalid_arguments" });
+    await expect(f.client.call("nexus-railway-read-logs", { ...target, limit: 501 })).rejects.toMatchObject({ code: "railway_invalid_arguments" });
     expect(Object.values(RAILWAY_QUERIES).join(" ")).not.toMatch(/variableCollection|variables\s*\{/);
   });
 
   it("reports when a single long log line was cut", async () => {
     const f = fixture((q) => q === RAILWAY_QUERIES.runtimeLogs ? Response.json({ data: { deploymentLogs: [{ message: "x".repeat(20000) }] } }) : undefined);
-    await expect(f.client.call("paperclip-railway-read-logs", target)).resolves.toMatchObject({ truncated: true, limitReached: false });
+    await expect(f.client.call("nexus-railway-read-logs", target)).resolves.toMatchObject({ truncated: true, limitReached: false });
   });
 
   it.each([401, 403, 429, 500])("sanitizes HTTP %s without retries", async (status) => {
@@ -108,7 +108,7 @@ describe("Railway governed operations", () => {
 
   it("does not expose GraphQL error details or retry an ambiguous mutation", async () => {
     const f = fixture((q) => q === RAILWAY_QUERIES.restart ? Response.json({ errors: [{ message: "sensitive provider payload" }] }) : undefined);
-    await expect(f.client.call("paperclip-railway-restart", target)).rejects.toMatchObject({ code: "railway_api_error" });
+    await expect(f.client.call("nexus-railway-restart", target)).rejects.toMatchObject({ code: "railway_api_error" });
     expect(f.request).toHaveBeenCalledTimes(3);
   });
 
@@ -119,20 +119,20 @@ describe("Railway governed operations", () => {
     ["redeploy", { deploymentRedeploy: { id: "not-a-deployment-id" } }],
   ])("does not report an unconfirmed %s as successful", async (operation, data) => {
     const f = fixture((q) => q.startsWith("mutation") ? Response.json({ data }) : undefined);
-    await expect(f.client.call(`paperclip-railway-${operation}`, target)).rejects.toMatchObject({ code: "railway_operation_unconfirmed" });
+    await expect(f.client.call(`nexus-railway-${operation}`, target)).rejects.toMatchObject({ code: "railway_operation_unconfirmed" });
     expect(f.request).toHaveBeenCalledTimes(3);
   });
 
   it("rejects oversized responses, cancelled calls and GraphQL passthrough", async () => {
     const f = fixture(() => new Response("x".repeat(1024 * 1024 + 1)));
     await expect(f.client.probe(target.projectId)).rejects.toMatchObject({ code: "railway_output_limit" });
-    await expect(f.client.call("paperclip-railway-list-projects", { query: "mutation Evil" })).rejects.toMatchObject({ code: "railway_invalid_arguments" });
+    await expect(f.client.call("nexus-railway-list-projects", { query: "mutation Evil" })).rejects.toMatchObject({ code: "railway_invalid_arguments" });
     f.controller.abort();
     await expect(f.client.probe(target.projectId)).rejects.toMatchObject({ name: "AbortError" });
     expect(f.request).toHaveBeenCalledTimes(1);
   });
 
-  it.each(["paperclip-railway-deploy-revision", "paperclip_railway_deploy_revision", "paperclipRailwayDeployRevision"])("blocks %s before any repository preflight or deployment mutation", async (name) => {
+  it.each(["nexus-railway-deploy-revision", "nexus_railway_deploy_revision", "nexusRailwayDeployRevision"])("blocks %s before any repository preflight or deployment mutation", async (name) => {
     // Even a matching repository in the preflight can change before mutation.
     // Without an atomic provider binding, no upstream request is safe to send.
     const f = fixture();
@@ -145,9 +145,9 @@ describe("Railway governed operations", () => {
 
   it("allows only an instance in the exact running deployment to reach SSH", async () => {
     const f = fixture();
-    await expect(f.client.call("paperclip-railway-run-command", { ...target, deploymentInstanceId: target.serviceId, command: "true" })).rejects.toMatchObject({ code: "railway_target_mismatch" });
+    await expect(f.client.call("nexus-railway-run-command", { ...target, deploymentInstanceId: target.serviceId, command: "true" })).rejects.toMatchObject({ code: "railway_target_mismatch" });
     expect(f.runCommand).not.toHaveBeenCalled();
-    await f.client.call("paperclip-railway-run-command", { ...target, deploymentInstanceId: instanceId, command: "true" });
+    await f.client.call("nexus-railway-run-command", { ...target, deploymentInstanceId: instanceId, command: "true" });
     expect(f.runCommand).toHaveBeenCalledWith({ deploymentInstanceId: instanceId, command: "true", timeoutSeconds: 30, signal: f.controller.signal });
   });
 });

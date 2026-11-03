@@ -1,4 +1,4 @@
-import type { WorkspaceOperation, WorkspaceRuntimeService } from "@paperclipai/shared";
+import type { WorkspaceOperation, WorkspaceRuntimeService } from "@nexusai/shared";
 import { describe, expect, it } from "vitest";
 import {
   describeWorkspaceReadinessCause,
@@ -15,7 +15,7 @@ function runtimeService(overrides: Partial<WorkspaceRuntimeService> = {}): Works
     issueId: null,
     scopeType: "execution_workspace",
     scopeId: "ews-1",
-    serviceName: "paperclip-dev",
+    serviceName: "nexus-dev",
     status: "running",
     lifecycle: "shared",
     reuseKey: null,

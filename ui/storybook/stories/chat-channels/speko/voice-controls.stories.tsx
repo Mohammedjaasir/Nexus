@@ -9,7 +9,7 @@ const meta = { ...voiceStoryLifecycle,
   id: "connections-speko-voice-controls", title: "Apps, channels, and extensions/External chat and email/Speko/Voice controls",
   component: VoiceControls,
   args: { state: "idle", agentName: "Speko Company Phone Agent", onStart: noop, onMute: noop, onEnd: noop, onResumeAudio: noop },
-  parameters: { layout: "padded", paperclip: {"capabilities": ["chat-channels/conversation", "chat-channels/lifecycle"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production voice controls rendered from fixture states. Keyboard and control actions are local; no real microphone, playback, cancellation or hangup proof."} },
+  parameters: { layout: "padded", nexus: {"capabilities": ["chat-channels/conversation", "chat-channels/lifecycle"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production voice controls rendered from fixture states. Keyboard and control actions are local; no real microphone, playback, cancellation or hangup proof."} },
 } satisfies Meta<typeof VoiceControls>;
 export default meta;
 type Story = StoryObj<typeof meta>;

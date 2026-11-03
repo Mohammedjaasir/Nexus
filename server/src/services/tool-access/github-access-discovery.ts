@@ -25,7 +25,7 @@ export async function loadGitHubTokenRepositories(
         headers: {
           ...headers,
           accept: "application/vnd.github+json",
-          "user-agent": "Paperclip",
+          "user-agent": "Nexus",
           "x-github-api-version": "2022-11-28",
         },
         signal: AbortSignal.timeout(15_000),
@@ -98,7 +98,7 @@ export async function loadGitHubGrantMetadata(
       headers: {
         accept: "application/vnd.github+json",
         authorization: `Bearer ${accessToken}`,
-        "user-agent": "Paperclip",
+        "user-agent": "Nexus",
         "x-github-api-version": "2022-11-28",
       },
       signal: AbortSignal.timeout(15_000),
@@ -237,7 +237,7 @@ export async function loadGitHubGrantMetadata(
       : "https://github.com/settings/installations";
     if (installationIds.length === 0 && suspendedCount > 0) {
       throw unprocessable(
-        "The Paperclip GitHub installation is suspended. Unsuspend it on GitHub before refreshing access.",
+        "The Nexus GitHub installation is suspended. Unsuspend it on GitHub before refreshing access.",
         {
           code: "github_installation_required",
           installationUrl,
@@ -249,7 +249,7 @@ export async function loadGitHubGrantMetadata(
       );
     }
     throw unprocessable(
-      "GitHub access is required. Install Paperclip and grant at least one repository before refreshing access.",
+      "GitHub access is required. Install Nexus and grant at least one repository before refreshing access.",
       {
         code: "github_installation_required",
         installationUrl,

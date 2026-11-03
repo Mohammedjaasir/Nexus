@@ -41,10 +41,10 @@ export function validateSelection(manifest, { head, hash } = {}) {
   return manifest;
 }
 
-export function loadSelection(file = process.env.PAPERCLIP_CI_TEST_SELECTION) {
+export function loadSelection(file = process.env.NEXUS_CI_TEST_SELECTION) {
   const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
   const manifest = validateSelection(JSON.parse(readFileSync(file, "utf8")), {
-    head, hash: process.env.PAPERCLIP_CI_SELECTION_HASH,
+    head, hash: process.env.NEXUS_CI_SELECTION_HASH,
   });
   for (const lane of Object.values(manifest.lanes)) {
     for (const shard of lane.shards) for (const files of Object.values(shard)) {

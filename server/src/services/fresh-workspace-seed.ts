@@ -57,7 +57,7 @@ export async function materializeFreshWorkspaceSeed(input: {
       if (input.repoUrl) await execFile("git", ["-C", staging, "remote", "add", "origin", input.repoUrl], gitOptions);
     }
     await writeFile(receiptPath, JSON.stringify({
-      schema: "paperclip.fresh-workspace-seed.v1", companyId: input.companyId,
+      schema: "nexus.fresh-workspace-seed.v1", companyId: input.companyId,
       issueId: input.issueId, runId: input.runId, commit,
     }), { mode: 0o600 });
     await rename(staging, destination);

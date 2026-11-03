@@ -2,7 +2,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { issueExecutionPolicySchema, type Issue } from "@paperclipai/shared";
+import { issueExecutionPolicySchema, type Issue } from "@nexusai/shared";
 import { describe, expect, it, vi } from "vitest";
 import { ExecutionParticipantPicker } from "./ExecutionParticipantPicker";
 

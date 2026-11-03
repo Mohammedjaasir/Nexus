@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { agents, companies, createDb, executionWorkspaceRestorePoints, executionWorkspaces, heartbeatRuns, issueComments, issues } from "@paperclipai/db";
+import { agents, companies, createDb, executionWorkspaceRestorePoints, executionWorkspaces, heartbeatRuns, issueComments, issues } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { materializeIsolatedRemoteWorkspaceSource } from "../services/isolated-remote-workspace-source.js";
 import { ensurePersistedExecutionWorkspaceAvailable, realizeExecutionWorkspace } from "../services/workspace-runtime.js";
@@ -29,15 +29,15 @@ describeEmbeddedPostgres("git restore point expiration", () => {
   let db: ReturnType<typeof createDb>;
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let root: string;
-  const previousHome = process.env.PAPERCLIP_HOME;
-  const previousInstance = process.env.PAPERCLIP_INSTANCE_ID;
+  const previousHome = process.env.NEXUS_HOME;
+  const previousInstance = process.env.NEXUS_INSTANCE_ID;
   beforeAll(async () => {
     database = await startEmbeddedPostgresTestDatabase("git-restore-point-expiration-");
     db = createDb(database.connectionString);
-    root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-restore-point-expiration-"));
-    process.env.PAPERCLIP_HOME = path.join(root, "home");
-    process.env.PAPERCLIP_INSTANCE_ID = "default";
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "31".repeat(32));
+    root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-restore-point-expiration-"));
+    process.env.NEXUS_HOME = path.join(root, "home");
+    process.env.NEXUS_INSTANCE_ID = "default";
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "31".repeat(32));
   });
   afterEach(async () => {
     await db.delete(executionWorkspaceRestorePoints);
@@ -45,8 +45,8 @@ describeEmbeddedPostgres("git restore point expiration", () => {
   });
   afterAll(async () => {
     vi.unstubAllEnvs();
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previousHome;
-    if (previousInstance === undefined) delete process.env.PAPERCLIP_INSTANCE_ID; else process.env.PAPERCLIP_INSTANCE_ID = previousInstance;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = previousHome;
+    if (previousInstance === undefined) delete process.env.NEXUS_INSTANCE_ID; else process.env.NEXUS_INSTANCE_ID = previousInstance;
     await db.$client.end({ timeout: 1 }); await database.cleanup(); await fs.rm(root, { recursive: true, force: true });
   });
 
@@ -70,7 +70,7 @@ describeEmbeddedPostgres("git restore point expiration", () => {
     await db.insert(executionWorkspaces).values({ id: workspaceId, companyId, sourceIssueId: issueId, mode: "isolated_workspace", strategyType: "git_worktree", name: "Fixture", status: "active",
       providerType: "local_fs", cwd: workspace.cwd, providerRef: workspace.cwd, repoUrl, baseRef: "origin/main", branchName: workspace.branchName,
       metadata: { createdByRuntime: workspace.branchCreatedByRuntime, gitBranchOwnershipVersion: 1, baseRefSha: workspace.baseRefSha,
-        isolatedRemoteSource: { schema: "paperclip.isolated-remote-source.v1", companyId, issueId, repoUrl } } });
+        isolatedRemoteSource: { schema: "nexus.isolated-remote-source.v1", companyId, issueId, repoUrl } } });
     await db.update(issues).set({ executionWorkspaceId: workspaceId }).where(eq(issues.id, issueId));
     const row = () => db.select().from(executionWorkspaces).where(eq(executionWorkspaces.id, workspaceId)).then(rows => rows[0]!);
     const restorePoint = (overrides: Partial<{ notBefore: Date; keyDurable: boolean }> = {}) => ({
@@ -109,7 +109,7 @@ describeEmbeddedPostgres("git restore point expiration", () => {
     expect(await f.expire()).toMatchObject({ candidate: true, expired: true, restorePoint: true, skipReason: null });
     expect(await exists(f.cwd)).toBe(false);
     const recipe = (await f.row()).metadata?.gitCacheRestoration as Record<string, any>;
-    expect(recipe).toMatchObject({ schema: "paperclip.git-cache-restoration.v2", commit: unpushed,
+    expect(recipe).toMatchObject({ schema: "nexus.git-cache-restoration.v2", commit: unpushed,
       restorePoint: { head: unpushed, headOnRemote: false, appliedAt: null } });
     expect(await f.ledger()).toMatchObject([{ status: "active", objectKey: recipe.restorePoint.objectKey }]);
 
@@ -210,7 +210,7 @@ describeEmbeddedPostgres("git restore point expiration", () => {
     expect(await fs.readFile(path.join(f.cwd, "notes", "todo.md"), "utf8")).toBe("changed after capture\n");
     const after = await f.row();
     expect(after.status).toBe("active");
-    expect(after.metadata?.gitCacheRestoration).toMatchObject({ schema: "paperclip.git-cache-restoration.v1" });
+    expect(after.metadata?.gitCacheRestoration).toMatchObject({ schema: "nexus.git-cache-restoration.v1" });
     expect((after.metadata?.gitCacheRestoration as Record<string, unknown>).restorePoint).toBeUndefined();
     expect(await f.ledger()).toMatchObject([{ status: "superseded" }]);
   });
@@ -573,7 +573,7 @@ describeEmbeddedPostgres("git restore point expiration", () => {
   it("still expires a fully reproducible worktree without a restore point", async () => {
     const f = await fixture();
     expect(await f.expire()).toMatchObject({ expired: true, restorePoint: false });
-    expect((await f.row()).metadata?.gitCacheRestoration).toMatchObject({ schema: "paperclip.git-cache-restoration.v1" });
+    expect((await f.row()).metadata?.gitCacheRestoration).toMatchObject({ schema: "nexus.git-cache-restoration.v1" });
     expect(await f.ledger()).toEqual([]);
   });
 });

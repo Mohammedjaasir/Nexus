@@ -1,4 +1,4 @@
-import { getConnectableAppDefinition, type AppDefinition, type ConnectionMethodDef, type ToolAppMetadataPreflightResult } from "@paperclipai/shared";
+import { getConnectableAppDefinition, type AppDefinition, type ConnectionMethodDef, type ToolAppMetadataPreflightResult } from "@nexusai/shared";
 import { HttpError, unprocessable } from "../../../errors.js";
 import { connectionMethodFor, connectionMethodForConnection, remoteEndpoint } from "../connection-methods.js";
 import type { OAuthConnectionSettings, OAuthProviderEndpoints, OAuthTransport } from "./types.js";
@@ -391,7 +391,7 @@ export function createOAuthDiscovery({ fetchRemoteHttpUrl, assertRemoteEndpointA
         "OAuth provider endpoints are not configured for this app",
       );
     }
-    // A gallery default is Paperclip's own data, but it is still a URL that ends
+    // A gallery default is Nexus's own data, but it is still a URL that ends
     // up as a browser navigation, and the metadata branch above reads the same
     // untrusted document a generic connection does. Both go through the gate.
     return {

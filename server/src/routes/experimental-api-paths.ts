@@ -1,7 +1,7 @@
 // Experimental routes share their runtime validators with OpenAPI discovery.
 import { z } from "zod";
 import * as caseSchemas from "./cases-schemas.js";
-import * as sharedSchemas from "@paperclipai/shared";
+import * as sharedSchemas from "@nexusai/shared";
 
 export const experimentalApiPaths: readonly [string, string, z.ZodTypeAny | undefined][] = [
   ["post", "/api/companies/{companyId}/cases", caseSchemas.createCaseSchema],

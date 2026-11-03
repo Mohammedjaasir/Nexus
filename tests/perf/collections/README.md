@@ -5,12 +5,12 @@ creates 220 unassigned backlog tasks and 110 board approvals. It does not invoke
 a model. The origin must be a loopback address.
 
 ```sh
-pnpm --filter @paperclipai/ui build
-PAPERCLIP_COLLECTION_PERF_BASE_URL=http://127.0.0.1:3219 \
+pnpm --filter @nexusai/ui build
+NEXUS_COLLECTION_PERF_BASE_URL=http://127.0.0.1:3219 \
   pnpm exec playwright test --config tests/perf/collections/playwright.config.ts
 ```
 
-Start the isolated instance with `PAPERCLIP_UI_DEV_MIDDLEWARE=false` to serve the
+Start the isolated instance with `NEXUS_UI_DEV_MIDDLEWARE=false` to serve the
 production build. The instance and its database must be disposable. These tests
 retain and reuse their fixture in `test-results/collections/fixture.json`; they
 only replace it when the previous company's API returns 404. Other errors fail.

@@ -55,8 +55,8 @@ createRoot(document.getElementById("root")).render(React.createElement(TaskChatP
     }],
     resolve: { alias: [
       { find: "@", replacement: path.join(ui, "src") },
-      { find: /^@paperclipai\/shared$/, replacement: path.join(root, "packages/shared/src/index.ts") },
-      { find: /^@paperclipai\/shared\/(.+)$/, replacement: path.join(root, "packages/shared/src/$1") },
+      { find: /^@nexusai\/shared$/, replacement: path.join(root, "packages/shared/src/index.ts") },
+      { find: /^@nexusai\/shared\/(.+)$/, replacement: path.join(root, "packages/shared/src/$1") },
       { find: "lexical", replacement: path.join(ui, "node_modules/lexical/dist/Lexical.mjs") },
     ] },
     server: { host: "127.0.0.1", port: 0, fs: { allow: [root] } },

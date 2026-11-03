@@ -100,7 +100,7 @@ and authentication paths are never account labels.
 
 Permissions shows account details separately from the connection's maintenance
 controls: the provider account email and organization when available, the sign-in
-method, and personal or company-shared access. A Paperclip owner name is not
+method, and personal or company-shared access. A Nexus owner name is not
 evidence of the provider login. Anthropic setup tokens can permit inference while
 denying profile access; in that case the screen explains that Anthropic did not
 permit reading the account email. A profile denial does not mark a connected
@@ -246,7 +246,7 @@ On 2026-10-02, a real local Codex access token was saved to an encrypted,
 disposable test connection. The actual connection usage HTTP route returned 200
 with `status: ok`, a weekly window at 100% used, its reset time, denied included
 usage, and available overage credits. The same stored connection passed selection
-checks for both `codex_local` and `paperclip_runner` with the native Codex provider.
+checks for both `codex_local` and `nexus_runner` with the native Codex provider.
 This verifies the connection API/vault/provider path and both selection paths;
 it does not claim a live runner turn or browser acceptance test. The disposable
 database and vault home were removed after verification.
@@ -254,7 +254,7 @@ After the operator signed in again on 2026-10-02, real Claude Keychain and Grok
 file credentials were saved to encrypted disposable connections. Both the
 provider requests and actual connection usage HTTP route returned 200 with
 `status: ok`. Selection checks passed for `claude_local`, native Claude,
-ACP Claude, `grok_local`, and ACP Grok through `paperclip_runner`.
+ACP Claude, `grok_local`, and ACP Grok through `nexus_runner`.
 Claude returned session and weekly usage at 0%, a scoped weekly window, and
 enabled extra usage. Grok returned a weekly period and zero on-demand allowance
 and prepaid balance, but omitted included-plan usage; it remains unknown rather
@@ -323,7 +323,7 @@ reconnect from a late test result. Claude ACP's typed `access` failure is its
 provider `auth_required` signal and enters the existing sign-in recovery path,
 including when only the generic terminal-access fallback message is available.
 Claude ACP validates working directories on the selected execution target. A
-sandbox directory does not need to exist on the Paperclip server. When the agent
+sandbox directory does not need to exist on the Nexus server. When the agent
 has no configured directory, the test uses the remote target's working directory.
 It checks responsible identity, membership, compatibility, connection health,
 human audience and agent installation before reading credentials.
@@ -365,7 +365,7 @@ they must not be replaced by a fresh execution with a pre-provider receipt.
 
 Session reuse includes grant identity, responsible user, and credential
 generation. A changed identity starts a fresh provider session. Native Codex
-(`paperclip_runner`) honors the configured warm lifecycle. It copies refreshed
+(`nexus_runner`) honors the configured warm lifecycle. It copies refreshed
 credentials back to the current invocation before deleting that invocation's
 private home. The session-owned credential stays private until idle timeout or
 explicit closure. Each follow-up rechecks current authorization and account
@@ -435,7 +435,7 @@ onboarding, and agent setup share `LocalProviderLoginInstructions` and
 browser sign-in card. Claude accepts the authorization code in that card; Codex
 displays its device code there. The user does not run a shell command. Each
 local runner requires Python 3 for its pseudo-terminal (included in the Docker
-image) and the corresponding provider CLI on the Paperclip host. Each
+image) and the corresponding provider CLI on the Nexus host. Each
 attempt retains a private credential home. The home is never seeded with the
 operator's existing login: copying a rotating refresh token would
 allow managed runs to invalidate credentials still used by legacy agents or the
@@ -443,8 +443,8 @@ operator's terminal. The user completes browser sign-in, then clicks Connect.
 Grok retains its terminal sign-in flow until it has a local browser login runner.
 
 Google Antigravity sign-in uses the pinned native ACP runtime installed with
-`paperclipai runtime setup antigravity`. Its browser redirect returns to a
-loopback listener; no code is pasted into Paperclip. Setup sends only initialize
+`nexusai runtime setup antigravity`. Its browser redirect returns to a
+loopback listener; no code is pasted into Nexus. Setup sends only initialize
 and authenticate, verifies the Google account email, then saves the credential
 through the existing encrypted connection grant. It never imports an existing
 Google CLI, browser, Workspace, or Drive credential. Connection readiness waits
@@ -529,7 +529,7 @@ provider key with `AI_REPAIR_TEST_KEY`. The test verifies these boundaries befor
 revoking credentials or submitting work. Delete the disposable instance and revoke
 its provider key after the test; failed tests may leave a paused task for inspection.
 
-Authenticated public deployments must configure a trusted runtime host (`PAPERCLIP_TRUSTED_MCP_RUNTIME_HOST` or `PAPERCLIP_TOOL_RUNTIME_TRUSTED_HOST`) before offering server-host subscription login, matching the local stdio runtime boundary. Health reports this capability so setup can offer a supported environment or API key when local sign-in is unavailable. Private authenticated self-hosted instances support isolated local login without that extra setting. Isolated Claude credential files must be private, owned by the server user, bounded, and free of symlinks.
+Authenticated public deployments must configure a trusted runtime host (`NEXUS_TRUSTED_MCP_RUNTIME_HOST` or `NEXUS_TOOL_RUNTIME_TRUSTED_HOST`) before offering server-host subscription login, matching the local stdio runtime boundary. Health reports this capability so setup can offer a supported environment or API key when local sign-in is unavailable. Private authenticated self-hosted instances support isolated local login without that extra setting. Isolated Claude credential files must be private, owned by the server user, bounded, and free of symlinks.
 
 ### Hiring and delegated work
 
@@ -700,19 +700,19 @@ remote URLs; loopback endpoints may use HTTP. Localhost refers to the agent’s
 execution environment, including when it is a sandbox. URLs cannot contain user
 credentials, query parameters, or fragments.
 
-Managed Grok uses a disposable runtime home. Paperclip does not retain or restore
+Managed Grok uses a disposable runtime home. Nexus does not retain or restore
 Grok transcript files into host temporary directories: private file modes do not
 isolate agents running as the same OS user. Archives from earlier development
 builds are ignored. Provider session metadata still saves normally. If the selected
 session has no history in its current execution environment, Grok starts a fresh
-session with the Paperclip task handoff rather than attempting remote subscription
+session with the Nexus task handoff rather than attempting remote subscription
 recovery. Transcript continuation requires an isolated provider history solution
 and is not qualified by this change.
 
 Runtime projection clears alternate provider credentials and routing overrides,
 uses disposable homes, and never falls back to host authentication. Codex probes
 retain the selected provider home. The new runner copies only the validated
-Paperclip provider stanza into its isolated Codex home, preserves its own tool
+Nexus provider stanza into its isolated Codex home, preserves its own tool
 and sandbox policy, and disables shell snapshots. TypeScript and Rust launch
 boundaries explicitly allow only the corresponding provider credential and
 routing fields. Keys remain outside model-issued command environments on the
@@ -765,7 +765,7 @@ follow-up timeout also remain live qualification limits.
 
 ### Gateway completion compatibility
 
-Provider-facing `paperclip_finish` accepts an omitted or `null` continuation for
+Provider-facing `nexus_finish` accepts an omitted or `null` continuation for
 `done`, `completed`, and `needs_review`. This supports gateways that require all
 declared tool properties to be present. Normalization removes only `null`;
 non-yielding tool calls still reject a continuation object, and `yielded` still
@@ -778,7 +778,7 @@ retaining the saved endpoint, protocol, model aliases, and connection identity.
 
 The Costs page shows metered API spend beside the **current monthly subscription
 commitment**. API dollars and both token totals follow the selected date range;
-monthly subscription fees do not. Tokens measure Paperclip work only, while a
+monthly subscription fees do not. Tokens measure Nexus work only, while a
 subscription fee covers the entire provider account, including other usage.
 Recorded subscription overages remain separate from the recurring fee.
 
@@ -805,7 +805,7 @@ in `packages/shared/src/subscriptions.ts`. The UI labels these **Estimated** (or
 OpenAI Pro, Claude Max, team, or enterprise entitlement does not reliably
 identify the price: it stays **Price unknown** until its owner enters an amount.
 Annual prices are divided by 12 using exact decimal arithmetic. Supported
-currencies are totaled separately; Paperclip does not estimate exchange rates.
+currencies are totaled separately; Nexus does not estimate exchange rates.
 
 Use **Subscriptions → View details → Edit price** to record the amount paid,
 billing cadence, and tracking status. Personal prices are editable by their

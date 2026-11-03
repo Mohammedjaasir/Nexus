@@ -19,15 +19,15 @@ API; it does not require application OTLP settings or an application run UUID.
    Use a fresh label-triggered run for an unambiguous whole-suite baseline.
    Rerunning only failures does not rerun the successful jobs.
 4. Open the Honeycomb waterfall from the run/exporter's Summary. The project
-   destination is team `paperclip`, environment `test`, dataset `paperclip-ci`.
+   destination is team `nexus`, environment `test`, dataset `nexus-ci`.
    Verify the displayed root and representative file spans; a generated URL
    or green test workflow is not proof that export succeeded.
 5. Remove the label after a one-off profile unless ongoing profiling was requested.
    Re-adding it starts another complete attempt. Report any remaining label so
    future pushes do not unexpectedly keep profiling.
 
-The main suite preserves existing AWS routing (`paperclip-public-pr-x64`, with
-`paperclip-ci-routing-x64` for routing) and its authorized hosted fallback.
+The main suite preserves existing AWS routing (`nexus-public-pr-x64`, with
+`nexus-ci-routing-x64` for routing) and its authorized hosted fallback.
 Inspect actual runner assignments if AWS placement is part of acceptance. The
 separate exporter uses `ubuntu-latest` and is outside the measured suite.
 

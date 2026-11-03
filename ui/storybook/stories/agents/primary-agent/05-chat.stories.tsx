@@ -3,7 +3,7 @@ import { PrimaryPage, mobile, primaryDecorator, primaryParameters } from "../../
 
 export default { id: "primary-agent-05-chat",
   title: "Agents and reusable capabilities/Hiring, configuration, and organization/Primary Agent/05 Chat", decorators: [primaryDecorator], parameters: { ...primaryParameters, initialEntries: ["/PAP/chats"],
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agents/primary-agent",
         "tasks/create",

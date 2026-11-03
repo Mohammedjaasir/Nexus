@@ -1,4 +1,4 @@
-import { buildAdapterEnvConfig, type CreateConfigValues } from "@paperclipai/adapter-utils";
+import { buildAdapterEnvConfig, type CreateConfigValues } from "@nexusai/adapter-utils";
 
 function parseCommaArgs(value: string): string[] {
   return value
@@ -14,12 +14,12 @@ export function buildOpenCodeLocalConfig(v: CreateConfigValues): Record<string, 
   if (v.model) ac.model = v.model;
   if (v.thinkingEffort) ac.variant = v.thinkingEffort;
   ac.dangerouslySkipPermissions = v.dangerouslySkipPermissions;
-  const nativeSelected = v.runner === "paperclip"
-    || ((v.runner === undefined || v.runner === "auto") && v.resolvedRunner === "paperclip");
+  const nativeSelected = v.runner === "nexus"
+    || ((v.runner === undefined || v.runner === "auto") && v.resolvedRunner === "nexus");
   if (nativeSelected) {
     if (v.adapterSchemaValues?.opencodePermissionMode !== undefined) ac.opencodePermissionMode = v.adapterSchemaValues.opencodePermissionMode;
-    if (v.paperclipRunnerLifecycleMode !== undefined) ac.lifecycleMode = v.paperclipRunnerLifecycleMode;
-    if (v.paperclipRunnerIdleTimeoutMs !== undefined) ac.idleTimeoutMs = v.paperclipRunnerIdleTimeoutMs;
+    if (v.nexusRunnerLifecycleMode !== undefined) ac.lifecycleMode = v.nexusRunnerLifecycleMode;
+    if (v.nexusRunnerIdleTimeoutMs !== undefined) ac.idleTimeoutMs = v.nexusRunnerIdleTimeoutMs;
   }
   // OpenCode sessions can run until the CLI exits naturally; keep timeout disabled (0)
   // and rely on graceSec for termination handling when a timeout is configured elsewhere.

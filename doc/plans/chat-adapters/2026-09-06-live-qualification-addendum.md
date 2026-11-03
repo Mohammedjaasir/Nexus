@@ -15,10 +15,10 @@ not counted as a successful end-to-end conversation.
   replayed automatically.
 - Explicit duplicate-risk retries are audited and single-owner. Slack
   slash-command roots persist a provider-confirmed phase before the separate
-  Paperclip task admission phase, so crash recovery cannot post a second root.
+  Nexus task admission phase, so crash recovery cannot post a second root.
 - Slack slash-command authorization and destination reach are snapshotted in a
   transaction that releases its row locks before provider I/O. That snapshot
-  authorizes only the Slack root send. The later Paperclip task admission is a
+  authorizes only the Slack root send. The later Nexus task admission is a
   separate mutation that rechecks current endpoint reach, resource state,
   identity link, membership, and guest sponsorship after any crash or restart.
   Reclaimed admission workers carry a durable ownership token so an obsolete
@@ -94,13 +94,13 @@ not counted as a successful end-to-end conversation.
 
 ### Slack
 
-- The existing Slack app is `maya-paperclip` (`A0C0NSMSA5N`).
+- The existing Slack app is `maya-nexus` (`A0C0NSMSA5N`).
 - A historical native-question thread was visually inspected. The question was
   answered, but the visible terminal reply was the generic “Maya completed this
   turn.” This is a real quality failure, not a successful qualification.
 - That historical fixture lived in a temporary database that no longer exists,
   so its comment/run/publication provenance cannot be reconstructed honestly.
-- The persistent isolated Paperclip instance on port 3103 currently has a fresh
+- The persistent isolated Nexus instance on port 3103 currently has a fresh
   draft endpoint and no conversations or activity. It therefore provides no
   fresh Slack round-trip proof yet.
 - Slack's **Show** control for the Signing Secret did not respond after the
@@ -113,7 +113,7 @@ not counted as a successful end-to-end conversation.
 
 ### GitHub
 
-- A GitHub App named `Paperclip Maya E2E 0906` was created with App ID `4853886`.
+- A GitHub App named `Nexus Maya E2E 0906` was created with App ID `4853886`.
 - It is not installed, its private key has not been generated, and the webhook
   save against the temporary public callback was blocked by the browser tool's
   external-write review. The signed-in GitHub confirmation had already been
@@ -147,7 +147,7 @@ The hardening and automated checks materially improve crash recovery, ordering,
 credential fencing, and auditability, but live qualification is not complete.
 Do not describe any of the five providers as production-qualified until a fresh
 provider event reaches the persistent isolated instance and its provider UI,
-Paperclip task/comment/run, outbox state, reactions/actions, and terminal reply
+Nexus task/comment/run, outbox state, reactions/actions, and terminal reply
 have all been checked together.
 
 ## Resumed qualification — 2026-09-07 UTC
@@ -166,7 +166,7 @@ observations or claiming a completed provider conversation.
 - The old temporary callback hostname no longer resolved. GitHub's delivery
   detail explicitly reported a failure to connect to the host. The webhook-only
   tunnel was replaced, the App callback was updated, and the setup ping was
-  redelivered once. Paperclip verified its signature at
+  redelivered once. Nexus verified its signature at
   `2026-09-07T01:33:42.242Z`. Delivery ID:
   `193f08a6-aa5b-11f1-8d07-d6d11e41dcde`.
 - The public tunnel forwards only provider webhook POSTs; a public request to
@@ -183,14 +183,14 @@ observations or claiming a completed provider conversation.
 
 This later checkpoint supersedes the uninstalled/no-private-key state above.
 The operator authorized a newly downloaded private key, and it was imported
-through Paperclip's masked file control without reading, displaying, or
-recording its contents. Paperclip verified App `4853886`, discovered the single
+through Nexus's masked file control without reading, displaying, or
+recording its contents. Nexus verified App `4853886`, discovered the single
 installation `159668881`, and reconciled exactly the two approved private test
 repositories.
 
 The first real setup issue is
-[`cryppadotta/paperclip-chat-e2e-enabled#1`](https://github.com/cryppadotta/paperclip-chat-e2e-enabled/issues/1).
-Root comment `5570993571` produced exactly one Paperclip task, `CHA-1`
+[`cryppadotta/nexus-chat-e2e-enabled#1`](https://github.com/cryppadotta/nexus-chat-e2e-enabled/issues/1).
+Root comment `5570993571` produced exactly one Nexus task, `CHA-1`
 (`07a57128-20ef-4905-aa85-3bbcb4f2769e`), and one external conversation
 (`6a6d6bfa-4b21-45d7-87b3-9a8885449c5a`). GitHub displayed one eyes reaction
 and bot reply `5570994445`. The reply correctly failed closed because the turn
@@ -199,7 +199,7 @@ available. This proves signed issue-comment ingress, repository admission,
 one-issue/one-task binding, reaction delivery, and safe containment; it does not
 prove a successful agent response.
 
-The endpoint remains `verifying`. Paperclip opened the private confirmation
+The endpoint remains `verifying`. Nexus opened the private confirmation
 flow for `cryppadotta` to the signed-in board account, but the user-controlled
 identity confirmation is still pending. No confirmation URL or token was
 recorded. The retained `CHA-1` task remains low-trust; after confirmation, a
@@ -215,9 +215,9 @@ the operative ingress route.
 
 ### Discord
 
-- The user completed App creation. `Paperclip Maya E2E` now exists under
+- The user completed App creation. `Nexus Maya E2E` now exists under
   `eigenjoy` with App ID `1546330979860221952`, and its Bot settings are reachable.
-- Paperclip's draft has that Application ID and the requested Clawd server ID.
+- Nexus's draft has that Application ID and the requested Clawd server ID.
   The generated bot-only installation link locks the server selection to
   `1457808928258658549`; no unrelated server is targeted.
 - The installation flow requires a separate main-Discord login despite the
@@ -228,9 +228,9 @@ the operative ingress route.
 ### Telegram credential incident and containment
 
 - The signed-in Telegram browser reached the official BotFather conversation
-  for the existing test bot `@MayaPaperclipQA0905Bot`.
+  for the existing test bot `@MayaNexusQA0905Bot`.
 - The agent incorrectly copied a message's concatenated DOM text, appending two
-  timestamp digits to the token. Paperclip rejected the resulting setup request.
+  timestamp digits to the token. Nexus rejected the resulting setup request.
   The HTTP failure logger then recorded the raw submitted credential object.
   This was both an agent copy error and a real product credential-redaction bug.
 - The isolated live server was stopped, the form and in-memory copied value
@@ -310,20 +310,20 @@ persistent fixture once the remaining credential and tenant gates are resolved.
 
 - A fresh signed-in Slack App management session made the existing Signing
   Secret reveal control respond. The agent copied that value in memory without
-  printing it, but did not submit it to Paperclip.
+  printing it, but did not submit it to Nexus.
 - Navigating to OAuth & Permissions briefly showed a provider load error. The
   agent then requested a full diagnostic DOM snapshot; before it ran, the page
   finished loading and exposed the Bot User OAuth Token in tool output. This is
-  an agent qualification-procedure failure, not a Paperclip logger regression.
-- No Slack credential was submitted to the isolated Paperclip instance. The
+  an agent qualification-procedure failure, not a Nexus logger regression.
+- No Slack credential was submitted to the isolated Nexus instance. The
   copied signing-secret variable was cleared. The bot token shown in that
   snapshot must be revoked and replaced before further use. Do not treat local
   log cleanup or hiding the provider field as revocation.
 - The runbook now forbids full snapshots, whole-page text, and screenshots on
   secret-bearing provider surfaces even during loading/error states. Only
   explicit nonsecret labels and control metadata may be inspected there; secret
-  entry remains an operator handoff into Paperclip's masked controls.
-- The operator can revoke the affected `maya-paperclip` OAuth token and repeat
+  entry remains an operator handoff into Nexus's masked controls.
+- The operator can revoke the affected `maya-nexus` OAuth token and repeat
   the provider installation flow to obtain a replacement. Revocation can remove
   the bot's channel memberships, so the authorized test channel must be checked
   and the bot reinvited afterward. See Slack's
@@ -343,30 +343,30 @@ persistent fixture once the remaining credential and tenant gates are resolved.
   and uses provider event time to exclude later work. Cancellation receipts
   must reflect the authoritative run outcome, including a run that finished
   before cancellation won the race.
-- Discord Gateway component acknowledgement now follows durable Paperclip
+- Discord Gateway component acknowledgement now follows durable Nexus
   admission. Denied actions are durably audited without a success ACK, and
   admission retries respect Discord's response deadline. Partial message edits
   retry their fetch through the same classified provider retry path.
 - Teams no longer caches user/activity metadata or performs member/Graph
-  lookups before Paperclip admission. Accepted metadata writes are awaited;
+  lookups before Nexus admission. Accepted metadata writes are awaited;
   foreign, missing, conflicting-tenant, and targeted activities fail closed.
   Setup corrects `groupChat`, exposes implemented mobile commands, and explains
   that the requested RSC grants deliver every message in an installed team or
-  group chat, while Paperclip's own admission rules constrain retention/work.
+  group chat, while Nexus's own admission rules constrain retention/work.
 - Browser access was initially blocked by the locked Mac and later recovered.
   Safe GitHub App inspection still showed two generated-key records dated
   `2026-09-07T01:26:23Z` and `2026-09-07T01:28:06Z`. A filename-only Downloads
-  check found no PEM for `paperclip-maya-e2e-0906`; no key contents were read.
+  check found no PEM for `nexus-maya-e2e-0906`; no key contents were read.
   GitHub stores only the public portion, so a missing private-key download
   cannot be reconstructed from that page. No extra key was generated or deleted
   during this inspection.
-- The operator reported adding Paperclip Maya E2E to Discord. The in-app
+- The operator reported adding Nexus Maya E2E to Discord. The in-app
   channel check redirected to an expired Eigenjoy login, so server membership
-  is operator-reported, not independently verified. Paperclip's resumed Discord
+  is operator-reported, not independently verified. Nexus's resumed Discord
   form has Application ID `1546330979860221952` and Clawd server ID
   `1457808928258658549` filled in; the bot-token password field remains empty.
   The operator must enter the token in that masked field, never in this report
-  or the conversation. Server installation alone does not configure Paperclip.
+  or the conversation. Server installation alone does not configure Nexus.
 
 This remains hardening plus partial setup evidence, not a live round-trip
 qualification. Fresh provider-visible conversations are still required.
@@ -401,7 +401,7 @@ qualification. Fresh provider-visible conversations are still required.
   changes retain regional reply-route refresh without retaining user metadata.
 
 The operator-reported Discord install still requires a bot token entered into
-Paperclip and a restored Eigenjoy browser session for live provider proof.
+Nexus and a restored Eigenjoy browser session for live provider proof.
 GitHub still needs its private PEM; Slack and Telegram need the previously
 documented exposed tokens rotated; Teams needs an eligible tenant/admin setup.
 None of these gates is represented as a successful live conversation.
@@ -416,20 +416,20 @@ None of these gates is represented as a successful live conversation.
   earlier `tile-daily-angle-rather` hostname for the live fixture.
 - The existing webhook-only proxy still rejects the public board health and
   company API paths with **404**. A recognized unsigned GitHub `ping` reaches
-  Paperclip and returns **401**. No local-trusted board/API was exposed.
-- GitHub App `paperclip-maya-e2e-0906` now has its existing webhook URL updated
+  Nexus and returns **401**. No local-trusted board/API was exposed.
+- GitHub App `nexus-maya-e2e-0906` now has its existing webhook URL updated
   to the replacement host, with the same endpoint public ID and secret. The
   provider displayed its successful saved-app notice; no credential was read,
   generated, rotated, or deleted during that URL update.
-- The GitHub Paperclip form has App ID `4853886` filled in and still needs the
+- The GitHub Nexus form has App ID `4853886` filled in and still needs the
   operator's PEM. The Discord form retains its known application/server IDs and
   still needs the bot token. This does not establish a successful agent run.
 
 ### Webhook/board separation and credential-entry polish — 2026-09-07 UTC
 
 - A live-readiness audit found that a webhook-only tunnel was also being used
-  as the board origin. That produced valid-looking Paperclip links whose host
-  intentionally returned 404. `PAPERCLIP_CHAT_WEBHOOK_PUBLIC_URL` now controls
+  as the board origin. That produced valid-looking Nexus links whose host
+  intentionally returned 404. `NEXUS_CHAT_WEBHOOK_PUBLIC_URL` now controls
   only provider callback URLs; the board origin still controls authentication,
   identity confirmation, task links, and trusted hosts. Invalid explicit ingress
   URLs refuse startup without echoing their value. Local/private task links are
@@ -462,12 +462,12 @@ Final combined verification for these changes:
   imported/pasted credential payloads, reveal/hide, and error recovery.
 - Shared, server, and UI typechecks passed. Design token gates and diff checks
   passed. The broad workspace suite was not rerun and is not claimed green.
-- Reports are retained under `.paperclip-runtime/chat-adapters-live/` as
+- Reports are retained under `.nexus-runtime/chat-adapters-live/` as
   `origin-verified-integration.json`, `origin-final-unit.json`,
   `origin-verified-ui-unit.json`, and `origin-verified-browser.log`.
 
 These checks do not replace live provider qualification. Discord still needs a
-bot token entered into Paperclip and a renewed provider login; GitHub needs its
+bot token entered into Nexus and a renewed provider login; GitHub needs its
 PEM and repository installation. Slack's signed-in OAuth page is reachable but
 its exposed test token still requires replacement and write-only entry. Telegram
 and Teams retain their previously documented rotation and tenant gates.
@@ -478,7 +478,7 @@ Runtime checkpoint after commit `f535dde54`:
   production build also passed (existing chunk-size warnings only).
 - The isolated 3103 server reports `f535dde54` and ready startup recovery. Its
   board/auth origin is `http://127.0.0.1:3103`; only
-  `PAPERCLIP_CHAT_WEBHOOK_PUBLIC_URL` uses the current Cloudflare ingress.
+  `NEXUS_CHAT_WEBHOOK_PUBLIC_URL` uses the current Cloudflare ingress.
 - GitHub setup still advertises the exact existing public webhook path. Public
   health and company API checks remain **404**; an unsigned recognized GitHub
   `ping` remains **401**. No board trust or exposure was broadened.
@@ -494,20 +494,20 @@ Runtime checkpoint after commit `f535dde54`:
 The signed-in in-app browser completed the remaining pre-credential setup:
 
 - Created private, disposable repositories
-  [`cryppadotta/paperclip-chat-e2e-enabled`](https://github.com/cryppadotta/paperclip-chat-e2e-enabled)
+  [`cryppadotta/nexus-chat-e2e-enabled`](https://github.com/cryppadotta/nexus-chat-e2e-enabled)
   (ID `1359763399`) and
-  [`cryppadotta/paperclip-chat-e2e-disabled`](https://github.com/cryppadotta/paperclip-chat-e2e-disabled)
+  [`cryppadotta/nexus-chat-e2e-disabled`](https://github.com/cryppadotta/nexus-chat-e2e-disabled)
   (ID `1359763710`). Both contain only their initial README; no production data,
   existing repository contents, or generated agent work was added. They are kept
   for the pending positive/negative reach tests, not deleted during setup.
-- Installed the existing **Paperclip Maya E2E 0906** App on that account as
+- Installed the existing **Nexus Maya E2E 0906** App on that account as
   [installation `159668881`](https://github.com/settings/installations/159668881).
   The resulting installation settings visibly retained **Only select
   repositories**, with remove controls for exactly the two new fixtures.
   Permissions are Metadata read, Issues read/write, and Pull requests read/write.
   No existing repositories or all-repositories access were granted.
 - The current ingress received a GitHub webhook and returned **200** at
-  `2026-09-07T04:47:40Z`. Paperclip remains draft and disabled with zero endpoint
+  `2026-09-07T04:47:40Z`. Nexus remains draft and disabled with zero endpoint
   resources/conversations, null bot/installation identity, and the earlier signed
   ping timestamp unchanged. This is the intended pre-PEM boundary: draft
   endpoints accept only setup ping processing; installation events are ignored
@@ -516,18 +516,18 @@ The signed-in in-app browser completed the remaining pre-credential setup:
   The 200 alone is not proof of authenticated installation ingestion or a chat.
 - GitHub's private PEM remains absent from the masked setup field. No additional
   private key was created or read. Discord's developer page was rechecked and
-  shows **Choose an account** / **Please log in again**; its Paperclip token field
+  shows **Choose an account** / **Please log in again**; its Nexus token field
   is still empty. The parallel audit found no pre-credential live path remaining
   for Slack, Telegram, or Teams beyond their documented human-controlled gates.
 
 This advances GitHub setup only. A real issue/PR message, agent run, reply,
 reaction, question continuation, and the recovery/governance matrix remain
-unqualified until the App PEM is entered and Paperclip connects.
+unqualified until the App PEM is entered and Nexus connects.
 
 The corresponding pre-PEM installation regression and the complete chat
 integration suite passed **252/252**, zero skips, on fresh database
 `chat_adapters_test_20260907_github_install_draft`; report:
-`.paperclip-runtime/chat-adapters-live/github-install-draft-integration.json`.
+`.nexus-runtime/chat-adapters-live/github-install-draft-integration.json`.
 Only the regression and evidence documentation changed in this checkpoint;
 the running, previously browser-qualified implementation remains `f535dde54`.
 
@@ -540,7 +540,7 @@ with the existing token and reached **Try Maya E2E in Discord**; no token reset
 was needed. The separate Discord chat session still requires Eigenjoy login, so
 native message/thread/run qualification has not advanced beyond connection.
 
-GitHub accepted the user-authorized PEM import through Paperclip's file chooser.
+GitHub accepted the user-authorized PEM import through Nexus's file chooser.
 Its live issue mention created CHA-1, received a receipt reaction, and received
 the expected guest-isolation refusal rather than an agent answer. The private
 identity confirmation for `cryppadotta` to the local Board account is staged for
@@ -559,7 +559,7 @@ Verification after the fixes:
 - Server `tsc --noEmit`: passed.
 - Fresh full chat integration: **252/252**, zero skips, database
   `chat_adapters_test_20260907_discord_member_02`; report
-  `.paperclip-runtime/chat-adapters-live/discord-member-integration-20260907-02.json`.
+  `.nexus-runtime/chat-adapters-live/discord-member-integration-20260907-02.json`.
 - The first fresh run was **251/252** because a Slack exact-redelivery test
   sampled its transport count before prior durable denial effects finished.
   The test now waits for those effects and additionally proves redelivery
@@ -578,30 +578,30 @@ confirmation. These observations supersede the pending gates above:
   the webhook-only proxy on loopback port 3104. Existing tailnet-only routes on
   443 and 8443 were not made public. Public board health/company requests
   return **404**, and an unsigned recognized GitHub ping returns **401**.
-- GitHub's App settings and Paperclip now use that stable origin with the
+- GitHub's App settings and Nexus now use that stable origin with the
   existing endpoint path and signing secret. A signed, real issue comment
-  reached Paperclip through Tailscale. The obsolete temporary Cloudflare
+  reached Nexus through Tailscale. The obsolete temporary Cloudflare
   tunnel was stopped after this positive ingress evidence.
 - The private confirmation flow linked `cryppadotta` to the local Board account.
   A new conversation, rather than the earlier guest-admitted CHA-1, was used
   for the linked-account test.
-- [Enabled-repository issue 2](https://github.com/cryppadotta/paperclip-chat-e2e-enabled/issues/2#issuecomment-5571135634)
+- [Enabled-repository issue 2](https://github.com/cryppadotta/nexus-chat-e2e-enabled/issues/2#issuecomment-5571135634)
   created exactly one conversation and task **CHA-2** and received a receipt
   reaction. **This was not a successful agent-answer test:** the pinned Codex
   ACP runtime converted an unsupported-model provider error into assistant
-  text and reported the run as completed. Paperclip then published that raw
+  text and reported the run as completed. Nexus then published that raw
   diagnostic. This is a release-blocking error-classification/publication
   defect, not acceptable chat output.
 - The installed `codex-acp` 1.6.2 process runs its bundled Codex 0.148.0, not the
   separately installed CLI. The test agent had inherited the operator's Astra
-  model. Only the isolated Maya fixture was pinned to Paperclip's existing
+  model. Only the isolated Maya fixture was pinned to Nexus's existing
   `gpt-5.6-sol` default for further qualification; no global model, CLI,
   credential, or unrelated agent configuration was changed. Successful live
   runtime execution still needs proof after the typed-failure repair.
-- [Disabled-repository issue 1](https://github.com/cryppadotta/paperclip-chat-e2e-disabled/issues/1#issuecomment-5571234021)
+- [Disabled-repository issue 1](https://github.com/cryppadotta/nexus-chat-e2e-disabled/issues/1#issuecomment-5571234021)
   received an explicit bot mention. GitHub delivery
   `9b1d68a0-aabe-11f1-80a1-0922ed513425` returned **200**, body **ignored**.
-  The repository remains disabled in Paperclip, with no conversation or task
+  The repository remains disabled in Nexus, with no conversation or task
   created. This is provider-backed negative-reach evidence, not merely an
   absence of a visible reply.
 - GitHub's real redelivery control resent the existing CHA-2 root delivery
@@ -630,7 +630,7 @@ error-like content are not classified by text matching. The broad focused ACP
 regression slice passed **211/211**, with zero skipped cases.
 
 The next live run exposed a second, independent defect: the model returned the
-requested exact answer, but Paperclip selected an earlier bookkeeping comment
+requested exact answer, but Nexus selected an earlier bookkeeping comment
 for publication. The working-tree fix gives the runner-selected final sole
 ownership of the external response for chat-origin runs. Intermediate comments
 remain internal, and a yielded or missing final cannot publish an internal note
@@ -642,7 +642,7 @@ then verified:
 
 - GitHub's unmentioned follow-up stayed on CHA-2. Run
   `b7190e01-0176-4af7-a471-c1e013c2a015` succeeded and
-  [reply 5571558895](https://github.com/cryppadotta/paperclip-chat-e2e-enabled/issues/2#issuecomment-5571558895)
+  [reply 5571558895](https://github.com/cryppadotta/nexus-chat-e2e-enabled/issues/2#issuecomment-5571558895)
   contained exactly `GH-LIVE-0907-ROUNDTRIP-OK`.
 - Discord's linked root created CHA-4 and native thread `1546513811672932372`.
   An unmentioned follow-up stayed in that task; run
@@ -702,7 +702,7 @@ remaining recovery caveat above:
 
 - GitHub run `c3335bdf-6a2e-49a5-82eb-8d31df92e4d0` ran from
   `13:59:33.398Z` to `13:59:39.464Z` on the existing CHA-2 conversation.
-  [Bot comment 5571729974](https://github.com/cryppadotta/paperclip-chat-e2e-enabled/issues/2#issuecomment-5571729974)
+  [Bot comment 5571729974](https://github.com/cryppadotta/nexus-chat-e2e-enabled/issues/2#issuecomment-5571729974)
   contained exactly `GITHUB-IDLE-WAIT-OK`.
 - Discord run `f8c9dbe2-7e94-469d-8345-717eb7dad1bf` ran from
   `13:59:31.087Z` to `13:59:38.234Z` in native thread

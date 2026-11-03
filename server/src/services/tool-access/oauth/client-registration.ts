@@ -5,9 +5,9 @@ import { resolveOAuthClientIdMetadataDocumentUrl } from "./client-metadata.js";
 import type { OAuthProviderEndpoints, OAuthClientRegistrationSource } from "./types.js";
 import { connectionMethodForConnection } from "../connection-methods.js";
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { toolConnections } from "@paperclipai/db";
-import type { AppDefinition } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { toolConnections } from "@nexusai/db";
+import type { AppDefinition } from "@nexusai/shared";
 import { conflict, notFound, unprocessable } from "../../../errors.js";
 import { type RemoteHttpEndpointLookup } from "../../remote-http-endpoint-guard.js";
 
@@ -146,7 +146,7 @@ export function createOAuthClientRegistration(db: Db, { now, options, store, get
 
   /**
    * Adopt a Client ID Metadata Document as this connection's client: the
-   * `client_id` *is* the https URL of Paperclip's published client metadata, so
+   * `client_id` *is* the https URL of Nexus's published client metadata, so
    * there is nothing to register with the authorization server. Still recorded on
    * the connection so the issuer/resource/callback binding is enforced on reuse
    * exactly like a dynamically registered client.
@@ -217,7 +217,7 @@ async function adoptClientIdMetadataDocument(input: {
   /**
    * How the client already stored on this connection was obtained. Anything
    * unrecognised (including connections written before this field existed) reads
-   * as `manual`, which is the conservative answer: Paperclip will not silently
+   * as `manual`, which is the conservative answer: Nexus will not silently
    * re-register over client material it cannot prove it minted.
    */
 function storedOAuthClientRegistrationSource(
@@ -272,7 +272,7 @@ function reviewedOAuthClientBinding(connection: typeof toolConnections.$inferSel
         : null;
     // Older interrupted setup flows could accidentally round-trip a DCR client
     // through the customer-client form and relabel it `manual`. Ownership is the
-    // durable proof that Paperclip minted that client. Force a fresh registration
+    // durable proof that Nexus minted that client. Force a fresh registration
     // instead of preserving the damaged binding forever.
     if (source === "manual" && connection.ownership === "dcr") return false;
     // A URL client id that now resolves only to a private network is unusable by
@@ -281,7 +281,7 @@ function reviewedOAuthClientBinding(connection: typeof toolConnections.$inferSel
     if (source === "cimd" && oauth.clientId !== clientIdMetadataDocumentUrl)
       return false;
     // A manually preregistered client was registered by the operator against
-    // Paperclip's callback, so it has no recorded callback until first use.
+    // Nexus's callback, so it has no recorded callback until first use.
     const redirectMatches =
       source === "manual"
         ? oauth.clientRedirectUri === undefined ||
@@ -380,7 +380,7 @@ async function stampOAuthClientBinding(
   }
 
   /**
-   * May Paperclip mint client material for this connection without an operator
+   * May Nexus mint client material for this connection without an operator
    * pasting client credentials?
    *
    * A curated app opts in through its `ownershipModes`. A generic remote MCP
@@ -474,7 +474,7 @@ function canRegisterOAuthClientDynamically(
       typeof oauth.clientId === "string" &&
       oauth.clientId.trim()
     ) {
-      // Paperclip cannot re-register on the operator's behalf: the credentials
+      // Nexus cannot re-register on the operator's behalf: the credentials
       // came from a console this deployment does not control.
       throw unprocessable(
         "This connection's sign-in details no longer match the server it points at. Re-enter the client ID and secret to continue.",

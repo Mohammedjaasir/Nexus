@@ -6,7 +6,7 @@ import {
   agents, toolActionDeliveries, toolActionRequests, toolInvocations, toolGatewaySessions, toolCallEvents, toolAccessAuditEvents, toolPolicies,
   companySecretBindings, companySecretProposals, companySecrets, createDb,
   chatPublications, heartbeatRuns, issueComments, issueThreadInteractions, issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createChatMilestoneFixtures } from "./helpers/chat-milestone-fixtures.js";
@@ -21,7 +21,7 @@ import { dismissAutomaticCompletionReviews } from "../services/native-runtime/au
 import { dismissObsoleteNativePolicyReviews } from "../services/native-runtime/obsolete-policy-reviews.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_MILESTONE_GOVERNED_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_MILESTONE_GOVERNED_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("chat milestones after governed interaction writes", () => {
   let db: ReturnType<typeof createDb>;
@@ -163,7 +163,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
       ? "Review the persisted native-run evidence and confirm whether this issue may be completed."
       : "Review the superseding native policy assessment.";
     await db.insert(completionContracts).values({ id: contractId, companyId: f.companyId, issueId: f.issueId, revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1", policyVersion: "phase6-v1", risk: kind === "automatic" ? "low" : "standard",
+      schemaVersion: "nexus.completion-contract.v1", policyVersion: "phase6-v1", risk: kind === "automatic" ? "low" : "standard",
       completionAuthority: kind === "automatic" ? "agent_claim_policy" : "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { objective: "Respond to chat" }, canonicalSha256: contractId, createdByActorType: "system", createdByActorId: "test" });
     await db.update(heartbeatRuns).set({ status: "succeeded", runtimeMode: "native", nativeIssueId: f.issueId, completionContractId: contractId,

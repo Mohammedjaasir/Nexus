@@ -82,7 +82,7 @@ export function measureConversationType(root: HTMLElement): ConversationTypeInve
       };
       if (!role.states.includes(state)) role.states.push(state);
       if (!role.sources.includes(source)) role.sources.push(source);
-      if (parent.closest(".paperclip-markdown") && !role.sources.includes("ui/src/index.css · .paperclip-markdown")) role.sources.push("ui/src/index.css · .paperclip-markdown");
+      if (parent.closest(".nexus-markdown") && !role.sources.includes("ui/src/index.css · .nexus-markdown")) role.sources.push("ui/src/index.css · .nexus-markdown");
       if (role.recipes.length === 0) role.recipes = recipes;
       roles.set(key, role);
     }

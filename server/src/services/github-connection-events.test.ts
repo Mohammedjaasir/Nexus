@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { chatEndpoints, type Db } from "@paperclipai/db";
+import { chatEndpoints, type Db } from "@nexusai/db";
 import { githubConnectionEventService } from "./github-connection-events.js";
-import type { PaperclipCloudConnector } from "./paperclip-cloud-connector.js";
+import type { NexusCloudConnector } from "./nexus-cloud-connector.js";
 
 function fixture(push = false, forcePolling = false) {
   let time = Date.parse("2026-09-04T12:00:00Z");
@@ -17,9 +17,9 @@ function fixture(push = false, forcePolling = false) {
   const select = vi.fn(() => ({ from: (table: unknown) => table === chatEndpoints
     ? { where: () => result(bots) }
     : { innerJoin: () => ({ where: () => result(bindings) }) } }));
-  const leaseEvents = vi.fn<PaperclipCloudConnector["leaseEvents"]>().mockResolvedValue(null);
-  const connector = { leaseEvents, eventWakeVersion: () => push ? 1 : null } as unknown as PaperclipCloudConnector;
-  const service = githubConnectionEventService({ select } as unknown as Db, { connector, env: forcePolling ? { PAPERCLIP_GITHUB_EVENT_POLLING: "1" } : {}, now: () => new Date(time) });
+  const leaseEvents = vi.fn<NexusCloudConnector["leaseEvents"]>().mockResolvedValue(null);
+  const connector = { leaseEvents, eventWakeVersion: () => push ? 1 : null } as unknown as NexusCloudConnector;
+  const service = githubConnectionEventService({ select } as unknown as Db, { connector, env: forcePolling ? { NEXUS_GITHUB_EVENT_POLLING: "1" } : {}, now: () => new Date(time) });
   return { service, leaseEvents, select, bots, bindings, advance: (ms: number) => { time += ms; } };
 }
 

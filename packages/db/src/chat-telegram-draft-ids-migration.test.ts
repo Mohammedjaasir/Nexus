@@ -21,7 +21,7 @@ describeEmbeddedPostgres("Telegram draft ID migration", () => {
       // Exhaustion is deliberately tested only in this disposable cluster, not
       // in a shared fixture database or the configured application database.
       const database = await startEmbeddedPostgresTestDatabase(
-        "paperclip-telegram-draft-ids-",
+        "nexus-telegram-draft-ids-",
       );
       cleanups.push(database.cleanup);
       const sql = postgres(database.connectionString, {

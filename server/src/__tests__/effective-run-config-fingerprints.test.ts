@@ -15,7 +15,7 @@ describe("effective run config fingerprints", () => {
           env: {
             ZETA: "raw-zeta",
             ALPHA: "raw-alpha",
-            PAPERCLIP_RUN_ID: "run-one",
+            NEXUS_RUN_ID: "run-one",
           },
           model: "gpt-5.2",
         },
@@ -59,7 +59,7 @@ describe("effective run config fingerprints", () => {
         adapterConfig: {
           model: "gpt-5.2",
           env: {
-            PAPERCLIP_RUN_ID: "run-two",
+            NEXUS_RUN_ID: "run-two",
             ALPHA: "raw-alpha",
             ZETA: "raw-zeta",
           },
@@ -239,7 +239,7 @@ describe("effective run config fingerprints", () => {
             authorization: "Bearer first",
           },
           env: {
-            PAPERCLIP_API_KEY: "runtime-api-key-one",
+            NEXUS_API_KEY: "runtime-api-key-one",
             NORMAL_VALUE: "first",
           },
         },
@@ -264,7 +264,7 @@ describe("effective run config fingerprints", () => {
             authorization: "Bearer second",
           },
           env: {
-            PAPERCLIP_API_KEY: "runtime-api-key-two",
+            NEXUS_API_KEY: "runtime-api-key-two",
             NORMAL_VALUE: "first",
           },
         },
@@ -304,26 +304,26 @@ describe("effective run config fingerprints", () => {
 });
 
 
-describe("configured Paperclip environment freshness", () => {
+describe("configured Nexus environment freshness", () => {
   const fingerprint = (env: Record<string, unknown>, secretManifest?: EffectiveRunConfigSecretManifestEntry[]) =>
     createEffectiveRunConfigFingerprints({ session: { env }, secretManifest }).sessionFingerprint;
 
   it("detects additions, changes, and removals without recording values", () => {
     const absent = fingerprint({});
-    const first = fingerprint({ PAPERCLIP_PAGE_BUCKET: "first-bucket" });
-    const changed = fingerprint({ PAPERCLIP_PAGE_BUCKET: "second-bucket" });
+    const first = fingerprint({ NEXUS_PAGE_BUCKET: "first-bucket" });
+    const changed = fingerprint({ NEXUS_PAGE_BUCKET: "second-bucket" });
     expect(first.fingerprint).not.toBe(absent.fingerprint);
     expect(changed.fingerprint).not.toBe(first.fingerprint);
     expect(fingerprint({}).fingerprint).toBe(absent.fingerprint);
     expect(first.canonicalJson).not.toContain("first-bucket");
-    for (const key of ["PAPERCLIP_RUN_ID", "PAPERCLIP_RUNNER_EXTERNAL_SANDBOX", "PAPERCLIP_NORMALIZED_SESSION_ID"]) {
+    for (const key of ["NEXUS_RUN_ID", "NEXUS_RUNNER_EXTERNAL_SANDBOX", "NEXUS_NORMALIZED_SESSION_ID"]) {
       expect(fingerprint({ [key]: "first" }).fingerprint).toBe(fingerprint({ [key]: "second" }).fingerprint);
     }
   });
 
   it("detects custom namespaced secret version changes", () => {
-    const env = { PAPERCLIP_PAGE_AWS_SECRET_ACCESS_KEY: { type: "secret_ref", secretId: "pages-key" } };
-    const manifest = (version: number) => [{ configPath: "env.PAPERCLIP_PAGE_AWS_SECRET_ACCESS_KEY", envKey: "PAPERCLIP_PAGE_AWS_SECRET_ACCESS_KEY", secretId: "pages-key", version }];
+    const env = { NEXUS_PAGE_AWS_SECRET_ACCESS_KEY: { type: "secret_ref", secretId: "pages-key" } };
+    const manifest = (version: number) => [{ configPath: "env.NEXUS_PAGE_AWS_SECRET_ACCESS_KEY", envKey: "NEXUS_PAGE_AWS_SECRET_ACCESS_KEY", secretId: "pages-key", version }];
     expect(fingerprint(env, manifest(1)).fingerprint).not.toBe(fingerprint(env, manifest(2)).fingerprint);
     expect(fingerprint(env, manifest(1)).canonicalJson).toContain("pages-key");
   });

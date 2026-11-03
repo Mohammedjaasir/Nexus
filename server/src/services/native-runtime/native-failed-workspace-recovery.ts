@@ -1,10 +1,10 @@
-import { remoteWorkspaceRunReferenceSchema } from "@paperclipai/shared";
+import { remoteWorkspaceRunReferenceSchema } from "@nexusai/shared";
 import type { CancelledWorkspacePreservationScope } from "../cancelled-workspace-preservation-notifications.js";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { registerScopedDeadlineWork } from "../scoped-deadline-work.js";
 import { notifyExecutionRunWork } from "../execution-control-notifications.js";
 import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
-import { environmentLeases, heartbeatRuns, workspaceRestoreFailureCodesSql, issues, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { environmentLeases, heartbeatRuns, workspaceRestoreFailureCodesSql, issues, nativeRunFinalizations, type Db } from "@nexusai/db";
 import { recordRequiredWorkspaceRestoreFailure } from "../legacy-execution-recovery.js";
 import { hasRequiredWorkspaceRecovery, nativeRunHasNoWorkspaceAccess } from "../workspace-restore-recovery-state.js";
 import { logActivity } from "../activity-log.js";
@@ -183,7 +183,7 @@ function pendingCancelledWorkspace() {
   return sql`${heartbeatRuns.runtimeMode} = 'native' AND ${heartbeatRuns.status} = 'cancelled'
     AND (${heartbeatRuns.runnerProfileJson}->'nativeWorkspaceSync'->>'state' = 'prepared' OR ${heartbeatRuns.runnerProfileJson}->'remoteWorkspace'->>'state' = 'prepared')
     AND ${heartbeatRuns.resultJson}->'nativeCancellation'->>'dispatchState' = 'acknowledged'
-    AND (${heartbeatRuns.resultJson}->'workspaceRestoreRecovery'->>'schema' = 'paperclip.workspace-restore-recovery.v1'
+    AND (${heartbeatRuns.resultJson}->'workspaceRestoreRecovery'->>'schema' = 'nexus.workspace-restore-recovery.v1'
       AND ${heartbeatRuns.resultJson}->>'workspaceRestoreFailure' IN (${workspaceRestoreFailureCodesSql})) IS NOT TRUE`;
 }
 

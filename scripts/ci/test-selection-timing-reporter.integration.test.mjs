@@ -11,7 +11,7 @@ test("the real Vitest reporter includes import/setup cost and preserves failures
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "server/src"), { recursive: true });
   symlinkSync(path.join(repo, "node_modules"), path.join(root, "node_modules"), "dir");
-  writeFileSync(path.join(root, "vitest.config.mjs"), `export default {test:{name:"@paperclipai/server",include:["server/src/*.test.mjs"],setupFiles:["./setup.mjs"],reporters:["default",${JSON.stringify(path.join(repo, "scripts/ci/test-timing-reporter.mjs"))}]}}`);
+  writeFileSync(path.join(root, "vitest.config.mjs"), `export default {test:{name:"@nexusai/server",include:["server/src/*.test.mjs"],setupFiles:["./setup.mjs"],reporters:["default",${JSON.stringify(path.join(repo, "scripts/ci/test-timing-reporter.mjs"))}]}}`);
   writeFileSync(path.join(root, "setup.mjs"), 'await new Promise(resolve=>setTimeout(resolve,60));');
   writeFileSync(path.join(root, "server/src/probe.test.mjs"), 'import {test} from "vitest"; await new Promise(resolve=>setTimeout(resolve,60)); test("pass",()=>{});');
   const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;

@@ -7,7 +7,7 @@ const meta = {
   component: CredentialTaskPage,
   parameters: { layout: "fullscreen", waitForViewport: true,
     docs: { description: { component: "Production task detail and app shell. The latest credential failure stays expanded in the conversation and names the selected credential. The settings link uses the existing agent runtime route. Example data is local to Storybook." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "secrets/runtime-delivery",
         "recovery/diagnosis"

@@ -10,14 +10,14 @@ import { basename, join, resolve } from 'node:path';
 export function retainRunnerQualificationPackages({ repo, output, sourceRevision, releaseVersion, publicArchives, env = process.env }) {
   assert.match(sourceRevision, /^[a-f0-9]{40}$/);
   assert.equal(JSON.parse(readFileSync(join(repo, 'server/dist/build-info.json'))).commit, sourceRevision);
-  assert.ok(publicArchives.some(a => a.name === '@paperclipai/server'));
-  assert.ok(publicArchives.some(a => a.name === 'paperclipai'));
-  assert.ok(publicArchives.some(a => a.name === '@paperclipai/plugin-sdk'));
+  assert.ok(publicArchives.some(a => a.name === '@nexusai/server'));
+  assert.ok(publicArchives.some(a => a.name === 'nexusai'));
+  assert.ok(publicArchives.some(a => a.name === '@nexusai/plugin-sdk'));
   assert.equal(new Set(publicArchives.map(a => a.name)).size, publicArchives.length);
   output = resolve(output);
   assert.ok(!existsSync(output), 'Never replace retained qualification packages');
   mkdirSync(output, { recursive: true });
-  const staging = mkdtempSync(join(tmpdir(), 'paperclip-qualification-pack-'));
+  const staging = mkdtempSync(join(tmpdir(), 'nexus-qualification-pack-'));
   const archives = [];
   const hash = file => createHash('sha256').update(readFileSync(file)).digest('hex');
   const retain = (name, file) => {
@@ -55,16 +55,16 @@ export function retainRunnerQualificationPackages({ repo, output, sourceRevision
     // it does not substitute for the public server's packaged runner.
     const runner = join(staging, 'runner');
     mkdirSync(runner);
-    const runnerManifest = JSON.parse(readFileSync(join(repo, 'packages/paperclip-runner/package.json')));
+    const runnerManifest = JSON.parse(readFileSync(join(repo, 'packages/nexus-runner/package.json')));
     for (const file of runnerManifest.files) {
-      const input = join(repo, 'packages/paperclip-runner', file);
+      const input = join(repo, 'packages/nexus-runner', file);
       if (existsSync(input)) cpSync(input, join(runner, file), { recursive: true });
     }
     assert.ok(existsSync(join(runner, 'dist/cli/eval-session.js')));
     writeFileSync(join(runner, 'package.json'), JSON.stringify(runnerManifest));
     pack(runner, runnerManifest.name, true);
     assert.equal(new Set(archives.map(a => a.name)).size, archives.length);
-    const receipt = { schema: 'paperclip.runner.qualification-packages/v1', sourceRevision, releaseVersion, publicInstallationVerified: true, piAdmissionVerified: true, providerCalls: 0, archives };
+    const receipt = { schema: 'nexus.runner.qualification-packages/v1', sourceRevision, releaseVersion, publicInstallationVerified: true, piAdmissionVerified: true, providerCalls: 0, archives };
     writeFileSync(join(output, 'manifest.json'), JSON.stringify(receipt, null, 2) + '\n');
     return receipt;
   } finally {

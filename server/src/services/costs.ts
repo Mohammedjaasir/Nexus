@@ -1,9 +1,9 @@
 import { receiptFingerprint } from "./receipt-fingerprint.js";
-import { agentAvatarUrl, resolveAgentAppearance, createCostEventSchema, createServiceCostEventSchema, normalizeCents, isUuidLike, type MoneyInput, type CostByUserReport } from "@paperclipai/shared";
+import { agentAvatarUrl, resolveAgentAppearance, createCostEventSchema, createServiceCostEventSchema, normalizeCents, isUuidLike, type MoneyInput, type CostByUserReport } from "@nexusai/shared";
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import type { Db } from "@paperclipai/db";
-import { activityLog, agents, agentRuntimeState, authUsers, companies, companyMemberships, costEvents, heartbeatRuns, issues, projects, goals, aiSubscriptions } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { activityLog, agents, agentRuntimeState, authUsers, companies, companyMemberships, costEvents, heartbeatRuns, issues, projects, goals, aiSubscriptions } from "@nexusai/db";
 import { notFound, unprocessable, conflict } from "../errors.js";
 import { budgetServiceInTransaction, type BudgetServiceHooks } from "./budgets.js";
 import { logActivity, type LogActivityInput, type ActivityPublication } from "./activity-log.js";

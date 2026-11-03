@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { and, eq, sql } from "drizzle-orm";
-import { activityLog, agents, companies, createDb, pluginCompanySettings, pluginConfig, plugins, resourceLifecycleEvents, type Db } from "@paperclipai/db";
+import { activityLog, agents, companies, createDb, pluginCompanySettings, pluginConfig, plugins, resourceLifecycleEvents, type Db } from "@nexusai/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import * as instructionModule from "../services/agent-instructions.js";
@@ -29,14 +29,14 @@ describeDatabase("agent runtime synchronization hooks", () => {
   let agentId: string;
   let home: string;
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-agent-runtime-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-agent-runtime-");
     db = createDb(database.connectionString);
-    home = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-agent-runtime-home-"));
+    home = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-agent-runtime-home-"));
   }, 90_000);
   afterAll(async () => { await database?.cleanup(); await fs.rm(home, { recursive: true, force: true }); });
   afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
   beforeEach(async () => {
-    vi.stubEnv("PAPERCLIP_HOME", home);
+    vi.stubEnv("NEXUS_HOME", home);
     companyId = randomUUID(); pluginId = randomUUID(); agentId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Runtime fixture", issuePrefix: `R${companyId.slice(0, 6)}` });
     await db.insert(plugins).values({ id: pluginId, pluginKey: pluginId, packageName: "runtime-fixture", version: "1.0.0", status: "ready",
@@ -218,11 +218,11 @@ describeDatabase("agent runtime synchronization hooks", () => {
 
   it("does not broadcast legacy lifecycle events to runtime listeners", async () => {
     const notifications: string[] = [];
-    const listener = await db.$client.listen("paperclip_plugin_lifecycle", payload => { notifications.push(payload); });
+    const listener = await db.$client.listen("nexus_plugin_lifecycle", payload => { notifications.push(payload); });
     try {
       await db.transaction(async tx => {
         await tx.insert(resourceLifecycleEvents).values({ companyId, resourceType: "project", resourceId: randomUUID(), action: "update" });
-        await tx.execute(sql`SELECT pg_notify('paperclip_plugin_lifecycle', 'barrier')`);
+        await tx.execute(sql`SELECT pg_notify('nexus_plugin_lifecycle', 'barrier')`);
       });
       await vi.waitFor(() => expect(notifications).toContain("barrier"));
       expect(notifications).toEqual(["barrier"]);
@@ -254,7 +254,7 @@ describeDatabase("agent runtime synchronization hooks", () => {
         expect(coordinator.nextWakeAt()).toBeNull();
       }, { timeout: 5000 });
       await waitForIdle();
-      await other.execute(sql`SELECT pg_notify('paperclip_plugin_lifecycle', 'startup-drained')`);
+      await other.execute(sql`SELECT pg_notify('nexus_plugin_lifecycle', 'startup-drained')`);
       await vi.waitFor(() => expect(notifications).toContain("startup-drained"), { timeout: 5000 });
       await waitForIdle();
       let committedEventId: string | undefined;

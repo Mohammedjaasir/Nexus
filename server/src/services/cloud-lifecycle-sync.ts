@@ -8,7 +8,7 @@ import {
 /**
  * Cloud lifecycle doorbell: when the Cloud-pinned primary company is
  * archived or unarchived on a managed instance, ring the harness
- * (`POST /v1/tenant/lifecycle-changed`) so Paperclip Cloud can converge the
+ * (`POST /v1/tenant/lifecycle-changed`) so Nexus Cloud can converge the
  * stack — an org whose only company is archived should not keep running,
  * and should read "Archived" on /orgs rather than "Live".
  *
@@ -55,7 +55,7 @@ export async function notifyCloudOfPrimaryCompanyLifecycleChange(
   const env = options.env ?? process.env;
   if (!isCloudPinnedPrimaryCompany(companyId, env)) return;
   const context = getCloudStackContext(env);
-  const token = env.PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN?.trim();
+  const token = env.NEXUS_CLOUD_TENANT_SERVER_TOKEN?.trim();
   if (!context?.stackId || !context.cloudOrigin || !token) return;
 
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -77,7 +77,7 @@ export async function notifyCloudOfPrimaryCompanyLifecycleChange(
         method: "POST",
         headers: {
           authorization: `Bearer ${token}`,
-          "x-paperclip-cloud-stack-id": context.stackId,
+          "x-nexus-cloud-stack-id": context.stackId,
         },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });

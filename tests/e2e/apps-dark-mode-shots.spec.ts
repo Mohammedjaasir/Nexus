@@ -80,7 +80,7 @@ async function connectApp(request: APIRequestContext, seed: Seed, url: string): 
 }
 
 async function forceDark(page: Page) {
-  await page.addInitScript(() => window.localStorage.setItem("paperclip.theme", "dark"));
+  await page.addInitScript(() => window.localStorage.setItem("nexus.theme", "dark"));
 }
 
 test.describe.serial("dark-mode Apps surfaces", () => {

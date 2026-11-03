@@ -118,11 +118,11 @@ floor, so opting in never weakens integrity and never over-promises.
   Stage the bytes to a provider-chosen temporary path, then atomically rename
   onto `targetPath`, so an interrupted transfer never leaves a truncated file at
   `targetPath`. This mirrors the fallback, which stages to
-  `<path>.paperclip-upload` and then `mv -f`.
+  `<path>.nexus-upload` and then `mv -f`.
   - The temp file MUST live in the **same directory (same filesystem)** as
     `targetPath`. A cross-device rename degrades to copy-then-unlink and
     reintroduces the truncation window it is meant to close.
-  - Reserve the `.paperclip-upload*` scratch names: a provider-chosen temp must
+  - Reserve the `.nexus-upload*` scratch names: a provider-chosen temp must
     not collide with the fallback scratch name or with a real target.
 
 - **Directory mappings and the sync as a whole are NOT atomic / NOT

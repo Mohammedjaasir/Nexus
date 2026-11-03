@@ -6,7 +6,7 @@ import { MarkdownBody } from "@/components/MarkdownBody";
 import { Button } from "@/components/ui/button";
 import { usePanel } from "@/context/PanelContext";
 import { IssueDetailLoadingState } from "@/pages/IssueDetail";
-import { storybookIssues } from "../../fixtures/paperclipData";
+import { storybookIssues } from "../../fixtures/nexusData";
 
 const issue = storybookIssues[0]!;
 const noUpdate = () => {};
@@ -75,7 +75,7 @@ const meta = {
   component: LoadingTransition,
   parameters: {
     layout: "fullscreen",
-    paperclip: {
+    nexus: {
       capabilities: ["tasks/properties", "tasks/discussion"],
       status: "current",
       implementation: "production",

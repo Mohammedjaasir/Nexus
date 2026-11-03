@@ -1,5 +1,5 @@
 import { and, eq, gt, inArray, ne, or, sql } from "drizzle-orm";
-import { heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults, type Db } from "@paperclipai/db";
+import { heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults, type Db } from "@nexusai/db";
 import { getNativeReviewAssignment } from "./native-review-participant.js";
 
 /** Both operator and platform recovery must still own the task's accepted work.

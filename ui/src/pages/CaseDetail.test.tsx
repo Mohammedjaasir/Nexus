@@ -95,7 +95,7 @@ describe("read-only CaseDetail", () => {
     cases.getDocument.mockResolvedValue({ ...detail().documents[0]!.document, key: "body", body: "Current authorized draft" });
     cases.listRevisions.mockResolvedValue({ key: "body", document: { id: "doc-1", title: "Launch draft", format: "markdown", latestRevisionId: "rev-2", latestRevisionNumber: 2 }, revisions: [{ id: "rev-1", revisionNumber: 1, title: "Launch draft", format: "markdown", body: "Earlier draft", changeSummary: "First version", createdAt: "2026-10-19T09:00:00Z", createdByAgentId: "agent-1", createdByUserId: null, createdByRunId: null, actorAgentName: "Writer", issue: null }] });
     agents.list.mockResolvedValue([{ id: "agent-1", name: "Writer", status: "idle" }, { id: "agent-2", name: "Verifier", status: "paused" }]);
-    project.get.mockResolvedValue({ id: "project-1", name: "Paperclip" });
+    project.get.mockResolvedValue({ id: "project-1", name: "Nexus" });
   });
   afterEach(() => { flushSync(() => root.unmount()); container.remove(); clients.splice(0).forEach(client => client.clear()); });
 

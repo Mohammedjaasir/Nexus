@@ -167,7 +167,7 @@ function Proposal({ selection = "none", editor = "closed", failOne = false }: Bu
   };
 
   return <div className="[&_.design-page-navigation]:hidden md:[&_.design-page-navigation]:flex">
-    <DesignPageShell title="Agents" sidebarStorageKey="paperclip.proposal.bulk-agents.sidebar" sidebar={<DesignSidebar onNewTask={() => setNotice("This preview focuses on bulk agent settings.")} />}
+    <DesignPageShell title="Agents" sidebarStorageKey="nexus.proposal.bulk-agents.sidebar" sidebar={<DesignSidebar onNewTask={() => setNotice("This preview focuses on bulk agent settings.")} />}
       headerActions={<span className="text-xs text-muted-foreground">Interactive proposal · sample data</span>}>
       <Tabs value={status} onValueChange={setStatus} className="gap-4">
         <AgentsToolbar query={query} onQueryChange={setQuery} view="list" onViewChange={() => {}} hideViewToggle onNewAgent={() => setNotice("Agent creation is outside this preview.")} />

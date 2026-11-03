@@ -8,8 +8,8 @@ import type {
   CompanyPortabilityPreviewResult,
   CompanyPortabilitySource,
   CompanyPortabilityAdapterOverride,
-} from "@paperclipai/shared";
-import { agentHarnessType, agentRunner } from "@paperclipai/shared";
+} from "@nexusai/shared";
+import { agentHarnessType, agentRunner } from "@nexusai/shared";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useToastActions } from "../context/ToastContext";
@@ -42,8 +42,8 @@ import { Field, adapterLabels } from "../components/agent-config-primitives";
 import { getAdapterLabel } from "../adapters/adapter-display-registry";
 import { defaultCreateValues } from "../components/agent-config-defaults";
 import { getUIAdapter, listUIAdapters } from "../adapters";
-import { isPaperclipRunnerProvider, PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES, type CreateConfigValues } from "@paperclipai/adapter-utils";
-import { resolveCodexLocalCliPolicy } from "@paperclipai/adapter-codex-local";
+import { isNexusRunnerProvider, NEXUS_RUNNER_PERMISSION_CAPABILITIES, type CreateConfigValues } from "@nexusai/adapter-utils";
+import { resolveCodexLocalCliPolicy } from "@nexusai/adapter-codex-local";
 import {
   type FileTreeNode,
   type FrontmatterData,
@@ -56,7 +56,7 @@ import {
 } from "../components/FileTree";
 import { readZipArchive } from "../lib/zip";
 import { formatMegabytes } from "../lib/import-preflight";
-import { buildAlreadyImportedMessage, type CompanyImportTransferDeclaration } from "@paperclipai/shared/company-import-transfer";
+import { buildAlreadyImportedMessage, type CompanyImportTransferDeclaration } from "@nexusai/shared/company-import-transfer";
 import {
   CHUNKED_IMPORT_THRESHOLD_BYTES,
   IMPORT_TRANSFER_PART_ATTEMPTS,
@@ -576,21 +576,21 @@ function importAdapterValues(
   sourceAdapterType?: string,
   runner?: AgentRunnerChoice,
 ): CreateConfigValues {
-  const nativeHarness = sourceAdapterType === "paperclip_runner" && ["codex_local", "claude_local", "opencode_local", "pi_local"].includes(choice);
+  const nativeHarness = sourceAdapterType === "nexus_runner" && ["codex_local", "claude_local", "opencode_local", "pi_local"].includes(choice);
   const nativeCodex = nativeHarness && choice === "codex_local";
   const savedBypass = sourceConfig?.dangerouslyBypassApprovalsAndSandbox
     ?? (nativeCodex ? undefined : sourceConfig?.dangerouslyBypassSandbox);
   return {
     ...defaultCreateValues,
-    adapterType: (choice === "openai_dot" || choice === "muse") ? "paperclip_runner" : choice,
-    ...(runner !== undefined ? { runner } : nativeHarness ? { runner: agentRunner("paperclip_runner") } : {}),
+    adapterType: (choice === "openai_dot" || choice === "muse") ? "nexus_runner" : choice,
+    ...(runner !== undefined ? { runner } : nativeHarness ? { runner: agentRunner("nexus_runner") } : {}),
     ...(sourceConfig && choice === "codex_local" ? {
       model: typeof sourceConfig.model === "string" ? sourceConfig.model : "",
       thinkingEffort: String(sourceConfig.modelReasoningEffort ?? sourceConfig.reasoningEffort ?? ""),
       ...(typeof savedBypass === "boolean" ? { codexLegacySandboxBypass: savedBypass } : {}),
       dangerouslyBypassSandbox: typeof savedBypass === "boolean" ? savedBypass
         : nativeCodex
-          ? (sourceConfig.codexPermissionMode ?? PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES.codex.defaultMode) === "never"
+          ? (sourceConfig.codexPermissionMode ?? NEXUS_RUNNER_PERMISSION_CAPABILITIES.codex.defaultMode) === "never"
           : resolveCodexLocalCliPolicy(sourceConfig).bypass,
     } : {}),
     ...(sourceConfig && choice === "opencode_local" ? { model: typeof sourceConfig.model === "string" ? sourceConfig.model : "" } : {}),
@@ -605,10 +605,10 @@ function importAdapterValues(
       workspaceBranchTemplate: String(asObject(sourceConfig.workspaceStrategy).branchTemplate ?? ""),
       worktreeParentDir: String(asObject(sourceConfig.workspaceStrategy).worktreeParentDir ?? ""),
       runtimeServicesJson: sourceConfig.workspaceRuntime ? JSON.stringify(sourceConfig.workspaceRuntime) : "",
-      ...(sourceConfig.lifecycleMode === "warm" || sourceConfig.lifecycleMode === "per_turn" ? { paperclipRunnerLifecycleMode: sourceConfig.lifecycleMode } : {}),
-      ...(typeof sourceConfig.idleTimeoutMs === "number" ? { paperclipRunnerIdleTimeoutMs: sourceConfig.idleTimeoutMs } : {}),
+      ...(sourceConfig.lifecycleMode === "warm" || sourceConfig.lifecycleMode === "per_turn" ? { nexusRunnerLifecycleMode: sourceConfig.lifecycleMode } : {}),
+      ...(typeof sourceConfig.idleTimeoutMs === "number" ? { nexusRunnerIdleTimeoutMs: sourceConfig.idleTimeoutMs } : {}),
     } : {}),
-    ...(sourceAdapterType === "paperclip_runner" && choice !== "openai_dot"
+    ...(sourceAdapterType === "nexus_runner" && choice !== "openai_dot"
       ? { adapterSchemaValues: { ...sourceConfig } } : {}),
     ...(choice === "openai_dot" ? {
       adapterSchemaValues: {
@@ -1104,20 +1104,20 @@ export function CompanyImport() {
     queryFn: () => instanceSettingsApi.getExperimental(),
     retry: false,
   });
-  const runnerInstalled = availableAdapterTypes?.has("paperclip_runner") === true;
+  const runnerInstalled = availableAdapterTypes?.has("nexus_runner") === true;
   const nativeRunnerAvailable = runnerInstalled && experimentalSettings?.enableNativeRunner === true;
   const dotAvailable = runnerInstalled && experimentalSettings?.enableOpenAiDot === true;
   const museAvailable = nativeRunnerAvailable && experimentalSettings?.enableMuse === true;
   const importAdapterOptions = useMemo(
     () => IMPORT_ADAPTER_OPTIONS.filter((option) =>
-      option.value === "paperclip_runner" ? nativeRunnerAvailable
+      option.value === "nexus_runner" ? nativeRunnerAvailable
         : option.value === "openai_dot" ? dotAvailable : option.value === "muse" ? museAvailable : true,
     ),
     [nativeRunnerAvailable, dotAvailable, museAvailable],
   );
 
   const localZipHelpText =
-    "Upload a .zip exported directly from Paperclip. Re-zipped archives created by Finder, Explorer, or other zip tools may not import correctly.";
+    "Upload a .zip exported directly from Nexus. Re-zipped archives created by Finder, Explorer, or other zip tools may not import correctly.";
 
   useEffect(() => {
     setBreadcrumbs([
@@ -1600,7 +1600,7 @@ export function CompanyImport() {
     // Reset config values when adapter type changes
     setAdapterConfigValues((prev) => {
       const next = { ...prev };
-      if (adapterType === "openai_dot" || adapterType === "muse" || adapterType === "paperclip_runner") {
+      if (adapterType === "openai_dot" || adapterType === "muse" || adapterType === "nexus_runner") {
         next[slug] = importAdapterValues(adapterType);
       } else {
         delete next[slug];
@@ -1681,27 +1681,27 @@ export function CompanyImport() {
   const adapterAgents = useMemo<AdapterPickerItem[]>(() => {
     if (!importPreview) return [];
     return importPreview.manifest.agents.map((a) => {
-      const nativeCodex = a.adapterType === "paperclip_runner"
+      const nativeCodex = a.adapterType === "nexus_runner"
         && (a.adapterConfig?.provider === "codex" || a.adapterConfig?.provider === undefined);
-      const nativeHarness = nativeCodex || (a.adapterType === "paperclip_runner"
+      const nativeHarness = nativeCodex || (a.adapterType === "nexus_runner"
         && ["claude_local", "opencode_local", "pi_local"].includes(agentHarnessType(a.adapterType, a.adapterConfig)));
-      const adapterChoice = a.adapterType === "paperclip_runner" && a.adapterConfig?.provider === "openai_dot"
-        ? "openai_dot" : a.adapterType === "paperclip_runner" && a.adapterConfig?.provider === "muse" ? "muse" : nativeHarness ? agentHarnessType(a.adapterType, a.adapterConfig) : a.adapterType;
+      const adapterChoice = a.adapterType === "nexus_runner" && a.adapterConfig?.provider === "openai_dot"
+        ? "openai_dot" : a.adapterType === "nexus_runner" && a.adapterConfig?.provider === "muse" ? "muse" : nativeHarness ? agentHarnessType(a.adapterType, a.adapterConfig) : a.adapterType;
       let fallbackAdapterType: string | null = null;
       let availabilityWarning: string | undefined;
-      if (a.adapterType === "paperclip_runner") {
+      if (a.adapterType === "nexus_runner") {
         const available = nativeHarness ? runnerInstalled : adapterChoice === "openai_dot" ? dotAvailable : adapterChoice === "muse" ? museAvailable : nativeRunnerAvailable;
         if (!available && (availableAdapterTypes || !nativeHarness)) {
           availabilityWarning = nativeHarness
-            ? "Paperclip Runner is unavailable here. Choose a runner or another harness explicitly."
-            : `Paperclip Runner provider ${String(a.adapterConfig?.provider)} requires its experimental feature to be enabled. This import keeps its saved harness until you choose another one.`;
+            ? "Nexus Runner is unavailable here. Choose a runner or another harness explicitly."
+            : `Nexus Runner provider ${String(a.adapterConfig?.provider)} requires its experimental feature to be enabled. This import keeps its saved harness until you choose another one.`;
         }
       } else if (availableAdapterTypes && !availableAdapterTypes.has(a.adapterType)) {
         // The fallback must itself be installed: the CEO's adapter when it is,
         // else any installed adapter, else null so the manifest adapter stands
         // and the server's unknown-adapter rejection is the backstop.
         const selectableTypes = [...availableAdapterTypes].filter((type) =>
-          type !== "paperclip_runner" || nativeRunnerAvailable,
+          type !== "nexus_runner" || nativeRunnerAvailable,
         );
         fallbackAdapterType = selectableTypes.includes(ceoAdapterType)
           ? ceoAdapterType
@@ -1737,15 +1737,15 @@ export function CompanyImport() {
       const configVals = adapterConfigValues[agent.slug];
       if (selectedType === agent.adapterChoice && !adapterConfigEditedSlugs.has(agent.slug)
         && (!configVals || configVals.runner === importAdapterValues(selectedType, agent.adapterConfig, agent.adapterType, agent.runner).runner)) continue;
-      const retainsNativeHarness = agent.adapterType === "paperclip_runner"
+      const retainsNativeHarness = agent.adapterType === "nexus_runner"
         && selectedType === agent.adapterChoice && ["codex_local", "claude_local", "opencode_local", "pi_local"].includes(selectedType);
-      const apiType = selectedType === "openai_dot" || selectedType === "muse" || retainsNativeHarness ? "paperclip_runner" : selectedType;
+      const apiType = selectedType === "openai_dot" || selectedType === "muse" || retainsNativeHarness ? "nexus_runner" : selectedType;
       const override: CompanyPortabilityAdapterOverride = { adapterType: apiType };
       if (configVals?.runner !== undefined) override.runner = configVals.runner;
       if (configVals && (selectedType !== agent.adapterChoice || adapterConfigEditedSlugs.has(agent.slug))) {
         const provider = configVals.adapterSchemaValues?.provider;
-        if (configVals.adapterType === "paperclip_runner" && provider !== undefined && !isPaperclipRunnerProvider(provider)) {
-          throw new Error(`Unknown Paperclip Runner provider ${String(provider)}. Keep the package configuration or explicitly choose another harness.`);
+        if (configVals.adapterType === "nexus_runner" && provider !== undefined && !isNexusRunnerProvider(provider)) {
+          throw new Error(`Unknown Nexus Runner provider ${String(provider)}. Keep the package configuration or explicitly choose another harness.`);
         }
         if (selectedType === "openai_dot" && configVals.adapterSchemaValues?.allowUnmeteredProvider !== true) {
           throw new Error("OpenAI Dot requires acknowledgement of external billing. Configure the Dot adapter and enable Allow externally billed provider.");
@@ -1756,11 +1756,11 @@ export function CompanyImport() {
         const nativeClaudeForm = selectedType === "claude_local" && (retainsNativeHarness
           || (configVals.runner !== "legacy" && configVals.adapterSchemaValues?.provider === "acpx"
             && configVals.adapterSchemaValues.acpxAgent === "claude"));
-        const build = getUIAdapter(nativeClaudeForm ? "paperclip_runner" : configVals.adapterType).buildAdapterConfig;
+        const build = getUIAdapter(nativeClaudeForm ? "nexus_runner" : configVals.adapterType).buildAdapterConfig;
         const edited = build(configVals);
-        if (agent.adapterType === "paperclip_runner" && selectedType === agent.adapterChoice
+        if (agent.adapterType === "nexus_runner" && selectedType === agent.adapterChoice
           && ["codex_local", "claude_local", "opencode_local", "pi_local"].includes(selectedType) && configVals.adapterType === selectedType
-          && agentHarnessType("paperclip_runner", configVals.adapterSchemaValues) === selectedType) {
+          && agentHarnessType("nexus_runner", configVals.adapterSchemaValues) === selectedType) {
           const original = importAdapterValues(selectedType, agent.adapterConfig, agent.adapterType, configVals.runner);
           const baseline = build(original);
           const retained = { ...agent.adapterConfig };
@@ -2004,7 +2004,7 @@ export function CompanyImport() {
         <div>
           <h2 className="text-base font-semibold">Import source</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Choose a GitHub repo or upload a local Paperclip zip package.
+            Choose a GitHub repo or upload a local Nexus zip package.
           </p>
         </div>
 

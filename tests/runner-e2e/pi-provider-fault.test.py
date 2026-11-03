@@ -21,15 +21,15 @@ BOOT = '12345678-1234-1234-1234-123456789abc'
 ROOT = {'pid': 21, 'ppid': 1, 'startTicks': '100', 'bootId': BOOT}
 PARENT = {'pid': 22, 'ppid': 21, 'startTicks': '101', 'bootId': BOOT}
 TARGET = {'pid': 23, 'ppid': 22, 'startTicks': '102', 'bootId': BOOT}
-DIST = '/tmp/paperclip-acpx-native-fixture/distribution'
-RUNTIME = '/workspace/.paperclip-runtime/paperclip-runner'
+DIST = '/tmp/nexus-acpx-native-fixture/distribution'
+RUNTIME = '/workspace/.nexus-runtime/nexus-runner'
 CANCELLED = False
 
 def check_cancelled():
     if CANCELLED: raise KeyboardInterrupt('calibration cancelled')
 
 
-NAMES = [fault.NODE, fault.ENTRY, fault.EXTENSION, 'pi-entry.cjs', 'node_modules/pi-acp/dist/index.js', 'node_modules/pi-acp/dist/paperclip-runtime.js']
+NAMES = [fault.NODE, fault.ENTRY, fault.EXTENSION, 'pi-entry.cjs', 'node_modules/pi-acp/dist/index.js', 'node_modules/pi-acp/dist/nexus-runtime.js']
 
 
 class ClosureMetadataTests(unittest.TestCase):
@@ -68,7 +68,7 @@ class ClosureMetadataTests(unittest.TestCase):
     def test_unsafe_duplicate_unsorted_and_invalid_metadata_fail_closed(self):
         mutations = [
             lambda m: m['entries'][0].update(path='../escape'),
-            lambda m: m['entries'][0].update(path='.paperclip-native-entry.cjs'),
+            lambda m: m['entries'][0].update(path='.nexus-native-entry.cjs'),
             lambda m: m['entries'].insert(1, m['entries'][0].copy()),
             lambda m: m['entries'].reverse(),
             lambda m: m['entries'][0].update(size=True),
@@ -88,14 +88,14 @@ class ClosureMetadataTests(unittest.TestCase):
 class IdentityTests(unittest.TestCase):
     def setUp(self):
         self.files = {DIST + '/' + n: (n.encode(), (1, 100 + i)) for i, n in enumerate(NAMES)}
-        self.files[RUNTIME + '/bin/paperclip-runnerd'] = (b'runner', (1, 90))
+        self.files[RUNTIME + '/bin/nexus-runnerd'] = (b'runner', (1, 90))
         entries = [{'path': n, 'sha256': fault.digest(n.encode()), 'size': len(n), 'executable': n == fault.NODE} for n in sorted(NAMES)]
         closure = json.dumps({'entries': entries}, indent=2).encode()
         self.files[fault.PACK + '/provider-assets/pi/linux-x64/native-closure.json'] = (closure, (1, 80))
         self.config = {'root': ROOT, 'binding': {'remoteCwd': '/workspace', 'runId': 'run'}, 'runtimeEnvironmentLeaseId': 'workspace-id',
                        'runnerdSha256': 'sha256:' + fault.digest(b'runner'), 'closureSha256': fault.digest(json.dumps(entries, separators=(',', ':'), ensure_ascii=False).encode())}
         self.table = {21: ROOT, 22: PARENT, 23: TARGET}
-        self.args = {21: [RUNTIME + '/bin/paperclip-runnerd', '--run-id', 'run', '--environment-lease-id', 'workspace-id', '--lifecycle-mode', 'per_turn', '--state-dir', RUNTIME + '/sessions/' + 'a' * 64 + '/runner'],
+        self.args = {21: [RUNTIME + '/bin/nexus-runnerd', '--run-id', 'run', '--environment-lease-id', 'workspace-id', '--lifecycle-mode', 'per_turn', '--state-dir', RUNTIME + '/sessions/' + 'a' * 64 + '/runner'],
                      22: [DIST + '/' + fault.NODE, '--require', DIST + '/' + fault.GUARD, DIST + '/pi-entry.cjs'], 23: ['pi']}
         self.patches = [patch.object(fault, 'proc', side_effect=lambda pid, boot: self.table[pid]), patch.object(fault, 'argv', side_effect=lambda pid: self.args[pid]),
                         patch.object(fault, 'checked_runner_executable', side_effect=lambda p: self.files[p]),
@@ -231,9 +231,9 @@ class PidfdTests(unittest.TestCase):
     def calibrate_real_child(self, descriptor=None, runner_link=False):
         node = shutil.which('node'); self.assertIsNotNone(node)
         base = Path(tempfile.mkdtemp(prefix='pi-fault-calibration-', dir='/tmp'))
-        snapshot = Path(tempfile.mkdtemp(prefix='paperclip-acpx-native-', dir='/tmp'))
+        snapshot = Path(tempfile.mkdtemp(prefix='nexus-acpx-native-', dir='/tmp'))
         distribution = snapshot / 'distribution'; workspace = base / 'workspace'; workspace.mkdir()
-        runtime = workspace / '.paperclip-runtime/paperclip-runner'; (runtime / 'bin').mkdir(parents=True)
+        runtime = workspace / '.nexus-runtime/nexus-runner'; (runtime / 'bin').mkdir(parents=True)
         pack = base / 'pack'; (pack / 'provider-assets/pi/linux-x64').mkdir(parents=True)
         root_child = None
         owned_fds = []
@@ -241,7 +241,7 @@ class PidfdTests(unittest.TestCase):
             for name in NAMES + [fault.GUARD]:
                 p = distribution / name; p.parent.mkdir(parents=True, exist_ok=True); p.write_text('// fixture\n')
             shutil.copyfile(node, distribution / fault.NODE); (distribution / fault.NODE).chmod(0o500)
-            runner = runtime / 'bin/paperclip-runnerd'
+            runner = runtime / 'bin/nexus-runnerd'
             if runner_link:
                 installed = base / 'preinstalled-runner'
                 shutil.copyfile(node, installed); installed.chmod(0o500)
@@ -270,7 +270,7 @@ class PidfdTests(unittest.TestCase):
                 release = 'require("node:fs").closeSync(fd);'
             script = base / 'root.cjs'; script.write_text(setup + 'const p=require("node:child_process").spawn(' + launch + ',["--require",' + json.dumps(str(distribution / fault.GUARD)) + ',' + json.dumps(str(distribution / 'pi-entry.cjs')) + '],{stdio:' + stdio + '});' + release + 'process.on("SIGTERM",()=>{if(p.exitCode!==null||p.signalCode!==null)process.exit(0);p.once("exit",()=>process.exit(0));p.kill("SIGTERM")});setInterval(()=>{},1000);')
             check_cancelled()
-            root_child = subprocess.Popen([str(runtime / 'bin/paperclip-runnerd'), str(script), '--run-id', 'fixture', '--environment-lease-id', 'workspace-id', '--lifecycle-mode', 'per_turn', '--state-dir', str(runtime / 'sessions' / ('a' * 64) / 'runner')], cwd=workspace, env={'PATH': '/usr/bin:/bin'}, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            root_child = subprocess.Popen([str(runtime / 'bin/nexus-runnerd'), str(script), '--run-id', 'fixture', '--environment-lease-id', 'workspace-id', '--lifecycle-mode', 'per_turn', '--state-dir', str(runtime / 'sessions' / ('a' * 64) / 'runner')], cwd=workspace, env={'PATH': '/usr/bin:/bin'}, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             try: owned_fds.append(os.pidfd_open(root_child.pid))
             except Exception:
                 # Direct Popen child has not been polled/reaped, so its numeric
@@ -284,7 +284,7 @@ class PidfdTests(unittest.TestCase):
             self.assertTrue(ready.exists()); target = json.loads(ready.read_text())['pid']
             self.assertEqual(fault.argv(target), ['pi'], 'real Node process.title must overwrite argv')
             boot = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
-            config = {'root': fault.proc(root_child.pid, boot), 'binding': {'remoteCwd': str(workspace), 'runId': 'fixture'}, 'runtimeEnvironmentLeaseId': 'workspace-id', 'runnerdSha256': 'sha256:' + fault.digest((runtime / 'bin/paperclip-runnerd').read_bytes()), 'closureSha256': fault.digest(json.dumps(entries, separators=(',', ':'), ensure_ascii=False).encode())}
+            config = {'root': fault.proc(root_child.pid, boot), 'binding': {'remoteCwd': str(workspace), 'runId': 'fixture'}, 'runtimeEnvironmentLeaseId': 'workspace-id', 'runnerdSha256': 'sha256:' + fault.digest((runtime / 'bin/nexus-runnerd').read_bytes()), 'closureSha256': fault.digest(json.dumps(entries, separators=(',', ':'), ensure_ascii=False).encode())}
             with patch.object(fault, 'PACK', str(pack)):
                 admitted = fault.inspect(config)
                 self.assertEqual(admitted['target']['pid'], target)

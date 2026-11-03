@@ -28,7 +28,7 @@ function completionScriptInput(source: unknown): unknown {
   if (binding.type !== "Identifier" || awaited.type !== "AwaitExpression" || call.type !== "CallExpression" ||
       callee.type !== "MemberExpression" || callee.computed || callee.optional || call.optional ||
       record(callee.object).type !== "Identifier" || record(callee.object).name !== "tools" ||
-      record(callee.property).name !== "paperclip_finish" || args?.length !== 1 ||
+      record(callee.property).name !== "nexus_finish" || args?.length !== 1 ||
       body[1]!.type !== "ExpressionStatement" || output.type !== "CallExpression" || output.optional ||
       record(output.callee).type !== "Identifier" || record(output.callee).name !== "text" ||
       outputArgs?.length !== 1 || record(outputArgs[0]).type !== "Identifier" || record(outputArgs[0]).name !== binding.name)
@@ -125,7 +125,7 @@ export function stoppedCodexTurnIsTextOnly(input: {
             if (payload.thread_id !== input.threadId || payload.turn_id !== input.turnId) return false;
             if (record(payload.item).type === "DynamicToolCall") {
               const item = record(payload.item);
-              if (item.tool !== "paperclip_finish" || item.status !== "completed" || item.success !== true ||
+              if (item.tool !== "nexus_finish" || item.status !== "completed" || item.success !== true ||
                   typeof item.id !== "string" || seenCalls.has(item.id) ||
                   !completedCalls.some(call => call.callId === item.id && canonicalNativeJson(call.input) === canonicalNativeJson(item.arguments))) return false;
               seenCalls.add(item.id);

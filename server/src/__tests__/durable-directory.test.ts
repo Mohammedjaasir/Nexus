@@ -14,7 +14,7 @@ afterEach(async () => {
 
 describe.skipIf(process.platform === "win32")("durable directory creation", () => {
   async function fixture() {
-    const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-durable-directory-")));
+    const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "nexus-durable-directory-")));
     roots.push(root);
     return { root, directory: path.join(root, "instance", "recovery", "company") };
   }

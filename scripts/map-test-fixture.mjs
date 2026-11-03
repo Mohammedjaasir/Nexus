@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export function mapFixture(t) {
-  const root = mkdtempSync(path.join(os.tmpdir(), "paperclip-map-test-"));
+  const root = mkdtempSync(path.join(os.tmpdir(), "nexus-map-test-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   function write(file, content) {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
@@ -25,7 +25,7 @@ export function mapFixture(t) {
   function story(name = "task", metadata = { capabilities: ["tasks/create"], implementation: "production", boundary: "fixtures" }, options = {}) {
     const { area = "tasks", title = `Work/Tasks/${name}`, id = `stable-${name}`, exports = "export const Empty = {};", parameters = "" } = options;
     const file = `ui/storybook/stories/${area}/${name}.stories.tsx`;
-    write(file, `import type { Meta } from '@storybook/react-vite';\nconst meta = { id: ${JSON.stringify(id)}, title: ${JSON.stringify(title)}, parameters: { ${parameters} paperclip: ${JSON.stringify(metadata)} } } satisfies Meta;\nexport default meta;\n${exports}\n`);
+    write(file, `import type { Meta } from '@storybook/react-vite';\nconst meta = { id: ${JSON.stringify(id)}, title: ${JSON.stringify(title)}, parameters: { ${parameters} nexus: ${JSON.stringify(metadata)} } } satisfies Meta;\nexport default meta;\n${exports}\n`);
     return file;
   }
   feature("tasks", "Tasks", ["create", "discussion"]);

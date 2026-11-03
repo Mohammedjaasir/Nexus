@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { assets, companies, documents, documentRevisions, heartbeatRuns, issueDocuments, issueAttachments, issues, issueWorkProducts, mcpAttachmentUploads, dotRunnerAssignments, type Db } from "@paperclipai/db";
-import type { PrpStructuredRunResult } from "../../vendor/paperclip-runner/index.js";
+import { assets, companies, documents, documentRevisions, heartbeatRuns, issueDocuments, issueAttachments, issues, issueWorkProducts, mcpAttachmentUploads, dotRunnerAssignments, type Db } from "@nexusai/db";
+import type { PrpStructuredRunResult } from "../../vendor/nexus-runner/index.js";
 
 function evidenceRefs(value: unknown): string[] {
   if (!Array.isArray(value)) return [];

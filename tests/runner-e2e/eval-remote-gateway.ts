@@ -87,7 +87,7 @@ export async function startEvalRemoteGateway(input: Parameters<typeof startEvalR
     if (errors.length) throw new AggregateError(errors, "Remote eval exposure cleanup failed");
   })();
   try {
-    tunnel = spawn(env.PAPERCLIP_EVAL_CLOUDFLARED?.trim() || "cloudflared",
+    tunnel = spawn(env.NEXUS_EVAL_CLOUDFLARED?.trim() || "cloudflared",
       ["tunnel", "--no-autoupdate", "--protocol", "http2", "--url", bridge.baseUrl],
       { stdio: ["ignore", "pipe", "pipe"], env: { PATH: env.PATH, HOME: home, TMPDIR: home } });
     deadlineTimer = setTimeout(() => { void close().catch(() => {}); }, input.deadlineAt - Date.now()); deadlineTimer.unref();

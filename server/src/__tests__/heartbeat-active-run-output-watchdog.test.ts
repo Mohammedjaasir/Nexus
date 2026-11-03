@@ -17,7 +17,7 @@ import {
   issueRelations,
   issues,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -40,7 +40,7 @@ vi.mock("../services/heartbeat-run-events.js", async (importOriginal) => {
 const mockedAppendHeartbeatRunEvent = vi.mocked(appendHeartbeatRunEvent);
 
 const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_OUTPUT_WATCHDOG_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_OUTPUT_WATCHDOG_TEST_DATABASE_URL");
 const describeEmbeddedPostgres = external || embeddedPostgresSupport.supported ? describe : describe.skip;
 
 if (!embeddedPostgresSupport.supported) {
@@ -54,7 +54,7 @@ describeEmbeddedPostgres("active-run output watchdog", () => {
   let db: ReturnType<typeof createDb>;
 
   beforeAll(async () => {
-    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-active-run-output-watchdog-");
+    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("nexus-active-run-output-watchdog-");
     db = createDb(external ?? tempDb!.connectionString);
     if (external) await db.execute(sql`truncate companies cascade`);
   }, 30_000);

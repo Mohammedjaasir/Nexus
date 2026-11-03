@@ -8,12 +8,12 @@ export const agentConfigurationDoc = `# openclaw_gateway agent configuration
 Adapter: openclaw_gateway
 
 Use when:
-- You want Paperclip to invoke OpenClaw over the Gateway WebSocket protocol.
+- You want Nexus to invoke OpenClaw over the Gateway WebSocket protocol.
 - You want native gateway auth/connect semantics instead of HTTP /v1/responses or /hooks/*.
 
 Don't use when:
 - You only expose OpenClaw HTTP endpoints.
-- Your deployment does not permit outbound WebSocket access from the Paperclip server.
+- Your deployment does not permit outbound WebSocket access from the Nexus server.
 
 Core fields:
 - url (string, required): OpenClaw gateway WebSocket URL (ws:// or wss://)
@@ -35,16 +35,16 @@ Request behavior fields:
 - timeoutSec (number, optional): adapter timeout in seconds (default 120)
 - waitTimeoutMs (number, optional): agent.wait timeout override (default timeoutSec * 1000)
 - autoPairOnFirstConnect (boolean, optional): on first "pairing required", attempt device.pair.list/device.pair.approve via shared auth, then retry once (default true)
-- paperclipApiUrl (string, optional): absolute Paperclip base URL advertised in wake text
-- claimedApiKeyPath (string, optional): path to the claimed API key JSON file read by the agent at wake time (default ~/.openclaw/workspace/paperclip-claimed-api-key.json)
+- nexusApiUrl (string, optional): absolute Nexus base URL advertised in wake text
+- claimedApiKeyPath (string, optional): path to the claimed API key JSON file read by the agent at wake time (default ~/.openclaw/workspace/nexus-claimed-api-key.json)
 
 Session routing fields:
 - sessionKeyStrategy (string, optional): issue (default), fixed, or run
-- sessionKey (string, optional): fixed session key when strategy=fixed (default paperclip)
+- sessionKey (string, optional): fixed session key when strategy=fixed (default nexus)
 
 Wake payload notes:
-- Paperclip wake context is embedded into the generated message text
-- No top-level paperclip field is sent; the gateway agent schema rejects unknown root params
+- Nexus wake context is embedded into the generated message text
+- No top-level nexus field is sent; the gateway agent schema rejects unknown root params
 
 Standard result metadata supported:
 - meta.runtimeServices (array, optional): normalized adapter-managed runtime service reports

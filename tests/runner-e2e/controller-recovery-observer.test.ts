@@ -7,7 +7,7 @@ const binding = { companyId: "10000000-0000-0000-0000-000000000001", issueId: "1
 const before: RecoverySnapshot = { runId: binding.runId, runnerInstanceId: "runner", nativeSessionId: "session",
   bootId: "old", generation: 1, attempt: 1, leaseExpiresAt: "2026-10-24T00:01:00.000Z", sourceSeq: 42, history: [],
   authenticatedConnectionCount: 1, checkpointSourceSeq: 42 };
-const fault: ControllerOutageReceipt = { schema: "paperclip.e2e.controller-outage/v1", requestId: "restart", previousPid: 1,
+const fault: ControllerOutageReceipt = { schema: "nexus.e2e.controller-outage/v1", requestId: "restart", previousPid: 1,
   replacementPid: 2, signal: "SIGKILL", holdMs: 1000, startedAt: "2026-10-24T00:00:00.000Z", stoppedAfterMs: 1,
   replacementStartedAfterMs: 1001, readyAfterMs: 2000, cacheDiscarded: true };
 const after = (): RecoverySnapshot => ({ ...before, bootId: "new", generation: 2, sourceSeq: 47, authenticatedConnectionCount: 2,

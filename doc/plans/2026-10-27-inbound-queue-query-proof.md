@@ -2,7 +2,7 @@
 
 ## Contract and cause
 
-Paperclip's inbound queue discovers its next deadline, selects each conversation
+Nexus's inbound queue discovers its next deadline, selects each conversation
 head, and selects ordinary ready deliveries. A retained processed delivery can
 still own the head while an issued or processing `inbound_wakeup` action remains.
 This work keeps that obligation, company and endpoint scope, lease expiry,
@@ -27,7 +27,7 @@ readiness and retry parsing boundary outside this optimization.
 Run from the source checkout with its dependencies built:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-inbound-queue-discovery.ts --baseline-ref=09ad9adce2cf4742944353a3707a2f908e9bb35e --require-work-budget
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-inbound-queue-discovery.ts --baseline-ref=09ad9adce2cf4742944353a3707a2f908e9bb35e --require-work-budget
 ```
 
 The harness starts disposable PostgreSQL through the repository test helper.

@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { createDb } from "@paperclipai/db";
+import { createDb } from "@nexusai/db";
 import { companySkillRoutes } from "../../routes/company-skills.js";
 import { errorHandler } from "../../middleware/error-handler.js";
 import { companySkillService } from "../../services/company-skills.js";

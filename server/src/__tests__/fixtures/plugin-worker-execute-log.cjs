@@ -49,7 +49,7 @@ rl.on("line", (line) => {
   }
 
   if (method === "environmentExecute") {
-    const invocationId = message.paperclipInvocation && message.paperclipInvocation.id;
+    const invocationId = message.nexusInvocation && message.nexusInvocation.id;
     const forgeableId = previousInvocationId;
     previousInvocationId = invocationId;
     const params = message.params ?? {};
@@ -58,7 +58,7 @@ rl.on("line", (line) => {
       send({
         jsonrpc: "2.0",
         method: "execute.log",
-        paperclipInvocationId: invocationId,
+        nexusInvocationId: invocationId,
         params: { stream: "stdout", chunk: "d".repeat(oversizedChars) },
       });
     }
@@ -71,11 +71,11 @@ rl.on("line", (line) => {
       };
       const tag = entry.tag ?? "echo";
       if (tag === "echo") {
-        note.paperclipInvocationId = invocationId;
+        note.nexusInvocationId = invocationId;
       } else if (tag === "unknown") {
-        note.paperclipInvocationId = "unknown-invocation";
+        note.nexusInvocationId = "unknown-invocation";
       } else if (tag === "forge-previous") {
-        note.paperclipInvocationId = forgeableId;
+        note.nexusInvocationId = forgeableId;
       }
       // tag === "none" → omit the invocation id entirely.
       send(note);

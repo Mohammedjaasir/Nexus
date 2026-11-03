@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import express from "express";
 import request from "supertest";
 import { eq } from "drizzle-orm";
-import { agents, companies, companyMemberships, principalPermissionGrants, environments, plugins, createDb, type Db } from "@paperclipai/db";
+import { agents, companies, companyMemberships, principalPermissionGrants, environments, plugins, createDb, type Db } from "@nexusai/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../../__tests__/helpers/embedded-postgres.js";
 import { createAgentLifecycle, configureAgentLifecycle, createAgentLifecycleEffects } from "../../../services/agent-lifecycle.js";
@@ -20,7 +20,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let db: Db;
   let companyId: string;
   const workers: ReturnType<typeof configureAgentLifecycle>[] = [];
-  beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("paperclip-agent-setup-"); db = createDb(database.connectionString); }, 90_000);
+  beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("nexus-agent-setup-"); db = createDb(database.connectionString); }, 90_000);
   afterAll(async () => { for (const work of workers) await work.stop(); await database?.cleanup(); });
   beforeEach(async () => {
     for (const work of workers) await work.stop();
@@ -71,7 +71,7 @@ const support = await getEmbeddedPostgresTestSupport();
     workers.push(work);
     const lifecycle = createAgentLifecycle(db);
     const id = randomUUID();
-    const input = { id, name: "Early computer", adapterType: "paperclip_runner", adapterConfig: { provider: "codex" }, defaultEnvironmentId: environmentId };
+    const input = { id, name: "Early computer", adapterType: "nexus_runner", adapterConfig: { provider: "codex" }, defaultEnvironmentId: environmentId };
     const draft = await lifecycle.requestHire(companyId, input, { setupOnly: true, runnerResolved: true });
     expect(draft).toMatchObject({ lifecycleState: "preparing", status: "paused", pauseReason: "setup" });
     await work.process(id);
@@ -121,7 +121,7 @@ const support = await getEmbeddedPostgresTestSupport();
     const runHost = vi.fn(async () => "complete" as const);
     const work = worker(runHost);
     const lifecycle = createAgentLifecycle(db);
-    const draft = await lifecycle.requestHire(companyId, { name: "Unapproved computer", adapterType: "paperclip_runner",
+    const draft = await lifecycle.requestHire(companyId, { name: "Unapproved computer", adapterType: "nexus_runner",
       adapterConfig: { provider: "codex" }, defaultEnvironmentId: environmentId }, { setupOnly: true, runnerResolved: true });
     await work.process(draft.id);
     await lifecycle.updateConfiguration(draft.id, { adapterConfig: { provider: "codex", model: "changed" } });

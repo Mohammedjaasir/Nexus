@@ -9,7 +9,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     docs: { description: { component: "The same assignee, model, and effort picker shown on desktop, in its responsive mobile dialog. Agent capsule avatars use the shared persona palettes." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "tasks/create",
         "runs-adapters/availability"

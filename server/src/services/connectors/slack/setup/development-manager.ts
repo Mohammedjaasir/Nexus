@@ -1,10 +1,10 @@
 import { readFileSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
-import { SLACK_MANAGER_SCOPES } from "@paperclipai/shared";
-import type { PaperclipCloudConnector, SealedConnectorCredentials } from "../../../paperclip-cloud-connector.js";
+import { SLACK_MANAGER_SCOPES } from "@nexusai/shared";
+import type { NexusCloudConnector, SealedConnectorCredentials } from "../../../nexus-cloud-connector.js";
 import { createSlackSetupClient, object, providerFailure } from "./provider-client.js";
 
-export type SlackManagerClient = Pick<PaperclipCloudConnector,
+export type SlackManagerClient = Pick<NexusCloudConnector,
   "getSlackManagerAppId" | "startAuthorization" | "claim" | "refresh" | "revoke"
 > & { authorizationMode?: "code" };
 
@@ -15,11 +15,11 @@ export function developmentSlackManager(
   env: NodeJS.ProcessEnv = process.env,
   fetchImpl: typeof fetch = fetch,
 ): SlackManagerClient | null {
-  if (env.NODE_ENV !== "development" || env.PAPERCLIP_SLACK_MANAGED_SETUP_ENABLED !== "true"
-    || !env.PAPERCLIP_SLACK_MANAGER_DEVELOPMENT_CONFIG) return null;
+  if (env.NODE_ENV !== "development" || env.NEXUS_SLACK_MANAGED_SETUP_ENABLED !== "true"
+    || !env.NEXUS_SLACK_MANAGER_DEVELOPMENT_CONFIG) return null;
   let config: Record<string, unknown>;
   try {
-    const path = env.PAPERCLIP_SLACK_MANAGER_DEVELOPMENT_CONFIG;
+    const path = env.NEXUS_SLACK_MANAGER_DEVELOPMENT_CONFIG;
     if (!isAbsolute(path)) throw new Error();
     const stat = statSync(path);
     if (!stat.isFile() || stat.size > 16_384 || (stat.mode & 0o077) !== 0) throw new Error();

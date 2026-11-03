@@ -1,14 +1,14 @@
 import { readTaskPanelActivations } from "../services/plugin-task-panels.js";
 import { enqueueNativeRuntimeResponse } from "../services/native-runtime/native-runtime-response-delivery.js";
-import { latestFailedRunsByAgent } from "@paperclipai/shared";
-import { agentConfigurationSpec } from "@paperclipai/shared";
+import { latestFailedRunsByAgent } from "@nexusai/shared";
+import { agentConfigurationSpec } from "@nexusai/shared";
 import { agentConfigurationRevision, restoreAgentConfigurationRedactions } from "../lib/agent-configuration-revision.js";
 import { prepareRuntimeSettingsPatch } from "../services/agent-runtime-settings.js";
 import { completeSetupTokenAiConnection } from "../services/setup-token-ai-connection.js";
 import { connectionManagementService, continuingConnectionManagement } from "../services/connection-management.js";
 import { connectionManagementGuard, connectionRequestContext, connectionRequestUserId, aiLoginUserAction } from "./connection-management-authz.js";
 import { cancellationRequestId } from "../services/native-runtime/native-cancellation-request.js";
-import { agentHarnessType, isEnvironmentDriverSupportedForAdapter, normalizeClaudeRunnerOptions, type AgentConfigurationWarning, type AgentRunnerChoice } from "@paperclipai/shared";
+import { agentHarnessType, isEnvironmentDriverSupportedForAdapter, normalizeClaudeRunnerOptions, type AgentConfigurationWarning, type AgentRunnerChoice } from "@nexusai/shared";
 import { resolveNewAgentRunnerForCompany } from "../services/agent-runner-selection.js";
 import { agentEnvironmentTestService } from "../services/agent-environment-test.js";
 import { qualifyAgentRunner } from "../services/agent-runner-qualification.js";
@@ -22,11 +22,11 @@ import { isCloudManagedInstance } from "../services/cloud-instance.js";
 import { dotRunnerBroker } from "../services/dot-runner-broker.js";
 import { publicMcpConfig } from "../services/public-mcp/oauth.js";
 import { connectionIntentDeliveryService } from "../services/connection-intent-delivery.js";
-import { completeConnectionIntentSchema } from "@paperclipai/shared";
-import { HEARTBEAT_RUN_LIST_DEFAULT_LIMIT, HEARTBEAT_RUN_LIST_MAX_LIMIT } from "@paperclipai/shared";
+import { completeConnectionIntentSchema } from "@nexusai/shared";
+import { HEARTBEAT_RUN_LIST_DEFAULT_LIMIT, HEARTBEAT_RUN_LIST_MAX_LIMIT } from "@nexusai/shared";
 import { agentFileStore, agentFileTokenFromHash } from "../services/agent-file-store.js";
 import { pipeline } from "node:stream/promises";
-import { resolveAgentAppearance, agentAvatarUrl } from "@paperclipai/shared";
+import { resolveAgentAppearance, agentAvatarUrl } from "@nexusai/shared";
 import { listOpenRouterModels } from "../services/openrouter-models.js";
 import { withManagedAiProbe, stripAiAuthBindings } from "../services/ai-connection-runtime.js";
 import {
@@ -37,20 +37,20 @@ import {
   aiRuntimeConnectionBindingSchema,
   type AiConnectionBinding,
   type AiRuntimeConnectionBinding,
-} from "@paperclipai/shared";
-import { toolConnections } from "@paperclipai/db";
+} from "@nexusai/shared";
+import { toolConnections } from "@nexusai/db";
 import { aiConnectionService } from "../services/ai-connections.js";
 import { probeCopilotConnection, probeCopilotExecutionTarget } from "../services/copilot-connection-probe.js";
 import { antigravityConnectionModels } from "../services/antigravity-connection-models.js";
 import { resolveAntigravityCandidateAdmission, resolveKimiCandidateAdmission } from "../services/native-runtime/acpx-qualification.js";
 import { defaultAiConnectionForHire } from "../services/agent-ai-connection-default.js";
 import { assertAiConnectionCreateAccess, canInstallSharedAiConnectionForNewAgent, responsibleUserForAiRequest } from "./ai-connections.js";
-import { isAiConnectionCompatible } from "@paperclipai/shared";
+import { isAiConnectionCompatible } from "@nexusai/shared";
 import { applyConnectorSkills, resolveConnectorAssignments, annotateConnectorSkills, isConnectorSkill } from "../services/connector-runtime.js";
 import { getExecutionBlocker } from "../services/execution-blocker.js";
 import { canRetryStoppedRun } from "../services/cancelled-native-startup.js";
 import { getNativeReviewAssignment, readNativeReviewAssignmentContext, type NativeReviewAssignmentContext } from "../services/native-runtime/native-review-participant.js";
-import { paperclipRunnerTransitionConfig, normalizeLegacyRunnerProvider, isPaperclipRunnerProvider, PAPERCLIP_RUNNER_ACPX_PROFILES } from "@paperclipai/adapter-utils";
+import { nexusRunnerTransitionConfig, normalizeLegacyRunnerProvider, isNexusRunnerProvider, NEXUS_RUNNER_ACPX_PROFILES } from "@nexusai/adapter-utils";
 import { applyMcpReasoningEffort } from "../services/public-mcp/agent-config.js";
 import { executionProjectionForRun, executionProjectionsForRuns } from "../services/execution-projection.js";
 import { selectDashboardRunIds } from "../services/dashboard-run-selection.js";
@@ -59,9 +59,9 @@ import { generateKeyPairSync, randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import type { ChatChannelService } from "../services/chat-channels.js";
-import { activityLog, agents as agentsTable, chatConversations, companies, heartbeatRuns, issues as issuesTable, projects as projectsTable } from "@paperclipai/db";
+import { activityLog, agents as agentsTable, chatConversations, companies, heartbeatRuns, issues as issuesTable, projects as projectsTable } from "@nexusai/db";
 import { and, desc, eq, inArray, not, sql } from "drizzle-orm";
 import { sha256Digest } from "../services/feedback-redaction.js";
 import {
@@ -97,17 +97,17 @@ import {
   submitBrowserCodeRequestSchema,
   toAccountHandle,
   type AgentAdapterType,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   isForbiddenConfigEnvKey,
-  normalizePaperclipRunnerAdapterConfig,
-  PAPERCLIP_OPERATIONAL_SKILL_KEY,
+  normalizeNexusRunnerAdapterConfig,
+  NEXUS_OPERATIONAL_SKILL_KEY,
   parseObject,
-  resolvePaperclipInstanceRootForAdapter,
-  readPaperclipSkillSyncPreference,
-  writePaperclipSkillSyncPreference,
-} from "@paperclipai/adapter-utils/server-utils";
-import { trackAgentCreated } from "@paperclipai/shared/telemetry";
+  resolveNexusInstanceRootForAdapter,
+  readNexusSkillSyncPreference,
+  writeNexusSkillSyncPreference,
+} from "@nexusai/adapter-utils/server-utils";
+import { trackAgentCreated } from "@nexusai/shared/telemetry";
 import { validate } from "../middleware/validate.js";
 import { registerAgentProjectAccessRoutes } from "./agent-project-access.js";
 import { inheritNativeRunnerAdapterConfig } from "../services/native-runtime/native-agent-runtime-inheritance.js";
@@ -134,7 +134,7 @@ import {
   workspaceOperationService,
 } from "../services/index.js";
 import { badRequest, conflict, forbidden, HttpError, notFound, unprocessable } from "../errors.js";
-import { ONBOARDING_FIRST_TASK_SKILL_KEY, PAPERCLIP_CORE_SKILL_KEYS } from "../services/company-skills.js";
+import { ONBOARDING_FIRST_TASK_SKILL_KEY, NEXUS_CORE_SKILL_KEYS } from "../services/company-skills.js";
 import { createRunSecretRedactionRegistry } from "../services/run-secret-redaction.js";
 import { assertAuthenticated, assertBoard, assertCompanyAccess, assertInstanceAdmin, buildActorSecretContext, getAccessibleResource, getActorInfo, hasCompanyAccess } from "./authz.js";
 import { runAdapterLoginStartSpine } from "./adapter-login-route-spine.js";
@@ -148,13 +148,13 @@ import { environmentService } from "../services/environments.js";
 
 import { environmentRuntimeService } from "../services/environment-runtime.js";
 import { resolvePluginSandboxProviderDriverByKey } from "../services/plugin-environment-driver.js";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
 import type {
   AdapterEnvironmentCheck,
   AdapterEnvironmentTestResult,
-} from "@paperclipai/adapter-utils";
-import { evaluateCodexCredentialReadiness } from "@paperclipai/adapter-codex-local/server";
-import type { AdapterAuthSignal, AdapterAuthSignalResponse, CodexAccountBindingClaim } from "@paperclipai/shared";
+} from "@nexusai/adapter-utils";
+import { evaluateCodexCredentialReadiness } from "@nexusai/adapter-codex-local/server";
+import type { AdapterAuthSignal, AdapterAuthSignalResponse, CodexAccountBindingClaim } from "@nexusai/shared";
 import { adapterSettingsService } from "../services/adapter-settings.js";
 import { skillVersionSelectionMap } from "../services/runtime-skill-selections.js";
 import { isFixedClaudeOAuthBinding, secretService } from "../services/secrets.js";
@@ -185,7 +185,7 @@ import {
   parseHarnessRuntimeRequestResolution,
   type HarnessRuntimeRequestKind,
   type HarnessRuntimeRequestResolution,
-} from "../vendor/paperclip-runner/index.js";
+} from "../vendor/nexus-runner/index.js";
 import {
   queueRunnerPrpRuntimeRequestResolution,
   RunnerPrpRuntimeRequestResolutionError,
@@ -206,7 +206,7 @@ import {
   isTruthyRuntimeEnvValue,
   resolveWorktreeRunExecutionActivationState,
 } from "../services/instance-settings.js";
-import { runClaudeLogin } from "@paperclipai/adapter-claude-local/server";
+import { runClaudeLogin } from "@nexusai/adapter-claude-local/server";
 import { createInviteRateLimiter } from "../services/invite-rate-limit.js";
 import {
   SetupTokenSessionService,
@@ -241,12 +241,12 @@ import type {
   ClaudeOAuthTokenStatusResponse,
   ClaudeSetupTokenOverwrite,
   SetupTokenTransportAdvisory,
-} from "@paperclipai/shared";
-import { SETUP_TOKEN_TRANSPORT_ADVISORY_CODE } from "@paperclipai/shared";
+} from "@nexusai/shared";
+import { SETUP_TOKEN_TRANSPORT_ADVISORY_CODE } from "@nexusai/shared";
 import {
   DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX,
   DEFAULT_CODEX_LOCAL_MODEL,
-} from "@paperclipai/adapter-codex-local";
+} from "@nexusai/adapter-codex-local";
 import {
   checkStagedCredentialReadiness,
   promoteDeviceLoginCredential,
@@ -254,11 +254,11 @@ import {
   resolveManagedCodexHomeDir,
   withAccountHomeSecretMutationLock,
   withCodexAccountHomePromotionLock,
-} from "@paperclipai/adapter-codex-local/server";
+} from "@nexusai/adapter-codex-local/server";
 import {
   checkStagedGrokCredentialReadiness,
   promoteGrokDeviceLoginCredential,
-} from "@paperclipai/adapter-grok-local/server";
+} from "@nexusai/adapter-grok-local/server";
 import {
   AdapterAuthSessionConflictError,
   createDeviceLoginService,
@@ -269,12 +269,12 @@ import {
   DEVICE_LOGIN_PROVIDER_UNSUPPORTED_CODE,
   type CredentialPromotion,
 } from "../services/device-login-service.js";
-import type { AdapterAuthSessionOwnerResponse } from "@paperclipai/shared";
-import { DEFAULT_CURSOR_LOCAL_MODEL } from "@paperclipai/adapter-cursor-local";
-import { DEFAULT_GEMINI_LOCAL_MODEL } from "@paperclipai/adapter-gemini-local";
-import { DEFAULT_KIMI_LOCAL_MODEL } from "@paperclipai/adapter-kimi-local";
-import { DEFAULT_OPENCODE_LOCAL_MODEL } from "@paperclipai/adapter-opencode-local";
-import { requireOpenCodeModelId } from "@paperclipai/adapter-opencode-local/server";
+import type { AdapterAuthSessionOwnerResponse } from "@nexusai/shared";
+import { DEFAULT_CURSOR_LOCAL_MODEL } from "@nexusai/adapter-cursor-local";
+import { DEFAULT_GEMINI_LOCAL_MODEL } from "@nexusai/adapter-gemini-local";
+import { DEFAULT_KIMI_LOCAL_MODEL } from "@nexusai/adapter-kimi-local";
+import { DEFAULT_OPENCODE_LOCAL_MODEL } from "@nexusai/adapter-opencode-local";
+import { requireOpenCodeModelId } from "@nexusai/adapter-opencode-local/server";
 import {
   loadDefaultAgentInstructionsBundle,
   resolveDefaultAgentInstructionsBundleRole,
@@ -301,10 +301,10 @@ import {
   redactHeartbeatRunListRow,
 } from "../services/heartbeat-run-privacy.js";
 import {
-  PaperclipRunnerProviderProfileError,
-  resolvePaperclipRunnerProviderProfile,
-  validatePaperclipRunnerDotConfig,
-  validatePaperclipRunnerGrokConfig,
+  NexusRunnerProviderProfileError,
+  resolveNexusRunnerProviderProfile,
+  validateNexusRunnerDotConfig,
+  validateNexusRunnerGrokConfig,
 } from "../services/native-runtime/provider-profile.js";
 import { managedAgentProfileService } from "../services/managed-agent-profiles.js";
 import { remoteAgentProfileService } from "../services/remote-agent-profiles.js";
@@ -363,8 +363,8 @@ function readLiveRunsQueryInt(value: unknown, max: number, fallback = 0) {
 function readRunIssueId(context: Record<string, unknown> | null) {
   const directIssueId = context?.issueId;
   if (typeof directIssueId === "string" && isUuidLike(directIssueId)) return directIssueId;
-  const paperclipIssue = readObject(context?.paperclipIssue);
-  const nestedIssueId = paperclipIssue?.id;
+  const nexusIssue = readObject(context?.nexusIssue);
+  const nestedIssueId = nexusIssue?.id;
   return typeof nestedIssueId === "string" && isUuidLike(nestedIssueId) ? nestedIssueId : null;
 }
 
@@ -486,7 +486,7 @@ async function anySecretNamesAccountHome(
 // Serializes hire requests that share a company and run, so a retried POST
 // cannot race its original past the idempotency lookup: the lookup, the create
 // and the activity record all happen inside the held section. In-process is
-// the right scope because a Paperclip instance serves its API from one
+// the right scope because a Nexus instance serves its API from one
 // process, and the lock is keyed narrowly enough that unrelated hires never
 // wait on each other.
 const hireRunLocks = new Map<string, Promise<void>>();
@@ -799,8 +799,8 @@ export function agentRoutes(
   const agentFiles = agentFileStore(db);
   const instructionRevisions = agentInstructionRevisionService(db);
   const instructionWorkingCopies = agentInstructionWorkingCopyService(db);
-  function instructionFileDetail(snapshot: import("@paperclipai/shared").AgentInstructionSnapshot,
-    receipt?: import("@paperclipai/shared").AgentInstructionCommitReceipt) {
+  function instructionFileDetail(snapshot: import("@nexusai/shared").AgentInstructionSnapshot,
+    receipt?: import("@nexusai/shared").AgentInstructionCommitReceipt) {
     const path = snapshot.revision.entryFile;
     return { path, content: snapshot.content, contentHash: snapshot.revision.contentHash, size: snapshot.revision.byteLength, revision: snapshot.revision, receipt,
       language: path.toLowerCase().endsWith(".md") ? "markdown" : "text", markdown: path.toLowerCase().endsWith(".md"),
@@ -809,7 +809,7 @@ export function agentRoutes(
   const companySkills = companySkillService(db);
   const workspaceOperations = workspaceOperationService(db);
   const instanceSettings = instanceSettingsService(db);
-  const strictSecretsMode = process.env.PAPERCLIP_SECRETS_STRICT_MODE === "true";
+  const strictSecretsMode = process.env.NEXUS_SECRETS_STRICT_MODE === "true";
 
   async function actorCanReadRun(req: Request, run: RunReadBinding) {
     return canActorReadHeartbeatRun(db, access, req.actor, run);
@@ -1866,36 +1866,36 @@ export function agentRoutes(
    */
   async function assertSelectableAdapterType(type: string | null | undefined, config?: unknown, companyId?: string): Promise<string> {
     const adapterType = assertKnownAdapterType(type);
-    if (adapterType === "paperclip_runner") {
+    if (adapterType === "nexus_runner") {
       const experimental = await instanceSettings.getExperimental();
       const selected = asRecord(config);
       let antigravityCandidate: ReturnType<typeof resolveAntigravityCandidateAdmission>;
       if (companyId && selected?.provider === "acpx" && selected.acpxAgent === "antigravity"
         && typeof selected.model === "string" && selected.model.trim()) {
         try { antigravityCandidate = resolveAntigravityCandidateAdmission({ companyId, model: selected.model }); }
-        catch { throw unprocessable("This Google Antigravity candidate requires the exact enabled model and a current operator authorization.", { code: "paperclip_runner_antigravity_candidate_invalid" }); }
+        catch { throw unprocessable("This Google Antigravity candidate requires the exact enabled model and a current operator authorization.", { code: "nexus_runner_antigravity_candidate_invalid" }); }
       }
       let kimiCandidate: ReturnType<typeof resolveKimiCandidateAdmission>;
       if (companyId && selected?.provider === "acpx" && selected.acpxAgent === "kimi" && typeof selected.model === "string") {
         try { kimiCandidate = resolveKimiCandidateAdmission({ companyId, model: selected.model }); }
-        catch { throw unprocessable("This Kimi candidate requires the exact enabled model and a current operator authorization.", { code: "paperclip_runner_kimi_candidate_invalid" }); }
+        catch { throw unprocessable("This Kimi candidate requires the exact enabled model and a current operator authorization.", { code: "nexus_runner_kimi_candidate_invalid" }); }
       }
       if (asRecord(config)?.provider === "openai_dot") {
         if (experimental.enableOpenAiDot !== true) throw unprocessable(
           "OpenAI Dot is experimental and disabled on this instance.",
-          { code: "paperclip_runner_dot_disabled" },
+          { code: "nexus_runner_dot_disabled" },
         );
       } else if (asRecord(config)?.provider === "muse") {
-        if (experimental.enableMuse !== true || experimental.enableNativeRunner !== true) throw unprocessable("Muse is experimental and disabled on this instance.", { code: "paperclip_runner_muse_disabled" });
+        if (experimental.enableMuse !== true || experimental.enableNativeRunner !== true) throw unprocessable("Muse is experimental and disabled on this instance.", { code: "nexus_runner_muse_disabled" });
       } else if (asRecord(config)?.provider === "grok_bot" && (experimental.enableGrokBot !== true || experimental.enablePublicMcp !== true || experimental.enableNativeRunner !== true)) {
-        throw unprocessable("Enable Grok Bot, Assistant connections (MCP), and Paperclip Runner before connecting this agent.", { code: "paperclip_runner_grok_disabled" });
+        throw unprocessable("Enable Grok Bot, Assistant connections (MCP), and Nexus Runner before connecting this agent.", { code: "nexus_runner_grok_disabled" });
       } else if (!([undefined, "codex", "opencode"].includes(asRecord(config)?.provider as string | undefined)) &&
         !(asRecord(config)?.provider === "acpx" && asRecord(config)?.acpxAgent === "copilot") &&
-        !["claude_local", "pi_local", "grok_local"].includes(agentHarnessType("paperclip_runner", asRecord(config) ?? {})) &&
+        !["claude_local", "pi_local", "grok_local"].includes(agentHarnessType("nexus_runner", asRecord(config) ?? {})) &&
         experimental.enableNativeRunner !== true && !antigravityCandidate && !kimiCandidate) {
         throw unprocessable(
-          "Paperclip Runner is experimental and disabled on this instance.",
-          { code: "paperclip_runner_rollout_disabled" },
+          "Nexus Runner is experimental and disabled on this instance.",
+          { code: "nexus_runner_rollout_disabled" },
         );
       }
     }
@@ -1911,25 +1911,25 @@ export function agentRoutes(
     );
   }
 
-  async function assertFreshPaperclipRunnerProvider(
+  async function assertFreshNexusRunnerProvider(
     companyId: string,
     adapterType: string,
     adapterConfig: Record<string, unknown>,
   ): Promise<void> {
-    if (adapterType !== "paperclip_runner") return;
+    if (adapterType !== "nexus_runner") return;
     let profile;
     try {
       if (adapterConfig.provider === "grok_bot") {
-        validatePaperclipRunnerGrokConfig(adapterConfig, false);
+        validateNexusRunnerGrokConfig(adapterConfig, false);
         return;
       }
       if (adapterConfig.provider === "openai_dot") {
-        validatePaperclipRunnerDotConfig(adapterConfig, false);
+        validateNexusRunnerDotConfig(adapterConfig, false);
         return;
       }
-      profile = resolvePaperclipRunnerProviderProfile(adapterConfig, { companyId });
+      profile = resolveNexusRunnerProviderProfile(adapterConfig, { companyId });
     } catch (error) {
-      if (error instanceof PaperclipRunnerProviderProfileError) {
+      if (error instanceof NexusRunnerProviderProfileError) {
         throw unprocessable(error.message, { code: error.code });
       }
       throw error;
@@ -1948,23 +1948,23 @@ export function agentRoutes(
     }
   }
 
-  function resolvePaperclipRunnerAdapterTransition(input: {
+  function resolveNexusRunnerAdapterTransition(input: {
     previousAdapterType: string;
     nextAdapterType: string;
     previousAdapterConfig: Record<string, unknown>;
     nextAdapterConfig: Record<string, unknown>;
   }): Record<string, unknown> {
     if (
-      input.nextAdapterType !== "paperclip_runner"
+      input.nextAdapterType !== "nexus_runner"
       || input.previousAdapterType === input.nextAdapterType
     ) {
       return input.nextAdapterConfig;
     }
     if (["openai_dot", "muse"].includes(String(input.nextAdapterConfig.provider))) return input.nextAdapterConfig;
-    const defaults = paperclipRunnerTransitionConfig(input.previousAdapterType, input.previousAdapterConfig.model, input.nextAdapterConfig.provider);
+    const defaults = nexusRunnerTransitionConfig(input.previousAdapterType, input.previousAdapterConfig.model, input.nextAdapterConfig.provider);
     if (!["claude_local", "codex_local", "opencode_local", "pi_local", "grok_local"].includes(input.previousAdapterType)
-      && !isPaperclipRunnerProvider(input.nextAdapterConfig.provider)) {
-      throw unprocessable("Select a Paperclip Runner provider before converting this agent.");
+      && !isNexusRunnerProvider(input.nextAdapterConfig.provider)) {
+      throw unprocessable("Select a Nexus Runner provider before converting this agent.");
     }
     const next = { ...defaults, ...input.nextAdapterConfig };
     if (next.provider === "acpx" && (next.acpxAgent === "pi" || next.acpxAgent === "kimi")) {
@@ -2182,7 +2182,7 @@ export function agentRoutes(
     // Copilot has no ambient-auth setup path. Omitting a binding still selects
     // the responsible user's saved account and must pass the same metadata
     // admission as an explicit connection before configuration is persisted.
-    if (!normalized.aiConnection && adapterType === "paperclip_runner"
+    if (!normalized.aiConnection && adapterType === "nexus_runner"
       && adapterConfig.provider === "acpx" && adapterConfig.acpxAgent === "copilot") {
       normalized.aiConnection = { provider: "github", method: "api_key", mode: "responsible_user" };
     }
@@ -2204,7 +2204,7 @@ export function agentRoutes(
         adapterType: input.adapterType ?? null,
       },
     );
-    const incompleteModelSetup = input.setupOnly && input.adapterType === "paperclip_runner"
+    const incompleteModelSetup = input.setupOnly && input.adapterType === "nexus_runner"
       && (normalizedAdapterConfig.provider === "opencode"
         || (normalizedAdapterConfig.provider === "acpx" && ["pi", "kimi"].includes(String(normalizedAdapterConfig.acpxAgent))))
       && (normalizedAdapterConfig.model === undefined || normalizedAdapterConfig.model === "");
@@ -2216,7 +2216,7 @@ export function agentRoutes(
         ? { ...input.constraintAdapterConfig, ...normalizedAdapterConfig }
         : normalizedAdapterConfig,
     );
-    return normalizePaperclipRunnerAdapterConfig(
+    return normalizeNexusRunnerAdapterConfig(
       input.adapterType ?? "",
       normalizedAdapterConfig,
     );
@@ -2239,9 +2239,9 @@ export function agentRoutes(
   }
 
   function codexLocalAgentHome(companyId: string, agentId: string): string {
-    const instanceRoot = resolvePaperclipInstanceRootForAdapter({
-      homeDir: asNonEmptyString(process.env.PAPERCLIP_HOME) ?? undefined,
-      instanceId: asNonEmptyString(process.env.PAPERCLIP_INSTANCE_ID) ?? undefined,
+    const instanceRoot = resolveNexusInstanceRootForAdapter({
+      homeDir: asNonEmptyString(process.env.NEXUS_HOME) ?? undefined,
+      instanceId: asNonEmptyString(process.env.NEXUS_INSTANCE_ID) ?? undefined,
       env: process.env,
     });
     return path.resolve(instanceRoot, "companies", companyId, "agents", agentId, "codex-home");
@@ -2360,8 +2360,8 @@ export function agentRoutes(
     adapterConfig: Record<string, unknown>,
   ): Record<string, unknown> {
     const next = { ...adapterConfig };
-    if (adapterType === "paperclip_runner") {
-      return normalizePaperclipRunnerAdapterConfig(adapterType, next);
+    if (adapterType === "nexus_runner") {
+      return normalizeNexusRunnerAdapterConfig(adapterType, next);
     }
     if (adapterType === "codex_local") {
       const hasBypassFlag =
@@ -2395,8 +2395,8 @@ export function agentRoutes(
     adapterType: string | null | undefined,
     adapterConfig: Record<string, unknown>,
   ) {
-    if (adapterType === "paperclip_runner") {
-      await assertFreshPaperclipRunnerProvider(companyId, adapterType, adapterConfig);
+    if (adapterType === "nexus_runner") {
+      await assertFreshNexusRunnerProvider(companyId, adapterType, adapterConfig);
       return;
     }
     if (adapterType !== "opencode_local") return;
@@ -2659,10 +2659,10 @@ export function agentRoutes(
     ...INHERITABLE_AGENT_CREDENTIAL_ENV_KEYS,
     gemini_local: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
     kimi_local: ["KIMI_MODEL_API_KEY"],
-    opencode_local: ["PAPERCLIP_OPENCODE_PROVIDERS", "OPENCODE_AUTH_JSON"],
+    opencode_local: ["NEXUS_OPENCODE_PROVIDERS", "OPENCODE_AUTH_JSON"],
   };
   const POOL_AUTH_OVERRIDE_ENV_KEYS = [
-    "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "PAPERCLIP_OPENCODE_PROVIDERS", "OPENCODE_AUTH_JSON",
+    "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "NEXUS_OPENCODE_PROVIDERS", "OPENCODE_AUTH_JSON",
   ] as const;
 
   async function callerUsesAiConnectionPool(req: Request, companyId: string): Promise<boolean> {
@@ -2693,7 +2693,7 @@ export function agentRoutes(
     allowPlainCredentials = false,
     harnessConfig = adapterConfig,
   ) {
-    if (req.actor.type !== "agent" || (!adapterType.endsWith("_local") && adapterType !== "paperclip_runner")) return;
+    if (req.actor.type !== "agent" || (!adapterType.endsWith("_local") && adapterType !== "nexus_runner")) return;
     const harness = agentHarnessType(adapterType, harnessConfig);
     const changedKeys = LOCAL_ADAPTER_HOST_COMMAND_KEYS.filter((key) =>
       adapterConfig[key] !== undefined &&
@@ -2739,7 +2739,7 @@ export function agentRoutes(
   }
 
   function withAssignedSkillVersions(snapshot: AgentSkillSnapshot, adapterConfig: Record<string, unknown>): AgentSkillSnapshot {
-    const assignments = new Map(readPaperclipSkillSyncPreference(adapterConfig).desiredSkillEntries
+    const assignments = new Map(readNexusSkillSyncPreference(adapterConfig).desiredSkillEntries
       .map(entry => [entry.key, entry.versionId]));
     return {
       ...snapshot,
@@ -2750,26 +2750,26 @@ export function agentRoutes(
   }
 
   // CEO and board-created onboarding chief-of-staff instructions assume the
-  // core paperclip skills (board coordination, planning, hiring, memory).
+  // core nexus skills (board coordination, planning, hiring, memory).
   // Union them into these skills-capable hires/creates so their desired skills
   // match their instructions. Optional role
   // skills remain removable afterwards. Legacy adapters separately guarantee
-  // the Paperclip operational skill as a runtime invariant.
+  // the Nexus operational skill as a runtime invariant.
   function defaultRoleSkillSelections(
     role: string | null | undefined,
     adapterType: string,
     boardOnboardingFirstAgent = false,
     adapterConfig?: Record<string, unknown>,
   ): AgentDesiredSkillEntry[] | undefined {
-    if (adapterType === "paperclip_runner" && ["openai_dot", "grok_bot"].includes(String(adapterConfig?.provider))) return undefined;
+    if (adapterType === "nexus_runner" && ["openai_dot", "grok_bot"].includes(String(adapterConfig?.provider))) return undefined;
     if (role !== "ceo" && !boardOnboardingFirstAgent) return undefined;
     const adapter = findActiveServerAdapter(adapterType);
     if (!adapter?.listSkills && !adapter?.syncSkills) return undefined;
     const keys = boardOnboardingFirstAgent
-      ? [...PAPERCLIP_CORE_SKILL_KEYS, ONBOARDING_FIRST_TASK_SKILL_KEY]
-      : PAPERCLIP_CORE_SKILL_KEYS;
+      ? [...NEXUS_CORE_SKILL_KEYS, ONBOARDING_FIRST_TASK_SKILL_KEY]
+      : NEXUS_CORE_SKILL_KEYS;
     return keys
-      .filter((key) => adapterType !== "paperclip_runner" || key !== PAPERCLIP_OPERATIONAL_SKILL_KEY)
+      .filter((key) => adapterType !== "nexus_runner" || key !== NEXUS_OPERATIONAL_SKILL_KEY)
       .map((key) => ({ key, versionId: null }));
   }
 
@@ -2828,7 +2828,7 @@ export function agentRoutes(
       materializeMissing?: boolean;
     } = {},
   ) {
-    const preference = readPaperclipSkillSyncPreference(config);
+    const preference = readNexusSkillSyncPreference(config);
     const betaSkillsEnabled = (await instanceSettings.getExperimental()).enableBetaSkills === true;
     const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(companyId, {
       materializeMissing: options.materializeMissing
@@ -2839,7 +2839,7 @@ export function agentRoutes(
     });
     return {
       ...config,
-      paperclipRuntimeSkills: runtimeSkillEntries,
+      nexusRuntimeSkills: runtimeSkillEntries,
     };
   }
 
@@ -2878,7 +2878,7 @@ export function agentRoutes(
       (entry, index, entries) => entries.findIndex((candidate) => candidate.key === entry.key) === index,
     );
 
-    const currentPreference = readPaperclipSkillSyncPreference(adapterConfig);
+    const currentPreference = readNexusSkillSyncPreference(adapterConfig);
     const { resolved: resolvedCurrentSkillEntries, unresolved: unresolvedCurrentSkillKeys } =
       currentPreference.desiredSkillEntries.length > 0
         ? await companySkills.resolveRequestedSkillEntries(
@@ -2899,8 +2899,8 @@ export function agentRoutes(
       requestedSkillEntries,
       mode,
     ).filter(
-      (entry) => !isConnectorSkill(entry.key) && (adapterType !== "paperclip_runner"
-        || entry.key.trim().toLowerCase() !== PAPERCLIP_OPERATIONAL_SKILL_KEY),
+      (entry) => !isConnectorSkill(entry.key) && (adapterType !== "nexus_runner"
+        || entry.key.trim().toLowerCase() !== NEXUS_OPERATIONAL_SKILL_KEY),
     );
     const desiredSkills = desiredSkillEntries.map((entry) => entry.key);
     const resolvedKeys = new Set([
@@ -2918,7 +2918,7 @@ export function agentRoutes(
     });
 
     return {
-      adapterConfig: writePaperclipSkillSyncPreference(adapterConfig, desiredSkillEntries),
+      adapterConfig: writeNexusSkillSyncPreference(adapterConfig, desiredSkillEntries),
       desiredSkills,
       desiredSkillEntries,
       runtimeSkillEntries,
@@ -3050,13 +3050,13 @@ export function agentRoutes(
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
     const type = assertKnownAdapterType(req.params.type as string);
-    const pendingAcpxProfile = type === "paperclip_runner" && req.query.provider === "acpx"
-      ? PAPERCLIP_RUNNER_ACPX_PROFILES.find(profile => profile.value === req.query.acpxAgent && !profile.qualified)
+    const pendingAcpxProfile = type === "nexus_runner" && req.query.provider === "acpx"
+      ? NEXUS_RUNNER_ACPX_PROFILES.find(profile => profile.value === req.query.acpxAgent && !profile.qualified)
       : undefined;
     // Antigravity's setup-only catalog cannot open a session or send a prompt.
     // Its execution/save/Test gates continue to require a qualified profile.
     if (pendingAcpxProfile && req.query.acpxAgent !== "antigravity") throw unprocessable(`${pendingAcpxProfile.label} is awaiting native Runner acceptance. Its profile is not enabled for production runs.`,
-      { code: "paperclip_runner_acpx_agent_unavailable" });
+      { code: "nexus_runner_acpx_agent_unavailable" });
     const poolId = asNonEmptyString(req.query.poolId);
     if (poolId) {
       const pool = (await aiConnectionRouterService(db).selectable(companyId, responsibleUserForAiRequest(req) ?? "")).find(pool => pool.id === poolId);
@@ -3082,12 +3082,12 @@ export function agentRoutes(
       return;
     }
     const provider = asNonEmptyString(req.query.provider);
-    if (type === "paperclip_runner" && provider === "acpx" && req.query.acpxAgent === "kimi") {
+    if (type === "nexus_runner" && provider === "acpx" && req.query.acpxAgent === "kimi") {
       res.json([]);
       return;
     }
-    if (type === "paperclip_runner" && provider === "acpx" && req.query.acpxAgent === "antigravity") {
-      if (environment && environment.driver !== "local") throw unprocessable("Google Antigravity account model discovery requires the Paperclip host.");
+    if (type === "nexus_runner" && provider === "acpx" && req.query.acpxAgent === "antigravity") {
+      if (environment && environment.driver !== "local") throw unprocessable("Google Antigravity account model discovery requires the Nexus host.");
       let binding: AiConnectionBinding = { provider: "google", method: "subscription", mode: "responsible_user" };
       if (typeof req.query.aiConnection === "string") {
         if (req.query.aiConnection.length > 4096) throw unprocessable("Invalid AI connection binding");
@@ -3102,7 +3102,7 @@ export function agentRoutes(
         await assertCanUpdateAgent(req, modelAgent);
         if (modelAgent.defaultEnvironmentId && !environmentId) {
           const target = await environmentsSvc.getById(modelAgent.defaultEnvironmentId);
-          if (!target || target.driver !== "local") throw unprocessable("Google Antigravity account model discovery requires the Paperclip host.");
+          if (!target || target.driver !== "local") throw unprocessable("Google Antigravity account model discovery requires the Nexus host.");
         }
       } else await assertCanCreateAgentsForCompany(req, companyId);
       const allowUninstalledShared = !modelAgentId && await canInstallSharedAiConnectionForNewAgent(db, req, companyId, binding);
@@ -3111,7 +3111,7 @@ export function agentRoutes(
         agentId: modelAgentId ?? undefined, binding, allowUninstalledShared }));
       return;
     }
-    if (type === "paperclip_runner" && provider === "acpx" && req.query.acpxAgent === "copilot") {
+    if (type === "nexus_runner" && provider === "acpx" && req.query.acpxAgent === "copilot") {
       const userId = responsibleUserForAiRequest(req);
       let binding: AiConnectionBinding = { provider: "github", method: "api_key", mode: "responsible_user" };
       if (typeof req.query.aiConnection === "string") {
@@ -3141,10 +3141,10 @@ export function agentRoutes(
       res.json(await listOpenRouterModels(refresh));
       return;
     }
-    if (type === "paperclip_runner" && provider && !isPaperclipRunnerProvider(provider)) {
-      throw unprocessable("Unknown Paperclip Runner provider");
+    if (type === "nexus_runner" && provider && !isNexusRunnerProvider(provider)) {
+      throw unprocessable("Unknown Nexus Runner provider");
     }
-    const modelAdapterType = type === "paperclip_runner"
+    const modelAdapterType = type === "nexus_runner"
       ? provider === "acpx" && req.query.acpxAgent === "grok" ? "grok_local"
         : provider === "acpx" || provider === "claude_managed" ? "claude_local"
         : provider === "opencode" ? "opencode_local"
@@ -3158,7 +3158,7 @@ export function agentRoutes(
       ? await refreshAdapterModels(modelAdapterType)
       : await listAdapterModels(modelAdapterType);
     // The Legacy default marker is not an explicit native ACP model ID.
-    res.json(type === "paperclip_runner" && modelAdapterType === "grok_local"
+    res.json(type === "nexus_runner" && modelAdapterType === "grok_local"
       ? models.filter(model => model.id !== "grok-build")
       : models);
   });
@@ -3233,7 +3233,7 @@ export function agentRoutes(
       try {
         if (!target.executionTarget && target.fallbackChecks.length > 0) throw unprocessable("The agent environment is not available for adoption");
         await withManagedAiProbe(db, { companyId, agentId, responsibleUserId: userId, adapterType, binding, config, allowUninstalledPersonal: newAgent, allowUninstalledShared, allowLegacyValidation: true }, async managed => {
-        const managedAiCredentialHome = adapterType === "paperclip_runner" && (asRecord(managed.config)?.provider === "codex"
+        const managedAiCredentialHome = adapterType === "nexus_runner" && (asRecord(managed.config)?.provider === "codex"
           || (asRecord(managed.config)?.provider === "acpx" && asRecord(managed.config)?.acpxAgent === "antigravity")) && managed.home
           ? path.join(managed.home, "provider") : undefined;
         const result = await testManagedEnvironment(adapterType, { companyId, adapterType, config: managed.config, managedAiCredentialHome, executionTarget: target.executionTarget, environmentName: target.environmentName }, binding, managed, agentId);
@@ -3287,7 +3287,7 @@ export function agentRoutes(
       // Fail closed on a foreign environment before any secret resolution, env
       // merge, target resolution, sandbox lease, or adapter test runs. The
       // driver check waits for runner selection: a Claude harness on a plugin
-      // environment is only allowed once it resolves to Paperclip Runner.
+      // environment is only allowed once it resolves to Nexus Runner.
       const requestedEnvironment = requestedEnvironmentId
         ? await assertAdapterTestEnvironmentBinding(companyId, requestedEnvironmentId)
         : null;
@@ -3334,7 +3334,7 @@ export function agentRoutes(
         res.json({ adapterType: type, status: "warn", testedAt: new Date().toISOString(), checks: [{ code: "ai_connection_pool_task_test_required", level: "warn", message: "Pool configuration is available. Run a task to verify the selected account and harness; this preview does not allocate a task or contact a provider." }] });
         return;
       }
-      if (type === "paperclip_runner" && inputAdapterConfig.provider === "openai_dot") {
+      if (type === "nexus_runner" && inputAdapterConfig.provider === "openai_dot") {
         const dotEnabled = await dotRunnerBroker(db).enabled();
         const binding = savedAgentId ? await dotRunnerBroker(db).bindingForAgent(companyId, savedAgentId) : null;
         let resource: ReturnType<typeof publicMcpConfig> = null;
@@ -3347,7 +3347,7 @@ export function agentRoutes(
         const controllerAvailable = !managedOnly || environment?.driver === "sandbox";
         const checks: AdapterEnvironmentCheck[] = [
           { code: "dot_enabled", level: dotEnabled ? "info" : "error", message: dotEnabled ? "Dot is enabled." : "Enable OpenAI Dot and Assistant connections (MCP) in experimental settings." },
-          { code: "dot_public_endpoint", level: resource?.origin.startsWith("https://") ? "info" : "error", message: resource?.origin.startsWith("https://") ? "Public HTTPS MCP origin is configured." : "Configure a stable public HTTPS PAPERCLIP_PUBLIC_URL." },
+          { code: "dot_public_endpoint", level: resource?.origin.startsWith("https://") ? "info" : "error", message: resource?.origin.startsWith("https://") ? "Public HTTPS MCP origin is configured." : "Configure a stable public HTTPS NEXUS_PUBLIC_URL." },
           { code: "dot_unmetered", level: inputAdapterConfig.allowUnmeteredProvider === true ? "info" : "error", message: "Dot usage and provider cost are unavailable. Explicit externally billed provider acknowledgement is required." },
           { code: "dot_binding", level: binding?.status === "ready" && binding.subscriptionVerified && binding.id === inputAdapterConfig.dotBindingId ? "info" : "warn", message: binding?.status === "ready" && binding.subscriptionVerified ? "Binding has a verified event subscription and completed readiness challenge." : "Save this agent, pair it, subscribe to mailbox events and complete the event test." },
           { code: "dot_controller", level: controllerAvailable ? "info" : "error", message: controllerAvailable
@@ -3481,7 +3481,7 @@ export function agentRoutes(
           }
         }
         const result = aiBinding ? await withManagedAiProbe(db, { companyId, agentId: req.body.agentId ?? "", responsibleUserId: responsibleUserForAiRequest(req), adapterType: type, binding: aiBinding, config: effectiveAdapterConfig, allowUninstalledPersonal: !savedAgentId || testingSetup, allowUninstalledShared: (!savedAgentId || testingSetup) && await canInstallSharedAiConnectionForNewAgent(db, req, companyId, aiBinding) }, async managed => {
-          const managedAiCredentialHome = type === "paperclip_runner" && (asRecord(managed.config)?.provider === "codex"
+          const managedAiCredentialHome = type === "nexus_runner" && (asRecord(managed.config)?.provider === "codex"
             || (asRecord(managed.config)?.provider === "acpx" && asRecord(managed.config)?.acpxAgent === "antigravity")) && managed.home
             ? path.join(managed.home, "provider") : undefined;
           const tested = await testManagedEnvironment(type, { companyId, adapterType: type, config: managed.config, managedAiCredentialHome, executionTarget, environmentName }, aiBinding, managed, savedAgentId ?? undefined);
@@ -3551,7 +3551,7 @@ export function agentRoutes(
 
   // The codex_local branch of the auth-signal read. The host filesystem check
   // (`evaluateCodexCredentialReadiness` against `process.env`) describes only
-  // the Paperclip host, so it is authoritative for the null-environment and
+  // the Nexus host, so it is authoritative for the null-environment and
   // "local" driver cases, where the host is the execution target. For a
   // non-local environment (a sandbox), the host's own credential state says
   // nothing about that sandbox, so the route checks the environment's own
@@ -3803,7 +3803,7 @@ export function agentRoutes(
 
     const adapter = findActiveServerAdapter(agent.adapterType);
     if (!adapter?.listSkills) {
-      const preference = readPaperclipSkillSyncPreference(
+      const preference = readNexusSkillSyncPreference(
         agent.adapterConfig as Record<string, unknown>,
       );
       const desiredSkillEntries = preference.desiredSkillEntries.filter(
@@ -3826,7 +3826,7 @@ export function agentRoutes(
       { materializeMissing: false },
     );
     const connectorAssignments = await resolveConnectorAssignments(db, { companyId: agent.companyId, agentId: agent.id });
-    const connectorConfig = await applyConnectorSkills(runtimeSkillConfig, runtimeSkillConfig.paperclipRuntimeSkills, connectorAssignments);
+    const connectorConfig = await applyConnectorSkills(runtimeSkillConfig, runtimeSkillConfig.nexusRuntimeSkills, connectorAssignments);
     const snapshot = await adapter.listSkills({
       agentId: agent.id,
       companyId: agent.companyId,
@@ -3897,7 +3897,7 @@ export function agentRoutes(
             companyId: updated.companyId,
             adapterType: updated.adapterType,
             config: manualSkillConfig,
-          }, readPaperclipSkillSyncPreference(manualSkillConfig).desiredSkills)
+          }, readNexusSkillSyncPreference(manualSkillConfig).desiredSkills)
         : adapter?.listSkills
           ? await adapter.listSkills({
               agentId: updated.id,
@@ -4113,7 +4113,7 @@ export function agentRoutes(
     const worktreeActivation = await resolveWorktreeRunExecutionActivationState({
       getExperimental: () => instanceSettingsService(db).getExperimental(),
     });
-    const isWorktreeRuntime = isTruthyRuntimeEnvValue(process.env.PAPERCLIP_IN_WORKTREE);
+    const isWorktreeRuntime = isTruthyRuntimeEnvValue(process.env.NEXUS_IN_WORKTREE);
     const eligibleRows = !isWorktreeRuntime
       ? rows
       : worktreeActivation.armed
@@ -4264,7 +4264,7 @@ export function agentRoutes(
     );
     const rollbackAdapterConfig = asRecord(rollbackConfig.adapterConfig) ?? {};
     const existingRollbackProvider = asRecord(existing.adapterConfig)?.provider;
-    if (rollbackAdapterType !== existing.adapterType || (rollbackAdapterType === "paperclip_runner"
+    if (rollbackAdapterType !== existing.adapterType || (rollbackAdapterType === "nexus_runner"
       && rollbackAdapterConfig.provider !== existingRollbackProvider
       && (["openai_dot", "muse"].includes(String(rollbackAdapterConfig.provider)) || ["openai_dot", "muse"].includes(String(existingRollbackProvider))))) {
       await assertSelectableAdapterType(rollbackAdapterType, rollbackAdapterConfig, existing.companyId);
@@ -4285,9 +4285,9 @@ export function agentRoutes(
     });
     if (
       rollbackAdapterType !== existing.adapterType ||
-      rollbackAdapterType === "paperclip_runner"
+      rollbackAdapterType === "nexus_runner"
     ) {
-      await assertFreshPaperclipRunnerProvider(
+      await assertFreshNexusRunnerProvider(
         existing.companyId,
         rollbackAdapterType,
         rollbackAdapterConfig,
@@ -4423,7 +4423,7 @@ export function agentRoutes(
         if (!approval && setupAgent.status === "pending_approval") {
           const adapterConfig = redactEventPayload(setupAgent.adapterConfig) ?? {};
           const runtimeConfig = redactEventPayload(setupAgent.runtimeConfig) ?? {};
-          const desiredSkills = readPaperclipSkillSyncPreference(setupAgent.adapterConfig).desiredSkills;
+          const desiredSkills = readNexusSkillSyncPreference(setupAgent.adapterConfig).desiredSkills;
           approval = await approvalsSvc.create(companyId, {
             type: "hire_agent", requestedByAgentId: null, requestedByUserId: req.actor.userId ?? null,
             status: "pending", payload: {
@@ -4456,8 +4456,8 @@ export function agentRoutes(
       if (req.actor.type !== "agent" || !req.actor.agentId) {
         throw forbidden("Only an agent can inherit native runtime settings from the caller");
       }
-      if (hireInput.adapterType !== "paperclip_runner") {
-        throw unprocessable("inheritRuntimeFrom=caller requires adapterType=paperclip_runner");
+      if (hireInput.adapterType !== "nexus_runner") {
+        throw unprocessable("inheritRuntimeFrom=caller requires adapterType=nexus_runner");
       }
       const requestedConfig = (hireInput.adapterConfig ?? {}) as Record<string, unknown>;
       const requestedRuntime = (hireInput.runtimeConfig ?? {}) as Record<string, unknown>;
@@ -4468,8 +4468,8 @@ export function agentRoutes(
       if (!caller || caller.companyId !== companyId) {
         throw forbidden("The caller agent is not in this company");
       }
-      if (caller.adapterType !== "paperclip_runner") {
-        throw unprocessable("The caller must use the paperclip_runner adapter");
+      if (caller.adapterType !== "nexus_runner") {
+        throw unprocessable("The caller must use the nexus_runner adapter");
       }
       hireInput.adapterConfig = inheritNativeRunnerAdapterConfig(caller.adapterConfig);
       hireInput.defaultEnvironmentId = caller.defaultEnvironmentId ?? null;
@@ -4481,7 +4481,7 @@ export function agentRoutes(
     hireInput.adapterType = await assertSelectableAdapterType(hireInput.adapterType, hireInput.adapterConfig, companyId);
     const rawHireAdapterConfig = (hireInput.adapterConfig ?? {}) as Record<string, unknown>;
     assertProviderTraceSettingTransition(req, hireInput.runtimeConfig);
-    await assertFreshPaperclipRunnerProvider(
+    await assertFreshNexusRunnerProvider(
       companyId,
       hireInput.adapterType,
       rawHireAdapterConfig,
@@ -4818,7 +4818,7 @@ export function agentRoutes(
     createInput.adapterType = await assertSelectableAdapterType(createInput.adapterType, createInput.adapterConfig, companyId);
     const rawCreateAdapterConfig = (createInput.adapterConfig ?? {}) as Record<string, unknown>;
     assertProviderTraceSettingTransition(req, createInput.runtimeConfig);
-    if (!setupId) await assertFreshPaperclipRunnerProvider(
+    if (!setupId) await assertFreshNexusRunnerProvider(
       companyId,
       createInput.adapterType,
       rawCreateAdapterConfig,
@@ -5218,7 +5218,7 @@ export function agentRoutes(
 
   router.put("/agents/:id/instructions-bundle/file", validate(upsertAgentInstructionsFileSchema), async (req, res) => {
     if (req.actor.source === "mcp_oauth" && req.body.path === "promptTemplate.legacy.md") {
-      throw unprocessable("Migrate legacy prompt instructions to a managed instruction file in Paperclip before editing through an assistant", { code: "MCP_LEGACY_INSTRUCTIONS_UNVERSIONED" });
+      throw unprocessable("Migrate legacy prompt instructions to a managed instruction file in Nexus before editing through an assistant", { code: "MCP_LEGACY_INSTRUCTIONS_UNVERSIONED" });
     }
     const id = req.params.id as string;
     const existing = await getAccessibleResource(req, res, svc.getById(id), "Agent not found");
@@ -5493,10 +5493,10 @@ export function agentRoutes(
     // existing agent uneditable.
     let configurationWarnings: AgentConfigurationWarning[] = [];
     const requestedRunnerConfig = asRecord(patchData.adapterConfig) ?? {};
-    const convertingPi = existing.adapterType === "pi_local" && patchData.adapterType === "paperclip_runner"
+    const convertingPi = existing.adapterType === "pi_local" && patchData.adapterType === "nexus_runner"
       && (requestedRunnerConfig.provider === undefined
         || (requestedRunnerConfig.provider === "acpx" && [undefined, "pi"].includes(requestedRunnerConfig.acpxAgent as string | undefined)));
-    const convertingGrok = existing.adapterType === "grok_local" && patchData.adapterType === "paperclip_runner"
+    const convertingGrok = existing.adapterType === "grok_local" && patchData.adapterType === "nexus_runner"
       && [undefined, "acpx"].includes(requestedRunnerConfig.provider as string | undefined)
       && [undefined, "grok"].includes(requestedRunnerConfig.acpxAgent as string | undefined);
     if (runner !== undefined || convertingPi || convertingGrok) {
@@ -5504,7 +5504,7 @@ export function agentRoutes(
       const config = hasOwn(patchData, "adapterConfig") ? { ...(replaceAdapterConfig ? {} : existing.adapterConfig), ...asRecord(patchData.adapterConfig) } : existing.adapterConfig;
       Object.assign(patchData, await resolveNewAgentRunnerForCompany(db, existing.companyId, {
         adapterType: convertingPi || convertingGrok ? existing.adapterType : typeof patchData.adapterType === "string" ? patchData.adapterType : existing.adapterType,
-        adapterConfig: config, runner: runner ?? "paperclip", setupOnly: existing.lifecycleHolds?.includes("setup"),
+        adapterConfig: config, runner: runner ?? "nexus", setupOnly: existing.lifecycleHolds?.includes("setup"),
         onConfigurationWarnings: warnings => { configurationWarnings = warnings; },
         defaultEnvironmentId: hasOwn(patchData, "defaultEnvironmentId") ? patchData.defaultEnvironmentId as string | null : existing.defaultEnvironmentId,
       }));
@@ -5573,15 +5573,15 @@ export function agentRoutes(
           existingAdapterConfig,
           rawEffectiveAdapterConfig,
         );
-        rawEffectiveAdapterConfig = resolvePaperclipRunnerAdapterTransition({
+        rawEffectiveAdapterConfig = resolveNexusRunnerAdapterTransition({
           previousAdapterType: existing.adapterType,
           nextAdapterType: requestedAdapterType,
           previousAdapterConfig: existingAdapterConfig,
           nextAdapterConfig: rawEffectiveAdapterConfig,
         });
       }
-      if (requestedAdapterType === "paperclip_runner") {
-        rawEffectiveAdapterConfig = normalizePaperclipRunnerAdapterConfig(requestedAdapterType, rawEffectiveAdapterConfig);
+      if (requestedAdapterType === "nexus_runner") {
+        rawEffectiveAdapterConfig = normalizeNexusRunnerAdapterConfig(requestedAdapterType, rawEffectiveAdapterConfig);
         if (agentHarnessType(requestedAdapterType, rawEffectiveAdapterConfig) === "claude_local") {
           const normalized = normalizeClaudeRunnerOptions(rawEffectiveAdapterConfig);
           configurationWarnings.push(...normalized.warnings.filter(warning => !configurationWarnings.some(existing => existing.field === warning.field)));
@@ -5600,23 +5600,23 @@ export function agentRoutes(
         );
       }
       const existingRunnerProvider =
-        existing.adapterType === "paperclip_runner"
+        existing.adapterType === "nexus_runner"
           ? existingAdapterConfig.provider
           : undefined;
       // Moving between the standalone Dot choice and general Runner is a new
       // selection. Preserve historical edits within the general Runner rollout.
-      if (!changingAdapterType && requestedAdapterType === "paperclip_runner"
+      if (!changingAdapterType && requestedAdapterType === "nexus_runner"
         && rawEffectiveAdapterConfig.provider !== existingRunnerProvider
         && (["openai_dot", "muse"].includes(String(rawEffectiveAdapterConfig.provider)) || ["openai_dot", "muse"].includes(String(existingRunnerProvider)))) {
         await assertSelectableAdapterType(requestedAdapterType, rawEffectiveAdapterConfig, existing.companyId);
       }
       if (!isAgentSetupDraft(existing) && (
         changingAdapterType ||
-        (requestedAdapterType === "paperclip_runner" &&
+        (requestedAdapterType === "nexus_runner" &&
           (requestedAdapterConfig !== null ||
             rawEffectiveAdapterConfig.provider !== existingRunnerProvider))
       )) {
-        await assertFreshPaperclipRunnerProvider(
+        await assertFreshNexusRunnerProvider(
           existing.companyId,
           requestedAdapterType,
           rawEffectiveAdapterConfig,
@@ -5655,7 +5655,7 @@ export function agentRoutes(
     }
     if (!requestedRuntimeConfig?.aiConnection && !existing.runtimeConfig.aiConnection
       && !isAgentSetupDraft(existing)
-      && requestedAdapterType === "paperclip_runner" && nextAiConfig.provider === "acpx"
+      && requestedAdapterType === "nexus_runner" && nextAiConfig.provider === "acpx"
       && nextAiConfig.acpxAgent === "copilot"
       && (touchesAdapterConfiguration || Object.prototype.hasOwnProperty.call(patchData, "defaultEnvironmentId"))) {
       requestedRuntimeConfig = { ...(requestedRuntimeConfig ?? existing.runtimeConfig),
@@ -5681,7 +5681,7 @@ export function agentRoutes(
           key => aiConfig[key] !== existing.adapterConfig[key],
         ));
       if (nextAiBinding.mode !== "router" && !isAiConnectionCompatible(nextAiBinding, requestedAdapterType, aiConfig.model, aiConfig.provider, aiConfig.acpxAgent)) throw unprocessable("Select an AI connection compatible with the new harness and model");
-      const copilotConfigurationChanged = requestedAdapterType === "paperclip_runner" && aiConfig.provider === "acpx" && aiConfig.acpxAgent === "copilot"
+      const copilotConfigurationChanged = requestedAdapterType === "nexus_runner" && aiConfig.provider === "acpx" && aiConfig.acpxAgent === "copilot"
         && (touchesAdapterConfiguration || Object.prototype.hasOwnProperty.call(patchData, "defaultEnvironmentId"));
       if (runtimeSettings || changed || runtimeSelectionChanged || copilotConfigurationChanged) {
         const configuringSetup = isAgentSetupDraft(existing);
@@ -6565,7 +6565,7 @@ export function agentRoutes(
   /**
    * Assesses the setup-token confidential transport. The product
    * owner set a non-negotiable requirement: do not force TLS. Many users run
-   * Paperclip over plain HTTP on a home server or a Tailscale tailnet. So the
+   * Nexus over plain HTTP on a home server or a Tailscale tailnet. So the
    * route does not block a non-confidential transport. It returns a non-blocking
    * advisory instead, and the route attaches it to the confidential response.
    * The client shows a visible disclaimer and lets the login proceed. The
@@ -7275,7 +7275,7 @@ export function agentRoutes(
             resolution = { action };
           } else if (
             action === "submit" &&
-            candidate?.response?.schema === "paperclip.question_response.v1" &&
+            candidate?.response?.schema === "nexus.question_response.v1" &&
             candidate.response.answers &&
             typeof candidate.response.answers === "object" &&
             !Array.isArray(candidate.response.answers)
@@ -7320,7 +7320,7 @@ export function agentRoutes(
           throw conflict("This runtime request is stale or is no longer pending.");
         }
         let queued: { commandId: string };
-        if (process.env.PAPERCLIP_EPHEMERAL_SERVER === "true") {
+        if (process.env.NEXUS_EPHEMERAL_SERVER === "true") {
           queued = await enqueueNativeRuntimeResponse(db, { request: currentPendingRequest,
             actor: resolutionActor, localImplicit: req.actor.source === "local_implicit", resolution });
         } else try {

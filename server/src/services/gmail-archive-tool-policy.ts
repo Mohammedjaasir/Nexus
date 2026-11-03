@@ -35,7 +35,7 @@ function isArchiveConnection(connection: Connection): boolean {
   const config = connection.config;
   return record(config.oauth).connectorProfile === "gmail.archive"
     || (config.sourceTemplateKey === "gmail"
-      && (config.connectionMethodKey === "paperclip-archive"
+      && (config.connectionMethodKey === "nexus-archive"
         || config.connectionMethodKey === "customer-archive-oauth"));
 }
 

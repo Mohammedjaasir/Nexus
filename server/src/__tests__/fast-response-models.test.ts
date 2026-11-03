@@ -5,7 +5,7 @@ afterEach(() => vi.unstubAllEnvs());
 
 it("keeps direct Anthropic models independent of host Bedrock and adapter overrides", () => {
   vi.stubEnv("CLAUDE_CODE_USE_BEDROCK", "1");
-  vi.stubEnv("PAPERCLIP_ADAPTER_MODELS", JSON.stringify({ claude_local: [{ id: "host-private-model" }] }));
+  vi.stubEnv("NEXUS_ADAPTER_MODELS", JSON.stringify({ claude_local: [{ id: "host-private-model" }] }));
   const models = fastResponseCatalogModels({ provider: "anthropic" });
   expect(models.length).toBeGreaterThan(0);
   expect(models.every(model => model.id.startsWith("claude-"))).toBe(true);

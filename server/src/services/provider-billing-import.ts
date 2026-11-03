@@ -4,14 +4,14 @@ import {
   companySecrets,
   providerBillingSnapshots,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   centsToUnits,
   usdToUnits,
   unitsToCents,
   importProviderCostsSchema,
   type ImportProviderCosts,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { secretService } from "./secrets.js";
 import { withAccountingTransaction } from "./accounting-transaction.js";
 import { createFinanceEventInTransaction } from "./finance.js";
@@ -115,7 +115,7 @@ export async function fetchProviderDailyCosts(
           "OpenAI-Organization": parsed.accountId,
         }
       : { "x-api-key": credential, "anthropic-version": "2023-06-01" };
-  headers["User-Agent"] = "Paperclip/1.0 (https://paperclip.ing)";
+  headers["User-Agent"] = "Nexus/1.0 (https://paperclip.ing)";
   const totals = new Map<string, bigint>();
   const seen = new Set<string>();
   const days = new Set<number>();

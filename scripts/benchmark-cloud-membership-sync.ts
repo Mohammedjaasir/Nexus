@@ -24,24 +24,24 @@ const clients = new Set<Db>();
 
 async function startDatabase() {
   if (!dockerPostgres) return startEmbeddedPostgresTestDatabase("cloud-membership-benchmark-");
-  const container = `paperclip-cloud-membership-${randomUUID()}`;
+  const container = `nexus-cloud-membership-${randomUUID()}`;
   const docker = (...args: string[]) => execFileSync("docker", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-  docker("run", "--detach", "--rm", "--name", container, "--label", "paperclip.benchmark=cloud-membership",
-    "--publish", "127.0.0.1::5432", "--env", "POSTGRES_USER=paperclip", "--env", "POSTGRES_PASSWORD=paperclip",
-    "--env", "POSTGRES_DB=paperclip", "postgres:17");
+  docker("run", "--detach", "--rm", "--name", container, "--label", "nexus.benchmark=cloud-membership",
+    "--publish", "127.0.0.1::5432", "--env", "POSTGRES_USER=nexus", "--env", "POSTGRES_PASSWORD=nexus",
+    "--env", "POSTGRES_DB=nexus", "postgres:17");
   const cleanup = async () => { docker("rm", "--force", container); };
   try {
     let ready = false;
     for (let attempt = 0; attempt < 100; attempt++) {
       try {
-        docker("exec", container, "pg_isready", "-h", "127.0.0.1", "-U", "paperclip");
+        docker("exec", container, "pg_isready", "-h", "127.0.0.1", "-U", "nexus");
         ready = true;
         break;
       } catch { await new Promise(resolve => setTimeout(resolve, 100)); }
     }
     assert.ok(ready, "Disposable PostgreSQL did not become ready");
     const port = docker("port", container, "5432/tcp").split(":").at(-1);
-    const connectionString = `postgres://paperclip:paperclip@127.0.0.1:${port}/paperclip`;
+    const connectionString = `postgres://nexus:nexus@127.0.0.1:${port}/nexus`;
     await applyPendingMigrations(connectionString);
     return { connectionString, cleanup };
   } catch (error) { await cleanup(); throw error; }
@@ -64,15 +64,15 @@ try {
   await fs.writeFile(baselineFile, rewritten);
   const baseline = (await import(pathToFileURL(baselineFile).href)).resolveCloudTenantActor as typeof resolveCloudTenantActor;
 
-  process.env.PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN = "synthetic-membership-benchmark";
-  process.env.PAPERCLIP_MANAGED_CONFIG = JSON.stringify({ v: 1, mode: "cloud", catalogVersion: "synthetic", features: { enableOwnerInstanceAdmin: false }, plugins: { autoInstall: [] } });
+  process.env.NEXUS_CLOUD_TENANT_SERVER_TOKEN = "synthetic-membership-benchmark";
+  process.env.NEXUS_MANAGED_CONFIG = JSON.stringify({ v: 1, mode: "cloud", catalogVersion: "synthetic", features: { enableOwnerInstanceAdmin: false }, plugins: { autoInstall: [] } });
   const userId = randomUUID();
   const headers = cloudActorHeaderSourceFromHeaders({
-    "x-paperclip-cloud-tenant-token": "synthetic-membership-benchmark",
-    "x-paperclip-cloud-user-id": userId,
-    "x-paperclip-cloud-user-email": `${userId}@example.test`,
-    "x-paperclip-cloud-stack-id": `stack-${randomUUID()}`,
-    "x-paperclip-cloud-stack-role": "owner",
+    "x-nexus-cloud-tenant-token": "synthetic-membership-benchmark",
+    "x-nexus-cloud-user-id": userId,
+    "x-nexus-cloud-user-email": `${userId}@example.test`,
+    "x-nexus-cloud-stack-id": `stack-${randomUUID()}`,
+    "x-nexus-cloud-stack-role": "owner",
   });
   const seeded = await baseline(db, headers);
   const companyId = seeded!.companyIds![0]!;

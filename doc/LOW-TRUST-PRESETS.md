@@ -1,6 +1,6 @@
 # Low-Trust Presets
 
-Paperclip ships core trust preset names so containment decisions are enforced in
+Nexus ships core trust preset names so containment decisions are enforced in
 Community Edition even when EE policy editing is unavailable.
 
 ## Presets
@@ -24,7 +24,7 @@ Community Edition even when EE policy editing is unavailable.
 The resolver intersects those sources. Narrower wins. A low-trust preset must
 resolve to a concrete company-local project, root issue, or issue-id scope. If a
 policy source names another company, uses an unsupported preset, or lacks that
-scope for risky access, Paperclip fails closed.
+scope for risky access, Nexus fails closed.
 
 ## Containment, Not Privacy
 
@@ -34,7 +34,7 @@ issue, or human privacy system.
 V1 standard work remains company-visible by default: board users and in-company
 actors can inspect company work objects unless a separate access-control feature
 changes that behavior. Low-trust containment instead limits what the low-trust
-agent can read or mutate through the Paperclip API and prevents raw untrusted
+agent can read or mutate through the Nexus API and prevents raw untrusted
 output from being automatically promoted into higher-trust agent context.
 
 Low-trust agents cannot read or mutate privileged agent configuration or company
@@ -101,7 +101,7 @@ request with no run, so it authorizes the later system launch without starting
 work prematurely. No separate permission table or client-supplied human identity is needed. Responsible-user
 attribution, external connector sender attribution, and agent claims do not qualify.
 
-At dispatch and API authorization, Paperclip checks the live run and current
+At dispatch and API authorization, Nexus checks the live run and current
 assignment in one database snapshot. The exception permits reading, commenting
 on, and updating only that run's exact task. It does not extend to another task,
 a child, a whole project, configuration, instructions, secrets, or runtime
@@ -129,7 +129,7 @@ Never instruct a contained delegate to comment on its parent issue.
 
 ## Runtime Containment
 
-Managed `low_trust_review` runs fail closed unless Paperclip can enforce the
+Managed `low_trust_review` runs fail closed unless Nexus can enforce the
 runtime boundary:
 
 - the selected execution environment must use the `sandbox` driver
@@ -149,5 +149,5 @@ Configured workspaces and explicit Git strategies keep their existing validation
 a missing or broken checkout does not fall back to an empty directory.
 
 The Docker workflow in `doc/UNTRUSTED-PR-REVIEW.md` remains useful for manual
-local review, but Paperclip-managed low-trust execution requires a sandboxed
+local review, but Nexus-managed low-trust execution requires a sandboxed
 environment instead of a host-local adapter process.

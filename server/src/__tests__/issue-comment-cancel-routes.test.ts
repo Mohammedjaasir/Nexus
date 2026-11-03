@@ -89,7 +89,7 @@ const mockExternalObjectService = vi.hoisted(() => ({
 }));
 
 function registerModuleMocks() {
-  vi.doMock("@paperclipai/shared/telemetry", () => ({
+  vi.doMock("@nexusai/shared/telemetry", () => ({
     trackAgentTaskCompleted: vi.fn(),
     trackErrorHandlerCrash: vi.fn(),
   }));
@@ -451,7 +451,7 @@ describe("issue comment cancel routes", () => {
       status: "succeeded",
       payload: {
         issueId: "11111111-1111-4111-8111-111111111111",
-        _paperclipWakeContext: {
+        _nexusWakeContext: {
           wakeCommentIds: ["comment-1"],
         },
       },

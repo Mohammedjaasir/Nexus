@@ -47,7 +47,7 @@ function timeout(value: number | null | undefined) {
 
 function program(input: RemoteTextFileSyncFile) {
   const remotePartial = `${input.remotePath}.partial`;
-  const remoteUploadPath = `${input.remotePath}.paperclip-upload.b64`;
+  const remoteUploadPath = `${input.remotePath}.nexus-upload.b64`;
   const base64Body = Buffer.from(input.body, "utf8").toString("base64");
   const sha256 = createHash("sha256").update(input.body, "utf8").digest("hex");
   const script = [
@@ -119,7 +119,7 @@ export async function syncRemoteTextFiles(input: RemoteTextFileBatchInput, execu
   const shell = preferredShellForSandbox(input.shellCommand);
   const programs = input.files.map(program);
   const script = ["set -eu", ...programs.map((file, index) => {
-    const delimiter = `PAPERCLIP_TEXT_${index}_${randomUUID().replaceAll("-", "")}`;
+    const delimiter = `NEXUS_TEXT_${index}_${randomUUID().replaceAll("-", "")}`;
     return `${shellQuote(shell)} -c ${shellQuote(file.script)} <<'${delimiter}'\n${file.base64Body}\n${delimiter}`;
   }), ...(input.ensureDirectories?.length ? [`mkdir -p -- ${input.ensureDirectories.map(shellQuote).join(" ")}`] : [])].join("\n") + "\n";
   if (Buffer.byteLength(script, "utf8") > 1024 * 1024) throw new Error("Remote text sync batch exceeds 1 MiB");

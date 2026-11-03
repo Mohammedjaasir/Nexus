@@ -9,7 +9,7 @@ const meta = {
   component: AgentObservabilitySettingsView,
   decorators: [Story => <main className="p-6"><Story /></main>],
   args: { companyId, settings: configured, onSave: fn(), onTest: fn(), onRemove: fn() },
-  parameters: { paperclip: { capabilities: ["companies/agent-observability"], implementation: "production", boundary: "fixtures",
+  parameters: { nexus: { capabilities: ["companies/agent-observability"], implementation: "production", boundary: "fixtures",
     notes: "Production settings view: initial setup, destinations, stored credentials, content controls, and narrow layout. Provider and authorization behavior are simulated." } },
 } satisfies Meta<typeof AgentObservabilitySettingsView>;
 export default meta;

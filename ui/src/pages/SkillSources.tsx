@@ -7,7 +7,7 @@ import { GithubIcon } from "@/components/icons/github-icon";
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw, Plus, ExternalLink, Check, Lock, GitBranch, FileText, MoreVertical, CircleAlert } from 'lucide-react';
-import { parseGitHubSkillRepositoryUrl, type SkillSourceDisconnectRequest, type SkillSource, type SkillSourceDiscovery, type SkillSourceRefreshResult, type SkillSourceScanProgress } from '@paperclipai/shared';
+import { parseGitHubSkillRepositoryUrl, type SkillSourceDisconnectRequest, type SkillSource, type SkillSourceDiscovery, type SkillSourceRefreshResult, type SkillSourceScanProgress } from '@nexusai/shared';
 import { Link, useNavigate, useParams } from '@/lib/router';
 import { useCompany } from '@/context/CompanyContext';
 import { useBreadcrumbs } from '@/context/BreadcrumbContext';
@@ -242,7 +242,7 @@ function DisconnectSourceDialog({ source, pending, error, stale, onReload, onClo
 function SourceDialog({ companyId, source, onClose, onSaved }: {
   companyId: string; source?: SkillSource; onClose: () => void; onSaved: (result: SkillSourceRefreshResult) => Promise<void>;
 }) {
-  const draftKey = `paperclip.skill-source-draft:${companyId}:${source?.id ?? 'new'}`;
+  const draftKey = `nexus.skill-source-draft:${companyId}:${source?.id ?? 'new'}`;
   const [selectionRevision] = useState(source?.revision);
   const [draft] = useState(() => { try { const saved = JSON.parse(sessionStorage.getItem(draftKey) ?? '{}'); return !source || saved.revision === source.revision ? saved : {}; } catch { return {}; } });
   const [repositoryUrl, setRepositoryUrl] = useState<string>(draft.repositoryUrl ?? source?.repositoryUrl ?? '');

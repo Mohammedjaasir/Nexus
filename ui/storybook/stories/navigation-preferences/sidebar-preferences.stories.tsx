@@ -26,7 +26,7 @@ const meta = {
           "Production sidebar with isolated saved order responses. Section collapse is session-local; recents are browser-local. No server persistence is claimed.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "navigation-preferences/preferences"
       ],

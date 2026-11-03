@@ -20,7 +20,7 @@ const meta = {
   },
   parameters: {
     layout: "fullscreen", initialEntries: ["/PAP/dashboard"],
-    paperclip: {
+    nexus: {
       capabilities: ["activity/overview", "activity/activity", "tasks/organize"],
       status: "proposed", home: "design-proposals", implementation: "production", boundary: "fixtures",
       exception: "Reusable activity composition staged for dashboard integration in the local design sandbox.",

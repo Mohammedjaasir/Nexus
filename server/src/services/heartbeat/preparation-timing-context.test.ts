@@ -149,7 +149,7 @@ it("parents child spans to their own preparation phase across overlapping awaite
     const spans = exporter.getFinishedSpans();
     expect(spans).toHaveLength(4);
     const phases = runs.map(run => spans.find(span => span.name === "heartbeat.prepare.workspace"
-      && span.attributes["paperclip.task.run.run_id"] === createHash("sha256").update(run).digest("hex").slice(0, 12))!);
+      && span.attributes["nexus.task.run.run_id"] === createHash("sha256").update(run).digest("hex").slice(0, 12))!);
     expect(phases.every(Boolean)).toBe(true);
     expect(phases[0].spanContext().traceId).not.toBe(phases[1].spanContext().traceId);
     for (const [index, run] of runs.entries()) {

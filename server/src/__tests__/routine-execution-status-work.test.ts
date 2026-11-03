@@ -4,7 +4,7 @@ import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agents, companies, createDb, heartbeatRuns, issues, pluginManagedResources, plugins, routineRuns, type Db } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRuns, issues, pluginManagedResources, plugins, routineRuns, type Db } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
@@ -18,7 +18,7 @@ import { createHeartbeatLifecycle, type HeartbeatLifecycleDependencies } from ".
 import { createHeartbeatRunState } from "../services/heartbeat/run-state.js";
 import { createHeartbeatRunPreparation } from "../services/heartbeat/run-preparation.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_ROUTINE_STATUS_WORK_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_ROUTINE_STATUS_WORK_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("routine execution status work with PostgreSQL", () => {
   let db: Db, temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -113,7 +113,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const pluginKey = `routine-status-${randomUUID()}`, originId = `operation:${randomUUID()}`;
     const [plugin] = await db.insert(plugins).values({ pluginKey, packageName: pluginKey, version: "0.1.0",
       manifestJson: { id: pluginKey, apiVersion: 1, version: "0.1.0", displayName: "Routine test", description: "Routine test",
-        author: "Paperclip", categories: ["automation"], capabilities: ["routines.managed"], entrypoints: { worker: "./worker.js" } } }).returning();
+        author: "Nexus", categories: ["automation"], capabilities: ["routines.managed"], entrypoints: { worker: "./worker.js" } } }).returning();
     await db.insert(pluginManagedResources).values({ companyId: f.companyId, pluginId: plugin.id, pluginKey,
       resourceKind: "routine", resourceKey: "status", resourceId: f.routine.id, defaultsJson: { issueTemplate: { originId } } });
     const run = await dispatch(f), otherRun = await dispatch(other);
@@ -129,7 +129,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const f = await fixture(), pluginKey = `routine-history-${randomUUID()}`, originId = `operation:${randomUUID()}`;
     const [plugin] = await db.insert(plugins).values({ pluginKey, packageName: pluginKey, version: "0.1.0",
       manifestJson: { id: pluginKey, apiVersion: 1, version: "0.1.0", displayName: "Routine test", description: "Routine test",
-        author: "Paperclip", categories: ["automation"], capabilities: ["routines.managed"], entrypoints: { worker: "./worker.js" } } }).returning();
+        author: "Nexus", categories: ["automation"], capabilities: ["routines.managed"], entrypoints: { worker: "./worker.js" } } }).returning();
     const [resource] = await db.insert(pluginManagedResources).values({ companyId: f.companyId, pluginId: plugin.id, pluginKey,
       resourceKind: "routine", resourceKey: "history", resourceId: f.routine.id, defaultsJson: { issueTemplate: { originId } } }).returning();
     const run = await dispatch(f);

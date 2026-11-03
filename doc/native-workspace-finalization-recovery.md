@@ -261,7 +261,7 @@ files as ordinary bytes, and preserves directory exclusions and empty directorie
 A fixed informational message records the fallback in the provider log.
 
 If native copyback still rejects the archive or its source confinement check,
-Paperclip discards that export, records `workspace_export_omitted` at info level
+Nexus discards that export, records `workspace_export_omitted` at info level
 in the local run log, and completes finalization using the original accepted
 result. It does not create a task warning, recovery card, repair request, or new
 provider turn. The normal completion policy still enforces ownership and explicit
@@ -334,8 +334,8 @@ on its exact lease; an explicit mismatched pin is still rejected.
 
 The opt-in `native-workspace-export-resume.live.test.ts` is a provider-boundary
 fault integration, separate from the browser Product E2E. After building the
-Daytona plugin, run that exact Vitest file with `PAPERCLIP_LIVE_EXPORT_RESUME=1`,
-`DAYTONA_API_KEY`, and `PAPERCLIP_LIVE_EXPORT_RESUME_IMAGE` set to an immutable
+Daytona plugin, run that exact Vitest file with `NEXUS_LIVE_EXPORT_RESUME=1`,
+`DAYTONA_API_KEY`, and `NEXUS_LIVE_EXPORT_RESUME_IMAGE` set to an immutable
 image digest. It creates one disposable ephemeral sandbox and database, injects probe and stop transport failures, and verifies a fresh runtime can stop the sandbox while preserving exact nonce bytes. It also injects three transient failures at the production finalizer boundary and verifies retained work plus export-only retry admission. This boundary test does not claim physical copyback or result commitment; historical browser Product E2E supplied that proof before automatic unsafe-export recovery. It deletes only that owned fixture after proof.
 
 ### Historical unsafe exports
@@ -491,7 +491,7 @@ the identities and hashes of those repair decisions. Queue claim and dispatch
 recheck the same evidence, so a changed receipt or another later run requires a
 fresh decision. The cancelled run stays cancelled and is never replayed.
 
-Stop also preserves a native workspace prepared before `paperclip_finish`.
+Stop also preserves a native workspace prepared before `nexus_finish`.
 The executor pins its files before releasing the environment. Startup and periodic
 recovery process a bounded batch of historical acknowledged cancellations that
 missed this step. The existing stop-only cleanup worker retains their exact

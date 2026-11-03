@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { expect, test } from "@playwright/test";
 
 // Isolate the browser loader with the real worker. This is not a native-run
-// qualification test: no Paperclip data, credentials or providers are used.
+// qualification test: no Nexus data, credentials or providers are used.
 test.use({ serviceWorkers: "allow", trace: "on" });
 
 test("a wide development module graph loads before and after service-worker takeover", async ({ page, context }) => {

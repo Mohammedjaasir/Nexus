@@ -66,7 +66,7 @@ One-time test-drive/bootstrap setup remains the operator's supported workspace
 owner responsibility. This suite does not implement a managed-local target
 bootstrap, mint candidate authority, install a provider through a test-only path,
 or import an operator's CLI credential home. Install the maintained native assets
-through `paperclipai runtime setup antigravity` as the OS user running Paperclip.
+through `nexusai runtime setup antigravity` as the OS user running Nexus.
 Then use the existing product UI to establish the saved account once. Per-attempt
 preflight verifies those declared prerequisites; the measured **new agent** must
 remain absent until the visible creation flow.
@@ -112,7 +112,7 @@ setup and retains a blocked report.
   "candidate": {
     "platform": "darwin",
     "architecture": "arm64",
-    "nativeVersion": "1.4.3-paperclip.5",
+    "nativeVersion": "1.4.3-nexus.5",
     "profileDigest": "sha256:acf5f574b6b9ec4388ff9d081890caa330e66bf1ae3fe3b08e7f0fb0e851b9ce",
     "nativeClosureDigest": "sha256:044792d793e203bc8b4524a418f1816c4d34db67bb41fa4bae5947a050c49b4a"
   },
@@ -138,7 +138,7 @@ run or inference edge must be recorded, not omitted from accounting.
 
 ## Commands
 
-Run from the Paperclip repository root, with its normal workspace dependencies
+Run from the Nexus repository root, with its normal workspace dependencies
 installed. The maintained source files own all behavior; no author-local helper
 script is required. Discovery and credential-free checks do no provider work:
 
@@ -183,9 +183,9 @@ the **normal importer separately** to verify a retained report; it makes zero ne
 model calls. Environment variables, not positional report arguments, select it:
 
 ```sh
-PAPERCLIP_RUNNER_E2E_REPORT_ROOT=/absolute/private/campaign \
-PAPERCLIP_RUNNER_E2E_REPORT_OUT=/absolute/private/rebuilt-report \
-PAPERCLIP_RUNNER_E2E_EXPECTED_IDS='["antigravity-agent-journey.runner-antigravity.local.saved-subscription-two-turn"]' \
+NEXUS_RUNNER_E2E_REPORT_ROOT=/absolute/private/campaign \
+NEXUS_RUNNER_E2E_REPORT_OUT=/absolute/private/rebuilt-report \
+NEXUS_RUNNER_E2E_EXPECTED_IDS='["antigravity-agent-journey.runner-antigravity.local.saved-subscription-two-turn"]' \
   pnpm test:e2e:runner:report
 ```
 

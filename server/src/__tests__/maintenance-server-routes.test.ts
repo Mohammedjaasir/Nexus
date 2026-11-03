@@ -2,7 +2,7 @@ import { createCipheriv, createHash, diffieHellman, generateKeyPairSync, hkdfSyn
 import { createServer } from "node:http";
 import { Socket } from "node:net";
 import { once } from "node:events";
-import { agents, agentApiKeys, agentSessionGoalActions, agentTaskSessions, authUsers, companies, companyMemberships, connectionGrants, createDb, heartbeatRuns, issues, issueThreadInteractions, toolApplications, toolConnections } from "@paperclipai/db";
+import { agents, agentApiKeys, agentSessionGoalActions, agentTaskSessions, authUsers, companies, companyMemberships, connectionGrants, createDb, heartbeatRuns, issues, issueThreadInteractions, toolApplications, toolConnections } from "@nexusai/db";
 import { access, mkdir, readdir, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -14,7 +14,7 @@ import { CLOUD_RUNTIME_IDENTITY_AUDIENCE, CLOUD_RUNTIME_IDENTITY_ISSUER, CLOUD_R
 import { prepareMaintenanceRuntime } from "./helpers/maintenance/runtime-build.js";
 import { startMaintenanceServer, withMaintenanceProvider } from "./helpers/maintenance/server-harness.js";
 
-const externalDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_MAINTENANCE_BOOT_TEST_DATABASE_URL");
+const externalDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_MAINTENANCE_BOOT_TEST_DATABASE_URL");
 const databaseSupport = await maintenanceDatabaseSupport(externalDatabaseUrl);
 const describeDatabase = databaseSupport.supported ? describe : describe.skip;
 if (!databaseSupport.supported) console.warn(`Skipping maintenance PostgreSQL tests: ${databaseSupport.reason ?? "unsupported environment"}`);
@@ -634,7 +634,7 @@ describeDatabase("assembled maintenance server production wiring", () => {
         const [run] = await fixture.insert(heartbeatRuns).values({ companyId: company.id, agentId: agent!.id,
           status: "running", responsibleUserId: userId, contextSnapshot: { issueId: generationIssueId } }).returning();
         await fixture.$client`update issues set checkout_run_id=${run!.id} where id=${generationIssueId}`;
-        const headers = { authorization: `Bearer ${token}`, "x-paperclip-run-id": run!.id };
+        const headers = { authorization: `Bearer ${token}`, "x-nexus-run-id": run!.id };
         if (compile) await server.api("PUT", `/status-cards/${card.id}/query`, { queries: [{ scope: "issues", status: ["blocked"] }],
           title: "Blocked tasks", changeSummary: "Controlled compilation", generationIssueId }, headers);
         await server.api("PUT", `/status-cards/${card.id}/summary`, { markdown: "Controlled current blockers",
@@ -680,7 +680,7 @@ describeDatabase("assembled maintenance server production wiring", () => {
       const sessionId = randomUUID(), scopeDigest = "b".repeat(64);
       const [run] = await fixture.insert(heartbeatRuns).values({ companyId: company.id, agentId: agent!.id,
         status: "succeeded", issueId: issue.id, nativeIssueId: issue.id, nativeSessionId: sessionId, finishedAt: new Date() }).returning();
-      await fixture.insert(agentTaskSessions).values({ companyId: company.id, agentId: agent!.id, adapterType: "paperclip_runner",
+      await fixture.insert(agentTaskSessions).values({ companyId: company.id, agentId: agent!.id, adapterType: "nexus_runner",
         taskKey: issue.id, sessionParamsJson: { sessionId }, lastRunId: run!.id });
       const root = path.join(server.directory, "durable-sessions", scopeDigest), backupRoot = path.join(root, "failover-backups");
       const pendingRoot = path.join(backupRoot, "pending-publication"), current = path.join(backupRoot, "current");
@@ -856,7 +856,7 @@ describeDatabase("assembled maintenance server production wiring", () => {
         await writeFile(path.join(server.directory, "routine-measurement.json"), JSON.stringify({
           phase: "ordinary-routine-service-completion-during-drain", completionBoundary: "actual issueService.update with runtime-owned DB; excludes redundant route projection hook", companyId, routineId: routine.id, runId: run.id,
           before, drained, projected, restoredRun, cancelled, restored, cancelHold, executions: executions!.count, storageRequests,
-          suppression: "PAPERCLIP_IN_WORKTREE; actual production policy", frames: server.proxy.frames,
+          suppression: "NEXUS_IN_WORKTREE; actual production policy", frames: server.proxy.frames,
         }, null, 2));
       } finally {
         await fixture.$client.unsafe("drop trigger if exists maintenance_hold_completion on issues").catch(() => {});
@@ -892,7 +892,7 @@ describeDatabase("assembled maintenance server production wiring", () => {
           canonicalOrigin: "https://claimed-maintenance.staging.paperclip.app", stackSlug: "claimed-maintenance", iat: now, exp: now + 300 })).toString("base64url");
         const assertion = `${header}.${payload}.${sign(null, Buffer.from(`${header}.${payload}`, "ascii"), pair.privateKey).toString("base64url")}`;
         const claimed = await fetch(`http://127.0.0.1:${server.port}/api/health`, {
-          headers: { "x-paperclip-cloud-runtime-identity": assertion }, signal: AbortSignal.timeout(10_000),
+          headers: { "x-nexus-cloud-runtime-identity": assertion }, signal: AbortSignal.timeout(10_000),
         });
         expect(claimed.status).toBe(200); expect((await claimed.json()).warmStandby).toBeUndefined();
         await server.advance(30_000); const afterClaim = await server.settled();

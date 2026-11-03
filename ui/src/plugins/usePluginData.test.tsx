@@ -15,7 +15,7 @@ vi.mock("@/lib/query-client", () => ({ shouldRetryRequest: () => false, retryDel
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-const unavailable = () => new ApiError("Paperclip is restarting.", 503, { error: "tenant_app_unavailable" });
+const unavailable = () => new ApiError("Nexus is restarting.", 503, { error: "tenant_app_unavailable" });
 
 const bridge: PluginBridgeContextValue = {
   pluginId: "files",

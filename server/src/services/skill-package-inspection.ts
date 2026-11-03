@@ -1,5 +1,5 @@
 import path from 'node:path';
-import type { CompanySkillAuditFinding, CompanySkillVersionFileInventoryEntry, SkillPackageInspection, SkillPackageReference } from '@paperclipai/shared';
+import type { CompanySkillAuditFinding, CompanySkillVersionFileInventoryEntry, SkillPackageInspection, SkillPackageReference } from '@nexusai/shared';
 import { unprocessable } from '../errors.js';
 import { skillFileBytes } from './skill-snapshot.js';
 

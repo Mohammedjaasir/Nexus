@@ -24,7 +24,7 @@ describe("heartbeat preparation timing", () => {
     const result = { secret: "private result" };
     await expect(time("instructions", async () => result)).resolves.toBe(result);
     expect(startActiveSpan).toHaveBeenCalledExactlyOnceWith("heartbeat.prepare.instructions", {
-      attributes: { "paperclip.task.run.run_id": createHash("sha256").update(runId).digest("hex").slice(0, 12) },
+      attributes: { "nexus.task.run.run_id": createHash("sha256").update(runId).digest("hex").slice(0, 12) },
     }, "root-context", expect.any(Function));
     expect(handles.spans[0].end).toHaveBeenCalledOnce();
     expect(handles.spans[0].setStatus).not.toHaveBeenCalled();

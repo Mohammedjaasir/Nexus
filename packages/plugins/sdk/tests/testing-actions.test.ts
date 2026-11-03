@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import { createTestHarness } from "../src/testing.js";
-import type { PaperclipPluginManifestV1 } from "../src/types.js";
+import type { NexusPluginManifestV1 } from "../src/types.js";
 
 const manifest = {
-  id: "paperclip.test-actions",
+  id: "nexus.test-actions",
   apiVersion: 1,
   version: "1.0.0",
   displayName: "Test Actions",
   description: "Test plugin",
-  author: "Paperclip",
+  author: "Nexus",
   categories: ["automation"],
   capabilities: [],
   entrypoints: {},
-} satisfies PaperclipPluginManifestV1;
+} satisfies NexusPluginManifestV1;
 
 describe("createTestHarness action context", () => {
   it("passes immutable authenticated actor context and overrides caller company scope", async () => {
@@ -103,11 +103,11 @@ describe("createTestHarness issue interactions", () => {
     const issue = await harness.ctx.issues.create({ companyId: "company-1", title: "Ask for a repository" });
     const input = {
       idempotencyKey: "canonical:repo",
-      payload: { version: 1 as const, questionSet: { schema: "paperclip.question_set.v1" as const, questions: [{ id: "repo", prompt: "Repository URL?", required: true, answerMode: "text" as const }] } },
+      payload: { version: 1 as const, questionSet: { schema: "nexus.question_set.v1" as const, questions: [{ id: "repo", prompt: "Repository URL?", required: true, answerMode: "text" as const }] } },
     };
     const created = await harness.ctx.issues.askUserQuestions(issue.id, input, "company-1");
     expect(created.payload.questionSet).toEqual(input.payload.questionSet);
-    expect(created.payload.questions).toMatchObject([{ id: "repo", options: [{ id: "paperclip_text_answer", freeText: true }] }]);
+    expect(created.payload.questions).toMatchObject([{ id: "repo", options: [{ id: "nexus_text_answer", freeText: true }] }]);
     expect(await harness.ctx.issues.askUserQuestions(issue.id, input, "company-1")).toEqual(created);
   });
   it("creates request_checkbox_confirmation interactions through the typed host helper", async () => {

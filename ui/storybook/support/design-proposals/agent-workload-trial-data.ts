@@ -1,5 +1,5 @@
-import type { Agent, Issue } from "@paperclipai/shared";
-import { createIssue, storybookAgents, storybookAuthSession, storybookCompanies } from "../../fixtures/paperclipData";
+import type { Agent, Issue } from "@nexusai/shared";
+import { createIssue, storybookAgents, storybookAuthSession, storybookCompanies } from "../../fixtures/nexusData";
 
 export const workloadAgentIds = {
   mira: "agent-workload-trial-mira",

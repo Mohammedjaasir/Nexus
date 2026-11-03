@@ -5,9 +5,9 @@ import {
   minimumCodexCliVersionForModel,
   models,
   normalizeCodexModel,
-} from "@paperclipai/adapter-codex-local";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+} from "@nexusai/adapter-codex-local";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 import { createNativeSshCommandRunner } from "./native-ssh-command-runner.js";
 import { isSupportedRemoteCodexVersion, parseCodexCliVersion } from "./codex-runtime-compatibility.js";
 
@@ -53,11 +53,11 @@ export function parseRemoteExecutableCandidate(stdout: string): string | null {
 export async function discoverRemoteExecutable(
   runner: CommandManagedRuntimeRunner,
   cwd: string,
-  name: "paperclip-runnerd" | "codex",
+  name: "nexus-runnerd" | "codex",
 ): Promise<string | null> {
   const result = await runner.execute({
     command: "sh",
-    args: ["-c", `for candidate in /opt/paperclip-runner/bin/${name} "$HOME/.local/bin/${name}"; do ` +
+    args: ["-c", `for candidate in /opt/nexus-runner/bin/${name} "$HOME/.local/bin/${name}"; do ` +
       `if [ -x "$candidate" ]; then printf '%s\\n' "$candidate"; exit 0; fi; done; ` +
       `command -v ${name} 2>/dev/null || true`],
     cwd, bypassSession: true, timeoutMs: 10_000,

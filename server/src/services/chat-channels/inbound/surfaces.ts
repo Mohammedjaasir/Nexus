@@ -13,10 +13,10 @@ import {
 
 import {
   chatEndpointResources,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatProvider,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import type {
   Thread,
@@ -109,7 +109,7 @@ function providerResourceLabelFromThread(
 
 /**
  * Native channel threads keep one issue forever. Linear surfaces instead
- * advance through Paperclip task generations because their provider id is
+ * advance through Nexus task generations because their provider id is
  * reused after a task completes or the user explicitly starts a new task.
  */
 function chatSurfaceKind(

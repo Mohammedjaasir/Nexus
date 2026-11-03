@@ -65,7 +65,7 @@ export async function captureRunnerApiResponse(response: Response, inlineBytes: 
         hash.update(chunk);
         if (!file && byteSize + chunk.length > inlineBytes) {
           await options.beforeSpill?.();
-          directory = await mkdtemp(join(tmpdir(), "paperclip-api-response-"));
+          directory = await mkdtemp(join(tmpdir(), "nexus-api-response-"));
           path = join(directory, "body");
           file = await open(path, "wx+", 0o600);
           for (const part of prefix) await file.writeFile(part);

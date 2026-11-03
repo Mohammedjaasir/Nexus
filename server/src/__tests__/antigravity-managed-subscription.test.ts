@@ -2,7 +2,7 @@ import { access, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 const account = vi.hoisted(() => ({
   credential: "", epoch: 4, version: 8, status: "active",
@@ -35,11 +35,11 @@ vi.mock("../services/quota-credential-recovery.js", () => ({
     constructor(cause: unknown) { super("The selected account credential is awaiting durable recovery. Retry shortly.", { cause }); }
   },
 }));
-vi.mock("@paperclipai/adapter-codex-local/server", () => ({
+vi.mock("@nexusai/adapter-codex-local/server", () => ({
   decideCodexAuthMerge: vi.fn(), withAccountHomeSecretMutationLock: async (_environment: unknown, _companyId: unknown, work: () => Promise<void>) => work(),
 }));
 import { prepareManagedAiRuntime, withManagedAiProbe } from "../services/ai-connection-runtime.js";
-import { NativeEnvironmentProbeCleanupError } from "../vendor/paperclip-runner/index.js";
+import { NativeEnvironmentProbeCleanupError } from "../vendor/nexus-runner/index.js";
 
 const credential = (project?: string, token = "fixture-selected-refresh") => JSON.stringify({
   client_id: "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com", client_secret: "fixture-client-secret",
@@ -66,7 +66,7 @@ function database(): Db {
 async function prepare() {
   const runtime = await prepareManagedAiRuntime(database(), {
     companyId: "44444444-4444-4444-8444-444444444444", agentId: "55555555-5555-4555-8555-555555555555", responsibleUserId: "alice",
-    adapterType: "paperclip_runner", binding: { provider: "google", method: "subscription", mode: "responsible_user" },
+    adapterType: "nexus_runner", binding: { provider: "google", method: "subscription", mode: "responsible_user" },
     config: { provider: "acpx", acpxAgent: "antigravity", model: "caller-model", env: { GEMINI_API_KEY: "ambient", GEMINI_HOME: "/ambient" } },
   });
   homes.push(runtime.home!);
@@ -96,7 +96,7 @@ describe("managed Antigravity subscription projection and writeback", () => {
     let home = "", token = "";
     const result = await withManagedAiProbe(database(), {
       companyId: "44444444-4444-4444-8444-444444444444", agentId: "55555555-5555-4555-8555-555555555555", responsibleUserId: "alice",
-      adapterType: "paperclip_runner", binding: { provider: "google", method: "subscription", mode: "responsible_user" },
+      adapterType: "nexus_runner", binding: { provider: "google", method: "subscription", mode: "responsible_user" },
       config: { provider: "acpx", acpxAgent: "antigravity", model: "caller-model" },
     }, async runtime => {
       home = runtime.home!; homes.push(home);
@@ -116,7 +116,7 @@ describe("managed Antigravity subscription projection and writeback", () => {
   });
   it("writes a private native token with explicit OAuth settings and saves same-token project resolution under both row locks", async () => {
     const runtime = await prepare(), provider = String(runtime.config.env.GEMINI_HOME), token = join(provider, "antigravity-acp", "acp_token.json");
-    expect(runtime.config.env).toMatchObject({ GEMINI_API_KEY: "", GOOGLE_API_KEY: "", PAPERCLIP_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "" });
+    expect(runtime.config.env).toMatchObject({ GEMINI_API_KEY: "", GOOGLE_API_KEY: "", NEXUS_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "" });
     expect(await readFile(token, "utf8")).toBe(credential());
     expect((await stat(token)).mode & 0o777).toBe(0o600);
     expect(JSON.parse(await readFile(join(provider, "antigravity-acp", "settings.json"), "utf8"))).toEqual({ auth: { type: "oauth-personal" } });

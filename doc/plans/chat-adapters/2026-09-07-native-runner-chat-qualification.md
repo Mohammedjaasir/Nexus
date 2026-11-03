@@ -1,9 +1,9 @@
-# Native Paperclip runner chat qualification — 2026-09-07
+# Native Nexus runner chat qualification — 2026-09-07
 
 ## Scope and runtime
 
 The live Maya E2E fixture was switched from legacy ACP/Sol to
-`adapterType: paperclip_runner`, Codex provider, model `gpt-5.6-luna`.
+`adapterType: nexus_runner`, Codex provider, model `gpt-5.6-luna`.
 The isolated instance has native execution enabled. Persisted run records
 confirm `runtimeMode: native`, `driverKind: codex_app_server`, and the explicit
 Luna model in the native execution input. This is not an inference from the
@@ -46,7 +46,7 @@ made explicit that this was a new message. All four provider UIs showed `69`.
 | GitHub   | `7ba05f32-5cb4-4477-b3a5-1c07d537a8e9` |      11.493 s |                            16.467 s |
 
 Agent runtime is persisted `finishedAt - startedAt`. The final column is the
-browser send timestamp to Paperclip's provider publication acknowledgement,
+browser send timestamp to Nexus's provider publication acknowledgement,
 not a measured client-render latency. Run-row queue delays were 8–11 ms.
 These are small local qualification samples, not production percentiles or an
 SLA. Images, files, investigation, and externally delayed callbacks can take
@@ -145,7 +145,7 @@ journey remains unqualified.
 
 ## Slack callback recovery
 
-The exact `maya-e2e-paperclip` app, `A0C03GA5FPU`, still had a verified Events
+The exact `maya-e2e-nexus` app, `A0C03GA5FPU`, still had a verified Events
 callback on the older `:10000` Funnel endpoint. One message arrived only after
 approximately six minutes of provider retries. Its callback was changed in the
 signed-in Slack configuration UI to canonical `:8443`, verified by a genuine
@@ -167,19 +167,19 @@ request to a known webhook returned 401. The Board remains private.
 
 ## Runner activity and files
 
-Native activity is durably recorded in Paperclip's run-event path and consumed
+Native activity is durably recorded in Nexus's run-event path and consumed
 by the task transcript UI. Focused tests cover native transcript projection,
 polling, and task rendering. External publication remains a separate safe
 projection: coarse lifecycle status and selected final answers. Raw reasoning,
 tool names/arguments/results, credentials, and internal logs are not chat output.
 
-The live Paperclip task UI was inspected: native turns show worked duration,
+The live Nexus task UI was inspected: native turns show worked duration,
 expandable tool activity, and the queued/delivered timestamps for burst inputs.
 The corresponding provider thread contains the selected answers, not the
 internal operational commentary.
 
 Follow-up read-only audit on September 7 reconfirmed the live agent configuration
-as `paperclip_runner` / `codex` / `gpt-5.6-luna`, and the four text-run records
+as `nexus_runner` / `codex` / `gpt-5.6-luna`, and the four text-run records
 above as `native` / `codex_app_server`. No global defaults were changed. Focused
 projection, stream, run-publication, interaction-publication, and heartbeat
 summary tests passed **82/82** across five files. No live model call was made for
@@ -199,7 +199,7 @@ isolated test-fixture gate, not a failure of the active live instance. These
 contract/DB checks do not substitute for new model-driven live turns.
 
 The new runner does not have the legacy operational skill or a general
-Paperclip API key. Consequently, the previous shell-helper file instructions
+Nexus API key. Consequently, the previous shell-helper file instructions
 were not a valid native-runner qualification. Native runs now receive a scoped
 `register_deliverable` tool for local files and run-bound staging descriptors
 for incoming attachments. Registration means prepared, not delivered; the

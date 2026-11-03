@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { getAppStoreDefinition, type ToolCatalogEntry, type ToolConnectionAccessSummary, type ToolConnectionTestAgent } from "@paperclipai/shared";
+import { getAppStoreDefinition, type ToolCatalogEntry, type ToolConnectionAccessSummary, type ToolConnectionTestAgent } from "@nexusai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { ConnectionSetupFlow } from "@/features/connections/ConnectionSetupFlow";
 import { ConnectorCard } from "@/pages/apps/Browse";
@@ -100,7 +100,7 @@ function OnePasswordReview({ screen = "catalog", rejected = false, inline = fals
 }
 
 const meta = { id: "apps-connections-onepassword", title: "Apps, channels, and extensions/Connection setup/Apps/Connections/1Password",
-  component: OnePasswordReview, parameters: { layout: "fullscreen", paperclip: { implementation: "production", boundary: "fixtures",
+  component: OnePasswordReview, parameters: { layout: "fullscreen", nexus: { implementation: "production", boundary: "fixtures",
     capabilities: ["connection-setup/catalog", "connection-setup/credentials", "connection-setup/failure", "app-permissions/action-policy", "app-permissions/test-action"],
     notes: "Production catalog card, token setup and Actions/Test controls with synthetic fixtures. No provider proof or task execution is claimed." } },
 } satisfies Meta<typeof OnePasswordReview>;

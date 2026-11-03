@@ -1,5 +1,5 @@
 import { and, eq, like } from "drizzle-orm";
-import { chatEndpoints, chatSlackRegistrations, toolOauthStates, type Db } from "@paperclipai/db";
+import { chatEndpoints, chatSlackRegistrations, toolOauthStates, type Db } from "@nexusai/db";
 import { secretService } from "./secrets.js";
 import type { CredentialMutationLeaseGuard } from "./chat-credential-mutation-lease.js";
 

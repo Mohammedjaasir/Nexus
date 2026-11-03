@@ -1,6 +1,6 @@
 import { and, asc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
-import { decisions, decisionTargetIssues, issues, type Db } from "@paperclipai/db";
-import { decisionEffectTargetIssueIds } from "@paperclipai/shared";
+import { decisions, decisionTargetIssues, issues, type Db } from "@nexusai/db";
+import { decisionEffectTargetIssueIds } from "@nexusai/shared";
 import type { decisionExpiryService } from "./decision-expiry.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 

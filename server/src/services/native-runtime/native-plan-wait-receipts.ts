@@ -2,10 +2,10 @@
  * caller establishes an applied, company-scoped finalization; never rewritten. */
 const record = (v: unknown): Record<string, any> => v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, any> : {};
 export const PLAN_WAIT_RECEIPT = {
-  schema: "paperclip.native_plan_wait.v1", prefix: "native-plan-wait:", legacy: false,
+  schema: "nexus.native_plan_wait.v1", prefix: "native-plan-wait:", legacy: false,
 } as const;
 const LEGACY_PLAN_WAIT_RECEIPT = {
-  schema: "paperclip.native_cursor_plan_wait.v1", prefix: "cursor-plan-wait:", legacy: true,
+  schema: "nexus.native_cursor_plan_wait.v1", prefix: "cursor-plan-wait:", legacy: true,
 } as const;
 export type PlanWaitReceiptFormat = typeof PLAN_WAIT_RECEIPT | typeof LEGACY_PLAN_WAIT_RECEIPT;
 

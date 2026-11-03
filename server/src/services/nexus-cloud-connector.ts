@@ -1,0 +1,869 @@
+import { providerRetryAt } from "./provider-retry-after.js";
+import { SLACK_MANAGER_SCOPES, ASANA_CONNECTOR_SCOPES, isAsanaConnectorProfileId, type AsanaConnectorProfileId } from "@nexusai/shared";
+import {
+  createDecipheriv,
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  diffieHellman,
+  hkdfSync,
+  randomUUID,
+  sign,
+  type KeyObject,
+} from "node:crypto";
+import {
+  DEFAULT_OWNERSHIP_AVAILABILITY,
+  type AppDefinition,
+  GITHUB_CONNECTOR_PROFILES,
+  GOOGLE_WORKSPACE_CONNECTOR_PROFILES,
+  isGitHubConnectorProfileId,
+  isGoogleWorkspaceConnectorProfileId,
+  isGoogleWorkspaceScopeGrant,
+  type GitHubConnectorProfileId,
+  type GoogleWorkspaceConnectorProfileId,
+} from "@nexusai/shared";
+import {
+  loadNexusCloudConnectorIdentity,
+  nexusCloudConnectorEnrollmentStatus,
+} from "./nexus-cloud-connector-enrollment.js";
+
+export const GMAIL_MCP_URL = "https://gmailmcp.googleapis.com/mcp/v1";
+export const GMAIL_CONNECTOR_SCOPES = [
+  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.compose",
+] as const;
+export { GOOGLE_WORKSPACE_CONNECTOR_PROFILES };
+
+export type NexusCloudConnectorEnvironment = "development" | "test" | "staging" | "production";
+export type NexusCloudConnectorOperation = "status" | "session" | "claim" | "refresh" | "revoke" | "webhook-bind" | "event-lease" | "event-ack" | "github-app";
+export type NexusCloudConnectorProfileId = GoogleWorkspaceConnectorProfileId | GitHubConnectorProfileId | AsanaConnectorProfileId | "slack.manager" | "github.bot";
+export type NexusCloudConnectorProvider = "google" | "github" | "asana" | "slack";
+
+export type NexusCloudConnectorConfig = {
+  baseUrl: string;
+  instanceId: string;
+  environment: NexusCloudConnectorEnvironment;
+  signPrivateKey: string;
+  sealPrivateKey: string;
+};
+
+export type SealedConnectorCredentials = {
+  v: 1;
+  accessToken: string;
+  refreshToken: string | null;
+  tokenType: string;
+  accessTokenExpiresAt: string | null;
+  refreshTokenExpiresAt: string | null;
+  scopes: string[];
+  subject: string;
+  companyId: string;
+  instanceId: string;
+  environment: NexusCloudConnectorEnvironment;
+  provider: NexusCloudConnectorProvider;
+  profile: string;
+  appSlug?: string;
+  slackManager?: { appId: string; workspaceId: string; workspaceName: string; userId: string };
+};
+
+export type SealedGmailCredentials = SealedConnectorCredentials & { provider: "google" };
+export type SealedGoogleWorkspaceCredentials = SealedGmailCredentials;
+
+export type SealedConnectorEvents = {
+  v: 1;
+  instanceId: string;
+  environment: NexusCloudConnectorEnvironment;
+  leaseId: string;
+  events: Array<{
+    id: string;
+    provider: "github";
+    event: string;
+    action: string | null;
+    installationId: string | null;
+    repositoryId: string | null;
+    payload: Record<string, unknown>;
+    createdAt: string;
+    bindingIds: string[];
+  }>;
+};
+
+type SealedEnvelope = {
+  v: 1;
+  alg: "X25519-HKDF-SHA256-A256GCM";
+  purpose: "initial" | "access" | "events";
+  provider: NexusCloudConnectorProvider;
+  profile: NexusCloudConnectorProfileId;
+  epk: string;
+  iv: string;
+  ct: string;
+};
+
+type ConnectorResponse = {
+  slackManager?: unknown;
+  confirmationUrl?: unknown;
+  authorizationUrl?: unknown;
+  handoff?: unknown;
+  expiresAt?: unknown;
+  scopes?: unknown;
+  claimId?: unknown;
+  sealed?: unknown;
+  profiles?: unknown;
+  protocolVersion?: unknown;
+  providers?: unknown;
+  active?: unknown;
+  status?: unknown;
+  leaseId?: unknown;
+  events?: unknown;
+  acknowledged?: unknown;
+  githubApps?: { version: number };
+  eventWakeVersion?: unknown;
+};
+
+const ENDPOINTS: Record<NexusCloudConnectorOperation, string> = {
+  "github-app": "/v1/connector/github-apps",
+  status: "/v1/connector/instance-status",
+  session: "/v1/connector/sessions",
+  claim: "/v1/connector/claims",
+  refresh: "/v1/connector/refresh",
+  revoke: "/v1/connector/revoke",
+  "webhook-bind": "/v1/connector/webhook-bindings",
+  "event-lease": "/v1/connector/events/lease",
+  "event-ack": "/v1/connector/events/ack",
+};
+const JWS_TYP = "nexus-cloud-connector-request+jwt";
+const SEAL_ALGORITHM = "X25519-HKDF-SHA256-A256GCM";
+const AES_TAG_BYTES = 16;
+const RAW_PRIVATE_KEY_BYTES = 32;
+const ED25519_PKCS8_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex");
+const X25519_PKCS8_PREFIX = Buffer.from("302e020100300506032b656e04220420", "hex");
+const X25519_SPKI_PREFIX = Buffer.from("302a300506032b656e032100", "hex");
+
+// Only fixed protocol codes may enter errors/logs. Never retain the broker's
+// message, request data, return URI, or an arbitrary error/code string.
+const BROKER_REJECTION_REASONS = new Set([
+  "RETURN_ORIGIN_NOT_ENROLLED", "INVALID_RETURN_URI", "INVALID_REQUEST",
+  "UNKNOWN_INSTANCE", "INSTANCE_APPROVAL_REQUIRED", "INSTANCE_SUSPENDED",
+  "ENVIRONMENT_MISMATCH", "PROFILE_NOT_AVAILABLE", "PROFILE_NOT_ELIGIBLE",
+  "REQUEST_EXPIRED", "REQUEST_REPLAYED", "SIGNATURE_REJECTED",
+  "AUDIENCE_MISMATCH", "OPERATION_MISMATCH", "PAYLOAD_MISMATCH",
+  "MALFORMED_REQUEST", "UNSUPPORTED_ALGORITHM", "RATE_LIMITED",
+  "PROVIDER_OPERATION_FAILED", "PROVIDER_REAUTHORIZATION_REQUIRED",
+]);
+const UNKNOWN_BROKER_REASON = "UNKNOWN_BROKER_ERROR";
+
+async function readBrokerRejectionReason(response: Response): Promise<string> {
+  if (response.bodyUsed || response.body?.locked) return UNKNOWN_BROKER_REASON;
+  const reader = response.body?.getReader();
+  if (!reader) return UNKNOWN_BROKER_REASON;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      (async () => {
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > 4_096) return UNKNOWN_BROKER_REASON;
+          chunks.push(value);
+        }
+        const body: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        const reason = body && typeof body === "object" && "error" in body ? body.error : null;
+        return typeof reason === "string" && BROKER_REJECTION_REASONS.has(reason)
+          ? reason : UNKNOWN_BROKER_REASON;
+      })(),
+      new Promise<string>((resolve) => {
+        timer = setTimeout(() => resolve(UNKNOWN_BROKER_REASON), 500);
+      }),
+    ]);
+  } catch {
+    return UNKNOWN_BROKER_REASON;
+  } finally {
+    clearTimeout(timer);
+    // Diagnostic reads and cancellation must never delay the original failure.
+    void reader.cancel().catch(() => {});
+  }
+}
+
+/** Stable public code/status with only allowlisted broker diagnostics. */
+export class NexusCloudConnectorError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly status?: number,
+    readonly retryAt?: number,
+  ) {
+    super(message);
+    this.name = "NexusCloudConnectorError";
+  }
+}
+
+export function nexusCloudConnectorConfigFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): NexusCloudConnectorConfig | null {
+  const localIdentity = loadNexusCloudConnectorIdentity();
+  const legacyConfigured = [
+    env.NEXUS_ID_CONNECTOR_INSTANCE_ID,
+    env.NEXUS_ID_CONNECTOR_SIGN_PRIVATE_KEY,
+    env.NEXUS_ID_CONNECTOR_SEAL_PRIVATE_KEY,
+    env.NEXUS_ID_CONNECTOR_ENVIRONMENT,
+    env.NEXUS_ID_CONNECTOR_BASE_URL,
+  ].some((value) => Boolean(value?.trim()));
+  const managedInstanceId = env.NEXUS_CLOUD_CONNECTOR_INSTANCE_ID?.trim();
+  const managedSignPrivateKey = env.NEXUS_CLOUD_CONNECTOR_SIGN_PRIVATE_KEY?.trim();
+  const managedSealPrivateKey = env.NEXUS_CLOUD_CONNECTOR_SEAL_PRIVATE_KEY?.trim();
+  const managedEnvironment = env.NEXUS_CLOUD_CONNECTOR_ENVIRONMENT?.trim();
+  const hasManagedIdentityOverride = [managedInstanceId, managedSignPrivateKey, managedSealPrivateKey]
+    .some(Boolean);
+  const localStatus = hasManagedIdentityOverride ? null : nexusCloudConnectorEnrollmentStatus(env);
+  const hasActiveLocalIdentity = localIdentity?.status === "active" && localStatus?.configured === true;
+  if (!hasManagedIdentityOverride && !hasActiveLocalIdentity && legacyConfigured) {
+    throw new NexusCloudConnectorError(
+      "Nexus ID connector settings use an incompatible legacy protocol; enroll this instance with Nexus Cloud",
+      "CONNECTOR_MIGRATION_REQUIRED",
+    );
+  }
+  if (!hasManagedIdentityOverride && !hasActiveLocalIdentity) return null;
+
+  const instanceId = hasManagedIdentityOverride ? managedInstanceId : localIdentity!.instanceId;
+  const signPrivateKey = hasManagedIdentityOverride ? managedSignPrivateKey : localIdentity!.signPrivateKey;
+  const sealPrivateKey = hasManagedIdentityOverride ? managedSealPrivateKey : localIdentity!.sealPrivateKey;
+  const environment = hasManagedIdentityOverride ? managedEnvironment : localIdentity!.environment;
+  const baseUrl = env.NEXUS_CLOUD_CONNECTOR_BASE_URL?.trim()
+    || (hasActiveLocalIdentity ? localIdentity!.brokerBaseUrl : undefined)
+    || "https://my.paperclip.app";
+  const values = [instanceId, signPrivateKey, sealPrivateKey, environment];
+  if (values.some((value) => !value)) {
+    throw new NexusCloudConnectorError("Nexus Cloud connector configuration is incomplete", "CONNECTOR_CONFIG_INCOMPLETE");
+  }
+  if (environment !== "development" && environment !== "test" && environment !== "staging" && environment !== "production") {
+    throw new NexusCloudConnectorError("Nexus Cloud connector environment is invalid", "CONNECTOR_CONFIG_INVALID");
+  }
+  const parsedBaseUrl = new URL(baseUrl);
+  if (parsedBaseUrl.protocol !== "https:" && !(parsedBaseUrl.protocol === "http:" && isLoopback(parsedBaseUrl.hostname))) {
+    throw new NexusCloudConnectorError("Nexus Cloud connector URL must use HTTPS", "CONNECTOR_CONFIG_INVALID");
+  }
+  if (parsedBaseUrl.username || parsedBaseUrl.password || parsedBaseUrl.search || parsedBaseUrl.hash) {
+    throw new NexusCloudConnectorError("Nexus Cloud connector URL is invalid", "CONNECTOR_CONFIG_INVALID");
+  }
+  const brokerHost = parsedBaseUrl.hostname.toLowerCase();
+  if ((brokerHost === "my.paperclip.app" && environment !== "production")
+    || (brokerHost === "test.paperclip.app" && environment !== "test")
+    || (brokerHost === "my-staging.paperclip.app" && environment !== "staging")) {
+    throw new NexusCloudConnectorError(
+      "Nexus Cloud connector broker and environment do not match",
+      "CONNECTOR_CONFIG_INVALID",
+    );
+  }
+  parsedBaseUrl.pathname = parsedBaseUrl.pathname.replace(/\/$/, "");
+  return {
+    baseUrl: parsedBaseUrl.toString().replace(/\/$/, ""),
+    instanceId: instanceId!,
+    environment,
+    signPrivateKey: signPrivateKey!,
+    sealPrivateKey: sealPrivateKey!,
+  };
+}
+
+export function createNexusCloudConnector(input: {
+  config: NexusCloudConnectorConfig;
+  request?: typeof fetch;
+  now?: () => number;
+}) {
+  const config = input.config;
+  const request = input.request ?? fetch;
+  const now = input.now ?? Date.now;
+  const signingKey = privateKey(config.signPrivateKey, "ed25519");
+  const sealKey = privateKey(config.sealPrivateKey, "x25519");
+  let eventWakeVersion: 1 | null = null;
+
+  async function call(
+    operation: NexusCloudConnectorOperation,
+    claims: { subject: string; companyId: string; profile?: NexusCloudConnectorProfileId; scopes?: string[]; returnUri?: string; returnState?: string; claimId?: string; redemptionId?: string; eventWakeVersion?: 0 | 1 },
+    secret?: { field: "refreshToken" | "token" | "binding" | "acknowledgement"; value: string },
+  ): Promise<ConnectorResponse> {
+    const endpoint = new URL(ENDPOINTS[operation], `${config.baseUrl}/`).toString();
+    const issuedAt = Math.floor(now() / 1000);
+    const payload: Record<string, unknown> = {
+      iss: config.instanceId,
+      aud: endpoint,
+      sub: claims.subject,
+      cid: claims.companyId,
+      env: config.environment,
+      op: operation,
+      iat: issuedAt,
+      exp: issuedAt + 60,
+      jti: randomUUID(),
+    };
+    if (claims.eventWakeVersion !== undefined) payload.ewv = claims.eventWakeVersion;
+    if (claims.returnUri !== undefined) payload.ruri = claims.returnUri;
+    if (claims.returnState !== undefined) payload.rst = claims.returnState;
+    if (claims.claimId !== undefined) payload.cl = claims.claimId;
+    if (claims.redemptionId !== undefined) payload.rid = claims.redemptionId;
+    if (claims.profile !== undefined) {
+      const definition = connectorProfileDefinition(claims.profile);
+      payload.prv = definition.provider;
+      payload.prf = claims.profile;
+      if (claims.scopes && (claims.profile !== "workspace.all" || !isGoogleWorkspaceScopeGrant(claims.scopes))) {
+        throw new NexusCloudConnectorError("Invalid requested service permissions", "CONNECTOR_CONFIG_INVALID");
+      }
+      payload.scp = [...(claims.scopes ?? definition.scopes)];
+    }
+    if (secret) payload.sh = await sha256Base64Url(secret.value);
+    const body = {
+      request: signRequest(payload, signingKey),
+      ...(secret ? { [secret.field]: secret.value } : {}),
+    };
+    let response: Response;
+    try {
+      response = await request(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch {
+      throw new NexusCloudConnectorError("Nexus Cloud connector is unavailable", "CONNECTOR_UNAVAILABLE");
+    }
+    if (operation === "revoke" && response.status === 204) return {};
+    if (!response.ok) {
+      const reason = await readBrokerRejectionReason(response);
+      throw new NexusCloudConnectorError(
+        `Nexus Cloud connector rejected the request (operation=${operation}, status=${response.status}, reason=${reason})`,
+        response.status === 409 ? "REAUTHORIZATION_REQUIRED" : "CONNECTOR_REQUEST_FAILED",
+        response.status,
+        providerRetryAt(response.headers.get("retry-after"), now()),
+      );
+    }
+    try {
+      return await response.json() as ConnectorResponse;
+    } catch {
+      throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid response", "CONNECTOR_BAD_RESPONSE");
+    }
+  }
+
+  function openCredentials(
+    response: ConnectorResponse,
+    purpose: SealedEnvelope["purpose"],
+    subject: string,
+    companyId: string,
+    profile: NexusCloudConnectorProfileId,
+    requestedScopes?: string[],
+  ): SealedConnectorCredentials {
+    const definition = connectorProfileDefinition(profile);
+    const envelope = parseEnvelope(response.sealed, purpose, definition.provider, profile);
+    const credentials = unseal(
+      envelope,
+      sealKey,
+      config.instanceId,
+      config.environment,
+      definition.provider,
+      profile,
+      requestedScopes ?? definition.scopes,
+    );
+    if (
+      credentials.instanceId !== config.instanceId
+      || credentials.environment !== config.environment
+      || credentials.subject !== subject
+      || credentials.companyId !== companyId
+      || credentials.provider !== definition.provider
+    ) {
+      throw new NexusCloudConnectorError("Nexus Cloud credential binding did not match", "CONNECTOR_BINDING_MISMATCH");
+    }
+    if (credentials.profile !== profile) {
+      throw new NexusCloudConnectorError("Nexus Cloud connector profile binding did not match", "CONNECTOR_BINDING_MISMATCH");
+    }
+    if (!(profile === "workspace.all" ? isGoogleWorkspaceScopeGrant(credentials.scopes) : sameStringSet(credentials.scopes, definition.scopes))) {
+      throw new NexusCloudConnectorError("Nexus Cloud scope grant did not match", "REAUTHORIZATION_REQUIRED");
+    }
+    return credentials;
+  }
+
+  return {
+    eventWakeVersion: () => eventWakeVersion,
+    async githubAppsAvailable() {
+      const response = await call("status", { subject: "instance-capabilities", companyId: "instance-capabilities" });
+      return response.active === true && response.githubApps?.version === 2;
+    },
+    async githubApp(values: { subject: string; companyId: string; binding: Record<string, unknown> }) {
+      return await call("github-app", values, { field: "binding", value: JSON.stringify(values.binding) }) as unknown as import("@nexusai/shared").GitHubAppCloudState;
+    },
+    async claimGitHubApp(values: { subject: string; companyId: string; claimId: string; redemptionId: string }) {
+      const response = await call("claim", { ...values, profile: "github.bot" });
+      const envelope = parseEnvelope(response.sealed, "initial", "github", "github.bot");
+      const opened = decryptEnvelope(envelope, sealKey, config.instanceId, config.environment, "github", "github.bot", []) as Record<string, unknown>;
+      if (opened.v !== 1 || opened.instanceId !== config.instanceId || opened.environment !== config.environment
+        || opened.subject !== values.subject || opened.companyId !== values.companyId || opened.provider !== "github"
+        || opened.profile !== "github.bot" || !sameStringSet(opened.scopes, [])) throw badEnvelope();
+      return opened;
+    },
+    async getInstanceStatus(): Promise<"active" | "suspended" | "removed"> {
+      let response: ConnectorResponse;
+      try {
+        response = await call("status", {
+          subject: "instance-status",
+          companyId: "instance-status",
+        });
+      } catch (error) {
+        if (error instanceof NexusCloudConnectorError && error.status === 401) return "removed";
+        throw error;
+      }
+      if (response.status === "active" && response.active === true) return "active";
+      if (response.status === "suspended" && response.active === false) return "suspended";
+      if (response.status === "removed" && response.active === false) return "removed";
+      throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid instance status", "CONNECTOR_BAD_RESPONSE");
+    },
+    async getCapabilities(): Promise<NexusCloudConnectorProfileId[]> {
+      let response: ConnectorResponse;
+      try {
+        response = await call("status", {
+          subject: "instance-capabilities",
+          companyId: "instance-capabilities",
+        });
+      } catch {
+        return [];
+      }
+      if (response.active !== true || response.status !== "active" || !Array.isArray(response.profiles)) return [];
+      return [...new Set(response.profiles.flatMap((value) =>
+        typeof value === "string" && isNexusCloudConnectorProfileId(value) ? [value] : []
+      ))];
+    },
+    async getSlackManagerAppId(): Promise<string | null> {
+      const response = await call("status", { subject: "instance-capabilities", companyId: "instance-capabilities" });
+      const manager = response.slackManager;
+      if (response.active !== true || response.status !== "active" || !Array.isArray(response.profiles) || !response.profiles.includes("slack.manager")
+        || !manager || typeof manager !== "object" || !("appId" in manager) || typeof manager.appId !== "string" || !/^A[A-Z0-9]+$/.test(manager.appId)) return null;
+      return manager.appId;
+    },
+    async startAuthorization(values: { subject: string; companyId: string; profile?: NexusCloudConnectorProfileId; scopes?: string[]; returnUri: string; returnState: string }) {
+      const profile = values.profile ?? "gmail.draft";
+      const response = await call("session", { ...values, profile });
+      if (typeof response.confirmationUrl !== "string" || typeof response.expiresAt !== "string") {
+        throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid session", "CONNECTOR_BAD_RESPONSE");
+      }
+      let confirmationUrl: URL;
+      try {
+        confirmationUrl = new URL(response.confirmationUrl);
+      } catch {
+        throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid confirmation URL", "CONNECTOR_BAD_RESPONSE");
+      }
+      const expectedBroker = new URL(config.baseUrl);
+      if (
+        confirmationUrl.origin !== expectedBroker.origin
+        || confirmationUrl.pathname !== "/connections/confirm"
+        || confirmationUrl.username
+        || confirmationUrl.password
+        || confirmationUrl.hash
+      ) {
+        throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid confirmation URL", "CONNECTOR_BAD_RESPONSE");
+      }
+      let authorizationUrl: URL | undefined;
+      if (response.authorizationUrl !== undefined) {
+        if (typeof response.authorizationUrl !== "string") {
+          throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid provider URL", "CONNECTOR_BAD_RESPONSE");
+        }
+        try {
+          authorizationUrl = new URL(response.authorizationUrl);
+        } catch {
+          throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid provider URL", "CONNECTOR_BAD_RESPONSE");
+        }
+        if (
+          authorizationUrl.protocol !== "https:"
+          || authorizationUrl.username
+          || authorizationUrl.password
+          || authorizationUrl.hash
+          || !isExpectedProviderAuthorizationUrl(profile, authorizationUrl)
+        ) {
+          throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid provider URL", "CONNECTOR_BAD_RESPONSE");
+        }
+      }
+      const handoff = parseCloudHandoff(response.handoff);
+      return {
+        authorizationUrl: authorizationUrl?.toString() ?? confirmationUrl.toString(),
+        expiresAt: response.expiresAt,
+        ...(handoff ? { handoff } : {}),
+      };
+    },
+    async claim(values: { subject: string; companyId: string; profile?: NexusCloudConnectorProfileId; scopes?: string[]; claimId: string; redemptionId: string }) {
+      const profile = values.profile ?? "gmail.draft";
+      return openCredentials(await call("claim", { ...values, profile }), sealPurpose("initial", profile), values.subject, values.companyId, profile, values.scopes);
+    },
+    async refresh(values: { subject: string; companyId: string; profile?: NexusCloudConnectorProfileId; refreshToken: string }) {
+      const profile = values.profile ?? "gmail.draft";
+      return openCredentials(
+        await call("refresh", { ...values, profile }, { field: "refreshToken", value: values.refreshToken }),
+        sealPurpose("access", profile),
+        values.subject,
+        values.companyId,
+        profile,
+      );
+    },
+    async revoke(values: { subject: string; companyId: string; profile?: NexusCloudConnectorProfileId; token: string }) {
+      await call("revoke", { ...values, profile: values.profile ?? "gmail.draft" }, { field: "token", value: values.token });
+    },
+    async setWebhookBinding(values: {
+      subject: string;
+      companyId: string;
+      id: string;
+      installationId: string;
+      connectionId: string;
+      grantId: string;
+      active: boolean;
+      accessToken?: string;
+    }) {
+      if (values.active && !values.accessToken) {
+        throw new NexusCloudConnectorError(
+          "GitHub access token is required to authorize a webhook binding",
+          "CONNECTOR_CONFIG_INVALID",
+        );
+      }
+      const binding = JSON.stringify({
+        id: values.id,
+        installationId: values.installationId,
+        connectionId: values.connectionId,
+        grantId: values.grantId,
+        active: values.active,
+        ...(values.active ? { accessToken: values.accessToken } : {}),
+      });
+      await call("webhook-bind", { ...values, profile: "github.code" }, { field: "binding", value: binding });
+    },
+    async leaseEvents(values: { subject: string; companyId: string; eventWakeVersion?: 0 | 1 }): Promise<{ leaseId: string; events: SealedConnectorEvents["events"]; failedEventIds?: string[] } | null> {
+      const response = await call("event-lease", values);
+      eventWakeVersion = response.eventWakeVersion === 1 && values.eventWakeVersion !== 0 ? 1 : null;
+      if (Array.isArray(response.events) && response.events.length === 0) return null;
+      if (typeof response.leaseId !== "string") {
+        throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid event lease", "CONNECTOR_BAD_RESPONSE");
+      }
+      const envelope = parseEnvelope(response.sealed, "events", "github", "github.code");
+      const opened = unsealEvents(envelope, sealKey, config.instanceId, config.environment);
+      if (opened.leaseId !== response.leaseId) {
+        throw new NexusCloudConnectorError("Nexus Cloud connector event lease did not match", "CONNECTOR_BINDING_MISMATCH");
+      }
+      const events: SealedConnectorEvents["events"] = [];
+      const failedEventIds: string[] = [];
+      for (const event of opened.events) {
+        const packet = event.payload.githubApp;
+        try {
+          if (isRecord(packet) && packet.sealed !== undefined) {
+            const sealed = parseEnvelope(packet.sealed, "events", "github", "github.bot");
+            const delivery = decryptEnvelope(sealed, sealKey, config.instanceId, config.environment, "github", "github.bot", []) as Record<string, unknown>;
+            if (!isRecord(delivery) || delivery.v !== 1 || delivery.instanceId !== config.instanceId || delivery.environment !== config.environment
+              || delivery.registrationId !== packet.registrationId) throw badEnvelope();
+            event.payload = { githubApp: delivery };
+          }
+          events.push(event);
+        } catch {
+          failedEventIds.push(event.id);
+        }
+      }
+      return { leaseId: opened.leaseId, events, ...(failedEventIds.length ? { failedEventIds } : {}) };
+    },
+    async acknowledgeEvents(values: { subject: string; companyId: string; leaseId: string; deliveryIds: string[] }): Promise<number> {
+      const acknowledgement = JSON.stringify({ leaseId: values.leaseId, deliveryIds: values.deliveryIds });
+      const response = await call("event-ack", values, { field: "acknowledgement", value: acknowledgement });
+      const acknowledged = response.acknowledged;
+      if (typeof acknowledged !== "number" || !Number.isSafeInteger(acknowledged) || acknowledged < 0) {
+        throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid acknowledgement", "CONNECTOR_BAD_RESPONSE");
+      }
+      return acknowledged;
+    },
+  };
+}
+
+function parseCloudHandoff(value: unknown): { kind: "nexus_cloud"; session: string } | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid handoff", "CONNECTOR_BAD_RESPONSE");
+  }
+  const record = value as Record<string, unknown>;
+  const session = record.session;
+  if (
+    record.kind !== "tenant_background"
+    || typeof session !== "string"
+    || session.length < 16
+    || session.length > 512
+    || !/^[A-Za-z0-9_-]+$/.test(session)
+  ) {
+    throw new NexusCloudConnectorError("Nexus Cloud connector returned an invalid handoff", "CONNECTOR_BAD_RESPONSE");
+  }
+  return { kind: "nexus_cloud", session };
+}
+
+export type NexusCloudConnector = ReturnType<typeof createNexusCloudConnector>;
+export type NexusCloudGoogleWorkspaceConnector = NexusCloudConnector;
+
+/** Accept persisted Nexus ID-era records while all new records use the Cloud strategy. */
+export function isNexusCloudConnectorStrategy(value: unknown): boolean {
+  return value === "nexus_cloud_connector" || value === "nexus_id_connector";
+}
+
+/** Use the same signed instance profiles for catalog display and setup validation. */
+export function appWithNexusCloudConnectorAvailability(
+  app: AppDefinition,
+  profiles: readonly string[],
+): AppDefinition {
+  const enabledProfiles = new Set(profiles);
+  const methods = app.methods.filter((method) =>
+    !isNexusCloudConnectorStrategy(method.oauthStrategy)
+    || Boolean(method.connectorProfile && enabledProfiles.has(method.connectorProfile))
+  );
+  return {
+    ...app,
+    methods,
+    ownershipAvailability: {
+      ...DEFAULT_OWNERSHIP_AVAILABILITY,
+      ...app.ownershipAvailability,
+      platform_shared: methods.some((method) => isNexusCloudConnectorStrategy(method.oauthStrategy)),
+    },
+  };
+}
+
+let capabilityCache: { key: string; expiresAt: number; profiles: NexusCloudConnectorProfileId[] } | null = null;
+let capabilityCacheGeneration = 0;
+
+export function invalidateNexusCloudConnectorCapabilities(): void {
+  capabilityCacheGeneration += 1;
+  capabilityCache = null;
+}
+
+export async function nexusCloudConnectorCapabilitiesFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<NexusCloudConnectorProfileId[]> {
+  let config: NexusCloudConnectorConfig | null;
+  try {
+    config = nexusCloudConnectorConfigFromEnv(env);
+  } catch (error) {
+    // Gallery discovery is useful even while connector enrollment is pending or
+    // local connector settings are incomplete. Treat every connector-config
+    // error as "no managed profiles" here; enrollment/status surfaces still
+    // report the actionable configuration problem.
+    if (error instanceof NexusCloudConnectorError) return [];
+    throw error;
+  }
+  if (!config) return [];
+  const key = `${config.baseUrl}|${config.instanceId}|${config.environment}`;
+  if (capabilityCache?.key === key && capabilityCache.expiresAt > Date.now()) return capabilityCache.profiles;
+  const generation = capabilityCacheGeneration;
+  const connector = createNexusCloudConnector({ config });
+  const profiles = await connector.getCapabilities();
+  if (generation === capabilityCacheGeneration) {
+    capabilityCache = { key, expiresAt: Date.now() + 60_000, profiles };
+  }
+  return profiles;
+}
+
+function signRequest(payload: Record<string, unknown>, key: KeyObject): string {
+  const header = { alg: "EdDSA", typ: JWS_TYP };
+  const signingInput = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(payload))}`;
+  return `${signingInput}.${sign(null, Buffer.from(signingInput, "utf8"), key).toString("base64url")}`;
+}
+
+function privateKey(value: string, curve: "ed25519" | "x25519"): KeyObject {
+  try {
+    let parsed: KeyObject;
+    if (value.includes("BEGIN PRIVATE KEY")) {
+      parsed = createPrivateKey(value);
+    } else {
+      const raw = Buffer.from(value, "base64url");
+      parsed = raw.length === RAW_PRIVATE_KEY_BYTES
+        ? createPrivateKey({
+        key: Buffer.concat([curve === "ed25519" ? ED25519_PKCS8_PREFIX : X25519_PKCS8_PREFIX, raw]),
+        format: "der",
+        type: "pkcs8",
+        })
+        : createPrivateKey({ key: raw, format: "der", type: "pkcs8" });
+    }
+    if (parsed.asymmetricKeyType !== curve) throw new Error("wrong key type");
+    return parsed;
+  } catch {
+    throw new NexusCloudConnectorError(`Nexus Cloud ${curve} private key is invalid`, "CONNECTOR_CONFIG_INVALID");
+  }
+}
+
+function parseEnvelope(
+  value: unknown,
+  purpose: SealedEnvelope["purpose"],
+  provider: NexusCloudConnectorProvider,
+  profile: NexusCloudConnectorProfileId,
+): SealedEnvelope {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw badEnvelope();
+  const candidate = value as Partial<SealedEnvelope>;
+  if (candidate.v !== 1 || candidate.alg !== SEAL_ALGORITHM || candidate.purpose !== purpose
+    || candidate.provider !== provider || candidate.profile !== profile
+    || typeof candidate.epk !== "string" || typeof candidate.iv !== "string" || typeof candidate.ct !== "string") {
+    throw badEnvelope();
+  }
+  return candidate as SealedEnvelope;
+}
+
+function unseal(
+  envelope: SealedEnvelope,
+  recipientPrivateKey: KeyObject,
+  instanceId: string,
+  environment: string,
+  provider: NexusCloudConnectorProvider,
+  profile: NexusCloudConnectorProfileId,
+  scopes: readonly string[],
+): SealedConnectorCredentials {
+  try {
+    const parsed = decryptEnvelope(envelope, recipientPrivateKey, instanceId, environment, provider, profile, scopes) as Partial<SealedConnectorCredentials>;
+    if (parsed.v !== 1 || typeof parsed.accessToken !== "string" || parsed.accessToken.length === 0
+      || !(parsed.refreshToken === null || typeof parsed.refreshToken === "string")
+      || typeof parsed.tokenType !== "string"
+      || !(parsed.accessTokenExpiresAt === null || typeof parsed.accessTokenExpiresAt === "string")
+      || !(parsed.refreshTokenExpiresAt === null || typeof parsed.refreshTokenExpiresAt === "string")
+      || !Array.isArray(parsed.scopes) || !parsed.scopes.every((scope) => typeof scope === "string")
+      || typeof parsed.subject !== "string" || typeof parsed.companyId !== "string"
+      || typeof parsed.instanceId !== "string" || typeof parsed.environment !== "string"
+      || !(parsed.appSlug === undefined || (typeof parsed.appSlug === "string" && /^[a-z0-9-]{1,100}$/.test(parsed.appSlug)))
+      || parsed.provider !== provider || parsed.profile !== profile) {
+      throw badEnvelope();
+    }
+    return parsed as SealedConnectorCredentials;
+  } catch (error) {
+    if (error instanceof NexusCloudConnectorError) throw error;
+    throw badEnvelope();
+  }
+}
+
+function unsealEvents(
+  envelope: SealedEnvelope,
+  recipientPrivateKey: KeyObject,
+  instanceId: string,
+  environment: NexusCloudConnectorEnvironment,
+): SealedConnectorEvents {
+  try {
+    const parsed = decryptEnvelope(envelope, recipientPrivateKey, instanceId, environment, "github", "github.code", []) as Partial<SealedConnectorEvents>;
+    if (parsed.v !== 1 || parsed.instanceId !== instanceId || parsed.environment !== environment
+      || typeof parsed.leaseId !== "string" || !Array.isArray(parsed.events)) throw badEnvelope();
+    for (const event of parsed.events) {
+      if (!isRecord(event) || typeof event.id !== "string" || event.provider !== "github"
+        || typeof event.event !== "string" || !isRecord(event.payload) || !Array.isArray(event.bindingIds)
+        || !event.bindingIds.every((id) => typeof id === "string")) throw badEnvelope();
+    }
+    return parsed as SealedConnectorEvents;
+  } catch (error) {
+    if (error instanceof NexusCloudConnectorError) throw error;
+    throw badEnvelope();
+  }
+}
+
+function decryptEnvelope(
+  envelope: SealedEnvelope,
+  recipientPrivateKey: KeyObject,
+  instanceId: string,
+  environment: string,
+  provider: NexusCloudConnectorProvider,
+  profile: NexusCloudConnectorProfileId,
+  scopes: readonly string[],
+): unknown {
+  const ephemeralRaw = Buffer.from(envelope.epk, "base64url");
+  if (ephemeralRaw.length !== 32) throw badEnvelope();
+  const ephemeralKey = createPublicKey({
+    key: Buffer.concat([X25519_SPKI_PREFIX, ephemeralRaw]),
+    format: "der",
+    type: "spki",
+  });
+  const recipientJwk = createPublicKey(recipientPrivateKey).export({ format: "jwk" }) as { x?: string };
+  if (!recipientJwk.x) throw badEnvelope();
+  const recipientRaw = Buffer.from(recipientJwk.x, "base64url");
+  if (envelope.provider !== provider || envelope.profile !== profile) throw badEnvelope();
+  const aad = Buffer.from([
+    1,
+    SEAL_ALGORITHM,
+    envelope.purpose,
+    instanceId,
+    environment,
+    provider,
+    profile,
+    [...scopes].sort().join(" "),
+  ].join("\n"), "utf8");
+  const key = Buffer.from(hkdfSync(
+    "sha256",
+    diffieHellman({ privateKey: recipientPrivateKey, publicKey: ephemeralKey }),
+    Buffer.concat([ephemeralRaw, recipientRaw]),
+    // The combined profile's scope binding exceeds Node's 1024-byte HKDF-info
+    // limit. Its new wire contract hashes that binding; legacy profiles retain
+    // their original derivation. GCM still authenticates the complete AAD.
+    provider === "google" && profile === "workspace.all" ? createHash("sha256").update(aad).digest() : aad,
+    32,
+  ));
+  const iv = Buffer.from(envelope.iv, "base64url");
+  const combined = Buffer.from(envelope.ct, "base64url");
+  if (iv.length !== 12 || combined.length <= AES_TAG_BYTES) throw badEnvelope();
+  const decipher = createDecipheriv("aes-256-gcm", key, iv, { authTagLength: AES_TAG_BYTES });
+  decipher.setAAD(aad);
+  decipher.setAuthTag(combined.subarray(-AES_TAG_BYTES));
+  const plaintext = Buffer.concat([
+    decipher.update(combined.subarray(0, -AES_TAG_BYTES)),
+    decipher.final(),
+  ]);
+  return JSON.parse(plaintext.toString("utf8")) as unknown;
+}
+
+function badEnvelope() {
+  return new NexusCloudConnectorError("Nexus Cloud connector returned an invalid sealed credential", "CONNECTOR_BAD_RESPONSE");
+}
+
+function sealPurpose(
+  kind: "initial" | "access",
+  _profile: NexusCloudConnectorProfileId,
+): SealedEnvelope["purpose"] {
+  return kind;
+}
+
+function connectorProfileDefinition(profile: NexusCloudConnectorProfileId): {
+  provider: NexusCloudConnectorProvider;
+  scopes: readonly string[];
+} {
+  if (profile === "slack.manager") return { provider: "slack", scopes: SLACK_MANAGER_SCOPES };
+  if (profile === "github.bot") return { provider: "github", scopes: [] };
+  if (isAsanaConnectorProfileId(profile)) {
+    return { provider: "asana", scopes: ASANA_CONNECTOR_SCOPES };
+  }
+  if (isGitHubConnectorProfileId(profile)) {
+    return { provider: "github", scopes: GITHUB_CONNECTOR_PROFILES[profile].scopes };
+  }
+  return { provider: "google", scopes: GOOGLE_WORKSPACE_CONNECTOR_PROFILES[profile].scopes };
+}
+
+function isExpectedProviderAuthorizationUrl(
+  profile: NexusCloudConnectorProfileId,
+  url: URL,
+): boolean {
+  if (profile === "slack.manager") return url.origin === "https://slack.com" && url.pathname === "/oauth/v2/authorize";
+  if (isAsanaConnectorProfileId(profile)) {
+    return url.origin === "https://app.asana.com" && url.pathname === "/-/oauth_authorize";
+  }
+  if (isGitHubConnectorProfileId(profile)) {
+    return url.origin === "https://github.com" && url.pathname === "/login/oauth/authorize";
+  }
+  return url.origin === "https://accounts.google.com" && url.pathname === "/o/oauth2/v2/auth";
+}
+
+function isNexusCloudConnectorProfileId(value: string): value is NexusCloudConnectorProfileId {
+  return value === "slack.manager" || isGoogleWorkspaceConnectorProfileId(value) || isGitHubConnectorProfileId(value) || isAsanaConnectorProfileId(value);
+}
+
+async function sha256Base64Url(value: string): Promise<string> {
+  return createHash("sha256").update(value, "utf8").digest("base64url");
+}
+
+function base64Url(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function sameStringSet(value: unknown, expected: readonly string[]): boolean {
+  return Array.isArray(value)
+    && value.every((item) => typeof item === "string")
+    && value.length === expected.length
+    && expected.every((item) => value.includes(item));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isLoopback(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]";
+}

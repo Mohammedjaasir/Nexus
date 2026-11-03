@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import type { AuthorizationActor } from "./authorization.js";
 import { notFound, unprocessable } from "../errors.js";
 import { skillAccessService } from "./skill-access.js";

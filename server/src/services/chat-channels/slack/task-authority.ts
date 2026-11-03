@@ -21,7 +21,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatActions,
@@ -34,7 +34,7 @@ import {
   companyMemberships,
   issueComments,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import {
   forbidden,
@@ -103,7 +103,7 @@ export function createSlackTaskAuthorityRegistration(db: Db, options: SlackTaskA
         const links = await tx.select({ principal: chatExternalPrincipals }).from(chatIdentityLinks)
           .innerJoin(chatExternalPrincipals, and(eq(chatExternalPrincipals.id, chatIdentityLinks.principalId), eq(chatExternalPrincipals.companyId, binding.companyId)))
           .where(and(eq(chatIdentityLinks.companyId, binding.companyId), eq(chatIdentityLinks.endpointId, endpoint.id),
-            eq(chatIdentityLinks.paperclipUserId, run.responsibleUserId!), eq(chatIdentityLinks.status, "linked"),
+            eq(chatIdentityLinks.nexusUserId, run.responsibleUserId!), eq(chatIdentityLinks.status, "linked"),
             eq(chatExternalPrincipals.provider, "slack"), eq(chatExternalPrincipals.providerAccountId, endpoint.providerAccountId!), eq(chatExternalPrincipals.isBot, false)));
         if (links.length !== 1) throw forbidden("Link your Slack account to this connection before using it from tasks or routines");
         // A Board message changes who is directing the work, not the privacy

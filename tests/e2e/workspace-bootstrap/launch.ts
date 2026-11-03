@@ -11,8 +11,8 @@ const options = {
 process.env.BOOTSTRAP_FIXTURE_KEY = "not-a-provider-key";
 await prepareTestDriveEnvironment(options);
 process.env.NODE_ENV = "test";
-// Test-drive clears PAPERCLIP_* settings. Apply the fixture's short deadline
+// Test-drive clears NEXUS_* settings. Apply the fixture's short deadline
 // after isolation; production snapshots may legitimately take much longer.
-process.env.PAPERCLIP_WORKSPACE_GIT_SNAPSHOT_TIMEOUT_MS = "10000";
+process.env.NEXUS_WORKSPACE_GIT_SNAPSHOT_TIMEOUT_MS = "10000";
 process.env.PATH = `${path.join(import.meta.dirname, "bin")}${path.delimiter}${process.env.PATH ?? ""}`;
 await testDriveCommand(options);

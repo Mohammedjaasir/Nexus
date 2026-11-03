@@ -8,10 +8,10 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 import { and, asc, eq } from "drizzle-orm";
-import { executionWorkspaces, heartbeatRuns, issues, projectWorkspaces, workspaceOperations, type Db } from "@paperclipai/db";
-import { freshWorkspaceSchema, type PluginFreshWorkspace } from "@paperclipai/plugin-sdk";
-import type { ExecutionWorkspace } from "@paperclipai/shared";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { executionWorkspaces, heartbeatRuns, issues, projectWorkspaces, workspaceOperations, type Db } from "@nexusai/db";
+import { freshWorkspaceSchema, type PluginFreshWorkspace } from "@nexusai/plugin-sdk";
+import type { ExecutionWorkspace } from "@nexusai/shared";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 import { getStorageService } from "../storage/index.js";
 import { recoveryRunAncestry } from "./recovery-run-ancestry.js";
 import { readSnapshot } from "./workspace-recovery-snapshot.js";
@@ -44,7 +44,7 @@ export async function stageProviderFreshWorkspace(input: {
   if (input.existing?.recoverySnapshots.length === 0) return freshWorkspaceSchema.parse(input.existing);
   const storage = getStorageService();
   const sources = await recoveryRunAncestry({ ...input, sourceRunIds: [input.sourceRunId] });
-  const stagingRoot = path.join(resolvePaperclipInstanceRoot(), "runtime", "provider-recovery", input.companyId, fresh.attemptId);
+  const stagingRoot = path.join(resolveNexusInstanceRoot(), "runtime", "provider-recovery", input.companyId, fresh.attemptId);
   await mkdir(stagingRoot, { recursive: true, mode: 0o700 });
   const root = await realpath(stagingRoot);
   for (const { id: sourceRunId } of sources) {
@@ -164,6 +164,6 @@ export async function reserveFreshPluginTaskWorkspace(input: {
 
 export async function releaseProviderRecoveryTransfers(companyId: string, input: PluginFreshWorkspace) {
   const fresh = freshWorkspaceSchema.parse(input);
-  await rm(path.join(resolvePaperclipInstanceRoot(), "runtime", "provider-recovery", companyId, fresh.attemptId),
+  await rm(path.join(resolveNexusInstanceRoot(), "runtime", "provider-recovery", companyId, fresh.attemptId),
     { recursive: true, force: true });
 }

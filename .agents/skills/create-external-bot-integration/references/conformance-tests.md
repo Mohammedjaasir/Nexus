@@ -6,7 +6,7 @@
 - [Minimum real-provider journeys](#minimum-real-provider-journeys)
 - [Select additional rows from the capability contract](#select-additional-rows-from-the-capability-contract)
 - [Record evidence that survives a handoff](#record-evidence-that-survives-a-handoff)
-- [Historical Paperclip test entry point](#historical-paperclip-test-entry-point)
+- [Historical Nexus test entry point](#historical-nexus-test-entry-point)
 
 ## Keep the evidence levels explicit
 
@@ -21,7 +21,7 @@
 For UI, a Storybook fixture proves a rendered state, not that the backend reaches
 that state. A deep link that bypasses onboarding does not prove discoverability.
 
-Use the current repo's `paperclip-evals`, `add-runner-eval`, and
+Use the current repo's `nexus-evals`, `add-runner-eval`, and
 `add-product-e2e-eval` procedures when relevant and available. Locate an existing
 case before adding a new fixture. The recipes below specify outcomes; adapt their
 tool calls to the actual provider. Do not infer live success from this document.
@@ -41,7 +41,7 @@ task or allocate a sandbox for the readiness challenge. Save the action log and
 final screenshot. Record app attachment, reboot, manual consent, or inbox nudges
 as interventions. A repaired setup can pass functionally while failing first-try UX.
 
-### C02 — Paperclip assigns useful work with no chat nudge
+### C02 — Nexus assigns useful work with no chat nudge
 
 Create an ordinary task with a fresh synthetic nonce. Example:
 
@@ -62,7 +62,7 @@ result through a connector yourself and describe that as the bot's execution.
 With no active assignment, tell the real bot:
 
 ```text
-Create a Paperclip task titled <UNIQUE_TITLE> and assign it to my responsible
+Create a Nexus task titled <UNIQUE_TITLE> and assign it to my responsible
 human owner. Find that person using the connection's identity/people tools.
 Start governed work yourself if necessary, then return the created task link.
 ```
@@ -76,14 +76,14 @@ gets an actionable terminal result rather than waiting forever for an offer.
 ### C04 — use native capabilities and bring back the result
 
 Use a user-authorized synthetic source in a native tool already connected to the
-bot, deliberately absent from the Paperclip assigned-app catalog. Ask a question
+bot, deliberately absent from the Nexus assigned-app catalog. Ask a question
 whose answer requires that source. Require the actual native read and a useful
-result persisted on the Paperclip task. Keep data/destination authority explicit;
+result persisted on the Nexus task. Keep data/destination authority explicit;
 do not create a new third-party grant solely to make this test pass.
 
 Run once after a narrowly scoped qualification test ends. Failure if the bot says
-it lacks the tool merely because Paperclip does not list it. Also verify the
-bot cannot substitute another Paperclip identity to bypass a denied operation.
+it lacks the tool merely because Nexus does not list it. Also verify the
+bot cannot substitute another Nexus identity to bypass a denied operation.
 
 ### C05 — follow-up plus a real controller restart
 
@@ -92,7 +92,7 @@ comment. Capture run/assignment/session, sandbox lease, Runner marker/PID/birth
 fingerprint, and controller identity. Restart the owned controller and verify
 that it actually changed. Wait through a realistic bounded reconnect gap.
 
-Post the resume instruction as an ordinary Paperclip comment. Require the same
+Post the resume instruction as an ordinary Nexus comment. Require the same
 assignment/session/Runner, read of that exact comment, one document result, one
 finalization, one task run, and released resources. A dev supervisor that kept
 the controller alive invalidates the experiment. A new run completing the task
@@ -188,7 +188,7 @@ Keep secrets, callback signing keys, access/refresh tokens, pairing codes, and
 private source data out of reports and public PRs. Internal IDs may belong in a
 private qualification record; follow the repo's public issue/PR rules.
 
-## Historical Paperclip test entry point
+## Historical Nexus test entry point
 
 The October 9 integration used `server/src/__tests__/dot-runner.test.ts` for
 actual Rust/PostgreSQL tests and an opt-in private Daytona case:
@@ -197,9 +197,9 @@ actual Rust/PostgreSQL tests and an opt-in private Daytona case:
 pnpm exec vitest run server/src/__tests__/dot-runner.test.ts -t 'private Daytona Rust'
 ```
 
-That candidate read `PAPERCLIP_DOT_DAYTONA_LIVE=1`, `DAYTONA_API_KEY`, an immutable
-`PAPERCLIP_DOT_DAYTONA_IMAGE`, optional `PAPERCLIP_DOT_DAYTONA_RUNNER_BINARY`, and
-`PAPERCLIP_DOT_DAYTONA_EVIDENCE`. Locate the current fixture and inspect its flags,
+That candidate read `NEXUS_DOT_DAYTONA_LIVE=1`, `DAYTONA_API_KEY`, an immutable
+`NEXUS_DOT_DAYTONA_IMAGE`, optional `NEXUS_DOT_DAYTONA_RUNNER_BINARY`, and
+`NEXUS_DOT_DAYTONA_EVIDENCE`. Locate the current fixture and inspect its flags,
 cost bounds, dependencies, and `finally` cleanup before running. Do not print
 credentials. This case used a scripted MCP client; it never replaced real Dot
 qualification. The command/flags are historical anchors, not a guaranteed current CLI.

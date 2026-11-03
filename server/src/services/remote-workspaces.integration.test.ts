@@ -8,10 +8,10 @@ import { pathToFileURL } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, sql } from "drizzle-orm";
 import { activityLog, agents, agentWakeupRequests, applyPendingMigrations, closeRegisteredClients, companies, createDb, environmentLeases, environments,
-  executionWorkspaces, executionWorkspaceSnapshots, heartbeatRunEvents, heartbeatRuns, issueRecoveryActions, issues, livenessDb, nativeRunFinalizations, projects, projectWorkspaces, workspaceOperations } from "@paperclipai/db";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
-import type { Environment, EnvironmentLease } from "@paperclipai/shared";
+  executionWorkspaces, executionWorkspaceSnapshots, heartbeatRunEvents, heartbeatRuns, issueRecoveryActions, issues, livenessDb, nativeRunFinalizations, projects, projectWorkspaces, workspaceOperations } from "@nexusai/db";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
+import type { Environment, EnvironmentLease } from "@nexusai/shared";
 import { createStorageService } from "../storage/service.js";
 import { createLocalDiskStorageProvider } from "../storage/local-disk-provider.js";
 import { createS3StorageProvider } from "../storage/s3-provider.js";
@@ -37,11 +37,11 @@ import { issueService } from "./issues.js";
 import { instanceSettingsService } from "./instance-settings.js";
 
 const exec = promisify(execFile);
-const databaseUrl = process.env.PAPERCLIP_REMOTE_WORKSPACE_TEST_DATABASE_URL;
+const databaseUrl = process.env.NEXUS_REMOTE_WORKSPACE_TEST_DATABASE_URL;
 if (databaseUrl && !/^remote_workspace_[a-z_]*test$/.test(new URL(databaseUrl).pathname.slice(1))) throw new Error("Disposable workspace database required");
 const suite = databaseUrl ? describe : describe.skip;
-const s3Bucket = process.env.PAPERCLIP_REMOTE_WORKSPACE_TEST_S3_BUCKET;
-if (s3Bucket && !s3Bucket.startsWith("paperclip-workspace-")) throw new Error("Disposable workspace S3 bucket required");
+const s3Bucket = process.env.NEXUS_REMOTE_WORKSPACE_TEST_S3_BUCKET;
+if (s3Bucket && !s3Bucket.startsWith("nexus-workspace-")) throw new Error("Disposable workspace S3 bucket required");
 
 suite("remote workspace lifecycle with real Postgres and independent filesystem execution", () => {
   let db: ReturnType<typeof createDb>, root: string, storage: StorageService;
@@ -49,13 +49,13 @@ suite("remote workspace lifecycle with real Postgres and independent filesystem 
   beforeAll(async () => { await applyPendingMigrations(databaseUrl!); db = createDb(databaseUrl!); }, 120_000);
   afterAll(async () => { await closeRegisteredClients(databaseUrl!); });
   beforeEach(async () => {
-    vi.stubEnv("DATABASE_URL", databaseUrl!); vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "62".repeat(32));
+    vi.stubEnv("DATABASE_URL", databaseUrl!); vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "62".repeat(32));
     root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "pc-remote-workspace-lifecycle-")));
     storage = s3Bucket ? createStorageService(createS3StorageProvider({ bucket: s3Bucket, region: "us-east-1", prefix: "lifecycle-tests" }))
       : { ...createStorageService(createLocalDiskStorageProvider(path.join(root, "objects"))), provider: "s3" };
     ids = Object.fromEntries(["company", "agent", "issue", "run", "environment", "lease"].map(key => [key, randomUUID()])) as typeof ids;
     await db.insert(companies).values({ id: ids.company, name: "Disposable remote workspace proof", issuePrefix: "RWP" });
-    await db.insert(agents).values({ id: ids.agent, companyId: ids.company, name: "Native worker", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: ids.agent, companyId: ids.company, name: "Native worker", adapterType: "nexus_runner" });
     await db.insert(environments).values({ id: ids.environment, name: `Independent filesystem execution ${ids.environment}`, driver: "sandbox", config: {} });
     await db.insert(issues).values({ id: ids.issue, companyId: ids.company, title: "Use a remote workspace", status: "in_progress", assigneeAgentId: ids.agent });
     await db.insert(heartbeatRuns).values({ id: ids.run, companyId: ids.company, agentId: ids.agent, nativeIssueId: ids.issue,
@@ -127,7 +127,7 @@ suite("remote workspace lifecycle with real Postgres and independent filesystem 
     const reserved = await reserve({ kind: "empty" }), first = await target("sandbox-A");
     const prepared = await prepareRemoteWorkspace({ db, storage, workspace: reserved, runId: ids.run, lease: await lease(), target: first });
     expect(readRemoteWorkspaceAuthority(prepared.workspace.metadata)?.snapshotId).toBeTruthy();
-    expect(await fs.readdir(path.join(prepared.remoteRoot, ".paperclip-runtime", "workspace-snapshots"))).toEqual([]);
+    expect(await fs.readdir(path.join(prepared.remoteRoot, ".nexus-runtime", "workspace-snapshots"))).toEqual([]);
     await fs.writeFile(path.join(prepared.remoteRoot, "report.md"), "useful saved result\n");
     await fs.mkdir(path.join(prepared.remoteRoot, "empty-folder"));
     await fs.writeFile(path.join(prepared.remoteRoot, "binary.bin"), Buffer.from([0, 1, 255]));
@@ -355,7 +355,7 @@ suite("remote workspace lifecycle with real Postgres and independent filesystem 
       existingWorkspaceId: reserved.id, source: { kind: "empty" } });
     const nextTarget = await target("restore-cleanup-destination");
     const sandbox = nextTarget as Extract<AdapterExecutionTarget, { transport: "sandbox" }>;
-    const expectedRemoteRoot = path.join(sandbox.remoteCwd, ".paperclip-workspaces", reserved.id);
+    const expectedRemoteRoot = path.join(sandbox.remoteCwd, ".nexus-workspaces", reserved.id);
     const execute = sandbox.runner!.execute.bind(sandbox.runner!);
     let failCleanup = true, cleanupAttempts = 0;
     sandbox.runner!.execute = async input => {
@@ -464,11 +464,11 @@ suite("remote workspace lifecycle with real Postgres and independent filesystem 
       lease: prepared.lease, target: first, assertOwned: async () => undefined })).rejects.toThrow("storage offline");
     expect(readRemoteWorkspaceAuthority((await workspace(reserved.id)).metadata)).toMatchObject({ dirty: true, writerRunId: ids.run,
       snapshotId: readRemoteWorkspaceAuthority(prepared.workspace.metadata)!.snapshotId });
-    expect((await fs.readdir(path.join(prepared.remoteRoot, ".paperclip-runtime", "workspace-snapshots"))).length).toBe(1);
+    expect((await fs.readdir(path.join(prepared.remoteRoot, ".nexus-runtime", "workspace-snapshots"))).length).toBe(1);
     const saved = await saveRemoteWorkspace({ db, storage, workspace: await workspace(reserved.id), runId: ids.run,
       lease: prepared.lease, target: first, assertOwned: async () => undefined });
     expect(saved.generation).toBe(2);
-    expect(await fs.readdir(path.join(prepared.remoteRoot, ".paperclip-runtime", "workspace-snapshots"))).toEqual([]);
+    expect(await fs.readdir(path.join(prepared.remoteRoot, ".nexus-runtime", "workspace-snapshots"))).toEqual([]);
   }, 60_000);
 
   it.each(["initial", "repository:additional"])("saves current files through a different repair boundary after a failed %s upload", async boundary => {
@@ -507,14 +507,14 @@ suite("remote workspace lifecycle with real Postgres and independent filesystem 
     const [retired] = await db.select().from(workspaceOperations).where(eq(workspaceOperations.id, pending!.sourceOperationId));
     expect(retired).toMatchObject({ status: "failed", metadata: { generation: pending!.generation,
       exportCleanup: { state: "cleaned" } } });
-    expect(await fs.readdir(path.join(authority.location!.remoteCwd, ".paperclip-runtime", "workspace-snapshots"))).toEqual([]);
+    expect(await fs.readdir(path.join(authority.location!.remoteCwd, ".nexus-runtime", "workspace-snapshots"))).toEqual([]);
     const upload = vi.spyOn(storage, "putFile"), execute = vi.spyOn((first as Extract<AdapterExecutionTarget, { transport: "sandbox" }>).runner!, "execute");
     try {
       await expect(saveRemoteWorkspace({ db, storage, workspace: before, runId: ids.run,
         lease: await lease(), target: first, boundary, assertOwned: async () => undefined })).rejects.toThrow("remote_workspace_snapshot_retired");
       expect(upload).not.toHaveBeenCalled(); expect(execute).not.toHaveBeenCalled();
     } finally { upload.mockRestore(); execute.mockRestore(); }
-    expect(await fs.readdir(path.join(authority.location!.remoteCwd, ".paperclip-runtime", "workspace-snapshots"))).toEqual([]);
+    expect(await fs.readdir(path.join(authority.location!.remoteCwd, ".nexus-runtime", "workspace-snapshots"))).toEqual([]);
     const abandonedUploads = pending!.metadata!.uploads as Array<{ objectKey: string }>;
     expect(abandonedUploads).toHaveLength(1);
     expect((await storage.headObject(ids.company, abandonedUploads[0]!.objectKey)).exists).toBe(true);
@@ -652,7 +652,7 @@ suite("remote workspace lifecycle with real Postgres and independent filesystem 
       await fs.writeFile(path.join(prepared.remoteRoot, "after-duplicate.txt"), "the final save contains newer work\n");
       const final = await saveRemoteWorkspace({ ...input, workspace: await workspace(reserved.id), boundary: "final" });
       expect(final.generation).toBe(3);
-      const staging = path.join(prepared.remoteRoot, ".paperclip-runtime", "workspace-snapshots");
+      const staging = path.join(prepared.remoteRoot, ".nexus-runtime", "workspace-snapshots");
       expect(await fs.readdir(staging)).toContain(olderOperation!.id);
       const retention = remoteWorkspaceSnapshotRetentionService(db, { storage,
         now: () => new Date(Date.now() + 8 * 86_400_000) });
@@ -715,7 +715,7 @@ suite("remote workspace lifecycle with real Postgres and independent filesystem 
     const retention = remoteWorkspaceSnapshotRetentionService(db, { storage, now: () => new Date(Date.now() + 8 * 86_400_000) });
     await retention.tick();
     expect((await db.select().from(executionWorkspaceSnapshots).where(eq(executionWorkspaceSnapshots.id, old!.id)))[0]?.status).toBe("superseded");
-    expect(await fs.readdir(path.join(prepared.remoteRoot, ".paperclip-runtime", "workspace-snapshots"))).toContain(old!.sourceOperationId);
+    expect(await fs.readdir(path.join(prepared.remoteRoot, ".nexus-runtime", "workspace-snapshots"))).toContain(old!.sourceOperationId);
     expect(readRemoteWorkspaceAuthority((await workspace(reserved.id)).metadata)?.snapshotId).toBe(final.snapshotId);
   }, 60_000);
 
@@ -743,7 +743,7 @@ suite("remote workspace lifecycle with real Postgres and independent filesystem 
     expect(failed).toMatchObject({ runtimeMode: "legacy", status: "failed", runnerProfileJson: {
       remoteWorkspace: { state: "prepared", snapshotId: null, workspaceId: reserved.id },
     }, resultJson: { workspaceRestoreFailure: "restore_failed", workspaceRestoreRecovery: {
-      schema: "paperclip.workspace-restore-recovery.v1", leaseIds: [ids.lease],
+      schema: "nexus.workspace-restore-recovery.v1", leaseIds: [ids.lease],
     } } });
     expect(failed?.runnerProfileJson).not.toHaveProperty("nativeExecutionInput");
     expect(await db.select().from(nativeRunFinalizations).where(eq(nativeRunFinalizations.runId, ids.run))).toHaveLength(0);
@@ -877,19 +877,19 @@ suite("remote workspace lifecycle with real Postgres and independent filesystem 
 
   it("preserves enrolled workspaces after disabling enrollment and rejects a legacy writer", async () => {
     const reserved = await reserve({ kind: "empty" });
-    expect(shouldUseRemoteWorkspaces({ adapterType: "paperclip_runner", environmentDriver: "sandbox", experimentalEnabled: false, existingWorkspace: reserved })).toBe(true);
+    expect(shouldUseRemoteWorkspaces({ adapterType: "nexus_runner", environmentDriver: "sandbox", experimentalEnabled: false, existingWorkspace: reserved })).toBe(true);
     expect(() => shouldUseRemoteWorkspaces({ adapterType: "codex_local", environmentDriver: "sandbox", experimentalEnabled: false, existingWorkspace: reserved })).toThrow("native sandbox");
   });
 
   it("keeps enrollment conditional while enrolled authority fails closed when persistence disappears", async () => {
-    const candidate = { adapterType: "paperclip_runner", environmentDriver: "sandbox", experimentalEnabled: true };
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "s3");
+    const candidate = { adapterType: "nexus_runner", environmentDriver: "sandbox", experimentalEnabled: true };
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "s3");
     expect(shouldUseRemoteWorkspaces(candidate)).toBe(true);
     expect(shouldUseRemoteWorkspaces({ ...candidate, experimentalEnabled: false })).toBe(false);
     expect(shouldUseRemoteWorkspaces({ ...candidate, existingWorkspace: { metadata: {} } })).toBe(false);
     const reserved = await reserve({ kind: "empty" });
     const before = (await workspace(reserved.id)).metadata;
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "local_disk");
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "local_disk");
     expect(shouldUseRemoteWorkspaces(candidate)).toBe(false);
     expect(shouldUseRemoteWorkspaces({ ...candidate, existingWorkspace: reserved })).toBe(true);
     const localStorage = createStorageService(createLocalDiskStorageProvider(path.join(root, "local-only")));
@@ -898,13 +898,13 @@ suite("remote workspace lifecycle with real Postgres and independent filesystem 
       projectId: null, projectWorkspaceId: null, existingWorkspaceId: reserved.id, source: { kind: "empty" } }))
       .rejects.toMatchObject({ details: { code: "remote_workspace_persistence_unavailable" } });
     expect((await workspace(reserved.id)).metadata).toEqual(before);
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "s3");
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "s3");
     vi.stubEnv("DATABASE_URL", "");
     expect(shouldUseRemoteWorkspaces(candidate)).toBe(false);
     expect(shouldUseRemoteWorkspaces({ ...candidate, existingWorkspace: reserved })).toBe(true);
     vi.stubEnv("DATABASE_URL", databaseUrl!);
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY_FILE", path.join(root, "missing-stable-key"));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY_FILE", path.join(root, "missing-stable-key"));
     expect(shouldUseRemoteWorkspaces(candidate)).toBe(false);
     expect(shouldUseRemoteWorkspaces({ ...candidate, existingWorkspace: reserved })).toBe(true);
   });

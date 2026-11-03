@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { REDACTED_EVENT_VALUE } from "../redaction.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { createRunSecretRedactionRegistry, redactRegisteredSecretValues } from "../services/run-secret-redaction.js";
 
@@ -45,7 +45,7 @@ describe("registered run secret redaction", () => {
     const result = redactRegisteredSecretValues({
       contextSnapshot: {
         issueId: "issue-1",
-        paperclipSecretRedactions: [{ material: { ciphertext: "encrypted" } }],
+        nexusSecretRedactions: [{ material: { ciphertext: "encrypted" } }],
       },
       stdoutExcerpt: `stdout ${secret}`,
       events: [{ message: secret, payload: { output: secret } }],
@@ -100,7 +100,7 @@ describe("batched run secret redaction", () => {
   }
 
   it("reads only registry JSON once for 200 runs and resolves shared secrets once", async () => {
-    const contextSnapshot = { paperclipSecretRedactions: [{ fingerprintSha256: "shared", material: { value: secret } }] };
+    const contextSnapshot = { nexusSecretRedactions: [{ fingerprintSha256: "shared", material: { value: secret } }] };
     const rows = Array.from({ length: 200 }, (_, i) => ({ id: `run-${i}`, contextSnapshot }));
     const { registry, select, where } = fixture(rows);
     const result = await registry.redactForRuns("company-1", rows.map(row => ({ ...row, stdoutExcerpt: secret })));
@@ -112,21 +112,21 @@ describe("batched run secret redaction", () => {
     const predicate = dialect.sqlToQuery(where.mock.calls[0][0]);
     expect(predicate.params).toContain("company-1");
     expect(predicate.sql).toContain('"company_id"');
-    expect(dialect.sqlToQuery(select.mock.calls[0][0].contextSnapshot).sql).toContain("-> 'paperclipSecretRedactions'");
+    expect(dialect.sqlToQuery(select.mock.calls[0][0].contextSnapshot).sql).toContain("-> 'nexusSecretRedactions'");
   });
 
   it("keeps each run's registry separate and observes new registrations on the next request", async () => {
-    const rows = [{ id: "a", contextSnapshot: { paperclipSecretRedactions: [{ fingerprintSha256: "one", material: { value: secret } }] } }];
+    const rows = [{ id: "a", contextSnapshot: { nexusSecretRedactions: [{ fingerprintSha256: "one", material: { value: secret } }] } }];
     const { registry } = fixture(rows);
     expect(await registry.redactForRuns("company", [{ id: "a", text: secret }, { id: "b", text: secret }]))
       .toEqual([{ id: "a", text: REDACTED_EVENT_VALUE }, { id: "b", text: secret }]);
-    rows[0].contextSnapshot.paperclipSecretRedactions.push({ fingerprintSha256: "two", material: { value: "new-secret" } });
+    rows[0].contextSnapshot.nexusSecretRedactions.push({ fingerprintSha256: "two", material: { value: "new-secret" } });
     expect(await registry.redactForRuns("company", [{ id: "a", text: "new-secret" }]))
       .toEqual([{ id: "a", text: REDACTED_EVENT_VALUE }]);
   });
 
   it("does not query for an empty list and fails closed on decryption failure", async () => {
-    const { registry, select } = fixture([{ id: "a", contextSnapshot: { paperclipSecretRedactions: [{ fingerprintSha256: "one", material: {} }] } }]);
+    const { registry, select } = fixture([{ id: "a", contextSnapshot: { nexusSecretRedactions: [{ fingerprintSha256: "one", material: {} }] } }]);
     expect(await registry.redactForRuns("company", [])).toEqual([]);
     expect(select).not.toHaveBeenCalled();
     resolveVersion.mockRejectedValueOnce(new Error("unavailable"));

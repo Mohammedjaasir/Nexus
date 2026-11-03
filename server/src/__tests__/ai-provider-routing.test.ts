@@ -5,14 +5,14 @@ import {
   aiRoutingModel,
   createAiConnectionSchema,
   isAiConnectionCompatible,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { managedProviderRouting } from "../services/ai-provider-routing.js";
 
 describe("provider routing", () => {
   it("routes managed OpenRouter accounts to direct and native Pi without OpenCode configuration", () => {
     const routing = aiProviderRoutingSchema.parse({ kind: "openrouter", protocol: "chat" });
-    expect(aiRoutingHarness("paperclip_runner", "acpx", "pi")).toBe("pi_local");
-    for (const adapterType of ["pi_local", "paperclip_runner"]) {
+    expect(aiRoutingHarness("nexus_runner", "acpx", "pi")).toBe("pi_local");
+    for (const adapterType of ["pi_local", "nexus_runner"]) {
       expect(isAiConnectionCompatible({ provider: "openrouter", method: "api_key", routing }, adapterType, "openrouter/anthropic/model", "acpx", "pi")).toBe(true);
     }
     expect(aiRoutingModel(routing, "pi_local", "anthropic/model")).toBe("openrouter/anthropic/model");
@@ -23,7 +23,7 @@ describe("provider routing", () => {
     expect(isAiConnectionCompatible({ provider: "openai", method: "api_key", routing: aiProviderRoutingSchema.parse({ kind: "gateway", protocol: "chat", baseUrl: "https://gateway.example/v1" }) }, "pi_local", "custom/model")).toBe(false);
   });
   it.each(["openai", "anthropic", "google", "openrouter"] as const)("accepts Pi %s API keys only for matching models", provider => {
-    expect(isAiConnectionCompatible({ provider, method: "api_key" }, "paperclip_runner", `${provider}/model`, "acpx", "pi")).toBe(true);
+    expect(isAiConnectionCompatible({ provider, method: "api_key" }, "nexus_runner", `${provider}/model`, "acpx", "pi")).toBe(true);
     expect(isAiConnectionCompatible({ provider, method: "subscription" }, "pi_local", `${provider}/model`)).toBe(false);
     expect(isAiConnectionCompatible({ provider, method: "subscription", mode: "responsible_user" }, "pi_local", `${provider}/model`)).toBe(true);
     expect(isAiConnectionCompatible({ provider, method: "api_key" }, "pi_local", "different/model")).toBe(false);
@@ -99,7 +99,7 @@ describe("provider routing", () => {
     expect(
       isAiConnectionCompatible(
         { provider: "openai", method: "api_key", routing },
-        "paperclip_runner",
+        "nexus_runner",
         "model",
         "aws_agentcore",
       ),
@@ -109,7 +109,7 @@ describe("provider routing", () => {
     const route = aiProviderRoutingSchema.parse({ kind, protocol: "chat", auth: "bearer", ...(kind === "gateway" ? { baseUrl: "https://gateway.example/v1" } : {}) });
     const projected = managedProviderRouting(route, "hermes_local", "selected-key", "fixture-model");
     expect(projected.env.OPENAI_API_KEY).toBe("selected-key");
-    expect(projected.env.PAPERCLIP_AI_PROVIDER_KEY).toBeUndefined();
+    expect(projected.env.NEXUS_AI_PROVIDER_KEY).toBeUndefined();
     expect(projected.hermesConfig).toContain('api_key: "${OPENAI_API_KEY}"');
     expect(projected.hermesConfig).not.toContain("selected-key");
     expect(Object.entries(projected.env).filter(([, value]) => value === "selected-key").map(([name]) => name)).toEqual(kind === "openrouter" ? ["OPENAI_API_KEY", "OPENROUTER_API_KEY"] : ["OPENAI_API_KEY"]);

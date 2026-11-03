@@ -2,7 +2,7 @@
  * Server-side execution logic for the Hermes Agent adapter.
  *
  * Spawns `hermes chat -q "..." -Q` as a child process, streams output,
- * and returns structured results to Paperclip.
+ * and returns structured results to Nexus.
  *
  * Verified CLI flags (hermes chat):
  *   -q/--query         single query (non-interactive)
@@ -25,20 +25,20 @@ import type {
   AdapterExecutionContext,
   AdapterExecutionResult,
   UsageSummary,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 
 import {
   runChildProcess,
-  buildPaperclipEnv,
+  buildNexusEnv,
   buildRuntimeToolsEnv,
   renderTemplate,
   ensureAbsoluteDirectory,
-  DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE,
+  DEFAULT_NEXUS_AGENT_PROMPT_TEMPLATE,
   joinPromptSections,
-  selectPaperclipPromptSections,
-  stringifyPaperclipWakePayload,
-  isPaperclipRecoveryWakePayload,
-} from "@paperclipai/adapter-utils/server-utils";
+  selectNexusPromptSections,
+  stringifyNexusWakePayload,
+  isNexusRecoveryWakePayload,
+} from "@nexusai/adapter-utils/server-utils";
 
 import {
   HERMES_CLI,
@@ -52,7 +52,7 @@ import {
   detectModel,
   resolveProvider,
 } from "./detect-model.js";
-import { reconcileHermesPaperclipSkills } from "./skills.js";
+import { reconcileHermesNexusSkills } from "./skills.js";
 
 // ---------------------------------------------------------------------------
 // Config helpers
@@ -90,29 +90,29 @@ export function resolveHermesCommand(config: Record<string, unknown>): string {
 // ---------------------------------------------------------------------------
 
 const HERMES_RUNTIME_IDENTITY_TEMPLATE = [
-  'You are "{{agent.name}}", an AI agent employee in a Paperclip-managed company.',
+  'You are "{{agent.name}}", an AI agent employee in a Nexus-managed company.',
   "",
-  "Paperclip runtime identity:",
+  "Nexus runtime identity:",
   "- Agent ID: {{agent.id}}",
   "- Company ID: {{agent.companyId}}",
   "- Run ID: {{run.id}}",
-  "- API base: {{paperclipApiUrl}}",
+  "- API base: {{nexusApiUrl}}",
 ].join("\n");
 
 // Hermes applies this overlay at each API call, including after compaction,
 // without storing it in conversation history. Keep run/task deltas in -q.
 const HERMES_SYSTEM_PROMPT_TEMPLATE = [
-  "Paperclip API guidance:",
-  "- Use `curl` from the terminal for Paperclip API calls; browser/web extraction tools may not reach localhost.",
-  "- Use `$PAPERCLIP_API_URL`, `$PAPERCLIP_API_KEY`, and `$PAPERCLIP_RUN_ID`; do not hard-code local ports or copy secrets into comments.",
+  "Nexus API guidance:",
+  "- Use `curl` from the terminal for Nexus API calls; browser/web extraction tools may not reach localhost.",
+  "- Use `$NEXUS_API_URL`, `$NEXUS_API_KEY`, and `$NEXUS_RUN_ID`; do not hard-code local ports or copy secrets into comments.",
   "- Displayed command logs may redact secrets; rely on environment variables instead of printed token values.",
-  "- Include `-H \"Authorization: Bearer $PAPERCLIP_API_KEY\"` on API requests.",
-  "- Include `-H \"X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID\"` on mutating issue requests.",
+  "- Include `-H \"Authorization: Bearer $NEXUS_API_KEY\"` on API requests.",
+  "- Include `-H \"X-Nexus-Run-Id: $NEXUS_RUN_ID\"` on mutating issue requests.",
   "- For multiline comments or status updates, preserve newlines with `jq --arg` or a heredoc-fed helper rather than hand-escaping JSON.",
   "",
   "Safe multiline update pattern:",
   "```bash",
-  "api=\"${PAPERCLIP_API_URL%/}\"",
+  "api=\"${NEXUS_API_URL%/}\"",
   "case \"$api\" in */api) ;; *) api=\"$api/api\" ;; esac",
   "",
   "body=$(cat <<'MD'",
@@ -123,14 +123,14 @@ const HERMES_SYSTEM_PROMPT_TEMPLATE = [
   "MD",
   ")",
   "jq -n --arg status done --arg comment \"$body\" '{status:$status, comment:$comment}' | \\",
-  "  curl -sS -X PATCH \"$api/issues/$PAPERCLIP_TASK_ID\" \\",
-  "    -H \"Authorization: Bearer $PAPERCLIP_API_KEY\" \\",
-  "    -H \"X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID\" \\",
+  "  curl -sS -X PATCH \"$api/issues/$NEXUS_TASK_ID\" \\",
+  "    -H \"Authorization: Bearer $NEXUS_API_KEY\" \\",
+  "    -H \"X-Nexus-Run-Id: $NEXUS_RUN_ID\" \\",
   "    -H \"Content-Type: application/json\" \\",
   "    --data-binary @-",
   "```",
   "",
-  DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE,
+  DEFAULT_NEXUS_AGENT_PROMPT_TEMPLATE,
 ].join("\n");
 
 function renderConditionalSections(template: string, vars: Record<string, unknown>): string {
@@ -163,24 +163,24 @@ export function buildPrompt(
   const projectName = cfgString(context.projectName) || cfgString(ctx.config?.projectName) || "";
 
   // Build API URL — ensure it has the /api path
-  let paperclipApiUrl =
-    cfgString(config.paperclipApiUrl) ||
-    process.env.PAPERCLIP_API_URL ||
+  let nexusApiUrl =
+    cfgString(config.nexusApiUrl) ||
+    process.env.NEXUS_API_URL ||
     "http://127.0.0.1:3100/api";
   // Ensure /api suffix
-  if (!paperclipApiUrl.endsWith("/api")) {
-    paperclipApiUrl = paperclipApiUrl.replace(/\/+$/, "") + "/api";
+  if (!nexusApiUrl.endsWith("/api")) {
+    nexusApiUrl = nexusApiUrl.replace(/\/+$/, "") + "/api";
   }
 
-  const { taskContextNote: taskContextMarkdown, wakePrompt } = selectPaperclipPromptSections(context, {
+  const { taskContextNote: taskContextMarkdown, wakePrompt } = selectNexusPromptSections(context, {
     resumedSession: options.resumedSession === true,
     includeCommunicationGuidance: true,
   });
   // Keep the historical variable available to custom templates. Automatic
   // assembly uses the ownership-aware assignment variant below.
-  const paperclipTaskMarkdown = cfgString(context.paperclipTaskMarkdown)?.trim() || "";
-  const sessionHandoffMarkdown = cfgString(context.paperclipSessionHandoffMarkdown)?.trim() || "";
-  const wakePayloadJson = stringifyPaperclipWakePayload(context.paperclipWake) || "";
+  const nexusTaskMarkdown = cfgString(context.nexusTaskMarkdown)?.trim() || "";
+  const sessionHandoffMarkdown = cfgString(context.nexusSessionHandoffMarkdown)?.trim() || "";
+  const wakePayloadJson = stringifyNexusWakePayload(context.nexusWake) || "";
 
   const vars: Record<string, unknown> = {
     agentId: ctx.agent?.id || "",
@@ -198,18 +198,18 @@ export function buildPrompt(
     commentId,
     wakeReason,
     projectName,
-    paperclipApiUrl,
-    paperclipWakePrompt: wakePrompt,
-    paperclipTaskMarkdown,
-    taskContext: paperclipTaskMarkdown,
+    nexusApiUrl,
+    nexusWakePrompt: wakePrompt,
+    nexusTaskMarkdown,
+    taskContext: nexusTaskMarkdown,
     taskContextMarkdown,
-    paperclipWakeJson: wakePayloadJson,
+    nexusWakeJson: wakePayloadJson,
     wakePayloadJson,
-    paperclipApiKeyEnv: "PAPERCLIP_API_KEY",
-    paperclipRunIdEnv: "PAPERCLIP_RUN_ID",
+    nexusApiKeyEnv: "NEXUS_API_KEY",
+    nexusRunIdEnv: "NEXUS_RUN_ID",
   };
 
-  const rendered = template && !isPaperclipRecoveryWakePayload(context.paperclipWake)
+  const rendered = template && !isNexusRecoveryWakePayload(context.nexusWake)
     ? renderTemplate(renderConditionalSections(template, vars), vars)
     : "";
   return joinPromptSections([
@@ -257,7 +257,7 @@ function cleanResponse(raw: string): string {
     .filter((line) => {
       const t = line.trim();
       if (!t) return true; // keep blank lines for paragraph separation
-      if (t.startsWith("[tool]") || t.startsWith("[hermes]") || t.startsWith("[paperclip]")) return false;
+      if (t.startsWith("[tool]") || t.startsWith("[hermes]") || t.startsWith("[nexus]")) return false;
       if (t.startsWith("session_id:")) return false;
       if (/^\[\d{4}-\d{2}-\d{2}T/.test(t)) return false;
       if (/^\[done\]\s*┊/.test(t)) return false;
@@ -364,19 +364,19 @@ export async function execute(
 
   // The server adds this runtime inventory at the run boundary. Requiring the
   // marker avoids touching a developer's real Hermes home in direct unit or
-  // library calls that did not opt into Paperclip runtime skills.
-  if (Object.prototype.hasOwnProperty.call(config, "paperclipRuntimeSkills")) {
+  // library calls that did not opt into Nexus runtime skills.
+  if (Object.prototype.hasOwnProperty.call(config, "nexusRuntimeSkills")) {
     try {
-      const selectedSkills = await reconcileHermesPaperclipSkills(config);
+      const selectedSkills = await reconcileHermesNexusSkills(config);
       if (selectedSkills.length > 0) {
         await ctx.onLog(
           "stdout",
-          `[hermes] Reconciled ${selectedSkills.length} Paperclip-managed skill(s) into the Hermes skills home.\n`,
+          `[hermes] Reconciled ${selectedSkills.length} Nexus-managed skill(s) into the Hermes skills home.\n`,
         );
       }
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
-      await ctx.onLog("stderr", `[hermes] Cannot start without the required Paperclip-managed skills: ${reason}\n`);
+      await ctx.onLog("stderr", `[hermes] Cannot start without the required Nexus-managed skills: ${reason}\n`);
       throw err;
     }
   }
@@ -412,8 +412,8 @@ export async function execute(
     model,
   });
 
-  // ── Load agent instructions file (Paperclip instruction bundles) ──────
-  // Paperclip can materialize managed instructions into instructionsFilePath;
+  // ── Load agent instructions file (Nexus instruction bundles) ──────
+  // Nexus can materialize managed instructions into instructionsFilePath;
   // when present, reapply that bundle through Hermes's native system overlay.
   const instructionsFilePath = cfgString(config.instructionsFilePath);
   let agentInstructions = "";
@@ -430,7 +430,7 @@ export async function execute(
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       // Non-fatal: log to stdout with an explicit "Warning:" prefix so the
-      // Paperclip UI doesn't render this as a red error (stderr output is
+      // Nexus UI doesn't render this as a red error (stderr output is
       // surfaced as an error signal even when execution continues).
       await ctx.onLog(
         "stdout",
@@ -442,10 +442,10 @@ export async function execute(
   // ── Build prompt ───────────────────────────────────────────────────────
   const userEnvForPrompt = config.env as Record<string, unknown> | undefined;
   const promptConfig: Record<string, unknown> = { ...config };
-  if (!cfgString(promptConfig.paperclipApiUrl) && userEnvForPrompt && typeof userEnvForPrompt === "object") {
-    const configuredPaperclipApiUrl = cfgEnvString(userEnvForPrompt.PAPERCLIP_API_URL);
-    if (configuredPaperclipApiUrl) {
-      promptConfig.paperclipApiUrl = configuredPaperclipApiUrl;
+  if (!cfgString(promptConfig.nexusApiUrl) && userEnvForPrompt && typeof userEnvForPrompt === "object") {
+    const configuredNexusApiUrl = cfgEnvString(userEnvForPrompt.NEXUS_API_URL);
+    if (configuredNexusApiUrl) {
+      promptConfig.nexusApiUrl = configuredNexusApiUrl;
     }
   }
 
@@ -485,7 +485,7 @@ export async function execute(
   args.push("--source", "tool");
 
   // Bypass Hermes dangerous-command approval prompts.
-  // Paperclip agents run as non-interactive subprocesses with no TTY,
+  // Nexus agents run as non-interactive subprocesses with no TTY,
   // so approval prompts would always timeout and deny legitimate commands
   // (curl, python3 -c, etc.). Agents operate in a sandbox — the approval
   // system is designed for human-attended interactive sessions.
@@ -500,13 +500,13 @@ export async function execute(
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
     ...(userEnv && typeof userEnv === "object" ? userEnv : {}),
-    ...buildPaperclipEnv(ctx.agent, ctx.agentIdentity),
+    ...buildNexusEnv(ctx.agent, ctx.agentIdentity),
     ...buildRuntimeToolsEnv(ctx.runtimeTools),
   };
 
   // Scope the overlay to this child process. Read the current bundle on every
   // invocation; never infer its availability from a persisted session ID.
-  // Preserve an operator's explicit overlay before Paperclip's instructions.
+  // Preserve an operator's explicit overlay before Nexus's instructions.
   env.HERMES_EPHEMERAL_SYSTEM_PROMPT = joinPromptSections([
     env.HERMES_EPHEMERAL_SYSTEM_PROMPT,
     agentInstructions,
@@ -515,26 +515,26 @@ export async function execute(
     }),
   ]);
 
-  if (ctx.runId) env.PAPERCLIP_RUN_ID = ctx.runId;
+  if (ctx.runId) env.NEXUS_RUN_ID = ctx.runId;
 
-  // PAPERCLIP_API_KEY is never accepted from config — the harness-minted run
-  // token is the only source of Paperclip API identity.
-  delete env.PAPERCLIP_API_KEY;
+  // NEXUS_API_KEY is never accepted from config — the harness-minted run
+  // token is the only source of Nexus API identity.
+  delete env.NEXUS_API_KEY;
   // Wake context travels in the prompt; drop both inherited and configured copies.
-  delete env.PAPERCLIP_WAKE_PAYLOAD_JSON;
-  if ((ctx as any).authToken) env.PAPERCLIP_API_KEY = (ctx as any).authToken;
+  delete env.NEXUS_WAKE_PAYLOAD_JSON;
+  if ((ctx as any).authToken) env.NEXUS_API_KEY = (ctx as any).authToken;
 
   // BUG FIX: Read task context from ctx.context (wake context), not ctx.config (adapter config)
   const ctxContext = (ctx as any).context || {};
   const envTaskId = cfgString(ctxContext.taskId) || cfgString(ctxContext.issueId) || cfgString(ctx.config?.taskId);
-  if (envTaskId) env.PAPERCLIP_TASK_ID = envTaskId;
+  if (envTaskId) env.NEXUS_TASK_ID = envTaskId;
   const envWakeReason = cfgString(ctxContext.wakeReason) || cfgString(ctx.config?.wakeReason);
-  if (envWakeReason) env.PAPERCLIP_WAKE_REASON = envWakeReason;
+  if (envWakeReason) env.NEXUS_WAKE_REASON = envWakeReason;
   const envCommentId = cfgString(ctxContext.commentId) || cfgString(ctxContext.wakeCommentId) || cfgString(ctx.config?.commentId);
-  if (envCommentId) env.PAPERCLIP_WAKE_COMMENT_ID = envCommentId;
+  if (envCommentId) env.NEXUS_WAKE_COMMENT_ID = envCommentId;
 
   // ── Resolve working directory ──────────────────────────────────────────
-  const workspace = ctx.context?.paperclipWorkspace;
+  const workspace = ctx.context?.nexusWorkspace;
   const workspaceCwd = workspace && typeof workspace === "object"
     ? cfgString((workspace as Record<string, unknown>).cwd)
     : undefined;
@@ -560,7 +560,7 @@ export async function execute(
 
   // ── Execute ────────────────────────────────────────────────────────────
   // Hermes writes non-error noise to stderr (MCP init, INFO logs, etc).
-  // Paperclip renders all stderr as red/error in the UI.
+  // Nexus renders all stderr as red/error in the UI.
   // Wrap onLog to reclassify benign stderr lines as stdout.
   const wrappedOnLog = async (stream: "stdout" | "stderr", chunk: string) => {
     if (stream === "stderr") {
@@ -630,7 +630,7 @@ export async function execute(
     executionResult.summary = parsed.response.slice(0, 2000);
   }
 
-  // Set resultJson so Paperclip can persist run metadata (used for UI display + auto-comments)
+  // Set resultJson so Nexus can persist run metadata (used for UI display + auto-comments)
   executionResult.resultJson = {
     result: parsed.response || "",
     session_id: parsed.sessionId || null,

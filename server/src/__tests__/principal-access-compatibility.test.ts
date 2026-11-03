@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
-import { companies, createDb, principalPermissionGrants } from "@paperclipai/db";
+import { companies, createDb, principalPermissionGrants } from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -26,7 +26,7 @@ describeEmbeddedPostgres("insertMissingPrincipalGrants", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-principal-grants-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-principal-grants-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 

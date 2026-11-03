@@ -16,7 +16,7 @@ describe("withRecoveryContext", () => {
     expect(withRecoveryContext({
       issueId: "issue-1",
       modelProfile: "cheap",
-      paperclipModelProfile: { requested: "cheap" },
+      nexusModelProfile: { requested: "cheap" },
     }, "normal_model")).toEqual({
       issueId: "issue-1",
     });

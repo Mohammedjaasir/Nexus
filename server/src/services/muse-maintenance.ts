@@ -1,7 +1,7 @@
 import { pendingMuseTerminalBindings, type ExternalAgentSettlementScope } from "../modules/external-agents/index.js";
 import { logger } from "../middleware/logger.js";
 import { and, asc, eq, gt, isNull, lte } from "drizzle-orm";
-import { museAgentBindings as bindings, mcpOauthGrants, type Db } from "@paperclipai/db";
+import { museAgentBindings as bindings, mcpOauthGrants, type Db } from "@nexusai/db";
 import { museRunnerBroker } from "./muse-runner-broker.js";
 import { museReceiver } from "./muse-receiver.js";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";

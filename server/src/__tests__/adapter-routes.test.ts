@@ -68,7 +68,7 @@ function resetAdapterMocks() {
   mockAdapterPluginStore.addAdapterPlugin.mockResolvedValue(undefined);
   mockAdapterPluginStore.removeAdapterPlugin.mockReturnValue(false);
   mockAdapterPluginStore.getAdapterPluginByType.mockReturnValue(undefined);
-  mockAdapterPluginStore.getAdapterPluginsDir.mockReturnValue("/tmp/paperclip-adapter-routes-test");
+  mockAdapterPluginStore.getAdapterPluginsDir.mockReturnValue("/tmp/nexus-adapter-routes-test");
   mockAdapterPluginStore.getDisabledAdapterTypes.mockReturnValue([]);
   mockAdapterPluginStore.setAdapterDisabled.mockReturnValue(false);
   mockPluginLoader.buildExternalAdapters.mockResolvedValue([]);
@@ -157,7 +157,7 @@ describe("adapter routes", () => {
     const local = createApp({}, { resolveRunnerTarget: async () => ({ driver: "local" }) });
     const scoped = await request(local).get("/api/adapters?companyId=company-1");
     expect(scoped.status).toBe(200);
-    expect(scoped.body.find((adapter: any) => adapter.type === "paperclip_runner").candidateHarnesses)
+    expect(scoped.body.find((adapter: any) => adapter.type === "nexus_runner").candidateHarnesses)
       .toEqual([{ agent: "antigravity", model: "exact-google-model" }]);
     expect(JSON.stringify(scoped.body)).not.toContain("private-profile");
     expect(JSON.stringify(scoped.body)).not.toContain("private-closure");
@@ -169,9 +169,9 @@ describe("adapter routes", () => {
     const remote = await request(createApp({}, { resolveRunnerTarget: async () => ({ driver: "ssh" }) }))
       .get("/api/adapters?companyId=company-1&environmentId=remote");
     expect(remote.body.every((adapter: any) => adapter.candidateHarnesses === undefined)).toBe(true);
-    mockAdapterPluginStore.getDisabledAdapterTypes.mockReturnValue(["paperclip_runner"]);
+    mockAdapterPluginStore.getDisabledAdapterTypes.mockReturnValue(["nexus_runner"]);
     const disabled = await request(local).get("/api/adapters?companyId=company-1");
-    expect(disabled.body.find((adapter: any) => adapter.type === "paperclip_runner").candidateHarnesses).toBeUndefined();
+    expect(disabled.body.find((adapter: any) => adapter.type === "nexus_runner").candidateHarnesses).toBeUndefined();
   });
 
   it("keeps ordinary adapter discovery available after candidate startup authority expires", async () => {
@@ -204,14 +204,14 @@ describe("adapter routes", () => {
   it("keeps the shared runner implementation available for Codex without the experimental flag", async () => {
     const disabledResponse = await request(createApp()).get("/api/adapters");
     expect(disabledResponse.status).toBe(200);
-    expect(disabledResponse.body.find((adapter: any) => adapter.type === "paperclip_runner"))
+    expect(disabledResponse.body.find((adapter: any) => adapter.type === "nexus_runner"))
       .toMatchObject({ disabled: false });
 
     const enabledResponse = await request(createApp({}, {
       getNativeRunnerEnabled: async () => true,
     })).get("/api/adapters");
     expect(enabledResponse.status).toBe(200);
-    expect(enabledResponse.body.find((adapter: any) => adapter.type === "paperclip_runner"))
+    expect(enabledResponse.body.find((adapter: any) => adapter.type === "nexus_runner"))
       .toMatchObject({
         disabled: false,
         capabilities: {
@@ -221,13 +221,13 @@ describe("adapter routes", () => {
   });
 
   it.each([
-    [{ driver: "ssh", platform: "linux", architecture: "x64" }, "paperclip"],
-    [{ driver: "ssh", platform: "darwin", architecture: "arm64" }, "paperclip"],
-    [{ driver: "ssh", platform: "darwin", architecture: "x64" }, "paperclip"],
-    [{ driver: "ssh", platform: "linux", architecture: "arm64" }, "paperclip"],
+    [{ driver: "ssh", platform: "linux", architecture: "x64" }, "nexus"],
+    [{ driver: "ssh", platform: "darwin", architecture: "arm64" }, "nexus"],
+    [{ driver: "ssh", platform: "darwin", architecture: "x64" }, "nexus"],
+    [{ driver: "ssh", platform: "linux", architecture: "arm64" }, "nexus"],
     [{ driver: "ssh", platform: "linux", architecture: "arm" }, "legacy"],
     [{ driver: "local", platform: "win32", architecture: "x64" }, "legacy"],
-    [{ driver: "sandbox", platform: "linux", architecture: "arm64", libc: "glibc", glibcVersion: "2.39" }, "paperclip"],
+    [{ driver: "sandbox", platform: "linux", architecture: "arm64", libc: "glibc", glibcVersion: "2.39" }, "nexus"],
   ])("projects the selected environment once for the whole adapter inventory (%s)", async (target, defaultRunner) => {
     const resolveRunnerTarget = vi.fn(async () => target);
     const response = await request(createApp({}, { resolveRunnerTarget })).get("/api/adapters?companyId=company-1&environmentId=selected");
@@ -269,10 +269,10 @@ describe("adapter routes", () => {
   it("keeps the shared implementation available for Dot independently, while honoring adapter-admin disabling", async () => {
     const options = { getNativeRunnerEnabled: async () => false, getOpenAiDotEnabled: async () => true };
     const enabled = await request(createApp({}, options)).get("/api/adapters");
-    expect(enabled.body.find((adapter: any) => adapter.type === "paperclip_runner")).toMatchObject({ disabled: false });
-    mockAdapterPluginStore.getDisabledAdapterTypes.mockReturnValue(["paperclip_runner"]);
+    expect(enabled.body.find((adapter: any) => adapter.type === "nexus_runner")).toMatchObject({ disabled: false });
+    mockAdapterPluginStore.getDisabledAdapterTypes.mockReturnValue(["nexus_runner"]);
     const disabled = await request(createApp({}, options)).get("/api/adapters");
-    expect(disabled.body.find((adapter: any) => adapter.type === "paperclip_runner")).toMatchObject({ disabled: true });
+    expect(disabled.body.find((adapter: any) => adapter.type === "nexus_runner")).toMatchObject({ disabled: true });
   });
 
   it("GET /api/adapters returns correct capabilities for built-in adapters", async () => {
@@ -440,10 +440,10 @@ describe("adapter routes", () => {
     expect(res.body.fields).toEqual([]);
   });
 
-  it("serves provider-scoped Paperclip Runner configuration fields", async () => {
+  it("serves provider-scoped Nexus Runner configuration fields", async () => {
     const app = createApp();
 
-    const res = await request(app).get("/api/adapters/paperclip_runner/config-schema");
+    const res = await request(app).get("/api/adapters/nexus_runner/config-schema");
 
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     expect(res.body.fields).toEqual(expect.arrayContaining([

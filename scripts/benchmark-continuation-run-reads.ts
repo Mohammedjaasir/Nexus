@@ -21,7 +21,7 @@ let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | un
 let db: Db | undefined;
 let baselineDir: string | undefined;
 try {
-  const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_CONTINUATION_BENCHMARK_DATABASE_URL");
+  const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_CONTINUATION_BENCHMARK_DATABASE_URL");
   if (externalUrl) {
     await applyPendingMigrations(externalUrl);
     database = { connectionString: externalUrl, cleanup: async () => {} };
@@ -35,14 +35,14 @@ try {
   const baseline = await import(pathToFileURL(path.join(baselineDir, "continuation.ts")).href) as { admitExplicitNativeContinuation: typeof admitExplicitNativeContinuation };
   const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), runId = randomUUID(), commentId = randomUUID();
   await db.insert(companies).values({ id: companyId, name: "Synthetic continuation", issuePrefix: `B${companyId.replaceAll("-", "")}` });
-  await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "paperclip_runner" });
+  await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "nexus_runner" });
   await db.insert(issues).values({ id: issueId, companyId, title: "Continue", status: "blocked", assigneeAgentId: agentId });
   const contextBytes = randomBytes(144 * 1024).toString("base64");
   const profileBytes = randomBytes(72 * 1024).toString("base64");
   await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, nativeIssueId: issueId,
     status: "failed", runtimeMode: "native", processPid: 999999999,
     finishedAt: new Date("2020-01-01T00:00:00Z"), contextSnapshot: { issueId, prompt: contextBytes },
-    runnerProfileJson: { adapterDispatch: { adapterType: "paperclip_runner", adapterConfig: { instructions: profileBytes } },
+    runnerProfileJson: { adapterDispatch: { adapterType: "nexus_runner", adapterConfig: { instructions: profileBytes } },
       nativeExecutionInput: { task: { description: profileBytes } } },
   });
   await db.insert(nativeRunFinalizations).values({ runId, companyId, issueId, phase: "terminal_failure", attempt: 3 });
@@ -89,7 +89,7 @@ try {
     assert.equal(after.reads[index].length, before.reads[index].length);
     for (const [key, value] of Object.entries(after.reads[index][0])) {
       if (key === "contextSnapshot") assert.deepEqual(value, { issueId });
-      else if (key === "runnerProfileJson" && index === 0) assert.deepEqual(value, { adapterDispatch: { adapterType: "paperclip_runner" } });
+      else if (key === "runnerProfileJson" && index === 0) assert.deepEqual(value, { adapterDispatch: { adapterType: "nexus_runner" } });
       else assert.deepEqual(value, before.reads[index][0][key], `Changed selected column ${key}`);
     }
   }

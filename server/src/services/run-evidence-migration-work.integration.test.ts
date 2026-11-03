@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { sql } from "drizzle-orm";
-import { createDb, type Db } from "@paperclipai/db";
+import { createDb, type Db } from "@nexusai/db";
 import {
   S3Client,
   CreateBucketCommand,
@@ -19,8 +19,8 @@ import { createProviderTraceObjectStore } from "./provider-trace-object-store.js
 import { createS3StorageProvider } from "../storage/s3-provider.js";
 import { resolveExternalTestDatabaseUrl } from "../__tests__/helpers/external-test-database.js";
 
-const endpoint = process.env.PAPERCLIP_LOG_TEST_S3_ENDPOINT;
-const databaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_RUN_EVIDENCE_MIGRATION_DATABASE_URL");
+const endpoint = process.env.NEXUS_LOG_TEST_S3_ENDPOINT;
+const databaseUrl = resolveExternalTestDatabaseUrl("NEXUS_RUN_EVIDENCE_MIGRATION_DATABASE_URL");
 describe.skipIf(!endpoint || !databaseUrl)(
   "automatic retained history upgrade (Postgres and S3)",
   () => {
@@ -42,17 +42,17 @@ describe.skipIf(!endpoint || !databaseUrl)(
       byte_count bigint not null default 0, digest text, reason text, requested_by text not null, expires_at timestamptz not null,
       deleted_at timestamptz, created_at timestamptz not null default now(), updated_at timestamptz not null default now())`);
       directory = await fs.mkdtemp(path.join(os.tmpdir(), "evidence-migration-"));
-      vi.stubEnv("PAPERCLIP_CONFIG", path.join(directory, "config.json"));
+      vi.stubEnv("NEXUS_CONFIG", path.join(directory, "config.json"));
       vi.stubEnv("RUN_LOG_BASE_PATH", path.join(directory, "logs"));
       vi.stubEnv("PROVIDER_TRACE_BASE_PATH", path.join(directory, "traces"));
-      vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "b".repeat(64));
-      vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "s3");
-      vi.stubEnv("PAPERCLIP_STORAGE_S3_ENDPOINT", endpoint!);
-      vi.stubEnv("PAPERCLIP_STORAGE_S3_REGION", "us-east-1");
-      vi.stubEnv("PAPERCLIP_STORAGE_S3_PREFIX", "");
-      vi.stubEnv("PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE", "true");
+      vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "b".repeat(64));
+      vi.stubEnv("NEXUS_STORAGE_PROVIDER", "s3");
+      vi.stubEnv("NEXUS_STORAGE_S3_ENDPOINT", endpoint!);
+      vi.stubEnv("NEXUS_STORAGE_S3_REGION", "us-east-1");
+      vi.stubEnv("NEXUS_STORAGE_S3_PREFIX", "");
+      vi.stubEnv("NEXUS_STORAGE_S3_FORCE_PATH_STYLE", "true");
       bucket = `pc-auto-migration-${randomUUID()}`;
-      vi.stubEnv("PAPERCLIP_STORAGE_S3_BUCKET", bucket);
+      vi.stubEnv("NEXUS_STORAGE_S3_BUCKET", bucket);
       client = new S3Client({
         endpoint,
         region: "us-east-1",

@@ -1,9 +1,9 @@
 import { notifyStrandedAgentStatus } from "../live-run-recovery-notifications.js";
 import { notifyAttentionRetentionWork } from "../retention-work-notifications.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "../delivery-work-notifications.js";
-import { agents, heartbeatRuns, type Db } from "@paperclipai/db";
+import { agents, heartbeatRuns, type Db } from "@nexusai/db";
 import { and, asc, desc, eq, lte, sql } from "drizzle-orm";
-import { trackAgentFirstHeartbeat } from "@paperclipai/shared/telemetry";
+import { trackAgentFirstHeartbeat } from "@nexusai/shared/telemetry";
 import { getTelemetryClient } from "../../telemetry.js";
 import { logActivity, publishActivity, type ActivityPublication } from "../activity-log.js";
 import { publishLiveEvent } from "../live-events.js";

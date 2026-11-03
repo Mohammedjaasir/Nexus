@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { readFile } from "node:fs/promises";
 import protobuf from "protobufjs";
-import { DEFAULT_AGENT_OBSERVABILITY_CAPTURE } from "@paperclipai/shared";
+import { DEFAULT_AGENT_OBSERVABILITY_CAPTURE } from "@nexusai/shared";
 import { testAgentObservability } from "../services/agent-observability-test.js";
 
 let server: Server, endpoint: string;
@@ -29,7 +29,7 @@ beforeAll(async () => {
     if (responseMode === "json-partial") { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ partialSuccess: { [req.url?.endsWith("logs") ? "rejectedLogRecords" : "rejectedSpans"]: "1", errorMessage: "untrusted-secret-error" } })); return; }
     if (responseMode === "partial") {
       res.writeHead(200, { "content-type": "application/x-protobuf" });
-      const type = root.lookupType("paperclip.test.otlp.ExportResponse");
+      const type = root.lookupType("nexus.test.otlp.ExportResponse");
       res.end(type.encode(type.create({ partialSuccess: { rejectedLogRecords: 1, errorMessage: "untrusted-secret-error" } })).finish()); return;
     }
     res.writeHead(200, { "content-type": "application/x-protobuf" }); res.end();
@@ -48,11 +48,11 @@ it("sends actual protobuf records with one root span, correlated IDs, and exact 
   const result = await run(); expect(result.status).toBe("accepted");
   expect(requests.map(row => row.path).sort()).toEqual(["/otel/v1/logs", "/otel/v1/traces"]);
   for (const req of requests) expect(req.headers).toMatchObject({ authorization: "Bearer local-fixture", "x-bt-parent": "project_id:fixture", "content-type": "application/x-protobuf" });
-  const logs = root.lookupType("paperclip.test.otlp.ExportLogsServiceRequest").decode(requests.find(row => row.path.endsWith("logs"))!.body).toJSON();
-  const traces = root.lookupType("paperclip.test.otlp.ExportTraceServiceRequest").decode(requests.find(row => row.path.endsWith("traces"))!.body).toJSON();
+  const logs = root.lookupType("nexus.test.otlp.ExportLogsServiceRequest").decode(requests.find(row => row.path.endsWith("logs"))!.body).toJSON();
+  const traces = root.lookupType("nexus.test.otlp.ExportTraceServiceRequest").decode(requests.find(row => row.path.endsWith("traces"))!.body).toJSON();
   const log = logs.resourceLogs[0].scopeLogs[0].logRecords[0], span = traces.resourceSpans[0].scopeSpans[0].spans[0];
   expect(log.body.stringValue).toBe(result.marker); expect(log.traceId).toBe(span.traceId); expect(log.spanId).toBe(span.spanId);
-  expect(span.parentSpanId).toBeUndefined(); expect(span.name).toBe("paperclip.observability.connection_test");
+  expect(span.parentSpanId).toBeUndefined(); expect(span.name).toBe("nexus.observability.connection_test");
 });
 it.each(["reject", "malformed", "bad-shape", "html", "partial", "json-partial"])("reports %s without echoing receiver data", async mode => {
   responseMode = mode; const result = await run();

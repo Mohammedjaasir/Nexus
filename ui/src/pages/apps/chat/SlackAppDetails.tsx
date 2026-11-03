@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { ChevronRight, CircleHelp } from "lucide-react";
-import { slackAppConfigurationSchema, type SlackAppConfiguration } from "@paperclipai/shared";
+import { slackAppConfigurationSchema, type SlackAppConfiguration } from "@nexusai/shared";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 

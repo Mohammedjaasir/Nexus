@@ -10,23 +10,23 @@ import { setTimeout as sleep } from "node:timers/promises";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(scriptDir, "..");
 const tscCliPath = path.join(rootDir, "node_modules", "typescript", "bin", "tsc");
-const lockDir = path.join(rootDir, "node_modules", ".cache", "paperclip-plugin-build-deps.lock");
+const lockDir = path.join(rootDir, "node_modules", ".cache", "nexus-plugin-build-deps.lock");
 const lockTimeoutMs = 60_000;
 const lockPollMs = 100;
 
 const buildTargets = [
   {
-    name: "@paperclipai/shared",
+    name: "@nexusai/shared",
     output: path.join(rootDir, "packages/shared/dist/index.js"),
-    completion: path.join(rootDir, "packages/shared/dist/.paperclip-build-complete"),
+    completion: path.join(rootDir, "packages/shared/dist/.nexus-build-complete"),
     sourceDir: path.join(rootDir, "packages/shared/src"),
     tsconfig: path.join(rootDir, "packages/shared/tsconfig.json"),
     dependencies: [],
   },
   {
-    name: "@paperclipai/plugin-sdk",
+    name: "@nexusai/plugin-sdk",
     output: path.join(rootDir, "packages/plugins/sdk/dist/index.js"),
-    completion: path.join(rootDir, "packages/plugins/sdk/dist/.paperclip-build-complete"),
+    completion: path.join(rootDir, "packages/plugins/sdk/dist/.nexus-build-complete"),
     sourceDir: path.join(rootDir, "packages/plugins/sdk/src"),
     tsconfig: path.join(rootDir, "packages/plugins/sdk/tsconfig.json"),
     dependencies: [0],
@@ -148,7 +148,7 @@ function recoverAbandonedLock() {
     } else {
       return;
     }
-    console.log("[paperclip] Recovered abandoned workspace build lock.");
+    console.log("[nexus] Recovered abandoned workspace build lock.");
   } catch (error) {
     if (["ENOENT", "ENOTEMPTY", "EEXIST"].includes(error.code) || error instanceof SyntaxError) return;
     throw error;
@@ -175,7 +175,7 @@ async function acquireLock() {
         }
       }
       if (!reportedWait) {
-        console.log(`[paperclip] Waiting for another workspace build (${lockDir})...`);
+        console.log(`[nexus] Waiting for another workspace build (${lockDir})...`);
         reportedWait = true;
       }
       if (Date.now() - startedAt >= lockTimeoutMs) {
@@ -189,7 +189,7 @@ async function acquireLock() {
 }
 
 async function build(target) {
-  console.log(`[paperclip] Building ${target.name}...`);
+  console.log(`[nexus] Building ${target.name}...`);
   // A hard kill bypasses cleanup. Only a completed compile may restore this
   // marker, so recovery never trusts index.js emitted partway through a build.
   fs.rmSync(target.completion, { force: true });

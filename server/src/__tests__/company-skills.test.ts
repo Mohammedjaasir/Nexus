@@ -125,11 +125,11 @@ describe("project workspace skill discovery", () => {
   });
 
   it("finds bounded skill roots under supported workspace paths", async () => {
-    const workspace = await makeTempDir("paperclip-skill-workspace-");
+    const workspace = await makeTempDir("nexus-skill-workspace-");
     await writeSkillDir(workspace, "Workspace Root");
     await writeSkillDir(path.join(workspace, "skills", "find-skills"), "Find Skills");
     await writeSkillDir(path.join(workspace, ".agents", "skills", "release"), "Release");
-    await writeSkillDir(path.join(workspace, "skills", ".system", "paperclip"), "Paperclip");
+    await writeSkillDir(path.join(workspace, "skills", ".system", "nexus"), "Nexus");
     await fs.writeFile(path.join(workspace, "README.md"), "# ignore\n", "utf8");
 
     const discovered = await discoverProjectWorkspaceSkillDirectories({
@@ -149,9 +149,9 @@ describe("project workspace skill discovery", () => {
         inventoryMode: "full",
       },
       {
-        skillDir: path.resolve(workspace, "skills", ".system", "paperclip"),
+        skillDir: path.resolve(workspace, "skills", ".system", "nexus"),
         directoryRoot: "skills/.system",
-        relativePath: "skills/.system/paperclip",
+        relativePath: "skills/.system/nexus",
         inventoryMode: "full",
       },
       {
@@ -164,7 +164,7 @@ describe("project workspace skill discovery", () => {
   });
 
   it("limits root SKILL.md imports to skill-related support folders", async () => {
-    const workspace = await makeTempDir("paperclip-root-skill-");
+    const workspace = await makeTempDir("nexus-root-skill-");
     await writeSkillDir(workspace, "Workspace Skill");
     await fs.mkdir(path.join(workspace, "references"), { recursive: true });
     await fs.mkdir(path.join(workspace, "scripts"), { recursive: true });
@@ -193,9 +193,9 @@ describe("project workspace skill discovery", () => {
   });
 
   it("rejects symlinks reachable from a project-scanned skill", async () => {
-    const workspace = await makeTempDir("paperclip-linked-skill-file-");
+    const workspace = await makeTempDir("nexus-linked-skill-file-");
     const skillDir = path.join(workspace, ".codex", "skills", "linked-file");
-    const outsideFile = path.join(await makeTempDir("paperclip-linked-skill-outside-"), "outside.md");
+    const outsideFile = path.join(await makeTempDir("nexus-linked-skill-outside-"), "outside.md");
     await writeSkillDir(skillDir, "Linked File");
     await fs.mkdir(path.join(skillDir, "references"), { recursive: true });
     await fs.writeFile(outsideFile, "outside workspace\n", "utf8");
@@ -209,7 +209,7 @@ describe("project workspace skill discovery", () => {
   });
 
   it("parses inline object array items in skill frontmatter metadata", async () => {
-    const workspace = await makeTempDir("paperclip-inline-skill-yaml-");
+    const workspace = await makeTempDir("nexus-inline-skill-yaml-");
     await fs.mkdir(workspace, { recursive: true });
     await fs.writeFile(
       path.join(workspace, "SKILL.md"),
@@ -220,7 +220,7 @@ describe("project workspace skill discovery", () => {
         "  sources:",
         "    - kind: github-dir",
         "      repo: paperclipai/paperclip",
-        "      path: skills/paperclip",
+        "      path: skills/nexus",
         "---",
         "",
         "# Inline Metadata Skill",
@@ -241,14 +241,14 @@ describe("project workspace skill discovery", () => {
         {
           kind: "github-dir",
           repo: "paperclipai/paperclip",
-          path: "skills/paperclip",
+          path: "skills/nexus",
         },
       ],
     });
   });
 
   it("parses folded and literal block scalar descriptions in skill frontmatter", async () => {
-    const foldedWorkspace = await makeTempDir("paperclip-folded-skill-yaml-");
+    const foldedWorkspace = await makeTempDir("nexus-folded-skill-yaml-");
     await fs.mkdir(foldedWorkspace, { recursive: true });
     await fs.writeFile(
       path.join(foldedWorkspace, "SKILL.md"),
@@ -267,7 +267,7 @@ describe("project workspace skill discovery", () => {
       "utf8",
     );
 
-    const literalWorkspace = await makeTempDir("paperclip-literal-skill-yaml-");
+    const literalWorkspace = await makeTempDir("nexus-literal-skill-yaml-");
     await fs.mkdir(literalWorkspace, { recursive: true });
     await fs.writeFile(
       path.join(literalWorkspace, "SKILL.md"),
@@ -294,7 +294,7 @@ describe("project workspace skill discovery", () => {
       "utf8",
     );
 
-    const stripWorkspace = await makeTempDir("paperclip-strip-skill-yaml-");
+    const stripWorkspace = await makeTempDir("nexus-strip-skill-yaml-");
     await fs.mkdir(stripWorkspace, { recursive: true });
     await fs.writeFile(
       path.join(stripWorkspace, "SKILL.md"),
@@ -340,7 +340,7 @@ describe("project workspace skill discovery", () => {
   });
 
   it("parses YAML block-scalar chomping variants from SKILL.md frontmatter", async () => {
-    const workspace = await makeTempDir("paperclip-block-scalar-chomp-skill-");
+    const workspace = await makeTempDir("nexus-block-scalar-chomp-skill-");
     await fs.mkdir(workspace, { recursive: true });
     await fs.writeFile(
       path.join(workspace, "SKILL.md"),
@@ -367,7 +367,7 @@ describe("project workspace skill discovery", () => {
     expect(imported.description).toBe("First line second line");
   });
   it("includes explicitly selected skills from non-standard folders", async () => {
-    const workspace = await makeTempDir("paperclip-skill-workspace-");
+    const workspace = await makeTempDir("nexus-skill-workspace-");
     await writeSkillDir(path.join(workspace, "content", "specialists", "editorial"), "Editorial");
 
     const discovered = await discoverProjectWorkspaceSkillDirectories({
@@ -393,7 +393,7 @@ describe("project workspace skill discovery", () => {
 
 describe("missing local skill reconciliation", () => {
   it("flags local-path skills whose directory was removed", async () => {
-    const workspace = await makeTempDir("paperclip-missing-skill-dir-");
+    const workspace = await makeTempDir("nexus-missing-skill-dir-");
     const skillDir = path.join(workspace, "skills", "ghost");
     await writeSkillDir(skillDir, "Ghost");
     await fs.rm(skillDir, { recursive: true, force: true });
@@ -415,7 +415,7 @@ describe("missing local skill reconciliation", () => {
   });
 
   it("flags local-path skills whose SKILL.md file was removed", async () => {
-    const workspace = await makeTempDir("paperclip-missing-skill-file-");
+    const workspace = await makeTempDir("nexus-missing-skill-file-");
     const skillDir = path.join(workspace, "skills", "ghost");
     await writeSkillDir(skillDir, "Ghost");
     await fs.rm(path.join(skillDir, "SKILL.md"), { force: true });

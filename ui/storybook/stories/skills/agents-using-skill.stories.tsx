@@ -5,7 +5,7 @@ import type {
   CompanySkillDetail,
   CompanySkillUsageAgent,
   CompanySkillVersion,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   AgentsUsingSkillBadge,
   AgentsUsingSkillDialog,
@@ -63,7 +63,7 @@ function makeSkill(overrides: Partial<CompanySkillDetail> = {}): CompanySkillDet
   return {
     id: SKILL_ID,
     companyId: COMPANY_ID,
-    key: "paperclip/code-review",
+    key: "nexus/code-review",
     slug: "code-review",
     name: "Code Review",
     description: "Structured pull-request review with actionable findings.",
@@ -122,7 +122,7 @@ const meta: Meta = {
   id: "skill-studio-agentsusingskill",
   title: "Agents and reusable capabilities/Skills and Skill Studio/Skill Studio/AgentsUsingSkill",
   parameters: { layout: "centered",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "skills/policy"
       ],

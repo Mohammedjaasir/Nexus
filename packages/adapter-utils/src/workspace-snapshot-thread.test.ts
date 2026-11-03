@@ -13,7 +13,7 @@ const roots: string[] = [];
 const snapshots: DirectorySnapshot[] = [];
 
 async function fixture() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-snapshot-thread-test-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-snapshot-thread-test-"));
   roots.push(root);
   return root;
 }
@@ -71,7 +71,7 @@ describe("workspace snapshot threads", () => {
     const mkdtemp = fs.mkdtemp.bind(fs);
     vi.spyOn(fs, "mkdtemp").mockImplementation(async (...args: Parameters<typeof fs.mkdtemp>) => {
       const result = await mkdtemp(...args);
-      if (typeof result === "string" && path.basename(result).startsWith("paperclip-snapshot-thread-")) created.push(result);
+      if (typeof result === "string" && path.basename(result).startsWith("nexus-snapshot-thread-")) created.push(result);
       return result;
     });
     const isolated = await captureDirectorySnapshotOffThread(root, { diskBacked: true });
@@ -92,7 +92,7 @@ describe("workspace snapshot threads", () => {
     const mkdtemp = fs.mkdtemp.bind(fs);
     vi.spyOn(fs, "mkdtemp").mockImplementation(async (...args: Parameters<typeof fs.mkdtemp>) => {
       const result = await mkdtemp(...args);
-      if (typeof result === "string" && path.basename(result).startsWith("paperclip-snapshot-thread-")) created.push(result);
+      if (typeof result === "string" && path.basename(result).startsWith("nexus-snapshot-thread-")) created.push(result);
       return result;
     });
     const results = await Promise.allSettled([
@@ -121,7 +121,7 @@ describe("workspace snapshot threads", () => {
     const mkdtemp = fs.mkdtemp.bind(fs);
     vi.spyOn(fs, "mkdtemp").mockImplementation(async (...args: Parameters<typeof fs.mkdtemp>) => {
       const result = await mkdtemp(...args);
-      if (typeof result === "string" && path.basename(result).startsWith("paperclip-snapshot-thread-")) created.push(result);
+      if (typeof result === "string" && path.basename(result).startsWith("nexus-snapshot-thread-")) created.push(result);
       return result;
     });
     await mergeDirectoryWithBaseline({

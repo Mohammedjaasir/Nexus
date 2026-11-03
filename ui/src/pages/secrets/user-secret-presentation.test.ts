@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CompanySecret, UserSecretDefinition } from "@paperclipai/shared";
+import type { CompanySecret, UserSecretDefinition } from "@nexusai/shared";
 import {
   coverageSummaryLabel,
   myValueLabel,
@@ -18,7 +18,7 @@ function makeSecret(status: CompanySecret["status"]): CompanySecret {
     name: "Personal GH token",
     provider: "local_encrypted",
     status,
-    managedMode: "paperclip_managed",
+    managedMode: "nexus_managed",
     externalRef: null,
     providerConfigId: null,
     providerMetadata: null,

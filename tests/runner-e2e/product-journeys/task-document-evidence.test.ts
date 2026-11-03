@@ -58,7 +58,7 @@ describe("task document persistence oracle", () => {
       executionEnvironment: "daytona", baseline: { features: {}, connections: [] }, limits: { durationMs: 120_000, modelBudgetCents: 0, maxRuns: 0 } });
     expect(isAgentJourney(id)).toBe(false);
     expect(preparationPreview(config).journeys[0]).toMatchObject({ paid: false, capabilities: ["documents-artifacts/documents"], requires: ["company", "board-user", "task-write", "backlog-task"] });
-    const result: RunnerE2EResult = { schema: "paperclip.runner-e2e.result/v2", executionId: `product-journeys.qa.browser.daytona.${id}`, suiteId: "product-journeys",
+    const result: RunnerE2EResult = { schema: "nexus.runner-e2e.result/v2", executionId: `product-journeys.qa.browser.daytona.${id}`, suiteId: "product-journeys",
       suiteDefinitionHash: "definition", profileId: "browser", environmentId: "daytona", caseId: id, provider: null, model: null, runtimeMode: "none",
       status: "passed", attempt: 1, cleanup: "passed", startedAt: "2026-10-30T10:00:00Z", finishedAt: "2026-10-30T10:00:01Z", durationMs: 1000,
       productJourney: { outcome: "passed", startingState: "recipe", privacy: "private", resourceDisposition: "released", phases: [{ phase: "journey", outcome: "passed" }],

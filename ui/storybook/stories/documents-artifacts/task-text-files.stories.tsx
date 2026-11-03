@@ -1,10 +1,10 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { IssueAttachment } from "@paperclipai/shared";
+import type { IssueAttachment } from "@nexusai/shared";
 import { TaskSidePanel } from "@/components/task-side-panel/TaskSidePanel";
 import { queryKeys } from "@/lib/queryKeys";
-import { createIssue } from "../../fixtures/paperclipData";
+import { createIssue } from "../../fixtures/nexusData";
 
 const markdown = "# Account review charter\n\nInvestigate whether new and active accounts succeeded.\n\n## Rules\n\n- Read customer data only.\n- Keep private information out of reports.\n- Report failures with evidence.\n\n```text\nReview → Evidence → Report\n```";
 const plain = "Daily review summary\n\nAccounts reviewed: 20\nCompleted successfully: 18\nNeeds investigation: 2\n\n<This is plain text, not HTML.>";
@@ -25,7 +25,7 @@ function TextFilesStory({ initial = "list", width = 640 }: { initial?: "list" | 
     client.setQueryData(queryKeys.issues.runs(issue.id), []);
     client.setQueryData(queryKeys.agents.list(issue.companyId), []);
     for (const [id, text] of [["charter", markdown], ["summary", plain], ["empty", ""]]) client.setQueryData(["task-text-attachment", issue.id, id], text);
-    window.localStorage.removeItem(`paperclip:task-side-panel:v1:storybook-text-files:${issue.companyId}`);
+    window.localStorage.removeItem(`nexus:task-side-panel:v1:storybook-text-files:${issue.companyId}`);
     return { client, issue };
   });
   const id = initial === "markdown" ? "charter" : initial === "text" ? "summary" : initial;
@@ -42,7 +42,7 @@ function TextFilesStory({ initial = "list", width = 640 }: { initial?: "list" | 
 }
 const meta = { id: "tasks-text-file-tabs",
   title: "Tasks and conversations/Documents, attachments, and work products/Tasks/Text file tabs", component: TextFilesStory, parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "documents-artifacts/attachments"
       ],

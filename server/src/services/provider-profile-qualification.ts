@@ -42,7 +42,7 @@ function normalizeKnownPublicValues(value: unknown): unknown {
     value === CLAUDE_MANAGED_QUALIFIED_MODEL
     || value === AGENTCORE_QUALIFIED_MODEL
   ) {
-    return "paperclip-qualified-provider-model";
+    return "nexus-qualified-provider-model";
   }
   if (Array.isArray(value)) return value.map(normalizeKnownPublicValues);
   if (!value || typeof value !== "object") return value;

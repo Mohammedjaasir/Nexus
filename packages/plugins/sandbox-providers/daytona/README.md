@@ -1,15 +1,15 @@
-# `@paperclipai/plugin-daytona`
+# `@nexusai/plugin-daytona`
 
-Published Daytona sandbox provider plugin for Paperclip.
+Published Daytona sandbox provider plugin for Nexus.
 
-This package lives in the Paperclip monorepo, but it is intentionally excluded from the root `pnpm` workspace and shaped to publish and install like a standalone npm package. That lets operators install it from the Plugins page by package name without introducing root lockfile churn for Daytona's SDK dependencies.
+This package lives in the Nexus monorepo, but it is intentionally excluded from the root `pnpm` workspace and shaped to publish and install like a standalone npm package. That lets operators install it from the Plugins page by package name without introducing root lockfile churn for Daytona's SDK dependencies.
 
 ## Install
 
-From a Paperclip instance, install:
+From a Nexus instance, install:
 
 ```text
-@paperclipai/plugin-daytona
+@nexusai/plugin-daytona
 ```
 
 The host plugin installer runs `npm install` into the managed plugin directory, so transitive dependencies such as `@daytonaio/sdk` are pulled in during installation.
@@ -19,7 +19,7 @@ The host plugin installer runs `npm install` into the managed plugin directory, 
 Configure Daytona from `Instance Settings -> Environments`, not from the plugin's plugin page.
 
 - Put the Daytona API key on the sandbox environment itself.
-- When you save an environment, Paperclip stores pasted API keys as company secrets.
+- When you save an environment, Nexus stores pasted API keys as company secrets.
 - `DAYTONA_API_KEY` remains an optional host-level fallback when an environment omits the key.
 - Optional `apiUrl` and `target` settings map directly to the Daytona SDK/client configuration. If `apiUrl` is omitted, the Daytona SDK uses its default endpoint.
 
@@ -48,7 +48,7 @@ pnpm test
 pnpm typecheck
 ```
 
-These commands assume the repo root has already been installed once so the local `@paperclipai/plugin-sdk` workspace package is available to the compiler during development.
+These commands assume the repo root has already been installed once so the local `@nexusai/plugin-sdk` workspace package is available to the compiler during development.
 
 The capacity regression uses Python 3 for a real local PTY, Bash, and GNU core
 utilities (`gtar`, `gdd`, and `gbase64` on macOS). It skips when those prerequisites
@@ -62,14 +62,14 @@ second export after reconnect. The test creates and deletes one disposable
 
 - `src/manifest.ts` declares the sandbox-provider driver metadata
 - `src/plugin.ts` implements the environment lifecycle hooks
-- `paperclipPlugin.manifest` and `paperclipPlugin.worker` point the host at the built plugin entrypoints in `dist/`
+- `nexusPlugin.manifest` and `nexusPlugin.worker` point the host at the built plugin entrypoints in `dist/`
 
 
 ### Interrupted run-lease creation
 
 The host commits a company-scoped creation operation before acquiring a new run
-lease. The operation UUID becomes `paperclip-create-<uuid>` and the
-`paperclip-create-attempt` label. The existing inspection hook can resolve that
+lease. The operation UUID becomes `nexus-create-<uuid>` and the
+`nexus-create-attempt` label. The existing inspection hook can resolve that
 name and validate company, environment and run labels without starting a sandbox.
 Recovery persists the observed provider ID before the existing cleanup worker
 deletes it. A missing creation name is an uncertain outcome, not proof of removal.

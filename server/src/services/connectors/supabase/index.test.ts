@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { appDefinitionSchema } from "@paperclipai/shared";
+import { appDefinitionSchema } from "@nexusai/shared";
 import { HttpError } from "../../../errors.js";
 import sourceDefinition from "../../../../../scripts/app-definition-overrides/supabase.json" with { type: "json" };
 import { descriptorHash, stableHash } from "../../tool-catalog-hash.js";

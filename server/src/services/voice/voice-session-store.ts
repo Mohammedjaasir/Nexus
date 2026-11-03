@@ -6,9 +6,9 @@ import { environmentService } from "../environments.js";
 import { logger } from "../../middleware/logger.js";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { and, asc, desc, eq, gte, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
-import { activityLog, chatVoicePhoneLines, chatVoiceInboundCalls, chatVoiceCallbacks, chatEndpoints, chatConversations, chatDeliveries, chatPublications, chatVoiceSessions, chatVoiceToolCalls, chatVoiceReplies, companyMemberships, companySecrets, connectionGrants, connectionGrantMembers, toolConnectionInstalls, instanceUserRoles, issueThreadInteractions, issues, heartbeatRuns, toolConnections, type Db } from "@paperclipai/db";
-import { LOW_TRUST_REVIEW_PRESET } from "@paperclipai/shared";
-import type { ToolCredentialSecretRef, VoiceSession } from "@paperclipai/shared";
+import { activityLog, chatVoicePhoneLines, chatVoiceInboundCalls, chatVoiceCallbacks, chatEndpoints, chatConversations, chatDeliveries, chatPublications, chatVoiceSessions, chatVoiceToolCalls, chatVoiceReplies, companyMemberships, companySecrets, connectionGrants, connectionGrantMembers, toolConnectionInstalls, instanceUserRoles, issueThreadInteractions, issues, heartbeatRuns, toolConnections, type Db } from "@nexusai/db";
+import { LOW_TRUST_REVIEW_PRESET } from "@nexusai/shared";
+import type { ToolCredentialSecretRef, VoiceSession } from "@nexusai/shared";
 import { conflict, forbidden, notFound, HttpError } from "../../errors.js";
 import { issueThreadInteractionService } from "../issue-thread-interactions.js";
 import { evaluateIssueThreadInteractionResolverAudience } from "../issue-thread-interaction-resolution.js";
@@ -339,16 +339,16 @@ export function voiceSessionStore(db: Db, options: { allowLocalBoard: boolean; n
         eq(chatVoiceToolCalls.tool, "submit_request"))).orderBy(desc(chatVoiceToolCalls.createdAt)).limit(1);
     if (!request) return { state: "idle", message: "No work request has been submitted in this call." };
     if (task.status === "cancelled") return { state: "cancelled", message: "Work on this task was cancelled." };
-    if (["failed", "filtered"].includes(request.deliveryState)) return { state: "blocked", message: "The latest request could not be dispatched. Check the task in Paperclip." };
+    if (["failed", "filtered"].includes(request.deliveryState)) return { state: "blocked", message: "The latest request could not be dispatched. Check the task in Nexus." };
     const awaitingDispatch = ["received", "processing", "retry"].includes(request.deliveryState);
     const [run] = await tx.select({ status: heartbeatRuns.status }).from(heartbeatRuns).where(and(
       eq(heartbeatRuns.companyId, session.companyId), eq(heartbeatRuns.agentId, session.assignedAgentId),
       or(eq(heartbeatRuns.issueId, session.issueId), and(isNull(heartbeatRuns.issueId), sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${session.issueId}`)),
       or(task.executionRunId ? eq(heartbeatRuns.id, task.executionRunId) : sql`false`, gte(heartbeatRuns.createdAt, request.createdAt)),
     )).orderBy(desc(heartbeatRuns.createdAt)).limit(1);
-    if (run?.status === "running") return { state: "running", followUpQueued: awaitingDispatch, message: "The Paperclip agent is working on this task." };
+    if (run?.status === "running") return { state: "running", followUpQueued: awaitingDispatch, message: "The Nexus agent is working on this task." };
     if (awaitingDispatch || run?.status === "queued") return { state: "queued", message: "The request is saved and waiting for execution." };
-    if (run && ["failed", "timed_out"].includes(run.status)) return { state: "failed", message: "The latest execution failed. Check the task in Paperclip." };
+    if (run && ["failed", "timed_out"].includes(run.status)) return { state: "failed", message: "The latest execution failed. Check the task in Nexus." };
     if (run?.status === "cancelled") return { state: "cancelled", message: "The latest execution was cancelled." };
     if (run?.status === "succeeded") return { state: "awaiting_reply", message: "No agent run is currently active. Use only approved updates for the answer. This does not prove the requested work or any background command completed." };
     return { state: "pending", message: "The request is saved; execution status is not yet available." };
@@ -387,10 +387,10 @@ export function voiceSessionStore(db: Db, options: { allowLocalBoard: boolean; n
       if (replay) throw conflict("Voice webhook id was already used for a different tool call");
       let deliveryId: string | null = null, response: Record<string, unknown>;
       if (input.envelope.tool === "submit_request") {
-        if (context.task.status === "backlog") throw conflict("Move this task to Todo in Paperclip before requesting voice work.");
+        if (context.task.status === "backlog") throw conflict("Move this task to Todo in Nexus before requesting voice work.");
         if (session.callerAuthority === "guest_intake") {
           const requests = await tx.select({id: chatVoiceToolCalls.id}).from(chatVoiceToolCalls).where(and(eq(chatVoiceToolCalls.sessionId, session.id), eq(chatVoiceToolCalls.tool, "submit_request"))).limit(20);
-          if (requests.length >= 20) throw conflict("This call has reached its message limit. Continue in Paperclip.");
+          if (requests.length >= 20) throw conflict("This call has reached its message limit. Continue in Nexus.");
         }
         deliveryId = await input.accept(tx, context, input.envelope.args.text, input.envelope.tool_call_id);
         const delivery = await tx.select({ id: chatDeliveries.id }).from(chatDeliveries).where(and(eq(chatDeliveries.id, deliveryId), eq(chatDeliveries.companyId, session.companyId), eq(chatDeliveries.endpointId, session.endpointId))).then((rows) => rows[0]);

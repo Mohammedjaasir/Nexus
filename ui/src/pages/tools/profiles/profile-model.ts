@@ -3,7 +3,7 @@ import type {
   ToolProfileDefaultAction,
   ToolProfileEntry,
   ToolRiskLevel,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import type { ToolProfileEntryInput } from "@/api/tools";
 
 /**

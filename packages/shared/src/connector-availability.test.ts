@@ -12,16 +12,16 @@ describe("connector availability", () => {
       expect(isConnectorFeatureEnabled(gated, settings)).toBe(false);
       expect(isConnectorFeatureEnabled(ordinary, settings)).toBe(true);
     }
-    expect(isConnectorFeatureEnabled(gated, { enablePaperclipNotebook: true })).toBe(false);
+    expect(isConnectorFeatureEnabled(gated, { enableNexusNotebook: true })).toBe(false);
     expect(isConnectorFeatureEnabled(gated, { enableCases: true })).toBe(true);
   });
 
   it("validates the feature key and declares Notebook's hidden rollout in its manifest", () => {
     expect(appDefinitionSchema.parse(gated).experimentalFeatureKey).toBe("enableCases");
     expect(appDefinitionSchema.safeParse({ ...gated, experimentalFeatureKey: "typoFeature" }).success).toBe(false);
-    const notebook = getConnectableAppDefinition("paperclip-notebook")!;
-    expect(notebook.experimentalFeatureKey).toBe("enablePaperclipNotebook");
+    const notebook = getConnectableAppDefinition("nexus-notebook")!;
+    expect(notebook.experimentalFeatureKey).toBe("enableNexusNotebook");
     expect(isConnectorFeatureEnabled(notebook, {})).toBe(false);
-    expect(isConnectorFeatureEnabled(notebook, { enablePaperclipNotebook: true })).toBe(true);
+    expect(isConnectorFeatureEnabled(notebook, { enableNexusNotebook: true })).toBe(true);
   });
 });

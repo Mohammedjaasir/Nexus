@@ -1,10 +1,10 @@
 import base64,hashlib,importlib.util,json,os,re,sys
 from pathlib import Path
 sys.dont_write_bytecode=True
-EXPECTED_SOURCE_SHA256='585494ff2f10125c98c4102df5b6b6dba643de6c92266186711695b1e993efe6'
+EXPECTED_SOURCE_SHA256='2e1509da4ea808a8b7eb166939453df1a9b4896068a77b2234490b0a4fc9aa10'
 
 def run(fault,config,allow_signal):
- state={'schema':'paperclip.kimi11.remote-fault-diagnostic.v1','qualification':False,'stage':'inspect','status':'FAIL','failingGuard':None,'errno':None,'signalAttempted':False,'signalDispatched':False,'receipt':None,'externalModelCalls':0}
+ state={'schema':'nexus.kimi11.remote-fault-diagnostic.v1','qualification':False,'stage':'inspect','status':'FAIL','failingGuard':None,'errno':None,'signalAttempted':False,'signalDispatched':False,'receipt':None,'externalModelCalls':0}
  original_signal=getattr(fault.signal,'pidfd_send_signal',None);original_inspect=fault.inspect;original_open=getattr(fault.os,'pidfd_open',None);inspections=0
  def inspect(config):
   nonlocal inspections
@@ -42,7 +42,7 @@ ALLOWED_GUARDS=frozenset(['ancestry', 'ancestry_birth', 'ancestry_changed', 'arg
 
 if __name__=='__main__':
  from types import ModuleType
- result={'schema':'paperclip.kimi11.remote-fault-diagnostic.v1','qualification':False,'stage':'input','status':'FAIL','failingGuard':None,'errno':None,'signalAttempted':False,'signalDispatched':False,'receipt':None,'externalModelCalls':0}
+ result={'schema':'nexus.kimi11.remote-fault-diagnostic.v1','qualification':False,'stage':'input','status':'FAIL','failingGuard':None,'errno':None,'signalAttempted':False,'signalDispatched':False,'receipt':None,'externalModelCalls':0}
  try:
   if len(sys.argv)!=3 or len(sys.argv[1])>131072 or len(sys.argv[2])>131072:raise ValueError()
   source=base64.b64decode(sys.argv[1],validate=True)

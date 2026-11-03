@@ -47,7 +47,7 @@ const RUST_RESTORE_STEP = "Restore Runner Rust dependencies (read only)";
 // one runs cargo through. The crate must be restored and marked before it.
 const READERS = [
   ["typecheck_release_registry", "run: pnpm run typecheck:build-gaps"],
-  ["verify_paperclip_runner", "run: pnpm --filter @paperclipai/paperclip-runner ${{ matrix.command }}"],
+  ["verify_nexus_runner", "run: pnpm --filter @nexusai/nexus-runner ${{ matrix.command }}"],
   ["build", "run: pnpm build"],
   ["canary_dry_run", "- name: Release canary dry run via release.sh internal build"],
 ];
@@ -70,12 +70,12 @@ function assertCacheStep(body, name, { lookupOnly = false } = {}) {
 
 test("the script's path list and key inputs cover what the release build of the crate reads and writes", () => {
   assert.deepEqual(CACHED_PATHS, [
-    `${RELEASE_DIR}/.fingerprint/paperclip-runner-core-*`,
-    `${RELEASE_DIR}/deps/libpaperclip_runner_core-*`,
-    `${RELEASE_DIR}/deps/paperclip_runner_core-*.d`,
-    `${RELEASE_DIR}/deps/paperclip_runnerd-*`,
-    `${RELEASE_DIR}/paperclip-runnerd`,
-    `${RELEASE_DIR}/paperclip-runnerd.d`,
+    `${RELEASE_DIR}/.fingerprint/nexus-runner-core-*`,
+    `${RELEASE_DIR}/deps/libnexus_runner_core-*`,
+    `${RELEASE_DIR}/deps/nexus_runner_core-*.d`,
+    `${RELEASE_DIR}/deps/nexus_runnerd-*`,
+    `${RELEASE_DIR}/nexus-runnerd`,
+    `${RELEASE_DIR}/nexus-runnerd.d`,
   ]);
   assert.deepEqual(HASHED_INPUTS, [
     `${RUNNER_PACKAGE}/rust-toolchain.toml`,
@@ -96,7 +96,7 @@ test("the script's path list and key inputs cover what the release build of the 
   // The stage step copies the uplifted binary; it has to be in the set.
   const stage = readFileSync(path.join(repoRoot, RUNNER_PACKAGE, "scripts/stage-runner-binary.mjs"), "utf8");
   assert.match(stage, /"runner", "target", "release", executable/);
-  assert.ok(CACHED_PATHS.includes(`${RELEASE_DIR}/paperclip-runnerd`));
+  assert.ok(CACHED_PATHS.includes(`${RELEASE_DIR}/nexus-runnerd`));
 });
 
 // Every `include_str!` / `include_bytes!` in one Rust source, with the path
@@ -354,10 +354,10 @@ test("every PR reader restores the crate after the dependency cache and marks it
   assert.doesNotMatch(prWorkflow, /actions\/cache\/save@/);
 });
 
-test("the Verify Paperclip Runner job restores the crate only in the lanes that build it", () => {
-  const body = job(prWorkflow, "verify_paperclip_runner");
+test("the Verify Nexus Runner job restores the crate only in the lanes that build it", () => {
+  const body = job(prWorkflow, "verify_nexus_runner");
   const lanes = JSON.parse(readFileSync(path.join(repoRoot, ".github/ci-task-matrix.json"), "utf8"))
-    .verify_paperclip_runner.map((entry) => [entry.lane_label, entry.release_crate === true]);
+    .verify_nexus_runner.map((entry) => [entry.lane_label, entry.release_crate === true]);
   assert.deepEqual(lanes, [
     ["static checks", false],
     ["rust", true],
@@ -370,7 +370,7 @@ test("the Verify Paperclip Runner job restores the crate only in the lanes that 
   // A lane that skipped the restore has no cache-hit output, so the mark
   // step's own condition is enough there.
   assert.match(step(body, MARK_STEP), /if: \$\{\{ steps\.runner_release_crate\.outputs\.cache-hit == 'true' \}\}/);
-  for (const [name] of READERS.filter(([name]) => name !== "verify_paperclip_runner")) {
+  for (const [name] of READERS.filter(([name]) => name !== "verify_nexus_runner")) {
     for (const stepName of [KEY_STEP, RESTORE_STEP]) {
       assert.doesNotMatch(step(job(prWorkflow, name), stepName), /^\s+if:/m, `${name}: ${stepName} is unconditional`);
     }
@@ -378,8 +378,8 @@ test("the Verify Paperclip Runner job restores the crate only in the lanes that 
 });
 
 test("only the master Rust lane writes the crate, after a lookup, with the readers' exact path list and key", () => {
-  const body = job(releaseWorkflow, "verify_paperclip_runner");
-  const positions = ["Verify Paperclip Runner", "Warm debug dependencies for the shared Runner cache", KEY_STEP, LOOKUP_STEP, BUILD_STEP, SAVE_STEP].map((stepName) => body.indexOf(`      - name: ${stepName}\n`));
+  const body = job(releaseWorkflow, "verify_nexus_runner");
+  const positions = ["Verify Nexus Runner", "Warm debug dependencies for the shared Runner cache", KEY_STEP, LOOKUP_STEP, BUILD_STEP, SAVE_STEP].map((stepName) => body.indexOf(`      - name: ${stepName}\n`));
   assert.ok(positions.every((position) => position >= 0), "a writer step is missing");
   assert.deepEqual([...positions].sort((a, b) => a - b), positions, "the writer steps must follow the checks and the debug warm-up, in order");
 
@@ -403,10 +403,10 @@ test("only the master Rust lane writes the crate, after a lookup, with the reade
   // The saved artifacts come from the readers' exact command, on a crate
   // cleaned of the test-profile variants the lane's checks built.
   const build = step(body, BUILD_STEP);
-  assert.match(build, /working-directory: packages\/paperclip-runner\n/);
-  assert.match(build, /set -euo pipefail\n\s+cargo clean --release --manifest-path runner\/Cargo\.toml -p paperclip-runner-core\n\s+pnpm build:binary\n/);
+  assert.match(build, /working-directory: packages\/nexus-runner\n/);
+  assert.match(build, /set -euo pipefail\n\s+cargo clean --release --manifest-path runner\/Cargo\.toml -p nexus-runner-core\n\s+pnpm build:binary\n/);
   const runnerScripts = JSON.parse(readFileSync(path.join(repoRoot, RUNNER_PACKAGE, "package.json"), "utf8")).scripts;
-  assert.match(runnerScripts["build:binary"], /^cargo build --release --manifest-path runner\/Cargo\.toml --locked -p paperclip-runner-core --bin paperclip-runnerd && /);
+  assert.match(runnerScripts["build:binary"], /^cargo build --release --manifest-path runner\/Cargo\.toml --locked -p nexus-runner-core --bin nexus-runnerd && /);
 
   const save = step(body, SAVE_STEP);
   assert.match(save, /uses: actions\/cache\/save@/);
@@ -418,12 +418,12 @@ test("only the master Rust lane writes the crate, after a lookup, with the reade
 });
 
 test("the scope names the platform, the compiler and the checkout root, and survives a missing rustc", () => {
-  const a = computeScope({ workspace: "/home/runner/_work/paperclip/paperclip", rustcVersion: "1.97.1-abcdef123-x86_64-unknown-linux-gnu" });
-  const b = computeScope({ workspace: "/home/runner/work/paperclip/paperclip", rustcVersion: "1.97.1-abcdef123-x86_64-unknown-linux-gnu" });
-  const c = computeScope({ workspace: "/home/runner/_work/paperclip/paperclip", rustcVersion: "1.97.2-0123456ab-x86_64-unknown-linux-gnu" });
+  const a = computeScope({ workspace: "/home/runner/_work/nexus/nexus", rustcVersion: "1.97.1-abcdef123-x86_64-unknown-linux-gnu" });
+  const b = computeScope({ workspace: "/home/runner/work/nexus/nexus", rustcVersion: "1.97.1-abcdef123-x86_64-unknown-linux-gnu" });
+  const c = computeScope({ workspace: "/home/runner/_work/nexus/nexus", rustcVersion: "1.97.2-0123456ab-x86_64-unknown-linux-gnu" });
   assert.notEqual(a, b, "a different checkout root must select a different entry");
   assert.notEqual(a, c, "a different compiler must select a different entry");
-  assert.equal(a, computeScope({ workspace: "/home/runner/_work/paperclip/paperclip/", rustcVersion: "1.97.1-abcdef123-x86_64-unknown-linux-gnu" }));
+  assert.equal(a, computeScope({ workspace: "/home/runner/_work/nexus/nexus/", rustcVersion: "1.97.1-abcdef123-x86_64-unknown-linux-gnu" }));
   assert.match(a, new RegExp(`^${os.platform()}-${os.arch()}-1\\.97\\.1-abcdef123-x86_64-unknown-linux-gnu-[0-9a-f]{12}$`));
   assert.doesNotMatch(computeScope({ rustcVersion: "weird version/with spaces" }), /[^A-Za-z0-9._-]/);
 
@@ -434,9 +434,9 @@ test("the scope names the platform, the compiler and the checkout root, and surv
     const stub = path.join(bin, "rustc");
     writeFileSync(stub, '#!/bin/sh\nprintf "rustc 1.97.1 (8bab26f4f 2026-06-30)\\nbinary: rustc\\ncommit-hash: 8bab26f4f0123456789abcdef\\ncommit-date: 2026-06-30\\nhost: x86_64-unknown-linux-gnu\\nrelease: 1.97.1\\nLLVM version: 21.1.2\\n"\n');
     chmodSync(stub, 0o755);
-    const withStub = execFileSync(process.execPath, [script, "scope"], { encoding: "utf8", env: { ...process.env, PATH: bin, GITHUB_WORKSPACE: "/home/runner/_work/paperclip/paperclip" } }).trim();
-    assert.equal(withStub, computeScope({ workspace: "/home/runner/_work/paperclip/paperclip", rustcVersion: "1.97.1-8bab26f4f-x86_64-unknown-linux-gnu" }));
-    const without = execFileSync(process.execPath, [script, "scope"], { encoding: "utf8", env: { ...process.env, PATH: mkdtempSync(path.join(os.tmpdir(), "empty-path-")), GITHUB_WORKSPACE: "/home/runner/_work/paperclip/paperclip" } }).trim();
+    const withStub = execFileSync(process.execPath, [script, "scope"], { encoding: "utf8", env: { ...process.env, PATH: bin, GITHUB_WORKSPACE: "/home/runner/_work/nexus/nexus" } }).trim();
+    assert.equal(withStub, computeScope({ workspace: "/home/runner/_work/nexus/nexus", rustcVersion: "1.97.1-8bab26f4f-x86_64-unknown-linux-gnu" }));
+    const without = execFileSync(process.execPath, [script, "scope"], { encoding: "utf8", env: { ...process.env, PATH: mkdtempSync(path.join(os.tmpdir(), "empty-path-")), GITHUB_WORKSPACE: "/home/runner/_work/nexus/nexus" } }).trim();
     assert.match(without, /-no-rustc-/);
   } finally {
     rmSync(bin, { recursive: true, force: true });
@@ -447,26 +447,26 @@ test("the scope names the platform, the compiler and the checkout root, and surv
 // with the mtimes GitHub's cache restores: older than a fresh checkout.
 function layRestoredCrate(root) {
   const release = path.join(root, RELEASE_DIR);
-  const lib = path.join(release, ".fingerprint/paperclip-runner-core-0b6c4654c2710743");
-  const bin = path.join(release, ".fingerprint/paperclip-runner-core-46cce78dbc4840c2");
+  const lib = path.join(release, ".fingerprint/nexus-runner-core-0b6c4654c2710743");
+  const bin = path.join(release, ".fingerprint/nexus-runner-core-46cce78dbc4840c2");
   mkdirSync(path.join(release, "deps"), { recursive: true });
   mkdirSync(lib, { recursive: true });
   mkdirSync(bin, { recursive: true });
   const files = {
-    [path.join(lib, "lib-paperclip_runner_core")]: "0123456789abcdef",
-    [path.join(lib, "lib-paperclip_runner_core.json")]: "{}",
-    [path.join(lib, "dep-lib-paperclip_runner_core")]: "dep",
+    [path.join(lib, "lib-nexus_runner_core")]: "0123456789abcdef",
+    [path.join(lib, "lib-nexus_runner_core.json")]: "{}",
+    [path.join(lib, "dep-lib-nexus_runner_core")]: "dep",
     [path.join(lib, "invoked.timestamp")]: "t",
-    [path.join(bin, "bin-paperclip-runnerd")]: "fedcba9876543210",
-    [path.join(bin, "bin-paperclip-runnerd.json")]: "{}",
-    [path.join(bin, "dep-bin-paperclip-runnerd")]: "dep",
-    [path.join(release, "deps/libpaperclip_runner_core-0b6c4654c2710743.rlib")]: "rlib",
-    [path.join(release, "deps/libpaperclip_runner_core-0b6c4654c2710743.rmeta")]: "rmeta",
-    [path.join(release, "deps/paperclip_runner_core-0b6c4654c2710743.d")]: "d",
-    [path.join(release, "deps/paperclip_runnerd-46cce78dbc4840c2")]: "ELF",
-    [path.join(release, "deps/paperclip_runnerd-46cce78dbc4840c2.d")]: "d",
-    [path.join(release, "paperclip-runnerd")]: "ELF",
-    [path.join(release, "paperclip-runnerd.d")]: "d",
+    [path.join(bin, "bin-nexus-runnerd")]: "fedcba9876543210",
+    [path.join(bin, "bin-nexus-runnerd.json")]: "{}",
+    [path.join(bin, "dep-bin-nexus-runnerd")]: "dep",
+    [path.join(release, "deps/libnexus_runner_core-0b6c4654c2710743.rlib")]: "rlib",
+    [path.join(release, "deps/libnexus_runner_core-0b6c4654c2710743.rmeta")]: "rmeta",
+    [path.join(release, "deps/nexus_runner_core-0b6c4654c2710743.d")]: "d",
+    [path.join(release, "deps/nexus_runnerd-46cce78dbc4840c2")]: "ELF",
+    [path.join(release, "deps/nexus_runnerd-46cce78dbc4840c2.d")]: "d",
+    [path.join(release, "nexus-runnerd")]: "ELF",
+    [path.join(release, "nexus-runnerd.d")]: "d",
     // A dependency's artifacts sit beside the crate's and must not be touched.
     [path.join(release, "deps/libserde-1234567890abcdef.rlib")]: "dep rlib",
   };
@@ -498,14 +498,14 @@ test("mark-current makes every restored artifact newer than the checkout and lea
       if (file.includes("libserde")) assert.equal(Math.floor(mtime / 1000), Math.floor(old.getTime() / 1000), "a dependency artifact must keep its mtime");
       else assert.ok(mtime > checkedOutAt, `${path.relative(release, file)} must be newer than the checkout`);
     }
-    for (const dir of [".fingerprint/paperclip-runner-core-0b6c4654c2710743", ".fingerprint/paperclip-runner-core-46cce78dbc4840c2"]) {
+    for (const dir of [".fingerprint/nexus-runner-core-0b6c4654c2710743", ".fingerprint/nexus-runner-core-46cce78dbc4840c2"]) {
       assert.ok(statSync(path.join(release, dir)).mtimeMs > checkedOutAt, `${dir} must be newer than the checkout`);
     }
     assert.ok(statSync(checkout).mtimeMs === checkedOutAt, "sources are never touched");
 
     // The CLI prints the same result as one line of JSON for the job log.
     const printed = JSON.parse(execFileSync(process.execPath, [script, "mark-current"], { encoding: "utf8", env: { ...process.env, GITHUB_WORKSPACE: root } }));
-    assert.equal(printed.schema, "paperclip.runner-release-crate.v1");
+    assert.equal(printed.schema, "nexus.runner-release-crate.v1");
     assert.equal(printed.action, "marked");
     assert.equal(printed.files, 14);
   } finally {
@@ -519,22 +519,22 @@ test("mark-current makes every restored artifact newer than the checkout and lea
 // file); without any of the files in NOT_NEEDED it reports the crate fresh
 // and recreates the uplifted binary from the one under deps.
 const REQUIRED_FILES = {
-  "the lib fingerprint hash": ".fingerprint/paperclip-runner-core-0b6c4654c2710743/lib-paperclip_runner_core",
-  "the lib dep-info": ".fingerprint/paperclip-runner-core-0b6c4654c2710743/dep-lib-paperclip_runner_core",
-  "the lib rlib": "deps/libpaperclip_runner_core-0b6c4654c2710743.rlib",
-  "the lib rmeta": "deps/libpaperclip_runner_core-0b6c4654c2710743.rmeta",
-  "the bin fingerprint hash": ".fingerprint/paperclip-runner-core-46cce78dbc4840c2/bin-paperclip-runnerd",
-  "the bin dep-info": ".fingerprint/paperclip-runner-core-46cce78dbc4840c2/dep-bin-paperclip-runnerd",
-  "the bin under deps": "deps/paperclip_runnerd-46cce78dbc4840c2",
+  "the lib fingerprint hash": ".fingerprint/nexus-runner-core-0b6c4654c2710743/lib-nexus_runner_core",
+  "the lib dep-info": ".fingerprint/nexus-runner-core-0b6c4654c2710743/dep-lib-nexus_runner_core",
+  "the lib rlib": "deps/libnexus_runner_core-0b6c4654c2710743.rlib",
+  "the lib rmeta": "deps/libnexus_runner_core-0b6c4654c2710743.rmeta",
+  "the bin fingerprint hash": ".fingerprint/nexus-runner-core-46cce78dbc4840c2/bin-nexus-runnerd",
+  "the bin dep-info": ".fingerprint/nexus-runner-core-46cce78dbc4840c2/dep-bin-nexus-runnerd",
+  "the bin under deps": "deps/nexus_runnerd-46cce78dbc4840c2",
 };
 const NOT_NEEDED = [
-  ".fingerprint/paperclip-runner-core-0b6c4654c2710743/lib-paperclip_runner_core.json",
-  ".fingerprint/paperclip-runner-core-0b6c4654c2710743/invoked.timestamp",
-  ".fingerprint/paperclip-runner-core-46cce78dbc4840c2/bin-paperclip-runnerd.json",
-  "deps/paperclip_runner_core-0b6c4654c2710743.d",
-  "deps/paperclip_runnerd-46cce78dbc4840c2.d",
-  "paperclip-runnerd",
-  "paperclip-runnerd.d",
+  ".fingerprint/nexus-runner-core-0b6c4654c2710743/lib-nexus_runner_core.json",
+  ".fingerprint/nexus-runner-core-0b6c4654c2710743/invoked.timestamp",
+  ".fingerprint/nexus-runner-core-46cce78dbc4840c2/bin-nexus-runnerd.json",
+  "deps/nexus_runner_core-0b6c4654c2710743.d",
+  "deps/nexus_runnerd-46cce78dbc4840c2.d",
+  "nexus-runnerd",
+  "nexus-runnerd.d",
 ];
 
 test("mark-current discards a restore that lacks any file cargo needs for either unit, naming the file, so cargo sees a plain miss", () => {
@@ -561,8 +561,8 @@ test("mark-current discards a restore that lacks any file cargo needs for either
   const root = mkdtempSync(path.join(os.tmpdir(), "runner-release-crate-"));
   try {
     const { release } = layRestoredCrate(root);
-    rmSync(path.join(release, "deps/paperclip_runnerd-46cce78dbc4840c2"));
-    assert.ok(statSync(path.join(release, "deps/paperclip_runnerd-46cce78dbc4840c2.d")).isFile());
+    rmSync(path.join(release, "deps/nexus_runnerd-46cce78dbc4840c2"));
+    assert.ok(statSync(path.join(release, "deps/nexus_runnerd-46cce78dbc4840c2.d")).isFile());
     assert.equal(markCurrent({ root }).reason, "incomplete: the bin under deps is missing");
   } finally {
     rmSync(root, { recursive: true, force: true });

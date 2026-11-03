@@ -28,7 +28,7 @@ export function executionPlan(config, task, args, files = sourceFiles()) {
     target = "//#test:run:serialized";
     commandArgs = ["--", ...args];
   } else if (task === "ci:runner-rust") {
-    target = "@paperclipai/paperclip-runner#check:runner";
+    target = "@nexusai/nexus-runner#check:runner";
     commandArgs = args;
   } else throw new Error(`Missing task command: ${task}`);
   const select = (globs) => productInputs(files).filter((file) => globs.some((glob) => matchesGlob(file, glob))).map(literalGlob);

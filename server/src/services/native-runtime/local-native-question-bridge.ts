@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { heartbeatRuns, type Db } from "@paperclipai/db";
-import type { HarnessRuntimeRequestResolution, PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import { heartbeatRuns, type Db } from "@nexusai/db";
+import type { HarnessRuntimeRequestResolution, PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { flushNativeQuestionResponses, projectNativeRuntimeRequest, registerNativeQuestionCommandTarget } from "./native-question-bridge.js";
 import { readPendingNativeRuntimeRequest } from "./runtime-request-resolution-authority.js";
 

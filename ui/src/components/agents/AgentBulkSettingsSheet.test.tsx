@@ -3,9 +3,9 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { storybookAgents } from "../../../storybook/fixtures/paperclipData";
+import { storybookAgents } from "../../../storybook/fixtures/nexusData";
 import { TooltipProvider } from "../ui/tooltip";
 import { AgentBulkSettingsSheet } from "./AgentBulkSettingsSheet";
 
@@ -75,13 +75,13 @@ describe("bulk model editing", () => {
   it("refreshes an Antigravity catalog when its saved binding or environment changes", async () => {
     const first = { provider: "google", method: "subscription", mode: "shared", connectionId: "11111111-1111-4111-8111-111111111111", grantId: "33333333-3333-4333-8333-333333333333" } as const;
     const second = { ...first, connectionId: "22222222-2222-4222-8222-222222222222", grantId: "44444444-4444-4444-8444-444444444444" };
-    const google = { ...agent("Antigravity", "paperclip_runner"), defaultEnvironmentId: "local-1",
+    const google = { ...agent("Antigravity", "nexus_runner"), defaultEnvironmentId: "local-1",
       adapterConfig: { provider: "acpx", acpxAgent: "antigravity", model: "old-model" }, runtimeConfig: { aiConnection: first } } as Agent;
     const rerender = await render([google]);
     expect(api.models).toHaveBeenCalledTimes(1);
     await rerender([{ ...google, defaultEnvironmentId: "remote-2", runtimeConfig: { aiConnection: second } }]);
     expect(api.models).toHaveBeenCalledTimes(2);
-    expect(api.models).toHaveBeenLastCalledWith("company-1", "paperclip_runner", {
+    expect(api.models).toHaveBeenLastCalledWith("company-1", "nexus_runner", {
       provider: "acpx", acpxAgent: "antigravity", agentId: google.id, aiConnection: second, environmentId: "remote-2",
     });
   });
@@ -95,7 +95,7 @@ describe("bulk model editing", () => {
     const connectionId = "11111111-1111-4111-8111-111111111111", grantId = "33333333-3333-4333-8333-333333333333";
     const binding = responsible ? { provider: "google", method, mode: "responsible_user" } as const
       : { provider: "google", method, mode: "shared", connectionId, grantId } as const;
-    const google = { ...agent("Antigravity", "paperclip_runner"), defaultEnvironmentId: "local-1",
+    const google = { ...agent("Antigravity", "nexus_runner"), defaultEnvironmentId: "local-1",
       adapterConfig: { provider: "acpx", acpxAgent: "antigravity", model: "old-model" }, runtimeConfig: { aiConnection: binding } } as Agent;
     api.accounts.mockResolvedValue({ currentUserId: "board", canManageConnections: true, pools: [], connections: [{
       id: connectionId, grantId, companyId: "company-1", provider: "google", method, name: "Selected Google account", status: "connected",
@@ -106,7 +106,7 @@ describe("bulk model editing", () => {
     api.update.mockImplementation(async (_id, patch) => ({ ...google, adapterConfig: { ...google.adapterConfig, model: patch.model } }));
     await render([google]);
     if (method === "api_key") expect(api.models).not.toHaveBeenCalled();
-    else expect(api.models).toHaveBeenCalledWith("company-1", "paperclip_runner", {
+    else expect(api.models).toHaveBeenCalledWith("company-1", "nexus_runner", {
       provider: "acpx", acpxAgent: "antigravity", agentId: google.id, aiConnection: binding, environmentId: "local-1",
     });
     await chooseModel("gemini-custom", true);
@@ -142,8 +142,8 @@ describe("bulk model editing", () => {
   });
 
   it("retries only failed agents even when a saved agent's model probe becomes unavailable", async () => {
-    const atlas = agent("Atlas", "paperclip_runner");
-    const scout = agent("Scout", "paperclip_runner");
+    const atlas = agent("Atlas", "nexus_runner");
+    const scout = agent("Scout", "nexus_runner");
     atlas.adapterConfig = scout.adapterConfig = { provider: "acpx", acpxAgent: "copilot", model: "old-model" };
     let partialSave = false;
     api.models.mockImplementation(async (_company, _adapter, options) => {

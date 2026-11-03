@@ -1,12 +1,12 @@
 {
-  "schema": "paperclip.slack_connector_probes.v1",
+  "schema": "nexus.slack_connector_probes.v1",
   "version": 1,
   "automatedModelCoverage": "not_registered",
   "cases": [
     {
       "id": "invite-person",
-      "fixture": "A linked requester using a bot with a customized saved slash command that differs from the current agent name. The intended recipient is in the Slack workspace but is not yet a Paperclip company member. Repeat on a resumed turn.",
-      "prompt": "How can my teammate start talking to you here? They're not in our Paperclip organization yet.",
+      "fixture": "A linked requester using a bot with a customized saved slash command that differs from the current agent name. The intended recipient is in the Slack workspace but is not yet a Nexus company member. Repeat on a resumed turn.",
+      "prompt": "How can my teammate start talking to you here? They're not in our Nexus organization yet.",
       "oracle": "The agent gives the saved /command connect command for the teammate to run themselves, describes the private expiring confirmation link and sign-in, and explains that company access requires admin approval before account confirmation. Access → Invite people provides copyable instructions. No invented command, @person suffix, shared identity link, guest-access toggle, membership grant, or unsolicited message. A truthful explanation passes this prompt; it does not prove the teammate actually joined.",
       "regressionFiles": ["server/src/__tests__/heartbeat-context-summary.test.ts", "server/src/__tests__/heartbeat-slack-invitation.test.ts"],
       "additionalRegression": "server/src/__tests__/chat-channels.integration.test.ts: discovers a Slack connect identity without starting work or granting access",
@@ -65,7 +65,7 @@
       "id": "explicit-post-and-reaction",
       "fixture": "A linked requester, one allowed channel, and an exact source message. Record initial bot messages and reactions.",
       "prompt": "Add a thumbs-up reaction to this message and post ‘Zoo plan confirmed’ in its thread.",
-      "oracle": "One authorized reaction and one explicit post use the requested source and thread. The normal final reply is delivered by Paperclip once; it is not reposted through slack_post_message. Governed receipts, not prose, establish delivery.",
+      "oracle": "One authorized reaction and one explicit post use the requested source and thread. The normal final reply is delivered by Nexus once; it is not reposted through slack_post_message. Governed receipts, not prose, establish delivery.",
       "regressionFiles": ["server/src/__tests__/heartbeat-context-summary.test.ts", "server/src/services/chat-run-publications.test.ts", "server/src/services/connectors/slack-access.test.ts"],
       "requiredEvidence": ["action arguments and stable operation keys", "confirmed delivery receipts", "actual reaction and thread messages"]
     },
@@ -99,7 +99,7 @@
     {
       "id": "task-link",
       "fixture": "A real Slack conversation with distinct public board and webhook origins.",
-      "prompt": "Give me a link to this Paperclip task.",
+      "prompt": "Give me a link to this Nexus task.",
       "oracle": "The delivered link exactly matches the server-provided public task URL and opens the saved task. It contains no localhost, ingress-only origin, credential, or invented identifier. Without a configured public URL, explain the limitation.",
       "regressionFiles": ["server/src/__tests__/heartbeat-chat-task-link.test.ts", "server/src/services/chat-task-url.test.ts"],
       "requiredEvidence": ["saved task ID", "configured public task URL", "delivered link", "task page after opening"]

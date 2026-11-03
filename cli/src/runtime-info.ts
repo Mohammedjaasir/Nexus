@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { resolvePaperclipInstanceRoot } from "./config/home.js";
+import { resolveNexusInstanceRoot } from "./config/home.js";
 
-export const PAPERCLIP_RUNTIME_INFO_FILENAME = "runtime-info.json";
+export const NEXUS_RUNTIME_INFO_FILENAME = "runtime-info.json";
 
-export type PaperclipRuntimeInfo = {
+export type NexusRuntimeInfo = {
   schemaVersion: 1;
   instanceId: string;
   pid: number;
@@ -15,10 +15,10 @@ export type PaperclipRuntimeInfo = {
 };
 
 export function resolveRuntimeInfoPath(instanceId?: string): string {
-  return path.join(resolvePaperclipInstanceRoot(instanceId), PAPERCLIP_RUNTIME_INFO_FILENAME);
+  return path.join(resolveNexusInstanceRoot(instanceId), NEXUS_RUNTIME_INFO_FILENAME);
 }
 
-function parseRuntimeInfo(value: unknown): PaperclipRuntimeInfo | null {
+function parseRuntimeInfo(value: unknown): NexusRuntimeInfo | null {
   if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
   if (
@@ -35,10 +35,10 @@ function parseRuntimeInfo(value: unknown): PaperclipRuntimeInfo | null {
   ) {
     return null;
   }
-  return record as PaperclipRuntimeInfo;
+  return record as NexusRuntimeInfo;
 }
 
-export function readRuntimeInfo(instanceId?: string, filePath = resolveRuntimeInfoPath(instanceId)): PaperclipRuntimeInfo | null {
+export function readRuntimeInfo(instanceId?: string, filePath = resolveRuntimeInfoPath(instanceId)): NexusRuntimeInfo | null {
   try {
     const info = parseRuntimeInfo(JSON.parse(fs.readFileSync(filePath, "utf8")));
     if (!info) return null;
@@ -50,7 +50,7 @@ export function readRuntimeInfo(instanceId?: string, filePath = resolveRuntimeIn
 }
 
 export function writeRuntimeInfo(
-  info: PaperclipRuntimeInfo,
+  info: NexusRuntimeInfo,
   filePath = resolveRuntimeInfoPath(info.instanceId),
 ): void {
   const directoryPath = path.dirname(filePath);

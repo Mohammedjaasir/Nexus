@@ -2,7 +2,7 @@ import type { AdapterRuntimeEvent } from "./types.js";
 
 /** Local run-log evidence; never a first-party Telemetry event. */
 export const STARTUP_REUSE_EVENT = "run.startup.reuse";
-export const STARTUP_REUSE_SCHEMA = "paperclip.startup-reuse.v1";
+export const STARTUP_REUSE_SCHEMA = "nexus.startup-reuse.v1";
 export const STARTUP_REUSE_LAYERS = [
   "environment", "workspace", "runner", "provider_process", "provider_session",
 ] as const;
@@ -74,7 +74,7 @@ export function summarizeStartupReuse(events: readonly { eventType?: string; pay
     const p = record(event.payload);
     // Existing native physical-launch receipt. A session bootstrap/resume span
     // alone says nothing about the lifetime of its Runner or provider process.
-    if (event.eventType === "run.performance.span" && p.schema === "paperclip.run-performance-span.v1" &&
+    if (event.eventType === "run.performance.span" && p.schema === "nexus.run-performance-span.v1" &&
         p.span === "runner.process.launch" && p.outcome === "ok") {
       layers.runner = { state: "fresh", reason: "created" };
       observed.add("runner");

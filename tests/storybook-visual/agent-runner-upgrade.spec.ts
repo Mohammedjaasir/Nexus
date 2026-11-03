@@ -21,10 +21,10 @@ for (const theme of ["dark", "light"]) {
         await expect(page.getByRole("tabpanel", { name: /^Interactions/ }).getByText("Pass", { exact: true })).toBeVisible({ timeout: 20_000 });
       }
       if (["upgrade-codex", "upgrade-claude", "failure-and-retry", "repair-and-upgrade"].includes(story)) {
-        await expect(main.getByText("Upgraded to Paperclip Runner.", { exact: true })).toBeVisible();
+        await expect(main.getByText("Upgraded to Nexus Runner.", { exact: true })).toBeVisible();
         await expect(main.getByRole("button", { name: "Upgrade runner", exact: true })).toHaveCount(0);
       } else if (["already-upgraded", "unavailable-environment"].includes(story)) {
-        await expect(main.getByText("Upgrade to Paperclip Runner", { exact: true })).toHaveCount(0);
+        await expect(main.getByText("Upgrade to Nexus Runner", { exact: true })).toHaveCount(0);
       } else if (story === "upgrading") {
         await expect(main.getByRole("button", { name: "Upgrading…", exact: true })).toBeDisabled();
       } else {

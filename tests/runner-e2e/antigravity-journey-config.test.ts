@@ -18,7 +18,7 @@ const connectionId = "33333333-3333-4333-8333-333333333333", agentId = "44444444
 function fixture() { return { version: 1, setupId: "synthetic", hosting: "self-hosted", executionEnvironment: "local",
   target: { mode: "attach", baseURL: "http://127.0.0.1:3104", expectedCommit: "a".repeat(40), deploymentMode: "local_trusted", companyId, environmentId },
   browser: { headed: false, channel: "chromium", freshness: "signed-in" }, savedConnection: { id: connectionId, name: "Synthetic Google subscription", ownerUserId: "synthetic-user" },
-  candidate: { platform: "darwin", architecture: "arm64", nativeVersion: "1.4.3-paperclip.5", profileDigest: `sha256:${"b".repeat(64)}`, nativeClosureDigest: `sha256:${"c".repeat(64)}` },
+  candidate: { platform: "darwin", architecture: "arm64", nativeVersion: "1.4.3-nexus.5", profileDigest: `sha256:${"b".repeat(64)}`, nativeClosureDigest: `sha256:${"c".repeat(64)}` },
   limits: { durationMs: 900_000, turnTimeoutMs: 300_000, maxRuns: 2, budgetCents: 100 } }; }
 function resources(): AntigravityJourneyResources { return { version: 1, executionId: ANTIGRAVITY_JOURNEY_EXECUTION, origin: "http://127.0.0.1:3104",
   companyId, environmentId, connectionId, agentName: "Antigravity QA 0123456789ab", agentId, runIds: [], processes: {}, retained: false, setupProbe: "not_started" }; }
@@ -27,9 +27,9 @@ function neverLaunched() {
   const leaseId = "77777777-7777-4777-8777-777777777777";
   const run: Record<string, any> = { id: runId, companyId, agentId, issueId: owned.issueId, status: "cancelled", executionStage: "settled", costAccountingPending: false,
     runtimeMode: "legacy", runtimeModeResolvedAt: null, controllerLeaseExpiresAt: null, processPid: null, processGroupId: null, processStartedAt: null,
-    runnerInstanceId: null, nativeSessionId: null, driverKind: null, completionContractId: null, runnerProfileJson: { adapterDispatch: { adapterType: "paperclip_runner" } },
+    runnerInstanceId: null, nativeSessionId: null, driverKind: null, completionContractId: null, runnerProfileJson: { adapterDispatch: { adapterType: "nexus_runner" } },
     resultJson: { startupCancellation: { beforeNativeSelection: true, errorCode: "cancelled", requestedAt: "2026-01-01T00:00:00Z" }, startupPreparationSettledAt: "2026-01-01T00:00:02Z" },
-    contextSnapshot: { paperclipEnvironment: { id: environmentId, driver: "local", leaseId } } };
+    contextSnapshot: { nexusEnvironment: { id: environmentId, driver: "local", leaseId } } };
   const lease: Record<string, any> = { id: leaseId, companyId, heartbeatRunId: runId, environmentId, status: "expired", releasedAt: "2026-01-01T00:00:01Z" };
   return { owned, run, lease };
 }
@@ -158,7 +158,7 @@ it("discovers one explicit-only real-agent cell without ambient API-key requirem
   expect(() => selected[0]!.profile.buildAgent({} as never)).toThrow("must be created through the ordinary UI");
 });
 
-it.each(["https://paperclip.example", "http://localhost:3104", "http://192.168.0.1:3104"])("does not claim same-host native retirement on %s", baseURL => {
+it.each(["https://nexus.example", "http://localhost:3104", "http://192.168.0.1:3104"])("does not claim same-host native retirement on %s", baseURL => {
   const value = fixture(); value.target.baseURL = baseURL;
   expect(() => parseAntigravityJourneyConfig(value)).toThrow("invalid_antigravity_journey_configuration");
 });
@@ -220,7 +220,7 @@ it.each([false, true])("captures a cleanup-discovered run's settled usage before
   const agent = () => ({ id: agentId, companyId, name: owned.agentName, lifecycleState });
   const run = () => ({ id: runId, agentId, companyId, status, costAccountingPending: status === "running",
     usageJson: { inputTokens: 100, outputTokens: 20, costUsd: status === "running" ? 0.01 : 0.25 },
-    contextSnapshot: { paperclipEnvironment: { leaseId: "lease" } } });
+    contextSnapshot: { nexusEnvironment: { leaseId: "lease" } } });
   const snapshots: any[] = [];
   const captureRun = vi.fn(async row => {
     if (storageFailure && row.status === "cancelled") throw new Error("fixture accounting storage unavailable");
@@ -265,7 +265,7 @@ it.each(["interrupted", "timed_out"].flatMap(status => [false, true].map(pending
       { pid: 9000001, parent: 1, start: "2020-01-01T00:00:00Z" }, { pid: 9000002, parent: 9000001, start: "2020-01-01T00:00:00Z" },
     ] };
     const agent = { id: agentId, companyId, name: owned.agentName, status: "active" }, run = { id: runId, agentId, companyId, status,
-      costAccountingPending: pending, contextSnapshot: { paperclipEnvironment: { leaseId: "lease" } } };
+      costAccountingPending: pending, contextSnapshot: { nexusEnvironment: { leaseId: "lease" } } };
     const get = vi.fn(async (route: string) => {
       if (route.endsWith("/agents")) return [agent];
       if (route === `/api/agents/${agentId}`) return agent;
@@ -327,14 +327,14 @@ function deferredOwnerCleanup(discovery: "initial" | "poll" | "transition" = "in
   const agent = { id: agentId, companyId, name: owned.agentName, status: "active" };
   const run: Record<string, any> = { id: runId, companyId, agentId, issueId: owned.issueId, nativeIssueId: owned.issueId,
     status: "failed", runtimeMode: "native", nativePhase: "retryable_failure", costAccountingPending: false,
-    contextSnapshot: { paperclipEnvironment: { leaseId: "owned-lease" } }, resultJson: {} };
+    contextSnapshot: { nexusEnvironment: { leaseId: "owned-lease" } }, resultJson: {} };
   const lease = { id: "owned-lease", companyId, heartbeatRunId: runId, environmentId, status: "released" };
   const state = { listReads: 0, fullReads: 0, stopAtListReads: [] as number[], fullPatch: {} as Record<string, unknown>,
     onStop: async (_body: Record<string, any>) => {} };
   const acknowledge = (body: Record<string, any>, patch: Record<string, unknown> = {}) => {
     run.status = "cancelled"; run.nativePhase = "terminal_failure";
     run.resultJson = { startupCancellation: { cancellationRequestId: body.cancellationRequestId }, nativeCancellation: {
-      schema: "paperclip.native-cancellation.v1", intentId: `native-cancellation:${body.cancellationRequestId}`,
+      schema: "nexus.native-cancellation.v1", intentId: `native-cancellation:${body.cancellationRequestId}`,
       companyId, runId, issueId: owned.issueId, scope: "run", reasonCode: "cancellation_run_only", dispatched: false,
       dispatchState: "acknowledged", intentAuditId: "owned-intent-audit", acknowledgementAuditId: "owned-ack-audit", ...patch,
     } };

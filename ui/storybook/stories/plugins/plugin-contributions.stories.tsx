@@ -35,7 +35,7 @@ const meta = {
   parameters: {
     layout: "padded",
     initialEntries: ["/PAP/plugins/contribution-gap"],
-    paperclip: {
+    nexus: {
       "capabilities": [
         "plugins/contributions"
       ],

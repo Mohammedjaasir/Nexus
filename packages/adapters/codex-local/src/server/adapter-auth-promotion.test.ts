@@ -40,15 +40,15 @@ describe("device-login credential promotion", () => {
   });
 
   async function makeInstanceRoot(): Promise<string> {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-codex-promotion-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-codex-promotion-"));
     cleanupDirs.push(dir);
     return dir;
   }
 
   function envFor(instanceHome: string, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
     return {
-      PAPERCLIP_HOME: instanceHome,
-      PAPERCLIP_INSTANCE_ID: "default",
+      NEXUS_HOME: instanceHome,
+      NEXUS_INSTANCE_ID: "default",
       // A fixed shared host home, so a test can assert the helper never writes it.
       CODEX_HOME: path.join(instanceHome, "shared-codex"),
       ...extra,

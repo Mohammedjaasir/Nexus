@@ -18,7 +18,7 @@ for (const mobile of [false, true]) {
     const issue = await json(await request.post(`/api/companies/${company.id}/issues`, {
       data: { title: "Keep reading while an artifact arrives", status: "backlog" },
     }));
-    await page.addInitScript(() => localStorage.setItem("paperclip:panel-visible", "false"));
+    await page.addInitScript(() => localStorage.setItem("nexus:panel-visible", "false"));
     await page.goto(`/${company.issuePrefix}/issues/${issue.identifier}?from=inbox&fromHref=%2Finbox%2Fmine`);
     await expect(page.getByRole("heading", { name: issue.title, exact: true })).toBeVisible();
     const editor = page.getByTestId("task-chat-composer-input").getByRole("textbox", { name: "editable markdown" });
@@ -37,7 +37,7 @@ for (const mobile of [false, true]) {
     await expect(editor).toBeFocused();
     await expect(editor).toContainText("Keep my draft and focus");
     await expect(page.getByTestId("mobile-task-side-panel")).toBeHidden();
-    expect(await page.evaluate(() => localStorage.getItem("paperclip:panel-visible"))).toBe("false");
+    expect(await page.evaluate(() => localStorage.getItem("nexus:panel-visible"))).toBe("false");
     await page.screenshot({ path: testInfo.outputPath("artifact-arrived-panel-closed.png"), fullPage: true });
 
     if (mobile) {

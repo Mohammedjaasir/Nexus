@@ -1,5 +1,5 @@
-import type { chatConversations, chatPublications } from "@paperclipai/db";
-import type { SafeChatPublicationPayload } from "@paperclipai/shared";
+import type { chatConversations, chatPublications } from "@nexusai/db";
+import type { SafeChatPublicationPayload } from "@nexusai/shared";
 import type { EndpointRow } from "../runtime-types.js";
 import type { TelegramDraftControl } from "../../chat-telegram-draft-stop.js";
 import type { SlackFileUploadAcceptedReceipt } from "../../chat-sdk-runtime.js";

@@ -14,7 +14,7 @@ import {
   issueRelations,
   issueWorkProducts,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { and, eq, sql } from "drizzle-orm";
 import {
   getEmbeddedPostgresTestSupport,
@@ -24,7 +24,7 @@ import { companyPortabilityService } from "../services/company-portability.js";
 import { issueService } from "../services/issues.js";
 import { workProductService } from "../services/work-products.js";
 import type { ImportIssueWorkProductRow } from "../services/import-write-types.js";
-import type { CompanyPortabilityFileEntry } from "@paperclipai/shared";
+import type { CompanyPortabilityFileEntry } from "@nexusai/shared";
 import { randomUUID } from "node:crypto";
 
 // This suite proves the company-import writers batch their inserts: it runs a
@@ -95,7 +95,7 @@ function instrumentInserts(db: Record<string, unknown>): InsertCounts {
   return counts;
 }
 
-// The `.paperclip.yaml` extension is consumed by the importer's own hand-rolled
+// The `.nexus.yaml` extension is consumed by the importer's own hand-rolled
 // block-YAML parser (not a general YAML/JSON reader), so render it with the same
 // block algorithm the exporter uses to guarantee a round-trip-compatible bundle.
 function renderYamlScalar(value: unknown): string {
@@ -147,7 +147,7 @@ function renderYamlBlock(value: unknown, indentLevel: number): string[] {
   return [`${indent}${renderYamlScalar(value)}`];
 }
 
-function renderPaperclipYaml(value: Record<string, unknown>): string {
+function renderNexusYaml(value: Record<string, unknown>): string {
   return `${renderYamlBlock(value, 0).join("\n")}\n`;
 }
 
@@ -193,7 +193,7 @@ function buildSyntheticBundle(options: SyntheticBundleOptions): {
     };
   }
 
-  files[".paperclip.yaml"] = renderPaperclipYaml({ schemaVersion: 7, tasks });
+  files[".nexus.yaml"] = renderNexusYaml({ schemaVersion: 7, tasks });
 
   return { rootPath: "batching-bench", files };
 }
@@ -223,7 +223,7 @@ function buildTouchedIssuesBundle(issueCount: number): {
     };
   }
 
-  files[".paperclip.yaml"] = renderPaperclipYaml({ schemaVersion: 7, tasks });
+  files[".nexus.yaml"] = renderNexusYaml({ schemaVersion: 7, tasks });
   return { rootPath: "inbox-flood", files };
 }
 
@@ -233,7 +233,7 @@ describeEmbeddedPostgres("company import batches inserts", () => {
   let counts!: InsertCounts;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-import-batching-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-import-batching-");
     db = createDb(tempDb.connectionString);
     counts = instrumentInserts(db as unknown as Record<string, unknown>);
   }, 30_000);
@@ -430,7 +430,7 @@ describeEmbeddedPostgres("company import batches inserts", () => {
     files["tasks/a-child/TASK.md"] = taskFile("Child");
     files["tasks/m-grandchild/TASK.md"] = taskFile("Grandchild");
     files["tasks/z-parent/TASK.md"] = taskFile("Parent");
-    files[".paperclip.yaml"] = renderPaperclipYaml({
+    files[".nexus.yaml"] = renderNexusYaml({
       schemaVersion: 7,
       tasks: {
         // The child slug sorts before its parent so the importer's
@@ -522,7 +522,7 @@ describeEmbeddedPostgres("company import batches inserts", () => {
     const files: Record<string, CompanyPortabilityFileEntry> = {};
     files["COMPANY.md"] = ['---', 'schema: "agentcompanies/v1"', 'name: "Legacy Shape Co"', '---', '', 'Synthetic import bundle.', ''].join("\n");
     files["tasks/legacy-task/TASK.md"] = ['---', 'name: "Legacy task"', "kind: task", '---', '', 'Legacy body.', ''].join("\n");
-    files[".paperclip.yaml"] = renderPaperclipYaml({
+    files[".nexus.yaml"] = renderNexusYaml({
       schemaVersion: 6,
       tasks: {
         "legacy-task": {

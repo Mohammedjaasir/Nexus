@@ -5,23 +5,23 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { and, eq } from "drizzle-orm";
 
-import type { AdapterExecutionResult } from "@paperclipai/adapter-utils";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
-import type { Db } from "@paperclipai/db";
-import { agentSessionGoalActions, agentTaskSessions } from "@paperclipai/db";
+import type { AdapterExecutionResult } from "@nexusai/adapter-utils";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
+import type { Db } from "@nexusai/db";
+import { agentSessionGoalActions, agentTaskSessions } from "@nexusai/db";
 
-import { resolvePaperclipInstanceRoot } from "../../home-paths.js";
+import { resolveNexusInstanceRoot } from "../../home-paths.js";
 import { failRunnerGoalAction } from "../runner-goals.js";
 import {
-  createPaperclipRunnerAuthorizedToolSet,
+  createNexusRunnerAuthorizedToolSet,
   defaultCapabilityRunnerdBinary,
   runnerBinaryTarget,
-  type PaperclipSemanticToolDefinition,
-} from "../../vendor/paperclip-runner/index.js";
+  type NexusSemanticToolDefinition,
+} from "../../vendor/nexus-runner/index.js";
 import { runnerPrpCoordinator } from "./runner-prp-coordinator.js";
 
 const moduleDirectory = dirname(fileURLToPath(import.meta.url));
-const RUNNER_VERSION = "paperclip-runner-v1";
+const RUNNER_VERSION = "nexus-runner-v1";
 
 interface NativeGoalControl {
   sessionId: string;
@@ -139,7 +139,7 @@ interface NativeRunnerPrepareInput {
   readonly model: string | null;
   readonly resumeProviderSessionId: string | null;
   readonly completionContract: { revision: string; criterionIds: string[] };
-  readonly semanticTools: readonly PaperclipSemanticToolDefinition[];
+  readonly semanticTools: readonly NexusSemanticToolDefinition[];
   readonly providerLaunch?: NativeRunnerProviderLaunch;
 }
 
@@ -163,19 +163,19 @@ export function buildNativeRunnerPreparePayload(
       approvalPolicy: "never",
     },
     completionContract: input.completionContract,
-    authorizedTools: createPaperclipRunnerAuthorizedToolSet(input.semanticTools),
+    authorizedTools: createNexusRunnerAuthorizedToolSet(input.semanticTools),
   };
 }
 
 function executableName(): string {
-  return process.platform === "win32" ? "paperclip-runnerd.exe" : "paperclip-runnerd";
+  return process.platform === "win32" ? "nexus-runnerd.exe" : "nexus-runnerd";
 }
 
-export function resolvePaperclipRunnerBinary(
-  configuredPath = process.env.PAPERCLIP_RUNNER_BINARY,
+export function resolveNexusRunnerBinary(
+  configuredPath = process.env.NEXUS_RUNNER_BINARY,
 ): string {
   if (configuredPath && !isAbsolute(configuredPath)) {
-    throw new Error("PAPERCLIP_RUNNER_BINARY must be an absolute path");
+    throw new Error("NEXUS_RUNNER_BINARY must be an absolute path");
   }
   if (configuredPath) {
     try {
@@ -191,7 +191,7 @@ export function resolvePaperclipRunnerBinary(
     defaultCapabilityRunnerdBinary(),
     resolve(
       moduleDirectory,
-      "../../../../packages/paperclip-runner/runner/target/release",
+      "../../../../packages/nexus-runner/runner/target/release",
       executableName(),
     ),
   ].filter((candidate): candidate is string => Boolean(candidate));
@@ -204,11 +204,11 @@ export function resolvePaperclipRunnerBinary(
     }
   }
   throw new Error(
-    "paperclip_runner_binary_missing: build @paperclipai/paperclip-runner or set PAPERCLIP_RUNNER_BINARY",
+    "nexus_runner_binary_missing: build @nexusai/nexus-runner or set NEXUS_RUNNER_BINARY",
   );
 }
 
-export async function resolveRemotePaperclipRunnerBinary(input: {
+export async function resolveRemoteNexusRunnerBinary(input: {
   runner: CommandManagedRuntimeRunner;
   remoteCwd: string;
   configuredPath?: string | null;
@@ -222,17 +222,17 @@ export async function resolveRemotePaperclipRunnerBinary(input: {
     throw new Error("runner_remote_artifact_platform_mismatch: could not identify a supported remote OS and architecture; check the selected execution environment and retry");
   }
   const configured = input.configuredPath?.trim();
-  if (configured && !isAbsolute(configured)) throw new Error("PAPERCLIP_RUNNER_REMOTE_BINARY_PATH must be an absolute path");
+  if (configured && !isAbsolute(configured)) throw new Error("NEXUS_RUNNER_REMOTE_BINARY_PATH must be an absolute path");
   const controllerOverride = platform === process.platform && architecture === process.arch
-    ? process.env.PAPERCLIP_RUNNER_BINARY : undefined;
+    ? process.env.NEXUS_RUNNER_BINARY : undefined;
   const binary = configured || (controllerOverride
-    ? resolvePaperclipRunnerBinary(controllerOverride)
+    ? resolveNexusRunnerBinary(controllerOverride)
     : defaultCapabilityRunnerdBinary(platform, architecture));
   let bytes: Buffer;
   try { bytes = readFileSync(binary); }
-  catch (cause) { throw new Error(`runner_remote_artifact_unavailable: install the Paperclip release containing the ${platform}-${architecture} daemon or configure PAPERCLIP_RUNNER_REMOTE_BINARY_PATH`, { cause }); }
+  catch (cause) { throw new Error(`runner_remote_artifact_unavailable: install the Nexus release containing the ${platform}-${architecture} daemon or configure NEXUS_RUNNER_REMOTE_BINARY_PATH`, { cause }); }
   if (runnerBinaryTarget(bytes) !== `${platform}-${architecture}`) {
-    throw new Error(`runner_remote_artifact_platform_mismatch: the selected daemon does not match ${platform}-${architecture}; install the matching Paperclip release or configure PAPERCLIP_RUNNER_REMOTE_BINARY_PATH`);
+    throw new Error(`runner_remote_artifact_platform_mismatch: the selected daemon does not match ${platform}-${architecture}; install the matching Nexus release or configure NEXUS_RUNNER_REMOTE_BINARY_PATH`);
   }
   return binary;
 }
@@ -353,11 +353,11 @@ export async function executeNativeCodexRunner(input: {
     startedAt: string;
   }) => Promise<void>;
 }): Promise<AdapterExecutionResult> {
-  const binary = input.runnerBinary ?? resolvePaperclipRunnerBinary();
+  const binary = input.runnerBinary ?? resolveNexusRunnerBinary();
   const runnerDigest = `sha256:${createHash("sha256").update(readFileSync(binary)).digest("hex")}`;
   const runtimeRoot = input.runtimeRoot
     ? resolve(input.runtimeRoot)
-    : resolve(resolvePaperclipInstanceRoot(), "runtime", "paperclip-runner");
+    : resolve(resolveNexusInstanceRoot(), "runtime", "nexus-runner");
   const runnerStateDirectory = resolve(runtimeRoot, "runner", input.runId);
   const goalControl = await readNativeGoalControl({
     db: input.db,
@@ -438,7 +438,7 @@ export async function executeNativeCodexRunner(input: {
     env: {
       ...process.env,
       ...input.environment,
-      PAPERCLIP_RUNNER_BOOTSTRAP_TICKET: prepared.bootstrapTicket,
+      NEXUS_RUNNER_BOOTSTRAP_TICKET: prepared.bootstrapTicket,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -451,7 +451,7 @@ export async function executeNativeCodexRunner(input: {
   });
 
   try {
-    if (!child.pid) throw new Error("paperclip_runner_process_not_started");
+    if (!child.pid) throw new Error("nexus_runner_process_not_started");
     await input.onSpawn({
       pid: child.pid,
       processGroupId: process.platform === "win32" ? null : child.pid,
@@ -485,7 +485,7 @@ export async function executeNativeCodexRunner(input: {
         if (recovered) return recovered;
         if (recovered === null && goalControl && !shouldWaitForGoalCompletion) return null;
         throw new Error(
-          `paperclip_runner_process_exited: code=${code ?? "null"} signal=${signal ?? "null"}`,
+          `nexus_runner_process_exited: code=${code ?? "null"} signal=${signal ?? "null"}`,
         );
       }),
     ]);
@@ -509,7 +509,7 @@ export async function executeNativeCodexRunner(input: {
       signal: null,
       timedOut: false,
       ...(succeeded ? {} : {
-        errorCode: "paperclip_runner_provider_failed",
+        errorCode: "nexus_runner_provider_failed",
         errorMessage: completed?.result.summary,
       }),
       provider: "codex",
@@ -546,7 +546,7 @@ export async function executeNativeCodexRunner(input: {
           companyId: input.companyId,
           issueId: input.issueId,
           agentId: input.agentId,
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
         },
         goalControl.requestId,
         error instanceof Error ? error.message : "native_goal_control_failed",

@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import type { CostDataQualityItem, CostDataQualityReport } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import type { CostDataQualityItem, CostDataQualityReport } from "@nexusai/shared";
 import { resolveCostDateRange, type CostDateRange } from "./cost-date-range.js";
 import { withAccountingReadSnapshot } from "./accounting-transaction.js";
 

@@ -7,7 +7,7 @@ import { resolveExternalTestDatabaseUrl } from "../../__tests__/helpers/external
 import { randomUUID } from "node:crypto";
 import { beforeAll, afterAll, beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
-import { agents, companies, completionContracts, createDb, environmentLeases, environments, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, nativeRunResults, agentWakeupRequests, activityLog } from "@paperclipai/db";
+import { agents, companies, completionContracts, createDb, environmentLeases, environments, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, nativeRunResults, agentWakeupRequests, activityLog } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { remoteTerminationReceipt } from "../remote-execution-termination.js";
 import { withNativeWorkspaceFinalizationOwnership } from "./native-workspace-finalization-ownership.js";
@@ -24,11 +24,11 @@ describe("board retry of accepted workspace export", () => {
   let db: ReturnType<typeof createDb>;
   const companyId = randomUUID(), agentId = randomUUID(), environmentId = randomUUID();
   beforeAll(async () => {
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_EXPORT_RETRY_TEST_DATABASE_URL");
+    const external = resolveExternalTestDatabaseUrl("NEXUS_EXPORT_RETRY_TEST_DATABASE_URL");
     if (!external) temporary = await startEmbeddedPostgresTestDatabase("workspace-export-retry-");
     db = createDb(external ?? temporary!.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Export repair", issuePrefix: "EXP" });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Exporter", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Exporter", adapterType: "nexus_runner" });
     await db.insert(environments).values({ id: environmentId, name: `Retained ${environmentId}`, driver: "sandbox" });
   }, 30_000);
   afterAll(async () => { await db?.$client.end({ timeout: 1 }); await temporary?.cleanup(); });
@@ -36,9 +36,9 @@ describe("board retry of accepted workspace export", () => {
     probe.mockReset().mockResolvedValue({ exitCode: 0, timedOut: false });
     const issueId = randomUUID(), runId = randomUUID(), resultId = randomUUID(), contractId = randomUUID(), leaseId = randomUUID(), actionId = randomUUID(), providerLeaseId = randomUUID();
     await db.insert(issues).values({ id: issueId, companyId, title: "Preserve accepted work", status: "blocked", assigneeAgentId: agentId });
-    await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "test", risk: "standard", completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal", contractJson: { objective: "Preserve accepted work" }, canonicalSha256: contractId, createdByActorType: "system", createdByActorId: "test" });
+    await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "test", risk: "standard", completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal", contractJson: { objective: "Preserve accepted work" }, canonicalSha256: contractId, createdByActorType: "system", createdByActorId: "test" });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "failed", runtimeMode: "native", nativeIssueId: issueId, nativePhase: "terminal_failure", completionContractId: contractId,
-      runnerProfileJson: { nativeWorkspaceSync: { schema: "paperclip.native-workspace-sync/v1", state: "prepared", descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null, workspaceId: randomUUID(), leaseId, providerLeaseId, remoteCwd: "/work", resourceDisposition: "keep_running" } } });
+      runnerProfileJson: { nativeWorkspaceSync: { schema: "nexus.native-workspace-sync/v1", state: "prepared", descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null, workspaceId: randomUUID(), leaseId, providerLeaseId, remoteCwd: "/work", resourceDisposition: "keep_running" } } });
     await db.insert(nativeRunResults).values({ id: resultId, companyId, issueId, runId, completionContractId: contractId, serverFingerprint: resultId, schemaStatus: "accepted", resultJson: { work: "already finished" }, canonicalSha256: resultId });
     await db.insert(nativeRunFinalizations).values({ runId, companyId, issueId, phase: "terminal_failure", resultId, failureCode: cause, failureDetail: { workspaceFinalizeAttempt: 1 } });
     const identity = { id: leaseId, companyId, heartbeatRunId: runId, provider: "daytona", providerLeaseId };

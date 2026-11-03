@@ -73,7 +73,7 @@ export async function openEvalOperations(file: string, executions: readonly Matr
   const required = [...(manifest.route === "braintrust" ? ["BRAINTRUST_API_KEY"] : executions.map(execution => execution.profile.credential)),
     ...(executions.some(execution => execution.environment.id === "daytona") ? ["DAYTONA_API_KEY"] : [])];
   if (required.some(name => !env[name]?.trim())) throw new Error("Missing eval gateway upstream credential");
-  const observability = evalBraintrustConfig({ ...env, PAPERCLIP_E2E_OTLP_RELAY_URL: undefined });
+  const observability = evalBraintrustConfig({ ...env, NEXUS_E2E_OTLP_RELAY_URL: undefined });
   if (observability && manifest.route === "braintrust" && observability.projectId !== manifest.projectId) throw new Error("Eval gateway and OTLP projects differ");
   const receiptDirectory = `${manifest.ledgerPath}.requests`;
   await mkdir(receiptDirectory, { recursive: true, mode: 0o700 });

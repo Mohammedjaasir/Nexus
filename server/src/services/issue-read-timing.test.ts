@@ -16,7 +16,7 @@ describe("issue read timing", () => {
     expect(await timing.time("documents", async () => "private content")).toBe("private content");
     resolve("private identifier");
     await lookup;
-    expect(timing.header()).toMatch(/^paperclip_issue;dur=\d+\.\d, issue_documents;dur=\d+\.\d, issue_lookup;dur=\d+\.\d$/);
+    expect(timing.header()).toMatch(/^nexus_issue;dur=\d+\.\d, issue_documents;dur=\d+\.\d, issue_lookup;dur=\d+\.\d$/);
     expect(startActiveSpan).toHaveBeenCalledWith("issue.read.lookup", expect.any(Function));
     expect(timing.header()).not.toContain("private");
   });

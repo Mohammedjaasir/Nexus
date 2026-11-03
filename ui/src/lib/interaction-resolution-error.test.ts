@@ -149,7 +149,7 @@ describe("describeInteractionResolutionFailure", () => {
       describeInteractionResolutionFailure(new ApiError("Request failed: 503", 503, null), humanOnlyAudience),
     ).toMatchObject({
       kind: "transient",
-      message: "Paperclip is temporarily unavailable. Please try again in a moment.",
+      message: "Nexus is temporarily unavailable. Please try again in a moment.",
     });
   });
 

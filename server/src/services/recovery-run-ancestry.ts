@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { agentWakeupRequests, heartbeatRuns, issueRecoveryActions, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, heartbeatRuns, issueRecoveryActions, type Db } from "@nexusai/db";
 import { canonicalExecutionUuid } from "./execution-identity.js";
 
 /** Only committed predecessor edges can carry preserved work into a retry. */
@@ -25,7 +25,7 @@ export async function recoveryRunAncestry(input: {
         where w.company_id = ${input.companyId} and w.run_id = s.id
           and w.reason = 'task_retry' and w.status = 'coalesced'
           and w.requested_by_actor_type = 'user' and w.payload->>'issueId' = ${input.issueId}
-          and w.payload#>>'{taskRetry,schema}' = 'paperclip.task-retry.v1'
+          and w.payload#>>'{taskRetry,schema}' = 'nexus.task-retry.v1'
           and w.payload#>>'{taskRetry,generationId}' = w.id::text
         union
         select a.evidence->>'runId' from ${issueRecoveryActions} a

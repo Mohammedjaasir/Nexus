@@ -6,7 +6,7 @@ const binding = { mode: "shared" as const, provider: "openai" as const, method: 
 const pool = { mode: "router", connectionId: "pool" };
 const sessionIdentity = "grant:alice:0", credentialIdentity = "grant:alice:token";
 const config = { provider: "codex", model: "gpt-5.6-sol", env: { OPENAI_API_KEY: "fixture-token" }, managedAiConnection: { ...binding, identity: credentialIdentity, sessionIdentity } };
-const base = { adapterType: "paperclip_runner", effectiveAdapterConfig: config, agentRuntimeConfig: { aiConnection: pool }, agentConfigRevision: null as unknown, issueOverrides: null as unknown, workspaceConfig: {}, environment: {}, environmentEnv: null, projectEnv: null, routineEnv: null, runtimeSkills: [] };
+const base = { adapterType: "nexus_runner", effectiveAdapterConfig: config, agentRuntimeConfig: { aiConnection: pool }, agentConfigRevision: null as unknown, issueOverrides: null as unknown, workspaceConfig: {}, environment: {}, environmentEnv: null, projectEnv: null, routineEnv: null, runtimeSkills: [] };
 type MetadataInput = Parameters<typeof buildEffectiveRunSessionConfigMetadata>[0];
 type CompatibilityInput = Parameters<typeof aiConnectionSessionCompatibilityInputs>[0];
 const revision = (id: string, beforeBinding: unknown, afterBinding: unknown, extra = {}) => ({
@@ -21,7 +21,7 @@ async function decision(previous: Partial<MetadataInput>, next: Partial<Metadata
   const after = await buildEffectiveRunSessionConfigMetadata(afterInput);
   const candidates = aiConnectionSessionCompatibilityInputs({ ...afterInput, originalIssueOverrides: null, binding, router: true, storedIdentity: sessionIdentity, sessionIdentity, credentialIdentity, revisions: [], ...compatibility });
   const alternatives = await Promise.all(candidates.map(candidate => buildEffectiveRunSessionConfigMetadata({ ...afterInput, ...candidate })));
-  return resolveTaskSessionConfigFreshness({ hasTaskSession: true, configuredModel: String(afterInput.effectiveAdapterConfig.model), taskSessionParams: { __paperclipConfiguredModel: "gpt-5.6-sol", __paperclipConfigFingerprint: before.fingerprint, __paperclipConfigFingerprintVersion: before.version, __paperclipConfigCategoryFingerprints: before.categoryFingerprints }, configMetadata: after, compatibleConfigMetadata: alternatives, wakeResetReason });
+  return resolveTaskSessionConfigFreshness({ hasTaskSession: true, configuredModel: String(afterInput.effectiveAdapterConfig.model), taskSessionParams: { __nexusConfiguredModel: "gpt-5.6-sol", __nexusConfigFingerprint: before.fingerprint, __nexusConfigFingerprintVersion: before.version, __nexusConfigCategoryFingerprints: before.categoryFingerprints }, configMetadata: after, compatibleConfigMetadata: alternatives, wakeResetReason });
 }
 
 describe("AI pool session adoption", () => {

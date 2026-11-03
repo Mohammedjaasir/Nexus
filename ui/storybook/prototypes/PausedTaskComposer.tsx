@@ -22,7 +22,7 @@ export function PausedComposerPreview({
   const [state, setState] = useState<string>(initialState);
   const [messages, setMessages] = useState<string[]>([]);
   const [draftKey] = useState(() => {
-    const key = `paperclip:storybook:paused-takeover:${crypto.randomUUID()}`;
+    const key = `nexus:storybook:paused-takeover:${crypto.randomUUID()}`;
     if (draft) saveDraft(key, draft);
     return key;
   });

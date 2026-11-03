@@ -37,15 +37,15 @@ validates the result (lines 83-116). Line numbers in 1.1-1.5 refer to that scrip
   (`Foundations, Components, Layouts, Pages, AI Generated Test Pages, Patterns, Guidelines`); a lab group
   outside the list sorts after them; the catalog does not enforce group names. Never edit the generated
   `preview.tsx` (`maps/storybook-map/README.md:90`).
-- `ui/storybook/.storybook/preview-base.tsx:853` wraps a story whose `parameters.paperclip.home` is
+- `ui/storybook/.storybook/preview-base.tsx:853` wraps a story whose `parameters.nexus.home` is
   `"design-proposals"` in `<AvatarInitialProvider><div className="design-proposal-theme">` unless
   `parameters.designProposalTheme === false`; `html:has(.design-proposal-theme)` switches `--font-mono` to
   Paper Mono (`ui/src/index.css:3916-3918`). Theme toolbar defaults to dark (line 861); a11y is `test: "error"` (line 876).
 
-### 1.2 The `parameters.paperclip` block: fields and allowed values
+### 1.2 The `parameters.nexus` block: fields and allowed values
 
 Allowed keys (line 16): `capabilities`, `status`, `implementation`, `boundary`, `notes`, `home`,
-`exception`, `replacement`; any other key throws `unknown paperclip field` (line 57).
+`exception`, `replacement`; any other key throws `unknown nexus field` (line 57).
 
 | Field | Allowed values | Lab value |
 | --- | --- | --- |
@@ -62,12 +62,12 @@ Defaults when omitted: `status`, `implementation`, `boundary` are `"unreviewed"`
 
 ### 1.3 Placement and the literal-only rule
 
-- `parameters` is an object literal with exactly one non-computed `paperclip` property (lines 47-51).
+- `parameters` is an object literal with exactly one non-computed `nexus` property (lines 47-51).
 - Every value inside the block is a string, boolean, number, array or object literal; `as` and
   `satisfies` are unwrapped (lines 26-42). An identifier, call, spread or template string inside the block
   throws `metadata must be literal; expressions are not executed` (line 42). Expressions in `argTypes`,
   `args` and `component` are fine.
-- No `...spread` or computed property may come after `paperclip` (lines 52-54). Literal properties may
+- No `...spread` or computed property may come after `nexus` (lines 52-54). Literal properties may
   follow it; placing it last is convention, not rule.
 - `annotation()` throws at scan time (one error per run); `validateCatalog` errors are joined (lines 189-190).
 
@@ -110,7 +110,7 @@ const meta = {
           "Pick a direction and a surface. Today is the shipped components fed with the lab's fixtures; 1–5 are the explored directions.",
       },
     },
-    paperclip: {
+    nexus: {
       capabilities: ["documents-artifacts/library", "documents-artifacts/work-products", "documents-artifacts/attachments"],
       status: "proposed",
       home: "design-proposals",
@@ -124,7 +124,7 @@ const meta = {
 
 Lines 60-74 add `argTypes` built from runtime constants (`DIRECTION_IDS`, `KIT_META`, `SURFACE_IDS`),
 default `args`, and `} satisfies Meta<typeof DirectionView>;`. GENERIC: `layout: "fullscreen"`,
-`docs.description.component`, the six `paperclip` fields, runtime constants in `argTypes`.
+`docs.description.component`, the six `nexus` fields, runtime constants in `argTypes`.
 ARTIFACT-SPECIFIC: every string, the constants, the default args. The per-direction story
 (`artifact-directions-hybrid.stories.tsx:27-48`) has the same block with no `component` and one `render`
 export per surface and per slot (lines 56-155).
@@ -345,9 +345,9 @@ cd ui && pnpm typecheck
 pnpm build-storybook
 ```
 
-- Fresh worktree: `pnpm install --frozen-lockfile` and build `@paperclipai/plugin-sdk` first, or `tsc`
-  reports `Cannot find module '@paperclipai/plugin-sdk/ui'` in `PluginOrganizationSwitcher(.test).tsx`.
-  Repo-wide `pnpm -r typecheck` needs the Rust toolchain for `paperclip-runner`; report it as not run when absent.
+- Fresh worktree: `pnpm install --frozen-lockfile` and build `@nexusai/plugin-sdk` first, or `tsc`
+  reports `Cannot find module '@nexusai/plugin-sdk/ui'` in `PluginOrganizationSwitcher(.test).tsx`.
+  Repo-wide `pnpm -r typecheck` needs the Rust toolchain for `nexus-runner`; report it as not run when absent.
 - PR title `feat(ui): ...`; one or more `.test.ts(x)` files in the diff; no `pnpm-lock.yaml` change; no new
   `package.json` script; no file crossing 1,000 lines; no code comments; no committed screenshots or
   generated files.

@@ -1,11 +1,11 @@
-import { normalizeClaudeRunnerOptions } from "@paperclipai/shared";
+import { normalizeClaudeRunnerOptions } from "@nexusai/shared";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within, waitFor } from "storybook/test";
 import { Route, Routes } from "@/lib/router";
 import { AgentDetail } from "@/pages/AgentDetail";
 import { Layout } from "@/components/Layout.production";
 import { PluginLauncherProvider } from "@/plugins/launchers";
-import { storybookAgents } from "../../../fixtures/paperclipData";
+import { storybookAgents } from "../../../fixtures/nexusData";
 import { resetOnboardingFixtureState, setOnboardingFixtureState } from "../../../fixtures/onboardingEnvironment";
 
 type Scenario = {
@@ -23,12 +23,12 @@ function installUpgradeFixture({ harness = "codex_local", failOnce = false, inco
   resetOnboardingFixtureState();
   setOnboardingFixtureState({ environments: "local", authSignal: "present", localLoginStatus: "ready" });
   const profile = harness === "claude_local" ? { provider: "acpx", acpxAgent: "claude" } : { provider: "codex" };
-  const savedComputer = { id: "environment-native-recovery", name: "Paperclip Computer", driver: "sandbox", status: "active",
-    config: { provider: "daytona", snapshot: "managed-snapshot" }, metadata: { managedByPaperclip: true } };
+  const savedComputer = { id: "environment-native-recovery", name: "Nexus Computer", driver: "sandbox", status: "active",
+    config: { provider: "daytona", snapshot: "managed-snapshot" }, metadata: { managedByNexus: true } };
   let qualified = false;
   let agent = { ...storybookAgents[0]!, urlKey: "migration-agent", name: harness === "claude_local" ? "ClaudeWriter" : "CodexCoder",
     status: running ? "running" : "idle", lifecycleState: "ready", defaultEnvironmentId: nativeComputerTest ? savedComputer.id : null,
-    adapterType: upgraded || nativeComputerTest ? "paperclip_runner" : harness,
+    adapterType: upgraded || nativeComputerTest ? "nexus_runner" : harness,
     adapterConfig: { model: harness === "claude_local" ? "claude-sonnet-4-6" : "gpt-5.4", modelReasoningEffort: "medium", timeoutSec: 180,
       ...(nativeComputerTest ? { provider: "opencode" } : upgraded ? profile : {}), ...(incompatible ? { chrome: true } : {}), env: { MIGRATION_MARKER: { type: "plain", value: "keep-this-setting" } } },
     runtimeConfig: { heartbeat: { enabled: false, wakeOnDemand: true } },
@@ -44,14 +44,14 @@ function installUpgradeFixture({ harness = "codex_local", failOnce = false, inco
       qualified = true;
       return Response.json({ ok: true, driver: "sandbox", details: { platformQualificationRecorded: true } });
     }
-    if (nativeComputerTest && url.pathname.endsWith("/adapters/paperclip_runner/test-environment")) {
-      return Response.json({ adapterType: "paperclip_runner", status: qualified ? "pass" : "fail", testedAt: new Date().toISOString(),
+    if (nativeComputerTest && url.pathname.endsWith("/adapters/nexus_runner/test-environment")) {
+      return Response.json({ adapterType: "nexus_runner", status: qualified ? "pass" : "fail", testedAt: new Date().toISOString(),
         checks: [{ code: "native_runtime_test", level: qualified ? "info" : "error", message: qualified ? "Native runtime ready." : "Saved computer qualification is stale." }] });
     }
     if (url.pathname === "/api/adapters") {
       const response = await previous(input, init);
       return Response.json((await response.json()).map((item: { type: string }) => ["codex_local", "claude_local"].includes(item.type)
-        ? { ...item, defaultRunner: unavailable ? "legacy" : "paperclip", supportedRunners: unavailable ? ["legacy"] : ["legacy", "paperclip"] } : item));
+        ? { ...item, defaultRunner: unavailable ? "legacy" : "nexus", supportedRunners: unavailable ? ["legacy"] : ["legacy", "nexus"] } : item));
     }
     if (url.pathname === `/api/companies/${agent.companyId}/agents`) {
       return Response.json(storybookAgents.map(item => item.id === agent.id ? agent : item));
@@ -60,7 +60,7 @@ function installUpgradeFixture({ harness = "codex_local", failOnce = false, inco
       if (method === "PATCH") {
         const patch = JSON.parse(String(init?.body ?? "{}"));
         if (delay) await new Promise(resolve => setTimeout(resolve, delay));
-        if (patch.runner !== "paperclip") return Response.json({ error: "This fixture expects an explicit runner upgrade." }, { status: 422 });
+        if (patch.runner !== "nexus") return Response.json({ error: "This fixture expects an explicit runner upgrade." }, { status: 422 });
         if (failOnce) {
           failOnce = false;
           return Response.json({ error: "Could not save this agent. Try again." }, { status: 503 });
@@ -68,7 +68,7 @@ function installUpgradeFixture({ harness = "codex_local", failOnce = false, inco
         const { runner: _runner, replaceAdapterConfig: _replace, adapterConfig, ...rest } = patch;
         const converted = { ...agent.adapterConfig, ...adapterConfig, ...profile };
         const normalized = harness === "claude_local" ? normalizeClaudeRunnerOptions(converted) : { config: converted, warnings: [] };
-        agent = { ...agent, ...rest, adapterType: "paperclip_runner", adapterConfig: normalized.config as typeof agent.adapterConfig };
+        agent = { ...agent, ...rest, adapterType: "nexus_runner", adapterConfig: normalized.config as typeof agent.adapterConfig };
         return Response.json({ ...agent, configurationWarnings: normalized.warnings });
       }
       return Response.json(agent);
@@ -95,7 +95,7 @@ const meta = {
     layout: "fullscreen",
     initialEntries: ["/PAP/agents/migration-agent/runtime"],
     docs: { description: { component: "Existing Codex and Claude agents in the production agent page and app shell. The upgrade PATCH and subsequent reads use a mutable HTTP fixture. These stories demonstrate the notice, save, retry and refreshed form; real migration and provider proof are separate checks." } },
-    paperclip: {
+    nexus: {
       capabilities: ["agents/instructions", "runs-adapters/validation"],
       status: "current",
       implementation: "production",
@@ -119,14 +119,14 @@ export const Upgrading: Story = { parameters: { runnerUpgrade: { delay: 60_000 }
 export const UpgradeCodex: Story = { play: async ({ canvasElement }) => {
   const page = within(canvasElement);
   await userEvent.click(await page.findByRole("button", { name: "Upgrade runner" }));
-  await expect(await page.findByText("Upgraded to Paperclip Runner.")).toBeVisible();
+  await expect(await page.findByText("Upgraded to Nexus Runner.")).toBeVisible();
   await waitFor(() => expect(page.queryByRole("button", { name: "Upgrade runner" })).not.toBeInTheDocument());
   await expect(await page.findByRole("button", { name: /^Model$/ })).toHaveTextContent(/gpt-5.4/i);
 } };
 export const UpgradeClaude: Story = { ...UpgradeCodex, parameters: { runnerUpgrade: { harness: "claude_local" } }, play: async ({ canvasElement }) => {
   const page = within(canvasElement);
   await userEvent.click(await page.findByRole("button", { name: "Upgrade runner" }));
-  await expect(await page.findByText("Upgraded to Paperclip Runner.")).toBeVisible();
+  await expect(await page.findByText("Upgraded to Nexus Runner.")).toBeVisible();
   await expect(await page.findByRole("button", { name: /^Model$/ })).toHaveTextContent(/claude[- ]sonnet[- ]4[-.]6/i);
 } };
 export const FailureAndRetry: Story = { parameters: { runnerUpgrade: { failOnce: true } }, play: async ({ canvasElement }) => {
@@ -134,20 +134,20 @@ export const FailureAndRetry: Story = { parameters: { runnerUpgrade: { failOnce:
   await userEvent.click(await page.findByRole("button", { name: "Upgrade runner" }));
   await expect(await page.findByRole("alert")).toHaveTextContent("Could not save this agent");
   await userEvent.click(page.getByRole("button", { name: "Upgrade runner" }));
-  await expect(await page.findByText("Upgraded to Paperclip Runner.")).toBeVisible();
+  await expect(await page.findByText("Upgraded to Nexus Runner.")).toBeVisible();
 } };
 export const IncompatibleClaudeSetting: Story = { name: "Ignored Claude setting", parameters: { runnerUpgrade: { harness: "claude_local", incompatible: true } }, play: async ({ canvasElement }) => {
   const page = within(canvasElement);
   await expect(await page.findByText(/Chrome integration.*is ignored/)).toBeVisible();
   await userEvent.click(await page.findByRole("button", { name: "Upgrade runner" }));
-  await expect(await page.findByText("Upgraded to Paperclip Runner.")).toBeVisible();
+  await expect(await page.findByText("Upgraded to Nexus Runner.")).toBeVisible();
 } };
 export const RepairAndUpgrade: Story = { ...IncompatibleClaudeSetting, name: "Remove obsolete option and upgrade", play: async ({ canvasElement }) => {
   const page = within(canvasElement);
   await userEvent.click(await page.findByRole("switch", { name: "Enable Chrome" }));
   await expect(page.getByText("Your unsaved changes will be included.")).toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Upgrade runner" }));
-  await expect(await page.findByText("Upgraded to Paperclip Runner.")).toBeVisible();
+  await expect(await page.findByText("Upgraded to Nexus Runner.")).toBeVisible();
 } };
 export const AlreadyUpgraded: Story = { parameters: { runnerUpgrade: { upgraded: true } } };
 export const UnavailableEnvironment: Story = { parameters: { runnerUpgrade: { unavailable: true } } };
@@ -157,7 +157,7 @@ export const Light: Story = { globals: { theme: "light" } };
 
 export const NativeComputerRecovery: Story = {
   name: "Native saved computer Test",
-  parameters: { runnerUpgrade: { nativeComputerTest: true }, paperclip: {
+  parameters: { runnerUpgrade: { nativeComputerTest: true }, nexus: {
     notes: "Production native agent page. The normal Run test action qualifies its saved computer before runtime testing. Both responses are simulated; real provider qualification is separate.",
   } },
   play: async ({ canvasElement }) => {

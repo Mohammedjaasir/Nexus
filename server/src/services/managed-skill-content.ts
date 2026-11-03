@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { StorageService } from "../storage/index.js";
-import { companies, companySkills, companySkillVersions, companySkillRepositorySnapshots, type Db } from "@paperclipai/db";
-import type { CompanySkillVersionFileInventoryEntry } from "@paperclipai/shared";
+import { companies, companySkills, companySkillVersions, companySkillRepositorySnapshots, type Db } from "@nexusai/db";
+import type { CompanySkillVersionFileInventoryEntry } from "@nexusai/shared";
 import { conflict, notFound, unprocessable } from "../errors.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 import { notifySkillVersionRetention } from "./skill-version-retention-notifications.js";

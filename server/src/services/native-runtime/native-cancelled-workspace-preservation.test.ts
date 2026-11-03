@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { agents, agentWakeupRequests, companies, completionContracts, createDb, environmentLeases, environments,
-  executionWorkspaces, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations, nativeRunResults } from "@paperclipai/db";
+  executionWorkspaces, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations, nativeRunResults } from "@nexusai/db";
 import { recoveryPostgresSupport, startRecoveryPostgres } from "../../__tests__/helpers/recovery-postgres.js";
 import { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { hasAcknowledgedNativeStopIntent } from "../acknowledged-native-stop.js";
@@ -25,13 +25,13 @@ import { preserveCancelledNativeWorkspaces, preserveNativeFailedWorkspace,
     const workspaceId = randomUUID(), leaseId = randomUUID(), environmentId = randomUUID();
     const providerLeaseId = `allocation-${randomUUID()}`, snapshotId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Stopped native files", issuePrefix: companyId.slice(0, 8) });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Stopped worker", adapterType: "paperclip_runner",
+    await db.insert(agents).values({ id: agentId, companyId, name: "Stopped worker", adapterType: "nexus_runner",
       status: "terminated", lifecycleState: "terminating" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Keep cancelled files", status: "in_progress", assigneeAgentId: agentId });
     await db.insert(environments).values({ id: environmentId, name: `Preservation ${runId}`, driver: "sandbox" });
-    const reference = { schema: "paperclip.remote-workspace-run.v1", workspaceId, leaseId, providerLeaseId,
+    const reference = { schema: "nexus.remote-workspace-run.v1", workspaceId, leaseId, providerLeaseId,
       remoteCwd: "/work", epoch: 2, state: "prepared", snapshotId };
-    const nativeCancellation = { schema: "paperclip.native-cancellation.v1", companyId, issueId, runId,
+    const nativeCancellation = { schema: "nexus.native-cancellation.v1", companyId, issueId, runId,
       scope: "run", reasonCode: "cancellation_run_only", dispatchState: "acknowledged", dispatched: true,
       intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID(), acknowledgedAt: new Date().toISOString(),
       effects: ["release_run_resources"] };
@@ -47,7 +47,7 @@ import { preserveCancelledNativeWorkspaces, preserveNativeFailedWorkspace,
       failureCode: "native_continuation_requires_reconciliation", recoveryState: "blocked" });
     await db.insert(executionWorkspaces).values({ id: workspaceId, companyId, sourceIssueId: issueId,
       name: "Retained remote files", mode: "isolated", strategyType: "scratch", metadata: { remoteWorkspace: {
-        schema: "paperclip.remote-workspace.v1", epoch: 2, snapshotId, source: { kind: "empty" },
+        schema: "nexus.remote-workspace.v1", epoch: 2, snapshotId, source: { kind: "empty" },
         location: { environmentId, leaseId, providerLeaseId, remoteCwd: "/work" }, writerRunId: runId, dirty: true,
       } } });
     await db.insert(environmentLeases).values({ id: leaseId, companyId, environmentId, heartbeatRunId: runId,
@@ -84,7 +84,7 @@ import { preserveCancelledNativeWorkspaces, preserveNativeFailedWorkspace,
       await registerCancelledWorkspacePreservationWork(db, worker, () => true, async () => true).ready;
       const [retained] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, f.runId));
       expect(retained.resultJson).toMatchObject({ workspaceRestoreFailure: "restore_failed",
-        workspaceRestoreRecovery: { schema: "paperclip.workspace-restore-recovery.v1", leaseIds: [f.leaseId] },
+        workspaceRestoreRecovery: { schema: "nexus.workspace-restore-recovery.v1", leaseIds: [f.leaseId] },
         nativeCancellation: f.nativeCancellation });
       expect(retained).toMatchObject({ status: "cancelled", nativePhase: "observed" });
       expect(retained).toMatchObject({ costAccountingPending: true, costAccountedAt: null,

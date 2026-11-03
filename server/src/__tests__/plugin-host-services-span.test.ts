@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHostClientHandlers } from "../../../packages/plugins/sdk/src/host-client-factory.js";
 import type { WorkerHostCallContext } from "../../../packages/plugins/sdk/src/protocol.js";
-import { SANDBOX_STARTUP_SPAN_ATTRS as A } from "@paperclipai/adapter-utils/acpx-engine/startup-timing";
+import { SANDBOX_STARTUP_SPAN_ATTRS as A } from "@nexusai/adapter-utils/acpx-engine/startup-timing";
 import {
   buildHostServices,
   clampProviderSpanAttributes,
@@ -341,14 +341,14 @@ describe("nested worker timing receipts",()=>{
   recordWorkerProviderSpan({ name: "plugin.worker", startTimeMs: now - 100, endTimeMs: now, children: [
     { name: "lease.verify", startTimeMs: now - 90, endTimeMs: now - 10, children: [
       { name: "lease.sentinel", startTimeMs: now - 80, endTimeMs: now - 20,
-        attributes: { "paperclip.sandbox.startup.state": "archived", token: "private-token" } },
+        attributes: { "nexus.sandbox.startup.state": "archived", token: "private-token" } },
     ] },
   ] }, { traceparent: VALID_TRACEPARENT });
   expect(mockRecordSpan.mock.calls[1][0]).toMatchObject({ name: "sandbox.daytona.lease.verify", parent: rootParent });
   expect(mockRecordSpan.mock.calls[2][0]).toMatchObject({ name: "sandbox.daytona.lease.sentinel", parent: verifyParent,
-    startTimeMs: now - 80, endTimeMs: now - 20, attributes: { "paperclip.sandbox.startup.state": "archived" } });
+    startTimeMs: now - 80, endTimeMs: now - 20, attributes: { "nexus.sandbox.startup.state": "archived" } });
   expect(JSON.stringify(mockRecordSpan.mock.calls)).not.toContain("private-token");
-  expect(clampProviderSpanAttributes({ "paperclip.sandbox.startup.state": "private-state" })).toEqual({});
+  expect(clampProviderSpanAttributes({ "nexus.sandbox.startup.state": "private-state" })).toEqual({});
  });
 
  it("admits every closed lease phase and rejects dynamic phase names", () => {

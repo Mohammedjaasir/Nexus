@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import { and, eq } from "drizzle-orm";
-import { agents, createDb, type Db } from "@paperclipai/db";
+import { agents, createDb, type Db } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../src/__tests__/helpers/embedded-postgres.js";
 import { createToolProfileMatchingFixture } from "../src/__tests__/helpers/tool-profile-matching-fixture.js";
 import { createToolProfileResolver } from "../src/services/tool-access/profiles/resolution.js";

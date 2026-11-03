@@ -1,6 +1,6 @@
 import { PersistedExecutionWaitRefusal } from "../deferred-execution-wait.js";
 import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
-import { agentWakeupRequests, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { DELIVERY_QUEUES } from "../delivery-work-notifications.js";
 import type { DeferredExecutionScope, DeferredReceiptRecoveryOptions } from "../deferred-execution-notifications.js";
@@ -66,8 +66,8 @@ export function registerDeferredReceiptWork(
               eq(agentWakeupRequests.reason, "task_retry"),
               sql`${agentWakeupRequests.payload}->'queuedCommentInterrupt' is not null`,
               sql`${agentWakeupRequests.payload}->'executionWait' is not null`,
-              sql`jsonb_typeof(${agentWakeupRequests.payload}#>'{_paperclipWakeContext,wakeCommentIds}') = 'array'
-                and ${agentWakeupRequests.payload}#>'{_paperclipWakeContext,wakeCommentIds}' <> '[]'::jsonb`,
+              sql`jsonb_typeof(${agentWakeupRequests.payload}#>'{_nexusWakeContext,wakeCommentIds}') = 'array'
+                and ${agentWakeupRequests.payload}#>'{_nexusWakeContext,wakeCommentIds}' <> '[]'::jsonb`,
               sql`${agentWakeupRequests.payload}->>'mutation' = 'interaction'`,
               sql`exists (select 1 from heartbeat_runs r where r.company_id = ${agentWakeupRequests.companyId}
                 and r.runtime_mode = 'legacy' and r.status = 'cancelled'

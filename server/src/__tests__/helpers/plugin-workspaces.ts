@@ -9,7 +9,7 @@ import {
   plugins,
   projects,
   projectWorkspaces,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type { WorkspaceWorkers } from "../../services/plugin-workspaces.js";
 
 export async function createPluginWorkspaceFixture(
@@ -35,7 +35,7 @@ export async function createPluginWorkspaceFixture(
     name: "Worker",
     role: "engineer",
     status: "idle",
-    adapterType: "paperclip_runner",
+    adapterType: "nexus_runner",
   });
   await db.insert(plugins).values({
     id: pluginId,

@@ -6,7 +6,7 @@ const observed: TaskReplyObservation = { body: "The exact final reply", anchor: 
 function events() {
   return [{ seq: 1, runId: run.id, companyId: run.companyId, agentId: run.agentId, eventType: "item.completed", protocolSchemaVersion: 1,
     sourceEventId: "event", sourceInstanceId: "instance", sourceSeq: 1,
-    payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, runId: run.id, sourceKind: "runner", eventType: "item.completed",
+    payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, runId: run.id, sourceKind: "runner", eventType: "item.completed",
       sourceEventId: "event", sourceInstanceId: "instance", sourceSeq: 1, payload: { kind: "agentMessage", channel: "final", text: observed.body } } } }];
 }
 

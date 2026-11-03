@@ -11,7 +11,7 @@ import {
   heartbeatRunEvents,
   heartbeatRuns,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -32,7 +32,7 @@ describeEmbeddedPostgres("execution lock orphan cleanup", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-exec-lock-orphan-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-exec-lock-orphan-");
     db = createDb(tempDb.connectionString);
   }, 30_000);
 
@@ -55,7 +55,7 @@ describeEmbeddedPostgres("execution lock orphan cleanup", () => {
     const companyId = randomUUID();
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });

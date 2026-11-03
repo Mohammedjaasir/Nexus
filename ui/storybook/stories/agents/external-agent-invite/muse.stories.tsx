@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { MUSE_ASSET_VERSION } from "@paperclipai/shared";
+import { MUSE_ASSET_VERSION } from "@nexusai/shared";
 import { expect, userEvent, within, waitFor, fn } from "storybook/test";
 import { ExternalAgentInvitePreview } from "../../../support/external-agent-invite/ExternalAgentInvitePreview";
 import { MuseConnectionDetails } from "@/components/MuseRunnerConnection";
@@ -11,7 +11,7 @@ const meta = {
   component: ExternalAgentInvitePreview,
   parameters: { layout: "fullscreen", initialEntries: ["/PAP/agents"],
     docs: { description: { component: `Uses the production agent entry point, ExternalAgentInviteContent, app shell, and MuseConnectionDetails with non-routable, nonsecret asset ${MUSE_ASSET_VERSION} illustrations. The supported production flow keeps OAuth credentials and refresh in SecureVault/authd and records standing delegation for the exact company, agent and binding. That delegates validating and accepting in-scope work; task effects still require the native accepted lease and Muse permission/safety gates. Local simulation separates public untrusted receiver contact (up to 30 seconds persistence lag), independent authenticated background reply, and lifecycle readiness. Disconnect revokes OAuth authority immediately; there is no authenticated post-revocation cleanup lane or confirmed detector removal/worker stop in these fixtures. Unknown native effects retain their exact stop boundary. No live installation, work acceptance, provider behavior, private tools or cost is established.` } },
-    paperclip: {
+    nexus: {
       capabilities: ["agents/hire", "agents/lifecycle", "access/invitations"],
       implementation: "production",
       boundary: "fixtures",
@@ -32,7 +32,7 @@ export const FinishingSetup: Story = { name: "06 · All checks passed, lifecycle
 export const Ready: Story = { name: "07 · Ready for assignments", args: { initialScreen: "setup", simulate: false, initialMuseConnection: { paired: true, receiverDetected: true, backgroundReplyVerified: true, ready: true } } };
 export const Approval: Story = { name: "Approval required", args: { initialScreen: "setup", pendingApproval: true, simulate: false } };
 export const LoadingInvitation: Story = { name: "Recovery · Loading invitation", args: { initialScreen: "setup", invitationUnavailable: true, preparing: true, simulate: false } };
-export const AuthenticatedInstanceRequired: Story = { name: "Recovery · Authenticated instance required", args: { initialScreen: "setup", invitationUnavailable: true, error: "Use an authenticated Paperclip instance with a public HTTPS URL and a company operator account. Local trusted access alone cannot connect Muse.", simulate: false } };
+export const AuthenticatedInstanceRequired: Story = { name: "Recovery · Authenticated instance required", args: { initialScreen: "setup", invitationUnavailable: true, error: "Use an authenticated Nexus instance with a public HTTPS URL and a company operator account. Local trusted access alone cannot connect Muse.", simulate: false } };
 export const MissingPublicHost: Story = { name: "Recovery · Configure public HTTPS address", args: { initialScreen: "setup", invitationUnavailable: true, error: "This instance has no public HTTPS URL for Muse. Ask your instance administrator to configure a stable public HTTPS address, then refresh setup. Muse cannot connect through a local-only address.", simulate: false } };
 export const NoRecentResponse: Story = { name: "Recovery · No recent response", args: { initialScreen: "setup", simulate: false, initialMuseConnection: { paired: true, receiverDetected: true, backgroundReplyVerified: false, ready: false, problem: "no_recent_response" } } };
 export const ReplacedPrompt: Story = { name: "Recovery · Replaced or expired setup", args: { initialScreen: "setup", simulate: false, initialMuseConnection: { paired: false, receiverDetected: false, backgroundReplyVerified: false, ready: false, problem: "prompt_unavailable" } } };

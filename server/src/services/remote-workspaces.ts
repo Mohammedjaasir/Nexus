@@ -6,13 +6,13 @@ import path from "node:path";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   environmentLeases, executionWorkspaces, executionWorkspaceSnapshots, heartbeatRuns, issues, workspaceOperations, type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   readRemoteWorkspaceAuthority, remoteWorkspaceSourceSchema,
   type RemoteWorkspaceAuthority, type RemoteWorkspaceRunReference, type RemoteWorkspaceSource,
   type EnvironmentLease,
-} from "@paperclipai/shared";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
+} from "@nexusai/shared";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
 import { getStorageService, type StorageService } from "../storage/index.js";
 import { loadConfig } from "../config.js";
 import { conflict, forbidden, HttpError, unprocessable } from "../errors.js";
@@ -37,14 +37,14 @@ import { notifyRemoteWorkspaceSnapshots } from "./remote-workspace-snapshot-rete
 import { notifyTerminalWorkspaceWork } from "./terminal-workspace-work.js";
 import { preserveRemoteWorkspacePreparationFailure } from "./native-runtime/native-workspace-finalization-state.js";
 
-export { readRemoteWorkspaceAuthority, type RemoteWorkspaceAuthority, type RemoteWorkspaceSource } from "@paperclipai/shared";
+export { readRemoteWorkspaceAuthority, type RemoteWorkspaceAuthority, type RemoteWorkspaceSource } from "@nexusai/shared";
 export { remoteWorkspaceRepositoryPath } from "./remote-workspace-transport.js";
 export { clearRemoteWorkspaceLocationForReleasedLease } from "./remote-workspace-snapshot-retention.js";
 type Workspace = Pick<typeof executionWorkspaces.$inferSelect, "id" | "companyId" | "metadata" | "sourceIssueId" | "projectId" | "projectWorkspaceId">;
 type Transaction = Parameters<Parameters<Db["transaction"]>[0]>[0];
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
-const SAVE_WORK_SCHEMA = "paperclip.remote-workspace-save-work.v1";
-const RETIRED_SAVE_SCHEMA = "paperclip.remote-workspace-retired-save.v1";
+const SAVE_WORK_SCHEMA = "nexus.remote-workspace-save-work.v1";
+const RETIRED_SAVE_SCHEMA = "nexus.remote-workspace-retired-save.v1";
 type SaveWork = { schema: typeof SAVE_WORK_SCHEMA; activeIds: string[]; unknown: boolean; quiescedAt: string | null };
 function readSaveWork(metadata: Record<string, unknown> | null | undefined): SaveWork | null {
   const work = object(metadata?.saveWork);
@@ -63,12 +63,12 @@ export function shouldUseRemoteWorkspaces(input: {
   adapterType: string; environmentDriver: string | null; experimentalEnabled: boolean; existingWorkspace?: { metadata?: Record<string, unknown> | null } | null;
 }) {
   const enrolled = readRemoteWorkspaceAuthority(input.existingWorkspace?.metadata) !== null;
-  if (enrolled && (input.adapterType !== "paperclip_runner" || input.environmentDriver !== "sandbox")) {
+  if (enrolled && (input.adapterType !== "nexus_runner" || input.environmentDriver !== "sandbox")) {
     throw conflict("This workspace requires its native sandbox execution environment.", { code: "remote_workspace_execution_required" });
   }
   if (enrolled) return true;
   // Existing host authority changes only through the explicit import workflow.
-  if (input.existingWorkspace || !input.experimentalEnabled || input.adapterType !== "paperclip_runner"
+  if (input.existingWorkspace || !input.experimentalEnabled || input.adapterType !== "nexus_runner"
     || input.environmentDriver !== "sandbox") return false;
   return configuredRemoteWorkspacePersistence() !== null;
 }
@@ -80,12 +80,12 @@ export function assertEphemeralWorkspaceExecution(input: {
   externalConversation: boolean; adapterType: string;
   pluginTaskWorkspace: boolean; remoteAuthority: boolean;
 }) {
-  if (process.env.PAPERCLIP_EPHEMERAL_SERVER !== "true" || input.externalConversation) return;
+  if (process.env.NEXUS_EPHEMERAL_SERVER !== "true" || input.externalConversation) return;
   // Runtime selection has not promoted a fresh run yet. Validate storage here;
   // the runtime selector separately admits only its resolved warm native policy.
-  if (input.adapterType !== "paperclip_runner"
+  if (input.adapterType !== "nexus_runner"
     || (!input.pluginTaskWorkspace && !input.remoteAuthority)) {
-    throw unprocessable("Volume-free servers require warm Paperclip Runner execution with remote workspace storage.",
+    throw unprocessable("Volume-free servers require warm Nexus Runner execution with remote workspace storage.",
       { code: "ephemeral_execution_configuration_required" });
   }
 }
@@ -93,8 +93,8 @@ export function assertEphemeralWorkspaceExecution(input: {
 /** The runtime selector calls this after environment, credentials and saved
  * execution policy have resolved. Raw agent settings are not lifecycle authority. */
 export function assertEphemeralNativeLifecycle(mode: "warm" | "per_turn" | undefined) {
-  if (process.env.PAPERCLIP_EPHEMERAL_SERVER === "true" && mode !== "warm") {
-    throw unprocessable("Volume-free servers require warm Paperclip Runner execution with remote workspace storage.",
+  if (process.env.NEXUS_EPHEMERAL_SERVER === "true" && mode !== "warm") {
+    throw unprocessable("Volume-free servers require warm Nexus Runner execution with remote workspace storage.",
       { code: "ephemeral_execution_configuration_required" });
   }
 }
@@ -102,7 +102,7 @@ export function assertEphemeralNativeLifecycle(mode: "warm" | "per_turn" | undef
 function configuredRemoteWorkspacePersistence(storage?: StorageService) {
   const config = loadConfig();
   const databaseUrl = config.databaseUrl?.trim();
-  const keyFilePath = process.env.PAPERCLIP_SECRETS_MASTER_KEY?.trim() ? null : config.secretsMasterKeyFilePath;
+  const keyFilePath = process.env.NEXUS_SECRETS_MASTER_KEY?.trim() ? null : config.secretsMasterKeyFilePath;
   if ((storage?.provider ?? config.storageProvider) !== "s3" || !databaseUrl || !/^postgres(?:ql)?:\/\//.test(databaseUrl)
     || (keyFilePath !== null && !existsSync(keyFilePath))) {
     return null;
@@ -119,7 +119,7 @@ export function assertRemoteWorkspacePersistence(storage: StorageService = getSt
 
 function reference(workspaceId: string, authority: RemoteWorkspaceAuthority, state: "prepared" | "saved"): RemoteWorkspaceRunReference {
   if (!authority.location) throw new Error("remote_workspace_location_missing");
-  return { schema: "paperclip.remote-workspace-run.v1", workspaceId, epoch: authority.epoch,
+  return { schema: "nexus.remote-workspace-run.v1", workspaceId, epoch: authority.epoch,
     leaseId: authority.location.leaseId, providerLeaseId: authority.location.providerLeaseId,
     remoteCwd: authority.location.remoteCwd, state, snapshotId: authority.snapshotId };
 }
@@ -166,7 +166,7 @@ export async function reserveRemoteWorkspace(input: {
       const [shared] = await tx.select({ id: executionWorkspaces.id }).from(executionWorkspaces).where(and(
         eq(executionWorkspaces.companyId, input.companyId), eq(executionWorkspaces.projectWorkspaceId, input.projectWorkspaceId),
         eq(executionWorkspaces.mode, "shared_workspace"), eq(executionWorkspaces.status, "active"),
-        sql`${executionWorkspaces.metadata}->'remoteWorkspace'->>'schema' = 'paperclip.remote-workspace.v1'`,
+        sql`${executionWorkspaces.metadata}->'remoteWorkspace'->>'schema' = 'nexus.remote-workspace.v1'`,
       )).limit(1);
       selected = shared?.id ?? null;
       selectedSharedSource = selected !== null;
@@ -225,7 +225,7 @@ export async function reserveRemoteWorkspace(input: {
       return saved!;
     }
     const id = input.fresh?.attemptId ?? randomUUID();
-    const initial: RemoteWorkspaceAuthority = { schema: "paperclip.remote-workspace.v1", epoch: 1,
+    const initial: RemoteWorkspaceAuthority = { schema: "nexus.remote-workspace.v1", epoch: 1,
       snapshotId: null, source, location: null, writerRunId: input.runId, dirty: false };
     const [workspace] = await tx.insert(executionWorkspaces).values({ id, companyId: input.companyId, sourceIssueId: input.issueId,
       projectId: input.projectId, projectWorkspaceId: input.projectWorkspaceId, mode: input.mode ?? "isolated_workspace",
@@ -322,7 +322,7 @@ export async function prepareRemoteWorkspace(input: {
   const sameAllocation = initial.location?.providerLeaseId === input.lease.providerLeaseId
     && initial.location?.environmentId === input.lease.environmentId;
   if (initial.location && !sameAllocation && initial.dirty) throw conflict("The prior workspace has unsaved work; recover it before replacing its allocation.");
-  const remoteRoot = sameAllocation ? initial.location!.remoteCwd : path.posix.join(target.remoteCwd, ".paperclip-workspaces", input.workspace.id);
+  const remoteRoot = sameAllocation ? initial.location!.remoteCwd : path.posix.join(target.remoteCwd, ".nexus-workspaces", input.workspace.id);
   const preparationIdentity = createHash("sha256").update(JSON.stringify([input.workspace.companyId, input.workspace.id,
     input.runId, initial.epoch, input.lease.id, input.lease.providerLeaseId, remoteRoot, initial.source])).digest("hex");
   let restoredExport: Awaited<ReturnType<typeof restoreRemoteWorkspaceDirectory>> | null = null;
@@ -364,7 +364,7 @@ export async function prepareRemoteWorkspace(input: {
       const recovered = await attachPreservedWorkspaceSnapshots({ db: input.db, companyId: input.workspace.companyId,
         issueId: input.workspace.sourceIssueId, sourceRunIds: recoverySourceRunIds as string[], cwd: scratch });
       for (const item of recovered) {
-        const relative = `.paperclip-recovered/${item.operationId}`;
+        const relative = `.nexus-recovered/${item.operationId}`;
         await target.runner!.syncIn!([{ operationId: randomUUID(), files: [{
           kind: "directory", sourcePath: item.path, targetPath: path.posix.join(remoteRoot, relative),
         }] }]);

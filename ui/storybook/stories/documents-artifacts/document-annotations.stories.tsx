@@ -6,7 +6,7 @@ import type {
   DocumentAnnotationThreadWithComments,
   Issue,
   IssueDocument,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { DocumentAnnotationPanel } from "@/components/DocumentAnnotationPanel";
 import { DocumentAnnotationLayer, type PendingAnchor } from "@/components/DocumentAnnotationLayer";
 import {
@@ -350,7 +350,7 @@ function IntegratedSurface({
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="paperclip-doc-annotation-integrated mx-auto max-w-[1320px] p-4">
+      <div className="nexus-doc-annotation-integrated mx-auto max-w-[1320px] p-4">
         <div className="rounded-lg border border-border bg-background p-4">
           <IssueDocumentsSection
             issue={issue}
@@ -385,7 +385,7 @@ function DirtyDraftWithIntegratedHeader() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="paperclip-doc-annotation-integrated mx-auto max-w-[1320px] p-4">
+      <div className="nexus-doc-annotation-integrated mx-auto max-w-[1320px] p-4">
         <div className="rounded-lg border border-border bg-background p-4">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -431,7 +431,7 @@ function DirtyDraftWithIntegratedHeader() {
                     placeholder="Markdown body"
                     bordered={false}
                     className="bg-transparent"
-                    contentClassName="paperclip-edit-in-place-content min-h-[220px] text-[15px] leading-7"
+                    contentClassName="nexus-edit-in-place-content min-h-[220px] text-[15px] leading-7"
                   />
                 </IssueDocumentAnnotations>
                 <div className="flex min-h-4 items-center justify-end px-1">
@@ -514,7 +514,7 @@ const meta = {
           "Document annotation surface for issue documents. Stories under 'Integrated' render the real IssueDocumentsSection chrome (count chip in header, panel + body in their actual layout). Stories under 'States' isolate the panel/layer for unit-level visual debugging.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "documents-artifacts/annotations"
       ],

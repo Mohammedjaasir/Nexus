@@ -31,7 +31,7 @@ let db: Db | undefined;
 const keepAlive = setInterval(() => {}, 1000);
 try {
   const baseline = (await import(pathToFileURL(baselinePath).href)).createGitHubWebhookIngress as typeof createGitHubWebhookIngress;
-  const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_TEST_DATABASE_URL");
+  const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_TEST_DATABASE_URL");
   if (!externalUrl) database = await startEmbeddedPostgresTestDatabase("github-ingress-benchmark-");
   else await applyPendingMigrations(externalUrl);
   db = createDb(externalUrl ?? database!.connectionString);
@@ -80,7 +80,7 @@ try {
           const [plan] = await db.$client.unsafe(`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${candidate.sql}`, candidate.params as never[]);
           const positionalRows = await db.$client.unsafe(candidate.sql, candidate.params as never[]).values();
           measurements[name] = { queries: executed, initialQueryPlan: plan["QUERY PLAN"], initialReadJsonBytes: Buffer.byteLength(JSON.stringify(positionalRows)),
-            responseValueBytes: events.find(event => event.event === "paperclip.test_db_response_capture.summary.v1")?.responseValueBytes,
+            responseValueBytes: events.find(event => event.event === "nexus.test_db_response_capture.summary.v1")?.responseValueBytes,
             captureEvents: events };
         }
       }

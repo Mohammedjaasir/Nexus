@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Coins, DollarSign, PlayCircle, ReceiptText } from "lucide-react";
-import type { CostByAgent, CostByAgentModel } from "@paperclipai/shared";
+import type { CostByAgent, CostByAgentModel } from "@nexusai/shared";
 import { costsApi } from "../api/costs";
 import { CostAmount } from "../components/CostAmount";
 import { EmptyState } from "../components/EmptyState";

@@ -41,7 +41,7 @@ const meta: Meta<typeof RuntimeProvisionStatusValue> = {
   title: "Projects and execution/Workspaces, services, and files/Workspaces/Runtime provisioning status",
   component: RuntimeProvisionStatusValue,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "workspaces/provisioning"
       ],

@@ -4,40 +4,40 @@ Updated: 2026-10-02. Status: catalog definition reviewed against official
 documentation and live provider metadata; live account qualification
 outstanding.
 
-Neon appears in Apps and uses Paperclip's shared remote-MCP OAuth connection,
+Neon appears in Apps and uses Nexus's shared remote-MCP OAuth connection,
 vault, catalog, grants, policies, gateway, and audit trail. It is a resource
-connection, not Paperclip sign-in. No plugin, provider-specific runtime code,
+connection, not Nexus sign-in. No plugin, provider-specific runtime code,
 or database migration is required.
 
-Paperclip connects to Neon's hosted MCP server at `https://mcp.neon.tech/mcp`.
+Nexus connects to Neon's hosted MCP server at `https://mcp.neon.tech/mcp`.
 The connection supports two explicit methods:
 
 - browser OAuth, recommended for Neon accounts; or
-- a Neon API key stored as a Paperclip secret and sent as an
+- a Neon API key stored as a Nexus secret and sent as an
   `Authorization: Bearer ...` header.
 
-Paperclip does not silently fall back from OAuth to an API key. The selected
+Nexus does not silently fall back from OAuth to an API key. The selected
 method is saved on the connection and reused for reconnects.
 
 This curated connection is the polished route: it provides branding, optional
 project pinning and read-only controls, field validation, and tailored
 guidance. None of it is *required* to reach Neon's server. Neon can also be
 connected generically from **Connect your own MCP server** by pasting
-`https://mcp.neon.tech/mcp`, with no Paperclip-specific code involved. See
+`https://mcp.neon.tech/mcp`, with no Nexus-specific code involved. See
 [Connecting any remote MCP server](./GENERIC-REMOTE-MCP.md).
 
 ## Service involvement
 
 Neon hosts both the MCP resource and its OAuth authorization service on the
-same origin. Paperclip discovers the OAuth endpoints, dynamically registers the
+same origin. Nexus discovers the OAuth endpoints, dynamically registers the
 client, stores returned credentials as secret references, and handles the
-callback at `/api/tools/oauth/callback`. No Paperclip-operated vendor relay is
+callback at `/api/tools/oauth/callback`. No Nexus-operated vendor relay is
 involved; cloud and self-hosted instances use the same path.
 
 ```mermaid
 sequenceDiagram
     actor A as Administrator
-    participant P as Paperclip
+    participant P as Nexus
     participant M as mcp.neon.tech
 
     A->>P: Choose Sign in with Neon
@@ -67,17 +67,17 @@ The hosted endpoints retrieved on 2026-10-02:
 | Token | `https://mcp.neon.tech/api/token` |
 | Dynamic client registration | `https://mcp.neon.tech/api/register` |
 | Revoke | `https://mcp.neon.tech/api/revoke` |
-| Paperclip callback | `/api/tools/oauth/callback` |
+| Nexus callback | `/api/tools/oauth/callback` |
 
 The authorization server advertises `code` responses, PKCE `S256`,
 `authorization_code` and `refresh_token` grants, `none` client authentication
 for registered public clients, and exactly two scopes: `read` and `write`.
-Paperclip requests both so the connection has the write surface described
+Nexus requests both so the connection has the write surface described
 below; the read-only switch narrows the server itself rather than the token.
 Caller widening beyond the reviewed scopes is rejected.
 
 Neon's older SSE endpoint (`https://mcp.neon.tech/sse`) is deprecated and
-returns `410 Gone` on or after 2026-10-01. Paperclip does not offer it.
+returns `410 Gone` on or after 2026-10-01. Nexus does not offer it.
 
 ## Administrator setup
 
@@ -87,7 +87,7 @@ returns `410 Gone` on or after 2026-10-01. Paperclip does not offer it.
 4. Open **Advanced** only when you need to pin the connection to one
    **project ID** or force **Read-only mode**.
 5. For OAuth, continue through browser consent. For API-key setup, create a
-   key in Neon Console → **Settings → API keys** and paste it into Paperclip.
+   key in Neon Console → **Settings → API keys** and paste it into Nexus.
    Prefer a project-scoped key, which Neon limits to one project with Editor
    rights; personal and organization keys reach every project the account can
    access. Never put the key in connection configuration or a URL.
@@ -96,14 +96,14 @@ returns `410 Gone` on or after 2026-10-01. Paperclip does not offer it.
    actions. Set deletion, branch reset, and compute mutations to **Ask first**
    where operator review is wanted.
 
-Use a public HTTPS Paperclip origin or a loopback HTTP origin such as
+Use a public HTTPS Nexus origin or a loopback HTTP origin such as
 `http://localhost:3100`. A plain HTTP tailnet hostname is not loopback; use
 HTTPS or change the local canonical origin before connecting.
 
-When configured, Paperclip appends `projectId=<id>` and `readonly=true` as
+When configured, Nexus appends `projectId=<id>` and `readonly=true` as
 query parameters on the server URL, exactly as Neon documents. The same URL is
 used for catalog discovery and tool execution, and a caller cannot override it.
-Neon documents a repeatable `category=<name>` filter as well; Paperclip's
+Neon documents a repeatable `category=<name>` filter as well; Nexus's
 tenant fields serialize lists as one comma-joined value, so that filter is not
 offered. Use the per-action Off / Ask first / Allowed controls to narrow the
 catalog instead.
@@ -125,7 +125,7 @@ its tools into these categories:
 
 Neon enforces the account, organization, and project permissions behind the
 credential. The optional project pin and read-only switch are enforced by
-Neon's server, not by Paperclip. `requiredResourceFilters: ["project"]` is
+Neon's server, not by Nexus. `requiredResourceFilters: ["project"]` is
 reviewed policy metadata that names the boundary operators should set; it is
 not a local allowlist.
 
@@ -140,7 +140,7 @@ prefer development or testing projects over production data.
 - Reuse classification: MCP-direct
 - Reason for classification: official hosted Streamable HTTP server with
   RFC 7591 dynamic registration and documented bearer API keys; common fields
-  represent every documented option Paperclip can serialize.
+  represent every documented option Nexus can serialize.
 - Security tier: S4
 - Plugin needed? No.
 
@@ -150,10 +150,10 @@ prefer development or testing projects over production data.
 - Endpoint: `https://mcp.neon.tech/mcp`
 - Auth modes: OAuth (DCR, PKCE) or API key
 - OAuth scopes: `read`, `write` (explicit, reviewed)
-- Key scope: whatever the Neon key carries; Paperclip cannot widen it
+- Key scope: whatever the Neon key carries; Nexus cannot widen it
 - Credential owner: company or user grant through the standard access screen
 - Secret storage: `company_secrets` refs only
-- Revocation: Neon publishes `/api/revoke`; Paperclip removal revokes the
+- Revocation: Neon publishes `/api/revoke`; Nexus removal revokes the
   grant and deletes stored secrets
 
 ## Resource filters

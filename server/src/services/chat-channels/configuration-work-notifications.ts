@@ -2,7 +2,7 @@ import { DELIVERY_QUEUES, notifyDeliveryWork } from "../delivery-work-notificati
 import { notifyGitHubWebhookRecovery } from "./github/webhook-recovery-notifications.js";
 import { notifyVoiceChange } from "../voice/voice-recovery-notifications.js";
 import { notifyChatReceiver, notifyChatConnectionReceiver, notifyChatCompanyReceivers } from "./runtime/receiver-work-notifications.js";
-import type { ChatProvider, ToolConnectionTransport } from "@paperclipai/shared";
+import type { ChatProvider, ToolConnectionTransport } from "@nexusai/shared";
 import { notifyDiscordCommandRegistration } from "./discord/command-work-notifications.js";
 
 export async function notifyChatEndpointConfiguration(transaction: object, endpoint: { id: string; provider: ChatProvider }) {

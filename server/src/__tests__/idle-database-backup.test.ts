@@ -4,7 +4,7 @@ import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
-import { createDb, ensurePostgresDatabase, getEmbeddedPostgresTestSupport, runDatabaseBackup, runDatabaseRestore, startEmbeddedPostgresTestDatabase } from "@paperclipai/db";
+import { createDb, ensurePostgresDatabase, getEmbeddedPostgresTestSupport, runDatabaseBackup, runDatabaseRestore, startEmbeddedPostgresTestDatabase } from "@nexusai/db";
 import { clearIdleBackupWakeRequired, idleBackupWakeMarker, markIdleBackupWakeRequired, verifyIdleDatabaseBackup } from "../services/idle-database-backup.js";
 
 let directory: string;
@@ -74,7 +74,7 @@ describe.skipIf(!support.supported)("idle backup restore", () => {
       expect(await readFile(idleBackupWakeMarker(directory), "utf8")).toContain("restarts");
       // A failed verification must not delete existing recovery points, even
       // when their age would make them eligible for the configured pruning.
-      const history = path.join(directory, "paperclip-history.sql.gz");
+      const history = path.join(directory, "nexus-history.sql.gz");
       const historyBytes = gzipSync("SELECT 'historical recovery point';");
       await writeFile(history, historyBytes);
       await utimes(history, new Date(0), new Date(0));

@@ -25,7 +25,7 @@ it("restores the same saved agent when a failed initial resume succeeds on retry
   api.resume.mockRejectedValueOnce(new Error("Saved setup could not be loaded")).mockResolvedValue({
     agent: { id: agentId, name: "Saved Night Shift", botName: "Night Shift", role: "researcher", reportsTo: null, status: "idle" }, approvalId: null, binding,
   });
-  api.connection.mockResolvedValue({ enabled: true, resourceUrl: "https://paperclip.example/mcp/runner", agentStatus: "idle",
+  api.connection.mockResolvedValue({ enabled: true, resourceUrl: "https://nexus.example/mcp/runner", agentStatus: "idle",
     agentLifecycleState: "verifying", canConfigureConnection: true, recoveryNeeded: false, binding });
   cache = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
@@ -41,7 +41,7 @@ it("restores the same saved agent when a failed initial resume succeeds on retry
 });
 
 it.each(["rejected", "unknown"])("offers an explicit retry only for a %s delivery", async status => {
-  api.connection.mockResolvedValue({ enabled: true, resourceUrl: "https://paperclip.example/mcp/runner", recoveryNeeded: status === "unknown",
+  api.connection.mockResolvedValue({ enabled: true, resourceUrl: "https://nexus.example/mcp/runner", recoveryNeeded: status === "unknown",
     binding: { id: "binding-fixture", connected: true, routine: { configured: true, verified: true, botName: "Night Shift", revision: 1,
       lastExchange: { id: "correlation-fixture", kind: "mailbox_updated", status, expiresAt: new Date(Date.now() + 60_000).toISOString() } } } });
   api.retry.mockResolvedValue({});
@@ -86,7 +86,7 @@ it("copies the masked pairing code and offers a retry after a clipboard failure"
 it("copies a masked reconnect code without adding it to Bot instructions and retries clipboard failure", async () => {
   const pairingCode = "synthetic_reconnect_code_12345";
   api.connection.mockResolvedValue({ enabled: true, canConfigureConnection: true,
-    resourceUrl: "https://paperclip.example/mcp/runner", binding: null });
+    resourceUrl: "https://nexus.example/mcp/runner", binding: null });
   api.pair.mockResolvedValue({ bindingId: "binding-fixture", pairingCode,
     expiresAt: new Date(Date.now() + 60_000).toISOString() });
   vi.mocked(copyTextToClipboard).mockRejectedValueOnce(new Error("Clipboard unavailable")).mockResolvedValue();
@@ -119,7 +119,7 @@ it("copies a masked reconnect code without adding it to Bot instructions and ret
   const instructions = host.querySelector<HTMLButtonElement>('button[aria-label="Copy connection instructions"]')!;
   flushSync(() => instructions.click());
   await vi.waitFor(() => expect(copyTextToClipboard).toHaveBeenCalledTimes(3));
-  expect(vi.mocked(copyTextToClipboard).mock.calls[2]![0]).toContain("https://paperclip.example/mcp/runner");
+  expect(vi.mocked(copyTextToClipboard).mock.calls[2]![0]).toContain("https://nexus.example/mcp/runner");
   expect(vi.mocked(copyTextToClipboard).mock.calls[2]![0]).not.toContain(pairingCode);
   expect(api.pair).toHaveBeenCalledExactlyOnceWith("company-fixture", "agent-fixture", undefined);
 });

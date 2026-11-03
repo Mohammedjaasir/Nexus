@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { acquireGitExpirationLocks } from "./git-workspace-expiration-locks.js";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { executionWorkspaces, issues, heartbeatRuns, nativeRunFinalizations, environmentLeases,
-  workspaceRuntimeServices, issueRecoveryActions, projectWorkspaces, withDedicatedDbConnection, type Db } from "@paperclipai/db";
+  workspaceRuntimeServices, issueRecoveryActions, projectWorkspaces, withDedicatedDbConnection, type Db } from "@nexusai/db";
 import { createIssueGitRemoteAuthProvider } from "./git-credentials.js";
 import type { StorageService } from "../storage/types.js";
 import { TASK_DIRECTORY_RETENTION_KEY } from "./isolated-task-directory-snapshot.js";
@@ -216,7 +216,7 @@ export async function isGitWorkspaceExpirationEligible(tx: Tx, workspace: Worksp
 
 export function hasPendingGitExpiration(workspace: Workspace) {
   const state = workspace.metadata?.[EXPIRATION_KEY] as Expiration | undefined;
-  return state?.schema === "paperclip.git-cache-expiration.v1" && !state.completed;
+  return state?.schema === "nexus.git-cache-expiration.v1" && !state.completed;
 }
 
 async function exists(target: string) {
@@ -374,7 +374,7 @@ export async function expireReconstructableGitWorkspace(db: Db, snapshot: Worksp
             }
             if (pendingRestorePoints.length > 0) recipe = { ...recipe, schema: GIT_CACHE_RESTORATION_SCHEMA_V2 };
           }
-          state = { schema: "paperclip.git-cache-expiration.v1", generation, workspaceRemoved: false,
+          state = { schema: "nexus.git-cache-expiration.v1", generation, workspaceRemoved: false,
             worktreeTrash: path.join(path.dirname(recipe.worktreePath), `.expired-git-worktree-${workspace.id}-${generation}`),
             worktreeAdmin, baseTrash: null, completed: false, lockToken: randomBytes(32).toString("hex") };
           if (await exists(state.worktreeTrash)) throw new Error("unknown_worktree_trash");
@@ -427,7 +427,7 @@ export async function expireReconstructableGitWorkspace(db: Db, snapshot: Worksp
                 await currentRestorePointSnapshot(recipe.worktreePath, options.signal))
                 || !await restorePointHistoryUnchanged(recipe.restorePoint, recipe.worktreePath, options.signal))) throw new Error("restore_point_contents_changed");
               for (const checkout of checkouts.values()) {
-                const cwd = path.join(recipe.worktreePath, ".paperclip-repositories", checkout.name);
+                const cwd = path.join(recipe.worktreePath, ".nexus-repositories", checkout.name);
                 locks.push(await acquireGitExpirationLocks(lockLocations.filter(location => location.checkout === checkout.name), state.lockToken));
                 const savedCheckout = savedCheckoutRestorePoints.get(checkout.name);
                 if (savedCheckout) {
@@ -445,7 +445,7 @@ export async function expireReconstructableGitWorkspace(db: Db, snapshot: Worksp
                 checkouts: reproducible.contents.checkouts.map(({ restorePoint: _checkoutRestorePoint, ...checkout }) => checkout) };
               const metadata: Record<string, unknown> = { ...workspace.metadata, lifecycleGeneration: state.generation + 1,
                 [GIT_CACHE_RESTORATION_KEY]: { ...reproducible, ...(strippedContents ? { contents: strippedContents } : {}),
-                  schema: "paperclip.git-cache-restoration.v1", restoredAt: new Date().toISOString() } };
+                  schema: "nexus.git-cache-restoration.v1", restoredAt: new Date().toISOString() } };
               delete metadata[EXPIRATION_KEY];
               await db.update(executionWorkspaces).set({ status: "active", closedAt: null, cleanupEligibleAt: null,
                 cleanupReason: null, metadata, updatedAt: new Date() }).where(eq(executionWorkspaces.id, workspace.id));

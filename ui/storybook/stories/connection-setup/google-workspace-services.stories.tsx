@@ -7,11 +7,11 @@ const meta = {
   id: "apps-connections-google-workspace-service-consent-preview",
   title: "Apps, channels, and extensions/Connection setup/Google Workspace service consent",
   component: ServiceConsent,
-  parameters: { layout: "fullscreen", paperclip: {
+  parameters: { layout: "fullscreen", nexus: {
     capabilities: ["connection-setup/catalog", "app-permissions/account-maintenance"],
     status: "current", implementation: "mixed", boundary: "fixtures",
     notes: "Production service fields and picker with simulated journey callbacks. No provider authorization, persistence, or Google verification is established by these stories.",
-  }, docs: { description: { component: "The production service picker and fixture-backed journey previews. Google authorization is simulated without provider calls. Paperclip audiences and action policies remain separate." } } },
+  }, docs: { description: { component: "The production service picker and fixture-backed journey previews. Google authorization is simulated without provider calls. Nexus audiences and action policies remain separate." } } },
 } satisfies Meta<typeof ServiceConsent>;
 export default meta;
 type Story = StoryObj<typeof meta>;

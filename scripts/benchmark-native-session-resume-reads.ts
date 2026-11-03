@@ -16,7 +16,7 @@ const baselineRevision = execFileSync("git", ["rev-parse", "--verify", `${baseli
 const sourcePath = "server/src/services/native-runtime/native-session-resume.ts";
 const treatmentRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
 const treatmentDiff = execFileSync("git", ["diff", "HEAD", "--", sourcePath], { cwd: root, encoding: "utf8" });
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_SESSION_RESUME_BENCHMARK_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_SESSION_RESUME_BENCHMARK_DATABASE_URL");
 const database = externalUrl ? { connectionString: externalUrl, cleanup: async () => {} } : await startEmbeddedPostgresTestDatabase("native-session-resume-benchmark-");
 const db = createDb(database.connectionString);
 const baselineDir = await fs.mkdtemp(path.join(root, "server/scripts/.session-resume-baseline-"));
@@ -54,7 +54,7 @@ try {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), normalizedSessionId = randomUUID();
     companyIds.push(companyId);
     await db.insert(companies).values({ id: companyId, name: "Synthetic resume benchmark", issuePrefix: `B${companyId.replaceAll("-", "")}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Synthetic runner", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Synthetic runner", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Retain canonical task" });
     const runCount = scenario === "small_selected" ? 1 : 15;
     const prompt = randomBytes(scenario === "small_selected" ? 16 : 144 * 1024).toString("base64");
@@ -66,8 +66,8 @@ try {
       runtimeMode: "native", status: "failed", createdAt: new Date(Date.UTC(2026, 8, 8, 0, 0, n)),
       runnerProfileJson: { padding: "Unused profile metadata", nativeExecutionInput: neededInput, nativeToolContractFingerprint: "fixture",
         ...(scenario !== "unused_history" && n === 0 ? { sessionCheckpoint: checkpoint } : {}) },
-      contextSnapshot: { prompt, paperclipWake: { externalChatProvider: "slack", githubReviewConfigurations: [{ key: "review" }] },
-        paperclipIssue: { id: issueId, title: "Prior canonical title", description: "Prior canonical description" } },
+      contextSnapshot: { prompt, nexusWake: { externalChatProvider: "slack", githubReviewConfigurations: [{ key: "review" }] },
+        nexusIssue: { id: issueId, title: "Prior canonical title", description: "Prior canonical description" } },
     })));
     await db.$client.unsafe("ANALYZE heartbeat_runs");
     const input = { companyId, agentId, issueId, normalizedSessionId, currentRunId: randomUUID(), beforeCreatedAt: new Date("2026-09-09T00:00:00Z") };
@@ -76,7 +76,7 @@ try {
       runnerProfileJson: { nativeExecutionInput: run.runnerProfileJson?.nativeExecutionInput ?? null,
         nativeToolContractFingerprint: run.runnerProfileJson?.nativeToolContractFingerprint ?? null,
         sessionCheckpoint: run.runnerProfileJson?.sessionCheckpoint ?? null },
-      contextSnapshot: { paperclipWake: run.contextSnapshot?.paperclipWake ?? null, paperclipIssue: run.contextSnapshot?.paperclipIssue ?? null } });
+      contextSnapshot: { nexusWake: run.contextSnapshot?.nexusWake ?? null, nexusIssue: run.contextSnapshot?.nexusIssue ?? null } });
     assert.deepEqual(contract(after.result), contract(before.result));
     const variants = [before.queries, after.queries], samples: number[][] = [[], []], dataRowBytes = [0, 0], resultRows = [0, 0];
     for (let iteration = 0; iteration < 9; iteration++) {

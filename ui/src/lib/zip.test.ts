@@ -189,14 +189,14 @@ describe("createZipArchive", () => {
         "COMPANY.md": "# Company\n",
         "agents/ceo/AGENTS.md": "# CEO\n",
       },
-      "paperclip-demo",
+      "nexus-demo",
     );
 
     expect(readUint32(archive, 0)).toBe(0x04034b50);
 
     const firstNameLength = readUint16(archive, 26);
     const firstBodyLength = readUint32(archive, 18);
-    expect(readString(archive, 30, firstNameLength)).toBe("paperclip-demo/agents/ceo/AGENTS.md");
+    expect(readString(archive, 30, firstNameLength)).toBe("nexus-demo/agents/ceo/AGENTS.md");
     expect(readString(archive, 30 + firstNameLength, firstBodyLength)).toBe("# CEO\n");
 
     const secondOffset = 30 + firstNameLength + firstBodyLength;
@@ -204,7 +204,7 @@ describe("createZipArchive", () => {
 
     const secondNameLength = readUint16(archive, secondOffset + 26);
     const secondBodyLength = readUint32(archive, secondOffset + 18);
-    expect(readString(archive, secondOffset + 30, secondNameLength)).toBe("paperclip-demo/COMPANY.md");
+    expect(readString(archive, secondOffset + 30, secondNameLength)).toBe("nexus-demo/COMPANY.md");
     expect(readString(archive, secondOffset + 30 + secondNameLength, secondBodyLength)).toBe("# Company\n");
 
     const endOffset = archive.length - 22;
@@ -213,22 +213,22 @@ describe("createZipArchive", () => {
     expect(readUint16(archive, endOffset + 10)).toBe(2);
   });
 
-  it("reads a Paperclip zip archive back into rootPath and file contents", async () => {
+  it("reads a Nexus zip archive back into rootPath and file contents", async () => {
     const archive = createZipArchive(
       {
         "COMPANY.md": "# Company\n",
         "agents/ceo/AGENTS.md": "# CEO\n",
-        ".paperclip.yaml": "schema: paperclip/v1\n",
+        ".nexus.yaml": "schema: nexus/v1\n",
       },
-      "paperclip-demo",
+      "nexus-demo",
     );
 
     await expect(readZipArchive(archive)).resolves.toEqual({
-      rootPath: "paperclip-demo",
+      rootPath: "nexus-demo",
       files: {
         "COMPANY.md": "# Company\n",
         "agents/ceo/AGENTS.md": "# CEO\n",
-        ".paperclip.yaml": "schema: paperclip/v1\n",
+        ".nexus.yaml": "schema: nexus/v1\n",
       },
     });
   });
@@ -242,11 +242,11 @@ describe("createZipArchive", () => {
           contentType: "image/png",
         },
       },
-      "paperclip-demo",
+      "nexus-demo",
     );
 
     await expect(readZipArchive(archive)).resolves.toEqual({
-      rootPath: "paperclip-demo",
+      rootPath: "nexus-demo",
       files: {
         "images/company-logo.png": {
           encoding: "base64",
@@ -269,11 +269,11 @@ describe("createZipArchive", () => {
         "COMPANY.md": "# Company\n",
         "blobs/4f2d1c9a": entry,
       },
-      "paperclip-demo",
+      "nexus-demo",
     );
 
     await expect(readZipArchive(archive)).resolves.toEqual({
-      rootPath: "paperclip-demo",
+      rootPath: "nexus-demo",
       files: {
         "COMPANY.md": "# Company\n",
         "blobs/4f2d1c9a": entry,
@@ -291,7 +291,7 @@ describe("createZipArchive", () => {
           contentType: null,
         },
       },
-      "paperclip-demo",
+      "nexus-demo",
     );
 
     const result = await readZipArchive(archive);
@@ -302,17 +302,17 @@ describe("createZipArchive", () => {
     });
   });
 
-  it("reads standard DEFLATE zip archives created outside Paperclip", async () => {
+  it("reads standard DEFLATE zip archives created outside Nexus", async () => {
     const archive = createDeflatedZipArchive(
       {
         "COMPANY.md": "# Company\n",
         "agents/ceo/AGENTS.md": "# CEO\n",
       },
-      "paperclip-demo",
+      "nexus-demo",
     );
 
     await expect(readZipArchive(archive)).resolves.toEqual({
-      rootPath: "paperclip-demo",
+      rootPath: "nexus-demo",
       files: {
         "COMPANY.md": "# Company\n",
         "agents/ceo/AGENTS.md": "# CEO\n",
@@ -321,10 +321,10 @@ describe("createZipArchive", () => {
   });
 
   it("ignores directory entries from standard zip archives", async () => {
-    const archive = createZipArchiveWithDirectoryEntries("paperclip-demo");
+    const archive = createZipArchiveWithDirectoryEntries("nexus-demo");
 
     await expect(readZipArchive(archive)).resolves.toEqual({
-      rootPath: "paperclip-demo",
+      rootPath: "nexus-demo",
       files: {
         "COMPANY.md": "# Company\n",
         "agents/ceo/AGENTS.md": "# CEO\n",
@@ -351,8 +351,8 @@ describe("estimateZipArchiveSize", () => {
       "notes/empty.txt": "",
     };
 
-    expect(estimateZipArchiveSize(files, "paperclip-demo")).toBe(
-      createZipArchive(files, "paperclip-demo").byteLength,
+    expect(estimateZipArchiveSize(files, "nexus-demo")).toBe(
+      createZipArchive(files, "nexus-demo").byteLength,
     );
   });
 
@@ -383,9 +383,9 @@ describe("estimateZipArchiveSize", () => {
   });
 
   it("returns the 22-byte end-of-central-directory record for an empty map", () => {
-    expect(estimateZipArchiveSize({}, "paperclip-demo")).toBe(22);
-    expect(estimateZipArchiveSize({}, "paperclip-demo")).toBe(
-      createZipArchive({}, "paperclip-demo").byteLength,
+    expect(estimateZipArchiveSize({}, "nexus-demo")).toBe(22);
+    expect(estimateZipArchiveSize({}, "nexus-demo")).toBe(
+      createZipArchive({}, "nexus-demo").byteLength,
     );
   });
 });

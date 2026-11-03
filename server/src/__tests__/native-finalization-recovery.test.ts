@@ -16,21 +16,21 @@ import {
   statusDecisions,
   workAssessments,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   CONTROL_PLANE_CONFORMANCE_OPEN,
   CONTROL_PLANE_CONFORMANCE_RESULT,
   CONTROL_PLANE_CONFORMANCE_TERMINAL,
-} from "../vendor/paperclip-runner/testing.js";
+} from "../vendor/nexus-runner/testing.js";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import {
   reconcileNativeFinalizations,
   reconcileRetainedNativeSessionCleanups,
 } from "../services/native-runtime/native-finalization-reconciler.js";
-import { PaperclipControlPlanePort } from "../services/native-runtime/paperclip-control-plane-port.js";
+import { NexusControlPlanePort } from "../services/native-runtime/nexus-control-plane-port.js";
 import { assertRetainedNativeSourceArchiveSettled, reconcileRetainedNativeSessionCleanup } from "../services/native-runtime/native-session-executor.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_NATIVE_FINALIZATION_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_NATIVE_FINALIZATION_TEST_DATABASE_URL");
 
 describe("P6-16/P6-25/P6-28 native finalization recovery", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
@@ -45,7 +45,7 @@ describe("P6-16/P6-25/P6-28 native finalization recovery", () => {
   const staleRunId = "72000000-0000-4000-8000-000000000015";
 
   beforeAll(async () => {
-    if (!external) temporary = await startEmbeddedPostgresTestDatabase("paperclip-native-recovery-");
+    if (!external) temporary = await startEmbeddedPostgresTestDatabase("nexus-native-recovery-");
     db = createDb(external ?? temporary.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Native recovery", issuePrefix: "NRC" });
     await db.insert(agents).values({
@@ -68,7 +68,7 @@ describe("P6-16/P6-25/P6-28 native finalization recovery", () => {
       companyId,
       issueId,
       revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1",
+      schemaVersion: "nexus.completion-contract.v1",
       policyVersion: "phase6-v1",
       risk: "standard",
       completionAuthority: "server_arbiter",
@@ -96,7 +96,7 @@ describe("P6-16/P6-25/P6-28 native finalization recovery", () => {
       completionContractSha256: "native-recovery-contract",
       contextSnapshot: { issueId },
     });
-    const port = new PaperclipControlPlanePort(db, {
+    const port = new NexusControlPlanePort(db, {
       companyId,
       issueId,
       runId,
@@ -146,7 +146,7 @@ describe("P6-16/P6-25/P6-28 native finalization recovery", () => {
       companyId,
       issueId: staleIssueId,
       revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1",
+      schemaVersion: "nexus.completion-contract.v1",
       policyVersion: "phase6-v1",
       risk: "standard",
       completionAuthority: "server_arbiter",
@@ -174,7 +174,7 @@ describe("P6-16/P6-25/P6-28 native finalization recovery", () => {
       completionContractSha256: "stale-finalizer-contract",
       contextSnapshot: { issueId: staleIssueId },
     });
-    const stalePort = new PaperclipControlPlanePort(db, {
+    const stalePort = new NexusControlPlanePort(db, {
       companyId,
       issueId: staleIssueId,
       runId: staleRunId,
@@ -361,7 +361,7 @@ describe("retained native cleanup discovery", () => {
 
   beforeAll(async () => {
     if (!external) temporary = await startEmbeddedPostgresTestDatabase(
-      "paperclip-native-cleanup-sweep-",
+      "nexus-native-cleanup-sweep-",
     );
     db = createDb(external ?? temporary.connectionString);
     await db
@@ -418,7 +418,7 @@ describe("retained native cleanup discovery", () => {
       companyId: owner.companyId,
       issueId,
       revision: options.revision ?? 1,
-      schemaVersion: "paperclip.completion-contract.v1",
+      schemaVersion: "nexus.completion-contract.v1",
       policyVersion: "phase6-v3",
       risk: "standard",
       completionAuthority: "server_arbiter",

@@ -3,9 +3,9 @@ import { type GitHubIngressStageResult } from "./webhook-ingress.js";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { recordChatWebhookReceipt } from "../../chat-webhook-diagnostics.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import type { CredentialMutationLeaseGuard } from "../../chat-credential-mutation-lease.js";
-import { chatEndpoints } from "@paperclipai/db";
+import { chatEndpoints } from "@nexusai/db";
 import { logger } from "../../../middleware/logger.js";
 import { logActivity } from "../../activity-log.js";
 import type { EndpointRow, InternalSetupState } from "../runtime-types.js";
@@ -23,7 +23,7 @@ type AuthenticationOptions = Pick<Parameters<typeof createGitHubWebhookIngress>[
 };
 export function retryableGitHubWebhookResponse(): Response {
   return new Response(
-    "Paperclip could not durably accept the event in time",
+    "Nexus could not durably accept the event in time",
     {
       status: 503,
       headers: {
@@ -163,7 +163,7 @@ export function createGitHubWebhookAuthentication(db: Db, options: Authenticatio
       async (
         credentialLease,
       ): Promise<"accepted" | "ignored" | "invalid_signature"> => {
-        // The repository upsert below is a Paperclip mutation derived from
+        // The repository upsert below is a Nexus mutation derived from
         // the webhook credential. Re-read and authenticate while holding the
         // same lease as rotation/reconnect/removal so a callback signed with
         // an obsolete secret cannot reopen a quarantined repository in the
@@ -217,7 +217,7 @@ export function createGitHubWebhookAuthentication(db: Db, options: Authenticatio
             // A dedicated endpoint represents exactly one GitHub App
             // installation. GitHub sends every installation's events to the
             // App webhook, so acknowledge foreign signed traffic without
-            // admitting it to Paperclip or prompting endless redelivery.
+            // admitting it to Nexus or prompting endless redelivery.
             // Installation lifecycle events are the one exception: even when
             // their id differs, canonical App inventory under the lifecycle
             // lease must decide whether this is a valid sole-installation

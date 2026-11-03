@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, numeric, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import type { CompanySearchQuery, StatusCardRefreshPolicy } from "@paperclipai/shared";
+import type { CompanySearchQuery, StatusCardRefreshPolicy } from "@nexusai/shared";
 import { agents } from "./agents.js";
 import { companies } from "./companies.js";
 import { documents } from "./documents.js";

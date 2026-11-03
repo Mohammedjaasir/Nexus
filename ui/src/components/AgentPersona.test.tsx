@@ -2,15 +2,15 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { appearanceForPalette } from "@paperclipai/shared";
+import { appearanceForPalette } from "@nexusai/shared";
 import { AgentAvatar } from "./AgentAvatar";
 import { AgentCharacter } from "./AgentCharacter";
 import { useAgentAppearanceDraft } from "../hooks/useAgentAppearanceDraft";
 
 const renderer = vi.hoisted(() => ({ destroy: vi.fn(), setDefinition: vi.fn(), setAnimation: vi.fn() }));
 const createCharacter = vi.hoisted(() => vi.fn(() => renderer));
-vi.mock("@paperclipai/shared/cliplab/runtime", () => ({ createCharacter }));
-vi.mock("@paperclipai/shared/cliplab/definition", () => ({ characterDefinition: vi.fn(value => value), animationId: vi.fn(value => value) }));
+vi.mock("@nexusai/shared/cliplab/runtime", () => ({ createCharacter }));
+vi.mock("@nexusai/shared/cliplab/definition", () => ({ characterDefinition: vi.fn(value => value), animationId: vi.fn(value => value) }));
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root;
 let host: HTMLDivElement;
@@ -66,7 +66,7 @@ describe("agent persona presentation", () => {
   it("selects the correct saved draft when the company changes without remounting", async () => {
     let draft!: ReturnType<typeof useAgentAppearanceDraft>;
     function Draft({ company }: { company: string }) { draft = useAgentAppearanceDraft(`${company}:new-agent`); return null; }
-    sessionStorage.setItem("paperclip.agent-appearance.two:new-agent", JSON.stringify(appearance));
+    sessionStorage.setItem("nexus.agent-appearance.two:new-agent", JSON.stringify(appearance));
     await act(async () => root.render(<Draft company="one" />));
     const first = draft.appearance;
     await act(async () => root.render(<Draft company="two" />));
@@ -82,8 +82,8 @@ describe("agent persona presentation", () => {
     await act(async () => root.render(null));
     await act(async () => root.render(<Draft />));
     expect(draft.appearance).toEqual(first);
-    expect(JSON.parse(sessionStorage.getItem("paperclip.agent-appearance.company:new-agent")!)).toEqual(first);
+    expect(JSON.parse(sessionStorage.getItem("nexus.agent-appearance.company:new-agent")!)).toEqual(first);
     draft.clear();
-    expect(sessionStorage.getItem("paperclip.agent-appearance.company:new-agent")).toBeNull();
+    expect(sessionStorage.getItem("nexus.agent-appearance.company:new-agent")).toBeNull();
   });
 });

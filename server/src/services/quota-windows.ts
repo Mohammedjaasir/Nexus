@@ -1,12 +1,12 @@
-import type { ProviderQuotaResult } from "@paperclipai/shared";
-import { redactDiagnosticText } from "@paperclipai/adapter-utils";
+import type { ProviderQuotaResult } from "@nexusai/shared";
+import { redactDiagnosticText } from "@nexusai/adapter-utils";
 import { listServerAdapters } from "../adapters/registry.js";
 import { logger } from "../middleware/logger.js";
 import { createHash } from "node:crypto";
 import { eq, inArray, and } from "drizzle-orm";
-import { companySecrets, companySecretVersions, userSecretDefinitions, type Db } from "@paperclipai/db";
-import { fetchCodexQuota } from "@paperclipai/adapter-codex-local/server";
-import { fetchClaudeQuota } from "@paperclipai/adapter-claude-local/server";
+import { companySecrets, companySecretVersions, userSecretDefinitions, type Db } from "@nexusai/db";
+import { fetchCodexQuota } from "@nexusai/adapter-codex-local/server";
+import { fetchClaudeQuota } from "@nexusai/adapter-claude-local/server";
 import { aiConnectionService } from "./ai-connections.js";
 import { trackIdleWork } from "./task-admission.js";
 

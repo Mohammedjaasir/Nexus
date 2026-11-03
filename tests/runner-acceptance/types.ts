@@ -55,7 +55,7 @@ export interface AcceptanceAssertionResult {
 }
 
 export interface RunnerAcceptanceResult {
-  schema: "paperclip.runner-acceptance.result/v1";
+  schema: "nexus.runner-acceptance.result/v1";
   cellId: string;
   attempt: number;
   status: "passed" | "failed";
@@ -74,7 +74,7 @@ export interface AggregatedAcceptanceResult extends RunnerAcceptanceResult {
 }
 
 export interface RunnerAcceptanceReport {
-  schema: "paperclip.runner-acceptance.report/v1";
+  schema: "nexus.runner-acceptance.report/v1";
   generatedAt: string;
   suiteDefinitionHash: string;
   selected: number;

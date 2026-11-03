@@ -12,7 +12,7 @@ import * as authorization from "../server/src/services/authorization.js";
 
 const baselineRef = process.argv.find(arg => arg.startsWith("--baseline-ref="))?.slice(15) ?? "HEAD";
 const baselineRevision = execFileSync("git", ["rev-parse", `${baselineRef}^{commit}`], { encoding: "utf8" }).trim();
-process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "enforce";
+process.env.NEXUS_ISSUE_PRIVACY_MODE = "enforce";
 const keepAlive = setInterval(() => {}, 1000);
 let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
 let db: Db | undefined;

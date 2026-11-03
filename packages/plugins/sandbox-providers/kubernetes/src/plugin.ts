@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { definePlugin } from "@paperclipai/plugin-sdk";
+import { definePlugin } from "@nexusai/plugin-sdk";
 import type {
   PluginEnvironmentAcquireLeaseParams,
   PluginEnvironmentDestroyLeaseParams,
@@ -17,7 +17,7 @@ import type {
   PluginEnvironmentSyncResult,
   PluginEnvironmentValidateConfigParams,
   PluginEnvironmentValidationResult,
-} from "@paperclipai/plugin-sdk";
+} from "@nexusai/plugin-sdk";
 import {
   kubernetesProviderConfigSchema,
   type KubernetesProviderConfig,
@@ -49,16 +49,16 @@ import {
   deriveCompanySlug,
   deriveNamespaceName,
   newRunUlidDns,
-  paperclipLabels,
+  nexusLabels,
 } from "./utils.js";
 
-// The namespace paperclip-server itself runs in. Used when building
+// The namespace nexus-server itself runs in. Used when building
 // NetworkPolicy manifests so the tenant namespace allows inbound traffic
 // from the server pod.
-const PAPERCLIP_SERVER_NAMESPACE = "paperclip";
+const NEXUS_SERVER_NAMESPACE = "nexus";
 
 // Name of the ServiceAccount created inside each tenant namespace by ensureTenant.
-const TENANT_SERVICE_ACCOUNT = "paperclip-tenant-sa";
+const TENANT_SERVICE_ACCOUNT = "nexus-tenant-sa";
 
 // Resource quota defaults applied to every tenant namespace (tunable via
 // config in a future iteration).
@@ -79,7 +79,7 @@ function deriveTenantNamespace(config: KubernetesProviderConfig, companyId: stri
 
 function generateBootstrapToken(): string {
   // TODO: tighten once the agent runtime shim (companion images PR) lands its
-  // callback auth scheme; paperclip-server's callback auth is out of scope for
+  // callback auth scheme; nexus-server's callback auth is out of scope for
   // this plugin. For now this per-run random token is stored in the per-run
   // Secret and read by the runtime image entrypoint for initial registration.
   return randomBytes(32).toString("hex");
@@ -311,7 +311,7 @@ const plugin = definePlugin({
 
     // Emit a runtime warning if FQDNs are configured but egressMode=standard
     // cannot enforce them. Mirrors the validateConfig warning so operators see
-    // it in paperclip-server logs even if they missed the validation step.
+    // it in nexus-server logs even if they missed the validation step.
     const adapterDefaultsForWarn = getAdapterDefaults(effectiveAdapterType, config.adapters);
     const totalFqdnsForWarn = [...adapterDefaultsForWarn.allowFqdns, ...config.egressAllowFqdns];
     if (config.egressMode === "standard" && totalFqdnsForWarn.length > 0) {
@@ -339,7 +339,7 @@ const plugin = definePlugin({
     await ensureTenant(clients, {
       namespace,
       companyId: params.companyId,
-      paperclipServerNamespace: PAPERCLIP_SERVER_NAMESPACE,
+      nexusServerNamespace: NEXUS_SERVER_NAMESPACE,
       serviceAccountAnnotations: config.serviceAccountAnnotations,
       egressMode: config.egressMode,
       egressAllowFqdns: [...adapterDefaults.allowFqdns, ...config.egressAllowFqdns],
@@ -352,7 +352,7 @@ const plugin = definePlugin({
 
     // TODO: use params.runId as stand-in for agentId in labels; future
     // versions will have a dedicated agentId on AcquireLeaseParams.
-    const labels = paperclipLabels({
+    const labels = nexusLabels({
       runId: params.runId,
       agentId: params.runId,
       companyId: params.companyId,
@@ -422,10 +422,10 @@ const plugin = definePlugin({
     // defaultEnv (non-secret base, e.g. the inference base URL) is layered first;
     // the process-env secrets named by envKeys override it.
     const adapterEnv = buildAdapterEnv(adapterDefaults);
-    adapterEnv.PAPERCLIP_NETWORK_EGRESS_POLICY = "kubernetes-default-deny";
-    adapterEnv.PAPERCLIP_NETWORK_EGRESS_GRANT_PATH = NETWORK_EGRESS_GRANT_PATH;
-    adapterEnv.PAPERCLIP_NETWORK_EGRESS_ALLOW_FQDNS = scopedNetworkEgress.allowFqdns.join(",");
-    adapterEnv.PAPERCLIP_NETWORK_EGRESS_ALLOW_CIDRS = scopedNetworkEgress.allowCidrs.join(",");
+    adapterEnv.NEXUS_NETWORK_EGRESS_POLICY = "kubernetes-default-deny";
+    adapterEnv.NEXUS_NETWORK_EGRESS_GRANT_PATH = NETWORK_EGRESS_GRANT_PATH;
+    adapterEnv.NEXUS_NETWORK_EGRESS_ALLOW_FQDNS = scopedNetworkEgress.allowFqdns.join(",");
+    adapterEnv.NEXUS_NETWORK_EGRESS_ALLOW_CIDRS = scopedNetworkEgress.allowCidrs.join(",");
     const bootstrapToken = generateBootstrapToken();
 
     // Secret ownerRef: for job backend, the Job owns the Secret (cascade delete).
@@ -932,7 +932,7 @@ const plugin = definePlugin({
       };
     } else {
       // ── Job backend (legacy / stable fallback) ──────────────────────────────
-      // The container entrypoint is baked into the Job spec (Tini + paperclip-agent-shim).
+      // The container entrypoint is baked into the Job spec (Tini + nexus-agent-shim).
       // We do NOT re-exec command/args — instead we wait for the Job to finish
       // and collect its logs.
       //

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agentWakeupRequests, agents, companies, createDb, heartbeatRuns, issues } from "@paperclipai/db";
+import { agentWakeupRequests, agents, companies, createDb, heartbeatRuns, issues } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../../__tests__/helpers/embedded-postgres.js";
 import { createReleaseIssueExecution } from "../application/use-cases.js";
 import { createPostgresWakeQueueAdapter } from "./postgres.js";
@@ -14,7 +14,7 @@ describePostgres("queued operator stop release", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
 
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-queued-operator-stop-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-queued-operator-stop-");
     db = createDb(database.connectionString);
   }, 20_000);
 

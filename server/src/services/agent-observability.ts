@@ -1,22 +1,22 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { companyObservability, type Db } from "@paperclipai/db";
+import { companyObservability, type Db } from "@nexusai/db";
 import {
   agentObservabilityCaptureSchema, agentObservabilityDestinationSchema, agentObservabilityHeadersSchema,
   DEFAULT_AGENT_OBSERVABILITY_CAPTURE, updateAgentObservabilitySchema,
   isSameOtlpOrigin,
   type AgentObservabilitySettings, type AgentObservabilityTestReceipt, type UpdateAgentObservabilityRequest, type AgentObservabilityUnavailableReason,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { conflict, notFound, unprocessable } from "../errors.js";
 import { withAccountingTransaction } from "./accounting-transaction.js";
 import { logActivity } from "./activity-log.js";
 import { secretService } from "./secrets.js";
-import { withAccountHomeSecretMutationLock } from "@paperclipai/adapter-codex-local/server";
+import { withAccountHomeSecretMutationLock } from "@nexusai/adapter-codex-local/server";
 
 type Row = typeof companyObservability.$inferSelect;
 const target = { targetType: "system" as const, targetId: "company-observability" };
 const binding = { consumerType: "system" as const, consumerId: target.targetId, configPath: "headers", actorType: "system" as const };
-const credentialSchema = "paperclip.agent_observability.credentials.v1";
+const credentialSchema = "nexus.agent_observability.credentials.v1";
 type ResolutionAccess = { runId?: string; agentId?: string; userId?: string; responsibleUserId?: string | null; issueId?: string | null };
 export type ResolvedAgentObservability = {
   state: "disabled" | "unavailable"; revision: string | null; compatibilityKey: string; reason?: string;
@@ -27,7 +27,7 @@ export type ResolvedAgentObservability = {
 };
 
 function identity(companyId: string, revision: string | null, state: string, version?: number) {
-  return createHash("sha256").update(JSON.stringify(["paperclip.agent-observability.launch.v1", companyId, revision, state, version ?? null])).digest("hex");
+  return createHash("sha256").update(JSON.stringify(["nexus.agent-observability.launch.v1", companyId, revision, state, version ?? null])).digest("hex");
 }
 export function unavailableAgentObservability(companyId: string, reason: AgentObservabilityUnavailableReason, revision: string | null = null): ResolvedAgentObservability {
   return { state: "unavailable", reason, revision, compatibilityKey: identity(companyId, revision, `unavailable:${reason}`) };
@@ -116,7 +116,7 @@ export function agentObservabilityService(db: Db) {
             if (!secretId) {
               const suffix = randomUUID();
               const secret = await secrets.create(companyId, { name: `agent-observability.${suffix}`, key: `AGENT_OBSERVABILITY_HEADERS_${suffix.replaceAll("-", "_")}`,
-                provider: "local_encrypted", managedMode: "paperclip_managed", value }, { userId });
+                provider: "local_encrypted", managedMode: "nexus_managed", value }, { userId });
               secretId = secret.id;
             }
           } else secretId = null;

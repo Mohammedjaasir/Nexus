@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { DEFAULT_CODEX_LOCAL_MODEL } from "../../packages/adapters/codex-local/src/index.js";
 import { ACPX_QUALIFICATION_MODELS } from "../acpx-qualification-models.js";
-import { QUALIFIED_OPENCODE_MODEL } from "../../packages/paperclip-runner/src/drivers/opencode/opencode-server-driver.js";
+import { QUALIFIED_OPENCODE_MODEL } from "../../packages/nexus-runner/src/drivers/opencode/opencode-server-driver.js";
 import { BUILTIN_ADAPTER_TYPES } from "../../server/src/adapters/builtin-adapter-types.js";
 
 import { findSensitiveValue } from "./redaction.js";
@@ -13,7 +13,7 @@ import type {
   RunnerAcceptanceProfile,
 } from "./types.js";
 
-const excludedBuiltInAdapterTypes = new Set(["paperclip_runner", "pi_local"]);
+const excludedBuiltInAdapterTypes = new Set(["nexus_runner", "pi_local"]);
 
 const directBuiltInAdapterTypes = [
   "acpx_local",
@@ -64,7 +64,7 @@ function nativeProfile(input: {
     ...input,
     generation: "native",
     adapterScope: "built_in",
-    adapterType: "paperclip_runner",
+    adapterType: "nexus_runner",
     expectedRuntimeMode: "native",
     invariants: [
       "runtime.mode=native",
@@ -101,7 +101,7 @@ export const directAcceptanceProfiles: readonly RunnerAcceptanceProfile[] = [
 export const nativeAcceptanceProfiles: readonly RunnerAcceptanceProfile[] = [
   nativeProfile({
     id: "runner-codex",
-    label: "Paperclip Runner Codex",
+    label: "Nexus Runner Codex",
     provider: "codex",
     model: DEFAULT_CODEX_LOCAL_MODEL,
     adapterConfig: {
@@ -112,7 +112,7 @@ export const nativeAcceptanceProfiles: readonly RunnerAcceptanceProfile[] = [
   }),
   nativeProfile({
     id: "runner-opencode",
-    label: "Paperclip Runner OpenCode",
+    label: "Nexus Runner OpenCode",
     provider: "opencode",
     model: QUALIFIED_OPENCODE_MODEL,
     adapterConfig: {
@@ -124,7 +124,7 @@ export const nativeAcceptanceProfiles: readonly RunnerAcceptanceProfile[] = [
   }),
   nativeProfile({
     id: "runner-acpx-claude",
-    label: "Paperclip Runner ACPX Claude",
+    label: "Nexus Runner ACPX Claude",
     provider: "acpx",
     model: ACPX_QUALIFICATION_MODELS.claude,
     adapterConfig: {
@@ -137,7 +137,7 @@ export const nativeAcceptanceProfiles: readonly RunnerAcceptanceProfile[] = [
   }),
   nativeProfile({
     id: "runner-acpx-codex",
-    label: "Paperclip Runner ACPX Codex",
+    label: "Nexus Runner ACPX Codex",
     provider: "acpx",
     model: ACPX_QUALIFICATION_MODELS.codex,
     adapterConfig: {

@@ -20,7 +20,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatActions,
@@ -33,11 +33,11 @@ import {
   heartbeatRuns,
   issueComments,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEndpoint,
   ChatEndpointSetupState,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   conflict,
@@ -77,7 +77,7 @@ export function createSetupProbes(db: Db, options: SetupProbesOptions) {
     if (!startedAt) return { messageReceivedAt: null };
     const links = await db.select({ principalId: chatIdentityLinks.principalId }).from(chatIdentityLinks).where(and(
       eq(chatIdentityLinks.companyId, record.endpoint.companyId), eq(chatIdentityLinks.endpointId, endpointId),
-      eq(chatIdentityLinks.paperclipUserId, userId), eq(chatIdentityLinks.status, "linked"),
+      eq(chatIdentityLinks.nexusUserId, userId), eq(chatIdentityLinks.status, "linked"),
     ));
     if (!links.length) return { messageReceivedAt: null };
     const principalIds = links.map((link) => link.principalId);
@@ -282,7 +282,7 @@ export function createSetupProbes(db: Db, options: SetupProbesOptions) {
           }
           if (!finalPublication && !githubToolReply) {
             throw conflict(
-              "Wait for the Paperclip agent to reply to the setup turn before completing setup",
+              "Wait for the Nexus agent to reply to the setup turn before completing setup",
               {
                 code: "chat_test_round_trip_incomplete",
               },
@@ -296,7 +296,7 @@ export function createSetupProbes(db: Db, options: SetupProbesOptions) {
           await credentialLease.assertOwned(tx);
           if (optionalSlackTest) {
             const linked = await tx.select({ principalId: chatIdentityLinks.principalId }).from(chatIdentityLinks).where(and(
-              eq(chatIdentityLinks.endpointId, endpoint.id), eq(chatIdentityLinks.paperclipUserId, finishOptions!.optionalSlackTestForUser), eq(chatIdentityLinks.status, "linked"),
+              eq(chatIdentityLinks.endpointId, endpoint.id), eq(chatIdentityLinks.nexusUserId, finishOptions!.optionalSlackTestForUser), eq(chatIdentityLinks.status, "linked"),
             )).limit(1).then((rows) => rows[0]);
             if (!linked || !(await lockCurrentPrincipalAuthorization(tx, endpoint, linked.principalId)).allowed) throw forbidden("Your connected account is no longer authorized");
           }

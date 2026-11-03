@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { activityLog, heartbeatRuns, issues, projects, routineRuns, type Db } from "@paperclipai/db";
-import { isUuidLike } from "@paperclipai/shared";
+import { activityLog, heartbeatRuns, issues, projects, routineRuns, type Db } from "@nexusai/db";
+import { isUuidLike } from "@nexusai/shared";
 import { authorizationService } from "./authorization.js";
 
 const MAX_PROVENANCE_TASKS = 100;

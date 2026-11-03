@@ -3,7 +3,7 @@ import type {
   AdapterEnvironmentCheck,
   AdapterEnvironmentTestContext,
   AdapterEnvironmentTestResult,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import {
   asBoolean,
   asNumber,
@@ -11,7 +11,7 @@ import {
   asStringArray,
   ensurePathInEnv,
   parseObject,
-} from "@paperclipai/adapter-utils/server-utils";
+} from "@nexusai/adapter-utils/server-utils";
 import {
   ensureAdapterExecutionTargetCommandResolvable,
   maybeRunSandboxInstallCommand,
@@ -20,7 +20,7 @@ import {
   runAdapterExecutionTargetProcess,
   describeAdapterExecutionTarget,
   resolveAdapterExecutionTargetCwd,
-} from "@paperclipai/adapter-utils/execution-target";
+} from "@nexusai/adapter-utils/execution-target";
 import { DEFAULT_GEMINI_LOCAL_MODEL, SANDBOX_INSTALL_COMMAND } from "../index.js";
 import { detectGeminiAuthRequired, detectGeminiQuotaExhausted, parseGeminiJsonl } from "./parse.js";
 import { firstNonEmptyLine } from "./utils.js";

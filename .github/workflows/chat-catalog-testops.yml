@@ -38,7 +38,7 @@ jobs:
     outputs:
       operation: ${{ steps.guard.outputs.operation }}
       target_sha: ${{ steps.guard.outputs.target_sha }}
-      runner: runs-on/fleet=paperclip-public-pr-x64/env=public-ci
+      runner: runs-on/fleet=nexus-public-pr-x64/env=public-ci
     steps:
       - &checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -82,7 +82,7 @@ jobs:
         uses: allure-framework/setup-allurectl@2d89ee0b7ba2f59dbe9849b6df5763cab78e14db # v1
         with:
           allurectl-version: 2.23.1
-          allure-endpoint: https://paperclip.testops.cloud
+          allure-endpoint: https://nexus.testops.cloud
           allure-project-id: '1'
           allure-token: ${{ secrets.ALLURE_TOKEN }}
       - name: Register all 244 catalog cases without synthetic results
@@ -91,7 +91,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TESTOPS_ALLOWED_ACTOR_IDS: ${{ vars.RUNNER_E2E_ALLOWED_ACTOR_IDS }}
           ALLURE_TOKEN: ${{ secrets.ALLURE_TOKEN }}
-          ALLURE_ENDPOINT: https://paperclip.testops.cloud
+          ALLURE_ENDPOINT: https://nexus.testops.cloud
           ALLURE_PROJECT_ID: '1'
           ALLURE_RESULTS: ${{ runner.temp }}/chat-completion-bootstrap-results
           CHAT_TESTOPS_INTEGRATION_ID: ${{ vars.CHAT_TESTOPS_INTEGRATION_ID }}
@@ -106,7 +106,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TESTOPS_ALLOWED_ACTOR_IDS: ${{ vars.RUNNER_E2E_ALLOWED_ACTOR_IDS }}
           ALLURE_TOKEN: ${{ secrets.ALLURE_TOKEN }}
-          ALLURE_ENDPOINT: https://paperclip.testops.cloud
+          ALLURE_ENDPOINT: https://nexus.testops.cloud
           ALLURE_PROJECT_ID: '1'
           ALLURE_JOB_RUN_ID: ${{ inputs.ALLURE_JOB_RUN_ID }}
           ALLURE_RESULTS: ${{ runner.temp }}/chat-completion-selection-results
@@ -171,18 +171,18 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts
       - name: Build existing TypeScript and native Runner outputs
         run: |
-          pnpm --filter @paperclipai/paperclip-runner build:typescript
+          pnpm --filter @nexusai/nexus-runner build:typescript
       - name: Exercise the real workflow and pinned source host contract before model access
         run: node --import ./cli/node_modules/tsx/dist/loader.mjs .testops-trusted/tests/runner-e2e/chat-completion-testops-host-control.mjs
       - name: Build native Runner outputs
-        run: pnpm --filter @paperclipai/paperclip-runner build:runner-binaries
+        run: pnpm --filter @nexusai/nexus-runner build:runner-binaries
       - name: Package the resolved lock and exact source outputs
         env:
           TARGET_SHA: ${{ needs.authorize.outputs.target_sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
-          tar -czf chat-completion-build.tar.gz pnpm-lock.yaml packages/paperclip-eval-kernel/dist packages/paperclip-runner/dist packages/paperclip-runner/runner/target/debug/paperclip-runnerd packages/paperclip-runner/runner/target/debug/conformance-tracer packages/paperclip-runner/runner/target/debug/fake-harness packages/paperclip-runner/runner/target/debug/fake-codex-app-server packages/paperclip-runner/runner/target/debug/fake-acpx-sidecar
+          tar -czf chat-completion-build.tar.gz pnpm-lock.yaml packages/nexus-eval-kernel/dist packages/nexus-runner/dist packages/nexus-runner/runner/target/debug/nexus-runnerd packages/nexus-runner/runner/target/debug/conformance-tracer packages/nexus-runner/runner/target/debug/fake-harness packages/nexus-runner/runner/target/debug/fake-codex-app-server packages/nexus-runner/runner/target/debug/fake-acpx-sidecar
           sha256sum chat-completion-build.tar.gz > chat-completion-build.tar.gz.sha256
       - name: Retain credential-free immutable outputs
         id: bundle
@@ -332,7 +332,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TESTOPS_ALLOWED_ACTOR_IDS: ${{ vars.RUNNER_E2E_ALLOWED_ACTOR_IDS }}
           ALLURE_TOKEN: ${{ secrets.ALLURE_TOKEN }}
-          ALLURE_ENDPOINT: https://paperclip.testops.cloud
+          ALLURE_ENDPOINT: https://nexus.testops.cloud
           ALLURE_PROJECT_ID: '1'
           ALLURE_JOB_RUN_ID: ${{ inputs.ALLURE_JOB_RUN_ID }}
           EXPECTED_SELECTION_SHA256: ${{ needs.select.outputs.selection_sha256 }}

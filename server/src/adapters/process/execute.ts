@@ -7,10 +7,10 @@ import {
   asNumber,
   asStringArray,
   parseObject,
-  buildPaperclipEnv,
+  buildNexusEnv,
   buildRuntimeToolsEnv,
   isForbiddenConfigEnvKey,
-  isPaperclipRuntimeEnvKey,
+  isNexusRuntimeEnvKey,
   buildInvocationEnvForLogs,
   ensurePathInEnv,
   resolveCommandForLogs,
@@ -44,23 +44,23 @@ async function executeProcess(ctx: AdapterExecutionContext): Promise<AdapterExec
   const cwd = asString(config.cwd, process.cwd());
   const envConfig = parseObject(config.env);
   const env: Record<string, string> = {
-    ...buildPaperclipEnv(agent, ctx.agentIdentity),
+    ...buildNexusEnv(agent, ctx.agentIdentity),
     ...buildRuntimeToolsEnv(ctx.runtimeTools),
   };
   for (const [k, v] of Object.entries(envConfig)) {
     if (typeof v !== "string") continue;
-    // Runtime PAPERCLIP_* always wins over config, and PAPERCLIP_API_KEY is
+    // Runtime NEXUS_* always wins over config, and NEXUS_API_KEY is
     // never accepted from config — the harness-minted run token is the only
-    // source. Other PAPERCLIP_* keys Paperclip did not assign flow through.
+    // source. Other NEXUS_* keys Nexus did not assign flow through.
     if (isForbiddenConfigEnvKey(k)) continue;
-    if (isPaperclipRuntimeEnvKey(k) && k in env) continue;
+    if (isNexusRuntimeEnvKey(k) && k in env) continue;
     env[k] = v;
   }
-  env.PAPERCLIP_RUN_ID = runId;
-  if (authToken) env.PAPERCLIP_API_KEY = authToken;
+  env.NEXUS_RUN_ID = runId;
+  if (authToken) env.NEXUS_API_KEY = authToken;
   // runtimeEnv is only used to resolve the command path and log HOME below;
   // the child env is built inside runChildProcess from
-  // sanitizeInheritedPaperclipEnv(process.env) + env, so a PAPERCLIP_API_KEY
+  // sanitizeInheritedNexusEnv(process.env) + env, so a NEXUS_API_KEY
   // on the server process never reaches the child.
   const runtimeEnv = ensurePathInEnv({ ...process.env, ...env });
   const resolvedCommand = await resolveCommandForLogs(command, cwd, runtimeEnv);
@@ -86,14 +86,14 @@ async function executeProcess(ctx: AdapterExecutionContext): Promise<AdapterExec
   const instructions = parseObject(ctx.context.connectionInstructions);
   let instructionsDirectory: string | undefined;
   // Override configured/inherited paths even when the connection was removed.
-  env.PAPERCLIP_CONNECTION_INSTRUCTIONS_FILE = "";
+  env.NEXUS_CONNECTION_INSTRUCTIONS_FILE = "";
   let proc: Awaited<ReturnType<typeof runChildProcess>>;
   try {
     if (typeof instructions.text === "string" && instructions.text) {
-      instructionsDirectory = await mkdtemp(join(tmpdir(), "paperclip-connection-instructions-"));
+      instructionsDirectory = await mkdtemp(join(tmpdir(), "nexus-connection-instructions-"));
       const instructionsFile = join(instructionsDirectory, "instructions.json");
       await writeFile(instructionsFile, JSON.stringify(instructions), { mode: 0o600 });
-      env.PAPERCLIP_CONNECTION_INSTRUCTIONS_FILE = instructionsFile;
+      env.NEXUS_CONNECTION_INSTRUCTIONS_FILE = instructionsFile;
     }
     proc = await runChildProcess(runId, command, args, {
       cwd, env, timeoutSec, graceSec, onLog, onSpawn: ctx.onSpawn,

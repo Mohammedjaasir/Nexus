@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { agents, agentWakeupRequests, chatConversations, chatEndpoints, chatMessageLinks, companies, heartbeatRuns, issueComments, issues, issueThreadInteractions, toolApplications, toolConnections, toolActionRequests, toolActionDeliveries, toolInvocations, type Db } from "@paperclipai/db";
+import { agents, agentWakeupRequests, chatConversations, chatEndpoints, chatMessageLinks, companies, heartbeatRuns, issueComments, issues, issueThreadInteractions, toolApplications, toolConnections, toolActionRequests, toolActionDeliveries, toolInvocations, type Db } from "@nexusai/db";
 import { resolveChatOriginPublicationBindings } from "../../services/issues.js";
 
 export const lineageContextKeys = ["issueId", "taskId", "wakeCommentIds", "wakeCommentId", "commentId", "source", "sourceRunId", "interactionId", "endpointId"] as const;
@@ -35,7 +35,7 @@ export function expectedLineageContext(value: unknown): unknown {
 export async function chatReplyLineageFixture(db: Db, bytes = 192 * 1024) {
   const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID();
   await db.insert(companies).values({ id: companyId, name: "Synthetic reply lineage", issuePrefix: `L${companyId.replaceAll("-", "").slice(0, 7)}` });
-  await db.insert(agents).values({ id: agentId, companyId, name: "Synthetic worker", adapterType: "paperclip_runner" });
+  await db.insert(agents).values({ id: agentId, companyId, name: "Synthetic worker", adapterType: "nexus_runner" });
   await db.insert(issues).values({ id: issueId, companyId, title: "Synthetic external reply", status: "in_progress", assigneeAgentId: agentId });
   const [application] = await db.insert(toolApplications).values({ companyId, name: "Synthetic chat", applicationKey: randomUUID(), type: "chat" }).returning();
   const [connection] = await db.insert(toolConnections).values({ companyId, applicationId: application.id, name: "Synthetic chat", uid: randomUUID(), transport: "chat_sdk", connectionPurpose: "channel" }).returning();

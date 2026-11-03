@@ -23,9 +23,9 @@ change, verified by control below.
 
 ## Validation
 
-Focused owner runs, `pnpm --filter @paperclipai/server exec vitest run
+Focused owner runs, `pnpm --filter @nexusai/server exec vitest run
 -t "shell fallback" src/__tests__/workspace-runtime.test.ts` (vitest 5.0.3,
-Node 25.9.0, isolated checkout with `pnpm install --filter @paperclipai/server...`):
+Node 25.9.0, isolated checkout with `pnpm install --filter @nexusai/server...`):
 
 1. Baseline (before edit): 9/9 passed.
 2. Candidate (darwin row deleted): 8/8 passed.

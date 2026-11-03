@@ -43,7 +43,7 @@ describeEmbeddedPostgres("decision queue migrations", () => {
   it(
     "can be reapplied without changing schema or existing data",
     async () => {
-      const database = await startEmbeddedPostgresTestDatabase("paperclip-decision-queue-migrations-");
+      const database = await startEmbeddedPostgresTestDatabase("nexus-decision-queue-migrations-");
       cleanups.push(database.cleanup);
       const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
       const companyId = randomUUID();

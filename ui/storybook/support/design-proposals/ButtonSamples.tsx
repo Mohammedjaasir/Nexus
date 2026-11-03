@@ -1,5 +1,5 @@
 import { useState, type ComponentProps, type ReactNode } from "react";
-import type { FeedbackVoteValue } from "@paperclipai/shared";
+import type { FeedbackVoteValue } from "@nexusai/shared";
 import { Button } from "@/components/ui/button";
 import { ClearErrorButton, PauseResumeButton, RunButton } from "@/components/AgentActionButtons";
 import { DesignSidebar } from "@/components/DesignSidebar";
@@ -18,7 +18,7 @@ import { SidePanelToggleButton, SidePanelWindowControls } from "@/components/sid
 import { SidePanelTabs } from "@/components/side-panel/SidePanelTabs";
 import { defaultIssueFilterState } from "@/lib/issue-filters";
 import type { TaskListView } from "@/lib/task-list-views";
-import { storybookAgents, storybookIssueLabels, storybookProjects } from "../../fixtures/paperclipData";
+import { storybookAgents, storybookIssueLabels, storybookProjects } from "../../fixtures/nexusData";
 import { DesignProposalAccess } from "./DesignProposalAccess";
 import { reviewTaskItems } from "./task-list-data";
 import { ButtonSpecimen as SampleButton } from "./ButtonSpecimen";

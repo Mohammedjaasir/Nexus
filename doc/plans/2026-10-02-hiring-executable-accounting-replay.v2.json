@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.hiring-executable-accounting-replay.v2",
+  "schema": "nexus.hiring-executable-accounting-replay.v2",
   "assessmentType": "Provider-free replay through both new executable guards; original model measurements and verdicts unchanged",
   "evaluatedCodeRevision": "e4077ade1818d98b9862ae79ee1d49a007dcf9c1",
   "evaluatedCodeHashes": {
@@ -9,7 +9,7 @@
     "tests/runner-e2e/hiring-template-turn-accounting.ts": "13792c69669b99748087d6a78af8ab35c6293d1ad3e3396efcbe39620169ad35",
     "tests/runner-e2e/chat-flow.ts": "85d8c3da832871f38cc4ed940046d28ed7b3edf17486ce43b0f3313c06d17d7a"
   },
-  "graderVersion": "paperclip.hiring-templates.v3",
+  "graderVersion": "nexus.hiring-templates.v3",
   "definitionDigest": "cddbcb6b2f3050e065599011ace2faee048047fae6ea9bc9183db8c5744e2f38",
   "providerCalls": 0,
   "newProviderRuns": 0,
@@ -36,7 +36,7 @@
       "profile": "runner-codex",
       "original": {
         "sourceRevision": "9f5404ad3aacbe76777952759414d34fd381e674",
-        "graderVersion": "paperclip.hiring-templates.v1",
+        "graderVersion": "nexus.hiring-templates.v1",
         "definitionDigest": "4d7f18420889325af89aa48eaaf021e8178aa6d26d504b92041635a15741f004",
         "machineStatus": "failed",
         "outcomePassed": false,
@@ -44,7 +44,7 @@
         "comparisonStatus": "uncomparable"
       },
       "corrected": {
-        "graderVersion": "paperclip.hiring-templates.v3",
+        "graderVersion": "nexus.hiring-templates.v3",
         "definitionDigest": "cddbcb6b2f3050e065599011ace2faee048047fae6ea9bc9183db8c5744e2f38",
         "outcomePassed": true,
         "comparisonStatus": "uncomparable",
@@ -52,7 +52,7 @@
         "finalChatGuardPassed": true,
         "assessmentStatus": "verified",
         "turnAccounting": {
-          "version": "paperclip.hiring-template-turn-accounting.v2",
+          "version": "nexus.hiring-template-turn-accounting.v2",
           "counts": {
             "requiredWorkTurns": 5,
             "maximumCompletionTurns": 2,
@@ -231,7 +231,7 @@
       "profile": "runner-acpx-claude",
       "original": {
         "sourceRevision": "9f5404ad3aacbe76777952759414d34fd381e674",
-        "graderVersion": "paperclip.hiring-templates.v1",
+        "graderVersion": "nexus.hiring-templates.v1",
         "definitionDigest": "4d7f18420889325af89aa48eaaf021e8178aa6d26d504b92041635a15741f004",
         "machineStatus": "failed",
         "outcomePassed": false,
@@ -239,7 +239,7 @@
         "comparisonStatus": "uncomparable"
       },
       "corrected": {
-        "graderVersion": "paperclip.hiring-templates.v3",
+        "graderVersion": "nexus.hiring-templates.v3",
         "definitionDigest": "cddbcb6b2f3050e065599011ace2faee048047fae6ea9bc9183db8c5744e2f38",
         "outcomePassed": false,
         "comparisonStatus": "uncomparable",
@@ -247,7 +247,7 @@
         "finalChatGuardPassed": false,
         "assessmentStatus": "uncomparable",
         "turnAccounting": {
-          "version": "paperclip.hiring-template-turn-accounting.v2",
+          "version": "nexus.hiring-template-turn-accounting.v2",
           "counts": {
             "requiredWorkTurns": 5,
             "maximumCompletionTurns": 2,
@@ -426,7 +426,7 @@
       "profile": "runner-codex",
       "original": {
         "sourceRevision": "296a4df85e8bcc97a160fc78c291b17adb828196",
-        "graderVersion": "paperclip.hiring-templates.v1",
+        "graderVersion": "nexus.hiring-templates.v1",
         "definitionDigest": "4d7f18420889325af89aa48eaaf021e8178aa6d26d504b92041635a15741f004",
         "machineStatus": "failed",
         "outcomePassed": false,
@@ -434,7 +434,7 @@
         "comparisonStatus": "uncomparable"
       },
       "corrected": {
-        "graderVersion": "paperclip.hiring-templates.v3",
+        "graderVersion": "nexus.hiring-templates.v3",
         "definitionDigest": "cddbcb6b2f3050e065599011ace2faee048047fae6ea9bc9183db8c5744e2f38",
         "outcomePassed": true,
         "comparisonStatus": "uncomparable",
@@ -442,7 +442,7 @@
         "finalChatGuardPassed": true,
         "assessmentStatus": "verified",
         "turnAccounting": {
-          "version": "paperclip.hiring-template-turn-accounting.v2",
+          "version": "nexus.hiring-template-turn-accounting.v2",
           "counts": {
             "requiredWorkTurns": 5,
             "maximumCompletionTurns": 2,
@@ -621,7 +621,7 @@
       "profile": "runner-acpx-claude",
       "original": {
         "sourceRevision": "296a4df85e8bcc97a160fc78c291b17adb828196",
-        "graderVersion": "paperclip.hiring-templates.v1",
+        "graderVersion": "nexus.hiring-templates.v1",
         "definitionDigest": "4d7f18420889325af89aa48eaaf021e8178aa6d26d504b92041635a15741f004",
         "machineStatus": "failed",
         "outcomePassed": false,
@@ -629,7 +629,7 @@
         "comparisonStatus": "uncomparable"
       },
       "corrected": {
-        "graderVersion": "paperclip.hiring-templates.v3",
+        "graderVersion": "nexus.hiring-templates.v3",
         "definitionDigest": "cddbcb6b2f3050e065599011ace2faee048047fae6ea9bc9183db8c5744e2f38",
         "outcomePassed": false,
         "comparisonStatus": "uncomparable",
@@ -637,7 +637,7 @@
         "finalChatGuardPassed": false,
         "assessmentStatus": "uncomparable",
         "turnAccounting": {
-          "version": "paperclip.hiring-template-turn-accounting.v2",
+          "version": "nexus.hiring-template-turn-accounting.v2",
           "counts": {
             "requiredWorkTurns": 5,
             "maximumCompletionTurns": 2,

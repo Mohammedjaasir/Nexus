@@ -765,7 +765,7 @@ notice, started only after that run completed and answered once. The deliberate
 14.775/13.144s once started. GitHub's first final safely deferred once before
 provider I/O when authorization was busy, then succeeded on attempt 2; no blind
 unknown-delivery replay. All scoped publications/actions settled and reactions
-cleared. Live receipts: `.paperclip-runtime/chat-adapters-live/live83-final-receipts.json`.
+cleared. Live receipts: `.nexus-runtime/chat-adapters-live/live83-final-receipts.json`.
 
 The landing agent owns the consolidated current-master candidate (393 files),
 including the separate process-Stop fix qualified by 252 recovery tests and a
@@ -922,7 +922,7 @@ Enabling this option is not evidence that the missing Slack A would be recovered
 
 GitHub D's delay is now explained more precisely by provider records: the first
 attempt was classified `failed to connect to host` (recorded code 502, empty
-response), then Paperclip's existing scheduled recovery requested the successful
+response), then Nexus's existing scheduled recovery requested the successful
 redelivery. The roughly 60-second detection cadence accounts for most of that
 wait, not model execution. Faster failure recovery remains a performance followup
 requiring actual App API-budget/backoff qualification; do not simply multiply
@@ -987,7 +987,7 @@ verified; restore not exercised); no migration, secret rotation, historical
 owner reset, protected binary replacement, or root remote push occurred.
 
 - Discord's refreshed native command menu shows “Close the current chat
-  conversation.” A fresh actual `/paperclip close` produced a private receipt
+  conversation.” A fresh actual `/nexus close` produced a private receipt
   and a public terminal confirmation at 15:29:40.680. CHA-43's conversation
   became completed; no new run appeared before a fresh explicit follow-up.
   The old server-79 failed command remains visible as historical evidence.
@@ -1080,7 +1080,7 @@ has admitted no new runs since the cutover.
 
 - **Discord:** native question → Evening choice → follow-up free-text form →
   `Amber Lighthouse 79` answer all worked in the actual signed-in guild UI.
-  Four runs took 12.7–15.8 seconds each. `/paperclip close` then hung after
+  Four runs took 12.7–15.8 seconds each. `/nexus close` then hung after
   deferral: an older registered command description made the current receipt
   parser reject initialization, leaving the SDK without a callback. The fix
   passes 47 real-PostgreSQL composed tests, 76 focused helper/wire/parser tests
@@ -1091,7 +1091,7 @@ has admitted no new runs since the cutover.
   Short replies took 13–16 seconds; 120–220-word replies took 32–60 seconds.
   Queue correctness is verified; model-response latency still needs work.
 - **GitHub:** fresh issue #5 correctly reported the private TXT unavailable
-  and supplied a working stable Paperclip task link. Uploading the exact
+  and supplied a working stable Nexus task link. Uploading the exact
   152-byte file through the actual Board UI produced the correct fields.
   However, a passive `response_wake` triggered an unwanted continuation that
   marked CHA-45 done despite “keep open.” A durable passive Board-wait fix
@@ -1168,8 +1168,8 @@ text test. Preserve the failed guild form and historical quarantined epochs.
 
 Discord DM CHA-41 passed fresh new/status and true FIFO A/B/C. C began 102ms
 after B finished; all three responses updated their own single bot message.
-However, `/paperclip close` only completed the external conversation. It
-confirmed “This task is closed” while the Paperclip task remained in progress.
+However, `/nexus close` only completed the external conversation. It
+confirmed “This task is closed” while the Nexus task remained in progress.
 Generic productive-run recovery immediately restarted that task, lost its
 external-chat wait context, and began a roughly 30-second response-wake loop.
 The pause contains the loop, not fixes it. Epicurus is taking the source-bound
@@ -1271,10 +1271,10 @@ recovery records; fresh successful tasks do not establish their recovery.
 Finish production-quality Slack, GitHub, Microsoft Teams and Telegram chat,
 plus the user's explicitly added Discord connector. Test real conversations,
 files/images, interactions, races, queues, reactions, retries and the quality
-of the experience. External chat is transport; Paperclip owns tasks, runs,
+of the experience. External chat is transport; Nexus owns tasks, runs,
 permissions and audit. Do not narrow completion to whichever tests pass.
 
-- Live stress work stays in `/Users/dotta/paperclipai/branches/chat-adapters`,
+- Live stress work stays in `/Users/dotta/nexusai/branches/chat-adapters`,
   branch `codex/chat-adapters`. Preserve user changes and protected runtime.
   The user explicitly authorized a separate landing worktree on September 9;
   this supersedes the earlier no-new-worktree/no-PR-tending restrictions for
@@ -1320,7 +1320,7 @@ failures were diagnosed and repaired.
 | Loaded server version | `2026.831.0+623.git.ea528f44c`                                          |
 | Process start / ready | `09:18:24` / `09:18:30.541 UTC`, September 9                            |
 | Native runner SHA256  | `6279d39ac731e4565a638b64c93673b8ca23e6dfbc0870e24d48422497f1826d`      |
-| Live DB               | `chat_adapters_live_3103` on local PostgreSQL `55439`, role `paperclip` |
+| Live DB               | `chat_adapters_live_3103` on local PostgreSQL `55439`, role `nexus` |
 | Last checked runs     | 290 terminal: 262 succeeded, 26 failed, 2 cancelled; zero active        |
 | Last new run          | September 9, `02:15:47.812 UTC`                                         |
 
@@ -1371,14 +1371,14 @@ deployment/rejection visibility, not provider message delivery. Server 69 was
 not restarted during this proxy-only change.
 
 All local runtime material is under ignored
-`.paperclip-runtime/chat-adapters-live/`, including:
+`.nexus-runtime/chat-adapters-live/`, including:
 
 - `start-server.sh`: configured isolated startup, no embedded credentials.
 - `server-experimental-landing-78.log`: current server log.
 - `pre-server-78-backup-0909.log`: private backup/schema metadata.
 - `server-78-state-0909.log`: scoped health/current-receipt verification.
 - `qualified-runnerd-2400740c`: preserved old qualified runner backup.
-- `home/instances/chat-adapters-live/runtime/paperclip-runner/durable-sessions`:
+- `home/instances/chat-adapters-live/runtime/nexus-runner/durable-sessions`:
   live native roots; do not manipulate historical evidence.
 
 **Build caution:** server `pnpm typecheck` invokes a full runner build and
@@ -1459,7 +1459,7 @@ npm consumers. Packaging contracts pass 22/22. The earlier isolated helper
 stage at patch snapshot `1a0a77025` was not a full server install. A new stage
 at source `d5b154e1c7` freshly compiled all 17 runtime packages, applied the real
 production bundle helper, packed and installed local tarballs with npm 10.9.7,
-and verified all 21 patched files. All Paperclip sibling registry probes were
+and verified all 21 patched files. All Nexus sibling registry probes were
 rejected; installed siblings resolve to the exact local tarballs and module
 imports remain inside the consumer. Compiled-server imports and synthetic
 Slack stream/Telegram Stop transport pass. The retained qualified runner was
@@ -1876,7 +1876,7 @@ has been sent during this code-only audit.
 
 Maya E2E `31f56712-3944-423e-b7c7-404bb8fbb993`, company
 `7ffa9799-0b1b-4a26-9b44-8e897f832f89`, uses native
-`paperclip_runner` / `codex_app_server` / `gpt-5.6-luna`. Terra was not
+`nexus_runner` / `codex_app_server` / `gpt-5.6-luna`. Terra was not
 substituted. Effective reasoning effort is not yet proved; the old configured
 low field is outside the native v4 contract. Do not claim it is running low effort.
 
@@ -1897,7 +1897,7 @@ to avoid same-agent queue contention. See permanent log for source/message IDs.
 
 GitHub generic private attachment URLs can be unavailable to the App even when
 the signed-in human can read them. Never forward browser cookies or guess file
-contents. The new deterministic fallback appends an authorized Paperclip task
+contents. The new deterministic fallback appends an authorized Nexus task
 link; it does not make those provider files generically downloadable.
 
 Slack once took about 61.5 seconds and Telegram once 234.435 seconds before
@@ -2049,7 +2049,7 @@ in ignored runtime.
 Full deterministic chat browser **29/29**, zero retries (2.8 minutes), includes
 six task-company/upload routes and readiness behavior. It is not live provider
 qualification. The real-Codex staged startup canary
-`paperclip-real-startup-phHTMj` used actual Codex 0.153.4, one provider process
+`nexus-real-startup-phHTMj` used actual Codex 0.153.4, one provider process
 and no model turn; reopen made no new provider RPC. Direct-child exit was
 observed, not whole-tree retirement.
 

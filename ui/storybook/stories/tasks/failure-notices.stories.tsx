@@ -13,7 +13,7 @@ const failed: TaskChatMarkerItem = {
 };
 const recovery: TaskChatMessageItem = {
   id: "no-live-path", kind: "message", author: "system",
-  text: "Paperclip retried continuation, but it still has no live execution path. The task is blocked. Your message is preserved.",
+  text: "Nexus retried continuation, but it still has no live execution path. The task is blocked. Your message is preserved.",
   presentation: { kind: "system_notice", title: "No live execution path", tone: "danger", detailsDefaultOpen: false },
   createdAtIso: new Date(Date.now() - 2 * 60_000).toISOString(),
 };
@@ -47,7 +47,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     throwPlayFunctionExceptions: true,
-    paperclip: {
+    nexus: {
       capabilities: ["tasks/discussion", "runs-adapters/runs"],
       status: "current", implementation: "production", boundary: "fixtures",
       notes: "Uses the shared production thread and failure markers. Covers older and current markers, either order of adjacent run/recovery errors, intervening messages and unrelated system notices with quoted error text, saved Automatic recovery blocked metadata, both presentation modes, permitted legacy run retries, light and mobile. Retry callbacks record a local receipt; no agent runs or API changes occur.",
@@ -157,7 +157,7 @@ export const LegacyProductionRetry: Story = { ...LegacyRunRetry, args: { ...Lega
 export const AutomaticRecoveryBlocked: Story = {
   args: { items: [failed, {
     ...recovery,
-    text: "Paperclip automatically retried continuation for this assigned `in_progress` issue and the retry made progress, but it still has no live execution path. Moving it to `blocked` so it is visible for intervention.",
+    text: "Nexus automatically retried continuation for this assigned `in_progress` issue and the retry made progress, but it still has no live execution path. Moving it to `blocked` so it is visible for intervention.",
     presentation: { ...recovery.presentation!, title: "Automatic recovery blocked" },
     metadata: { version: 1, sourceRunId: "failed-run", sections: [{ title: "Recovery", rows: [
       { type: "key_value", label: "Recovery action", value: "recovery-action-1" },

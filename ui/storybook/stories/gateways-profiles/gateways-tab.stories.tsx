@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ToolMcpGatewayWithTokens } from "@paperclipai/shared";
+import type { ToolMcpGatewayWithTokens } from "@nexusai/shared";
 import { ToastProvider } from "@/context/ToastContext";
 import { queryKeys } from "@/lib/queryKeys";
 import { GatewaysTab } from "@/pages/tools/GatewaysTab";
@@ -73,7 +73,7 @@ const POPULATED: ToolMcpGatewayWithTokens[] = [
         label: "Cursor",
         config: {
           mcpServers: {
-            "paperclip-engineering-inbox": {
+            "nexus-engineering-inbox": {
               url: "https://paperclip.app/api/mcp/gateways/engineering-inbox",
               headers: { Authorization: "Bearer YOUR_TOKEN" },
             },
@@ -86,7 +86,7 @@ const POPULATED: ToolMcpGatewayWithTokens[] = [
         label: "Claude Desktop",
         config: {
           mcpServers: {
-            "paperclip-engineering-inbox": {
+            "nexus-engineering-inbox": {
               url: "https://paperclip.app/api/mcp/gateways/engineering-inbox",
               headers: { Authorization: "Bearer YOUR_TOKEN" },
             },
@@ -99,7 +99,7 @@ const POPULATED: ToolMcpGatewayWithTokens[] = [
         label: "VS Code",
         config: {
           servers: {
-            "paperclip-engineering-inbox": {
+            "nexus-engineering-inbox": {
               type: "http",
               url: "https://paperclip.app/api/mcp/gateways/engineering-inbox",
               headers: { Authorization: "Bearer YOUR_TOKEN" },
@@ -134,7 +134,7 @@ const POPULATED: ToolMcpGatewayWithTokens[] = [
         label: "Claude Code",
         config: {
           mcpServers: {
-            "paperclip-support-ops": {
+            "nexus-support-ops": {
               url: "https://paperclip.app/api/mcp/gateways/support-ops",
               headers: { Authorization: "Bearer YOUR_TOKEN" },
             },
@@ -245,7 +245,7 @@ const meta: Meta = {
   id: "tools-gateways-pap-11182",
   title: "Apps, channels, and extensions/Tool gateways and access profiles/Tools/Gateways (PAP-11182)",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "gateways-profiles/gateway"
       ],

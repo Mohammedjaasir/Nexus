@@ -1,7 +1,7 @@
 import { notifyChatVerificationWork } from "../../../chat-work-notifications.js";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { chatEndpoints, chatSlackRegistrations } from "@paperclipai/db";
-import { SLACK_CHAT_BOT_SCOPES, SLACK_BOT_TOOL_SCOPES, type SlackAccountState } from "@paperclipai/shared";
+import { chatEndpoints, chatSlackRegistrations } from "@nexusai/db";
+import { SLACK_CHAT_BOT_SCOPES, SLACK_BOT_TOOL_SCOPES, type SlackAccountState } from "@nexusai/shared";
 import { conflict, forbidden } from "../../../../errors.js";
 import { logger } from "../../../../middleware/logger.js";
 import { secretService } from "../../../secrets.js";
@@ -31,7 +31,7 @@ export function createSlackCompletion(store: SlackRegistrationStore) {
     const user = object((await api("users.info", { user: account.externalUserId }, token)).user);
     if (user.id !== account.externalUserId || user.team_id !== row.workspaceId || user.is_bot !== false || user.is_app_user === true || user.deleted !== false) throw providerFailure("slack_install_account_missing");
     await endpoint(row.endpointId, actor);
-    await options.linkInstaller(row.endpointId, user, { ...actor, userId: account.paperclipUserId }, lease);
+    await options.linkInstaller(row.endpointId, user, { ...actor, userId: account.nexusUserId }, lease);
     await saveAccount(row, { ...account, status: "linked" }, actor, lease);
     try { await audit(row, actor, "account_linked"); }
     catch { logger.warn({ endpointId: row.endpointId, appId: row.appId }, "Slack account activity could not be recorded"); }
@@ -55,8 +55,8 @@ export function createSlackCompletion(store: SlackRegistrationStore) {
       await lease.assertOwned();
       if (!await options.canWelcome(row.endpointId, account)) throw forbidden("Slack account access changed");
       const sent = await api("chat.postMessage", { channel: account.dmChannelId ?? account.externalUserId,
-        text: kind === "verification" ? "Your Slack connection is working! Now ask me a question about your Paperclip instance."
-          : `Hi, I’m ${current.agentName}. Your Slack account is connected to Paperclip.`,
+        text: kind === "verification" ? "Your Slack connection is working! Now ask me a question about your Nexus instance."
+          : `Hi, I’m ${current.agentName}. Your Slack account is connected to Nexus.`,
         unfurl_links: "false", unfurl_media: "false" }, await options.runtimeBotToken(row.endpointId));
       if (typeof sent.channel !== "string" || !/^D[A-Z0-9]+$/.test(sent.channel)) throw new Error("Incomplete message response");
       result = { ...account, [field]: "sent", dmChannelId: sent.channel };
@@ -78,7 +78,7 @@ export function createSlackCompletion(store: SlackRegistrationStore) {
       const [saved] = await db.select({ setup: chatEndpoints.setup, status: chatEndpoints.status }).from(chatEndpoints).where(eq(chatEndpoints.id, endpointId));
       const account = saved?.setup.slackAccount;
       if (!account || !["verifying", "active"].includes(saved.status)) return;
-      await sendSetupMessage(row, { userId: account.paperclipUserId, sessionId: null, bypassPermissionCheck: false }, lease, "verification");
+      await sendSetupMessage(row, { userId: account.nexusUserId, sessionId: null, bypassPermissionCheck: false }, lease, "verification");
     });
   }
   function pendingVerificationMessages(limit: number) {

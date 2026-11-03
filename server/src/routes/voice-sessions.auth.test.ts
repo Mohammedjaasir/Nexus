@@ -1,6 +1,6 @@
 import express from "express";
 import request from "supertest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "../middleware/error-handler.js";
 import type { VoiceSessionService } from "../services/voice/voice-session-service.js";
@@ -82,7 +82,7 @@ describe("voice caller authentication", () => {
   it("does not authenticate raw Cloud headers or agent callers", async () => {
     await request(app({ type: "none", source: "none" }))
       .get(`/api/companies/${companyId}/voice-history/${endpointId}`)
-      .set("x-paperclip-cloud-user-id", actor.userId!).expect(403);
+      .set("x-nexus-cloud-user-id", actor.userId!).expect(403);
     await request(app({ type: "agent", source: "agent_key", companyId }))
       .post(`/api/companies/${companyId}/voice-sessions`).send({ endpointId, idempotencyKey }).expect(403);
     expect(service.history).not.toHaveBeenCalled();

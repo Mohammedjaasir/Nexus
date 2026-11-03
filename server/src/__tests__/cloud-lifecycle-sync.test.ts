@@ -9,9 +9,9 @@ const STACK_ID = "stack-lifecycle-sync";
 const PRIMARY_ID = cloudTenantPrimaryCompanyId(STACK_ID);
 
 const CLOUD_ENV = {
-  PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: "tenant-token-test",
-  PAPERCLIP_CLOUD_STACK_ID: STACK_ID,
-  PAPERCLIP_CLOUD_API_ORIGIN: "https://cloud.example.test",
+  NEXUS_CLOUD_TENANT_SERVER_TOKEN: "tenant-token-test",
+  NEXUS_CLOUD_STACK_ID: STACK_ID,
+  NEXUS_CLOUD_API_ORIGIN: "https://cloud.example.test",
 } as NodeJS.ProcessEnv;
 
 describe("isCloudPinnedPrimaryCompany", () => {
@@ -36,7 +36,7 @@ describe("notifyCloudOfPrimaryCompanyLifecycleChange", () => {
     expect(init.method).toBe("POST");
     const headers = new Headers(init.headers);
     expect(headers.get("authorization")).toBe("Bearer tenant-token-test");
-    expect(headers.get("x-paperclip-cloud-stack-id")).toBe(STACK_ID);
+    expect(headers.get("x-nexus-cloud-stack-id")).toBe(STACK_ID);
   });
 
   it("is a silent no-op for non-primary companies and incomplete cloud metadata", async () => {
@@ -46,7 +46,7 @@ describe("notifyCloudOfPrimaryCompanyLifecycleChange", () => {
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
     await notifyCloudOfPrimaryCompanyLifecycleChange(PRIMARY_ID, {
-      env: { ...CLOUD_ENV, PAPERCLIP_CLOUD_API_ORIGIN: undefined } as NodeJS.ProcessEnv,
+      env: { ...CLOUD_ENV, NEXUS_CLOUD_API_ORIGIN: undefined } as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
     await notifyCloudOfPrimaryCompanyLifecycleChange(PRIMARY_ID, {

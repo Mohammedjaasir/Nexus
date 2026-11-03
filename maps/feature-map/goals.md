@@ -28,7 +28,7 @@ Open `/goals`, create a goal, and enter `/goals/:goalId`.
 
 Inspect the goal context from a project or task and compare explicit versus inherited context.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Prepare two goals and a disposable project/task in the selected company.
 

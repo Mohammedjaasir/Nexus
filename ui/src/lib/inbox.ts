@@ -4,7 +4,7 @@ import type {
   InboxDismissal,
   Issue,
   JoinRequest,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   applyIssueFilters,
   defaultIssueFilterState,
@@ -16,15 +16,15 @@ import { formatAssigneeUserLabel } from "./assignees";
 
 export const RECENT_ISSUES_LIMIT = 100;
 export const ACTIONABLE_APPROVAL_STATUSES = new Set(["pending", "revision_requested"]);
-export const DISMISSED_KEY = "paperclip:inbox:dismissed";
-export const READ_ITEMS_KEY = "paperclip:inbox:read-items";
-export const INBOX_LAST_TAB_KEY = "paperclip:inbox:last-tab";
-export const INBOX_ISSUE_COLUMNS_KEY = "paperclip:inbox:issue-columns";
-export const INBOX_NESTING_KEY = "paperclip:inbox:nesting";
-export const INBOX_GROUP_BY_KEY = "paperclip:inbox:group-by";
-export const INBOX_FILTER_PREFERENCES_KEY_PREFIX = "paperclip:inbox:filters";
-export const INBOX_COLLAPSED_GROUPS_KEY_PREFIX = "paperclip:inbox:collapsed-groups";
-export const INBOX_COLLAPSED_PARENTS_KEY_PREFIX = "paperclip:inbox:collapsed-parents";
+export const DISMISSED_KEY = "nexus:inbox:dismissed";
+export const READ_ITEMS_KEY = "nexus:inbox:read-items";
+export const INBOX_LAST_TAB_KEY = "nexus:inbox:last-tab";
+export const INBOX_ISSUE_COLUMNS_KEY = "nexus:inbox:issue-columns";
+export const INBOX_NESTING_KEY = "nexus:inbox:nesting";
+export const INBOX_GROUP_BY_KEY = "nexus:inbox:group-by";
+export const INBOX_FILTER_PREFERENCES_KEY_PREFIX = "nexus:inbox:filters";
+export const INBOX_COLLAPSED_GROUPS_KEY_PREFIX = "nexus:inbox:collapsed-groups";
+export const INBOX_COLLAPSED_PARENTS_KEY_PREFIX = "nexus:inbox:collapsed-parents";
 export type InboxTab = "mine" | "recent" | "unread" | "blocked" | "all";
 export type InboxCategoryFilter =
   | "everything"
@@ -719,7 +719,7 @@ export function getInboxKeyboardSelectionIndex(
     : Math.max(previousIndex - 1, 0);
 }
 
-export { latestFailedRunsByAgent as getLatestFailedRunsByAgent } from "@paperclipai/shared";
+export { latestFailedRunsByAgent as getLatestFailedRunsByAgent } from "@nexusai/shared";
 
 export function normalizeTimestamp(value: string | Date | null | undefined): number {
   if (!value) return 0;

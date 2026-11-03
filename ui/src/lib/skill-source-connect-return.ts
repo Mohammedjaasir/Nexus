@@ -1,4 +1,4 @@
-const key = (companyId: string) => `paperclip.skill-source-connect-return:${companyId}`;
+const key = (companyId: string) => `nexus.skill-source-connect-return:${companyId}`;
 const lifetime = 30 * 60 * 1000;
 
 /** Tab-local intent survives the full-page OAuth round trip without a redirect URL. */

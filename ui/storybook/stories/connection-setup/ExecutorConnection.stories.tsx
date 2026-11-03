@@ -8,7 +8,7 @@ const meta = {
   component: RemoteMcpConnectionReview,
   args: { provider: "executor", scenario: "journey" },
   parameters: { layout: "fullscreen", docs: { description: { component: "Interactive design review using application views with in-memory provider responses. No real authentication, tool calls, or credential persistence. Representative catalogs are examples; production discovery supplies the actual tools." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/credentials",
         "connection-setup/failure",

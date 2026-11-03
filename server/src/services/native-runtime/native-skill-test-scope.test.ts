@@ -1,21 +1,21 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { agentWakeupRequests, heartbeatRuns, issues } from "@paperclipai/db";
+import { agentWakeupRequests, heartbeatRuns, issues } from "@nexusai/db";
 import { startRunnerApiTestServer } from "../../__tests__/helpers/runner-api-server.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 
 describe("native Studio test authorization", () => {
   let server: Awaited<ReturnType<typeof startRunnerApiTestServer>>;
-  const oldSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
+  const oldSecret = process.env.NEXUS_AGENT_JWT_SECRET;
   beforeAll(async () => {
-    process.env.PAPERCLIP_AGENT_JWT_SECRET = randomUUID();
+    process.env.NEXUS_AGENT_JWT_SECRET = randomUUID();
     server = await startRunnerApiTestServer();
   }, 60_000);
   afterAll(async () => {
     await server?.close();
-    if (oldSecret === undefined) delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
-    else process.env.PAPERCLIP_AGENT_JWT_SECRET = oldSecret;
+    if (oldSecret === undefined) delete process.env.NEXUS_AGENT_JWT_SECRET;
+    else process.env.NEXUS_AGENT_JWT_SECRET = oldSecret;
   });
 
   it.each(["skill_test", "standard"] as const)("keeps admitted tests task-scoped with current mode %s", async workMode => {
@@ -23,9 +23,9 @@ describe("native Studio test authorization", () => {
     await server.db.update(issues).set({ workMode }).where(eq(issues.id, fixture.issueId));
     await server.db.update(issues).set({ parentId: fixture.issueId }).where(eq(issues.id, fixture.blockerId));
     await server.db.update(heartbeatRuns).set({ contextSnapshot: {
-      issueId: fixture.issueId, paperclipAgentJwtScope: { kind: "skill_test", issueId: fixture.issueId },
+      issueId: fixture.issueId, nexusAgentJwtScope: { kind: "skill_test", issueId: fixture.issueId },
     } }).where(eq(heartbeatRuns.id, fixture.runId));
-    const authority = new PaperclipRunnerToolAuthority(server.db, { ...fixture, workMode });
+    const authority = new NexusRunnerToolAuthority(server.db, { ...fixture, workMode });
     const call = (tool: string, args: unknown = {}) => ({ tool, callId: randomUUID(), arguments: args });
     const before = await fixture.snapshot();
     const wakes = await server.db.select().from(agentWakeupRequests).where(eq(agentWakeupRequests.companyId, fixture.companyId));

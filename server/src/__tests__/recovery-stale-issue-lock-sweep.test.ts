@@ -17,7 +17,7 @@ import {
   issues,
   nativeRunFinalizations,
   nativeRunResults,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -30,7 +30,7 @@ import { heartbeatService } from "../services/heartbeat.ts";
 import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { recoveryService } from "../services/recovery/service.ts";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_STALE_LOCK_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_STALE_LOCK_TEST_DATABASE_URL");
 const embeddedPostgresSupport = external ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -47,7 +47,7 @@ describeEmbeddedPostgres("recovery sweepStaleIssueLocks", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-stale-lock-sweep-");
+    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("nexus-stale-lock-sweep-");
     db = createDb(external ?? tempDb!.connectionString);
   }, 20_000);
 
@@ -80,7 +80,7 @@ describeEmbeddedPostgres("recovery sweepStaleIssueLocks", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -565,7 +565,7 @@ describeEmbeddedPostgres("recovery sweepStaleIssueLocks", () => {
     });
     await db.insert(completionContracts).values({
       id: contractId, companyId, issueId, revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1", policyVersion: "fixture",
+      schemaVersion: "nexus.completion-contract.v1", policyVersion: "fixture",
       risk: "standard", completionAuthority: "server_arbiter",
       incompleteCriteriaPolicy: "preserve_non_terminal", contractJson: {},
       canonicalSha256: "fixture-contract", createdByActorType: "system", createdByActorId: "test",

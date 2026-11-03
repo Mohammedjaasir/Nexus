@@ -1,4 +1,4 @@
-import type { IssueRecoveryAction, IssueRecoveryActionKind } from "@paperclipai/shared";
+import type { IssueRecoveryAction, IssueRecoveryActionKind } from "@nexusai/shared";
 import { Eye, OctagonAlert, RefreshCw, TriangleAlert } from "lucide-react";
 import {
   readRecoveryRetryLineage,

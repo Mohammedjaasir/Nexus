@@ -58,7 +58,7 @@ not supply one. The backend uses `workingDirectoryAuthority:
   substitute a controller-local or temporary directory.
 
 `remote_runner` remains the mode in which Core assigns the remote directory
-through `PAPERCLIP_WORKSPACE_CWD`.
+through `NEXUS_WORKSPACE_CWD`.
 
 The transport saves the exact requirements and prepared configuration in its
 private `launch-preparation.json` file. The file holds at most two records.

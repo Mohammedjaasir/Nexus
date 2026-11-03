@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { agents, authUsers, companies, companyMemberships, createDb, closeRegisteredClients,
   externalAgentHolds, heartbeatRuns, issues, completionContracts, nativeRunResults, nativeRunFinalizations, museAgentBindings as bindings,
-  museRunnerAssignments as assignments, museRunnerOperations as operations, type Db } from "@paperclipai/db";
+  museRunnerAssignments as assignments, museRunnerOperations as operations, type Db } from "@nexusai/db";
 import { notifyNativeFinalizationWork } from "../services/native-finalization-notifications.js";
 import { projectCommittedRun } from "../services/native-runtime/native-run-projection.js";
 import { heartbeatService } from "../services/heartbeat.js";
@@ -17,14 +17,14 @@ import { idleWorkSnapshot } from "../services/task-admission.js";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { setTimeout as delay } from "node:timers/promises";
-import { externalOperationDigest, type ExternalProviderOperation } from "../vendor/paperclip-runner/index.js";
+import { externalOperationDigest, type ExternalProviderOperation } from "../vendor/nexus-runner/index.js";
 
 
 
 describe("Muse terminal settlement lifecycle", () => {
   let db: ReturnType<typeof createDb>;
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
-  const external = resolveExternalTestDatabaseUrl("PAPERCLIP_MUSE_SETTLEMENT_TEST_DATABASE_URL");
+  const external = resolveExternalTestDatabaseUrl("NEXUS_MUSE_SETTLEMENT_TEST_DATABASE_URL");
   let coordinator: ReturnType<typeof createDeliveryWorkCoordinator> | undefined;
   let stop: ReturnType<typeof startMuseMaintenance> | undefined;
   let admitted = true, recover = true;
@@ -81,11 +81,11 @@ describe("Muse terminal settlement lifecycle", () => {
   async function fixture(ready=true) {
     const operatorId=randomUUID();await db.insert(authUsers).values({id:operatorId,name:"Muse authorizer",email:operatorId+"@example.test",createdAt:new Date(),updatedAt:new Date()});
     const [company]=await db.insert(companies).values({name:"Muse control",issuePrefix:"MU"+operatorId.replaceAll("-","")}).returning();
-    const [agent]=await db.insert(agents).values({companyId:company.id,name:"Muse",role:"engineer",status:"active",adapterType:"paperclip_runner",adapterConfig:{provider:"muse",allowUnmeteredProvider:true,lifecycle:"per_turn"},permissions:{canCreateTasks:true}}).returning();
+    const [agent]=await db.insert(agents).values({companyId:company.id,name:"Muse",role:"engineer",status:"active",adapterType:"nexus_runner",adapterConfig:{provider:"muse",allowUnmeteredProvider:true,lifecycle:"per_turn"},permissions:{canCreateTasks:true}}).returning();
     await db.insert(companyMemberships).values([{companyId:company.id,principalType:"user",principalId:operatorId,membershipRole:"owner",status:"active"},{companyId:company.id,principalType:"agent",principalId:agent.id,membershipRole:"member",status:"active"}]);
     const ticket=randomBytes(32).toString("base64url");const [binding]=await db.insert(bindings).values({companyId:company.id,agentId:agent.id,operatorId,ticketHash:museCredentialHash(ticket),ticketExpiresAt:new Date(Date.now()+600000)}).returning();
     await db.update(agents).set({adapterConfig:{...agent.adapterConfig,museBindingId:binding.id}}).where(eq(agents.id,agent.id));
-    const identity=museIdentity(db),credentials=await identity.pair(ticket,"2"),broker=museRunnerBroker(db,{publicOrigin:"https://paperclip.example",heartbeat:{wakeup:vi.fn().mockResolvedValue(null),cancelRun:vi.fn()}});
+    const identity=museIdentity(db),credentials=await identity.pair(ticket,"2"),broker=museRunnerBroker(db,{publicOrigin:"https://nexus.example",heartbeat:{wakeup:vi.fn().mockResolvedValue(null),cancelRun:vi.fn()}});
     if(ready)await db.update(bindings).set({status:"ready",receiverContactAt:new Date(),verifiedReplyAt:new Date()}).where(eq(bindings.id,binding.id));
     return {company,agent,operatorId,binding,ticket,identity,credentials,broker,subject:await identity.authenticate(credentials.accessToken)};
   }
@@ -182,8 +182,8 @@ describe("Muse terminal settlement lifecycle", () => {
   it.each(["restore", "worktree"] as const)("honors the real %s suppression gate", async mode => {
     const f = await acceptedResult();
     await lifecycle().setRunStatus(f.runId, "succeeded", { finishedAt: new Date() });
-    const runtimeEnv = mode === "restore" ? { PAPERCLIP_DATABASE_RESTORE_IN_PROGRESS: "true" }
-      : { PAPERCLIP_IN_WORKTREE: "true", PAPERCLIP_INSTANCE_ID: "muse-settlement-test" };
+    const runtimeEnv = mode === "restore" ? { NEXUS_DATABASE_RESTORE_IN_PROGRESS: "true" }
+      : { NEXUS_IN_WORKTREE: "true", NEXUS_INSTANCE_ID: "muse-settlement-test" };
     const settings = instanceSettingsService(db, { runtimeEnv });
     if (mode === "worktree") await settings.updateExperimental({ enableWorktreeRunExecution: false });
     const heartbeat = heartbeatService(db, { runtimeEnv });
@@ -289,7 +289,7 @@ describe("Muse terminal settlement lifecycle", () => {
 
     const contractId = randomUUID();
     await db.insert(completionContracts).values({ id: contractId, companyId: f.company.id, issueId: f.issue.id,
-      revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "settlement-test", risk: "standard",
+      revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "settlement-test", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "settlement-test", objective: "Finish", criteria: [{ id: "objective", requirement: "Complete the task" }] },
       canonicalSha256: contractId, createdByActorType: "system", createdByActorId: "test" });

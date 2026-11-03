@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import {
   createDb, heartbeatRuns, toolCatalogEntries, toolConnections, toolPolicies,
   toolProfileEntries, startEmbeddedPostgresTestDatabase,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { createListingFixture, recordingDb } from "../src/__tests__/helpers/tool-gateway-listing-fixture.js";
 import type { createToolGatewayService } from "../src/services/tool-gateway.js";
 
@@ -31,7 +31,7 @@ const connections = counts(option("--connections", "1"))[0]!;
 const implementation = option("--implementation", "");
 const moduleUrl = implementation ? pathToFileURL(implementation) : new URL("../src/services/tool-gateway.js", import.meta.url);
 const factory = (await import(moduleUrl.href)).createToolGatewayService as typeof createToolGatewayService;
-const temp = await startEmbeddedPostgresTestDatabase("paperclip-listing-benchmark-");
+const temp = await startEmbeddedPostgresTestDatabase("nexus-listing-benchmark-");
 const db = createDb(temp.connectionString);
 try {
   for (const tools of toolCounts) {

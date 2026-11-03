@@ -7,7 +7,7 @@ import { Transform } from 'node:stream';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
-import { verifyReleaseProviderPack } from '../packages/paperclip-runner/scripts/release-provider-pack.mjs';
+import { verifyReleaseProviderPack } from '../packages/nexus-runner/scripts/release-provider-pack.mjs';
 
 export function validateReleaseRun(run, source) {
   if (!/^[a-f0-9]{40}$/.test(source) || !/^[a-f0-9]{40}$/.test(run.head_sha ?? '') || run.conclusion !== 'success'
@@ -35,7 +35,7 @@ export function selectReleaseArtifacts(artifacts, runId, attempt) {
 
 export function validateReleaseImageBase(base) {
   if (!/^ghcr\.io\/paperclipai\/paperclip-daytona-runner@sha256:[a-f0-9]{64}$/.test(base)) {
-    throw Error('Release image base must be an immutable Paperclip Daytona image');
+    throw Error('Release image base must be an immutable Nexus Daytona image');
   }
   return base;
 }
@@ -43,7 +43,7 @@ export function validateReleaseImageBase(base) {
 export function validateImageBindings({ source, pack, publicPack, receipt, release, daemonBytes }) {
   if (!isDeepStrictEqual(publicPack, pack)) throw Error('Image pack differs from public package authority');
   const sha256 = createHash('sha256').update(daemonBytes).digest('hex');
-  if (receipt.schema !== 'paperclip.runner.release-artifact.v1' || receipt.sourceRevision !== source || receipt.target !== 'linux-x64'
+  if (receipt.schema !== 'nexus.runner.release-artifact.v1' || receipt.sourceRevision !== source || receipt.target !== 'linux-x64'
     || receipt.sha256 !== `sha256:${sha256}` || release.sourceRevision !== source || release.platforms?.['linux-x64']?.sha256 !== `sha256:${sha256}`
     || daemonBytes.length < 64 || daemonBytes.subarray(0, 4).toString('hex') !== '7f454c46'
     || daemonBytes[4] !== 2 || daemonBytes[5] !== 1 || daemonBytes.readUInt16LE(18) !== 62) {
@@ -124,14 +124,14 @@ async function main() {
     const dir = join(output, `artifact-${index}`);
     execFileSync('python3', ['-c', `import zipfile,sys,pathlib,stat
 z=zipfile.ZipFile(sys.argv[1]); dest=pathlib.Path(sys.argv[2]); kind=int(sys.argv[3]); entries=z.infolist()
-expected=[{'linux-x64/provider-pack.json','linux-x64/provider-pack.tar.gz'},{'linux-x64/paperclip-runnerd','linux-x64/receipt.json'}]
+expected=[{'linux-x64/provider-pack.json','linux-x64/provider-pack.tar.gz'},{'linux-x64/nexus-runnerd','linux-x64/receipt.json'}]
 names=[e.filename for e in entries]
 if len(names)!=len(set(names)): raise RuntimeError('Duplicate archive paths')
 if kind<2:
  if set(names)!=expected[kind]: raise RuntimeError('Unexpected release artifact entries')
 else:
  import re
- if 'manifest.json' not in names or any(not re.fullmatch(r'(manifest.json|paperclipai-[a-z0-9.-]+\\.tgz)',n) for n in names): raise RuntimeError('Unexpected public package entries')
+ if 'manifest.json' not in names or any(not re.fullmatch(r'(manifest.json|nexusai-[a-z0-9.-]+\\.tgz)',n) for n in names): raise RuntimeError('Unexpected public package entries')
 if sum(e.file_size for e in entries)>4*1024**3 or any(stat.S_ISLNK(e.external_attr>>16) for e in entries): raise RuntimeError('Unsafe artifact extraction')
 z.extractall(dest)
 `, archive, dir, String(index)], { stdio: 'pipe' });
@@ -142,34 +142,34 @@ z.extractall(dest)
   // The workflow source can be newer than the immutable release being consumed.
   // Read data from that release commit, never execute source from the artifact.
   const [profiles, distributions] = await Promise.all(['acpx-profiles.json', 'cursor-distributions.json'].map(async name => {
-    const path = `packages/paperclip-runner/${name}`;
+    const path = `packages/nexus-runner/${name}`;
     return decodeReleaseJson(await api(`contents/${path}?ref=${source}`), path);
   }));
   let kimiClosures;
   if (profiles.profiles.kimi && profiles.profiles.kimi.qualificationStatus !== 'pending') {
-    const path = 'packages/paperclip-runner/src/drivers/acpx/kimi-closure-pins.ts';
+    const path = 'packages/nexus-runner/src/drivers/acpx/kimi-closure-pins.ts';
     kimiClosures = decodeReleaseKimiClosures(await api(`contents/${path}?ref=${source}`), path);
   }
   verifyReleaseProviderPack(pack, source, 'linux-x64', { profiles, distributions, kimiClosures });
   const packages = JSON.parse(await readFile(join(dirs[2], 'manifest.json'), 'utf8'));
-  if (packages.schema !== 'paperclip.runner.public-packages/v1' || packages.sourceRevision !== source) throw Error('Wrong public-package source');
-  const server = packages.archives?.filter(a => a.name === '@paperclipai/server');
-  if (server?.length !== 1 || !/^paperclipai-server-[a-z0-9.-]+\.tgz$/.test(server[0].file)
+  if (packages.schema !== 'nexus.runner.public-packages/v1' || packages.sourceRevision !== source) throw Error('Wrong public-package source');
+  const server = packages.archives?.filter(a => a.name === '@nexusai/server');
+  if (server?.length !== 1 || !/^nexusai-server-[a-z0-9.-]+\.tgz$/.test(server[0].file)
     || !/^[a-f0-9]{64}$/.test(server[0].sha256)) throw Error('Invalid server archive');
   const serverArchive = join(dirs[2], server[0].file);
   if (await digestFile(serverArchive) !== server[0].sha256) throw Error('Server archive digest mismatch');
-  const fromServer = name => JSON.parse(execFileSync('tar', ['-xOf', serverArchive, `package/dist/vendor/paperclip-runner/${name}`], { encoding: 'utf8', maxBuffer: 1024 * 1024 }));
+  const fromServer = name => JSON.parse(execFileSync('tar', ['-xOf', serverArchive, `package/dist/vendor/nexus-runner/${name}`], { encoding: 'utf8', maxBuffer: 1024 * 1024 }));
   const publicPack = fromServer('remote-provider-packs/linux-x64/provider-pack.json');
   const packArchive = join(dirs[0], 'linux-x64/provider-pack.tar.gz');
   if (!isDeepStrictEqual(JSON.parse(execFileSync('tar', ['-xOf', packArchive, './provider-pack.json'], { encoding: 'utf8', maxBuffer: 1024 * 1024 })), pack)) throw Error('Pack archive manifest mismatch');
   const receipt = JSON.parse(await readFile(join(dirs[1], 'linux-x64/receipt.json'), 'utf8'));
-  const daemon = join(dirs[1], 'linux-x64/paperclip-runnerd'), bytes = await readFile(daemon);
+  const daemon = join(dirs[1], 'linux-x64/nexus-runnerd'), bytes = await readFile(daemon);
   const release = fromServer('bin/release-manifest.json');
   const sha256 = validateImageBindings({ source, pack, publicPack, receipt, release, daemonBytes: bytes });
   await chmod(daemon, 0o700);
   if (!isDeepStrictEqual(JSON.parse(execFileSync(daemon, ['--build-metadata'], { encoding: 'utf8', timeout: 15_000, maxBuffer: 65536 })), receipt.buildMetadata)) throw Error('Daemon metadata mismatch');
   await copyFile(packArchive, join(output, 'provider-pack.tar.gz'));
-  await copyFile(daemon, join(output, 'paperclip-runnerd'));
+  await copyFile(daemon, join(output, 'nexus-runnerd'));
   await copyFile(new URL('../docker/daytona-runner/Dockerfile.release', import.meta.url), join(output, 'Dockerfile'));
   await copyFile(join(dirs[0], 'linux-x64/provider-pack.json'), join(output, 'provider-pack.json'));
   for (const dir of dirs) await rm(dir, { recursive: true });

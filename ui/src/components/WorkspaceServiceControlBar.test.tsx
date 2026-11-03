@@ -128,8 +128,8 @@ describe("WorkspaceServiceControlBar", () => {
         root.render(
           <WorkspaceServiceControlBar
             services={[{
-              key: "paperclip-dev",
-              name: "paperclip-dev",
+              key: "nexus-dev",
+              name: "nexus-dev",
               state: "running",
               healthStatus: "healthy",
               url,

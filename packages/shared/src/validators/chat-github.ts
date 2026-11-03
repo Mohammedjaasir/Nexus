@@ -114,7 +114,7 @@ export const githubReviewAssessmentSchema = z
     ]),
     complete: z.boolean(),
     summary: z.string().trim().min(1).max(24000).describe(
-      "Review body only: describe the change, findings, and verdict. Paperclip adds the bot-name/score heading and reviewed-commit, coverage, and task/run footer; do not include them here or copy a previously published comment.",
+      "Review body only: describe the change, findings, and verdict. Nexus adds the bot-name/score heading and reviewed-commit, coverage, and task/run footer; do not include them here or copy a previously published comment.",
     ),
     rationale: z.string().trim().min(1).max(12000).describe(
       "Explain the score, supporting evidence, and remaining risk. Published after summary. Do not repeat the summary, score heading, or generated footer; put reviewed paths and limitations in coverage.",

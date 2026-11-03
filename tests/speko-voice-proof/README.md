@@ -1,7 +1,7 @@
 # Speko delayed voice feasibility probe
 
 This isolated harness implements the first gate in the approved Speko connection
-plan. It does **not** implement a Paperclip connection, touch Paperclip tasks,
+plan. It does **not** implement a Nexus connection, touch Nexus tasks,
 or qualify browser/phone acceptance on its own. A hosted Speko agent must keep
 retrieving a result for at least 60 seconds, accept an interruption and follow-up,
 then speak the result without another request from the caller.
@@ -9,7 +9,7 @@ then speak the result without another request from the caller.
 The harness deliberately has no UI, microphone capture, database, company
 credentials, private task data, or recording download. Production integration is
 gated on real-provider evidence; its tests must not be reused as claims about
-Paperclip permissions, persistence, or actual spoken playback.
+Nexus permissions, persistence, or actual spoken playback.
 
 ## Local protocol checks
 
@@ -29,12 +29,12 @@ polling, that its media runtime supports interruptions, or that audio plays.
    private secret store. Never paste it into a command argument, fixture, trace,
    screenshot, or issue. The API key stays in the provisioning process only.
 2. Run `npm run init`. State defaults to
-   `~/.paperclip/speko-proof/state.json` (mode 0600, parent directory 0700).
+   `~/.nexus/speko-proof/state.json` (mode 0600, parent directory 0700).
    `SPEKO_PROOF_STATE` can select a separate private path. Initialization refuses
    to overwrite an existing run. The signing secret is generated locally.
 3. Run `npm run serve`; it listens only on `127.0.0.1:3198` (override with
    `SPEKO_PROOF_PORT`). It stops after 15 minutes. Only `/health` and the signed
-   `POST /speko-proof/tool` exist. Do not expose a Paperclip development server.
+   `POST /speko-proof/tool` exist. Do not expose a Nexus development server.
 4. Configure an explicitly scoped HTTPS reverse proxy to this receiver. Verify
    `POST /speko-proof/tool` with an unsigned JSON body returns 401. Set
    `SPEKO_PROOF_PUBLIC_ORIGIN` to that HTTPS origin, with no path or credentials.
@@ -43,7 +43,7 @@ polling, that its media runtime supports interruptions, or that audio plays.
    creation is recorded. If an API result is uncertain, it refuses blind retries;
    reconcile the dedicated agent/tools in Speko before clearing the pending
    marker. Use a fresh state/agent when changing the callback origin or secret.
-6. Open the named **Paperclip delayed voice proof** agent in Speko. Its Browser
+6. Open the named **Nexus delayed voice proof** agent in Speko. Its Browser
    test runs the hosted deployed agent. Use only synthetic test speech.
 
 State contains secrets. Do not copy it into reports. The final `evidence.json`
@@ -82,7 +82,7 @@ The full implementation and acceptance matrix is in
 
 `npm run live` starts a **paid real Speko cascade session**, with a Node LiveKit
 media client and this signed receiver. It does not run in the normal test suite,
-request a microphone, dial a telephone, create Paperclip work, or implement a
+request a microphone, dial a telephone, create Nexus work, or implement a
 replacement voice worker. Do not run `serve` at the same time: `live` owns the
 receiver port. Configure the reachable HTTPS callback and dedicated test agent
 first, using the same private state as `provision`.

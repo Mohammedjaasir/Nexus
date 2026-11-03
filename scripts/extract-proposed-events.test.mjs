@@ -13,7 +13,7 @@ import {
 } from "./extract-proposed-events.mjs";
 
 function withFixtureRepo(source, callback) {
-  const repoRoot = mkdtempSync(join(tmpdir(), "paperclip-proposed-events-"));
+  const repoRoot = mkdtempSync(join(tmpdir(), "nexus-proposed-events-"));
   const eventsFile = join(repoRoot, "packages", "shared", "src", "telemetry", "events.ts");
   mkdirSync(join(repoRoot, "packages", "shared", "src", "telemetry"), { recursive: true });
   writeFileSync(eventsFile, source);
@@ -194,7 +194,7 @@ test("provenance paths are repo-relative and reject dev-host path shapes", () =>
   assert.throws(() => assertRepoRelativePath("C:/repo/events.ts"), /drive-letter/);
   assert.throws(() => assertRepoRelativePath("packages\\shared\\events.ts"), /forward slashes/);
 
-  const repoRoot = mkdtempSync(join(tmpdir(), "paperclip-provenance-root-"));
+  const repoRoot = mkdtempSync(join(tmpdir(), "nexus-provenance-root-"));
   try {
     assert.throws(() => toRepoRelativePath(repoRoot, join(repoRoot, "..", "events.ts")), /inside repo root/);
   } finally {
@@ -203,7 +203,7 @@ test("provenance paths are repo-relative and reject dev-host path shapes", () =>
 });
 
 function diagnosticsFor(sourceText) {
-  const repoRoot = mkdtempSync(join(tmpdir(), "paperclip-ts2578-"));
+  const repoRoot = mkdtempSync(join(tmpdir(), "nexus-ts2578-"));
   const fileName = join(repoRoot, "fixture.ts");
   writeFileSync(fileName, sourceText);
   try {

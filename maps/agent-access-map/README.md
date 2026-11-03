@@ -1,4 +1,4 @@
-# Paperclip agent access map
+# Nexus agent access map
 
 This map accompanies the [feature map](../feature-map/README.md). It records APIs,
 agent entry points, permission boundaries and verification for the same capability IDs.
@@ -40,7 +40,7 @@ discovery drift. For `not-applicable`, retain the concrete exception and local
 path. Split shared business operations from client-only presentation.
 
 Use `maintain-verification-skill` to reconcile changed source and both maps.
-Use `verify-paperclip` and existing API/runner/MCP fixtures to collect the
+Use `verify-nexus` and existing API/runner/MCP fixtures to collect the
 permitted-agent and denial evidence; report blocked/not-run coverage honestly.
 Run `node scripts/check-maps.mjs` after editing. The structural check does not
 certify permissions, API catalog coverage, tool admission or live behavior.
@@ -83,7 +83,7 @@ payloads; [the run-log guide](../../doc/run-log-events.md) describes its fields.
 
 Sources: [API client](../../server/src/services/native-runtime/runner-api-client.ts),
 [catalog](../../server/src/services/native-runtime/runner-api-catalog.ts),
-[native authority](../../server/src/services/native-runtime/paperclip-runner-tool-authority.ts),
+[native authority](../../server/src/services/native-runtime/nexus-runner-tool-authority.ts),
 [credential storage classification](../../server/src/services/native-runtime/runner-api-sensitive-response.ts),
 [snapshot access](../../server/src/services/asset-content-access.ts),
 and [history redaction](../../server/src/services/native-runtime/runner-api-log-redaction.ts). The affected entries remain

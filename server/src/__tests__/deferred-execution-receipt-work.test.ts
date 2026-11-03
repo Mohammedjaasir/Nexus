@@ -15,7 +15,7 @@ import { issueTreeControlService } from "../services/issue-tree-control.js";
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agents, agentWakeupRequests, authUsers, chatActions, chatEndpoints, toolApplications, toolConnections, companies, companyMemberships, costEvents, createDb, projects, reconcileDatabaseWork, heartbeatRuns, issueComments, issues } from "@paperclipai/db";
+import { agents, agentWakeupRequests, authUsers, chatActions, chatEndpoints, toolApplications, toolConnections, companies, companyMemberships, costEvents, createDb, projects, reconcileDatabaseWork, heartbeatRuns, issueComments, issues } from "@nexusai/db";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
@@ -59,7 +59,7 @@ describe("deferred receipt durable dispatch", () => {
   const extraStops: Array<() => Promise<void>> = [];
   const lifecycleWorkers = new Set<ReturnType<typeof configureAgentLifecycle>>();
   beforeAll(async () => {
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_DEFERRED_RECEIPT_TEST_DATABASE_URL");
+    const external = resolveExternalTestDatabaseUrl("NEXUS_DEFERRED_RECEIPT_TEST_DATABASE_URL");
     if (!external) temporary = await startEmbeddedPostgresTestDatabase("deferred-receipts-");
     db = createDb(external ?? temporary!.connectionString, { maxConnections: 6, idleTimeoutSeconds: 0, maxLifetimeSeconds: 0 });
     db.$client.options.onnotice = () => {};
@@ -371,7 +371,7 @@ describe("deferred receipt durable dispatch", () => {
     await new Promise<void>(resolve => listener.listen(0, "127.0.0.1", resolve));
     extraStops.push(async () => { listener.closeAllConnections(); await new Promise<void>(resolve => listener.close(() => resolve())); });
     const port = (listener.address() as { port: number }).port;
-    const script = `fetch("http://127.0.0.1:${port}/complete", {method:"POST",body:JSON.stringify({runId:process.env.PAPERCLIP_RUN_ID})}).then(async response=>{if(!response.ok)throw new Error(await response.text());console.log("receipt-proof")}).catch(error=>{console.error(error);process.exitCode=1})`;
+    const script = `fetch("http://127.0.0.1:${port}/complete", {method:"POST",body:JSON.stringify({runId:process.env.NEXUS_RUN_ID})}).then(async response=>{if(!response.ok)throw new Error(await response.text());console.log("receipt-proof")}).catch(error=>{console.error(error);process.exitCode=1})`;
     await db.update(agents).set({ adapterConfig: { command: process.execPath, args: ["-e", script], cwd: process.cwd() } })
       .where(eq(agents.id, f.agent.id));
     const at = Date.now();
@@ -381,7 +381,7 @@ describe("deferred receipt durable dispatch", () => {
       status: "queued", requestedByActorType: "system", requestedByActorId: "native-status-committer",
       requestedAt: new Date(at - (count - index) * 1000), idempotencyKey: `native-cohort:${index}:${f.issue.id}`,
       payload: { issueId: f.issue.id, taskId: f.issue.id,
-        _paperclipWakeContext: { issueId: f.issue.id, taskId: f.issue.id, source: "native_status_decision" } },
+        _nexusWakeContext: { issueId: f.issue.id, taskId: f.issue.id, source: "native_status_decision" } },
     }))).returning();
     return { intents, failures };
   }
@@ -429,7 +429,7 @@ describe("deferred receipt durable dispatch", () => {
       requestedByActorType: "system", requestedByActorId: "native-status-committer",
       idempotencyKey: `other-native-issue:${index}:${otherIssue.id}`,
       payload: { issueId: otherIssue.id, taskId: otherIssue.id,
-        _paperclipWakeContext: { issueId: otherIssue.id, taskId: otherIssue.id, source: "native_status_decision" } },
+        _nexusWakeContext: { issueId: otherIssue.id, taskId: otherIssue.id, source: "native_status_decision" } },
     }))).returning();
     await heartbeat.registerDeferredReceiptWork(coordinator, () => !drain).ready;
     const first = await nativeCohortResult(f, cohort);
@@ -455,7 +455,7 @@ describe("deferred receipt durable dispatch", () => {
         requestedByActorType: "system", requestedByActorId: "native-status-committer", requestedAt: lateRequestedAt,
         idempotencyKey: `late-native:${id}`,
         payload: { issueId: f.issue.id, taskId: f.issue.id,
-          _paperclipWakeContext: { issueId: f.issue.id, taskId: f.issue.id, source: "native_status_decision" } },
+          _nexusWakeContext: { issueId: f.issue.id, taskId: f.issue.id, source: "native_status_decision" } },
       }).returning();
     });
     await lateBegan;
@@ -531,7 +531,7 @@ describe("deferred receipt durable dispatch", () => {
     await waitForReal(() => expect(resume).toHaveBeenCalledTimes(1)); await quiet();
   });
   it.each([
-    { name: "saved comment", payload: { _paperclipWakeContext: { wakeCommentIds: ["saved-comment"] } } },
+    { name: "saved comment", payload: { _nexusWakeContext: { wakeCommentIds: ["saved-comment"] } } },
     { name: "interaction", payload: { mutation: "interaction" } },
     { name: "execution wait", payload: { executionWait: { reason: "recovery" } } },
     { name: "interrupt", payload: { queuedCommentInterrupt: { actorId: "operator" } } },
@@ -627,7 +627,7 @@ describe("deferred receipt durable dispatch", () => {
         source: "on_demand", status: "deferred_issue_execution", reason: "issue_commented",
         requestedByActorType: "user", requestedByActorId: f.actorId, updatedAt: new Date(Date.now() - 31_000),
         payload: { issueId: f.issue.id, queuedCommentInterrupt: { actorId: f.actorId },
-          _paperclipWakeContext: { issueId: f.issue.id, wakeCommentIds: [comment.id] } } }).returning();
+          _nexusWakeContext: { issueId: f.issue.id, wakeCommentIds: [comment.id] } } }).returning();
       await db.update(heartbeatRuns).set({ status: "cancelled", finishedAt: new Date(Date.now() - 31_000),
         resultJson: { executionRecovery: { kind: "bootstrap", providerWorkStarted: false },
           queuedCommentInterruptQueueId: wake.id } }).where(eq(heartbeatRuns.id, f.source.id));
@@ -679,7 +679,7 @@ describe("deferred receipt durable dispatch", () => {
     await db.insert(agentWakeupRequests).values([
       { id: intentId, companyId: f.companyId, agentId: f.agent.id, source: "on_demand", reason: "task_retry",
         status: "deferred_issue_execution", updatedAt: previous, payload: { issueId: f.issue.id,
-          taskRetry: { schema: "paperclip.task-retry.v1", generationId: intentId, sourceRunId: f.source.id,
+          taskRetry: { schema: "nexus.task-retry.v1", generationId: intentId, sourceRunId: f.source.id,
             actorId: f.actorId, strategy: "evaluate", chatActionId: actionId } } },
       { id: actionId, companyId: f.companyId, agentId: f.agent.id, source: "automation", status: "deferred_issue_execution",
         payload: { issueId: f.issue.id, taskRetryRequestId: intentId } },
@@ -706,7 +706,7 @@ describe("deferred receipt durable dispatch", () => {
       companyId: f.companyId, issueId: f.issue.id, body, authorType: "user" as const, authorUserId: f.actorId,
     }))).returning();
     const payload = { issueId: f.issue.id, queuedCommentInterrupt: { actorId: f.actorId },
-      _paperclipWakeContext: { wakeCommentIds: comments.map(row => row.id) } };
+      _nexusWakeContext: { wakeCommentIds: comments.map(row => row.id) } };
     const [wake] = await db.insert(agentWakeupRequests).values({ companyId: f.companyId, agentId: f.agent.id,
       source: "on_demand", status: "deferred_issue_execution", payload, updatedAt: initialAt }).returning();
     const deps = createHeartbeatQueueTestDependencies(db), queue = createHeartbeatQueue(db, deps);
@@ -840,7 +840,7 @@ describe("deferred receipt durable dispatch", () => {
         });
         await new Promise<void>(resolve => listener.listen(0, "127.0.0.1", resolve));
         const port = (listener.address() as { port: number }).port;
-        const script = `fetch("http://127.0.0.1:${port}", {method:"POST",body:process.env.PAPERCLIP_RUN_ID}).then(async response=>{if(!response.ok)throw new Error(await response.text());console.log("held-retry-proof")}).catch(error=>{console.error(error);process.exitCode=1})`;
+        const script = `fetch("http://127.0.0.1:${port}", {method:"POST",body:process.env.NEXUS_RUN_ID}).then(async response=>{if(!response.ok)throw new Error(await response.text());console.log("held-retry-proof")}).catch(error=>{console.error(error);process.exitCode=1})`;
         await db.update(agents).set({ adapterConfig: { command: process.execPath, args: ["-e", script], cwd: process.cwd() } }).where(eq(agents.id, other.agent.id));
         await requestTaskRetry({ db, companyId: other.companyId, issueId: other.issue.id, actorId: other.actorId,
           observedRunId: other.source.id, idempotencyKey: randomUUID() });

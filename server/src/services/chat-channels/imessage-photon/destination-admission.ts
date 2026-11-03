@@ -1,6 +1,6 @@
 import type { Thread } from "chat";
 
-import { chatEndpointResources } from "@paperclipai/db";
+import { chatEndpointResources } from "@nexusai/db";
 import type { EndpointRow, DbTransaction, DbOrTransaction } from "../runtime-types.js";
 
 type DestinationAdmissionInput = {

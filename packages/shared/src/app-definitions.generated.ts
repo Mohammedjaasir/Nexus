@@ -105,7 +105,7 @@ import a103 from "./app-definitions/local.json" with { type: "json" };
 import a104 from "./app-definitions/1password.json" with { type: "json" };
 import a105 from "./app-definitions/daytona.json" with { type: "json" };
 import a106 from "./app-definitions/monday.json" with { type: "json" };
-import a107 from "./app-definitions/paperclip-notebook.json" with { type: "json" };
+import a107 from "./app-definitions/nexus-notebook.json" with { type: "json" };
 import a108 from "./app-definitions/unikraft.json" with { type: "json" };
 import a109 from "./app-definitions/speko.json" with { type: "json" };
 import type { AppDefinition } from "./types/app-definition.js";

@@ -125,7 +125,7 @@
           "required": true,
           "placeholder": "sbp_...",
           "secret": true,
-          "helperMd": "Use a scoped personal access token (sbp_...) with permissions for the enabled MCP tools and selected projects. Project publishable, anon, service_role and secret API keys are not supported. Project creation needs account access; Paperclip cannot increase an issued token’s permissions."
+          "helperMd": "Use a scoped personal access token (sbp_...) with permissions for the enabled MCP tools and selected projects. Project publishable, anon, service_role and secret API keys are not supported. Project creation needs account access; Nexus cannot increase an issued token’s permissions."
         }
       ],
       "keyPlacement": {
@@ -212,7 +212,7 @@
           "required": true,
           "placeholder": "sbp_...",
           "secret": true,
-          "helperMd": "Create a scoped Supabase personal access token for the selected project. Set Project Settings, Auth Config, Data API Config, Edge Functions, and Edge Function Secrets to Read-write. Leave API Key Secrets, Auth Signing Keys, and Data API JWT Secret at None. Use a short expiration. Project API keys are not supported; Paperclip cannot increase an issued token’s permissions."
+          "helperMd": "Create a scoped Supabase personal access token for the selected project. Set Project Settings, Auth Config, Data API Config, Edge Functions, and Edge Function Secrets to Read-write. Leave API Key Secrets, Auth Signing Keys, and Data API JWT Secret at None. Use a short expiration. Project API keys are not supported; Nexus cannot increase an issued token’s permissions."
         }
       ],
       "keyPlacement": {

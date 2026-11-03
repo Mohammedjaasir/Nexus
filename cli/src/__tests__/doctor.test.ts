@@ -5,7 +5,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { doctor } from "../commands/doctor.js";
 import { writeConfig } from "../config/store.js";
-import type { PaperclipConfig } from "../config/schema.js";
+import type { NexusConfig } from "../config/schema.js";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -21,11 +21,11 @@ async function availablePort(): Promise<number> {
 }
 
 function createTempConfig(serverPort: number): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-doctor-"));
-  const configPath = path.join(root, ".paperclip", "config.json");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-doctor-"));
+  const configPath = path.join(root, ".nexus", "config.json");
   const runtimeRoot = path.join(root, "runtime");
 
-  const config: PaperclipConfig = {
+  const config: NexusConfig = {
     $meta: {
       version: 1,
       updatedAt: "2026-03-10T00:00:00.000Z",
@@ -67,7 +67,7 @@ function createTempConfig(serverPort: number): string {
         baseDir: path.join(runtimeRoot, "storage"),
       },
       s3: {
-        bucket: "paperclip",
+        bucket: "nexus",
         region: "us-east-1",
         prefix: "",
         forcePathStyle: false,
@@ -89,9 +89,9 @@ function createTempConfig(serverPort: number): string {
 describe("doctor", () => {
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
-    delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
-    delete process.env.PAPERCLIP_SECRETS_MASTER_KEY;
-    delete process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
+    delete process.env.NEXUS_AGENT_JWT_SECRET;
+    delete process.env.NEXUS_SECRETS_MASTER_KEY;
+    delete process.env.NEXUS_SECRETS_MASTER_KEY_FILE;
   });
 
   afterEach(() => {
@@ -109,6 +109,6 @@ describe("doctor", () => {
 
     expect(summary.failed).toBe(0);
     expect(summary.warned).toBe(0);
-    expect(process.env.PAPERCLIP_AGENT_JWT_SECRET).toBeTruthy();
+    expect(process.env.NEXUS_AGENT_JWT_SECRET).toBeTruthy();
   });
 });

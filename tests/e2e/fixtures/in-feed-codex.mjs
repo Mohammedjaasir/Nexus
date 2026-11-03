@@ -9,7 +9,7 @@ if (process.argv.includes('--version')) { console.log('codex-cli 0.115.0 (in-fee
 let threadId = `fixture-${randomUUID()}`;
 let turnId, toolSequence = 0, declined = false;
 let helloProbe = false;
-const recoveryFixture = process.env.PAPERCLIP_RECOVERY_FIXTURE === "1";
+const recoveryFixture = process.env.NEXUS_RECOVERY_FIXTURE === "1";
 let currentObjective = "";
 let emitCeoLineage = false;
 let completionContract = { revision: "1", criterionIds: ["objective"] };
@@ -51,7 +51,7 @@ async function mcp(method, params = {}) {
   return envelope.result;
 }
 async function finish(text, evidenceRef) {
-  return call('paperclip_finish', { schema: 'paperclip.run_result.v1', reportedWorkDisposition: 'done', summary: text,
+  return call('nexus_finish', { schema: 'nexus.run_result.v1', reportedWorkDisposition: 'done', summary: text,
     completionClaim: { contractRevision: completionContract.revision, objectiveSatisfied: true, criteria: completionContract.criterionIds.map((criterionId) => ({ criterionId, status: 'satisfied', evidenceRefs: [evidenceRef] })), remainingWork: [] },
     evidence: [{ ref: evidenceRef }], verification: [{ commandOrCheck: 'Fixture outcome', status: 'passed' }], attentionRequests: [], artifacts: [] });
 }

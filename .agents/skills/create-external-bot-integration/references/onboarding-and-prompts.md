@@ -104,10 +104,10 @@ human to resolve that; use a supported direct approval path when authorized.
 4. **Subscription and assignment leases:** bounded and separately renewed; a
    persistent account connection does not make a task's authority permanent.
 
-The Dot user requested no Paperclip inactivity expiration. Migration preserved
+The Dot user requested no Nexus inactivity expiration. Migration preserved
 currently valid connections; it did not revive expired, consumed, or revoked
 credentials. Test renewal, rotation, replay and revocation independently. Do not
-promise that Paperclip's lifetime policy controls the provider's own account rules.
+promise that Nexus's lifetime policy controls the provider's own account rules.
 
 ## Generate instructions the receiving agent can execute
 
@@ -115,7 +115,7 @@ Adapt the following to the provider's supported protocol and actual tool names.
 Do not send placeholder values, credentials, or a URL from an old environment.
 
 ```text
-Connect yourself to Paperclip as <agent> in <company>.
+Connect yourself to Nexus as <agent> in <company>.
 
 Add or reuse the private plugin for this exact server URL: <MCP_URL>.
 Use the supported OAuth flow. Reuse an existing definition only if its URL matches;
@@ -128,7 +128,7 @@ Verify an actual read-only call through this connection. If the installed plugin
 tools are absent in your runtime, refresh/attach it through the provider's supported
 flow and report any remaining blocker. Do not claim access from a settings listing.
 
-Enable the task-update subscription returned by Paperclip. Follow its event
+Enable the task-update subscription returned by Nexus. Follow its event
 instructions, drain the inbox from your saved cursor, and confirm the readiness
 challenge. Do not create a task just to confirm readiness.
 
@@ -138,12 +138,12 @@ work requested while idle, use the governed intake tool and poll the same reques
 if admission is pending; do not ask the human to create a placeholder task.
 
 Use your own relevant tools, apps, plugins, skills, and capabilities to complete
-the request, then return the result and deliverables to the Paperclip task.
-The Paperclip catalog describes Paperclip operations. It does not disable your
+the request, then return the result and deliverables to the Nexus task.
+The Nexus catalog describes Nexus operations. It does not disable your
 native tools or require those tools to appear in that catalog. Respect the tools'
-existing permissions and approvals. Keep Paperclip operations within the current
+existing permissions and approvals. Keep Nexus operations within the current
 connection's authorized company, agent, and task; do not use another identity to
-bypass a denied Paperclip operation.
+bypass a denied Nexus operation.
 
 Report which connection checks actually succeeded and any exact blocker.
 ```
@@ -165,7 +165,7 @@ Historical instruction surfaces to locate in the current checkout:
 - `ui/src/lib/agent-onboarding-prompt.ts`
 - `server/src/routes/access.ts` and its actual onboarding text renderer
 - `server/src/services/dot-runner-broker.ts` pairing/event/capability responses
-- `packages/paperclip-runner/src/backends/runtime-context.ts`
+- `packages/nexus-runner/src/backends/runtime-context.ts`
 - `packages/shared/src/external-agent-guidance.ts`
 
 ## Test prompts must constrain the destination without disabling the bot
@@ -176,8 +176,8 @@ to use its already-connected native Slack.
 Use a narrowly scoped qualification instruction:
 
 ```text
-For qualification task <CASE_ID> only, send Paperclip operations through
-<TEST_CONNECTION> for <TEST_COMPANY>. This selects the Paperclip destination;
+For qualification task <CASE_ID> only, send Nexus operations through
+<TEST_CONNECTION> for <TEST_COMPANY>. This selects the Nexus destination;
 it does not restrict your relevant native tools. Do not alter other connections.
 After this case, these test-only restrictions end. Return results to its task
 using the normal reporting and completion tools.
@@ -189,7 +189,7 @@ tool case to detect leakage of the test restriction into normal behavior.
 
 ## Keep optional identity polish narrowly scoped
 
-Dot's avatar tool accepts image bytes for its own bound Paperclip agent, re-encodes
+Dot's avatar tool accepts image bytes for its own bound Nexus agent, re-encodes
 them, and never grants generic agent administration. Validate format, byte and
 pixel limits; remove metadata; make replay safe. A private asset ID cannot simply
 be exported to another company. Preserve portable name/character/palette and omit

@@ -115,7 +115,7 @@ export async function validatePilotSelection(api, env, context, workflowId) {
     if (!found) reject('foreign_selection');
     return found;
   });
-  const value = { schema: 'paperclip.chat-completion-testops-selection/v1', ...context,
+  const value = { schema: 'nexus.chat-completion-testops-selection/v1', ...context,
     targetSha, allureJobRunId: env.ALLURE_JOB_RUN_ID, projectId: 1, planId: binding.planId,
     jobId: binding.jobId, launchId: launch.id, cases: cases.flatMap(row => selected.filter(value => value.key === row.key)) };
   validateSelection(value, context, env.ALLURE_JOB_RUN_ID);
@@ -170,7 +170,7 @@ export async function completePilotRegistration(api, prepared, official, context
   assertPlan(await api(`/api/testplan/${binding.planId}`), binding, context);
   const job = await api(`/api/job/${binding.jobId}`); assertJob(job, binding, workflowId, context);
   const assignments = await api(`/api/testplan/${binding.planId}/job`);
-  await observe({ schema: 'paperclip.chat-completion-testops-registration-observed/v1', ...context,
+  await observe({ schema: 'nexus.chat-completion-testops-registration-observed/v1', ...context,
     projectId: 1, jobId: job.id, launchId: official.launchId, allureJobRunId: official.jobRunId,
     parameterCount: Array.isArray(job.parameters) ? job.parameters.length : null,
     parameters: Array.isArray(job.parameters) ? job.parameters.slice(0, 4).map(row => ({
@@ -202,7 +202,7 @@ export async function completePilotRegistration(api, prepared, official, context
   const persistedBinding = context.catalog === 'full' ? { planId: binding.planId, jobId: binding.jobId,
     integrationId: binding.integrationId, cases: binding.cases.map(row => ({ key: row.key, caseId: row.caseId,
       registeredFullName: row.registeredFullName ?? row.fullName })) } : binding;
-  return { schema: 'paperclip.chat-completion-testops-registration/v1', ...context, binding: persistedBinding,
+  return { schema: 'nexus.chat-completion-testops-registration/v1', ...context, binding: persistedBinding,
     parametersMode: 'job-defaults', branchDefinition: { id: job.parameters[0].id, name: 'Branch', defaultValue: 'refs/heads/master' },
     planUrl: `${endpoint}/testplan/${binding.planId}`, jobUrl: `${endpoint}/project/1/jobs`, qualification: 'registration_only', actualResult: null };
 }
@@ -226,7 +226,7 @@ export async function launchPilotPlan(api, env, context, workflowId, markOnce) {
   await markOnce('launch_plan');
   const launched = await api(`/api/testplan/${binding.planId}/run`, 'POST', { launchName: name });
   if (!positive(launched?.id) || launched.projectId !== 1 || launched.name !== name) reject('launch_mismatch');
-  return { schema: 'paperclip.chat-completion-testops-launch/v1', ...context, launchId: launched.id,
+  return { schema: 'nexus.chat-completion-testops-launch/v1', ...context, launchId: launched.id,
     planId: binding.planId, jobId: binding.jobId, caseIds: binding.cases.map(row => row.caseId),
     launchUrl: `${endpoint}/launch/${launched.id}`, status: 'REQUESTED', actualResult: null };
 }
@@ -303,7 +303,7 @@ async function verifyUploadScope(api, selection, context, exported, executionId,
       const batch = await Promise.all(matching.slice(offset, offset + (context.catalog === 'full' ? 4 : 1)).map(verifyResult));
       ready &&= batch.every(row => row.attachmentsVerified); verified.push(...batch);
     }
-    if (ready && now() < deadline) return { schema: 'paperclip.chat-completion-testops-verification/v1', ...context,
+    if (ready && now() < deadline) return { schema: 'nexus.chat-completion-testops-verification/v1', ...context,
       projectId: 1, planId: selection.planId, jobId: selection.jobId, launchId: selection.launchId,
       allureJobRunId: selection.allureJobRunId, verification: 'VERIFIED', results: verified, launchUrl: `${endpoint}/launch/${selection.launchId}` };
     if (poll < 11 && now() + 5000 < deadline) await wait(5000);

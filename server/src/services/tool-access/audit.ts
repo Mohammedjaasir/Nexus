@@ -1,6 +1,6 @@
 import type { ActorInfo } from "./types.js";
-import type { Db } from "@paperclipai/db";
-import { toolAccessAuditEvents } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { toolAccessAuditEvents } from "@nexusai/db";
 import { recordToolRuntimeAuditWriteFailure } from "../tool-runtime-metrics.js";
 
 export function createToolAccessAudit(db: Db) {

@@ -1,13 +1,13 @@
-import type { chatPublications } from "@paperclipai/db";
+import type { chatPublications } from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { chatTeamsFileTransfers } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { chatTeamsFileTransfers } from "@nexusai/db";
 import { conflict } from "../../../errors.js";
 import { logActivity } from "../../activity-log.js";
 import type { DbTransaction } from "../runtime-types.js";
 import type { CredentialMutationLeaseGuard } from "../../chat-credential-mutation-lease.js";
 import type { createTeamsFileDelivery } from "./file-delivery.js";
-import type { ChatFileTransferPhase } from "@paperclipai/shared";
+import type { ChatFileTransferPhase } from "@nexusai/shared";
 type FileResolutionInput = { endpointId: string; publication: typeof chatPublications.$inferSelect; action: "mark_delivered" | "retry_anyway" | "cancel"; userId: string; credentialLease: CredentialMutationLeaseGuard; fileTransfer?: { phase: ChatFileTransferPhase; version: number } };
 export async function resolveTeamsFilePublication(tx: DbTransaction, input: FileResolutionInput, teamsTransferProtocol: ReturnType<typeof createTeamsFileDelivery>["teamsTransferProtocol"]): Promise<boolean> {
   const { endpointId, publication, action, userId, credentialLease, fileTransfer } = input;

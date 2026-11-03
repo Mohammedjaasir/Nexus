@@ -4,7 +4,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AttentionItem, DecisionHistoryItem } from "@paperclipai/shared";
+import type { AttentionItem, DecisionHistoryItem } from "@nexusai/shared";
 import { CoordinatorNeedsYou } from "./CoordinatorNeedsYou";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

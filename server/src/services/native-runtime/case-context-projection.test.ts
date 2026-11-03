@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNativeModelEnvelope } from "../../vendor/paperclip-runner/index.js";
+import { buildNativeModelEnvelope } from "../../vendor/nexus-runner/index.js";
 import { caseExecutionMarkdown, caseFactsFingerprint, caseWakeWithInstructionReference, type CaseExecutionContext } from "../case-context.js";
 import { buildNativeExecutionInput, type BuildNativeExecutionInput } from "./native-execution-input.js";
 import { nativeRuntimeContextFixture } from "./runtime-context.test-fixture.js";
@@ -29,7 +29,7 @@ function args(caseContext = context()): BuildNativeExecutionInput {
     taskPrompt: caseExecutionMarkdown(caseContext) + "TASK_BOOTSTRAP", caseContext,
     workspace: { id: "workspace", cwd: "/workspace", repoUrl: null, repoRef: null, branchName: null },
     normalizedSessionId: "session", provider: "codex", runtimeContext: nativeRuntimeContextFixture(),
-    completionContract: { id: "contract", sha256: "a".repeat(64), schemaVersion: "paperclip.run-result.v1",
+    completionContract: { id: "contract", sha256: "a".repeat(64), schemaVersion: "nexus.run-result.v1",
       contract: { revision: "1", objective: "Produce a receipt", criteria: [{ id: "receipt", requirement: "Produce a receipt" }] } },
   };
 }
@@ -48,7 +48,7 @@ function resumed(current = context(), reason = "issue_commented", previous: Prio
 
 function events(input: ReturnType<typeof buildNativeExecutionInput>) {
   const envelope = buildNativeModelEnvelope(input, { resumedSession: true });
-  expect(envelope.schema).toBe("paperclip.native-continuation.v1");
+  expect(envelope.schema).toBe("nexus.native-continuation.v1");
   if (!("events" in envelope)) throw new Error("Expected retained-session events");
   return JSON.parse(envelope.events);
 }
@@ -162,7 +162,7 @@ describe("native workflow case projection", () => {
       let previous: PriorInput = buildNativeExecutionInput(args());
       let current = context();
       if (scenario === "pre-marker") previous = { ...previous, task: { ...previous.task, prompt: "OLD_CASE_SNAPSHOT" } };
-      if (scenario === "unknown-format") previous = { ...previous, task: { ...previous.task, prompt: previous.task.prompt.replace("paperclip.case-projection.v1", "paperclip.case-projection.v999") } };
+      if (scenario === "unknown-format") previous = { ...previous, task: { ...previous.task, prompt: previous.task.prompt.replace("nexus.case-projection.v1", "nexus.case-projection.v999") } };
       if (scenario === "different-case") current = context({ id: "other-case" });
       if (scenario === "different-session") previous = { ...previous, session: { ...previous.session, normalizedSessionId: "other-session" } };
       if (scenario === "different-base") previous = { ...previous, binding: { ...previous.binding, runId: "other-run" } };

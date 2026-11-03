@@ -4,7 +4,7 @@ import {
   chatEndpointResources, chatGitHubConfigurations, chatMessageLinks, heartbeatRuns, issues,
   fastResponseRequests, chatPublications,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { registerGitHubTerminalResponseWork } from "./chat-channels/github/terminal-response-work.js";
 import { githubResponseExecution, githubResponseRunColumns as responseRunColumns } from "./chat-channels/github/response-execution.js";
 import { notifyChatResponseAvailability } from "./chat-response-availability.js";
@@ -125,13 +125,13 @@ export async function writeGitHubResponseComment(
     previous = await findResponseComment(source, api, shared ? await legacyPullResponseMarkers(db, source) : []);
   }
   await assertCurrent();
-  const providerVersion = previous?.body?.match(/<!-- paperclip-response-version:([^ ]+) -->/)?.[1];
+  const providerVersion = previous?.body?.match(/<!-- nexus-response-version:([^ ]+) -->/)?.[1];
   if (providerVersion && Date.parse(providerVersion) > versionAt.getTime()) throw conflict("A newer GitHub response has already been published");
   const sameRequest = !shared || previous?.body?.includes(requestResponseMarker(source)) === true;
-  const alreadyFinal = sameRequest && previous?.body?.includes("<!-- paperclip-response-state:final -->") === true;
-  const body = `${projectSafeChatPublicationText(input.body)}\n\n${marker}${shared ? `\n${requestResponseMarker(source)}` : ""}\n<!-- paperclip-response-version:${versionAt.toISOString()} -->${input.final ? "\n<!-- paperclip-response-state:final -->" : ""}`;
-  const preserved = previous && (previous.body === body || (input.acknowledgement && (sameRequest || (shared && previous.body?.includes("<!-- paperclip-response-state:final -->")))) || (alreadyFinal && !input.final) ||
-    (input.preserveFinal && previous.body?.includes("<!-- paperclip-response-state:final -->"))) ? previous : null;
+  const alreadyFinal = sameRequest && previous?.body?.includes("<!-- nexus-response-state:final -->") === true;
+  const body = `${projectSafeChatPublicationText(input.body)}\n\n${marker}${shared ? `\n${requestResponseMarker(source)}` : ""}\n<!-- nexus-response-version:${versionAt.toISOString()} -->${input.final ? "\n<!-- nexus-response-state:final -->" : ""}`;
+  const preserved = previous && (previous.body === body || (input.acknowledgement && (sameRequest || (shared && previous.body?.includes("<!-- nexus-response-state:final -->")))) || (alreadyFinal && !input.final) ||
+    (input.preserveFinal && previous.body?.includes("<!-- nexus-response-state:final -->"))) ? previous : null;
   const posted = preserved && (!shared || preserved.body?.includes(marker)) ? preserved : await api.request<Comment>(
     previous ? `${item}/${previous.id}` : source.replyId
       ? `/pulls/${source.number}/comments/${source.replyId}/replies` : list,
@@ -145,7 +145,7 @@ export async function writeGitHubResponseComment(
   const receipt = { id: String(posted.id), url: posted.html_url };
   await lease.commit(async tx => {
     if (shared) await tx.update(chatActions).set({ result: {
-      ...receipt, final: input.final || alreadyFinal || Boolean(preserved?.body?.includes("<!-- paperclip-response-state:final -->")),
+      ...receipt, final: input.final || alreadyFinal || Boolean(preserved?.body?.includes("<!-- nexus-response-state:final -->")),
       versionAt: versionAt.toISOString(), deliveryId: source.delivery.id,
     }, updatedAt: new Date() }).where(eq(chatActions.id, target.id));
     await tx.update(chatActions).set({ status: "processed", result: {

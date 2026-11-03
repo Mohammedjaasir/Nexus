@@ -1,4 +1,4 @@
-import type { Environment, SandboxEnvironmentConfig } from "@paperclipai/shared";
+import type { Environment, SandboxEnvironmentConfig } from "@nexusai/shared";
 import { fingerprintEnvironmentSandboxProviderConfig, SANDBOX_PLATFORM_PROBE_METADATA_KEY } from "./environment-custom-image-runtime.js";
 import { isCloudManagedInstance } from "./cloud-instance.js";
 import { getManagedInstanceConfig } from "./managed-config.js";
@@ -7,7 +7,7 @@ export type SandboxTemplateIdentity = { id: string; capturedAt: string | null; t
 
 export function usesManagedCloudSandboxImage(environment: Environment, template: SandboxTemplateIdentity): boolean {
   return isCloudManagedInstance() && environment.driver === "sandbox"
-    && environment.metadata?.managedByPaperclip === true && template === null
+    && environment.metadata?.managedByNexus === true && template === null
     && !!getManagedInstanceConfig()?.environments.some(spec => spec.provider === environment.config.provider);
 }
 

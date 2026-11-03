@@ -108,7 +108,7 @@ const exportRequest = {
 
 function exportResult() {
   return {
-    rootPath: "paperclip",
+    rootPath: "nexus",
     manifest: {
       agents: [],
       skills: [],
@@ -131,7 +131,7 @@ function exportPreviewResult() {
     ...exportResult(),
     fileInventory: [],
     counts: { files: 0, agents: 0, skills: 0, projects: 0, issues: 0 },
-    paperclipExtensionPath: ".paperclip.yaml",
+    nexusExtensionPath: ".nexus.yaml",
   };
 }
 

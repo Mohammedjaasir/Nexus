@@ -11,7 +11,7 @@ async function preparePluginDirectory(configDir: string, pluginDir: string): Pro
     return;
   }
   const linkTarget = await fs.readlink(pluginDir);
-  const detached = await fs.mkdtemp(path.join(configDir, "paperclip-plugins-"));
+  const detached = await fs.mkdtemp(path.join(configDir, "nexus-plugins-"));
   try {
     await fs.cp(await fs.realpath(pluginDir), detached, { recursive: true, dereference: false });
     await fs.unlink(pluginDir);
@@ -27,7 +27,7 @@ async function preparePluginDirectory(configDir: string, pluginDir: string): Pro
 }
 
 export async function installSandboxToolMemoryPreference(configDir: string): Promise<void> {
-  const supportDir = await fs.mkdtemp(path.join(configDir, "paperclip-tool-memory-"));
+  const supportDir = await fs.mkdtemp(path.join(configDir, "nexus-tool-memory-"));
   const pluginDir = path.join(configDir, "plugins");
   const pluginPath = path.join(pluginDir, `${path.basename(supportDir)}.js`);
   const partialPath = `${pluginPath}.partial`;
@@ -37,7 +37,7 @@ export async function installSandboxToolMemoryPreference(configDir: string): Pro
     await preparePluginDirectory(configDir, pluginDir);
     const scriptUrl = `../${path.basename(supportDir)}/bash-env.sh`;
     await fs.writeFile(partialPath, `import { fileURLToPath } from "node:url";
-export const PaperclipSandboxToolMemory = async () => ({
+export const NexusSandboxToolMemory = async () => ({
   "shell.env": async (_input, output) => {
     if (process.platform !== "linux" || "BASH_ENV" in process.env || "BASH_ENV" in output.env) return;
     output.env.BASH_ENV = fileURLToPath(new URL(${JSON.stringify(scriptUrl)}, import.meta.url));

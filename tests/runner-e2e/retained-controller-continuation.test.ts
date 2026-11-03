@@ -8,7 +8,7 @@ function fixture() {
     runtimeMode: "native", status: "succeeded", nativeSessionId: "private-native-session", sessionIdAfter: "private-provider-session",
     finishedAt: "2026-10-30T00:00:00Z" });
   return { before, after: { ...before, runId: "b", finishedAt: "2026-10-30T00:01:00Z" },
-    outage: { schema: "paperclip.e2e.controller-outage/v1" as const, requestId: "retained", signal: "SIGKILL" as const,
+    outage: { schema: "nexus.e2e.controller-outage/v1" as const, requestId: "retained", signal: "SIGKILL" as const,
       holdMs: 1000, startedAt: "2026-10-30T00:00:01Z", previousPid: 1, replacementPid: 2,
       stoppedAfterMs: 0, replacementStartedAfterMs: 1000, readyAfterMs: 2000, cacheDiscarded: true },
     requestedAt: "2026-10-30T00:00:04Z", completedTool: true, usefulReply: true };

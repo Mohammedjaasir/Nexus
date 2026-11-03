@@ -1,7 +1,7 @@
 import { notifyAttentionRetentionWork } from "./retention-work-notifications.js";
 import { and, eq, sql } from "drizzle-orm";
-import { agents, agentRuntimeState, companies, heartbeatRuns, type Db } from "@paperclipai/db";
-import { normalizeCents, usdToCents, type AccountingFinding, type AccountingHealth, type AccountingInspection } from "@paperclipai/shared";
+import { agents, agentRuntimeState, companies, heartbeatRuns, type Db } from "@nexusai/db";
+import { normalizeCents, usdToCents, type AccountingFinding, type AccountingHealth, type AccountingInspection } from "@nexusai/shared";
 import { conflict, notFound } from "../errors.js";
 import { receiptFingerprint } from "./receipt-fingerprint.js";
 import { withAccountingReadSnapshot, withAccountingTransaction } from "./accounting-transaction.js";

@@ -219,7 +219,7 @@ The harness owns its temporary directory, proxy, port reservation, log and child
 from setup through stop. Stop is idempotent. It finishes child shutdown before
 releasing the proxy and files, and it removes owned files on startup failure too.
 By default, configuration, logs, session state and measurement receipts are deleted.
-Set `PAPERCLIP_MAINTENANCE_KEEP_ARTIFACTS=1` for an explicit proof run. Stop then
+Set `NEXUS_MAINTENANCE_KEEP_ARTIFACTS=1` for an explicit proof run. Stop then
 prints `[maintenance-test] retained artifacts: <directory>` and exposes the same
 path as `retainedDirectory` on the harness result. This mode retains receipts on
 failure as well. The caller owns removal of explicitly retained proof artifacts.

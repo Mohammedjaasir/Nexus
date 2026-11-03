@@ -29,7 +29,7 @@ import {
   storybookCompanies,
   storybookIssues,
   storybookIssueDocuments,
-} from "../../fixtures/paperclipData";
+} from "../../fixtures/nexusData";
 import { chatAgents, chatIdentifier } from "./AgentChatSidebar";
 import { AgentChatSidebarReviewLayout, AgentChatSidebarLanding } from "../agent-chat-sidebar/AgentChatSidebarReview";
 import { sidebarAgents, sidebarRoster, type SidebarScenario } from "../agent-chat-sidebar/fixtures";
@@ -128,7 +128,7 @@ const logItems = [
     item: {
       id: "save-plan",
       type: "command_execution",
-      command: "paperclip documents update PAP-241 plan",
+      command: "nexus documents update PAP-241 plan",
     },
   },
   {
@@ -136,7 +136,7 @@ const logItems = [
     item: {
       id: "save-plan",
       type: "command_execution",
-      command: "paperclip documents update PAP-241 plan",
+      command: "nexus documents update PAP-241 plan",
       aggregated_output: "Saved launch plan revision 3.",
       status: "completed",
       exit_code: 0,
@@ -236,7 +236,7 @@ export function AgentChatPrototype({
   }, [contextInitiallyOpen, setPanelVisible]);
   useLayoutEffect(() => {
     const originalFetch = window.fetch;
-    const recentKey = `paperclip.recentAgentChats:${issue.companyId}:user-board`;
+    const recentKey = `nexus.recentAgentChats:${issue.companyId}:user-board`;
     const previousRecents = localStorage.getItem(recentKey);
     const recentTasksKey = getRecentTasksStorageKey(issue.companyId, "user-board");
     const previousRecentTasks = localStorage.getItem(recentTasksKey);
@@ -514,7 +514,7 @@ export function AgentChatPrototype({
           description: "Help new teams get their first useful result.", sourceIssueId: issue.id,
           repositories: scenario === "project-no-repo" ? [] : [
             { id: "1", name: "paperclipai/paperclip", url: "https://github.com/paperclipai/paperclip" },
-            ...(scenario === "project-multi-repo" ? [{ id: "2", name: "paperclipai/onboarding", url: "https://github.com/paperclipai/onboarding" }] : []),
+            ...(scenario === "project-multi-repo" ? [{ id: "2", name: "nexusai/onboarding", url: "https://github.com/paperclipai/onboarding" }] : []),
           ],
         },
       }]);
@@ -591,7 +591,7 @@ export function AgentChatPrototype({
       if (entryScenario) {
         if (previousRecents === null) localStorage.removeItem(recentKey);
         else localStorage.setItem(recentKey, previousRecents);
-        window.dispatchEvent(new Event("paperclip:recent-agent-chats"));
+        window.dispatchEvent(new Event("nexus:recent-agent-chats"));
       }
       queryClient.clear();
     };

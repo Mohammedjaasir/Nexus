@@ -17,7 +17,7 @@ import {
   issueDocuments,
   issueWorkProducts,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -40,7 +40,7 @@ describeEmbeddedPostgres("companySkillService skill test runs", () => {
   const cleanupDirs = new Set<string>();
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-company-skill-test-runs-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-company-skill-test-runs-");
     db = createDb(tempDb.connectionString);
     svc = companySkillService(db);
   }, 20_000);
@@ -69,12 +69,12 @@ describeEmbeddedPostgres("companySkillService skill test runs", () => {
     const companyId = randomUUID();
     const skillId = randomUUID();
     const agentId = randomUUID();
-    const skillDir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-skill-test-run-"));
+    const skillDir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-skill-test-run-"));
     cleanupDirs.add(skillDir);
     await fs.writeFile(path.join(skillDir, "SKILL.md"), "# Review Skill\n", "utf8");
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -471,13 +471,13 @@ describeEmbeddedPostgres("companySkillService skill test runs", () => {
     const companyId = randomUUID();
     const skillId = randomUUID();
     const agentId = randomUUID();
-    const skillDir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-skill-test-run-"));
+    const skillDir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-skill-test-run-"));
     cleanupDirs.add(skillDir);
     await fs.writeFile(path.join(skillDir, "SKILL.md"), "# Review Skill\n", "utf8");
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -490,7 +490,7 @@ describeEmbeddedPostgres("companySkillService skill test runs", () => {
       adapterType: "codex_local",
       adapterConfig: {
         model: "gpt-5.4",
-        paperclipSkillSync: { desiredSkills: [`company/${companyId}/review`] },
+        nexusSkillSync: { desiredSkills: [`company/${companyId}/review`] },
         instructionsFilePath: "/tmp/AGENTS.md",
       },
     });
@@ -634,7 +634,7 @@ describeEmbeddedPostgres("companySkillService skill test runs", () => {
         companyId,
         issueId,
         type: "artifact",
-        provider: "paperclip",
+        provider: "nexus",
         title: `Artifact ${marker}`,
         status: "active",
         summary: `Generated ${marker}`,
@@ -695,7 +695,7 @@ describeEmbeddedPostgres("companySkillService skill test runs", () => {
       companyId,
       issueId: run.issueId,
       type: "artifact",
-      provider: "paperclip",
+      provider: "nexus",
       title: "Artifact mine",
       summary: "Generated mine",
     }));

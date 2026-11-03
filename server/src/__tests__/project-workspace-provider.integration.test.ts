@@ -3,7 +3,7 @@ import express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { companies, createDb, executionWorkspaces, heartbeatRuns, issues, pluginCompanySettings, plugins, projects } from "@paperclipai/db";
+import { companies, createDb, executionWorkspaces, heartbeatRuns, issues, pluginCompanySettings, plugins, projects } from "@nexusai/db";
 import { createPluginWorkspaceFixture } from "./helpers/plugin-workspaces.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { effectiveProjectWorkspacePolicy, listProjectWorkspaceProviders, resolveProjectWorkspaceProvider } from "../services/project-workspace-provider.js";

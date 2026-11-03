@@ -1,9 +1,9 @@
-# Test audit: remove unreferenced Paperclip Runner test fixtures
+# Test audit: remove unreferenced Nexus Runner test fixtures
 
 Date: 2026-10-16
 Branch: `PAP-458-nightly-test-gardening`
 Base: `78b833c4958465b5e345b0e337018011b00dab72` (origin/master)
-Scope: focused sweep of test-support files under `packages/paperclip-runner/test/fixtures/`.
+Scope: focused sweep of test-support files under `packages/nexus-runner/test/fixtures/`.
 
 ## Removed files
 
@@ -16,12 +16,12 @@ Scope: focused sweep of test-support files under `packages/paperclip-runner/test
 
 - Reference proof: `git grep` across all tracked file types (ts/tsx/mjs/js/json/yml/toml/rs/md) for each
   removed stem returns zero external references.
-- Selection proof: `packages/paperclip-runner/vitest.config.ts` include list covers
+- Selection proof: `packages/nexus-runner/vitest.config.ts` include list covers
   `src/**`, `devtools/**`, `examples/**`, and two named `scripts/*.test.mjs` — never
   `test/fixtures/**`. The root server project also selects `server/src/**` only. The
   `test:typescript:prep` `node --test` list names no fixture. No workflow step executes
   files under `test/fixtures/`; the `pr-trusted.yml`/`release-verify.yml`
-  `hashFiles('packages/paperclip-runner/test/fixtures/**')` occurrences are Rust
+  `hashFiles('packages/nexus-runner/test/fixtures/**')` occurrences are Rust
   cache-key inputs, not execution selectors (deleting files only changes that hash).
 - Rust tests use their own `fake-codex-app-server` binary (`runner/crates/runner-core`),
   not these `.mjs` fixtures.

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AdapterExecutionTarget, AdapterSandboxInstallCommandCheck } from "@paperclipai/adapter-utils/execution-target";
+import type { AdapterExecutionTarget, AdapterSandboxInstallCommandCheck } from "@nexusai/adapter-utils/execution-target";
 
 const {
   ensureAdapterExecutionTargetDirectory,
@@ -28,13 +28,13 @@ const {
       startedAt: new Date().toISOString(),
     })),
     describeAdapterExecutionTarget: vi.fn(() => "Daytona"),
-    resolveAdapterExecutionTargetCwd: vi.fn(() => "/home/daytona/paperclip-workspace"),
+    resolveAdapterExecutionTargetCwd: vi.fn(() => "/home/daytona/nexus-workspace"),
   };
 });
 
-vi.mock("@paperclipai/adapter-utils/execution-target", async () => {
-  const actual = await vi.importActual<typeof import("@paperclipai/adapter-utils/execution-target")>(
-    "@paperclipai/adapter-utils/execution-target",
+vi.mock("@nexusai/adapter-utils/execution-target", async () => {
+  const actual = await vi.importActual<typeof import("@nexusai/adapter-utils/execution-target")>(
+    "@nexusai/adapter-utils/execution-target",
   );
   return {
     ...actual,
@@ -55,7 +55,7 @@ const sandboxTarget: AdapterExecutionTarget = {
   kind: "remote",
   transport: "sandbox",
   providerKey: "daytona",
-  remoteCwd: "/home/daytona/paperclip-workspace",
+  remoteCwd: "/home/daytona/nexus-workspace",
   runner: {
     execute: async () => ({
       exitCode: 0,
@@ -72,13 +72,13 @@ const sandboxTarget: AdapterExecutionTarget = {
 const sshTarget: AdapterExecutionTarget = {
   kind: "remote",
   transport: "ssh",
-  remoteCwd: "/home/agent/paperclip-workspace",
+  remoteCwd: "/home/agent/nexus-workspace",
   spec: {
     host: "ssh.example.test",
     port: 22,
     username: "agent",
-    remoteCwd: "/home/agent/paperclip-workspace",
-    remoteWorkspacePath: "/home/agent/paperclip-workspace",
+    remoteCwd: "/home/agent/nexus-workspace",
+    remoteWorkspacePath: "/home/agent/nexus-workspace",
     privateKey: null,
     knownHosts: null,
     strictHostKeyChecking: true,
@@ -86,7 +86,7 @@ const sshTarget: AdapterExecutionTarget = {
 };
 
 const initLine =
-  '{"type":"system","subtype":"init","cwd":"/home/daytona/paperclip-workspace","session_id":"abc","tools":["Bash","Read"]}';
+  '{"type":"system","subtype":"init","cwd":"/home/daytona/nexus-workspace","session_id":"abc","tools":["Bash","Read"]}';
 
 const loginRequiredStdout = [
   initLine,
@@ -142,7 +142,7 @@ describe("claude sandbox auth-missing check", () => {
 
 describe("claude CLI model compatibility check", () => {
   it("runs the hello probe with the compatible private CLI after updating an old sandbox", async () => {
-    const command = "/home/daytona/paperclip-workspace/.paperclip-runtime/claude-cli/2.1.280/bin/claude";
+    const command = "/home/daytona/nexus-workspace/.nexus-runtime/claude-cli/2.1.280/bin/claude";
     const response = { signal: null, timedOut: false, pid: 123, startedAt: new Date().toISOString(), stderr: "" };
     runAdapterExecutionTargetProcess
       .mockResolvedValueOnce({ ...response, exitCode: 0, stdout: "2.1.263 (Claude Code)\n" })

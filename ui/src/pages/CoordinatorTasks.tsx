@@ -32,7 +32,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useLocation, useSearchParams } from "@/lib/router";
 import { taskListViewStorageKey } from "@/lib/task-list-views";
 import { normalizeTaskViewKey, taskView } from "@/lib/task-views";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 
 const pageSize = 200;
 const views = [{ value: "all", label: "All tasks" }, { value: "blocked", label: "Needs attention" }] as const;

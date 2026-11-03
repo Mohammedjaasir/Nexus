@@ -1,5 +1,5 @@
 ---
-description: Existing Paperclip pull request review requirements migrated from Greptile settings.
+description: Existing Nexus pull request review requirements migrated from Greptile settings.
 alwaysApply: true
 ---
 
@@ -12,7 +12,7 @@ This rule applies when reviewing pull requests throughout this repository.
   explanations of what changed, why it matters, the benefits, verification, or
   risks.
 - For verification claims, read and apply
-  [Preserve failures through acceptance](../.agents/skills/verify-paperclip/SKILL.md#preserve-failures-through-acceptance).
+  [Preserve failures through acceptance](../.agents/skills/verify-nexus/SKILL.md#preserve-failures-through-acceptance).
   Check that material failures remain accounted for after a successful retry.
 - Do not request UI screenshots in PR reviews for this repository. Visual state
   verification is described through component tests, enumeration of states in

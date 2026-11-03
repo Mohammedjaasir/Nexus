@@ -27,7 +27,7 @@ d("heartbeat context_snapshot expression index migration", () => {
     expect(names).toContain("heartbeat_runs_company_ctx_issue_created_idx");
     expect(names).toContain("heartbeat_runs_company_ctx_task_created_idx");
     expect(names).toContain("heartbeat_runs_company_ctx_taskkey_created_idx");
-    expect(names).toContain("heartbeat_runs_company_ctx_paperclip_issue_created_idx");
+    expect(names).toContain("heartbeat_runs_company_ctx_nexus_issue_created_idx");
     expect(names).toContain("heartbeat_runs_company_origin_issue_idx");
     expect(names).toContain("agent_wakeup_requests_company_payload_issue_idx");
 
@@ -57,10 +57,10 @@ d("heartbeat context_snapshot expression index migration", () => {
     // An empty table can use any company-prefix index for the OR. Check the
     // new branch directly here; the populated benchmark proves BitmapOr use.
     const redactionPlan = await sql.unsafe(
-      "EXPLAIN SELECT id FROM heartbeat_runs WHERE company_id = '00000000-0000-0000-0000-000000000001' AND context_snapshot -> 'paperclipIssue' ->> 'id' = 'x'",
+      "EXPLAIN SELECT id FROM heartbeat_runs WHERE company_id = '00000000-0000-0000-0000-000000000001' AND context_snapshot -> 'nexusIssue' ->> 'id' = 'x'",
     );
     const redactionText = redactionPlan.map((r) => Object.values(r)[0]).join("\n");
-    expect(redactionText).toContain("heartbeat_runs_company_ctx_paperclip_issue_created_idx");
+    expect(redactionText).toContain("heartbeat_runs_company_ctx_nexus_issue_created_idx");
 
     const originPlan = await sql.unsafe(
       "EXPLAIN SELECT id FROM heartbeat_runs WHERE company_id = '00000000-0000-0000-0000-000000000001' AND coalesce(native_issue_id::text, nullif(context_snapshot->>'issueId', ''), nullif(context_snapshot->>'taskId', ''), nullif(context_snapshot->>'taskKey', '')) IN ('x', 'SRC-1')",

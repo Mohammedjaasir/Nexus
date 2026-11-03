@@ -2,7 +2,7 @@ import { readGitHubResponseRun } from "./response-run-state.js";
 import { githubRunReplyState } from "../../chat-run-publications.js";
 import { and, asc, eq, gt, isNotNull, or, sql } from "drizzle-orm";
 import { chatActions, chatConversations, chatEndpointLeases, chatEndpointResources,
-  chatPublications, fastResponseRequests, chatEndpoints, chatMessageLinks, type Db } from "@paperclipai/db";
+  chatPublications, fastResponseRequests, chatEndpoints, chatMessageLinks, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "../../delivery-work-coordinator.js";
 import { DELIVERY_QUEUES } from "../../delivery-work-notifications.js";
 import type { ChatResponseScope } from "../../chat-response-availability.js";

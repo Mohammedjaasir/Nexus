@@ -1,6 +1,6 @@
 import { setTimeout } from "node:timers/promises";
 import { sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 export async function withWorkspaceLockKeepalive<T>(
   lock: Pick<Db, "execute">,

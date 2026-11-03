@@ -14,7 +14,7 @@ drain/resume, and shutdown. Startup reconstructs eligible deadlines from existin
 connection rows. No new table, polling listener, or private interval is added.
 
 Eligible rows are active and enabled, excluding `chat_sdk`, `runtime_auth`, and
-applications of type `paperclip_plugin`. Disabled experimental connectors have
+applications of type `nexus_plugin`. Disabled experimental connectors have
 no deadline until the settings producer enables them. Application status and
 company status are not new filters: this migration preserves the old policy.
 

@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { describe, expect, it, vi } from "vitest";
 
 const stop = vi.hoisted(() => vi.fn(async () => true));

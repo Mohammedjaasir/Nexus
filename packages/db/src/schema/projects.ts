@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, timestamp, date, index, jsonb, check, uniqueIndex } from "drizzle-orm/pg-core";
-import type { AgentEnvConfig } from "@paperclipai/shared";
+import type { AgentEnvConfig } from "@nexusai/shared";
 import { companies } from "./companies.js";
 import { goals } from "./goals.js";
 import { agents } from "./agents.js";

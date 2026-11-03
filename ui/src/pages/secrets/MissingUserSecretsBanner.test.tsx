@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { CompanySecret, UserSecretDefinition } from "@paperclipai/shared";
+import type { CompanySecret, UserSecretDefinition } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MissingUserSecretsBanner } from "./MissingUserSecretsBanner";
 import type { MyUserSecretEntry } from "../../api/secrets";
@@ -33,7 +33,7 @@ function definition(overrides: Partial<UserSecretDefinition> = {}): UserSecretDe
     description: "Used for private repo access",
     status: "active",
     provider: "local_encrypted",
-    managedMode: "paperclip_managed",
+    managedMode: "nexus_managed",
     providerConfigId: null,
     providerMetadata: null,
     usageGuidance: null,
@@ -59,7 +59,7 @@ function secret(): CompanySecret {
     name: "Personal GitHub token",
     provider: "local_encrypted",
     status: "active",
-    managedMode: "paperclip_managed",
+    managedMode: "nexus_managed",
     externalRef: null,
     providerConfigId: null,
     providerMetadata: null,

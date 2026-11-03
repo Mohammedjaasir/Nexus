@@ -1,4 +1,4 @@
-import type { ChatEndpointSetupState } from "@paperclipai/shared";
+import type { ChatEndpointSetupState } from "@nexusai/shared";
 import type { ConnectionManagementContext } from "../../connection-management.js";
 import type { VerifiedProviderIdentity } from "../runtime-types.js";
 
@@ -10,7 +10,7 @@ import { createChatResourceReconciliation } from "../resource-reconciliation.js"
 
 import { chatCredentialMutationLease, type CredentialMutationLeaseGuard } from "../../chat-credential-mutation-lease.js";
 
-import { chatGitHubRegistrations } from "@paperclipai/db";
+import { chatGitHubRegistrations } from "@nexusai/db";
 
 import { githubChatWizardService } from "../../chat-github-wizard.js";
 import { registerGitHubBotCloudIngress } from "../../chat-github-cloud-ingress.js";
@@ -26,19 +26,19 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatEndpointResources,
   chatEndpoints,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEndpoint,
   ChatProvider,
   ConfigureChatEndpointInput,
   ToolCredentialSecretRef,
   UpdateChatEndpointInput,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   HttpError,

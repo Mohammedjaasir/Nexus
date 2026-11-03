@@ -1,16 +1,16 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 import {
-  buildPaperclipRuntimeMcpServers as legacyBuildRuntimeMcpServers,
-  buildPaperclipWakePayload as legacyBuildWakePayload,
+  buildNexusRuntimeMcpServers as legacyBuildRuntimeMcpServers,
+  buildNexusWakePayload as legacyBuildWakePayload,
   ConfigurationIncompleteFailure as LegacyConfigurationIncompleteFailure,
   resolveExecutionRunAdapterConfig as legacyResolveAdapterConfig,
 } from "../heartbeat.js";
 import {
-  buildPaperclipRuntimeMcpServers,
-  buildPaperclipWakePayload,
+  buildNexusRuntimeMcpServers,
+  buildNexusWakePayload,
   ConfigurationIncompleteFailure,
   createHeartbeatRunPreparation,
   resolveExecutionRunAdapterConfig,
@@ -51,8 +51,8 @@ describe("heartbeat run preparation module", () => {
   it("preserves the legacy error class and public preparation functions", () => {
     expect(LegacyConfigurationIncompleteFailure).toBe(ConfigurationIncompleteFailure);
     expect(legacyResolveAdapterConfig).toBe(resolveExecutionRunAdapterConfig);
-    expect(legacyBuildWakePayload).toBe(buildPaperclipWakePayload);
-    expect(legacyBuildRuntimeMcpServers).toBe(buildPaperclipRuntimeMcpServers);
+    expect(legacyBuildWakePayload).toBe(buildNexusWakePayload);
+    expect(legacyBuildRuntimeMcpServers).toBe(buildNexusRuntimeMcpServers);
     const failure = new ConfigurationIncompleteFailure("missing credentials", { reason: "test" });
     expect(failure).toBeInstanceOf(LegacyConfigurationIncompleteFailure);
     expect(failure.code).toBe("configuration_incomplete");

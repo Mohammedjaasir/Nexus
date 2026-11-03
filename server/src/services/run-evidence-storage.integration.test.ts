@@ -12,16 +12,16 @@ import {
 } from "@aws-sdk/client-s3";
 import type { RunLogStore } from "./run-log-store.js";
 
-const endpoint = process.env.PAPERCLIP_LOG_TEST_S3_ENDPOINT;
+const endpoint = process.env.NEXUS_LOG_TEST_S3_ENDPOINT;
 describe.skipIf(!endpoint)("instance storage for run evidence", () => {
   const buckets = [0, 1].map(() => `pc-evidence-config-${randomUUID()}`);
   const stores: RunLogStore[] = [];
   let client: S3Client, directory: string;
   beforeAll(async () => {
     directory = await fs.mkdtemp(path.join(tmpdir(), "evidence-config-"));
-    vi.stubEnv("PAPERCLIP_HOME", directory);
-    vi.stubEnv("PAPERCLIP_CONFIG", path.join(directory, "config.json"));
-    vi.stubEnv("PAPERCLIP_DISABLE_CWD_ENV_FILE", "true");
+    vi.stubEnv("NEXUS_HOME", directory);
+    vi.stubEnv("NEXUS_CONFIG", path.join(directory, "config.json"));
+    vi.stubEnv("NEXUS_DISABLE_CWD_ENV_FILE", "true");
     vi.stubEnv("RUN_LOG_BASE_PATH", path.join(directory, "logs"));
     for (const key of [
       "RUN_LOG_STORE",
@@ -61,12 +61,12 @@ describe.skipIf(!endpoint)("instance storage for run evidence", () => {
     if (directory) await fs.rm(directory, { recursive: true, force: true });
   });
   function selectStack(bucket: string, prefix = "existing-root") {
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "s3");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_BUCKET", bucket);
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_REGION", "us-east-1");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_ENDPOINT", endpoint!);
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE", "true");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_PREFIX", prefix);
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "s3");
+    vi.stubEnv("NEXUS_STORAGE_S3_BUCKET", bucket);
+    vi.stubEnv("NEXUS_STORAGE_S3_REGION", "us-east-1");
+    vi.stubEnv("NEXUS_STORAGE_S3_ENDPOINT", endpoint!);
+    vi.stubEnv("NEXUS_STORAGE_S3_FORCE_PATH_STYLE", "true");
+    vi.stubEnv("NEXUS_STORAGE_S3_PREFIX", prefix);
   }
   it("automatically uses each stack's existing bucket and prefix for identical run identities", async () => {
     const handles: Awaited<ReturnType<RunLogStore["begin"]>>[] = [];
@@ -103,12 +103,12 @@ describe.skipIf(!endpoint)("instance storage for run evidence", () => {
   });
   it("honors config-file-only storage and keeps a locally configured instance local", async () => {
     for (const key of [
-      "PAPERCLIP_STORAGE_PROVIDER",
-      "PAPERCLIP_STORAGE_S3_BUCKET",
-      "PAPERCLIP_STORAGE_S3_REGION",
-      "PAPERCLIP_STORAGE_S3_ENDPOINT",
-      "PAPERCLIP_STORAGE_S3_PREFIX",
-      "PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE",
+      "NEXUS_STORAGE_PROVIDER",
+      "NEXUS_STORAGE_S3_BUCKET",
+      "NEXUS_STORAGE_S3_REGION",
+      "NEXUS_STORAGE_S3_ENDPOINT",
+      "NEXUS_STORAGE_S3_PREFIX",
+      "NEXUS_STORAGE_S3_FORCE_PATH_STYLE",
     ])
       vi.stubEnv(key, undefined);
     await fs.writeFile(
@@ -150,7 +150,7 @@ describe.skipIf(!endpoint)("instance storage for run evidence", () => {
         )
       ).KeyCount,
     ).toBeGreaterThan(0);
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "local_disk");
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "local_disk");
     vi.resetModules();
     const local = (await import("./run-log-store.js")).getRunLogStore();
     const localHandle = await local.begin({
@@ -164,14 +164,14 @@ describe.skipIf(!endpoint)("instance storage for run evidence", () => {
     await local.append(localHandle, { stream: "stdout", ts: "then", chunk: "local" });
     await local.finalize(localHandle);
     expect((await local.read(localHandle)).content).toContain("local");
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "s3");
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "s3");
     vi.resetModules();
     const restored = (await import("./run-log-store.js")).getRunLogStore();
     expect((await restored.read(handle)).content).toContain("file-config");
     await fs.unlink(path.join(directory, "config.json"));
   });
   it("scopes trace publication and cleanup to the existing prefix, company and stack", async () => {
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "a".repeat(64));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "a".repeat(64));
     const { resolveRunEvidenceStorage } = await import("./run-evidence-storage.js");
     const { createProviderTraceObjectStore } = await import("./provider-trace-object-store.js");
     const { createStorageService } = await import("../storage/service.js");

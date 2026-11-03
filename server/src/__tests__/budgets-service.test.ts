@@ -12,7 +12,7 @@ import {
   costEvents,
   createDb,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { budgetService, deliverBudgetEnforcement, hasPendingBudgetEnforcement } from "../services/budgets.ts";
 import {
   getEmbeddedPostgresTestSupport,
@@ -28,7 +28,7 @@ vi.mock("../services/activity-log.js", () => ({
 // Budget behavior is exercised against PostgreSQL below and in
 // cost-accounting-reliability.test.ts, including transaction and retry paths.
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_BUDGETS_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_BUDGETS_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalUrl ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -38,7 +38,7 @@ describeEmbeddedPostgres("budgetService release gate enforcement", () => {
 
   beforeAll(async () => {
     await import("../services/agent-lifecycle.js");
-    if (!externalUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-budgets-service-");
+    if (!externalUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-budgets-service-");
     db = createDb(externalUrl ?? tempDb!.connectionString);
   }, 20_000);
 
@@ -65,7 +65,7 @@ describeEmbeddedPostgres("budgetService release gate enforcement", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `B${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });

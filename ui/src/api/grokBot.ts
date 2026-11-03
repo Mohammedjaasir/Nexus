@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { ConfigureGrokRoutine, CreateGrokInvitation, DotPairing, GrokConnection, GrokInvitation, GrokRoutineState } from "@paperclipai/shared";
+import type { ConfigureGrokRoutine, CreateGrokInvitation, DotPairing, GrokConnection, GrokInvitation, GrokRoutineState } from "@nexusai/shared";
 const path = (companyId: string, agentId: string) => `/companies/${companyId}/agents/${agentId}/grok-binding`;
 export const grokBotApi = {
   resume: (companyId: string) => api.get<GrokInvitation | null>(`/companies/${companyId}/grok-invitations`),

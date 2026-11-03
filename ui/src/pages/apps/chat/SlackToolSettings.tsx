@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import type {
   SlackSearchStatus,
   SlackToolCapabilities,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { slackToolsApi } from "@/api/slackTools";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

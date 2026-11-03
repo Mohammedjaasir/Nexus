@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, or, sql, type AnyColumn } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { agents, toolCatalogEntries, toolProfileBindings, toolProfileEntries, toolProfiles } from "@paperclipai/db";
-import type { ToolCatalogEntry, ToolConnection, ToolProfileEffectiveSummary, ToolProfileWithDetails } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { agents, toolCatalogEntries, toolProfileBindings, toolProfileEntries, toolProfiles } from "@nexusai/db";
+import type { ToolCatalogEntry, ToolConnection, ToolProfileEffectiveSummary, ToolProfileWithDetails } from "@nexusai/shared";
 import { effectiveToolProfileBindings, profileIdsInBindingOrder } from "../../tool-profile-binding-precedence.js";
 import { buildProfileDetails, profileCatalogColumns, profileCatalogMatcher, toProfileBinding, toProfileEntry, type ProfileCatalogEntry, type ProfileEntryMatch, type ProfileCatalogMatch } from "./projection.js";
 type ProfileAssignmentDependencies = {

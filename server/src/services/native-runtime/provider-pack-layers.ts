@@ -4,7 +4,7 @@ import { lstat, mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, posix } from "node:path";
 import { pipeline } from "node:stream/promises";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 import type { NativeRunTrace } from "./native-run-trace.js";
 import { providerPackExtractionProbe } from "./provider-pack-extraction.js";
 
@@ -132,7 +132,7 @@ export async function stageProviderPackLayers(input: {
     ...missing.map(index => ({ name: `${index}.tar.zst`, ...archive.files[index]!.archive })),
     { name: "overlay.tar.zst", ...archive.overlay },
   ];
-  const temporary = await mkdtemp(join(tmpdir(), "paperclip-provider-layers-"));
+  const temporary = await mkdtemp(join(tmpdir(), "nexus-provider-layers-"));
   const bundlePath = join(temporary, "selected.tar.zst");
   const scratch = `${input.targetPath}.upload-${randomUUID()}`;
   const remoteArchive = `${scratch}/selected.tar.zst`;

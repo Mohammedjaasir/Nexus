@@ -26,7 +26,7 @@ import {
   issues,
   toolApplications,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { createLocalDiskStorageProvider } from "../../storage/local-disk-provider.js";
@@ -34,7 +34,7 @@ import { createStorageService } from "../../storage/service.js";
 import type { StorageService } from "../../storage/types.js";
 import { issueService } from "../issues.js";
 import { NativeChatAttachmentReadScope } from "./chat-attachment-read.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 
 const stagingControl = vi.hoisted(() => ({
   beforeStage: undefined as (() => Promise<void>) | undefined,
@@ -86,10 +86,10 @@ describe("native same-conversation historical attachment reading", () => {
     temporary = await startEmbeddedPostgresTestDatabase("native-chat-reuse-");
     db = createDb(temporary.connectionString);
     workspaceRoot = await mkdtemp(
-      path.join(tmpdir(), "paperclip-chat-read-workspace-"),
+      path.join(tmpdir(), "nexus-chat-read-workspace-"),
     );
     const storageRoot = await mkdtemp(
-      path.join(tmpdir(), "paperclip-chat-reuse-"),
+      path.join(tmpdir(), "nexus-chat-reuse-"),
     );
     await mkdir(storageRoot, { recursive: true });
     storage = createStorageService(createLocalDiskStorageProvider(storageRoot));
@@ -103,7 +103,7 @@ describe("native same-conversation historical attachment reading", () => {
       id: agentId,
       companyId,
       name: "Native chat agent",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: { provider: "codex" },
       runtimeConfig: {},
       status: "active",
@@ -199,7 +199,7 @@ describe("native same-conversation historical attachment reading", () => {
       companyId,
       endpointId,
       principalId,
-      paperclipUserId: userId,
+      nexusUserId: userId,
       status: "linked",
     });
     await db.insert(companyMemberships).values({
@@ -295,10 +295,10 @@ describe("native same-conversation historical attachment reading", () => {
       .set({
         contextSnapshot: {
           source: "chat:discord",
-          paperclipHarnessCheckedOut: true,
+          nexusHarnessCheckedOut: true,
           wakeCommentIds: [currentCommentId],
           commentId: currentCommentId,
-          paperclipWake: {
+          nexusWake: {
             reason: "External chat message received",
             externalChatProvider: "discord",
             checkedOutByHarness: true,
@@ -344,7 +344,7 @@ describe("native same-conversation historical attachment reading", () => {
       sha256: createHash("sha256").update(sourceBody).digest("hex"),
     });
     expect(result).not.toHaveProperty("objectKey");
-    expect(result.workspaceRelativePath).toMatch(/^\.paperclip-inbound\//);
+    expect(result.workspaceRelativePath).toMatch(/^\.nexus-inbound\//);
     const stagedPath = path.join(workspaceRoot, result.workspaceRelativePath);
     expect(await readFile(stagedPath)).toEqual(sourceBody);
     expect(await db.select().from(issueAttachments)).toEqual(before);
@@ -497,12 +497,12 @@ describe("native same-conversation historical attachment reading", () => {
 
   it("rejects a symlinked staging root without touching its target", async () => {
     const unsafeRoot = await mkdtemp(
-      path.join(tmpdir(), "paperclip-chat-read-symlink-"),
+      path.join(tmpdir(), "nexus-chat-read-symlink-"),
     );
     const outside = await mkdtemp(
-      path.join(tmpdir(), "paperclip-chat-read-outside-"),
+      path.join(tmpdir(), "nexus-chat-read-outside-"),
     );
-    await symlink(outside, path.join(unsafeRoot, ".paperclip-inbound"));
+    await symlink(outside, path.join(unsafeRoot, ".nexus-inbound"));
     const reader = scope({ workspaceRoot: unsafeRoot });
     try {
       await expect(reader.read(selection())).rejects.toThrow("path_denied");
@@ -620,7 +620,7 @@ describe("native same-conversation historical attachment reading", () => {
       },
     };
     const reader = scope({ storage: emptyStorage });
-    const authority = new PaperclipRunnerToolAuthority(db, {
+    const authority = new NexusRunnerToolAuthority(db, {
       ...binding,
       workspaceRoot,
       executionTargetKind: "local",
@@ -672,7 +672,7 @@ describe("native same-conversation historical attachment reading", () => {
           arguments: { ...selection(), workspaceRoot: "/" },
         }),
       ).rejects.toThrow("arguments_invalid");
-      const unbound = new PaperclipRunnerToolAuthority(db, {
+      const unbound = new NexusRunnerToolAuthority(db, {
         ...binding,
         workspaceRoot,
       });
@@ -974,7 +974,7 @@ describe("native same-conversation historical attachment reading", () => {
       });
       const filename = `attachment-${attachment.id}.${extension}`;
       const reader = scope();
-      const authority = new PaperclipRunnerToolAuthority(db, {
+      const authority = new NexusRunnerToolAuthority(db, {
         ...binding,
         workspaceRoot,
         executionTargetKind: "local",

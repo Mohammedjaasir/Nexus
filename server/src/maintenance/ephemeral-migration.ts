@@ -1,4 +1,4 @@
-import { closeRegisteredClients, createDb } from "@paperclipai/db";
+import { closeRegisteredClients, createDb } from "@nexusai/db";
 import { readBuildCommit } from "../build-commit.js";
 import { loadConfig } from "../config.js";
 import { cloudRuntimeConfigService } from "../services/cloud-runtime-config.js";
@@ -11,12 +11,12 @@ import { startEphemeralMigrationService } from "./ephemeral-migration-service.js
 
 // Cloud starts this image entry only after its provider has confirmed the web
 // and every legacy worker stopped. It never starts schedulers or app routes.
-if (process.env.PAPERCLIP_EPHEMERAL_MIGRATION !== "true") throw new Error("Explicit maintenance mode is required");
+if (process.env.NEXUS_EPHEMERAL_MIGRATION !== "true") throw new Error("Explicit maintenance mode is required");
 const url = process.env.DATABASE_URL;
 const commit = readBuildCommit();
 if (!url || !commit) throw new Error("Maintenance requires an explicit database and stamped image");
 const service = await startEphemeralMigrationService({
-  id: process.env.PAPERCLIP_EPHEMERAL_MIGRATION_ID ?? "", token: process.env.PAPERCLIP_EPHEMERAL_MIGRATION_TOKEN ?? "",
+  id: process.env.NEXUS_EPHEMERAL_MIGRATION_ID ?? "", token: process.env.NEXUS_EPHEMERAL_MIGRATION_TOKEN ?? "",
   commit, port: Number(process.env.PORT ?? 3100),
   async migrate(signal, phase) {
     const db = createDb(url, { maxConnections: 2 });
@@ -29,8 +29,8 @@ const service = await startEphemeralMigrationService({
       // Never generate a replacement key over a missing volume. The original
       // key is exported only after every owner confirms durable eligibility.
       const decisionSigningSecret = resolveDecisionSigningSecret({ allowCreate: false });
-      assertEphemeralServerConfig(loadConfig(), { ...process.env, PAPERCLIP_EPHEMERAL_SERVER: "true",
-        PAPERCLIP_DECISION_SIGNING_SECRET: decisionSigningSecret });
+      assertEphemeralServerConfig(loadConfig(), { ...process.env, NEXUS_EPHEMERAL_SERVER: "true",
+        NEXUS_DECISION_SIGNING_SECRET: decisionSigningSecret });
       const result = await migrateEphemeralServerData(db, { signal, phase });
       return { ...result, decisionSigningSecret };
     } finally { await closeRegisteredClients(url, { scope: "database" }); }

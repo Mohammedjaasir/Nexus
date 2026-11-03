@@ -1,7 +1,7 @@
 # GitHub chat and review bots
 
-A GitHub bot belongs to one Paperclip agent. GitHub issues, pull requests, and
-review threads enter ordinary Paperclip tasks; the agent's runs, permissions,
+A GitHub bot belongs to one Nexus agent. GitHub issues, pull requests, and
+review threads enter ordinary Nexus tasks; the agent's runs, permissions,
 budget, and activity remain visible there. The Reviews page is a projection of
 assessments attached to those tasks, not a separate execution system.
 
@@ -22,22 +22,22 @@ the GitHub Code Review Bot connector. This default-off setting is independent of
    saves the low-trust preset; it does not configure a sandbox or task boundary.
 2. Choose **My account** or **An organization**. Enter the organization when
    needed and review the App name suggested from your agent. Click
-   **Continue to GitHub**. Paperclip fills permissions, events, and callbacks.
+   **Continue to GitHub**. Nexus fills permissions, events, and callbacks.
 3. Confirm creation on GitHub, then select repositories and approve installation.
-   Paperclip stores the credentials securely and imports the initial selection,
+   Nexus stores the credentials securely and imports the initial selection,
    including an explicit All repositories choice. Organization policies may
    require administrator approval; resume the same draft when it is granted.
-4. Paperclip reuses your verified GitHub identity when available. Otherwise,
+4. Nexus reuses your verified GitHub identity when available. Otherwise,
    authorize the dedicated App and confirm the observed account once. Bot work
    uses installation credentials, never your personal GitHub token.
-5. Connection verification and completion happen automatically. Paperclip opens
+5. Connection verification and completion happen automatically. Nexus opens
    the bot's Settings with a connected confirmation modal showing the actual App
    identity, enabled repository count, and a copyable optional review mention.
    Dismiss it with **Done**, the close button, or Escape to stay in Settings.
    Runtime and isolation readiness remain separate prerequisites.
 
 Installation may return before GitHub's separately delivered signed webhook
-ping. Paperclip keeps the same draft and credentials, shows a waiting state,
+ping. Nexus keeps the same draft and credentials, shows a waiting state,
 and continues automatically after authenticating the ping. Refreshing or
 resuming that draft must not create another App or bypass signature verification.
 While this Cloud setup screen is waiting, its authenticated advance request also
@@ -56,7 +56,7 @@ prompts live in Settings.
 
 The App belongs to the selected account or organization and uses its own bot
 identity. The editable App name determines GitHub's slug and `@mention`; there
-is no separate editable bot username. Paperclip shows and copies the verified
+is no separate editable bot username. Nexus shows and copies the verified
 mention in the connected bot's header. Type `@app-slug`, without the `[bot]`
 suffix shown on GitHub's API author records.
 
@@ -72,7 +72,7 @@ stored credentials. Legacy manual connections without recorded ownership link
 to the App settings list instead of assuming an owner.
 
 Local instances receive public callbacks and signed events through an enrolled
-Paperclip Cloud connector, using outbound requests instead of a public tunnel.
+Nexus Cloud connector, using outbound requests instead of a public tunnel.
 Your localhost instance does not need HTTPS or a tunnel for this flow. Setup
 asks you to connect Cloud only if the instance is not already enrolled.
 The Cloud gateway capability must be deployed before localhost onboarding.
@@ -85,7 +85,7 @@ provider software to the Cloud server image. Codex with managed MCP tools and
 the native Runner Codex backend do not require a server-side remote provider
 pack. Remote native ACPX (including Claude) and OpenCode currently require an
 operator-supplied, build-owned provider pack configured through
-`PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH`; the standard Cloud server image
+`NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH`; the standard Cloud server image
 does not supply one. A pack installed in the sandbox alone does not satisfy
 that existing runtime requirement. Treat that provider setup as a separate
 Runner prerequisite, not an automatic connector installation step.
@@ -110,7 +110,7 @@ selected environment.
   summary, commit, findings, coverage, and task/run/publication links. Each review
   has its own URL. A previous passing result does not stand in for a pending review
   of a newer commit.
-- **Conversations:** follow the task title to Paperclip or the repository/thread
+- **Conversations:** follow the task title to Nexus or the repository/thread
   label to GitHub.
 
 Settings and Access share unsaved edits while you switch connection tabs. Save
@@ -148,7 +148,7 @@ contributor switch controls whether sponsored guests may start automatic work;
 there are no per-person automatic-run switches in Access. Legacy saved
 `automaticReviews` values are ignored.
 
-Automatic tasks use the configured responsible Paperclip member for accountability,
+Automatic tasks use the configured responsible Nexus member for accountability,
 not that member's personal GitHub credentials. A member named **Board** in a local
 test drive is still the responsible user, not a separate GitHub actor. The PR author and
 webhook sender are recorded independently. Follow-ups preserve task ownership
@@ -196,8 +196,8 @@ The execution records the configuration revision and event context used.
 ## Assessments, checks, and formal reviews
 
 The agent reads through task-bound bot tools, explicitly begins an assessment,
-and submits the reviewed commit, findings, rationale, and coverage. Paperclip
-validates the result and computes the **Paperclip Review** check. The default
+and submits the reviewed commit, findings, rationale, and coverage. Nexus
+validates the result and computes the **Nexus Review** check. The default
 threshold is 5/5; choose 1–5 or report-only as needed.
 
 Finding categories come from the repository's review policy. Both manual and
@@ -211,13 +211,13 @@ the summary. An empty category list permits no structured findings.
 
 `submit_review.summary` contains the review body: the change, findings, and
 verdict. `rationale` adds evidence for the score and remaining risk without
-repeating the summary. Paperclip renders the bot-name/score heading and the
+repeating the summary. Nexus renders the bot-name/score heading and the
 reviewed-commit, coverage, and task/run footer from the structured fields. Agents
 must not copy these generated sections from an earlier published comment into
 either text field. This contract is included in new bots' tool schemas and in
 the review instructions generated for existing bots. Publication also removes
 leading copied score headings for the current bot, with a plain or Markdown-escaped
-name, or the legacy **Paperclip Review** name. Other review sections and the saved
+name, or the legacy **Nexus Review** name. Other review sections and the saved
 assessment remain intact.
 
 | Score | Assessment rubric |
@@ -238,7 +238,7 @@ duplicate inline comments on repeated reviews.
 See [Publication recovery](#publication-recovery) for deadlines, retries, and
 lost-response receipt recovery.
 
-The check's **Details** link opens its Paperclip task on the current instance
+The check's **Details** link opens its Nexus task on the current instance
 hostname, or the connector's Reviews page when no task has been created yet.
 
 Formal **APPROVE** and **REQUEST_CHANGES** are separate governed tools, each off
@@ -251,8 +251,8 @@ these off leaves scores, comments, and checks available while making formal
 review decisions opt-in. The controls include contextual tooltips.
 
 To enforce the rating at merge time, configure GitHub branch protection or a
-ruleset to require **Paperclip Review**, selecting this bot App as the source
-where supported. Paperclip does not change repository rules. GitHub account and
+ruleset to require **Nexus Review**, selecting this bot App as the source
+where supported. Nexus does not change repository rules. GitHub account and
 repository plan restrictions may limit required-check enforcement. If automatic
 execution is disallowed, a gated head requests an authorized manual review.
 

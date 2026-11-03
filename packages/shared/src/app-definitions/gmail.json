@@ -17,7 +17,7 @@
   "docsUrl": "https://developers.google.com/workspace/gmail/api/reference/mcp",
   "setupPrerequisite": {
     "title": "Google Developer Preview access required",
-    "description": "Google must register both the Workspace email used to authorize Paperclip and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Paperclip customers.",
+    "description": "Google must register both the Workspace email used to authorize Nexus and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Nexus customers.",
     "steps": [
       "Apply with the Workspace email that will sign in and the Google Cloud project that owns the OAuth client.",
       "Wait for the Google Group notification and then Google's final project-registration email, usually within a couple of days.",
@@ -29,11 +29,11 @@
   "redirectConstraints": "https-or-loopback-http",
   "methods": [
     {
-      "key": "paperclip-read",
-      "label": "Connect with Paperclip",
+      "key": "nexus-read",
+      "label": "Connect with Nexus",
       "transport": "mcp_remote",
       "auth": "oauth",
-      "oauthStrategy": "paperclip_cloud_connector",
+      "oauthStrategy": "nexus_cloud_connector",
       "connectorProfile": "gmail.read",
       "capabilityProfile": {
         "key": "read",
@@ -47,7 +47,7 @@
       "ownershipModes": [
         "platform_shared"
       ],
-      "whenToUse": "Use Paperclip-managed Google OAuth for read-only Gmail access.",
+      "whenToUse": "Use Nexus-managed Google OAuth for read-only Gmail access.",
       "defaults": {
         "serverUrl": "https://gmailmcp.googleapis.com/mcp/v1",
         "scopesHint": [
@@ -91,7 +91,7 @@
           "prompt": "consent"
         }
       },
-      "guidanceMd": "Enable the Gmail and Gmail MCP APIs in your Google Cloud project, then register Paperclip's callback URI.",
+      "guidanceMd": "Enable the Gmail and Gmail MCP APIs in your Google Cloud project, then register Nexus's callback URI.",
       "consoleLinks": {
         "register": "https://console.cloud.google.com/auth/clients",
         "docs": "https://developers.google.com/workspace/guides/configure-mcp-servers"
@@ -102,11 +102,11 @@
       "riskTier": "S3"
     },
     {
-      "key": "paperclip-draft",
-      "label": "Connect with Paperclip",
+      "key": "nexus-draft",
+      "label": "Connect with Nexus",
       "transport": "mcp_remote",
       "auth": "oauth",
-      "oauthStrategy": "paperclip_cloud_connector",
+      "oauthStrategy": "nexus_cloud_connector",
       "connectorProfile": "gmail.draft",
       "capabilityProfile": {
         "key": "draft",
@@ -120,7 +120,7 @@
       "ownershipModes": [
         "platform_shared"
       ],
-      "whenToUse": "Use Paperclip-managed Google OAuth to read Gmail and create drafts.",
+      "whenToUse": "Use Nexus-managed Google OAuth to read Gmail and create drafts.",
       "defaults": {
         "serverUrl": "https://gmailmcp.googleapis.com/mcp/v1",
         "scopesHint": [
@@ -167,7 +167,7 @@
           "prompt": "consent"
         }
       },
-      "guidanceMd": "Enable the Gmail and Gmail MCP APIs in your Google Cloud project, then register Paperclip's callback URI.",
+      "guidanceMd": "Enable the Gmail and Gmail MCP APIs in your Google Cloud project, then register Nexus's callback URI.",
       "consoleLinks": {
         "register": "https://console.cloud.google.com/auth/clients",
         "docs": "https://developers.google.com/workspace/guides/configure-mcp-servers"
@@ -179,11 +179,11 @@
       "riskTier": "S4"
     },
     {
-      "key": "paperclip-archive",
-      "label": "Connect with Paperclip",
+      "key": "nexus-archive",
+      "label": "Connect with Nexus",
       "transport": "mcp_remote",
       "auth": "oauth",
-      "oauthStrategy": "paperclip_cloud_connector",
+      "oauthStrategy": "nexus_cloud_connector",
       "connectorProfile": "gmail.archive",
       "capabilityProfile": {
         "key": "archive",
@@ -197,7 +197,7 @@
       "ownershipModes": [
         "platform_shared"
       ],
-      "whenToUse": "Use Paperclip-managed Google OAuth to read Gmail and archive threads.",
+      "whenToUse": "Use Nexus-managed Google OAuth to read Gmail and archive threads.",
       "defaults": {
         "serverUrl": "https://gmailmcp.googleapis.com/mcp/v1",
         "scopesHint": [
@@ -244,7 +244,7 @@
           "prompt": "consent"
         }
       },
-      "guidanceMd": "Enable the Gmail and Gmail MCP APIs in your Google Cloud project, then register Paperclip's callback URI. Archive removes only the Inbox label.",
+      "guidanceMd": "Enable the Gmail and Gmail MCP APIs in your Google Cloud project, then register Nexus's callback URI. Archive removes only the Inbox label.",
       "consoleLinks": {
         "register": "https://console.cloud.google.com/auth/clients",
         "docs": "https://developers.google.com/workspace/guides/configure-mcp-servers"

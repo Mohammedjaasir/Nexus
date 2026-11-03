@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
-import { executionWorkspaceRestorePoints, executionWorkspaces, type Db } from "@paperclipai/db";
+import { executionWorkspaceRestorePoints, executionWorkspaces, type Db } from "@nexusai/db";
 import type { StoredSecretVersionMaterial } from "../secrets/types.js";
 import type { StorageService } from "../storage/types.js";
 import {
@@ -20,7 +20,7 @@ import { notifyGitRestorePointWork } from "./git-restore-point-ledger.js";
 import { gitCacheCommand } from "./git-workspace-restoration.js";
 import { TASK_DIRECTORY_RETENTION_KEY } from "./isolated-task-directory-snapshot.js";
 
-export const GIT_RESTORE_POINT_SCHEMA = "paperclip.git-restore-point.v1";
+export const GIT_RESTORE_POINT_SCHEMA = "nexus.git-restore-point.v1";
 const NAMESPACE = "git-restore-points";
 const MAX_RESTORE_POINT_BYTES = 512 * 1024 * 1024;
 

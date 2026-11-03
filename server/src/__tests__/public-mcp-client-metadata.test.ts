@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createClientMetadataResolver, mcpRedirectMatches } from "../services/public-mcp/client-metadata.js";
-import { mcpInvitation, mcpSetupMarkdown } from "@paperclipai/shared";
+import { mcpInvitation, mcpSetupMarkdown } from "@nexusai/shared";
 import { renderMcpSetup } from "../services/public-mcp/setup.js";
 
 const id = "https://assistant.example/client.json";
@@ -69,13 +69,13 @@ describe("public MCP client metadata", () => {
 });
 describe("assistant invitation content", () => {
   it("contains no credential and tells a cold client to verify actual access", () => {
-    const resource = "https://paperclip.example/mcp/paperclip";
+    const resource = "https://nexus.example/mcp/nexus";
     const company = { id: "44444444-4444-4444-8444-444444444444", name: "Butter" };
     expect(mcpInvitation(resource, company)).toContain("company=" + company.id);
     const markdown = mcpSetupMarkdown(resource, company.id);
-    expect(markdown).toContain("paperclip_connection");
+    expect(markdown).toContain("nexus_connection");
     expect(markdown).toContain("restart");
-    expect(markdown).not.toContain("paperclip_whoami");
+    expect(markdown).not.toContain("nexus_whoami");
     expect(markdown).not.toContain("pcmcp_at_");
     expect(renderMcpSetup(resource, company.id)).toContain("Instructions for assistants");
     expect(renderMcpSetup(resource, company.id)).not.toContain(company.name);

@@ -13,8 +13,8 @@ import { Dashboard } from "@/pages/Dashboard";
 import { NewAgent } from "@/pages/NewAgent";
 import { AgentBasicsDialog } from "@/components/new-agent/AgentBasicsDialog";
 import { queryKeys } from "@/lib/queryKeys";
-import { resolveAgentAppearance } from "@paperclipai/shared";
-import { storybookAgents, storybookIssues, storybookActivityEvents, storybookLiveRuns, storybookDashboardSummary } from "../../fixtures/paperclipData";
+import { resolveAgentAppearance } from "@nexusai/shared";
+import { storybookAgents, storybookIssues, storybookActivityEvents, storybookLiveRuns, storybookDashboardSummary } from "../../fixtures/nexusData";
 
 const companyId = "company-storybook";
 const agents = storybookAgents.map(agent => {
@@ -111,7 +111,7 @@ function PersonaPage({ path, meet = false }: { path: string; meet?: boolean }) {
 }
 const meta = { id: "agents-personas-full-pages",
   title: "Agents and reusable capabilities/Hiring, configuration, and organization/Agents/Personas/Full pages", parameters: { layout: "fullscreen", a11y: { test: "off" },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agents/organization",
         "navigation-preferences/profile"

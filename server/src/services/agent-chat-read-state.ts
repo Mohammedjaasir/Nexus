@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { issueComments, issueReadStates, type Db } from "@paperclipai/db";
+import { issueComments, issueReadStates, type Db } from "@nexusai/db";
 
 export async function withConversationReadState<T extends { id: string }>(db: Db, companyId: string, userId: string, conversations: T[]) {
   if (!conversations.length) return [] as Array<T & { isUnreadForMe: boolean; lastExternalCommentAt: Date | null }>;

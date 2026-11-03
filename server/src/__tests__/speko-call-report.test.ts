@@ -1,4 +1,4 @@
-import { VOICE_RESULT_NOTIFICATION, VOICE_REPEAT_NOTIFICATION } from "@paperclipai/shared";
+import { VOICE_RESULT_NOTIFICATION, VOICE_REPEAT_NOTIFICATION } from "@nexusai/shared";
 import { describe, expect, it } from "vitest";
 import { parseSpekoCallReport } from "../services/voice/speko-call-report.js";
 const turn = { id: "turn", index: 0, source: "user", text: "Hello", started_at: "2026-10-07T17:00:00Z", ended_at: null };

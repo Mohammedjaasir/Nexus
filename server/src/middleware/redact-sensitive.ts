@@ -78,7 +78,7 @@ const SENSITIVE_KEYS = new Set<string>([
   "webhooksecret",
   "webhookkey",
   "webhookurl",
-  "paperclip_capability",
+  "nexus_capability",
   // The Claude setup-token login fields. `browserCode` carries the one-time
   // sign-in code and `authorization_code` carries the OAuth code; neither may
   // reach a log line.
@@ -91,9 +91,9 @@ const SENSITIVE_KEYS = new Set<string>([
   // credential carried as a query parameter, so it must never reach a log line
   // even though the exchange itself answers 302.
   "ticket",
-  // Not secrets Paperclip holds, but attacker-authored prose: an OAuth provider
+  // Not secrets Nexus holds, but attacker-authored prose: an OAuth provider
   // controls `error_description` / `error_uri` on the callback query string, and
-  // `customProps` copies the whole query into 4xx log lines. Paperclip maps the
+  // `customProps` copies the whole query into 4xx log lines. Nexus maps the
   // `error` code to its own copy instead of reflecting these, so they have no
   // debugging value here either (PAP-17108).
   "error_description",

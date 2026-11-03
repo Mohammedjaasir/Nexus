@@ -599,14 +599,14 @@ describe("CompanyEnvironments — test provider button", () => {
     mockEnvironmentsApi.probe.mockResolvedValue({
       ok: true,
       driver: "sandbox",
-      summary: "Connected to Daytona sandbox paperclip-probe.",
+      summary: "Connected to Daytona sandbox nexus-probe.",
       details: {
         provider: "daytona",
         diagnostics: [],
         metadata: {
           provider: "daytona",
           sandboxId: "473167E9",
-          sandboxName: "paperclip-probe",
+          sandboxName: "nexus-probe",
         },
       },
     });
@@ -622,7 +622,7 @@ describe("CompanyEnvironments — test provider button", () => {
     await flushReact();
 
     expect(mockEnvironmentsApi.probe).toHaveBeenCalledExactlyOnceWith("env-1", "company-1");
-    expect(container.textContent).toContain("Connected to Daytona sandbox paperclip-probe.");
+    expect(container.textContent).toContain("Connected to Daytona sandbox nexus-probe.");
     expect(container.textContent).not.toContain("Verified temporary daytona sandbox");
     expect(container.textContent).not.toContain("Test probes clean up the validation sandbox after the check");
     expect(container.textContent).not.toContain("provider dashboard");
@@ -645,7 +645,7 @@ describe("CompanyEnvironments — test provider button", () => {
         metadata: {
           provider: "daytona",
           sandboxId: "473167E9",
-          sandboxName: "paperclip-probe",
+          sandboxName: "nexus-probe",
         },
       },
     });
@@ -1233,7 +1233,7 @@ describe("CompanyEnvironments — test provider button", () => {
       expect(dialog?.textContent).not.toContain("id 12345678-90a");
       expect(
         dialog?.querySelector(
-          "[title='Provider snapshot ref redacted-template-ref (Paperclip template 12345678-90ab-cdef-1234-567890abcdef)']",
+          "[title='Provider snapshot ref redacted-template-ref (Nexus template 12345678-90ab-cdef-1234-567890abcdef)']",
         ),
       ).toBeTruthy();
       expect(findButton(dialog!, "Refresh")).toBeTruthy();

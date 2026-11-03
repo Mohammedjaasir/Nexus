@@ -21,7 +21,7 @@ target "claude" {
     BASE_TAG = "${VERSION}"
   }
   contexts = {
-    "paperclipai/agent-runtime-base:${VERSION}" = "target:base"
+    "nexusai/agent-runtime-base:${VERSION}" = "target:base"
   }
 }
 
@@ -34,7 +34,7 @@ target "codex" {
     BASE_TAG = "${VERSION}"
   }
   contexts = {
-    "paperclipai/agent-runtime-base:${VERSION}" = "target:base"
+    "nexusai/agent-runtime-base:${VERSION}" = "target:base"
   }
 }
 
@@ -47,7 +47,7 @@ target "gemini" {
     BASE_TAG = "${VERSION}"
   }
   contexts = {
-    "paperclipai/agent-runtime-base:${VERSION}" = "target:base"
+    "nexusai/agent-runtime-base:${VERSION}" = "target:base"
   }
 }
 
@@ -60,7 +60,7 @@ target "opencode" {
     BASE_TAG = "${VERSION}"
   }
   contexts = {
-    "paperclipai/agent-runtime-base:${VERSION}" = "target:base"
+    "nexusai/agent-runtime-base:${VERSION}" = "target:base"
   }
 }
 
@@ -73,7 +73,7 @@ target "pi" {
     BASE_TAG = "${VERSION}"
   }
   contexts = {
-    "paperclipai/agent-runtime-base:${VERSION}" = "target:base"
+    "nexusai/agent-runtime-base:${VERSION}" = "target:base"
   }
 }
 
@@ -86,6 +86,6 @@ target "hermes" {
     BASE_TAG = "${VERSION}"
   }
   contexts = {
-    "paperclipai/agent-runtime-base:${VERSION}" = "target:base"
+    "nexusai/agent-runtime-base:${VERSION}" = "target:base"
   }
 }

@@ -21,7 +21,7 @@ import {
   issueQuestionResponseDeliveries,
   issueThreadInteractions,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -34,7 +34,7 @@ import {
   questionResponseDeliveryService,
 } from "../services/question-response-delivery.js";
 
-const externalDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_QUESTION_DELIVERY_TEST_DATABASE_URL");
+const externalDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_QUESTION_DELIVERY_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported
   ? describe
@@ -67,7 +67,7 @@ describeEmbeddedPostgres("question response delivery", () => {
 
   beforeAll(async () => {
     if (!externalDatabaseUrl) {
-      tempDb = await startEmbeddedPostgresTestDatabase("paperclip-question-delivery-");
+      tempDb = await startEmbeddedPostgresTestDatabase("nexus-question-delivery-");
     }
     db = createDb(externalDatabaseUrl ?? tempDb!.connectionString);
   }, 20_000);
@@ -225,7 +225,7 @@ describeEmbeddedPostgres("question response delivery", () => {
             },
           ],
           questionSet: {
-            schema: "paperclip.question_set.v1",
+            schema: "nexus.question_set.v1",
             title: "Server choices",
             questions: [
               {
@@ -522,7 +522,7 @@ describeEmbeddedPostgres("question response delivery", () => {
 
   it("resolves an in-flight native input request before creating a continuation", async () => {
     const seeded = await seed({
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       runtimeMode: "native",
       sourceStatus: "running",
     });
@@ -550,7 +550,7 @@ describeEmbeddedPostgres("question response delivery", () => {
 
   it("keeps native input delivery pending while its PRP session is unavailable", async () => {
     const seeded = await seed({
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       runtimeMode: "native",
       sourceStatus: "running",
     });
@@ -1227,7 +1227,7 @@ describeEmbeddedPostgres("question response delivery", () => {
     const seeded = await seed();
     const envelope = buildQuestionResponseDeliveryEnvelope(seeded.interaction);
     expect(envelope.response).toEqual({
-      schema: "paperclip.question_response.v1",
+      schema: "nexus.question_response.v1",
       answers: {
         purpose: { text: "Internal API" },
         runtime: { selectedOptionIds: ["node"] },

@@ -1,15 +1,15 @@
 import fs from "node:fs";
 import {
   DEPLOYMENT_MODES,
-  findPaperclipConfigKeyWarnings,
-  paperclipConfigSchema,
-  type PaperclipConfig,
+  findNexusConfigKeyWarnings,
+  nexusConfigSchema,
+  type NexusConfig,
   type DeploymentMode,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { ZodError } from "zod";
-import { resolvePaperclipConfigPath } from "./paths.js";
+import { resolveNexusConfigPath } from "./paths.js";
 import { isCloudManagedInstance } from "./services/cloud-instance.js";
-import { getCloudRuntimeConfigSnapshot, toPaperclipConfig } from "./services/cloud-runtime-config-snapshot.js";
+import { getCloudRuntimeConfigSnapshot, toNexusConfig } from "./services/cloud-runtime-config-snapshot.js";
 
 function formatConfigValidationError(error: ZodError): string {
   return error.issues
@@ -21,22 +21,22 @@ function formatConfigValidationError(error: ZodError): string {
 }
 
 interface ConfigFileWithProvenance {
-  config: PaperclipConfig;
+  config: NexusConfig;
   explicitStorageS3Bucket: boolean;
 }
 
 export function readConfigFile(options: { includeProvenance: true }): ConfigFileWithProvenance | null;
-export function readConfigFile(): PaperclipConfig | null;
-export function readConfigFile(options?: { includeProvenance: true }): PaperclipConfig | ConfigFileWithProvenance | null {
+export function readConfigFile(): NexusConfig | null;
+export function readConfigFile(options?: { includeProvenance: true }): NexusConfig | ConfigFileWithProvenance | null {
   if (isCloudManagedInstance()) {
     const saved = getCloudRuntimeConfigSnapshot().config;
-    const config = toPaperclipConfig(saved);
+    const config = toNexusConfig(saved);
     // A stored snapshot is canonical configuration, including its bucket.
     // It must not inherit local-file provenance or inspect an old home.
     return config && options?.includeProvenance ? { config, explicitStorageS3Bucket: true } : config;
   }
 
-  const configPath = resolvePaperclipConfigPath();
+  const configPath = resolveNexusConfigPath();
 
   if (!fs.existsSync(configPath)) return null;
 
@@ -45,12 +45,12 @@ export function readConfigFile(options?: { includeProvenance: true }): Paperclip
     raw = JSON.parse(fs.readFileSync(configPath, "utf-8"));
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`Invalid Paperclip config at ${configPath}: failed to read or parse JSON: ${reason}`);
+    throw new Error(`Invalid Nexus config at ${configPath}: failed to read or parse JSON: ${reason}`);
   }
 
   try {
-    const config = paperclipConfigSchema.parse(raw);
-    for (const warning of findPaperclipConfigKeyWarnings(config)) {
+    const config = nexusConfigSchema.parse(raw);
+    for (const warning of findNexusConfigKeyWarnings(config)) {
       console.warn(
         `Unknown config key ${warning.path}; did you mean ${warning.suggestion}? It will be preserved.`,
       );
@@ -58,13 +58,13 @@ export function readConfigFile(options?: { includeProvenance: true }): Paperclip
     if (options?.includeProvenance) {
       // Schema validation above establishes the input shape, but fills omitted
       // buckets with a default. Keep only that provenance at the file boundary.
-      const input = raw as Partial<PaperclipConfig>;
+      const input = raw as Partial<NexusConfig>;
       return { config, explicitStorageS3Bucket: input.storage?.s3?.bucket !== undefined };
     }
     return config;
   } catch (error) {
     if (error instanceof ZodError) {
-      throw new Error(`Invalid Paperclip config at ${configPath}: ${formatConfigValidationError(error)}`);
+      throw new Error(`Invalid Nexus config at ${configPath}: ${formatConfigValidationError(error)}`);
     }
 
     throw error;
@@ -73,7 +73,7 @@ export function readConfigFile(options?: { includeProvenance: true }): Paperclip
 
 /** Resolve the same deployment mode without loading config.ts's dotenv/startup side effects. */
 export function resolveDeploymentMode(fileConfig = readConfigFile()): DeploymentMode {
-  const fromEnv = process.env.PAPERCLIP_DEPLOYMENT_MODE;
+  const fromEnv = process.env.NEXUS_DEPLOYMENT_MODE;
   return fromEnv && DEPLOYMENT_MODES.includes(fromEnv as DeploymentMode)
     ? fromEnv as DeploymentMode
     : fileConfig?.server.deploymentMode ?? "local_trusted";

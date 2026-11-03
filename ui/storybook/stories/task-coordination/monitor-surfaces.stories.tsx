@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 import { IssueMonitorBanner, IssueMonitorComposerStrip } from "@/components/IssueMonitorBanner";
 import { IssueProperties } from "@/components/IssueProperties";
 import { prepareFixtureApi } from "../../support/capability-gaps/api";
@@ -8,7 +8,7 @@ import {
   storybookExecutionWorkspaces,
   storybookIssueDocuments,
   storybookIssues,
-} from "../../fixtures/paperclipData";
+} from "../../fixtures/nexusData";
 
 const issueDocumentSummaries = storybookIssueDocuments.map(({ body: _body, ...summary }) => summary);
 
@@ -322,7 +322,7 @@ const meta = {
           "Surfaces the pinned monitor banner, composer strip, and IssueProperties Monitor row across the wireframe-04 states (scheduled / retrying / due / overdue / cleared) for UX review.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "task-coordination/tree-control"
       ],
@@ -353,7 +353,7 @@ export const BlockedTask: Story = {
     </div>;
   },
   parameters: {
-    paperclip: {
+    nexus: {
       capabilities: ["task-coordination/tree-control", "tasks/properties"],
       implementation: "production",
       boundary: "fixtures",

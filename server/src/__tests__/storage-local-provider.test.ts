@@ -24,7 +24,7 @@ describe("local disk storage provider", () => {
   });
 
   it("round-trips bytes through storage service", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-storage-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-storage-"));
     tempRoots.push(root);
 
     const service = createStorageService(createLocalDiskStorageProvider(root));
@@ -45,7 +45,7 @@ describe("local disk storage provider", () => {
   });
 
   it("writes streamed files with exact metadata", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-storage-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-storage-"));
     tempRoots.push(root);
     const service = createStorageService(createLocalDiskStorageProvider(root));
     const bytes = Buffer.from("streamed response");
@@ -57,7 +57,7 @@ describe("local disk storage provider", () => {
   });
 
   it("removes partial local uploads when their source fails", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-storage-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-storage-"));
     tempRoots.push(root);
     const provider = createLocalDiskStorageProvider(root);
     const body = Readable.from((async function* () { yield Buffer.from("partial"); throw new Error("source failed"); })());
@@ -66,7 +66,7 @@ describe("local disk storage provider", () => {
   });
 
   it("streams only requested byte ranges", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-storage-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-storage-"));
     tempRoots.push(root);
 
     const service = createStorageService(createLocalDiskStorageProvider(root));
@@ -86,7 +86,7 @@ describe("local disk storage provider", () => {
   });
 
   it("blocks cross-company object access", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-storage-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-storage-"));
     tempRoots.push(root);
 
     const service = createStorageService(createLocalDiskStorageProvider(root));
@@ -102,7 +102,7 @@ describe("local disk storage provider", () => {
   });
 
   it("delete is idempotent", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-storage-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-storage-"));
     tempRoots.push(root);
 
     const service = createStorageService(createLocalDiskStorageProvider(root));

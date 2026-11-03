@@ -63,7 +63,7 @@ export type WorkspaceRuntimeServiceStateMap = Record<string, WorkspaceRuntimeDes
 export type WorkspaceCommandKind = "service" | "job";
 
 export interface WorkspaceCommandSource {
-  type: "paperclip";
+  type: "nexus";
   key: "commands" | "services" | "jobs";
   index: number;
 }

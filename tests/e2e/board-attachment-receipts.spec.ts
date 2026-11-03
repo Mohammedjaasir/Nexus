@@ -30,7 +30,7 @@ async function setup(page: Page, request: APIRequestContext, classic: boolean) {
   // Announcements can appear after navigation or reload and cover the classic
   // composer's attachment button. Dismiss through the same UI as a Board user.
   await page.addLocatorHandler(
-    page.getByRole("complementary", { name: "Paperclip announcements", exact: true })
+    page.getByRole("complementary", { name: "Nexus announcements", exact: true })
       .getByRole("button", { name: "Dismiss announcement", exact: true }),
     async (dismiss) => {
       const menuOpen = await page.getByRole("menu", { name: "Add to composer", exact: true }).isVisible();
@@ -70,7 +70,7 @@ async function setup(page: Page, request: APIRequestContext, classic: boolean) {
   ).toBeVisible();
   const composer = classic
     ? page.getByTestId("issue-chat-composer")
-    : page.locator(".paperclip-task-chat-composer");
+    : page.locator(".nexus-task-chat-composer");
   const editor = composer.getByRole("textbox", {
     name: "editable markdown",
     exact: true,
@@ -136,7 +136,7 @@ test("new-task images survive reload, retain bytes, and clear after creation", a
   await expect(dialog.getByRole("img", { name: "board-fresh.png", exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("paperclip:issue-draft-files", 1);
+      const request = indexedDB.open("nexus:issue-draft-files", 1);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -150,7 +150,7 @@ test("new-task images survive reload, retain bytes, and clear after creation", a
     } finally { db.close(); }
   })).toBe(1);
   await expect.poll(() => page.evaluate(() => Object.entries(localStorage)
-    .some(([key, value]) => key.startsWith("paperclip:issue-draft:") && value.includes("Keep the caption")))).toBe(true);
+    .some(([key, value]) => key.startsWith("nexus:issue-draft:") && value.includes("Keep the caption")))).toBe(true);
   await page.reload();
   await page.getByRole("button", { name: "New Task", exact: true }).first().click();
   await expect(editor).toContainText("Keep the caption and image after reload.");
@@ -174,7 +174,7 @@ test("an older image draft retains the rich editor", async ({ page, request }) =
     multipart: { file: { name: files[1]!.name, mimeType: files[1]!.mimeType, buffer: files[1]!.buffer } },
   }));
   await page.addInitScript(({ issueId, imagePath }) => {
-    localStorage.setItem(`paperclip:issue-comment-draft:${issueId}`, `Keep this older caption.\n\n![Older image](${imagePath})`);
+    localStorage.setItem(`nexus:issue-comment-draft:${issueId}`, `Keep this older caption.\n\n![Older image](${imagePath})`);
   }, { issueId: fixture.issue.id, imagePath: attachment.contentPath });
   await page.reload();
   await expect(fixture.editor).toBeVisible();
@@ -195,7 +195,7 @@ test("two open tabs retain their staged images when either tab saves or creates 
   }
   const savedNames = () => page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("paperclip:issue-draft-files", 1);
+      const request = indexedDB.open("nexus:issue-draft-files", 1);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -261,7 +261,7 @@ for (const classic of [false, true]) {
     );
     const receipts = [];
     for (const file of files) receipts.push(await upload(page, fixture, file));
-    const draftKey = `paperclip:issue-comment-draft:${fixture.issue.id}`;
+    const draftKey = `nexus:issue-comment-draft:${fixture.issue.id}`;
     await expect
       .poll(() =>
         page.evaluate(

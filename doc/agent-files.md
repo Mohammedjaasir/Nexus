@@ -13,7 +13,7 @@ or a responsible user alone does not grant peer access.
 
 ## Layout
 
-`PAPERCLIP_DURABLE_AGENT_FILES=true` opts managed files into shared storage. This
+`NEXUS_DURABLE_AGENT_FILES=true` opts managed files into shared storage. This
 requires the database migration that creates `agent_file_roots` and the existing
 S3 application-storage configuration. Postgres holds the current manifest; S3
 holds immutable file bytes. Saves publish their bytes before committing the
@@ -61,14 +61,14 @@ registered writable agent copy. Adapter `HOME` and `CODEX_HOME` keep their
 existing meanings and are not personal-file storage. Local copies are outside
 the task workspace. Remote providers currently confine file sync to their
 workspace: their independent agent copy therefore lives under the excluded
-`.paperclip-runtime/agent-files/<agent>/<run>/` area. It is not included in task
+`.nexus-runtime/agent-files/<agent>/<run>/` area. It is not included in task
 workspace sync, Git staging, or task deliverables.
 
 Sandbox transfer scratch lives separately under
-`.paperclip-runtime/paperclip-runner/agent-file-transfers/<agent>/<run>/`.
+`.nexus-runtime/nexus-runner/agent-file-transfers/<agent>/<run>/`.
 Workspace-staging transfer scratch stays outside `AGENT_HOME`, including
 recovery after controller restart. Remote warm Codex checkpoints may temporarily
-stage changed-file payloads under `AGENT_HOME/.paperclip-runtime/checkpoint-*`;
+stage changed-file payloads under `AGENT_HOME/.nexus-runtime/checkpoint-*`;
 these are checkpoint scratch, not managed personal files. Cleanup removes
 only the original materialization's agent directory and transfer scratch
 through its owned lease. A later warm turn keeps that original materialization
@@ -86,7 +86,7 @@ hardlinks, and special
 files are rejected, rather than followed or silently skipped. The instruction
 entry remains valid UTF-8, at most 1 MiB, and cannot be deleted. The editor edits
 text up to 1 MiB and offers downloads for binary or larger files. The reserved
-`.paperclip-runtime` directory and the compatibility-only virtual file
+`.nexus-runtime` directory and the compatibility-only virtual file
 `promptTemplate.legacy.md` are not user storage. Task cache and Git ignore
 exclusions do not apply to this directory.
 
@@ -332,9 +332,9 @@ unit or matcher results; a passing matcher does not prove a live run.
 ### Explicit migration and object cleanup
 
 Run `server/src/maintenance/agent-files.ts` with the instance's database,
-storage, secrets and original `PAPERCLIP_HOME`. The default migration phase is
+storage, secrets and original `NEXUS_HOME`. The default migration phase is
 read-only. Before applying, stop ingress and execution writers on that instance
-and set `PAPERCLIP_DURABLE_AGENT_FILES=true`:
+and set `NEXUS_DURABLE_AGENT_FILES=true`:
 
 ```sh
 pnpm exec tsx server/src/maintenance/agent-files.ts --phase=migration
@@ -374,9 +374,9 @@ this maintenance during the bounded rollout.
 The runtime bundle also contains `node server/dist-runtime/ephemeral-migration.mjs`.
 Cloud starts this dedicated process on the original volume after confirming that
 all application deployments have stopped. It never starts app routes, queues or
-agent execution. Set `PAPERCLIP_EPHEMERAL_MIGRATION=true`, a UUID attempt ID in
-`PAPERCLIP_EPHEMERAL_MIGRATION_ID`, and a fresh 32-byte base64url token in
-`PAPERCLIP_EPHEMERAL_MIGRATION_TOKEN`. Use the original home and instance ID,
+agent execution. Set `NEXUS_EPHEMERAL_MIGRATION=true`, a UUID attempt ID in
+`NEXUS_EPHEMERAL_MIGRATION_ID`, and a fresh 32-byte base64url token in
+`NEXUS_EPHEMERAL_MIGRATION_TOKEN`. Use the original home and instance ID,
 external database, shared S3 configuration and existing stable secrets. Durable
 agent files and shared UI assets must be enabled; ephemeral-server mode stays
 false until adoption completes.
@@ -405,8 +405,8 @@ maintenance. Retain the old volume for recovery evidence; it must not become
 writable authority again after shared state advances.
 
 The opt-in `ephemeral-migration.test.ts` uses disposable PostgreSQL and an
-S3-compatible endpoint. Set `PAPERCLIP_TEST_POSTGRES_ADMIN_URL`,
-`PAPERCLIP_TEST_S3_ENDPOINT` and normal AWS credentials to run it. It verifies
+S3-compatible endpoint. Set `NEXUS_TEST_POSTGRES_ADMIN_URL`,
+`NEXUS_TEST_S3_ENDPOINT` and normal AWS credentials to run it. It verifies
 multi-page adoption, filesystem destruction, fresh reads, corrupt object rejection,
 and missing-byte/active-execution refusals. The default suite does not contact
 external storage.

@@ -45,7 +45,7 @@ const meta = {
           "Core Skill Studio permission surfaces. No permission chrome under the open default; an actionable denial banner appears only for explicit policy or platform-safety failures.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "skills/policy"
       ],

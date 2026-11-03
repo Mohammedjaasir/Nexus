@@ -3,30 +3,30 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
-import { activityLog, companyMemberships, heartbeatRuns, issues } from "@paperclipai/db";
+import { activityLog, companyMemberships, heartbeatRuns, issues } from "@nexusai/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startRunnerApiTestServer } from "../../__tests__/helpers/runner-api-server.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 import { companySkillPolicyService } from "../company-skill-policy.js";
 import { companySkillService } from "../company-skills.js";
 
 describe("runner update_skill through the real skill API", () => {
   let server: Awaited<ReturnType<typeof startRunnerApiTestServer>>;
   let home: string;
-  const previousSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
-  const previousHome = process.env.PAPERCLIP_HOME;
+  const previousSecret = process.env.NEXUS_AGENT_JWT_SECRET;
+  const previousHome = process.env.NEXUS_HOME;
   beforeAll(async () => {
-    process.env.PAPERCLIP_AGENT_JWT_SECRET = randomUUID();
-    home = await mkdtemp(join(tmpdir(), "paperclip-update-skill-"));
-    process.env.PAPERCLIP_HOME = home;
+    process.env.NEXUS_AGENT_JWT_SECRET = randomUUID();
+    home = await mkdtemp(join(tmpdir(), "nexus-update-skill-"));
+    process.env.NEXUS_HOME = home;
     server = await startRunnerApiTestServer();
   }, 60_000);
   afterAll(async () => {
     await server?.close();
-    if (previousSecret === undefined) delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
-    else process.env.PAPERCLIP_AGENT_JWT_SECRET = previousSecret;
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = previousHome;
+    if (previousSecret === undefined) delete process.env.NEXUS_AGENT_JWT_SECRET;
+    else process.env.NEXUS_AGENT_JWT_SECRET = previousSecret;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = previousHome;
     if (home) await rm(home, { recursive: true, force: true });
   });
 
@@ -55,7 +55,7 @@ describe("runner update_skill through the real skill API", () => {
     await server.db.insert(heartbeatRuns).values({ id: replacementRunId, companyId, agentId: testFixture.agentId,
       status: "running", runtimeMode: "native", nativeIssueId: issueId, invocationSource: "assignment", triggerDetail: "system", contextSnapshot: { issueId } });
     await server.db.update(issues).set({ executionRunId: replacementRunId }).where(eq(issues.id, issueId));
-    const replacement = new PaperclipRunnerToolAuthority(server.db, { ...testFixture, runId: replacementRunId });
+    const replacement = new NexusRunnerToolAuthority(server.db, { ...testFixture, runId: replacementRunId });
     expect(await replacement.execute({ tool: "update_skill", callId: "replacement", arguments: args })).toEqual(first);
     expect(await companySkillService(server.db).listVersions(companyId, skill.id)).toHaveLength(2);
     expect((await server.db.select().from(activityLog).where(eq(activityLog.action, "company.skill_file_updated")))
@@ -110,7 +110,7 @@ describe("runner update_skill through the real skill API", () => {
 
   it("hides the tool and rejects invocation in planning mode", async () => {
     const testFixture = await fixture({ mode: "planning" });
-    expect(new PaperclipRunnerToolAuthority(server.db, { ...testFixture, workMode: "planning" }).definitions().some(tool => tool.name === "update_skill")).toBe(false);
+    expect(new NexusRunnerToolAuthority(server.db, { ...testFixture, workMode: "planning" }).definitions().some(tool => tool.name === "update_skill")).toBe(false);
     await expect(testFixture.authority.execute({ tool: "update_skill", callId: "planning", arguments: testFixture.args })).rejects.toThrow();
   });
 });

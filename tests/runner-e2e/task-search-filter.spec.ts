@@ -37,7 +37,7 @@ const searchTasks: SearchTask[] = ["target", "status-control", "search-control"]
   id: name, identifier: `QA-${index + 1}`, companyId: "company", title: name, description: `${name} context`,
   status: index === 1 ? "done" : "backlog", assigneeUserId: "board", assigneeAgentId: null,
 }));
-const taskLink = (task: SearchTask) => `<a data-inbox-issue-link href="https://paperclip.example.test/QA/issues/${task.identifier}">${task.title}</a>`;
+const taskLink = (task: SearchTask) => `<a data-inbox-issue-link href="https://nexus.example.test/QA/issues/${task.identifier}">${task.title}</a>`;
 
 test("task search readback survives a search rerender that removes an observed row", async ({ page }) => {
   page.setDefaultTimeout(150); // Bound only the reproduced stale-index wait.

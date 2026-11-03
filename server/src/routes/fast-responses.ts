@@ -1,6 +1,6 @@
 import { Router } from "express";
-import type { Db } from "@paperclipai/db";
-import { updateFastResponseSchema } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { updateFastResponseSchema } from "@nexusai/shared";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { canManageAiConnections } from "./ai-connections.js";
 import { forbidden } from "../errors.js";

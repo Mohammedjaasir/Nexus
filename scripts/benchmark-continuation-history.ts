@@ -20,7 +20,7 @@ let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | un
 let db: Db | undefined;
 let baselineDir: string | undefined;
 try {
-  const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_CONTINUATION_HISTORY_BENCHMARK_DATABASE_URL");
+  const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_CONTINUATION_HISTORY_BENCHMARK_DATABASE_URL");
   if (externalUrl) {
     await applyPendingMigrations(externalUrl);
     database = { connectionString: externalUrl, cleanup: async () => {} };
@@ -42,7 +42,7 @@ try {
   for (const receiptHeavy of [false, true]) {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Synthetic history", issuePrefix: `B${companyId.replaceAll("-", "")}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Continue", status: "in_progress", assigneeAgentId: agentId });
     const runCount = receiptHeavy ? 1 : 25;
     const requiredResult = receiptHeavy ? randomBytes(1536 * 1024).toString("base64") : { receipt: "required output" };

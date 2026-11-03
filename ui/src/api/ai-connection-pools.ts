@@ -1,4 +1,4 @@
-import type { AiConnectionPool, AiConnectionPoolConfig, AiConnectionUsage } from "@paperclipai/shared";
+import type { AiConnectionPool, AiConnectionPoolConfig, AiConnectionUsage } from "@nexusai/shared";
 import { api } from "./client";
 export type PoolInspection = Record<string, { reason: string; checkedAt: string | null; usage?: AiConnectionUsage }>;
 export const aiConnectionPoolsApi = {

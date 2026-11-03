@@ -9,11 +9,11 @@ import {
   issues,
   runIdentityContexts,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { conflict, forbidden } from "../errors.js";
 import { notifyChatRunMilestones } from "./chat-run-milestone-notifications.js";
 import { boundRunIssueId, boundRunIssueIdSql, runTaskContextColumn } from "./run-task-binding.js";
-import { isUuidLike } from "@paperclipai/shared";
+import { isUuidLike } from "@nexusai/shared";
 import { queuedCommentIdsFromRunContext, queuedCommentIdsFromWakePayload } from "./issue-queued-comment-queue.js";
 
 /** Resolve an explicit click from persisted receipts, never caller context or message authors. */
@@ -487,7 +487,7 @@ export const runIdentityTaskFields = {
     then jsonb_build_object('issueId', ${heartbeatRuns.contextSnapshot}->'issueId',
       'taskId', ${heartbeatRuns.contextSnapshot}->'taskId',
       'conversationSessionGeneration', ${heartbeatRuns.contextSnapshot}->'conversationSessionGeneration',
-      'paperclipSkillTest', ${heartbeatRuns.contextSnapshot}->'paperclipSkillTest') else null end`,
+      'nexusSkillTest', ${heartbeatRuns.contextSnapshot}->'nexusSkillTest') else null end`,
 };
 
 export const runIdentityBrokerFields = {
@@ -497,11 +497,11 @@ export const runIdentityBrokerFields = {
       'projectId', ${heartbeatRuns.contextSnapshot}->'projectId', 'routineId', ${heartbeatRuns.contextSnapshot}->'routineId',
       'responsibleUserId', ${heartbeatRuns.contextSnapshot}->'responsibleUserId',
       'responsible_user_id', ${heartbeatRuns.contextSnapshot}->'responsible_user_id',
-      'paperclipIssue', case when jsonb_typeof(${heartbeatRuns.contextSnapshot}->'paperclipIssue') = 'object'
-        then jsonb_build_object('id', ${heartbeatRuns.contextSnapshot}->'paperclipIssue'->'id',
-          'projectId', ${heartbeatRuns.contextSnapshot}->'paperclipIssue'->'projectId',
-          'responsibleUserId', ${heartbeatRuns.contextSnapshot}->'paperclipIssue'->'responsibleUserId',
-          'responsible_user_id', ${heartbeatRuns.contextSnapshot}->'paperclipIssue'->'responsible_user_id') else null end)
+      'nexusIssue', case when jsonb_typeof(${heartbeatRuns.contextSnapshot}->'nexusIssue') = 'object'
+        then jsonb_build_object('id', ${heartbeatRuns.contextSnapshot}->'nexusIssue'->'id',
+          'projectId', ${heartbeatRuns.contextSnapshot}->'nexusIssue'->'projectId',
+          'responsibleUserId', ${heartbeatRuns.contextSnapshot}->'nexusIssue'->'responsibleUserId',
+          'responsible_user_id', ${heartbeatRuns.contextSnapshot}->'nexusIssue'->'responsible_user_id') else null end)
     else null end`,
 };
 

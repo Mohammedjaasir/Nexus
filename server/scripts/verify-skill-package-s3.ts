@@ -5,23 +5,23 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { S3Client, CreateBucketCommand, DeleteBucketCommand } from "@aws-sdk/client-s3";
-import { companies, createDb, startEmbeddedPostgresTestDatabase } from "@paperclipai/db";
+import { companies, createDb, startEmbeddedPostgresTestDatabase } from "@nexusai/db";
 import { createStorageService } from "../src/storage/service.js";
 import { createS3StorageProvider } from "../src/storage/s3-provider.js";
 import { skillPackagePaths, skillPackageStore } from "../src/services/skill-package-store.js";
 import { skillSnapshotHash } from "../src/services/skill-snapshot.js";
-import type { CompanySkillVersionFileInventoryEntry } from "@paperclipai/shared";
+import type { CompanySkillVersionFileInventoryEntry } from "@nexusai/shared";
 
-const endpoint = process.env.PAPERCLIP_SKILL_PACKAGE_TEST_S3_ENDPOINT;
-assert.ok(endpoint, "Set PAPERCLIP_SKILL_PACKAGE_TEST_S3_ENDPOINT to a disposable loopback S3 server");
+const endpoint = process.env.NEXUS_SKILL_PACKAGE_TEST_S3_ENDPOINT;
+assert.ok(endpoint, "Set NEXUS_SKILL_PACKAGE_TEST_S3_ENDPOINT to a disposable loopback S3 server");
 assert.ok(["localhost", "127.0.0.1", "[::1]"].includes(new URL(endpoint).hostname), "Only loopback test storage is allowed");
 const region = "us-east-1", bucket = `skill-package-test-${randomUUID()}`;
 const client = new S3Client({ region, endpoint, forcePathStyle: true });
 const database = await startEmbeddedPostgresTestDatabase("skill-package-s3-");
 const db = createDb(database.connectionString);
 const home = await fs.mkdtemp(path.join(os.tmpdir(), "skill-package-s3-"));
-const previousHome = process.env.PAPERCLIP_HOME;
-process.env.PAPERCLIP_HOME = home;
+const previousHome = process.env.NEXUS_HOME;
+process.env.NEXUS_HOME = home;
 const storage = createStorageService(createS3StorageProvider({ bucket, region, endpoint, forcePathStyle: true }));
 const companyId = randomUUID();
 const keys: string[] = [];
@@ -54,6 +54,6 @@ try {
   await db.$client.end({ timeout: 1 });
   await database.cleanup();
   await fs.rm(home, { recursive: true, force: true });
-  if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-  else process.env.PAPERCLIP_HOME = previousHome;
+  if (previousHome === undefined) delete process.env.NEXUS_HOME;
+  else process.env.NEXUS_HOME = previousHome;
 }

@@ -91,7 +91,7 @@ export function splitTranscriptAtAnchors(
  * The live parent row's nesting rule (PAP-354, narrowed by PAP-361): only tool
  * calls, provider-supplied reasoning summaries, and usage readouts nest inside
  * the expandable live turn. The classic parent-row surface may flatten a live
- * interstitial into its status line; the Paperclip Runner task surface instead
+ * interstitial into its status line; the Nexus Runner task surface instead
  * projects commentary as durable chronological phase boundaries. The run's
  * final reply is resolved separately into the turn's durable response slot or
  * its posted comment bubble. Markers, statuses and interaction cards stay in
@@ -1032,8 +1032,8 @@ export function transcriptToTaskChatItems(
       }
       case "result": {
         if (
-          entry.subtype !== "paperclip_runner_usage" &&
-          entry.subtype !== "paperclip_runner_session_usage"
+          entry.subtype !== "nexus_runner_usage" &&
+          entry.subtype !== "nexus_runner_session_usage"
         )
           break;
         const inputTokens = entry.inputTokens || 0;
@@ -1041,7 +1041,7 @@ export function transcriptToTaskChatItems(
         items.push({
           id: `${runId}:usage:${i}`,
           kind: "usage",
-          ...(entry.subtype === "paperclip_runner_session_usage"
+          ...(entry.subtype === "nexus_runner_session_usage"
             ? {
                 label: "Provider session total",
                 detail:
@@ -1181,12 +1181,12 @@ export function omitProgressRepeatedByResponseAcrossSegments(
 }
 
 /**
- * Keep the paperclip runner's expanded activity history focused on work the
+ * Keep the nexus runner's expanded activity history focused on work the
  * user can act on. The normalized transcript remains lossless; this is only a
  * presentation filter for the new-runner turn surface. Legacy adapters keep
  * their existing lifecycle and usage rows.
  */
-export function paperclipRunnerHistoryItems(
+export function nexusRunnerHistoryItems(
   parsed: readonly TaskChatItem[],
 ): TaskChatItem[] {
   return parsed.filter((item) => {
@@ -1201,7 +1201,7 @@ export function paperclipRunnerHistoryItems(
 }
 
 /**
- * Semantic rows for the Paperclip runner's Codex-style activity disclosure.
+ * Semantic rows for the Nexus runner's Codex-style activity disclosure.
  *
  * This is intentionally narrower than the stored transcript and the runner
  * inspector: it keeps work a person can understand or act on while excluding
@@ -1209,7 +1209,7 @@ export function paperclipRunnerHistoryItems(
  * response. Logical provider/tool lifecycles have already been coalesced by
  * `transcriptToTaskChatItems`, so each returned item is one visible "thing".
  */
-export function paperclipRunnerActivityItems(
+export function nexusRunnerActivityItems(
   parsed: readonly TaskChatItem[],
 ): TaskChatItem[] {
   const hasAggregateWorkspaceChange = parsed.some(
@@ -1232,7 +1232,7 @@ export function paperclipRunnerActivityItems(
           (normalizedName === "file_change" || normalizedName === "filechange")
         )
           return false;
-        return normalizedName !== "paperclip_finish";
+        return normalizedName !== "nexus_finish";
       }
       case "marker":
         return item.variant === "interrupted";
@@ -1242,7 +1242,7 @@ export function paperclipRunnerActivityItems(
         if (
           item.surface === "provider_activity" &&
           item.family === "tool_execution" &&
-          providerItemDetail(item, "Name") === "paperclip_finish"
+          providerItemDetail(item, "Name") === "nexus_finish"
         ) return false;
         if (
           hasAggregateWorkspaceChange &&
@@ -1279,16 +1279,16 @@ export function paperclipRunnerActivityItems(
 }
 
 /**
- * Ordered input for the Paperclip Runner task-turn timeline. This keeps the
+ * Ordered input for the Nexus Runner task-turn timeline. This keeps the
  * semantic activity filter above, but retains runtime-request lifecycles so
  * the shared projector can use each request as a phase boundary and place its
  * terminal receipt at the request's first-seen position.
  */
-export function paperclipRunnerTimelineItems(
+export function nexusRunnerTimelineItems(
   parsed: readonly TaskChatItem[],
 ): TaskChatItem[] {
   const activityIds = new Set(
-    paperclipRunnerActivityItems(parsed).map((item) => item.id),
+    nexusRunnerActivityItems(parsed).map((item) => item.id),
   );
   return parsed.filter(
     (item) =>
@@ -1303,7 +1303,7 @@ export function paperclipRunnerTimelineItems(
  * A response-wake can answer now while deliberately leaving the task open.
  * Its marker is derived by the native event projector, never from final prose.
  */
-export function paperclipRunnerAcceptedResponseWake(
+export function nexusRunnerAcceptedResponseWake(
   parsed: readonly TaskChatItem[],
   runId: string | undefined,
 ): TaskChatRunResultItem | undefined {
@@ -1332,7 +1332,7 @@ export function paperclipRunnerAcceptedResponseWake(
 }
 
 /** Resolve a terminal reply without presenting ordinary yielded waits as answers. */
-export function paperclipRunnerFinalResponse(
+export function nexusRunnerFinalResponse(
   parsed: readonly TaskChatItem[],
   options?: {
     runId?: string;
@@ -1355,7 +1355,7 @@ export function paperclipRunnerFinalResponse(
     const accepted =
       options?.allowFallback === false
         ? undefined
-        : paperclipRunnerAcceptedResponseWake(parsed, options?.runId);
+        : nexusRunnerAcceptedResponseWake(parsed, options?.runId);
     if (!accepted) return undefined;
     return {
       id: `${accepted.id}:final-response`,
@@ -1639,15 +1639,15 @@ function phaseSummary(
               ? "Searched available tools"
               : `Searched available tools ${count} times`;
           break;
-        case "paperclip_read":
+        case "nexus_read":
           text =
             count === 1
-              ? "Read from Paperclip"
-              : `Read from Paperclip ${count} times`;
+              ? "Read from Nexus"
+              : `Read from Nexus ${count} times`;
           break;
         case "task_operation":
           text =
-            count === 1 ? "Used Paperclip" : `Used Paperclip ${count} times`;
+            count === 1 ? "Used Nexus" : `Used Nexus ${count} times`;
           break;
         default:
           text = count === 1 ? "Used a tool" : `Used ${count} tools`;
@@ -1861,7 +1861,7 @@ export function buildTurnSummary(
       else if (entry.changeType === "remove") removed += 1;
     } else if (
       entry.kind === "result" &&
-      entry.subtype !== "paperclip_runner_session_usage"
+      entry.subtype !== "nexus_runner_session_usage"
     ) {
       // Session-cumulative measurements remain visible in the expanded
       // transcript, but they can include earlier runs. Only run-scoped usage

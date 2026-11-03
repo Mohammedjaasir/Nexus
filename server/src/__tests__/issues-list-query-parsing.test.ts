@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import { expect, it } from "vitest";
-import { issues } from "@paperclipai/db";
+import { issues } from "@nexusai/db";
 import { issueRoutes } from "../routes/issues.js";
 import {
   describeEmbeddedPostgres,
@@ -18,7 +18,7 @@ import {
  */
 
 describeEmbeddedPostgres("issue list status query parsing", () => {
-  const ctx = useEmbeddedPostgres("paperclip-issues-list-query-parsing-", {
+  const ctx = useEmbeddedPostgres("nexus-issues-list-query-parsing-", {
     resetEach: resetCompanyIssueFixtures,
   });
 

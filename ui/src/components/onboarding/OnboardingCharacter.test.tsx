@@ -2,13 +2,13 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { appearanceForPalette } from "@paperclipai/shared";
-import { CAP_V1_COLORS } from "@paperclipai/shared/cliplab/palette-tokens";
-import type { createCharacter as CreateCharacter } from "@paperclipai/shared/cliplab/runtime";
+import { appearanceForPalette } from "@nexusai/shared";
+import { CAP_V1_COLORS } from "@nexusai/shared/cliplab/palette-tokens";
+import type { createCharacter as CreateCharacter } from "@nexusai/shared/cliplab/runtime";
 import { OnboardingCharacter } from "./OnboardingCharacter";
 
 const createCharacter = vi.hoisted(() => vi.fn<typeof CreateCharacter>());
-vi.mock("@paperclipai/shared/cliplab/runtime", () => ({ createCharacter }));
+vi.mock("@nexusai/shared/cliplab/runtime", () => ({ createCharacter }));
 
 let root: Root;
 let host: HTMLDivElement;

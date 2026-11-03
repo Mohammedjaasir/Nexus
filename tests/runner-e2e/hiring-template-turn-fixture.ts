@@ -32,7 +32,7 @@ export const hiringTurnFixtureTimestamp = (seconds: number) => new Date(Date.UTC
 /** Complete canonical/native read-action stream with one exact execution ID. */
 export function hiringNotificationActionEvents() {
   const id = "read-action";
-  const payload = { schema: "paperclip.tool.execution.v1", executionId: id, transport: "dynamic",
+  const payload = { schema: "nexus.tool.execution.v1", executionId: id, transport: "dynamic",
     operation: "unknown", name: "call_api", readOnly: null, status: "running", exitCode: null };
   const items: Array<{ eventType: string; payload: Record<string, unknown> }> = [
     { eventType: "tool.execution.started", payload },
@@ -41,11 +41,11 @@ export function hiringNotificationActionEvents() {
     { eventType: "item.completed", payload: { kind: "tool", item: { id, tool_use_id: id, type: "tool_result",
       result: { apiOperationId: "GET /api/issues/{id}/documents", ok: true, status: 200 } } } },
     { eventType: "tool.execution.completed", payload: { ...payload, status: "completed" } },
-    { eventType: "run.result.accepted", payload: { result: { schema: "paperclip.run_result.v1" } } },
-    { eventType: "run.terminal", payload: { schema: "paperclip.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed" } },
+    { eventType: "run.result.accepted", payload: { result: { schema: "nexus.run_result.v1" } } },
+    { eventType: "run.terminal", payload: { schema: "nexus.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed" } },
   ];
   return items.map((event, i) => ({ seq: i + 1, eventType: event.eventType, payload: { prpEvent: {
-    schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: event.eventType.startsWith("run.") ? "control_plane" : "runner", payload: event.payload,
+    schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: event.eventType.startsWith("run.") ? "control_plane" : "runner", payload: event.payload,
   } } }));
 }
 
@@ -80,8 +80,8 @@ export function createHiringTemplateTurnFixture(notificationCount = 2) {
     return { id, companyId: company, issueId: chat, authorUserId: user, authorAgentId: null,
       body: `Fixture request ${i + 1}`, createdAt: timestamp([0, 20, 50][i]!) };
   });
-  const workers = [run("worker-first", coder, "first-task", "issue_assigned", 4, 12, "paperclip_runner.create_task"),
-    run("worker-reuse", coder, "second-task", "issue_assigned", 25, 40, "paperclip_runner.create_task")];
+  const workers = [run("worker-first", coder, "first-task", "issue_assigned", 4, 12, "nexus_runner.create_task"),
+    run("worker-reuse", coder, "second-task", "issue_assigned", 25, 40, "nexus_runner.create_task")];
   const tasks = workers.map((r, i) => ({ id: r.contextSnapshot.issueId, companyId: company, projectId: "project",
     title: r.contextSnapshot.issueId, parentId: null as string | null, status: "done", identifier: `RUN-${i + 2}`, responsibleUserId: user,
     assigneeAgentId: coder, createdByAgentId: lead, createdByUserId: null as string | null, originRunId: requested[i]!.id,

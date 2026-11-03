@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import type { RunnerProviderLaunchRequirements } from "@paperclipai/paperclip-runner";
-import type { RunnerProcessLaunchSpec } from "../../vendor/paperclip-runner/index.js";
+import type { RunnerProviderLaunchRequirements } from "@nexusai/nexus-runner";
+import type { RunnerProcessLaunchSpec } from "../../vendor/nexus-runner/index.js";
 import { createPluginRunnerTaskOwner } from "./plugin-runner-task.js";
 import { NativeExecutionContext } from "./native-execution-context.js";
 
@@ -19,7 +19,7 @@ function launchSpec(): RunnerProcessLaunchSpec {
 }
 
 const requirements: RunnerProviderLaunchRequirements = {
-  schema: "paperclip.runner.launch-requirements.v1", identity: launchSpec().nativeRunner!.identity,
+  schema: "nexus.runner.launch-requirements.v1", identity: launchSpec().nativeRunner!.identity,
   provider: "codex", model: "fixture", instructions: "Core policy", runtimeContext: null,
   settings: {}, approvalPolicy: "never", readOnly: false, preparedConversation: false,
   includeCollaborationModeInstructions: false,
@@ -41,7 +41,7 @@ function provider() {
       configurationId: "configuration", requirementsDigest: `sha256:${"a".repeat(64)}`, provider: { kind: "codex" },
     } };
     if (operation.kind === "read_state") return { kind: "state", taskId: "task", state: {
-      schema: "paperclip.runner.durable.state.v1", ...operation.identity, lifecycle: "suspended",
+      schema: "nexus.runner.durable.state.v1", ...operation.identity, lifecycle: "suspended",
     } };
     if (operation.kind === "stop") stopped = true;
     if (operation.kind === "status") return { kind: "status", taskId: "task", phase: stopped ? "cancelled" : "running", executionStopped: stopped, sessionStateAvailable: stopped };

@@ -1,5 +1,5 @@
 import { and, eq, inArray, lte, or, sql } from "drizzle-orm";
-import { chatActions, chatEndpoints, toolConnections, type Db } from "@paperclipai/db";
+import { chatActions, chatEndpoints, toolConnections, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";
 import { CHAT_ACTION_QUEUES, type ScheduledChatAction } from "./chat-work-notifications.js";
 import { DELIVERY_QUEUES } from "./delivery-work-notifications.js";

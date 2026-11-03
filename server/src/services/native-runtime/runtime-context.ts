@@ -12,24 +12,24 @@ import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
-import { companySkillVersions, heartbeatRuns, type Db } from "@paperclipai/db";
-import type { PaperclipSkillEntry } from "@paperclipai/adapter-utils/server-utils";
-import { isToolConnectionAttentionHealth } from "@paperclipai/shared";
+import { companySkillVersions, heartbeatRuns, type Db } from "@nexusai/db";
+import type { NexusSkillEntry } from "@nexusai/adapter-utils/server-utils";
+import { isToolConnectionAttentionHealth } from "@nexusai/shared";
 import {
-  PAPERCLIP_OPERATIONAL_SKILL_KEY,
-  resolvePaperclipDesiredSkillNames,
-} from "@paperclipai/adapter-utils/server-utils";
+  NEXUS_OPERATIONAL_SKILL_KEY,
+  resolveNexusDesiredSkillNames,
+} from "@nexusai/adapter-utils/server-utils";
 import {
   NATIVE_RUNTIME_ASSET_SCHEMA,
-  PAPERCLIP_EXECUTION_PROMPT,
-  PAPERCLIP_EXECUTION_PROMPT_REVISION,
+  NEXUS_EXECUTION_PROMPT,
+  NEXUS_EXECUTION_PROMPT_REVISION,
   canonicalNativeRuntimeContextDigest,
   nativeRuntimePromptDigest,
   parseNativeRuntimeContext,
   type NativeRuntimeAssetReference,
   type NativeRuntimeContextSnapshot,
-} from "../../vendor/paperclip-runner/index.js";
-import { resolvePaperclipInstanceRoot } from "../../home-paths.js";
+} from "../../vendor/nexus-runner/index.js";
+import { resolveNexusInstanceRoot } from "../../home-paths.js";
 import { agentInstructionsService, agentInstructionsBundleMode } from "../agent-instructions.js";
 import { agentInstructionRevisionService } from "../agent-instruction-revisions.js";
 import { toolAccessService } from "../tool-access.js";
@@ -100,12 +100,12 @@ export async function materializeAsset(files: AssetFile[]): Promise<NativeRuntim
     const totalBytes = manifestFiles.reduce((sum, file) => sum + file.size, 0);
     if (!manifestFiles.length || manifestFiles.length > MAX_ASSET_FILES || totalBytes > MAX_ASSET_BYTES) throw new Error("runtime context bundle is empty or exceeds its bound");
     const assetDigest = sha256(JSON.stringify(manifestFiles));
-    const manifestText = `${JSON.stringify({ schema: "paperclip.runtime-asset-manifest.v1", digest: assetDigest, fileCount: manifestFiles.length, totalBytes, files: manifestFiles })}\n`;
+    const manifestText = `${JSON.stringify({ schema: "nexus.runtime-asset-manifest.v1", digest: assetDigest, fileCount: manifestFiles.length, totalBytes, files: manifestFiles })}\n`;
     const manifestDigest = sha256(manifestText);
     return { sorted, manifestFiles, totalBytes, assetDigest, manifestText, manifestDigest };
   });
   return withRuntimeAssetUse(assetDigest, async function publishOrReuse(locked): Promise<NativeRuntimeAssetReference> {
-    const assetsRoot = path.join(resolvePaperclipInstanceRoot(), "runtime-context-assets");
+    const assetsRoot = path.join(resolveNexusInstanceRoot(), "runtime-context-assets");
     const rootPath = path.join(assetsRoot, "bundles", assetDigest);
     const manifestPath = path.join(assetsRoot, "manifests", `${assetDigest}.json`);
     const existing = await measureRunPhase("runtime_context.asset_cache", () => fs.readFile(manifestPath, "utf8").catch(() => null));
@@ -234,9 +234,9 @@ export async function rehydratePinnedSkillAssets(
   return { ...context, skills };
 }
 
-export async function materializeSelectedSkills(runtimeConfig: Record<string, unknown>, entries: PaperclipSkillEntry[], omitLegacy: boolean) {
-  const desiredKeys = resolvePaperclipDesiredSkillNames(runtimeConfig, entries).filter(
-    (key) => !omitLegacy || key !== PAPERCLIP_OPERATIONAL_SKILL_KEY,
+export async function materializeSelectedSkills(runtimeConfig: Record<string, unknown>, entries: NexusSkillEntry[], omitLegacy: boolean) {
+  const desiredKeys = resolveNexusDesiredSkillNames(runtimeConfig, entries).filter(
+    (key) => !omitLegacy || key !== NEXUS_OPERATIONAL_SKILL_KEY,
   );
   const byKey = new Map(entries.map((entry) => [entry.key, entry]));
   return Promise.all(desiredKeys.sort().map(async (key) => {
@@ -307,21 +307,21 @@ export async function resolveNativeRuntimeMcpSnapshot(input: { db: Db; agent: Pi
   return { assignmentSetId: `sha256:${assignmentDigest}`, digest: assignmentDigest, bindingId: assignment.connections.length ? `native-mcp:${input.runId}` : null };
 }
 
-export async function buildNativeRuntimeContext(input: { db: Db; agent: RuntimeAgent; runId: string; runtimeConfig: Record<string, unknown>; runtimeSkillEntries: PaperclipSkillEntry[]; instructionWorkingCopy?: { rootPath: string; entryPath: string; kind?: "agent_files" } }): Promise<NativeRuntimeContextSnapshot> {
+export async function buildNativeRuntimeContext(input: { db: Db; agent: RuntimeAgent; runId: string; runtimeConfig: Record<string, unknown>; runtimeSkillEntries: NexusSkillEntry[]; instructionWorkingCopy?: { rootPath: string; entryPath: string; kind?: "agent_files" } }): Promise<NativeRuntimeContextSnapshot> {
   const preconfigured = input.runtimeConfig.homeMode === "preconfigured";
   const emptyMcpDigest = sha256("preconfigured");
   const [instructions, skills, mcp] = await Promise.all([
     measureRunPhase("runtime_context.instructions", () => materializeInstructionBundle(input.db, input.agent, input.instructionWorkingCopy?.kind === "agent_files")),
-    measureRunPhase("runtime_context.skills", () => preconfigured ? [] : materializeSelectedSkills(input.runtimeConfig, input.runtimeSkillEntries, input.agent.adapterType === "paperclip_runner")),
+    measureRunPhase("runtime_context.skills", () => preconfigured ? [] : materializeSelectedSkills(input.runtimeConfig, input.runtimeSkillEntries, input.agent.adapterType === "nexus_runner")),
     measureRunPhase("runtime_context.mcp", () => preconfigured ? { assignmentSetId: `sha256:${emptyMcpDigest}`, digest: emptyMcpDigest, bindingId: null } : resolveNativeRuntimeMcpSnapshot({ db: input.db, agent: input.agent, runId: input.runId })),
   ]);
   const snapshot = {
-    prompt: { revision: PAPERCLIP_EXECUTION_PROMPT_REVISION, text: PAPERCLIP_EXECUTION_PROMPT, digest: nativeRuntimePromptDigest() },
+    prompt: { revision: NEXUS_EXECUTION_PROMPT_REVISION, text: NEXUS_EXECUTION_PROMPT, digest: nativeRuntimePromptDigest() },
     instructions: { ...instructions, ...(input.instructionWorkingCopy ? { workingCopy: input.instructionWorkingCopy } : {}) },
     skills,
     mcp,
-    ...(input.runtimeConfig.paperclipConnectionInstructions ? {
-      connectionInstructions: input.runtimeConfig.paperclipConnectionInstructions as { text: string; digest: string },
+    ...(input.runtimeConfig.nexusConnectionInstructions ? {
+      connectionInstructions: input.runtimeConfig.nexusConnectionInstructions as { text: string; digest: string },
     } : {}),
   };
   return parseNativeRuntimeContext({ ...snapshot, aggregateDigest: canonicalNativeRuntimeContextDigest(snapshot) });

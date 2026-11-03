@@ -59,7 +59,7 @@ const meta = {
           "Production agent connection component with fixture API responses. Provider tests and subsequent hiring are simulated. Choose subscription or API key, reuse a saved connection, or enter a new key.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "runs-adapters/validation",
         "agents/hire"

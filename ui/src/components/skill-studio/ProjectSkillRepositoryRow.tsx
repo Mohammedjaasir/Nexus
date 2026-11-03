@@ -1,4 +1,4 @@
-import type { ProjectSkillRepository } from '@paperclipai/shared';
+import type { ProjectSkillRepository } from '@nexusai/shared';
 import { GithubIcon } from '@/components/icons/github-icon';
 import { Button } from '@/components/ui/button';
 import { LoaderCircle } from 'lucide-react';

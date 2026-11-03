@@ -2,11 +2,11 @@ import type { issueService } from "../../issues.js";
 import { mirrorSlackBoardComment } from "../../slack-board-messages.js";
 import { assertSlackBoardWorkAllowed } from "../../slack-board-resume.js";
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { chatPublications, issues } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { chatPublications, issues } from "@nexusai/db";
 import { conflict, notFound } from "../../../errors.js";
 import type { DbTransaction } from "../runtime-types.js";
-import type { chatConversations } from "@paperclipai/db";
+import type { chatConversations } from "@nexusai/db";
 type BoardSendInput = { conversation: typeof chatConversations.$inferSelect; comment: Awaited<ReturnType<ReturnType<typeof issueService>["addComment"]>>; idempotencyKey: string; endpointId: string; conversationId: string; attachmentIds: string[] };
 export async function stageSlackBoardSend(tx: DbTransaction, input: BoardSendInput) {
   const { conversation, comment, idempotencyKey, endpointId, conversationId, attachmentIds } = input;

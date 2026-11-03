@@ -29,7 +29,7 @@ describe("API payload persistence redaction", () => {
   it.each(["call_api", "create_case"])("keeps %s denial metadata out of the API-body exception", operationId => {
     const payload = {
       provider: "codex", operationId, callId: "schema-denied", code: "semantic_tool_denied",
-      paperclipExecuted: false, message: "Provider arguments failed JSON Schema validation.",
+      nexusExecuted: false, message: "Provider arguments failed JSON Schema validation.",
       inputSchemaGuidance: "Invalid tool arguments. Check these input schema locations: /properties/title/type.",
     };
     const event = { sourceKind: "runner", eventType: "harness.diagnostic", payload };

@@ -7,7 +7,7 @@ import { parseJourneyCredentialBinding, type JourneyCredentialBinding } from "./
 export interface GitHubReviewJourneyConfig {
   version: 1;
   setupId: string;
-  hosting: "self-hosted" | "paperclip-cloud";
+  hosting: "self-hosted" | "nexus-cloud";
   executionEnvironment: "local" | "daytona";
   target: Extract<ConnectionConfig["target"], { mode: "attach" }> & { companyId: string; environmentId: string };
   browser: ConnectionConfig["browser"];
@@ -30,7 +30,7 @@ function text(v: unknown, pattern?: RegExp): string {
 export function parseGitHubReviewJourneyConfig(input: unknown): GitHubReviewJourneyConfig {
   try {
     const v = object(input, ["version", "setupId", "hosting", "executionEnvironment", "target", "browser", "authentication", "agent", "github", "deadlineMs", "maximumRuns"]);
-    if (v.version !== 1 || !["self-hosted", "paperclip-cloud"].includes(v.hosting)) return invalid();
+    if (v.version !== 1 || !["self-hosted", "nexus-cloud"].includes(v.hosting)) return invalid();
     if (v.executionEnvironment !== undefined && !["local", "daytona"].includes(v.executionEnvironment)) return invalid();
     const target = object(v.target, ["mode", "baseURL", "expectedCommit", "deploymentMode", "companyId", "environmentId"]);
     if (target.mode !== "attach") return invalid();

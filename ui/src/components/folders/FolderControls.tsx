@@ -9,7 +9,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { FolderKind, FolderListItem, FolderListResult } from "@paperclipai/shared";
+import type { FolderKind, FolderListItem, FolderListResult } from "@nexusai/shared";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

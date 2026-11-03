@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
-import type { IssueDocument } from "@paperclipai/shared";
+import type { IssueDocument } from "@nexusai/shared";
 import { ArtifactUploadArea, type ArtifactUploadEntry } from "@/components/artifacts/ArtifactUploadArea";
 import { IssuePropertiesArtifactsTab } from "@/components/issue-properties/IssuePropertiesArtifactsTab";
 import { TaskDocumentPanel } from "@/components/task-side-panel/TaskDocumentPanel";

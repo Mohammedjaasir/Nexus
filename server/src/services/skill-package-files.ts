@@ -5,7 +5,7 @@ import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGzip, createGunzip } from "node:zlib";
 import { extract, pack } from "tar-stream";
-import type { CompanySkillVersionFileInventoryEntry } from "@paperclipai/shared";
+import type { CompanySkillVersionFileInventoryEntry } from "@nexusai/shared";
 import { REPOSITORY_CONTENT_DIR } from "./skill-repository-package.js";
 import { assertSkillSnapshotPath, skillFileBytes, skillSnapshotHash, MAX_SKILL_SNAPSHOT_BYTES, MAX_SKILL_SNAPSHOT_FILES } from "./skill-snapshot.js";
 
@@ -21,7 +21,7 @@ export type SkillPackageFile = {
   sha256: string;
 };
 export type SkillPackageManifest = {
-  format: "paperclip-skill-package/v1";
+  format: "nexus-skill-package/v1";
   contentHash: string;
   totalBytes: number;
   files: SkillPackageFile[];
@@ -31,7 +31,7 @@ export const packageSha256 = (bytes: string | Buffer) => createHash("sha256").up
 
 export function validateSkillPackageManifest(value: unknown): SkillPackageManifest {
   const manifest = value as SkillPackageManifest;
-  if (!manifest || manifest.format !== "paperclip-skill-package/v1" || !/^[a-f0-9]{64}$/.test(manifest.contentHash)
+  if (!manifest || manifest.format !== "nexus-skill-package/v1" || !/^[a-f0-9]{64}$/.test(manifest.contentHash)
     || !Array.isArray(manifest.files) || !manifest.files.length || manifest.files.length > MAX_SKILL_PACKAGE_FILES) {
     throw new Error("Invalid skill package manifest");
   }
@@ -60,7 +60,7 @@ export function validateSkillPackageManifest(value: unknown): SkillPackageManife
 
 export function skillPackageManifest(files: CompanySkillVersionFileInventoryEntry[]): SkillPackageManifest {
   return validateSkillPackageManifest({
-    format: "paperclip-skill-package/v1", contentHash: skillSnapshotHash(files),
+    format: "nexus-skill-package/v1", contentHash: skillSnapshotHash(files),
     totalBytes: files.reduce((sum, file) => sum + skillFileBytes(file).length, 0),
     files: files.map(file => {
       const bytes = skillFileBytes(file);

@@ -5,14 +5,14 @@ import { fileURLToPath } from "node:url";
 import type {
   AdapterSkillContext,
   AdapterSkillSnapshot,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import {
   buildPersistentSkillSnapshot,
-  ensurePaperclipSkillSymlink,
-  readPaperclipRuntimeSkillEntries,
+  ensureNexusSkillSymlink,
+  readNexusRuntimeSkillEntries,
   readInstalledSkillTargets,
-  resolveLegacyPaperclipDesiredSkillNames,
-} from "@paperclipai/adapter-utils/server-utils";
+  resolveLegacyNexusDesiredSkillNames,
+} from "@nexusai/adapter-utils/server-utils";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,8 +31,8 @@ export function resolveCursorSkillsHome(config: Record<string, unknown>) {
 }
 
 async function buildCursorSkillSnapshot(config: Record<string, unknown>): Promise<AdapterSkillSnapshot> {
-  const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
-  const desiredSkills = resolveLegacyPaperclipDesiredSkillNames(config, availableEntries);
+  const availableEntries = await readNexusRuntimeSkillEntries(config, __moduleDir);
+  const desiredSkills = resolveLegacyNexusDesiredSkillNames(config, availableEntries);
   const skillsHome = resolveCursorSkillsHome(config);
   const installed = await readInstalledSkillTargets(skillsHome);
   return buildPersistentSkillSnapshot({
@@ -44,7 +44,7 @@ async function buildCursorSkillSnapshot(config: Record<string, unknown>): Promis
     locationLabel: "~/.cursor/skills",
     missingDetail: "Configured but not currently linked into the Cursor skills home.",
     externalConflictDetail: "Skill name is occupied by an external installation.",
-    externalDetail: "Installed outside Paperclip management.",
+    externalDetail: "Installed outside Nexus management.",
   });
 }
 
@@ -56,9 +56,9 @@ export async function syncCursorSkills(
   ctx: AdapterSkillContext,
   desiredSkills: string[],
 ): Promise<AdapterSkillSnapshot> {
-  const availableEntries = await readPaperclipRuntimeSkillEntries(ctx.config, __moduleDir);
+  const availableEntries = await readNexusRuntimeSkillEntries(ctx.config, __moduleDir);
   const desiredSet = new Set([
-    ...resolveLegacyPaperclipDesiredSkillNames({}, availableEntries),
+    ...resolveLegacyNexusDesiredSkillNames({}, availableEntries),
     ...desiredSkills,
   ]);
   const skillsHome = resolveCursorSkillsHome(ctx.config);
@@ -69,7 +69,7 @@ export async function syncCursorSkills(
   for (const available of availableEntries) {
     if (!desiredSet.has(available.key)) continue;
     const target = path.join(skillsHome, available.runtimeName);
-    await ensurePaperclipSkillSymlink(available.source, target);
+    await ensureNexusSkillSymlink(available.source, target);
   }
 
   for (const [name, installedEntry] of installed.entries()) {
@@ -87,5 +87,5 @@ export function resolveCursorDesiredSkillNames(
   config: Record<string, unknown>,
   availableEntries: Array<{ key: string }>,
 ) {
-  return resolveLegacyPaperclipDesiredSkillNames(config, availableEntries);
+  return resolveLegacyNexusDesiredSkillNames(config, availableEntries);
 }

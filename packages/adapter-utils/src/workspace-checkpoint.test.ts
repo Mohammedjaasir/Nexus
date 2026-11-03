@@ -12,7 +12,7 @@ const execute = promisify(execFile);
 const roots: string[] = [];
 afterEach(async () => { vi.unstubAllEnvs(); await Promise.all(roots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true }))); });
 async function fixture() {
-  const temp = await fs.mkdtemp(path.join(os.tmpdir(), "checkpoint-test-")); roots.push(temp); vi.stubEnv("PAPERCLIP_HOME", path.join(temp, "home"));
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), "checkpoint-test-")); roots.push(temp); vi.stubEnv("NEXUS_HOME", path.join(temp, "home"));
   const root = path.join(temp, "root"); await fs.mkdir(root);
   await fs.writeFile(path.join(root, "unchanged"), "retained");
   await fs.writeFile(path.join(root, "deleted"), "delete me");

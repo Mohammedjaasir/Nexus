@@ -7,8 +7,8 @@ import { completedJournalStimulusCalls, largeJournalEvidence } from "./journal-e
 
 const output = `journal-continuity-${"x".repeat(65_000)}\n`;
 function call(index: number) {
-  const event = { schema: "paperclip.prp.event.v1", runId: "expected-run", sourceKind: "runner", sourceInstanceId: "runner", normalizedSessionId: "session" };
-  const payload = { schema: "paperclip.tool.execution.v1", transport: "process", operation: "execute", executionId: `exec-${index}`, name: "python3 fixture" };
+  const event = { schema: "nexus.prp.event.v1", runId: "expected-run", sourceKind: "runner", sourceInstanceId: "runner", normalizedSessionId: "session" };
+  const payload = { schema: "nexus.tool.execution.v1", transport: "process", operation: "execute", executionId: `exec-${index}`, name: "python3 fixture" };
   return [
     { ...event, eventType: "tool.execution.started", sourceSeq: index * 2, payload: { ...payload, status: "running" } },
     { ...event, eventType: "tool.execution.completed", sourceSeq: index * 2 + 1, payload: { ...payload, status: "completed", exitCode: 0, outputBytes: Buffer.byteLength(output), outputDigest: `sha256:${createHash("sha256").update(output).digest("hex")}` } },
@@ -21,7 +21,7 @@ describe("large journal boundary evidence", () => {
     const directory = path.join(root, "a".repeat(64), "control-plane");
     await mkdir(directory, { recursive: true });
     const filename = path.join(directory, "control-plane-state.json");
-    const state = { schema: "paperclip.runner.durable.control-plane-state.v1", identity: { runId: "expected-run" }, commands: [] };
+    const state = { schema: "nexus.runner.durable.control-plane-state.v1", identity: { runId: "expected-run" }, commands: [] };
     const input = { stateRoot: root, runId: "expected-run", minimumBytes: 1024, minimumCompletedStimulusCalls: 2 };
     try {
       await writeFile(filename, JSON.stringify(state));

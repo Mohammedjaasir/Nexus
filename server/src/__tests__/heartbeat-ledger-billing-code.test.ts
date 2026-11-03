@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { heartbeatRuns } from "@paperclipai/db";
+import type { heartbeatRuns } from "@nexusai/db";
 import { resolveLedgerScopeForRun } from "../services/heartbeat.ts";
 
 type IssueRow = { id: string; projectId: string | null; billingCode: string | null };

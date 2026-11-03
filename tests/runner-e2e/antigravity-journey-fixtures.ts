@@ -1,5 +1,5 @@
-import { QUALIFIED_ACPX_PROFILES } from "../../packages/paperclip-runner/src/drivers/acpx/qualified-profiles.js";
-import { ANTIGRAVITY_DISTRIBUTION_PINS } from "../../packages/paperclip-runner/src/drivers/acpx/generated-profiles.js";
+import { QUALIFIED_ACPX_PROFILES } from "../../packages/nexus-runner/src/drivers/acpx/qualified-profiles.js";
+import { ANTIGRAVITY_DISTRIBUTION_PINS } from "../../packages/nexus-runner/src/drivers/acpx/generated-profiles.js";
 import { readFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -40,7 +40,7 @@ export interface AntigravityNoLaunchReceipt {
 export function antigravityNoLaunchReceipt(run: Row, lease: Row, resources: AntigravityJourneyResources): AntigravityNoLaunchReceipt {
   const cancellation = run.resultJson?.startupCancellation;
   const requestedAt = cancellation?.requestedAt, settledAt = run.resultJson?.startupPreparationSettledAt;
-  const environment = run.contextSnapshot?.paperclipEnvironment, profile = run.runnerProfileJson;
+  const environment = run.contextSnapshot?.nexusEnvironment, profile = run.runnerProfileJson;
   const prior = resources.processes[run.id];
   const instant = (value: unknown): value is string => typeof value === "string" && Number.isFinite(Date.parse(value));
   const uuid = (value: unknown) => typeof value === "string" && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/iu.test(value);
@@ -51,7 +51,7 @@ export function antigravityNoLaunchReceipt(run: Row, lease: Row, resources: Anti
     || !instant(requestedAt) || !instant(settledAt) || Date.parse(requestedAt) > Date.parse(settledAt)
     || ["processPid", "processGroupId", "processStartedAt", "runnerInstanceId", "nativeSessionId", "driverKind", "completionContractId"].some(key => run[key] !== null)
     || !profile || Object.keys(profile).length !== 1 || !profile.adapterDispatch || Object.keys(profile.adapterDispatch).length !== 1
-    || profile.adapterDispatch.adapterType !== "paperclip_runner" || prior?.captured || prior?.identityChanged || (prior?.journal.length ?? 0) > 0
+    || profile.adapterDispatch.adapterType !== "nexus_runner" || prior?.captured || prior?.identityChanged || (prior?.journal.length ?? 0) > 0
     || environment?.id !== resources.environmentId || environment.driver !== "local" || !uuid(environment.leaseId)
     || lease.id !== environment.leaseId || lease.companyId !== resources.companyId || lease.heartbeatRunId !== run.id
     || lease.environmentId !== resources.environmentId || !["released", "expired"].includes(lease.status)
@@ -109,7 +109,7 @@ export async function prepareAntigravityJourney(api: ConnectionApi, config: Anti
   if (config.candidate.profileDigest !== QUALIFIED_ACPX_PROFILES.antigravity.commandDigest
     || config.candidate.nativeClosureDigest !== `sha256:${ANTIGRAVITY_DISTRIBUTION_PINS["darwin-arm64"].closureSha256}`)
     throw new ConnectionBlock("blocked_target", "candidate_pin_mismatch");
-  const distribution = JSON.parse(await readFile(new URL("../../packages/paperclip-runner/antigravity-distributions.json", import.meta.url), "utf8"));
+  const distribution = JSON.parse(await readFile(new URL("../../packages/nexus-runner/antigravity-distributions.json", import.meta.url), "utf8"));
   if (distribution.platforms?.["darwin-arm64"]?.patchVersion !== config.candidate.nativeVersion)
     throw new ConnectionBlock("blocked_target", "candidate_native_version_mismatch");
   const session = await api.get<Row>("/api/auth/get-session");
@@ -135,7 +135,7 @@ export async function prepareAntigravityJourney(api: ConnectionApi, config: Anti
     || policy.remainingAmount <= 0 || policy.pendingRunCount > 0 || (policy.unpricedUsagePolicy !== "allow" && policy.unpricedEventCount > 0))))
     throw new ConnectionBlock("blocked_target", "company_budget_admission_blocked");
   const adapters = await api.get<Row[]>(`/api/adapters?${new URLSearchParams({ companyId: company.id, environmentId: environment.id })}`);
-  const runner = adapters.find(adapter => adapter.type === "paperclip_runner");
+  const runner = adapters.find(adapter => adapter.type === "nexus_runner");
   if (!runner?.loaded || runner.disabled || !runner.candidateHarnesses?.some((candidate: Row) => candidate.agent === "antigravity" && candidate.model === ANTIGRAVITY_JOURNEY_MODEL))
     throw new ConnectionBlock("blocked_target", "trusted_antigravity_candidate_admission_required");
   const accounting = companyPolicies.map((policy: Row) => ({ scopeType: "company", amount: policy.amount, remainingAmount: policy.remainingAmount,
@@ -243,7 +243,7 @@ export async function cleanupAntigravityJourney(input: {
       if (typeof run.issueId !== "string" || !run.issueId || (resources.issueId && run.issueId !== resources.issueId)
         || (requestId != null && (typeof requestId !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(requestId))))
         throw new ConnectionFailure("cleanup_native_stop_identity_mismatch");
-      if (intent != null && (intent.schema !== "paperclip.native-cancellation.v1" || typeof intent.intentId !== "string" || !intent.intentId
+      if (intent != null && (intent.schema !== "nexus.native-cancellation.v1" || typeof intent.intentId !== "string" || !intent.intentId
         || intent.runId !== run.id || intent.companyId !== resources.companyId || intent.issueId !== run.issueId
         || intent.scope !== "run" || intent.reasonCode !== "cancellation_run_only" || typeof intent.dispatched !== "boolean"
         || !["pending", "acknowledged"].includes(intent.dispatchState) || typeof intent.intentAuditId !== "string" || !intent.intentAuditId
@@ -319,7 +319,7 @@ export async function cleanupAntigravityJourney(input: {
         const receipt = resources.processes[runId];
         if ((!receipt?.captured || receipt.journal.length < 2) && run.resultJson?.startupCancellation?.beforeNativeSelection === true) {
           const cancellation = run.resultJson.startupCancellation, settledAt = run.resultJson.startupPreparationSettledAt;
-          const environment = run.contextSnapshot?.paperclipEnvironment, profile = run.runnerProfileJson;
+          const environment = run.contextSnapshot?.nexusEnvironment, profile = run.runnerProfileJson;
           const instant = (value: unknown) => typeof value === "string" && Number.isFinite(Date.parse(value));
           // Cancellation may return while its original preparation owner is
           // still settling. Only missing progress receipts may wait; ownership
@@ -330,7 +330,7 @@ export async function cleanupAntigravityJourney(input: {
             || (run.controllerLeaseExpiresAt !== null && !instant(run.controllerLeaseExpiresAt))
             || ["processPid", "processGroupId", "processStartedAt", "runnerInstanceId", "nativeSessionId", "driverKind", "completionContractId"].some(key => run[key] !== null)
             || !profile || Object.keys(profile).length !== 1 || !profile.adapterDispatch || Object.keys(profile.adapterDispatch).length !== 1
-            || profile.adapterDispatch.adapterType !== "paperclip_runner" || receipt?.captured || receipt?.identityChanged || (receipt?.journal.length ?? 0) > 0
+            || profile.adapterDispatch.adapterType !== "nexus_runner" || receipt?.captured || receipt?.identityChanged || (receipt?.journal.length ?? 0) > 0
             || environment?.id !== resources.environmentId || environment.driver !== "local") throw new ConnectionFailure("cleanup_no_launch_receipt_unconfirmed");
           const leaseId = environment.leaseId;
           if (typeof leaseId !== "string") throw new ConnectionFailure("cleanup_lease_identity_missing");
@@ -353,7 +353,7 @@ export async function cleanupAntigravityJourney(input: {
         const observed = remainingRecordedProcesses(receipt);
         if (observed.identityChanged) throw new ConnectionFailure("cleanup_physical_identity_changed");
         if (observed.live.length) { retired = false; continue; }
-        const leaseId = run.contextSnapshot?.paperclipEnvironment?.leaseId;
+        const leaseId = run.contextSnapshot?.nexusEnvironment?.leaseId;
         if (typeof leaseId !== "string") throw new ConnectionFailure("cleanup_lease_identity_missing");
         const lease = await api.get<Row>(`/api/environment-leases/${leaseId}`);
         if (lease.companyId !== resources.companyId || lease.heartbeatRunId !== runId || lease.environmentId !== resources.environmentId)

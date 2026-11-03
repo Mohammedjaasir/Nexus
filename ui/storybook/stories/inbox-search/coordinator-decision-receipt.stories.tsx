@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
-import type { DecisionHistoryItem } from "@paperclipai/shared";
+import type { DecisionHistoryItem } from "@nexusai/shared";
 import { CoordinatorDecisionReceipt } from "@/components/coordinator/CoordinatorDecisionReceipt";
 
 const receipt: DecisionHistoryItem = {
@@ -17,7 +17,7 @@ const meta = {
   title: "Tasks and conversations/Inbox, decisions, and search/Coordinator decision receipt",
   component: CoordinatorDecisionReceipt,
   args: { item: receipt, onOpen: fn() },
-  parameters: { layout: "padded", paperclip: {
+  parameters: { layout: "padded", nexus: {
     capabilities: ["inbox-search/decisions"], status: "current", implementation: "production", boundary: "fixtures",
     notes: "Compact recorded-decision component. Fixture click verifies exact revision/interaction navigation intent; actual authorization, persistence and task scrolling require runtime verification.",
   } },

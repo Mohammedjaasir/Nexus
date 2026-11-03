@@ -21,11 +21,11 @@ import { setTimeout as delay } from "node:timers/promises";
 import {
   DurablePrpControlPlane,
   spawnRunner,
-} from "../../packages/paperclip-runner/src/control-plane/durable-prp-control-plane.ts";
+} from "../../packages/nexus-runner/src/control-plane/durable-prp-control-plane.ts";
 import {
   createRunnerdCodexAppServerArgs,
   defaultCapabilityRunnerdBinary,
-} from "../../packages/paperclip-runner/src/live/runnerd-codex-transport.ts";
+} from "../../packages/nexus-runner/src/live/runnerd-codex-transport.ts";
 
 const args = process.argv.slice(2);
 if (args.length === 0 || (args.length === 1 && args[0] === "--help")) {
@@ -50,7 +50,7 @@ if (args.length === 0 || (args.length === 1 && args[0] === "--help")) {
     // Never silently qualify a debug fallback or a caller-selected alternate runner.
     assert.match(
       runnerBinary,
-      /\/dist\/bin\/(?:darwin-(?:arm64|x64)\/|linux-x64\/)?paperclip-runnerd$/u,
+      /\/dist\/bin\/(?:darwin-(?:arm64|x64)\/|linux-x64\/)?nexus-runnerd$/u,
       "normal_staged_runner_required",
     );
     const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -58,7 +58,7 @@ if (args.length === 0 || (args.length === 1 && args[0] === "--help")) {
     assert.equal(runnerSha256, args[4], "staged_runner_digest_changed");
     const codexSha256 = digest(await readFile(codexBinary));
     fixture = await realpath(
-      await mkdtemp(join(tmpdir(), "paperclip-real-startup-")),
+      await mkdtemp(join(tmpdir(), "nexus-real-startup-")),
     );
     const home = join(fixture, "empty-codex-home");
     const workspace = join(fixture, "workspace");
@@ -101,8 +101,8 @@ if (args.length === 0 || (args.length === 1 && args[0] === "--help")) {
       `#!/bin/sh\nset -eu\nprintf '%s\\n' "$$" >> ${quote(ledger)}\nLC_ALL=C /bin/ps -p "$$" -o pid= -o pgid= -o lstart= >> ${quote(identityLedger)}\nexec ${quote(codexBinary)} "$@"\n`,
       { flag: "wx", mode: 0o700 },
     );
-    environment.PAPERCLIP_PROVIDER_TRACE_PATH = trace;
-    environment.PAPERCLIP_PROVIDER_TRACE_MAX_BYTES = "1048576";
+    environment.NEXUS_PROVIDER_TRACE_PATH = trace;
+    environment.NEXUS_PROVIDER_TRACE_MAX_BYTES = "1048576";
     const identity = {
       runnerInstanceId: `runner-${randomUUID()}`,
       environmentLeaseId: `lease-${randomUUID()}`,
@@ -381,7 +381,7 @@ if (args.length === 0 || (args.length === 1 && args[0] === "--help")) {
       "valid_recorded_pid_required",
     );
     for (const fact of facts) {
-      assert.equal(fact.schema, "paperclip.provider_startup.v1");
+      assert.equal(fact.schema, "nexus.provider_startup.v1");
       assert.equal(fact.launchId, intent.launchId);
       assert.equal(fact.requestedThreadId, missingThread);
       assert.equal(fact.authenticatedThreadId, null);

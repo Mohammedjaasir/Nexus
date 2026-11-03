@@ -3,10 +3,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { environmentLeases, executionWorkspaceRestorePoints, executionWorkspaces, issueRecoveryActions, issues, nativeRunFinalizations,
-  projectWorkspaces, withDedicatedDbConnection, workspaceRuntimeServices, type Db } from "@paperclipai/db";
+  projectWorkspaces, withDedicatedDbConnection, workspaceRuntimeServices, type Db } from "@nexusai/db";
 import type { StoredSecretVersionMaterial } from "../secrets/types.js";
 import type { StorageService } from "../storage/types.js";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 import { openRestorePoint, sealRestorePoint } from "./git-restore-point.js";
 import { notifyGitRestorePointWork } from "./git-restore-point-ledger.js";
 import { abandonGitRestorePoint, activateGitRestorePoints, readRestorePointObject, storeSealedRestorePoint } from "./git-restore-point-storage.js";
@@ -27,8 +27,8 @@ import {
 } from "./isolated-task-directory-snapshot.js";
 
 export { TASK_DIRECTORY_RETENTION_KEY } from "./isolated-task-directory-snapshot.js";
-export const TASK_DIRECTORY_RETENTION_SCHEMA = "paperclip.task-directory-retention.v1";
-export const TASK_DIRECTORY_RESTORE_POINT_SCHEMA = "paperclip.task-directory-restore-point.v1";
+export const TASK_DIRECTORY_RETENTION_SCHEMA = "nexus.task-directory-retention.v1";
+export const TASK_DIRECTORY_RESTORE_POINT_SCHEMA = "nexus.task-directory-restore-point.v1";
 export const TASK_DIRECTORY_RETENTION_REASON = "isolated task directory retention";
 export const TASK_DIRECTORY_RESTORE_POINT_EXPIRED_WARNING = "The saved files of this task directory expired, so it was reopened as an empty directory. Files from before it was cleaned up are no longer available.";
 export const TASK_DIRECTORY_RETRY_MS = 60 * 60 * 1000;
@@ -94,7 +94,7 @@ export function isRetryableTaskDirectorySkip(reason: string | null) {
 }
 
 async function instanceRoot() {
-  return fs.realpath(resolvePaperclipInstanceRoot()).catch(() => null);
+  return fs.realpath(resolveNexusInstanceRoot()).catch(() => null);
 }
 
 export async function isolatedTaskDirectoriesRoot() {

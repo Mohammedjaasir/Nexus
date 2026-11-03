@@ -20,8 +20,8 @@ function fixture() {
   const dependency = path.join(root, "node_modules", ".pnpm", "dependency@1", "node_modules", "dependency");
   const transitive = path.join(root, "node_modules", ".pnpm", "transitive@1", "node_modules", "transitive");
   for (const directory of [provider, sdk, shared, dependency, transitive]) file(path.join(directory, "index.js"));
-  link(sdk, path.join(provider, "node_modules", "@paperclipai", "plugin-sdk"));
-  link(shared, path.join(sdk, "node_modules", "@paperclipai", "shared"));
+  link(sdk, path.join(provider, "node_modules", "@nexusai", "plugin-sdk"));
+  link(shared, path.join(sdk, "node_modules", "@nexusai", "shared"));
   link(dependency, path.join(shared, "node_modules", "dependency"));
   link(transitive, path.join(path.dirname(dependency), "transitive"));
   return { root, catalogRoot, provider, sdk, shared, dependency, transitive };

@@ -191,7 +191,7 @@ export async function hireDelegateReuse(context: JourneyContext, session: Target
   const handoff = hireHandoffMentions(scope!, hiredId!, hired, project);
   const marker = `HIRE${campaignId.replace(/[^a-z0-9]/gi, "")}`;
   await session.own({ kind: "issue", name: names.checklist, journeyId: "hire-delegate-reuse" });
-  state = await turn(`Have the existing ${handoff.teammate} write a concise launch checklist as a saved Paperclip document with the line "Reference: ${marker}". Create exactly one task titled ${names.checklist} in ${handoff.project}, already assigned to that teammate when it is created. Link the result here and let the teammate complete it. Do not hire another agent.`, 4, handoff);
+  state = await turn(`Have the existing ${handoff.teammate} write a concise launch checklist as a saved Nexus document with the line "Reference: ${marker}". Create exactly one task titled ${names.checklist} in ${handoff.project}, already assigned to that teammate when it is created. Link the result here and let the teammate complete it. Do not hire another agent.`, 4, handoff);
   const first = state.tasks.find(task => task.title === names.checklist);
   check("first-delegated-task-complete", typeof first?.identifier === "string" && state.tasks.length === 1);
   const readOutput = async (task: Row, token: string, runs: Row[]) => {

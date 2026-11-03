@@ -300,7 +300,7 @@ async function createGatewaySession(request: APIRequestContext, companyId: strin
 }
 
 async function gatewayFetch(request: APIRequestContext, path: string, token: string, data?: Json) {
-  const headers = { "x-paperclip-tool-gateway-token": token };
+  const headers = { "x-nexus-tool-gateway-token": token };
   if (data) return await request.post(path, { headers, data });
   return await request.get(path, { headers });
 }

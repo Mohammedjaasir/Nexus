@@ -38,11 +38,11 @@ import {
   issueWorkProducts,
   principalPermissionGrants,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY,
   LOW_TRUST_REVIEW_PRESET,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -56,7 +56,7 @@ import { issueService } from "../services/issues.js";
 import { heartbeatService } from "../services/heartbeat.js";
 import { LOW_TRUST_QUARANTINED_BODY } from "../services/source-trust.js";
 
-const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_LOW_TRUST_TEST_DATABASE_URL");
+const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_LOW_TRUST_TEST_DATABASE_URL");
 const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = externalTestDatabaseUrl || embeddedPostgresSupport.supported
   ? describe
@@ -878,7 +878,7 @@ describeEmbeddedPostgres(
         .then((rows) => rows[0] ?? null);
       const context = run?.contextSnapshot;
       const wake = context && typeof context === "object" && !Array.isArray(context)
-        ? (context as Record<string, unknown>).paperclipWake
+        ? (context as Record<string, unknown>).nexusWake
         : null;
       if (!wake || typeof wake !== "object" || Array.isArray(wake)) {
         throw new Error("Gateway payload omitted JSON without a structured wake context");
@@ -888,7 +888,7 @@ describeEmbeddedPostgres(
 
     beforeAll(async () => {
       if (!externalTestDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase(
-        "paperclip-low-trust-red-team-routes-",
+        "nexus-low-trust-red-team-routes-",
       );
       db = createDb(externalTestDatabaseUrl ?? tempDb!.connectionString);
     }, 20_000);
@@ -1024,13 +1024,13 @@ describeEmbeddedPostgres(
       expect([403, 404]).toContain((await request(worker).get(`/api/issues/${created.body.id}`)).status);
       const pluginRun = await heartbeatService(db).wakeup(fixture.agents.lowTrust.id, {
         source: "automation", reason: "issue_commented", requestedByActorType: "user", requestedByActorId: "board-user",
-        payload: { issueId: created.body.id, _paperclipWakeContext: { source: "issue.comment" } },
+        payload: { issueId: created.body.id, _nexusWakeContext: { source: "issue.comment" } },
         contextSnapshot: { issueId: created.body.id, source: "plugin:example" },
       });
       expect(pluginRun).toBeTruthy();
       const pluginWake = (await db.select().from(agentWakeupRequests).where(eq(agentWakeupRequests.runId, pluginRun!.id)))
         .find(w => w.requestedByActorType === "user")!;
-      expect(pluginWake.payload?._paperclipWakeContext).toMatchObject({ source: "plugin:example" });
+      expect(pluginWake.payload?._nexusWakeContext).toMatchObject({ source: "plugin:example" });
       await db.update(heartbeatRuns).set({ status: "running" }).where(eq(heartbeatRuns.id, pluginRun!.id));
       const pluginWorker = createApp(db, { ...agentActor(fixture), runId: pluginRun!.id });
       expect([403, 404]).toContain((await request(pluginWorker).get(`/api/issues/${created.body.id}`)).status);
@@ -1950,9 +1950,9 @@ describeEmbeddedPostgres(
       const heartbeat = heartbeatService(db, {
         runtimeEnv: {
           ...process.env,
-          PAPERCLIP_IN_WORKTREE: "false",
-          PAPERCLIP_DATABASE_RESTORE_IN_PROGRESS: "false",
-          PAPERCLIP_RESTORE_IN_PROGRESS: "false",
+          NEXUS_IN_WORKTREE: "false",
+          NEXUS_DATABASE_RESTORE_IN_PROGRESS: "false",
+          NEXUS_RESTORE_IN_PROGRESS: "false",
         },
       });
 
@@ -2118,8 +2118,8 @@ describeEmbeddedPostgres(
         await waitFor(() => gateway.getAgentPayloads().length === 1, 30_000);
         const payload = gateway.getAgentPayloads()[0] ?? {};
         // The gateway rejects unknown root params, so the wake context rides in the
-        // generated message rather than a top-level `paperclip` field.
-        expect(payload.paperclip).toBeUndefined();
+        // generated message rather than a top-level `nexus` field.
+        expect(payload.nexus).toBeUndefined();
         const wake = await readGatewayWakePayload(payload);
         // Security-critical: low-trust quarantined output is redacted to the sanitized
         // stub before it reaches the higher-trust wake/continuation context. The raw
@@ -2154,7 +2154,7 @@ describeEmbeddedPostgres(
           },
         });
         expect(String(payload.message ?? "")).toContain(
-          "## Paperclip Wake Payload",
+          "## Nexus Wake Payload",
         );
         expect(String(payload.message ?? "")).toContain(LOW_TRUST_QUARANTINED_BODY);
         expect(String(payload.message ?? "")).toContain("Continue from the sanitized quarantine stub only.");

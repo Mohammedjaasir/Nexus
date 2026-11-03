@@ -52,18 +52,18 @@ it.each([
   { nested: false, secondBranch: null },
   { nested: true, secondBranch: null },
 ])("reuses company seed content and restores branch identity ($nested, $secondBranch)", async ({ nested, secondBranch }) => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-shared seed-'"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-shared seed-'"));
   roots.push(root);
-  vi.stubEnv("PAPERCLIP_HOME", path.join(root, "home"));
+  vi.stubEnv("NEXUS_HOME", path.join(root, "home"));
   const source = path.join(root, "source");
-  const repositories = nested ? ["", ".paperclip-repositories/backend"] : [""];
+  const repositories = nested ? ["", ".nexus-repositories/backend"] : [""];
   for (const relative of repositories) {
     const cwd = path.join(source, relative);
     await fs.mkdir(cwd, { recursive: true });
     await git(cwd, "init", "-q", "-b", "main");
     await fs.writeFile(path.join(cwd, "tracked.txt"), "committed bytes\n");
     await fs.writeFile(path.join(cwd, "deleted.txt"), "delete in host\n");
-    await fs.writeFile(path.join(cwd, ".gitignore"), "secret.txt\n.paperclip-repositories/\n");
+    await fs.writeFile(path.join(cwd, ".gitignore"), "secret.txt\n.nexus-repositories/\n");
     await fs.symlink("tracked.txt", path.join(cwd, "link.txt"));
     await git(cwd, "add", ".");
     await git(cwd, "-c", "user.name=Test", "-c", "user.email=test@example.test", "commit", "-qm", "Seed");
@@ -190,7 +190,7 @@ it.each([
 }, 30_000);
 
 it("separates shared seeds when file contents, Git head, origin or repository layout differ", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-seed-identity-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-seed-identity-"));
   roots.push(root);
   await fs.writeFile(path.join(root, "file.txt"), "first bytes");
   const first = await captureDirectorySnapshot(root);
@@ -210,9 +210,9 @@ it("separates shared seeds when file contents, Git head, origin or repository la
 });
 
 it.each([false, true])("awaits restored-index work before inbound preparation completes (failure=%s)", async failure => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-index-barrier-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-index-barrier-"));
   roots.push(root);
-  vi.stubEnv("PAPERCLIP_HOME", path.join(root, "home"));
+  vi.stubEnv("NEXUS_HOME", path.join(root, "home"));
   const host = path.join(root, "host"), remote = path.join(root, "remote");
   await fs.mkdir(host);
   await git(host, "init", "-q", "-b", "main");

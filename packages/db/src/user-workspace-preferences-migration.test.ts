@@ -13,7 +13,7 @@ const describePostgres = support.supported ? describe : describe.skip;
 
 describePostgres("workspace preferences migration", () => {
   it("defaults off and preserves existing preferences when the renumbered migration replays", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-workspace-preferences-replay-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-workspace-preferences-replay-");
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     try {
       const userId = randomUUID();

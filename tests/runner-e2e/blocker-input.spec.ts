@@ -11,7 +11,7 @@ test("answers every page of a saved question set", async ({ page }) => {
       document.querySelector('button').textContent = 'Submit answers';
     };</script>`);
   await answerBlockerThroughUi(page, { kind: "ask_user_questions", payload: {
-    questionSet: { schema: "paperclip.question_set.v1", questions: [
+    questionSet: { schema: "nexus.question_set.v1", questions: [
       { id: "scope", answerMode: "text" }, { id: "audience", answerMode: "text" },
     ] },
   } }, "New direction");
@@ -55,7 +55,7 @@ for (const mode of ["single_select", "multi_select"]) {
   test(`diagnoses ${mode} without a custom answer before any page is submitted`, async ({ page }) => {
     await page.setContent(`<button onclick="window.clicked = true">Next</button>`);
     await expect(answerBlockerThroughUi(page, { kind: "ask_user_questions", payload: {
-      questionSet: { schema: "paperclip.question_set.v1", questions: [
+      questionSet: { schema: "nexus.question_set.v1", questions: [
         { id: "first", answerMode: "text" },
         { id: "closed", answerMode: mode, options: [{ id: "yes", label: "Yes" }] },
       ] },
@@ -68,7 +68,7 @@ for (const mode of ["single_select", "multi_select"]) {
       <div data-testid="question-other-answer-composer"><textarea></textarea></div>
       <button id="submit" onclick="window.answer = document.querySelector('textarea').value">Submit answers</button>`);
     await answerBlockerThroughUi(page, { kind: "ask_user_questions", payload: {
-      questionSet: { schema: "paperclip.question_set.v1", questions: [
+      questionSet: { schema: "nexus.question_set.v1", questions: [
         { id: "scope", answerMode: mode, customAnswer: { enabled: true, label: "My answer" } },
       ] },
     } }, "New scope");

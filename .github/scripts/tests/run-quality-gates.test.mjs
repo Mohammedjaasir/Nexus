@@ -25,8 +25,8 @@ test('findExistingComment: paginates until it finds the commitperclip comment', 
 
   assert.equal(comment.id, 200);
   assert.deepEqual(seenPaths, [
-    '/repos/paperclipai/paperclip/issues/6469/comments?per_page=100&page=1',
-    '/repos/paperclipai/paperclip/issues/6469/comments?per_page=100&page=2',
+    '/repos/nexusai/nexus/issues/6469/comments?per_page=100&page=1',
+    '/repos/nexusai/nexus/issues/6469/comments?per_page=100&page=2',
   ]);
 });
 

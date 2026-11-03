@@ -22,7 +22,7 @@ The five baseline and candidate expressions were evaluated using the unchanged h
 
 Existing dependency directories were linked into the isolated worktree without changing shared dependency installs. Baseline finished before candidate edits.
 
-Command: `node_modules/.bin/vitest run --project @paperclipai/server server/src/__tests__/worktree-config.test.ts --silent=true`.
+Command: `node_modules/.bin/vitest run --project @nexusai/server server/src/__tests__/worktree-config.test.ts --silent=true`.
 
 - Baseline: 1 file passed, 16/16 tests passed, duration 1.47s.
 - Candidate: 1 file passed, 16/16 tests passed, duration 1.43s.
@@ -42,7 +42,7 @@ Production LOC: 0 added, 0 removed. Test LOC: 20 added, 139 removed, net 119 rem
 - preserves an externally supplied PORT while repairing worktree config
 - never rewrites a main-instance env when ambient worktree flags leak into the process
 - does not persist runtime ports into a main-instance config when ambient worktree flags leak in
-- does not adopt a .paperclip config whose own env does not declare a worktree
+- does not adopt a .nexus config whose own env does not declare a worktree
 - avoids sibling worktree ports when repairing legacy configs
 - serializes and persists cross-repo worktree port reservations
 - ignores stale migrated env paths when the dev runner resolved the local config

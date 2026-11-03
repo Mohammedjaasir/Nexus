@@ -216,7 +216,7 @@ after surviving coalesced input promotes.
   deciding which writes belong to this reason or the next failed-retry slice.
 
 The full chat integration suite was launched at local branch `c579148977` on a
-fresh `paperclip_sleep30_full_chat_20261025_test` database, with output at
+fresh `nexus_sleep30_full_chat_20261025_test` database, with output at
 `/tmp/sleep30-full-chat-acceptance.log`; its result must be read before claiming
 acceptance. Typecheck after merging the second parent repair passed in
 `/tmp/sleep30-after-parent-typecheck.log`.

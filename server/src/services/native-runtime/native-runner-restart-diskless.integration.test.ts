@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { createRunnerProviderLaunch, runnerLaunchRequirementsDigest, type RunnerProviderLaunchRequirements } from "@paperclipai/paperclip-runner";
+import { createRunnerProviderLaunch, runnerLaunchRequirementsDigest, type RunnerProviderLaunchRequirements } from "@nexusai/nexus-runner";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { eq } from "drizzle-orm";
-import { environmentLeases, environments, heartbeatRuns, nativeRunFinalizations } from "@paperclipai/db";
+import { environmentLeases, environments, heartbeatRuns, nativeRunFinalizations } from "@nexusai/db";
 import { beforeAll, expect, vi } from "vitest";
 import {
   createRunnerdCodexTransport,
@@ -14,7 +14,7 @@ import {
   readRunnerdArtifactBinding,
   type RunnerProcessHandle,
   type RunnerProcessLaunchSpec,
-} from "../../vendor/paperclip-runner/index.js";
+} from "../../vendor/nexus-runner/index.js";
 import { registerRunnerPrpAuthority } from "../../realtime/runner-prp-ws.js";
 import { readProcessStartedAt } from "../hot-restart.js";
 import { loadNativeRunnerCheckpoint, registerNativeRunnerCheckpoint, restoreNativeRunnerCheckpoint } from "./native-runner-checkpoint.js";
@@ -44,7 +44,7 @@ describeEmbeddedPostgres("native runner restart recovery: diskless", () => {
     const controllerRoot = resolve(runtimeRoot, `${fixture.runId}-controller`);
     const sandboxRoot = resolve(runtimeRoot, `${fixture.runId}-sandbox`);
     const binding = { companyId, issueId: fixture.issueId, runId: fixture.runId };
-    const outageMs = Number(process.env.PAPERCLIP_TEST_CONTROLLER_OUTAGE_MS ?? 1000);
+    const outageMs = Number(process.env.NEXUS_TEST_CONTROLLER_OUTAGE_MS ?? 1000);
     if (!Number.isFinite(outageMs) || outageMs < 0 || outageMs > 300_000) throw new Error("Invalid controller outage duration");
     await mkdir(sandboxRoot, { recursive: true });
     await mkdir(resolve(sandboxRoot, "filesystem/codex-home"), { recursive: true });
@@ -112,7 +112,7 @@ describeEmbeddedPostgres("native runner restart recovery: diskless", () => {
         .some(([, value]) => JSON.parse(value).eventType === "item.delta")).toBe(false);
       await fixture.db.update(heartbeatRuns).set({ processPid: runnerPid, processStartedAt: new Date(startedAt),
         runnerProfileJson: { ...fixture.preparedProfile,
-          ...(!preparedTask ? { nativeWorkspaceSync: { schema: "paperclip.native-workspace-sync/v1", state: "prepared",
+          ...(!preparedTask ? { nativeWorkspaceSync: { schema: "nexus.native-workspace-sync/v1", state: "prepared",
             descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64),
             workspaceId: "workspace", leaseId: "lease", providerLeaseId: "sandbox", remoteCwd: sandboxRoot } } : {}),
           sessionCheckpoint: { identity: { ...binding, agentId, sessionId: fixture.native.normalizedSessionId },

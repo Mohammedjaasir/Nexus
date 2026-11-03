@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, lte } from "drizzle-orm";
-import { toolActionRequests, toolInvocations, type Db } from "@paperclipai/db";
+import { toolActionRequests, toolInvocations, type Db } from "@nexusai/db";
 import { writeToolReviewChange } from "./tool-review-work-notifications.js";
 
 const STALE_EXECUTION_MS = 10 * 60_000;

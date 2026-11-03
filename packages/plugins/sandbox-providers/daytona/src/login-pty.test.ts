@@ -17,7 +17,7 @@ import {
 // The Enter byte the terminal login UI reads to submit the browser code.
 const ENTER = "\r";
 
-const HOME = "/tmp/paperclip-adapter-login/11111111-2222-4333-8444-555555555555";
+const HOME = "/tmp/nexus-adapter-login/11111111-2222-4333-8444-555555555555";
 
 const CLAUDE: LoginPtyLaunchDescriptor = { loginCommandKey: "claude", sessionHome: HOME };
 const CODEX: LoginPtyLaunchDescriptor = { loginCommandKey: "codex", sessionHome: HOME };
@@ -245,7 +245,7 @@ describe("openDaytonaLoginPtySession — session home", () => {
     await expect(
       openDaytonaLoginPtySession(process, fs, {
         loginCommandKey: "codex",
-        sessionHome: "/tmp/paperclip-adapter-login/../etc",
+        sessionHome: "/tmp/nexus-adapter-login/../etc",
       }),
     ).rejects.toThrow("LOGIN_PTY_DESCRIPTOR_REJECTED");
     expect(process.createCount).toBe(0);

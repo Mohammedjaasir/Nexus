@@ -146,7 +146,7 @@ non-production fingerprint. The actual failure writer superseded it with a
 cancelled record. The existing explicit-settlement veto correctly prevented
 readmission. The fixture now starts before that recovery action exists. No
 production veto was weakened. The failed database remains available as
-`paperclip_sleep46_owner_v1_20261025_test` on the local test Postgres instance.
+`nexus_sleep46_owner_v1_20261025_test` on the local test Postgres instance.
 
 The next export run passed all 70 cases (`/tmp/sleep46-owner-v2.log`). Real issue
 and recovery-action producers then replaced the direct-hint fixture; all 71

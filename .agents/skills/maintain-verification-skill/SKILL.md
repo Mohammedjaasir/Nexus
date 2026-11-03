@@ -5,7 +5,7 @@ description: "Keep a project's verification skill and product/agent access maps 
 
 # Maintain a verification skill and its maps
 
-Keep user journeys and agent access aligned with the app. For Paperclip, read the
+Keep user journeys and agent access aligned with the app. For Nexus, read the
 [map contract](../../../maps/README.md), the
 [feature index](../../../maps/feature-map/README.md), and the
 [agent access index](../../../maps/agent-access-map/README.md). These are sibling
@@ -36,14 +36,14 @@ not-run operations rather than silently reducing the scope.
 
 ## Edit scope
 
-For Paperclip, edit the target verification skill, these maintenance instructions
+For Nexus, edit the target verification skill, these maintenance instructions
 when needed, `maps/`, and the map-specific structural check
 `scripts/check-maps.mjs` / `scripts/check-maps.test.mjs`. Fix references to those
 maps in contributor docs or skill instructions when their locations/IDs change.
 Keep the maps in `maps/{feature-map,agent-access-map}/`, outside skill directories.
 
 For other projects, maintain their existing verification skill and map locations;
-the Paperclip directory convention does not authorize relocating another repo.
+the Nexus directory convention does not authorize relocating another repo.
 Never edit product APIs, permission enforcement, tool bindings or UI behavior
 in a maintenance run. Record product/access gaps for implementation separately;
 a permission denial is not authorization to widen access.
@@ -58,7 +58,7 @@ a permission denial is not authorization to widen access.
 
 1. **Check both indexes.** Pair same-named feature and agent files, then match
    stable sub-feature IDs. Fix orphan/missing entries and broken references.
-   For Paperclip run `node scripts/check-maps.mjs`. This checks structure,
+   For Nexus run `node scripts/check-maps.mjs`. This checks structure,
    not API authorization, real tool bindings or live behavior.
 
 2. **Source wave.** Use read-only subagents per area, with each reader owning
@@ -89,7 +89,7 @@ a permission denial is not authorization to widen access.
 
 4. **Live pass.** Required for a verification maintenance pass even if source
    looks clean. The coordinator owns serial driving, using the target skill's
-   existing launch/doctor/evidence/cleanup workflow and Paperclip's existing
+   existing launch/doctor/evidence/cleanup workflow and Nexus's existing
    API/runner/MCP fixtures. Exercise the real user path and the relevant actual
    agent path separately. For access checks use the permitted agent identity,
    run, mode and target; assert results and relevant denials. A board request or

@@ -1,6 +1,6 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { heartbeatRuns, issueComments, issues, type Db } from "@paperclipai/db";
-import { extractUserMentionIds, type LiveEvent } from "@paperclipai/shared";
+import { heartbeatRuns, issueComments, issues, type Db } from "@nexusai/db";
+import { extractUserMentionIds, type LiveEvent } from "@nexusai/shared";
 import { touchedByUserCondition } from "../services/issue-participation.js";
 
 const TASK_ACTIONS = new Set(["issue.created", "issue.updated", "issue.comment_added"]);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aiConnectionMetadataSchema, aiRoutingHarness, isAiConnectionCompatible } from "@paperclipai/shared";
+import { aiConnectionMetadataSchema, aiRoutingHarness, isAiConnectionCompatible } from "@nexusai/shared";
 import { aiBindingForAuthRecovery, isAiAuthenticationFailure } from "./ai-auth-failure.js";
 
 describe("AI authentication failure recovery", () => {
@@ -12,22 +12,22 @@ describe("AI authentication failure recovery", () => {
   it.each([
     ["codex_local", {}, "openai"],
     ["claude_local", {}, "anthropic"],
-    ["paperclip_runner", { provider: "codex" }, "openai"],
-    ["paperclip_runner", { provider: "acpx", acpxAgent: "claude" }, "anthropic"],
-    ["paperclip_runner", { provider: "acpx", acpxAgent: "grok" }, "xai"],
+    ["nexus_runner", { provider: "codex" }, "openai"],
+    ["nexus_runner", { provider: "acpx", acpxAgent: "claude" }, "anthropic"],
+    ["nexus_runner", { provider: "acpx", acpxAgent: "grok" }, "xai"],
     ["opencode_local", { model: "openrouter/model" }, "openrouter"],
   ] as const)("maps %s %j to %s", (adapter, config, provider) => {
     expect(aiBindingForAuthRecovery(adapter, config)).toMatchObject({ provider, mode: "responsible_user" });
   });
   it("does not guess a provider for unsupported harnesses or routes", () => {
     expect(aiBindingForAuthRecovery("opencode_local", { model: "anthropic/claude" })).toBeUndefined();
-    expect(aiBindingForAuthRecovery("paperclip_runner", { provider: "acpx", acpxAgent: "custom" })).toBeUndefined();
+    expect(aiBindingForAuthRecovery("nexus_runner", { provider: "acpx", acpxAgent: "custom" })).toBeUndefined();
   });
   it("offers Google's supported API-key method for Gemini recovery", () => {
     expect(aiBindingForAuthRecovery("gemini_local", {})).toEqual({ provider: "google", method: "api_key", mode: "responsible_user" });
   });
   it("offers Google subscription recovery for native Antigravity", () => {
-    expect(aiBindingForAuthRecovery("paperclip_runner", { provider: "acpx", acpxAgent: "antigravity" }))
+    expect(aiBindingForAuthRecovery("nexus_runner", { provider: "acpx", acpxAgent: "antigravity" }))
       .toEqual({ provider: "google", method: "subscription", mode: "responsible_user" });
   });
   it("offers an API key for a Google model in Pi", () => {
@@ -39,10 +39,10 @@ describe("AI authentication failure recovery", () => {
 
 describe("native Antigravity account compatibility", () => {
   const compatible = (connection: Parameters<typeof isAiConnectionCompatible>[0]) =>
-    isAiConnectionCompatible(connection, "paperclip_runner", "gemini-3.8-flash-low", "acpx", "antigravity");
+    isAiConnectionCompatible(connection, "nexus_runner", "gemini-3.8-flash-low", "acpx", "antigravity");
 
   it.each(["api_key", "subscription"] as const)("accepts the selected Google %s account", method => {
-    expect(aiRoutingHarness("paperclip_runner", "acpx", "antigravity")).toBe("antigravity_runtime");
+    expect(aiRoutingHarness("nexus_runner", "acpx", "antigravity")).toBe("antigravity_runtime");
     expect(compatible({ provider: "google", method })).toBe(true);
     expect(compatible({ provider: "google", method, mode: "responsible_user" })).toBe(true);
     expect(compatible({ provider: "google", method, mode: "delegated",

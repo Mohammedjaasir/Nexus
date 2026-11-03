@@ -1,5 +1,5 @@
 import { enableRunFailureReporting } from "./helpers/run-failure-reporting.js";
-import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
@@ -31,7 +31,7 @@ import {
   statusDecisionEffects,
   statusDecisions,
   workAssessments,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   type NativeExecutionInputV1,
   type NativeExecutionInput,
@@ -39,11 +39,11 @@ import {
   type NativeSessionBackend,
   type PersistedNativeSession,
   type PrpEvent,
-} from "@paperclipai/paperclip-runner";
+} from "@nexusai/nexus-runner";
 import {
   CONTROL_PLANE_CONFORMANCE_RESULT,
   CONTROL_PLANE_CONFORMANCE_TERMINAL,
-} from "../vendor/paperclip-runner/testing.js";
+} from "../vendor/nexus-runner/testing.js";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { drainHeartbeatRunsToQuiescence } from "./helpers/drain-heartbeat-runs.js";
 import { waitForPendingRunFailureReports } from "../services/run-failure-report.js";
@@ -106,7 +106,7 @@ describe("P6-25 pre-result native session recovery", () => {
   const issueForRun = (id: string) => id === runId ? issueId : id;
   const persistedProfile = {
     mode: "native",
-    nativeExecutionInput: { schema: "paperclip.native-execution-input.v1", binding: { runId } },
+    nativeExecutionInput: { schema: "nexus.native-execution-input.v1", binding: { runId } },
     sessionCheckpoint: {
       backendKind: "codex_app_server",
       sessionId: "persisted-session",
@@ -117,7 +117,7 @@ describe("P6-25 pre-result native session recovery", () => {
   };
 
   beforeAll(async () => {
-    temporary = await startEmbeddedPostgresTestDatabase("paperclip-native-resume-");
+    temporary = await startEmbeddedPostgresTestDatabase("nexus-native-resume-");
     db = createDb(temporary.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Native resume", issuePrefix: "NRR" });
     await db.insert(agents).values({
@@ -465,7 +465,7 @@ describe("P6-25 pre-result native session recovery", () => {
         },
       }));
       const heartbeat = heartbeatService(db, {
-        runtimeEnv: { PAPERCLIP_INSTANCE_ID: "observed-owner-test" },
+        runtimeEnv: { NEXUS_INSTANCE_ID: "observed-owner-test" },
         nativeSessionBackendFactory: backendFactory,
       });
 
@@ -718,7 +718,7 @@ describe.each(["unchanged", "newer_active", "stale_idle"] as const)(
       reportedWorkDisposition: result.reportedWorkDisposition,
     };
     const execution: NativeExecutionInputV1 = {
-      schema: "paperclip.native-execution-input.v1",
+      schema: "nexus.native-execution-input.v1",
       binding: { companyId, runId, issueId, agentId, executionWorkspaceId },
       task: {
         identifier: "NRR-1",
@@ -741,7 +741,7 @@ describe.each(["unchanged", "newer_active", "stale_idle"] as const)(
       completionContract: {
         id: contractId,
         sha256: contractSha,
-        schemaVersion: "paperclip.completion-contract.v1",
+        schemaVersion: "nexus.completion-contract.v1",
         contract,
       },
       interactionResponses: [],
@@ -758,7 +758,7 @@ describe.each(["unchanged", "newer_active", "stale_idle"] as const)(
       lineage: [],
     };
     const providerTerminalEvent: PrpEvent = {
-      schema: "paperclip.prp.event.v1",
+      schema: "nexus.prp.event.v1",
       sourceEventId: `${runnerInstanceId}:provider-terminal`,
       sourceSeq: 1,
       sourceInstanceId: runnerInstanceId,
@@ -846,7 +846,7 @@ describe.each(["unchanged", "newer_active", "stale_idle"] as const)(
 
     beforeAll(async () => {
       temporary = await startEmbeddedPostgresTestDatabase(
-        "paperclip-native-reaper-e2e-",
+        "nexus-native-reaper-e2e-",
       );
       db = createDb(temporary.connectionString);
       await instanceSettingsService(db).updateExperimental({
@@ -881,7 +881,7 @@ describe.each(["unchanged", "newer_active", "stale_idle"] as const)(
         id: agentId,
         companyId,
         name: "Native recovery agent",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         // Match the persisted fixture workspace's strategy explicitly. A
         // metadata-free workspace is not proof of the current config; an actual
         // strategy change correctly refuses immutable native-input rebinding.
@@ -949,7 +949,7 @@ describe.each(["unchanged", "newer_active", "stale_idle"] as const)(
         companyId,
         issueId,
         revision: 1,
-        schemaVersion: "paperclip.completion-contract.v1",
+        schemaVersion: "nexus.completion-contract.v1",
         policyVersion: "phase6-v1",
         risk: "standard",
         completionAuthority: "server_arbiter",
@@ -964,7 +964,7 @@ describe.each(["unchanged", "newer_active", "stale_idle"] as const)(
         companyId,
         issueId,
         type: "artifact",
-        provider: "paperclip",
+        provider: "nexus",
         title: "Recovered result evidence",
         status: "ready_for_review",
         reviewState: "approved",
@@ -1032,7 +1032,7 @@ describe.each(["unchanged", "newer_active", "stale_idle"] as const)(
         await drainHeartbeatRunsToQuiescence(
           db,
           heartbeatService(db, {
-            runtimeEnv: { PAPERCLIP_INSTANCE_ID: "phase6-recovery-test" },
+            runtimeEnv: { NEXUS_INSTANCE_ID: "phase6-recovery-test" },
             nativeSessionBackendFactory: () => backend,
           }),
         );
@@ -1156,7 +1156,7 @@ describe.each(["unchanged", "newer_active", "stale_idle"] as const)(
         return input.binding.runId === runId ? backend : freshBackend(input);
       });
       const heartbeat = heartbeatService(db, {
-        runtimeEnv: { PAPERCLIP_INSTANCE_ID: "phase6-recovery-test" },
+        runtimeEnv: { NEXUS_INSTANCE_ID: "phase6-recovery-test" },
         nativeSessionBackendFactory: backendFactory,
       });
       if (newerRequest) {
@@ -1175,7 +1175,7 @@ describe.each(["unchanged", "newer_active", "stale_idle"] as const)(
           payload: {
             issueId,
             commentId: newerCommentId,
-            _paperclipWakeContext: {
+            _nexusWakeContext: {
               issueId,
               taskId: issueId,
               commentId: newerCommentId,
@@ -1436,7 +1436,7 @@ describe.each(["unchanged", "newer_active", "stale_idle"] as const)(
           .where(eq(statusDecisions.issueId, issueId)),
       ).resolves.toHaveLength(1);
 
-      // The persisted Paperclip Runner run above remains recoverable while the
+      // The persisted Nexus Runner run above remains recoverable while the
       // flag is off. Switching the agent back to a direct adapter now proves a
       // fresh run ignores the stale native profile and stays on the legacy path.
       await db
@@ -1522,22 +1522,22 @@ describe("goal-less native task-session publication", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    const external = process.env.PAPERCLIP_TEST_DATABASE_URL;
+    const external = process.env.NEXUS_TEST_DATABASE_URL;
     if (external) db = createDb(external);
     else {
-      database = await startEmbeddedPostgresTestDatabase("paperclip-native-pointer-");
+      database = await startEmbeddedPostgresTestDatabase("nexus-native-pointer-");
       db = createDb(database.connectionString);
     }
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
   afterAll(async () => {
-    await closeRegisteredClients(process.env.PAPERCLIP_TEST_DATABASE_URL ?? database!.connectionString, { scope: "database" });
+    await closeRegisteredClients(process.env.NEXUS_TEST_DATABASE_URL ?? database!.connectionString, { scope: "database" });
     await database?.cleanup();
   });
 
   it.each(["retained", "reset"] as const)("publishes the completed task session before provider cleanup and resumes an ordinary comment (%s)", async mode => {
     const home = createIsolatedTestHome();
-    const previousHome = process.env.PAPERCLIP_HOME;
-    process.env.PAPERCLIP_HOME = home.home;
+    const previousHome = process.env.NEXUS_HOME;
+    process.env.NEXUS_HOME = home.home;
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID();
     const issuePrefix = `NPT${companyId.slice(0, 6).toUpperCase()}`;
     const projectId = randomUUID(), projectWorkspaceId = randomUUID(), workProductId = randomUUID();
@@ -1579,7 +1579,7 @@ describe("goal-less native task-session publication", () => {
         async *events() {
           await turnStarted;
           const [run] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, currentRunId));
-          yield { schema: "paperclip.prp.event.v1", sourceEventId: `${currentRunId}:terminal`, sourceSeq: 1,
+          yield { schema: "nexus.prp.event.v1", sourceEventId: `${currentRunId}:terminal`, sourceSeq: 1,
             sourceInstanceId: run.runnerInstanceId!, sourceKind: "runner", runId: currentRunId,
             normalizedSessionId: identity.sessionId, turnId, eventType: "turn.completed", schemaVersion: 1,
             priority: 0, emittedAt: new Date().toISOString(), payload: {} } satisfies PrpEvent;
@@ -1607,7 +1607,7 @@ describe("goal-less native task-session publication", () => {
       await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: "pointer-user", status: "active", membershipRole: "member" });
       await db.insert(projects).values({ id: projectId, companyId, name: "Pointer project", status: "active" });
       await db.insert(projectWorkspaces).values({ id: projectWorkspaceId, companyId, projectId, name: "Pointer workspace", cwd: repoRoot, isPrimary: true });
-      await db.insert(agents).values({ id: agentId, companyId, name: "Pointer agent", adapterType: "paperclip_runner", status: "active",
+      await db.insert(agents).values({ id: agentId, companyId, name: "Pointer agent", adapterType: "nexus_runner", status: "active",
         adapterConfig: { provider: "codex", workspaceStrategy: { type: "project_primary" } },
         runtimeConfig: { heartbeat: { wakeOnDemand: true, maxConcurrentRuns: 1 } } });
       await db.insert(issues).values({ id: issueId, companyId, projectId, projectWorkspaceId, issueNumber: 1,
@@ -1616,7 +1616,7 @@ describe("goal-less native task-session publication", () => {
         // first workspace otherwise materializes this setting and legitimately
         // changes the effective adapter strategy before the next admission.
         executionWorkspaceSettings: { mode: "shared_workspace" } });
-      await db.insert(issueWorkProducts).values({ id: workProductId, companyId, issueId, type: "artifact", provider: "paperclip",
+      await db.insert(issueWorkProducts).values({ id: workProductId, companyId, issueId, type: "artifact", provider: "nexus",
         title: "Saved artifact", status: "ready_for_review", reviewState: "approved" });
       const first = await heartbeat.wakeup(agentId, { source: "automation", triggerDetail: "system", reason: "issue_commented",
         requestedByActorType: "user", requestedByActorId: "pointer-user", payload: { issueId }, contextSnapshot: { issueId, taskId: issueId, skipIssueComment: true } });
@@ -1670,8 +1670,8 @@ describe("goal-less native task-session publication", () => {
         await heartbeat.drainActiveRunExecutions();
       } finally {
         configuration.mockRestore();
-        if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-        else process.env.PAPERCLIP_HOME = previousHome;
+        if (previousHome === undefined) delete process.env.NEXUS_HOME;
+        else process.env.NEXUS_HOME = previousHome;
         home.cleanup();
       }
     }

@@ -26,7 +26,7 @@ They are not database backups or the executable migration history.
   merge can contain too many snapshots afterward. Run the existing command:
 
   ```sh
-  pnpm --filter @paperclipai/db prune:snapshots
+  pnpm --filter @nexusai/db prune:snapshots
   ```
 
 - Pruning removes only old `*_snapshot.json` files. Preserve historical SQL
@@ -35,7 +35,7 @@ They are not database backups or the executable migration history.
 - Include snapshot deletions in the same PR that adds snapshots. A separate
   cleanup PR may remove an existing excess without generating a new migration.
 - Before pushing, inspect the migration diff and run
-  `pnpm --filter @paperclipai/db check:migrations`. Verify the retained snapshot
+  `pnpm --filter @nexusai/db check:migrations`. Verify the retained snapshot
   names separately: the numbering check validates SQL files and journal entries,
   but does not enforce snapshot retention.
 

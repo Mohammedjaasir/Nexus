@@ -162,7 +162,7 @@ Each exact case name identifies its protected contract; callback/table preservat
 | 496: persists process ownership before sending provider requests | D | `codex-app-server-driver.lifecycle.test.ts:265` | identical body/table under cwd alias |
 | 533: sends direct chat as plain text and permits a follow-up turn | D | `codex-app-server-driver.lifecycle.test.ts:417` | identical body/table under cwd alias |
 | 579: forwards the persisted native model to the runner transport | D | `codex-app-server-driver.lifecycle.test.ts:463` | identical body/table under cwd alias |
-| 600: adds Paperclip developer instructions without replacing the Codex base and enables selected skills | D | `codex-app-server-driver.lifecycle.test.ts:486` | identical body/table under cwd alias |
+| 600: adds Nexus developer instructions without replacing the Codex base and enables selected skills | D | `codex-app-server-driver.lifecycle.test.ts:486` | identical body/table under cwd alias |
 | 630: passes the common typed-event contract and reports one provider turn terminal | D | `codex-app-server-driver.lifecycle.test.ts:574` | identical body/table under cwd alias |
 | 845: admits a strictly bound semantic result from the durable runner | D | `codex-app-server-driver.events.test.ts:47` | identical body/table under cwd alias |
 | 879: correlates rehydrated notifications with the final canonical PRP event ids | D | `codex-app-server-driver.events.test.ts:81` | identical body/table under cwd alias |

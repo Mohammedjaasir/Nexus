@@ -9,7 +9,7 @@ const run = { id: "old", nativeSessionId: "old-session", agentId: "original", co
 const successor = { ...run, id: "next", agentId: "successor", status: "succeeded", startedAt: "2026-09-21T00:01:01Z" };
 const before = { id: "task", assigneeAgentId: "original", description: "Preserve scope", projectId: null };
 const plan = { body: "Friday REFERENCE", latestRevisionId: "revision" };
-const handoff = { before, after: { ...before, status: "done", assigneeAgentId: "successor" }, oldRun: run, boundary: { ...run, status: "running" }, runs: [run, successor], successorId: "successor", planBefore: plan, planAfter: plan, draft: { id: "draft", latestRevisionId: "v1", body: "REFERENCE" }, draftAfter: { id: "draft", body: "REFERENCE" }, draftRevisions: [{ id: "v1", body: "REFERENCE" }], output: { body: "REFERENCE", createdByAgentId: "successor" }, reference: "REFERENCE", audit: [{ action: "issue.reassigned", details: { source: "paperclip_runner_protocol" } }], taskIds: ["task"] };
+const handoff = { before, after: { ...before, status: "done", assigneeAgentId: "successor" }, oldRun: run, boundary: { ...run, status: "running" }, runs: [run, successor], successorId: "successor", planBefore: plan, planAfter: plan, draft: { id: "draft", latestRevisionId: "v1", body: "REFERENCE" }, draftAfter: { id: "draft", body: "REFERENCE" }, draftRevisions: [{ id: "v1", body: "REFERENCE" }], output: { body: "REFERENCE", createdByAgentId: "successor" }, reference: "REFERENCE", audit: [{ action: "issue.reassigned", details: { source: "nexus_runner_protocol" } }], taskIds: ["task"] };
 const recovery = { boundary: { ...run, status: "running" }, failed: { ...run, status: "failed" }, runs: [{ ...run, status: "failed" }, { ...successor, agentId: "original", nativeSessionId: "fresh-session", contextSnapshot: { issueId: "task", previousRunId: "old", forceFreshSession: true } }], issueId: "task", prompt: "Read my brief", comments: [{ body: "Read my brief" }, { body: "REFERENCE MARKER", authorAgentId: "original", createdByRunId: "next" }], reference: "REFERENCE", marker: "MARKER", planBefore: { body: "plan MARKER", latestRevisionId: "v1" }, planAfter: { body: "plan MARKER", latestRevisionId: "v1" } };
 
 describe("remaining native chat qualification", () => {
@@ -81,7 +81,7 @@ describe("remaining native chat qualification", () => {
       expect(cell.environment.id).toBe("local");
       expect(cell.profile.generation).toBe("native");
       expect(cell.task.expectedRunCount).toBe(cell.task.id === "active-reassignment" ? 3 : 2);
-      expect(buildRunnerE2EProcessEnvironment({}, [cell]).PAPERCLIP_RUNNER_API_TOOLS_ENABLED)
+      expect(buildRunnerE2EProcessEnvironment({}, [cell]).NEXUS_RUNNER_API_TOOLS_ENABLED)
         .toBe(cell.task.id === "grounded-answer-quality" ? "true" : undefined);
     }
   });

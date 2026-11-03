@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.native-procedure-readiness-public.v1",
+  "schema": "nexus.native-procedure-readiness-public.v1",
   "state": "no_regression_gate_failed_one_setup_cell_uncomparable",
   "sources": {
     "candidate": "aba7ec219b588de02cf323b4ebca559a105e6d01",

@@ -35,7 +35,7 @@ function fixture() {
   const event = { repository: { full_name: 'paperclipai/paperclip', private: false, default_branch: 'master' },
     ref: env.GITHUB_REF, sender: { id: 42 }, inputs: { ALLURE_JOB_RUN_ID: '77' } };
   const context = admitDispatch(env, event, 42);
-  const selection = { schema: 'paperclip.chat-completion-testops-selection/v1', ...context, projectId: 1,
+  const selection = { schema: 'nexus.chat-completion-testops-selection/v1', ...context, projectId: 1,
     allureJobRunId: '77', planId: 10, jobId: 11, launchId: 12, cases: cases.map((row, index) => ({ ...row, caseId: 100 + index })) };
   return { env, event, context, selection };
 }
@@ -55,7 +55,7 @@ for (const kind of ['foreign-workflow', 'candidate-ref', 'replay', 'unlisted-tri
     if (kind === 'candidate-ref') f.env.GITHUB_REF = 'refs/heads/codex/candidate';
     if (kind === 'replay') f.env.GITHUB_RUN_ATTEMPT = '2';
     if (kind === 'unlisted-trigger') trigger = 99;
-    if (kind === 'foreign-repo') f.event.repository.full_name = 'foreign/paperclip';
+    if (kind === 'foreign-repo') f.event.repository.full_name = 'foreign/nexus';
     if (kind === 'extra-source-input') f.event.inputs.targetSha = 'b'.repeat(40);
     if (kind === 'missing-jobrun') delete f.event.inputs.ALLURE_JOB_RUN_ID;
     assert.throws(() => admitDispatch(f.env, f.event, trigger));
@@ -103,7 +103,7 @@ test('the executable guard binds the actual original GitHub run before service o
       actor: { id: 42 }, triggering_actor: { id: 42 } };
     let calls = 0;
     const exec = async (program, args) => {
-      calls++; assert.equal(program, 'gh'); assert.deepEqual(args, ['api', 'repos/paperclipai/paperclip/actions/runs/123']);
+      calls++; assert.equal(program, 'gh'); assert.deepEqual(args, ['api', 'repos/nexusai/nexus/actions/runs/123']);
       return { stdout: JSON.stringify(run) };
     };
     assert.equal((await actualContext(env, exec)).workflowId, 99); assert.equal(calls, 1);

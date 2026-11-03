@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { heartbeatsApi } from "../../api/heartbeats";
-import { redactCommandText as redactCommandSecretText } from "@paperclipai/adapter-utils";
+import { redactCommandText as redactCommandSecretText } from "@nexusai/adapter-utils";
 import { cn, relativeTime } from "../../lib/utils";
 import { ChevronRight } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { type HeartbeatRun, type WorkspaceOperation } from "@paperclipai/shared";
-import { redactHomePathUserSegments, redactHomePathUserSegmentsInValue } from "@paperclipai/adapter-utils";
+import { type HeartbeatRun, type WorkspaceOperation } from "@nexusai/shared";
+import { redactHomePathUserSegments, redactHomePathUserSegmentsInValue } from "@nexusai/adapter-utils";
 import { Badge } from "@/components/ui/badge";
 
 export const RUN_LOG_PAGE_BYTES = 256_000;
@@ -16,7 +16,7 @@ const REDACTED_ENV_VALUE = "***REDACTED***";
 const SECRET_ENV_KEY_RE =
   /(api[-_]?key|access[-_]?token|auth(?:_?token)?|authorization|bearer|secret|passwd|password|credential|jwt|private[-_]?key|cookie|connectionstring)/i;
 
-const COMMAND_ENV_KEY_RE = /(^command$|^cmd$|command[-_]?line|resolved[-_]?command|PAPERCLIP_RESOLVED_COMMAND)/i;
+const COMMAND_ENV_KEY_RE = /(^command$|^cmd$|command[-_]?line|resolved[-_]?command|NEXUS_RESOLVED_COMMAND)/i;
 
 const JWT_VALUE_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?$/;
 

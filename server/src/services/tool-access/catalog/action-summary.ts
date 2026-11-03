@@ -1,4 +1,4 @@
-import type { ConnectToolAppResult, ToolCatalogEntry, ToolAppConnectionActionSummary } from "@paperclipai/shared";
+import type { ConnectToolAppResult, ToolCatalogEntry, ToolAppConnectionActionSummary } from "@nexusai/shared";
 
 export function actionSummary(
   entry: ToolCatalogEntry,

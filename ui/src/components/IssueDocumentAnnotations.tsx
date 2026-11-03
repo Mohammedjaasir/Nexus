@@ -1,6 +1,6 @@
 import { Profiler, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { Agent, DocumentAnnotationThreadWithComments, IssueDocument } from "@paperclipai/shared";
+import type { Agent, DocumentAnnotationThreadWithComments, IssueDocument } from "@nexusai/shared";
 import { MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -278,7 +278,7 @@ export function IssueDocumentAnnotations({
   const content = (
     <div
       className={cn(
-        "paperclip-doc-annotation-host relative",
+        "nexus-doc-annotation-host relative",
         // Docked desktop gutter: lay the doc and the comment column side by side
         // so the panel is part of the document's scroll flow (Google-Docs style).
         showDesktopGutter && "lg:flex lg:items-stretch lg:gap-6",

@@ -13,8 +13,8 @@ import type {
   PluginSpan,
   PluginSyncFileMapping,
   PluginSyncOperation,
-} from "@paperclipai/plugin-sdk";
-import { recordEnvironmentSyncError, withEnvironmentSyncTransferStep } from "@paperclipai/plugin-sdk";
+} from "@nexusai/plugin-sdk";
+import { recordEnvironmentSyncError, withEnvironmentSyncTransferStep } from "@nexusai/plugin-sdk";
 import { getPluginTracer } from "./plugin.js";
 import { streamSandboxArchive } from "./archive-stream.js";
 
@@ -23,7 +23,7 @@ const execFileAsync = promisify(execFile);
 // The span-attribute names. They mirror the host span-attribute contract by
 // value. The plugin ships bundled, so it stays free of the host packages and
 // repeats these strings; the host re-clamps a provider span by these exact keys.
-const SPAN_ATTR_PREFIX = "paperclip.sandbox.startup.";
+const SPAN_ATTR_PREFIX = "nexus.sandbox.startup.";
 const SPAN_ATTR = {
   provider: `${SPAN_ATTR_PREFIX}provider`,
   packWallMs: `${SPAN_ATTR_PREFIX}pack.wall_ms`,
@@ -91,10 +91,10 @@ function toTimeoutSeconds(timeoutMs: number): number {
 }
 
 // Reserved scratch-name stem for staged uploads/downloads and remote tarballs.
-// The runtime's base64 fallback stages to `<path>.paperclip-upload`; the native
+// The runtime's base64 fallback stages to `<path>.nexus-upload`; the native
 // transport reuses the same reserved prefix so a provider temp never collides
 // with a real target or with the fallback's scratch name.
-const SCRATCH_PREFIX = ".paperclip-upload";
+const SCRATCH_PREFIX = ".nexus-upload";
 
 function scratchName(suffix = ""): string {
   return `${SCRATCH_PREFIX}-${randomUUID()}${suffix}`;
@@ -144,7 +144,7 @@ export function assertConfinedSandboxPath(remoteDir: string, candidate: string, 
 }
 
 async function withHostTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-daytona-sync-"));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-daytona-sync-"));
   try {
     return await fn(dir);
   } finally {
@@ -467,7 +467,7 @@ const ZSTD_COMPRESSION_LEVEL = 3;
 /** Marker the mkdir+probe command echoes to sandbox stdout when the sandbox
  * has a `zstd` binary on `PATH`. An absent or unexpected answer fails closed
  * (no compression), per the design's fallback rules. */
-const ZSTD_PROBE_MARKER = "PAPERCLIP_ZSTD_AVAILABLE";
+const ZSTD_PROBE_MARKER = "NEXUS_ZSTD_AVAILABLE";
 
 /**
  * Feature-detect zstd support on the running Node runtime. `node:zlib` shipped
@@ -507,7 +507,7 @@ async function hasCompressedHeader(sourcePath: string): Promise<boolean> {
  * stat, so a throw there does not leave the directory behind.
  */
 async function compressFileToHostTemp(sourcePath: string): Promise<{ dir: string; path: string; bytesOut: number }> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-daytona-zstd-"));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-daytona-zstd-"));
   const tempPath = path.join(dir, "artifact.zst");
   try {
     await pipeline(
@@ -645,7 +645,7 @@ async function snapshotOutboundFileSources(input: {
 /**
  * Best-effort removal of reserved sandbox-side scratch files (upload/download
  * snapshots or partially promoted temps) on both the happy path and error paths,
- * so a failed transfer never accumulates `.paperclip-upload-*` scratch in the
+ * so a failed transfer never accumulates `.nexus-upload-*` scratch in the
  * sandbox. Swallows its own failure — cleanup must never mask the original error.
  */
 async function removeSandboxScratch(
@@ -853,7 +853,7 @@ async function syncInFileMappings(input: {
 
   // A failed upload or a mid-batch `mv -f`/decompress failure leaves reserved
   // scratch (some targets promoted, others not) — sweep every reserved name on
-  // any error so a retry never accumulates stale `.paperclip-upload-*` scratch.
+  // any error so a retry never accumulates stale `.nexus-upload-*` scratch.
   // The private host temp directory is removed in `finally` regardless of
   // outcome — no temp remains after success or failure.
   try {
@@ -997,9 +997,9 @@ async function syncInDirectoryMapping(input: {
     });
     guardRoundTrips += 1;
     // The uploaded scratch tar lands at the workspace root as a reserved
-    // `.paperclip-upload-*` entry. The extract script below removes it only on
+    // `.nexus-upload-*` entry. The extract script below removes it only on
     // success. On an upload or extract failure the scratch tar can remain, and the
-    // runtime workspace wipe preserves every `.paperclip-upload-*` entry, so a
+    // runtime workspace wipe preserves every `.nexus-upload-*` entry, so a
     // stale tar would surface in the agent workspace. Sweep the scratch on any
     // failure — symmetric with the file-mapping path — so a failed sync (for
     // example a referenced-project extraction) leaves no residue.

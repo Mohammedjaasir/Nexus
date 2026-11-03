@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { userWorkspacePreferences, type Db } from "@paperclipai/db";
-import type { WorkspacePreference } from "@paperclipai/shared";
+import { userWorkspacePreferences, type Db } from "@nexusai/db";
+import type { WorkspacePreference } from "@nexusai/shared";
 import { persistActivity, publishActivity } from "./activity-log.js";
 import { logger } from "../middleware/logger.js";
 

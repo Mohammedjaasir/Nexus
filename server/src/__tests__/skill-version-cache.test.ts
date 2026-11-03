@@ -1,25 +1,25 @@
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
-import { applyPendingMigrations } from "@paperclipai/db";
+import { applyPendingMigrations } from "@nexusai/db";
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, heartbeatRuns, issues, nativeRunFinalizations, environmentLeases, companies, companySkills, companySkillVersions, companySkillRepositorySnapshots, createDb } from "@paperclipai/db";
+import { agents, heartbeatRuns, issues, nativeRunFinalizations, environmentLeases, companies, companySkills, companySkillVersions, companySkillRepositorySnapshots, createDb } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { companySkillService } from "../services/company-skills.js";
 import { skillVersionCachePaths, touchSkillVersionCache, withSkillVersionCacheLock } from "../services/skill-version-cache.js";
 
 import { skillVersionRetentionService } from "../services/skill-version-retention.js";
 import { nativeRuntimeContextFixture } from "../services/native-runtime/runtime-context.test-fixture.js";
-import { canonicalNativeRuntimeContextDigest, parseNativeExecutionInput } from "../vendor/paperclip-runner/index.js";
+import { canonicalNativeRuntimeContextDigest, parseNativeExecutionInput } from "../vendor/nexus-runner/index.js";
 async function sweepSkillVersionCache(db: ReturnType<typeof createDb>, options: { companyId: string; now?: number; dryRun?: boolean }) {
   const result = await skillVersionRetentionService(db).pruneCompany(options.companyId, { dryRun: options.dryRun, now: options.now === undefined ? undefined : new Date(options.now) });
   return { ...result, evicted: result.removed };
 }
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_SKILL_CACHE_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_SKILL_CACHE_TEST_DATABASE_URL");
 const support = external ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 const describePostgres = support.supported ? describe : describe.skip;
 if (!support.supported) console.warn(`Skill cache tests require Postgres: ${support.reason}`);
@@ -28,19 +28,19 @@ describePostgres("immutable skill version cache", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
   let db: ReturnType<typeof createDb>;
   let home: string;
-  const previousHome = process.env.PAPERCLIP_HOME;
+  const previousHome = process.env.NEXUS_HOME;
 
   beforeAll(async () => {
     if (!external) database = await startEmbeddedPostgresTestDatabase("skill-version-cache-");
     if (external) await applyPendingMigrations(external);
     db = createDb(external ?? database!.connectionString);
     home = await fs.mkdtemp(path.join(os.tmpdir(), "skill-version-cache-"));
-    process.env.PAPERCLIP_HOME = home;
+    process.env.NEXUS_HOME = home;
   });
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
   afterAll(async () => {
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = previousHome;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = previousHome;
     if (home) await fs.rm(home, { recursive: true, force: true });
     await db?.$client.end({ timeout: 1 });
     await database?.cleanup();
@@ -86,11 +86,11 @@ describePostgres("immutable skill version cache", () => {
     await fs.rm(old.source, { recursive: true });
     const restored = await resolve(versions[0]!.id);
     expect(restored.source).toBe(old.source);
-    const repository = path.join(restored.source, ".paperclip-repository");
+    const repository = path.join(restored.source, ".nexus-repository");
     expect(await fs.readFile(path.join(repository, "marker.bin"))).toEqual(Buffer.from([0, 1, 255]));
     expect(await fs.readFile(path.join(repository, "scripts/example.sh"), "utf8")).toBe("#!/bin/sh\necho revision-1\n");
     expect((await fs.stat(path.join(repository, "scripts/example.sh"))).mode & 0o111).toBe(0o111);
-    expect(await fs.readFile(path.join(current.source, ".paperclip-repository/marker.bin"))).toEqual(Buffer.from([0, 2, 255]));
+    expect(await fs.readFile(path.join(current.source, ".nexus-repository/marker.bin"))).toEqual(Buffer.from([0, 2, 255]));
     expect(upstream).not.toHaveBeenCalled();
   });
 
@@ -128,7 +128,7 @@ describePostgres("immutable skill version cache", () => {
     expect(await fs.readFile(paths.access, "utf8")).toBe(accessed);
 
     // Full validation remains at the execution boundary, including repair.
-    const marker = path.join(prepared.source, ".paperclip-repository/marker.bin");
+    const marker = path.join(prepared.source, ".nexus-repository/marker.bin");
     await fs.chmod(marker, 0o644);
     await fs.writeFile(marker, "corrupt");
     await prepare();
@@ -142,7 +142,7 @@ describePostgres("immutable skill version cache", () => {
     const prepared = await f.resolve(version.id);
     const entrypoint = path.join(prepared.source, "SKILL.md");
     await fs.unlink(entrypoint);
-    await fs.symlink(path.join(prepared.source, ".paperclip-repository/scripts/example.sh"), entrypoint);
+    await fs.symlink(path.join(prepared.source, ".nexus-repository/scripts/example.sh"), entrypoint);
     const entries = await companySkillService(db).listRuntimeSkillEntries(f.companyId, {
       onlyKeys: new Set([f.key]), materializeMissing: false,
     });
@@ -225,13 +225,13 @@ describePostgres("immutable skill version cache", () => {
     runtimeContext.skills = skills.map((skill, index) => ({ ...skill, runtimeName: `skill-${index}`, bundle: runtimeContext.instructions.bundle }));
     runtimeContext.aggregateDigest = canonicalNativeRuntimeContextDigest(runtimeContext);
     const execution = parseNativeExecutionInput({
-      schema: "paperclip.native-execution-input.v3",
+      schema: "nexus.native-execution-input.v3",
       binding: { companyId, runId: run.id, agentId: run.agentId, issueId: issue!.id, executionWorkspaceId: run.id },
       task: { identifier: "CACHE-1", title: "Saved selection", description: null, prompt: "Read saved skills", workMode: "standard" },
       workspace: { cwd: "/tmp", repoUrl: null, repoRef: null, branchName: null },
       session: { normalizedSessionId: null, driverKind: "codex_app_server", protocolVersion: 1, lifecyclePolicy: { mode: "per_turn", idleTimeoutMs: null } },
       provider: { kind: "codex", model: null },
-      completionContract: { id: "contract", sha256: "saved", schemaVersion: "paperclip.completion-contract.v1",
+      completionContract: { id: "contract", sha256: "saved", schemaVersion: "nexus.completion-contract.v1",
         contract: { revision: "1", objective: "Read saved skills", criteria: [{ id: "read", requirement: "Read skills" }] } },
       interactionResponses: [], credentialBindings: [], executionMode: "default", planningContext: null, runtimeContext,
     });
@@ -357,7 +357,7 @@ describePostgres("immutable skill version cache", () => {
     const lstat = fs.lstat.bind(fs);
     let held = false;
     vi.spyOn(fs, "lstat").mockImplementation((async (...args: Parameters<typeof fs.lstat>) => {
-      if (!held && String(args[0]) === path.join(old.source, ".paperclip-repository", "marker.bin")) {
+      if (!held && String(args[0]) === path.join(old.source, ".nexus-repository", "marker.bin")) {
         held = true;
         inspecting.resolve();
         await release.promise;

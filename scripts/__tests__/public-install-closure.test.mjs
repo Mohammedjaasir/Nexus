@@ -8,11 +8,11 @@ import { PUBLIC_INSTALL_ROOTS, publicInstallClosure, publicRegistryDependencies 
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 
 test('the closure starts at the server and the CLI and follows only workspace specs', () => {
-  assert.deepEqual(PUBLIC_INSTALL_ROOTS, ['@paperclipai/server', 'paperclipai']);
+  assert.deepEqual(PUBLIC_INSTALL_ROOTS, ['@nexusai/server', 'nexusai']);
   const { packages, needed } = publicInstallClosure(repo);
   const order = [...needed];
-  assert.equal(order[0], '@paperclipai/server');
-  assert.ok(needed.has('paperclipai'));
+  assert.equal(order[0], '@nexusai/server');
+  assert.ok(needed.has('nexusai'));
   for (const name of needed) {
     const { manifest } = packages.get(name);
     for (const [dep, spec] of Object.entries({ ...manifest.dependencies, ...manifest.optionalDependencies })) {
@@ -42,21 +42,21 @@ test('the warm-up graph is the closure\'s registry dependencies, first spec wins
 
 test('the warm-up refuses to run without the cache the verifier will read', () => {
   const env = { ...process.env };
-  delete env.PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE;
+  delete env.NEXUS_PUBLIC_INSTALL_NPM_CACHE;
   const result = spawnSync(process.execPath, [fileURLToPath(new URL('../warm-public-install-npm-cache.mjs', import.meta.url))], { env, encoding: 'utf8' });
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE/);
+  assert.match(result.stderr, /NEXUS_PUBLIC_INSTALL_NPM_CACHE/);
 });
 
 test('the Build lane warms the cache before pnpm build and hands the same directory to the verifier', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/pr-trusted.yml', import.meta.url), 'utf8');
   const build = workflow.slice(workflow.indexOf('\n  build:\n'), workflow.indexOf('\n  verify_serialized_server:\n'));
   const position = fragment => { const index = build.indexOf(fragment); assert.notEqual(index, -1, `Build job must contain ${fragment}`); return index; };
-  const warm = position('PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE="$RUNNER_TEMP/public-install-npm-cache" node scripts/warm-public-install-npm-cache.mjs');
+  const warm = position('NEXUS_PUBLIC_INSTALL_NPM_CACHE="$RUNNER_TEMP/public-install-npm-cache" node scripts/warm-public-install-npm-cache.mjs');
   assert.ok(position('- name: Install dependencies') < warm && warm < position('- name: Build\n'), 'the warm-up overlaps the Rust restore and pnpm build');
   assert.ok(build.includes('set +e\n'), 'a failed warm-up still records its status, so the verifier never waits it out');
-  const verify = position('export PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE="$RUNNER_TEMP/public-install-npm-cache"');
+  const verify = position('export NEXUS_PUBLIC_INSTALL_NPM_CACHE="$RUNNER_TEMP/public-install-npm-cache"');
   assert.ok(verify < position('node scripts/verify-grok-npm-install.mjs'));
   const verifier = readFileSync(new URL('../verify-grok-npm-install.mjs', import.meta.url), 'utf8');
-  assert.ok(verifier.includes("const cache = process.env.PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE ? resolve(process.env.PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE) : join(root, 'cache');"));
+  assert.ok(verifier.includes("const cache = process.env.NEXUS_PUBLIC_INSTALL_NPM_CACHE ? resolve(process.env.NEXUS_PUBLIC_INSTALL_NPM_CACHE) : join(root, 'cache');"));
 });

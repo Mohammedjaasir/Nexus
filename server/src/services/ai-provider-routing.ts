@@ -1,9 +1,9 @@
-import { OPENROUTER_ATTRIBUTION_HEADERS, isOpenRouterUrl, openRouterClaudeHeaders, openRouterCodexHeaders } from "@paperclipai/shared/openrouter-attribution";
+import { OPENROUTER_ATTRIBUTION_HEADERS, isOpenRouterUrl, openRouterClaudeHeaders, openRouterCodexHeaders } from "@nexusai/shared/openrouter-attribution";
 import {
   aiRoutingBaseUrl,
   aiRoutingModel,
   type AiProviderRouting,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 /** Projects one authoritative connection into an isolated harness environment. */
 export function managedProviderRouting(
@@ -25,8 +25,8 @@ export function managedProviderRouting(
     env.AWS_EC2_METADATA_DISABLED = "true";
     env.AWS_BEARER_TOKEN_BEDROCK = credential;
   } else if (harness === "codex_local") {
-    env.PAPERCLIP_AI_PROVIDER_KEY = credential;
-    codexConfig = `model_provider = "paperclip"\n[model_providers.paperclip]\nname = "Paperclip connection"\nbase_url = ${JSON.stringify(baseUrl)}\nwire_api = "responses"\nrequires_openai_auth = false\n${route.auth === "none" ? "" : 'env_key = "PAPERCLIP_AI_PROVIDER_KEY"\n'}`;
+    env.NEXUS_AI_PROVIDER_KEY = credential;
+    codexConfig = `model_provider = "nexus"\n[model_providers.nexus]\nname = "Nexus connection"\nbase_url = ${JSON.stringify(baseUrl)}\nwire_api = "responses"\nrequires_openai_auth = false\n${route.auth === "none" ? "" : 'env_key = "NEXUS_AI_PROVIDER_KEY"\n'}`;
     if (openrouter) codexConfig += openRouterCodexHeaders();
   } else if (harness === "claude_local") {
     env.ANTHROPIC_BASE_URL = baseUrl;
@@ -46,11 +46,11 @@ export function managedProviderRouting(
     env.OPENROUTER_API_KEY = credential;
     config.model = aiRoutingModel(route, harness, model);
   } else if (harness === "opencode_local") {
-    const provider = route.kind === "openrouter" ? "openrouter" : "paperclip";
+    const provider = route.kind === "openrouter" ? "openrouter" : "nexus";
     if (route.kind === "openrouter") env.OPENROUTER_API_KEY = credential;
     else {
-      env.PAPERCLIP_AI_PROVIDER_KEY = credential;
-      env.PAPERCLIP_AI_PROVIDER_URL = baseUrl;
+      env.NEXUS_AI_PROVIDER_KEY = credential;
+      env.NEXUS_AI_PROVIDER_URL = baseUrl;
     }
     const id = model.startsWith(`${provider}/`)
       ? model.slice(provider.length + 1)
@@ -58,8 +58,8 @@ export function managedProviderRouting(
     env.OPENCODE_CONFIG_CONTENT = JSON.stringify({
       provider: {
         [provider]: {
-          ...(provider === "paperclip"
-            ? { npm: "@ai-sdk/openai-compatible", name: "Paperclip connection" }
+          ...(provider === "nexus"
+            ? { npm: "@ai-sdk/openai-compatible", name: "Nexus connection" }
             : {}),
           options: { baseURL: baseUrl, apiKey: credential, ...(openrouter ? { headers: OPENROUTER_ATTRIBUTION_HEADERS } : {}) },
           models: id ? { [id]: { name: id } } : {},

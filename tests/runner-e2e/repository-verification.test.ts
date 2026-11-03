@@ -5,7 +5,7 @@ import { runnerSuites } from "./catalog.js";
 
 function valid(): RepositoryProofObservation {
   const sourceBytes = `${"a7".repeat(32)}\n`, commit = "b".repeat(40);
-  return { conversion: true, originalAdapter: "codex_local", expectedLegacyAdapter: "codex_local", finalAdapter: "paperclip_runner",
+  return { conversion: true, originalAdapter: "codex_local", expectedLegacyAdapter: "codex_local", finalAdapter: "nexus_runner",
     configurationBefore: "config", configurationAfter: "config", instructionsBefore: "instructions", instructionsAfter: "instructions",
     permissionsPreserved: true, expectedModel: "gpt-6.1-sol", actualModel: "gpt-6.1-sol", expectedProvider: "codex", actualProvider: "codex",
     environmentRetained: true, issueDone: true, runCount: 1, committedRuns: 1, sourceBytes, currentSourceBytes: sourceBytes,
@@ -17,10 +17,10 @@ const passes = (value: RepositoryProofObservation) => gradeRepositoryProof(value
 describe("configured repository and conversion qualification", () => {
   it("accepts independently verified actual conversion and ordinary delivery", () => {
     expect(passes(valid())).toBe(true);
-    expect(passes({ ...valid(), conversion: false, originalAdapter: "paperclip_runner" })).toBe(true);
+    expect(passes({ ...valid(), conversion: false, originalAdapter: "nexus_runner" })).toBe(true);
   });
   it.each([
-    { originalAdapter: "paperclip_runner" }, { finalAdapter: "codex_local" },
+    { originalAdapter: "nexus_runner" }, { finalAdapter: "codex_local" },
     { configurationAfter: "changed environment reference" }, { instructionsAfter: "lost instructions" },
     { permissionsPreserved: false }, { environmentRetained: false }, { actualModel: "gpt-5.6-sol" },
     { actualProvider: "acpx:claude" }, { runCount: 2 }, { committedRuns: 0 }, { issueDone: false },

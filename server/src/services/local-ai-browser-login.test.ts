@@ -5,9 +5,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { startLocalBrowserLogin } from "./local-ai-browser-login.js";
-import { resolveCodexCommand } from "../vendor/paperclip-runner/index.js";
+import { resolveCodexCommand } from "../vendor/nexus-runner/index.js";
 
-vi.mock("../vendor/paperclip-runner/index.js", () => ({
+vi.mock("../vendor/nexus-runner/index.js", () => ({
   resolveCodexCommand: vi.fn(),
 }));
 
@@ -27,7 +27,7 @@ afterEach(async () => {
 });
 
 async function fakeCli(name: string, source: string) {
-  root ??= await mkdtemp(path.join(os.tmpdir(), "paperclip-browser-login-"));
+  root ??= await mkdtemp(path.join(os.tmpdir(), "nexus-browser-login-"));
   const bin = path.join(root, "bin");
   await mkdir(bin, { recursive: true });
   await writeFile(path.join(bin, name), `#!/bin/sh\n${source}\n`, { mode: 0o700 });
@@ -46,7 +46,7 @@ function targetPlatform(platform: string, architecture: string, glibc = true, gl
 
 function resolveFixtureCodexCommand(home: string): string {
   const source = `
-    import { resolveCodexCommand } from ${JSON.stringify(new URL("../../../packages/paperclip-runner/src/drivers/codex/codex-command.ts", import.meta.url).href)};
+    import { resolveCodexCommand } from ${JSON.stringify(new URL("../../../packages/nexus-runner/src/drivers/codex/codex-command.ts", import.meta.url).href)};
     try { console.log(JSON.stringify({ command: resolveCodexCommand(${JSON.stringify(path.join(root!, "issuer.js"))}, { PATH: "/missing-codex" }, ${JSON.stringify(home)}) })); }
     catch (error) { console.log(JSON.stringify({ error: error.message })); }
   `;
@@ -71,8 +71,8 @@ describe.skipIf(process.platform === "win32")("local browser subscription login"
     if (platform === "unknown") targetPlatform("linux", "x64", true, "unknown");
     const home = await fakeCli("codex", [
       '[ "$1 $2" = "login --device-auth" ] || exit 11',
-      '[ "$HOME" = "$CLAUDE_CONFIG_DIR" ] && [ "$HOME" != "$CODEX_HOME" ] && [ "$CODEX_HOME" = "$PAPERCLIP_TEST_LOGIN_CODEX_HOME" ] || exit 12',
-      '[ "$PWD" = "$PAPERCLIP_TEST_LOGIN_CWD" ] || exit 13',
+      '[ "$HOME" = "$CLAUDE_CONFIG_DIR" ] && [ "$HOME" != "$CODEX_HOME" ] && [ "$CODEX_HOME" = "$NEXUS_TEST_LOGIN_CODEX_HOME" ] || exit 12',
+      '[ "$PWD" = "$NEXUS_TEST_LOGIN_CWD" ] || exit 13',
       '[ -z "$OPENAI_API_KEY$CODEX_API_KEY$ANTHROPIC_API_KEY$ANTHROPIC_AUTH_TOKEN$CLAUDE_CODE_OAUTH_TOKEN" ] || exit 14',
       'printf "1. Open this link in your browser and sign in to your account\\nhttps://auth.openai.com/codex/device\\n2. Enter this one-time code (expires in 15 minutes)\\nABCD-EFGHJ\\n"',
     ].join("\n"));
@@ -81,8 +81,8 @@ describe.skipIf(process.platform === "win32")("local browser subscription login"
     const ambientHome = path.join(root!, "unrelated-host-home");
     await mkdir(ambientHome, { mode: 0o700 });
     for (const key of ["HOME", "CODEX_HOME", "CLAUDE_CONFIG_DIR"]) vi.stubEnv(key, ambientHome);
-    vi.stubEnv("PAPERCLIP_TEST_LOGIN_CODEX_HOME", home);
-    vi.stubEnv("PAPERCLIP_TEST_LOGIN_CWD", process.cwd());
+    vi.stubEnv("NEXUS_TEST_LOGIN_CODEX_HOME", home);
+    vi.stubEnv("NEXUS_TEST_LOGIN_CWD", process.cwd());
     for (const key of ["OPENAI_API_KEY", "CODEX_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"])
       vi.stubEnv(key, "unrelated-host-value");
     const login = startLocalBrowserLogin("openai", home);
@@ -158,7 +158,7 @@ describe.skipIf(process.platform === "win32")("local browser subscription login"
     process.env.PATH = "/usr/bin:/bin";
     const login = startLocalBrowserLogin("openai", home);
     await vi.waitFor(() => expect(login.outcome).toBe("failure"), { timeout: 5000 });
-    expect(login.error).toMatch(/requires the Codex CLI.*Install Codex.*Paperclip's PATH/);
+    expect(login.error).toMatch(/requires the Codex CLI.*Install Codex.*Nexus's PATH/);
     expect(JSON.stringify(login)).not.toContain(process.env.PATH);
     expect(resolveCodexCommand).not.toHaveBeenCalled();
   });

@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
-import { shellQuote } from "@paperclipai/adapter-utils/ssh";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
+import { shellQuote } from "@nexusai/adapter-utils/ssh";
 import { openDaytonaDuplexChannelSession, type DaytonaPtyProcess } from "../../../../packages/plugins/sandbox-providers/daytona/src/duplex-command-stream.js";
 
 /** Opt-in live fixture; uses an isolated sandbox and never reuses a user's lease. */
@@ -13,7 +13,7 @@ export async function startFileDeliveryDaytona() {
     delete(): Promise<void>;
   } = await new Daytona({ apiKey: process.env.DAYTONA_API_KEY }).create({
     language: "typescript", autoStopInterval: 10,
-    labels: { "paperclip-test": "gus-file-delivery" },
+    labels: { "nexus-test": "gus-file-delivery" },
   });
   const workspace = "/home/daytona/gus-file-delivery";
   // Capture stdout/stderr separately: SDK result text otherwise combines them.

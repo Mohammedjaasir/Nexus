@@ -22,6 +22,6 @@ export function safeWorkspaceRestorePath(value: unknown): string | null {
   const relative = value.replace(/^\.\//, "");
   if (!relative || !/^[a-zA-Z0-9_.\/-]+$/.test(relative) || relative.startsWith("/")) return null;
   if (relative.split("/").some((part) => !part || part === "." || part === "..")) return null;
-  if (/(?:[a-f0-9]{8}-[a-f0-9-]{27,}|[a-zA-Z0-9_-]{32,}|(?:^|\/)(?:tmp|temp|paperclip-clone)[^/]*)(?:\/|$)/i.test(relative)) return null;
+  if (/(?:[a-f0-9]{8}-[a-f0-9-]{27,}|[a-zA-Z0-9_-]{32,}|(?:^|\/)(?:tmp|temp|nexus-clone)[^/]*)(?:\/|$)/i.test(relative)) return null;
   return relative;
 }

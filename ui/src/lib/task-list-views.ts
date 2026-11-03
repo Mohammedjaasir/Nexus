@@ -1,4 +1,4 @@
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 
 export const taskListViews = [
   { value: "inbox", label: "Inbox" },
@@ -21,7 +21,7 @@ export function matchesTaskListView(view: TaskListView, issue: ViewIssue, unread
 }
 
 export function taskListViewStorageKey(scope: string, userId: string): string {
-  return `paperclip:task-list-view:v1:${encodeURIComponent(scope)}:${encodeURIComponent(userId)}`;
+  return `nexus:task-list-view:v1:${encodeURIComponent(scope)}:${encodeURIComponent(userId)}`;
 }
 
 type ViewStorage = Pick<Storage, "getItem" | "setItem">;

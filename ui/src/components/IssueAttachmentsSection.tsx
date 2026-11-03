@@ -2,7 +2,7 @@ import { TextAttachmentContext } from "@/context/TextAttachmentContext";
 import { isTextAttachment } from "@/lib/issue-attachments";
 import { useContext, useMemo, useState, type DragEvent, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { IssueAttachment } from "@paperclipai/shared";
+import type { IssueAttachment } from "@nexusai/shared";
 import { Download, ExternalLink, FileText, Maximize2, Paperclip, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FoldCurtain } from "./FoldCurtain";
@@ -147,7 +147,7 @@ function MarkdownAttachmentCard({
           <p className="px-1 py-2 text-xs text-destructive">Could not load markdown preview.</p>
         ) : (
           <FoldCurtain>
-            <MarkdownBody className="paperclip-edit-in-place-content min-h-(--sz-220px) text-sm leading-7" softBreaks={false}>
+            <MarkdownBody className="nexus-edit-in-place-content min-h-(--sz-220px) text-sm leading-7" softBreaks={false}>
               {data ?? ""}
             </MarkdownBody>
           </FoldCurtain>

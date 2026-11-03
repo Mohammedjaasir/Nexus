@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { SemanticToolOutcomeUnknownError } from "../../vendor/paperclip-runner/index.js";
+import { SemanticToolOutcomeUnknownError } from "../../vendor/nexus-runner/index.js";
 import { captureRunnerToolResult, fitRunnerToolResultPage, RUNNER_TOOL_RESULT_MAX_BYTES } from "./runner-tool-results.js";
 
 describe("assigned tool result capture", () => {

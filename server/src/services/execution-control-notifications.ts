@@ -4,7 +4,7 @@ import { notifyDeferredExecutionEligibility } from "./deferred-execution-notific
 import { notifyRunDispatch } from "./run-dispatch-notifications.js";
 import { notifyStatusCardIssueChange } from "./status-card-notifications.js";
 import { notifyRoutineExecutionStatus } from "./routine-execution-status-notifications.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { DELIVERY_QUEUES, notifyDeliveryWork, type DeliveryQueue } from "./delivery-work-notifications.js";
 
 export type ExecutionWorkScope = { companyId: string; agentId?: string; runId?: string; issueId?: string };

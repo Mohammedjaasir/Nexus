@@ -1,4 +1,4 @@
-import type { ProviderQuotaResult } from "@paperclipai/shared";
+import type { ProviderQuotaResult } from "@nexusai/shared";
 import { formatDateTime } from "../lib/utils";
 import { QuotaBar } from "./QuotaBar";
 import { quotaUnavailableMessage } from "../lib/quota-refresh";

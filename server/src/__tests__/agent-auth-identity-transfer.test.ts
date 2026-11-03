@@ -3,7 +3,7 @@ import express from "express";
 import request from "supertest";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, companies, createDb, heartbeatRunEvents, heartbeatRuns, issueComments, issues } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRunEvents, heartbeatRuns, issueComments, issues } from "@nexusai/db";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "./helpers/full-database-response-capture.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createLocalAgentJwt } from "../agent-auth-jwt.js";
@@ -16,9 +16,9 @@ const support = await getEmbeddedPostgresTestSupport();
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    vi.stubEnv("PAPERCLIP_AGENT_JWT_SECRET", "identity-transfer-test-secret");
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "default");
-    database = await startEmbeddedPostgresTestDatabase("paperclip-auth-identity-transfer-");
+    vi.stubEnv("NEXUS_AGENT_JWT_SECRET", "identity-transfer-test-secret");
+    vi.stubEnv("NEXUS_INSTANCE_ID", "default");
+    database = await startEmbeddedPostgresTestDatabase("nexus-auth-identity-transfer-");
     db = createDb(database.connectionString);
   }, 30_000);
   afterAll(async () => {
@@ -61,7 +61,7 @@ const support = await getEmbeddedPostgresTestSupport();
       expect(response.body).toMatchObject({ type: "agent", runId: fixture.runId,
         identityContextId: fixture.identity.id, onBehalfOfUserId: "owner" });
     } finally { capture.flush(); }
-    const reads = events.filter(event => event.event === "paperclip.test_db_response_capture.entry.v1"
+    const reads = events.filter(event => event.event === "nexus.test_db_response_capture.entry.v1"
       && event.table === "heartbeat_runs" && (event.operation === "select" || event.operation === "execute"));
     expect(reads.reduce((sum, event) => sum + Number(event.calls), 0)).toBeGreaterThanOrEqual(3);
     expect(reads.reduce((sum, event) => sum + Number(event.responseValueBytes), 0)).toBeLessThan(16_384);

@@ -29,7 +29,7 @@ import {
   externalThreadIdentityCondition,
 } from "../chat-control-chronology.js";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatConversations,
@@ -37,11 +37,11 @@ import {
   chatEndpointResources,
   chatMessageLinks,
   chatPublications,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEventKind,
   ChatProvider,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import { logger } from "../../middleware/logger.js";
 

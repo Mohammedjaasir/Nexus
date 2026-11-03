@@ -1,20 +1,20 @@
-import { environmentTaskOperationSchema } from "@paperclipai/plugin-sdk";
-import type { Db } from "@paperclipai/db";
-import type { Environment, EnvironmentLease } from "@paperclipai/shared";
-import { adapterSupportsRemoteManagedEnvironments } from "@paperclipai/shared";
+import { environmentTaskOperationSchema } from "@nexusai/plugin-sdk";
+import type { Db } from "@nexusai/db";
+import type { Environment, EnvironmentLease } from "@nexusai/shared";
+import { adapterSupportsRemoteManagedEnvironments } from "@nexusai/shared";
 import {
   adapterExecutionTargetToRemoteSpec,
   type AdapterExecutionTarget,
   type SandboxLeaseAcquisition,
-} from "@paperclipai/adapter-utils/execution-target";
-import type { DuplexObservabilityRecorder } from "@paperclipai/adapter-utils/duplex-observability";
+} from "@nexusai/adapter-utils/execution-target";
+import type { DuplexObservabilityRecorder } from "@nexusai/adapter-utils/duplex-observability";
 import {
   clampSpanLabel,
   getActiveStepContext,
   normalizeProviderFamily,
   SANDBOX_STARTUP_OUTCOME,
   SANDBOX_STARTUP_SPAN_ATTRS,
-} from "@paperclipai/adapter-utils/acpx-engine/startup-timing";
+} from "@nexusai/adapter-utils/acpx-engine/startup-timing";
 import { parseObject } from "../adapters/utils.js";
 import { getStartupTracer } from "../instrumentation.js";
 import { resolveEnvironmentDriverConfigForRuntime } from "./environment-config.js";
@@ -159,7 +159,7 @@ interface SandboxExecSpanInput {
 /**
  * Assemble every `sandbox.exec` span attribute in one place. This is the single
  * producer-side boundary for the exec span: it sets only the closed
- * `paperclip.sandbox.startup.exec.*` allowlist. The command rides only as a
+ * `nexus.sandbox.startup.exec.*` allowlist. The command rides only as a
  * clamped label, so a full command line, an argument, a path, an environment
  * value, or any standard-stream text can never ride the span. A non-finite
  * numeric input yields no attribute (fail open — never `NaN`, never a
@@ -255,7 +255,7 @@ export async function resolveEnvironmentExecutionTarget(input: {
     };
   }
 
-  if (input.environment.driver === "plugin" && input.adapterType === "paperclip_runner") {
+  if (input.environment.driver === "plugin" && input.adapterType === "nexus_runner") {
     const lease = input.lease;
     const runtime = input.environmentRuntime;
     if (!lease || !runtime || lease.companyId !== input.companyId ||
@@ -556,7 +556,7 @@ export async function resolveEnvironmentExecutionTarget(input: {
                 const finishedAt = new Date(finishedAtMs).toISOString();
                 const durationMs = finishedAtMs - startedAtMs;
                 // `setSandboxExecSpanAttributes` sets ONLY the closed
-                // `paperclip.sandbox.startup.exec.*` allowlist: the normalized
+                // `nexus.sandbox.startup.exec.*` allowlist: the normalized
                 // provider family, the clamped command label, the numeric exit
                 // code, the wall / wait-before / sandbox / network times, the
                 // critical-path flag, and the outcome. The full command, args,

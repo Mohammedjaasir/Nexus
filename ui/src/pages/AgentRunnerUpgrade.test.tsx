@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
-import type { AgentDetail } from "@paperclipai/shared";
+import type { AgentDetail } from "@nexusai/shared";
 import { ConfigurationTab } from "./AgentDetail";
 
 const mocks = vi.hoisted(() => ({ update: vi.fn(), navigate: vi.fn(), toast: vi.fn() }));
@@ -22,7 +22,7 @@ vi.mock("../context/ToastContext", async importOriginal => {
 });
 vi.mock("../components/AgentConfigForm", () => ({
   AgentConfigForm: ({ onSave }: { onSave: (patch: Record<string, unknown>) => Promise<unknown> }) =>
-    <button onClick={() => { void onSave({ runner: "paperclip" }); }}>Upgrade runner</button>,
+    <button onClick={() => { void onSave({ runner: "nexus" }); }}>Upgrade runner</button>,
 }));
 
 function agent(id: string): AgentDetail {
@@ -50,9 +50,9 @@ it("keeps an upgrade receipt on its original agent when navigation changes the c
     await act(async () => render(original));
     await act(async () => container.querySelector("button")!.click());
     await act(async () => render(agent("other-agent")));
-    await act(async () => finish({ ...original, adapterType: "paperclip_runner", adapterConfig: { provider: "codex" } }));
+    await act(async () => finish({ ...original, adapterType: "nexus_runner", adapterConfig: { provider: "codex" } }));
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
-    expect(mocks.update).toHaveBeenCalledWith(original.id, { runner: "paperclip" }, original.companyId);
+    expect(mocks.update).toHaveBeenCalledWith(original.id, { runner: "nexus" }, original.companyId);
     expect(mocks.navigate).not.toHaveBeenCalled();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["agents", "detail", original.id] });
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ["agents", "detail", "other-agent"] });

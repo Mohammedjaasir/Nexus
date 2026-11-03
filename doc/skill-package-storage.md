@@ -9,7 +9,7 @@ locally authored/edited packages and unproven legacy packages keep a durable cop
 
 ## Installed content authority
 
-Paperclip-owned skills use `sourceType: managed`, `sourceLocator: null`, and an
+Nexus-owned skills use `sourceType: managed`, `sourceLocator: null`, and an
 immutable `currentVersionId`. Creation, edits, deletion of files, forks and restores
 prepare verified packages before a short transaction publishes the version, head,
 metadata and audit. A competing head returns `409`; it never overwrites another
@@ -42,7 +42,7 @@ commits between the metadata read and the content read. Conversion runs separate
 from turn preparation. Completed migration history has no recurring scan. Normal
 vacuum and backup retention determine when PostgreSQL reclaims physical space.
 
-`PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED=false` is an explicit compatibility override
+`NEXUS_SKILL_PACKAGE_STORAGE_ENABLED=false` is an explicit compatibility override
 for a coordinated rolling upgrade: it disables new external writes and automatic
 package maintenance. All processes must support the new reader before allowing
 external-only writes or clearing old payloads. Once automatic conversion runs, this
@@ -245,7 +245,7 @@ for i in range(1348):
 with open("/tmp/skill-package-benchmark.json", "w") as output:
     json.dump(files, output, separators=(",", ":"))
 PYTHON
-pnpm --filter @paperclipai/server exec tsx scripts/benchmark-native-skill-preparation.ts --snapshot-file=/tmp/skill-package-benchmark.json --package-store=external --native-assets=true --actor=agent --staging-shape=true --network-delay-ms=5 --selected-skills=10 --warm-runs=20
+pnpm --filter @nexusai/server exec tsx scripts/benchmark-native-skill-preparation.ts --snapshot-file=/tmp/skill-package-benchmark.json --package-store=external --native-assets=true --actor=agent --staging-shape=true --network-delay-ms=5 --selected-skills=10 --warm-runs=20
 ```
 
 The fixture generator reproduces the recorded file counts and JSON size, with new
@@ -309,7 +309,7 @@ manifest normalization fix. Migrations and map checks passed.
 
 The shared PostgreSQL test-template path timed out (and exited a standalone benchmark
 before measurement). The passing final runs used the supported
-`PAPERCLIP_TEST_POSTGRES_TEMPLATE=0` fresh-cluster path. Earlier retirement assertions
+`NEXUS_TEST_POSTGRES_TEMPLATE=0` fresh-cluster path. Earlier retirement assertions
 caught PostgreSQL JSONB key reordering; manifest serialization now preserves its v1
 wire encoding after a DB round trip. An empty native cache startup case was also fixed.
 

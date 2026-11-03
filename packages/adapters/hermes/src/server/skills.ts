@@ -5,14 +5,14 @@ import type {
   AdapterSkillContext,
   AdapterSkillEntry,
   AdapterSkillSnapshot,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import {
-  ensurePaperclipSkillSymlink,
-  isPaperclipSkillSourceMissing,
+  ensureNexusSkillSymlink,
+  isNexusSkillSourceMissing,
   readInstalledSkillTargets,
-  readPaperclipRuntimeSkillEntries,
-  resolveLegacyPaperclipDesiredSkillNames,
-} from "@paperclipai/adapter-utils/server-utils";
+  readNexusRuntimeSkillEntries,
+  resolveLegacyNexusDesiredSkillNames,
+} from "@nexusai/adapter-utils/server-utils";
 import { fileURLToPath } from "node:url";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -119,7 +119,7 @@ async function buildSkillEntry(
     origin: "user_installed",
     originLabel: "Hermes skill",
     locationLabel: `~/.hermes/skills/${categoryPath}`,
-    readOnly: true, // Hermes manages its own skills — Paperclip can't toggle them
+    readOnly: true, // Hermes manages its own skills — Nexus can't toggle them
     sourcePath: skillMdPath,
     targetPath: null,
     detail: description,
@@ -134,22 +134,22 @@ async function buildHermesSkillSnapshot(config: Record<string, unknown>): Promis
   const home = resolveHermesHome(config);
   const hermesSkillsHome = path.join(home, "skills");
 
-  // 1. Scan Paperclip-managed skills (bundled with the adapter)
-  const paperclipEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
-  const desiredSkills = resolveLegacyPaperclipDesiredSkillNames(config, paperclipEntries);
+  // 1. Scan Nexus-managed skills (bundled with the adapter)
+  const nexusEntries = await readNexusRuntimeSkillEntries(config, __moduleDir);
+  const desiredSkills = resolveLegacyNexusDesiredSkillNames(config, nexusEntries);
   const desiredSet = new Set(desiredSkills);
-  const availableByKey = new Map(paperclipEntries.map((e) => [e.key, e]));
+  const availableByKey = new Map(nexusEntries.map((e) => [e.key, e]));
 
   // 2. Scan Hermes's own skills from ~/.hermes/skills/
   const hermesSkillEntries = await scanHermesSkills(hermesSkillsHome);
   const hermesKeys = new Set(hermesSkillEntries.map((e) => e.key));
 
-  // 3. Merge: Paperclip skills first (ephemeral), then Hermes skills
+  // 3. Merge: Nexus skills first (ephemeral), then Hermes skills
   const entries: AdapterSkillEntry[] = [];
   const warnings: string[] = [];
 
-  // Paperclip-managed skills
-  for (const entry of paperclipEntries) {
+  // Nexus-managed skills
+  for (const entry of nexusEntries) {
     const desired = desiredSet.has(entry.key);
     entries.push({
       key: entry.key,
@@ -158,7 +158,7 @@ async function buildHermesSkillSnapshot(config: Record<string, unknown>): Promis
       managed: true,
       state: desired ? "configured" : "available",
       origin: "company_managed",
-      originLabel: "Managed by Paperclip",
+      originLabel: "Managed by Nexus",
       readOnly: false,
       sourcePath: entry.source,
       targetPath: null,
@@ -170,7 +170,7 @@ async function buildHermesSkillSnapshot(config: Record<string, unknown>): Promis
 
   // Hermes-installed skills (read-only, always loaded)
   for (const entry of hermesSkillEntries) {
-    // Skip if Paperclip already manages a skill with the same key
+    // Skip if Nexus already manages a skill with the same key
     if (availableByKey.has(entry.key)) continue;
     entries.push(entry);
   }
@@ -179,7 +179,7 @@ async function buildHermesSkillSnapshot(config: Record<string, unknown>): Promis
   for (const desiredSkill of desiredSkills) {
     if (availableByKey.has(desiredSkill) || hermesKeys.has(desiredSkill)) continue;
     warnings.push(
-      `Desired skill "${desiredSkill}" is not available in Paperclip or Hermes skills.`,
+      `Desired skill "${desiredSkill}" is not available in Nexus or Hermes skills.`,
     );
     entries.push({
       key: desiredSkill,
@@ -193,7 +193,7 @@ async function buildHermesSkillSnapshot(config: Record<string, unknown>): Promis
       sourcePath: null,
       targetPath: null,
       detail:
-        "Cannot find this skill in Paperclip or ~/.hermes/skills/.",
+        "Cannot find this skill in Nexus or ~/.hermes/skills/.",
     });
   }
 
@@ -213,17 +213,17 @@ export async function listHermesSkills(
   return buildHermesSkillSnapshot(ctx.config);
 }
 
-export async function reconcileHermesPaperclipSkills(
+export async function reconcileHermesNexusSkills(
   config: Record<string, unknown>,
   requestedDesiredSkills?: string[],
 ): Promise<string[]> {
-  const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
+  const availableEntries = await readNexusRuntimeSkillEntries(config, __moduleDir);
   const desiredSkills = requestedDesiredSkills
     ? Array.from(new Set([
-        ...resolveLegacyPaperclipDesiredSkillNames({}, availableEntries),
+        ...resolveLegacyNexusDesiredSkillNames({}, availableEntries),
         ...requestedDesiredSkills,
       ]))
-    : resolveLegacyPaperclipDesiredSkillNames(config, availableEntries);
+    : resolveLegacyNexusDesiredSkillNames(config, availableEntries);
   const desiredSet = new Set(desiredSkills);
   const skillsHome = path.join(resolveHermesHome(config), "skills");
   await fs.mkdir(skillsHome, { recursive: true });
@@ -231,9 +231,9 @@ export async function reconcileHermesPaperclipSkills(
   const availableByRuntimeName = new Map(availableEntries.map((entry) => [entry.runtimeName, entry]));
 
   for (const entry of availableEntries) {
-    if (!desiredSet.has(entry.key) || isPaperclipSkillSourceMissing(entry)) continue;
+    if (!desiredSet.has(entry.key) || isNexusSkillSourceMissing(entry)) continue;
     const target = path.join(skillsHome, entry.runtimeName);
-    await ensurePaperclipSkillSymlink(entry.source, target);
+    await ensureNexusSkillSymlink(entry.source, target);
     const linkedSource = await fs.readlink(target).catch(() => null);
     const resolvedSource = linkedSource
       ? path.resolve(path.dirname(target), linkedSource)
@@ -259,7 +259,7 @@ export async function syncHermesSkills(
   ctx: AdapterSkillContext,
   desiredSkills: string[],
 ): Promise<AdapterSkillSnapshot> {
-  await reconcileHermesPaperclipSkills(ctx.config, desiredSkills);
+  await reconcileHermesNexusSkills(ctx.config, desiredSkills);
   return buildHermesSkillSnapshot(ctx.config);
 }
 
@@ -267,5 +267,5 @@ export function resolveHermesDesiredSkillNames(
   config: Record<string, unknown>,
   availableEntries: Array<{ key: string; runtimeName?: string | null }>,
 ): string[] {
-  return resolveLegacyPaperclipDesiredSkillNames(config, availableEntries);
+  return resolveLegacyNexusDesiredSkillNames(config, availableEntries);
 }

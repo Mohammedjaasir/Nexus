@@ -1,9 +1,9 @@
 import { githubAutomaticAdmission } from "../../chat-github-events.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { githubResponseCommentService } from "../../chat-github-response-comments.js";
 import type { DbOrTransaction, EndpointRow } from "../runtime-types.js";
-import type { chatDeliveries } from "@paperclipai/db";
-import type { GitHubAutomaticEventContext } from "@paperclipai/shared";
+import type { chatDeliveries } from "@nexusai/db";
+import type { GitHubAutomaticEventContext } from "@nexusai/shared";
 export async function resolveGitHubWakeAuthority(tx: DbOrTransaction, endpoint: EndpointRow, delivery: typeof chatDeliveries.$inferSelect): Promise<{ kind: "not_automatic" } | { kind: "denied" } | { kind: "allowed"; userId: string | null }> {
   const automatic = (delivery.normalizedEvent.githubAutomatic ?? delivery.normalizedEvent.githubIssue) as { context: GitHubAutomaticEventContext } | undefined;
   if (!automatic) return { kind: "not_automatic" };

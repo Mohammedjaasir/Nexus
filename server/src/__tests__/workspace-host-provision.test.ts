@@ -1,4 +1,4 @@
-import { projects, type Db } from "@paperclipai/db";
+import { projects, type Db } from "@nexusai/db";
 import { describe, expect, it, vi } from "vitest";
 import { resolveProjectDefaultWorkspaceId } from "../services/project-default-workspace.js";
 import { workspaceRequiresCopyOnlyProvisioning } from "../services/workspace-host-provision.js";

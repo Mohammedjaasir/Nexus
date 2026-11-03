@@ -11,7 +11,7 @@ export interface ManualPrivateHandoff extends ManualRetentionIdentity {
   protocol: typeof MANUAL_PRIVATE_PROTOCOL; private: true; root: string; cellReportProducer?: CellReportProducerIdentity;
 }
 export async function readManualPrivateHandoff(env: NodeJS.ProcessEnv, ids: string[]): Promise<ManualPrivateHandoff | undefined> {
-  const file = env.PAPERCLIP_RUNNER_E2E_PRIVATE_PREFLIGHT;
+  const file = env.NEXUS_RUNNER_E2E_PRIVATE_PREFLIGHT;
   if (!file) return undefined;
   const metadata = await lstat(file);
   if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > 65536 || metadata.mode & 0o077
@@ -19,7 +19,7 @@ export async function readManualPrivateHandoff(env: NodeJS.ProcessEnv, ids: stri
   const receipt = JSON.parse(await readFile(file, "utf8")) as ManualPrivateHandoff & { status: string };
   if (receipt.protocol !== MANUAL_PRIVATE_PROTOCOL || receipt.status !== "verified" || receipt.private !== true
     || receipt.runId !== env.GITHUB_RUN_ID || receipt.attempt !== env.GITHUB_RUN_ATTEMPT || receipt.attempt !== "1"
-    || receipt.workflowSha !== env.GITHUB_SHA || receipt.targetSha !== env.PAPERCLIP_RUNNER_E2E_SOURCE_SHA || receipt.executionIds.length !== ids.length
+    || receipt.workflowSha !== env.GITHUB_SHA || receipt.targetSha !== env.NEXUS_RUNNER_E2E_SOURCE_SHA || receipt.executionIds.length !== ids.length
     || [...receipt.executionIds].sort().join() !== [...ids].sort().join()) throw new Error("Private evidence preflight does not match this exact attempt");
   const root = await realpath(receipt.root), temporary = await realpath(env.RUNNER_TEMP ?? "");
   const directory = await lstat(root);

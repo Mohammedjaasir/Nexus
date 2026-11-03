@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { ManagedExperimentalFeatureKey } from "@paperclipai/shared";
+import type { ManagedExperimentalFeatureKey } from "@nexusai/shared";
 
 const CLOUD_STAGING_EXPERIMENTAL_KEYS: ReadonlySet<string> = new Set([
   "autoRestartDevServerWhenIdle",
@@ -28,7 +28,7 @@ const CLOUD_STAGING_EXPERIMENTAL_KEYS: ReadonlySet<string> = new Set([
   "enableMuse",
   "enableNativeRunner",
   "enableOpenAiDot",
-  "enablePaperclipDeveloperMode",
+  "enableNexusDeveloperMode",
   "enablePublicMcp",
   "enableServerInfoDebugView",
   "enableSimplifiedEnglishInteractions",
@@ -59,7 +59,7 @@ function normalizeOptionalEnvValue(value: string | undefined): string | null {
 }
 
 /**
- * The canonical Paperclip Cloud instance predicate.
+ * The canonical Nexus Cloud instance predicate.
  *
  * The tenant token is the signal injected on live cloud stacks. The managed
  * config document is the legacy/bootstrap signal used by managed feature and
@@ -70,18 +70,18 @@ export function isCloudManagedInstance(
   env: CloudInstanceEnv = process.env,
 ): boolean {
   return (
-    normalizeOptionalEnvValue(env.PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN) !== null ||
-    env.PAPERCLIP_MANAGED_CONFIG !== undefined
+    normalizeOptionalEnvValue(env.NEXUS_CLOUD_TENANT_SERVER_TOKEN) !== null ||
+    env.NEXUS_MANAGED_CONFIG !== undefined
   );
 }
 
 export function isCloudStagingInstance(env: CloudInstanceEnv = process.env): boolean {
-  const host = normalizeOptionalEnvValue(env.PAPERCLIP_PRIMARY_HOST);
+  const host = normalizeOptionalEnvValue(env.NEXUS_PRIMARY_HOST);
   return isCloudManagedInstance(env) && host !== null && /^[a-z0-9-]+\.staging\.paperclip\.app$/i.test(host);
 }
 
 /**
- * Public stack metadata injected by the Paperclip Cloud provisioner.
+ * Public stack metadata injected by the Nexus Cloud provisioner.
  *
  * A managed signal can exist briefly before every metadata value is available,
  * so absent or blank values are represented as null rather than making health
@@ -93,11 +93,11 @@ export function getCloudStackContext(
   if (!isCloudManagedInstance(env)) return null;
 
   return {
-    stackId: normalizeOptionalEnvValue(env.PAPERCLIP_CLOUD_STACK_ID),
-    stackSlug: normalizeOptionalEnvValue(env.PAPERCLIP_STACK_SLUG),
-    accountGroupId: normalizeOptionalEnvValue(env.PAPERCLIP_CLOUD_ACCOUNT_GROUP_ID),
-    primaryHost: normalizeOptionalEnvValue(env.PAPERCLIP_PRIMARY_HOST),
-    cloudOrigin: normalizeOptionalEnvValue(env.PAPERCLIP_CLOUD_API_ORIGIN),
+    stackId: normalizeOptionalEnvValue(env.NEXUS_CLOUD_STACK_ID),
+    stackSlug: normalizeOptionalEnvValue(env.NEXUS_STACK_SLUG),
+    accountGroupId: normalizeOptionalEnvValue(env.NEXUS_CLOUD_ACCOUNT_GROUP_ID),
+    primaryHost: normalizeOptionalEnvValue(env.NEXUS_PRIMARY_HOST),
+    cloudOrigin: normalizeOptionalEnvValue(env.NEXUS_CLOUD_API_ORIGIN),
   };
 }
 
@@ -108,7 +108,7 @@ export function getCloudStackContext(
  * these ids. middleware/auth.ts delegates here; this is the one definition.
  */
 export function cloudTenantPrimaryCompanyId(stackId: string): string {
-  const bytes = createHash("sha256").update(`paperclip-cloud-tenant-company:${stackId}`).digest();
+  const bytes = createHash("sha256").update(`nexus-cloud-tenant-company:${stackId}`).digest();
   bytes[6] = (bytes[6]! & 0x0f) | 0x50;
   bytes[8] = (bytes[8]! & 0x3f) | 0x80;
   const hex = bytes.subarray(0, 16).toString("hex");

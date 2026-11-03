@@ -9,13 +9,13 @@ import { readStockInstructionVariant } from "./stock-harness-instruction-variant
 
 const root = resolve(import.meta.dirname, "../..");
 export const stockHarnessGates = [
-  { id: "SH-1", name: "Native Codex additive instructions", cwd: "packages/paperclip-runner", files: [
+  { id: "SH-1", name: "Native Codex additive instructions", cwd: "packages/nexus-runner", files: [
     "src/drivers/codex/codex-app-server-driver.lifecycle.test.ts",
     "src/live/runnerd-codex-transport.test.ts",
     "src/live/live-session.test.ts",
     "src/cli/eval-provider-runtime.test.ts",
-  ], testPattern: "adds Paperclip developer instructions|preserves stock Codex instructions|captures exact provider frames and correlates|direct eval provider runtime|exposes native completion consistently on fresh and resumed sessions|passes caller-supplied native system instructions",
-  required: ["adds Paperclip developer instructions", "preserves stock Codex instructions on task recovery",
+  ], testPattern: "adds Nexus developer instructions|preserves stock Codex instructions|captures exact provider frames and correlates|direct eval provider runtime|exposes native completion consistently on fresh and resumed sessions|passes caller-supplied native system instructions",
+  required: ["adds Nexus developer instructions", "preserves stock Codex instructions on task recovery",
     "preserves stock Codex instructions on prepared recovery", "preserves stock Codex instructions on direct recovery",
     "captures exact provider frames and correlates", "exposes native completion consistently on fresh and resumed sessions",
     "passes caller-supplied native system instructions"] },
@@ -32,7 +32,7 @@ export const stockHarnessGates = [
     "packages/adapters/opencode-local/src/server/execute.test.ts",
     "packages/adapters/cursor-cloud/src/server/execute.test.ts",
     "server/src/__tests__/codex-local-execute.test.ts",
-    "server/src/__tests__/paperclip-issue-update-helper.test.ts",
+    "server/src/__tests__/nexus-issue-update-helper.test.ts",
   ], required: ["keeps task and chat defaults to identity and connection guidance",
     "does not restore generic procedures on resume or with the legacy opt-in",
     "integrates the env-free store", "advertises folded routing metadata", "bounds routing descriptions",
@@ -45,7 +45,7 @@ export const stockHarnessGates = [
     required: ["renders standard assignment wake with task authority", "renders scoped planning wake authority"] },
   { id: "SH-eval", name: "Independent oracle and qualification admission", cwd: ".",
     config: "tests/runner-e2e/vitest.config.ts",
-    files: ["tests/runner-e2e/stock-harness-manifest.test.ts", "tests/runner-e2e/paperclip-document.test.ts", "tests/runner-e2e/stock-harness.test.ts", "tests/runner-e2e/stock-harness-checks.test.mjs",
+    files: ["tests/runner-e2e/stock-harness-manifest.test.ts", "tests/runner-e2e/nexus-document.test.ts", "tests/runner-e2e/stock-harness.test.ts", "tests/runner-e2e/stock-harness-checks.test.mjs",
       "tests/runner-e2e/stock-harness-admission.test.ts", "tests/runner-e2e/stock-harness-digest.test.ts", "tests/runner-e2e/checkout-activity.test.ts",
       "tests/runner-e2e/select-rerun-artifacts.test.ts", "tests/runner-e2e/stock-harness-instruction-variant.test.mjs", "tests/runner-e2e/automatic-retry.test.ts"],
     required: ["distinguishes a runtime claim from repeated successful HTTP checkout calls", "refuses missing, mismatched and duplicate run/receipt identities", "requires generated capability manifests for the current skill sources", "the shipped recipe delivers the current", "the shipped recipe supports an unnumbered issue", "rejects old SHA before providers", "allows toolchain paths and excludes every present or future credential",
@@ -92,35 +92,35 @@ export function sourceFingerprint() {
     "tests/runner-e2e/automatic-retry.ts", "tests/runner-e2e/types.ts",
     "packages/adapter-utils/src/acpx-engine/execute.ts", "packages/adapter-utils/src/acpx-engine/ephemeral-session-environment.ts",
     "tests/runner-e2e/context-integrity-cases.ts", "tests/runner-e2e/context-integrity-flow.ts", "tests/runner-e2e/context-integrity-scoring.ts",
-    "tests/runner-e2e/stock-harness-manifest.ts", "packages/paperclip-runner/scripts/generate-capability-contract.mjs",
-    "packages/paperclip-runner/spec/capability/source-contract.json",
-    "packages/paperclip-runner/scripts/check-capability-inventory.mjs", "packages/paperclip-runner/scripts/lib/capability-inventory.mjs",
-    "packages/paperclip-runner/spec/capability/capabilities.yaml", "packages/paperclip-runner/spec/capability/eval-traceability.yaml",
-    "packages/paperclip-runner/spec/capability/mcp-tool-map.yaml", "packages/paperclip-runner/spec/capability/inventory.schema.json",
-    "packages/paperclip-runner/src/generated/capability-contract.ts", "packages/paperclip-runner/docs/capability-contract.md",
+    "tests/runner-e2e/stock-harness-manifest.ts", "packages/nexus-runner/scripts/generate-capability-contract.mjs",
+    "packages/nexus-runner/spec/capability/source-contract.json",
+    "packages/nexus-runner/scripts/check-capability-inventory.mjs", "packages/nexus-runner/scripts/lib/capability-inventory.mjs",
+    "packages/nexus-runner/spec/capability/capabilities.yaml", "packages/nexus-runner/spec/capability/eval-traceability.yaml",
+    "packages/nexus-runner/spec/capability/mcp-tool-map.yaml", "packages/nexus-runner/spec/capability/inventory.schema.json",
+    "packages/nexus-runner/src/generated/capability-contract.ts", "packages/nexus-runner/docs/capability-contract.md",
     ...["capabilities.yaml", "mcp-tool-map.yaml", "eval-traceability.yaml", "capability-contract.md", "downstream-handoff.md"]
-      .map(file => `packages/paperclip-runner/generated/capability/${file}`),
+      .map(file => `packages/nexus-runner/generated/capability/${file}`),
     "packages/adapter-utils/src/server-utils.ts", "packages/shared/src/connection-intent-guidance.ts",
     "server/src/onboarding-assets/default/AGENTS.md", "server/src/routes/agents.ts", "scripts/ensure-plugin-build-deps.mjs",
-    "packages/paperclip-runner/src/drivers/codex/codex-app-server-driver-impl.ts",
-    "packages/paperclip-runner/src/live/runnerd-codex-transport.ts",
-    "packages/paperclip-runner/src/live/live-session.ts",
-    "packages/paperclip-runner/runner/crates/runner-core/src/codex_provider.rs",
-    "packages/paperclip-runner/runner/crates/runner-core/src/bin/fake-codex-app-server.rs",
-    "packages/paperclip-runner/runner/Cargo.toml", "packages/paperclip-runner/runner/Cargo.lock",
-    "packages/paperclip-runner/runner/crates/runner-core/Cargo.toml",
-    "packages/paperclip-runner/runner/crates/runner-core/tests/codex_provider.rs",
+    "packages/nexus-runner/src/drivers/codex/codex-app-server-driver-impl.ts",
+    "packages/nexus-runner/src/live/runnerd-codex-transport.ts",
+    "packages/nexus-runner/src/live/live-session.ts",
+    "packages/nexus-runner/runner/crates/runner-core/src/codex_provider.rs",
+    "packages/nexus-runner/runner/crates/runner-core/src/bin/fake-codex-app-server.rs",
+    "packages/nexus-runner/runner/Cargo.toml", "packages/nexus-runner/runner/Cargo.lock",
+    "packages/nexus-runner/runner/crates/runner-core/Cargo.toml",
+    "packages/nexus-runner/runner/crates/runner-core/tests/codex_provider.rs",
   ]);
   const sourceErrors = [];
-  sources.add("skills/paperclip/SKILL.md");
-  sources.add("skills/paperclip/references/issue-documents.md");
-  sources.add("scripts/paperclip-issue-update.sh");
-  sources.add("skills/paperclip/scripts/paperclip-issue-update.sh");
+  sources.add("skills/nexus/SKILL.md");
+  sources.add("skills/nexus/references/issue-documents.md");
+  sources.add("scripts/nexus-issue-update.sh");
+  sources.add("skills/nexus/scripts/nexus-issue-update.sh");
   for (const source of [...sources].sort()) {
     hash.update(source);
     try { hash.update("present\0").update(readFileSync(join(root, source))); }
     catch (error) {
-      if ((source === "skills/paperclip/references/issue-documents.md" || source === "skills/paperclip/scripts/paperclip-issue-update.sh") && error.code === "ENOENT") hash.update("absent\0");
+      if ((source === "skills/nexus/references/issue-documents.md" || source === "skills/nexus/scripts/nexus-issue-update.sh") && error.code === "ENOENT") hash.update("absent\0");
       else sourceErrors.push(source);
     }
   }
@@ -130,7 +130,7 @@ export function sourceFingerprint() {
 export function assertPreflightReceipt(report, current) {
   const instructionVariant = readStockInstructionVariant();
   const expected = [...stockHarnessGates.map(gate => gate.id), "SH-1-rust"];
-  if (report?.schema !== "paperclip.stock-harness-preflight.v3" || report.passed !== true ||
+  if (report?.schema !== "nexus.stock-harness-preflight.v3" || report.passed !== true ||
       report.setup?.passed !== true || report.setup?.exitCode !== 0 ||
       report.setup?.sdkExitCode !== 0 || report.setup?.runnerdExitCode !== 0 ||
       report.setup?.runnerdSha256 !== current.runnerdSha256 ||
@@ -163,9 +163,9 @@ export function main(args = process.argv.slice(2)) {
     const report = assertPreflightReceipt(JSON.parse(readFileSync(verify, "utf8")), {
       sha: git.stdout.trim(), fingerprint: source.fingerprint,
       runnerdSha256: createHash("sha256").update(readFileSync(join(root,
-        "packages/paperclip-runner/runner/target/debug", `paperclip-runnerd${process.platform === "win32" ? ".exe" : ""}`))).digest("hex"),
+        "packages/nexus-runner/runner/target/debug", `nexus-runnerd${process.platform === "win32" ? ".exe" : ""}`))).digest("hex"),
       fakeCodexSha256: createHash("sha256").update(readFileSync(join(root,
-        "packages/paperclip-runner/runner/target/debug/fake-codex-app-server"))).digest("hex"),
+        "packages/nexus-runner/runner/target/debug/fake-codex-app-server"))).digest("hex"),
     });
     const output = resolve(verify, "..");
     for (const gate of gates) {
@@ -195,7 +195,7 @@ export function main(args = process.argv.slice(2)) {
   const runnerd = setupRun.status === 0 ? spawnSync("cargo", ["build", "--locked",
     ...(args.includes("--allow-rust-network") ? [] : ["--offline"]),
     "--workspace", "--bins"], {
-    cwd: join(root, "packages/paperclip-runner/runner"), env, encoding: "utf8", timeout: 10 * 60_000,
+    cwd: join(root, "packages/nexus-runner/runner"), env, encoding: "utf8", timeout: 10 * 60_000,
   }) : null;
   writeFileSync(join(output, "runnerd-build.txt"), `${runnerd?.stdout ?? ""}\n${runnerd?.stderr ?? ""}`);
   const setup = { passed: setupRun.status === 0 && runnerd?.status === 0,
@@ -204,18 +204,18 @@ export function main(args = process.argv.slice(2)) {
   if (!setup.passed) {
     const source = sourceFingerprint();
     writeFileSync(join(output, "preflight.json"), JSON.stringify({
-      schema: "paperclip.stock-harness-preflight.v3", instructionVariant, sourceSha: git.stdout?.trim() || null,
+      schema: "nexus.stock-harness-preflight.v3", instructionVariant, sourceSha: git.stdout?.trim() || null,
       sourceFingerprint: source.fingerprint, measuredAt: new Date().toISOString(), providerCalls: 0,
       live: "not_run", passed: false, sourceErrors: source.sourceErrors, setup, gates: [],
     }, null, 2) + "\n");
     process.exitCode = 1;
     return;
   }
-  const runnerdBinary = join(root, "packages/paperclip-runner/runner/target/debug",
-    `paperclip-runnerd${process.platform === "win32" ? ".exe" : ""}`);
+  const runnerdBinary = join(root, "packages/nexus-runner/runner/target/debug",
+    `nexus-runnerd${process.platform === "win32" ? ".exe" : ""}`);
   setup.runnerdSha256 = createHash("sha256").update(readFileSync(runnerdBinary)).digest("hex");
   setup.fakeCodexSha256 = createHash("sha256").update(readFileSync(join(root,
-    "packages/paperclip-runner/runner/target/debug/fake-codex-app-server"))).digest("hex");
+    "packages/nexus-runner/runner/target/debug/fake-codex-app-server"))).digest("hex");
   const results = [];
   for (const gate of gates) {
     console.log(`Checking ${gate.id}: ${gate.name}`);
@@ -225,20 +225,20 @@ export function main(args = process.argv.slice(2)) {
       ...(gate.testPattern ? ["--testNamePattern", gate.testPattern] : []),
       "--reporter=default", "--reporter=json", `--outputFile.json=${file}`],
     { cwd: resolve(root, gate.cwd),
-      env: gate.id === "SH-1" ? { ...env, PAPERCLIP_STOCK_PREFLIGHT_RUNNERD: runnerdBinary } : env,
+      env: gate.id === "SH-1" ? { ...env, NEXUS_STOCK_PREFLIGHT_RUNNERD: runnerdBinary } : env,
       stdio: "inherit", timeout: 10 * 60_000 });
     let report;
     try { report = JSON.parse(readFileSync(file, "utf8")); } catch { /* missing evidence fails closed below */ }
     results.push(gradeGate(gate, report, run.status));
   }
-  const rust = spawnSync("cargo", ["test", ...(args.includes("--allow-rust-network") ? [] : ["--offline"]), "-p", "paperclip-runner-core", "--test", "codex_provider",
+  const rust = spawnSync("cargo", ["test", ...(args.includes("--allow-rust-network") ? [] : ["--offline"]), "-p", "nexus-runner-core", "--test", "codex_provider",
     "runtime_instructions_are_additive_for_codex_on_start_and_resume", "--", "--exact"],
-  { cwd: join(root, "packages/paperclip-runner/runner"), env, encoding: "utf8", timeout: 10 * 60_000 });
+  { cwd: join(root, "packages/nexus-runner/runner"), env, encoding: "utf8", timeout: 10 * 60_000 });
   const rustOutput = `${rust.stdout ?? ""}\n${rust.stderr ?? ""}`;
   writeFileSync(join(output, "rust.txt"), rustOutput);
   results.push({ id: "SH-1-rust", passed: rust.status === 0 && /test runtime_instructions_are_additive_for_codex_on_start_and_resume \.\.\. ok/.test(rustOutput), exitCode: rust.status });
   const { fingerprint, sourceErrors } = sourceFingerprint();
-  const report = { schema: "paperclip.stock-harness-preflight.v3", instructionVariant, sourceSha: git.stdout?.trim() || null,
+  const report = { schema: "nexus.stock-harness-preflight.v3", instructionVariant, sourceSha: git.stdout?.trim() || null,
     sourceFingerprint: fingerprint, measuredAt: new Date().toISOString(), providerCalls: 0,
     live: "not_run", passed: git.status === 0 && sourceErrors.length === 0 && results.every(row => row.passed), sourceErrors, setup, gates: results };
   writeFileSync(join(output, "preflight.json"), JSON.stringify(report, null, 2) + "\n");

@@ -40,7 +40,7 @@ export async function runSnapshotThread(request: SnapshotThreadRequest): Promise
   let worker: Worker | undefined;
   let published = false;
   try {
-    directory = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-snapshot-thread-"));
+    directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-snapshot-thread-"));
     const source = new URL(import.meta.url).pathname.endsWith(".ts");
     const url = new URL(source ? "./workspace-snapshot-thread-worker.ts" : "./workspace-snapshot-thread-worker.js", import.meta.url);
     const options = { workerData: request, env: { ...process.env, TMPDIR: directory, TMP: directory, TEMP: directory } };

@@ -26,7 +26,7 @@ describe("bounded database response capture", () => {
     const emitted: Array<{ at: number; event: Record<string, unknown> }> = [];
     const log = vi.spyOn(console, "info").mockImplementation(value => emitted.push({ at: Date.now(), event: JSON.parse(value) }));
     try {
-      const capture = databaseResponseCaptureFromEnv({ PAPERCLIP_DB_RESPONSE_CAPTURE_WINDOW: "2020-01-01T00:00:00Z/2020-01-01T00:01:00Z" })!;
+      const capture = databaseResponseCaptureFromEnv({ NEXUS_DB_RESPONSE_CAPTURE_WINDOW: "2020-01-01T00:00:00Z/2020-01-01T00:01:00Z" })!;
       captures.push(capture);
       const rows = [{ secret: "capture-response-sentinel" }];
       for (let index = 0; index < 2200; index++) {
@@ -40,10 +40,10 @@ describe("bounded database response capture", () => {
       capture.flush();
       vi.advanceTimersByTime(32_000);
       expect(emitted).toHaveLength(2049);
-      const groups = emitted.filter(item => item.event.event === "paperclip.db_response_capture.entry.v2");
+      const groups = emitted.filter(item => item.event.event === "nexus.db_response_capture.entry.v2");
       const summary = emitted.at(-1)!.event;
       expect(groups).toHaveLength(2048);
-      expect(summary).toMatchObject({ event: "paperclip.db_response_capture.summary.v2", completedQueries: 2200,
+      expect(summary).toMatchObject({ event: "nexus.db_response_capture.summary.v2", completedQueries: 2200,
         groups: 2048, closedAt: "2020-01-01T00:01:00.000Z" });
       expect(groups.reduce((calls, item) => calls + Number(item.event.calls), 0)).toBe(summary.completedQueries);
       expect(groups.reduce((bytes, item) => bytes + Number(item.event.sampledValueBytes), 0)).toBe(summary.sampledValueBytes);
@@ -61,7 +61,7 @@ describe("bounded database response capture", () => {
     vi.setSystemTime(epoch + 120_000);
     const log = vi.spyOn(console, "info").mockImplementation(() => { throw new Error("fixture logger failure"); });
     try {
-      const capture = databaseResponseCaptureFromEnv({ PAPERCLIP_DB_RESPONSE_CAPTURE_WINDOW: "2020-01-01T00:02:00Z/2020-01-01T00:03:00Z" })!;
+      const capture = databaseResponseCaptureFromEnv({ NEXUS_DB_RESPONSE_CAPTURE_WINDOW: "2020-01-01T00:02:00Z/2020-01-01T00:03:00Z" })!;
       captures.push(capture);
       expect(capture.execute(() => 7, metadata)).toBe(7);
       expect(() => vi.advanceTimersByTime(60_001)).not.toThrow();
@@ -88,7 +88,7 @@ describe("bounded database response capture", () => {
     expect(publicDatabaseCallers(stack)).toEqual(["services/example.ts:4:2", "routes/example.js:5:3"]);
   });
   it("leaves methods and identity unchanged when disabled", () => {
-    vi.stubEnv("PAPERCLIP_DB_RESPONSE_CAPTURE_WINDOW", undefined);
+    vi.stubEnv("NEXUS_DB_RESPONSE_CAPTURE_WINDOW", undefined);
     const db = { select: vi.fn(), transaction: vi.fn() }, select = db.select, transaction = db.transaction;
     expect(installDatabaseResponseCapture(db, { table })).toBe(db);
     expect(db.select).toBe(select); expect(db.transaction).toBe(transaction);
@@ -97,7 +97,7 @@ describe("bounded database response capture", () => {
     const f = fixture(), text = "sentinel-result-value🙂\n\"", rows = driverRows([[text, 4n]]);
     expect(await f.capture.execute(() => Promise.resolve(rows), metadata)).toBe(rows);
     f.capture.flush();
-    const entry = f.events.find(event => event.event === "paperclip.db_response_capture.entry.v2")!;
+    const entry = f.events.find(event => event.event === "nexus.db_response_capture.entry.v2")!;
     expect(entry).toMatchObject({ calls: 1, rows: 1, queryErrors: 0, owner: "unattributed", sampledResults: 1,
       sampledValueBytes: Buffer.byteLength(text) + 1, measuredValues: 2, unmeasuredValues: 0, incompleteSamples: 0 });
     expect(JSON.stringify(f.events)).not.toContain("sentinel-result-value");

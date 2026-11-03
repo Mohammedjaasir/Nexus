@@ -1,7 +1,7 @@
 import { SlackAdapter, type SlackEvent } from "@chat-adapter/slack";
 import { ConsoleLogger, type ChatInstance } from "chat";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PaperclipSlackAdapter } from "./adapter.js";
+import { NexusSlackAdapter } from "./adapter.js";
 
 afterEach(() => vi.useRealTimers());
 
@@ -13,7 +13,7 @@ describe("Slack inbound link latency", () => {
     class Baseline extends SlackAdapter {
       parse(event: SlackEvent) { this.chat = chat; return this.parseSlackMessage(event, "slack:C123:1740000001.1"); }
     }
-    class Candidate extends PaperclipSlackAdapter {
+    class Candidate extends NexusSlackAdapter {
       parse(event: SlackEvent) { this.chat = chat; return this.parseSlackMessage(event, "slack:C123:1740000001.1"); }
     }
     const event = { type: "app_mention", channel: "C123", ts: "1740000001.1", username: "Test sender",

@@ -1,4 +1,4 @@
-import { heartbeatRuns } from "@paperclipai/db";
+import { heartbeatRuns } from "@nexusai/db";
 import { sql } from "drizzle-orm";
 
 const recoveryResultKeys = [

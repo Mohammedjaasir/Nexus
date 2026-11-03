@@ -42,19 +42,19 @@ export const WORKSPACE_HANDOFF_EXCHANGE_PATH = "/workspace-handoff/exchange";
 /** Query parameter carrying the ticket. Redacted from request logs by name. */
 export const WORKSPACE_HANDOFF_TICKET_QUERY_PARAM = "ticket";
 
-const HANDOFF_KEY_ENV = "PAPERCLIP_WORKSPACE_HANDOFF_KEY";
-const HANDOFF_ROOT_SECRET_ENV = "PAPERCLIP_WORKSPACE_HANDOFF_SECRET";
-const READINESS_TOKEN_ENV = "PAPERCLIP_WORKSPACE_READINESS_TOKEN";
-const EXECUTION_WORKSPACE_ID_ENV = "PAPERCLIP_EXECUTION_WORKSPACE_ID";
-const EXECUTION_WORKSPACE_COMPANY_ID_ENV = "PAPERCLIP_EXECUTION_WORKSPACE_COMPANY_ID";
+const HANDOFF_KEY_ENV = "NEXUS_WORKSPACE_HANDOFF_KEY";
+const HANDOFF_ROOT_SECRET_ENV = "NEXUS_WORKSPACE_HANDOFF_SECRET";
+const READINESS_TOKEN_ENV = "NEXUS_WORKSPACE_READINESS_TOKEN";
+const EXECUTION_WORKSPACE_ID_ENV = "NEXUS_EXECUTION_WORKSPACE_ID";
+const EXECUTION_WORKSPACE_COMPANY_ID_ENV = "NEXUS_EXECUTION_WORKSPACE_COMPANY_ID";
 
 export const WORKSPACE_HANDOFF_KEY_ENV_KEY = HANDOFF_KEY_ENV;
 export const WORKSPACE_READINESS_TOKEN_ENV_KEY = READINESS_TOKEN_ENV;
 export const WORKSPACE_EXECUTION_WORKSPACE_ID_ENV_KEY = EXECUTION_WORKSPACE_ID_ENV;
 export const WORKSPACE_EXECUTION_WORKSPACE_COMPANY_ID_ENV_KEY = EXECUTION_WORKSPACE_COMPANY_ID_ENV;
-export const WORKSPACE_READINESS_TOKEN_HEADER = "x-paperclip-workspace-readiness-token";
-export const WORKSPACE_READINESS_USER_ID_HEADER = "x-paperclip-workspace-readiness-user-id";
-export const WORKSPACE_READINESS_USER_EMAIL_HEADER = "x-paperclip-workspace-readiness-user-email";
+export const WORKSPACE_READINESS_TOKEN_HEADER = "x-nexus-workspace-readiness-token";
+export const WORKSPACE_READINESS_USER_ID_HEADER = "x-nexus-workspace-readiness-user-id";
+export const WORKSPACE_READINESS_USER_EMAIL_HEADER = "x-nexus-workspace-readiness-user-email";
 
 export type WorkspaceHandoffTicketPayload = {
   /** Envelope version. */
@@ -175,7 +175,7 @@ export function deriveWorkspaceHandoffKey(input: {
   executionWorkspaceId: string;
 }): string {
   return createHmac("sha256", input.rootSecret)
-    .update(`paperclip.workspace-login-handoff.${WORKSPACE_HANDOFF_TICKET_VERSION}\n`)
+    .update(`nexus.workspace-login-handoff.${WORKSPACE_HANDOFF_TICKET_VERSION}\n`)
     .update(`${input.instanceId}\n`)
     .update(`${input.executionWorkspaceId}`)
     .digest("hex");
@@ -192,7 +192,7 @@ export function deriveWorkspaceReadinessToken(input: {
   executionWorkspaceId: string;
 }): string {
   return createHmac("sha256", input.rootSecret)
-    .update(`paperclip.workspace-readiness-probe.${WORKSPACE_HANDOFF_TICKET_VERSION}\n`)
+    .update(`nexus.workspace-readiness-probe.${WORKSPACE_HANDOFF_TICKET_VERSION}\n`)
     .update(`${input.instanceId}\n`)
     .update(`${input.executionWorkspaceId}`)
     .digest("hex");
@@ -201,7 +201,7 @@ export function deriveWorkspaceReadinessToken(input: {
 /**
  * Root secret for handoff key derivation, on the control-plane side only.
  *
- * A dedicated `PAPERCLIP_WORKSPACE_HANDOFF_SECRET` is preferred. When it is
+ * A dedicated `NEXUS_WORKSPACE_HANDOFF_SECRET` is preferred. When it is
  * absent we derive dedicated key material from the instance's existing signing
  * secret rather than disabling the feature: the alternative is that every
  * already-deployed instance silently falls back to "remember the cloned
@@ -215,11 +215,11 @@ export function resolveWorkspaceHandoffRootSecret(
   const dedicated = env[HANDOFF_ROOT_SECRET_ENV]?.trim();
   if (dedicated) return { secret: dedicated, source: "dedicated" };
 
-  const fallback = env.BETTER_AUTH_SECRET?.trim() || env.PAPERCLIP_AGENT_JWT_SECRET?.trim();
+  const fallback = env.BETTER_AUTH_SECRET?.trim() || env.NEXUS_AGENT_JWT_SECRET?.trim();
   if (!fallback) return null;
   return {
     secret: createHmac("sha256", fallback)
-      .update(`paperclip.workspace-login-handoff.root.${WORKSPACE_HANDOFF_TICKET_VERSION}`)
+      .update(`nexus.workspace-login-handoff.root.${WORKSPACE_HANDOFF_TICKET_VERSION}`)
       .digest("hex"),
     source: "derived",
   };
@@ -390,7 +390,7 @@ export function verifyWorkspaceHandoffTicket(input: {
 
 /** Verification-key identifier safe to log: proves which key, reveals no key bytes. */
 export function workspaceHandoffKeyFingerprint(key: string): string {
-  return createHmac("sha256", "paperclip.workspace-login-handoff.fingerprint").update(key).digest("hex").slice(0, 12);
+  return createHmac("sha256", "nexus.workspace-login-handoff.fingerprint").update(key).digest("hex").slice(0, 12);
 }
 
 /**
@@ -403,7 +403,7 @@ export function redactWorkspaceHandoffTicket(value: string): string {
     "$1[redacted]",
   );
   return workspaceRedacted.replace(
-    /([?&]paperclip_capability=)[^&#\s]+/gi,
+    /([?&]nexus_capability=)[^&#\s]+/gi,
     "$1[redacted]",
   );
 }

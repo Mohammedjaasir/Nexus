@@ -1,12 +1,12 @@
-import { isOpenRouterUrl, openRouterClaudeHeaders } from "@paperclipai/shared/openrouter-attribution";
-import { applyObservabilityEnvironment } from "@paperclipai/adapter-utils/agent-observability";
-import { createProviderStoppedBoundary } from "@paperclipai/adapter-utils/provider-stopped-boundary";
-import { createUsageCheckpointLog } from "@paperclipai/adapter-utils/usage-checkpoint";
+import { isOpenRouterUrl, openRouterClaudeHeaders } from "@nexusai/shared/openrouter-attribution";
+import { applyObservabilityEnvironment } from "@nexusai/adapter-utils/agent-observability";
+import { createProviderStoppedBoundary } from "@nexusai/adapter-utils/provider-stopped-boundary";
+import { createUsageCheckpointLog } from "@nexusai/adapter-utils/usage-checkpoint";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AdapterExecutionContext, AdapterExecutionResult } from "@paperclipai/adapter-utils";
-import type { RunProcessResult } from "@paperclipai/adapter-utils/server-utils";
+import type { AdapterExecutionContext, AdapterExecutionResult } from "@nexusai/adapter-utils";
+import type { RunProcessResult } from "@nexusai/adapter-utils/server-utils";
 import {
   adapterExecutionTargetIsRemote,
   adapterExecutionTargetRemoteCwd,
@@ -14,7 +14,7 @@ import {
   adapterExecutionTargetSessionIdentity,
   adapterExecutionTargetSessionMatches,
   adapterExecutionTargetUsesManagedHome,
-  adapterExecutionTargetUsesPaperclipBridge,
+  adapterExecutionTargetUsesNexusBridge,
   describeAdapterExecutionTarget,
   ensureAdapterExecutionTargetCommandResolvable,
   ensureAdapterExecutionTargetRuntimeCommandInstalled,
@@ -25,8 +25,8 @@ import {
   resolveAdapterExecutionTargetTimeoutSec,
   resolveAdapterExecutionTargetCommandForLogs,
   runAdapterExecutionTargetProcess,
-  startAdapterExecutionTargetPaperclipBridge,
-} from "@paperclipai/adapter-utils/execution-target";
+  startAdapterExecutionTargetNexusBridge,
+} from "@nexusai/adapter-utils/execution-target";
 import {
   asString,
   asNumber,
@@ -34,36 +34,36 @@ import {
   asStringArray,
   parseObject,
   parseJson,
-  applyPaperclipWorkspaceEnv,
-  buildPaperclipEnv,
-  isPaperclipSkillSourceMissing,
-  readPaperclipRuntimeSkillEntries,
-  readPaperclipIssueWorkModeFromContext,
+  applyNexusWorkspaceEnv,
+  buildNexusEnv,
+  isNexusSkillSourceMissing,
+  readNexusRuntimeSkillEntries,
+  readNexusIssueWorkModeFromContext,
   joinPromptSections,
   buildInvocationEnvForLogs,
   ensureAbsoluteDirectory,
   ensurePathInEnv,
   isForbiddenConfigEnvKey,
-  isPaperclipRuntimeEnvKey,
-  refreshPaperclipWorkspaceEnvForExecution,
+  isNexusRuntimeEnvKey,
+  refreshNexusWorkspaceEnvForExecution,
   renderTemplate,
   hydrateFreshSessionHandoff,
   selectInitialCommunicationGuidance,
-  selectPaperclipPromptSections,
-  isPaperclipRecoveryWakePayload,
+  selectNexusPromptSections,
+  isNexusRecoveryWakePayload,
   rewriteWorkspaceCwdEnvVarsForExecution,
-  shapePaperclipWorkspaceEnvForExecution,
-  DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE,
-  DEFAULT_PAPERCLIP_CONVERSATION_PROMPT_TEMPLATE,
-} from "@paperclipai/adapter-utils/server-utils";
-import { buildSkillLibraryManifestMarkdown } from "@paperclipai/adapter-utils/skill-library-manifest";
+  shapeNexusWorkspaceEnvForExecution,
+  DEFAULT_NEXUS_AGENT_PROMPT_TEMPLATE,
+  DEFAULT_NEXUS_CONVERSATION_PROMPT_TEMPLATE,
+} from "@nexusai/adapter-utils/server-utils";
+import { buildSkillLibraryManifestMarkdown } from "@nexusai/adapter-utils/skill-library-manifest";
 import {
   parseLocalProcessFilesystemScope,
   parseLocalProcessSandboxExtraPaths,
   parseLocalProcessNetworkAllowlist,
   parseLocalProcessNetworkScope,
   type LocalProcessSandboxOptions,
-} from "@paperclipai/adapter-utils/local-process-sandbox";
+} from "@nexusai/adapter-utils/local-process-sandbox";
 import {
   claudeModelUsageTotals,
   claudeModelReceipts,
@@ -85,7 +85,7 @@ import {
   prepareClaudeConfigSeed,
   resolveManagedClaudeRuntimeStateDir,
   resolveSharedClaudeConfigDir,
-  writePaperclipClaudeMcpConfig,
+  writeNexusClaudeMcpConfig,
 } from "./claude-config.js";
 import {
   claudeCliVersionAtLeast,
@@ -179,7 +179,7 @@ async function buildClaudeRuntimeConfig(input: ClaudeExecutionInput): Promise<Cl
   const onLog = input.onLog ?? (async () => {});
 
   const command = asString(config.command, "claude");
-  const workspaceContext = parseObject(context.paperclipWorkspace);
+  const workspaceContext = parseObject(context.nexusWorkspace);
   const workspaceCwd = asString(workspaceContext.cwd, "");
   const workspaceSource = asString(workspaceContext.source, "");
   const workspaceStrategy = asString(workspaceContext.strategy, "");
@@ -189,29 +189,29 @@ async function buildClaudeRuntimeConfig(input: ClaudeExecutionInput): Promise<Cl
   const workspaceBranch = asString(workspaceContext.branchName, "") || null;
   const workspaceWorktreePath = asString(workspaceContext.worktreePath, "") || null;
   const agentHome = asString(workspaceContext.agentHome, "") || null;
-  const workspaceHints = Array.isArray(context.paperclipWorkspaces)
-    ? context.paperclipWorkspaces.filter(
+  const workspaceHints = Array.isArray(context.nexusWorkspaces)
+    ? context.nexusWorkspaces.filter(
         (value): value is Record<string, unknown> => typeof value === "object" && value !== null,
       )
     : [];
-  const runtimeServiceIntents = Array.isArray(context.paperclipRuntimeServiceIntents)
-    ? context.paperclipRuntimeServiceIntents.filter(
+  const runtimeServiceIntents = Array.isArray(context.nexusRuntimeServiceIntents)
+    ? context.nexusRuntimeServiceIntents.filter(
         (value): value is Record<string, unknown> => typeof value === "object" && value !== null,
       )
     : [];
-  const runtimeServices = Array.isArray(context.paperclipRuntimeServices)
-    ? context.paperclipRuntimeServices.filter(
+  const runtimeServices = Array.isArray(context.nexusRuntimeServices)
+    ? context.nexusRuntimeServices.filter(
         (value): value is Record<string, unknown> => typeof value === "object" && value !== null,
       )
     : [];
-  const runtimePrimaryUrl = asString(context.paperclipRuntimePrimaryUrl, "");
+  const runtimePrimaryUrl = asString(context.nexusRuntimePrimaryUrl, "");
   const configuredCwd = asString(config.cwd, "");
   const useConfiguredInsteadOfAgentHome = workspaceSource === "agent_home" && configuredCwd.length > 0;
   const effectiveWorkspaceCwd = useConfiguredInsteadOfAgentHome ? "" : workspaceCwd;
   const cwd = effectiveWorkspaceCwd || configuredCwd || process.cwd();
   const executionTargetIsRemote = adapterExecutionTargetIsRemote(executionTarget);
   let effectiveExecutionCwd = adapterExecutionTargetRemoteCwd(executionTarget, cwd);
-  const shapedWorkspaceEnv = shapePaperclipWorkspaceEnvForExecution({
+  const shapedWorkspaceEnv = shapeNexusWorkspaceEnvForExecution({
     workspaceCwd: effectiveWorkspaceCwd,
     workspaceWorktreePath,
     workspaceHints,
@@ -221,8 +221,8 @@ async function buildClaudeRuntimeConfig(input: ClaudeExecutionInput): Promise<Cl
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
 
   const envConfig = parseObject(config.env);
-  const env: Record<string, string> = { ...buildPaperclipEnv(agent, input.agentIdentity) };
-  env.PAPERCLIP_RUN_ID = runId;
+  const env: Record<string, string> = { ...buildNexusEnv(agent, input.agentIdentity) };
+  env.NEXUS_RUN_ID = runId;
 
   const wakeTaskId =
     (typeof context.taskId === "string" && context.taskId.trim().length > 0 && context.taskId.trim()) ||
@@ -247,30 +247,30 @@ async function buildClaudeRuntimeConfig(input: ClaudeExecutionInput): Promise<Cl
   const linkedIssueIds = Array.isArray(context.issueIds)
     ? context.issueIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
     : [];
-  const issueWorkMode = readPaperclipIssueWorkModeFromContext(context);
+  const issueWorkMode = readNexusIssueWorkModeFromContext(context);
 
   if (wakeTaskId) {
-    env.PAPERCLIP_TASK_ID = wakeTaskId;
+    env.NEXUS_TASK_ID = wakeTaskId;
   }
   if (issueWorkMode) {
-    env.PAPERCLIP_ISSUE_WORK_MODE = issueWorkMode;
+    env.NEXUS_ISSUE_WORK_MODE = issueWorkMode;
   }
   if (wakeReason) {
-    env.PAPERCLIP_WAKE_REASON = wakeReason;
+    env.NEXUS_WAKE_REASON = wakeReason;
   }
   if (wakeCommentId) {
-    env.PAPERCLIP_WAKE_COMMENT_ID = wakeCommentId;
+    env.NEXUS_WAKE_COMMENT_ID = wakeCommentId;
   }
   if (approvalId) {
-    env.PAPERCLIP_APPROVAL_ID = approvalId;
+    env.NEXUS_APPROVAL_ID = approvalId;
   }
   if (approvalStatus) {
-    env.PAPERCLIP_APPROVAL_STATUS = approvalStatus;
+    env.NEXUS_APPROVAL_STATUS = approvalStatus;
   }
   if (linkedIssueIds.length > 0) {
-    env.PAPERCLIP_LINKED_ISSUE_IDS = linkedIssueIds.join(",");
+    env.NEXUS_LINKED_ISSUE_IDS = linkedIssueIds.join(",");
   }
-  applyPaperclipWorkspaceEnv(env, {
+  applyNexusWorkspaceEnv(env, {
     workspaceCwd: shapedWorkspaceEnv.workspaceCwd,
     workspaceSource,
     workspaceStrategy,
@@ -282,16 +282,16 @@ async function buildClaudeRuntimeConfig(input: ClaudeExecutionInput): Promise<Cl
     agentHome,
   });
   if (shapedWorkspaceEnv.workspaceHints.length > 0) {
-    env.PAPERCLIP_WORKSPACES_JSON = JSON.stringify(shapedWorkspaceEnv.workspaceHints);
+    env.NEXUS_WORKSPACES_JSON = JSON.stringify(shapedWorkspaceEnv.workspaceHints);
   }
   if (runtimeServiceIntents.length > 0) {
-    env.PAPERCLIP_RUNTIME_SERVICE_INTENTS_JSON = JSON.stringify(runtimeServiceIntents);
+    env.NEXUS_RUNTIME_SERVICE_INTENTS_JSON = JSON.stringify(runtimeServiceIntents);
   }
   if (runtimeServices.length > 0) {
-    env.PAPERCLIP_RUNTIME_SERVICES_JSON = JSON.stringify(runtimeServices);
+    env.NEXUS_RUNTIME_SERVICES_JSON = JSON.stringify(runtimeServices);
   }
   if (runtimePrimaryUrl) {
-    env.PAPERCLIP_RUNTIME_PRIMARY_URL = runtimePrimaryUrl;
+    env.NEXUS_RUNTIME_PRIMARY_URL = runtimePrimaryUrl;
   }
   const shapedEnvConfig = rewriteWorkspaceCwdEnvVarsForExecution({
     env: envConfig,
@@ -301,11 +301,11 @@ async function buildClaudeRuntimeConfig(input: ClaudeExecutionInput): Promise<Cl
   });
   for (const [key, value] of Object.entries(shapedEnvConfig)) {
     if (typeof value !== "string") continue;
-    // Runtime PAPERCLIP_* always wins over config, and PAPERCLIP_API_KEY is
+    // Runtime NEXUS_* always wins over config, and NEXUS_API_KEY is
     // never accepted from config — the harness-minted run token is the only
-    // source. Other PAPERCLIP_* keys Paperclip did not assign flow through.
+    // source. Other NEXUS_* keys Nexus did not assign flow through.
     if (isForbiddenConfigEnvKey(key)) continue;
-    if (isPaperclipRuntimeEnvKey(key) && key in env) continue;
+    if (isNexusRuntimeEnvKey(key) && key in env) continue;
     env[key] = value;
   }
 
@@ -313,7 +313,7 @@ async function buildClaudeRuntimeConfig(input: ClaudeExecutionInput): Promise<Cl
     env.ANTHROPIC_CUSTOM_HEADERS = openRouterClaudeHeaders(env.ANTHROPIC_CUSTOM_HEADERS ?? process.env.ANTHROPIC_CUSTOM_HEADERS);
   }
   if (authToken) {
-    env.PAPERCLIP_API_KEY = authToken;
+    env.NEXUS_API_KEY = authToken;
   }
 
   const runtimeEnv = Object.fromEntries(
@@ -436,23 +436,23 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const promptTemplate = asString(
     config.promptTemplate,
     context.conversationMode === true
-      ? DEFAULT_PAPERCLIP_CONVERSATION_PROMPT_TEMPLATE
-      : DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE,
+      ? DEFAULT_NEXUS_CONVERSATION_PROMPT_TEMPLATE
+      : DEFAULT_NEXUS_AGENT_PROMPT_TEMPLATE,
   );
   const effort = asString(config.effort, "");
   const chrome = asBoolean(config.chrome, false);
   const maxTurns = asNumber(config.maxTurnsPerRun, 0);
   const dangerouslySkipPermissions = asBoolean(config.dangerouslySkipPermissions, true);
   const configEnv = parseObject(config.env);
-  const workspaceContext = parseObject(context.paperclipWorkspace);
+  const workspaceContext = parseObject(context.nexusWorkspace);
   const workspaceCwd = asString(workspaceContext.cwd, "");
   const workspaceSource = asString(workspaceContext.source, "");
   const workspaceStrategy = asString(workspaceContext.strategy, "");
   const workspaceBranch = asString(workspaceContext.branchName, "") || null;
   const workspaceWorktreePath = asString(workspaceContext.worktreePath, "") || null;
   const agentHome = asString(workspaceContext.agentHome, "") || null;
-  const workspaceHints = Array.isArray(context.paperclipWorkspaces)
-    ? context.paperclipWorkspaces.filter(
+  const workspaceHints = Array.isArray(context.nexusWorkspaces)
+    ? context.nexusWorkspaces.filter(
         (value): value is Record<string, unknown> => typeof value === "object" && value !== null,
       )
     : [];
@@ -507,7 +507,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const modelEnv = executionTargetIsRemote ? env : effectiveEnv;
   const model = resolveClaudeModel(config.model, modelEnv);
   const billingType = resolveClaudeBillingType(effectiveEnv);
-  const claudeSkillEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
+  const claudeSkillEntries = await readNexusRuntimeSkillEntries(config, __moduleDir);
   const desiredSkillNames = new Set(resolveClaudeDesiredSkillNames(config, claudeSkillEntries));
   // Keep per-run working-copy paths out of the content-addressed system prompt.
   // Resumed sessions retain that prompt, so refresh the location on every turn.
@@ -528,7 +528,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       const reason = err instanceof Error ? err.message : String(err);
       await onLog(
         "stderr",
-        `[paperclip] Warning: could not read agent instructions file "${instructionsFilePath}": ${reason}\n`,
+        `[nexus] Warning: could not read agent instructions file "${instructionsFilePath}": ${reason}\n`,
       );
     }
   }
@@ -551,12 +551,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   // exist, so the bundle hasher would throw and fail the whole run over one
   // broken skill. Log each one instead so the cause lands in the run output.
   const desiredSkillEntries = claudeSkillEntries.filter((entry) => desiredSkillNames.has(entry.key));
-  const mountableSkillEntries = desiredSkillEntries.filter((entry) => !isPaperclipSkillSourceMissing(entry));
+  const mountableSkillEntries = desiredSkillEntries.filter((entry) => !isNexusSkillSourceMissing(entry));
   for (const entry of desiredSkillEntries) {
-    if (!isPaperclipSkillSourceMissing(entry)) continue;
+    if (!isNexusSkillSourceMissing(entry)) continue;
     await onLog(
       "stderr",
-      `[paperclip] Warning: skill "${entry.key}" is enabled for this agent but its files are unavailable and it was not mounted${entry.missingDetail ? `: ${entry.missingDetail}` : "."}\n`,
+      `[nexus] Warning: skill "${entry.key}" is enabled for this agent but its files are unavailable and it was not mounted${entry.missingDetail ? `: ${entry.missingDetail}` : "."}\n`,
     );
   }
   const promptBundle = await prepareClaudePromptBundle({
@@ -574,7 +574,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     agent.companyId,
     agent.id,
   );
-  const localMcpConfigPath = await writePaperclipClaudeMcpConfig({
+  const localMcpConfigPath = await writeNexusClaudeMcpConfig({
     stateDir: claudeRuntimeStateDir,
     runId,
     servers: runtimeMcpServers,
@@ -599,7 +599,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
           networkScope,
           networkAllowlist: parseLocalProcessNetworkAllowlist(config.networkAllowlist),
           networkTrustedUrls: [
-            env.PAPERCLIP_API_URL,
+            env.NEXUS_API_URL,
             ...runtimeMcpServers.map((server) => server.url),
           ].filter((value): value is string => typeof value === "string" && value.length > 0),
           command: asString(config.filesystemSandboxCommand, "bwrap"),
@@ -612,7 +612,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       .join(" and ");
     await onLog(
       "stdout",
-      `[paperclip] Confining Claude with ${scopes} scope.\n`,
+      `[nexus] Confining Claude with ${scopes} scope.\n`,
     );
   }
   const useManagedRemoteClaudeConfig =
@@ -626,7 +626,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     ? await (async () => {
         await onLog(
           "stdout",
-          `[paperclip] Syncing workspace and Claude runtime assets to ${describeAdapterExecutionTarget(executionTarget)}.\n`,
+          `[nexus] Syncing workspace and Claude runtime assets to ${describeAdapterExecutionTarget(executionTarget)}.\n`,
         );
         return await prepareAdapterExecutionTargetRuntime({
           runId,
@@ -664,7 +664,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     effectiveExecutionCwd = preparedExecutionTargetRuntime.workspaceRemoteDir;
   }
   const runtimeExecutionTarget = overrideAdapterExecutionTargetRemoteCwd(executionTarget, effectiveExecutionCwd);
-  refreshPaperclipWorkspaceEnvForExecution({
+  refreshNexusWorkspaceEnvForExecution({
     env,
     envConfig: configEnv,
     workspaceCwd: effectiveWorkspaceCwd,
@@ -685,7 +685,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     : null;
   const effectivePromptBundleAddDir = executionTargetIsRemote
     ? preparedExecutionTargetRuntime?.assetDirs.skills ??
-      path.posix.join(effectiveExecutionCwd, ".paperclip-runtime", "claude", "skills")
+      path.posix.join(effectiveExecutionCwd, ".nexus-runtime", "claude", "skills")
     : promptBundle.addDir;
   const effectiveInstructionsFilePath = promptBundle.instructionsFilePath
     ? executionTargetIsRemote
@@ -695,13 +695,13 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const effectiveMcpConfigPath = executionTargetIsRemote
     ? path.posix.join(
         preparedExecutionTargetRuntime?.assetDirs["mcp-config"] ??
-          path.posix.join(effectiveExecutionCwd, ".paperclip-runtime", "claude", "mcp-config"),
+          path.posix.join(effectiveExecutionCwd, ".nexus-runtime", "claude", "mcp-config"),
         path.basename(localMcpConfigPath),
       )
     : localMcpConfigPath;
   const remoteClaudeRuntimeRoot = executionTargetIsRemote
     ? preparedExecutionTargetRuntime?.runtimeRootDir ??
-      path.posix.join(effectiveExecutionCwd, ".paperclip-runtime", "claude")
+      path.posix.join(effectiveExecutionCwd, ".nexus-runtime", "claude")
     : null;
   const remoteClaudeConfigSeedDir = claudeConfigSeedDir && remoteClaudeRuntimeRoot
     ? preparedExecutionTargetRuntime?.assetDirs["config-seed"] ??
@@ -715,7 +715,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     loggedEnv.CLAUDE_CONFIG_DIR = remoteClaudeConfigDir;
     await onLog(
       "stdout",
-      `[paperclip] Materializing Claude auth/config into ${remoteClaudeConfigDir}.\n`,
+      `[nexus] Materializing Claude auth/config into ${remoteClaudeConfigDir}.\n`,
     );
     await materializeRemoteClaudeConfig({
       runId,
@@ -731,9 +731,9 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       },
     });
   }
-  let paperclipBridge: Awaited<ReturnType<typeof startAdapterExecutionTargetPaperclipBridge>> = null;
-  if (executionTargetIsRemote && adapterExecutionTargetUsesPaperclipBridge(runtimeExecutionTarget)) {
-    paperclipBridge = await startAdapterExecutionTargetPaperclipBridge({
+  let nexusBridge: Awaited<ReturnType<typeof startAdapterExecutionTargetNexusBridge>> = null;
+  if (executionTargetIsRemote && adapterExecutionTargetUsesNexusBridge(runtimeExecutionTarget)) {
+    nexusBridge = await startAdapterExecutionTargetNexusBridge({
       runId,
       target: runtimeExecutionTarget,
       enableSandboxDuplexBridge: adapterExecutionTargetEnablesSandboxDuplexBridge(runtimeExecutionTarget),
@@ -741,11 +741,11 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       runtimeRootDir: preparedExecutionTargetRuntime?.runtimeRootDir,
       adapterKey: "claude",
       timeoutSec,
-      hostApiToken: env.PAPERCLIP_API_KEY,
+      hostApiToken: env.NEXUS_API_KEY,
       onLog,
     });
-    if (paperclipBridge) {
-      Object.assign(env, paperclipBridge.env);
+    if (nexusBridge) {
+      Object.assign(env, nexusBridge.env);
       const runtimeEnv = ensurePathInEnv({ ...process.env, ...env });
       loggedEnv = buildInvocationEnvForLogs(env, {
         runtimeEnv,
@@ -790,7 +790,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   if (runtimeSessionId && !isValidUuid) {
     await onLog(
       "stdout",
-      `[paperclip] Claude session "${runtimeSessionId}" is not a valid UUID and will not be passed to --resume.\n`,
+      `[nexus] Claude session "${runtimeSessionId}" is not a valid UUID and will not be passed to --resume.\n`,
     );
   }
   if (
@@ -800,7 +800,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   ) {
     await onLog(
       "stdout",
-      `[paperclip] Claude session "${runtimeSessionId}" does not match the current execution target and will not be resumed in "${effectiveExecutionCwd}". Starting a fresh session.\n`,
+      `[nexus] Claude session "${runtimeSessionId}" does not match the current execution target and will not be resumed in "${effectiveExecutionCwd}". Starting a fresh session.\n`,
     );
   } else if (
     runtimeSessionId &&
@@ -810,19 +810,19 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   ) {
     await onLog(
       "stdout",
-      `[paperclip] Claude session "${runtimeSessionId}" was saved for cwd "${runtimeSessionCwd}" and will not be resumed in "${effectiveExecutionCwd}".\n`,
+      `[nexus] Claude session "${runtimeSessionId}" was saved for cwd "${runtimeSessionCwd}" and will not be resumed in "${effectiveExecutionCwd}".\n`,
     );
   }
   if (runtimeSessionId && runtimePromptBundleKey.length > 0 && runtimePromptBundleKey !== promptBundle.bundleKey) {
     await onLog(
       "stdout",
-      `[paperclip] Claude session "${runtimeSessionId}" was saved for prompt bundle "${runtimePromptBundleKey}" and will not be resumed with "${promptBundle.bundleKey}".\n`,
+      `[nexus] Claude session "${runtimeSessionId}" was saved for prompt bundle "${runtimePromptBundleKey}" and will not be resumed with "${promptBundle.bundleKey}".\n`,
     );
   }
   if (runtimeSessionId && !hasMatchingMcpServers) {
     await onLog(
       "stdout",
-      `[paperclip] Claude runtime MCP server set changed; loading current tools when resuming session "${runtimeSessionId}".\n`,
+      `[nexus] Claude runtime MCP server set changed; loading current tools when resuming session "${runtimeSessionId}".\n`,
     );
   }
   const bootstrapPromptTemplate = asString(config.bootstrapPromptTemplate, "");
@@ -896,15 +896,15 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       !resumeSessionId && bootstrapPromptTemplate.trim().length > 0
         ? renderTemplate(bootstrapPromptTemplate, templateData).trim()
         : "";
-    const { taskContextNote, wakePrompt } = selectPaperclipPromptSections(context, {
+    const { taskContextNote, wakePrompt } = selectNexusPromptSections(context, {
       resumedSession: Boolean(resumeSessionId),
       includeCommunicationGuidance: false,
     });
     const shouldUseResumeDeltaPrompt = Boolean(resumeSessionId) && wakePrompt.length > 0;
-    const renderedPrompt = shouldUseResumeDeltaPrompt || isPaperclipRecoveryWakePayload(context.paperclipWake)
+    const renderedPrompt = shouldUseResumeDeltaPrompt || isNexusRecoveryWakePayload(context.nexusWake)
       ? ""
       : renderTemplate(promptTemplate, templateData);
-    const sessionHandoffNote = asString(context.paperclipSessionHandoffMarkdown, "").trim();
+    const sessionHandoffNote = asString(context.nexusSessionHandoffMarkdown, "").trim();
     const prompt = joinPromptSections([
       instructionsPathDirective,
       renderedBootstrapPrompt,
@@ -940,7 +940,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     }
     if (runtimeMcpServers.length > 0) {
       commandNotes.push(
-        `Using ${runtimeMcpServers.length} Paperclip-managed MCP server(s) from strict config ${effectiveMcpConfigPath}.`,
+        `Using ${runtimeMcpServers.length} Nexus-managed MCP server(s) from strict config ${effectiveMcpConfigPath}.`,
       );
     }
     if (onMeta) {
@@ -975,8 +975,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       onSpawn,
       onRuntimeProgress: ctx.onRuntimeProgress,
       onLog: accountingLog,
-      runLogTail: paperclipBridge?.runLogTail,
-      settleRunDisposition: paperclipBridge?.settleRunDisposition,
+      runLogTail: nexusBridge?.runLogTail,
+      settleRunDisposition: nexusBridge?.settleRunDisposition,
       terminalResultCleanup: {
         graceMs: terminalResultCleanupGraceMs,
         hasTerminalResult: ({ stdout }) => parseClaudeStreamJson(stdout).resultJson !== null,
@@ -1144,7 +1144,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     const poisonedPreviousMessageId = isClaudePoisonedPreviousMessageIdError(parsed);
     // Fable 5 policy refusals exit cleanly (exitCode=0, is_error=false), so this
     // is intentionally independent of `failed` — otherwise a refusal looks like a
-    // successful run to Paperclip and the heartbeat stalls silently. See RY-604.
+    // successful run to Nexus and the heartbeat stalls silently. See RY-604.
     const claudeRefusal = isClaudeRefusalResult(parsed);
     const parsedIsError = asBoolean(parsed.is_error, false);
     const parsedSubtype = asString(parsed.subtype, "").trim().toLowerCase();
@@ -1309,7 +1309,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         minimumVersion: minimumCliVersion,
       });
       if (prepared.check) {
-        await onLog("stderr", `[paperclip] ${prepared.check.message} ${prepared.check.detail ?? ""}\n`);
+        await onLog("stderr", `[nexus] ${prepared.check.message} ${prepared.check.detail ?? ""}\n`);
       }
       command = prepared.command;
       resolvedCommand = prepared.command === "claude" ? resolvedCommand : prepared.command;
@@ -1329,7 +1329,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         const errorMessage =
           `${model} requires Claude Code ${minimumCliVersion} or newer on the CLI lane; ${detected}. ` +
           "Upgrade Claude Code or restore the default ACP lane before retrying.";
-        await onLog("stderr", `[paperclip] ${errorMessage}\n`);
+        await onLog("stderr", `[nexus] ${errorMessage}\n`);
         return {
           exitCode: 1,
           signal: null,
@@ -1363,7 +1363,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         effectiveEffort = "";
         await onLog(
           "stderr",
-          `[paperclip] Claude CLI in the environment does not advertise --effort; omitting configured effort "${effort}". Upgrade the environment CLI/image to restore reasoning-effort control.\n`,
+          `[nexus] Claude CLI in the environment does not advertise --effort; omitting configured effort "${effort}". Upgrade the environment CLI/image to restore reasoning-effort control.\n`,
         );
       }
     }
@@ -1392,7 +1392,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
           : "is unavailable";
       await onLog(
         "stdout",
-        `[paperclip] Claude resume session "${sessionId}" ${reason}; retrying with a fresh session.\n`,
+        `[nexus] Claude resume session "${sessionId}" ${reason}; retrying with a fresh session.\n`,
       );
       if (sessionErrorKind === "poisoned" && !executionTargetIsRemote) {
         const claudeConfigDir = resolveSharedClaudeConfigDir(effectiveEnv);
@@ -1408,7 +1408,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         }
         if (unlinked) {
           try {
-            await onLog("stdout", `[paperclip] Removed poisoned session file: ${poisonedJsonlPath}\n`);
+            await onLog("stdout", `[nexus] Removed poisoned session file: ${poisonedJsonlPath}\n`);
           } catch {
             // log stream may be closed; the unlink already succeeded
           }
@@ -1423,13 +1423,13 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     try {
       await providerStop.collectBeforeRestore();
     } finally {
-      if (paperclipBridge) {
-        await paperclipBridge.stop();
+      if (nexusBridge) {
+        await nexusBridge.stop();
       }
       if (restoreRemoteWorkspace) {
         await onLog(
           "stdout",
-          `[paperclip] Restoring workspace changes from ${describeAdapterExecutionTarget(executionTarget)}.\n`,
+          `[nexus] Restoring workspace changes from ${describeAdapterExecutionTarget(executionTarget)}.\n`,
         );
         await restoreRemoteWorkspace();
       }

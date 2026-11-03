@@ -26,7 +26,7 @@
       "required": true,
       "placeholder": "Enter Vercel access token",
       "secret": true,
-      "helperMd": "Create a token at Vercel Account Settings → Tokens. Select the intended team and an appropriate expiration. Your Vercel role controls its permissions; reconnect with a new token if it expires or cannot deploy. The token stays in the Paperclip vault."
+      "helperMd": "Create a token at Vercel Account Settings → Tokens. Select the intended team and an appropriate expiration. Your Vercel role controls its permissions; reconnect with a new token if it expires or cannot deploy. The token stays in the Nexus vault."
     }],
     "keyPlacement": {"location": "header", "name": "Authorization", "prefix": "Bearer "},
     "tenantFields": [{

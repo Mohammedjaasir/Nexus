@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
-import { agentTaskSessions, heartbeatRuns, nativeRunResults, type Db, type issues } from "@paperclipai/db";
-import { validatePrpStructuredRunResult, type PersistedNativeSession } from "../../vendor/paperclip-runner/index.js";
+import { agentTaskSessions, heartbeatRuns, nativeRunResults, type Db, type issues } from "@nexusai/db";
+import { validatePrpStructuredRunResult, type PersistedNativeSession } from "../../vendor/nexus-runner/index.js";
 import { nativeSha256 } from "./canonical.js";
-import type { PaperclipControlPlaneBinding } from "./paperclip-control-plane-port.js";
+import type { NexusControlPlaneBinding } from "./nexus-control-plane-port.js";
 import { readRunCancellation } from "../run-cancellation.js";
 
 /** Prepared once by heartbeat; never copied into recovery metadata or receipts. */
@@ -16,7 +16,7 @@ export const NATIVE_TASK_SESSION_PUBLICATION_KEY = "nativeTaskSessionPublication
 type Transaction = Parameters<Parameters<Db["transaction"]>[0]>[0];
 type Outcome = "published" | "suppressed_reset" | "suppressed_newer" | "suppressed_authority" | "missing_stub" | "unsupported";
 interface Receipt {
-  schema: "paperclip.native-task-session-publication.v1";
+  schema: "nexus.native-task-session-publication.v1";
   companyId: string;
   issueId: string;
   agentId: string;
@@ -36,7 +36,7 @@ const outcomes: readonly string[] = ["published", "suppressed_reset", "suppresse
 
 function receiptFromProfile(profile: unknown): Receipt | null {
   const root = record(profile), value = record(root[NATIVE_TASK_SESSION_PUBLICATION_KEY]);
-  if (value.schema !== "paperclip.native-task-session-publication.v1"
+  if (value.schema !== "nexus.native-task-session-publication.v1"
       || ![value.companyId, value.issueId, value.agentId, value.runId, value.sessionId, value.resultId].every(uuid)
       || typeof value.taskKey !== "string" || value.taskKey.length > 512
       || typeof value.adapterType !== "string" || !value.adapterType.length || value.adapterType.length > 128
@@ -70,7 +70,7 @@ export type NativeTaskSessionPublicationIssue = Pick<typeof issues.$inferSelect,
 /** Caller holds coordinator → issue NO KEY UPDATE → run. This helper owns only
  * the task-row lock and UPDATE; never starts a transaction or creates a stub. */
 export async function publishNativeTaskSessionInTransaction(tx: Transaction, input: {
-  binding: PaperclipControlPlaneBinding;
+  binding: NexusControlPlaneBinding;
   context: NativeTaskSessionPublicationContext;
   snapshot: PersistedNativeSession;
   run: NativeTaskSessionPublicationRun;
@@ -103,7 +103,7 @@ export async function publishNativeTaskSessionInTransaction(tx: Transaction, inp
   if (!accepted || !validated.ok || accepted.canonicalSha256 !== nativeSha256({
     binding, result: validated.result, terminal: snapshot.terminal, turnId: accepted.turnId ?? null,
   })) throw new Error("native_task_session_publication_result_mismatch");
-  const receipt = (outcome: Outcome): Receipt => ({ schema: "paperclip.native-task-session-publication.v1",
+  const receipt = (outcome: Outcome): Receipt => ({ schema: "nexus.native-task-session-publication.v1",
     companyId: binding.companyId, issueId: binding.issueId, agentId: binding.agentId, runId: binding.runId,
     taskKey: context.taskKey, adapterType: context.adapterType, sessionId: snapshot.identity.sessionId,
     resultId: accepted.id, outcome });

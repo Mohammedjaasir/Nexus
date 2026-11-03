@@ -4,7 +4,7 @@ import type {
   FastResponseTestResult,
   FastResponseHistoryEntry,
   UpdateFastResponse,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { api } from "./client";
 export const fastResponsesApi = {
   settings: (companyId: string) =>

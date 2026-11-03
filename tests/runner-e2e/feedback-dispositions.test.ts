@@ -11,7 +11,7 @@ import type { RunnerE2EResult } from "./types.js";
 
 function fixture() {
   const cell = runnerMatrix[0]!;
-  const result: RunnerE2EResult = { schema: "paperclip.runner-e2e.result/v2", executionId: cell.id, suiteId: cell.suite.id,
+  const result: RunnerE2EResult = { schema: "nexus.runner-e2e.result/v2", executionId: cell.id, suiteId: cell.suite.id,
     suiteDefinitionHash: cell.suiteDefinitionHash, attempt: 1, status: "failed", profileId: cell.profile.id,
     environmentId: cell.environment.id, caseId: cell.task.id, provider: cell.profile.provider, model: cell.profile.model, runtimeMode: cell.profile.expectedRuntimeMode,
     runIds: [], startedAt: "2026-10-20T00:00:00Z", finishedAt: "2026-10-20T00:00:01Z", durationMs: 1000, cleanup: "passed",

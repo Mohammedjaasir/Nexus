@@ -22,4 +22,4 @@ pnpm-lock.yaml @cryppadotta @devinfoley @nickyleach @forgottendev
 pnpm-workspace.yaml @cryppadotta @devinfoley @nickyleach @forgottendev
 .npmrc @cryppadotta @devinfoley @nickyleach @forgottendev
 
-/packages/paperclip-runner/src/contracts/runtime-context-prompts.ts @cryppadotta @devinfoley @nickyleach @forgottendev
+/packages/nexus-runner/src/contracts/runtime-context-prompts.ts @cryppadotta @devinfoley @nickyleach @forgottendev

@@ -15,7 +15,7 @@ import {
   issueTreeHoldMembers,
   issueTreeHolds,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -24,7 +24,7 @@ import { issueTreeControlService } from "../services/issue-tree-control.js";
 import { issueService } from "../services/issues.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_ISSUE_TREE_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_ISSUE_TREE_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -44,7 +44,7 @@ describeEmbeddedPostgres("issueTreeControlService", () => {
       db = createDb(externalUrl, { maxConnections: 6 });
       return;
     }
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-issue-tree-control-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-issue-tree-control-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -79,7 +79,7 @@ describeEmbeddedPostgres("issueTreeControlService", () => {
     await db.insert(companies).values([
       {
         id: companyId,
-        name: "Paperclip",
+        name: "Nexus",
         issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
         requireBoardApprovalForNewAgents: false,
       },
@@ -191,7 +191,7 @@ describeEmbeddedPostgres("issueTreeControlService", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -240,7 +240,7 @@ describeEmbeddedPostgres("issueTreeControlService", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -286,7 +286,7 @@ describeEmbeddedPostgres("issueTreeControlService", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -429,7 +429,7 @@ describeEmbeddedPostgres("issueTreeControlService", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -693,7 +693,7 @@ describeEmbeddedPostgres("issueTreeControlService", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });

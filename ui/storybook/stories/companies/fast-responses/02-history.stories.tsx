@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { FastResponseHistoryEntry } from "@paperclipai/shared";
+import type { FastResponseHistoryEntry } from "@nexusai/shared";
 import { DecisionHistoryTable } from "@/components/decision-models/DecisionHistory";
 import { entry } from "../../../support/decision-models/fixtures";
 const receipt: FastResponseHistoryEntry = {
@@ -16,7 +16,7 @@ const receipt: FastResponseHistoryEntry = {
   costStatus: "reported",
 };
 const meta = {
-  parameters: { paperclip: {
+  parameters: { nexus: {
       "capabilities": [
         "companies/identity",
         "budgets-costs/cost-reporting",

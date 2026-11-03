@@ -1,6 +1,6 @@
-import { chatActions } from "@paperclipai/db";
+import { chatActions } from "@nexusai/db";
 import type { DbTransaction } from "../runtime-types.js";
-import type { chatPublications } from "@paperclipai/db";
+import type { chatPublications } from "@nexusai/db";
 export async function recordPhotonPublicationRetry(tx: DbTransaction, endpointId: string, publication: typeof chatPublications.$inferSelect, userId: string): Promise<void> {
   await tx
     .insert(chatActions)

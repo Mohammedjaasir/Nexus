@@ -2,8 +2,8 @@ import express from "express";
 import request from "supertest";
 import { QueryPromise } from "drizzle-orm/query-promise";
 import { afterEach, expect, it, vi } from "vitest";
-import { withDatabaseOperation } from "@paperclipai/db";
-import { installDatabaseWorkSignals } from "@paperclipai/db/work-signals";
+import { withDatabaseOperation } from "@nexusai/db";
+import { installDatabaseWorkSignals } from "@nexusai/db/work-signals";
 import { databaseOperationMiddleware } from "../middleware/database-operation.js";
 import { withBudgetSpan } from "../services/budget-tracing.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
@@ -20,8 +20,8 @@ const { owners } = await vi.hoisted(async () => {
   const { AsyncLocalStorage } = await import("node:async_hooks");
   return { owners: new AsyncLocalStorage<string>() };
 });
-vi.mock("@paperclipai/db", async importOriginal => ({
-  ...await importOriginal<typeof import("@paperclipai/db")>(),
+vi.mock("@nexusai/db", async importOriginal => ({
+  ...await importOriginal<typeof import("@nexusai/db")>(),
   withDatabaseOperation: <T>(owner: string, action: () => T): T => owners.run(owner, action),
 }));
 

@@ -36,7 +36,7 @@ describe("agent appearance", () => {
   });
   it("uses a separate URL for opaque Slack exports without changing ordinary portraits", () => {
     const appearance = appearanceForPalette("cherry-pop");
-    expect(agentAvatarUrl(appearance, 512, 1, "rest", false, "paperclip-dark")).toBe("/api/agent-avatars/cap-v1/cherry-pop/rest.png?size=512&scale=1&background=paperclip-dark");
+    expect(agentAvatarUrl(appearance, 512, 1, "rest", false, "nexus-dark")).toBe("/api/agent-avatars/cap-v1/cherry-pop/rest.png?size=512&scale=1&background=nexus-dark");
     expect(agentAvatarUrl(appearance)).not.toContain("background=");
   });
 });

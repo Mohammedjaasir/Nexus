@@ -243,9 +243,9 @@ Evidence: `source-only` — [route](../../server/src/routes/tool-access.ts); rev
 Verification: `not-run` — individual operation not executed in this audit; shared authorization and representative family flows are exercised by the authenticated integration suite. Follow the route schema, inspect persistence/audit, and assert owner, scope and revoked-authority denial.
 Gaps: Agent invocation is denied by the stated policy. The authorized human or operator must perform this step; this entry does not claim delegated execution.
 
-### `get-tools-oauth-paperclip-id-callback`
+### `get-tools-oauth-nexus-id-callback`
 
-API: `present` — `GET /api/tools/oauth/paperclip-id/callback`; browser/provider/MCP protocol.
+API: `present` — `GET /api/tools/oauth/nexus-id/callback`; browser/provider/MCP protocol.
 Agent access: `restricted` — browser authentication return.
 Policy: Provider state/signature or gateway-token verification, company and resource binding; browser returns require the configuring human. Agent-issued durable gateway tokens retain both issuer and responsible-user authority.
 Evidence: `source-only` — [route](../../server/src/routes/tool-access.ts); reviewed in the working tree based on the source commit above.

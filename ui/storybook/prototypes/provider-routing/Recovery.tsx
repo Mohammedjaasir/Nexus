@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ConnectionIntentInteraction } from "@paperclipai/shared";
+import type { ConnectionIntentInteraction } from "@nexusai/shared";
 import { ConnectionIntentInteractionBody } from "@/features/connections/ConnectionIntentInteractionBody";
 import type { ConnectionSetupFlowProps } from "@/features/connections/ConnectionSetupFlow";
 import { ProviderApiKeyCard } from "@/components/AdapterLoginChrome";

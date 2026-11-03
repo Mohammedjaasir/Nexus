@@ -10,7 +10,7 @@ import {
   executionWorkspaces,
   issues,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -92,7 +92,7 @@ describeEmbeddedPostgres("execution workspace runtime control lease enforcement"
   let competingIssueId = "";
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-runtime-lease-route-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-runtime-lease-route-");
     db = createDb(tempDb.connectionString);
   }, 30_000);
 

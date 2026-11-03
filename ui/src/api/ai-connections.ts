@@ -1,4 +1,4 @@
-import type { AiConnectionList, AiConnectionUsage, AiConnectionAccountIdentity, CreateAiConnection, AiConnectionLoginIntent, LocalAiLoginAttempt, LocalAiLoginStatus } from "@paperclipai/shared";
+import type { AiConnectionList, AiConnectionUsage, AiConnectionAccountIdentity, CreateAiConnection, AiConnectionLoginIntent, LocalAiLoginAttempt, LocalAiLoginStatus } from "@nexusai/shared";
 import { api, type RequestOptions } from "./client";
 export const aiConnectionsApi = {
   accountIdentity: (companyId: string, connectionId: string, grantId: string, options?: RequestOptions) => api.get<AiConnectionAccountIdentity>(`/companies/${companyId}/ai-connections/${connectionId}/identity?grantId=${encodeURIComponent(grantId)}`, { timeoutMs: 20_000, ...options }),

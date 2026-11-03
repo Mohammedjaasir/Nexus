@@ -8,8 +8,8 @@ import type {
   CompanyPortabilityPreviewRequest,
   CompanyPortabilityPreviewResult,
   UpdateCompanyBranding,
-} from "@paperclipai/shared";
-import type { ExportFidelityReport } from "@paperclipai/shared/portability-fidelity";
+} from "@nexusai/shared";
+import type { ExportFidelityReport } from "@nexusai/shared/portability-fidelity";
 import {
   companyImportTransferApplyPath,
   companyImportTransferPartPath,
@@ -20,7 +20,7 @@ import {
   type CompanyImportTransferDeclaration,
   type CompanyImportTransferPartUploadResult,
   type CompanyImportTransferStatus,
-} from "@paperclipai/shared/company-import-transfer";
+} from "@nexusai/shared/company-import-transfer";
 import { api, detachInflightGet, type RequestOptions } from "./client";
 
 // The board navigates only into companies the user can enter. The unscoped
@@ -140,7 +140,7 @@ export const companiesApi = {
   // Submit an import as a server-side job: 202 with a job id to poll, or 409
   // with the already-running job. Board sessions opt in with the proxy-safe
   // `?async=1` query parameter — the Cloud harness strips the inbound
-  // `x-paperclip-cloud-*` header a browser would otherwise use, so that header
+  // `x-nexus-cloud-*` header a browser would otherwise use, so that header
   // never survives to engage the async path.
   importBundleAsync: (data: CompanyPortabilityImportRequest) =>
     api.post<CompanyImportJobAccepted>("/companies/import?async=1", data),

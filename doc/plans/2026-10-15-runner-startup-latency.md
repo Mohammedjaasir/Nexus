@@ -137,7 +137,7 @@ again. This pair adds $0.3641 estimated API usage; project lifetime usage is abo
 $0.7192 under its existing $2 cap, within the aggregate $50 qualification ceiling.
 
 Current main PR CI passes, Greptile is 5/5 with zero unresolved threads, and
-Paperclip Review remains queued. The separate broad harness passed typecheck,
+Nexus Review remains queued. The separate broad harness passed typecheck,
 build, token gates, and runner typecheck, but its 15-minute full-test limit timed
 out and three runner-eval support tests failed. A longer existing verification
 run is in progress; no full-harness pass is claimed. Next experiment: quantify
@@ -230,7 +230,7 @@ removing transfer entirely, and it still needs fresh task/follow-up acceptance.
 [Main CI](https://github.com/paperclipai/paperclip/actions/runs/38814748461)
 passed all 56 checks on the deployed source, including typecheck, sharded tests,
 build, and token gates. Greptile reviewed that source at 5/5 with no unresolved
-threads. Paperclip Review's separate task is blocked by its chat connection;
+threads. Nexus Review's separate task is blocked by its chat connection;
 it is not counted as a passed review. The additional unsharded verification jobs
 remain separately tracked; no full unsharded-harness pass is claimed. No AWS
 login or Honeycomb configuration change was needed for this diagnosis.

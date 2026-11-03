@@ -1,6 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
-import { activityLog, chatConversations, chatMessageLinks, issueComments, issues, issueThreadInteractions } from "@paperclipai/db";
-import { HUMAN_TASK_ORIGIN_KINDS } from "@paperclipai/shared";
+import { activityLog, chatConversations, chatMessageLinks, issueComments, issues, issueThreadInteractions } from "@nexusai/db";
+import { HUMAN_TASK_ORIGIN_KINDS } from "@nexusai/shared";
 import { activeIssueInteractionCondition } from "./issue-question-context.js";
 
 // Mine participation fails closed. Add new user-authored issue mutation actions

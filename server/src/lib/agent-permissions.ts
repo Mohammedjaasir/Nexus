@@ -1,4 +1,4 @@
-import { LOW_TRUST_REVIEW_PRESET, type PermissionKey } from "@paperclipai/shared";
+import { LOW_TRUST_REVIEW_PRESET, type PermissionKey } from "@nexusai/shared";
 
 /** Direct grants for newly activated standard agents. Existing agents are not backfilled. */
 export const NEW_STANDARD_AGENT_DEFAULT_GRANT_KEYS = [

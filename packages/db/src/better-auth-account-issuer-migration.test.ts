@@ -70,7 +70,7 @@ describeEmbeddedPostgres("account issuer migration", () => {
   });
 
   it("backfills every pre-upgrade row before the column goes NOT NULL", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-account-issuer-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-account-issuer-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1 });
     cleanups.push(async () => sql.end());

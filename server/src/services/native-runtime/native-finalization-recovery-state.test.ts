@@ -11,7 +11,7 @@ import {
   nativeRunFinalizations,
   nativeRunResults,
   workAssessments,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -19,8 +19,8 @@ import {
 import {
   CONTROL_PLANE_CONFORMANCE_RESULT,
   CONTROL_PLANE_CONFORMANCE_TERMINAL,
-} from "../../vendor/paperclip-runner/testing.js";
-import { PaperclipControlPlanePort } from "./paperclip-control-plane-port.js";
+} from "../../vendor/nexus-runner/testing.js";
+import { NexusControlPlanePort } from "./nexus-control-plane-port.js";
 import { finalizeNativeRun } from "./native-run-finalizer.js";
 import { commitNativeStatusDecision } from "./status-decision-committer.js";
 import { NATIVE_STATUS_ARBITER_POLICY_VERSION } from "./status-arbiter.js";
@@ -43,7 +43,7 @@ describeEmbeddedPostgres("native finalization recovery state", () => {
   const agentId = randomUUID();
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-native-recovery-state-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-native-recovery-state-");
     db = createDb(tempDb.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Recovery state", issuePrefix: "RST" });
     await db.insert(agents).values({ id: agentId, companyId, name: "Native worker", adapterType: "codex_local", status: "running" });
@@ -59,7 +59,7 @@ describeEmbeddedPostgres("native finalization recovery state", () => {
     await db.insert(issues).values({ id: issueId, companyId, title: "Native recovery state fixture",
       status: "in_progress", assigneeAgentId: agentId, workMode: "standard" });
     await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1", policyVersion: "recovery-state-v1", risk: "standard",
+      schemaVersion: "nexus.completion-contract.v1", policyVersion: "recovery-state-v1", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "recovery-state-v1", objective: "Finish", criteria: [{ id: "objective", requirement: "Complete the task" }] },
       canonicalSha256: contractSha256, createdByActorType: "system", createdByActorId: "test" });
@@ -70,7 +70,7 @@ describeEmbeddedPostgres("native finalization recovery state", () => {
   }
 
   async function completeResult(fixture: Awaited<ReturnType<typeof seedNativeRun>>) {
-    const port = new PaperclipControlPlanePort(db, { companyId, issueId: fixture.issueId, runId: fixture.runId, agentId,
+    const port = new NexusControlPlanePort(db, { companyId, issueId: fixture.issueId, runId: fixture.runId, agentId,
       sessionId: fixture.runId, completionContractId: fixture.contractId, completionContractSha256: fixture.contractSha256,
       sourceInstanceId: fixture.runnerInstanceId, controlPlaneSourceInstanceId: "recovery-state-test" });
     await port.openRun({ identity: { runId: fixture.runId, sessionId: fixture.runId, companyId, issueId: fixture.issueId, agentId },

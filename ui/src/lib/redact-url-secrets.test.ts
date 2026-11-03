@@ -33,8 +33,8 @@ describe("redactUrlSecrets", () => {
   });
 
   it("leaves ordinary URLs unchanged", () => {
-    expect(redactUrlSecrets("https://example.test/mcp?workspace=paperclip&page=2")).toBe(
-      "https://example.test/mcp?workspace=paperclip&page=2",
+    expect(redactUrlSecrets("https://example.test/mcp?workspace=nexus&page=2")).toBe(
+      "https://example.test/mcp?workspace=nexus&page=2",
     );
   });
 });

@@ -137,7 +137,7 @@ test("a cold task waits for the first session and retains a title saved during a
     await header.locator("textarea").press("Enter");
     expect((await json(await request.get(`/api/issues/${issue.id}`))).title).toBe(issue.title);
     await expect.poll(() => page.evaluate(({ owner, title }) => Object.keys(localStorage).some(key =>
-      key.startsWith(`paperclip:inline-draft:v2:${owner}:`) && JSON.parse(localStorage.getItem(key) ?? "null")?.draft === title),
+      key.startsWith(`nexus:inline-draft:v2:${owner}:`) && JSON.parse(localStorage.getItem(key) ?? "null")?.draft === title),
     { owner: session.user.id, title: savedTitle })).toBe(true);
     apiUnavailable = false;
     await page.evaluate(() => window.dispatchEvent(new Event("online")));

@@ -12,7 +12,7 @@ function Components(_args: PrimaryScenario) {
   </div></main>;
 }
 export default { id: "primary-agent-01-components",
-  title: "Agents and reusable capabilities/Hiring, configuration, and organization/Primary Agent/01 Components", component: Components, decorators: [primaryDecorator], parameters: { ...primaryParameters, paperclip: {
+  title: "Agents and reusable capabilities/Hiring, configuration, and organization/Primary Agent/01 Components", component: Components, decorators: [primaryDecorator], parameters: { ...primaryParameters, nexus: {
       "capabilities": [
         "agents/primary-agent",
         "tasks/create",

@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { realpath } from "node:fs/promises";
 import path from "node:path";
-import { parseNativeExecutionInput } from "../../packages/paperclip-runner/src/contracts/native-execution.js";
+import { parseNativeExecutionInput } from "../../packages/nexus-runner/src/contracts/native-execution.js";
 import { pollUntil, type RunnerApi } from "./api.js";
 import { nativeCompletionProfile } from "./native-completion-defaults.js";
 import { createRemoteFixtureClient } from "./remote-native-bootstrap.js";
@@ -85,7 +85,7 @@ export async function runRepositorySkillsFlow(input: {
   const names = imported.imported.map((skill: Row) => skill.slug);
   const prompt = [
     `Read both assigned skills ${names.map((name: string) => `/${name}`).join(" and ")} using the skill mechanism. Follow each wrapper to its canonical original SKILL.md. This task only verifies their installation; do not perform architecture changes.`,
-    "Use the filesystem paths provided for your assigned skills to read the two selected wrappers on this provider's filesystem. Read their canonical original instructions, then use Node.js fs to traverse each .paperclip-repository and verify that sibling skills, agents/poteto-agent.md and NOTICE.md can be read. Use the delivered provider home or prepared runtime-context bundle, not an ordinary company skill-library directory; CODEX_HOME may be absent from the shell environment.",
+    "Use the filesystem paths provided for your assigned skills to read the two selected wrappers on this provider's filesystem. Read their canonical original instructions, then use Node.js fs to traverse each .nexus-repository and verify that sibling skills, agents/poteto-agent.md and NOTICE.md can be read. Use the delivered provider home or prepared runtime-context bundle, not an ordinary company skill-library directory; CODEX_HOME may be absent from the shell environment.",
     `Publish a progress comment on this task containing exactly POTETO-ROOTS-${nonce} followed by JSON {"roots":["<absolute provider wrapper parent for first skill>","<absolute provider wrapper parent for second skill>"]}.`,
     "After publishing that comment, execute the ordinary shell command sleep 120 and wait for it to finish. The operator will independently inspect these files during that pause. Do not alter any imported file, install dependencies, fetch repository contents, or finish before the pause completes.",
     `Then reply ${execution.task.buildVisibleMarker(nonce)} and complete this task.`,
@@ -116,15 +116,15 @@ export async function runRepositorySkillsFlow(input: {
   expect(runs[0]!.agentId).toBe(fixtures.agent.id);
   expect(issue.companyId).toBe(fixtures.company.id);
   expect(issue.assigneeAgentId).toBe(fixtures.agent.id);
-  expect(runs[0]!.contextSnapshot?.paperclipEnvironment?.id).toBe(fixtures.environment.id);
+  expect(runs[0]!.contextSnapshot?.nexusEnvironment?.id).toBe(fixtures.environment.id);
   expect(typeof runs[0]!.nativeSessionId).toBe("string");
   let bundles: RepositoryBundleReceipt[];
   let runtimeLocation: Parameters<typeof isOwnedRepositoryRuntimeRoot>[2];
   if (execution.environment.id === "local") {
-    const temporaryRoot = await realpath(process.env.PAPERCLIP_RUNNER_E2E_TEMP_ROOT!);
+    const temporaryRoot = await realpath(process.env.NEXUS_RUNNER_E2E_TEMP_ROOT!);
     for (const root of roots) expect((await realpath(root)).startsWith(`${temporaryRoot}${path.sep}`)).toBe(true);
     bundles = (await Promise.all(roots.map(root => realpath(root)))).map(inspectRepositoryBundle);
-    const instanceRoot = await realpath(path.dirname(process.env.PAPERCLIP_CONFIG!));
+    const instanceRoot = await realpath(path.dirname(process.env.NEXUS_CONFIG!));
     const sessionId = runs[0]!.nativeSessionId as string;
     // Read the active run's persisted, digest-validated execution context. These
     // immutable assets are normal provider inputs, not a fixture or library copy.

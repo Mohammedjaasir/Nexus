@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { AGENT_PALETTE_IDS, appearanceForPalette, type AgentPaletteId } from "@paperclipai/shared";
+import { AGENT_PALETTE_IDS, appearanceForPalette, type AgentPaletteId } from "@nexusai/shared";
 import { OnboardingCharacter } from "../../../src/components/onboarding/OnboardingCharacter";
 import { Button } from "../../../src/components/ui/button";
 
@@ -10,7 +10,7 @@ const meta = {
   component: OnboardingCharacter,
   args: { appearance: appearanceForPalette("bubblegum-sky"), awake: false },
   parameters: { docs: { description: { component: "The onboarding hero: the persona character (the studio's App export) on the shared ClipLab v0.2.0 engine. Gray and dozing until Review, where it plays the one-shot sleepy → wink → idle transition while its palette fades in, then settles into the idle loop. Reduced motion skips the sequence." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "onboarding/company"
       ],

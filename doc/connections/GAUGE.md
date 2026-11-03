@@ -7,16 +7,16 @@ outstanding.
 Gauge (`withgauge.com`) measures how AI answer engines mention and cite a
 brand, combines that with SEO, analytics and ads data, and runs a content
 pipeline that can publish to a connected CMS. It appears in Apps and uses
-Paperclip's shared remote-MCP connection, vault, catalog, grants, policies,
-gateway, and audit trail. It is a resource connection, not Paperclip sign-in.
+Nexus's shared remote-MCP connection, vault, catalog, grants, policies,
+gateway, and audit trail. It is a resource connection, not Nexus sign-in.
 No plugin, database migration, or provider-specific runtime code is required.
 
-Paperclip connects to Gauge's hosted MCP server at
+Nexus connects to Gauge's hosted MCP server at
 `https://app.withgauge.com/mcp` (Streamable HTTP) with two methods:
 
 - `mcp-oauth`: browser sign-in through Gauge's dynamic client registration.
   The user chooses one Gauge organization on the consent screen.
-- `mcp-api-key`: an organization API key stored as a Paperclip secret and
+- `mcp-api-key`: an organization API key stored as a Nexus secret and
   sent as an `Authorization: Bearer <key>` header.
 
 This curated connection is the polished route: it provides branding, method
@@ -26,10 +26,10 @@ guidance, and a publish warning. The same URL can also be connected from
 
 ## Service involvement
 
-Gauge hosts the MCP resource and the authorization server. Paperclip stores
+Gauge hosts the MCP resource and the authorization server. Nexus stores
 the OAuth tokens or the key as secret references, discovers tools with
 `tools/list`, and sends the credential on every governed call. No
-Paperclip-operated vendor relay is involved; cloud and self-hosted instances
+Nexus-operated vendor relay is involved; cloud and self-hosted instances
 use the same path.
 
 ## Endpoints
@@ -50,7 +50,7 @@ advertises the scopes `mcp`, `openid`, `profile`, `email` and
 
 ## Scopes
 
-Paperclip requests only `mcp`, the scope that grants MCP access. The identity
+Nexus requests only `mcp`, the scope that grants MCP access. The identity
 scopes are not needed: Gauge selects the organization on its consent screen,
 not through a scope. This is recorded as an explicit review in
 [`tool-method-permission-reviews.json`](./tool-method-permission-reviews.json).
@@ -59,22 +59,22 @@ not through a scope. This is recorded as an explicit review in
 
 Browser sign-in:
 
-1. In Paperclip, open **Apps → Browse → Gauge** and click
+1. In Nexus, open **Apps → Browse → Gauge** and click
    **Continue to sign in**.
 2. Sign in to Gauge, choose the organization, and approve access.
 
 API key:
 
 1. In Gauge, open **Settings → Integrations → API Keys** and click
-   **Generate API Key**. Use a separate key for Paperclip so it can be deleted
+   **Generate API Key**. Use a separate key for Nexus so it can be deleted
    independently.
-2. In Paperclip, open **Apps → Browse → Gauge**, open **Advanced**, choose
+2. In Nexus, open **Apps → Browse → Gauge**, open **Advanced**, choose
    **Use an API key**, paste the key, and click **Connect**.
 
 After either method, set publish actions to **Ask first** or **Off** on the
 connection's **Permissions** screen if agents run unattended.
 
-To disconnect, remove the connection in Paperclip. For an API key, also
+To disconnect, remove the connection in Nexus. For an API key, also
 delete the key in Gauge under **Settings → Integrations → API Keys**, which
 revokes every connection that uses it.
 
@@ -115,7 +115,7 @@ mutations with read-like names, add a reviewed `gauge` rule to
   user, limited to the chosen organization.
 - API key: `Authorization: Bearer <key>`. Keys are bound to one
   organization, are not scoped, and carry no user identity. Requests are
-  attributed to the organization. Paperclip cannot narrow an issued key.
+  attributed to the organization. Nexus cannot narrow an issued key.
 
 ## Resource filters
 

@@ -9,10 +9,10 @@ const run = { id: "run", companyId: "company", agentId: "agent", nativeIssueId: 
 function event(seq: number, eventType: string, payload = {}, turnId = "turn"): Row {
   return { seq, eventType, runId: run.id, companyId: run.companyId, agentId: run.agentId,
     protocolSchemaVersion: 1, sourceEventId: `event-${seq}`, sourceInstanceId: "runner", sourceSeq: seq,
-    payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, eventType, runId: run.id, turnId,
+    payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, eventType, runId: run.id, turnId,
       sourceKind: "runner", sourceEventId: `event-${seq}`, sourceInstanceId: "runner", sourceSeq: seq, payload: structuredClone(payload) } } };
 }
-const command = { schema: "paperclip.tool.execution.v1", executionId: "sleep", transport: "builtin", operation: "unknown",
+const command = { schema: "nexus.tool.execution.v1", executionId: "sleep", transport: "builtin", operation: "unknown",
   name: "bash", namespace: null, readOnly: false, status: "running" };
 const usage = { kind: "usage", usage: { runDeltaComplete: true, runDelta: { inputTokens: 120, outputTokens: 10 } } };
 const events = () => [event(1, "turn.started"), event(2, "item.completed", usage), event(3, "tool.execution.started", command)];
@@ -75,7 +75,7 @@ describe("Stop work and redirect admission evidence", () => {
     if (kind === "fractional-count") envelope.payload.usage.runDelta.outputTokens = 1.5;
     if (kind === "placeholder-zero") envelope.payload.usage.runDelta = { inputTokens: 0, outputTokens: 0 };
     if (kind === "session-total") envelope.payload.usage.usageBasis = "session_cumulative";
-    if (kind === "semantic-tool") rows[2]!.payload.prpEvent.payload = { ...command, name: "paperclip_finish" };
+    if (kind === "semantic-tool") rows[2]!.payload.prpEvent.payload = { ...command, name: "nexus_finish" };
     if (kind === "read-only") rows[2]!.payload.prpEvent.payload = { ...command, readOnly: true };
     expect(activeStopWorkBoundary(run, rows)).toBeNull();
   });
@@ -128,7 +128,7 @@ describe("Stop work and redirect admission evidence", () => {
       : { kind: "usage", usage: { ...usage.usage, runDeltaComplete: kind === "complete" } };
     const row = event(5, "item.completed", payload);
     row.protocolSchemaVersion = version;
-    Object.assign(row.payload.prpEvent, { schema: `paperclip.prp.event.v${version}`, schemaVersion: version });
+    Object.assign(row.payload.prpEvent, { schema: `nexus.prp.event.v${version}`, schemaVersion: version });
     expect(nativeCancellationHasNoLaterWork([...stopped, row], before())).toBe(true);
     expect(nativeWorkEvents([...stopped, row], before())).toEqual(nativeWorkEvents(stopped, before()));
   });

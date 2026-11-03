@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { isAgentStatusInvokable, type Agent, type TaskInterruptionPresentation } from "@paperclipai/shared";
+import { isAgentStatusInvokable, type Agent, type TaskInterruptionPresentation } from "@nexusai/shared";
 import type { IssueChatComment, IssueChatLinkedRun } from "@/lib/issue-chat-messages";
 import { CommentSubmissionUnknownError } from "@/lib/comment-submit-result";
 import { isTerminalIssueStatus } from "@/lib/liveIssueIds";

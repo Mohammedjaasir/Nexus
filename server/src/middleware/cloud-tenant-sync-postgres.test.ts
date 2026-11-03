@@ -6,7 +6,7 @@ import { and, eq, sql } from "drizzle-orm";
 import {
   agents, applyPendingMigrations, authUsers, companies, companyMemberships, createDb, instanceSettings,
   instanceUserRoles, principalPermissionGrants, resourceLifecycleEvents, type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { cloudActorHeaderSourceFromHeaders, resolveCloudTenantActor } from "./auth.js";
 import { errorHandler } from "./error-handler.js";
@@ -42,20 +42,20 @@ const aliasFields = ["name", "email-local", "email", "principal"] as const;
     await database?.cleanup();
   }, 60_000);
   beforeEach(() => {
-    process.env.PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN = "synthetic-cloud-sync-token";
+    process.env.NEXUS_CLOUD_TENANT_SERVER_TOKEN = "synthetic-cloud-sync-token";
   });
   afterEach(() => {
-    delete process.env.PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN;
-    delete process.env.PAPERCLIP_MANAGED_CONFIG;
+    delete process.env.NEXUS_CLOUD_TENANT_SERVER_TOKEN;
+    delete process.env.NEXUS_MANAGED_CONFIG;
   });
 
   function headers(userId: string = randomUUID(), role = "owner", stackId = `stack-${randomUUID()}`) {
     return {
-      "x-paperclip-cloud-tenant-token": "synthetic-cloud-sync-token",
-      "x-paperclip-cloud-user-id": userId,
-      "x-paperclip-cloud-user-email": `${userId}@example.test`,
-      "x-paperclip-cloud-stack-id": stackId,
-      "x-paperclip-cloud-stack-role": role,
+      "x-nexus-cloud-tenant-token": "synthetic-cloud-sync-token",
+      "x-nexus-cloud-user-id": userId,
+      "x-nexus-cloud-user-email": `${userId}@example.test`,
+      "x-nexus-cloud-stack-id": stackId,
+      "x-nexus-cloud-stack-role": role,
     };
   }
 
@@ -123,7 +123,7 @@ const aliasFields = ["name", "email-local", "email", "principal"] as const;
     const value = headers();
     const actor = await resolve(db, value);
     const companyId = actor!.companyIds![0]!;
-    const userId = value["x-paperclip-cloud-user-id"];
+    const userId = value["x-nexus-cloud-user-id"];
     const membershipWhere = and(eq(companyMemberships.companyId, companyId), eq(companyMemberships.principalId, userId));
     const oldUpdatedAt = new Date("2020-01-01T00:00:00Z");
     await db.update(authUsers).set({ updatedAt: oldUpdatedAt }).where(eq(authUsers.id, userId));
@@ -138,7 +138,7 @@ const aliasFields = ["name", "email-local", "email", "principal"] as const;
     expect(await db.select().from(companyMemberships).where(membershipWhere)).toEqual([beforeMembership]);
     expect(await db.execute(sql`select * from cloud_sync_write_probe`)).toEqual([]);
     expect((await db.select().from(principalPermissionGrants).where(and(eq(principalPermissionGrants.companyId, companyId), eq(principalPermissionGrants.principalId, userId)))).length).toBeGreaterThan(0);
-    await resolve(freshDb(), { ...value, "x-paperclip-cloud-user-name": "Changed profile", "x-paperclip-cloud-stack-role": "member" });
+    await resolve(freshDb(), { ...value, "x-nexus-cloud-user-name": "Changed profile", "x-nexus-cloud-stack-role": "member" });
     const [changedUser] = await db.select().from(authUsers).where(eq(authUsers.id, userId));
     const [changedMembership] = await db.select().from(companyMemberships).where(membershipWhere);
     expect(changedUser.name).toBe("Changed profile");
@@ -155,7 +155,7 @@ const aliasFields = ["name", "email-local", "email", "principal"] as const;
     await db.delete(resourceLifecycleEvents).where(eq(resourceLifecycleEvents.companyId, companyId));
     await resolve(freshDb(), value);
     expect(await db.select().from(resourceLifecycleEvents).where(eq(resourceLifecycleEvents.companyId, companyId))).toEqual([]);
-    const demoted = await resolve(db, { ...value, "x-paperclip-cloud-stack-role": "member" });
+    const demoted = await resolve(db, { ...value, "x-nexus-cloud-stack-role": "member" });
     expect(demoted?.memberships?.[0]?.membershipRole).toBe("member");
     const events = await db.select().from(resourceLifecycleEvents).where(eq(resourceLifecycleEvents.companyId, companyId));
     expect(events.some(event => event.resourceType === "agent_runtime" && event.action === "update")).toBe(true);
@@ -164,7 +164,7 @@ const aliasFields = ["name", "email-local", "email", "principal"] as const;
   it("rechecks imported memberships, stale admin rows and the owner flag inside the write debounce", async () => {
     const value = headers();
     const actor = await resolve(db, value);
-    const userId = value["x-paperclip-cloud-user-id"];
+    const userId = value["x-nexus-cloud-user-id"];
     const imported = await resolve(db, headers(userId, "member"));
     const importedCompanyId = imported!.companyIds![0]!;
     await resolve(db, value);
@@ -181,7 +181,7 @@ const aliasFields = ["name", "email-local", "email", "principal"] as const;
   });
 
   it("bounds old non-UUID profile and missing-slug lookups to two statements regardless of company size", async () => {
-    const userId = `paperclip-id:TLqGPuleJpjX:${randomUUID()}`;
+    const userId = `nexus-id:TLqGPuleJpjX:${randomUUID()}`;
     const value = headers(userId);
     const first = await resolve(db, value);
     const companyId = first!.companyIds![0]!;
@@ -219,7 +219,7 @@ const aliasFields = ["name", "email-local", "email", "principal"] as const;
 
     lookups.length = 0;
     // userProfilePath normalizes even a non-UUID principal ID before linking.
-    const normalizedId = `paperclip-id-tlqgpulejpjx-${userId.split(":").at(-1)}`;
+    const normalizedId = `nexus-id-tlqgpulejpjx-${userId.split(":").at(-1)}`;
     const normalized = await request(app).get(`/api/companies/${companyId}/users/${normalizedId}/profile`);
     expect(normalized.status).toBe(200);
     expect(normalized.body.user.id).toBe(userId);

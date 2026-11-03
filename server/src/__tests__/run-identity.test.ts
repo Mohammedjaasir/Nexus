@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agentWakeupRequests, agents, companies, applyPendingMigrations, createDb, closeRegisteredClients, heartbeatRuns, heartbeatRunEvents, issueComments, issueThreadInteractions, issues, secretAccessEvents } from "@paperclipai/db";
+import { agentWakeupRequests, agents, companies, applyPendingMigrations, createDb, closeRegisteredClients, heartbeatRuns, heartbeatRunEvents, issueComments, issueThreadInteractions, issues, secretAccessEvents } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { acceptSteeredIdentity, reconcileSteeredIdentity, captureRunIdentity, initializeRunIdentity, listRunIdentityContexts, rejectSteeredIdentity, reserveSteeredIdentity } from "../services/run-identity.js";
 
-const externalDatabaseUrl = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const externalDatabaseUrl = process.env.NEXUS_TEST_DATABASE_URL;
 const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("durable execution identity", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
@@ -13,7 +13,7 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
   beforeAll(async () => {
     if (externalDatabaseUrl) { await applyPendingMigrations(externalDatabaseUrl); db = createDb(externalDatabaseUrl); }
     else {
-      database = await startEmbeddedPostgresTestDatabase("paperclip-run-identity-");
+      database = await startEmbeddedPostgresTestDatabase("nexus-run-identity-");
       db = createDb(database.connectionString);
     }
   }, 30_000);
@@ -69,7 +69,7 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
     await db.insert(agentWakeupRequests).values([
       { id: queueId, companyId: input.companyId, agentId: input.agentId, source: "automation",
         status: "coalesced", runId: input.runId, requestedByActorType: "system",
-        payload: { issueId: input.issueId, _paperclipWakeContext: { wakeCommentIds: input.messageIds },
+        payload: { issueId: input.issueId, _nexusWakeContext: { wakeCommentIds: input.messageIds },
           queuedCommentInterrupt: { actorId: "operator", requestedAt: new Date().toISOString() } } },
       { id: wakeupRequestId, companyId: input.companyId, agentId: input.agentId, source: "on_demand",
         status: "queued", runId: input.runId, requestedByActorType: "user", requestedByActorId: "operator",
@@ -119,7 +119,7 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
           fault === "unconsumed" ? { status: "deferred_issue_execution" } :
           fault === "other-run" ? { runId: null } :
           { payload: { ...receipt.payload, ...(fault === "other-task" ? { issueId: randomUUID() } :
-            { _paperclipWakeContext: { wakeCommentIds: [randomUUID()] } }) } },
+            { _nexusWakeContext: { wakeCommentIds: [randomUUID()] } }) } },
         ).where(eq(agentWakeupRequests.id, input.queueId));
       }
       await expect(initializeRunIdentity(db, { ...input, responsibleUserId: "A", cause: "dispatch" })).rejects.toThrow("interrupt authority");

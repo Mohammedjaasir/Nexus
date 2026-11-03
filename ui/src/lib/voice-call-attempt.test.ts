@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { voiceSessionsApi } from "@/api/voiceSessions";
-import type { VoiceSession, VoiceSessionMedia } from "@paperclipai/shared";
+import type { VoiceSession, VoiceSessionMedia } from "@nexusai/shared";
 import { createVoiceCallAttempt, voiceCallJournal } from "./voice-call-attempt";
 import { ApiError } from "@/api/client";
 import { VoiceSessionStartError } from "./voice-session-controller";

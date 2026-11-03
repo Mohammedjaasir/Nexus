@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
-import { chatTaskHandoffs, issueComments, issues, issueThreadInteractions, type Db } from "@paperclipai/db";
-import type { AttentionItem, ConversationTaskHandoff, ConversationTaskHandoffPage, DecisionHistoryPage, DecisionHistoryQuery } from "@paperclipai/shared";
+import { chatTaskHandoffs, issueComments, issues, issueThreadInteractions, type Db } from "@nexusai/db";
+import type { AttentionItem, ConversationTaskHandoff, ConversationTaskHandoffPage, DecisionHistoryPage, DecisionHistoryQuery } from "@nexusai/shared";
 import { issueReadSqlCondition, type AuthorizationActor } from "./authorization.js";
 import { attentionService } from "./attention.js";
 import { decisionHistoryService, pageDecisionHistory } from "./decision-history.js";

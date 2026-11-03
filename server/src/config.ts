@@ -2,13 +2,13 @@ import { validateManagedCloudBootstrapPrerequisites, validateManagedCloudPrerequ
 import { readConfigFile, resolveDeploymentMode } from "./config-file.js";
 import { isCloudManagedInstance } from "./services/cloud-instance.js";
 import { StartupRefusalError } from "./startup-refusals.js";
-import type { PaperclipConfig } from "@paperclipai/shared";
+import type { NexusConfig } from "@nexusai/shared";
 import { parseChatWebhookPublicBaseUrl } from "./chat-webhook-public-url.js";
 import { execFileSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { config as loadDotenv } from "dotenv";
-import { resolvePaperclipEnvPath } from "./paths.js";
+import { resolveNexusEnvPath } from "./paths.js";
 import { maybeRepairLegacyWorktreeConfigAndEnvFiles } from "./worktree-config.js";
 import { shouldLoadWorkingDirectoryEnv } from "./env-file-policy.js";
 import { applyEmptyWorktreeSigningSecrets } from "./dev-runner-worktree.js";
@@ -25,7 +25,7 @@ import {
   inferBindModeFromHost,
   resolveRuntimeBind,
   validateConfiguredBindMode,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   resolveDefaultBackupDir,
   resolveDefaultEmbeddedPostgresDir,
@@ -35,25 +35,25 @@ import {
 import { loadStorageConfig, type StorageConfig } from "./storage/config.js";
 
 if (!isCloudManagedInstance()) {
-  const PAPERCLIP_ENV_FILE_PATH = resolvePaperclipEnvPath();
-  if (existsSync(PAPERCLIP_ENV_FILE_PATH)) {
-    loadDotenv({ path: PAPERCLIP_ENV_FILE_PATH, override: false, quiet: true });
+  const NEXUS_ENV_FILE_PATH = resolveNexusEnvPath();
+  if (existsSync(NEXUS_ENV_FILE_PATH)) {
+    loadDotenv({ path: NEXUS_ENV_FILE_PATH, override: false, quiet: true });
   }
 
   const CWD_ENV_PATH = resolve(process.cwd(), ".env");
   const cwdEnvExists = existsSync(CWD_ENV_PATH);
-  const isSameFile = cwdEnvExists && existsSync(PAPERCLIP_ENV_FILE_PATH)
-    ? realpathSync(CWD_ENV_PATH) === realpathSync(PAPERCLIP_ENV_FILE_PATH)
-    : CWD_ENV_PATH === PAPERCLIP_ENV_FILE_PATH;
+  const isSameFile = cwdEnvExists && existsSync(NEXUS_ENV_FILE_PATH)
+    ? realpathSync(CWD_ENV_PATH) === realpathSync(NEXUS_ENV_FILE_PATH)
+    : CWD_ENV_PATH === NEXUS_ENV_FILE_PATH;
   if (shouldLoadWorkingDirectoryEnv({
     cwdEnvExists,
-    isPaperclipEnvFile: isSameFile,
+    isNexusEnvFile: isSameFile,
   })) {
     loadDotenv({ path: CWD_ENV_PATH, override: false, quiet: true });
   }
 
-  if (basename(dirname(PAPERCLIP_ENV_FILE_PATH)) === ".paperclip") {
-    applyEmptyWorktreeSigningSecrets(dirname(dirname(PAPERCLIP_ENV_FILE_PATH)));
+  if (basename(dirname(NEXUS_ENV_FILE_PATH)) === ".nexus") {
+    applyEmptyWorktreeSigningSecrets(dirname(dirname(NEXUS_ENV_FILE_PATH)));
   }
   maybeRepairLegacyWorktreeConfigAndEnvFiles();
 }
@@ -126,7 +126,7 @@ export interface Config extends StorageConfig {
 }
 
 function detectTailnetBindHost(): string | undefined {
-  const explicit = process.env.PAPERCLIP_TAILNET_BIND_HOST?.trim();
+  const explicit = process.env.NEXUS_TAILNET_BIND_HOST?.trim();
   if (explicit) return explicit;
 
   try {
@@ -144,7 +144,7 @@ function detectTailnetBindHost(): string | undefined {
   }
 }
 
-export function loadConfig(override?: PaperclipConfig | null): Config {
+export function loadConfig(override?: NexusConfig | null): Config {
   const configFile = override === undefined ? readConfigFile({ includeProvenance: true })
     : override ? { config: override, explicitStorageS3Bucket: true } : null;
   const fileConfig = configFile?.config ?? null;
@@ -158,7 +158,7 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
   const fileDatabaseBackup = fileConfig?.database.backup;
   const fileSecrets = fileConfig?.secrets;
 
-  const providerFromEnvRaw = process.env.PAPERCLIP_SECRETS_PROVIDER;
+  const providerFromEnvRaw = process.env.NEXUS_SECRETS_PROVIDER;
   const providerFromEnv =
     providerFromEnvRaw && SECRET_PROVIDERS.includes(providerFromEnvRaw as SecretProvider)
       ? (providerFromEnvRaw as SecretProvider)
@@ -168,26 +168,26 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
 
   const storage = loadStorageConfig(fileConfig);
   validateManagedCloudPrerequisites({ ...storage,
-    storageS3Bucket: process.env.PAPERCLIP_STORAGE_S3_BUCKET
+    storageS3Bucket: process.env.NEXUS_STORAGE_S3_BUCKET
       ?? (configFile?.explicitStorageS3Bucket ? fileConfig?.storage.s3.bucket : undefined),
     databaseUrl: process.env.DATABASE_URL ?? fileDbUrl,
   }, process.env);
   const feedbackExportBackendUrl =
-    process.env.PAPERCLIP_FEEDBACK_EXPORT_BACKEND_URL?.trim() ||
-    process.env.PAPERCLIP_TELEMETRY_BACKEND_URL?.trim() ||
+    process.env.NEXUS_FEEDBACK_EXPORT_BACKEND_URL?.trim() ||
+    process.env.NEXUS_TELEMETRY_BACKEND_URL?.trim() ||
     undefined;
   const feedbackExportBackendToken =
-    process.env.PAPERCLIP_FEEDBACK_EXPORT_BACKEND_TOKEN?.trim() ||
-    process.env.PAPERCLIP_TELEMETRY_BACKEND_TOKEN?.trim() ||
+    process.env.NEXUS_FEEDBACK_EXPORT_BACKEND_TOKEN?.trim() ||
+    process.env.NEXUS_TELEMETRY_BACKEND_TOKEN?.trim() ||
     undefined;
 
   const deploymentMode = resolveDeploymentMode(fileConfig);
-  const strictModeFromEnv = process.env.PAPERCLIP_SECRETS_STRICT_MODE;
+  const strictModeFromEnv = process.env.NEXUS_SECRETS_STRICT_MODE;
   const secretsStrictMode =
     strictModeFromEnv !== undefined
       ? strictModeFromEnv === "true"
       : (fileSecrets?.strictMode ?? deploymentMode === "authenticated");
-  const deploymentExposureFromEnvRaw = process.env.PAPERCLIP_DEPLOYMENT_EXPOSURE;
+  const deploymentExposureFromEnvRaw = process.env.NEXUS_DEPLOYMENT_EXPOSURE;
   const deploymentExposureFromEnv =
     deploymentExposureFromEnvRaw &&
     DEPLOYMENT_EXPOSURES.includes(deploymentExposureFromEnvRaw as DeploymentExposure)
@@ -197,7 +197,7 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
     deploymentMode === "local_trusted"
       ? "private"
       : (deploymentExposureFromEnv ?? fileConfig?.server.exposure ?? "private");
-  const bindFromEnvRaw = process.env.PAPERCLIP_BIND;
+  const bindFromEnvRaw = process.env.NEXUS_BIND;
   const bindFromEnv =
     bindFromEnvRaw && BIND_MODES.includes(bindFromEnvRaw as BindMode)
       ? (bindFromEnvRaw as BindMode)
@@ -208,22 +208,22 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
     bindFromEnv ??
     fileConfig?.server.bind ??
     inferBindModeFromHost(configuredHost, { tailnetBindHost });
-  const customBindHost = process.env.PAPERCLIP_BIND_HOST ?? fileConfig?.server.customBindHost;
-  const authBaseUrlModeFromEnvRaw = process.env.PAPERCLIP_AUTH_BASE_URL_MODE;
+  const customBindHost = process.env.NEXUS_BIND_HOST ?? fileConfig?.server.customBindHost;
+  const authBaseUrlModeFromEnvRaw = process.env.NEXUS_AUTH_BASE_URL_MODE;
   const authBaseUrlModeFromEnv =
     authBaseUrlModeFromEnvRaw &&
     AUTH_BASE_URL_MODES.includes(authBaseUrlModeFromEnvRaw as AuthBaseUrlMode)
       ? (authBaseUrlModeFromEnvRaw as AuthBaseUrlMode)
       : null;
-  const publicUrlFromEnv = process.env.PAPERCLIP_PUBLIC_URL;
+  const publicUrlFromEnv = process.env.NEXUS_PUBLIC_URL;
   const configuredAuthPublicBaseUrlRaw = [
-    process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL,
+    process.env.NEXUS_AUTH_PUBLIC_BASE_URL,
     process.env.BETTER_AUTH_URL,
     process.env.BETTER_AUTH_BASE_URL,
     publicUrlFromEnv,
     fileConfig?.auth?.publicBaseUrl,
   ].find((value): value is string => typeof value === "string" && value.trim().length > 0);
-  const managedRuntimePublicUrl = process.env.PAPERCLIP_MANAGED_RUNTIME_PUBLIC_URL?.trim() || undefined;
+  const managedRuntimePublicUrl = process.env.NEXUS_MANAGED_RUNTIME_PUBLIC_URL?.trim() || undefined;
   const authPublicBaseUrlRaw = configuredAuthPublicBaseUrlRaw ?? managedRuntimePublicUrl;
   const authPublicBaseUrl = authPublicBaseUrlRaw?.trim() || undefined;
   const authBaseUrlMode: AuthBaseUrlMode =
@@ -231,12 +231,12 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
     (configuredAuthPublicBaseUrlRaw === undefined && managedRuntimePublicUrl
       ? "explicit"
       : fileConfig?.auth?.baseUrlMode ?? (authPublicBaseUrl ? "explicit" : "auto"));
-  const disableSignUpFromEnv = process.env.PAPERCLIP_AUTH_DISABLE_SIGN_UP;
+  const disableSignUpFromEnv = process.env.NEXUS_AUTH_DISABLE_SIGN_UP;
   const authDisableSignUp: boolean =
     disableSignUpFromEnv !== undefined
       ? disableSignUpFromEnv === "true"
       : (fileConfig?.auth?.disableSignUp ?? false);
-  const allowedHostnamesFromEnvRaw = process.env.PAPERCLIP_ALLOWED_HOSTNAMES;
+  const allowedHostnamesFromEnvRaw = process.env.NEXUS_ALLOWED_HOSTNAMES;
   const allowedHostnamesFromEnv = allowedHostnamesFromEnvRaw
     ? allowedHostnamesFromEnvRaw
       .split(",")
@@ -262,29 +262,29 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
         .filter(Boolean),
     ),
   );
-  const companyDeletionEnvRaw = process.env.PAPERCLIP_ENABLE_COMPANY_DELETION;
+  const companyDeletionEnvRaw = process.env.NEXUS_ENABLE_COMPANY_DELETION;
   const companyDeletionEnabled =
     companyDeletionEnvRaw !== undefined
       ? companyDeletionEnvRaw === "true"
       : deploymentMode === "local_trusted";
   const databaseBackupEnabled =
-    process.env.PAPERCLIP_DB_BACKUP_ENABLED !== undefined
-      ? process.env.PAPERCLIP_DB_BACKUP_ENABLED === "true"
+    process.env.NEXUS_DB_BACKUP_ENABLED !== undefined
+      ? process.env.NEXUS_DB_BACKUP_ENABLED === "true"
       : (fileDatabaseBackup?.enabled ?? true);
   const databaseBackupIntervalMinutes = Math.max(
     1,
-    Number(process.env.PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES) ||
+    Number(process.env.NEXUS_DB_BACKUP_INTERVAL_MINUTES) ||
       fileDatabaseBackup?.intervalMinutes ||
       60,
   );
   const databaseBackupRetentionDays = Math.max(
     1,
-    Number(process.env.PAPERCLIP_DB_BACKUP_RETENTION_DAYS) ||
+    Number(process.env.NEXUS_DB_BACKUP_RETENTION_DAYS) ||
       fileDatabaseBackup?.retentionDays ||
       7,
   );
   const databaseBackupDir = resolveHomeAwarePath(
-    process.env.PAPERCLIP_DB_BACKUP_DIR ??
+    process.env.NEXUS_DB_BACKUP_DIR ??
       fileDatabaseBackup?.dir ??
       resolveDefaultBackupDir(),
   );
@@ -292,12 +292,12 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
   // becomes terminal before it archives the workspace. A person can reopen the
   // work inside this window. A value of 0 disables the cooldown and restores
   // immediate reaping. A negative or non-numeric value falls back to the
-  // default. The day granularity obeys the PAPERCLIP_DB_BACKUP_RETENTION_DAYS
+  // default. The day granularity obeys the NEXUS_DB_BACKUP_RETENTION_DAYS
   // precedent above. The default is 1 day: regenerable files are compacted
   // after a few hours anyway, so a longer hold only keeps source checkouts of
   // delivered work, and a recurring task produces one workspace per run.
   const workspaceReaperCooldownDaysEnv =
-    process.env.PAPERCLIP_WORKSPACE_REAPER_COOLDOWN_DAYS?.trim();
+    process.env.NEXUS_WORKSPACE_REAPER_COOLDOWN_DAYS?.trim();
   const workspaceReaperCooldownDaysRaw = Number(workspaceReaperCooldownDaysEnv);
   const workspaceReaperCooldownDays =
     workspaceReaperCooldownDaysEnv
@@ -311,12 +311,12 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
   // source file stay; a resumed task regenerates the files when its workspace
   // is provisioned again. 0 compacts on the next sweep. A negative, empty, or
   // non-numeric value falls back to the default of 1 hour.
-  // PAPERCLIP_WORKSPACE_COMPACTION_ENABLED=false turns compaction off.
+  // NEXUS_WORKSPACE_COMPACTION_ENABLED=false turns compaction off.
   const workspaceCompactionDelayHoursEnv =
-    process.env.PAPERCLIP_WORKSPACE_COMPACTION_DELAY_HOURS?.trim();
+    process.env.NEXUS_WORKSPACE_COMPACTION_DELAY_HOURS?.trim();
   const workspaceCompactionDelayHoursRaw = Number(workspaceCompactionDelayHoursEnv);
   const workspaceCompactionDelayHours =
-    process.env.PAPERCLIP_WORKSPACE_COMPACTION_ENABLED?.trim().toLowerCase() === "false"
+    process.env.NEXUS_WORKSPACE_COMPACTION_ENABLED?.trim().toLowerCase() === "false"
       ? null
       : workspaceCompactionDelayHoursEnv
           && Number.isFinite(workspaceCompactionDelayHoursRaw)
@@ -334,15 +334,15 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
     const value = Number(raw);
     return raw && Number.isFinite(value) && value >= 0 ? Math.floor(value) : fallback;
   };
-  const skillVersionRetentionKeepNewest = nonNegativeIntegerEnv("PAPERCLIP_SKILL_VERSION_RETENTION_KEEP", 0);
-  const skillVersionRetentionGraceMinutes = nonNegativeIntegerEnv("PAPERCLIP_SKILL_VERSION_RETENTION_GRACE_MINUTES", 60);
-  const nativeHarnessBackupExpirationDays = Math.max(1, nonNegativeIntegerEnv("PAPERCLIP_NATIVE_HARNESS_BACKUP_EXPIRATION_DAYS", 7));
-  const nativeRunnerEvidenceRetentionDays = Math.max(1, nonNegativeIntegerEnv("PAPERCLIP_NATIVE_RUNNER_EVIDENCE_RETENTION_DAYS", 7));
-  const nativeWorkspaceSyncRetentionDays = Math.max(1, nonNegativeIntegerEnv("PAPERCLIP_NATIVE_WORKSPACE_SYNC_RETENTION_DAYS", 7));
-  const gitRestorePointRetentionDays = Math.max(1, nonNegativeIntegerEnv("PAPERCLIP_GIT_RESTORE_POINT_RETENTION_DAYS", 90));
-  const gitRestorePointTerminalDelayDays = nonNegativeIntegerEnv("PAPERCLIP_GIT_RESTORE_POINT_TERMINAL_DELAY_DAYS", 3);
-  const gitRestorePointIdleDays = nonNegativeIntegerEnv("PAPERCLIP_GIT_RESTORE_POINT_IDLE_DAYS", 7);
-  const taskDirectoryOrphanGraceDays = Math.max(1, nonNegativeIntegerEnv("PAPERCLIP_TASK_DIRECTORY_ORPHAN_GRACE_DAYS", 7));
+  const skillVersionRetentionKeepNewest = nonNegativeIntegerEnv("NEXUS_SKILL_VERSION_RETENTION_KEEP", 0);
+  const skillVersionRetentionGraceMinutes = nonNegativeIntegerEnv("NEXUS_SKILL_VERSION_RETENTION_GRACE_MINUTES", 60);
+  const nativeHarnessBackupExpirationDays = Math.max(1, nonNegativeIntegerEnv("NEXUS_NATIVE_HARNESS_BACKUP_EXPIRATION_DAYS", 7));
+  const nativeRunnerEvidenceRetentionDays = Math.max(1, nonNegativeIntegerEnv("NEXUS_NATIVE_RUNNER_EVIDENCE_RETENTION_DAYS", 7));
+  const nativeWorkspaceSyncRetentionDays = Math.max(1, nonNegativeIntegerEnv("NEXUS_NATIVE_WORKSPACE_SYNC_RETENTION_DAYS", 7));
+  const gitRestorePointRetentionDays = Math.max(1, nonNegativeIntegerEnv("NEXUS_GIT_RESTORE_POINT_RETENTION_DAYS", 90));
+  const gitRestorePointTerminalDelayDays = nonNegativeIntegerEnv("NEXUS_GIT_RESTORE_POINT_TERMINAL_DELAY_DAYS", 3);
+  const gitRestorePointIdleDays = nonNegativeIntegerEnv("NEXUS_GIT_RESTORE_POINT_IDLE_DAYS", 7);
+  const taskDirectoryOrphanGraceDays = Math.max(1, nonNegativeIntegerEnv("NEXUS_TASK_DIRECTORY_ORPHAN_GRACE_DAYS", 7));
   const bindValidationErrors = validateConfiguredBindMode({
     deploymentMode,
     deploymentExposure,
@@ -374,7 +374,7 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
     authBaseUrlMode,
     authPublicBaseUrl,
     chatWebhookPublicBaseUrl: parseChatWebhookPublicBaseUrl(
-      process.env.PAPERCLIP_CHAT_WEBHOOK_PUBLIC_URL,
+      process.env.NEXUS_CHAT_WEBHOOK_PUBLIC_URL,
     ),
     authDisableSignUp,
     databaseMode: fileDatabaseMode,
@@ -388,43 +388,43 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
     databaseBackupIntervalMinutes,
     databaseBackupRetentionDays,
     databaseBackupDir,
-    gitCacheExpirationEnabled: process.env.PAPERCLIP_GIT_CACHE_EXPIRATION_ENABLED === "true",
-    gitBaseExpirationEnabled: process.env.PAPERCLIP_GIT_BASE_EXPIRATION_ENABLED === "true",
-    gitCacheExpirationDryRun: process.env.PAPERCLIP_GIT_CACHE_EXPIRATION_DRY_RUN !== "false",
-    isolatedSourceRehomeEnabled: process.env.PAPERCLIP_ISOLATED_SOURCE_REHOME_ENABLED === "true",
-    isolatedSourceRehomeDryRun: process.env.PAPERCLIP_ISOLATED_SOURCE_REHOME_DRY_RUN === "true",
-    nestedCloneMigrationEnabled: process.env.PAPERCLIP_NESTED_CLONE_MIGRATION_ENABLED === "true",
-    nestedCloneMigrationDryRun: process.env.PAPERCLIP_NESTED_CLONE_MIGRATION_DRY_RUN === "true",
+    gitCacheExpirationEnabled: process.env.NEXUS_GIT_CACHE_EXPIRATION_ENABLED === "true",
+    gitBaseExpirationEnabled: process.env.NEXUS_GIT_BASE_EXPIRATION_ENABLED === "true",
+    gitCacheExpirationDryRun: process.env.NEXUS_GIT_CACHE_EXPIRATION_DRY_RUN !== "false",
+    isolatedSourceRehomeEnabled: process.env.NEXUS_ISOLATED_SOURCE_REHOME_ENABLED === "true",
+    isolatedSourceRehomeDryRun: process.env.NEXUS_ISOLATED_SOURCE_REHOME_DRY_RUN === "true",
+    nestedCloneMigrationEnabled: process.env.NEXUS_NESTED_CLONE_MIGRATION_ENABLED === "true",
+    nestedCloneMigrationDryRun: process.env.NEXUS_NESTED_CLONE_MIGRATION_DRY_RUN === "true",
     workspaceReaperCooldownDays,
     workspaceCompactionDelayHours,
-    skillVersionRetentionEnabled: process.env.PAPERCLIP_SKILL_VERSION_RETENTION_ENABLED !== "false",
-    skillVersionRetentionDryRun: process.env.PAPERCLIP_SKILL_VERSION_RETENTION_DRY_RUN === "true",
+    skillVersionRetentionEnabled: process.env.NEXUS_SKILL_VERSION_RETENTION_ENABLED !== "false",
+    skillVersionRetentionDryRun: process.env.NEXUS_SKILL_VERSION_RETENTION_DRY_RUN === "true",
     skillVersionRetentionKeepNewest,
     skillVersionRetentionGraceMinutes,
-    nativeHarnessBackupExpirationEnabled: process.env.PAPERCLIP_NATIVE_HARNESS_BACKUP_EXPIRATION_ENABLED !== "false",
-    nativeHarnessBackupExpirationDryRun: process.env.PAPERCLIP_NATIVE_HARNESS_BACKUP_EXPIRATION_DRY_RUN === "true",
+    nativeHarnessBackupExpirationEnabled: process.env.NEXUS_NATIVE_HARNESS_BACKUP_EXPIRATION_ENABLED !== "false",
+    nativeHarnessBackupExpirationDryRun: process.env.NEXUS_NATIVE_HARNESS_BACKUP_EXPIRATION_DRY_RUN === "true",
     nativeHarnessBackupExpirationDays,
     nativeRunnerEvidenceRetentionDays,
-    nativeWorkspaceSyncRetentionEnabled: process.env.PAPERCLIP_NATIVE_WORKSPACE_SYNC_RETENTION_ENABLED !== "false",
-    nativeWorkspaceSyncRetentionDryRun: process.env.PAPERCLIP_NATIVE_WORKSPACE_SYNC_RETENTION_DRY_RUN === "true",
+    nativeWorkspaceSyncRetentionEnabled: process.env.NEXUS_NATIVE_WORKSPACE_SYNC_RETENTION_ENABLED !== "false",
+    nativeWorkspaceSyncRetentionDryRun: process.env.NEXUS_NATIVE_WORKSPACE_SYNC_RETENTION_DRY_RUN === "true",
     nativeWorkspaceSyncRetentionDays,
     gitRestorePointRetentionDays,
-    gitRestorePointsEnabled: process.env.PAPERCLIP_GIT_RESTORE_POINTS_ENABLED === "true",
+    gitRestorePointsEnabled: process.env.NEXUS_GIT_RESTORE_POINTS_ENABLED === "true",
     gitRestorePointTerminalDelayDays,
     gitRestorePointIdleDays,
-    taskDirectoryRetentionEnabled: process.env.PAPERCLIP_TASK_DIRECTORY_RETENTION_ENABLED === "true",
-    taskDirectoryRetentionDryRun: process.env.PAPERCLIP_TASK_DIRECTORY_RETENTION_DRY_RUN !== "false",
+    taskDirectoryRetentionEnabled: process.env.NEXUS_TASK_DIRECTORY_RETENTION_ENABLED === "true",
+    taskDirectoryRetentionDryRun: process.env.NEXUS_TASK_DIRECTORY_RETENTION_DRY_RUN !== "false",
     taskDirectoryOrphanGraceDays,
     serveUi:
       process.env.SERVE_UI !== undefined
         ? process.env.SERVE_UI === "true"
         : fileConfig?.server.serveUi ?? true,
-    uiDevMiddleware: process.env.PAPERCLIP_UI_DEV_MIDDLEWARE === "true",
+    uiDevMiddleware: process.env.NEXUS_UI_DEV_MIDDLEWARE === "true",
     secretsProvider,
     secretsStrictMode,
     secretsMasterKeyFilePath:
       resolveHomeAwarePath(
-        process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE ??
+        process.env.NEXUS_SECRETS_MASTER_KEY_FILE ??
           fileSecrets?.localEncrypted.keyFilePath ??
           resolveDefaultSecretsKeyFilePath(),
       ),
@@ -435,8 +435,8 @@ export function loadConfig(override?: PaperclipConfig | null): Config {
     heartbeatSchedulerIntervalMs: Math.max(10000, Number(process.env.HEARTBEAT_SCHEDULER_INTERVAL_MS) || 30000),
     companyDeletionEnabled,
     telemetryEnabled: fileConfig?.telemetry?.enabled ?? true,
-    announcementsEnabled: process.env.PAPERCLIP_ANNOUNCEMENTS_ENABLED !== "false",
-    announcementsFeedUrl: process.env.PAPERCLIP_ANNOUNCEMENTS_FEED_URL?.trim() || "https://pages.paperclip.ing/announcements/v1/current.json",
+    announcementsEnabled: process.env.NEXUS_ANNOUNCEMENTS_ENABLED !== "false",
+    announcementsFeedUrl: process.env.NEXUS_ANNOUNCEMENTS_FEED_URL?.trim() || "https://pages.paperclip.ing/announcements/v1/current.json",
   };
 }
 

@@ -1,10 +1,10 @@
 import { and, eq, notInArray } from "drizzle-orm";
-import { pluginCompanySettings, plugins, type Db } from "@paperclipai/db";
-import type { PaperclipPluginManifestV1, ProjectWorkspaceProviderConfiguration } from "@paperclipai/shared";
+import { pluginCompanySettings, plugins, type Db } from "@nexusai/db";
+import type { NexusPluginManifestV1, ProjectWorkspaceProviderConfiguration } from "@nexusai/shared";
 import { parseProjectExecutionWorkspacePolicy } from "./execution-workspace-policy.js";
 import { conflict } from "../errors.js";
 
-export function isWorkspaceProvider(manifest: PaperclipPluginManifestV1) {
+export function isWorkspaceProvider(manifest: NexusPluginManifestV1) {
   return Boolean(manifest.workspaceProvider && manifest.capabilities.includes("workspaces.manage") &&
     manifest.resourceLifecycle?.includes("project"));
 }

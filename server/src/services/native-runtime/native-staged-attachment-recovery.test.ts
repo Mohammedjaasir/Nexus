@@ -1,9 +1,9 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DurablePrpControlPlane, type DurablePrpCheckpoint } from "../../vendor/paperclip-runner/index.js";
+import { DurablePrpControlPlane, type DurablePrpCheckpoint } from "../../vendor/nexus-runner/index.js";
 import { createLocalEncryptedCipher } from "../../secrets/local-encrypted-provider.js";
 import { buildNativeExecutionInput } from "./native-execution-input.js";
 import { nativeToolContractFingerprintForTarget } from "./native-session-resume.js";
@@ -28,7 +28,7 @@ function execution(runId: string) {
     issue: { id: issueId, identifier: "TEST-1", title: "Continue", description: null, workMode: "standard" },
     taskPrompt: "Continue normally", provider: "codex", workspace: { id: "workspace-1", cwd: "/workspace", repoUrl: null, repoRef: null, branchName: null },
     completionContract: { id: "80000000-0000-4000-8000-000000000008", sha256: `sha256:${"a".repeat(64)}`,
-      schemaVersion: "paperclip.run-result.v1", contract: { revision: "1", objective: "Continue", criteria: [{ id: "done", requirement: "Answer" }] } },
+      schemaVersion: "nexus.run-result.v1", contract: { revision: "1", objective: "Continue", criteria: [{ id: "done", requirement: "Answer" }] } },
     runtimeContext: nativeRuntimeContextFixture(),
   });
 }

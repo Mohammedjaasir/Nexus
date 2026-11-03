@@ -14,7 +14,7 @@ function fixture(): CatalogOverview {
   const ids = readdirSync(catalog).filter(name => name.endsWith(".yaml")).flatMap(name => [...readFileSync(new URL(name,catalog),"utf8").matchAll(/^  - id: ([a-z0-9.-]+)$/gm)].map(match => match[1]!));
   const example = ids.indexOf("projects.create-project"); [ids[0],ids[example]]=[ids[example]!,ids[0]!];
   const rows: CatalogOverview["rows"] = ids.map((scenarioId,i)=>({scenarioId, mainOutcome:i<25?"passed":i<169?"failed":"unmeasured",allowance:i<102?"exhausted":i>=169&&i<218?"unused-initial":i===243?"unknown":"final-available",sourceReadiness:"not-assessed",executionRecord:i<169?"main-measured":i<218?"never-run":i===243?"unknown":"candidate-measured"}));
-  return { schema:"paperclip.catalog-overview/v2", asOf:"2026-10-29T17:54:00Z", definitions:{lazy:242,legacy:2,featureAreas:35,capabilities:191,declaredGaps:5}, accounting:{mainMeasurements:215,retainedRawResults:295,closedSlots:296,exhaustedFinals:102,theoreticalMainCeiling:152}, rows };
+  return { schema:"nexus.catalog-overview/v2", asOf:"2026-10-29T17:54:00Z", definitions:{lazy:242,legacy:2,featureAreas:35,capabilities:191,declaredGaps:5}, accounting:{mainMeasurements:215,retainedRawResults:295,closedSlots:296,exhaustedFinals:102,theoreticalMainCeiling:152}, rows };
 }
 function page(data: CatalogOverview) {
   return renderRunnerE2EDashboard({title:"Catalog",generatedAt:data.asOf,expected:[],catalog:[],entries:[],catalogOverview:data});

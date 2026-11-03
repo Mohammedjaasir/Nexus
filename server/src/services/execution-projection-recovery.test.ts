@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { agents, companies, createDb, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { executionProjectionsForRuns } from "./execution-projection.js";
 
@@ -17,7 +17,7 @@ describe.skipIf(!support.supported)("persisted stopped-workspace projection", ()
   it("reads recovered files on a cancelled run through the real batched query", async () => {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Stopped workspace", issuePrefix: "SWP" });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Reviewer", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Reviewer", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Review current changes", assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, nativeIssueId: issueId,
       runtimeMode: "native", status: "cancelled", finishedAt: new Date(),
@@ -29,7 +29,7 @@ describe.skipIf(!support.supported)("persisted stopped-workspace projection", ()
       nextAction: "The original sandbox is retained for workspace repair.",
       evidence: { runId, continuationDelivery: "invalidated",
         automaticRecovery: { replay: "blocked", actionOutcome: "unknown", policy: "preserve_without_replay_v1" },
-        workspaceRecovery: { schema: "paperclip.workspace-recovery.v1", runId, status: "recovered",
+        workspaceRecovery: { schema: "nexus.workspace-recovery.v1", runId, status: "recovered",
           stage: "saving_receipts", attempt: 1, attemptLimit: 6, retryable: true, requestIds: [] },
       } });
     const projections = await executionProjectionsForRuns(db, companyId, [runId]);

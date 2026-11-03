@@ -479,9 +479,9 @@ export function renderRunnerE2EDashboard(input: RunnerDashboardInput) {
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="assets/favicon-32x32.png" type="image/png">
-  <title>${html(input.title)} · Paperclip</title>
+  <title>${html(input.title)} · Nexus</title>
   <style>
-    @font-face { font-family: "Paperclip Inter"; src: url("assets/InterVariable.woff2") format("woff2"); font-style: normal; font-weight: 100 900; font-display: swap; }
+    @font-face { font-family: "Nexus Inter"; src: url("assets/InterVariable.woff2") format("woff2"); font-style: normal; font-weight: 100 900; font-display: swap; }
     :root {
       color-scheme: light dark;
       --background: #ffffff;
@@ -508,13 +508,13 @@ export function renderRunnerE2EDashboard(input: RunnerDashboardInput) {
       --idle-text: #52585d;
       --idle-border: #a8aeb2;
       --radius: 8px;
-      /* TaskChatBubble: right-aligned human bubbles use Paperclip's liveness blue. */
+      /* TaskChatBubble: right-aligned human bubbles use Nexus's liveness blue. */
       --chat-human-background: #2563eb;
       --chat-human-foreground: #ffffff;
       --chat-bubble-radius: 1rem;
       --chat-body-size: 0.875rem;
       --navigation-sticky-offset: 0px;
-      --font-sans: "Paperclip Inter", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-sans: "Nexus Inter", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     }
     @media (prefers-color-scheme: dark) {

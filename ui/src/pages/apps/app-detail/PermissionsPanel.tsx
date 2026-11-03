@@ -1,7 +1,7 @@
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Ban, Check, FlaskConical, Loader2, RefreshCw, Search, ShieldQuestion } from "lucide-react";
-import type { Agent, ToolCatalogEntry, ToolConnectionCapabilities } from "@paperclipai/shared";
+import type { Agent, ToolCatalogEntry, ToolConnectionCapabilities } from "@nexusai/shared";
 import { useSearchParams } from "@/lib/router";
 import { AgentMultiSelect } from "@/components/AgentMultiSelect";
 import { InlineBanner } from "@/components/InlineBanner";
@@ -499,7 +499,7 @@ function ActionRow({
                 glance to spot and one click to move. */}
             <span
               className="rounded-full border border-border px-1.5 py-px text-xs font-medium uppercase tracking-wide text-muted-foreground"
-              title={`Paperclip classified this action as ${action.riskLevel}`}
+              title={`Nexus classified this action as ${action.riskLevel}`}
             >
               {action.riskLevel}
             </span>

@@ -16,8 +16,8 @@ per-event write. Agent identity private material stays in its existing key store
 ## Configuration
 
 No additional storage configuration is required. The existing instance
-`storage.provider` setting, or `PAPERCLIP_STORAGE_PROVIDER`, selects storage.
-The same config-file S3 fields and `PAPERCLIP_STORAGE_S3_*` overrides select the
+`storage.provider` setting, or `NEXUS_STORAGE_PROVIDER`, selects storage.
+The same config-file S3 fields and `NEXUS_STORAGE_S3_*` overrides select the
 bucket, endpoint, region, prefix, and path style used by product files. Credentials
 use the same AWS SDK chain. Local-disk instances keep `local_file` logs and traces.
 
@@ -51,7 +51,7 @@ read its history. This upgrade migrates legacy local evidence into the existing
 stack store; it does not introduce bucket relocation or reverse migration.
 
 Raw capture still requires its existing explicit capture request. Its encryption
-uses the existing vault key, from `PAPERCLIP_SECRETS_MASTER_KEY` or the existing
+uses the existing vault key, from `NEXUS_SECRETS_MASTER_KEY` or the existing
 configured key file. Cloud already supplies the environment key. No separate
 trace key is introduced, and a missing vault key fails rather than creating a
 replacement. Disposable deployments must preserve the existing vault key along
@@ -138,7 +138,7 @@ Native PRP events have a surviving source: the control port already commits
 validated, redacted events before acknowledging them. The S3 head checkpoints
 the highest exported database event cursor with the batch's bytes. A replacement
 replays later native source rows in bounded 16-row pages, checks their identity
-and canonical hash, and exports the same `paperclip.prp.event` representation
+and canonical hash, and exports the same `nexus.prp.event` representation
 through normal log redaction/compaction. Late callbacks and duplicate delivery
 cannot append the same source record again. This is a canonical native export;
 generic stdout, stderr, and raw provider traces are not reconstructed from event
@@ -252,10 +252,10 @@ external writes. Enforce that floor in the owning deployment procedure.
 ## Qualification
 
 Run the storage, recorder, migration, privacy and retention tests. The opt-in
-S3/Postgres integration fixtures use `PAPERCLIP_LOG_TEST_S3_ENDPOINT` and a dedicated
-`PAPERCLIP_RUN_EVIDENCE_MIGRATION_DATABASE_URL` ending in `_test`. They create
+S3/Postgres integration fixtures use `NEXUS_LOG_TEST_S3_ENDPOINT` and a dedicated
+`NEXUS_RUN_EVIDENCE_MIGRATION_DATABASE_URL` ending in `_test`. They create
 unique test buckets and schemas, and remove only those resources. The privacy
-route suite also accepts `PAPERCLIP_RUN_LOG_PRIVACY_TEST_DATABASE_URL` for a
+route suite also accepts `NEXUS_RUN_LOG_PRIVACY_TEST_DATABASE_URL` for a
 dedicated, fully migrated database ending in `_test`; it clears its fixtures.
 
 `server/scripts/qualify-object-run-logs.ts` exercises the actual AWS SDK against
@@ -270,7 +270,7 @@ and S3 backend. It kills the controller after Runner ACKs but before the S3
 cursor catches up, deletes that controller's directory, and restores sparse
 control state into a fresh controller. It checks exact source order, no duplicate
 records, the same surviving Runner PID, and control/Stop responsiveness. Build
-the example with `cargo build --locked --manifest-path packages/paperclip-runner/runner/Cargo.toml -p paperclip-runner-core --example recovery-fixture`.
+the example with `cargo build --locked --manifest-path packages/nexus-runner/runner/Cargo.toml -p nexus-runner-core --example recovery-fixture`.
 It accepts the same two explicit loopback test endpoints and creates a private
 schema and bucket. This deterministic protocol experiment does not qualify a
 live provider, remote execution environment, or production S3 vendor.

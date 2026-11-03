@@ -1,5 +1,5 @@
-import { aiConnectionCatalogSlug, aiConnectionMetadataSchema, type AppDefinition, type ToolApplication, type ToolConnection } from "@paperclipai/shared";
-import { aiConnectionRouterSlug, aiConnectionRouterPluginKey } from "@paperclipai/shared";
+import { aiConnectionCatalogSlug, aiConnectionMetadataSchema, type AppDefinition, type ToolApplication, type ToolConnection } from "@nexusai/shared";
+import { aiConnectionRouterSlug, aiConnectionRouterPluginKey } from "@nexusai/shared";
 
 export type AppGalleryDisplayEntry = AppDefinition & {
   key?: string;

@@ -29,11 +29,11 @@ describe("routine variable helpers", () => {
   it("preserves existing metadata when syncing variables from a template", () => {
     expect(
       syncRoutineVariablesWithTemplate(["Triage {{repo}}", "Review {{repo}} and {{startDate}}"], [
-        { name: "repo", label: "Repository", type: "text", defaultValue: "paperclip", required: true, options: [] },
+        { name: "repo", label: "Repository", type: "text", defaultValue: "nexus", required: true, options: [] },
         { name: "startDate", label: "Start", type: "text", defaultValue: "soon", required: false, options: [] },
       ]),
     ).toEqual([
-      { name: "repo", label: "Repository", type: "text", defaultValue: "paperclip", required: true, options: [] },
+      { name: "repo", label: "Repository", type: "text", defaultValue: "nexus", required: true, options: [] },
       { name: "startDate", label: "Start", type: "text", defaultValue: "soon", required: false, options: [] },
     ]);
   });
@@ -68,10 +68,10 @@ describe("routine variable helpers", () => {
   it("interpolates provided variable values into the routine template", () => {
     expect(
       interpolateRoutineTemplate("Review {{repo}} for {{priority}}", {
-        repo: "paperclip",
+        repo: "nexus",
         priority: "high",
       }),
-    ).toBe("Review paperclip for high");
+    ).toBe("Review nexus for high");
   });
 
   it("identifies built-in variable names", () => {
@@ -133,9 +133,9 @@ describe("routine variable helpers", () => {
 
   it("interpolates built-in variables alongside user variables", () => {
     const builtins = getBuiltinRoutineVariableValues();
-    const allVars = { ...builtins, repo: "paperclip" };
+    const allVars = { ...builtins, repo: "nexus" };
     expect(
       interpolateRoutineTemplate("Report for {{date}} ({{timestamp}}) on {{repo}}", allVars),
-    ).toBe(`Report for ${builtins.date} (${builtins.timestamp}) on paperclip`);
+    ).toBe(`Report for ${builtins.date} (${builtins.timestamp}) on nexus`);
   });
 });

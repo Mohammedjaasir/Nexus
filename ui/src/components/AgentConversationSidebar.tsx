@@ -1,6 +1,6 @@
 import { useId, useRef, useState } from "react";
 import { Plus, Search, Users, X } from "lucide-react";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { AgentChatPicker } from "@/components/AgentChatPicker";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { Button } from "@/components/ui/button";

@@ -56,7 +56,7 @@ const meta = {
   excludeStories: ["PrivacyPage"],
   decorators: [privacyDecorator],
   parameters: { ...privacyParameters, waitForViewport: true,
-    paperclip: {
+    nexus: {
       "capabilities": [
         "access/resources",
         "tasks/properties",

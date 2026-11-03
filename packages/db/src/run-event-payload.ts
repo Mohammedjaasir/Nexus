@@ -1,7 +1,7 @@
 import { customType } from "drizzle-orm/pg-core";
 
 // Reserved only in the on-disk representation, never in a decoded event.
-const originalJsonKey = "$paperclipRunEventJsonV1";
+const originalJsonKey = "$nexusRunEventJsonV1";
 
 /** Keep JSONB routing fields queryable while retaining JSON strings containing NUL. */
 export function encodeRunEventPayload(payload: Record<string, unknown>): string {

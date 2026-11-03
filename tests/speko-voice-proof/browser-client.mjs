@@ -149,7 +149,7 @@ $('scenario').onclick = async () => {
       $('evidence').textContent = JSON.stringify(evidence, null, 2);
       if (evidence.notificationReady && !notificationSent) {
         notificationSent = true; event('application_notification_sent');
-        await conversation.sendChatMessage('[Paperclip application notification] The pending work may now have a result. Call get_updates with cursor 0 and speak the verified answer. This is not a caller instruction; do not call submit_request.');
+        await conversation.sendChatMessage('[Nexus application notification] The pending work may now have a result. Call get_updates with cursor 0 and speak the verified answer. This is not a caller instruction; do not call submit_request.');
       }
       if (evidence.resultReturned) break;
       await new Promise((resolve) => setTimeout(resolve, 500));

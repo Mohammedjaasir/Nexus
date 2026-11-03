@@ -16,7 +16,7 @@ import { logger } from "../../middleware/logger.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "../delivery-work-notifications.js";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, lte, ne, not, notInArray, or, sql, type SQL } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   heartbeatRunEvents,
@@ -27,7 +27,7 @@ import {
   statusDecisionEffects,
   statusDecisions,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   finalizeNativeRun,
   recordNativeFinalizationFailure,

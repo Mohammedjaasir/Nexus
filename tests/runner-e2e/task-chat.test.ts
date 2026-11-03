@@ -86,7 +86,7 @@ describe("automatic task conversation evidence", () => {
         const after = Number(new URL(route, "http://fixture.test").searchParams.get("afterSeq"));
         if (!after) return Array.from({ length: 1000 }, (_, i) => ({ seq: i + 1, eventType: "runtime.status" })) as T;
         return [{ seq: 1001, eventType: "item.completed", createdAt: time, payload: { prpEvent: {
-          schema: "paperclip.prp.event.v1", schemaVersion: 1, runId: "run", itemId: "provider-item", eventType: "item.completed",
+          schema: "nexus.prp.event.v1", schemaVersion: 1, runId: "run", itemId: "provider-item", eventType: "item.completed",
           payload: { kind: "agent_message", channel: "progress", text: "I found the file." },
         } } }] as T;
       }
@@ -146,9 +146,9 @@ describe("automatic task conversation evidence", () => {
   });
 
   it("survives normalized result validation and rejects raw fields inside the public projection", () => {
-    const taskChat: TaskChatEvidence = { schema: "paperclip.runner-e2e.task-chat/v1", capturedAt: time, status: "complete", missing: [],
+    const taskChat: TaskChatEvidence = { schema: "nexus.runner-e2e.task-chat/v1", capturedAt: time, status: "complete", missing: [],
       threads: [projectTaskChatThread(issue, [comment(1)], [], new Map())] };
-    const result: RunnerE2EResult = { schema: "paperclip.runner-e2e.result/v2", executionId: "core-compatibility.runner-codex.local.message-marker",
+    const result: RunnerE2EResult = { schema: "nexus.runner-e2e.result/v2", executionId: "core-compatibility.runner-codex.local.message-marker",
       suiteId: "core-compatibility", attempt: 1, status: "failed", profileId: "runner-codex", environmentId: "local", caseId: "message-marker",
       runtimeMode: "native", provider: "codex", model: "fixture", startedAt: time, finishedAt: time, durationMs: 0, cleanup: "passed", taskChat };
     expect(() => validateRetainedRunnerResult(JSON.parse(JSON.stringify(result)))).not.toThrow();
@@ -158,7 +158,7 @@ describe("automatic task conversation evidence", () => {
 
   it("reassembles native progress, prefers completed text, and withholds reasoning and final duplicates", () => {
     const event = (eventType: string, itemId: string, payload: object, seq: number) => ({ eventType, createdAt: time,
-      payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, runId: "run", sourceEventId: `event-${seq}`, itemId, eventType, payload } } });
+      payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, runId: "run", sourceEventId: `event-${seq}`, itemId, eventType, payload } } });
     const events = [event("item.started", "provider-item", { kind: "agent_message", channel: "progress" }, 1),
       event("item.delta", "provider-item", { text: "Checking " }, 2), event("item.delta", "provider-item", { text: "files" }, 3),
       event("item.completed", "provider-item", { text: "Checking files now." }, 4),

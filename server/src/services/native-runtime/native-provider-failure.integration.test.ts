@@ -1,20 +1,20 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, agentWakeupRequests, companies, completionContracts, createDb, heartbeatRunEvents, heartbeatRuns, issueRecoveryActions, issueThreadInteractions, issues, nativeRunFinalizations, nativeRunResults, statusDecisions, workAssessments } from "@paperclipai/db";
-import type { ControlPlanePort, NativeExecutionInputV1, PrpEvent, PrpTerminalState } from "@paperclipai/paperclip-runner";
+import { agents, agentWakeupRequests, companies, completionContracts, createDb, heartbeatRunEvents, heartbeatRuns, issueRecoveryActions, issueThreadInteractions, issues, nativeRunFinalizations, nativeRunResults, statusDecisions, workAssessments } from "@nexusai/db";
+import type { ControlPlanePort, NativeExecutionInputV1, PrpEvent, PrpTerminalState } from "@nexusai/nexus-runner";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
-import { CONTROL_PLANE_CONFORMANCE_RESULT } from "../../vendor/paperclip-runner/testing.js";
+import { CONTROL_PLANE_CONFORMANCE_RESULT } from "../../vendor/nexus-runner/testing.js";
 
 const provider = vi.hoisted(() => ({ execute: vi.fn() }));
-vi.mock("../../vendor/paperclip-runner/index.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../vendor/paperclip-runner/index.js")>()),
+vi.mock("../../vendor/nexus-runner/index.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../vendor/nexus-runner/index.js")>()),
   executeNativeSession: provider.execute,
 }));
 
-import { executePaperclipNativeSession } from "./native-session-executor.js";
+import { executeNexusNativeSession } from "./native-session-executor.js";
 import { buildNativeCompletionContract } from "./completion-contracts.js";
-import { PaperclipControlPlanePort } from "./paperclip-control-plane-port.js";
+import { NexusControlPlanePort } from "./nexus-control-plane-port.js";
 import { prepareNativeHeartbeatRun } from "./prepare-native-run.js";
 import { NATIVE_MODEL_REJECTION_DIAGNOSTIC, NATIVE_MODEL_REJECTION_MESSAGE } from "./native-provider-failure.js";
 import { collectRunFailureDiagnostics } from "../run-failure-diagnostics.js";
@@ -45,8 +45,8 @@ describe("native completed failure diagnostics", () => {
     temporary = await startEmbeddedPostgresTestDatabase("native-model-failure-");
     db = createDb(temporary.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Native failure regression", issuePrefix: "NMF" });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Native failure agent", status: "active", adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model } });
-    await db.insert(agents).values({ id: workerId, companyId, name: "Review source worker", status: "active", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Native failure agent", status: "active", adapterType: "nexus_runner", adapterConfig: { provider: "codex", model } });
+    await db.insert(agents).values({ id: workerId, companyId, name: "Review source worker", status: "active", adapterType: "nexus_runner" });
   });
   afterAll(async () => { await temporary?.cleanup(); });
 
@@ -64,13 +64,13 @@ describe("native completed failure diagnostics", () => {
       const completionInput = buildNativeCompletionContract(issue, { revision: contract.revision });
       await db.insert(nativeRunFinalizations).values({ runId, companyId, issueId, phase: "observed" });
       const execution: NativeExecutionInputV1 = {
-        schema: "paperclip.native-execution-input.v1",
+        schema: "nexus.native-execution-input.v1",
         binding: { companyId, runId, issueId, agentId, executionWorkspaceId: runId },
         provider: executionProvider,
         task: { identifier: issueId, title: issue.title, description: null, prompt: "Reply to the current message.", workMode: "standard" },
         workspace: { cwd: "/tmp", repoUrl: null, repoRef: null, branchName: null },
         session: { normalizedSessionId: native.normalizedSessionId, driverKind: opencode ? "opencode_server" : "codex_app_server", protocolVersion: 1, lifecyclePolicy: { mode: "per_turn", idleTimeoutMs: null } },
-        completionContract: { id: contract.id, sha256: contract.canonicalSha256, schemaVersion: "paperclip.completion-contract.v1", contract: completionInput },
+        completionContract: { id: contract.id, sha256: contract.canonicalSha256, schemaVersion: "nexus.completion-contract.v1", contract: completionInput },
         interactionResponses: [], credentialBindings: [],
       };
       await db.update(heartbeatRuns).set({ runnerProfileJson: { nativeExecutionInput: execution } }).where(eq(heartbeatRuns.id, runId));
@@ -97,7 +97,7 @@ describe("native completed failure diagnostics", () => {
         else expect(review?.interaction.status).toBe(scenario === "resolved-review" ? "accepted" : "pending");
       }
       const event: PrpEvent = {
-        schema: "paperclip.prp.event.v1", runId, normalizedSessionId: native.normalizedSessionId,
+        schema: "nexus.prp.event.v1", runId, normalizedSessionId: native.normalizedSessionId,
         turnId: native.turnId, sourceInstanceId: native.runnerInstanceId, sourceEventId: "model-terminal", sourceSeq: 1,
         sourceKind: "runner", eventType: "turn.failed", schemaVersion: 1, priority: 0, emittedAt: new Date().toISOString(),
         payload: opencode ? { status: "failed", providerTerminalObserved: false, error: {
@@ -109,13 +109,13 @@ describe("native completed failure diagnostics", () => {
       };
       const openInput = { identity: { companyId, issueId, runId, agentId, sessionId: native.normalizedSessionId }, backendKind: "mock" as const, sourceInstanceId: native.runnerInstanceId };
       if (scenario === "duplicate") {
-        const prior = new PaperclipControlPlanePort(db, { companyId, issueId, runId, agentId, sessionId: native.normalizedSessionId, sourceInstanceId: native.runnerInstanceId, controlPlaneSourceInstanceId: "prior-controller", completionContractId: contract.id, completionContractSha256: contract.canonicalSha256 });
+        const prior = new NexusControlPlanePort(db, { companyId, issueId, runId, agentId, sessionId: native.normalizedSessionId, sourceInstanceId: native.runnerInstanceId, controlPlaneSourceInstanceId: "prior-controller", completionContractId: contract.id, completionContractSha256: contract.canonicalSha256 });
         await prior.openRun(openInput);
         expect((await prior.appendEvent(event)).disposition).toBe("committed");
       }
       const turnId = scenario === "different-turn" ? "later-turn" : native.turnId;
       const terminal: PrpTerminalState = {
-        schema: "paperclip.prp.terminal.v1", turnTerminalState: scenario === "succeeded" ? "completed" : scenario === "cancelled" ? "cancelled" : "failed",
+        schema: "nexus.prp.terminal.v1", turnTerminalState: scenario === "succeeded" ? "completed" : scenario === "cancelled" ? "cancelled" : "failed",
         runTerminalState: scenario === "succeeded" ? "succeeded" : scenario === "cancelled" ? "cancelled" : "failed", reportedWorkDisposition: "blocked",
       };
       const result = { ...CONTROL_PLANE_CONFORMANCE_RESULT, reportedWorkDisposition: "blocked" as const,
@@ -135,7 +135,7 @@ describe("native completed failure diagnostics", () => {
         await options.controlPlane.completeRun({ result, terminal, turnId });
         return { result, terminal, turnId, normalizedSessionId: native.normalizedSessionId, providerSessionId: "fixture-provider-session", driverKind: execution.session.driverKind, driverVersion: "fixture", nativeEventCount: 1, highestContiguousSourceSeq: 1, usage: null };
       });
-      const adapter = await executePaperclipNativeSession({ db, execution, runnerInstanceId: native.runnerInstanceId, backend: {
+      const adapter = await executeNexusNativeSession({ db, execution, runnerInstanceId: native.runnerInstanceId, backend: {
         descriptor: async () => { throw new Error("Unexpected provider call"); },
         openSession: async () => { throw new Error("Unexpected provider call"); },
       } });

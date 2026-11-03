@@ -15,7 +15,7 @@ const meta = {
   title: "Agents and reusable capabilities/Runs, harnesses, and model accounts/AI Connections/Review",
   component: AiConnectionsReview,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "runs-adapters/validation"
       ],

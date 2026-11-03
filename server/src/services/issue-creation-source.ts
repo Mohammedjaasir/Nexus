@@ -1,12 +1,12 @@
 import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { activityLog, agents, heartbeatRuns, issues } from "@paperclipai/db";
-import { isUuidLike } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { activityLog, agents, heartbeatRuns, issues } from "@nexusai/db";
+import { isUuidLike } from "@nexusai/shared";
 
 type IssueRow = typeof issues.$inferSelect;
 type HeartbeatRunRow = typeof heartbeatRuns.$inferSelect;
 type CreationSourceRun = Pick<HeartbeatRunRow, "id" | "companyId" | "agentId" | "scopeKind" | "nativeIssueId" | "issueId"> & {
-  contextSnapshot: { issueId: unknown; taskId: unknown; taskKey: unknown; paperclipIssue: { id: unknown } } | null;
+  contextSnapshot: { issueId: unknown; taskId: unknown; taskKey: unknown; nexusIssue: { id: unknown } } | null;
 };
 
 /** The task a run was executing when it created another task. */
@@ -30,15 +30,15 @@ export function runBoundIssueReference(run: Pick<HeartbeatRunRow, "nativeIssueId
   const context = run.contextSnapshot && typeof run.contextSnapshot === "object"
     ? (run.contextSnapshot as Record<string, unknown>)
     : null;
-  const paperclipIssue = context?.paperclipIssue && typeof context.paperclipIssue === "object"
-    ? (context.paperclipIssue as Record<string, unknown>)
+  const nexusIssue = context?.nexusIssue && typeof context.nexusIssue === "object"
+    ? (context.nexusIssue as Record<string, unknown>)
     : null;
   return (
     run.nativeIssueId ??
     run.issueId ??
     readNonEmptyString(context?.issueId) ??
     readNonEmptyString(context?.taskId) ??
-    readNonEmptyString(paperclipIssue?.id) ??
+    readNonEmptyString(nexusIssue?.id) ??
     readNonEmptyString(context?.taskKey)
   );
 }
@@ -102,7 +102,7 @@ export async function resolveIssueCreationSource(
           'issueId', ${heartbeatRuns.contextSnapshot}->'issueId',
           'taskId', ${heartbeatRuns.contextSnapshot}->'taskId',
           'taskKey', ${heartbeatRuns.contextSnapshot}->'taskKey',
-          'paperclipIssue', jsonb_build_object('id', ${heartbeatRuns.contextSnapshot}->'paperclipIssue'->'id')
+          'nexusIssue', jsonb_build_object('id', ${heartbeatRuns.contextSnapshot}->'nexusIssue'->'id')
         ) end`,
     })
     .from(heartbeatRuns)

@@ -1,6 +1,6 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 
-const UPDATED = "paperclip:pinned-navigation-updated";
+const UPDATED = "nexus:pinned-navigation-updated";
 const EMPTY = "[]";
 
 function read(key: string | null) {
@@ -17,7 +17,7 @@ function parse(value: string): string[] {
 
 /** Personal browser navigation preference. Stores route names, never work data. */
 export function usePinnedNavigation(userId: string | null | undefined) {
-  const key = userId ? `paperclip.coordinator.pinned-nav.v1:${encodeURIComponent(userId)}` : null;
+  const key = userId ? `nexus.coordinator.pinned-nav.v1:${encodeURIComponent(userId)}` : null;
   const [failure, setFailure] = useState<{ key: string; message: string } | null>(null);
   const subscribe = useCallback((notify: () => void) => {
     const storage = (event: StorageEvent) => { if (event.key === key || event.key === null) notify(); };

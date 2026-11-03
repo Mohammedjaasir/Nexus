@@ -36,14 +36,14 @@ it("fails closed on symlinks or oversized proof input", async () => {
 
 it("awaits owned remote baseline before returning the exact remote denial command", async () => {
   const { prepareCursorRemoteAction } = await import("./cursor-native-flow.js");
-  const binding = { companyId: "company", environmentId: "environment", runId: "run", leaseId: "lease", sandboxId: "sandbox", remoteCwd: "/home/daytona/paperclip-workspace", image: `runner@sha256:${"a".repeat(64)}` };
+  const binding = { companyId: "company", environmentId: "environment", runId: "run", leaseId: "lease", sandboxId: "sandbox", remoteCwd: "/home/daytona/nexus-workspace", image: `runner@sha256:${"a".repeat(64)}` };
   const snapshot = { binding, observedAtMs: 50, complete: true, workspace: {}, targets: { "denied.txt": { absent: true, sha256: null, parent: { dev: "1", ino: "2" }, mutationCount: 0, complete: true } }, watcher: { complete: true, targetMutationCount: 0, workspaceMutationCount: 0 }, processes: { captured: true, root: { pid: 51, startTicks: "3021", bootId: "12345678-1234-1234-1234-123456789abc" }, journal: [], live: [51] } };
   const order: string[] = [];
-  const fixture = { binding, actionFile: `.paperclip-eval-action-${"a".repeat(36)}.txt`, remoteCwd: binding.remoteCwd, snapshot: async (label: string) => { order.push(label); await Promise.resolve(); order.push("baseline-ready"); return snapshot; }, finish: async () => snapshot, close: async () => {} };
+  const fixture = { binding, actionFile: `.nexus-eval-action-${"a".repeat(36)}.txt`, remoteCwd: binding.remoteCwd, snapshot: async (label: string) => { order.push(label); await Promise.resolve(); order.push("baseline-ready"); return snapshot; }, finish: async () => snapshot, close: async () => {} };
   const prepared = await prepareCursorRemoteAction({ fixture, ...binding, deniedRelative: "denied.txt", prompt: "Perform the actual test" });
   order.push("publish-action");
   expect(order).toEqual(["before-action-publication", "baseline-ready", "publish-action"]);
-  expect(prepared.prompt).toContain("printf 'MUST-NOT-EXIST' > '/home/daytona/paperclip-workspace/denied.txt'");
+  expect(prepared.prompt).toContain("printf 'MUST-NOT-EXIST' > '/home/daytona/nexus-workspace/denied.txt'");
   expect(prepared.initial).toMatchObject({ phase: "before-request", absent: true });
   expect(prepared.command?.commandSha256).toMatch(/^sha256:[a-f0-9]{64}$/);
   await expect(prepareCursorRemoteAction({ fixture, ...binding, runId: "wrong-run", deniedRelative: "denied.txt", prompt: "test" })).rejects.toThrow(/another run/);
@@ -77,5 +77,5 @@ it("requires the exact passive accepted-plan disposition without mode promotion 
   for (const mutate of mutations) { const changed = structuredClone(state); mutate(changed); expect(hasCursorAcceptedPlanWait(changed)).toBe(false); }
   expect(cursorNativeTasks.find(task => task.id === "native-plan-reject-revise-accept")!.expectedTerminalState).toEqual({ issue: "in_progress", run: "succeeded" });
   const prompt = cursorNativeTasks.find(task => task.id === "native-plan-reject-revise-accept")!.buildPrompt("test");
-  expect(prompt).toContain("do not implement, change modes, call paperclip_finish, or start another turn");
+  expect(prompt).toContain("do not implement, change modes, call nexus_finish, or start another turn");
 });

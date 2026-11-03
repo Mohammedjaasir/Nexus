@@ -3,8 +3,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile as execute } from "node:child_process";
 import { promisify } from "node:util";
-import { tryWithDirectoryMergeLock } from "@paperclipai/adapter-utils/workspace-restore-merge";
-import { assertWorkspaceManifestDiskSpace } from "@paperclipai/adapter-utils/workspace-manifest";
+import { tryWithDirectoryMergeLock } from "@nexusai/adapter-utils/workspace-restore-merge";
+import { assertWorkspaceManifestDiskSpace } from "@nexusai/adapter-utils/workspace-manifest";
 import type { GitAuthInvocation } from "./git-credentials.js";
 import { sanitizeRuntimeServiceBaseEnv } from "./runtime-service-env.js";
 import { recordRepositoryObjectCacheDetail, type RepositoryObjectCacheOutcome } from "./execution-preparation-timing.js";
@@ -59,7 +59,7 @@ export async function readRepositoryObjectCache(cache: RepositoryObjectCache): P
     const objects = await fs.lstat(path.join(cache.directory, "objects"));
     if (!objects.isDirectory() || objects.isSymbolicLink()) return null;
     if (await fs.lstat(path.join(cache.directory, "objects/info/alternates")).then(() => true, () => false)) return null;
-    const receiptPath = path.join(cache.directory, "paperclip-object-cache.json");
+    const receiptPath = path.join(cache.directory, "nexus-object-cache.json");
     const stat = await fs.lstat(receiptPath);
     if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 4096) return null;
     const receipt = JSON.parse(await fs.readFile(receiptPath, "utf8"));
@@ -112,7 +112,7 @@ export async function publishRepositoryObjectCache(cache: RepositoryObjectCache,
         const options = () => ({ timeout: Math.max(1, Math.ceil(budget.deadline - performance.now())), maxBuffer: 16384, env: sanitizeRuntimeServiceBaseEnv(process.env) });
         await execFile("git", ["clone", "--mirror", "--no-hardlinks", "--", checkout, temporary], options());
         await execFile("git", ["-C", temporary, "remote", "set-url", "origin", cache.repoUrl], options());
-        await fs.writeFile(path.join(temporary, "paperclip-object-cache.json"), JSON.stringify({ version: CACHE_VERSION, key: cache.key }));
+        await fs.writeFile(path.join(temporary, "nexus-object-cache.json"), JSON.stringify({ version: CACHE_VERSION, key: cache.key }));
         const actual = await storageBytes(temporary, REPOSITORY_BYTES, budget);
         if (bytes + actual > COMPANY_BYTES) return "capacity";
         await fs.rename(temporary, cache.directory);

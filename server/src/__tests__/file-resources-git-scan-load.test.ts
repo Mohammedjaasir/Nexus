@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { errorHandler } from "../middleware/index.js";
 import {
   createFileResourceListLimiter,
@@ -83,7 +83,7 @@ describe("workspace Git scan route load regression", () => {
   let tempRoot: string;
 
   beforeAll(async () => {
-    tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-file-scan-load-"));
+    tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-file-scan-load-"));
     await Promise.all([
       fs.mkdir(path.join(tempRoot, "repository-a")),
       fs.mkdir(path.join(tempRoot, "repository-b")),

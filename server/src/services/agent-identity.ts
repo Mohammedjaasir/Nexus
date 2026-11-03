@@ -1,7 +1,7 @@
 import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { agentIdentityKeys, agents, type Db } from "@paperclipai/db";
-import type { AgentPublicIdentity } from "@paperclipai/shared";
+import { agentIdentityKeys, agents, type Db } from "@nexusai/db";
+import type { AgentPublicIdentity } from "@nexusai/shared";
 import { notFound } from "../errors.js";
 import { localEncryptedProvider } from "../secrets/local-encrypted-provider.js";
 import { persistActivity } from "./activity-log.js";
@@ -80,7 +80,7 @@ export function supportsManagedAgentIdentity(
   config?: { provider?: unknown },
   persistedDriver?: string | null,
 ): boolean {
-  if (adapterType === "paperclip_runner") {
+  if (adapterType === "nexus_runner") {
     // API-hosted providers have no process environment under our control.
     return persistedDriver
       ? ["codex", "codex_app_server", "opencode_server", "acpx_runtime"].includes(persistedDriver)

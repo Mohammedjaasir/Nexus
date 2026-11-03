@@ -1,6 +1,6 @@
 import { photonAnswersMatch } from "../photon/interactions.js";
 import { and, or, eq, lte, inArray, notExists, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agentWakeupRequests,
   chatActions,
@@ -19,8 +19,8 @@ import {
   issueComments,
   issueQuestionResponseDeliveries,
   issueThreadInteractions,
-} from "@paperclipai/db";
-import type { AskUserQuestionsInteraction } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { AskUserQuestionsInteraction } from "@nexusai/shared";
 import {
   parseChatQuestionFormSubmitTokenPayload,
   validateChatQuestionFormSubmission,
@@ -30,7 +30,7 @@ import { voiceSessionStore, type VoiceTransaction, currentVoiceCredentialFingerp
 import { nativeSha256 } from "./canonical.js";
 
 export const EXTERNAL_CHAT_QUESTION_RESPONSE_KEY =
-  "paperclipExternalChatQuestionResponse";
+  "nexusExternalChatQuestionResponse";
 type Binding = {
   companyId: string;
   issueId: string;
@@ -39,7 +39,7 @@ type Binding = {
 };
 type LockMode = "blocking" | "nonblocking" | "read";
 type Marker = {
-  schema: "paperclip.external_chat_question_response.v1";
+  schema: "nexus.external_chat_question_response.v1";
   interactionId: string;
   responseDeliveryId: string;
   sourceRunId: string;
@@ -338,7 +338,7 @@ async function resolveQuestionResponseChain(
   chain.interactionIds.add(interaction.id);
   chain.deliveryIds.add(delivery.id);
   const sourceContext = record(source.contextSnapshot);
-  const sourceWake = record(sourceContext.paperclipWake);
+  const sourceWake = record(sourceContext.nexusWake);
   // A follow-up question inherits no authority from its marker alone. Rebuild
   // every parent proof from current durable state until the direct-chat root.
   const parent =
@@ -390,9 +390,9 @@ async function resolveQuestionResponseChain(
       )) ||
     sourceWake.externalChatProvider !== provider ||
     !(
-      (sourceContext.paperclipHarnessCheckedOut === true &&
+      (sourceContext.nexusHarnessCheckedOut === true &&
         sourceWake.checkedOutByHarness === true) ||
-      (sourceContext.paperclipExternalChatExecutionBound === true &&
+      (sourceContext.nexusExternalChatExecutionBound === true &&
         sourceWake.externalChatExecutionBound === true)
     ) ||
     sourceIds.length !== 1 ||
@@ -495,7 +495,7 @@ async function resolveQuestionResponseChain(
         return null;
       }
       const marker: Marker = {
-        schema: "paperclip.external_chat_question_response.v1", interactionId: interaction.id,
+        schema: "nexus.external_chat_question_response.v1", interactionId: interaction.id,
         responseDeliveryId: delivery.id, sourceRunId: source.id, sourceCommentId: context.sourceCommentId,
         endpointId: endpoint.id, conversationId: conversation.id,
         bindingSha256: nativeSha256({ binding: {companyId: binding.companyId, issueId: binding.issueId, runId: binding.runId, agentId: binding.agentId}, responseDeliveryId: delivery.id, payloadSha256: delivery.payloadSha256,
@@ -510,7 +510,7 @@ async function resolveQuestionResponseChain(
       if (!mint && nativeSha256(record(context[EXTERNAL_CHAT_QUESTION_RESPONSE_KEY])) !== nativeSha256(marker)) return null;
       return { marker, provider, answeredAtMs: interaction.resolvedAt.getTime(),
         interactionIds: [...(parent?.interactionIds ?? []), interaction.id],
-        authorizationContext: { ...context, source: "chat:speko", paperclipHarnessCheckedOut: false, paperclipExternalChatExecutionBound: true } };
+        authorizationContext: { ...context, source: "chat:speko", nexusHarnessCheckedOut: false, nexusExternalChatExecutionBound: true } };
     }
     if (proofs.length !== 1) return null;
     const proof = proofs[0]!;
@@ -537,7 +537,7 @@ async function resolveQuestionResponseChain(
       || receipt.response.resultSha256 !== nativeSha256(interaction.result)
       || (parent && (parent.marker.endpointId !== endpoint.id || parent.marker.conversationId !== conversation.id))) return null;
     const marker: Marker = {
-      schema: "paperclip.external_chat_question_response.v1", interactionId: interaction.id,
+      schema: "nexus.external_chat_question_response.v1", interactionId: interaction.id,
       responseDeliveryId: delivery.id, sourceRunId: source.id, sourceCommentId: context.sourceCommentId,
       endpointId: endpoint.id, conversationId: conversation.id,
       bindingSha256: nativeSha256({ binding: { companyId: binding.companyId, issueId: binding.issueId, runId: binding.runId, agentId: binding.agentId }, responseDeliveryId: delivery.id, payloadSha256: delivery.payloadSha256,
@@ -553,7 +553,7 @@ async function resolveQuestionResponseChain(
     if (!mint && nativeSha256(record(context[EXTERNAL_CHAT_QUESTION_RESPONSE_KEY])) !== nativeSha256(marker)) return null;
     return { marker, provider, answeredAtMs: interaction.resolvedAt.getTime(),
       interactionIds: [...(parent?.interactionIds ?? []), interaction.id],
-      authorizationContext: { ...context, source: "chat:speko", paperclipHarnessCheckedOut: false, paperclipExternalChatExecutionBound: true } };
+      authorizationContext: { ...context, source: "chat:speko", nexusHarnessCheckedOut: false, nexusExternalChatExecutionBound: true } };
   }
 
   const actionQuery = tx
@@ -752,7 +752,7 @@ async function resolveQuestionResponseChain(
       );
       if (!lock?.acquired)
         throw Object.assign(
-          new Error("paperclip_external_chat_wait_authorization_contended"),
+          new Error("nexus_external_chat_wait_authorization_contended"),
           { code: "55P03" },
         );
     }
@@ -867,11 +867,11 @@ async function resolveQuestionResponseChain(
     publication.issueId !== binding.issueId ||
     record(publication.payload).interactionId !== interaction.id ||
     identity.status !== "linked" ||
-    identity.paperclipUserId !== interaction.resolvedByUserId
+    identity.nexusUserId !== interaction.resolvedByUserId
   )
     return null;
   const marker: Marker = {
-    schema: "paperclip.external_chat_question_response.v1",
+    schema: "nexus.external_chat_question_response.v1",
     interactionId: interaction.id,
     responseDeliveryId: delivery.id,
     sourceRunId: source.id,
@@ -919,7 +919,7 @@ async function resolveQuestionResponseChain(
           }
         : {
             boardResponse: {
-              schema: `paperclip.${provider}_board_question_response.v1`,
+              schema: `nexus.${provider}_board_question_response.v1`,
               principalId: inbound.principalId,
               ...(provider === "github" ? {
                 runtimeGeneration: boardGeneration,
@@ -956,8 +956,8 @@ async function resolveQuestionResponseChain(
     authorizationContext: {
       ...context,
       source: `chat:${provider}`,
-      paperclipHarnessCheckedOut: false,
-      paperclipExternalChatExecutionBound: true,
+      nexusHarnessCheckedOut: false,
+      nexusExternalChatExecutionBound: true,
     },
   };
 }

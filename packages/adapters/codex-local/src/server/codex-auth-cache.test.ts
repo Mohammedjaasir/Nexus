@@ -38,15 +38,15 @@ describe("codex auth cache store", () => {
   });
 
   async function makeInstanceRoot(): Promise<string> {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-codex-cache-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-codex-cache-"));
     cleanupDirs.push(dir);
     return dir;
   }
 
   function envFor(instanceHome: string, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
     return {
-      PAPERCLIP_HOME: instanceHome,
-      PAPERCLIP_INSTANCE_ID: "default",
+      NEXUS_HOME: instanceHome,
+      NEXUS_INSTANCE_ID: "default",
       ...extra,
     };
   }
@@ -361,12 +361,12 @@ describe("codex auth cache store", () => {
 
     it("isCodexAuthCacheEnabled defaults to on and turns off on an explicit falsy flag", () => {
       expect(isCodexAuthCacheEnabled({})).toBe(true);
-      expect(isCodexAuthCacheEnabled({ PAPERCLIP_CODEX_AUTH_CACHE: "1" })).toBe(true);
-      expect(isCodexAuthCacheEnabled({ PAPERCLIP_CODEX_AUTH_CACHE: "on" })).toBe(true);
-      expect(isCodexAuthCacheEnabled({ PAPERCLIP_CODEX_AUTH_CACHE: "0" })).toBe(false);
-      expect(isCodexAuthCacheEnabled({ PAPERCLIP_CODEX_AUTH_CACHE: "false" })).toBe(false);
-      expect(isCodexAuthCacheEnabled({ PAPERCLIP_CODEX_AUTH_CACHE: "off" })).toBe(false);
-      expect(isCodexAuthCacheEnabled({ PAPERCLIP_CODEX_AUTH_CACHE: "no" })).toBe(false);
+      expect(isCodexAuthCacheEnabled({ NEXUS_CODEX_AUTH_CACHE: "1" })).toBe(true);
+      expect(isCodexAuthCacheEnabled({ NEXUS_CODEX_AUTH_CACHE: "on" })).toBe(true);
+      expect(isCodexAuthCacheEnabled({ NEXUS_CODEX_AUTH_CACHE: "0" })).toBe(false);
+      expect(isCodexAuthCacheEnabled({ NEXUS_CODEX_AUTH_CACHE: "false" })).toBe(false);
+      expect(isCodexAuthCacheEnabled({ NEXUS_CODEX_AUTH_CACHE: "off" })).toBe(false);
+      expect(isCodexAuthCacheEnabled({ NEXUS_CODEX_AUTH_CACHE: "no" })).toBe(false);
     });
   });
 

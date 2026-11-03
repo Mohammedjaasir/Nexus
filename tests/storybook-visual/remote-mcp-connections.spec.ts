@@ -92,7 +92,7 @@ for (const provider of providers) {
     const index = await (await request.get("/index.json")).json();
     const ids = Object.keys(index.entries).filter((id) => id.startsWith(`apps-connections-${provider}--`));
     expect(ids.length).toBeGreaterThanOrEqual(18);
-    expect(ids.some((id) => /empty-catalog|--test-|--paperclip-approval|--provider-approval/.test(id))).toBe(false);
+    expect(ids.some((id) => /empty-catalog|--test-|--nexus-approval|--provider-approval/.test(id))).toBe(false);
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     for (const width of [1280, 390]) {

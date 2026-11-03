@@ -6,13 +6,13 @@ import { logger } from "../../middleware/logger.js";
 import { createHash, createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
-import { chatEndpointResources, chatConversations, chatActions, chatEndpoints, chatVoiceInboundCalls, chatVoicePhoneLines, chatVoiceReports, chatVoiceSessions, activityLog, type Db } from "@paperclipai/db";
-import { LOW_TRUST_REVIEW_PRESET, LOW_TRUST_REVIEW_PRESET_VERSION, LOW_TRUST_REVIEW_RAW_OUTPUT_DISPOSITION } from "@paperclipai/shared";
+import { chatEndpointResources, chatConversations, chatActions, chatEndpoints, chatVoiceInboundCalls, chatVoicePhoneLines, chatVoiceReports, chatVoiceSessions, activityLog, type Db } from "@nexusai/db";
+import { LOW_TRUST_REVIEW_PRESET, LOW_TRUST_REVIEW_PRESET_VERSION, LOW_TRUST_REVIEW_RAW_OUTPUT_DISPOSITION } from "@nexusai/shared";
 import { buildChatCommunicationGuidance } from "../chat-communication-guidance.js";
 import { environmentService } from "../environments.js";
 import { assertEnvironmentSelectionForCompany } from "../../routes/environment-selection.js";
 import { issueService } from "../issues.js";
-import type { VoiceInboundCall, VoicePhoneConfiguration, VoiceSession } from "@paperclipai/shared";
+import type { VoiceInboundCall, VoicePhoneConfiguration, VoiceSession } from "@nexusai/shared";
 import { conflict, forbidden, notFound } from "../../errors.js";
 import { authorizationService } from "../authorization.js";
 import { instanceSettingsService } from "../instance-settings.js";
@@ -92,7 +92,7 @@ export function voiceInboundService(db: Db, options: {
     return configuration(companyId, endpointId, caller);
   }
   function token(row: Endpoint, providerSessionId: string, generation: number, secret: string) {
-    return createHmac("sha256", secret).update(JSON.stringify(["paperclip-inbound-v1", row.companyId, row.id, providerSessionId, generation])).digest("base64url");
+    return createHmac("sha256", secret).update(JSON.stringify(["nexus-inbound-v1", row.companyId, row.id, providerSessionId, generation])).digest("base64url");
   }
   async function lifecycle(publicId: string, body: Buffer, headers: Record<string, string | string[] | undefined>) {
     await enabled();
@@ -105,7 +105,7 @@ export function voiceInboundService(db: Db, options: {
     if (!providerSessionId || event.call_id && event.call_id !== providerSessionId || event.organization_id && event.organization_id !== row.providerAccountId || event.agent_id && event.agent_id !== credentials.agentId) throw forbidden("Invalid voice call identity");
     if (event.type === "call.pre_call") {
       if (event.direction === "outbound") return {idleRePrompts: {enabled: true, delayMs: 10_000, maxPrompts: 10, messages: ["I'm still working on it."]}};
-      // Browser sessions use Paperclip result hints. The session-create API
+      // Browser sessions use Nexus result hints. The session-create API
       // rejects idleRePrompts; pre-call pipeline overrides support this setting.
       if (event.direction === "web") return {idleRePrompts: {enabled: false}};
       if (event.direction !== "inbound" || event.organization_id !== row.providerAccountId) throw forbidden("Invalid incoming call");
@@ -131,12 +131,12 @@ export function voiceInboundService(db: Db, options: {
       if (!existing || existing.requestFingerprint !== fingerprint || existing.toolTokenHash !== voiceTokenHash(capability) || !["awaiting_approval", "guest_intake"].includes(existing.state) || existing.expiresAt.getTime() <= Date.now()) throw forbidden("Incoming call is no longer pending");
       if (existing.state === "guest_intake") {
         return {
-          toolSecrets: {paperclip_session_token: capability}, firstMessage: "Thanks for calling. What would you like to work on?",
-          systemPrompt: `This call is a new, task-scoped conversation with the assigned Paperclip agent. Submit each caller request and follow-up using submit_request and speak approved replies pushed into this live call. Use get_updates for status, permitted questions, or an explicit repeat; no completion polling is required. Speak the actual replies; never invent a result. Ask normal clarifications as part of conversation and submit the caller's answers as follow-ups. Do not ask the caller to sign in or read an approval code. This caller is unverified: you cannot look up existing private tasks or approve governed actions. ${options.lowTrustVoicePrompt}`,
+          toolSecrets: {nexus_session_token: capability}, firstMessage: "Thanks for calling. What would you like to work on?",
+          systemPrompt: `This call is a new, task-scoped conversation with the assigned Nexus agent. Submit each caller request and follow-up using submit_request and speak approved replies pushed into this live call. Use get_updates for status, permitted questions, or an explicit repeat; no completion polling is required. Speak the actual replies; never invent a result. Ask normal clarifications as part of conversation and submit the caller's answers as follow-ups. Do not ask the caller to sign in or read an approval code. This caller is unverified: you cannot look up existing private tasks or approve governed actions. ${options.lowTrustVoicePrompt}`,
           idleRePrompts: {enabled: true, delayMs: 5000, maxPrompts: 10, messages: ["I'm still working on it."]},
         };
       }
-      return { toolSecrets: {paperclip_session_token: capability}, firstMessage: `This is Paperclip. To continue, open this Speko connection in Paperclip and approve the live call with code ${existing.approvalCode.split("").join(" ")}.`, systemPrompt: `Before accepting any instructions, use get_updates to check approval. Until authorization is approved, do not submit work, answer task questions, infer identity from caller ID, or disclose any company information. Read the approval code ${existing.approvalCode} if asked. Keep checking get_updates while waiting. Once authorization is approved, ask the caller to repeat their request; instructions before approval were discarded. ${options.voicePrompt}`, idleRePrompts: {enabled: true, delayMs: 5000, maxPrompts: 10, messages: ["I'm waiting for you to approve this call in Paperclip."]} };
+      return { toolSecrets: {nexus_session_token: capability}, firstMessage: `This is Nexus. To continue, open this Speko connection in Nexus and approve the live call with code ${existing.approvalCode.split("").join(" ")}.`, systemPrompt: `Before accepting any instructions, use get_updates to check approval. Until authorization is approved, do not submit work, answer task questions, infer identity from caller ID, or disclose any company information. Read the approval code ${existing.approvalCode} if asked. Keep checking get_updates while waiting. Once authorization is approved, ask the caller to repeat their request; instructions before approval were discarded. ${options.voicePrompt}`, idleRePrompts: {enabled: true, delayMs: 5000, maxPrompts: 10, messages: ["I'm waiting for you to approve this call in Nexus."]} };
     }
     const [session] = await db.select().from(chatVoiceSessions).where(and(eq(chatVoiceSessions.companyId, row.companyId), eq(chatVoiceSessions.endpointId, row.id), eq(chatVoiceSessions.providerSessionId, providerSessionId)));
     const [admission] = await db.select().from(chatVoiceInboundCalls).where(and(eq(chatVoiceInboundCalls.companyId, row.companyId), eq(chatVoiceInboundCalls.endpointId, row.id), eq(chatVoiceInboundCalls.providerSessionId, providerSessionId)));

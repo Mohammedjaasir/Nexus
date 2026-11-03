@@ -18,10 +18,10 @@ describe("standalone Node commentary helper", () => {
   const token = "private-helper-test-token";
 
   beforeAll(async () => {
-    root = await mkdtemp(join(tmpdir(), "paperclip-node-feedback-"));
+    root = await mkdtemp(join(tmpdir(), "nexus-node-feedback-"));
     helper = join(root, "submit-agent-commentary.mjs");
     // An installed skill must work outside the repository/package boundary.
-    await copyFile(fileURLToPath(new URL("../../../skills/paperclip/scripts/submit-agent-commentary.mjs", import.meta.url)), helper);
+    await copyFile(fileURLToPath(new URL("../../../skills/nexus/scripts/submit-agent-commentary.mjs", import.meta.url)), helper);
   });
   afterAll(async () => { await rm(root, { recursive: true, force: true }); });
   afterEach(async () => {
@@ -39,7 +39,7 @@ describe("standalone Node commentary helper", () => {
     const server = createServer(async (request, response) => {
       const chunks: Buffer[] = [];
       for await (const chunk of request) chunks.push(chunk);
-      requests.push({ url: request.url, method: request.method, authorization: request.headers.authorization, runId: request.headers["x-paperclip-run-id"], payload: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
+      requests.push({ url: request.url, method: request.method, authorization: request.headers.authorization, runId: request.headers["x-nexus-run-id"], payload: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
       reply(response);
     });
     servers.push(server);
@@ -54,7 +54,7 @@ describe("standalone Node commentary helper", () => {
       const child = spawn(process.execPath, [helper, ...args], {
         cwd: root,
         // No Python, shell, or other executable is available through PATH.
-        env: { ...process.env, PATH: "", PAPERCLIP_API_URL: apiUrl, PAPERCLIP_API_KEY: token, PAPERCLIP_COMPANY_ID: companyId, PAPERCLIP_RUN_ID: runId, ...env },
+        env: { ...process.env, PATH: "", NEXUS_API_URL: apiUrl, NEXUS_API_KEY: token, NEXUS_COMPANY_ID: companyId, NEXUS_RUN_ID: runId, ...env },
         stdio: "pipe",
       });
       let out = "", err = "";
@@ -93,8 +93,8 @@ describe("standalone Node commentary helper", () => {
 
   it.each([
     ["invalid kind", ["unknown"], {}],
-    ["missing credential", ["complaint"], { PAPERCLIP_API_KEY: "" }],
-    ["invalid run", ["complaint"], { PAPERCLIP_RUN_ID: "not-a-run" }],
+    ["missing credential", ["complaint"], { NEXUS_API_KEY: "" }],
+    ["invalid run", ["complaint"], { NEXUS_RUN_ID: "not-a-run" }],
   ] as const)("rejects %s without making a request", async (_name, args, env) => {
     const target = await endpoint();
     expect(await run(target.url, "private body", [...args], env)).toEqual({ code: 0, out: "", err: diagnostic });

@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import { afterEach, describe, expect, it } from "vitest";
 import { createAcpRuntime, createAgentRegistry, createRuntimeStore } from "acpx/runtime";
 
-const runnerRuntimePath = createRequire(new URL("../../../paperclip-runner/package.json", import.meta.url)).resolve("acpx/runtime");
+const runnerRuntimePath = createRequire(new URL("../../../nexus-runner/package.json", import.meta.url)).resolve("acpx/runtime");
 const nativeRuntime = await import(runnerRuntimePath) as typeof import("acpx/runtime");
 const runtimes = [
   { version: "0.12.0", api: { createAcpRuntime, createAgentRegistry, createRuntimeStore } },
@@ -19,7 +19,7 @@ afterEach(async () => {
 });
 
 async function workspace() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-acp-filesystem-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-acp-filesystem-"));
   roots.push(root);
   const cwd = path.join(root, "workspace");
   await fs.mkdir(cwd);

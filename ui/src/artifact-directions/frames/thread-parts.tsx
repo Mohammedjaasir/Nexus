@@ -21,11 +21,11 @@ export function AgentIdentity({ name }: { name: string }) {
   );
 }
 
-/** TaskChatBubble.tsx:217-263 body + MarkdownBody.tsx:956 root, so index.css's `.paperclip-markdown` rules apply. */
+/** TaskChatBubble.tsx:217-263 body + MarkdownBody.tsx:956 root, so index.css's `.nexus-markdown` rules apply. */
 export function Prose({ children }: { children: ReactNode }) {
   return (
     <div className="break-words py-2 text-sm w-full bg-transparent px-1 text-foreground">
-      <div className="paperclip-markdown prose prose-sm min-w-0 max-w-full break-words overflow-hidden">{children}</div>
+      <div className="nexus-markdown prose prose-sm min-w-0 max-w-full break-words overflow-hidden">{children}</div>
     </div>
   );
 }
@@ -38,17 +38,17 @@ export function ProseLink({ to, children }: { to: string; children: ReactNode })
 /** MarkdownBody.tsx:141-146. */
 export function TaskRef({ identifier, status }: { identifier: string; status: string }) {
   return (
-    <a href={`#${identifier}`} className="paperclip-markdown-issue-ref font-normal underline">
+    <a href={`#${identifier}`} className="nexus-markdown-issue-ref font-normal underline">
       <StatusIcon status={status} size="md" className="relative -top-px mr-1 inline-block h-4 w-4 align-middle" />
       {identifier}
     </a>
   );
 }
 
-/** index.css:2329-2351 (`a.paperclip-mention-chip`). */
+/** index.css:2329-2351 (`a.nexus-mention-chip`). */
 export function Mention({ name }: { name: string }) {
   return (
-    <a href={`#agent-${name}`} className="paperclip-mention-chip">
+    <a href={`#agent-${name}`} className="nexus-mention-chip">
       <AtSign className="h-3 w-3" aria-hidden />
       {name}
     </a>
@@ -93,7 +93,7 @@ export function WorkedRow() {
 export function ComposerShell() {
   return (
     <div className="mx-auto mt-6 flex w-full max-w-(--tc-shell-max-w) flex-col gap-2 px-1 pb-1 md:px-0 md:pb-0">
-      <div className="paperclip-task-chat-composer rounded-(--radius-task-composer) border border-border bg-card p-(--sz-18px) shadow-(--shadow-task-composer) dark:border-0 dark:bg-muted dark:shadow-none">
+      <div className="nexus-task-chat-composer rounded-(--radius-task-composer) border border-border bg-card p-(--sz-18px) shadow-(--shadow-task-composer) dark:border-0 dark:bg-muted dark:shadow-none">
         <div className="min-h-(--sz-48px) px-1 py-1 text-sm text-muted-foreground">
           Message {DESIGNER} — describe what you want done…
         </div>

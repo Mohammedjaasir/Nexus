@@ -1,4 +1,4 @@
-import { applyPendingMigrations } from "@paperclipai/db";
+import { applyPendingMigrations } from "@nexusai/db";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -8,13 +8,13 @@ import { projectRoutes } from "../routes/projects.js";
 import { agentRoutes } from "../routes/agents.js";
 import { companySkillRoutes } from "../routes/company-skills.js";
 import { MAX_ATTACHMENT_BYTES } from "../attachment-types.js";
-import { mcpAttachmentUploads, mcpFileTickets, principalPermissionGrants, heartbeatRuns, issueAccessGrants } from "@paperclipai/db";
+import { mcpAttachmentUploads, mcpFileTickets, principalPermissionGrants, heartbeatRuns, issueAccessGrants } from "@nexusai/db";
 import { createHmac, createHash, randomBytes, randomUUID } from "node:crypto";
 import express, { type Request } from "express";
 import request from "supertest";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { activityLog, mcpEventAdmissions, mcpEventDeliveries, mcpEventSubscriptions, createDb, authUsers, companies, companyLogos, assets, companyMemberships, mcpOauthTokens, mcpOauthRequests, mcpOauthGrants, mcpOauthClients, mcpOauthDeviceRequests, mcpOauthMetadataAdmissions, mcpMutationReceipts, agents, issues, issueComments, instanceUserRoles } from "@paperclipai/db";
+import { activityLog, mcpEventAdmissions, mcpEventDeliveries, mcpEventSubscriptions, createDb, authUsers, companies, companyLogos, assets, companyMemberships, mcpOauthTokens, mcpOauthRequests, mcpOauthGrants, mcpOauthClients, mcpOauthDeviceRequests, mcpOauthMetadataAdmissions, mcpMutationReceipts, agents, issues, issueComments, instanceUserRoles } from "@nexusai/db";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import { createPublicMcpOAuth, publicMcpConfig, hashMcpSecret, DEVICE_GRANT, McpOAuthError } from "../services/public-mcp/oauth.js";
 import { McpApiError, createMcpApiDispatch, createPublicMcpExecutor, publicMcpCapabilities } from "../services/public-mcp/capabilities.js";
@@ -34,14 +34,14 @@ import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } fro
 
 import { createPublicMcpEvents, publicMcpEventDefinitions } from "../services/public-mcp/events.js";
 import { createDotRunnerMcpBridge } from "../services/public-mcp/dot-runner.js";
-import { DotHarnessDriver } from "../../../packages/paperclip-runner/src/drivers/dot/dot-harness-driver.js";
-import { HarnessDriverBackend } from "../../../packages/paperclip-runner/src/backends/harness-driver-backend.js";
+import { DotHarnessDriver } from "../../../packages/nexus-runner/src/drivers/dot/dot-harness-driver.js";
+import { HarnessDriverBackend } from "../../../packages/nexus-runner/src/backends/harness-driver-backend.js";
 import { eventFetch, signingKey, type EventFetch } from "../services/public-mcp/event-webhooks.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_PUBLIC_MCP_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_PUBLIC_MCP_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 if (!support.supported) console.warn(`Public MCP database checks unavailable: ${support.reason}`);
-const config = { origin: "https://paperclip.example", resource: "https://paperclip.example/mcp/paperclip" };
+const config = { origin: "https://nexus.example", resource: "https://nexus.example/mcp/nexus" };
 const redirectUri = "https://client.example/callback";
 const verifier = randomBytes(32).toString("base64url");
 const challenge = createHash("sha256").update(verifier).digest("base64url");
@@ -49,10 +49,10 @@ const challenge = createHash("sha256").update(verifier).digest("base64url");
 describe("public MCP configuration", () => {
   it("uses the configured origin independently of the retired environment gate", () => {
     expect(publicMcpConfig({})).toBeNull();
-    expect(() => publicMcpConfig({ PAPERCLIP_PUBLIC_URL: "http://example.com" })).toThrow();
-    expect(publicMcpConfig({ PAPERCLIP_PUBLIC_URL: "http://localhost:3100" })?.resource).toBe("http://localhost:3100/mcp/paperclip");
-    expect(publicMcpConfig({}, "https://paperclip.example")?.origin).toBe("https://paperclip.example");
-    expect(publicMcpConfig({ PAPERCLIP_PUBLIC_MCP_ENABLED: "true" })).toBeNull();
+    expect(() => publicMcpConfig({ NEXUS_PUBLIC_URL: "http://example.com" })).toThrow();
+    expect(publicMcpConfig({ NEXUS_PUBLIC_URL: "http://localhost:3100" })?.resource).toBe("http://localhost:3100/mcp/nexus");
+    expect(publicMcpConfig({}, "https://nexus.example")?.origin).toBe("https://nexus.example");
+    expect(publicMcpConfig({ NEXUS_PUBLIC_MCP_ENABLED: "true" })).toBeNull();
     expect(publicMcpCapabilities.map((c) => c.name)).not.toEqual(expect.arrayContaining(["run_tool", "call_api"]));
   });
 });
@@ -62,9 +62,9 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
   let db: ReturnType<typeof createDb>;
   let oauth: ReturnType<typeof createPublicMcpOAuth>;
   beforeAll(async () => {
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
     if (externalUrl) await applyPendingMigrations(externalUrl);
-    else temp = await startEmbeddedPostgresTestDatabase("paperclip-public-mcp-");
+    else temp = await startEmbeddedPostgresTestDatabase("nexus-public-mcp-");
     db = createDb(externalUrl ?? temp.connectionString);
     oauth = createPublicMcpOAuth(db, config);
     expect(await oauth.isEnabled()).toBe(false);
@@ -76,21 +76,21 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     let standby = true;
     const app = express();
     const ui = express.Router();
-    ui.get(/.*/, (_req, res) => res.type("html").send("Paperclip UI"));
+    ui.get(/.*/, (_req, res) => res.type("html").send("Nexus UI"));
     app.use(cloudWarmStandbyMiddleware(() => standby, express.Router(), ui));
     app.use(publicMcpIngressRoutes(oauth, vi.fn()));
     const select = vi.spyOn(db, "select");
     try {
       for (const path of [
-        "/mcp/setup", "/mcp/setup.md", "/mcp/paperclip", "/mcp/oauth/authorize",
-        "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp/paperclip",
+        "/mcp/setup", "/mcp/setup.md", "/mcp/nexus", "/mcp/oauth/authorize",
+        "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp/nexus",
         "/.well-known/oauth-authorization-server",
       ]) {
         for (const method of ["get", "head"] as const) {
           expect((await request(app)[method](path).set("authorization", "Bearer unclaimed")).status).toBe(503);
         }
       }
-      for (const path of ["/mcp/paperclip", "/mcp/oauth/register", "/mcp/oauth/device_authorization", "/mcp/oauth/token", "/mcp/oauth/revoke"]) {
+      for (const path of ["/mcp/nexus", "/mcp/oauth/register", "/mcp/oauth/device_authorization", "/mcp/oauth/token", "/mcp/oauth/revoke"]) {
         const response = await request(app).post(path).send({});
         expect(response.status).toBe(503);
         expect(response.body).toEqual({ error: "workspace_unclaimed" });
@@ -100,12 +100,12 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
       expect((await request(app).get("/mcp-device")).status).toBe(200);
       expect(select).not.toHaveBeenCalled();
       standby = false;
-      const metadata = await request(app).get("/.well-known/oauth-protected-resource/mcp/paperclip");
+      const metadata = await request(app).get("/.well-known/oauth-protected-resource/mcp/nexus");
       expect(metadata.status).toBe(200);
       expect(metadata.body.resource).toBe(config.resource);
       expect(select).toHaveBeenCalled();
       expect((await request(app).get("/mcp/setup.md")).status).toBe(200);
-      expect((await request(app).post("/mcp/paperclip")).status).toBe(401);
+      expect((await request(app).post("/mcp/nexus")).status).toBe(401);
     } finally {
       select.mockRestore();
     }
@@ -118,7 +118,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const [membership] = await db.insert(companyMemberships).values({ companyId: company!.id, principalType: "user", principalId: userId, membershipRole: role, status: "active" }).returning();
     const actor: Request["actor"] = { type: "board", source: "session", userId };
     const client = await oauth.register({ client_name: "Test client", redirect_uris: [redirectUri] }, randomUUID());
-    const url = await oauth.authorize({ client_id: client.client_id, redirect_uri: redirectUri, resource: config.resource, scope: "paperclip:read paperclip:write paperclip:configure offline_access", state: "state", response_type: "code", code_challenge: challenge, code_challenge_method: "S256" });
+    const url = await oauth.authorize({ client_id: client.client_id, redirect_uri: redirectUri, resource: config.resource, scope: "nexus:read nexus:write nexus:configure offline_access", state: "state", response_type: "code", code_challenge: challenge, code_challenge_method: "S256" });
     const id = url.split("/").at(-1)!;
     const consent = await oauth.consent(id, actor, { decision: "approve", companyId: company!.id, allowWrites: write, allowConfiguration: configure });
     const code = new URL(consent.redirectUrl).searchParams.get("code")!;
@@ -143,7 +143,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
   async function deviceFixture() {
     const f = await fixture();
     const client = await oauth.register({ client_name: "Device client", redirect_uris: [], grant_types: [DEVICE_GRANT, "refresh_token"], response_types: [] }, randomUUID());
-    const codes = await oauth.deviceAuthorize({ client_id: client.client_id, resource: config.resource, scope: "paperclip:read paperclip:write offline_access", company_id: f.company.id }, randomUUID());
+    const codes = await oauth.deviceAuthorize({ client_id: client.client_id, resource: config.resource, scope: "nexus:read nexus:write offline_access", company_id: f.company.id }, randomUUID());
     const exchange = { grant_type: DEVICE_GRANT, client_id: client.client_id, resource: config.resource, device_code: codes.device_code };
     return { ...f, deviceClient: client, codes, deviceExchange: exchange };
   }
@@ -233,7 +233,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     it("rejects wrong resources, scopes and disabled connections before fetching", async () => {
       const fetcher = vi.fn(async (url: URL) => metadata(url));
       const client = createPublicMcpOAuth(db, config, { metadataFetch: fetcher });
-      for (const override of [{ resource: "https://wrong.example/mcp" }, { scope: "paperclip:read invalid" }]) {
+      for (const override of [{ resource: "https://wrong.example/mcp" }, { scope: "nexus:read invalid" }]) {
         await expect(client.authorize({ ...input(0), ...override })).rejects.toThrow();
         await expect(client.deviceAuthorize({ ...input(0), ...override })).rejects.toThrow();
       }
@@ -330,7 +330,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const client = await oauth.register({ client_name: "Client", redirect_uris: [redirectUri] });
     const input = { client_id: client.client_id, redirect_uri: redirectUri, response_type: "code", resource: config.resource, code_challenge: challenge, code_challenge_method: "S256" };
     await expect(oauth.authorize({ ...input, redirect_uri: "https://evil.example" })).rejects.toThrow();
-    await expect(oauth.authorize({ ...input, resource: "https://other.example/mcp/paperclip" })).rejects.toThrow();
+    await expect(oauth.authorize({ ...input, resource: "https://other.example/mcp/nexus" })).rejects.toThrow();
     await expect(oauth.authorize({ ...input, code_challenge_method: "plain" })).rejects.toThrow();
     const id = (await oauth.authorize(input)).split("/").at(-1)!;
     await expect(oauth.consent(id, { type: "board", source: "local_implicit", userId: "board" }, { decision: "approve", companyId: randomUUID(), allowWrites: true })).rejects.toThrow();
@@ -373,7 +373,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const [other] = await db.insert(companies).values({ name: "Other organization", issuePrefix: "M" + randomBytes(4).toString("hex") }).returning();
     await db.insert(companyMemberships).values({ companyId: other!.id, principalType: "user", principalId: f.actor.userId!, membershipRole: "member", status: "active" });
     const input = { client_id: f.client.client_id, redirect_uri: redirectUri, resource: config.resource, response_type: "code",
-      code_challenge: challenge, code_challenge_method: "S256", scope: "paperclip:read paperclip:write", company_id: f.company.id };
+      code_challenge: challenge, code_challenge_method: "S256", scope: "nexus:read nexus:write", company_id: f.company.id };
     const id = (await oauth.authorize(input)).split("/").at(-1)!;
     // The binding survives a new service instance, and the description reveals only this membership.
     const resumed = createPublicMcpOAuth(db, config);
@@ -432,13 +432,13 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     try {
       await settings.updateExperimental({ enablePublicMcp: false });
       expect(await createPublicMcpOAuth(db, config).isEnabled()).toBe(false);
-      for (const path of ["/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource/mcp/paperclip"]) {
+      for (const path of ["/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource/mcp/nexus"]) {
         expect((await request(app).get(path)).status).toBe(503);
       }
-      expect((await request(app).post("/mcp/paperclip").set("Authorization", `Bearer ${f.tokens.access_token}`).send({})).status).toBe(503);
+      expect((await request(app).post("/mcp/nexus").set("Authorization", `Bearer ${f.tokens.access_token}`).send({})).status).toBe(503);
       await expect(oauth.register({ client_name: "disabled", redirect_uris: [redirectUri] })).rejects.toMatchObject({ status: 503 });
       await expect(oauth.token({ grant_type: "refresh_token", client_id: f.client.client_id, resource: config.resource, refresh_token: f.tokens.refresh_token })).rejects.toMatchObject({ status: 503 });
-      await expect(execute(f.tokens.access_token, "paperclip_list_agents", { companyId: f.company.id })).rejects.toMatchObject({ status: 503 });
+      await expect(execute(f.tokens.access_token, "nexus_list_agents", { companyId: f.company.id })).rejects.toMatchObject({ status: 503 });
       expect(dispatch).not.toHaveBeenCalled();
       const setup = await request(app).get("/api/mcp/setup").set("X-Forwarded-Host", "attacker.example");
       expect(setup.status).toBe(200);
@@ -508,12 +508,12 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const f = await fixture("member", false);
     const dispatch = vi.fn();
     const execute = createPublicMcpExecutor(db, oauth, dispatch);
-    await expect(execute(f.tokens.access_token, "paperclip_list_agents", { companyId: randomUUID() })).rejects.toThrow();
+    await expect(execute(f.tokens.access_token, "nexus_list_agents", { companyId: randomUUID() })).rejects.toThrow();
     const args = { companyId: f.company.id, requestId: randomUUID(), taskId: randomUUID(), body: "feedback" };
-    await expect(execute(f.tokens.access_token, "paperclip_add_comment", args)).rejects.toThrow();
+    await expect(execute(f.tokens.access_token, "nexus_add_comment", args)).rejects.toThrow();
     const g = await fixture();
     await db.update(companyMemberships).set({ membershipRole: "viewer" }).where(eq(companyMemberships.id, g.membership.id));
-    await expect(execute(g.tokens.access_token, "paperclip_add_comment", { ...args, companyId: g.company.id })).rejects.toThrow();
+    await expect(execute(g.tokens.access_token, "nexus_add_comment", { ...args, companyId: g.company.id })).rejects.toThrow();
     expect(dispatch).not.toHaveBeenCalled();
   });
 
@@ -547,23 +547,23 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const dispatch = vi.fn().mockResolvedValue({ id: randomUUID(), title: "durable" });
     const execute = createPublicMcpExecutor(db, oauth, dispatch);
     const args = { companyId: f.company.id, requestId: randomUUID(), title: "durable", description: "A report", assigneeAgentId: randomUUID() };
-    const first = await execute(f.tokens.access_token, "paperclip_create_task", args);
-    expect(await execute(f.tokens.access_token, "paperclip_create_task", args)).toEqual(first);
+    const first = await execute(f.tokens.access_token, "nexus_create_task", args);
+    expect(await execute(f.tokens.access_token, "nexus_create_task", args)).toEqual(first);
     const reconnectedClient = await oauth.register({ client_name: "Reconnected assistant", redirect_uris: [redirectUri] });
-    const reconnectId = (await oauth.authorize({ client_id: reconnectedClient.client_id, redirect_uri: redirectUri, resource: config.resource, scope: "paperclip:read paperclip:write", response_type: "code", code_challenge: challenge, code_challenge_method: "S256" })).split("/").at(-1)!;
+    const reconnectId = (await oauth.authorize({ client_id: reconnectedClient.client_id, redirect_uri: redirectUri, resource: config.resource, scope: "nexus:read nexus:write", response_type: "code", code_challenge: challenge, code_challenge_method: "S256" })).split("/").at(-1)!;
     const reconnectConsent = await oauth.consent(reconnectId, f.actor, { decision: "approve", companyId: f.company.id, allowWrites: true });
     const reconnected = await oauth.token({ grant_type: "authorization_code", client_id: reconnectedClient.client_id, resource: config.resource, redirect_uri: redirectUri, code: new URL(reconnectConsent.redirectUrl).searchParams.get("code"), code_verifier: verifier });
-    expect(await execute(reconnected.access_token, "paperclip_create_task", args)).toEqual(first);
+    expect(await execute(reconnected.access_token, "nexus_create_task", args)).toEqual(first);
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch.mock.calls[0]?.[3]).toMatchObject({ status: "todo", title: "durable" });
-    await expect(execute(f.tokens.access_token, "paperclip_create_task", { ...args, title: "changed" })).rejects.toThrow("different arguments");
+    await expect(execute(f.tokens.access_token, "nexus_create_task", { ...args, title: "changed" })).rejects.toThrow("different arguments");
     dispatch.mockRejectedValueOnce(new Error("lost response"));
     const uncertain = { ...args, requestId: randomUUID() };
-    expect(await execute(f.tokens.access_token, "paperclip_create_task", uncertain)).toHaveProperty("outcome", "unknown");
-    expect(await execute(f.tokens.access_token, "paperclip_create_task", uncertain)).toHaveProperty("outcome", "unknown");
+    expect(await execute(f.tokens.access_token, "nexus_create_task", uncertain)).toHaveProperty("outcome", "unknown");
+    expect(await execute(f.tokens.access_token, "nexus_create_task", uncertain)).toHaveProperty("outcome", "unknown");
     expect(dispatch).toHaveBeenCalledTimes(2);
     const concurrent = { ...args, requestId: randomUUID() };
-    await Promise.all([execute(f.tokens.access_token, "paperclip_create_task", concurrent), execute(f.tokens.access_token, "paperclip_create_task", concurrent)]);
+    await Promise.all([execute(f.tokens.access_token, "nexus_create_task", concurrent), execute(f.tokens.access_token, "nexus_create_task", concurrent)]);
     expect(dispatch).toHaveBeenCalledTimes(3);
     expect(await db.select().from(mcpMutationReceipts).where(eq(mcpMutationReceipts.requestId, concurrent.requestId))).toHaveLength(1);
   });
@@ -583,40 +583,40 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     try {
       const [agent] = await db.insert(agents).values({ companyId: f.company.id, name: "Researcher", role: "researcher", adapterType: "process", status: "idle" }).returning();
       const api = express.Router(); api.use(boardMutationGuard());
-      api.use(issueRoutes(db, createStorageService(createLocalDiskStorageProvider("/tmp/paperclip-public-mcp-unused-storage"))));
+      api.use(issueRoutes(db, createStorageService(createLocalDiskStorageProvider("/tmp/nexus-public-mcp-unused-storage"))));
       api.use(activityRoutes(db));
       const execute = createPublicMcpExecutor(db, oauth, createMcpApiDispatch(api));
       const args = { companyId: f.company.id, requestId: randomUUID(), title: "Write a durable report", description: "Research the supplied material", assigneeAgentId: agent!.id };
-      const result = await execute(f.tokens.access_token, "paperclip_create_task", args);
+      const result = await execute(f.tokens.access_token, "nexus_create_task", args);
       expect(result).toHaveProperty("task");
       const task = result.task as { id: string; status: string };
       expect(task.status).toBe("todo");
-      expect(await execute(f.tokens.access_token, "paperclip_create_task", args)).toEqual(result);
+      expect(await execute(f.tokens.access_token, "nexus_create_task", args)).toEqual(result);
       expect(await db.select().from(issues).where(eq(issues.companyId, f.company.id))).toHaveLength(1);
       expect(wake).toHaveBeenCalledTimes(1);
       expect(wake.mock.calls[0]?.[0]).toMatchObject({ requestedByActorType: "user", requestedByActorId: f.actor.userId });
       // Avoid starting execution when adding feedback; the existing route accepts a completed task without reopening it.
       await db.update(issues).set({ status: "done", assigneeAgentId: null }).where(eq(issues.id, task.id));
       const commentArgs = { companyId: f.company.id, taskId: task.id, requestId: randomUUID(), body: "Please include the source citations." };
-      const feedback = await execute(f.tokens.access_token, "paperclip_add_comment", commentArgs);
+      const feedback = await execute(f.tokens.access_token, "nexus_add_comment", commentArgs);
       expect(feedback).toHaveProperty("comment.authorUserId", f.actor.userId);
-      expect(await execute(f.tokens.access_token, "paperclip_add_comment", commentArgs)).toEqual(feedback);
+      expect(await execute(f.tokens.access_token, "nexus_add_comment", commentArgs)).toEqual(feedback);
       expect(await db.select().from(issueComments).where(eq(issueComments.issueId, task.id))).toHaveLength(1);
       await documentService(db).upsertIssueDocument({ issueId: task.id, key: "report", title: "Research report", format: "markdown", body: "A concrete durable result.", createdByUserId: f.actor.userId });
       // A fresh executor represents another assistant conversation; no mutable company/session state is shared.
       const later = createPublicMcpExecutor(db, oauth, createMcpApiDispatch(api));
-      expect(await later(f.tokens.access_token, "paperclip_read_document", { companyId: f.company.id, taskId: task.id, key: "report" })).toHaveProperty("document.body", "A concrete durable result.");
+      expect(await later(f.tokens.access_token, "nexus_read_document", { companyId: f.company.id, taskId: task.id, key: "report" })).toHaveProperty("document.body", "A concrete durable result.");
       const g = await fixture();
-      await expect(later(g.tokens.access_token, "paperclip_read_document", { companyId: g.company.id, taskId: task.id, key: "report" })).rejects.toThrow();
+      await expect(later(g.tokens.access_token, "nexus_read_document", { companyId: g.company.id, taskId: task.id, key: "report" })).rejects.toThrow();
       const unavailable = { ...args, requestId: randomUUID(), assigneeAgentId: randomUUID() };
-      const rejected = await execute(f.tokens.access_token, "paperclip_create_task", unavailable);
+      const rejected = await execute(f.tokens.access_token, "nexus_create_task", unavailable);
       expect(rejected).toHaveProperty("outcome", "rejected");
-      expect(await execute(f.tokens.access_token, "paperclip_create_task", unavailable)).toEqual(rejected);
+      expect(await execute(f.tokens.access_token, "nexus_create_task", unavailable)).toEqual(rejected);
       expect(wake).toHaveBeenCalledTimes(1);
       // Human assignment to a paused agent is deliberate and allowed by existing routes.
       // Creating its queued task must neither unpause the agent nor claim execution started.
       await db.update(agents).set({ status: "paused" }).where(eq(agents.id, agent!.id));
-      const paused = await execute(f.tokens.access_token, "paperclip_create_task", { ...args, requestId: randomUUID(), title: "Wait for the paused researcher" });
+      const paused = await execute(f.tokens.access_token, "nexus_create_task", { ...args, requestId: randomUUID(), title: "Wait for the paused researcher" });
       expect(paused).toHaveProperty("task.status", "todo");
       expect(paused.scheduling).toContain("does not guarantee execution has started");
       expect((await db.select().from(agents).where(eq(agents.id, agent!.id)))[0]?.status).toBe("paused");
@@ -629,13 +629,13 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const dispatch = vi.fn().mockResolvedValue({ id: randomUUID(), name: "Updated" });
     const execute = createPublicMcpExecutor(db, oauth, dispatch);
     const args = { companyId: old.company.id, agentId: randomUUID(), requestId: randomUUID(), changes: { title: "Writer" } };
-    await expect(execute(old.tokens.access_token, "paperclip_update_agent", args)).rejects.toThrow("paperclip:configure");
+    await expect(execute(old.tokens.access_token, "nexus_update_agent", args)).rejects.toThrow("nexus:configure");
     expect(dispatch).not.toHaveBeenCalled();
-    await execute(f.tokens.access_token, "paperclip_update_agent", { ...args, companyId: f.company.id });
+    await execute(f.tokens.access_token, "nexus_update_agent", { ...args, companyId: f.company.id });
     expect(dispatch).toHaveBeenCalledTimes(1);
-    expect((await oauth.authenticate(f.tokens.access_token)).grant.scopes).toContain("paperclip:configure");
+    expect((await oauth.authenticate(f.tokens.access_token)).grant.scopes).toContain("nexus:configure");
     await db.update(companyMemberships).set({ membershipRole: "viewer" }).where(eq(companyMemberships.id, f.membership.id));
-    await expect(execute(f.tokens.access_token, "paperclip_update_agent", { ...args, companyId: f.company.id, requestId: randomUUID() })).rejects.toThrow("permission");
+    await expect(execute(f.tokens.access_token, "nexus_update_agent", { ...args, companyId: f.company.id, requestId: randomUUID() })).rejects.toThrow("permission");
     const refreshed = await oauth.token({ grant_type: "refresh_token", client_id: old.client.client_id, resource: config.resource, refresh_token: old.tokens.refresh_token });
     expect(refreshed.scope).not.toContain("configure");
   });
@@ -645,16 +645,16 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const dispatch = vi.fn().mockResolvedValue({ id: randomUUID(), title: "New title" });
     const execute = createPublicMcpExecutor(db, oauth, dispatch);
     const args = { companyId: f.company.id, taskId: randomUUID(), requestId: randomUUID(), changes: { title: "New title" } };
-    const first = await execute(f.tokens.access_token, "paperclip_update_task", args);
-    expect(await execute(f.tokens.access_token, "paperclip_call_api", { companyId: f.company.id, operationId: "paperclip_update_task", arguments: args })).toEqual(first);
+    const first = await execute(f.tokens.access_token, "nexus_update_task", args);
+    expect(await execute(f.tokens.access_token, "nexus_call_api", { companyId: f.company.id, operationId: "nexus_update_task", arguments: args })).toEqual(first);
     expect(dispatch).toHaveBeenCalledTimes(1);
     for (const field of ["onBehalfOfUserId", "reviewPolicy", "executionPolicy", "interrupt", "reviewInteractionId", "permissions"]) {
-      await expect(execute(f.tokens.access_token, "paperclip_update_task", { ...args, changes: { [field]: "unauthorized" } })).rejects.toThrow();
+      await expect(execute(f.tokens.access_token, "nexus_update_task", { ...args, changes: { [field]: "unauthorized" } })).rejects.toThrow();
     }
-    for (const operationId of ["DELETE /companies/:id", "paperclip_call_api", "approve_approval", "https://evil.example"]) {
-      await expect(execute(f.tokens.access_token, "paperclip_call_api", { companyId: f.company.id, operationId, arguments: args })).rejects.toThrow();
+    for (const operationId of ["DELETE /companies/:id", "nexus_call_api", "approve_approval", "https://evil.example"]) {
+      await expect(execute(f.tokens.access_token, "nexus_call_api", { companyId: f.company.id, operationId, arguments: args })).rejects.toThrow();
     }
-    await expect(execute(f.tokens.access_token, "paperclip_call_api", { companyId: f.company.id, operationId: "paperclip_update_task", arguments: { ...args, companyId: randomUUID() } })).rejects.toThrow("Company");
+    await expect(execute(f.tokens.access_token, "nexus_call_api", { companyId: f.company.id, operationId: "nexus_update_task", arguments: { ...args, companyId: randomUUID() } })).rejects.toThrow("Company");
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
@@ -685,12 +685,12 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const f = await expandedFixture();
     try {
       await makePrivate(f);
-      expect(await f.call("paperclip_search_tasks")).toMatchObject({ tasks: [] });
-      for (const name of ["paperclip_read_task", "paperclip_list_deliverables", "paperclip_list_document_revisions"]) {
-        await expect(f.call(name, { taskId: f.issue.id, ...(name === "paperclip_list_document_revisions" ? { key: "plan" } : {}) })).rejects.toMatchObject({ status: 404 });
+      expect(await f.call("nexus_search_tasks")).toMatchObject({ tasks: [] });
+      for (const name of ["nexus_read_task", "nexus_list_deliverables", "nexus_list_document_revisions"]) {
+        await expect(f.call(name, { taskId: f.issue.id, ...(name === "nexus_list_document_revisions" ? { key: "plan" } : {}) })).rejects.toMatchObject({ status: 404 });
       }
-      expect(await f.call("paperclip_update_task", { taskId: f.issue.id, requestId: randomUUID(), changes: { title: "Unauthorized edit" } })).toMatchObject({ outcome: "rejected", status: 404 });
-      await expect(f.call("paperclip_get_upload_url", { taskId: f.issue.id, requestId: randomUUID(), filename: "data.txt", contentType: "text/plain", byteSize: 2, sha256: createHash("sha256").update("hi").digest("hex") })).rejects.toThrow();
+      expect(await f.call("nexus_update_task", { taskId: f.issue.id, requestId: randomUUID(), changes: { title: "Unauthorized edit" } })).toMatchObject({ outcome: "rejected", status: 404 });
+      await expect(f.call("nexus_get_upload_url", { taskId: f.issue.id, requestId: randomUUID(), filename: "data.txt", contentType: "text/plain", byteSize: 2, sha256: createHash("sha256").update("hi").digest("hex") })).rejects.toThrow();
       expect((await db.select().from(issues).where(eq(issues.id, f.issue.id)))[0]?.title).toBe("Work");
       expect(await db.select().from(mcpAttachmentUploads).where(eq(mcpAttachmentUploads.taskId, f.issue.id))).toHaveLength(0);
     } finally { await f.cleanup(); }
@@ -704,29 +704,29 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
       const bytes = Buffer.from("Private attachment");
       const args = { taskId: f.issue.id, filename: "private.txt", contentType: "text/plain", byteSize: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
       const app = express(); app.use(f.transfers.router);
-      const uploadedUrl = new URL((await f.call("paperclip_get_upload_url", { ...args, requestId: randomUUID() })).url as string);
+      const uploadedUrl = new URL((await f.call("nexus_get_upload_url", { ...args, requestId: randomUUID() })).url as string);
       const uploaded = await request(app).put(uploadedUrl.pathname + uploadedUrl.search).set("Content-Type", args.contentType).send(bytes);
       expect(uploaded.status).toBe(200);
-      const download = new URL((await f.call("paperclip_get_download_url", { attachmentId: uploaded.body.attachment.id })).url as string);
-      const pending = await f.call("paperclip_get_upload_url", { ...args, requestId: randomUUID() });
+      const download = new URL((await f.call("nexus_get_download_url", { attachmentId: uploaded.body.attachment.id })).url as string);
+      const pending = await f.call("nexus_get_upload_url", { ...args, requestId: randomUUID() });
       const pendingUrl = new URL(pending.url as string);
       expect((await request(app).get(download.pathname + download.search)).status).toBe(200);
       await db.update(issueAccessGrants).set({ revokedAt: new Date() }).where(eq(issueAccessGrants.id, grant!.id));
       expect((await request(app).get(download.pathname + download.search)).status).not.toBe(200);
       expect((await request(app).put(pendingUrl.pathname + pendingUrl.search).set("Content-Type", args.contentType).send(bytes)).status).toBe(403);
       expect((await db.select().from(mcpAttachmentUploads).where(eq(mcpAttachmentUploads.id, pending.uploadId as string)))[0]?.attachmentId).toBeNull();
-      await expect(f.call("paperclip_get_download_url", { attachmentId: uploaded.body.attachment.id })).rejects.toThrow();
+      await expect(f.call("nexus_get_download_url", { attachmentId: uploaded.body.attachment.id })).rejects.toThrow();
     } finally { await f.cleanup(); }
   });
 
   it("edits, blocks and completes tasks through real routes and rejects review overrides", async () => {
     const f = await expandedFixture();
     try {
-      expect(await f.call("paperclip_update_task", { taskId: f.issue.id, requestId: randomUUID(), changes: { title: "Edited", description: "Durable detail" } })).toHaveProperty("task.title", "Edited");
-      expect(await f.call("paperclip_block_task", { taskId: f.issue.id, requestId: randomUUID(), unblockDescriptor: { owner: "board", action: "Supply the source file" } })).toHaveProperty("task.status", "blocked");
-      expect(await f.call("paperclip_finish_task", { taskId: f.issue.id, requestId: randomUUID() })).toHaveProperty("task.status", "done");
+      expect(await f.call("nexus_update_task", { taskId: f.issue.id, requestId: randomUUID(), changes: { title: "Edited", description: "Durable detail" } })).toHaveProperty("task.title", "Edited");
+      expect(await f.call("nexus_block_task", { taskId: f.issue.id, requestId: randomUUID(), unblockDescriptor: { owner: "board", action: "Supply the source file" } })).toHaveProperty("task.status", "blocked");
+      expect(await f.call("nexus_finish_task", { taskId: f.issue.id, requestId: randomUUID() })).toHaveProperty("task.status", "done");
       await db.update(issues).set({ status: "in_review" }).where(eq(issues.id, f.issue.id));
-      const denied = await f.call("paperclip_finish_task", { taskId: f.issue.id, requestId: randomUUID() });
+      const denied = await f.call("nexus_finish_task", { taskId: f.issue.id, requestId: randomUUID() });
       expect(denied).toMatchObject({ outcome: "rejected", status: 403, code: "MCP_REVIEW_REQUIRED" });
       expect((await db.select().from(issues).where(eq(issues.id, f.issue.id)))[0]?.status).toBe("in_review");
       const logs = await db.select().from(activityLog).where(eq(activityLog.entityId, f.issue.id));
@@ -741,15 +741,15 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
       const [run] = await db.insert(heartbeatRuns).values({ companyId: f.company.id, agentId: agent!.id, status, runtimeMode: "native", nativeIssueId: f.issue.id }).returning();
       await db.update(issues).set({ assigneeAgentId: agent!.id, executionRunId: run!.id, status: "in_progress" }).where(eq(issues.id, f.issue.id));
       for (const changes of [{ status: "done" }, { status: "blocked", unblockDescriptor: { owner: "board", action: "Supply data" } }, { assigneeAgentId: null }, { status: "cancelled" }]) {
-        expect(await f.call("paperclip_update_task", { taskId: f.issue.id, requestId: randomUUID(), changes })).toMatchObject({ outcome: "rejected", status: 409, code: "MCP_ACTIVE_EXECUTION" });
+        expect(await f.call("nexus_update_task", { taskId: f.issue.id, requestId: randomUUID(), changes })).toMatchObject({ outcome: "rejected", status: 409, code: "MCP_ACTIVE_EXECUTION" });
       }
       expect((await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, run!.id)))[0]?.status).toBe(status);
-      expect(await f.call("paperclip_update_task", { taskId: f.issue.id, requestId: randomUUID(), changes: { title: "Clarified title" } })).toHaveProperty("task.title", "Clarified title");
+      expect(await f.call("nexus_update_task", { taskId: f.issue.id, requestId: randomUUID(), changes: { title: "Clarified title" } })).toHaveProperty("task.title", "Clarified title");
       await db.update(heartbeatRuns).set({ status: "succeeded" }).where(eq(heartbeatRuns.id, run!.id));
       await db.update(issues).set({ assigneeAgentId: null, executionRunId: null, status: "backlog" }).where(eq(issues.id, f.issue.id));
       const [second] = await db.insert(issues).values({ companyId: f.company.id, title: "Dependent", status: "backlog" }).returning();
-      expect(await f.call("paperclip_update_task", { taskId: second!.id, requestId: randomUUID(), changes: { blockedByIssueIds: [f.issue.id] } })).toHaveProperty("task.id", second!.id);
-      const cycle = await f.call("paperclip_update_task", { taskId: f.issue.id, requestId: randomUUID(), changes: { blockedByIssueIds: [second!.id] } });
+      expect(await f.call("nexus_update_task", { taskId: second!.id, requestId: randomUUID(), changes: { blockedByIssueIds: [f.issue.id] } })).toHaveProperty("task.id", second!.id);
+      const cycle = await f.call("nexus_update_task", { taskId: f.issue.id, requestId: randomUUID(), changes: { blockedByIssueIds: [second!.id] } });
       expect(cycle).toMatchObject({ outcome: "rejected" });
       expect([400, 409, 422]).toContain(cycle.status);
     } finally { await f.cleanup(); }
@@ -758,23 +758,23 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
   it.each([
     ["codex_local", "gpt-5.4", "modelReasoningEffort"],
     ["claude_local", "claude-sonnet-4-6", "effort"],
-    ["paperclip_runner", "gpt-5.4", "modelReasoningEffort"],
+    ["nexus_runner", "gpt-5.4", "modelReasoningEffort"],
   ])("updates the effective %s reasoning setting and validates its model", async (adapterType, model, field) => {
     const f = await expandedFixture(true);
     try {
       const [agent] = await db.insert(agents).values({ companyId: f.company.id, name: "Reasoning", adapterType,
         adapterConfig: { model, [field]: "high", instructionsBundleMode: "managed" }, runtimeConfig: { heartbeat: { enabled: false } } }).returning();
-      const edited = await f.call("paperclip_update_agent", { agentId: agent!.id, requestId: randomUUID(), changes: { adapterConfig: { reasoningEffort: "low" } } });
+      const edited = await f.call("nexus_update_agent", { agentId: agent!.id, requestId: randomUUID(), changes: { adapterConfig: { reasoningEffort: "low" } } });
       expect(edited, JSON.stringify(edited)).toHaveProperty("agent.adapterConfig.reasoningEffort", "low");
       const stored = (await db.select().from(agents).where(eq(agents.id, agent!.id)))[0]!;
       expect(stored.adapterConfig[field]).toBe("low");
       expect(stored.adapterConfig.reasoningEffort).toBeUndefined();
-      expect(await f.call("paperclip_get_agent", { agentId: agent!.id })).toHaveProperty("agent.adapterConfig.reasoningEffort", "low");
+      expect(await f.call("nexus_get_agent", { agentId: agent!.id })).toHaveProperty("agent.adapterConfig.reasoningEffort", "low");
       for (const reasoningEffort of ["ultra"]) {
-        expect(await f.call("paperclip_update_agent", { agentId: agent!.id, requestId: randomUUID(), changes: { adapterConfig: { reasoningEffort } } })).toMatchObject({ outcome: "rejected" });
+        expect(await f.call("nexus_update_agent", { agentId: agent!.id, requestId: randomUUID(), changes: { adapterConfig: { reasoningEffort } } })).toMatchObject({ outcome: "rejected" });
       }
       if (adapterType === "claude_local") {
-        expect(await f.call("paperclip_update_agent", { agentId: agent!.id, requestId: randomUUID(), changes: { adapterConfig: { model: "claude-haiku-4-5" } } })).toMatchObject({ outcome: "rejected", status: 422 });
+        expect(await f.call("nexus_update_agent", { agentId: agent!.id, requestId: randomUUID(), changes: { adapterConfig: { model: "claude-haiku-4-5" } } })).toMatchObject({ outcome: "rejected", status: 422 });
       }
     } finally { await f.cleanup(); }
   });
@@ -783,35 +783,35 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const f = await expandedFixture();
     try {
       const a = { taskId: f.issue.id, requestId: randomUUID(), key: "report", document: { format: "markdown", body: "First revision", baseRevisionId: null } };
-      const first = await f.call("paperclip_write_document", a);
+      const first = await f.call("nexus_write_document", a);
       expect(first).toHaveProperty("document.body", "First revision");
       const revision = (first.document as { latestRevisionId: string }).latestRevisionId;
       expect(revision).toBeTruthy();
-      const second = await f.call("paperclip_write_document", { ...a, requestId: randomUUID(), document: { ...a.document, body: "Second revision", baseRevisionId: revision } });
+      const second = await f.call("nexus_write_document", { ...a, requestId: randomUUID(), document: { ...a.document, body: "Second revision", baseRevisionId: revision } });
       expect(second).toHaveProperty("document.body", "Second revision");
-      expect(await f.call("paperclip_write_document", { ...a, requestId: randomUUID() })).toMatchObject({ outcome: "rejected", status: 409 });
-      expect(await f.call("paperclip_read_document", { taskId: f.issue.id, key: "report" })).toHaveProperty("document.body", "Second revision");
-      expect(await f.call("paperclip_list_document_revisions", { taskId: f.issue.id, key: "report" })).toHaveProperty("revisions");
+      expect(await f.call("nexus_write_document", { ...a, requestId: randomUUID() })).toMatchObject({ outcome: "rejected", status: 409 });
+      expect(await f.call("nexus_read_document", { taskId: f.issue.id, key: "report" })).toHaveProperty("document.body", "Second revision");
+      expect(await f.call("nexus_list_document_revisions", { taskId: f.issue.id, key: "report" })).toHaveProperty("revisions");
     } finally { await f.cleanup(); }
   });
 
   it("creates and edits projects and agents while rejecting privileged configuration fields", async () => {
     const f = await expandedFixture(true);
     try {
-      const created = await f.call("paperclip_create_project", { requestId: randomUUID(), project: { name: "Research", description: "Project context" } });
+      const created = await f.call("nexus_create_project", { requestId: randomUUID(), project: { name: "Research", description: "Project context" } });
       expect(created).toHaveProperty("project.name", "Research");
       const id = (created.project as { id: string }).id;
-      expect(await f.call("paperclip_update_project", { projectId: id, requestId: randomUUID(), changes: { name: "Updated project" } })).toHaveProperty("project.name", "Updated project");
+      expect(await f.call("nexus_update_project", { projectId: id, requestId: randomUUID(), changes: { name: "Updated project" } })).toHaveProperty("project.name", "Updated project");
       const [agent] = await db.insert(agents).values({ companyId: f.company.id, name: "Writer", adapterType: "codex_local", adapterConfig: { instructionsBundleMode: "managed", model: "gpt-5.4-mini", env: { SAFE_EXISTING: "retain" } }, runtimeConfig: { heartbeat: { enabled: false } } }).returning();
-      const edited = await f.call("paperclip_update_agent", { agentId: agent!.id, requestId: randomUUID(), changes: { title: "Editor", budgetMonthlyCents: 1200, adapterConfig: { model: "gpt-5.4" } } });
+      const edited = await f.call("nexus_update_agent", { agentId: agent!.id, requestId: randomUUID(), changes: { title: "Editor", budgetMonthlyCents: 1200, adapterConfig: { model: "gpt-5.4" } } });
       expect(edited, JSON.stringify(edited)).toHaveProperty("agent.title", "Editor");
       const stored = (await db.select().from(agents).where(eq(agents.id, agent!.id)))[0]!;
       expect(stored.adapterConfig.env).toEqual({ SAFE_EXISTING: { type: "plain", value: "retain" } });
       expect(stored.budgetMonthlyCents).toBe(1200);
-      const read = await f.call("paperclip_get_agent", { agentId: agent!.id });
+      const read = await f.call("nexus_get_agent", { agentId: agent!.id });
       expect(JSON.stringify(read)).not.toContain("SAFE_EXISTING");
       for (const changes of [{ permissions: {} }, { adapterConfig: { command: "evil" } }, { runtimeConfig: { debug: { providerTrace: "raw" } } }]) {
-        await expect(f.call("paperclip_update_agent", { agentId: agent!.id, requestId: randomUUID(), changes })).rejects.toThrow();
+        await expect(f.call("nexus_update_agent", { agentId: agent!.id, requestId: randomUUID(), changes })).rejects.toThrow();
       }
     } finally { await f.cleanup(); }
   });
@@ -822,8 +822,8 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
       const [agent] = await db.insert(agents).values({ companyId: f.company.id, name: "Legacy writer", adapterType: "codex_local", adapterConfig: { instructionsBundleMode: "managed", promptTemplate: "Newer human instructions" } }).returning();
       for (const base of [{ baseHash: null }, { baseHash: "0".repeat(64) }, { baseRevisionId: randomUUID() }]) {
         const args = { companyId: f.company.id, agentId: agent!.id, requestId: randomUUID(), file: { path: "promptTemplate.legacy.md", content: "Stale assistant overwrite", ...base } };
-        expect(await f.call("paperclip_update_agent_instructions", args)).toMatchObject({ outcome: "rejected", status: 422, code: "MCP_LEGACY_INSTRUCTIONS_UNVERSIONED" });
-        expect(await f.call("paperclip_call_api", { operationId: "paperclip_update_agent_instructions", arguments: { ...args, requestId: randomUUID() } })).toMatchObject({ outcome: "rejected", status: 422, code: "MCP_LEGACY_INSTRUCTIONS_UNVERSIONED" });
+        expect(await f.call("nexus_update_agent_instructions", args)).toMatchObject({ outcome: "rejected", status: 422, code: "MCP_LEGACY_INSTRUCTIONS_UNVERSIONED" });
+        expect(await f.call("nexus_call_api", { operationId: "nexus_update_agent_instructions", arguments: { ...args, requestId: randomUUID() } })).toMatchObject({ outcome: "rejected", status: 422, code: "MCP_LEGACY_INSTRUCTIONS_UNVERSIONED" });
       }
       const stored = (await db.select().from(agents).where(eq(agents.id, agent!.id)))[0]!;
       expect(stored.adapterConfig.promptTemplate).toBe("Newer human instructions");
@@ -835,23 +835,23 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     try {
       const [agent] = await db.insert(agents).values({ companyId: f.company.id, name: "Writer", adapterType: "codex_local", adapterConfig: { instructionsBundleMode: "managed" } }).returning();
       const input = { agentId: agent!.id, requestId: randomUUID(), file: { path: "AGENTS.md", content: "First instructions", baseRevisionId: null } };
-      expect(await f.call("paperclip_update_agent_instructions", input)).toHaveProperty("instructions.content", "First instructions");
-      const current = await f.call("paperclip_read_agent_instructions", { agentId: agent!.id });
+      expect(await f.call("nexus_update_agent_instructions", input)).toHaveProperty("instructions.content", "First instructions");
+      const current = await f.call("nexus_read_agent_instructions", { agentId: agent!.id });
       const instructions = current.instructions as { revision: { id: string } };
       expect(instructions.revision.id).toBeTruthy();
-      expect(await f.call("paperclip_update_agent_instructions", { ...input, requestId: randomUUID(), file: { ...input.file, content: "New instructions", baseRevisionId: instructions.revision.id } })).toHaveProperty("instructions.content", "New instructions");
-      expect(await f.call("paperclip_update_agent_instructions", { ...input, requestId: randomUUID() })).toMatchObject({ outcome: "rejected", status: 409 });
-      expect(await f.call("paperclip_list_agent_instruction_revisions", { agentId: agent!.id })).toHaveProperty("revisions");
-      const created = await f.call("paperclip_create_skill", { requestId: randomUUID(), skill: { name: "Source review", markdown: "# Source review\nReview citations carefully." } });
+      expect(await f.call("nexus_update_agent_instructions", { ...input, requestId: randomUUID(), file: { ...input.file, content: "New instructions", baseRevisionId: instructions.revision.id } })).toHaveProperty("instructions.content", "New instructions");
+      expect(await f.call("nexus_update_agent_instructions", { ...input, requestId: randomUUID() })).toMatchObject({ outcome: "rejected", status: 409 });
+      expect(await f.call("nexus_list_agent_instruction_revisions", { agentId: agent!.id })).toHaveProperty("revisions");
+      const created = await f.call("nexus_create_skill", { requestId: randomUUID(), skill: { name: "Source review", markdown: "# Source review\nReview citations carefully." } });
       expect(created).toHaveProperty("skill.id");
       const skill = created.skill as { id: string; currentVersionId: string };
       expect(skill.currentVersionId).toBeTruthy();
-      const read = await f.call("paperclip_read_skill_file", { skillId: skill.id });
+      const read = await f.call("nexus_read_skill_file", { skillId: skill.id });
       const file = read.file as { content: string };
       const write = { skillId: skill.id, requestId: randomUUID(), file: { path: "SKILL.md", content: file.content + "\nPreserve source links.", expectedVersionId: skill.currentVersionId } };
-      expect(await f.call("paperclip_write_skill_file", write)).toHaveProperty("file.versionId");
-      expect(await f.call("paperclip_write_skill_file", { ...write, requestId: randomUUID() })).toMatchObject({ outcome: "rejected", status: 409 });
-      expect(await f.call("paperclip_update_skill", { skillId: skill.id, requestId: randomUUID(), changes: { tagline: "Check sources" } })).toHaveProperty("skill.tagline", "Check sources");
+      expect(await f.call("nexus_write_skill_file", write)).toHaveProperty("file.versionId");
+      expect(await f.call("nexus_write_skill_file", { ...write, requestId: randomUUID() })).toMatchObject({ outcome: "rejected", status: 409 });
+      expect(await f.call("nexus_update_skill", { skillId: skill.id, requestId: randomUUID(), changes: { tagline: "Check sources" } })).toHaveProperty("skill.tagline", "Check sources");
     } finally { await f.cleanup(); }
   });
 
@@ -872,13 +872,13 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
       const args = { taskId: f.issue.id, filename: "single.txt", contentType: "text/plain", byteSize: bytes.length,
         sha256: createHash("sha256").update(bytes).digest("hex") };
       const links = [];
-      for (let i = 0; i < 3; i++) links.push(new URL((await f.call("paperclip_get_upload_url", { ...args, requestId: randomUUID() })).url as string));
+      for (let i = 0; i < 3; i++) links.push(new URL((await f.call("nexus_get_upload_url", { ...args, requestId: randomUUID() })).url as string));
       const app = express(); app.use(f.transfers.router);
       const results = await Promise.all(links.flatMap(url => Array.from({ length: 2 }, () =>
         request(app).put(url.pathname + url.search).set("Content-Type", args.contentType).send(bytes).timeout(5000))));
       expect(results.map(result => result.status)).toEqual(Array(6).fill(200));
       expect(new Set(results.map(result => result.body.attachment.id)).size).toBe(3);
-      expect((await f.call("paperclip_list_deliverables", { taskId: f.issue.id })).attachments).toHaveLength(3);
+      expect((await f.call("nexus_list_deliverables", { taskId: f.issue.id })).attachments).toHaveLength(3);
     } finally { db = originalDb; oauth = originalOauth; await cleanup?.(); }
   }, 15000);
 
@@ -888,7 +888,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
       const bytes = Buffer.from([0, 255, 18, 7, 64, 89, 33, 0]);
       const sha256 = createHash("sha256").update(bytes).digest("hex");
       const args = { taskId: f.issue.id, requestId: randomUUID(), filename: "demo.mp4", contentType: "video/mp4", byteSize: bytes.length, sha256 };
-      const prepared = await f.call("paperclip_get_upload_url", args);
+      const prepared = await f.call("nexus_get_upload_url", args);
       const url = new URL(prepared.url as string);
       const app = express(); app.use(f.transfers.router);
       const put = (body = bytes) => request(app).put(url.pathname + url.search).set("Content-Type", args.contentType).send(body);
@@ -896,11 +896,11 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
       expect(responses.map(v => v.status)).toEqual([200, 200]);
       const attachment = responses[0]!.body.attachment;
       expect(responses[1]!.body.attachment.id).toBe(attachment.id);
-      expect(await f.call("paperclip_get_upload_url", args)).toMatchObject({ status: "completed", attachment: { id: attachment.id, sha256 } });
-      const outputs = await f.call("paperclip_list_deliverables", { taskId: f.issue.id });
+      expect(await f.call("nexus_get_upload_url", args)).toMatchObject({ status: "completed", attachment: { id: attachment.id, sha256 } });
+      const outputs = await f.call("nexus_list_deliverables", { taskId: f.issue.id });
       expect(outputs.attachments).toHaveLength(1);
       expect((await put(Buffer.from("conflicting bytes"))).status).toBe(403);
-      const download = await f.call("paperclip_get_download_url", { attachmentId: attachment.id });
+      const download = await f.call("nexus_get_download_url", { attachmentId: attachment.id });
       const downloadUrl = new URL(download.url as string);
       const content = await request(app).get(downloadUrl.pathname + downloadUrl.search).buffer(true);
       expect(content.status).toBe(200);
@@ -910,7 +910,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
       const receipts = await db.select().from(mcpMutationReceipts).where(eq(mcpMutationReceipts.companyId, f.company.id));
       expect(JSON.stringify(receipts)).not.toContain("ticket=");
       const other = await fixture();
-      await expect(createPublicMcpExecutor(db, oauth, f.dispatch, f.transfers)(other.tokens.access_token, "paperclip_get_download_url", { companyId: other.company.id, attachmentId: attachment.id })).rejects.toThrow();
+      await expect(createPublicMcpExecutor(db, oauth, f.dispatch, f.transfers)(other.tokens.access_token, "nexus_get_download_url", { companyId: other.company.id, attachmentId: attachment.id })).rejects.toThrow();
       await oauth.revokeConnection((await oauth.authenticate(f.tokens.access_token)).grant.id, f.actor.userId!);
       expect((await request(app).get(downloadUrl.pathname + downloadUrl.search)).status).not.toBe(200);
       expect((await put()).status).not.toBe(200);
@@ -921,9 +921,9 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const f = await expandedFixture();
     try {
       const args = { taskId: f.issue.id, requestId: randomUUID(), filename: "data.json", contentType: "application/json", byteSize: 2, sha256: createHash("sha256").update("{}").digest("hex") };
-      await expect(f.call("paperclip_get_upload_url", { ...args, byteSize: MAX_ATTACHMENT_BYTES + 1 })).rejects.toThrow();
-      await expect(f.call("paperclip_get_upload_url", { ...args, filename: "../escape" })).rejects.toThrow();
-      const prepared = await f.call("paperclip_get_upload_url", args);
+      await expect(f.call("nexus_get_upload_url", { ...args, byteSize: MAX_ATTACHMENT_BYTES + 1 })).rejects.toThrow();
+      await expect(f.call("nexus_get_upload_url", { ...args, filename: "../escape" })).rejects.toThrow();
+      const prepared = await f.call("nexus_get_upload_url", args);
       const url = new URL(prepared.url as string);
       const app = express(); app.use(f.transfers.router);
       const put = () => request(app).put(url.pathname + url.search).set("Content-Type", "application/json").send("{}");
@@ -940,15 +940,15 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     try {
       const bytes = Buffer.from("exact original content");
       const args = { taskId: f.issue.id, requestId: randomUUID(), filename: "data.txt", contentType: "text/plain", byteSize: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
-      const url = new URL((await f.call("paperclip_get_upload_url", args)).url as string);
+      const url = new URL((await f.call("nexus_get_upload_url", args)).url as string);
       const app = express(); app.use(f.transfers.router);
       const put = (body: Buffer, type = "text/plain") => request(app).put(url.pathname + url.search).set("Content-Type", type).send(body);
       expect((await put(bytes.subarray(0, 4))).status).toBe(403);
       expect((await put(Buffer.alloc(MAX_ATTACHMENT_BYTES + 1))).status).toBe(413);
       expect((await put(bytes, "video/mp4")).status).toBe(403);
-      expect((await f.call("paperclip_list_deliverables", { taskId: f.issue.id })).attachments).toHaveLength(0);
+      expect((await f.call("nexus_list_deliverables", { taskId: f.issue.id })).attachments).toHaveLength(0);
       expect((await put(bytes)).status).toBe(200);
-      expect((await f.call("paperclip_list_deliverables", { taskId: f.issue.id })).attachments).toHaveLength(1);
+      expect((await f.call("nexus_list_deliverables", { taskId: f.issue.id })).attachments).toHaveLength(1);
     } finally { await f.cleanup(); }
   });
 
@@ -958,7 +958,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     try {
       const bytes = Buffer.from("synthetic storage failure");
       const args = { taskId: f.issue.id, requestId: randomUUID(), filename: "data.txt", contentType: "text/plain", byteSize: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
-      const prepared = await f.call("paperclip_get_upload_url", args);
+      const prepared = await f.call("nexus_get_upload_url", args);
       const failure = kind === "oauth_shaped_storage" ? new McpOAuthError("access_denied", "SYNTHETIC_STORAGE_FAILURE_CANARY", 409)
         : new Error("SYNTHETIC_STORAGE_FAILURE_CANARY");
       const putSpy = vi.spyOn(f.storage, "putFile").mockRejectedValueOnce(failure);
@@ -972,7 +972,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
       expect(JSON.stringify(response.body)).not.toContain("SYNTHETIC_STORAGE_FAILURE_CANARY");
       const [upload] = await db.select().from(mcpAttachmentUploads).where(eq(mcpAttachmentUploads.id, prepared.uploadId as string));
       expect(upload!.attachmentId).toBeNull();
-      expect((await f.call("paperclip_list_deliverables", { taskId: f.issue.id })).attachments).toHaveLength(0);
+      expect((await f.call("nexus_list_deliverables", { taskId: f.issue.id })).attachments).toHaveLength(0);
       expect(await db.select().from(activityLog).where(and(eq(activityLog.companyId, f.company.id), eq(activityLog.action, "issue.attachment_added")))).toHaveLength(0);
     } finally { restoreStorage(); await f.cleanup(); }
   });
@@ -982,7 +982,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     try {
       const bytes = Buffer.from("orphan test");
       const args = { taskId: f.issue.id, requestId: randomUUID(), filename: "data.txt", contentType: "text/plain", byteSize: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
-      const prepared = await f.call("paperclip_get_upload_url", args);
+      const prepared = await f.call("nexus_get_upload_url", args);
       const principal = await oauth.authenticate(f.tokens.access_token);
       const originalPut = f.storage.putFile.bind(f.storage);
       const putSpy = vi.spyOn(f.storage, "putFile").mockImplementationOnce(async input => {
@@ -1017,27 +1017,27 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     app.use((req, _res, next) => { req.actor = f.actor; next(); }); app.use("/api", publicMcpManagementRoutes(oauth));
     const discovery = await request(app).get("/.well-known/oauth-authorization-server");
     expect(discovery.body.code_challenge_methods_supported).toEqual(["S256"]);
-    expect((await request(app).post("/mcp/paperclip").send({})).status).toBe(401);
-    const rpc = (method: string, params?: unknown) => request(app).post("/mcp/paperclip").timeout({ response: 5000, deadline: 7000 }).set("Authorization", `Bearer ${f.tokens.access_token}`).set("Accept", "application/json, text/event-stream").send({ jsonrpc: "2.0", id: 1, method, ...(params ? { params } : {}) });
-    expect((await rpc("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "test", version: "1" } })).body.result.serverInfo.name).toBe("paperclip");
+    expect((await request(app).post("/mcp/nexus").send({})).status).toBe(401);
+    const rpc = (method: string, params?: unknown) => request(app).post("/mcp/nexus").timeout({ response: 5000, deadline: 7000 }).set("Authorization", `Bearer ${f.tokens.access_token}`).set("Accept", "application/json, text/event-stream").send({ jsonrpc: "2.0", id: 1, method, ...(params ? { params } : {}) });
+    expect((await rpc("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "test", version: "1" } })).body.result.serverInfo.name).toBe("nexus");
     const catalog = await rpc("tools/list");
     expect(catalog.body.result.tools).toHaveLength(publicMcpCapabilities.length);
-    expect(catalog.body.result.tools.find((t: { name: string }) => t.name === "paperclip_create_task").annotations.readOnlyHint).toBe(false);
-    const result = await rpc("tools/call", { name: "paperclip_list_agents", arguments: { companyId: f.company.id } });
+    expect(catalog.body.result.tools.find((t: { name: string }) => t.name === "nexus_create_task").annotations.readOnlyHint).toBe(false);
+    const result = await rpc("tools/call", { name: "nexus_list_agents", arguments: { companyId: f.company.id } });
     expect(JSON.stringify(result.body)).not.toContain("hidden");
     expect(result.body.result.structuredContent.agents[0].name).toBe("Engineer");
     dispatch.mockRejectedValueOnce(new Error("Internal database details: tenant-secret"));
-    const failed = await rpc("tools/call", { name: "paperclip_list_agents", arguments: { companyId: f.company.id } });
+    const failed = await rpc("tools/call", { name: "nexus_list_agents", arguments: { companyId: f.company.id } });
     expect(failed.body.result.isError).toBe(true);
     expect(JSON.stringify(failed.body)).not.toContain("tenant-secret");
     expect(failed.body.result.content[0].text).toContain("could not confirm");
     dispatch.mockClear();
-    const invalid = await rpc("tools/call", { name: "paperclip_finish_task", arguments: { companyId: f.company.id, taskId: randomUUID(), requestId: "b2c3d4e5-f6a7-48b9-c0d1-e2f3a4b5c6d7" } });
+    const invalid = await rpc("tools/call", { name: "nexus_finish_task", arguments: { companyId: f.company.id, taskId: randomUUID(), requestId: "b2c3d4e5-f6a7-48b9-c0d1-e2f3a4b5c6d7" } });
     expect(invalid.body.result.structuredContent).toMatchObject({ outcome: "rejected", phase: "validation", issues: [{ path: "requestId", code: "invalid_format" }] });
     expect(invalid.body.result.structuredContent.issues[0].message).toContain("UUID");
     expect(dispatch).not.toHaveBeenCalled();
     const pending = await oauth.authorize({ client_id: f.client.client_id, redirect_uri: redirectUri, resource: config.resource, response_type: "code", code_challenge: challenge, code_challenge_method: "S256" });
-    vi.stubEnv("PAPERCLIP_CLOUD_API_ORIGIN", "https://cloud.example.test");
+    vi.stubEnv("NEXUS_CLOUD_API_ORIGIN", "https://cloud.example.test");
     try {
       const described = await request(app).get(`/api/mcp/requests/${pending.split("/").at(-1)}`);
       expect(described.body.setupUrl).toBe("https://cloud.example.test/orgs/new");
@@ -1118,7 +1118,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     let goodChallenge = true;
     let duringVerification: (() => Promise<void>) | undefined;
     const fetcher: EventFetch = async (url, init) => {
-      if (cloudOrigin && url === cloudOrigin + "/mcp/paperclip") return cloudAllowed
+      if (cloudOrigin && url === cloudOrigin + "/mcp/nexus") return cloudAllowed
         ? Response.json({ result: { structuredContent: { user: { id: f.actor.userId }, companyId: f.company.id, connectionId: principal.grant.id } } })
         : new Response(null, { status: 403 });
       const headers = new Headers(init.headers);
@@ -1137,7 +1137,7 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     };
     const options = { fetch: fetcher, now: () => clock, ...(cloudOrigin ? { cloudOrigin } : {}) };
     const service = createPublicMcpEvents(db, oauth, dispatch, options);
-    const input = { name: "paperclip.task.status_changed", arguments: { companyId: f.company.id, taskId: task!.id, statuses: ["done"] }, delivery: { mode: "webhook", url: "https://receiver.example/events/" + randomUUID(), secret } };
+    const input = { name: "nexus.task.status_changed", arguments: { companyId: f.company.id, taskId: task!.id, statuses: ["done"] }, delivery: { mode: "webhook", url: "https://receiver.example/events/" + randomUUID(), secret } };
     const activity = async (action = "issue.updated", details: Record<string, unknown> = { status: "done" }) => {
       clock += 100;
       const [row] = await db.insert(activityLog).values({ companyId: f.company.id, actorType: "user", actorId: f.actor.userId!, action, entityType: "issue", entityId: task!.id, details, createdAt: new Date(clock) }).returning();
@@ -1169,14 +1169,14 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const app = express(); app.use(express.json());
     app.use(publicMcpIngressRoutes(oauth, createPublicMcpExecutor(db, oauth, f.dispatch), events, extension));
     const meta = { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} };
-    const rpc = (method: string, params: Record<string, unknown> = {}, token = f.tokens.access_token) => request(app).post("/mcp/paperclip")
+    const rpc = (method: string, params: Record<string, unknown> = {}, token = f.tokens.access_token) => request(app).post("/mcp/nexus")
       .set("Authorization", `Bearer ${token}`).set("MCP-Protocol-Version", "2026-07-28").set("Mcp-Method", method)
       .set("Mcp-Name", String(params.name ?? "")).send({ jsonrpc: "2.0", id: 1, method, params: { ...params, _meta: meta } });
     const tool = async (name: string, args: Record<string, unknown>) => (await rpc("tools/call", { name, arguments: args })).body.result;
     try {
       expect((await rpc("server/discover")).body.result.capabilities).toHaveProperty("events");
-      expect((await rpc("events/list")).body.result.events.map((e: { name: string }) => e.name)).toContain("paperclip.dot.work_available");
-      const subscription = { ...f.input, name: "paperclip.dot.work_available", arguments: { companyId: f.company.id, taskId: f.task.id } };
+      expect((await rpc("events/list")).body.result.events.map((e: { name: string }) => e.name)).toContain("nexus.dot.work_available");
+      const subscription = { ...f.input, name: "nexus.dot.work_available", arguments: { companyId: f.company.id, taskId: f.task.id } };
       expect((await rpc("events/subscribe", subscription)).body.result.id).toBeTruthy();
       const { turnId } = await session.startTurn({ message: { role: "user", text: "Save a competitor research report." } });
       await events.tick();
@@ -1186,29 +1186,29 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
       expect(JSON.stringify(deliveries)).not.toContain("MUST NOT LEAVE");
       const base = { companyId: identity.companyId, runId: identity.runId, turnId };
       const call = (name: string, args = {}, requestId = randomUUID()) => tool(name, { ...base, requestId, ...args });
-      expect((await tool("paperclip_dot_inbox", { companyId: identity.companyId })).structuredContent.assignments).toHaveLength(1);
-      expect((await call("paperclip_dot_read")).structuredContent.result.message.text).toContain("competitor");
-      expect((await call("paperclip_dot_accept")).isError).toBe(false);
+      expect((await tool("nexus_dot_inbox", { companyId: identity.companyId })).structuredContent.assignments).toHaveLength(1);
+      expect((await call("nexus_dot_read")).structuredContent.result.message.text).toContain("competitor");
+      expect((await call("nexus_dot_accept")).isError).toBe(false);
       const writeId = randomUUID();
-      for (let retry = 0; retry < 2; retry++) expect((await call("paperclip_dot_tool", { name: "write_document", arguments: { body: "Competitor report" } }, writeId)).isError).toBe(false);
+      for (let retry = 0; retry < 2; retry++) expect((await call("nexus_dot_tool", { name: "write_document", arguments: { body: "Competitor report" } }, writeId)).isError).toBe(false);
       expect(documents).toEqual(["Competitor report"]);
-      const unknown = await call("paperclip_dot_tool", { name: "write_document", arguments: { uncertain: true } });
+      const unknown = await call("nexus_dot_tool", { name: "write_document", arguments: { uncertain: true } });
       expect(unknown.isError).toBe(true);
       expect(unknown.structuredContent.outcome).toBe("unknown");
-      expect((await call("paperclip_dot_progress", { text: "Saved the report." })).isError).toBe(false);
+      expect((await call("nexus_dot_progress", { text: "Saved the report." })).isError).toBe(false);
       const other = await fixture();
-      expect((await rpc("tools/call", { name: "paperclip_dot_read", arguments: { ...base, requestId: randomUUID() } }, other.tokens.access_token)).body.result.isError).toBe(true);
-      const result = { schema: "paperclip.run_result.v1", reportedWorkDisposition: "done", summary: "Report saved.",
+      expect((await rpc("tools/call", { name: "nexus_dot_read", arguments: { ...base, requestId: randomUUID() } }, other.tokens.access_token)).body.result.isError).toBe(true);
+      const result = { schema: "nexus.run_result.v1", reportedWorkDisposition: "done", summary: "Report saved.",
         completionClaim: { contractRevision: "dot-prototype-v1", objectiveSatisfied: true, criteria: [], remainingWork: [] },
         evidence: [], verification: [], attentionRequests: [], artifacts: [] };
-      expect((await call("paperclip_dot_finish", { result })).isError).toBe(false);
+      expect((await call("nexus_dot_finish", { result })).isError).toBe(false);
       const transcript = [];
       for await (const event of session.events()) transcript.push(event);
       expect(transcript.filter(e => e.eventType === "run.result.proposed")).toHaveLength(1);
       expect(await session.result()).toMatchObject({ result });
       expect(await session.usage?.()).toBeNull();
       // The person's normal tools remain usable while Dot has no active assignment.
-      expect((await tool("paperclip_connection", {})).structuredContent.companyId).toBe(identity.companyId);
+      expect((await tool("nexus_connection", {})).structuredContent.companyId).toBe(identity.companyId);
       await oauth.revokeConnection(f.principal.grant.id, f.actor.userId!);
       expect((await rpc("tools/list")).status).toBe(401);
     } finally { unregister(); await session.close({ reason: "prototype finished" }).catch(() => {}); await events.stop(); }
@@ -1219,13 +1219,13 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     const app = express(); app.use(express.json());
     app.use(publicMcpIngressRoutes(oauth, createPublicMcpExecutor(db, oauth, f.dispatch), f.service));
     const params = { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } };
-    const rpc = (method: string, extra = {}, headers: Record<string, string> = {}) => request(app).post("/mcp/paperclip")
+    const rpc = (method: string, extra = {}, headers: Record<string, string> = {}) => request(app).post("/mcp/nexus")
       .set({ Authorization: `Bearer ${f.tokens.access_token}`, "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": method, ...headers })
       .send({ jsonrpc: "2.0", id: 1, method, params: { ...params, ...extra } });
     expect((await rpc("server/discover")).body.result).toMatchObject({ resultType: "complete", supportedVersions: ["2026-07-28"], capabilities: { tools: {}, events: {} } });
     expect((await rpc("events/list")).body.result.events.map((e: { name: string }) => e.name)).toEqual(publicMcpEventDefinitions.map(e => e.name));
     expect((await rpc("tools/list")).body.result.tools).toHaveLength(publicMcpCapabilities.length);
-    expect((await rpc("tools/call", { name: "paperclip_connection", arguments: {} }, { "Mcp-Name": "=?base64?cGFwZXJjbGlwX2Nvbm5lY3Rpb24=?=" })).body.result.structuredContent.companyId).toBe(f.company.id);
+    expect((await rpc("tools/call", { name: "nexus_connection", arguments: {} }, { "Mcp-Name": "=?base64?cGFwZXJjbGlwX2Nvbm5lY3Rpb24=?=" })).body.result.structuredContent.companyId).toBe(f.company.id);
     expect((await rpc("events/list", {}, { "Mcp-Method": "tools/list" })).body.error.code).toBe(-32020);
     expect((await rpc("events/list", { _meta: {} })).body.error.code).toBe(-32602);
     expect((await rpc("events/list", { cursor: "unknown" })).body.error.code).toBe(-32602);
@@ -1500,8 +1500,8 @@ describe.skipIf(!support.supported)("public MCP OAuth and tool boundary", () => 
     await f.service.unsubscribe(f.principal, f.input);
     const g = await eventFixture();
     for (const [name, action, details] of [
-      ["paperclip.task.comment_created", "issue.comment_added", { commentId: randomUUID(), body: "private comment" }],
-      ["paperclip.task.document_updated", "issue.document_updated", { key: "report", revisionNumber: 2, body: "private report" }],
+      ["nexus.task.comment_created", "issue.comment_added", { commentId: randomUUID(), body: "private comment" }],
+      ["nexus.task.document_updated", "issue.document_updated", { key: "report", revisionNumber: 2, body: "private report" }],
     ] as const) {
       const input = { ...g.input, name, arguments: { companyId: g.company.id, taskId: g.task.id } };
       await g.service.subscribe(g.principal, input); await g.activity(action, details); await g.service.tick();

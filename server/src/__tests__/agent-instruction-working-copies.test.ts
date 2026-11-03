@@ -8,16 +8,16 @@ import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database
 import fs from "node:fs/promises";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
-import * as gitWorkspaceSync from "@paperclipai/adapter-utils/git-workspace-sync";
+import * as gitWorkspaceSync from "@nexusai/adapter-utils/git-workspace-sync";
 import { DatabaseSync } from "node:sqlite";
-import { captureDirectorySnapshot } from "@paperclipai/adapter-utils/workspace-restore-merge";
+import { captureDirectorySnapshot } from "@nexusai/adapter-utils/workspace-restore-merge";
 const execFile = promisify(execFileCallback);
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
-import { activityLog, agents, companies, authUsers, companyMemberships, principalPermissionGrants, heartbeatRuns, agentInstructionWorkingCopies, createDb, withDedicatedDbConnection } from "@paperclipai/db";
+import { activityLog, agents, companies, authUsers, companyMemberships, principalPermissionGrants, heartbeatRuns, agentInstructionWorkingCopies, createDb, withDedicatedDbConnection } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { agentInstructionRevisionService } from "../services/agent-instruction-revisions.js";
 import { agentInstructionWorkingCopyService } from "../services/agent-instruction-working-copies.js";
@@ -25,14 +25,14 @@ import { appendHeartbeatRunEvent } from "../services/heartbeat-run-events.js";
 import { resolveManagedInstructionsRoot } from "../services/agent-instructions.js";
 import { buildNativeRuntimeContext } from "../services/native-runtime/runtime-context.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_INSTRUCTION_COPY_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_INSTRUCTION_COPY_TEST_DATABASE_URL");
 
 describe("registered run instruction copies", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   let copies: ReturnType<typeof agentInstructionWorkingCopyService>;
   let revisions: ReturnType<typeof agentInstructionRevisionService>;
-  const previousHome = process.env.PAPERCLIP_HOME;
+  const previousHome = process.env.NEXUS_HOME;
   let home: string;
   let companyId: string, agentId: string, userId: string, root: string;
   const entryFile = "policy/INSTRUCTIONS.txt";
@@ -46,14 +46,14 @@ describe("registered run instruction copies", () => {
   }
   beforeAll(async () => {
     home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "instruction-working-copies-")));
-    process.env.PAPERCLIP_HOME = home;
+    process.env.NEXUS_HOME = home;
     if (!external) database = await startEmbeddedPostgresTestDatabase("instruction-copies-db-");
     db = createDb(external ?? database.connectionString);
     copies = agentInstructionWorkingCopyService(db);
     revisions = agentInstructionRevisionService(db);
   }, 90_000);
   afterAll(async () => {
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previousHome;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = previousHome;
     await db?.$client.end({ timeout: 1 });
     await database?.cleanup();
     if (home) {
@@ -487,7 +487,7 @@ describe("registered run instruction copies", () => {
     });
     it("reactivates after a real worktree setting change without polling disabled settings", async () => {
       const copy = await run(); await captured(copy);
-      const runtimeEnv = { PAPERCLIP_IN_WORKTREE: "true", PAPERCLIP_INSTANCE_ID: "sleep40-instruction-activation" };
+      const runtimeEnv = { NEXUS_IN_WORKTREE: "true", NEXUS_INSTANCE_ID: "sleep40-instruction-activation" };
       const settings = instanceSettingsService(db, { runtimeEnv });
       await settings.updateExperimental({ enableWorktreeRunExecution: false });
       const service = heartbeatService(db, { runtimeEnv });
@@ -877,7 +877,7 @@ describe("registered run instruction copies", () => {
     const runId = randomUUID();
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, invocationSource: "on_demand", responsibleUserId: userId });
     const copy = (await copies.prepare({ legacy: true, ...target(), runId, cwd: workspace }))!;
-    expect(copy.localRoot).toBe(path.join(workspace, ".paperclip-runtime", `instruction-edits-${runId}`, "instructions"));
+    expect(copy.localRoot).toBe(path.join(workspace, ".nexus-runtime", `instruction-edits-${runId}`, "instructions"));
     await fs.writeFile(path.join(workspace, "deliverable.txt"), "public work");
     await execFile("git", ["-C", workspace, "add", "."]);
     const staged = await execFile("git", ["-C", workspace, "diff", "--cached", "--name-only"]);
@@ -903,7 +903,7 @@ describe("registered run instruction copies", () => {
         await gitWorkspaceSync.disposeGitWorkspaceSnapshot(snapshot);
       }
     }
-    const files = await captureDirectorySnapshot(workspace, { exclude: [".git", ".paperclip-runtime"] });
+    const files = await captureDirectorySnapshot(workspace, { exclude: [".git", ".nexus-runtime"] });
     expect([...files.entries].map(([relative]) => relative)).toEqual(["deliverable.txt"]);
     await expect(copies.prepare({ legacy: true, ...target(), runId, cwd: home })).rejects.toThrow("different run workspace");
   });

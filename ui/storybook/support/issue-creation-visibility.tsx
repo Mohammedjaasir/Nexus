@@ -6,7 +6,7 @@ import { IssuesList } from "@/components/IssuesList";
 import { defaultIssueFilterState } from "@/lib/issue-filters";
 import { saveTaskCollectionPreferences } from "@/lib/task-collection-preferences";
 import { queryKeys } from "@/lib/queryKeys";
-import { createIssue, storybookAgents, storybookAuthSession, storybookCompanies, storybookProjects } from "../fixtures/paperclipData";
+import { createIssue, storybookAgents, storybookAuthSession, storybookCompanies, storybookProjects } from "../fixtures/nexusData";
 
 const companyId = "company-storybook";
 type Story = StoryObj;
@@ -46,7 +46,7 @@ function CreationVisibilityStory({ included = false }: { included?: boolean }) {
     return true;
   });
   return (
-    <div className="paperclip-story min-h-screen bg-background p-6 text-foreground">
+    <div className="nexus-story min-h-screen bg-background p-6 text-foreground">
       <IssuesList
         issues={creationVisibilityTasks}
         agents={storybookAgents}

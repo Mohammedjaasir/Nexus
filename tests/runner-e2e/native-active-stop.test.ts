@@ -4,32 +4,32 @@ import { assertActiveStopRetirement, readActiveStopRemoteRetirement, type Active
 import { stopAtPendingPermission } from "./native-active-stop-flow.js";
 import { runnerMatrix, runnerSuites, suiteDefinitionHash } from "./catalog.js";
 import { selectRunnerExecutions, parseRunnerSelectors } from "./selectors.js";
-import { createCursorToolEvidence } from "../../packages/paperclip-runner/src/drivers/acpx/cursor-tool-evidence.js";
-import { createCopilotToolEvidence } from "../../packages/paperclip-runner/src/drivers/acpx/copilot-tool-evidence.js";
-import type { CanonicalProviderEvent } from "../../packages/paperclip-runner/src/provider-events.js";
+import { createCursorToolEvidence } from "../../packages/nexus-runner/src/drivers/acpx/cursor-tool-evidence.js";
+import { createCopilotToolEvidence } from "../../packages/nexus-runner/src/drivers/acpx/copilot-tool-evidence.js";
+import type { CanonicalProviderEvent } from "../../packages/nexus-runner/src/provider-events.js";
 
-import { CodexSessionState } from "../../packages/paperclip-runner/src/drivers/codex/codex-session-state.js";
-import { mapTerminalTurn } from "../../packages/paperclip-runner/src/drivers/codex/codex-session-terminal.js";
+import { CodexSessionState } from "../../packages/nexus-runner/src/drivers/codex/codex-session-state.js";
+import { mapTerminalTurn } from "../../packages/nexus-runner/src/drivers/codex/codex-session-terminal.js";
 
-const caller = readActiveStopCaller({ deploymentMode: "local_trusted" }, { session: { userId: "local-board", id: "paperclip:local_implicit:local-board" } });
+const caller = readActiveStopCaller({ deploymentMode: "local_trusted" }, { session: { userId: "local-board", id: "nexus:local_implicit:local-board" } });
 const cancellationRequestId = "11111111-2222-4333-8444-555555555555";
 type Row = Record<string, any>;
 function fixture(provider: ActiveStopProvider = "copilot") {
   const scope = { provider, companyId: "company", issueId: "issue", runId: "run", target: "target.txt", ...(provider === "cursor" ? { commandSha256: `sha256:${"a".repeat(64)}` } : {}) };
   const row = (seq: number, eventType: string, payload: Row): Row => ({ companyId: "company", runId: "run", seq, eventType, protocolSchemaVersion: 1,
-    payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn",
+    payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn",
       normalizedSessionId: "normalized-session", sourceInstanceId: "source", sourceSeq: seq, sourceEventId: `source:run:${seq}`, emittedAt: "2026-01-01T00:00:00Z", payload } } });
   const notice = (seq: number, stage: string, fields: Row) => row(seq, "provider.notice.recorded", {
-    schema: "paperclip.provider.notice.v1", scope: "turn", category: `${provider}_tool_evidence_v1`,
+    schema: "nexus.provider.notice.v1", scope: "turn", category: `${provider}_tool_evidence_v1`,
     provenance: { sessionId: "native-session", turnId: "turn", eventType: stage, method: stage === "tool" ? "session/update" : "session/request_permission" },
     details: Object.entries({ stage, toolCallId: "tool", ...fields }).map(([name, value]) => ({ name, value: String(value) })),
   });
   const operation = provider === "cursor" ? { operation: "execute", commandSha256: scope.commandSha256 } : { operation: "edit", target: scope.target };
   const events: Row[] = [
     notice(1, "tool", { status: "pending", ...operation }),
-    row(2, "tool.execution.started", { schema: "paperclip.tool.execution.v1", executionId: "tool", transport: "builtin", status: "running", ...operation }),
+    row(2, "tool.execution.started", { schema: "nexus.tool.execution.v1", executionId: "tool", transport: "builtin", status: "running", ...operation }),
     notice(3, "permission_requested", { requestId: "request", declineOffered: true, ...operation }),
-    row(4, "runtime_request.created", { request: { schema: "paperclip.runtime_request.v2", requestKind: "permission_approval", type: "permission", status: "pending", requestId: "request", turnId: "turn", itemId: "item-run", method: "session/request_permission",
+    row(4, "runtime_request.created", { request: { schema: "nexus.runtime_request.v2", requestKind: "permission_approval", type: "permission", status: "pending", requestId: "request", turnId: "turn", itemId: "item-run", method: "session/request_permission",
       details: { toolCallId: "tool" }, origin: { adapter: "acpx-runtime-sidecar", provider, method: "session/request_permission" } } }),
   ];
   const run: Row = { id: "run", companyId: "company", nativeIssueId: "issue", runtimeMode: "native", status: "running", resultJson: {} };
@@ -50,7 +50,7 @@ function fixture(provider: ActiveStopProvider = "copilot") {
     } as unknown as CodexSessionState;
     mapTerminalTurn(state, { id: "turn", status: "cancelled", error: null }, "turn");
     run.status = "cancelled"; run.resultJson = { startupCancellation: { cancellationRequestId: requestId, requestedBy: { type: "board", userId: "local-board" } }, nativeCancellation: {
-      schema: "paperclip.native-cancellation.v1", intentId: `native-cancellation:${requestId}`, companyId: "company", runId: "run", issueId: "issue", scope: "run",
+      schema: "nexus.native-cancellation.v1", intentId: `native-cancellation:${requestId}`, companyId: "company", runId: "run", issueId: "issue", scope: "run",
       dispatched: true, dispatchState: "acknowledged", reasonCode: "cancellation_run_only", effects: ["release_run_resources"], intentAuditId: "audit-intent", acknowledgementAuditId: "audit-ack",
     } };
     return run;
@@ -118,7 +118,7 @@ function withSessionPrefix(provider: ActiveStopProvider = "cursor") {
     f.row(21, "session.goal.snapshot", { goal: null, workingNow: false })];
   prefix.forEach((row, index) => {
     const e = frame(row); e.turnId = null; e.sourceSeq = index + 1; e.sourceEventId = `source:run:${index + 1}`;
-    if (index > 0) { row.protocolSchemaVersion = 2; e.schema = "paperclip.prp.event.v2"; e.schemaVersion = 2; }
+    if (index > 0) { row.protocolSchemaVersion = 2; e.schema = "nexus.prp.event.v2"; e.schemaVersion = 2; }
   });
   f.events.unshift(...prefix);
   return f;
@@ -130,7 +130,7 @@ describe("definitely active native permission Stop", () => {
       const f = withProjectedArrivalOrder(provider, order), pending = f.pending();
       expect(f.nativeStageOrder()).toEqual(provider === "copilot" && order === "permission-first"
         ? ["permission_requested", "tool"] : ["tool", "permission_requested"]);
-      expect(pending.schema).toBe("paperclip.e2e.native-active-stop-pending.v2");
+      expect(pending.schema).toBe("nexus.e2e.native-active-stop-pending.v2");
       expect(pending.toolOriginRowSha256).toMatch(/^sha256:[a-f0-9]{64}$/u);
       expect(pending.toolStartedRowSha256).toMatch(/^sha256:[a-f0-9]{64}$/u);
       expect(pending.toolStartedSourceSeq < pending.requestSourceSeq).toBe(order === "tool-first");
@@ -163,7 +163,7 @@ describe("definitely active native permission Stop", () => {
       ["replayed canonical start", (f: ReturnType<typeof fixture>) => { f.events.push(f.row(5, "tool.execution.started", payload(f.events[2]!))); }],
       ["replayed native origin", (f: ReturnType<typeof fixture>) => { f.events.push(f.row(5, "provider.notice.recorded", payload(f.events[1]!))); }],
       ["answered permission", (f: ReturnType<typeof fixture>) => { f.events.push(f.notice(5, "permission_delivered", { requestId: "request", outcome: "cancel" })); }],
-      ["terminal operation", (f: ReturnType<typeof fixture>) => { f.events.push(f.row(5, "tool.execution.completed", { schema: "paperclip.tool.execution.v1", transport: "builtin", executionId: "tool", status: "failed" })); }],
+      ["terminal operation", (f: ReturnType<typeof fixture>) => { f.events.push(f.row(5, "tool.execution.completed", { schema: "nexus.tool.execution.v1", transport: "builtin", executionId: "tool", status: "failed" })); }],
     ] as const)("rejects permission-first %s before Stop", (_label, mutate) => {
       const f = withArrivalOrder(provider, "permission-first"); mutate(f); expect(f.pending).toThrow();
     });
@@ -196,7 +196,7 @@ describe("definitely active native permission Stop", () => {
   it.each([
     ["schema/version mismatch", (f: ReturnType<typeof withSessionPrefix>) => { frame(f.events[1]!).schemaVersion = 1; }],
     ["row/envelope mismatch", (f: ReturnType<typeof withSessionPrefix>) => { f.events[1]!.protocolSchemaVersion = 1; }],
-    ["unknown schema", (f: ReturnType<typeof withSessionPrefix>) => { frame(f.events[1]!).schema = "paperclip.prp.event.v3"; frame(f.events[1]!).schemaVersion = f.events[1]!.protocolSchemaVersion = 3; }],
+    ["unknown schema", (f: ReturnType<typeof withSessionPrefix>) => { frame(f.events[1]!).schema = "nexus.prp.event.v3"; frame(f.events[1]!).schemaVersion = f.events[1]!.protocolSchemaVersion = 3; }],
     ["foreign session source", (f: ReturnType<typeof withSessionPrefix>) => { frame(f.events[1]!).sourceKind = "provider"; }],
   ] as const)("still rejects %s in a mixed-version stream", (_label, mutate) => {
     const f = withSessionPrefix(); mutate(f); expect(f.pending).toThrow("invalid/duplicate/foreign canonical row");
@@ -217,7 +217,7 @@ describe("definitely active native permission Stop", () => {
     const f = fixture(provider), pending = f.pending(); f.settle();
     expect(f.permissionResponse.mock.calls).toEqual([[{ action: "cancel" }]]);
     expect(readActiveStopSettlement({ ...f.state(), pending, dispatchMonotonicNs: (BigInt(pending.observedMonotonicNs) + 1n).toString() })).toMatchObject({
-      schema: "paperclip.e2e.native-active-stop-settlement.v2", branch: "pending_permission_cancelled", normalCompletionAccepted: false, taskStillInProgress: true, replayAllowed: false,
+      schema: "nexus.e2e.native-active-stop-settlement.v2", branch: "pending_permission_cancelled", normalCompletionAccepted: false, taskStillInProgress: true, replayAllowed: false,
       pending: { normalizedSessionId: "normalized-session", nativeSessionId: "native-session", cancellationRequestId },
     });
   });
@@ -229,16 +229,16 @@ describe("definitely active native permission Stop", () => {
     expect(payload(f.events[4]!)).toEqual({ requestId: "request", requestKind: "permission_approval",
       turnId: "turn", itemId: "item-run", reason: "turn_terminal" });
     expect(payload(f.events[5]!)).toEqual({ status: "cancelled", error: null });
-    expect(read().schema).toBe("paperclip.e2e.native-active-stop-settlement.v2");
+    expect(read().schema).toBe("nexus.e2e.native-active-stop-settlement.v2");
   });
   it("admits only a fully attested remote bootstrap read completed before the pending operation", () => {
-    const f = fixture(), actionFile = `.paperclip-eval-action-${"a".repeat(36)}.txt`;
+    const f = fixture(), actionFile = `.nexus-eval-action-${"a".repeat(36)}.txt`;
     const readTargetSha256 = `sha256:${createHash("sha256").update(actionFile).digest("hex")}`;
     for (const row of f.events) { row.seq += 4; frame(row).sourceSeq += 4; frame(row).sourceEventId = `source:run:${row.seq}`; }
     f.events.unshift(f.notice(1, "tool", { toolCallId: "bootstrap", operation: "read", status: "pending", readTargetSha256 }),
-      f.row(2, "tool.execution.started", { schema: "paperclip.tool.execution.v1", executionId: "bootstrap", transport: "builtin", status: "running", operation: "read", target: actionFile }),
+      f.row(2, "tool.execution.started", { schema: "nexus.tool.execution.v1", executionId: "bootstrap", transport: "builtin", status: "running", operation: "read", target: actionFile }),
       f.notice(3, "tool", { toolCallId: "bootstrap", operation: "read", status: "completed", readTargetSha256 }),
-      f.row(4, "tool.execution.completed", { schema: "paperclip.tool.execution.v1", executionId: "bootstrap", transport: "builtin", status: "completed", operation: "read", target: actionFile }));
+      f.row(4, "tool.execution.completed", { schema: "nexus.tool.execution.v1", executionId: "bootstrap", transport: "builtin", status: "completed", operation: "read", target: actionFile }));
     const bootstrap = { actionFile, events: f.events };
     expect(() => observeActiveStopPending({ ...f.state(), scope: f.scope, caller, cancellationRequestId, bootstrap })).not.toThrow();
     payload(f.events[2]!).details.find((d: Row) => d.name === "readTargetSha256").value = `sha256:${"0".repeat(64)}`;
@@ -254,7 +254,7 @@ describe("definitely active native permission Stop", () => {
     ["answered callback", (f: ReturnType<typeof fixture>) => { f.events.push(f.notice(5, "permission_delivered", { requestId: "request", outcome: "cancel" })); }],
     ["already settled provider", (f: ReturnType<typeof fixture>) => { f.events.push(f.row(5, "turn.completed", { status: "completed" })); }],
     ["already closed request", (f: ReturnType<typeof fixture>) => { f.events.push(f.row(5, "runtime_request.resolved", {})); }],
-    ["failed operation", (f: ReturnType<typeof fixture>) => { f.events.push(f.row(5, "tool.execution.completed", { schema: "paperclip.tool.execution.v1", transport: "builtin", executionId: "tool", status: "failed" })); }],
+    ["failed operation", (f: ReturnType<typeof fixture>) => { f.events.push(f.row(5, "tool.execution.completed", { schema: "nexus.tool.execution.v1", transport: "builtin", executionId: "tool", status: "failed" })); }],
   ] as const)("refuses %s before dispatch", (_label, mutate) => { const f = fixture(); mutate(f); expect(f.pending).toThrow(); });
   it.each([
     ["completed terminal", ({ f }: ReturnType<typeof settled>) => { f.events[5]!.eventType = frame(f.events[5]!).eventType = "turn.completed"; payload(f.events[5]!).status = "completed"; }],
@@ -283,7 +283,7 @@ describe("definitely active native permission Stop", () => {
     ["replay permitted", ({ f }: ReturnType<typeof settled>) => { payload(f.events[4]!).replayAllowed = true; }],
     ["tampered pending row", ({ f }: ReturnType<typeof settled>) => { payload(f.events[3]!).request.itemId = "changed"; }],
     ["missing pending receipt", (s: ReturnType<typeof settled>) => { s.pending.requestRowSha256 = ""; }],
-    ["legacy v1 pending receipt", (s: ReturnType<typeof settled>) => { (s.pending as Row).schema = "paperclip.e2e.native-active-stop-pending.v1"; }],
+    ["legacy v1 pending receipt", (s: ReturnType<typeof settled>) => { (s.pending as Row).schema = "nexus.e2e.native-active-stop-pending.v1"; }],
     ["missing native origin binding", (s: ReturnType<typeof settled>) => { delete (s.pending as Row).toolOriginRowSha256; }],
     ["missing tool start binding", (s: ReturnType<typeof settled>) => { delete (s.pending as Row).toolStartedRowSha256; }],
     ["changed native origin", ({ f }: ReturnType<typeof settled>) => { frame(f.events[0]!).emittedAt = "2026-01-01T00:00:01Z"; }],
@@ -303,7 +303,7 @@ describe("definitely active native permission Stop", () => {
     ["extra semantic operation", ({ f }: ReturnType<typeof settled>) => { f.events.push(f.row(7, "tool.execution.started", { executionId: "other" })); }],
     ["extra native operation", ({ f }: ReturnType<typeof settled>) => { f.events.push(f.notice(7, "tool", { toolCallId: "other", status: "pending" })); }],
     ["native session switched", ({ f }: ReturnType<typeof settled>) => { payload(f.events[0]!).provenance.sessionId = "other"; }],
-    ["target operation completed", ({ f }: ReturnType<typeof settled>) => { f.events.push(f.row(7, "tool.execution.completed", { schema: "paperclip.tool.execution.v1", transport: "builtin", executionId: "tool", status: "completed" })); }],
+    ["target operation completed", ({ f }: ReturnType<typeof settled>) => { f.events.push(f.row(7, "tool.execution.completed", { schema: "nexus.tool.execution.v1", transport: "builtin", executionId: "tool", status: "completed" })); }],
   ] as const)("rejects %s", (_label, mutate) => { const s = settled(); mutate(s); expect(s.read).toThrow(); });
   it.each(["closure", "terminal"] as const)("rejects missing/null envelope turn and foreign null-turn stream on %s", kind => {
     for (const turn of [null, undefined]) for (const mismatch of ["none", "session", "source"]) {
@@ -315,10 +315,10 @@ describe("definitely active native permission Stop", () => {
     }
   });
   it.each([
-    [{ deploymentMode: "authenticated" }, { session: { userId: "local-board", id: "paperclip:local_implicit:local-board" } }],
-    [{ deploymentMode: "local_trusted" }, { session: { userId: null, id: "paperclip:local_implicit:local-board" } }],
-    [{ deploymentMode: "local_trusted" }, { session: { userId: "another", id: "paperclip:local_implicit:another" } }],
-    [{ deploymentMode: "local_trusted" }, { session: { userId: "local-board", id: "paperclip:session:local-board" } }],
+    [{ deploymentMode: "authenticated" }, { session: { userId: "local-board", id: "nexus:local_implicit:local-board" } }],
+    [{ deploymentMode: "local_trusted" }, { session: { userId: null, id: "nexus:local_implicit:local-board" } }],
+    [{ deploymentMode: "local_trusted" }, { session: { userId: "another", id: "nexus:local_implicit:another" } }],
+    [{ deploymentMode: "local_trusted" }, { session: { userId: "local-board", id: "nexus:session:local-board" } }],
   ])("rejects a non-fixture authentication context", (health, session) => expect(() => readActiveStopCaller(health, session)).toThrow());
   it("rejects a Stop dispatch not causally after the pending observation", () => {
     const { f, pending } = settled();
@@ -376,7 +376,7 @@ describe("explicit active Stop discovery", () => {
     expect(cells).toHaveLength(4); expect(suite.manualOnly).toBe(true);
     expect(cells.map(e => `${e.profile.qualificationCandidate}/${e.environment.id}`).sort()).toEqual(["copilot/daytona", "copilot/local", "cursor/daytona", "cursor/local"]);
     expect(cells.every(e => e.task.expectedRunCount === 1 && e.task.flow === "native_active_stop" && e.task.expectedTerminalState?.run === "cancelled")).toBe(true);
-    expect(suite.definitionMetadata).toMatchObject({ version: 20, evidence: "paperclip.e2e.native-active-stop-settlement.v2", normalCompletionAccepted: false, providerDeath: "not-covered" });
+    expect(suite.definitionMetadata).toMatchObject({ version: 20, evidence: "nexus.e2e.native-active-stop-settlement.v2", normalCompletionAccepted: false, providerDeath: "not-covered" });
     expect(suiteDefinitionHash(suite)).not.toBe(suiteDefinitionHash({ ...suite, definitionMetadata: { ...suite.definitionMetadata, version: 3 } }));
     expect(suiteDefinitionHash(suite)).not.toBe(suiteDefinitionHash({ ...suite, definitionMetadata: { ...suite.definitionMetadata, normalCompletionAccepted: true } }));
     expect(selectRunnerExecutions(parseRunnerSelectors(["--all"])).some(e => e.suite.id === suite.id)).toBe(false);
@@ -423,7 +423,7 @@ describe("Daytona active Stop observation lifetime", () => {
     const remote = remoteRetirementProof(), terminal = remote.observations[2]!.snapshot;
     expect(assertActiveStopRetirement({ environment: "daytona", completed: true, identityChanged: false,
       processes: terminal.processes, watcher: terminal.watcher, remote })).toMatchObject({
-      schema: "paperclip.e2e.native-active-stop-remote-retirement.v1", coverage: "continuous-through-owned-process-retirement",
+      schema: "nexus.e2e.native-active-stop-remote-retirement.v1", coverage: "continuous-through-owned-process-retirement",
       filesystemAfterRetirementObserved: false, observations: [
         { phase: "before-request", source: "live-snapshot" }, { phase: "pending", source: "live-snapshot" },
         { phase: "owned-process-retirement", source: "retirement-seal" },

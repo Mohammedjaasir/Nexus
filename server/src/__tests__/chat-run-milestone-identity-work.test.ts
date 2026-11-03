@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agentWakeupRequests, chatActions, chatExternalPrincipals, chatIdentityLinks, chatMessageLinks, chatPublications, companyMemberships, createDb, heartbeatRuns, issueComments, issues, subscribeDatabaseWork } from "@paperclipai/db";
+import { agentWakeupRequests, chatActions, chatExternalPrincipals, chatIdentityLinks, chatMessageLinks, chatPublications, companyMemberships, createDb, heartbeatRuns, issueComments, issues, subscribeDatabaseWork } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createChatMilestoneFixtures } from "./helpers/chat-milestone-fixtures.js";
@@ -12,7 +12,7 @@ import { initializeRunIdentity, reserveSteeredIdentity, acceptSteeredIdentity } 
 import { idleWorkSnapshot } from "../services/task-admission.js";
 import { accessService } from "../services/access.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_MILESTONE_IDENTITY_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_MILESTONE_IDENTITY_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("chat milestones after identity activation", () => {
   let db: ReturnType<typeof createDb>;
@@ -58,7 +58,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
       provider: "slack", providerAccountId: "", externalId: f.userId,
     }).returning();
     await db.insert(chatIdentityLinks).values({ companyId: f.companyId, endpointId: f.endpointId,
-      principalId: principal.id, paperclipUserId: f.userId, status: "linked",
+      principalId: principal.id, nexusUserId: f.userId, status: "linked",
     });
     await db.insert(chatActions).values({ companyId: f.companyId, endpointId: f.endpointId,
       conversationId: f.conversationId, kind: "slack_board_message", status: "processed",

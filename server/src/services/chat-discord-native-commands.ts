@@ -41,7 +41,7 @@ const rawCommand = z
       .object({
         id: snowflake,
         type: z.literal(1),
-        name: z.literal("paperclip"),
+        name: z.literal("nexus"),
         options: z.tuple([
           z
             .object({
@@ -69,7 +69,7 @@ const rawCommand = z
   .strict();
 
 export interface DiscordNativeCommandInvocation {
-  schema: "paperclip.discord.native-command.v1";
+  schema: "nexus.discord.native-command.v1";
   interactionId: string;
   applicationId: string;
   registeredCommandId: string;
@@ -105,7 +105,7 @@ export function parseDiscordNativeCommand(
     callback.event.user.userId !== raw.user.id ||
     callback.event.user.isBot ||
     callback.event.user.isMe ||
-    callback.event.command !== `/paperclip ${command}` ||
+    callback.event.command !== `/nexus ${command}` ||
     callback.event.text !== "" ||
     raw.channel_id !== raw.channel.id
   )
@@ -134,7 +134,7 @@ export function parseDiscordNativeCommand(
   )
     return null;
   const invocation = {
-    schema: "paperclip.discord.native-command.v1" as const,
+    schema: "nexus.discord.native-command.v1" as const,
     interactionId: raw.id,
     applicationId: raw.application_id,
     registeredCommandId: raw.data.id,

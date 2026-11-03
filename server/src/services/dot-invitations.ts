@@ -1,8 +1,8 @@
 import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
-import { activityLog, agents, companies, dotAgentBindings, type Db } from "@paperclipai/db";
+import { activityLog, agents, companies, dotAgentBindings, type Db } from "@nexusai/db";
 import { agentService } from "./agents.js";
 import { createAgentLifecycle, scheduleAgentLifecycle } from "./agent-lifecycle.js";
-import { withDedicatedDbConnection } from "@paperclipai/db";
+import { withDedicatedDbConnection } from "@nexusai/db";
 import { approvalService } from "./approvals.js";
 import { accessService } from "./access.js";
 import { agentInstructionsService } from "./agent-instructions.js";
@@ -20,7 +20,7 @@ export function dotInvitationService(db: Db, provider: "openai_dot" | "grok_bot"
     const rows = await database.select({ agent: agents, binding: dotAgentBindings })
       .from(agents).leftJoin(dotAgentBindings, and(eq(dotAgentBindings.agentId, agents.id), isNull(dotAgentBindings.revokedAt)))
       .where(and(eq(agents.companyId, companyId), ne(agents.status, "terminated"),
-        eq(agents.adapterType, "paperclip_runner"), sql`${agents.adapterConfig}->>'provider' = ${provider}`,
+        eq(agents.adapterType, "nexus_runner"), sql`${agents.adapterConfig}->>'provider' = ${provider}`,
         sql`((${recoverIncomplete} and ${agents.metadata}->${invitationKey}->>'operatorId' = ${operatorId}
           and ${agents.lifecycleOperation}->>'responsibleUserId' = ${operatorId}) or exists (select 1 from ${activityLog} where ${activityLog.companyId} = ${agents.companyId}
           and ${activityLog.entityId} = ${agents.id}::text and ${activityLog.entityType} = 'agent'
@@ -41,7 +41,7 @@ export function dotInvitationService(db: Db, provider: "openai_dot" | "grok_bot"
     async create(companyId: string, operatorId: string, details?: { name?: string; botName?: string; role?: typeof agents.$inferSelect.role; reportsTo?: string | null }) {
       if (!await dotRunnerBroker(db).enabled(provider)) throw unprocessable(`Enable ${providerName} and Assistant connections (MCP) in experimental settings.`);
       const database = db;
-      const lockKey = `paperclip:${source}:${companyId}:${operatorId}`;
+      const lockKey = `nexus:${source}:${companyId}:${operatorId}`;
       return withDedicatedDbConnection(db, lockDb => lockDb.transaction(async lock => {
         await lock.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
         // SQL locking also serializes retries on different control-plane replicas.
@@ -58,7 +58,7 @@ export function dotInvitationService(db: Db, provider: "openai_dot" | "grok_bot"
         }
         const svc = agentService(database);
         let created = existing ?? await createAgentLifecycle(database).requestHire(companyId, {
-          name: details?.name?.trim() || providerName, role: details?.role ?? "general", reportsTo: details?.reportsTo, adapterType: "paperclip_runner",
+          name: details?.name?.trim() || providerName, role: details?.role ?? "general", reportsTo: details?.reportsTo, adapterType: "nexus_runner",
           adapterConfig: { provider, lifecycleMode: "per_turn", allowUnmeteredProvider: true,
             dotWorkspaceAccess: false, dotAttachmentAccess: false },
           runtimeConfig: { heartbeat: { enabled: false, wakeOnDemand: true } },

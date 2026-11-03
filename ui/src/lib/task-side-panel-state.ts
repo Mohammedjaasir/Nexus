@@ -1,4 +1,4 @@
-import type { WorkspaceFileSelector } from "@paperclipai/shared";
+import type { WorkspaceFileSelector } from "@nexusai/shared";
 import type { SidePanelTabRecord, SidePanelTabsState } from "@/components/side-panel";
 
 const STORAGE_VERSION = 1;
@@ -70,7 +70,7 @@ interface TaskSidePanelStore {
 }
 
 function storageKey(accountScope: string, companyId: string) {
-  return `paperclip:task-side-panel:v${STORAGE_VERSION}:${accountScope}:${companyId}`;
+  return `nexus:task-side-panel:v${STORAGE_VERSION}:${accountScope}:${companyId}`;
 }
 
 function record(value: unknown): Record<string, unknown> | null {

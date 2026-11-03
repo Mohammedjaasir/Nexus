@@ -12,7 +12,7 @@ import {
   environmentLeases,
   environments,
   heartbeatRuns,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -57,7 +57,7 @@ describeEmbeddedPostgres("heartbeat sweepOrphanedActiveLeases", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-orphaned-active-lease-sweep-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-orphaned-active-lease-sweep-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -85,7 +85,7 @@ describeEmbeddedPostgres("heartbeat sweepOrphanedActiveLeases", () => {
     const environmentId = randomUUID();
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -171,7 +171,7 @@ describeEmbeddedPostgres("heartbeat sweepOrphanedActiveLeases", () => {
     const leaseId = await insertActiveLease({ companyId, environmentId, heartbeatRunId: runId, status, updatedAt: oldEnough() });
     const lease = (await leaseRow(leaseId))!;
     const reference = {
-      schema: "paperclip.native-workspace-sync/v3", state: "prepared",
+      schema: "nexus.native-workspace-sync/v3", state: "prepared",
       descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null,
       workspaceId: randomUUID(), leaseId, providerLeaseId: lease.providerLeaseId,
       remoteCwd: "/workspace", resourceDisposition: "destroy",
@@ -239,7 +239,7 @@ describeEmbeddedPostgres("heartbeat sweepOrphanedActiveLeases", () => {
         runnerProfileJson: {
           nativeWorkspaceSync: mode === "finalized" ? { ...reference, state: "finalized", finalHostSha256: "c".repeat(64) } : reference,
           ...(mode === "no_workspace" ? { nativeExecutionInput: {
-            schema: "paperclip.native-execution-input.v6", binding: { runId, companyId, agentId, issueId: null },
+            schema: "nexus.native-execution-input.v6", binding: { runId, companyId, agentId, issueId: null },
             provider: { kind: "openai_dot" }, workspace: { access: "none", cwd: null },
           } } : {}),
         },

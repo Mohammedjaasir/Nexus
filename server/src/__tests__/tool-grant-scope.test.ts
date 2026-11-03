@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import express from "express";
 import request from "supertest";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
-import { connectionGrants, createDb, principalPermissionGrants, toolPolicies, toolProfiles, startEmbeddedPostgresTestDatabase, getEmbeddedPostgresTestSupport } from "@paperclipai/db";
+import { connectionGrants, createDb, principalPermissionGrants, toolPolicies, toolProfiles, startEmbeddedPostgresTestDatabase, getEmbeddedPostgresTestSupport } from "@nexusai/db";
 import { toolAccessPolicyService } from "../services/tool-access-policy.js";
 import { createToolGatewayService } from "../services/tool-gateway.js";
 import { mcpGatewayProtocolRoutes } from "../routes/tool-gateway.js";
@@ -14,7 +14,7 @@ suite("tool grant restrictions", () => {
   let db!: ReturnType<typeof createDb>;
   let temp!: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   beforeAll(async () => {
-    temp = await startEmbeddedPostgresTestDatabase("paperclip-grant-scope-");
+    temp = await startEmbeddedPostgresTestDatabase("nexus-grant-scope-");
     db = createDb(temp.connectionString);
   });
   afterAll(async () => { await temp?.cleanup(); });

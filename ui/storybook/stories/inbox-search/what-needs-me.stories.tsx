@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ArrowUpDown, CheckCircle2, Inbox, Layers, ListFilter } from "lucide-react";
-import type { AttentionItem, AttentionSourceKind, AttentionSeverity, InboxDismissalKind } from "@paperclipai/shared";
+import type { AttentionItem, AttentionSourceKind, AttentionSeverity, InboxDismissalKind } from "@nexusai/shared";
 import { AttentionQueueRow } from "@/components/AttentionQueueRow";
 import { IssueGroupHeader } from "@/components/IssueGroupHeader";
 import { ToastProvider, useToastActions } from "@/context/ToastContext";
@@ -492,7 +492,7 @@ const meta: Meta<typeof Queue> = {
   title: "Tasks and conversations/Inbox, decisions, and search/Pages/Decisions",
   component: Queue,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "inbox-search/decisions"
       ],

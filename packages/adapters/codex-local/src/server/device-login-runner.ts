@@ -4,7 +4,7 @@ import {
   type LoginRunnerLifecycleOptions,
   type LoginRunnerOutcome,
   type LoginRunnerResult,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import { parseDeviceLoginPrompt, type DeviceLoginPrompt } from "./device-login-parse.js";
 
 // The device-login runner. It runs the Codex device-login command through an
@@ -138,7 +138,7 @@ export async function runDeviceLogin(
 
   try {
     if (signal?.aborted) {
-      log("[paperclip] Device login cancelled before start.");
+      log("[nexus] Device login cancelled before start.");
       return { outcome: "cancelled", exitCode: null, promptSurfaced };
     }
 
@@ -146,17 +146,17 @@ export async function runDeviceLogin(
     const raced = await raceLoginRunnerExit(started, timeoutMs, signal);
 
     if (raced.kind === "timeout") {
-      log("[paperclip] Device login timed out; disposing the sandbox.");
+      log("[nexus] Device login timed out; disposing the sandbox.");
       return { outcome: "timeout", exitCode: null, promptSurfaced };
     }
     if (raced.kind === "cancelled") {
-      log("[paperclip] Device login cancelled; disposing the sandbox.");
+      log("[nexus] Device login cancelled; disposing the sandbox.");
       return { outcome: "cancelled", exitCode: null, promptSurfaced };
     }
 
     const exitCode = raced.exitCode;
     if (exitCode !== 0) {
-      log("[paperclip] Device login command ended with a non-zero exit code.");
+      log("[nexus] Device login command ended with a non-zero exit code.");
       return { outcome: "failure", exitCode, promptSurfaced };
     }
 
@@ -164,7 +164,7 @@ export async function runDeviceLogin(
       const authBytes = await driver.readFile(authPath);
       await onCredential(authBytes);
     }
-    log("[paperclip] Device login command ended successfully.");
+    log("[nexus] Device login command ended successfully.");
     return { outcome: "success", exitCode, promptSurfaced };
   } catch {
     // Convert any driver error to a fixed, non-secret error. The original error
@@ -176,7 +176,7 @@ export async function runDeviceLogin(
     try {
       await driver.dispose();
     } catch {
-      log("[paperclip] Device login: the sandbox dispose step errored.");
+      log("[nexus] Device login: the sandbox dispose step errored.");
     }
   }
 }

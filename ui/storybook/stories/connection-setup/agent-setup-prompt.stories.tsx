@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
-import { MCP_CONFIG_HELP_PROMPT } from "@paperclipai/shared";
+import { MCP_CONFIG_HELP_PROMPT } from "@nexusai/shared";
 import { BookOpen, KeyRound } from "lucide-react";
 import { AgentSetupPrompt } from "@/components/AgentSetupPrompt";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,12 @@ import { McpConfigHelpDialog } from "@/pages/tools/McpConfigHelpDialog";
 import { AgentInstructions } from "@/components/routine-triggers/WebhookFields";
 import { IssueContinuationHandoff } from "@/components/IssueContinuationHandoff";
 import { webhookAgentInstructions } from "../../fixtures/routineTriggerWizard";
-import { storybookContinuationHandoff } from "../../fixtures/paperclipData";
+import { storybookContinuationHandoff } from "../../fixtures/nexusData";
 
-const slackPrompt = buildSlackSetupPrompt(import.meta.env.VITE_PAPERCLIP_INSTANCE_URL ?? "");
-const apiPrompt = `Help me connect my agent to the Paperclip API.
+const slackPrompt = buildSlackSetupPrompt(import.meta.env.VITE_NEXUS_INSTANCE_URL ?? "");
+const apiPrompt = `Help me connect my agent to the Nexus API.
 
-First, ask me for my Paperclip instance URL if it is not already available. Read its API documentation and identify the company and agent I want to use.
+First, ask me for my Nexus instance URL if it is not already available. Read its API documentation and identify the company and agent I want to use.
 
 Guide me through creating a dedicated agent API key. Store it securely in my agent's environment; do not paste it into code, logs, or chat.
 
@@ -29,7 +29,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     docs: { description: { component: "A reusable handoff to an agent. Hover or focus to fan out the logos, click once to copy the prompt and open its preview. Logos travel into the preview; clipboard success stays in place. Supports reduced motion, keyboard dismissal, and manual copying when clipboard access fails. The default story copies the complete production Slack setup prompt." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/channel-setup",
         "gateways-profiles/client-connect"
@@ -73,7 +73,7 @@ export const Playground: Story = {
           </div>
           <div className="flex flex-col gap-1">
             <h2 className="text-base font-medium">Connect Slack</h2>
-            <p className="text-sm leading-relaxed text-muted-foreground">Bring your Paperclip agent into your workspace.</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">Bring your Nexus agent into your workspace.</p>
           </div>
         </div>
         <div><AgentSetupPrompt {...args} /></div>
@@ -151,11 +151,11 @@ export const AppPlacements: Story = {
       </div>
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Slack connection</h2>
-        <SlackSetupPrompt instanceUrl={import.meta.env.VITE_PAPERCLIP_INSTANCE_URL ?? ""} />
+        <SlackSetupPrompt instanceUrl={import.meta.env.VITE_NEXUS_INSTANCE_URL ?? ""} />
       </section>
       <section className="space-y-3">
         <h2 className="text-sm font-medium">GitHub connection</h2>
-        <GitHubSetupPrompt instanceUrl={import.meta.env.VITE_PAPERCLIP_INSTANCE_URL ?? ""} />
+        <GitHubSetupPrompt instanceUrl={import.meta.env.VITE_NEXUS_INSTANCE_URL ?? ""} />
       </section>
       <section className="space-y-3">
         <div className="flex items-center gap-2">

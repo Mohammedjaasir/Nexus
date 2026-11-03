@@ -1,7 +1,7 @@
 import type { ToolAccessMutationDb } from "../types.js";
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { connectionGrants, toolConnections } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { connectionGrants, toolConnections } from "@nexusai/db";
 import { RAILWAY_SSH_SECRET_PATH } from "../../railway-ssh.js";
 import { isRailwayConnection } from "../../railway.js";
 

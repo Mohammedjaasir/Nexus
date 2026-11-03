@@ -44,7 +44,7 @@ it.each(["true", "", "unknown"])("refuses bounded campaigns when repository priv
 it("preserves the explicit manual AWS and GitHub options", async () => {
   const aws = await select({ REPOSITORY_PRIVATE: "true" });
   expect(aws.status).toBe(0);
-  expect(aws.outputs).toMatchObject({ runner: "runs-on/fleet=paperclip-public-pr-x64/env=public-ci", playwright_channel: "chrome" });
+  expect(aws.outputs).toMatchObject({ runner: "runs-on/fleet=nexus-public-pr-x64/env=public-ci", playwright_channel: "chrome" });
   const hosted = await select({ AWS_PAID_RUNNER_ENABLED: "false" });
   expect(hosted.status).toBe(0);
   expect(hosted.outputs).toMatchObject({ runner: "ubuntu-latest", playwright_channel: "" });

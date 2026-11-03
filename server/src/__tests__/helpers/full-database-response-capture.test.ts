@@ -13,11 +13,11 @@ it("measures every oversized string and complex value without sampling or trunca
   try {
     for (let index = 0; index < 17; index++) expect(capture.execute(() => rows, metadata)).toBe(rows);
     capture.flush();
-    expect(events[0]).toMatchObject({ event: "paperclip.test_db_response_capture.entry.v1",
+    expect(events[0]).toMatchObject({ event: "nexus.test_db_response_capture.entry.v1",
       calls: 17, rows: 17, responseValueBytes: 17 * bytes, maxResponseValueBytes: bytes,
       estimatedValues: 17, serializationErrors: 0,
     });
-    expect(events[1]).toMatchObject({ event: "paperclip.test_db_response_capture.summary.v1",
+    expect(events[1]).toMatchObject({ event: "nexus.test_db_response_capture.summary.v1",
       startedQueries: 17, completedQueries: 17, inFlightAtEnd: 0, overflowCalls: 0, responseValueBytes: 17 * bytes,
     });
     expect(JSON.stringify(events)).not.toContain("private-payload");
@@ -56,7 +56,7 @@ it("reports unfinished work at the deadline without cancelling it or counting a 
   await expect(pending).resolves.toEqual(["result"]);
   capture.flush();
   expect(events).toHaveLength(1);
-  expect(events[0]).toMatchObject({ event: "paperclip.test_db_response_capture.summary.v1",
+  expect(events[0]).toMatchObject({ event: "nexus.test_db_response_capture.summary.v1",
     startedQueries: 1, completedQueries: 0, inFlightAtEnd: 1, responseValueBytes: 0,
   });
 });

@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { Issue, IssueWatchdogSummary } from "@paperclipai/shared";
+import type { Issue, IssueWatchdogSummary } from "@nexusai/shared";
 import { IssueProperties } from "@/components/IssueProperties";
 import {
   storybookExecutionWorkspaces,
   storybookIssueDocuments,
   storybookIssues,
-} from "../../fixtures/paperclipData";
+} from "../../fixtures/nexusData";
 
 const issueDocumentSummaries = storybookIssueDocuments.map(({ body: _body, ...summary }) => summary);
 
@@ -112,7 +112,7 @@ const meta = {
           "Surfaces the IssueProperties Watchdog row in empty / configured / triggered-and-linked variants for UX review of the task-watchdog configuration UI (PAP-11294).",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "task-coordination/tree-control"
       ],

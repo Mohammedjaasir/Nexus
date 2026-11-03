@@ -7,11 +7,11 @@ const reasons = {
   harness_model_unavailable: "The selected model is unavailable. Choose a model supported by the agent's AI connection in Configuration, then retry.",
   harness_command_unavailable: "The execution command was not found. Check the command and its installation in the agent's environment, then retry.",
   harness_cwd_invalid: "The working directory is unavailable. Check the working directory in Configuration, then retry.",
-  harness_probe_timed_out: "The execution test timed out. Paperclip will retry automatically. If this continues, run the agent test in Configuration.",
+  harness_probe_timed_out: "The execution test timed out. Nexus will retry automatically. If this continues, run the agent test in Configuration.",
   harness_probe_unexpected_output: "The execution test did not return the expected response. Run the agent test in Configuration to inspect the failed checks.",
-  test_environment_unavailable: "The test environment is unavailable. Check the agent's environment in Configuration. Paperclip will retry automatically.",
-  required_plugin_unavailable: "A required plugin is unavailable. Check the plugin's status in Settings. Paperclip will retry automatically.",
-  invalid_lifecycle_result: "A required plugin returned an invalid result. Check the plugin's status in Settings. Paperclip will retry automatically.",
+  test_environment_unavailable: "The test environment is unavailable. Check the agent's environment in Configuration. Nexus will retry automatically.",
+  required_plugin_unavailable: "A required plugin is unavailable. Check the plugin's status in Settings. Nexus will retry automatically.",
+  invalid_lifecycle_result: "A required plugin returned an invalid result. Check the plugin's status in Settings. Nexus will retry automatically.",
 } as const;
 
 const transientCodes = new Set(["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "40001", "40P01", "53300", "57P01"]);
@@ -45,7 +45,7 @@ export function lifecycleFailureMessage(context: LifecycleFailure, error: unknow
       ? `${phase}: saving progress` : phase;
   const code = lifecycleFailureCode(error);
   const reason = code && Object.hasOwn(reasons, code) ? reasons[code as keyof typeof reasons]
-    : "Paperclip could not complete this step. It will retry automatically. If this continues, contact your instance administrator.";
+    : "Nexus could not complete this step. It will retry automatically. If this continues, contact your instance administrator.";
   return `${step} failed. ${reason}${lifecycleVerificationNeedsRetry(context, error)
     ? " Automatic verification is paused. Update Configuration or choose Retry now." : ""}`;
 }

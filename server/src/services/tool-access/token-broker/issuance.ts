@@ -1,7 +1,7 @@
 import type { ToolAccessMutationDb } from "../types.js";
-import type { Db } from "@paperclipai/db";
-import { connectionTokenIssuances } from "@paperclipai/db";
-import type { ConnectionTokenIssuanceOutcome, ConnectionTokenIssuancePath } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { connectionTokenIssuances } from "@nexusai/db";
+import type { ConnectionTokenIssuanceOutcome, ConnectionTokenIssuancePath } from "@nexusai/shared";
 import { logActivity } from "../../activity-log.js";
 
 import type { ToolAccessAudit } from "../audit.js";

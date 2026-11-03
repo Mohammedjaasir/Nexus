@@ -14,7 +14,7 @@ browser-only “use as a user” discovery.
 | Campaign | Explicit journey order, target, model profile, limits, lifetime |
 
 Shared code is in `product-journeys/`. Cloud fleet operations, email-code login,
-private state, and trusted CI live in the private `paperclip-cloud` repository.
+private state, and trusted CI live in the private `nexus-cloud` repository.
 The `TargetProvider` version-1 interface is defined in `product-journeys/types.ts`.
 Journeys receive a ready browser, company-scoped API, IDs, and capabilities. They
 never start a server or depend on a tenant filesystem.
@@ -214,7 +214,7 @@ the parent must not record its own approval or treat the opening scope as accept
 It must copy the full marked brief verbatim into `create_task.description`,
 including tool names, parameters, and the encoded input. It orders the child's
 work: create the files, publish `connection-proof.json` with that exact filename
-and workspace-relative content reference, save its Paperclip task document with
+and workspace-relative content reference, save its Nexus task document with
 the returned file link, then report completion. A Markdown workspace note does
 not replace the task document. It explains the native completion contract:
 include actual verification, omit the optional schema, and use receipt-derived
@@ -289,7 +289,7 @@ An approved child that commits a board-owned current-track blocker fails with
 run must prove the blocked decision at the child's current status version.
 Parent dependency waits, pending recovery, and stale child decisions keep waiting
 within the original deadline. This failure does not satisfy any delivery check.
-The [semantic control-plane port](../../server/src/services/native-runtime/paperclip-control-plane-port.ts)
+The [semantic control-plane port](../../server/src/services/native-runtime/nexus-control-plane-port.ts)
 writes `prpReportedWorkDisposition`. [Native finalization](../../server/src/services/native-runtime/native-run-finalizer.ts)
 commits the blocked decision and `statusVersionAfter` into the run's `resultJson`.
 
@@ -343,7 +343,7 @@ reply observer on managed self-hosted and attached Cloud targets. The initial
 request includes one bounded `sleep 90` command. It supplies no changed launch
 day or final marker. The observer requires a valid running native turn and a
 pending named builtin command or process execution before sending the follow-up.
-Paperclip semantic tools, including completion/block/progress calls, cannot
+Nexus semantic tools, including completion/block/progress calls, cannot
 satisfy this boundary even if a provider labels them builtin execute or wraps
 their names with a native prefix. Unnamed or ambiguous builtin calls fail closed.
 The observed older PRP v1 builtin `bash` shape is also supported when its

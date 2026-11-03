@@ -31,7 +31,7 @@ const mockAccessService = vi.hoisted(() => ({
 const mockLogActivity = vi.hoisted(() => vi.fn(async () => undefined));
 
 function registerRouteMocks() {
-  vi.doMock("@paperclipai/shared/telemetry", () => ({
+  vi.doMock("@nexusai/shared/telemetry", () => ({
     trackAgentTaskCompleted: vi.fn(),
     trackErrorHandlerCrash: vi.fn(),
   }));
@@ -206,17 +206,17 @@ function parseBinaryResponse(res: IncomingMessage, callback: (error: Error | nul
 
 describe("MAX_ATTACHMENT_BYTES", () => {
   it("reads the deployment-level attachment cap from the environment", async () => {
-    const previous = process.env.PAPERCLIP_ATTACHMENT_MAX_BYTES;
-    process.env.PAPERCLIP_ATTACHMENT_MAX_BYTES = "5";
+    const previous = process.env.NEXUS_ATTACHMENT_MAX_BYTES;
+    process.env.NEXUS_ATTACHMENT_MAX_BYTES = "5";
     vi.resetModules();
     try {
       const { MAX_ATTACHMENT_BYTES } = await import("../attachment-types.js");
       expect(MAX_ATTACHMENT_BYTES).toBe(5);
     } finally {
       if (previous === undefined) {
-        delete process.env.PAPERCLIP_ATTACHMENT_MAX_BYTES;
+        delete process.env.NEXUS_ATTACHMENT_MAX_BYTES;
       } else {
-        process.env.PAPERCLIP_ATTACHMENT_MAX_BYTES = previous;
+        process.env.NEXUS_ATTACHMENT_MAX_BYTES = previous;
       }
       vi.resetModules();
     }
@@ -226,7 +226,7 @@ describe("MAX_ATTACHMENT_BYTES", () => {
 describe("issue attachment routes", () => {
   beforeAll(() => {
     vi.resetModules();
-    vi.doUnmock("@paperclipai/shared/telemetry");
+    vi.doUnmock("@nexusai/shared/telemetry");
     vi.doUnmock("../telemetry.js");
     vi.doUnmock("../services/issues.js");
     vi.doUnmock("../services/index.js");
@@ -732,7 +732,7 @@ describe("issue attachment routes", () => {
     expect(storage.getObject).not.toHaveBeenCalled();
   });
 
-  it("canonicalizes paperclip artifact metadata before creating a work product", async () => {
+  it("canonicalizes nexus artifact metadata before creating a work product", async () => {
     const storage = createStorageService();
     const issue = {
       id: "11111111-1111-4111-8111-111111111111",
@@ -752,7 +752,7 @@ describe("issue attachment routes", () => {
       issueId: issue.id,
       companyId: issue.companyId,
       type: "artifact",
-      provider: "paperclip",
+      provider: "nexus",
       title: "Clip",
       metadata: null,
     });
@@ -762,7 +762,7 @@ describe("issue attachment routes", () => {
       .post(`/api/issues/${issue.id}/work-products`)
       .send({
         type: "artifact",
-        provider: "paperclip",
+        provider: "nexus",
         title: "Clip",
         metadata: {
           attachmentId: "22222222-2222-4222-8222-222222222222",
@@ -781,7 +781,7 @@ describe("issue attachment routes", () => {
       issue.companyId,
       expect.objectContaining({
         type: "artifact",
-        provider: "paperclip",
+        provider: "nexus",
         metadata: {
           attachmentId: "22222222-2222-4222-8222-222222222222",
           contentType: "video/mp4",
@@ -795,7 +795,7 @@ describe("issue attachment routes", () => {
     );
   });
 
-  it("rejects paperclip artifact metadata that references another issue's attachment", async () => {
+  it("rejects nexus artifact metadata that references another issue's attachment", async () => {
     const storage = createStorageService();
     const issue = {
       id: "11111111-1111-4111-8111-111111111111",
@@ -815,7 +815,7 @@ describe("issue attachment routes", () => {
       .post(`/api/issues/${issue.id}/work-products`)
       .send({
         type: "artifact",
-        provider: "paperclip",
+        provider: "nexus",
         title: "Clip",
         metadata: {
           attachmentId: "22222222-2222-4222-8222-222222222222",
@@ -827,7 +827,7 @@ describe("issue attachment routes", () => {
     expect(mockWorkProductService.createForIssue).not.toHaveBeenCalled();
   });
 
-  it("canonicalizes paperclip artifact metadata on work product updates", async () => {
+  it("canonicalizes nexus artifact metadata on work product updates", async () => {
     const storage = createStorageService();
     const issue = {
       id: "11111111-1111-4111-8111-111111111111",
@@ -840,7 +840,7 @@ describe("issue attachment routes", () => {
       issueId: issue.id,
       companyId: issue.companyId,
       type: "artifact",
-      provider: "paperclip",
+      provider: "nexus",
       title: "Clip",
       metadata: null,
     });
@@ -856,7 +856,7 @@ describe("issue attachment routes", () => {
       issueId: issue.id,
       companyId: issue.companyId,
       type: "artifact",
-      provider: "paperclip",
+      provider: "nexus",
       title: "Clip",
       metadata: null,
     });

@@ -1,4 +1,4 @@
-import type { AgentConfigurationDocument, AgentConfigurationInput, AgentConfigurationWarning } from "@paperclipai/shared";
+import type { AgentConfigurationDocument, AgentConfigurationInput, AgentConfigurationWarning } from "@nexusai/shared";
 import { agentsApi } from "../../api/agents";
 import { secretsApi } from "../../api/secrets";
 import { agentConfigurationPatch } from "../agent-configuration-yaml";
@@ -32,7 +32,7 @@ function planInstructions(snapshot: AgentConfigurationSnapshot, document: AgentC
   if (bundleChanged) {
     if (!equal(previous.files, next.files)) throw new Error("Save the instructions location or entry file first, then edit the files loaded from that location.");
     if (next.mode === "managed" && previous.mode === "managed" && next.rootPath !== previous.rootPath) {
-      throw new Error("The managed instructions root is assigned by Paperclip. Choose external mode to use another folder.");
+      throw new Error("The managed instructions root is assigned by Nexus. Choose external mode to use another folder.");
     }
     add("Instructions location (load the destination files)", () => agentsApi.updateInstructionsBundle(snapshot.agent.id, {
       ...(next.mode ? { mode: next.mode } : {}), rootPath: next.rootPath, entryFile: next.entryFile,
@@ -117,7 +117,7 @@ function planResolvedConfiguration(snapshot: AgentConfigurationSnapshot, documen
   const steps: ConfigurationStep[] = [];
   const add: AddConfigurationStep = (label, apply) => { steps.push({ label, apply }); };
   if (!equal(document.observed, snapshot.document.observed)) throw new Error("observed is read-only. Edit spec to change configuration.");
-  for (const key of ownedAdapterKeys) if (Object.hasOwn(document.spec.adapterConfig, key)) throw new Error(`Use the ${key === "paperclipSkillSync" ? "skills" : "instructions"} section instead of adapterConfig.${key}.`);
+  for (const key of ownedAdapterKeys) if (Object.hasOwn(document.spec.adapterConfig, key)) throw new Error(`Use the ${key === "nexusSkillSync" ? "skills" : "instructions"} section instead of adapterConfig.${key}.`);
   const adapterConfig = { ...document.spec.adapterConfig };
   for (const key of ownedAdapterKeys) if (Object.hasOwn(snapshot.core.adapterConfig, key)) adapterConfig[key] = snapshot.core.adapterConfig[key];
   const corePatch = agentConfigurationPatch({ ...document, spec: { ...document.spec, adapterConfig } }, snapshot.core);

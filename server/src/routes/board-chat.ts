@@ -1,12 +1,12 @@
-import { FAST_RESPONSE_AGENT_GUIDANCE, fastResponseHistoryBody } from "@paperclipai/shared";
+import { FAST_RESPONSE_AGENT_GUIDANCE, fastResponseHistoryBody } from "@nexusai/shared";
 import { enqueueFastResponse, supersedeFastResponse } from "../services/fast-responses.js";
 import { Router } from "express";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Db } from "@paperclipai/db";
-import type { DeploymentMode } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import type { DeploymentMode } from "@nexusai/shared";
 import { instanceSettingsService, issueService } from "../services/index.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
 
@@ -23,7 +23,7 @@ function stripActionSignals(response: string): string {
  * Board Concierge Chat routes.
  *
  * Implements `POST /board/chat/stream` (mounted under `/api`): a lightweight
- * chat relay that spawns the `claude` CLI with the paperclip-board skill as
+ * chat relay that spawns the `claude` CLI with the nexus-board skill as
  * its system prompt and streams the response back to the web UI via
  * Server-Sent Events. The conversation is persisted to a standing
  * "Board Operations" issue so it survives reloads.
@@ -72,14 +72,14 @@ export function boardChatRoutes(
   let liveBoardChats = 0;
 
   // The board skill is read from disk once and cached. Resolves to the
-  // repo-root `skills/paperclip-board/SKILL.md` whether running from
+  // repo-root `skills/nexus-board/SKILL.md` whether running from
   // `server/src/routes` (tsx) or `server/dist/routes` (compiled).
   let _boardSkillCache: string | null = null;
 
   function loadBoardSkill(): string {
     if (_boardSkillCache) return _boardSkillCache;
     const here = path.dirname(fileURLToPath(import.meta.url));
-    const skillPath = path.resolve(here, "../../../skills/paperclip-board/SKILL.md");
+    const skillPath = path.resolve(here, "../../../skills/nexus-board/SKILL.md");
     try {
       let content = fs.readFileSync(skillPath, "utf-8");
       // Strip YAML frontmatter — the model only needs the body.
@@ -89,7 +89,7 @@ export function boardChatRoutes(
     } catch {
       return (
         "You are a board-level assistant helping a human manage their AI-agent " +
-        "company through Paperclip. Help them create companies, hire agents, " +
+        "company through Nexus. Help them create companies, hire agents, " +
         "approve tasks, and monitor their organization. Be conversational, " +
         "strategic, and concise."
       );
@@ -257,8 +257,8 @@ export function boardChatRoutes(
       cwd: "/tmp",
       env: {
         ...process.env,
-        PAPERCLIP_API_URL: apiUrl,
-        PAPERCLIP_COMPANY_ID: companyId,
+        NEXUS_API_URL: apiUrl,
+        NEXUS_COMPANY_ID: companyId,
       },
     });
 

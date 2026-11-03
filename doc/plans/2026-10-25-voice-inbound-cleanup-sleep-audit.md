@@ -196,7 +196,7 @@ remote CI and review are required before accepting the PR.
 
 Parent #17578 at 90caaf3fa9 has all checks terminal with no failures and Greptile
 5/5 on that exact head. Both requested findings are fixed/resolved. The fresh
-Paperclip reviewer stopped before completing its turn; do not report a new 5/5
+Nexus reviewer stopped before completing its turn; do not report a new 5/5
 assessment from that reviewer. The full original migration ledger, #17490 failure,
 and final stack/master reconciliation remain outstanding.
 
@@ -360,8 +360,8 @@ regressions. Removing only the existing-session binding makes those real API
 requests reject instead of resolve; the source was restored after the probe.
 The bounded-backfill and restart probes were also restored before final acceptance.
 
-Commands use `pnpm --filter @paperclipai/server exec vitest run` for the ten named
-server suites, `pnpm --filter @paperclipai/db exec vitest run` for the two database
+Commands use `pnpm --filter @nexusai/server exec vitest run` for the ten named
+server suites, `pnpm --filter @nexusai/db exec vitest run` for the two database
 cases, and each affected package's `typecheck` and `build` scripts. Evidence logs:
 `/tmp/sleep23-final-voice-consumers.log`,
 `/tmp/sleep23-final-lifecycle-consumers.log`,

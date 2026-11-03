@@ -1,4 +1,4 @@
-import type { LiveEvent } from "@paperclipai/shared";
+import type { LiveEvent } from "@nexusai/shared";
 const sockets: FixtureSocket[] = [];
 const listeners = new Set<() => void>();
 class FixtureSocket {

@@ -1,6 +1,6 @@
 import { enableRunFailureReporting } from "./helpers/run-failure-reporting.js";
-import * as codexAdapter from "@paperclipai/adapter-codex-local/server";
-import { WORKSPACE_RESTORE_LOCK_TIMEOUT_CODE } from "@paperclipai/adapter-utils/workspace-restore-merge";
+import * as codexAdapter from "@nexusai/adapter-codex-local/server";
+import { WORKSPACE_RESTORE_LOCK_TIMEOUT_CODE } from "@nexusai/adapter-utils/workspace-restore-merge";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -9,8 +9,8 @@ import express from "express";
 import request from "supertest";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { activityLog, agents, authUsers, companies, companyMemberships, createDb, closeRegisteredClients, environments, heartbeatRuns, issues, plugins, principalPermissionGrants, toolConnectionInstalls } from "@paperclipai/db";
-import { type AiConnectionBinding, type AiConnectionPoolMember, type PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import { activityLog, agents, authUsers, companies, companyMemberships, createDb, closeRegisteredClients, environments, heartbeatRuns, issues, plugins, principalPermissionGrants, toolConnectionInstalls } from "@nexusai/db";
+import { type AiConnectionBinding, type AiConnectionPoolMember, type NexusPluginManifestV1 } from "@nexusai/shared";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { agentRoutes } from "../routes/agents.js";
 import { errorHandler } from "../middleware/index.js";
@@ -33,18 +33,18 @@ vi.mock("../sentry.js", async (importOriginal) => ({
 }));
 
 let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
-const externalTestDatabaseUrl = process.env.PAPERCLIP_TEST_DATABASE_URL?.trim();
+const externalTestDatabaseUrl = process.env.NEXUS_TEST_DATABASE_URL?.trim();
 let db: ReturnType<typeof createDb>;
 let home: string;
 
 beforeAll(async () => {
-  home = await mkdtemp(path.join(os.tmpdir(), "paperclip-hire-ai-"));
-  vi.stubEnv("PAPERCLIP_HOME", home);
-  vi.stubEnv("PAPERCLIP_INSTANCE_ID", "hire-ai");
-  vi.stubEnv("PAPERCLIP_IN_WORKTREE", "false");
+  home = await mkdtemp(path.join(os.tmpdir(), "nexus-hire-ai-"));
+  vi.stubEnv("NEXUS_HOME", home);
+  vi.stubEnv("NEXUS_INSTANCE_ID", "hire-ai");
+  vi.stubEnv("NEXUS_IN_WORKTREE", "false");
   if (externalTestDatabaseUrl) db = createDb(externalTestDatabaseUrl);
   else {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-hire-ai-db-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-hire-ai-db-");
     db = createDb(database.connectionString);
   }
 }, 90_000);
@@ -97,7 +97,7 @@ function hired(response: request.Response) {
 async function poolFixture(f: Awaited<ReturnType<typeof fixture>>, extraMembers: AiConnectionPoolMember[] = []) {
   await instanceSettingsService(db).updateExperimental({ enableAiConnectionRouters: true });
   const pluginKey = `fixture.pool-${f.companyId}`;
-  const manifest: PaperclipPluginManifestV1 = { id: pluginKey, apiVersion: 1, version: "0.1.0", displayName: "Pool fixture", description: "Fixture", author: "Tests", categories: ["connector"], capabilities: ["ai.connections.route"], aiConnectionRouter: { name: "AI connection pool", description: "Fixture" }, entrypoints: { worker: "worker.js" } };
+  const manifest: NexusPluginManifestV1 = { id: pluginKey, apiVersion: 1, version: "0.1.0", displayName: "Pool fixture", description: "Fixture", author: "Tests", categories: ["connector"], capabilities: ["ai.connections.route"], aiConnectionRouter: { name: "AI connection pool", description: "Fixture" }, entrypoints: { worker: "worker.js" } };
   await db.insert(plugins).values({ pluginKey, packageName: pluginKey, version: "0.1.0", manifestJson: manifest, status: "ready" });
   const member: AiConnectionPoolMember = { id: randomUUID(), binding: { ...f.account, provider: "openai", method: "api_key", mode: "delegated" }, profile: { provider: "codex", model: "gpt-5.6-sol" } };
   const pool = await aiConnectionRouterService(db).save(pluginKey, { companyId: f.companyId, config: { name: "Fixture pool", enabled: true, mode: "round_robin", thresholdPercent: 90, members: [member, ...extraMembers] } }, f.userId);
@@ -127,9 +127,9 @@ describe("agent-created hires use managed AI connections", () => {
   it("keeps an inherited pool when copying the caller's native runtime settings", async () => {
     const f = await fixture("openai");
     const p = await poolFixture(f);
-    await db.update(agents).set({ adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol", lifecycleMode: "per_turn" }, runtimeConfig: { aiConnection: p.binding } }).where(eq(agents.id, f.agentId));
+    await db.update(agents).set({ adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol", lifecycleMode: "per_turn" }, runtimeConfig: { aiConnection: p.binding } }).where(eq(agents.id, f.agentId));
     const agent = hired(await request(f.app).post(`/api/companies/${f.companyId}/agent-hires`).send({
-      name: "Native pool teammate", role: "engineer", adapterType: "paperclip_runner", inheritRuntimeFrom: "caller",
+      name: "Native pool teammate", role: "engineer", adapterType: "nexus_runner", inheritRuntimeFrom: "caller",
     }));
     expect(agent.runtimeConfig.aiConnection).toEqual(p.binding);
     expect(agent.adapterConfig).toMatchObject({ provider: "codex", model: "gpt-5.6-sol", lifecycleMode: "per_turn" });
@@ -157,21 +157,21 @@ describe("agent-created hires use managed AI connections", () => {
   });
 
   it.each([
-    ["opencode_local", { model: "anthropic/claude-sonnet-5" }, "PAPERCLIP_OPENCODE_PROVIDERS"],
+    ["opencode_local", { model: "anthropic/claude-sonnet-5" }, "NEXUS_OPENCODE_PROVIDERS"],
     ["opencode_local", { model: "anthropic/claude-sonnet-5" }, "OPENCODE_AUTH_JSON"],
-    ["paperclip_runner", { provider: "opencode", model: "anthropic/claude-sonnet-5" }, "OPENCODE_CONFIG_CONTENT"],
+    ["nexus_runner", { provider: "opencode", model: "anthropic/claude-sonnet-5" }, "OPENCODE_CONFIG_CONTENT"],
   ] as const)("%s hires with %j apply the host boundary to explicit %s auth", async (adapterType, config, key) => {
     const f = await fixture("openai");
     const p = await poolFixture(f);
     await db.update(agents).set({ runtimeConfig: { aiConnection: p.binding } }).where(eq(agents.id, f.agentId));
     const provider = { npm: "@ai-sdk/anthropic", options: { apiKey: "fixture-explicit-key" }, models: { "claude-sonnet-5": { name: "Claude fixture" } } };
-    const value = JSON.stringify(key === "PAPERCLIP_OPENCODE_PROVIDERS" ? { anthropic: provider }
+    const value = JSON.stringify(key === "NEXUS_OPENCODE_PROVIDERS" ? { anthropic: provider }
       : key === "OPENCODE_CONFIG_CONTENT" ? { provider: { anthropic: provider } }
       : { anthropic: { type: "api", key: "fixture-explicit-key" } });
     const response = await request(f.app).post(`/api/companies/${f.companyId}/agent-hires`).send({
       name: "Independent OpenCode teammate", role: "engineer", adapterType, adapterConfig: { ...config, env: { [key]: value } },
     });
-    if (adapterType === "paperclip_runner") {
+    if (adapterType === "nexus_runner") {
       expect(response.status).toBe(403);
       expect(response.body.error).toContain("host-executed local adapter settings");
       const savedAgents = await db.select({ id: agents.id }).from(agents).where(eq(agents.companyId, f.companyId));
@@ -221,9 +221,9 @@ describe("agent-created hires use managed AI connections", () => {
     const binding = mode === "router" ? (await poolFixture(f)).binding
       : mode === "responsible_user" ? f.binding
         : { provider: "openai", method: "api_key", mode, ...account };
-    const adapterType = mode === "shared" ? "paperclip_runner" : f.adapterType;
+    const adapterType = mode === "shared" ? "nexus_runner" : f.adapterType;
     await db.update(agents).set({ adapterType,
-      ...(adapterType === "paperclip_runner" ? { adapterConfig: { provider: "codex", model: "gpt-5.6-sol" } } : {}),
+      ...(adapterType === "nexus_runner" ? { adapterConfig: { provider: "codex", model: "gpt-5.6-sol" } } : {}),
       runtimeConfig: { aiConnection: binding },
     }).where(eq(agents.id, f.agentId));
     const [before] = await db.select().from(agents).where(eq(agents.id, f.agentId));
@@ -261,7 +261,7 @@ describe("agent-created hires use managed AI connections", () => {
     const f = await fixture("openai");
     await db.insert(principalPermissionGrants).values({ companyId: f.companyId, principalType: "user", principalId: f.userId, permissionKey: "agents:configure" });
     const [environment] = await db.select().from(environments).where(eq(environments.driver, "local"));
-    const adapterType = selection === "harness" ? "paperclip_runner" : f.adapterType;
+    const adapterType = selection === "harness" ? "nexus_runner" : f.adapterType;
     const original = getServerAdapter(adapterType);
     const probe = vi.fn(async () => ({ adapterType, status: "fail" as const, testedAt: new Date().toISOString(),
       checks: [{ code: "fixture_runtime_unavailable", level: "error" as const, message: "The selected runtime is unavailable" }],
@@ -468,8 +468,8 @@ describe("agent-created hires use managed AI connections", () => {
     it.each([
       ["anthropic", "codex_local", {}, "ANTHROPIC_API_KEY"],
       ["openai", "claude_local", {}, "OPENAI_API_KEY"],
-      ["anthropic", "paperclip_runner", { provider: "codex" }, "ANTHROPIC_API_KEY"],
-      ["openai", "paperclip_runner", { provider: "acpx", acpxAgent: "claude" }, "OPENAI_API_KEY"],
+      ["anthropic", "nexus_runner", { provider: "codex" }, "ANTHROPIC_API_KEY"],
+      ["openai", "nexus_runner", { provider: "acpx", acpxAgent: "claude" }, "OPENAI_API_KEY"],
     ] as const)(`${endpoint}: rejects host env settings for a %s caller hiring %s`, async (provider, adapterType, config, key) => {
       const f = await fixture(provider);
       const response = await request(f.app).post(`/api/companies/${f.companyId}/${endpoint}`).send({
@@ -497,7 +497,7 @@ describe("agent-created hires use managed AI connections", () => {
 
   it.each(["anthropic", "openai"] as const)("inherits %s when the hire uses the native runner", async (provider) => {
     const f = await fixture(provider, "subscription");
-    const agent = hired(await request(f.app).post(`/api/companies/${f.companyId}/agent-hires`).send({ name: "Native teammate", role: "engineer", adapterType: "paperclip_runner", adapterConfig: provider === "anthropic" ? { provider: "acpx", acpxAgent: "claude" } : { provider: "codex" } }));
+    const agent = hired(await request(f.app).post(`/api/companies/${f.companyId}/agent-hires`).send({ name: "Native teammate", role: "engineer", adapterType: "nexus_runner", adapterConfig: provider === "anthropic" ? { provider: "acpx", acpxAgent: "claude" } : { provider: "codex" } }));
     expect(agent.runtimeConfig.aiConnection).toEqual(f.binding);
     const runtime = await prepareManagedAiRuntime(db, { companyId: f.companyId, agentId: agent.id, responsibleUserId: f.userId, adapterType: agent.adapterType, binding: agent.runtimeConfig.aiConnection, config: agent.adapterConfig });
     try { expect(runtime.attribution.connectionId).toBe(f.account.connectionId); } finally { await runtime.cleanup(); }
@@ -509,7 +509,7 @@ describe("agent-created hires use managed AI connections", () => {
   ] as const)("caller runtime inheritance preserves safe %s settings only", async (_name, parentConfig) => {
     const f = await fixture("anthropic", "subscription");
     await db.update(agents).set({
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: {
         ...parentConfig,
         cwd: "/private/parent-workspace",
@@ -519,7 +519,7 @@ describe("agent-created hires use managed AI connections", () => {
       },
     }).where(eq(agents.id, f.agentId));
     const agent = hired(await request(f.app).post(`/api/companies/${f.companyId}/agent-hires`).send({
-      name: "Inherited teammate", role: "engineer", adapterType: "paperclip_runner", inheritRuntimeFrom: "caller",
+      name: "Inherited teammate", role: "engineer", adapterType: "nexus_runner", inheritRuntimeFrom: "caller",
     }));
     expect(agent.adapterConfig).toMatchObject(parentConfig);
     expect(agent.adapterConfig).not.toHaveProperty("cwd");
@@ -534,9 +534,9 @@ describe("agent-created hires use managed AI connections", () => {
 
   it("rejects caller inheritance when the request supplies competing runtime settings", async () => {
     const f = await fixture("anthropic", "subscription");
-    await db.update(agents).set({ adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude" } }).where(eq(agents.id, f.agentId));
+    await db.update(agents).set({ adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude" } }).where(eq(agents.id, f.agentId));
     const response = await request(f.app).post(`/api/companies/${f.companyId}/agent-hires`).send({
-      name: "Conflicting teammate", role: "engineer", adapterType: "paperclip_runner", inheritRuntimeFrom: "caller",
+      name: "Conflicting teammate", role: "engineer", adapterType: "nexus_runner", inheritRuntimeFrom: "caller",
       adapterConfig: { model: "caller.override" },
     });
     expect(response.status).toBe(422);

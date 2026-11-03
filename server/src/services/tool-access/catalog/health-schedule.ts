@@ -1,7 +1,7 @@
 import { logger } from "../../../middleware/logger.js";
 import { and, asc, eq, gt, ne, sql } from "drizzle-orm";
-import { toolApplications, toolConnections, type Db } from "@paperclipai/db";
-import { isConnectorFeatureEnabled } from "@paperclipai/shared";
+import { toolApplications, toolConnections, type Db } from "@nexusai/db";
+import { isConnectorFeatureEnabled } from "@nexusai/shared";
 import { instanceSettingsService } from "../../instance-settings.js";
 import { connectionSetupApp } from "../connections/setup-policy.js";
 import type { ConnectionHealth } from "./health.js";
@@ -28,7 +28,7 @@ export function connectionHealthSchedule(db: Db, checkHealth: ConnectionHealth["
       )).where(and(
         eq(toolConnections.enabled, true), eq(toolConnections.status, "active"),
         ne(toolConnections.transport, "chat_sdk"), ne(toolConnections.transport, "runtime_auth"),
-        ne(toolApplications.type, "paperclip_plugin"),
+        ne(toolApplications.type, "nexus_plugin"),
         companyId === undefined ? undefined : eq(toolConnections.companyId, companyId),
         connectionId === undefined ? undefined : eq(toolConnections.id, connectionId),
         applicationId === undefined ? undefined : eq(toolConnections.applicationId, applicationId),

@@ -211,7 +211,7 @@ describe("PropertiesPanel", () => {
       mockSandbox.enabled = true;
       document.documentElement.style.setProperty("--design-page-aside-width", "320px");
       window.localStorage.setItem("taskChatRedesign.taskDetailPropertiesPaneWidth", "434");
-      window.localStorage.setItem("paperclip.design-proposal.properties-pane-width.task-detail", "480");
+      window.localStorage.setItem("nexus.design-proposal.properties-pane-width.task-detail", "480");
       await renderPanel({ taskDetailLayout: true });
       const aside = container.querySelector("aside")!;
       expect(aside.style.width).toBe("480px");
@@ -219,7 +219,7 @@ describe("PropertiesPanel", () => {
       grip.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
       await flushReact();
       expect(aside.style.width).toBe("320px");
-      expect(window.localStorage.getItem("paperclip.design-proposal.properties-pane-width.task-detail")).toBeNull();
+      expect(window.localStorage.getItem("nexus.design-proposal.properties-pane-width.task-detail")).toBeNull();
       expect(window.localStorage.getItem("taskChatRedesign.taskDetailPropertiesPaneWidth")).toBe("434");
 
       // Reset reads the current token, including subsequent foundation tuning.

@@ -21,7 +21,7 @@ beforeEach(() => {
   container = document.createElement("div"); document.body.append(container); root = createRoot(container);
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   endpoint = { id: "endpoint", companyId: "company", assignedAgentName: "Maya", setup: { slackSetupMethod: "managed" } } as ChatEndpoint;
-  api.slackSetupOptions.mockResolvedValue({ managedAvailable: true, workspaces: [{ grantId: "grant", workspaceName: "Paperclip" }] });
+  api.slackSetupOptions.mockResolvedValue({ managedAvailable: true, workspaces: [{ grantId: "grant", workspaceName: "Nexus" }] });
   api.provisionManagedSlack.mockResolvedValue({}); api.get.mockResolvedValue(endpoint);
   api.authorizeSlackManager.mockResolvedValue({ authorizationUrl: "https://slack.com/oauth" });
   navigation.mockImplementation(() => new Promise(() => {}));

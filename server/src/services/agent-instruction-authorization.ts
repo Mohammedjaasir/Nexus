@@ -6,7 +6,7 @@ import {
   heartbeatRuns,
   runIdentityContexts,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { forbidden } from "../errors.js";
 import {
   authorizationService,

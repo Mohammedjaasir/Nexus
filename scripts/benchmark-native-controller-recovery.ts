@@ -66,19 +66,19 @@ const { startNativeSessionExecutionLeaseRenewal } = await load(
 const { loadAgentRunAuthentication } = await load(repoRoot, "server/src/middleware/agent-run-authentication.ts");
 const { DurablePrpControlPlane: CandidateCore } = await load(
   repoRoot,
-  "packages/paperclip-runner/src/control-plane/durable-prp-control-plane.ts",
+  "packages/nexus-runner/src/control-plane/durable-prp-control-plane.ts",
 );
 const { DurablePrpControlPlane: BaselineCore } = await load(
   baselineRoot,
-  "packages/paperclip-runner/src/control-plane/durable-prp-control-plane.ts",
+  "packages/nexus-runner/src/control-plane/durable-prp-control-plane.ts",
 );
-const { PaperclipControlPlanePort: CandidatePort } = await load(
+const { NexusControlPlanePort: CandidatePort } = await load(
   repoRoot,
-  "server/src/services/native-runtime/paperclip-control-plane-port.ts",
+  "server/src/services/native-runtime/nexus-control-plane-port.ts",
 );
-const { PaperclipControlPlanePort: BaselinePort } = await load(
+const { NexusControlPlanePort: BaselinePort } = await load(
   baselineRoot,
-  "server/src/services/native-runtime/paperclip-control-plane-port.ts",
+  "server/src/services/native-runtime/nexus-control-plane-port.ts",
 );
 const require = createRequire(path.join(repoRoot, "server/package.json"));
 const postgres = createRequire(path.join(repoRoot, "packages/db/package.json"))("postgres");
@@ -129,8 +129,8 @@ const databaseUrl = (name: string) => {
   value.pathname = "/" + name;
   return value.toString();
 };
-process.env.PAPERCLIP_HOME = root + "/home";
-process.env.PAPERCLIP_SECRETS_MASTER_KEY = randomBytes(32).toString("hex");
+process.env.NEXUS_HOME = root + "/home";
+process.env.NEXUS_SECRETS_MASTER_KEY = randomBytes(32).toString("hex");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const summary = (a: number[]) => {
   const b = [...a].sort((x, y) => x - y);
@@ -184,7 +184,7 @@ function observeLockWaits(monitor: any, intervalMs = 25) {
     await collect().catch((e: any) => errors.push(e.message));
     for (const episode of active.values()) episodes.push({ ...episode,
       observedLowerMs: Number(episode.wait_age_ms), estimatedUpperMs: null, rightCensored: true });
-    const byPool = Object.fromEntries(["benchmark-application", "paperclip-controller-lease", "paperclip-runner-checkpoint"].map(pool => {
+    const byPool = Object.fromEntries(["benchmark-application", "nexus-controller-lease", "nexus-runner-checkpoint"].map(pool => {
       const selected = episodes.filter(e => e.application_name === pool);
       return [pool, { observedEpisodes: selected.length,
         observedLowerMs: summary(selected.map(e => e.observedLowerMs)),
@@ -212,7 +212,7 @@ async function setup() {
     id: agentId,
     companyId,
     name: "Benchmark fixture",
-    adapterType: "paperclip_runner",
+    adapterType: "nexus_runner",
     adapterConfig: { provider: "codex" },
     status: "active",
   });
@@ -584,7 +584,7 @@ async function run(variant: string, n: number, trial: number, durationMs: number
     const observed = await calibration.stop();
     metrics.lockCalibration = { intentionalHoldMs: 250, releasedAtMs,
       transactionElapsedMs: performance.now() - waiterStarted, observed };
-    assert(observed.episodes.some((e: any) => e.application_name === "paperclip-runner-checkpoint" && e.observedLowerMs >= 100), "Lock observer did not detect the deliberate row wait");
+    assert(observed.episodes.some((e: any) => e.application_name === "nexus-runner-checkpoint" && e.observedLowerMs >= 100), "Lock observer did not detect the deliberate row wait");
   }
   await db.update(nativeRunFinalizations).set({ leaseExpiresAt: new Date(Date.now() + 60000) });
   await db.$client.unsafe("analyze");
@@ -923,10 +923,10 @@ try {
     const result = [];
     for (const [variant, n] of profile) result.push(await run(variant, n, result.length + 1, 65000));
     const report = {
-      schema: "paperclip.normal-recovery-load/v1",
+      schema: "nexus.normal-recovery-load/v1",
       ...provenance,
       scope:
-        "Paired baseline/candidate, including real PaperclipControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
+        "Paired baseline/candidate, including real NexusControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
       hardware: {
         postgresCpuLimit: 2,
         postgresMemoryLimitMiB: 1536,

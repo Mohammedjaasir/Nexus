@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { runnerMatrix } from "./catalog.js";
 import { controllerOutageForExecution } from "./controller-outage.js";
 import { retainedControllerFollowupTransport } from "./retained-controller-continuation.js";
-import { assertIsolatedServerEnvironment, buildPaperclipServerEnvironment } from "./harness-env.js";
+import { assertIsolatedServerEnvironment, buildNexusServerEnvironment } from "./harness-env.js";
 import { parseRunnerSelectors, selectRunnerExecutions } from "./selectors.js";
 import { gradeRemoteWorkspaceStorage, readRemoteWorkspaceStorageCheckpoint, remoteWorkspaceProofDigest, remoteWorkspaceStorageServerEnvironment,
   REMOTE_WORKSPACE_STORAGE_SUITE, type RemoteWorkspaceStorageEvidence } from "./remote-workspace-storage.js";
@@ -13,7 +13,7 @@ const id = (digit: string) => `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.re
 
 function goodEvidence(): RemoteWorkspaceStorageEvidence {
   const point = { workspaceId: id("1"), snapshotId: id("2"), runId: id("3"), runSnapshotId: id("2"),
-    runSaveState: "saved", authoritySchema: "paperclip.remote-workspace.v1", authorityDirty: false,
+    runSaveState: "saved", authoritySchema: "nexus.remote-workspace.v1", authorityDirty: false,
     authorityWriter: null, providerType: "cloud_sandbox", proofSha256: "a".repeat(64), fileSource: "live" };
   return { initial: point, final: { ...point, runId: id("4"), snapshotId: id("5"), runSnapshotId: id("5") },
     browserReadPhases: ["before-restart", "after-restart"],
@@ -23,11 +23,11 @@ function goodEvidence(): RemoteWorkspaceStorageEvidence {
 function checkpointApi() {
   const context = { companyId: id("6"), agentId: id("7"), issueId: id("8"), environmentId: id("9") };
   const location = { environmentId: context.environmentId, leaseId: id("4"), providerLeaseId: "synthetic-provider", remoteCwd: "/workspace" };
-  const receipt = { schema: "paperclip.remote-workspace-run.v1", workspaceId: id("1"),
+  const receipt = { schema: "nexus.remote-workspace-run.v1", workspaceId: id("1"),
     leaseId: location.leaseId, providerLeaseId: location.providerLeaseId, remoteCwd: location.remoteCwd,
     epoch: 2, state: "saved", snapshotId: id("2") };
   const workspace = { issueId: context.issueId, workspace: { id: id("1"), companyId: context.companyId,
-    providerType: "cloud_sandbox", metadata: { remoteWorkspace: { schema: "paperclip.remote-workspace.v1",
+    providerType: "cloud_sandbox", metadata: { remoteWorkspace: { schema: "nexus.remote-workspace.v1",
       epoch: 2, snapshotId: id("2"), source: { kind: "empty" }, location, writerRunId: null, dirty: false } } } };
   // activityService.runsForIssue returns runId, not full-run id or nativeIssueId.
   const summary = { runId: id("3"), runtimeMode: "native", status: "succeeded", agentId: context.agentId,
@@ -107,7 +107,7 @@ describe("remote workspace Product E2E qualification", () => {
     expect(cells.map(row => row.id)).toEqual([executionId]);
     expect(selectRunnerExecutions(parseRunnerSelectors(["--all"])).some(row => row.suite.id === REMOTE_WORKSPACE_STORAGE_SUITE)).toBe(false);
     expect(controllerOutageForExecution(cells[0]!, {})).toEqual({ signal: "SIGKILL", holdMs: 300_000 });
-    expect(() => controllerOutageForExecution(cells[0]!, { PAPERCLIP_RUNNER_E2E_CONTROLLER_OUTAGE_MS: "1000" })).toThrow("shorter");
+    expect(() => controllerOutageForExecution(cells[0]!, { NEXUS_RUNNER_E2E_CONTROLLER_OUTAGE_MS: "1000" })).toThrow("shorter");
     expect(cells[0]!.task.expectedRunCount).toBe(4);
     expect(cells[0]!.suite.definitionMetadata).toMatchObject({ version: 5, savedRunReadback: "public-runId-summary-then-bound-native-detail",
       fileViewerSetup: "ordinary-setting-enabled-with-storage-default-preserved", retainedControllerContinuation: true,
@@ -161,26 +161,26 @@ describe("remote workspace Product E2E qualification", () => {
   });
 
   it("requires an explicit bucket and isolates object prefixes per attempt", () => {
-    const env = { PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_BUCKET: "disposable-workspace-fixture", PAPERCLIP_STORAGE_S3_BUCKET: "ambient-bucket" };
+    const env = { NEXUS_RUNNER_E2E_WORKSPACE_STORAGE_BUCKET: "disposable-workspace-fixture", NEXUS_STORAGE_S3_BUCKET: "ambient-bucket" };
     expect(() => remoteWorkspaceStorageServerEnvironment({ executions: [execution()], env: {}, instanceId: "test" })).toThrow("explicit disposable");
     const overrides = remoteWorkspaceStorageServerEnvironment({ executions: [execution()], env, instanceId: "attempt-one" });
-    expect(overrides).toMatchObject({ PAPERCLIP_STORAGE_PROVIDER: "s3", PAPERCLIP_STORAGE_S3_BUCKET: "disposable-workspace-fixture",
-      PAPERCLIP_STORAGE_S3_PREFIX: "runner-e2e/attempt-one/" });
+    expect(overrides).toMatchObject({ NEXUS_STORAGE_PROVIDER: "s3", NEXUS_STORAGE_S3_BUCKET: "disposable-workspace-fixture",
+      NEXUS_STORAGE_S3_PREFIX: "runner-e2e/attempt-one/" });
     const ordinary = runnerMatrix.find(row => row.suite.id === "everyday-workflows")!;
     expect(remoteWorkspaceStorageServerEnvironment({ executions: [ordinary], env, instanceId: "test" })).toBeUndefined();
     expect(() => remoteWorkspaceStorageServerEnvironment({ executions: [execution(), ordinary], env, instanceId: "test" })).toThrow("run alone");
-    expect(buildPaperclipServerEnvironment(env).PAPERCLIP_STORAGE_S3_BUCKET).toBeUndefined();
+    expect(buildNexusServerEnvironment(env).NEXUS_STORAGE_S3_BUCKET).toBeUndefined();
   });
 
   it("allows only the explicit storage override through the existing isolation guard", () => {
     const workspaceStorage = remoteWorkspaceStorageServerEnvironment({ executions: [execution()],
-      env: { PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_BUCKET: "disposable-workspace-fixture" }, instanceId: "attempt-one" })!;
-    const expected = { temporaryRoot: "/tmp/fixture", paperclipHome: "/tmp/fixture/home", configPath: "/tmp/fixture/config.json" };
-    const env = { PAPERCLIP_HOME: expected.paperclipHome, PAPERCLIP_CONFIG: expected.configPath,
-      XDG_CACHE_HOME: "/tmp/fixture/xdg-cache", PAPERCLIP_AGENT_JWT_SECRET: "synthetic", PAPERCLIP_DECISION_SIGNING_SECRET: "synthetic",
-      PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: "synthetic", BETTER_AUTH_SECRET: "synthetic", ...workspaceStorage };
-    expect(() => assertIsolatedServerEnvironment(env, expected)).toThrow("PAPERCLIP_STORAGE_S3_BUCKET");
+      env: { NEXUS_RUNNER_E2E_WORKSPACE_STORAGE_BUCKET: "disposable-workspace-fixture" }, instanceId: "attempt-one" })!;
+    const expected = { temporaryRoot: "/tmp/fixture", nexusHome: "/tmp/fixture/home", configPath: "/tmp/fixture/config.json" };
+    const env = { NEXUS_HOME: expected.nexusHome, NEXUS_CONFIG: expected.configPath,
+      XDG_CACHE_HOME: "/tmp/fixture/xdg-cache", NEXUS_AGENT_JWT_SECRET: "synthetic", NEXUS_DECISION_SIGNING_SECRET: "synthetic",
+      NEXUS_TOOL_ACTION_SIGNING_SECRET: "synthetic", BETTER_AUTH_SECRET: "synthetic", ...workspaceStorage };
+    expect(() => assertIsolatedServerEnvironment(env, expected)).toThrow("NEXUS_STORAGE_S3_BUCKET");
     expect(() => assertIsolatedServerEnvironment(env, { ...expected, workspaceStorage })).not.toThrow();
-    expect(() => assertIsolatedServerEnvironment({ ...env, PAPERCLIP_STORAGE_S3_BUCKET: "another-bucket" }, { ...expected, workspaceStorage })).toThrow();
+    expect(() => assertIsolatedServerEnvironment({ ...env, NEXUS_STORAGE_S3_BUCKET: "another-bucket" }, { ...expected, workspaceStorage })).toThrow();
   });
 });

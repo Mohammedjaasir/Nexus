@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { and, eq } from "drizzle-orm";
-import { heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db } from "@paperclipai/db";
+import { heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db } from "@nexusai/db";
 import {
   inspectDurablePrpCheckpointHeader,
   inspectStagedRunAttachmentHeader,
@@ -9,7 +9,7 @@ import {
   type NativeExecutionInput,
   type PersistedNativeSession,
   type StagedRunAttachment,
-} from "../../vendor/paperclip-runner/index.js";
+} from "../../vendor/nexus-runner/index.js";
 import { loadNativeRunnerCheckpointHeader } from "./native-runner-checkpoint.js";
 import { rebindNativeSessionCheckpoint } from "./native-session-resume.js";
 

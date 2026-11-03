@@ -34,7 +34,7 @@ describe("isWorkerEntrypoint", () => {
   });
 
   function createTempRoot(): string {
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-sdk-worker-"));
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-sdk-worker-"));
     tempRoots.push(tempRoot);
     return tempRoot;
   }
@@ -152,12 +152,12 @@ describe("worker performAction context", () => {
     try {
       await expect(callWorker("initialize", {
         manifest: {
-          id: "paperclip.test-worker-context",
+          id: "nexus.test-worker-context",
           apiVersion: 1,
           version: "1.0.0",
           displayName: "Worker Context Test",
           description: "Test plugin",
-          author: "Paperclip",
+          author: "Nexus",
           categories: ["automation"],
           capabilities: [],
           entrypoints: {},
@@ -227,7 +227,7 @@ describe("worker invocation scope propagation", () => {
       const id = `host-${nextRequestId++}`;
       const request = {
         ...createRequest(method, params, id),
-        ...(invocation ? { paperclipInvocation: invocation } : {}),
+        ...(invocation ? { nexusInvocation: invocation } : {}),
       };
       const result = new Promise<unknown>((resolve, reject) => {
         pending.set(id, (response) => {
@@ -253,7 +253,7 @@ describe("worker invocation scope propagation", () => {
       if (!isJsonRpcRequest(message)) return;
       if (message.method !== "companies.get") return;
 
-      const invocationId = (message as { paperclipInvocationId?: string }).paperclipInvocationId ?? "";
+      const invocationId = (message as { nexusInvocationId?: string }).nexusInvocationId ?? "";
       const requestedCompanyId = (message.params as { companyId?: string }).companyId;
       const allowedCompanyId = invocationCompanies.get(invocationId);
       nestedInvocationIds.push(invocationId);
@@ -278,12 +278,12 @@ describe("worker invocation scope propagation", () => {
     try {
       await callWorker("initialize", {
         manifest: {
-          id: "paperclip.scope-test",
+          id: "nexus.scope-test",
           apiVersion: 1,
           version: "1.0.0",
           displayName: "Scope test",
           description: "Scope test",
-          author: "Paperclip",
+          author: "Nexus",
           categories: ["automation"],
           capabilities: ["companies.read"],
           entrypoints: { worker: "dist/worker.js" },
@@ -376,12 +376,12 @@ describe("worker configChanged cross-tenant guard", () => {
     async function initialize() {
       return await callWorker("initialize", {
         manifest: {
-          id: "paperclip.config-guard-test",
+          id: "nexus.config-guard-test",
           apiVersion: 1,
           version: "1.0.0",
           displayName: "Config Guard Test",
           description: "Test plugin",
-          author: "Paperclip",
+          author: "Nexus",
           categories: ["automation"],
           capabilities: [],
           entrypoints: {},
@@ -582,9 +582,9 @@ describe("worker provider tracer", () => {
         ctx.data.register("probe", async () => {
           for(let index=0;index<count;index++) {
           const span = ctx.tracer.startSpan("pack", {
-            attributes: { "paperclip.sandbox.startup.pack.wall_ms": 12 },
+            attributes: { "nexus.sandbox.startup.pack.wall_ms": 12 },
           });
-          span.setAttribute("paperclip.sandbox.startup.provider", "daytona");
+          span.setAttribute("nexus.sandbox.startup.provider", "daytona");
           span.end();
           }
           return { ok: true };
@@ -598,7 +598,7 @@ describe("worker provider tracer", () => {
       const id = `host-${nextRequestId++}`;
       const request = {
         ...createRequest(method, params, id),
-        ...(inv ? { paperclipInvocation: inv } : {}),
+        ...(inv ? { nexusInvocation: inv } : {}),
       };
       const result = new Promise<unknown>((resolve, reject) => {
         pending.set(id, (response) => {
@@ -624,7 +624,7 @@ describe("worker provider tracer", () => {
       if (message.method === "span.record") {
         spanRecords.push({
           params: message.params,
-          invocationId: (message as { paperclipInvocationId?: string }).paperclipInvocationId,
+          invocationId: (message as { nexusInvocationId?: string }).nexusInvocationId,
         });
         hostToWorker.write(serializeMessage(createSuccessResponse(message.id, null)));
       }
@@ -633,12 +633,12 @@ describe("worker provider tracer", () => {
     try {
       await callWorker("initialize", {
         manifest: {
-          id: "paperclip.tracer-test",
+          id: "nexus.tracer-test",
           apiVersion: 1,
           version: "1.0.0",
           displayName: "Tracer test",
           description: "Tracer test",
-          author: "Paperclip",
+          author: "Nexus",
           categories: ["automation"],
           capabilities,
           entrypoints: { worker: "dist/worker.js" },
@@ -672,8 +672,8 @@ describe("worker provider tracer", () => {
     expect((record.params as {children:unknown[]}).children[0]).toMatchObject({
       name: "pack",
       attributes: {
-        "paperclip.sandbox.startup.pack.wall_ms": 12,
-        "paperclip.sandbox.startup.provider": "daytona",
+        "nexus.sandbox.startup.pack.wall_ms": 12,
+        "nexus.sandbox.startup.provider": "daytona",
       },
     });
   });
@@ -753,7 +753,7 @@ describe("worker execute.log emitter", () => {
       const id = `host-${nextRequestId++}`;
       const request = {
         ...createRequest(method, params, id),
-        ...(inv ? { paperclipInvocation: inv } : {}),
+        ...(inv ? { nexusInvocation: inv } : {}),
       };
       const result = new Promise<unknown>((resolve, reject) => {
         pending.set(id, (response) => {
@@ -780,7 +780,7 @@ describe("worker execute.log emitter", () => {
       if ((message as { method?: string }).method === "execute.log") {
         logRecords.push({
           params: (message as { params?: unknown }).params,
-          invocationId: (message as { paperclipInvocationId?: string }).paperclipInvocationId,
+          invocationId: (message as { nexusInvocationId?: string }).nexusInvocationId,
         });
       }
     });
@@ -788,12 +788,12 @@ describe("worker execute.log emitter", () => {
     try {
       await callWorker("initialize", {
         manifest: {
-          id: "paperclip.execute-log-test",
+          id: "nexus.execute-log-test",
           apiVersion: 1,
           version: "1.0.0",
           displayName: "Execute log test",
           description: "Execute log test",
-          author: "Paperclip",
+          author: "Nexus",
           categories: ["automation"],
           capabilities: ["environment.drivers.register"],
           entrypoints: { worker: "dist/worker.js" },
@@ -877,7 +877,7 @@ describe("worker setup-token pseudo-terminal dispatch", () => {
         expect(params.hostRouteId).toBe("route-1");
         expect(params.loginCommandKey).toBe("claude");
         expect(params.sessionHome).toBe(
-          "/tmp/paperclip-adapter-login/11111111-2222-4333-8444-555555555555",
+          "/tmp/nexus-adapter-login/11111111-2222-4333-8444-555555555555",
         );
         expect(params.providerLeaseId).toBe("lease-1");
         return { workerSessionId: "ws-1" };
@@ -932,12 +932,12 @@ describe("worker setup-token pseudo-terminal dispatch", () => {
       await expect(
         callWorker("initialize", {
           manifest: {
-            id: "paperclip.login-pty",
+            id: "nexus.login-pty",
             apiVersion: 1,
             version: "1.0.0",
             displayName: "Login PTY Test",
             description: "Test plugin",
-            author: "Paperclip",
+            author: "Nexus",
             categories: ["automation"],
             capabilities: [],
             entrypoints: {},
@@ -963,7 +963,7 @@ describe("worker setup-token pseudo-terminal dispatch", () => {
           environmentId: "env-1",
           providerLeaseId: "lease-1",
           loginCommandKey: "claude",
-          sessionHome: "/tmp/paperclip-adapter-login/11111111-2222-4333-8444-555555555555",
+          sessionHome: "/tmp/nexus-adapter-login/11111111-2222-4333-8444-555555555555",
         }),
       ).resolves.toEqual({ workerSessionId: "ws-1" });
 
@@ -1019,7 +1019,7 @@ describe("worker duplex channel dispatch", () => {
       async setup() {},
       async onDuplexChannelOpen(params) {
         expect(params.hostRouteId).toBe("route-1");
-        expect(params.command).toEqual(["paperclip-bridge"]);
+        expect(params.command).toEqual(["nexus-bridge"]);
         expect(params.providerLeaseId).toBe("lease-1");
         return { workerSessionId: "ws-1" };
       },
@@ -1068,12 +1068,12 @@ describe("worker duplex channel dispatch", () => {
       await expect(
         callWorker("initialize", {
           manifest: {
-            id: "paperclip.duplex-channel",
+            id: "nexus.duplex-channel",
             apiVersion: 1,
             version: "1.0.0",
             displayName: "Duplex Channel Test",
             description: "Test plugin",
-            author: "Paperclip",
+            author: "Nexus",
             categories: ["automation"],
             capabilities: [],
             entrypoints: {},
@@ -1098,7 +1098,7 @@ describe("worker duplex channel dispatch", () => {
           companyId: "company-1",
           environmentId: "env-1",
           providerLeaseId: "lease-1",
-          command: ["paperclip-bridge"],
+          command: ["nexus-bridge"],
         }),
       ).resolves.toEqual({ workerSessionId: "ws-1" });
 
@@ -1163,12 +1163,12 @@ describe("worker duplex channel dispatch", () => {
     try {
       const result = (await callWorker("initialize", {
         manifest: {
-          id: "paperclip.bare",
+          id: "nexus.bare",
           apiVersion: 1,
           version: "1.0.0",
           displayName: "Bare Test",
           description: "Test plugin",
-          author: "Paperclip",
+          author: "Nexus",
           categories: ["automation"],
           capabilities: [],
           entrypoints: {},

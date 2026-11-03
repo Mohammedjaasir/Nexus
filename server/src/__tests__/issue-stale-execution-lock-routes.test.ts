@@ -14,7 +14,7 @@ import {
   issueComments,
   issueRelations,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -38,7 +38,7 @@ describeEmbeddedPostgres("stale issue execution lock routes", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-stale-execution-lock-routes-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-stale-execution-lock-routes-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -78,7 +78,7 @@ describeEmbeddedPostgres("stale issue execution lock routes", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });

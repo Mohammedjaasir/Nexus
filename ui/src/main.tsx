@@ -24,7 +24,7 @@ import { initPluginBridge } from "./plugins/bridge-init";
 import { PluginLauncherProvider } from "./plugins/launchers";
 import { startChunkLoadRecovery } from "./lib/chunk-load-recovery";
 import { startPerfMeasureReaper } from "./lib/perf-measure-reaper";
-import { getOrCreatePaperclipReactRoot } from "./lib/react-root";
+import { getOrCreateNexusReactRoot } from "./lib/react-root";
 import { startServiceWorkerUpdates } from "./lib/service-worker-updates";
 import { connectivity } from "./lib/connectivity";
 import { bindConnectivity, createAppQueryClient } from "./lib/query-client";
@@ -101,9 +101,9 @@ function CompanyVoiceCalls({ children }: { children: React.ReactNode }) {
 }
 
 const rootElement = document.getElementById("root");
-if (!rootElement) throw new Error("Paperclip root element is missing");
+if (!rootElement) throw new Error("Nexus root element is missing");
 
-getOrCreatePaperclipReactRoot(window, rootElement).render(
+getOrCreateNexusReactRoot(window, rootElement).render(
   <StrictMode>
     <AppErrorBoundary>
       <QueryClientProvider client={queryClient}>

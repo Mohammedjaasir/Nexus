@@ -18,7 +18,7 @@ function cssBlock(selector: string): string {
 
 describe("markdown document card styles", () => {
   it("removes the inherited markdown link underline so the card label shows one underline", () => {
-    expect(cssBlock(".paperclip-markdown a")).toContain("text-decoration: underline");
-    expect(cssBlock(".paperclip-markdown a[data-sidebar-document-link]")).toContain("text-decoration: none");
+    expect(cssBlock(".nexus-markdown a")).toContain("text-decoration: underline");
+    expect(cssBlock(".nexus-markdown a[data-sidebar-document-link]")).toContain("text-decoration: none");
   });
 });

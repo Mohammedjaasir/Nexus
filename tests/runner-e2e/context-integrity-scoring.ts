@@ -1,4 +1,4 @@
-import { isAssignedSkillContext, PAPERCLIP_DOCUMENT_CASE, type ContextIntegrityCase } from "./context-integrity-cases.js";
+import { isAssignedSkillContext, NEXUS_DOCUMENT_CASE, type ContextIntegrityCase } from "./context-integrity-cases.js";
 
 export interface ContextIntegrityCheckpoint {
   phase: "initial" | "comment-1" | "comment-2" | "comment-3" | "final";
@@ -41,9 +41,9 @@ function oneOutput(checkpoint: ContextIntegrityCheckpoint, marker: string, requi
 
 function wakeCommentIds(run: Record<string, unknown>): string[] {
   const context = (run.contextSnapshot ?? {}) as Record<string, unknown>;
-  const paperclipWake = (context.paperclipWake ?? {}) as Record<string, unknown>;
+  const nexusWake = (context.nexusWake ?? {}) as Record<string, unknown>;
   const continuation = (context.executionContinuation ?? {}) as Record<string, unknown>;
-  for (const candidate of [paperclipWake.commentIds, paperclipWake.wakeCommentIds, continuation.commentIds, continuation.wakeCommentIds]) {
+  for (const candidate of [nexusWake.commentIds, nexusWake.wakeCommentIds, continuation.commentIds, continuation.wakeCommentIds]) {
     if (Array.isArray(candidate)) return candidate.map(String);
   }
   return [];
@@ -128,7 +128,7 @@ export function gradeContextIntegrity(input: {
   }
   const output = final ? oneOutput(final, input.marker, isAssignedSkillContext(input.id)) : undefined;
   check("single-durable-output", Boolean(output) && final!.documents.length === 1, isAssignedSkillContext(input.id) ? "Exactly one durable task document must contain the skill's marker." : "Exactly one durable packing report document must be saved.");
-  if (input.id === PAPERCLIP_DOCUMENT_CASE) {
+  if (input.id === NEXUS_DOCUMENT_CASE) {
     check("saved-document-revision", Boolean(output?.latestRevisionId) && Number.isInteger(output?.latestRevisionNumber) && Number(output?.latestRevisionNumber) > 0,
       "The public saved document must have a persisted revision and the requested content.");
     const route = output && final?.issue.identifier && final.issue.issuePrefix

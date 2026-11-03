@@ -4,28 +4,28 @@ import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { activityLog, agents, authUsers, companies, companyMemberships, principalPermissionGrants, heartbeatRuns, issues, agentInstructionRevisions, createDb } from "@paperclipai/db";
+import { activityLog, agents, authUsers, companies, companyMemberships, principalPermissionGrants, heartbeatRuns, issues, agentInstructionRevisions, createDb } from "@nexusai/db";
 import { startRecoveryPostgres } from "../../__tests__/helpers/recovery-postgres.js";
 import { resolveManagedInstructionsRoot } from "../agent-instructions.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 
 describe("canonical instruction tools through native authority", () => {
   let database: Awaited<ReturnType<typeof startRecoveryPostgres>>;
   let db: ReturnType<typeof createDb>;
   let home: string;
-  const previousHome = process.env.PAPERCLIP_HOME;
+  const previousHome = process.env.NEXUS_HOME;
   let companyId: string, agentId: string, targetAgentId: string, userId: string, runId: string, issueId: string, root: string;
-  let authority: PaperclipRunnerToolAuthority;
+  let authority: NexusRunnerToolAuthority;
   const entryFile = "policy/ENTRY.md";
   const original = "\uFEFF# Original\r\n\0☃\n";
   beforeAll(async () => {
     home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "instruction-tool-home-")));
-    process.env.PAPERCLIP_HOME = home;
+    process.env.NEXUS_HOME = home;
     database = await startRecoveryPostgres("instruction-tool-db-");
     db = createDb(database.connectionString);
   }, 90_000);
   afterAll(async () => {
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previousHome;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = previousHome;
     await database?.cleanup();
     if (home) await fs.rm(home, { recursive: true, force: true });
   });
@@ -49,7 +49,7 @@ describe("canonical instruction tools through native authority", () => {
     await db.insert(issues).values({ id: issueId, companyId, title: "Maintain instructions", status: "in_progress", workMode: "standard", assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "running", runtimeMode: "native", nativeIssueId: issueId, invocationSource: "on_demand", responsibleUserId: userId });
     await db.update(issues).set({ executionRunId: runId }).where(eq(issues.id, issueId));
-    authority = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
+    authority = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
     await fs.mkdir(path.dirname(path.join(root, entryFile)), { recursive: true });
     await fs.writeFile(path.join(root, entryFile), original);
   });
@@ -86,12 +86,12 @@ describe("canonical instruction tools through native authority", () => {
     try {
       const pending = authority.execute(request);
       await atCommit;
-      const duplicate = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId }).execute(request);
+      const duplicate = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId }).execute(request);
       expect(await fs.readFile(path.join(root, entryFile), "utf8")).toBe(original);
       release();
       const receipt = await pending as any;
       expect(await duplicate).toEqual(receipt);
-      authority = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
+      authority = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
       expect(await authority.execute(request)).toEqual(receipt);
       const bytes = await fs.readFile(path.join(root, entryFile));
       expect(bytes).toEqual(Buffer.from(content));
@@ -150,7 +150,7 @@ describe("canonical instruction tools through native authority", () => {
       const audit = await db.select().from(activityLog).where(eq(activityLog.runId, runId));
       expect(audit.filter((event) => event.action === "agent.instruction_write_attempted")).toHaveLength(1);
       expect(audit.filter((event) => event.action === "agent.files_updated")).toHaveLength(0);
-      authority = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
+      authority = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
       expect(await authority.recover(request)).toBeNull();
       await expect(authority.execute(request)).rejects.toMatchObject({ code: "semantic_tool_outcome_unknown" });
       await expect(authority.execute({ ...request, arguments: { ...request.arguments, content: "different" } }))
@@ -201,13 +201,13 @@ describe("canonical instruction tools through native authority", () => {
       const [run] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, runId));
       const receipt = (run!.resultJson as any).semanticToolReceipts[`instruction:${request.callId}`].result;
       expect(receipt).toMatchObject({ changed: true, content });
-      authority = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
+      authority = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
       expect(await authority.recover(request)).toEqual({ result: receipt });
       expect(await authority.recover({ ...request, callId: randomUUID() })).toBeNull();
       await expect(authority.recover({ ...request, arguments: { ...request.arguments, baseRevisionId: randomUUID() } }))
         .rejects.toThrow("idempotency_conflict");
       await db.update(heartbeatRuns).set({ status: "cancelled" }).where(eq(heartbeatRuns.id, runId));
-      await expect(authority.recover(request)).rejects.toThrow("paperclip_runner_tool_binding_not_authorized");
+      await expect(authority.recover(request)).rejects.toThrow("nexus_runner_tool_binding_not_authorized");
       await db.update(heartbeatRuns).set({ status: "running" }).where(eq(heartbeatRuns.id, runId));
       await db.delete(principalPermissionGrants).where(eq(principalPermissionGrants.principalId, userId));
       await expect(authority.recover(request)).rejects.toMatchObject({ status: 403 });
@@ -264,7 +264,7 @@ describe("canonical instruction tools through native authority", () => {
       expect(saved).toMatchObject({ status: failure.status, message: failure.message });
       // The stale request would now pass CAS if it were executed again.
       await fs.writeFile(path.join(root, entryFile), original);
-      authority = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
+      authority = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
       await expect(authority.execute(request)).rejects.toMatchObject(saved);
       await expect(authority.execute(request)).rejects.toMatchObject(saved);
       await expect(authority.execute({ ...request, arguments: { ...request.arguments, content: "different" } }))
@@ -292,7 +292,7 @@ describe("canonical instruction tools through native authority", () => {
       await expect(authority.execute(request)).rejects.toMatchObject({ code: "semantic_tool_outcome_unknown" });
       const [run] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, runId));
       expect((run!.resultJson as any).instructionToolAttempts[`instruction:${request.callId}`].failure).toBeUndefined();
-      authority = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
+      authority = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
       await expect(authority.execute(request)).rejects.toMatchObject({ code: "semantic_tool_outcome_unknown" });
       expect(await fs.readFile(path.join(root, entryFile), "utf8")).toBe(original);
     } finally { spy.mockRestore(); }
@@ -317,7 +317,7 @@ describe("canonical instruction tools through native authority", () => {
     await expect(call("read_agent_instructions", { targetAgentId: foreignAgentId })).rejects.toMatchObject({ status: 404 });
     await expect(call("update_agent_instructions", { targetAgentId: foreignAgentId, entryFile, content: "foreign", baseRevisionId: null })).rejects.toMatchObject({ status: 404 });
     await db.update(heartbeatRuns).set({ status: "cancelled" }).where(eq(heartbeatRuns.id, runId));
-    await expect(call("read_agent_instructions")).rejects.toThrow("paperclip_runner_tool_binding_not_authorized");
+    await expect(call("read_agent_instructions")).rejects.toThrow("nexus_runner_tool_binding_not_authorized");
     expect(await fs.readFile(path.join(root, entryFile), "utf8")).toBe(original);
   });
 });

@@ -1,4 +1,4 @@
-import type { Environment, EnvironmentCapabilities } from "@paperclipai/shared";
+import type { Environment, EnvironmentCapabilities } from "@nexusai/shared";
 import { prepareFixtureApi, type FixtureState } from "./api";
 export const environment: Environment = {
   id: "environment-gap",

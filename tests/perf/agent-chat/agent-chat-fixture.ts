@@ -9,17 +9,17 @@ export interface ChatFixture {
   comments: { id: string; body: string }[];
 }
 export async function longChatFixture(request: APIRequestContext, suffix = "", options: { delayedImage?: boolean } = {}): Promise<ChatFixture> {
-  const count = Number(process.env.PAPERCLIP_CHAT_PERF_MESSAGES ?? 600);
+  const count = Number(process.env.NEXUS_CHAT_PERF_MESSAGES ?? 600);
   if (!Number.isSafeInteger(count) || count < 100 || count > 10_000) throw new Error("Use 100–10000 synthetic messages");
-  const baseFile = process.env.PAPERCLIP_CHAT_PERF_SEED_FILE ?? `test-results/agent-chat/fixture-${count}.json`;
+  const baseFile = process.env.NEXUS_CHAT_PERF_SEED_FILE ?? `test-results/agent-chat/fixture-${count}.json`;
   const file = suffix ? `${baseFile}.${suffix}.json` : baseFile;
   const saved: ChatFixture | null = await fs.readFile(file, "utf8").then(JSON.parse).catch(error => {
     if (error.code !== "ENOENT") throw error;
     return null;
   });
   if (saved && (await request.get(`/api/issues/${saved.issue.id}`)).ok()) return saved;
-  const databaseUrl = process.env.PAPERCLIP_CHAT_PERF_DATABASE_URL;
-  if (!databaseUrl) throw new Error("Set PAPERCLIP_CHAT_PERF_DATABASE_URL for a disposable local PostgreSQL database, or retain a seed file");
+  const databaseUrl = process.env.NEXUS_CHAT_PERF_DATABASE_URL;
+  if (!databaseUrl) throw new Error("Set NEXUS_CHAT_PERF_DATABASE_URL for a disposable local PostgreSQL database, or retain a seed file");
   const target = new URL(databaseUrl);
   if (!["localhost", "127.0.0.1", "[::1]"].includes(target.hostname) || !target.pathname.endsWith("_test"))
     throw new Error("The chat fixture requires a disposable loopback database ending in _test");
@@ -50,7 +50,7 @@ export async function longChatFixture(request: APIRequestContext, suffix = "", o
       runs.push({ id: runId, companyId: company.id, agentId: agent.id, issueId: issue.id, runtimeMode: "native", status: "succeeded",
         createdAt: new Date(+createdAt - 1000), startedAt: new Date(+createdAt - 900), finishedAt: createdAt, contextSnapshot: { issueId: issue.id, conversationSessionGeneration: issue.conversationSessionGeneration, wakeCommentId: comments.at(-1)?.id } });
       events.push({ companyId: company.id, agentId: agent.id, runId, seq: 1, eventType: "item.completed", createdAt,
-        payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, eventType: "item.completed", runId,
+        payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, eventType: "item.completed", runId,
           emittedAt: createdAt.toISOString(), itemId: `answer-${runId}`, payload: { kind: "agentMessage", text: body } } } });
     }
     comments.push({ id, companyId: company.id, issueId: issue.id, authorType: human ? "user" : "agent", authorUserId: human ? issue.conversationUserId : null,

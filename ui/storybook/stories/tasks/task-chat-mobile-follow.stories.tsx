@@ -25,7 +25,7 @@ function StreamingResponse({ running }: { running: boolean }) {
 function MobileFollow() {
   const [running, setRunning] = useState(true);
   const viewportRef = useMobileVisualViewport(true);
-  return <div ref={viewportRef} data-mobile="true" className="paperclip-app-shell flex min-h-dvh flex-col bg-background text-foreground">
+  return <div ref={viewportRef} data-mobile="true" className="nexus-app-shell flex min-h-dvh flex-col bg-background text-foreground">
     <div className="app-main-row"><div className="app-content-column flex flex-col">
     <header className="app-breadcrumb flex h-12 shrink-0 items-center px-4 text-sm font-medium">iOS layout — focus-scroll correction</header>
     <div className="app-content-row"><main id="main-content" className="flex flex-1 flex-col p-4">
@@ -48,7 +48,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     docs: { description: { component: "Controlled output in the production thread and composer. At the bottom, updates stay visible. Scroll up to hold your reading position, then return to the bottom to resume following. Stop pauses the fixture; send a message to resume. No agent or provider calls." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "tasks/discussion"
       ],

@@ -194,7 +194,7 @@ export async function runUnansweredQuestionReturn(context: {
 }) {
   const { input } = context;
   const { api, page } = input;
-  await sendChatMessage(page, "Help me choose a color for a garden club welcome note. Ask me one interactive question using Paperclip's question card: Which color should the welcome note use? Offer Blue and Green. When I eventually answer, acknowledge my chosen color in chat. For now only ask; do not create tasks or write the note.");
+  await sendChatMessage(page, "Help me choose a color for a garden club welcome note. Ask me one interactive question using Nexus's question card: Which color should the welcome note use? Offer Blue and Green. When I eventually answer, acknowledge my chosen color in chat. For now only ask; do not create tasks or write the note.");
   await context.idle(1);
   const path = `/api/issues/${context.issue().id}/interactions`;
   const original = (await api.get<Row[]>(path)).filter(card => card.kind === "ask_user_questions" && card.status === "pending").at(-1);

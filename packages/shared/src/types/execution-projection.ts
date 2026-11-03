@@ -87,7 +87,7 @@ export interface ExecutionReconciliation {
   /** Operator evidence bound to this failed run; required after workspace restore failure. */
   workspaceRepairEvidence?: string;
   workspaceReconstruction?: {
-    schema: "paperclip.workspace-reconstruction.v1";
+    schema: "nexus.workspace-reconstruction.v1";
     leaseId: string;
     resultId: string;
     descriptorSha256: string;

@@ -342,7 +342,7 @@ describe("POST /invites/:token/accept", () => {
     expect(updateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects Paperclip Runner before an agent invite creates a join request", async () => {
+  it("rejects Nexus Runner before an agent invite creates a join request", async () => {
     const { db, insert, update } = createAgentInviteDbStub();
     const app = createApp(db);
 
@@ -351,12 +351,12 @@ describe("POST /invites/:token/accept", () => {
       .send({
         requestType: "agent",
         agentName: "Native Agent",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
       });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe(
-      "Paperclip Runner is not available through agent invite onboarding.",
+      "Nexus Runner is not available through agent invite onboarding.",
     );
     expect(insert).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();

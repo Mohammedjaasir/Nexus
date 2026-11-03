@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { agents, heartbeatRuns, issues, projects, executionWorkspaces, type Db } from "@paperclipai/db";
+import { agents, heartbeatRuns, issues, projects, executionWorkspaces, type Db } from "@nexusai/db";
 import { forbidden } from "../errors.js";
 import { isDeepStrictEqual } from "node:util";
 import { authorizationService, type AuthorizationActor } from "./authorization.js";

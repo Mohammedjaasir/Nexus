@@ -5,12 +5,12 @@ import { pluginApiRouteDeclarationSchema, pluginManagedRoutineDeclarationSchema,
 
 function buildSandboxProviderManifest(driver: Record<string, unknown>) {
   return {
-    id: "paperclip.capability-provider",
+    id: "nexus.capability-provider",
     apiVersion: 1,
     version: "0.1.0",
     displayName: "Capability Provider",
     description: "Sandbox provider that declares fine-grained capabilities.",
-    author: "Paperclip",
+    author: "Nexus",
     categories: ["automation"],
     capabilities: ["environment.drivers.register"],
     entrypoints: { worker: "./dist/worker.js" },
@@ -84,12 +84,12 @@ describe("plugin manifest validators", () => {
   });
   it("accepts existing-style plugins that do not request access or authorization capabilities", () => {
     const parsed = pluginManifestV1Schema.parse({
-      id: "paperclip.compat-dashboard",
+      id: "nexus.compat-dashboard",
       apiVersion: 1,
       version: "0.1.0",
       displayName: "Compat Dashboard",
       description: "Dashboard-only plugin without access or authorization host APIs.",
-      author: "Paperclip",
+      author: "Nexus",
       categories: ["ui"],
       capabilities: ["ui.dashboardWidget.register"],
       entrypoints: {
@@ -113,12 +113,12 @@ describe("plugin manifest validators", () => {
 
   it("accepts sandbox provider template config bindings", () => {
     const parsed = pluginManifestV1Schema.parse({
-      id: "paperclip.template-provider",
+      id: "nexus.template-provider",
       apiVersion: 1,
       version: "0.1.0",
       displayName: "Template Provider",
       description: "Sandbox provider with captured template config binding.",
-      author: "Paperclip",
+      author: "Nexus",
       categories: ["automation"],
       capabilities: ["environment.drivers.register"],
       entrypoints: { worker: "./dist/worker.js" },
@@ -146,7 +146,7 @@ describe("plugin manifest validators", () => {
 
   it("rejects template config bindings that replace provider identity", () => {
     const parsed = pluginManifestV1Schema.safeParse({
-      id: "paperclip.bad-template-provider",
+      id: "nexus.bad-template-provider",
       apiVersion: 1,
       version: "0.1.0",
       displayName: "Bad Template Provider",
@@ -200,12 +200,12 @@ describe("plugin managed routine validators", () => {
 
 describe("plugin managed skill validators", () => {
   const baseManifest = {
-    id: "paperclip.test-managed-skills",
+    id: "nexus.test-managed-skills",
     apiVersion: 1,
     version: "0.1.0",
     displayName: "Managed Skills",
     description: "Managed skills test plugin.",
-    author: "Paperclip",
+    author: "Nexus",
     categories: ["automation"],
     entrypoints: { worker: "./dist/worker.js" },
   } as const;

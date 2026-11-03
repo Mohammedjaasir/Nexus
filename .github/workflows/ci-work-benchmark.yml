@@ -121,7 +121,7 @@ jobs:
             pnpm install --frozen-lockfile
           fi
           pnpm run preflight:workspace-links
-          pnpm --filter @paperclipai/plugin-sdk ensure-build-deps
+          pnpm --filter @nexusai/plugin-sdk ensure-build-deps
 
       - name: Compare complete commands and executed case inventories
         env:

@@ -1,15 +1,15 @@
-import type { PaperclipPluginManifestV1 } from "@paperclipai/plugin-sdk";
+import type { NexusPluginManifestV1 } from "@nexusai/plugin-sdk";
 
-const PLUGIN_ID = "paperclip.boxd-sandbox-provider";
+const PLUGIN_ID = "nexus.boxd-sandbox-provider";
 const PLUGIN_VERSION = "0.1.0";
 
-const manifest: PaperclipPluginManifestV1 = {
+const manifest: NexusPluginManifestV1 = {
   id: PLUGIN_ID,
   apiVersion: 1,
   version: PLUGIN_VERSION,
   displayName: "boxd Sandbox Provider",
   description:
-    "Sandbox provider plugin that runs Paperclip environments on boxd microVMs, with suspend and resume for reused leases.",
+    "Sandbox provider plugin that runs Nexus environments on boxd microVMs, with suspend and resume for reused leases.",
   author: "boxd",
   categories: ["automation"],
   capabilities: ["environment.drivers.register"],
@@ -31,7 +31,7 @@ const manifest: PaperclipPluginManifestV1 = {
             type: "string",
             format: "secret-ref",
             description:
-              "Paste a boxd API key (`bxd_...`) or pick a saved Paperclip secret. Create one with `boxd auth keys create paperclip --org <org>`. The key decides which org the machines belong to.",
+              "Paste a boxd API key (`bxd_...`) or pick a saved Nexus secret. Create one with `boxd auth keys create nexus --org <org>`. The key decides which org the machines belong to.",
           },
           reuseLease: {
             type: "boolean",
@@ -43,36 +43,36 @@ const manifest: PaperclipPluginManifestV1 = {
             type: "string",
             description:
               "Optional snapshot name or ID to restore for each run, for example a machine with your tools preinstalled. Leave blank to start from the default boxd image (Ubuntu 24.04 with Node 24, git, Docker, Claude Code, Codex and OpenCode).",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "Machine",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "Machine",
           },
           vcpu: {
             type: "number",
             enum: [1, 2, 4, 8],
             description:
               "Machine size for fresh machines: 1 vCPU/4 GB, 2/8 GB, 4/16 GB or 8/32 GB. Leave blank for the org default. A snapshot keeps its own size.",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "Machine",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "Machine",
           },
           org: {
             type: "string",
             description: "Optional org name or ID. Leave blank to use the API key's org.",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "Machine",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "Machine",
           },
           namePrefix: {
             type: "string",
             description: "Prefix for machine names. Machines are reachable at https://<name>.boxd.sh.",
-            default: "paperclip",
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "Machine",
+            default: "nexus",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "Machine",
           },
           timeoutMs: {
             type: "number",
-            description: "Default command timeout in milliseconds. Paperclip also uses it as the default run timeout for this environment.",
+            description: "Default command timeout in milliseconds. Nexus also uses it as the default run timeout for this environment.",
             default: 3600000,
-            "x-paperclip-advanced": true,
-            "x-paperclip-group": "Runtime",
+            "x-nexus-advanced": true,
+            "x-nexus-group": "Runtime",
           },
         },
       },

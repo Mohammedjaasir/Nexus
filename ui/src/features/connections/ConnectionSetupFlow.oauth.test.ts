@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from "vitest";
-import type { ToolApplication, ToolConnection } from "@paperclipai/shared";
-import { getConnectableAppDefinition } from "@paperclipai/shared";
+import type { ToolApplication, ToolConnection } from "@nexusai/shared";
+import { getConnectableAppDefinition } from "@nexusai/shared";
 import {
   isConnectionDefinitionUnavailable,
   isVercelConnectUnavailable,
@@ -13,7 +13,7 @@ import {
   requestedConnectionEntry,
 } from "./ConnectionSetupFlow";
 
-const origin = "https://paperclip.test";
+const origin = "https://nexus.test";
 const interactionId = "interaction-123";
 
 function event(data: unknown, eventOrigin = origin) {
@@ -27,7 +27,7 @@ describe("connection intent OAuth window messages", () => {
       expect(
         readConnectionIntentOAuthOutcome(
           event({
-            type: "paperclip.connection-intent.oauth",
+            type: "nexus.connection-intent.oauth",
             interactionId,
             outcome,
           }),
@@ -43,7 +43,7 @@ describe("connection intent OAuth window messages", () => {
       "foreign origin",
       event(
         {
-          type: "paperclip.connection-intent.oauth",
+          type: "nexus.connection-intent.oauth",
           interactionId,
           outcome: "connected",
         },
@@ -53,7 +53,7 @@ describe("connection intent OAuth window messages", () => {
     [
       "wrong interaction",
       event({
-        type: "paperclip.connection-intent.oauth",
+        type: "nexus.connection-intent.oauth",
         interactionId: "other",
         outcome: "connected",
       }),
@@ -65,7 +65,7 @@ describe("connection intent OAuth window messages", () => {
     [
       "unknown outcome",
       event({
-        type: "paperclip.connection-intent.oauth",
+        type: "nexus.connection-intent.oauth",
         interactionId,
         outcome: "authorized",
       }),

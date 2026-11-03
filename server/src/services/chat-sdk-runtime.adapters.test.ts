@@ -86,7 +86,7 @@ function signedSlackEventRequest(
     .update(`v0:${timestamp}:${body}`)
     .digest("hex")}`;
   return new Request(
-    "https://paperclip.example/api/chat-webhooks/public/slack",
+    "https://nexus.example/api/chat-webhooks/public/slack",
     {
       method: "POST",
       headers: {
@@ -113,17 +113,17 @@ describe("Chat SDK published adapter integration", () => {
     const providerConfigs = [
       {
         provider: "slack" as const,
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: { botToken: "xoxb-test", signingSecret: "secret" },
       },
       {
         provider: "github" as const,
-        userName: "paperclip-agent[bot]",
+        userName: "nexus-agent[bot]",
         credentials: { token: "github_pat_test", webhookSecret: "secret" },
       },
       {
         provider: "microsoft-teams" as const,
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-0000-0000-000000000000",
           appPassword: "secret",
@@ -131,7 +131,7 @@ describe("Chat SDK published adapter integration", () => {
       },
       {
         provider: "telegram" as const,
-        userName: "paperclip_agent_bot",
+        userName: "nexus_agent_bot",
         credentials: { botToken: "123:test", secretToken: "secret" },
       },
     ];
@@ -181,7 +181,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "github",
-        userName: "paperclip-agent[bot]",
+        userName: "nexus-agent[bot]",
         credentials: { token: "github_pat_test", webhookSecret: "secret" },
       },
     });
@@ -218,7 +218,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "telegram",
-        userName: "paperclip_agent_bot",
+        userName: "nexus_agent_bot",
         credentials: {
           botToken: "123:test",
           secretToken: "telegram-webhook-secret",
@@ -254,7 +254,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-0000-0000-000000000000",
           appPassword: "secret",
@@ -298,7 +298,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: { botToken: "xoxb-test", signingSecret: "secret" },
       },
     });
@@ -310,7 +310,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "discord",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           apiUrl: "https://discord.com/api/v10",
           applicationId: "123456789012345678",
@@ -333,11 +333,11 @@ describe("Chat SDK published adapter integration", () => {
           event: { type: string },
         ): Promise<void>;
       };
-      await slack.sendToResponseUrl("https://paperclip.test/slack", "delete");
-      await slack.forwardSocketEvent("https://paperclip.test/slack", {
+      await slack.sendToResponseUrl("https://nexus.test/slack", "delete");
+      await slack.forwardSocketEvent("https://nexus.test/slack", {
         body: { type: "events_api" },
       });
-      await discord.forwardGatewayEvent("https://paperclip.test/discord", {
+      await discord.forwardGatewayEvent("https://nexus.test/discord", {
         type: "MESSAGE_CREATE",
       });
       expect(providerFetch).toHaveBeenCalledTimes(3);
@@ -373,13 +373,13 @@ describe("Chat SDK published adapter integration", () => {
             { status: 201 },
           );
         }
-        if (url.endsWith("/repos/paperclipai/chat-e2e/issues/42/comments")) {
+        if (url.endsWith("/repos/nexusai/chat-e2e/issues/42/comments")) {
           commentAuthorizations.push(headers.get("authorization") ?? "");
           return Response.json(
             {
               id: 9_000 + commentAuthorizations.length,
               body: "safe reply",
-              user: { id: 9001, login: "maya-paperclip[bot]", type: "Bot" },
+              user: { id: 9001, login: "maya-nexus[bot]", type: "Bot" },
             },
             { status: 201 },
           );
@@ -396,7 +396,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "github",
-        userName: "maya-paperclip[bot]",
+        userName: "maya-nexus[bot]",
         credentials: {
           appId: "123456",
           botUserId: 9001,
@@ -413,11 +413,11 @@ describe("Chat SDK published adapter integration", () => {
       ): Promise<{ id: string }>;
     };
     try {
-      await adapter.postMessage("github:paperclipai/chat-e2e:issue:42", {
+      await adapter.postMessage("github:nexusai/chat-e2e:issue:42", {
         markdown: "first safe reply",
       });
       vi.setSystemTime(new Date(start.getTime() + 61 * 60_000));
-      await adapter.postMessage("github:paperclipai/chat-e2e:issue:42", {
+      await adapter.postMessage("github:nexusai/chat-e2e:issue:42", {
         markdown: "delayed safe reply",
       });
 
@@ -443,22 +443,22 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret,
         },
       },
     });
     const payload = {
       type: "block_actions",
-      team: { id: "T-PAPERCLIP" },
+      team: { id: "T-NEXUS" },
       user: { id: "U-OPERATOR", username: "operator" },
-      channel: { id: "D-PAPERCLIP-DM" },
+      channel: { id: "D-NEXUS-DM" },
       container: {
         type: "message",
-        channel_id: "D-PAPERCLIP-DM",
+        channel_id: "D-NEXUS-DM",
         message_ts: "1788.200",
       },
       message: { ts: "1788.200" },
@@ -476,7 +476,7 @@ describe("Chat SDK published adapter integration", () => {
       await runtime.initialize();
       const response = await runtime.handleWebhook(
         new Request(
-          "https://paperclip.example/api/chat-webhooks/public/slack",
+          "https://nexus.example/api/chat-webhooks/public/slack",
           {
             method: "POST",
             headers: {
@@ -495,7 +495,7 @@ describe("Chat SDK published adapter integration", () => {
           event: expect.objectContaining({
             actionId: "pcq:blue",
             messageId: "1788.200",
-            threadId: "slack:D-PAPERCLIP-DM:1788.200",
+            threadId: "slack:D-NEXUS-DM:1788.200",
             value: "interaction-id",
           }),
         }),
@@ -516,18 +516,18 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret,
         },
       },
     });
     const body = new URLSearchParams({
-      channel_id: "C-PAPERCLIP",
-      command: "/paperclip-agent",
-      team_id: "T-PAPERCLIP",
+      channel_id: "C-NEXUS",
+      command: "/nexus-agent",
+      team_id: "T-NEXUS",
       text: "investigate the release",
       trigger_id: "slash-trigger",
       user_id: "U-OPERATOR",
@@ -546,14 +546,14 @@ describe("Chat SDK published adapter integration", () => {
         async () =>
           await new Promise<never>(() => {
             // A regression to the upstream cold lookup would hold the provider
-            // acknowledgement open until Paperclip's webhook deadline.
+            // acknowledgement open until Nexus's webhook deadline.
           }),
       );
       adapter._client.users.info = usersInfo;
       const response = await Promise.race([
         runtime.handleWebhook(
           new Request(
-            "https://paperclip.example/api/chat-webhooks/public/slack",
+            "https://nexus.example/api/chat-webhooks/public/slack",
             {
               method: "POST",
               headers: {
@@ -573,14 +573,14 @@ describe("Chat SDK published adapter integration", () => {
       expect((response as Response).status).toBe(200);
       await expect((response as Response).json()).resolves.toEqual({
         response_type: "ephemeral",
-        text: "Paperclip received this command.",
+        text: "Nexus received this command.",
       });
       expect(usersInfo).not.toHaveBeenCalled();
       expect(onSlashCommand).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: "slack",
           event: expect.objectContaining({
-            command: "/paperclip-agent",
+            command: "/nexus-agent",
             text: "investigate the release",
             user: expect.objectContaining({
               userId: "U-OPERATOR",
@@ -611,10 +611,10 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret,
         },
       },
@@ -641,7 +641,7 @@ describe("Chat SDK published adapter integration", () => {
       const previousMessage = {
         type: "message",
         user: "U-OPERATOR",
-        text: "@paperclip-agent original request",
+        text: "@nexus-agent original request",
         ts: "1788.500",
         thread_ts: "1788.400",
       };
@@ -649,17 +649,17 @@ describe("Chat SDK published adapter integration", () => {
       const edited = await runtime.handleWebhook(
         signedSlackEventRequest(signingSecret, {
           type: "event_callback",
-          team_id: "T-PAPERCLIP",
+          team_id: "T-NEXUS",
           event_id: "Ev-slack-edit",
           event: {
             type: "message",
             subtype: "message_changed",
-            channel: "C-PAPERCLIP",
+            channel: "C-NEXUS",
             channel_type: "channel",
             event_ts: "1788.600",
             message: {
               ...previousMessage,
-              text: "@paperclip-agent corrected request",
+              text: "@nexus-agent corrected request",
               edited: { user: "U-OPERATOR", ts: "1788.600" },
             },
             previous_message: previousMessage,
@@ -673,7 +673,7 @@ describe("Chat SDK published adapter integration", () => {
           endpointId: "endpoint-slack-lifecycle-envelope",
           provider: "slack",
           thread: expect.objectContaining({
-            id: "slack:C-PAPERCLIP:1788.400",
+            id: "slack:C-NEXUS:1788.400",
           }),
           message: expect.objectContaining({
             id: "1788.500",
@@ -689,12 +689,12 @@ describe("Chat SDK published adapter integration", () => {
       const deleted = await runtime.handleWebhook(
         signedSlackEventRequest(signingSecret, {
           type: "event_callback",
-          team_id: "T-PAPERCLIP",
+          team_id: "T-NEXUS",
           event_id: "Ev-slack-delete",
           event: {
             type: "message",
             subtype: "message_deleted",
-            channel: "C-PAPERCLIP",
+            channel: "C-NEXUS",
             channel_type: "channel",
             deleted_ts: "1788.500",
             event_ts: "1788.700",
@@ -709,9 +709,9 @@ describe("Chat SDK published adapter integration", () => {
           endpointId: "endpoint-slack-lifecycle-envelope",
           provider: "slack",
           event: expect.objectContaining({
-            channelId: "C-PAPERCLIP",
+            channelId: "C-NEXUS",
             messageId: "1788.500",
-            threadId: "slack:C-PAPERCLIP:1788.400",
+            threadId: "slack:C-NEXUS:1788.400",
           }),
         }),
       );
@@ -847,10 +847,10 @@ describe("Chat SDK published adapter integration", () => {
           persistence: memoryPersistence(),
           providerConfig: {
             provider: "slack",
-            userName: "paperclip-agent",
+            userName: "nexus-agent",
             credentials: {
               botToken: "xoxb-test",
-              botUserId: "U-PAPERCLIP-BOT",
+              botUserId: "U-NEXUS-BOT",
               signingSecret,
             },
           },
@@ -890,13 +890,13 @@ describe("Chat SDK published adapter integration", () => {
                 : signingSecret,
               {
                 type: "event_callback",
-                team_id: "T-PAPERCLIP",
+                team_id: "T-NEXUS",
                 event_id: "Ev-slack-files-only",
                 event: {
                   type: "message",
                   subtype: "message_changed",
                   hidden: testCase.hidden ?? true,
-                  channel: "C-PAPERCLIP",
+                  channel: "C-NEXUS",
                   channel_type: "channel",
                   event_ts: "1788.700",
                   message: {
@@ -929,7 +929,7 @@ describe("Chat SDK published adapter integration", () => {
           if (testCase.changed) {
             const update = onMessageUpdated.mock.calls[0]![0];
             expect(update.provider).toBe("slack");
-            expect(update.thread.id).toBe("slack:C-PAPERCLIP:1788.400");
+            expect(update.thread.id).toBe("slack:C-NEXUS:1788.400");
             expect(update.message.id).toBe(previousMessage.ts);
             expect(update.message.text).toBe(previousMessage.text);
             expect(update.message.metadata.editedAt).toEqual(
@@ -981,10 +981,10 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret,
         },
       },
@@ -1023,7 +1023,7 @@ describe("Chat SDK published adapter integration", () => {
         const response = await runtime.handleWebhook(
           signedSlackEventRequest(signingSecret, {
             type: "event_callback",
-            team_id: "T-PAPERCLIP",
+            team_id: "T-NEXUS",
             event_id: `Ev-slack-${type}`,
             event: {
               type,
@@ -1031,7 +1031,7 @@ describe("Chat SDK published adapter integration", () => {
               reaction: "eyes",
               item: {
                 type: "message",
-                channel: "C-PAPERCLIP",
+                channel: "C-NEXUS",
                 ts: "1788.500",
               },
               event_ts: eventTs,
@@ -1049,7 +1049,7 @@ describe("Chat SDK published adapter integration", () => {
             added: true,
             messageId: "1788.500",
             rawEmoji: "eyes",
-            threadId: "slack:C-PAPERCLIP:1788.400",
+            threadId: "slack:C-NEXUS:1788.400",
           }),
         }),
         expect.objectContaining({
@@ -1059,7 +1059,7 @@ describe("Chat SDK published adapter integration", () => {
             added: false,
             messageId: "1788.500",
             rawEmoji: "eyes",
-            threadId: "slack:C-PAPERCLIP:1788.400",
+            threadId: "slack:C-NEXUS:1788.400",
           }),
         }),
       ]);
@@ -1077,10 +1077,10 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret: "slack-stream-signing-secret",
         },
       },
@@ -1100,12 +1100,12 @@ describe("Chat SDK published adapter integration", () => {
       }));
       const postMessage = vi.fn(async () => ({
         ok: true,
-        channel: "D-PAPERCLIP",
+        channel: "D-NEXUS",
         ts: "1788.901",
       }));
       const update = vi.fn(async () => ({
         ok: true,
-        channel: "D-PAPERCLIP",
+        channel: "D-NEXUS",
         ts: "1788.901",
       }));
       const adapter = runtime.getProviderAdapter() as unknown as {
@@ -1137,10 +1137,10 @@ describe("Chat SDK published adapter integration", () => {
       };
 
       const sent = await adapter.stream(
-        "slack:D-PAPERCLIP:1788.400",
+        "slack:D-NEXUS:1788.400",
         chunks(),
         {
-          recipientTeamId: "T-PAPERCLIP",
+          recipientTeamId: "T-NEXUS",
           recipientUserId: "U-OPERATOR",
           updateIntervalMs: 0,
         },
@@ -1175,10 +1175,10 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret: "secret",
         },
       },
@@ -1190,10 +1190,10 @@ describe("Chat SDK published adapter integration", () => {
           ok: true,
           files: [
             {
-              id: "FPAPERCLIP",
+              id: "FNEXUS",
               shares: {
                 public: {
-                  "C-PAPERCLIP": [{ thread_ts: "1788.300", ts: "1788.302" }],
+                  "C-NEXUS": [{ thread_ts: "1788.300", ts: "1788.302" }],
                 },
               },
             },
@@ -1221,7 +1221,7 @@ describe("Chat SDK published adapter integration", () => {
       adapter._client.files.uploadV2 = uploadV2;
       adapter._client.files.info = fileInfo;
       adapter._client.chat.postMessage = postMessage;
-      const sent = await adapter.postMessage("slack:C-PAPERCLIP:1788.300", {
+      const sent = await adapter.postMessage("slack:C-NEXUS:1788.300", {
         markdown: "",
         files: [
           {
@@ -1235,7 +1235,7 @@ describe("Chat SDK published adapter integration", () => {
       expect(uploadV2).toHaveBeenCalledOnce();
       expect(uploadV2).toHaveBeenCalledWith(
         expect.objectContaining({
-          channel_id: "C-PAPERCLIP",
+          channel_id: "C-NEXUS",
           thread_ts: "1788.300",
           file_uploads: [expect.objectContaining({ filename: "result.txt" })],
         }),
@@ -1256,10 +1256,10 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret: "secret",
         },
       },
@@ -1280,7 +1280,7 @@ describe("Chat SDK published adapter integration", () => {
           id: "FSPARSE",
           shares: {
             private: {
-              "D-PAPERCLIP": [{ thread_ts: "1788.400", ts: "1788.401" }],
+              "D-NEXUS": [{ thread_ts: "1788.400", ts: "1788.401" }],
             },
           },
         },
@@ -1308,7 +1308,7 @@ describe("Chat SDK published adapter integration", () => {
       adapter._client.files.info = fileInfo;
       adapter._client.chat.postMessage = postMessage;
       vi.useFakeTimers();
-      const sentPromise = adapter.postMessage("slack:D-PAPERCLIP:1788.400", {
+      const sentPromise = adapter.postMessage("slack:D-NEXUS:1788.400", {
         markdown: "",
         files: [
           {
@@ -1342,10 +1342,10 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret: "secret",
         },
       },
@@ -1360,7 +1360,7 @@ describe("Chat SDK published adapter integration", () => {
         id: "FRECEIPT1",
         shares: {
           public: {
-            "C-PAPERCLIP": [{ thread_ts: "1788.410", ts: "1788.411" }],
+            "C-NEXUS": [{ thread_ts: "1788.410", ts: "1788.411" }],
           },
         },
       },
@@ -1393,7 +1393,7 @@ describe("Chat SDK published adapter integration", () => {
       adapter._client.files.info = fileInfo;
       adapter._client.chat.postMessage = postMessage;
       const sentPromise = runtime.postSlackFilePublication(
-        "slack:C-PAPERCLIP:1788.410",
+        "slack:C-NEXUS:1788.410",
         {
           files: [
             {
@@ -1409,7 +1409,7 @@ describe("Chat SDK published adapter integration", () => {
       await receiptAccepted;
       expect(onUploadAccepted).toHaveBeenCalledWith({
         version: 1,
-        channelId: "C-PAPERCLIP",
+        channelId: "C-NEXUS",
         fileIds: ["FRECEIPT1"],
         threadTs: "1788.410",
       });
@@ -1417,7 +1417,7 @@ describe("Chat SDK published adapter integration", () => {
       releaseReceipt();
       await expect(sentPromise).resolves.toMatchObject({
         id: "1788.411",
-        threadId: "slack:C-PAPERCLIP:1788.410",
+        threadId: "slack:C-NEXUS:1788.410",
         edit: expect.any(Function),
         addReaction: expect.any(Function),
         toJSON: expect.any(Function),
@@ -1440,10 +1440,10 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret: "secret",
         },
       },
@@ -1471,7 +1471,7 @@ describe("Chat SDK published adapter integration", () => {
                 id: first ? "FFIRST" : second ? "FSECOND" : "FORDINARY",
                 shares: {
                   public: {
-                    "C-PAPERCLIP": [
+                    "C-NEXUS": [
                       {
                         thread_ts: args.thread_ts,
                         ts: first
@@ -1516,12 +1516,12 @@ describe("Chat SDK published adapter integration", () => {
       adapter._client.files.info = fileInfo;
       adapter._client.chat.postMessage = postMessage;
       const first = runtime.postSlackFilePublication(
-        "slack:C-PAPERCLIP:1788.430",
+        "slack:C-NEXUS:1788.430",
         message,
         firstCallback,
       );
       const second = runtime.postSlackFilePublication(
-        "slack:C-PAPERCLIP:1788.440",
+        "slack:C-NEXUS:1788.440",
         message,
         secondCallback,
       );
@@ -1534,7 +1534,7 @@ describe("Chat SDK published adapter integration", () => {
       expect(firstCallback).not.toHaveBeenCalled();
       expect(secondCallback).toHaveBeenCalledExactlyOnceWith({
         version: 1,
-        channelId: "C-PAPERCLIP",
+        channelId: "C-NEXUS",
         threadTs: "1788.440",
         fileIds: ["FSECOND"],
       });
@@ -1542,13 +1542,13 @@ describe("Chat SDK published adapter integration", () => {
       await expect(first).resolves.toMatchObject({ id: "1788.431" });
       expect(firstCallback).toHaveBeenCalledExactlyOnceWith({
         version: 1,
-        channelId: "C-PAPERCLIP",
+        channelId: "C-NEXUS",
         threadTs: "1788.430",
         fileIds: ["FFIRST"],
       });
 
       await expect(
-        runtime.thread("slack:C-PAPERCLIP:1788.450").post(message),
+        runtime.thread("slack:C-NEXUS:1788.450").post(message),
       ).resolves.toMatchObject({ id: "1788.451" });
       expect(firstCallback).toHaveBeenCalledOnce();
       expect(secondCallback).toHaveBeenCalledOnce();
@@ -1574,10 +1574,10 @@ describe("Chat SDK published adapter integration", () => {
         persistence,
         providerConfig: {
           provider: "slack",
-          userName: "paperclip-agent",
+          userName: "nexus-agent",
           credentials: {
             botToken: "xoxb-test",
-            botUserId: "U-PAPERCLIP-BOT",
+            botUserId: "U-NEXUS-BOT",
             signingSecret: "secret",
           },
         },
@@ -1614,7 +1614,7 @@ describe("Chat SDK published adapter integration", () => {
         adapter._client.chat.postMessage = postMessage;
         await expect(
           runtime.postSlackFilePublication(
-            "slack:C-PAPERCLIP:1788.460",
+            "slack:C-NEXUS:1788.460",
             {
               files: [
                 {
@@ -1649,10 +1649,10 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret: "secret",
         },
       },
@@ -1664,7 +1664,7 @@ describe("Chat SDK published adapter integration", () => {
         id: "FRECOVERY1",
         shares: {
           public: {
-            "C-PAPERCLIP": [{ thread_ts: "1788.420", ts: "1788.421" }],
+            "C-NEXUS": [{ thread_ts: "1788.420", ts: "1788.421" }],
           },
         },
       },
@@ -1682,14 +1682,14 @@ describe("Chat SDK published adapter integration", () => {
       adapter._client.files.uploadV2 = uploadV2;
       adapter._client.files.info = fileInfo;
       await expect(
-        runtime.resolveSlackFileUploadReceipt("slack:C-PAPERCLIP:1788.420", [
+        runtime.resolveSlackFileUploadReceipt("slack:C-NEXUS:1788.420", [
           "FRECOVERY1",
         ]),
       ).resolves.toBe("1788.421");
       expect(fileInfo).toHaveBeenCalledOnce();
       expect(uploadV2).not.toHaveBeenCalled();
       await expect(
-        runtime.resolveSlackFileUploadReceipt("slack:C-PAPERCLIP:1788.420", [
+        runtime.resolveSlackFileUploadReceipt("slack:C-NEXUS:1788.420", [
           "not-a-slack-file-id",
         ]),
       ).rejects.toMatchObject({ name: "ValidationError" });
@@ -1708,10 +1708,10 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret: "secret",
         },
       },
@@ -1755,7 +1755,7 @@ describe("Chat SDK published adapter integration", () => {
       adapter._client.chat.postMessage = postMessage;
       vi.useFakeTimers();
       const rejected = expect(
-        adapter.postMessage("slack:C-PAPERCLIP:1788.500", {
+        adapter.postMessage("slack:C-NEXUS:1788.500", {
           markdown: "",
           files: [
             {
@@ -1789,10 +1789,10 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret: "secret",
         },
       },
@@ -1826,7 +1826,7 @@ describe("Chat SDK published adapter integration", () => {
       adapter._client.chat.postMessage = postMessage;
       vi.useFakeTimers();
       const rejected = expect(
-        adapter.postMessage("slack:C-PAPERCLIP:1788.700", {
+        adapter.postMessage("slack:C-NEXUS:1788.700", {
           markdown: "",
           files: [
             {
@@ -1860,10 +1860,10 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
-          botUserId: "U-PAPERCLIP-BOT",
+          botUserId: "U-NEXUS-BOT",
           signingSecret: "secret",
         },
       },
@@ -1902,7 +1902,7 @@ describe("Chat SDK published adapter integration", () => {
         return input;
       };
       const rejected = expect(
-        adapter.postMessage("slack:C-PAPERCLIP:1788.800", {
+        adapter.postMessage("slack:C-NEXUS:1788.800", {
           markdown: "",
           files: [
             {
@@ -1942,7 +1942,7 @@ describe("Chat SDK published adapter integration", () => {
           id: "FOTHER",
           shares: {
             public: {
-              "C-PAPERCLIP": [{ thread_ts: "1788.600", ts: "1788.601" }],
+              "C-NEXUS": [{ thread_ts: "1788.600", ts: "1788.601" }],
             },
           },
         },
@@ -1959,10 +1959,10 @@ describe("Chat SDK published adapter integration", () => {
         persistence,
         providerConfig: {
           provider: "slack",
-          userName: "paperclip-agent",
+          userName: "nexus-agent",
           credentials: {
             botToken: "xoxb-test",
-            botUserId: "U-PAPERCLIP-BOT",
+            botUserId: "U-NEXUS-BOT",
             signingSecret: "secret",
           },
         },
@@ -1999,7 +1999,7 @@ describe("Chat SDK published adapter integration", () => {
         adapter._client.files.info = fileInfo;
         adapter._client.chat.postMessage = postMessage;
         await expect(
-          adapter.postMessage("slack:C-PAPERCLIP:1788.600", {
+          adapter.postMessage("slack:C-NEXUS:1788.600", {
             markdown: "",
             files: [
               {
@@ -2030,7 +2030,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "telegram",
-        userName: "paperclip_agent_bot",
+        userName: "nexus_agent_bot",
         credentials: {
           botToken: "123:test",
           secretToken: "telegram-webhook-secret",
@@ -2043,7 +2043,7 @@ describe("Chat SDK published adapter integration", () => {
         date: 1_788_700_000,
         chat: { id: -1004415501660, type: "supergroup", title: "Agent Lab" },
         from: { id: 417200359, is_bot: false, first_name: "Dotta" },
-        caption: "/task@paperclip_agent_bot inspect this file",
+        caption: "/task@nexus_agent_bot inspect this file",
         caption_entities: [{ offset: 0, length: 30, type: "bot_command" }],
         document: {
           file_id: "telegram-file-id",
@@ -2086,7 +2086,7 @@ describe("Chat SDK published adapter integration", () => {
     { label: "an absent Content-Length", contentLength: undefined },
     { label: "a misleading small Content-Length", contentLength: "4" },
   ])(
-    "stops Telegram attachment downloads at Paperclip's byte cap with $label",
+    "stops Telegram attachment downloads at Nexus's byte cap with $label",
     async ({ contentLength }) => {
       const providerFetch = vi.fn(async (input: string | URL | Request) => {
         const url = String(input);
@@ -2124,7 +2124,7 @@ describe("Chat SDK published adapter integration", () => {
         persistence,
         providerConfig: {
           provider: "telegram",
-          userName: "paperclip_agent_bot",
+          userName: "nexus_agent_bot",
           maxDownloadBytes: 5,
           credentials: {
             botToken: "123:test",
@@ -2186,7 +2186,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "telegram",
-        userName: "paperclip_agent_bot",
+        userName: "nexus_agent_bot",
         maxDownloadBytes: 10,
         credentials: {
           botToken: "123:test",
@@ -2323,7 +2323,7 @@ describe("Chat SDK published adapter integration", () => {
         persistence,
         providerConfig: {
           provider: "telegram",
-          userName: "paperclip_agent_bot",
+          userName: "nexus_agent_bot",
           credentials: {
             botToken: "123:test",
             secretToken: "telegram-webhook-secret",
@@ -2437,7 +2437,7 @@ describe("Chat SDK published adapter integration", () => {
         );
         const edited = await adapter.editMessage(threadId, "owned-progress", {
           markdown:
-            "This chat conversation is closed. The Paperclip task remains available.",
+            "This chat conversation is closed. The Nexus task remains available.",
         });
         expect(edited).toMatchObject({ id: "owned-progress", threadId });
         expect(put).toHaveBeenCalledTimes(1);
@@ -2448,7 +2448,7 @@ describe("Chat SDK published adapter integration", () => {
         expect(body).toMatchObject({
           type: "message",
           textFormat: "markdown",
-          text: "This chat conversation is closed. The Paperclip task remains available.",
+          text: "This chat conversation is closed. The Nexus task remains available.",
         });
         expect(body.attachments ?? []).toEqual([]);
         expect(body.suggestedActions).toBeUndefined();
@@ -2492,7 +2492,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-4000-8000-000000000511",
           appPassword: "secret",
@@ -2590,7 +2590,7 @@ describe("Chat SDK published adapter integration", () => {
         persistence,
         providerConfig: {
           provider: "telegram",
-          userName: "paperclip_agent_bot",
+          userName: "nexus_agent_bot",
           credentials: {
             botToken: "123:test",
             secretToken: "telegram-webhook-secret",
@@ -2667,7 +2667,7 @@ describe("Chat SDK published adapter integration", () => {
         persistence,
         providerConfig: {
           provider: "microsoft-teams",
-          userName: "Paperclip Agent",
+          userName: "Nexus Agent",
           credentials: {
             appId: "00000000-0000-4000-8000-000000000000",
             appPassword: "secret",
@@ -2723,7 +2723,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-4000-8000-000000000000",
           appPassword: "secret",
@@ -2762,14 +2762,14 @@ describe("Chat SDK published adapter integration", () => {
       provider: "slack",
       providerConfig: {
         provider: "slack" as const,
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botToken: "xoxb-test",
           botUserId: "U-BOT",
           signingSecret: "slack-signing-secret",
         },
       },
-      request: new Request("https://paperclip.test/webhook", {
+      request: new Request("https://nexus.test/webhook", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ type: "event_callback" }),
@@ -2779,14 +2779,14 @@ describe("Chat SDK published adapter integration", () => {
       provider: "github",
       providerConfig: {
         provider: "github" as const,
-        userName: "paperclip-agent[bot]",
+        userName: "nexus-agent[bot]",
         credentials: {
           botUserId: 1,
           token: "github_pat_test",
           webhookSecret: "github-webhook-secret",
         },
       },
-      request: new Request("https://paperclip.test/webhook", {
+      request: new Request("https://nexus.test/webhook", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -2799,13 +2799,13 @@ describe("Chat SDK published adapter integration", () => {
       provider: "telegram",
       providerConfig: {
         provider: "telegram" as const,
-        userName: "paperclip_agent_bot",
+        userName: "nexus_agent_bot",
         credentials: {
           botToken: "123:test",
           secretToken: "telegram-webhook-secret",
         },
       },
-      request: new Request("https://paperclip.test/webhook", {
+      request: new Request("https://nexus.test/webhook", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -2818,7 +2818,7 @@ describe("Chat SDK published adapter integration", () => {
       provider: "microsoft-teams",
       providerConfig: {
         provider: "microsoft-teams" as const,
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-0000-0000-000000000000",
           appPassword: "teams-secret",
@@ -2826,7 +2826,7 @@ describe("Chat SDK published adapter integration", () => {
           appType: "SingleTenant" as const,
         },
       },
-      request: new Request("https://paperclip.test/webhook", {
+      request: new Request("https://nexus.test/webhook", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ type: "message", text: "forged" }),
@@ -2843,8 +2843,8 @@ describe("Chat SDK published adapter integration", () => {
             result: {
               id: 123,
               is_bot: true,
-              first_name: "Paperclip Agent",
-              username: "paperclip_agent_bot",
+              first_name: "Nexus Agent",
+              username: "nexus_agent_bot",
             },
           });
         }
@@ -2877,7 +2877,7 @@ describe("Chat SDK published adapter integration", () => {
       "https://github.com/user-attachments/assets/11111111-2222-3333-4444-555555555555";
     const existingBareUrl = "https://already-visible.example.test/log.txt";
     const markdown = [
-      `@paperclip-agent inspect [the build](${safeLink}).`,
+      `@nexus-agent inspect [the build](${safeLink}).`,
       `![failure.log](${safeImage})`,
       `Existing URL: ${existingBareUrl}`,
       "[unsafe](javascript:alert(1))",
@@ -2896,7 +2896,7 @@ describe("Chat SDK published adapter integration", () => {
       repository: {
         id: 202,
         name: "chat-e2e",
-        owner: { id: 303, login: "paperclipai", type: "Organization" },
+        owner: { id: 303, login: "nexusai", type: "Organization" },
       },
       sender: { id: 101, login: "operator", type: "User" },
     };
@@ -2913,7 +2913,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "github",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: {
           botUserId: 999,
           token: "github_pat_test",
@@ -2924,7 +2924,7 @@ describe("Chat SDK published adapter integration", () => {
 
     try {
       const response = await runtime.handleWebhook(
-        new Request("https://paperclip.test/webhook", {
+        new Request("https://nexus.test/webhook", {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -2962,7 +2962,7 @@ describe("Chat SDK published adapter integration", () => {
         payload.comment,
         payload.repository,
         42,
-        "github:paperclipai/chat-e2e:42:rc:4242",
+        "github:nexusai/chat-e2e:42:rc:4242",
       );
       expect(review.text).toContain(safeLink);
       expect(review.text).toContain(safeImage);
@@ -2983,7 +2983,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-0000-0000-000000000000",
           appPassword: "teams-secret",
@@ -2995,7 +2995,7 @@ describe("Chat SDK published adapter integration", () => {
 
     try {
       const response = await runtime.handleWebhook(
-        new Request("https://paperclip.test/webhook", {
+        new Request("https://nexus.test/webhook", {
           method: "POST",
           headers: {
             authorization: `Bearer ${authorizationMarker}`,
@@ -3033,7 +3033,7 @@ describe("Chat SDK published adapter integration", () => {
       {
         providerConfig: {
           provider: "slack",
-          userName: "paperclip-agent",
+          userName: "nexus-agent",
           credentials: {
             botToken: "xoxb-never-persist",
             signingSecret: "slack-signing-never-persist",
@@ -3064,7 +3064,7 @@ describe("Chat SDK published adapter integration", () => {
       {
         providerConfig: {
           provider: "microsoft-teams",
-          userName: "Paperclip Agent",
+          userName: "Nexus Agent",
           credentials: {
             appId: "00000000-0000-0000-0000-000000000000",
             appPassword: "teams-password-never-persist",
@@ -3093,7 +3093,7 @@ describe("Chat SDK published adapter integration", () => {
       {
         providerConfig: {
           provider: "telegram",
-          userName: "paperclip_agent_bot",
+          userName: "nexus_agent_bot",
           credentials: {
             botToken: "123:telegram-never-persist",
             secretToken: "telegram-webhook-never-persist",
@@ -3172,7 +3172,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-0000-0000-000000000000",
           appPassword: "secret",
@@ -3196,7 +3196,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "slack",
-        userName: "paperclip-agent",
+        userName: "nexus-agent",
         credentials: { botToken: "token", signingSecret: "secret" },
       },
     });
@@ -3219,7 +3219,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-0000-0000-000000000000",
           appPassword: "secret",
@@ -3302,7 +3302,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence: state,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-0000-0000-000000000000",
           appPassword: "secret",
@@ -3310,7 +3310,7 @@ describe("Chat SDK published adapter integration", () => {
       },
     });
     await runtime.handleWebhook(
-      new Request("https://paperclip.test/webhook", {
+      new Request("https://nexus.test/webhook", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ type: "message", text: "initialize" }),
@@ -3353,7 +3353,7 @@ describe("Chat SDK published adapter integration", () => {
     await runtime.shutdown();
   });
 
-  it("persists Teams metadata only after Paperclip admits the authenticated activity", async () => {
+  it("persists Teams metadata only after Nexus admits the authenticated activity", async () => {
     const state = memoryPersistence();
     const tenantId = "00000000-0000-4000-8000-000000000622";
     const appId = "00000000-0000-4000-8000-000000000611";
@@ -3365,7 +3365,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence: state,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId,
           appPassword: "secret",
@@ -3375,7 +3375,7 @@ describe("Chat SDK published adapter integration", () => {
       },
     });
     await runtime.handleWebhook(
-      new Request("https://paperclip.test/webhook", {
+      new Request("https://nexus.test/webhook", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ type: "message", text: "initialize" }),
@@ -3471,7 +3471,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-0000-0000-000000000000",
           appPassword: "secret",
@@ -3573,7 +3573,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence: state,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-0000-0000-000000000000",
           appPassword: "secret",
@@ -3583,7 +3583,7 @@ describe("Chat SDK published adapter integration", () => {
       },
     });
     await runtime.handleWebhook(
-      new Request("https://paperclip.test/webhook", {
+      new Request("https://nexus.test/webhook", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ type: "message", text: "initialize" }),
@@ -3695,7 +3695,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-0000-0000-000000000000",
           appPassword: "secret",
@@ -3735,7 +3735,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-4000-8000-000000000000",
           appPassword: "secret",
@@ -3786,7 +3786,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           appId: "00000000-0000-0000-0000-000000000000",
           appPassword: "secret",
@@ -3843,7 +3843,7 @@ describe("Chat SDK published adapter integration", () => {
       persistence,
       providerConfig: {
         provider: "microsoft-teams",
-        userName: "Paperclip Agent",
+        userName: "Nexus Agent",
         credentials: {
           apiUrl: configuredApiUrl,
           appId: "00000000-0000-0000-0000-000000000000",

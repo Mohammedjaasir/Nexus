@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { IssueThreadInteraction, RequestItemVerdictsInteraction } from "@paperclipai/shared";
+import type { IssueThreadInteraction, RequestItemVerdictsInteraction } from "@nexusai/shared";
 import { chatInteractionForm, chatItemVerdicts } from "./chat-interaction-forms.js";
 import { chatQuestionFormActionRecords, createChatQuestionFormDraft, parseChatQuestionFormSubmitTokenPayload } from "./chat-question-forms.js";
 

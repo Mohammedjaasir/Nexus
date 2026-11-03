@@ -6,7 +6,7 @@ import type {
   ExecutionWorkspaceCloseReadiness,
   Goal,
   IssueAttachment,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { DocumentDiffModal } from "@/components/DocumentDiffModal";
@@ -20,7 +20,7 @@ import { PathInstructionsModal } from "@/components/PathInstructionsModal";
 import { useCompany } from "@/context/CompanyContext";
 import { useDialog } from "@/context/DialogContext";
 import { queryKeys } from "@/lib/queryKeys";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import {
   storybookAgents,
   storybookAuthSession,
@@ -30,17 +30,17 @@ import {
   storybookIssueLabels,
   storybookIssues,
   storybookProjects,
-} from "../../fixtures/paperclipData";
+} from "../../fixtures/nexusData";
 
 const COMPANY_ID = "company-storybook";
-const SELECTED_COMPANY_STORAGE_KEY = "paperclip.selectedCompanyId";
-const ISSUE_DRAFT_STORAGE_KEY = `paperclip:issue-draft:${storybookAuthSession.user!.id}`;
+const SELECTED_COMPANY_STORAGE_KEY = "nexus.selectedCompanyId";
+const ISSUE_DRAFT_STORAGE_KEY = `nexus:issue-draft:${storybookAuthSession.user!.id}`;
 
 const storybookGoals: Goal[] = [
   {
     id: "goal-company",
     companyId: COMPANY_ID,
-    title: "Build Paperclip",
+    title: "Build Nexus",
     description: "Make autonomous companies easier to run and govern.",
     level: "company",
     status: "active",
@@ -172,7 +172,7 @@ const closeReadinessReady: ExecutionWorkspaceCloseReadiness = {
       kind: "git_worktree_remove",
       label: "Remove git worktree",
       description: "Removes the issue worktree from the local worktree parent directory.",
-      command: "git worktree remove .paperclip/worktrees/PAP-1641-create-super-detailed-storybooks-for-our-project",
+      command: "git worktree remove .nexus/worktrees/PAP-1641-create-super-detailed-storybooks-for-our-project",
     },
     {
       kind: "archive_record",
@@ -185,8 +185,8 @@ const closeReadinessReady: ExecutionWorkspaceCloseReadiness = {
   isSharedWorkspace: false,
   isProjectPrimaryWorkspace: false,
   git: {
-    repoRoot: "/Users/dotta/paperclip",
-    workspacePath: "/Users/dotta/paperclip/.paperclip/worktrees/PAP-1641-create-super-detailed-storybooks-for-our-project",
+    repoRoot: "/Users/dotta/nexus",
+    workspacePath: "/Users/dotta/nexus/.nexus/worktrees/PAP-1641-create-super-detailed-storybooks-for-our-project",
     branchName: "PAP-1641-create-super-detailed-storybooks-for-our-project",
     baseRef: "master",
     hasDirtyTrackedFiles: true,
@@ -265,9 +265,9 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="paperclip-story__frame overflow-hidden">
+    <section className="nexus-story__frame overflow-hidden">
       <div className="border-b border-border px-5 py-4">
-        <div className="paperclip-story__label">{eyebrow}</div>
+        <div className="nexus-story__label">{eyebrow}</div>
         <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold">{title}</h2>
@@ -284,8 +284,8 @@ function Section({
 
 function StoryShell({ children }: { children: ReactNode }) {
   return (
-    <div className="paperclip-story">
-      <main className="paperclip-story__inner space-y-6">{children}</main>
+    <div className="nexus-story">
+      <main className="nexus-story__inner space-y-6">{children}</main>
     </div>
   );
 }
@@ -361,7 +361,7 @@ function hydrateDialogQueries(queryClient: ReturnType<typeof useQueryClient>) {
         status: "active",
         user: {
           id: "user-board",
-          email: "riley@paperclip.local",
+          email: "riley@nexus.local",
           name: "Riley Board",
           image: null,
         },
@@ -578,7 +578,7 @@ function ProjectDialogOpener({ populated }: { populated?: boolean }) {
     const timer = window.setTimeout(() => {
       fillFirstField("input[placeholder='Project name']", "Storybook review workspace");
       fillFirstField("input[placeholder='https://github.com/org/repo']", "https://github.com/paperclipai/paperclip");
-      fillFirstField("input[placeholder='/absolute/path/to/workspace']", "/Users/dotta/paperclip/ui");
+      fillFirstField("input[placeholder='/absolute/path/to/workspace']", "/Users/dotta/nexus/ui");
       fillFirstField("input[type='date']", "2026-04-30");
     }, 250);
     return () => window.clearTimeout(timer);
@@ -680,10 +680,10 @@ const meta = {
     docs: {
       description: {
         component:
-          "Open-state stories for Paperclip creation dialogs, workspace confirmations, document diffing, image attachments, and path helper modals.",
+          "Open-state stories for Nexus creation dialogs, workspace confirmations, document diffing, image attachments, and path helper modals.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "tasks/create",
         "agents/hire",

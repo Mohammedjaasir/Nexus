@@ -19,7 +19,7 @@ test("repeated fixture setup retains both companies without growing the instance
 });
 for (const route of ["issues", "inbox/mine"]) test(`${route} leaves task-detail code out of collection startup`, async ({ page }) => {
   await coordinatorPreference(page);
-  await page.addInitScript(id => localStorage.setItem("paperclip.selectedCompanyId", id), otherCompanyId);
+  await page.addInitScript(id => localStorage.setItem("nexus.selectedCompanyId", id), otherCompanyId);
   const detailReads: string[] = [];
   const companyReads: string[] = [];
   page.on("request", request => {

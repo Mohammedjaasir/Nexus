@@ -8,7 +8,7 @@ import {
   companies,
   createDb,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -24,7 +24,7 @@ describePostgres("task-scoped runtime session reset", () => {
 
   beforeAll(async () => {
     database = await startEmbeddedPostgresTestDatabase(
-      "paperclip-task-session-reset-",
+      "nexus-task-session-reset-",
     );
     db = createDb(database.connectionString);
   }, 20_000);
@@ -62,19 +62,19 @@ describePostgres("task-scoped runtime session reset", () => {
         id: agentId,
         companyId,
         name: "Selected agent",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
       },
       {
         id: otherAgentId,
         companyId,
         name: "Other agent",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
       },
       {
         id: foreignAgentId,
         companyId: otherCompanyId,
         name: "Foreign agent",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
       },
     ]);
     await db.insert(issues).values([
@@ -116,7 +116,7 @@ describePostgres("task-scoped runtime session reset", () => {
       id: randomUUID(),
       companyId,
       agentId,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       sessionDisplayId: randomUUID(),
       sessionParamsJson: { preserved: true },
       ...row,
@@ -126,14 +126,14 @@ describePostgres("task-scoped runtime session reset", () => {
       {
         agentId,
         companyId,
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         sessionId: "selected-legacy",
         stateJson: { preserved: true },
       },
       {
         agentId: otherAgentId,
         companyId,
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         sessionId: "other-legacy",
         stateJson: { untouched: true },
       },
@@ -175,7 +175,7 @@ describePostgres("task-scoped runtime session reset", () => {
           !(
             row.companyId === seeded.companyId &&
             row.agentId === seeded.agentId &&
-            row.adapterType === "paperclip_runner" &&
+            row.adapterType === "nexus_runner" &&
             [seeded.issueId, seeded.identifier].includes(row.taskKey)
           ),
       );

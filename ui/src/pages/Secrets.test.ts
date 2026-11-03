@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from "vitest";
-import type { CompanySecretProviderConfig, SecretProviderDescriptor } from "@paperclipai/shared";
+import type { CompanySecretProviderConfig, SecretProviderDescriptor } from "@nexusai/shared";
 import {
   findCreateProviderReplacement,
   getAwsManagedPathPreview,
@@ -60,7 +60,7 @@ describe("Secrets page provider helpers", () => {
           status: "ok",
           message: "AWS Secrets Manager provider is configured",
           details: {
-            prefix: "paperclip",
+            prefix: "nexus",
             deploymentId: "prod-us-1",
           },
         },
@@ -74,7 +74,7 @@ describe("Secrets page provider helpers", () => {
         companyId: "company-123",
         secretKeySource: "Anthropic API Key",
       }),
-    ).toBe("paperclip/prod-us-1/company-123/anthropic-api-key");
+    ).toBe("nexus/prod-us-1/company-123/anthropic-api-key");
   });
 
   it("blocks unconfigured providers before create submission", () => {
@@ -96,7 +96,7 @@ describe("Secrets page provider helpers", () => {
           provider: "aws_secrets_manager",
           status: "warn",
           message:
-            "AWS Secrets Manager provider is not ready: missing PAPERCLIP_SECRETS_AWS_DEPLOYMENT_ID.",
+            "AWS Secrets Manager provider is not ready: missing NEXUS_SECRETS_AWS_DEPLOYMENT_ID.",
         },
       ],
     };
@@ -108,7 +108,7 @@ describe("Secrets page provider helpers", () => {
         health,
       ),
     ).toBe(
-      "Deployment default AWS Secrets Manager is not configured. Select a ready provider vault or configure the deployment default. AWS Secrets Manager provider is not ready: missing PAPERCLIP_SECRETS_AWS_DEPLOYMENT_ID.",
+      "Deployment default AWS Secrets Manager is not configured. Select a ready provider vault or configure the deployment default. AWS Secrets Manager provider is not ready: missing NEXUS_SECRETS_AWS_DEPLOYMENT_ID.",
     );
   });
 

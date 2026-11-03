@@ -1,5 +1,5 @@
 /** Secret-free interpretation of a bounded personal-Muse probe, not a Product E2E campaign. */
-export const MUSE_QUALIFICATION_GRADER = "paperclip.muse-qualification.v4";
+export const MUSE_QUALIFICATION_GRADER = "nexus.muse-qualification.v4";
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 const timestamp = value => typeof value === "string" ? Date.parse(value) : NaN;

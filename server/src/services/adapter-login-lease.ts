@@ -1,4 +1,4 @@
-import type { Environment } from "@paperclipai/shared";
+import type { Environment } from "@nexusai/shared";
 import type { EnvironmentRuntimeService } from "./environment-runtime.js";
 
 /**

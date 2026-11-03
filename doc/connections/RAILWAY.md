@@ -2,9 +2,9 @@
 
 Updated: 2026-09-16. Status: implementation review; live provider qualification outstanding.
 
-Railway appears in Apps and uses Paperclip's shared remote-MCP OAuth connection,
+Railway appears in Apps and uses Nexus's shared remote-MCP OAuth connection,
 vault, catalog, grants, policies, gateway, and audit trail. It is a resource
-connection, not Paperclip sign-in. No plugin or database migration is required.
+connection, not Nexus sign-in. No plugin or database migration is required.
 
 ## Connect and use
 
@@ -17,7 +17,7 @@ connection, not Paperclip sign-in. No plugin or database migration is required.
 3. Review the discovered actions. Install the connection for selected agents.
    Active actions start Allowed under the current product default. Choose Ask
    first for deployment actions or commands that need operator review.
-4. Refresh actions to check API access. Paperclip uses the hosted `list-workspaces`
+4. Refresh actions to check API access. Nexus uses the hosted `list-workspaces`
    read to discover a workspace, then makes a bounded project query with that
    explicit workspace ID and the actual OAuth credential before adding direct tools.
    Account-wide project queries are not valid probes for workspace-scoped consent.
@@ -28,7 +28,7 @@ connection, not Paperclip sign-in. No plugin or database migration is required.
    then inspect an explicit service/deployment target. Never paste OAuth tokens
    or private SSH keys into agent prompts or runtime configuration.
 
-Use a public HTTPS Paperclip origin, or a loopback HTTP origin such as
+Use a public HTTPS Nexus origin, or a loopback HTTP origin such as
 `http://localhost:3100`. The shared callback is `/api/tools/oauth/callback`.
 The configured canonical auth origin controls the callback. A plain HTTP tailnet
 hostname is not loopback; use HTTPS or change the local canonical origin before
@@ -41,14 +41,14 @@ connecting. Loopback consent succeeded locally; HTTPS still needs live proof.
 | Hosted project/service listing and feature-flag reads | Actual discovered schemas; provider credential scope | Read for reviewed names |
 | Other hosted actions | Actual discovered schemas; provider credential scope | Write or destructive |
 | Hosted `railway-agent` and `accept-deploy` | Disabled at discovery and denied at dispatch, including normalized aliases | Destructive; unavailable |
-| `paperclip-railway-list-projects`, `list-services`, `list-environments` | Explicit workspace ID for projects, project ID for services/environments; 1–100 results per page, cursor ≤512 characters | Read |
+| `nexus-railway-list-projects`, `list-services`, `list-environments` | Explicit workspace ID for projects, project ID for services/environments; 1–100 results per page, cursor ≤512 characters | Read |
 | `service-status`, `list-deployments`, `deployment-status` | Explicit project/environment/service IDs; deployment ID where applicable | Read |
 | `read-logs` | Build/runtime; ≤500 lines; time bounds/filter; ≤64 KiB of log entries | Read; sensitive application data |
 | `redeploy`, `restart`, `rollback` | Exact deployment membership checked before mutation | Destructive |
 | `deploy-revision` | Unavailable: the provider mutation cannot atomically bind the approved repository and commit; old catalog entries and calls are blocked | Destructive; unavailable |
 | `run-command` | Exact running deployment/container instance, ≤60 seconds, ≤64 KiB combined output | Destructive; broad privileged access |
 
-Direct tool names have the `paperclip-railway-` prefix. Railway may not shadow
+Direct tool names have the `nexus-railway-` prefix. Railway may not shadow
 this reserved namespace. These are fixed first-party gateway operations, not a
 REST catalog entry or arbitrary GraphQL passthrough. GraphQL responses have a
 1 MiB hard limit, redirects are refused, provider error bodies are not surfaced,
@@ -61,7 +61,7 @@ Railway enforces the workspace/account permissions granted by consent. The
 project/environment/service labels in the catalog are **not local allowlists**.
 Dedicated operations verify that all supplied IDs belong to the same target.
 They do not narrow a workspace-wide credential to one service. Use provider
-access controls and explicit Paperclip action policies to constrain authorization.
+access controls and explicit Nexus action policies to constrain authorization.
 Hosted tool arguments and filters do not establish authorization boundaries.
 
 The broad hosted Railway agent can perform multiple internal operations; a
@@ -71,10 +71,10 @@ blocked by a narrow provider policy. Other providers and global defaults are
 unchanged. New or changed Railway schemas are quarantined after initial discovery,
 including reconnect flows that normally enable newly discovered actions.
 
-Source deployment (`paperclip-railway-deploy-revision`) is also blocked. The
+Source deployment (`nexus-railway-deploy-revision`) is also blocked. The
 `serviceInstanceDeployV2` mutation accepts a commit SHA but cannot atomically
 verify the approved repository. A separate repository check can race a provider
-configuration change. Paperclip therefore offers 11 direct actions and no source
+configuration change. Nexus therefore offers 11 direct actions and no source
 deployment action. Calls saved by an older server are denied before upstream
 execution, including normalized aliases; refreshing actions marks their catalog
 entries disabled. Source deployment requires an atomic provider binding before

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { agents, chatActions, chatConversations, chatEndpointResources, chatEndpoints, chatGitHubReviews,
-  companies, createDb, heartbeatRuns, runIdentityContexts, toolConnections, type Db } from "@paperclipai/db";
+  companies, createDb, heartbeatRuns, runIdentityContexts, toolConnections, type Db } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { captureReviewWaitQueries, seedGitHubReviewWait, setGitHubReviewAssessment,
   type CapturedReviewWaitQuery } from "./helpers/github-review-wait.js";
@@ -12,8 +12,8 @@ describe("inherited GitHub review wait projection", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: Db;
   beforeAll(async () => {
-    if (process.env.PAPERCLIP_TEST_DATABASE_URL) {
-      db = createDb(process.env.PAPERCLIP_TEST_DATABASE_URL);
+    if (process.env.NEXUS_TEST_DATABASE_URL) {
+      db = createDb(process.env.NEXUS_TEST_DATABASE_URL);
     } else {
       temporary = await startEmbeddedPostgresTestDatabase("github-review-wait-");
       db = createDb(temporary.connectionString);

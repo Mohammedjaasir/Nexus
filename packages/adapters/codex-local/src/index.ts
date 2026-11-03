@@ -1,7 +1,7 @@
 import {
-  PAPERCLIP_RUNNER_DEFAULT_MODELS,
-} from "@paperclipai/adapter-utils";
-import { PAPERCLIP_RUNNER_MINIMUM_GLIBC_VERSION } from "@paperclipai/shared";
+  NEXUS_RUNNER_DEFAULT_MODELS,
+} from "@nexusai/adapter-utils";
+import { NEXUS_RUNNER_MINIMUM_GLIBC_VERSION } from "@nexusai/shared";
 
 export const type = "codex_local";
 export const label = "Codex";
@@ -11,7 +11,7 @@ export const SANDBOX_INSTALL_COMMAND = "npm install -g @openai/codex";
 // Use the concrete `gpt-5.6-sol` slug (Codex's own default for the 5.6 family) rather than the
 // bare `gpt-5.6` alias: OpenAI ships no model metadata for the bare slug, so passing it makes the
 // Codex CLI warn ("Model metadata for `gpt-5.6` not found") and fall back to generic context limits.
-export const DEFAULT_CODEX_LOCAL_MODEL = PAPERCLIP_RUNNER_DEFAULT_MODELS.codex;
+export const DEFAULT_CODEX_LOCAL_MODEL = NEXUS_RUNNER_DEFAULT_MODELS.codex;
 export const DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX = true;
 
 export function resolveCodexLocalCliPolicy(config: unknown, options: { networkAccess?: boolean } = {}) {
@@ -237,9 +237,9 @@ export const models = [
 
 export const agentConfigurationDoc = `# codex_local agent configuration
 
-New agents select the Codex harness with adapterType: codex_local and an optional request-level runner: auto, paperclip, or legacy. Automatic selection uses Paperclip Runner on qualified Linux x64/ARM64 targets with GNU libc ${PAPERCLIP_RUNNER_MINIMUM_GLIBC_VERSION} or newer and macOS arm64/x64 targets. It stores adapterType: paperclip_runner with provider: codex. Windows, 32-bit ARM, Alpine/musl, and older or unknown Linux libc retain automatic legacy selection. Qualification and artifact checks use the selected execution environment, including its architecture, rather than the controller's platform. Other harness defaults are unchanged.
+New agents select the Codex harness with adapterType: codex_local and an optional request-level runner: auto, nexus, or legacy. Automatic selection uses Nexus Runner on qualified Linux x64/ARM64 targets with GNU libc ${NEXUS_RUNNER_MINIMUM_GLIBC_VERSION} or newer and macOS arm64/x64 targets. It stores adapterType: nexus_runner with provider: codex. Windows, 32-bit ARM, Alpine/musl, and older or unknown Linux libc retain automatic legacy selection. Qualification and artifact checks use the selected execution environment, including its architecture, rather than the controller's platform. Other harness defaults are unchanged.
 
-Set runner: legacy to retain this adapter's execution and custom settings. Explicit runner: paperclip requires a qualified target. Existing agents and reviewed pending hires retain their saved runner; authentication, model, dependency, and runtime errors never silently switch runners. The fields below describe legacy codex_local execution. Native creation translates supported settings and rejects unsupported settings with the explicit Legacy runner option.
+Set runner: legacy to retain this adapter's execution and custom settings. Explicit runner: nexus requires a qualified target. Existing agents and reviewed pending hires retain their saved runner; authentication, model, dependency, and runtime errors never silently switch runners. The fields below describe legacy codex_local execution. Native creation translates supported settings and rejects unsupported settings with the explicit Legacy runner option.
 
 Adapter: codex_local
 
@@ -261,7 +261,7 @@ Core fields:
 - filesystemScope (string, optional): set to "workspace" to confine local CLI filesystem access with Bubblewrap. Off by default. The workspace and managed CODEX_HOME remain writable; other host paths are hidden.
 - filesystemExtraPaths (array, optional): additional absolute host paths exposed inside the workspace sandbox. String entries are read-only; object entries use { path: "/absolute/path", access: "ro" | "rw" }.
 - filesystemSandboxCommand (string, optional): Bubblewrap executable name or absolute path; defaults to "bwrap". Linux only.
-- networkScope (string, optional): "deny" blocks all network egress; "allowlist" permits only networkAllowlist targets through Paperclip's HTTP(S) proxy. Off by default.
+- networkScope (string, optional): "deny" blocks all network egress; "allowlist" permits only networkAllowlist targets through Nexus's HTTP(S) proxy. Off by default.
 - networkAllowlist (string[], optional): exact hostnames, hostname:port entries, or origin URLs. Include the configured Codex provider origin, such as "api.openai.com" or a custom model provider gateway.
 
 Operational fields:
@@ -277,16 +277,16 @@ Operational fields:
 Notes:
 - filesystemScope and networkScope are spawn-level confinement and are orthogonal to Codex approval/sandbox flags. Both require Bubblewrap on the host and explicit engine="cli"; default or explicit ACP is rejected because ACP confinement is not yet supported. networkScope="allowlist" injects HTTP_PROXY/HTTPS_PROXY for the CLI while its private network namespace blocks direct sockets, so every required provider/API hostname must be listed explicitly.
 - Prompts are piped via stdin (Codex receives "-" prompt argument).
-- If instructionsFilePath is configured, Paperclip prepends that file's contents to the stdin prompt on every run.
-- Codex exec automatically applies repo-scoped AGENTS.md instructions from the active workspace. Paperclip cannot suppress that discovery in exec mode, so repo AGENTS.md files may still apply even when you only configured an explicit instructionsFilePath.
-- Paperclip injects desired local skills into the effective CODEX_HOME/skills/ directory at execution time so Codex can discover "$paperclip" and related skills without polluting the project working directory. For new and updated agents, Paperclip assigns an isolated managed home at ~/.paperclip/instances/<id>/companies/<companyId>/agents/<agentId>/codex-home/skills/; when CODEX_HOME is explicitly overridden in adapter config, that override is used instead.
+- If instructionsFilePath is configured, Nexus prepends that file's contents to the stdin prompt on every run.
+- Codex exec automatically applies repo-scoped AGENTS.md instructions from the active workspace. Nexus cannot suppress that discovery in exec mode, so repo AGENTS.md files may still apply even when you only configured an explicit instructionsFilePath.
+- Nexus injects desired local skills into the effective CODEX_HOME/skills/ directory at execution time so Codex can discover "$nexus" and related skills without polluting the project working directory. For new and updated agents, Nexus assigns an isolated managed home at ~/.nexus/instances/<id>/companies/<companyId>/agents/<agentId>/codex-home/skills/; when CODEX_HOME is explicitly overridden in adapter config, that override is used instead.
 - New and updated codex_local agents persist an empty OPENAI_API_KEY override by default so a host-level OPENAI_API_KEY cannot leak into Codex runs through process inheritance. Explicit CODEX_HOME overrides must not point at the shared company codex-home, $CODEX_HOME, or ~/.codex.
 - Some model/tool combinations reject certain effort levels (for example minimal with web search enabled).
 - OpenAI retired gpt-5.5 (October 14, 2026), gpt-5.4 and gpt-5.4-mini (August 31, 2026) from Codex with ChatGPT sign-in. They remain selectable for OpenAI API-key sessions; with ChatGPT sign-in the Test names the retirement and its replacement.
 - With ChatGPT sign-in, model availability depends on the installed Codex capabilities. Legacy setup reports known model/version mismatches. Native setup tests the actual app-server and selected model; a version number alone does not reject or replace an installed CLI. If the provider rejects the model, select an available model or update Codex in the execution environment.
-- Fast mode is supported on GPT-6 (astra/sol/luna), GPT-6.1 Sol, GPT-5.6 (sol/terra/luna), GPT-5.5, GPT-5.4 and manual model IDs. When enabled for those models, Paperclip applies \`service_tier="fast"\` and \`features.fast_mode=true\`.
-- When Paperclip realizes a workspace/runtime for a run, it injects PAPERCLIP_WORKSPACE_* and PAPERCLIP_RUNTIME_* env vars for agent-side tooling.
-- The ACP engine keeps its workspace sandbox and enables network access on each turn. Explicit sandbox_workspace_write.network_access overrides in extraArgs (or env.PAPERCLIP_CODEX_ACP_NETWORK_ACCESS="false") disable it; execution-target network denial wins. The bundled ACP patch is needed because upstream mode presets override Codex config.toml on every turn.
-- The CLI engine defaults to a writable workspace sandbox with network access for unattended work and Paperclip API calls. It does not enable the dangerous bypass flag. Explicit sandbox modes/profiles and network overrides in extraArgs retain their meaning. An execution-target network denial remains enforced.
+- Fast mode is supported on GPT-6 (astra/sol/luna), GPT-6.1 Sol, GPT-5.6 (sol/terra/luna), GPT-5.5, GPT-5.4 and manual model IDs. When enabled for those models, Nexus applies \`service_tier="fast"\` and \`features.fast_mode=true\`.
+- When Nexus realizes a workspace/runtime for a run, it injects NEXUS_WORKSPACE_* and NEXUS_RUNTIME_* env vars for agent-side tooling.
+- The ACP engine keeps its workspace sandbox and enables network access on each turn. Explicit sandbox_workspace_write.network_access overrides in extraArgs (or env.NEXUS_CODEX_ACP_NETWORK_ACCESS="false") disable it; execution-target network denial wins. The bundled ACP patch is needed because upstream mode presets override Codex config.toml on every turn.
+- The CLI engine defaults to a writable workspace sandbox with network access for unattended work and Nexus API calls. It does not enable the dangerous bypass flag. Explicit sandbox modes/profiles and network overrides in extraArgs retain their meaning. An execution-target network denial remains enforced.
 - Codex ACP is the preferred auto lane when Node >=24.11.0 and the Codex ACP server are available. It reuses shared ACP prompt/runtime guidance, selected skill materialization into CODEX_HOME/skills, model/reasoning/fast-mode session config, and existing quota-window reporting. Missing ACP prerequisites fail both default and explicit ACP runs with an actionable setup error; the adapter never switches engines automatically.
 `;

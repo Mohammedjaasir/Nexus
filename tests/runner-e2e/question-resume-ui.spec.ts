@@ -51,14 +51,14 @@ for (const mode of ["text", "single_select"] as const) {
   test(`submits an exact typed reference through the real ${mode} QuestionForm control`, async ({ page }) => {
     const field = { id: "reference", prompt: "What reference should I include?", required: true, answerMode: mode,
       ...(mode === "single_select" ? { options: [{ id: "none", label: "No reference" }], customAnswer: { enabled: true, label: "Write reference" } } : {}) };
-    const card = { payload: { questionSet: { schema: "paperclip.question_set.v1", questions: [field] } } };
+    const card = { payload: { questionSet: { schema: "nexus.question_set.v1", questions: [field] } } };
     await page.goto(origin);
     await page.waitForFunction(() => typeof (window as any).showQuestion === "function");
     await page.evaluate(set => (window as any).showQuestion(set), card.payload.questionSet);
     if (mode === "single_select") await page.getByRole("radio", { name: "No reference", exact: true }).click();
     await answerResumeQuestionThroughUi(page, card, { text: "Use AMBERwritten.", allowProviderCustomAnswer: true });
     expect(await page.evaluate(() => (window as any).submitted)).toEqual({
-      schema: "paperclip.question_response.v1", answers: { reference: mode === "text"
+      schema: "nexus.question_response.v1", answers: { reference: mode === "text"
         ? { text: "Use AMBERwritten." } : { selectedOptionIds: [], customText: "Use AMBERwritten." } },
     });
     if (mode === "single_select") await expect(page.getByRole("radio", { name: "No reference", exact: true })).toHaveAttribute("aria-checked", "false");
@@ -70,7 +70,7 @@ for (const invalid of ["missing", "disabled", "legacy", "strict"] as const) {
     const field = { id: "reference", prompt: "Reference?", answerMode: "single_select", options: [{ id: "none", label: "No reference" }],
       ...(invalid === "missing" ? {} : { customAnswer: { enabled: invalid !== "disabled" } }) };
     const card = { payload: invalid === "legacy" ? { questions: [{ ...field, options: [{ id: "none", label: "No reference", freeText: true }] }] }
-      : { questionSet: { schema: "paperclip.question_set.v1", questions: [field] } } };
+      : { questionSet: { schema: "nexus.question_set.v1", questions: [field] } } };
     await page.goto(origin);
     await page.waitForFunction(() => typeof (window as any).showQuestion === "function");
     const set = invalid === "legacy" ? chatQuestionPresentation(card.payload as any) : card.payload.questionSet;

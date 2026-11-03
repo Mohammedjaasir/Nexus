@@ -35,7 +35,7 @@ function decodeFile(value: unknown) {
 }
 
 /** A provider-focused REST bridge. It never reads host files, calls host shell
- * commands, borrows provider-plugin credentials, or looks up Paperclip tasks. */
+ * commands, borrows provider-plugin credentials, or looks up Nexus tasks. */
 export function daytonaClient(headers: Record<string, string>, request: DaytonaRequest, pinnedOrganizationId?: unknown,
   signal: AbortSignal = AbortSignal.timeout(30_000), deadlineAt: number = Date.now() + 30_000) {
   const authorization = headers.Authorization;
@@ -44,7 +44,7 @@ export function daytonaClient(headers: Record<string, string>, request: DaytonaR
   }
   const { send: sendRequest, withinDeadline } = nativeRestSender({ provider: "Daytona", code: "daytona", authorization, request, signal, deadlineAt,
     deniedMessage: "Daytona denied access. Check this key's organization and permissions. Some account operations require provider user authentication.",
-    fixedHeaders: { "X-Daytona-Source": "paperclip-connector" } });
+    fixedHeaders: { "X-Daytona-Source": "nexus-connector" } });
   const send = (url: string, init: RequestInit, organizationId?: string) =>
     sendRequest(url, init, organizationId ? { "X-Daytona-Organization-ID": organizationId } : {});
 

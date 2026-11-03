@@ -7,7 +7,7 @@ test("guide filters and opens an area without story examples", async ({ page }) 
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/?path=/story/overview-storybook-guide--coverage-guide");
   const frame = page.frameLocator("#storybook-preview-iframe");
-  await expect(frame.getByRole("heading", { name: "Paperclip feature map" })).toBeVisible();
+  await expect(frame.getByRole("heading", { name: "Nexus feature map" })).toBeVisible();
   await frame.getByRole("textbox", { name: "Find a feature or capability" }).fill("cli-operations");
   await frame.getByRole("link", { name: "CLI/API and local worktrees", exact: true }).click();
   await expect(page).toHaveURL(/feature-map-cli-operations--overview/);

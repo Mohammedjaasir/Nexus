@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { decisionsApi } from "@/api/decisions";
 import { useLocation } from "@/lib/router";
 import { queryKeys } from "@/lib/queryKeys";

@@ -4,7 +4,7 @@ import path from "node:path";
 
 export function createIsolatedTestHome() {
   const { mkdtempSync, lstatSync, openSync, fchmodSync, closeSync, readdirSync, rmSync, constants } = fs;
-  const home = mkdtempSync(path.join(os.tmpdir(), "paperclip-vitest-home-"));
+  const home = mkdtempSync(path.join(os.tmpdir(), "nexus-vitest-home-"));
   const identity = lstatSync(home);
   const cleanup = () => {
     let current;

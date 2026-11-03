@@ -7,7 +7,7 @@ const selected = cases.map((row, i) => ({ ...row, caseId: 100 + i }));
 const context = { runId: '123', attempt: '1', workflowSha: 'a'.repeat(40), targetSha, operation: 'evaluate' };
 const binding = { planId: 10, jobId: 11, integrationId: 2, cases: selected };
 const env = { ALLURE_JOB_RUN_ID: '77', CHAT_COMPLETION_TESTOPS_BINDING: JSON.stringify(binding) };
-const selection = { schema: 'paperclip.chat-completion-testops-selection/v1', ...context, projectId: 1,
+const selection = { schema: 'nexus.chat-completion-testops-selection/v1', ...context, projectId: 1,
   planId: 10, jobId: 11, allureJobRunId: '77', launchId: 12, cases: selected };
 const runUrl = 'https://github.com/paperclipai/paperclip/actions/runs/123';
 const plan = { id: 10, name: 'Chat completion pilot — OpenCode 1017', projectId: 1, testCasesCount: 3,
@@ -132,7 +132,7 @@ test('completion launch preflight sends the typed UTF-8 name filter required by 
   const f = mutationApi({ assignments: [{ job, testCasesCount: 3 }] });
   const api = async (route, ...args) => {
     if (route.startsWith('/api/launch?')) {
-      const wire = new URL(route, 'https://paperclip.testops.cloud').searchParams.get('search');
+      const wire = new URL(route, 'https://nexus.testops.cloud').searchParams.get('search');
       let filters;
       try { filters = JSON.parse(Buffer.from(wire, 'base64').toString('utf8')); }
       catch { throw new Error('TestOps HTTP 400: typed launch search required'); }

@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { canonicalJson } from "../../packages/shared/src/portability-hash.js";
-import { getTaskContextAction } from "../../packages/paperclip-runner/src/protocol-actions/get-task-context.js";
+import { getTaskContextAction } from "../../packages/nexus-runner/src/protocol-actions/get-task-context.js";
 import { hasAcpxNativeOrigin } from "./acpx-native-origin.js";
 import { isValidNativePrpEnvelope } from "./native-event-envelope.js";
 import { bootstrapReadExecutionId } from "./native-bootstrap-read-proof.js";
@@ -19,10 +19,10 @@ export interface KimiContextPending extends KimiContextScope {
   createdSeq: number; createdSha256: string;
 }
 export interface KimiContextPublication extends KimiContextPending {
-  schema: "paperclip.e2e.kimi-context-publication.v1"; observerLeaseId: string; actionSha256: string; setupSha256: string; observerSha256: string;
+  schema: "nexus.e2e.kimi-context-publication.v1"; observerLeaseId: string; actionSha256: string; setupSha256: string; observerSha256: string;
 }
 export interface KimiContextProof extends Omit<KimiContextPublication, "schema"> {
-  schema: "paperclip.e2e.kimi-context-proof.v1";
+  schema: "nexus.e2e.kimi-context-proof.v1";
   callId: string; inputSha256: string; resultSha256: string; completedSeq: number; authority: KimiContextAuthority;
   rows: Array<{ seq: number; sha256: string }>;
 }
@@ -48,7 +48,7 @@ function declaredReadOnlyContext() {
     && canonicalJson(getTaskContextAction.live.descriptor.inputSchema) === canonicalJson({ type: "object", properties: {}, required: [], additionalProperties: false }));
 }
 export function kimiContextRendezvousPrompt(): string {
-  return "Call the already configured Paperclip get_task_context tool exactly once with {}. Wait for the operator's one Allow once decision. Its returned activeTask.description will contain the complete task continuation. Perform no native read, shell, write, search, discovery, semantic mutation, or completion before receiving that context. After reading the returned description, perform only that supplied native action.";
+  return "Call the already configured Nexus get_task_context tool exactly once with {}. Wait for the operator's one Allow once decision. Its returned activeTask.description will contain the complete task continuation. Perform no native read, shell, write, search, discovery, semantic mutation, or completion before receiving that context. After reading the returned description, perform only that supplied native action.";
 }
 export function pendingKimiContextPermission(events: readonly unknown[], scope: KimiContextScope): KimiContextPending | undefined {
   declaredReadOnlyContext();
@@ -56,8 +56,8 @@ export function pendingKimiContextPermission(events: readonly unknown[], scope: 
   if (!created.length) return undefined;
   requireProof(created.length === 1);
   const { row, event } = created[0]!, request = rec(rec(event.payload).request);
-  requireProof(request.schema === "paperclip.runtime_request.v2" && request.requestKind === "permission_approval" && request.type === "permission" && request.status === "pending"
-    && request.prompt === "mcp__paperclip__get_task_context" && request.method === "session/request_permission"
+  requireProof(request.schema === "nexus.runtime_request.v2" && request.requestKind === "permission_approval" && request.type === "permission" && request.status === "pending"
+    && request.prompt === "mcp__nexus__get_task_context" && request.method === "session/request_permission"
     && hasAcpxNativeOrigin(request.origin, "kimi", "session/request_permission") && request.turnId === event.turnId
     && typeof request.requestId === "string" && typeof request.details?.toolCallId === "string"
     && Array.isArray(request.choices) && request.choices.map((x: Row) => x.key).sort().join(",") === "accept,cancel,decline");
@@ -66,7 +66,7 @@ export function pendingKimiContextPermission(events: readonly unknown[], scope: 
   requireProof([pending.turnId, pending.sessionId, pending.sourceInstanceId].every(value => typeof value === "string" && value.length > 0));
   const tools = rows.filter(x => x.event.eventType.startsWith("tool.execution."));
   requireProof(tools.every(x => sameStream(x.event, pending) && x.event.payload?.executionId === pending.executionId && x.event.payload?.target === null));
-  const named = tools.filter(x => x.event.payload?.transport === "mcp" && x.event.payload?.namespace === "paperclip" && x.event.payload?.name === "get_task_context");
+  const named = tools.filter(x => x.event.payload?.transport === "mcp" && x.event.payload?.namespace === "nexus" && x.event.payload?.name === "get_task_context");
   if (!named.length) return undefined;
   requireProof(tools.every(x => x.event.payload?.status === "running" && x.event.eventType !== "tool.execution.completed")
     && rows.every(x => !x.event.eventType.startsWith("semantic_tool.") && !["runtime_request.resolved", "runtime_request.cancelled", "runtime_request.expired"].includes(x.event.eventType)));
@@ -88,11 +88,11 @@ export async function publishKimiContextContinuation(input: {
   const updated = await input.api.patch<Row>(`/api/issues/${p.issueId}`, { description: input.action });
   const confirmed = await input.api.get<Row>(`/api/issues/${p.issueId}`);
   requireProof(owned(updated) && owned(confirmed) && updated.description === input.action && confirmed.description === input.action);
-  return { ...p, schema: "paperclip.e2e.kimi-context-publication.v1", observerLeaseId: binding.leaseId, actionSha256, setupSha256: setup.sha256, observerSha256: hash(snapshot) };
+  return { ...p, schema: "nexus.e2e.kimi-context-publication.v1", observerLeaseId: binding.leaseId, actionSha256, setupSha256: setup.sha256, observerSha256: hash(snapshot) };
 }
 export function readKimiContextProof(events: readonly unknown[], publication: KimiContextPublication, authority?: KimiContextAuthority): KimiContextProof | undefined {
   declaredReadOnlyContext();
-  requireProof(publication.schema === "paperclip.e2e.kimi-context-publication.v1" && /^sha256:[a-f0-9]{64}$/.test(publication.actionSha256)
+  requireProof(publication.schema === "nexus.e2e.kimi-context-publication.v1" && /^sha256:[a-f0-9]{64}$/.test(publication.actionSha256)
     && publication.setupSha256 === publication.actionSha256 && /^sha256:[a-f0-9]{64}$/.test(publication.observerSha256));
   const rows = frames(events, publication), same = rows.filter(x => sameStream(x.event, publication));
   const created = same.filter(x => x.event.eventType === "runtime_request.created" && x.event.payload?.request?.requestId === publication.requestId);
@@ -105,7 +105,7 @@ export function readKimiContextProof(events: readonly unknown[], publication: Ki
   const original = pendingKimiContextPermission(beforeDecision, publication);
   requireProof(original && Object.entries(original).every(([key, value]) => publication[key as keyof KimiContextPublication] === value));
   if (!authority) return undefined;
-  requireProof(authority.schema === "paperclip.e2e.kimi-context-authority.v2"
+  requireProof(authority.schema === "nexus.e2e.kimi-context-authority.v2"
     && ["companyId", "issueId", "agentId", "environmentId", "runId", "sessionId", "sourceInstanceId", "turnId", "actionSha256", "observerLeaseId", "requestId", "toolCallId"].every(key => (authority as unknown as Row)[key] === (publication as unknown as Row)[key])
     && authority.inputSha256 === hash({}) && typeof authority.callId === "string" && authority.callId.length > 0
     && [authority.inputEventSha256, authority.resultSha256, authority.correlationSha256, authority.commandSha256, authority.deliverySha256, authority.checkpointIdentitySha256, authority.requestCreatedSha256, authority.requestResolvedSha256, authority.turnStartSha256, authority.resolutionCommandSha256].every(value => /^sha256:[a-f0-9]{64}$/.test(value))
@@ -119,9 +119,9 @@ export function readKimiContextProof(events: readonly unknown[], publication: Ki
   const finished = native.filter(x => x.event.eventType === "tool.execution.completed");
   if (!finished.length) return undefined;
   requireProof(finished.length === 1 && native[0]?.event.eventType === "tool.execution.started" && native.at(-1) === finished[0]
-    && native.every((x, index) => x.event.payload?.schema === "paperclip.tool.execution.v1" && x.event.payload?.target === null
+    && native.every((x, index) => x.event.payload?.schema === "nexus.tool.execution.v1" && x.event.payload?.target === null
       && (x.event.payload.name === null || x.event.payload.name === "get_task_context")
-      && (x.event.payload.namespace === null || x.event.payload.namespace === "paperclip")
+      && (x.event.payload.namespace === null || x.event.payload.namespace === "nexus")
       && x.event.payload.status === (index === native.length - 1 ? "completed" : "running")));
   const final = finished[0]!, output = final.event.payload;
   requireProof(final.row.seq > closed[0]!.row.seq && typeof output.output === "string" && Buffer.byteLength(output.output) <= 64 * 1024
@@ -130,12 +130,12 @@ export function readKimiContextProof(events: readonly unknown[], publication: Ki
     && (output.outputTruncated || output.outputBytes === Buffer.byteLength(output.output) && output.outputDigest === bytesHash(output.output)));
   const retained = [...created, ...closed, ...native];
   requireProof(new Set(retained.map(x => x.row.seq)).size === retained.length);
-  return { ...publication, schema: "paperclip.e2e.kimi-context-proof.v1", callId: authority.callId, inputSha256: authority.inputSha256, resultSha256: authority.resultSha256, authority,
+  return { ...publication, schema: "nexus.e2e.kimi-context-proof.v1", callId: authority.callId, inputSha256: authority.inputSha256, resultSha256: authority.resultSha256, authority,
     completedSeq: final.row.seq, rows: retained.map(x => ({ seq: x.row.seq, sha256: hash(x.row) })) };
 }
 export function withoutProvenKimiContext(events: readonly unknown[], proof?: KimiContextProof): unknown[] {
   if (!proof) return [...events];
-  const checked = readKimiContextProof(events, { ...proof, schema: "paperclip.e2e.kimi-context-publication.v1" }, proof.authority);
+  const checked = readKimiContextProof(events, { ...proof, schema: "nexus.e2e.kimi-context-publication.v1" }, proof.authority);
   requireProof(checked && canonicalJson(checked) === canonicalJson(proof));
   const remove = new Map(proof.rows.map(row => [row.seq, row.sha256]));
   return events.filter(value => { const row = rec(value), expected = remove.get(row.seq); if (!expected) return true; requireProof(hash(row) === expected); return false; });
@@ -149,7 +149,7 @@ export async function approveKimiContextThroughUi(input: {
   requireProof(before && Object.entries(before).every(([key, value]) => input.publication[key as keyof KimiContextPublication] === value));
   const card = input.page.getByTestId("task-chat-runtime-request").filter({ visible: true });
   await expect(card).toHaveCount(1);
-  await expect(card.getByText("mcp__paperclip__get_task_context", { exact: true })).toBeVisible();
+  await expect(card.getByText("mcp__nexus__get_task_context", { exact: true })).toBeVisible();
   const endpoint = `/api/heartbeat-runs/${input.publication.runId}/runtime-requests/${encodeURIComponent(input.publication.requestId)}/resolve`;
   const sent = input.page.waitForRequest(request => new URL(request.url()).pathname === endpoint && request.method() === "POST");
   await card.getByRole("button", { name: "Allow once", exact: true }).click();

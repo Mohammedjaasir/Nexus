@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ToolCatalogEntry, ToolConnectionTestCallResult } from "@paperclipai/shared";
+import type { ToolCatalogEntry, ToolConnectionTestCallResult } from "@nexusai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { ActionsSection } from "@/pages/apps/app-detail/PermissionsPanel";
 
@@ -180,7 +180,7 @@ const meta = {
   id: "apps-action-permissions-test",
   title: "Apps, channels, and extensions/App access and action permissions/Apps/Action permissions test",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "app-permissions/test-action",
         "app-permissions/action-policy"

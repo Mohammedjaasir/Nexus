@@ -119,7 +119,7 @@ export async function runFollowupStopResumeFlow(input: {
       accept: run => run?.status === "cancelled" && !automaticPath(),
       reject: run => runs.length !== 1 ? "Stop admitted another run" : run && ["succeeded", "failed", "timed_out"].includes(run.status) ? "Stop did not cancel the original active work" : undefined });
     const stopped = runs[0]!, stop = stopped.resultJson?.nativeCancellation;
-    const acknowledged = stop?.schema === "paperclip.native-cancellation.v1" && stop.companyId === fixtures.company.id &&
+    const acknowledged = stop?.schema === "nexus.native-cancellation.v1" && stop.companyId === fixtures.company.id &&
       stop.issueId === issue.id && stop.runId === stopped.id && stop.scope === "run" && stop.dispatched === true &&
       stop.dispatchState === "acknowledged" && stop.reasonCode === "cancellation_run_only" && typeof stop.intentId === "string" &&
       typeof stop.intentAuditId === "string" && typeof stop.acknowledgementAuditId === "string" && stop.intentAuditId !== stop.acknowledgementAuditId;

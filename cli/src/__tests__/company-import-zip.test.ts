@@ -15,30 +15,30 @@ afterEach(async () => {
 
 describe("resolveInlineSourceFromPath", () => {
   it("imports portable files from a zip archive instead of scanning the parent directory", async () => {
-    const tempDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-company-import-zip-"));
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "nexus-company-import-zip-"));
     tempDirs.push(tempDir);
 
     const blobBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff]);
-    const archivePath = path.join(tempDir, "paperclip-demo.zip");
+    const archivePath = path.join(tempDir, "nexus-demo.zip");
     const archive = createStoredZipArchive(
       {
         "COMPANY.md": "# Company\n",
-        ".paperclip.yaml": "schema: paperclip/v1\n",
+        ".nexus.yaml": "schema: nexus/v1\n",
         "agents/ceo/AGENT.md": "# CEO\n",
         "blobs/4f2d1c9a": blobBytes,
         "notes/todo.txt": "ignore me\n",
       },
-      "paperclip-demo",
+      "nexus-demo",
     );
     await writeFile(archivePath, archive);
 
     const resolved = await resolveInlineSourceFromPath(archivePath);
 
     expect(resolved).toEqual({
-      rootPath: "paperclip-demo",
+      rootPath: "nexus-demo",
       files: {
         "COMPANY.md": "# Company\n",
-        ".paperclip.yaml": "schema: paperclip/v1\n",
+        ".nexus.yaml": "schema: nexus/v1\n",
         "agents/ceo/AGENT.md": "# CEO\n",
         "blobs/4f2d1c9a": {
           encoding: "base64",

@@ -2,7 +2,7 @@ import { TranscriptSequence } from "@/lib/transcript-sequence";
 import { usePageVisibility } from "@/lib/page-visibility";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { LiveEvent, SummarySlotIssueRef } from "@paperclipai/shared";
+import type { LiveEvent, SummarySlotIssueRef } from "@nexusai/shared";
 
 import { readTranscriptRequest } from "./transcript/read-transcript-request";
 import type { RunLogChunk } from "@/adapters";

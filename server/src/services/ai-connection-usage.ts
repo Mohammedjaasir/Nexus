@@ -4,8 +4,8 @@ import {
   type AiConnectionUsage,
   type AiConnectionUsageLimit,
   type AiConnectionUsageOverage,
-} from "@paperclipai/shared";
-import { parseGrokAuthPayload } from "@paperclipai/adapter-grok-local/server";
+} from "@nexusai/shared";
+import { parseGrokAuthPayload } from "@nexusai/adapter-grok-local/server";
 
 type Observation = Pick<AiConnectionUsage, "source" | "planType" | "limits" | "overage">;
 type ObjectValue = Record<string, unknown>;

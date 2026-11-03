@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm";
 import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatActions,
@@ -22,11 +22,11 @@ import {
   chatPublications,
   chatTeamsFileTransfers,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatPublicationSummary,
   SafeChatPublicationPayload,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   teamsFileTransferService,
@@ -456,12 +456,12 @@ export function createChatActivity(db: Db, options: ChatActivityOptions) {
           detail:
             status === "delivery_unknown"
               ? recovery
-                ? "Slack may have accepted the task-start message, so Paperclip will not replay it automatically. Check Slack first; an explicit retry can create a duplicate starter message and task."
+                ? "Slack may have accepted the task-start message, so Nexus will not replay it automatically. Check Slack first; an explicit retry can create a duplicate starter message and task."
                 : "Slack may have accepted the task-start message. This older action lacks the context required for a safe explicit retry, so check Slack and cancel it here before submitting a new command."
               : status === "provider_confirmed"
-                ? "Slack accepted the task-start message. Paperclip is completing durable task admission without sending another Slack message."
+                ? "Slack accepted the task-start message. Nexus is completing durable task admission without sending another Slack message."
                 : status === "admitting"
-                  ? "Slack accepted the task-start message. A Paperclip worker is admitting the task without replaying the Slack send."
+                  ? "Slack accepted the task-start message. A Nexus worker is admitting the task without replaying the Slack send."
                   : status === "failed"
                     ? "Slack rejected the task-start message. Submit the command again to retry."
                     : status === "cancelled"
@@ -486,8 +486,8 @@ export function createChatActivity(db: Db, options: ChatActivityOptions) {
           status: row.status,
           summary: "Provider reply delivery unknown",
           detail: payload?.completeConversationId
-            ? "The provider may have accepted this reply, but Paperclip could not confirm it or close the task conversation. Check the provider first. Marking it delivered closes the conversation; retrying can create a duplicate message."
-            : "The provider may have accepted this reply, but Paperclip could not confirm it. Check the provider first. Retrying can create a duplicate message.",
+            ? "The provider may have accepted this reply, but Nexus could not confirm it or close the task conversation. Check the provider first. Marking it delivered closes the conversation; retrying can create a duplicate message."
+            : "The provider may have accepted this reply, but Nexus could not confirm it. Check the provider first. Retrying can create a duplicate message.",
           createdAt: row.createdAt.toISOString(),
           replayable: false,
           resolutionActions: [
@@ -516,19 +516,19 @@ export function createChatActivity(db: Db, options: ChatActivityOptions) {
               : row.result?.code === "slack_session_sync_rejected"
                 ? "Slack rejected the session indicator update. Check app permissions and channel access; message delivery is tracked separately."
                 : retrying
-                  ? "The Slack session indicator is waiting to sync. Paperclip will not resend the response."
+                  ? "The Slack session indicator is waiting to sync. Nexus will not resend the response."
                   : row.result?.sessionStatus === "processing"
                     ? "Working status is refreshed automatically while the run remains active."
                     : null
             : row.status === "processed"
-              ? "Paperclip stopped the work authorized by this request."
+              ? "Nexus stopped the work authorized by this request."
               : row.status === "cancelled"
                 ? "No work was stopped: this request was no longer authorized or its target was no longer current."
                 : row.status === "failed"
                   ? row.result?.retryable === true
-                    ? "The Stop request could not finish yet. Paperclip will retry against the original work only."
+                    ? "The Stop request could not finish yet. Nexus will retry against the original work only."
                     : "The Stop request could not be completed. Check the task's current run before trying again."
-                  : "Paperclip is processing this Stop request against its original task and run.",
+                  : "Nexus is processing this Stop request against its original task and run.",
           createdAt: row.updatedAt.toISOString(),
           replayable: false,
           resolutionActions: [],
@@ -546,7 +546,7 @@ export function createChatActivity(db: Db, options: ChatActivityOptions) {
           status: row.status,
           summary: "GitHub webhook could not be processed",
           detail: deliveryId
-            ? `GitHub delivery ${deliveryId} was authenticated, but Paperclip could not finish processing it. Fix the connection or destination, then redeliver this delivery from the GitHub App's Recent Deliveries page.`
+            ? `GitHub delivery ${deliveryId} was authenticated, but Nexus could not finish processing it. Fix the connection or destination, then redeliver this delivery from the GitHub App's Recent Deliveries page.`
             : "An authenticated GitHub webhook could not be processed. Fix the connection or destination, then redeliver it from the GitHub App's Recent Deliveries page.",
           createdAt: row.createdAt.toISOString(),
           replayable: false,
@@ -571,11 +571,11 @@ export function createChatActivity(db: Db, options: ChatActivityOptions) {
         detail:
           row.status === "cancelled"
             ? row.result?.code === "source_changed_or_unavailable"
-              ? "The original comment changed or is no longer available. Paperclip did not replay its old contents."
-              : "This callback was not an eligible current user comment. Paperclip did not replay it."
+              ? "The original comment changed or is no longer available. Nexus did not replay its old contents."
+              : "This callback was not an eligible current user comment. Nexus did not replay it."
             : ingressStatus
-              ? "Paperclip received this callback. Its normal access checks and processing still apply."
-              : "Paperclip asked GitHub to resend a recent missed message. This does not yet confirm receipt or a reply. Automatic requests are limited; if it remains unanswered, check the App's Recent Deliveries and send your request again in the current conversation.",
+              ? "Nexus received this callback. Its normal access checks and processing still apply."
+              : "Nexus asked GitHub to resend a recent missed message. This does not yet confirm receipt or a reply. Automatic requests are limited; if it remains unanswered, check the App's Recent Deliveries and send your request again in the current conversation.",
         createdAt: row.updatedAt.toISOString(),
         replayable: false,
         resolutionActions: [],

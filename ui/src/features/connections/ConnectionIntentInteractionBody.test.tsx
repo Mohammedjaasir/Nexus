@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type {
   ConnectionIntentInteraction,
   ToolConnection,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   connectedConnectionIntentInteraction,
@@ -748,7 +748,7 @@ describe("AgentMail inline setup", () => {
     const next = emailSetupMock.mock.calls[1][1].idempotencyKey;
     expect(next).not.toBe(interaction.id);
     expect(emailConnectMock).toHaveBeenCalledWith(interaction.companyId, expect.objectContaining({ idempotencyKey: next }));
-    expect(sessionStorage.getItem(`paperclip.agentmail-inline:${interaction.companyId}:${interaction.id}`)).not.toContain("fixture-api-key");
+    expect(sessionStorage.getItem(`nexus.agentmail-inline:${interaction.companyId}:${interaction.id}`)).not.toContain("fixture-api-key");
     await act(() => root!.unmount()); host!.remove(); queryClient.clear();
     renderBody(interaction); await flush();
     await clickReadyButton("Finish setup");
@@ -767,7 +767,7 @@ describe("AgentMail inline setup", () => {
   });
   it("recovers the server-saved account when refresh interrupted its response", async () => {
     const resumedInteraction = { ...interaction, id: "a381e91e-7127-427d-9d2d-519d4deba89f" };
-    sessionStorage.setItem(`paperclip.agentmail-inline:${interaction.companyId}:${resumedInteraction.id}`, JSON.stringify({
+    sessionStorage.setItem(`nexus.agentmail-inline:${interaction.companyId}:${resumedInteraction.id}`, JSON.stringify({
       setupRequestId: resumedInteraction.id, credentialId: null, inboxConnectionId: null, selectedCredentialId: "",
     }));
     setupOptionsMock.mockResolvedValue({ existingConnections: [], emailSetup: { credentialConnectionId: "server-saved-account", readyConnectionId: null } });
@@ -781,7 +781,7 @@ describe("AgentMail inline setup", () => {
   });
   it("keeps a different saved-key selection when recovering an interrupted save", async () => {
     const resumedInteraction = { ...interaction, id: "a381e91e-7127-427d-9d2d-519d4deba89f" };
-    sessionStorage.setItem(`paperclip.agentmail-inline:${interaction.companyId}:${resumedInteraction.id}`, JSON.stringify({
+    sessionStorage.setItem(`nexus.agentmail-inline:${interaction.companyId}:${resumedInteraction.id}`, JSON.stringify({
       setupRequestId: resumedInteraction.id, credentialId: null, inboxConnectionId: null, selectedCredentialId: "selected-account",
     }));
     emailCredentialsMock.mockResolvedValue([{ id: "selected-account", label: "My selected key", scope: "organization", createdAt: "2026-10-01T14:00:00Z" }]);
@@ -796,7 +796,7 @@ describe("AgentMail inline setup", () => {
   });
   it("does not restore an abandoned server account after the user changes keys", async () => {
     const replacementRequestId = "a381e91e-7127-427d-9d2d-519d4deba89f";
-    sessionStorage.setItem(`paperclip.agentmail-inline:${interaction.companyId}:${interaction.id}`, JSON.stringify({
+    sessionStorage.setItem(`nexus.agentmail-inline:${interaction.companyId}:${interaction.id}`, JSON.stringify({
       setupRequestId: replacementRequestId, credentialId: null, inboxConnectionId: null, selectedCredentialId: "",
     }));
     setupOptionsMock.mockResolvedValue({ existingConnections: [], emailSetup: { credentialConnectionId: "abandoned-account", readyConnectionId: null } });

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, lte } from "drizzle-orm";
-import { chatEndpointLeases, chatEndpoints, type Db } from "@paperclipai/db";
+import { chatEndpointLeases, chatEndpoints, type Db } from "@nexusai/db";
 import { conflict } from "../errors.js";
 import { logger } from "../middleware/logger.js";
 import type { ChatChannelServiceOptions } from "./chat-channels.js";

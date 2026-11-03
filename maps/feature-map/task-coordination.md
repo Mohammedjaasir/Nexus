@@ -34,7 +34,7 @@ The Tasks tab retains the complete relationship list.
 
 Inspect the task’s execution policy and available review, pause, resume, or stop controls.
 
-## Driving it with Playwright and the Paperclip API
+## Driving it with Playwright and the Nexus API
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Prepare a parent, child, and dependent task plus implementer/reviewer agents. Record execution policy and use a disposable tree.
 

@@ -3,19 +3,19 @@ import { createHash, randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { activityLog, agents, assets, companies, createDb, heartbeatRuns, issueAttachments, issues, runnerApiResponseReservations } from "@paperclipai/db";
+import { activityLog, agents, assets, companies, createDb, heartbeatRuns, issueAttachments, issues, runnerApiResponseReservations } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import type { StorageService } from "../../storage/types.js";
 import { TaskAttachmentReadCache } from "./runner-task-attachments.js";
 import { runnerApiCatalog } from "./runner-api-catalog.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 
 const sha = (body: Buffer) => createHash("sha256").update(body).digest("hex");
 describe("Dot assigned-task attachment reading", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_RUNNER_ATTACHMENTS_TEST_DATABASE_URL");
+    const external = resolveExternalTestDatabaseUrl("NEXUS_RUNNER_ATTACHMENTS_TEST_DATABASE_URL");
     if (!external) temporary = await startEmbeddedPostgresTestDatabase("dot-task-files-");
     db = createDb(external ?? temporary!.connectionString);
   });
@@ -24,7 +24,7 @@ describe("Dot assigned-task attachment reading", () => {
   async function fixture(body = Buffer.from("only in the file 🌍"), enabled = true) {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Files", issuePrefix: `F${companyId.slice(0, 6)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Dot", status: "active", adapterType: "paperclip_runner",
+    await db.insert(agents).values({ id: agentId, companyId, name: "Dot", status: "active", adapterType: "nexus_runner",
       adapterConfig: { provider: "openai_dot", dotAttachmentAccess: enabled, dotWorkspaceAccess: false } });
     await db.insert(issues).values({ id: issueId, companyId, title: "Inspect file", status: "in_progress", assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "running", runtimeMode: "native", nativeIssueId: issueId, invocationSource: "assignment", triggerDetail: "system", contextSnapshot: { issueId } });
@@ -35,7 +35,7 @@ describe("Dot assigned-task attachment reading", () => {
     const storage = { provider: "local_disk", getObject } as unknown as StorageService;
     const assertBridgeAuthority = vi.fn().mockResolvedValue(undefined);
     const binding = { companyId, agentId, issueId, runId, dotRuntime: true, taskAttachmentRead: enabled, storage, assertBridgeAuthority };
-    const authority = new PaperclipRunnerToolAuthority(db, binding);
+    const authority = new NexusRunnerToolAuthority(db, binding);
     const call = (tool: string, args: unknown = {}) => authority.execute({ tool, callId: randomUUID(), arguments: args });
     return { ...binding, authority, call, asset: asset!, attachment: attachment!, body, getObject };
   }
@@ -140,8 +140,8 @@ describe("Dot assigned-task attachment reading", () => {
       { companyId: f.companyId, runId: f.runId, assetId: f.asset.id, reservedBytes: f.body.length },
       { companyId: other.companyId, runId: other.runId, assetId: other.asset.id, reservedBytes: other.body.length },
     ]);
-    vi.stubEnv("PAPERCLIP_AGENT_JWT_SECRET", "synthetic-test-key-not-a-live-credential");
-    vi.stubEnv("PAPERCLIP_API_URL", "http://127.0.0.1:3217");
+    vi.stubEnv("NEXUS_AGENT_JWT_SECRET", "synthetic-test-key-not-a-live-credential");
+    vi.stubEnv("NEXUS_API_URL", "http://127.0.0.1:3217");
     const fetch = vi.fn().mockResolvedValue(new Response(f.body, { status: 206, headers: { "Content-Type": "text/plain", "Content-Range": `bytes 0-${f.body.length - 1}/${f.body.length}` } }));
     vi.stubGlobal("fetch", fetch);
     const operation = runnerApiCatalog().find(o => o.method === "GET" && o.path === "/api/assets/{assetId}/content")!;

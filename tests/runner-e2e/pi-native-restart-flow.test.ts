@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, it, vi } from "vitest";
 import { gradePiRestartCompletion, observePiRestartPending, runPiPendingControllerRestart } from "./pi-native-restart-flow.js";
-import { validatePrpStructuredRunResult } from "../../packages/paperclip-runner/src/protocol/replay-contract.js";
+import { validatePrpStructuredRunResult } from "../../packages/nexus-runner/src/protocol/replay-contract.js";
 
 type Row = Record<string, any>;
 vi.mock("@playwright/test", () => ({ expect: (locator: { count(): number }) => ({
@@ -9,18 +9,18 @@ vi.mock("@playwright/test", () => ({ expect: (locator: { count(): number }) => (
 }) }));
 
 function fixture(adapter = "acpx-runtime-sidecar") {
-  const questionSet = { schema: "paperclip.question_set.v1", questions: [{ id: "answer", header: "Pi native restart", prompt: "Answer", answerMode: "text", required: true }] };
-  const request = { schema: "paperclip.runtime_request.v2", requestKind: "runtime", type: "input", status: "pending", requestId: "request", turnId: "turn", itemId: "request",
+  const questionSet = { schema: "nexus.question_set.v1", questions: [{ id: "answer", header: "Pi native restart", prompt: "Answer", answerMode: "text", required: true }] };
+  const request = { schema: "nexus.runtime_request.v2", requestKind: "runtime", type: "input", status: "pending", requestId: "request", turnId: "turn", itemId: "request",
     input: questionSet, origin: { adapter, provider: "pi", method: "elicitation/create" } };
   const wrap = (eventType: string, sourceSeq: number, payload: Row): Row => ({
     companyId: "company", runId: "run", seq: sourceSeq, protocolSchemaVersion: 1, eventType,
-    payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn", itemId: "request",
+    payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn", itemId: "request",
       normalizedSessionId: "session", sourceInstanceId: "runner", sourceSeq, sourceEventId: `runner:run:${sourceSeq}`, payload } },
   });
   const state = { issue: { id: "issue", companyId: "company", status: "in_progress" },
     runs: [{ id: "run", companyId: "company", nativeIssueId: "issue", runtimeMode: "native", status: "running", nativeSessionId: "session", runnerInstanceId: "runner", processPid: 200, processGroupId: 200, processStartedAt: "2026-10-02T13:55:27.000Z" } as Row],
     interactions: [{ id: "interaction", companyId: "company", issueId: "issue", kind: "ask_user_questions", status: "pending", result: null,
-      sourceRunId: "run", continuationPolicy: "none", resolverPolicy: "human_only", idempotencyKey: "paperclip-runner-question:run:request",
+      sourceRunId: "run", continuationPolicy: "none", resolverPolicy: "human_only", idempotencyKey: "nexus-runner-question:run:request",
       payload: { runtimeRequestId: "request", questionSet } } as Row] };
   const events = [wrap("runtime_request.created", 1, { request })];
   const control = (eventType: string, sourceSeq: number, payload: Row): Row => {
@@ -38,9 +38,9 @@ function fixture(adapter = "acpx-runtime-sidecar") {
     if (!validated.ok) throw new Error("Fixture finish result must satisfy the actual production schema");
     const result = validated.result;
     events.push(wrap("runtime_request.resolved", 2, { requestId: "request", turnId: "turn", itemId: "request", action: "submit",
-      response: { schema: "paperclip.question_response.v1", answers: { answer: { text: answer } } } }), wrap("turn.completed", 4, { status: "completed" }),
+      response: { schema: "nexus.question_response.v1", answers: { answer: { text: answer } } } }), wrap("turn.completed", 4, { status: "completed" }),
       wrap("run.result.proposed", 3, structuredClone(result)), control("run.result.accepted", 1, { result: structuredClone(result) }),
-      control("run.terminal", 2, { schema: "paperclip.prp.terminal.v1", turnTerminalState: "completed", runTerminalState: "succeeded", reportedWorkDisposition: "done" }));
+      control("run.terminal", 2, { schema: "nexus.prp.terminal.v1", turnTerminalState: "completed", runTerminalState: "succeeded", reportedWorkDisposition: "done" }));
     return { status: "answered", value: answer };
   }
   return { state, events, request, wrap, control, finish };

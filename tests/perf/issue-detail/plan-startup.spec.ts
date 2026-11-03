@@ -60,7 +60,7 @@ test("profiling records every gate when switching back to a fully cached task", 
     });
     expect(response.ok()).toBe(true);
   }
-  await page.addInitScript(() => { window.__PAPERCLIP_ISSUE_DETAIL_PROFILE__ = true; });
+  await page.addInitScript(() => { window.__NEXUS_ISSUE_DETAIL_PROFILE__ = true; });
   await page.goto(`/${company.issuePrefix}/issues/${tasks[0].identifier}`);
   const ready = () => expect(page.getByTestId("task-chat-thread").locator(':scope > [aria-busy="false"]')).toBeVisible();
   await ready();

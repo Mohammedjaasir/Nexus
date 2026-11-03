@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { PrimaryPage, mobile, primaryDecorator, primaryParameters } from "../../../support/primary-agent/PrimaryAgentStory";
 
 export default { id: "primary-agent-04-new-task",
-  title: "Agents and reusable capabilities/Hiring, configuration, and organization/Primary Agent/04 New task", decorators: [primaryDecorator], parameters: { ...primaryParameters, paperclip: {
+  title: "Agents and reusable capabilities/Hiring, configuration, and organization/Primary Agent/04 New task", decorators: [primaryDecorator], parameters: { ...primaryParameters, nexus: {
       "capabilities": [
         "agents/primary-agent",
         "tasks/create",

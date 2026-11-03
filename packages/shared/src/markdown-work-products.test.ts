@@ -30,7 +30,7 @@ function attachmentMetadata(overrides: Record<string, unknown> = {}) {
 function workProduct(overrides: Record<string, unknown> = {}) {
   return {
     type: "artifact" as const,
-    provider: "paperclip",
+    provider: "nexus",
     metadata: attachmentMetadata(),
     ...overrides,
   };
@@ -105,7 +105,7 @@ describe("isMarkdownAttachmentContent", () => {
 });
 
 describe("getAttachmentArtifactWorkProductMetadata", () => {
-  it("returns canonical metadata for a valid paperclip artifact work product", () => {
+  it("returns canonical metadata for a valid nexus artifact work product", () => {
     const metadata = getAttachmentArtifactWorkProductMetadata(workProduct());
     expect(metadata?.attachmentId).toBe(ATTACHMENT_ID);
   });
@@ -114,7 +114,7 @@ describe("getAttachmentArtifactWorkProductMetadata", () => {
     expect(getAttachmentArtifactWorkProductMetadata(workProduct({ type: "document" }))).toBeNull();
   });
 
-  it("returns null for non-paperclip providers", () => {
+  it("returns null for non-nexus providers", () => {
     expect(getAttachmentArtifactWorkProductMetadata(workProduct({ provider: "github" }))).toBeNull();
   });
 

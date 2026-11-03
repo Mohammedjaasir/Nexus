@@ -3,7 +3,7 @@ import { chmod, lstat, mkdir, realpath } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-export const RUNNER_E2E_RESULTS_ROOT = "PAPERCLIP_RUNNER_E2E_RESULTS_ROOT";
+export const RUNNER_E2E_RESULTS_ROOT = "NEXUS_RUNNER_E2E_RESULTS_ROOT";
 
 function contains(parent: string, child: string) {
   return child === parent || child.startsWith(`${parent}${path.sep}`);

@@ -7,7 +7,7 @@ import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { agents, createDb, executionWorkspaceRepositoryRoots, executionWorkspaceRepositoryAccess, executionWorkspaceRepositories, executionWorkspaces,
-  heartbeatRuns, issues, projects, projectWorkspaces, projectAccessMembers, companyMemberships, authUsers, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+  heartbeatRuns, issues, projects, projectWorkspaces, projectAccessMembers, companyMemberships, authUsers, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { executionWorkspaceRepositoryService } from "../services/execution-workspace-repositories.js";
 import { buildNativeExecutionInput } from "../services/native-runtime/native-execution-input.js";
 import { nativeRuntimeContextFixture } from "../services/native-runtime/runtime-context.test-fixture.js";
@@ -155,7 +155,7 @@ const support = await getEmbeddedPostgresTestSupport();
     await expect(f.service.prepareForAdmission(peer.admission)).resolves.toEqual([
       expect.objectContaining({ id: next.operationId, cwd: published.cwd, pinnedCommit: published.pinnedCommit }),
     ]);
-    expect(JSON.parse(await readFile(path.join(published.cwd, ".git", "paperclip-workspace-owner.json"), "utf8")))
+    expect(JSON.parse(await readFile(path.join(published.cwd, ".git", "nexus-workspace-owner.json"), "utf8")))
       .toMatchObject({ repositoryId: next.operationId, pinnedCommit: published.pinnedCommit });
     const { authorizationService } = await import("../services/authorization.js");
     expect((await authorizationService(db).decide({ actor: peer.actor, action: "issue:read",
@@ -182,7 +182,7 @@ const support = await getEmbeddedPostgresTestSupport();
     await expect(f.service.prepareForAdmission(latest.admission)).resolves.toEqual([
       expect.objectContaining({ id: last.operationId, cwd: published.cwd, pinnedCommit: published.pinnedCommit }),
     ]);
-    expect(JSON.parse(await readFile(path.join(published.cwd, ".git", "paperclip-workspace-owner.json"), "utf8")))
+    expect(JSON.parse(await readFile(path.join(published.cwd, ".git", "nexus-workspace-owner.json"), "utf8")))
       .toMatchObject({ repositoryId: last.operationId, pinnedCommit: published.pinnedCommit });
     expect((await f.service.list(f.companyId, peer.workspace.id))[0])
       .toMatchObject({ id: next.operationId, state: "ready", pinnedCommit: published.pinnedCommit });
@@ -204,7 +204,7 @@ const support = await getEmbeddedPostgresTestSupport();
       return result;
     });
     await expect(f.service.prepareForAdmission(peer.admission)).rejects.toThrow(/publication binding/);
-    expect(JSON.parse(await readFile(path.join(published.cwd, ".git", "paperclip-workspace-owner.json"), "utf8")))
+    expect(JSON.parse(await readFile(path.join(published.cwd, ".git", "nexus-workspace-owner.json"), "utf8")))
       .toMatchObject({ repositoryId: first.operationId, pinnedCommit: published.pinnedCommit });
   });
 
@@ -215,7 +215,7 @@ const support = await getEmbeddedPostgresTestSupport();
     const [published] = await f.service.prepareForAdmission(f.admission);
     const next = await f.service.request({ companyId: f.companyId, issueId: peer.issueId, actor: peer.actor,
       request: { repository: { kind: "catalog", id: "private-repo" }, requestKey: randomUUID() } });
-    const ownerPath = path.join(published.cwd, ".git", "paperclip-workspace-owner.json");
+    const ownerPath = path.join(published.cwd, ".git", "nexus-workspace-owner.json");
     await rm(ownerPath);
     if (marker === "malformed") await writeFile(ownerPath, "{not-json");
     if (marker === "symlink") {
@@ -347,7 +347,7 @@ const support = await getEmbeddedPostgresTestSupport();
     await db.update(executionWorkspaces).set({ strategyType: "project_primary", sourceIssueId: f.issueId,
       metadata: { source: "task_session" }, ...patch }).where(eq(executionWorkspaces.id, f.workspace.id));
     await mkdir(path.join(f.admission.cwd, ".git", "info"), { recursive: true });
-    await writeFile(path.join(f.admission.cwd, ".git", "info", "exclude"), "/.paperclip-repositories/\n");
+    await writeFile(path.join(f.admission.cwd, ".git", "info", "exclude"), "/.nexus-repositories/\n");
     await expect(f.service.prepareForAdmission(f.admission)).rejects.toThrow("not a git repository");
     expect(acquisition.materialize).not.toHaveBeenCalled();
   });
@@ -388,7 +388,7 @@ const support = await getEmbeddedPostgresTestSupport();
       await db.update(executionWorkspaces).set({ strategyType: "project_primary", sourceIssueId: f.issueId,
         mode: principal === "sponsored_shared_git_residue" ? "shared_workspace" : "isolated_workspace", metadata: { source: "task_session" } }).where(eq(executionWorkspaces.id, f.workspace.id));
       await mkdir(path.join(f.admission.cwd, ".git", "info"), { recursive: true });
-      await writeFile(path.join(f.admission.cwd, ".git", "info", "exclude"), "/.paperclip-repositories/\n");
+      await writeFile(path.join(f.admission.cwd, ".git", "info", "exclude"), "/.nexus-repositories/\n");
     }
     const [prepared] = await f.service.prepareForAdmission(admission);
     expect(prepared.id).toBe(receipt.operationId);
@@ -454,7 +454,7 @@ const support = await getEmbeddedPostgresTestSupport();
       issue: { id: f.issueId, identifier: "LEG-1", title: "Legacy recovery", description: null, workMode: "standard" },
       taskPrompt: "Continue", normalizedSessionId: randomUUID(), provider: "codex",
       workspace: { id: f.runId, cwd: f.admission.cwd, repoUrl: null, repoRef: null, branchName: null },
-      completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "paperclip.run-result.v1", contract: { revision: "1", objective: "Recover", criteria: [{ id: "objective", requirement: "Keep the admitted folder" }] } },
+      completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "nexus.run-result.v1", contract: { revision: "1", objective: "Recover", criteria: [{ id: "objective", requirement: "Keep the admitted folder" }] } },
       runtimeContext: nativeRuntimeContextFixture(),
     });
     await db.update(heartbeatRuns).set({ runtimeMode: "native", runnerProfileJson: { nativeExecutionInput: execution },
@@ -490,7 +490,7 @@ const support = await getEmbeddedPostgresTestSupport();
     expect(acquisition.materialize).not.toHaveBeenCalled();
     await db.insert(executionWorkspaceRepositories).values({ companyId: f.companyId, executionWorkspaceId: f.workspace.id,
       requestedByIssueId: f.issueId, repositoryIdentity: "https://github.com/public/example", repoUrl: "https://github.com/public/example",
-      relativePath: ".paperclip-repositories/unused", requestedRef: "HEAD", requestKey: "requires-authority", requestKeys: ["requires-authority"] });
+      relativePath: ".nexus-repositories/unused", requestedRef: "HEAD", requestKey: "requires-authority", requestKeys: ["requires-authority"] });
     await expect(f.service.prepareForAdmission(f.admission)).rejects.toThrow();
     expect(acquisition.materialize).not.toHaveBeenCalled();
   });

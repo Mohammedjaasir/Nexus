@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, expect, it, vi } from "vitest";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 import { readProviderPackArchive, stageProviderPackArchive } from "./provider-pack-archive.js";
 import { uploadVerifiedProviderPack } from "./provider-pack-upload.js";
 // @ts-expect-error Build-time script has no TypeScript declaration.
@@ -22,7 +22,7 @@ async function fixture() {
   roots.push(root);
   const pack = path.join(root, "pack");
   await fs.mkdir(path.join(pack, "bin"), { recursive: true });
-  await fs.writeFile(path.join(pack, "provider-pack.json"), JSON.stringify({ schema: "paperclip-runner/remote-provider-pack/v1", digest }));
+  await fs.writeFile(path.join(pack, "provider-pack.json"), JSON.stringify({ schema: "nexus-runner/remote-provider-pack/v1", digest }));
   await fs.writeFile(path.join(pack, "bin", "tool"), "#!/bin/sh\necho fixture\n", { mode: 0o755 });
   await fs.symlink("bin/tool", path.join(pack, "tool"));
   await createProviderPackArchive(pack);
@@ -96,7 +96,7 @@ it.skipIf(!tar || !hasZstd)("stages a complete layered pack into a fresh nested 
   const remote = await runner(root);
   const workspace = path.join(root, "workspace");
   await fs.mkdir(workspace);
-  const targetPath = path.join(workspace, ".paperclip-runtime", "paperclip-runner", "provider-pack");
+  const targetPath = path.join(workspace, ".nexus-runtime", "nexus-runner", "provider-pack");
   await expect(fs.lstat(path.dirname(targetPath))).rejects.toMatchObject({ code: "ENOENT" });
   expect(await stageProviderPackArchive({ archive, runner: remote, targetPath, reuseRoots: [pack] })).toBe(true);
   expect(await fs.readFile(path.join(targetPath, "bin/large"))).toEqual(await fs.readFile(path.join(pack, "bin/large")));

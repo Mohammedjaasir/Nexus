@@ -141,7 +141,7 @@ export function finishedFailedIdleLease(alias: string): string {
         WHERE local_environment.id = ${alias}.environment_id AND local_environment.driver = 'local'))
     OR (${alias}.cleanup_status = 'success' AND ${alias}.provider IS NOT NULL AND ${alias}.provider <> 'local'
       AND ${alias}.provider_lease_id IS NOT NULL AND ${alias}.provider_lease_id <> ''
-      AND ((${receipt}->>'schema' = 'paperclip.remote-termination.v1'
+      AND ((${receipt}->>'schema' = 'nexus.remote-termination.v1'
       AND ${receipt}->>'companyId' = ${alias}.company_id::text
       AND ${receipt}->>'runId' = ${alias}.heartbeat_run_id::text
       AND ${receipt}->>'leaseId' = ${alias}.id::text

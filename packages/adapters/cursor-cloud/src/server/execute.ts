@@ -9,24 +9,24 @@ import {
   type SDKAgent,
   type SDKMessage,
 } from "@cursor/sdk";
-import type { AdapterExecutionContext, AdapterExecutionResult, AdapterInvocationMeta } from "@paperclipai/adapter-utils";
+import type { AdapterExecutionContext, AdapterExecutionResult, AdapterInvocationMeta } from "@nexusai/adapter-utils";
 import {
-  DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE,
-  DEFAULT_PAPERCLIP_CONVERSATION_PROMPT_TEMPLATE,
+  DEFAULT_NEXUS_AGENT_PROMPT_TEMPLATE,
+  DEFAULT_NEXUS_CONVERSATION_PROMPT_TEMPLATE,
   asBoolean,
   asString,
-  buildPaperclipEnv,
+  buildNexusEnv,
   buildRuntimeToolsEnv,
   isForbiddenConfigEnvKey,
   joinPromptSections,
   parseObject,
-  readPaperclipIssueWorkModeFromContext,
+  readNexusIssueWorkModeFromContext,
   hydrateFreshSessionHandoff,
-  selectPaperclipPromptSections,
+  selectNexusPromptSections,
   selectInitialCommunicationGuidance,
-  isPaperclipRecoveryWakePayload,
+  isNexusRecoveryWakePayload,
   renderTemplate,
-} from "@paperclipai/adapter-utils/server-utils";
+} from "@nexusai/adapter-utils/server-utils";
 
 type CursorCloudSession = {
   cursorAgentId: string;
@@ -112,15 +112,15 @@ function buildWakeEnv(ctx: AdapterExecutionContext, configEnv: Record<string, st
     ...configEnv,
     // The selected managed cloud host is trusted with this persistent identity,
     // just like a managed local host (see doc/AGENT-IDENTITY.md).
-    ...buildPaperclipEnv(agent, ctx.agentIdentity),
+    ...buildNexusEnv(agent, ctx.agentIdentity),
     ...buildRuntimeToolsEnv(ctx.runtimeTools),
-    PAPERCLIP_RUN_ID: runId,
+    NEXUS_RUN_ID: runId,
   };
-  // PAPERCLIP_API_KEY is never accepted from config — the harness-minted run
-  // token is the only source of Paperclip API identity.
-  delete env.PAPERCLIP_API_KEY;
+  // NEXUS_API_KEY is never accepted from config — the harness-minted run
+  // token is the only source of Nexus API identity.
+  delete env.NEXUS_API_KEY;
   // Wake context travels in the prompt; a configured copy can exceed spawn limits.
-  delete env.PAPERCLIP_WAKE_PAYLOAD_JSON;
+  delete env.NEXUS_WAKE_PAYLOAD_JSON;
 
   const wakeTaskId = trimNullable(context.taskId) ?? trimNullable(context.issueId);
   const wakeReason = trimNullable(context.wakeReason);
@@ -130,42 +130,42 @@ function buildWakeEnv(ctx: AdapterExecutionContext, configEnv: Record<string, st
   const linkedIssueIds = Array.isArray(context.issueIds)
     ? context.issueIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
     : [];
-  const issueWorkMode = readPaperclipIssueWorkModeFromContext(context);
+  const issueWorkMode = readNexusIssueWorkModeFromContext(context);
 
-  if (wakeTaskId) env.PAPERCLIP_TASK_ID = wakeTaskId;
-  if (wakeReason) env.PAPERCLIP_WAKE_REASON = wakeReason;
-  if (wakeCommentId) env.PAPERCLIP_WAKE_COMMENT_ID = wakeCommentId;
-  if (approvalId) env.PAPERCLIP_APPROVAL_ID = approvalId;
-  if (approvalStatus) env.PAPERCLIP_APPROVAL_STATUS = approvalStatus;
-  if (linkedIssueIds.length > 0) env.PAPERCLIP_LINKED_ISSUE_IDS = linkedIssueIds.join(",");
-  if (issueWorkMode) env.PAPERCLIP_ISSUE_WORK_MODE = issueWorkMode;
+  if (wakeTaskId) env.NEXUS_TASK_ID = wakeTaskId;
+  if (wakeReason) env.NEXUS_WAKE_REASON = wakeReason;
+  if (wakeCommentId) env.NEXUS_WAKE_COMMENT_ID = wakeCommentId;
+  if (approvalId) env.NEXUS_APPROVAL_ID = approvalId;
+  if (approvalStatus) env.NEXUS_APPROVAL_STATUS = approvalStatus;
+  if (linkedIssueIds.length > 0) env.NEXUS_LINKED_ISSUE_IDS = linkedIssueIds.join(",");
+  if (issueWorkMode) env.NEXUS_ISSUE_WORK_MODE = issueWorkMode;
   if (authToken) {
-    env.PAPERCLIP_API_KEY = authToken;
+    env.NEXUS_API_KEY = authToken;
   }
 
   // cursor_cloud runs remotely in Cursor's cloud and is intentionally not
-  // issued a Paperclip run JWT (registry: supportsLocalAgentJwt=false).
-  // buildPaperclipEnv always sets PAPERCLIP_API_URL, defaulting to the local
+  // issued a Nexus run JWT (registry: supportsLocalAgentJwt=false).
+  // buildNexusEnv always sets NEXUS_API_URL, defaulting to the local
   // runtime host — which a remote worker can neither reach nor authenticate
-  // against, so any agent-initiated Paperclip API call would fail with a 401
+  // against, so any agent-initiated Nexus API call would fail with a 401
   // (or be unreachable) and add noise. When there is no usable key, drop the
-  // callback wiring so cloud-side Paperclip tools degrade to a clean no-op.
+  // callback wiring so cloud-side Nexus tools degrade to a clean no-op.
   // Run results are delivered server-side via the Cursor Agent SDK (getRun /
   // wait), not through this callback, so nothing is lost.
-  if (!trimNullable(env.PAPERCLIP_API_KEY)) {
-    delete env.PAPERCLIP_API_URL;
-    delete env.PAPERCLIP_API_BRIDGE_MODE;
+  if (!trimNullable(env.NEXUS_API_KEY)) {
+    delete env.NEXUS_API_URL;
+    delete env.NEXUS_API_BRIDGE_MODE;
   }
 
-  const workspace = parseObject(context.paperclipWorkspace);
+  const workspace = parseObject(context.nexusWorkspace);
   const workspaceMappings: Array<[string, unknown]> = [
-    ["PAPERCLIP_WORKSPACE_CWD", workspace.cwd],
-    ["PAPERCLIP_WORKSPACE_SOURCE", workspace.source],
-    ["PAPERCLIP_WORKSPACE_ID", workspace.workspaceId],
-    ["PAPERCLIP_WORKSPACE_REPO_URL", workspace.repoUrl],
-    ["PAPERCLIP_WORKSPACE_REPO_REF", workspace.repoRef],
-    ["PAPERCLIP_WORKSPACE_BRANCH", workspace.branch],
-    ["PAPERCLIP_WORKSPACE_WORKTREE_PATH", workspace.worktreePath],
+    ["NEXUS_WORKSPACE_CWD", workspace.cwd],
+    ["NEXUS_WORKSPACE_SOURCE", workspace.source],
+    ["NEXUS_WORKSPACE_ID", workspace.workspaceId],
+    ["NEXUS_WORKSPACE_REPO_URL", workspace.repoUrl],
+    ["NEXUS_WORKSPACE_REPO_REF", workspace.repoRef],
+    ["NEXUS_WORKSPACE_BRANCH", workspace.branch],
+    ["NEXUS_WORKSPACE_WORKTREE_PATH", workspace.worktreePath],
     ["AGENT_HOME", workspace.agentHome],
   ];
   for (const [key, value] of workspaceMappings) {
@@ -175,7 +175,7 @@ function buildWakeEnv(ctx: AdapterExecutionContext, configEnv: Record<string, st
 
   delete env.CURSOR_API_KEY;
   // Cursor rejects the entire request when any envVars value is empty.
-  // Paperclip may use empty values to unset optional host credentials; remote
+  // Nexus may use empty values to unset optional host credentials; remote
   // workers do not inherit those host variables, so omit the empty entries.
   return Object.fromEntries(Object.entries(env).filter(([, value]) => value.length > 0));
 }
@@ -205,7 +205,7 @@ async function buildInstructionsPrefix(
     const reason = err instanceof Error ? err.message : String(err);
     await onLog(
       "stderr",
-      `[paperclip] Warning: could not read agent instructions file "${instructionsFilePath}": ${reason}\n`,
+      `[nexus] Warning: could not read agent instructions file "${instructionsFilePath}": ${reason}\n`,
     );
     return {
       prefix: "",
@@ -217,14 +217,14 @@ async function buildInstructionsPrefix(
   }
 }
 
-function renderPaperclipEnvNote(env: Record<string, string>): string {
+function renderNexusEnvNote(env: Record<string, string>): string {
   const keys = Object.keys(env)
-    .filter((key) => key.startsWith("PAPERCLIP_"))
+    .filter((key) => key.startsWith("NEXUS_"))
     .sort();
   if (keys.length === 0) return "";
   return [
-    "Paperclip runtime note:",
-    `The following PAPERCLIP_* environment variables are available in the cloud agent shell: ${keys.join(", ")}`,
+    "Nexus runtime note:",
+    `The following NEXUS_* environment variables are available in the cloud agent shell: ${keys.join(", ")}`,
     "Use them directly instead of assuming they are absent.",
   ].join("\n");
 }
@@ -364,7 +364,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     };
   }
 
-  const workspace = parseObject(context.paperclipWorkspace);
+  const workspace = parseObject(context.nexusWorkspace);
   const repoUrl =
     asString(config.repoUrl, "").trim() ||
     asString(workspace.repoUrl, "").trim();
@@ -407,8 +407,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     : null);
   const canReuseSession = sessionMatches(session, envType, envName, repos);
   const promptTemplate = asString(config.promptTemplate, context.conversationMode === true
-    ? DEFAULT_PAPERCLIP_CONVERSATION_PROMPT_TEMPLATE
-    : DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE);
+    ? DEFAULT_NEXUS_CONVERSATION_PROMPT_TEMPLATE
+    : DEFAULT_NEXUS_AGENT_PROMPT_TEMPLATE);
   const bootstrapPromptTemplate = asString(config.bootstrapPromptTemplate, "");
   const templateData = {
     agentId: agent.id,
@@ -421,7 +421,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   };
   const instructions = await buildInstructionsPrefix(config, onLog);
   await hydrateFreshSessionHandoff(ctx, { resumedSession: canReuseSession });
-  const { taskContextNote, wakePrompt } = selectPaperclipPromptSections(context, {
+  const { taskContextNote, wakePrompt } = selectNexusPromptSections(context, {
     resumedSession: canReuseSession,
     includeCommunicationGuidance: false,
   });
@@ -430,20 +430,20 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       ? renderTemplate(bootstrapPromptTemplate, templateData).trim()
       : "";
   const renderedPrompt =
-    (canReuseSession && wakePrompt.length > 0) || isPaperclipRecoveryWakePayload(context.paperclipWake)
+    (canReuseSession && wakePrompt.length > 0) || isNexusRecoveryWakePayload(context.nexusWake)
       ? ""
       : renderTemplate(promptTemplate, templateData).trim();
-  const paperclipEnvNote = renderPaperclipEnvNote(remoteEnv);
+  const nexusEnvNote = renderNexusEnvNote(remoteEnv);
   const prompt = joinPromptSections([
     selectInitialCommunicationGuidance(context, { resumedSession: canReuseSession }),
     instructions.prefix,
     renderedBootstrapPrompt,
     wakePrompt,
     taskContextNote,
-    paperclipEnvNote,
+    nexusEnvNote,
     renderedPrompt,
   ]);
-  const sessionHandoffNote = asString(context.paperclipSessionHandoffMarkdown, "").trim();
+  const sessionHandoffNote = asString(context.nexusSessionHandoffMarkdown, "").trim();
   const finalPrompt = joinPromptSections([prompt, sessionHandoffNote]);
   const promptMetrics = {
     promptChars: finalPrompt.length,
@@ -456,7 +456,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
 
   const agentOptions = buildAgentOptions({
     apiKey,
-    name: `Paperclip ${agent.name}`,
+    name: `Nexus ${agent.name}`,
     model,
     envType,
     envName,

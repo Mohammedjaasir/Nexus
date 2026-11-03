@@ -22,7 +22,7 @@ it("accepts the QA editor's escaped underscore while rejecting lost, duplicate, 
 function state() {
   return { currentIssue: { id: "owned-task", companyId: "qa-company", assigneeAgentId: "owned-agent", status: "done" },
     taskRuns: [{ id: "run", issueId: "owned-task", companyId: "qa-company", agentId: "owned-agent", status: "succeeded", runtimeMode: "native",
-      contextSnapshot: { paperclipEnvironment: { id: "qa-daytona" } }, runnerProfileJson: { nativeExecutionInput: { provider: { kind: "opencode", model: "qa-model" } } } }],
+      contextSnapshot: { nexusEnvironment: { id: "qa-daytona" } }, runnerProfileJson: { nativeExecutionInput: { provider: { kind: "opencode", model: "qa-model" } } } }],
     comments: [], interactions: [], attachments: [] };
 }
 describe("deployed agent journey evidence", () => {
@@ -59,7 +59,7 @@ describe("deployed agent journey evidence", () => {
       (s: ReturnType<typeof state>) => { s.currentIssue.assigneeAgentId = "other"; },
       (s: ReturnType<typeof state>) => { s.taskRuns[0]!.issueId = "other"; },
       (s: ReturnType<typeof state>) => { s.taskRuns[0]!.agentId = "other"; },
-      (s: ReturnType<typeof state>) => { s.taskRuns[0]!.contextSnapshot.paperclipEnvironment.id = "local"; },
+      (s: ReturnType<typeof state>) => { s.taskRuns[0]!.contextSnapshot.nexusEnvironment.id = "local"; },
       (s: ReturnType<typeof state>) => { s.taskRuns[0]!.runnerProfileJson.nativeExecutionInput.provider.model = "other"; },
       (s: ReturnType<typeof state>) => { s.taskRuns[0]!.runtimeMode = "legacy"; },
       (s: ReturnType<typeof state>) => { s.taskRuns[0]!.status = "failed"; },
@@ -86,7 +86,7 @@ describe("deployed agent journey evidence", () => {
     const run = { id: "run", companyId: "qa-company", issueId: "owned-task", status: "cancelled", runtimeMode: "native", resultJson: { cancelledByActorType: "user", cancelledByUserId: "qa-user",
       cancellation: { source: "operator", expected: true, initiator: { type: "user", id: "qa-user" } },
       startupCancellation: { requestedAt: "2026-10-29T00:00:00Z", beforeNativeSelection: false }, nativeCancellation: {
-      schema: "paperclip.native-cancellation.v1", intentId: "native-cancellation:00000000-0000-4000-8000-000000000001", companyId: "qa-company", runId: "run", issueId: "owned-task", scope: "run",
+      schema: "nexus.native-cancellation.v1", intentId: "native-cancellation:00000000-0000-4000-8000-000000000001", companyId: "qa-company", runId: "run", issueId: "owned-task", scope: "run",
       dispatched: true, dispatchState: "acknowledged", reasonCode: "cancellation_run_only", effects: ["release_run_resources"], intentAuditId: "intent", acknowledgementAuditId: "ack" } } };
     expect(nativeStopAcknowledged(run, "qa-company", "owned-task", "qa-user")).toBe(true);
     for (const change of [{ dispatchState: "pending" }, { runId: "other" }, { scope: "task" }, { effects: [] }, { acknowledgementAuditId: "intent" }]) {
@@ -98,7 +98,7 @@ describe("deployed agent journey evidence", () => {
   });
   it.each(Object.keys(agentJourneyRuns))("retained %s successes require every story check and the exact run receipts", id => {
     const count = agentJourneyRuns[id as keyof typeof agentJourneyRuns];
-    const result = { schema: "paperclip.runner-e2e.result/v2", executionId: `product-journeys.qa.configured-agent.daytona.${id}`,
+    const result = { schema: "nexus.runner-e2e.result/v2", executionId: `product-journeys.qa.configured-agent.daytona.${id}`,
       suiteId: "product-journeys", suiteDefinitionHash: "test", profileId: "configured-agent", environmentId: "daytona", caseId: id,
       provider: "opencode", model: "qa-model", runtimeMode: "native", status: "passed", cleanup: "passed", attempt: 1,
       startedAt: "2026-10-29T00:00:00Z", finishedAt: "2026-10-29T00:00:01Z", durationMs: 1000,

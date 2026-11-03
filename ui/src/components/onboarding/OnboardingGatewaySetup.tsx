@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AiConnectionBinding } from "@paperclipai/shared";
+import type { AiConnectionBinding } from "@nexusai/shared";
 import { AiProviderSetup } from "../ai-connections/AiProviderSetup";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";

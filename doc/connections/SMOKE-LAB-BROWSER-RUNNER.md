@@ -30,9 +30,9 @@ the Smoke Lab — a private box is a private box. Every smoke-lab service method
 `403 {"error":"Smoke lab is only available on private (non-public) deployments"}`
 (or `404 Smoke lab is disabled` when the flag is off).
 
-**The shared dev worktree service works as-is now.** The Paperclip-managed dev
-service (`pnpm dev`, `PAPERCLIP_DEPLOYMENT_MODE=authenticated` + `NODE_ENV=production`,
-e.g. `http://paperclip-dev:45439`) is private, so it can run the Smoke Lab directly —
+**The shared dev worktree service works as-is now.** The Nexus-managed dev
+service (`pnpm dev`, `NEXUS_DEPLOYMENT_MODE=authenticated` + `NODE_ENV=production`,
+e.g. `http://nexus-dev:45439`) is private, so it can run the Smoke Lab directly —
 just turn the flag on. (Historically it was blocked because the gate required
 `local_trusted` + non-`production`; that restriction was removed in PAP-13351.) The
 installed package on `:3100` still may not ship the smoke-lab routes (404).
@@ -42,13 +42,13 @@ e2e config does (`tests/e2e/playwright.config.ts`):
 
 ```bash
 export NODE_ENV=test PORT=3211 \
-  PAPERCLIP_HOME=/tmp/pap-smoke-home \
-  PAPERCLIP_INSTANCE_ID=pap-smoke \
-  PAPERCLIP_CONFIG=/tmp/pap-smoke-home/instances/pap-smoke/config.json \
-  PAPERCLIP_BIND=loopback \
-  PAPERCLIP_DEPLOYMENT_MODE=local_trusted \
-  PAPERCLIP_DEPLOYMENT_EXPOSURE=private
-pnpm paperclipai onboard --yes --run    # serves http://127.0.0.1:3211, own embedded PG
+  NEXUS_HOME=/tmp/pap-smoke-home \
+  NEXUS_INSTANCE_ID=pap-smoke \
+  NEXUS_CONFIG=/tmp/pap-smoke-home/instances/pap-smoke/config.json \
+  NEXUS_BIND=loopback \
+  NEXUS_DEPLOYMENT_MODE=local_trusted \
+  NEXUS_DEPLOYMENT_EXPOSURE=private
+pnpm nexusai onboard --yes --run    # serves http://127.0.0.1:3211, own embedded PG
 # wait for: GET /api/health -> 200
 ```
 
@@ -79,9 +79,9 @@ company asset and putting its served URL in the step's `screenshotArtifactRef`.
 
 ## 2. Fixed fixture facts
 
-- **Demo OAuth creds:** `smoke@paperclip.test` / `smoke-password` (`SMOKE_LAB_DEMO_*`). Email is pre-filled on the consent page; you type the password.
+- **Demo OAuth creds:** `smoke@nexus.test` / `smoke-password` (`SMOKE_LAB_DEMO_*`). Email is pre-filled on the consent page; you type the password.
 - **Fake OAuth scopes:** only `smoke:openid smoke:profile smoke:email` are accepted — any other `scope` → `400`.
-- **Consent page:** `GET /api/companies/:cid/smoke-lab/oauth/authorize?client_id=…&redirect_uri=…&scope=…&state=…&response_type=code` renders the "SMOKE TEST — not a real provider" login+consent form. Submitting valid creds → `302` to `redirect_uri?code=…` (wrong creds → `403`). The redirect target is a dead loopback callback — don't wait for it to load; assert on the **302 + `code=` in the Location header**, then let the failed navigation commit before driving the Paperclip UI.
+- **Consent page:** `GET /api/companies/:cid/smoke-lab/oauth/authorize?client_id=…&redirect_uri=…&scope=…&state=…&response_type=code` renders the "SMOKE TEST — not a real provider" login+consent form. Submitting valid creds → `302` to `redirect_uri?code=…` (wrong creds → `403`). The redirect target is a dead loopback callback — don't wait for it to load; assert on the **302 + `code=` in the Location header**, then let the failed navigation commit before driving the Nexus UI.
 - **Two connections per install:** `remote_http` (HTTP MCP fixture, used for P1/P2/P5/P6/P7) and `local_stdio` (used for P3/P4). `install-fixtures` is idempotent.
 - **Lifecycle tools** (from the catalog): HTTP → read `todo.list`, write `todo.add`, deny `email.send`, quarantine `fixture.schemaFlip`; stdio → read `time.now`, write `slow.ping`, deny `crash.now`.
 
@@ -137,7 +137,7 @@ node --experimental-strip-types tests/e2e/smoke-lab-browser-runner.mts
 ```
 
 The runner launches real Chromium via the ARM64 wrapper
-(`.paperclip/browser-runtime/chromium-arm64/bin/chromium-agent-browser`) — see
+(`.nexus/browser-runtime/chromium-arm64/bin/chromium-agent-browser`) — see
 `memory/agent-browser-arm64-chromium`; on this aarch64 host the default puppeteer
 Chrome is x86-64 and won't launch. It prints the `runId` and a per-path step
 count and writes `${SHOT_DIR}/result.json`.

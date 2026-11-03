@@ -3,11 +3,11 @@ import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { agents, companies, createDb, heartbeatRunEvents, heartbeatRuns } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRunEvents, heartbeatRuns } from "@nexusai/db";
 import { appendHeartbeatRunEvent } from "../services/heartbeat-run-events.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_ATOMIC_EVENTS_TEST_DATABASE_URL");
+const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_ATOMIC_EVENTS_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalTestDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -32,7 +32,7 @@ describeEmbeddedPostgres("atomic ordinary run events", () => {
     .where(eq(heartbeatRunEvents.runId, id)).orderBy(heartbeatRunEvents.seq);
 
   beforeAll(async () => {
-    if (!externalTestDatabaseUrl) temporary = await startEmbeddedPostgresTestDatabase("paperclip-atomic-events-");
+    if (!externalTestDatabaseUrl) temporary = await startEmbeddedPostgresTestDatabase("nexus-atomic-events-");
     const connectionString = externalTestDatabaseUrl ?? temporary!.connectionString;
     db = createDb(connectionString);
     otherDb = createDb(connectionString);
@@ -68,7 +68,7 @@ describeEmbeddedPostgres("atomic ordinary run events", () => {
       schema: db._.fullSchema,
       logger: { logQuery: query => statements.push(query) },
     }) as typeof db;
-    const payload = { nested: ["before\u0000after"], $paperclipRunEventJsonV1: "literal" };
+    const payload = { nested: ["before\u0000after"], $nexusRunEventJsonV1: "literal" };
     const receipt = await appendHeartbeatRunEvent(recorded, {
       companyId, agentId, runId, eventType: "run.performance.span", stream: "system",
       level: "info", color: "green", message: "runner span", payload,

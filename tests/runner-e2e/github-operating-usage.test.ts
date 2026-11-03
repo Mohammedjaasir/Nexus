@@ -14,7 +14,7 @@ function api(overrides: Record<string, any> = {}) {
   const reads: string[] = [];
   return { reads, read: async (endpoint: string) => {
     reads.push(endpoint);
-    if (endpoint === "repos/paperclipai/paperclip") return { id: 456, full_name: "paperclipai/paperclip", private: false, ...overrides.repo };
+    if (endpoint === "repos/nexusai/nexus") return { id: 456, full_name: "paperclipai/paperclip", private: false, ...overrides.repo };
     if (endpoint.endsWith("/runs/123")) return { ...run, ...overrides.run, ...(reads.filter(row => row.endsWith("/runs/123")).length === 2 ? overrides.finalRun : {}) };
     if (endpoint.includes("/jobs?")) {
       const jobs = overrides.jobs ?? [job()];

@@ -139,19 +139,19 @@ Running preview: http://127.0.0.1:3214/APP/apps
 The final production UI and compiled server use the PR head, with the TS loader
 for workspace dependency exports. The performance comparison used `085f7a6f1e`.
 The final preview also includes the strict query guard. Configuration/evidence:
-`/tmp/paperclip-apps-perf-20261019/`; disposable database port 55489. Fixture:
+`/tmp/nexus-apps-perf-20261019/`; disposable database port 55489. Fixture:
 one synthetic company, five tasks, a disabled draft connector and a paused agent
 with heartbeat disabled. Only this task's own preview/test processes were stopped.
 Native PostgreSQL package symlinks were restored with its install hook.
 
 Archive `ui/` and `announcements/` at the baseline revision, link the same installed
-dependencies, and build from that UI directory with `PAPERCLIP_BUILD_COMMIT` set
+dependencies, and build from that UI directory with `NEXUS_BUILD_COMMIT` set
 to its full SHA. Save the two production builds in separate directories, then run:
 
 ```sh
-PAPERCLIP_APPS_BENCH_BASELINE_DIST=/path/to/baseline-dist \
-PAPERCLIP_APPS_BENCH_CANDIDATE_DIST=/path/to/candidate-dist \
-PAPERCLIP_APPS_BENCH_SERVER_DIST=/path/to/server-checkout/ui/dist \
+NEXUS_APPS_BENCH_BASELINE_DIST=/path/to/baseline-dist \
+NEXUS_APPS_BENCH_CANDIDATE_DIST=/path/to/candidate-dist \
+NEXUS_APPS_BENCH_SERVER_DIST=/path/to/server-checkout/ui/dist \
 node scripts/benchmark-apps-startup.mjs comparison http://127.0.0.1:3214/ /tmp/apps-comparison
 ```
 

@@ -28,7 +28,7 @@ for (const mobile of [false, true]) {
     for (const [index, attachment] of attachments.entries()) {
       await json(await request.post(`/api/issues/${issue.id}/work-products`, {
         data: {
-          type: "artifact", provider: "paperclip", title: `Delivered ${files[index]!.name}`, status: "ready_for_review",
+          type: "artifact", provider: "nexus", title: `Delivered ${files[index]!.name}`, status: "ready_for_review",
           metadata: {
             attachmentId: attachment.id, contentType: attachment.contentType, byteSize: attachment.byteSize,
             originalFilename: files[index]!.name, contentPath: attachment.contentPath,

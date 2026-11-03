@@ -9,7 +9,7 @@ export const nativeFinalizationResultV1Schema = z.object({
   companyId: z.string().uuid(),
   result: z.record(z.string(), z.unknown()),
   terminal: z.object({
-    schema: z.literal("paperclip.prp.terminal.v1"),
+    schema: z.literal("nexus.prp.terminal.v1"),
     turnTerminalState: z.enum(["completed", "failed", "interrupted", "cancelled"]),
     runTerminalState: z.enum(["succeeded", "failed", "cancelled"]),
     reportedWorkDisposition: z.enum(["done", "blocked", "needs_review", "yielded"]),

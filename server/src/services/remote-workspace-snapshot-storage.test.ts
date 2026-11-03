@@ -5,7 +5,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { applyPendingMigrations, closeRegisteredClients, createDb, executionWorkspaceSnapshots } from "@paperclipai/db";
+import { applyPendingMigrations, closeRegisteredClients, createDb, executionWorkspaceSnapshots } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { createLocalDiskStorageProvider } from "../storage/local-disk-provider.js";
 import { createStorageService } from "../storage/service.js";
@@ -13,7 +13,7 @@ import type { StorageService } from "../storage/types.js";
 import { captureRemoteWorkspaceDirectory, restoreRemoteWorkspaceArchive } from "./remote-workspace-snapshot-archive.js";
 import { beginWorkspaceSnapshot, getWorkspaceSnapshot, loadWorkspaceSnapshotArchive, uploadWorkspaceSnapshot } from "./remote-workspace-snapshot-storage.js";
 
-const externalDatabaseUrl = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const externalDatabaseUrl = process.env.NEXUS_TEST_DATABASE_URL;
 if (externalDatabaseUrl && !/^remote_workspace_[a-z_]*test$/.test(new URL(externalDatabaseUrl).pathname.slice(1))) {
   throw new Error("Workspace storage tests require a disposable remote_workspace_*test database");
 }
@@ -29,7 +29,7 @@ suite("remote workspace snapshot storage", () => {
   }, 90_000);
   afterAll(async () => { if (externalDatabaseUrl) await closeRegisteredClients(externalDatabaseUrl); else await database?.cleanup(); });
   beforeEach(async () => {
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "41".repeat(32));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "41".repeat(32));
     root = await fs.mkdtemp(path.join(os.tmpdir(), "pc-workspace-store-test-"));
     storage = createStorageService(createLocalDiskStorageProvider(path.join(root, "objects")));
   });

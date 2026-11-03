@@ -7,7 +7,7 @@ mode (`local-board`). Access to a task does not subscribe someone to notificatio
 ## Which tasks qualify
 
 A task qualifies when the viewer creates an ordinary human task, is its current
-human assignee, comments directly in Paperclip, receives an open addressed request,
+human assignee, comments directly in Nexus, receives an open addressed request,
 or performs a deliberate action included in the existing
 Mine participation allowlist in
 [`issue-participation.ts`](../server/src/services/issue-participation.ts).

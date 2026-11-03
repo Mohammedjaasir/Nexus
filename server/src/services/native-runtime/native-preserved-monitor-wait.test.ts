@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { agents, agentWakeupRequests, companies, completionContracts, createDb, applyPendingMigrations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRuns,
-  issueComments, issueRecoveryActions, issues, nativeRunFinalizations, nativeRunResults, statusDecisions, subscribeDatabaseWork } from "@paperclipai/db";
-import { PROVIDER_QUOTA_MONITOR_SERVICE_NAME } from "@paperclipai/shared";
+  issueComments, issueRecoveryActions, issues, nativeRunFinalizations, nativeRunResults, statusDecisions, subscribeDatabaseWork } from "@nexusai/db";
+import { PROVIDER_QUOTA_MONITOR_SERVICE_NAME } from "@nexusai/shared";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "../../__tests__/helpers/external-test-database.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 import { finalizeNativeRun, repairCommittedNativeChatResponse } from "./native-run-finalizer.js";
 import { nativeSha256 } from "./canonical.js";
 import * as monitorDelivery from "./native-monitor-delivery.js";
@@ -14,7 +14,7 @@ import { DELIVERY_QUEUES } from "../delivery-work-notifications.js";
 import { heartbeatService } from "../heartbeat.js";
 import { hasPendingRunCleanup } from "../execution-blocker.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_PRESERVED_MONITOR_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_PRESERVED_MONITOR_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 describe.skipIf(!support.supported)("released native monitor results", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
@@ -31,27 +31,27 @@ describe.skipIf(!support.supported)("released native monitor results", () => {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), runId = randomUUID();
     const contractId = randomUUID(), resultId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Saved monitor", issuePrefix: `P${companyId.slice(0, 7)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", adapterType: "paperclip_runner", status: "active" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", adapterType: "nexus_runner", status: "active" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Saved follow-up", status: "in_progress", assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, nativeIssueId: issueId,
       runtimeMode: "native", status: "running", contextSnapshot: { issueId } });
     await db.update(issues).set({ executionRunId: runId }).where(eq(issues.id, issueId));
     const nextCheckAt = new Date(Date.now() + 3_600_000).toISOString();
-    const authority = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
+    const authority = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
     await authority.execute({ tool: "set_task_monitor", callId: randomUUID(), arguments: {
       idempotencyKey: "saved-monitor", monitor: { nextCheckAt, notes: "Check the saved result." },
     } });
     await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1", policyVersion: "test", risk: "standard",
+      schemaVersion: "nexus.completion-contract.v1", policyVersion: "test", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "test", criteria: [] }, canonicalSha256: randomUUID(),
       createdByActorType: "system", createdByActorId: "test" });
-    const result = { result: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "yielded",
+    const result = { result: { schema: "nexus.run_result.v1", reportedWorkDisposition: "yielded",
       summary: "Wait for the saved check.", completionClaim: { contractRevision: "test", objectiveSatisfied: false,
         criteria: [], remainingWork: [{ description: "Check again", blocksCompletion: true }] },
       continuation: { kind: "monitor", summary: "Wait for the check", idempotencyKey: "provider-selected" },
       evidence: [], verification: [], attentionRequests: [], artifacts: [] },
-      terminal: { schema: "paperclip.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" } };
+      terminal: { schema: "nexus.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" } };
     const finishedAt = new Date("2020-01-01T00:00:00Z");
     await db.update(heartbeatRuns).set({ status: "succeeded", finishedAt, completionContractId: contractId }).where(eq(heartbeatRuns.id, runId));
     await db.insert(nativeRunResults).values({ id: resultId, companyId, issueId, runId, completionContractId: contractId,

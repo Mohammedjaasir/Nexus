@@ -3,7 +3,7 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypt
 import { and, asc, desc, eq, inArray, isNull, isNotNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { companies, dotAgentBindings as bindings, dotRunnerAssignments as assignments,
-  grokBotRoutines as routines, grokBotDispatches as dispatches, mcpOauthGrants, type Db } from "@paperclipai/db";
+  grokBotRoutines as routines, grokBotDispatches as dispatches, mcpOauthGrants, type Db } from "@nexusai/db";
 import { authorizeExternalBotBinding, authorizeExternalBotOperator, externalBotEnabled } from "../external-bot-authority.js";
 import { McpOAuthError, type McpPrincipal } from "../public-mcp/oauth.js";
 import { secretService } from "../secrets.js";
@@ -59,7 +59,7 @@ export function grokRoutineService(db: Db, deliver: Delivery = deliverGrokRoutin
         eq(bindings.agentId, agentId), eq(bindings.providerKind, "grok_bot"))).orderBy(asc(bindings.id)).for("update");
       const rows = await tx.select().from(routines).where(and(eq(routines.companyId, companyId), eq(routines.agentId, agentId))).for("update");
       const [active] = await tx.select({ id: assignments.id }).from(assignments).where(and(eq(assignments.companyId, companyId), eq(assignments.agentId, agentId), inArray(assignments.status, ["offered", "accepted"])));
-      if (active) throw fail("Stop or finish the current Paperclip work session before clearing recovery.");
+      if (active) throw fail("Stop or finish the current Nexus work session before clearing recovery.");
       for (const routine of rows) {
         await tx.update(dispatches).set({ status: "cancelled", updatedAt: new Date() }).where(and(eq(dispatches.routineId, routine.id), inArray(dispatches.status, ["prepared", "sending", "accepted", "unknown"])));
         await tx.update(routines).set({ recoveryRequiredAt: null, recoveryReason: null, verifiedAt: null, verifiedGrantId: null, updatedAt: new Date() }).where(eq(routines.id, routine.id));
@@ -104,7 +104,7 @@ export function grokRoutineService(db: Db, deliver: Delivery = deliverGrokRoutin
       const [active] = await tx.select({ id: assignments.id }).from(assignments).where(and(eq(assignments.bindingId, binding.id), inArray(assignments.status, ["offered", "accepted"])));
       const [old] = await tx.select().from(routines).where(eq(routines.bindingId, binding.id)).for("update");
       const [pending] = old ? await tx.select({ id: dispatches.id }).from(dispatches).where(and(eq(dispatches.routineId, old.id), eq(dispatches.routineRevision, old.revision), inArray(dispatches.status, ["prepared", "sending", "accepted", "unknown"]))) : [];
-      if (active || pending || old?.recoveryRequiredAt) throw fail("Inspect and recover existing Paperclip work before replacing routine credentials.");
+      if (active || pending || old?.recoveryRequiredAt) throw fail("Inspect and recover existing Nexus work before replacing routine credentials.");
       if ((old?.revision ?? 0) !== input.expectedRevision) throw fail("Routine configuration changed. Reload before replacing it.");
       const revision = (old?.revision ?? 0) + 1;
       // One fresh immutable secret version prevents partial URL/key replacement.
@@ -143,11 +143,11 @@ export function grokRoutineService(db: Db, deliver: Delivery = deliverGrokRoutin
         eq(dispatches.bindingGeneration, binding.generation), eq(dispatches.routineRevision, routine.revision), eq(dispatches.sourceEventId, input.sourceEventId)));
       if (old) return old;
       const [active] = input.kind === "verify" ? await tx.select({ id: assignments.id }).from(assignments).where(and(eq(assignments.bindingId, binding.id), inArray(assignments.status, ["offered", "accepted"]))) : [];
-      if (active) throw fail("Finish or stop current Paperclip work before verifying the routine again.");
+      if (active) throw fail("Finish or stop current Nexus work before verifying the routine again.");
       const [pending] = input.kind === "verify" ? await tx.select({ id: dispatches.id }).from(dispatches).where(and(eq(dispatches.routineId, routine.id), eq(dispatches.routineRevision, routine.revision), eq(dispatches.kind, "verify"), inArray(dispatches.status, ["prepared", "sending", "accepted", "unknown"]))) : [];
       if (pending) throw fail("Verification already has an outstanding delivery. Inspect it before sending another.");
       const correlationId = randomUUID();
-      const common = { schema: "paperclip.external_bot_wake.v1" as const, bindingId: binding.id, bindingGeneration: binding.generation, correlationId };
+      const common = { schema: "nexus.external_bot_wake.v1" as const, bindingId: binding.id, bindingGeneration: binding.generation, correlationId };
       const challenge = input.kind === "verify" ? randomBytes(24).toString("base64url") : null;
       const wake: GrokRoutineWake = input.kind === "verify" ? { ...common, kind: "verify", challenge: challenge! }
         : input.kind === "authority_revoked" ? { ...common, kind: "authority_revoked", assignmentId: z.uuid().parse(input.assignmentId) }

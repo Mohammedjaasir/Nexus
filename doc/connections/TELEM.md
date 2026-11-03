@@ -5,11 +5,11 @@ verified on a local instance: setup, catalog discovery, gateway `tools/list`
 and one read-only `tools/call`. Live account qualification by a maintainer is
 outstanding.
 
-Paperclip connects to the Telem.AI hosted MCP server at
+Nexus connects to the Telem.AI hosted MCP server at
 `https://mcp.telem.ai/mcp`. Telem.AI gives agents web search and page fetch
 across many search providers with one API key.
 
-The connection has one method: a Telem API key stored as a Paperclip secret
+The connection has one method: a Telem API key stored as a Nexus secret
 and sent as an `Authorization: Bearer ...` header. Telem.AI does not offer
 browser sign-in or a keyless profile.
 
@@ -20,21 +20,21 @@ from **Connect your own MCP server** with the same URL and header. See
 
 ## Service involvement
 
-Telem.AI hosts the MCP resource. Paperclip ID and Paperclip Connect do not
+Telem.AI hosts the MCP resource. Nexus ID and Nexus Connect do not
 take part. Cloud and self-hosted instances use the same path. There is no
-OAuth flow and no Paperclip callback.
+OAuth flow and no Nexus callback.
 
 ```mermaid
 sequenceDiagram
     actor A as Administrator
-    participant P as Paperclip
+    participant P as Nexus
     participant T as mcp.telem.ai
 
     A->>P: Paste a Telem API key and optional settings
     P->>P: Store the key as a company secret
     P->>T: tools/list with Authorization Bearer and X-Telem headers
     T-->>P: Telem tool catalog
-    Note over P,T: Each agent tool call goes through the Paperclip gateway
+    Note over P,T: Each agent tool call goes through the Nexus gateway
     P->>T: tools/call with the same headers
     T-->>P: Tool result
 ```
@@ -45,12 +45,12 @@ sequenceDiagram
 | API keys | `https://app.telem.ai` |
 | Documentation | `https://docs.telem.ai` |
 | Authorize, token, registration | none (API key only) |
-| Paperclip callback | n/a |
+| Nexus callback | n/a |
 
 ## Administrator setup
 
 1. Create an API key in the Telem console at `app.telem.ai`.
-2. In Paperclip, open **Apps**, choose **Telem.AI**, and paste the key.
+2. In Nexus, open **Apps**, choose **Telem.AI**, and paste the key.
 3. Optional: open **Advanced** and set the settings below.
 4. Choose which agents get access, then finish.
 5. To verify, open the connection's **Permissions** page and click **Test**
@@ -62,7 +62,7 @@ No callback URL, client registration or instance feature flag is needed.
 ## Settings
 
 All settings are optional and apply to every agent that uses this connection.
-Paperclip sends each one as a request header. It leaves a header out when its
+Nexus sends each one as a request header. It leaves a header out when its
 setting is empty.
 
 | Setting | Values | Header |

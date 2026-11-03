@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { agents, agentWakeupRequests, authUsers, companies, companyMemberships, createDb,
   heartbeatRuns, issueComments, issues, museAgentBindings, museMailboxItems,
-  museRunnerAssignments, museRunnerOperations } from "@paperclipai/db";
+  museRunnerAssignments, museRunnerOperations } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { heartbeatService } from "../heartbeat.js";
 import { instanceSettingsService } from "../instance-settings.js";
@@ -16,7 +16,7 @@ describe("Muse native comment follow-up", () => {
   beforeAll(async () => {
     temporary = await startEmbeddedPostgresTestDatabase("muse-native-follow-up-");
     db = createDb(temporary.connectionString);
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
     await instanceSettingsService(db).updateExperimental({ enableNativeRunner: true, enableMuse: true });
   }, 30000);
   afterAll(async () => { await temporary?.cleanup(); vi.unstubAllEnvs(); });
@@ -25,7 +25,7 @@ describe("Muse native comment follow-up", () => {
     await db.insert(authUsers).values({ id: userId, name: "Muse operator", email: `${userId}@example.test`, createdAt: new Date(), updatedAt: new Date() });
     await db.insert(companies).values({ id: companyId, name: "Muse follow-up", issuePrefix: `MF${companyId.slice(0, 6)}`, defaultResponsibleUserId: userId });
     await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: userId, status: "active", membershipRole: "owner" });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Muse", status: "active", adapterType: "paperclip_runner",
+    await db.insert(agents).values({ id: agentId, companyId, name: "Muse", status: "active", adapterType: "nexus_runner",
       adapterConfig: { provider: "muse", museBindingId: bindingId, allowUnmeteredProvider: true, lifecycleMode: "per_turn" } });
     await db.insert(museAgentBindings).values({ id: bindingId, companyId, agentId, operatorId: userId,
       status: "ready", pairedAt: new Date(), receiverContactAt: new Date(), verifiedReplyAt: new Date() });

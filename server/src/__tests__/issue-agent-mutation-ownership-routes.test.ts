@@ -189,7 +189,7 @@ function registerRouteMocks() {
   vi.doMock("../services/native-runtime/native-workspace-owner-recovery.js", () => ({ resumeNativeWorkspaceAfterOwnerStop: mockResumeWorkspaceFinalization }));
   vi.doMock("../services/native-runtime/native-workspace-export-retry.js", () => ({ retryNativeWorkspaceExport: mockRetryWorkspaceExport }));
   vi.doMock("../services/workspace-recovery.js", () => ({ requestWorkspaceRecovery: mockRequestWorkspaceRecovery }));
-  vi.doMock("@paperclipai/shared/telemetry", () => ({
+  vi.doMock("@nexusai/shared/telemetry", () => ({
     trackAgentTaskCompleted: vi.fn(),
     trackErrorHandlerCrash: vi.fn(),
   }));
@@ -1180,7 +1180,7 @@ describe("agent issue mutation checkout ownership", () => {
 
   it("rejects the checked-out owner without a run id on attachment upload (401)", async () => {
     // Regression: an agent-authenticated client (e.g. the CLI's attachment:upload)
-    // that fails to send X-Paperclip-Run-Id must be rejected — mutating your own
+    // that fails to send X-Nexus-Run-Id must be rejected — mutating your own
     // in-progress checkout requires proving run ownership.
     const app = await createApp({
       type: "agent",
@@ -3052,7 +3052,7 @@ describe("agent issue mutation checkout ownership", () => {
 
       expect(res.status, JSON.stringify(res.body)).toBe(409);
       expect(res.body.details).toMatchObject({ code: "native_run_status_reported_by_finish", requestedStatus: status });
-      expect(res.body.error).toContain("paperclip_finish");
+      expect(res.body.error).toContain("nexus_finish");
       expect(mockIssueService.update).not.toHaveBeenCalled();
       expect(mockHeartbeatService.cancelRun).not.toHaveBeenCalled();
     });

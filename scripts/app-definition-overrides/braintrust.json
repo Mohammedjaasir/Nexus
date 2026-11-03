@@ -45,7 +45,7 @@
         "docs": "https://www.braintrust.dev/docs/integrations/developer-tools/mcp"
       },
       "warnings": [
-        "Access follows the signed-in Braintrust account or API key. Paperclip action policies do not narrow the provider credential or enforce a separate project boundary.",
+        "Access follows the signed-in Braintrust account or API key. Nexus action policies do not narrow the provider credential or enforce a separate project boundary.",
         "Evaluations, evaluator tests, and Topics processing can consume Braintrust or model credits.",
         "Dataset row edits can permanently delete data. Changing automation status can enable retention or delivery automations; review these actions on Permissions."
       ],
@@ -74,7 +74,7 @@
         "keys": "https://www.braintrust.dev/app/~/configuration/org/api-keys"
       },
       "warnings": [
-        "Access follows the signed-in Braintrust account or API key. Paperclip action policies do not narrow the provider credential or enforce a separate project boundary.",
+        "Access follows the signed-in Braintrust account or API key. Nexus action policies do not narrow the provider credential or enforce a separate project boundary.",
         "Evaluations, evaluator tests, and Topics processing can consume Braintrust or model credits.",
         "Dataset row edits can permanently delete data. Changing automation status can enable retention or delivery automations; review these actions on Permissions."
       ],
@@ -87,7 +87,7 @@
           "required": true,
           "placeholder": "Paste your Braintrust API key",
           "secret": true,
-          "helperMd": "Create a Braintrust API key in Settings → API keys for the account and organization whose data agents should access. The key must authorize the reads and writes you intend to allow; Paperclip cannot increase or narrow its provider permissions. Evaluations and Topics processing can incur costs. Dataset edits can permanently delete rows; automation activation can enable retention or delivery."
+          "helperMd": "Create a Braintrust API key in Settings → API keys for the account and organization whose data agents should access. The key must authorize the reads and writes you intend to allow; Nexus cannot increase or narrow its provider permissions. Evaluations and Topics processing can incur costs. Dataset edits can permanently delete rows; automation activation can enable retention or delivery."
         }
       ],
       "keyPlacement": {
@@ -122,7 +122,7 @@
         "docs": "https://www.braintrust.dev/docs/integrations/developer-tools/mcp"
       },
       "warnings": [
-        "Access follows the signed-in Braintrust account or API key. Paperclip action policies do not narrow the provider credential or enforce a separate project boundary.",
+        "Access follows the signed-in Braintrust account or API key. Nexus action policies do not narrow the provider credential or enforce a separate project boundary.",
         "Evaluations, evaluator tests, and Topics processing can consume Braintrust or model credits.",
         "Dataset row edits can permanently delete data. Changing automation status can enable retention or delivery automations; review these actions on Permissions."
       ],
@@ -151,7 +151,7 @@
         "keys": "https://www.braintrust.dev/app/~/configuration/org/api-keys"
       },
       "warnings": [
-        "Access follows the signed-in Braintrust account or API key. Paperclip action policies do not narrow the provider credential or enforce a separate project boundary.",
+        "Access follows the signed-in Braintrust account or API key. Nexus action policies do not narrow the provider credential or enforce a separate project boundary.",
         "Evaluations, evaluator tests, and Topics processing can consume Braintrust or model credits.",
         "Dataset row edits can permanently delete data. Changing automation status can enable retention or delivery automations; review these actions on Permissions."
       ],
@@ -164,7 +164,7 @@
           "required": true,
           "placeholder": "Paste your Braintrust API key",
           "secret": true,
-          "helperMd": "Create a Braintrust API key in Settings → API keys for the account and organization whose data agents should access. The key must authorize the reads and writes you intend to allow; Paperclip cannot increase or narrow its provider permissions. Evaluations and Topics processing can incur costs. Dataset edits can permanently delete rows; automation activation can enable retention or delivery."
+          "helperMd": "Create a Braintrust API key in Settings → API keys for the account and organization whose data agents should access. The key must authorize the reads and writes you intend to allow; Nexus cannot increase or narrow its provider permissions. Evaluations and Topics processing can incur costs. Dataset edits can permanently delete rows; automation activation can enable retention or delivery."
         }
       ],
       "keyPlacement": {

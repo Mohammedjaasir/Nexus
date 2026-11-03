@@ -9,7 +9,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     docs: { description: { component: "UX prototype based on the existing PAP-1953 phase-topology fixture, with illustrative cross-project follow-ups. Renders the actual Layout and IssueDetail route, with the production TaskSidePanel. No replica page shell or CSS overrides. Full Task Page uses the production query wiring with fixture API responses. Both legacy and native run origins are included. Subtasks includes all subtasks; created work is grouped independently by project, so a created subtask appears in both sections. An unrelated task by the same agent is deliberately excluded. Subtasks reuse TaskDetailSubtasksPanel and its progress bar. All created work uses the same task rows, grouped by project or No project, without progress bars. Unfinished work precedes finished work. No counts on the Tasks tab, extra header, search, controls, or relationship tabs. Task navigation, local chat and side-panel tabs remain interactive. The story uses the production Tasks panel with fixture data." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "task-coordination/delegation",
         "projects/task-context"

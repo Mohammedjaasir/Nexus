@@ -1039,7 +1039,7 @@ component boundaries; no new managed live proof or paid turn is claimed.
 
 Fresh review at `e79254b` verifies the preceding fixes and reports one valid
 development override edge. The common remote resolver now preserves
-`PAPERCLIP_RUNNER_BINARY` only when the measured target OS/CPU matches the
+`NEXUS_RUNNER_BINARY` only when the measured target OS/CPU matches the
 controller. Explicit remote overrides retain priority; every selected artifact
 still requires a matching native header. Cross-target selection ignores the
 controller override. Seven new baseline failures reproduce the defect; 133
@@ -1161,7 +1161,7 @@ fails loopback `RTM_NEWADDR` with `Operation not permitted`. No successful
 native session or after-start continuity is claimed. Docker/host installation
 identity passed. Exact upstream Codex 0.160 source places namespace creation
 before its own seccomp filter and always restricts networking for filesystem
-helpers. A Paperclip network-mode change would not solve this. Prepare one
+helpers. A Nexus network-mode change would not solve this. Prepare one
 temporary same-policy direct Codex control plus read-only host namespace facts
 to distinguish host enforcement from native mediation. Do not alter kernel,
 Docker, or product permission policy. Receipts:
@@ -1266,7 +1266,7 @@ The user has no other QA ARM host. No new paid environment was provisioned.
 Receipt: `/private/tmp/ci-final-a200495-arm-stock-prerequisite-receipt.json`.
 
 Keep the boundaries explicit: normal OS APT installation is unproven; the actual
-Paperclip npm installation and native startup are proven. The separate direct
+Nexus npm installation and native startup are proven. The separate direct
 control hits a read-only temporary-home error and is excluded from native
 qualification. No ARM paid task/follow-up is claimed. Actual Apple Silicon
 useful-task/follow-up evidence remains tied to its recorded source and identical
@@ -1352,7 +1352,7 @@ The user requires macOS support in the same Codex-default PR. The earlier
 Linux-only scope and macOS deferral below are superseded. Qualify Linux x64,
 macOS arm64 and macOS x64 through the shipped package path. Windows and Linux
 ARM keep their legacy defaults. Existing agents retain recorded execution.
-The user explicitly invoked `dotta:paperclip-test-drive`. Real task/follow-up
+The user explicitly invoked `dotta:nexus-test-drive`. Real task/follow-up
 acceptance is required on this Apple Silicon Mac. Intel builds must be attempted;
 an attended Intel provider journey is not required. Reuse the healthy test drive
 and the existing Product E2E helpers rather than create another test system.
@@ -1424,7 +1424,7 @@ and an independently checked useful file plus revision.
 The real [Apple Silicon task and follow-up](http://127.0.0.1:3125/COD/issues/COD-2)
 passed at runtime source `f4abdc2cfcd779d5ad9b9c0ea8b63114c1a18a9b`.
 The ordinary picker submitted `codex_local` without a runner override and saved
-`paperclip_runner` / `codex`. Saved subscription reuse and native setup passed.
+`nexus_runner` / `codex`. Saved subscription reuse and native setup passed.
 Both task runs succeeded with driver `codex_app_server`, observed model
 `gpt-5.6-sol`, and the same provider session. Independent attachment downloads
 verified exact 61-byte and 102-byte Markdown files, including preservation of
@@ -1532,7 +1532,7 @@ and [37965658123](https://github.com/paperclipai/paperclip-cloud/actions/runs/37
 
 ## Outcome and ownership
 
-Users choose a harness. New agents use Paperclip Runner where the harness and
+Users choose a harness. New agents use Nexus Runner where the harness and
 execution target are qualified. Existing agents keep their recorded runner.
 The task owns implementation, verification, review fixes, and reviewable PRs.
 Merging and deployment require separate authorization.
@@ -1577,8 +1577,8 @@ separate database. Hosted Linux live onboarding passed at `38199ea8`; it remains
 historical proof after the lifecycle integration. UI has separate revision-bound proof.
 Attended local subscription and managed staging journeys remain unverified.
 
-New Codex agents select Paperclip Runner on qualified Linux x64 targets. Users
-choose Codex, with Paperclip Runner or Legacy runner inside Advanced. Other
+New Codex agents select Nexus Runner on qualified Linux x64 targets. Users
+choose Codex, with Nexus Runner or Legacy runner inside Advanced. Other
 harness defaults stay unchanged. Existing legacy/native agents and ordinary
 edits retain recorded execution; explicit runner changes use revisions/session
 invalidation. No database migration or permission-policy change.
@@ -1721,7 +1721,7 @@ npm. The merge and generated-lock CI stamps are recorded separately from source.
 
 The existing Linux Product E2E campaign [37950165589](https://github.com/paperclipai/paperclip/actions/runs/37950165589)
 passed its only selected case on attempt one, without a retry. The ordinary
-onboarding picker saved `paperclip_runner` / `codex`. All 13 assertions passed,
+onboarding picker saved `nexus_runner` / `codex`. All 13 assertions passed,
 including an independently checked nonce-bearing document and follow-up with
 recorded native execution and the same workspace. Four runs succeeded with
 observed model `gpt-5.6-sol`; cleanup passed. Target source is exactly `38199ea8`.
@@ -1925,7 +1925,7 @@ The public d67 release38389963483 ended successfully but skipped native producti
 
 The native-runner QA override is applied and converged through one-target feature campaign1791869766576, with zero failed targets. Literal d67 private distribution `cloud:38392212140:1` is qualified. Supported one-target deployment request `f7cb6751-91f8-49a4-9ab8-6092ecb27e7c` passed exact-source/private-artifact preflight38395788220; deployment38395855695 succeeded with authenticated serving verification and `set_default=false`. The pin and current private distribution remain verified.
 
-Attended OpenAI device authorization completed in the embedded browser. Ordinary fresh onboarding created Legacy preservation QA (`f9e30b8e-7ceb-4f88-b373-1a2cba65859d`) with its Codex Legacy configuration and unopened first-task question. Its sandbox and connection settings were retained. Native Codex package QA (`861f95bc-c9fc-4e32-8abb-8829d3fe42de`) was created separately through the explicit experimental runner picker, using Codex, gpt-5.6-luna, the responsible user's saved subscription and Paperclip Computer. This tests the merged prerequisite; automatic Codex defaults remain outside this source.
+Attended OpenAI device authorization completed in the embedded browser. Ordinary fresh onboarding created Legacy preservation QA (`f9e30b8e-7ceb-4f88-b373-1a2cba65859d`) with its Codex Legacy configuration and unopened first-task question. Its sandbox and connection settings were retained. Native Codex package QA (`861f95bc-c9fc-4e32-8abb-8829d3fe42de`) was created separately through the explicit experimental runner picker, using Codex, gpt-5.6-luna, the responsible user's saved subscription and Nexus Computer. This tests the merged prerequisite; automatic Codex defaults remain outside this source.
 
 The native creation Test reported success, but its visible details and exact d67 route show a Legacy Codex ACP/CLI model hello, not native runtime execution. At least one real setup hello is held in the setup reservation separately from the four task-turn allowance; other unmeasured setup usage is not assumed zero. Setup lease `1f2b04ce-97c2-4f81-8f92-0ece0fb54feb` and provider resource `622b8bb6-8bec-40d2-83c2-fa5edddfa6e8` have no independent cleanup confirmation yet. Green setup is not native execution or physical cleanup proof.
 
@@ -1940,7 +1940,7 @@ Next action: verify the actual staging serving revision, wait for the source-bou
 
 #### 2026-10-13 Final published-consumer and fresh-stack result
 
-Actual master release38395574681 completed all four native producers, npm publication and real canary onboarding smoke. Public `paperclipai@2026.1013.0-canary.6` binds to exact60bc, including narrow merged release repair #16149. Its clean isolated Apple Silicon install passed normal lifecycle, all18 no-bundled-Codex tar checks, packaged daemon/provider verification, native startup/open/close and CLI/doctor checks. Official optional npm Codex dependencies are retained; no local Cargo/Rust/Docker/runner-source build occurred. Literal d67 private staging composition and literal60bc npm remain separately attributed.
+Actual master release38395574681 completed all four native producers, npm publication and real canary onboarding smoke. Public `nexusai@2026.1013.0-canary.6` binds to exact60bc, including narrow merged release repair #16149. Its clean isolated Apple Silicon install passed normal lifecycle, all18 no-bundled-Codex tar checks, packaged daemon/provider verification, native startup/open/close and CLI/doctor checks. Official optional npm Codex dependencies are retained; no local Cargo/Rust/Docker/runner-source build occurred. Literal d67 private staging composition and literal60bc npm remain separately attributed.
 
 Ordinary local onboarding completed with the explicitly authorized OpenAI API key saved in a managed connection, and created Legacy preservation QA. The local subscription device flow expired; no subscription was saved. No credential values were written into prompts/reports. Native saved-account setup exposed a real published UI defect: the selected native runtime delegates to Legacy readiness and can trigger a second forced CLI probe, failing `Command not found in PATH: "codex"` despite successful packaged native resolution. Current private #15683 already contains the native setup probe correction, but its artifact/UI has not been tested here. Configure navigation cannot adopt the failed connection; no developer PATH or global Codex workaround was used.
 
@@ -1989,11 +1989,11 @@ The correction skips project instruction discovery only in the new empty setup w
 
 The existing managed first-task fixture now snapshots and restores its prior instance default and managed-only setting before deletion, including lost setup responses. Unconfirmed default restoration blocks deletion and remains red; other restoration/deletion errors remain inspectable and retry only outstanding cleanup. Three reproduced baseline failures become129 passing first-task controls, with direct E2E TypeScript passing. Independent source review finds no actionable runtime/permission P1/P2; the required source-comment cleanup is applied. Final source needs fresh CI/review, package artifacts and successful ordinary Mac/managed journeys before normal merge. The one owned Core preview deployment for30bc completes through its existing exact-source check/deploy path; actual readiness is independently checked next. No fleet default is changed.
 
-Corrected product source ca31623d36a3d63204077e2e951ff9cdcf2664cf passes all48 ordinary hosted CI jobs, required verify/E2E and fresh5/5 review with26 resolved threads. Its hosted package artifact11834160973 has verified ZIP digest d5d60bf5056f5573461f8d4bd873da78a0204c7f7295d03d5aa7234e55d4af69. The second isolated Mac consumer verifies all18 tarballs, no bundled Codex, official npm Codex0.160, all four daemon bindings and zero-turn native startup/cleanup. Normal install hooks include third-party optional C++ addons; no Paperclip runner/Cargo/Rust/Docker source build occurs locally. The source-bound preview completes one-target deployment38438245490 to the existing pinned QA stack, without default promotion; independent result admission remains separate.
+Corrected product source ca31623d36a3d63204077e2e951ff9cdcf2664cf passes all48 ordinary hosted CI jobs, required verify/E2E and fresh5/5 review with26 resolved threads. Its hosted package artifact11834160973 has verified ZIP digest d5d60bf5056f5573461f8d4bd873da78a0204c7f7295d03d5aa7234e55d4af69. The second isolated Mac consumer verifies all18 tarballs, no bundled Codex, official npm Codex0.160, all four daemon bindings and zero-turn native startup/cleanup. Normal install hooks include third-party optional C++ addons; no Nexus runner/Cargo/Rust/Docker source build occurs locally. The source-bound preview completes one-target deployment38438245490 to the existing pinned QA stack, without default promotion; independent result admission remains separate.
 
 Before paid cell38435063658 entered its matrix job, an admission audit found that ordinary onboarding timeout0 and agent concurrency20 did not satisfy this campaign's retained180-second/single-run bounds. Cancelled the campaign before its live cell started; image/build costs remain unknown and held. Extend the existing first-task fixture with a normal operator configuration PATCH and independent read-back before Get started. Only the timeout/concurrency bounds may change; runner/account/model/environment/permissions remain the wizard's original selection. This is a fixture correction, not a production default or API change. Its first iteration passes149 controls but independent review identifies the concurrency gap. The final combined bound reproduces three functional failures with the previous helper, then passes153 controls and direct E2E TypeScript. Independent review confirms that the timeout reaches the native turn deadline and the queue uses the saved single-run cap; exact source review closes before publication or further live eval admission. No failing or cancelled attempt is relabeled as passed.
 
-The owned local3136 server is updated from30bc to literal ca316 hosted packages after an idle snapshot and stopped-data/home backup. All existing full execution configurations and recorded run projections match before/after, with no provider tasks during upgrade. The fresh Mac company's saved draft resumes with its agent name retained. Ordinary OpenAI API-key Connect creates native Codex with gpt-5.6-sol without a runner override; only the existing QA timeout/concurrency settings are then bounded before Get started. Actual useful task/artifact/follow-up proof is still pending. The staging immutable QA environment is selected temporarily as the instance default, with the prior Paperclip Computer value recorded for restoration. Its normal server credential fallback has not yet been verified. No direct provider-key extraction or production rollout is attempted.
+The owned local3136 server is updated from30bc to literal ca316 hosted packages after an idle snapshot and stopped-data/home backup. All existing full execution configurations and recorded run projections match before/after, with no provider tasks during upgrade. The fresh Mac company's saved draft resumes with its agent name retained. Ordinary OpenAI API-key Connect creates native Codex with gpt-5.6-sol without a runner override; only the existing QA timeout/concurrency settings are then bounded before Get started. Actual useful task/artifact/follow-up proof is still pending. The staging immutable QA environment is selected temporarily as the instance default, with the prior Nexus Computer value recorded for restoration. Its normal server credential fallback has not yet been verified. No direct provider-key extraction or production rollout is attempted.
 
 The literal ca316 Mac journey now passes independent exact-file and registration checks for29/63 bytes, saved API-key account binding, native Codex provider session and workspace continuity across all five executed runs. One queued child run is cancelled before start and retained in evidence. Two manual messages and two confirmation responses produce five successful native runs; no process-loss retry occurs. Both task and child finish Done, and the QA agent is paused afterward. Rate-card estimates total$3.504199600, not invoice cost. The existing strict artifact/session helpers are reused offline; this is a real UI journey with independent evidence, not a full catalog-cell pass. Receipt7ef97c4705b085d465eeaf19f11d231e7b01e5a66c61b517cfcde0ec70a2db97 remains literalca316.
 
@@ -2029,7 +2029,7 @@ The human selected the actual new Test environment for pre-merge acceptance. Its
 
 Remote preview38498802456 completes at exact9546, through trusted workflow definitionb8ffeb973a2a1d430efabffd755f15b6c7cf112a. The ready result matches its single request; immutable Core image digest4cba5c3546c3af3b948f0ee9c3532ada7c754491ce2d175a00164adc46698976 and exact9546 DB/shared registry archives match producer bytes/integrities. This Core preview has no standard signed-image attestation; npm SLSA structure is source/invocation-bound but cryptographic verification is not claimed. The signed execution image is a distinct artifact. No image layers or large transfer archive are downloaded locally. Terminal admission receipt: /private/tmp/current-9546-preview-preparation/TERMINAL-PREVIEW-PAIR-QUALIFICATION.json, SHA25692faae84c89e9e37e23129b6a5cd18580ed1c09517db91286afdf1445e3b5c6f.
 
-Before merge, actual master advances to875943ac83e730fd4cfbe1e1860b3f4d7bf0ac78 and GitHub reports five content conflicts. Ordinary reconciliation preserves the Codex shared exports, flag-free Codex runtime, unified harness picker/display and incoming Grok Bot exports, three-flag admission, dedicated connection and Execution/Usage summary. The shared display helper additionally preserves Grok Bot branding; it must not label that existing external provider as Paperclip Runner. Seven narrow controls extend the existing display, mounted configuration and runtime-selection suites. An initial new test expected a saved connection section from an unsaved fixture; it is corrected to the existing save-first guidance without changing production behavior. Required maps now align35areas/176 capability IDs and direct token gates pass. Incoming shared Rust/backend/protocol bytes and migration0344 are materially different:9546 artifacts/live proof remain literal, and final integrated native/package/DB qualification must be refreshed remotely. No evidence is relabeled as combined-source proof.
+Before merge, actual master advances to875943ac83e730fd4cfbe1e1860b3f4d7bf0ac78 and GitHub reports five content conflicts. Ordinary reconciliation preserves the Codex shared exports, flag-free Codex runtime, unified harness picker/display and incoming Grok Bot exports, three-flag admission, dedicated connection and Execution/Usage summary. The shared display helper additionally preserves Grok Bot branding; it must not label that existing external provider as Nexus Runner. Seven narrow controls extend the existing display, mounted configuration and runtime-selection suites. An initial new test expected a saved connection section from an unsaved fixture; it is corrected to the existing save-first guidance without changing production behavior. Required maps now align35areas/176 capability IDs and direct token gates pass. Incoming shared Rust/backend/protocol bytes and migration0344 are materially different:9546 artifacts/live proof remain literal, and final integrated native/package/DB qualification must be refreshed remotely. No evidence is relabeled as combined-source proof.
 
 The resolved composition passes226 cases across the five existing runtime/display/mounted/selection/heartbeat suites. Direct server and UI no-emit checks pass after JavaScript-only Runner SDK declaration preparation and isolated installation of the exact declared Speko0.0.13 dependency with lifecycle scripts disabled. Initial missing-dependency/stale-declaration diagnostics remain setup limitations; no production workaround or dependency/lockfile change is made. All three existing token checks and staged diff checks pass. Fresh hosted full checks/review and remote native/package qualification remain required.
 

@@ -34,11 +34,11 @@ afterAll(() => {
 describe("managed bundled plugin selection", () => {
   it.each([
     { env: {}, selected: undefined, expected: null },
-    { env: { PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: "tenant-fixture" }, selected: undefined, expected: [] },
-    { env: { PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: " " }, selected: undefined, expected: null },
-    { env: { PAPERCLIP_MANAGED_CONFIG: "" }, selected: undefined, expected: [] },
-    { env: { PAPERCLIP_MANAGED_CONFIG: "{}" }, selected: null, expected: [] },
-    { env: { PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: "tenant-fixture" }, selected: ["daytona"], expected: ["daytona"] },
+    { env: { NEXUS_CLOUD_TENANT_SERVER_TOKEN: "tenant-fixture" }, selected: undefined, expected: [] },
+    { env: { NEXUS_CLOUD_TENANT_SERVER_TOKEN: " " }, selected: undefined, expected: null },
+    { env: { NEXUS_MANAGED_CONFIG: "" }, selected: undefined, expected: [] },
+    { env: { NEXUS_MANAGED_CONFIG: "{}" }, selected: null, expected: [] },
+    { env: { NEXUS_CLOUD_TENANT_SERVER_TOKEN: "tenant-fixture" }, selected: ["daytona"], expected: ["daytona"] },
     { env: {}, selected: ["modal"], expected: ["modal"] },
     { env: {}, selected: [], expected: [] },
   ])("uses the canonical Cloud floor and preserves explicit selection: $env / $selected", ({ env, selected, expected }) => {
@@ -54,7 +54,7 @@ describe("resolveBundledPluginInstalls", () => {
       enforceCatalogRoot: true,
     })).toEqual([{
       key: "createos",
-      pluginKey: "paperclip.createos-sandbox-provider",
+      pluginKey: "nexus.createos-sandbox-provider",
       localPath: path.join(CATALOG_ROOT, "sandbox-providers/createos"),
     }]);
     expect(SELF_HOSTED_AUTO_INSTALL_KEYS).not.toContain("createos");
@@ -66,7 +66,7 @@ describe("resolveBundledPluginInstalls", () => {
       enforceCatalogRoot: true,
     })).toEqual([{
       key: "boxd",
-      pluginKey: "paperclip.boxd-sandbox-provider",
+      pluginKey: "nexus.boxd-sandbox-provider",
       localPath: path.join(CATALOG_ROOT, "sandbox-providers/boxd"),
     }]);
     expect(SELF_HOSTED_AUTO_INSTALL_KEYS).not.toContain("boxd");
@@ -80,12 +80,12 @@ describe("resolveBundledPluginInstalls", () => {
     expect(resolved).toEqual([
       {
         key: "kubernetes",
-        pluginKey: "paperclip.kubernetes-sandbox-provider",
+        pluginKey: "nexus.kubernetes-sandbox-provider",
         localPath: path.join(CATALOG_ROOT, "sandbox-providers/kubernetes"),
       },
       {
         key: "daytona",
-        pluginKey: "paperclip.daytona-sandbox-provider",
+        pluginKey: "nexus.daytona-sandbox-provider",
         localPath: path.join(CATALOG_ROOT, "sandbox-providers/daytona"),
       },
     ]);
@@ -125,7 +125,7 @@ describe("resolveBundledPluginInstalls", () => {
     expect(() =>
       resolveBundledPluginInstalls(["kubernetes"], {
         catalogRoot: CATALOG_ROOT,
-        env: { PAPERCLIP_KUBERNETES_PLUGIN_PATH: "/srv/evil/plugin" },
+        env: { NEXUS_KUBERNETES_PLUGIN_PATH: "/srv/evil/plugin" },
         enforceCatalogRoot: true,
       }),
     ).toThrow(/outside the bundled catalog root.*refusing to start/);
@@ -136,7 +136,7 @@ describe("resolveBundledPluginInstalls", () => {
       resolveBundledPluginInstalls(["kubernetes"], {
         catalogRoot: CATALOG_ROOT,
         env: {
-          PAPERCLIP_KUBERNETES_PLUGIN_PATH: path.join(
+          NEXUS_KUBERNETES_PLUGIN_PATH: path.join(
             CATALOG_ROOT,
             "sandbox-providers/../../../../etc/kubernetes",
           ),
@@ -163,13 +163,13 @@ describe("resolveBundledPluginInstalls", () => {
   it("honors the legacy kubernetes path override without enforcement (self-hosted)", () => {
     const resolved = resolveBundledPluginInstalls(["kubernetes"], {
       catalogRoot: CATALOG_ROOT,
-      env: { PAPERCLIP_KUBERNETES_PLUGIN_PATH: "/somewhere/else/kubernetes" },
+      env: { NEXUS_KUBERNETES_PLUGIN_PATH: "/somewhere/else/kubernetes" },
       enforceCatalogRoot: false,
     });
     expect(resolved).toEqual([
       {
         key: "kubernetes",
-        pluginKey: "paperclip.kubernetes-sandbox-provider",
+        pluginKey: "nexus.kubernetes-sandbox-provider",
         localPath: "/somewhere/else/kubernetes",
       },
     ]);
@@ -179,7 +179,7 @@ describe("resolveBundledPluginInstalls", () => {
     const inside = path.join(CATALOG_ROOT, "sandbox-providers", "kubernetes");
     const resolved = resolveBundledPluginInstalls(["kubernetes"], {
       catalogRoot: CATALOG_ROOT,
-      env: { PAPERCLIP_KUBERNETES_PLUGIN_PATH: inside },
+      env: { NEXUS_KUBERNETES_PLUGIN_PATH: inside },
       enforceCatalogRoot: true,
     });
     expect(resolved[0]!.localPath).toBe(inside);
@@ -204,7 +204,7 @@ describe("resolveBundledPluginInstalls", () => {
     // Exactly the pre-refactor default path.
     expect(entry).toEqual({
       key: "kubernetes",
-      pluginKey: "paperclip.kubernetes-sandbox-provider",
+      pluginKey: "nexus.kubernetes-sandbox-provider",
       localPath: "/app/packages/plugins/sandbox-providers/kubernetes",
     });
   });
@@ -225,8 +225,8 @@ describe("resolveBundledCatalogRoot", () => {
     expect(resolveBundledCatalogRoot({})).toBe(DEFAULT_BUNDLED_CATALOG_ROOT);
   });
 
-  it("honors PAPERCLIP_BUNDLED_PLUGIN_ROOT", () => {
-    expect(resolveBundledCatalogRoot({ PAPERCLIP_BUNDLED_PLUGIN_ROOT: "/custom/root" })).toBe(
+  it("honors NEXUS_BUNDLED_PLUGIN_ROOT", () => {
+    expect(resolveBundledCatalogRoot({ NEXUS_BUNDLED_PLUGIN_ROOT: "/custom/root" })).toBe(
       "/custom/root",
     );
   });
@@ -249,7 +249,7 @@ type LooseRow = {
 // Build a minimal manifest for a persisted row or a shipped bundle. The reconcile
 // step compares the bundle version with the persisted version.
 function makeManifest(pluginKey: string, version: string) {
-  return { id: pluginKey, apiVersion: 1, version, capabilities: [] } as unknown as import("@paperclipai/shared").PaperclipPluginManifestV1;
+  return { id: pluginKey, apiVersion: 1, version, capabilities: [] } as unknown as import("@nexusai/shared").NexusPluginManifestV1;
 }
 
 function makeDeps(overrides?: {
@@ -310,12 +310,12 @@ function makeDeps(overrides?: {
 
 const K8S: ResolvedBundledPlugin = {
   key: "kubernetes",
-  pluginKey: "paperclip.kubernetes-sandbox-provider",
+  pluginKey: "nexus.kubernetes-sandbox-provider",
   localPath: path.join(CATALOG_ROOT, "sandbox-providers/kubernetes"),
 };
 const DAYTONA: ResolvedBundledPlugin = {
   key: "daytona",
-  pluginKey: "paperclip.daytona-sandbox-provider",
+  pluginKey: "nexus.daytona-sandbox-provider",
   localPath: path.join(CATALOG_ROOT, "sandbox-providers/daytona"),
 };
 
@@ -325,7 +325,7 @@ describe("ensureBundledPlugins", () => {
     await ensureBundledPlugins([K8S], deps, { reinstallUninstalled: true });
     expect(installPlugin).toHaveBeenCalledWith({ localPath: K8S.localPath });
     expect(deps.lifecycle.load).toHaveBeenCalledWith(
-      "id-paperclip.kubernetes-sandbox-provider",
+      "id-nexus.kubernetes-sandbox-provider",
     );
   });
 
@@ -595,7 +595,7 @@ describe("ensureBundledPlugins", () => {
     );
     // Daytona still installed after the kubernetes failure.
     expect(installPlugin).toHaveBeenCalledTimes(2);
-    expect(deps.lifecycle.load).toHaveBeenCalledWith("id-paperclip.daytona-sandbox-provider");
+    expect(deps.lifecycle.load).toHaveBeenCalledWith("id-nexus.daytona-sandbox-provider");
   });
 
   it("never uninstalls anything: plugins absent from the list are untouched", async () => {

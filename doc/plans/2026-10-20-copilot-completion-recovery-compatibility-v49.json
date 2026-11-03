@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.copilot.compatibility-revalidation.v1",
+  "schema": "nexus.copilot.compatibility-revalidation.v1",
   "recordedAt": "2026-10-20",
   "status": "compatibility_revalidated",
   "profile": 49,

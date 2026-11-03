@@ -80,7 +80,7 @@ for (const [name, version] of required) {
 
 test("release selection includes every chat runtime patch and the existing ACPX patch", (t) => {
   const destination = mkdtempSync(
-    join(tmpdir(), "paperclip-chat-release-contract-"),
+    join(tmpdir(), "nexus-chat-release-contract-"),
   );
   t.after(() => rmSync(destination, { recursive: true, force: true }));
   for (const [name, version] of [...required, ["acpx", "0.13.1"]]) {

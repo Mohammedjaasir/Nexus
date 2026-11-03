@@ -1,5 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm';
-import { companySkillSources, type Db } from '@paperclipai/db';
+import { companySkillSources, type Db } from '@nexusai/db';
 import { conflict, tooManyRequests } from '../errors.js';
 
 export const AUTOMATIC_SKILL_WORK_CAPACITY_BYTES = 512 * 1024 * 1024;

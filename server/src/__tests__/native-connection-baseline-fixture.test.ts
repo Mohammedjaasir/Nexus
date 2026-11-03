@@ -7,9 +7,9 @@ import { setupAggregatorFixture } from "../../../tests/runner-e2e/aggregator-fix
 
 let server: Awaited<ReturnType<typeof startRunnerApiTestServer>>;
 beforeAll(async () => {
-  vi.stubEnv("PAPERCLIP_AGENT_JWT_SECRET", randomUUID());
+  vi.stubEnv("NEXUS_AGENT_JWT_SECRET", randomUUID());
   server = await startRunnerApiTestServer({ deploymentMode: "local_trusted" });
-  vi.stubEnv("PAPERCLIP_RUNNER_E2E_PORT", new URL(server.apiUrl).port);
+  vi.stubEnv("NEXUS_RUNNER_E2E_PORT", new URL(server.apiUrl).port);
 }, 60_000);
 afterAll(async () => { await server?.close(); vi.unstubAllEnvs(); });
 
@@ -23,7 +23,7 @@ it("sets up an indexed company gateway without granting the eval agent access", 
     expect(gateway.initialAccess).toEqual({ installed: false, allowedToolIds: [] });
     expect(gateway.invocationCount()).toBe(0);
     const discovery = await fixture.authority.execute({ tool: "connections_search", callId: randomUUID(), arguments: { query: "HubSpot" } });
-    expect(discovery).toMatchObject({ providerQuestion: { id: "connection-provider:hubspot" }, providerQuestionSet: { schema: "paperclip.question_set.v1" } });
+    expect(discovery).toMatchObject({ providerQuestion: { id: "connection-provider:hubspot" }, providerQuestionSet: { schema: "nexus.question_set.v1" } });
     await expect(fixture.authority.execute({ tool: "connection_request", callId: randomUUID(), arguments: { service: "via:arcade:hubspot" } })).rejects.toThrow();
     expect(gateway.invocationCount()).toBe(0);
   } finally { await gateway?.close(); await context.dispose(); }

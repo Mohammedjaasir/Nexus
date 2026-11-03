@@ -1,4 +1,4 @@
-import type { VoicePhoneConfiguration, VoiceInboundCall, VoiceUnapprovedCallHistoryEntry } from "@paperclipai/shared";
+import type { VoicePhoneConfiguration, VoiceInboundCall, VoiceUnapprovedCallHistoryEntry } from "@nexusai/shared";
 import { api } from "./client";
 const path = (companyId: string, endpointId: string) => `/companies/${encodeURIComponent(companyId)}/voice-phone/${encodeURIComponent(endpointId)}`;
 export const voicePhoneApi = {

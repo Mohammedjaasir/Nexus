@@ -203,7 +203,7 @@ export interface AdapterSandboxExecutionTarget extends AdapterExecutionTargetWor
    * environment. Absent means no grant.
    */
   readonly enableSandboxDuplexBridge?: boolean;
-  /** Host-owned lifecycle override for paperclip_runner in this environment. */
+  /** Host-owned lifecycle override for nexus_runner in this environment. */
   readonly runnerLifecyclePolicy?:
     | { mode: "per_turn"; idleTimeoutMs: null }
     | { mode: "warm"; idleTimeoutMs: number }
@@ -297,13 +297,13 @@ export interface AdapterExecutionTargetProcessOptions {
   onProcessStopped?: () => void;
   terminalResultCleanup?: TerminalResultCleanupOptions;
   /**
-   * Sandbox-only: factory from the Paperclip bridge handle that streams the
+   * Sandbox-only: factory from the Nexus bridge handle that streams the
    * CLI's stdout/stderr during the run. When provided, the batched provider
    * onLog is suppressed and incremental chunks flow through `onLog` instead.
    */
   runLogTail?: SandboxRunLogTailFactory | null;
   /**
-   * Sandbox-only: the atomic run-disposition settle from the Paperclip bridge
+   * Sandbox-only: the atomic run-disposition settle from the Nexus bridge
    * handle. When provided, `runAdapterExecutionTargetProcess` calls it once at
    * the clean-completion boundary of the process, synchronously and before the
    * run-log tail finishes. The call reads the disposition and marks the
@@ -325,7 +325,7 @@ export interface AdapterExecutionTargetShellOptions {
   onLog?: (stream: "stdout" | "stderr", chunk: string) => Promise<void>;
 }
 
-export interface AdapterExecutionTargetPaperclipBridgeHandle {
+export interface AdapterExecutionTargetNexusBridgeHandle {
   env: Record<string, string>;
   /**
    * Present when the sandbox target opted into run-log streaming
@@ -435,17 +435,17 @@ function resolveHostForUrl(rawHost: string): string {
   return host;
 }
 
-function resolveDefaultPaperclipApiUrl(): string {
+function resolveDefaultNexusApiUrl(): string {
   const runtimeHost = resolveHostForUrl(
-    process.env.PAPERCLIP_LISTEN_HOST ?? process.env.HOST ?? "localhost",
+    process.env.NEXUS_LISTEN_HOST ?? process.env.HOST ?? "localhost",
   );
-  // 3100 matches the default Paperclip dev server port when the runtime does not provide one.
-  const runtimePort = process.env.PAPERCLIP_LISTEN_PORT ?? process.env.PORT ?? "3100";
+  // 3100 matches the default Nexus dev server port when the runtime does not provide one.
+  const runtimePort = process.env.NEXUS_LISTEN_PORT ?? process.env.PORT ?? "3100";
   return `http://${runtimeHost}:${runtimePort}`;
 }
 
 function isBridgeDebugEnabled(env: NodeJS.ProcessEnv): boolean {
-  const value = env.PAPERCLIP_BRIDGE_DEBUG?.trim().toLowerCase();
+  const value = env.NEXUS_BRIDGE_DEBUG?.trim().toLowerCase();
   return value === "1" || value === "true" || value === "yes";
 }
 
@@ -551,7 +551,7 @@ export function resolveAdapterExecutionTargetCwd(
   return adapterExecutionTargetRemoteCwd(target, localFallbackCwd);
 }
 
-export function adapterExecutionTargetUsesPaperclipBridge(
+export function adapterExecutionTargetUsesNexusBridge(
   target: AdapterExecutionTarget | null | undefined,
 ): boolean {
   return target?.kind === "remote";
@@ -647,7 +647,7 @@ export function formatAdapterExecutionTimeoutErrorMessage(
 
 /**
  * One-line start-of-run statement of the effective wall-clock timeout and its
- * source. Callers prefix with `[paperclip] ` and append a newline.
+ * source. Callers prefix with `[nexus] ` and append a newline.
  */
 export function formatAdapterExecutionTimeoutStartLogLine(
   resolution: AdapterExecutionTargetTimeoutResolution,
@@ -883,7 +883,7 @@ function applyRunDispositionSeam(
   const disposition = settleRunDisposition();
   if (!disposition.failed) return result;
   const lossReason = disposition.lossReason ?? "other";
-  const note = `[paperclip] The sandbox duplex control channel was lost (${lossReason}) before the run completed.\n`;
+  const note = `[nexus] The sandbox duplex control channel was lost (${lossReason}) before the run completed.\n`;
   const separator = result.stderr.length > 0 && !result.stderr.endsWith("\n") ? "\n" : "";
   return {
     ...result,
@@ -1265,7 +1265,7 @@ export async function ensureAdapterExecutionTargetRuntimeCommandInstalled(input:
         const reason = result.timedOut ? "timed out" : `exited ${result.exitCode ?? "?"}`;
         await input.onLog(
           "stderr",
-          `[paperclip] Install command ${reason} (${installCommand}) but ${detectCommand} is on PATH; continuing.\n`,
+          `[nexus] Install command ${reason} (${installCommand}) but ${detectCommand} is on PATH; continuing.\n`,
         );
       }
       return;
@@ -1298,7 +1298,7 @@ export async function ensureAdapterExecutionTargetFile(
  * For local targets this delegates to the local `ensureAbsoluteDirectory` helper
  * (Node fs). For remote (SSH/sandbox) targets it shells out and runs
  * `mkdir -p` (when allowed) followed by a `[ -d ]` check so the result reflects
- * the directory state inside the environment, not on the Paperclip host.
+ * the directory state inside the environment, not on the Nexus host.
  *
  * Throws an Error with a human-readable message on failure. Temporary target
  * failures carry a typed code so adapters can retain them as retryable checks.
@@ -1613,7 +1613,7 @@ export function runtimeAssetDir(
   key: string,
   fallbackRemoteCwd: string,
 ): string {
-  return prepared.assetDirs[key] ?? path.posix.join(fallbackRemoteCwd, ".paperclip-runtime", key);
+  return prepared.assetDirs[key] ?? path.posix.join(fallbackRemoteCwd, ".nexus-runtime", key);
 }
 
 type GitHubLauncherLocation = {
@@ -1625,9 +1625,9 @@ export function githubOperationLauncherDirectory(input: GitHubLauncherLocation):
   // Only controller-generated run IDs may name a removable directory.
   if (!/^[a-zA-Z0-9_-]+$/.test(input.runId)) throw new Error("Invalid GitHub launcher run ID");
   return input.target?.kind === "remote"
-    ? path.posix.join(input.target.remoteCwd, ".paperclip-runtime",
-        ...(input.target.transport === "sandbox" ? ["paperclip-runner"] : []), "github", input.runId)
-    : path.join(os.tmpdir(), "paperclip-github-runtime", input.runId);
+    ? path.posix.join(input.target.remoteCwd, ".nexus-runtime",
+        ...(input.target.transport === "sandbox" ? ["nexus-runner"] : []), "github", input.runId)
+    : path.join(os.tmpdir(), "nexus-github-runtime", input.runId);
 }
 
 /** Call only after execution settles, before releasing its remote environment lease. */
@@ -1682,18 +1682,18 @@ const fs = require('node:fs');
 const path = require('node:path');
 const cp = require('node:child_process');
 const env = {};
-env.PAPERCLIP_RUNNER_NETWORK_ROOTS = JSON.stringify(['/etc/resolv.conf','/etc/hosts','/etc/nsswitch.conf','/etc/ssl/certs','/etc/ssl/cert.pem'].flatMap(p => { try { return [fs.realpathSync(p)]; } catch { return []; } }));
+env.NEXUS_RUNNER_NETWORK_ROOTS = JSON.stringify(['/etc/resolv.conf','/etc/hosts','/etc/nsswitch.conf','/etc/ssl/certs','/etc/ssl/cert.pem'].flatMap(p => { try { return [fs.realpathSync(p)]; } catch { return []; } }));
 if (process.argv[1] === 'host') {
   for (const [key, value] of Object.entries(process.env)) {
-    if (/^(GH_TOKEN|GITHUB_TOKEN|GH_ENTERPRISE_TOKEN|GITHUB_ENTERPRISE_TOKEN|PAPERCLIP_GIT_TOKEN|GH_CONFIG_DIR|GIT_CONFIG_(GLOBAL|SYSTEM|NOSYSTEM|COUNT|KEY_\d+|VALUE_\d+)|GIT_(AUTHOR|COMMITTER)_(NAME|EMAIL)|GIT_ASKPASS|SSH_ASKPASS|SSH_AUTH_SOCK|GIT_SSH_COMMAND|GIT_SSH)$/.test(key)) env[key] = value;
+    if (/^(GH_TOKEN|GITHUB_TOKEN|GH_ENTERPRISE_TOKEN|GITHUB_ENTERPRISE_TOKEN|NEXUS_GIT_TOKEN|GH_CONFIG_DIR|GIT_CONFIG_(GLOBAL|SYSTEM|NOSYSTEM|COUNT|KEY_\d+|VALUE_\d+)|GIT_(AUTHOR|COMMITTER)_(NAME|EMAIL)|GIT_ASKPASS|SSH_ASKPASS|SSH_AUTH_SOCK|GIT_SSH_COMMAND|GIT_SSH)$/.test(key)) env[key] = value;
   }
-  env.PAPERCLIP_GITHUB_HOST_HOME = process.env.HOME || '';
+  env.NEXUS_GITHUB_HOST_HOME = process.env.HOME || '';
   env.GH_CONFIG_DIR ||= path.join(process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || '', '.config'), 'gh');
 }
 try {
   const top = cp.execFileSync('git', ['rev-parse', '--show-toplevel'], {encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();
   if (fs.realpathSync(top) === fs.realpathSync(process.cwd())) {
-    env.PAPERCLIP_GIT_METADATA_ROOTS = JSON.stringify(cp.execFileSync('git', ['rev-parse','--path-format=absolute','--git-common-dir','--git-dir'], {encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim().split('\n').map(p => fs.realpathSync(p)));
+    env.NEXUS_GIT_METADATA_ROOTS = JSON.stringify(cp.execFileSync('git', ['rev-parse','--path-format=absolute','--git-common-dir','--git-dir'], {encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim().split('\n').map(p => fs.realpathSync(p)));
   }
 } catch {}
 process.stdout.write("\0" + JSON.stringify(env) + "\0");
@@ -1708,9 +1708,9 @@ process.stdout.write("\0" + JSON.stringify(env) + "\0");
     // A legacy SSH host may run a standalone agent binary without Node. Use
     // only the shell and Git, and emit bounded, NUL-framed environment records.
     const probe = String.raw`
-printf '\0PAPERCLIP_GIT_CONTEXT_V1\0'
+printf '\0NEXUS_GIT_CONTEXT_V1\0'
 if [ "$1" = host ]; then
-  for key in GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN PAPERCLIP_GIT_TOKEN GH_CONFIG_DIR GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM GIT_CONFIG_NOSYSTEM GIT_CONFIG_COUNT GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_ASKPASS SSH_ASKPASS SSH_AUTH_SOCK GIT_SSH_COMMAND GIT_SSH; do
+  for key in GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN NEXUS_GIT_TOKEN GH_CONFIG_DIR GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM GIT_CONFIG_NOSYSTEM GIT_CONFIG_COUNT GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_ASKPASS SSH_ASKPASS SSH_AUTH_SOCK GIT_SSH_COMMAND GIT_SSH; do
     eval 'value=${"$"}{'"$key"'-}'
     [ -z "$value" ] || printf '%s\0%s\0' "$key" "$value"
   done
@@ -1723,7 +1723,7 @@ if [ "$1" = host ]; then
     done
     index=$((index + 1))
   done
-  printf 'PAPERCLIP_GITHUB_HOST_HOME\0%s\0' "$HOME"
+  printf 'NEXUS_GITHUB_HOST_HOME\0%s\0' "$HOME"
   printf 'GH_CONFIG_DIR\0%s\0' "${"$"}{GH_CONFIG_DIR:-${"$"}{XDG_CONFIG_HOME:-$HOME/.config}/gh}"
 fi
 for file in /etc/resolv.conf /etc/hosts /etc/nsswitch.conf /etc/ssl/certs /etc/ssl/cert.pem; do
@@ -1735,7 +1735,7 @@ for file in /etc/resolv.conf /etc/hosts /etc/nsswitch.conf /etc/ssl/certs /etc/s
   done
   if [ -e "$file" ]; then
     parent=$(cd "$(dirname "$file")" && pwd -P) || continue
-    printf 'PAPERCLIP_RUNNER_NETWORK_ROOT\0%s\0' "$parent/$(basename "$file")"
+    printf 'NEXUS_RUNNER_NETWORK_ROOT\0%s\0' "$parent/$(basename "$file")"
   fi
 done
 cwd=$(pwd -P)
@@ -1744,19 +1744,19 @@ if [ -n "$top" ] && [ "$(cd "$top" && pwd -P)" = "$cwd" ]; then
   for kind in --git-common-dir --git-dir; do
     root=$(git rev-parse --path-format=absolute "$kind" 2>/dev/null) || continue
     root=$(cd "$root" && pwd -P) || continue
-    printf 'PAPERCLIP_GIT_METADATA_ROOT\0%s\0' "$root"
+    printf 'NEXUS_GIT_METADATA_ROOT\0%s\0' "$root"
   done
 fi
-printf '\0PAPERCLIP_GIT_CONTEXT_END\0'
+printf '\0NEXUS_GIT_CONTEXT_END\0'
 `;
     const result = await adapterExecutionTargetCommandRunner(remote).execute({
-      command: "sh", args: ["-c", probe, "paperclip-git-context", input.hostCredentials ? "host" : "managed"],
+      command: "sh", args: ["-c", probe, "nexus-git-context", input.hostCredentials ? "host" : "managed"],
       // The caller's cwd belongs to the controller. Copied sandbox/SSH
       // workspaces can live at a different path on the execution target.
       cwd: remote.remoteCwd, timeoutMs: 15_000,
     });
     if (result.exitCode !== 0) throw new Error("Could not read execution-target Git context");
-    const payload = result.stdout.split("\0PAPERCLIP_GIT_CONTEXT_V1\0")[1]?.split("\0PAPERCLIP_GIT_CONTEXT_END\0")[0];
+    const payload = result.stdout.split("\0NEXUS_GIT_CONTEXT_V1\0")[1]?.split("\0NEXUS_GIT_CONTEXT_END\0")[0];
     if (payload === undefined) throw new Error("Could not read execution-target Git context");
     discovered = {};
     const records = payload.split("\0");
@@ -1765,12 +1765,12 @@ printf '\0PAPERCLIP_GIT_CONTEXT_END\0'
     for (let index = 0; index + 1 < records.length; index += 2) {
       const key = records[index]!;
       const value = records[index + 1]!;
-      if (key === "PAPERCLIP_GIT_METADATA_ROOT") roots.push(value);
-      else if (key === "PAPERCLIP_RUNNER_NETWORK_ROOT") networkRoots.push(value);
+      if (key === "NEXUS_GIT_METADATA_ROOT") roots.push(value);
+      else if (key === "NEXUS_RUNNER_NETWORK_ROOT") networkRoots.push(value);
       else discovered[key] = value;
     }
-    discovered.PAPERCLIP_GIT_METADATA_ROOTS = JSON.stringify([...new Set(roots)]);
-    discovered.PAPERCLIP_RUNNER_NETWORK_ROOTS = JSON.stringify([...new Set(networkRoots)]);
+    discovered.NEXUS_GIT_METADATA_ROOTS = JSON.stringify([...new Set(roots)]);
+    discovered.NEXUS_RUNNER_NETWORK_ROOTS = JSON.stringify([...new Set(networkRoots)]);
   } else {
     const result = await promisify(execFile)(process.execPath, args, { cwd: input.cwd, timeout: 15_000, maxBuffer: 1024 * 1024 });
     try { discovered = JSON.parse(result.stdout.split("\0")[1] ?? ""); }
@@ -1778,11 +1778,11 @@ printf '\0PAPERCLIP_GIT_CONTEXT_END\0'
   }
   // Controller-derived roots and mode must not be replaced by agent bindings.
   return { ...discovered, ...input.env,
-    ...(input.hostCredentials ? { PAPERCLIP_GITHUB_HOST_HOME: discovered.PAPERCLIP_GITHUB_HOST_HOME } : {}),
-    PAPERCLIP_GIT_METADATA_ROOTS: discovered.PAPERCLIP_GIT_METADATA_ROOTS ?? "[]",
-    PAPERCLIP_RUNNER_NETWORK_ROOTS: discovered.PAPERCLIP_RUNNER_NETWORK_ROOTS ?? "[]",
-    PAPERCLIP_GITHUB_AUTH_MODE: input.hostCredentials ? "host" : "managed",
-    PAPERCLIP_RUNNER_NETWORK_ACCESS: input.networkAccess ? "enabled" : "disabled",
+    ...(input.hostCredentials ? { NEXUS_GITHUB_HOST_HOME: discovered.NEXUS_GITHUB_HOST_HOME } : {}),
+    NEXUS_GIT_METADATA_ROOTS: discovered.NEXUS_GIT_METADATA_ROOTS ?? "[]",
+    NEXUS_RUNNER_NETWORK_ROOTS: discovered.NEXUS_RUNNER_NETWORK_ROOTS ?? "[]",
+    NEXUS_GITHUB_AUTH_MODE: input.hostCredentials ? "host" : "managed",
+    NEXUS_RUNNER_NETWORK_ACCESS: input.networkAccess ? "enabled" : "disabled",
   };
 }
 
@@ -1830,17 +1830,17 @@ export async function prepareGitHubOperationLaunchers(input: {
     for (const [program, body] of Object.entries(files)) await fs.writeFile(path.join(directory, program), body, { mode: 0o700 });
   }
   return { ...input.env, PATH: managedPath, ZDOTDIR: directory, BASH_ENV: `${directory}/.bashrc`,
-    GH_CONFIG_DIR: configDirectory, PAPERCLIP_GITHUB_LAUNCHER_DIR: directory };
+    GH_CONFIG_DIR: configDirectory, NEXUS_GITHUB_LAUNCHER_DIR: directory };
 }
 
 function buildBridgeResponseHeaders(response: Response): Record<string, string> {
   const out: Record<string, string> = {};
-  // Keep `x-paperclip-bridge-outcome` in this list. The host marks a
+  // Keep `x-nexus-bridge-outcome` in this list. The host marks a
   // possibly-committed mutation with the `indeterminate` outcome. The in-sandbox
   // server reads that header to map the 504 to a terminal 409. If the forward
   // drops the header, the server keeps the retryable 504 and a caller that
   // retries 5xx can repeat a mutation that already committed.
-  for (const key of ["content-type", "etag", "last-modified", "x-paperclip-bridge-outcome"]) {
+  for (const key of ["content-type", "etag", "last-modified", "x-nexus-bridge-outcome"]) {
     const value = response.headers.get(key);
     if (value && value.trim().length > 0) out[key] = value.trim();
   }
@@ -1921,12 +1921,12 @@ async function readBridgeForwardResponseBody(
   return Buffer.concat(chunks, totalBytes);
 }
 
-const PROCESS_SESSION_PROXY_SCRIPT = "paperclip-process-session-proxy.mjs";
-const PROCESS_SESSION_REMOTE_SCRIPT = "paperclip-process-session-remote.mjs";
+const PROCESS_SESSION_PROXY_SCRIPT = "nexus-process-session-proxy.mjs";
+const PROCESS_SESSION_REMOTE_SCRIPT = "nexus-process-session-remote.mjs";
 // The streamed variant writes its output frames to stdout, so it rides a
 // separate remote path. A sandbox can hold both scripts without the content
 // hash-skip gate thrashing when a run switches output mode.
-const PROCESS_SESSION_REMOTE_STREAM_SCRIPT = "paperclip-process-session-remote-stream.mjs";
+const PROCESS_SESSION_REMOTE_STREAM_SCRIPT = "nexus-process-session-remote-stream.mjs";
 const PROCESS_SESSION_AUTH_TIMEOUT_MS = 5_000;
 // The bounded budget `stop()` waits for the wrapper's `shutdownAck` event
 // before it removes `sessionDir` unconditionally. The wrapper writes the
@@ -1953,7 +1953,7 @@ async function writeProcessSessionProxyScript(dir: string, port: number, token: 
 
 // Content-hash-skip the process-session remote script write, mirroring the
 // sandbox callback bridge entrypoint sha256 gate. The script is a static
-// Paperclip-authored `.mjs` that only changes when the build changes, so on a
+// Nexus-authored `.mjs` that only changes when the build changes, so on a
 // warm start (same sandbox, script already present) the single sha-gate exec
 // skips the ~3-exec base64 upload entirely. `syncRemoteTextFileWithHashSkip`
 // fails loud on a check error rather than silently re-uploading.
@@ -1974,7 +1974,7 @@ async function syncProcessSessionRemoteScript(input: {
     body: getProcessSessionRemoteSource({ outputToStdout: input.outputToStdout === true }),
     label: "Process session remote script",
     action: "sync process session remote script",
-    lockDir: path.posix.join(input.remoteScriptDir, ".paperclip-process-session-script.lock"),
+    lockDir: path.posix.join(input.remoteScriptDir, ".nexus-process-session-script.lock"),
     timeoutMs: input.timeoutMs,
     shellCommand: input.shellCommand,
   });
@@ -2030,7 +2030,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
   // The launch env is consumed ONLY when building the base64 `commandPayload`
   // below — never during the env-INDEPENDENT dir/script setup. Accepting a
   // resolver (in addition to a plain object) lets a caller overlap that setup
-  // with other work — e.g. starting the paperclip callback bridge — and hand the
+  // with other work — e.g. starting the nexus callback bridge — and hand the
   // merged env in right before the launch.
   env: Record<string, string> | (() => Promise<Record<string, string>>);
   timeoutSec?: number | null;
@@ -2079,7 +2079,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
       ? Math.trunc(input.timeoutSec * 1000)
       : target.timeoutMs ?? undefined;
   const bridgeRuntimeDir = path.posix.join(
-    input.runtimeRootDir?.trim() || path.posix.join(target.remoteCwd, ".paperclip-runtime", input.adapterKey),
+    input.runtimeRootDir?.trim() || path.posix.join(target.remoteCwd, ".nexus-runtime", input.adapterKey),
     "process-sessions",
   );
   const sessionId = randomUUID();
@@ -2115,7 +2115,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
   });
 
   // Resolve the launch env AFTER the env-independent setup above, so a caller
-  // can defer it until an upstream dependency (e.g. the paperclip bridge's env)
+  // can defer it until an upstream dependency (e.g. the nexus bridge's env)
   // is ready without blocking the dir/script setup.
   const launchEnv = typeof input.env === "function" ? await input.env() : input.env;
   const commandPayload = Buffer.from(JSON.stringify({
@@ -2133,7 +2133,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
   // the existing path; upload larger envelopes in bounded chunks instead.
   const commandEnv: Record<string, string> = {};
   if (commandPayload.length <= 64 * 1024) {
-    commandEnv.PAPERCLIP_PROCESS_SESSION_COMMAND_B64 = commandPayload;
+    commandEnv.NEXUS_PROCESS_SESSION_COMMAND_B64 = commandPayload;
   } else {
     const payloadPath = path.posix.join(sessionDir, "command.b64");
     const runPayloadSetup = async (script: string) => {
@@ -2165,7 +2165,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
   // event files with the host poll below. The streamed path launches the wrapper
   // as one foreground session command further down instead, so skip this.
   if (!streamOutput) {
-    await onLog("stdout", `[paperclip] Starting ACP process session bridge in sandbox (${target.providerKey ?? "provider"}).\n`);
+    await onLog("stdout", `[nexus] Starting ACP process session bridge in sandbox (${target.providerKey ?? "provider"}).\n`);
     const startResult = await runSandboxBridgeControlCommand(runner, {
       command: shellCommand,
       args: shellCommandArgs(
@@ -2173,14 +2173,14 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
           `mkdir -p ${shellQuote(stdinDir)} ${shellQuote(eventsDir)}`,
           // I3: no numeric process identifier anywhere. Background the
           // wrapper and let it go; do not capture `$!`.
-          `PAPERCLIP_PROCESS_SESSION_DIR=${shellQuote(sessionDir)} ` +
+          `NEXUS_PROCESS_SESSION_DIR=${shellQuote(sessionDir)} ` +
             Object.entries(commandEnv).map(([key, value]) => `${key}=${shellQuote(value)} `).join("") +
             `nohup node ${shellQuote(remoteScriptPath)} >/dev/null 2>&1 < /dev/null &`,
         ].join("\n"),
       ),
       cwd: target.remoteCwd,
       env: {
-        PAPERCLIP_SANDBOX_EXEC_CHANNEL: "bridge",
+        NEXUS_SANDBOX_EXEC_CHANNEL: "bridge",
       },
       timeoutMs,
       // The wrapper launch is bridge plumbing. Keep it off the persistent
@@ -2254,7 +2254,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
       "SIGSEGV", "SIGPIPE", "SIGALRM", "SIGTERM", "SIGBUS", "SIGXCPU", "SIGXFSZ",
     ].includes(event.signal) ? event.signal : "unknown";
     logFailureWithoutWaiting(
-      `[paperclip] ACP process session terminal: source=${source} outcome=${outcome} exitCode=${code} signal=${signal}.\n`,
+      `[nexus] ACP process session terminal: source=${source} outcome=${outcome} exitCode=${code} signal=${signal}.\n`,
     );
   };
   const pendingRemoteEvents: Array<{
@@ -2266,7 +2266,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
     message?: string;
   }> = [];
   const token = createSandboxCallbackBridgeToken(18);
-  const proxyDir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-process-session-proxy-"));
+  const proxyDir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-process-session-proxy-"));
   // `stop()` waits on this promise, bounded, for the wrapper's `shutdownAck`
   // event. `deliverRemoteEvent` resolves it below and never forwards the
   // event further: it is a host-internal control ack, not part of the ACP
@@ -2418,7 +2418,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
               }
               // stop() awaits this input chain before sending shutdown. Run-log
               // persistence must not hold teardown open when it stalls or fails.
-              logFailureWithoutWaiting(`[paperclip] ${message}\n`);
+              logFailureWithoutWaiting(`[nexus] ${message}\n`);
             }
           });
         }
@@ -2521,7 +2521,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
 
     await onLog(
       "stdout",
-      `[paperclip] Starting streamed ACP process session bridge in sandbox (${target.providerKey ?? "provider"}).\n`,
+      `[nexus] Starting streamed ACP process session bridge in sandbox (${target.providerKey ?? "provider"}).\n`,
     );
     // Fire the long-lived command; do NOT await it here. `useSession` forces the
     // persistent session so the provider streams the wrapper stdout back through
@@ -2556,9 +2556,9 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
             args: shellCommandArgs(`node ${shellQuote(remoteScriptPath)}`),
             cwd: target.remoteCwd,
             env: {
-              PAPERCLIP_PROCESS_SESSION_DIR: sessionDir,
+              NEXUS_PROCESS_SESSION_DIR: sessionDir,
               ...commandEnv,
-              PAPERCLIP_SANDBOX_EXEC_CHANNEL: "bridge",
+              NEXUS_SANDBOX_EXEC_CHANNEL: "bridge",
             },
             timeoutMs,
             useSession: true,
@@ -2692,7 +2692,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
       stopReadingForShutdownAck = true;
       if (!acknowledgedInTime) {
         logFailureWithoutWaiting(
-          `[paperclip] ACP process session wrapper did not acknowledge shutdown within ${DEFAULT_PROCESS_SESSION_SHUTDOWN_WAIT_MS}ms; removing the session directory anyway.\n`,
+          `[nexus] ACP process session wrapper did not acknowledge shutdown within ${DEFAULT_PROCESS_SESSION_SHUTDOWN_WAIT_MS}ms; removing the session directory anyway.\n`,
         );
       }
       // Unconditional: this removal runs whether or not the wrapper
@@ -2782,7 +2782,7 @@ const PROCESS_SESSION_STDIN_POLL_TAIL = `child.stdin.on("error", () => {});
 // and write an error event, so a lost message fails loud, and let later files
 // run.
 const stdinMaxParseRetries = (() => {
-  const raw = Number.parseInt(process.env.PAPERCLIP_PROCESS_SESSION_STDIN_MAX_RETRIES || "", 10);
+  const raw = Number.parseInt(process.env.NEXUS_PROCESS_SESSION_STDIN_MAX_RETRIES || "", 10);
   return Number.isFinite(raw) && raw > 0 ? raw : 100;
 })();
 const stdinParseRetries = new Map();
@@ -2800,7 +2800,7 @@ let stdinGapRetries = 0;
 // call sends. A test can override it through the environment, so a stubborn
 // child does not force a slow test.
 const terminateGraceMs = (() => {
-  const raw = Number.parseInt(process.env.PAPERCLIP_PROCESS_SESSION_TERMINATE_GRACE_MS || "", 10);
+  const raw = Number.parseInt(process.env.NEXUS_PROCESS_SESSION_TERMINATE_GRACE_MS || "", 10);
   return Number.isFinite(raw) && raw > 0 ? raw : 3000;
 })();
 
@@ -2881,7 +2881,7 @@ async function statPathIdentity(candidatePath) {
   const stats = await fs.lstat(candidatePath);
   if (stats.isSymbolicLink()) {
     const error = new Error("Refusing a symbolic link on a process session control path.");
-    error.code = "EPAPERCLIP_SYMLINK";
+    error.code = "ENEXUS_SYMLINK";
     throw error;
   }
   if (!stats.isDirectory()) {
@@ -2909,7 +2909,7 @@ let probeSeq = 0;
 // a poll cycle ever lists the directory during the probe's short window.
 function nextProbeFileName() {
   probeSeq += 1;
-  return ".paperclip-birthtime-probe-" + process.pid + "-" + probeSeq;
+  return ".nexus-birthtime-probe-" + process.pid + "-" + probeSeq;
 }
 
 // Proves a directory's reported birthtimeMs is a real creation time, not a
@@ -3068,7 +3068,7 @@ async function verifySessionIdentity() {
         ? "the control path no longer exists"
         : code === "ENOTDIR"
           ? "the control path is no longer a directory"
-          : code === "EPAPERCLIP_SYMLINK"
+          : code === "ENEXUS_SYMLINK"
             ? "the control path is now a symbolic link"
             : "lstat failed" + (code ? " with " + code : "");
     process.stderr.write("Latching on a lost process session identity: " + reason + ". Terminating.\\n");
@@ -3197,7 +3197,7 @@ void pollStdin().catch((error) => void writeEvent({ type: "error", message: erro
 const PROCESS_SESSION_READ_COMMAND = `
 let config;
 try {
-  let commandPayload = process.env.PAPERCLIP_PROCESS_SESSION_COMMAND_B64;
+  let commandPayload = process.env.NEXUS_PROCESS_SESSION_COMMAND_B64;
   if (!commandPayload) {
     const payloadPath = path.posix.join(sessionDir, "command.b64");
     const handle = await fs.open(payloadPath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
@@ -3232,7 +3232,7 @@ function getProcessSessionRemoteStreamSource(): string {
 import { promises as fs, constants as fsConstants } from "node:fs";
 import path from "node:path";
 
-const sessionDir = process.env.PAPERCLIP_PROCESS_SESSION_DIR;
+const sessionDir = process.env.NEXUS_PROCESS_SESSION_DIR;
 if (!sessionDir) throw new Error("Missing process session bridge env.");
 
 const stdinDir = path.posix.join(sessionDir, "stdin");
@@ -3275,8 +3275,8 @@ ${PROCESS_SESSION_READ_COMMAND}
 // session dir and the command payload. Scrub both keys before they reach the
 // spawned child, so the child never inherits a path to its own control files.
 const childEnv = { ...process.env, ...(config.env || {}) };
-delete childEnv.PAPERCLIP_PROCESS_SESSION_DIR;
-delete childEnv.PAPERCLIP_PROCESS_SESSION_COMMAND_B64;
+delete childEnv.NEXUS_PROCESS_SESSION_DIR;
+delete childEnv.NEXUS_PROCESS_SESSION_COMMAND_B64;
 
 // I1: exactly one child process per emitted wrapper. Do not add a second
 // tracked child handle.
@@ -3315,7 +3315,7 @@ function getProcessSessionRemoteEventFileSource(): string {
 import { promises as fs, constants as fsConstants } from "node:fs";
 import path from "node:path";
 
-const sessionDir = process.env.PAPERCLIP_PROCESS_SESSION_DIR;
+const sessionDir = process.env.NEXUS_PROCESS_SESSION_DIR;
 if (!sessionDir) throw new Error("Missing process session bridge env.");
 
 const stdinDir = path.posix.join(sessionDir, "stdin");
@@ -3366,8 +3366,8 @@ ${PROCESS_SESSION_READ_COMMAND}
 // session dir and the command payload. Scrub both keys before they reach the
 // spawned child, so the child never inherits a path to its own control files.
 const childEnv = { ...process.env, ...(config.env || {}) };
-delete childEnv.PAPERCLIP_PROCESS_SESSION_DIR;
-delete childEnv.PAPERCLIP_PROCESS_SESSION_COMMAND_B64;
+delete childEnv.NEXUS_PROCESS_SESSION_DIR;
+delete childEnv.NEXUS_PROCESS_SESSION_COMMAND_B64;
 
 // I1: exactly one child process per emitted wrapper. Do not add a second
 // tracked child handle.
@@ -4359,7 +4359,7 @@ async function closeDuplexChannelWithinBudget(
   }
 }
 
-export async function startAdapterExecutionTargetPaperclipBridge(input: {
+export async function startAdapterExecutionTargetNexusBridge(input: {
   runId: string;
   target: AdapterExecutionTarget | null | undefined;
   runtimeRootDir: string | null | undefined;
@@ -4401,8 +4401,8 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
   // default is a no-op recorder, so the surface stays inert until the host injects
   // a real recorder.
   duplexObservabilityRecorder?: DuplexObservabilityRecorder | null;
-}): Promise<AdapterExecutionTargetPaperclipBridgeHandle | null> {
-  if (!adapterExecutionTargetUsesPaperclipBridge(input.target)) {
+}): Promise<AdapterExecutionTargetNexusBridgeHandle | null> {
+  if (!adapterExecutionTargetUsesNexusBridge(input.target)) {
     return null;
   }
   if (!input.target || input.target.kind !== "remote") {
@@ -4413,7 +4413,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
   const onLog = input.onLog ?? (async () => {});
   const hostApiToken = input.hostApiToken?.trim() ?? "";
   if (hostApiToken.length === 0) {
-    throw new Error("Sandbox bridge mode requires a host-side Paperclip API token.");
+    throw new Error("Sandbox bridge mode requires a host-side Nexus API token.");
   }
   // The forward budget for one relayed request. It stays at the broker's default
   // forward budget (30 s) when the caller sets no option, so current behavior
@@ -4423,12 +4423,12 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
   const runtimeRootDir =
     input.runtimeRootDir?.trim().length
       ? input.runtimeRootDir.trim()
-      : path.posix.join(target.remoteCwd, ".paperclip-runtime", input.adapterKey);
-  const bridgeRuntimeDir = path.posix.join(runtimeRootDir, "paperclip-bridge");
+      : path.posix.join(target.remoteCwd, ".nexus-runtime", input.adapterKey);
+  const bridgeRuntimeDir = path.posix.join(runtimeRootDir, "nexus-bridge");
   const queueDir = path.posix.join(bridgeRuntimeDir, "queue");
   const assetRemoteDir = path.posix.join(bridgeRuntimeDir, "server");
   const bridgeToken = createSandboxCallbackBridgeToken();
-  const configuredAttachmentBytes = Number(process.env.PAPERCLIP_ATTACHMENT_MAX_BYTES);
+  const configuredAttachmentBytes = Number(process.env.NEXUS_ATTACHMENT_MAX_BYTES);
   // A larger upload limit needs multipart headroom. A smaller attachment limit
   // remains enforced by the API and must not shrink unrelated JSON responses.
   const defaultBodyBytes = Number.isSafeInteger(configuredAttachmentBytes) && configuredAttachmentBytes > 0
@@ -4438,19 +4438,19 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
     typeof input.maxBodyBytes === "number" && Number.isFinite(input.maxBodyBytes) && input.maxBodyBytes > 0
       ? Math.trunc(input.maxBodyBytes)
       : defaultBodyBytes;
-  // The bridge worker runs inside the same process that serves the Paperclip
+  // The bridge worker runs inside the same process that serves the Nexus
   // API, so forwarded sandbox calls must target the LOCAL listen origin. The
-  // PAPERCLIP_RUNTIME_API_URL / PAPERCLIP_API_URL exports now prefer a
+  // NEXUS_RUNTIME_API_URL / NEXUS_API_URL exports now prefer a
   // configured public base URL, which is the origin browsers and external
   // agents use; routing this in-process loopback hop through the network edge
   // breaks deployments whose public origin sits behind a session-gated proxy
   // (every forwarded agent API call is rejected at the edge). Server boot
-  // exports PAPERCLIP_LISTEN_HOST / PAPERCLIP_LISTEN_PORT before any run
-  // executes, and resolveDefaultPaperclipApiUrl() maps wildcard listen hosts
+  // exports NEXUS_LISTEN_HOST / NEXUS_LISTEN_PORT before any run
+  // executes, and resolveDefaultNexusApiUrl() maps wildcard listen hosts
   // to the loopback address of the same family (0.0.0.0 -> 127.0.0.1,
   // :: -> [::1]), so the fallback is always loopback-reachable.
   // input.hostApiUrl stays available as an explicit override seam.
-  const hostApiUrl = input.hostApiUrl?.trim() || resolveDefaultPaperclipApiUrl();
+  const hostApiUrl = input.hostApiUrl?.trim() || resolveDefaultNexusApiUrl();
   const shellCommand = adapterExecutionTargetShellCommand(target);
   const runner = adapterExecutionTargetCommandRunner(target);
   const bridgeTimeoutMs =
@@ -4460,7 +4460,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
 
   await onLog(
     "stdout",
-    `[paperclip] Starting sandbox callback bridge for ${input.adapterKey} in ${bridgeRuntimeDir}.\n`,
+    `[nexus] Starting sandbox callback bridge for ${input.adapterKey} in ${bridgeRuntimeDir}.\n`,
   );
 
   const bridgeAsset = await createSandboxCallbackBridgeAsset();
@@ -4479,14 +4479,14 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
     transport: "http2",
   });
 
-  // PAPERCLIP_BRIDGE_DEBUG opts into verbose stdout logs of every bridge proxy
+  // NEXUS_BRIDGE_DEBUG opts into verbose stdout logs of every bridge proxy
   // request/response. The query string is logged verbatim, so callers who pass
   // auth tokens or other sensitive values as query parameters should be aware
   // those values appear in the host process's stdout when this flag is enabled.
   // Only intended for active debugging in trusted environments.
   const bridgeDebugEnabled = isBridgeDebugEnabled(process.env);
 
-  // One forward of a relayed sandbox request onto the existing Paperclip API
+  // One forward of a relayed sandbox request onto the existing Nexus API
   // path. The forward applies the real host token and the signed run id, so the
   // token replacement and the run attribution stay in one place for both the
   // file bridge and the duplex broker. The sandbox request carries only the
@@ -4518,7 +4518,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
     if (emitDebugLog) {
       await onLog(
         "stdout",
-        `[paperclip] Bridge proxy ${method} ${request.path}${request.query ? `?${request.query}` : ""}\n`,
+        `[nexus] Bridge proxy ${method} ${request.path}${request.query ? `?${request.query}` : ""}\n`,
       );
     }
     const headers = new Headers();
@@ -4527,7 +4527,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
       headers.set(key, value);
     }
     headers.set("authorization", `Bearer ${hostApiToken}`);
-    headers.set("x-paperclip-run-id", input.runId);
+    headers.set("x-nexus-run-id", input.runId);
     // Abort the forward when the caller aborts the request (its per-iteration
     // timeout or watchdog fired, or the broker's forward budget ended), or after
     // the forward budget here, whichever comes first.
@@ -4552,7 +4552,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
     if (emitDebugLog) {
       await onLog(
         "stdout",
-        `[paperclip] Bridge proxy response ${response.status} for ${method} ${request.path}${request.query ? `?${request.query}` : ""}\n`,
+        `[nexus] Bridge proxy response ${response.status} for ${method} ${request.path}${request.query ? `?${request.query}` : ""}\n`,
       );
     }
     // The host delivered response headers, so the response-body read starts after
@@ -4603,7 +4603,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
         status: 504,
         headers: {
           "content-type": "application/json",
-          "x-paperclip-bridge-outcome": "indeterminate",
+          "x-nexus-bridge-outcome": "indeterminate",
         },
         body: Buffer.from(
           JSON.stringify({
@@ -4689,12 +4689,12 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
         shellCommand,
       });
       const gatewayEnv: Record<string, string> = {
-        PAPERCLIP_API_BRIDGE_MODE: SANDBOX_CALLBACK_BRIDGE_HTTP2_MODE,
-        PAPERCLIP_BRIDGE_TOKEN: bridgeToken,
-        PAPERCLIP_BRIDGE_HOST: "127.0.0.1",
-        PAPERCLIP_BRIDGE_PORT: String(assignedPort),
-        PAPERCLIP_BRIDGE_NONCE: nonce,
-        PAPERCLIP_BRIDGE_MAX_BODY_BYTES: String(maxBodyBytes),
+        NEXUS_API_BRIDGE_MODE: SANDBOX_CALLBACK_BRIDGE_HTTP2_MODE,
+        NEXUS_BRIDGE_TOKEN: bridgeToken,
+        NEXUS_BRIDGE_HOST: "127.0.0.1",
+        NEXUS_BRIDGE_PORT: String(assignedPort),
+        NEXUS_BRIDGE_NONCE: nonce,
+        NEXUS_BRIDGE_MAX_BODY_BYTES: String(maxBodyBytes),
       };
       const command = buildDuplexGatewayLaunchArgv({
         shellCommand,
@@ -4720,7 +4720,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
       duplexChannelOpen.fallback(reason);
       await onLog(
         "stderr",
-        `[paperclip] Could not open the sandbox duplex channel (${reason}). Using the file bridge.\n`,
+        `[nexus] Could not open the sandbox duplex channel (${reason}). Using the file bridge.\n`,
       );
       channel = null;
     }
@@ -4742,7 +4742,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
         duplexChannelOpen.fallback(duplexReadinessFallbackReason(readiness.reason));
         await onLog(
           "stderr",
-          `[paperclip] Sandbox duplex readiness failed (${readiness.reason}). Using the file bridge.\n`,
+          `[nexus] Sandbox duplex readiness failed (${readiness.reason}). Using the file bridge.\n`,
         );
       } else {
         // Readiness passed. The gate retained every byte that followed the
@@ -4768,7 +4768,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
           duplexChannelOpen.fallback("preface_missing");
           await onLog(
             "stderr",
-            "[paperclip] Sandbox HTTP/2 client preface did not appear inside the bounded readiness buffer (preface_missing). Using the file bridge.\n",
+            "[nexus] Sandbox HTTP/2 client preface did not appear inside the bounded readiness buffer (preface_missing). Using the file bridge.\n",
           );
         } else {
           // The run disposition latch for the http2_v1 path, in the same
@@ -4792,7 +4792,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
             }
             const lossClass = anyStreamDispatched ? "post_dispatch" : "pre_dispatch";
             duplexObservability.recordLoss(lossClass, reason);
-            void onLog("stderr", `[paperclip] Sandbox HTTP/2 channel lost (${reason}). The run fails.\n`);
+            void onLog("stderr", `[nexus] Sandbox HTTP/2 channel lost (${reason}). The run fails.\n`);
           };
 
           // The forward handler applies the real host token and the run id
@@ -4832,7 +4832,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
             forwardRequest: http2ForwardRequest,
             routes: HTTP2_SANDBOX_CALLBACK_BRIDGE_ROUTE_ALLOWLIST,
             // The same resolved limit the launch environment hands the
-            // sandbox-side gateway (`PAPERCLIP_BRIDGE_MAX_BODY_BYTES`,
+            // sandbox-side gateway (`NEXUS_BRIDGE_MAX_BODY_BYTES`,
             // below), so the host check and the gateway check enforce one
             // value instead of the host silently falling back to the
             // package default.
@@ -4874,7 +4874,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
           duplexChannelOpen.ready();
           await onLog(
             "stdout",
-            "[paperclip] Sandbox HTTP/2 transport ready; serving the host-assigned origin.\n",
+            "[nexus] Sandbox HTTP/2 transport ready; serving the host-assigned origin.\n",
           );
           // Stream run logs on the http2 path with the same gate and the same
           // log line as the file path. The http2 path starts no file-bridge
@@ -4895,13 +4895,13 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
               logsDir: duplexLogsDir,
               shellCommand,
             });
-            await onLog("stdout", "[paperclip] Sandbox run log streaming enabled for this run.\n");
+            await onLog("stdout", "[nexus] Sandbox run log streaming enabled for this run.\n");
           }
           return {
             env: {
-              PAPERCLIP_API_URL: sandboxOrigin,
-              PAPERCLIP_API_KEY: bridgeToken,
-              PAPERCLIP_API_BRIDGE_MODE: SANDBOX_CALLBACK_BRIDGE_HTTP2_MODE,
+              NEXUS_API_URL: sandboxOrigin,
+              NEXUS_API_KEY: bridgeToken,
+              NEXUS_API_BRIDGE_MODE: SANDBOX_CALLBACK_BRIDGE_HTTP2_MODE,
             },
             runLogTail: duplexRunLogTail,
             readRunDisposition: (): DuplexBrokerRunDisposition => dispositionLatch.disposition,
@@ -4936,7 +4936,7 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
       shellCommand,
     });
     // `startSandboxCallbackBridgeWorker` keeps its awaited queue-directory
-    // setup on the active `bridge.paperclip` step, and runs each request under
+    // setup on the active `bridge.nexus` step, and runs each request under
     // the run parent context (see `runWithRuntimeParent` inside that function).
     // So the startup `mkdir` execs stay parented to the step, and every later
     // request `sandbox.exec` span parents to the live run span.
@@ -4979,15 +4979,15 @@ export async function startAdapterExecutionTargetPaperclipBridge(input: {
       logsDir: sandboxCallbackBridgeDirectories(queueDir).logsDir,
       shellCommand,
     });
-    await onLog("stdout", "[paperclip] Sandbox run log streaming enabled for this run.\n");
+    await onLog("stdout", "[nexus] Sandbox run log streaming enabled for this run.\n");
   }
 
   return {
     env: {
-      PAPERCLIP_API_URL: server.baseUrl,
-      PAPERCLIP_API_KEY: bridgeToken,
-      PAPERCLIP_API_BRIDGE_MODE: "queue_v1",
-      PAPERCLIP_BRIDGE_QUEUE_DIR: queueDir,
+      NEXUS_API_URL: server.baseUrl,
+      NEXUS_API_KEY: bridgeToken,
+      NEXUS_API_BRIDGE_MODE: "queue_v1",
+      NEXUS_BRIDGE_QUEUE_DIR: queueDir,
     },
     runLogTail,
     stop: async () => {

@@ -3,7 +3,7 @@ import { kimiPendingWritePermissionCard } from "./kimi-permission-card.js";
 import type { KimiLifecyclePending } from "./kimi-lifecycle-evidence.js";
 
 const pending: KimiLifecyclePending = {
-  schema: "paperclip.e2e.kimi-native-write-pending.v1",
+  schema: "nexus.e2e.kimi-native-write-pending.v1",
   scope: { companyId: "synthetic-company", issueId: "synthetic-issue", runId: "synthetic-run", target: "denied/expected.txt" },
   requestId: "native-write-request", toolCallId: "0:native-write", executionId: "0:native-write", itemId: "native-item", turnId: "native-turn",
   normalizedSessionId: "native-session", sourceInstanceId: "native-runner", requestSourceSeq: 9, startedSourceSeq: 7,
@@ -11,7 +11,7 @@ const pending: KimiLifecyclePending = {
 };
 const card = (prompt: string, status: string, controls = "") => `<article data-testid="task-chat-runtime-request"><header><strong>Runtime permission</strong><span>${status}</span></header><p>${prompt}</p>${controls}</article>`;
 const decisions = '<button>Deny</button><button>Allow once</button>';
-const history = card("mcp__paperclip__get_task_context", "resolved");
+const history = card("mcp__nexus__get_task_context", "resolved");
 const write = () => card(`Change file: ${pending.scope.target}`, "pending", decisions);
 
 test("selects the exact pending Write while resolved context remains visible, then follows the same terminal card", async ({ page }) => {
@@ -19,13 +19,13 @@ test("selects the exact pending Write while resolved context remains visible, th
   await expect(page.getByTestId("task-chat-runtime-request")).toHaveCount(2);
   const selected = await kimiPendingWritePermissionCard({ page, pending, readPending: async () => structuredClone(pending) });
   await expect(selected).toHaveCount(1);
-  await expect(page.getByText("mcp__paperclip__get_task_context", { exact: true })).toBeVisible();
+  await expect(page.getByText("mcp__nexus__get_task_context", { exact: true })).toBeVisible();
   for (const status of ["cancelled", "expired"]) {
     await page.setContent(history + card(`Change file: ${pending.scope.target}`, status));
     await expect(selected).toHaveCount(1);
     await expect(selected.getByText(status, { exact: true })).toBeVisible();
     await expect(selected.getByRole("button")).toHaveCount(0);
-    await expect(page.getByText("mcp__paperclip__get_task_context", { exact: true })).toBeVisible();
+    await expect(page.getByText("mcp__nexus__get_task_context", { exact: true })).toBeVisible();
   }
 });
 

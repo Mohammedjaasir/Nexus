@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { act } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { DEFAULT_AGENT_OBSERVABILITY_CAPTURE, type AgentObservabilitySettings } from "@paperclipai/shared";
+import { DEFAULT_AGENT_OBSERVABILITY_CAPTURE, type AgentObservabilitySettings } from "@nexusai/shared";
 import { AgentObservabilitySettingsView, type AgentObservabilitySettingsViewProps } from "./AgentObservabilitySettings";
 
 let root: Root, element: HTMLDivElement;

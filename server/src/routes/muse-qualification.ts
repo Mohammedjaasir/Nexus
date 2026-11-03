@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
 import { z } from "zod";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { assertBoard, assertCompanyAccess } from "./authz.js";
 import { forbidden, notFound } from "../errors.js";
 import { accessService } from "../services/access.js";

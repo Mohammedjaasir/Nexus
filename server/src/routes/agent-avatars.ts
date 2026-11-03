@@ -1,7 +1,7 @@
 import { finished, pipeline } from "node:stream/promises";
 import { Router } from "express";
 import { z } from "zod";
-import { AGENT_PALETTE_IDS, AGENT_AVATAR_SIZES, CHARACTER_STATES, appearanceForPalette, type AgentAvatarSize } from "@paperclipai/shared";
+import { AGENT_PALETTE_IDS, AGENT_AVATAR_SIZES, CHARACTER_STATES, appearanceForPalette, type AgentAvatarSize } from "@nexusai/shared";
 import { AvatarAdmissionError, createAgentAvatarService } from "../services/agent-avatars.js";
 import { createStorageProviderFromConfig } from "../storage/provider-registry.js";
 import { loadConfig } from "../config.js";
@@ -13,7 +13,7 @@ const requestSchema = z.object({
   pose: z.enum(CHARACTER_STATES),
   size: z.string().regex(/^\d+$/).default("512").transform(Number).refine(n => (AGENT_AVATAR_SIZES as readonly number[]).includes(n)),
   scale: z.enum(["1", "2"]).default("1"),
-  background: z.enum(["transparent", "paperclip-dark"]).default("transparent"),
+  background: z.enum(["transparent", "nexus-dark"]).default("transparent"),
 }).strict();
 
 /**

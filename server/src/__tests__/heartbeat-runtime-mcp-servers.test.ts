@@ -22,12 +22,12 @@ import {
   toolProfileBindings,
   toolProfileEntries,
   toolProfiles,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
-import { buildPaperclipRuntimeMcpServers, createManagedMcpRunConfig } from "../services/heartbeat.js";
+import { buildNexusRuntimeMcpServers, createManagedMcpRunConfig } from "../services/heartbeat.js";
 import { createToolGatewayService, ToolGatewayHttpError } from "../services/tool-gateway.js";
 
 import { toolAccessService } from "../services/tool-access.js";
@@ -38,16 +38,16 @@ const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : 
 describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
   let db!: ReturnType<typeof createDb>;
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
-  const originalApiUrl = process.env.PAPERCLIP_API_URL;
+  const originalApiUrl = process.env.NEXUS_API_URL;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-heartbeat-runtime-mcp-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-heartbeat-runtime-mcp-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
   afterEach(async () => {
-    if (originalApiUrl === undefined) delete process.env.PAPERCLIP_API_URL;
-    else process.env.PAPERCLIP_API_URL = originalApiUrl;
+    if (originalApiUrl === undefined) delete process.env.NEXUS_API_URL;
+    else process.env.NEXUS_API_URL = originalApiUrl;
     await db.delete(toolMcpGatewayTokens);
     await db.delete(activityLog);
     await db.delete(toolAccessAuditEvents);
@@ -70,7 +70,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
   });
 
   it("provisions one aggregate gateway and omits unavailable access without blocking any runtime", async () => {
-    process.env.PAPERCLIP_API_URL = "https://paperclip.example.test";
+    process.env.NEXUS_API_URL = "https://nexus.example.test";
     const [company] = await db.insert(companies).values({
       name: `Runtime MCP ${randomUUID()}`,
       issuePrefix: `RM${randomUUID().slice(0, 5).toUpperCase()}`,
@@ -139,14 +139,14 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
     });
 
     const before = Date.now();
-    const first = await buildPaperclipRuntimeMcpServers({ db, agent: agent!, runId: randomUUID() });
-    const second = await buildPaperclipRuntimeMcpServers({ db, agent: agent!, runId: randomUUID() });
+    const first = await buildNexusRuntimeMcpServers({ db, agent: agent!, runId: randomUUID() });
+    const second = await buildNexusRuntimeMcpServers({ db, agent: agent!, runId: randomUUID() });
 
     expect(first).toHaveLength(1);
     expect(first[0]).toMatchObject({
-      name: "paperclip-assigned",
+      name: "nexus-assigned",
       connectionId: expect.stringMatching(/^assignment:[a-f0-9]{64}$/),
-      url: expect.stringMatching(/^https:\/\/paperclip\.example\.test\/mcp\/gateways\/gw_[a-f0-9]{32}$/),
+      url: expect.stringMatching(/^https:\/\/nexus\.example\.test\/mcp\/gateways\/gw_[a-f0-9]{32}$/),
       token: expect.stringMatching(/^pcgw_/),
     });
     expect(JSON.stringify(first)).not.toContain(uninstalledConnection!.id);
@@ -172,7 +172,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
     expect(JSON.stringify(tokens)).not.toContain(first[0]!.token);
 
     await expect(
-      buildPaperclipRuntimeMcpServers({
+      buildNexusRuntimeMcpServers({
         db,
         agent: agent!,
         runId: randomUUID(),
@@ -185,7 +185,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
       .set({ healthStatus: "degraded", healthMessage: "fixture unavailable" })
       .where(eq(toolConnections.id, installedConnection!.id));
     await expect(
-      buildPaperclipRuntimeMcpServers({
+      buildNexusRuntimeMcpServers({
         db,
         agent: agent!,
         runId: randomUUID(),
@@ -206,7 +206,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
   });
 
   async function seedAssignedAgents(count: number) {
-    process.env.PAPERCLIP_API_URL = "https://paperclip.example.test";
+    process.env.NEXUS_API_URL = "https://nexus.example.test";
     const [company] = await db.insert(companies).values({
       name: `Runtime MCP ${randomUUID()}`,
       issuePrefix: `RM${randomUUID().slice(0, 5).toUpperCase()}`,
@@ -276,7 +276,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
 
   it("rejects another agent's run token on a run-scoped gateway", async () => {
     const [owner, other] = await seedAssignedAgents(2);
-    const [server] = await buildPaperclipRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
+    const [server] = await buildNexusRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
     const [gateway] = await db.select().from(toolMcpGateways);
     const service = createToolGatewayService(db);
     const otherToken = await service.createNamedGatewayToken({
@@ -304,11 +304,11 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
 
   it("binds a reused run-scoped gateway that was created without an agent", async () => {
     const [owner] = await seedAssignedAgents(1);
-    await buildPaperclipRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
+    await buildNexusRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
     // Simulate a gateway provisioned before the agentId column was set.
     await db.update(toolMcpGateways).set({ agentId: null });
 
-    await buildPaperclipRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
+    await buildNexusRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
 
     const gateways = await db.select().from(toolMcpGateways);
     expect(gateways).toHaveLength(1);
@@ -317,7 +317,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
 
   it("rejects another run on a legacy native gateway before the owner runs again", async () => {
     const [owner, other] = await seedAssignedAgents(2);
-    const [server] = await buildPaperclipRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
+    const [server] = await buildNexusRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
     const [gateway] = await db.select().from(toolMcpGateways);
     await db.update(toolMcpGateways).set({ agentId: null }).where(eq(toolMcpGateways.id, gateway!.id));
     const service = createToolGatewayService(db);
@@ -348,7 +348,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
 
   it("rejects a legacy native gateway with cleared metadata and omits it from managed discovery", async () => {
     const [owner, other] = await seedAssignedAgents(2);
-    const [server] = await buildPaperclipRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
+    const [server] = await buildNexusRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
     const [gateway] = await db.select().from(toolMcpGateways);
     await db.update(toolMcpGateways).set({ agentId: null, contextScopeType: "none", contextScopeId: null, metadata: {} })
       .where(eq(toolMcpGateways.id, gateway!.id));
@@ -378,7 +378,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
 
   it("rejects JSON null profile metadata with an HTTP authentication response", async () => {
     const [owner] = await seedAssignedAgents(1);
-    const [server] = await buildPaperclipRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
+    const [server] = await buildNexusRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
     const [gateway] = await db.select().from(toolMcpGateways);
     await db.update(toolProfiles).set({ metadata: sql`'null'::jsonb` }).where(eq(toolProfiles.id, gateway!.profileId));
     const service = createToolGatewayService(db);
@@ -391,7 +391,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
 
   it("delivers native assignments once and preserves explicit shared gateways", async () => {
     const [owner, other] = await seedAssignedAgents(2);
-    const native = await buildPaperclipRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
+    const native = await buildNexusRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
     expect(native).toHaveLength(1);
     const [gateway] = await db.select().from(toolMcpGateways);
     // All assignment history, including gateways written before owner columns
@@ -432,17 +432,17 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
 
   it("does not repair a gateway with conflicting ownership metadata", async () => {
     const [owner, other] = await seedAssignedAgents(2);
-    const [server] = await buildPaperclipRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
+    const [server] = await buildNexusRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id });
     await db.update(toolMcpGateways).set({ agentId: null,
       metadata: { nativeRuntimeAssignmentDigest: server!.connectionId.slice("assignment:".length), agentId: other!.agent.id } });
-    await expect(buildPaperclipRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id }))
+    await expect(buildNexusRuntimeMcpServers({ db, agent: owner!.agent, runId: owner!.run.id }))
       .rejects.toThrow("Invalid native runtime gateway provenance");
     const [gateway] = await db.select().from(toolMcpGateways);
     expect(gateway!.agentId).toBeNull();
   });
 
   it("preserves exact permissions when an aggregate assignment exceeds the public 250-entry edit limit", async () => {
-    process.env.PAPERCLIP_API_URL = "https://paperclip.example.test";
+    process.env.NEXUS_API_URL = "https://nexus.example.test";
     const [company] = await db.insert(companies).values({
       name: "Large MCP assignment",
       issuePrefix: `LM${randomUUID().slice(0, 5).toUpperCase()}`,
@@ -493,7 +493,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
       companyId: company!.id, connectionId: connection!.id, targetType: "agent", targetId: agent!.id,
     });
 
-    const servers = await buildPaperclipRuntimeMcpServers({ db, agent: agent!, runId: randomUUID() });
+    const servers = await buildNexusRuntimeMcpServers({ db, agent: agent!, runId: randomUUID() });
     expect(servers).toHaveLength(1);
     const [gateway] = await db.select().from(toolMcpGateways);
     const generatedEntries = await db.select().from(toolProfileEntries)
@@ -514,13 +514,13 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
     expect(effective.allowedToolNames).not.toContain("unassigned");
     expect(effective.allowedToolNames).not.toContain("new_after_snapshot");
 
-    const reused = await buildPaperclipRuntimeMcpServers({ db, agent: agent!, runId: randomUUID() });
+    const reused = await buildNexusRuntimeMcpServers({ db, agent: agent!, runId: randomUUID() });
     expect(reused[0]!.connectionId).toBe(servers[0]!.connectionId);
     expect(await db.select().from(toolMcpGateways)).toHaveLength(1);
   });
 
   it("exposes only the dedicated GitHub connection when a personal connection is also installed", async () => {
-    process.env.PAPERCLIP_API_URL = "https://paperclip.example.test";
+    process.env.NEXUS_API_URL = "https://nexus.example.test";
     const [company] = await db.insert(companies).values({
       name: `Runtime GitHub identity ${randomUUID()}`,
       issuePrefix: `RG${randomUUID().slice(0, 5).toUpperCase()}`,
@@ -635,7 +635,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
       contextSnapshot: {},
     }).returning();
 
-    const servers = await buildPaperclipRuntimeMcpServers({ db, agent: agent!, runId: run!.id });
+    const servers = await buildNexusRuntimeMcpServers({ db, agent: agent!, runId: run!.id });
 
     expect(servers).toHaveLength(1);
     const [runtimeGateway] = await db.select().from(toolMcpGateways);
@@ -703,7 +703,7 @@ describeEmbeddedPostgres("heartbeat runtime MCP servers", () => {
       contextSnapshot: {},
     });
 
-    const servers = await buildPaperclipRuntimeMcpServers({ db, agent: agent!, runId });
+    const servers = await buildNexusRuntimeMcpServers({ db, agent: agent!, runId });
 
     expect(servers).toEqual([]);
     const [activity] = await db

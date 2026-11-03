@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ResolvedWorkspaceResource } from "@paperclipai/shared";
+import type { ResolvedWorkspaceResource } from "@nexusai/shared";
 import { TaskWorkspaceFilePanel } from "@/components/task-side-panel/TaskWorkspaceFilePanel";
 import { FileViewerSheet } from "@/components/FileViewerSheet";
 import { FileViewerProvider } from "@/context/FileViewerContext";
@@ -34,7 +34,7 @@ function Workspace({ sheet = false }: { sheet?: boolean }) {
 }
 const meta = { id: "html-artifacts-02-workspace",
   title: "Tasks and conversations/Documents, attachments, and work products/HTML artifacts/02 Workspace", component: Workspace, render: (args, context) => <Workspace key={context.id} {...args} />, parameters: { layout: "fullscreen", docs: { story: { inline: false } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "documents-artifacts/attachments",
         "workspaces/files-git"

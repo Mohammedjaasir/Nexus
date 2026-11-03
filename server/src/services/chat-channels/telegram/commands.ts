@@ -123,17 +123,17 @@ export function telegramGuidanceResponse(
 
 export function telegramForumControlResponse(command: "new" | "close", taskLabel: string, hasIssue: boolean, hasConversation: boolean): string {
   if (command === "new") return hasIssue
-    ? `${taskLabel} stays bound to this forum topic. Open a new Telegram forum topic to start a new Paperclip task.`
-    : "Open a new Telegram forum topic to start a new Paperclip task.";
+    ? `${taskLabel} stays bound to this forum topic. Open a new Telegram forum topic to start a new Nexus task.`
+    : "Open a new Telegram forum topic to start a new Nexus task.";
   return hasConversation
-    ? "This chat conversation is closed. A later message here will continue the same Paperclip task."
+    ? "This chat conversation is closed. A later message here will continue the same Nexus task."
     : "No task is active. Send a message to start one.";
 }
 
 export function telegramInboundControls(text: string, surfaceKind: ReturnType<typeof chatSurfaceKind>) {
   // Telegram exposes its small command vocabulary in forum topics too.
   // A forum topic is a native provider thread and therefore stays bound to
-  // one immutable Paperclip task, but the command must still be consumed
+  // one immutable Nexus task, but the command must still be consumed
   // as control-plane input instead of becoming a task comment/wakeup.
   const controlCommand = linearControlCommand(text);
   const guidanceCommand = telegramGuidanceCommand(text);

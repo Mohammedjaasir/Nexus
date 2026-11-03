@@ -13,7 +13,7 @@ import {
   agentSessionGoalActions,
   agents,
   activityLog,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   type IssueExecutionMonitorPolicy,
   type IssueExecutionMonitorClearReason,
@@ -21,7 +21,7 @@ import {
   PROVIDER_QUOTA_MONITOR_SERVICE_NAME,
   EXECUTION_RECONCILIATION_CAUSES,
   isUuidLike,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   and,
   eq,
@@ -59,12 +59,12 @@ import { logger } from "../../middleware/logger.js";
 import { failRunnerGoalAction } from "../runner-goals.js";
 import { evaluateAgentInvokability } from "../agent-invokability.js";
 import { supportsUnscopedTimerHeartbeat } from "../heartbeat-policy.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import type { issueService } from "../issues.js";
 import type { createHeartbeatQueue } from "./queue.js";
 import type { createHeartbeatRetries, HeartbeatRetryDependencies } from "./retries.js";
 import type { createHeartbeatRunPreparation } from "./run-preparation.js";
-import type { NativeSessionGoalControl } from "../../vendor/paperclip-runner/index.js";
+import type { NativeSessionGoalControl } from "../../vendor/nexus-runner/index.js";
 
 type HeartbeatQueue = ReturnType<typeof createHeartbeatQueue>;
 type RunPreparation = ReturnType<typeof createHeartbeatRunPreparation>;
@@ -255,7 +255,7 @@ export function createHeartbeatScheduling(
         ? "its timeout was reached"
         : "its maximum attempt count was reached";
     return [
-      `Paperclip cleared the scheduled external-service monitor for ${label} because ${reason}.`,
+      `Nexus cleared the scheduled external-service monitor for ${label} because ${reason}.`,
       "",
       `- Attempt count: ${input.nextAttemptCount}`,
       `- Recovery policy: ${input.recoveryPolicy}`,

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 export async function createNativeRunLogTestTables(db: Db) {
   await db.execute(sql`create table heartbeat_runs(id uuid primary key, company_id uuid not null, agent_id uuid not null,

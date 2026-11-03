@@ -1,19 +1,19 @@
-import { resolveGrokDisableWebSearch } from "../../vendor/paperclip-runner/index.js";
-import { agentHarnessType, normalizeClaudeRunnerOptions } from "@paperclipai/shared";
-import { resolveClaudeEffort, resolveGrokEffort, resolveQualifiedAcpxProfile } from "../../vendor/paperclip-runner/index.js";
+import { resolveGrokDisableWebSearch } from "../../vendor/nexus-runner/index.js";
+import { agentHarnessType, normalizeClaudeRunnerOptions } from "@nexusai/shared";
+import { resolveClaudeEffort, resolveGrokEffort, resolveQualifiedAcpxProfile } from "../../vendor/nexus-runner/index.js";
 import {
-  isPaperclipRunnerProvider,
-  PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES,
-  PAPERCLIP_RUNNER_ACPX_PROFILES,
-  resolvePaperclipRunnerPermissionMode,
-  resolvePaperclipRunnerCursorMode,
-  resolvePaperclipRunnerPiThinkingLevel,
-  type PaperclipRunnerProvider,
-} from "@paperclipai/adapter-utils";
+  isNexusRunnerProvider,
+  NEXUS_RUNNER_PERMISSION_CAPABILITIES,
+  NEXUS_RUNNER_ACPX_PROFILES,
+  resolveNexusRunnerPermissionMode,
+  resolveNexusRunnerCursorMode,
+  resolveNexusRunnerPiThinkingLevel,
+  type NexusRunnerProvider,
+} from "@nexusai/adapter-utils";
 import {
   codexLocalReasoningEffortsForModel,
   isCodexLocalKnownModel,
-} from "@paperclipai/adapter-codex-local";
+} from "@nexusai/adapter-codex-local";
 import {
   AGENTCORE_QUALIFIED_MODEL,
   CLAUDE_MANAGED_QUALIFIED_MODEL,
@@ -37,11 +37,11 @@ export const DEFAULT_ACPX_RUNNER_MODELS = {
   kimi: null,
 } as const;
 
-export type QualifiedPaperclipRunnerAcpxAgent =
+export type QualifiedNexusRunnerAcpxAgent =
   keyof typeof DEFAULT_ACPX_RUNNER_MODELS;
-type AdmittedPaperclipRunnerAcpxAgent = QualifiedPaperclipRunnerAcpxAgent | AcpxQualificationCandidate | "antigravity";
+type AdmittedNexusRunnerAcpxAgent = QualifiedNexusRunnerAcpxAgent | AcpxQualificationCandidate | "antigravity";
 
-export type PaperclipRunnerProviderProfile =
+export type NexusRunnerProviderProfile =
   | { provider: "muse"; backend: "muse_external"; model: null; museBindingId: string }
   | { provider: "grok_bot"; backend: "grok_bot_mcp"; model: null; externalBindingId: string }
   | { provider: "openai_dot"; backend: "openai_dot_mcp"; model: null; dotBindingId: string }
@@ -73,13 +73,13 @@ export type PaperclipRunnerProviderProfile =
       provider: "acpx";
       backend: "acpx_runtime";
       model: string;
-      acpxAgent: AdmittedPaperclipRunnerAcpxAgent;
+      acpxAgent: AdmittedNexusRunnerAcpxAgent;
     };
 
-export type PaperclipRunnerNativeProviderInput =
-  | { provider: "muse"; model: null; museBinding: import("../../vendor/paperclip-runner/index.js").MuseBindingSnapshot }
-  | { provider: "grok_bot"; model: null; dotBinding: import("../../vendor/paperclip-runner/index.js").DotBindingSnapshot }
-  | { provider: "openai_dot"; model: null; dotBinding: import("../../vendor/paperclip-runner/index.js").DotBindingSnapshot }
+export type NexusRunnerNativeProviderInput =
+  | { provider: "muse"; model: null; museBinding: import("../../vendor/nexus-runner/index.js").MuseBindingSnapshot }
+  | { provider: "grok_bot"; model: null; dotBinding: import("../../vendor/nexus-runner/index.js").DotBindingSnapshot }
+  | { provider: "openai_dot"; model: null; dotBinding: import("../../vendor/nexus-runner/index.js").DotBindingSnapshot }
   | {
       provider: "codex";
       model: string | null;
@@ -136,9 +136,9 @@ export type PaperclipRunnerNativeProviderInput =
   | {
       provider: "acpx";
       model: string;
-      acpxAgent: AdmittedPaperclipRunnerAcpxAgent;
+      acpxAgent: AdmittedNexusRunnerAcpxAgent;
       homeMode?: "isolated" | "preconfigured";
-      acpxPermissionMode: "approve-all" | "approve-paperclip" | "approve-reads" | "deny-all";
+      acpxPermissionMode: "approve-all" | "approve-nexus" | "approve-reads" | "deny-all";
       acpxSessionMode?: "agent" | "plan" | "ask";
       piThinkingLevel?: "off" | "low" | "high" | "max";
       claudeEffort?: "low" | "medium" | "high" | "xhigh" | "max";
@@ -146,13 +146,13 @@ export type PaperclipRunnerNativeProviderInput =
       grokDisableWebSearch?: boolean;
     };
 
-export class PaperclipRunnerProviderProfileError extends Error {
+export class NexusRunnerProviderProfileError extends Error {
   constructor(
     readonly code: string,
     message: string,
   ) {
     super(message);
-    this.name = "PaperclipRunnerProviderProfileError";
+    this.name = "NexusRunnerProviderProfileError";
   }
 }
 
@@ -169,40 +169,40 @@ function optionalString(value: unknown): string | null {
 }
 
 /** Configuration can be saved before pairing; task admission requires a binding. */
-export function validatePaperclipRunnerDotConfig(config: Record<string, unknown>, requireBinding = true): string | null {
+export function validateNexusRunnerDotConfig(config: Record<string, unknown>, requireBinding = true): string | null {
   const bindingId = optionalString(config.dotBindingId);
   if ((requireBinding && !bindingId) || (bindingId && !/^[0-9a-f-]{36}$/i.test(bindingId))
       || config.allowUnmeteredProvider !== true || (config.lifecycleMode && config.lifecycleMode !== "per_turn")
       || optionalString(config.model)) {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_dot_config_invalid", "Dot requires per-turn lifecycle and explicit externally billed, unmetered-provider acknowledgement. Pair a binding before assigning work.");
+    throw new NexusRunnerProviderProfileError("nexus_runner_dot_config_invalid", "Dot requires per-turn lifecycle and explicit externally billed, unmetered-provider acknowledgement. Pair a binding before assigning work.");
   }
   return bindingId;
 }
 
 /** Closed personal runtime configuration; model and workspace grants are excluded. */
-export function validatePaperclipRunnerMuseConfig(config: Record<string, unknown>, requireBinding = true): string | null {
+export function validateNexusRunnerMuseConfig(config: Record<string, unknown>, requireBinding = true): string | null {
   const bindingId = optionalString(config.museBindingId);
   if ((requireBinding && !bindingId) || (bindingId && !/^[0-9a-f-]{36}$/i.test(bindingId))
       || config.allowUnmeteredProvider !== true || (config.lifecycleMode && config.lifecycleMode !== "per_turn")
       || optionalString(config.model) || config.dotWorkspaceAccess === true || config.dotAttachmentAccess === true) {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_muse_config_invalid", "Muse requires a paired personal-agent binding, per-turn lifecycle and unavailable-usage acknowledgement.");
+    throw new NexusRunnerProviderProfileError("nexus_runner_muse_config_invalid", "Muse requires a paired personal-agent binding, per-turn lifecycle and unavailable-usage acknowledgement.");
   }
   return bindingId;
 }
 
-export function validatePaperclipRunnerGrokConfig(config: Record<string, unknown>, requireBinding = true): string | null {
+export function validateNexusRunnerGrokConfig(config: Record<string, unknown>, requireBinding = true): string | null {
   const bindingId = optionalString(config.externalBindingId);
   if ((requireBinding && !bindingId) || (bindingId && !/^[0-9a-f-]{36}$/i.test(bindingId))
       || config.allowUnmeteredProvider !== true || (config.lifecycleMode && config.lifecycleMode !== "per_turn")
       || optionalString(config.model) || config.dotWorkspaceAccess === true || config.dotAttachmentAccess === true
       || optionalString(config.cwd) || optionalString(config.command)) {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_grok_config_invalid", "Grok Bot requires a bound per-turn work session and an explicit acknowledgement of unreported provider spending. Paperclip workspace, shell and third-party app tools are unavailable.");
+    throw new NexusRunnerProviderProfileError("nexus_runner_grok_config_invalid", "Grok Bot requires a bound per-turn work session and an explicit acknowledgement of unreported provider spending. Nexus workspace, shell and third-party app tools are unavailable.");
   }
   return bindingId;
 }
 
 /** A task may change a local Runner model (and Codex effort), but not provider identity. */
-export function projectPaperclipRunnerTaskConfig(
+export function projectNexusRunnerTaskConfig(
   backend: "codex_app_server" | "opencode_server" | "acpx_runtime",
   agentConfig: unknown,
   taskOverrides: unknown,
@@ -214,8 +214,8 @@ export function projectPaperclipRunnerTaskConfig(
   // The server resolves a connection's model namespace after task overrides.
   // Carry that model into durable input without allowing routing to change the harness.
   const model = optionalString(managedModel) ?? optionalString(task.model);
-  const grok = backend === "acpx_runtime" && agentHarnessType("paperclip_runner", base) === "grok_local";
-  const supportsEffort = backend === "codex_app_server" || grok || (backend === "acpx_runtime" && agentHarnessType("paperclip_runner", base) === "claude_local");
+  const grok = backend === "acpx_runtime" && agentHarnessType("nexus_runner", base) === "grok_local";
+  const supportsEffort = backend === "codex_app_server" || grok || (backend === "acpx_runtime" && agentHarnessType("nexus_runner", base) === "claude_local");
   const effortKey = supportsEffort
     ? ["modelReasoningEffort", "reasoningEffort", "effort"].find((key) => key in task)
     : undefined;
@@ -237,7 +237,7 @@ function positiveNumberOrNull(
   if (value === undefined || value === null || value === "") return null;
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new PaperclipRunnerProviderProfileError(code, message);
+    throw new NexusRunnerProviderProfileError(code, message);
   }
   return parsed;
 }
@@ -256,7 +256,7 @@ function boundedPositiveInteger(
     || value <= 0
     || value > maximum
   ) {
-    throw new PaperclipRunnerProviderProfileError(
+    throw new NexusRunnerProviderProfileError(
       code,
       `${label} must be an integer between 1 and ${maximum}.`,
     );
@@ -265,23 +265,23 @@ function boundedPositiveInteger(
 }
 
 function assertPermissionMode(
-  provider: PaperclipRunnerProvider,
+  provider: NexusRunnerProvider,
   config: Record<string, unknown>,
 ): void {
-  const capability = PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES[provider];
+  const capability = NEXUS_RUNNER_PERMISSION_CAPABILITIES[provider];
   if (!capability.configurable) return;
   const configured = config[capability.configKey];
   if (
     configured !== undefined
-    && resolvePaperclipRunnerPermissionMode(provider, configured) !== configured
+    && resolveNexusRunnerPermissionMode(provider, configured) !== configured
   ) {
     if (provider === "codex") {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_codex_permission_mode_unqualified",
-        "Paperclip Runner currently supports Codex only with codexPermissionMode set to never. Update the agent configuration before starting a new native run.",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_codex_permission_mode_unqualified",
+        "Nexus Runner currently supports Codex only with codexPermissionMode set to never. Update the agent configuration before starting a new native run.",
       );
     }
-    throw new PaperclipRunnerProviderProfileError(
+    throw new NexusRunnerProviderProfileError(
       "runner_permission_mode_invalid",
       `${capability.configKey} is not supported by ${provider}.`,
     );
@@ -320,16 +320,16 @@ export function assertManagedProfileRecoveryBinding(input: {
     || snapshot.environmentId !== stored.environmentId
     || snapshot.betaVersion !== stored.betaVersion
   ) {
-    throw new PaperclipRunnerProviderProfileError(
-      "paperclip_runner_claude_managed_recovery_identity_mismatch",
+    throw new NexusRunnerProviderProfileError(
+      "nexus_runner_claude_managed_recovery_identity_mismatch",
       "The persisted Claude Managed identity no longer matches its qualified profile.",
     );
   }
   const rawBinding = asRecord(asRecord(input.adapterConfig).env).ANTHROPIC_API_KEY;
   const boundSecretId = asRecord(rawBinding).secretId;
   if (boundSecretId !== stored.apiKeySecretId) {
-    throw new PaperclipRunnerProviderProfileError(
-      "paperclip_runner_claude_managed_recovery_secret_mismatch",
+    throw new NexusRunnerProviderProfileError(
+      "nexus_runner_claude_managed_recovery_secret_mismatch",
       "The persisted Claude Managed run is not bound to its profile's current API-key secret.",
     );
   }
@@ -383,8 +383,8 @@ export function assertAgentCoreProfileRecoveryBinding(input: {
     snapshot.profileId !== stored.id
     || fields.some((field) => snapshot[field] !== configuration[field])
   ) {
-    throw new PaperclipRunnerProviderProfileError(
-      "paperclip_runner_aws_agentcore_recovery_identity_mismatch",
+    throw new NexusRunnerProviderProfileError(
+      "nexus_runner_aws_agentcore_recovery_identity_mismatch",
       "The persisted AWS AgentCore identity no longer matches its qualified profile.",
     );
   }
@@ -405,60 +405,60 @@ export function claudeRunnerUnsupportedSettings(config: Record<string, unknown>)
 }
 
 /**
- * Resolve the immutable provider identity used for a fresh Paperclip Runner
+ * Resolve the immutable provider identity used for a fresh Nexus Runner
  * selection. The persisted adapterConfig is the authority; runtimeConfig is
  * deliberately not consulted so model-profile or migration metadata cannot
  * silently switch the harness selected for a run.
  */
-export function resolvePaperclipRunnerProviderProfile(
+export function resolveNexusRunnerProviderProfile(
   adapterConfig: unknown,
   context: { companyId?: string } = {},
-): PaperclipRunnerProviderProfile {
+): NexusRunnerProviderProfile {
   const config = asRecord(adapterConfig);
   const candidate = config.provider ?? "codex";
-  if (!isPaperclipRunnerProvider(candidate)) {
-    throw new PaperclipRunnerProviderProfileError(
-      "paperclip_runner_provider_unsupported",
-      "Paperclip Runner provider must be Codex, OpenCode, Claude Managed, AWS AgentCore, or ACPX.",
+  if (!isNexusRunnerProvider(candidate)) {
+    throw new NexusRunnerProviderProfileError(
+      "nexus_runner_provider_unsupported",
+      "Nexus Runner provider must be Codex, OpenCode, Claude Managed, AWS AgentCore, or ACPX.",
     );
   }
 
   if (candidate === "muse") {
-    const bindingId = validatePaperclipRunnerMuseConfig(config)!;
+    const bindingId = validateNexusRunnerMuseConfig(config)!;
     return { provider: "muse", backend: "muse_external", model: null, museBindingId: bindingId };
   }
   if (candidate === "grok_bot") {
-    return { provider: "grok_bot", backend: "grok_bot_mcp", model: null, externalBindingId: validatePaperclipRunnerGrokConfig(config)! };
+    return { provider: "grok_bot", backend: "grok_bot_mcp", model: null, externalBindingId: validateNexusRunnerGrokConfig(config)! };
   }
   if (candidate === "openai_dot") {
-    const bindingId = validatePaperclipRunnerDotConfig(config)!;
+    const bindingId = validateNexusRunnerDotConfig(config)!;
     return { provider: "openai_dot", backend: "openai_dot_mcp", model: null, dotBindingId: bindingId };
   }
-  if (candidate === "acpx" && agentHarnessType("paperclip_runner", config) === "claude_local") {
+  if (candidate === "acpx" && agentHarnessType("nexus_runner", config) === "claude_local") {
     const unsupported = claudeRunnerUnsupportedSettings(config);
-    if (unsupported.length) throw new PaperclipRunnerProviderProfileError("agent_runner_config_incompatible",
-      `Paperclip Runner cannot honor these settings: ${unsupported.join(", ")}. Remove them or select Legacy runner in Advanced.`);
+    if (unsupported.length) throw new NexusRunnerProviderProfileError("agent_runner_config_incompatible",
+      `Nexus Runner cannot honor these settings: ${unsupported.join(", ")}. Remove them or select Legacy runner in Advanced.`);
   }
   assertPermissionMode(candidate, config);
   try {
-    resolvePaperclipRunnerCursorMode(candidate, config.acpxAgent, config.acpxSessionMode);
+    resolveNexusRunnerCursorMode(candidate, config.acpxAgent, config.acpxSessionMode);
   } catch (error) {
-    throw new PaperclipRunnerProviderProfileError(
-      "paperclip_runner_mode_invalid",
+    throw new NexusRunnerProviderProfileError(
+      "nexus_runner_mode_invalid",
       error instanceof Error ? error.message : "Invalid Cursor session mode",
     );
   }
-  try { if (candidate === "acpx" && agentHarnessType("paperclip_runner", config) === "claude_local") resolveClaudeEffort("claude", config.modelReasoningEffort ?? config.reasoningEffort ?? config.effort); } catch (error) {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_claude_effort_invalid", error instanceof Error ? error.message : "Invalid Claude effort");
+  try { if (candidate === "acpx" && agentHarnessType("nexus_runner", config) === "claude_local") resolveClaudeEffort("claude", config.modelReasoningEffort ?? config.reasoningEffort ?? config.effort); } catch (error) {
+    throw new NexusRunnerProviderProfileError("nexus_runner_claude_effort_invalid", error instanceof Error ? error.message : "Invalid Claude effort");
   }
   try { if (candidate === "acpx" && config.acpxAgent === "grok") resolveGrokEffort("grok", config.modelReasoningEffort ?? config.reasoningEffort ?? config.effort); } catch (error) {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_grok_effort_invalid", error instanceof Error ? error.message : "Invalid Grok effort");
+    throw new NexusRunnerProviderProfileError("nexus_runner_grok_effort_invalid", error instanceof Error ? error.message : "Invalid Grok effort");
   }
   try { if (candidate === "acpx" && config.acpxAgent === "grok") resolveGrokDisableWebSearch("grok", config.disableWebSearch); } catch (error) {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_grok_search_invalid", error instanceof Error ? error.message : "Invalid Grok search policy");
+    throw new NexusRunnerProviderProfileError("nexus_runner_grok_search_invalid", error instanceof Error ? error.message : "Invalid Grok search policy");
   }
-  try { resolvePaperclipRunnerPiThinkingLevel(candidate, config.acpxAgent, config.piThinkingLevel); } catch (error) {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_pi_thinking_invalid", error instanceof Error ? error.message : "Invalid Pi thinking level");
+  try { resolveNexusRunnerPiThinkingLevel(candidate, config.acpxAgent, config.piThinkingLevel); } catch (error) {
+    throw new NexusRunnerProviderProfileError("nexus_runner_pi_thinking_invalid", error instanceof Error ? error.message : "Invalid Pi thinking level");
   }
   const model = optionalString(config.model);
   if (candidate === "codex") {
@@ -471,9 +471,9 @@ export function resolvePaperclipRunnerProviderProfile(
 
   if (candidate === "opencode") {
     if (!model || !model.includes("/") || model.endsWith("/")) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_opencode_model_invalid",
-        "Paperclip Runner OpenCode requires model in provider/model form.",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_opencode_model_invalid",
+        "Nexus Runner OpenCode requires model in provider/model form.",
       );
     }
     return {
@@ -486,20 +486,20 @@ export function resolvePaperclipRunnerProviderProfile(
   if (candidate === "claude_managed") {
     const managedProfileId = optionalString(config.managedProfileId);
     if (!managedProfileId) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_claude_managed_profile_required",
-        "Paperclip Runner Claude Managed requires a company managed-agent profile.",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_claude_managed_profile_required",
+        "Nexus Runner Claude Managed requires a company managed-agent profile.",
       );
     }
     if (config.managedAgentsRetentionAcknowledged !== true) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_claude_managed_retention_required",
-        "Paperclip Runner Claude Managed requires acknowledgement of stateful beta retention.",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_claude_managed_retention_required",
+        "Nexus Runner Claude Managed requires acknowledgement of stateful beta retention.",
       );
     }
     if (model !== null && model !== CLAUDE_MANAGED_QUALIFIED_MODEL) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_claude_managed_model_unqualified",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_claude_managed_model_unqualified",
         `The Claude Managed profile requires exact model ${CLAUDE_MANAGED_QUALIFIED_MODEL}.`,
       );
     }
@@ -510,8 +510,8 @@ export function resolvePaperclipRunnerProviderProfile(
       model,
       maxSessionListCostUsd: positiveNumberOrNull(
         config.maxSessionListCostUsd,
-        "paperclip_runner_claude_managed_spend_cap_invalid",
-        "Paperclip Runner Claude Managed requires a positive session spend ceiling when overridden.",
+        "nexus_runner_claude_managed_spend_cap_invalid",
+        "Nexus Runner Claude Managed requires a positive session spend ceiling when overridden.",
       ),
     };
   }
@@ -519,20 +519,20 @@ export function resolvePaperclipRunnerProviderProfile(
   if (candidate === "aws_agentcore") {
     const agentCoreProfileId = optionalString(config.agentCoreProfileId);
     if (!agentCoreProfileId) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_aws_agentcore_profile_required",
-        "Paperclip Runner AWS AgentCore requires a company remote-agent profile.",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_aws_agentcore_profile_required",
+        "Nexus Runner AWS AgentCore requires a company remote-agent profile.",
       );
     }
     if (config.agentCoreRetentionAcknowledged !== true) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_aws_agentcore_retention_required",
-        "Paperclip Runner AWS AgentCore requires acknowledgement of 90-day Memory retention.",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_aws_agentcore_retention_required",
+        "Nexus Runner AWS AgentCore requires acknowledgement of 90-day Memory retention.",
       );
     }
     if (model !== null && model !== AGENTCORE_QUALIFIED_MODEL) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_aws_agentcore_model_unqualified",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_aws_agentcore_model_unqualified",
         `The AWS AgentCore profile requires exact model ${AGENTCORE_QUALIFIED_MODEL}.`,
       );
     }
@@ -543,26 +543,26 @@ export function resolvePaperclipRunnerProviderProfile(
       model,
       maxEstimatedSessionCostUsd: positiveNumberOrNull(
         config.maxEstimatedSessionCostUsd,
-        "paperclip_runner_aws_agentcore_spend_cap_invalid",
-        "Paperclip Runner AWS AgentCore requires a positive estimated session spend ceiling when overridden.",
+        "nexus_runner_aws_agentcore_spend_cap_invalid",
+        "Nexus Runner AWS AgentCore requires a positive estimated session spend ceiling when overridden.",
       ),
     };
   }
 
   const acpxAgent = config.acpxAgent ?? "claude";
   if (acpxAgent === "copilot" && (!model || ["auto", "default"].includes(model.toLowerCase()))) {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_acpx_model_required", "GitHub Copilot requires an explicit model ID; there is no default model.");
+    throw new NexusRunnerProviderProfileError("nexus_runner_acpx_model_required", "GitHub Copilot requires an explicit model ID; there is no default model.");
   }
-  const pendingAcpxProfile = PAPERCLIP_RUNNER_ACPX_PROFILES.find(profile => profile.value === acpxAgent && !profile.qualified);
+  const pendingAcpxProfile = NEXUS_RUNNER_ACPX_PROFILES.find(profile => profile.value === acpxAgent && !profile.qualified);
   if (pendingAcpxProfile) {
-    if (!model) throw new PaperclipRunnerProviderProfileError("paperclip_runner_acpx_model_required", `${pendingAcpxProfile.label} requires an explicit model ID; there is no default model.`);
+    if (!model) throw new NexusRunnerProviderProfileError("nexus_runner_acpx_model_required", `${pendingAcpxProfile.label} requires an explicit model ID; there is no default model.`);
     if (pendingAcpxProfile.value === "antigravity") {
       try {
         if (resolveAntigravityCandidateAdmission({ companyId: context.companyId, model }, process.env)) {
           return { provider: "acpx", backend: "acpx_runtime", model, acpxAgent: "antigravity" };
         }
       } catch {
-        throw new PaperclipRunnerProviderProfileError("paperclip_runner_acpx_qualification_invalid", "Antigravity candidate admission requires the authorized company, exact model and runtime identity.");
+        throw new NexusRunnerProviderProfileError("nexus_runner_acpx_qualification_invalid", "Antigravity candidate admission requires the authorized company, exact model and runtime identity.");
       }
     }
     if (pendingAcpxProfile.value === "kimi") {
@@ -571,7 +571,7 @@ export function resolvePaperclipRunnerProviderProfile(
           return { provider: "acpx", backend: "acpx_runtime", model, acpxAgent: "kimi" };
         }
       } catch {
-        throw new PaperclipRunnerProviderProfileError("paperclip_runner_acpx_qualification_invalid", "Kimi candidate admission requires the authorized company, exact model, target and runtime identity.");
+        throw new NexusRunnerProviderProfileError("nexus_runner_acpx_qualification_invalid", "Kimi candidate admission requires the authorized company, exact model, target and runtime identity.");
       }
     }
     // Qualification authority belongs to the isolated server operator. Never
@@ -580,20 +580,20 @@ export function resolvePaperclipRunnerProviderProfile(
     try {
       qualification = resolveAcpxQualification({ kind: "acpx", agent: pendingAcpxProfile.value, model }, process.env);
     } catch {
-      throw new PaperclipRunnerProviderProfileError("paperclip_runner_acpx_qualification_invalid", "ACPX qualification requires an exact host-authorized candidate and model.");
+      throw new NexusRunnerProviderProfileError("nexus_runner_acpx_qualification_invalid", "ACPX qualification requires an exact host-authorized candidate and model.");
     }
     if (qualification) {
       return { provider: "acpx", backend: "acpx_runtime", model, acpxAgent: qualification };
     }
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_acpx_agent_unavailable", `${pendingAcpxProfile.label} is awaiting native Runner acceptance. Its profile is not enabled for production runs.`);
+    throw new NexusRunnerProviderProfileError("nexus_runner_acpx_agent_unavailable", `${pendingAcpxProfile.label} is awaiting native Runner acceptance. Its profile is not enabled for production runs.`);
   }
   if ((acpxAgent === "cursor" || acpxAgent === "pi" || acpxAgent === "kimi") && !model) {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_acpx_model_required", "This ACPX agent requires an explicit model ID; there is no default model.");
+    throw new NexusRunnerProviderProfileError("nexus_runner_acpx_model_required", "This ACPX agent requires an explicit model ID; there is no default model.");
   }
   if (acpxAgent !== "claude" && acpxAgent !== "codex" && acpxAgent !== "grok" && acpxAgent !== "cursor" && acpxAgent !== "copilot" && acpxAgent !== "pi" && acpxAgent !== "kimi") {
-    throw new PaperclipRunnerProviderProfileError(
-      "paperclip_runner_acpx_agent_unavailable",
-      "Paperclip Runner ACPX requires a qualified agent profile.",
+    throw new NexusRunnerProviderProfileError(
+      "nexus_runner_acpx_agent_unavailable",
+      "Nexus Runner ACPX requires a qualified agent profile.",
     );
   }
   const selectedModel = acpxAgent === "grok" && model === "grok-build"
@@ -602,9 +602,9 @@ export function resolvePaperclipRunnerProviderProfile(
   try {
     resolveQualifiedAcpxProfile(acpxAgent, selectedModel);
   } catch (error) {
-    throw new PaperclipRunnerProviderProfileError(
-      "paperclip_runner_acpx_model_unqualified",
-      error instanceof Error ? error.message : "Paperclip Runner ACPX requires an admitted model.",
+    throw new NexusRunnerProviderProfileError(
+      "nexus_runner_acpx_model_unqualified",
+      error instanceof Error ? error.message : "Nexus Runner ACPX requires an admitted model.",
     );
   }
   return {
@@ -621,14 +621,14 @@ export function resolvePaperclipRunnerProviderProfile(
  * configuration can select a stored profile, but it cannot replace that
  * profile's immutable remote resource identity.
  */
-export function resolvePaperclipRunnerNativeProviderInput(input: {
+export function resolveNexusRunnerNativeProviderInput(input: {
   companyId?: string;
-  backend: PaperclipRunnerProviderProfile["backend"];
+  backend: NexusRunnerProviderProfile["backend"];
   adapterConfig: unknown;
   /** Verified image CLI version for a fresh remote Codex run only. */
   codexCliVersion?: string | null;
-  museBinding?: import("../../vendor/paperclip-runner/index.js").MuseBindingSnapshot;
-  dotBinding?: import("../../vendor/paperclip-runner/index.js").DotBindingSnapshot;
+  museBinding?: import("../../vendor/nexus-runner/index.js").MuseBindingSnapshot;
+  dotBinding?: import("../../vendor/nexus-runner/index.js").DotBindingSnapshot;
   managedProfile?: {
     id: string;
     profileKey: string;
@@ -644,45 +644,45 @@ export function resolvePaperclipRunnerNativeProviderInput(input: {
     profileKey: string;
     configuration: Record<string, unknown>;
   } | null;
-}): PaperclipRunnerNativeProviderInput {
+}): NexusRunnerNativeProviderInput {
   const config = asRecord(input.adapterConfig);
-  const profile = resolvePaperclipRunnerProviderProfile(config, { companyId: input.companyId });
+  const profile = resolveNexusRunnerProviderProfile(config, { companyId: input.companyId });
   if (config.homeMode !== undefined && config.homeMode !== "isolated" && config.homeMode !== "preconfigured") {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_home_mode_invalid", "homeMode must be isolated or preconfigured");
+    throw new NexusRunnerProviderProfileError("nexus_runner_home_mode_invalid", "homeMode must be isolated or preconfigured");
   }
   const preconfigured = config.homeMode === "preconfigured";
   if (preconfigured && profile.provider !== "codex" && !(profile.provider === "acpx" && ["claude", "codex"].includes(profile.acpxAgent))) {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_home_mode_unsupported", "Preconfigured home supports native Codex and ACPX Claude only");
+    throw new NexusRunnerProviderProfileError("nexus_runner_home_mode_unsupported", "Preconfigured home supports native Codex and ACPX Claude only");
   }
   if (preconfigured && profile.provider === "acpx" && config.acpxPermissionMode !== undefined && config.acpxPermissionMode !== "approve-all") {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_home_permission_mode_unsupported", "Preconfigured home currently requires ACPX approve-all; local permission rules still apply");
+    throw new NexusRunnerProviderProfileError("nexus_runner_home_permission_mode_unsupported", "Preconfigured home currently requires ACPX approve-all; local permission rules still apply");
   }
   if (preconfigured && profile.provider === "acpx" && profile.acpxAgent === "codex") {
-    throw new PaperclipRunnerProviderProfileError("paperclip_runner_home_state_boundary_unsupported", "preconfigured ACPX Codex cannot protect Runner state; use native Codex or isolated mode");
+    throw new NexusRunnerProviderProfileError("nexus_runner_home_state_boundary_unsupported", "preconfigured ACPX Codex cannot protect Runner state; use native Codex or isolated mode");
   }
   if (profile.backend !== input.backend) {
-    throw new PaperclipRunnerProviderProfileError(
-      "paperclip_runner_provider_changed",
-      "Paperclip Runner provider changed after this run selected its native backend.",
+    throw new NexusRunnerProviderProfileError(
+      "nexus_runner_provider_changed",
+      "Nexus Runner provider changed after this run selected its native backend.",
     );
   }
   if (profile.provider === "muse") {
-    if (!input.museBinding || input.museBinding.bindingId !== profile.museBindingId) throw new PaperclipRunnerProviderProfileError("paperclip_runner_muse_binding_unavailable", "Muse binding must be resolved by the server after normal admission.");
+    if (!input.museBinding || input.museBinding.bindingId !== profile.museBindingId) throw new NexusRunnerProviderProfileError("nexus_runner_muse_binding_unavailable", "Muse binding must be resolved by the server after normal admission.");
     return { provider: "muse", model: null, museBinding: input.museBinding };
   }
   if (profile.provider === "grok_bot") {
-    if (!input.dotBinding || input.dotBinding.bindingId !== profile.externalBindingId) throw new PaperclipRunnerProviderProfileError("paperclip_runner_grok_binding_unavailable", "The Grok binding must be resolved by the server after normal admission.");
+    if (!input.dotBinding || input.dotBinding.bindingId !== profile.externalBindingId) throw new NexusRunnerProviderProfileError("nexus_runner_grok_binding_unavailable", "The Grok binding must be resolved by the server after normal admission.");
     return { provider: "grok_bot", model: null, dotBinding: input.dotBinding };
   }
   if (profile.provider === "openai_dot") {
-    if (!input.dotBinding || input.dotBinding.bindingId !== profile.dotBindingId) throw new PaperclipRunnerProviderProfileError("paperclip_runner_dot_binding_unavailable", "Dot binding must be resolved by the server after normal admission.");
+    if (!input.dotBinding || input.dotBinding.bindingId !== profile.dotBindingId) throw new NexusRunnerProviderProfileError("nexus_runner_dot_binding_unavailable", "Dot binding must be resolved by the server after normal admission.");
     return { provider: "openai_dot", model: null, dotBinding: input.dotBinding };
   }
   if (profile.provider === "opencode") {
     return {
       provider: "opencode",
       model: profile.model,
-      opencodePermissionMode: resolvePaperclipRunnerPermissionMode(
+      opencodePermissionMode: resolveNexusRunnerPermissionMode(
         "opencode",
         config.opencodePermissionMode,
       ) as "allow" | "ask" | "deny",
@@ -695,15 +695,15 @@ export function resolvePaperclipRunnerNativeProviderInput(input: {
       acpxAgent: profile.acpxAgent,
       ...(profile.acpxAgent === "claude" ? { claudeEffort: resolveClaudeEffort("claude", config.modelReasoningEffort ?? config.reasoningEffort ?? config.effort) } : {}),
       ...(profile.acpxAgent === "grok" ? { grokEffort: resolveGrokEffort("grok", config.modelReasoningEffort ?? config.reasoningEffort ?? config.effort), grokDisableWebSearch: resolveGrokDisableWebSearch("grok", config.disableWebSearch) } : {}),
-      ...(profile.acpxAgent === "pi" ? { piThinkingLevel: resolvePaperclipRunnerPiThinkingLevel("acpx", "pi", config.piThinkingLevel) } : {}),
+      ...(profile.acpxAgent === "pi" ? { piThinkingLevel: resolveNexusRunnerPiThinkingLevel("acpx", "pi", config.piThinkingLevel) } : {}),
       ...(profile.acpxAgent === "cursor" ? {
-        acpxSessionMode: resolvePaperclipRunnerCursorMode("acpx", "cursor", config.acpxSessionMode),
+        acpxSessionMode: resolveNexusRunnerCursorMode("acpx", "cursor", config.acpxSessionMode),
       } : {}),
       ...(preconfigured ? { homeMode: "preconfigured" as const } : {}),
-      acpxPermissionMode: resolvePaperclipRunnerPermissionMode(
+      acpxPermissionMode: resolveNexusRunnerPermissionMode(
         "acpx",
         config.acpxPermissionMode,
-      ) as "approve-all" | "approve-paperclip" | "approve-reads" | "deny-all",
+      ) as "approve-all" | "approve-nexus" | "approve-reads" | "deny-all",
     };
   }
   if (profile.provider === "claude_managed") {
@@ -715,14 +715,14 @@ export function resolvePaperclipRunnerNativeProviderInput(input: {
         && profile.managedProfileId !== stored.profileKey
       )
     ) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_claude_managed_profile_mismatch",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_claude_managed_profile_mismatch",
         "The qualified Claude Managed profile does not match the adapter selection.",
       );
     }
     if (stored.betaVersion !== CLAUDE_MANAGED_BETA_VERSION) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_claude_managed_beta_unqualified",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_claude_managed_beta_unqualified",
         "The Claude Managed profile beta version is not qualified.",
       );
     }
@@ -730,20 +730,20 @@ export function resolvePaperclipRunnerNativeProviderInput(input: {
     const maxSessionListCostUsd = profile.maxSessionListCostUsd
       ?? stored.defaultMaxListCostCents / 100;
     if (!model) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_claude_managed_model_invalid",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_claude_managed_model_invalid",
         "The Claude Managed profile requires a model.",
       );
     }
     if (model !== CLAUDE_MANAGED_QUALIFIED_MODEL) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_claude_managed_model_unqualified",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_claude_managed_model_unqualified",
         `The Claude Managed profile requires exact model ${CLAUDE_MANAGED_QUALIFIED_MODEL}.`,
       );
     }
     if (!Number.isFinite(maxSessionListCostUsd) || maxSessionListCostUsd <= 0) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_claude_managed_spend_cap_invalid",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_claude_managed_spend_cap_invalid",
         "The Claude Managed profile requires a positive session spend ceiling.",
       );
     }
@@ -769,8 +769,8 @@ export function resolvePaperclipRunnerNativeProviderInput(input: {
         && profile.agentCoreProfileId !== stored.profileKey
       )
     ) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_aws_agentcore_profile_mismatch",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_aws_agentcore_profile_mismatch",
         "The qualified AWS AgentCore profile does not match the adapter selection.",
       );
     }
@@ -778,35 +778,35 @@ export function resolvePaperclipRunnerNativeProviderInput(input: {
     const required = (key: string): string => {
       const value = optionalString(remote[key]);
       if (!value) {
-        throw new PaperclipRunnerProviderProfileError(
-          "paperclip_runner_aws_agentcore_profile_invalid",
+        throw new NexusRunnerProviderProfileError(
+          "nexus_runner_aws_agentcore_profile_invalid",
           `The qualified AWS AgentCore profile is missing ${key}.`,
         );
       }
       return value;
     };
     if (remote.eventExpiryDays !== 90) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_aws_agentcore_retention_unqualified",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_aws_agentcore_retention_unqualified",
         "The qualified AWS AgentCore profile must retain Memory events for exactly 90 days.",
       );
     }
     const maxEstimatedSessionCostUsd = profile.maxEstimatedSessionCostUsd
       ?? positiveNumberOrNull(
         remote.defaultMaxEstimatedSessionCostUsd,
-        "paperclip_runner_aws_agentcore_spend_cap_invalid",
+        "nexus_runner_aws_agentcore_spend_cap_invalid",
         "The AWS AgentCore profile requires a positive estimated session spend ceiling.",
       );
     if (maxEstimatedSessionCostUsd === null) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_aws_agentcore_spend_cap_invalid",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_aws_agentcore_spend_cap_invalid",
         "The AWS AgentCore profile requires a positive estimated session spend ceiling.",
       );
     }
     const model = profile.model ?? required("defaultModel");
     if (model !== AGENTCORE_QUALIFIED_MODEL) {
-      throw new PaperclipRunnerProviderProfileError(
-        "paperclip_runner_aws_agentcore_model_unqualified",
+      throw new NexusRunnerProviderProfileError(
+        "nexus_runner_aws_agentcore_model_unqualified",
         `The AWS AgentCore profile requires exact model ${AGENTCORE_QUALIFIED_MODEL}.`,
       );
     }
@@ -837,21 +837,21 @@ export function resolvePaperclipRunnerNativeProviderInput(input: {
           config.maxIterations,
           8,
           8,
-          "paperclip_runner_aws_agentcore_max_iterations_invalid",
+          "nexus_runner_aws_agentcore_max_iterations_invalid",
           "AWS AgentCore maxIterations",
         ),
         maxOutputTokens: boundedPositiveInteger(
           config.maxOutputTokens,
           4_096,
           4_096,
-          "paperclip_runner_aws_agentcore_max_output_tokens_invalid",
+          "nexus_runner_aws_agentcore_max_output_tokens_invalid",
           "AWS AgentCore maxOutputTokens",
         ),
         timeoutSeconds: boundedPositiveInteger(
           config.timeoutSeconds,
           300,
           300,
-          "paperclip_runner_aws_agentcore_timeout_invalid",
+          "nexus_runner_aws_agentcore_timeout_invalid",
           "AWS AgentCore timeoutSeconds",
         ),
       },
@@ -864,16 +864,16 @@ export function resolvePaperclipRunnerNativeProviderInput(input: {
     || (profile.model && isCodexLocalKnownModel(profile.model)
       && !codexLocalReasoningEffortsForModel(profile.model).includes(effort as "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra"))
   )) {
-    throw new PaperclipRunnerProviderProfileError(
-      "paperclip_runner_codex_effort_invalid",
-      "Paperclip Runner Codex reasoning effort is not supported for this model.",
+    throw new NexusRunnerProviderProfileError(
+      "nexus_runner_codex_effort_invalid",
+      "Nexus Runner Codex reasoning effort is not supported for this model.",
     );
   }
   return {
     provider: "codex",
     model: compatibleCodexModel(profile.model, input.codexCliVersion ?? null),
     ...(preconfigured ? { homeMode: "preconfigured" as const } : {}),
-    codexApprovalPolicy: resolvePaperclipRunnerPermissionMode(
+    codexApprovalPolicy: resolveNexusRunnerPermissionMode(
       "codex",
       config.codexPermissionMode,
     ) as "never" | "on-request" | "untrusted",

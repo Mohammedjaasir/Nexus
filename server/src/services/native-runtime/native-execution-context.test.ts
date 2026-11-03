@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { NativeExecutionInput } from "../../vendor/paperclip-runner/index.js";
+import type { NativeExecutionInput } from "../../vendor/nexus-runner/index.js";
 import { NativeExecutionContext } from "./native-execution-context.js";
 
 const execution = { binding: { companyId: "company", agentId: "agent", runId: "run" } } as NativeExecutionInput;

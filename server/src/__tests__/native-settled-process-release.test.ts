@@ -1,5 +1,5 @@
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
-import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { randomBytes, randomUUID } from "node:crypto";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "./helpers/full-database-response-capture.js";
 import { spawn } from "node:child_process";
@@ -17,7 +17,7 @@ import {
   heartbeatRuns,
   issues,
   nativeRunFinalizations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { appendHeartbeatRunEvent } from "../services/heartbeat-run-events.js";
 import { persistHeartbeatRunProcessMetadata } from "../services/heartbeat/run-lifecycle.js";
@@ -40,7 +40,7 @@ vi.mock("../adapters/index.js", async () => {
   return { ...actual, getServerAdapter: vi.fn(() => ({ supportsLocalAgentJwt: false, execute })) };
 });
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_SETTLED_PROCESS_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_SETTLED_PROCESS_TEST_DATABASE_URL");
 const support = await getEmbeddedPostgresTestSupport();
 const suite = external || support.supported ? describe : describe.skip;
 
@@ -226,7 +226,7 @@ suite("settled native run process identity", () => {
     installDatabaseResponseCapture(db, { heartbeatRuns }, capture);
     try { expect(await releaseSettledNativeRunProcess(db, runId)).toBe("released"); }
     finally { capture.flush(); }
-    const summary = events.find(event => event.event === "paperclip.test_db_response_capture.summary.v1")!;
+    const summary = events.find(event => event.event === "nexus.test_db_response_capture.summary.v1")!;
     expect(summary.responseValueBytes).toBeLessThan(8192);
     const after = await readRun(runId);
     expect(after).toEqual({ ...saved, processPid: null, processGroupId: null, processStartedAt: null,

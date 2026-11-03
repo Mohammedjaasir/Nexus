@@ -1,5 +1,5 @@
 import { and, asc, eq, exists, gt, inArray, isNotNull, ne } from "drizzle-orm";
-import { heartbeatRuns, issues, nativeRunFinalizations, statusDecisionEffects, type Db } from "@paperclipai/db";
+import { heartbeatRuns, issues, nativeRunFinalizations, statusDecisionEffects, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { DELIVERY_QUEUES } from "../delivery-work-notifications.js";
 import type { NativeFinalizationWorkScope } from "../native-finalization-notifications.js";

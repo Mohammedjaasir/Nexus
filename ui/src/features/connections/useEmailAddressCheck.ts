@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { EmailAddressCheckResult } from "@paperclipai/shared";
+import type { EmailAddressCheckResult } from "@nexusai/shared";
 import { emailApi } from "@/api/email";
 
 type Check = { key: string; result?: EmailAddressCheckResult; error?: string };

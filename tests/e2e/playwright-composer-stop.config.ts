@@ -6,18 +6,18 @@ import base from "./playwright.config";
 
 // Opt-in native coverage uses real runnerd with the repo's deterministic Codex
 // protocol fixture. Never let this suite fall through to a logged-in real Codex.
-const fixture = process.env.PAPERCLIP_STOP_FAKE_CODEX;
+const fixture = process.env.NEXUS_STOP_FAKE_CODEX;
 const fixtureDir = fs.mkdtempSync(
   path.join(os.tmpdir(), "composer-stop-provider-"),
 );
 const logPath =
-  process.env.PAPERCLIP_STOP_CODEX_LOG ??
+  process.env.NEXUS_STOP_CODEX_LOG ??
   path.join(fixtureDir, "codex-calls.log");
-process.env.PAPERCLIP_STOP_CODEX_LOG = logPath;
+process.env.NEXUS_STOP_CODEX_LOG = logPath;
 if (fixture) {
   if (!path.isAbsolute(fixture) || !fs.existsSync(fixture))
     throw new Error(
-      "PAPERCLIP_STOP_FAKE_CODEX must name the built fake-codex-app-server binary",
+      "NEXUS_STOP_FAKE_CODEX must name the built fake-codex-app-server binary",
     );
   fs.mkdirSync(path.join(fixtureDir, "codex-home"));
   const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
@@ -41,7 +41,7 @@ export default defineConfig({
       ...(fixture ? {
         // Provider selection prefers the installed dependency over PATH.
         // Scope this override and its empty credential home to the test server.
-        PAPERCLIP_STOP_CODEX_COMMAND: path.join(fixtureDir, "codex"),
+        NEXUS_STOP_CODEX_COMMAND: path.join(fixtureDir, "codex"),
         CODEX_HOME: path.join(fixtureDir, "codex-home"),
         OPENAI_API_KEY: "composer-stop-fixture-key",
         NODE_OPTIONS: `${server?.env?.NODE_OPTIONS ?? ""} --import=${path.resolve(import.meta.dirname, "fixtures/composer-stop-codex-loader.mjs")}`,

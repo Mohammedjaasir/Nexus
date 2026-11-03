@@ -30,7 +30,7 @@ describe("stageGrokHomeForSync", () => {
   }
 
   it("starts fresh instead of throwing when private history exceeds the lookup bound", async () => {
-    const root = await makeRoot("paperclip-grok-large-history-");
+    const root = await makeRoot("nexus-grok-large-history-");
     const sessions = path.join(root, "sessions");
     await fs.mkdir(sessions);
     for (let offset = 0; offset < 5001; offset += 100) {
@@ -40,7 +40,7 @@ describe("stageGrokHomeForSync", () => {
   });
 
   it("stages auth.json and stages no other file", async () => {
-    const root = await makeRoot("paperclip-grok-stage-");
+    const root = await makeRoot("nexus-grok-stage-");
     const home = path.join(root, "grok-home");
     await fs.mkdir(home, { recursive: true });
     await fs.writeFile(path.join(home, "auth.json"), JSON.stringify({ ok: true }), "utf8");
@@ -57,7 +57,7 @@ describe("stageGrokHomeForSync", () => {
   });
 
   it("creates the staged directory with mode 0700", async () => {
-    const root = await makeRoot("paperclip-grok-stage-dir-");
+    const root = await makeRoot("nexus-grok-stage-dir-");
     const home = path.join(root, "grok-home");
     await fs.mkdir(home, { recursive: true });
     await fs.writeFile(path.join(home, "auth.json"), "{}", "utf8");
@@ -70,7 +70,7 @@ describe("stageGrokHomeForSync", () => {
   });
 
   it("writes the staged auth.json with mode 0600", async () => {
-    const root = await makeRoot("paperclip-grok-stage-mode-");
+    const root = await makeRoot("nexus-grok-stage-mode-");
     const home = path.join(root, "grok-home");
     await fs.mkdir(home, { recursive: true });
     // Source file at a world-readable mode; the staged copy must still land 0600.
@@ -84,7 +84,7 @@ describe("stageGrokHomeForSync", () => {
   });
 
   it("dereferences an auth.json symlink to bytes", async () => {
-    const root = await makeRoot("paperclip-grok-stage-symlink-");
+    const root = await makeRoot("nexus-grok-stage-symlink-");
     const home = path.join(root, "grok-home");
     await fs.mkdir(home, { recursive: true });
     const authSource = path.join(root, "shared-auth.json");
@@ -101,7 +101,7 @@ describe("stageGrokHomeForSync", () => {
   });
 
   it("treats an absent auth.json as absent", async () => {
-    const root = await makeRoot("paperclip-grok-stage-absent-");
+    const root = await makeRoot("nexus-grok-stage-absent-");
     const home = path.join(root, "grok-home");
     await fs.mkdir(home, { recursive: true });
 
@@ -112,7 +112,7 @@ describe("stageGrokHomeForSync", () => {
   });
 
   it("treats a dangling auth.json symlink as absent", async () => {
-    const root = await makeRoot("paperclip-grok-stage-dangling-");
+    const root = await makeRoot("nexus-grok-stage-dangling-");
     const home = path.join(root, "grok-home");
     await fs.mkdir(home, { recursive: true });
     await fs.symlink(path.join(root, "gone", "auth.json"), path.join(home, "auth.json"));
@@ -124,7 +124,7 @@ describe("stageGrokHomeForSync", () => {
   });
 
   it("removes the staged directory on an unexpected error", async () => {
-    const root = await makeRoot("paperclip-grok-stage-fail-");
+    const root = await makeRoot("nexus-grok-stage-fail-");
     const home = path.join(root, "grok-home");
     await fs.mkdir(home, { recursive: true });
     await fs.writeFile(path.join(home, "auth.json"), "{}", "utf8");

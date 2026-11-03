@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
-import { companies, companySkills, companySkillSources, createDb, applyPendingMigrations, projects, projectWorkspaces, projectSkillSources } from '@paperclipai/db';
+import { companies, companySkills, companySkillSources, createDb, applyPendingMigrations, projects, projectWorkspaces, projectSkillSources } from '@nexusai/db';
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from '../__tests__/helpers/embedded-postgres.js';
 import { githubFixture } from '../__tests__/helpers/github-skills.js';
 import { skillSourceSyncService } from './skill-source-sync.js';
@@ -16,7 +16,7 @@ import { idleWorkSnapshot } from './task-admission.js';
 import { readIdleSleepSafety } from './idle-sleep-safety.js';
 import { companyService } from './companies.js';
 
-const externalUrl = resolveExternalTestDatabaseUrl('PAPERCLIP_SKILL_SYNC_TEST_DATABASE_URL');
+const externalUrl = resolveExternalTestDatabaseUrl('NEXUS_SKILL_SYNC_TEST_DATABASE_URL');
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const setup = { refreshUserId: null, refreshAgentId: null, refreshLocalTrusted: true, connectionId: null, refreshGrantId: null };
 
@@ -26,7 +26,7 @@ describe.skipIf(!support.supported)('skill source committed work and deadlines',
   let coordinator: ReturnType<typeof createDeliveryWorkCoordinator>;
   let service: ReturnType<typeof skillSourceSyncService>;
   let home: string;
-  const oldHome = process.env.PAPERCLIP_HOME;
+  const oldHome = process.env.NEXUS_HOME;
   let companyId: string;
   let draining: boolean;
   let standby: boolean;
@@ -41,7 +41,7 @@ describe.skipIf(!support.supported)('skill source committed work and deadlines',
     else database = await startEmbeddedPostgresTestDatabase('skill-sync-work-');
     db = createDb(externalUrl ?? database.connectionString, { maxConnections: 4 });
     home = await fs.mkdtemp(path.join(os.tmpdir(), 'skill-sync-work-home-'));
-    process.env.PAPERCLIP_HOME = home;
+    process.env.NEXUS_HOME = home;
   });
   beforeEach(async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'], shouldAdvanceTime: true });
@@ -62,7 +62,7 @@ describe.skipIf(!support.supported)('skill source committed work and deadlines',
     await db.execute(sql`TRUNCATE TABLE companies CASCADE`);
   });
   afterAll(async () => {
-    if (oldHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = oldHome;
+    if (oldHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = oldHome;
     await db?.$client.end({ timeout: 1 });
     await database?.cleanup();
     if (home) await fs.rm(home, { recursive: true, force: true });

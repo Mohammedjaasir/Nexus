@@ -9,7 +9,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { agents, authUsers, companies, companyMemberships, createDb, executionWorkspaces, issues,
-  projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+  projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { drainHeartbeatRunsToQuiescence } from "./helpers/drain-heartbeat-runs.js";
 import { heartbeatService } from "../services/heartbeat.js";
@@ -26,10 +26,10 @@ describe.skipIf(!support.supported)("workspace history real process journey", ()
   let heartbeat: ReturnType<typeof heartbeatService>;
   const exec = promisify(execFileCallback);
   beforeAll(async () => {
-    root = await mkdtemp(path.join(tmpdir(), "paperclip-workspace-history-journey-"));
-    vi.stubEnv("PAPERCLIP_HOME", path.join(root, "home"));
-    vi.stubEnv("PAPERCLIP_ISSUE_PRIVACY_MODE", "enforce");
-    vi.stubEnv("PAPERCLIP_MULTI_PROJECT_WORKSPACE_SYNC", "false");
+    root = await mkdtemp(path.join(tmpdir(), "nexus-workspace-history-journey-"));
+    vi.stubEnv("NEXUS_HOME", path.join(root, "home"));
+    vi.stubEnv("NEXUS_ISSUE_PRIVACY_MODE", "enforce");
+    vi.stubEnv("NEXUS_MULTI_PROJECT_WORKSPACE_SYNC", "false");
     database = await startEmbeddedPostgresTestDatabase("workspace-history-journey");
     db = createDb(database.connectionString);
     await instanceSettingsService(db).updateExperimental({ enableIsolatedWorkspaces: true });
@@ -59,7 +59,7 @@ describe.skipIf(!support.supported)("workspace history real process journey", ()
       principalType: "user" as const, principalId, membershipRole: "member" as const, status: "active" as const })));
     await db.insert(projects).values({ id: projectId, companyId, name: "Selected repository" });
     await db.insert(projectWorkspaces).values({ id: sourceId, companyId, projectId, name: "Selected source", cwd: sourceCwd, isPrimary: true });
-    const childScript = 'const startedAtUnixMs = Date.now(); const fs = require("node:fs"); fs.appendFileSync("journey-result.txt", process.env.PAPERCLIP_RUN_ID + "\\n"); console.log(JSON.stringify({ written: "journey-result.txt", cwd: process.cwd(), startedAtUnixMs, finishedAtUnixMs: Date.now() })); const release = ".journey-release-" + process.env.PAPERCLIP_RUN_ID; const timer = setInterval(() => { if (fs.existsSync(release)) { fs.unlinkSync(release); clearInterval(timer); } }, 10);';
+    const childScript = 'const startedAtUnixMs = Date.now(); const fs = require("node:fs"); fs.appendFileSync("journey-result.txt", process.env.NEXUS_RUN_ID + "\\n"); console.log(JSON.stringify({ written: "journey-result.txt", cwd: process.cwd(), startedAtUnixMs, finishedAtUnixMs: Date.now() })); const release = ".journey-release-" + process.env.NEXUS_RUN_ID; const timer = setInterval(() => { if (fs.existsSync(release)) { fs.unlinkSync(release); clearInterval(timer); } }, 10);';
     await db.insert(agents).values({ id: agentId, companyId, name: "Real process worker", adapterType: "process", status: "idle",
       adapterConfig: { command: process.execPath, args: ["-e", childScript], cwd: sourceCwd, timeoutSec: 20 } });
     await db.insert(companyMemberships).values({ companyId, principalType: "agent", principalId: agentId,
@@ -134,7 +134,7 @@ describe.skipIf(!support.supported)("workspace history real process journey", ()
     expect(secondContent.status).toBe(200);
     expect(JSON.stringify(secondContent.body)).toContain(second.id);
     console.info("workspace-history-journey timings", JSON.stringify(measurements));
-    const evidencePath = process.env.PAPERCLIP_JOURNEY_EVIDENCE_PATH;
+    const evidencePath = process.env.NEXUS_JOURNEY_EVIDENCE_PATH;
     if (evidencePath) await writeFile(evidencePath, JSON.stringify({
       result: "passed", processAdapter: "real", workspaceReused: true, privateTaskDenied: true, measurements,
     }, null, 2));

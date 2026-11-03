@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SemanticToolOutcomeUnknownError } from "../../vendor/paperclip-runner/index.js";
+import { SemanticToolOutcomeUnknownError } from "../../vendor/nexus-runner/index.js";
 import type { RunnerApiIo } from "./runner-api-client.js";
 import { RUNNER_API_RESPONSE_MAX_BYTES } from "./runner-api-response-limits.js";
 

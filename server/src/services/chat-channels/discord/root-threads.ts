@@ -16,7 +16,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatConversations,
@@ -25,7 +25,7 @@ import {
   chatEndpoints,
   chatExternalPrincipals,
   companyMemberships,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import {
   conflict,
@@ -155,7 +155,7 @@ export function createDiscordRootThreads(db: Db, options: DiscordRootThreadsOpti
               (resource.enabled || setupDestination)
             )
           ) {
-            reason = "Destination is not enabled in Paperclip";
+            reason = "Destination is not enabled in Nexus";
           }
 
           if (!reason && endpoint) {
@@ -207,10 +207,10 @@ export function createDiscordRootThreads(db: Db, options: DiscordRootThreadsOpti
             }
             if (!allowed) {
               reason = linkedDenied
-                ? "Linked Paperclip account is not currently permitted"
+                ? "Linked Nexus account is not currently permitted"
                 : endpoint.allowUnlinkedPeople
                   ? "Endpoint sponsor can no longer authorize external guests"
-                  : "External identity must be linked to a Paperclip account";
+                  : "External identity must be linked to a Nexus account";
             }
           }
           if (!reason) {
@@ -323,7 +323,7 @@ export function createDiscordRootThreads(db: Db, options: DiscordRootThreadsOpti
         } catch (error) {
           // The durable provisional receipt owns recovery. Do not let a
           // transient REST failure escape the Gateway event handler or ask the
-          // adapter to create the same thread outside Paperclip's lifecycle
+          // adapter to create the same thread outside Nexus's lifecycle
           // fence.
           logger.warn(
             {
@@ -368,7 +368,7 @@ export function createDiscordRootThreads(db: Db, options: DiscordRootThreadsOpti
         });
         if (promoted)
           scheduleConversationDrain(configuredEndpoint.id, threadId);
-        // Paperclip created the provider thread inside its credential/reach
+        // Nexus created the provider thread inside its credential/reach
         // lease. Returning false prevents the adapter from creating it again;
         // the durable drain owns the remaining task mutation.
         return false;
@@ -443,7 +443,7 @@ export function createDiscordRootThreads(db: Db, options: DiscordRootThreadsOpti
             content:
               typeof normalized.message?.text === "string"
                 ? normalized.message.text
-                : "Paperclip task",
+                : "Nexus task",
           });
           return await db.transaction(async (tx) => {
             await credentialLease.assertOwned(tx);

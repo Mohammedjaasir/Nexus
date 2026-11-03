@@ -103,11 +103,11 @@ describe("describeError", () => {
   it("uses the shared transient copy for outages", () => {
     expect(describeError(new ApiUnavailableError(502))).toEqual({
       title: "Connection interrupted",
-      body: "Paperclip is temporarily unavailable. Please try again in a moment.",
+      body: "Nexus is temporarily unavailable. Please try again in a moment.",
       retryable: true,
     });
     expect(describeError(apiError(503, { error: "tenant_app_unavailable" }))).toMatchObject({
-      title: "Reconnecting to Paperclip",
+      title: "Reconnecting to Nexus",
       retryable: true,
     });
   });
@@ -141,7 +141,7 @@ describe("ApiError", () => {
   it("keeps the raw body.error as code and a readable message", () => {
     const error = apiError(503, { error: "tenant_app_unavailable" });
     expect(error.code).toBe("tenant_app_unavailable");
-    expect(error.message).toBe("Paperclip is restarting or updating. Please try again in a moment.");
+    expect(error.message).toBe("Nexus is restarting or updating. Please try again in a moment.");
   });
 
   it("passes a readable server message through unchanged", () => {

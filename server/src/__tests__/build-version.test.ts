@@ -36,9 +36,9 @@ describe("readBuildVersion", () => {
     expect(
       readBuildVersion({
         environmentVersion: null,
-        buildVersionPath: "/app/.paperclip-build-version",
+        buildVersionPath: "/app/.nexus-build-version",
         readTextFile: (path) => {
-          expect(path).toBe("/app/.paperclip-build-version");
+          expect(path).toBe("/app/.nexus-build-version");
           return "v2026.722.0-15-g4c55f0d\n";
         },
       }),

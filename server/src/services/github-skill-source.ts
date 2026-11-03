@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { MAX_REPOSITORY_BYTES, MAX_REPOSITORY_FILES, repositoryPackageInspection } from './skill-repository-package.js';
-import type { CompanySkillVersionFileInventoryEntry, SkillSourceCandidate, SkillSourceDiscovery, SkillSourcePreviewRequest, SkillSourceFilePreview, SkillSourceScanUpdate, SkillSourceScanProgress } from '@paperclipai/shared';
-import { parseFrontmatterMarkdown, parseGitHubSkillRepositoryUrl } from '@paperclipai/shared';
+import type { CompanySkillVersionFileInventoryEntry, SkillSourceCandidate, SkillSourceDiscovery, SkillSourcePreviewRequest, SkillSourceFilePreview, SkillSourceScanUpdate, SkillSourceScanProgress } from '@nexusai/shared';
+import { parseFrontmatterMarkdown, parseGitHubSkillRepositoryUrl } from '@nexusai/shared';
 import { notFound, unprocessable } from '../errors.js';
 import { assertSkillSnapshotPath, snapshotFile, skillFileBytes, MAX_SKILL_SNAPSHOT_BYTES, MAX_SKILL_SNAPSHOT_FILES } from './skill-snapshot.js';
 import { indexSkillPackagePaths, inspectSkillPackage } from './skill-package-inspection.js';

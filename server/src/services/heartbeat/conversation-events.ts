@@ -1,10 +1,10 @@
 import { getTableColumns, sql } from "drizzle-orm";
-import { heartbeatRunEvents } from "@paperclipai/db";
+import { heartbeatRunEvents } from "@nexusai/db";
 
 function planWriteCondition(runId: string) {
   return sql`(${heartbeatRunEvents.eventType} = 'item.completed'
       and ${heartbeatRunEvents.payload} #>> '{prpEvent,sourceKind}' = 'runner'
-      and ${heartbeatRunEvents.payload} #>> '{prpEvent,schema}' = 'paperclip.prp.event.v1'
+      and ${heartbeatRunEvents.payload} #>> '{prpEvent,schema}' = 'nexus.prp.event.v1'
       and ${heartbeatRunEvents.payload} #>> '{prpEvent,payload,item,type}' = 'tool_result'
       and coalesce(${heartbeatRunEvents.payload} #>> '{prpEvent,payload,item,isError}', ${heartbeatRunEvents.payload} #>> '{prpEvent,payload,item,is_error}', 'false') = 'false'
       and ${heartbeatRunEvents.payload} #>> '{prpEvent,payload,item,result,disposition}' in ('applied', 'duplicate')
@@ -24,7 +24,7 @@ function planWriteCondition(runId: string) {
         where e.run_id = ${runId}
           and e.event_type = 'item.started'
           and e.payload #>> '{prpEvent,sourceKind}' = 'runner'
-          and e.payload #>> '{prpEvent,schema}' = 'paperclip.prp.event.v1'
+          and e.payload #>> '{prpEvent,schema}' = 'nexus.prp.event.v1'
           and e.payload #>> '{prpEvent,payload,item,type}' = 'tool_use'
           and e.payload #>> '{prpEvent,payload,item,name}' = 'write_document'
           and e.payload #>> '{prpEvent,payload,item,input,key}' = 'plan'

@@ -51,7 +51,7 @@ describe("stock harness prerequisite coverage", () => {
 
 describe("stock harness prerequisite admission", () => {
   const current = { sha: "a".repeat(40), fingerprint: "b".repeat(64), runnerdSha256: "c".repeat(64), fakeCodexSha256: "e".repeat(64) };
-  const receipt = () => ({ schema: "paperclip.stock-harness-preflight.v3", passed: true,
+  const receipt = () => ({ schema: "nexus.stock-harness-preflight.v3", passed: true,
     instructionVariant: (({ variant, sha256 }) => ({ variant, sha256 }))(readStockInstructionVariant()),
     setup: { passed: true, exitCode: 0, sdkExitCode: 0, runnerdExitCode: 0, runnerdSha256: current.runnerdSha256,
       fakeCodexSha256: current.fakeCodexSha256 },

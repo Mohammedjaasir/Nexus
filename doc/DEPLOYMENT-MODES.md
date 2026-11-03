@@ -3,7 +3,7 @@
 Status: Canonical deployment and auth mode model  
 Date: 2026-02-23
 
-### Paperclip Cloud sign-in
+### Nexus Cloud sign-in
 
 Cloud-managed instances use Cloud for human sign-in. The instance `/auth`
 route waits for deployment metadata before rendering; it never renders the
@@ -14,7 +14,7 @@ user through its sign-in flow. The original tenant path, query, and fragment
 travel as `returnTo` so the user returns to the same task.
 
 Both the Cloud origin and stack slug come from the server's health metadata
-(`PAPERCLIP_CLOUD_API_ORIGIN` and `PAPERCLIP_STACK_SLUG`). Do not infer the
+(`NEXUS_CLOUD_API_ORIGIN` and `NEXUS_STACK_SLUG`). Do not infer the
 environment from the browser hostname or hardcode staging/production domains.
 Missing configuration shows an unavailable state. An automatic recovery attempt
 is limited per browser tab until a session is verified, with a five-minute
@@ -33,7 +33,7 @@ production retains its managed feature policy.
 
 ## 1. Purpose
 
-Paperclip supports two runtime modes:
+Nexus supports two runtime modes:
 
 1. `local_trusted`
 2. `authenticated`
@@ -45,7 +45,7 @@ Paperclip supports two runtime modes:
 
 This keeps one authenticated auth stack while still separating low-friction private-network defaults from internet-facing hardening requirements.
 
-Paperclip now treats **bind** as a separate concern from auth:
+Nexus now treats **bind** as a separate concern from auth:
 
 - auth model: `local_trusted` vs `authenticated`, plus `private/public`
 - reachability model: `server.bind = loopback | lan | tailnet | custom`
@@ -80,7 +80,7 @@ Paperclip now treats **bind** as a separate concern from auth:
 - login required
 - low-friction URL handling (`auto` base URL mode)
 - private-host trust policy required
-- Better Auth request rate limiting is off by default for private mode to keep local/LAN repair loops from locking out the operator; set `PAPERCLIP_AUTH_RATE_LIMIT_ENABLED=true` to opt in
+- Better Auth request rate limiting is off by default for private mode to keep local/LAN repair loops from locking out the operator; set `NEXUS_AUTH_RATE_LIMIT_ENABLED=true` to opt in
 - bind can be `loopback`, `lan`, `tailnet`, or `custom`
 
 ## `authenticated + public`
@@ -88,34 +88,34 @@ Paperclip now treats **bind** as a separate concern from auth:
 - login required
 - explicit public URL required
 - stricter deployment checks and failures in doctor
-- Better Auth request rate limiting is on by default; set `PAPERCLIP_AUTH_RATE_LIMIT_ENABLED=false` only when an explicit front-door limiter covers the deployment
+- Better Auth request rate limiting is on by default; set `NEXUS_AUTH_RATE_LIMIT_ENABLED=false` only when an explicit front-door limiter covers the deployment
 - recommended bind is `loopback` behind a reverse proxy; direct `lan/custom` is advanced
-- local stdio MCP runtime slots fail closed by default; set `PAPERCLIP_TRUSTED_MCP_RUNTIME_HOST` only when a trusted worker/runtime host is configured to supervise those processes. Remote HTTP MCP remains the preferred public-hosted path.
+- local stdio MCP runtime slots fail closed by default; set `NEXUS_TRUSTED_MCP_RUNTIME_HOST` only when a trusted worker/runtime host is configured to supervise those processes. Remote HTTP MCP remains the preferred public-hosted path.
 
-### Paperclip Cloud warm-pool identity
+### Nexus Cloud warm-pool identity
 
 A Cloud-managed warm-pool process initially boots under a `pool-*` origin. It
 receives only Cloud's public verification set in
-`PAPERCLIP_CLOUD_RUNTIME_IDENTITY_JWKS`. Before Cloud activates a claimed stack,
+`NEXUS_CLOUD_RUNTIME_IDENTITY_JWKS`. Before Cloud activates a claimed stack,
 the existing server-to-server health request carries a short-lived Ed25519 JWS
-that binds the immutable `PAPERCLIP_CLOUD_STACK_ID`, pool claim, previous
-origin, canonical HTTPS origin, and slug. Paperclip verifies and persists that
+that binds the immutable `NEXUS_CLOUD_STACK_ID`, pool claim, previous
+origin, canonical HTTPS origin, and slug. Nexus verifies and persists that
 one-time assertion, updates its live public/API URL provider, and acknowledges
 the exact origin in `/api/health` before the first user request is admitted.
 
-The Harness signing private key is never present in Paperclip, browsers, or
+The Harness signing private key is never present in Nexus, browsers, or
 other tenant stacks. A different claim or destination cannot replace the
 persisted identity. On restart, the durable identity is loaded before auth,
 routes, and child-runtime configuration, even when provider variables are
 temporarily stale. Self-hosted deployments continue to use their configured
-`PAPERCLIP_PUBLIC_URL` and do not participate in this protocol.
+`NEXUS_PUBLIC_URL` and do not participate in this protocol.
 
 ## 4. Onboarding UX Contract
 
 Default onboarding remains interactive and flagless:
 
 ```sh
-pnpm paperclipai onboard
+pnpm nexusai onboard
 ```
 
 Server prompt behavior:
@@ -132,9 +132,9 @@ Server prompt behavior:
 Examples:
 
 ```sh
-pnpm paperclipai onboard --yes
-npx paperclipai onboard --yes --bind lan
-npx paperclipai run --bind tailnet
+pnpm nexusai onboard --yes
+npx nexusai onboard --yes --bind lan
+npx nexusai run --bind tailnet
 ```
 
 `configure --section server` follows the same interactive behavior.
@@ -144,7 +144,7 @@ npx paperclipai run --bind tailnet
 Default doctor remains flagless:
 
 ```sh
-pnpm paperclipai doctor
+pnpm nexusai doctor
 ```
 
 Doctor reads configured mode/exposure and applies mode-aware checks. Optional override flags are secondary.
@@ -163,7 +163,7 @@ This is required because user assignment paths validate active membership for `a
 
 ## 7. Local Trusted -> Authenticated Claim Flow
 
-When running `authenticated` mode, if the only instance admin is `local-board`, Paperclip emits a startup warning with a one-time high-entropy claim URL.
+When running `authenticated` mode, if the only instance admin is `local-board`, Nexus emits a startup warning with a one-time high-entropy claim URL.
 
 - URL format: `/board-claim/<token>?code=<code>`
 - intended use: signed-in human claims board ownership
@@ -179,10 +179,10 @@ This prevents lockout when a user migrates from long-running local trusted usage
 Fresh authenticated installs start in `bootstrap_pending` until the first
 `instance_admin` exists.
 
-For `authenticated/private`, Paperclip supports a browser-first setup path:
+For `authenticated/private`, Nexus supports a browser-first setup path:
 
-1. open the Paperclip URL from the private network or appliance UI
-2. sign in or create a Paperclip account
+1. open the Nexus URL from the private network or appliance UI
+2. sign in or create a Nexus account
 3. choose `Claim this instance` on the setup screen
 
 That browser claim promotes the signed-in session user to the first instance
@@ -200,7 +200,7 @@ not an account-recovery or public-deployment mechanism.
 The CLI fallback remains supported in all authenticated setup states:
 
 ```sh
-pnpm paperclipai auth bootstrap-ceo
+pnpm nexusai auth bootstrap-ceo
 ```
 
 That command prints a one-time first-admin invite URL. Browser claim and

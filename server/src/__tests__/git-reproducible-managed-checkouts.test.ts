@@ -31,7 +31,7 @@ async function commit(cwd: string, file: string, message: string) {
   return (await git(cwd, "rev-parse", "HEAD")).trim();
 }
 
-describe("assertReproducibleGitFiles with Paperclip-managed files", () => {
+describe("assertReproducibleGitFiles with Nexus-managed files", () => {
   let root: string;
   let work: string;
   let projectSeed: string;
@@ -52,7 +52,7 @@ describe("assertReproducibleGitFiles with Paperclip-managed files", () => {
   }
 
   beforeEach(async () => {
-    root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-reproducible-")));
+    root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "nexus-reproducible-")));
     const main = await upstream("main", {
       "README.md": "main\n",
       ".gitignore": "node_modules/\n.claude/settings.local.json\nsecret.txt\n",
@@ -60,7 +60,7 @@ describe("assertReproducibleGitFiles with Paperclip-managed files", () => {
     ({ seed: projectSeed, bare: projectRemote } = await upstream("project", { "README.md": "project\n", ".gitignore": "node_modules/\n" }));
     work = path.join(root, "work");
     await execFile("git", ["clone", "-q", main.bare, work]);
-    await fs.appendFile(path.join(work, ".git", "info", "exclude"), "\n/.paperclip-repositories/\n");
+    await fs.appendFile(path.join(work, ".git", "info", "exclude"), "\n/.nexus-repositories/\n");
     prove = (checkout, _name, signal) => assertReproducibleManagedCheckout(checkout, {
       repoUrl: projectRemote, resolveGitAuth: async () => null, signal,
     });
@@ -71,7 +71,7 @@ describe("assertReproducibleGitFiles with Paperclip-managed files", () => {
   });
 
   async function managedCheckout(name = "project-d051a9c4e671") {
-    const checkout = path.join(work, ".paperclip-repositories", name);
+    const checkout = path.join(work, ".nexus-repositories", name);
     await fs.mkdir(path.dirname(checkout), { recursive: true });
     await execFile("git", ["clone", "-q", projectRemote, checkout]);
     return checkout;
@@ -221,8 +221,8 @@ describe("assertReproducibleGitFiles with Paperclip-managed files", () => {
   it("never treats task repositories or plain directories as reproducible", async () => {
     await managedCheckout("task-repo-0123456789abcdef01234567");
     await expectRejected("unique_ignored_files");
-    await fs.rm(path.join(work, ".paperclip-repositories"), { recursive: true });
-    await write(path.join(work, ".paperclip-repositories", "project-d051a9c4e671", "README.md"));
+    await fs.rm(path.join(work, ".nexus-repositories"), { recursive: true });
+    await write(path.join(work, ".nexus-repositories", "project-d051a9c4e671", "README.md"));
     await expectRejected("unproven_managed_checkout");
   });
 });

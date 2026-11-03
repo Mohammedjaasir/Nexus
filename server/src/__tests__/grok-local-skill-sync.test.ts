@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   listGrokSkills,
   syncGrokSkills,
-} from "@paperclipai/adapter-grok-local/server";
+} from "@nexusai/adapter-grok-local/server";
 
 describe("grok local skill sync", () => {
-  const paperclipKey = "paperclipai/paperclip/paperclip";
+  const nexusKey = "paperclipai/paperclip/nexus";
 
-  it("defaults the operational Paperclip skill as ephemeral workspace-mounted state", async () => {
+  it("defaults the operational Nexus skill as ephemeral workspace-mounted state", async () => {
     const snapshot = await listGrokSkills({
       agentId: "agent-1",
       companyId: "company-1",
@@ -18,8 +18,8 @@ describe("grok local skill sync", () => {
     expect(snapshot.adapterType).toBe("grok_local");
     expect(snapshot.supported).toBe(true);
     expect(snapshot.mode).toBe("ephemeral");
-    expect(snapshot.desiredSkills).toContain(paperclipKey);
-    expect(snapshot.entries.find((entry) => entry.key === paperclipKey)).toMatchObject({
+    expect(snapshot.desiredSkills).toContain(nexusKey);
+    expect(snapshot.entries.find((entry) => entry.key === nexusKey)).toMatchObject({
       state: "configured",
       detail: "Will be copied into `.claude/skills` in the execution workspace on the next run.",
     });
@@ -31,8 +31,8 @@ describe("grok local skill sync", () => {
       companyId: "company-1",
       adapterType: "grok_local",
       config: {
-        paperclipRuntimeSkills: [],
-        paperclipSkillSync: {
+        nexusRuntimeSkills: [],
+        nexusSkillSync: {
           desiredSkills: ["unknown-skill"],
         },
       },
@@ -40,7 +40,7 @@ describe("grok local skill sync", () => {
 
     expect(snapshot.mode).toBe("ephemeral");
     expect(snapshot.warnings).toContain(
-      'Desired skill "unknown-skill" is not available from the Paperclip skills directory.',
+      'Desired skill "unknown-skill" is not available from the Nexus skills directory.',
     );
     expect(snapshot.entries).toContainEqual(expect.objectContaining({
       key: "unknown-skill",

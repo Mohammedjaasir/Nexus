@@ -11,7 +11,7 @@ const meta = {
   title: "Agents and reusable capabilities/Runs, harnesses, and model accounts/AI Connections/Provider routing/03 Agent",
   component: AgentSetup,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "runs-adapters/validation"
       ],

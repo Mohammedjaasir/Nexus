@@ -248,10 +248,10 @@ export function isControlPlaneGovernedResponseWait(
       );
     });
   return (
-    envelope.schema === "paperclip.prp.event.v1" &&
+    envelope.schema === "nexus.prp.event.v1" &&
     envelope.eventType === "run.result.accepted" &&
     envelope.sourceKind === "control_plane" &&
-    result.schema === "paperclip.run_result.v1" &&
+    result.schema === "nexus.run_result.v1" &&
     result.reportedWorkDisposition === "yielded" &&
     continuation.kind === "response_wake" &&
     hasEvidence &&

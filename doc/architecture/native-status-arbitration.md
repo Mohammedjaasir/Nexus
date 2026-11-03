@@ -1,7 +1,7 @@
 # Native status arbitration
 
 Native runner results do not directly mutate an issue's status. The model may
-report that work is done, blocked, ready for review, or yielded, but Paperclip's
+report that work is done, blocked, ready for review, or yielded, but Nexus's
 server remains the authority that decides and commits the resulting workflow
 state.
 
@@ -33,7 +33,7 @@ replayable and auditable.
 
 ## Inputs to finalization
 
-The runner returns a `paperclip.run_result.v1` result and a matching terminal
+The runner returns a `nexus.run_result.v1` result and a matching terminal
 record. Important result fields include:
 
 - `reportedWorkDisposition`: `done`, `blocked`, `needs_review`, or `yielded`;
@@ -55,7 +55,7 @@ The server also owns facts the runner cannot choose:
 
 ## Evidence classification
 
-`classifyNativeEvidence()` compares model claims with durable Paperclip
+`classifyNativeEvidence()` compares model claims with durable Nexus
 records. It recognizes these evidence families:
 
 - run events with an authoritative control-plane evidence verdict;
@@ -107,7 +107,7 @@ This produces `completion_contract_satisfied`.
 
 ### Low-risk claim-policy completion
 
-Ordinary issue completion changes Paperclip workflow state, but it does not by
+Ordinary issue completion changes Nexus workflow state, but it does not by
 itself authorize deployments, spending, secret access, approvals, or arbitrary
 API calls. Default native completion contracts therefore use low-risk
 `agent_claim_policy` authority.
@@ -158,7 +158,7 @@ The pure arbiter performs no database or network writes.
 
 A response to a Board comment does not by itself justify parking unfinished
 work. When a `yielded` / `response_wake` result contains
-`remainingWork[].blocksCompletion: true`, `paperclip_finish` rejects the report
+`remainingWork[].blocksCompletion: true`, `nexus_finish` rejects the report
 unless a real wait owns the next action. The agent can correct it in the same
 turn. Finalization also checks accepted reports and uses the existing
 `native-completion-incomplete` one-follow-up budget. Model-selected retry keys
@@ -309,14 +309,14 @@ contract's low-risk claim policy. Unknown evidence references remain diagnostic
 information; they do not create human approval requirements. Cancellation,
 newer task state, unresolved dependencies, and explicit governance still win.
 
-Paperclip no longer creates a generic "Native completion review" because a
+Nexus no longer creates a generic "Native completion review" because a
 report is incomplete, verification failed, or the agent says `needs_review`.
 A new review interaction requires an explicit attention request naming the
 reviewer's responsibility and the decision. The card displays that request.
 Waiting for CI remains agent work, not a human completion approval.
 
 The native runner returns current approval/dependency constraints to the agent
-when it calls `paperclip_finish`. An empty `needs_review` report without an
+when it calls `nexus_finish`. An empty `needs_review` report without an
 existing gate is rejected with instructions to correct it. The final reply must
 explain any required user action and link to the relevant task or approval.
 The tool acknowledges receipt, not a premature status commit: final status is
@@ -347,7 +347,7 @@ review role gives access to the child context, history, and documents, plus
 The usual company, invokability, budget, and workspace gates still apply.
 Human-only requests and governed actions do not acquire this review role.
 
-This restriction applies to Paperclip tools. It is not a read-only filesystem
+This restriction applies to Nexus tools. It is not a read-only filesystem
 boundary. The reviewer retains the configured agent and environment permissions,
 including the ability to run tests and create temporary files. An operator who
 needs filesystem isolation must configure it in the execution environment.
@@ -367,8 +367,8 @@ reassigned review does not grant access to newer work.
 The final required acceptance completes the child through the existing review
 resolution path and makes its blocked dependents eligible to run. Rejection
 returns the requested changes to the worker. A reviewer must record that decision
-before calling `paperclip_finish`. Finishing the review run cannot turn rejected
-work into Done. If the reviewer cannot act, `paperclip_block` preserves the task
+before calling `nexus_finish`. Finishing the review run cannot turn rejected
+work into Done. If the reviewer cannot act, `nexus_block` preserves the task
 and records a recovery action for the reviewer without an automatic retry loop.
 
 Both Codex and ACPX providers wait for server completion feedback before their

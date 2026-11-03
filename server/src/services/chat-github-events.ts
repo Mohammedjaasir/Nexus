@@ -9,14 +9,14 @@ import {
   chatIdentityLinks,
   companyMemberships,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   githubCommitSchema,
   githubIdSchema,
   type GitHubReviewEventContext,
   type GitHubIssueEventContext,
   type GitHubAutomaticEventContext,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   effectiveGitHubReviewPolicy,
   githubReviewSchedulingDecision,
@@ -44,7 +44,7 @@ export function githubBodyMentionsBot(body: string, username: string | null): bo
 /**
  * A thread subscription must not turn a request for another connected bot
  * into work for this bot. A leading mention explicitly selects a recipient,
- * including Apps outside Paperclip. Incidental human mentions still follow
+ * including Apps outside Nexus. Incidental human mentions still follow
  * thread policy, and explicitly mentioning this bot always wins. */
 export async function githubMessageAddressesAnotherRecipient(
   db: Db | Parameters<Parameters<Db["transaction"]>[0]>[0],
@@ -255,7 +255,7 @@ export async function githubAutomaticAdmission(
     );
   const [link] = await db
     .select({
-      userId: chatIdentityLinks.paperclipUserId,
+      userId: chatIdentityLinks.nexusUserId,
       status: chatIdentityLinks.status,
     })
     .from(chatExternalPrincipals)

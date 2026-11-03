@@ -13,7 +13,7 @@ function passingResult(
   attempt = 1,
 ): RunnerAcceptanceResult {
   return {
-    schema: "paperclip.runner-acceptance.result/v1",
+    schema: "nexus.runner-acceptance.result/v1",
     cellId: cell.id,
     attempt,
     status: "passed",

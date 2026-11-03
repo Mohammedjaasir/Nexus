@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { applyPendingMigrations, createDb, heartbeatRuns, agentWakeupRequests, toolInvocations, toolActionRequests, toolActionDeliveries } from "@paperclipai/db";
+import { applyPendingMigrations, createDb, heartbeatRuns, agentWakeupRequests, toolInvocations, toolActionRequests, toolActionDeliveries } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "../__tests__/helpers/external-test-database.js";
 import { captureLineageReads, chatReplyLineageFixture, cleanupChatReplyLineageFixture, expectedLineageContext, type LineageQuery } from "../__tests__/helpers/chat-reply-lineage.js";
 import { resolveChatOriginPublicationBindings } from "./issues.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 describe.skipIf(!support.supported)("chat reply lineage context projection", () => {
   let db: ReturnType<typeof createDb>;

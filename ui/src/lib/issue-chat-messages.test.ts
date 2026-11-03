@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import {
   buildAssistantPartsFromTranscript,
   buildIssueChatMessages,
@@ -222,7 +222,7 @@ describe("buildAssistantPartsFromTranscript", () => {
     expect(result.parts).toHaveLength(1);
     expect(result.parts[0]).toMatchObject({
       type: "tool-call",
-      toolName: "paperclip_provider_activity",
+      toolName: "nexus_provider_activity",
       args: {
         family: "plan",
         eventType: "plan.updated",
@@ -369,7 +369,7 @@ describe("buildAssistantPartsFromTranscript", () => {
         ts: "2026-04-06T12:00:01.000Z",
         name: "search",
         toolUseId: "tool-1",
-        input: { query: "paperclip" },
+        input: { query: "nexus" },
       },
       {
         kind: "tool_result",

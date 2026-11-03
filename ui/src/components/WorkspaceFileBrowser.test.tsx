@@ -4,7 +4,7 @@ import { useState, type ComponentProps } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
-import type { Project, ProjectWorkspace, WorkspaceFileListDirectoryItem, WorkspaceFileListFileItem, WorkspaceFileListItem, WorkspaceFileListResponse } from "@paperclipai/shared";
+import type { Project, ProjectWorkspace, WorkspaceFileListDirectoryItem, WorkspaceFileListFileItem, WorkspaceFileListItem, WorkspaceFileListResponse } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceFileBrowser, describeUnavailable } from "./WorkspaceFileBrowser";
 import { ApiError } from "@/api/client";
@@ -122,9 +122,9 @@ function createWorkspace(overrides: Partial<ProjectWorkspace> = {}): ProjectWork
     id: "workspace-content",
     companyId: "company-1",
     projectId: "project-content",
-    name: "Paperclip Content",
+    name: "Nexus Content",
     sourceType: "local_path",
-    cwd: "/srv/paperclip/home/paperclipai/paperclip-content",
+    cwd: "/srv/nexus/home/nexusai/nexus-content",
     repoUrl: null,
     repoRef: null,
     defaultRef: null,
@@ -148,11 +148,11 @@ function createProject(overrides: Partial<Project> = {}): Project {
   return {
     id: "project-content",
     companyId: "company-1",
-    urlKey: "paperclip-content",
+    urlKey: "nexus-content",
     goalId: null,
     goalIds: [],
     goals: [],
-    name: "Paperclip Content",
+    name: "Nexus Content",
     description: null,
     status: "in_progress",
     leadAgentId: null,
@@ -388,13 +388,13 @@ describe("WorkspaceFileBrowser", () => {
       ok(availableResponse([
         createItem({
           title: "tweet.md",
-          relativePath: "videos/90-days-paperclip/tweet.md",
-          displayPath: "videos/90-days-paperclip/tweet.md",
+          relativePath: "videos/90-days-nexus/tweet.md",
+          displayPath: "videos/90-days-nexus/tweet.md",
         }),
         createItem({
-          title: "90-days-paperclip-1x1.mp4",
-          relativePath: "videos/90-days-paperclip/out/90-days-paperclip-1x1.mp4",
-          displayPath: "videos/90-days-paperclip/out/90-days-paperclip-1x1.mp4",
+          title: "90-days-nexus-1x1.mp4",
+          relativePath: "videos/90-days-nexus/out/90-days-nexus-1x1.mp4",
+          displayPath: "videos/90-days-nexus/out/90-days-nexus-1x1.mp4",
           previewKind: "video",
         }),
       ])),
@@ -404,10 +404,10 @@ describe("WorkspaceFileBrowser", () => {
 
     expect(container.querySelector('[role="tree"]')).not.toBeNull();
     expect(container.textContent).toContain("videos");
-    expect(container.textContent).toContain("90-days-paperclip");
+    expect(container.textContent).toContain("90-days-nexus");
     expect(container.textContent).toContain("tweet.md");
-    expect(container.textContent).toContain("90-days-paperclip-1x1.mp4");
-    expect(container.textContent).not.toContain("videos/90-days-paperclip/tweet.md");
+    expect(container.textContent).toContain("90-days-nexus-1x1.mp4");
+    expect(container.textContent).not.toContain("videos/90-days-nexus/tweet.md");
 
     const videosFolder = Array.from(container.querySelectorAll('button[role="treeitem"]')).find(
       (el) => el.getAttribute("title") === "videos",
@@ -429,8 +429,8 @@ describe("WorkspaceFileBrowser", () => {
   it("hides source controls, folder headings, workspace labels, and timestamps", () => {
     useQueryMock.mockReturnValue(ok(availableResponse([
       createItem({
-        relativePath: "videos/90-days-paperclip/tweet.md",
-        displayPath: "videos/90-days-paperclip/tweet.md",
+        relativePath: "videos/90-days-nexus/tweet.md",
+        displayPath: "videos/90-days-nexus/tweet.md",
       }),
     ])));
 
@@ -718,12 +718,12 @@ describe("WorkspaceFileBrowser", () => {
   it("opens a result from a selected other project workspace", () => {
     const contentItem = createItem({
       relativePath: "content-os/cases/active/2026-06-06-pap-10199-bundled-skills/README.md",
-      displayPath: "Paperclip Content / content-os/cases/active/2026-06-06-pap-10199-bundled-skills/README.md",
-      workspaceLabel: "Paperclip Content",
+      displayPath: "Nexus Content / content-os/cases/active/2026-06-06-pap-10199-bundled-skills/README.md",
+      workspaceLabel: "Nexus Content",
       workspaceKind: "project_workspace",
       workspaceId: "workspace-content",
       projectId: "project-content",
-      projectName: "Paperclip Content",
+      projectName: "Nexus Content",
     });
     useQueryMock.mockImplementation((options: { queryKey: readonly unknown[] }) => {
       if (options.queryKey[0] === "projects") return ok([createProject()]);
@@ -737,7 +737,7 @@ describe("WorkspaceFileBrowser", () => {
     });
 
     expect(container.textContent).not.toContain("Other project");
-    expect(container.textContent).toContain("Paperclip Content / Paperclip Content");
+    expect(container.textContent).toContain("Nexus Content / Nexus Content");
     const listCall = useQueryMock.mock.calls.find(([options]) => options.queryKey?.[3] === "list");
     expect(listCall?.[0].queryKey[4]).toMatchObject({
       workspace: "project",
@@ -765,12 +765,12 @@ describe("WorkspaceFileBrowser", () => {
     const folderPath = "content-os/cases/active/2026-06-06-pap-10199-bundled-skills/";
     const contentItem = createItem({
       relativePath: `${folderPath}README.md`,
-      displayPath: `Paperclip Content / ${folderPath}README.md`,
-      workspaceLabel: "Paperclip Content",
+      displayPath: `Nexus Content / ${folderPath}README.md`,
+      workspaceLabel: "Nexus Content",
       workspaceKind: "project_workspace",
       workspaceId: "workspace-content",
       projectId: "project-content",
-      projectName: "Paperclip Content",
+      projectName: "Nexus Content",
     });
     useQueryMock.mockImplementation((options: { queryKey: readonly unknown[] }) => {
       if (options.queryKey[0] === "projects") return ok([createProject()]);

@@ -23,7 +23,7 @@ if ([campaignFile, originalPathsFile, ...paths].some(file => path.resolve(file) 
 }
 const campaign = await readJson(campaignFile), originals = [];
 for (const file of paths) originals.push(await readJson(file));
-const projectId = process.env.PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID ?? "";
+const projectId = process.env.NEXUS_E2E_BRAINTRUST_PROJECT_ID ?? "";
 const plan = buildBraintrustExperiment(projectId, campaign, originals);
 const persist = async (value: unknown) => {
   const temporary = `${outputFile}.${randomUUID()}.tmp`;

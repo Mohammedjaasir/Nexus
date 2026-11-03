@@ -3,7 +3,7 @@ import express from "express";
 import request from "supertest";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { activityLog, agents, companies, createDb, heartbeatRuns, issues } from "@paperclipai/db";
+import { activityLog, agents, companies, createDb, heartbeatRuns, issues } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { issueRoutes } from "../routes/issues.js";
 import { errorHandler } from "../middleware/index.js";
@@ -32,14 +32,14 @@ describePostgres("agent-created follow-ups: parent links and creation source", (
   const legacyRun = randomUUID();
 
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-creation-source-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-creation-source-");
     db = createDb(database.connectionString);
     await db.insert(companies).values([
-      { id: companyId, name: "Paperclip", issuePrefix: "PAP", defaultResponsibleUserId: "board-user", requireBoardApprovalForNewAgents: false },
+      { id: companyId, name: "Nexus", issuePrefix: "PAP", defaultResponsibleUserId: "board-user", requireBoardApprovalForNewAgents: false },
       { id: otherCompanyId, name: "Other", issuePrefix: "OTH", defaultResponsibleUserId: "board-user", requireBoardApprovalForNewAgents: false },
     ]);
     await db.insert(agents).values([
-      { id: qaAgentId, companyId, name: "Paperclip QA", role: "qa", adapterType: "codex_local", status: "active" },
+      { id: qaAgentId, companyId, name: "Nexus QA", role: "qa", adapterType: "codex_local", status: "active" },
       { id: engineerAgentId, companyId, name: "Engineer", role: "engineer", adapterType: "codex_local", status: "active" },
       { id: foreignAgentId, companyId: otherCompanyId, name: "Other QA", role: "qa", adapterType: "codex_local", status: "active" },
     ]);
@@ -95,7 +95,7 @@ describePostgres("agent-created follow-ups: parent links and creation source", (
     expect(detail.body.createdFrom).toEqual({
       issue: { id: sourceId, identifier: "PAP-168", title: "Verify Tailscale fix", status: "in_progress" },
       run: { id: runOnSource, agentId: qaAgentId },
-      agent: { id: qaAgentId, name: "Paperclip QA" },
+      agent: { id: qaAgentId, name: "Nexus QA" },
     });
   });
 
@@ -113,7 +113,7 @@ describePostgres("agent-created follow-ups: parent links and creation source", (
     expect(detail.body.parentId).toBeNull();
     expect(detail.body.createdFrom).toMatchObject({
       issue: { id: sourceId, identifier: "PAP-168" },
-      agent: { name: "Paperclip QA" },
+      agent: { name: "Nexus QA" },
     });
   });
 

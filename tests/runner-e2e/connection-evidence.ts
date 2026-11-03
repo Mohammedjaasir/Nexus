@@ -112,7 +112,7 @@ export function verifyConnectionRun(run: Record<string, any>, expected: { agentI
   const connection = run.contextSnapshot?.aiConnection;
   return run.status === "succeeded" && run.agentId === expected.agentId && run.runtimeMode === expected.runtimeMode &&
     connection?.connectionId === expected.connectionId && connection?.method === expected.method &&
-    run.contextSnapshot?.paperclipEnvironment?.id === expected.environmentId;
+    run.contextSnapshot?.nexusEnvironment?.id === expected.environmentId;
 }
 
 /** Wait for scheduled repairs to settle, then select the run that actually delivered the file. */

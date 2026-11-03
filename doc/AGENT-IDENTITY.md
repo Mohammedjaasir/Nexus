@@ -1,7 +1,7 @@
 # Agent cryptographic identity
 
 Each agent has one persistent Ed25519 keypair. New agents receive it in the
-agent-creation transaction. Existing agents receive it when Paperclip prepares
+agent-creation transaction. Existing agents receive it when Nexus prepares
 their next managed run. Migration, startup, public API reads, and opening the
 agent page do not provision existing agents. There is no backfill command.
 
@@ -17,7 +17,7 @@ Public keys use SPKI PEM and private keys use PKCS#8 PEM. `keyId` is `sha256:`
 followed by the base64url SHA-256 digest of the public key's SPKI DER bytes.
 Private material is encrypted using the existing `local_encrypted` provider and
 stored separately from company secrets. The wrapping key is the stack's
-`PAPERCLIP_SECRETS_MASTER_KEY` or the local instance's secrets master-key file.
+`NEXUS_SECRETS_MASTER_KEY` or the local instance's secrets master-key file.
 The file is published atomically with mode `0600` on first use. No per-agent
 Cloud secret or Cloud registry record is needed.
 
@@ -28,12 +28,12 @@ restarts preserve the keypair.
 
 ## Managed runs
 
-Paperclip supplies these server-owned environment variables:
+Nexus supplies these server-owned environment variables:
 
 ```text
-PAPERCLIP_AGENT_KEY_ID
-PAPERCLIP_AGENT_PUBLIC_KEY
-PAPERCLIP_AGENT_PRIVATE_KEY
+NEXUS_AGENT_KEY_ID
+NEXUS_AGENT_PUBLIC_KEY
+NEXUS_AGENT_PRIVATE_KEY
 ```
 
 The two key values are multiline PEM strings. Runtime-only adapter context and
@@ -50,7 +50,7 @@ routing, timing, and interpretation metadata remain available.
 Managed remote providers, including Cursor Cloud, receive the same private key
 as managed local processes. Selecting a runtime therefore trusts its host with
 the agent's persistent identity: the agent and its host can retain the key and
-sign outside Paperclip. Encryption at rest protects database storage, not an
+sign outside Nexus. Encryption at rest protects database storage, not an
 executing runtime. Move an agent only between runtime hosts trusted with that
 identity.
 
@@ -62,10 +62,10 @@ An agent can sign using an ordinary cryptographic library, for example Node.js:
 
 ```js
 import { sign } from "node:crypto";
-const signature = sign(null, challengeBytes, process.env.PAPERCLIP_AGENT_PRIVATE_KEY);
+const signature = sign(null, challengeBytes, process.env.NEXUS_AGENT_PRIVATE_KEY);
 ```
 
-This identity does not change Paperclip bearer-token authentication. There is no
+This identity does not change Nexus bearer-token authentication. There is no
 signing API, private-key download endpoint, Git integration, rotation UI, or
 external-key import. Agents possess their private keys. External consumers must
 define their own authorization, expiry, and revocation rules.
@@ -103,7 +103,7 @@ use the same name-only allowlist, including runs without an agent identity.
 Codex login keys (`OPENAI_API_KEY`, `CODEX_API_KEY`), managed provider keys,
 observability credentials, and private runtime transport credentials remain
 outside that service-secret opt-in. Unassigned host secrets are not added.
-The three identity variables and the short-lived, scoped `PAPERCLIP_API_KEY`
+The three identity variables and the short-lived, scoped `NEXUS_API_KEY`
 retain their runtime delivery. Secret values remain in the child environment;
 the shell policy contains only variable names. Removing a configured variable
 removes its shell access at the next launch.

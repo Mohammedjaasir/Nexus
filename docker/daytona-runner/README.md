@@ -1,20 +1,20 @@
-# Paperclip Daytona runner image
+# Nexus Daytona runner image
 
 Ordinary provider packs now include pinned Cursor assets for Linux x64; no
 `--candidate-providers=cursor` flag is needed. Cursor admission is enabled after
 the [production readiness gates](../../doc/plans/2026-10-03-cursor-production-readiness.md)
-passed. The public CLI installation command is `paperclipai runtime setup cursor`;
+passed. The public CLI installation command is `nexusai runtime setup cursor`;
 it runs explicitly on the execution host and is never an npm installation hook.
 
-This image is the Paperclip Cloud fleet sandbox image plus a source-built
-`paperclip-runnerd` and immutable provider pack. The pack contains Node 24.11,
+This image is the Nexus Cloud fleet sandbox image plus a source-built
+`nexus-runnerd` and immutable provider pack. The pack contains Node 24.11,
 OpenCode 1.18.34, the compiled OpenCode proxy, ACPX 0.13.1 sidecar, qualified ACP
 agents, and the production lockfile. Its manifest digests each executable bridge
 and records the runner source revision as provenance. Its interface declaration
 allows compatible app releases to reuse it without uploading or installing a pack.
 
 The fleet pins are intentionally copied from
-[`paperclip-cloud/fleet-sandbox-image/Dockerfile`](https://github.com/paperclipai/paperclip-cloud/blob/master/fleet-sandbox-image/Dockerfile).
+[`nexus-cloud/fleet-sandbox-image/Dockerfile`](https://github.com/paperclipai/paperclip-cloud/blob/master/fleet-sandbox-image/Dockerfile).
 Update both definitions together until the fleet base is published as a stable
 image that this Dockerfile can extend directly.
 
@@ -43,12 +43,12 @@ provider manifest, and remote controller version checks aligned.
 
 ## Build and verify
 
-Run `pnpm --filter @paperclipai/paperclip-runner test:opencode:qualification`
+Run `pnpm --filter @nexusai/nexus-runner test:opencode:qualification`
 after installing dependencies to exercise the actual pinned OpenCode executable.
 It checks health/version, session creation and retrieval, SSE messages, an async
 prompt, and session deletion against a loopback mock provider. It uses an
 isolated home, starts no paid model request, and retires its process group.
-Set `PAPERCLIP_TEST_OPENCODE_BINARY` to the materialized Linux executable when
+Set `NEXUS_TEST_OPENCODE_BINARY` to the materialized Linux executable when
 qualifying an assembled provider pack.
 
 
@@ -59,16 +59,16 @@ checksums cover amd64.
 content_id="$(pnpm --silent test:e2e:runner:image-id)"
 docker buildx build \
   --platform linux/amd64 \
-  --build-arg PAPERCLIP_RUNNER_CONTENT_ID="${content_id}" \
-  --build-arg PAPERCLIP_RUNNER_SOURCE_REVISION="$(git rev-parse HEAD)" \
-  --tag "paperclip-daytona-runner:e2e-content-${content_id}" \
+  --build-arg NEXUS_RUNNER_CONTENT_ID="${content_id}" \
+  --build-arg NEXUS_RUNNER_SOURCE_REVISION="$(git rev-parse HEAD)" \
+  --tag "nexus-daytona-runner:e2e-content-${content_id}" \
   --load \
   --file docker/daytona-runner/Dockerfile \
   .
 
 docker run --rm --platform linux/amd64 \
-  --entrypoint paperclip-runnerd \
-  "paperclip-daytona-runner:e2e-content-${content_id}" \
+  --entrypoint nexus-runnerd \
+  "nexus-daytona-runner:e2e-content-${content_id}" \
   --build-metadata
 ```
 
@@ -84,21 +84,21 @@ syntax version, resolve and review its registry digest and update both values in
 the first Dockerfile line. Git commits that do not change those inputs reuse the
 same content tag.
 
-`PAPERCLIP_RUNNER_SOURCE_REVISION` remains the full Git SHA that built the first
+`NEXUS_RUNNER_SOURCE_REVISION` remains the full Git SHA that built the first
 published copy and is retained as provenance rather than cache identity.
 
-## Use in Paperclip
+## Use in Nexus
 
 Publish the image to a registry Daytona can pull, or use the environment
 editor's **Configure image** flow to produce a Daytona snapshot. Set the
-environment image to that immutable tag or snapshot. Paperclip probes the
-sandbox user's `PATH` for `paperclip-runnerd` and `codex` and checks
-`/opt/paperclip-runner/provider-pack` for OpenCode and ACPX. It uses the pack
+environment image to that immutable tag or snapshot. Nexus probes the
+sandbox user's `PATH` for `nexus-runnerd` and `codex` and checks
+`/opt/nexus-runner/provider-pack` for OpenCode and ACPX. It uses the pack
 when its selected provider interface and platform are compatible. App source
 revisions and unrelated provider pins do not force an update. Startup reads the
 small manifest in the existing runner metadata query. It does not scan the pack,
 run a version command, or transfer files on this path. Otherwise it stages the pack configured by
-`PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH`. Remote OpenCode and ACPX never
+`NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH`. Remote OpenCode and ACPX never
 fall back to host-local processes.
 
 `src/live/provider-pack-contract.json` in the Runner package declares the
@@ -127,11 +127,11 @@ verification. An attached session retains the exact pack and daemon identity
 admitted at launch. Publish one new image with the interface declaration to enable
 reuse across later compatible app releases.
 
-Do not promote `paperclip-runner-e2e-20260826-v2` for OpenCode or ACPX. Build a
+Do not promote `nexus-runner-e2e-20260826-v2` for OpenCode or ACPX. Build a
 new immutable image or snapshot from a clean committed revision and pass that
-full Git SHA as `PAPERCLIP_RUNNER_SOURCE_REVISION`.
+full Git SHA as `NEXUS_RUNNER_SOURCE_REVISION`.
 
-Do not bake provider credentials, Paperclip bootstrap tickets, or Daytona
+Do not bake provider credentials, Nexus bootstrap tickets, or Daytona
 preview tokens into this image. They remain per-run secret material.
 
 The provider-pack build pins the official Linux x64 Node 24.21.0 image by
@@ -144,12 +144,12 @@ Provider CLI updates are manifest-only changes: repository CI owns the root
 lockfile. Resolve the complete workspace manifest graph in the build context
 before invoking Docker, matching CI when a source commit precedes the lockfile
 bot. The trusted workflow supplies this resolved lockfile as an immutable artifact.
-The complete resolved lockfile must match `PAPERCLIP_RUNNER_LOCK_SHA256` before
+The complete resolved lockfile must match `NEXUS_RUNNER_LOCK_SHA256` before
 package installation or lifecycle execution. Review and refresh that digest
 with source dependency changes; registry-time resolution drift fails closed.
 The Product E2E workflow resolves one lockfile before the image build. It
 verifies the downloaded artifact, then passes that artifact's SHA-256 as the
-`PAPERCLIP_RUNNER_LOCK_SHA256` build argument. The Dockerfile checks the resolved
+`NEXUS_RUNNER_LOCK_SHA256` build argument. The Dockerfile checks the resolved
 lock against this value before installation. The fixed Dockerfile default is
 for standalone builds; it must not replace a campaign's verified lock digest.
 Refresh the default from the clean tracked lockfile using the exact
@@ -162,7 +162,7 @@ download dependencies when a task starts.
 ## Candidate ACP qualification assets
 
 Provider branches can build their pinned assets with
-`node packages/paperclip-runner/scripts/build-provider-pack.mjs /absolute/pack --candidate-providers=cursor`
+`node packages/nexus-runner/scripts/build-provider-pack.mjs /absolute/pack --candidate-providers=cursor`
 (or `copilot` or `pi`). The source revision must include the named provider's
 builder. Assets are installed at build time under `provider-assets/<provider>/<platform>-<architecture>`.
 The pack manifest binds each complete asset tree. Runtime admission separately
@@ -170,7 +170,7 @@ checks the provider's source-owned closure pins and copies a verified launch sna
 A pack with candidate assets does not qualify or enable that provider.
 
 For an isolated Linux x64 Daytona qualification image, pass
-`--build-arg PAPERCLIP_RUNNER_CANDIDATE_PROVIDERS=cursor` with the normal build arguments.
+`--build-arg NEXUS_RUNNER_CANDIDATE_PROVIDERS=cursor` with the normal build arguments.
 Compute its content ID with the same selection:
 `pnpm --silent test:e2e:runner:image-id --candidate-providers=cursor`.
 Candidate assets and the default pack have distinct image identities. Never reuse
@@ -188,6 +188,6 @@ dependencies when a task starts. Grok's additive native ACP profile keeps its
 qualified 1.0.13 executable at the verified sandbox prerequisite path. It does not replace the
 legacy adapter's `grok` command on PATH.
 
-Native Grok is an image prerequisite at `/opt/paperclip/providers/grok/1.0.13/grok`.
+Native Grok is an image prerequisite at `/opt/nexus/providers/grok/1.0.13/grok`.
 Its checksum-verified provisioning is separate from the provider pack, which ships
 only the built-in launcher. Public npm installation never downloads this binary.

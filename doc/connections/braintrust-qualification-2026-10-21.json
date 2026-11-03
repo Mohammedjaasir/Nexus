@@ -94,7 +94,7 @@
     "Native CLI harness automatic capability delivery not exercised"
   ],
   "harnessCorrections": [
-    "Initial process harness used the wrong authentication header; corrected to x-paperclip-tool-gateway-token.",
+    "Initial process harness used the wrong authentication header; corrected to x-nexus-tool-gateway-token.",
     "Initial write harness parsed normalized MCP content incorrectly; corrected before successful synthetic write."
   ],
   "delivery": "Live qualification is partial. Outstanding account methods, token lifecycle checks and native CLI capability delivery are listed above; successful CI does not qualify those provider behaviors."

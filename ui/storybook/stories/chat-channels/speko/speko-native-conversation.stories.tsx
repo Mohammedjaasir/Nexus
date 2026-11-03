@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import type { VoiceSession } from "@paperclipai/shared";
+import type { VoiceSession } from "@nexusai/shared";
 import { voiceCallJournal } from "@/lib/voice-call-attempt";
 import { ApiError } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ function Fixture({ creditsRequired = false, notificationsFail = false, accessRev
   }, [creditsRequired, notificationsFail, accessRevoked, unknownCreation, cleanupPending, interruptedHint, recovered, partialReply]);
   return <><NativeVoiceConversation companyId="company-storybook" endpointId="fixture-endpoint" issueId={agentEntry ? undefined : "fixture-task"} agentName="Company Phone Agent" {...fixture} />{partialReply && <><Button onClick={fixture.finish}>Finish spoken answer</Button><p data-testid="hint-count">Hints: {hintCount}</p></>}</>;
 }
-const meta: Meta<typeof NativeVoiceConversation> = { ...voiceStoryLifecycle, id: "connections-speko-native-conversation", title: "Apps, channels, and extensions/External chat and email/Speko/Native conversation", component: NativeVoiceConversation, parameters: { layout: "padded", paperclip: {"capabilities": ["chat-channels/conversation", "chat-channels/identity", "chat-channels/lifecycle"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production native conversation with fixture APIs and media. Demonstrates task binding, lifecycle and errors without a microphone, signed callbacks or live answers."} } };
+const meta: Meta<typeof NativeVoiceConversation> = { ...voiceStoryLifecycle, id: "connections-speko-native-conversation", title: "Apps, channels, and extensions/External chat and email/Speko/Native conversation", component: NativeVoiceConversation, parameters: { layout: "padded", nexus: {"capabilities": ["chat-channels/conversation", "chat-channels/identity", "chat-channels/lifecycle"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production native conversation with fixture APIs and media. Demonstrates task binding, lifecycle and errors without a microphone, signed callbacks or live answers."} } };
 export default meta;
 type Story = StoryObj<typeof meta>;
 const start: NonNullable<Story["play"]> = async ({ canvasElement }) => { const canvas = within(canvasElement); await userEvent.click(canvas.getByRole("button", { name: "Start voice" })); await waitFor(() => expect(canvas.getByRole("button", { name: "Mute" })).toBeEnabled()); };

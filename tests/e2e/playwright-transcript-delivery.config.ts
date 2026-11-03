@@ -14,7 +14,7 @@ export default defineConfig({
     ...server,
     env: {
       ...server?.env,
-      PAPERCLIP_STOP_CODEX_COMMAND: path.resolve(import.meta.dirname, "fixtures/completion-stream-bin/codex"),
+      NEXUS_STOP_CODEX_COMMAND: path.resolve(import.meta.dirname, "fixtures/completion-stream-bin/codex"),
       CODEX_HOME: providerHome,
       OPENAI_API_KEY: "transcript-fixture-key",
       NODE_OPTIONS: `${server?.env?.NODE_OPTIONS ?? ""} --import=${path.resolve(import.meta.dirname, "fixtures/composer-stop-codex-loader.mjs")}`,

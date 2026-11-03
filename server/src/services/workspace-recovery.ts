@@ -1,4 +1,4 @@
-import { classifyWorkspaceRestoreFailure } from "@paperclipai/adapter-utils/workspace-restore-merge";
+import { classifyWorkspaceRestoreFailure } from "@nexusai/adapter-utils/workspace-restore-merge";
 import { createHash } from "node:crypto";
 import { adapterExecutionControls } from "./adapter-execution-control.js";
 import { isAcknowledgedNativeStop } from "./acknowledged-native-stop.js";
@@ -10,8 +10,8 @@ import { beginIdleTrackedWork } from "./task-admission.js";
 import { writeEnvironmentCleanup } from "./environment-cleanup-notifications.js";
 import { resumePreservedResultFinalization } from "./preserved-result-finalization.js";
 import { and, asc, eq, gt, inArray, ne, notInArray, or, sql } from "drizzle-orm";
-import { agentWakeupRequests, environmentLeases, executionWorkspaces, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, workspaceOperations, type Db } from "@paperclipai/db";
-import { remoteWorkspaceRunReferenceSchema, type Environment, type EnvironmentLease } from "@paperclipai/shared";
+import { agentWakeupRequests, environmentLeases, executionWorkspaces, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, workspaceOperations, type Db } from "@nexusai/db";
+import { remoteWorkspaceRunReferenceSchema, type Environment, type EnvironmentLease } from "@nexusai/shared";
 import { conflict } from "../errors.js";
 import { logger } from "../middleware/logger.js";
 import type { EnvironmentRuntimeService } from "./environment-runtime.js";
@@ -81,7 +81,7 @@ async function recheckStoppedWorkspaceRecovery(db: Db, source: StopEvidenceSourc
         ["agent_stop_unconfirmed", "copyback_stop_unconfirmed"].includes(current.failure.code);
       if (current.state !== "running" && current.failure && !stopWait) continue;
       const prior = action.evidence.workspaceStopEvidence as Record<string, unknown> | undefined;
-      const same = prior?.schema === "paperclip.workspace-stop-evidence.v1" && prior.sourceRunId === source.runId &&
+      const same = prior?.schema === "nexus.workspace-stop-evidence.v1" && prior.sourceRunId === source.runId &&
         prior.generationId === current.generationId && prior.fingerprint === fingerprint;
       if ((same && prior!.consumed === true) || (!observe && (!same || prior!.consumed !== false))) continue;
       const due = Math.max(now, current.providerCooldownAt ?? 0);
@@ -92,7 +92,7 @@ async function recheckStoppedWorkspaceRecovery(db: Db, source: StopEvidenceSourc
       await notifyDeliveryWork(tx, DELIVERY_QUEUES.workspaceRecovery);
       if (advance && !await updateSystemRecovery(tx as unknown as Db, { ...source, actionId: action.id }, current,
         { ...current, revision: current.revision + 1, nextAttemptAt: due })) continue;
-      const marker = { schema: "paperclip.workspace-stop-evidence.v1", sourceRunId: source.runId,
+      const marker = { schema: "nexus.workspace-stop-evidence.v1", sourceRunId: source.runId,
         generationId: current.generationId, fingerprint, consumed };
       const recorded = await tx.update(issueRecoveryActions).set({ evidence: sql`${issueRecoveryActions.evidence} ||
         ${JSON.stringify({ workspaceStopEvidence: marker })}::jsonb`, updatedAt: new Date() }).where(and(
@@ -127,7 +127,7 @@ export async function requestWorkspaceRecovery(input: Source & { db: Db; idempot
     if (prior?.requestIds.includes(input.idempotencyKey) || prior?.status === "recovered") return { actionId: action.id, status: prior.status };
     const pending = prior && ["queued", "recovering"].includes(prior.status);
     const state: WorkspaceRecovery = pending ? { ...prior!, requestIds: [...prior!.requestIds, input.idempotencyKey] }
-      : { schema: "paperclip.workspace-recovery.v1", runId: run.id, status: "queued", stage: "verifying_stop",
+      : { schema: "nexus.workspace-recovery.v1", runId: run.id, status: "queued", stage: "verifying_stop",
         attempt: prior?.attempt ?? 0, attemptLimit: (prior?.attempt ?? 0) + 1,
         requestIds: [...(prior?.requestIds ?? []), input.idempotencyKey] };
     const previous = readSystemRecovery(action.evidence);
@@ -246,7 +246,7 @@ export async function recoverRetainedWorkspace(input: Source & { db: Db; environ
             throw new SystemRecoveryFailure("agent_stop_unconfirmed", "recheck_evidence");
           stoppedLease = settled;
         }
-        const target = await resolveEnvironmentExecutionTarget({ db, companyId: input.companyId, adapterType: "paperclip_runner",
+        const target = await resolveEnvironmentExecutionTarget({ db, companyId: input.companyId, adapterType: "nexus_runner",
           environment, leaseId: lease.id, leaseMetadata: stoppedLease.metadata,
           lease: stoppedLease as EnvironmentLease, environmentRuntime: input.environmentRuntime });
         if (target?.kind !== "remote" || target.transport !== "sandbox" || !target.runner || target.remoteCwd !== remoteCwd)
@@ -434,7 +434,7 @@ export function retainedWorkspaceCandidates(db: Db, cursor?: string, unfinishedO
   const cleanup = sql`(((${heartbeatRuns.runnerProfileJson}#>>'{nativeWorkspaceSync,resourceDisposition}' = 'destroy'
     and ${heartbeatRuns.runnerProfileJson}#>>'{nativeWorkspaceSync,leaseId}' is not null)
     or (${heartbeatRuns.runnerProfileJson}->>'nativeResourceDisposition' = 'destroy'
-      and ${heartbeatRuns.runnerProfileJson}#>>'{remoteWorkspace,schema}' = 'paperclip.remote-workspace-run.v1'
+      and ${heartbeatRuns.runnerProfileJson}#>>'{remoteWorkspace,schema}' = 'nexus.remote-workspace-run.v1'
       and ${heartbeatRuns.runnerProfileJson}#>>'{remoteWorkspace,state}' = 'saved')) and exists (
     select 1 from ${environmentLeases} where ${environmentLeases.companyId} = ${heartbeatRuns.companyId}
     and ${environmentLeases.heartbeatRunId} = ${heartbeatRuns.id}

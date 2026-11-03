@@ -20,7 +20,7 @@ function evidence(): TaskTitleEvidenceInput {
       start("naming", "set_task_title", { title, onlyIfProvisional: true, idempotencyKey: "initial-title" }),
       event("item.completed", { item: { id: "naming", tool_use_id: "naming", type: "tool_result", result: { id: "task", title, changed: true, titleNeedsGeneration: false } } }),
       event("tool.execution.completed", { name: "set_task_title", executionId: "naming", status: "completed" }),
-      start("finish", "paperclip_finish"),
+      start("finish", "nexus_finish"),
     ],
     activity: [{ entityId: "task", entityType: "issue", action: "issue.updated", actorType: "agent", actorId: "agent", runId: "run", details: { title, previous: { title: provisional } } }],
   };
@@ -36,7 +36,7 @@ describe("task title Product E2E", () => {
     expect(suite.definitionMetadata).toMatchObject({ instructions: "production", providerRuns: 1, budgetMonthlyCents: 500 });
     for (const task of taskTitleTasks) {
       expect(task).toMatchObject({ expectedRunCount: 1, flow: "single_turn" });
-      expect(task.buildPrompt("fixture")).not.toMatch(/title|set_task|\/api\/|finish_task|paperclip_finish/i);
+      expect(task.buildPrompt("fixture")).not.toMatch(/title|set_task|\/api\/|finish_task|nexus_finish/i);
     }
     const discovered = discoverReportCatalog({ catalog: runnerMatrix, expected: selected.map(entry => entry.id), results: [] });
     expect(discovered.filter(entry => entry.suite.id === suite.id)).toHaveLength(6);
@@ -56,7 +56,7 @@ describe("task title Product E2E", () => {
     ["missing provisional marker", (input: TaskTitleEvidenceInput) => { (input.initial as Record<string, unknown>).titleNeedsGeneration = false; }],
     ["a late title call", (input: TaskTitleEvidenceInput) => { input.events = [...Array.from({ length: TASK_TITLE_EARLY_CALL_LIMIT }, (_, i) => start(`read-${i}`, "get_task_context")), ...input.events]; }],
     ["naming after five shell tools", (input: TaskTitleEvidenceInput) => { input.events = [...Array.from({ length: TASK_TITLE_EARLY_CALL_LIMIT }, (_, i) => event("tool.execution.started", { executionId: `shell-${i}`, name: "shell" })), ...input.events]; }],
-    ["naming after completion", (input: TaskTitleEvidenceInput) => { input.events = [start("already-finished", "paperclip_finish"), ...input.events]; }],
+    ["naming after completion", (input: TaskTitleEvidenceInput) => { input.events = [start("already-finished", "nexus_finish"), ...input.events]; }],
     ["an unmatched result", (input: TaskTitleEvidenceInput) => { input.events = input.events.filter(row => row.eventType !== "item.completed"); }],
     ["no successful execution receipt", (input: TaskTitleEvidenceInput) => { input.events = input.events.filter(row => row.eventType !== "tool.execution.completed"); }],
     ["another run's mutation", (input: TaskTitleEvidenceInput) => { (input.activity[0] as Record<string, unknown>).runId = "other-run"; }],
@@ -74,7 +74,7 @@ describe("task title Product E2E", () => {
     input.submitted = { title: input.explicitTitle, description: prompt };
     input.initial = { ...(input.initial as object), title: input.explicitTitle, titleNeedsGeneration: false };
     input.final = { ...(input.final as object), title: input.explicitTitle };
-    input.events = [start("context", "get_task_context"), start("finish", "paperclip_finish")];
+    input.events = [start("context", "get_task_context"), start("finish", "nexus_finish")];
     const forbiddenWrite = input.activity[0]; input.activity = [];
     expect(gradeTaskTitle(input).passed).toBe(true);
     const calls = input.events; input.events = [];

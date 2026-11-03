@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/lib/router";
-import type { DocumentRevision } from "@paperclipai/shared";
+import type { DocumentRevision } from "@nexusai/shared";
 import { casesApi, type CaseDocumentRevision, type CaseDocumentRevisions } from "@/api/cases";
 import { issuesApi } from "@/api/issues";
 import { queryKeys } from "@/lib/queryKeys";

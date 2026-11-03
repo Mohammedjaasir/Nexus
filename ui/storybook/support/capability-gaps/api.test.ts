@@ -63,7 +63,7 @@ describe("capability story API boundary", () => {
   });
   it("keeps prerequisite flags available during a subject error and restores fetch and company selection", async () => {
     const previous = window.fetch;
-    localStorage.setItem("paperclip.selectedCompanyId", "original-company");
+    localStorage.setItem("nexus.selectedCompanyId", "original-company");
     const fixture = installFixtureApi(
       [
         { path: "/api/flags", state: "ready", read: () => ({ enabled: true }) },
@@ -79,7 +79,7 @@ describe("capability story API boundary", () => {
     fixture.cleanup();
     cleanup = undefined;
     expect(window.fetch).toBe(previous);
-    expect(localStorage.getItem("paperclip.selectedCompanyId")).toBe(
+    expect(localStorage.getItem("nexus.selectedCompanyId")).toBe(
       "original-company",
     );
   });

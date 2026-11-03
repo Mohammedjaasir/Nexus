@@ -1,18 +1,18 @@
 import { filterConnectionManagementRows, connectionManagementGuard, connectionRequestContext, connectionRequestUserId } from "./connection-management-authz.js";
 import { Router, type Request, type Response } from "express";
 import { and, desc, eq, gte, ilike, inArray, lt, or, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { agents, toolApplications, toolCallEvents, toolConnections, toolInvocations, toolRuntimeSlots } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { agents, toolApplications, toolCallEvents, toolConnections, toolInvocations, toolRuntimeSlots } from "@nexusai/db";
 import {
   humanizeConnectionDisplayName,
   type PermissionKey,
   type ToolConnectionLifecycleEventType,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   createToolMcpGatewaySchema,
   createToolMcpGatewayTokenSchema,
   updateToolMcpGatewaySchema,
-} from "@paperclipai/shared/validators/tool-access";
+} from "@nexusai/shared/validators/tool-access";
 import { assertBoard, assertBoardOrAgent, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { ToolGatewayHttpError, type ToolGatewayService } from "../services/tool-gateway.js";
 import { forbidden, HttpError } from "../errors.js";
@@ -38,7 +38,7 @@ const TOOL_GATEWAY_WINDOWS: Record<string, number | null> = {
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function gatewayToken(req: { header(name: string): string | undefined }) {
-  return req.header("x-paperclip-tool-gateway-token")?.trim() || null;
+  return req.header("x-nexus-tool-gateway-token")?.trim() || null;
 }
 
 function bearerToken(req: { header(name: string): string | undefined }) {
@@ -98,10 +98,10 @@ async function handleMcpGatewayProtocol(
         result: {
           protocolVersion: "2025-03-26",
           capabilities: { tools: {}, resources: {}, prompts: {} },
-          serverInfo: { name: "Paperclip MCP Gateway", version: "1.0.0" },
+          serverInfo: { name: "Nexus MCP Gateway", version: "1.0.0" },
           _meta: {
-            "paperclip/mcp-app-ui": "unsupported",
-            "paperclip/mcp-app-ui-detail": "Interactive ui:// iframe hosting is not available in Paperclip Runner.",
+            "nexus/mcp-app-ui": "unsupported",
+            "nexus/mcp-app-ui-detail": "Interactive ui:// iframe hosting is not available in Nexus Runner.",
           },
         },
       });
@@ -130,23 +130,23 @@ async function handleMcpGatewayProtocol(
             inputSchema: tool.parametersSchema ?? { type: "object", properties: {} },
             })),
             {
-              name: "paperclip_list_resources",
+              name: "nexus_list_resources",
               description: "List resources from fully assigned MCP connections.",
               inputSchema: { type: "object", properties: {}, additionalProperties: false },
             },
             {
-              name: "paperclip_read_resource",
-              description: "Read a resource URI returned by paperclip_list_resources.",
+              name: "nexus_read_resource",
+              description: "Read a resource URI returned by nexus_list_resources.",
               inputSchema: { type: "object", required: ["uri"], properties: { uri: { type: "string" } }, additionalProperties: false },
             },
             {
-              name: "paperclip_list_prompts",
+              name: "nexus_list_prompts",
               description: "List prompts from fully assigned MCP connections.",
               inputSchema: { type: "object", properties: {}, additionalProperties: false },
             },
             {
-              name: "paperclip_get_prompt",
-              description: "Get a prompt returned by paperclip_list_prompts.",
+              name: "nexus_get_prompt",
+              description: "Get a prompt returned by nexus_list_prompts.",
               inputSchema: { type: "object", required: ["name"], properties: { name: { type: "string" }, arguments: { type: "object" } }, additionalProperties: false },
             },
           ],
@@ -162,10 +162,10 @@ async function handleMcpGatewayProtocol(
         return;
       }
       const contextMethods = {
-        paperclip_list_resources: "resources/list",
-        paperclip_read_resource: "resources/read",
-        paperclip_list_prompts: "prompts/list",
-        paperclip_get_prompt: "prompts/get",
+        nexus_list_resources: "resources/list",
+        nexus_read_resource: "resources/read",
+        nexus_list_prompts: "prompts/list",
+        nexus_get_prompt: "prompts/get",
       } as const;
       const contextMethod = contextMethods[name as keyof typeof contextMethods];
       if (contextMethod) {

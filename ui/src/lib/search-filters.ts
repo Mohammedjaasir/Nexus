@@ -1,7 +1,7 @@
 import {
   COMPANY_SEARCH_SORTS,
   type CompanySearchSort,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import type { ParsedSearchQuery } from "./search-query-parser";
 
 /**

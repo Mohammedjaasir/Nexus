@@ -43,7 +43,7 @@ export async function readHiringTemplateSources(api: Pick<RunnerApi, "get">, com
   let coderReference = "";
   for (const file of [...HIRING_TEMPLATE_READ_FILES, "references/baseline-role-guide.md"]) {
     const detail = await api.get<{ content: string }>(`/api/companies/${companyId}/skills/${creator.id}/files?path=${encodeURIComponent(file)}`);
-    servedSourceHashes[`skills/paperclip-create-agent/${file}`] = hiringTemplateHash(detail.content);
+    servedSourceHashes[`skills/nexus-create-agent/${file}`] = hiringTemplateHash(detail.content);
     if (file === "references/agents/coder.md") coderReference = detail.content;
   }
   // The loader and execution contract are source provenance, not served skill

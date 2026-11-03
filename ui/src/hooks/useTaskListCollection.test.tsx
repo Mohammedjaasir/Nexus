@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createIssue } from "../../storybook/fixtures/paperclipData";
+import { createIssue } from "../../storybook/fixtures/nexusData";
 import type { TaskListItem } from "@/components/TaskList";
 import { taskListViewStorageKey } from "@/lib/task-list-views";
 import { useTaskListCollection } from "./useTaskListCollection";

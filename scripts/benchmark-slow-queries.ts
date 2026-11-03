@@ -1,4 +1,4 @@
-/** Disposable PostgreSQL repro. Run: pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-slow-queries.ts */
+/** Disposable PostgreSQL repro. Run: pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-slow-queries.ts */
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -104,8 +104,8 @@ try {
   await db.$client.unsafe(`INSERT INTO heartbeat_runs (company_id, agent_id, status, native_issue_id, created_at, context_snapshot)
     SELECT $1::uuid, $2::uuid, 'succeeded', CASE WHEN n = 3 THEN $3::uuid END, now() + n * interval '1 millisecond',
       jsonb_build_object('prompt', $4::text) || CASE
-        WHEN n = 1 THEN jsonb_build_object('issueId', $3::text, 'paperclipSecretRedactions', jsonb_build_array(jsonb_build_object('fixture', 'top-level')))
-        WHEN n = 2 THEN jsonb_build_object('paperclipIssue', jsonb_build_object('id', $3::text), 'paperclipSecretRedactions', jsonb_build_array(jsonb_build_object('fixture', 'nested')))
+        WHEN n = 1 THEN jsonb_build_object('issueId', $3::text, 'nexusSecretRedactions', jsonb_build_array(jsonb_build_object('fixture', 'top-level')))
+        WHEN n = 2 THEN jsonb_build_object('nexusIssue', jsonb_build_object('id', $3::text), 'nexusSecretRedactions', jsonb_build_array(jsonb_build_object('fixture', 'nested')))
         WHEN n = 3 THEN jsonb_build_object('issueId', gen_random_uuid()::text)
         WHEN n = 4 THEN jsonb_build_object('taskId', $3::text)
         WHEN n = 5 THEN jsonb_build_object('taskKey', 'BENCH-1')
@@ -139,10 +139,10 @@ try {
     createdFromIssueId: sourceId, sortField: "id", sortDir: "asc", limit: 200,
     readCondition: await issueReadSqlCondition(db, { type: "board", userId: "fixture", source: "cloud_tenant" }),
   }));
-  const redactions = db.select({ contextSnapshot: sql`jsonb_build_object('paperclipSecretRedactions', ${heartbeatRuns.contextSnapshot}->'paperclipSecretRedactions')` })
+  const redactions = db.select({ contextSnapshot: sql`jsonb_build_object('nexusSecretRedactions', ${heartbeatRuns.contextSnapshot}->'nexusSecretRedactions')` })
     .from(heartbeatRuns).where(and(eq(heartbeatRuns.companyId, companyId), or(
       sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${sourceId}`,
-      sql`${heartbeatRuns.contextSnapshot}->'paperclipIssue'->>'id' = ${sourceId}`,
+      sql`${heartbeatRuns.contextSnapshot}->'nexusIssue'->>'id' = ${sourceId}`,
     ))).toSQL();
 
   // The summary history query projects these eight context fields. Keep its

@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { conflict, HttpError, notFound } from "../../../errors.js";
 import { voiceSessionService } from "../../voice/voice-session-service.js";
 import { voiceSessionStore, currentVoiceCredentialFingerprint } from "../../voice/voice-session-store.js";

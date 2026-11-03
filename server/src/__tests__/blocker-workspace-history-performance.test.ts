@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { applyPendingMigrations, companies, createDb, issues } from "@paperclipai/db";
+import { applyPendingMigrations, companies, createDb, issues } from "@nexusai/db";
 import { issueService } from "../services/issues.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_BLOCKER_HISTORY_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_BLOCKER_HISTORY_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 type Plan = { "Node Type": string; "Relation Name"?: string; "Actual Rows": number; "Actual Loops": number;
   "Rows Removed by Filter"?: number; "Rows Removed by Index Recheck"?: number; Plans?: Plan[] };

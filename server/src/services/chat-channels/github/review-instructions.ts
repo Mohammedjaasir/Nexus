@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { chatConversations, chatDeliveries, chatEndpoints, chatMessageLinks, type Db } from "@paperclipai/db";
+import { chatConversations, chatDeliveries, chatEndpoints, chatMessageLinks, type Db } from "@nexusai/db";
 import { githubReviewConfigurationPrompt } from "../../chat-github-review-policy.js";
-import type { GitHubReviewPolicy } from "@paperclipai/shared";
+import type { GitHubReviewPolicy } from "@nexusai/shared";
 
 /** Only processed, task-bound deliveries can supply review instructions. */
 export async function resolveGitHubReviewInstructions(input: {

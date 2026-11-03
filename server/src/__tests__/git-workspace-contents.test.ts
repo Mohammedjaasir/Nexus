@@ -28,7 +28,7 @@ describe("Git workspace settings preservation", () => {
       "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "-c", "commit.gpgsign=false", ...args],
     { env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: os.devNull } });
     await git("init", "--initial-branch=main");
-    await fs.writeFile(path.join(directory, ".gitignore"), ".claude/settings.local.json\n.paperclip-repositories/\n");
+    await fs.writeFile(path.join(directory, ".gitignore"), ".claude/settings.local.json\n.nexus-repositories/\n");
     await git("add", ".gitignore");
     await git("commit", "-m", "Fixture");
     return directory;
@@ -47,8 +47,8 @@ describe("Git workspace settings preservation", () => {
   }
 
   beforeEach(async () => {
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "31".repeat(32));
-    root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-contents-")));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "31".repeat(32));
+    root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "nexus-workspace-contents-")));
     cwd = await repository(path.join(root, "work"));
     identity = { companyId: randomUUID(), workspaceId: randomUUID() };
   });
@@ -80,7 +80,7 @@ describe("Git workspace settings preservation", () => {
     const contents = await capture();
     const source = { id: randomUUID(), repoUrl: "https://example.test/project.git", repoRef: "main", cwd: null };
     const name = managedProjectCheckoutName(source);
-    const nested = await repository(path.join(cwd, ".paperclip-repositories", name));
+    const nested = await repository(path.join(cwd, ".nexus-repositories", name));
     await execFile("git", ["-C", nested, "remote", "add", "origin", source.repoUrl]);
     const checkout = await readManagedCheckoutContents(nested, name, source);
     const moved = { ...contents, settings: null, checkouts: [{ ...checkout, settings: contents.settings }] };

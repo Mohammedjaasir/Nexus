@@ -3,8 +3,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
-import { agents, companies, companySkills, createDb, environments, pluginCompanySettings, plugins, resourceLifecycleEvents, type Db } from "@paperclipai/db";
-import type { PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import { agents, companies, companySkills, createDb, environments, pluginCompanySettings, plugins, resourceLifecycleEvents, type Db } from "@nexusai/db";
+import type { NexusPluginManifestV1 } from "@nexusai/shared";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { environmentSkillConfig } from "../services/environment-skills.js";
@@ -22,11 +22,11 @@ describeDatabase("environment managed skills", () => {
   let home: string;
   let companyId: string;
   let pluginId: string;
-  let manifest: PaperclipPluginManifestV1;
+  let manifest: NexusPluginManifestV1;
   let environment: { driver: string; config: Record<string, unknown> };
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-environment-skills-"); db = createDb(database.connectionString);
-    home = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-environment-skills-"));
+    database = await startEmbeddedPostgresTestDatabase("nexus-environment-skills-"); db = createDb(database.connectionString);
+    home = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-environment-skills-"));
   }, 90_000);
   afterAll(async () => { await database?.cleanup(); if (home) {
     const release = async (directory: string): Promise<void> => {
@@ -37,7 +37,7 @@ describeDatabase("environment managed skills", () => {
   } });
   afterEach(() => vi.unstubAllEnvs());
   beforeEach(async () => {
-    vi.stubEnv("PAPERCLIP_HOME", home);
+    vi.stubEnv("NEXUS_HOME", home);
     companyId = randomUUID(); pluginId = randomUUID();
     manifest = { id: `fixture.${pluginId}`, apiVersion: 1, version: "1.0.0", displayName: "Desktop", description: "Fixture", author: "Tests", categories: ["automation"],
       capabilities: ["environment.drivers.register", "skills.managed", "agents.lifecycle.manage", "events.subscribe"],
@@ -51,15 +51,15 @@ describeDatabase("environment managed skills", () => {
     environment = { driver: "plugin", config: { pluginKey: manifest.id, driverKey: "desktop", driverConfig: {} } };
   });
   it("installs the company skill and delivers its versioned files through runtime sync and the native snapshot", async () => {
-    const config = { paperclipSkillSync: { desiredSkills: [] } };
+    const config = { nexusSkillSync: { desiredSkills: [] } };
     const [selection, concurrent] = await Promise.all([environmentSkillConfig(db, companyId, environment, config), environmentSkillConfig(db, companyId, environment, config)]);
     expect(concurrent).toEqual(selection);
     const selected = selection.config;
     const [skill] = await db.select().from(companySkills).where(and(eq(companySkills.companyId, companyId), eq(companySkills.key, `plugin/fixture-${pluginId}/computer-use`)));
-    expect(selected).toMatchObject({ paperclipSkillSync: { desiredSkills: [skill.key] } });
-    expect(config.paperclipSkillSync.desiredSkills).toEqual([]);
+    expect(selected).toMatchObject({ nexusSkillSync: { desiredSkills: [skill.key] } });
+    expect(config.nexusSkillSync.desiredSkills).toEqual([]);
     const [env] = await db.insert(environments).values({ name: "Desktop", ...environment }).returning();
-    const [agent] = await db.insert(agents).values({ companyId, name: "Worker", adapterType: "paperclip_runner", defaultEnvironmentId: env.id,
+    const [agent] = await db.insert(agents).values({ companyId, name: "Worker", adapterType: "nexus_runner", defaultEnvironmentId: env.id,
       lifecycleRequiredPluginIds: [pluginId], adapterConfig: config }).returning();
     const state = await pluginAgentRuntimeState(db, pluginId, companyId, agent.id);
     expect(state!.skills).toEqual([expect.objectContaining({ key: skill.key, runtimeName: expect.stringMatching(/^plugin-.*-computer-use--/), versionId: expect.any(String) })]);
@@ -83,7 +83,7 @@ describeDatabase("environment managed skills", () => {
     expect((await pluginAgentRuntimeState(db, pluginId, companyId, agent.id, env.id))!.skills).toEqual(state!.skills);
     await expect(environmentSkillConfig(db, companyId, environment, config)).rejects.toThrow(/pinned Git commit/);
     await db.update(plugins).set({ manifestJson: manifest }).where(eq(plugins.id, pluginId));
-    const pinned = { paperclipSkillSync: { desiredSkills: [{ key: skill.key, versionId: state!.skills[0].versionId }] } };
+    const pinned = { nexusSkillSync: { desiredSkills: [{ key: skill.key, versionId: state!.skills[0].versionId }] } };
     expect((await environmentSkillConfig(db, companyId, environment, pinned)).config).toEqual(pinned);
     await db.update(companySkills).set({ markdown: "Agent customization" }).where(eq(companySkills.id, skill.id));
     await environmentSkillConfig(db, companyId, environment, config);
@@ -91,8 +91,8 @@ describeDatabase("environment managed skills", () => {
   });
   it("installs and refreshes environment skills through lifecycle reconciliation before any run", async () => {
     const [env] = await db.insert(environments).values({ name: randomUUID(), ...environment }).returning();
-    const [agent] = await db.insert(agents).values({ companyId, name: "Background worker", adapterType: "paperclip_runner", defaultEnvironmentId: env.id,
-      lifecycleRequiredPluginIds: [pluginId], adapterConfig: { paperclipSkillSync: { desiredSkills: [] } } }).returning();
+    const [agent] = await db.insert(agents).values({ companyId, name: "Background worker", adapterType: "nexus_runner", defaultEnvironmentId: env.id,
+      lifecycleRequiredPluginIds: [pluginId], adapterConfig: { nexusSkillSync: { desiredSkills: [] } } }).returning();
     expect((await pluginAgentRuntimeState(db, pluginId, companyId, agent.id))!.skills).toEqual([]);
     const states = await Promise.all([1, 2].map(() => pluginAgentRuntimeState(db, pluginId, companyId, agent.id, undefined, true)));
     expect(states[0]!.skills).toEqual(states[1]!.skills);
@@ -123,7 +123,7 @@ describeDatabase("environment managed skills", () => {
   });
   it("queues background delivery for inherited defaults and changed environment requirements", async () => {
     const [env] = await db.insert(environments).values({ name: randomUUID(), ...environment }).returning();
-    const [agent] = await db.insert(agents).values({ companyId, name: "Inherited worker", adapterType: "paperclip_runner", lifecycleRequiredPluginIds: [pluginId] }).returning();
+    const [agent] = await db.insert(agents).values({ companyId, name: "Inherited worker", adapterType: "nexus_runner", lifecycleRequiredPluginIds: [pluginId] }).returning();
     const events = () => db.select().from(resourceLifecycleEvents).where(and(eq(resourceLifecycleEvents.companyId, companyId), eq(resourceLifecycleEvents.resourceType, "agent_runtime")));
     let before = (await events()).length;
     await instanceSettingsService(db).update({ defaultEnvironmentId: env.id });
@@ -157,17 +157,17 @@ describeDatabase("environment managed skills", () => {
   it("delivers the required plugin skill and reports a same-name company assignment as shadowed", async () => {
     const name = `plugin-${pluginId}-computer-use`;
     const original = await companySkillService(db).createLocalSkill(companyId, { name, markdown: `---\nname: ${name}\n---\nCompany instructions.\n` });
-    const config = { paperclipSkillSync: { desiredSkills: [original.key] } };
+    const config = { nexusSkillSync: { desiredSkills: [original.key] } };
     const [env] = await db.insert(environments).values({ name: randomUUID(), ...environment }).returning();
-    const [agent] = await db.insert(agents).values({ companyId, name: "Conflicting worker", adapterType: "paperclip_runner", defaultEnvironmentId: env.id,
+    const [agent] = await db.insert(agents).values({ companyId, name: "Conflicting worker", adapterType: "nexus_runner", defaultEnvironmentId: env.id,
       lifecycleRequiredPluginIds: [pluginId], adapterConfig: config }).returning();
     const state = await pluginAgentRuntimeState(db, pluginId, companyId, agent.id, undefined, true);
     const key = `plugin/fixture-${pluginId}/computer-use`;
     expect(state!.skills.map(skill => skill.key)).toEqual([key]);
     expect(state!.shadowedSkills).toEqual([{ key: original.key, shadowedBy: key }]);
     for (const reference of [name, original.key.toUpperCase(), `${name}--${createHash("sha256").update(original.key).digest("hex").slice(0, 10)}`]) {
-      const aliased = await environmentSkillConfig(db, companyId, environment, { paperclipSkillSync: { desiredSkills: [reference] } });
-      expect(aliased.config).toMatchObject({ paperclipSkillSync: { desiredSkills: [key] } });
+      const aliased = await environmentSkillConfig(db, companyId, environment, { nexusSkillSync: { desiredSkills: [reference] } });
+      expect(aliased.config).toMatchObject({ nexusSkillSync: { desiredSkills: [key] } });
       expect(aliased.shadowedSkills).toEqual(state!.shadowedSkills);
     }
     expect((await db.select().from(companySkills).where(eq(companySkills.id, original.id)))[0]).toMatchObject({ markdown: original.markdown, slug: original.slug });

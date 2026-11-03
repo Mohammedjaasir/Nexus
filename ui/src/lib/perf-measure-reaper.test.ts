@@ -10,13 +10,13 @@ describe("startPerfMeasureReaper", () => {
     clearMeasures = vi.fn();
     original = performance.clearMeasures;
     performance.clearMeasures = clearMeasures as unknown as typeof performance.clearMeasures;
-    delete (globalThis as { __paperclipKeepPerfMeasures?: boolean }).__paperclipKeepPerfMeasures;
+    delete (globalThis as { __nexusKeepPerfMeasures?: boolean }).__nexusKeepPerfMeasures;
   });
 
   afterEach(() => {
     performance.clearMeasures = original;
     vi.useRealTimers();
-    delete (globalThis as { __paperclipKeepPerfMeasures?: boolean }).__paperclipKeepPerfMeasures;
+    delete (globalThis as { __nexusKeepPerfMeasures?: boolean }).__nexusKeepPerfMeasures;
   });
 
   it("clears measures on each interval", () => {
@@ -40,10 +40,10 @@ describe("startPerfMeasureReaper", () => {
 
   it("skips clearing while the opt-out flag is set (e.g. profiling)", () => {
     const stop = startPerfMeasureReaper(10_000);
-    (globalThis as { __paperclipKeepPerfMeasures?: boolean }).__paperclipKeepPerfMeasures = true;
+    (globalThis as { __nexusKeepPerfMeasures?: boolean }).__nexusKeepPerfMeasures = true;
     vi.advanceTimersByTime(30_000);
     expect(clearMeasures).not.toHaveBeenCalled();
-    (globalThis as { __paperclipKeepPerfMeasures?: boolean }).__paperclipKeepPerfMeasures = false;
+    (globalThis as { __nexusKeepPerfMeasures?: boolean }).__nexusKeepPerfMeasures = false;
     vi.advanceTimersByTime(10_000);
     expect(clearMeasures).toHaveBeenCalledTimes(1);
     stop();

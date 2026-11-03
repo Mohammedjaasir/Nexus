@@ -29,9 +29,9 @@ release images retain their existing short-tag convention. Build arguments carry
 Preview builds do not import or overwrite the shared release cache or release
 aliases. Missing images are built for Linux amd64, matching managed deployments.
 
-When requested, both `@paperclipai/shared` and `@paperclipai/db` use
+When requested, both `@nexusai/shared` and `@nexusai/db` use
 `0.0.0-preview.g<FULL_SHA>`. Workspace dependencies are pinned to exact versions.
-Packages carry `gitHead` and `paperclipPreviewCommit` source identity. npm publishes
+Packages carry `gitHead` and `nexusPreviewCommit` source identity. npm publishes
 them under the `preview` dist-tag only. Normal consumers of `latest` or `canary`
 continue to select normal releases.
 
@@ -151,7 +151,7 @@ sufficient provenance.
 
 The build job has no AWS credential. The publish job downloads only the four
 fixed files, validates them, and uploads them without executing their code.
-The dedicated `paperclip-cloud-migrator-github` OIDC role trusts only
+The dedicated `nexus-cloud-migrator-github` OIDC role trusts only
 `repo:paperclipai/paperclip:ref:refs/heads/master`. Its policy permits prefix
 listing and conditional `PutObject` calls in this one prefix. It permits no
 object deletion or overwrite. PRs, including allowlisted PRs, cannot assume it.

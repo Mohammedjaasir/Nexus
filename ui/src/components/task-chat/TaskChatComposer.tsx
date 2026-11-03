@@ -67,8 +67,8 @@ import {
 } from "@/components/InlineEntitySelector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { MentionOption } from "@/components/MarkdownEditor";
-import type { IssueAttachment, IssueWorkMode } from "@paperclipai/shared";
-import type { RunnerGoalCapability } from "@paperclipai/shared";
+import type { IssueAttachment, IssueWorkMode } from "@nexusai/shared";
+import type { RunnerGoalCapability } from "@nexusai/shared";
 import type { ActionCommandOption } from "@/context/EditorAutocompleteContext";
 import { TaskChatComposerTakeoverActionsContext } from "./TaskChatComposerTakeoverContext";
 
@@ -79,7 +79,7 @@ import { TaskChatComposerBar } from "./TaskChatComposerBar";
 import { ComposerAddMenu, ComposerModeChip, ComposerPrivacyChip } from "./ComposerAddMenu";
 import { supportsComposerModel, type ComposerRunSettings } from "./composer-run-settings";
 import { useCoordinatorPresentation } from "@/components/coordinator/CoordinatorPresentation";
-import type { Agent, IssueAssigneeAdapterOverrides } from "@paperclipai/shared";
+import type { Agent, IssueAssigneeAdapterOverrides } from "@nexusai/shared";
 
 /** Structurally identical to IssueChatThread's module-private CommentReassignment. */
 export interface CommentReassignment {

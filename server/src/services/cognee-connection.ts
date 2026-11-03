@@ -73,7 +73,7 @@ export async function callCogneeCloud(input: {
   };
   let result: unknown;
   if (input.tool === "remember") {
-    const dataset = args.dataset_name || "paperclip_memory";
+    const dataset = args.dataset_name || "nexus_memory";
     if (args.session_id) {
       if (args.custom_prompt) throw new Error("custom_prompt is not supported with session_id in Cognee Cloud.");
       result = await post("/api/v1/remember/entry", {

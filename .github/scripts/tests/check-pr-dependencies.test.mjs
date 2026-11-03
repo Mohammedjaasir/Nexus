@@ -18,7 +18,7 @@ test('resolveBaseRef: falls back to the PR base ref', async () => {
   }, 'token', 'paperclipai/paperclip', 6469);
 
   assert.equal(baseRef, 'main');
-  assert.deepEqual(seenPaths, ['/repos/paperclipai/paperclip/pulls/6469']);
+  assert.deepEqual(seenPaths, ['/repos/nexusai/nexus/pulls/6469']);
 });
 
 test('checkDependencies: compares package files against the resolved base ref instead of master', async () => {
@@ -59,7 +59,7 @@ test('checkDependencies: compares package files against the resolved base ref in
   assert.equal(result.informational.length, 1);
   assert.match(result.informational[0], /`added`/);
   assert.deepEqual(seenPaths, [
-    '/repos/paperclipai/paperclip/contents/packages/foo/package.json?ref=release%2F1.2',
-    '/repos/paperclipai/paperclip/contents/packages/foo/package.json?ref=refs%2Fpull%2F6469%2Fhead',
+    '/repos/nexusai/nexus/contents/packages/foo/package.json?ref=release%2F1.2',
+    '/repos/nexusai/nexus/contents/packages/foo/package.json?ref=refs%2Fpull%2F6469%2Fhead',
   ]);
 });

@@ -2,19 +2,19 @@ import { createRequire } from "node:module";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { AdapterSandboxExecutionTarget } from "@paperclipai/adapter-utils";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
-import { shellQuote } from "@paperclipai/adapter-utils/ssh";
+import type { AdapterSandboxExecutionTarget } from "@nexusai/adapter-utils";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
+import { shellQuote } from "@nexusai/adapter-utils/ssh";
 
 /** Opt-in, bounded live fixture. Every invocation owns and deletes its sandbox. */
 export async function startDotDaytona(localRoot: string) {
-  const image = process.env.PAPERCLIP_DOT_DAYTONA_IMAGE;
+  const image = process.env.NEXUS_DOT_DAYTONA_IMAGE;
   if (!image || !/@sha256:[a-f0-9]{64}$/.test(image)) throw new Error("Dot live tests require an immutable Daytona image digest");
   const require = createRequire(new URL("../../../../packages/plugins/sandbox-providers/daytona/package.json", import.meta.url));
   const { Daytona } = require("@daytonaio/sdk");
   const sandbox = await new Daytona({ apiKey: process.env.DAYTONA_API_KEY }).create({
     image, public: false, autoStopInterval: 10, ttlMinutes: 20,
-    labels: { "paperclip-test": "dot-managed-runner" },
+    labels: { "nexus-test": "dot-managed-runner" },
   }, { timeout: 180 });
   const workspace = "/home/daytona/dot-managed-test";
   const executeSource = `
@@ -62,10 +62,10 @@ export async function startDotDaytona(localRoot: string) {
   try {
     const setup = await runner.execute({ command: "mkdir", args: ["-p", workspace], timeoutMs: 10000 });
     if (setup.exitCode !== 0) throw new Error("Daytona test workspace creation failed");
-    const binary = process.env.PAPERCLIP_DOT_DAYTONA_RUNNER_BINARY
-      ? await readFile(process.env.PAPERCLIP_DOT_DAYTONA_RUNNER_BINARY)
-      : await sandbox.fs.downloadFile("/usr/local/bin/paperclip-runnerd");
-    const runnerBinary = join(localRoot, "daytona-paperclip-runnerd");
+    const binary = process.env.NEXUS_DOT_DAYTONA_RUNNER_BINARY
+      ? await readFile(process.env.NEXUS_DOT_DAYTONA_RUNNER_BINARY)
+      : await sandbox.fs.downloadFile("/usr/local/bin/nexus-runnerd");
+    const runnerBinary = join(localRoot, "daytona-nexus-runnerd");
     await writeFile(runnerBinary, binary, { mode: 0o700 });
     const qualificationBinary = join(workspace, "qualification-runnerd");
     await sandbox.fs.uploadFile(binary, qualificationBinary);
@@ -73,7 +73,7 @@ export async function startDotDaytona(localRoot: string) {
     const metadata = await runner.execute({ command: qualificationBinary, args: ["--build-metadata"], timeoutMs: 10000 });
     if (metadata.exitCode !== 0) throw new Error("Daytona qualification runner build metadata missing");
     const evidence = { image, sandboxId: sandbox.id, binarySha256: createHash("sha256").update(binary).digest("hex"), metadata: JSON.parse(metadata.stdout) };
-    const evidencePath = process.env.PAPERCLIP_DOT_DAYTONA_EVIDENCE;
+    const evidencePath = process.env.NEXUS_DOT_DAYTONA_EVIDENCE;
     if (evidencePath) await writeFile(evidencePath, JSON.stringify(evidence, null, 2));
     const target: AdapterSandboxExecutionTarget = {
       kind: "remote", transport: "sandbox", providerKey: "daytona", environmentId: randomUUID(),

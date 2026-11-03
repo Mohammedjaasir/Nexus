@@ -86,7 +86,7 @@ export async function prepareScheduledCampaign(env: NodeJS.ProcessEnv, now = Dat
   const campaignId = `gha-${env.GITHUB_RUN_ID}-1-scheduled-campaign`;
   const directory = path.join(env.GITHUB_WORKSPACE, "tests/runner-e2e/results/scheduled");
   const manifest = scheduledManifest({ cadence, campaignId, ledgerPath: path.join(directory, "ledger.jsonl"),
-    projectId: env.PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID ?? "", now, runAttempt: env.GITHUB_RUN_ATTEMPT ?? "",
+    projectId: env.NEXUS_E2E_BRAINTRUST_PROJECT_ID ?? "", now, runAttempt: env.GITHUB_RUN_ATTEMPT ?? "",
     overhead: scheduledOperatingOverhead(env.EVAL_OPERATING_OVERHEAD_JSON, env.EVAL_TEST_RUNNER, budget(cadence), now, cadence) });
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const manifestPath = path.join(directory, "manifest.json");
@@ -116,6 +116,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const prepared = await prepareScheduledCampaign(process.env);
     if (!process.env.GITHUB_ENV) throw new Error("Missing workflow environment file");
     const prior = await readFile(process.env.GITHUB_ENV, "utf8");
-    await writeFile(process.env.GITHUB_ENV, `${prior}PAPERCLIP_E2E_OPERATIONS_MANIFEST=${prepared.manifestPath}\nPAPERCLIP_E2E_CAMPAIGN_ID=${prepared.campaignId}\nPAPERCLIP_E2E_ACCOUNTING_CAMPAIGN_ID=${prepared.campaignId}\n`);
+    await writeFile(process.env.GITHUB_ENV, `${prior}NEXUS_E2E_OPERATIONS_MANIFEST=${prepared.manifestPath}\nNEXUS_E2E_CAMPAIGN_ID=${prepared.campaignId}\nNEXUS_E2E_ACCOUNTING_CAMPAIGN_ID=${prepared.campaignId}\n`);
   } else throw new Error("Usage: scheduled-operations.ts <matrix|prepare>");
 }

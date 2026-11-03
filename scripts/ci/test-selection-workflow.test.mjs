@@ -66,7 +66,7 @@ test("publication follows successful upload and manifests are downloaded without
   assert.match(selection, /timeout-minutes: 5/);
   assert.match(selection, /vars.CI_VITEST_SELECTION == '' \|\| vars.CI_VITEST_SELECTION == 'enabled'/);
   for (const job of ["general_tests", "verify_serialized_server"]) {
-    assert.match(block(job), /PAPERCLIP_CI_SELECTION_HASH:.*testSelection.hash/);
+    assert.match(block(job), /NEXUS_CI_SELECTION_HASH:.*testSelection.hash/);
     assert.match(block(job), /Download selected test files\n        if: matrix.selection\n        uses: actions\/download-artifact@/);
     assert.doesNotMatch(block(job), /continue-on-error: true\n.*download-artifact/);
   }

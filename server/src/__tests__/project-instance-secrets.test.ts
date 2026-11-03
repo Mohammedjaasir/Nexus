@@ -14,7 +14,7 @@ import {
   projectWorkspaces,
   createDb,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -40,11 +40,11 @@ const support = await getEmbeddedPostgresTestSupport();
     const value = "fixture-private-mount-grant";
     beforeAll(async () => {
       vi.stubEnv(
-        "PAPERCLIP_SECRETS_MASTER_KEY",
+        "NEXUS_SECRETS_MASTER_KEY",
         randomBytes(32).toString("base64"),
       );
       database = await startEmbeddedPostgresTestDatabase(
-        "paperclip-project-instance-secrets-",
+        "nexus-project-instance-secrets-",
       );
       db = createDb(database.connectionString);
       await db.insert(companies).values({
@@ -317,12 +317,12 @@ const support = await getEmbeddedPostgresTestSupport();
         .from(companySecrets)
         .where(eq(companySecrets.ownerProjectId, f.project.id));
       expect(row.latestVersion).toBe(2);
-      const key = process.env.PAPERCLIP_SECRETS_MASTER_KEY!;
-      vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "invalid");
+      const key = process.env.NEXUS_SECRETS_MASTER_KEY!;
+      vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "invalid");
       try {
         await native.projectInstance.set(scope, "mount_grants", null);
       } finally {
-        vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", key);
+        vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", key);
       }
       expect(await native.projectInstance.read(scope)).toEqual({});
       await native.projectInstance.set(scope, "mount_grants", value);
@@ -357,8 +357,8 @@ const support = await getEmbeddedPostgresTestSupport();
         .update(projects)
         .set({ archivedAt: new Date("2020-01-01") })
         .where(eq(projects.id, f.project.id));
-      const key = process.env.PAPERCLIP_SECRETS_MASTER_KEY!;
-      vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "invalid");
+      const key = process.env.NEXUS_SECRETS_MASTER_KEY!;
+      vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "invalid");
       try {
         const prepared = await f.prepare();
         expect(prepared.instanceSecrets).toEqual({});
@@ -373,7 +373,7 @@ const support = await getEmbeddedPostgresTestSupport();
             .where(eq(companySecrets.ownerProjectId, f.project.id)),
         ).toEqual([]);
       } finally {
-        vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", key);
+        vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", key);
       }
     });
     it("enforces project ownership in the database and rejects archived reads and new credentials", async () => {

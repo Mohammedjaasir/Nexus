@@ -12,7 +12,7 @@ const aggregate = { records: 2500, roots: 1, finalizations: 1, native_api_record
 
 function fixture(profile = "runner-codex") {
   const cell = runnerMatrix.find(row => row.id === `feedback-persistence.${profile}.local.complaint-and-suggestion`)!;
-  const result: RunnerE2EResult = { schema: "paperclip.runner-e2e.result/v2", executionId: cell.id,
+  const result: RunnerE2EResult = { schema: "nexus.runner-e2e.result/v2", executionId: cell.id,
     suiteId: cell.suite.id, suiteDefinitionHash: cell.suiteDefinitionHash,
     accountingIdentity: { campaignId: "indexed-pilot", attemptId: "first" }, source: { sha: "a".repeat(40), ref: null, workflowRunUrl: null },
     attempt: 1, status: "passed", cleanup: "passed", profileId: cell.profile.id, caseId: cell.task.id,

@@ -2,7 +2,7 @@ import { mkdtemp, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
 
 const {
   ensureAdapterExecutionTargetDirectory,
@@ -45,19 +45,19 @@ const {
     }),
     prepareAdapterExecutionTargetRuntime: vi.fn(async () => ({
       target: null,
-      workspaceRemoteDir: "/remote/workspace/.paperclip-runtime/runs/test/workspace",
-      runtimeRootDir: "/remote/workspace/.paperclip-runtime/runs/test/workspace/.paperclip-runtime/opencode",
+      workspaceRemoteDir: "/remote/workspace/.nexus-runtime/runs/test/workspace",
+      runtimeRootDir: "/remote/workspace/.nexus-runtime/runs/test/workspace/.nexus-runtime/opencode",
       assetDirs: {
-        xdgConfig: "/remote/workspace/.paperclip-runtime/runs/test/workspace/.paperclip-runtime/opencode/xdgConfig",
+        xdgConfig: "/remote/workspace/.nexus-runtime/runs/test/workspace/.nexus-runtime/opencode/xdgConfig",
       },
       restoreWorkspace,
     })),
   };
 });
 
-vi.mock("@paperclipai/adapter-utils/execution-target", async () => {
-  const actual = await vi.importActual<typeof import("@paperclipai/adapter-utils/execution-target")>(
-    "@paperclipai/adapter-utils/execution-target",
+vi.mock("@nexusai/adapter-utils/execution-target", async () => {
+  const actual = await vi.importActual<typeof import("@nexusai/adapter-utils/execution-target")>(
+    "@nexusai/adapter-utils/execution-target",
   );
   return {
     ...actual,
@@ -85,7 +85,7 @@ describe("opencode remote environment diagnostics", () => {
   let configHome: string;
 
   beforeEach(async () => {
-    configHome = await mkdtemp(path.join(os.tmpdir(), "paperclip-opencode-test-config-"));
+    configHome = await mkdtemp(path.join(os.tmpdir(), "nexus-opencode-test-config-"));
     vi.stubEnv("XDG_CONFIG_HOME", configHome);
   });
 
@@ -103,7 +103,7 @@ describe("opencode remote environment diagnostics", () => {
         ...successfulProbe, exitCode: 1, stdout: "", timedOut: outcome === "timed_out",
         stderr: outcome === "auth_required" ? "invalid API key" : "ProviderModelNotFoundError",
       });
-      const result = await testEnvironment({ companyId: "company-1", adapterType: "paperclip_runner",
+      const result = await testEnvironment({ companyId: "company-1", adapterType: "nexus_runner",
         config: { model: "openrouter/deepseek/deepseek-v4-flash-0731", env: { XDG_CONFIG_HOME: configHome } } });
       expect(discoverOpenCodeModels).not.toHaveBeenCalled();
       expect(ensureOpenCodeModelConfiguredAndAvailable).not.toHaveBeenCalled();
@@ -114,13 +114,13 @@ describe("opencode remote environment diagnostics", () => {
       expect(result.status).toBe(outcome === "passed" ? "pass" : "warn");
       expect(result.checks).toContainEqual(expect.objectContaining({ code: `opencode_hello_probe_${outcome}` }));
       const call = runAdapterExecutionTargetProcess.mock.calls[0] as unknown as [unknown, unknown, unknown, unknown, { cwd: string }];
-      expect(path.basename(call[4].cwd)).toMatch(/^paperclip-opencode-native-probe-/);
+      expect(path.basename(call[4].cwd)).toMatch(/^nexus-opencode-native-probe-/);
       await expect(stat(call[4].cwd)).rejects.toMatchObject({ code: "ENOENT" });
     },
   );
 
   it("rejects a malformed native model before starting the probe", async () => {
-    const result = await testEnvironment({ companyId: "company-1", adapterType: "paperclip_runner",
+    const result = await testEnvironment({ companyId: "company-1", adapterType: "nexus_runner",
       config: { model: "missing-provider", env: { XDG_CONFIG_HOME: configHome } } });
     expect(result.status).toBe("fail");
     expect(runAdapterExecutionTargetProcess).not.toHaveBeenCalled();
@@ -128,7 +128,7 @@ describe("opencode remote environment diagnostics", () => {
   });
 
   it("preserves an explicitly configured native probe directory", async () => {
-    await testEnvironment({ companyId: "company-1", adapterType: "paperclip_runner",
+    await testEnvironment({ companyId: "company-1", adapterType: "nexus_runner",
       config: { model: "provider/model", cwd: configHome, env: { XDG_CONFIG_HOME: configHome } } });
     const call = runAdapterExecutionTargetProcess.mock.calls[0] as unknown as [unknown, unknown, unknown, unknown, { cwd: string }];
     expect(call[4].cwd).toBe(configHome);
@@ -201,14 +201,14 @@ describe("opencode remote environment diagnostics", () => {
     const probeCall = runAdapterExecutionTargetProcess.mock.calls[0] as unknown as
       | [string, AdapterExecutionTarget, string, string[], { cwd: string; env: Record<string, string> }]
       | undefined;
-    expect(probeCall?.[4].cwd).toBe("/remote/workspace/.paperclip-runtime/runs/test/workspace");
+    expect(probeCall?.[4].cwd).toBe("/remote/workspace/.nexus-runtime/runs/test/workspace");
     if (managed) {
-      expect(probeCall?.[4].env.HOME).toContain("/remote/workspace/.paperclip-runtime/runs/test/workspace/.paperclip-runtime/opencode/managed-auth/");
+      expect(probeCall?.[4].env.HOME).toContain("/remote/workspace/.nexus-runtime/runs/test/workspace/.nexus-runtime/opencode/managed-auth/");
       expect(probeCall?.[4].env.XDG_DATA_HOME).toBe(`${probeCall?.[4].env.HOME}/data`);
       expect(probeCall?.[4].env.XDG_CACHE_HOME).toBe(`${probeCall?.[4].env.HOME}/cache`);
     }
     expect(probeCall?.[4].env.XDG_CONFIG_HOME).toBe(
-      "/remote/workspace/.paperclip-runtime/runs/test/workspace/.paperclip-runtime/opencode/xdgConfig",
+      "/remote/workspace/.nexus-runtime/runs/test/workspace/.nexus-runtime/opencode/xdgConfig",
     );
   });
 });

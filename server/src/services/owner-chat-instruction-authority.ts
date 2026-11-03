@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 /**
  * A direct owner-chat turn may edit its own instructions, subject to the normal
@@ -62,16 +62,16 @@ export async function hasOwnerChatInstructionAuthority(
             AND boundary.company_id = w.company_id AND boundary.issue_id = c.id
             AND (message.created_at, message.id) >= (boundary.created_at, boundary.id)
         ))
-        AND (message.id::text = coalesce(w.payload->>'commentId', w.payload->'_paperclipWakeContext'->>'wakeCommentId')
-          OR (jsonb_typeof(w.payload #> '{_paperclipWakeContext,wakeCommentIds}') = 'array'
-            AND (w.payload #> '{_paperclipWakeContext,wakeCommentIds}') ? message.id::text))
+        AND (message.id::text = coalesce(w.payload->>'commentId', w.payload->'_nexusWakeContext'->>'wakeCommentId')
+          OR (jsonb_typeof(w.payload #> '{_nexusWakeContext,wakeCommentIds}') = 'array'
+            AND (w.payload #> '{_nexusWakeContext,wakeCommentIds}') ? message.id::text))
       WHERE w.run_id IN (SELECT id FROM task_runs)
         AND w.company_id = ${input.companyId}::uuid AND w.agent_id = ${input.agentId}::uuid
         AND w.requested_by_actor_type = 'user' AND w.requested_by_actor_id = ${input.userId}
         AND w.status NOT IN ('skipped', 'cancelled')
-        AND w.payload->'_paperclipWakeContext'->>'source' = 'issue.comment'
+        AND w.payload->'_nexusWakeContext'->>'source' = 'issue.comment'
         AND coalesce(w.payload->>'issueId', w.payload->>'taskId',
-          w.payload->'_paperclipWakeContext'->>'issueId', w.payload->'_paperclipWakeContext'->>'taskId') = c.id::text
+          w.payload->'_nexusWakeContext'->>'issueId', w.payload->'_nexusWakeContext'->>'taskId') = c.id::text
         -- Only the authenticated Agent Chat outbox mints this receipt. Other
         -- channels (including Slack Board) also attribute issue.comment wakes
         -- to users, so an external-channel denylist is insufficient.

@@ -1,6 +1,6 @@
 ---
 name: review-storybook
-description: Review Paperclip stories for a feature or change using the Storybook catalog, production source, and existing browser tests. Report component, mock, interaction, and visual evidence separately.
+description: Review Nexus stories for a feature or change using the Storybook catalog, production source, and existing browser tests. Report component, mock, interaction, and visual evidence separately.
 ---
 
 # Review Storybook

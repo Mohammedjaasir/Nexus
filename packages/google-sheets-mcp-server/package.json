@@ -1,5 +1,5 @@
 {
-  "name": "@paperclipai/google-sheets-mcp-server",
+  "name": "@nexusai/google-sheets-mcp-server",
   "version": "0.1.0",
   "license": "MIT",
   "homepage": "https://github.com/paperclipai/paperclip",
@@ -13,8 +13,8 @@
   },
   "type": "module",
   "bin": {
-    "paperclip-google-sheets-mcp-server": "./dist/stdio.js",
-    "paperclip-google-sheets-mcp-http-server": "./dist/http-server.js"
+    "nexus-google-sheets-mcp-server": "./dist/stdio.js",
+    "nexus-google-sheets-mcp-http-server": "./dist/http-server.js"
   },
   "exports": {
     ".": "./src/index.ts"
@@ -22,8 +22,8 @@
   "publishConfig": {
     "access": "public",
     "bin": {
-      "paperclip-google-sheets-mcp-server": "./dist/stdio.js",
-      "paperclip-google-sheets-mcp-http-server": "./dist/http-server.js"
+      "nexus-google-sheets-mcp-server": "./dist/stdio.js",
+      "nexus-google-sheets-mcp-http-server": "./dist/http-server.js"
     },
     "exports": {
       ".": {

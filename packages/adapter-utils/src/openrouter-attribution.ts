@@ -1,1 +1,1 @@
-export * from "@paperclipai/shared/openrouter-attribution";
+export * from "@nexusai/shared/openrouter-attribution";

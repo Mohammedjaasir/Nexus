@@ -4,7 +4,7 @@ import type {
   GitHubTaskReview,
   GitHubAppRegistrationInput, GitHubAppWizardState,
   GitHubRepositoryPage,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { api } from "./client";
 import type { ChatEndpoint, ChatEndpointResource } from "./chatEndpoints";
 export type GitHubConfigurationRecord = {

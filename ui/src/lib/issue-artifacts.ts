@@ -1,5 +1,5 @@
-import type { IssueAttachment, IssueDocumentSummary, IssueWorkProduct } from "@paperclipai/shared";
-import { getAttachmentArtifactWorkProductMetadata, isArtifactReviewDocumentKey, isSystemIssueDocumentKey } from "@paperclipai/shared";
+import type { IssueAttachment, IssueDocumentSummary, IssueWorkProduct } from "@nexusai/shared";
+import { getAttachmentArtifactWorkProductMetadata, isArtifactReviewDocumentKey, isSystemIssueDocumentKey } from "@nexusai/shared";
 
 /** Documents authored here; Plans and file reviews retain their own workflows. */
 export function isGeneralTaskDocumentKey(key: string): boolean {
@@ -25,7 +25,7 @@ export function isAgentAttachment(
 }
 
 /**
- * Attachment ids owned by valid attachment-backed Paperclip work products.
+ * Attachment ids owned by valid attachment-backed Nexus work products.
  * Unlike `getPromotedOutputAttachmentIds`, this includes document-like content
  * types (e.g. Markdown) that the binary Output surface intentionally excludes,
  * so it is the right dedupe set for the Artifacts tab's Files section.

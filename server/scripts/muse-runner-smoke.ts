@@ -1,7 +1,7 @@
 /** Opt-in deterministic operator smoke against an isolated loopback server.
  * This scripts a synthetic external worker through production HTTP/native Runner
  * surfaces. It is not a registered Product E2E campaign or live Muse qualification.
- * pnpm --filter @paperclipai/server exec tsx scripts/muse-runner-smoke.ts --run --base http://127.0.0.1:3311 \
+ * pnpm --filter @nexusai/server exec tsx scripts/muse-runner-smoke.ts --run --base http://127.0.0.1:3311 \
  *   --auth-file /private/path/operator.json --company <uuid> --agent <uuid> \
  *   --instance <instance-id> --server-source-sha <40-char-sha> --evidence-dir /private/path/evidence
  */
@@ -12,7 +12,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { digestPaperclipSemanticContent } from "../src/vendor/paperclip-runner/index.js";
+import { digestNexusSemanticContent } from "../src/vendor/nexus-runner/index.js";
 
 type Json = Record<string, unknown>;
 function object(value: unknown): Json {
@@ -48,7 +48,7 @@ const startedAt = new Date().toISOString(), deadline = Date.now() + 5 * 60_000;
 const marker = `synthetic-muse-${randomUUID()}`;
 const bindingPath = `/api/companies/${companyId}/agents/${agentId}/muse-binding`;
 const evidence: Json = {
-  schema: "paperclip.synthetic-muse-smoke.v1", synthetic: true,
+  schema: "nexus.synthetic-muse-smoke.v1", synthetic: true,
   registeredCampaign: false, liveMuseQualification: false, browserVerified: false,
   sourceSha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), serverSourceSha,
   scriptSha256: createHash("sha256").update(await readFile(fileURLToPath(import.meta.url))).digest("hex"),
@@ -104,7 +104,7 @@ async function until<T>(name: string, read: () => Promise<T>, predicate: (value:
 }
 async function signal() {
   await http("/api/muse/v1/signal", "GET", undefined, undefined, false,
-    { "X-Paperclip-Muse-Binding": string(credentials?.bindingId) });
+    { "X-Nexus-Muse-Binding": string(credentials?.bindingId) });
   detectorRequests++;
 }
 async function assignment(): Promise<Json> {
@@ -134,7 +134,7 @@ async function accept(work: Json): Promise<void> {
   assert.equal(run.runtimeMode, "native"); assert.equal(run.driverKind, "muse_external");
   assert.equal(run.status, "running");
   const profile = object(object(run.runnerProfileJson).nativeExecutionInput);
-  assert.equal(profile.schema, "paperclip.native-execution-input.v8");
+  assert.equal(profile.schema, "nexus.native-execution-input.v8");
   assert.equal(object(profile.workspace).access, "none");
   step("native-accepted", { turn: runIds.length, runId });
 }
@@ -144,9 +144,9 @@ async function finish(work: Json, summary: string): Promise<void> {
     completionClaim: { contractRevision: string(contract.revision), objectiveSatisfied: true,
       criteria: (contract.criterionIds as unknown[]).map(id => ({ criterionId: string(id), status: "passed", evidenceRefs: [] })), remainingWork: [] },
     evidence: [], verification: [{ commandOrCheck: "Independent board document readback", status: "pass" }] };
-  const receipt = await command({ command: "tool", assignmentId: work.assignmentId, name: "paperclip_finish", arguments: result });
+  const receipt = await command({ command: "tool", assignmentId: work.assignmentId, name: "nexus_finish", arguments: result });
   const canonical = object(object(receipt.result).completionReport);
-  assert.equal(canonical.schema, "paperclip.run_result.v1"); assert.equal(canonical.reportedWorkDisposition, "done");
+  assert.equal(canonical.schema, "nexus.run_result.v1"); assert.equal(canonical.reportedWorkDisposition, "done");
   await command({ command: "finish", assignmentId: work.assignmentId, result: canonical });
   const runId = string(object(work.binding).runId);
   const run = await until("server native finalization", async () => object(await board(`/api/heartbeat-runs/${runId}`)), value =>
@@ -196,7 +196,7 @@ try {
   const verifier = randomUUID() + randomUUID(), state = randomUUID();
   const authorization = new URL("/api/muse/v1/oauth/authorize", base);
   authorization.search = new URLSearchParams({ client_id: string(client.client_id), redirect_uri: redirectUri,
-    response_type: "code", scope: "paperclip:agent offline_access", state,
+    response_type: "code", scope: "nexus:agent offline_access", state,
     code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256",
     pairing_ticket: string(pairing.ticket) }).toString();
   const authorized = await fetch(authorization, { redirect: "manual", signal: AbortSignal.timeout(15000) });
@@ -240,7 +240,7 @@ try {
   step("native-document-written", { runId: runIds[0], canonicalBody: true });
   const nativeRequestId = `smoke-question-${randomUUID()}`;
   await command({ command: "request_user_input", assignmentId: first.assignmentId, nativeRequestId,
-    questionSet: { schema: "paperclip.question_set.v1", questions: [{ id: "environment", prompt: "Which synthetic environment?", required: true,
+    questionSet: { schema: "nexus.question_set.v1", questions: [{ id: "environment", prompt: "Which synthetic environment?", required: true,
       answerMode: "single_select", options: [{ id: "test", label: "Test" }, { id: "production", label: "Production" }] }] } });
   const interaction = await until("actual pending native question", async () =>
     rows(await board(`/api/issues/${issueId}/interactions`)).find(row => row.kind === "ask_user_questions" && object(row.payload).runtimeRequestId === nativeRequestId) ?? {}, value => value.status === "pending");
@@ -252,13 +252,13 @@ try {
       return event.eventType === "runtime_request.created" && object(object(event.payload).request).requestId === nativeRequestId;
     }) ?? {}, value => typeof value.id === "number");
   const nativeRequest = object(object(object(object(pendingEvent.payload).prpEvent).payload).request);
-  assert.equal(nativeRequest.schema, "paperclip.runtime_request.v2"); assert.equal(nativeRequest.status, "pending");
+  assert.equal(nativeRequest.schema, "nexus.runtime_request.v2"); assert.equal(nativeRequest.status, "pending");
   step("native-question-pending", { runId: runIds[0], interactionId: interaction.id, nativeRequestId });
   const answered = object(await board(`/api/issues/${issueId}/interactions/${interaction.id}/respond`, "POST", {
     answers: [{ questionId: "environment", optionIds: ["test"] }] })); assert.equal(answered.status, "answered");
   const input = await until("durable answer input", () => query({ query: "input.pending", assignmentId: first.assignmentId, nativeRequestId }), value => typeof value.inputDigest === "string");
   assert.equal(input.requestId, nativeRequestId); assert.equal(input.turnId, object(first.binding).turnId);
-  assert.equal(input.inputDigest, digestPaperclipSemanticContent({ requestId: nativeRequestId, turnId: input.turnId, response: input.response }));
+  assert.equal(input.inputDigest, digestNexusSemanticContent({ requestId: nativeRequestId, turnId: input.turnId, response: input.response }));
   const resolvedEvent = await until("durable native answer resolution", async () =>
     rows(await board(`/api/heartbeat-runs/${runIds[0]}/events?limit=1000`)).find(row => {
       if (row.eventType !== "runtime_request.resolved") return false;

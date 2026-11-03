@@ -14,7 +14,7 @@ export function manualEvidenceRouting(env) {
   if (!ids.some(requiresPrivateManualEvidence)) return { retention: 'actions', executionIds: ids };
   const selected = canonicalPrivateManualIds(ids);
   if (selected.some(id => !MANUAL_PRIVATE_EXECUTIONS.includes(id))) throw new Error('Unsupported private manual selection');
-  if (env.TEST_RUNNER !== 'runs-on/fleet=paperclip-public-pr-x64/env=public-ci') throw new Error('Private manual evidence currently requires the reviewed AWS route');
+  if (env.TEST_RUNNER !== 'runs-on/fleet=nexus-public-pr-x64/env=public-ci') throw new Error('Private manual evidence currently requires the reviewed AWS route');
   return { retention: 'private', executionIds: selected };
 }
 export function authorizeManualCellRoute(retention, executionId, privateIds) {

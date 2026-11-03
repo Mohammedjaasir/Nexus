@@ -14,7 +14,7 @@ export const cases = Object.freeze([
   { key: 'defaults', scenario: 'projects.project-defaults', name: 'Save project defaults for future work', checks: 11, minimumRuns: 3, maximumRuns: 3 },
   { key: 'work', scenario: 'projects.project-work', name: 'Create and delegate project work through chat', checks: 15, minimumRuns: 1, maximumRuns: 3 },
 ].map(row => Object.freeze({ ...row, executionId: `chat-features.runner-opencode.local.${row.scenario}`,
-  fullName: `paperclip.Product E2E.chat-features.${row.scenario}` })));
+  fullName: `nexus.Product E2E.chat-features.${row.scenario}` })));
 export const positive = value => Number.isSafeInteger(value) && value > 0;
 export function catalogDefinition(context = {}) {
   if (context.catalog === 'full') return { cases: fullCatalogCases, planName: fullCatalogPlanName,
@@ -73,7 +73,7 @@ export function selectedCases(rows, context = {}) {
 
 export function validateSelection(selection, context, jobRunId) {
   const definition = catalogDefinition(context);
-  if (selection.schema !== 'paperclip.chat-completion-testops-selection/v1' || selection.projectId !== 1
+  if (selection.schema !== 'nexus.chat-completion-testops-selection/v1' || selection.projectId !== 1
     || selection.runId !== context.runId || selection.attempt !== '1' || selection.workflowSha !== context.workflowSha
     || selection.targetSha !== definition.targetSha || selection.catalog !== context.catalog || selection.allureJobRunId !== jobRunId || !numeric(jobRunId)
     || ['planId', 'jobId', 'launchId'].some(key => !positive(selection[key]))) reject('selection_binding');
@@ -87,5 +87,5 @@ export function evidencePolicy(selection, context, jobRunId) {
   const selected = validateSelection(selection, context, jobRunId);
   return { version: 1, approvals: [{ workflowSha: context.workflowSha, targetSha: catalogDefinition(context).targetSha,
     runId: context.runId, attempt: '1', executionIds: selected.map(row => row.executionId),
-    protocol: 'paperclip.manual-private-evidence/v1', launchSha256 }] };
+    protocol: 'nexus.manual-private-evidence/v1', launchSha256 }] };
 }

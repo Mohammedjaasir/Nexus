@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { paperclipConfigSchema } from "@paperclipai/shared";
+import { nexusConfigSchema } from "@nexusai/shared";
 import { loadStorageConfig } from "./config.js";
 import { resolveRunEvidenceStorage } from "../services/run-evidence-storage.js";
 import {
@@ -12,7 +12,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-const file = paperclipConfigSchema.parse({
+const file = nexusConfigSchema.parse({
   $meta: { version: 1, updatedAt: "2026-10-30T00:00:00Z", source: "configure" },
   database: { mode: "embedded-postgres" },
   logging: { mode: "file" },
@@ -30,8 +30,8 @@ const file = paperclipConfigSchema.parse({
 });
 describe("shared instance storage configuration", () => {
   it("reuses the saved Cloud storage profile after its legacy config file is gone", () => {
-    vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", "");
-    vi.stubEnv("PAPERCLIP_CONFIG", "/nonexistent/legacy-config.json");
+    vi.stubEnv("NEXUS_MANAGED_CONFIG", "");
+    vi.stubEnv("NEXUS_CONFIG", "/nonexistent/legacy-config.json");
     for (const name of [
       "PROVIDER",
       "S3_BUCKET",
@@ -40,7 +40,7 @@ describe("shared instance storage configuration", () => {
       "S3_PREFIX",
       "S3_FORCE_PATH_STYLE",
     ])
-      vi.stubEnv(`PAPERCLIP_STORAGE_${name}`, undefined);
+      vi.stubEnv(`NEXUS_STORAGE_${name}`, undefined);
     setCloudRuntimeConfigSnapshot({
       version: 1,
       revision: 4,
@@ -69,12 +69,12 @@ describe("shared instance storage configuration", () => {
   it("preserves environment precedence and an explicit false path-style setting", () => {
     expect(
       loadStorageConfig(file, {
-        PAPERCLIP_STORAGE_PROVIDER: "s3",
-        PAPERCLIP_STORAGE_S3_BUCKET: "stack-env",
-        PAPERCLIP_STORAGE_S3_REGION: "us-east-1",
-        PAPERCLIP_STORAGE_S3_ENDPOINT: "https://other.example.test",
-        PAPERCLIP_STORAGE_S3_PREFIX: "",
-        PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE: "false",
+        NEXUS_STORAGE_PROVIDER: "s3",
+        NEXUS_STORAGE_S3_BUCKET: "stack-env",
+        NEXUS_STORAGE_S3_REGION: "us-east-1",
+        NEXUS_STORAGE_S3_ENDPOINT: "https://other.example.test",
+        NEXUS_STORAGE_S3_PREFIX: "",
+        NEXUS_STORAGE_S3_FORCE_PATH_STYLE: "false",
       }),
     ).toMatchObject({
       storageProvider: "s3",

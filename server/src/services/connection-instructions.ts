@@ -6,7 +6,7 @@ import {
   getConnectableAppDefinition,
   type ConnectionInstructionsSnapshot,
   type ToolConnection,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 type InstructionSource = {
   connection: Pick<ToolConnection, "id" | "name" | "agentInstructions" | "config"> & Partial<Pick<ToolConnection, "transportConfig">>;
@@ -38,11 +38,11 @@ export async function prepareConnectionInstructionDelivery(input: {
   native: boolean;
 }): Promise<Record<string, unknown>> {
   const snapshot = await input.resolve();
-  const wake = input.context.paperclipWake;
+  const wake = input.context.nexusWake;
   input.context.connectionInstructions = snapshot;
-  input.context.paperclipWake = {
+  input.context.nexusWake = {
     ...(wake && typeof wake === "object" && !Array.isArray(wake) ? wake : {}),
     connectionInstructions: input.native ? null : snapshot,
   };
-  return { ...input.config, paperclipConnectionInstructions: snapshot };
+  return { ...input.config, nexusConnectionInstructions: snapshot };
 }

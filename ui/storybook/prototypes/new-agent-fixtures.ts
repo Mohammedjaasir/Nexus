@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import type { AdapterEnvironmentTestResult, Agent } from "@paperclipai/shared";
-import { storybookAgents, storybookIssues } from "../fixtures/paperclipData";
+import type { AdapterEnvironmentTestResult, Agent } from "@nexusai/shared";
+import { storybookAgents, storybookIssues } from "../fixtures/nexusData";
 
 export type TestOutcome = "pass" | "fail";
 export type TestState = "idle" | "running" | TestOutcome;
@@ -39,7 +39,7 @@ export function useNewAgentFixtures(agent: Agent, outcome: TestOutcome, delayMs:
           const timer = window.setTimeout(() => { timers.delete(timer); resolve(); }, delay);
           timers.set(timer, resolve);
         });
-        const environment = request.environmentId === "environment-storybook-sandbox" ? "Paperclip Computer"
+        const environment = request.environmentId === "environment-storybook-sandbox" ? "Nexus Computer"
           : request.environmentId === "environment-storybook-local" ? "Local machine" : "Organization default";
         return Response.json(runtimeTestResult(test[1], result, request.adapterConfig?.model ?? "", environment));
       }

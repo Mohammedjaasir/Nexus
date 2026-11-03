@@ -13,7 +13,7 @@ import {
   heartbeatRuns,
   issueThreadInteractions,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { errorHandler } from "../middleware/index.js";
 import { issueRoutes } from "../routes/issues.js";
 import { CROSS_ISSUE_INFLUENCE_LIMIT } from "../services/cross-issue-influence-limit.js";
@@ -43,7 +43,7 @@ describeEmbeddedPostgres("cross-issue interaction resolution cap (routes + postg
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-interaction-cap-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-interaction-cap-");
     db = createDb(tempDb.connectionString);
   }, 30_000);
 

@@ -59,7 +59,7 @@ it("retains attribution across streamed chunks and continues to reject session r
 it("preserves the original provider failure as sanitized scan provenance", () => {
   const evidence = secretScanFailureEvidence({
     scanError: "Secret leak in persisted state: exact secret value (CODEX_AUTH_JSON.tokens.account_id)",
-    finding: { file: "codex-home/sessions/rollout.jsonl", stateArea: "Paperclip home", reason: "exact secret value",
+    finding: { file: "codex-home/sessions/rollout.jsonl", stateArea: "Nexus home", reason: "exact secret value",
       matchCategory: "CODEX_AUTH_JSON.tokens.account_id" },
     originalResult: { status: "failed", failureClass: "transient_infrastructure", error: `HTTP 429 provider unavailable: ${tokens.access_token}` },
   }, secrets) as Record<string, any>;
@@ -72,8 +72,8 @@ it("preserves the original provider failure as sanitized scan provenance", () =>
 
 it("permits only account identity in private Codex diagnostic databases, never artifact scans or tokens", async () => {
   const temporary = await mkdtemp(path.join(tmpdir(), "codex-private-log-")); directories.push(temporary);
-  const root = path.join(temporary, "paperclip-home");
-  const home = path.join(root, "instances/runner-e2e-test/runtime/paperclip-runner/durable-sessions/session/codex-home");
+  const root = path.join(temporary, "nexus-home");
+  const home = path.join(root, "instances/runner-e2e-test/runtime/nexus-runner/durable-sessions/session/codex-home");
   await mkdir(home, { recursive: true });
   const file = path.join(home, "logs_2.sqlite-wal");
   const options = { sources, includeShapes: false, privateCodexRuntimeIdentityRoot: root };
@@ -105,8 +105,8 @@ it("permits only account identity in private Codex diagnostic databases, never a
 
 it("allows the exact upstream rollout ownership field while scanning all conversation content", async () => {
   const temporary = await mkdtemp(path.join(tmpdir(), "codex-private-rollout-")); directories.push(temporary);
-  const root = path.join(temporary, "paperclip-home");
-  const file = path.join(root, "instances/test/runtime/paperclip-runner/durable-sessions/session/codex-home/sessions/2026/10/26/rollout-test.jsonl");
+  const root = path.join(temporary, "nexus-home");
+  const file = path.join(root, "instances/test/runtime/nexus-runner/durable-sessions/session/codex-home/sessions/2026/10/26/rollout-test.jsonl");
   await mkdir(path.dirname(file), { recursive: true });
   const options = { sources, includeShapes: false, privateCodexRuntimeIdentityRoot: root };
   const metadata = { type: "session_meta", payload: { creator_account_id: tokens.account_id, base_instructions: { text: "Ordinary instructions" } } };

@@ -2,16 +2,16 @@ import type {
   AdapterEnvironmentCheck,
   AdapterEnvironmentTestContext,
   AdapterEnvironmentTestResult,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import {
   asString,
   parseObject,
   ensurePathInEnv,
-  sanitizeInheritedPaperclipEnv,
-} from "@paperclipai/adapter-utils/server-utils";
+  sanitizeInheritedNexusEnv,
+} from "@nexusai/adapter-utils/server-utils";
 import {
   asStringArray,
-} from "@paperclipai/adapter-utils/server-utils";
+} from "@nexusai/adapter-utils/server-utils";
 import {
   ensureAdapterExecutionTargetCommandResolvable,
   maybeRunSandboxInstallCommand,
@@ -20,7 +20,7 @@ import {
   runAdapterExecutionTargetProcess,
   describeAdapterExecutionTarget,
   resolveAdapterExecutionTargetCwd,
-} from "@paperclipai/adapter-utils/execution-target";
+} from "@nexusai/adapter-utils/execution-target";
 import { discoverPiModelsCached } from "./models.js";
 import { parsePiJsonl } from "./parse.js";
 import { SANDBOX_INSTALL_COMMAND } from "../index.js";
@@ -128,7 +128,7 @@ export async function testEnvironment(
   for (const [key, value] of Object.entries(envConfig)) {
     if (typeof value === "string") env[key] = value;
   }
-  const runtimeEnv = normalizeEnv(ensurePathInEnv({ ...sanitizeInheritedPaperclipEnv(process.env), ...env }));
+  const runtimeEnv = normalizeEnv(ensurePathInEnv({ ...sanitizeInheritedNexusEnv(process.env), ...env }));
 
   const cwdInvalid = checks.some((check) => check.code === "pi_cwd_invalid");
   if (cwdInvalid) {

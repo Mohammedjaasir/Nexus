@@ -29,9 +29,9 @@ Use the CLI teams catalog/preview/install operations in the selected context.
 
 The catalog components and install wizard are available in developer tests/design surfaces. No top-level `/teams` route is registered; use the CLI/API for the current installation workflow.
 
-## Driving it with the Paperclip CLI
+## Driving it with the Nexus CLI
 
-Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use a disposable company, a small catalog entry, and explicit company context. Check `paperclipai teams --help` for current subcommands.
+Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use a disposable company, a small catalog entry, and explicit company context. Check `nexusai teams --help` for current subcommands.
 
 ### `catalog-cli`
 

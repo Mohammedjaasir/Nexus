@@ -3,7 +3,7 @@ import { notifyNativeResponsePresentation } from "./native-response-presentation
 import { nativeResponsePresentationCandidates } from "./native-runtime/native-response-presentation-query.js";
 import { and, asc, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import { agents, agentWakeupRequests, chatCompletionDeliveries as deliveries, chatTaskHandoffs as handoffs,
-  heartbeatRuns, issueComments, issueDocuments, issueThreadInteractions, issues, type Db } from "@paperclipai/db";
+  heartbeatRuns, issueComments, issueDocuments, issueThreadInteractions, issues, type Db } from "@nexusai/db";
 import { instanceSettingsService } from "./instance-settings.js";
 import { conflict, forbidden, notFound } from "../errors.js";
 

@@ -39,7 +39,7 @@ It also checks keep/revive, moved and cancelled deadlines, company activation an
 
 The old aggregate path issued 12 statements per tick in each of three configured-idle samples. The replacement issued zero statements during 300 seconds after settlement. One transaction-status read after an injected rollback is classified as uncertainty reconciliation; the following 300-second drain window must remain quiet.
 
-The focused suite supports `PAPERCLIP_ATTENTION_RETENTION_TEST_DATABASE_URL`, validates its dedicated `_test` database name, applies pending migrations, and prewarms a six-connection pool before advancing fake time. Providers are not involved in retention selection; the existing archive outbox delivery tests verify the separate controlled notification boundary. Fake time proves scheduling and SQL quiet, not database or host suspension.
+The focused suite supports `NEXUS_ATTENTION_RETENTION_TEST_DATABASE_URL`, validates its dedicated `_test` database name, applies pending migrations, and prewarms a six-connection pool before advancing fake time. Providers are not involved in retention selection; the existing archive outbox delivery tests verify the separate controlled notification boundary. Fake time proves scheduling and SQL quiet, not database or host suspension.
 
 ## Review and operational limits remain explicit
 

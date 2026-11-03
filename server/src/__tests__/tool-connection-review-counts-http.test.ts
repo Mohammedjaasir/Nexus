@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
-import { companyMemberships, toolApplications, toolConnections, toolCatalogEntries, connectionGrants, principalPermissionGrants } from "@paperclipai/db";
+import { companyMemberships, toolApplications, toolConnections, toolCatalogEntries, connectionGrants, principalPermissionGrants } from "@nexusai/db";
 import { startRunnerApiTestServer } from "./helpers/runner-api-server.js";
 import { accessService } from "../services/access.js";
 import { createLocalAgentJwt } from "../agent-auth-jwt.js";
@@ -9,10 +9,10 @@ import { createLocalAgentJwt } from "../agent-auth-jwt.js";
 describe("review-counts through assembled authenticated HTTP routes", () => {
   let server: Awaited<ReturnType<typeof startRunnerApiTestServer>>;
   beforeAll(async () => {
-    vi.stubEnv("PAPERCLIP_AGENT_JWT_SECRET", randomUUID());
-    vi.stubEnv("PAPERCLIP_RESPONSIBLE_USER_AUTHZ_MODE", "shadow");
-    vi.stubEnv("PAPERCLIP_AUTH_RATE_LIMIT_ENABLED", "false");
-    server = await startRunnerApiTestServer({ authPublicBaseUrl: "https://paperclip.fixture.invalid", humanSessions: true });
+    vi.stubEnv("NEXUS_AGENT_JWT_SECRET", randomUUID());
+    vi.stubEnv("NEXUS_RESPONSIBLE_USER_AUTHZ_MODE", "shadow");
+    vi.stubEnv("NEXUS_AUTH_RATE_LIMIT_ENABLED", "false");
+    server = await startRunnerApiTestServer({ authPublicBaseUrl: "https://nexus.fixture.invalid", humanSessions: true });
   }, 90_000);
   afterAll(async () => { await server?.close(); vi.unstubAllEnvs(); });
   it("uses current company, personal and private authority for board and actual agent identities", async () => {
@@ -23,7 +23,7 @@ describe("review-counts through assembled authenticated HTTP routes", () => {
     await access.ensureRoleDefaultGrants(f.companyId, f.responsibleUserId!, "operator", f.responsibleUserId!);
     await server.db.insert(principalPermissionGrants).values({ companyId: f.companyId, principalType: "agent", principalId: f.agentId, permissionKey: "tools:manage_connections", scope: null });
     const cookie = await server.humanSession(f.responsibleUserId!);
-    const token = createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", f.runId, f.responsibleUserId!);
+    const token = createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", f.runId, f.responsibleUserId!);
     const [application] = await server.db.insert(toolApplications).values({ companyId: f.companyId, name: "Scoped counts", type: "mcp_http" }).returning();
     const [connection] = await server.db.insert(toolConnections).values({ companyId: f.companyId, applicationId: application.id, name: "Scoped counts", uid: `counts-${randomUUID()}`, transport: "mcp_remote", status: "active", createdByUserId: f.responsibleUserId }).returning();
     await server.db.insert(toolCatalogEntries).values({ companyId: f.companyId, connectionId: connection.id, name: "Review", toolName: "review", versionHash: "v1", status: "quarantined" });

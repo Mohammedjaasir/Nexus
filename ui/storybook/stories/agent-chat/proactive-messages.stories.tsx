@@ -17,7 +17,7 @@ const meta = {
   component: TaskChatBubble,
   args: { item: message, animateEntry: false },
   render: args => <div className="mx-auto max-w-2xl p-6"><TaskChatBubble {...args} /></div>,
-  parameters: { layout: "padded", initialEntries: ["/PAP/chats"], paperclip: {
+  parameters: { layout: "padded", initialEntries: ["/PAP/chats"], nexus: {
     capabilities: ["agent-chat/history", "agent-chat/discovery"], status: "current", implementation: "production", boundary: "fixtures",
     notes: "Production Sidebar, CoordinatorSidebar, AgentConversationsSidebar, TaskChatBubble and read-receipt hook in a review-only gallery. Stateful API fixtures show unread-to-read and error transitions. The app navigation is currently expanded; the retired rail is not recreated. Server delivery, event refresh, account isolation, routine execution and real source-task navigation require the separate app/database checks.",
   } },

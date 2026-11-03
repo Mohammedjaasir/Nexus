@@ -17,7 +17,7 @@ export function readCursorToolEvidence(rows: readonly unknown[], runId: string):
     const row = rec(value), event = rec(rec(row.payload).prpEvent), p = rec(event.payload);
     if (p.category !== "cursor_tool_evidence_v1") continue;
     const origin = rec(p.provenance);
-    if (row.eventType !== "provider.notice.recorded" || row.runId !== runId || row.protocolSchemaVersion !== 1 || event.schemaVersion !== 1 || p.schema !== "paperclip.provider.notice.v1" || p.scope !== "turn" || event.schema !== "paperclip.prp.event.v1" || event.sourceKind !== "runner" || event.eventType !== row.eventType || event.runId !== runId || !id(origin.sessionId) || !id(origin.turnId) || origin.turnId !== event.turnId || !Array.isArray(p.details) || p.details.length > 12 || !Number.isSafeInteger(row.seq) || row.seq < 0 || !Number.isFinite(Date.parse(event.emittedAt))) throw new Error("Invalid Cursor evidence binding");
+    if (row.eventType !== "provider.notice.recorded" || row.runId !== runId || row.protocolSchemaVersion !== 1 || event.schemaVersion !== 1 || p.schema !== "nexus.provider.notice.v1" || p.scope !== "turn" || event.schema !== "nexus.prp.event.v1" || event.sourceKind !== "runner" || event.eventType !== row.eventType || event.runId !== runId || !id(origin.sessionId) || !id(origin.turnId) || origin.turnId !== event.turnId || !Array.isArray(p.details) || p.details.length > 12 || !Number.isSafeInteger(row.seq) || row.seq < 0 || !Number.isFinite(Date.parse(event.emittedAt))) throw new Error("Invalid Cursor evidence binding");
     const fields: Record<string, string> = {};
     for (const value of p.details) {
       const d = rec(value);
@@ -89,7 +89,7 @@ export function hasCursorDeniedTurnTerminal(input: {
   if (terminals.length !== 1 || delivered.length !== 1) return false;
   const { row, event } = terminals[0]!;
   return row.runId === input.runId && row.eventType === event.eventType && event.runId === input.runId && event.turnId === input.turnId
-    && event.eventType === "turn.completed" && event.schema === "paperclip.prp.event.v1" && event.schemaVersion === 1
+    && event.eventType === "turn.completed" && event.schema === "nexus.prp.event.v1" && event.schemaVersion === 1
     && row.protocolSchemaVersion === 1 && event.sourceKind === "runner" && rec(event.payload).status === "completed"
     && rec(event.payload).error === null && Number.isSafeInteger(row.seq) && row.seq > delivered[0]!.seq
     && Number.isFinite(Date.parse(event.emittedAt));
@@ -101,7 +101,7 @@ export function hasCursorCancellation(input: { run: unknown; issue: unknown; eve
   return run.id === input.runId && run.status === "cancelled" && rec(input.issue).status === "in_progress"
     && cancellation.dispatchState === "acknowledged" && cancellation.dispatched === true && cancellation.scope === "run"
     && terminals.length === 1 && terminals.every(({ row, event }) => row.runId === input.runId && event.runId === input.runId && event.turnId === input.turnId
-      && event.schema === "paperclip.prp.event.v1" && event.schemaVersion === 1 && row.protocolSchemaVersion === 1 && event.sourceKind === "runner"
+      && event.schema === "nexus.prp.event.v1" && event.schemaVersion === 1 && row.protocolSchemaVersion === 1 && event.sourceKind === "runner"
       && Number.isFinite(input.requestedAt) && Date.parse(event.emittedAt) >= input.requestedAt);
 }
 

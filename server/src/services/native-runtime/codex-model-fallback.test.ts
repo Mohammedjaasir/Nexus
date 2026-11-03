@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
 import {
   codexModelFallbackCandidates,
   compatibleCodexModel,
@@ -36,7 +36,7 @@ describe("bounded Codex model fallback", () => {
 function remoteTarget(stdout = "codex-cli 0.156.0", overrides = {}) {
   const execute = vi.fn(async (command: { command: string; args?: string[] }) => ({
     exitCode: 0, signal: null, timedOut: false, stderr: "",
-    stdout: command.command === "sh" ? "/opt/paperclip-runner/bin/codex\n" : stdout,
+    stdout: command.command === "sh" ? "/opt/nexus-runner/bin/codex\n" : stdout,
     ...(command.command !== "sh" ? overrides : {}),
   }));
   const target = { kind: "remote", transport: "sandbox", remoteCwd: "/workspace",
@@ -49,7 +49,7 @@ describe("remote model compatibility preflight", () => {
     const { target, execute } = remoteTarget();
     if (phase === "version") {
       execute.mockResolvedValueOnce({ exitCode: 0, signal: null, timedOut: false,
-        stderr: "", stdout: "/opt/paperclip-runner/bin/codex\n" });
+        stderr: "", stdout: "/opt/nexus-runner/bin/codex\n" });
     }
     execute.mockRejectedValueOnce(new Error("temporary sandbox command failure"));
     await expect(readRemoteCodexModelCliVersion({ model: "gpt-6.1-sol", target })).resolves.toBeNull();
@@ -62,7 +62,7 @@ describe("remote model compatibility preflight", () => {
     expect(version).toBe("0.156.0");
     expect(compatibleCodexModel("gpt-6.1-sol", version)).toBe("gpt-5.6-sol");
     expect(execute).toHaveBeenCalledTimes(2);
-    expect(execute).toHaveBeenLastCalledWith({ command: "/opt/paperclip-runner/bin/codex",
+    expect(execute).toHaveBeenLastCalledWith({ command: "/opt/nexus-runner/bin/codex",
       args: ["--version"], cwd: "/workspace", bypassSession: true, timeoutMs: 30_000 });
   });
 

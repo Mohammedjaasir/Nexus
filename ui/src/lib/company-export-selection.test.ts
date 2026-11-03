@@ -22,7 +22,7 @@ function attachment(sha256: string) {
 const ROOT_FILES = [
   "README.md",
   "COMPANY.md",
-  ".paperclip.yaml",
+  ".nexus.yaml",
   "images/org-chart.png",
   "images/logo.png",
 ];

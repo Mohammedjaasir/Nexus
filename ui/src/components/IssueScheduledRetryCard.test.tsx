@@ -5,7 +5,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { IssueRetryNowOutcome, IssueScheduledRetry } from "@paperclipai/shared";
+import type { IssueRetryNowOutcome, IssueScheduledRetry } from "@nexusai/shared";
 import { IssueScheduledRetryCard } from "./IssueScheduledRetryCard";
 import { ToastProvider } from "../context/ToastContext";
 
@@ -133,7 +133,7 @@ describe("IssueScheduledRetryCard", () => {
       error: "Selected model is at capacity. Please try a different model.", errorCode: "native_provider_overloaded" }} />);
     expect(container.textContent).toContain("Model at capacity");
     expect(container.textContent).toContain("Selected model is at capacity");
-    expect(container.textContent).toContain("Paperclip will retry automatically");
+    expect(container.textContent).toContain("Nexus will retry automatically");
     expect(container.textContent).not.toContain("Native session failed");
   });
 
@@ -222,7 +222,7 @@ describe("IssueScheduledRetryCard", () => {
   });
 
   it("shows cleanup waiting without claiming success or disabling Retry now", async () => {
-    const message = "Waiting for execution cleanup. Paperclip will retry automatically once cleanup finishes.";
+    const message = "Waiting for execution cleanup. Nexus will retry automatically once cleanup finishes.";
     retryNowMock.mockResolvedValue({ outcome: "waiting", message, scheduledRetry: baseRetry });
     renderWithProviders(<IssueScheduledRetryCard issueId="issue-1" scheduledRetry={baseRetry} />);
     act(() => { getRetryNowButton()!.click(); });

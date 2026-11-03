@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "packageName": "@paperclipai/skills-catalog",
+  "packageName": "@nexusai/skills-catalog",
   "packageVersion": "0.3.1",
   "generatedAt": "2026-10-06T01:21:47.421Z",
   "skills": [
     {
-      "id": "paperclipai:bundled:docs:doc-maintenance",
-      "key": "paperclipai/bundled/docs/doc-maintenance",
+      "id": "nexusai:bundled:docs:doc-maintenance",
+      "key": "nexusai/bundled/docs/doc-maintenance",
       "kind": "bundled",
       "category": "docs",
       "slug": "doc-maintenance",
@@ -33,20 +33,20 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 4478,
-          "sha256": "fb0353386c5e5e5e13bcbb3233f044e3dccecf371f429d6328f26c26d7cb6169"
+          "sha256": "788f298815112759056fc55a4e5de44dc379be0c969e593a86036dc305391647"
         }
       ],
       "contentHash": "sha256:2e02299210fd17c1fe1867b4ee8c144a11b6fe1fe481f83b8268cfbaaf10f9aa"
     },
     {
-      "id": "paperclipai:bundled:paperclip-operations:issue-triage",
-      "key": "paperclipai/bundled/paperclip-operations/issue-triage",
+      "id": "nexusai:bundled:nexus-operations:issue-triage",
+      "key": "nexusai/bundled/nexus-operations/issue-triage",
       "kind": "bundled",
-      "category": "paperclip-operations",
+      "category": "nexus-operations",
       "slug": "issue-triage",
       "name": "issue-triage",
-      "description": "Triage Paperclip inbox issues that are stale, blocked, in-review, or assigned-but-not-progressing, and decide a single next action per issue (resume, reassign, unblock, escalate, or close).",
-      "path": "catalog/bundled/paperclip-operations/issue-triage",
+      "description": "Triage Nexus inbox issues that are stale, blocked, in-review, or assigned-but-not-progressing, and decide a single next action per issue (resume, reassign, unblock, escalate, or close).",
+      "path": "catalog/bundled/nexus-operations/issue-triage",
       "entrypoint": "SKILL.md",
       "trustLevel": "markdown_only",
       "compatibility": "compatible",
@@ -58,7 +58,7 @@
       ],
       "requires": [],
       "tags": [
-        "paperclip",
+        "nexus",
         "triage",
         "inbox",
         "workflow"
@@ -68,20 +68,20 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 4042,
-          "sha256": "df5bdc8bf5e017b7ba5f70a4b5323fad51d0c323278f386580f26cf43ad09160"
+          "sha256": "2f7af252bdbf9ac074783304bcc06329a6a84a83ac15175faad680a02b49e74e"
         }
       ],
       "contentHash": "sha256:88dc13560371fb364963782cb4f6eeb4090fcde92ee3774479428ed6b90e11c1"
     },
     {
-      "id": "paperclipai:bundled:paperclip-operations:reflection-coach",
-      "key": "paperclipai/bundled/paperclip-operations/reflection-coach",
+      "id": "nexusai:bundled:nexus-operations:reflection-coach",
+      "key": "nexusai/bundled/nexus-operations/reflection-coach",
       "kind": "bundled",
-      "category": "paperclip-operations",
+      "category": "nexus-operations",
       "slug": "reflection-coach",
       "name": "reflection-coach",
       "description": "Reflect on another agent's recent execution record and propose the smallest durable instruction, skill, or tool-description change. Use for evidence-backed coaching proposals, never hot-swaps.",
-      "path": "catalog/bundled/paperclip-operations/reflection-coach",
+      "path": "catalog/bundled/nexus-operations/reflection-coach",
       "entrypoint": "SKILL.md",
       "trustLevel": "markdown_only",
       "compatibility": "compatible",
@@ -92,7 +92,7 @@
       ],
       "requires": [],
       "tags": [
-        "paperclip",
+        "nexus",
         "reflection",
         "coaching",
         "agents",
@@ -103,20 +103,20 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 12028,
-          "sha256": "083d5fa8dc43c3ce7747e89c1afb6f6f42d0603a31808bffc5f8e56735f2d865"
+          "sha256": "f5cf98ab9e8bf0ccca052c090e2f656ff572153deb119610a3a91289df76d586"
         }
       ],
       "contentHash": "sha256:f2592d81f616628a3eba92636616424f2eed82ec22bb504240a58f6be115e407"
     },
     {
-      "id": "paperclipai:bundled:paperclip-operations:status-card-query",
-      "key": "paperclipai/bundled/paperclip-operations/status-card-query",
+      "id": "nexusai:bundled:nexus-operations:status-card-query",
+      "key": "nexusai/bundled/nexus-operations/status-card-query",
       "kind": "bundled",
-      "category": "paperclip-operations",
+      "category": "nexus-operations",
       "slug": "status-card-query",
       "name": "status-card-query",
-      "description": "Create and maintain agent-authored Paperclip status cards, or compile a prose interest prompt into bounded CompanySearchQuery objects and write the first summary from the assigned Summarizer run.",
-      "path": "catalog/bundled/paperclip-operations/status-card-query",
+      "description": "Create and maintain agent-authored Nexus status cards, or compile a prose interest prompt into bounded CompanySearchQuery objects and write the first summary from the assigned Summarizer run.",
+      "path": "catalog/bundled/nexus-operations/status-card-query",
       "entrypoint": "SKILL.md",
       "trustLevel": "markdown_only",
       "compatibility": "compatible",
@@ -127,7 +127,7 @@
       ],
       "requires": [],
       "tags": [
-        "paperclip",
+        "nexus",
         "status",
         "search",
         "reporting",
@@ -138,20 +138,20 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 6368,
-          "sha256": "0c6140f51d503cbadc98723ce54c0def48e7e31ea159b0935b8ad6369291498a"
+          "sha256": "0c2eefce99b6c0c3ab34599d8d1801e24c98cae078af9140b251fd2e6b23d700"
         }
       ],
       "contentHash": "sha256:2b6e53bf8491f027afdbd6961ad84f677cfd385a0a6a73616ea84111ca8886ed"
     },
     {
-      "id": "paperclipai:bundled:paperclip-operations:summarize-status",
-      "key": "paperclipai/bundled/paperclip-operations/summarize-status",
+      "id": "nexusai:bundled:nexus-operations:summarize-status",
+      "key": "nexusai/bundled/nexus-operations/summarize-status",
       "kind": "bundled",
-      "category": "paperclip-operations",
+      "category": "nexus-operations",
       "slug": "summarize-status",
       "name": "summarize-status",
-      "description": "Write a short, colloquial summary for a Paperclip summary slot: open with the 1–3 specific, concrete actions the reader needs to take right now to unblock the work, then a brief plain-language status, streaming progress as it works.",
-      "path": "catalog/bundled/paperclip-operations/summarize-status",
+      "description": "Write a short, colloquial summary for a Nexus summary slot: open with the 1–3 specific, concrete actions the reader needs to take right now to unblock the work, then a brief plain-language status, streaming progress as it works.",
+      "path": "catalog/bundled/nexus-operations/summarize-status",
       "entrypoint": "SKILL.md",
       "trustLevel": "markdown_only",
       "compatibility": "compatible",
@@ -162,7 +162,7 @@
       ],
       "requires": [],
       "tags": [
-        "paperclip",
+        "nexus",
         "summary",
         "status",
         "reporting",
@@ -173,20 +173,20 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 8877,
-          "sha256": "4cb3d177f5d16e3cc2052d2f80e7fb245ab95e79c1e947abdc84cd4ee3d8c61e"
+          "sha256": "d2c1588f82aede9c4953e8aae3533ba6b509e2519cbc23ffd9057ea36099ebe1"
         }
       ],
       "contentHash": "sha256:3e49ee2b8d83d1371fb0f59197bb96c46b64f722540405f46d4a5a756fbe1b89"
     },
     {
-      "id": "paperclipai:bundled:paperclip-operations:task-planning",
-      "key": "paperclipai/bundled/paperclip-operations/task-planning",
+      "id": "nexusai:bundled:nexus-operations:task-planning",
+      "key": "nexusai/bundled/nexus-operations/task-planning",
       "kind": "bundled",
-      "category": "paperclip-operations",
+      "category": "nexus-operations",
       "slug": "task-planning",
       "name": "task-planning",
-      "description": "Write or revise a useful Paperclip plan with a clear outcome and verification. Use when a plan is requested or uncertainty needs resolving before execution.",
-      "path": "catalog/bundled/paperclip-operations/task-planning",
+      "description": "Write or revise a useful Nexus plan with a clear outcome and verification. Use when a plan is requested or uncertainty needs resolving before execution.",
+      "path": "catalog/bundled/nexus-operations/task-planning",
       "entrypoint": "SKILL.md",
       "trustLevel": "markdown_only",
       "compatibility": "compatible",
@@ -198,7 +198,7 @@
       ],
       "requires": [],
       "tags": [
-        "paperclip",
+        "nexus",
         "planning",
         "issues",
         "delegation"
@@ -208,20 +208,20 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 1517,
-          "sha256": "48d6501d6ef481d5b19d0e0cd1507436d1cee1acf155e5038e1f0b2f0230d9e1"
+          "sha256": "fc42ccb72a14c85c308337e82dbb7cc6dcf4735b8fba17d5ae36ffa039dc3d15"
         }
       ],
       "contentHash": "sha256:a1724bde58be85c445590aeaa2f5f2f1de2bee24fe62f07fa3b579c6e4b28e6d"
     },
     {
-      "id": "paperclipai:bundled:product:paperclip-capsules",
-      "key": "paperclipai/bundled/product/paperclip-capsules",
+      "id": "nexusai:bundled:product:nexus-capsules",
+      "key": "nexusai/bundled/product/nexus-capsules",
       "kind": "bundled",
       "category": "product",
-      "slug": "paperclip-capsules",
-      "name": "paperclip-capsules",
-      "description": "Generate, implement, or review Paperclip capsule visuals. Use for capsule art, agent capsules, heartbeat status capsules, identicons, capsule banks, or brand-usage validation.",
-      "path": "catalog/bundled/product/paperclip-capsules",
+      "slug": "nexus-capsules",
+      "name": "nexus-capsules",
+      "description": "Generate, implement, or review Nexus capsule visuals. Use for capsule art, agent capsules, heartbeat status capsules, identicons, capsule banks, or brand-usage validation.",
+      "path": "catalog/bundled/product/nexus-capsules",
       "entrypoint": "SKILL.md",
       "trustLevel": "markdown_only",
       "compatibility": "compatible",
@@ -234,7 +234,7 @@
       ],
       "requires": [],
       "tags": [
-        "paperclip",
+        "nexus",
         "brand",
         "capsules",
         "agents",
@@ -246,38 +246,38 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 5831,
-          "sha256": "dd659ccb46e105336eb00fbe689b1d5531347fc69493c3156390d40ee413c93e"
+          "sha256": "231fe52ee95ba2fcf5aecb1a9603c1b327799b088c4b6df7e63577492b1f2464"
         },
         {
           "path": "references/generator-workflows.md",
           "kind": "reference",
           "sizeBytes": 4356,
-          "sha256": "b5f72e5b6683e8f93f2d852e84c2cc19e6ab438b250bf777dfb2480dd4f6e1b6"
+          "sha256": "581ed1b96cb3759b23d13d4caae08d2f4d0616a7dddc12204350040e3e8385fa"
         },
         {
           "path": "references/hero-capsule-bank.md",
           "kind": "reference",
           "sizeBytes": 5981,
-          "sha256": "ec3d34113aa7bb527560d1eb4d8ab7667c73e18284c85a2019122743a767525a"
+          "sha256": "3e2d56b9be98e85521e189be28c7ccdc1047d1061a4cf98e4a9ffc81fa7c450f"
         },
         {
           "path": "references/identicon-prototyper.md",
           "kind": "reference",
           "sizeBytes": 6669,
-          "sha256": "0b19419efa1396a402097decabe24ea9ae649678569449c8ce855e0678df6bfe"
+          "sha256": "a4eddf2ad6efc13622173a9db56227ac0d1a32f5f3a55a01ec066036ab9e3098"
         },
         {
           "path": "references/individual-status-capsules.md",
           "kind": "reference",
           "sizeBytes": 5031,
-          "sha256": "be1f2eccf96b4d2deefe45b3bc1dd0a3597278472c2ffedadc43c57161e9103d"
+          "sha256": "d0415f0d28f523b6751efd1842961ebe4f5d33b2f66b6cf1bed9fa5ab42475d5"
         }
       ],
       "contentHash": "sha256:a2b26cf6895affeeb70c85567a061094450a59bd3c4fdcf28ee65858599ac12c"
     },
     {
-      "id": "paperclipai:bundled:product:wireframe",
-      "key": "paperclipai/bundled/product/wireframe",
+      "id": "nexusai:bundled:product:wireframe",
+      "key": "nexusai/bundled/product/wireframe",
       "kind": "bundled",
       "category": "product",
       "slug": "wireframe",
@@ -306,7 +306,7 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 11509,
-          "sha256": "6992047cc97b67211cc8c1183718ab9aa26b8afc34c70d54d20558c215daaf48"
+          "sha256": "b1f7a4eb96754c71f52a01481412526ef7ab329d43b1e5a8164c1bfd89553eb9"
         },
         {
           "path": "assets/site-template.html",
@@ -348,8 +348,8 @@
       "contentHash": "sha256:7106d84fc9db2053090f692706e41cfc586e7dd85a44f568e3319c4eefbdde46"
     },
     {
-      "id": "paperclipai:bundled:quality:qa-acceptance",
-      "key": "paperclipai/bundled/quality/qa-acceptance",
+      "id": "nexusai:bundled:quality:qa-acceptance",
+      "key": "nexusai/bundled/quality/qa-acceptance",
       "kind": "bundled",
       "category": "quality",
       "slug": "qa-acceptance",
@@ -377,14 +377,14 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 3861,
-          "sha256": "c631b437ab26d104af6cdb963d8f679a9341439041b3cb3ec8835f4ff551b378"
+          "sha256": "2d0997b17818943b022d23a645c1377cce1357b8f45ddc8f60e858cc040426aa"
         }
       ],
       "contentHash": "sha256:32372dacaf62e93454b9855968c4eec96456ba78b509f450b3dfaa48e31ef356"
     },
     {
-      "id": "paperclipai:bundled:software-development:github-pr-workflow",
-      "key": "paperclipai/bundled/software-development/github-pr-workflow",
+      "id": "nexusai:bundled:software-development:github-pr-workflow",
+      "key": "nexusai/bundled/software-development/github-pr-workflow",
       "kind": "bundled",
       "category": "software-development",
       "slug": "github-pr-workflow",
@@ -410,14 +410,14 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 3970,
-          "sha256": "f498ec4ebb1779dea37adeb1db8a8b22316282798e35ee02e2fc5ff627d7e261"
+          "sha256": "69cc4cef9ade36ad0b75e7fd82aaede47c7d15d413d182ca65d722555903b890"
         }
       ],
       "contentHash": "sha256:90f278c89aa0711be150c1cd2456ca25620d02f36995b113ca9837d756a37f6c"
     },
     {
-      "id": "paperclipai:optional:browser:agent-browser",
-      "key": "paperclipai/optional/browser/agent-browser",
+      "id": "nexusai:optional:browser:agent-browser",
+      "key": "nexusai/optional/browser/agent-browser",
       "kind": "optional",
       "category": "browser",
       "slug": "agent-browser",
@@ -445,14 +445,14 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 5133,
-          "sha256": "362f7b9d02297782bc6f0c093f495b8a0304a75bcf4b42e5c280a42b1f757b7d"
+          "sha256": "1e053a8cf4326e3e077ef66e697c982c2dc17edb1c0a64ac98cdbad1d534b832"
         }
       ],
       "contentHash": "sha256:eabb2c9f7b5e1a27ebb1e05a711d61433a266478154cd671a685e99e67aadea2"
     },
     {
-      "id": "paperclipai:optional:content:release-announcement",
-      "key": "paperclipai/optional/content/release-announcement",
+      "id": "nexusai:optional:content:release-announcement",
+      "key": "nexusai/optional/content/release-announcement",
       "kind": "optional",
       "category": "content",
       "slug": "release-announcement",
@@ -480,14 +480,14 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 6945,
-          "sha256": "d745cca96350518fabae14f5c407d779e1df2c5d091b5b4a5c55bb888b569e5f"
+          "sha256": "3a9bf44314618f7b3bf32ba3b00e8801a80c964919615a427475c115c7f15162"
         }
       ],
       "contentHash": "sha256:efe8ea89b552df95222609867c9c75f1b40e16f457d34e7e4a124f54daa33efa"
     },
     {
-      "id": "paperclipai:optional:content:simplified-english",
-      "key": "paperclipai/optional/content/simplified-english",
+      "id": "nexusai:optional:content:simplified-english",
+      "key": "nexusai/optional/content/simplified-english",
       "kind": "optional",
       "category": "content",
       "slug": "simplified-english",
@@ -516,19 +516,19 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 1578,
-          "sha256": "a0f7385599873910e2fabf400346016a07dacbc7ece27c0e3616ae8fd94ebfbb"
+          "sha256": "aef4ed04eb3d0a257926022dcb13a6cbcc38ae2d97b6de6f3f917ee24efaf069"
         }
       ],
       "contentHash": "sha256:642321f40d51e0125df05c6fbace49aeb07ec30392058756909c259c9c5eac6a"
     },
     {
-      "id": "paperclipai:optional:finance:ramp",
-      "key": "paperclipai/optional/finance/ramp",
+      "id": "nexusai:optional:finance:ramp",
+      "key": "nexusai/optional/finance/ramp",
       "kind": "optional",
       "category": "finance",
       "slug": "ramp",
       "name": "ramp",
-      "description": "Fetch and follow Ramp's published agent playbooks inside Paperclip, with mandatory approval gates for spend, incorporation, cards, account setup, and other financial actions.",
+      "description": "Fetch and follow Ramp's published agent playbooks inside Nexus, with mandatory approval gates for spend, incorporation, cards, account setup, and other financial actions.",
       "path": "catalog/optional/finance/ramp",
       "entrypoint": "SKILL.md",
       "trustLevel": "markdown_only",
@@ -553,14 +553,14 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 7016,
-          "sha256": "698cd69ebf2f2481ed83c8e9477b56ae78288cc4c751d7d35f649ff2483802a3"
+          "sha256": "42065c9d623dcf8647fbde4e6688040b4095e8ddb0502ed6240d0812f711766c"
         }
       ],
       "contentHash": "sha256:276d85e98a4732f278204e26438aa95fde158dd2d15c1e427c4c7c7d492e769d"
     },
     {
-      "id": "paperclipai:optional:product:design-critique",
-      "key": "paperclipai/optional/product/design-critique",
+      "id": "nexusai:optional:product:design-critique",
+      "key": "nexusai/optional/product/design-critique",
       "kind": "optional",
       "category": "product",
       "slug": "design-critique",
@@ -588,14 +588,14 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 4851,
-          "sha256": "022e619baf6cc25725946279cb8052d22af090dd6cd6dc8c20f17867f71a5d8e"
+          "sha256": "0327ce0a2670b794f07a9b704cb20b5a206f9411e000a5b7d228fdda3c9dbd33"
         }
       ],
       "contentHash": "sha256:429f94df398a0697042b5bbe4755b1ff1a230aa5f41d99118ad37493ac65d21c"
     },
     {
-      "id": "paperclipai:optional:research:last30days",
-      "key": "paperclipai/optional/research/last30days",
+      "id": "nexusai:optional:research:last30days",
+      "key": "nexusai/optional/research/last30days",
       "kind": "optional",
       "category": "research",
       "slug": "last30days",
@@ -1115,13 +1115,13 @@
       }
     },
     {
-      "id": "paperclipai:optional:software-development:prepare-mcp-integration",
-      "key": "paperclipai/optional/software-development/prepare-mcp-integration",
+      "id": "nexusai:optional:software-development:prepare-mcp-integration",
+      "key": "nexusai/optional/software-development/prepare-mcp-integration",
       "kind": "optional",
       "category": "software-development",
       "slug": "prepare-mcp-integration",
       "name": "prepare-mcp-integration",
-      "description": "Prepare MCP/vendor integrations through cited research, a content PR, exact-revision human approval, and one governed Paperclip connector PR per approved connection. Use for new integration research and delivery; not for ad hoc connector coding that bypasses the playbooks.",
+      "description": "Prepare MCP/vendor integrations through cited research, a content PR, exact-revision human approval, and one governed Nexus connector PR per approved connection. Use for new integration research and delivery; not for ad hoc connector coding that bypasses the playbooks.",
       "path": "catalog/optional/software-development/prepare-mcp-integration",
       "entrypoint": "SKILL.md",
       "trustLevel": "markdown_only",
@@ -1150,13 +1150,13 @@
           "path": "SKILL.md",
           "kind": "skill",
           "sizeBytes": 12409,
-          "sha256": "5278d288a0cbfe10fdda4ef3d99cf61e6ed068f4b6c1282406b0e001c9f45253"
+          "sha256": "4271bcce2f9eba0e2e92445f9c551aa506ba738c859f32f77ef170a0104d6688"
         },
         {
           "path": "examples/notion-mcp-research-gate.md",
           "kind": "markdown",
           "sizeBytes": 1900,
-          "sha256": "944b13ac67c06c65643eb236e856f1479106749861535648d29334f84cf1b50b"
+          "sha256": "be7e296d823adfd3eee0b69c658129a15779c9e825c5f673839778c4c8f46b26"
         }
       ],
       "contentHash": "sha256:84f2a28d7d004393719684f2b435e5ee01ddc58591e0dfeb73d72c7605db7f49"

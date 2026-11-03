@@ -60,7 +60,7 @@ test("repository-wide guidance guards run uncached for every scanned UI file typ
   assert.equal(config.tasks["//#ci:typecheck"].cache, false);
   const workflow = readFileSync(new URL(".github/workflows/pr-trusted.yml", root), "utf8");
   const job = workflow.split("\n  typecheck_release_registry:\n")[1].split("\n  general_tests:\n")[0];
-  assert.match(job, /- name: Verify repository-wide CLI guidance safety\n        run: pnpm exec vitest run --project @paperclipai\/server server\/src\/__tests__\/cli-invocation-safety.test.ts/);
+  assert.match(job, /- name: Verify repository-wide CLI guidance safety\n        run: pnpm exec vitest run --project @nexusai\/server server\/src\/__tests__\/cli-invocation-safety.test.ts/);
   assert.ok(!job.includes("uses: ./.github/actions/run-ci-task"));
 });
 
@@ -70,7 +70,7 @@ test("shared contracts, runtime prompts, protocol inputs and fixtures reach cons
     assert.ok(shared.has(task), task);
   }
   assert.ok(selectedTasks(plan(["server/src/onboarding-assets/default/AGENTS.md"])).has("ci:runner-vitest"));
-  assert.ok(selectedTasks(plan(["packages/paperclip-runner/protocol/schema.json"])).has("ci:runner-rust"));
+  assert.ok(selectedTasks(plan(["packages/nexus-runner/protocol/schema.json"])).has("ci:runner-rust"));
   for (const file of ["tests/runner-e2e/fixtures/prompt.md", "scripts/run-vitest-stable.mjs", "pnpm-lock.yaml"]) {
     assert.ok(Object.values(plan([file]).jobs).every((job) => job.selected === job.total), file);
   }
@@ -266,7 +266,7 @@ test("audited prose does not widen source selection, but guidance still runs its
   assert.deepEqual([...selectedTasks(guidance)], ["ci:typecheck"]);
   assert.equal(config.tasks["//#ci:typecheck"].cache, false);
   assert.deepEqual([...selectedTasks(plan(["doc/plans/2026-10-30-example.md"]))], []);
-  for (const file of ["docs/api/issues.md", "doc/unknown.md", "doc/plans/tool.sh", "skills/paperclip/SKILL.md",
+  for (const file of ["docs/api/issues.md", "doc/unknown.md", "doc/plans/tool.sh", "skills/nexus/SKILL.md",
     "server/src/onboarding-assets/default/AGENTS.md", "tests/fixtures/example.md"]) {
     assert.ok(selectedTasks(plan([source, file])).has("ci:server"), file);
   }

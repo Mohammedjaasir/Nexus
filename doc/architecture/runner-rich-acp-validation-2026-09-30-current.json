@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip-runner-rich-acp-validation-checkpoint/v1",
+  "schema": "nexus-runner-rich-acp-validation-checkpoint/v1",
   "status": "current_candidates_not_qualified",
   "preparedAt": "2026-09-30T06:58:25.927541+00:00",
   "artifactPathBase": "campaign artifact root; relative references are evidence identifiers, not public download URLs",

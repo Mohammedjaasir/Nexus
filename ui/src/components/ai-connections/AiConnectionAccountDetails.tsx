@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { AiManagedConnectionSummary, ConnectionGrant } from "@paperclipai/shared";
+import type { AiManagedConnectionSummary, ConnectionGrant } from "@nexusai/shared";
 import { aiConnectionsApi } from "@/api/ai-connections";
 import { describeError } from "@/api/errors";
 import { retryTransientOnly } from "@/lib/query-client";

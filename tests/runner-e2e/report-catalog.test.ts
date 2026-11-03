@@ -24,7 +24,7 @@ const id = "branch-only-chat.branch-provider.local.conversation";
 const missingId = "branch-only-chat.branch-provider.local.reset";
 function result(): RunnerE2EResult {
   return {
-    schema: "paperclip.runner-e2e.result/v2",
+    schema: "nexus.runner-e2e.result/v2",
     executionId: id,
     suiteId: "branch-only-chat",
     suiteDefinitionHash: "branch-definition",
@@ -345,9 +345,9 @@ describe("trusted report catalog discovery", () => {
         cwd: repo,
         env: {
           ...process.env,
-          PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root,
-          PAPERCLIP_RUNNER_E2E_REPORT_OUT: out,
-          PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([missingId]),
+          NEXUS_RUNNER_E2E_REPORT_ROOT: root,
+          NEXUS_RUNNER_E2E_REPORT_OUT: out,
+          NEXUS_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([missingId]),
         },
       },
     ).catch((error: { code?: number }) => {

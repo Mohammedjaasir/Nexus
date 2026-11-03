@@ -7,7 +7,7 @@ import { notifyUnsafeWorkspaceExportRecovery } from "../../../services/unsafe-wo
 import { notifyCancelledWorkspacePreservation } from "../../../services/cancelled-workspace-preservation-notifications.js";
 import { notifyInstructionCollection } from "../../../services/instruction-collection-notifications.js";
 import { and, asc, desc, eq, gt, gte, inArray, ne, notInArray, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   agentWakeupRequests,
@@ -17,7 +17,7 @@ import {
   environmentLeases,
   issues,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { parseObject } from "../../../adapters/utils.js";
 import { visibleIssueCondition } from "../../../services/issue-visibility.js";
 import { logActivity } from "../../../services/activity-log.js";

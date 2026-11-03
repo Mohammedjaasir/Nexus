@@ -1,4 +1,4 @@
-import { createDb } from "@paperclipai/db";
+import { createDb } from "@nexusai/db";
 import { environmentRuntimeService } from "../../services/environment-runtime.js";
 import { environmentService } from "../../services/environments.js";
 import type { PluginWorkerManager } from "../../services/plugin-worker-manager.js";

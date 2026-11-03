@@ -1,9 +1,9 @@
-import { CAPABILITY_SEMANTIC_TOOL_CATALOG } from "../../vendor/paperclip-runner/index.js";
+import { CAPABILITY_SEMANTIC_TOOL_CATALOG } from "../../vendor/nexus-runner/index.js";
 import type { NativeRunTrace } from "./native-run-trace.js";
 
 const SAFE_OPERATIONS = new Set<string>(CAPABILITY_SEMANTIC_TOOL_CATALOG.map((tool) => tool.operationId));
 function operation(value: unknown): string {
-  const name = typeof value === "string" ? value.replace(/^mcp__paperclip__/, "") : "";
+  const name = typeof value === "string" ? value.replace(/^mcp__nexus__/, "") : "";
   return SAFE_OPERATIONS.has(name) ? name : "other";
 }
 
@@ -27,7 +27,7 @@ export function createNativeToolTrace(trace: NativeRunTrace, now = Date.now) {
         if (announced.has(id)) return;
         if (announced.size >= 512) announced.delete(announced.keys().next().value!);
         announced.set(id, { startedAtMs: time, operation: operation(payload?.name) });
-        if (!firstCompletion && typeof payload?.name === "string" && /^(?:mcp__paperclip__)?paperclip_(?:finish|block)$/.test(payload.name)) {
+        if (!firstCompletion && typeof payload?.name === "string" && /^(?:mcp__nexus__)?nexus_(?:finish|block)$/.test(payload.name)) {
           firstCompletion = true;
           return trace.record({name:"completion.request.first",parentName:"agent.turn",startedAtMs:time,endedAtMs:time});
         }

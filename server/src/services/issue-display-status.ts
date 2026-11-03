@@ -1,6 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
-import { issues } from "@paperclipai/db";
-import { PROVIDER_QUOTA_MONITOR_SERVICE_NAME, type IssueDisplayStatus } from "@paperclipai/shared";
+import { issues } from "@nexusai/db";
+import { PROVIDER_QUOTA_MONITOR_SERVICE_NAME, type IssueDisplayStatus } from "@nexusai/shared";
 
 /** Read-only projection, shared by task reads, search, filters and counts.
  * The persisted deadline is the scheduler's source of truth. Locks and recovery

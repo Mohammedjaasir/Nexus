@@ -4,7 +4,7 @@ import { RoutineDetail } from "@/pages/RoutineDetail";
 import { ToastViewport } from "@/components/ToastViewport";
 import { expect, userEvent, within, waitFor } from "storybook/test";
 import { baseRoutine } from "../../fixtures/routineWebhooks";
-import { storybookIssues } from "../../fixtures/paperclipData";
+import { storybookIssues } from "../../fixtures/nexusData";
 import {
   prepareFixtureApi,
   type FixtureState,
@@ -31,7 +31,7 @@ const meta = {
   parameters: {
     layout: "padded",
     initialEntries: ["/PAP/routines/routine-gap"],
-    paperclip: {
+    nexus: {
       "capabilities": [
         "routines/run-now"
       ],

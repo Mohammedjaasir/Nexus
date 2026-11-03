@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
-import { activityLog, issueComments, issues, type Db } from "@paperclipai/db";
-import type { IssueRelatedWorkSummary } from "@paperclipai/shared";
+import { activityLog, issueComments, issues, type Db } from "@nexusai/db";
+import type { IssueRelatedWorkSummary } from "@nexusai/shared";
 import { notFound } from "../errors.js";
 import { logActivity, publishActivity, type ActivityPublication, type LogActivityInput } from "./activity-log.js";
 import type { issueReferenceService } from "./issue-references.js";

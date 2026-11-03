@@ -1,9 +1,9 @@
 import os from "node:os";
 import path from "node:path";
 
-export const DEFAULT_PAPERCLIP_INSTANCE_ID = "default";
-export const PAPERCLIP_CONFIG_BASENAME = "config.json";
-export const PAPERCLIP_ENV_FILENAME = ".env";
+export const DEFAULT_NEXUS_INSTANCE_ID = "default";
+export const NEXUS_CONFIG_BASENAME = "config.json";
+export const NEXUS_ENV_FILENAME = ".env";
 
 const PATH_SEGMENT_RE = /^[a-zA-Z0-9_-]+$/;
 
@@ -13,78 +13,78 @@ export function expandHomePrefix(value: string): string {
   return value;
 }
 
-export function resolvePaperclipHomeDir(homeOverride?: string): string {
-  const raw = homeOverride?.trim() || process.env.PAPERCLIP_HOME?.trim();
+export function resolveNexusHomeDir(homeOverride?: string): string {
+  const raw = homeOverride?.trim() || process.env.NEXUS_HOME?.trim();
   if (raw) return path.resolve(expandHomePrefix(raw));
-  return path.resolve(os.homedir(), ".paperclip");
+  return path.resolve(os.homedir(), ".nexus");
 }
 
-export function resolvePaperclipInstanceId(instanceIdOverride?: string): string {
-  const raw = instanceIdOverride?.trim() || process.env.PAPERCLIP_INSTANCE_ID?.trim() || DEFAULT_PAPERCLIP_INSTANCE_ID;
+export function resolveNexusInstanceId(instanceIdOverride?: string): string {
+  const raw = instanceIdOverride?.trim() || process.env.NEXUS_INSTANCE_ID?.trim() || DEFAULT_NEXUS_INSTANCE_ID;
   if (!PATH_SEGMENT_RE.test(raw)) {
-    throw new Error(`Invalid PAPERCLIP_INSTANCE_ID '${raw}'.`);
+    throw new Error(`Invalid NEXUS_INSTANCE_ID '${raw}'.`);
   }
   return raw;
 }
 
-export function resolvePaperclipInstanceRoot(input: {
+export function resolveNexusInstanceRoot(input: {
   homeDir?: string;
   instanceId?: string;
 } = {}): string {
-  return path.resolve(resolvePaperclipHomeDir(input.homeDir), "instances", resolvePaperclipInstanceId(input.instanceId));
+  return path.resolve(resolveNexusHomeDir(input.homeDir), "instances", resolveNexusInstanceId(input.instanceId));
 }
 
-export function resolvePaperclipInstanceConfigPath(input: {
+export function resolveNexusInstanceConfigPath(input: {
   homeDir?: string;
   instanceId?: string;
 } = {}): string {
-  return path.resolve(resolvePaperclipInstanceRoot(input), PAPERCLIP_CONFIG_BASENAME);
+  return path.resolve(resolveNexusInstanceRoot(input), NEXUS_CONFIG_BASENAME);
 }
 
-export function resolvePaperclipConfigPathForInstance(input: {
+export function resolveNexusConfigPathForInstance(input: {
   homeDir?: string;
   instanceId?: string;
 } = {}): string {
-  return resolvePaperclipInstanceConfigPath(input);
+  return resolveNexusInstanceConfigPath(input);
 }
 
-export function resolvePaperclipEnvPathForConfig(configPath: string): string {
-  return path.resolve(path.dirname(configPath), PAPERCLIP_ENV_FILENAME);
+export function resolveNexusEnvPathForConfig(configPath: string): string {
+  return path.resolve(path.dirname(configPath), NEXUS_ENV_FILENAME);
 }
 
 export function resolveDefaultEmbeddedPostgresDir(input: {
   homeDir?: string;
   instanceId?: string;
 } = {}): string {
-  return path.resolve(resolvePaperclipInstanceRoot(input), "db");
+  return path.resolve(resolveNexusInstanceRoot(input), "db");
 }
 
 export function resolveDefaultLogsDir(input: {
   homeDir?: string;
   instanceId?: string;
 } = {}): string {
-  return path.resolve(resolvePaperclipInstanceRoot(input), "logs");
+  return path.resolve(resolveNexusInstanceRoot(input), "logs");
 }
 
 export function resolveDefaultSecretsKeyFilePath(input: {
   homeDir?: string;
   instanceId?: string;
 } = {}): string {
-  return path.resolve(resolvePaperclipInstanceRoot(input), "secrets", "master.key");
+  return path.resolve(resolveNexusInstanceRoot(input), "secrets", "master.key");
 }
 
 export function resolveDefaultStorageDir(input: {
   homeDir?: string;
   instanceId?: string;
 } = {}): string {
-  return path.resolve(resolvePaperclipInstanceRoot(input), "data", "storage");
+  return path.resolve(resolveNexusInstanceRoot(input), "data", "storage");
 }
 
 export function resolveDefaultBackupDir(input: {
   homeDir?: string;
   instanceId?: string;
 } = {}): string {
-  return path.resolve(resolvePaperclipInstanceRoot(input), "data", "backups");
+  return path.resolve(resolveNexusInstanceRoot(input), "data", "backups");
 }
 
 export function resolveHomeAwarePath(value: string): string {

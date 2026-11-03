@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-base_cwd="${PAPERCLIP_WORKSPACE_BASE_CWD:?PAPERCLIP_WORKSPACE_BASE_CWD is required}"
-worktree_cwd="${PAPERCLIP_WORKSPACE_CWD:?PAPERCLIP_WORKSPACE_CWD is required}"
-paperclip_home="${PAPERCLIP_HOME:-$HOME/.paperclip}"
-paperclip_instance_id="${PAPERCLIP_INSTANCE_ID:-default}"
-default_source_config_path="$paperclip_home/instances/$paperclip_instance_id/config.json"
-paperclip_dir="$worktree_cwd/.paperclip"
-worktree_config_path="$paperclip_dir/config.json"
-worktree_env_path="$paperclip_dir/.env"
-seed_manifest_path="$paperclip_dir/seed-manifest.json"
-seed_pending_marker_path="$paperclip_dir/seed-pending"
-seed_complete_marker_path="$paperclip_dir/seed-complete"
-worktree_name="${PAPERCLIP_WORKSPACE_BRANCH:-$(basename "$worktree_cwd")}"
+base_cwd="${NEXUS_WORKSPACE_BASE_CWD:?NEXUS_WORKSPACE_BASE_CWD is required}"
+worktree_cwd="${NEXUS_WORKSPACE_CWD:?NEXUS_WORKSPACE_CWD is required}"
+nexus_home="${NEXUS_HOME:-$HOME/.nexus}"
+nexus_instance_id="${NEXUS_INSTANCE_ID:-default}"
+default_source_config_path="$nexus_home/instances/$nexus_instance_id/config.json"
+nexus_dir="$worktree_cwd/.nexus"
+worktree_config_path="$nexus_dir/config.json"
+worktree_env_path="$nexus_dir/.env"
+seed_manifest_path="$nexus_dir/seed-manifest.json"
+seed_pending_marker_path="$nexus_dir/seed-pending"
+seed_complete_marker_path="$nexus_dir/seed-complete"
+worktree_name="${NEXUS_WORKSPACE_BRANCH:-$(basename "$worktree_cwd")}"
 created_worktree_config=0
 worktree_instance_id="$(WORKTREE_CWD="$worktree_cwd" node <<'EOF'
 const crypto = require("node:crypto");
@@ -42,23 +42,23 @@ if [[ ! -d "$worktree_cwd" ]]; then
 fi
 
 canonical_base_cwd="$(cd "$base_cwd" && pwd -P)"
-if [[ -L "$canonical_base_cwd/.paperclip" && ! -d "$canonical_base_cwd/.paperclip" ]]; then
+if [[ -L "$canonical_base_cwd/.nexus" && ! -d "$canonical_base_cwd/.nexus" ]]; then
   # A broken link hides whatever it points at, so the config below would read as absent
   # on a workspace that is malformed rather than plain. Refuse instead of falling back.
-  echo "Registered base project workspace .paperclip is a broken symlink: $canonical_base_cwd/.paperclip" >&2
+  echo "Registered base project workspace .nexus is a broken symlink: $canonical_base_cwd/.nexus" >&2
   exit 1
 fi
-source_config_path="$canonical_base_cwd/.paperclip/config.json"
+source_config_path="$canonical_base_cwd/.nexus/config.json"
 source_config_origin="base project workspace"
 if [[ ! -e "$source_config_path" && ! -L "$source_config_path" ]]; then
   # A base workspace that is a plain checkout carries no instance config of its own.
   # Fall back to the control plane's own registered instance config, which is process
   # state this workspace cannot rewrite.
-  source_config_path="${PAPERCLIP_CONFIG:-$default_source_config_path}"
+  source_config_path="${NEXUS_CONFIG:-$default_source_config_path}"
   source_config_origin="control-plane instance"
   # Environment-configured servers need no local instance config. A new plain
   # checkout can still prepare dependencies without inventing a seed source.
-  # The Docker image sets PAPERCLIP_CONFIG to this default even without a file.
+  # The Docker image sets NEXUS_CONFIG to this default even without a file.
   # Custom sources and existing development instances must still fail closed.
   if [[ "$source_config_path" == "$default_source_config_path" && ! -e "$source_config_path" && ! -L "$source_config_path" ]]; then
     source_required=0
@@ -74,10 +74,10 @@ if [[ ! -e "$source_config_path" && ! -L "$source_config_path" ]]; then
         source_parent="$(dirname "$source_parent")"
       done
       if [[ ! -d "$source_parent" || -L "$source_parent" || "$(cd "$source_parent" && pwd -P)" != "$source_parent" ]]; then
-        echo "Registered Paperclip seed source config has a non-canonical parent: $source_config_path" >&2
+        echo "Registered Nexus seed source config has a non-canonical parent: $source_config_path" >&2
         exit 1
       fi
-      echo "No local Paperclip seed source config; preparing checkout dependencies without a seeded development instance." >&2
+      echo "No local Nexus seed source config; preparing checkout dependencies without a seeded development instance." >&2
       source_config_path=""
     fi
   fi
@@ -85,23 +85,23 @@ fi
 if [[ -n "$source_config_path" ]]; then
   if [[ ! -f "$source_config_path" || -L "$source_config_path" ]]; then
     if [[ ! -e "$source_config_path" && ! -L "$source_config_path" ]]; then
-      echo "Registered Paperclip seed source config is unavailable ($source_config_origin): $source_config_path" >&2
+      echo "Registered Nexus seed source config is unavailable ($source_config_origin): $source_config_path" >&2
       echo "For a seeded development instance, configure a canonical config for that registered source before retrying." >&2
     else
-      echo "Registered Paperclip seed source config is not a canonical file ($source_config_origin): $source_config_path" >&2
+      echo "Registered Nexus seed source config is not a canonical file ($source_config_origin): $source_config_path" >&2
       echo "Repair the registered source path; symlinks and non-regular files are not accepted." >&2
     fi
     exit 1
   fi
   canonical_source_dir="$(cd "$(dirname "$source_config_path")" && pwd -P)"
   if [[ "$canonical_source_dir/config.json" != "$source_config_path" ]]; then
-    echo "Registered Paperclip seed source config uses a symlink alias: $source_config_path" >&2
+    echo "Registered Nexus seed source config uses a symlink alias: $source_config_path" >&2
     exit 1
   fi
   source_env_path="$(dirname "$source_config_path")/.env"
 fi
 
-mkdir -p "$paperclip_dir"
+mkdir -p "$nexus_dir"
 
 base_cli_runner_path="$base_cwd/cli/node_modules/tsx/dist/cli.mjs"
 base_cli_entry_path="$base_cwd/cli/src/index.ts"
@@ -147,7 +147,7 @@ repair_base_workspace_install() {
     # process that queued behind a peer's repair can skip its own reinstall.
     (
       cd "$base_cwd" || exit 1
-      exec 9>"$repair_lock_dir/paperclip-provision-repair.lock"
+      exec 9>"$repair_lock_dir/nexus-provision-repair.lock"
       flock 9
       if base_cli_healthy; then
         echo "Base workspace CLI became healthy while waiting for the repair lock; skipping reinstall." >&2
@@ -176,18 +176,18 @@ run_isolated_worktree_init() {
     return
   fi
 
-  if command -v pnpm >/dev/null 2>&1 && pnpm paperclipai --help >/dev/null 2>&1; then
+  if command -v pnpm >/dev/null 2>&1 && pnpm nexusai --help >/dev/null 2>&1; then
     (
       cd "$worktree_cwd" &&
-        pnpm paperclipai worktree init --force --no-seed --seed-mode minimal --name "$worktree_name" --instance "$worktree_instance_id" --from-config "$source_config_path"
+        pnpm nexusai worktree init --force --no-seed --seed-mode minimal --name "$worktree_name" --instance "$worktree_instance_id" --from-config "$source_config_path"
     )
     return
   fi
 
-  if command -v paperclipai >/dev/null 2>&1; then
+  if command -v nexusai >/dev/null 2>&1; then
     (
       cd "$worktree_cwd" &&
-        paperclipai worktree init --force --no-seed --seed-mode minimal --name "$worktree_name" --instance "$worktree_instance_id" --from-config "$source_config_path"
+        nexusai worktree init --force --no-seed --seed-mode minimal --name "$worktree_name" --instance "$worktree_instance_id" --from-config "$source_config_path"
     )
     return
   fi
@@ -195,8 +195,8 @@ run_isolated_worktree_init() {
   return 127
 }
 
-paperclipai_command_available() {
-  if command -v pnpm >/dev/null 2>&1 && pnpm paperclipai --help >/dev/null 2>&1; then
+nexusai_command_available() {
+  if command -v pnpm >/dev/null 2>&1 && pnpm nexusai --help >/dev/null 2>&1; then
     return 0
   fi
 
@@ -204,7 +204,7 @@ paperclipai_command_available() {
     return 0
   fi
 
-  if command -v paperclipai >/dev/null 2>&1; then
+  if command -v nexusai >/dev/null 2>&1; then
     return 0
   fi
 
@@ -257,16 +257,16 @@ const configPath = path.resolve(process.env.WORKTREE_CONFIG_PATH);
 const envPath = path.resolve(process.env.WORKTREE_ENV_PATH);
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 const env = parseEnvFile(fs.readFileSync(envPath, "utf8"));
-const envConfigPath = expandHomePrefix(env.PAPERCLIP_CONFIG);
+const envConfigPath = expandHomePrefix(env.NEXUS_CONFIG);
 if (envConfigPath && path.resolve(envConfigPath) !== configPath) {
   fail(`existing worktree env points at ${envConfigPath}, not ${configPath}`);
 }
 
-const homeDir = expandHomePrefix(env.PAPERCLIP_HOME);
-const instanceId = env.PAPERCLIP_INSTANCE_ID;
+const homeDir = expandHomePrefix(env.NEXUS_HOME);
+const instanceId = env.NEXUS_INSTANCE_ID;
 const expectedInstanceId = process.env.WORKTREE_INSTANCE_ID;
 if (!homeDir || !instanceId) {
-  fail("existing worktree env is missing PAPERCLIP_HOME or PAPERCLIP_INSTANCE_ID");
+  fail("existing worktree env is missing NEXUS_HOME or NEXUS_INSTANCE_ID");
 }
 if (instanceId !== expectedInstanceId) {
   fail(`existing worktree env names legacy or mismatched instance ${instanceId}, expected ${expectedInstanceId}`);
@@ -335,7 +335,7 @@ try {
 } finally {
   fs.rmSync(temporaryPath, { force: true });
 }
-console.error(`Reconciled isolated Paperclip worktree deployment mode from ${sourceConfigPath}: ${deploymentMode}/${exposure}`);
+console.error(`Reconciled isolated Nexus worktree deployment mode from ${sourceConfigPath}: ${deploymentMode}/${exposure}`);
 EOF
 }
 
@@ -357,7 +357,7 @@ const sourceConfigPath = path.resolve(process.env.SOURCE_CONFIG_PATH);
 const sourceEnvPath = path.join(path.dirname(sourceConfigPath), ".env");
 let sourceInstanceId = path.basename(path.dirname(sourceConfigPath));
 if (fs.existsSync(sourceEnvPath)) {
-  const match = fs.readFileSync(sourceEnvPath, "utf8").match(/^\s*(?:export\s+)?PAPERCLIP_INSTANCE_ID\s*=\s*["']?([^\s"'#]+)["']?/m);
+  const match = fs.readFileSync(sourceEnvPath, "utf8").match(/^\s*(?:export\s+)?NEXUS_INSTANCE_ID\s*=\s*["']?([^\s"'#]+)["']?/m);
   if (match?.[1]) sourceInstanceId = match[1];
 }
 fs.rmSync(completePath, { force: true });
@@ -391,11 +391,11 @@ write_fallback_worktree_config() {
   WORKTREE_NAME="$worktree_name" \
   BASE_CWD="$base_cwd" \
   WORKTREE_CWD="$worktree_cwd" \
-  PAPERCLIP_DIR="$paperclip_dir" \
+  NEXUS_DIR="$nexus_dir" \
   SOURCE_CONFIG_PATH="$source_config_path" \
   SOURCE_ENV_PATH="$source_env_path" \
   WORKTREE_INSTANCE_ID="$worktree_instance_id" \
-  PAPERCLIP_WORKTREES_DIR="${PAPERCLIP_WORKTREES_DIR:-}" \
+  NEXUS_WORKTREES_DIR="${NEXUS_WORKTREES_DIR:-}" \
   node <<'EOF'
 const fs = require("node:fs");
 const os = require("node:os");
@@ -496,17 +496,17 @@ function resolveRuntimeLikePath(value, configPath) {
 
 async function main() {
   const worktreeName = process.env.WORKTREE_NAME;
-  const paperclipDir = process.env.PAPERCLIP_DIR;
+  const nexusDir = process.env.NEXUS_DIR;
   const sourceConfigPath = process.env.SOURCE_CONFIG_PATH;
   const sourceEnvPath = process.env.SOURCE_ENV_PATH;
-  const worktreeHome = path.resolve(expandHomePrefix(nonEmpty(process.env.PAPERCLIP_WORKTREES_DIR) ?? "~/.paperclip-worktrees"));
+  const worktreeHome = path.resolve(expandHomePrefix(nonEmpty(process.env.NEXUS_WORKTREES_DIR) ?? "~/.nexus-worktrees"));
   const instanceId = process.env.WORKTREE_INSTANCE_ID;
   if (!/^[A-Za-z0-9_-]+$/.test(instanceId ?? "")) {
     throw new Error("WORKTREE_INSTANCE_ID is missing or unsafe");
   }
   const instanceRoot = path.resolve(worktreeHome, "instances", instanceId);
-  const configPath = path.resolve(paperclipDir, "config.json");
-  const envPath = path.resolve(paperclipDir, ".env");
+  const configPath = path.resolve(nexusDir, "config.json");
+  const envPath = path.resolve(nexusDir, ".env");
 
   let sourceConfig = null;
   if (sourceConfigPath && fs.existsSync(sourceConfigPath)) {
@@ -571,7 +571,7 @@ async function main() {
         baseDir: path.resolve(instanceRoot, "data", "storage"),
       },
       s3: {
-        bucket: sourceConfig?.storage?.s3?.bucket ?? "paperclip",
+        bucket: sourceConfig?.storage?.s3?.bucket ?? "nexus",
         region: sourceConfig?.storage?.s3?.region ?? "us-east-1",
         endpoint: sourceConfig?.storage?.s3?.endpoint,
         prefix: sourceConfig?.storage?.s3?.prefix ?? "",
@@ -589,7 +589,7 @@ async function main() {
 
   fs.writeFileSync(configPath, `${JSON.stringify(targetConfig, null, 2)}\n`, { mode: 0o600 });
 
-  const inlineMasterKey = nonEmpty(sourceEnvEntries.PAPERCLIP_SECRETS_MASTER_KEY);
+  const inlineMasterKey = nonEmpty(sourceEnvEntries.NEXUS_SECRETS_MASTER_KEY);
   if (inlineMasterKey) {
     fs.mkdirSync(path.resolve(instanceRoot, "secrets"), { recursive: true });
     fs.writeFileSync(targetConfig.secrets.localEncrypted.keyFilePath, inlineMasterKey, {
@@ -597,8 +597,8 @@ async function main() {
       mode: 0o600,
     });
   } else {
-    const sourceKeyFilePath = nonEmpty(sourceEnvEntries.PAPERCLIP_SECRETS_MASTER_KEY_FILE)
-      ? resolveRuntimeLikePath(sourceEnvEntries.PAPERCLIP_SECRETS_MASTER_KEY_FILE, sourceConfigPath)
+    const sourceKeyFilePath = nonEmpty(sourceEnvEntries.NEXUS_SECRETS_MASTER_KEY_FILE)
+      ? resolveRuntimeLikePath(sourceEnvEntries.NEXUS_SECRETS_MASTER_KEY_FILE, sourceConfigPath)
       : nonEmpty(sourceConfig?.secrets?.localEncrypted?.keyFilePath)
         ? resolveRuntimeLikePath(sourceConfig.secrets.localEncrypted.keyFilePath, sourceConfigPath)
         : null;
@@ -611,22 +611,22 @@ async function main() {
   }
 
   const envLines = [
-    "PAPERCLIP_HOME=" + JSON.stringify(worktreeHome),
-    "PAPERCLIP_INSTANCE_ID=" + JSON.stringify(instanceId),
-    "PAPERCLIP_CONFIG=" + JSON.stringify(configPath),
-    "PAPERCLIP_CONTEXT=" + JSON.stringify(path.resolve(worktreeHome, "context.json")),
-    "PAPERCLIP_IN_WORKTREE=true",
-    "PAPERCLIP_WORKTREE_NAME=" + JSON.stringify(worktreeName),
+    "NEXUS_HOME=" + JSON.stringify(worktreeHome),
+    "NEXUS_INSTANCE_ID=" + JSON.stringify(instanceId),
+    "NEXUS_CONFIG=" + JSON.stringify(configPath),
+    "NEXUS_CONTEXT=" + JSON.stringify(path.resolve(worktreeHome, "context.json")),
+    "NEXUS_IN_WORKTREE=true",
+    "NEXUS_WORKTREE_NAME=" + JSON.stringify(worktreeName),
   ];
 
   // Secrets that must be carried over from the source instance so the worktree's
-  // dev server behaves like the real one. PAPERCLIP_TOOL_ACTION_SIGNING_SECRET is
+  // dev server behaves like the real one. NEXUS_TOOL_ACTION_SIGNING_SECRET is
   // required for signed tool-gateway approvals (ask-first MCP policies); without
   // it the first gated POST /tool-gateway/tools/call returns Internal server error.
   // BETTER_AUTH_SECRET keeps auth tokens compatible across the source/worktree pair.
   const propagatedSecretKeys = [
-    "PAPERCLIP_AGENT_JWT_SECRET",
-    "PAPERCLIP_TOOL_ACTION_SIGNING_SECRET",
+    "NEXUS_AGENT_JWT_SECRET",
+    "NEXUS_TOOL_ACTION_SIGNING_SECRET",
     "BETTER_AUTH_SECRET",
   ];
   for (const key of propagatedSecretKeys) {
@@ -648,12 +648,12 @@ EOF
 
 if [[ -n "$source_config_path" ]]; then
   if [[ -e "$worktree_config_path" && -e "$worktree_env_path" ]] && existing_worktree_config_is_usable; then
-    echo "Reusing existing isolated Paperclip worktree config at $worktree_config_path" >&2
+    echo "Reusing existing isolated Nexus worktree config at $worktree_config_path" >&2
   else
     if [[ -e "$worktree_config_path" || -e "$worktree_env_path" ]]; then
-      echo "Existing isolated Paperclip worktree config is stale for this host; regenerating." >&2
+      echo "Existing isolated Nexus worktree config is stale for this host; regenerating." >&2
     fi
-    if paperclipai_command_available; then
+    if nexusai_command_available; then
       if run_isolated_worktree_init; then
         :
       else
@@ -661,17 +661,17 @@ if [[ -n "$source_config_path" ]]; then
         if [[ "$init_exit_code" -eq 127 ]]; then
           # Every CLI candidate was unusable (e.g. an unhealthy base install that
           # the repair could not fix); degrade instead of stranding the run.
-          echo "No usable paperclipai CLI found; writing isolated fallback config without DB seeding." >&2
+          echo "No usable nexusai CLI found; writing isolated fallback config without DB seeding." >&2
           write_fallback_worktree_config
         else
           # A CLI that ran and failed signals a real problem; do not paper over
           # it with an unseeded fallback config.
-          echo "paperclipai worktree init failed (exit $init_exit_code); failing provisioning instead of writing an unseeded fallback config." >&2
+          echo "nexusai worktree init failed (exit $init_exit_code); failing provisioning instead of writing an unseeded fallback config." >&2
           exit "$init_exit_code"
         fi
       fi
     else
-      echo "paperclipai worktree init unavailable; writing isolated fallback config without DB seeding." >&2
+      echo "nexusai worktree init unavailable; writing isolated fallback config without DB seeding." >&2
       write_fallback_worktree_config
     fi
     created_worktree_config=1
@@ -696,7 +696,7 @@ list_base_node_modules_paths() {
       -type d \
       -name node_modules \
       ! -path './.git/*' \
-      ! -path './.paperclip/*' \
+      ! -path './.nexus/*' \
       | sed 's#^\./##'
 }
 
@@ -707,7 +707,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = process.env.WORKTREE_CWD;
-const ignoredDirs = new Set([".git", ".paperclip", "node_modules", "dist", "storybook-static"]);
+const ignoredDirs = new Set([".git", ".nexus", "node_modules", "dist", "storybook-static"]);
 const files = [];
 
 function walk(dir) {
@@ -755,7 +755,7 @@ EOF
 
 if [[ -f "$worktree_cwd/package.json" && -f "$worktree_cwd/pnpm-lock.yaml" ]]; then
   needs_install=0
-  install_fingerprint_path="$paperclip_dir/pnpm-install-fingerprint"
+  install_fingerprint_path="$nexus_dir/pnpm-install-fingerprint"
   current_install_fingerprint="$(compute_pnpm_install_fingerprint)"
   previous_install_fingerprint=""
   if [[ -f "$install_fingerprint_path" ]]; then
@@ -777,7 +777,7 @@ if [[ -f "$worktree_cwd/package.json" && -f "$worktree_cwd/pnpm-lock.yaml" ]]; t
   fi
 
   if [[ "$needs_install" -eq 1 ]]; then
-    backup_suffix=".paperclip-backup-${BASHPID:-$$}"
+    backup_suffix=".nexus-backup-${BASHPID:-$$}"
     moved_symlink_paths=()
 
     while IFS= read -r relative_path; do

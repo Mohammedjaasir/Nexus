@@ -19,11 +19,11 @@ client_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(client_module)
 BINDING = "10000000-0000-4000-8000-000000000001"
 ASSIGNMENT = "20000000-0000-4000-8000-000000000001"
-ORIGIN = "https://paperclip.invalid"
+ORIGIN = "https://nexus.invalid"
 SCOPE = {"companyId": "30000000-0000-4000-8000-000000000001", "companyName": "Scoped Company", "agentId": "40000000-0000-4000-8000-000000000001", "agentName": "Personal Muse"}
 
 
-CREDENTIAL_NAME = "custom.paperclip-muse-" + BINDING
+CREDENTIAL_NAME = "custom.nexus-muse-" + BINDING
 
 def identity():
     return {"bindingId": BINDING, "generation": 1, "companyId": SCOPE["companyId"], "agentId": SCOPE["agentId"]}
@@ -32,7 +32,7 @@ def identity():
 class ClientContract(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="muse-client-contract-")
-        self.root_patch = patch.object(client_module, "ROOT", Path(self.temporary.name) / ".config/paperclip-muse")
+        self.root_patch = patch.object(client_module, "ROOT", Path(self.temporary.name) / ".config/nexus-muse")
         self.root_patch.start()
         self.hook_patch = patch.object(client_module, "HOOK_ROOT", Path(self.temporary.name) / "hooks/scripts")
         self.hook_patch.start()
@@ -68,9 +68,9 @@ class ClientContract(unittest.TestCase):
         for path in (self.client.path, self.client.directory / "receiver.json"):
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
         self.assertEqual(stat.S_IMODE(self.client.directory.stat().st_mode), 0o700)
-        wrapper = client_module.HOOK_ROOT / ("paperclip-muse-" + BINDING + ".sh")
+        wrapper = client_module.HOOK_ROOT / ("nexus-muse-" + BINDING + ".sh")
         self.assertEqual(stat.S_IMODE(wrapper.stat().st_mode), 0o700)
-        self.assertEqual(wrapper.read_text(), '#!/usr/bin/env bash\nexec bash "$HOME/.config/paperclip-muse/detector.sh" "' + BINDING + '"\n')
+        self.assertEqual(wrapper.read_text(), '#!/usr/bin/env bash\nexec bash "$HOME/.config/nexus-muse/detector.sh" "' + BINDING + '"\n')
         self.assertEqual(set(self.client.config), {"version", "bindingId", "origin", "credentialName", "generation", "delegationScope"})
         self.assertFalse((self.client.directory / "worker.json").exists())
         self.assertFalse((self.client.directory / "credential-commit.json").exists())
@@ -147,7 +147,7 @@ class ClientContract(unittest.TestCase):
         try:
             other.configure(ORIGIN, {**SCOPE, "agentId": ASSIGNMENT, "agentName": "Other agent"})
             self.assertNotEqual(other.skill_path(), self.client.skill_path())
-            self.assertIn("name: paperclip-muse-" + ASSIGNMENT, other.skill_path().read_text())
+            self.assertIn("name: nexus-muse-" + ASSIGNMENT, other.skill_path().read_text())
             self.assertIn('"agentId": "' + ASSIGNMENT + '"', other.skill_path().read_text())
             self.assertEqual(self.client.skill_path().read_text(), original)
         finally:
@@ -165,7 +165,7 @@ class ClientContract(unittest.TestCase):
         self.assertEqual(request.get_method(), "GET")
         self.assertIsNone(request.data)
         self.assertIsNone(request.get_header("Authorization"))
-        self.assertIsNone(request.get_header("X-paperclip-muse-binding"))
+        self.assertIsNone(request.get_header("X-nexus-muse-binding"))
         self.assertEqual(transport.call_args.kwargs["timeout"], 120)
         self.helper.add_surrogate_to_request.assert_not_called()
         self.helper.read_json_response.assert_not_called()
@@ -212,7 +212,7 @@ class ClientContract(unittest.TestCase):
 
     def test_lost_ack_reuses_persisted_identity_and_rejects_changed_effect(self):
         requests = []
-        command = {"command": "tool", "assignmentId": ASSIGNMENT, "name": "paperclip_document_upsert", "arguments": {"key": "report", "body": "Synthetic evidence"}}
+        command = {"command": "tool", "assignmentId": ASSIGNMENT, "name": "nexus_document_upsert", "arguments": {"key": "report", "body": "Synthetic evidence"}}
 
         def transport(url, body=None, token=None):
             requests.append(copy.deepcopy(body))
@@ -325,7 +325,7 @@ class ClientContract(unittest.TestCase):
     def test_supported_authd_helper_handles_authenticated_io_without_caching_headers(self):
         private_surrogate = "synthetic-private-surrogate-should-never-persist"
         def add(request, **kwargs):
-            self.assertEqual(kwargs, {"credential_name": CREDENTIAL_NAME, "entry_name": "access_token", "allowed_hosts": ["paperclip.invalid"]})
+            self.assertEqual(kwargs, {"credential_name": CREDENTIAL_NAME, "entry_name": "access_token", "allowed_hosts": ["nexus.invalid"]})
             request.add_header("Authorization", "Bearer " + private_surrogate)
         self.helper.add_surrogate_to_request.side_effect = add
         response = Mock(); response.status = 200; response.headers.get_content_type.return_value = "application/json"
@@ -459,7 +459,7 @@ urllib.request.build_opener = lambda *args: Opener()
         if wrapper:
             installed = client_module.ROOT / "detector.sh"
             installed.write_bytes(detector.read_bytes())
-            invocation = [str(client_module.HOOK_ROOT / ("paperclip-muse-" + BINDING + ".sh"))]
+            invocation = [str(client_module.HOOK_ROOT / ("nexus-muse-" + BINDING + ".sh"))]
         else:
             invocation = ['bash', str(detector), BINDING]
         result = subprocess.run(invocation,
@@ -473,7 +473,7 @@ urllib.request.build_opener = lambda *args: Opener()
 
     def assert_public_request(self, requests):
         self.assertEqual(requests, [{'url': ORIGIN + '/api/muse/v1/signal',
-            'headers': {'Accept': 'application/json', 'X-paperclip-muse-binding': BINDING}}])
+            'headers': {'Accept': 'application/json', 'X-nexus-muse-binding': BINDING}}])
 
     def test_running_detector_is_independent_of_private_lock_and_worker_credentials(self):
         # The client still holds its exclusive OS lock; it is irrelevant to the
@@ -525,7 +525,7 @@ urllib.request.build_opener = lambda *args: Opener()
         self.assertEqual(duplicate_b, offered_b)
         references = [value["signal"]["reference"] for value in (offered_a, offered_b, rearmed_b)]
         self.assertEqual(len(set(references)), 3)
-        marker = Path(self.temporary.name) / "hooks/state" / ("paperclip-" + BINDING) / "signal"
+        marker = Path(self.temporary.name) / "hooks/state" / ("nexus-" + BINDING) / "signal"
         expected_markers = [references[0], references[0], references[1], references[1], references[2], references[2]]
         for response, expected, expected_marker in zip(responses, ("wake", "idle", "wake", "duplicate", "wake", "idle"), expected_markers):
             output, requests = self.run_detector(response=response, dry=False, wrapper=True)
@@ -533,7 +533,7 @@ urllib.request.build_opener = lambda *args: Opener()
             self.assertNotIn("DISABLE", output)
             self.assertNotIn("Receiver unavailable", output)
             if expected == "wake":
-                self.assertIn("WAKE:PAPERCLIP_MUSE:", output)
+                self.assertIn("WAKE:NEXUS_MUSE:", output)
                 self.assertIn("binding " + BINDING, output)
             else:
                 self.assertNotIn("WAKE:", output)
@@ -555,11 +555,11 @@ urllib.request.build_opener = lambda *args: Opener()
         with patch.object(client_module.HTTP, "open", side_effect=error):
             with self.assertRaises(RuntimeError) as raised:
                 client_module.http(sensitive_url, {"query": "identify"}, CREDENTIAL_NAME)
-            self.assertEqual(str(raised.exception), "Paperclip HTTP 401; inspect connection or receipt before retrying")
+            self.assertEqual(str(raised.exception), "Nexus HTTP 401; inspect connection or receipt before retrying")
         error.close()
 
     def test_redirects_and_non_https_origins_are_rejected(self):
-        for origin in ("http://paperclip.invalid", "https://user:secret@paperclip.invalid", "https://paperclip.invalid/path", "https://paperclip.invalid/?secret=x"):
+        for origin in ("http://nexus.invalid", "https://user:secret@nexus.invalid", "https://nexus.invalid/path", "https://nexus.invalid/?secret=x"):
             with self.assertRaises(RuntimeError):
                 client_module.origin(origin)
         self.assertIsNone(client_module.NoRedirect().redirect_request(None, None, 302, "redirect", {}, "https://elsewhere.invalid"))
@@ -567,12 +567,12 @@ urllib.request.build_opener = lambda *args: Opener()
     def input_response(self, **changes):
         value = {"assignmentId": ASSIGNMENT, "bindingId": BINDING, "generation": 1,
                  "requestId": "question-one", "turnId": "turn-one",
-                 "response": {"schema": "paperclip.question_response.v1", "answers": {"format": {"text": "Markdown"}}}, "consumed": False}
+                 "response": {"schema": "nexus.question_response.v1", "answers": {"format": {"text": "Markdown"}}}, "consumed": False}
         value["inputDigest"] = "sha256:" + client_module.hashlib.sha256(client_module.canonical({k: value[k] for k in ("requestId", "turnId", "response")})).hexdigest()
         return {**value, **changes}
 
     def selected_input(self, count, request="question-one"):
-        response = {"schema": "paperclip.question_response.v1", "answers": {
+        response = {"schema": "nexus.question_response.v1", "answers": {
             "choices": {"selectedOptionIds": ["choice-" + str(index) for index in range(count)]},
             "format": {"text": "Markdown"}}}
         value = self.input_response(response=response, requestId=request)
@@ -613,7 +613,7 @@ urllib.request.build_opener = lambda *args: Opener()
                 self.assertFalse(self.client.journal_path("consume:" + ASSIGNMENT + ":question-one").exists())
 
     def test_selection_cap_does_not_widen_question_or_option_id_bounds(self):
-        response = {"schema": "paperclip.question_response.v1", "answers": {
+        response = {"schema": "nexus.question_response.v1", "answers": {
             "question-" + str(index): {"selectedOptionIds": ["x" * 160]} for index in range(64)}}
         self.assertTrue(client_module.input_response_valid(response))
         response["answers"]["question-64"] = {"selectedOptionIds": ["x"]}
@@ -645,7 +645,7 @@ urllib.request.build_opener = lambda *args: Opener()
 
     def input_record(self, value=None):
         value = value or {**self.input_response(), "continuationReceiptId": "50000000-0000-4000-8000-000000000001"}
-        return {"schema": "paperclip.muse_input_receipts.v2", "bindingId": BINDING, "generation": 1,
+        return {"schema": "nexus.muse_input_receipts.v2", "bindingId": BINDING, "generation": 1,
                 "assignmentId": ASSIGNMENT, "inputs": {"question-one": value}}
 
     def input_path(self, request="question-one"):
@@ -655,7 +655,7 @@ urllib.request.build_opener = lambda *args: Opener()
         return self.client.directory / "input-receipts" / (ASSIGNMENT + ".json")
 
     def aggregate_record(self, inputs):
-        return {"schema": "paperclip.muse_input_receipts.v1", "bindingId": BINDING, "generation": 1, "assignmentId": ASSIGNMENT, "inputs": inputs}
+        return {"schema": "nexus.muse_input_receipts.v1", "bindingId": BINDING, "generation": 1, "assignmentId": ASSIGNMENT, "inputs": inputs}
 
     def legacy_input_path(self):
         return self.client.directory / "continuations" / (ASSIGNMENT + ".json")
@@ -671,14 +671,14 @@ urllib.request.build_opener = lambda *args: Opener()
                 original = json.dumps(model) if model != "not parseable JSON" else model
                 legacy.write_text(original)
                 work = self.client.directory / "work-continuations" / (ASSIGNMENT + ".json")
-                client_module.save(work, {"schema": "paperclip.muse_work_continuation.v1", "phase": "waiting"})
+                client_module.save(work, {"schema": "nexus.muse_work_continuation.v1", "phase": "waiting"})
                 work_bytes = work.read_bytes()
                 with patch.object(client_module, "http", return_value=self.input_response()) as transport:
                     result = self.client.answer(ASSIGNMENT, "question-one")
                 self.assertEqual(result["response"], self.input_response()["response"])
                 self.assertEqual(legacy.read_text(), original)
                 self.assertEqual(work.read_bytes(), work_bytes)
-                self.assertEqual(json.loads(self.input_path().read_text())["schema"], "paperclip.muse_input_receipts.v2")
+                self.assertEqual(json.loads(self.input_path().read_text())["schema"], "nexus.muse_input_receipts.v2")
                 self.assertEqual(transport.call_count, 1)
 
     def test_valid_legacy_prepared_consume_migrates_without_changing_any_identity(self):
@@ -731,7 +731,7 @@ urllib.request.build_opener = lambda *args: Opener()
 
     def test_duplicate_json_keys_are_not_silently_adopted_as_a_helper_receipt(self):
         self.input_path().parent.mkdir(parents=True, exist_ok=True)
-        self.input_path().write_text('{"schema":"paperclip.muse_input_receipts.v2","inputs":{},"inputs":null}')
+        self.input_path().write_text('{"schema":"nexus.muse_input_receipts.v2","inputs":{},"inputs":null}')
         with patch.object(client_module, "http") as transport:
             with self.assertRaisesRegex(RuntimeError, "input_receipt_invalid"):
                 self.client.consume(ASSIGNMENT, "question-one")
@@ -740,9 +740,9 @@ urllib.request.build_opener = lambda *args: Opener()
     def test_missing_or_invalid_native_answer_fields_never_prepare_a_consume(self):
         for change in ({"turnId": None}, {"turnId": ""}, {"inputDigest": None}, {"inputDigest": ""},
                        {"response": {"answers": {}}}, {"generation": True},
-                       {"response": {"schema": "paperclip.question_response.v1", "answers": {"format": {"text": 1}}}},
-                       {"response": {"schema": "paperclip.question_response.v1", "answers": {"format": {"text": "\ud800"}}}},
-                       {"response": {"schema": "paperclip.question_response.v1", "answers": {"format": {"selectedOptionIds": ["x", "x"]}}}}):
+                       {"response": {"schema": "nexus.question_response.v1", "answers": {"format": {"text": 1}}}},
+                       {"response": {"schema": "nexus.question_response.v1", "answers": {"format": {"text": "\ud800"}}}},
+                       {"response": {"schema": "nexus.question_response.v1", "answers": {"format": {"selectedOptionIds": ["x", "x"]}}}}):
             with self.subTest(change=change), patch.object(client_module, "http", return_value=self.input_response(**change)):
                 with self.assertRaisesRegex(RuntimeError, "input_receipt_invalid"):
                     self.client.answer(ASSIGNMENT, "question-one")
@@ -826,7 +826,7 @@ urllib.request.build_opener = lambda *args: Opener()
         harness = ('import importlib.util, pathlib, sys; sys.dont_write_bytecode=True; '
                    's=importlib.util.spec_from_file_location("client",sys.argv[1]); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); '
                    'm.ROOT=pathlib.Path(sys.argv[2]); sys.argv=["client.py","--binding",sys.argv[3],"consume-input",sys.argv[4],"question-one"]; '
-                   '\ntry: m.main()\nexcept Exception as error:\n print("Paperclip client stopped: "+(str(error) if isinstance(error, RuntimeError) else "private state or transport failure"),file=sys.stderr); sys.exit(1)')
+                   '\ntry: m.main()\nexcept Exception as error:\n print("Nexus client stopped: "+(str(error) if isinstance(error, RuntimeError) else "private state or transport failure"),file=sys.stderr); sys.exit(1)')
         self.client.close()
         result = subprocess.run([sys.executable, "-c", harness, str(client_path), str(client_module.ROOT), BINDING, ASSIGNMENT], capture_output=True, text=True)
         self.assertEqual(result.returncode, 1); self.assertEqual(result.stdout, "")
@@ -946,7 +946,7 @@ urllib.request.build_opener = lambda *args: Opener()
         self.assertEqual(self.legacy_input_path().read_bytes(), original)
 
     def large_input(self, request, size=100000):
-        value = self.input_response(requestId=request, response={"schema": "paperclip.question_response.v1", "answers": {"answer": {"text": "x" * size}}})
+        value = self.input_response(requestId=request, response={"schema": "nexus.question_response.v1", "answers": {"answer": {"text": "x" * size}}})
         value["inputDigest"] = "sha256:" + client_module.hashlib.sha256(client_module.canonical({key: value[key] for key in ("requestId", "turnId", "response")})).hexdigest()
         return value
 
@@ -1060,7 +1060,7 @@ urllib.request.build_opener = lambda *args: Opener()
             self.assertFalse(self.input_path("question-1").exists()); self.assertFalse((self.input_path().parent / "migration.json").exists())
 
     def near_transport_input(self, unit):
-        value = self.input_response(response={"schema": "paperclip.question_response.v1", "answers": {"answer-" + str(index): {"text": ""} for index in range(64)}})
+        value = self.input_response(response={"schema": "nexus.question_response.v1", "answers": {"answer-" + str(index): {"text": ""} for index in range(64)}})
         remaining = client_module.MAX_BYTES - len(client_module.canonical(value))
         unit_bytes = len(client_module.canonical(unit)) - 2
         for answer in value["response"]["answers"].values():
@@ -1091,7 +1091,7 @@ urllib.request.build_opener = lambda *args: Opener()
                 self.assertEqual(json.loads(self.input_path().read_text())["inputs"]["question-one"]["continuationReceiptId"], answer["continuationReceiptId"])
 
     def test_current_writer_rejects_an_unreadable_record_before_publication(self):
-        value = self.input_response(response={"schema": "paperclip.question_response.v1", "answers": {"answer-" + str(i): {"text": "x" * 100000} for i in range(21)}})
+        value = self.input_response(response={"schema": "nexus.question_response.v1", "answers": {"answer-" + str(i): {"text": "x" * 100000} for i in range(21)}})
         value["inputDigest"] = "sha256:" + client_module.hashlib.sha256(client_module.canonical({key: value[key] for key in ("requestId", "turnId", "response")})).hexdigest()
         with patch.object(client_module, "http", return_value=value) as transport:
             with self.assertRaisesRegex(RuntimeError, "input_receipt_invalid"): self.client.answer(ASSIGNMENT, "question-one")
@@ -1107,7 +1107,7 @@ urllib.request.build_opener = lambda *args: Opener()
             marker_path = self.input_path().parent / "migration.json"; marker = marker_path.read_bytes()
             if changed == "source": self.aggregate_input_path().write_bytes(source + b" ")
             elif changed == "missing": self.input_path(request).unlink()
-            elif changed == "marker": marker_path.write_text('{"schema":"paperclip.muse_input_receipts_migration.v1","entries":{},"entries":null}')
+            elif changed == "marker": marker_path.write_text('{"schema":"nexus.muse_input_receipts_migration.v1","entries":{},"entries":null}')
             else:
                 record = json.loads(target); row = record["inputs"][request]
                 field = {"turn": "turnId", "digest": "inputDigest", "receipt": "continuationReceiptId"}[changed]
@@ -1155,7 +1155,7 @@ if __name__ == "__main__":
     if sys.argv[1:] == ["--receiver-sequence"]:
         sequence = json.load(sys.stdin)
         BINDING, ORIGIN, SCOPE = sequence["bindingId"], sequence["origin"], sequence["scope"]
-        CREDENTIAL_NAME = "custom.paperclip-muse-" + BINDING
+        CREDENTIAL_NAME = "custom.nexus-muse-" + BINDING
         fixture = ClientContract()
         case = unittest.FunctionTestCase(lambda: fixture.assert_receiver_sequence(sequence["responses"]), setUp=fixture.setUp, tearDown=fixture.tearDown)
         result = unittest.TextTestRunner().run(case)

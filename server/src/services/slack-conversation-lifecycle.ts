@@ -3,7 +3,7 @@ import { notifyAttentionRetentionWork } from "./retention-work-notifications.js"
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 import { notifyUnsafeWorkspaceExportRecovery } from "./unsafe-workspace-export-notifications.js";
 import { and, asc, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
-import { chatConversations, chatEndpoints, heartbeatRuns, issueComments, issues, type Db } from "@paperclipai/db";
+import { chatConversations, chatEndpoints, heartbeatRuns, issueComments, issues, type Db } from "@nexusai/db";
 import { persistActivity, publishActivity, type ActivityPublication } from "./activity-log.js";
 
 export type ExternalConversationSettlementScope = { companyId: string; issueId?: string };
@@ -87,7 +87,7 @@ async function readSettlement(db: Pick<Db, "select" | "execute">, companyId: str
       and coalesce(r.context_snapshot->>'issueId', r.context_snapshot->>'taskId', r.native_issue_id::text) = ${issueId}
       and r.status in ('queued', 'running', 'scheduled_retry'))
     and not exists (select 1 from agent_wakeup_requests w where w.company_id = ${companyId}
-      and coalesce(w.payload->>'issueId', w.payload->>'taskId', w.payload->'_paperclipWakeContext'->>'issueId') = ${issueId}
+      and coalesce(w.payload->>'issueId', w.payload->>'taskId', w.payload->'_nexusWakeContext'->>'issueId') = ${issueId}
       and w.status in ('queued', 'claimed', 'deferred_issue_execution') and w.run_id is distinct from ${run.id}::uuid)
     and not exists (select 1 from issue_thread_interactions i where i.company_id = ${companyId} and i.issue_id = ${issueId} and i.status = 'pending')
     and not exists (select 1 from issue_approvals ia join approvals a on a.id = ia.approval_id and a.company_id = ia.company_id

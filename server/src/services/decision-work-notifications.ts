@@ -1,5 +1,5 @@
 import { notifyAttentionRetentionWork } from "./retention-work-notifications.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 
 type DecisionWorkScope = { companyId: string; sourceId?: string };

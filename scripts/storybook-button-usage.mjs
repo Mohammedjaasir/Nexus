@@ -66,9 +66,9 @@ function inventory() {
 
 /** Storybook-only module: publish counts and locations, without bundling app source text. */
 export function storybookButtonUsage() {
-  const id = "virtual:paperclip-button-usage";
+  const id = "virtual:nexus-button-usage";
   return {
-    name: "paperclip-button-usage",
+    name: "nexus-button-usage",
     resolveId(value) { if (value === id) return `\0${id}`; },
     load(value) { if (value === `\0${id}`) return `export default ${JSON.stringify(inventory())};`; },
     handleHotUpdate(context) {

@@ -1,4 +1,4 @@
-import { agents } from "@paperclipai/db";
+import { agents } from "@nexusai/db";
 import { asBoolean, parseObject } from "../adapters/utils.js";
 
 /** Runner work needs a task; generic interval heartbeats have no task owner.
@@ -8,7 +8,7 @@ import { asBoolean, parseObject } from "../adapters/utils.js";
 export function supportsUnscopedTimerHeartbeat(
   agent: Pick<typeof agents.$inferSelect, "adapterType">,
 ) {
-  return agent.adapterType !== "paperclip_runner";
+  return agent.adapterType !== "nexus_runner";
 }
 
 export function isHeartbeatWakeOnDemandEnabled(

@@ -51,7 +51,7 @@ const fixtureTeardowns: FixtureTeardownEntry[] = [];
 // start (mkdir, writeFile, git init) still leaves the root directory queued
 // for removal.
 async function createFixtureRootDir(): Promise<string> {
-  const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-ssh-fixture-"));
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-ssh-fixture-"));
   fixtureTeardowns.push({ rootDir, state: null });
   return rootDir;
 }
@@ -463,8 +463,8 @@ describe("ssh env-lab fixture", () => {
         host: "ssh.example.test",
         port: 22,
         username: "ssh-user",
-        remoteCwd: "/srv/paperclip/workspace",
-        remoteWorkspacePath: "/srv/paperclip/workspace",
+        remoteCwd: "/srv/nexus/workspace",
+        remoteWorkspacePath: "/srv/nexus/workspace",
         privateKey: null,
         knownHosts: null,
         strictHostKeyChecking: true,
@@ -493,7 +493,7 @@ describe("ssh env-lab fixture", () => {
     // The last ssh argument wraps the script as `sh -c '...'`, so the inner
     // quotes are escaped. Assert the command still runs: cd, env, and the argv.
     expect(remoteScript).toContain("cd ");
-    expect(remoteScript).toContain("/srv/paperclip/workspace");
+    expect(remoteScript).toContain("/srv/nexus/workspace");
     expect(remoteScript).toContain("exec env ");
     expect(remoteScript).toContain("node");
     expect(remoteScript).toContain("--version");
@@ -507,8 +507,8 @@ describe("ssh env-lab fixture", () => {
           host: "ssh.example.test",
           port: 22,
           username: "ssh-user",
-          remoteCwd: "/srv/paperclip/workspace",
-          remoteWorkspacePath: "/srv/paperclip/workspace",
+          remoteCwd: "/srv/nexus/workspace",
+          remoteWorkspacePath: "/srv/nexus/workspace",
           privateKey: null,
           knownHosts: null,
           strictHostKeyChecking: true,
@@ -528,7 +528,7 @@ describe("ssh env-lab fixture", () => {
     const localDir = path.join(rootDir, "local-overlay");
 
     await mkdir(localDir, { recursive: true });
-    await writeFile(path.join(localDir, "message.txt"), "hello from paperclip\n", "utf8");
+    await writeFile(path.join(localDir, "message.txt"), "hello from nexus\n", "utf8");
     await writeFile(path.join(localDir, "._message.txt"), "should never sync\n", "utf8");
 
     const started = await startSshEnvLabFixtureOrSkip(statePath, "SSH env-lab fixture test");
@@ -550,7 +550,7 @@ describe("ssh env-lab fixture", () => {
       `cat ${JSON.stringify(path.posix.join(remoteDir, "message.txt"))} && if [ -e ${JSON.stringify(path.posix.join(remoteDir, "._message.txt"))} ]; then echo appledouble-present; fi`,
     );
 
-    expect(result.stdout).toContain("hello from paperclip");
+    expect(result.stdout).toContain("hello from nexus");
     expect(result.stdout).not.toContain("appledouble-present");
   }, SSH_FIXTURE_TEST_TIMEOUT_MS);
 
@@ -654,7 +654,7 @@ describe("ssh env-lab fixture", () => {
     await mkdir(localRepo, { recursive: true });
     await git(localRepo, ["init"]);
     await git(localRepo, ["checkout", "-b", "main"]);
-    await git(localRepo, ["config", "user.name", "Paperclip Test"]);
+    await git(localRepo, ["config", "user.name", "Nexus Test"]);
     await git(localRepo, ["config", "user.email", "test@paperclip.dev"]);
     await writeFile(path.join(localRepo, "tracked.bin"), Buffer.alloc(256 * 1024, 7));
     await git(localRepo, ["add", "tracked.bin"]);
@@ -752,7 +752,7 @@ describe("ssh env-lab fixture", () => {
     await mkdir(localRepo, { recursive: true });
     await git(localRepo, ["init"]);
     await git(localRepo, ["checkout", "-b", "main"]);
-    await git(localRepo, ["config", "user.name", "Paperclip Test"]);
+    await git(localRepo, ["config", "user.name", "Nexus Test"]);
     await git(localRepo, ["config", "user.email", "test@paperclip.dev"]);
     await writeFile(path.join(localRepo, "tracked.txt"), "base\n", "utf8");
     await writeFile(path.join(localRepo, "._tracked.txt"), "should stay local only\n", "utf8");
@@ -786,7 +786,7 @@ describe("ssh env-lab fixture", () => {
 
     await runSshCommand(
       config,
-      `cd ${JSON.stringify(started.workspaceDir)} && git config user.name "Paperclip SSH" && git config user.email "ssh@paperclip.dev" && git add tracked.txt untracked.txt && git commit -m "remote update" >/dev/null && printf "remote dirty\\n" > tracked.txt && printf "remote extra\\n" > remote-only.txt`,
+      `cd ${JSON.stringify(started.workspaceDir)} && git config user.name "Nexus SSH" && git config user.email "ssh@paperclip.dev" && git add tracked.txt untracked.txt && git commit -m "remote update" >/dev/null && printf "remote dirty\\n" > tracked.txt && printf "remote extra\\n" > remote-only.txt`,
       { timeoutMs: 30_000, maxBuffer: 256 * 1024 },
     );
 
@@ -811,7 +811,7 @@ describe("ssh env-lab fixture", () => {
     await mkdir(localRepo, { recursive: true });
     await git(localRepo, ["init"]);
     await git(localRepo, ["checkout", "-b", "main"]);
-    await git(localRepo, ["config", "user.name", "Paperclip Test"]);
+    await git(localRepo, ["config", "user.name", "Nexus Test"]);
     await git(localRepo, ["config", "user.email", "test@paperclip.dev"]);
     await writeFile(path.join(localRepo, "tracked.txt"), "base\n", "utf8");
     await git(localRepo, ["add", "tracked.txt"]);
@@ -860,27 +860,27 @@ describe("ssh env-lab fixture", () => {
     await expect(readFile(path.join(localRepo, "run-b.txt"), "utf8")).resolves.toBe("from run b\n");
   }, SSH_FIXTURE_TEST_TIMEOUT_MS);
 
-  it("round-trips project repositories nested in .paperclip-repositories across consecutive SSH runs", async () => {
+  it("round-trips project repositories nested in .nexus-repositories across consecutive SSH runs", async () => {
     const rootDir = await createFixtureRootDir();
     const statePath = path.join(rootDir, "state.json");
     const localRepo = path.join(rootDir, "local-workspace");
-    const nestedRelative = ".paperclip-repositories/frontend-0123456789ab";
+    const nestedRelative = ".nexus-repositories/frontend-0123456789ab";
     const nestedRepo = path.join(localRepo, nestedRelative);
 
     await mkdir(localRepo, { recursive: true });
     await git(localRepo, ["init"]);
     await git(localRepo, ["checkout", "-b", "main"]);
-    await git(localRepo, ["config", "user.name", "Paperclip Test"]);
+    await git(localRepo, ["config", "user.name", "Nexus Test"]);
     await git(localRepo, ["config", "user.email", "test@paperclip.dev"]);
     await writeFile(path.join(localRepo, "backend.txt"), "backend base\n", "utf8");
     await git(localRepo, ["add", "backend.txt"]);
     await git(localRepo, ["commit", "-m", "backend initial"]);
-    await writeFile(path.join(localRepo, ".git", "info", "exclude"), "\n/.paperclip-repositories/\n", { flag: "a" });
+    await writeFile(path.join(localRepo, ".git", "info", "exclude"), "\n/.nexus-repositories/\n", { flag: "a" });
 
     await mkdir(nestedRepo, { recursive: true });
     await git(nestedRepo, ["init"]);
     await git(nestedRepo, ["checkout", "-b", "main"]);
-    await git(nestedRepo, ["config", "user.name", "Paperclip Test"]);
+    await git(nestedRepo, ["config", "user.name", "Nexus Test"]);
     await git(nestedRepo, ["config", "user.email", "test@paperclip.dev"]);
     await writeFile(path.join(nestedRepo, "frontend.txt"), "frontend base\n", "utf8");
     await writeFile(path.join(nestedRepo, "obsolete.txt"), "tracked\n", "utf8");
@@ -916,19 +916,19 @@ describe("ssh env-lab fixture", () => {
       config,
       `cd ${JSON.stringify(first.workspaceRemoteDir)} && git status --short --untracked-files=all`,
     );
-    expect(remoteAnchorStatus.stdout).not.toContain(".paperclip-repositories");
+    expect(remoteAnchorStatus.stdout).not.toContain(".nexus-repositories");
 
     await runSshCommand(
       config,
       [
         `cd ${JSON.stringify(remoteNested)}`,
-        `git config user.name "Paperclip SSH"`,
+        `git config user.name "Nexus SSH"`,
         `git config user.email "ssh@paperclip.dev"`,
         `git add frontend.txt`,
         `git commit -m "remote frontend update" >/dev/null`,
         `printf "frontend remote dirty\\n" > frontend.txt`,
         `cd ${JSON.stringify(first.workspaceRemoteDir)}`,
-        `git config user.name "Paperclip SSH"`,
+        `git config user.name "Nexus SSH"`,
         `git config user.email "ssh@paperclip.dev"`,
         `printf "backend remote\\n" > backend.txt`,
         `git add backend.txt`,
@@ -943,7 +943,7 @@ describe("ssh env-lab fixture", () => {
     expect(await git(nestedRepo, ["log", "-1", "--pretty=%s"])).toBe("remote frontend update");
     await expect(readFile(path.join(nestedRepo, "frontend.txt"), "utf8")).resolves.toBe("frontend remote dirty\n");
     expect(await git(localRepo, ["log", "-1", "--pretty=%s"])).toBe("remote backend update");
-    expect(await git(localRepo, ["status", "--short", "--untracked-files=all"])).not.toContain(".paperclip-repositories");
+    expect(await git(localRepo, ["status", "--short", "--untracked-files=all"])).not.toContain(".nexus-repositories");
 
     const second = await prepareRemoteManagedRuntime({
       spec,
@@ -965,20 +965,20 @@ describe("ssh env-lab fixture", () => {
     const rootDir = await createFixtureRootDir();
     const statePath = path.join(rootDir, "state.json");
     const localRepo = path.join(rootDir, "local-workspace");
-    const nestedRelative = ".paperclip-repositories/frontend-0123456789ab";
+    const nestedRelative = ".nexus-repositories/frontend-0123456789ab";
     const nestedRepo = path.join(localRepo, nestedRelative);
 
     for (const repo of [localRepo, nestedRepo]) {
       await mkdir(repo, { recursive: true });
       await git(repo, ["init"]);
       await git(repo, ["checkout", "-b", "main"]);
-      await git(repo, ["config", "user.name", "Paperclip Test"]);
+      await git(repo, ["config", "user.name", "Nexus Test"]);
       await git(repo, ["config", "user.email", "test@paperclip.dev"]);
       await writeFile(path.join(repo, "tracked.txt"), "base\n", "utf8");
       await git(repo, ["add", "tracked.txt"]);
       await git(repo, ["commit", "-m", "initial"]);
     }
-    await writeFile(path.join(localRepo, ".git", "info", "exclude"), "\n/.paperclip-repositories/\n", { flag: "a" });
+    await writeFile(path.join(localRepo, ".git", "info", "exclude"), "\n/.nexus-repositories/\n", { flag: "a" });
 
     const started = await startSshEnvLabFixtureOrSkip(statePath, "SSH direct restore with project repositories test");
     if (!started) return;
@@ -999,7 +999,7 @@ describe("ssh env-lab fixture", () => {
       config,
       [
         `cd ${JSON.stringify(path.posix.join(started.workspaceDir, nestedRelative))}`,
-        `git config user.name "Paperclip SSH"`,
+        `git config user.name "Nexus SSH"`,
         `git config user.email "ssh@paperclip.dev"`,
         `printf "remote\\n" > tracked.txt`,
         `git commit -am "remote nested update" >/dev/null`,
@@ -1020,43 +1020,43 @@ describe("ssh env-lab fixture", () => {
     expect(await git(localRepo, ["status", "--short", "--untracked-files=all"])).toBe("");
   }, SSH_FIXTURE_TEST_TIMEOUT_MS * 2);
 
-  it("fails closed when .paperclip-repositories holds something other than a git checkout", async () => {
+  it("fails closed when .nexus-repositories holds something other than a git checkout", async () => {
     const rootDir = await createFixtureRootDir();
     const localRepo = path.join(rootDir, "local-workspace");
-    await mkdir(path.join(localRepo, ".paperclip-repositories", "not-a-repo"), { recursive: true });
+    await mkdir(path.join(localRepo, ".nexus-repositories", "not-a-repo"), { recursive: true });
     await git(localRepo, ["init"]);
     await git(localRepo, ["checkout", "-b", "main"]);
-    await git(localRepo, ["config", "user.name", "Paperclip Test"]);
+    await git(localRepo, ["config", "user.name", "Nexus Test"]);
     await git(localRepo, ["config", "user.email", "test@paperclip.dev"]);
     await writeFile(path.join(localRepo, "tracked.txt"), "base\n", "utf8");
     await git(localRepo, ["add", "tracked.txt"]);
     await git(localRepo, ["commit", "-m", "initial"]);
 
     await expect(prepareWorkspaceForSshExecution({ spec: UNREACHABLE_SSH_SPEC, localDir: localRepo, remoteDir: "/nonexistent" }))
-      .rejects.toThrow("Project repository is not a Git checkout: .paperclip-repositories/not-a-repo");
+      .rejects.toThrow("Project repository is not a Git checkout: .nexus-repositories/not-a-repo");
   }, SSH_FIXTURE_TEST_TIMEOUT_MS);
 
   it("rejects inconsistent project repository restores before any SSH connection", async () => {
     const localDir = await createFixtureRootDir();
-    const repositoryBaseline = { exclude: [".git", ".git/*", ".paperclip-runtime"], entries: new Map() };
+    const repositoryBaseline = { exclude: [".git", ".git/*", ".nexus-runtime"], entries: new Map() };
     const restore = (input: Partial<Parameters<typeof restoreWorkspaceFromSshExecution>[0]>) =>
       restoreWorkspaceFromSshExecution({
         spec: UNREACHABLE_SSH_SPEC,
         localDir,
         remoteDir: "/nonexistent",
-        baselineSnapshot: { exclude: [".git", ".git/*", ".paperclip-runtime", ".paperclip-repositories"], entries: new Map() },
+        baselineSnapshot: { exclude: [".git", ".git/*", ".nexus-runtime", ".nexus-repositories"], entries: new Map() },
         restoreGitHistory: true,
         ...input,
       });
 
     await expect(restore({ repositories: [{ path: "../outside", baselineSnapshot: repositoryBaseline }] }))
       .rejects.toThrow("Invalid project repository path: ../outside");
-    await expect(restore({ repositories: [{ path: ".paperclip-repositories/frontend-0123456789ab" }] }))
-      .rejects.toThrow("Project repository has no workspace baseline: .paperclip-repositories/frontend-0123456789ab");
+    await expect(restore({ repositories: [{ path: ".nexus-repositories/frontend-0123456789ab" }] }))
+      .rejects.toThrow("Project repository has no workspace baseline: .nexus-repositories/frontend-0123456789ab");
     await expect(restore({
-      baselineSnapshot: { exclude: [".git", ".git/*", ".paperclip-runtime"], entries: new Map() },
-      repositories: [{ path: ".paperclip-repositories/frontend-0123456789ab", baselineSnapshot: repositoryBaseline }],
-    })).rejects.toThrow("Workspace baseline must exclude .paperclip-repositories");
+      baselineSnapshot: { exclude: [".git", ".git/*", ".nexus-runtime"], entries: new Map() },
+      repositories: [{ path: ".nexus-repositories/frontend-0123456789ab", baselineSnapshot: repositoryBaseline }],
+    })).rejects.toThrow("Workspace baseline must exclude .nexus-repositories");
   }, SSH_FIXTURE_TEST_TIMEOUT_MS);
 
   it("preserves nested per-run files across sequential SSH restores with stale baselines", async () => {
@@ -1067,7 +1067,7 @@ describe("ssh env-lab fixture", () => {
     await mkdir(localRepo, { recursive: true });
     await git(localRepo, ["init"]);
     await git(localRepo, ["checkout", "-b", "main"]);
-    await git(localRepo, ["config", "user.name", "Paperclip Test"]);
+    await git(localRepo, ["config", "user.name", "Nexus Test"]);
     await git(localRepo, ["config", "user.email", "test@paperclip.dev"]);
     await writeFile(path.join(localRepo, "tracked.txt"), "base\n", "utf8");
     await git(localRepo, ["add", "tracked.txt"]);
@@ -1122,7 +1122,7 @@ describe("ssh env-lab fixture", () => {
     await mkdir(localRepo, { recursive: true });
     await git(localRepo, ["init"]);
     await git(localRepo, ["checkout", "-b", "main"]);
-    await git(localRepo, ["config", "user.name", "Paperclip Test"]);
+    await git(localRepo, ["config", "user.name", "Nexus Test"]);
     await git(localRepo, ["config", "user.email", "test@paperclip.dev"]);
     await writeFile(path.join(localRepo, "tracked.txt"), "base\n", "utf8");
     await git(localRepo, ["add", "tracked.txt"]);
@@ -1145,7 +1145,7 @@ describe("ssh env-lab fixture", () => {
 
     await runSshCommand(
       config,
-      `cd ${JSON.stringify(prepared.workspaceRemoteDir)} && git config user.name "Paperclip SSH" && git config user.email "ssh@paperclip.dev" && printf "committed\\n" > tracked.txt && git add tracked.txt && git commit -m "remote update" >/dev/null && printf "dirty remote\\n" > tracked.txt`,
+      `cd ${JSON.stringify(prepared.workspaceRemoteDir)} && git config user.name "Nexus SSH" && git config user.email "ssh@paperclip.dev" && printf "committed\\n" > tracked.txt && git add tracked.txt && git commit -m "remote update" >/dev/null && printf "dirty remote\\n" > tracked.txt`,
       { timeoutMs: 30_000, maxBuffer: 256 * 1024 },
     );
 
@@ -1167,7 +1167,7 @@ describe("ssh env-lab fixture", () => {
     await mkdir(localRepo, { recursive: true });
     await git(localRepo, ["init"]);
     await git(localRepo, ["checkout", "-b", "main"]);
-    await git(localRepo, ["config", "user.name", "Paperclip Test"]);
+    await git(localRepo, ["config", "user.name", "Nexus Test"]);
     await git(localRepo, ["config", "user.email", "test@paperclip.dev"]);
     await writeFile(path.join(localRepo, "tracked.txt"), "base\n", "utf8");
     await git(localRepo, ["add", "tracked.txt"]);
@@ -1200,7 +1200,7 @@ describe("ssh env-lab fixture", () => {
     // sync-back alone — no `git push`, no fetch from any origin.
     await runSshCommand(
       config,
-      `cd ${JSON.stringify(prepared.workspaceRemoteDir)} && git config user.name "Paperclip SSH" && git config user.email "ssh@paperclip.dev" && printf "deliverable\\n" > tracked.txt && git add tracked.txt && git commit -m "remote-only commit" >/dev/null`,
+      `cd ${JSON.stringify(prepared.workspaceRemoteDir)} && git config user.name "Nexus SSH" && git config user.email "ssh@paperclip.dev" && printf "deliverable\\n" > tracked.txt && git add tracked.txt && git commit -m "remote-only commit" >/dev/null`,
       { timeoutMs: 30_000, maxBuffer: 256 * 1024 },
     );
 
@@ -1224,7 +1224,7 @@ describe("ssh env-lab fixture", () => {
     await mkdir(localRepo, { recursive: true });
     await git(localRepo, ["init"]);
     await git(localRepo, ["checkout", "-b", "main"]);
-    await git(localRepo, ["config", "user.name", "Paperclip Test"]);
+    await git(localRepo, ["config", "user.name", "Nexus Test"]);
     await git(localRepo, ["config", "user.email", "test@paperclip.dev"]);
     await writeFile(path.join(localRepo, "tracked.txt"), "base\n", "utf8");
     await git(localRepo, ["add", "tracked.txt"]);
@@ -1253,12 +1253,12 @@ describe("ssh env-lab fixture", () => {
 
     await runSshCommand(
       config,
-      `cd ${JSON.stringify(preparedA.workspaceRemoteDir)} && git config user.name "Paperclip SSH" && git config user.email "ssh@paperclip.dev" && printf "from run a\\n" > run-a.txt && git add run-a.txt && git commit -m "remote update a" >/dev/null`,
+      `cd ${JSON.stringify(preparedA.workspaceRemoteDir)} && git config user.name "Nexus SSH" && git config user.email "ssh@paperclip.dev" && printf "from run a\\n" > run-a.txt && git add run-a.txt && git commit -m "remote update a" >/dev/null`,
       { timeoutMs: 30_000, maxBuffer: 256 * 1024 },
     );
     await runSshCommand(
       config,
-      `cd ${JSON.stringify(preparedB.workspaceRemoteDir)} && git config user.name "Paperclip SSH" && git config user.email "ssh@paperclip.dev" && printf "from run b\\n" > run-b.txt && git add run-b.txt && git commit -m "remote update b" >/dev/null`,
+      `cd ${JSON.stringify(preparedB.workspaceRemoteDir)} && git config user.name "Nexus SSH" && git config user.email "ssh@paperclip.dev" && printf "from run b\\n" > run-b.txt && git add run-b.txt && git commit -m "remote update b" >/dev/null`,
       { timeoutMs: 30_000, maxBuffer: 256 * 1024 },
     );
 
@@ -1269,7 +1269,7 @@ describe("ssh env-lab fixture", () => {
 
     await expect(readFile(path.join(localRepo, "run-a.txt"), "utf8")).resolves.toBe("from run a\n");
     await expect(readFile(path.join(localRepo, "run-b.txt"), "utf8")).resolves.toBe("from run b\n");
-    expect(await git(localRepo, ["log", "-1", "--pretty=%s"])).toContain("Paperclip SSH sync merge");
+    expect(await git(localRepo, ["log", "-1", "--pretty=%s"])).toContain("Nexus SSH sync merge");
 
     const recentSubjects = await git(localRepo, ["log", "--pretty=%s", "-3"]);
     expect(recentSubjects).toContain("remote update a");

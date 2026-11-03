@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { heartbeatRuns, issues, type Db } from "@paperclipai/db";
+import { heartbeatRuns, issues, type Db } from "@nexusai/db";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "../../__tests__/helpers/full-database-response-capture.js";
 import { eq, sql } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
@@ -21,7 +21,7 @@ describe.skipIf(!runControlPostgresSupport.supported)("native Stop evidence read
     const { company, agent } = await fixture();
     const [issue] = await db.insert(issues).values({ companyId: company.id, title: "Stop evidence fixture" }).returning();
     const id = randomUUID(), bulk = randomBytes(128 * 1024).toString("base64");
-    const receipt = { schema: "paperclip.native-cancellation.v1", runId: id, companyId: company.id, issueId: issue.id,
+    const receipt = { schema: "nexus.native-cancellation.v1", runId: id, companyId: company.id, issueId: issue.id,
       scope: "run", reasonCode: "cancellation_run_only", dispatchState: "acknowledged", dispatched: true,
       intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID(), futureProof: { version: 2 } };
     const result = { nativeCancellation: receipt, cancelledByActorType: "user", cancelledByUserId: randomUUID(),

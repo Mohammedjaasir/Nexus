@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, sql } from "drizzle-orm";
-import { heartbeatRuns, type Db } from "@paperclipai/db";
+import { heartbeatRuns, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "../../../services/delivery-work-coordinator.js";
 import { DELIVERY_QUEUES } from "../../../services/delivery-work-notifications.js";
 import type { LiveRunRecoveryScope } from "../../../services/live-run-recovery-notifications.js";

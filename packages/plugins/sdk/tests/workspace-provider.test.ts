@@ -5,7 +5,7 @@ import {
   type PluginWorkspaceParams,
 } from "../src/workspace-provider.js";
 import { createWorkspaceProviderHarness } from "../src/testing.js";
-import { pluginManifestV1Schema } from "@paperclipai/shared";
+import { pluginManifestV1Schema } from "@nexusai/shared";
 const id = (n: number) =>
   `10000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const params: PluginWorkspaceParams = {

@@ -43,12 +43,12 @@ export function createNativeReconciliationPassTiming(options: { now?: () => numb
       if (passEndedAt - passStartedAt < NATIVE_RECONCILIATION_SLOW_PASS_MS) return;
       if (!process.env.OTEL_EXPORTER_OTLP_ENDPOINT?.trim()) return;
       try {
-        const tracer = trace.getTracer("paperclip.native-reconciliation");
+        const tracer = trace.getTracer("nexus.native-reconciliation");
         const pass = tracer.startSpan("controller.native_reconciliation", {
           startTime: passStartedAt,
           attributes: {
-            "paperclip.native_reconciliation.scoped": details.scoped,
-            ...(candidates === null ? {} : { "paperclip.native_reconciliation.candidates": candidates }),
+            "nexus.native_reconciliation.scoped": details.scoped,
+            ...(candidates === null ? {} : { "nexus.native_reconciliation.candidates": candidates }),
           },
         }, ROOT_CONTEXT);
         const passContext = trace.setSpan(ROOT_CONTEXT, pass);

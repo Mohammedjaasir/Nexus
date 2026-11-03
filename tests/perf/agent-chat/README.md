@@ -10,8 +10,8 @@ Use a disposable loopback instance with Agent Chat enabled. The first seed needs
 its matching PostgreSQL URL, with a database name ending in `_test`:
 
 ```sh
-PAPERCLIP_ISSUE_PERF_BASE_URL=http://127.0.0.1:3221 \
-PAPERCLIP_CHAT_PERF_DATABASE_URL=postgres://paperclip:paperclip@127.0.0.1:55503/fast_chat_preview_test \
+NEXUS_ISSUE_PERF_BASE_URL=http://127.0.0.1:3221 \
+NEXUS_CHAT_PERF_DATABASE_URL=postgres://nexus:nexus@127.0.0.1:55503/fast_chat_preview_test \
   pnpm exec playwright test --config tests/perf/agent-chat/playwright.config.ts
 ```
 
@@ -19,14 +19,14 @@ The recipe enables Streamlined UI and the disposable board user's Coordinator
 preference. It creates isolated fixture records through the API and database;
 never point it at a shared instance. The fixture is retained at
 `test-results/agent-chat/fixture-600.json`. Override
-`PAPERCLIP_CHAT_PERF_SEED_FILE` to reuse an existing matching fixture; retained
+`NEXUS_CHAT_PERF_SEED_FILE` to reuse an existing matching fixture; retained
 fixtures need no database connection for browser journeys.
-`PAPERCLIP_CHAT_PERF_MESSAGES=6000` creates a larger fixture for the same assertions.
+`NEXUS_CHAT_PERF_MESSAGES=6000` creates a larger fixture for the same assertions.
 The rig blocks service workers so fixture responses are intercepted deterministically and build-update reloads cannot change the selected UI artifact. The ordinary local prototype keeps the normal service worker enabled.
 The rig runs the same journeys on desktop and mobile. Use `--project=desktop`
 for the smaller iteration loop, then run both projects before handoff.
 
-`PAPERCLIP_TASK_COLD_OPEN_DATABASE_URL` lets the focused server suite reuse a
+`NEXUS_TASK_COLD_OPEN_DATABASE_URL` lets the focused server suite reuse a
 separate disposable loopback database ending in `_test`; it applies migrations
 and retains randomly scoped fixture records until that database is discarded.
 The normal CI path still uses the embedded PostgreSQL helper.
@@ -49,7 +49,7 @@ already visible conversation.
 Compare the full service against a pinned commit before this optimization:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-questions.ts \
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-chat-questions.ts \
   --baseline-ref=909e29dd07 --unrelated=1000
 ```
 
@@ -58,7 +58,7 @@ and the requested number of unrelated blocked tasks and questions. It alternates
 five baseline/candidate pairs for chat questions and the company badge summary,
 compares all returned fields except contextual rank and the generated timestamp,
 counts SQL calls and captures the actual interaction query plans.
-`PAPERCLIP_CHAT_QUESTIONS_TEST_DATABASE_URL` can reuse a dedicated database ending
-in `_test`. `PAPERCLIP_COORDINATOR_HANDOFF_TEST_DATABASE_URL` provides the same
+`NEXUS_CHAT_QUESTIONS_TEST_DATABASE_URL` can reuse a dedicated database ending
+in `_test`. `NEXUS_COORDINATOR_HANDOFF_TEST_DATABASE_URL` provides the same
 option for the canonical handoff service tests. These paths retain synthetic
 fixtures when an external test database is used.

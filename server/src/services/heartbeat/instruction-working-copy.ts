@@ -1,14 +1,14 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { and, eq, sql } from "drizzle-orm";
-import { heartbeatRuns, type Db } from "@paperclipai/db";
-import { adapterExecutionTargetEnablesSandboxDuplexBridge } from "@paperclipai/adapter-utils/execution-target";
+import { heartbeatRuns, type Db } from "@nexusai/db";
+import { adapterExecutionTargetEnablesSandboxDuplexBridge } from "@nexusai/adapter-utils/execution-target";
 import { parseObject } from "../../adapters/utils.js";
 import { logger } from "../../middleware/logger.js";
 import { AgentDirectoryReuseInvalidatedError, isAgentDirectoryCopy } from "../agent-directory-working-copies.js";
 import { collectStoppedInstructionCopyWithRetries, instructionWorkingCopyGuidance, type agentInstructionWorkingCopyService } from "../agent-instruction-working-copies.js";
 import { claimWarmNativeInstructionCopy, nativeSessionWorkspaceScope, reserveWarmNativeInstructionDirectory } from "../native-runtime/index.js";
-import { parseNativeExecutionInput } from "../../vendor/paperclip-runner/index.js";
+import { parseNativeExecutionInput } from "../../vendor/nexus-runner/index.js";
 import { supportsNativeWarmFiles } from "../native-runtime/native-warm-capability.js";
 import type { HeartbeatRuntimeSelectionInput } from "./runtime-selection.js";
 import type { createHeartbeatLifecycle } from "./run-lifecycle.js";
@@ -195,7 +195,7 @@ export function createHeartbeatInstructionWorkingCopy(input: InstructionWorkingC
           message: "Persistent instruction editing is unavailable. Use an authenticated user with instruction edit access and a managed instruction bundle.",
           payload: { state: "unavailable", code: "INSTRUCTION_COPY_UNAVAILABLE" } });
         const guidance = "No editable agent instruction working copy is registered for this turn. Use authenticated agent file tools for persistent edits; do not edit a private copy named in an earlier turn or claim its changes will persist.";
-        for (const key of ["paperclipTaskMarkdown", "paperclipTaskMarkdownCompact"]) {
+        for (const key of ["nexusTaskMarkdown", "nexusTaskMarkdownCompact"]) {
           context[key] = [readNonEmptyString(context[key]), guidance].filter(Boolean).join("\n\n");
         }
       }
@@ -211,15 +211,15 @@ export function createHeartbeatInstructionWorkingCopy(input: InstructionWorkingC
         }
         runtimeConfig = { ...runtimeConfig, instructionsFilePath: path.join(instructionCopy.localRoot, instructionCopy.entryFile) };
         if (isAgentDirectoryCopy(instructionCopy)) {
-          const workspace = parseObject(context.paperclipWorkspace);
-          context.paperclipWorkspace = { ...workspace, agentHome: instructionCopy.executionRoot,
+          const workspace = parseObject(context.nexusWorkspace);
+          context.nexusWorkspace = { ...workspace, agentHome: instructionCopy.executionRoot,
             // Keep the pre-existing permission root stable for ACP session
             // identity. The per-run copy is already under the company root.
             agentHomeForPermissions: workspace.agentHome,
           };
         }
         const guidance = instructionWorkingCopyGuidance(instructionCopy);
-        for (const key of ["paperclipTaskMarkdown", "paperclipTaskMarkdownCompact"]) {
+        for (const key of ["nexusTaskMarkdown", "nexusTaskMarkdownCompact"]) {
           context[key] = [readNonEmptyString(context[key]), guidance].filter(Boolean).join("\n\n");
         }
       }

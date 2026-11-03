@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { ChatSetupSidebar } from "@/components/chat/ChatSetupNavigation";
 import { ChatSetupSidebarProvider } from "@/context/ChatSetupSidebarContext";
 import { type ChatEndpoint } from "@/api/chatEndpoints";
-import { storybookAgents, storybookAuthSession } from "./paperclipData";
-import { defaultSlackAppConfiguration } from "@paperclipai/shared";
+import { storybookAgents, storybookAuthSession } from "./nexusData";
+import { defaultSlackAppConfiguration } from "@nexusai/shared";
 
 export type SlackSetupScenario = "choose" | "create" | "manual" | "install" | "declined" | "approval_denied" | "uncertain" | "manifest_pending" | "recovery" | "verify" | "avatar_failed" | "welcome_failed" | "success";
 
@@ -36,7 +36,7 @@ export function SlackSetupFixture({ scenario = "create", managed = false, manage
     const installed = () => {
       created(); endpoint.setup!.slackRegistration!.status = "configured";
       linked = true;
-      endpoint.setup!.slackAccount = { externalUserId: "UPERSON", paperclipUserId: storybookAuthSession.user.id, status: "linked", welcomeStatus: scenario === "welcome_failed" ? "failed" : "sent", ...(scenario === "welcome_failed" ? {} : { dmChannelId: "DSTORY" }) };
+      endpoint.setup!.slackAccount = { externalUserId: "UPERSON", nexusUserId: storybookAuthSession.user.id, status: "linked", welcomeStatus: scenario === "welcome_failed" ? "failed" : "sent", ...(scenario === "welcome_failed" ? {} : { dmChannelId: "DSTORY" }) };
       endpoint.status = "verifying"; endpoint.providerAccountId = "TSTORY"; endpoint.botExternalId = "USTORY"; endpoint.botUsername = "maya";
     };
     if (["install", "declined", "approval_denied", "recovery", "manifest_pending"].includes(scenario)) created();
@@ -58,7 +58,7 @@ export function SlackSetupFixture({ scenario = "create", managed = false, manage
       if (path === "/api/companies/company-storybook/chat-slack/setup-options") {
         if (optionsDelayMs) await new Promise(resolve => setTimeout(resolve, optionsDelayMs));
         if (optionsError) return Response.json({ error: "Slack setup unavailable" }, { status: 503 });
-        return Response.json({ managedAvailable: managed && managedAvailable, defaultMethod: managed ? "managed" : "automatic", workspaces: managed && authorized ? Array.from({ length: Math.max(1, workspaceCount) }, (_, i) => ({ grantId: i ? "22222222-2222-4222-8222-222222222222" : grantId, workspaceId: `TSTORY${i}`, workspaceName: i ? "Research workspace" : "Paperclip", userId: "UPERSON" })) : [] });
+        return Response.json({ managedAvailable: managed && managedAvailable, defaultMethod: managed ? "managed" : "automatic", workspaces: managed && authorized ? Array.from({ length: Math.max(1, workspaceCount) }, (_, i) => ({ grantId: i ? "22222222-2222-4222-8222-222222222222" : grantId, workspaceId: `TSTORY${i}`, workspaceName: i ? "Research workspace" : "Nexus", userId: "UPERSON" })) : [] });
       }
       if (path === "/api/chat-endpoints/slack-story/slack/managed/authorize") {
         authorized = true;
@@ -100,7 +100,7 @@ export function SlackSetupFixture({ scenario = "create", managed = false, manage
       }
       if (path === "/api/chat-endpoints/slack-story/principals") return Response.json([{
         id: "slack-person", principalId: "slack-person", externalLabel: "Preview person", externalDetail: "Preview workspace",
-        status: linked ? "linked" : "pending", paperclipUserId: linked ? storybookAuthSession.user.id : null,
+        status: linked ? "linked" : "pending", nexusUserId: linked ? storybookAuthSession.user.id : null,
         lastConnectAt: new Date().toISOString(),
       }]);
       if (path.endsWith("/slack-person/link-intent")) return Response.json({ confirmationUrl: "https://board.example/confirm?token=fixture" });

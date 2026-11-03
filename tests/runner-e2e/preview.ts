@@ -71,7 +71,7 @@ export async function createRunnerReportPreview(options: {
   }
 
   const retainedHistory = await publicJson<RunnerE2EHistoryIndex>("history.json", options.refresh ?? false);
-  if (retainedHistory.schema !== "paperclip.runner-e2e.history/v1") throw new Error("Unsupported public history");
+  if (retainedHistory.schema !== "nexus.runner-e2e.history/v1") throw new Error("Unsupported public history");
   const campaigns = new Set(retainedHistory.campaigns.map((campaign) => campaign.campaignId));
   const localHistory: RunnerE2EHistoryIndex = {
     ...retainedHistory,

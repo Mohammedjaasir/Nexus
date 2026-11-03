@@ -1,7 +1,7 @@
 import { realpath } from "node:fs/promises";
 import { join } from "node:path";
-import { copyBackCodexAuth } from "@paperclipai/adapter-codex-local/server";
-import { environmentTaskCredentialSchema, type PluginEnvironmentTaskCredential } from "@paperclipai/plugin-sdk";
+import { copyBackCodexAuth } from "@nexusai/adapter-codex-local/server";
+import { environmentTaskCredentialSchema, type PluginEnvironmentTaskCredential } from "@nexusai/plugin-sdk";
 import { readLocalAiCredentialFile } from "../local-ai-credential-file.js";
 
 interface PreparedPluginRunnerCredentials {
@@ -20,9 +20,9 @@ export async function preparePluginRunnerCredentials(input: {
   home?: string;
   environment: NodeJS.ProcessEnv;
 }): Promise<PreparedPluginRunnerCredentials> {
-  const github = input.environment.PAPERCLIP_GITHUB_BROKER_TOKEN ? { githubBroker: {
-    url: input.environment.PAPERCLIP_GITHUB_BROKER_URL ?? "",
-    token: input.environment.PAPERCLIP_GITHUB_BROKER_TOKEN,
+  const github = input.environment.NEXUS_GITHUB_BROKER_TOKEN ? { githubBroker: {
+    url: input.environment.NEXUS_GITHUB_BROKER_URL ?? "",
+    token: input.environment.NEXUS_GITHUB_BROKER_TOKEN,
   } } : {};
   if (!input.identity) return github;
   const accountIdentity = input.accountIdentity ?? input.identity;

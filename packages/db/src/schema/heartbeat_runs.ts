@@ -1,4 +1,4 @@
-import { WORKSPACE_RESTORE_FAILURE_CODES } from "@paperclipai/shared";
+import { WORKSPACE_RESTORE_FAILURE_CODES } from "@nexusai/shared";
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
@@ -127,10 +127,10 @@ export const heartbeatRuns = pgTable(
       .where(sql`${table.runtimeMode} = 'native' AND ${table.status} = 'cancelled'
         AND ${table.runnerProfileJson}->'nativeWorkspaceSync'->>'state' = 'prepared'
         AND ${table.resultJson}->'nativeCancellation'->>'dispatchState' = 'acknowledged'
-        AND (${table.resultJson}->'workspaceRestoreRecovery'->>'schema' = 'paperclip.workspace-restore-recovery.v1'
+        AND (${table.resultJson}->'workspaceRestoreRecovery'->>'schema' = 'nexus.workspace-restore-recovery.v1'
           AND ${table.resultJson}->>'workspaceRestoreFailure' IN (${workspaceRestoreFailureCodesSql})) IS NOT TRUE`),
     retainedRecoveryAdoptionIdx: index("heartbeat_runs_retained_recovery_adoption_idx")
-      .on(table.id).where(sql`${table.resultJson}->'workspaceRestoreRecovery'->>'schema' = 'paperclip.workspace-restore-recovery.v1'
+      .on(table.id).where(sql`${table.resultJson}->'workspaceRestoreRecovery'->>'schema' = 'nexus.workspace-restore-recovery.v1'
         and not (coalesce(${table.resultJson}, '{}'::jsonb) ? 'systemRecoveryAdoption')
         and ${table.status} in ('failed', 'interrupted', 'timed_out', 'cancelled', 'succeeded')`),
     scopeBindingCheck: check(
@@ -213,8 +213,8 @@ export const heartbeatRuns = pgTable(
       sql`(${table.contextSnapshot} ->> 'taskKey')`,
       table.createdAt.desc(),
     ),
-    companyCtxPaperclipIssueCreatedIdx: index("heartbeat_runs_company_ctx_paperclip_issue_created_idx")
-      .on(table.companyId, sql`(${table.contextSnapshot} -> 'paperclipIssue' ->> 'id')`, table.createdAt.desc())
+    companyCtxNexusIssueCreatedIdx: index("heartbeat_runs_company_ctx_nexus_issue_created_idx")
+      .on(table.companyId, sql`(${table.contextSnapshot} -> 'nexusIssue' ->> 'id')`, table.createdAt.desc())
       .concurrently(),
     // Match creation provenance precedence, including empty legacy IDs.
     companyOriginIssueIdx: index("heartbeat_runs_company_origin_issue_idx")

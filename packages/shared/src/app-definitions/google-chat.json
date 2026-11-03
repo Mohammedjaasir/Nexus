@@ -18,7 +18,7 @@
   "docsUrl": "https://developers.google.com/workspace/chat/api/reference/mcp",
   "setupPrerequisite": {
     "title": "Google Developer Preview access required",
-    "description": "Google must register both the Workspace email used to authorize Paperclip and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Paperclip customers.",
+    "description": "Google must register both the Workspace email used to authorize Nexus and the Google Cloud project that owns the OAuth client. Registration is limited to those emails and projects; it does not enable unrelated Nexus customers.",
     "steps": [
       "Apply with the Workspace email that will sign in and the Google Cloud project that owns the OAuth client.",
       "Wait for the Google Group notification and then Google's final project-registration email, usually within a couple of days.",
@@ -30,11 +30,11 @@
   "redirectConstraints": "https-or-loopback-http",
   "methods": [
     {
-      "key": "paperclip-read",
-      "label": "Connect with Paperclip",
+      "key": "nexus-read",
+      "label": "Connect with Nexus",
       "transport": "mcp_remote",
       "auth": "oauth",
-      "oauthStrategy": "paperclip_cloud_connector",
+      "oauthStrategy": "nexus_cloud_connector",
       "connectorProfile": "chat.read",
       "capabilityProfile": {
         "key": "read",
@@ -48,7 +48,7 @@
       "ownershipModes": [
         "platform_shared"
       ],
-      "whenToUse": "Use Paperclip-managed OAuth for read-only Chat access.",
+      "whenToUse": "Use Nexus-managed OAuth for read-only Chat access.",
       "defaults": {
         "serverUrl": "https://chatmcp.googleapis.com/mcp/v1",
         "scopesHint": [
@@ -94,7 +94,7 @@
           "prompt": "consent"
         }
       },
-      "guidanceMd": "Enable the Chat and Chat MCP APIs, configure a Chat app, then register Paperclip's callback URI. Read/unread filtering and membership listing are not supported.",
+      "guidanceMd": "Enable the Chat and Chat MCP APIs, configure a Chat app, then register Nexus's callback URI. Read/unread filtering and membership listing are not supported.",
       "consoleLinks": {
         "register": "https://console.cloud.google.com/auth/clients",
         "docs": "https://developers.google.com/workspace/guides/configure-mcp-servers"
@@ -106,11 +106,11 @@
       "riskTier": "S3"
     },
     {
-      "key": "paperclip-write",
-      "label": "Connect with Paperclip",
+      "key": "nexus-write",
+      "label": "Connect with Nexus",
       "transport": "mcp_remote",
       "auth": "oauth",
-      "oauthStrategy": "paperclip_cloud_connector",
+      "oauthStrategy": "nexus_cloud_connector",
       "connectorProfile": "chat.write",
       "capabilityProfile": {
         "key": "write",
@@ -124,7 +124,7 @@
       "ownershipModes": [
         "platform_shared"
       ],
-      "whenToUse": "Use Paperclip-managed OAuth to read Chat and send messages.",
+      "whenToUse": "Use Nexus-managed OAuth to read Chat and send messages.",
       "defaults": {
         "serverUrl": "https://chatmcp.googleapis.com/mcp/v1",
         "scopesHint": [
@@ -173,7 +173,7 @@
           "prompt": "consent"
         }
       },
-      "guidanceMd": "Enable the Chat and Chat MCP APIs, configure a Chat app, then register Paperclip's callback URI. Read/unread filtering and membership listing are not supported.",
+      "guidanceMd": "Enable the Chat and Chat MCP APIs, configure a Chat app, then register Nexus's callback URI. Read/unread filtering and membership listing are not supported.",
       "consoleLinks": {
         "register": "https://console.cloud.google.com/auth/clients",
         "docs": "https://developers.google.com/workspace/guides/configure-mcp-servers"

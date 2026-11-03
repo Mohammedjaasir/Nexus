@@ -1,4 +1,4 @@
-import { MUSE_ASSET_VERSION, MUSE_CLIENT_VERSION, type MuseBinding, type MuseConnection, type MusePairing, type MuseStopBoundary } from "@paperclipai/shared";
+import { MUSE_ASSET_VERSION, MUSE_CLIENT_VERSION, type MuseBinding, type MuseConnection, type MusePairing, type MuseStopBoundary } from "@nexusai/shared";
 
 /** Public, nonsecret fixture values only; the .example origin cannot connect a real Muse. */
 export const museBinding: MuseBinding = {
@@ -13,7 +13,7 @@ export const museBinding: MuseBinding = {
   stop: { status: "none", nativeEffectsUnknown: false, boundary: null, bindingRevision: null },
 };
 export const museConnection: MuseConnection = {
-  enabled: true, publicOrigin: "https://paperclip.example", agentStatus: "idle", agentLifecycleState: "verifying",
+  enabled: true, publicOrigin: "https://nexus.example", agentStatus: "idle", agentLifecycleState: "verifying",
   canConfigureConnection: true, binding: museBinding, usage: null, cost: null,
 };
 export const musePairing: MusePairing = {

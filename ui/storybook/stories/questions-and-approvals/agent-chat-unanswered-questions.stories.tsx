@@ -4,7 +4,7 @@ import { QuestionChat, question } from "../../fixtures/unansweredQuestionChat";
 
 const meta = { id: "chat-comments-agent-chat-unanswered-questions",
   title: "Tasks and conversations/Questions and approvals/Chat & Comments/Agent Chat Unanswered Questions", parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "questions-and-approvals/dismiss-and-reopen",
         "agent-chat/history"
@@ -14,9 +14,9 @@ const meta = { id: "chat-comments-agent-chat-unanswered-questions",
     },
   }, component: QuestionChat,
   beforeEach: () => {
-    localStorage.removeItem(`paperclip:task-question-dismissals:user-board:${question.issueId}`);
+    localStorage.removeItem(`nexus:task-question-dismissals:user-board:${question.issueId}`);
     for (const key of Object.keys(localStorage)) {
-      if (key.includes(`paperclip:task-input:${question.issueId}:`)) localStorage.removeItem(key);
+      if (key.includes(`nexus:task-input:${question.issueId}:`)) localStorage.removeItem(key);
     }
   },
 } satisfies Meta<typeof QuestionChat>;

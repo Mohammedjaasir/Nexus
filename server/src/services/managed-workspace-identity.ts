@@ -13,8 +13,8 @@
 
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
-import { authUsers, companyMemberships, type Db } from "@paperclipai/db";
-import type { WorkspaceReadiness, WorkspaceReadinessProbeResult } from "@paperclipai/shared";
+import { authUsers, companyMemberships, type Db } from "@nexusai/db";
+import type { WorkspaceReadiness, WorkspaceReadinessProbeResult } from "@nexusai/shared";
 import {
   deriveWorkspaceHandoffKey,
   deriveWorkspaceReadinessToken,
@@ -53,10 +53,10 @@ export type ManagedWorkspaceIdentity = {
 /**
  * Resolve the isolated instance id a worktree actually runs as.
  *
- * The worktree's `.paperclip/.env` pointer is authoritative because it is what
+ * The worktree's `.nexus/.env` pointer is authoritative because it is what
  * the guest process itself loads. The path-derived id is only a fallback for a
  * worktree provisioned before the pointer existed, and the two agree by
- * construction for anything Paperclip provisioned.
+ * construction for anything Nexus provisioned.
  */
 export function resolveManagedWorkspaceInstanceId(workspaceCwd: string): string | null {
   const recorded = readWorktreeInstanceId(workspaceCwd);
@@ -302,7 +302,7 @@ export type WorkspaceReadinessGateMode = "auto" | "strict";
 export function resolveWorkspaceReadinessGateMode(
   env: NodeJS.ProcessEnv = process.env,
 ): WorkspaceReadinessGateMode {
-  return env.PAPERCLIP_WORKSPACE_READINESS_GATE?.trim().toLowerCase() === "strict" ? "strict" : "auto";
+  return env.NEXUS_WORKSPACE_READINESS_GATE?.trim().toLowerCase() === "strict" ? "strict" : "auto";
 }
 
 /**

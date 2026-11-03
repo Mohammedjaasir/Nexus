@@ -1,6 +1,6 @@
-import type { AdapterEnvironmentCheck } from "@paperclipai/adapter-utils";
-import { maybeRunSandboxInstallCommand, type AdapterSandboxInstallCommandCheck } from "@paperclipai/adapter-utils/execution-target";
-import { shellQuote } from "@paperclipai/adapter-utils/ssh";
+import type { AdapterEnvironmentCheck } from "@nexusai/adapter-utils";
+import { maybeRunSandboxInstallCommand, type AdapterSandboxInstallCommandCheck } from "@nexusai/adapter-utils/execution-target";
+import { shellQuote } from "@nexusai/adapter-utils/ssh";
 import path from "node:path";
 import { claudeCliVersionAtLeast, readClaudeCommandVersion } from "./cli-capabilities.js";
 
@@ -26,7 +26,7 @@ export async function prepareCompatibleClaudeCommand(
     input.command !== "claude" || !/^\d+\.\d+\.\d+$/.test(input.minimumVersion)
   ) return original;
 
-  const prefix = path.posix.join(input.target.remoteCwd, ".paperclip-runtime", "claude-cli", input.minimumVersion);
+  const prefix = path.posix.join(input.target.remoteCwd, ".nexus-runtime", "claude-cli", input.minimumVersion);
   const command = path.posix.join(prefix, "bin", "claude");
   const existing = await readClaudeCommandVersion({ ...input, command });
   if (existing && claudeCliVersionAtLeast(existing, input.minimumVersion)) return { command, version: existing };
@@ -45,17 +45,17 @@ export async function prepareCompatibleClaudeCommand(
   });
   if (installation?.level !== "info") return { ...original, check: {
     code: "claude_runtime_preparation_failed", level: "warn",
-    message: "Paperclip could not install a compatible Claude runtime.",
+    message: "Nexus could not install a compatible Claude runtime.",
     detail: installationFailureDetail(installation),
   } };
   const version = await readClaudeCommandVersion({ ...input, command });
   if (!version || !claudeCliVersionAtLeast(version, input.minimumVersion)) return { ...original, check: {
     code: "claude_runtime_preparation_failed", level: "warn",
-    message: "Paperclip installed the Claude runtime but could not verify a compatible version.",
+    message: "Nexus installed the Claude runtime but could not verify a compatible version.",
     detail: version ? `The prepared runtime reported Claude Code ${version}.` : "The prepared runtime did not report its version.",
   } };
   return { command, version, check: {
     code: "claude_runtime_prepared", level: "info",
-    message: `Paperclip prepared Claude Code ${version} for the selected model.`,
+    message: `Nexus prepared Claude Code ${version} for the selected model.`,
   } };
 }

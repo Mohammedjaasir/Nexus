@@ -42,7 +42,7 @@ export function validateAgentTaskState(context: JourneyContext, issueId: string,
     const provider = run.runnerProfileJson?.nativeExecutionInput?.provider;
     const boundIssueId = run.issueId ?? run.nativeIssueId ?? run.contextSnapshot?.issueId ?? run.contextSnapshot?.taskId;
     if (run.companyId !== context.company.id || run.agentId !== agent.id || boundIssueId !== issueId) throw new JourneyError("failed", "agent_run_binding_mismatch");
-    if (!active(run) && (run.runtimeMode !== "native" || run.contextSnapshot?.paperclipEnvironment?.id !== context.environmentId
+    if (!active(run) && (run.runtimeMode !== "native" || run.contextSnapshot?.nexusEnvironment?.id !== context.environmentId
       || provider?.kind !== agent.provider || provider?.model !== agent.model)) throw new JourneyError("failed", "agent_run_binding_mismatch");
     if (!["queued", "running", "succeeded"].includes(run.status) && !(run.status === "cancelled" && allowedCancelled.includes(run.id))) throw new JourneyError("failed", "agent_run_failed");
   }

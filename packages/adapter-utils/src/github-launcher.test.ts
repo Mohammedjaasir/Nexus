@@ -13,7 +13,7 @@ afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) awai
 describe("managed GitHub launchers", () => {
 
   it("uses a private interpreter without selecting Node from PATH", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-interpreter-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "nexus-github-interpreter-"));
     cleanups.push(() => rm(root, { recursive: true, force: true }));
     const managed = path.join(root, "managed"), real = path.join(root, "real");
     await mkdir(managed); await mkdir(real);
@@ -37,7 +37,7 @@ describe("managed GitHub launchers", () => {
     },
   );
   it.each([false, true])("rejects a PATH shim that re-enters the same helper before it can recurse (broker file: %s)", async brokerFile => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-recursion-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "nexus-github-recursion-"));
     cleanups.push(() => rm(root, { recursive: true, force: true }));
     const managed = path.join(root, "managed"), shim = path.join(root, "shim"), calls = path.join(root, "calls");
     await mkdir(managed); await mkdir(shim);
@@ -60,7 +60,7 @@ process.exit(result.status ?? 98);
   });
 
   it("snapshots a staged tree and reports unstaged files without capturing GitHub credentials", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-snapshot-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "nexus-github-snapshot-"));
     cleanups.push(() => rm(root, { recursive: true, force: true }));
     const bin = path.join(root, "managed"), repo = path.join(root, "repo");
     await mkdir(bin); await mkdir(repo);
@@ -89,7 +89,7 @@ process.exit(result.status ?? 98);
   });
 
   it.each(["missing", "absent", "unavailable", "rejected"])("commits local work without an identity when GitHub access is %s", async (access) => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-default-author-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "nexus-github-default-author-"));
     cleanups.push(() => rm(root, { recursive: true, force: true }));
     const bin = path.join(root, "managed");
     await mkdir(bin);
@@ -114,13 +114,13 @@ process.exit(result.status ?? 98);
     await exec(path.join(bin, "git"), ["add", "work.txt"], { cwd: root, env });
     await exec(path.join(bin, "git"), ["commit", "-m", "Save local work"], { cwd: root, env });
     expect((await exec("git", ["-C", root, "log", "-1", "--format=%an <%ae>|%cn <%ce>"])).stdout.trim())
-      .toBe("Paperclip <noreply@paperclip.ing>|Paperclip <noreply@paperclip.ing>");
+      .toBe("Nexus <noreply@paperclip.ing>|Nexus <noreply@paperclip.ing>");
     expect((await exec("git", ["-C", root, "show", "HEAD:work.txt"])).stdout).toBe("saved work\n");
     await expect(exec("git", ["-C", root, "config", "--local", "--get", "user.name"])).rejects.toThrow();
     await expect(exec("git", ["-C", root, "config", "--local", "--get", "user.email"])).rejects.toThrow();
   });
   it.each(["repository", "command"])("uses explicit %s identity for local commits without managed credentials", async (identitySource) => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-local-identity-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "nexus-github-local-identity-"));
     cleanups.push(() => rm(root, { recursive: true, force: true }));
     const bin = path.join(root, "managed");
     await mkdir(bin);
@@ -130,8 +130,8 @@ process.exit(result.status ?? 98);
       GH_TOKEN: "host-token", GIT_AUTHOR_NAME: "Host", GIT_COMMITTER_NAME: "Host",
     }, { url: "", token: "" }), PATH: `${bin}:${process.env.PATH}` };
     const git = async (...args: string[]) => (await exec(path.join(bin, "git"), args, { cwd: root, env })).stdout.trim();
-    expect(await git("var", "GIT_AUTHOR_IDENT")).toMatch(/^Paperclip <noreply@paperclip.ing>/);
-    expect(await git("var", "GIT_COMMITTER_IDENT")).toMatch(/^Paperclip <noreply@paperclip.ing>/);
+    expect(await git("var", "GIT_AUTHOR_IDENT")).toMatch(/^Nexus <noreply@paperclip.ing>/);
+    expect(await git("var", "GIT_COMMITTER_IDENT")).toMatch(/^Nexus <noreply@paperclip.ing>/);
     if (identitySource === "repository") {
       await git("config", "user.name", "Local Author");
       await git("config", "user.email", "local@example.test");
@@ -143,7 +143,7 @@ process.exit(result.status ?? 98);
   });
 
   it.each(["broker-offline", "config-unwritable", "capability-rejected"])("keeps real local Git usable when %s", async (failure) => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-failure-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "nexus-github-failure-"));
     cleanups.push(() => rm(root, { recursive: true, force: true }));
     const bin = path.join(root, "managed");
     await mkdir(bin);
@@ -171,7 +171,7 @@ process.exit(result.status ?? 98);
   }, 15_000); // broker-offline retries the transport twice per command before it falls back
 
   it("explains unavailable access while allowing local work without credentials", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-diagnostic-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "nexus-github-diagnostic-"));
     cleanups.push(() => rm(root, {recursive:true,force:true}));
     const bin = path.join(root,"managed"), realBin = path.join(root,"real");
     await mkdir(bin); await mkdir(realBin);
@@ -190,7 +190,7 @@ process.exit(result.status ?? 98);
     expect(result.stderr).not.toMatch(/host-token|must-not-be-used|run-capability/);
   });
   it.each(["before-write", "partial-write"])("keeps Git and managed credentials available after a %s failure", async (failure) => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-default-write-failure-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "nexus-github-default-write-failure-"));
     cleanups.push(() => rm(root, { recursive: true, force: true }));
     const bin = path.join(root, "managed"), realBin = path.join(root, "real");
     await mkdir(bin); await mkdir(realBin);
@@ -234,7 +234,7 @@ fs.writeFileSync = (file, ...args) => {
       res.writeHead(200, {"content-type":"application/json"}); res.write('{"status":'); setTimeout(() => res.socket?.destroy(), 20);
     }],
   ])("retries when the %s and still uses managed credentials", async (_label, fail) => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-retry-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "nexus-github-retry-"));
     cleanups.push(() => rm(root, {recursive:true,force:true}));
     const bin = path.join(root,"managed"), realBin = path.join(root,"real");
     await mkdir(bin); await mkdir(realBin);
@@ -257,7 +257,7 @@ fs.writeFileSync = (file, ...args) => {
     expect(result.stderr).not.toMatch(/host-token|run-capability/);
   });
   it("captures each command's identity and clears host credentials when the next person has none", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-launcher-test-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "nexus-github-launcher-test-"));
     cleanups.push(() => rm(root, { recursive: true, force: true }));
     const bin = path.join(root, "managed"), realBin = path.join(root, "real"), repo = path.join(root, "repo");
     for (const dir of [bin, realBin, repo, path.join(bin, "gh-config")]) await mkdir(dir, { recursive: true });
@@ -324,13 +324,13 @@ process.stdout.write(JSON.stringify({identity, token:process.env.GH_TOKEN ?? nul
     await git("config", "--unset", "user.email");
     await git("commit", "--allow-empty", "-m", "Default identity after revocation");
     expect(await git("log", "-1", "--format=%an <%ae>|%cn <%ce>"))
-      .toBe("Paperclip <noreply@paperclip.ing>|Paperclip <noreply@paperclip.ing>");
+      .toBe("Nexus <noreply@paperclip.ing>|Nexus <noreply@paperclip.ing>");
     expect(await git("status", "--porcelain")).toBe(""); // unrelated public/local Git still works
     expect(env.GH_TOKEN).toBe("");
     expect(env.GIT_AUTHOR_NAME).toBe("");
   });
   it("keeps local Git commands off the broker and still asks for the rest", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-local-skip-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "nexus-github-local-skip-"));
     cleanups.push(() => rm(root, { recursive: true, force: true }));
     const bin = path.join(root, "managed");
     await mkdir(bin);
@@ -378,7 +378,7 @@ process.stdout.write(JSON.stringify({identity, token:process.env.GH_TOKEN ?? nul
 });
 
 it("captures the current task broker file once per invocation and never falls back to inherited authority", async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-task-github-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "nexus-task-github-"));
   cleanups.push(() => rm(root, { recursive: true, force: true }));
   const bin = path.join(root, "managed"), real = path.join(root, "real");
   await mkdir(bin); await mkdir(real);
@@ -394,7 +394,7 @@ it("captures the current task broker file once per invocation and never falls ba
   cleanups.push(() => new Promise<void>(resolve => server.close(() => resolve())));
   const url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   const env = { ...process.env, PATH: `${bin}:${real}:${process.env.PATH}`, GH_TOKEN: "ambient-secret",
-    PAPERCLIP_GITHUB_BROKER_URL: url, PAPERCLIP_GITHUB_BROKER_TOKEN: "stale-capability", PAPERCLIP_API_KEY: "unrelated-api-key" };
+    NEXUS_GITHUB_BROKER_URL: url, NEXUS_GITHUB_BROKER_TOKEN: "stale-capability", NEXUS_API_KEY: "unrelated-api-key" };
   const run = () => exec(path.join(bin, "gh"), [], { env });
   for (const token of ["first-run", "next-run"]) {
     await writeFile(path.join(bin, "broker.json"), JSON.stringify({ url, token }));

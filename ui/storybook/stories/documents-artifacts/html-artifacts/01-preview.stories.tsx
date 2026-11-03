@@ -16,7 +16,7 @@ const meta = {
   component: Preview,
   args: { html: reportHtml, title: "repository-usage.html", width: 800 },
   parameters: { layout: "fullscreen", docs: { description: { component: "Production attachment viewer. Inline CSS and JavaScript run in an opaque-origin sandbox. Remote dependencies and API requests are blocked. The original file is available through Download or Raw." }, story: { inline: false } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "documents-artifacts/attachments",
         "workspaces/files-git"

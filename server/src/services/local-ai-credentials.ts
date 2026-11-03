@@ -1,12 +1,12 @@
 import { readLocalAiCredentialFile } from "./local-ai-credential-file.js";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { readIsolatedClaudeKeychainToken } from "@paperclipai/adapter-claude-local/server";
-import { readCodexAuthInfo, fetchCodexQuota } from "@paperclipai/adapter-codex-local/server";
-import { parseGrokAuthPayload, hasUsableGrokAuthValue } from "@paperclipai/adapter-grok-local/server";
-import type { AiProvider } from "@paperclipai/shared";
+import { readIsolatedClaudeKeychainToken } from "@nexusai/adapter-claude-local/server";
+import { readCodexAuthInfo, fetchCodexQuota } from "@nexusai/adapter-codex-local/server";
+import { parseGrokAuthPayload, hasUsableGrokAuthValue } from "@nexusai/adapter-grok-local/server";
+import type { AiProvider } from "@nexusai/shared";
 import { unprocessable } from "../errors.js";
-import { verifyAntigravityCredential } from "../vendor/paperclip-runner/index.js";
+import { verifyAntigravityCredential } from "../vendor/nexus-runner/index.js";
 
 export async function readVerifiedLocalAiCredentialDetails(provider: AiProvider, loginHome: string) {
   if (provider === "google") {

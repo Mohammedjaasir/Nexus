@@ -1,4 +1,4 @@
-import { getActiveStepContext, runWithRuntimeParent } from "@paperclipai/adapter-utils/acpx-engine/startup-timing";
+import { getActiveStepContext, runWithRuntimeParent } from "@nexusai/adapter-utils/acpx-engine/startup-timing";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createRunPreparationTiming, measureRunPhase, recordRepositoryObjectCacheDetail, withRunExecutionTiming, withRunWorkspaceFinalizationTiming, withRunResponsePresentationTiming } from "./execution-preparation-timing.js";
 import { ROOT_CONTEXT, trace, SpanStatusCode, type Context } from "@opentelemetry/api";
@@ -87,14 +87,14 @@ it.each([
   })));
   for (const runId of ["first", "second"]) {
     const hash = createHash("sha256").update(runId).digest("hex").slice(0, 12);
-    const owned = spans.filter(span => span.attributes["paperclip.task.run.run_id"] === hash);
+    const owned = spans.filter(span => span.attributes["nexus.task.run.run_id"] === hash);
     expect(owned).toHaveLength(2);
     const root = owned.find(span => span.name === rootName)!;
     const child = owned.find(span => span.name === phase)!;
     expect(root.context).toBe(ROOT_CONTEXT);
     expect(trace.getSpan(child.context)).toBe(root.span);
     expect(root.span.end).toHaveBeenCalledOnce();
-    expect(Object.keys(root.attributes)).toEqual(["paperclip.task.run.run_id"]);
+    expect(Object.keys(root.attributes)).toEqual(["nexus.task.run.run_id"]);
   }
   const original = new Error("private finalization failure");
   const work = vi.fn(() => { throw original; });
@@ -126,13 +126,13 @@ it("keeps cache outcomes and clone references on their owning concurrent phases"
     })),
   ]);
   expect(spans.find(span => span.name === "workspace.checkout.cache_lookup")?.attributes).toMatchObject({
-    "paperclip.execution.repositoryCache.outcome": "hit",
+    "nexus.execution.repositoryCache.outcome": "hit",
   });
   expect(spans.find(span => span.name === "workspace.checkout.git_clone")?.attributes).toMatchObject({
-    "paperclip.execution.repositoryCache.reference_supplied": false,
+    "nexus.execution.repositoryCache.reference_supplied": false,
   });
   expect(spans.filter(span => span.name === "task.execution_attempt").every(span =>
-    Object.keys(span.attributes).every(key => key === "paperclip.task.run.run_id"))).toBe(true);
+    Object.keys(span.attributes).every(key => key === "nexus.task.run.run_id"))).toBe(true);
 });
 
 it("does not let cache attribute failures replace the operation result", async () => {

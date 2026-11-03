@@ -13,7 +13,7 @@ import { useDialogActions } from "@/context/DialogContext";
 import { useTaskListCollection } from "@/hooks/useTaskListCollection";
 import { TruncatedTextMarqueeProvider } from "@/components/TruncatedText";
 import { taskListViewStorageKey } from "@/lib/task-list-views";
-import { storybookAgents, storybookIssueLabels, storybookProjects } from "../../fixtures/paperclipData";
+import { storybookAgents, storybookIssueLabels, storybookProjects } from "../../fixtures/nexusData";
 import { DesignProposalAccess } from "./DesignProposalAccess";
 import { initialItems, recentTasks } from "./task-page-data";
 
@@ -31,11 +31,11 @@ function TrialContent() {
       items, companyId: selectedCompanyId, userId, viewStorageKey: viewKey,
     });
   const emptyState = companyItems.length === 0
-    ? <EmptyState icon={ListChecks} message="No tasks in this organization" description="This preview has task fixtures for Paperclip Storybook." />
+    ? <EmptyState icon={ListChecks} message="No tasks in this organization" description="This preview has task fixtures for Nexus Storybook." />
     : <EmptyState icon={SearchX} message="No tasks match this view" description="Try another search or clear your filters." action="Clear filters" hideActionIcon onAction={clear} />;
 
   return <TruncatedTextMarqueeProvider>
-    <DesignPageShell title="Tasks" sidebarStorageKey="paperclip.design-agent-task-list-trial.sidebar-width"
+    <DesignPageShell title="Tasks" sidebarStorageKey="nexus.design-agent-task-list-trial.sidebar-width"
       sidebar={<DesignSidebar recentTasks={recentTasks.map(item => item.issue)} onNewTask={() => openNewIssue()} />}>
       <TaskListToolbar view={view} onViewChange={setView}
         query={query} onQueryChange={setQuery} layout={layout} onLayoutChange={setLayout}

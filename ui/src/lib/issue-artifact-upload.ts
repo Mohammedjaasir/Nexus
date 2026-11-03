@@ -1,4 +1,4 @@
-import { isArtifactReviewDocumentKey, isSystemIssueDocumentKey } from "@paperclipai/shared";
+import { isArtifactReviewDocumentKey, isSystemIssueDocumentKey } from "@nexusai/shared";
 
 /** Uploaded filenames must never select a hidden or internal document key. */
 export function uploadedDocumentKey(filename: string, existingKeys: Iterable<string>): string {

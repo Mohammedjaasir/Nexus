@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { and, eq } from "drizzle-orm";
-import { isUuidLike } from "@paperclipai/shared";
+import { isUuidLike } from "@nexusai/shared";
 import {
   agents,
   heartbeatRuns,
@@ -8,7 +8,7 @@ import {
   projects,
   runIdentityContexts,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { forbidden } from "../errors.js";
 import { captureRunIdentity, type RunIdentityContext } from "./run-identity.js";
 import {

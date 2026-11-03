@@ -32,7 +32,7 @@ Write `.agents/skills/verify-<app>/SKILL.md` with YAML frontmatter (`name: verif
 
 ## 3. Seed the feature map
 
-For Paperclip, read the [map contract](../../../maps/README.md) and use the sibling
+For Nexus, read the [map contract](../../../maps/README.md) and use the sibling
 `maps/feature-map/` and `maps/agent-access-map/` directories. The generated
 verification skill consumes both maps and reports drift; maintenance owns their
 updates. Reuse existing feature files and preserve Poteto's product format. Every
@@ -40,11 +40,11 @@ new feature file needs a same-named agent access companion with matching stable
 sub-feature IDs. Record APIs, actual agent entry points, policy, evidence and gaps
 using the contract. Mark representative source inventory as `baseline` /
 `source-only`; enumerate operations before claiming full access coverage. Reuse
-Paperclip's APIs, admitted tools and existing verification infrastructure. Run
+Nexus's APIs, admitted tools and existing verification infrastructure. Run
 `node scripts/check-maps.mjs` after map changes. Do not create maps inside a skill
 directory or generate a second runtime.
 
-For Paperclip, add navigation metadata to each feature recipe as described in the
+For Nexus, add navigation metadata to each feature recipe as described in the
 map contract. Discovery generates the indexes; do not register new features in a
 central table or commit generated catalogs. Keep review/run evidence in the PR
 or evidence report and use Git for source history.

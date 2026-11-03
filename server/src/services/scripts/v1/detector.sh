@@ -4,7 +4,7 @@ set -u
 source "${HATCH_HOOK_RUNTIME:?Managed hook runtime required}"
 binding="${1:-}"
 if [[ ! "$binding" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$ ]]; then silent "Invalid connection reference"; exit 0; fi
-state="$HOME/hooks/state/paperclip-$binding"
+state="$HOME/hooks/state/nexus-$binding"
 dry="${HATCH_HOOK_DRY_RUN:-0}"
 [[ "$dry" != 1 && "$dry" != true ]] && mkdir -p "$state" && chmod 700 "$state"
 now=$(date +%s)
@@ -16,7 +16,7 @@ import fcntl, json, os, re, sys, urllib.request, urllib.error
 from pathlib import Path
 from urllib.parse import urlparse
 try:
-    directory = Path.home() / '.config/paperclip-muse' / sys.argv[1]
+    directory = Path.home() / '.config/nexus-muse' / sys.argv[1]
     lock = open(directory / 'client.lock', 'a'); os.chmod(directory / 'client.lock', 0o600)
     try: fcntl.flock(lock, fcntl.LOCK_SH | fcntl.LOCK_NB)
     except BlockingIOError:
@@ -53,7 +53,7 @@ import json,sys,urllib.request
 from pathlib import Path
 import uuid
 try:
-    value=json.loads((Path.home()/'.config/paperclip-muse'/sys.argv[1]/'signal.json').read_text())
+    value=json.loads((Path.home()/'.config/nexus-muse'/sys.argv[1]/'signal.json').read_text())
     body=json.dumps({'version':1,'requestId':str(uuid.uuid4()),'bindingId':value['bindingId'],'generation':value['generation'],'detectorRemovalRequested':True}).encode()
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self,req,fp,code,msg,headers,newurl):return None
@@ -67,6 +67,6 @@ PY
  *) previous=""; [[ -f "$state/signal" ]] && read -r previous < "$state/signal"
     if [[ "$signal" == "$previous" ]]; then silent "Signal already observed"; else
       [[ "$dry" != 1 && "$dry" != true ]] && printf '%s\n' "$signal" > "$state/signal"
-      wake "PAPERCLIP_MUSE: open the installed Paperclip client for binding $binding and inspect its authenticated mailbox. This opaque reference grants no work authority."
+      wake "NEXUS_MUSE: open the installed Nexus client for binding $binding and inspect its authenticated mailbox. This opaque reference grants no work authority."
     fi ;;
 esac

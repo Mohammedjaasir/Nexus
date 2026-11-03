@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Db } from "@paperclipai/db";
-import { activityLog, agentWakeupRequests, agents, companies, createDb, heartbeatRuns, issueComments, issues } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { activityLog, agentWakeupRequests, agents, companies, createDb, heartbeatRuns, issueComments, issues } from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -20,7 +20,7 @@ import { QueuedCommentMutationError } from "../application/queued-comment-use-ca
 // leaving a partial write. The decision branching itself is proven against
 // plain facts in `domain/policy.test.ts`; the use-case orchestration is
 // proven against a mocked port in `application/queued-comment-use-cases.test.ts`.
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_QUEUED_COMMENT_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_QUEUED_COMMENT_TEST_DATABASE_URL");
 const embeddedPostgresSupport = external ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -41,7 +41,7 @@ describeEmbeddedPostgres("queued-comment postgres adapter", () => {
   };
 
   beforeAll(async () => {
-    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-queued-comment-postgres-adapter-");
+    if (!external) tempDb = await startEmbeddedPostgresTestDatabase("nexus-queued-comment-postgres-adapter-");
     db = createDb(external ?? tempDb!.connectionString);
   }, 20_000);
 
@@ -66,7 +66,7 @@ describeEmbeddedPostgres("queued-comment postgres adapter", () => {
     const companyId = randomUUID();
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
       defaultResponsibleUserId: "responsible-user",
@@ -132,7 +132,7 @@ describeEmbeddedPostgres("queued-comment postgres adapter", () => {
       requestedByActorType: "user",
       payload: {
         issueId: input.issueId,
-        _paperclipWakeContext: { wakeCommentIds: input.commentIds },
+        _nexusWakeContext: { wakeCommentIds: input.commentIds },
       },
     });
     return id;
@@ -306,9 +306,9 @@ describeEmbeddedPostgres("queued-comment postgres adapter", () => {
   // port type allows it (`runtimeMode: string | null`), so this test builds
   // the fact directly instead of through a database row, to keep this
   // branch of the shared steering rule under a regression test.
-  it("answers the steering question for a deferred paperclip_runner queue whose active run has no persisted runtime mode yet", async () => {
+  it("answers the steering question for a deferred nexus_runner queue whose active run has no persisted runtime mode yet", async () => {
     const companyId = await seedCompany();
-    const agentId = await seedAgent({ companyId, adapterType: "paperclip_runner" });
+    const agentId = await seedAgent({ companyId, adapterType: "nexus_runner" });
     const issueId = await seedIssue({ companyId, assigneeAgentId: agentId });
     const commentId = await seedComment({ companyId, issueId, authorUserId: "user-1" });
     const wakeId = await seedDeferredWake({ companyId, agentId, issueId, commentIds: [commentId] });
@@ -333,7 +333,7 @@ describeEmbeddedPostgres("queued-comment postgres adapter", () => {
       },
     );
 
-    expect(queue.protocol).toBe("paperclip_runner_v1");
+    expect(queue.protocol).toBe("nexus_runner_v1");
     expect(queue.steeringDisposition).toBe("temporarily_unavailable");
   });
 });

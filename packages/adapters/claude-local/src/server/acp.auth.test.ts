@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { AdapterExecutionResult } from "@paperclipai/adapter-utils";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
+import type { AdapterExecutionResult } from "@nexusai/adapter-utils";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
 
 // A shared handle so each test can set the stub Claude hello-probe output the
 // sandbox runner returns.
@@ -32,9 +32,9 @@ const { runAdapterExecutionTargetProcess, probeResult } = vi.hoisted(() => {
   };
 });
 
-vi.mock("@paperclipai/adapter-utils/execution-target", async () => {
-  const actual = await vi.importActual<typeof import("@paperclipai/adapter-utils/execution-target")>(
-    "@paperclipai/adapter-utils/execution-target",
+vi.mock("@nexusai/adapter-utils/execution-target", async () => {
+  const actual = await vi.importActual<typeof import("@nexusai/adapter-utils/execution-target")>(
+    "@nexusai/adapter-utils/execution-target",
   );
   return {
     ...actual,
@@ -53,7 +53,7 @@ const sandboxTarget: AdapterExecutionTarget = {
   kind: "remote",
   transport: "sandbox",
   providerKey: "daytona",
-  remoteCwd: "/home/daytona/paperclip-workspace",
+  remoteCwd: "/home/daytona/nexus-workspace",
   runner: {
     execute: async () => ({
       exitCode: 0,
@@ -68,7 +68,7 @@ const sandboxTarget: AdapterExecutionTarget = {
 };
 
 const initLine =
-  '{"type":"system","subtype":"init","cwd":"/home/daytona/paperclip-workspace","session_id":"abc","tools":["Bash","Read"]}';
+  '{"type":"system","subtype":"init","cwd":"/home/daytona/nexus-workspace","session_id":"abc","tools":["Bash","Read"]}';
 
 const loginRequiredStdout = [
   initLine,
@@ -397,7 +397,7 @@ describe("Claude ACP hello probe on local and SSH targets", () => {
   const sshTarget: AdapterExecutionTarget = {
     kind: "remote",
     transport: "ssh",
-    remoteCwd: "/home/user/paperclip-workspace",
+    remoteCwd: "/home/user/nexus-workspace",
     spec: { host: "example.com", port: 22, username: "user" },
   } as unknown as AdapterExecutionTarget;
 
@@ -423,7 +423,7 @@ describe("Claude ACP hello probe on local and SSH targets", () => {
   let savedEnv: Record<string, string | undefined> = {};
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-acp-localprobe-"));
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "nexus-acp-localprobe-"));
     claudePath = path.join(tempDir, "claude");
     await writeFile(claudePath, "#!/bin/sh\nexit 0\n");
     await chmod(claudePath, 0o755);

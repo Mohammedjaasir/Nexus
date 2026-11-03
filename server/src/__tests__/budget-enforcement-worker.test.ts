@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installDatabaseWorkSignals } from "../../../packages/db/src/work-signals.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "../services/delivery-work-notifications.js";
 import { publishLiveEvent } from "../services/live-events.js";

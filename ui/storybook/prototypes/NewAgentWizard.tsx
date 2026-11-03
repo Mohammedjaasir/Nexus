@@ -23,17 +23,17 @@ import { useCompany } from "@/context/CompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
 import { agentsApi } from "@/api/agents";
-import type { AdapterEnvironmentTestResult, Agent } from "@paperclipai/shared";
-import { storybookAgents, storybookHiredAgent } from "../fixtures/paperclipData";
+import type { AdapterEnvironmentTestResult, Agent } from "@nexusai/shared";
+import { storybookAgents, storybookHiredAgent } from "../fixtures/nexusData";
 import { PREVIEW_AGENT_ID, PREVIEW_COMPANY_ID, runtimeTestResult, useNewAgentFixtures, type TestOutcome, type TestState } from "./new-agent-fixtures";
 import { stepMotion } from "@/components/onboarding/onboarding-motion";
-import { models as claudeModels } from "@paperclipai/adapter-claude-local";
-import { models as codexModels } from "@paperclipai/adapter-codex-local";
-import { models as openCodeModels } from "@paperclipai/adapter-opencode-local";
-import { models as cursorModels } from "@paperclipai/adapter-cursor-local";
-import { models as geminiModels } from "@paperclipai/adapter-gemini-local";
-import { models as grokModels } from "@paperclipai/adapter-grok-local";
-import { models as kimiModels } from "@paperclipai/adapter-kimi-local";
+import { models as claudeModels } from "@nexusai/adapter-claude-local";
+import { models as codexModels } from "@nexusai/adapter-codex-local";
+import { models as openCodeModels } from "@nexusai/adapter-opencode-local";
+import { models as cursorModels } from "@nexusai/adapter-cursor-local";
+import { models as geminiModels } from "@nexusai/adapter-gemini-local";
+import { models as grokModels } from "@nexusai/adapter-grok-local";
+import { models as kimiModels } from "@nexusai/adapter-kimi-local";
 
 const modelLists = {
   claude_local: claudeModels, codex_local: codexModels, opencode_local: openCodeModels,
@@ -45,7 +45,7 @@ const modelLists = {
 // importing this from Storybook never creates an agent or contacts a provider.
 export const NEW_AGENT_ADAPTERS = [
   "claude_local", "codex_local", "cursor", "cursor_cloud", "gemini_local",
-  "grok_local", "kimi_local", "opencode_local", "pi_local", "hermes_local", "paperclip_runner",
+  "grok_local", "kimi_local", "opencode_local", "pi_local", "hermes_local", "nexus_runner",
 ] as const;
 export type NewAgentAdapter = typeof NEW_AGENT_ADAPTERS[number];
 export type NewAgentScreen = "name" | "adapter" | "connect" | "runtime" | "saved";
@@ -120,7 +120,7 @@ export function NewAgentWizard({ initialScreen = "name", initialAdapter = null, 
   const [runnerProvider, setRunnerProvider] = useState<RunnerProvider>(initialRunnerProvider);
   const [connections, setConnections] = useState<Record<string, ConnectionMethod | undefined>>(() => {
     if (initialScreen !== "runtime" && initialScreen !== "saved") return {};
-    const key = initialAdapter === "paperclip_runner" ? `${initialAdapter}/${initialRunnerProvider}` : initialAdapter ?? "claude_local";
+    const key = initialAdapter === "nexus_runner" ? `${initialAdapter}/${initialRunnerProvider}` : initialAdapter ?? "claude_local";
     return { [key]: initialConnectionMethod };
   });
   const [modelOpen, setModelOpen] = useState(false);
@@ -131,7 +131,7 @@ export function NewAgentWizard({ initialScreen = "name", initialAdapter = null, 
   const selected = adapter ?? "claude_local";
   const display = getAdapterDisplay(selected);
   const environment = environments[selected] ?? "Organization default";
-  const isRunner = selected === "paperclip_runner";
+  const isRunner = selected === "nexus_runner";
   const isAcpx = isRunner && runnerProvider === "Claude (ACPX)";
   const usesOpenCode = selected === "opencode_local" || (isRunner && runnerProvider === "OpenCode");
   // Preserve model choices independently for each runner provider.
@@ -181,7 +181,7 @@ export function NewAgentWizard({ initialScreen = "name", initialAdapter = null, 
     try {
       const result = await agentsApi.testEnvironment(PREVIEW_COMPANY_ID, selected, {
         adapterConfig,
-        environmentId: environment === "Paperclip Computer" ? "environment-storybook-sandbox"
+        environmentId: environment === "Nexus Computer" ? "environment-storybook-sandbox"
           : environment === "Local machine" ? "environment-storybook-local" : null,
       });
       if (testRun.current !== run) return;
@@ -258,7 +258,7 @@ export function NewAgentWizard({ initialScreen = "name", initialAdapter = null, 
                           </label>;
                         })}
                       </div>
-                      {adapter === "paperclip_runner" && <SelectField label="Runner" value={runnerProvider}
+                      {adapter === "nexus_runner" && <SelectField label="Runner" value={runnerProvider}
                         options={["Codex (app server)", "Claude (ACPX)", "OpenCode"]} onChange={value => setRunnerProvider(value as RunnerProvider)} />}
                     </fieldset>}
                   </div>
@@ -285,7 +285,7 @@ export function NewAgentWizard({ initialScreen = "name", initialAdapter = null, 
             <PillGuy state="dormant" className="size-14 shrink-0" />
             <div className="flex min-w-0 flex-col gap-2">
               <div className="flex flex-wrap items-center gap-3"><h1 ref={heading} tabIndex={-1} className="break-words text-2xl font-semibold tracking-tight outline-none">{name || "Darnold"}</h1><Badge variant="outline">{screen === "saved" ? "Configured" : "Setup in progress"}</Badge></div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground"><AdapterMark adapter={brandAdapter} /><span>{getAdapterDisplay(brandAdapter).label}</span>{isRunner && <Badge variant="outline">{runnerProvider === "Codex (app server)" ? "Native app server runner" : runnerProvider === "Claude (ACPX)" ? "ACPX runner" : "Paperclip Runner"}</Badge>}</div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground"><AdapterMark adapter={brandAdapter} /><span>{getAdapterDisplay(brandAdapter).label}</span>{isRunner && <Badge variant="outline">{runnerProvider === "Codex (app server)" ? "Native app server runner" : runnerProvider === "Claude (ACPX)" ? "ACPX runner" : "Nexus Runner"}</Badge>}</div>
             </div>
           </div>
         </div>
@@ -350,7 +350,7 @@ export function NewAgentWizard({ initialScreen = "name", initialAdapter = null, 
             {selected === "kimi_local" && draft.apiKey && <TextField label="Kimi API model name" value={draft.kimiModel} onChange={kimiModel => setDraft({ kimiModel })} placeholder="kimi-for-coding" required />}
           </Section>
           {selected !== "cursor_cloud" && <Section title="Environment">
-            <SelectField label="Environment" hideLabel value={environment} onChange={value => { setEnvironments(previous => ({ ...previous, [selected]: value })); resetTest(); }} options={["Organization default", "Paperclip Computer", "Local machine"]} />
+            <SelectField label="Environment" hideLabel value={environment} onChange={value => { setEnvironments(previous => ({ ...previous, [selected]: value })); resetTest(); }} options={["Organization default", "Nexus Computer", "Local machine"]} />
           </Section>}
           </fieldset>
           <RuntimeTestCard state={testState} result={testResult} error={error} onTest={() => void runTest()} />

@@ -5,10 +5,10 @@ import { loadGitHubGrantMetadata } from "./github-access-discovery.js";
 import { measureRunPhase } from "../execution-preparation-timing.js";
 import { measureRunTransaction } from "../execution-transaction-timing.js";
 import { and, eq, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { companies, connectionGrants, toolConnections } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { companies, connectionGrants, toolConnections } from "@nexusai/db";
 import { conflict, HttpError, notFound, unprocessable } from "../../errors.js";
-import { PaperclipCloudConnectorError, type PaperclipCloudConnector } from "../paperclip-cloud-connector.js";
+import { NexusCloudConnectorError, type NexusCloudConnector } from "../nexus-cloud-connector.js";
 
 import type { createOAuthGrantRefresh } from "./oauth/grant-refresh.js";
 import type { OAuthCredentialStore } from "./oauth/credential-store.js";
@@ -22,7 +22,7 @@ type RecordGitHubAttempt = (grant: typeof connectionGrants.$inferSelect) => void
 
 type GitHubContinuityDependencies = {
   now: () => Date;
-  currentCloudConnector: () => PaperclipCloudConnector | null;
+  currentCloudConnector: () => NexusCloudConnector | null;
   refreshOAuthGrantCredentials: ReturnType<typeof createOAuthGrantRefresh>;
   resolveOAuthGrantSecret: OAuthCredentialStore["resolveOAuthGrantSecret"];
 };
@@ -287,7 +287,7 @@ export function createGitHubGrantContinuity(db: Db, { now, currentCloudConnector
       // Backoff belongs to the attempted credential/installation revision.
       if (!current?.providerTenant?.github || githubContinuityRevision(current) !== attemptedRevision) return;
       const attempts = Math.min(16, (current.providerTenant.github.continuityRetry?.attempts ?? 0) + 1);
-      const advised = error instanceof PaperclipCloudConnectorError ? error.retryAt
+      const advised = error instanceof NexusCloudConnectorError ? error.retryAt
         : error instanceof HttpError ? asRecord(error.details).retryAt : undefined;
       const at = new Date(Math.max(now().getTime() + Math.max(minimumMs, Math.min(60 * 60_000, 30_000 * 2 ** Math.min(attempts - 1, 7))),
         typeof advised === "number" ? advised : 0)).toISOString();

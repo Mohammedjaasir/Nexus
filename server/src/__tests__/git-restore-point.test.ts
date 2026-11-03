@@ -40,8 +40,8 @@ describe("git restore points", () => {
   let work: string;
 
   beforeEach(async () => {
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "31".repeat(32));
-    root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-restore-point-test-"));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "31".repeat(32));
+    root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-restore-point-test-"));
     remote = path.join(root, "remote.git");
     work = path.join(root, "work");
     git(root, "init", "-q", "--bare", "-b", "master", remote);
@@ -98,7 +98,7 @@ describe("git restore points", () => {
     expect(manifest.head).toBe(git(work, "rev-parse", "HEAD"));
     expect(manifest.prerequisites).toEqual(upstream());
     expect(await currentRestorePointSnapshot(work)).toEqual({ head: manifest.head, index: manifest.index, worktree: manifest.worktree, ignored: null, modes: manifest.modes });
-    expect(manifest.schema).toBe("paperclip.git-restore-point-payload.v1");
+    expect(manifest.schema).toBe("nexus.git-restore-point-payload.v1");
 
     const restored = await freshClone("restored");
     expect(() => git(restored, "cat-file", "-e", `${manifest.head}^{commit}`)).toThrow();
@@ -244,7 +244,7 @@ describe("git restore points", () => {
     const restored = await freshClone("restored");
     await importRestorePoint({ repositoryCwd: restored, payload: captured!.payload });
     expect(git(restored, "cat-file", "-t", lost)).toBe("commit");
-    expect(git(restored, "for-each-ref", "refs/paperclip-restore-import/")).toBe("");
+    expect(git(restored, "for-each-ref", "refs/nexus-restore-import/")).toBe("");
   });
 
   describe("ignored files", () => {
@@ -264,7 +264,7 @@ describe("git restore points", () => {
       const captured = await captureRestorePoint({ cwd: work, upstreamCommits: upstream() });
       expect(captured).not.toBeNull();
       const { manifest, payload } = captured!;
-      expect(manifest).toMatchObject({ schema: "paperclip.git-restore-point-payload.v2", index: null, worktree: null, ignored: expect.any(String) });
+      expect(manifest).toMatchObject({ schema: "nexus.git-restore-point-payload.v2", index: null, worktree: null, ignored: expect.any(String) });
       expect(manifest.modes).toEqual([{ path: "evidence/run.log", mode: 0o600 }]);
       expect(await currentRestorePointSnapshot(work)).toMatchObject({ ignored: manifest.ignored });
       const restored = await freshClone("restored-ignored");
@@ -359,7 +359,7 @@ describe("git restore points", () => {
       const magic = Buffer.from("PCRP-PLAIN1\n");
       const length = payload.readUInt32BE(magic.length);
       const manifest = JSON.parse(payload.subarray(magic.length + 4, magic.length + 4 + length).toString("utf8"));
-      const bytes = Buffer.from(JSON.stringify({ ...manifest, schema: "paperclip.git-restore-point-payload.v1" }));
+      const bytes = Buffer.from(JSON.stringify({ ...manifest, schema: "nexus.git-restore-point-payload.v1" }));
       const size = Buffer.alloc(4); size.writeUInt32BE(bytes.length);
       const forged = Buffer.concat([magic, size, bytes, payload.subarray(magic.length + 4 + length)]);
       expect(() => decodeRestorePointPayload(forged)).toThrow(RestorePointRestoreFailure);
@@ -435,7 +435,7 @@ describe("git restore points", () => {
 
     it("cannot be opened with a different master key", async () => {
       const sealed = await sealRestorePoint(payload, identity);
-      vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "42".repeat(32));
+      vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "42".repeat(32));
       await expect(openRestorePoint({ ...sealed, identity })).rejects.toThrow();
     });
   });

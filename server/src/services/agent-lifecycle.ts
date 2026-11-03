@@ -3,11 +3,11 @@ import { notifyDeferredExecutionEligibility } from "./deferred-execution-notific
 import { notifyRunDispatch } from "./run-dispatch-notifications.js";
 import { notifyAttentionRetentionWork } from "./retention-work-notifications.js";
 import { notifyNativeReviewResponse } from "./native-review-response-notifications.js";
-import { isAgentStatusInvokable } from "@paperclipai/shared";
+import { isAgentStatusInvokable } from "@nexusai/shared";
 import { notifyNativeResponsePresentation } from "./native-response-presentation-notifications.js";
 import { notifyChatInboundWakeNotices } from "./chat-inbound-wake-notice-notifications.js";
 import { logger } from "../middleware/logger.js";
-import { companies, type Db } from "@paperclipai/db";
+import { companies, type Db } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import * as lifecycle from "../modules/agent-lifecycle/index.js";
 import { withAccountingTransaction } from "./accounting-transaction.js";

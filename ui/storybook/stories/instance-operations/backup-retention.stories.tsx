@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within, waitFor } from "storybook/test";
-import { instanceGeneralSettingsSchema } from "@paperclipai/shared";
+import { instanceGeneralSettingsSchema } from "@nexusai/shared";
 import { InstanceGeneralSettings } from "@/pages/InstanceGeneralSettings";
 import {
   prepareFixtureApi,
@@ -19,7 +19,7 @@ const meta = {
           "Shipped general settings. Retention changes persist within this fixture; database backup and restoration require operator verification.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "instance-operations/backup",
         "instance-operations/configuration"

@@ -1,6 +1,6 @@
 import { asc, and, eq, isNull, notExists } from "drizzle-orm";
-import { projects, projectWorkspaces, type Db } from "@paperclipai/db";
-import type { TaskWorkspaceIntent } from "@paperclipai/shared";
+import { projects, projectWorkspaces, type Db } from "@nexusai/db";
+import type { TaskWorkspaceIntent } from "@nexusai/shared";
 import { assertTaskWorkspaceExecutionAccess } from "../task-workspace-access.js";
 import { managedProjectCheckoutName, projectRepositoryIdentity } from "../managed-project-checkout-name.js";
 import { issueService } from "../issues.js";
@@ -141,7 +141,7 @@ export async function resolveRemoteWorkspaceSource(db: Db, input: {
     ...(selected.source ? { projectWorkspaceId: source.id } : {}),
   });
   if (source.sourceType === "remote_managed") return hostSource();
-  if (source.cwd && source.cwd !== "/__paperclip_repo_only__") return hostSource();
+  if (source.cwd && source.cwd !== "/__nexus_repo_only__") return hostSource();
   if (!source.repoUrl) throw new WorkspaceValidationFailure(
     "The selected workspace has no repository URL.", { reason: "remote_workspace_source_unavailable" });
   if (!remoteRepositorySource(source.repoUrl)) return hostSource();
@@ -153,10 +153,10 @@ export async function resolveRemoteWorkspaceSource(db: Db, input: {
   for (const repository of sameProject) {
     if (!repository.repoUrl || identities.has(projectRepositoryIdentity(repository.repoUrl))) continue;
     if (repository.sourceType === "remote_managed") return hostSource();
-    if (repository.cwd && repository.cwd !== "/__paperclip_repo_only__") return hostSource();
+    if (repository.cwd && repository.cwd !== "/__nexus_repo_only__") return hostSource();
     if (!remoteRepositorySource(repository.repoUrl)) return hostSource();
     identities.add(projectRepositoryIdentity(repository.repoUrl));
-    repositories.push({ id: repository.id, relativePath: `.paperclip-repositories/${managedProjectCheckoutName({
+    repositories.push({ id: repository.id, relativePath: `.nexus-repositories/${managedProjectCheckoutName({
       id: repository.id, repoUrl: repository.repoUrl, repoRef: repository.repoRef,
     })}`, repoUrl: repository.repoUrl, ref: repository.repoRef, projectId: source.projectId,
       projectWorkspaceId: repository.id });

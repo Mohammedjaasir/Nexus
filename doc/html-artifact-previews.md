@@ -7,7 +7,7 @@ use the existing text-viewer states and limits.
 
 The shared `HtmlArtifactPreview` uses `srcdoc` in an iframe with
 `sandbox="allow-scripts"`. **Never add `allow-same-origin`.** Its opaque origin
-prevents artifact JavaScript from reading Paperclip cookies, storage, or the parent
+prevents artifact JavaScript from reading Nexus cookies, storage, or the parent
 DOM. Forms, popups, downloads from inside the frame, and top navigation are not
 granted. The host does not accept messages or privileged requests from artifacts.
 
@@ -40,4 +40,4 @@ pnpm exec playwright test --config tests/html-preview/playwright.config.ts
 These checks use Chromium and simulated report data. They verify working report
 controls, raw mode, cookie/storage/parent access denials, blocked resource and API
 requests, and denied top navigation/popups. They do not replace testing the actual
-attachment journey in a running Paperclip instance.
+attachment journey in a running Nexus instance.

@@ -1,4 +1,4 @@
-import { agents } from "@paperclipai/db";
+import { agents } from "@nexusai/db";
 import { and, eq, inArray } from "drizzle-orm";
 import type { CompanyDeletionParticipant } from "../../../lib/company-deletion.js";
 import { AgentLifecycleConflict, assertAgentPurgeAllowed } from "../domain/policy.js";

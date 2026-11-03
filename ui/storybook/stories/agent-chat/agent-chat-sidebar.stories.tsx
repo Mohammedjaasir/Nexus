@@ -7,9 +7,9 @@ const meta = {
   title: "Tasks and conversations/Agent conversations and project handoff/Design explorations/Agent chat sidebar/Pages",
   component: AgentChatPrototype,
   parameters: { layout: "fullscreen", docs: { description: { component:
-    "The production chat sidebar and pages inside the real Paperclip Layout, including the existing transcript, composer, and context panel. Click Chat to see the landing page, search by name or role, or use + to start or reopen an agent conversation. Each agent has one conversation; sends stay in this Storybook's in-memory fixtures."
+    "The production chat sidebar and pages inside the real Nexus Layout, including the existing transcript, composer, and context panel. Click Chat to see the landing page, search by name or role, or use + to start or reopen an agent conversation. Each agent has one conversation; sends stay in this Storybook's in-memory fixtures."
   } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agent-chat/discovery",
         "agent-chat/history"

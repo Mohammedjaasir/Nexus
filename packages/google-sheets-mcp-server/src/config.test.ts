@@ -23,7 +23,7 @@ describe("Google Sheets MCP config", () => {
   });
 
   it("reads service-account JSON from a path", () => {
-    const dir = mkdtempSync(join(tmpdir(), "paperclip-sheets-mcp-"));
+    const dir = mkdtempSync(join(tmpdir(), "nexus-sheets-mcp-"));
     try {
       const file = join(dir, "service-account.json");
       writeFileSync(file, JSON.stringify(serviceAccount));

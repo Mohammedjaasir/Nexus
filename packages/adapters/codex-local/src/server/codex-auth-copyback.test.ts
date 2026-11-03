@@ -57,7 +57,7 @@ describe("copyBackCodexAuth", () => {
   }
 
   async function makeHostDir(): Promise<string> {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-codex-copyback-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-codex-copyback-"));
     cleanupDirs.push(dir);
     return dir;
   }
@@ -363,11 +363,11 @@ describe("copyBackCodexAuth identity-keyed cache write", () => {
     sharedHomeAuthPath: string;
     sharedHome: string;
   }> {
-    const home = await mkdtemp(path.join(os.tmpdir(), "paperclip-codex-copyback-cache-"));
+    const home = await mkdtemp(path.join(os.tmpdir(), "nexus-codex-copyback-cache-"));
     cleanupDirs.push(home);
     const env: NodeJS.ProcessEnv = {
-      PAPERCLIP_HOME: home,
-      PAPERCLIP_INSTANCE_ID: "default",
+      NEXUS_HOME: home,
+      NEXUS_INSTANCE_ID: "default",
       CODEX_HOME: path.join(home, "shared-codex"),
       ...extra,
     };
@@ -473,7 +473,7 @@ describe("copyBackCodexAuth identity-keyed cache write", () => {
       hostAuth,
       env,
       sharedHomeAuthPath,
-      cacheEnabledEnv: { ...env, PAPERCLIP_CODEX_AUTH_CACHE: "0" },
+      cacheEnabledEnv: { ...env, NEXUS_CODEX_AUTH_CACHE: "0" },
     });
 
     // Host overwrite still runs with the off-switch off.

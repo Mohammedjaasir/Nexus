@@ -17,13 +17,13 @@ import {
   issues,
   nativeRunFinalizations,
   nativeRunResults,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   PrpEvent,
   PrpStructuredRunResult,
   PrpTerminalState,
-} from "@paperclipai/paperclip-runner";
-import { NativeSessionProtocolIntegrityError } from "../../vendor/paperclip-runner/index.js";
+} from "@nexusai/nexus-runner";
+import { NativeSessionProtocolIntegrityError } from "../../vendor/nexus-runner/index.js";
 
 import {
   getEmbeddedPostgresTestSupport,
@@ -35,7 +35,7 @@ import {
 } from "../../realtime/runner-prp-ws.js";
 import { NativeRunCoordinatorStore } from "./native-run-coordinator-store.js";
 import { runnerPrpCoordinator } from "./runner-prp-coordinator.js";
-import { PaperclipRunnerSemanticAuthority } from "./runner-semantic-authority.js";
+import { NexusRunnerSemanticAuthority } from "./runner-semantic-authority.js";
 import { nativeSha256 } from "./canonical.js";
 
 const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
@@ -61,7 +61,7 @@ interface SeededNativeRun {
 }
 
 const result: PrpStructuredRunResult = {
-  schema: "paperclip.run_result.v1",
+  schema: "nexus.run_result.v1",
   reportedWorkDisposition: "done",
   summary: "The hidden runner completed the bounded task.",
   completionClaim: {
@@ -77,7 +77,7 @@ const result: PrpStructuredRunResult = {
 };
 
 const terminal: PrpTerminalState = {
-  schema: "paperclip.prp.terminal.v1",
+  schema: "nexus.prp.terminal.v1",
   turnTerminalState: "completed",
   runTerminalState: "succeeded",
   reportedWorkDisposition: "done",
@@ -85,7 +85,7 @@ const terminal: PrpTerminalState = {
 
 function runnerEvent(seed: SeededNativeRun, sourceSeq = 1): PrpEvent {
   return {
-    schema: "paperclip.prp.event.v1",
+    schema: "nexus.prp.event.v1",
     sourceEventId: `event-${sourceSeq}`,
     sourceSeq,
     sourceInstanceId: seed.runnerInstanceId,
@@ -111,7 +111,7 @@ describeEmbeddedPostgres("hidden runner PRP coordinator", () => {
 
   beforeAll(async () => {
     tempDb = await startEmbeddedPostgresTestDatabase(
-      "paperclip-runner-coordinator-",
+      "nexus-runner-coordinator-",
     );
     db = createDb(tempDb.connectionString);
   }, 20_000);
@@ -177,7 +177,7 @@ describeEmbeddedPostgres("hidden runner PRP coordinator", () => {
       companyId,
       issueId,
       revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1",
+      schemaVersion: "nexus.completion-contract.v1",
       policyVersion: "policy-v1",
       risk: "low",
       completionAuthority: "runner",
@@ -237,7 +237,7 @@ describeEmbeddedPostgres("hidden runner PRP coordinator", () => {
     const seed = await seedNativeRun();
     const server = createServer();
     setupRunnerPrpWebSocketServer(server, { apiUrl: "http://127.0.0.1:3213" });
-    const stateRoot = mkdtempSync(resolve(tmpdir(), "paperclip-runner-state-"));
+    const stateRoot = mkdtempSync(resolve(tmpdir(), "nexus-runner-state-"));
     scratchDirectories.push(stateRoot);
     const coordinator = runnerPrpCoordinator(db, { stateRoot });
     await expect(
@@ -302,7 +302,7 @@ describeEmbeddedPostgres("hidden runner PRP coordinator", () => {
 
   it("rechecks task ownership and returns semantic receipts", async () => {
     const seed = await seedNativeRun();
-    const authority = new PaperclipRunnerSemanticAuthority(db, {
+    const authority = new NexusRunnerSemanticAuthority(db, {
       companyId: seed.companyId,
       issueId: seed.issueId,
       runId: seed.runId,
@@ -345,7 +345,7 @@ describeEmbeddedPostgres("hidden runner PRP coordinator", () => {
     const nativeStore = store(seed);
     const output = "transforming (6) ../\u0000virtual:/@storybook/builder-vite/storybook-stories.js";
     const payload = {
-      schema: "paperclip.tool.execution.v1",
+      schema: "nexus.tool.execution.v1",
       executionId: "storybook-build",
       transport: "process",
       operation: "execute",

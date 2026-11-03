@@ -12,15 +12,15 @@ const STORY_NOW = new Date("2026-08-31T12:00:00Z").getTime();
 
 const MOCK_CARDS: DiscoveryCard[] = [
   {
-    key: "paperclipai/paperclip/paperclip-dev",
+    key: "paperclipai/paperclip/nexus-dev",
     skillId: "s-dev",
     catalogRef: null,
-    name: "paperclip-dev",
-    slug: "paperclip-dev",
-    author: "Paperclip",
+    name: "nexus-dev",
+    slug: "nexus-dev",
+    author: "Nexus",
     version: "v2.4.1",
-    tagline: "Run and repair local Paperclip workspaces.",
-    description: "Develop and operate a local Paperclip instance.",
+    tagline: "Run and repair local Nexus workspaces.",
+    description: "Develop and operate a local Nexus instance.",
     categories: ["devops", "coding"],
     iconUrl: null,
     color: null,
@@ -61,7 +61,7 @@ const MOCK_CARDS: DiscoveryCard[] = [
     catalogRef: null,
     name: "verify",
     slug: "verify",
-    author: "Paperclip",
+    author: "Nexus",
     version: "v1.0.3",
     tagline: "Prove the change works in a real app run.",
     description: "Verify a code change works by running the app.",
@@ -97,7 +97,7 @@ const MOCK_CARDS: DiscoveryCard[] = [
     required: false,
     forkedFrom: true,
     updatedAt: STORY_NOW - 1 * 86_400_000,
-    sourceBadge: "paperclip",
+    sourceBadge: "nexus",
   },
   {
     key: "anthropic/claude-api",
@@ -127,7 +127,7 @@ const MOCK_CARDS: DiscoveryCard[] = [
     catalogRef: null,
     name: "security-review",
     slug: "security-review",
-    author: "Paperclip",
+    author: "Nexus",
     version: "v1.1.0",
     tagline: "Review a branch for concrete security risks.",
     description: "Security review of pending changes on a branch.",
@@ -188,12 +188,12 @@ const MOCK_CARDS: DiscoveryCard[] = [
     sourceBadge: "local",
   },
   {
-    key: "paperclipai/paperclip/paperclip",
+    key: "paperclipai/paperclip/nexus",
     skillId: "s-core",
     catalogRef: "c-core",
-    name: "paperclip",
-    slug: "paperclip",
-    author: "Paperclip",
+    name: "nexus",
+    slug: "nexus",
+    author: "Nexus",
     version: "core",
     tagline: "Coordinate company work through the control plane.",
     description: "Control plane API for tasks, routines, and coordination.",
@@ -207,7 +207,7 @@ const MOCK_CARDS: DiscoveryCard[] = [
     required: true,
     forkedFrom: false,
     updatedAt: STORY_NOW - 30 * 86_400_000,
-    sourceBadge: "paperclip",
+    sourceBadge: "nexus",
   },
   {
     key: "paperclipai/paperclip/diagnose-why-work-stopped",
@@ -215,7 +215,7 @@ const MOCK_CARDS: DiscoveryCard[] = [
     catalogRef: "c-diag",
     name: "diagnose-why-work-stopped",
     slug: "diagnose-why-work-stopped",
-    author: "Paperclip",
+    author: "Nexus",
     version: "core",
     tagline: "Find the exact stop-point in stalled work.",
     description: "Forensics for stalled or looping work trees.",
@@ -310,7 +310,7 @@ const meta: Meta<typeof DiscoveryGridHarness> = {
   title: "Agents and reusable capabilities/Skills and Skill Studio/Skills Store/Discovery grid",
   component: DiscoveryGridHarness,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "skills/discovery"
       ],

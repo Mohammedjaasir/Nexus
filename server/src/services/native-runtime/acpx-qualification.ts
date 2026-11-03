@@ -1,8 +1,8 @@
-import { PAPERCLIP_RUNNER_ACPX_PROFILES } from "@paperclipai/adapter-utils";
-import { parseAcpxCandidateAdmission, QUALIFIED_ACPX_PROFILES, type AcpxCandidateAdmission, type NativeExecutionInput } from "../../vendor/paperclip-runner/index.js";
+import { NEXUS_RUNNER_ACPX_PROFILES } from "@nexusai/adapter-utils";
+import { parseAcpxCandidateAdmission, QUALIFIED_ACPX_PROFILES, type AcpxCandidateAdmission, type NativeExecutionInput } from "../../vendor/nexus-runner/index.js";
 
 /** Trusted operator startup authority, separate from saved agent configuration. */
-export const ANTIGRAVITY_CANDIDATE_ADMISSION_ENV = "PAPERCLIP_ACPX_CANDIDATE_ADMISSION";
+export const ANTIGRAVITY_CANDIDATE_ADMISSION_ENV = "NEXUS_ACPX_CANDIDATE_ADMISSION";
 
 export function resolveAntigravityCandidateAdmission(
   input: { companyId?: string; model?: string },
@@ -46,7 +46,7 @@ export function resolveKimiCandidateAdmission(
 }
 
 /** Operator-only admission for an exact candidate/model during qualification. */
-export const ACPX_QUALIFICATION_ENV = "PAPERCLIP_RUNNER_ACPX_QUALIFICATION";
+export const ACPX_QUALIFICATION_ENV = "NEXUS_RUNNER_ACPX_QUALIFICATION";
 export type AcpxQualificationCandidate = "cursor" | "copilot" | "pi" | "kimi";
 
 export function resolveAcpxQualification(
@@ -57,7 +57,7 @@ export function resolveAcpxQualification(
   // The server release declaration admits qualified Copilot into the frozen
   // SDK's explicit native transport slot. No operator environment is required.
   // Pi retains the mainline transport and qualification behavior below.
-  if (provider.agent === "copilot" && PAPERCLIP_RUNNER_ACPX_PROFILES.some(profile => profile.value === "copilot" && profile.qualified)) {
+  if (provider.agent === "copilot" && NEXUS_RUNNER_ACPX_PROFILES.some(profile => profile.value === "copilot" && profile.qualified)) {
     if (!provider.model || provider.model !== provider.model.trim() || ["auto", "default"].includes(provider.model.toLowerCase())) {
       throw new Error("GitHub Copilot requires an explicit available model ID");
     }

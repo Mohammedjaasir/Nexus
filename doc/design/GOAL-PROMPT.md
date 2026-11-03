@@ -5,7 +5,7 @@ Paste everything inside the code block below into Claude Code after typing `/goa
 v3: condensed under the /goal 4,000-character limit (v2 was 4,648 and got rejected). The paste block now carries only mission + DONE-WHEN + guardrails; the full phase spec lives in the "Phase spec" section below, which the run reads from this file on disk.
 
 ```
-Refactor Paperclip's UI so every visual value flows through the single
+Refactor Nexus's UI so every visual value flows through the single
 existing token layer, with provably zero visual change, working only in
 this git worktree on branch design/token-extraction. Never touch master
 or other working trees. DESIGN.md at the repo root is the source of
@@ -78,4 +78,4 @@ GUARDRAILS
 2. Read TOKEN-AUDIT.md; choose the real spacing/radius scale (PRIOR-ART.md has drafted rules to start from).
 3. Tune tokens; snapshots now fail intentionally — the diff folders are your design-review contact sheet. This is also where the ui.shadcn.com/create preset lands, as token-value edits.
 4. Review COMPONENT-INVENTORY.md; approve a merge list and shadcn-swap list → those become Run 2 and Run 3, each its own /goal.
-5. Merge to master when satisfied (rebase first if master moved). Scrap path: `git worktree remove ../paperclip-design-simplify --force`.
+5. Merge to master when satisfied (rebase first if master moved). Scrap path: `git worktree remove ../nexus-design-simplify --force`.

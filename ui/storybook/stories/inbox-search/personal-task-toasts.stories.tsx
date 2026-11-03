@@ -65,7 +65,7 @@ const meta = {
           "Production socket consumer and toast viewport. Server eligibility metadata is simulated; persisted participation and mentions require multiplayer tests.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "inbox-search/toasts"
       ],

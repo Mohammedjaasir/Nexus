@@ -1,8 +1,8 @@
-import { OPENROUTER_ATTRIBUTION_HEADERS } from "@paperclipai/shared/openrouter-attribution";
+import { OPENROUTER_ATTRIBUTION_HEADERS } from "@nexusai/shared/openrouter-attribution";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { experimental_decide as decide, type Experimental_DecisionModel } from "ai";
-import { centsToUnits, unitsToCents, type DecisionAnswer, type DecisionProvider, type DecisionRequest } from "@paperclipai/shared";
+import { centsToUnits, unitsToCents, type DecisionAnswer, type DecisionProvider, type DecisionRequest } from "@nexusai/shared";
 
 export interface DecisionProviderReceipt {
   inputTokens: number | null; outputTokens: number | null; providerRequestId: string | null;

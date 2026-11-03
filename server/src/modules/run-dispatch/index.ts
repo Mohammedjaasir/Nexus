@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { createPostgresRunDispatchAdapter } from "./adapters/postgres.js";
 import {
   createCancelStaleQueuedRun,

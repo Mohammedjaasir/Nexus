@@ -1,7 +1,7 @@
 /** Disposable real-Dot transport lab. Not production scheduling or admission.
  * Only the MCP listener may be tunneled. Control stays on a separate loopback
  * port with a random bearer credential stored in a mode-0600 local file.
- * No existing Paperclip database, user, API key, or company is loaded. */
+ * No existing Nexus database, user, API key, or company is loaded. */
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { once } from "node:events";
@@ -11,9 +11,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import express from "express";
 import { z } from "zod";
-import { activityLog, authUsers, companies, companyMemberships, createDb, issues, mcpEventSubscriptions, mcpEventDeliveries, startEmbeddedPostgresTestDatabase } from "@paperclipai/db";
-import { DotHarnessDriver } from "../../packages/paperclip-runner/src/drivers/dot/dot-harness-driver.js";
-import { HarnessDriverBackend } from "../../packages/paperclip-runner/src/backends/harness-driver-backend.js";
+import { activityLog, authUsers, companies, companyMemberships, createDb, issues, mcpEventSubscriptions, mcpEventDeliveries, startEmbeddedPostgresTestDatabase } from "@nexusai/db";
+import { DotHarnessDriver } from "../../packages/nexus-runner/src/drivers/dot/dot-harness-driver.js";
+import { HarnessDriverBackend } from "../../packages/nexus-runner/src/backends/harness-driver-backend.js";
 import { publicMcpIngressRoutes } from "../src/routes/public-mcp.js";
 import { createPublicMcpOAuth } from "../src/services/public-mcp/oauth.js";
 import { createPublicMcpEvents } from "../src/services/public-mcp/events.js";
@@ -25,10 +25,10 @@ const origin = new URL(process.env.DOT_LAB_ORIGIN ?? "").origin;
 assert(origin.startsWith("https://"), "DOT_LAB_ORIGIN must be the public HTTPS tunnel origin");
 const port = z.coerce.number().int().min(1024).max(65534).parse(process.env.DOT_LAB_PORT ?? 43127);
 const requestIdSchema = z.string().regex(/^pcmcp_request_[A-Za-z0-9_-]{43}$/);
-const scratch = await mkdtemp(join(tmpdir(), "paperclip-dot-live-"));
-process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = join(scratch, "master.key");
-delete process.env.PAPERCLIP_SECRETS_MASTER_KEY;
-delete process.env.PAPERCLIP_CLOUD_API_ORIGIN;
+const scratch = await mkdtemp(join(tmpdir(), "nexus-dot-live-"));
+process.env.NEXUS_SECRETS_MASTER_KEY_FILE = join(scratch, "master.key");
+delete process.env.NEXUS_SECRETS_MASTER_KEY;
+delete process.env.NEXUS_CLOUD_API_ORIGIN;
 const controlToken = randomBytes(32).toString("base64url");
 const app = express(); app.use(express.json({ limit: "256kb" }));
 const control = express(); control.use(express.json({ limit: "16kb" }));
@@ -41,9 +41,9 @@ async function listen(server: Server, listenPort: number) { server.listen(listen
 async function close(server: Server) { server.closeAllConnections(); if (server.listening) await new Promise<void>(resolve => server.close(() => resolve())); }
 const escape = (value: string) => value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 try {
-  database = await startEmbeddedPostgresTestDatabase("paperclip-dot-live-");
+  database = await startEmbeddedPostgresTestDatabase("nexus-dot-live-");
   const db = createDb(database.connectionString);
-  const oauth = createPublicMcpOAuth(db, { origin, resource: origin + "/mcp/paperclip" });
+  const oauth = createPublicMcpOAuth(db, { origin, resource: origin + "/mcp/nexus" });
   await instanceSettingsService(db).updateExperimental({ enablePublicMcp: true });
   const userId = randomUUID();
   await db.insert(authUsers).values({ id: userId, name: "Dot lab operator", email: `${userId}@example.test`, createdAt: new Date(), updatedAt: new Date() });
@@ -76,14 +76,14 @@ try {
   service = createPublicMcpEvents(db, oauth, api, { enableDotPrototype: true });
   app.use((req, res, next) => {
     res.setHeader("Cache-Control", "no-store"); res.setHeader("Referrer-Policy", "no-referrer");
-    if (req.path === "/mcp/paperclip" && req.method === "POST") {
+    if (req.path === "/mcp/nexus" && req.method === "POST") {
       const method = String(req.body?.method ?? "").slice(0, 100);
       const tool = method === "tools/call" ? String(req.body?.params?.name ?? "").slice(0, 100) : undefined;
       res.on("finish", () => record("mcp", { method, ...(tool ? { tool } : {}), status: res.statusCode }));
     }
     next();
   });
-  app.get("/", (_req, res) => res.type("text").send("Disposable Paperclip Dot lab. Authenticated MCP endpoint: /mcp/paperclip. No production data."));
+  app.get("/", (_req, res) => res.type("text").send("Disposable Nexus Dot lab. Authenticated MCP endpoint: /mcp/nexus. No production data."));
   app.get("/mcp-connect/:id", async (req, res) => {
     const id = requestIdSchema.parse(req.params.id);
     const redirect = redirects.get(id);
@@ -92,7 +92,7 @@ try {
     if (pending.size >= 20 && !pending.has(id)) { res.sendStatus(429); return; }
     pending.set(id, request);
     res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
-    res.type("html").send(`<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="3"><title>Paperclip Dot lab connection</title><h1>Connect the disposable Dot lab</h1><p>Waiting for the local lab operator to approve this request.</p><p>Client: ${escape(request.clientName)}. Return destination: ${escape(request.redirectOrigin)}.</p><p>This lab contains one test task and no existing Paperclip data. It expires when the lab closes.</p><p>Request: ${escape(id)}</p>`);
+    res.type("html").send(`<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="3"><title>Nexus Dot lab connection</title><h1>Connect the disposable Dot lab</h1><p>Waiting for the local lab operator to approve this request.</p><p>Client: ${escape(request.clientName)}. Return destination: ${escape(request.redirectOrigin)}.</p><p>This lab contains one test task and no existing Nexus data. It expires when the lab closes.</p><p>Request: ${escape(id)}</p>`);
   });
   app.use(publicMcpIngressRoutes(oauth, createPublicMcpExecutor(db, oauth, api), service, bridge));
   const errors: express.ErrorRequestHandler = (_error, _req, res, _next) => { res.status(400).json({ error: "Lab request unavailable" }); };
@@ -132,18 +132,18 @@ try {
   control.post("/queue", async (_req, res) => {
     assert(native && !queued, "Connect first; this lab permits one task");
     const subscriptions = await db.select().from(mcpEventSubscriptions);
-    assert(subscriptions.some(s => s.grantId === grantId && s.name === "paperclip.dot.work_available" && !s.stoppedAt && s.expiresAt > new Date()), "Dot must establish its event subscription first");
+    assert(subscriptions.some(s => s.grantId === grantId && s.name === "nexus.dot.work_available" && !s.stoppedAt && s.expiresAt > new Date()), "Dot must establish its event subscription first");
     queued = true;
-    await native.startTurn({ message: { role: "user", text: "Live integration test: compute 17 + 25. Call the projected save_report tool with body 'Dot received the Paperclip event. 17 + 25 = 42.' Then finish with schema paperclip.run_result.v1, reportedWorkDisposition 'done', summary stating the saved result, completionClaim {contractRevision:'dot-live-v1',objectiveSatisfied:true,criteria:[],remainingWork:[]}, and empty arrays for evidence, verification, attentionRequests, artifacts. Do not use any other apps, private data, external messages, or additional tasks." } });
+    await native.startTurn({ message: { role: "user", text: "Live integration test: compute 17 + 25. Call the projected save_report tool with body 'Dot received the Nexus event. 17 + 25 = 42.' Then finish with schema nexus.run_result.v1, reportedWorkDisposition 'done', summary stating the saved result, completionClaim {contractRevision:'dot-live-v1',objectiveSatisfied:true,criteria:[],remainingWork:[]}, and empty arrays for evidence, verification, attentionRequests, artifacts. Do not use any other apps, private data, external messages, or additional tasks." } });
     await service!.tick(); res.json({ queued: true });
   });
   control.post("/stop", (_req, res) => { res.json({ stopping: true }); stopLab(); });
   control.use(errors);
   await listen(http, port); await listen(admin, port + 1); service.start();
   await writeFile(join(scratch, "control.json"), JSON.stringify({ origin, controlOrigin: `http://127.0.0.1:${port + 1}`, token: controlToken, companyId: company.id, taskId: task.id }), { mode: 0o600 });
-  console.log(`LIVE LAB READY ${origin}/mcp/paperclip`);
+  console.log(`LIVE LAB READY ${origin}/mcp/nexus`);
   console.log(`Local control file: ${join(scratch, "control.json")}`);
-  console.log(`Standing instruction: Subscribe to paperclip.dot.work_available for companyId ${company.id}, taskId ${task.id}. When an event arrives, check paperclip_dot_inbox; read, accept, execute and finish its assignment. Do not poll. Wait for the event before taking work.`);
+  console.log(`Standing instruction: Subscribe to nexus.dot.work_available for companyId ${company.id}, taskId ${task.id}. When an event arrives, check nexus_dot_inbox; read, accept, execute and finish its assignment. Do not poll. Wait for the event before taking work.`);
   process.once("SIGINT", stopLab); process.once("SIGTERM", stopLab);
   const timer = setTimeout(stopLab, 2 * 3600_000); timer.unref();
   await stopped; clearTimeout(timer);

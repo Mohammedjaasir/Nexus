@@ -11,14 +11,14 @@ const caller = { type: "board", userId: "local-board", source: "local_implicit" 
 const cancellationRequestId = "11111111-2222-4333-8444-555555555555";
 const sha = (value: string) => `sha256:${createHash("sha256").update(value).digest("hex")}`;
 function fixture(remote = false) {
-  const scope = { companyId: "company", issueId: "issue", runId: "run", target: "denied/target.txt", ...(remote ? { actionFile: `.paperclip-eval-action-${"a".repeat(36)}.txt` } : {}) };
+  const scope = { companyId: "company", issueId: "issue", runId: "run", target: "denied/target.txt", ...(remote ? { actionFile: `.nexus-eval-action-${"a".repeat(36)}.txt` } : {}) };
   const run: Row = { id: "run", companyId: "company", nativeIssueId: "issue", runtimeMode: "native", status: "running", nativeSessionId: "session", runnerInstanceId: "runner", resultJson: {} };
   const issue: Row = { id: "issue", companyId: "company", status: "in_progress" };
   const row = (eventType: string, sourceSeq: number, payload: Row): Row => ({ companyId: "company", runId: "run", seq: sourceSeq, eventType, protocolSchemaVersion: 1,
-    payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn", normalizedSessionId: "session",
+    payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn", normalizedSessionId: "session",
       sourceInstanceId: "runner", sourceSeq, sourceEventId: `runner:run:${sourceSeq}`, emittedAt: "2026-10-28T00:00:00Z", payload } } });
-  const tool = (executionId: string, name: string, operation: string, target: string | null, status = "running") => ({ schema: "paperclip.tool.execution.v1", executionId, transport: "builtin", name, operation, target, status });
-  const request: Row = { schema: "paperclip.runtime_request.v2", type: "permission", requestKind: "permission_approval", status: "pending", requestId: "request", turnId: "turn", itemId: "permission-item",
+  const tool = (executionId: string, name: string, operation: string, target: string | null, status = "running") => ({ schema: "nexus.tool.execution.v1", executionId, transport: "builtin", name, operation, target, status });
+  const request: Row = { schema: "nexus.runtime_request.v2", type: "permission", requestKind: "permission_approval", status: "pending", requestId: "request", turnId: "turn", itemId: "permission-item",
     prompt: `Change file: ${scope.target}`, choices: [{ key: "accept", label: "Allow once" }, { key: "decline", label: "Deny" }, { key: "cancel", label: "Cancel" }],
     details: { toolCallId: "0:native-write" }, origin: { adapter: "acpx-runtime-sidecar", provider: "kimi", method: "session/request_permission" } };
   const events: Row[] = remote ? [row("tool.execution.started", 1, tool("0:read", "Read", "read", scope.actionFile!)), row("tool.execution.completed", 2, tool("0:read", "Read", "read", scope.actionFile!, "completed"))] : [];
@@ -32,7 +32,7 @@ function fixture(remote = false) {
     if (branch === "stop") {
       run.status = "cancelled";
       run.resultJson = { startupCancellation: { cancellationRequestId: cancelId, requestedBy: { type: "board", userId: "local-board" } }, nativeCancellation: {
-        schema: "paperclip.native-cancellation.v1", intentId: `native-cancellation:${cancelId}`, companyId: "company", runId: "run", issueId: "issue", scope: "run",
+        schema: "nexus.native-cancellation.v1", intentId: `native-cancellation:${cancelId}`, companyId: "company", runId: "run", issueId: "issue", scope: "run",
         dispatched: true, dispatchState: "acknowledged", reasonCode: "cancellation_run_only", effects: ["release_run_resources"], intentAuditId: "intent-audit", acknowledgementAuditId: "ack-audit",
       } };
       events.push(row("runtime_request.cancelled", events.length + 1, { requestId: "request", requestKind: "permission_approval", turnId: "turn", itemId: "permission-item", reason: "turn_terminal" }));
@@ -57,18 +57,18 @@ function retainedLocalStopRows() {
   const origin = { method: "session/request_permission", adapter: "acpx-runtime-sidecar", provider: "kimi" };
   const choices = [{ key: "accept", label: "Allow once" }, { key: "decline", label: "Deny" }, { key: "cancel", label: "Cancel" }];
   const request = { type: "permission", itemId: item, method: "session/request_permission", origin,
-    prompt: `Change file: ${scope.target}`, schema: "paperclip.runtime_request.v2", status: "pending", turnId: turn, choices,
+    prompt: `Change file: ${scope.target}`, schema: "nexus.runtime_request.v2", status: "pending", turnId: turn, choices,
     details: { itemId: item, origin, reason: `Change file: ${scope.target}`, turnId: turn, choices,
-      threadId: "paperclip-9558eb1e0ea79ed9b728d62643b53ab02477d5a4711ef634d8cf0c5b5d8d0af9", toolCallId },
+      threadId: "nexus-9558eb1e0ea79ed9b728d62643b53ab02477d5a4711ef634d8cf0c5b5d8d0af9", toolCallId },
     requestId: "acpx-input-25f63168069f72f421df7bd9", requestKind: "permission_approval" };
   const row = (eventType: string, seq: number, sourceSeq: number, emittedAt: string, value: Row): Row => ({
     companyId: scope.companyId, runId: scope.runId, seq, eventType, protocolSchemaVersion: 1,
-    payload: { prpEvent: { runId: scope.runId, itemId: item, schema: "paperclip.prp.event.v1", turnId: turn, payload: value,
+    payload: { prpEvent: { runId: scope.runId, itemId: item, schema: "nexus.prp.event.v1", turnId: turn, payload: value,
       priority: 1, emittedAt, eventType, sourceSeq, sourceKind: "runner", schemaVersion: 1,
       sourceEventId: `${source}:${scope.runId}:${sourceSeq}`, sourceInstanceId: source, normalizedSessionId: session } },
   });
   const events = [row("tool.execution.started", 59, 30, "2026-10-28T14:48:05.538Z", {
-    name: "Write", output: "null", schema: "paperclip.tool.execution.v1", status: "running", target: null, exitCode: null,
+    name: "Write", output: "null", schema: "nexus.tool.execution.v1", status: "running", target: null, exitCode: null,
     progress: "Write (pending)", readOnly: false, namespace: null, operation: "edit", transport: "builtin", durationMs: null,
     executionId: toolCallId, outputBytes: 4, inputUpdated: false,
     outputDigest: "sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b", outputTruncated: false,
@@ -182,14 +182,14 @@ describe("Kimi native Write lifecycle evidence", () => {
 });
 
 function localFixture() {
-  const timestamp = Date.parse("2026-10-28T00:00:00Z"), distribution = "/private/tmp/paperclip-acpx-native-fixture/distribution";
+  const timestamp = Date.parse("2026-10-28T00:00:00Z"), distribution = "/private/tmp/nexus-acpx-native-fixture/distribution";
   const bootId = "12345678-1234-1234-1234-123456789abc", loader = "exact compiled guarded loader";
   const proc = (pid: number, ppid: number, executable: string, command: string): KimiLocalProcess => ({ pid, ppid, pgid: pid === 21 ? 21 : 22,
     startUs: String(timestamp * 1000 + pid), executable, executableDev: "1", executableIno: String(pid), command, argv: [executable], cwd: "/workspace", bootId });
   const processes = [proc(21, 1, "/runner", "/runner --run-id run --lifecycle-mode per_turn"),
-    proc(22, 21, "/host-node", `/host-node --eval ${loader} ${distribution} .paperclip-native-entry.cjs 0 0 commonjs [] 0`),
+    proc(22, 21, "/host-node", `/host-node --eval ${loader} ${distribution} .nexus-native-entry.cjs 0 0 commonjs [] 0`),
     proc(23, 22, `${distribution}/node/bin/node`, "kimi-code")];
-  processes[1]!.argv = ["/host-node", "--eval", loader, distribution, ".paperclip-native-entry.cjs", "0", "0", "commonjs", "[]", "0"];
+  processes[1]!.argv = ["/host-node", "--eval", loader, distribution, ".nexus-native-entry.cjs", "0", "0", "commonjs", "[]", "0"];
   const input = { authority: { pid: 21, groupId: 21, startedAt: new Date(timestamp).toISOString(), runId: "run" },
     journal: processes.map(row => ({ pid: row.pid, parent: row.ppid, start: new Date(timestamp).toISOString() })), processes, workspacePath: "/workspace", guardLoaderSha256: sha(loader) };
   return { input, select: () => selectKimiLocalTarget(input) };

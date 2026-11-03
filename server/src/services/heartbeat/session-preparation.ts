@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
-import { agentConfigRevisions, type Db, type agents, type agentTaskSessions, type heartbeatRuns, type issues, type projects } from "@paperclipai/db";
-import type { AiConnectionBinding, AiRuntimeConnectionBinding } from "@paperclipai/shared";
+import { agentConfigRevisions, type Db, type agents, type agentTaskSessions, type heartbeatRuns, type issues, type projects } from "@nexusai/db";
+import type { AiConnectionBinding, AiRuntimeConnectionBinding } from "@nexusai/shared";
 import { getServerAdapter } from "../../adapters/index.js";
 import type { prepareManagedAiRuntime } from "../ai-connection-runtime.js";
 import { aiConnectionSessionCompatibilityInputs, managedAiSessionIdentityCompatible } from "../ai-connection-session.js";
@@ -14,7 +14,7 @@ import {
 import {
   buildEffectiveRunSessionConfigMetadata, readConfigFingerprintFromSessionParams,
   readConfiguredModelFromAdapterConfig, resolveTaskSessionConfigFreshness,
-  stripPaperclipSessionMetadataFromSessionParams, type EffectiveRunSessionConfigMetadata,
+  stripNexusSessionMetadataFromSessionParams, type EffectiveRunSessionConfigMetadata,
 } from "./workspaces.js";
 import type { HeartbeatWorkspacePreparationInput, prepareHeartbeatWorkspace } from "./workspace-preparation.js";
 import type { prepareHeartbeatTaskContext } from "./task-context.js";
@@ -163,14 +163,14 @@ export async function prepareHeartbeatSession(db: Db, input: HeartbeatSessionPre
       agentConfigRevision: sessionConfigMetadataInput.agentConfigRevision,
       issueOverrides: issueAssigneeOverrides, originalIssueOverrides: originalAiIssueOverrides,
       binding: aiBinding, router: requestedAiBinding?.mode === "router",
-      storedIdentity: taskSession.sessionParamsJson?.paperclipAiCredentialIdentity,
+      storedIdentity: taskSession.sessionParamsJson?.nexusAiCredentialIdentity,
       sessionIdentity: managedAiRuntime.sessionIdentity, credentialIdentity: managedAiRuntime.identity, revisions,
     });
     compatibleConfigMetadata = await Promise.all(candidates.map(candidate => buildEffectiveRunSessionConfigMetadata({ ...sessionConfigMetadataInput, ...candidate })));
   }
   const configuredModel =
     readConfiguredModelFromAdapterConfig(runtimeConfig);
-  if (context.refreshTools === true && agent.adapterType !== "paperclip_runner") {
+  if (context.refreshTools === true && agent.adapterType !== "nexus_runner") {
     const capability = getServerAdapter(agent.adapterType).supportsToolRefreshOnResume;
     const canRefresh = typeof capability === "function" ? capability(runtimeConfig) : capability === true;
     if (!canRefresh) context.forceFreshSession = true;
@@ -206,7 +206,7 @@ export async function prepareHeartbeatSession(db: Db, input: HeartbeatSessionPre
       : null) ??
     normalizeResumeParamsForAdapter(
       agent.adapterType,
-      stripPaperclipSessionMetadataFromSessionParams(
+      stripNexusSessionMetadataFromSessionParams(
         sessionCodec.deserialize(
           taskSessionForRun?.sessionParamsJson ?? null,
         ),
@@ -214,9 +214,9 @@ export async function prepareHeartbeatSession(db: Db, input: HeartbeatSessionPre
     );
   // Legacy plugins can consume the existing context field on a known-fresh
   // dispatch. Built-ins also load lazily if their resume attempt fails.
-  if (agent.adapterType !== "paperclip_runner" && !previousSessionParams && getFreshSessionHandoff) {
+  if (agent.adapterType !== "nexus_runner" && !previousSessionParams && getFreshSessionHandoff) {
     const handoff = await getFreshSessionHandoff();
-    if (handoff) context.paperclipFreshSessionHandoffMarkdown = handoff;
+    if (handoff) context.nexusFreshSessionHandoffMarkdown = handoff;
   }
   return { sessionConfigMetadata, configuredModel, sessionConfigFreshness, resetTaskSession, sessionResetReason, taskSessionForRun, getFreshSessionHandoff, previousSessionParams };
 }
@@ -287,7 +287,7 @@ export async function resolveHeartbeatAdapterSession(input: HeartbeatAdapterSess
     readNonEmptyString(runtimeSessionParams?.sessionId) ??
     runtimeSessionFallback;
   let runtimeSessionParamsForAdapter = normalizeSessionParams(
-    stripPaperclipSessionMetadataFromSessionParams(runtimeSessionParams),
+    stripNexusSessionMetadataFromSessionParams(runtimeSessionParams),
   );
 
   const sessionCompaction = await evaluateSessionCompaction({
@@ -297,10 +297,10 @@ export async function resolveHeartbeatAdapterSession(input: HeartbeatAdapterSess
     continuationSummaryBody: continuationSummary?.body ?? null,
   });
   if (sessionCompaction.rotate) {
-    context.paperclipSessionHandoffMarkdown =
+    context.nexusSessionHandoffMarkdown =
       sessionCompaction.handoffMarkdown;
-    context.paperclipSessionRotationReason = sessionCompaction.reason;
-    context.paperclipPreviousSessionId =
+    context.nexusSessionRotationReason = sessionCompaction.reason;
+    context.nexusPreviousSessionId =
       previousSessionDisplayId ?? runtimeSessionIdForAdapter;
     runtimeSessionIdForAdapter = null;
     runtimeSessionParamsForAdapter = null;
@@ -311,13 +311,13 @@ export async function resolveHeartbeatAdapterSession(input: HeartbeatAdapterSess
       );
     }
   } else {
-    delete context.paperclipSessionHandoffMarkdown;
-    delete context.paperclipSessionRotationReason;
-    delete context.paperclipPreviousSessionId;
+    delete context.nexusSessionHandoffMarkdown;
+    delete context.nexusSessionRotationReason;
+    delete context.nexusPreviousSessionId;
   }
 
   const taskSessionCredentialCompatible = !managedAiRuntime || managedAiSessionIdentityCompatible(
-    taskSession?.sessionParamsJson?.paperclipAiCredentialIdentity,
+    taskSession?.sessionParamsJson?.nexusAiCredentialIdentity,
     managedAiRuntime.sessionIdentity,
     managedAiRuntime.identity,
   );

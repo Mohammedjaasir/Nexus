@@ -1,5 +1,5 @@
 import { Archive, CodeXml, File, FileText, Film, Globe, Image, Music, Presentation, Table2, type LucideIcon } from "lucide-react";
-import type { CompanyArtifact } from "@paperclipai/shared";
+import type { CompanyArtifact } from "@nexusai/shared";
 
 /**
  * What the V1 artwork knows about an artifact. Each surface adapts its own

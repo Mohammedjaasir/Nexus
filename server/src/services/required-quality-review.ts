@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { assets, documents, issueAttachments, issueDocuments, issueThreadInteractions, type Db } from "@paperclipai/db";
-import { requiredQualityReviewSchema, type RequiredQualityReview, type RequestConfirmationTarget, type QualityReviewBinding } from "@paperclipai/shared";
+import { assets, documents, issueAttachments, issueDocuments, issueThreadInteractions, type Db } from "@nexusai/db";
+import { requiredQualityReviewSchema, type RequiredQualityReview, type RequestConfirmationTarget, type QualityReviewBinding } from "@nexusai/shared";
 import { forbidden, unprocessable } from "../errors.js";
 
 function record(value: unknown): Record<string, any> {

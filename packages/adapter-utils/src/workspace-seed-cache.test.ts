@@ -18,7 +18,7 @@ afterEach(async () => {
 });
 async function fixture() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "seed-cache-quota-")); roots.push(root);
-  vi.stubEnv("PAPERCLIP_HOME", path.join(root, "home"));
+  vi.stubEnv("NEXUS_HOME", path.join(root, "home"));
   const company = path.join(root, "company"), workspace = path.join(company, "workspace");
   const archive = path.join(root, "run-seed.tar"); await fs.writeFile(archive, "run recovery bytes");
   const seed = { workspaceArchivePath: archive };

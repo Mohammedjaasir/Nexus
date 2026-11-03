@@ -1,4 +1,4 @@
-import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import {
@@ -29,7 +29,7 @@ import {
   issues,
   toolApplications,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { heartbeatService } from "../services/heartbeat.js";
 import {
@@ -305,7 +305,7 @@ describe("durable inbound chat scheduler receipts", () => {
     expect(receipts[0]).toMatchObject({
       id: request.id, idempotencyKey: request.idempotencyKey, requestedAt: request.requestedAt,
       status: "deferred_issue_execution", runId: null, requestedByActorId: request.requestedByActorId,
-      payload: { _paperclipWakeContext: { source: "chat:slack", wakeCommentIds: [request.commentId] } },
+      payload: { _nexusWakeContext: { source: "chat:slack", wakeCommentIds: [request.commentId] } },
     });
     expect(f.authorize).toHaveBeenCalledTimes(1);
     expect(await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.wakeupRequestId, request.id))).toHaveLength(0);

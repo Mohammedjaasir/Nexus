@@ -1,6 +1,6 @@
-import type { AdapterEnvironmentCheck } from "@paperclipai/adapter-utils";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
-import { runAdapterExecutionTargetProcess } from "@paperclipai/adapter-utils/execution-target";
+import type { AdapterEnvironmentCheck } from "@nexusai/adapter-utils";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
+import { runAdapterExecutionTargetProcess } from "@nexusai/adapter-utils/execution-target";
 import {
   CODEX_CHATGPT_MODEL_REJECTION_RE,
   codexChatGptRetirementHint,
@@ -17,7 +17,7 @@ export const CODEX_HELLO_PROBE_MODEL_REJECTED_CHECK_CODE = "codex_hello_probe_mo
 /**
  * Run `codex --version` where the run would execute it. Never cached: an
  * operator may upgrade Codex, or promote a new sandbox image, while the
- * Paperclip server keeps running, and the next Test should see the change.
+ * Nexus server keeps running, and the next Test should see the change.
  */
 export async function readCodexCommandVersion(input: {
   runId: string;
@@ -49,7 +49,7 @@ export async function readCodexCommandVersion(input: {
 
 function sandboxUpgradeHint(targetIsSandbox: boolean): string {
   return targetIsSandbox
-    ? "Promote a sandbox image that ships the Codex CLI version Paperclip pins, then retry the Test. Adding a model to the catalog does not update the Codex CLI baked into existing sandbox images."
+    ? "Promote a sandbox image that ships the Codex CLI version Nexus pins, then retry the Test. Adding a model to the catalog does not update the Codex CLI baked into existing sandbox images."
     : "Upgrade Codex (for example `npm install -g @openai/codex@latest`) where this agent runs, then retry the Test.";
 }
 

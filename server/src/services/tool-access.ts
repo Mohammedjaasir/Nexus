@@ -85,12 +85,12 @@ import { connectorToolPolicy } from "./connectors/tool-policy.js";
 
 import { notifyChatEndpointWork } from "./chat-work-notifications.js";
 
-import { defaultConnectionAgentInstructions } from "@paperclipai/shared";
+import { defaultConnectionAgentInstructions } from "@nexusai/shared";
 
 import { isBrowserUseConnection } from "./browser-use-client.js";
 
 import { COGNEE_STDIO_TEMPLATE } from "./cognee-connection.js";
-import { isRemoteMcpConnectorMethod } from "@paperclipai/shared";
+import { isRemoteMcpConnectorMethod } from "@nexusai/shared";
 
 import { githubBotRequest } from "./chat-github-client.js";
 import { syncConnectionCredentialBindings } from "./connection-credential-bindings.js";
@@ -105,16 +105,16 @@ import { measureRunPhase } from "./execution-preparation-timing.js";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { and, asc, desc, eq, inArray, max, ne, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { agents, connectionGrantMembers, connectionGrants, companyMemberships, principalPermissionGrants, userSecretDefinitions, plugins, toolAccessAuditEvents, toolApplications, toolCatalogEntries, toolConnectionInstalls, toolConnections, toolStdioCommandTemplates, toolCallEvents, toolPolicies, toolProfileBindings, toolProfileEntries, toolProfiles } from "@paperclipai/db";
-import type { AppDefinition, ConnectionGrantKind, CreateToolApplication, CreateToolConnection, ConnectToolApp, ConnectToolAppResult, CreateToolStdioCommandTemplate, FinishToolApp, FinishToolAppResult, CreateToolProfileBindingForProfile, CreateToolProfileEntryForProfile, DeploymentExposure, DeploymentMode, ImportMcpJson, McpConnectionCredentialRef, McpJsonImportPreview, ToolApplication, ToolCatalogEntry, ToolCatalogRefreshResult, ToolConnection, ToolConnectionInstall, ToolConnectionHealthCheckResult, ToolConnectionAuthKind, ToolConnectionCredentialPolicy, ToolConnectionCredentialSource, ToolConnectionTransport, ToolAppMetadataPreflightResult, ToolExampleInstallResult, ToolExampleSmokeCheck, ToolExampleSmokeResult, ToolExampleSummary, ToolProfileBinding, ToolProfileEntry, ToolPolicyDecision, ToolStdioCommandTemplate, UpdateToolApplication, UpdateToolConnection, VercelConnectCredentialReference } from "@paperclipai/shared";
-import { getAppDefinitionForUrl, getAvailableConnectionMethods, getConnectableAppDefinition, recommendedDefaultsForApp } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { agents, connectionGrantMembers, connectionGrants, companyMemberships, principalPermissionGrants, userSecretDefinitions, plugins, toolAccessAuditEvents, toolApplications, toolCatalogEntries, toolConnectionInstalls, toolConnections, toolStdioCommandTemplates, toolCallEvents, toolPolicies, toolProfileBindings, toolProfileEntries, toolProfiles } from "@nexusai/db";
+import type { AppDefinition, ConnectionGrantKind, CreateToolApplication, CreateToolConnection, ConnectToolApp, ConnectToolAppResult, CreateToolStdioCommandTemplate, FinishToolApp, FinishToolAppResult, CreateToolProfileBindingForProfile, CreateToolProfileEntryForProfile, DeploymentExposure, DeploymentMode, ImportMcpJson, McpConnectionCredentialRef, McpJsonImportPreview, ToolApplication, ToolCatalogEntry, ToolCatalogRefreshResult, ToolConnection, ToolConnectionInstall, ToolConnectionHealthCheckResult, ToolConnectionAuthKind, ToolConnectionCredentialPolicy, ToolConnectionCredentialSource, ToolConnectionTransport, ToolAppMetadataPreflightResult, ToolExampleInstallResult, ToolExampleSmokeCheck, ToolExampleSmokeResult, ToolExampleSummary, ToolProfileBinding, ToolProfileEntry, ToolPolicyDecision, ToolStdioCommandTemplate, UpdateToolApplication, UpdateToolConnection, VercelConnectCredentialReference } from "@nexusai/shared";
+import { getAppDefinitionForUrl, getAvailableConnectionMethods, getConnectableAppDefinition, recommendedDefaultsForApp } from "@nexusai/shared";
 import {
   checkMcpRemoteHeaderName,
   checkMcpRemoteHeaderValue,
   mcpRemoteHeaderNameFromConfigPath,
   mcpRemoteHeaderRejectionMessage,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   badRequest,
   conflict,
@@ -136,7 +136,7 @@ import {
 import { secretService } from "./secrets.js";
 import { connectionCredentialConfigPath as credentialRefConfigPath, validateConnectionGrantSecretOwnership, writeConnectionCredential } from "./connection-credentials.js";
 
-import type { ConfigureRailwaySsh, RailwaySshSetup } from "@paperclipai/shared";
+import type { ConfigureRailwaySsh, RailwaySshSetup } from "@nexusai/shared";
 import { generateRailwaySshKey, RAILWAY_SSH_SECRET_PATH, validateRailwayKnownHosts } from "./railway-ssh.js";
 import { isRailwayConnection } from "./railway.js";
 import { toolAccessPolicyService } from "./tool-access-policy.js";
@@ -146,7 +146,7 @@ import { gmailArchiveToolDescription } from "./gmail-archive-tool-policy.js";
 
 import { createToolRuntimeSupervisor } from "./tool-runtime-supervisor.js";
 
-import { appWithPaperclipCloudConnectorAvailability, paperclipCloudConnectorCapabilitiesFromEnv, createPaperclipCloudConnector, isPaperclipCloudConnectorStrategy, paperclipCloudConnectorConfigFromEnv, type PaperclipCloudConnector } from "./paperclip-cloud-connector.js";
+import { appWithNexusCloudConnectorAvailability, nexusCloudConnectorCapabilitiesFromEnv, createNexusCloudConnector, isNexusCloudConnectorStrategy, nexusCloudConnectorConfigFromEnv, type NexusCloudConnector } from "./nexus-cloud-connector.js";
 import { createVercelConnectClient, deriveVercelConnectSubject, vercelConnectIntegrationStatus, type VercelConnectClient } from "./vercel-connect.js";
 
 type ToolAccessServiceOptions = {
@@ -165,9 +165,9 @@ type ToolAccessServiceOptions = {
   /** Smaller reviewed catalog for deterministic discovery fixtures. */
   composioAppToolkits?: readonly string[];
   /** Test seam for the centrally registered Gmail OAuth broker. */
-  paperclipCloudConnector?: PaperclipCloudConnector | null;
-  /** @deprecated Use paperclipCloudConnector. */
-  paperclipIdGmailConnector?: PaperclipCloudConnector | null;
+  nexusCloudConnector?: NexusCloudConnector | null;
+  /** @deprecated Use nexusCloudConnector. */
+  nexusIdGmailConnector?: NexusCloudConnector | null;
   /** Test seam for Vercel Connect without live vendor traffic. */
   vercelConnectClient?: VercelConnectClient | null;
 };
@@ -242,8 +242,8 @@ const APPROVED_STDIO_TEMPLATES: Record<
     tools: McpToolDescriptor[];
   }
 > = {
-  "paperclip.echo-calculator-time": {
-    name: "Paperclip Echo / Calculator / Time fixture",
+  "nexus.echo-calculator-time": {
+    name: "Nexus Echo / Calculator / Time fixture",
     tools: [
       {
         name: "echo",
@@ -283,8 +283,8 @@ const APPROVED_STDIO_TEMPLATES: Record<
       },
     ],
   },
-  "paperclip.synthetic-todo-kv": {
-    name: "Paperclip Synthetic Todo / KV fixture",
+  "nexus.synthetic-todo-kv": {
+    name: "Nexus Synthetic Todo / KV fixture",
     tools: [
       {
         name: "list_items",
@@ -318,10 +318,10 @@ const APPROVED_STDIO_TEMPLATES: Record<
       },
     ],
   },
-  "paperclip.cognee-cloud": COGNEE_STDIO_TEMPLATE,
-  "paperclip.google-sheets": {
+  "nexus.cognee-cloud": COGNEE_STDIO_TEMPLATE,
+  "nexus.google-sheets": {
     name: "Google Sheets",
-    command: "paperclip-google-sheets-mcp-server",
+    command: "nexus-google-sheets-mcp-server",
     args: [],
     envKeys: [
       "GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON",
@@ -423,7 +423,7 @@ const APPROVED_STDIO_TEMPLATES: Record<
 };
 
 const GOOGLE_SHEETS_GALLERY_KEY = "google-sheets";
-const GOOGLE_SHEETS_TEMPLATE_ID = "paperclip.google-sheets";
+const GOOGLE_SHEETS_TEMPLATE_ID = "nexus.google-sheets";
 const GOOGLE_SHEETS_ALLOWED_SPREADSHEET_IDS_ENV =
   "GOOGLE_SHEETS_ALLOWED_SPREADSHEET_IDS";
 
@@ -447,16 +447,16 @@ const TOOL_EXAMPLES: ToolExampleDefinition[] = [
     title: "Safe read-only Todo / KV fixture",
     description:
       "Installs a deterministic local MCP fixture and grants only its read-only catalog entries.",
-    applicationKey: "paperclip.examples.safe-read-only-todo-kv",
-    applicationName: "Paperclip example: Safe read-only Todo / KV",
+    applicationKey: "nexus.examples.safe-read-only-todo-kv",
+    applicationName: "Nexus example: Safe read-only Todo / KV",
     applicationDescription:
       "Deterministic MCP fixture for first-run tool governance checks.",
-    connectionName: "Paperclip example: Safe read-only Todo / KV",
-    templateId: "paperclip.synthetic-todo-kv",
-    profileKey: "paperclip.examples.safe-read-only-todo-kv.profile",
+    connectionName: "Nexus example: Safe read-only Todo / KV",
+    templateId: "nexus.synthetic-todo-kv",
+    profileKey: "nexus.examples.safe-read-only-todo-kv.profile",
     profileName: "Example safe read-only tools",
     profileDescription:
-      "Allows only the read-only tools from the Paperclip Todo / KV example fixture.",
+      "Allows only the read-only tools from the Nexus Todo / KV example fixture.",
   },
 ];
 
@@ -753,28 +753,28 @@ export function toolAccessService(
   const profileDetails = profileService.getProfile;
   const profileResolver = createToolProfileResolver(db, { assertOptionalAgent, resolveInstalledConnectionsForAgent, toCatalogEntry });
   const configuredCloudConnector =
-    options.paperclipCloudConnector ?? options.paperclipIdGmailConnector;
+    options.nexusCloudConnector ?? options.nexusIdGmailConnector;
   const connectorWasProvided =
-    options.paperclipCloudConnector !== undefined ||
-    options.paperclipIdGmailConnector !== undefined;
+    options.nexusCloudConnector !== undefined ||
+    options.nexusIdGmailConnector !== undefined;
   let cachedCloudConnector = configuredCloudConnector ?? null;
-  const currentCloudConnector = (): PaperclipCloudConnector | null => {
+  const currentCloudConnector = (): NexusCloudConnector | null => {
     if (cachedCloudConnector || connectorWasProvided)
       return cachedCloudConnector;
-    const config = paperclipCloudConnectorConfigFromEnv();
+    const config = nexusCloudConnectorConfigFromEnv();
     cachedCloudConnector = config
-      ? createPaperclipCloudConnector({ config, now: () => now().getTime() })
+      ? createNexusCloudConnector({ config, now: () => now().getTime() })
       : null;
     return cachedCloudConnector;
   };
   async function appForConnectionSetup(app: AppDefinition): Promise<AppDefinition> {
-    if (!app.methods.some((method) => isPaperclipCloudConnectorStrategy(method.oauthStrategy))) {
+    if (!app.methods.some((method) => isNexusCloudConnectorStrategy(method.oauthStrategy))) {
       return app;
     }
     const profiles = connectorWasProvided
       ? (await currentCloudConnector()?.getCapabilities() ?? [])
-      : await paperclipCloudConnectorCapabilitiesFromEnv();
-    return appWithPaperclipCloudConnectorAvailability(app, profiles);
+      : await nexusCloudConnectorCapabilitiesFromEnv();
+    return appWithNexusCloudConnectorAvailability(app, profiles);
   }
   const vercelConnect =
     options.vercelConnectClient === undefined
@@ -813,7 +813,7 @@ export function toolAccessService(
   const finishOAuthCatalogWithRecommendedDefaults = createOAuthCatalogCompletion(db, finishGalleryAppConnection);
   const startOAuth = createOAuthAuthorizationStart(db, { now, getConnectionRow, setupPolicy, fixedPersonalIdentityForReconnect, currentCloudConnector, vercelConnect, ensureOAuthClient, oauthEndpointsForConnection, assertOAuthEndpointUrl });
   const completeOAuthCallback = createDirectOAuthCallback(db, { now, getConnectionRow, state: oauthState, store: credentialStore, setupPolicy, refreshCatalog, finishOAuthCatalogWithRecommendedDefaults, checkConnectionHealth, ensureDefaultOrganizationGrant, oauthEndpointsForConnection, exchangeOAuthToken });
-  const completePaperclipCloudConnectorCallback = createCloudOAuthCallback(db, { now, getConnectionRow, state: oauthState, store: credentialStore, refreshCatalog, finishOAuthCatalogWithRecommendedDefaults, currentCloudConnector, syncGitHubGrantBindings });
+  const completeNexusCloudConnectorCallback = createCloudOAuthCallback(db, { now, getConnectionRow, state: oauthState, store: credentialStore, refreshCatalog, finishOAuthCatalogWithRecommendedDefaults, currentCloudConnector, syncGitHubGrantBindings });
   const completeVercelConnectCallback = createVercelOAuthCallback(db, { now, getConnectionRow, state: oauthState, refreshCatalog, finishOAuthCatalogWithRecommendedDefaults, vercelConnect });
   const finalizeOAuthAccess = createOAuthAccessFinalization(db, { getConnectionRow, secrets, store: credentialStore, assertAgentsInCompany, finishGalleryAppConnection });
   const runtimeHealth = createToolRuntimeHealth(db, options, now, trustedRuntimeHost);
@@ -823,8 +823,8 @@ export function toolAccessService(
   function trustedRuntimeHost() {
     return (
       options.trustedLocalStdioRuntimeHost ??
-      process.env.PAPERCLIP_TRUSTED_MCP_RUNTIME_HOST ??
-      process.env.PAPERCLIP_TOOL_RUNTIME_TRUSTED_HOST ??
+      process.env.NEXUS_TRUSTED_MCP_RUNTIME_HOST ??
+      process.env.NEXUS_TOOL_RUNTIME_TRUSTED_HOST ??
       null
     );
   }
@@ -834,7 +834,7 @@ export function toolAccessService(
     enabled: boolean,
     config: Record<string, unknown> = {},
   ) {
-    if (config.templateId === "paperclip.cognee-cloud") return;
+    if (config.templateId === "nexus.cognee-cloud") return;
     if (
       transport === "local_stdio" &&
       enabled &&
@@ -1219,7 +1219,7 @@ export function toolAccessService(
   ) {
     const metadata = {
       ...(existing?.metadata ?? {}),
-      source: "paperclip_example",
+      source: "nexus_example",
       exampleId: definition.id,
       safeDefault: true,
     };
@@ -1307,7 +1307,7 @@ export function toolAccessService(
           applicationId,
           name: definition.connectionName,
           uid: connectionUid(
-            "paperclip",
+            "nexus",
             definition.connectionName,
             connectionId,
           ),
@@ -1337,7 +1337,7 @@ export function toolAccessService(
   ) {
     const metadata = {
       ...(existing?.metadata ?? {}),
-      source: "paperclip_example",
+      source: "nexus_example",
       exampleId: definition.id,
       safeDefault: true,
     };
@@ -1401,7 +1401,7 @@ export function toolAccessService(
           catalogEntryId: entry.id,
           toolName: entry.toolName,
           riskLevel: entry.riskLevel,
-          conditions: { source: "paperclip_example" },
+          conditions: { source: "nexus_example" },
         })),
       )
       .returning();
@@ -1416,7 +1416,7 @@ export function toolAccessService(
   ): Promise<ToolProfileBinding> {
     const metadata = {
       ...(existing?.metadata ?? {}),
-      source: "paperclip_example",
+      source: "nexus_example",
       safeDefault: true,
     };
     if (existing) {
@@ -1469,7 +1469,7 @@ export function toolAccessService(
 
   function sampleArguments(toolName: string): Record<string, unknown> {
     if (toolName === "get_value") return { key: "project" };
-    if (toolName === "set_value") return { key: "project", value: "paperclip" };
+    if (toolName === "set_value") return { key: "project", value: "nexus" };
     if (toolName === "create_item") return { title: "Smoke test item" };
     if (toolName === "mark_done" || toolName === "delete_item")
       return { id: "todo-1" };
@@ -1971,7 +1971,7 @@ export function toolAccessService(
         );
     }
     const credentialSource: ToolConnectionCredentialSource =
-      input.credentialSource ?? "paperclip_vault";
+      input.credentialSource ?? "nexus_vault";
     if (
       retainedConnection &&
       retainedConnection.credentialSource !== credentialSource
@@ -1988,7 +1988,7 @@ export function toolAccessService(
       const integration = vercelConnectIntegrationStatus();
       if (!integration.enabled || !integration.configured || !vercelConnect) {
         throw unprocessable(
-          "Vercel Connect setup is not available on this Paperclip instance",
+          "Vercel Connect setup is not available on this Nexus instance",
           {
             code: "vercel_connect_unavailable",
           },
@@ -2066,7 +2066,7 @@ export function toolAccessService(
           .limit(1);
         if (connectorInUse) {
           throw conflict(
-            "App-subject Vercel connectors are dedicated to one Paperclip connection. Create or attach a separate connector in Vercel.",
+            "App-subject Vercel connectors are dedicated to one Nexus connection. Create or attach a separate connector in Vercel.",
             {
               code: "vercel_connect_app_connector_in_use",
             },
@@ -2130,7 +2130,7 @@ export function toolAccessService(
             mcpPreserveAccess: Boolean(retainedConnection && (retainedConnection.status === "active" || asRecord(retainedConnection.config).mcpPreserveAccess === true)),
           } : {}),
           ...(galleryEntry.slug === "posthog" ? { safeDefault: true } : {}),
-          // Telem.AI attributes each search to the Paperclip company, agent,
+          // Telem.AI attributes each search to the Nexus company, agent,
           // run and issue, so its catalog connection forwards those context
           // headers by default (the gateway still drops empty values). A
           // reconnect keeps the policy the operator saved on the connection.
@@ -2145,7 +2145,7 @@ export function toolAccessService(
             : {}),
         }
       : { ...baseConfig, quarantineNewEntries: false, unverifiedServer: true };
-    if (method && isPaperclipCloudConnectorStrategy(method.oauthStrategy)) {
+    if (method && isNexusCloudConnectorStrategy(method.oauthStrategy)) {
       const connectorProfile = method.connectorProfile;
       const profile = managedConnectorProfile(connectorProfile);
       if (!profile)
@@ -2168,7 +2168,7 @@ export function toolAccessService(
     }
     // A pasted URL or an explicitly customer-owned curated method may arrive
     // with a client the operator preregistered in the provider's console. Record
-    // the client id now; the secret becomes an encrypted Paperclip secret below.
+    // the client id now; the secret becomes an encrypted Nexus secret below.
     if (input.oauthClient) {
       config.oauth = {
         clientId: input.oauthClient.clientId.trim(),
@@ -2269,7 +2269,7 @@ export function toolAccessService(
         : requestedGrantKind === "agent"
           ? "per_agent"
           : "shared";
-    const connectionOwnership = isPaperclipCloudConnectorStrategy(
+    const connectionOwnership = isNexusCloudConnectorStrategy(
       method?.oauthStrategy,
     )
       ? "platform_shared"
@@ -2471,7 +2471,7 @@ export function toolAccessService(
         }
         if (!applicationRow) {
           throw conflict(
-            "Paperclip could not allocate a unique connection name",
+            "Nexus could not allocate a unique connection name",
             {
               code: "tool_access_name_allocation_exhausted",
             },
@@ -2792,7 +2792,7 @@ export function toolAccessService(
             .where(eq(toolConnections.id, connectionRow.id));
           const endpoints = await discoverOAuthEndpoints(oauthConnection).catch(
             (discoveryError: unknown) => {
-              // "This server advertised an address Paperclip refuses to open" is a
+              // "This server advertised an address Nexus refuses to open" is a
               // refusal, not a failed discovery: keep it instead of collapsing it
               // into the generic sign-in-required error.
               if (isOAuthEndpointRejection(discoveryError))
@@ -3583,7 +3583,7 @@ export function toolAccessService(
       throw conflict("Archived app connections cannot be reconnected");
     if (connection.credentialSource === "vercel_connect") {
       throw conflict(
-        "Manage this connector in Vercel Connect, then run a Paperclip health check to verify it.",
+        "Manage this connector in Vercel Connect, then run a Nexus health check to verify it.",
         {
           code: "vercel_connect_managed_externally",
           manageUrl: vercelConnectIntegrationStatus().manageUrl,
@@ -3917,7 +3917,7 @@ export function toolAccessService(
 
     peekOAuthState,
 
-    completePaperclipCloudConnectorCallback,
+    completeNexusCloudConnectorCallback,
 
     completeVercelConnectCallback,
 
@@ -4332,7 +4332,7 @@ export function toolAccessService(
       ]);
       const repositories = new Map<
         string,
-        import("@paperclipai/shared").ProjectRepository
+        import("@nexusai/shared").ProjectRepository
       >();
       const usableConnections: Array<{ id: string; name: string }> = [];
       let connectionCount = 0;
@@ -4780,7 +4780,7 @@ export function toolAccessService(
             .sort()
             .map((key) => {
               warnings.push(
-                `Header ${key} will be stored as a Paperclip secret before activation.`,
+                `Header ${key} will be stored as a Nexus secret before activation.`,
               );
               return {
                 configPath: `headers.${key}`,
@@ -4803,7 +4803,7 @@ export function toolAccessService(
         }
         if (typeof server.command === "string") {
           warnings.push(
-            "Imported stdio commands stay draft-only unless mapped to an approved Paperclip template.",
+            "Imported stdio commands stay draft-only unless mapped to an approved Nexus template.",
           );
           return {
             name,

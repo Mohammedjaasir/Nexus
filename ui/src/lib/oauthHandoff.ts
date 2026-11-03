@@ -1,9 +1,9 @@
-import type { ToolOAuthStartResult } from "@paperclipai/shared";
+import type { ToolOAuthStartResult } from "@nexusai/shared";
 import { resolveAuthorizationTarget } from "./authorizationUrl";
 
 const CLOUD_HANDOFF_PATH = "/cloud/connections/handoff";
 const CLOUD_REAUTH_PATH = "/cloud/connections/reauth";
-const PENDING_HANDOFF_KEY = "paperclip.cloud-oauth-handoff.v1";
+const PENDING_HANDOFF_KEY = "nexus.cloud-oauth-handoff.v1";
 
 export type PreparedOAuthNavigation = {
   kind: "authorization" | "reauthentication";
@@ -31,22 +31,22 @@ export class OAuthHandoffError extends Error {
   }
 }
 
-function parseHandoff(value: unknown): { kind: "paperclip_cloud"; session: string } | null {
+function parseHandoff(value: unknown): { kind: "nexus_cloud"; session: string } | null {
   if (value === undefined) return null;
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new OAuthHandoffError("Paperclip Cloud returned an invalid sign-in handoff.", "invalid_handoff");
+    throw new OAuthHandoffError("Nexus Cloud returned an invalid sign-in handoff.", "invalid_handoff");
   }
   const handoff = value as Record<string, unknown>;
   if (
-    handoff.kind !== "paperclip_cloud"
+    handoff.kind !== "nexus_cloud"
     || typeof handoff.session !== "string"
     || handoff.session.length < 16
     || handoff.session.length > 512
     || !/^[A-Za-z0-9_-]+$/.test(handoff.session)
   ) {
-    throw new OAuthHandoffError("Paperclip Cloud returned an invalid sign-in handoff.", "invalid_handoff");
+    throw new OAuthHandoffError("Nexus Cloud returned an invalid sign-in handoff.", "invalid_handoff");
   }
-  return { kind: "paperclip_cloud", session: handoff.session };
+  return { kind: "nexus_cloud", session: handoff.session };
 }
 
 function handoffFailure(status: number, code: unknown): OAuthHandoffError {
@@ -54,9 +54,9 @@ function handoffFailure(status: number, code: unknown): OAuthHandoffError {
     return new OAuthHandoffError("This sign-in expired. Start the connection again.", "expired");
   }
   if (status === 401 || status === 403) {
-    return new OAuthHandoffError("Paperclip Cloud could not authorize this connection for your account.", "forbidden");
+    return new OAuthHandoffError("Nexus Cloud could not authorize this connection for your account.", "forbidden");
   }
-  return new OAuthHandoffError("Paperclip Cloud couldn’t prepare secure sign-in. Try again.", "unavailable");
+  return new OAuthHandoffError("Nexus Cloud couldn’t prepare secure sign-in. Try again.", "unavailable");
 }
 
 async function postCloudHandoff(
@@ -84,7 +84,7 @@ async function postCloudHandoff(
   }
   if (response) return response;
   throw new OAuthHandoffError(
-    lastError instanceof Error ? lastError.message : "Paperclip Cloud couldn’t prepare secure sign-in. Try again.",
+    lastError instanceof Error ? lastError.message : "Nexus Cloud couldn’t prepare secure sign-in. Try again.",
     "unavailable",
   );
 }
@@ -139,7 +139,7 @@ export async function prepareOAuthNavigation(
     typeof body?.authorizationUrl === "string" ? body.authorizationUrl : undefined,
   );
   if (!authorization.ok) {
-    throw new OAuthHandoffError("Paperclip Cloud returned an invalid provider sign-in address.", "invalid_handoff");
+    throw new OAuthHandoffError("Nexus Cloud returned an invalid provider sign-in address.", "invalid_handoff");
   }
   return { kind: "authorization", url: authorization.url, host: authorization.host };
 }
@@ -148,15 +148,15 @@ export function savePendingCloudHandoff(
   session: string,
   storage: Pick<Storage, "setItem"> = window.sessionStorage,
 ): void {
-  const handoff = parseHandoff({ kind: "paperclip_cloud", session });
-  if (!handoff) throw new OAuthHandoffError("Paperclip Cloud returned an invalid sign-in handoff.", "invalid_handoff");
+  const handoff = parseHandoff({ kind: "nexus_cloud", session });
+  if (!handoff) throw new OAuthHandoffError("Nexus Cloud returned an invalid sign-in handoff.", "invalid_handoff");
   const pending: PendingCloudHandoff = { version: 1, session: handoff.session, savedAt: Date.now() };
   storage.setItem(PENDING_HANDOFF_KEY, JSON.stringify(pending));
 }
 
 export function readPendingCloudHandoff(
   storage: Pick<Storage, "getItem" | "removeItem"> = window.sessionStorage,
-): { kind: "paperclip_cloud"; session: string } | null {
+): { kind: "nexus_cloud"; session: string } | null {
   const raw = storage.getItem(PENDING_HANDOFF_KEY);
   if (!raw) return null;
   try {
@@ -166,7 +166,7 @@ export function readPendingCloudHandoff(
       || typeof pending.savedAt !== "number"
       || Date.now() - pending.savedAt > 15 * 60_000
     ) throw new Error("expired");
-    return parseHandoff({ kind: "paperclip_cloud", session: pending.session });
+    return parseHandoff({ kind: "nexus_cloud", session: pending.session });
   } catch {
     storage.removeItem(PENDING_HANDOFF_KEY);
     return null;

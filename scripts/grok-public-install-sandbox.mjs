@@ -79,7 +79,7 @@ export function runMacInitialInstallWithDiagnostics(install, { sourceRevision, p
       } catch {}
       const codes = new Set(['ETIMEDOUT', 'ENOENT', 'EACCES', 'EPERM', 'ENOMEM', 'ENOBUFS', 'EIO', 'EPIPE', 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER']);
       const signals = new Set(['SIGTERM', 'SIGKILL', 'SIGABRT', 'SIGINT', 'SIGHUP', 'SIGQUIT', 'SIGSEGV', 'SIGBUS']);
-      writeFileSync(receiptPath, JSON.stringify({ schema: 'paperclip.runner.mac-public-install-failure.v1',
+      writeFileSync(receiptPath, JSON.stringify({ schema: 'nexus.runner.mac-public-install-failure.v1',
         sourceRevision, platform, architecture, phase: 'initial-npm-install', outcome: 'FAILED', qualified: false,
         runtimeNotAttempted: true, providerCalls: 0, elapsedMilliseconds: Math.round(performance.now() - started), timeoutMilliseconds: 600000,
         error: { code: codes.has(error?.code) ? error.code : null, status: Number.isInteger(error?.status) ? error.status : null,
@@ -120,11 +120,11 @@ export function assertNoBundledCodexPayloads(entries) {
     assert.equal(typeof entry, 'string');
     assert.ok(!entry.startsWith('/') && !entry.split('/').includes('..'), 'Tar member must remain inside the package');
     assert.doesNotMatch(entry, /(?:^|\/)node_modules\/@openai\/codex-(?:linux|darwin|win32)-(?:x64|arm64)(?:\/|$)/,
-      'Paperclip tarballs must not bundle Codex platform packages');
+      'Nexus tarballs must not bundle Codex platform packages');
     assert.doesNotMatch(entry, /(?:^|\/)node_modules\/@openai\/codex\/vendor(?:\/|$)/,
-      'Paperclip tarballs must not bundle the Codex wrapper vendor payload');
+      'Nexus tarballs must not bundle the Codex wrapper vendor payload');
     if (!entry.endsWith('/')) assert.doesNotMatch(entry, /(?:^|\/)codex(?:\.exe)?$/,
-      'Paperclip tarballs must not bundle native Codex executables');
+      'Nexus tarballs must not bundle native Codex executables');
   }
 }
 
@@ -168,11 +168,11 @@ export function installedClaudeProbeSource(indexPath) {
   return `
     import assert from 'node:assert/strict';
     import { pathToFileURL } from 'node:url';
-    assert.equal(process.env.PAPERCLIP_ACPX_PROVIDER_PACKAGE_ROOT, undefined);
-    assert.equal(process.env.PAPERCLIP_ACPX_PROVIDER_PACKAGE_MANIFEST, undefined);
+    assert.equal(process.env.NEXUS_ACPX_PROVIDER_PACKAGE_ROOT, undefined);
+    assert.equal(process.env.NEXUS_ACPX_PROVIDER_PACKAGE_MANIFEST, undefined);
     const { probeAcpxClaudeInstallation } = await import(pathToFileURL(${JSON.stringify(indexPath)}).href);
     await probeAcpxClaudeInstallation('claude-opus-5-5');
-    console.log(JSON.stringify({ schema: 'paperclip.claude-installed-admission.v1',
+    console.log(JSON.stringify({ schema: 'nexus.claude-installed-admission.v1',
       platform: process.platform, architecture: process.arch, model: 'claude-opus-5-5',
       packageIntegrityAndNoFollowLease: 'passed', defaultPackageAuthority: true, providerCalls: 0 }));
   `;
@@ -312,16 +312,16 @@ export function installedDaemonProbeSource(outputRoot, consumerRoot, sourceRevis
     assert.ok(inside(output));
     const { defaultCapabilityRunnerdBinary } = await import(pathToFileURL(join(output, 'live/runnerd-codex-transport.js')).href);
     const { runnerBinaryTarget } = await import(pathToFileURL(join(output, 'live/runner-binary.js')).href);
-    const { parsePaperclipRunnerdBuildMetadata } = await import(pathToFileURL(join(output, 'evals/runnerd-artifact.js')).href);
-    const { PAPERCLIP_RUNNER_BUILD_METADATA: expected } = await import(pathToFileURL(join(output, 'evals/build-metadata.js')).href);
+    const { parseNexusRunnerdBuildMetadata } = await import(pathToFileURL(join(output, 'evals/runnerd-artifact.js')).href);
+    const { NEXUS_RUNNER_BUILD_METADATA: expected } = await import(pathToFileURL(join(output, 'evals/build-metadata.js')).href);
     const manifest = JSON.parse(readFileSync(join(output, 'bin/release-manifest.json'), 'utf8'));
     const targets = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64'];
-    assert.equal(manifest.schema, 'paperclip.runner.release-binaries.v1');
+    assert.equal(manifest.schema, 'nexus.runner.release-binaries.v1');
     assert.equal(manifest.sourceRevision, ${JSON.stringify(sourceRevision)});
     assert.deepEqual(Object.keys(manifest.platforms).sort(), targets.sort());
     for (const target of targets) {
       const record = manifest.platforms[target];
-      assert.equal(record.path, target + '/paperclip-runnerd');
+      assert.equal(record.path, target + '/nexus-runnerd');
       const file = join(output, 'bin', record.path); assert.ok(inside(file));
       const bytes = readFileSync(file);
       assert.equal(runnerBinaryTarget(bytes), target);
@@ -330,7 +330,7 @@ export function installedDaemonProbeSource(outputRoot, consumerRoot, sourceRevis
     const target = process.platform + '-' + process.arch, selected = defaultCapabilityRunnerdBinary();
     assert.ok(inside(selected));
     assert.equal(realpathSync(selected), realpathSync(join(output, 'bin', manifest.platforms[target].path)), 'Production must select the packaged host daemon');
-    const metadata = parsePaperclipRunnerdBuildMetadata(JSON.parse(execFileSync(selected, ['--build-metadata'], {
+    const metadata = parseNexusRunnerdBuildMetadata(JSON.parse(execFileSync(selected, ['--build-metadata'], {
       timeout: 15000, maxBuffer: 64 * 1024, encoding: 'utf8', env: { PATH: process.env.PATH, HOME: process.env.HOME, NODE_PATH: '' },
     })));
     assert.equal(metadata.binaryContractVersion, expected.contracts.runnerdArtifact);
@@ -380,7 +380,7 @@ export function grokConsumerDockerArgs({ assets, consumer, cache, command, uid, 
     '--mount', `type=bind,src=${assets},dst=/packages,readonly`,
     '--mount', `type=bind,src=${consumer},dst=/consumer`,
     '--mount', `type=bind,src=${cache},dst=/cache`,
-    ...(prerequisite ? ['--mount', `type=bind,src=${prerequisite},dst=/opt/paperclip/providers/grok/1.0.13/grok,readonly`] : []),
+    ...(prerequisite ? ['--mount', `type=bind,src=${prerequisite},dst=/opt/nexus/providers/grok/1.0.13/grok,readonly`] : []),
     '--workdir', '/consumer', GROK_PUBLIC_INSTALL_IMAGE, ...command,
   ];
 }

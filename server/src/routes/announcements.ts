@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { companies, type Db } from "@paperclipai/db";
-import { ANNOUNCEMENT_ANIMATION_CSP, announcementIdSchema, dismissAnnouncementSchema } from "@paperclipai/shared";
+import { companies, type Db } from "@nexusai/db";
+import { ANNOUNCEMENT_ANIMATION_CSP, announcementIdSchema, dismissAnnouncementSchema } from "@nexusai/shared";
 import { badRequest, forbidden, notFound } from "../errors.js";
 import { validate } from "../middleware/validate.js";
 import { assertAuthenticated, assertBoard, hasCompanyAccess } from "./authz.js";

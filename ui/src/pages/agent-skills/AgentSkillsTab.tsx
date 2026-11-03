@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, ChevronDown, Loader2, Search, Store, X } from "lucide-react";
-import type { Agent, AgentDesiredSkillEntry } from "@paperclipai/shared";
+import type { Agent, AgentDesiredSkillEntry } from "@nexusai/shared";
 import { agentsApi } from "../../api/agents";
 import { companySkillsApi } from "../../api/companySkills";
 import { instanceSettingsApi } from "../../api/instanceSettings";
@@ -28,10 +28,10 @@ import { buildAgentSkillSourceMeta } from "./agent-skill-source";
 import { AgentSkillReleasePicker, releaseShortLabel } from "./AgentSkillReleasePicker";
 
 const MATERIALIZATION_NOTE =
-  "Enabled skills are materialized into the stable Paperclip-managed prompt bundle on the agent's next run.";
+  "Enabled skills are materialized into the stable Nexus-managed prompt bundle on the agent's next run.";
 
-/** Company skill key of the Paperclip core skill that carries beta releases. */
-const PAPERCLIP_CORE_SKILL_KEY = "paperclipai/paperclip/paperclip";
+/** Company skill key of the Nexus core skill that carries beta releases. */
+const NEXUS_CORE_SKILL_KEY = "paperclipai/paperclip/nexus";
 
 /** Build the desired-skill sync payload, carrying any active version pins. */
 export function toDesiredSkillPayload(
@@ -93,21 +93,21 @@ export function AgentSkillsTab({ agent, companyId }: { agent: Agent; companyId?:
   });
   const betaSkillsEnabled = experimentalSettings?.enableBetaSkills === true;
 
-  const paperclipCoreSkill = useMemo(
-    () => (companySkills ?? []).find((skill) => skill.key === PAPERCLIP_CORE_SKILL_KEY) ?? null,
+  const nexusCoreSkill = useMemo(
+    () => (companySkills ?? []).find((skill) => skill.key === NEXUS_CORE_SKILL_KEY) ?? null,
     [companySkills, skillSnapshot],
   );
 
-  // Seeded releases (release_id IS NOT NULL) for the paperclip core skill. Only
+  // Seeded releases (release_id IS NOT NULL) for the nexus core skill. Only
   // fetched when the flag is on and the skill is present in the library.
-  const { data: paperclipVersions } = useQuery({
-    queryKey: queryKeys.companySkills.versions(companyId ?? "", paperclipCoreSkill?.id ?? ""),
-    queryFn: () => companySkillsApi.versions(companyId!, paperclipCoreSkill!.id),
-    enabled: Boolean(companyId && betaSkillsEnabled && paperclipCoreSkill?.id),
+  const { data: nexusVersions } = useQuery({
+    queryKey: queryKeys.companySkills.versions(companyId ?? "", nexusCoreSkill?.id ?? ""),
+    queryFn: () => companySkillsApi.versions(companyId!, nexusCoreSkill!.id),
+    enabled: Boolean(companyId && betaSkillsEnabled && nexusCoreSkill?.id),
   });
-  const paperclipReleases = useMemo(
-    () => (paperclipVersions ?? []).filter((version) => version.releaseId != null),
-    [paperclipVersions],
+  const nexusReleases = useMemo(
+    () => (nexusVersions ?? []).filter((version) => version.releaseId != null),
+    [nexusVersions],
   );
 
   const syncSkills = useMutation({
@@ -311,12 +311,12 @@ export function AgentSkillsTab({ agent, companyId }: { agent: Agent; companyId?:
       typeof agent.adapterConfig.agent === "string" &&
       agent.adapterConfig.agent === "custom"
     ) {
-      return "Paperclip cannot manage skills for custom ACP commands yet.";
+      return "Nexus cannot manage skills for custom ACP commands yet.";
     }
     if (agent.adapterType === "openclaw_gateway") {
-      return "Paperclip cannot manage OpenClaw skills here. Visit your OpenClaw instance to manage this agent's skills.";
+      return "Nexus cannot manage OpenClaw skills here. Visit your OpenClaw instance to manage this agent's skills.";
     }
-    return "Paperclip cannot manage skills for this adapter yet. Manage them in the adapter directly.";
+    return "Nexus cannot manage skills for this adapter yet. Manage them in the adapter directly.";
   }, [agent.adapterConfig.agent, agent.adapterType, unsupported]);
 
   const hasUnsavedChanges = !sameSkillSelection(skillDraft, lastSavedSkills);
@@ -340,26 +340,26 @@ export function AgentSkillsTab({ agent, companyId }: { agent: Agent; companyId?:
     syncSkills.mutate(toDesiredSkillPayload(skillDraft, nextPins));
   };
 
-  // The release picker only applies to the enabled paperclip core skill while the
+  // The release picker only applies to the enabled nexus core skill while the
   // beta-skills flag is on and seeded releases exist.
-  const releasePickerActive = betaSkillsEnabled && paperclipReleases.length > 0;
+  const releasePickerActive = betaSkillsEnabled && nexusReleases.length > 0;
 
   const renderRow = (row: AgentSkillRowData, variant: "enabled" | "available") => {
     // Historical assignments stay interactive so the user can remove them.
     // The server rejects new assignments and omits stale ones from native
     // runtime context, so disabling an enabled row would only trap stale data.
-    const legacyPaperclipBlocked = agent.adapterType === "paperclip_runner"
+    const legacyNexusBlocked = agent.adapterType === "nexus_runner"
       && variant === "available"
-      && row.key === PAPERCLIP_CORE_SKILL_KEY;
-    const rowDisabled = unsupported || legacyPaperclipBlocked;
-    const rowDisabledReason = legacyPaperclipBlocked
-      ? "Paperclip Runner uses native semantic coordination and cannot attach the legacy Paperclip operational skill."
+      && row.key === NEXUS_CORE_SKILL_KEY;
+    const rowDisabled = unsupported || legacyNexusBlocked;
+    const rowDisabledReason = legacyNexusBlocked
+      ? "Nexus Runner uses native semantic coordination and cannot attach the legacy Nexus operational skill."
       : unsupportedMessage;
     const showReleasePicker =
-      releasePickerActive && variant === "enabled" && row.key === PAPERCLIP_CORE_SKILL_KEY;
+      releasePickerActive && variant === "enabled" && row.key === NEXUS_CORE_SKILL_KEY;
     const pinnedVersionId = versionPins[row.key] ?? null;
     const pinnedRelease = pinnedVersionId
-      ? paperclipReleases.find((release) => release.id === pinnedVersionId) ?? null
+      ? nexusReleases.find((release) => release.id === pinnedVersionId) ?? null
       : null;
 
     return (
@@ -381,7 +381,7 @@ export function AgentSkillsTab({ agent, companyId }: { agent: Agent; companyId?:
         accessory={
           showReleasePicker ? (
             <AgentSkillReleasePicker
-              releases={paperclipReleases}
+              releases={nexusReleases}
               value={pinnedVersionId}
               disabled={rowDisabled || syncSkills.isPending}
               onChange={(versionId) => handleReleaseChange(row.key, versionId)}

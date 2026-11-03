@@ -14,7 +14,7 @@ const context = {
     { id: "agent-2", name: "QA" },
   ],
   projects: [
-    { id: "11111111-1111-4111-8111-111111111111", name: "Paperclip App", urlKey: "paperclip-app" },
+    { id: "11111111-1111-4111-8111-111111111111", name: "Nexus App", urlKey: "nexus-app" },
   ],
   labels: [
     { id: "22222222-2222-4222-8222-222222222222", name: "bug" },
@@ -45,7 +45,7 @@ describe("parseSearchQuery", () => {
   });
 
   it("parses project names", () => {
-    expect(parseSearchQuery("project:paperclip-app", context).filters).toEqual({
+    expect(parseSearchQuery("project:nexus-app", context).filters).toEqual({
       projectId: "11111111-1111-4111-8111-111111111111",
     });
   });
@@ -82,7 +82,7 @@ describe("parseSearchQuery", () => {
   });
 
   it("parses mixed free text and multiple operators", () => {
-    expect(parseSearchQuery("auth status:in_progress priority:critical project:paperclip-app", context)).toMatchObject({
+    expect(parseSearchQuery("auth status:in_progress priority:critical project:nexus-app", context)).toMatchObject({
       query: "auth",
       filters: {
         status: ["in_progress"],

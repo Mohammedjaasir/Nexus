@@ -8,8 +8,8 @@ export function installedReleaseLaunch(cliPath: string) {
   const root = path.resolve(path.dirname(cli), "..");
   const manifest = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
   if (path.basename(cli) !== "index.js" || path.basename(path.dirname(cli)) !== "dist" ||
-      manifest.name !== "paperclipai" || typeof manifest.version !== "string") {
-    throw new Error("Installed release must use paperclipai/dist/index.js from its public package");
+      manifest.name !== "nexusai" || typeof manifest.version !== "string") {
+    throw new Error("Installed release must use nexusai/dist/index.js from its public package");
   }
   return { cli, cwd: root, args: [cli, "onboard", "--yes", "--run"], version: manifest.version };
 }
@@ -18,11 +18,11 @@ export function installedReleaseLaunch(cliPath: string) {
 export function installedReleaseDaytonaPlugin(cliPath: string, installedPluginPath?: string, expectedVersion?: string): string {
   const cli = installedReleaseLaunch(cliPath);
   if (installedPluginPath && !path.isAbsolute(installedPluginPath)) throw new Error("Installed Daytona plugin path must be absolute");
-  const plugin = realpathSync(installedPluginPath ?? path.join(path.dirname(cli.cwd), "@paperclipai/plugin-daytona"));
+  const plugin = realpathSync(installedPluginPath ?? path.join(path.dirname(cli.cwd), "@nexusai/plugin-daytona"));
   const manifest = JSON.parse(readFileSync(path.join(plugin, "package.json"), "utf8"));
-  if (manifest.name !== "@paperclipai/plugin-daytona" ||
-      manifest.paperclipPlugin?.manifest !== "./dist/manifest.js" ||
-      manifest.paperclipPlugin?.worker !== "./dist/worker.js" ||
+  if (manifest.name !== "@nexusai/plugin-daytona" ||
+      manifest.nexusPlugin?.manifest !== "./dist/manifest.js" ||
+      manifest.nexusPlugin?.worker !== "./dist/worker.js" ||
       manifest.exports?.["."]?.import !== "./dist/index.js") {
     throw new Error("Installed release requires the public compiled Daytona plugin package");
   }
@@ -38,11 +38,11 @@ export function installedReleaseDaytonaPlugin(cliPath: string, installedPluginPa
 
 /** Qualification assets must never make a public installed product smoke pass. */
 export function installedReleaseEnvironment(source: NodeJS.ProcessEnv, repositoryRoot: string, providerBin: string): NodeJS.ProcessEnv {
-  if (source.PAPERCLIP_RUNNER_ACPX_QUALIFICATION) throw new Error("Installed release smoke requires production admission without qualification overrides");
+  if (source.NEXUS_RUNNER_ACPX_QUALIFICATION) throw new Error("Installed release smoke requires production admission without qualification overrides");
   const result = { ...source };
   for (const key of Object.keys(result)) {
-    if ((key.startsWith("PAPERCLIP_RUNNER_") && !key.startsWith("PAPERCLIP_RUNNER_E2E_")) ||
-        key.startsWith("PAPERCLIP_ACPX_") || key.startsWith("PAPERCLIP_NATIVE_") ||
+    if ((key.startsWith("NEXUS_RUNNER_") && !key.startsWith("NEXUS_RUNNER_E2E_")) ||
+        key.startsWith("NEXUS_ACPX_") || key.startsWith("NEXUS_NATIVE_") ||
         key === "NODE_PATH" || key === "NODE_OPTIONS") delete result[key];
   }
   result.PATH = source.PATH?.split(path.delimiter).filter(entry =>

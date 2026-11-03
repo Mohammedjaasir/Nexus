@@ -100,7 +100,7 @@ not evidence of authorization, persistence, concurrency, or real execution.
 
 ## Real test-drive acceptance (2026-10-07)
 
-- Isolated CLI test drive: `/tmp/paperclip-primary-agent-test-drive`, company
+- Isolated CLI test drive: `/tmp/nexus-primary-agent-test-drive`, company
   **Primary Agent Test Drive**, prefix `PRI`, at http://localhost:3104.
 - Maia was crowned automatically through the real creation API. Creating Alex
   preserved Maia. The simplified creation wizard's model-connection step rejected

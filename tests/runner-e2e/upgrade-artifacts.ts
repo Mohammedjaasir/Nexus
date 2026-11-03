@@ -6,7 +6,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { verifyInstalledCli, type installedCliKeys } from "./installed-cli.js";
 import type { MatrixExecution } from "./types.js";
 
-export const upgradeArtifactKey = "PAPERCLIP_RUNNER_E2E_UPGRADE_ARTIFACTS";
+export const upgradeArtifactKey = "NEXUS_RUNNER_E2E_UPGRADE_ARTIFACTS";
 export interface UpgradeArtifact {
   root: string;
   revision: string;
@@ -15,7 +15,7 @@ export interface UpgradeArtifact {
   pins: Record<(typeof installedCliKeys)[number], string>;
 }
 export interface UpgradeArtifacts {
-  schema: "paperclip.e2e.upgrade-artifacts/v1";
+  schema: "nexus.e2e.upgrade-artifacts/v1";
   artifacts: { A: UpgradeArtifact; B: UpgradeArtifact };
   sequence: Array<"A" | "B">;
 }
@@ -68,7 +68,7 @@ export async function readUpgradeArtifacts(filename: string | undefined): Promis
   const bytes = await readFile(filename);
   if (bytes.length > 64 * 1024) throw new Error("Upgrade artifact manifest is too large");
   const value = JSON.parse(bytes.toString()) as UpgradeArtifacts;
-  if (value?.schema !== "paperclip.e2e.upgrade-artifacts/v1" || !Array.isArray(value.sequence)
+  if (value?.schema !== "nexus.e2e.upgrade-artifacts/v1" || !Array.isArray(value.sequence)
     || value.sequence.length < 3 || value.sequence.length > 9 || value.sequence[0] !== "A"
     || value.sequence[1] !== "B" || value.sequence[2] !== "A"
     || value.sequence.some((id, index) => (id !== "A" && id !== "B") || id === value.sequence[index - 1])) throw new Error("Upgrade qualification requires an explicit alternating A, B, A sequence");

@@ -11,7 +11,7 @@ vi.mock("./client", async (importOriginal) => ({
   api: mockApi,
 }));
 
-import type { IssueThreadInteraction } from "@paperclipai/shared";
+import type { IssueThreadInteraction } from "@nexusai/shared";
 import { acceptedResolutionMatches, answeredResolutionMatches, issuesApi } from "./issues";
 import { ApiError } from "./client";
 import { CommentSubmissionUnknownError } from "../lib/comment-submit-result";
@@ -260,7 +260,7 @@ describe("interaction resolution replay", () => {
       error: "Interaction has already been resolved",
       code: "interaction_already_resolved",
     });
-  const outage = () => new ApiError("Paperclip is restarting", 503, { error: "tenant_app_unavailable" });
+  const outage = () => new ApiError("Nexus is restarting", 503, { error: "tenant_app_unavailable" });
 
   beforeEach(() => {
     mockApi.get.mockReset();

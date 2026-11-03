@@ -1,11 +1,11 @@
 import { and, eq, inArray } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { heartbeatRunEvents } from "@paperclipai/db";
-import { parseCodexTurnDiff } from "../vendor/paperclip-runner/index.js";
+import type { Db } from "@nexusai/db";
+import { heartbeatRunEvents } from "@nexusai/db";
+import { parseCodexTurnDiff } from "../vendor/nexus-runner/index.js";
 import { appendHeartbeatRunEvent } from "./heartbeat-run-events.js";
 
 type WorkspaceDiffPayload = {
-  schema: "paperclip.workspace.diff.v1";
+  schema: "nexus.workspace.diff.v1";
   changeSetId: string;
   revision: number;
   source: "runner_verified";
@@ -86,7 +86,7 @@ export function projectCodexWorkspaceDiffsFromTrace(
     turns.set(turnId, {
       turnId,
       payload: {
-        schema: "paperclip.workspace.diff.v1",
+        schema: "nexus.workspace.diff.v1",
         changeSetId: `${turnId}:workspace`,
         revision,
         source: "runner_verified",

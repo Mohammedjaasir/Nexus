@@ -44,17 +44,17 @@ function literal(node, label) {
 
 function annotation(csf, file) {
   const parameters = csf._metaAnnotations.parameters;
-  if (parameters?.type !== "ObjectExpression") throw new Error(`${file}: declare parameters.paperclip as literal metadata`);
-  const matches = parameters.properties.filter(property => (property.key?.name ?? property.key?.value) === "paperclip");
-  if (matches.length !== 1) throw new Error(`${file}: expected one parameters.paperclip annotation`);
+  if (parameters?.type !== "ObjectExpression") throw new Error(`${file}: declare parameters.nexus as literal metadata`);
+  const matches = parameters.properties.filter(property => (property.key?.name ?? property.key?.value) === "nexus");
+  if (matches.length !== 1) throw new Error(`${file}: expected one parameters.nexus annotation`);
   const property = matches[0];
-  if (property.type !== "ObjectProperty" || property.computed) throw new Error(`${file}: paperclip must be a literal property`);
+  if (property.type !== "ObjectProperty" || property.computed) throw new Error(`${file}: nexus must be a literal property`);
   if (parameters.properties.slice(parameters.properties.indexOf(property) + 1).some(property => property.type === "SpreadElement" || property.computed)) {
-    throw new Error(`${file}: paperclip metadata must follow parameter spreads and computed properties`);
+    throw new Error(`${file}: nexus metadata must follow parameter spreads and computed properties`);
   }
   const value = literal(property.value, file);
-  if (!value || Array.isArray(value) || typeof value !== "object") throw new Error(`${file}: paperclip metadata must be an object`);
-  for (const key of Object.keys(value)) if (!annotationFields.has(key)) throw new Error(`${file}: unknown paperclip field ${key}`);
+  if (!value || Array.isArray(value) || typeof value !== "object") throw new Error(`${file}: nexus metadata must be an object`);
+  for (const key of Object.keys(value)) if (!annotationFields.has(key)) throw new Error(`${file}: unknown nexus field ${key}`);
   return value;
 }
 

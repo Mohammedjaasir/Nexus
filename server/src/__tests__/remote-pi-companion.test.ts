@@ -12,28 +12,28 @@ vi.mock("node:fs/promises", async (original) => {
     open: async (...args: Parameters<typeof fs.open>) => { hooks.open?.(String(args[0])); const file = await fs.open(...args); const read = file.read.bind(file); file.read = (async (...readArgs: any[]) => { const result = await (read as any)(...readArgs); hooks.read?.(String(args[0]), result.bytesRead); return result; }) as typeof file.read; return file; },
   };
 });
-vi.mock("../vendor/paperclip-runner/index.js", async () => await import("../../../packages/paperclip-runner/src/drivers/acpx/qualified-profiles.js"));
-import { QUALIFIED_ACPX_PROFILES } from "../../../packages/paperclip-runner/src/drivers/acpx/qualified-profiles.js";
+vi.mock("../vendor/nexus-runner/index.js", async () => await import("../../../packages/nexus-runner/src/drivers/acpx/qualified-profiles.js"));
+import { QUALIFIED_ACPX_PROFILES } from "../../../packages/nexus-runner/src/drivers/acpx/qualified-profiles.js";
 import { createRemotePiCompanionManifest, importRemotePiCompanion, inventoryRemoteCompanion, resolveRemotePiCompanion, selectRemotePiCompanion } from "../services/native-runtime/remote-pi-companion.js";
 const roots: string[] = [];
 afterEach(() => { hooks.mkdir = undefined; hooks.rename = undefined; hooks.open = undefined; hooks.read = undefined; for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); vi.restoreAllMocks(); });
 const hash = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
 const canonical = (v: any): string => Array.isArray(v) ? `[${v.map(canonical).join(",")}]` : v && typeof v === "object" ? `{${Object.keys(v).sort().map(k => `${JSON.stringify(k)}:${canonical(v[k])}`).join(",")}}` : JSON.stringify(v);
 async function fixture() {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "paperclip-companion-"))); roots.push(root);
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "nexus-companion-"))); roots.push(root);
   const source = "a".repeat(40); const serverRoot = join(root, "server"); const directory = join(root, "release");
-  mkdirSync(join(serverRoot, "dist"), { recursive: true }); writeFileSync(join(serverRoot, "package.json"), '{"name":"@paperclipai/server"}'); writeFileSync(join(serverRoot, "dist/build-info.json"), JSON.stringify({ commit: source }));
+  mkdirSync(join(serverRoot, "dist"), { recursive: true }); writeFileSync(join(serverRoot, "package.json"), '{"name":"@nexusai/server"}'); writeFileSync(join(serverRoot, "dist/build-info.json"), JSON.stringify({ commit: source }));
   mkdirSync(join(directory, "bin"), { recursive: true }); mkdirSync(join(directory, "provider-pack"));
   // Synthetic ELF header; these tests never launch it or claim native qualification.
-  const elf = Buffer.alloc(128); Buffer.from([127, 69, 76, 70, 2, 1]).copy(elf); elf.writeUInt16LE(62, 18); writeFileSync(join(directory, "bin/paperclip-runnerd"), elf, { mode: 0o755 });
+  const elf = Buffer.alloc(128); Buffer.from([127, 69, 76, 70, 2, 1]).copy(elf); elf.writeUInt16LE(62, 18); writeFileSync(join(directory, "bin/nexus-runnerd"), elf, { mode: 0o755 });
   const payload = { runnerSourceRevision: source, target: { platform: "linux", architecture: "x64" }, candidateProviders: { pi: { qualification: "qualified", profileDigest: QUALIFIED_ACPX_PROFILES.pi.commandDigest, path: "provider-assets/pi/linux-x64" } } };
-  writeFileSync(join(directory, "provider-pack/provider-pack.json"), JSON.stringify({ schema: "paperclip-runner/remote-provider-pack/v1", digest: `sha256:${hash(canonical(payload))}`, payload }));
+  writeFileSync(join(directory, "provider-pack/provider-pack.json"), JSON.stringify({ schema: "nexus-runner/remote-provider-pack/v1", digest: `sha256:${hash(canonical(payload))}`, payload }));
   const manifest = await createRemotePiCompanionManifest(directory, source); const bytes = JSON.stringify(manifest); writeFileSync(join(directory, "companion.json"), bytes); return { root, directory, serverRoot, sha256: hash(bytes), manifest, source };
 }
 it("imports the release-generated closure and resolves target bytes without environment overrides", async () => {
   const f = await fixture(); const result = await importRemotePiCompanion(f); expect(result.status).toBe("imported_verified");
-  expect(result.runnerBinary).toBe(join(f.serverRoot, "remote-companions/linux-x64/bin/paperclip-runnerd"));
-  expect(readFileSync(result.runnerBinary!)).toEqual(readFileSync(join(f.directory, "bin/paperclip-runnerd")));
+  expect(result.runnerBinary).toBe(join(f.serverRoot, "remote-companions/linux-x64/bin/nexus-runnerd"));
+  expect(readFileSync(result.runnerBinary!)).toEqual(readFileSync(join(f.directory, "bin/nexus-runnerd")));
   expect((await importRemotePiCompanion(f)).status).toBe("verified_existing"); expect((await resolveRemotePiCompanion({ serverRoot: f.serverRoot }))?.manifestSha256).toBe(f.sha256);
   expect(readdirSync(join(f.serverRoot, "remote-companions"))).toEqual(["linux-x64"]);
 });
@@ -42,16 +42,16 @@ it.each(["sha", "source", "profile", "target", "daemon", "extra", "mode", "outsi
   if (kind === "sha") f.sha256 = "b".repeat(64);
   if (kind === "source") writeFileSync(join(f.serverRoot, "dist/build-info.json"), JSON.stringify({ commit: "b".repeat(40) }));
   if (kind === "profile" || kind === "target") { Object.assign(f.manifest, kind === "profile" ? { profileDigest: "sha256:" + "b".repeat(64) } : { target: "darwin-arm64" }); const bytes = JSON.stringify(f.manifest); writeFileSync(join(f.directory, "companion.json"), bytes); f.sha256 = hash(bytes); }
-  if (kind === "daemon") writeFileSync(join(f.directory, "bin/paperclip-runnerd"), "changed");
+  if (kind === "daemon") writeFileSync(join(f.directory, "bin/nexus-runnerd"), "changed");
   if (kind === "extra") writeFileSync(join(f.directory, "extra"), "unlisted");
-  if (kind === "mode") chmodSync(join(f.directory, "bin/paperclip-runnerd"), 0o777);
+  if (kind === "mode") chmodSync(join(f.directory, "bin/nexus-runnerd"), 0o777);
   if (kind === "outside-link") symlinkSync("../../server/package.json", join(f.directory, "provider-pack/escape"));
-  if (kind === "outside-hardlink") linkSync(join(f.directory, "bin/paperclip-runnerd"), join(f.root, "alias"));
+  if (kind === "outside-hardlink") linkSync(join(f.directory, "bin/nexus-runnerd"), join(f.root, "alias"));
   if (kind === "pack") writeFileSync(join(f.directory, "provider-pack/provider-pack.json"), "{}");
   await expect(importRemotePiCompanion(f)).rejects.toThrow(); expect(() => readdirSync(join(f.serverRoot, "remote-companions/linux-x64"))).toThrow();
 });
 it("copies contained symlinks and breaks only fully owned internal hardlinks", async () => {
-  const f = await fixture(); linkSync(join(f.directory, "bin/paperclip-runnerd"), join(f.directory, "bin/alias")); symlinkSync("paperclip-runnerd", join(f.directory, "bin/link"));
+  const f = await fixture(); linkSync(join(f.directory, "bin/nexus-runnerd"), join(f.directory, "bin/alias")); symlinkSync("nexus-runnerd", join(f.directory, "bin/link"));
   f.manifest = await createRemotePiCompanionManifest(f.directory, f.source); const bytes = JSON.stringify(f.manifest); writeFileSync(join(f.directory, "companion.json"), bytes); f.sha256 = hash(bytes);
   expect((await importRemotePiCompanion(f)).status).toBe("imported_verified");
 });
@@ -110,7 +110,7 @@ it.each(["new", "existing"])("defers actual SIGTERM on the %s import path and dr
   await build({ entryPoints: [new URL("../services/native-runtime/remote-pi-companion.ts", import.meta.url).pathname], outfile: bundle,
     platform: "node", format: "esm", target: "node24", bundle: true, logLevel: "silent",
     plugins: [{ name: "source-owned-profile-only", setup(builder) {
-      builder.onResolve({ filter: /vendor\/paperclip-runner\/index\.js$/ }, () => ({ path: new URL("../../../packages/paperclip-runner/src/drivers/acpx/qualified-profiles.ts", import.meta.url).pathname }));
+      builder.onResolve({ filter: /vendor\/nexus-runner\/index\.js$/ }, () => ({ path: new URL("../../../packages/nexus-runner/src/drivers/acpx/qualified-profiles.ts", import.meta.url).pathname }));
     } }],
   });
   const script = join(f.root, "cancel.mjs");

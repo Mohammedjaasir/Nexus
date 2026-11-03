@@ -14,7 +14,7 @@ export const DRAFT_DEBOUNCE_MS = 800;
 // Chat drafts and uncertain submissions belong to this browser tab. Sharing a
 // submission fence across tabs prevents intentional concurrent conversation turns.
 function draftStorage(draftKey: string): Storage {
-  return draftKey.startsWith("paperclip:agent-chat-draft:") ? sessionStorage : localStorage;
+  return draftKey.startsWith("nexus:agent-chat-draft:") ? sessionStorage : localStorage;
 }
 
 export function loadDraft(draftKey: string): string {
@@ -33,14 +33,14 @@ export function loadDraftIfAvailable(draftKey: string): string | null {
 /** A conflicting tab keeps its own recoverable buffer without replacing the
  * shared draft or acquiring another tab's pending receipt. */
 export function loadDraftRecoveryKey(draftKey: string): string | null {
-  const key = `paperclip:agent-chat-draft:recovered:${draftKey}`;
+  const key = `nexus:agent-chat-draft:recovered:${draftKey}`;
   try {
     return sessionStorage.getItem(`${key}:recovery:v1`) === draftKey ? key : null;
   } catch { return null; }
 }
 
 export function preserveDraftInTab(draftKey: string, body: string, attachments: unknown): { key: string; persisted: boolean } {
-  const key = `paperclip:agent-chat-draft:recovered:${draftKey}`;
+  const key = `nexus:agent-chat-draft:recovered:${draftKey}`;
   try {
     sessionStorage.setItem(key, body);
     sessionStorage.setItem(`${key}:attachments:v1`, JSON.stringify({ version: 1, draftKey: key, attachments: draftAttachments(attachments) }));
@@ -52,7 +52,7 @@ export function preserveDraftInTab(draftKey: string, body: string, attachments: 
 }
 
 function syncDraftRecoveryMarker(draftKey: string) {
-  const prefix = "paperclip:agent-chat-draft:recovered:";
+  const prefix = "nexus:agent-chat-draft:recovered:";
   if (!draftKey.startsWith(prefix)) return;
   const marker = `${draftKey}:recovery:v1`;
   if (loadDraft(draftKey).trim() || loadDraftAttachments(draftKey).length || loadDraftSubmission(draftKey)) {

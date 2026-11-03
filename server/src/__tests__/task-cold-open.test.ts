@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { activityLog, agents, applyPendingMigrations, closeRegisteredClients, companies, createDb, heartbeatRunEvents, heartbeatRuns, issueComments, issues, issueWorkProducts } from "@paperclipai/db";
+import { activityLog, agents, applyPendingMigrations, closeRegisteredClients, companies, createDb, heartbeatRunEvents, heartbeatRuns, issueComments, issues, issueWorkProducts } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { issueRoutes } from "../routes/issues.js";
 import { errorHandler } from "../middleware/index.js";
@@ -11,11 +11,11 @@ import { createHeartbeatRunState } from "../services/heartbeat/run-state.js";
 import { activityService } from "../services/activity.js";
 import { documentService } from "../services/documents.js";
 
-const externalDatabase = process.env.PAPERCLIP_TASK_COLD_OPEN_DATABASE_URL;
+const externalDatabase = process.env.NEXUS_TASK_COLD_OPEN_DATABASE_URL;
 if (externalDatabase) {
   const target = new URL(externalDatabase);
   if (!["localhost", "127.0.0.1", "[::1]"].includes(target.hostname) || !target.pathname.endsWith("_test"))
-    throw new Error("PAPERCLIP_TASK_COLD_OPEN_DATABASE_URL must name a disposable loopback database ending in _test");
+    throw new Error("NEXUS_TASK_COLD_OPEN_DATABASE_URL must name a disposable loopback database ending in _test");
 }
 const support = externalDatabase ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("task cold-open reads", () => {
@@ -156,7 +156,7 @@ const support = externalDatabase ? { supported: true } : await getEmbeddedPostgr
 
   it("pages conversation events without ordinary tools, including identity-less deltas and requests", async () => {
     const event = (seq: number, eventType: string, payload: Record<string, unknown>, itemId?: string) => ({
-      companyId, runId, agentId, seq, eventType, payload: { prpEvent: { schema: "paperclip.prp.event.v1", eventType, itemId, payload } },
+      companyId, runId, agentId, seq, eventType, payload: { prpEvent: { schema: "nexus.prp.event.v1", eventType, itemId, payload } },
     });
     await db.insert(heartbeatRunEvents).values([
       event(1, "item.started", { kind: "toolCall", arguments: "large tool arguments" }, "tool"),
@@ -190,7 +190,7 @@ const support = externalDatabase ? { supported: true } : await getEmbeddedPostgr
     await db.insert(heartbeatRuns).values({ id: planRunId, companyId, agentId, issueId, runtimeMode: "native", status: "succeeded" });
     const event = (seq: number, eventType: string, item: Record<string, unknown>, turnId = "turn-1", sourceKind = "runner") => ({
       companyId, runId: planRunId, agentId, seq, eventType, message: "private tool message",
-      payload: { extra: "private outer payload", prpEvent: { schema: "paperclip.prp.event.v1", runId: planRunId,
+      payload: { extra: "private outer payload", prpEvent: { schema: "nexus.prp.event.v1", runId: planRunId,
         sourceKind, turnId, eventType, sourceSeq: seq, itemId: item.id, payload: { kind: item.type, item } } },
     });
     const call = (id: string, key = "plan") => ({ id, type: "tool_use", name: "write_document", input: { key, body: "private plan input" } });

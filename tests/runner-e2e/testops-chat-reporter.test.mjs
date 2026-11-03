@@ -12,7 +12,7 @@ const context = { GITHUB_REPOSITORY: 'paperclipai/paperclip', GITHUB_REF: 'refs/
 async function fixture(t, change = {}) {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'testops-selection-')));
   t.after(() => rm(root, { recursive: true }));
-  const value = { schema: 'paperclip.chat-feature-testops-selection/v1', runId: '123', attempt: '1', workflowSha: 'a'.repeat(40), targetSha: 'a'.repeat(40),
+  const value = { schema: 'nexus.chat-feature-testops-selection/v1', runId: '123', attempt: '1', workflowSha: 'a'.repeat(40), targetSha: 'a'.repeat(40),
     allureJobRunId: '9', executionId, canonicalScenario: scenario, projectId: 1, planId: 8, jobId: 7, caseId: 91, fullName, launchId: 10, ...change };
   const bytes = Buffer.from(JSON.stringify(value));
   await mkdir(path.join(root, 'chat-testops-selection'));
@@ -47,10 +47,10 @@ test('actual upload facade copies authenticated workspace bytes to owned temp be
     environmentId: 'local', model: 'openrouter/deepseek/deepseek-v4.1-flash-1017', runtimeMode: 'native', attempt: 1,
     source: { sha: context.GITHUB_SHA }, status: 'passed', cleanup: 'passed', runIds: ['synthetic'], durationMs: 123,
     matcherResults: [{ matcher: { kind: 'json_path', path: 'chatFeature.createdTask', expected: true }, passed: true }], screenshots: [shot] };
-  const files = new Map([['normalized-results.json', Buffer.from(JSON.stringify({ schema: 'paperclip.runner-e2e.campaign/v2', campaignId: 'gha-123-1', results: [result] }))],
+  const files = new Map([['normalized-results.json', Buffer.from(JSON.stringify({ schema: 'nexus.runner-e2e.campaign/v2', campaignId: 'gha-123-1', results: [result] }))],
     ['junit.xml', Buffer.from('<testsuite tests="1"/>')], [`evidence/${executionId}/attempt-1/final-state.png`, png]]);
   for (const [name, bytes] of files) { await mkdir(path.dirname(path.join(root, name)), { recursive: true }); await writeFile(path.join(root, name), bytes); }
-  await writeFile(path.join(root, 'binding.json'), JSON.stringify({ schema: 'paperclip.chat-feature-testops-export/v1', runId: '123', attempt: '1',
+  await writeFile(path.join(root, 'binding.json'), JSON.stringify({ schema: 'nexus.chat-feature-testops-export/v1', runId: '123', attempt: '1',
     workflowSha: context.GITHUB_SHA, targetSha: context.GITHUB_SHA, executionId, campaignId: 'gha-123-1', resultStatus: 'passed', cleanup: 'passed',
     files: [...files].map(([name, bytes]) => ({ path: name, sha256: hash(bytes), bytes: bytes.length })) }));
   assert.equal(await reporter('upload', root, { ...f.env, RUNNER_TEMP: temporary }), 0);
@@ -87,9 +87,9 @@ test('actual launch-plan facade performs metadata-only plan launch once and exit
   const fetchImpl = async (url, options) => {
     const route = new URL(url).pathname, method = options.method; calls.push({ route, method });
     const response = value => ({ ok: true, status: 200, json: async () => value, text: async () => JSON.stringify(value) });
-    if (route === '/repos/paperclipai/paperclip') return response({ full_name: 'paperclipai/paperclip', private: false, default_branch: 'master' });
-    if (route === '/repos/paperclipai/paperclip/actions/workflows/chat-feature-testops.yml') return response({ id: 99, path: '.github/workflows/chat-feature-testops.yml', state: 'active' });
-    if (route === '/repos/paperclipai/paperclip/actions/runs/123') return response({ id: 123, workflow_id: 99, run_attempt: 1, run_number: 2, head_sha: context.GITHUB_SHA, head_branch: 'master', event: 'workflow_dispatch', repository: { full_name: 'paperclipai/paperclip', private: false, default_branch: 'master' }, actor: { id: 34892728 }, triggering_actor: { id: 34892728 } });
+    if (route === '/repos/nexusai/nexus') return response({ full_name: 'paperclipai/paperclip', private: false, default_branch: 'master' });
+    if (route === '/repos/nexusai/nexus/actions/workflows/chat-feature-testops.yml') return response({ id: 99, path: '.github/workflows/chat-feature-testops.yml', state: 'active' });
+    if (route === '/repos/nexusai/nexus/actions/runs/123') return response({ id: 123, workflow_id: 99, run_attempt: 1, run_number: 2, head_sha: context.GITHUB_SHA, head_branch: 'master', event: 'workflow_dispatch', repository: { full_name: 'paperclipai/paperclip', private: false, default_branch: 'master' }, actor: { id: 34892728 }, triggering_actor: { id: 34892728 } });
     if (route === '/api/uaa/oauth/token') return response({ access_token: 'SYNTHETIC_TOKEN' });
     if (route === '/api/testcase/91') return response({ id: 91, projectId: 1, fullName, automated: true });
     if (route === '/api/testplan/8') return response({ id: 8, projectId: 1, name: 'Chat feature evals', testCasesCount: 1, treeSelection: { leafsInclude: [91] } });
@@ -122,7 +122,7 @@ test('actual launch caller rejects five own-run contradictions before TestOps au
       let testopsCalls = 0;
       const fetchImpl = async url => {
         if (new URL(url).hostname !== 'api.github.com') { testopsCalls++; throw new Error('must not reach TestOps'); }
-        const value = url.endsWith('/repos/paperclipai/paperclip') ? { full_name: 'paperclipai/paperclip', private: false, default_branch: 'master' } : url.includes('/actions/workflows/') ? { id: 99, path: '.github/workflows/chat-feature-testops.yml', state: 'active' }
+        const value = url.endsWith('/repos/nexusai/nexus') ? { full_name: 'paperclipai/paperclip', private: false, default_branch: 'master' } : url.includes('/actions/workflows/') ? { id: 99, path: '.github/workflows/chat-feature-testops.yml', state: 'active' }
           : { id: 123, workflow_id: 99, run_attempt: 1, run_number: 2, head_sha: context.GITHUB_SHA, head_branch: 'master', event: 'workflow_dispatch',
             repository: { full_name: 'paperclipai/paperclip', private: false, default_branch: 'master' }, actor: { id: 34892728 }, triggering_actor: { id: 34892728 }, ...changes };
         return { ok: true, text: async () => JSON.stringify(value) };
@@ -145,7 +145,7 @@ async function bootstrapContextFixture(t, inputs = { operation: 'bootstrap', ALL
   await writeFile(path.join(state, 'job.json'), originalJob, { mode: 0o600 });
   const event = path.join(workspace, 'event.json'); await writeFile(event, JSON.stringify({ inputs }));
   return { ...f, state, originalJob, env: { ...f.env, RUNNER_TEMP: temporary, GITHUB_EVENT_PATH: event, ALLURE_JOB_RUN_ID: '',
-    ALLURE_ENDPOINT: 'https://paperclip.testops.cloud', ALLURE_PROJECT_ID: '1', ALLURE_TOKEN: 'SYNTHETIC_REPORTER_TOKEN', CHAT_TESTOPS_GITHUB_WORKFLOW_ID: '99' } };
+    ALLURE_ENDPOINT: 'https://nexus.testops.cloud', ALLURE_PROJECT_ID: '1', ALLURE_TOKEN: 'SYNTHETIC_REPORTER_TOKEN', CHAT_TESTOPS_GITHUB_WORKFLOW_ID: '99' } };
 }
 function bootstrapContextFetch(change = {}) {
   const calls = [];
@@ -195,7 +195,7 @@ test('post-watch facade runs exact official command with bounded pipes and prese
   assert.equal(await reporter('bootstrap-context', undefined, f.env, server.fetchImpl, execImpl), 0);
   const bytes = await readFile(path.join(f.state, 'registration.json'));
   const result = JSON.parse(bytes);
-  assert.equal(result.schema, 'paperclip.chat-feature-testops-bootstrap-registration/v1');
+  assert.equal(result.schema, 'nexus.chat-feature-testops-bootstrap-registration/v1');
   assert.equal(result.jobId, 7); assert.equal(result.allureJobRunId, '9'); assert.equal(result.launchId, 10);
   assert.equal(result.runId, '123'); assert.equal(result.workflowSha, context.GITHUB_SHA); assert.equal(result.targetSha, context.GITHUB_SHA);
   assert.equal(result.currentRunUrlMatches, true); assert.equal(result.publicWorkflowMatches, true);

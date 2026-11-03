@@ -31,7 +31,7 @@ import {
   startEmbeddedPostgresTestDatabase,
   toolApplications,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   installTeamsFileConsentHook,
   restoreTeamsFileConsentBinding,
@@ -48,7 +48,7 @@ import {
   type TeamsFileTransferOptions,
 } from "./chat-teams-file-transfers.js";
 
-const external = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const external = process.env.NEXUS_TEST_DATABASE_URL;
 const support = external
   ? { supported: true }
   : await getEmbeddedPostgresTestSupport();
@@ -69,13 +69,13 @@ suite(
       Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
     beforeAll(async () => {
       vi.stubEnv(
-        "PAPERCLIP_SECRETS_MASTER_KEY",
+        "NEXUS_SECRETS_MASTER_KEY",
         Buffer.alloc(32, 79).toString("base64"),
       );
       if (external) db = createDb(external);
       else {
         temporary = await startEmbeddedPostgresTestDatabase(
-          "paperclip-teams-transfers-",
+          "nexus-teams-transfers-",
         );
         db = createDb(temporary.connectionString);
       }

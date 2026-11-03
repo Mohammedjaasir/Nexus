@@ -152,13 +152,13 @@ its position in the Agents sidebar, then open a new task or Chat.
 
 ### `agent-api-keys`
 
-Open `/agents/:agentId/api-keys` → **API Keys** (by URL; it is not in the agent nav) with an authenticated person who can manage agents. The operator CLI also supports `paperclipai token agent create -C <company-id> --agent <agent-id> --name <label>`, `token agent list -C <company-id> --agent <agent-id>`, and `token agent revoke <key-id> -C <company-id> --agent <agent-id>`.
+Open `/agents/:agentId/api-keys` → **API Keys** (by URL; it is not in the agent nav) with an authenticated person who can manage agents. The operator CLI also supports `nexusai token agent create -C <company-id> --agent <agent-id> --name <label>`, `token agent list -C <company-id> --agent <agent-id>`, and `token agent revoke <key-id> -C <company-id> --agent <agent-id>`.
 
 ### `managed-agent-cli`
 
-Use the operator command `paperclipai managed-agent setup --company-id <company-id> --profile-key <key> --display-name <name> --api-key-secret-id <company-secret-id> --acknowledge-retention --json`. Supply ANTHROPIC_API_KEY through the process environment. Use `--agent-id`, `--agent-version`, and `--environment-id` to adopt resources, or `--probe` for provider reads without profile persistence. The optional session-list cost ceiling is `--max-session-list-cost-usd`.
+Use the operator command `nexusai managed-agent setup --company-id <company-id> --profile-key <key> --display-name <name> --api-key-secret-id <company-secret-id> --acknowledge-retention --json`. Supply ANTHROPIC_API_KEY through the process environment. Use `--agent-id`, `--agent-version`, and `--environment-id` to adopt resources, or `--probe` for provider reads without profile persistence. The optional session-list cost ceiling is `--max-session-list-cost-usd`.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use a disposable company and supported adapter; hiring may require a formal approval.
 
@@ -179,7 +179,7 @@ live VM provisioning.
 
 Manual: Hire an agent with a distinct name and role. Complete any required approval, reload the roster, and open its configuration. Confirm manager, adapter, and model persisted; run a small task to prove execution readiness.
 
-For a new Codex hire, choose the Codex harness. Automatic selection uses Paperclip
+For a new Codex hire, choose the Codex harness. Automatic selection uses Nexus
 Runner on a qualified selected target; Advanced offers an explicit Legacy runner
 override. Record the persisted runner and
 underlying harness, rather than treating the displayed Codex name as execution
@@ -200,7 +200,7 @@ Use the [portability recipe](./companies.md) for package preparation and boundar
 
 For Claude Code on qualified macOS or GNU/Linux x64/ARM64, submit without a
 runner override and inspect
-saved configuration: `paperclip_runner`, `provider: acpx`, `acpxAgent: claude`,
+saved configuration: `nexus_runner`, `provider: acpx`, `acpxAgent: claude`,
 and ordinary model `claude-opus-5-5`. The Advanced runner selector can explicitly
 choose Legacy. Keep explicit model/account choices and saved runners on edits.
 Verify useful output and a follow-up after a controller restart; setup success
@@ -254,7 +254,7 @@ Compare effective search policy before and after, including the implicit disable
 default and explicit enabled search. Verify task model and effort changes use the
 Grok catalog and reach execution while retaining the account and search policy. Check a
 saved `maxTurnsPerRun: 1000`: upgrade must warn and remove it. Test an initially
-unqualified Daytona Paperclip Computer: click must probe, record qualification,
+unqualified Daytona Nexus Computer: click must probe, record qualification,
 refresh availability, and only then save. A failed probe or changed selection must
 leave the agent on Legacy. Check a rejected permission setting, repair it, and retry. Verify a real task before
 and after migration, including its output, preserved history, and fresh session.
@@ -313,13 +313,13 @@ Sources: [Keys tab](../../ui/src/pages/AgentDetail.tsx), [key routes](../../serv
 
 Automated: [Managed-agent CLI](../../cli/src/__tests__/managed-agent.test.ts) uses mocked provider/API responses. [Profile route authorization](../../server/src/__tests__/managed-agent-profile-routes-authz.test.ts) and [remote profiles](../../server/src/services/remote-agent-profiles.test.ts) cover actor/company checks and qualification. They do not establish provider provisioning or a useful managed task.
 
-Manual: Start with known adopted provider IDs in an authorized disposable provider account. Run --probe and verify only provider reads: no resources are created and no Paperclip profile is written. Reject unsafe tools/network/package configuration, an unsupported model, duplicate profile matches, a missing retention acknowledgement, and a malformed secret UUID. During persistence, reject missing, inactive, or foreign-company secret references. Then create or adopt a locked profile in a disposable company; inspect its pinned version, model, environment, retention attestation, and cost ceiling through the profile API. Repeat setup and verify resource reuse. Reject viewer/agent writes and foreign-company references. Qualify useful task execution separately through the runtime recipe; a successful probe is not execution acceptance.
+Manual: Start with known adopted provider IDs in an authorized disposable provider account. Run --probe and verify only provider reads: no resources are created and no Nexus profile is written. Reject unsafe tools/network/package configuration, an unsupported model, duplicate profile matches, a missing retention acknowledgement, and a malformed secret UUID. During persistence, reject missing, inactive, or foreign-company secret references. Then create or adopt a locked profile in a disposable company; inspect its pinned version, model, environment, retention attestation, and cost ceiling through the profile API. Repeat setup and verify resource reuse. Reject viewer/agent writes and foreign-company references. Qualify useful task execution separately through the runtime recipe; a successful probe is not execution acceptance.
 
 Sources: [Managed-agent CLI](../../cli/src/commands/managed-agent.ts), [profile routes](../../server/src/routes/managed-agent-profiles.ts), [profile service](../../server/src/services/managed-agent-profiles.ts), and [runtime validation](./runs-adapters.md).
 
 ## Gotchas
 
-- Managed-agent probing is read-only at the provider and does not persist a Paperclip profile. The explicit retention acknowledgement remains required even for probe.
+- Managed-agent probing is read-only at the provider and does not persist a Nexus profile. The explicit retention acknowledgement remains required even for probe.
 
 - Agent keys, human CLI tokens, and personal assistant OAuth grants are different credentials. Never include a key’s plaintext token in screenshots, logs, or verification artifacts.
 
@@ -331,9 +331,9 @@ Sources: [Managed-agent CLI](../../cli/src/commands/managed-agent.ts), [profile 
 
 ### `connect-grok-bot`
 
-Choose **Invite an external agent → Grok Bot**, identify the Bot by its desktop name, connect its remote MCP plugin, configure a webhook-only routine, and verify delivery plus authenticated reply. Save & exit resumes the same agent. Keep pairing codes in browser authorization and routine credentials in Paperclip’s fields. A working Bot web URL is not required.
+Choose **Invite an external agent → Grok Bot**, identify the Bot by its desktop name, connect its remote MCP plugin, configure a webhook-only routine, and verify delivery plus authenticated reply. Save & exit resumes the same agent. Keep pairing codes in browser authorization and routine credentials in Nexus’s fields. A working Bot web URL is not required.
 
-Prerequisites: authenticated public HTTPS, Assistant connections (MCP), Paperclip Runner and Grok Bot experimental settings. Cloud uses its normal managed Runner environment. Provider usage is unknown. Routine uncertainty blocks new assignments until explicit inspection and recovery; stopping work revokes Paperclip authority without confirming remote termination.
+Prerequisites: authenticated public HTTPS, Assistant connections (MCP), Nexus Runner and Grok Bot experimental settings. Cloud uses its normal managed Runner environment. Provider usage is unknown. Routine uncertainty blocks new assignments until explicit inspection and recovery; stopping work revokes Nexus authority without confirming remote termination.
 
 Evidence: source implementation and focused protocol tests; real provider assigned/proactive workflows and deployed managed acceptance remain release gates.
 ### Documentation scope: Agents, organization, and runtime setup

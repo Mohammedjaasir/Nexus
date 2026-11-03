@@ -3,11 +3,11 @@ import fsSync from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { mergePaperclipConfig, paperclipConfigSchema } from "@paperclipai/shared";
+import { mergeNexusConfig, nexusConfigSchema } from "@nexusai/shared";
 import {
   updateEnvFileContents,
   writeEnvFileAtomicallyIfChanged,
-} from "@paperclipai/shared/env-file";
+} from "@nexusai/shared/env-file";
 import { resourceStatus, stockHash } from "../services/managed-resource-drift.js";
 import { agentInstructionsService, resolveManagedInstructionsRoot } from "../services/agent-instructions.js";
 
@@ -17,7 +17,7 @@ import { agentInstructionsService, resolveManagedInstructionsRoot } from "../ser
  * Seeds hand edits across every formerly-destructive setup/sync surface, reruns the
  * setup/sync mechanism, and asserts each edit survives. Each block drives the SAME
  * production code the writers/reconcilers use:
- *   - config.json          -> mergePaperclipConfig + paperclipConfigSchema (shared core
+ *   - config.json          -> mergeNexusConfig + nexusConfigSchema (shared core
  *                             used by BOTH writers: cli/src/config/store.ts:writeConfig
  *                             and server/src/worktree-config.ts:writeConfigFile)
  *   - .env                 -> updateEnvFileContents + writeEnvFileAtomicallyIfChanged
@@ -49,8 +49,8 @@ afterEach(async () => {
       cleanupDirs.delete(dir);
     }),
   );
-  delete process.env.PAPERCLIP_HOME;
-  delete process.env.PAPERCLIP_INSTANCE_ID;
+  delete process.env.NEXUS_HOME;
+  delete process.env.NEXUS_INSTANCE_ID;
 });
 
 const BASE_CONFIG = {
@@ -62,11 +62,11 @@ const BASE_CONFIG = {
 
 /** Emulates a writer round-trip on disk: parse the update, merge over the parsed source. */
 function writerRoundTrip(configPath: string, update: unknown): void {
-  const parsedUpdate = paperclipConfigSchema.parse(update);
-  const source = paperclipConfigSchema.parse(
+  const parsedUpdate = nexusConfigSchema.parse(update);
+  const source = nexusConfigSchema.parse(
     JSON.parse(fsSync.readFileSync(configPath, "utf8")),
   );
-  const next = paperclipConfigSchema.parse(mergePaperclipConfig(source, parsedUpdate));
+  const next = nexusConfigSchema.parse(mergeNexusConfig(source, parsedUpdate));
   fsSync.writeFileSync(configPath, JSON.stringify(next, null, 2) + "\n");
 }
 
@@ -76,7 +76,7 @@ describe("setup/sync rerun survival — cross-cutting", () => {
     const configPath = path.join(dir, "config.json");
 
     // Seed a config that carries operator extension keys the schema does not know about.
-    const seeded = paperclipConfigSchema.parse({
+    const seeded = nexusConfigSchema.parse({
       ...BASE_CONFIG,
       customTopLevel: { keepMe: true, nested: [1, 2, 3] },
       server: { ...BASE_CONFIG.server, customServerKey: "operator-owned" },
@@ -149,8 +149,8 @@ describe("setup/sync rerun survival — cross-cutting", () => {
 
   it("keeps operator edits and additions when managed instructions reconciliation detects drift", async () => {
     const home = await tmp("pap16587-instr-home-");
-    process.env.PAPERCLIP_HOME = home;
-    process.env.PAPERCLIP_INSTANCE_ID = "test-instance";
+    process.env.NEXUS_HOME = home;
+    process.env.NEXUS_INSTANCE_ID = "test-instance";
 
     const svc = agentInstructionsService();
     const agent = { id: "agent-1", companyId: "company-1", name: "Agent 1", adapterConfig: {} };

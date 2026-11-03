@@ -124,7 +124,7 @@ jobs:
             cat > "$pr_body_file" <<'PR_BODY'
           ## Thinking Path
 
-          > - Paperclip uses a dependency lock for reproducible builds.
+          > - Nexus uses a dependency lock for reproducible builds.
           > - Dependency changes on master need matching lock entries.
           > - Paid eval reports also pin a reviewed offline correction.
           > - Reports must install before paid model work starts.

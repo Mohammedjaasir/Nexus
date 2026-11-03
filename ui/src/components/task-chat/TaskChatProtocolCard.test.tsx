@@ -12,7 +12,7 @@ import type {
   TaskChatProviderActivityFamily,
   TaskChatRuntimeRequestDecision,
 } from "./task-chat-model";
-import type { HeartbeatRunEvent, IssueWorkProduct } from "@paperclipai/shared";
+import type { HeartbeatRunEvent, IssueWorkProduct } from "@nexusai/shared";
 import { nativeRunEventsToTranscript } from "../transcript/native-run-events";
 import { transcriptToTaskChatItems } from "./transcript-adapter";
 import { IssueGalleryContext } from "@/context/IssueGalleryContext";
@@ -160,7 +160,7 @@ describe("TaskChatProtocolCard", () => {
   it("shows pending artifacts with a dashed Pending chip", () => {
     const product = workProduct({
       type: "artifact",
-      provider: "paperclip",
+      provider: "nexus",
       url: "/api/attachments/attachment-1/content",
       status: "pending",
       title: "demo.png",
@@ -336,7 +336,7 @@ describe("TaskChatProtocolCard", () => {
   ] as const)("renders %s runtime with %s health", (status, healthStatus, visible, absent) => {
     const product = workProduct({
       type: "runtime_service",
-      provider: "paperclip",
+      provider: "nexus",
       status,
       healthStatus,
       title: "Storybook",
@@ -517,11 +517,11 @@ describe("TaskChatProtocolCard", () => {
       eventType: "runtime_request.created", stream: "system", level: "info", color: null, message: null,
       createdAt: new Date("2026-09-28T12:00:00Z"),
       payload: { prpEvent: {
-        schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceEventId: "permission-1", sourceSeq: 1,
+        schema: "nexus.prp.event.v1", schemaVersion: 1, sourceEventId: "permission-1", sourceSeq: 1,
         sourceKind: "runner", sourceInstanceId: "runner-1", runId: "run-1", normalizedSessionId: "session-1",
         turnId: "turn-1", itemId: "item-1", eventType: "runtime_request.created", priority: 0,
         emittedAt: "2026-09-28T12:00:00Z", payload: { request: {
-          schema: "paperclip.runtime_request.v2", requestKind: "permission_approval", type: "permission",
+          schema: "nexus.runtime_request.v2", requestKind: "permission_approval", type: "permission",
           requestId: "permission-1", turnId: "turn-1", itemId: "item-1", status: "pending",
           prompt: "Allow editing src/example.ts?",
           choices: [{ key: "accept", label: "Allow once" }, { key: "decline", label: "Deny" }],
@@ -613,7 +613,7 @@ describe("TaskChatProtocolCard", () => {
       requestId: "plan-revision-7", requestKind: "runtime", turnId: "turn-1",
       requestType: "input", status: "pending", prompt: "Review the complete plan.", choices: [], fields: [],
       questionSet: {
-        schema: "paperclip.question_set.v1", description,
+        schema: "nexus.question_set.v1", description,
         questions: [{ id: "decision", prompt: "Accept this plan?", required: true, answerMode: "single_select",
           options: [{ id: "accept", label: "Accept" }, { id: "reject", label: "Reject" }] }],
       },
@@ -628,7 +628,7 @@ describe("TaskChatProtocolCard", () => {
     expect(context?.textContent).toContain("https://provider.invalid/track.png");
     expect(context?.querySelector("img, video, audio, iframe, object, embed, image, link")).toBeNull();
     expect(context?.querySelector('.language-mermaid')?.textContent).toContain('https://provider.invalid/diagram.png');
-    expect(context?.querySelector('.paperclip-mermaid')).toBeNull();
+    expect(context?.querySelector('.nexus-mermaid')).toBeNull();
   });
 
   it("submits the canonical response from a v2 harness question set", async () => {
@@ -649,7 +649,7 @@ describe("TaskChatProtocolCard", () => {
         choices: [],
         fields: [],
         questionSet: {
-          schema: "paperclip.question_set.v1",
+          schema: "nexus.question_set.v1",
           title: "Deployment input",
           submitLabel: "Continue",
           questions: [
@@ -719,7 +719,7 @@ describe("TaskChatProtocolCard", () => {
     expect(onDecision).toHaveBeenCalledWith({
       action: "submit",
       response: {
-        schema: "paperclip.question_response.v1",
+        schema: "nexus.question_response.v1",
         answers: { environment: { selectedOptionIds: ["production"] } },
       },
     });
@@ -742,7 +742,7 @@ describe("TaskChatProtocolCard", () => {
         choices: [],
         fields: [],
         questionSet: {
-          schema: "paperclip.question_set.v1",
+          schema: "nexus.question_set.v1",
           title: "Codex needs your input",
           questions: [
             {
@@ -782,7 +782,7 @@ describe("TaskChatProtocolCard", () => {
       fields: [],
       resolvedAction: "submit",
       questionSet: {
-        schema: "paperclip.question_set.v1",
+        schema: "nexus.question_set.v1",
         title: "Server setup",
         questions: [
           {
@@ -796,7 +796,7 @@ describe("TaskChatProtocolCard", () => {
         ],
       },
       response: {
-        schema: "paperclip.question_response.v1",
+        schema: "nexus.question_response.v1",
         answers: { style: { selectedOptionIds: ["esm"] } },
       },
     });
@@ -858,7 +858,7 @@ describe("TaskChatProtocolCard", () => {
       fields: [],
       resolvedAction: "cancel",
       questionSet: {
-        schema: "paperclip.question_set.v1",
+        schema: "nexus.question_set.v1",
         questions: [
           {
             id: "goal",
@@ -905,7 +905,7 @@ describe("TaskChatProtocolCard", () => {
         choices: [],
         fields: [],
         questionSet: {
-          schema: "paperclip.question_set.v1",
+          schema: "nexus.question_set.v1",
           questions: [
             {
               id: "regions",

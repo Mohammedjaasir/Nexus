@@ -6,7 +6,7 @@ import { createProof, createProofServer, PROOF_PROMPT, toolDefinitions } from ".
 
 // This probe is intentionally outside the app. Credentials never enter a
 // browser bundle, repository fixture, or printed provider response.
-const statePath = resolve(process.env.SPEKO_PROOF_STATE ?? `${homedir()}/.paperclip/speko-proof/state.json`);
+const statePath = resolve(process.env.SPEKO_PROOF_STATE ?? `${homedir()}/.nexus/speko-proof/state.json`);
 const save = async (state) => writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
 async function api(path, body) {
   const key = process.env.SPEKO_API_KEY ?? process.env.SPEKO_MCP_API_KEY;
@@ -39,9 +39,9 @@ async function main() {
       state.pendingMutation = "create_agent";
       await save(state);
       const agent = await api("/v1/agents", {
-        name: "Paperclip delayed voice proof",
+        name: "Nexus delayed voice proof",
         systemPrompt: PROOF_PROMPT,
-        firstMessage: "This is a synthetic Paperclip test. Say start the test when you are ready.",
+        firstMessage: "This is a synthetic Nexus test. Say start the test when you are ready.",
         intent: { language: "en-US", optimizeFor: "latency" },
         runMode: "cascade",
       });

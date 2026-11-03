@@ -3,7 +3,7 @@
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FolderListResult } from "@paperclipai/shared";
+import type { FolderListResult } from "@nexusai/shared";
 import { SkillFolderRail } from "./SkillFolderTree";
 
 function pointerEvent(type: string, clientX: number) {
@@ -101,7 +101,7 @@ describe("SkillFolderRail", () => {
     });
 
     expect(rail.style.width).toBe("320px");
-    expect(window.localStorage.getItem("paperclip.skills.folderRail.width")).toBe("320");
+    expect(window.localStorage.getItem("nexus.skills.folderRail.width")).toBe("320");
   });
 
   it("keeps virtual and folder counts on the same grid column", () => {

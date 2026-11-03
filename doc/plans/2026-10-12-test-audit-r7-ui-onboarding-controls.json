@@ -153,7 +153,7 @@
         "logSha256": "9f2c7c7ba8a4331469c7b7bd262c2657daabe0dfddd5a106882d9ed08600d8a1",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected \"vi.fn()\" to be called at least once\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2214:51)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.test.tsx:1044:45\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected \"vi.fn()\" to be called at least once\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2214:51)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.test.tsx:1044:45\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -181,7 +181,7 @@
         "logSha256": "7ffcbe62fc7de0402029a8fc92840b7c5fc17ed5d4a72d8ceab5235967c47416",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected undefined to deeply equal { type: 'user_secret_ref', \u2026(3) }\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.test.tsx:1047:72\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected undefined to deeply equal { type: 'user_secret_ref', \u2026(3) }\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.test.tsx:1047:72\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -209,7 +209,7 @@
         "logSha256": "4b97d9537eabe304eadc0b82144acfaba7bc1088edc74ab915170cc6f23f907b",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'plain' to be 'user_secret_ref' // Object.is equality\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.test.tsx:1064:29\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'plain' to be 'user_secret_ref' // Object.is equality\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.test.tsx:1064:29\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -237,7 +237,7 @@
         "logSha256": "29bed62b4bf4fb4d9a9aa9309fc5ebcddc8c73edd704933df4963dd401073262",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected '{\"name\":\"Ada\",\"appearance\":{\"schemaVe\u2026' not to contain 'secretId'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.test.tsx:1065:44\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected '{\"name\":\"Ada\",\"appearance\":{\"schemaVe\u2026' not to contain 'secretId'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.test.tsx:1065:44\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -265,7 +265,7 @@
         "logSha256": "09d6f75954ccc52b7fefb1747f3d5d54a70f952c509e5971959de4b96e47515b",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected \"vi.fn()\" to be called at least once\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2214:51)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.test.tsx:1085:45\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected \"vi.fn()\" to be called at least once\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2214:51)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.test.tsx:1085:45\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -293,7 +293,7 @@
         "logSha256": "4966efcc558d90d72e14d397901b306565dede76b0b908edbbbf223c48d9ac1d",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected { type: 'user_secret_ref', \u2026(3) } to be undefined\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.test.tsx:1088:72\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected { type: 'user_secret_ref', \u2026(3) } to be undefined\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.test.tsx:1088:72\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -321,7 +321,7 @@
         "logSha256": "07b461cd0a99e77e8f3e8c668613a67eb3f19ab622628cfa6b6058fb8e1dbb31",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected \"vi.fn()\" to be called with arguments: [ { name: 'Initech' } ]\n\nReceived:\n\n  1st vi.fn() call:\n\n  [\n    {\n-     \"name\": \"Initech\",\n+     \"name\": \"Wrong company\",\n    },\n  ]\n\n\nNumber of calls: 1\n\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2233:10)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.test.tsx:462:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected \"vi.fn()\" to be called with arguments: [ { name: 'Initech' } ]\n\nReceived:\n\n  1st vi.fn() call:\n\n  [\n    {\n-     \"name\": \"Initech\",\n+     \"name\": \"Wrong company\",\n    },\n  ]\n\n\nNumber of calls: 1\n\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2233:10)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.test.tsx:462:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -349,7 +349,7 @@
         "logSha256": "ba59a142a703fbcfb915dea3365a1e72283c9b7acdb28b7f486ee2949411ad04",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'Step 2 of 4  Create your first agent \u2026' not to contain 'Define your mission'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.test.tsx:463:45\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'Step 2 of 4  Create your first agent \u2026' not to contain 'Define your mission'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.test.tsx:463:45\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -377,7 +377,7 @@
         "logSha256": "7ebb5382e5d3701c63233f2c9ffe01bb7a0add3adac6b160ed70b3cbd185f9cd",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'Step 2 of 4  Create your first agent \u2026' not to contain 'Tell us about your team'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.test.tsx:464:45\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'Step 2 of 4  Create your first agent \u2026' not to contain 'Tell us about your team'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.test.tsx:464:45\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -405,7 +405,7 @@
         "logSha256": "36c516fa3a6507b036edd82a58808b69ec8a0ec6bd5870d0103908edcb173473",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'Step 2 of 3Ada Connect a modelPapercl\u2026' to contain 'Sign in to Claude then come back and \u2026'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.test.tsx:2839:41\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'Step 2 of 3Ada Connect a modelPapercl\u2026' to contain 'Sign in to Claude then come back and \u2026'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.test.tsx:2839:41\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -433,7 +433,7 @@
         "logSha256": "717f13481ecc00acbf9531e1e9a3c8c04c46d04f148f97b918d9137854a6593e",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'Step 2 of 3Ada Connect a modelPapercl\u2026' not to contain 'Use saved login'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.test.tsx:2840:45\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'Step 2 of 3Ada Connect a modelPapercl\u2026' not to contain 'Use saved login'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.test.tsx:2840:45\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     }

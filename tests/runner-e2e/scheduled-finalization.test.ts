@@ -17,7 +17,7 @@ function fixture() {
   const nonce = "abcdef123-1", bodies = expectedFixtureFeedback(nonce);
   const entries = ["complaint", "suggestion"].map(kind => ({ kind, body: bodies[kind as keyof typeof bodies] })) as FeedbackEvidence["entries"];
   const feedback = { version: 1, companyId: "company", entries, invocations: [], diagnostics: [], summary: emptyFeedbackSummary() } as FeedbackEvidence;
-  const result: RunnerE2EResult = { schema: "paperclip.runner-e2e.result/v2", executionId: cell.id,
+  const result: RunnerE2EResult = { schema: "nexus.runner-e2e.result/v2", executionId: cell.id,
     suiteId: cell.suite.id, suiteDefinitionHash: cell.suiteDefinitionHash,
     accountingIdentity: { campaignId: "scheduled-fixture", attemptId: "one" }, source: { sha: "a".repeat(40), ref: null, workflowRunUrl: null },
     attempt: 1, status: "passed", cleanup: "passed", profileId: cell.profile.id, caseId: cell.task.id,
@@ -25,7 +25,7 @@ function fixture() {
     startedAt: "2026-10-21T00:00:00.000Z", finishedAt: "2026-10-21T00:00:01.000Z", durationMs: 1000,
     feedback: { ...emptyFeedbackSummary(), collection: "complete", invocationCollection: "complete", complaints: 1, suggestions: 1,
       bodiesCollected: 2, review: feedbackReview(entries) },
-    matcherResults: [{ matcher: { kind: "message_exact", expected: `PAPERCLIP_E2E_OK_${nonce}` }, passed: true, detail: "matched" },
+    matcherResults: [{ matcher: { kind: "message_exact", expected: `NEXUS_E2E_OK_${nonce}` }, passed: true, detail: "matched" },
       ...["complete-retained-evidence", "one-of-each", "complaint-body-and-attribution", "complaint-completed-tool",
         "suggestion-body-and-attribution", "suggestion-completed-tool", "only-expected-submissions"].map(id => ({
         matcher: { kind: "json_path" as const, path: `feedbackPersistence.${id}`, expected: true }, passed: true, detail: "matched" }))] };

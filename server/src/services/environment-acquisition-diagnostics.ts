@@ -1,4 +1,4 @@
-import type { PluginEnvironmentAcquisitionDiagnostic } from "@paperclipai/plugin-sdk";
+import type { PluginEnvironmentAcquisitionDiagnostic } from "@nexusai/plugin-sdk";
 
 type Scope = { companyId: string; environmentId: string; runId: string };
 const evidence = new WeakMap<object, { scope: Scope; diagnostic: PluginEnvironmentAcquisitionDiagnostic }>();

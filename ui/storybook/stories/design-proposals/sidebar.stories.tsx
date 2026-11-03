@@ -12,7 +12,7 @@ const meta = {
     layout: "fullscreen",
     initialEntries: ["/PAP/issues"],
     docs: { description: { component: "Shared proposed DesignSidebar, also mounted by Pages/Tasks. Uses the production organization/account menus, navigation primitives, resize shell, task composer and command palette. Review resizing, selected/hover/focus states, truncated label motion, scrolling recents and menus here; check the Tasks page for the full composition. Story widths persist separately from the page. Fixture navigation and owner access do not establish production routes or permissions." } },
-    paperclip: {
+    nexus: {
       capabilities: ["tasks/organize", "inbox-search/search"],
       status: "proposed",
       home: "design-proposals",

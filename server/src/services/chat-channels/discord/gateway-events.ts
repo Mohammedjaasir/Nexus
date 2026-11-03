@@ -10,17 +10,17 @@ import {
   inArray,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatConversations,
   chatEndpointResources,
   chatEndpoints,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEndpointSetupState,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   type DiscordGatewayCallbackEvent,

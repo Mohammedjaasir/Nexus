@@ -19,7 +19,7 @@ function Fixture({ failConnection = false, failCleanup = false }: { failConnecti
   }, [failConnection, failCleanup]);
   return <VoiceConversationPanel agentName="Company Phone Agent" dependencies={dependencies} />;
 }
-const meta: Meta<typeof VoiceConversationPanel> = { ...voiceStoryLifecycle, id: "connections-speko-conversation", title: "Apps, channels, and extensions/External chat and email/Speko/Conversation", component: VoiceConversationPanel, parameters: { layout: "padded", paperclip: {"capabilities": ["chat-channels/conversation", "chat-channels/lifecycle"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production controller-backed conversation panel with fixture media and publications. No live provider result retrieval, audio or spoken playback proof."} } };
+const meta: Meta<typeof VoiceConversationPanel> = { ...voiceStoryLifecycle, id: "connections-speko-conversation", title: "Apps, channels, and extensions/External chat and email/Speko/Conversation", component: VoiceConversationPanel, parameters: { layout: "padded", nexus: {"capabilities": ["chat-channels/conversation", "chat-channels/lifecycle"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production controller-backed conversation panel with fixture media and publications. No live provider result retrieval, audio or spoken playback proof."} } };
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Idle: Story = { render: () => <Fixture /> };

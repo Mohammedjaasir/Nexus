@@ -13,7 +13,7 @@ const meta = {
           "Design preview: a paused task replaces the entire composer with an amber takeover. Resume restores the real composer; no dismiss, attachments, or sending while paused. Actions are local Storybook fixtures. See Tasks / Execution Controls for the current behavior.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "steering/stop-and-pause"
       ],

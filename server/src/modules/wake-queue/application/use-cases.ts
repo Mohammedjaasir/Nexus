@@ -35,7 +35,7 @@ import type {
 import type { PostCommitEffect, ReleaseOutcome } from "./types.js";
 import { WakeQueueApplicationError } from "./types.js";
 
-const DEFERRED_WAKE_CONTEXT_KEY = "_paperclipWakeContext";
+const DEFERRED_WAKE_CONTEXT_KEY = "_nexusWakeContext";
 
 const ISSUE_DISPOSITION_REPAIR_RETRY_REASON = "issue_disposition_repair";
 const EXECUTION_REVIEW_PARTICIPANT_RECOVERY_WAKE_REASONS = new Set([
@@ -417,7 +417,7 @@ async function promoteDeferredWake(
   const promotedSource = workingCandidate.source ?? "automation";
   const promotedTriggerDetail = workingCandidate.triggerDetail ?? null;
   const promotedPayload = { ...workingCandidate.payload };
-  delete promotedPayload["_paperclipWakeContext"];
+  delete promotedPayload["_nexusWakeContext"];
   delete promotedPayload["queuedCommentInterrupt"];
 
   const promotedContextSeed: Record<string, unknown> = { ...workingCandidate.deferredContextSeed };

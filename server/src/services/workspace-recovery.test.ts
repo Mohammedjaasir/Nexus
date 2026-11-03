@@ -6,7 +6,7 @@ import { recoveryService } from "./recovery/index.js";
 import { inspectWorkspaceSource } from "./workspace-source-inspection.js";
 import { appendHeartbeatRunEvent } from "./heartbeat-run-events.js";
 import { isPreDispatchExecutionWaitVerified } from "./pre-dispatch-execution-wait.js";
-import { heartbeatRunEvents } from "@paperclipai/db";
+import { heartbeatRunEvents } from "@nexusai/db";
 import { createHeartbeatQueue, shouldDeferFollowupWakeForSameIssue, shouldQueueFollowupForRunningIssueWake } from "./heartbeat/queue.js";
 import { createHeartbeatQueueTestDependencies } from "../__tests__/helpers/heartbeat-queue.js";
 import { recordRequiredWorkspaceRestoreFailure, terminalizeLegacyExecution } from "./legacy-execution-recovery.js";
@@ -29,7 +29,7 @@ import { workspaceOperationService } from "./workspace-operations.js";
 import { instanceSettingsService } from "./instance-settings.js";
 import { projectTaskInterruption } from "./task-interruption-presentation.js";
 import * as nativeWorkspaceSync from "./native-runtime/native-workspace-sync.js";
-import { GitShallowMetadataError } from "@paperclipai/adapter-utils/git-workspace-sync";
+import { GitShallowMetadataError } from "@nexusai/adapter-utils/git-workspace-sync";
 import { readSystemRecovery } from "./system-recovery-state.js";
 import { adoptSystemRecovery, updateSystemRecovery } from "./system-recovery.js";
 import { getStorageService } from "../storage/index.js";
@@ -47,14 +47,14 @@ import express from "express";
 import request from "supertest";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, approvals, budgetPolicies, costEvents, completionContracts, issueApprovals, issueTreeHolds, issueTreeHoldMembers, companies, createDb, applyPendingMigrations, environmentLeases, environments, heartbeatRuns, issueComments, issueRecoveryActions, issues, nativeRunFinalizations, nativeRunResults, agentWakeupRequests, workspaceOperations } from "@paperclipai/db";
+import { agents, approvals, budgetPolicies, costEvents, completionContracts, issueApprovals, issueTreeHolds, issueTreeHoldMembers, companies, createDb, applyPendingMigrations, environmentLeases, environments, heartbeatRuns, issueComments, issueRecoveryActions, issues, nativeRunFinalizations, nativeRunResults, agentWakeupRequests, workspaceOperations } from "@nexusai/db";
 import { resumePreservedResultFinalization } from "./preserved-result-finalization.js";
 import { finalizeNativeRun } from "./native-runtime/native-run-finalizer.js";
-import { CONTROL_PLANE_CONFORMANCE_RESULT, CONTROL_PLANE_CONFORMANCE_TERMINAL } from "../vendor/paperclip-runner/testing.js";
-import { issueThreadInteractions } from "@paperclipai/db";
+import { CONTROL_PLANE_CONFORMANCE_RESULT, CONTROL_PLANE_CONFORMANCE_TERMINAL } from "../vendor/nexus-runner/testing.js";
+import { issueThreadInteractions } from "@nexusai/db";
 import { issueRecoveryActionService } from "./issue-recovery-actions.js";
-import type { AdapterSandboxExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
-import type { EnvironmentLease } from "@paperclipai/shared";
+import type { AdapterSandboxExecutionTarget } from "@nexusai/adapter-utils/execution-target";
+import type { EnvironmentLease } from "@nexusai/shared";
 import { startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { prepareNativeWorkspaceSync, resumeNativeWorkspaceSync } from "./native-runtime/native-workspace-sync.js";
 import { nativeWorkspaceFinalizationLockKey } from "./native-runtime/native-workspace-finalization-ownership.js";
@@ -67,14 +67,14 @@ import { registerWorkspaceRecoveryWork } from "./workspace-recovery-work.js";
 import { heartbeatService } from "./heartbeat.js";
 import { hasVerifiedWorkspaceRepair, readWorkspaceRecovery } from "./workspace-recovery-receipt.js";
 import { claimNativeSessionResumptions } from "./native-runtime/native-finalization-reconciler.js";
-import { executionWorkspaces } from "@paperclipai/db";
-import { executionWorkspaceSnapshots } from "@paperclipai/db";
+import { executionWorkspaces } from "@nexusai/db";
+import { executionWorkspaceSnapshots } from "@nexusai/db";
 import { createSavedWorkspaceLoader, prepareRemoteWorkspace, readRemoteWorkspaceAuthority, reserveRemoteWorkspace, saveRemoteWorkspace } from "./remote-workspaces.js";
 import { createReusableLeaseHandoff } from "./environment-lease-handoff.js";
 import { preserveRemoteWorkspacePreparationFailure } from "./native-runtime/native-workspace-finalization-state.js";
 import { getExecutionBlocker } from "./execution-blocker.js";
 import { issueRoutes } from "../routes/issues.js";
-import { plugins } from "@paperclipai/db";
+import { plugins } from "@nexusai/db";
 import type { PluginWorkerManager } from "./plugin-worker-manager.js";
 import { errorHandler } from "../middleware/index.js";
 import * as workerProof from "./native-runtime/native-workspace-platform-proof.js";
@@ -91,11 +91,11 @@ describe("automatic retained workspace recovery", () => {
   let db: ReturnType<typeof createDb>;
   let root: string;
   const fixtureCompanyIds = new Set<string>();
-  const priorHome = process.env.PAPERCLIP_HOME, priorInstance = process.env.PAPERCLIP_INSTANCE_ID;
+  const priorHome = process.env.NEXUS_HOME, priorInstance = process.env.NEXUS_INSTANCE_ID;
   beforeAll(async () => {
     root = await mkdtemp(path.join(os.tmpdir(), "workspace-recovery-"));
-    process.env.PAPERCLIP_HOME = path.join(root, "home"); process.env.PAPERCLIP_INSTANCE_ID = "recovery";
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_WORKSPACE_RECOVERY_TEST_DATABASE_URL");
+    process.env.NEXUS_HOME = path.join(root, "home"); process.env.NEXUS_INSTANCE_ID = "recovery";
+    const external = resolveExternalTestDatabaseUrl("NEXUS_WORKSPACE_RECOVERY_TEST_DATABASE_URL");
     if (external) {
       await applyPendingMigrations(external);
       temporary = { connectionString: external, cleanup: async () => {} };
@@ -106,8 +106,8 @@ describe("automatic retained workspace recovery", () => {
   }, 30_000);
   afterAll(async () => {
     await db?.$client.end(); await temporary?.cleanup(); await rm(root, { recursive: true, force: true });
-    if (priorHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = priorHome;
-    if (priorInstance === undefined) delete process.env.PAPERCLIP_INSTANCE_ID; else process.env.PAPERCLIP_INSTANCE_ID = priorInstance;
+    if (priorHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = priorHome;
+    if (priorInstance === undefined) delete process.env.NEXUS_INSTANCE_ID; else process.env.NEXUS_INSTANCE_ID = priorInstance;
   });
   afterEach(async () => {
     // Discovery is intentionally global and bounded. An unresolved source from
@@ -129,7 +129,7 @@ describe("automatic retained workspace recovery", () => {
     const companyId = randomUUID(), issueId = randomUUID(), agentId = randomUUID(), runId = randomUUID(), actionId: string = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Workspace recovery", defaultResponsibleUserId: "board", issuePrefix: `R${companyId.slice(0, 6)}` });
     fixtureCompanyIds.add(companyId);
-    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", adapterType: "paperclip_runner", status: "idle", runtimeConfig: { heartbeat: { maxConcurrentRuns: 1 } } });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", adapterType: "nexus_runner", status: "idle", runtimeConfig: { heartbeat: { maxConcurrentRuns: 1 } } });
     await db.insert(issues).values({ id: issueId, companyId, assigneeAgentId: agentId, status: "blocked", title: "Recover existing work" });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, issueId, nativeIssueId: mode === "native" ? issueId : null,
       agentId, runtimeMode: mode, status: "failed", finishedAt: new Date(), errorCode: "execution_interrupted", contextSnapshot: { issueId } });
@@ -174,7 +174,7 @@ describe("automatic retained workspace recovery", () => {
     }
     await writeFile(path.join(remote, "saved.txt"), "finished work\n");
     await writeFile(path.join(host, "newer.txt"), "newer local work\n");
-    const recovery = { schema: "paperclip.workspace-restore-recovery.v1", leaseIds: [lease.id] };
+    const recovery = { schema: "nexus.workspace-restore-recovery.v1", leaseIds: [lease.id] };
     await db.update(heartbeatRuns).set({ resultJson: { workspaceRestoreFailure: "restore_failed", workspaceRestoreRecovery: recovery,
       conversationContinuation: "continue_conversation_v1" } }).where(eq(heartbeatRuns.id, runId));
     await db.update(environmentLeases).set({ metadata: { ...lease.metadata,
@@ -215,7 +215,7 @@ describe("automatic retained workspace recovery", () => {
     const commit = await git(["rev-parse", "HEAD"]);
     targets.get(f.lease.id)!.remoteCwd = remoteCwd;
     f.runtime.resumeRunLease.mockImplementation(async () => ({ providerLeaseId: f.providerLeaseId, metadata: { remoteCwd } }));
-    const authority = { schema: "paperclip.remote-workspace.v1", epoch: 1, snapshotId: null,
+    const authority = { schema: "nexus.remote-workspace.v1", epoch: 1, snapshotId: null,
       source: { kind: "empty" }, writerRunId: f.runId, dirty: true,
       location: { environmentId: f.lease.environmentId!, leaseId: f.lease.id, providerLeaseId: f.providerLeaseId, remoteCwd } };
     await db.insert(executionWorkspaces).values({ id: workspaceId, companyId: f.companyId, sourceIssueId: f.issueId,
@@ -227,14 +227,14 @@ describe("automatic retained workspace recovery", () => {
       metadata: { ...lease.metadata, remoteCwd, agentId: source.agentId } }).where(eq(environmentLeases.id, lease.id));
     const contractId = randomUUID(), resultId = randomUUID();
     await db.insert(completionContracts).values({ id: contractId, companyId: f.companyId, issueId: f.issueId,
-      revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "test", risk: "low",
+      revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "test", risk: "low",
       completionAuthority: "agent_claim_policy", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: CONTROL_PLANE_CONFORMANCE_RESULT.completionClaim.contractRevision,
         objective: "Complete the work", criteria: [{ id: "objective", requirement: "Complete the task" }] },
       canonicalSha256: "contract", createdByActorType: "system", createdByActorId: "test" });
     await db.update(heartbeatRuns).set({ completionContractId: contractId, resultJson: {}, runnerProfileJson: {
-      adapterDispatch: { adapterType: "paperclip_runner" },
-      remoteWorkspace: { schema: "paperclip.remote-workspace-run.v1", workspaceId, leaseId: lease.id,
+      adapterDispatch: { adapterType: "nexus_runner" },
+      remoteWorkspace: { schema: "nexus.remote-workspace-run.v1", workspaceId, leaseId: lease.id,
         providerLeaseId: f.providerLeaseId, remoteCwd, epoch: 1, state: "prepared", snapshotId: null },
     } }).where(eq(heartbeatRuns.id, f.runId));
     await db.insert(nativeRunResults).values({ id: resultId, companyId: f.companyId, issueId: f.issueId, runId: f.runId,
@@ -348,7 +348,7 @@ describe("automatic retained workspace recovery", () => {
     targets.get(f.lease.id)!.remoteCwd = remoteCwd;
     f.runtime.resumeRunLease.mockImplementation(async () => ({ providerLeaseId: f.providerLeaseId, metadata: { remoteCwd } }));
     const workspaceId = randomUUID();
-    let authority = { schema: "paperclip.remote-workspace.v1", epoch: 1, snapshotId: null as string | null,
+    let authority = { schema: "nexus.remote-workspace.v1", epoch: 1, snapshotId: null as string | null,
       source: { kind: "empty" }, writerRunId: f.runId, dirty: true,
       location: { environmentId: f.lease.environmentId!, leaseId: f.lease.id,
         providerLeaseId: f.providerLeaseId, remoteCwd } };
@@ -398,7 +398,7 @@ describe("automatic retained workspace recovery", () => {
     if (runtimeMode === "legacy") await writeFile(path.join(f.remote, "pre-native-change.txt"), "current preparation wrote these files\n");
     await db.update(heartbeatRuns).set({ status, runnerProfileJson: { ...before.runnerProfileJson,
       ...(status === "failed" && runtimeMode === "native" ? { nativeResourceDisposition: "destroy" } : {}),
-      remoteWorkspace: { schema: "paperclip.remote-workspace-run.v1", workspaceId, leaseId: f.lease.id,
+      remoteWorkspace: { schema: "nexus.remote-workspace-run.v1", workspaceId, leaseId: f.lease.id,
         providerLeaseId: f.providerLeaseId, remoteCwd, epoch: authority.epoch, state: "prepared", snapshotId: authority.snapshotId } },
       resultJson: { ...before.resultJson, ...(status === "cancelled" ? {
         nativeCancellation: { dispatchState: "acknowledged", requestedAt: new Date().toISOString() },
@@ -579,8 +579,8 @@ describe("automatic retained workspace recovery", () => {
     let isolatedDb: typeof db | undefined;
     let isolatedRoot: string | undefined;
     beforeAll(async () => {
-      original = { db, root, connectionString, home: process.env.PAPERCLIP_HOME };
-      const external = resolveExternalTestDatabaseUrl("PAPERCLIP_WORKSPACE_RECOVERY_HANDOFF_TEST_DATABASE_URL");
+      original = { db, root, connectionString, home: process.env.NEXUS_HOME };
+      const external = resolveExternalTestDatabaseUrl("NEXUS_WORKSPACE_RECOVERY_HANDOFF_TEST_DATABASE_URL");
       if (external) {
         await applyPendingMigrations(external);
         isolated = { connectionString: external, cleanup: async () => {} };
@@ -589,14 +589,14 @@ describe("automatic retained workspace recovery", () => {
       if (external) await isolatedDb.execute(sql`TRUNCATE TABLE companies CASCADE`);
       isolatedRoot = await mkdtemp(path.join(os.tmpdir(), "workspace-warm-handoff-files-"));
       db = isolatedDb; root = isolatedRoot; connectionString = isolated.connectionString;
-      process.env.PAPERCLIP_HOME = path.join(root, "home");
+      process.env.NEXUS_HOME = path.join(root, "home");
     }, 30_000);
     afterAll(async () => {
       await isolatedDb?.$client.end(); await isolated?.cleanup();
       if (isolatedRoot) await rm(isolatedRoot, { recursive: true, force: true });
       if (original) {
         db = original.db; root = original.root; connectionString = original.connectionString;
-        if (original.home === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = original.home;
+        if (original.home === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = original.home;
       }
     });
   it.each([1, 2])("recovers a stopped native source after %s verified warm predecessor handoffs", async hops => {
@@ -648,7 +648,7 @@ describe("automatic retained workspace recovery", () => {
         await db.update(environmentLeases).set({ issueId: other.id }).where(eq(environmentLeases.id, previous.id));
       }
       if (fault === "agent") {
-        const [other] = await db.insert(agents).values({ companyId: f.companyId, name: "Other agent", adapterType: "paperclip_runner" }).returning();
+        const [other] = await db.insert(agents).values({ companyId: f.companyId, name: "Other agent", adapterType: "nexus_runner" }).returning();
         await db.update(heartbeatRuns).set({ agentId: other.id }).where(eq(heartbeatRuns.id, f.priorRunId));
       }
       if (fault === "unfinalized") {
@@ -676,7 +676,7 @@ describe("automatic retained workspace recovery", () => {
   it("keeps server handoff receipts across metadata updates and same-run reacquisition", async () => {
     const f = await warmHandoffSource(1, async lease => {
       const proof = lease.metadata!.reusableLeasePredecessor;
-      expect(proof).toMatchObject({ schema: "paperclip.reusable-lease-handoff.v1", successorLeaseId: lease.id });
+      expect(proof).toMatchObject({ schema: "nexus.reusable-lease-handoff.v1", successorLeaseId: lease.id });
       const forged = { schema: "forged-provider-metadata" };
       const updated = await environmentService(db).updateLeaseMetadata(lease.id, { ...lease.metadata,
         reusableLeasePredecessor: forged, reusableLeaseSuccessor: forged, marker: "updated" });
@@ -697,7 +697,7 @@ describe("automatic retained workspace recovery", () => {
 
   it("does not manufacture handoff authority from injected fresh or orphan lease metadata", async () => {
     const f = await warmHandoffSource(), source = await run(f.runId);
-    const forged = { schema: "paperclip.reusable-lease-handoff.v1", successorLeaseId: f.lease.id };
+    const forged = { schema: "nexus.reusable-lease-handoff.v1", successorLeaseId: f.lease.id };
     const values = { companyId: f.companyId, environmentId: f.lease.environmentId!, issueId: f.issueId,
       heartbeatRunId: source.id, provider: "daytona", providerLeaseId: randomUUID(),
       metadata: { agentId: source.agentId, reusableLeasePredecessor: forged, reusableLeaseSuccessor: forged } };
@@ -825,7 +825,7 @@ describe("automatic retained workspace recovery", () => {
         await db.insert(agentWakeupRequests).values({ companyId: f.companyId, agentId: source.agentId,
           source: wake.source, triggerDetail: wake.triggerDetail, reason: wake.reason,
           requestedByActorType: "user", requestedByActorId: "board", status: "deferred_issue_execution",
-          payload: { ...wake.payload, _paperclipWakeContext: { ...wake.contextSnapshot, wakeReason: wake.reason,
+          payload: { ...wake.payload, _nexusWakeContext: { ...wake.contextSnapshot, wakeReason: wake.reason,
             wakeSource: wake.source, wakeTriggerDetail: wake.triggerDetail, wakeCommentIds: [comment.id] } },
         });
         expect(await successors()).toHaveLength(0);
@@ -1097,7 +1097,7 @@ describe("automatic retained workspace recovery", () => {
     await db.update(heartbeatRuns).set({ resultJson: {} }).where(eq(heartbeatRuns.id, f.runId));
     const contractId = randomUUID(), resultId = randomUUID();
     await db.insert(completionContracts).values({ id: contractId, companyId: f.companyId, issueId: f.issueId,
-      revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "test", risk: "standard",
+      revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "test", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: {}, canonicalSha256: "contract", createdByActorType: "system", createdByActorId: "test" });
     await db.update(heartbeatRuns).set({ completionContractId: contractId }).where(eq(heartbeatRuns.id, f.runId));
@@ -1111,7 +1111,7 @@ describe("automatic retained workspace recovery", () => {
     await db.update(issueRecoveryActions).set({ ownerType: "system", evidence: { ...priorAction.evidence,
       systemRecovery: failSystemRecovery(createSystemRecovery(f.runId),
         new SystemRecoveryFailure("source_binding_invalid", "service_required")),
-      workspaceRecovery: { schema: "paperclip.workspace-recovery.v1", runId: f.runId, status: "blocked",
+      workspaceRecovery: { schema: "nexus.workspace-recovery.v1", runId: f.runId, status: "blocked",
         stage: "verifying_stop", attempt: 1, attemptLimit: 6, requestIds: [] },
     } }).where(eq(issueRecoveryActions.id, f.actionId));
     const request = { ...f.input, actorId: "board", idempotencyKey: randomUUID() };
@@ -1180,7 +1180,7 @@ describe("automatic retained workspace recovery", () => {
       id: intentId, companyId: f.companyId, agentId: source.agentId, runId: replacementId,
       source: "on_demand", triggerDetail: "manual", reason: "task_retry", status: "coalesced",
       requestedByActorType: "user", requestedByActorId: "owner-user",
-      payload: { issueId: f.issueId, taskRetry: { schema: "paperclip.task-retry.v1",
+      payload: { issueId: f.issueId, taskRetry: { schema: "nexus.task-retry.v1",
         generationId: intentId, sourceRunId: f.runId, actorId: "owner-user", strategy: "fresh_isolated_workspace" } },
     });
     const first = path.join(root, randomUUID()), next = path.join(root, randomUUID());
@@ -1263,7 +1263,7 @@ describe("automatic retained workspace recovery", () => {
   it("recovers a protected retained source through the assembled environment runtime", async () => {
     const f = await seed();
     await db.update(environmentLeases).set({ metadata: { ...f.lease.metadata,
-      workspaceRestoreRecovery: { schema: "paperclip.workspace-restore-recovery.v1", runId: f.runId },
+      workspaceRestoreRecovery: { schema: "nexus.workspace-restore-recovery.v1", runId: f.runId },
       remoteExecutionTermination: remoteTerminationReceipt(f.lease, { providerLeaseId: f.providerLeaseId, state: "stopped" }),
     } }).where(eq(environmentLeases.id, f.lease.id));
     const runtime = f.input.environmentRuntime;
@@ -1312,7 +1312,7 @@ describe("automatic retained workspace recovery", () => {
     const f = await seed();
     const pluginId = f.lease.metadata!.pluginId as string;
     const manifest: typeof plugins.$inferInsert.manifestJson = { id: `fixture.export-cwd.${pluginId}`, apiVersion: 1, version: "1.0.0",
-      displayName: "Fixture export provider", description: "Records provider boundary calls", author: "Paperclip",
+      displayName: "Fixture export provider", description: "Records provider boundary calls", author: "Nexus",
       categories: ["automation"], capabilities: ["environment.drivers.register"], entrypoints: { worker: "dist/worker.js" },
       environmentDrivers: [{ driverKey: "daytona", kind: "sandbox_provider", displayName: "Fixture", configSchema: { type: "object" } }] };
     await db.insert(plugins).values({ id: pluginId, pluginKey: manifest.id,
@@ -1347,7 +1347,7 @@ describe("automatic retained workspace recovery", () => {
   it.each(["same", "later"])("prepares the %s task workspace from an ordinary resumed allocation root", async kind => {
     const f = await seed("native", false);
     vi.stubEnv("DATABASE_URL", connectionString);
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "62".repeat(32));
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "62".repeat(32));
     try {
       const allocationRoot = await realpath(f.remote);
       const target = { ...targets.get(f.lease.id)!, remoteCwd: allocationRoot };
@@ -1384,7 +1384,7 @@ describe("automatic retained workspace recovery", () => {
         existingWorkspaceId: kind === "same" ? first.workspace.id : null });
       const prepared = await prepareRemoteWorkspace({ db, storage, workspace: nextWorkspace, runId: nextRun.id,
         lease: nextLease as EnvironmentLease, target: { ...target, remoteCwd: resumed!.metadata!.remoteCwd as string } });
-      expect(prepared.remoteRoot).toBe(path.join(allocationRoot, ".paperclip-workspaces", nextWorkspace.id));
+      expect(prepared.remoteRoot).toBe(path.join(allocationRoot, ".nexus-workspaces", nextWorkspace.id));
       if (kind === "same") expect(await readFile(path.join(prepared.remoteRoot, "saved.txt"), "utf8")).toBe("prior task work\n");
       else expect(prepared.remoteRoot).not.toBe(first.remoteRoot);
       await saveRemoteWorkspace({ db, storage, workspace: prepared.workspace, runId: nextRun.id, lease: prepared.lease,
@@ -1563,7 +1563,7 @@ describe("automatic retained workspace recovery", () => {
     const f = await seed(mode.startsWith("legacy") ? "legacy" : "native", !mode.endsWith("_snapshot")), commentId = randomUUID(), queueId = randomUUID();
     if (mode === "native_snapshot") {
       await db.update(heartbeatRuns).set({ runnerProfileJson: { nativeWorkspaceSync: {
-        schema: "paperclip.native-workspace-sync/v3", state: "prepared", descriptorSha256: "a".repeat(64),
+        schema: "nexus.native-workspace-sync/v3", state: "prepared", descriptorSha256: "a".repeat(64),
         baselineSha256: "b".repeat(64), finalHostSha256: null, workspaceId: f.issueId,
         leaseId: f.lease.id, providerLeaseId: f.providerLeaseId, remoteCwd: f.remote, resourceDisposition: "destroy",
       } } }).where(eq(heartbeatRuns.id, f.runId));
@@ -1584,7 +1584,7 @@ describe("automatic retained workspace recovery", () => {
       authorType: "user", authorUserId: "board", body: "Confirm the existing publication. Do not publish it again." });
     await db.insert(agentWakeupRequests).values({ id: queueId, companyId: f.companyId, agentId: source.agentId,
       source: "automation", reason: "issue_commented", status: "deferred_issue_execution", requestedByActorType: "user", requestedByActorId: "board",
-      payload: { issueId: f.issueId, commentId, _paperclipWakeContext: { issueId: f.issueId, wakeReason: "issue_commented", wakeCommentIds: [commentId], wakeCommentId: commentId } } });
+      payload: { issueId: f.issueId, commentId, _nexusWakeContext: { issueId: f.issueId, wakeReason: "issue_commented", wakeCommentIds: [commentId], wakeCommentId: commentId } } });
     await recoverRetainedWorkspace(f.input);
     const service = heartbeatService(db);
     await Promise.all([service.resumeRemoteStopComments(await run(f.runId)), service.resumeRemoteStopComments(await run(f.runId))]);
@@ -1628,7 +1628,7 @@ describe("automatic retained workspace recovery", () => {
     await db.insert(agentWakeupRequests).values({ id: queueId, companyId: f.companyId, agentId: source.agentId,
       source: "on_demand", reason: "issue_commented", status: "deferred_issue_execution",
       requestedByActorType: "user", requestedByActorId: "local-board",
-      payload: { issueId: f.issueId, commentId, _paperclipWakeContext: { issueId: f.issueId,
+      payload: { issueId: f.issueId, commentId, _nexusWakeContext: { issueId: f.issueId,
         wakeReason: "issue_commented", wakeCommentIds: [commentId], wakeCommentId: commentId } } });
     const request = await requestTaskRetry({ db, companyId: f.companyId, issueId: f.issueId, actorId: "local-board",
       actorSource: "local_implicit", observedRunId: f.runId, idempotencyKey: randomUUID() });
@@ -1669,7 +1669,7 @@ describe("automatic retained workspace recovery", () => {
       const [additional] = await db.insert(environmentLeases).values({ ...f.lease, id: randomUUID(),
         providerLeaseId: randomUUID(), status: "pending_cleanup", cleanupStatus: "failed", releasedAt: null }).returning();
       leaseIds.push(additional.id);
-      const recovery = { schema: "paperclip.workspace-restore-recovery.v1", leaseIds };
+      const recovery = { schema: "nexus.workspace-restore-recovery.v1", leaseIds };
       await db.update(heartbeatRuns).set({ resultJson: sql`${heartbeatRuns.resultJson} || ${JSON.stringify({ workspaceRestoreRecovery: recovery })}::jsonb` })
         .where(eq(heartbeatRuns.id, f.runId));
       await db.update(issueRecoveryActions).set({ evidence: sql`${issueRecoveryActions.evidence} || ${JSON.stringify({ workspaceRestoreRecovery: recovery })}::jsonb` })
@@ -1684,12 +1684,12 @@ describe("automatic retained workspace recovery", () => {
     const request = await requestTaskRetry({ db, companyId: f.companyId, issueId: f.issueId, actorId: "local-board",
       actorSource: "local_implicit", observedRunId: f.runId, idempotencyKey: randomUUID() });
     const { privateKey, publicKey } = generateKeyPairSync("ed25519");
-    vi.stubEnv("PAPERCLIP_CLOUD_STACK_ID", "fixture-stack");
-    vi.stubEnv("PAPERCLIP_CLOUD_API_ORIGIN", "https://cloud.example");
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "fixture-token");
-    vi.stubEnv("PAPERCLIP_PRIMARY_HOST", "fixture.paperclip.test");
-    vi.stubEnv("PAPERCLIP_AUTH_SECRET", "fixture-auth-secret");
-    vi.stubEnv("PAPERCLIP_CLOUD_RUNTIME_IDENTITY_JWKS", JSON.stringify({ keys: [{
+    vi.stubEnv("NEXUS_CLOUD_STACK_ID", "fixture-stack");
+    vi.stubEnv("NEXUS_CLOUD_API_ORIGIN", "https://cloud.example");
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "fixture-token");
+    vi.stubEnv("NEXUS_PRIMARY_HOST", "fixture.nexus.test");
+    vi.stubEnv("NEXUS_AUTH_SECRET", "fixture-auth-secret");
+    vi.stubEnv("NEXUS_CLOUD_RUNTIME_IDENTITY_JWKS", JSON.stringify({ keys: [{
       ...publicKey.export({ format: "jwk" }), kid: "absence-test", alg: "EdDSA", use: "sig",
     }] }));
     const originalFetch = globalThis.fetch;
@@ -1702,8 +1702,8 @@ describe("automatic retained workspace recovery", () => {
       if (mode === "interrupted" && binding.leaseId === f.lease.id && observed.length > 2) return new Response(null, { status: 503 });
       if (interrupted && binding.leaseId !== f.lease.id) return new Response(null, { status: 503 });
       const seconds = Math.floor(Date.now() / 1000);
-      const header = Buffer.from(JSON.stringify({ alg: "EdDSA", typ: "paperclip-sandbox-absence+jwt", kid: "absence-test" })).toString("base64url");
-      const payload = Buffer.from(JSON.stringify({ v: 1, iss: "paperclip-cloud", aud: "paperclip-sandbox-absence/v1",
+      const header = Buffer.from(JSON.stringify({ alg: "EdDSA", typ: "nexus-sandbox-absence+jwt", kid: "absence-test" })).toString("base64url");
+      const payload = Buffer.from(JSON.stringify({ v: 1, iss: "nexus-cloud", aud: "nexus-sandbox-absence/v1",
         sub: "fixture-stack", ...binding, absent: true, iat: seconds, exp: seconds + 60 })).toString("base64url");
       return Response.json({ receipt: `${header}.${payload}.${sign(null, Buffer.from(`${header}.${payload}`), privateKey).toString("base64url")}` });
     });
@@ -1745,7 +1745,7 @@ describe("automatic retained workspace recovery", () => {
       authorType: "user", authorUserId: "board", body: "Confirm the existing publication. Do not publish it again." });
     await db.insert(agentWakeupRequests).values({ id: queueId, companyId: f.companyId, agentId: source.agentId,
       source: "automation", reason: "issue_commented", status: "deferred_issue_execution", requestedByActorType: "user", requestedByActorId: "board",
-      payload: { issueId: f.issueId, commentId, _paperclipWakeContext: { issueId: f.issueId, wakeReason: "issue_commented", wakeCommentIds: [commentId], wakeCommentId: commentId } } });
+      payload: { issueId: f.issueId, commentId, _nexusWakeContext: { issueId: f.issueId, wakeReason: "issue_commented", wakeCommentIds: [commentId], wakeCommentId: commentId } } });
     await recoverRetainedWorkspace(f.input);
     expect(await hasVerifiedWorkspaceRepair(db, await run(f.runId))).toBe(true);
     if (gate === "pause") {
@@ -1796,7 +1796,7 @@ describe("automatic retained workspace recovery", () => {
     // This is the verified platform boundary. Signature and identity validation
     // have independent coverage in native-workspace-platform-proof.test.ts.
     const proof = vi.spyOn(workerProof, "requestWorkspaceWorkerStopProof").mockResolvedValue({ status: "verified", proof: {
-      v: 1, iss: "paperclip-cloud", aud: "paperclip-workspace-worker-stop/v1", sub: "test-stack", stopped: true,
+      v: 1, iss: "nexus-cloud", aud: "nexus-workspace-worker-stop/v1", sub: "test-stack", stopped: true,
       iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 30,
       runId: f.runId, ownerToken: prior.token, worker,
     } });
@@ -1900,7 +1900,7 @@ describe("automatic retained workspace recovery", () => {
       cancelledByActorType: "user", cancelledByUserId: "operator",
       cancellation: requestedRunCancellation({ cancelledByActorType: "user", cancelledByUserId: "operator" }, "Stop"),
       executionCancellation: { state: "requested", requestedAt: new Date().toISOString() },
-      nativeCancellation: { schema: "paperclip.native-cancellation.v1", runId: f.runId, companyId: f.companyId, issueId: f.issueId,
+      nativeCancellation: { schema: "nexus.native-cancellation.v1", runId: f.runId, companyId: f.companyId, issueId: f.issueId,
         scope: "run", reasonCode: "cancellation_run_only", dispatchState: "acknowledged", dispatched: true,
         intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID() },
     } }).where(eq(heartbeatRuns.id, f.runId));
@@ -1909,7 +1909,7 @@ describe("automatic retained workspace recovery", () => {
       authorType: "user", authorUserId: "operator", body: "/new" }).returning();
     expect(await getExecutionBlocker(db, f.companyId, f.issueId, { conversationResetCommentId: reset.id })).toBeNull();
     const context = { source: "issue.comment", issueId: f.issueId, wakeReason: "issue_commented", wakeCommentId: reset.id, wakeCommentIds: [reset.id] };
-    const payload = withQueuedCommentIdsInWakePayload({ issueId: f.issueId, commentId: reset.id, mutation: "comment", _paperclipWakeContext: context }, [reset.id]);
+    const payload = withQueuedCommentIdsInWakePayload({ issueId: f.issueId, commentId: reset.id, mutation: "comment", _nexusWakeContext: context }, [reset.id]);
     const [wake] = await db.insert(agentWakeupRequests).values({ companyId: f.companyId, agentId: original.agentId,
       source: "on_demand", triggerDetail: "manual", reason: "issue_commented", status: "claimed", claimedAt: new Date(),
       requestedByActorType: "user", requestedByActorId: "operator", payload }).returning();
@@ -1946,7 +1946,7 @@ describe("automatic retained workspace recovery", () => {
         mergedContextSnapshot: mergeCoalescedContextSnapshot((await run(queued.id)).contextSnapshot, incoming,
           { preserveExistingInteractionContinuation: true }),
         source: "on_demand", triggerDetail: "manual",
-        payload: withQueuedCommentIdsInWakePayload({ issueId: f.issueId, mutation: "comment", _paperclipWakeContext: incoming }, [followup.id]),
+        payload: withQueuedCommentIdsInWakePayload({ issueId: f.issueId, mutation: "comment", _nexusWakeContext: incoming }, [followup.id]),
         requestedByActorType: "user", requestedByActorId: "operator", idempotencyKey: null,
       });
     });
@@ -2002,7 +2002,7 @@ describe("automatic retained workspace recovery", () => {
       expect(first).toBeNull(); expect(second).toBeNull();
       const [pending] = await db.select().from(agentWakeupRequests).where(and(eq(agentWakeupRequests.companyId, f.companyId),
         eq(agentWakeupRequests.agentId, original.agentId), eq(agentWakeupRequests.status, "deferred_issue_execution")));
-      expect(pending.payload?._paperclipWakeContext).toMatchObject({ wakeCommentIds: ids });
+      expect(pending.payload?._nexusWakeContext).toMatchObject({ wakeCommentIds: ids });
       expect(pending.requestedByActorType).toBe(kind === "system-deferred" ? "system" : "user");
       expect(pending.requestedByActorId).toBe(kind === "system-deferred" ? "second-user" : "operator");
       await db.update(heartbeatRuns).set({ status: "cancelled", nativePhase: "terminal_failure", finishedAt: new Date(),
@@ -2314,7 +2314,7 @@ describe("automatic retained workspace recovery", () => {
       ...original.resultJson, cancelledByActorType: "user", cancelledByUserId: "operator",
       cancellation: requestedRunCancellation({ cancelledByActorType: "user", cancelledByUserId: "operator" }, "Stop"),
       executionCancellation: { state: "requested", requestedAt: new Date().toISOString() },
-      nativeCancellation: { schema: "paperclip.native-cancellation.v1", runId: f.runId, companyId: f.companyId, issueId: f.issueId,
+      nativeCancellation: { schema: "nexus.native-cancellation.v1", runId: f.runId, companyId: f.companyId, issueId: f.issueId,
         scope: "run", reasonCode: "cancellation_run_only", dispatchState: "acknowledged", dispatched: true,
         intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID() },
     } }).where(eq(heartbeatRuns.id, f.runId));
@@ -2330,7 +2330,7 @@ describe("automatic retained workspace recovery", () => {
     const [wake] = await db.insert(agentWakeupRequests).values({ companyId: f.companyId, agentId: original.agentId,
       source: "on_demand", reason: "issue_execution_deferred", status: "deferred_issue_execution", requestedByActorType: "user", requestedByActorId: "operator",
       payload: withQueuedCommentIdsInWakePayload({ issueId: f.issueId, commentId: reset.id,
-        _paperclipWakeContext: { issueId: f.issueId, wakeReason: "issue_commented", wakeCommentId: reset.id, wakeCommentIds: [reset.id] } }, [reset.id]) }).returning();
+        _nexusWakeContext: { issueId: f.issueId, wakeReason: "issue_commented", wakeCommentId: reset.id, wakeCommentIds: [reset.id] } }, [reset.id]) }).returning();
     const deps = callbacks(db), control = createHeartbeatRunControl(db, deps);
     const execution = createAdapterExecutionControl();
     deps.activeRunExecutions.add(f.runId); adapterExecutionControls.set(f.runId, execution);

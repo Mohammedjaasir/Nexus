@@ -14,8 +14,8 @@ import { realizeExecutionWorkspace, resolveRuntimeProvisionCommand } from "../se
 
 const execFileAsync = promisify(execFile);
 const cleanup: string[] = [];
-const originalConfig = process.env.PAPERCLIP_CONFIG;
-const originalWorktreesDir = process.env.PAPERCLIP_WORKTREES_DIR;
+const originalConfig = process.env.NEXUS_CONFIG;
+const originalWorktreesDir = process.env.NEXUS_WORKTREES_DIR;
 
 async function runGit(cwd: string, args: string[]) {
   await execFileAsync("git", args, { cwd });
@@ -44,7 +44,7 @@ async function writeConfig(configPath: string, instanceId: string) {
   }, null, 2)}\n`, "utf8");
   await fs.writeFile(
     path.join(path.dirname(configPath), ".env"),
-    `PAPERCLIP_INSTANCE_ID=${instanceId}\n`,
+    `NEXUS_INSTANCE_ID=${instanceId}\n`,
     "utf8",
   );
 }
@@ -81,10 +81,10 @@ function verifiedSeedResult() {
 }
 
 afterEach(async () => {
-  if (originalConfig === undefined) delete process.env.PAPERCLIP_CONFIG;
-  else process.env.PAPERCLIP_CONFIG = originalConfig;
-  if (originalWorktreesDir === undefined) delete process.env.PAPERCLIP_WORKTREES_DIR;
-  else process.env.PAPERCLIP_WORKTREES_DIR = originalWorktreesDir;
+  if (originalConfig === undefined) delete process.env.NEXUS_CONFIG;
+  else process.env.NEXUS_CONFIG = originalConfig;
+  if (originalWorktreesDir === undefined) delete process.env.NEXUS_WORKTREES_DIR;
+  else process.env.NEXUS_WORKTREES_DIR = originalWorktreesDir;
   for (const dir of cleanup.splice(0)) {
     await fs.rm(dir, { recursive: true, force: true });
   }
@@ -92,11 +92,11 @@ afterEach(async () => {
 
 describe("managed worktree seed source through the server spawn path", () => {
   it("preserves an explicitly empty instance during managed startup before its first database boot", async () => {
-    const tempRoot = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-server-empty-worktree-")));
+    const tempRoot = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "nexus-server-empty-worktree-")));
     cleanup.push(tempRoot);
     const baseCwd = path.join(tempRoot, "source");
     const cwd = path.join(tempRoot, "empty");
-    const sourceConfigPath = path.join(baseCwd, ".paperclip", "config.json");
+    const sourceConfigPath = path.join(baseCwd, ".nexus", "config.json");
     await writeConfig(sourceConfigPath, "registered-source");
     await fs.mkdir(cwd, { recursive: true });
     await fs.mkdir(path.join(baseCwd, "scripts"), { recursive: true });
@@ -106,24 +106,24 @@ describe("managed worktree seed source through the server spawn path", () => {
     try {
       process.chdir(cwd);
       await worktreeInitCommand({ empty: true, fromConfig: sourceConfigPath, home: path.join(tempRoot, "instances") });
-      const configPath = path.join(cwd, ".paperclip", "config.json");
+      const configPath = path.join(cwd, ".nexus", "config.json");
       const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
       const startup = await execFileAsync(process.execPath, [path.join(repoRoot, "cli/node_modules/tsx/dist/cli.mjs"), "--eval", `
         void (async () => {
           const fs = await import('node:fs');
           const dotenv = (await import(${JSON.stringify(pathToFileURL(path.join(repoRoot, "server/node_modules/dotenv/lib/main.js")).href)})).default;
-          const envPath = ${JSON.stringify(path.join(cwd, ".paperclip", ".env"))};
+          const envPath = ${JSON.stringify(path.join(cwd, ".nexus", ".env"))};
           const saved = dotenv.parse(fs.readFileSync(envPath));
           await import(${JSON.stringify(pathToFileURL(path.join(repoRoot, "server/src/config.ts")).href)});
           const repaired = dotenv.parse(fs.readFileSync(envPath));
           console.log(JSON.stringify({
-            jwt: process.env.PAPERCLIP_AGENT_JWT_SECRET === saved.PAPERCLIP_AGENT_JWT_SECRET,
-            actions: process.env.PAPERCLIP_TOOL_ACTION_SIGNING_SECRET === saved.PAPERCLIP_TOOL_ACTION_SIGNING_SECRET,
-            auth: process.env.BETTER_AUTH_SECRET === saved.PAPERCLIP_AGENT_JWT_SECRET,
-            savedActions: repaired.PAPERCLIP_TOOL_ACTION_SIGNING_SECRET === saved.PAPERCLIP_TOOL_ACTION_SIGNING_SECRET
+            jwt: process.env.NEXUS_AGENT_JWT_SECRET === saved.NEXUS_AGENT_JWT_SECRET,
+            actions: process.env.NEXUS_TOOL_ACTION_SIGNING_SECRET === saved.NEXUS_TOOL_ACTION_SIGNING_SECRET,
+            auth: process.env.BETTER_AUTH_SECRET === saved.NEXUS_AGENT_JWT_SECRET,
+            savedActions: repaired.NEXUS_TOOL_ACTION_SIGNING_SECRET === saved.NEXUS_TOOL_ACTION_SIGNING_SECRET
           }));
         })();
-      `], { cwd, env: { ...process.env, PAPERCLIP_CONFIG: configPath, PAPERCLIP_AGENT_JWT_SECRET: "source-jwt", PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: "source-actions", BETTER_AUTH_SECRET: "source-auth" } });
+      `], { cwd, env: { ...process.env, NEXUS_CONFIG: configPath, NEXUS_AGENT_JWT_SECRET: "source-jwt", NEXUS_TOOL_ACTION_SIGNING_SECRET: "source-actions", BETTER_AUTH_SECRET: "source-auth" } });
       expect(JSON.parse(startup.stdout.trim().split("\n").at(-1)!)).toEqual({ jwt: true, actions: true, auth: true, savedActions: true });
       const workspace = {
         baseCwd, cwd, source: "project_primary" as const, projectId: "project-1",
@@ -134,9 +134,9 @@ describe("managed worktree seed source through the server spawn path", () => {
       expect(resolveRuntimeProvisionCommand({ config: {}, workspace })).toBe("");
       expect(resolveRuntimeProvisionCommand({ config: { runtimeProvisionCommand: "./install-dependencies.sh" }, workspace }))
         .toBe("./install-dependencies.sh");
-      process.env.PAPERCLIP_WORKSPACE_BASE_CWD = baseCwd;
-      process.env.PAPERCLIP_PROJECT_WORKSPACE_ID = "project-workspace-1";
-      process.env.PAPERCLIP_SEED_EXPECTED_COMPANY_ID = "company-1";
+      process.env.NEXUS_WORKSPACE_BASE_CWD = baseCwd;
+      process.env.NEXUS_PROJECT_WORKSPACE_ID = "project-workspace-1";
+      process.env.NEXUS_SEED_EXPECTED_COMPANY_ID = "company-1";
       const seedDatabase = vi.fn(async () => verifiedSeedResult());
       const inspectLegacyDatabase = vi.fn(async () => null);
       await expect(ensureWorktreeSeeded({ config: configPath }, { seedDatabase, inspectLegacyDatabase }))
@@ -146,11 +146,11 @@ describe("managed worktree seed source through the server spawn path", () => {
       const provisionScript = fileURLToPath(new URL("../../../scripts/provision-worktree-runtime.sh", import.meta.url));
       const provision = await execFileAsync("bash", [provisionScript], {
         cwd,
-        env: { ...process.env, PAPERCLIP_WORKSPACE_CWD: cwd },
+        env: { ...process.env, NEXUS_WORKSPACE_CWD: cwd },
       });
       expect(provision.stderr).toContain("explicitly empty");
       expect(readWorktreeSeedManifest(configPath)).toBeNull();
-      await expect(fs.stat(path.join(cwd, ".paperclip", "seed-pending"))).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(fs.stat(path.join(cwd, ".nexus", "seed-pending"))).rejects.toMatchObject({ code: "ENOENT" });
     } finally {
       process.chdir(originalCwd);
       for (const key of Object.keys(process.env)) if (!(key in originalEnv)) delete process.env[key];
@@ -159,18 +159,18 @@ describe("managed worktree seed source through the server spawn path", () => {
   });
 
   it("re-derives an ambient-instance manifest written before provisioning", async () => {
-    const tempRoot = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-server-seed-source-")));
+    const tempRoot = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "nexus-server-seed-source-")));
     cleanup.push(tempRoot);
     const repoRoot = path.join(tempRoot, "repo");
     const hooksDir = path.join(tempRoot, "hooks");
     const ambientConfigPath = path.join(tempRoot, "ambient", "config.json");
-    const registeredConfigPath = path.join(repoRoot, ".paperclip", "config.json");
+    const registeredConfigPath = path.join(repoRoot, ".nexus", "config.json");
     const worktreeHome = path.join(tempRoot, "worktree-home");
 
     await fs.mkdir(repoRoot, { recursive: true });
     await runGit(repoRoot, ["init", "-q"]);
-    await runGit(repoRoot, ["config", "user.email", "paperclip@example.com"]);
-    await runGit(repoRoot, ["config", "user.name", "Paperclip Test"]);
+    await runGit(repoRoot, ["config", "user.email", "nexus@example.com"]);
+    await runGit(repoRoot, ["config", "user.name", "Nexus Test"]);
     await fs.mkdir(path.join(repoRoot, "scripts"), { recursive: true });
     await fs.writeFile(path.join(repoRoot, "README.md"), "server spawn regression\n", "utf8");
     await fs.copyFile(
@@ -197,11 +197,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const cwd = process.cwd();
 if (cwd === ${JSON.stringify(repoRoot)}) process.exit(0);
-const stateDir = path.join(cwd, ".paperclip");
+const stateDir = path.join(cwd, ".nexus");
 const normalized = path.basename(cwd).trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/-+/g, "-").replace(/^[-_]+|[-_]+$/g, "");
 const instanceId = \`${"${(normalized || \"worktree\").slice(0, 48)}"}-\${crypto.createHash("sha256").update(path.resolve(cwd)).digest("hex").slice(0, 12)}\`;
 const targetConfigPath = path.join(stateDir, "config.json");
-const instanceRoot = path.join(process.env.PAPERCLIP_WORKTREES_DIR, "instances", instanceId);
+const instanceRoot = path.join(process.env.NEXUS_WORKTREES_DIR, "instances", instanceId);
 fs.mkdirSync(stateDir, { recursive: true });
 fs.mkdirSync(instanceRoot, { recursive: true });
 fs.writeFileSync(targetConfigPath, JSON.stringify({
@@ -223,14 +223,14 @@ fs.writeFileSync(targetConfigPath, JSON.stringify({
   },
 }, null, 2) + "\\n");
 fs.writeFileSync(path.join(stateDir, ".env"), [
-  "PAPERCLIP_HOME=" + JSON.stringify(process.env.PAPERCLIP_WORKTREES_DIR),
-  "PAPERCLIP_INSTANCE_ID=" + JSON.stringify(instanceId),
-  "PAPERCLIP_CONFIG=" + JSON.stringify(targetConfigPath),
+  "NEXUS_HOME=" + JSON.stringify(process.env.NEXUS_WORKTREES_DIR),
+  "NEXUS_INSTANCE_ID=" + JSON.stringify(instanceId),
+  "NEXUS_CONFIG=" + JSON.stringify(targetConfigPath),
   "",
 ].join("\\n"));
 fs.writeFileSync(path.join(stateDir, "seed-manifest.json"), JSON.stringify({
   version: 2,
-  source: { instanceId: "ambient-instance", configPath: process.env.PAPERCLIP_CONFIG },
+  source: { instanceId: "ambient-instance", configPath: process.env.NEXUS_CONFIG },
   snapshotAt: null,
   seedMode: "minimal",
   migrationRevision: null,
@@ -248,8 +248,8 @@ fs.writeFileSync(path.join(stateDir, "seed-manifest.json"), JSON.stringify({
     await fs.chmod(hookPath, 0o755);
     await runGit(repoRoot, ["config", "core.hooksPath", hooksDir]);
 
-    process.env.PAPERCLIP_CONFIG = ambientConfigPath;
-    process.env.PAPERCLIP_WORKTREES_DIR = worktreeHome;
+    process.env.NEXUS_CONFIG = ambientConfigPath;
+    process.env.NEXUS_WORKTREES_DIR = worktreeHome;
     const workspace = await realizeExecutionWorkspace({
       base: {
         baseCwd: repoRoot,
@@ -274,13 +274,13 @@ fs.writeFileSync(path.join(stateDir, "seed-manifest.json"), JSON.stringify({
       agent: { id: "agent-1", name: "Coder", companyId: "company-1" },
     });
 
-    expect(readWorktreeSeedManifest(path.join(workspace.cwd, ".paperclip", "config.json"))).toMatchObject({
+    expect(readWorktreeSeedManifest(path.join(workspace.cwd, ".nexus", "config.json"))).toMatchObject({
       source: { instanceId: "ambient-instance", configPath: ambientConfigPath },
       state: "pending",
     });
 
     await expect(ensureWorktreeSeeded({
-      config: path.join(workspace.cwd, ".paperclip", "config.json"),
+      config: path.join(workspace.cwd, ".nexus", "config.json"),
       registeredBaseWorkspaceCwd: repoRoot,
       registeredProjectWorkspaceId: "project-workspace-1",
       expectedCompanyId: "company-1",
@@ -288,7 +288,7 @@ fs.writeFileSync(path.join(stateDir, "seed-manifest.json"), JSON.stringify({
       seedDatabase: async () => verifiedSeedResult(),
     })).resolves.toMatchObject({ seeded: true, reason: "seeded" });
 
-    expect(readWorktreeSeedManifest(path.join(workspace.cwd, ".paperclip", "config.json"))).toMatchObject({
+    expect(readWorktreeSeedManifest(path.join(workspace.cwd, ".nexus", "config.json"))).toMatchObject({
       source: { instanceId: "registered-source", configPath: registeredConfigPath },
       state: "verified",
       phase: "complete",

@@ -173,7 +173,7 @@ remaining operations before qualifying the whole capability.
 Gaps: Choosing among permitted targets differs from creating/configuring host targets;
 test authorized and denied selection.
 
-Scoped plugin execution update: `paperclip_runner` supports a saved plugin
+Scoped plugin execution update: `nexus_runner` supports a saved plugin
 environment through the server-selected lease and the SDK `environmentTask` RPC.
 This is an execution path, not a new agent-callable management endpoint. Host
 company/project checks and native PRP authorization remain required; declaring a

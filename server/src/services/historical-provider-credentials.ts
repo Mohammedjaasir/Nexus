@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
-import { companySecrets, companySecretVersions, type Db } from "@paperclipai/db";
-import type { SandboxEnvironmentConfig } from "@paperclipai/shared";
+import { companySecrets, companySecretVersions, type Db } from "@nexusai/db";
+import type { SandboxEnvironmentConfig } from "@nexusai/shared";
 import { collectSecretRefPaths, isUuidSecretRef, parseSecretRefBindingObject, readConfigValueAtPath, writeConfigValueAtPath } from "./json-schema-secret-refs.js";
 import { secretService } from "./secrets.js";
 

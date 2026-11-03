@@ -41,7 +41,7 @@ describe("Speko signed tool protocol", () => {
     expect(() => verifySpekoToolRequest(signed({ session_id: "s1", tool_call_id: "t1", idempotency_key: "s2:t1", tool: "get_updates", args: { cursor: 0 } }))).toThrow("invalid_envelope");
   });
   it("keeps tool waits below the provider timeout and requires HTTPS", () => {
-    expect(spekoToolDefinitions("https://paperclip.example/api/voice/callback").every((tool) => tool.source.timeoutMs < 4000)).toBe(true);
+    expect(spekoToolDefinitions("https://nexus.example/api/voice/callback").every((tool) => tool.source.timeoutMs < 4000)).toBe(true);
     expect(() => spekoToolDefinitions("http://localhost:3100/callback")).toThrow("HTTPS");
   });
 });

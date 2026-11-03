@@ -7,7 +7,7 @@ import { join } from "node:path";
 import express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { companies, companyMemberships, createDb, connectionGrants, toolCatalogEntries, toolConnections, toolOauthStates } from "@paperclipai/db";
+import { companies, companyMemberships, createDb, connectionGrants, toolCatalogEntries, toolConnections, toolOauthStates } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { toolAccessService } from "../services/tool-access.js";
 import { toolAccessRoutes } from "../routes/tool-access.js";
@@ -21,10 +21,10 @@ describe("tool OAuth over local HTTP", () => {
 
   beforeAll(async () => {
     keyDir = await mkdtemp(join(tmpdir(), "tool-oauth-protocol-"));
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY_FILE", join(keyDir, "key"));
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", "http://127.0.0.1:3100");
-    vi.stubEnv("PAPERCLIP_TOOL_OAUTH_CLIENT_ID", "");
-    vi.stubEnv("PAPERCLIP_TOOL_OAUTH_CLIENT_SECRET", "");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY_FILE", join(keyDir, "key"));
+    vi.stubEnv("NEXUS_PUBLIC_URL", "http://127.0.0.1:3100");
+    vi.stubEnv("NEXUS_TOOL_OAUTH_CLIENT_ID", "");
+    vi.stubEnv("NEXUS_TOOL_OAUTH_CLIENT_SECRET", "");
     fixture = await startEmbeddedPostgresTestDatabase("tool-oauth-protocol-");
     db = createDb(fixture.connectionString);
   });
@@ -113,7 +113,7 @@ describe("tool OAuth over local HTTP", () => {
         req.actor = { type: "board", userId, source: "local_implicit", isInstanceAdmin: true };
         next();
       });
-      app.use("/api", toolAccessRoutes(db, { deploymentMode: "local_trusted", deploymentExposure: "private", paperclipCloudConnector: null }));
+      app.use("/api", toolAccessRoutes(db, { deploymentMode: "local_trusted", deploymentExposure: "private", nexusCloudConnector: null }));
       app.use(errorHandler);
 
       const connected = await request(app).post(`/api/companies/${company.id}/tools/apps/connect`)
@@ -159,7 +159,7 @@ describe("tool OAuth over local HTTP", () => {
         ...grant.providerTenant,
         oauth: { ...grant.providerTenant?.oauth, accessTokenExpiresAt: new Date(0).toISOString() },
       } }).where(eq(connectionGrants.id, grant.id));
-      const options = { deploymentMode: "local_trusted" as const, deploymentExposure: "private" as const, paperclipCloudConnector: null };
+      const options = { deploymentMode: "local_trusted" as const, deploymentExposure: "private" as const, nexusCloudConnector: null };
       const first = toolAccessService(db, options);
       const second = toolAccessService(db, options);
       const refreshInput = { companyId: company.id, connectionId: connection.id, grantId: grant.id, actor: { actorType: "user" as const, actorId: userId } };

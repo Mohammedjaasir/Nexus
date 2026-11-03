@@ -13,7 +13,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import type {
   AiConnectionBinding,
   AiManagedConnectionSummary,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { ProviderCatalogReview } from "../../prototypes/provider-routing/ConnectionCatalog";
 import { ReviewFrame } from "../../prototypes/provider-routing/shared";
@@ -171,7 +171,7 @@ const meta = {
   id: "ai-connections-provider-routing-06-production-components",
   title: "Agents and reusable capabilities/Runs, harnesses, and model accounts/AI Connections/Provider routing/06 Production components",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "runs-adapters/validation"
       ],

@@ -266,7 +266,7 @@ set_cleanup_trap
 
 # The release flow already prepares ui/dist before packaging. Reuse that output
 # so server prepack does not rebuild the UI a second time during preview/publish.
-export PAPERCLIP_RELEASE_REUSE_UI_DIST=1
+export NEXUS_RELEASE_REUSE_UI_DIST=1
 
 if [ "$skip_verify" = false ]; then
   release_info ""
@@ -284,16 +284,16 @@ release_info ""
 release_info "==> Step 2/7: Building workspace artifacts..."
 cd "$REPO_ROOT"
 pnpm build
-if [ -n "${PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR:-}" ]; then
+if [ -n "${NEXUS_RELEASE_RUNNER_ARTIFACTS_DIR:-}" ]; then
   pack_args=()
-  if [ -n "${PAPERCLIP_RELEASE_PROVIDER_PACK_ARTIFACTS_DIR:-}" ]; then
-    pack_args=("$PAPERCLIP_RELEASE_PROVIDER_PACK_ARTIFACTS_DIR")
+  if [ -n "${NEXUS_RELEASE_PROVIDER_PACK_ARTIFACTS_DIR:-}" ]; then
+    pack_args=("$NEXUS_RELEASE_PROVIDER_PACK_ARTIFACTS_DIR")
   fi
-  node "$REPO_ROOT/packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs" \
-    assemble-daemons "$PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR" "$(git rev-parse HEAD)" "${pack_args[@]}"
-  cp -R "$REPO_ROOT/packages/paperclip-runner/dist/bin/." "$REPO_ROOT/server/dist/vendor/paperclip-runner/bin/"
-  if [ -d "$REPO_ROOT/packages/paperclip-runner/dist/remote-provider-packs" ]; then
-    cp -R "$REPO_ROOT/packages/paperclip-runner/dist/remote-provider-packs" "$REPO_ROOT/server/dist/vendor/paperclip-runner/"
+  node "$REPO_ROOT/packages/nexus-runner/scripts/stage-release-runner-binaries.mjs" \
+    assemble-daemons "$NEXUS_RELEASE_RUNNER_ARTIFACTS_DIR" "$(git rev-parse HEAD)" "${pack_args[@]}"
+  cp -R "$REPO_ROOT/packages/nexus-runner/dist/bin/." "$REPO_ROOT/server/dist/vendor/nexus-runner/bin/"
+  if [ -d "$REPO_ROOT/packages/nexus-runner/dist/remote-provider-packs" ]; then
+    cp -R "$REPO_ROOT/packages/nexus-runner/dist/remote-provider-packs" "$REPO_ROOT/server/dist/vendor/nexus-runner/"
   fi
 elif [ "$dry_run" = false ]; then
   release_fail "Public releases require the four hosted runner daemon artifacts; use the supported Release workflow."
@@ -332,7 +332,7 @@ if [ "$dry_run" = true ]; then
   # never touches npm), so run them concurrently in batches. Serial previews
   # took ~78s of every PR Canary Dry Run job (run 35036001734, 2026-09-15).
   # The real publish path below stays strictly serial.
-  preview_logs_dir="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-release-previews.XXXXXX")"
+  preview_logs_dir="$(mktemp -d "${TMPDIR:-/tmp}/nexus-release-previews.XXXXXX")"
   preview_batch_size=8
   preview_pids=()
   preview_dirs=()
@@ -363,7 +363,7 @@ if [ "$dry_run" = true ]; then
       cd "$REPO_ROOT/$pkg_dir"
       publish_tool="$(package_publish_tool)"
       if [ "$publish_tool" = "npm" ]; then
-        publish_dir="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-release-package.XXXXXX")"
+        publish_dir="$(mktemp -d "${TMPDIR:-/tmp}/nexus-release-package.XXXXXX")"
         node "$REPO_ROOT/scripts/prepare-bundled-package.mjs" "$REPO_ROOT/$pkg_dir" "$publish_dir"
         cd "$publish_dir"
         run_bundled_npm_pack pack --pack-destination "$publish_dir" 2>&1 | tail -3
@@ -398,7 +398,7 @@ else
     cd "$REPO_ROOT/$pkg_dir"
     publish_tool="$(package_publish_tool)"
     if [ "$publish_tool" = "npm" ]; then
-      publish_dir="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-release-package.XXXXXX")"
+      publish_dir="$(mktemp -d "${TMPDIR:-/tmp}/nexus-release-package.XXXXXX")"
       node "$REPO_ROOT/scripts/prepare-bundled-package.mjs" "$REPO_ROOT/$pkg_dir" "$publish_dir"
       cd "$publish_dir"
     fi
@@ -462,9 +462,9 @@ else
     release_fail "publish completed, but npm dist-tags or registry metadata never converged for ${TARGET_PUBLISH_VERSION}"
   fi
 
-  release_info "  Installing paperclipai@$DIST_TAG into a clean prefix..."
-  if ! verify_npm_installable "paperclipai@$DIST_TAG" "$TARGET_PUBLISH_VERSION"; then
-    release_fail "paperclipai@$DIST_TAG did not install cleanly at expected version ${TARGET_PUBLISH_VERSION}"
+  release_info "  Installing nexusai@$DIST_TAG into a clean prefix..."
+  if ! verify_npm_installable "nexusai@$DIST_TAG" "$TARGET_PUBLISH_VERSION"; then
+    release_fail "nexusai@$DIST_TAG did not install cleanly at expected version ${TARGET_PUBLISH_VERSION}"
   fi
   release_info "    ✓ Clean-prefix install resolved ${TARGET_PUBLISH_VERSION}"
 fi
@@ -485,7 +485,7 @@ else
   case "$channel" in
     canary|nightly|beta)
       release_info "Published $channel ${TARGET_PUBLISH_VERSION}."
-      release_info "Install with: npx paperclipai@$channel onboard"
+      release_info "Install with: npx nexusai@$channel onboard"
       release_info "Next step: git push ${PUBLISH_REMOTE} refs/tags/${tag_name}"
       ;;
     *)

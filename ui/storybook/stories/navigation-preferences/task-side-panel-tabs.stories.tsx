@@ -57,7 +57,7 @@ const meta = {
         component: "Resize the preview to see nine starting tabs share the available width equally. All tabs use 100px when their labels fit, or 125px when any label needs more room, then shrink together as the pane narrows. Close the longer tabs to inspect compact sizing. Use the plus button to add tabs. Hover the tabs and close buttons to inspect the active fill, clipped-label fade, and round close hover.",
       },
     },
-    paperclip: {
+    nexus: {
       capabilities: ["navigation-preferences/navigation"],
       status: "current",
       implementation: "production",

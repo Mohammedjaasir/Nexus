@@ -1,6 +1,6 @@
 # Connection review verification — 2026-09-08
 
-Implementation workspace: `/Users/dotta/paperclipai/branches/codex/reviews-in-task`.
+Implementation workspace: `/Users/dotta/nexusai/branches/codex/reviews-in-task`.
 Branch: `codex/reviews-in-task`, rebased on `master` at `8f099c3f8`.
 The original verification below predates that rebase; final checks are recorded in the PR.
 
@@ -49,7 +49,7 @@ provider calls. Traces and screenshots accompany each case.
 [Playwright report](http://127.0.0.1:6020/report/). The final run passed all five
 journeys in 1.4 minutes and released its port after teardown.
 
-The local evidence directory is `.paperclip-runtime/reviews-evidence/`. It contains
+The local evidence directory is `.nexus-runtime/reviews-evidence/`. It contains
 the Playwright report, traces/screenshots, focused/full-check logs, baseline logs,
 and `final-journey-identifiers.json` with request, invocation, interaction, and run IDs
 from the passing port-3226 run. The report's attachments also contain
@@ -101,14 +101,14 @@ or credential store, not in this report or chat.
 
 Before the master rebase, 155 component tests and all five browser journeys passed.
 The final UI checks include the split approval menu, keyboard selection of Always
-allow, and one-click decline. Evidence is in `.paperclip-runtime/reviews-evidence/minimal/`.
+allow, and one-click decline. Evidence is in `.nexus-runtime/reviews-evidence/minimal/`.
 The browser run took 2.7 minutes; its restarted server required explicit process
 cleanup after the tests completed. Live provider and model-runner dependencies
 remain separate from this deterministic evidence.
 
 ## Native Codex approval and continuation
 
-A real native Paperclip Runner agent used `gpt-5.6-sol` with existing local
+A real native Nexus Runner agent used `gpt-5.6-sol` with existing local
 ChatGPT authentication. Its initial run discovered the installed MCP fixture
 action, called it with `query: "10 most recent pages"`, and yielded to a pending
 server-owned review. The operator approved in the browser. The server executed

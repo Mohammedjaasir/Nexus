@@ -68,7 +68,7 @@ The production correction exposes native question field types at the schema
 root and preserves every method-specific constraint and runtime validator.
 Empty arguments, stringified options and cross-method fields remain invalid.
 All three previous closure hashes are reproduced from the retained full
-manifest and reviewed Node pins; only `extensions/paperclip.js` changes.
+manifest and reviewed Node pins; only `extensions/nexus.js` changes.
 Historical Pi profile-18 decoding retains its exact stored identity; current
 launch admission still rejects it. Later changes are tests, harness and docs.
 Shipping packages and image stay frozen at the source above.
@@ -143,7 +143,7 @@ writes the requested 33 bytes, performs one complete native read with the exact
 nonce plus LF, receives the expected cross-root denial, saves the exact bytes
 through the public managed-file API, and retires cleanly. The grader wrongly
 requires a null projected target for cloud agent files. The remote projection
-correctly names `.paperclip-runtime/agent-files/<agent-id>/<run-id>/memory/pi-native.txt`;
+correctly names `.nexus-runtime/agent-files/<agent-id>/<run-id>/memory/pi-native.txt`;
 local private-root reads remain withheld. This is a grader-authority mismatch,
 not evidence of wrong file content. Restart and the fresh task were not reached.
 
@@ -665,7 +665,7 @@ remains deferred and no prior-source live result transfers to this candidate.
 This branch merges `origin/master` through `a9a20fb5c6c080884ced7ee0a4e3b04f9cbf3a6e`.
 The original integration point was `a6306ba606eb87c89b9ef0344e9fe8e0025580f9`;
 two additional master commits are included in the final merge.
-Pi accepts the operator's explicit provider/model ID without a Paperclip model
+Pi accepts the operator's explicit provider/model ID without a Nexus model
 allowlist. Catalog discovery does not gate selection. Exact native model
 acknowledgment remains required before prompting. API credentials for built-in
 providers and explicit native custom-provider configurations remain session-bound.
@@ -992,7 +992,7 @@ merge or release.
 The fresh Runner human-confirmation case reaches its original 120-second
 provider-turn deadline before any control-plane operation or human interaction.
 The native transcript contains a DSML invocation of
-`mcp__paperclip__request_human_input` as assistant text, followed by a claim that
+`mcp__nexus__request_human_input` as assistant text, followed by a claim that
 a card was created. The mock state records no such operation or card. There is
 no terminal turn. Provider metadata records Inceptron HTTP 499 after 119.7 seconds
 at 5.3 tokens/second. This observation narrows the failure to native tool-call
@@ -1087,7 +1087,7 @@ qualify changed shipping inputs. Keep rollout held and do not merge or release.
 ## Sandbox GitHub housekeeping correction — 2026-10-06
 
 The shipping correction moves sandbox GitHub launchers, upload locks and
-per-command configuration below `.paperclip-runtime/paperclip-runner/github`.
+per-command configuration below `.nexus-runtime/nexus-runner/github`.
 One shared path now binds staging, the native callback bridge and cleanup.
 Local and SSH locations keep their existing behavior. The native watcher,
 excluded subtree, exact byte grades, timeouts and lifecycle assertions do not
@@ -1191,7 +1191,7 @@ Build and recursive typecheck pass at the shipping source. Fixture head
 `6c09e4c87` has 53 successful GitHub checks, two skips, Greptile 5/5 and no
 unresolved review threads. The first full local workspace run retains 15,042
 passes, 87 skips and five plugin auto-build failures. Its launcher globally set
-`PAPERCLIP_DISABLE_PLUGIN_AUTOBUILD=1`. Removing that test-environment flag makes
+`NEXUS_DISABLE_PLUGIN_AUTOBUILD=1`. Removing that test-environment flag makes
 all 11 affected tests pass with unchanged source and assertions. The corrected
 full `pnpm test:run` child reaches terminal failure after its launcher was
 interrupted: 12,920 passes, 2,210 skips, four failed tests and 36 failed files.
@@ -1243,7 +1243,7 @@ Product 0/26 and Runner 0/7.
 
 A credential-free regression reproduces the fallback restore defect after
 controller recovery: file bytes survive, but transfer creates a reserved
-`.paperclip-runtime/agent-files` directory inside native `AGENT_HOME`. The
+`.nexus-runtime/agent-files` directory inside native `AGENT_HOME`. The
 product's complete agent-directory probe rejects that directory. Transfer
 scratch now lives in the original materialization's host runtime area, outside
 native memory. Both staging and recovery use the same lease-confined path.
@@ -1946,7 +1946,7 @@ is claimed. No automatic paid retry, fallback key, model change, workflow edit,
 or lockfile commit occurs.
 
 Normal installed Mac-to-Linux authority now passes the documented
-`paperclipai runtime import-remote` path. The companion comes from immutable
+`nexusai runtime import-remote` path. The companion comes from immutable
 image `sha256:342f1fd5cb8cabfa2242f38f4f686608b28b6536aa879c54b0cb0da6fba9ef47`,
 contains 24,352 inventoried entries, and has manifest SHA256
 `2c9d337c7d3753db6b8c44c5b347e195a2544b574670af7f32e5dfaffc0b4017`.
@@ -1965,7 +1965,7 @@ Historical corrections and evidence as of October 3:
   a full wake and the next sleep, with no state event during its 11:54–11:57 UTC
   attempt. The separate workflow-context/document sleep correction does not
   establish a correction for this failure.
-- Runner finish-task reports the run through `paperclip_finish` without invoking
+- Runner finish-task reports the run through `nexus_finish` without invoking
   the advertised `finish_task` mutation. Preserve the mock authority distinction
   and the failed behavior grade. The actual failed attempt advertises and
   authorizes `finish_task`; runtime instructions already explain the distinction.
@@ -2633,9 +2633,9 @@ the database status. Drain or recover recorded cleanup before rolling back to
 a release that cannot interpret its metadata, and preserve the provider handle
 and receipts throughout that operation.
 
-1. Record `paperclipai --version`, the prior CLI/server package versions, the
+1. Record `nexusai --version`, the prior CLI/server package versions, the
    current company configuration and the exact retained package set. Run
-   `paperclipai db:backup --json` against the intended instance. Retain the
+   `nexusai db:backup --json` against the intended instance. Retain the
    reported backup path and size. Record the backup file SHA256 before updating.
    Drain active native runs on every platform before updating. On Linux, also
    drain before crossing between ctime-based and kernel-birth receipts. Never
@@ -2647,9 +2647,9 @@ and receipts throughout that operation.
    separately reviewed install procedure rather than this npm version command.
 
    ```sh
-   paperclipai update --version "$PI_RELEASE_VERSION" --dry-run --json
-   paperclipai update --version "$PI_RELEASE_VERSION"
-   paperclipai runtime setup pi
+   nexusai update --version "$PI_RELEASE_VERSION" --dry-run --json
+   nexusai update --version "$PI_RELEASE_VERSION"
+   nexusai runtime setup pi
    ```
 
 3. For Daytona, select the exact image in the completed release qualification
@@ -2662,7 +2662,7 @@ and receipts throughout that operation.
    platform-specific manifest digests are evidence, not published release assets.
 
    ```sh
-   paperclipai runtime import-remote "$PI_RELEASE_COMPANION" --sha256 "$PI_RELEASE_COMPANION_SHA256"
+   nexusai runtime import-remote "$PI_RELEASE_COMPANION" --sha256 "$PI_RELEASE_COMPANION_SHA256"
    ```
 
 4. After all release gates pass, begin with one operator-owned Linux Pi company using profile 18,
@@ -2690,8 +2690,8 @@ platform. On Linux, also drain before crossing the process-birth format change.
 Preserve terminal and cleanup evidence.
 
 ```sh
-paperclipai update --rollback --dry-run --json
-paperclipai update --rollback
+nexusai update --rollback --dry-run --json
+nexusai update --rollback
 ```
 
 The CLI restores the retained prior managed payload and restarts an active

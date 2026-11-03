@@ -1,8 +1,8 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { agents, agentWakeupRequests, approvals, companies, heartbeatRuns, issueApprovals, issueRecoveryActions,
-  issues, issueTreeHoldMembers, issueTreeHolds, projects, type Db } from "@paperclipai/db";
+  issues, issueTreeHoldMembers, issueTreeHolds, projects, type Db } from "@nexusai/db";
 import { unionAll } from "drizzle-orm/pg-core";
-import { HEARTBEAT_RUN_STATUSES, type TaskInterruptionPresentation } from "@paperclipai/shared";
+import { HEARTBEAT_RUN_STATUSES, type TaskInterruptionPresentation } from "@nexusai/shared";
 import { captureTaskInterruptionFailure } from "../sentry.js";
 import { isAiAuthenticationBlocked } from "./ai-auth-failure.js";
 import { readSystemRecovery } from "./system-recovery-state.js";

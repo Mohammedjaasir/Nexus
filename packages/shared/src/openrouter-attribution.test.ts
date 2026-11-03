@@ -12,8 +12,8 @@ describe("OpenRouter attribution", () => {
     const existing = { "http-referer": "https://harness.example", "x-TITLE": "Harness", "X-openrouter-title": "Harness", Authorization: "Bearer fixture", "X-Route": "custom", "X-OpenRouter-App-Visibility": "hidden" };
     const result = openRouterAttributionHeaders(existing);
     expect(new Headers(result).get("http-referer")).toBe("https://paperclip.ing");
-    expect(new Headers(result).get("x-title")).toBe("Paperclip");
-    expect(new Headers(result).get("x-openrouter-title")).toBe("Paperclip");
+    expect(new Headers(result).get("x-title")).toBe("Nexus");
+    expect(new Headers(result).get("x-openrouter-title")).toBe("Nexus");
     expect(result).toMatchObject({ Authorization: "Bearer fixture", "X-Route": "custom", "X-OpenRouter-App-Visibility": "hidden" });
     expect(existing["http-referer"]).toBe("https://harness.example");
   });

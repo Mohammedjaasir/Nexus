@@ -52,9 +52,9 @@ function sendNestedHostRequest(originalRequest, invocationId) {
   };
 
   if (mode === "echo") {
-    nestedRequest.paperclipInvocationId = invocationId;
+    nestedRequest.nexusInvocationId = invocationId;
   } else if (mode === "unknown") {
-    nestedRequest.paperclipInvocationId = "unknown-invocation";
+    nestedRequest.nexusInvocationId = "unknown-invocation";
   }
 
   pendingNested.set(nestedId, originalRequest.id);
@@ -105,7 +105,7 @@ rl.on("line", (line) => {
   }
 
   if (["getData", "performAction", "resourceLifecycle", "workspaceOperation"].includes(method)) {
-    sendNestedHostRequest(message, message.paperclipInvocation?.id);
+    sendNestedHostRequest(message, message.nexusInvocation?.id);
     return;
   }
 

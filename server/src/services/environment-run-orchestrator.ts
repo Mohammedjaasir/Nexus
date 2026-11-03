@@ -1,4 +1,4 @@
-import { freshWorkspaceSchema } from "@paperclipai/plugin-sdk";
+import { freshWorkspaceSchema } from "@nexusai/plugin-sdk";
 import { prepareRemoteWorkspace, readRemoteWorkspaceAuthority, remoteWorkspaceRepositoryPath } from "./remote-workspaces.js";
 /**
  * Centralized environment run orchestrator.
@@ -17,7 +17,7 @@ import { prepareRemoteWorkspace, readRemoteWorkspaceAuthority, remoteWorkspaceRe
  * and transport logic.
  */
 
-import { environmentLeases, type Db } from "@paperclipai/db";
+import { environmentLeases, type Db } from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
 import { remoteExecutionHasStopped } from "./remote-execution-termination.js";
 import type {
@@ -28,7 +28,7 @@ import type {
   ExecutionWorkspace,
   ExecutionWorkspaceConfig,
   IssueExecutionWorkspaceSettings,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { resolveRunnerEnvironmentForRun } from "./runner-environment-lifecycle.js";
 import { environmentService } from "./environments.js";
 import {
@@ -48,8 +48,8 @@ import {
   type AdapterExecutionTarget,
   type AdapterRemoteExecutionSpec,
   type AdapterWorkspaceRealization,
-} from "@paperclipai/adapter-utils/execution-target";
-import type { DuplexObservabilityRecorder } from "@paperclipai/adapter-utils/duplex-observability";
+} from "@nexusai/adapter-utils/execution-target";
+import type { DuplexObservabilityRecorder } from "@nexusai/adapter-utils/duplex-observability";
 import { buildWorkspaceRealizationRequest } from "./workspace-realization.js";
 import { executionWorkspaceService } from "./execution-workspaces.js";
 import { logActivity } from "./activity-log.js";
@@ -298,7 +298,7 @@ export function environmentRunOrchestrator(
       selectedEnvironment, input.adapterType, input.adapterConfig, input.admittedLifecycleMode, input.managedAiCredentialIdentity,
     );
 
-    if (input.recoverPluginTask && environment.driver === "plugin" && input.adapterType === "paperclip_runner") {
+    if (input.recoverPluginTask && environment.driver === "plugin" && input.adapterType === "nexus_runner") {
       const prior = await db.select().from(environmentLeases).where(and(
         eq(environmentLeases.companyId, input.companyId), eq(environmentLeases.heartbeatRunId, input.heartbeatRunId),
       ));
@@ -340,7 +340,7 @@ export function environmentRunOrchestrator(
           lease.releasedAt !== null || lease.cleanupStatus !== null ||
           (lease.expiresAt !== null && new Date(lease.expiresAt).getTime() <= Date.now()) ||
           (expected.kind === "plugin_task"
-            ? environment.driver !== "plugin" || input.adapterType !== "paperclip_runner"
+            ? environment.driver !== "plugin" || input.adapterType !== "nexus_runner"
               || lease.metadata?.runnerTaskLease !== true || lease.metadata?.runnerTaskDispatched !== true
               || lease.metadata?.runnerTaskExecutionStopped === true
             : environment.driver !== "sandbox" || lease.provider !== environment.config.provider
@@ -375,7 +375,7 @@ export function environmentRunOrchestrator(
     });
 
     // Step 4: Resolve execution transport
-    const executionTransport = environment.driver === "plugin" && input.adapterType === "paperclip_runner" ? null : await resolveTransport({
+    const executionTransport = environment.driver === "plugin" && input.adapterType === "nexus_runner" ? null : await resolveTransport({
       companyId: input.companyId,
       adapterType: input.adapterType,
       environment,
@@ -433,7 +433,7 @@ export function environmentRunOrchestrator(
     let { lease, persistedExecutionWorkspace } = input;
     const remoteAuthority = readRemoteWorkspaceAuthority(persistedExecutionWorkspace?.metadata);
     if (remoteAuthority && persistedExecutionWorkspace) {
-      if (adapterType !== "paperclip_runner" || environment.driver !== "sandbox") {
+      if (adapterType !== "nexus_runner" || environment.driver !== "sandbox") {
         throw new EnvironmentRunError("unsupported_adapter_environment", "Remote workspace storage requires a qualified native sandbox");
       }
       const target = await resolveEnvironmentExecutionTarget({
@@ -479,7 +479,7 @@ export function environmentRunOrchestrator(
 
     if (executionWorkspace.providerBinding) {
       const binding = executionWorkspace.providerBinding;
-      if (environment.driver !== "plugin" || adapterType !== "paperclip_runner" || lease.metadata?.pluginId !== binding.pluginId || !await environmentRuntime.supportsTasks({ lease })) {
+      if (environment.driver !== "plugin" || adapterType !== "nexus_runner" || lease.metadata?.pluginId !== binding.pluginId || !await environmentRuntime.supportsTasks({ lease })) {
         throw new EnvironmentRunError("workspace_realization_failed", "The execution plugin cannot access this managed workspace.", { environmentId: environment.id });
       }
       const updated = await environmentsSvc.updateLeaseMetadata(lease.id, { ...lease.metadata, workspaceProvider: binding });
@@ -509,7 +509,7 @@ export function environmentRunOrchestrator(
     // Step 2: Realize workspace in the environment via the runtime driver
     let workspaceRealization: Record<string, unknown> = {};
     let realizedWorkspaceCwd: string | null = null;
-    const pluginTaskWorkspace = environment.driver === "plugin" && adapterType === "paperclip_runner";
+    const pluginTaskWorkspace = environment.driver === "plugin" && adapterType === "nexus_runner";
     if (pluginTaskWorkspace && !await environmentRuntime.supportsTasks({ lease })) {
       throw new EnvironmentRunError("unsupported_adapter_environment", "Plugin environment does not provide native Runner task execution");
     }
@@ -727,7 +727,7 @@ export function environmentRunOrchestrator(
     cancelActiveWork?: boolean;
 
     respectCleanupDeadlines?: boolean;
-    /** Explicit paperclip_runner resource lifecycle. Omitted for legacy adapters. */
+    /** Explicit nexus_runner resource lifecycle. Omitted for legacy adapters. */
     providerResourceDisposition?: ProviderResourceDisposition;
     nativeLifecycleTelemetry?: {
       provider: string;

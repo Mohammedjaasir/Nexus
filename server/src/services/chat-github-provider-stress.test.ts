@@ -55,7 +55,7 @@ function signedGitHubRequest(
   const resolvedDeliveryId =
     deliveryId ??
     `delivery-${String((payload.comment as { id?: unknown } | undefined)?.id ?? "event")}`;
-  return new Request("https://paperclip.example/github", {
+  return new Request("https://nexus.example/github", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -87,7 +87,7 @@ function commentPayload(input: {
       html_url: `https://github.com/paperclipai/chat-e2e/issues/${input.number}#issuecomment-${input.commentId}`,
       user: {
         id: userId,
-        login: userId === 9001 ? "maya-paperclip[bot]" : "alex-e2e",
+        login: userId === 9001 ? "maya-nexus[bot]" : "alex-e2e",
         type: userId === 9001 ? "Bot" : "User",
       },
     },
@@ -100,12 +100,12 @@ function commentPayload(input: {
     repository: {
       id: 97531,
       name: "chat-e2e",
-      full_name: "paperclipai/chat-e2e",
-      owner: { id: 1357, login: "paperclipai" },
+      full_name: "nexusai/chat-e2e",
+      owner: { id: 1357, login: "nexusai" },
     },
     sender: {
       id: userId,
-      login: userId === 9001 ? "maya-paperclip[bot]" : "alex-e2e",
+      login: userId === 9001 ? "maya-nexus[bot]" : "alex-e2e",
     },
   };
 }
@@ -123,7 +123,7 @@ describe("GitHub published adapter stress contract", () => {
           JSON.stringify({
             id: 1,
             content: "+1",
-            user: { id: 9001, login: "maya-paperclip[bot]" },
+            user: { id: 9001, login: "maya-nexus[bot]" },
           }),
           { status: 201, headers: { "content-type": "application/json" } },
         );
@@ -150,7 +150,7 @@ describe("GitHub published adapter stress contract", () => {
         provider: "github",
         // GitHub App actors are reported as `<slug>[bot]`, but users invoke
         // them with the human-facing `@<slug>` mention.
-        userName: "maya-paperclip",
+        userName: "maya-nexus",
         credentials: {
           botUserId: 9001,
           token: "github-token-never-logged",
@@ -168,7 +168,7 @@ describe("GitHub published adapter stress contract", () => {
       {
         event: "issue_comment" as const,
         payload: commentPayload({
-          body: "@maya-paperclip issue root",
+          body: "@maya-nexus issue root",
           commentId: 4201,
           number: 42,
         }),
@@ -176,7 +176,7 @@ describe("GitHub published adapter stress contract", () => {
       {
         event: "issue_comment" as const,
         payload: commentPayload({
-          body: "@maya-paperclip PR root",
+          body: "@maya-nexus PR root",
           commentId: 4301,
           number: 43,
           pullRequest: true,
@@ -185,7 +185,7 @@ describe("GitHub published adapter stress contract", () => {
       {
         event: "pull_request_review_comment" as const,
         payload: commentPayload({
-          body: `@maya-paperclip inline root\n\n<img width="1254" height="1254" alt="Image" src="${uploadedImageUrl}" />\n\n[media-qa-0907.txt](${uploadedTextUrl})`,
+          body: `@maya-nexus inline root\n\n<img width="1254" height="1254" alt="Image" src="${uploadedImageUrl}" />\n\n[media-qa-0907.txt](${uploadedTextUrl})`,
           commentId: 4401,
           number: 43,
           pullRequest: true,
@@ -237,7 +237,7 @@ describe("GitHub published adapter stress contract", () => {
       ).toBe(200);
     }
     const selfEvent = commentPayload({
-      body: "@maya-paperclip outbound self event",
+      body: "@maya-nexus outbound self event",
       commentId: 4203,
       number: 42,
       senderId: 9001,
@@ -259,32 +259,32 @@ describe("GitHub published adapter stress contract", () => {
     ).toEqual([
       {
         id: "4201",
-        threadId: "github:paperclipai/chat-e2e:issue:42",
+        threadId: "github:nexusai/chat-e2e:issue:42",
         trigger: "mention",
       },
       {
         id: "4301",
-        threadId: "github:paperclipai/chat-e2e:43",
+        threadId: "github:nexusai/chat-e2e:43",
         trigger: "mention",
       },
       {
         id: "4401",
-        threadId: "github:paperclipai/chat-e2e:43:rc:4401",
+        threadId: "github:nexusai/chat-e2e:43:rc:4401",
         trigger: "mention",
       },
       {
         id: "4202",
-        threadId: "github:paperclipai/chat-e2e:issue:42",
+        threadId: "github:nexusai/chat-e2e:issue:42",
         trigger: "subscribed_message",
       },
       {
         id: "4302",
-        threadId: "github:paperclipai/chat-e2e:43",
+        threadId: "github:nexusai/chat-e2e:43",
         trigger: "subscribed_message",
       },
       {
         id: "4402",
-        threadId: "github:paperclipai/chat-e2e:43:rc:4401",
+        threadId: "github:nexusai/chat-e2e:43:rc:4401",
         trigger: "subscribed_message",
       },
     ]);
@@ -330,7 +330,7 @@ describe("GitHub published adapter stress contract", () => {
         if (
           method === "POST" &&
           url.endsWith(
-            "/repos/paperclipai/chat-e2e/pulls/43/comments/4401/replies",
+            "/repos/nexusai/chat-e2e/pulls/43/comments/4401/replies",
           )
         ) {
           return Response.json(
@@ -341,7 +341,7 @@ describe("GitHub published adapter stress contract", () => {
               updated_at: "2026-09-05T12:01:00Z",
               user: {
                 id: 9001,
-                login: "maya-paperclip[bot]",
+                login: "maya-nexus[bot]",
                 type: "Bot",
               },
             },
@@ -350,7 +350,7 @@ describe("GitHub published adapter stress contract", () => {
         }
         if (
           method === "PATCH" &&
-          url.endsWith("/repos/paperclipai/chat-e2e/pulls/comments/9901")
+          url.endsWith("/repos/nexusai/chat-e2e/pulls/comments/9901")
         ) {
           return Response.json({
             id: 9901,
@@ -359,7 +359,7 @@ describe("GitHub published adapter stress contract", () => {
             updated_at: "2026-09-05T12:02:00Z",
             user: {
               id: 9001,
-              login: "maya-paperclip[bot]",
+              login: "maya-nexus[bot]",
               type: "Bot",
             },
           });
@@ -375,7 +375,7 @@ describe("GitHub published adapter stress contract", () => {
       persistence: memoryPersistence(),
       providerConfig: {
         provider: "github",
-        userName: "maya-paperclip",
+        userName: "maya-nexus",
         credentials: {
           botUserId: 9001,
           token: "github-token-never-logged",
@@ -386,7 +386,7 @@ describe("GitHub published adapter stress contract", () => {
 
     try {
       const sent = await runtime
-        .thread("github:paperclipai/chat-e2e:43:rc:4401")
+        .thread("github:nexusai/chat-e2e:43:rc:4401")
         .post({ markdown: "inline result" });
       expect(sent.id).toBe("9901");
       const edited = await sent.edit({ markdown: "final inline result" });
@@ -420,7 +420,7 @@ describe("GitHub published adapter stress contract", () => {
       persistence: memoryPersistence(),
       providerConfig: {
         provider: "github",
-        userName: "maya-paperclip",
+        userName: "maya-nexus",
         credentials: {
           botUserId: 9001,
           token: "github-token-never-logged",
@@ -430,12 +430,12 @@ describe("GitHub published adapter stress contract", () => {
     });
     await runtime.initialize();
     const newer = commentPayload({
-      body: "@maya-paperclip newer comment delivered first",
+      body: "@maya-nexus newer comment delivered first",
       commentId: 5102,
       number: 51,
     });
     const older = commentPayload({
-      body: "@maya-paperclip older root delivered late",
+      body: "@maya-nexus older root delivered late",
       commentId: 5101,
       number: 51,
     });
@@ -456,15 +456,15 @@ describe("GitHub published adapter stress contract", () => {
       ).toEqual([
         {
           id: "5102",
-          threadId: "github:paperclipai/chat-e2e:issue:51",
+          threadId: "github:nexusai/chat-e2e:issue:51",
         },
         {
           id: "5101",
-          threadId: "github:paperclipai/chat-e2e:issue:51",
+          threadId: "github:nexusai/chat-e2e:issue:51",
         },
         {
           id: "5101",
-          threadId: "github:paperclipai/chat-e2e:issue:51",
+          threadId: "github:nexusai/chat-e2e:issue:51",
         },
       ]);
     } finally {

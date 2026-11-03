@@ -1,5 +1,5 @@
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
-import { subscribeDatabaseWork } from "@paperclipai/db";
+import { subscribeDatabaseWork } from "@nexusai/db";
 import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { createHmac, randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
@@ -28,7 +28,7 @@ import {
   routines,
   routineTriggers,
   secretAccessEvents,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -39,11 +39,11 @@ import * as providerRegistry from "../secrets/provider-registry.ts";
 import { routineService } from "../services/routines.ts";
 import { secretService } from "../services/secrets.ts";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_ROUTINES_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_ROUTINES_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalUrl ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
-const originalSecretsProviderEnv = process.env.PAPERCLIP_SECRETS_PROVIDER;
-const originalPaperclipApiUrlEnv = process.env.PAPERCLIP_API_URL;
+const originalSecretsProviderEnv = process.env.NEXUS_SECRETS_PROVIDER;
+const originalNexusApiUrlEnv = process.env.NEXUS_API_URL;
 
 if (!embeddedPostgresSupport.supported) {
   console.warn(
@@ -56,16 +56,16 @@ describeEmbeddedPostgres("routine service live-execution coalescing", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    process.env.PAPERCLIP_API_URL = "http://localhost:3100";
-    if (!externalUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-routines-service-");
+    process.env.NEXUS_API_URL = "http://localhost:3100";
+    if (!externalUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-routines-service-");
     db = createDb(externalUrl ?? tempDb!.connectionString);
   }, 20_000);
 
   afterEach(async () => {
     if (originalSecretsProviderEnv === undefined) {
-      delete process.env.PAPERCLIP_SECRETS_PROVIDER;
+      delete process.env.NEXUS_SECRETS_PROVIDER;
     } else {
-      process.env.PAPERCLIP_SECRETS_PROVIDER = originalSecretsProviderEnv;
+      process.env.NEXUS_SECRETS_PROVIDER = originalSecretsProviderEnv;
     }
     await db.delete(activityLog);
     await db.delete(issueInboxArchives);
@@ -92,10 +92,10 @@ describeEmbeddedPostgres("routine service live-execution coalescing", () => {
 
   afterAll(async () => {
     await tempDb?.cleanup();
-    if (originalPaperclipApiUrlEnv === undefined) {
-      delete process.env.PAPERCLIP_API_URL;
+    if (originalNexusApiUrlEnv === undefined) {
+      delete process.env.NEXUS_API_URL;
     } else {
-      process.env.PAPERCLIP_API_URL = originalPaperclipApiUrlEnv;
+      process.env.NEXUS_API_URL = originalNexusApiUrlEnv;
     }
   });
 
@@ -134,7 +134,7 @@ describeEmbeddedPostgres("routine service live-execution coalescing", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix,
       defaultResponsibleUserId,
       requireBoardApprovalForNewAgents: false,
@@ -1714,7 +1714,7 @@ describeEmbeddedPostgres("routine service live-execution coalescing", () => {
 
     const run = await svc.runRoutine(variableRoutine.id, {
       source: "manual",
-      variables: { repo: "paperclip" },
+      variables: { repo: "nexus" },
     });
 
     const storedIssue = await db
@@ -1728,11 +1728,11 @@ describeEmbeddedPostgres("routine service live-execution coalescing", () => {
       .where(eq(routineRuns.id, run.id))
       .then((rows) => rows[0] ?? null);
 
-    expect(storedIssue?.title).toBe("repo triage for paperclip");
-    expect(storedIssue?.description).toBe("Review paperclip for high bugs");
+    expect(storedIssue?.title).toBe("repo triage for nexus");
+    expect(storedIssue?.description).toBe("Review nexus for high bugs");
     expect(storedRun?.triggerPayload).toEqual({
       variables: {
-        repo: "paperclip",
+        repo: "nexus",
         priority: "high",
       },
     });
@@ -2303,7 +2303,7 @@ describeEmbeddedPostgres("routine service live-execution coalescing", () => {
   });
 
   it("rejects an HMAC webhook replay when automatic execution is suppressed", async () => {
-    const runtimeEnv = { PAPERCLIP_IN_WORKTREE: "yes", PAPERCLIP_INSTANCE_ID: "worktree-routines-test" };
+    const runtimeEnv = { NEXUS_IN_WORKTREE: "yes", NEXUS_INSTANCE_ID: "worktree-routines-test" };
     const { routine, svc } = await seedFixture({ runtimeEnv });
     const { trigger, secretMaterial } = await svc.createTrigger(
       routine.id,
@@ -2340,7 +2340,7 @@ describeEmbeddedPostgres("routine service live-execution coalescing", () => {
   });
 
   it("uses the configured provider for generated webhook trigger secrets", async () => {
-    process.env.PAPERCLIP_SECRETS_PROVIDER = "aws_secrets_manager";
+    process.env.NEXUS_SECRETS_PROVIDER = "aws_secrets_manager";
     const originalGetSecretProvider = providerRegistry.getSecretProvider;
     const getSecretProviderSpy = vi.spyOn(providerRegistry, "getSecretProvider").mockImplementation((provider) => {
       if (provider !== "aws_secrets_manager") {
@@ -2536,7 +2536,7 @@ describeEmbeddedPostgres("routine service live-execution coalescing", () => {
   });
 
   it("deduplicates suppressed Sentry receipts across triggers", async () => {
-    const f = await sentryFailureFixture(false, { PAPERCLIP_IN_WORKTREE: "yes", PAPERCLIP_INSTANCE_ID: "worktree-sentry-test" });
+    const f = await sentryFailureFixture(false, { NEXUS_IN_WORKTREE: "yes", NEXUS_INSTANCE_ID: "worktree-sentry-test" });
     const second = await f.svc.createTrigger(f.routine.id, { kind: "webhook", signingMode: "bearer" }, {});
     const a = await f.svc.firePublicTrigger(f.trigger.publicId!, f.delivery());
     const b = await f.svc.firePublicTrigger(second.trigger.publicId!, { ...f.delivery(),
@@ -2789,7 +2789,7 @@ describeEmbeddedPostgres("routine service live-execution coalescing", () => {
   });
 
   it("records suppressed automatic runs when worktree execution is disabled while allowing manual runs", async () => {
-    const runtimeEnv = { PAPERCLIP_IN_WORKTREE: "yes", PAPERCLIP_INSTANCE_ID: "worktree-routines-test" };
+    const runtimeEnv = { NEXUS_IN_WORKTREE: "yes", NEXUS_INSTANCE_ID: "worktree-routines-test" };
     const { companyId, routine, svc } = await seedFixture({ runtimeEnv });
     const { trigger: scheduleTrigger } = await svc.createTrigger(
       routine.id,
@@ -2820,7 +2820,7 @@ describeEmbeddedPostgres("routine service live-execution coalescing", () => {
   });
 
   it("dispatches only post-cutoff scheduled routines in an armed worktree", async () => {
-    const runtimeEnv = { PAPERCLIP_IN_WORKTREE: "true", PAPERCLIP_INSTANCE_ID: "worktree-routines-test" };
+    const runtimeEnv = { NEXUS_IN_WORKTREE: "true", NEXUS_INSTANCE_ID: "worktree-routines-test" };
     const { companyId, agentId, projectId, routine: oldRoutine, svc } = await seedFixture({ runtimeEnv });
     const cutoff = new Date("2025-01-01T00:00:00.000Z");
     await armWorktreeExecution(cutoff);
@@ -2960,7 +2960,7 @@ describeEmbeddedPostgres("routine service live-execution coalescing", () => {
   });
 
   it("applies the armed cutoff to webhook dispatch but not manual API runs", async () => {
-    const runtimeEnv = { PAPERCLIP_IN_WORKTREE: "true", PAPERCLIP_INSTANCE_ID: "worktree-routines-test" };
+    const runtimeEnv = { NEXUS_IN_WORKTREE: "true", NEXUS_INSTANCE_ID: "worktree-routines-test" };
     const { routine, svc } = await seedFixture({ runtimeEnv });
     await armWorktreeExecution(new Date("2025-01-01T00:00:00.000Z"));
     await db.update(routines).set({ createdAt: new Date("2024-12-31T23:59:59.000Z") }).where(eq(routines.id, routine.id));

@@ -34,7 +34,7 @@ The baseline semantics test passes before the optimization.
 Run the actual old and new query builders against disposable PostgreSQL:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-task-interruption.ts --baseline-ref=09ad9adce2cf4742944353a3707a2f908e9bb35e
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-task-interruption.ts --baseline-ref=09ad9adce2cf4742944353a3707a2f908e9bb35e
 ```
 
 The pinned pre-fix service is loaded from Git. The harness rejects changed runtime

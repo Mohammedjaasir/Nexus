@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.native-controller-qualification-evidence/v1",
+  "schema": "nexus.native-controller-qualification-evidence/v1",
   "recordedAtUtc": "2026-10-30T19:08:26.343965+00:00",
   "qualification": "Passed isolated PostgreSQL steady, aligned-burst and matched two-logical-server ABBA correctness, absolute and relative gates, plus production database recovery-claim/restore capacity. These are component measurements.",
   "baselineRevision": "59e191c368cb3119ff3206621fefa9c5d4ad3110",
@@ -14,12 +14,12 @@
       "baselineSha256": "d798cd0859ca363ae3be33c607f10b4755420d77d796824d1ee9570d0f7a253c"
     },
     {
-      "path": "server/src/services/native-runtime/paperclip-control-plane-port.ts",
+      "path": "server/src/services/native-runtime/nexus-control-plane-port.ts",
       "candidateSha256": "b9143eea07733b67eab80e7e000cf1018202b047c755c47533a6679b67d57c51",
       "baselineSha256": "a1f807c5d8fbdcb30e966ebf8a4789974f6a8a7086a0056d9351da6e9817e5f2"
     },
     {
-      "path": "packages/paperclip-runner/src/control-plane/durable-prp-control-plane.ts",
+      "path": "packages/nexus-runner/src/control-plane/durable-prp-control-plane.ts",
       "candidateSha256": "a8a8bed373cdd18397a762b9f67b04c789d9e5d63208f06c5ebe000faff090ac",
       "baselineSha256": "a8a8bed373cdd18397a762b9f67b04c789d9e5d63208f06c5ebe000faff090ac"
     },
@@ -68,8 +68,8 @@
   },
   "profiles": {
     "steady": {
-      "schema": "paperclip.normal-recovery-load/v1",
-      "scope": "Paired baseline/candidate, including real PaperclipControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
+      "schema": "nexus.normal-recovery-load/v1",
+      "scope": "Paired baseline/candidate, including real NexusControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
       "hardware": {
         "postgresCpuLimit": 2,
         "postgresMemoryLimitMiB": 1536,
@@ -271,7 +271,7 @@
                   "max": 0
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -288,7 +288,7 @@
                   "max": 0
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -480,7 +480,7 @@
                   "max": 0
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -497,7 +497,7 @@
                   "max": 0
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -689,7 +689,7 @@
                   "max": 0
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -706,7 +706,7 @@
                   "max": 0
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -898,7 +898,7 @@
                   "max": 0
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -915,7 +915,7 @@
                   "max": 0
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -961,8 +961,8 @@
       ]
     },
     "burst": {
-      "schema": "paperclip.normal-recovery-load/v1",
-      "scope": "Paired baseline/candidate, including real PaperclipControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
+      "schema": "nexus.normal-recovery-load/v1",
+      "scope": "Paired baseline/candidate, including real NexusControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
       "hardware": {
         "postgresCpuLimit": 2,
         "postgresMemoryLimitMiB": 1536,
@@ -1164,7 +1164,7 @@
                   "max": 0
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -1181,7 +1181,7 @@
                   "max": 0
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -1373,7 +1373,7 @@
                   "max": 0
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -1390,7 +1390,7 @@
                   "max": 0
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -1582,7 +1582,7 @@
                   "max": 26.656120999978157
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -1599,7 +1599,7 @@
                   "max": 0
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 2,
                 "observedLowerMs": {
                   "n": 2,
@@ -1791,7 +1791,7 @@
                   "max": 0
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 1,
                 "observedLowerMs": {
                   "n": 1,
@@ -1808,7 +1808,7 @@
                   "max": 25.689116000023205
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -1854,8 +1854,8 @@
       ]
     },
     "overlap-burst": {
-      "schema": "paperclip.normal-recovery-load/v1",
-      "scope": "Two logical servers in one client process, 150 controllers each, separate request/liveness/checkpoint pools at unchanged caps; same aggregate aligned-burst workload. Component overlap capacity only; no takeover latency or provider reattachment claim. Includes real PaperclipControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
+      "schema": "nexus.normal-recovery-load/v1",
+      "scope": "Two logical servers in one client process, 150 controllers each, separate request/liveness/checkpoint pools at unchanged caps; same aggregate aligned-burst workload. Component overlap capacity only; no takeover latency or provider reattachment claim. Includes real NexusControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
       "hardware": {
         "logicalServers": 2,
         "postgresCpuLimit": 2,
@@ -2099,7 +2099,7 @@
                   "max": 77.9257440000074
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 4,
                 "observedLowerMs": {
                   "n": 4,
@@ -2116,7 +2116,7 @@
                   "max": 90.08522199999425
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 6,
                 "observedLowerMs": {
                   "n": 6,
@@ -2162,8 +2162,8 @@
       ]
     },
     "overlap-abba": {
-      "schema": "paperclip.normal-recovery-load/v1",
-      "scope": "Two logical servers in one client process, 150 controllers each, separate request/liveness/checkpoint pools at unchanged caps; same aggregate aligned-burst workload. Matched baseline/candidate ABBA pool-overlap component qualification; no takeover latency or provider reattachment claim. Includes real PaperclipControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
+      "schema": "nexus.normal-recovery-load/v1",
+      "scope": "Two logical servers in one client process, 150 controllers each, separate request/liveness/checkpoint pools at unchanged caps; same aggregate aligned-burst workload. Matched baseline/candidate ABBA pool-overlap component qualification; no takeover latency or provider reattachment claim. Includes real NexusControlPlanePort snapshot persistence on every control checkpoint. Database/control-plane component stress; real production checkpoint writer and natural remote lease timers. Same synthetic DB request load. Not full HTTP, harness or hosted capacity qualification.",
       "hardware": {
         "logicalServers": 2,
         "postgresCpuLimit": 2,
@@ -2434,7 +2434,7 @@
                   "max": 0
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -2451,7 +2451,7 @@
                   "max": 0
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 10,
                 "observedLowerMs": {
                   "n": 10,
@@ -2702,7 +2702,7 @@
                   "max": 25.092009999993024
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -2719,7 +2719,7 @@
                   "max": 0
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 11,
                 "observedLowerMs": {
                   "n": 11,
@@ -2970,7 +2970,7 @@
                   "max": 59.07080300000962
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 4,
                 "observedLowerMs": {
                   "n": 4,
@@ -2987,7 +2987,7 @@
                   "max": 76.26736000002711
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 8,
                 "observedLowerMs": {
                   "n": 8,
@@ -3238,7 +3238,7 @@
                   "max": 0
                 }
               },
-              "paperclip-controller-lease": {
+              "nexus-controller-lease": {
                 "observedEpisodes": 0,
                 "observedLowerMs": {
                   "n": 0,
@@ -3255,7 +3255,7 @@
                   "max": 0
                 }
               },
-              "paperclip-runner-checkpoint": {
+              "nexus-runner-checkpoint": {
                 "observedEpisodes": 7,
                 "observedLowerMs": {
                   "n": 7,
@@ -3325,7 +3325,7 @@
             "max": 0
           }
         },
-        "paperclip-controller-lease": {
+        "nexus-controller-lease": {
           "observedEpisodes": 0,
           "observedLowerMs": {
             "n": 0,
@@ -3342,7 +3342,7 @@
             "max": 0
           }
         },
-        "paperclip-runner-checkpoint": {
+        "nexus-runner-checkpoint": {
           "observedEpisodes": 1,
           "observedLowerMs": {
             "n": 1,
@@ -3363,7 +3363,7 @@
       "episodes": [
         {
           "pid": 88,
-          "application_name": "paperclip-runner-checkpoint",
+          "application_name": "nexus-runner-checkpoint",
           "query_start": "2026-10-30 18:42:31.6856+00",
           "wait_event": "transactionid",
           "wait_start": "2026-10-30 18:42:31.685612+00",
@@ -3424,7 +3424,7 @@
     "cleanupReceipt": "/tmp/native-controller-load-qualification-20261030/ec2-final-state.json"
   },
   "claimCapacity": {
-    "schema": "paperclip.native-controller-claim-capacity/v1",
+    "schema": "nexus.native-controller-claim-capacity/v1",
     "scope": "Production DB claim function against synthetic prepared-workspace references and real persisted snapshots/PRP records. Natural lease expiry; two server database clients. No provider attachment or external sandbox existence claim.",
     "passed": true,
     "harnessSha256": "b083e2e34eccf21a1921e3b32a434ac7d5b1dec24c903b0b3b5052f9f48adf2e",
@@ -3504,7 +3504,7 @@
             "max": 0
           }
         },
-        "paperclip-controller-lease": {
+        "nexus-controller-lease": {
           "observedEpisodes": 0,
           "observedLowerMs": {
             "n": 0,
@@ -3521,7 +3521,7 @@
             "max": 0
           }
         },
-        "paperclip-runner-checkpoint": {
+        "nexus-runner-checkpoint": {
           "observedEpisodes": 0,
           "observedLowerMs": {
             "n": 0,

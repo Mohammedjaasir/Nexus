@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 
 vi.mock("./plugin.js", () => ({ getPluginTracer: () => undefined }));
-import { environmentSyncErrorData, withEnvironmentSyncErrorCapture, withEnvironmentSyncTransferStep, readEnvironmentSyncErrorDiagnostic } from "@paperclipai/plugin-sdk";
+import { environmentSyncErrorData, withEnvironmentSyncErrorCapture, withEnvironmentSyncTransferStep, readEnvironmentSyncErrorDiagnostic } from "@nexusai/plugin-sdk";
 import { assertTarballEntriesConfined } from "./file-sync.js";
 
 const temporaryDirectories: string[] = [];

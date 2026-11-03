@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { validatePrpStructuredRunResult } from "../../packages/paperclip-runner/src/protocol/replay-contract.js";
-import { normalizePrpResultSignals } from "../../packages/paperclip-runner/src/protocol/result-normalization.js";
+import { validatePrpStructuredRunResult } from "../../packages/nexus-runner/src/protocol/replay-contract.js";
+import { normalizePrpResultSignals } from "../../packages/nexus-runner/src/protocol/result-normalization.js";
 import { narratives } from "./narratives.js";
 import { observe } from "./observe.js";
 const result = {
-  schema: "paperclip.run_result.v1",
+  schema: "nexus.run_result.v1",
   reportedWorkDisposition: "done",
   summary: "Completed work",
   completionClaim: {

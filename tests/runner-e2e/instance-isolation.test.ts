@@ -18,12 +18,12 @@ it.each(["owned", "missing-receipt", "foreign-connection", "wrong-port", "foreig
       await mkdir(path.dirname(config.secrets.localEncrypted.keyFilePath), { recursive: true });
       await writeFile(config.secrets.localEncrypted.keyFilePath, "fixture-key");
       config.database.mode = "postgres";
-      config.database.connectionString = `postgres://paperclip:paperclip@127.0.0.1:${config.database.embeddedPostgresPort}/paperclip`;
+      config.database.connectionString = `postgres://nexus:nexus@127.0.0.1:${config.database.embeddedPostgresPort}/nexus`;
       const receipt = { version: 1, configPath, temporaryRoot: root, dataDirectory: directory,
         connectionString: config.database.connectionString };
       if (variant === "foreign-owner") receipt.temporaryRoot = outside;
       if (variant !== "missing-receipt") await writeFile(path.join(directory, ".runner-e2e-controller-owner.json"), JSON.stringify(receipt));
-      if (variant === "foreign-connection") config.database.connectionString = "postgres://paperclip:paperclip@db.example.invalid:5432/paperclip";
+      if (variant === "foreign-connection") config.database.connectionString = "postgres://nexus:nexus@db.example.invalid:5432/nexus";
       if (variant === "wrong-port") config.database.embeddedPostgresPort += 1;
       if (variant === "escaped-database") {
         await rm(directory, { recursive: true });

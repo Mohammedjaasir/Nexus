@@ -62,7 +62,7 @@ async function fixture(action, options = {}) {
     const extra = command === "start" ? ["--api-base", apiBase, "--company-id", companyId, "--agent-id", agentId,
       "--core-revision", "a".repeat(40), "--runner-revision", "b".repeat(40), "--environment", "local", "--evidence-mode", "synthetic"] : [];
     const child = spawn(process.execPath, ["cli/node_modules/tsx/dist/cli.mjs", "scripts/smoke/muse-qualification.ts", command, "--state", statePath, ...extra], {
-      cwd: root, env: { ...process.env, PAPERCLIP_AUTH_STORE: authPath }, stdio: ["ignore", "pipe", "pipe"],
+      cwd: root, env: { ...process.env, NEXUS_AUTH_STORE: authPath }, stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "", stderr = ""; child.stdout.on("data", chunk => stdout += chunk); child.stderr.on("data", chunk => stderr += chunk);
     child.on("error", reject); child.on("exit", code => resolve({ code, stdout, stderr }));

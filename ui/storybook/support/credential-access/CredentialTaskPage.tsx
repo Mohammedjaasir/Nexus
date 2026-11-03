@@ -7,7 +7,7 @@ import { PluginLauncherProvider } from "@/plugins/launchers";
 import { Navigate, Route, Routes } from "@/lib/router";
 import { queryKeys } from "@/lib/queryKeys";
 import { seedIssueDetailCache } from "@/lib/issueDetailCache";
-import { storybookAgents, storybookIssues, storybookAuthSession } from "../../fixtures/paperclipData";
+import { storybookAgents, storybookIssues, storybookAuthSession } from "../../fixtures/nexusData";
 import type { IssueChatComment, IssueChatLinkedRun } from "@/lib/issue-chat-messages";
 
 export function CredentialTaskPage({ otherPerson = false, runtimeMode = "native", newerAttempt = false }: {
@@ -16,7 +16,7 @@ export function CredentialTaskPage({ otherPerson = false, runtimeMode = "native"
   const client = useQueryClient();
   const [fixture] = useState(() => {
     const agent = { ...storybookAgents[0]!, name: "Codie", urlKey: "codie", status: "idle" as const,
-      adapterType: runtimeMode === "native" ? "paperclip_runner" : "codex_local" };
+      adapterType: runtimeMode === "native" ? "nexus_runner" : "codex_local" };
     const task = { ...storybookIssues[0]!, id: "credential-task-demo", identifier: "PAP-389",
       title: "Use task names in Slack notifications", description: null, status: "blocked" as const,
       assigneeAgentId: agent.id, assigneeUserId: null, projectId: null, parentId: null,

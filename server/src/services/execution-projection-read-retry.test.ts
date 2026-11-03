@@ -1,6 +1,6 @@
 import { getTableName, type SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { activityService } from "./activity.js";
 import { executionProjectionsForRuns } from "./execution-projection.js";

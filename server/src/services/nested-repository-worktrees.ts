@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
-import { PROJECT_REPOSITORIES_DIR } from "@paperclipai/adapter-utils/git-workspace-sync";
+import { PROJECT_REPOSITORIES_DIR } from "@nexusai/adapter-utils/git-workspace-sync";
 import { resolveManagedProjectWorkspaceDir } from "../home-paths.js";
 import { deriveRepoNameFromRepoUrl } from "./managed-project-checkout-name.js";
 import { scrubGitCredentialText, type GitRemoteAuthProvider } from "./git-credentials.js";
@@ -14,9 +14,9 @@ import { sanitizeRuntimeServiceBaseEnv } from "./runtime-service-env.js";
 
 const execFile = promisify(execFileCallback);
 const NESTED_WORKTREE_GIT_TIMEOUT_MS = 10 * 60 * 1000;
-const NESTED_WORKTREE_BRANCH = /^paperclip\/[a-f0-9]{12}\/./;
+const NESTED_WORKTREE_BRANCH = /^nexus\/[a-f0-9]{12}\/./;
 export const OWNED_NESTED_REF_LIMIT = 64;
-export const DETACHED_REPOSITORIES_DIR = path.join(".paperclip-runtime", "detached-repositories");
+export const DETACHED_REPOSITORIES_DIR = path.join(".nexus-runtime", "detached-repositories");
 
 export type LinkedNestedCheckout = { checkout: string; base: string; gitDir: string; admin: string; branchPrefix: string };
 type GitInvocation = { configArgs?: string[]; env?: Record<string, string>; timeout?: number };
@@ -82,7 +82,7 @@ export async function recordedNestedRepositoryBase(recorded: string, candidates:
 
 export async function nestedWorktreeBranchPrefix(checkout: string) {
   const id = createHash("sha256").update(await canonicalPath(checkout)).digest("hex").slice(0, 12);
-  return `paperclip/${id}/`;
+  return `nexus/${id}/`;
 }
 
 export function isNestedWorktreeBranchName(name: string) {
@@ -249,9 +249,9 @@ export async function restoreNestedRepositoryWorktree(input: {
     await git(input.base, ["worktree", "add", "--quiet", "--detach", cwd, input.commit], { timeout: NESTED_WORKTREE_GIT_TIMEOUT_MS });
     try {
       for (const commit of input.preserved ?? []) {
-        await git(cwd, ["update-ref", "--no-deref", "-m", "paperclip: restore preserved history", "HEAD", commit]);
+        await git(cwd, ["update-ref", "--no-deref", "-m", "nexus: restore preserved history", "HEAD", commit]);
       }
-      if (input.preserved?.length) await git(cwd, ["update-ref", "--no-deref", "-m", "paperclip: restore saved commit", "HEAD", input.commit]);
+      if (input.preserved?.length) await git(cwd, ["update-ref", "--no-deref", "-m", "nexus: restore saved commit", "HEAD", input.commit]);
       if (input.branchName) {
         await git(cwd, existing ? ["checkout", "--quiet", input.branchName] : ["checkout", "--quiet", "-b", input.branchName]);
         const rest = input.branchName.slice(prefix.length);

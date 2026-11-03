@@ -6,7 +6,7 @@ import { z } from "zod";
 import { type PublicMcpEvents } from "../services/public-mcp/events.js";
 import type { PublicMcpToolExtension } from "../services/public-mcp/dot-runner.js";
 import { McpEventError } from "../services/public-mcp/event-webhooks.js";
-import { DOT_RUNNER_MCP_PATH, DOT_RUNNER_MCP_SCOPES, PUBLIC_MCP_SCOPES, mcpConsentSchema, mcpInvitation, mcpSetupUrl } from "@paperclipai/shared";
+import { DOT_RUNNER_MCP_PATH, DOT_RUNNER_MCP_SCOPES, PUBLIC_MCP_SCOPES, mcpConsentSchema, mcpInvitation, mcpSetupUrl } from "@nexusai/shared";
 import { renderMcpSetup, mcpSetupMarkdown } from "../services/public-mcp/setup.js";
 import { DEVICE_GRANT, McpOAuthError, type PublicMcpOAuth } from "../services/public-mcp/oauth.js";
 import { McpApiError, McpCapabilityError, publicMcpCapabilities, type createPublicMcpExecutor } from "../services/public-mcp/capabilities.js";
@@ -16,7 +16,7 @@ const oauthErrors: ErrorRequestHandler = (error, _req, res, next) => {
   const known = error instanceof McpOAuthError;
   res.status(known ? error.status : 500).json({
     error: known ? error.code : "server_error",
-    error_description: known ? error.message : "Paperclip could not complete the connection request.",
+    error_description: known ? error.message : "Nexus could not complete the connection request.",
   });
 };
 
@@ -71,8 +71,8 @@ export function publicMcpIngressRoutes(oauth: PublicMcpOAuth, execute: ReturnTyp
     next();
   });
   router.get(agentConnection ? ["/.well-known/oauth-protected-resource" + endpoint] : ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource" + endpoint], (_req, res) => res.json({
-    resource, authorization_servers: [issuer], scopes_supported: agentConnection ? DOT_RUNNER_MCP_SCOPES : ["paperclip:read", "paperclip:write", "paperclip:configure"], bearer_methods_supported: ["header"],
-    resource_name: agentConnection ? "Paperclip agent" : "Paperclip",
+    resource, authorization_servers: [issuer], scopes_supported: agentConnection ? DOT_RUNNER_MCP_SCOPES : ["nexus:read", "nexus:write", "nexus:configure"], bearer_methods_supported: ["header"],
+    resource_name: agentConnection ? "Nexus agent" : "Nexus",
   }));
   router.get(metadataPath, (_req, res) => res.json({
     issuer, authorization_endpoint: (oauth.config.authorizationOrigin ?? origin) + oauthPath + "/authorize", token_endpoint: prefix + "/token",
@@ -99,7 +99,7 @@ export function publicMcpIngressRoutes(oauth: PublicMcpOAuth, execute: ReturnTyp
     let principal;
     try { if (!token) throw new Error(); principal = await oauth.authenticate(token); }
     catch {
-      res.setHeader("WWW-Authenticate", `Bearer resource_metadata="${resourceMetadata}", scope="${agentConnection ? "paperclip:agent" : "paperclip:read paperclip:write paperclip:configure"}", error="invalid_token"`);
+      res.setHeader("WWW-Authenticate", `Bearer resource_metadata="${resourceMetadata}", scope="${agentConnection ? "nexus:agent" : "nexus:read nexus:write nexus:configure"}", error="invalid_token"`);
       res.status(401).json({ error: "invalid_token" }); return;
     }
     if (req.method !== "POST") { res.setHeader("Allow", "POST"); res.status(405).end(); return; }
@@ -130,7 +130,7 @@ export function publicMcpIngressRoutes(oauth: PublicMcpOAuth, execute: ReturnTyp
           return { isError: true, content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
         }
         const message = error instanceof McpApiError || error instanceof McpCapabilityError || error instanceof McpOAuthError ? error.message
-          : "Paperclip could not confirm this operation. Before retrying a write, inspect the task and comments and keep the same requestId.";
+          : "Nexus could not confirm this operation. Before retrying a write, inspect the task and comments and keep the same requestId.";
         return { isError: true, content: [{ type: "text", text: message }] };
       }
     };
@@ -167,7 +167,7 @@ export function publicMcpIngressRoutes(oauth: PublicMcpOAuth, execute: ReturnTyp
             if (!events) { fail(-32601, "Events are unavailable."); return; }
             // The broker supplies its original access proof only for hosted subscriptions.
             // It is validated against the fixed Cloud origin before being retained encrypted.
-            const authority = z.object({ token: z.string().max(24000), expiresAt: z.number() }).safeParse(meta["ai.paperclip/cloudAuthority"]);
+            const authority = z.object({ token: z.string().max(24000), expiresAt: z.number() }).safeParse(meta["ai.nexus/cloudAuthority"]);
             result = await events.subscribe(principal!, params, authority.success ? authority.data : undefined); break;
           }
           case "events/unsubscribe":
@@ -175,15 +175,15 @@ export function publicMcpIngressRoutes(oauth: PublicMcpOAuth, execute: ReturnTyp
             result = await events.unsubscribe(principal!, params); break;
           default: fail(-32601, "Method not found."); return;
         }
-        res.json({ jsonrpc: "2.0", id: envelope.data.id, result: { ...result, resultType: "complete", _meta: { "io.modelcontextprotocol/serverInfo": { name: "paperclip", version: "0.1.0" } } } });
+        res.json({ jsonrpc: "2.0", id: envelope.data.id, result: { ...result, resultType: "complete", _meta: { "io.modelcontextprotocol/serverInfo": { name: "nexus", version: "0.1.0" } } } });
       } catch (error) {
         if (error instanceof McpEventError) fail(error.code, error.message, error.reason ? { reason: error.reason } : undefined);
         else if (error instanceof z.ZodError || error instanceof McpApiError || error instanceof McpOAuthError) fail(-32602, "Invalid arguments or unavailable authority.");
-        else fail(-32603, "Paperclip could not complete the request.");
+        else fail(-32603, "Nexus could not complete the request.");
       }
       return;
     }
-    const server = new Server({ name: "paperclip", version: "0.1.0" }, { capabilities: { tools: {} } });
+    const server = new Server({ name: "nexus", version: "0.1.0" }, { capabilities: { tools: {} } });
     server.setRequestHandler(ListToolsRequestSchema, listTools);
     server.setRequestHandler(CallToolRequestSchema, callTool);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
@@ -211,7 +211,7 @@ export function publicMcpManagementRoutes(oauth: PublicMcpOAuth, agentOAuth?: Pu
   };
   const sameOrigin: RequestHandler = (req, _res, next) => {
     const origin = req.headers.origin ?? (req.headers.referer ? new URL(req.headers.referer).origin : "");
-    if (origin !== oauth.config.origin && origin !== oauth.config.authorizationOrigin) throw new McpOAuthError("access_denied", "Connection changes require the Paperclip browser origin.", 403);
+    if (origin !== oauth.config.origin && origin !== oauth.config.authorizationOrigin) throw new McpOAuthError("access_denied", "Connection changes require the Nexus browser origin.", 403);
     next();
   };
   router.use(["/mcp", "/dot-mcp"], (_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
@@ -227,8 +227,8 @@ export function publicMcpManagementRoutes(oauth: PublicMcpOAuth, agentOAuth?: Pu
   });
   router.get(["/mcp/requests/:id", "/dot-mcp/requests/:id"], async (req, res) => {
     let setupUrl: string | null = null;
-    if (process.env.PAPERCLIP_CLOUD_API_ORIGIN) {
-      const base = new URL(process.env.PAPERCLIP_CLOUD_API_ORIGIN);
+    if (process.env.NEXUS_CLOUD_API_ORIGIN) {
+      const base = new URL(process.env.NEXUS_CLOUD_API_ORIGIN);
       if (base.protocol === "https:") setupUrl = new URL("/orgs/new", base).toString();
     }
     res.json(await (await requestOAuth(String(req.params.id), req.path.startsWith("/dot-mcp/"))).describeRequest(String(req.params.id), req.actor, setupUrl));

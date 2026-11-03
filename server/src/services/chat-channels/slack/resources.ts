@@ -1,4 +1,4 @@
-import { chatEndpointResources, type Db } from "@paperclipai/db";
+import { chatEndpointResources, type Db } from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
 import type { EndpointRow } from "../runtime-types.js";
 import type { ChatProviderLifecycleEffect } from "../../chat-provider-lifecycle.js";

@@ -3,7 +3,7 @@ import express from "express";
 import { eq } from "drizzle-orm";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { activityLog, agents, companies, createDb, heartbeatRuns, issues, projects } from "@paperclipai/db";
+import { activityLog, agents, companies, createDb, heartbeatRuns, issues, projects } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { issueRoutes } from "../routes/issues.js";
 import { issueService } from "../services/issues.js";
@@ -31,7 +31,7 @@ describePostgres("tasks created from an issue", () => {
   const expected = new Set<string>();
 
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-created-from-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-created-from-");
     db = createDb(database.connectionString);
     await db.insert(companies).values([
       { id: companyId, name: "Origin", issuePrefix: "ORG", defaultResponsibleUserId: "board-user" },

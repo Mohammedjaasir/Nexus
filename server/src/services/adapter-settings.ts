@@ -1,5 +1,5 @@
-import type { Db } from "@paperclipai/db";
-import { instanceSettings } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { instanceSettings } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { open } from "node:fs/promises";
 import { constants } from "node:fs";
@@ -7,7 +7,7 @@ import path from "node:path";
 import { z } from "zod";
 import { listServerAdapters } from "../adapters/registry.js";
 import { forbidden } from "../errors.js";
-import { resolvePaperclipHomeDir } from "../home-paths.js";
+import { resolveNexusHomeDir } from "../home-paths.js";
 import { getDisabledAdapterTypes, setAdapterDisabled } from "./adapter-plugin-store.js";
 import { parseAdapterRegistryEnv } from "./adapter-registry-config.js";
 import { isCloudManagedInstance } from "./cloud-instance.js";
@@ -123,7 +123,7 @@ export async function initializeAdapterSettings(db: AdapterSettingsDb, options: 
 }
 
 export async function readLegacyAdapterSettings(env: Record<string, string | undefined> = process.env): Promise<{ disabledTypes: string[] } | null> {
-  const filePath = path.join(resolvePaperclipHomeDir(env.PAPERCLIP_HOME), "adapter-settings.json");
+  const filePath = path.join(resolveNexusHomeDir(env.NEXUS_HOME), "adapter-settings.json");
   try {
     const file = await open(filePath, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     try {

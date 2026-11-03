@@ -4,9 +4,9 @@ import {
   createDb,
   heartbeatRuns,
   nativeRunFinalizations,
-} from "@paperclipai/db";
-import { resolveMigrationConnection } from "@paperclipai/db/migration-runtime";
-import { localPaperclipRunnerSupported } from "./lib/agent-runner-platform.js";
+} from "@nexusai/db";
+import { resolveMigrationConnection } from "@nexusai/db/migration-runtime";
+import { localNexusRunnerSupported } from "./lib/agent-runner-platform.js";
 
 import { instanceSettingsService } from "./services/instance-settings.js";
 
@@ -49,7 +49,7 @@ async function main(): Promise<void> {
 
     console.log(
       JSON.stringify({
-        nativeRunnerRequired: localPaperclipRunnerSupported()
+        nativeRunnerRequired: localNexusRunnerSupported()
           || experimental.enableNativeRunner === true
           || experimental.enableOpenAiDot === true
           || persistedNativeRun,

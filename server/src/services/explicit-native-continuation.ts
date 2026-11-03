@@ -13,7 +13,7 @@ import { canContinueCancelledRun } from "./run-cancellation.js";
 import { readQueuedInteractionResponse } from "./queued-interaction-response.js";
 import { isCancelledNativeStartup } from "./cancelled-native-startup.js";
 import { hasNativeLocalProcessStop, hasHistoricalSuspendedNativeSession, recordedLocalExecutionStopped } from "./native-local-process-stop.js";
-import { completeTerminatedRemoteNativeSessionCleanup } from "../vendor/paperclip-runner/index.js";
+import { completeTerminatedRemoteNativeSessionCleanup } from "../vendor/nexus-runner/index.js";
 import { hasRemoteTerminationReceipt, remoteLeaseCleanupScope } from "./remote-execution-termination.js";
 import { z } from "zod";
 import { and, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
@@ -21,7 +21,7 @@ import {
   agents, agentWakeupRequests, approvals, issueApprovals, issueThreadInteractions,
   environmentLeases, heartbeatRuns, issueComments, issueRecoveryActions,
   issues, nativeRunFinalizations, nativeRunResults, type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { executionBlockerPredicate, getExecutionBlocker, hasPendingRunCleanup, nativeExecutionRecoveryActionPredicate } from "./execution-blocker.js";
 import { buildExecutionContinuation } from "./execution-continuation.js";
 import { adapterExecutionControls } from "./adapter-execution-control.js";
@@ -205,8 +205,8 @@ export async function admitExplicitNativeContinuation(input: {
   ));
   if (!retry && !taskRetry && !response && !comment?.body.trim()) return null;
   const [agent] = await db.select().from(agents).where(and(eq(agents.companyId, companyId), eq(agents.id, agentId)));
-  if (!agent || (!isConversationAdapter(agent.adapterType) && agent.adapterType !== "paperclip_runner")) return null;
-  const agentIsNative = agent.adapterType === "paperclip_runner";
+  if (!agent || (!isConversationAdapter(agent.adapterType) && agent.adapterType !== "nexus_runner")) return null;
+  const agentIsNative = agent.adapterType === "nexus_runner";
   const interruptIntent = interruptQueue?.payload?.queuedCommentInterrupt as Record<string, unknown> | undefined;
   const interruptRequestedAt = typeof interruptIntent?.requestedAt === "string" ? new Date(interruptIntent.requestedAt) : null;
   const nativeQueuedSend = queuedInterrupt && agentIsNative;
@@ -298,7 +298,7 @@ export async function admitExplicitNativeContinuation(input: {
     const legacyUserTurn = run.runtimeMode === "legacy" &&
       action.cause === "legacy_execution_requires_reconciliation" &&
       (isConversationAdapter(agent.adapterType) ||
-        (agent.adapterType === "paperclip_runner" && (freshIntent || await hasVerifiedWorkspaceRepair(db, run))));
+        (agent.adapterType === "nexus_runner" && (freshIntent || await hasVerifiedWorkspaceRepair(db, run))));
     // Saved input is a request for a new turn, never permission to undo an
     // operator Stop or redeliver a message already consumed by this run.
     if (queuedRequest && !queuedInterrupt && (run.contextSnapshot?.wakeCommentId === commentId ||
@@ -308,7 +308,7 @@ export async function admitExplicitNativeContinuation(input: {
       // A settings change never converts a known process/webhook execution into
       // a conversation. Those adapters retain their reconciliation contract.
       if (historicalAdapter && !isConversationAdapter(historicalAdapter)) return null;
-      if (!historicalAdapter && agent.adapterType === "paperclip_runner") return null;
+      if (!historicalAdapter && agent.adapterType === "nexus_runner") return null;
     }
     // For pre-upgrade rows without adapter evidence, only a new explicit user
     // turn is allowed, after the termination proofs below. This does not infer
@@ -339,16 +339,16 @@ export async function admitExplicitNativeContinuation(input: {
         eq(nativeRunResults.schemaStatus, "accepted"),
         sql`${nativeRunResults.resultJson}#>>'{terminal,runTerminalState}' = 'succeeded'`,
       )).limit(1);
-      if (completedResult) return blocked("finalizing_saved_result", "Paperclip is finishing the saved result.");
+      if (completedResult) return blocked("finalizing_saved_result", "Nexus is finishing the saved result.");
     }
     // A repaired export no longer blocks execution. Its machine receipt still
     // binds the saved user turn; finalized file state alone is insufficient.
     if (["native_workspace_sync_out_unrecoverable", "native_workspace_sync_out_retry_exhausted"].includes(action.cause)
       && !freshIntent && !await hasVerifiedWorkspaceRepair(db, run)) return blocked("workspace_repair_required",
-      "Paperclip is recovering saved work before continuing. Your message is saved.");
+      "Nexus is recovering saved work before continuing. Your message is saved.");
     if ((run.resultJson?.workspaceRestoreFailure === "restore_unsafe_archive" || hasRequiredWorkspaceRecovery(run.resultJson))
       && !freshIntent && !await hasVerifiedWorkspaceRepair(db, run)) {
-      return blocked("workspace_repair_required", "Paperclip is recovering saved work before continuing. Your message is saved.");
+      return blocked("workspace_repair_required", "Nexus is recovering saved work before continuing. Your message is saved.");
     }
     const cancelledStartup = await isCancelledNativeStartup(db, run, coordinator);
     if (partiallyDeliveredQueue && run.runtimeMode !== "native" && !unusedAdmission && !cancelledStartup) return null;
@@ -392,7 +392,7 @@ export async function admitExplicitNativeContinuation(input: {
     const preserved = hasRequiredWorkspaceRecovery(run.resultJson) ? null
       : await preserveNativeFailedWorkspace(db, run);
     if (preserved && hasRequiredWorkspaceRecovery(preserved.resultJson)) return blocked("workspace_repair_required",
-      "Paperclip is recovering saved work before continuing. Your message is saved.");
+      "Nexus is recovering saved work before continuing. Your message is saved.");
     const leases = await db.select()
       .from(environmentLeases).where(and(
         eq(environmentLeases.companyId, companyId), eq(environmentLeases.heartbeatRunId, run.id),
@@ -408,11 +408,11 @@ export async function admitExplicitNativeContinuation(input: {
       if (leases.some(lease => !lease.releasedAt || lease.cleanupStatus === "failed")) return blocked("local_cleanup", "Waiting for the previous environment to finish cleanup. Your message will start automatically.");
       if (!unusedAdmission && !cancelledStartup) {
         if (freshIntent && (run.processPid || run.processGroupId) && !await recordedLocalExecutionStopped(db, run))
-          return blocked("process_identity_missing", "Paperclip is verifying that the previous session stopped.");
+          return blocked("process_identity_missing", "Nexus is verifying that the previous session stopped.");
         // A missing process identity is not evidence that a provider exited.
         if (!run.processPid && !run.processGroupId &&
             !await hasNativeLocalProcessStop(db, companyId, run.id) &&
-            !await hasHistoricalSuspendedNativeSession(db, run)) return blocked("process_identity_missing", "The previous run has no verified stop record. Paperclip cannot start this message yet.");
+            !await hasHistoricalSuspendedNativeSession(db, run)) return blocked("process_identity_missing", "The previous run has no verified stop record. Nexus cannot start this message yet.");
         if (run.processPid && !processStopped(run.processPid)) return blocked("process_running", "Waiting for the previous process to stop. Your message will start automatically.");
         if (run.processGroupId && !processStopped(-run.processGroupId)) return blocked("process_running", "Waiting for the previous process to stop. Your message will start automatically.");
       }

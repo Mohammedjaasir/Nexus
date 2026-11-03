@@ -28,7 +28,7 @@ function resultFor(
   status: RunnerE2EResult["status"],
 ): RunnerDashboardEntry {
   const result: RunnerE2EResult = {
-    schema: "paperclip.runner-e2e.result/v1",
+    schema: "nexus.runner-e2e.result/v1",
     executionId: execution.id,
     suiteId: execution.suite.id,
     attempt: 1,
@@ -50,7 +50,7 @@ function resultFor(
     },
     matcherResults: [
       {
-        matcher: { kind: "message_contains", expected: "PAPERCLIP_E2E_OK" },
+        matcher: { kind: "message_contains", expected: "NEXUS_E2E_OK" },
         passed: status === "passed",
         detail: status === "passed" ? "matched" : "marker missing",
       },
@@ -78,7 +78,7 @@ test("expanding test details exposes the complete saved task conversation", asyn
   const execution = runnerExecutionById("core-compatibility.runner-codex.local.message-marker");
   const entry = resultFor(execution, "passed");
   const longReply = "Here is the result.\n\n" + "Retained paragraph. ".repeat(200) + "END OF COMPLETE REPLY";
-  entry.result.taskChat = { schema: "paperclip.runner-e2e.task-chat/v1", capturedAt: "2026-10-28T12:01:00Z",
+  entry.result.taskChat = { schema: "nexus.runner-e2e.task-chat/v1", capturedAt: "2026-10-28T12:01:00Z",
     status: "complete", missing: [], threads: [projectTaskChatThread(
       { id: "task", title: "Find the saved artifact", identifier: "E2E-1", description: "Find our saved report.", createdAt: "2026-10-28T12:00:00Z" },
       [{ id: "request", body: "Please include the download link.", createdAt: "2026-10-28T12:00:01Z" },

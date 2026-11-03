@@ -5,9 +5,9 @@ import { chromium } from "@playwright/test";
 
 // Opt-in: this sends jobs to an already configured agent in a disposable local
 // test-drive project. No credentials, provider mocks, or production fixtures.
-const target = process.env.PAPERCLIP_LAYOUT_LIVE_URL;
+const target = process.env.NEXUS_LAYOUT_LIVE_URL;
 if (!target || !["localhost", "127.0.0.1", "[::1]"].includes(new URL(target).hostname)) {
-  throw new Error("Set PAPERCLIP_LAYOUT_LIVE_URL to a disposable localhost task with a native Codex assignee.");
+  throw new Error("Set NEXUS_LAYOUT_LIVE_URL to a disposable localhost task with a native Codex assignee.");
 }
 const output = path.resolve("test-results/task-layout/live-acceptance");
 const api = (pathname) => new URL(pathname, target).href;
@@ -42,7 +42,7 @@ try {
   assert.ok(issueResponse.ok(), "Disposable task must be accessible");
   const issue = await issueResponse.json();
   const agent = await (await page.request.get(api(`/api/agents/${issue.assigneeAgentId}`))).json();
-  assert.equal(agent.adapterType, "paperclip_runner");
+  assert.equal(agent.adapterType, "nexus_runner");
   assert.equal(agent.adapterConfig.provider, "codex");
   const startedAt = Date.now();
   const editor = page.locator('[contenteditable="true"]').last();
@@ -93,7 +93,7 @@ try {
   const run = runs.find((candidate) => new Date(candidate.createdAt).getTime() >= startedAt);
   assert.ok(run, "The submitted job must create a run");
   assert.equal(run.runtimeMode, "native");
-  assert.equal(run.adapterType, "paperclip_runner");
+  assert.equal(run.adapterType, "nexus_runner");
   assert.equal(run.status, "succeeded");
   await fs.writeFile(path.join(output, "runtime.json"), JSON.stringify({
     runId: run.runId, runtimeMode: run.runtimeMode, adapterType: run.adapterType,

@@ -5,7 +5,7 @@ import express from "express";
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { and, eq, sql } from "drizzle-orm";
-import { activityLog, agentApiKeys, agentWakeupRequests, agents, authSessions, authUsers, boardApiKeys, companyMemberships, principalPermissionGrants, caseAccessSources, caseEvents, caseHandoffs, caseIssueLinks, cases, companies, createDb, documentRevisions, documents, dotAgentBindings, heartbeatRuns, issueComments, issueDocuments, issues, issueWorkProducts } from "@paperclipai/db";
+import { activityLog, agentApiKeys, agentWakeupRequests, agents, authSessions, authUsers, boardApiKeys, companyMemberships, principalPermissionGrants, caseAccessSources, caseEvents, caseHandoffs, caseIssueLinks, cases, companies, createDb, documentRevisions, documents, dotAgentBindings, heartbeatRuns, issueComments, issueDocuments, issues, issueWorkProducts } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { caseHandoffRoutes } from "../routes/case-handoffs.js";
 import { errorHandler } from "../middleware/error-handler.js";
@@ -119,19 +119,19 @@ describe("durable same-task case handoffs", () => {
     const state: { role: string; status: number; body?: unknown; afterResponse?: () => void } = { role: "owner", status: 200 };
     const requests: Array<{ path: string; userId: string | undefined; stackId: string | undefined; authenticated: boolean }> = [];
     const backend = createServer((req, res) => {
-      requests.push({ path: req.url!, userId: req.headers["x-paperclip-cloud-user-id"] as string | undefined,
-        stackId: req.headers["x-paperclip-cloud-stack-id"] as string | undefined,
+      requests.push({ path: req.url!, userId: req.headers["x-nexus-cloud-user-id"] as string | undefined,
+        stackId: req.headers["x-nexus-cloud-stack-id"] as string | undefined,
         authenticated: req.headers.authorization === "Bearer cloud-authority-test-token" });
       res.writeHead(state.status, { "content-type": "application/json" });
       res.end(JSON.stringify(state.body ?? { stacks: [{ stackSlug, role: state.role, isCurrent: true }] }));
       state.afterResponse?.();
     });
     await new Promise<void>(resolve => backend.listen(0, "127.0.0.1", resolve));
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "cloud-authority-test-token");
-    vi.stubEnv("PAPERCLIP_CLOUD_API_ORIGIN", `http://127.0.0.1:${(backend.address() as AddressInfo).port}`);
-    vi.stubEnv("PAPERCLIP_CLOUD_STACK_ID", stackId);
-    vi.stubEnv("PAPERCLIP_STACK_SLUG", stackSlug);
-    const flag = (enabled: boolean) => vi.stubEnv("PAPERCLIP_MANAGED_CONFIG", JSON.stringify({ v: 1, mode: "cloud", catalogVersion: "test",
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "cloud-authority-test-token");
+    vi.stubEnv("NEXUS_CLOUD_API_ORIGIN", `http://127.0.0.1:${(backend.address() as AddressInfo).port}`);
+    vi.stubEnv("NEXUS_CLOUD_STACK_ID", stackId);
+    vi.stubEnv("NEXUS_STACK_SLUG", stackSlug);
+    const flag = (enabled: boolean) => vi.stubEnv("NEXUS_MANAGED_CONFIG", JSON.stringify({ v: 1, mode: "cloud", catalogVersion: "test",
       features: { enableCases: true, enableOwnerInstanceAdmin: enabled }, plugins: { autoInstall: [] } }));
     flag(true);
     const close = async () => { await new Promise<void>((resolve, reject) => backend.close(error => error ? reject(error) : resolve())); vi.unstubAllEnvs(); };
@@ -139,8 +139,8 @@ describe("durable same-task case handoffs", () => {
       const f = await delayedTransfer(async (f) => {
         await db.insert(companyMemberships).values({ companyId: f.companyId, principalType: "user", principalId: userId, status: "active", membershipRole: "owner" });
         await db.update(agents).set({ permissions: { authorizationPolicy: { protectedAgent: { blockAssignment: true } } } }).where(eq(agents.id, f.engineer));
-        const headers: Record<string, string> = { "x-paperclip-cloud-tenant-token": "cloud-authority-test-token", "x-paperclip-cloud-user-id": userId,
-          "x-paperclip-cloud-user-email": `${userId}@example.test`, "x-paperclip-cloud-stack-id": stackId, "x-paperclip-cloud-stack-role": "owner" };
+        const headers: Record<string, string> = { "x-nexus-cloud-tenant-token": "cloud-authority-test-token", "x-nexus-cloud-user-id": userId,
+          "x-nexus-cloud-user-email": `${userId}@example.test`, "x-nexus-cloud-stack-id": stackId, "x-nexus-cloud-stack-role": "owner" };
         const actor = await resolveCloudTenantActor(db, { header: name => headers[name] });
         expect(actor).toMatchObject({ type: "board", source: "cloud_tenant", userId, isInstanceAdmin: true });
         return actor!;
@@ -538,7 +538,7 @@ describe("durable same-task case handoffs", () => {
     await db.update(issues).set({ workMode: "skill_test" }).where(eq(issues.id, first.taskId));
     expect(await getCaseExecutionContext(db, { companyId: f.companyId, issueId: first.taskId, agentId: f.triage, runId: resumedRunId })).toBeNull();
     await db.update(issues).set({ workMode: "standard" }).where(eq(issues.id, first.taskId));
-    await db.update(heartbeatRuns).set({ contextSnapshot: { issueId: first.taskId, paperclipAgentJwtScope: { kind: "skill_test", issueId: first.taskId } } })
+    await db.update(heartbeatRuns).set({ contextSnapshot: { issueId: first.taskId, nexusAgentJwtScope: { kind: "skill_test", issueId: first.taskId } } })
       .where(eq(heartbeatRuns.id, resumedRunId));
     expect(await getCaseExecutionContext(db, { companyId: f.companyId, issueId: first.taskId, agentId: f.triage, runId: resumedRunId })).toBeNull();
   });
@@ -743,7 +743,7 @@ describe("durable same-task case handoffs", () => {
       taskPrompt: "Handoff", provider: "openai_dot", dotBinding: { companyId: f.companyId, agentId: f.triage, bindingId, bindingGeneration: 1,
         acceptByUnixMs: Date.now() + 60_000, expiresAtUnixMs: Date.now() + 120_000 },
       workspace: { id: randomUUID(), cwd: "/tmp", repoUrl: null, repoRef: null, branchName: null }, normalizedSessionId: null,
-      runtimeContext: nativeRuntimeContextFixture(), completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "paperclip.run-result.v1",
+      runtimeContext: nativeRuntimeContextFixture(), completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "nexus.run-result.v1",
         contract: { revision: "1", objective: "Handoff", criteria: [{ id: "work", requirement: "Continue the task" }] } },
     });
     await db.insert(dotAgentBindings).values({ id: bindingId, companyId: f.companyId, agentId: f.triage, operatorId: "operator", status: "revoked", revokedAt: new Date() });
@@ -917,7 +917,7 @@ describe("durable same-task case handoffs", () => {
       else if (failure === "malformed") f.state.body = { stacks: [{ stackSlug: f.stackSlug, role: {}, isCurrent: true }] };
       else if (failure === "ambiguous") f.state.body = { stacks: [1, 2].map(() => ({ stackSlug: f.stackSlug, role: "owner", isCurrent: true })) };
       else if (failure === "mismatched") f.state.body = { stacks: [{ stackSlug: "different-stack", role: "owner", isCurrent: true }] };
-      else if (failure === "config_changed") f.state.afterResponse = () => vi.stubEnv("PAPERCLIP_STACK_SLUG", "different-stack");
+      else if (failure === "config_changed") f.state.afterResponse = () => vi.stubEnv("NEXUS_STACK_SLUG", "different-stack");
       else f.state.afterResponse = () => f.flag(false);
       await f.release(); await f.sweep();
       await f.assertHeld(failure === "flag_changed" ? /protected-agent policy/i : /Current Cloud tenant authority is unavailable/i);
@@ -953,7 +953,7 @@ describe("durable same-task case handoffs", () => {
   it("cannot restore recorded local board authority in a managed Cloud instance", async () => {
     const f = await delayedTransfer(async () => board);
     await f.release();
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "test-cloud-instance");
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "test-cloud-instance");
     try { await f.sweep(); await f.assertHeld(/local board authority is unavailable/i); }
     finally { vi.unstubAllEnvs(); }
   });
@@ -974,7 +974,7 @@ describe("durable same-task case handoffs", () => {
   it("omits server-only actor provenance from REST history, retry, cancel, and execution context", async () => {
     const f = await delayedTransfer();
     const [stored] = await db.select().from(caseHandoffs).where(eq(caseHandoffs.id, f.receipt.handoffId));
-    expect(stored!.actorContext).toMatchObject({ schema: "paperclip.case-handoff-actor.v1", actorId: f.triage, source: "agent_jwt", runId: f.runId });
+    expect(stored!.actorContext).toMatchObject({ schema: "nexus.case-handoff-actor.v1", actorId: f.triage, source: "agent_jwt", runId: f.runId });
     const app = express(); app.use(express.json()); app.use((req, _res, next) => { req.actor = board; next(); });
     app.use("/api", caseHandoffRoutes(db)); app.use(errorHandler);
     const history = await request(app).get(`/api/cases/${f.first.caseId}/handoffs`).expect(200);
@@ -987,7 +987,7 @@ describe("durable same-task case handoffs", () => {
     const retry = await request(app).post(`/api/cases/${f.first.caseId}/handoffs/${f.receipt.handoffId}/retry`).expect(200);
     expect(retry.body).not.toHaveProperty("actorContext");
     const context = await getCaseExecutionContext(db, { companyId: f.companyId, issueId: f.first.taskId, agentId: f.triage, runId: f.runId });
-    expect(JSON.stringify(context)).not.toContain("paperclip.case-handoff-actor");
+    expect(JSON.stringify(context)).not.toContain("nexus.case-handoff-actor");
     const events = await db.select().from(caseEvents).where(eq(caseEvents.caseId, f.first.caseId));
     expect(JSON.stringify(events)).not.toContain("actorContext");
     const cancelled = await request(app).post(`/api/cases/${f.first.caseId}/handoffs/${f.receipt.handoffId}/cancel`).expect(200);

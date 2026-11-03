@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("node:fs/promises", () => ({ mkdir: async () => {}, rename: async () => {}, writeFile: mocks.writeFile,
   readFile: async () => JSON.stringify({ database: { mode: "postgres", connectionString: "postgres://fixture" },
     secrets: { localEncrypted: { keyFilePath: "/fixture/secrets/master.key" } } }) }));
-vi.mock("../../packages/shared/src/config-schema.js", () => ({ paperclipConfigSchema: { parse: (value: unknown) => value } }));
+vi.mock("../../packages/shared/src/config-schema.js", () => ({ nexusConfigSchema: { parse: (value: unknown) => value } }));
 vi.mock("./rolling-deployment-process.js", () => ({ startRollingDeploymentProcess: mocks.start }));
 vi.mock("./rolling-deployment-proxy.js", () => ({ startRollingDeploymentProxy: async () => ({ origin: "http://127.0.0.1:1", routeTo() {}, close: mocks.close }) }));
 vi.mock("./controller-recovery-observer.js", () => ({ createControllerRecoveryObserver: mocks.observer }));
@@ -17,11 +17,11 @@ import { superviseRollingDeployment } from "./rolling-deployment-supervisor.js";
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 it.each([undefined, "prior-disposable-key"])("shares the server key with checkpoint observation and restores %s on failure", async prior => {
-  vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", prior);
+  vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", prior);
   let material: ReturnType<ReturnType<typeof createLocalEncryptedCipher>["encrypt"]>;
   mocks.start.mockImplementation(async ({ sharedEnvironment }) => {
-    expect(process.env.PAPERCLIP_SECRETS_MASTER_KEY).toBe(sharedEnvironment.PAPERCLIP_SECRETS_MASTER_KEY);
-    expect(mocks.writeFile).toHaveBeenCalledWith("/fixture/secrets/master.key", sharedEnvironment.PAPERCLIP_SECRETS_MASTER_KEY,
+    expect(process.env.NEXUS_SECRETS_MASTER_KEY).toBe(sharedEnvironment.NEXUS_SECRETS_MASTER_KEY);
+    expect(mocks.writeFile).toHaveBeenCalledWith("/fixture/secrets/master.key", sharedEnvironment.NEXUS_SECRETS_MASTER_KEY,
       { mode: 0o600, flag: "wx" });
     material = createLocalEncryptedCipher("write").encrypt("synthetic checkpoint");
     return { child: { exitCode: null, signalCode: null }, configPath: "/fixture/config.json",
@@ -33,12 +33,12 @@ it.each([undefined, "prior-disposable-key"])("shares the server key with checkpo
   });
   await expect(superviseRollingDeployment({ temporaryRoot: "/fixture", repositoryRoot: "/fixture",
     configPath: "/fixture/config.json", port: 1, executionIds: ["rolling"], cancelled: () => false,
-    environment: { PAPERCLIP_STORAGE_PROVIDER: "s3" },
+    environment: { NEXUS_STORAGE_PROVIDER: "s3" },
   })).rejects.toThrow("synthetic observer failure");
   expect(mocks.observer).toHaveBeenCalledOnce();
   expect(mocks.stop).toHaveBeenCalledOnce();
   expect(mocks.close).toHaveBeenCalledOnce();
-  expect(process.env.PAPERCLIP_SECRETS_MASTER_KEY).toBe(prior);
+  expect(process.env.NEXUS_SECRETS_MASTER_KEY).toBe(prior);
 });
 
 
@@ -56,7 +56,7 @@ it("keeps open deployment probe tasks out of the agent workflow's company", asyn
   }));
   await expect(superviseRollingDeployment({ temporaryRoot: "/fixture", repositoryRoot: "/fixture",
     configPath: "/fixture/config.json", port: 1, executionIds: ["rolling"], cancelled: () => false,
-    environment: { PAPERCLIP_STORAGE_PROVIDER: "s3" },
+    environment: { NEXUS_STORAGE_PROVIDER: "s3" },
   })).rejects.toThrow("probe fixture boundary reached");
   expect(routes).toEqual(["/api/companies", "/api/companies/probe-company/issues"]);
   expect(mocks.stop).toHaveBeenCalledOnce();

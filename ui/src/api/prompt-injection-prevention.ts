@@ -1,4 +1,4 @@
-import type { PromptInjectionPreventionSettings, PromptInjectionPreventionSettingsResponse, PromptInjectionTestResult, UpdatePromptInjectionPrevention } from "@paperclipai/shared";
+import type { PromptInjectionPreventionSettings, PromptInjectionPreventionSettingsResponse, PromptInjectionTestResult, UpdatePromptInjectionPrevention } from "@nexusai/shared";
 import { api } from "./client";
 const path = (companyId: string) => `/companies/${companyId}/prompt-injection-prevention`;
 export const promptInjectionPreventionApi = {

@@ -39,7 +39,7 @@ external URL the benchmark starts a disposable embedded PostgreSQL database.
 
 ```sh
 QUEUED_COMMENT_BENCHMARK_DATABASE_URL="$DISPOSABLE_QUEUED_COMMENT_DATABASE_URL" \
-  pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-queued-comment-consumption.ts \
+  pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-queued-comment-consumption.ts \
   --baseline-ref=8279c990080b15abdcd9981f5793290fab37f9ad --require-budget
 ```
 

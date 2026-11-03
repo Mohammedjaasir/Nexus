@@ -3,7 +3,7 @@ import type {
   Agent,
   ToolCallEvent,
   ToolConnectionLifecycleEvent,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { ActivityPanel } from "@/pages/apps/app-detail/ActivityPanel";
 import type { ActivityPanelProps } from "@/pages/apps/app-detail/types";
 
@@ -125,7 +125,7 @@ const meta: Meta = {
   id: "apps-app-detail-·-activity-lifecycle",
   title: "Oversight and operation/Dashboards and audit trails/Apps/App detail · Activity (lifecycle)",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "activity/activity",
         "gateways-profiles/activity"

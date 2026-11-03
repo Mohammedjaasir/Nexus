@@ -61,7 +61,7 @@ migration checks passed locally. Initial CI run 40181994295 and review run
 40181994134 are live on its exact published head. It is mergeable and had no
 failures at inspection. Fresh checks/reviews remain required; no merge authority
 is implied. #17578 at 90caaf3fa9 has passing checks and exact-head Greptile 5/5;
-its latest Paperclip reviewer stopped before completion.
+its latest Nexus reviewer stopped before completion.
 
 The full original recurring-server ledger, older #17490 E2E failure and final
 stack/master reconciliation remain required.
@@ -123,7 +123,7 @@ complete; remote PR CI/review and the rest of the original stack remain pending.
 
 ## Review repairs
 
-The first published head 9c38ddfe53 passed all CI and Greptile 5/5. Paperclip
+The first published head 9c38ddfe53 passed all CI and Greptile 5/5. Nexus
 Review found unnecessary endpoint-wide retention refresh on every new call and
 missing behavioral coverage of removal from the maintenance lane.
 
@@ -145,7 +145,7 @@ server tsconfig excludes the test directory, whose behavior is verified by Vites
 Fresh remote checks/review are required on the repaired head.
 
 Parent #17580 has all checks terminal and Greptile 5/5 at 4f0364d269. Its final
-Paperclip review added two findings: unresolved cleanup can block deletion, and
+Nexus review added two findings: unresolved cleanup can block deletion, and
 rejection awaits provider calls. These require explicit disposition/repair at the
 parent; green checks do not resolve them. An arbitrary retry cap or credential
 failure is not proof that a provider call ended and must not silently discard the

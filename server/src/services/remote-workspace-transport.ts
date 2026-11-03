@@ -3,8 +3,8 @@ import { createReadStream } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
-import type { RemoteWorkspaceSource } from "@paperclipai/shared";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
+import type { RemoteWorkspaceSource } from "@nexusai/shared";
 import { remoteWorkspaceArchiveScript } from "./remote-workspace-snapshot-archive.js";
 import type { GitRemoteAuthProvider } from "./git-credentials.js";
 
@@ -43,7 +43,7 @@ const {promisify}=require('node:util'); const exec=promisify(cp.execFile);
  const prior=await fs.lstat(root).catch(e=>{if(e.code==='ENOENT')return null;throw e});
  if(prior){
   if(!prior.isDirectory()||prior.isSymbolicLink()||await fs.realpath(root)!==root)throw Error('unsafe_root');
-  const runtime=path.join(root,'.paperclip-runtime'),marker=path.join(runtime,'workspace-ready.json');
+  const runtime=path.join(root,'.nexus-runtime'),marker=path.join(runtime,'workspace-ready.json');
   const dir=await fs.lstat(runtime);if(!dir.isDirectory()||dir.isSymbolicLink())throw Error('unsafe_receipt');
   const file=await fs.lstat(marker);if(!file.isFile()||file.isSymbolicLink()||file.nlink!==1||file.size>16384)throw Error('unsafe_receipt');
   if(JSON.parse(await fs.readFile(marker,'utf8')).preparationIdentity!==input.preparationIdentity)throw Error('workspace_owner_changed');
@@ -66,11 +66,11 @@ const {promisify}=require('node:util'); const exec=promisify(cp.execFile);
    if(input.branchName)await git(['checkout','-B',input.branchName]);
   }
   await fs.mkdir(path.join(staged,'.git','info'),{recursive:true,mode:0o700});
-  await fs.appendFile(path.join(staged,'.git','info','exclude'),'\n/.paperclip-runtime/\n/.paperclip-repositories/\n');
+  await fs.appendFile(path.join(staged,'.git','info','exclude'),'\n/.nexus-runtime/\n/.nexus-repositories/\n');
  }else{
-  await fs.writeFile(path.join(staged,'.gitignore'),'/.paperclip-runtime/\n/.paperclip-repositories/\n',{flag:'wx',mode:0o600});
+  await fs.writeFile(path.join(staged,'.gitignore'),'/.nexus-runtime/\n/.nexus-repositories/\n',{flag:'wx',mode:0o600});
  }
- const runtime=path.join(staged,'.paperclip-runtime');await fs.mkdir(runtime,{mode:0o700}).catch(e=>{if(e.code!=='EEXIST')throw e});
+ const runtime=path.join(staged,'.nexus-runtime');await fs.mkdir(runtime,{mode:0o700}).catch(e=>{if(e.code!=='EEXIST')throw e});
  const runtimeStat=await fs.lstat(runtime);if(!runtimeStat.isDirectory()||runtimeStat.isSymbolicLink())throw Error('unsafe_receipt');
  await fs.writeFile(path.join(runtime,'workspace-ready.json'),JSON.stringify({preparationIdentity:input.preparationIdentity}),{flag:'wx',mode:0o600});
  if(await fs.realpath(path.dirname(root))!==path.dirname(root))throw Error('unsafe_root');
@@ -104,7 +104,7 @@ export function remoteWorkspaceRepositoryPath(remoteRoot: string, repository: {
     || repository.relativePath.split("/").some(part => !part || part === "." || part === "..")
     || /[\\\u0000-\u001f]/u.test(repository.relativePath)) throw new Error("remote_workspace_repository_path_invalid");
   return repository.readOnly
-    ? path.posix.join(path.posix.dirname(remoteRoot), ".paperclip-referenced", path.posix.basename(remoteRoot), repository.id)
+    ? path.posix.join(path.posix.dirname(remoteRoot), ".nexus-referenced", path.posix.basename(remoteRoot), repository.id)
     : path.posix.join(remoteRoot, repository.relativePath);
 }
 
@@ -151,7 +151,7 @@ export async function prepareRemoteRepository(input: {
 
 async function installArchiveHelper(target: RemoteWorkspaceTarget, remoteCwd: string, operationId: string) {
   if (!/^[a-f0-9-]{36}$/.test(operationId)) throw new Error("remote_workspace_operation_identity_invalid");
-  const directory = path.posix.join(remoteCwd, ".paperclip-runtime", "workspace-snapshots", operationId);
+  const directory = path.posix.join(remoteCwd, ".nexus-runtime", "workspace-snapshots", operationId);
   const helper = path.posix.join(directory, "archive.cjs");
   const install = String.raw`const fs=require('node:fs/promises'),path=require('node:path');(async()=>{
    const [root,dir,file,body]=process.argv.slice(1);let p='/';
@@ -171,7 +171,7 @@ export async function cleanupRemoteWorkspaceArchive(input: {
   if (!/^[a-f0-9-]{36}$/.test(input.operationId)) throw new Error("remote_workspace_operation_identity_invalid");
   const script = String.raw`const fs=require('node:fs/promises'),path=require('node:path');(async()=>{
    const [root,id]=process.argv.slice(1);if(!path.isAbsolute(root)||!/^[a-f0-9-]{36}$/.test(id))throw Error('invalid');
-   const dir=path.join(root,'.paperclip-runtime','workspace-snapshots',id);let current='/';
+   const dir=path.join(root,'.nexus-runtime','workspace-snapshots',id);let current='/';
    for(const part of dir.split('/').filter(Boolean)){current=path.join(current,part);
     const entry=await fs.lstat(current).catch(e=>{if(e.code==='ENOENT')return null;throw e});if(!entry)return;
     if(!entry.isDirectory()||entry.isSymbolicLink())throw Error('unsafe');}
@@ -218,7 +218,7 @@ export async function captureRemoteWorkspaceArchive(input: {
   };
   if (!["legacy", "captured"].includes(layout) || !/^[a-f0-9]{64}$/.test(receipt.manifestDigest) || !/^[a-f0-9]{64}$/.test(receipt.sha256)
     || !Number.isSafeInteger(receipt.byteSize) || receipt.byteSize <= 0) throw new Error("remote_workspace_capture_receipt_invalid");
-  const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-upload-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "nexus-workspace-upload-"));
   const archivePath = path.join(root, "workspace.pcws");
   try {
     await input.target.runner!.syncOut!([{ operationId: input.operationId,
@@ -251,7 +251,7 @@ export async function restoreRemoteWorkspaceDirectory(input: {
    const prior=await fs.lstat(root).catch(e=>{if(e.code==='ENOENT')return null;throw e});
    if(prior){
     if(!prior.isDirectory()||prior.isSymbolicLink()||await fs.realpath(root)!==root)throw Error('unsafe_root');
-    const runtime=path.join(root,'.paperclip-runtime'),marker=path.join(runtime,'workspace-restored.json');
+    const runtime=path.join(root,'.nexus-runtime'),marker=path.join(runtime,'workspace-restored.json');
     const dir=await fs.lstat(runtime);if(!dir.isDirectory()||dir.isSymbolicLink())throw Error('unsafe_receipt');
     const file=await fs.lstat(marker);if(!file.isFile()||file.isSymbolicLink()||file.nlink!==1||file.size>16384)throw Error('unsafe_receipt');
     const receipt=JSON.parse(await fs.readFile(marker,'utf8'));
@@ -259,7 +259,7 @@ export async function restoreRemoteWorkspaceDirectory(input: {
    }
    const staged=await fs.mkdtemp(root+'.restoring-');
    await require('node:util').promisify(cp.execFile)(process.execPath,[helper,'restore',archive,staged,digest],{maxBuffer:1048576});
-   const runtime=path.join(staged,'.paperclip-runtime');await fs.mkdir(runtime,{mode:0o700});
+   const runtime=path.join(staged,'.nexus-runtime');await fs.mkdir(runtime,{mode:0o700});
    await fs.writeFile(path.join(runtime,'workspace-restored.json'),JSON.stringify({identity,manifestDigest:digest}),{flag:'wx',mode:0o600});
    if(await fs.realpath(path.dirname(root))!==path.dirname(root))throw Error('unsafe_root');await fs.rename(staged,root);
   })().catch(()=>{process.stderr.write('remote_workspace_restore_failed');process.exitCode=1});`;

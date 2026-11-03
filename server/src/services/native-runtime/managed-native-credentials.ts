@@ -1,4 +1,4 @@
-import type { NativeSession } from "../../vendor/paperclip-runner/index.js";
+import type { NativeSession } from "../../vendor/nexus-runner/index.js";
 
 type CredentialTurn = {
   /** Copy refreshed credentials only into this invocation's private home. */

@@ -73,7 +73,7 @@ const meta = {
   title: "Getting started and access/Login, invitations, and access/Private tasks/02 Sharing",
   decorators: [privacyDecorator],
   parameters: { ...privacyParameters, docs: { description: { component: "Task menu → Share → Add someone. Inspect avatars in search and selected values, inherited grants, reader access, confirmations, empty/loading/error states and mobile. The sticky-access paragraph is removed." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "access/resources",
         "tasks/properties"

@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PROMPT_INJECTION_DEFAULT_MODEL, updatePromptInjectionPreventionSchema,
   type PromptInjectionPreventionSettings, type UpdatePromptInjectionPrevention,
-  type PromptInjectionTestResult, type AiManagedConnectionSummary } from "@paperclipai/shared";
+  type PromptInjectionTestResult, type AiManagedConnectionSummary } from "@nexusai/shared";
 import { promptInjectionPreventionApi } from "@/api/prompt-injection-prevention";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

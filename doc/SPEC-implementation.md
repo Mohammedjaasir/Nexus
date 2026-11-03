@@ -1,4 +1,4 @@
-# Paperclip V1 Implementation Spec
+# Nexus V1 Implementation Spec
 
 Status: Implementation contract for first release (V1)
 Date: 2026-04-28
@@ -13,7 +13,7 @@ When there is a conflict, `SPEC-implementation.md` controls V1 behavior.
 
 ## 2. V1 Outcomes
 
-Paperclip V1 must provide a full control-plane loop for autonomous agents:
+Nexus V1 must provide a full control-plane loop for autonomous agents:
 
 1. A human board creates a company and defines goals.
 2. The board creates and manages agents in an org tree.
@@ -39,7 +39,7 @@ These decisions close open questions from `SPEC.md` for V1.
 | Org graph | Strict tree (`reports_to` nullable root); no multi-manager reporting |
 | Visibility | Issues remain company-open by default. Opt-in `private` issues use task ACLs; deployment exposure flags remain independent of work-object privacy. |
 | Communication | Tasks + comments only (no separate chat system) |
-| Experimental voice transport | Speko browser voice can create or resume a task through the existing chat-connection delivery/publication pipeline. The selected Paperclip agent retains execution authority. Phone support remains gated on live continuation qualification. |
+| Experimental voice transport | Speko browser voice can create or resume a task through the existing chat-connection delivery/publication pipeline. The selected Nexus agent retains execution authority. Phone support remains gated on live continuation qualification. |
 | Task ownership | Single assignee; atomic checkout required for `in_progress` transition |
 | Task watchdogs | A task watchdog is an explicitly configured, issue-subtree-scoped verification and recovery capacity. It may restore live task paths inside the watched subtree; for issue-thread interaction resolution it is an ordinary agent subject to the same audience and containment checks, not board authority, active-run output monitoring, or general liveness recovery. |
 | Recovery | Liveness/watchdog recovery preserves explicit ownership: continue interrupted local conversations with bounded fresh turns and preserved history, never replay tool calls automatically; retain native ownership and real execution gates; preserve verified stop evidence and reconsider saved post-stop user messages after cleanup; otherwise open visible source-scoped recovery actions by default, use issue-backed recovery only for independent repair work, or require human escalation (see `doc/execution-semantics.md`) |
@@ -252,11 +252,11 @@ and handoff history. No case mutation or handoff recovery controls appear there.
 ## 6.2 Data Stores
 
 - Primary: PostgreSQL
-- Local default: embedded PostgreSQL at `~/.paperclip/instances/default/db`
+- Local default: embedded PostgreSQL at `~/.nexus/instances/default/db`
 - Optional local prod-like: Docker Postgres
 - Optional hosted: Supabase/Postgres-compatible
 - File/object storage:
-  - local default: `~/.paperclip/instances/default/data/storage` (`local_disk`)
+  - local default: `~/.nexus/instances/default/data/storage` (`local_disk`)
   - cloud: S3-compatible object storage (`s3`)
 
 ## 6.3 Background Processing
@@ -307,7 +307,7 @@ Invariant: every business record belongs to exactly one company.
 - `capabilities` text null
 - `adapter_type` text; built-ins include `process`, `http`, `claude_local`, `codex_local`, `gemini_local`, `opencode_local`, `pi_local`, `cursor`, `hermes_local`, `hermes_gateway`, and `openclaw_gateway`
 - `adapter_config` jsonb not null
-- `runtime_config` jsonb not null default `{}`; contains Paperclip runtime policy such as heartbeat scheduling and debug settings
+- `runtime_config` jsonb not null default `{}`; contains Nexus runtime policy such as heartbeat scheduling and debug settings
 - `default_environment_id` uuid fk `environments.id` null
 - `context_mode` enum: `thin | fat` default `thin`
 - `budget_monthly_cents` int not null default 0
@@ -386,9 +386,9 @@ Invariant: at least one root `company` level goal per company.
 
 Invariant:
 
-- project env is merged into run environment for issues in that project and overrides conflicting agent env keys before Paperclip runtime-owned keys are injected
+- project env is merged into run environment for issues in that project and overrides conflicting agent env keys before Nexus runtime-owned keys are injected
 
-Routine execution issues add a routine-scoped env overlay after project env and before Paperclip runtime-owned keys. Routine env uses the same secret-aware binding format, is stored on `routines.env`, is snapshotted in routine revisions, and resolves secret refs against the routine binding target so routine-owned secrets do not require direct bindings on the executing agent.
+Routine execution issues add a routine-scoped env overlay after project env and before Nexus runtime-owned keys. Routine env uses the same secret-aware binding format, is stored on `routines.env`, is snapshotted in routine revisions, and resolves secret refs against the routine binding target so routine-owned secrets do not require direct bindings on the executing agent.
 
 Project source repositories use the existing `project_workspaces` collection.
 Each selected GitHub repository has a canonical `repo_url` and stable provider ID
@@ -646,10 +646,10 @@ Operational policy:
   - Default upload allowlist includes common images, PDF, plain text/markdown/JSON/CSV/HTML, ZIP, and video artifacts (`video/mp4`, `video/webm`, `video/quicktime`).
   - Attachment reads are company-scoped and expose stable path metadata: `contentPath`/`openPath` for inline-safe viewing and `downloadPath` for forced download.
   - Inline-safe responses use `Content-Disposition: inline`; unsafe types and explicit download requests use `attachment`.
-  - Script-capable content such as HTML is always served as an attachment with `X-Content-Type-Options: nosniff` and a sandboxed, deny-by-default CSP; it is never rendered inline on the Paperclip origin.
+  - Script-capable content such as HTML is always served as an attachment with `X-Content-Type-Options: nosniff` and a sandboxed, deny-by-default CSP; it is never rendered inline on the Nexus origin.
   - The board can fetch bounded HTML source for a rich preview in an opaque-origin iframe (`sandbox="allow-scripts"`, without `allow-same-origin`). A trusted CSP precedes artifact markup and blocks remote subresources, API connections, forms, and embeds. Rendered/raw icons sit beside Download. Workspace HTML previews return UTF-8 inside JSON under the existing text limits. See `doc/html-artifact-previews.md`.
   - Video attachments are inline-safe and support single `Range: bytes=start-end` requests with `206`, `Content-Range`, and `Accept-Ranges: bytes` for browser playback/seeking.
-- Attachment-backed artifact work products use `type: "artifact"`, `provider: "paperclip"`, and metadata with `attachmentId`, `contentType`, `byteSize`, `contentPath`, `openPath`, `downloadPath`, and optional `originalFilename`.
+- Attachment-backed artifact work products use `type: "artifact"`, `provider: "nexus"`, and metadata with `attachmentId`, `contentType`, `byteSize`, `contentPath`, `openPath`, `downloadPath`, and optional `originalFilename`.
 - Workspace-only file references use work product `metadata.resourceRef` with `kind: "workspace_file"`, `issueId`, `workspaceKind` (`execution_workspace` or `project_workspace`), `workspaceId`, `relativePath`, optional `line`/`column`, and `displayPath`. These references point at files in a workspace; they do not replace attachment-backed artifacts for deliverables that must be inspectable without workspace access.
 
 ## 7.15 `documents` + `document_revisions` + `issue_documents`
@@ -770,7 +770,7 @@ V1 non-terminal liveness rule:
 - external waits are durable only when persisted as a bounded monitor/scheduled wake, a first-class blocker with a named owner and action, or healthy delegated child work connected by a blocker edge when the source must wait; parent/child structure alone is not a wait path
 - automatic monitor checks require an agent-owned task in `in_progress` or `in_review`; an authorized human may request one check of a retained monitor on a `blocked` task through normal admission without changing its status or bypassing dependency, recovery, ownership, pause or budget gates; provider-quota recovery monitors remain paused until the task resumes; a skipped manual dispatch returns a conflict instead of claiming success
 - unmanaged shell jobs, detached sessions, adapter child processes, local polling loops, PIDs, logs, and comments are evidence rather than liveness; a managed runtime service counts only when paired with a persisted monitor, wake, blocker, or delegated issue that owns the next check
-- heartbeat finalization evaluates liveness from persisted Paperclip state; an issue cannot remain healthy `in_progress` solely because the exiting heartbeat started a local/background watcher
+- heartbeat finalization evaluates liveness from persisted Nexus state; an issue cannot remain healthy `in_progress` solely because the exiting heartbeat started a local/background watcher
 - a continuation cancelled as `issue_continuation_waiting_on_review` first converts a current typed wait target into a first-class wait; without a current target it is classified as `deliberate_wait_without_target` and gives the invokable original owner five normal-model disposition-repair attempts (immediate, then after 60, 120, 240, and 480 seconds, with up to 10 percent jitter)
 - disposition repair revalidates blockers, children, interactions, approvals, monitors, execution stages, queued wakes, active runs, work products, owner invokability, budgets, and governance before every attempt; the attempt bound is keyed by durable source state, so comments or equivalent parked prose do not reset it while durable source-state changes may establish a new fingerprint
 - exhausted disposition repair appears in both task threads as “Agent needs attention,” with recorded attempt details and an explicit retry action; display uses structured recovery evidence, and the server rechecks the exact action, current task state, original owner, pause/approval/dependency/budget gates before restoring the task to todo
@@ -778,7 +778,7 @@ V1 non-terminal liveness rule:
 - the source fingerprint, source-attempt count, next due time, source owner, and return owner persist in the recovery action; startup and periodic reconciliation resume that exact lineage without duplicate wakes, fold it when a current typed wait appears, and reschedule or escalate an expired action that has no live scheduled run
 - source-attempt exhaustion opens one board-owned source-scoped recovery action without changing the source assignee and without waking a substitute agent; the board explicitly chooses whether to repair, retry the original owner, reassign, or resolve
 - an active recovery action counts as a live source or blocker-chain path only while its owner has a live run, queued wake, scheduled retry, typed wait, or explicit board escalation; source and blocker projections consume the same nested recovery-path result
-- when Paperclip cannot safely infer the next action, it surfaces the problem through visible blocked/recovery work instead of silently completing or reassigning work
+- when Nexus cannot safely infer the next action, it surfaces the problem through visible blocked/recovery work instead of silently completing or reassigning work
 - explicit recovery actions are the liveness primitive; source-scoped actions are the default form, issue-backed recovery is a fallback for independent repair work or safety boundaries, and comments alone are evidence rather than a healthy liveness path
 - recovery-action ownership is separate from source-task ownership: automatic repair and board escalation preserve both source assignee fields; reassignment requires an explicit board decision or a policy-defined serious failure
 - source-scoped recovery routing is cause-keyed: bounded continuity and disposition repair may retry only the original agent; provider-quota failures create/reuse a scheduled wait-recovery monitor; every other exhausted or unsafe path creates/reuses a board-owned recovery action with `routingPolicy: board_escalation_no_takeover_v1` and no substitute-agent wake
@@ -944,7 +944,7 @@ changes so both agent and board edits are visible in the issue activity stream.
 
 ## 9.4 Permission Terminology and Default Visibility Rule
 
-Paperclip keeps company-scoped visibility as the default. The task-ACL foundation adds opt-in private issues while preserving `open` for all existing and unspecified issues.
+Nexus keeps company-scoped visibility as the default. The task-ACL foundation adds opt-in private issues while preserving `open` for all existing and unspecified issues.
 
 The approved term set is:
 
@@ -972,7 +972,7 @@ The approved term set is:
 | Assignment/invocation | Assignment creates execution authority; board can reassign or force release | Delegation policies and scoped invokers with deny-listed tool classes |
 | Work-object visibility | Company-open by default; opt-in private issues/projects with explicit user or agent access | Policy-driven ACLs and reviewer-only channels |
 | Tool/secret policy | Secret refs, log redaction, and adapter-level command/webhook restrictions | Tool allowlists with centralized policy evaluation |
-| Company skills | Open to authenticated company agents; core enforces invariants and any stored restriction policy | Paperclip EE policy editor, protected-skill controls, presets, simulation, and policy audit UX |
+| Company skills | Open to authenticated company agents; core enforces invariants and any stored restriction policy | Nexus EE policy editor, protected-skill controls, presets, simulation, and policy audit UX |
 | Inbox management | Responsible agent may archive/unarchive its responsible user's Mine items under a default-open user policy; explicit cross-user access requires saved target-user opt-in or `inbox:manage`; all mutations are audited | Policy administration UX, organization presets, simulations, bulk controls, and richer audit/reporting surfaces |
 | Escalation | Escalate from agent to manager to board; board approval/budget gates remain authoritative | Escalation routing and SLA windows |
 
@@ -1183,7 +1183,7 @@ Non-configurable invariants include authenticated actor identity, exact company 
 
 For avoidance of doubt:
 
-- Local-path imports, updates, resets, and project scans MUST resolve under a Paperclip-known local workspace root or a Paperclip-managed skill root. Arbitrary host filesystem paths are invalid even when the caller is otherwise authorized. Caller-supplied `source`, `sourceLocator`, or similar path strings are descriptive input only; they MUST NOT expand authority beyond those approved roots.
+- Local-path imports, updates, resets, and project scans MUST resolve under a Nexus-known local workspace root or a Nexus-managed skill root. Arbitrary host filesystem paths are invalid even when the caller is otherwise authorized. Caller-supplied `source`, `sourceLocator`, or similar path strings are descriptive input only; they MUST NOT expand authority beyond those approved roots.
 - Remote imports and updates MUST normalize to a known source category, require validated HTTPS or catalog sources, and resolve immutable content before install (for example pinned Git commit/content hash or pinned package version). Unknown schemes, unknown source categories, symlink escapes, and out-of-tree files fail closed before persistence.
 - Unsafe executable content, fetch-and-exec patterns, and secret exfiltration or non-redacted secret material are platform safety failures. Policy cannot waive them; the route MUST reject the operation before any new skill version, install, update, or reset is persisted.
 - Mandatory activity attribution is part of the invariant boundary. If the required audit record for a skill mutation or policy mutation cannot be persisted, the mutation MUST fail or roll back; do not return success with missing auditability.
@@ -1245,7 +1245,7 @@ Platform-invariant failures are not policy denials and MUST use stable machine-r
 - `skill_secret_handling_blocked`
 - `skill_policy_admin_required`
 
-Core Skill Studio and Paperclip EE MUST treat those codes as hard platform failures, not as prompts to loosen policy.
+Core Skill Studio and Nexus EE MUST treat those codes as hard platform failures, not as prompts to loosen policy.
 
 ### Core API and ownership boundary
 
@@ -1258,7 +1258,7 @@ Core owns and ships these company-scoped endpoints:
 
 Policy reads, writes, deletion, and simulation enforce company access. Policy mutation and cross-principal simulation require board administration authority or the existing `users:manage_permissions` capability; ordinary skill access does not. Every policy mutation writes an activity event containing the actor, previous revision, new revision, and a redacted change summary. Skill mutation activity logging remains required independently of the policy decision.
 
-Paperclip EE owns the detailed editor, presets, protected-skill management, policy simulation UX, and policy-specific audit views. EE consumes the core endpoints and does not implement a second evaluator. Core may expose a concise effective-policy summary and denial state, but MUST NOT depend on EE for enforcement or make EE installation a prerequisite for normal skill work.
+Nexus EE owns the detailed editor, presets, protected-skill management, policy simulation UX, and policy-specific audit views. EE consumes the core endpoints and does not implement a second evaluator. Core may expose a concise effective-policy summary and denial state, but MUST NOT depend on EE for enforcement or make EE installation a prerequisite for normal skill work.
 
 ### Compatibility and availability
 
@@ -1267,8 +1267,8 @@ Paperclip EE owns the detailed editor, presets, protected-skill management, poli
 - Legacy `skills:create` and `skills:suggest-changes` positive grants remain accepted in APIs and portability packages. Historically either positive grant authorized the broad company-skill mutation surface, so in an explicit restricted policy either grant remains a compatibility allow fallback for all eight canonical skill actions only when no explicit rule matched. They never override an explicit deny or a platform invariant. With no explicit policy they are redundant because the default already allows the action.
 - Legacy `skills:suggest-changes` consent state is not a platform invariant for company skills and does not add a second mutation gate under the open-default policy. Companies that require approval or consent before skill changes must express that restriction through explicit skill-policy rules; authentication, company boundaries, source containment, validation, auditability, and runtime safety remain non-configurable invariants.
 - Import preview MUST report whether a package contains an explicit skill policy or legacy grants and how each will map. Import apply MUST preserve explicit policies, normalize supported legacy grants, and reject unknown policy versions rather than silently weakening them.
-- Export MUST include explicit skill policy configuration and retained legacy grants in `.paperclip.yaml`, never secret values or environment-specific paths. An unconfigured company exports no synthetic restriction.
-- If Paperclip EE is unavailable or removed, core continues to enforce stored policies and expose the policy API. Normal skill work remains available under the open default; explicit denials use core remediation text rather than a broken EE-only link.
+- Export MUST include explicit skill policy configuration and retained legacy grants in `.nexus.yaml`, never secret values or environment-specific paths. An unconfigured company exports no synthetic restriction.
+- If Nexus EE is unavailable or removed, core continues to enforce stored policies and expose the policy API. Normal skill work remains available under the open default; explicit denials use core remediation text rather than a broken EE-only link.
 
 ### Required regression tests
 
@@ -1311,7 +1311,7 @@ attribution alone do not qualify. See [toast semantics](TOASTS.md).
 Ownership split:
 
 - **Core / Free:** permission key and scoped-grant enforcement; responsible-user resolution; default-open, disabled, and allowlist policy modes; archive/unarchive APIs; per-user archive persistence; resurfacing behavior; activity audit records; and stable denial codes.
-- **Paperclip EE / Enterprise:** centralized policy administration beyond the per-user controls, organization-wide presets, policy simulation, bulk inbox operations, advanced compliance reporting, and richer administrative audit UX. EE may extend policy management surfaces but must not weaken core company boundaries, user policy restrictions, scoped grants, or audit requirements.
+- **Nexus EE / Enterprise:** centralized policy administration beyond the per-user controls, organization-wide presets, policy simulation, bulk inbox operations, advanced compliance reporting, and richer administrative audit UX. EE may extend policy management surfaces but must not weaken core company boundaries, user policy restrictions, scoped grants, or audit requirements.
 
 ## 10. API Contract (REST)
 
@@ -1326,7 +1326,7 @@ All endpoints are under `/api` and return JSON.
 - `PATCH /companies/:companyId/branding`
 - `POST /companies/:companyId/archive`
 
-On a Paperclip Cloud-managed instance, `POST /companies` returns `403` with
+On a Nexus Cloud-managed instance, `POST /companies` returns `403` with
 code `cloud_managed`; the trusted-header provisioning path and company import
 routes remain the only company-creation paths there.
 
@@ -1367,9 +1367,9 @@ Invites tab does not hide this Cloud action.
 ## 10.3 Agents
 
 The Harness / Runtime configuration page offers **Upgrade runner** for existing
-legacy Claude, Codex, and Grok Build agents when the target environment selects Paperclip
+legacy Claude, Codex, and Grok Build agents when the target environment selects Nexus
 Runner by default. The action uses the normal authorized agent PATCH with
-`runner: "paperclip"`, includes pending configuration edits, and retains the
+`runner: "nexus"`, includes pending configuration edits, and retains the
 model and compatible settings. A rejected conversion leaves saved configuration
 unchanged and identifies unsupported fields. Successful conversion records a
 configuration revision, clears incompatible session state, and preserves agent
@@ -1636,12 +1636,12 @@ ACP execution failures fail the run; they must not launch a different engine
 with different session, permission, or sandbox semantics. CLI execution requires
 explicit selection. Environment tests report the same engine availability error
 as execution. Codex CLI defaults permit workspace writes and network access for
-Paperclip coordination without disabling its sandbox; explicit operator
+Nexus coordination without disabling its sandbox; explicit operator
 restrictions and execution-target network denials remain effective.
 
 ### Experimental personal Muse Runner provider
 
-The `paperclip_runner` adapter can select `provider: "muse"` behind the default-off
+The `nexus_runner` adapter can select `provider: "muse"` behind the default-off
 Muse and native Runner gates. This connects personal Meta Muse through a
 company- and named-agent-bound receiver, distinct from human-authorized MCP.
 Pairing, detector contact, and a verified background reply are separate setup
@@ -1750,7 +1750,7 @@ goal unsupported. The Codex app-server driver maps controls to
 `thread/goal/get`, `thread/goal/set`, and `thread/goal/clear`; it observes
 provider-created goal notifications and reconciles with an authoritative get
 after each turn. An active goal suppresses premature run terminalization while
-autonomous turns continue. The Paperclip runner's persistent ACP backend opts
+autonomous turns continue. The Nexus runner's persistent ACP backend opts
 in through the `_session/goal` extension and advertises its exact action subset.
 Its pinned Codex/Claude executables retain the runner's Linux x64 qualification
 requirement. Direct `codex_local` and `claude_local` adapters currently have no
@@ -1952,7 +1952,7 @@ agents continue independent work without repeating the deferred request.
 
 - Node 24.11+
 - `DATABASE_URL` optional
-- if unset, auto-use embedded PostgreSQL under `~/.paperclip/instances/default/db`
+- if unset, auto-use embedded PostgreSQL under `~/.nexus/instances/default/db`
 
 ## 15.2 Migrations
 
@@ -2085,7 +2085,7 @@ V1 supports company import/export using a portable package contract:
 
 - markdown-first package rooted at `COMPANY.md`
 - implicit folder discovery by convention
-- `.paperclip.yaml` sidecar for Paperclip-specific fidelity
+- `.nexus.yaml` sidecar for Nexus-specific fidelity
 - canonical base package is vendor-neutral and aligned with `docs/companies/companies-spec.md`
 - common conventions:
   - `agents/<slug>/AGENTS.md`
@@ -2097,13 +2097,13 @@ V1 supports company import/export using a portable package contract:
 
 Export/import behavior in V1:
 
-- export emits a clean vendor-neutral markdown package plus `.paperclip.yaml`
+- export emits a clean vendor-neutral markdown package plus `.nexus.yaml`
 - projects and starter tasks are opt-in export content rather than default package content
-- recurring `TASK.md` entries use `recurring: true` in the base package and Paperclip routine fidelity in `.paperclip.yaml`
-- Paperclip imports recurring task packages as routines instead of downgrading them to one-time issues
-- export strips environment-specific paths (`cwd`, local instruction file paths, inline prompt duplication) while preserving portable project repo/workspace metadata such as `repoUrl`, refs, and workspace-policy references keyed in `.paperclip.yaml`
+- recurring `TASK.md` entries use `recurring: true` in the base package and Nexus routine fidelity in `.nexus.yaml`
+- Nexus imports recurring task packages as routines instead of downgrading them to one-time issues
+- export strips environment-specific paths (`cwd`, local instruction file paths, inline prompt duplication) while preserving portable project repo/workspace metadata such as `repoUrl`, refs, and workspace-policy references keyed in `.nexus.yaml`
 - export never includes secret values; env inputs are reported as portable declarations instead
-- export preserves explicit company skill policy and retained legacy skill grants in `.paperclip.yaml`; absence of policy remains the open default
+- export preserves explicit company skill policy and retained legacy skill grants in `.nexus.yaml`; absence of policy remains the open default
 - import supports target modes:
   - create a new company
   - import into an existing company
@@ -2263,13 +2263,13 @@ A Photon Cloud project can represent one agent through the existing
 experimental channel subsystem. DMs and explicitly enabled groups create or
 continue task-bound conversations. Linked sender identity is the default;
 telephone numbers, email addresses, names, and group membership do not grant
-Paperclip authority. Photos/files and ordinary questions/confirmations use the
+Nexus authority. Photos/files and ordinary questions/confirmations use the
 existing attachment, interaction, continuation, and publication contracts.
 Pause and Disconnect govern runtime behavior independently of the UI gate.
 Local Mac access, unsolicited conversations, and SMS/RCS
 fallback are excluded. Live qualification is required before release readiness.
 Pro shared allocation supports DMs only, with sender enrollment in Photon and
-separate identity linking in Paperclip. Shared channels reserve one project, not
+separate identity linking in Nexus. Shared channels reserve one project, not
 a pool phone number; group admission and publication are disabled. Dedicated
 allocation retains one selected number and individually enabled groups.
 
@@ -2386,7 +2386,7 @@ unavailable. Preserve current ownership and newer-work fences. See
   do not establish complete runtime dependencies, and never expand package boundaries automatically.
 - New UI imports use `packageMode: repository` to preserve supported repository files
   in one company-scoped immutable snapshot. Selected entrypoints become library skills;
-  other skills remain supporting files. The root `paperclip.skills.json` may declare
+  other skills remain supporting files. The root `nexus.skills.json` may declare
   version 1, validated `skills` paths and `requirements` text. Invalid manifests fall
   back to discovery. The dialog shows every skill and containing folder, selects all
   discovered skills, and collapses package files. There is no import-mode chooser;
@@ -2400,7 +2400,7 @@ unavailable. Preserve current ownership and newer-work fences. See
   from each instruction file's original directory.
 - Each repository-backed version references its snapshot and original entrypoint path.
   Runtime materialization adds a discovery wrapper and preserves the original tree under
-  `.paperclip-repository/`, including binaries, modes and credits. Original instructions
+  `.nexus-repository/`, including binaries, modes and credits. Original instructions
   are unchanged. `agents/openai.yaml` discovery policy is retained beside the wrapper.
   Existing adapters carry self-contained copies, so multiple entrypoints may duplicate
   runtime bytes. Shared-file changes version all selected skills; pinned runs remain
@@ -2414,7 +2414,7 @@ unavailable. Preserve current ownership and newer-work fences. See
   is automatic and bounded. Unused Git caches can expire and reacquire the recorded
   commit after current authorization and hash checks; authored/unproven legacy bytes
   remain durable. See [skill package storage](skill-package-storage.md).
-- Paperclip ownership is `managed`, with a null source locator and an immutable
+- Nexus ownership is `managed`, with a null source locator and an immutable
   current version. Content mutations prepare durable bytes before a short,
   authorization-checked compare-and-swap publication. Acknowledged changes do not
   depend on an installed web-server directory. Repository installations use the
@@ -2502,7 +2502,7 @@ existing domain authorization and scheduling; OAuth does not grant agent
 identity, native run ownership, approval decisions or third-party credentials.
 See [Public MCP](public-mcp.md) for the implemented instance-side boundary,
 configuration, plugin packages and outstanding hosted release gates. The
-[delivery plan](plans/2026-09-30-paperclip-public-mcp-and-plugins.md) separates
+[delivery plan](plans/2026-09-30-nexus-public-mcp-and-plugins.md) separates
 external agent participation and granted third-party tools into later releases.
 
 The experimental OpenAI Dot Runner provider uses a separate `/mcp/runner`
@@ -2584,7 +2584,7 @@ The internal service provides local-only availability and bounded, reauthorized 
 ### Filesystem access boundary (2026-10-20)
 
 Filesystem isolation belongs to the OS, execution environment, and storage layout.
-Paperclip authorizes the current task/run, company, explicitly selected configuration,
+Nexus authorizes the current task/run, company, explicitly selected configuration,
 execution policy, and repository credentials. It does not infer file permissions from
 other tasks or agents that previously used the same directory, overlapping roots,
 symlink aliases, or shared Git storage. Existing files under an authorized task root
@@ -2612,7 +2612,7 @@ See [the layer architecture](plans/2026-10-09-task-workspaces.md) for resolution
 ### Experimental native remote workspace authority (2026-10-30)
 
 The managed feature `remoteWorkspaceStorageEnabled` defaults on for Cloud and
-self-hosted instances. New native Paperclip Runner sandbox workspaces use remote
+self-hosted instances. New native Nexus Runner sandbox workspaces use remote
 authority automatically when durable storage is configured and their fresh
 source is supported. Existing host workspaces and configured local folders keep
 their legacy path until explicitly imported. An explicit stored `false` disables
@@ -2649,7 +2649,7 @@ must fail admission rather than fall back to a controller checkout.
 A reference to an authorized project with no configured workspace source does
 not attach a folder. It adds a resolution warning and preserves the task's
 workspace. A configured cross-project source remains subject to the read-only
-folder restriction. `PAPERCLIP_MULTI_PROJECT_WORKSPACE_SYNC_REMOTE` gates configured
+folder restriction. `NEXUS_MULTI_PROJECT_WORKSPACE_SYNC_REMOTE` gates configured
 sources; a source-less project reference needs no folder and stays metadata-only
 when that switch is off.
 

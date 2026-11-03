@@ -17,12 +17,12 @@ import {
   eq,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatPublications,
   chatTeamsFileTransfers,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import {
   teamsFileTransferService,

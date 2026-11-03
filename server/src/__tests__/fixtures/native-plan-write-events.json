@@ -11,7 +11,7 @@
             "prpEvent": {
               "runId": "fixture",
               "itemId": "codex-write-plan",
-              "schema": "paperclip.prp.event.v1",
+              "schema": "nexus.prp.event.v1",
               "turnId": "fixture",
               "payload": {
                 "item": {
@@ -48,12 +48,12 @@
             "prpEvent": {
               "runId": "fixture",
               "itemId": "codex-write-plan",
-              "schema": "paperclip.prp.event.v1",
+              "schema": "nexus.prp.event.v1",
               "turnId": "fixture",
               "payload": {
                 "name": "write_document",
                 "output": "fixture",
-                "schema": "paperclip.tool.execution.v1",
+                "schema": "nexus.tool.execution.v1",
                 "status": "running",
                 "target": null,
                 "exitCode": null,
@@ -87,7 +87,7 @@
             "prpEvent": {
               "runId": "fixture",
               "itemId": "codex-write-plan",
-              "schema": "paperclip.prp.event.v1",
+              "schema": "nexus.prp.event.v1",
               "turnId": "fixture",
               "payload": {
                 "item": {
@@ -142,12 +142,12 @@
             "prpEvent": {
               "runId": "fixture",
               "itemId": "codex-write-plan",
-              "schema": "paperclip.prp.event.v1",
+              "schema": "nexus.prp.event.v1",
               "turnId": "fixture",
               "payload": {
                 "name": "write_document",
                 "output": "fixture",
-                "schema": "paperclip.tool.execution.v1",
+                "schema": "nexus.tool.execution.v1",
                 "status": "completed",
                 "target": null,
                 "exitCode": null,
@@ -186,12 +186,12 @@
             "prpEvent": {
               "runId": "fixture",
               "itemId": "claude-write-plan",
-              "schema": "paperclip.prp.event.v1",
+              "schema": "nexus.prp.event.v1",
               "turnId": "fixture",
               "payload": {
                 "name": "write_document",
                 "output": "fixture",
-                "schema": "paperclip.tool.execution.v1",
+                "schema": "nexus.tool.execution.v1",
                 "status": "running",
                 "target": null,
                 "exitCode": null,
@@ -226,7 +226,7 @@
             "prpEvent": {
               "runId": "fixture",
               "itemId": "claude-write-plan",
-              "schema": "paperclip.prp.event.v1",
+              "schema": "nexus.prp.event.v1",
               "turnId": "fixture",
               "payload": {
                 "item": {
@@ -262,7 +262,7 @@
             "prpEvent": {
               "runId": "fixture",
               "itemId": "claude-write-plan",
-              "schema": "paperclip.prp.event.v1",
+              "schema": "nexus.prp.event.v1",
               "turnId": "fixture",
               "payload": {
                 "item": {
@@ -317,12 +317,12 @@
             "prpEvent": {
               "runId": "fixture",
               "itemId": "claude-write-plan",
-              "schema": "paperclip.prp.event.v1",
+              "schema": "nexus.prp.event.v1",
               "turnId": "fixture",
               "payload": {
                 "name": "write_document",
                 "output": "fixture",
-                "schema": "paperclip.tool.execution.v1",
+                "schema": "nexus.tool.execution.v1",
                 "status": "completed",
                 "target": null,
                 "exitCode": null,

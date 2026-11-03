@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { agents, companies, createDb, applyPendingMigrations, closeRegisteredClients, type Db } from "@paperclipai/db";
+import { agents, companies, createDb, applyPendingMigrations, closeRegisteredClients, type Db } from "@nexusai/db";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../../__tests__/helpers/embedded-postgres.js";
@@ -11,7 +11,7 @@ import { createLifecycleWorker } from "../application/worker.js";
 import type { LifecycleAgent } from "../application/ports.js";
 import { resolveExternalTestDatabaseUrl } from "../../../__tests__/helpers/external-test-database.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_LIFECYCLE_VERIFICATION_RETRY_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_LIFECYCLE_VERIFICATION_RETRY_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("failed lifecycle verification retries", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
@@ -20,7 +20,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
   const workers: Array<{ stop(): Promise<void> }> = [];
   beforeAll(async () => {
     if (external) { await applyPendingMigrations(external); db = createDb(external, { maxConnections: 6 }); }
-    else { database = await startEmbeddedPostgresTestDatabase("paperclip-verification-retry-"); db = createDb(database.connectionString, { maxConnections: 6 }); }
+    else { database = await startEmbeddedPostgresTestDatabase("nexus-verification-retry-"); db = createDb(database.connectionString, { maxConnections: 6 }); }
   }, 90_000);
   afterAll(async () => { if (external) await closeRegisteredClients(external); else await database?.cleanup(); });
   beforeEach(async () => {

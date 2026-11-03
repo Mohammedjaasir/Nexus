@@ -2,16 +2,16 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { PaperclipPluginManifestV1 } from "@paperclipai/shared";
-import { createHostClientHandlers } from "@paperclipai/plugin-sdk";
+import type { NexusPluginManifestV1 } from "@nexusai/shared";
+import { createHostClientHandlers } from "@nexusai/plugin-sdk";
 import { createPluginWorkerManager } from "../plugin-worker-manager.js";
-import type { NativeExecutionInput } from "../../vendor/paperclip-runner/index.js";
+import type { NativeExecutionInput } from "../../vendor/nexus-runner/index.js";
 import { NativeExecutionContext } from "./native-execution-context.js";
 
 const execution = { binding: { companyId: "company", agentId: "agent", runId: "run" } } as NativeExecutionInput;
-const manifest: PaperclipPluginManifestV1 = {
+const manifest: NexusPluginManifestV1 = {
   id: "test.execution-context", apiVersion: 1, version: "1.0.0", displayName: "Execution context fixture",
-  description: "Execution context fixture", author: "Paperclip", categories: ["automation"], capabilities: [],
+  description: "Execution context fixture", author: "Nexus", categories: ["automation"], capabilities: [],
   entrypoints: { worker: "worker.cjs" },
 };
 const params = {
@@ -23,7 +23,7 @@ const params = {
 let directory: string;
 let entrypointPath: string;
 beforeAll(async () => {
-  directory = await mkdtemp(path.join(tmpdir(), "paperclip-startup-worker-"));
+  directory = await mkdtemp(path.join(tmpdir(), "nexus-startup-worker-"));
   entrypointPath = path.join(directory, "worker.cjs");
   await writeFile(entrypointPath, `
 const readline = require("node:readline");
@@ -35,14 +35,14 @@ readline.createInterface({input:process.stdin,crlfDelay:Infinity}).on("line", li
   if (message.method === "initialize") send(message.id, {ok:true,supportedMethods:["environmentTask","environmentAcquireLease","configChanged","health"]});
   else if (message.method === "environmentTask" || message.method === "environmentDestroyLease" || message.method === "environmentAcquireLease") {
     held.push(message.id);
-    invocations.push(message.paperclipInvocation?.id);
-    if (message.params.config.hostWrite) process.stdout.write(JSON.stringify({jsonrpc:"2.0",id:"host-"+message.id,method:"companies.get",params:{companyId:"company"},paperclipInvocationId:message.paperclipInvocation.id})+"\\n");
+    invocations.push(message.nexusInvocation?.id);
+    if (message.params.config.hostWrite) process.stdout.write(JSON.stringify({jsonrpc:"2.0",id:"host-"+message.id,method:"companies.get",params:{companyId:"company"},nexusInvocationId:message.nexusInvocation.id})+"\\n");
     if (message.params.config.replyEarly) { held.splice(held.indexOf(message.id),1); send(message.id,{kind:"description",taskId:"task"}); }
   }
   else if (message.method === "health") send(message.id, {status:"ok",details:{pending:held.length}});
   else if (message.method === "configChanged") {
     if (message.params.config.exit) process.exit(1);
-    if (message.params.config.hostAfter) process.stdout.write(JSON.stringify({jsonrpc:"2.0",id:"late-host",method:"companies.get",params:{companyId:"company"},paperclipInvocationId:invocations.at(-1)})+"\\n");
+    if (message.params.config.hostAfter) process.stdout.write(JSON.stringify({jsonrpc:"2.0",id:"late-host",method:"companies.get",params:{companyId:"company"},nexusInvocationId:invocations.at(-1)})+"\\n");
     if (message.params.config.release) for (const id of held.splice(0)) { send(id, {providerLeaseId:"late-task",kind:"description",taskId:"task"}); if (message.params.config.duplicate) send(id, {providerLeaseId:"late-task",kind:"description",taskId:"task"}); }
     send(message.id, {});
   } else if (message.method === "shutdown") {send(message.id, {});setImmediate(()=>process.exit(0));}
@@ -70,12 +70,12 @@ describe("Core startup responsibility across real worker IPC", () => {
     let draining: Promise<void> | undefined;
     try {
       const acquire = manager.call(manifest.id, "environmentAcquireLease", { companyId: "company", environmentId: "environment",
-        driverKey: "tasks", config: { hostWrite: true }, runId: "run", agentId: "agent", adapterType: "paperclip_runner",
+        driverKey: "tasks", config: { hostWrite: true }, runId: "run", agentId: "agent", adapterType: "nexus_runner",
         creationOperationId: "recovered-operation" }, 10, undefined, settled, "reconstructed-acquire", observe);
       const rejected = expect(acquire).rejects.toThrow("timed out");
       await entered; await rejected;
       await expect(manager.call(manifest.id, "environmentAcquireLease", { companyId: "company", environmentId: "environment",
-        driverKey: "tasks", config: {}, runId: "run", agentId: "agent", adapterType: "paperclip_runner",
+        driverKey: "tasks", config: {}, runId: "run", agentId: "agent", adapterType: "nexus_runner",
         creationOperationId: "unrelated-operation" }, 10, undefined, unrelatedSettled, "unrelated-acquire", async () => {})).rejects.toThrow("timed out");
       recover("unrelated-operation");
       vi.useFakeTimers();
@@ -124,7 +124,7 @@ describe("Core startup responsibility across real worker IPC", () => {
     const settled = vi.fn(), observe = vi.fn(async () => {});
     try {
       const acquisition = manager.call(manifest.id, "environmentAcquireLease", { companyId: "company", environmentId: "environment",
-        driverKey: "tasks", config: { hostWrite: true }, runId: "run", agentId: "agent", adapterType: "paperclip_runner" },
+        driverKey: "tasks", config: { hostWrite: true }, runId: "run", agentId: "agent", adapterType: "nexus_runner" },
         10, undefined, settled, "dead-acquire", observe);
       const rejected = expect(acquisition).rejects.toThrow("timed out");
       await entered; await rejected;
@@ -154,7 +154,7 @@ describe("Core startup responsibility across real worker IPC", () => {
     });
     try {
       const acquire = manager.call(manifest.id, "environmentAcquireLease", { companyId: "company", environmentId: "environment",
-        driverKey: "tasks", config: {}, runId: "run", agentId: "agent", adapterType: "paperclip_runner" }, 10, undefined, settled, "late-acquire", observe);
+        driverKey: "tasks", config: {}, runId: "run", agentId: "agent", adapterType: "nexus_runner" }, 10, undefined, settled, "late-acquire", observe);
       await expect(acquire).rejects.toThrow("timed out");
       await manager.call(manifest.id, "configChanged", { config: { release: true, duplicate: true } });
       await vi.waitFor(() => expect(observe).toHaveBeenCalledOnce());

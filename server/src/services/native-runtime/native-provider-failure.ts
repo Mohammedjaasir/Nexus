@@ -1,4 +1,4 @@
-import type { PrpEvent, PrpTerminalState } from "../../vendor/paperclip-runner/index.js";
+import type { PrpEvent, PrpTerminalState } from "../../vendor/nexus-runner/index.js";
 
 export const NATIVE_MODEL_REJECTION_MESSAGE =
   "The selected model is not supported by the current ChatGPT connection. Choose a supported model or a compatible AI connection.";

@@ -96,7 +96,7 @@ describe("reused target ownership", () => {
     const scope = { companyId: 'company', agentId: 'agent', issueId: 'issue' };
     const failed = { ...scope, id: 'run', status: 'failed', runtimeMode: 'native', nativePhase: 'retryable_failure' };
     const get = vi.fn().mockResolvedValueOnce(failed).mockResolvedValue({ ...failed, status: 'cancelled', costAccountingPending: true,
-      resultJson: { nativeCancellation: { schema: 'paperclip.native-cancellation.v1', runId: 'run', companyId: 'company', issueId: 'issue', scope: 'run', reasonCode: 'cancellation_run_only', dispatched, dispatchState: 'acknowledged', intentAuditId: 'intent', acknowledgementAuditId: 'ack' } } });
+      resultJson: { nativeCancellation: { schema: 'nexus.native-cancellation.v1', runId: 'run', companyId: 'company', issueId: 'issue', scope: 'run', reasonCode: 'cancellation_run_only', dispatched, dispatchState: 'acknowledged', intentAuditId: 'intent', acknowledgementAuditId: 'ack' } } });
     const post = vi.fn().mockResolvedValue({});
     await stopOwnedGitHubReviewRun({ get, post } as unknown as ConnectionApi, 'run', scope, new AbortController().signal);
     expect(post).toHaveBeenCalledExactlyOnceWith('/api/heartbeat-runs/run/cancel', { cancellationRequestId: expect.any(String) });
@@ -131,7 +131,7 @@ describe("reused target ownership", () => {
     const page = { goto: async () => {}, waitForURL: async () => {} };
     await expect(runGitHubReviewFlow({ api: api as unknown as ConnectionApi, page: page as unknown as Page, github: {} as Page,
       githubUsername: "fixture", config: setup, resources: { branch: "owned", appName: "owned", runIds: [] },
-      evidence: { version: 1, setupId: "qa", hosting: "paperclip-cloud", targetCommit: null, assisted: false, outcome: "running", phase: "setup", dependencies: [], checkpoints: {}, cleanup: { endpoint: true, app: true, pullRequest: true, branch: true } },
+      evidence: { version: 1, setupId: "qa", hosting: "nexus-cloud", targetCommit: null, assisted: false, outcome: "running", phase: "setup", dependencies: [], checkpoints: {}, cleanup: { endpoint: true, app: true, pullRequest: true, branch: true } },
       signal: new AbortController().signal, phase: async () => {}, persistResources: async () => {},
       checkpoint: async id => { if (id === "agent") throw new Error("preflight_admitted"); },
     })).rejects.toThrow("preflight_admitted");
@@ -163,7 +163,7 @@ describe("reused target ownership", () => {
 describe("governed campaign admission", () => {
   it("rejects operations-managed selection before opening credentials or browsers", async () => {
     const execution = runnerMatrix.find(entry => entry.id === "github-review-journey.configured-agent.daytona.setup-and-first-review")!;
-    vi.stubEnv("PAPERCLIP_E2E_OPERATIONS_MANIFEST", "/private/campaign.json");
+    vi.stubEnv("NEXUS_E2E_OPERATIONS_MANIFEST", "/private/campaign.json");
     try {
       await expect(runGitHubReviewCampaign({ executions: [execution], catalog: runnerMatrix, repositoryRoot: "/does-not-exist" }))
         .rejects.toThrow("no budgeted routing qualification");
@@ -185,11 +185,11 @@ describe("automatic review event policy", () => {
 
 describe("retained journey metadata", () => {
   it("accepts actual budget/execution fields while rejecting unrelated private metadata", () => {
-    const evidence: GitHubReviewJourneyEvidence = { version: 1, outcome: "failed", phase: "review_execution_completion", setupId: "qa", hosting: "paperclip-cloud", targetCommit: "a".repeat(40), assisted: true,
+    const evidence: GitHubReviewJourneyEvidence = { version: 1, outcome: "failed", phase: "review_execution_completion", setupId: "qa", hosting: "nexus-cloud", targetCommit: "a".repeat(40), assisted: true,
       dependencies: [], checkpoints: { automatic_task: true }, cleanup: { endpoint: true, app: true, branch: true, pullRequest: true }, budgetPolicyRead: "verified",
       budgetPolicies: [{ scopeType: "agent", amount: 100, hardStopEnabled: true, unpricedUsagePolicy: "allow" }],
       execution: { reviewId: "review", issueId: "issue", runId: "run", runStatus: "failed", issueStatus: "in_progress", runtimeMode: "native", environmentId: "sandbox", provider: "opencode", model: "configured-model" } };
-    const result = { schema: "paperclip.runner-e2e.result/v2", executionId: "github-review-journey.configured-agent.local.setup-and-first-review", suiteId: "github-review-journey", suiteDefinitionHash: "definition",
+    const result = { schema: "nexus.runner-e2e.result/v2", executionId: "github-review-journey.configured-agent.local.setup-and-first-review", suiteId: "github-review-journey", suiteDefinitionHash: "definition",
       attempt: 1, status: "failed", profileId: "configured-agent", environmentId: "local", caseId: "setup-and-first-review", provider: "opencode", model: "configured-model", runtimeMode: "native",
       startedAt: "2026-10-24T00:00:00Z", finishedAt: "2026-10-24T00:01:00Z", durationMs: 60000, cleanup: "passed", githubReviewJourney: evidence };
     expect(() => validateRetainedRunnerResult(result)).not.toThrow();
@@ -202,12 +202,12 @@ describe("review execution attribution", () => {
   const expected = { runId: "run", companyId: "company", agentId: "agent", issueId: "issue", runtimeMode: "native", environmentId: "sandbox", executionEnvironment: "daytona" as const,
     environment: { id: "sandbox", driver: "sandbox", config: { provider: "daytona" } }, provider: "opencode", model: "configured-model" };
   const run = () => ({ id: "run", companyId: "company", agentId: "agent", issueId: "issue", status: "succeeded", runtimeMode: "native",
-    contextSnapshot: { paperclipEnvironment: { id: "sandbox", driver: "sandbox" } }, runnerProfileJson: { nativeExecutionInput: { provider: { kind: "opencode", model: "configured-model" } } } });
+    contextSnapshot: { nexusEnvironment: { id: "sandbox", driver: "sandbox" } }, runnerProfileJson: { nativeExecutionInput: { provider: { kind: "opencode", model: "configured-model" } } } });
   it("rejects a mismatched environment kind or provider even when the ID matches", () => {
     expect(verifyGitHubReviewRun(run(), { ...expected, executionEnvironment: "local" })).toBe(false);
     expect(verifyGitHubReviewRun(run(), { ...expected, environment: { ...expected.environment, config: { provider: "fake" } } })).toBe(false);
-    expect(verifyGitHubReviewRun({ ...run(), contextSnapshot: { paperclipEnvironment: { id: "sandbox", driver: "local" } } }, expected)).toBe(false);
-    const local = { ...run(), contextSnapshot: { paperclipEnvironment: { id: "local", driver: "local" } } };
+    expect(verifyGitHubReviewRun({ ...run(), contextSnapshot: { nexusEnvironment: { id: "sandbox", driver: "local" } } }, expected)).toBe(false);
+    const local = { ...run(), contextSnapshot: { nexusEnvironment: { id: "local", driver: "local" } } };
     expect(verifyGitHubReviewRun(local, { ...expected, executionEnvironment: "local", environmentId: "local", environment: { id: "local", driver: "local", config: {} } })).toBe(true);
   });
   it("requires the actual successful native run, environment, provider, and model", () => {
@@ -296,7 +296,7 @@ describe("durable journey credential references", () => {
   });
 });
 
-const config = () => ({ version: 1, setupId: "qa-test", hosting: "paperclip-cloud", target: { mode: "attach", baseURL: "https://qa.example.test", expectedCommit: "a".repeat(40), deploymentMode: "authenticated", companyId: "11111111-1111-4111-8111-111111111111", environmentId: "22222222-2222-4222-8222-222222222222" },
+const config = () => ({ version: 1, setupId: "qa-test", hosting: "nexus-cloud", target: { mode: "attach", baseURL: "https://qa.example.test", expectedCommit: "a".repeat(40), deploymentMode: "authenticated", companyId: "11111111-1111-4111-8111-111111111111", environmentId: "22222222-2222-4222-8222-222222222222" },
   browser: { headed: true, channel: "chrome", profileDir: "/private/qa-browser", accountAlias: "ralph-qa", freshness: "signed-in" },
   agent: { id: "22222222-2222-4222-8222-222222222222", name: "Ponytail QA", skill: "ponytail-review", model: "configured-model", provider: "openai", runtimeMode: "native" },
   github: { repository: "fixture/ponytail-evals", ownerType: "personal", appOwner: "fixture", login: "passkey", username: { source: "onepassword", reference: "op://vault/item/username" } } });
@@ -315,7 +315,7 @@ describe("setup profiles and selection", () => {
     await expect(verifyConnectionTarget("https://qa.example.test", parseConnectionConfig({ target: config().target }), { get } as unknown as APIRequestContext)).rejects.toThrow("target_health_unavailable_or_redirected");
   });
   it("keeps Cloud hosting separate from agent execution and declares passkey without requiring an exported password", () => {
-    expect(parseGitHubReviewJourneyConfig(config())).toMatchObject({ hosting: "paperclip-cloud", github: { login: "passkey" } });
+    expect(parseGitHubReviewJourneyConfig(config())).toMatchObject({ hosting: "nexus-cloud", github: { login: "passkey" } });
     expect(parseGitHubReviewJourneyConfig({ ...config(), hosting: "self-hosted" }).hosting).toBe("self-hosted");
     expect(parseGitHubReviewJourneyConfig({ ...config(), executionEnvironment: "daytona" }).executionEnvironment).toBe("daytona");
     expect(parseGitHubReviewJourneyConfig(config()).github.account).toBe("fixture");
@@ -348,8 +348,8 @@ describe("GitHub App cleanup ownership", () => {
     expect(f.resources).toMatchObject({ appId: "12345", appSlug: "ponytail-qa-nonce", appSettingsUrl: "https://github.com/settings/apps/ponytail-qa-nonce", installationSettingsUrl: "https://github.com/settings/installations/67890" });
   });
   it("cannot adopt the shared testing App, a foreign endpoint, or a renamed App", () => {
-    for (const mutate of [(e: ChatEndpoint) => { e.setup.github!.appOwnerLogin = "paperclipai"; }, (e: ChatEndpoint) => { e.id = "foreign"; },
-      (e: ChatEndpoint) => { e.botLabel = "[Test] Paperclip"; }, (e: ChatEndpoint) => { e.botUsername = "foreign[bot]"; }]) {
+    for (const mutate of [(e: ChatEndpoint) => { e.setup.github!.appOwnerLogin = "nexusai"; }, (e: ChatEndpoint) => { e.id = "foreign"; },
+      (e: ChatEndpoint) => { e.botLabel = "[Test] Nexus"; }, (e: ChatEndpoint) => { e.botUsername = "foreign[bot]"; }]) {
       const f = fixture(); mutate(f.endpoint);
       expect(() => captureOwnedGitHubApp(f.resources, f.endpoint, f.profile)).toThrow("owned_github_app_binding_mismatch");
       expect(f.resources.appSettingsUrl).toBeUndefined();
@@ -395,7 +395,7 @@ describe("independent GitHub review oracle", () => {
     }
   });
   it("fails missing checkpoint or cleanup evidence even when every other gate passed", () => {
-    const evidence: GitHubReviewJourneyEvidence = { version: 1, outcome: "passed", phase: "finished", hosting: "paperclip-cloud", setupId: "qa", targetCommit: head, assisted: true, dependencies: [],
+    const evidence: GitHubReviewJourneyEvidence = { version: 1, outcome: "passed", phase: "finished", hosting: "nexus-cloud", setupId: "qa", targetCommit: head, assisted: true, dependencies: [],
       checkpoints: Object.fromEntries(githubJourneyCheckpoints.map(id => [id, true])), cleanup: { endpoint: true, app: true, pullRequest: true, branch: true } };
     expect(gradeGitHubReviewJourney(evidence).every(c => c.passed)).toBe(true);
     delete evidence.checkpoints.github_delivery;

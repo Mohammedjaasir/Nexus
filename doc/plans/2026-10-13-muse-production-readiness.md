@@ -7,13 +7,13 @@ Date: 2026-10-13. Owner: this integration task. This updates the accepted Muse p
 | Area | Required outcome / boundary |
 | --- | --- |
 | Bot and identity | Existing personal Meta Muse at muse.ai; a named company agent with a separately recorded authorizing user. |
-| Release targets | Public HTTPS self-hosted instances and Paperclip Cloud using ordinary managed Runner execution. No control-plane execution fallback. |
+| Release targets | Public HTTPS self-hosted instances and Nexus Cloud using ordinary managed Runner execution. No control-plane execution fallback. |
 | Assignment journey | Ordinary assignment wakes Muse, authenticates and claims once, uses its own relevant native tools, publishes an inspectable document, and finalizes through the native Runner. |
 | Idle journey | A fresh Muse conversation discovers the installed client, reads permitted company work, creates governed intake without a human placeholder task, and returns useful attributed work. |
 | Human setup | Invite → copy current setup instruction → hostname approval in Muse → watched pairing/receiver/authenticated reply milestones → Done. No cookie export or manually copied durable API key. |
 | Credentials | Single-use 10-minute pairing feeds a dedicated Muse OAuth authorization. Secure Vault/authd owns public-client DCR, PKCE S256, 15-minute access and rotating refresh with 30-day authenticated inactivity expiry. The worker uses credential surrogates and stores no raw tokens. Public polling never extends credentials. |
 | Public receiver | Explicitly approved by the user on October 13. Nonsecret binding UUID selects an opaque wake-presence signal. No task text, global cursor, credentials, or assignment authority. All worker operations remain authenticated. Public contact cannot establish readiness. |
-| Provider placement | Muse owns its personal model and tools. One admitted assignment uses the shared external Runner. Idle connection traffic allocates no Runner. Paperclip workspace/shell and third-party gateway tools remain deferred. |
+| Provider placement | Muse owns its personal model and tools. One admitted assignment uses the shared external Runner. Idle connection traffic allocates no Runner. Nexus workspace/shell and third-party gateway tools remain deferred. |
 | Delivery and recovery | One active assignment; stable request/event identities; current company/agent/authorizer/run checks; unknown effects require reconciliation; controller restart must preserve original identities. |
 | Stops and cleanup | Fence authority immediately; best-effort remote stop with explicit confirmed/unconfirmed evidence; uncertainty blocks automatic overlap/retry. Disconnect disables the receiver and reports unreachable cleanup honestly. |
 | Capabilities and costs | Required first-party task/document/questions/collaboration/intake tools. External Muse usage/cost unavailable unless reported; existing budget/approval gates remain. |
@@ -28,7 +28,7 @@ Date: 2026-10-13. Owner: this integration task. This updates the accepted Muse p
 | Current master integration | October 10 stacked PRs and two scripted native runs; stale for current source | Reconcile task-workspace/heartbeat extractions, migration numbering, authorizer and skill-test JWT scope; preserve Dot compatibility. |
 | Real receiver feasibility | Four old 60-second replies; old experiment stopped. October 10 hooks forbid secrets and accept no script arguments. | Publish a new immutable asset version, install a no-argument secret-free receiver, authenticate a fresh readiness challenge on current Muse. |
 | Natural onboarding | Existing invite/settings components and stories; simulated and browser evidence | Fresh invite, expiry/renewal, reload/resume, hiring approval, site permission, current challenge, readiness and Done on actual candidate. |
-| Both work directions | Scripted task/document/question/follow-up proof, no actual Muse run | Actual research/document task using Muse tools; Paperclip clarification answer; follow-up; fresh-conversation proactive intake with no queued task. |
+| Both work directions | Scripted task/document/question/follow-up proof, no actual Muse run | Actual research/document task using Muse tools; Nexus clarification answer; follow-up; fresh-conversation proactive intake with no queued task. |
 | Correctness/recovery | Existing protocol/client/authority/Rust tests and failure evidence | Duplicate/lost responses; competing claims; pause/reassignment/cancel; actual controller restart; credential refresh/replay/revocation; stopped-run authority and cleanup. |
 | Cloud/installed artifact | Cloud PR731 exact bounded routing; no deployed Muse proof | Current ingress parity/header tests; normal Linux packaged Runner capability; named synthetic staging tenant through ordinary managed execution and real serving digests. |
 | 24-hour reliability | Not run; prior experiment is not reusable qualification | Freeze candidate; bounded unattended monitor with deterministic samples, cadence and queue-to-claim/full-response timings; report incomplete evidence and owned-resource cleanup. |
@@ -41,7 +41,7 @@ The previous receiver test remains stopped. No October 10 scripted evidence esta
 
 ## Current provider evidence and architecture correction
 
-October13 actual personal Muse read-only probes reconfirmed five-second secret-free no-argument hooks. Persistent skills live at `~/workspace/skills/paperclip-muse/SKILL.md` and are discovered by `muse.skill_search` from fresh side conversations.
+October13 actual personal Muse read-only probes reconfirmed five-second secret-free no-argument hooks. Persistent skills live at `~/workspace/skills/nexus-muse/SKILL.md` and are discovered by `muse.skill_search` from fresh side conversations.
 
 The production credential contract is Secure Vault/authd. The old0600 test credential file is an explicit test exception, not production setup. Muse reports supported `credentials.request_api_access` public-client OAuth2/DCR/PKCE and automatic refresh; a worker obtains only `hsurr` surrogates through the bundled `dynamic_credentials.py` helper, with Sentinel substituting the real access credential during approved egress. There is no supported direct pairing-token injection into Vault.
 
@@ -101,7 +101,7 @@ replaced through the ordinary connection API.
 An explicit current-conversation credential request then completed Muse's normal
 Vault Connect flow. The user authorized the agent to perform the test connection
 consent. Authd preserved the pairing-ticket query and supplied its actual callback,
-public-client registration and S256 PKCE. Paperclip observed an active credential
+public-client registration and S256 PKCE. Nexus observed an active credential
 for the intended disposable company and named agent at 17:26 UTC. No credential
 was exported from Muse, copied manually, or written by the worker. This establishes
 actual supported OAuth bootstrap, not yet a surrogate-authenticated worker read,
@@ -111,7 +111,7 @@ The native smoke fixture also passed two scripted assignments on the integrated
 candidate: document publication, structured clarification/answer consumption,
 native finalization and follow-up. Its first attempt failed because the Runner
 WebSocket resolved to a public hostname exposing only the approved Muse routes.
-The fixture was repaired using the existing `PAPERCLIP_API_URL` loopback setting;
+The fixture was repaired using the existing `NEXUS_API_URL` loopback setting;
 no new public Runner route or provider fallback was added. A fresh ordinary run
 then passed. These remain local synthetic results, separate from personal Muse
 and managed Cloud qualification.
@@ -141,7 +141,7 @@ parent domain and subdomains; the setup now warns about the displayed scope.
 
 Muse installed the five-second managed hook, persistent skill, and asset3 client.
 A subsequent independent detector wake confirmed the authenticated readiness
-challenge at 18:23:47 UTC. Paperclip observed paired, receiver detected, and
+challenge at 18:23:47 UTC. Nexus observed paired, receiver detected, and
 background reply verified separately. This establishes actual background
 connectivity, not full task execution or proven effective five-second cadence.
 
@@ -209,7 +209,7 @@ remain recorded; this does not establish unattended first-time setup.
 A fresh real task was queued at 19:43:28.861 UTC and offered 3.506 seconds later.
 Muse claimed it at 19:45:43.230 UTC and received native acceptance 379 ms later,
 without a chat nudge. Queue-to-claim was 134.369 seconds. Muse asked the required
-structured question; the operator answered Engineering audience through Paperclip
+structured question; the operator answered Engineering audience through Nexus
 at 19:55:51.903 UTC. The worker read and acknowledged the answer but reported
 only the next steps. It never consumed that input, published the required memo,
 or finalized. A premature native finish was rejected while input was pending.
@@ -296,7 +296,7 @@ The frozen asset6 candidate was `7305efe445022205a6440ef8a6caa02460edba9d`.
 Its independent authenticated background verification succeeded. A fresh real
 research assignment was offered 3.120 seconds after creation and claimed after
 103.649 seconds, with native acceptance another 431 milliseconds later. Muse
-submitted the structured question. The operator answered through Paperclip.
+submitted the structured question. The operator answered through Nexus.
 The worker acknowledged the input notification but the answer helper failed;
 there was no canonical consumption, published document, or native completion.
 This is failed prequalification, not a reliability sample.
@@ -447,4 +447,4 @@ OAuth revocation remains immediate and final. After the full qualification deadl
 
 The Board confirmation records the retained hook ID, exact server-derived script, a SHA-256 digest of the secret-free listing observation, the observation time, and the actual operator. Do not paste raw listings, credentials, URLs, or private tool output. The server checks current Board change authority, latest binding/generation/revision and exact qualification/deadline, then atomically records flags and audit provenance. It does not call Muse, verify installation independently, stop private work, clear unknown native effects, or revive revoked credentials. Refresh is required after offline or changed connection evidence.
 
-Grader revision `paperclip.muse-qualification.v4` distinguishes authenticated worker reports from operator attestations based on a supported runtime observation. Both are reported evidence, not independent provider confirmation. Exact source provenance and post-deadline timing are required; the 24-hour duration, five-second cadence, sustained idle window, at least twenty samples, every-sample success and all stop/effect uncertainty requirements remain unchanged. Earlier report revisions and sealed campaign results remain historical.
+Grader revision `nexus.muse-qualification.v4` distinguishes authenticated worker reports from operator attestations based on a supported runtime observation. Both are reported evidence, not independent provider confirmation. Exact source provenance and post-deadline timing are required; the 24-hour duration, five-second cadence, sustained idle window, at least twenty samples, every-sample success and all stop/effect uncertainty requirements remain unchanged. Earlier report revisions and sealed campaign results remain historical.

@@ -25,7 +25,7 @@ const meta = {
           "Production runner activity group. Completed commentary groups collapse to short action summaries. No failure counts in either state. Expand to see the original one-line activity rows and their full details. The live stories show a group settling while the next group starts.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "tasks/discussion",
         "runs-adapters/runs"

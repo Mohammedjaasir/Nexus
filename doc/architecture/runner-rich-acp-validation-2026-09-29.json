@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.rich-acp-validation-checkpoint.v1",
+  "schema": "nexus.rich-acp-validation-checkpoint.v1",
   "updatedAt": "2026-09-29T21:39:23.883903+00:00",
   "qualificationStatus": "pending",
   "runtimeSource": "bd4cc29c3017ed5e1484423e842fd48e3b2f49f3",

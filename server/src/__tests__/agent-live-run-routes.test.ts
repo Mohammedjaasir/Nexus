@@ -1698,7 +1698,7 @@ describe("agent live run routes", () => {
       eventType: "runtime_request.created",
       payload: {
         prpEvent: {
-          schema: "paperclip.prp.event.v1",
+          schema: "nexus.prp.event.v1",
           eventType: "runtime_request.created",
           sourceKind: "runner",
           runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -1746,7 +1746,7 @@ describe("agent live run routes", () => {
       eventType: "runtime_request.created",
       payload: {
         prpEvent: {
-          schema: "paperclip.prp.event.v1",
+          schema: "nexus.prp.event.v1",
           eventType: "runtime_request.created",
           sourceKind: "runner",
           runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -1830,7 +1830,7 @@ describe("agent live run routes", () => {
   it("lists trace status metadata without exposing payload contents", async () => {
     mockProviderTraceStore.listMetadataForRuns.mockResolvedValueOnce([
       {
-        schema: "paperclip.provider_trace_metadata.v1",
+        schema: "nexus.provider_trace_metadata.v1",
         id: "trace-1",
         runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         companyId: "company-1",

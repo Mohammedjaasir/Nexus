@@ -112,7 +112,7 @@ cannot extend the original five-second backlog deadline. Existing protocol,
 checkpoint and canonical-log ownership is unchanged. Updated CI, review and
 browser evidence remain attributed to their candidate revisions on the PRs.
 
-The separate Paperclip review found premature local expiry after a delayed
+The separate Nexus review found premature local expiry after a delayed
 successful renewal and unlimited retries in opportunistic startup retention.
 The renewal owner now samples a monotonic deadline immediately before UPDATE,
 after acquiring the connection and row lock, while still deducting UPDATE/commit
@@ -198,8 +198,8 @@ A/B have identical migration journals: this establishes compatible startup and
 rollback, not a nontrivial forward migration. These builds predate the final
 server claim-renewal fix, so they cannot qualify that candidate's active recovery.
 
-Private receipt locations: `paperclip-runner-e2e-k6aRaI/replacement-evidence.json`
-(short) and `paperclip-runner-e2e-EXG9cW/replacement-evidence.json` (300 seconds)
+Private receipt locations: `nexus-runner-e2e-k6aRaI/replacement-evidence.json`
+(short) and `nexus-runner-e2e-EXG9cW/replacement-evidence.json` (300 seconds)
 under the host temporary directory. Harness revisions were respectively
 `faaf31890e5ae96227bcfc0270bd5d94a92a2641` and
 `446d89245bad472abe6b5a793365004858df1e63`.
@@ -208,7 +208,7 @@ Real Postgres cost comparison: 8 and 512 text chunks each produced 8 checkpoint
 writes, 7 transactions and 14 changed rows for the same control operations.
 Both measured zero streaming checkpoint SQL/transactions/rows and zero idle SQL.
 WAL was 37,408 and 37,528 bytes; this diagnostic is not a production capacity
-estimate. Receipt: `/tmp/paperclip-hot-upgrade-pr2-sql-cost-20261024-2.json`.
+estimate. Receipt: `/tmp/nexus-hot-upgrade-pr2-sql-cost-20261024-2.json`.
 Independent mutation tests covered a lost HTTP response after the business row
 committed and a lost runner response after its API receipt was saved. Both
 checked the business table independently and counted one dispatch.
@@ -253,7 +253,7 @@ and production capacity. Heap deltas depend on garbage collection.
 The zero-interest case coalesced one lightweight activity notification. The
 normal one-view peak retained queue was 16 items / 35,344 bytes. The congested
 case requested resynchronization while staying inside the delivery bound.
-Private receipt: `/tmp/paperclip-live-delivery-cost-20261024.json`.
+Private receipt: `/tmp/nexus-live-delivery-cost-20261024.json`.
 
 The native Playwright journey passed in 39.5 seconds (50.8 including setup) on
 `267d221f4659ff17d95c99ad5fac5e77f37c8538` plus its test-only transport fault
@@ -393,7 +393,7 @@ Implementation results and exact commands belong below, with their limitations.
 - The existing hosted cell defaults to SIGKILL and a 1000 ms hold, requires this
   receipt, and forbids automatic retries. Its definition version and harness
   fingerprint changed. The full hold is selectable using
-  `PAPERCLIP_RUNNER_E2E_CONTROLLER_OUTAGE_MS=300000`; SIGTERM is also selectable.
+  `NEXUS_RUNNER_E2E_CONTROLLER_OUTAGE_MS=300000`; SIGTERM is also selectable.
 - `controller-replacement-smoke.ts` is a credential-free actual-main-server
   probe with Postgres owned by the test driver. It checks unchanged Postgres
   start time, existing HTTP data, new HTTP mutations and complete process cleanup.
@@ -414,13 +414,13 @@ Commands (run from the repository root):
 pnpm test:e2e:runner:typecheck
 pnpm test:e2e:runner:unit -- --maxWorkers=2
 node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/controller-replacement-smoke.ts
-PAPERCLIP_TEST_CHECKPOINT_COST_REPORT=/tmp/checkpoint-cost-attempt-1.json pnpm exec vitest run server/src/services/native-runtime/native-runner-restart-recovery.integration.test.ts -t 'keeps checkpoint SQL independent' --maxWorkers=1
+NEXUS_TEST_CHECKPOINT_COST_REPORT=/tmp/checkpoint-cost-attempt-1.json pnpm exec vitest run server/src/services/native-runtime/native-runner-restart-recovery.integration.test.ts -t 'keeps checkpoint SQL independent' --maxWorkers=1
 ```
 
 Choose a new cost-report filename for each attempt; existing evidence is never
 overwritten. Build the existing Rust fake provider after changing its fixture
-flags (`cargo build --manifest-path packages/paperclip-runner/runner/Cargo.toml
---locked -p paperclip-runner-core --bin fake-codex-app-server`). No LLM credentials
+flags (`cargo build --manifest-path packages/nexus-runner/runner/Cargo.toml
+--locked -p nexus-runner-core --bin fake-codex-app-server`). No LLM credentials
 are needed for these local probes.
 
 Initial evidence on 2026-10-22:
@@ -548,7 +548,7 @@ Functional outcome: passed. The observed desktop experience was usable, with no
 error banner, duplicate result or lost output. A normal loading skeleton appeared
 on navigation; an unrelated announcement overlay was dismissed. The screenshots
 do not establish smoothness between every sampled frame. No mobile or live-model
-claim is made. Final screenshot: `/tmp/paperclip-transcript-manual-completed-20261024.jpg`.
+claim is made. Final screenshot: `/tmp/nexus-transcript-manual-completed-20261024.jpg`.
 
 ### Native notification catch-up correction (2026-10-24)
 
@@ -1055,7 +1055,7 @@ after burst control p99 is 379–475 ms. No production spend saving is inferred.
 
 Complete phase JSON, SQL shapes, source/image hashes, sampler output and both
 failed and passing attempts are retained under
-`/tmp/paperclip-controller-persistence-20261027/`. The real-runner 8/512-chunk
+`/tmp/nexus-controller-persistence-20261027/`. The real-runner 8/512-chunk
 checks still observe zero streaming and idle checkpoint SQL. These component
 measurements do not qualify a new hosted artifact, a different harness, actual
 A→B/B→A replacement, or the ordinary Cloud rollout policy. Those gates remain
@@ -1105,7 +1105,7 @@ presentation recovery only; it has no checkpoint, execution or accounting effect
 
 ### Completion-only recovery review (2026-10-27)
 
-A later Paperclip review identifies completion inputs that would remain pending
+A later Nexus review identifies completion inputs that would remain pending
 when a standalone caller omits its ordinary-tool outcome lookup. Runner
 correction `bcc0785946` wires completion recovery independently in both the
 Codex transport and shared external driver. The three restart regressions fail
@@ -1211,7 +1211,7 @@ One native Codex/Daytona pilot per arm completes 20 steps, with independent
 hash-chain and exclusive-effect file checks. The candidate retains 80 encrypted
 checkpoint parts totaling 466,260 bytes. This is not a growth-rate measurement.
 Both test companies subsequently pause because gateway model usage is unpriced
-to Paperclip. The scaled native comparison remains unexecuted; budget enforcement
+to Nexus. The scaled native comparison remains unexecuted; budget enforcement
 is not qualified by these pilots. The immutable report SHA-256 is
 `8ccde5cd71fd1076c9046135fdb9a46d7256c863672f63dee3b614b123615bc6`;
 the metrics-only evidence archive SHA-256 is
@@ -1678,7 +1678,7 @@ comparison, or A/B upgrade qualification was run.
 PR #17439 source `5de803c2cdbdd24d88e411add590edc21954516a` merged into
 master as `09ad9adce2cf4742944353a3707a2f908e9bb35e` after all 60 current-head
 checks completed cleanly, legacy status passed, Greptile completed at 5/5, the
-formal Paperclip review completed at 5/5, and actionable feedback was resolved.
+formal Nexus review completed at 5/5, and actionable feedback was resolved.
 Qualification now targets master. Its diff contains only qualification code and
 this evidence document; the server implementation is not repeated in its scope.
 

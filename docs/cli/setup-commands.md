@@ -5,35 +5,35 @@ summary: Onboard, run, doctor, and configure
 
 Instance setup and diagnostics commands.
 
-## `paperclipai run`
+## `nexusai run`
 
 One-command bootstrap and start:
 
 ```sh
-pnpm paperclipai run
+pnpm nexusai run
 ```
 
 Does:
 
 1. Auto-onboards if config is missing
-2. Runs `paperclipai doctor` with repair enabled
+2. Runs `nexusai doctor` with repair enabled
 3. Starts the server when checks pass
 
 Choose a specific instance:
 
 ```sh
-npx paperclipai run --instance dev
+npx nexusai run --instance dev
 ```
 
-## `paperclipai onboard`
+## `nexusai onboard`
 
 Interactive first-time setup:
 
 ```sh
-pnpm paperclipai onboard
+pnpm nexusai onboard
 ```
 
-If Paperclip is already configured, rerunning `onboard` keeps the existing config in place. Use `paperclipai configure` to change settings on an existing install.
+If Nexus is already configured, rerunning `onboard` keeps the existing config in place. Use `nexusai configure` to change settings on an existing install.
 
 First prompt:
 
@@ -43,34 +43,34 @@ First prompt:
 Start immediately after onboarding:
 
 ```sh
-pnpm paperclipai onboard --run
+pnpm nexusai onboard --run
 ```
 
 Quickstart defaults + immediate start:
 
 ```sh
-pnpm paperclipai onboard --yes
+pnpm nexusai onboard --yes
 ```
 
-When onboarding starts Paperclip from an interactive terminal, it opens the
+When onboarding starts Nexus from an interactive terminal, it opens the
 onboarding page in your browser once. Non-interactive terminals stay silent.
 Suppress browser opening explicitly for headless or automated runs with either
 environment variable:
 
 ```sh
-PAPERCLIP_NO_BROWSER=1 pnpm paperclipai onboard --yes
-PAPERCLIP_OPEN_ON_LISTEN=false pnpm paperclipai onboard --yes
+NEXUS_NO_BROWSER=1 pnpm nexusai onboard --yes
+NEXUS_OPEN_ON_LISTEN=false pnpm nexusai onboard --yes
 ```
 
-On an existing install, `--yes` now preserves the current config and just starts Paperclip with that setup.
+On an existing install, `--yes` now preserves the current config and just starts Nexus with that setup.
 
-## `paperclipai doctor`
+## `nexusai doctor`
 
 Health checks with optional auto-repair:
 
 ```sh
-pnpm paperclipai doctor
-pnpm paperclipai doctor --repair
+pnpm nexusai doctor
+pnpm nexusai doctor --repair
 ```
 
 Validates:
@@ -82,14 +82,14 @@ Validates:
 - Storage configuration
 - Missing key files
 
-## `paperclipai configure`
+## `nexusai configure`
 
 Update configuration sections:
 
 ```sh
-pnpm paperclipai configure --section server
-pnpm paperclipai configure --section secrets
-pnpm paperclipai configure --section storage
+pnpm nexusai configure --section server
+pnpm nexusai configure --section secrets
+pnpm nexusai configure --section storage
 ```
 
 `--section secrets` updates the deployment-level provider used as the fallback
@@ -99,43 +99,43 @@ coming-soon GCP/Vault) live in the board UI under
 `Company Settings → Secrets → Provider vaults` and the
 `/api/companies/{companyId}/secret-provider-configs` API.
 
-## `paperclipai env`
+## `nexusai env`
 
 Show resolved environment configuration:
 
 ```sh
-pnpm paperclipai env
+pnpm nexusai env
 ```
 
-This now includes bind-oriented deployment settings such as `PAPERCLIP_BIND` and `PAPERCLIP_BIND_HOST` when configured.
+This now includes bind-oriented deployment settings such as `NEXUS_BIND` and `NEXUS_BIND_HOST` when configured.
 
-## `paperclipai allowed-hostname`
+## `nexusai allowed-hostname`
 
 Allow a private hostname for authenticated/private mode:
 
 ```sh
-npx paperclipai allowed-hostname my-tailscale-host
+npx nexusai allowed-hostname my-tailscale-host
 ```
 
 ## Local Storage Paths
 
 | Data | Default Path |
 |------|-------------|
-| Config | `~/.paperclip/instances/default/config.json` |
-| Database | `~/.paperclip/instances/default/db` |
-| Logs | `~/.paperclip/instances/default/logs` |
-| Storage | `~/.paperclip/instances/default/data/storage` |
-| Secrets key | `~/.paperclip/instances/default/secrets/master.key` |
+| Config | `~/.nexus/instances/default/config.json` |
+| Database | `~/.nexus/instances/default/db` |
+| Logs | `~/.nexus/instances/default/logs` |
+| Storage | `~/.nexus/instances/default/data/storage` |
+| Secrets key | `~/.nexus/instances/default/secrets/master.key` |
 
 Override with:
 
 ```sh
-PAPERCLIP_HOME=/custom/home PAPERCLIP_INSTANCE_ID=dev pnpm paperclipai run
+NEXUS_HOME=/custom/home NEXUS_INSTANCE_ID=dev pnpm nexusai run
 ```
 
 Or pass `--data-dir` directly on any command:
 
 ```sh
-npx paperclipai run --data-dir ./tmp/paperclip-dev
-npx paperclipai doctor --data-dir ./tmp/paperclip-dev
+npx nexusai run --data-dir ./tmp/nexus-dev
+npx nexusai doctor --data-dir ./tmp/nexus-dev
 ```

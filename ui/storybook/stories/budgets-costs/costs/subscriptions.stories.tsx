@@ -2,7 +2,7 @@ import { useLayoutEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { monthlySubscriptionCents, type SubscriptionCostReport, type CostDataQualityReport } from "@paperclipai/shared";
+import { monthlySubscriptionCents, type SubscriptionCostReport, type CostDataQualityReport } from "@nexusai/shared";
 import { Costs } from "@/pages/Costs";
 import { ToastViewport } from "@/components/ToastViewport";
 
@@ -103,7 +103,7 @@ function SubscriptionCostsStory({ unknownPrice = false, stale = false, costGaps 
 const meta = { id: "costs-subscriptions",
   title: "Oversight and operation/Costs and budgets/Costs/Subscriptions", component: SubscriptionCostsStory, parameters: {
   layout: "padded", docs: { description: { component: "Production Costs page with API spend, monthly subscription estimates, user and project costs. View details to edit monthly or annual prices. Provider calls are fixtures." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "budgets-costs/cost-reporting",
         "budgets-costs/budgets"

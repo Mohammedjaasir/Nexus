@@ -15,7 +15,7 @@ import {
   issueComments,
   issueReadStates,
   joinRequests,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -25,7 +25,7 @@ import { inboxDismissalRoutes } from "../routes/inbox-dismissals.js";
 import { inboxDismissalService } from "../services/inbox-dismissals.ts";
 import { sidebarBadgeRoutes } from "../routes/sidebar-badges.js";
 import { sidebarBadgeService } from "../services/sidebar-badges.ts";
-import { LOW_TRUST_REVIEW_PRESET } from "@paperclipai/shared";
+import { LOW_TRUST_REVIEW_PRESET } from "@nexusai/shared";
 
 const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
@@ -43,7 +43,7 @@ describeEmbeddedPostgres("inbox dismissals", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-inbox-dismissals-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-inbox-dismissals-");
     db = createDb(tempDb.connectionString);
     dismissalsSvc = inboxDismissalService(db);
     badgesSvc = sidebarBadgeService(db);
@@ -76,7 +76,7 @@ describeEmbeddedPostgres("inbox dismissals", () => {
     { userId: null, actorType: "agent", expected: 0 },
   ])("scopes failed-run badges to $userId (actor=$actorType)", async ({ userId, actorType, expected }) => {
     const companyId = randomUUID();
-    await db.insert(companies).values({ id: companyId, name: "Paperclip", issuePrefix: "PAP" });
+    await db.insert(companies).values({ id: companyId, name: "Nexus", issuePrefix: "PAP" });
     for (const responsibleUserId of ["user-1", "user-2", null]) {
       const agentId = randomUUID();
       await db.insert(agents).values({ id: agentId, companyId, name: "Agent", role: "engineer", status: "error" });
@@ -158,7 +158,7 @@ describeEmbeddedPostgres("inbox dismissals", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: "PAP",
       requireBoardApprovalForNewAgents: false,
     });
@@ -181,7 +181,7 @@ describeEmbeddedPostgres("inbox dismissals", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: "PAP",
       requireBoardApprovalForNewAgents: false,
     });
@@ -241,7 +241,7 @@ describeEmbeddedPostgres("inbox dismissals", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: "PAP",
       requireBoardApprovalForNewAgents: false,
     });

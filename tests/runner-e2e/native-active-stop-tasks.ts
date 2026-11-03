@@ -5,6 +5,6 @@ export const nativeActiveStopTasks: readonly RunnerTaskFixture[] = [{
   expectedTerminalState: { issue: "in_progress", run: "cancelled" },
   buildTitle: nonce => `Native pending permission Stop ${nonce}`,
   buildVisibleMarker: nonce => `NATIVE-ACTIVE-STOP-${nonce}`,
-  buildPrompt: () => "Attempt the supplied exact native operation once. Leave its native permission callback pending for the board operator. Do not answer, reject or cancel your own permission; do not retry, use another tool/path, call paperclip_finish, or claim completion. The operator will stop this unfinished task while permission is still unanswered.",
+  buildPrompt: () => "Attempt the supplied exact native operation once. Leave its native permission callback pending for the board operator. Do not answer, reject or cancel your own permission; do not retry, use another tool/path, call nexus_finish, or claim completion. The operator will stop this unfinished task while permission is still unanswered.",
   buildMatchers: () => [], // Dedicated flow requires pending API observation, caller-owned Stop and retirement.
 }];

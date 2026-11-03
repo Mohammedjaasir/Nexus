@@ -4,7 +4,7 @@
  // src/acp/auth.ts
  var PI_SETUP_METHOD_ID = "pi_terminal_login";
  function getAuthMethods(opts) {
-+  if (process.env.PAPERCLIP_ACPX_ISOLATED_CONTEXT === "1") return [];
++  if (process.env.NEXUS_ACPX_ISOLATED_CONTEXT === "1") return [];
    const supportsTerminalAuthMeta = opts?.supportsTerminalAuthMeta ?? true;
    const method = {
      id: PI_SETUP_METHOD_ID,
@@ -13,7 +13,7 @@
  // src/pi-rpc/process.ts
  import { spawn } from "child_process";
 -import * as readline from "readline";
-+import { PI_ACP_FEATURES, PiRpcMessageDeltas, piNativeFailure, PiAssistantMessages, piAssistantChunk, piHistoricalAssistantChunk, PiToolIdentities, piHistoricalToolIdentity, PiRpcFrames, PiUiBridge, PiTurnUsage, createPiLaunchSpec, snapshotPiWorkspaceFile } from "./paperclip-runtime.js";
++import { PI_ACP_FEATURES, PiRpcMessageDeltas, piNativeFailure, PiAssistantMessages, piAssistantChunk, piHistoricalAssistantChunk, PiToolIdentities, piHistoricalToolIdentity, PiRpcFrames, PiUiBridge, PiTurnUsage, createPiLaunchSpec, snapshotPiWorkspaceFile } from "./nexus-runtime.js";
 
  // src/pi-rpc/command.ts
  import { platform } from "os";
@@ -42,7 +42,7 @@
 +      this.exited = error;
 +      for (const [, pending] of this.pending) pending.reject(error);
 +      this.pending.clear();
-+      for (const handler of this.eventHandlers) handler({ type: "paperclip_process_exit", failure: piNativeFailure(error) });
++      for (const handler of this.eventHandlers) handler({ type: "nexus_process_exit", failure: piNativeFailure(error) });
 +    };
 +    const frames = new PiRpcFrames((msg) => {
 +      if (msg.type === "response") {
@@ -112,7 +112,7 @@
        }
 -    } catch {
 +      const commands = await proc.getCommands();
-+      if (!Array.isArray(commands?.commands) || !commands.commands.some((command) => command.name === "paperclip-runtime-ready-v1" && command.description === "Paperclip runtime gate v1")) throw new Error("Pi owned runtime extension did not initialize");
++      if (!Array.isArray(commands?.commands) || !commands.commands.some((command) => command.name === "nexus-runtime-ready-v1" && command.description === "Nexus runtime gate v1")) throw new Error("Pi owned runtime extension did not initialize");
 +    } catch (error) {
 +      proc.dispose("SIGKILL");
 +      throw new PiRpcSpawnError("Pi owned runtime extension failed admission", { cause: error });
@@ -121,7 +121,7 @@
    }
    onEvent(handler) {
      this.eventHandlers.push(handler);
-+    if (this.exited) queueMicrotask(() => handler({ type: "paperclip_process_exit", failure: piNativeFailure(this.exited) }));
++    if (this.exited) queueMicrotask(() => handler({ type: "nexus_process_exit", failure: piNativeFailure(this.exited) }));
      return () => {
        this.eventHandlers = this.eventHandlers.filter((h) => h !== handler);
      };
@@ -198,7 +198,7 @@
        authMethods: getAuthMethods()
      },
 -    "Configure an API key or log in with an OAuth provider."
-+    "Bind the configured OpenRouter API credential to this Paperclip runtime."
++    "Bind the configured OpenRouter API credential to this Nexus runtime."
    );
  }
 
@@ -213,7 +213,7 @@
 +  const encoded = JSON.stringify(value);
 +  if (encoded === void 0) return void 0;
 +  const bytes = Buffer.byteLength(encoded);
-+  return bytes <= 65536 ? value : { _meta: { paperclipPi: { omitted: "tool value exceeds 65536 bytes", originalBytes: bytes } } };
++  return bytes <= 65536 ? value : { _meta: { nexusPi: { omitted: "tool value exceeds 65536 bytes", originalBytes: bytes } } };
  }
  function bashResultText(result) {
    const record = result;
@@ -260,7 +260,7 @@
    }
    emit(update) {
 +    const provenance = typeof update.toolCallId === "string" ? this.proc.toolIdentities.provenance(update.toolCallId) : undefined;
-+    if (provenance) update = { ...update, _meta: { ...update._meta, paperclipPi: { ...update._meta?.paperclipPi, ...provenance } } };
++    if (provenance) update = { ...update, _meta: { ...update._meta, nexusPi: { ...update._meta?.nexusPi, ...provenance } } };
      this.lastEmit = this.lastEmit.then(
        () => this.conn.sessionUpdate({
          sessionId: this.sessionId,
@@ -270,7 +270,7 @@
      });
 +  }
 +  emitNotice(category, summary, severity = "info", details = {}) {
-+    this.lastEmit = this.lastEmit.then(() => this.conn.extNotification("paperclip/pi_notice", {
++    this.lastEmit = this.lastEmit.then(() => this.conn.extNotification("nexus/pi_notice", {
 +      sessionId: this.sessionId, category, severity,
 +      summary: String(summary).slice(0, 4000), details
 +    })).catch(() => {});
@@ -316,7 +316,7 @@
 -          const reason = this.cancelRequested ? "cancelled" : "error";
 -          this.pendingTurn?.resolve(reason);
 +          if (this.cancelRequested) this.pendingTurn?.resolve("cancelled");
-+          else this.pendingTurn?.reject(RequestError3.internalError({ paperclipPi: failure }, failure.summary));
++          else this.pendingTurn?.reject(RequestError3.internalError({ nexusPi: failure }, failure.summary));
          }
          this.pendingTurn = null;
          this.inAgentLoop = false;
@@ -324,7 +324,7 @@
    handlePiEvent(ev) {
      const type = String(ev.type ?? "");
      switch (type) {
-+      case "paperclip_process_exit": {
++      case "nexus_process_exit": {
 +        this.uiBridge.cancelAll();
 +        const failure = piNativeFailure(ev.failure?.summary);
 +        this.emitNotice("runtime_failure", failure.summary, "error", { reason: failure.reason });
@@ -332,12 +332,12 @@
 +        this.pendingTurn = null;
 +        this.turnEpoch += 1;
 +        void this.flushEmits().finally(() => {
-+          for (const turn of turns) turn.reject(RequestError3.internalError({ paperclipPi: failure }, failure.summary));
++          for (const turn of turns) turn.reject(RequestError3.internalError({ nexusPi: failure }, failure.summary));
 +        });
 +        break;
 +      }
 +      case "message_start": {
-+        if (ev.paperclipAssistantMessage) this.emit(piAssistantChunk(ev.paperclipAssistantMessage));
++        if (ev.nexusAssistantMessage) this.emit(piAssistantChunk(ev.nexusAssistantMessage));
 +        break;
 +      }
 +      case "message_end": {
@@ -345,13 +345,13 @@
 +          const failure = piNativeFailure(ev.message.errorMessage);
 +          this.emitNotice("runtime_failure", failure.summary, "error", { reason: failure.reason });
 +        }
-+        if (ev.paperclipAssistantMessage) this.emit(piAssistantChunk(ev.paperclipAssistantMessage));
++        if (ev.nexusAssistantMessage) this.emit(piAssistantChunk(ev.nexusAssistantMessage));
 +        try { this.turnUsage.accept(ev.message); } catch {
 +          const failure = piNativeFailure("Pi usage receipt is invalid");
 +          this.emitNotice("runtime_failure", failure.summary, "error", { reason: failure.reason });
 +          const pending = this.pendingTurn;
 +          this.pendingTurn = null;
-+          void this.flushEmits().finally(() => pending?.reject(RequestError3.internalError({ paperclipPi: failure }, failure.summary)));
++          void this.flushEmits().finally(() => pending?.reject(RequestError3.internalError({ nexusPi: failure }, failure.summary)));
 +          this.uiBridge.cancelAll();
 +          this.proc.dispose("SIGKILL");
 +        }
@@ -364,7 +364,7 @@
 -            sessionUpdate: "agent_message_chunk",
 -            content: { type: "text", text: ame.delta }
 -          });
-+          this.emit(piAssistantChunk(ev.paperclipAssistantMessage, ame.delta));
++          this.emit(piAssistantChunk(ev.nexusAssistantMessage, ame.delta));
            break;
          }
          if (ame?.type === "thinking_delta" && typeof ame.delta === "string") {
@@ -372,7 +372,7 @@
 -            sessionUpdate: "agent_thought_chunk",
 -            content: { type: "text", text: ame.delta }
 -          });
-+          this.emit(piAssistantChunk(ev.paperclipAssistantMessage, ame.delta, true));
++          this.emit(piAssistantChunk(ev.nexusAssistantMessage, ame.delta, true));
            break;
          }
          if (ame?.type === "toolcall_start" || ame?.type === "toolcall_delta" || ame?.type === "toolcall_end") {
@@ -485,7 +485,7 @@
    return process.env.PI_CODING_AGENT_DIR ? resolve3(process.env.PI_CODING_AGENT_DIR) : join4(homedir4(), ".pi", "agent");
  }
  function getEnableSkillCommands(cwd) {
-+  if (process.env.PAPERCLIP_ACPX_ISOLATED_CONTEXT === "1") return true;
++  if (process.env.NEXUS_ACPX_ISOLATED_CONTEXT === "1") return true;
    const merged = getMergedSettings(cwd);
    const direct = merged.enableSkillCommands;
    if (typeof direct === "boolean") return direct;
@@ -493,7 +493,7 @@
    return true;
  }
  function getQuietStartup(cwd) {
-+  if (process.env.PAPERCLIP_ACPX_ISOLATED_CONTEXT === "1") return true;
++  if (process.env.NEXUS_ACPX_ISOLATED_CONTEXT === "1") return true;
    const merged = getMergedSettings(cwd);
    const direct = merged.quietStartup;
    if (typeof direct === "boolean") return direct;
@@ -501,7 +501,7 @@
    const out = [];
    const seen = /* @__PURE__ */ new Set();
    for (const c of [...a, ...b]) {
-+    if (process.env.PAPERCLIP_ACPX_ISOLATED_CONTEXT === "1" && !["compact", "session", "autocompact"].includes(c.name)) continue;
++    if (process.env.NEXUS_ACPX_ISOLATED_CONTEXT === "1" && !["compact", "session", "autocompact"].includes(c.name)) continue;
      if (seen.has(c.name)) continue;
      seen.add(c.name);
      out.push(c);
@@ -532,7 +532,7 @@
      }
    }
    async initialize(params) {
-+    if (process.env.PAPERCLIP_ACPX_ISOLATED_CONTEXT !== "1") throw RequestError3.invalidParams("Pi requires a qualified Paperclip launch");
++    if (process.env.NEXUS_ACPX_ISOLATED_CONTEXT !== "1") throw RequestError3.invalidParams("Pi requires a qualified Nexus launch");
      const supportedVersion = 1;
      const requested = params.protocolVersion;
      return {
@@ -542,7 +542,7 @@
          loadSession: true,
 -        mcpCapabilities: { http: false, sse: false },
 +        mcpCapabilities: { http: true, sse: false },
-+        _meta: { paperclipPi: PI_ACP_FEATURES },
++        _meta: { nexusPi: PI_ACP_FEATURES },
          promptCapabilities: {
            image: true,
            audio: false,
@@ -570,7 +570,7 @@
        throw RequestError3.authRequired(
          { authMethods: getAuthMethods() },
 -        "Configure an API key or log in with an OAuth provider."
-+        "Bind the configured OpenRouter API credential to this Paperclip runtime."
++        "Bind the configured OpenRouter API credential to this Nexus runtime."
        );
      }
      if (stateErr && maybeAuthRequiredError(stateErr)) {
@@ -578,7 +578,7 @@
        throw RequestError3.authRequired(
          { authMethods: getAuthMethods() },
 -        "Configure an API key or log in with an OAuth provider."
-+        "Bind the configured OpenRouter API credential to this Paperclip runtime."
++        "Bind the configured OpenRouter API credential to this Nexus runtime."
        );
      }
      const { configOptions, models, modes } = await getSessionConfiguration(session.proc, {
@@ -590,7 +590,7 @@
      const { message, images } = promptToPiMessage(params.prompt);
      if (images.length === 0 && message.trimStart().startsWith("/")) {
 +      const command = message.trim().split(/\s+/)[0];
-+      if (!["/compact", "/session", "/autocompact"].includes(command)) throw RequestError3.invalidParams("Pi slash command is not admitted by Paperclip Runner");
++      if (!["/compact", "/session", "/autocompact"].includes(command)) throw RequestError3.invalidParams("Pi slash command is not admitted by Nexus Runner");
        const trimmed = message.trim();
        const space = trimmed.indexOf(" ");
        const cmd = space === -1 ? trimmed.slice(1) : trimmed.slice(1, space);
@@ -725,7 +725,7 @@
                status: "completed",
                content: bashTerminalContent(toolCallId),
 -              _meta: bashTerminalInfoMeta(toolCallId, params.cwd)
-+              _meta: { ...bashTerminalInfoMeta(toolCallId, params.cwd), paperclipPi: historical.provenance }
++              _meta: { ...bashTerminalInfoMeta(toolCallId, params.cwd), nexusPi: historical.provenance }
              }
            });
            await this.conn.sessionUpdate({
@@ -735,7 +735,7 @@
                  ...text2 ? bashTerminalOutputMeta(toolCallId, text2) : {},
 -                ...bashTerminalExitMeta(toolCallId, bashExitCode(m, isError))
 +                ...bashTerminalExitMeta(toolCallId, bashExitCode(m, isError)),
-+                paperclipPi: historical.provenance
++                nexusPi: historical.provenance
                }
              }
            });
@@ -743,7 +743,7 @@
              title: toolName,
              kind: toolName === "read" ? "read" : toolName === "write" || toolName === "edit" ? "edit" : "other",
              status: "completed",
-+            _meta: { paperclipPi: historical.provenance },
++            _meta: { nexusPi: historical.provenance },
              rawInput: null,
              rawOutput: m
            }
@@ -751,7 +751,7 @@
              sessionUpdate: "tool_call_update",
              toolCallId,
              status: isError ? "failed" : "completed",
-+            _meta: { paperclipPi: historical.provenance },
++            _meta: { nexusPi: historical.provenance },
              content: text ? [{ type: "content", content: { type: "text", text } }] : null,
              rawOutput: m
            }
@@ -855,7 +855,7 @@
    return 0;
  }
  function buildUpdateNotice() {
-+  if (process.env.PAPERCLIP_ACPX_ISOLATED_CONTEXT === "1") return null;
++  if (process.env.NEXUS_ACPX_ISOLATED_CONTEXT === "1") return null;
    try {
      const piVersion = spawnSync("pi", ["--version"], { encoding: "utf-8" });
      const installed = (String(piVersion.stdout ?? "").trim() || String(piVersion.stderr ?? "").trim()).replace(
@@ -863,7 +863,7 @@
    }
  }
  function buildStartupInfo(opts) {
-+  if (process.env.PAPERCLIP_ACPX_ISOLATED_CONTEXT === "1") return "";
++  if (process.env.NEXUS_ACPX_ISOLATED_CONTEXT === "1") return "";
    void opts.fileCommands;
    const md = [];
    try {
@@ -871,7 +871,7 @@
 
  // src/index.ts
  if (process.argv.includes("--terminal-login")) {
-+  throw new Error("Interactive Pi authentication is not available in Paperclip Runner");
++  throw new Error("Interactive Pi authentication is not available in Nexus Runner");
    const { spawnSync: spawnSync2 } = await import("child_process");
    const cmd = getPiCommand(process.env.PI_ACP_PI_COMMAND);
    const res = spawnSync2(cmd, [], {
@@ -890,8 +890,8 @@
    } catch {
    }
    try {
---- a/dist/paperclip-runtime.js
-+++ b/dist/paperclip-runtime.js
+--- a/dist/nexus-runtime.js
++++ b/dist/nexus-runtime.js
 @@ -0,0 +1,577 @@
 +/** Source for the helper embedded in patches/pi-acp@0.0.33.patch. */
 +import { createHash, randomUUID } from "node:crypto";
@@ -899,7 +899,7 @@
 +import { isAbsolute, relative, resolve, sep } from "node:path";
 +import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from "node:fs";
 +
-+const PERMISSION_PREFIX = "paperclip.pi.permission.v1:";
++const PERMISSION_PREFIX = "nexus.pi.permission.v1:";
 +const PERMISSION_CHOICES = [
 +  { optionId: "allow_once", name: "Allow once", kind: "allow_once" },
 +  { optionId: "allow_always", name: "Allow for this session", kind: "allow_always" },
@@ -1078,7 +1078,7 @@
 +        this.active = null;
 +      }
 +    }
-+    return { ...event, paperclipAssistantMessage: boundary };
++    return { ...event, nexusAssistantMessage: boundary };
 +  }
 +}
 +
@@ -1240,7 +1240,7 @@
 +    return !isAbsolute(suffix) && suffix !== ".." && !suffix.startsWith(`..${sep}`);
 +  };
 +  if (!within(root, logical) || !within(root, physical)) throw new Error("Pi diff escaped its workspace");
-+  for (const protectedPath of pathArray(environment.PAPERCLIP_PI_PROTECTED_ROOTS)) {
++  for (const protectedPath of pathArray(environment.NEXUS_PI_PROTECTED_ROOTS)) {
 +    if (within(protectedPath, logical)) throw new Error("Pi diff targets protected state");
 +    let protectedPhysical        ;
 +    try { protectedPhysical = realpathSync(protectedPath); } catch { continue; }
@@ -1262,15 +1262,15 @@
 +  params                                                               ,
 +  environment                   ,
 +)                                                                                           {
-+  if (environment.PAPERCLIP_ACPX_ISOLATED_CONTEXT !== "1") throw new Error("Pi requires an isolated runner launch");
-+  const command = requiredFile(environment, "PAPERCLIP_PI_NODE_EXECUTABLE");
-+  const entrypoint = requiredFile(environment, "PAPERCLIP_PI_ENTRYPOINT");
-+  const extension = requiredFile(environment, "PAPERCLIP_PI_EXTENSION_PATH");
-+  if (environment.PAPERCLIP_PI_READ_ONLY !== "0" && environment.PAPERCLIP_PI_READ_ONLY !== "1") throw new Error("Pi requires an explicit read-only policy");
-+  const readRoots = pathArray(environment.PAPERCLIP_PI_READ_ROOTS);
-+  const protectedRoots = pathArray(environment.PAPERCLIP_PI_PROTECTED_ROOTS);
++  if (environment.NEXUS_ACPX_ISOLATED_CONTEXT !== "1") throw new Error("Pi requires an isolated runner launch");
++  const command = requiredFile(environment, "NEXUS_PI_NODE_EXECUTABLE");
++  const entrypoint = requiredFile(environment, "NEXUS_PI_ENTRYPOINT");
++  const extension = requiredFile(environment, "NEXUS_PI_EXTENSION_PATH");
++  if (environment.NEXUS_PI_READ_ONLY !== "0" && environment.NEXUS_PI_READ_ONLY !== "1") throw new Error("Pi requires an explicit read-only policy");
++  const readRoots = pathArray(environment.NEXUS_PI_READ_ROOTS);
++  const protectedRoots = pathArray(environment.NEXUS_PI_PROTECTED_ROOTS);
 +  const workspace = realpathSync(params.cwd);
-+  const suppliedAgentHome = environment.PAPERCLIP_PI_AGENT_HOME;
++  const suppliedAgentHome = environment.NEXUS_PI_AGENT_HOME;
 +  let agentHome                    ;
 +  if (suppliedAgentHome !== undefined) {
 +    if (!isAbsolute(suppliedAgentHome) || /[\0\r\n]/.test(suppliedAgentHome) || suppliedAgentHome === "/" || !lstatSync(suppliedAgentHome).isDirectory() || realpathSync(suppliedAgentHome) !== suppliedAgentHome) throw new Error("Pi agent files require a canonical registered directory");
@@ -1279,14 +1279,14 @@
 +  const invocationNamespace = randomUUID();
 +  const configuration = JSON.stringify({
 +    invocationNamespace, workspace, servers: params.mcpServers ?? [],
-+    readOnly: environment.PAPERCLIP_PI_READ_ONLY === "1",
++    readOnly: environment.NEXUS_PI_READ_ONLY === "1",
 +    readRoots, protectedRoots,
 +    ...(agentHome ? { agentHome } : {}),
-+    instructions: environment.PAPERCLIP_PI_SYSTEM_INSTRUCTIONS ?? "",
++    instructions: environment.NEXUS_PI_SYSTEM_INSTRUCTIONS ?? "",
 +  });
 +  if (Buffer.byteLength(configuration) > 64 * 1024) throw new Error("Pi launch configuration exceeds its bound");
-+  const guard = environment.PAPERCLIP_PI_MODULE_GUARD_PATH === undefined ? []
-+    : ["--require", requiredFile(environment, "PAPERCLIP_PI_MODULE_GUARD_PATH")];
++  const guard = environment.NEXUS_PI_MODULE_GUARD_PATH === undefined ? []
++    : ["--require", requiredFile(environment, "NEXUS_PI_MODULE_GUARD_PATH")];
 +  const args = [...guard, entrypoint, "--mode", "rpc", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-approve", "--offline", "-e", extension];
 +  for (const root of readRoots) args.push("--skill", root);
 +  if (params.sessionPath) {
@@ -1298,7 +1298,7 @@
 +    if (!suffix || isAbsolute(suffix) || suffix === ".." || suffix.startsWith(`..${sep}`) || !lstatSync(params.sessionPath).isFile()) throw new Error("Pi session escaped its private home");
 +    args.push("--session", sessionPath);
 +  }
-+  const env                    = { ...environment, PAPERCLIP_PI_RUNTIME_CONFIGURATION: configuration };
++  const env                    = { ...environment, NEXUS_PI_RUNTIME_CONFIGURATION: configuration };
 +  // Ambient AGENT_HOME never grants filesystem authority. Only the runner's
 +  // authenticated working-copy binding reaches both the model and tool gate.
 +  if (agentHome) env.AGENT_HOME = agentHome; else delete env.AGENT_HOME;
@@ -1359,7 +1359,7 @@
 +        const input = record(permission.input);
 +        const result = record(await this.connection.requestPermission({
 +          sessionId: this.sessionId,
-+          toolCall: { toolCallId, _meta: { paperclipPi: { nativeToolCallId: text(permission.nativeToolCallId, 256), modelIteration: permission.modelIteration } }, title: `Pi ${toolName}`, kind: toolName === "bash" ? "execute" : ["write", "edit"].includes(toolName) ? "edit" : "read", status: "pending", rawInput: input },
++          toolCall: { toolCallId, _meta: { nexusPi: { nativeToolCallId: text(permission.nativeToolCallId, 256), modelIteration: permission.modelIteration } }, title: `Pi ${toolName}`, kind: toolName === "bash" ? "execute" : ["write", "edit"].includes(toolName) ? "edit" : "read", status: "pending", rawInput: input },
 +          options: PERMISSION_CHOICES,
 +        }));
 +        const outcome = record(result.outcome);
@@ -1379,7 +1379,7 @@
 +      const result = record(await this.connection.unstable_createElicitation({
 +        sessionId: this.sessionId, mode: "form", message: typeof event.message === "string" ? text(event.message) : title,
 +        requestedSchema: { type: "object", title, properties: { answer: property }, required: ["answer"] },
-+        _meta: { paperclipPi: { version: 1, requestId: id, method } },
++        _meta: { nexusPi: { version: 1, requestId: id, method } },
 +      }));
 +      if (result.action !== "accept") { await finish({ cancelled: true }); return; }
 +      const answer = record(result.content).answer;
@@ -1465,7 +1465,7 @@
 +
 +  response(stopReason                           )              {
 +    return {
-+      ...(this.observed ? { usage: { ...Object.fromEntries(Object.entries(this.total).filter(([name]) => !this.unknown.has(name                           ))), _meta: { paperclipPi: { provenance: this.compactionObserved ? "assistant_message_and_compaction_receipts" : "assistant_message_receipts", ...(this.costObserved && !this.costIncomplete ? { costUsd: this.cost, costSource: "pi_pricing_estimate" } : {}) } } } } : {}),
++      ...(this.observed ? { usage: { ...Object.fromEntries(Object.entries(this.total).filter(([name]) => !this.unknown.has(name                           ))), _meta: { nexusPi: { provenance: this.compactionObserved ? "assistant_message_and_compaction_receipts" : "assistant_message_receipts", ...(this.costObserved && !this.costIncomplete ? { costUsd: this.cost, costSource: "pi_pricing_estimate" } : {}) } } } } : {}),
 +      ...(this.failed && stopReason !== "cancelled" ? { _meta: { jetbrains: { air: { version: 1, sessionFailure: { severity: "error", category: "service", title: "Pi provider request failed" } } } } } : {}),
 +    };
 +  }

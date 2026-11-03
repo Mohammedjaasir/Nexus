@@ -16,7 +16,7 @@ import {
 } from "./composer-draft";
 
 describe("task draft upload receipts", () => {
-  const key = "paperclip:issue-comment-draft:task-one";
+  const key = "nexus:issue-comment-draft:task-one";
   const id = "9af8228f-0be7-45ae-a104-6fbe0af6f1d3";
   const receipt = {
     attachmentId: id,
@@ -86,8 +86,8 @@ describe("task draft upload receipts", () => {
   it.each([
     { label: "long task comment", draftKey: key, body: "a".repeat(300_000) },
     { label: "escaped task comment", draftKey: key, body: "\n".repeat(150_000) },
-    { label: "long chat comment", draftKey: "paperclip:agent-chat-draft:large", body: "a".repeat(300_000) },
-    { label: "escaped chat comment", draftKey: "paperclip:agent-chat-draft:large", body: "\n".repeat(150_000) },
+    { label: "long chat comment", draftKey: "nexus:agent-chat-draft:large", body: "a".repeat(300_000) },
+    { label: "escaped chat comment", draftKey: "nexus:agent-chat-draft:large", body: "\n".repeat(150_000) },
   ])("restores a large accepted request with its original key ($label)", ({ draftKey, body }) => {
     const request = { body };
     saveDraftSubmission(draftKey, { attemptId: id, reviewed: false, request, requestOwner: "user-1" });
@@ -98,7 +98,7 @@ describe("task draft upload receipts", () => {
 
   it("keeps chat drafts and pending submission fences within the current tab", () => {
     sessionStorage.clear();
-    const chatKey = "paperclip:agent-chat-draft:company:user:agent";
+    const chatKey = "nexus:agent-chat-draft:company:user:agent";
     saveDraft(chatKey, "My chat draft");
     saveDraftSubmission(chatKey, { attemptId: id, reviewed: false });
     expect(loadDraft(chatKey)).toBe("My chat draft");
@@ -172,7 +172,7 @@ describe("task draft upload receipts", () => {
 });
 
 describe("replayable comment requests", () => {
-  const key = "paperclip:issue-comment-draft:task-two";
+  const key = "nexus:issue-comment-draft:task-two";
   const id = "1c6ad4b0-7f55-4c1e-9d6a-2a3d2b1f4e10";
   beforeEach(() => localStorage.clear());
 

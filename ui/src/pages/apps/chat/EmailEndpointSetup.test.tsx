@@ -71,7 +71,7 @@ async function fill(selector: string, value: string) {
 
 describe("AgentMail two-step setup", () => {
   it("starts a fresh catalog connection without adopting a previous draft's key or email step", async () => {
-    sessionStorage.setItem("paperclip.agentmail-setup:company:new:ralph", JSON.stringify({
+    sessionStorage.setItem("nexus.agentmail-setup:company:new:ralph", JSON.stringify({
       connectionId: "old-inbox-key", step: 1, agentId: "ralph", requestId: crypto.randomUUID(),
       addressMode: "existing", inboxId: "locked@agentmail.to",
     }));
@@ -91,17 +91,17 @@ describe("AgentMail two-step setup", () => {
     const requestId = crypto.randomUUID();
     mocks.listInboxes.mockResolvedValue([{
       id: requestId, connectionId: "inbox-connection", assignedAgentId: "ralph",
-      address: "reserved@paperclip.example", status: "draft", receiveMode: "websocket",
+      address: "reserved@nexus.example", status: "draft", receiveMode: "websocket",
     }]);
     mocks.getConnection.mockResolvedValue({ config: { credentialConnectionId: "original-account" } });
     await mount(false, true, "", `&resume=${requestId}`);
     await vi.waitFor(() => expect(button("Finish connecting").disabled).toBe(false));
     expect(mocks.inspect).toHaveBeenCalledWith("company", "original-account");
-    expect(container.textContent).toContain("reserved@paperclip.example");
+    expect(container.textContent).toContain("reserved@nexus.example");
     expect(container.querySelector("#email-name")).toBeNull();
     await click("Finish connecting");
     expect(mocks.setup).toHaveBeenCalledWith("company", expect.objectContaining({
-      idempotencyKey: requestId, credentialConnectionId: "original-account", inboxId: "reserved@paperclip.example",
+      idempotencyKey: requestId, credentialConnectionId: "original-account", inboxId: "reserved@nexus.example",
     }));
     expect(mocks.connect).not.toHaveBeenCalled();
   });
@@ -116,7 +116,7 @@ describe("AgentMail two-step setup", () => {
 
   it("honors Finish setup when an older client saved a replacement under the original resume key", async () => {
     const requestId = crypto.randomUUID();
-    sessionStorage.setItem(`paperclip.agentmail-setup:company:${requestId}:ralph`, JSON.stringify({
+    sessionStorage.setItem(`nexus.agentmail-setup:company:${requestId}:ralph`, JSON.stringify({
       connectionId: "wrong-account", agentId: "someone-else", requestId: crypto.randomUUID(), username: "replacement",
     }));
     mocks.listInboxes.mockResolvedValue([{ id: requestId, connectionId: "original-inbox", assignedAgentId: "ralph", address: "original@agentmail.to", status: "draft", receiveMode: "websocket" }]);
@@ -151,16 +151,16 @@ describe("AgentMail two-step setup", () => {
       { id: "organization-account", label: "AgentMail account key", scope: "organization", createdAt: "2026-09-30T14:00:00Z" },
     ]);
     mocks.inspect.mockResolvedValue({ scope: { scope_type: "organization" }, inboxes: [],
-      domains: [{ domain: "paperclip.example", status: "VERIFIED" }] });
+      domains: [{ domain: "nexus.example", status: "VERIFIED" }] });
     await mount(false);
     await vi.waitFor(() => expect(container.querySelector<HTMLSelectElement>("select")?.value).toBe("organization-account"));
     expect(container.querySelector('input[type="password"]')).toBeNull();
     await click("Continue");
-    await vi.waitFor(() => expect(container.querySelector<HTMLSelectElement>("#email-domain")?.value).toBe("paperclip.example"));
+    await vi.waitFor(() => expect(container.querySelector<HTMLSelectElement>("#email-domain")?.value).toBe("nexus.example"));
     await fill("#email-name", "ralph-mail");
     await click("Create email address");
     expect(mocks.setup).toHaveBeenCalledWith("company", expect.objectContaining({
-      credentialConnectionId: "organization-account", username: "ralph-mail", domain: "paperclip.example",
+      credentialConnectionId: "organization-account", username: "ralph-mail", domain: "nexus.example",
     }));
     expect(mocks.connect).not.toHaveBeenCalled();
     expect(mocks.putInstalls).not.toHaveBeenCalled();
@@ -218,7 +218,7 @@ describe("AgentMail two-step setup", () => {
 
   it("keeps an already reserved inbox tied to its original account", async () => {
     const requestId = crypto.randomUUID();
-    sessionStorage.setItem("paperclip.agentmail-setup:company:account:ralph", JSON.stringify({
+    sessionStorage.setItem("nexus.agentmail-setup:company:account:ralph", JSON.stringify({
       connectionId: "account", agentId: "ralph", step: 1, requestId,
     }));
     mocks.inspect.mockResolvedValue({ scope: { scope_type: "inbox" }, inboxes: [{ inbox_id: "locked@agentmail.to" }], domains: [] });
@@ -234,7 +234,7 @@ describe("AgentMail two-step setup", () => {
 
   it("recovers an old locked draft at the key choice, with a new setup identity", async () => {
     const originalRequestId = crypto.randomUUID();
-    const draftKey = "paperclip.agentmail-setup:company:account:ralph";
+    const draftKey = "nexus.agentmail-setup:company:account:ralph";
     sessionStorage.setItem(draftKey, JSON.stringify({ connectionId: "account", agentId: "ralph", step: 1, requestId: originalRequestId }));
     mocks.inspect.mockImplementation(async (_company, id) => ({
       scope: { scope_type: id === "account" ? "inbox" : "organization" },
@@ -263,7 +263,7 @@ describe("AgentMail two-step setup", () => {
 
   it.each([false, true])("preserves an account switch from a resumed unallocated draft across refresh (%s cleanup failure)", async cleanupFails => {
     const requestId = crypto.randomUUID();
-    const draftKey = `paperclip.agentmail-setup:company:${requestId}:ralph`;
+    const draftKey = `nexus.agentmail-setup:company:${requestId}:ralph`;
     sessionStorage.setItem(draftKey, JSON.stringify({
       connectionId: "account", agentId: "ralph", step: 1, requestId,
     }));
@@ -344,11 +344,11 @@ describe("AgentMail two-step setup", () => {
   it("defaults to a verified custom domain beside the name and preserves an explicit selection on reload", async () => {
     mocks.inspect.mockResolvedValue({ scope: { scope_type: "organization" }, inboxes: [], domains: [
       { domain_id: "pending", domain: "pending.example", status: "PENDING" },
-      { domain_id: "custom", domain: "paperclip.example", status: "VERIFIED" },
+      { domain_id: "custom", domain: "nexus.example", status: "VERIFIED" },
     ] });
     await mount();
     await click("Continue");
-    await vi.waitFor(() => expect(container.querySelector<HTMLSelectElement>("#email-domain")?.value).toBe("paperclip.example"));
+    await vi.waitFor(() => expect(container.querySelector<HTMLSelectElement>("#email-domain")?.value).toBe("nexus.example"));
     expect(container.querySelector("#email-domain")?.closest("details")).toBeNull();
     expect(container.querySelector('option[value="pending.example"]')).toBeNull();
     await act(async () => {
@@ -373,7 +373,7 @@ describe("AgentMail two-step setup", () => {
     expect(button("Create email address").disabled).toBe(false);
   });
   it("restores saved progress after the company loads without overwriting the draft", async () => {
-    const key = "paperclip.agentmail-setup:company:account:ralph";
+    const key = "nexus.agentmail-setup:company:account:ralph";
     const requestId = crypto.randomUUID();
     const draft = JSON.stringify({ connectionId: "account", step: 1, agentId: "ralph", username: "ralph-team", requestId });
     sessionStorage.setItem(key, draft);
@@ -399,7 +399,7 @@ describe("AgentMail two-step setup", () => {
     expect(mocks.connect).not.toHaveBeenCalled();
     expect(mocks.putInstalls).not.toHaveBeenCalled();
     expect(mocks.setup).toHaveBeenCalledWith("company", expect.objectContaining({ assignedAgentId: "ralph", username: "ralph", domain: "agentmail.to", receiveMode: "websocket" }));
-    expect(sessionStorage.getItem("paperclip.agentmail-setup:company:account:ralph")).toBeNull();
+    expect(sessionStorage.getItem("nexus.agentmail-setup:company:account:ralph")).toBeNull();
   });
 
   it("shows a taken address beside the field, clears it on editing, and resumes the same request after reload", async () => {
@@ -431,12 +431,12 @@ describe("AgentMail two-step setup", () => {
     expect(container.querySelectorAll('input[type="password"]')).toHaveLength(1);
     expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(0);
     await fill('input[type="password"]', "private-test-key");
-    expect(sessionStorage.getItem("paperclip.agentmail-setup:company:new:ralph")).not.toContain("private-test-key");
+    expect(sessionStorage.getItem("nexus.agentmail-setup:company:new:ralph")).not.toContain("private-test-key");
     await click("Continue");
     await vi.waitFor(() => expect(container.querySelector("#email-name")).not.toBeNull());
     expect(mocks.connect).toHaveBeenCalledWith("company", expect.objectContaining({ apiKey: "private-test-key", grantKind: "organization", allAgents: false, agentIds: ["ralph"] }));
     expect(container.querySelector('input[type="password"]')).toBeNull();
-    expect(sessionStorage.getItem("paperclip.agentmail-setup:company:new:ralph")).not.toContain("private-test-key");
+    expect(sessionStorage.getItem("nexus.agentmail-setup:company:new:ralph")).not.toContain("private-test-key");
   });
 
   it("flags an address already present in the connected account before submission", async () => {
@@ -451,7 +451,7 @@ describe("AgentMail two-step setup", () => {
   });
 
   it("does not restore another requested agent's new-account draft", async () => {
-    sessionStorage.setItem("paperclip.agentmail-setup:company:new:ralph", JSON.stringify({
+    sessionStorage.setItem("nexus.agentmail-setup:company:new:ralph", JSON.stringify({
       agentId: "ralph", step: 1, connectionId: "ralph-account", username: "ralph", requestId: crypto.randomUUID(),
     }));
     mocks.listAgents.mockResolvedValue([
@@ -496,7 +496,7 @@ describe("AgentMail two-step setup", () => {
 
   it.each(["new", "existing"])("resumes its allocated %s inbox after a provider failure and reload", async addressMode => {
     const requestId = crypto.randomUUID();
-    sessionStorage.setItem("paperclip.agentmail-setup:company:account:ralph", JSON.stringify({
+    sessionStorage.setItem("nexus.agentmail-setup:company:account:ralph", JSON.stringify({
       connectionId: "account", agentId: "ralph", step: 1, username: "ralph", inboxId: "ralph@agentmail.to", addressMode, requestId,
     }));
     const endpoint = { id: requestId, assignedAgentId: "ralph", address: "ralph@agentmail.to", status: "draft" };
@@ -531,16 +531,16 @@ describe("AgentMail two-step setup", () => {
 
   it("lets a failed setup choose another address without deleting or reusing its allocated inbox", async () => {
     const requestId = crypto.randomUUID();
-    const draftKey = `paperclip.agentmail-setup:company:${requestId}:ralph`;
+    const draftKey = `nexus.agentmail-setup:company:${requestId}:ralph`;
     sessionStorage.setItem(draftKey, JSON.stringify({ connectionId: "account", agentId: "ralph", step: 1, requestId }));
-    mocks.listInboxes.mockResolvedValue([{ id: requestId, assignedAgentId: "ralph", address: "reserved@paperclip.example", status: "draft" }]);
-    mocks.inspect.mockResolvedValue({ scope: { scope_type: "organization" }, inboxes: [{ inbox_id: "reserved@paperclip.example" }], domains: [{ domain_id: "custom", domain: "paperclip.example", status: "VERIFIED" }] });
+    mocks.listInboxes.mockResolvedValue([{ id: requestId, assignedAgentId: "ralph", address: "reserved@nexus.example", status: "draft" }]);
+    mocks.inspect.mockResolvedValue({ scope: { scope_type: "organization" }, inboxes: [{ inbox_id: "reserved@nexus.example" }], domains: [{ domain_id: "custom", domain: "nexus.example", status: "VERIFIED" }] });
     await mount(true, true, "ralph", `&resume=${requestId}`);
     await vi.waitFor(() => expect(button("Finish connecting").disabled).toBe(false));
     await click("Choose a different address");
     expect(container.querySelector<HTMLInputElement>("#email-name")?.readOnly).toBe(false);
     expect(container.querySelector<HTMLSelectElement>("#email-domain")?.disabled).toBe(false);
-    expect(container.querySelector<HTMLSelectElement>("#email-domain")?.value).toBe("paperclip.example");
+    expect(container.querySelector<HTMLSelectElement>("#email-domain")?.value).toBe("nexus.example");
     await fill("#email-name", "another-address");
     const nextSearch = container.querySelector('[data-testid="location"]')!.getAttribute("data-search")!;
     const nextRequestId = new URLSearchParams(nextSearch).get("setupId")!;
@@ -552,7 +552,7 @@ describe("AgentMail two-step setup", () => {
     await mount(true, true, "ralph", `&setupId=${nextRequestId}`);
     await click("Create email address");
     expect(mocks.setup).toHaveBeenLastCalledWith("company", expect.objectContaining({
-      username: "another-address", domain: "paperclip.example", idempotencyKey: nextRequestId,
+      username: "another-address", domain: "nexus.example", idempotencyKey: nextRequestId,
     }));
     expect(mocks.control).not.toHaveBeenCalled();
     await act(async () => root.unmount());
@@ -562,7 +562,7 @@ describe("AgentMail two-step setup", () => {
     await vi.waitFor(() => expect(button("Finish connecting").disabled).toBe(false));
     await click("Finish connecting");
     expect(mocks.setup).toHaveBeenLastCalledWith("company", expect.objectContaining({
-      inboxId: "reserved@paperclip.example", idempotencyKey: requestId,
+      inboxId: "reserved@nexus.example", idempotencyKey: requestId,
     }));
   });
 

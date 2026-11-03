@@ -32,14 +32,14 @@ import { writePluginJobChange, type PluginJobDatabase } from "./plugin-job-work-
  */
 
 import { and, desc, eq, inArray } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { plugins, pluginJobs, pluginJobRuns } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { plugins, pluginJobs, pluginJobRuns } from "@nexusai/db";
 import type {
   PluginJobDeclaration,
   PluginJobRunStatus,
   PluginJobRunTrigger,
   PluginJobRecord,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { notFound } from "../errors.js";
 
 /**

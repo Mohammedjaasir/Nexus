@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { validateCron } from "./cron.js";
 
 const processGeneration = randomUUID();

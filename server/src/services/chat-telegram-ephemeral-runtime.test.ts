@@ -22,7 +22,7 @@ const persistence: ChatSdkStatePersistence = {
 
 function request(payload: unknown, secret = "synthetic-webhook-secret") {
   return new Request(
-    "https://paperclip.example/api/chat-webhooks/test/telegram",
+    "https://nexus.example/api/chat-webhooks/test/telegram",
     {
       method: "POST",
       headers: {

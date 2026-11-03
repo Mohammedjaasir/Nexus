@@ -68,7 +68,7 @@ describe("AppErrorBoundary", () => {
       );
     });
 
-    expect(container.textContent).toContain("Paperclip hit an error");
+    expect(container.textContent).toContain("Nexus hit an error");
     expect(container.textContent).toContain("Maximum update depth exceeded");
 
     expect(captureBrowserExceptionMock).toHaveBeenCalledTimes(1);
@@ -87,7 +87,7 @@ describe("AppErrorBoundary", () => {
   });
 
   it("reloads once for a failed lazy chunk, then shows the prompt if it fails again", async () => {
-    const chunkError = () => new Error("Failed to fetch dynamically imported module: https://paperclip.example/assets/layout.js");
+    const chunkError = () => new Error("Failed to fetch dynamically imported module: https://nexus.example/assets/layout.js");
     const root = createRoot(container);
     const FailedLayout = lazy(async () => { throw chunkError(); });
     await act(async () => {
@@ -95,7 +95,7 @@ describe("AppErrorBoundary", () => {
     });
     expect(reloadMock).toHaveBeenCalledTimes(1);
     expect(captureBrowserExceptionMock).not.toHaveBeenCalled();
-    expect(container.querySelector('[role="status"]')?.textContent).toContain("Reloading Paperclip");
+    expect(container.querySelector('[role="status"]')?.textContent).toContain("Reloading Nexus");
     act(() => root.unmount());
 
     chunkRecovery.current = createChunkLoadRecovery({ reload: reloadMock });
@@ -106,7 +106,7 @@ describe("AppErrorBoundary", () => {
     });
     expect(reloadMock).toHaveBeenCalledTimes(1);
     expect(captureBrowserExceptionMock).toHaveBeenCalledTimes(1);
-    expect(container.textContent).toContain("Paperclip hit an error");
+    expect(container.textContent).toContain("Nexus hit an error");
     act(() => nextRoot.unmount());
   });
 
@@ -115,7 +115,7 @@ describe("AppErrorBoundary", () => {
     try {
       const root = createRoot(container);
       const FailedLayout = lazy(async () => {
-        throw new Error("Failed to fetch dynamically imported module: https://paperclip.example/assets/layout.js");
+        throw new Error("Failed to fetch dynamically imported module: https://nexus.example/assets/layout.js");
       });
       await act(async () => {
         root.render(<AppErrorBoundary><Suspense fallback={null}><FailedLayout /></Suspense></AppErrorBoundary>);
@@ -124,7 +124,7 @@ describe("AppErrorBoundary", () => {
       expect(captureBrowserExceptionMock).not.toHaveBeenCalled();
 
       act(() => { vi.advanceTimersByTime(RELOAD_ABANDONED_MS); });
-      expect(container.textContent).toContain("Paperclip hit an error");
+      expect(container.textContent).toContain("Nexus hit an error");
       expect(captureBrowserExceptionMock).toHaveBeenCalledTimes(1);
       act(() => root.unmount());
     } finally {
@@ -142,7 +142,7 @@ describe("AppErrorBoundary", () => {
       );
     });
 
-    expect(container.textContent).toContain("Paperclip hit an error");
+    expect(container.textContent).toContain("Nexus hit an error");
     expect(container.textContent).toContain("effect exploded");
 
     act(() => {
@@ -182,7 +182,7 @@ describe("AppErrorBoundary", () => {
       expect.objectContaining({ name: "NotFoundError" }),
       { boundary: "app", componentStack: expect.stringContaining("BrokenDomInsertion") },
     );
-    expect(container.textContent).toContain("Paperclip hit an error");
+    expect(container.textContent).toContain("Nexus hit an error");
     act(() => root.unmount());
   });
 

@@ -1,5 +1,5 @@
 import { and, asc, eq, exists, gt, inArray, or, sql } from "drizzle-orm";
-import { environmentLeases, heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db } from "@paperclipai/db";
+import { environmentLeases, heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db } from "@nexusai/db";
 import type { ProviderResourceDisposition } from "../environment-runtime.js";
 import { nextRunLeaseReleaseAt, pendingRunLeaseReleaseCondition } from "../environment-lease-release-state.js";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";

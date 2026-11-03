@@ -181,10 +181,10 @@ export async function openDaytonaDuplexChannelSession(
   let buffered: Buffer = Buffer.alloc(0);
 
   const diagnosticsPath =
-    options?.diagnosticsPath ?? `/tmp/paperclip-duplex-${randomUUID()}.log`;
+    options?.diagnosticsPath ?? `/tmp/nexus-duplex-${randomUUID()}.log`;
 
   const handle = await process.createPty({
-    id: `paperclip-duplex-${randomUUID()}`,
+    id: `nexus-duplex-${randomUUID()}`,
     ...(options?.cwd ? { cwd: options.cwd } : {}),
     cols: DUPLEX_CHANNEL_PTY_COLS,
     rows: DUPLEX_CHANNEL_PTY_ROWS,

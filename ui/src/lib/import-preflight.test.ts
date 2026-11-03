@@ -15,7 +15,7 @@ const megabyte = 1024 * 1024;
 describe("import preflight", () => {
   it("recognizes blob store paths at the package root only", () => {
     expect(isBlobStoreFilePath("blobs/4f2d1c9a")).toBe(true);
-    expect(isBlobStoreFilePath("paperclip-demo/blobs/4f2d1c9a")).toBe(true);
+    expect(isBlobStoreFilePath("nexus-demo/blobs/4f2d1c9a")).toBe(true);
     expect(isBlobStoreFilePath("tasks/pap-1/TASK.md")).toBe(false);
     expect(isBlobStoreFilePath("blobs/nested/file")).toBe(false);
   });

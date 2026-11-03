@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { expect, it } from "vitest";
 import request from "supertest";
-import { agents, heartbeatRuns, issueRecoveryActions, issueRelations, issues, statusCards } from "@paperclipai/db";
-import { companySearchQuerySchema, createIssueSchema, PROVIDER_QUOTA_MONITOR_SERVICE_NAME } from "@paperclipai/shared";
+import { agents, heartbeatRuns, issueRecoveryActions, issueRelations, issues, statusCards } from "@nexusai/db";
+import { companySearchQuerySchema, createIssueSchema, PROVIDER_QUOTA_MONITOR_SERVICE_NAME } from "@nexusai/shared";
 import { issueDisplayStatusSql } from "../services/issue-display-status.js";
 import { issueService } from "../services/issues.js";
 import { companySearchService } from "../services/company-search.js";
@@ -15,7 +15,7 @@ import {
 } from "./helpers/route-test-harness.js";
 
 describeEmbeddedPostgres("Monitoring task presentation", () => {
-  const ctx = useEmbeddedPostgres("paperclip-monitoring-status-", {
+  const ctx = useEmbeddedPostgres("nexus-monitoring-status-", {
     resetEach: async (db) => { await db.execute(sql`SET client_min_messages = warning`); await db.execute(sql`TRUNCATE TABLE companies CASCADE`); },
   });
 

@@ -57,10 +57,10 @@ import type {
   ResolvedWorkspaceResource,
   WorkspaceFileContent,
   WorkspaceFileSelector,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
-const FILE_VIEWER_LABELLED_BY_ID = "paperclip-file-viewer-title";
-const FILE_VIEWER_DESCRIBED_BY_ID = "paperclip-file-viewer-description";
+const FILE_VIEWER_LABELLED_BY_ID = "nexus-file-viewer-title";
+const FILE_VIEWER_DESCRIBED_BY_ID = "nexus-file-viewer-description";
 const MIN_FILE_TREE_WIDTH = 220;
 const MAX_FILE_TREE_WIDTH = 520;
 
@@ -346,7 +346,7 @@ export function FileContentViewer({ content, highlightedLine, onLoaded, previewM
       role="region"
       aria-label={`${resource.title} source`}
       tabIndex={0}
-      className="paperclip-file-viewer-code flex-1 overflow-auto bg-(--code-bg-resolved) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      className="nexus-file-viewer-code flex-1 overflow-auto bg-(--code-bg-resolved) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
     >
       <pre className="m-0 font-mono text-xs leading-5">
         {lines.map((lineText, index) => {

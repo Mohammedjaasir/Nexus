@@ -3,8 +3,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { executionWorkspaces, issues, projects, projectWorkspaces } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { executionWorkspaces, issues, projects, projectWorkspaces } from "@nexusai/db";
 import type {
   NormalizedWorkspaceFileAvailabilityQuery,
   ResolvedWorkspaceResource,
@@ -19,7 +19,7 @@ import type {
   WorkspaceFileSelector,
   WorkspaceFileWorkspaceKind,
   WorkspaceFileSource,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import type { RemoteWorkspaceFiles, RemoteWorkspaceFileAccess, RemoteWorkspaceFileEntry } from "./remote-workspace-files.js";
 import { HttpError, notFound, unprocessable } from "../errors.js";
 import {
@@ -48,7 +48,7 @@ export interface WorkspaceFileScanContext {
 
 const DENIED_SEGMENTS = new Set([
   ".git",
-  ".paperclip",
+  ".nexus",
   "node_modules",
   ".pnpm-store",
   ".yarn",

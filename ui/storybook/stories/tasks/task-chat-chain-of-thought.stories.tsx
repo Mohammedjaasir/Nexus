@@ -163,7 +163,7 @@ const meta = {
   title: "Tasks and conversations/Task creation and lifecycle/Tasks/Task chat review fixes",
   component: ChainOfThoughtReview,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "tasks/discussion",
         "runs-adapters/runs"

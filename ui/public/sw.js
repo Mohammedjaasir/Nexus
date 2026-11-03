@@ -4,10 +4,10 @@
 // browser install a new worker, which — via skipWaiting + controllerchange —
 // reloads parked tabs onto the fresh bundle. Left as the literal placeholder in
 // dev, where HMR (not the worker) drives refreshes.
-const BUILD_ID = "__PAPERCLIP_BUILD_ID__";
-const OFFLINE_STYLES = "__PAPERCLIP_OFFLINE_STYLES__";
+const BUILD_ID = "__NEXUS_BUILD_ID__";
+const OFFLINE_STYLES = "__NEXUS_OFFLINE_STYLES__";
 // Separate this allowlisted cache from older workers that cached arbitrary URLs.
-const CACHE_NAME = `paperclip-public-assets-${BUILD_ID}`;
+const CACHE_NAME = `nexus-public-assets-${BUILD_ID}`;
 const privateRequests = new Set();
 const privateCacheControl = /(?:^|,)\s*(?:no-store|private)(?:\s*(?:,|=)|\s*$)/i;
 
@@ -16,12 +16,12 @@ function offlineNavigationResponse() {
   return new Response(`<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark"><title>Paperclip is offline</title>
+<meta name="color-scheme" content="dark"><title>Nexus is offline</title>
 <style>${OFFLINE_STYLES}</style></head>
-<body class="paperclip-offline"><main aria-labelledby="offline-title">
-<div class="paperclip-offline-message">
-<div class="paperclip-offline-identity">
-<svg class="paperclip-offline-character" aria-hidden="true" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg">
+<body class="nexus-offline"><main aria-labelledby="offline-title">
+<div class="nexus-offline-message">
+<div class="nexus-offline-identity">
+<svg class="nexus-offline-character" aria-hidden="true" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <linearGradient id="cliplab-e0abb94d-3507-4338-9704-4a0b0c63dfde-body-gradient" gradientUnits="userSpaceOnUse" color-interpolation="linearRGB" x1="52.54562" y1="529.74149" x2="838.98378" y2="632.13774">
 <stop stop-color="var(--offline-character-outer-start)"/>
@@ -67,7 +67,7 @@ function offlineNavigationResponse() {
 </g>
 </g>
 </svg>
-<h1 id="offline-title">Paperclip is offline</h1>
+<h1 id="offline-title">Nexus is offline</h1>
 </div>
 <p>Check your connection, then reload this page to try again.</p>
 </div>

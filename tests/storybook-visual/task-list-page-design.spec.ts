@@ -300,7 +300,7 @@ test("board has one horizontal scroll owner and fades only its clipped edges", a
 
 test("production organization switcher changes selection without leaking task fixtures", async ({ page }, testInfo) => {
   await openPage(page);
-  await page.getByRole("button", { name: "Open Paperclip Storybook organization switcher", exact: true }).click();
+  await page.getByRole("button", { name: "Open Nexus Storybook organization switcher", exact: true }).click();
   await expect(page.getByText("Organizations", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Edit", exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("task-list-organization-menu.png"), fullPage: true });
@@ -309,7 +309,7 @@ test("production organization switcher changes selection without leaking task fi
   await expect(rows(page)).toHaveCount(0);
   await expect(page.getByText("No tasks in this organization", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Open Research Bureau organization switcher", exact: true }).click();
-  await page.getByRole("menuitem", { name: /Paperclip Storybook/ }).click();
+  await page.getByRole("menuitem", { name: /Nexus Storybook/ }).click();
   await expect(rows(page)).toHaveCount(10);
 });
 
@@ -344,7 +344,7 @@ test("production account menu fits profile, settings, Invite and theme actions",
 test("organization, account, Views and Columns share the refreshed flyout appearance", async ({ page }, testInfo) => {
   await openPage(page);
   const scenarios = [
-    { trigger: "Open Paperclip Storybook organization switcher", role: "menu", name: /organization switcher/, option: /Research Bureau/, optionRole: "menuitem", screenshot: "flyout-organizations" },
+    { trigger: "Open Nexus Storybook organization switcher", role: "menu", name: /organization switcher/, option: /Research Bureau/, optionRole: "menuitem", screenshot: "flyout-organizations" },
     { trigger: "Open account menu", role: "dialog", name: "Account", option: "Settings", optionRole: "link", screenshot: "flyout-account" },
     // Radix names this menu from its trigger, so the accessible name changes with the selected view.
     { trigger: "Task view: All tasks", role: "menu", name: undefined, option: "Unread", optionRole: "menuitemradio", screenshot: "flyout-views" },
@@ -385,7 +385,7 @@ test("organization, account, Views and Columns share the refreshed flyout appear
 
 test("separate sidebar search target opens the production global palette", async ({ page }) => {
   await openPage(page);
-  const organization = page.getByRole("button", { name: "Open Paperclip Storybook organization switcher", exact: true });
+  const organization = page.getByRole("button", { name: "Open Nexus Storybook organization switcher", exact: true });
   const search = page.getByRole("button", { name: "Global search", exact: true });
   await expect(organization.locator("svg.lucide-chevrons-up-down")).toHaveCount(0);
   const organizationBounds = (await organization.boundingBox())!;
@@ -404,7 +404,7 @@ test("separate sidebar search target opens the production global palette", async
 test("sidebar truncated labels share the table marquee and fade without extra tab stops", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await openPage(page);
-  const organization = page.getByRole("button", { name: "Open Paperclip Storybook organization switcher", exact: true });
+  const organization = page.getByRole("button", { name: "Open Nexus Storybook organization switcher", exact: true });
   const label = organization.locator("[data-cell-marquee]");
   const recent = page.locator(".design-sidebar-recents a").first().locator("[data-cell-marquee]");
   for (const text of [label, recent]) {

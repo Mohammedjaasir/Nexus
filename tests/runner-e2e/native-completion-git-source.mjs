@@ -61,12 +61,12 @@ export function inspectNativeCompletionBuildHydration(repositoryRoot) {
   return { present: true, verified: errors.length === 0, archiveSha256, checksumSha256, errors };
 }
 
-export const NATIVE_COMPLETION_RUNNERD_PATH = "packages/paperclip-runner/runner/target/debug/paperclip-runnerd";
+export const NATIVE_COMPLETION_RUNNERD_PATH = "packages/nexus-runner/runner/target/debug/nexus-runnerd";
 /** Mirror the production default selector, and reject staged binaries that would take precedence. */
 export function inspectNativeCompletionRunnerd({ repositoryRoot, sourceSha, sourceFingerprint, environment }) {
   const errors = [], hosted = environment.GITHUB_ACTIONS === "true";
   const selectedPath = `${NATIVE_COMPLETION_RUNNERD_PATH}${process.platform === "win32" ? ".exe" : ""}`;
-  const staged = join(repositoryRoot, `packages/paperclip-runner/dist/bin/paperclip-runnerd${process.platform === "win32" ? ".exe" : ""}`);
+  const staged = join(repositoryRoot, `packages/nexus-runner/dist/bin/nexus-runnerd${process.platform === "win32" ? ".exe" : ""}`);
   let binarySha256 = null, binaryBytes = null, archiveSha256 = null, archiveMemberBytes = null;
   try {
     try { lstatSync(staged); throw new Error("staged dist/bin runnerd would override the admitted debug executable"); }
@@ -81,7 +81,7 @@ export function inspectNativeCompletionRunnerd({ repositoryRoot, sourceSha, sour
     binaryBytes = stat.size;
     binarySha256 = archiveDigest(binary);
     if (hosted) {
-      if (environment.PAPERCLIP_RUNNER_E2E_SOURCE_SHA !== sourceSha || !/^[a-f0-9]{40}$/.test(sourceSha ?? ""))
+      if (environment.NEXUS_RUNNER_E2E_SOURCE_SHA !== sourceSha || !/^[a-f0-9]{40}$/.test(sourceSha ?? ""))
         throw new Error("trusted hosted target SHA does not match admitted Git HEAD");
       if (![environment.GITHUB_RUN_ID, environment.GITHUB_RUN_ATTEMPT].every(value => typeof value === "string" && value === value.trim() && /^[1-9]\d*$/.test(value)))
         throw new Error("trusted hosted workflow run and attempt are unavailable");
@@ -116,7 +116,7 @@ export function inspectNativeCompletionRunnerd({ repositoryRoot, sourceSha, sour
       if (archiveDigest(archive) !== archiveSha256) throw new Error("hosted build archive changed during runnerd verification");
     }
   } catch (error) { errors.push(`runnerd provenance ${error.message}`); }
-  return { schema: "paperclip.native-completion-runnerd-provenance.v1", mode: hosted ? "trusted_hosted_archive" : "fresh_local_build",
+  return { schema: "nexus.native-completion-runnerd-provenance.v1", mode: hosted ? "trusted_hosted_archive" : "fresh_local_build",
     passed: errors.length === 0, selectedPath, binarySha256, binaryBytes, archiveMemberBytes, sourceSha, sourceFingerprint, archiveSha256,
     workflowRunId: hosted ? environment.GITHUB_RUN_ID ?? null : null,
     workflowRunAttempt: hosted ? environment.GITHUB_RUN_ATTEMPT ?? null : null,
@@ -157,7 +157,7 @@ export function inspectNativeCompletionSourceMetadata({ repositoryRoot, sourceFi
   errors.push(...hydration.errors);
   const immutable = tracked.status === 0 && clean.status === 0 && status.status === 0 && unexpected.length === 0 &&
     (!hydration.present || hydration.verified);
-  const metadata = { schema: "paperclip.native-completion-source-metadata.v1",
+  const metadata = { schema: "nexus.native-completion-source-metadata.v1",
     lineage: { strategy, shallow: isShallow, sha, baseSha, anchor: strategy === "shallow_immediate_parent_anchor" ? anchor : null },
     hydration: { present: hydration.present, verified: hydration.verified, archiveSha256: hydration.archiveSha256, checksumSha256: hydration.checksumSha256 },
     worktreeEntries: entries, errors };

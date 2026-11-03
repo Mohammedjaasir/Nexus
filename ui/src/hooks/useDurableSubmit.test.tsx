@@ -32,7 +32,7 @@ const isPayload = (value: unknown): value is Payload =>
 const KEY = "test:pending-send";
 /** Mounted without a QueryClientProvider, records belong to the detached owner. */
 const STORED_KEY = pendingSendKeyFor(KEY, DETACHED_DRAFT_OWNER);
-const outage = () => new ApiError("Paperclip is restarting", 503, { error: "tenant_app_unavailable" });
+const outage = () => new ApiError("Nexus is restarting", 503, { error: "tenant_app_unavailable" });
 
 /**
  * A server that dedupes by idempotency key, like `clientRequestId` on comments:

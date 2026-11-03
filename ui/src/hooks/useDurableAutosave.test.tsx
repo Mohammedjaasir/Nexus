@@ -18,7 +18,7 @@ import { autosaveLabel, useDurableAutosave, type DurableAutosave, type DurableAu
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const outage = () => new ApiError("Paperclip is restarting", 503, { error: "tenant_app_unavailable" });
+const outage = () => new ApiError("Nexus is restarting", 503, { error: "tenant_app_unavailable" });
 const conflict = () => new ApiError("Document was updated by someone else", 409, { error: "Document was updated by someone else" });
 
 describe("useDurableAutosave", () => {

@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { isAcknowledgedNativeReassignmentStop, isAcknowledgedNativeStop } from "./acknowledged-native-stop.js";
 const run = { id: "run", companyId: "company", nativeIssueId: "issue", status: "cancelled", resultJson: {
   cancelledByActorType: "user", cancelledByUserId: "board", nativeCancellation: {
-    schema: "paperclip.native-cancellation.v1", runId: "run", companyId: "company", issueId: "issue",
+    schema: "nexus.native-cancellation.v1", runId: "run", companyId: "company", issueId: "issue",
     scope: "run", reasonCode: "cancellation_run_only", dispatchState: "acknowledged", dispatched: true,
     intentAuditId: "intent", acknowledgementAuditId: "ack",
   },

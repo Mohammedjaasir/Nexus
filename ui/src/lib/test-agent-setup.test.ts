@@ -8,7 +8,7 @@ vi.mock("../api/agents", () => ({ agentsApi: { testEnvironment } }));
 const input = {
   companyId: "company-1",
   agentId: "agent-1",
-  adapterType: "paperclip_runner",
+  adapterType: "nexus_runner",
   providerAdapter: "claude_local",
   environmentId: "sandbox-1",
   adapterConfig: {
@@ -24,7 +24,7 @@ const input = {
   },
 };
 const ready = {
-  adapterType: "paperclip_runner",
+  adapterType: "nexus_runner",
   status: "pass",
   testedAt: "now",
   checks: [{ code: "runtime", level: "info", message: "Ready" }],
@@ -60,7 +60,7 @@ it("does not report a connection when runtime readiness passes but provider auth
     });
   const result = await testAgentSetup(input);
   expect(result.status).toBe("fail");
-  expect(result.adapterType).toBe("paperclip_runner");
+  expect(result.adapterType).toBe("nexus_runner");
   expect(testEnvironment).toHaveBeenLastCalledWith(
     "company-1",
     "claude_local",
@@ -85,7 +85,7 @@ it("probes native Grok credentials with the pinned prerequisite in the selected 
   });
   expect(testEnvironment).toHaveBeenLastCalledWith("company-1", "grok_local", {
     agentId: "agent-1", environmentId: "sandbox-1", runner: "legacy",
-    adapterConfig: { provider: "acpx", acpxAgent: "grok", model: "grok-4.7", engine: "cli", command: "/opt/paperclip/providers/grok/1.0.13/grok" },
+    adapterConfig: { provider: "acpx", acpxAgent: "grok", model: "grok-4.7", engine: "cli", command: "/opt/nexus/providers/grok/1.0.13/grok" },
   });
   expect(result.checks.some((check) => check.code === "grok_hello_probe_passed")).toBe(true);
 });
@@ -120,9 +120,9 @@ it("preserves runtime warnings after a successful provider request", async () =>
 
 it("keeps the resolved native identity and explicitly bounds the supplementary Codex CLI probe to legacy", async () => {
   testEnvironment.mockResolvedValueOnce(ready).mockResolvedValueOnce({ ...ready, adapterType: "codex_local" });
-  const result = await testAgentSetup({ ...input, adapterType: "codex_local", providerAdapter: "codex_local", runner: "paperclip" });
-  expect(result.adapterType).toBe("paperclip_runner");
-  expect(testEnvironment.mock.calls[0][2].runner).toBe("paperclip");
+  const result = await testAgentSetup({ ...input, adapterType: "codex_local", providerAdapter: "codex_local", runner: "nexus" });
+  expect(result.adapterType).toBe("nexus_runner");
+  expect(testEnvironment.mock.calls[0][2].runner).toBe("nexus");
   expect(testEnvironment.mock.calls[1][2].runner).toBe("legacy");
 });
 

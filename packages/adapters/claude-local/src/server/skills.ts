@@ -4,13 +4,13 @@ import { fileURLToPath } from "node:url";
 import type {
   AdapterSkillContext,
   AdapterSkillSnapshot,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import {
   buildRuntimeMountedSkillSnapshot,
-  readPaperclipRuntimeSkillEntries,
+  readNexusRuntimeSkillEntries,
   readInstalledSkillTargets,
-  resolveLegacyPaperclipDesiredSkillNames,
-} from "@paperclipai/adapter-utils/server-utils";
+  resolveLegacyNexusDesiredSkillNames,
+} from "@nexusai/adapter-utils/server-utils";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,18 +29,18 @@ function resolveClaudeSkillsHome(config: Record<string, unknown>) {
 }
 
 async function buildClaudeSkillSnapshot(config: Record<string, unknown>): Promise<AdapterSkillSnapshot> {
-  const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
-  const desiredSkills = resolveLegacyPaperclipDesiredSkillNames(config, availableEntries);
+  const availableEntries = await readNexusRuntimeSkillEntries(config, __moduleDir);
+  const desiredSkills = resolveLegacyNexusDesiredSkillNames(config, availableEntries);
   const skillsHome = resolveClaudeSkillsHome(config);
   const installed = await readInstalledSkillTargets(skillsHome);
   return buildRuntimeMountedSkillSnapshot({
     adapterType: "claude_local",
     availableEntries,
     desiredSkills,
-    configuredDetail: "Will be materialized into the stable Paperclip-managed Claude prompt bundle on the next run.",
+    configuredDetail: "Will be materialized into the stable Nexus-managed Claude prompt bundle on the next run.",
     externalInstalled: installed,
     externalLocationLabel: "~/.claude/skills",
-    externalDetail: "Installed outside Paperclip management in the Claude skills home.",
+    externalDetail: "Installed outside Nexus management in the Claude skills home.",
     skillsHome,
   });
 }
@@ -60,5 +60,5 @@ export function resolveClaudeDesiredSkillNames(
   config: Record<string, unknown>,
   availableEntries: Array<{ key: string; required?: boolean }>,
 ) {
-  return resolveLegacyPaperclipDesiredSkillNames(config, availableEntries);
+  return resolveLegacyNexusDesiredSkillNames(config, availableEntries);
 }

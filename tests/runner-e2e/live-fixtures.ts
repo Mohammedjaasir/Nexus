@@ -147,7 +147,7 @@ export async function waitForFixtureDaytonaProvider(
   api: Pick<RunnerApi, "get">,
   input: { companyId: string; deadlineAt: number },
 ): Promise<void> {
-  const pluginKey = "paperclip.daytona-sandbox-provider";
+  const pluginKey = "nexus.daytona-sandbox-provider";
   const timeout = () => {
     const remaining = input.deadlineAt - Date.now();
     if (remaining <= 0) throw new Error("Daytona fixture readiness deadline expired");
@@ -289,7 +289,7 @@ export async function setupLiveFixtures(input: {
       const company = value<CompanyRecord>(resolved, "company");
       const secretRefs = value<SecretReferenceMap>(resolved, "secrets");
       if (execution.environment.id === "local") {
-        // Paperclip has one instance-managed local environment. The company
+        // Nexus has one instance-managed local environment. The company
         // creation API ensures it exists; creating a second local environment
         // is intentionally rejected by the public API.
         const environments = await api.get<EnvironmentRecord[]>(
@@ -300,7 +300,7 @@ export async function setupLiveFixtures(input: {
         );
         if (!local)
           throw new Error(
-            "Isolated Paperclip instance did not create its managed local environment",
+            "Isolated Nexus instance did not create its managed local environment",
           );
         return local;
       }
@@ -322,11 +322,11 @@ export async function setupLiveFixtures(input: {
 
   const managedHiring = isManagedHiringCase(execution.suite.id, execution.task.id);
   const savedCopilot = execution.profile.qualificationCandidate === "copilot";
-  const gatewayUrl = process.env.PAPERCLIP_E2E_GATEWAY_BASE_URL;
-  const gatewayToken = process.env.PAPERCLIP_E2E_GATEWAY_TOKEN;
+  const gatewayUrl = process.env.NEXUS_E2E_GATEWAY_BASE_URL;
+  const gatewayToken = process.env.NEXUS_E2E_GATEWAY_TOKEN;
   const budgetedGateway = Boolean(gatewayUrl || gatewayToken);
   if (budgetedGateway && (!gatewayUrl || !gatewayToken || !(execution.environment.id === "local" ? /^http:\/\/127\.0\.0\.1:[0-9]+$/.test(gatewayUrl)
-        : isEvalRemoteOrigin(gatewayUrl) && gatewayUrl === process.env.PAPERCLIP_E2E_REMOTE_GATEWAY_ORIGIN)
+        : isEvalRemoteOrigin(gatewayUrl) && gatewayUrl === process.env.NEXUS_E2E_REMOTE_GATEWAY_ORIGIN)
       || !["local", "daytona"].includes(execution.environment.id) || !["core-compatibility", "feedback-persistence"].includes(execution.suite.id))) throw new Error("Unqualified fixture gateway route");
   if (managedHiring || savedCopilot || budgetedGateway) {
     registry.register<ManagedAccountFixture>({
@@ -387,7 +387,7 @@ export async function setupLiveFixtures(input: {
         executionId: input.executionNonce,
       });
       const autoCodex = agent.adapterType === "codex_local" && (agent.runner === undefined || agent.runner === "auto");
-      const nativeCodex = agent.adapterType === "paperclip_runner" && (agent.adapterConfig as Record<string, unknown>).provider === "codex";
+      const nativeCodex = agent.adapterType === "nexus_runner" && (agent.adapterConfig as Record<string, unknown>).provider === "codex";
       if (environment.driver === "sandbox" && execution.profile.generation === "native"
         && execution.profile.provider === "codex" && agent.runner !== "legacy" && (autoCodex || nativeCodex)) {
         if (!isImmutableDaytonaImage(String(environment.config?.image ?? "")) || environment.config?.snapshot) {
@@ -407,7 +407,7 @@ export async function setupLiveFixtures(input: {
             `/api/adapters?companyId=${encodeURIComponent(company.id)}&environmentId=${encodeURIComponent(environment.id)}`,
           );
           const selected = adapters.find(adapter => adapter.type === "codex_local");
-          if (selected?.defaultRunner !== "paperclip" || !selected.supportedRunners?.includes("paperclip")) {
+          if (selected?.defaultRunner !== "nexus" || !selected.supportedRunners?.includes("nexus")) {
             throw new Error("The qualified image does not advertise native Codex as its server-owned default.");
           }
           setupProbe.defaultRunner = selected.defaultRunner;

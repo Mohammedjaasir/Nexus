@@ -1,4 +1,4 @@
-import type { AttentionItem } from "@paperclipai/shared";
+import type { AttentionItem } from "@nexusai/shared";
 import { pendingAskUserQuestionsInteraction } from "./issueThreadInteractionFixtures";
 
 export const coordinatorTaskQuestion = {

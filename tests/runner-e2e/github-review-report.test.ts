@@ -14,11 +14,11 @@ afterEach(async () => { await Promise.all(temporary.splice(0).map(root => rm(roo
 const pixel = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jBv0AAAAASUVORK5CYII=", "base64");
 function fixture(): RunnerE2EResult {
   const cell = runnerMatrix.find(row => row.id === "github-review-journey.configured-agent.local.setup-and-first-review")!;
-  return { schema: "paperclip.runner-e2e.result/v2", executionId: cell.id, suiteId: cell.suite.id, suiteDefinitionHash: cell.suiteDefinitionHash,
+  return { schema: "nexus.runner-e2e.result/v2", executionId: cell.id, suiteId: cell.suite.id, suiteDefinitionHash: cell.suiteDefinitionHash,
     profileId: cell.profile.id, environmentId: "local", caseId: cell.task.id, provider: "opencode", model: "configured-model", runtimeMode: "native",
     attempt: 1, status: "failed", error: "native_session_interrupted", cleanup: "passed", durationMs: 1000,
     startedAt: "2026-10-24T00:00:00Z", finishedAt: "2026-10-24T00:00:01Z",
-    githubReviewJourney: { version: 1, outcome: "failed", phase: "review_execution_completion", setupId: "qa", hosting: "paperclip-cloud", targetCommit: "a".repeat(40), assisted: true,
+    githubReviewJourney: { version: 1, outcome: "failed", phase: "review_execution_completion", setupId: "qa", hosting: "nexus-cloud", targetCommit: "a".repeat(40), assisted: true,
       dependencies: [], checkpoints: { github_delivery: true }, cleanup: { endpoint: true, app: true, branch: true, pullRequest: true },
       budgetPolicyRead: "verified", budgetPolicies: [{ scopeType: "agent", amount: 100, hardStopEnabled: true, unpricedUsagePolicy: "allow" }],
       execution: { reviewId: "review", issueId: "issue", runId: "run", runStatus: "failed", runtimeMode: "native", provider: "opencode", model: "configured-model" } },

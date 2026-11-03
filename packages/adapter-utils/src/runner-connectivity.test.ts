@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AdapterExecutionTarget } from "./execution-target.js";
 import {
   buildDirectRunnerConnectUrl,
-  resolvePaperclipRunnerTransport,
+  resolveNexusRunnerTransport,
   type RunnerIngressEndpoint,
 } from "./runner-connectivity.js";
 
@@ -31,9 +31,9 @@ function ingress(): RunnerIngressEndpoint {
   return endpoint;
 }
 
-describe("paperclip runner transport routing", () => {
+describe("nexus runner transport routing", () => {
   it("keeps same-host runnerd on plaintext loopback", async () => {
-    const result = await resolvePaperclipRunnerTransport({
+    const result = await resolveNexusRunnerTransport({
       target: { kind: "local" },
       runId: "00000000-0000-4000-8000-000000000001",
       localConnectUrl:
@@ -54,11 +54,11 @@ describe("paperclip runner transport routing", () => {
       effectiveCapabilities: capabilities,
       getRunnerIngressEndpoint,
     };
-    const result = await resolvePaperclipRunnerTransport({
+    const result = await resolveNexusRunnerTransport({
       target,
       runId: "00000000-0000-4000-8000-000000000001",
       localConnectUrl: "ws://127.0.0.1/unused",
-      runnerPublicUrl: "wss://paperclip.example.test",
+      runnerPublicUrl: "wss://nexus.example.test",
       runnerIngressAuthorized: true,
     });
     expect(result.mode).toBe("provider_ingress");
@@ -76,7 +76,7 @@ describe("paperclip runner transport routing", () => {
       getRunnerIngressEndpoint: vi.fn(async () => ingress()),
     };
 
-    const result = await resolvePaperclipRunnerTransport({
+    const result = await resolveNexusRunnerTransport({
       target,
       runId: "00000000-0000-4000-8000-000000000001",
       localConnectUrl: "ws://127.0.0.1/unused",
@@ -98,11 +98,11 @@ describe("paperclip runner transport routing", () => {
       getRunnerIngressEndpoint,
     };
     await expect(
-      resolvePaperclipRunnerTransport({
+      resolveNexusRunnerTransport({
         target,
         runId: "00000000-0000-4000-8000-000000000001",
         localConnectUrl: "ws://127.0.0.1/unused",
-        runnerPublicUrl: "wss://paperclip.example.test",
+        runnerPublicUrl: "wss://nexus.example.test",
         runnerIngressAuthorized: false,
         enableRunnerPreviewIngress: true,
       }),
@@ -111,9 +111,9 @@ describe("paperclip runner transport routing", () => {
       target,
       runId: "00000000-0000-4000-8000-000000000002",
       localConnectUrl: "ws://127.0.0.1/unused",
-    } as Parameters<typeof resolvePaperclipRunnerTransport>[0];
+    } as Parameters<typeof resolveNexusRunnerTransport>[0];
     await expect(
-      resolvePaperclipRunnerTransport(missingAuthorization),
+      resolveNexusRunnerTransport(missingAuthorization),
     ).rejects.toMatchObject({ code: "runner_ingress_unavailable" });
     expect(getRunnerIngressEndpoint).not.toHaveBeenCalled();
   });
@@ -134,19 +134,19 @@ describe("paperclip runner transport routing", () => {
         strictHostKeyChecking: true,
       },
     };
-    const result = await resolvePaperclipRunnerTransport({
+    const result = await resolveNexusRunnerTransport({
       target,
       runId: "00000000-0000-4000-8000-000000000001",
       localConnectUrl: "ws://127.0.0.1/unused",
-      runnerPublicUrl: "wss://paperclip.example.test/runner-base/",
-      runnerCaBundlePath: "/etc/paperclip/runner-ca.pem",
+      runnerPublicUrl: "wss://nexus.example.test/runner-base/",
+      runnerCaBundlePath: "/etc/nexus/runner-ca.pem",
       runnerIngressAuthorized: false,
     });
     expect(result).toEqual({
       mode: "direct_outbound",
       connectUrl:
-        "wss://paperclip.example.test/runner-base/api/runner/v1/connect/00000000-0000-4000-8000-000000000001",
-      caBundlePath: "/etc/paperclip/runner-ca.pem",
+        "wss://nexus.example.test/runner-base/api/runner/v1/connect/00000000-0000-4000-8000-000000000001",
+      caBundlePath: "/etc/nexus/runner-ca.pem",
     });
   });
 
@@ -163,11 +163,11 @@ describe("paperclip runner transport routing", () => {
       },
     };
     await expect(
-      resolvePaperclipRunnerTransport({
+      resolveNexusRunnerTransport({
         target,
         runId: "00000000-0000-4000-8000-000000000001",
         localConnectUrl: "ws://127.0.0.1/unused",
-        runnerPublicUrl: "wss://paperclip.example.test",
+        runnerPublicUrl: "wss://nexus.example.test",
         runnerIngressAuthorized: true,
       }),
     ).rejects.toThrow("preview unavailable");
@@ -186,21 +186,21 @@ describe("paperclip runner transport routing", () => {
       },
     };
     await expect(
-      resolvePaperclipRunnerTransport({
+      resolveNexusRunnerTransport({
         target,
         runId: "00000000-0000-4000-8000-000000000001",
         localConnectUrl: "ws://127.0.0.1/unused",
-        runnerPublicUrl: "wss://paperclip.example.test",
+        runnerPublicUrl: "wss://nexus.example.test",
         runnerIngressAuthorized: true,
       }),
     ).rejects.toMatchObject({ code: "runner_ingress_unavailable" });
   });
 
   it.each([
-    "ws://paperclip.example.test",
-    "wss://user@paperclip.example.test",
-    "wss://paperclip.example.test?token=secret",
-    "wss://paperclip.example.test#fragment",
+    "ws://nexus.example.test",
+    "wss://user@nexus.example.test",
+    "wss://nexus.example.test?token=secret",
+    "wss://nexus.example.test#fragment",
   ])("rejects unsafe direct runner URL %s", (runnerPublicUrl) => {
     expect(() =>
       buildDirectRunnerConnectUrl({

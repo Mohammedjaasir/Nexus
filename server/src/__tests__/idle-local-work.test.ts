@@ -32,7 +32,7 @@ describe("idle cleanup inspection", () => {
     expect(await inspectIdleSpool(root)).toBe("unknown");
   });
   it("retains failed local recovery and fails closed on probe errors", async () => {
-    vi.stubEnv("PAPERCLIP_HOME", root);
+    vi.stubEnv("NEXUS_HOME", root);
     markIdleIngressTracked(); markIdleStartupComplete({ scheduledBackups: false });
     let pending = true;
     const unregister = registerIdleLocalWorkProbe(() => pending ? "present" : "none");
@@ -48,7 +48,7 @@ describe("idle cleanup inspection", () => {
   });
 
   it("checks custom spool directories as well as the default paths", async () => {
-    vi.stubEnv("PAPERCLIP_HOME", root);
+    vi.stubEnv("NEXUS_HOME", root);
     vi.stubEnv("SANDBOX_ORPHAN_CLEANUP_SPOOL_DIR", path.join(root, "orphans"));
     const custom = path.join(root, "custom-accounting");
     registerIdleSpoolDirectory(custom);
@@ -107,7 +107,7 @@ describe("idle credential recovery inspection", () => {
     expect(await inspectIdleQuotaRecovery(root)).toBe("unknown");
   });
   it("keeps persisted credential recovery awake after the request and process work have ended", async () => {
-    vi.stubEnv("PAPERCLIP_HOME", root);
+    vi.stubEnv("NEXUS_HOME", root);
     markIdleIngressTracked(); markIdleStartupComplete({ scheduledBackups: false });
     const directory = path.join(idleQuotaRecoveryPath(), company);
     await fs.mkdir(directory, { recursive: true });

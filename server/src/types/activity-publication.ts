@@ -1,4 +1,4 @@
-import type { PluginEvent } from "@paperclipai/plugin-sdk";
+import type { PluginEvent } from "@nexusai/plugin-sdk";
 
 export interface ActivityPublication {
   companyId: string;

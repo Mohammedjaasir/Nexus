@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import type { AdapterModel } from "@paperclipai/adapter-utils";
+import type { AdapterModel } from "@nexusai/adapter-utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ModelDropdown } from "./AgentConfigForm";
 

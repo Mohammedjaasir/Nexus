@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createNativeControllerRecovery, readNativeControllerRecovery } from "./native-controller-recovery.js";
 import { nativeSha256 } from "./canonical.js";
 import { redactRegisteredSecretValues } from "../run-secret-redaction.js";
-import type { PersistedNativeSession } from "../../vendor/paperclip-runner/index.js";
+import type { PersistedNativeSession } from "../../vendor/nexus-runner/index.js";
 
 const snapshot: PersistedNativeSession = { backendKind: "mock", sessionId: "provider",
   identity: { companyId: "company", agentId: "agent", issueId: "issue", runId: "run", sessionId: "session" } };

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Loader2 } from "lucide-react";
-import type { GitHubAppWizardState } from "@paperclipai/shared";
+import type { GitHubAppWizardState } from "@nexusai/shared";
 import { agentsApi } from "@/api/agents";
 import { chatEndpointsApi } from "@/api/chatEndpoints";
 import { githubChatApi } from "@/api/githubChat";
@@ -419,7 +419,7 @@ export function GitHubChatSetup() {
             <>
               <p className="text-sm">
                 Connect GitHub account <strong>{state.identity.login}</strong>{" "}
-                to your Paperclip account.
+                to your Nexus account.
               </p>
               {footer("Confirm my account", async () => {
                 await githubChatApi.confirmIdentity(
@@ -432,7 +432,7 @@ export function GitHubChatSetup() {
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Link your GitHub account so your mentions use your Paperclip
+                Link your GitHub account so your mentions use your Nexus
                 permissions.
               </p>
               {(accounts.data?.length ?? 0) > 0 && (
@@ -527,10 +527,10 @@ export function GitHubChatSetup() {
       ) : state?.state === "enrollment" ? (
         <>
           <p className="text-sm">
-            Paperclip Cloud receives GitHub events and securely delivers them to
+            Nexus Cloud receives GitHub events and securely delivers them to
             this instance.
           </p>
-          {footer("Connect Paperclip Cloud", async () => {
+          {footer("Connect Nexus Cloud", async () => {
             const result = await toolsApi.startCloudConnectorEnrollment(
               selectedCompanyId!,
               undefined,

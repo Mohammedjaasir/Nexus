@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { environmentCustomImageSetupSessions, environmentLeases, type Db } from "@paperclipai/db";
+import { environmentCustomImageSetupSessions, environmentLeases, type Db } from "@nexusai/db";
 import { beginIdleTrackedWork } from "./task-admission.js";
 import { finishedIdleRun } from "./idle-work-proof.js";
 import { CLEANUP_ROW_STAMP_FORMAT, CLEANUP_VERIFICATION_KEY, CLEANUP_VERIFICATION_SCHEMA, cleanupRowStamp, verifiedResourceCleanup } from "./cleanup-verification-proof.js";

@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { and, asc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
-import { agents, companies, companySkills, companySkillVersions, type Db } from "@paperclipai/db";
-import { readPaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { agents, companies, companySkills, companySkillVersions, type Db } from "@nexusai/db";
+import { readNexusSkillSyncPreference } from "@nexusai/adapter-utils/server-utils";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 import { noteSkillVersionCacheChange } from "./skill-version-retention-notifications.js";
 import { logger } from "../middleware/logger.js";
 import { allocatedBytes, ensureSkillCacheDirectory, hasRestorableSnapshot, lastUsedAt,
@@ -47,7 +47,7 @@ const versionSnapshotRemovals = new Map<string, Promise<unknown>>();
 const activeTrash = new Set<string>();
 
 export function resolveCompanySkillVersionsRoot(companyId: string) {
-  return path.resolve(resolvePaperclipInstanceRoot(), "skills", companyId, VERSIONS_DIR);
+  return path.resolve(resolveNexusInstanceRoot(), "skills", companyId, VERSIONS_DIR);
 }
 
 export function resolveSkillVersionSnapshotDir(companyId: string, skillId: string, versionId: string) {
@@ -235,7 +235,7 @@ export function skillVersionRetentionService(db: Db, defaults: SkillVersionPrune
       }
     }
     for (const agent of await db.select({ adapterConfig: agents.adapterConfig }).from(agents).where(eq(agents.companyId, companyId))) {
-      for (const entry of readPaperclipSkillSyncPreference(agent.adapterConfig ?? {}).desiredSkillEntries) {
+      for (const entry of readNexusSkillSyncPreference(agent.adapterConfig ?? {}).desiredSkillEntries) {
         if (entry.versionId) keep.add(entry.versionId);
       }
     }

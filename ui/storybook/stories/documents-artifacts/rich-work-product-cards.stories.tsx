@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { IssueAttachment, IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueAttachment, IssueWorkProduct } from "@nexusai/shared";
 import { expect } from "storybook/test";
 import { RichWorkProductCard } from "../../../src/components/task-chat/RichWorkProductCard";
 import { TaskChatBubble } from "../../../src/components/task-chat/TaskChatBubble";
@@ -10,7 +10,7 @@ const meta = {
   title: "Tasks and conversations/Documents, attachments, and work products/Task Chat/Rich Work Product Cards",
   component: RichWorkProductCard,
   parameters: { layout: "centered",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "documents-artifacts/work-products"
       ],
@@ -79,7 +79,7 @@ const KINDS: CardKind[] = [
     id: "artifact-file",
     label: "Artifact · file",
     type: "artifact",
-    provider: "paperclip",
+    provider: "nexus",
     title: "interaction-map.pdf",
     url: "/api/attachments/story-file/content",
     metadata: { contentType: "application/pdf", byteSize: 48_120 },
@@ -88,7 +88,7 @@ const KINDS: CardKind[] = [
     id: "artifact-image",
     label: "Artifact · image",
     type: "artifact",
-    provider: "paperclip",
+    provider: "nexus",
     title: "thread-preview.png",
     url: IMAGE_PREVIEW,
     metadata: { contentType: "image/png", byteSize: 204_800, openPath: IMAGE_PREVIEW },
@@ -97,7 +97,7 @@ const KINDS: CardKind[] = [
     id: "document",
     label: "Document",
     type: "document",
-    provider: "paperclip",
+    provider: "nexus",
     title: "Implementation plan",
     url: "/PAP/issues/PAP-18213#document-plan",
     metadata: { revisionNumber: 4 },
@@ -115,7 +115,7 @@ const KINDS: CardKind[] = [
     id: "runtime-service",
     label: "Runtime service",
     type: "runtime_service",
-    provider: "paperclip",
+    provider: "nexus",
     title: "Storybook",
     url: "http://localhost:6006",
     metadata: { service: "storybook", port: 6006 },
@@ -268,7 +268,7 @@ function attachment(id: string, name: string, contentType: string, byteSize: num
     issueId: "issue-storybook",
     issueCommentId: "message-storybook",
     assetId: `asset-${id}`,
-    provider: "paperclip",
+    provider: "nexus",
     objectKey: id,
     contentType,
     byteSize,

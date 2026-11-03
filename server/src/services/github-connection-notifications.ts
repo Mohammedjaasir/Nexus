@@ -1,4 +1,4 @@
-import { toolConnections, chatEndpoints, type Db } from "@paperclipai/db";
+import { toolConnections, chatEndpoints, type Db } from "@nexusai/db";
 import { and, eq, sql } from "drizzle-orm";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 export async function notifyGitHubCredentialChange(transaction: object, connection: Pick<typeof toolConnections.$inferSelect, "config" | "companyId">) {

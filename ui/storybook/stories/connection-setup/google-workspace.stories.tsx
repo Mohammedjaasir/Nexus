@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { getAppStoreDefinition } from "@paperclipai/shared";
+import { getAppStoreDefinition } from "@nexusai/shared";
 import { ConnectionSetupFlow } from "@/features/connections/ConnectionSetupFlow";
 import { useNavigate } from "@/lib/router";
 
@@ -10,7 +10,7 @@ const noop = () => {};
 const meta = {
   id: "apps-connections-google-workspace",
   title: "Apps, channels, and extensions/Connection setup/Google Workspace",
-  parameters: { layout: "fullscreen", paperclip: {
+  parameters: { layout: "fullscreen", nexus: {
     capabilities: ["connection-setup/catalog", "app-permissions/account-maintenance"],
     status: "current", implementation: "production", boundary: "fixtures",
     notes: "Production connection setup with simulated gallery metadata. Mutations are rejected; no successful Google grant or persistence is simulated.",

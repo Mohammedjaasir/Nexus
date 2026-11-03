@@ -1,5 +1,5 @@
-import type { Db } from "@paperclipai/db";
-import { agents, companies, createDb, applyPendingMigrations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRuns } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { agents, companies, createDb, applyPendingMigrations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, heartbeatRuns } from "@nexusai/db";
 import { sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, vi, type Mock } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../../__tests__/helpers/embedded-postgres.js";
@@ -66,7 +66,7 @@ export function callbacks(db: Db): TestCallbacks {
     failedProcessRunCancellations: new Map<string, { settled: Promise<void>; failed: boolean; error?: unknown }>(),
   } satisfies HeartbeatRunControlDependencies;
 }
-const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_RUN_CONTROL_TEST_DATABASE_URL");
+const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_RUN_CONTROL_TEST_DATABASE_URL");
 export const runControlPostgresSupport = externalTestDatabaseUrl ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 if (!runControlPostgresSupport.supported) console.warn(`Skipping run-control database tests: ${runControlPostgresSupport.reason}`);
 

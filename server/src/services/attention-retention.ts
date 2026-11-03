@@ -1,6 +1,6 @@
 import { and, eq, getTableColumns, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { agents, decisionRetention, decisions, heartbeatRuns,
-  issueApprovals, issueRecoveryActions, issueThreadInteractions, issues, approvals, type Db } from "@paperclipai/db";
+  issueApprovals, issueRecoveryActions, issueThreadInteractions, issues, approvals, type Db } from "@nexusai/db";
 import { evaluateAgentInvokability } from "./agent-invokability.js";
 import { HUMAN_RECOVERY_OWNER_TYPES, ATTENTION_BUDGET_WARNING_PERCENT, ATTENTION_AGENT_ERROR_STATUS, collapsePendingConfirmationsToNewest, listFailedRunsWithNewerRun, readRunIssueId, requiresReviewAttention, terminalBlockerRequiresAttention } from "./attention-source-eligibility.js";
 import { decisionRetentionService, DEFAULT_DECISION_ARCHIVE_DAYS } from "./decision-retention.js";

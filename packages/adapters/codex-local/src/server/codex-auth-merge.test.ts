@@ -10,7 +10,7 @@ import {
   prepareSandboxManagedRuntime,
   type SandboxManagedRuntimeClient,
   type SandboxSyncOperation,
-} from "@paperclipai/adapter-utils/sandbox-managed-runtime";
+} from "@nexusai/adapter-utils/sandbox-managed-runtime";
 import { buildCodexAuthInboundProvision } from "./codex-auth-merge-scripts.js";
 
 const execFile = promisify(execFileCallback);
@@ -57,13 +57,13 @@ describe("codex home auth merge on sandbox asset extract", () => {
     finalMode: number;
     combinedOutput: string;
   }> {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-codex-auth-merge-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-codex-auth-merge-"));
     cleanupDirs.push(rootDir);
 
     const localWorkspaceDir = path.join(rootDir, "local-workspace");
     const remoteWorkspaceDir = path.join(rootDir, "remote-workspace");
     const localHomeDir = path.join(rootDir, "local-codex-home");
-    const remoteHomeDir = path.join(remoteWorkspaceDir, ".paperclip-runtime", "codex", "home");
+    const remoteHomeDir = path.join(remoteWorkspaceDir, ".nexus-runtime", "codex", "home");
     await mkdir(localWorkspaceDir, { recursive: true });
     await mkdir(localHomeDir, { recursive: true });
     await mkdir(remoteHomeDir, { recursive: true });
@@ -184,7 +184,7 @@ describe("codex home auth merge on sandbox asset extract", () => {
     expect(result.combinedOutput).not.toContain("SENTINEL");
     expect(result.commandText).not.toContain("SENTINEL");
     expect(result.commandText).toContain("codex-auth-merge-extract.sh");
-    expect(result.commandText).not.toContain("paperclip-extract");
+    expect(result.commandText).not.toContain("nexus-extract");
     expect(result.commandText).not.toContain("node -");
     expect(result.commandText).not.toContain("target_tmp=");
     expect(result.commandText).not.toContain("mv -f");
@@ -448,12 +448,12 @@ describe("codex home auth merge on sandbox asset extract", () => {
   });
 
   it("routes the Codex home asset through a single native syncIn operation whose post-command is the auth-merge (#4, C5/C6)", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-codex-native-route-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-codex-native-route-"));
     cleanupDirs.push(rootDir);
     const localWorkspaceDir = path.join(rootDir, "local-workspace");
     const remoteWorkspaceDir = path.join(rootDir, "remote-workspace");
     const localHomeDir = path.join(rootDir, "local-codex-home");
-    const remoteHomeDir = path.join(remoteWorkspaceDir, ".paperclip-runtime", "codex", "home");
+    const remoteHomeDir = path.join(remoteWorkspaceDir, ".nexus-runtime", "codex", "home");
     await mkdir(localWorkspaceDir, { recursive: true });
     await mkdir(localHomeDir, { recursive: true });
     await mkdir(remoteHomeDir, { recursive: true });
@@ -623,7 +623,7 @@ describe("codex-auth-merge-decision predicate (source/destination)", () => {
     sourceAuth: string;
     destinationAuth: string;
   }): Promise<{ code: number; output: string }> {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-codex-auth-decision-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-codex-auth-decision-"));
     cleanupDirs.push(dir);
     const sourcePath = path.join(dir, "source-auth.json");
     const destinationPath = path.join(dir, "destination-auth.json");

@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNotNull, notExists, or, sql } from "drizzle-orm";
-import { adapterAuthSessions, environmentLeases, type Db } from "@paperclipai/db";
+import { adapterAuthSessions, environmentLeases, type Db } from "@nexusai/db";
 import { ADAPTER_AUTH_ACTIVE_STATUSES, DISPLAYED_CODE_ADAPTER_TYPES, LOGIN_LEASE_SESSION_TAG_KEY } from "./device-login-service.js";
 import { SETUP_TOKEN_ADAPTER_TYPE, SETUP_TOKEN_TERMINAL_STATES } from "./setup-token-session.js";
 

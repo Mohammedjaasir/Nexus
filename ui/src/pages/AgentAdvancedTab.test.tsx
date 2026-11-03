@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { appearanceForPalette, agentConfigurationSpec, type Agent } from "@paperclipai/shared";
+import { appearanceForPalette, agentConfigurationSpec, type Agent } from "@nexusai/shared";
 import { ConfigurationSaveInterrupted } from "../lib/agent-configuration/save";
 import { AgentAdvancedTab } from "./AgentAdvancedTab";
 
@@ -27,7 +27,7 @@ const agent = {
 } satisfies Agent & { configurationRevision: string };
 
 function snapshot(value = agent) {
-  return { agent: value, core: value, document: { apiVersion: "paperclip/v1", kind: "Agent", spec: agentConfigurationSpec(value) } };
+  return { agent: value, core: value, document: { apiVersion: "nexus/v1", kind: "Agent", spec: agentConfigurationSpec(value) } };
 }
 
 describe("Advanced agent configuration", () => {

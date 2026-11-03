@@ -158,7 +158,7 @@ describe("secret routes", () => {
   it("rejects managed secret creation when externalRef is supplied", async () => {
     const res = await request(createApp()).post("/api/companies/company-1/secrets").send({
       name: "OpenAI API Key",
-      managedMode: "paperclip_managed",
+      managedMode: "nexus_managed",
       value: "secret-value",
       externalRef: "arn:aws:secretsmanager:us-east-1:123456789012:secret:shared/other",
     });
@@ -179,12 +179,12 @@ describe("secret routes", () => {
           operation: "secret.create",
           providerConfigId: "11111111-1111-4111-8111-111111111111",
           region: "us-east-1",
-          credentialPath: "Paperclip server runtime/provider credential path",
+          credentialPath: "Nexus server runtime/provider credential path",
           requiredCapability: "secretsmanager:CreateSecret",
           actionableMessage:
             "AWS managed secret creation needs secretsmanager:CreateSecret in the selected region for this provider vault.",
           safeAlternative:
-            "If the secret already exists in AWS, link it as an external reference instead of creating a Paperclip-managed value.",
+            "If the secret already exists in AWS, link it as an external reference instead of creating a Nexus-managed value.",
         },
       ),
     );
@@ -194,7 +194,7 @@ describe("secret routes", () => {
       key: "vercel_token",
       provider: "aws_secrets_manager",
       providerConfigId: "11111111-1111-4111-8111-111111111111",
-      managedMode: "paperclip_managed",
+      managedMode: "nexus_managed",
       value: "vcp_test",
     });
 
@@ -456,7 +456,7 @@ describe("secret routes", () => {
       provider: "aws_secrets_manager",
       nextToken: null,
       sampledSecretCount: 2,
-      skippedForeignPaperclipSampleCount: 0,
+      skippedForeignNexusSampleCount: 0,
       candidates: [
         {
           provider: "aws_secrets_manager",
@@ -464,25 +464,25 @@ describe("secret routes", () => {
           config: {
             region: "us-east-1",
             namespace: "prod-use1",
-            secretNamePrefix: "paperclip",
+            secretNamePrefix: "nexus",
             environmentTag: "production",
             ownerTag: "platform",
             kmsKeyId: null,
           },
           sampleCount: 2,
           samples: [
-            { name: "paperclip/prod-use1/company-1/openai", hasKmsKey: false, tagKeys: ["environment"] },
+            { name: "nexus/prod-use1/company-1/openai", hasKmsKey: false, tagKeys: ["environment"] },
           ],
           signals: {
             namespace: "prod-use1",
-            secretNamePrefix: "paperclip",
+            secretNamePrefix: "nexus",
             environmentTag: "production",
             ownerTag: "platform",
             kmsKeyId: null,
             hasKmsKey: false,
             sampleCount: 2,
-            paperclipManagedSampleCount: 0,
-            skippedForeignPaperclipSampleCount: 0,
+            nexusManagedSampleCount: 0,
+            skippedForeignNexusSampleCount: 0,
           },
           warnings: [],
         },
@@ -495,7 +495,7 @@ describe("secret routes", () => {
       .send({
         provider: "aws_secrets_manager",
         config: { region: "us-east-1" },
-        query: "paperclip",
+        query: "nexus",
         pageSize: 25,
       });
 
@@ -503,7 +503,7 @@ describe("secret routes", () => {
     expect(mockSecretService.previewProviderConfigDiscovery).toHaveBeenCalledWith("company-1", {
       provider: "aws_secrets_manager",
       config: { region: "us-east-1" },
-      query: "paperclip",
+      query: "nexus",
       nextToken: undefined,
       pageSize: 25,
     });
@@ -518,7 +518,7 @@ describe("secret routes", () => {
         warningCount: 0,
       },
     }));
-    expect(JSON.stringify(mockLogActivity.mock.calls)).not.toContain("paperclip/prod-use1/company-1/openai");
+    expect(JSON.stringify(mockLogActivity.mock.calls)).not.toContain("nexus/prod-use1/company-1/openai");
   });
 
   it("returns actionable sanitized provider vault discovery errors", async () => {
@@ -533,10 +533,10 @@ describe("secret routes", () => {
           providerConfigId: "discovery-preview",
           providerVaultContext: "draft_config",
           region: "us-east-1",
-          credentialPath: "Paperclip server runtime/provider credential path",
+          credentialPath: "Nexus server runtime/provider credential path",
           requiredCapability: "secretsmanager:ListSecrets",
           actionableMessage:
-            "AWS discovery preview needs secretsmanager:ListSecrets in the selected region for the Paperclip server runtime/provider credential path.",
+            "AWS discovery preview needs secretsmanager:ListSecrets in the selected region for the Nexus server runtime/provider credential path.",
           safeAlternative:
             "If the operator already knows the exact AWS Secrets Manager ARN, paste/link that ARN instead of using discovery. Exact-resource DescribeSecret and runtime read permissions are still required.",
         },
@@ -563,7 +563,7 @@ describe("secret routes", () => {
         requiredCapability: "secretsmanager:ListSecrets",
       },
     });
-    expect(res.body.details.actionableMessage).toContain("Paperclip server runtime/provider credential path");
+    expect(res.body.details.actionableMessage).toContain("Nexus server runtime/provider credential path");
     expect(res.body.details.safeAlternative).toContain("paste/link that ARN");
     expect(JSON.stringify(res.body)).not.toContain("arn:aws");
     expect(JSON.stringify(res.body)).not.toContain("123456789012");
@@ -837,7 +837,7 @@ describe("secret routes", () => {
             externalRef: "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod/openai",
             name: "OpenAI API key",
             key: "openai-api-key",
-            description: "Operator-entered Paperclip description",
+            description: "Operator-entered Nexus description",
           },
         ],
       });
@@ -852,7 +852,7 @@ describe("secret routes", () => {
             externalRef: "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod/openai",
             name: "OpenAI API key",
             key: "openai-api-key",
-            description: "Operator-entered Paperclip description",
+            description: "Operator-entered Nexus description",
           },
         ],
       },
@@ -908,7 +908,7 @@ describe("secret routes", () => {
       name: "Other tenant secret",
       key: "other-secret",
       provider: "aws_secrets_manager",
-      managedMode: "paperclip_managed",
+      managedMode: "nexus_managed",
     });
 
     const crossTenantApp = createApp({
@@ -948,7 +948,7 @@ describe("secret routes", () => {
       name: "Other tenant secret",
       key: "other-secret",
       provider: "aws_secrets_manager",
-      managedMode: "paperclip_managed",
+      managedMode: "nexus_managed",
     });
 
     const crossTenantApp = createApp({
@@ -988,7 +988,7 @@ describe("secret routes", () => {
       name: "OpenAI",
       key: "openai",
       provider: "aws_secrets_manager",
-      managedMode: "paperclip_managed",
+      managedMode: "nexus_managed",
     });
     mockSecretService.listBindingReferences.mockResolvedValue([]);
 
@@ -1014,7 +1014,7 @@ describe("secret routes", () => {
       name: "OpenAI API Key__deleted__33333333-3333-4333-8333-333333333333",
       key: "openai-api-key__deleted__33333333-3333-4333-8333-333333333333",
       provider: "aws_secrets_manager",
-      managedMode: "paperclip_managed",
+      managedMode: "nexus_managed",
       status: "deleted",
     };
     mockSecretService.getById.mockResolvedValue(secret);

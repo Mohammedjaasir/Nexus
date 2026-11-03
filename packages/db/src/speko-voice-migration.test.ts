@@ -8,7 +8,7 @@ import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } fro
 const support = await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("Speko additive voice migration", () => {
   it("upgrades existing Slack data and constrains voice transport to channel connections", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-speko-upgrade-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-speko-upgrade-");
     const sql = postgres(database.connectionString, { max: 1 });
     try {
       expect(await sql`SELECT to_regclass('chat_voice_sessions') AS name`).toEqual([{ name: "chat_voice_sessions" }]);

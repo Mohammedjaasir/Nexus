@@ -12,7 +12,7 @@ import {
   issueComments,
   issues,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { projectSafeChatPublication } from "./chat-publication-projection.js";
 import { logActivity } from "./activity-log.js";
 import { instanceSettingsService } from "./instance-settings.js";
@@ -138,7 +138,7 @@ export async function mirrorSlackBoardComment(
         payload: projectSafeChatPublication({
           classification: "external",
           source: "explicit_board_send",
-          text: `**${author} (via Paperclip)**\n\n${comment.body}`,
+          text: `**${author} (via Nexus)**\n\n${comment.body}`,
         }),
         state: "pending",
       })
@@ -197,7 +197,7 @@ export async function mirrorSlackBoardComment(
         endpointId: endpoint.id,
         conversationId: conversation.id,
         commentId: comment.id,
-        source: "paperclip_comment",
+        source: "nexus_comment",
       },
     });
   }

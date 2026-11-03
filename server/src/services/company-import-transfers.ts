@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { Db } from "@paperclipai/db";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import type { Db } from "@nexusai/db";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 import { companyTransferRunService } from "./company-transfer-runs.js";
 
 // Disk spool for chunked resumable company imports. The client slices its
@@ -22,7 +22,7 @@ export const IMPORT_TRANSFER_SPOOL_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function resolveDefaultImportTransferSpoolRoot(): string {
-  return path.resolve(resolvePaperclipInstanceRoot(), "import-transfers");
+  return path.resolve(resolveNexusInstanceRoot(), "import-transfers");
 }
 
 /**

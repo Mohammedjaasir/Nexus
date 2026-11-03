@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { RunnerProfileFixture, RunnerTaskFixture } from "./types.js";
 
-export const HIRING_TEMPLATE_GRADER_VERSION = "paperclip.hiring-templates.v3";
-export const HIRING_TEMPLATE_SKILL_KEY = "paperclipai/paperclip/paperclip-create-agent";
+export const HIRING_TEMPLATE_GRADER_VERSION = "nexus.hiring-templates.v3";
+export const HIRING_TEMPLATE_SKILL_KEY = "paperclipai/paperclip/nexus-create-agent";
 export const HIRING_TEMPLATE_READ_FILES = [
   "SKILL.md",
   "references/agent-instruction-templates.md",
@@ -13,8 +13,8 @@ export const HIRING_TEMPLATE_READ_FILES = [
 export const HIRING_TEMPLATE_SOURCE_FILES = [
   "server/src/services/default-agent-instructions.ts",
   "server/src/onboarding-assets/default/AGENTS.md",
-  ...HIRING_TEMPLATE_READ_FILES.map(file => `skills/paperclip-create-agent/${file}`),
-  "skills/paperclip-create-agent/references/baseline-role-guide.md",
+  ...HIRING_TEMPLATE_READ_FILES.map(file => `skills/nexus-create-agent/${file}`),
+  "skills/nexus-create-agent/references/baseline-role-guide.md",
 ] as const;
 export const hiringTemplateDefinitionDigest = createHash("sha256").update(
   ["hiring-template-cases.ts", "hiring-template-scoring.ts", "hiring-template-flow.ts", "hiring-template-turn-accounting.ts", "chat-flow.ts"]
@@ -38,9 +38,9 @@ export function hiringTemplateScenario(nonce: string, projectName: string) {
   return {
     marker, hireName, inputs: hiringTemplateInputs,
     initialPrompt: [
-      `Use the paperclip-create-agent skill to hire exactly one coding teammate named ${hireName}, reporting to you, with your native runner, model, and available AI connection.`,
+      `Use the nexus-create-agent skill to hire exactly one coding teammate named ${hireName}, reporting to you, with your native runner, model, and available AI connection.`,
       "Before hiring, read that skill's SKILL.md, references/agent-instruction-templates.md, references/draft-review-checklist.md, and references/agents/coder.md. Use the AGENTS.md example from that coder reference as the teammate's managed instructions, filling all agentName, companyName, managerTitle, and issuePrefix placeholders from this hire, company, your actual title, and the company issue prefix. Keep skills and reporting information in their configuration.",
-      `Have that coder prepare a JSON test fixture for a label normalizer in one assigned task in ${projectName}. Save the fixture as a Paperclip document with an object containing reference: ${JSON.stringify(marker)} and entries, an ordered array of objects with input and value. Inputs: ${JSON.stringify(hiringTemplateInputs)}.`,
+      `Have that coder prepare a JSON test fixture for a label normalizer in one assigned task in ${projectName}. Save the fixture as a Nexus document with an object containing reference: ${JSON.stringify(marker)} and entries, an ordered array of objects with input and value. Inputs: ${JSON.stringify(hiringTemplateInputs)}.`,
       "For each value, trim its input, lowercase it, replace each sequence outside ASCII a-z and 0-9 with one hyphen, then trim leading and trailing hyphens. Link the task here and let the coder complete it.",
     ].join("\n\n"),
     reusePrompt: (identifier: string) => `Have the existing ${hireName} prepare a second saved JSON fixture in one new task in ${projectName}, assigned to that same coder. Use the inputs and normalization rule from ${identifier}, but use underscores instead of hyphens for the value separators and trim leading and trailing underscores. Use reference: ${JSON.stringify(`REUSE${marker}`)}. Include the original fixture in the handoff. Preserve the original document and task, and let the coder complete the new task.`,

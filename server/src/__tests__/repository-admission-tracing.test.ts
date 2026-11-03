@@ -6,8 +6,8 @@ import { promisify } from "node:util";
 import { context, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { InMemorySpanExporter, SimpleSpanProcessor, TracerProvider, type ReadableSpan, type SpanProcessor } from "@opentelemetry/sdk-trace";
-import { withDirectoryPublicationLock } from "@paperclipai/adapter-utils/workspace-restore-merge";
-import { createDb, executionWorkspaceRepositories, executionWorkspaces, issues, projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { withDirectoryPublicationLock } from "@nexusai/adapter-utils/workspace-restore-merge";
+import { createDb, executionWorkspaceRepositories, executionWorkspaces, issues, projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRunPreparationTiming, withRunExecutionTiming } from "../services/execution-preparation-timing.js";
@@ -35,16 +35,16 @@ const support = await getEmbeddedPostgresTestSupport();
   let lifecycle: string[];
 
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-repository-admission-tracing-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-repository-admission-tracing-");
     db = createDb(database.connectionString);
     directory = await fs.mkdtemp(path.join(os.tmpdir(), "repository-admission-tracing-"));
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
 
   beforeEach(async () => {
     vi.stubEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector.test");
-    vi.stubEnv("PAPERCLIP_ISSUE_PRIVACY_MODE", "enforce");
-    vi.stubEnv("PAPERCLIP_HOME", path.join(directory, "home"));
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "admission-tracing");
+    vi.stubEnv("NEXUS_ISSUE_PRIVACY_MODE", "enforce");
+    vi.stubEnv("NEXUS_HOME", path.join(directory, "home"));
+    vi.stubEnv("NEXUS_INSTANCE_ID", "admission-tracing");
     catalog.list.mockClear();
     started = [];
     lifecycle = [];
@@ -122,7 +122,7 @@ const support = await getEmbeddedPostgresTestSupport();
 
   function expectPrivateFieldsAbsent(spans: ReadableSpan[]) {
     for (const span of spans) {
-      expect(Object.keys(span.attributes)).toEqual(["paperclip.task.run.run_id"]);
+      expect(Object.keys(span.attributes)).toEqual(["nexus.task.run.run_id"]);
       expect(span.events).toEqual([]);
       expect(span.status.message).toBeUndefined();
     }
@@ -230,7 +230,7 @@ const support = await getEmbeddedPostgresTestSupport();
 
   it("preserves receipt repair and releases the publication lock after a real integrity failure", async () => {
     const repository = await addReadyWorkspaceHistoryRepository(db, fixture);
-    const markerPath = path.join(repository.checkout, ".git", "paperclip-workspace-owner.json");
+    const markerPath = path.join(repository.checkout, ".git", "nexus-workspace-owner.json");
     const invalidMarker = JSON.stringify({ version: 1, repositoryId: repository.row.id, pinnedCommit: "1".repeat(40) });
     await fs.writeFile(markerPath, invalidMarker);
     await expect(admit()).rejects.toMatchObject({ status: 409,

@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ConversationTaskHandoff, DecisionHistoryItem, IssueThreadInteraction } from "@paperclipai/shared";
+import type { ConversationTaskHandoff, DecisionHistoryItem, IssueThreadInteraction } from "@nexusai/shared";
 import { CoordinatorChatDecisionReceipt, CoordinatorChatReceiptStatus, useCoordinatorChatDecisionReceipts } from "./CoordinatorChatDecisionReceipts";
 import { CoordinatorInteractionReceipt } from "./CoordinatorInteractionReceipt";
 import { standaloneChatHandoffs, useCoordinatorChatTaskHandoffs, useLiveChatHandoffIds } from "./CoordinatorChatTaskHandoffs";

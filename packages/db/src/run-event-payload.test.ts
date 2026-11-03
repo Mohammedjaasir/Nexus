@@ -40,7 +40,7 @@ describe("run-event JSONB payload codec", () => {
 
   it("preserves caller-owned keys that collide with the storage marker", () => {
     for (const value of ["not JSON", '{"forged":true}', null, { nested: "\u0000" }]) {
-      const payload = { $paperclipRunEventJsonV1: value, output: "original" };
+      const payload = { $nexusRunEventJsonV1: value, output: "original" };
       expect(decodeRunEventPayload(encodeRunEventPayload(payload))).toEqual(payload);
     }
   });

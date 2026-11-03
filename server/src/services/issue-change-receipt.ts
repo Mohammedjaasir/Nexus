@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import type { IssueChanges } from "@paperclipai/shared";
+import type { IssueChanges } from "@nexusai/shared";
 
 const ISSUE_CHANGE_TEXT_BUDGET = 200;
 

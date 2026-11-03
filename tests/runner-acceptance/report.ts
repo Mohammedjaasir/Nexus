@@ -8,7 +8,7 @@ import type {
   RunnerAcceptanceResult,
 } from "./types.js";
 
-const RESULT_SCHEMA = "paperclip.runner-acceptance.result/v1" as const;
+const RESULT_SCHEMA = "nexus.runner-acceptance.result/v1" as const;
 const ALLOWED_FAILURE_CLASSES = new Set<FailureClass>([
   "candidate_failure",
   "transient_infrastructure",
@@ -202,7 +202,7 @@ function normalizedResult(
 
 function missingResult(cell: RunnerAcceptanceCell, generatedAt: string): AggregatedAcceptanceResult {
   return {
-    schema: "paperclip.runner-acceptance.result/v1",
+    schema: "nexus.runner-acceptance.result/v1",
     cellId: cell.id,
     attempt: 0,
     status: "failed",
@@ -267,7 +267,7 @@ export function buildRunnerAcceptanceReport(input: {
   }
 
   return {
-    schema: "paperclip.runner-acceptance.report/v1",
+    schema: "nexus.runner-acceptance.report/v1",
     generatedAt,
     suiteDefinitionHash: cells[0]?.suiteDefinitionHash ?? "empty",
     selected: selected.length,

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { createDatabaseResponseCapture, type ResponseCaptureWindow } from "@paperclipai/db/response-capture";
+import { createDatabaseResponseCapture, type ResponseCaptureWindow } from "@nexusai/db/response-capture";
 
-export { installDatabaseResponseCapture } from "@paperclipai/db/response-capture";
+export { installDatabaseResponseCapture } from "@nexusai/db/response-capture";
 
 type Capture = ReturnType<typeof createDatabaseResponseCapture>;
 type Metadata = Parameters<Capture["execute"]>[1];
@@ -48,14 +48,14 @@ export function createFullDatabaseResponseCapture(
     capture.flush();
     const ordered = [...entries.values()].sort((a, b) => b.bytes - a.bytes);
     for (const [groupIndex, entry] of ordered.entries()) send({
-      event: "paperclip.test_db_response_capture.entry.v1", captureId: id,
+      event: "nexus.test_db_response_capture.entry.v1", captureId: id,
       groupIndex, groupPage: Math.floor(groupIndex / 128),
       operation: entry.operation, table: entry.table, callers: entry.callers,
       calls: entry.calls, rows: entry.rows, responseValueBytes: entry.bytes,
       maxResponseValueBytes: entry.maxBytes, estimatedValues: entry.estimatedValues,
       queryErrors: entry.queryErrors, serializationErrors: entry.serializationErrors,
     });
-    send({ event: "paperclip.test_db_response_capture.summary.v1", captureId: id,
+    send({ event: "nexus.test_db_response_capture.summary.v1", captureId: id,
       windowStart: new Date(window.start).toISOString(), windowEnd: new Date(window.end).toISOString(),
       closedAt: new Date(now()).toISOString(), startedQueries: started, completedQueries: completed,
       inFlightAtEnd: inFlight, groups: entries.size, groupPageSize: 128, groupPages: Math.ceil(ordered.length / 128),

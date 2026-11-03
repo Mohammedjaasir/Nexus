@@ -3,7 +3,7 @@ import express from "express";
 import request from "supertest";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agents, authUsers, companies, companyMemberships, createDb, environments, principalPermissionGrants, activityLog, instanceSettings, builtInManagedResources, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { agents, authUsers, companies, companyMemberships, createDb, environments, principalPermissionGrants, activityLog, instanceSettings, builtInManagedResources, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { grantsForHumanRole } from "../services/company-member-roles.js";
 import { agentRoutes } from "../routes/agents.js";
@@ -43,7 +43,7 @@ describe.skipIf(!support.supported)("agent-scoped runner qualification", () => {
     await db.insert(authUsers).values({ id: userId, name: "Company owner", email: `${userId}@example.test`, emailVerified: true, createdAt: new Date(), updatedAt: new Date() });
     await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: userId, membershipRole: "owner", status: "active" });
     await db.insert(principalPermissionGrants).values(grantsForHumanRole("owner").map(grant => ({ ...grant, companyId, principalType: "user" as const, principalId: userId })));
-    await db.insert(environments).values({ id: environmentId, name: `Paperclip Computer ${environmentId}`, driver: "sandbox", status: "active", config: { provider: "daytona", snapshot: "managed-snapshot" } });
+    await db.insert(environments).values({ id: environmentId, name: `Nexus Computer ${environmentId}`, driver: "sandbox", status: "active", config: { provider: "daytona", snapshot: "managed-snapshot" } });
     await db.insert(agents).values({ id: agentId, companyId, name: "Amy fixture", adapterType: "claude_local", defaultEnvironmentId: environmentId,
       adapterConfig: { model: "claude-opus-5-5", effort: "high", maxTurnsPerRun: 1000, dangerouslySkipPermissions: true } });
     app = express(); app.use(express.json());
@@ -74,7 +74,7 @@ describe.skipIf(!support.supported)("agent-scoped runner qualification", () => {
     expect(probe).toHaveBeenCalledTimes(1);
   });
   it("lets the owner requalify an existing native runner's saved computer without changing its configuration", async () => {
-    await db.update(agents).set({ adapterType: "paperclip_runner", adapterConfig: { provider: "opencode", model: "example/model" } })
+    await db.update(agents).set({ adapterType: "nexus_runner", adapterConfig: { provider: "opencode", model: "example/model" } })
       .where(eq(agents.id, agentId));
     const before = await db.select().from(agents).where(eq(agents.id, agentId));
     const response = await qualify();
@@ -88,7 +88,7 @@ describe.skipIf(!support.supported)("agent-scoped runner qualification", () => {
   });
 
   it("reuses a current native snapshot proof without invalidating it or allocating another probe", async () => {
-    await db.update(agents).set({ adapterType: "paperclip_runner", adapterConfig: { provider: "opencode" } }).where(eq(agents.id, agentId));
+    await db.update(agents).set({ adapterType: "nexus_runner", adapterConfig: { provider: "opencode" } }).where(eq(agents.id, agentId));
     const config = { provider: "daytona", snapshot: "managed-snapshot" };
     const fingerprint = fingerprintEnvironmentSandboxProviderConfig(config);
     const saved = (await environmentService(db).getById(environmentId))!;
@@ -108,7 +108,7 @@ describe.skipIf(!support.supported)("agent-scoped runner qualification", () => {
   });
 
   it.each(["revoked", "changed-computer", "foreign-computer"])("keeps native saved-computer qualification closed for %s authority", async state => {
-    await db.update(agents).set({ adapterType: "paperclip_runner", adapterConfig: { provider: "opencode" } }).where(eq(agents.id, agentId));
+    await db.update(agents).set({ adapterType: "nexus_runner", adapterConfig: { provider: "opencode" } }).where(eq(agents.id, agentId));
     if (state === "revoked") await db.delete(principalPermissionGrants).where(eq(principalPermissionGrants.principalId, userId));
     if (state === "changed-computer") await db.update(agents).set({ defaultEnvironmentId: null }).where(eq(agents.id, agentId));
     if (state === "foreign-computer") {
@@ -146,7 +146,7 @@ describe.skipIf(!support.supported)("agent-scoped runner qualification", () => {
   });
   it.each(["instance", "managed", "kubernetes"])("resolves the %s computer with the same policy as runner saving", async mode => {
     await db.update(agents).set({ defaultEnvironmentId: null }).where(eq(agents.id, agentId));
-    await db.update(environments).set({ metadata: { managedByPaperclip: true, managedKubernetesSandbox: mode === "kubernetes" },
+    await db.update(environments).set({ metadata: { managedByNexus: true, managedKubernetesSandbox: mode === "kubernetes" },
       ...(mode === "kubernetes" ? { config: { provider: "kubernetes" } } : {}) }).where(eq(environments.id, environmentId));
     await db.insert(instanceSettings).values({ defaultEnvironmentId: mode === "instance" ? environmentId : null,
       experimental: { enableManagedSandboxOnly: mode === "managed" }, general: { executionMode: mode === "kubernetes" ? "kubernetes" : "local" } });

@@ -3,9 +3,9 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, companies, companyMemberships, companySkillSources, companySkills, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, projectAccessMembers, projects, projectSkillSources } from "@paperclipai/db";
+import { agents, companies, companyMemberships, companySkillSources, companySkills, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, projectAccessMembers, projects, projectSkillSources } from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
-import { PAPERCLIP_FEEDBACK_SKILL_KEYS, PAPERCLIP_OPERATIONAL_SKILL_KEY } from "@paperclipai/adapter-utils/server-utils";
+import { NEXUS_FEEDBACK_SKILL_KEYS, NEXUS_OPERATIONAL_SKILL_KEY } from "@nexusai/adapter-utils/server-utils";
 import { companySkillService } from "../services/company-skills.js";
 import { authorizationService, type AuthorizationActor } from "../services/authorization.js";
 import { skillAccessService, withSkillActor } from "../services/skill-access.js";
@@ -18,24 +18,24 @@ describeDatabase("selected runtime skill reconciliation", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   let home: string;
-  const previousHome = process.env.PAPERCLIP_HOME;
-  const previousPrivacy = process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
+  const previousHome = process.env.NEXUS_HOME;
+  const previousPrivacy = process.env.NEXUS_ISSUE_PRIVACY_MODE;
   const companyId = randomUUID();
 
   beforeAll(async () => {
     database = await startEmbeddedPostgresTestDatabase("runtime-skill-selection-");
     db = createDb(database.connectionString);
     home = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-skill-selection-"));
-    process.env.PAPERCLIP_HOME = home;
-    process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "enforce";
+    process.env.NEXUS_HOME = home;
+    process.env.NEXUS_ISSUE_PRIVACY_MODE = "enforce";
     await db.insert(companies).values({ id: companyId, name: "Runtime selection", issuePrefix: `RS${companyId.slice(0, 6)}` });
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
 
   afterAll(async () => {
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = previousHome;
-    if (previousPrivacy === undefined) delete process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-    else process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = previousPrivacy;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = previousHome;
+    if (previousPrivacy === undefined) delete process.env.NEXUS_ISSUE_PRIVACY_MODE;
+    else process.env.NEXUS_ISSUE_PRIVACY_MODE = previousPrivacy;
     await database?.cleanup();
     if (home) await fs.rm(home, { recursive: true, force: true });
   });
@@ -49,7 +49,7 @@ describeDatabase("selected runtime skill reconciliation", () => {
       const started = performance.now();
       try {
         const entries = await companySkillService(db).listRuntimeSkillEntries(companyId, {
-          selectionConfig: { paperclipSkillSync: { desiredSkills: [] } },
+          selectionConfig: { nexusSkillSync: { desiredSkills: [] } },
           includeLegacy: true,
           snapshotLatest: true,
         });
@@ -57,7 +57,7 @@ describeDatabase("selected runtime skill reconciliation", () => {
           cpuMicros: process.cpuUsage(cpu), selectBuilderCalls: select.mock.calls.length,
           insertBuilderCalls: insert.mock.calls.length, updateBuilderCalls: update.mock.calls.length,
           delivered: entries.map(entry => entry.key) }));
-        expect(entries.map(entry => entry.key).sort()).toEqual([PAPERCLIP_OPERATIONAL_SKILL_KEY, ...PAPERCLIP_FEEDBACK_SKILL_KEYS].sort());
+        expect(entries.map(entry => entry.key).sort()).toEqual([NEXUS_OPERATIONAL_SKILL_KEY, ...NEXUS_FEEDBACK_SKILL_KEYS].sort());
         expect(entries.every(entry => entry.sourceStatus === "available" && entry.versionId)).toBe(true);
       } finally {
         select.mockRestore();
@@ -144,11 +144,11 @@ describeDatabase("selected runtime skill reconciliation", () => {
     const runtimeStarted = performance.now();
     try {
       const entries = await withSkillActor(actor, () => companySkillService(db).listRuntimeSkillEntries(companyId, {
-        selectionConfig: { paperclipSkillSync: { desiredSkills: [] } }, includeLegacy: true, snapshotLatest: true,
+        selectionConfig: { nexusSkillSync: { desiredSkills: [] } }, includeLegacy: true, snapshotLatest: true,
       }));
       console.info(JSON.stringify({ phase: "actor-runtime", projects: 80, elapsedMs: performance.now() - runtimeStarted,
         selectBuilderCalls: select.mock.calls.length }));
-      expect(entries.map(entry => entry.key).sort()).toEqual([PAPERCLIP_OPERATIONAL_SKILL_KEY, ...PAPERCLIP_FEEDBACK_SKILL_KEYS].sort());
+      expect(entries.map(entry => entry.key).sort()).toEqual([NEXUS_OPERATIONAL_SKILL_KEY, ...NEXUS_FEEDBACK_SKILL_KEYS].sort());
     } finally { select.mockRestore(); }
     expect(counts[1]).toBeLessThanOrEqual(counts[0]! + 2);
   }, 30_000);

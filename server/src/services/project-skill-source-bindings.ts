@@ -1,8 +1,8 @@
 import { DELIVERY_QUEUES, notifyDeliveryWork } from './delivery-work-notifications.js';
 import { lockSkillImportQueue, MAX_COMPANY_PENDING_SKILL_IMPORTS, MAX_PROJECT_PENDING_SKILL_IMPORTS, SKILL_IMPORT_CAPACITY_WAIT } from './skill-source-import-queue.js';
 import { and, eq, ne } from 'drizzle-orm';
-import { projectSkillSources, type Db, projectWorkspaces } from '@paperclipai/db';
-import { parseGitHubSkillRepositoryUrl } from '@paperclipai/shared';
+import { projectSkillSources, type Db, projectWorkspaces } from '@nexusai/db';
+import { parseGitHubSkillRepositoryUrl } from '@nexusai/shared';
 import { currentSkillActor } from './skill-access.js';
 import { captureRunIdentity } from './run-identity.js';
 import { forbidden } from '../errors.js';

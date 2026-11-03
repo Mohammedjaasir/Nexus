@@ -15,7 +15,7 @@ function valid(): CaseReceiptObservation {
     pendingHandoff: null, fields: { nonce: "fixture", items: [{ quantity: 2, unitPrice: 3 }], currency: "USD", inputsValidated: true } };
   const runs = targets.map((agentId, index) => ({ id: `run-${index}`, agentId, companyId: "company", nativeIssueId: "task",
     runtimeMode: "native", status: "succeeded", startedAt: at(1000 + index * 1000), finishedAt: at(1700 + index * 1000),
-    contextSnapshot: { paperclipCase: { id: "case", taskId: "task", phase: phases[index], handoffVersion: index + 1,
+    contextSnapshot: { nexusCase: { id: "case", taskId: "task", phase: phases[index], handoffVersion: index + 1,
       issueStatusVersion: index * 2 + 1, incomingHandoff: { id: `handoff-${index}`, instructions: `fixture: ${phases[index]}` } } },
   }));
   const first = { id: "receipt-1", revisionNumber: 1, body: JSON.stringify({ total: 6 }), createdByAgentId: agents.implementation,
@@ -110,9 +110,9 @@ describe("receipt smoke fixture", () => {
     ["overlapping provider runs", o => { o.runs[2]!.startedAt = at(2500); }],
     ["unsettled run", o => { o.runs[3]!.status = "running"; }],
     ["missing timing evidence", o => { delete o.runs[1]!.finishedAt; }],
-    ["stale returning-agent context", o => { o.runs[3]!.contextSnapshot.paperclipCase.handoffVersion = 2; }],
-    ["wrong incoming handoff", o => { o.runs[3]!.contextSnapshot.paperclipCase.incomingHandoff.id = "handoff-1"; }],
-    ["no admitted case context", o => { delete o.runs[0]!.contextSnapshot.paperclipCase; }],
+    ["stale returning-agent context", o => { o.runs[3]!.contextSnapshot.nexusCase.handoffVersion = 2; }],
+    ["wrong incoming handoff", o => { o.runs[3]!.contextSnapshot.nexusCase.incomingHandoff.id = "handoff-1"; }],
+    ["no admitted case context", o => { delete o.runs[0]!.contextSnapshot.nexusCase; }],
     ["case left open after explicit completion", o => { o.caseRecord.status = "draft"; }],
     ["terminal handoff never completed", o => { o.handoffs[4]!.state = "awaiting_completion"; }],
     ["terminal handoff attributed to another run", o => { o.handoffs[4]!.sourceRunId = "run-2"; }],
@@ -133,7 +133,7 @@ describe("receipt smoke fixture", () => {
 describe("persisted case document read evidence", () => {
   const operation = "GET /api/cases/{id}/documents/{key}";
   const event = (seq: number, eventType: string, payload: Record<string, any>) => ({ seq, eventType, protocolSchemaVersion: 2,
-    payload: { prpEvent: { schema: "paperclip.prp.event.v2", schemaVersion: 2, sourceKind: "runner", payload } } });
+    payload: { prpEvent: { schema: "nexus.prp.event.v2", schemaVersion: 2, sourceKind: "runner", payload } } });
   function read() {
     return [event(1, "item.started", { item: { type: "tool_use", name: "call_api", id: "read", input: { operationId: operation, pathParams: { id: "case", key: "receipt" } } } }),
       event(2, "item.completed", { item: { type: "tool_result", id: "read", tool_use_id: "read", result: { ok: true, status: 200, apiOperationId: operation,
@@ -349,7 +349,7 @@ describe("persisted case document read evidence", () => {
 
 describe("ordinary task document read evidence", () => {
   const event = (seq: number, eventType: string, payload: Record<string, any>) => ({ seq, eventType, protocolSchemaVersion: 2,
-    payload: { prpEvent: { schema: "paperclip.prp.event.v2", schemaVersion: 2, sourceKind: "runner", payload } } });
+    payload: { prpEvent: { schema: "nexus.prp.event.v2", schemaVersion: 2, sourceKind: "runner", payload } } });
   const document = (key: string) => ({ id: `${key}-id`, issueId: "task", key, latestRevisionId: `${key}-revision`,
     latestRevisionNumber: 1, latestBody: "{}" });
   function evidence() {

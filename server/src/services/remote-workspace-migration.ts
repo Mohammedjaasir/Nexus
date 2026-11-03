@@ -6,8 +6,8 @@ import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 import {
   executionWorkspaceRepositories, executionWorkspaceRuntimeLeases, executionWorkspaceSnapshots, executionWorkspaces,
   heartbeatRuns, issueRecoveryActions, issues, nativeRunFinalizations, projects, workspaceOperations, workspaceRuntimeServices, type Db,
-} from "@paperclipai/db";
-import { readRemoteWorkspaceAuthority, remoteWorkspaceSourceSchema, type RemoteWorkspaceAuthority, type RemoteWorkspaceSource } from "@paperclipai/shared";
+} from "@nexusai/db";
+import { readRemoteWorkspaceAuthority, remoteWorkspaceSourceSchema, type RemoteWorkspaceAuthority, type RemoteWorkspaceSource } from "@nexusai/shared";
 import type { StorageService } from "../storage/types.js";
 import { persistActivity, publishActivity } from "./activity-log.js";
 import { withExecutionWorkspaceLifecycleLock } from "./execution-workspace-lifecycle-lock.js";
@@ -16,7 +16,7 @@ import { beginWorkspaceSnapshot, loadWorkspaceSnapshotArchive, uploadWorkspaceSn
 import { notifyRemoteWorkspaceSnapshots } from "./remote-workspace-snapshot-retention.js";
 import { removeTaskDirectoryTree } from "./isolated-task-directory-snapshot.js";
 
-const SCHEMA = "paperclip.remote-workspace-migration.v1";
+const SCHEMA = "nexus.remote-workspace-migration.v1";
 type Workspace = typeof executionWorkspaces.$inferSelect;
 type ReadDb = Pick<Db, "select">;
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -185,7 +185,7 @@ export async function migrateRemoteWorkspace(input: {
         const [uploaded] = await tx.select().from(executionWorkspaceSnapshots).where(and(eq(executionWorkspaceSnapshots.companyId, workspace.companyId),
           eq(executionWorkspaceSnapshots.executionWorkspaceId, workspace.id), eq(executionWorkspaceSnapshots.id, ref.id))).for("update");
         if (!uploaded || uploaded.status !== "uploaded" || uploaded.sourceOperationId !== operation.id) throw new Error("remote_workspace_migration_snapshot_changed");
-        const authority: RemoteWorkspaceAuthority = { schema: "paperclip.remote-workspace.v1", epoch: 1, snapshotId: ref.id,
+        const authority: RemoteWorkspaceAuthority = { schema: "nexus.remote-workspace.v1", epoch: 1, snapshotId: ref.id,
           source: reserved.source, location: null, writerRunId: null, dirty: false };
         const metadata: Record<string, unknown> = { ...workspace.metadata, remoteWorkspace: authority }; delete metadata.remoteWorkspaceMigration;
         await notifyRemoteWorkspaceSnapshots(tx, `workspace:${workspace.id}`);

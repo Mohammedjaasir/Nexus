@@ -22,7 +22,7 @@ The keeper also retains its original fixed action-group counts, action names, re
 
 App.tsx mounts AppDetail at `apps/:connectionId/:tab`. AppDetail's actual permissions path renders AgentAccessSection and ActionsSection in PermissionsPanel. AgentAccessSection supplies the question and access controls. The install API is used by the explicit AI-connection save path, so a no-write-on-read check is a separate observation from absent UI copy. Both fixed guards remain in the keeper. The grouped action-control sibling suite remains unchanged.
 
-The test stays in the `@paperclipai/ui` project and the `general-workspaces-a` lane. This cut removes a collected test and its full query-client/root render; it changes no suite inclusion or CI routing. No wall-time improvement is claimed.
+The test stays in the `@nexusai/ui` project and the `general-workspaces-a` lane. This cut removes a collected test and its full query-client/root render; it changes no suite inclusion or CI routing. No wall-time improvement is claimed.
 
 ## Proof
 

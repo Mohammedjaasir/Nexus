@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_ISSUE_REQUEST_DEPTH } from "../index.js";
 import {
   addIssueCommentSchema,
-  paperclipQuestionSetPayloadSchema,
+  nexusQuestionSetPayloadSchema,
   issueCommentMetadataSchema,
   createIssueSchema,
   issueBlockedInboxAttentionSchema,
@@ -16,7 +16,7 @@ import {
 import { createAgentSchema } from "./agent.js";
 
 describe("issue validators", () => {
-  it.each(["BASH_ENV", "ZDOTDIR", "GH_CONFIG_DIR", "PAPERCLIP_GITHUB_LAUNCHER_DIR"])("rejects task-owned managed shell selector %s", key => {
+  it.each(["BASH_ENV", "ZDOTDIR", "GH_CONFIG_DIR", "NEXUS_GITHUB_LAUNCHER_DIR"])("rejects task-owned managed shell selector %s", key => {
     for (const name of [key, key.toLowerCase()]) {
       const overrides = {adapterConfig:{env:{[name]:"/workspace/startup"}}};
       expect(createIssueSchema.safeParse({title:"Task",assigneeAdapterOverrides:overrides}).success).toBe(false);
@@ -410,7 +410,7 @@ describe("issue validators", () => {
 
   it("accepts structured issue comment presentation and metadata", () => {
     const parsed = addIssueCommentSchema.parse({
-      body: "Paperclip needs a disposition before this issue can continue.",
+      body: "Nexus needs a disposition before this issue can continue.",
       authorType: "system",
       presentation: {
         kind: "system_notice",
@@ -672,7 +672,7 @@ describe("issue validators", () => {
     expect(updateIssueSchema.safeParse(overrides).success).toBe(false);
   });
 
-  it.each(["PAPERCLIP_RUNNER_PREPARED_HARNESS_HOME", "paperclip_runner_prepared_harness_home"])("rejects task-level prepared storage via %s", key => {
+  it.each(["NEXUS_RUNNER_PREPARED_HARNESS_HOME", "nexus_runner_prepared_harness_home"])("rejects task-level prepared storage via %s", key => {
     const overrides = { assigneeAdapterOverrides: { adapterConfig: { env: { [key]: "/home/agent/.claude", TASK_FLAG: "kept" } } } };
     expect(createIssueSchema.safeParse({ title: "Task", ...overrides }).success).toBe(false);
     expect(updateIssueSchema.safeParse(overrides).success).toBe(false);
@@ -703,23 +703,23 @@ describe("issue validators", () => {
 
 describe("persisted canonical question initial text", () => {
   const question = { id: "draft", prompt: "Edit", required: true, answerMode: "text" };
-  const input = (patch: Record<string, unknown>) => ({ schema: "paperclip.question_set.v1", questions: [{ ...question, ...patch }] });
+  const input = (patch: Record<string, unknown>) => ({ schema: "nexus.question_set.v1", questions: [{ ...question, ...patch }] });
   it("retains exact editable content through the server payload validator", () => {
     for (const initialText of ["", "  Draft\n漢字\n", "x".repeat(100_000)]) {
-      expect(paperclipQuestionSetPayloadSchema.parse(input({ initialText }))).toEqual(input({ initialText }));
+      expect(nexusQuestionSetPayloadSchema.parse(input({ initialText }))).toEqual(input({ initialText }));
     }
   });
   it("counts mixed BMP and astral draft text like JSON Schema", () => {
     for (const codePoints of [100_000, 100_001]) {
       const initialText = "a".repeat(codePoints - 1) + "😀";
       expect(Buffer.byteLength(JSON.stringify(input({ initialText })))).toBeLessThan(196 * 1024);
-      expect(paperclipQuestionSetPayloadSchema.safeParse(input({ initialText })).success).toBe(codePoints === 100_000);
+      expect(nexusQuestionSetPayloadSchema.safeParse(input({ initialText })).success).toBe(codePoints === 100_000);
     }
   });
   it("rejects non-text modes and unbounded or nonstring defaults", () => {
     for (const initialText of [null, 1, "x".repeat(100_001), "a".repeat(100_000) + "😀"]) {
-      expect(paperclipQuestionSetPayloadSchema.safeParse(input({ initialText })).success).toBe(false);
+      expect(nexusQuestionSetPayloadSchema.safeParse(input({ initialText })).success).toBe(false);
     }
-    expect(paperclipQuestionSetPayloadSchema.safeParse(input({ answerMode: "single_select", options: [{ id: "a", label: "A" }], initialText: "a" })).success).toBe(false);
+    expect(nexusQuestionSetPayloadSchema.safeParse(input({ answerMode: "single_select", options: [{ id: "a", label: "A" }], initialText: "a" })).success).toBe(false);
   });
 });

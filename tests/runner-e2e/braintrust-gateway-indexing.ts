@@ -82,7 +82,7 @@ export async function verifyBraintrustGatewayIndexing(config: EvalBraintrustConf
     for (let offset = 0; offset < pending.length && !signal.aborted; offset += 100) {
       const batch = pending.slice(offset, offset + 100);
       try {
-        const rows = await queryBraintrustRows(config, `SELECT id, span_id, root_span_id, metadata.provider AS provider, metadata.model AS model, metadata.paperclip_eval_request_id AS request_id, metadata.paperclip_eval_campaign_id AS campaign_id, metadata.paperclip_eval_execution_id AS execution_id, metadata.paperclip_eval_attempt_id AS attempt_id, metadata.paperclip_eval_phase AS phase FROM project_logs('${config.projectId}') WHERE id IN (${batch.map(row => `'${row.gatewayRowId}'`).join(",")}) LIMIT ${batch.length + 1}`, transport, signal);
+        const rows = await queryBraintrustRows(config, `SELECT id, span_id, root_span_id, metadata.provider AS provider, metadata.model AS model, metadata.nexus_eval_request_id AS request_id, metadata.nexus_eval_campaign_id AS campaign_id, metadata.nexus_eval_execution_id AS execution_id, metadata.nexus_eval_attempt_id AS attempt_id, metadata.nexus_eval_phase AS phase FROM project_logs('${config.projectId}') WHERE id IN (${batch.map(row => `'${row.gatewayRowId}'`).join(",")}) LIMIT ${batch.length + 1}`, transport, signal);
         if (rows.length > batch.length || rows.some(row => !batch.some(expected => expected.gatewayRowId === row.id))) throw new Error("Unexpected gateway index rows");
         for (const row of batch) {
           const matches = rows.filter(value => value.id === row.gatewayRowId);

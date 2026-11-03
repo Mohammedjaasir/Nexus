@@ -9,7 +9,7 @@ import {
   type GitHubChatConfiguration,
   type GitHubTaskReview,
   type ChatExecutionDefaults,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { ChatEndpointDetail } from "./ChatEndpointDetail";
 import { GitHubReviewList, orderedGitHubReviews } from "./GitHubBotManagement";
 import { GitHubPolicyEditor } from "./GitHubBotConfiguration";
@@ -168,8 +168,8 @@ describe("GitHub bot management", () => {
         status: "linked",
         githubUserId: "42",
         githubLogin: "maya",
-        paperclipUserId: "member",
-        paperclipUserLabel: "Maya",
+        nexusUserId: "member",
+        nexusUserLabel: "Maya",
       },
     ]);
     mocks.members.mockResolvedValue({

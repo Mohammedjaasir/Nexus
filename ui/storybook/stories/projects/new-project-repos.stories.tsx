@@ -10,7 +10,7 @@ const meta = {
   component: NewProjectPrototype,
   tags: ["!autodocs"],
   parameters: { layout: "fullscreen", viewport: { options: reviewViewports }, docs: { description: { component: "Interactive design proposal only. The project name starts empty and focused, with an outlined folder icon. The source repo region scrolls while the title, name, and actions remain visible. GitHub setup uses the existing ConnectionSetupFlow; Continue to GitHub simulates a successful provider return. Creation and repository changes stay in memory." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "projects/repositories"
       ],

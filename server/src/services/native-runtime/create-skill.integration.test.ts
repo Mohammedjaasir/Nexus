@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { and, eq } from "drizzle-orm";
-import { activityLog, companySkills, companyMemberships, heartbeatRuns, issues } from "@paperclipai/db";
+import { activityLog, companySkills, companyMemberships, heartbeatRuns, issues } from "@nexusai/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startRunnerApiTestServer } from "../../__tests__/helpers/runner-api-server.js";
 import { companySkillPolicyService } from "../company-skill-policy.js";
@@ -14,20 +14,20 @@ import { activityService } from "../activity.js";
 describe("runner create_skill through the real skill API", () => {
   let server: Awaited<ReturnType<typeof startRunnerApiTestServer>>;
   let home: string;
-  const previousSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
-  const previousHome = process.env.PAPERCLIP_HOME;
+  const previousSecret = process.env.NEXUS_AGENT_JWT_SECRET;
+  const previousHome = process.env.NEXUS_HOME;
   beforeAll(async () => {
-    process.env.PAPERCLIP_AGENT_JWT_SECRET = randomUUID();
-    home = await mkdtemp(join(tmpdir(), "paperclip-create-skill-"));
-    process.env.PAPERCLIP_HOME = home;
+    process.env.NEXUS_AGENT_JWT_SECRET = randomUUID();
+    home = await mkdtemp(join(tmpdir(), "nexus-create-skill-"));
+    process.env.NEXUS_HOME = home;
     server = await startRunnerApiTestServer();
   }, 60_000);
   afterAll(async () => {
     await server?.close();
-    if (previousSecret === undefined) delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
-    else process.env.PAPERCLIP_AGENT_JWT_SECRET = previousSecret;
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = previousHome;
+    if (previousSecret === undefined) delete process.env.NEXUS_AGENT_JWT_SECRET;
+    else process.env.NEXUS_AGENT_JWT_SECRET = previousSecret;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = previousHome;
     if (home) await rm(home, { recursive: true, force: true });
   });
 
@@ -84,7 +84,7 @@ describe("runner create_skill through the real skill API", () => {
       invocationSource: "assignment", triggerDetail: "system", contextSnapshot: { issueId: testFixture.issueId },
     });
     await server.db.update(issues).set({ executionRunId: replacementRunId }).where(eq(issues.id, testFixture.issueId));
-    const replacement = new PaperclipRunnerToolAuthority(server.db, { ...testFixture, runId: replacementRunId });
+    const replacement = new NexusRunnerToolAuthority(server.db, { ...testFixture, runId: replacementRunId });
     expect(await replacement.execute({ tool: "create_skill", callId: "recovered", arguments: args })).toEqual(first);
     await expect(testFixture.authority.execute({ tool: "create_skill", callId: "stale", arguments: args })).rejects.toThrow();
     expect(await server.db.select().from(companySkills).where(eq(companySkills.companyId, testFixture.companyId))).toHaveLength(1);
@@ -103,7 +103,7 @@ describe("runner create_skill through the real skill API", () => {
 
   it("does not create skills in planning mode", async () => {
     const testFixture = await fixture({ mode: "planning" });
-    expect(new PaperclipRunnerToolAuthority(server.db, { ...testFixture, workMode: "planning" }).definitions().some(tool => tool.name === "create_skill")).toBe(false);
+    expect(new NexusRunnerToolAuthority(server.db, { ...testFixture, workMode: "planning" }).definitions().some(tool => tool.name === "create_skill")).toBe(false);
     await expect(testFixture.authority.execute({ tool: "create_skill", callId: "plan", arguments: args })).rejects.toThrow();
     expect(await server.db.select().from(companySkills).where(eq(companySkills.companyId, testFixture.companyId))).toHaveLength(0);
   });

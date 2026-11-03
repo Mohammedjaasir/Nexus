@@ -1,8 +1,8 @@
-import type { heartbeatRuns } from "@paperclipai/db";
-import { hasWorkspaceRestoreFailure } from "@paperclipai/shared";
+import type { heartbeatRuns } from "@nexusai/db";
+import { hasWorkspaceRestoreFailure } from "@nexusai/shared";
 
 export const LEGACY_WORKSPACE_RECOVERY_KEY = "workspaceRestoreRecovery";
-export const LEGACY_WORKSPACE_RECOVERY_SCHEMA = "paperclip.workspace-restore-recovery.v1";
+export const LEGACY_WORKSPACE_RECOVERY_SCHEMA = "nexus.workspace-restore-recovery.v1";
 
 /** The admitted external contract can prohibit workspace access even though its
  * managed Runner has a synchronization descriptor for durable recovery. That
@@ -10,11 +10,11 @@ export const LEGACY_WORKSPACE_RECOVERY_SCHEMA = "paperclip.workspace-restore-rec
 export function nativeRunHasNoWorkspaceAccess(run: Pick<typeof heartbeatRuns.$inferSelect,
   "id" | "companyId" | "agentId" | "issueId" | "nativeIssueId" | "runtimeMode" | "driverKind" | "runnerProfileJson">): boolean {
   const input = run.runnerProfileJson?.nativeExecutionInput as Record<string, unknown> | undefined;
-  if (run.runtimeMode !== "native" || !input || (input.schema !== "paperclip.native-execution-input.v6" && input.schema !== "paperclip.native-execution-input.v8")) return false;
+  if (run.runtimeMode !== "native" || !input || (input.schema !== "nexus.native-execution-input.v6" && input.schema !== "nexus.native-execution-input.v8")) return false;
   const binding = input.binding as Record<string, unknown> | undefined;
   const workspace = input.workspace as Record<string, unknown> | undefined;
   const provider = input.provider as Record<string, unknown> | undefined;
-  const driver = input?.schema === "paperclip.native-execution-input.v8"
+  const driver = input?.schema === "nexus.native-execution-input.v8"
     ? provider?.kind === "muse" && provider.bridgeRevision === "muse-v1" ? "muse_external" : null
     : provider?.kind === "grok_bot" ? "grok_bot_mcp"
       : provider?.kind === "openai_dot" ? "openai_dot_mcp" : null;

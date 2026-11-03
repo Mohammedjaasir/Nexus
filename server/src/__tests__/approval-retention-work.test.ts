@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { activityLog, agents, approvals, chatConversations, chatEndpoints, companies, createDb, subscribeDatabaseWork, decisionArchiveNotificationOutbox, decisionRetention, issueApprovals, issues, toolApplications, toolConnections, type Db } from "@paperclipai/db";
+import { activityLog, agents, approvals, chatConversations, chatEndpoints, companies, createDb, subscribeDatabaseWork, decisionArchiveNotificationOutbox, decisionRetention, issueApprovals, issues, toolApplications, toolConnections, type Db } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { approvalRecords } from "../services/approvals.js";
@@ -15,7 +15,7 @@ import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordin
 import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_APPROVAL_RETENTION_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_APPROVAL_RETENTION_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const delay = DEFAULT_DECISION_ARCHIVE_DAYS * 86_400_000;
 (support.supported ? describe : describe.skip)("approval retention worker", () => {

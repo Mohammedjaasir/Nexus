@@ -1,7 +1,7 @@
 # Asana
 
-Paperclip uses [Asana's official remote MCP server](https://developers.asana.com/docs/integrating-with-asanas-mcp-server)
-at `https://mcp.asana.com/v2/mcp`. The default connection uses Paperclip's
+Nexus uses [Asana's official remote MCP server](https://developers.asana.com/docs/integrating-with-asanas-mcp-server)
+at `https://mcp.asana.com/v2/mcp`. The default connection uses Nexus's
 shared OAuth app through the Cloud connector broker. An enrolled self-hosted
 instance can use that same app. **Use your own Asana OAuth app** is available
 without enrolling the instance, including when the shared app is unavailable.
@@ -10,15 +10,15 @@ without enrolling the instance, including when the shared app is unavailable.
 
 1. Open [Asana My apps](https://app.asana.com/0/my-apps) and create an
    **Asana MCP** app. An API app or personal access token will not authorize MCP.
-2. Under OAuth, copy the exact callback displayed in Paperclip into Redirect URLs.
-   For local development Paperclip uses `localhost`, even if opened at `127.0.0.1`.
+2. Under OAuth, copy the exact callback displayed in Nexus into Redirect URLs.
+   For local development Nexus uses `localhost`, even if opened at `127.0.0.1`.
    Public deployments should configure their canonical HTTPS URL.
 3. Under Manage distribution, select the workspaces that can use the app and save.
-4. Enter the client ID and client secret in Paperclip and continue to Asana.
+4. Enter the client ID and client secret in Nexus and continue to Asana.
 
 MCP v2 still requires OAuth and a preregistered client; it does not offer dynamic
 client registration. Asana MCP currently grants one fixed `default` scope.
-Paperclip's action permissions govern which discovered tools an agent can use.
+Nexus's action permissions govern which discovered tools an agent can use.
 The client secret is encrypted in the local credential vault and sent only to
 the token endpoint. Resuming setup with the same client ID preserves the secret;
 changing the client ID requires the matching new secret.

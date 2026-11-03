@@ -28,13 +28,13 @@ function preparedContext(startingState: JourneyContext["startingState"] = "recip
   return { context, api };
 }
 function result(): RunnerE2EResult {
-  return { schema: "paperclip.runner-e2e.result/v2", suiteId: "product-journeys", suiteDefinitionHash: "test", executionId: "product-journeys.local-qa.local.task-properties", profileId: "local-qa", environmentId: "local", caseId: "task-properties", provider: null, model: null, runtimeMode: "none", status: "passed", cleanup: "passed", attempt: 1, startedAt: "2026-01-01T00:00:00Z", finishedAt: "2026-01-01T00:00:01Z", durationMs: 1000,
+  return { schema: "nexus.runner-e2e.result/v2", suiteId: "product-journeys", suiteDefinitionHash: "test", executionId: "product-journeys.local-qa.local.task-properties", profileId: "local-qa", environmentId: "local", caseId: "task-properties", provider: null, model: null, runtimeMode: "none", status: "passed", cleanup: "passed", attempt: 1, startedAt: "2026-01-01T00:00:00Z", finishedAt: "2026-01-01T00:00:01Z", durationMs: 1000,
     productJourney: { outcome: "passed", startingState: "recipe", phases: [{phase: "journey", outcome: "passed"}], checks: [{id:"assignment-persisted", passed:true},{id:"no-agent-work",passed:true}], privacy: "private", resourceDisposition: "released", deployment: { kind: "self-hosted", targetId: "local-qa", origin: "http://127.0.0.1:3100", commit: "a".repeat(40), cloudRelease: null, runtimeImage: null, configurationHash: "test" } } };
 }
 function connectReceipt(): OnboardingConnectEvidence {
   return {
     version: 1, checkpoint: "hire",
-    validation: { state: "json", httpStatus: 200, requestedAdapter: "paperclip_runner", adapter: "paperclip_runner", outcome: "fail", serverCode: null, checks: [{ code: "adapter_auth_missing", level: "error" }], truncatedChecks: false },
+    validation: { state: "json", httpStatus: 200, requestedAdapter: "nexus_runner", adapter: "nexus_runner", outcome: "fail", serverCode: null, checks: [{ code: "adapter_auth_missing", level: "error" }], truncatedChecks: false },
     hire: { state: "json", httpStatus: 422, requestedAdapter: null, adapter: null, outcome: null, serverCode: "agent_runner_unavailable", checks: [], truncatedChecks: false },
   };
 }
@@ -76,7 +76,7 @@ describe("deployment journey contracts", () => {
     const retained = result();
     retained.productJourney!.onboardingConnect = connectReceipt();
     const output = renderCaseOutcome(retained, true, []);
-    for (const text of ["Onboarding Connect diagnostics", "Last checkpoint", "Native validation", "Agent hire", "HTTP status", "Test endpoint adapter", "Returned adapter", "200", "422", "paperclip_runner", "adapter_auth_missing", "agent_runner_unavailable", "error", "Unavailable"]) expect(output).toContain(text);
+    for (const text of ["Onboarding Connect diagnostics", "Last checkpoint", "Native validation", "Agent hire", "HTTP status", "Test endpoint adapter", "Returned adapter", "200", "422", "nexus_runner", "adapter_auth_missing", "agent_runner_unavailable", "error", "Unavailable"]) expect(output).toContain(text);
     retained.productJourney!.onboardingConnect.validation.truncatedChecks = true;
     expect(renderCaseOutcome(retained, true, [])).toContain("Only the first 32 validation checks were retained");
     Object.assign(retained.productJourney!.onboardingConnect.validation, { body: "<script>must-not-render</script>" });

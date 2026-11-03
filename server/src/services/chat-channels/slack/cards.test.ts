@@ -6,10 +6,10 @@ import { isPassiveSlackAction, normalizeSlackSelectionAction, slackPublicationCa
 describe("Slack interaction card wire payloads", () => {
   it.each([120, 32000, 100000])("renders a %i-character request within Slack limits", length => {
     const payload = projectSafeChatPublication({
-      classification: "external", source: "issue_interaction", text: "Read this request in Paperclip",
+      classification: "external", source: "issue_interaction", text: "Read this request in Nexus",
       interaction: { id: "interaction-1", card: {
         kind: "question", title: "😀".repeat(160), body: "Q".repeat(length),
-        actions: [{ type: "link", label: "😀".repeat(80), url: "https://paperclip.example/issues/task-1" }],
+        actions: [{ type: "link", label: "😀".repeat(80), url: "https://nexus.example/issues/task-1" }],
       } },
     });
     const blocks = cardToBlockKit(slackPublicationCard(payload)!) as Array<{
@@ -26,7 +26,7 @@ describe("Slack interaction card wire payloads", () => {
     const wire = JSON.stringify(blocks);
     if (length > 32000) expect(wire).toContain("too long for Slack");
     else expect(blocks.filter(block => block.type === "section").map(block => block.text!.text).join("")).toBe("Q".repeat(length));
-    expect(wire).toContain("https://paperclip.example/issues/task-1");
+    expect(wire).toContain("https://nexus.example/issues/task-1");
   });
 });
 
@@ -78,13 +78,13 @@ describe("untrusted Slack selection state", () => {
 });
 
 it("acknowledges rendered link buttons without treating navigation as an answer", () => {
-  const payload = projectSafeChatPublication({ classification: "external", source: "issue_interaction", text: "Review GitHub", interaction: { id: "interaction-1", card: { kind: "question", title: "Connect GitHub", actions: [{ type: "link", label: "Review connection", url: "https://paperclip.example/issues/task-1" }, { type: "callback", label: "Not now", actionId: "pcq:decline" }] } } });
+  const payload = projectSafeChatPublication({ classification: "external", source: "issue_interaction", text: "Review GitHub", interaction: { id: "interaction-1", card: { kind: "question", title: "Connect GitHub", actions: [{ type: "link", label: "Review connection", url: "https://nexus.example/issues/task-1" }, { type: "callback", label: "Not now", actionId: "pcq:decline" }] } } });
   const blocks = cardToBlockKit(slackPublicationCard(payload)!);
   const actions = blocks.flatMap(block => block.type === "actions" ? block.elements : []);
   const link = actions.find((action): action is { url: string; action_id: string } =>
     typeof action === "object" && action !== null && "url" in action && "action_id" in action
     && typeof action.url === "string" && typeof action.action_id === "string");
-  expect(link).toMatchObject({ type: "button", url: "https://paperclip.example/issues/task-1" });
+  expect(link).toMatchObject({ type: "button", url: "https://nexus.example/issues/task-1" });
   expect(isPassiveSlackAction({ actionId: link!.action_id! })).toBe(true);
   expect(isPassiveSlackAction({ actionId: "pcsv:pcq:submit" })).toBe(true);
   expect(isPassiveSlackAction({ actionId: "pcq:decline" })).toBe(false);

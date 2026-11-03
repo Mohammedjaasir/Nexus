@@ -1,5 +1,5 @@
 import { foreignKey, integer, jsonb, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import type { AiConnectionPoolConfig, AiConnectionRouterSelection } from "@paperclipai/shared";
+import type { AiConnectionPoolConfig, AiConnectionRouterSelection } from "@nexusai/shared";
 import { companies } from "./companies.js";
 import { agents } from "./agents.js";
 import { toolConnections } from "./tool_access.js";

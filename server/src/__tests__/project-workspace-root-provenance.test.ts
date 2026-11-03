@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { agents, authUsers, companies, companyMemberships, createDb, executionWorkspaceRepositoryAccess,
   executionWorkspaces, issues, projects, projectWorkspaces, projectAccessMembers, principalPermissionGrants,
-  EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+  EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { projectService } from "../services/projects.js";
 import { assertTaskWorkspaceExecutionAccess, assertTaskWorkspaceSourceProjectAccess } from "../services/task-workspace-access.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
@@ -18,10 +18,10 @@ const support = await getEmbeddedPostgresTestSupport();
   let db: ReturnType<typeof createDb>;
   let root: string;
   beforeAll(async () => {
-    vi.stubEnv("PAPERCLIP_ISSUE_PRIVACY_MODE", "enforce");
-    database = await startEmbeddedPostgresTestDatabase("paperclip-configured-provenance-");
+    vi.stubEnv("NEXUS_ISSUE_PRIVACY_MODE", "enforce");
+    database = await startEmbeddedPostgresTestDatabase("nexus-configured-provenance-");
     db = createDb(database.connectionString);
-    root = await mkdtemp(path.join(tmpdir(), "paperclip-configured-provenance-"));
+    root = await mkdtemp(path.join(tmpdir(), "nexus-configured-provenance-"));
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
   afterAll(async () => {
     vi.unstubAllEnvs();

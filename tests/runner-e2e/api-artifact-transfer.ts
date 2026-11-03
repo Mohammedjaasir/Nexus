@@ -135,12 +135,12 @@ export const apiArtifactTransferTask: RunnerTaskFixture = {
   buildTitle: nonce => `Copy complete API evidence ${nonce}`,
   buildVisibleMarker: () => "api-response-proof.txt",
   buildPrompt: nonce => [
-    "Inspect diagnostic evidence task {{API_RESPONSE_SOURCE_ID}} using Paperclip API tools.",
+    "Inspect diagnostic evidence task {{API_RESPONSE_SOURCE_ID}} using Nexus API tools.",
     "Discover GET /api/issues/{id}, call it for that task, and retain its returned response artifact identity.",
     "Use download_artifact to copy that exact artifact into api-response-proof.txt in the execution workspace, passing its returned artifactId, byteSize and sha256.",
     "Do not reconstruct, retype, rewrite, or execute the artifact contents. Do not fetch the response through shell credentials or substitute another reader. Report a missing download capability as a failure.",
     "Verify the installed file as JSON, including its source issue ID, complete description and Evidence code. Deliver the unchanged full JSON file as an attachment named api-response-proof.txt. Do not edit the evidence task or create children.",
-    `Finish this task with paperclip_finish, reportedWorkDisposition done, and summary API_ARTIFACT_TRANSFER_${nonce}.`,
+    `Finish this task with nexus_finish, reportedWorkDisposition done, and summary API_ARTIFACT_TRANSFER_${nonce}.`,
   ].join("\n"),
   buildMatchers: (_nonce, execution) => [
     { kind: "message_contains", expected: "api-response-proof.txt" },

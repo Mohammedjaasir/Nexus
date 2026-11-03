@@ -1,7 +1,7 @@
-export const endpoint = 'https://paperclip.testops.cloud';
+export const endpoint = 'https://nexus.testops.cloud';
 export const planName = 'Chat feature evals';
-export const fullName = 'paperclip.Product E2E.chat-features.create-backlog';
-export const aliases = [fullName, 'paperclip.Product E2E.chat-features.tasks.create-backlog'];
+export const fullName = 'nexus.Product E2E.chat-features.create-backlog';
+export const aliases = [fullName, 'nexus.Product E2E.chat-features.tasks.create-backlog'];
 export function launchNameSearch(name) {
   // TestOps search uses the UI's typed filter carrier, not plain search text.
   return Buffer.from(JSON.stringify([{ id: 'name', type: 'string', value: name }]), 'utf8').toString('base64');
@@ -192,7 +192,7 @@ export async function validateChatSelection(api, env) {
   if (launch.id !== run.launchId || launch.projectId !== 1 || launch.closed === true) fail('chat_testops_launch_mismatch');
   const selection = await api(`/api/jobrun/${jobRunId}/plan?expected=true`);
   if (!Array.isArray(selection) || selection.length !== 1 || selection[0].id !== caseId || selection[0].selector !== selected.fullName) fail('chat_testops_selection_mismatch');
-  return { schema: 'paperclip.chat-feature-testops-selection/v1', ...context, allureJobRunId: String(jobRunId),
+  return { schema: 'nexus.chat-feature-testops-selection/v1', ...context, allureJobRunId: String(jobRunId),
     executionId, canonicalScenario: scenario, projectId: 1, planId, jobId, caseId, fullName: selected.fullName, launchId: run.launchId };
 }
 
@@ -288,7 +288,7 @@ export async function bootstrapJobMetadata(api, env, expectedLaunchId) {
       parameters.push({ id: parameter.id, kind: fixedRef ? 'fixed_default_ref' : 'UNRESOLVED',
         value: fixedRef ? 'refs/heads/master' : 'NOT_PROJECTED' });
     }
-    return { ...(strict ? { schema: 'paperclip.chat-feature-testops-bootstrap-registration/v1', ...context, capturedAfterWatch: true, runnableBindingQualified: false } : {}),
+    return { ...(strict ? { schema: 'nexus.chat-feature-testops-bootstrap-registration/v1', ...context, capturedAfterWatch: true, runnableBindingQualified: false } : {}),
       status: 'observed', projectId: 1, jobId: job.id, allureJobRunId: env.ALLURE_JOB_RUN_ID,
       publicWorkflowMatches: publicJobUrl(job.url, env), currentRunUrlMatches: run.url === `https://github.com/paperclipai/paperclip/actions/runs/${env.GITHUB_RUN_ID}`,
       launchId: id(run.launchId) ? run.launchId : null, parameters, requests, actualResult: null };
@@ -326,7 +326,7 @@ export async function admitLaunchPlan(env, fetchImpl = fetch) {
     || run.head_sha !== source.workflowSha || run.head_branch !== 'master' || run.event !== 'workflow_dispatch'
     || run.repository?.full_name !== 'paperclipai/paperclip' || run.repository?.private !== false
     || run.actor?.id !== Number(env.GITHUB_ACTOR_ID) || run.triggering_actor?.id !== Number(env.TESTOPS_TRIGGERING_ACTOR_ID) || !allowed.includes(run.triggering_actor.id)) fail('chat_testops_launch_admission');
-  const receipt = Object.freeze({ schema: 'paperclip.chat-feature-testops-launch-admission/v1', ...source,
+  const receipt = Object.freeze({ schema: 'nexus.chat-feature-testops-launch-admission/v1', ...source,
     workflowId: workflow.id, runNumber: run.run_number, expectedRunNumber: Number(expected), actorId: run.actor.id, triggeringActorId: run.triggering_actor.id });
   launchAdmissions.add(receipt); return receipt;
 }
@@ -345,7 +345,7 @@ export async function launchChatPlan(api, env, markOnce, admission) {
   const existing = rows(await api(`/api/launch?${new URLSearchParams({ projectId: '1', search: launchNameSearch(launchName), page: '0', size: '100' })}`));
   if (existing.length) {
     if (existing.length !== 1 || existing[0].name !== launchName || !id(existing[0].id)) fail('chat_testops_nonce_conflict');
-    return { schema: 'paperclip.chat-feature-testops-launch/v1', ...source, nonce, planId: known.planId,
+    return { schema: 'nexus.chat-feature-testops-launch/v1', ...source, nonce, planId: known.planId,
       jobId: known.jobId, caseId: known.caseId, launchId: existing[0].id, status: 'EXISTING_NO_RESEND', actualResult: null };
   }
   await markOnce({ ...source, launchAdmission: admission, nonce, planId: known.planId, jobId: known.jobId, caseId: known.caseId });
@@ -361,7 +361,7 @@ export async function launchChatPlan(api, env, markOnce, admission) {
     || !same(bound[0].job.parameters, parameters)) fail('chat_testops_plan_job_mismatch');
   const launched = await api(`/api/testplan/${known.planId}/run`, 'POST', { launchName });
   if (!id(launched?.id) || launched.projectId !== 1 || launched.name !== launchName) fail('chat_testops_launch_mismatch');
-  return { schema: 'paperclip.chat-feature-testops-launch/v1', ...source, nonce, projectId: 1,
+  return { schema: 'nexus.chat-feature-testops-launch/v1', ...source, nonce, projectId: 1,
     planId: known.planId, jobId: known.jobId, caseId: known.caseId, launchId: launched.id,
     status: 'REQUESTED', integrationId: known.integrationId, integrationBindingRequested: true, integrationAssociationReadback: 'not_exposed_by_job_dto', executionId, canonicalScenario: scenario, actualRunId: null, actualResult: null };
 }
@@ -500,7 +500,7 @@ export async function verifyChatUpload(api, env, selected, exported, { wait = ms
       const ready = withinDeadline && resultStatusMatches && missedCount === 0 && signaturesMatch;
       attachmentReadiness.push({ poll: poll + 1, attachmentCount: attached.content.length, missedCount, signaturesMatch, resultStatusMatches, withinDeadline, ready });
       if (ready) {
-        return { schema: 'paperclip.chat-feature-testops-upload-verification/v1', ...context, projectId: 1, planId: selected.planId,
+        return { schema: 'nexus.chat-feature-testops-upload-verification/v1', ...context, projectId: 1, planId: selected.planId,
           jobId: selected.jobId, allureJobRunId: selected.allureJobRunId, launchId: selected.launchId, caseId: selected.caseId,
           resultId: result.id, executionId, status: result.status, cleanup: exported.cleanup, verification: 'VERIFIED',
           attachments: exported.attachmentMetadata.map(value => ({ ...value })), attachmentReadiness,

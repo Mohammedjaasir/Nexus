@@ -8,7 +8,7 @@ import {
   agents, authUsers, companies, companyMemberships, executionWorkspaceRepositories,
   executionWorkspaceRepositoryAccess, executionWorkspaceRepositoryRoots, executionWorkspaces,
   heartbeatRuns, issueAccessGrants, issues, type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type { AuthorizationActor } from "../../services/authorization.js";
 
 const exec = promisify(execFile);
@@ -102,8 +102,8 @@ export async function addReadyWorkspaceHistoryRepository(db: Db,
   fixture: Awaited<ReturnType<typeof createWorkspacePreparationHistoryFixture>>,
   options: { matchingHistoricalReceipts?: boolean } = {},
 ) {
-  const repositoryIdentity = "https://github.com/paperclip-synthetic/history-fixture";
-  const relativePath = `.paperclip-repositories/task-repo-${createHash("sha256").update(repositoryIdentity).digest("hex").slice(0, 24)}`;
+  const repositoryIdentity = "https://github.com/nexus-synthetic/history-fixture";
+  const relativePath = `.nexus-repositories/task-repo-${createHash("sha256").update(repositoryIdentity).digest("hex").slice(0, 24)}`;
   const checkout = path.join(fixture.cwd, relativePath);
   await fs.mkdir(path.dirname(checkout), { recursive: true });
   await exec("git", ["clone", "--no-hardlinks", fixture.cwd, checkout]);
@@ -123,7 +123,7 @@ export async function addReadyWorkspaceHistoryRepository(db: Db,
       if (offset === 0 && peers[0]) ownerId = peers[0].id;
     }
   }
-  await fs.writeFile(path.join(checkout, ".git", "paperclip-workspace-owner.json"), JSON.stringify({ version: 1,
+  await fs.writeFile(path.join(checkout, ".git", "nexus-workspace-owner.json"), JSON.stringify({ version: 1,
     repositoryId: ownerId, pinnedCommit: fixture.pin }));
   return { row, checkout };
 }

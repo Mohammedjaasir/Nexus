@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { companyTransferRuns } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { companyTransferRuns } from "@nexusai/db";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 
 // Durable run ledger for chunked company transfers. A run tracks one export

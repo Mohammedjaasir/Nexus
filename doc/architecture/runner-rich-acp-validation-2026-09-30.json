@@ -1,7 +1,7 @@
 {
-  "schema": "paperclip-runner-rich-acp-validation-checkpoint/v1",
+  "schema": "nexus-runner-rich-acp-validation-checkpoint/v1",
   "status": "rolling_checkpoint_qualification_pending",
-  "artifactBase": "private artifact set paperclip-rich-acp-production-20260929",
+  "artifactBase": "private artifact set nexus-rich-acp-production-20260929",
   "sourceRevision": "5605c350b2a4dae75be3779f164d7e1a0e4a5a87",
   "generatedAt": "2026-09-30",
   "includedRootReconciledPaidCells": [
@@ -588,8 +588,8 @@
   "sourceLevelModePersistenceFix": {
     "sourceRevision": "5605c350b2a4dae75be3779f164d7e1a0e4a5a87",
     "testedFiles": {
-      "packages/paperclip-runner/src/drivers/codex/codex-driver-values.ts": "d1d0467ecc34b3e36f67fc9a7eb166094d120fd1a28f15650d7310dd84f71eaa",
-      "packages/paperclip-runner/src/drivers/codex/codex-app-server-driver.recovery.test.ts": "a609f0121ddbcdaf17919dfc20cf5e3937df11fbd9a06fa90483da9086e738b8"
+      "packages/nexus-runner/src/drivers/codex/codex-driver-values.ts": "d1d0467ecc34b3e36f67fc9a7eb166094d120fd1a28f15650d7310dd84f71eaa",
+      "packages/nexus-runner/src/drivers/codex/codex-app-server-driver.recovery.test.ts": "a609f0121ddbcdaf17919dfc20cf5e3937df11fbd9a06fa90483da9086e738b8"
     },
     "testFilesPassed": 2,
     "testsPassed": 56,

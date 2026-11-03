@@ -5,13 +5,13 @@ describe("native PRP envelope validation", () => {
   it("accepts matching v1 and v2 envelopes", () => {
     expect(
       isValidNativePrpEnvelope(
-        { schema: "paperclip.prp.event.v1", schemaVersion: 1 },
+        { schema: "nexus.prp.event.v1", schemaVersion: 1 },
         1,
       ),
     ).toBe(true);
     expect(
       isValidNativePrpEnvelope(
-        { schema: "paperclip.prp.event.v2", schemaVersion: 2 },
+        { schema: "nexus.prp.event.v2", schemaVersion: 2 },
         2,
       ),
     ).toBe(true);
@@ -20,13 +20,13 @@ describe("native PRP envelope validation", () => {
   it("rejects malformed and mismatched envelopes", () => {
     expect(
       isValidNativePrpEnvelope(
-        { schema: "paperclip.prp.event.v2", schemaVersion: 2 },
+        { schema: "nexus.prp.event.v2", schemaVersion: 2 },
         1,
       ),
     ).toBe(false);
     expect(
       isValidNativePrpEnvelope(
-        { schema: "paperclip.prp.event.v2", schemaVersion: 99 },
+        { schema: "nexus.prp.event.v2", schemaVersion: 99 },
         99,
       ),
     ).toBe(false);

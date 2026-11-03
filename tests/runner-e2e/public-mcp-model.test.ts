@@ -15,7 +15,7 @@ describe("external assistant evidence and billing", () => {
     recordAssistantUsage(usage, "gpt-5.4-nano", 1000, 100, 2000);
     expect(usage.estimatedCostUsd).toBeCloseTo(0.000365);
     const result: RunnerE2EResult = {
-      schema: "paperclip.runner-e2e.result/v2", executionId: "public-mcp.assistant-codex-mini.local.delegate-retrieve",
+      schema: "nexus.runner-e2e.result/v2", executionId: "public-mcp.assistant-codex-mini.local.delegate-retrieve",
       attempt: 1, status: "passed", profileId: "assistant-codex-mini", caseId: "delegate-retrieve", provider: "codex", model: "gpt-5.4-mini", runtimeMode: "legacy",
       startedAt: "2026-09-30T00:00:00Z", finishedAt: "2026-09-30T00:00:01Z", cleanup: "passed",
       runIds: ["worker-run"], usage: { inputTokens: 100, outputTokens: 10, costUsd: 0.01 }, environmentId: "local", durationMs: 1000, publicMcp: usage,
@@ -34,7 +34,7 @@ describe("external assistant evidence and billing", () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(Response.json({ model: "gpt-5.4-nano", usage: { input_tokens: 200, output_tokens: 20 }, output: [
         { type: "reasoning", summary: [{ text: "private fixture reasoning" }] },
-        { type: "function_call", name: "paperclip_connection", call_id: "one", arguments: "{}" },
+        { type: "function_call", name: "nexus_connection", call_id: "one", arguments: "{}" },
       ] }))
       .mockResolvedValueOnce(Response.json({ model: "gpt-5.4-nano", usage: { input_tokens: 250, output_tokens: 10 }, output: [{ type: "message", content: [{ type: "output_text", text: "Connected to Team." }] }] }));
     vi.stubGlobal("fetch", fetchMock);
@@ -43,7 +43,7 @@ describe("external assistant evidence and billing", () => {
     const usage = assistantUsage("openai", "gpt-5.4-nano");
     const result = await runAssistant({ usage, credential: "unit-test-key", prompt: "Which team?", tools: [], call, deadlineAt: Date.now() + 10_000, observe });
     expect(result.final).toBe("Connected to Team.");
-    expect(call).toHaveBeenCalledExactlyOnceWith("paperclip_connection", {});
+    expect(call).toHaveBeenCalledExactlyOnceWith("nexus_connection", {});
     expect(JSON.stringify(observe.mock.calls)).not.toContain("private fixture reasoning");
     expect(JSON.stringify(observe.mock.calls)).not.toContain("unit-test-key");
     expect(usage.requests).toBe(2);
@@ -58,7 +58,7 @@ describe("external assistant evidence and billing", () => {
 
   it("persists paid usage and completed tools before the next provider request", async () => {
     vi.stubGlobal("fetch", vi.fn()
-      .mockResolvedValueOnce(Response.json({ model: "gpt-5.4-mini", usage: { input_tokens: 200, output_tokens: 20 }, output: [{ type: "function_call", name: "paperclip_connection", call_id: "one", arguments: "{}" }] }))
+      .mockResolvedValueOnce(Response.json({ model: "gpt-5.4-mini", usage: { input_tokens: 200, output_tokens: 20 }, output: [{ type: "function_call", name: "nexus_connection", call_id: "one", arguments: "{}" }] }))
       .mockRejectedValueOnce(new Error("fixture connection interrupted")));
     const snapshots: Array<{ calls: number; requests: number }> = [];
     const usage = assistantUsage("openai", "gpt-5.4-mini");

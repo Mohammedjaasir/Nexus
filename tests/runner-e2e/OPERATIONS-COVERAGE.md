@@ -168,8 +168,8 @@ local archive tests and an infrastructure template do not establish those facts.
 
 ## Separate Runner Eval audit
 
-The October 21 audit inspected Paperclip source on master `8b873e0112` plus the
-eval operations stack, and the available `paperclip-evals` checkout at
+The October 21 audit inspected Nexus source on master `8b873e0112` plus the
+eval operations stack, and the available `nexus-evals` checkout at
 `0bae4e0947dc7959cae25b73d27533c096f23a14`. This is a source audit, not a
 new live run or proof of the workflow's configured private-repository revision.
 
@@ -202,7 +202,7 @@ is `scripts/eval-schedule-monitor.mjs`. Run it through a separate host with an
 authenticated GitHub CLI and one private state file:
 
 ```sh
-node scripts/eval-schedule-monitor.mjs "$HOME/.config/paperclip-evals/schedule-monitor.json"
+node scripts/eval-schedule-monitor.mjs "$HOME/.config/nexus-evals/schedule-monitor.json"
 ```
 
 The observer uses only GitHub GET requests. It never starts or retries paid
@@ -233,7 +233,7 @@ Retained state includes the last successful inspection and inspected run IDs.
 entry has an ID. After confirmed delivery, the host acknowledges those IDs:
 
 ```sh
-node scripts/eval-schedule-monitor.mjs "$HOME/.config/paperclip-evals/schedule-monitor.json" --ack <notification-id> ...
+node scripts/eval-schedule-monitor.mjs "$HOME/.config/nexus-evals/schedule-monitor.json" --ack <notification-id> ...
 ```
 
 Until acknowledgment, later inspections return the same pending entries even

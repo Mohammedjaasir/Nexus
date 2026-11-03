@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { RefreshCw, Star, Unplug } from "lucide-react";
-import type { ConnectionGrant } from "@paperclipai/shared";
+import type { ConnectionGrant } from "@nexusai/shared";
 import { RevokeGrantDialog } from "@/pages/apps/app-detail/IdentitiesSection";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

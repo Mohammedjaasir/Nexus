@@ -38,7 +38,7 @@ describe("duplex channel request schemas", () => {
       companyId: "company-1",
       environmentId: "env-1",
       providerLeaseId: "lease-1",
-      command: ["paperclip-bridge"],
+      command: ["nexus-bridge"],
     };
     const reply: PluginDuplexChannelOpenResult = {
       hostRouteId: "route-1",
@@ -62,7 +62,7 @@ describe("duplex channel request schemas", () => {
       companyId: "company-1",
       environmentId: "env-1",
       providerLeaseId: "lease-1",
-      command: ["paperclip-bridge"],
+      command: ["nexus-bridge"],
     };
     expect(open).toBeDefined();
   });
@@ -75,7 +75,7 @@ describe("duplex channel request schemas", () => {
       environmentId: "env-1",
       providerLeaseId: "lease-1",
       // @ts-expect-error — command must be a string array.
-      command: "paperclip-bridge",
+      command: "nexus-bridge",
     };
     expect(open).toBeDefined();
   });

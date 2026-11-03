@@ -12,7 +12,7 @@ import type {
   ToolProfileStatus,
   ToolProfileWithDetails,
   ToolRiskLevel,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { agentsApi } from "@/api/agents";
 import { projectsApi } from "@/api/projects";
 import { routinesApi } from "@/api/routines";

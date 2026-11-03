@@ -1,6 +1,6 @@
 # From a slow workspace to its queries
 
-Use this reference for hosted Paperclip investigations. Resolve current resources
+Use this reference for hosted Nexus investigations. Resolve current resources
 and credentials from the authorized environment; the examples describe lookup
 shapes, not fixed account, stack, or project IDs.
 
@@ -9,7 +9,7 @@ shapes, not fixed account, stack, or project IDs.
 1. Start with the reported workspace URL and affected user action. Record UTC
    observation times, environment, and a representative slow request. A fast
    health endpoint does not establish that task/run endpoints are fast.
-2. Open the authorized Paperclip Cloud fleet-admin stack record matching that
+2. Open the authorized Nexus Cloud fleet-admin stack record matching that
    URL. Match its domain and workspace identity, not only a friendly name.
 3. In stack details, inspect the database provider resources and **Open in Neon**
    link. Record project, branch, endpoint/compute, database, and runtime role.
@@ -22,10 +22,10 @@ shapes, not fixed account, stack, or project IDs.
 
 Use available provider connectors or CLIs first; the authenticated browser is
 useful for fleet-admin resource links and Neon monitoring. If tool access is
-missing, inspect the authorized `paperclip-cloud` checkout and its instructions.
+missing, inspect the authorized `nexus-cloud` checkout and its instructions.
 Relevant files, relative to that repository:
 
-- `docs/cloud-harness-app-paperclip-cloud-runbook.md`: provider credentials and
+- `docs/cloud-harness-app-nexus-cloud-runbook.md`: provider credentials and
   secret-store rules.
 - `src/providers/neon.ts`: project/branch/role mapping and connection URI lookup.
 - `src/providers/railway.ts`: provider API and metrics/log access.

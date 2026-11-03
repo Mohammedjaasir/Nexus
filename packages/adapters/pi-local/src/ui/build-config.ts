@@ -1,18 +1,18 @@
-import { buildAdapterEnvConfig, type CreateConfigValues } from "@paperclipai/adapter-utils";
+import { buildAdapterEnvConfig, type CreateConfigValues } from "@nexusai/adapter-utils";
 
 export function buildPiLocalConfig(v: CreateConfigValues): Record<string, unknown> {
   const ac: Record<string, unknown> = {};
   if (v.cwd) ac.cwd = v.cwd;
   if (v.instructionsFilePath) ac.instructionsFilePath = v.instructionsFilePath;
   if (v.model) ac.model = v.model;
-  const nativeSelected = v.runner === "paperclip"
-    || ((v.runner === undefined || v.runner === "auto") && v.resolvedRunner === "paperclip");
+  const nativeSelected = v.runner === "nexus"
+    || ((v.runner === undefined || v.runner === "auto") && v.resolvedRunner === "nexus");
   if (nativeSelected) {
     const thinking = v.adapterSchemaValues?.piThinkingLevel ?? v.thinkingEffort;
     if (thinking) ac.piThinkingLevel = thinking;
     if (v.adapterSchemaValues?.acpxPermissionMode !== undefined) ac.acpxPermissionMode = v.adapterSchemaValues.acpxPermissionMode;
-    if (v.paperclipRunnerLifecycleMode !== undefined) ac.lifecycleMode = v.paperclipRunnerLifecycleMode;
-    if (v.paperclipRunnerIdleTimeoutMs !== undefined) ac.idleTimeoutMs = v.paperclipRunnerIdleTimeoutMs;
+    if (v.nexusRunnerLifecycleMode !== undefined) ac.lifecycleMode = v.nexusRunnerLifecycleMode;
+    if (v.nexusRunnerIdleTimeoutMs !== undefined) ac.idleTimeoutMs = v.nexusRunnerIdleTimeoutMs;
   } else if (v.thinkingEffort) ac.thinking = v.thinkingEffort;
   
   // Pi sessions can run until the CLI exits naturally; keep timeout disabled (0)

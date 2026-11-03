@@ -1,24 +1,24 @@
 import { notifyCancelledWorkspacePreservation } from "../cancelled-workspace-preservation-notifications.js";
 import { notifyEnvironmentCleanup } from "../environment-cleanup-notifications.js";
 import { measureRunPhase } from "../execution-preparation-timing.js";
-import { emitStartupReuse, type StartupReuseReason } from "@paperclipai/adapter-utils/startup-reuse";
-import type { AdapterRuntimeEvent } from "@paperclipai/adapter-utils";
-import type { WorkspaceCheckpointMetrics } from "@paperclipai/adapter-utils/workspace-checkpoint";
-import type { RuntimeSpanRunner } from "@paperclipai/adapter-utils/acpx-engine/startup-timing";
+import { emitStartupReuse, type StartupReuseReason } from "@nexusai/adapter-utils/startup-reuse";
+import type { AdapterRuntimeEvent } from "@nexusai/adapter-utils";
+import type { WorkspaceCheckpointMetrics } from "@nexusai/adapter-utils/workspace-checkpoint";
+import type { RuntimeSpanRunner } from "@nexusai/adapter-utils/acpx-engine/startup-timing";
 import fs from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { environmentLeases, heartbeatRuns } from "@paperclipai/db";
-import type { EnvironmentLease } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { environmentLeases, heartbeatRuns } from "@nexusai/db";
+import type { EnvironmentLease } from "@nexusai/shared";
 import {
   prepareAdapterExecutionTargetRuntime,
   type AdapterExecutionTarget,
   type PreparedAdapterExecutionTargetRuntime,
-} from "@paperclipai/adapter-utils/execution-target";
-import { disposeGitWorkspaceSnapshot, type GitWorkspaceSnapshot } from "@paperclipai/adapter-utils/git-workspace-sync";
+} from "@nexusai/adapter-utils/execution-target";
+import { disposeGitWorkspaceSnapshot, type GitWorkspaceSnapshot } from "@nexusai/adapter-utils/git-workspace-sync";
 import {
   directorySnapshotSha256,
   disposeDirectorySnapshot,
@@ -27,21 +27,21 @@ import {
   serializeDirectorySnapshot,
   type DirectorySnapshot,
   type SerializedDirectorySnapshot,
-} from "@paperclipai/adapter-utils/workspace-restore-merge";
+} from "@nexusai/adapter-utils/workspace-restore-merge";
 import type {
   WorkspaceDurableSeedPaths,
   WorkspaceInboundMode,
-} from "@paperclipai/adapter-utils/sandbox-managed-runtime";
-import { assertWorkspaceManifestDiskSpace, isPathManifest, manifestFileSha256, readManifestRecords, type PathManifest, type WorkspacePaths } from "@paperclipai/adapter-utils/workspace-manifest";
-import { resolvePaperclipInstanceRoot } from "../../home-paths.js";
+} from "@nexusai/adapter-utils/sandbox-managed-runtime";
+import { assertWorkspaceManifestDiskSpace, isPathManifest, manifestFileSha256, readManifestRecords, type PathManifest, type WorkspacePaths } from "@nexusai/adapter-utils/workspace-manifest";
+import { resolveNexusInstanceRoot } from "../../home-paths.js";
 import { parseObject } from "../../adapters/utils.js";
 import type { NativeRestartRecoveryClaim } from "./native-restart-recovery.js";
 
-const LEGACY_DESCRIPTOR_SCHEMA = "paperclip.native-workspace-sync/v1";
-const PREVIOUS_DESCRIPTOR_SCHEMA = "paperclip.native-workspace-sync/v2";
-const DESCRIPTOR_SCHEMA = "paperclip.native-workspace-sync/v3";
+const LEGACY_DESCRIPTOR_SCHEMA = "nexus.native-workspace-sync/v1";
+const PREVIOUS_DESCRIPTOR_SCHEMA = "nexus.native-workspace-sync/v2";
+const DESCRIPTOR_SCHEMA = "nexus.native-workspace-sync/v3";
 type DescriptorSchema = typeof DESCRIPTOR_SCHEMA | typeof PREVIOUS_DESCRIPTOR_SCHEMA | typeof LEGACY_DESCRIPTOR_SCHEMA;
-const STAMP_SCHEMA = "paperclip.native-workspace-stamp/v1";
+const STAMP_SCHEMA = "nexus.native-workspace-stamp/v1";
 const STATE_ROOT_NAME = "native-workspace-sync";
 const DESCRIPTOR_NAME = "descriptor";
 const WORKSPACE_SEED_NAME = "workspace-seed.tar";
@@ -153,7 +153,7 @@ function requireSafeSegment(value: string, label: string): string {
 }
 
 export function nativeWorkspaceSyncStateRoot(): string {
-  return path.join(resolvePaperclipInstanceRoot(), STATE_ROOT_NAME);
+  return path.join(resolveNexusInstanceRoot(), STATE_ROOT_NAME);
 }
 
 function descriptorDirectory(runId: string): string {
@@ -431,7 +431,7 @@ function parseGitSnapshot(
     const seen = new Set<string>();
     for (const raw of candidate.repositories) {
       const repo = parseObject(raw);
-      if (typeof repo.path !== "string" || !/^\.paperclip-repositories\/[a-zA-Z0-9_-]+$/.test(repo.path) || seen.has(repo.path)) return undefined;
+      if (typeof repo.path !== "string" || !/^\.nexus-repositories\/[a-zA-Z0-9_-]+$/.test(repo.path) || seen.has(repo.path)) return undefined;
       const snapshot = parseGitSnapshot(repo.snapshot, true);
       if (!snapshot) return undefined;
       seen.add(repo.path);
@@ -690,8 +690,8 @@ async function writeRemoteStamp(input: {
   }
   const runtimeDir = path.posix.join(
     input.target.remoteCwd,
-    ".paperclip-runtime",
-    "paperclip-runner",
+    ".nexus-runtime",
+    "nexus-runner",
   );
   const stampPath = path.posix.join(runtimeDir, REMOTE_STAMP_NAME);
   const tempPath = `${stampPath}.tmp`;
@@ -723,8 +723,8 @@ async function remoteStampMatches(input: {
   if (!input.target.runner) return false;
   const stampPath = path.posix.join(
     input.target.remoteCwd,
-    ".paperclip-runtime",
-    "paperclip-runner",
+    ".nexus-runtime",
+    "nexus-runner",
     REMOTE_STAMP_NAME,
   );
   // File hashes do not detect empty commits or branch changes. A fresh host
@@ -825,7 +825,7 @@ async function prepareRuntime(input: {
   return measureRunPhase(phase[input.mode], () => prepareAdapterExecutionTargetRuntime({
     runId: input.runId,
     target: input.target,
-    adapterKey: "paperclip-runner",
+    adapterKey: "nexus-runner",
     workspaceLocalDir: input.workspaceLocalDir,
     workspaceRemoteDir: input.target.remoteCwd,
     workspaceInboundMode: input.mode,
@@ -859,7 +859,7 @@ async function finalizePreparedRuntime(input: {
   return measureRunPhase("execution.workspace_commit", async () => {
     await input.assertOwnership?.();
     const finalSnapshot =
-      await import("@paperclipai/adapter-utils/workspace-restore-merge").then(
+      await import("@nexusai/adapter-utils/workspace-restore-merge").then(
         ({ captureDirectorySnapshotOffThread: captureDirectorySnapshot }) =>
           captureDirectorySnapshot(input.descriptor.binding.localCwd, {
             exclude: input.runtime.workspaceSyncSnapshot?.baseline.exclude ?? [],
@@ -1009,7 +1009,7 @@ export async function prepareNativeWorkspaceSync(input: {
       acquisition,
       hasPriorStamp: priorStamp !== null,
     });
-    const seedCacheCompanyDirectory = path.join(resolvePaperclipInstanceRoot(), STATE_ROOT_NAME, "generations", requireSafeSegment(input.companyId, "company_id"));
+    const seedCacheCompanyDirectory = path.join(resolveNexusInstanceRoot(), STATE_ROOT_NAME, "generations", requireSafeSegment(input.companyId, "company_id"));
     const seedCacheDirectory = path.join(seedCacheCompanyDirectory, "shared-v1");
     runtime = await prepareRuntime({
       runId: input.runId,

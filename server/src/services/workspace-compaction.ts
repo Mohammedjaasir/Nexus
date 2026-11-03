@@ -25,15 +25,15 @@ export const REGENERABLE_WORKSPACE_DIR_NAMES: ReadonlySet<string> = new Set([
   ".vite",
 ]);
 
-// Compaction never descends into these directories. `.paperclip` holds the
-// worktree's own Paperclip instance data, which is not regenerable.
-const PROTECTED_WORKSPACE_DIR_NAMES: ReadonlySet<string> = new Set([".git", ".paperclip"]);
+// Compaction never descends into these directories. `.nexus` holds the
+// worktree's own Nexus instance data, which is not regenerable.
+const PROTECTED_WORKSPACE_DIR_NAMES: ReadonlySet<string> = new Set([".git", ".nexus"]);
 
 // Moved directories wait here before deletion. The trash sits beside the
 // worktree so the move is a same-filesystem rename, which is atomic and fast.
 // A branch name cannot start with ".", so the name never collides with a
 // worktree directory.
-export const WORKSPACE_COMPACTION_TRASH_DIR = ".paperclip-compaction-trash";
+export const WORKSPACE_COMPACTION_TRASH_DIR = ".nexus-compaction-trash";
 
 const MAX_WALK_DEPTH = 12;
 

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { getAppStoreDefinition, type ToolApplication, type ToolConnection } from "@paperclipai/shared";
+import { getAppStoreDefinition, type ToolApplication, type ToolConnection } from "@nexusai/shared";
 import { ManagedAiConnectionRow } from "@/components/ai-connections/ManagedAiConnectionDetails";
 import { ConnectorCard } from "@/pages/apps/Browse";
 import type { ComponentProps } from "react";
@@ -9,7 +9,7 @@ type Row = ComponentProps<typeof ConnectorCard>["row"];
 
 const PROFILES = new Map([
   ["user-dotta", { label: "Dotta B", image: null }],
-  ["user-nicky", { label: "Nicky Paperclip Admin", image: null }],
+  ["user-nicky", { label: "Nicky Nexus Admin", image: null }],
   ["user-devin", { label: "Devin Foley", image: null }],
   ["user-scott", { label: "Scott", image: null }],
 ]);
@@ -19,7 +19,7 @@ function aiConnection(id: string, name: string, owner: string, provider: "openai
   return {
     id, companyId: "company-storybook", applicationId: `app-${provider}`, uid: id, name,
     connectionKind: "managed", connectionPurpose: "ai", ownership: "customer", transport: "http", authKind: method === "api_key" ? "api_key" : "oauth",
-    credentialSource: "paperclip_vault", credentialPolicy: shared ? "shared" : "per_user", status: "active", enabled: true,
+    credentialSource: "nexus_vault", credentialPolicy: shared ? "shared" : "per_user", status: "active", enabled: true,
     config: { sourceTemplateKey: provider, aiIsolatedSubscription: true, ai: { provider, method } }, transportConfig: {}, credentialSecretRefs: [],
     healthStatus: "ok", healthCheckedAt: new Date(), lastError: null, createdByAgentId: null, createdByUserId: owner,
     createdAt: new Date(), updatedAt: new Date(), ...overrides,
@@ -62,7 +62,7 @@ const meta = {
   component: ConnectionCountToggleReview,
   parameters: {
     layout: "fullscreen",
-    paperclip: {
+    nexus: {
       capabilities: ["connection-setup/catalog", "app-permissions/account-maintenance"],
       status: "current",
       implementation: "production",

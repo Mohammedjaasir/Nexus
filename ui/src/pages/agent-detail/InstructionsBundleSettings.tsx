@@ -108,7 +108,7 @@ export function InstructionsBundleSettings({
         <AgentPanel className="gap-4 p-(--agent-detail-module-inset)" aria-label="External management">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">External management</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Point this agent at a directory on disk. Paperclip checks that the entry file exists before it switches over.</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Point this agent at a directory on disk. Nexus checks that the entry file exists before it switches over.</p>
           </div>
           <div className="grid gap-(--agent-detail-module-gap) sm:grid-cols-2">
             <label className="flex min-w-0 flex-col gap-1.5">

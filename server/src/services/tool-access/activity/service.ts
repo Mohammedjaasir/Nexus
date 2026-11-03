@@ -1,9 +1,9 @@
 import { connectionManagementService } from "../../connection-management.js";
 import type { ConnectionManagementContext } from "../../connection-management.js";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { agents, connectionTokenIssuances, authUsers, heartbeatRuns, issues, toolActionRequests, toolConnections, toolCallEvents, toolInvocations } from "@paperclipai/db";
-import type { ToolConnectionActivityResponse, ToolRunDecision, ToolRunDecisionLookup } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { agents, connectionTokenIssuances, authUsers, heartbeatRuns, issues, toolActionRequests, toolConnections, toolCallEvents, toolInvocations } from "@nexusai/db";
+import type { ToolConnectionActivityResponse, ToolRunDecision, ToolRunDecisionLookup } from "@nexusai/shared";
 import { notFound } from "../../../errors.js";
 import { listConnectionLifecycleEvents } from "../../tool-connection-activity.js";
 import { toToolInvocation, toToolActionRequest, toToolCallEvent, userFallbackName, denialReasonForDecision } from "./projection.js";

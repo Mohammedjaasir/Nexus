@@ -5,8 +5,8 @@ import { fastResponseService } from "../services/fast-responses.js";
 import { fastResponseReceipt } from "../services/fast-response-provider.js";
 import { connectionIntentService } from "../services/connection-intents.js";
 import { applyConnectorSkills, prepareConnectorSkillDelivery, resolveConnectorAssignments, annotateConnectorSkills } from "../services/connector-runtime.js";
-import { PaperclipRunnerToolAuthority } from "../services/native-runtime/paperclip-runner-tool-authority.js";
-import { renderPaperclipWakePrompt, resolvePaperclipDesiredSkillNames, resolveLegacyPaperclipDesiredSkillNames } from "@paperclipai/adapter-utils/server-utils";
+import { NexusRunnerToolAuthority } from "../services/native-runtime/nexus-runner-tool-authority.js";
+import { renderNexusWakePrompt, resolveNexusDesiredSkillNames, resolveLegacyNexusDesiredSkillNames } from "@nexusai/adapter-utils/server-utils";
 import express from "express";
 import type WebSocket from "ws";
 import request from "supertest";
@@ -57,7 +57,7 @@ import {
   toolConnectionInstalls,
   connectionGrants,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import {
   emailChannelService,
@@ -72,23 +72,23 @@ import {
 import { accessService } from "../services/access.js";
 import { emailConnectionService } from "../services/email-connections.js";
 import { toolAccessService } from "../services/tool-access.js";
-import { emailSendSchema } from "@paperclipai/shared";
+import { emailSendSchema } from "@nexusai/shared";
 import { chatChannelService } from "../services/chat-channels.js";
 
-const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_EMAIL_TEST_DATABASE_URL");
+const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_EMAIL_TEST_DATABASE_URL");
 
 describe("AgentMail durable email pipeline", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
-  const folder = mkdtempSync(path.join(os.tmpdir(), "paperclip-email-"));
-  const previous = process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
+  const folder = mkdtempSync(path.join(os.tmpdir(), "nexus-email-"));
+  const previous = process.env.NEXUS_SECRETS_MASTER_KEY_FILE;
   const services: EmailChannelService[] = [];
   beforeAll(async () => {
-    process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = path.join(
+    process.env.NEXUS_SECRETS_MASTER_KEY_FILE = path.join(
       folder,
       "master.key",
     );
-    if (!externalTestDatabaseUrl) database = await startEmbeddedPostgresTestDatabase("paperclip-email-");
+    if (!externalTestDatabaseUrl) database = await startEmbeddedPostgresTestDatabase("nexus-email-");
     if (externalTestDatabaseUrl) await applyPendingMigrations(externalTestDatabaseUrl);
     db = createDb(externalTestDatabaseUrl ?? database!.connectionString);
     await instanceSettingsService(db).updateExperimental({
@@ -120,8 +120,8 @@ describe("AgentMail durable email pipeline", () => {
     await db?.$client.end({ timeout: 1 });
     await database?.cleanup();
     if (previous === undefined)
-      delete process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
-    else process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = previous;
+      delete process.env.NEXUS_SECRETS_MASTER_KEY_FILE;
+    else process.env.NEXUS_SECRETS_MASTER_KEY_FILE = previous;
     rmSync(folder, { recursive: true, force: true });
   });
   it("installs one connector skill and provider tools only for the assigned agent", async () => {
@@ -130,38 +130,38 @@ describe("AgentMail durable email pipeline", () => {
     const assignments = await resolveConnectorAssignments(db, binding);
     expect(assignments).toHaveLength(1);
     expect(assignments[0].resources[0].id).toBe(f.endpointId);
-    const base = { paperclipSkillSync: { desiredSkills: [] } };
+    const base = { nexusSkillSync: { desiredSkills: [] } };
     const configured = await applyConnectorSkills(base, [], assignments);
-    expect(base.paperclipSkillSync.desiredSkills).toEqual([]);
-    expect(resolvePaperclipDesiredSkillNames(configured, configured.paperclipRuntimeSkills)).toEqual(["paperclipai/paperclip/agentmail"]);
-    expect(resolveLegacyPaperclipDesiredSkillNames(configured, configured.paperclipRuntimeSkills)).toContain("paperclipai/paperclip/agentmail");
-    const markdown = readFileSync(path.join(configured.paperclipRuntimeSkills[0].source, "SKILL.md"), "utf8");
+    expect(base.nexusSkillSync.desiredSkills).toEqual([]);
+    expect(resolveNexusDesiredSkillNames(configured, configured.nexusRuntimeSkills)).toEqual(["paperclipai/paperclip/agentmail"]);
+    expect(resolveLegacyNexusDesiredSkillNames(configured, configured.nexusRuntimeSkills)).toContain("paperclipai/paperclip/agentmail");
+    const markdown = readFileSync(path.join(configured.nexusRuntimeSkills[0].source, "SKILL.md"), "utf8");
     expect(markdown).toContain(f.endpointId);
     expect(markdown).toContain("agentmail_send");
     expect(markdown).not.toContain("test-key");
     for (const adapterType of ["cursor_local", "gemini_local", "opencode_local", "pi_local", "codex_local"]) {
       const delivery = await prepareConnectorSkillDelivery(configured, adapterType);
-      expect(delivery.config.paperclipRuntimeSkills).toEqual([]);
-      expect(delivery.config.paperclipConnectorSkillDigest).toBe(configured.paperclipConnectorSkillDigest);
+      expect(delivery.config.nexusRuntimeSkills).toEqual([]);
+      expect(delivery.config.nexusConnectorSkillDigest).toBe(configured.nexusConnectorSkillDigest);
       for (const resumedSession of [false, true]) {
-        expect(renderPaperclipWakePrompt({ connectorSkillInstructions: delivery.instructions }, { resumedSession })).toContain(f.endpointId);
+        expect(renderNexusWakePrompt({ connectorSkillInstructions: delivery.instructions }, { resumedSession })).toContain(f.endpointId);
       }
     }
-    const nativeDelivery = await prepareConnectorSkillDelivery(configured, "paperclip_runner");
+    const nativeDelivery = await prepareConnectorSkillDelivery(configured, "nexus_runner");
     expect(nativeDelivery.instructions).toBe("");
-    expect(nativeDelivery.config.paperclipRuntimeSkills).toHaveLength(1);
-    const authority = new PaperclipRunnerToolAuthority(db, { ...binding, issueId: randomUUID(), runId: randomUUID(), connectorAssignments: assignments });
+    expect(nativeDelivery.config.nexusRuntimeSkills).toHaveLength(1);
+    const authority = new NexusRunnerToolAuthority(db, { ...binding, issueId: randomUUID(), runId: randomUUID(), connectorAssignments: assignments });
     expect(authority.definitions().filter((tool) => String(tool.name).startsWith("agentmail_")).map((tool) => tool.name)).toEqual([
       "agentmail_inboxes", "agentmail_read_thread", "agentmail_send", "agentmail_delivery",
     ]);
     expect(authority.definitions().some((tool) => tool.name === "task_email")).toBe(false);
     expect(await resolveConnectorAssignments(db, { ...binding, agentId: randomUUID() })).toEqual([]);
     expect(await resolveConnectorAssignments(db, { ...binding, companyId: randomUUID() })).toEqual([]);
-    const disconnected = await applyConnectorSkills(configured, configured.paperclipRuntimeSkills, []);
-    expect(disconnected.paperclipRuntimeSkills).toEqual([]);
-    expect(disconnected.paperclipConnectorSkillDigest).toBeNull();
-    expect(resolvePaperclipDesiredSkillNames(disconnected, [])).toEqual([]);
-    expect(new PaperclipRunnerToolAuthority(db, { ...binding, issueId: randomUUID(), runId: randomUUID() }).definitions().some((tool) => String(tool.name).startsWith("agentmail_"))).toBe(false);
+    const disconnected = await applyConnectorSkills(configured, configured.nexusRuntimeSkills, []);
+    expect(disconnected.nexusRuntimeSkills).toEqual([]);
+    expect(disconnected.nexusConnectorSkillDigest).toBeNull();
+    expect(resolveNexusDesiredSkillNames(disconnected, [])).toEqual([]);
+    expect(new NexusRunnerToolAuthority(db, { ...binding, issueId: randomUUID(), runId: randomUUID() }).definitions().some((tool) => String(tool.name).startsWith("agentmail_"))).toBe(false);
     const snapshot = annotateConnectorSkills({ adapterType: "codex_local", supported: true, mode: "ephemeral", desiredSkills: [assignments[0].skillKey], entries: [{ key: assignments[0].skillKey, runtimeName: "agentmail", desired: true, managed: true, state: "configured" }], warnings: [] }, assignments);
     expect(snapshot.entries[0]).toMatchObject({ readOnly: true, originLabel: "AgentMail assignment" });
     expect(snapshot.entries[0].detail).toContain(assignments[0].resources[0].label);
@@ -182,11 +182,11 @@ describe("AgentMail durable email pipeline", () => {
     const assignments = await resolveConnectorAssignments(db, binding);
     expect(assignments).toHaveLength(1);
     expect(assignments[0].resources).toHaveLength(2);
-    const after = await applyConnectorSkills(before, before.paperclipRuntimeSkills, assignments);
-    expect(after.paperclipRuntimeSkills).toHaveLength(1);
-    expect(after.paperclipConnectorSkillDigest).not.toBe(before.paperclipConnectorSkillDigest);
-    expect(after.paperclipRuntimeSkills[0].source).not.toBe(before.paperclipRuntimeSkills[0].source);
-    const markdown = readFileSync(path.join(after.paperclipRuntimeSkills[0].source, "SKILL.md"), "utf8");
+    const after = await applyConnectorSkills(before, before.nexusRuntimeSkills, assignments);
+    expect(after.nexusRuntimeSkills).toHaveLength(1);
+    expect(after.nexusConnectorSkillDigest).not.toBe(before.nexusConnectorSkillDigest);
+    expect(after.nexusRuntimeSkills[0].source).not.toBe(before.nexusRuntimeSkills[0].source);
+    const markdown = readFileSync(path.join(after.nexusRuntimeSkills[0].source, "SKILL.md"), "utf8");
     expect(markdown).toContain(first.address);
     expect(markdown).toContain(second.address);
     await second.service.control(extra.id, "remove", { userId: "email-board" });
@@ -326,7 +326,7 @@ describe("AgentMail durable email pipeline", () => {
     const service = emailChannelService(db, {
       heartbeat: { wakeup },
       fetch: fetcher,
-      publicBaseUrl: "https://paperclip.example.test",
+      publicBaseUrl: "https://nexus.example.test",
       createSocket,
       storage,
     });
@@ -1107,7 +1107,7 @@ describe("AgentMail durable email pipeline", () => {
       text: "Explicit agent reply",
       idempotencyKey: randomUUID(),
     });
-    const authority = new PaperclipRunnerToolAuthority(db, {
+    const authority = new NexusRunnerToolAuthority(db, {
       ...binding, workMode: "standard", connectorAssignments: await resolveConnectorAssignments(db, binding),
     });
     const queued = (await authority.execute({ tool: "agentmail_send", callId: randomUUID(), arguments: { request } })) as { id: string; outcome: string };
@@ -1432,7 +1432,7 @@ describe("AgentMail durable email pipeline", () => {
       username: "ralph", domain: "agentmail.to", receiveMode: "websocket", idempotencyKey: id };
     const route = `/api/companies/${f.companyId}/email/inboxes`;
     const failure = await request(server).post(route).send(input).expect(failedOperation === "address_taken" ? 409 : 422);
-    expect(failure.body.error).toContain(failedOperation === "address_taken" ? "already in use" : "AgentMail did not allow Paperclip");
+    expect(failure.body.error).toContain(failedOperation === "address_taken" ? "already in use" : "AgentMail did not allow Nexus");
     expect(failure.body.details).toMatchObject({ providerStatus: 403, operation: failedOperation === "address_taken" ? "create_inbox" : failedOperation });
     expect(failure.text).not.toMatch(/private provider denial|organization-test-key|Internal server error/);
     const [draft] = await db.select().from(chatEndpoints).where(eq(chatEndpoints.id, id));
@@ -1487,7 +1487,7 @@ describe("AgentMail durable email pipeline", () => {
     const inbox = await f.service.setup(f.companyId, { assignedAgentId: f.agentId,
       credentialConnectionId: account.id, receiveMode: "websocket", idempotencyKey: id }, actor);
     expect(createdInboxes).toEqual(scope === "organization"
-      ? [{ display_name: "Email agent", client_id: `paperclip-${id}` }] : []);
+      ? [{ display_name: "Email agent", client_id: `nexus-${id}` }] : []);
     const retry = await f.service.setup(f.companyId, { assignedAgentId: f.agentId,
       credentialConnectionId: account.id, receiveMode: "websocket", idempotencyKey: id }, actor);
     expect(retry.connectionId).toBe(inbox.connectionId);

@@ -56,17 +56,17 @@ describe("tool content guards", () => {
   });
 
   it("uses explicit, configured, or durable derived keys for sensitive identities, never an unkeyed digest", () => {
-    vi.stubEnv("PAPERCLIP_TOOL_ACTION_SIGNING_SECRET", "");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY_FILE", isolatedKeyFile());
+    vi.stubEnv("NEXUS_TOOL_ACTION_SIGNING_SECRET", "");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY_FILE", isolatedKeyFile());
     try {
       const derived = toolRequestIdentityHash({ secretValue: "1234" });
       expect(derived).toBe(toolRequestIdentityHash({ secretValue: "1234" }));
       expect(derived).not.toBe(createHash("sha256").update(canonicalToolArguments({ secretValue: "1234" })).digest("hex"));
       expect(toolRequestIdentityHash([{ password: "1234" }])).toMatch(/^[a-f0-9]{64}$/);
       const explicit = toolRequestIdentityHash({ secretValue: "1234" }, signingSecret);
-      vi.stubEnv("PAPERCLIP_TOOL_ACTION_SIGNING_SECRET", signingSecret);
-      vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "invalid-master-key");
+      vi.stubEnv("NEXUS_TOOL_ACTION_SIGNING_SECRET", signingSecret);
+      vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "invalid-master-key");
       expect(toolRequestIdentityHash({ secretValue: "1234" })).toBe(explicit);
       expect(toolRequestIdentityHash({ secretValue: "1234" }, "other-key")).not.toBe(explicit);
     } finally { vi.unstubAllEnvs(); }
@@ -109,27 +109,27 @@ describe("tool content guards", () => {
 
   it("derives a separate instance key independently of authentication secrets and honors explicit configuration", () => {
     const keyFile = isolatedKeyFile();
-    const env = { PAPERCLIP_SECRETS_MASTER_KEY_FILE: keyFile,
-      PAPERCLIP_AGENT_JWT_SECRET: "agent-jwt-secret", BETTER_AUTH_SECRET: "auth-secret" };
+    const env = { NEXUS_SECRETS_MASTER_KEY_FILE: keyFile,
+      NEXUS_AGENT_JWT_SECRET: "agent-jwt-secret", BETTER_AUTH_SECRET: "auth-secret" };
     const derived = resolveToolActionSigningSecret(env);
-    expect(derived).toBe(resolveToolActionSigningSecret({ ...env, PAPERCLIP_AGENT_JWT_SECRET: "rotated-jwt", BETTER_AUTH_SECRET: "rotated-auth" }));
+    expect(derived).toBe(resolveToolActionSigningSecret({ ...env, NEXUS_AGENT_JWT_SECRET: "rotated-jwt", BETTER_AUTH_SECRET: "rotated-auth" }));
     expect(derived).not.toBe(readFileSync(keyFile, "utf8").trim());
     expect(derived).not.toBe(deriveLocalEncryptedInstanceSecret("another-purpose", env));
-    expect(resolveToolActionSigningSecret({ ...env, PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: ` ${signingSecret} `,
-      PAPERCLIP_SECRETS_MASTER_KEY: "invalid-master-key" })).toBe(signingSecret);
+    expect(resolveToolActionSigningSecret({ ...env, NEXUS_TOOL_ACTION_SIGNING_SECRET: ` ${signingSecret} `,
+      NEXUS_SECRETS_MASTER_KEY: "invalid-master-key" })).toBe(signingSecret);
     const masterKey = Buffer.alloc(32, 7).toString("base64");
-    expect(resolveToolActionSigningSecret({ ...env, PAPERCLIP_SECRETS_MASTER_KEY: masterKey })).toBe(
-      resolveToolActionSigningSecret({ PAPERCLIP_SECRETS_MASTER_KEY: masterKey }));
-    expect(resolveToolActionSigningSecret({ ...env, PAPERCLIP_SECRETS_MASTER_KEY: masterKey })).not.toBe(derived);
+    expect(resolveToolActionSigningSecret({ ...env, NEXUS_SECRETS_MASTER_KEY: masterKey })).toBe(
+      resolveToolActionSigningSecret({ NEXUS_SECRETS_MASTER_KEY: masterKey }));
+    expect(resolveToolActionSigningSecret({ ...env, NEXUS_SECRETS_MASTER_KEY: masterKey })).not.toBe(derived);
   });
 
   it("fails closed without replacing invalid persisted master-key material", () => {
     const keyFile = isolatedKeyFile();
     writeFileSync(keyFile, "invalid-master-key");
-    expect(() => resolveToolActionSigningSecret({ PAPERCLIP_SECRETS_MASTER_KEY_FILE: keyFile }))
+    expect(() => resolveToolActionSigningSecret({ NEXUS_SECRETS_MASTER_KEY_FILE: keyFile }))
       .toThrow(ToolActionSigningSecretMissingError);
     expect(readFileSync(keyFile, "utf8")).toBe("invalid-master-key");
-    expect(() => resolveToolActionSigningSecret({ PAPERCLIP_SECRETS_MASTER_KEY: "invalid-master-key" }))
+    expect(() => resolveToolActionSigningSecret({ NEXUS_SECRETS_MASTER_KEY: "invalid-master-key" }))
       .toThrow(ToolActionSigningSecretMissingError);
   });
 
@@ -145,8 +145,8 @@ describe("tool content guards", () => {
         verified:readSignedToolArguments({...input,signedArguments:signed})?.secretValue === args.secretValue}));`;
     const run = (signed?: string) => promisify(execFile)(process.execPath,
       ["--import", loader, "--input-type=module", "-e", script], {
-        env: { ...process.env, PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: "", PAPERCLIP_SECRETS_MASTER_KEY: "",
-          PAPERCLIP_SECRETS_MASTER_KEY_FILE: keyFile, VERIFY_PAYLOAD: signed ?? "" },
+        env: { ...process.env, NEXUS_TOOL_ACTION_SIGNING_SECRET: "", NEXUS_SECRETS_MASTER_KEY: "",
+          NEXUS_SECRETS_MASTER_KEY_FILE: keyFile, VERIFY_PAYLOAD: signed ?? "" },
       }).then(result => JSON.parse(result.stdout) as { identity: string; signed: string; verified: boolean });
     const results = await Promise.all(Array.from({ length: 6 }, () => run()));
     expect(new Set(results.map(result => result.identity)).size).toBe(1);
@@ -197,7 +197,7 @@ describe("tool content guards", () => {
   it("rejects the wrong encryption key, including when the environment contains the correct key", () => {
     const input = { invocationId: "invocation-1", toolName: "fixture", canonicalArguments: canonicalToolArguments({ secretValue: "private-value" }), signingSecret };
     const signedArguments = signToolArguments(input);
-    vi.stubEnv("PAPERCLIP_TOOL_ACTION_SIGNING_SECRET", signingSecret);
+    vi.stubEnv("NEXUS_TOOL_ACTION_SIGNING_SECRET", signingSecret);
     try {
       expect(readSignedToolArguments({ ...input, signedArguments, signingSecret: "wrong-key" })).toBeNull();
       expect(verifyToolArgumentsSignature({ ...input, signedArguments, signingSecret: "wrong-key" })).toBe(false);
@@ -238,9 +238,9 @@ describe("tool content guards", () => {
   it("does not decrypt an explicit-key approval using the durable fallback key", () => {
     const input = { invocationId: "invocation-1", toolName: "fixture", canonicalArguments: canonicalToolArguments({ secretValue: "private-value" }), signingSecret };
     const signedArguments = signToolArguments(input);
-    vi.stubEnv("PAPERCLIP_TOOL_ACTION_SIGNING_SECRET", "");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY_FILE", isolatedKeyFile());
+    vi.stubEnv("NEXUS_TOOL_ACTION_SIGNING_SECRET", "");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY_FILE", isolatedKeyFile());
     try {
       expect(readSignedToolArguments({ ...input, signedArguments, signingSecret: undefined })).toBeNull();
     } finally { vi.unstubAllEnvs(); }

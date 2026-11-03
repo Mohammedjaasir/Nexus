@@ -91,8 +91,8 @@ credentials remain outside the task snapshot root. Catalog discovery and local
 grader calibration do not establish a live pass.
 
 ```sh
-PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_BUCKET=<owned-disposable-bucket> \
-PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_REGION=us-east-1 \
+NEXUS_RUNNER_E2E_WORKSPACE_STORAGE_BUCKET=<owned-disposable-bucket> \
+NEXUS_RUNNER_E2E_WORKSPACE_STORAGE_REGION=us-east-1 \
 pnpm test:e2e:runner -- --id remote-workspace-storage.runner-codex.daytona.recover-controller --max-automatic-retries 0
 ```
 
@@ -122,14 +122,14 @@ before handoff, then requires a new controller generation, authenticated Runner
 attachment, and new canonical events for the original execution. No fixture
 modifies leases, checkpoints, provider identity, or completed work.
 
-Before paid execution, set `PAPERCLIP_ROLLING_TEST_STORAGE_CONFIG` and the
-loopback `PAPERCLIP_TEST_DATABASE_URL`, then run
+Before paid execution, set `NEXUS_ROLLING_TEST_STORAGE_CONFIG` and the
+loopback `NEXUS_TEST_DATABASE_URL`, then run
 `tests/runner-e2e/controller-replacement-smoke.ts` through the existing tsx loader.
 It exercises the actual supervisor and two replacements without an agent and
 explicitly records `activeAgentContinuityQualified: false`.
 
-Optional `PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_ENDPOINT` and
-`PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_FORCE_PATH_STYLE=true` select a test S3
+Optional `NEXUS_RUNNER_E2E_WORKSPACE_STORAGE_ENDPOINT` and
+`NEXUS_RUNNER_E2E_WORKSPACE_STORAGE_FORCE_PATH_STYLE=true` select a test S3
 endpoint. Each attempt has a distinct `runner-e2e/<instance-id>/` prefix. The
 server rejects mixed selections and never adopts ambient production storage
 configuration. Provider environment variables and immutable image selection use
@@ -142,7 +142,7 @@ Private account bindings and setup receipts live in the private eval repository.
 ## Dependable-work qualification checkpoint
 
 `dependable-qualification.ts` defines the six everyday journeys across Codie
-and Claude, through Paperclip and Slack: 24 cells. The checkpoint requires three
+and Claude, through Nexus and Slack: 24 cells. The checkpoint requires three
 fresh candidate passes per cell, followed by a staging pass for that cell. It
 compares the recorded source, start/end serving revisions, model, effective
 settings hash, production instructions hash, case definition, and runner artifact.
@@ -150,7 +150,7 @@ Repeated tasks or runs cannot count as fresh attempts. Each journey requires
 its independent durable-state, output, rendered-conversation, and delivery checks.
 An agent's success prose cannot satisfy these checks.
 
-Set `PAPERCLIP_DEPENDABLE_QUALIFICATION_MANIFEST` to a private JSON file matching
+Set `NEXUS_DEPENDABLE_QUALIFICATION_MANIFEST` to a private JSON file matching
 `DependableQualification` when generating the ordinary Product E2E report. It
 writes `dependable-qualification.json` beside the existing report and makes an
 incomplete checkpoint fail that report command. The checkpoint reads the entire
@@ -207,7 +207,7 @@ have four development cells: Codex `gpt-6.1-sol` and Claude `claude-opus-5-5`,
 on local and Daytona environments. Each uses production hire instructions,
 one attempt, one expected provider admission, and 1,000-cent company and agent
 hard stops. The conversion journey creates a real legacy agent and selects
-Paperclip Runner through the public agent update API. It checks retained
+Nexus Runner through the public agent update API. It checks retained
 configuration, encrypted secret references, environment, instructions, and
 corresponding permission policy before submitting work through the browser.
 The disposable legacy profile starts without optional CLI-only extra arguments.
@@ -407,15 +407,15 @@ with authenticated browser consent, real MCP tool use and independently graded
 team execution. Select `--suite public-mcp`; it is excluded from `--all`.
 
 For family selection, ownership, provenance, history, and failure taxonomy,
-see the [Paperclip evaluation guide](../../doc/evals.md). This README is the
+see the [Nexus evaluation guide](../../doc/evals.md). This README is the
 authoritative runbook for Product E2E runner cells; the separate Runner Evals
 protocol guide lives at
-`packages/paperclip-runner/docs/runner-protocol-live-evals.md`.
+`packages/nexus-runner/docs/runner-protocol-live-evals.md`.
 
-This is the billable browser acceptance campaign system for Paperclip runner
+This is the billable browser acceptance campaign system for Nexus runner
 profiles. It is deliberately separate from `tests/e2e`: every independently
 scheduled execution gets
-a fresh Paperclip home, embedded Postgres database, instance configuration,
+a fresh Nexus home, embedded Postgres database, instance configuration,
 port, workspace, company, encrypted secrets, environment, and agent.
 
 `pnpm test:e2e:runner:unit` runs the native-completion source gates with
@@ -503,7 +503,7 @@ The browser creates and assigns the task; fixtures use public APIs. The
 `accept-while-running` case additionally holds the committed card’s creation
 response in the test server until browser acceptance, to exercise real overlap.
 
-The launcher always sets `PAPERCLIP_ANNOUNCEMENTS_ENABLED=false` for its isolated
+The launcher always sets `NEXUS_ANNOUNCEMENTS_ENABLED=false` for its isolated
 instances so announcement panels do not obscure screenshot evidence. No shell
 or workflow configuration is needed, including for Daytona cells.
 
@@ -532,7 +532,7 @@ remains pending; catalog presence is not live qualification.
 loaded before and after the production service worker takes control. It keeps
 full traces and checks that Vite module loads do not create worker fetches or
 leave the page empty. This isolates browser loading; it does not create a
-Paperclip task, run an agent, or replace a Product E2E result.
+Nexus task, run an agent, or replace a Product E2E result.
 
 ## Conversational confirmation replies (explicit only)
 
@@ -652,7 +652,7 @@ pnpm test:e2e:runner -- --suite completion-updates
 ## Local report design preview
 
 Iterate on the public history and individual campaign reports with retained real
-data, without starting Paperclip, loading credentials, or calling providers:
+data, without starting Nexus, loading credentials, or calling providers:
 
 ```sh
 node --watch --import ./cli/node_modules/tsx/dist/loader.mjs tests/runner-e2e/preview.ts
@@ -717,15 +717,15 @@ Shell variables take precedence over the local file. The recognized names are:
 - `DAYTONA_API_KEY`
 - `CURSOR_AUTH_TOKEN` (extended Cursor candidate)
 - `COPILOT_GITHUB_TOKEN` (extended Copilot candidate)
-- `PAPERCLIP_E2E_DAYTONA_IMAGE` (Daytona only)
-- `PAPERCLIP_E2E_DAYTONA_NODE_SHA256` and `PAPERCLIP_E2E_DAYTONA_RUNNERD_SHA256` (native Cursor/Pi/Copilot Daytona fixtures; exact `sha256:...` executable digests from that image)
+- `NEXUS_E2E_DAYTONA_IMAGE` (Daytona only)
+- `NEXUS_E2E_DAYTONA_NODE_SHA256` and `NEXUS_E2E_DAYTONA_RUNNERD_SHA256` (native Cursor/Pi/Copilot Daytona fixtures; exact `sha256:...` executable digests from that image)
 
 The image must be an immutable `image@sha256:...` reference. The launcher
 reports missing variable names but never prints values. It passes raw provider
 keys only to Playwright, which posts each value once to the company-secrets API.
-Paperclip receives secret references in agent/environment payloads. Provider
+Nexus receives secret references in agent/environment payloads. Provider
 keys, Daytona keys, `DATABASE_URL`, and `DATABASE_MIGRATION_URL` are removed
-from the Paperclip child process.
+from the Nexus child process.
 
 Kimi keys are recognized for local catalog, schema, and isolation tests only.
 Its explicit context-integrity profiles are blocked before credential loading
@@ -739,7 +739,7 @@ inputs, or a tracked env file.
 ## Local commands
 
 When the host cannot start embedded Postgres, set
-`PAPERCLIP_RUNNER_E2E_POSTGRES_ADMIN_URL` to an explicitly supplied loopback
+`NEXUS_RUNNER_E2E_POSTGRES_ADMIN_URL` to an explicitly supplied loopback
 test Postgres administrator. The launcher creates a new `runner_e2e_<random>`
 database per attempt; the serving app applies its migrations. This does not
 reuse the administrator URL's database. The administrator variable is not
@@ -753,10 +753,10 @@ runner binaries:
 ```bash
 pnpm install
 pnpm exec playwright install chromium
-pnpm --filter @paperclipai/paperclip-runner build:runner-binaries
+pnpm --filter @nexusai/nexus-runner build:runner-binaries
 ```
 
-List cells without loading credentials or starting Paperclip:
+List cells without loading credentials or starting Nexus:
 
 ```bash
 pnpm test:e2e:runner -- --list
@@ -811,7 +811,7 @@ local native and direct-adapter profiles × two two-run structured-question
 workflows: 14 cells. Both prove that a required structured interaction is
 rendered, answered in the browser, and resumed once on the same task without
 duplicating the final response. The second workflow restarts the isolated
-Paperclip server while the interaction is waiting, reloads that state, and
+Nexus server while the interaction is waiting, reloads that state, and
 then resumes it. The suite has no Daytona cells.
 
 `instruction-persistence` is an explicit-only three-cell workflow: legacy and
@@ -822,7 +822,7 @@ nested text, editor-created content, and exact binary bytes. The oracle checks t
 current files, a stopped-run save receipt, and absence of newly appended history.
 The first task also publishes a small verification receipt for the normal
 completion contract; the personal files stay in the agent directory.
-After a Paperclip restart, a fresh task must upload a downloaded proof attachment
+After a Nexus restart, a fresh task must upload a downloaded proof attachment
 containing independent saved nonces absent from its prompt. A third task edits its
 private copy while the browser edits the same current file. The later run sync
 must win for that changed file, preserve an unrelated board-created file, and
@@ -956,7 +956,7 @@ status. Mentioning the right blocker only as resolved history cannot pass.
 
 The committed-send case drops the browser's acknowledgement after the server
 saves its comment. It waits for the agent to save one backlog task, restarts
-Paperclip, and replays the exact public request with the original client request ID. It
+Nexus, and replays the exact public request with the original client request ID. It
 requires the original comment, task, plan, and single consuming run. This proves
 HTTP request idempotency across restart, not replay safety for an ambiguous
 provider tool response. Existing native tool-receipt tests cover that boundary.
@@ -992,7 +992,7 @@ pnpm test:e2e:runner -- --id agent-chat-hardening.runner-codex.local.stop-startu
 
 The independent, explicit-only `native-completion` suite qualifies native finish/block descriptions on unchanged master defaults. It preserves the original assigned-skill document journey and pairs it with whole-task blocking across three native profiles, with enforced single attempts. See [NATIVE-COMPLETION.md](NATIVE-COMPLETION.md) for admission, provenance and limits.
 
-The separate, explicit-only `native-instruction-consolidation` suite reuses those original tasks and strict graders to compare completion constraints on the production defaults at `2a8a99e4a5f69aa803b3f10b982f583e75a87042`. It declares six local cells: document completion and whole-task blocking on native Codex, ACPX Claude, and OpenCode. Each cell allows one attempt and applies a 1,000-cent company and agent budget hard stop. Its source gate rejects dirty, mixed, unknown, or unrelated source changes before credentials load. A provider-free fixture captures the complete Paperclip instruction/tool/message projection at the scripted runnerd RPC boundary on start, full-task resume and compact user-follow-up continuation for native input v4 and v5. That capture measures bytes; it does not measure vendor-owned prompts, tokens, billing, or model behavior. See the [comparison plan](../../doc/plans/2026-10-03-native-completion-consolidation.md) for exact scope and live qualification limits. Existing `native-completion` results do not qualify this new reduction.
+The separate, explicit-only `native-instruction-consolidation` suite reuses those original tasks and strict graders to compare completion constraints on the production defaults at `2a8a99e4a5f69aa803b3f10b982f583e75a87042`. It declares six local cells: document completion and whole-task blocking on native Codex, ACPX Claude, and OpenCode. Each cell allows one attempt and applies a 1,000-cent company and agent budget hard stop. Its source gate rejects dirty, mixed, unknown, or unrelated source changes before credentials load. A provider-free fixture captures the complete Nexus instruction/tool/message projection at the scripted runnerd RPC boundary on start, full-task resume and compact user-follow-up continuation for native input v4 and v5. That capture measures bytes; it does not measure vendor-owned prompts, tokens, billing, or model behavior. See the [comparison plan](../../doc/plans/2026-10-03-native-completion-consolidation.md) for exact scope and live qualification limits. Existing `native-completion` results do not qualify this new reduction.
 
 The corrected source variants add explicit blocker explanations and canonical document citations. Accepted feedback repeats links only for this run's current saved revisions, and Markdown navigation preserves document anchors after issue details load. Observation v3 independently requires the persisted provider final to explain missing release/deployment access and, for completion, link this task's one revisioned document on the same origin. A correct structured blocker, an unblock action alone, or an unbound/foreign document URL cannot pass. These stricter checks and browser navigation apply only to the manual instruction comparison; the existing `native-completion` suite keeps v2 checks. Task prompts and the durable-output oracle remain unchanged. Admission now requires eighteen shared runnerd RPC captures and six direct OpenCode HTTP captures using a local fake server, all provider-free. Replay of retained v2 evidence is a separate diagnostic, never a replacement for its original verdict. See the [answer correction](../../doc/plans/2026-10-04-native-completion-answer-fix.md).
 
@@ -1043,7 +1043,7 @@ GitHub discovery is simulated, scoped to a fixture-only credential; repository
 permissions and mutations remain real. Run it with:
 
 ```bash
-pnpm --filter @paperclipai/ui build
+pnpm --filter @nexusai/ui build
 pnpm test:e2e tests/e2e/agent-chat.spec.ts
 # Against a dedicated authenticated test instance configured per that suite:
 pnpm test:e2e:multiuser-authenticated --grep 'agent chats'
@@ -1066,9 +1066,9 @@ values in one dimension use OR semantics; dimensions and repeated groups use
 AND semantics. `--id` is exclusive with dimension selectors and `--all`.
 `--headed`, `--ui`, and `--debug` are forwarded to Playwright. An unknown
 selector, an empty selection, or a run with no explicit selector exits before
-Paperclip starts. `--max-parallel <n>` controls the number of isolated
+Nexus starts. `--max-parallel <n>` controls the number of isolated
 profile/environment/case harnesses that can overlap (default 1, also configurable
-with `PAPERCLIP_E2E_MAX_PARALLEL`). `--max-automatic-retries <0|1>` controls the
+with `NEXUS_E2E_MAX_PARALLEL`). `--max-automatic-retries <0|1>` controls the
 launcher retry budget (default 1). Set it to 0 for a single-attempt comparison;
 it suppresses both transient-infrastructure and provider-variance retries while
 preserving the original failure classification. Headed/UI/debug runs are forced
@@ -1078,7 +1078,7 @@ it runs in parallel with unrelated scenarios.
 
 Use a single `--id` smoke test for routine local verification. Full-matrix
 parallelism is intended for GitHub Actions; raising local parallelism starts
-multiple Paperclip/Postgres/Chromium stacks and can consume substantial CPU and
+multiple Nexus/Postgres/Chromium stacks and can consume substantial CPU and
 memory.
 
 Credential-free checks are:
@@ -1133,8 +1133,8 @@ image="ghcr.io/paperclipai/paperclip-daytona-runner:e2e-content-${content_id}"
 if ! docker buildx imagetools inspect "$image" >/dev/null 2>&1; then
   docker buildx build \
     --platform linux/amd64 \
-    --build-arg "PAPERCLIP_RUNNER_CONTENT_ID=${content_id}" \
-    --build-arg "PAPERCLIP_RUNNER_SOURCE_REVISION=${source_revision}" \
+    --build-arg "NEXUS_RUNNER_CONTENT_ID=${content_id}" \
+    --build-arg "NEXUS_RUNNER_SOURCE_REVISION=${source_revision}" \
     --file docker/daytona-runner/Dockerfile \
     --tag "$image" \
     --push \
@@ -1145,13 +1145,13 @@ docker buildx imagetools inspect "$image"
 
 The content ID hashes the audited image inputs, including the Dockerfile,
 platform, root package/lock/build configuration, dependency patches,
-`paperclip-eval-kernel`, and `paperclip-runner`. Changes elsewhere in the
+`nexus-eval-kernel`, and `nexus-runner`. Changes elsewhere in the
 repository keep the same tag and reuse the already signed image. The Git SHA is
 stored separately as image provenance. CI reads that provenance back from a
 reused image when it builds the controller-side provider pack, preserving the
 exact manifest match required to avoid restaging the pack into Daytona.
 
-Resolve the manifest digest and set `PAPERCLIP_E2E_DAYTONA_IMAGE` to
+Resolve the manifest digest and set `NEXUS_E2E_DAYTONA_IMAGE` to
 `ghcr.io/paperclipai/paperclip-daytona-runner@sha256:...`. The repository
 workflow signs that digest with Cosign/OIDC and verifies that it is publicly
 pullable, includes the provider pack, and advertises `dial_ws_loopback`,
@@ -1162,15 +1162,15 @@ content tags are never rebuilt or overwritten by the workflow.
 ### Match the local controller package to the Daytona image
 
 When the controller runs on macOS or another platform different from the sandbox,
-set `PAPERCLIP_RUNNER_REMOTE_BINARY_PATH` to a verified Linux amd64
-`paperclip-runnerd`, such as the binary copied from `/usr/local/bin/paperclip-runnerd`
+set `NEXUS_RUNNER_REMOTE_BINARY_PATH` to a verified Linux amd64
+`nexus-runnerd`, such as the binary copied from `/usr/local/bin/nexus-runnerd`
 in the pinned image. The controller must have these exact bytes for its artifact
 identity check. A local macOS runner cannot substitute for the Linux binary,
 even when the sandbox image contains a compatible runner. This also applies to
 native Codex cells, which do not otherwise need the remote provider pack below.
 
 Native ACPX (including Claude) and OpenCode Daytona cells also require
-`PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH` on the controller. The package and
+`NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH` on the controller. The package and
 the image must come from the same verified build. Equal provider version numbers
 are insufficient: verification compares the complete manifest, source revision,
 Node executable, lockfile, and built bridge hashes. An independently rebuilt
@@ -1186,19 +1186,19 @@ match. Docker must be running; the temporary container below is never started.
 ```sh
 (
   set -eu
-  : "${PAPERCLIP_E2E_DAYTONA_IMAGE:?Set the verified immutable image digest}"
-  case "$PAPERCLIP_E2E_DAYTONA_IMAGE" in
+  : "${NEXUS_E2E_DAYTONA_IMAGE:?Set the verified immutable image digest}"
+  case "$NEXUS_E2E_DAYTONA_IMAGE" in
     *@sha256:*) ;;
     *) echo "Use an immutable image digest" >&2; exit 1 ;;
   esac
-  docker pull --platform linux/amd64 "$PAPERCLIP_E2E_DAYTONA_IMAGE"
-  pack_dir="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-e2e-provider-pack.XXXXXX")"
+  docker pull --platform linux/amd64 "$NEXUS_E2E_DAYTONA_IMAGE"
+  pack_dir="$(mktemp -d "${TMPDIR:-/tmp}/nexus-e2e-provider-pack.XXXXXX")"
   container_id="$(docker create --platform linux/amd64 --network none \
-    --entrypoint /bin/true "$PAPERCLIP_E2E_DAYTONA_IMAGE")"
+    --entrypoint /bin/true "$NEXUS_E2E_DAYTONA_IMAGE")"
   trap 'docker rm "$container_id" >/dev/null' EXIT
-  docker cp "$container_id:/opt/paperclip-runner/provider-pack/." "$pack_dir/"
+  docker cp "$container_id:/opt/nexus-runner/provider-pack/." "$pack_dir/"
   test -f "$pack_dir/provider-pack.json"
-  printf 'Set PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH to: %s\n' "$pack_dir"
+  printf 'Set NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH to: %s\n' "$pack_dir"
 )
 ```
 
@@ -1216,21 +1216,21 @@ Packaged, access-controlled evidence is written beneath
 `final-state.png`, Plan draft/revision screenshots when applicable, matcher
 outcomes, sanitized fixture/API metadata, a result record, JUnit, HTML, and a
 blob report. Failures additionally retain the Playwright trace/video, browser
-diagnostics, failure screenshot, and sanitized Paperclip/run logs when
+diagnostics, failure screenshot, and sanitized Nexus/run logs when
 produced. WebM files remain limited to the local results directory and
 access-controlled GitHub Actions artifact. Declared PNG screenshots are also
 published with permanent campaign dashboards; fixture authors must therefore
 keep credentials and other private data out of every captured UI state. SVG is
 active content and is rejected from the packaged evidence entirely.
 
-For native matrix campaigns, set `PAPERCLIP_RUNNER_E2E_RESULTS_ROOT` to a
+For native matrix campaigns, set `NEXUS_RUNNER_E2E_RESULTS_ROOT` to a
 dedicated normalized absolute directory outside the checkout, for example
-`/private/tmp/paperclip-product-evidence`. Final attempt packages, campaign JSON,
+`/private/tmp/nexus-product-evidence`. Final attempt packages, campaign JSON,
 and dashboards are written there directly, so removing a checkout does not
 remove their evidence. The default remains `tests/runner-e2e/results`.
 Empty/relative paths, traversal, filesystem/home/checkout roots, and symbolic-link
 paths are rejected before credentials load. The output root is owner-only.
-Use a distinct `PAPERCLIP_E2E_CAMPAIGN_ID` for each invocation to preserve earlier
+Use a distinct `NEXUS_E2E_CAMPAIGN_ID` for each invocation to preserve earlier
 attempts. This changes storage only; required evidence, redaction, grades, and
 temporary-instance cleanup retain their existing checks. Provider-connection,
 GitHub-review, and product-journey launchers retain their separate output contracts.
@@ -1312,7 +1312,7 @@ with a partial-amount label and incomplete billing coverage. The CI report job s
 Campaign billing retains a separate numeric receipt for each attempt, including
 failed retries. The selected result still controls the grade and result card.
 Copies of the same attempt do not add another charge. The supervisor stamps a
-campaign/attempt identity; CI cells share `PAPERCLIP_E2E_ACCOUNTING_CAMPAIGN_ID`
+campaign/attempt identity; CI cells share `NEXUS_E2E_ACCOUNTING_CAMPAIGN_ID`
 while retaining their separate artifact directories. Report regeneration keeps
 these receipts and their totals. A later cleanup update replaces an earlier
 observation of the same attempt; contradictory costs at the same timestamp are
@@ -1403,7 +1403,7 @@ to inspect branch-only results; an absent dashboard card is not passing coverage
 Case details show the overall failure reason separately from behavioral matcher
 results. For first-task cases, **Read full conversation** starts collapsed and displays retained
 comments, question and approval cards, card answers, and document revisions in
-time order, using Paperclip chat styling: user bubbles on the right, agent replies
+time order, using Nexus chat styling: user bubbles on the right, agent replies
 on the left, and separate cards for questions and documents. This presentation
 is defined in the shared dashboard renderer for every campaign and regeneration,
 not in a particular published report. GitHub publication uses the trusted
@@ -1438,20 +1438,20 @@ pnpm test:e2e:runner:dashboard -- /tmp/runner-e2e-site --history /tmp/history.js
 ```
 
 Serve that directory with any static file server. This path does not start
-Paperclip, invoke an agent, create a Daytona lease, or consume provider tokens.
+Nexus, invoke an agent, create a Daytona lease, or consume provider tokens.
 
 Before an access-controlled evidence artifact is uploaded, the launcher:
 
 1. copies only allowlisted file types;
 2. scans raw API snapshots before sanitizing them;
-3. scans the closed Paperclip home/database and workspace as streams;
+3. scans the closed Nexus home/database and workspace as streams;
 4. redacts loaded exact values and known provider-key shapes from text;
 5. expands ZIP reports for secret scanning;
 6. rejects SVG and other unsafe files and fails the cell if a leak is detected;
    and
 7. verifies that a passing attempt has its final-state screenshot.
 
-The temporary Paperclip home, embedded database, raw workspace, master key,
+The temporary Nexus home, embedded database, raw workspace, master key,
 and unredacted logs are removed after confirmed cleanup. If process or remote
 cleanup is unconfirmed, the harness retains the owner-only temporary root and
 its recovery database for reconciliation; that private state is never packaged
@@ -1533,7 +1533,7 @@ by the repository variable `RUNNER_FULL_STACK_E2E_NIGHTLY_ENABLED=true`. Set it
 only after the live acceptance ladder in the architecture plan is green.
 Set `RUNNER_E2E_AWS_ENABLED=true` to route paid cells to the repository-scoped
 ephemeral AWS RunsOn fleet selected by
-`runs-on/fleet=paperclip-public-pr-x64/env=public-ci`. Any other value uses the
+`runs-on/fleet=nexus-public-pr-x64/env=public-ci`. Any other value uses the
 proven GitHub-hosted `ubuntu-latest` target. Set `RUNNER_E2E_MAX_PARALLEL` to an
 integer from 1–100 on AWS (default 100). The 171-cell default selection takes more than
 one wave at that limit; use suite selectors for smaller campaigns. The fallback runner retains its 1–57 limit and
@@ -1585,11 +1585,11 @@ separate Pages stage. Both surfaces publish only per-result PNG screenshots
 with the explicit `public-runner-fixture` marker alongside sanitized structured
 evidence. The runner capture helper refuses to mark a screenshot outside the
 exact live fixture issue route. Neither surface publishes video, archives,
-SVG/active content, databases, Paperclip homes, workspaces, raw/unallowlisted
+SVG/active content, databases, Nexus homes, workspaces, raw/unallowlisted
 logs, or credentials.
 
 See [FIXTURES.md](./FIXTURES.md) before adding or changing a profile,
-environment, task, matcher, or future Paperclip object fixture.
+environment, task, matcher, or future Nexus object fixture.
 See [SECURITY.md](./SECURITY.md) before enabling paid dispatch, the runner
 group, or permanent public history in this public repository.
 
@@ -1680,7 +1680,7 @@ Claude profile directly. Both Legacy profiles select Legacy runner in Advanced
 before authentication and creation. All four paths are labeled
 `production-wizard`; there is no post-onboarding runner switch. Persona,
 managed instructions, skills, seeded question, and task invocation are preserved. The native path removes the legacy
-Paperclip operational skill because Runner supplies that contract through its
+Nexus operational skill because Runner supplies that contract through its
 protocol; other assigned skills, including `/first-task`, are retained.
 Each isolated onboarding company has a $5 task budget. Setup probes have a
 separate campaign reservation because they do not create task cost events.
@@ -1744,7 +1744,7 @@ artifact checks still apply.
 Behavioral checks inspect persisted comments, interactions, tasks, documents,
 agent counts, creation timestamps, and terminal runs. Planning and clarification
 are allowed before acceptance. Premature durable work fails immediately. The
-suite checks persisted Paperclip effects; it does not claim to prove the absence
+suite checks persisted Nexus effects; it does not claim to prove the absence
 of arbitrary external side effects from a provider process.
 
 ```bash
@@ -1800,9 +1800,9 @@ usage is not reported as free. Judge spend is shown separately and included in
 total estimated spend when known; provider/child usage stays in the run ledger.
 
 Regenerate normalized reports with the existing report command, pointing
-`PAPERCLIP_RUNNER_E2E_REPORT_ROOT` at that campaign,
-`PAPERCLIP_RUNNER_E2E_REPORT_OUT` at a fresh output directory, and
-`PAPERCLIP_RUNNER_E2E_EXPECTED_IDS` at the JSON array of selected execution IDs.
+`NEXUS_RUNNER_E2E_REPORT_ROOT` at that campaign,
+`NEXUS_RUNNER_E2E_REPORT_OUT` at a fresh output directory, and
+`NEXUS_RUNNER_E2E_EXPECTED_IDS` at the JSON array of selected execution IDs.
 Then use the existing dashboard/history publication workflow. Merely running
 `test:e2e:runner:dashboard` reads the already normalized bundle; it never calls
 a judge or refreshes results from outside that bundle. Published campaign
@@ -1813,7 +1813,7 @@ bundles remain immutable; judge them before publishing.
 Use separate campaigns for each skill revision and three repetitions per
 case/provider (144 executions per revision), keeping source environment,
 provider/default model, credentials mode, case facts, and judge configuration
-matched. Set distinct `PAPERCLIP_E2E_CAMPAIGN_ID` values such as
+matched. Set distinct `NEXUS_E2E_CAMPAIGN_ID` values such as
 `first-task-skill-a-r1` through `r3`, and repeat for skill B. Review actual model
 identities and instruction hashes before comparing; dirty working trees are
 explicitly marked. Do not pool results with mismatched configurations or treat
@@ -1883,7 +1883,7 @@ placement; it is not a statistical comparison with the former prompt arrangement
 
 The separate explicit-only `question-resume` suite uses the same neutral two-question
 request on native Codex and ACPX Claude. It qualifies the user journey through
-the provider's built-in question, Paperclip's semantic question tool, or its native API fallback.
+the provider's built-in question, Nexus's semantic question tool, or its native API fallback.
 It does not replace or regrade `question-tool-documentation`.
 
 The oracle classifies each wait from its exact task/agent/run identity. Provider
@@ -1929,7 +1929,7 @@ Browser-only regressions exercise delayed rendering without provider calls:
 ```sh
 pnpm test:e2e:runner:browser-support
 # To use an installed Chrome instead of Playwright's Chromium:
-PAPERCLIP_PLAYWRIGHT_CHANNEL=chrome pnpm test:e2e:runner:browser-support
+NEXUS_PLAYWRIGHT_CHANNEL=chrome pnpm test:e2e:runner:browser-support
 ```
 
 ### Native provider continuity
@@ -1942,12 +1942,12 @@ The check excludes child runs and applies only to native profiles.
 For ordinary native comment and child-completion wakes, a verified provider resume
 receives only new attributed messages, the current authenticated interaction result,
 actual task edits, child results, and completion-report identifiers. The provider
-retains conversation history. Paperclip retains task state and authorization. A new
+retains conversation history. Nexus retains task state and authorization. A new
 or replacement session still receives the full bootstrap; specialized recovery,
 review, external-chat and planning paths retain their existing context. Legacy
 adapter prompts are unchanged.
 
-The ACPX Claude-only `provider-question-bridge` case exercises the provider’s built-in question tool, verifies that its card appears in Paperclip, answers it in the browser, and requires the same paused run to finish with the selected fact. The `accept-while-running` fixture holds the committed card’s creation response until browser acceptance, making the overlap deterministic without changing production behavior.
+The ACPX Claude-only `provider-question-bridge` case exercises the provider’s built-in question tool, verifies that its card appears in Nexus, answers it in the browser, and requires the same paused run to finish with the selected fact. The `accept-while-running` fixture holds the committed card’s creation response until browser acceptance, making the overlap deterministic without changing production behavior.
 
 Local Legacy Claude cells qualify Claude Code `2.1.277` before starting the server.
 If the ambient CLI differs, the harness installs the exact version under the
@@ -1975,7 +1975,7 @@ lockfile from its own trusted checkout, never from the tested branch.
 
 ### Injected interruption diagnostics
 
-The restart supervisor starts Paperclip with the TypeScript loader in the same
+The restart supervisor starts Nexus with the TypeScript loader in the same
 Node process it owns. A forced stop therefore cannot leave an old controller
 alive to stop the embedded database after the replacement starts. On Unix, the
 server has its own process group so Playwright's wrapper-group shutdown cannot
@@ -2120,7 +2120,7 @@ credential boundaries and repetition requirements.
 
 `kimi-qualification` is a separate explicit-only candidate suite for maintained
 Kimi Code `@moonshot-ai/kimi-code@2.3.3`. It registers ten journeys on both local
-and Daytona: a completed reply, Paperclip semantic plan revision/approval, Ask
+and Daytona: a completed reply, Nexus semantic plan revision/approval, Ask
 mode, semantic question continuation, question continuation after a controller
 restart, verified file/artifact delivery, active Stop/reset/resume, and chat
 continuity after restart, native pending-permission Stop, and native worker loss.
@@ -2229,7 +2229,7 @@ charges are separate; unavailable receipts do not mean zero cost. The September
 $25 per provider and $25 coordinated infrastructure/diagnosis.
 
 The launcher binds only the selected candidate and exact discovered model in
-`PAPERCLIP_RUNNER_ACPX_QUALIFICATION`, a JSON array of `{agent,model}` pairs.
+`NEXUS_RUNNER_ACPX_QUALIFICATION`, a JSON array of `{agent,model}` pairs.
 The server reads this operator environment at its normal runnerd construction
 boundary; agent config/environment cannot enable qualification. Normal hosts
 have no admission override. It does not bypass profile, executable, credential,
@@ -2245,7 +2245,7 @@ local execution. Daytona additionally requires that branch's immutable Linux
 candidate image and the matching controller-owned provider pack described in
 [`docker/daytona-runner/README.md`](../../docker/daytona-runner/README.md).
 The separate Runner Evals `extended-harnesses` campaign lives in the private
-`paperclip-evals` repository and grades semantic protocol behavior against the
+`nexus-evals` repository and grades semantic protocol behavior against the
 mock control plane. Neither suite substitutes for the other.
 
 ### Pi native Product fixtures
@@ -2290,9 +2290,9 @@ pnpm test:e2e:runner -- --list --suite pi-native
 pnpm test:e2e:runner -- --id pi-native.runner-acpx-pi.local.native-questions
 ```
 
-Native questions exercise the runner-owned `paperclip_native_question` tool and
+Native questions exercise the runner-owned `nexus_native_question` tool and
 the durable browser form bridge. The existing five extended-harness journeys
-continue to prove semantic Paperclip questions and planning separately. Personal
+continue to prove semantic Nexus questions and planning separately. Personal
 file persistence uses two fresh task runs and independent byte checks; restrictive
 denial uses one run and requires both a failed tool receipt and no file effect.
 The first managed-file API response is saved before its byte assertion, including
@@ -2349,7 +2349,7 @@ removal. Complete server and database cleanup remains the outer supervisor's
 responsibility. These cases remain unqualified until paid runs pass.
 
 The full native plan text is retained in the interaction card. Exporting a plan
-file from Cursor's private HOME as a downloadable Paperclip artifact remains a
+file from Cursor's private HOME as a downloadable Nexus artifact remains a
 separate capability gap; these callback tests do not claim that export works.
 
 
@@ -2401,7 +2401,7 @@ provider startup, and no action is published before the observer is armed.
 
 The observer watches registered targets (including transient create/delete), user
 workspace changes and the exact runner process plus descendants. The single
-controller-owned `.paperclip-runtime/paperclip-runner` subtree is excluded from
+controller-owned `.nexus-runtime/nexus-runner` subtree is excluded from
 user-file inventory and mutation counts: it holds the binary, provider pack,
 context, active runtime state, and sandbox GitHub launchers, upload locks and
 per-command configuration. Launcher restaging after controller recovery uses
@@ -2500,7 +2500,7 @@ command origin before emitting permission evidence; Copilot can emit the
 permission notice first. Both still require the exact tool origin before Stop.
 
 Suite version 4 uses the normalized Product cancellation contract and writes
-`paperclip.e2e.native-active-stop-settlement.v2`. It requires the exact request,
+`nexus.e2e.native-active-stop-settlement.v2`. It requires the exact request,
 item and turn closure with `reason: turn_terminal`, followed by the same stream's
 `turn.cancelled` with `status: cancelled` and `error: null`. The Product harness
 emits these fields; raw backend-only cancellation metadata is not its contract.
@@ -2531,8 +2531,8 @@ safe ownership of the native provider process in both environments.
 
 ### Copilot attached semantic completion evidence (suite 8)
 
-Attached settlement now requires one native `paperclip_finish` lifecycle joined
-to an invocation-captured, bounded Paperclip bridge receipt by exact call, input
+Attached settlement now requires one native `nexus_finish` lifecycle joined
+to an invocation-captured, bounded Nexus bridge receipt by exact call, input
 and result digests in the same run/turn/native session and durable source stream.
 A matching display title is not authority. The exact proposed completion input
 must match a control-plane `run.result.accepted` body and the requested summary.
@@ -2556,8 +2556,8 @@ the native lifecycle; its normalized input hash must also match the authority.
 Exactly one proposed body must hash to that normalized digest and equal exactly
 one accepted body; identical duplicate proposals or receipts still fail.
 
-Suite 8 writes `paperclip.e2e.copilot-semantic-completion.v2` and requires
-`paperclip.semantic_tool_receipt.v2` under `paperclip_semantic_tool_receipt_v2`.
+Suite 8 writes `nexus.e2e.copilot-semantic-completion.v2` and requires
+`nexus.semantic_tool_receipt.v2` under `nexus_semantic_tool_receipt_v2`.
 The authority has exactly eight bounded details. An explicit null normalized
 digest is diagnostic only and cannot qualify a successful finish. Legacy v1
 receipts do not qualify fresh runs. This fixture depends on the corresponding
@@ -2633,7 +2633,7 @@ contribute to the existing billing contract. Evidence includes the waiting and
 final task screenshots, saved checkpoints, final observations, source revision,
 profile/model, catalog digest, and SHA-256 fingerprints of both changed skill
 files and the grader/flow in `snapshots/blocker-guidance.json`. Grader version
-`paperclip.blocker-guidance.v6` requires the approved public note, a saved answer
+`nexus.blocker-guidance.v6` requires the approved public note, a saved answer
 before the confirmation wake, and a new worker reply after the waiting checkpoint,
 accepts writable confirmations and multiple questions, and records `inputUx` separately from
 the blocking checks. Direct text input is the preferred UX for these open-ended
@@ -2662,16 +2662,16 @@ workspace so a user's installed skill cannot shadow the managed skill under test
 
 The 26 explicit Pi cells can run against an independently installed public CLI
 and server instead of the source CLI. Supply all four reviewed pins:
-`PAPERCLIP_RUNNER_E2E_INSTALLED_CLI` (canonical `paperclipai/dist/index.js`),
-`PAPERCLIP_RUNNER_E2E_INSTALLED_CLI_SHA256` (bare SHA-256),
-`PAPERCLIP_RUNNER_E2E_INSTALLED_SERVER_ROOT` (canonical resolved public server
-package root), and `PAPERCLIP_RUNNER_E2E_INSTALLED_SERVER_SHA256` (its
+`NEXUS_RUNNER_E2E_INSTALLED_CLI` (canonical `nexusai/dist/index.js`),
+`NEXUS_RUNNER_E2E_INSTALLED_CLI_SHA256` (bare SHA-256),
+`NEXUS_RUNNER_E2E_INSTALLED_SERVER_ROOT` (canonical resolved public server
+package root), and `NEXUS_RUNNER_E2E_INSTALLED_SERVER_SHA256` (its
 `dist/index.js` SHA-256). The CLI must resolve that exact server dependency, with
 matching public package versions. Build/install provenance and the complete
 installed dependency/assets inventory remain separate required evidence; the
 entrypoint checks alone do not prove that closure.
 
-Run the explicit `paperclipai runtime setup pi` for that installation first.
+Run the explicit `nexusai runtime setup pi` for that installation first.
 This lane rejects candidate flags, local/remote daemon overrides, provider asset
 or pack overrides, and Node injection. It launches the installed JavaScript CLI
 without a TypeScript loader, rechecks its pins on controller restart, and records
@@ -2707,10 +2707,10 @@ delivery, authentication, reasoning effort or follow-up behavior; the existing
 live journeys must prove those separately.
 
 Installed Pi Daytona cells also require the published plugin fixture inputs
-`PAPERCLIP_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN` (canonical package root),
-`PAPERCLIP_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY` (canonical JSON file),
-and `PAPERCLIP_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY_SHA256`.
-The authority schema `paperclip.e2e.installed-daytona-plugin/v1` pins a canonical
+`NEXUS_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN` (canonical package root),
+`NEXUS_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY` (canonical JSON file),
+and `NEXUS_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_AUTHORITY_SHA256`.
+The authority schema `nexus.e2e.installed-daytona-plugin/v1` pins a canonical
 `graphRoot` and four public packages (`plugin`, `sdk`, `shared`, `daytona`).
 Each has `root`, `packageSha256`, `entry`, and `entrySha256`; `plugin` also has
 `manifestSha256` and `workerSha256`. Roots must be the named packages beneath
@@ -2753,7 +2753,7 @@ the WebServer. Arbitrary ambient `NODE_OPTIONS` and `NODE_PATH` remain rejected.
 The fixture creates a CEO through the public API without an instructions bundle
 override, using production permission defaults and a personal managed AI
 connection. Chromium sends the same user request on candidate and baseline:
-use `paperclip-create-agent`, read its skill, drafting guide, review checklist
+use `nexus-create-agent`, read its skill, drafting guide, review checklist
 and coder example, fill its name/company/manager/issue-prefix placeholders,
 hire one permanent coder with that example, and delegate a
 saved JSON label-normalization fixture. Reading the optional references is an
@@ -2780,7 +2780,7 @@ failed, retried or extra work runs, and notification-created tasks fail. Every
 actual run remains in usage/cost accounting. The hiring scorer and final chat
 count guard use the same rule. All other chat count guards stay unchanged.
 
-The versioned `paperclip.hiring-templates.v3` oracle separately checks the production CEO bundle, assigned hiring
+The versioned `nexus.hiring-templates.v3` oracle separately checks the production CEO bundle, assigned hiring
 skill, source hashes, completed pre-hire read receipts, the saved source-derived
 coder example, and durable instruction/skill selections.
 
@@ -2876,8 +2876,8 @@ This keeps automatic title naming from introducing an unrelated permission
 request before the tested native write. Permission policy, provider prompts,
 command correlation, and no-effect assertions remain unchanged.
 
-Set `PAPERCLIP_RUNNER_E2E_INSTALLED_CLI` to the absolute public consumer's
-`paperclipai/dist/index.js` for an installed-product acceptance run. Install the
+Set `NEXUS_RUNNER_E2E_INSTALLED_CLI` to the absolute public consumer's
+`nexusai/dist/index.js` for an installed-product acceptance run. Install the
 public package graph and run its ordinary `runtime setup cursor` first. The
 supervisor launches that compiled CLI from its own package directory; repository
 server-entry patches, provider-bin shims, loader injection, provider packs and
@@ -2885,16 +2885,16 @@ native binary overrides are removed from the server environment. Qualification
 admission is rejected, so this path requires production admission. Use the
 existing browser/API cases and encrypted company-secret fixture path.
 
-Install the public `@paperclipai/plugin-daytona` package separately for a Daytona
-smoke. Set `PAPERCLIP_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN` to its absolute installed
+Install the public `@nexusai/plugin-daytona` package separately for a Daytona
+smoke. Set `NEXUS_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN` to its absolute installed
 package directory when it has its own dependency root. The fixture checks its
 compiled entries and release version before provisioning. The version must match
 the installed CLI by default. If the release uses independent plugin versions,
-set `PAPERCLIP_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_VERSION` to the exact plugin
+set `NEXUS_RUNNER_E2E_INSTALLED_DAYTONA_PLUGIN_VERSION` to the exact plugin
 version in the release record. Record the plugin tarball SHA-256 with that version;
 do not substitute a workspace build or an older installed plugin.
 
-For a diagnosed failure campaign, `PAPERCLIP_RUNNER_E2E_KEEP_FAILED_PRIVATE=1`
+For a diagnosed failure campaign, `NEXUS_RUNNER_E2E_KEEP_FAILED_PRIVATE=1`
 retains the attempt's owner-only private directory after a failed case even
 when owned cleanup passed. This does not alter the case or cleanup outcome.
 Private traces and database files must not be published. Unconfirmed cleanup
@@ -2963,15 +2963,15 @@ marked synthetic task screenshots can enter the public projection.
 ## Repository skill packages
 
 The explicit `repository-skills` suite imports the private
-`paperclipai/poteto-stack` repository through the production GitHub Sources UI,
+`nexusai/poteto-stack` repository through the production GitHub Sources UI,
 selects `architect` and `bro` in repository mode, and assigns those imported
 skills to a production-default Codex agent. It disables the source connection
 before creating the task through the browser. No fixture copies the repository
 into an agent workspace.
 
 Set `GITHUB_TOKEN` with read access to that repository, `OPENAI_API_KEY`, and,
-for Daytona, `DAYTONA_API_KEY` and the immutable `PAPERCLIP_E2E_DAYTONA_IMAGE`.
-On macOS, also set `PAPERCLIP_RUNNER_REMOTE_BINARY_PATH` to the verified Linux
+for Daytona, `DAYTONA_API_KEY` and the immutable `NEXUS_E2E_DAYTONA_IMAGE`.
+On macOS, also set `NEXUS_RUNNER_REMOTE_BINARY_PATH` to the verified Linux
 runner from that pinned image, as described above.
 Credentials follow the existing encrypted company-secret and redaction paths.
 These tests send the selected private skill instructions to OpenAI and deliver
@@ -3151,7 +3151,7 @@ pnpm test:e2e:runner:dashboard -- /private/report --feedback-review /private/fee
 ```
 
 Alternatively, rebuild the same campaign and selection with
-`PAPERCLIP_E2E_FEEDBACK_REVIEW=/private/feedback-review.json`. Keep its original
+`NEXUS_E2E_FEEDBACK_REVIEW=/private/feedback-review.json`. Keep its original
 campaign ID. The importer requires exactly one decision per collected group
 and rejects a review if retained attempts or feedback coverage changed. Blank
 templates cannot count as reviewed. Dashboard regeneration and publication
@@ -3204,7 +3204,7 @@ identity; ambiguous provider-request joins are rejected rather than double count
 
 ### Opt-in Braintrust traces
 
-Set `PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID` to the destination project UUID and
+Set `NEXUS_E2E_BRAINTRUST_PROJECT_ID` to the destination project UUID and
 provide `BRAINTRUST_API_KEY` securely to the launcher. An ambient key alone does
 not enable export. The launcher includes this key in secret scans and removes
 Braintrust variables from the server's inherited environment. Fixture setup
@@ -3223,8 +3223,8 @@ traces. A killed worker can leave a pending receipt, not a claimed successful ex
 
 `accepted` means the OTLP receiver accepted the batch; it does not establish that
 Braintrust indexed it or that native agent spans arrived. Search the project for
-`paperclip.eval.attempt_id` and its trace ID, then verify native records using the
-company ID and `paperclip.eval.run_ids`. The disposable company uses the custom
+`nexus.eval.attempt_id` and its trace ID, then verify native records using the
+company ID and `nexus.eval.run_ids`. The disposable company uses the custom
 OTLP destination at `https://api.braintrust.dev/otel` with a private `x-bt-parent`
 header containing the exported attempt parent. Braintrust attaches independent
 native trace roots beneath that attempt; native children keep their own hierarchy.
@@ -3244,7 +3244,7 @@ credential-header path, outside browser evidence.
 Attempt spans include suite ID and definition hash, profile, case, configured
 provider/model, source revision (or explicit `unknown`), and the runner-spec grader
 path. The source revision identifies that grader's implementation. Worker exports
-are marked `paperclip.eval.outcome_stage=worker`. After evidence packaging,
+are marked `nexus.eval.outcome_stage=worker`. After evidence packaging,
 gateway shutdown and outer cleanup, the supervisor updates the same attempt root
 with its final outcome and adds a finalization span. This preserves failures first
 discovered after the worker returned. The result retains a separate finalization
@@ -3358,8 +3358,8 @@ Private JSON configuration files must be mode 600 and must not be committed:
 - Storage configuration: `{ "endpoint": "<local S3 endpoint>", "accessKeyId": "<key>", "secretAccessKey": "<secret>" }`.
 
 ```sh
-PAPERCLIP_ROLLING_TEST_DATABASE_CONFIG=/private/tmp/rolling-database.json \
-PAPERCLIP_ROLLING_TEST_STORAGE_CONFIG=/private/tmp/rolling-storage.json \
+NEXUS_ROLLING_TEST_DATABASE_CONFIG=/private/tmp/rolling-database.json \
+NEXUS_ROLLING_TEST_STORAGE_CONFIG=/private/tmp/rolling-storage.json \
 node --import ./cli/node_modules/tsx/dist/loader.mjs tests/runner-e2e/rolling-deployment-smoke.ts
 ```
 

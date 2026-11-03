@@ -5,7 +5,7 @@ export * from "./runtime-context.js";
 export * from "./native-session-executor.js";
 export * from "./native-session-resume.js";
 export * from "./native-interaction-bridge.js";
-export * from "./paperclip-control-plane-port.js";
+export * from "./nexus-control-plane-port.js";
 export * from "./native-run-finalizer.js";
 export * from "./native-finalization-reconciler.js";
 export * from "./native-restart-recovery.js";

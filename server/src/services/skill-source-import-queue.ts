@@ -1,5 +1,5 @@
 import { and, asc, eq, isNull, isNotNull, notInArray } from 'drizzle-orm';
-import { companies, projectSkillSources, projectWorkspaces, type Db } from '@paperclipai/db';
+import { companies, projectSkillSources, projectWorkspaces, type Db } from '@nexusai/db';
 
 export const MAX_COMPANY_PENDING_SKILL_IMPORTS = 100;
 export const MAX_PROJECT_PENDING_SKILL_IMPORTS = 20;

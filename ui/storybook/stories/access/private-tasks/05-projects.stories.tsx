@@ -1,4 +1,4 @@
-import type { Project } from "@paperclipai/shared";
+import type { Project } from "@nexusai/shared";
 import { useEffect, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within, waitFor } from "storybook/test";
@@ -80,7 +80,7 @@ const meta = {
   title: "Getting started and access/Login, invitations, and access/Private tasks/05 Projects",
   decorators: [privacyDecorator],
   parameters: { ...privacyParameters, docs: { description: { component: "Project settings → Manage access. Human and agent identities appear in the search dropdown and selected value. Owner, reader, error, loading and mobile states use production components." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "access/resources",
         "tasks/properties",

@@ -1,5 +1,5 @@
 import { foreignKey, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import type { ComposioAppAccount } from "@paperclipai/shared";
+import type { ComposioAppAccount } from "@nexusai/shared";
 import { companies } from "./companies.js";
 import { toolConnections } from "./tool_access.js";
 

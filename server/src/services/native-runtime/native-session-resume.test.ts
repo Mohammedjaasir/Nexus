@@ -22,14 +22,14 @@ import {
   heartbeatRuns,
   issues,
   nativeRunResults,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { describe, expect, it, vi } from "vitest";
 import {
   CodexAppServerDriver,
   HarnessDriverBackend,
   createCodexTaskEnvelope,
   createRunnerdCodexTransport as createCapabilityRunnerdCodexTransport,
-} from "@paperclipai/paperclip-runner";
+} from "@nexusai/nexus-runner";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase as startEmbeddedDatabase,
@@ -42,7 +42,7 @@ import {
   parseNativeExecutionInput,
   type NativeExecutionInput,
   type NativeSession,
-} from "../../vendor/paperclip-runner/index.js";
+} from "../../vendor/nexus-runner/index.js";
 import {
   runnerPrpWebSocketInternals,
   setupRunnerPrpWebSocketServer,
@@ -53,7 +53,7 @@ import {
   retainedNativeCleanupJournalMatches,
 } from "./native-session-executor.js";
 import * as publicationSignals from "../chat-publication-reconciliation.js";
-import { PaperclipControlPlanePort } from "./paperclip-control-plane-port.js";
+import { NexusControlPlanePort } from "./nexus-control-plane-port.js";
 import {
   LIST_CHAT_ATTACHMENTS_TOOL_DEFINITION,
   REUSE_CHAT_ATTACHMENT_TOOL_DEFINITION,
@@ -74,12 +74,12 @@ import {
 import { nativeRuntimeContextFixture } from "./runtime-context.test-fixture.js";
 import { resolveExternalTestDatabaseUrl } from "../../__tests__/helpers/external-test-database.js";
 
-const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_TEST_DATABASE_URL");
+const externalTestDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_TEST_DATABASE_URL");
 
 async function startEmbeddedPostgresTestDatabase(prefix: string) {
   const externalUrl = externalTestDatabaseUrl;
   if (!externalUrl) return startEmbeddedDatabase(prefix);
-  const { closeRegisteredClients } = await import("@paperclipai/db");
+  const { closeRegisteredClients } = await import("@nexusai/db");
   return { connectionString: externalUrl, cleanup: async () => {
     const db = createDb(externalUrl);
     try { await db.execute(sql`TRUNCATE TABLE companies CASCADE`); }
@@ -137,7 +137,7 @@ function execution(
     completionContract: {
       id: "70000000-0000-4000-8000-000000000007",
       sha256: `sha256:${"a".repeat(64)}`,
-      schemaVersion: "paperclip.run-result.v1",
+      schemaVersion: "nexus.run-result.v1",
       contract: {
         revision: "1",
         objective: "Test session resumption",
@@ -207,12 +207,12 @@ function previousRun(overrides: Record<string, unknown> = {}) {
           agentId,
         },
         semanticResult: {
-          schema: "paperclip.run-result.v1",
+          schema: "nexus.run-result.v1",
           reportedWorkDisposition: "done",
           summary: "old",
         },
         terminal: {
-          schema: "paperclip.prp.terminal.v1",
+          schema: "nexus.prp.terminal.v1",
           turnTerminalState: "completed",
           runTerminalState: "succeeded",
           reportedWorkDisposition: "done",
@@ -300,7 +300,7 @@ const embeddedSupport = await getEmbeddedPostgresTestSupport();
 const databaseSupported = Boolean(externalTestDatabaseUrl) || embeddedSupport.supported;
 const recoveryFakeCodex = resolve(
   import.meta.dirname,
-  "../../../../packages/paperclip-runner/test/fixtures/fake-final-burst-codex-app-server.mjs",
+  "../../../../packages/nexus-runner/test/fixtures/fake-final-burst-codex-app-server.mjs",
 );
 
 (databaseSupported && existsSync(defaultCapabilityRunnerdBinary())
@@ -346,7 +346,7 @@ const recoveryFakeCodex = resolve(
           companyId,
           name: "Fixture",
           status: "active",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
         });
       await db
         .insert(issues)
@@ -415,7 +415,7 @@ const recoveryFakeCodex = resolve(
       });
       expect(normalized.sourceEventId).toBe(`${runnerInstanceId}:${runId}:1`);
       expect(normalized.payload).not.toHaveProperty("processId");
-      const port = new PaperclipControlPlanePort(db, {
+      const port = new NexusControlPlanePort(db, {
         companyId,
         issueId,
         agentId,
@@ -551,7 +551,7 @@ const recoveryFakeCodex = resolve(
     const bin = join(scratch, "bin");
     const workspace = join(scratch, "workspace");
     const sourceHome = join(scratch, "source-home");
-    const previousStateBase = process.env.PAPERCLIP_RUNNER_STATE_DIR;
+    const previousStateBase = process.env.NEXUS_RUNNER_STATE_DIR;
     const server = createServer();
     let firstSession: NativeSession | undefined;
     const ownedSessions = new Set<NativeSession>();
@@ -566,11 +566,11 @@ const recoveryFakeCodex = resolve(
     // The production resolver prefers installed Codex over PATH. Explicitly
     // bind this disposable fixture so it can never invoke a real provider.
     const codexCommandResolver = await vi.importActual<{ resolveCodexCommand: () => string }>(
-      "../../../../packages/paperclip-runner/src/drivers/codex/codex-command.js",
+      "../../../../packages/nexus-runner/src/drivers/codex/codex-command.js",
     );
     const resolveFixtureCodex = vi.spyOn(codexCommandResolver, "resolveCodexCommand")
       .mockReturnValue(join(bin, "codex"));
-    process.env.PAPERCLIP_RUNNER_STATE_DIR = stateBase;
+    process.env.NEXUS_RUNNER_STATE_DIR = stateBase;
     try {
       await Promise.all(
         [bin, workspace, sourceHome].map((path) =>
@@ -600,7 +600,7 @@ const recoveryFakeCodex = resolve(
         );
         return {
           ...value,
-          schema: "paperclip.native-execution-input.v2",
+          schema: "nexus.native-execution-input.v2",
           provider: { kind: "codex", model: "gpt-5.6-luna" },
           completionContract: {
             ...value.completionContract,
@@ -633,7 +633,7 @@ const recoveryFakeCodex = resolve(
         companyId,
         name: "Recovery runner",
         status: "active",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
       });
       await db.insert(issues).values({
         id: issueId,
@@ -647,7 +647,7 @@ const recoveryFakeCodex = resolve(
         companyId,
         issueId,
         revision: 1,
-        schemaVersion: "paperclip.completion-contract.v1",
+        schemaVersion: "nexus.completion-contract.v1",
         policyVersion: "damaged-recovery-v1",
         risk: "standard",
         completionAuthority: "server_arbiter",
@@ -731,7 +731,7 @@ const recoveryFakeCodex = resolve(
       // an unacknowledged input whose digest predates bounded sanitization.
       const badPayload = {
         semantic_tool: {
-          schema: "paperclip.prp.semantic_tool.v1",
+          schema: "nexus.prp.semantic_tool.v1",
           schemaVersion: 1,
           phase: "input",
           input: { summary: "bounded historical answer" },
@@ -739,7 +739,7 @@ const recoveryFakeCodex = resolve(
         },
       };
       const envelope = {
-        protocol: "paperclip.runner",
+        protocol: "nexus.runner",
         version: 1,
         kind: "event",
         runnerInstanceId: runner.runnerInstanceId,
@@ -749,7 +749,7 @@ const recoveryFakeCodex = resolve(
         turnId: runner.turnId,
         itemId: runner.itemId,
         payload: {
-          schema: "paperclip.prp.event.v1",
+          schema: "nexus.prp.event.v1",
           sourceEventId: "historical-bad-input-44",
           sourceSeq: 44,
           sourceInstanceId: runner.runnerInstanceId,
@@ -846,7 +846,7 @@ const recoveryFakeCodex = resolve(
       });
       let continuity: Record<string, unknown> | undefined;
       const controlPlaneInstanceId = randomUUID();
-      const port = new PaperclipControlPlanePort(db, {
+      const port = new NexusControlPlanePort(db, {
         companyId,
         issueId,
         runId: currentRunId,
@@ -1064,8 +1064,8 @@ const recoveryFakeCodex = resolve(
       server.closeAllConnections();
       await new Promise<void>((done) => server.close(() => done()));
       if (previousStateBase === undefined)
-        delete process.env.PAPERCLIP_RUNNER_STATE_DIR;
-      else process.env.PAPERCLIP_RUNNER_STATE_DIR = previousStateBase;
+        delete process.env.NEXUS_RUNNER_STATE_DIR;
+      else process.env.NEXUS_RUNNER_STATE_DIR = previousStateBase;
       await database.cleanup();
       if (closeFailures.length) {
         // Retain exact fixture state if owned retirement cannot be proven.
@@ -1082,7 +1082,7 @@ const recoveryFakeCodex = resolve(
   () => {
     it("uses scoped latest checkpoints, preserves progress barriers, and guards bootstrap persistence after the row lock", async () => {
       const database = await startEmbeddedPostgresTestDatabase(
-        "paperclip-native-resume-selection-",
+        "nexus-native-resume-selection-",
       );
       const db = createDb(database.connectionString);
       try {
@@ -1658,15 +1658,15 @@ describe("rebindNativeSessionCheckpoint", () => {
       );
       expect(result.execution.task.prompt).toContain("Full task instructions");
       expect(result.execution.task.prompt).not.toContain(
-        "Paperclip Resume Delta",
+        "Nexus Resume Delta",
       );
       expect(result.execution.task.prompt).not.toContain("Compact context");
     },
   );
 
   it.each([
-    ["paperclip.native-execution-input.v4", "paperclip.native-execution-input.v5"],
-    ["paperclip.native-execution-input.v5", "paperclip.native-execution-input.v4"],
+    ["nexus.native-execution-input.v4", "nexus.native-execution-input.v5"],
+    ["nexus.native-execution-input.v5", "nexus.native-execution-input.v4"],
   ] as const)("retains a recoverable %s session when the constructor defaults to %s", (priorSchema, currentSchema) => {
     const prior = previousRun();
     const profile = prior.runnerProfileJson as Record<string, unknown>;
@@ -1729,7 +1729,7 @@ describe("rebindNativeSessionCheckpoint", () => {
           task: {
             ...current.task,
             prompt: options.resumedSession
-              ? "Paperclip Resume Delta"
+              ? "Nexus Resume Delta"
               : "Full task instructions",
           },
         };
@@ -1787,7 +1787,7 @@ describe("rebindNativeSessionCheckpoint", () => {
         "sha256:b64efcd063a575925aa95dbd2a20953386eaa760f05b0e0e73b4ae04a97679b0",
     },
   ])(
-    "refreshes retained $contract without changing the Paperclip task or prior history",
+    "refreshes retained $contract without changing the Nexus task or prior history",
     ({ contract, retainedFingerprint }) => {
       if (contract === "explicit chat-attachment invocation guidance") {
         expect(LIST_CHAT_ATTACHMENTS_TOOL_DEFINITION.description).toContain("Call with {}");
@@ -1816,8 +1816,8 @@ describe("rebindNativeSessionCheckpoint", () => {
             task: {
               ...current.task,
               prompt: options.resumedSession
-                ? "Paperclip Resume Delta"
-                : "Full context for the same Paperclip task",
+                ? "Nexus Resume Delta"
+                : "Full context for the same Nexus task",
             },
           };
         },
@@ -1835,9 +1835,9 @@ describe("rebindNativeSessionCheckpoint", () => {
         execution(currentRunId).workspace,
       );
       expect(result.execution.task.prompt).toBe(
-        "Full context for the same Paperclip task",
+        "Full context for the same Nexus task",
       );
-      // No deletion/reset of the existing provider checkpoint or Paperclip history.
+      // No deletion/reset of the existing provider checkpoint or Nexus history.
       expect(prior).toEqual(priorSnapshot);
       expect(prior.runnerProfileJson.sessionCheckpoint.sessionId).toBe(
         "provider-thread-123",
@@ -1986,7 +1986,7 @@ describe("rebindNativeSessionCheckpoint", () => {
     const profile = source.runnerProfileJson as Record<string, unknown>;
     const checkpoint = profile.sessionCheckpoint as Record<string, unknown>;
     checkpoint.semanticResult = {
-      schema: "paperclip.run_result.v1",
+      schema: "nexus.run_result.v1",
       reportedWorkDisposition: "yielded",
       summary: "Waiting for a response.",
       continuation: {
@@ -2020,7 +2020,7 @@ describe("rebindNativeSessionCheckpoint", () => {
       timeUsedSeconds: 12,
     };
     checkpoint.semanticResult = {
-      schema: "paperclip.run_result.v1",
+      schema: "nexus.run_result.v1",
       reportedWorkDisposition: "yielded",
       summary: "Paused at a quiescent boundary.",
       continuation: {
@@ -2249,7 +2249,7 @@ describe("buildNativeExecutionInput wake projection", () => {
     };
     const prepared = buildNativeExecutionInput(args);
     const resumed = JSON.stringify(buildNativeModelEnvelope(prepared, { resumedSession: true }));
-    expect(resumed).toContain("paperclip.native-continuation.v1");
+    expect(resumed).toContain("nexus.native-continuation.v1");
     expect(resumed).toContain(message.body);
     expect(resumed).not.toContain(config.instructions);
     expect(resumed).not.toContain("OLD_REQUEST");
@@ -2276,7 +2276,7 @@ describe("buildNativeExecutionInput wake projection", () => {
         workMode: "standard",
       },
       taskPrompt: [
-        "Paperclip task context:",
+        "Nexus task context:",
         `- Title: ${JSON.stringify(staleRootTitle)}`,
         "Latest wake comment:",
         "```text",
@@ -2327,7 +2327,7 @@ describe("buildNativeExecutionInput wake projection", () => {
       completionContract: {
         id: "70000000-0000-4000-8000-000000000007",
         sha256: `sha256:${"a".repeat(64)}`,
-        schemaVersion: "paperclip.run-result.v1",
+        schemaVersion: "nexus.run-result.v1",
         contract: {
           revision: "2",
           objective: "Respond to the latest comment",
@@ -2438,7 +2438,7 @@ describe("buildNativeExecutionInput wake projection", () => {
           "arn:aws:bedrock-agentcore:us-east-1:123456789012:memory/m-1",
         memoryId: "m-1",
         invocationRoleArn: "arn:aws:iam::123456789012:role/invoke",
-        contextBucket: "paperclip-context",
+        contextBucket: "nexus-context",
         contextPrefix: "runner/",
         contextKmsKeyArn: "arn:aws:kms:us-east-1:123456789012:key/key-1",
         qualificationRevision: "aws-agentcore-harness-context-v2",
@@ -2463,15 +2463,15 @@ describe("buildNativeExecutionInput wake projection", () => {
     });
 
     expect(codex).toMatchObject({
-      schema: "paperclip.native-execution-input.v5",
+      schema: "nexus.native-execution-input.v5",
       provider: { kind: "codex", approvalPolicy: "on-request" },
     });
     expect(opencode).toMatchObject({
-      schema: "paperclip.native-execution-input.v5",
+      schema: "nexus.native-execution-input.v5",
       provider: { kind: "opencode", permissionMode: "ask" },
     });
     expect(acpx).toMatchObject({
-      schema: "paperclip.native-execution-input.v5",
+      schema: "nexus.native-execution-input.v5",
       provider: { kind: "acpx", permissionMode: "deny-all" },
     });
     expect(claudeManaged).toMatchObject({
@@ -2506,7 +2506,7 @@ describe("buildNativeExecutionInput wake projection", () => {
     expect(
       JSON.stringify([codex, opencode, claudeManaged, agentCore, acpx]),
     ).not.toMatch(
-      /OPENAI_API_KEY|ANTHROPIC_API_KEY|AWS_SECRET_ACCESS_KEY|PAPERCLIP_API_KEY/,
+      /OPENAI_API_KEY|ANTHROPIC_API_KEY|AWS_SECRET_ACCESS_KEY|NEXUS_API_KEY/,
     );
   });
 
@@ -2521,7 +2521,7 @@ describe("buildNativeExecutionInput wake projection", () => {
         description: "Use the child result.",
         workMode: "standard",
       },
-      taskPrompt: "Paperclip task context:\n- Issue: DOT-146",
+      taskPrompt: "Nexus task context:\n- Issue: DOT-146",
       wakePayload: {
         reason: "issue_children_completed",
         issue: {
@@ -2561,7 +2561,7 @@ describe("buildNativeExecutionInput wake projection", () => {
       completionContract: {
         id: "70000000-0000-4000-8000-000000000007",
         sha256: `sha256:${"a".repeat(64)}`,
-        schemaVersion: "paperclip.run-result.v1",
+        schemaVersion: "nexus.run-result.v1",
         contract: {
           revision: "1",
           objective: "Finish after the child",
@@ -2576,14 +2576,14 @@ describe("buildNativeExecutionInput wake projection", () => {
     expect(input.task.prompt).not.toContain("Execution contract:");
     expect(input.task.prompt).not.toContain("Use child issues");
     // Full bootstrap stays available if provider recovery fails after admission.
-    expect(input.task.prompt).toContain("## Paperclip Wake Payload");
+    expect(input.task.prompt).toContain("## Nexus Wake Payload");
     expect(input.task.prompt).toContain("reason: issue_children_completed");
     expect(input.task.prompt).toContain("DOT-147 Build utility (done)");
     expect(input.task.prompt).toContain(
       "Created three files and passed 7/7 tests.",
     );
     expect(input.task.prompt).toContain(
-      "Paperclip task context:\n- Issue: DOT-146",
+      "Nexus task context:\n- Issue: DOT-146",
     );
     expect(input.task.prompt).not.toContain("Use the child result.");
   });

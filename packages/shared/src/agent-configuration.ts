@@ -22,7 +22,7 @@ export const agentConfigurationSpecSchema = objectWithoutDefaults(createAgentSch
 })).required().strict();
 
 export const agentConfigurationDocumentSchema = z.object({
-  apiVersion: z.literal("paperclip/v1"),
+  apiVersion: z.literal("nexus/v1"),
   kind: z.literal("Agent"),
   spec: agentConfigurationSpecSchema.extend(agentConfigurationResourceShape),
   observed: z.record(z.string(), z.unknown()).optional(),

@@ -2,7 +2,7 @@
 
 Parent: tool-health PR #17554, head `da4089960619d3da2112a4eed3cc7a3d97dbebf8`.
 The parent has 771 selected passing local tests, passing workspace typecheck and
-build, passing Actions checks, and fresh Greptile 5/5. Paperclip Review completed neutral with a 4/5 assessment and follow-ups for
+build, passing Actions checks, and fresh Greptile 5/5. Nexus Review completed neutral with a 4/5 assessment and follow-ups for
 company fairness and real-producer coverage. It is not accepted or merged. This branch owns
 one newly separated reason from the existing chat-runtime inventory.
 

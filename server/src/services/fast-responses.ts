@@ -35,7 +35,7 @@ import {
   issues,
   chatPublications,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   aiConnectionCatalogSlug,
   aiConnectionMetadataSchema,
@@ -48,7 +48,7 @@ import {
   type FastResponseHistoryEntry,
   type UpdateFastResponse,
   type FastResponseTestResult,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { aiConnectionService } from "./ai-connections.js";
 import { instanceSettingsService } from "./instance-settings.js";
 import { isAutomaticRecoverySuppressedByPauseHold } from "./recovery/pause-hold-guard.js";
@@ -626,7 +626,7 @@ export function fastResponseService(
           publications,
           {
             actorType: request.responsibleUserId ? "user" : "system",
-            actorId: request.responsibleUserId ?? "paperclip-fast-response",
+            actorId: request.responsibleUserId ?? "nexus-fast-response",
           },
         );
         const finishedAt = new Date();
@@ -783,7 +783,7 @@ export function fastResponseService(
         {
           responsibleUserId: request.responsibleUserId,
           actorType: request.responsibleUserId ? "user" : "system",
-          actorId: request.responsibleUserId ?? "paperclip-fast-response",
+          actorId: request.responsibleUserId ?? "nexus-fast-response",
           issueId: request.issueId,
         },
       );
@@ -1012,7 +1012,7 @@ export function fastResponseService(
             {
               companyId: request.companyId,
               actorType: "system",
-              actorId: "paperclip-fast-response",
+              actorId: "nexus-fast-response",
               action: "issue.comment_added",
               entityType: "issue",
               entityId: request.issueId!,

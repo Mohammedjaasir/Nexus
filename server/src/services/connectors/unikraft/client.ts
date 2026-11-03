@@ -35,7 +35,7 @@ function pathValue(value: unknown) {
 }
 
 /** A provider-focused REST bridge. It never reads host files, calls host shell
- * commands, borrows CLI login state, or looks up Paperclip tasks. */
+ * commands, borrows CLI login state, or looks up Nexus tasks. */
 export function unikraftClient(headers: Record<string, string>, request: NativeRestRequest, defaultMetro: unknown = UNIKRAFT_DEFAULT_METRO,
   signal: AbortSignal = AbortSignal.timeout(30_000), deadlineAt: number = Date.now() + 30_000) {
   const authorization = headers.Authorization;

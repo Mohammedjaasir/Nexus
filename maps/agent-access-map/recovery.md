@@ -167,7 +167,7 @@ Agent access: `partial` — eligible REST/CLI issue recovery:resolve; native cal
 
 Policy: Agent needs issue:mutate, authenticated run, low-trust exclusion and cross-issue allowance; source assignee/action owner or admitted active-checkout management override. Action ownership does not itself grant source-task mutation rights. Board and agent route policies remain distinct. Status changes separately require source owner/current execution participant/management grant or guarded exact-owner handback. blocked needs unresolved first-class blocker. Restored todo cannot bypass task/project/subtree/budget/review/approval/competing-run gates. Dedicated workspace causes reject generic retry.
 
-A running native owner cannot change its own task status through recovery resolution. It reports the outcome with `paperclip_finish` or `paperclip_block`. An unchanged-status resolution retains the normal recovery permissions. Board recovery and legacy-agent status changes keep their existing rules.
+A running native owner cannot change its own task status through recovery resolution. It reports the outcome with `nexus_finish` or `nexus_block`. An unchanged-status resolution retains the normal recovery permissions. Board recovery and legacy-agent status changes keep their existing rules.
 
 Evidence: `source-only` — [recovery routes](../../server/src/routes/issues.ts), [resolution schema](../../packages/shared/src/validators/issue.ts); reviewed at `3bbc2104b65caf9f7763938a01260a5673e12f7a`. No live provider proof.
 
@@ -491,7 +491,7 @@ API: `present` — POST /api/companies/{companyId}/email/deliveries/{publication
 
 Agent access: `restricted` — board company + tools:manage_connections (local implicit/instance-admin exceptions).
 
-Policy: Only current uncertain send under endpoint/thread lease. sent requires live provider read proving exact inbox, x-paperclip-publication-id and sent label; failed marks provider-not-sent and requires new explicit send. Repeat settled request conflicts; never auto-resend unknown email.
+Policy: Only current uncertain send under endpoint/thread lease. sent requires live provider read proving exact inbox, x-nexus-publication-id and sent label; failed marks provider-not-sent and requires new explicit send. Repeat settled request conflicts; never auto-resend unknown email.
 
 Evidence: `source-only` — [email manager](../../server/src/routes/email.ts), [provider proof](../../server/src/services/email-channels.ts); reviewed at `3bbc2104b65caf9f7763938a01260a5673e12f7a`. No live provider proof.
 

@@ -124,8 +124,8 @@ latency guarantee.
 
 `AWS_POST_MERGE_CI_ENABLED=true` routes cloud source verification and
 exact-master migrator preparation to the
-`paperclip-post-merge` runner group. The separate Fleet label is
-`runs-on/fleet=paperclip-post-merge-x64/env=public-ci`. Its 36 reserved slots use
+`nexus-post-merge` runner group. The separate Fleet label is
+`runs-on/fleet=nexus-post-merge-x64/env=public-ci`. Its 36 reserved slots use
 the same four-vCPU, 16-GiB machines as approved PR jobs. PR capacity is reduced
 to 64; the separately provisioned image capacity is unchanged by this retirement.
 This keeps PR bursts from consuming every post-merge verification slot.
@@ -153,7 +153,7 @@ source checks, and npm integrity checks are unchanged.
 
 ## Retired AWS cloud build routing
 
-`AWS_CLOUD_BUILDS_ENABLED` and the `paperclip-cloud-build` runner group no longer
+`AWS_CLOUD_BUILDS_ENABLED` and the `nexus-cloud-build` runner group no longer
 route a public image job after this retirement. This source change does not
 delete runner groups, Fleets, credentials, registry images, or cache tags. Review
 shared infrastructure ownership separately before removing those resources.
@@ -166,7 +166,7 @@ dependencies only for canonical master pushes that verify the event's exact SHA.
 The `release-typecheck-v2` cache is separate from Runner verification because
 those jobs compile different profiles. The pinned toolchain is selected before
 cache lookup, and the cache action receives the Runner crate through the same
-checkout-independent `$HOME/paperclip-runner-rust` path as the Runner lanes
+checkout-independent `$HOME/nexus-runner-rust` path as the Runner lanes
 (see `RELEASE-AUTOMATION-SETUP.md`). Workspace crates and installed cargo
 binaries are excluded, and all typechecks still execute. A missing or
 invalidated cache triggers compilation.
@@ -197,7 +197,7 @@ The repository cache storage ceiling is managed in GitHub Settings, separately
 from this workflow. Check it with:
 
 ```sh
-gh api repos/paperclipai/paperclip/actions/cache/storage-limit
+gh api repos/nexusai/nexus/actions/cache/storage-limit
 ```
 
 Increasing the repository limit above 10 GB can require an organization owner to
@@ -211,7 +211,7 @@ After deploying this correction, remove any existing empty default-branch entry
 for the current lockfile key. List cache IDs, branches, and archive sizes first:
 
 ```sh
-gh api --paginate 'repos/paperclipai/paperclip/actions/caches?ref=refs/heads/master&key=node-cache-Linux-x64-pnpm-&per_page=100' \
+gh api --paginate 'repos/nexusai/nexus/actions/caches?ref=refs/heads/master&key=node-cache-Linux-x64-pnpm-&per_page=100' \
   --jq '.actions_caches[] | {id, ref, key, size_in_bytes}'
 ```
 
@@ -223,13 +223,13 @@ an entry on another branch untouched, and does nothing if the old ID is absent:
 ```sh
 bad_cache_id=7559920987
 bad_cache_key=node-cache-Linux-x64-pnpm-c3096ecb02a34aaa9782baaadafcb731510e1dba10dd661618c3a2ee91e58fa5
-entries="$(gh api --paginate --slurp 'repos/paperclipai/paperclip/actions/caches?ref=refs/heads/master&per_page=100')"
+entries="$(gh api --paginate --slurp 'repos/nexusai/nexus/actions/caches?ref=refs/heads/master&per_page=100')"
 if printf '%s\n' "$entries" | jq -e --argjson id "$bad_cache_id" --arg key "$bad_cache_key" '
   [.[].actions_caches[] | select(.id == $id)] |
   length == 1 and .[0].ref == "refs/heads/master" and
   .[0].key == $key and .[0].size_in_bytes == 216
 ' >/dev/null; then
-  gh api --method DELETE "repos/paperclipai/paperclip/actions/caches/$bad_cache_id"
+  gh api --method DELETE "repos/nexusai/nexus/actions/caches/$bad_cache_id"
 fi
 ```
 

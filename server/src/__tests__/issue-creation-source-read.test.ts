@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { activityLog, agents, companies, createDb, heartbeatRuns, issues } from "@paperclipai/db";
+import { activityLog, agents, companies, createDb, heartbeatRuns, issues } from "@nexusai/db";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "./helpers/full-database-response-capture.js";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -46,10 +46,10 @@ describe.skipIf(!support.supported)("creation source run projections", () => {
   it.each(["scoped", "legacy task key", "legacy nested identifier"])("omits saved run payloads for %s bindings while preserving provenance and storage", async (binding) => {
     const bulk = "retained-source-context🙂".repeat(32_768);
     const contextSnapshot = binding === "scoped"
-      ? { issueId: sourceId, paperclipIssue: { id: sourceId, retainedDescription: bulk }, retainedLaunchInput: bulk }
+      ? { issueId: sourceId, nexusIssue: { id: sourceId, retainedDescription: bulk }, retainedLaunchInput: bulk }
       : binding === "legacy task key"
-        ? { taskKey: "CSR-1", paperclipIssue: { retainedDescription: bulk }, retainedLaunchInput: bulk }
-        : { paperclipIssue: { id: "CSR-1", retainedDescription: bulk }, retainedLaunchInput: bulk };
+        ? { taskKey: "CSR-1", nexusIssue: { retainedDescription: bulk }, retainedLaunchInput: bulk }
+        : { nexusIssue: { id: "CSR-1", retainedDescription: bulk }, retainedLaunchInput: bulk };
     const { run, child } = await fixture({ contextSnapshot,
       runnerProfileJson: { retainedInput: bulk }, stdoutExcerpt: bulk, stderrExcerpt: bulk, resultJson: { retainedReceipt: bulk } });
     expect(run.issueId).toBe(binding === "scoped" ? sourceId : null);
@@ -79,8 +79,8 @@ describe.skipIf(!support.supported)("creation source run projections", () => {
     { label: "issue scope", issueId: sourceId, contextSnapshot: { issueId: secondId }, expected: sourceId },
     { label: "legacy issue id", contextSnapshot: { issueId: sourceId, taskId: secondId }, expected: sourceId },
     { label: "typed task id fallback", contextSnapshot: { issueId: 42, taskId: sourceId }, expected: sourceId },
-    { label: "nested issue identifier", contextSnapshot: { issueId: " ", paperclipIssue: { id: "CSR-1", ignored: "payload" }, taskKey: "CSR-2" }, expected: sourceId },
-    { label: "typed nested id fallback", contextSnapshot: { paperclipIssue: { id: 42 }, taskKey: "CSR-1" }, expected: sourceId },
+    { label: "nested issue identifier", contextSnapshot: { issueId: " ", nexusIssue: { id: "CSR-1", ignored: "payload" }, taskKey: "CSR-2" }, expected: sourceId },
+    { label: "typed nested id fallback", contextSnapshot: { nexusIssue: { id: 42 }, taskKey: "CSR-1" }, expected: sourceId },
     { label: "foreign context", contextSnapshot: { taskId: foreignId }, expected: null },
     { label: "null context", contextSnapshot: null, expected: null },
   ])("preserves binding precedence for $label", async ({ label: _label, expected, ...values }) => {

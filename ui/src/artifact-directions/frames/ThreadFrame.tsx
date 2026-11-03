@@ -94,7 +94,7 @@ export function ThreadFrame({ kit, panelOpen }: { kit: DirectionKit; panelOpen: 
                     Applied Josh Puckett’s saved critique method and recorded{" "}
                     <ProseLink to="document-interface-craft-critique">findings and before/after changes</ProseLink>. Added a cap-led cover,
                     simplified strategy hierarchy, matched A/B comparison fields and applications, and separated founder decisions.
-                    Retained the supplied logo, Paperclip reference, proposed audience and claim labels.
+                    Retained the supplied logo, Nexus reference, proposed audience and claim labels.
                   </li>
                   <li>
                     Uploaded and registered <ProseLink to="work-product-ic-pptx">editable PowerPoint</ProseLink>,{" "}

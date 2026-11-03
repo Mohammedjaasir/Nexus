@@ -181,7 +181,7 @@ process loss.
 At implementation head `aeaaed7b3e17e1377433165a38fef558acacb631`, workspace
 `pnpm -r typecheck` and `pnpm build` passed. The fresh full chat/startup run passed
 1,511 of 1,512 tests in 450.49 seconds (`/tmp/sleep32-full-chat.log`, database
-`paperclip_sleep32_full_20261025_test`). Every new confirmation test passed. The
+`nexus_sleep32_full_20261025_test`). Every new confirmation test passed. The
 old failed-retry notice test's disabled case captured a real
 `CONNECT_TIMEOUT localhost:55438` while its result wait advanced fake time by
 30 seconds during DB work. The prior slice had corrected a different wait loop;
@@ -207,7 +207,7 @@ into fixture cleanup failures (27 plugin cases failed in
 `/tmp/sleep32-check-fixes.log`). Those step changes were reverted. The same
 combined run passed all 13 selected chat lifecycle cases, including the five
 corrected retry-notice cases. The final one-line plugin clock fix passes all 28
-plugin scheduling tests on fresh `paperclip_sleep32_plugin_fixed_20261025_test`
+plugin scheduling tests on fresh `nexus_sleep32_plugin_fixed_20261025_test`
 (`/tmp/sleep32-plugin-fixed.log`). No production scheduling code was changed for
 these two test failures. Earlier databases and logs are retained.
 

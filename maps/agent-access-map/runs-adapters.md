@@ -6,7 +6,7 @@ Feature ID: `runs-adapters`.
 
 Scoped local Git author contract (`runs-adapters/runs`): an admitted execution
 with managed launchers can create a local commit without a GitHub grant. A
-private per-operation Git config supplies `Paperclip <noreply@paperclip.ing>`
+private per-operation Git config supplies `Nexus <noreply@paperclip.ing>`
 only as a default. Repository/command configuration and captured managed identity
 retain precedence. The default conveys no API, repository-network or credential
 authority; current run, company, trust and GitHub-grant checks stay in force.
@@ -122,7 +122,7 @@ agent-install checks; runtime preparation clears alternate credentials and rejec
 custom Pi provider overrides. This adds no cross-company access or runtime installation API.
 An absent forced-Kubernetes environment is an unqualified sandbox target, never
 a local target. Discovery and automatic creation keep the Legacy path without
-provisioning it; explicit Paperclip selection returns qualification guidance.
+provisioning it; explicit Nexus selection returns qualification guidance.
 The existing execution path owns lazy environment creation. Saved runners remain
 unchanged. This is source/control evidence, not live Kubernetes qualification.
 
@@ -210,7 +210,7 @@ remain separate from live latency and permitted/denied agent acceptance.
 
 Scoped OpenCode assigned-tool source evidence: local and remote native sessions
 use the server-owned authenticated relay. The provider sees bounded
-`paperclip_search_assigned_tools` and `paperclip_call_assigned_tool` schemas,
+`nexus_search_assigned_tools` and `nexus_call_assigned_tool` schemas,
 then uses pinned aliases. Search describes its 1–20 page limit and default of 5
 in the tool and parameter descriptions. It intersects fresh grants and work modes; calls
 retain the run's original gateway policy, validation, approvals, revocation and
@@ -282,7 +282,7 @@ API: `present` — representative operation IDs:
 Agent access: `available` — REST / native call_api / CLI run, plus the listed
 read-only paths through the default queue and HTTP/2 sandbox callback bridge.
 The sandbox uses its injected run credential. See
-[run diagnostics](../../skills/paperclip/references/run-diagnostics.md) and the
+[run diagnostics](../../skills/nexus/references/run-diagnostics.md) and the
 [activity access contract](activity.md#runs).
 
 Policy: Same company, company-scope read authority and run/task visibility still
@@ -437,7 +437,7 @@ invalidation. Verify saved configuration, current versus historical run identity
 restart and follow-up without granting session-reset authority to an agent.
 
 Scoped Evidence: `source-only` — the
-[native transport](../../packages/paperclip-runner/src/live/runnerd-codex-transport.ts)
+[native transport](../../packages/nexus-runner/src/live/runnerd-codex-transport.ts)
 joins owned startup before certifying cleanup. Rejected duplicates cannot replace
 that owner or mutate recovery state. Unconfirmed preparation or registration
 retains recovery state; late registration may release only its own route and

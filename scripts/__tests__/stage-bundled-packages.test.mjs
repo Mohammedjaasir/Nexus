@@ -16,9 +16,9 @@ const entriesFor = (root, names) => names.map((name, index) => ({ name, stagedSo
 const fakeScript = (root, body) => { const script = join(root, 'fake-prepare.mjs'); writeFileSync(script, body); return script; };
 
 test('package names map to stable log and timing slugs', () => {
-  assert.equal(bundledPackageSlug('@paperclipai/server'), 'server');
-  assert.equal(bundledPackageSlug('@paperclipai/adapter-utils'), 'adapter_utils');
-  assert.equal(bundledPackageSlug('@paperclipai/db'), 'db');
+  assert.equal(bundledPackageSlug('@nexusai/server'), 'server');
+  assert.equal(bundledPackageSlug('@nexusai/adapter-utils'), 'adapter_utils');
+  assert.equal(bundledPackageSlug('@nexusai/db'), 'db');
 });
 
 test('the children run the CLI entry release.sh uses, never an in-process call', () => {
@@ -49,7 +49,7 @@ test('the installs run at the same time, each with its own source and target', a
     }
     writeFileSync(join(target, 'package.json'), JSON.stringify({ cache: process.env.npm_config_cache }));
   `);
-  const entries = entriesFor(root, ['@paperclipai/server', '@paperclipai/db']);
+  const entries = entriesFor(root, ['@nexusai/server', '@nexusai/db']);
   for (const { target } of entries) mkdirSync(target);
   const installs = startBundledInstalls(entries, { logDir: root, cwd: root, script, env: { ...process.env, npm_config_cache: join(root, 'shared-cache') } });
   assert.deepEqual(installs.map(({ slug }) => slug), ['server', 'db']);
@@ -75,7 +75,7 @@ test('stopping the installs after one fails also stops the npm process the other
     if (target.endsWith('package-1')) { console.error('bundled install exploded'); process.exit(2); }
     execFileSync(process.execPath, ['-e', "process.stdout.write('npm ' + process.pid + '\\\\n'); setInterval(() => {}, 1000)"], { stdio: 'inherit' });
   `);
-  const installs = startBundledInstalls(entriesFor(root, ['@paperclipai/server', '@paperclipai/db']), { logDir: root, cwd: root, script });
+  const installs = startBundledInstalls(entriesFor(root, ['@nexusai/server', '@nexusai/db']), { logDir: root, cwd: root, script });
   await assert.rejects(Promise.all(installs.map(({ handle }) => handle.done)), /bundled-db prefetch failed \(exit 2\)/);
   const log = join(root, 'bundled-server.log');
   const logHasPid = () => existsSync(log) && /npm \d+/.test(readFileSync(log, 'utf8'));
@@ -96,7 +96,7 @@ test('a failed install rejects with the tail of its own log and leaves the other
     if (target.endsWith('package-1')) { console.error('bundled install exploded'); process.exit(2); }
     setTimeout(() => {}, 30_000);
   `);
-  const installs = startBundledInstalls(entriesFor(root, ['@paperclipai/server', '@paperclipai/adapter-utils']), { logDir: root, cwd: root, script });
+  const installs = startBundledInstalls(entriesFor(root, ['@nexusai/server', '@nexusai/adapter-utils']), { logDir: root, cwd: root, script });
   await assert.rejects(Promise.all(installs.map(({ handle }) => handle.done)), /bundled-adapter_utils prefetch failed \(exit 2\): bundled install exploded/);
   assert.equal(installs[0].handle.child.exitCode, null, 'the other install is still running when the failure surfaces');
   await stopPrefetches(installs.map(({ handle }) => handle));

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { guardedRemoteHttpFetch } from "../remote-http-fetch.js";
 
 const wakeReferences = {
-  schema: z.literal("paperclip.external_bot_wake.v1"),
+  schema: z.literal("nexus.external_bot_wake.v1"),
   bindingId: z.uuid(),
   bindingGeneration: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   correlationId: z.uuid(),

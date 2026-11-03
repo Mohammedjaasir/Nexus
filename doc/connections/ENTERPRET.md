@@ -9,14 +9,14 @@ This document follows the template in
 was and was not verified.
 
 **The connector has now been exercised against a real Enterpret account** — a
-named account holder signed in through an isolated Paperclip runtime on
+named account holder signed in through an isolated Nexus runtime on
 2026-09-25 (PAP-18538), and agent tool calls reached the live server. The
 organization-token method was separately exercised on an isolated self-hosted
 runtime on 2026-09-30.
 
 **Release path:** the **organization auth token** (`mcp-api-key`) is the
 primary connection method. Generate a Bearer token under Enterpret
-**Settings → Enterpret MCP** and paste it into Paperclip. Public MCP tools are
+**Settings → Enterpret MCP** and paste it into Nexus. Public MCP tools are
 read-only today; the token path does not depend on Enterpret honouring a
 narrowed OAuth grant.
 
@@ -42,7 +42,7 @@ a real agent process and server/VPS or Cloud deployment remain unverified.
 The dashboard's token revocation did not immediately invalidate the token. See
 [Validation Hook](#validation-hook) for the scenario-by-scenario record.
 
-Authored against Paperclip App `fff410dfe777ae0427385e8297df992ba9aed4ce`, with
+Authored against Nexus App `fff410dfe777ae0427385e8297df992ba9aed4ce`, with
 `CONNECTOR-PLAYBOOK.md` blob `5efd4cca05a1c94bb47d619833ba347f416bbbed` as the
 authority. Provider metadata read 2026-09-23 and re-read unchanged 2026-09-25.
 Live validation ran on App `ef1606f037a7828a7ba774949e811847c1a1d386`.
@@ -51,7 +51,7 @@ Live validation ran on App `ef1606f037a7828a7ba774949e811847c1a1d386`.
 
 - App key: `enterpret`
 - App name: Enterpret
-- Owner: unassigned. No Paperclip maintainer currently owns an Enterpret account.
+- Owner: unassigned. No Nexus maintainer currently owns an Enterpret account.
 - Reuse classification: **MCP-direct**
 - Reason for classification: Enterpret publishes an official hosted MCP server
   over Streamable HTTP whose authorization server is discoverable from the
@@ -63,7 +63,7 @@ Live validation ran on App `ef1606f037a7828a7ba774949e811847c1a1d386`.
 
 ### Why a catalog entry at all
 
-An operator can already reach this server with no Paperclip code change, through
+An operator can already reach this server with no Nexus code change, through
 **Connect your own MCP server** or **Advanced → Paste a config**
 ([Generic remote MCP](./GENERIC-REMOTE-MCP.md)). The catalog entry adds only:
 official artwork, two labelled methods with the correct client-ownership and
@@ -96,7 +96,7 @@ incremental. Treat the generic path as the baseline, not as a lesser fallback.
 ```mermaid
 sequenceDiagram
     participant O as Operator
-    participant P as Paperclip instance
+    participant P as Nexus instance
     participant R as wisdom-api.enterpret.com
     participant A as oauth.enterpret.com
     O->>P: Connect Enterpret, method mcp-oauth
@@ -107,7 +107,7 @@ sequenceDiagram
     P->>A: GET /.well-known/oauth-authorization-server
     A-->>P: authorize, token, register, PKCE S256, auth method none
     P->>A: POST /register, RFC 7591 dynamic client registration
-    A-->>P: client_id for this Paperclip instance
+    A-->>P: client_id for this Nexus instance
     P->>O: Redirect to /authorize with PKCE challenge
     O->>A: Sign in and consent
     A-->>P: Redirect to /api/tools/oauth/callback with code
@@ -126,12 +126,12 @@ sequenceDiagram
     also resolves.
   - Also advertised: `/introspect`, `/userinfo`. `jwks_uri` points at AWS Cognito
     pool `us-east-2_kLiRrPBis`.
-  - Paperclip callback: `/api/tools/oauth/callback`
+  - Nexus callback: `/api/tools/oauth/callback`
 - Redirect constraints: `https-or-loopback-http` in the definition. An HTTPS
   redirect URI was accepted by DCR and round-tripped through a real consent on
   2026-09-25. Whether Enterpret would also accept a loopback HTTP redirect
   remains **unprobed** — the live run used HTTPS.
-- Paperclip ID / Paperclip Connect involvement: **none.** Enterpret is an
+- Nexus ID / Nexus Connect involvement: **none.** Enterpret is an
   RFC 7591 DCR provider, so registration is instance-local and Cloud and
   self-hosted use the same path. The only per-instance difference is the
   hostname inside the redirect URI.
@@ -145,11 +145,11 @@ current.
 
 ### Scope decision
 
-Paperclip requests `mcp:read` for the official read-only endpoint. The live
+Nexus requests `mcp:read` for the official read-only endpoint. The live
 2026-09-25 observation is preserved:
 
 ```text
-Paperclip authorization request  mcp:read
+Nexus authorization request  mcp:read
 Enterpret token response         no scope field
 Enterpret token introspection    openid email profile mcp:read mcp:write
 ```
@@ -167,20 +167,20 @@ belongs to the official read-only service. Do not widen the scope request or
 add the beta write endpoint to this definition.
 
 #14059 independently records whether scopes are provider-asserted or inferred
-from the request. That improves Paperclip's reporting; it cannot prove a
+from the request. That improves Nexus's reporting; it cannot prove a
 provider's actual endpoint or capability boundary.
 
 ### Revocation gap
 
 The RFC 8414 document advertises no `revocation_endpoint` — re-read 2026-09-25
-and still absent. Removing the connection in Paperclip clears local credential
+and still absent. Removing the connection in Nexus clears local credential
 material and gateway access, but there is no documented provider-side instrument
 to invalidate an issued OAuth token. The auth-token method is separate: the
 dashboard has a Revoke control, but an immediate post-revocation read still
 succeeded on 2026-09-30. Whether generating another token invalidates an
 earlier one is untested.
 
-An `introspection_endpoint` *is* advertised, and Paperclip calls neither. That
+An `introspection_endpoint` *is* advertised, and Nexus calls neither. That
 is worth separating: introspection tells you what a token can do, which is how
 the scope mismatch above was found, but it cannot take a token away.
 
@@ -190,12 +190,12 @@ metadata, not merely predicted. The organization-token Revoke control failed
 the immediate denial check. Local removal passed and must be recorded as
 exactly that rather than as full provider-side revocation.
 
-**Operator instruction.** Disconnecting Enterpret in Paperclip is only half of
+**Operator instruction.** Disconnecting Enterpret in Nexus is only half of
 revoking it — and for OAuth the other half is not a procedure this validation
 can hand you. The two methods differ, and they must not be described as one:
 
-- **OAuth.** Paperclip cannot revoke the token: no `revocation_endpoint` is
-  advertised and Paperclip ships no RFC 7009 client. Whether the Enterpret
+- **OAuth.** Nexus cannot revoke the token: no `revocation_endpoint` is
+  advertised and Nexus ships no RFC 7009 client. Whether the Enterpret
   dashboard offers any way to withdraw an authorized MCP client is
   **unverified** — this validation neither found such a control nor confirmed
   one exists, so no step here should be written as if it does. Until Enterpret
@@ -205,19 +205,19 @@ can hand you. The two methods differ, and they must not be described as one:
 - **Auth token.** The dashboard can generate and revoke organization tokens.
   On 2026-09-30 it confirmed "Your token has been revoked," but that same
   token immediately connected again and completed `get_organization_details`
-  through an isolated Paperclip instance. Provider-side invalidation therefore
+  through an isolated Nexus instance. Provider-side invalidation therefore
   **failed the immediate check**. Vivek later explained a 24-hour validity
   cache and committed to reducing it; the new delay and deployment are unverified. Do not treat the dashboard confirmation, generating another token,
   or local disconnect as proof of revocation. Confirm the old token is denied.
 
-Any runbook or teardown that treats "disconnect in Paperclip" as provider-side
+Any runbook or teardown that treats "disconnect in Nexus" as provider-side
 revocation can leave a live credential at Enterpret. The OAuth grant tested
 above also carried `mcp:write`.
 
 ## Administrator Setup (mandatory)
 
 - What the admin must register: **nothing.** Enterpret advertises RFC 7591
-  dynamic client registration, so the Paperclip instance registers itself at
+  dynamic client registration, so the Nexus instance registers itself at
   connect time. No client ID, no client secret, no callback URL to pre-register.
 - Where to register it: not applicable. For the auth-token method, an Enterpret
   admin generates a token at **Settings → Enterpret MCP → Generate** under
@@ -280,7 +280,7 @@ above also carried `mcp:write`.
   `ownershipModes` must reflect what the provider advertises rather than the
   `method()` helper's `["customer", "dcr"]` default.
 
-- oauthStrategy and connectorProfile: not used. This is not a Paperclip-managed
+- oauthStrategy and connectorProfile: not used. This is not a Nexus-managed
   OAuth provider.
 - capabilityProfile and variants: not needed.
 - tenantFields and extensionFields: none. There is no tenant identifier to
@@ -313,7 +313,7 @@ documented table:
 - `execute_cypher_query` is **absent** from the live server. The legacy alias is
   no longer served, so it cannot be called and does not need a policy.
 - Every one of the 8 tools self-reports `readOnlyHint: true` — **including
-  `run_graph_query`**. Paperclip trusts provider annotations to derive
+  `run_graph_query`**. Nexus trusts provider annotations to derive
   `riskLevel`, so a Cypher-executing tool self-certifies as `read` and lands on
   Allowed by default. That is the provider's claim, not a verified property, and
   it is exactly the case where a provider annotation should not be believed.
@@ -333,16 +333,16 @@ than Ask first; operators who want Off can still set that after connect. See
 | `get_query_examples` | read | active | credential org | allow | same | same |
 | `search_graph_fields` | read | active | credential org | allow | same | same |
 | `search_graph_values` | read | active | credential org | allow | same | same |
-| `run_graph_query` | **write** (Paperclip override) | **deny — set by hand; ships Ask first** | credential org | deny (set by hand) | same, plus redacted query shape | same |
+| `run_graph_query` | **write** (Nexus override) | **deny — set by hand; ships Ask first** | credential org | deny (set by hand) | same, plus redacted query shape | same |
 | `find_user_quote` | read | active | credential org | allow | same, plus quote redaction | same |
 
 Legacy aliases `get_schema` and `search_knowledge_graph` remain served for the
 lifetime of an existing session and are dropped when the host refreshes its tool
 list. `execute_cypher_query` is no longer served at all.
 
-`run_graph_query` currently retains Paperclip's conservative **write** risk
+`run_graph_query` currently retains Nexus's conservative **write** risk
 classification and Ask first default because it accepts general Cypher. This
-is a Paperclip policy safeguard, not evidence that Enterpret permits mutations.
+is a Nexus policy safeguard, not evidence that Enterpret permits mutations.
 Vivek's read-only clarification applies to this official MCP. A scope name or
 tool name does not establish write access. A later risk-policy change can cite
 Enterpret's server-side read-only contract and safe live query proof.
@@ -353,7 +353,7 @@ tool was absent from that agent's own `tools/list`.
 
 Evidence plan: `find_user_quote` returns verbatim customer text with speaker
 attribution, and `run_graph_query` can return feedback records. Do not put
-those results in screenshots, exported evidence, or PR text. Paperclip currently
+those results in screenshots, exported evidence, or PR text. Nexus currently
 retains provider responses close to verbatim in its invocation log, so a quote
 tool call can persist feedback there. Limit access and retention accordingly;
 the token-path QA uses only `get_organization_details` and records tool name,
@@ -400,7 +400,7 @@ decision, and outcome without copying the payload.
   narrowed, and the ungranted control agent dropped to 0 of 8 only after the
   company binding was unbound.
 - Quarantine rules: `quarantineNewEntries` is connection-level runtime setup,
-  not an `AppDefinition` field. Paperclip enables it for Enterpret connections.
+  not an `AppDefinition` field. Nexus enables it for Enterpret connections.
   Enterpret's catalog demonstrably drifts — it renamed three tools and kept the
   old names as session-scoped aliases, and `execute_cypher_query` has since
   disappeared entirely — so newly advertised tools are held for review on a
@@ -414,7 +414,7 @@ decision, and outcome without copying the payload.
 ### Organization auth-token QA (2026-09-30)
 
 This was a separate **self-hosted, same-machine** run on an isolated worktree,
-database, and Paperclip instance at App commit
+database, and Nexus instance at App commit
 `dbe63eaae16fdb2f5386b324067e482f84f7fc7a`. The account holder generated
 one QA-only organization token in Enterpret's MCP settings. Its dashboard
 showed **Expires in 3 months**, so setup copy must not promise six months.
@@ -446,8 +446,8 @@ shapes.
 
 ### Earlier OAuth QA (2026-09-25)
 
-- Environment: an **isolated, issue-owned Paperclip runtime** on the maintainer
-  host — its own `PAPERCLIP_HOME`, its own embedded Postgres, its own ports,
+- Environment: an **isolated, issue-owned Nexus runtime** on the maintainer
+  host — its own `NEXUS_HOME`, its own embedded Postgres, its own ports,
   reachable tailnet-only over HTTPS. It shared nothing with any other instance:
   no database, no credentials, no ports, no worktree. Torn down after the run.
 - Deployment shape: **self-hosted, same machine.** Self-hosted VPS and Cloud
@@ -456,7 +456,7 @@ shapes.
 - Date and tested commit: 2026-09-25, App
   `ef1606f037a7828a7ba774949e811847c1a1d386`
 - Account: a named Enterpret account holder signed in personally through the
-  isolated UI and consented. Paperclip never saw a password, an OTP or an
+  isolated UI and consented. Nexus never saw a password, an OTP or an
   authorization code, and no token value appears in any artifact.
 - Client registration: dynamic. `registrationSource: "dcr"`, a **public** client
   (`token_endpoint_auth_method: none`, so there is no client secret). Nothing
@@ -533,7 +533,7 @@ hand for that precondition alone. Both show `started_at` NULL, no pid, no
 transcript and no run events other than the reaper's, and the instance later
 marked them `failed` / `process_lost` — which is the reaper correctly noticing
 there was never a process behind them, not a product defect. So this connector
-is proven to work under Paperclip's *authorization and transport* layer, and is
+is proven to work under Nexus's *authorization and transport* layer, and is
 untested under an actual agent runtime driving it through a heartbeat. Scenario
 6 needs a genuine woken agent run before it can be called a pass.
 
@@ -563,7 +563,7 @@ Labels as defined in the connector skills' shared matrix.
 | Definition generates, validates and typechecks | `verified` | `verified` | `verified` — the checks are deployment-independent |
 | Official branding passes the artwork checks | `verified` | `verified` | `verified` |
 | Provider metadata discovery resolves (RFC 9728 → 8414) | `verified` against the provider, from this runtime | `verified` — same request, no deployment dependency | `untested` |
-| Paperclip's discovery ladder resolves this shape | `verified` against the live provider | `untested` | `untested` |
+| Nexus's discovery ladder resolves this shape | `verified` against the live provider | `untested` | `untested` |
 | DCR client registration | `verified` — public client registered at connect time, nothing pre-registered | `untested` | `untested` |
 | OAuth consent and token exchange | `verified` | `untested` | `untested` |
 | Auth-token (header) connection | `verified` — connected, discovered 8 tools, and completed a safe read on 2026-09-30 | `untested` | `untested` |
@@ -591,7 +591,7 @@ mechanical store-visibility flip for the token path is also done on this branch
    observed. `run_graph_query` is still not classifiable: its only annotation is
    the provider's own `readOnlyHint: true`, which the live evidence gives no
    reason to trust. Enterpret states public tools are read-only today; treat
-   that as product guidance, not a substitute for a Paperclip deny policy.
+   that as product guidance, not a substitute for a Nexus deny policy.
 3. ~~Authorization to attempt DCR against `oauth.enterpret.com`.~~ **Done** —
    DCR succeeded; a public client, no pre-registration needed.
 4. ~~Catalog visibility for the token path.~~ **Done on this branch** —
@@ -621,7 +621,7 @@ revision release-ready:
   the board Test endpoint does not prove agent authorization.
 - Document the current revocation behavior: invalidated tokens can remain
   active in Enterpret’s cache for up to 24 hours. Local disconnect removes
-  Paperclip’s stored credential and access, but does not immediately invalidate
+  Nexus’s stored credential and access, but does not immediately invalidate
   copies elsewhere. The account holder accepted shipping with this known limit.
 - After deployment, follow up on Enterpret’s OAuth fix and reduced revocation
   window. Confirm the new maximum delay and retest after the provider deploys
@@ -629,6 +629,6 @@ revision release-ready:
 - Keep Enterpret Agent's beta write MCP outside this PR. Adding it later needs
   separate endpoint, credential-boundary, action-risk, and write QA review.
 
-The connector can ship with current provider behavior once Paperclip’s
+The connector can ship with current provider behavior once Nexus’s
 functional QA, CI, and review pass. Keep the PR draft until those checks pass;
 do not block release on the provider’s fast-follow fixes.

@@ -20,7 +20,7 @@ const meta = {
   parameters: { layout: "fullscreen", docs: { description: { component:
     "Secondary agent navigation at the same width as the app's other contextual sidebars. Uses production AgentAvatar, Input, and Button. The entire row is a link; selection and search are interactive. Search matches agent name, title, and role. Escape clears the query. Browse all agents links to the existing agent directory in the page stories."
   } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agent-chat/discovery",
         "agent-chat/history"

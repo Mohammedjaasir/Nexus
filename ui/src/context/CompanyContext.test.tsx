@@ -4,7 +4,7 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Company } from "@paperclipai/shared";
+import type { Company } from "@nexusai/shared";
 import { queryKeys } from "../lib/queryKeys";
 import {
   CompanyProvider,
@@ -45,7 +45,7 @@ const archivedCompany = { id: "archived-company" };
 function makeCompany(id: string): Company {
   return {
     id,
-    name: "Paperclip",
+    name: "Nexus",
     description: null,
     status: "active",
     pauseReason: null,
@@ -239,7 +239,7 @@ describe("CompanyProvider", () => {
   it("publishes the URL company without first exposing the remembered company", async () => {
     const previousUrl = window.location.href;
     window.history.replaceState(null, "", "/TWO/issues");
-    localStorage.setItem("paperclip.selectedCompanyId", "company-1");
+    localStorage.setItem("nexus.selectedCompanyId", "company-1");
     queryClient.setQueryData(queryKeys.auth.session, null);
     queryClient.setQueryData(queryKeys.companies.list(null), {
       companies: [{ ...makeCompany("company-1"), issuePrefix: "ONE" }, { ...makeCompany("company-2"), issuePrefix: "TWO" }],
@@ -252,7 +252,7 @@ describe("CompanyProvider", () => {
         <Probe onSelectedCompanyId={id => seen.push(id)} />
       </CompanyProvider></QueryClientProvider>));
       expect(seen.filter(Boolean)).toEqual(["company-2"]);
-      expect(localStorage.getItem("paperclip.selectedCompanyId")).toBe("company-2");
+      expect(localStorage.getItem("nexus.selectedCompanyId")).toBe("company-2");
     } finally {
       window.history.replaceState(null, "", previousUrl);
     }
@@ -263,7 +263,7 @@ describe("CompanyProvider", () => {
     // failed request to an empty list, so the effect has to be told the
     // request errored or it reads that as "asked, and owns nothing" and clears
     // the customer's stored company.
-    localStorage.setItem("paperclip.selectedCompanyId", "company-a");
+    localStorage.setItem("nexus.selectedCompanyId", "company-a");
     mockCompaniesApi.list.mockRejectedValue(new Error("companies unavailable"));
 
     await act(async () => {
@@ -279,11 +279,11 @@ describe("CompanyProvider", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    expect(localStorage.getItem("paperclip.selectedCompanyId")).toBe("company-a");
+    expect(localStorage.getItem("nexus.selectedCompanyId")).toBe("company-a");
   });
 
   it("does not expose a stale stored company id before companies load", async () => {
-    localStorage.setItem("paperclip.selectedCompanyId", "stale-company");
+    localStorage.setItem("nexus.selectedCompanyId", "stale-company");
     mockCompaniesApi.list.mockImplementation(() => new Promise(() => {}));
     const seen: Array<string | null> = [];
 
@@ -301,7 +301,7 @@ describe("CompanyProvider", () => {
   });
 
   it("replaces a stale stored company id with the first loaded company", async () => {
-    localStorage.setItem("paperclip.selectedCompanyId", "stale-company");
+    localStorage.setItem("nexus.selectedCompanyId", "stale-company");
     // Signed out, and *known* to be: the list is keyed by account, so it cannot
     // resolve before the session does. Seeding the answer is how this test says
     // the account lookup has already happened.
@@ -324,7 +324,7 @@ describe("CompanyProvider", () => {
     });
 
     expect(seen).toEqual([null, "company-1"]);
-    expect(localStorage.getItem("paperclip.selectedCompanyId")).toBe("company-1");
+    expect(localStorage.getItem("nexus.selectedCompanyId")).toBe("company-1");
   });
 
   // The `["companies"]` cache entry is shared app-wide and carries no account
@@ -352,7 +352,7 @@ describe("CompanyProvider", () => {
       await flushReact();
 
       expect(seen).toEqual([null, "company-1"]);
-      expect(localStorage.getItem("paperclip.selectedCompanyId")).toBe("company-1");
+      expect(localStorage.getItem("nexus.selectedCompanyId")).toBe("company-1");
     }
 
     it("drops the previous account's selection and re-reads the list", async () => {
@@ -392,7 +392,7 @@ describe("CompanyProvider", () => {
       await flushReact();
 
       expect(seen).toEqual([null, "company-1", null, "company-2"]);
-      expect(localStorage.getItem("paperclip.selectedCompanyId")).toBe("company-2");
+      expect(localStorage.getItem("nexus.selectedCompanyId")).toBe("company-2");
     });
 
     // The replacement fetch is the only thing standing between the account
@@ -431,7 +431,7 @@ describe("CompanyProvider", () => {
 
       expect(captured?.companyListUnavailable).toBe(false);
       expect(seen).toEqual([null, "company-1", null, "company-2"]);
-      expect(localStorage.getItem("paperclip.selectedCompanyId")).toBe("company-2");
+      expect(localStorage.getItem("nexus.selectedCompanyId")).toBe("company-2");
     });
 
     // A transient blip must not need the customer to notice and click anything.
@@ -527,7 +527,7 @@ describe("CompanyProvider", () => {
     // and the bug does not show. It needs a session that never answered.
     it("does not treat a never-answered session as a signed-out session", async () => {
       mockAuthApi.getSession.mockRejectedValue(new Error("network down"));
-      localStorage.setItem("paperclip.selectedCompanyId", "company-1");
+      localStorage.setItem("nexus.selectedCompanyId", "company-1");
       mockCompaniesApi.list.mockResolvedValue([makeCompany("company-1")]);
 
       await act(async () => {
@@ -547,7 +547,7 @@ describe("CompanyProvider", () => {
       expect(mockCompaniesApi.list).not.toHaveBeenCalled();
       expect(queryClient.getQueryData(queryKeys.companies.list(null))).toBeUndefined();
       // And the stored company survives: unavailable is not "owns nothing".
-      expect(localStorage.getItem("paperclip.selectedCompanyId")).toBe("company-1");
+      expect(localStorage.getItem("nexus.selectedCompanyId")).toBe("company-1");
     });
 
     it("leaves the selection alone when the same account is observed again", async () => {
@@ -562,7 +562,7 @@ describe("CompanyProvider", () => {
       await flushReact();
 
       expect(seen).toEqual([null, "company-1"]);
-      expect(localStorage.getItem("paperclip.selectedCompanyId")).toBe("company-1");
+      expect(localStorage.getItem("nexus.selectedCompanyId")).toBe("company-1");
       expect(mockCompaniesApi.list.mock.calls.length).toBe(listCallsAfterBoot);
     });
   });

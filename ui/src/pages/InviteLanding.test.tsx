@@ -170,7 +170,7 @@ describe("InviteLandingPage", () => {
     );
     expect(adapterSelect).toBeTruthy();
     expect(Array.from(adapterSelect!.options).map((option) => option.value))
-      .not.toContain("paperclip_runner");
+      .not.toContain("nexus_runner");
 
     await act(async () => {
       root.unmount();
@@ -196,13 +196,13 @@ describe("InviteLandingPage", () => {
     await flushReact();
     await flushReact();
 
-    expect(container.textContent).toContain("You've been invited to join Paperclip");
+    expect(container.textContent).toContain("You've been invited to join Nexus");
     expect(container.textContent).toContain("Join Acme Robotics");
     expect(container.textContent).toContain("Create account");
     expect(container.textContent).toContain("I already have an account");
     expect(container.textContent).toContain("Message from inviter");
     expect(container.querySelector('[data-testid="invite-inline-auth"]')).not.toBeNull();
-    expect(localStorage.getItem("paperclip:pending-invite-token")).toBe("pcp_invite_test");
+    expect(localStorage.getItem("nexus:pending-invite-token")).toBe("pcp_invite_test");
     const inviteLogo = container.querySelector('img[alt="Acme Robotics logo"]');
     expect(inviteLogo).not.toBeNull();
     expect(inviteLogo?.className).toContain("object-contain");
@@ -247,7 +247,7 @@ describe("InviteLandingPage", () => {
     expect(container.textContent).toContain("An account already exists for jane@example.com. Sign in below to continue with this invite.");
     expect(container.querySelector('input[name="name"]')).toBeNull();
     expect(container.textContent).toContain("Sign in to continue");
-    expect(localStorage.getItem("paperclip:pending-invite-token")).toBe("pcp_invite_test");
+    expect(localStorage.getItem("nexus:pending-invite-token")).toBe("pcp_invite_test");
 
     await act(async () => {
       root.unmount();
@@ -423,7 +423,7 @@ describe("InviteLandingPage", () => {
       password: "wrongpass",
     });
     expect(container.textContent).toContain(
-      "That email and password did not match an existing Paperclip account. Check both fields, or create an account first if you are new here.",
+      "That email and password did not match an existing Nexus account. Check both fields, or create an account first if you are new here.",
     );
 
     await act(async () => {
@@ -507,7 +507,7 @@ describe("InviteLandingPage", () => {
       companies: [],
       unauthorized: false,
     });
-    expect(localStorage.getItem("paperclip:pending-invite-token")).toBeNull();
+    expect(localStorage.getItem("nexus:pending-invite-token")).toBeNull();
 
     await act(async () => {
       root.unmount();
@@ -622,7 +622,7 @@ describe("InviteLandingPage", () => {
     expect(acceptInviteMock).toHaveBeenCalledWith("pcp_invite_test", { requestType: "human" });
     expect(setSelectedCompanyIdMock).toHaveBeenCalledWith("company-1", { source: "manual" });
     expect(queryClient.getQueryState(queryKeys.access.currentBoardAccess)?.isInvalidated).toBe(true);
-    expect(localStorage.getItem("paperclip:pending-invite-token")).toBeNull();
+    expect(localStorage.getItem("nexus:pending-invite-token")).toBeNull();
 
     await act(async () => {
       root.unmount();
@@ -733,7 +733,7 @@ describe("InviteLandingPage", () => {
       companies: [{ id: "company-1", name: "Acme Robotics" }],
       unauthorized: false,
     });
-    expect(localStorage.getItem("paperclip:pending-invite-token")).toBeNull();
+    expect(localStorage.getItem("nexus:pending-invite-token")).toBeNull();
 
     await act(async () => {
       root.unmount();
@@ -901,7 +901,7 @@ describe("InviteLandingPage", () => {
       await flushReact();
 
       expect(container.querySelector('[data-testid="invite-inline-auth"]')).not.toBeNull();
-      expect(localStorage.getItem("paperclip:pending-invite-token")).toBe("pcp_invite_test");
+      expect(localStorage.getItem("nexus:pending-invite-token")).toBe("pcp_invite_test");
 
       await act(async () => {
         root.unmount();

@@ -5,7 +5,7 @@ import { canonicalRemoteCopilotCommand, copilotDeathArguments, selectOwnedCopilo
 
 describe("owned Copilot provider death selector", () => {
   const root = { pid: 10, parent: 1 }, sidecar = { pid: 11, parent: 10 }, native = { pid: 12, parent: 11 };
-  const argv = ["/private/paperclip-acpx-native-owned/distribution/copilot", ...copilotDeathArguments];
+  const argv = ["/private/nexus-acpx-native-owned/distribution/copilot", ...copilotDeathArguments];
   it("selects only the native child of the live owned run", () => {
     expect(selectOwnedCopilotProcess(10, [root, sidecar, native], [10, 11, 12], new Map([[12, argv]]))).toEqual(native);
   });
@@ -42,18 +42,18 @@ import type { ActiveStopPending } from "./copilot-active-stop-evidence.js";
 
 describe("provider-death independent evidence", () => {
   const pending = { scope: { companyId: "company", runId: "run", issueId: "issue", provider: "copilot", target: "target.txt" }, requestId: "request", toolCallId: "tool", turnId: "turn", normalizedSessionId: "session" } as ActiveStopPending;
-  const row = (seq: number, eventType: string, payload: Record<string, unknown>) => ({ companyId: "company", runId: "run", seq, eventType, protocolSchemaVersion: 1, payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn", normalizedSessionId: "session", sourceInstanceId: "source", sourceSeq: seq, sourceEventId: `source:run:${seq}`, emittedAt: "2026-10-03T00:00:00Z", payload } } });
-  const notice = row(1, "provider.notice.recorded", { schema: "paperclip.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1", provenance: { sessionId: "native-session", turnId: "turn", eventType: "permission_requested", method: "session/request_permission" }, details: Object.entries({ stage: "permission_requested", toolCallId: "tool", requestId: "request", operation: "edit", target: "target.txt", declineOffered: "true" }).map(([name, value]) => ({ name, value })) });
+  const row = (seq: number, eventType: string, payload: Record<string, unknown>) => ({ companyId: "company", runId: "run", seq, eventType, protocolSchemaVersion: 1, payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn", normalizedSessionId: "session", sourceInstanceId: "source", sourceSeq: seq, sourceEventId: `source:run:${seq}`, emittedAt: "2026-10-03T00:00:00Z", payload } } });
+  const notice = row(1, "provider.notice.recorded", { schema: "nexus.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1", provenance: { sessionId: "native-session", turnId: "turn", eventType: "permission_requested", method: "session/request_permission" }, details: Object.entries({ stage: "permission_requested", toolCallId: "tool", requestId: "request", operation: "edit", target: "target.txt", declineOffered: "true" }).map(([name, value]) => ({ name, value })) });
   const facts = () => ({ pending, run: { id: "run", companyId: "company", nativeIssueId: "issue", runtimeMode: "native", status: "failed" }, issue: { id: "issue", status: "blocked" }, events: [notice, row(2, "runtime_request.expired", { requestId: "request", turnId: "turn", requestKind: "permission_approval", reason: "provider_exit" }), row(3, "turn.failed", { error: { code: "AGENT_DISCONNECTED", message: "Provider exited" } })] });
   it("accepts callback expiry and an unfinished failed task with no replay", () => {
     expect(assertCopilotProviderDeath(facts())).toMatchObject({ expired: true, mutationReplay: false });
   });
   it("exempts only an exactly attested completed remote instruction-file read", () => {
-    const actionFile = `.paperclip-eval-action-${"a".repeat(36)}.txt`, toolCallId = "instruction-read";
-    const native = (seq: number, status: string) => row(seq, "provider.notice.recorded", { schema: "paperclip.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1", provenance: { sessionId: "native-session", turnId: "turn", eventType: "tool", method: "session/update" }, details: Object.entries({ stage: "tool", toolCallId, operation: "read", status, readTargetSha256: `sha256:${createHash("sha256").update(actionFile).digest("hex")}` }).map(([name, value]) => ({ name, value })) });
-    const canonical = (seq: number, eventType: string, status: string) => row(seq, eventType, { schema: "paperclip.tool.execution.v1", transport: "builtin", operation: "read", target: actionFile, executionId: bootstrapReadExecutionId(toolCallId), status });
+    const actionFile = `.nexus-eval-action-${"a".repeat(36)}.txt`, toolCallId = "instruction-read";
+    const native = (seq: number, status: string) => row(seq, "provider.notice.recorded", { schema: "nexus.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1", provenance: { sessionId: "native-session", turnId: "turn", eventType: "tool", method: "session/update" }, details: Object.entries({ stage: "tool", toolCallId, operation: "read", status, readTargetSha256: `sha256:${createHash("sha256").update(actionFile).digest("hex")}` }).map(([name, value]) => ({ name, value })) });
+    const canonical = (seq: number, eventType: string, status: string) => row(seq, eventType, { schema: "nexus.tool.execution.v1", transport: "builtin", operation: "read", target: actionFile, executionId: bootstrapReadExecutionId(toolCallId), status });
     const state = facts();
-    const edit = row(5, "provider.notice.recorded", { schema: "paperclip.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1", provenance: { sessionId: "native-session", turnId: "turn", eventType: "tool", method: "session/update" }, details: Object.entries({ stage: "tool", toolCallId: pending.toolCallId, operation: "edit", status: "pending" }).map(([name, value]) => ({ name, value })) });
+    const edit = row(5, "provider.notice.recorded", { schema: "nexus.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1", provenance: { sessionId: "native-session", turnId: "turn", eventType: "tool", method: "session/update" }, details: Object.entries({ stage: "tool", toolCallId: pending.toolCallId, operation: "edit", status: "pending" }).map(([name, value]) => ({ name, value })) });
     state.events = [native(1, "pending"), canonical(2, "tool.execution.started", "running"), native(3, "completed"), canonical(4, "tool.execution.completed", "completed"), edit, row(6, notice.eventType, notice.payload.prpEvent.payload), row(7, "runtime_request.expired", { requestId: "request", turnId: "turn", requestKind: "permission_approval", reason: "provider_exit" }), row(8, "turn.failed", { error: { code: "AGENT_DISCONNECTED", message: "Provider exited" } })];
     expect(assertCopilotProviderDeath({ ...state, bootstrap: { actionFile, events: state.events } })).toMatchObject({ expired: true });
     expect(() => assertCopilotProviderDeath(state)).toThrow(/operation/);
@@ -61,13 +61,13 @@ describe("provider-death independent evidence", () => {
   });
   it.each(["execute", "read", "edit"])("refuses an additional %s operation after provider death", operation => {
     const replay = facts();
-    const extra = row(4, "provider.notice.recorded", { schema: "paperclip.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1", provenance: { sessionId: "native-session", turnId: "turn", eventType: "tool", method: "session/update" }, details: Object.entries({ stage: "tool", toolCallId: "extra-tool", operation, status: "completed" }).map(([name, value]) => ({ name, value })) });
+    const extra = row(4, "provider.notice.recorded", { schema: "nexus.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1", provenance: { sessionId: "native-session", turnId: "turn", eventType: "tool", method: "session/update" }, details: Object.entries({ stage: "tool", toolCallId: "extra-tool", operation, status: "completed" }).map(([name, value]) => ({ name, value })) });
     replay.events.push(extra);
     expect(() => assertCopilotProviderDeath(replay)).toThrow(/replayed or completed an operation/);
   });
   it("refuses an additional semantic operation without a file mutation", () => {
     const replay = facts();
-    replay.events.push(row(4, "provider.notice.recorded", { schema: "paperclip.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1", provenance: { sessionId: "native-session", turnId: "turn", eventType: "tool", method: "session/update" }, details: Object.entries({ stage: "tool", toolCallId: "semantic-extra", status: "completed", semanticOperationId: "issue.get", semanticCallIdentitySha256: "a".repeat(64), semanticInputSha256: "b".repeat(64), semanticNormalizedInputSha256: "null", semanticResultSha256: "c".repeat(64), semanticOutcome: "returned" }).map(([name, value]) => ({ name, value })) }));
+    replay.events.push(row(4, "provider.notice.recorded", { schema: "nexus.provider.notice.v1", scope: "turn", category: "copilot_tool_evidence_v1", provenance: { sessionId: "native-session", turnId: "turn", eventType: "tool", method: "session/update" }, details: Object.entries({ stage: "tool", toolCallId: "semantic-extra", status: "completed", semanticOperationId: "issue.get", semanticCallIdentitySha256: "a".repeat(64), semanticInputSha256: "b".repeat(64), semanticNormalizedInputSha256: "null", semanticResultSha256: "c".repeat(64), semanticOutcome: "returned" }).map(([name, value]) => ({ name, value })) }));
     expect(() => assertCopilotProviderDeath(replay)).toThrow(/replayed or completed an operation/);
   });
   it("refuses missing expiry, stale resolution, success and foreign evidence", () => {

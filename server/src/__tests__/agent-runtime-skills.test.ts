@@ -3,8 +3,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
-import { agents, companies, companyMemberships, companySkills, companySkillVersions, companySkillSources, projectSkillSources, projects, projectAccessMembers, createDb, instanceSettings, pluginConfig, plugins, resourceLifecycleEvents, type Db } from "@paperclipai/db";
-import { LOW_TRUST_REVIEW_PRESET } from "@paperclipai/shared";
+import { agents, companies, companyMemberships, companySkills, companySkillVersions, companySkillSources, projectSkillSources, projects, projectAccessMembers, createDb, instanceSettings, pluginConfig, plugins, resourceLifecycleEvents, type Db } from "@nexusai/db";
+import { LOW_TRUST_REVIEW_PRESET } from "@nexusai/shared";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { pluginAgentRuntimeState } from "../services/plugin-agent-runtime-state.js";
@@ -22,13 +22,13 @@ describeDatabase("skill runtime invalidation", () => {
   let skillId: string;
   let key: string;
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-runtime-skills-"); db = createDb(database.connectionString);
-    home = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-skills-home-"));
+    database = await startEmbeddedPostgresTestDatabase("nexus-runtime-skills-"); db = createDb(database.connectionString);
+    home = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-skills-home-"));
   }, 90_000);
   afterAll(async () => { await database?.cleanup(); await fs.rm(home, { recursive: true, force: true }); });
   afterEach(() => vi.unstubAllEnvs());
   beforeEach(async () => {
-    vi.stubEnv("PAPERCLIP_HOME", home);
+    vi.stubEnv("NEXUS_HOME", home);
     companyId = randomUUID(); pluginId = randomUUID(); skillId = randomUUID(); key = `company/${companyId}/fixture`;
     await db.insert(companies).values({ id: companyId, name: "Skill runtime fixture", issuePrefix: `S${companyId.slice(0, 6)}` });
     await db.insert(plugins).values({ id: pluginId, pluginKey: pluginId, packageName: "runtime-fixture", version: "1.0.0", status: "ready", manifestJson: { resourceLifecycle: ["agent_runtime"], capabilities: ["events.subscribe", "agents.lifecycle.manage"] } as never });
@@ -36,7 +36,7 @@ describeDatabase("skill runtime invalidation", () => {
     await db.insert(companySkills).values({ id: skillId, companyId, key, slug: "fixture", name: "Fixture", markdown: "old", sourceType: "github", sourceLocator: "https://github.com/fixture/skills" });
   });
   async function agent(selection: unknown[] = [key], company = companyId) {
-    const [created] = await db.insert(agents).values({ companyId: company, name: randomUUID(), adapterType: "paperclip_runner", lifecycleRequiredPluginIds: [pluginId], adapterConfig: { paperclipSkillSync: { desiredSkills: selection } } }).returning();
+    const [created] = await db.insert(agents).values({ companyId: company, name: randomUUID(), adapterType: "nexus_runner", lifecycleRequiredPluginIds: [pluginId], adapterConfig: { nexusSkillSync: { desiredSkills: selection } } }).returning();
     return created;
   }
   const events = () => db.select().from(resourceLifecycleEvents).where(and(eq(resourceLifecycleEvents.companyId, companyId), eq(resourceLifecycleEvents.resourceType, "agent_runtime"))).orderBy(resourceLifecycleEvents.id);
@@ -60,7 +60,7 @@ describeDatabase("skill runtime invalidation", () => {
     await db.update(companySkills).set({ starCount: 9, updatedAt: new Date() }).where(eq(companySkills.id, skillId));
     expect(await events()).toHaveLength(after);
   });
-  it.each(["paperclip", "complain", "suggestion-box"])("invalidates implicit legacy %s skills with an empty selection", async slug => {
+  it.each(["nexus", "complain", "suggestion-box"])("invalidates implicit legacy %s skills with an empty selection", async slug => {
     const legacy = await agent([]);
     const native = await agent([]);
     await db.update(agents).set({ adapterType: "process" }).where(eq(agents.id, legacy.id));
@@ -90,7 +90,7 @@ describeDatabase("skill runtime invalidation", () => {
     const [source] = await db.insert(companySkillSources).values({ companyId, repositoryUrl: "https://github.com/fixture/private", fullName: "fixture/private", trackingRef: "HEAD", accessScope: "projects" }).returning();
     await db.update(companySkills).set({ accessSourceId: source.id }).where(eq(companySkills.id, skillId));
     const [binding] = await db.insert(projectSkillSources).values({ companyId, projectId: project.id, sourceId: source.id, repositoryUrl: source.repositoryUrl, trackingRef: "HEAD" }).returning();
-    await db.insert(agents).values(Array.from({ length: 250 }, () => ({ companyId, name: randomUUID(), adapterType: "paperclip_runner", adapterConfig: { paperclipSkillSync: { desiredSkills: ["unrelated"] } } })));
+    await db.insert(agents).values(Array.from({ length: 250 }, () => ({ companyId, name: randomUUID(), adapterType: "nexus_runner", adapterConfig: { nexusSkillSync: { desiredSkills: ["unrelated"] } } })));
     const before = (await events()).length;
     await db.update(projectSkillSources).set({ nextSyncAt: new Date(), failureCount: 1 }).where(eq(projectSkillSources.id, binding.id));
     expect(await events()).toHaveLength(before);
@@ -153,7 +153,7 @@ describeDatabase("skill runtime invalidation", () => {
     expect(latestState!.skills).toEqual([expect.objectContaining({ key, versionId: second.id })]);
     expect(await fs.readFile(path.join(pinnedState!.skills[0].source, "SKILL.md"), "utf8")).toBe("first version");
     expect(await fs.readFile(path.join(latestState!.skills[0].source, "SKILL.md"), "utf8")).toBe("second version");
-    await db.update(agents).set({ adapterConfig: { paperclipSkillSync: { desiredSkills: [] } } }).where(eq(agents.id, latest.id));
+    await db.update(agents).set({ adapterConfig: { nexusSkillSync: { desiredSkills: [] } } }).where(eq(agents.id, latest.id));
     expect((await pluginAgentRuntimeState(db, pluginId, companyId, latest.id))!.skills).toEqual([]);
   });
 });

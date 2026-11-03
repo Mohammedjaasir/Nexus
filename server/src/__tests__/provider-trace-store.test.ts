@@ -18,7 +18,7 @@ vi.mock("../services/activity-log.js", () => ({
 function frame(payload: unknown) {
   return {
     kind: "frame",
-    schema: "paperclip.provider_trace_frame.v1",
+    schema: "nexus.provider_trace_frame.v1",
     frameId: 1,
     rawBase64: Buffer.from(JSON.stringify(payload)).toString("base64"),
   };

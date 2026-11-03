@@ -8,8 +8,8 @@ import {
   nativeRunFinalizations,
   providerTraceRecords,
   type Db,
-} from "@paperclipai/db";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+} from "@nexusai/db";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 import { createObjectByteJournal } from "./object-byte-journal.js";
 import {
   createProviderTraceObjectStore,
@@ -300,7 +300,7 @@ export async function migrateRunEvidence(
       if (!/^[a-f0-9-]+\.ndjson$/.test(filename)) throw new Error("invalid_legacy_trace_ref");
       const file = path.join(
         process.env.PROVIDER_TRACE_BASE_PATH ||
-          path.join(resolvePaperclipInstanceRoot(), "data", "provider-traces"),
+          path.join(resolveNexusInstanceRoot(), "data", "provider-traces"),
         filename,
       );
       for (const sidecar of [file, `${file}.rehydration`]) {

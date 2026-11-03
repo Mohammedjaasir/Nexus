@@ -35,7 +35,7 @@ const meta = {
           "The Hybrid direction on the three artifact surfaces (thread, side panel, Artifacts page), plus each of its five slots alone. Data is the lab's acmehats fixture world.",
       },
     },
-    paperclip: {
+    nexus: {
       capabilities: ["documents-artifacts/library", "documents-artifacts/work-products", "documents-artifacts/attachments"],
       status: "proposed",
       home: "design-proposals",

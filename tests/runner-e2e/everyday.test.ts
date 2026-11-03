@@ -241,7 +241,7 @@ describe("manual everyday workflow catalog", () => {
       (candidate) => candidate.id !== "agent-review-handoff",
     ))
       expect(task.buildPrompt("sample")).not.toMatch(
-        /finish_task|paperclip_finish|PATCH|mark .*done|idempotencyKey/i,
+        /finish_task|nexus_finish|PATCH|mark .*done|idempotencyKey/i,
       );
     expect(
       everydayTasks

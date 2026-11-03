@@ -1,7 +1,7 @@
 import { notifyAttentionRetentionWork } from "./retention-work-notifications.js";
 import { and, eq, inArray } from "drizzle-orm";
-import { agents, projects, type Db } from "@paperclipai/db";
-import { trustAuthorizationPolicySchema, type AgentProjectAccess } from "@paperclipai/shared";
+import { agents, projects, type Db } from "@nexusai/db";
+import { trustAuthorizationPolicySchema, type AgentProjectAccess } from "@nexusai/shared";
 import { conflict, forbidden, notFound } from "../errors.js";
 import { normalizeAgentPermissions } from "../lib/agent-permissions.js";
 import { accessService } from "./access.js";

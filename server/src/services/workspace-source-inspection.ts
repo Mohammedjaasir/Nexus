@@ -1,5 +1,5 @@
-import type { Db } from "@paperclipai/db";
-import type { WorkspaceSourceInspection } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import type { WorkspaceSourceInspection } from "@nexusai/shared";
 import { inspectWorkspaceRecoverySource, WorkspaceSourceInspectionLimit,
   type WorkspaceRecoverySourceIdentity } from "./workspace-recovery-source.js";
 import { SystemRecoveryFailure, workspaceSourceVerificationFailureSchema } from "./system-recovery-state.js";
@@ -7,7 +7,7 @@ import { SystemRecoveryFailure, workspaceSourceVerificationFailureSchema } from 
 export const MAX_INSPECTED_WORKSPACE_SOURCES = 8;
 
 export async function inspectWorkspaceSource(db: Db, input: WorkspaceRecoverySourceIdentity): Promise<WorkspaceSourceInspection> {
-  const base = { schema: "paperclip.workspace-source-inspection.v1" as const, actionId: input.actionId,
+  const base = { schema: "nexus.workspace-source-inspection.v1" as const, actionId: input.actionId,
     runId: input.runId, observedAt: new Date().toISOString(), scope: "recorded_source_identity" as const };
   try {
     await inspectWorkspaceRecoverySource(db, input, { maximumSources: MAX_INSPECTED_WORKSPACE_SOURCES });

@@ -1,5 +1,5 @@
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
-import { chatActions, chatEndpoints, chatVoiceSessions, type Db } from "@paperclipai/db";
+import { chatActions, chatEndpoints, chatVoiceSessions, type Db } from "@nexusai/db";
 import { HttpError } from "../../errors.js";
 import { instanceSettingsService } from "../instance-settings.js";
 import { recoverVoiceReplyDispatches } from "./voice-reply-dispatch-recovery.js";

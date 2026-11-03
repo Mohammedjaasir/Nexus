@@ -10,7 +10,7 @@ export default defineConfig({
   reporter: "list",
   outputDir: "./test-results/feature-gaps",
   use: {
-    baseURL: process.env.PAPERCLIP_GAP_STORYBOOK_URL ?? "http://localhost:6136",
+    baseURL: process.env.NEXUS_GAP_STORYBOOK_URL ?? "http://localhost:6136",
     viewport: { width: 1280, height: 900 },
     reducedMotion: "reduce",
   },

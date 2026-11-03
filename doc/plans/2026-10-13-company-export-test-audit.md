@@ -58,7 +58,7 @@ spec = {'base': '8e955181d8a3776acc86e4662de3c77933231a76',
                 'hash': 'a9f8c23c46b994199221719de840292a9c8c2c9ff613e5f4e220441b5c4cd0ea',
                 'counts': [11, 0, 1, 10],
                 'guard': 'loads the no-task export automatically without an interstitial',
-                'message': "AssertionError: expected 'Paperclip exportExporting 1 of 1 file…' not to "
+                'message': "AssertionError: expected 'Nexus exportExporting 1 of 1 file…' not to "
                            "contain 'Not included in this export'",
                 'selector': 'loads the no-task export automatically without an interstitial',
                 'line': 253},
@@ -121,7 +121,7 @@ if os.environ.get("AUDIT_RECONSTRUCT_ONLY") == "1":
     raise SystemExit(0)
 
 archive = subprocess.check_output(["git", "archive", spec["base"]])
-with tempfile.TemporaryDirectory(prefix="paperclip-audit-") as directory:
+with tempfile.TemporaryDirectory(prefix="nexus-audit-") as directory:
     root = Path(directory)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
         tar.extractall(root, filter="data")
@@ -137,7 +137,7 @@ with tempfile.TemporaryDirectory(prefix="paperclip-audit-") as directory:
         if spec["kind"] == "tap":
             command = ["node", "--test", "--test-reporter=tap", owner]
         elif spec["kind"] == "ui":
-            command = ["pnpm", "--filter", "@paperclipai/ui",
+            command = ["pnpm", "--filter", "@nexusai/ui",
                        "exec", "vitest", "run", "src/pages/CompanyExport.test.tsx",
                        "--maxWorkers=1", "--reporter=default", "--reporter=json",
                        "--outputFile.json=" + str(report)]
@@ -202,7 +202,7 @@ Recorded intended failure excerpts (fixture path prefixes omitted):
 
 ```text
 empty-fidelity / loads the no-task export automatically without an interstitial
-AssertionError: expected 'Paperclip exportExporting 1 of 1 file…' not to contain 'Not included in this export'
+AssertionError: expected 'Nexus exportExporting 1 of 1 file…' not to contain 'Not included in this export'
 CompanyExport.test.tsx:253
 attachments-enabled / keeps task history opt-in, then requests all selected files on download
 AssertionError: expected false to be true // Object.is equality

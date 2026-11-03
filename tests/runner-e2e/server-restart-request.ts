@@ -1,9 +1,9 @@
 import { isRollingWebDeployment } from "./controller-rolling-deployment.js";
 import { readFile } from "node:fs/promises";
 import { runnerMatrix } from "./catalog.js";
-import { parseAcpxCandidateAdmission, type AcpxCandidateAdmission } from "../../packages/paperclip-runner/src/drivers/acpx/candidate-admission.js";
-import { QUALIFIED_ACPX_PROFILES } from "../../packages/paperclip-runner/src/drivers/acpx/qualified-profiles.js";
-import { KIMI_DISTRIBUTION_CLOSURE_SHA256 } from "../../packages/paperclip-runner/src/drivers/acpx/kimi-closure-pins.js";
+import { parseAcpxCandidateAdmission, type AcpxCandidateAdmission } from "../../packages/nexus-runner/src/drivers/acpx/candidate-admission.js";
+import { QUALIFIED_ACPX_PROFILES } from "../../packages/nexus-runner/src/drivers/acpx/qualified-profiles.js";
+import { KIMI_DISTRIBUTION_CLOSURE_SHA256 } from "../../packages/nexus-runner/src/drivers/acpx/kimi-closure-pins.js";
 import type { MatrixExecution } from "./types.js";
 import { controllerOutageForExecution, parseControllerOutage, type ControllerOutage } from "./controller-outage.js";
 import { parseRecoveryBinding, type RecoveryBinding } from "./controller-recovery-observer.js";
@@ -31,7 +31,7 @@ export function kimiCandidateAdmissionForExecution(execution: MatrixExecution, c
   const target = execution.environment.expectedExecutionTarget.kind === "remote" ? "linux-x64" : `${process.platform}-${process.arch}`;
   if (target !== "darwin-arm64" && target !== "linux-x64") throw new Error("Kimi fixture host is unsupported");
   const [platform, architecture] = target.split("-");
-  return parseAcpxCandidateAdmission({ schema: "paperclip.acpx-candidate-admission.v1", companyId, agent: "kimi",
+  return parseAcpxCandidateAdmission({ schema: "nexus.acpx-candidate-admission.v1", companyId, agent: "kimi",
     model: execution.profile.model, profileDigest: QUALIFIED_ACPX_PROFILES.kimi.commandDigest,
     nativeClosureDigest: `sha256:${KIMI_DISTRIBUTION_CLOSURE_SHA256[target]}`, platform, architecture,
     expiresAt: now + 60 * 60 * 1000 }, { companyId, agent: "kimi", model: execution.profile.model }, now);

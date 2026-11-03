@@ -1,8 +1,8 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
-import { heartbeatRunEvents } from "@paperclipai/db";
-import type { HarnessRuntimeRequestKind } from "../../vendor/paperclip-runner/index.js";
+import type { Db } from "@nexusai/db";
+import { heartbeatRunEvents } from "@nexusai/db";
+import type { HarnessRuntimeRequestKind } from "../../vendor/nexus-runner/index.js";
 
 const TERMINAL_RUNTIME_REQUEST_EVENTS = [
   "runtime_request.resolved",
@@ -62,7 +62,7 @@ function canonicalPendingRequest(input: {
   const request = record(eventPayload?.request);
   if (
     !event
-    || event.schema !== "paperclip.prp.event.v1"
+    || event.schema !== "nexus.prp.event.v1"
     || event.eventType !== "runtime_request.created"
     || event.sourceKind !== "runner"
     || event.runId !== input.runId

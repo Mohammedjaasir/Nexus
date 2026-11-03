@@ -24,7 +24,7 @@ The existing copy row owes this cleanup when all of these hold:
 
 - State is saved, unchanged, resolved or unavailable.
 - `processStoppedAt` records stop proof.
-- Receipt schema is `paperclip.agent-files.v1`.
+- Receipt schema is `nexus.agent-files.v1`.
 - Ownership has not transferred through `retainedByRunId`.
 - Receipt has a baseline or `cleanupPending: true`, and is not final with
   `cleanupPending: false`.

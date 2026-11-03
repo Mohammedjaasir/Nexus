@@ -32,7 +32,7 @@ describe("plugin", () => {
     expect(result.ok).toBe(true);
     expect(result.normalizedConfig).toEqual(
       expect.objectContaining({
-        namespacePrefix: "paperclip-",
+        namespacePrefix: "nexus-",
         egressMode: "standard",
         jobTtlSecondsAfterFinished: 900,
         podActivityDeadlineSec: 3600,
@@ -122,7 +122,7 @@ describe("plugin", () => {
         config: { inCluster: true },
         lease: {
           providerLeaseId: "lease-1",
-          metadata: { remoteCwd: "/workspace", backend: "job", namespace: "paperclip-co" },
+          metadata: { remoteCwd: "/workspace", backend: "job", namespace: "nexus-co" },
         },
         operations: [],
       }),

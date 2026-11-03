@@ -1,4 +1,4 @@
-/** One-session loopback browser qualification harness. No Paperclip authority. */
+/** One-session loopback browser qualification harness. No Nexus authority. */
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -10,8 +10,8 @@ import { createReportSaver } from './cleanup.mjs';
 import { createProof, createProofServer, DELAY_MS } from './proof.mjs';
 const key = process.env.SPEKO_MCP_API_KEY;
 if (!key) throw new Error('Credential required in environment');
-const state = JSON.parse(await readFile(`${homedir()}/.paperclip/speko-proof/state.json`, 'utf8'));
-const out = resolve(process.env.SPEKO_PROOF_OUTPUT ?? `${homedir()}/.paperclip/speko-proof/browser-${Date.now()}`);
+const state = JSON.parse(await readFile(`${homedir()}/.nexus/speko-proof/state.json`, 'utf8'));
+const out = resolve(process.env.SPEKO_PROOF_OUTPUT ?? `${homedir()}/.nexus/speko-proof/browser-${Date.now()}`);
 await mkdir(dirname(out), { recursive: true, mode: 0o700 }); await mkdir(out, { mode: 0o700 });
 const sourceDigests = {};
 for (const file of ['browser-server.mjs', 'browser-client.mjs', 'cleanup.mjs', 'browser.html', 'proof.mjs', 'application-notification.txt']) sourceDigests[file] = createHash('sha256').update(await readFile(new URL(file, import.meta.url))).digest('hex');
@@ -24,7 +24,7 @@ const saveReport = createReportSaver(async body => {
 });
 const inputs = new Map();
 for (const name of ['start', 'followup']) {
-  const data = await readFile(new URL(`../../.paperclip-local/speko-proof-audio/${name}.pcm`, import.meta.url));
+  const data = await readFile(new URL(`../../.nexus-local/speko-proof-audio/${name}.pcm`, import.meta.url));
   if (!data.length || data.length % 2 || data.length > 48000 * 2 * 10) throw new Error('Invalid synthetic fixture');
   inputs.set(name, data);
 }

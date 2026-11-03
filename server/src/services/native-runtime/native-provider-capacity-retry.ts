@@ -2,7 +2,7 @@ import { notifyAttentionRetentionWork } from "../retention-work-notifications.js
 import { notifyScheduledRetryDispatch } from "../run-dispatch-notifications.js";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { agentWakeupRequests, heartbeatRuns, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, heartbeatRuns, type Db } from "@nexusai/db";
 import { accountingForScheduledRetry, executionFailureRetryCount } from "../execution-recovery-attempt.js";
 import { NATIVE_PROVIDER_CAPACITY_MAX_RETRIES, NATIVE_PROVIDER_OVERLOADED_CODE, NATIVE_PROVIDER_OVERLOADED_MESSAGE } from "./native-provider-failure.js";
 
@@ -36,8 +36,8 @@ export async function materializeNativeProviderCapacityRetry(input: {
   for (const key of [
     "explicitUserContinuation", "wakeCommentId", "wakeCommentIds", "commentId",
     "commentIds", "latestCommentId", "resumeIntent", "followUpRequested",
-    "paperclipWake", "paperclipWakeComment", "paperclipTaskMarkdown", "paperclipTaskMarkdownCompact",
-    "paperclipTaskMarkdownAssignment", "paperclipTaskMarkdownAssignmentCompact", "paperclipTurnContext",
+    "nexusWake", "nexusWakeComment", "nexusTaskMarkdown", "nexusTaskMarkdownCompact",
+    "nexusTaskMarkdownAssignment", "nexusTaskMarkdownAssignmentCompact", "nexusTurnContext",
   ]) delete predecessorContext[key];
   const contextSnapshot = {
     ...predecessorContext,

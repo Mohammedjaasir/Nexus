@@ -1,5 +1,5 @@
-import { usdToUnits } from "@paperclipai/shared";
-import type { NativeExecutionInput, PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import { usdToUnits } from "@nexusai/shared";
+import type { NativeExecutionInput, PrpEvent } from "../../vendor/nexus-runner/index.js";
 const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
 function numericUsageField(

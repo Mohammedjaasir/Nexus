@@ -4,20 +4,20 @@ import express from "express";
 import request from "supertest";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createDb, authUsers, companies, companyMemberships, agents, dotAgentBindings, dotMailboxItems, mcpEventSubscriptions, mcpOauthGrants, mcpOauthRequests, mcpOauthTokens } from "@paperclipai/db";
+import { createDb, authUsers, companies, companyMemberships, agents, dotAgentBindings, dotMailboxItems, mcpEventSubscriptions, mcpOauthGrants, mcpOauthRequests, mcpOauthTokens } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createPublicMcpOAuth, publicMcpConfig, hashMcpSecret, DEVICE_GRANT } from "../services/public-mcp/oauth.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import { dotRunnerBroker } from "../services/dot-runner-broker.js";
 import { publicMcpManagementRoutes, publicMcpIngressRoutes } from "../routes/public-mcp.js";
 
-const config = { origin: "https://paperclip.example", resource: "https://paperclip.example/mcp/runner" };
+const config = { origin: "https://nexus.example", resource: "https://nexus.example/mcp/runner" };
 const callback = "https://chatgpt.com/connector_platform_oauth_redirect";
 describe("Dot onboarding with an operator-issued pairing capability", () => {
   let temp: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    temp = await startEmbeddedPostgresTestDatabase("paperclip-dot-onboarding-");
+    temp = await startEmbeddedPostgresTestDatabase("nexus-dot-onboarding-");
     db = createDb(temp.connectionString);
   }, 120000);
   beforeEach(async () => { await instanceSettingsService(db).updateExperimental({ enablePublicMcp: true, enableOpenAiDot: true, enableNativeRunner: false }); });
@@ -27,12 +27,12 @@ describe("Dot onboarding with an operator-issued pairing capability", () => {
     await db.insert(authUsers).values({ id: userId, name: "Operator", email: userId + "@example.test", createdAt: new Date(), updatedAt: new Date() });
     const [company] = await db.insert(companies).values({ name: "Dot onboarding", issuePrefix: "DO" + randomBytes(3).toString("hex") }).returning();
     await db.insert(companyMemberships).values({ companyId: company!.id, principalType: "user", principalId: userId, membershipRole: "owner", status: "active" });
-    const [agent] = await db.insert(agents).values({ companyId: company!.id, name: "Dot", adapterType: "paperclip_runner", adapterConfig: { provider: "openai_dot" }, lifecycleState, status: lifecycleState === "ready" ? "active" : "paused" }).returning();
+    const [agent] = await db.insert(agents).values({ companyId: company!.id, name: "Dot", adapterType: "nexus_runner", adapterConfig: { provider: "openai_dot" }, lifecycleState, status: lifecycleState === "ready" ? "active" : "paused" }).returning();
     const oauth = createPublicMcpOAuth(db, { ...config, ...(authorizationOrigin ? { authorizationOrigin } : {}) });
     const client = await oauth.register({ client_name: "Dot", redirect_uris: [callback], grant_types: ["authorization_code", "refresh_token", DEVICE_GRANT] }, randomUUID());
     const verifier = randomBytes(32).toString("base64url");
     const input = { client_id: client.client_id, redirect_uri: callback, response_type: "code", resource: config.resource,
-      scope: "paperclip:agent offline_access", code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256" };
+      scope: "nexus:agent offline_access", code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256" };
     const begin = async (extra = {}) => (await oauth.authorize({ ...input, ...extra })).split("/").at(-1)!;
     const pairing = await dotRunnerBroker(db).createPairing({ companyId: company!.id, agentId: agent!.id, operatorId: userId });
     const id = await begin();
@@ -70,7 +70,7 @@ describe("Dot onboarding with an operator-issued pairing capability", () => {
     const principal = await f.oauth.authenticate(tokens.access_token);
     const broker = dotRunnerBroker(db);
     await db.insert(mcpEventSubscriptions).values({ id: randomUUID(), companyId: f.company.id,
-      grantId: principal.grant.id, name: "paperclip.dot.mailbox_updated", bindingId: f.pairing.bindingId,
+      grantId: principal.grant.id, name: "nexus.dot.mailbox_updated", bindingId: f.pairing.bindingId,
       arguments: {}, deliveryMaterial: {}, verifiedAt: new Date(), expiresAt: new Date(Date.now() + 60_000) });
     await db.insert(dotMailboxItems).values({ companyId: f.company.id, bindingId: f.pairing.bindingId,
       bindingGeneration: 1, kind: "assignment", sourceEventId: randomUUID(), references: { task: "hidden" } });
@@ -121,7 +121,7 @@ describe("Dot onboarding with an operator-issued pairing capability", () => {
     const revokedId = randomUUID();
     const usedHash = randomUUID();
     await db.insert(mcpOauthGrants).values([
-      { ...grant, id: personalId, purpose: "personal", agentId: null, resource: config.origin + "/mcp/paperclip" },
+      { ...grant, id: personalId, purpose: "personal", agentId: null, resource: config.origin + "/mcp/nexus" },
       { ...grant, id: revokedId, revokedAt: new Date() },
     ]);
     await db.insert(mcpOauthTokens).values([
@@ -148,9 +148,9 @@ describe("Dot onboarding with an operator-issued pairing capability", () => {
     await expect(f.oauth.token({ grant_type: "refresh_token", client_id: f.client.client_id, resource: config.resource, refresh_token: next.refresh_token })).rejects.toThrow();
   });
   it("pins browser ingress without changing the issuer, resource or token endpoint", async () => {
-    const browserOrigin = "https://paperclip-browser.example:10000";
+    const browserOrigin = "https://nexus-browser.example:10000";
     const f = await fixture(browserOrigin);
-    const personal = createPublicMcpOAuth(db, { ...config, authorizationOrigin: browserOrigin, resource: config.origin + "/mcp/paperclip" });
+    const personal = createPublicMcpOAuth(db, { ...config, authorizationOrigin: browserOrigin, resource: config.origin + "/mcp/nexus" });
     const app = express(); app.use(express.json());
     app.use((req, _res, next) => { req.actor = { type: "none" }; next(); });
     app.use(publicMcpIngressRoutes(f.oauth, vi.fn()));
@@ -167,18 +167,18 @@ describe("Dot onboarding with an operator-issued pairing capability", () => {
     const approval = await request(app).post(path).set("Origin", browserOrigin).send({ pairingCode: f.pairing.pairingCode });
     expect(approval.status).toBe(200);
     expect(new URL(approval.body.redirectUrl).searchParams.get("iss")).toBe(config.origin + "/mcp/runner/oauth");
-    const device = await f.oauth.deviceAuthorize({ client_id: f.client.client_id, resource: config.resource, scope: "paperclip:agent" }, randomUUID());
+    const device = await f.oauth.deviceAuthorize({ client_id: f.client.client_id, resource: config.resource, scope: "nexus:agent" }, randomUUID());
     expect(device.verification_uri).toBe(browserOrigin + "/mcp-device");
   });
   it("validates a separately configured browser origin", () => {
-    expect(publicMcpConfig({ PAPERCLIP_PUBLIC_URL: config.origin, PAPERCLIP_MCP_AUTHORIZATION_ORIGIN: "https://browser.example:10000" }))
-      .toMatchObject({ origin: config.origin, resource: config.origin + "/mcp/paperclip", authorizationOrigin: "https://browser.example:10000" });
+    expect(publicMcpConfig({ NEXUS_PUBLIC_URL: config.origin, NEXUS_MCP_AUTHORIZATION_ORIGIN: "https://browser.example:10000" }))
+      .toMatchObject({ origin: config.origin, resource: config.origin + "/mcp/nexus", authorizationOrigin: "https://browser.example:10000" });
     for (const invalid of ["http://browser.example", "https://secret@browser.example", "https://browser.example/path", "https://browser.example?next=evil", "https://browser.example#fragment"])
-      expect(() => publicMcpConfig({ PAPERCLIP_PUBLIC_URL: config.origin, PAPERCLIP_MCP_AUTHORIZATION_ORIGIN: invalid })).toThrow();
+      expect(() => publicMcpConfig({ NEXUS_PUBLIC_URL: config.origin, NEXUS_MCP_AUTHORIZATION_ORIGIN: invalid })).toThrow();
   });
   it.each(["mcp", "dot-mcp"])("connects via %s without a board session, binds the exact agent, and consumes the capability once", async prefix => {
     const f = await fixture();
-    const personal = createPublicMcpOAuth(db, { ...config, resource: config.origin + "/mcp/paperclip" });
+    const personal = createPublicMcpOAuth(db, { ...config, resource: config.origin + "/mcp/nexus" });
     const app = express(); app.use(express.json());
     app.use((req, _res, next) => { req.actor = { type: "none" }; next(); });
     app.use("/api", publicMcpManagementRoutes(personal, f.oauth));
@@ -201,7 +201,7 @@ describe("Dot onboarding with an operator-issued pairing capability", () => {
     const tokens = await f.oauth.token(exchange);
     const principal = await f.oauth.authenticate(tokens.access_token);
     expect(principal.actor).toMatchObject({ type: "agent", agentId: f.agent.id, companyId: f.company.id });
-    expect(principal.grant.scopes).toEqual(["paperclip:agent", "offline_access"]);
+    expect(principal.grant.scopes).toEqual(["nexus:agent", "offline_access"]);
     await expect(personal.authenticate(tokens.access_token)).rejects.toThrow();
     expect(await dotRunnerBroker(db).mailbox(principal)).toMatchObject({ bindingId: f.pairing.bindingId });
     const [binding] = await db.select().from(dotAgentBindings).where(eq(dotAgentBindings.id, f.pairing.bindingId));
@@ -212,9 +212,9 @@ describe("Dot onboarding with an operator-issued pairing capability", () => {
   });
   it("does not expose personal assistant requests through the public Dot pairing lane", async () => {
     const f = await fixture();
-    const personal = createPublicMcpOAuth(db, { ...config, resource: config.origin + "/mcp/paperclip" });
+    const personal = createPublicMcpOAuth(db, { ...config, resource: config.origin + "/mcp/nexus" });
     const client = await personal.register({ client_name: "Personal", redirect_uris: [callback], grant_types: ["authorization_code"] }, randomUUID());
-    const id = (await personal.authorize({ ...f.input, client_id: client.client_id, resource: config.origin + "/mcp/paperclip", scope: "paperclip:read" })).split("/").at(-1)!;
+    const id = (await personal.authorize({ ...f.input, client_id: client.client_id, resource: config.origin + "/mcp/nexus", scope: "nexus:read" })).split("/").at(-1)!;
     const app = express(); app.use(express.json());
     app.use((req, _res, next) => { req.actor = { type: "none" }; next(); });
     app.use("/api", publicMcpManagementRoutes(personal, f.oauth));
@@ -241,7 +241,7 @@ describe("Dot onboarding with an operator-issued pairing capability", () => {
   });
   it("prevents concurrent requests and the personal endpoint from spending the same capability", async () => {
     const f = await fixture();
-    const personal = createPublicMcpOAuth(db, { ...config, resource: config.origin + "/mcp/paperclip" });
+    const personal = createPublicMcpOAuth(db, { ...config, resource: config.origin + "/mcp/nexus" });
     await expect(personal.consentDotPairing(f.id, f.pairing.pairingCode)).rejects.toMatchObject({ status: 403 });
     const other = await f.begin();
     const results = await Promise.allSettled([f.oauth.consentDotPairing(f.id, f.pairing.pairingCode), f.oauth.consentDotPairing(other, f.pairing.pairingCode)]);

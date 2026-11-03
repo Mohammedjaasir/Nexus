@@ -95,7 +95,7 @@ const meta: Meta<typeof GroupedList> = {
   title: "Automation and structured work/Routines, schedules, and triggers/Product/Routines · List (grouped cards)",
   component: GroupedList,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "routines/definition",
         "routines/management"

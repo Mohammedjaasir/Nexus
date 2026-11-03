@@ -1,6 +1,6 @@
 {
   "as_of": "2026-10-08",
-  "scope": "Eleven providers with successful bounded Paperclip browser action tests; seven new catalog definitions and four existing providers.",
+  "scope": "Eleven providers with successful bounded Nexus browser action tests; seven new catalog definitions and four existing providers.",
   "live_read_passes": 11,
   "provider_write_calls": 0,
   "actual_agent_runs": 0,
@@ -25,7 +25,7 @@
         }
       ],
       "proof": {
-        "surface": "Paperclip browser action Test dialog",
+        "surface": "Nexus browser action Test dialog",
         "grant": "the selected test base only (one base/one workspace); records including delete, comments, fields/tables read/write.",
         "tool": "Search for an Airtable base",
         "result": "Bounded query the selected test base returned that base in 0.6s; ID omitted, no record data read.",
@@ -58,7 +58,7 @@
         }
       ],
       "proof": {
-        "surface": "Paperclip browser action Test dialog",
+        "surface": "Nexus browser action Test dialog",
         "tool": "List teams",
         "result": "One workspace team returned in 0.3s; IDs omitted.",
         "catalog_actions": 68,
@@ -93,7 +93,7 @@
         }
       ],
       "proof": {
-        "surface": "Paperclip browser action Test dialog",
+        "surface": "Nexus browser action Test dialog",
         "actor_label": "Connector Tester",
         "tool": "environment_get",
         "result": "Organization/team context returned; account values omitted.",
@@ -120,9 +120,9 @@
         }
       ],
       "proof": {
-        "surface": "Paperclip browser action Test dialog",
+        "surface": "Nexus browser action Test dialog",
         "actor_label": "Connector Tester",
-        "query": "Official Paperclip public project repository",
+        "query": "Official Nexus public project repository",
         "expected_url": "https://github.com/paperclipai/paperclip",
         "reload": "persisted",
         "actions_refresh": "passed",
@@ -156,11 +156,11 @@
         }
       ],
       "proof": {
-        "surface": "Paperclip browser action Test dialog",
+        "surface": "Nexus browser action Test dialog",
         "actor_label": "Connector Tester",
         "tool": "firecrawl_scrape",
         "url": "https://paperclip.ing",
-        "expected": "Paperclip public site markdown; title and sourceURL; HTTP 200",
+        "expected": "Nexus public site markdown; title and sourceURL; HTTP 200",
         "latency_seconds": 0.6,
         "reload": "persisted",
         "actions_refresh": "passed"
@@ -186,13 +186,13 @@
         }
       ],
       "proof": {
-        "surface": "Paperclip browser action Test dialog",
+        "surface": "Nexus browser action Test dialog",
         "tool": "Get user (@me)",
         "result": "Authenticated profile returned in 0.7s; identity values omitted.",
         "catalog_actions": 380,
         "read_actions": 373,
         "write_actions": 7,
-        "grant": "Provider read-only preset; active Paperclip project only.",
+        "grant": "Provider read-only preset; active Nexus project only.",
         "agent_installation_audience": "Any agent company installation; UI did not allow narrowing. No actual agent ran.",
         "human_audience": "Just me",
         "write_policy": "All write actions Off; persisted after reload",
@@ -215,7 +215,7 @@
         }
       ],
       "proof": {
-        "surface": "Paperclip browser action Test dialog",
+        "surface": "Nexus browser action Test dialog",
         "account_identity": "the verified user verified on provider Settings",
         "catalog_actions": 5,
         "read_actions": 5,
@@ -247,9 +247,9 @@
         }
       ],
       "proof": {
-        "surface": "Paperclip browser action Test dialog",
+        "surface": "Nexus browser action Test dialog",
         "actor_label": "Connector Tester",
-        "query": "Official Paperclip public project repository",
+        "query": "Official Nexus public project repository",
         "expected_url": "https://github.com/paperclipai/paperclip",
         "reload": "persisted",
         "actions_refresh": "passed",
@@ -271,8 +271,8 @@
         }
       ],
       "proof": {
-        "surface": "Paperclip browser action Test dialog",
-        "grant": "Same HTTPS Paperclip client, Calendly MCP resource, mcp:scheduling:read and mcp:scheduling:write",
+        "surface": "Nexus browser action Test dialog",
+        "grant": "Same HTTPS Nexus client, Calendly MCP resource, mcp:scheduling:read and mcp:scheduling:write",
         "tool": "lookup_current_user",
         "result": "Succeeded in 2.5s; profile details omitted",
         "catalog_actions": 36,
@@ -305,7 +305,7 @@
         }
       ],
       "proof": {
-        "surface": "Paperclip browser action Test dialog",
+        "surface": "Nexus browser action Test dialog",
         "tool": "Get Fields (searchconsole), Get Data",
         "result": "54 field definitions; bounded last_7d request returned 5 daily rows dated 2026-10-01 through 2026-10-05 in 1.5s; metric values omitted.",
         "catalog_actions": 19,
@@ -340,7 +340,7 @@
         }
       ],
       "proof": {
-        "surface": "Paperclip browser action Test dialog",
+        "surface": "Nexus browser action Test dialog",
         "mcp_scopes": [
           "mcp:read",
           "mcp:write"

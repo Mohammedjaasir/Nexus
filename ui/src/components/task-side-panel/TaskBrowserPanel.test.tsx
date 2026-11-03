@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { TaskBrowser } from "@paperclipai/shared";
+import type { TaskBrowser } from "@nexusai/shared";
 import { browserUseApi } from "@/api/browser-use";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TaskBrowserPanel } from "./TaskBrowserPanel";

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import type { AskUserQuestionsInteraction, IssueComment, IssueThreadInteraction } from "@paperclipai/shared";
+import type { AskUserQuestionsInteraction, IssueComment, IssueThreadInteraction } from "@nexusai/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
 import { TaskChatThread } from "@/components/TaskChatThread";
 import { pendingAskUserQuestionsInteraction, genericPendingRequestConfirmationInteraction } from "@/fixtures/issueThreadInteractionFixtures";
-import { storybookAgentMap } from "./paperclipData";
+import { storybookAgentMap } from "./nexusData";
 
 export const question: AskUserQuestionsInteraction = {
   ...pendingAskUserQuestionsInteraction,
@@ -40,7 +40,7 @@ export function QuestionChat({ movedOn = false, multiple = false, answered = fal
   const [comments, setComments] = useState<IssueComment[]>([
     comment("start", review ? "Finish the app integration and verify it." : "Help me plan a welcome note for our garden club.", "2026-04-01T12:00:00Z"),
     ...(movedOn || multiple || answered ? [
-      comment("move-on", "Let's leave those choices for later. What can Paperclip tasks track?", "2026-04-01T12:04:00Z"),
+      comment("move-on", "Let's leave those choices for later. What can Nexus tasks track?", "2026-04-01T12:04:00Z"),
       comment("reply", "Tasks track ownership, progress, and the work needed to reach a goal.", "2026-04-01T12:05:00Z", true),
     ] : []),
     ...(answered ? [comment("late-answer", "Blue it is. I'll use that preference when we return to the welcome note.", "2026-04-01T12:07:00Z", true)] : []),

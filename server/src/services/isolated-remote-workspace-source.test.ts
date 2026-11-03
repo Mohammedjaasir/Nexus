@@ -59,7 +59,7 @@ describe("isolated remote source admission", () => {
 
 describe("recorded isolated source identity", () => {
   const workspace = { companyId: "company", sourceIssueId: "task", repoUrl: allowed.repoUrl,
-    metadata: { isolatedRemoteSource: { schema: "paperclip.isolated-remote-source.v1", companyId: "company", issueId: "task", repoUrl: allowed.repoUrl } } };
+    metadata: { isolatedRemoteSource: { schema: "nexus.isolated-remote-source.v1", companyId: "company", issueId: "task", repoUrl: allowed.repoUrl } } };
   it("keeps ordinary workspace sources unchanged", () => {
     expect(recordedIsolatedRemoteSource({ ...workspace, metadata: null })).toBeNull();
   });

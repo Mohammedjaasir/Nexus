@@ -1,4 +1,4 @@
-import type { HeartbeatRunEvent, LiveEvent } from "@paperclipai/shared";
+import type { HeartbeatRunEvent, LiveEvent } from "@nexusai/shared";
 
 export function liveRunEvent(event: LiveEvent): HeartbeatRunEvent | null {
   if (event.type !== "heartbeat.run.event") return null;

@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import type { Db } from '@paperclipai/db';
+import type { Db } from '@nexusai/db';
 import { forbidden, unprocessable } from '../errors.js';
 import { toolAccessService } from './tool-access.js';
 import { resolveGitHubOperationCredentials } from './github-operation-credentials.js';

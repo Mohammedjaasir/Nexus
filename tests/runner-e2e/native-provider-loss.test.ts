@@ -7,7 +7,7 @@ import { runnerMatrix } from "./catalog.js";
 
 it("runs qualified Cursor loss cells without qualification overrides", () => {
   const execution = runnerMatrix.find(row => row.suite.id === "native-provider-loss" && row.environment.id === "local")!;
-  expect(buildRunnerE2EProcessEnvironment({}, [execution]).PAPERCLIP_RUNNER_ACPX_QUALIFICATION)
+  expect(buildRunnerE2EProcessEnvironment({}, [execution]).NEXUS_RUNNER_ACPX_QUALIFICATION)
     .toBeUndefined();
   expect(() => buildRunnerE2EProcessEnvironment({}, [{ ...execution, profile: { ...execution.profile, qualificationCandidate: "copilot" } }])).toThrow("explicit provider qualification suite");
 });

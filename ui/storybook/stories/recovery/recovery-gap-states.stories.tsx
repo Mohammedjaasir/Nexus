@@ -1,13 +1,13 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { IssueRecoveryAction } from "@paperclipai/shared";
+import type { IssueRecoveryAction } from "@nexusai/shared";
 import { expect, userEvent, within, waitFor } from "storybook/test";
 import { IssueRecoveryActionCard } from "@/components/IssueRecoveryActionCard";
 import {
   DispositionRecoveryNotice,
   DispositionRecoveryProvider,
 } from "@/components/DispositionRecoveryNotice";
-import { storybookAgents } from "../../fixtures/paperclipData";
+import { storybookAgents } from "../../fixtures/nexusData";
 const agent = storybookAgents[0];
 const action: IssueRecoveryAction = {
   id: "recovery-gap",
@@ -97,7 +97,7 @@ const meta = {
           "Shipped recovery notice/card. Decisions alter local fixture state only. Bounded attempts, unknown-side-effect replay and real continuation require production tests.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "recovery/exhaustion",
         "recovery/unknown-outcome"

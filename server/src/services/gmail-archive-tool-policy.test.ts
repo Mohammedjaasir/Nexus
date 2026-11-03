@@ -8,7 +8,7 @@ import {
 
 const archive = { config: {
   sourceTemplateKey: "gmail",
-  connectionMethodKey: "paperclip-archive",
+  connectionMethodKey: "nexus-archive",
   oauth: { connectorProfile: "gmail.archive" },
 } };
 
@@ -37,8 +37,8 @@ describe("Gmail archive tool policy", () => {
 
   it("requires an explicit archive connection even for the official Gmail endpoint", () => {
     for (const config of [
-      { sourceTemplateKey: "gmail", connectionMethodKey: "paperclip-read", oauth: { connectorProfile: "gmail.read" } },
-      { sourceTemplateKey: "gmail", connectionMethodKey: "paperclip-draft", oauth: { connectorProfile: "gmail.draft" } },
+      { sourceTemplateKey: "gmail", connectionMethodKey: "nexus-read", oauth: { connectorProfile: "gmail.read" } },
+      { sourceTemplateKey: "gmail", connectionMethodKey: "nexus-draft", oauth: { connectorProfile: "gmail.draft" } },
       { url: "https://gmailmcp.googleapis.com/mcp/v1" },
     ]) {
       expect(() => assertGmailArchiveToolArgumentsSupported({ config }, "unlabel_thread", {

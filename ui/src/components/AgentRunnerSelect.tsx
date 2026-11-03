@@ -1,4 +1,4 @@
-import type { AgentRunner, AgentRunnerChoice } from "@paperclipai/shared";
+import type { AgentRunner, AgentRunnerChoice } from "@nexusai/shared";
 import { Field } from "./agent-config-primitives";
 import { SelectPopover } from "./ui/select";
 import { Button } from "./ui/button";
@@ -28,10 +28,10 @@ export function AgentRunnerSelect({
         aria-label="Runner"
         disabled={disabled}
         value={value}
-        displayValue={value === "auto" ? (defaultRunner ? `${defaultRunner === "paperclip" ? "Paperclip Runner" : "Legacy runner"} (default)` : pending ? "Checking runner availability…" : "Automatic selection unavailable") : undefined}
+        displayValue={value === "auto" ? (defaultRunner ? `${defaultRunner === "nexus" ? "Nexus Runner" : "Legacy runner"} (default)` : pending ? "Checking runner availability…" : "Automatic selection unavailable") : undefined}
         onValueChange={next => onChange(next as AgentRunnerChoice)}
         options={[
-          { value: "paperclip", label: `Paperclip Runner${defaultRunner === "paperclip" ? " (default)" : ""}`, disabled: !supportedRunners.includes("paperclip") && value !== "paperclip" },
+          { value: "nexus", label: `Nexus Runner${defaultRunner === "nexus" ? " (default)" : ""}`, disabled: !supportedRunners.includes("nexus") && value !== "nexus" },
           { value: "legacy", label: `Legacy runner${defaultRunner === "legacy" ? " (default)" : ""}`, disabled: !supportedRunners.includes("legacy") && value !== "legacy" },
         ]}
       />

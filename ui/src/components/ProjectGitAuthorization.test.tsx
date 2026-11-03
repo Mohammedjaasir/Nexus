@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Project } from "@paperclipai/shared";
+import type { Project } from "@nexusai/shared";
 import { describe, expect, it, vi } from "vitest";
 import { projectsApi } from "@/api/projects";
 import { ProjectGitAuthorization } from "./ProjectGitAuthorization";

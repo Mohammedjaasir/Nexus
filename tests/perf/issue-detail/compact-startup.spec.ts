@@ -107,7 +107,7 @@ test("Coordinator task rows use index reads and open a compact conversation", as
 });
 
 test("core rich cards reveal before duplicate reads and stay stable during slow enrichment", async ({ page }, info) => {
-  await page.addInitScript(() => { window.__PAPERCLIP_ISSUE_DETAIL_PROFILE__ = true; });
+  await page.addInitScript(() => { window.__NEXUS_ISSUE_DETAIL_PROFILE__ = true; });
   await page.addInitScript(() => {
     const frames: unknown[] = [];
     Object.assign(window, { compactStartupFrames: frames });

@@ -18,7 +18,7 @@ import type {
   RejectSecretProposalInput,
   UserSecretCoverageSummary,
   UserSecretDefinition,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { api } from "./client";
 
 export interface SecretUsageResponse {

@@ -12,7 +12,7 @@ for (const [name, overrides, ref, allowed] of [
   ["exact master push", {}, sha, true],
   ["PR", { event_name: "pull_request", ref: "refs/pull/1/merge" }, sha, false],
   ["privileged PR", { event_name: "pull_request_target" }, sha, false],
-  ["fork", { repository: "someone/paperclip" }, sha, false],
+  ["fork", { repository: "someone/nexus" }, sha, false],
   ["branch", { ref: "refs/heads/feature" }, sha, false],
   ["manual source", { event_name: "workflow_dispatch" }, sha, false],
   ["unmerged source", {}, "b".repeat(40), false],
@@ -47,8 +47,8 @@ test("cache excludes workspace code and executable installs, and preserves full 
 // is the first place a later edit would quietly break that promise.
 test("the typecheck pin step is identical to the Runner writer's", () => {
   const PIN = /# rust-cache hashes its absolute cache paths[\s\S]*?echo "path=\$pinned" >> "\$GITHUB_OUTPUT"\n/;
-  const writer = workflow.split("\n  verify_paperclip_runner:\n")[1];
-  assert.ok(writer, "release-verify.yml is missing the verify_paperclip_runner job");
+  const writer = workflow.split("\n  verify_nexus_runner:\n")[1];
+  assert.ok(writer, "release-verify.yml is missing the verify_nexus_runner job");
   const theirs = writer.match(PIN);
   const mine = typecheck.match(PIN);
   assert.ok(theirs, "the Runner writer must pin the Runner Rust workspace path");

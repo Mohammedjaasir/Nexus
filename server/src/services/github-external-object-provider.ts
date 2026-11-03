@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import type { Db } from "@paperclipai/db";
-import type { ExternalObjectCanonicalUrl } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import type { ExternalObjectCanonicalUrl } from "@nexusai/shared";
 import { DEFAULT_GITHUB_TOKEN_SECRET_NAMES, resolveGitHubApiCredential, type GitHubApiCredential } from "./git-credentials.js";
 import { ghFetch, gitHubApiBase } from "./github-fetch.js";
 import type {
@@ -500,7 +500,7 @@ export function createGitHubExternalObjectProvider(
         const companyScoped = credential?.source !== "server_env";
         const headers: Record<string, string> = {
           accept: "application/vnd.github+json",
-          "user-agent": "paperclip-external-object-resolver",
+          "user-agent": "nexus-external-object-resolver",
           "x-github-api-version": "2022-11-28",
         };
         if (token) headers.authorization = `Bearer ${token}`;

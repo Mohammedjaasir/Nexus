@@ -4,7 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { History } from "lucide-react";
 import { AgentActionButtons } from "./AgentActionButtons";
@@ -138,7 +138,7 @@ describe("AgentActionButtons", () => {
     );
   }
 
-  it.each(["codex_local", "claude_local", "opencode_local", "pi_local", "paperclip_runner"])("returns unfinished %s agents to their saved runner", async adapterType => {
+  it.each(["codex_local", "claude_local", "opencode_local", "pi_local", "nexus_runner"])("returns unfinished %s agents to their saved runner", async adapterType => {
     render(makeAgent({ adapterType, status: "paused", lifecycleState: "paused", pauseReason: "setup" }));
     await flushReact();
     const finish = [...container.querySelectorAll("button")].find(button => button.textContent === "Finish setup");
@@ -146,23 +146,23 @@ describe("AgentActionButtons", () => {
     expect([...container.querySelectorAll("button")].some(button => button.textContent === "Resume")).toBe(false);
     await act(() => finish!.click());
     expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining("setupAgentId=agent-1"));
-    expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining(`runner=${adapterType === "paperclip_runner" ? "paperclip" : "legacy"}`));
+    expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining(`runner=${adapterType === "nexus_runner" ? "nexus" : "legacy"}`));
     expect(mockAgentsApi.resume).not.toHaveBeenCalled();
   });
   it("reopens the saved pending Antigravity choice while its execution adapter remains held", async () => {
     render(makeAgent({ adapterType: "process", adapterConfig: {}, status: "paused", lifecycleState: "paused", pauseReason: "setup",
-      metadata: { setupAdapterPending: true, setupAdapterChoice: { adapterType: "paperclip_runner", runnerProvider: "antigravity", runner: "auto" } } }));
+      metadata: { setupAdapterPending: true, setupAdapterChoice: { adapterType: "nexus_runner", runnerProvider: "antigravity", runner: "auto" } } }));
     await flushReact();
     const finish = [...container.querySelectorAll("button")].find(button => button.textContent === "Finish setup");
     await act(() => finish!.click());
     const params = new URL(mockNavigate.mock.calls[0][0], "http://local").searchParams;
-    expect(Object.fromEntries(params)).toMatchObject({ adapterType: "paperclip_runner", runnerProvider: "antigravity", runner: "auto", setupAgentId: "agent-1" });
+    expect(Object.fromEntries(params)).toMatchObject({ adapterType: "nexus_runner", runnerProvider: "antigravity", runner: "auto", setupAgentId: "agent-1" });
     expect(mockAgentsApi.resume).not.toHaveBeenCalled();
     expect(mockAgentsApi.invoke).not.toHaveBeenCalled();
   });
 
   it.each(["paused", "preparing", "verifying", "pausing", undefined] as const)("replaces run controls with one setup action when lifecycle is %s", async lifecycleState => {
-    render(makeAgent({ adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude" }, status: "paused", lifecycleState, pauseReason: "setup" }));
+    render(makeAgent({ adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude" }, status: "paused", lifecycleState, pauseReason: "setup" }));
     await flushReact();
     const buttons = [...container.querySelectorAll("button")];
     const finish = buttons.filter(button => button.textContent === "Finish setup");
@@ -171,7 +171,7 @@ describe("AgentActionButtons", () => {
     await act(() => finish[0].click());
     const target = new URL(mockNavigate.mock.calls[0][0], "https://example.test");
     expect(target.pathname).toBe("/agents/new");
-    expect(Object.fromEntries(target.searchParams)).toMatchObject({ setupAgentId: "agent-1", adapterType: "paperclip_runner", runnerProvider: "claude", runner: "paperclip" });
+    expect(Object.fromEntries(target.searchParams)).toMatchObject({ setupAgentId: "agent-1", adapterType: "nexus_runner", runnerProvider: "claude", runner: "nexus" });
     expect(mockAgentsApi.invoke).not.toHaveBeenCalled();
     expect(mockAgentsApi.resume).not.toHaveBeenCalled();
   });

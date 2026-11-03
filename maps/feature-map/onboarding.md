@@ -52,9 +52,9 @@ Windows should default to native when its runner platform support is qualified.
 
 ### `cli-setup`
 
-Use `paperclipai onboard --help` or `paperclipai run --help` to select an isolated data directory before setup.
+Use `nexusai onboard --help` or `nexusai run --help` to select an isolated data directory before setup.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use a new isolated data directory and record deployment mode. A configured adapter may still need account authentication.
 
@@ -76,8 +76,8 @@ selected runner. The wizard regression covers a saved native choice followed by
 OpenAI Subscription selection; it does not prove provider authentication.
 
 - **Create company and resume.** Start a fresh empty instance and run doctor using
-  the [verification skill](../../.agents/skills/verify-paperclip/SKILL.md). Run
-  `node .agents/skills/verify-paperclip/scripts/onboarding-smoke.mjs --evidence-dir "$VERIFY_EVIDENCE_DIR"`.
+  the [verification skill](../../.agents/skills/verify-nexus/SKILL.md). Run
+  `node .agents/skills/verify-nexus/scripts/onboarding-smoke.mjs --evidence-dir "$VERIFY_EVIDENCE_DIR"`.
   The helper opens `/onboarding` in a fresh self-hosted instance, enters a unique
   name in `e.g. Northwind Labs`, and chooses `Continue`. The agent-name field must
   appear and the saved company must have no invented goal. Reopen the
@@ -91,7 +91,7 @@ created first task, verify the selected agent and company, and inspect its outpu
 or explicit authentication gate. Reload both company and task.
 
 For Codex or Claude, choose the harness and leave runner selection automatic to prove the
-first-agent default. On a qualified target it saves Paperclip Runner; Advanced
+first-agent default. On a qualified target it saves Nexus Runner; Advanced
 also permits Legacy. Do not switch runners after onboarding when claiming proof
 of that default. Test the selected runtime and account, then complete a bounded
 useful task and follow-up with an independently checked file artifact. Saved
@@ -189,7 +189,7 @@ answer alone must leave the first task in review. Verify that premature native
 completion is refused, including a result already saved before finalization.
 Accepted proposals and acknowledged human rejections can close the first task;
 rejection still does not authorize new tasks. The
-[native completion controls](../../server/src/services/native-runtime/paperclip-control-plane-port.test.ts)
+[native completion controls](../../server/src/services/native-runtime/nexus-control-plane-port.test.ts)
 exercise these boundaries against disposable PostgreSQL. These controls do not
 identify a historical Cloud failure or establish live onboarding success.
 

@@ -8,14 +8,14 @@ Status: Implemented. Automated and local UI qualification in progress; live prov
 Support personal accounts and organizations equally through a private,
 user-owned GitHub App. Its identity belongs to the selected review agent.
 GitHub owns the creation confirmation and repository installation consent.
-Paperclip owns configuration, credential storage, delivery, and verification.
-The normal journey has two Paperclip screens:
+Nexus owns configuration, credential storage, delivery, and verification.
+The normal journey has two Nexus screens:
 
 1. Choose agent, with an inline low-trust conversion when needed. Assigned
    drafts resume directly into Connect GitHub.
 2. Connect GitHub: My account or An organization, optional organization login,
    and an editable name suggested from the agent. Continue submits the manifest
-   directly to GitHub. Creation returns securely to Paperclip and then goes
+   directly to GitHub. Creation returns securely to Nexus and then goes
    straight to installation. Installation returns to automatic verification
    and completion, with conditional identity confirmation when necessary.
 
@@ -67,7 +67,7 @@ Authenticate their original signature in the stack before entering the existing
 durable webhook admission/review path. Preserve resource access,
 trust boundaries, revocation handling, and duplicate protection.
 
-### Paperclip Cloud
+### Nexus Cloud
 
 Use the existing connector broker, durable registry, enrollment, signed
 requests, sealed claims, webhook inbox, event leases and acknowledgments, and

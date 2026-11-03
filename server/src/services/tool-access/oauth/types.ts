@@ -1,4 +1,4 @@
-import type { ToolConnectionOwnership, ToolConnectionTransport, OAuthEndpointKind } from "@paperclipai/shared";
+import type { ToolConnectionOwnership, ToolConnectionTransport, OAuthEndpointKind } from "@nexusai/shared";
 
 export type OAuthProviderEndpoints = {
   provider: string;
@@ -22,7 +22,7 @@ export type OAuthProviderEndpoints = {
   /**
    * RFC 8707 resource indicator: the MCP endpoint the token is for. Sent on both
    * authorization and token requests so the authorization server can audience-
-   * restrict the access token to this server rather than to everything Paperclip
+   * restrict the access token to this server rather than to everything Nexus
    * has ever connected.
    */
   resource?: string | null;

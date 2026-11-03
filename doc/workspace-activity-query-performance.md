@@ -66,7 +66,7 @@ container, applies normal migrations, and uses synthetic data. It does not use
 PostgreSQL test helper.
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-workspace-activity.ts \
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-workspace-activity.ts \
   --baseline-ref=db70c5acd92f50fa37fb4f0dea3da0e7685089a2 \
   --docker-postgres=17 --reject-new-jit --output-dir=/tmp/workspace-activity-stress
 ```
@@ -143,7 +143,7 @@ retention and repository re-home suites. They cover actual filesystem removal,
 restoration, unique work, unresolved consumers, reopening and concurrent changes.
 
 ```sh
-pnpm --filter @paperclipai/server exec vitest run \
+pnpm --filter @nexusai/server exec vitest run \
   src/__tests__/git-workspace-activity.test.ts \
   src/__tests__/git-workspace-expiration-eligibility.test.ts \
   src/__tests__/git-workspace-expiration.test.ts \

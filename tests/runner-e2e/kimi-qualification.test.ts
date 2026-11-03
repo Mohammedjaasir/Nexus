@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runnerMatrix, runnerSuites } from "./catalog.js";
-import { buildPaperclipServerEnvironment, buildRunnerE2EProcessEnvironment } from "./harness-env.js";
+import { buildNexusServerEnvironment, buildRunnerE2EProcessEnvironment } from "./harness-env.js";
 import { parseRunnerSelectors, selectRunnerExecutions } from "./selectors.js";
 import { assertRunnerE2EPrerequisites } from "./prerequisites.js";
 
@@ -55,7 +55,7 @@ describe("Kimi Code explicit Product qualification", () => {
       expect(cell.requiredCredentials).toEqual(cell.environment.id === "local" ? ["KIMI_API_KEY"] : ["KIMI_API_KEY", "DAYTONA_API_KEY"]);
       expect(cell.profile.buildAgent({ executionId: cell.id, environmentId: "env", environmentFixtureId: cell.environment.id,
         workspacePath: "/workspace", secretRefs: { KIMI_API_KEY: ref } })).toMatchObject({
-        adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "kimi", model: "kimi-for-coding",
+        adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "kimi", model: "kimi-for-coding",
           lifecycleMode: "per_turn", timeoutSec: 120, env: { KIMI_API_KEY: ref } },
       });
     }
@@ -63,23 +63,23 @@ describe("Kimi Code explicit Product qualification", () => {
 
   it("requires its own manual suite without inheriting candidate authority", () => {
     const cell = cells[0]!;
-    const ambient = { PAPERCLIP_RUNNER_ACPX_QUALIFICATION: "ambient", PAPERCLIP_ACPX_CANDIDATE_ADMISSION: "ambient" };
+    const ambient = { NEXUS_RUNNER_ACPX_QUALIFICATION: "ambient", NEXUS_ACPX_CANDIDATE_ADMISSION: "ambient" };
     const env = buildRunnerE2EProcessEnvironment(ambient, [cell]);
-    expect(env.PAPERCLIP_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
-    expect(env.PAPERCLIP_ACPX_CANDIDATE_ADMISSION).toBeUndefined();
+    expect(env.NEXUS_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
+    expect(env.NEXUS_ACPX_CANDIDATE_ADMISSION).toBeUndefined();
     for (const suite of [{ ...cell.suite, manualOnly: false }, { ...cell.suite, id: "extended-harnesses" }, { ...cell.suite, id: "unrelated-manual-suite" }]) {
       expect(() => buildRunnerE2EProcessEnvironment({}, [{ ...cell, suite }])).toThrow("explicit provider qualification suite");
     }
     expect(() => buildRunnerE2EProcessEnvironment({}, [{ ...cell, profile: { ...cell.profile, id: "unrelated-profile" } }])).toThrow("explicit provider qualification suite");
     const empty = buildRunnerE2EProcessEnvironment(ambient, []);
-    expect(empty.PAPERCLIP_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
-    expect(empty.PAPERCLIP_ACPX_CANDIDATE_ADMISSION).toBeUndefined();
+    expect(empty.NEXUS_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
+    expect(empty.NEXUS_ACPX_CANDIDATE_ADMISSION).toBeUndefined();
   });
 
   it("removes ambient Kimi secrets and login-home aliases before starting the product server", () => {
     const source = { KIMI_API_KEY: "selected", KIMI_MODEL_API_KEY: "ambient-key", KIMI_CODE_HOME: "/ambient-login",
       KIMI_CODE_BASE_URL: "https://unselected.example", KIMI_MODEL_NAME: "unselected", KIMI_WEB_SEARCH_API_KEY: "other-secret" };
-    const server = buildPaperclipServerEnvironment(source);
+    const server = buildNexusServerEnvironment(source);
     for (const name of Object.keys(source)) expect(server[name]).toBeUndefined();
   });
 

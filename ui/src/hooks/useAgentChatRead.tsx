@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { isUuidLike } from "@paperclipai/shared";
+import { isUuidLike } from "@nexusai/shared";
 import { ApiError } from "@/api/client";
 import { issuesApi } from "@/api/issues";
 import { queryKeys } from "@/lib/queryKeys";

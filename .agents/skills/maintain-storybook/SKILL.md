@@ -1,6 +1,6 @@
 ---
 name: maintain-storybook
-description: Keep Paperclip stories and their downstream catalog aligned with the feature map and production UI. Use to reconcile story drift, classify prototypes, update fixtures, or maintain feature coverage.
+description: Keep Nexus stories and their downstream catalog aligned with the feature map and production UI. Use to reconcile story drift, classify prototypes, update fixtures, or maintain feature coverage.
 ---
 
 # Maintain Storybook
@@ -76,7 +76,7 @@ pages from its own ignored output directory when areas disappear.
 
 Keep review links and snapshot names working. Prefer classification fixes before
 bulk directory moves. Store capability associations, classification, and durable
-limits in each story's literal `parameters.paperclip` object. Infer file paths,
+limits in each story's literal `parameters.nexus` object. Infer file paths,
 exports and stable IDs from CSF; do not maintain a second inventory. Use Git diff
 and history to choose changed production subjects, fixtures and shared sources
 for review. Record source revision and executed evidence in the PR or CI report;

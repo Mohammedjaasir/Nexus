@@ -1,4 +1,4 @@
-import type { IssueRecoveryAction } from "@paperclipai/shared";
+import type { IssueRecoveryAction } from "@nexusai/shared";
 
 export const issueId = "00000000-0000-4000-8000-000000000824";
 export const stopEvidence = "The deployment platform confirms that previous-controller-7d4f and all its workspace-copyback processes exited. The saved workspace is retained.";

@@ -43,7 +43,7 @@ export function questionPath(checkpoint: ContinuationCheckpoint | undefined, i?:
   const request = i.payload?.runtimeRequestId;
   if (request !== undefined) {
     return nonempty(request) && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/.test(request) &&
-      i.idempotencyKey === `paperclip-runner-question:${run.id}:${request}` &&
+      i.idempotencyKey === `nexus-runner-question:${run.id}:${request}` &&
       i.continuationPolicy === "none" && run.status === "running" ? "provider" : null;
   }
   const receipt = run.resultJson?.semanticToolReceipts?.[i.idempotencyKey];

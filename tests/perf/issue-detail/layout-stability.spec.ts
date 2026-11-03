@@ -208,7 +208,7 @@ test("a draft survives background task refresh, reload, and one persisted reply"
   const draft = "This draft survives task refresh and is submitted exactly once.";
   await editor.fill(draft);
   await editor.evaluate((el) => { el.setAttribute("data-draft-mount-proof", "retained"); });
-  await expect.poll(() => page.evaluate((id) => localStorage.getItem(`paperclip:issue-comment-draft:${id}`), draftIssue.id)).toBe(draft);
+  await expect.poll(() => page.evaluate((id) => localStorage.getItem(`nexus:issue-comment-draft:${id}`), draftIssue.id)).toBe(draft);
 
   let release!: () => void;
   const held = new Promise<void>((resolve) => { release = resolve; });
@@ -311,7 +311,7 @@ for (const mobile of [false, true]) {
 test("stalled native and log history reveal loaded content with Retry after the request deadline", async ({ page }) => {
   const runId = "20000000-0000-4000-8000-000000000001";
   const at = new Date().toISOString();
-  await page.route(/\/api\/issues\/[^/]+\/runs(?:\?|$)/, (route) => route.fulfill({ json: [{ runId, runtimeMode: "native", status: "succeeded", agentId: "20000000-0000-4000-8000-000000000002", adapterType: "paperclip_runner", createdAt: at, startedAt: at, finishedAt: at }] }));
+  await page.route(/\/api\/issues\/[^/]+\/runs(?:\?|$)/, (route) => route.fulfill({ json: [{ runId, runtimeMode: "native", status: "succeeded", agentId: "20000000-0000-4000-8000-000000000002", adapterType: "nexus_runner", createdAt: at, startedAt: at, finishedAt: at }] }));
   let stalled = true;
   let release!: () => void;
   const held = new Promise<void>((resolve) => { release = resolve; });

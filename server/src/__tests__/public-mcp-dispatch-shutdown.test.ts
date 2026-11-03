@@ -8,7 +8,7 @@ const trackErrorHandlerCrashMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../sentry.js", () => ({ captureException: captureExceptionMock }));
 vi.mock("../telemetry.js", () => ({ getTelemetryClient: () => ({}) }));
-vi.mock("@paperclipai/shared/telemetry", () => ({
+vi.mock("@nexusai/shared/telemetry", () => ({
   trackErrorHandlerCrash: trackErrorHandlerCrashMock,
 }));
 
@@ -35,7 +35,7 @@ describe("public MCP dispatch during database shutdown", () => {
   it("does not report a call that outlived the database pool", async () => {
     const parentLocals: Record<string, unknown> = {};
     const dispatch = createMcpApiDispatch(endedPoolApi(), parentLocals);
-    parentLocals.paperclipDatabaseClosing = true;
+    parentLocals.nexusDatabaseClosing = true;
 
     await expect(dispatch(principal, "GET", "/tasks", undefined)).rejects.toMatchObject({ status: 503 });
     expect(captureExceptionMock).not.toHaveBeenCalled();

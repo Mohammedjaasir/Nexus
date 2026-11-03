@@ -62,7 +62,7 @@ export type AttachmentArtifactWorkProductLike = Pick<
 export function getAttachmentArtifactWorkProductMetadata(
   workProduct: AttachmentArtifactWorkProductLike,
 ): AttachmentArtifactWorkProductMetadata | null {
-  if (workProduct.type !== "artifact" || workProduct.provider !== "paperclip") return null;
+  if (workProduct.type !== "artifact" || workProduct.provider !== "nexus") return null;
   if (!workProduct.metadata) return null;
   const parsed = attachmentArtifactWorkProductMetadataSchema.safeParse(workProduct.metadata);
   return parsed.success ? parsed.data : null;

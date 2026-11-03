@@ -231,8 +231,8 @@ const fields = {
   accountingIdentity: optional(shape({ campaignId: string, attemptId: string })),
   publicMcp: optional(assistant),
   schema: oneOf(
-    "paperclip.runner-e2e.result/v1",
-    "paperclip.runner-e2e.result/v2",
+    "nexus.runner-e2e.result/v1",
+    "nexus.runner-e2e.result/v2",
   ),
   executionId: string,
   suiteId: optional(string),
@@ -338,7 +338,7 @@ const fields = {
     ),
   ),
   taskChat: optional(closedShape({
-    schema: oneOf("paperclip.runner-e2e.task-chat/v1"), capturedAt: date,
+    schema: oneOf("nexus.runner-e2e.task-chat/v1"), capturedAt: date,
     status: oneOf("complete", "partial", "unavailable"),
     missing: array(oneOf("agent-names", "task-discovery", "chat-discovery", "task-read", "comments", "interactions", "progress", "thread-projection", "capture")),
     threads: array(closedShape({ issueId: string, identifier: nullable(string), title: string,
@@ -400,7 +400,7 @@ const fields = {
   })),
   antigravityJourney: optional((value, at) => { try { validateAntigravityJourneyEvidence(value); } catch { invalid(at); } }),
   githubReviewJourney: optional(closedShape({ version: integer, outcome: oneOf("running", "passed", "failed", "awaiting_user", "missing_credential", "blocked_target"),
-    phase: string, setupId: string, hosting: oneOf("self-hosted", "paperclip-cloud"), targetCommit: nullable(string), assisted: boolean,
+    phase: string, setupId: string, hosting: oneOf("self-hosted", "nexus-cloud"), targetCommit: nullable(string), assisted: boolean,
     dependencies: array(closedShape({ alias: string, consumer: oneOf("harness", "browser", "product-agent"), status: oneOf("ready", "unverified", "created-in-journey"), source: oneOf("onepassword", "environment", "browser-session", "product-connection") })),
     checkpoints: closedShape(Object.fromEntries(githubJourneyCheckpoints.map(id => [id, optional(boolean)]))),
     cleanup: closedShape({ endpoint: boolean, pullRequest: boolean, branch: boolean, app: boolean }), definitionHash: optional(string), score: optional(integer), conclusion: optional(string),

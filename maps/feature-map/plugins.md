@@ -29,7 +29,7 @@ Open Settings → Plugins where permitted, or the CLI plugin commands.
 
 Open `/plugins/:pluginId`, a registered plugin route, or its contributed company/project settings surface.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use a known local fixture plugin with bounded capabilities. Record installed version and any declared external dependencies.
 

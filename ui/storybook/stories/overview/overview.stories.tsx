@@ -6,7 +6,7 @@ const meta = {
   title: "Overview/Storybook Guide",
   component: FeatureMapIndex,
   parameters: { docs: { description: { component: "Feature-based navigation from the downstream catalog, with separate product, component, and fixture classifications. Story links come from this build's index." } },
-    paperclip: {
+    nexus: {
       "capabilities": [],
       "implementation": "guide",
       "boundary": "static",

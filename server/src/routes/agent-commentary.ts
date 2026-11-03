@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
-import type { Db } from "@paperclipai/db";
-import { agentCommentaryQuerySchema, isUuidLike } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { agentCommentaryQuerySchema, isUuidLike } from "@nexusai/shared";
 import { badRequest, forbidden, notFound } from "../errors.js";
 import { submitAgentCommentary } from "../services/agent-commentary.js";
 import { agentCommentaryReader } from "../services/agent-commentary-reader.js";

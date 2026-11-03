@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({ managed: vi.fn(), discover: vi.fn(), cleanup: 
 }));
 vi.mock("../services/ai-connection-runtime.js", () => ({ prepareManagedAiRuntime: mocks.managed }));
 vi.mock("../middleware/logger.js", () => ({ logger: { warn: mocks.warn } }));
-vi.mock("../vendor/paperclip-runner/index.js", () => ({
+vi.mock("../vendor/nexus-runner/index.js", () => ({
   discoverAntigravityModels: mocks.discover, AntigravityModelDiscoveryCleanupError: mocks.CleanupError,
 }));
 import { antigravityConnectionModels } from "../services/antigravity-connection-models.js";
@@ -31,7 +31,7 @@ it("uses the selected account lifecycle and returns only its model catalog", asy
   mocks.discover.mockResolvedValue({ models, defaultModelId: "exact-google-model" });
   expect(await antigravityConnectionModels({} as never, input)).toEqual(models);
   expect(mocks.managed).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
-    companyId: "company", responsibleUserId: "alice", adapterType: "paperclip_runner", binding: input.binding,
+    companyId: "company", responsibleUserId: "alice", adapterType: "nexus_runner", binding: input.binding,
     allowUninstalledPersonal: true, allowUninstalledShared: false, config: { provider: "acpx", acpxAgent: "antigravity" },
   }));
   expect(mocks.discover).toHaveBeenCalledWith("/private/selected-google-home");

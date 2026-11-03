@@ -12,7 +12,7 @@ import {
   chatEndpointResources,
   chatExternalPrincipals,
   chatIdentityLinks,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import {
   type TelegramCallbackReceipt,
@@ -96,7 +96,7 @@ export function createTelegramCallbackNoticeAuthority(options: TelegramCallbackN
     const link = await tx
       .select({
         status: chatIdentityLinks.status,
-        userId: chatIdentityLinks.paperclipUserId,
+        userId: chatIdentityLinks.nexusUserId,
       })
       .from(chatIdentityLinks)
       .where(

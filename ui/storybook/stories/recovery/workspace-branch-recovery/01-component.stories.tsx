@@ -9,7 +9,7 @@ const meta = {
   component: WorkspaceBaseRefRecoveryNotice,
   args: { ...evidence, onRepair: simulateRepair },
   parameters: { layout: "fullscreen", docs: { description: { component: "Proposed inline repair using the reusable component. Repository data and save/retry responses are simulated here; this story does not change a live task. The default-branch action appears only with a verified repository default." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "recovery/workspace"
       ],

@@ -1085,7 +1085,7 @@ export interface IssueComment {
   updatedAt: Date;
 }
 
-export type IssueQueuedCommentProtocol = "paperclip_runner_v1" | "legacy";
+export type IssueQueuedCommentProtocol = "nexus_runner_v1" | "legacy";
 export type IssueQueuedCommentQueueState = "deferred" | "queued";
 export type IssueQueuedCommentSteeringDisposition =
   | "available"
@@ -1315,17 +1315,17 @@ export interface AskUserQuestionsQuestion {
 /**
  * Provider-neutral presentation retained when a live harness question has to
  * fall back to the durable issue interaction lifecycle. This intentionally
- * mirrors `paperclip.question_set.v1` without making the shared package depend
+ * mirrors `nexus.question_set.v1` without making the shared package depend
  * on a particular runner implementation.
  */
-export interface PaperclipQuestionSetOption {
+export interface NexusQuestionSetOption {
   id: string;
   label: string;
   description?: string;
   recommended?: boolean;
 }
 
-export interface PaperclipQuestionSetQuestion {
+export interface NexusQuestionSetQuestion {
   id: string;
   header?: string;
   prompt: string;
@@ -1334,7 +1334,7 @@ export interface PaperclipQuestionSetQuestion {
   answerMode: "single_select" | "multi_select" | "text";
   /** Editable starting text, never an implicit or submitted answer. Text mode only. */
   initialText?: string;
-  options?: PaperclipQuestionSetOption[];
+  options?: NexusQuestionSetOption[];
   customAnswer?: {
     enabled: true;
     label?: string;
@@ -1350,12 +1350,12 @@ export interface PaperclipQuestionSetQuestion {
   };
 }
 
-export interface PaperclipQuestionSetPayload {
-  schema: "paperclip.question_set.v1";
+export interface NexusQuestionSetPayload {
+  schema: "nexus.question_set.v1";
   title?: string;
   description?: string;
   submitLabel?: string;
-  questions: PaperclipQuestionSetQuestion[];
+  questions: NexusQuestionSetQuestion[];
 }
 
 export interface AskUserQuestionsPayload {
@@ -1365,7 +1365,7 @@ export interface AskUserQuestionsPayload {
   supersedeOnUserComment?: boolean;
   questions: AskUserQuestionsQuestion[];
   /** Exact presentation for a recovered harness request. */
-  questionSet?: PaperclipQuestionSetPayload;
+  questionSet?: NexusQuestionSetPayload;
   /** Correlates a recovered interaction with the live runtime request it replaces. */
   runtimeRequestId?: string | null;
 }

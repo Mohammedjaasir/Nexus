@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { resolveAgentAppearance } from "@paperclipai/shared";
+import { resolveAgentAppearance } from "@nexusai/shared";
 import { agentConfigurationRevision, restoreAgentConfigurationRedactions } from "../lib/agent-configuration-revision.js";
 import { redactAgentAdapterConfig } from "../redaction.js";
 import { resolveDefaultSecretsKeyFilePath } from "../home-paths.js";
@@ -18,20 +18,20 @@ describe("agent configuration revisions and redactions", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("keys revisions with the private instance secret while detecting hidden credential edits", () => {
-    vi.stubEnv("PAPERCLIP_DECISION_SIGNING_SECRET", "a".repeat(32));
+    vi.stubEnv("NEXUS_DECISION_SIGNING_SECRET", "a".repeat(32));
     const original = agentConfigurationRevision(agent);
     expect(agentConfigurationRevision({ ...agent, adapterConfig: { ...agent.adapterConfig, apiKey: "changed-hidden-secret" } }))
       .not.toBe(original);
-    vi.stubEnv("PAPERCLIP_DECISION_SIGNING_SECRET", "b".repeat(32));
+    vi.stubEnv("NEXUS_DECISION_SIGNING_SECRET", "b".repeat(32));
     expect(agentConfigurationRevision(agent)).not.toBe(original);
-    vi.stubEnv("PAPERCLIP_DECISION_SIGNING_SECRET", "a".repeat(32));
+    vi.stubEnv("NEXUS_DECISION_SIGNING_SECRET", "a".repeat(32));
     expect(agentConfigurationRevision(agent)).toBe(original);
   });
 
   it("uses a signing key rotated in place without restarting the process", () => {
     const home = mkdtempSync(path.join(os.tmpdir(), "agent-yaml-signing-"));
-    vi.stubEnv("PAPERCLIP_HOME", home);
-    vi.stubEnv("PAPERCLIP_DECISION_SIGNING_SECRET", "");
+    vi.stubEnv("NEXUS_HOME", home);
+    vi.stubEnv("NEXUS_DECISION_SIGNING_SECRET", "");
     try {
       const original = agentConfigurationRevision(agent);
       const keyPath = path.join(path.dirname(resolveDefaultSecretsKeyFilePath()), "decision-signing.key");

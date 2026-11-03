@@ -22,8 +22,8 @@ function ArtifactFilters() {
 }
 
 function CanonicalTabs({ size }: { size: TabSize }) {
-  const [value, setValue] = useState("paperclip");
-  const items = [{ value: "paperclip", label: "Paperclip" }, { value: "composio", label: "Composio" }, { value: "arcade", label: "Arcade" }, { value: "installed", label: "Installed" }];
+  const [value, setValue] = useState("nexus");
+  const items = [{ value: "nexus", label: "Nexus" }, { value: "composio", label: "Composio" }, { value: "arcade", label: "Arcade" }, { value: "installed", label: "Installed" }];
   return <Tabs value={value} onValueChange={setValue}>
     <TabBar size={size} label={`${size} content tabs`} items={items} />
     {items.map(item => <TabsContent key={item.value} value={item.value}><p className="text-xs">Selected panel: {item.label}. Fixture content only.</p></TabsContent>)}

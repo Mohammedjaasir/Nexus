@@ -1,6 +1,6 @@
 import { notifyLiveRunRecovery } from "./live-run-recovery-notifications.js";
 import { and, asc, desc, eq, exists, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
-import { environmentLeases, heartbeatRunEvents, heartbeatRuns, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { environmentLeases, heartbeatRunEvents, heartbeatRuns, nativeRunFinalizations, type Db } from "@nexusai/db";
 import { notifyRetainedNativeSessionCleanup } from "./retained-native-session-cleanup-notifications.js";
 import { appendHeartbeatRunEvent } from "./heartbeat-run-events.js";
 import { nativeSessionProviderEvidence } from "./native-runtime/native-session-resume.js";

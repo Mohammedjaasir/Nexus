@@ -11,7 +11,7 @@ vi.mock("node:https", () => ({ request: (url: URL, options: object) => {
 } }));
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { pluginManifestV1Schema, type PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import { pluginManifestV1Schema, type NexusPluginManifestV1 } from "@nexusai/shared";
 
 const mockAccess = vi.hoisted(() => ({ decide: vi.fn().mockResolvedValue({ allowed: true }) }));
 vi.mock("../services/authorization.js", () => ({ authorizationService: () => mockAccess }));
@@ -51,14 +51,14 @@ vi.mock("../services/live-events.js", () => ({
   publishGlobalLiveEvent: vi.fn(),
 }));
 
-function manifest(apiRoutes: NonNullable<PaperclipPluginManifestV1["apiRoutes"]>): PaperclipPluginManifestV1 {
+function manifest(apiRoutes: NonNullable<NexusPluginManifestV1["apiRoutes"]>): NexusPluginManifestV1 {
   return {
-    id: "paperclip.scoped-api-test",
+    id: "nexus.scoped-api-test",
     apiVersion: 1,
     version: "1.0.0",
     displayName: "Scoped API Test",
     description: "Test plugin for scoped API routes",
-    author: "Paperclip",
+    author: "Nexus",
     categories: ["automation"],
     capabilities: ["api.routes.register", "http.outbound"],
     entrypoints: { worker: "dist/worker.js" },

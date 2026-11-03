@@ -5,7 +5,7 @@ type ReadTextFile = (path: string) => string;
 
 const FULL_SHA_RE = /^[0-9a-f]{40}$/i;
 const DEFAULT_BUILD_COMMIT_PATH = fileURLToPath(
-  new URL("../../.paperclip-build-commit", import.meta.url),
+  new URL("../../.nexus-build-commit", import.meta.url),
 );
 const DEFAULT_BUILD_INFO_PATH = fileURLToPath(new URL("./build-info.json", import.meta.url));
 
@@ -24,7 +24,7 @@ export function readBuildCommit(
 ): string | null {
   const environmentCommit = parseBuildCommit(
     opts.environmentCommit === undefined
-      ? process.env.PAPERCLIP_BUILD_COMMIT
+      ? process.env.NEXUS_BUILD_COMMIT
       : opts.environmentCommit,
   );
   if (environmentCommit) return environmentCommit;

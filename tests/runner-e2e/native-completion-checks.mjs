@@ -11,16 +11,16 @@ import {
 import { inspectNativeCompletionSourceMetadata, inspectNativeCompletionRunnerd, NATIVE_COMPLETION_RUNNERD_PATH } from "./native-completion-git-source.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
-export const NATIVE_COMPLETION_PREFLIGHT_SCHEMA = "paperclip.native-completion-preflight.v1";
+export const NATIVE_COMPLETION_PREFLIGHT_SCHEMA = "nexus.native-completion-preflight.v1";
 export const NATIVE_COMPLETION_CELL_IDS = ["runner-codex", "runner-acpx-claude", "runner-opencode"].flatMap(profile =>
   ["assigned-skill-explicit-invocation", "native-blocked-report"].map(task => `native-completion.${profile}.local.${task}`));
 export function nativeCompletionGates(variant) {
   if (!["candidate", "historical"].includes(variant)) throw new Error("Unknown native completion source variant");
   return [
-    { id: "NC-schemas", name: "Variant-native completion schemas", cwd: "packages/paperclip-runner",
+    { id: "NC-schemas", name: "Variant-native completion schemas", cwd: "packages/nexus-runner",
       files: ["src/contracts/completion-result.test.ts"],
       required: ["distinguishes user-facing answer content", "propagates answer and wait descriptions", "requires a reason code for verification that was not run"] },
-    { id: "NC-tools", name: "Native tool delivery and retained provider catalogs", cwd: "packages/paperclip-runner", files: [
+    { id: "NC-tools", name: "Native tool delivery and retained provider catalogs", cwd: "packages/nexus-runner", files: [
       "src/drivers/codex/codex-app-server-driver.lifecycle.test.ts", "src/drivers/runner-tool-bridge.test.ts",
       "src/drivers/opencode/mcp-bridge.test.ts", "src/live/runnerd-codex-transport.test.ts"],
       testPattern: "binds to loopback|preserves stock Codex instructions on|includes ACPX terminal tools|preserves answer and internal wait descriptions",
@@ -82,7 +82,7 @@ export function gradeNativeCompletionRustCarrier(output, exitCode) {
 }
 export function nativeCompletionPrerequisiteEnvironment(source) {
   return Object.fromEntries(["PATH", "HOME", "TMPDIR", "TMP", "TEMP", "SYSTEMROOT", "LANG", "LC_ALL",
-    "CARGO_HOME", "RUSTUP_HOME", "CI", "GITHUB_ACTIONS", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "PAPERCLIP_RUNNER_E2E_SOURCE_SHA"].flatMap(name => source[name] === undefined ? [] : [[name, source[name]]]));
+    "CARGO_HOME", "RUSTUP_HOME", "CI", "GITHUB_ACTIONS", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "NEXUS_RUNNER_E2E_SOURCE_SHA"].flatMap(name => source[name] === undefined ? [] : [[name, source[name]]]));
 }
 function currentSource() {
   const source = nativeCompletionSourceFingerprint();
@@ -101,13 +101,13 @@ function buildOutputFingerprint() {
       else throw new Error(`Unexpected build output: ${file}`);
     }
   }
-  for (const directory of ["packages/shared/dist", "packages/plugins/sdk/dist", "packages/paperclip-runner/dist"]) {
+  for (const directory of ["packages/shared/dist", "packages/plugins/sdk/dist", "packages/nexus-runner/dist"]) {
     if (!existsSync(join(root, directory, "index.js"))) throw new Error(`Missing prerequisite build output: ${directory}`);
     visit(directory);
   }
   const daemon = runnerdBinary();
   const bytes = readFileSync(daemon);
-  hash.update(JSON.stringify(["debug/paperclip-runnerd", bytes.length])).update(bytes);
+  hash.update(JSON.stringify(["debug/nexus-runnerd", bytes.length])).update(bytes);
   return hash.digest("hex");
 }
 function runnerdBinary() {
@@ -170,7 +170,7 @@ export function assertRetainedNativeCompletionEvidence(output, evidence) {
 }
 function manifestCommands(env) {
   return ["generate-capability-contract.mjs", "check-capability-inventory.mjs"].map(file => runCommand(process.execPath,
-    [join(root, "packages/paperclip-runner/scripts", file), ...(file.startsWith("generate-") ? ["--check"] : [])], env));
+    [join(root, "packages/nexus-runner/scripts", file), ...(file.startsWith("generate-") ? ["--check"] : [])], env));
 }
 
 export function main(args = process.argv.slice(2)) {
@@ -229,13 +229,13 @@ export function main(args = process.argv.slice(2)) {
   }
   const sdk = runCommand(process.execPath, [join(root, "scripts/ensure-plugin-build-deps.mjs")], env, 5 * 60_000);
   report.setup.sdkExitCode = sdk.status; report.setup.evidence.push(capture(output, "setup-sdk", sdk));
-  const runner = sdk.status === 0 ? runCommand("pnpm", ["--filter", "@paperclipai/paperclip-runner", "build:typescript"], env) : null;
+  const runner = sdk.status === 0 ? runCommand("pnpm", ["--filter", "@nexusai/nexus-runner", "build:typescript"], env) : null;
   report.setup.runnerTypeScriptExitCode = runner?.status ?? null;
   report.setup.evidence.push(capture(output, "setup-runner-typescript", runner));
   const hosted = env.GITHUB_ACTIONS === "true";
   const runnerd = sdk.status === 0 && runner?.status === 0 && !hosted ? runCommand("cargo",
     ["build", "--locked", "--offline", "--workspace", "--bins"], env,
-    10 * 60_000, join(root, "packages/paperclip-runner/runner")) : null;
+    10 * 60_000, join(root, "packages/nexus-runner/runner")) : null;
   report.setup.runnerdExitCode = runnerd?.status ?? null;
   report.setup.runnerdProvenance = runnerdProvenance(source, env);
   report.setup.evidence.push(capture(output, "setup-runnerd", hosted
@@ -262,8 +262,8 @@ export function main(args = process.argv.slice(2)) {
       { id: "NC-node", command: process.execPath, args: ["--test", "--test-reporter=tap", "tests/runner-e2e/native-completion-checks.test.mjs", "tests/runner-e2e/native-completion-source-contract.test.mjs", "tests/runner-e2e/native-completion-git-source.test.mjs"] },
       { id: "NC-typecheck", command: process.execPath, args: ["node_modules/typescript/bin/tsc", "-p", "tests/runner-e2e/tsconfig.json"] },
       ...(!hosted ? [{ id: "NC-rust-carrier", command: "cargo", args: ["test", "--locked", "--offline",
-        "-p", "paperclip-runner-core", "--lib", "provider_events::tests::preserves_closed_compatibility_terminal_tool_identity", "--", "--exact"],
-        cwd: join(root, "packages/paperclip-runner/runner") }] : []),
+        "-p", "nexus-runner-core", "--lib", "provider_events::tests::preserves_closed_compatibility_terminal_tool_identity", "--", "--exact"],
+        cwd: join(root, "packages/nexus-runner/runner") }] : []),
       { id: "NC-discovery", command: process.execPath, args: ["--import", "./server/node_modules/tsx/dist/loader.mjs", "tests/runner-e2e/launch.ts", "--list", "--suite", "native-completion"] },
     ];
     for (const command of commands) {

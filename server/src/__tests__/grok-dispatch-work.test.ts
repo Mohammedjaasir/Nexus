@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createDb, grokBotDispatches } from "@paperclipai/db";
+import { createDb, grokBotDispatches } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { grokRoutineFixture } from "./helpers/grok-routine-fixture.js";
@@ -11,7 +11,7 @@ import { instanceSettingsService } from "../services/instance-settings.js";
 import { grokRoutineService } from "../services/grok-bot/routine.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_GROK_DISPATCH_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_GROK_DISPATCH_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("Grok dispatch worker", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -32,8 +32,8 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
     db = createDb(externalUrl ?? temporary!.connectionString, { maxConnections: 6, idleTimeoutSeconds: 0, maxLifetimeSeconds: 0 });
   }, 120_000);
   beforeEach(async () => {
-    vi.stubEnv("PAPERCLIP_ISSUE_PRIVACY_MODE", "enforce");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
+    vi.stubEnv("NEXUS_ISSUE_PRIVACY_MODE", "enforce");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", randomBytes(32).toString("base64"));
     await db.delete(grokBotDispatches);
     await enable();
     await Promise.all(Array.from({ length: 6 }, () => db.execute(sql`select pg_sleep(0.01)`)));

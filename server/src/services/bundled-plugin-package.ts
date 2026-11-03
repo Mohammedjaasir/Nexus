@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import type { PaperclipPluginManifestV1, PluginRecord } from "@paperclipai/shared";
+import type { NexusPluginManifestV1, PluginRecord } from "@nexusai/shared";
 import type { ResolvedBundledPlugin } from "./bundled-plugins.js";
 import { assertDistributionManifestCapabilities } from "./distribution-plugin-catalog.js";
 
@@ -45,20 +45,20 @@ export function createBundledPluginPackageResolver(installs: readonly ResolvedBu
     const metadataPath = path.join(root, "package.json");
     if (fs.statSync(metadataPath).size > 128 * 1024) throw new Error("Bundled plugin package metadata exceeds verification limits");
     const pkg = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
-    if (typeof pkg.name !== "string" || typeof pkg.version !== "string" || !pkg.paperclipPlugin) {
+    if (typeof pkg.name !== "string" || typeof pkg.version !== "string" || !pkg.nexusPlugin) {
       throw new Error("Bundled plugin package identity or entrypoints are missing");
     }
     if (install.distribution && pkg.version !== install.distribution.version) throw new Error("Bundled plugin package version does not match the catalog");
-    const manifest = containedEntrypoint(root, pkg.paperclipPlugin.manifest, false);
-    const worker = containedEntrypoint(root, pkg.paperclipPlugin.worker, false);
-    const ui = pkg.paperclipPlugin.ui === undefined ? undefined : containedEntrypoint(root, pkg.paperclipPlugin.ui, true);
+    const manifest = containedEntrypoint(root, pkg.nexusPlugin.manifest, false);
+    const worker = containedEntrypoint(root, pkg.nexusPlugin.worker, false);
+    const ui = pkg.nexusPlugin.ui === undefined ? undefined : containedEntrypoint(root, pkg.nexusPlugin.ui, true);
     if (install.distribution && (worker !== install.distribution.entrypoints.worker || ui !== install.distribution.entrypoints.ui)) {
       throw new Error("Bundled plugin entrypoints do not match the verified package");
     }
     return { root, pkg, manifest, worker, ui };
   }
 
-  function assertManifest(install: ResolvedBundledPlugin, manifest: PaperclipPluginManifestV1, previousManifest?: PaperclipPluginManifestV1) {
+  function assertManifest(install: ResolvedBundledPlugin, manifest: NexusPluginManifestV1, previousManifest?: NexusPluginManifestV1) {
     const bundle = read(install);
     if (manifest.id !== install.pluginKey || manifest.version !== bundle.pkg.version) throw new Error("Bundled plugin manifest identity/version does not match the image");
     const worker = containedEntrypoint(bundle.root, manifest.entrypoints.worker, false);
@@ -82,7 +82,7 @@ export function createBundledPluginPackageResolver(installs: readonly ResolvedBu
 
   return {
     resolve,
-    inspect(plugin: BundledPluginRegistration, verifiedManifest?: PaperclipPluginManifestV1): BundledPluginPackageInspection {
+    inspect(plugin: BundledPluginRegistration, verifiedManifest?: NexusPluginManifestV1): BundledPluginPackageInspection {
       try {
         resolve(plugin);
         const install = byKey.get(plugin.pluginKey)!;
@@ -98,7 +98,7 @@ export function createBundledPluginPackageResolver(installs: readonly ResolvedBu
         return { compatible: false, pluginKey: plugin.pluginKey, code: "incompatible_bundled_package", reason: error instanceof Error ? error.message : String(error) };
       }
     },
-    assertActivation(input: { pluginKey?: string; packageRoot: string; manifest?: PaperclipPluginManifestV1; previousManifest?: PaperclipPluginManifestV1 }) {
+    assertActivation(input: { pluginKey?: string; packageRoot: string; manifest?: NexusPluginManifestV1; previousManifest?: NexusPluginManifestV1 }) {
       const install = input.pluginKey ? byKey.get(input.pluginKey) : installs.find((candidate) => candidate.localPath === input.packageRoot);
       if (!install || path.resolve(input.packageRoot) !== install.localPath) throw new Error("Bundled plugin is absent or not selected in this deployment");
       read(install);

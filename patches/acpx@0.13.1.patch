@@ -51,8 +51,8 @@ diff --git a/dist/live-checkpoint-BSIrfgVo.js b/dist/live-checkpoint-BSIrfgVo.js
  		const parsed = parseTokenUsage(value);
  		if (parsed == null) return null;
 -		usage[key] = parsed;
-+		const receipt = parsePaperclipPiReceipt(asRecord$4(value)?.paperclip_pi);
-+		usage[key] = receipt ? { ...parsed, paperclip_pi: receipt } : parsed;
++		const receipt = parseNexusPiReceipt(asRecord$4(value)?.nexus_pi);
++		usage[key] = receipt ? { ...parsed, nexus_pi: receipt } : parsed;
  	}
  	return usage;
  }
@@ -84,7 +84,7 @@ diff --git a/dist/live-checkpoint-BSIrfgVo.js b/dist/live-checkpoint-BSIrfgVo.js
 +            "limits",
 +            "truncated"
 +        ])) return null;
-+        if (r.schema !== "paperclip.cursor.native-usage.v1" || r.source !== "native_turn_ended" || r.completeness !== "partial" || typeof r.promptId !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(r.promptId) || typeof r.truncated !== "boolean") return null;
++        if (r.schema !== "nexus.cursor.native-usage.v1" || r.source !== "native_turn_ended" || r.completeness !== "partial" || typeof r.promptId !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(r.promptId) || typeof r.truncated !== "boolean") return null;
 +        const reasons = [
 +            "native_counter_semantics_unverified",
 +            "native_counters_missing",
@@ -139,7 +139,7 @@ diff --git a/dist/live-checkpoint-BSIrfgVo.js b/dist/live-checkpoint-BSIrfgVo.js
 + // Optional diagnostics cannot affect settlement or standard token/cost accounting.
 + try {
 +  if (response.stopReason !== "end_turn" && response.stopReason !== "cancelled") return;
-+  const next = boundCursorPromptUsage({request_id: requestId, prompt_message_id: promptMessageId, receipt: response._meta?.paperclipCursorUsage}, conversation.messages);
++  const next = boundCursorPromptUsage({request_id: requestId, prompt_message_id: promptMessageId, receipt: response._meta?.nexusCursorUsage}, conversation.messages);
 +  if (!next) return;
 +  const previous = parseCursorPromptUsage(conversation.cursor_prompt_usage);
 +  if (previous && (previous.request_id === next.request_id || previous.prompt_message_id === next.prompt_message_id || previous.receipt.promptId === next.receipt.promptId)) return;
@@ -808,7 +808,7 @@ diff --git a/dist/live-checkpoint-BSIrfgVo.js b/dist/live-checkpoint-BSIrfgVo.js
  	trimConversationForRuntime(conversation);
  	return acpx;
  }
-+function parsePaperclipPiReceipt(raw, costField = "cost_usd") {
++function parseNexusPiReceipt(raw, costField = "cost_usd") {
 +	const receipt = asRecord$4(raw);
 +	if (receipt?.provenance !== "assistant_message_receipts" && receipt?.provenance !== "assistant_message_and_compaction_receipts") return;
 +	const cost = receipt[costField];
@@ -819,11 +819,11 @@ diff --git a/dist/live-checkpoint-BSIrfgVo.js b/dist/live-checkpoint-BSIrfgVo.js
  	const tokenUsage = sourceToTokenUsage(usage);
 -	if (!tokenUsage) return false;
 -	applyTokenUsage(conversation, tokenUsage, promptMessageId);
-+	const receipt = parsePaperclipPiReceipt(asRecord$4(asRecord$4(usage)?._meta)?.paperclipPi, "costUsd");
++	const receipt = parseNexusPiReceipt(asRecord$4(asRecord$4(usage)?._meta)?.nexusPi, "costUsd");
 +	if (!tokenUsage && !receipt) return false;
 +	if (tokenUsage) applyTokenUsage(conversation, tokenUsage, promptMessageId);
 +	const userId = promptMessageId ?? lastUserMessageId(conversation);
-+	if (receipt && userId) conversation.request_token_usage[userId] = { ...conversation.request_token_usage[userId], paperclip_pi: receipt };
++	if (receipt && userId) conversation.request_token_usage[userId] = { ...conversation.request_token_usage[userId], nexus_pi: receipt };
  	updateConversationTimestamp(conversation, timestamp);
  	trimConversationForRuntime(conversation);
  	return true;
@@ -1334,7 +1334,7 @@ index c3da16452..40ae05653 100644
    cumulative_cost?: SessionUsageCost;
 -  request_token_usage: Record<string, SessionTokenUsage>;
 +  request_token_usage: Record<string, SessionTokenUsage & {
-+    paperclip_pi?: { provenance: "assistant_message_receipts" | "assistant_message_and_compaction_receipts"; cost_usd?: number };
++    nexus_pi?: { provenance: "assistant_message_receipts" | "assistant_message_and_compaction_receipts"; cost_usd?: number };
 +  }>;
 +  cursor_prompt_usage?: { request_id: string; prompt_message_id: string; receipt: Record<string, unknown> };
    acpx?: SessionAcpxState;

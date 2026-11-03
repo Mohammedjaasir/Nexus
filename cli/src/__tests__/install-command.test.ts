@@ -14,7 +14,7 @@ import {
   runCommandWithDiagnostics,
 } from "../commands/install.js";
 import { uninstallCommand } from "../commands/uninstall.js";
-import { resolvePaperclipInstanceId } from "../config/home.js";
+import { resolveNexusInstanceId } from "../config/home.js";
 import {
   INSTALL_MANIFEST_VERSION,
   flipCurrentAtomic,
@@ -34,11 +34,11 @@ describe("managed install commands", () => {
   let root: string;
 
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-install-command-"));
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-install-command-"));
     process.env = {
       ...ORIGINAL_ENV,
       HOME: path.join(root, "home"),
-      PAPERCLIP_HOME: path.join(root, "home", ".paperclip"),
+      NEXUS_HOME: path.join(root, "home", ".nexus"),
       PATH: "/usr/bin:/bin",
       SHELL: "/bin/bash",
     };
@@ -87,15 +87,15 @@ describe("managed install commands", () => {
   });
 
   it("supports fork overrides and classifies SHA refs as pinned", () => {
-    expect(resolveGitInstallRequest({ ref: "feature/test", repo: "HenkDz/paperclip" })).toEqual({ repo: "HenkDz/paperclip", ref: "feature/test", pinned: false });
+    expect(resolveGitInstallRequest({ ref: "feature/test", repo: "HenkDz/nexus" })).toEqual({ repo: "HenkDz/nexus", ref: "feature/test", pinned: false });
     expect(resolveGitInstallRequest({ ref: "abcdef1" })).toEqual({ repo: "paperclipai/paperclip", ref: "abcdef1", pinned: true });
-    expect(() => resolveGitInstallRequest({ repo: "HenkDz/paperclip" })).toThrow("requires --ref");
+    expect(() => resolveGitInstallRequest({ repo: "HenkDz/nexus" })).toThrow("requires --ref");
   });
 
   it("requires explicit non-interactive consent before resolving git refs", async () => {
     const runCommand = vi.fn();
 
-    await expect(installCommand({ ref: "master", repo: "HenkDz/paperclip" }, { runCommand }))
+    await expect(installCommand({ ref: "master", repo: "HenkDz/nexus" }, { runCommand }))
       .rejects.toThrow("Re-run with --yes");
 
     expect(runCommand).not.toHaveBeenCalled();
@@ -105,7 +105,7 @@ describe("managed install commands", () => {
     const sha = "b".repeat(40);
     const paths = resolveInstallStorePaths();
     const payloadPath = payloadPathFor(paths, "git", sha.slice(0, 12));
-    const packageRoot = path.join(payloadPath, "node_modules", "paperclipai");
+    const packageRoot = path.join(payloadPath, "node_modules", "nexusai");
     fs.mkdirSync(path.join(packageRoot, "dist"), { recursive: true });
     fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ version: "0.3.1" }));
     fs.writeFileSync(path.join(packageRoot, "dist", "index.js"), "#!/usr/bin/env node\n");
@@ -122,9 +122,9 @@ describe("managed install commands", () => {
       if (file === "tar") {
         const checkout = args[args.indexOf("-C") + 1];
         const packages = [
-          { dir: "packages/shared", name: "@paperclipai/shared", packageJson: { name: "@paperclipai/shared", version: "0.3.1" } },
-          { dir: "packages/db", name: "@paperclipai/db", packageJson: { name: "@paperclipai/db", version: "0.3.1", dependencies: { "@paperclipai/shared": "workspace:*" }, bundleDependencies: ["embedded-postgres"] } },
-          { dir: "server", name: "@paperclipai/server", packageJson: { name: "@paperclipai/server", version: "0.3.1", dependencies: { "@paperclipai/db": "workspace:*" } } },
+          { dir: "packages/shared", name: "@nexusai/shared", packageJson: { name: "@nexusai/shared", version: "0.3.1" } },
+          { dir: "packages/db", name: "@nexusai/db", packageJson: { name: "@nexusai/db", version: "0.3.1", dependencies: { "@nexusai/shared": "workspace:*" }, bundleDependencies: ["embedded-postgres"] } },
+          { dir: "server", name: "@nexusai/server", packageJson: { name: "@nexusai/server", version: "0.3.1", dependencies: { "@nexusai/db": "workspace:*" } } },
         ];
         fs.mkdirSync(path.join(checkout, "cli"), { recursive: true });
         fs.writeFileSync(path.join(checkout, "cli", "package.json"), JSON.stringify({ version: "0.3.1" }));
@@ -140,21 +140,21 @@ describe("managed install commands", () => {
         if (args.includes("pack")) {
           const destination = args[args.indexOf("--pack-destination") + 1];
           const packageDir = args[args.indexOf("--dir") + 1];
-          const packageName = packageDir === "server" ? "paperclipai-server" : "paperclipai-shared";
+          const packageName = packageDir === "server" ? "nexusai-server" : "nexusai-shared";
           fs.writeFileSync(path.join(destination, `${packageName}-0.3.1.tgz`), "package");
         }
         return { stdout: "", stderr: "" };
       }
       if (file === "bash") return { stdout: "", stderr: "" };
       if (file === "npm" && args[0] === "pack") {
-        const packageName = args[1]?.includes("workspace-package-") ? "paperclipai-db" : "paperclipai";
+        const packageName = args[1]?.includes("workspace-package-") ? "nexusai-db" : "nexusai";
         fs.writeFileSync(path.join(args[args.indexOf("--pack-destination") + 1], `${packageName}-0.3.1.tgz`), "package");
         return { stdout: "", stderr: "" };
       }
-      if (file === "npm" && args[0] === "install") { const prefix = args[args.indexOf("--prefix") + 1]; const packageRoot = path.join(prefix, "node_modules", "paperclipai"); fs.mkdirSync(path.join(packageRoot, "dist"), { recursive: true }); fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ version: "0.3.1" })); fs.writeFileSync(path.join(packageRoot, "dist", "index.js"), "#!/usr/bin/env node\n"); return { stdout: "", stderr: "" }; }
+      if (file === "npm" && args[0] === "install") { const prefix = args[args.indexOf("--prefix") + 1]; const packageRoot = path.join(prefix, "node_modules", "nexusai"); fs.mkdirSync(path.join(packageRoot, "dist"), { recursive: true }); fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ version: "0.3.1" })); fs.writeFileSync(path.join(packageRoot, "dist", "index.js"), "#!/usr/bin/env node\n"); return { stdout: "", stderr: "" }; }
       if (file === process.execPath && args[0]?.endsWith("prepare-bundled-package.mjs")) {
         fs.mkdirSync(args[2], { recursive: true });
-        fs.writeFileSync(path.join(args[2], "package.json"), JSON.stringify({ name: "@paperclipai/db", version: "0.3.1" }));
+        fs.writeFileSync(path.join(args[2], "package.json"), JSON.stringify({ name: "@nexusai/db", version: "0.3.1" }));
         return { stdout: "", stderr: "" };
       }
       if (file === process.execPath) return { stdout: "0.3.1\n", stderr: "" };
@@ -164,10 +164,10 @@ describe("managed install commands", () => {
   it("installs a GitHub branch through codeload and reuses the resolved SHA", async () => {
     const sha = "c".repeat(40);
     const runCommand = createGitCheckoutRunCommand(sha);
-    await installCommand({ ref: "master", repo: "HenkDz/paperclip", yes: true }, { runCommand });
-    await installCommand({ ref: "master", repo: "HenkDz/paperclip", yes: true }, { runCommand });
+    await installCommand({ ref: "master", repo: "HenkDz/nexus", yes: true }, { runCommand });
+    await installCommand({ ref: "master", repo: "HenkDz/nexus", yes: true }, { runCommand });
     const manifest = readInstallManifest(resolveInstallStorePaths());
-    expect(manifest).toMatchObject({ source: "git", repo: "HenkDz/paperclip", ref: "master", sha });
+    expect(manifest).toMatchObject({ source: "git", repo: "HenkDz/nexus", ref: "master", sha });
     expect(manifest?.payloadPath).toContain(path.join("git", sha.slice(0, 12)));
     expect(runCommand.mock.calls.filter(([command, args]) => command === "curl" && args.includes("--output"))).toHaveLength(1);
     expect(runCommand.mock.calls.filter(([command, args]) => command === "corepack" && args[1] === "install")).toHaveLength(1);
@@ -194,16 +194,16 @@ describe("managed install commands", () => {
       expect(env, `${call[0]} ${call[1].join(" ")} must run with an explicit env`).toBeDefined();
       expect(env, `${call[0]} ${call[1].join(" ")} must not inherit NODE_ENV`).not.toHaveProperty("NODE_ENV");
     }
-    const uiPackCall = buildCalls.find(([file, , options]) => file === "corepack" && options?.env?.PAPERCLIP_RELEASE_REUSE_UI_DIST === "1");
+    const uiPackCall = buildCalls.find(([file, , options]) => file === "corepack" && options?.env?.NEXUS_RELEASE_REUSE_UI_DIST === "1");
     expect(uiPackCall).toBeDefined();
   });
 
   it("resolves the complete server workspace dependency closure in dependency order", () => {
     const checkout = path.join(root, "checkout");
     const packages = [
-      { dir: "packages/shared", name: "@paperclipai/shared", dependencies: {} },
-      { dir: "packages/db", name: "@paperclipai/db", dependencies: { "@paperclipai/shared": "workspace:*" } },
-      { dir: "server", name: "@paperclipai/server", dependencies: { "@paperclipai/db": "workspace:*" } },
+      { dir: "packages/shared", name: "@nexusai/shared", dependencies: {} },
+      { dir: "packages/db", name: "@nexusai/db", dependencies: { "@nexusai/shared": "workspace:*" } },
+      { dir: "server", name: "@nexusai/server", dependencies: { "@nexusai/db": "workspace:*" } },
     ];
     fs.mkdirSync(path.join(checkout, "scripts"), { recursive: true });
     fs.writeFileSync(path.join(checkout, "scripts", "release-package-manifest.json"), JSON.stringify(packages.map(({ dir, name }) => ({ dir, name }))));
@@ -213,9 +213,9 @@ describe("managed install commands", () => {
     }
 
     expect(resolveGitInstallWorkspacePackages(checkout).map(({ name }) => name)).toEqual([
-      "@paperclipai/shared",
-      "@paperclipai/db",
-      "@paperclipai/server",
+      "@nexusai/shared",
+      "@nexusai/db",
+      "@nexusai/server",
     ]);
   });
 
@@ -230,7 +230,7 @@ describe("managed install commands", () => {
       if (file === "npm" && args[0] === "view") return { stdout: JSON.stringify(version), stderr: "" };
       if (file === "npm" && args[0] === "install") {
         const prefix = args[args.indexOf("--prefix") + 1];
-        const entrypoint = path.join(prefix, "node_modules", "paperclipai", "dist", "index.js");
+        const entrypoint = path.join(prefix, "node_modules", "nexusai", "dist", "index.js");
         fs.mkdirSync(path.dirname(entrypoint), { recursive: true });
         fs.writeFileSync(entrypoint, "#!/usr/bin/env node\n");
         return { stdout: "", stderr: "" };
@@ -252,13 +252,13 @@ describe("managed install commands", () => {
     const installCall = runCommand.mock.calls.find(
       ([file, args]) => file === "npm" && args[0] === "install",
     );
-    expect(installCall?.[1]).toContain("--@paperclipai:registry=https://registry.npmjs.org");
+    expect(installCall?.[1]).toContain("--@nexusai:registry=https://registry.npmjs.org");
     const installOptions = installCall?.[2] as { env?: NodeJS.ProcessEnv } | undefined;
     expect(installOptions?.env?.npm_config_userconfig).toContain(".npmrc-");
-    const entrypoint = path.join(manifest!.payloadPath, "node_modules", "paperclipai", "dist", "index.js");
+    const entrypoint = path.join(manifest!.payloadPath, "node_modules", "nexusai", "dist", "index.js");
     expect(resolveCliVersion(entrypoint)).toContain(`managed npm latest; payload ${manifest!.payloadPath}`);
 
-    const userData = path.join(process.env.PAPERCLIP_HOME!, "instances", "default", "keep.txt");
+    const userData = path.join(process.env.NEXUS_HOME!, "instances", "default", "keep.txt");
     fs.mkdirSync(path.dirname(userData), { recursive: true });
     fs.writeFileSync(userData, "keep");
     const uninstallService = vi.fn(async () => {
@@ -308,7 +308,7 @@ describe("managed install commands", () => {
       ".config",
       "systemd",
       "user",
-      systemdServiceName(resolvePaperclipInstanceId()),
+      systemdServiceName(resolveNexusInstanceId()),
     );
     fs.mkdirSync(path.dirname(unitPath), { recursive: true });
     fs.writeFileSync(unitPath, "unit");

@@ -66,7 +66,7 @@ jobs:
   #
   # This was one job building linux/amd64,linux/arm64 together on an x86
   # runner. The arm64 half is emulated there, and it did not merely run slow:
-  # it wedged, every time, in `RUN pnpm --filter @paperclipai/server build`,
+  # it wedged, every time, in `RUN pnpm --filter @nexusai/server build`,
   # emitting nothing for 38-45 minutes until `timeout-minutes: 60` killed the
   # job. Verified across three consecutive runs on 2026-09-04; the amd64 half
   # reached `production 5/5` minutes earlier in every one.
@@ -253,8 +253,8 @@ jobs:
             type=sha
             type=raw,value=sha-${{ github.sha }},enable=${{ github.repository == 'paperclipai/paperclip' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
           labels: |
-            io.github.paperclipai.schema.last-migration=${{ steps.schema.outputs.last }}
-            io.github.paperclipai.schema.migration-count=${{ steps.schema.outputs.count }}
+            io.github.nexusai.schema.last-migration=${{ steps.schema.outputs.last }}
+            io.github.nexusai.schema.migration-count=${{ steps.schema.outputs.count }}
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v7
@@ -265,8 +265,8 @@ jobs:
           # target the default would silently become that stage.
           target: production
           build-args: |
-            PAPERCLIP_BUILD_VERSION=${{ steps.build-version.outputs.version }}
-            PAPERCLIP_BUILD_COMMIT=${{ github.sha }}
+            NEXUS_BUILD_VERSION=${{ steps.build-version.outputs.version }}
+            NEXUS_BUILD_COMMIT=${{ github.sha }}
             CLI_TOOLS_CACHE_EPOCH=${{ steps.tools-epoch.outputs.epoch }}
           platforms: ${{ matrix.platform }}
           # By digest, not by tag: two runners cannot each push the same tag
@@ -372,8 +372,8 @@ jobs:
             type=sha
             type=raw,value=sha-${{ github.sha }},enable=${{ github.repository == 'paperclipai/paperclip' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
           labels: |
-            io.github.paperclipai.schema.last-migration=${{ steps.schema.outputs.last }}
-            io.github.paperclipai.schema.migration-count=${{ steps.schema.outputs.count }}
+            io.github.nexusai.schema.last-migration=${{ steps.schema.outputs.last }}
+            io.github.nexusai.schema.migration-count=${{ steps.schema.outputs.count }}
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
@@ -462,7 +462,7 @@ jobs:
           IMAGE: ghcr.io/${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          current="$(curl -fsS "https://registry.npmjs.org/-/package/@paperclipai%2Fdb/dist-tags" | jq -er .canary)"
+          current="$(curl -fsS "https://registry.npmjs.org/-/package/@nexusai%2Fdb/dist-tags" | jq -er .canary)"
           sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/$(printf 'canary/v%s' "$current" | jq -sRr @uri)" --jq .sha 2>/dev/null || true)"
           if [ -z "$sha" ]; then
             echo "canary/v${current} does not resolve yet; a later promotion converges the channel"

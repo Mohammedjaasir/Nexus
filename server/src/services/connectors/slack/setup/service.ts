@@ -1,9 +1,9 @@
-import { isProvisionedSlackSetup } from "@paperclipai/shared";
+import { isProvisionedSlackSetup } from "@nexusai/shared";
 import { createSlackManagerGrants } from "./manager-grants.js";
 import { createManagedSlackSetup } from "./managed.js";
 import { randomBytes } from "node:crypto";
 import { and, eq, gt, like } from "drizzle-orm";
-import { chatEndpoints, chatSlackRegistrations, companies, toolOauthStates, type Db } from "@paperclipai/db";
+import { chatEndpoints, chatSlackRegistrations, companies, toolOauthStates, type Db } from "@nexusai/db";
 import { badRequest, conflict, forbidden, notFound } from "../../../../errors.js";
 import { removeSlackRegistration } from "../../../chat-slack-registration-cleanup.js";
 import type { CredentialMutationLeaseGuard } from "../../../chat-credential-mutation-lease.js";
@@ -122,7 +122,7 @@ export function slackChatRegistrationService(db: Db, options: SlackSetupOptions)
         // Reauthorization reuses the runtime signing secret after staging was cleaned.
         await saveSecrets(row, { botToken: result.access_token }, actor, lease,
           { status: "credentials_saved", workspaceId: teamId, botUserId: result.bot_user_id, errorCode: null },
-          { externalUserId: installerId, paperclipUserId: actor.userId, status: "pending", welcomeStatus: "pending" });
+          { externalUserId: installerId, nexusUserId: actor.userId, status: "pending", welcomeStatus: "pending" });
       } catch (failure) {
         const code = object(object(failure).details).code;
         const safeCode = typeof code === "string" && code.startsWith("slack_install_") ? code : "slack_install_failed";

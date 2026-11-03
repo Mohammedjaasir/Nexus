@@ -1,6 +1,6 @@
-import { environmentLeases, executionWorkspaces, heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults, type Db } from "@paperclipai/db";
+import { environmentLeases, executionWorkspaces, heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults, type Db } from "@nexusai/db";
 import { and, eq, exists, sql } from "drizzle-orm";
-import { readRemoteWorkspaceAuthority, remoteWorkspaceRunReferenceSchema } from "@paperclipai/shared";
+import { readRemoteWorkspaceAuthority, remoteWorkspaceRunReferenceSchema } from "@nexusai/shared";
 import { hasRequiredWorkspaceRecovery, nativeRunHasNoWorkspaceAccess } from "../workspace-restore-recovery-state.js";
 import { recordRequiredWorkspaceRestoreFailure } from "../legacy-execution-recovery.js";
 import { readNativeWorkspaceSyncReference } from "./native-workspace-sync.js";

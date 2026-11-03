@@ -17,7 +17,7 @@ import {
   issues,
   nativeRunFinalizations,
   nativeRunResults,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import {
   getEmbeddedPostgresTestSupport,
@@ -41,14 +41,14 @@ if (!embeddedPostgresSupport.supported) {
 
 const runnerWorkspace = resolve(
   import.meta.dirname,
-  "../../../../packages/paperclip-runner/runner",
+  "../../../../packages/nexus-runner/runner",
 );
 const executableSuffix = process.platform === "win32" ? ".exe" : "";
 const runnerBinary = resolve(
   runnerWorkspace,
   "target",
   "release",
-  `paperclip-runnerd${executableSuffix}`,
+  `nexus-runnerd${executableSuffix}`,
 );
 const fakeCodexBinary = resolve(
   runnerWorkspace,
@@ -65,9 +65,9 @@ function ensureRunnerTestBinaries(): void {
     "--release",
     "--locked",
     "-p",
-    "paperclip-runner-core",
+    "nexus-runner-core",
     "--bin",
-    "paperclip-runnerd",
+    "nexus-runnerd",
     "--bin",
     "fake-codex-app-server",
   ], {
@@ -134,7 +134,7 @@ describeEmbeddedPostgres("native Codex server vertical slice", () => {
       name: "Native Codex",
       role: "engineer",
       status: "active",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       adapterConfig: { provider: "codex" },
       runtimeConfig: {},
       permissions: {},
@@ -237,7 +237,7 @@ describeEmbeddedPostgres("native Codex server vertical slice", () => {
       resultJson: {
         nativeRunner: {
           result: {
-            schema: "paperclip.run_result.v1",
+            schema: "nexus.run_result.v1",
             completionClaim: {
               contractRevision: "1",
               objectiveSatisfied: true,
@@ -245,13 +245,13 @@ describeEmbeddedPostgres("native Codex server vertical slice", () => {
             },
           },
           terminal: {
-            schema: "paperclip.prp.terminal.v1",
+            schema: "nexus.prp.terminal.v1",
             runTerminalState: "succeeded",
           },
         },
       },
     });
-    expect(logs.join("\n")).not.toContain("PAPERCLIP_RUNNER_BOOTSTRAP_TICKET");
+    expect(logs.join("\n")).not.toContain("NEXUS_RUNNER_BOOTSTRAP_TICKET");
 
     const [persistedResult] = await db
       .select()

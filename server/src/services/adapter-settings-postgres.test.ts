@@ -1,7 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { activityLog, applyPendingMigrations, companies, createDb, instanceSettings, type Db } from "@paperclipai/db";
+import { activityLog, applyPendingMigrations, companies, createDb, instanceSettings, type Db } from "@nexusai/db";
 import { eq, sql } from "drizzle-orm";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -16,7 +16,7 @@ vi.mock("./adapter-plugin-store.js", () => ({
   getAdapterPluginByType: () => undefined,
 }));
 vi.mock("../adapters/registry.js", () => ({
-  listServerAdapters: () => [{ type: "codex_local" }, { type: "claude_local" }, { type: "paperclip_runner" }],
+  listServerAdapters: () => [{ type: "codex_local" }, { type: "claude_local" }, { type: "nexus_runner" }],
   findServerAdapter: (type: string) => ({ type }),
   findActiveServerAdapter: (type: string) => ({ type }),
   isOverridePaused: () => false,
@@ -30,14 +30,14 @@ import { errorHandler } from "../middleware/error-handler.js";
 import { resolveNewAgentRunnerForCompany } from "./agent-runner-selection.js";
 import * as activities from "./activity-log.js";
 
-const externalDatabaseUrl = process.env.PAPERCLIP_ADAPTER_SETTINGS_TEST_DATABASE_URL;
+const externalDatabaseUrl = process.env.NEXUS_ADAPTER_SETTINGS_TEST_DATABASE_URL;
 const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("durable managed adapter settings", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: Db;
   let peer: Db;
   let directory: string;
-  const managed = { runtimeEnv: { PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: "synthetic-test-token" } };
+  const managed = { runtimeEnv: { NEXUS_CLOUD_TENANT_SERVER_TOKEN: "synthetic-test-token" } };
   const service = () => adapterSettingsService(db, managed);
 
   beforeAll(async () => {
@@ -58,7 +58,7 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
     await db.delete(instanceSettings).where(eq(instanceSettings.singletonKey, "adapter-settings:v1"));
     legacy.get.mockClear();
     legacy.set.mockClear();
-    vi.stubEnv("PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "synthetic-test-token");
+    vi.stubEnv("NEXUS_CLOUD_TENANT_SERVER_TOKEN", "synthetic-test-token");
   });
   afterEach(async () => {
     vi.restoreAllMocks();
@@ -120,7 +120,7 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
   });
 
   it("imports legacy choices once before admission and ignores stale files after the DB record exists", async () => {
-    const runtimeEnv = { ...managed.runtimeEnv, PAPERCLIP_HOME: directory };
+    const runtimeEnv = { ...managed.runtimeEnv, NEXUS_HOME: directory };
     const file = path.join(directory, "adapter-settings.json");
     await fs.writeFile(file, JSON.stringify({ disabledTypes: ["codex_local", "future_adapter"] }));
     const results = await Promise.all([
@@ -136,7 +136,7 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
   });
 
   it("uses defaults only for an absent legacy file and rejects malformed or oversized input", async () => {
-    const runtimeEnv = { ...managed.runtimeEnv, PAPERCLIP_HOME: directory };
+    const runtimeEnv = { ...managed.runtimeEnv, NEXUS_HOME: directory };
     const file = path.join(directory, "adapter-settings.json");
     await fs.writeFile(file, JSON.stringify({ disabledTypes: [42] }));
     await expect(initializeAdapterSettings(db, { runtimeEnv })).rejects.toThrow("Persisted adapter settings are invalid");
@@ -168,13 +168,13 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
 
   it("applies operator restrictions without rewriting saved choices", async () => {
     await service().setDisabled("codex_local", true);
-    const env = { ...managed.runtimeEnv, PAPERCLIP_ADAPTERS: JSON.stringify([{ adapterType: "codex_local", enabled: true }]) };
+    const env = { ...managed.runtimeEnv, NEXUS_ADAPTERS: JSON.stringify([{ adapterType: "codex_local", enabled: true }]) };
     const overlay = adapterSettingsService(peer, { runtimeEnv: env });
-    expect(await overlay.getDisabledTypes()).toEqual(["claude_local", "paperclip_runner"]);
+    expect(await overlay.getDisabledTypes()).toEqual(["claude_local", "nexus_runner"]);
     expect(await overlay.inspectStored()).toEqual(await service().inspectStored());
     await expect(overlay.setDisabled("claude_local", false)).rejects.toThrow("hosting operator");
     await expect(overlay.setDisabled("codex_local", true)).rejects.toThrow("hosting operator");
-    expect(await overlay.getDisabledTypes()).toEqual(["claude_local", "paperclip_runner"]);
+    expect(await overlay.getDisabledTypes()).toEqual(["claude_local", "nexus_runner"]);
     expect(await service().getDisabledTypes()).toEqual(["codex_local"]);
   });
 

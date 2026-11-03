@@ -91,5 +91,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (!campaignFile || !outputFile) throw new Error("Usage: feedback-dispositions.ts <normalized-results.json> <private-review.json>");
   const campaign = JSON.parse(await readFile(campaignFile, "utf8")) as RunnerE2ECampaign;
   await writeFile(outputFile, `${JSON.stringify(feedbackReviewTemplate(campaign), null, 2)}\n`, { mode: 0o600, flag: "wx" });
-  console.log("Created an unreviewed template. Inspect private feedback bodies, fill dispositions and review metadata, then import with PAPERCLIP_E2E_FEEDBACK_REVIEW.");
+  console.log("Created an unreviewed template. Inspect private feedback bodies, fill dispositions and review metadata, then import with NEXUS_E2E_FEEDBACK_REVIEW.");
 }

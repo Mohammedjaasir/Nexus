@@ -61,7 +61,7 @@ app does not inspect arbitrary archive bytes.
 ```sh
 pnpm storybook
 pnpm build-storybook
-pnpm --filter @paperclipai/ui typecheck
+pnpm --filter @nexusai/ui typecheck
 pnpm check:token-gates
 ```
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalProviderEventsFromCodex, canonicalProviderEventsFromAcpxRuntimeEvent, canonicalProviderEventsFromOpenCodePart } from "../../../packages/paperclip-runner/src/provider-events.js";
+import { canonicalProviderEventsFromCodex, canonicalProviderEventsFromAcpxRuntimeEvent, canonicalProviderEventsFromOpenCodePart } from "../../../packages/nexus-runner/src/provider-events.js";
 import { activeFollowupBoundary, activeFollowupOutcome, sameActiveFollowupBoundary } from "./active-followup-evidence.js";
 import { activeFollowupStory, observeActiveFollowupCommand } from "./active-followup-flow.js";
 import { journeyRequiredChecks } from "./success-contract.js";
@@ -10,10 +10,10 @@ const run = { id: "run", companyId: "company", agentId: "agent", issueId: "issue
 function event(seq: number, type: string, payload = {}): Record<string, any> {
   return { seq, eventType: type, runId: run.id, companyId: run.companyId, agentId: run.agentId,
     protocolSchemaVersion: 2, sourceEventId: `source-${seq}`, sourceInstanceId: "source", sourceSeq: seq,
-    payload: { prpEvent: { schema: "paperclip.prp.event.v2", schemaVersion: 2, eventType: type, runId: run.id,
+    payload: { prpEvent: { schema: "nexus.prp.event.v2", schemaVersion: 2, eventType: type, runId: run.id,
       sourceKind: "runner", sourceEventId: `source-${seq}`, sourceInstanceId: "source", sourceSeq: seq, payload } } };
 }
-const command = { schema: "paperclip.tool.execution.v1", executionId: "wait", transport: "builtin", operation: "execute", name: "bash", status: "running" };
+const command = { schema: "nexus.tool.execution.v1", executionId: "wait", transport: "builtin", operation: "execute", name: "bash", status: "running" };
 const events = () => [event(1, "turn.started"), event(2, "tool.execution.started", command)];
 const boundary = () => activeFollowupBoundary(run, events())!;
 // Synthetic identity and filler rows; the v1 operation/transport/name/readOnly
@@ -23,7 +23,7 @@ function legacyEvents(change: Record<string, unknown> = {}): Record<string, any>
   const bind = (seq: number, sourceSeq: number, type: string, payload: Record<string, unknown>) => {
     const row = event(seq, type, payload);
     row.protocolSchemaVersion = 1; row.sourceSeq = sourceSeq;
-    Object.assign(row.payload.prpEvent, { schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceSeq });
+    Object.assign(row.payload.prpEvent, { schema: "nexus.prp.event.v1", schemaVersion: 1, sourceSeq });
     return row;
   };
   rows[70] = bind(71, 9, "turn.started", { status: "inProgress" });
@@ -46,9 +46,9 @@ describe("deployment-independent active follow-up", () => {
     for (const rows of [[], events().slice(0, 1), [...events(), event(3, "tool.execution.completed", { ...command, status: "completed" })],
       [...events(), event(3, "turn.completed")], [...events(), event(3, "turn.started")], [events()[0]!, event(2, "tool.execution.started", { ...command, operation: "read" })],
       [events()[0]!, event(2, "tool.execution.started", { ...command, readOnly: true })],
-      [events()[0]!, event(2, "tool.execution.started", { ...command, name: "paperclip_finish" })],
-      [events()[0]!, event(2, "tool.execution.started", { ...command, name: "paperclip_block" })],
-      [events()[0]!, event(2, "tool.execution.started", { ...command, namespace: "paperclip" })],
+      [events()[0]!, event(2, "tool.execution.started", { ...command, name: "nexus_finish" })],
+      [events()[0]!, event(2, "tool.execution.started", { ...command, name: "nexus_block" })],
+      [events()[0]!, event(2, "tool.execution.started", { ...command, namespace: "nexus" })],
       [events()[0]!, event(2, "tool.execution.started", { ...command, name: null })],
       [events()[0]!, event(2, "tool.execution.started", { ...command, transport: "mcp" })],
       [events()[0]!, event(3, "tool.execution.started", command)],
@@ -80,9 +80,9 @@ describe("deployment-independent active follow-up", () => {
     const shell = mapped("bash");
     expect(shell.payload).toMatchObject({ transport: "builtin", operation: "execute", name: "bash", readOnly: false, status: "running" });
     expect(activeFollowupBoundary(run, [event(1, "turn.started"), event(2, shell.eventType, shell.payload)])).toMatchObject({ runId: "run", startedSeq: 2 });
-    for (const semantic of [mapped("paperclip_finish"), mapped("paperclip_block"), mapped("paperclip_report_progress"),
-      mapped("paperclip_paperclip_finish"), mapped("unknown", "functions.paperclip_block:0"),
-      mapped("functions.paperclip_finish"), mapped("mcp__paperclip__paperclip_block"), mapped("paperclip.paperclip_report_progress")]) {
+    for (const semantic of [mapped("nexus_finish"), mapped("nexus_block"), mapped("nexus_report_progress"),
+      mapped("nexus_nexus_finish"), mapped("unknown", "functions.nexus_block:0"),
+      mapped("functions.nexus_finish"), mapped("mcp__nexus__nexus_block"), mapped("nexus.nexus_report_progress")]) {
       expect(semantic.payload).toMatchObject({ transport: "builtin", operation: "execute", readOnly: false, status: "running" });
       expect(activeFollowupBoundary(run, [event(1, "turn.started"), event(2, semantic.eventType, semantic.payload)])).toBeNull();
     }
@@ -93,9 +93,9 @@ describe("deployment-independent active follow-up", () => {
   it("recognizes the observed legacy v1 builtin bash shape without admitting unknown operations generally", () => {
     const before = activeFollowupBoundary(run, legacyEvents());
     expect(before).toMatchObject({ runId: "run", executionId: "wait", startedSeq: 81, sourceSeq: 12 });
-    for (const change of [{ name: "unknown" }, { name: "custom-command" }, { name: "paperclip_finish" }, { name: "paperclip_block" },
-      { name: "paperclip_report_progress" }, { name: "functions.paperclip_finish" }, { readOnly: true }, { readOnly: undefined },
-      { transport: "process" }, { namespace: "paperclip" }]) expect(activeFollowupBoundary(run, legacyEvents(change))).toBeNull();
+    for (const change of [{ name: "unknown" }, { name: "custom-command" }, { name: "nexus_finish" }, { name: "nexus_block" },
+      { name: "nexus_report_progress" }, { name: "functions.nexus_finish" }, { readOnly: true }, { readOnly: undefined },
+      { transport: "process" }, { namespace: "nexus" }]) expect(activeFollowupBoundary(run, legacyEvents(change))).toBeNull();
     for (const field of ["companyId", "agentId", "runId", "sourceEventId", "sourceInstanceId", "sourceSeq", "protocolSchemaVersion"]) {
       const rows = legacyEvents(); rows[80]![field] = "foreign";
       expect(activeFollowupBoundary(run, rows)).toBeNull();
@@ -159,7 +159,7 @@ describe("deployment-independent active follow-up", () => {
     expect(() => parseTargetConfig({ ...config, limits: { ...config.limits, maxRuns: 1 } })).toThrow("agent_journeys_require_bounded_runs");
   });
   it("retains one-run and two-run passes only with the whole success contract", () => {
-    const result = { schema: "paperclip.runner-e2e.result/v2", executionId: "product-journeys.qa.configured-agent.daytona.followup-while-running",
+    const result = { schema: "nexus.runner-e2e.result/v2", executionId: "product-journeys.qa.configured-agent.daytona.followup-while-running",
       suiteId: "product-journeys", suiteDefinitionHash: "test", profileId: "configured-agent", environmentId: "daytona", caseId: "followup-while-running",
       provider: "opencode", model: "configured-model", runtimeMode: "native", status: "passed", cleanup: "passed", attempt: 1,
       startedAt: "2026-01-01T00:00:00Z", finishedAt: "2026-01-01T00:00:01Z", durationMs: 1000, runIds: ["run"],

@@ -1,4 +1,4 @@
-import type { ProjectSkillRepository } from '@paperclipai/shared';
+import type { ProjectSkillRepository } from '@nexusai/shared';
 
 export function groupProjectSkillRepositories(repositories: ProjectSkillRepository[]) {
   const groups = new Map<string, ProjectSkillRepository[]>();

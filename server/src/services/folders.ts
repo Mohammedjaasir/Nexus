@@ -1,6 +1,6 @@
 import { and, asc, eq, max, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { companySkills, folders, routines } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { companySkills, folders, routines } from "@nexusai/db";
 import type {
   CreateFolder,
   Folder,
@@ -9,7 +9,7 @@ import type {
   MoveFolder,
   MoveFolderItem,
   UpdateFolder,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { conflict, forbidden, notFound, unprocessable } from "../errors.js";
 
 const MAX_FOLDER_DEPTH = 4;
@@ -77,7 +77,7 @@ export function folderService(db: Db, mutationLockHeld = false) {
   async function withCompanyFolderLock<T>(companyId: string, operation: (lockedDb: Db) => Promise<T>) {
     if (mutationLockHeld) return operation(db);
     return db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`paperclip:folders:${companyId}`}, 0))`);
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`nexus:folders:${companyId}`}, 0))`);
       return operation(tx as unknown as Db);
     });
   }

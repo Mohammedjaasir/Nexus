@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { agents, caseAccessSources, caseHandoffs, cases, companies, createDb, issues } from "@paperclipai/db";
+import { agents, caseAccessSources, caseHandoffs, cases, companies, createDb, issues } from "@nexusai/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { createAgentLifecycle } from "./agent-lifecycle.js";

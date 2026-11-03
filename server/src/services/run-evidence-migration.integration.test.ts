@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { sql } from "drizzle-orm";
-import { createDb, type Db } from "@paperclipai/db";
+import { createDb, type Db } from "@nexusai/db";
 import {
   S3Client,
   CreateBucketCommand,
@@ -20,11 +20,11 @@ import { resolveExternalTestDatabaseUrl } from "../__tests__/helpers/external-te
 import { formatNativeRunLogEvent } from "./native-runtime/native-run-log-export.js";
 import { nativeSha256 } from "./native-runtime/canonical.js";
 import { createObjectByteJournal } from "./object-byte-journal.js";
-import type { PrpEvent } from "../vendor/paperclip-runner/index.js";
+import type { PrpEvent } from "../vendor/nexus-runner/index.js";
 import { compactRunLogChunk } from "./heartbeat/run-log.js";
 
-const endpoint = process.env.PAPERCLIP_LOG_TEST_S3_ENDPOINT;
-const databaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_RUN_EVIDENCE_MIGRATION_DATABASE_URL");
+const endpoint = process.env.NEXUS_LOG_TEST_S3_ENDPOINT;
+const databaseUrl = resolveExternalTestDatabaseUrl("NEXUS_RUN_EVIDENCE_MIGRATION_DATABASE_URL");
 describe.skipIf(!endpoint || !databaseUrl)("run evidence migration (Postgres and S3)", () => {
   let db: Db, client: S3Client, bucket: string, directory: string;
   const schema = `migration_${randomUUID().replaceAll("-", "")}`;
@@ -44,17 +44,17 @@ describe.skipIf(!endpoint || !databaseUrl)("run evidence migration (Postgres and
       byte_count bigint not null default 0, digest text, reason text, requested_by text not null, expires_at timestamptz not null,
       deleted_at timestamptz, created_at timestamptz not null default now(), updated_at timestamptz not null default now())`);
     directory = await fs.mkdtemp(path.join(os.tmpdir(), "evidence-migration-"));
-    vi.stubEnv("PAPERCLIP_CONFIG", path.join(directory, "config.json"));
+    vi.stubEnv("NEXUS_CONFIG", path.join(directory, "config.json"));
     vi.stubEnv("RUN_LOG_BASE_PATH", path.join(directory, "logs"));
     vi.stubEnv("PROVIDER_TRACE_BASE_PATH", path.join(directory, "traces"));
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "b".repeat(64));
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "s3");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_ENDPOINT", endpoint!);
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_REGION", "us-east-1");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_PREFIX", "");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE", "true");
-    bucket = `paperclip-migration-test-${randomUUID()}`;
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_BUCKET", bucket);
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "b".repeat(64));
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "s3");
+    vi.stubEnv("NEXUS_STORAGE_S3_ENDPOINT", endpoint!);
+    vi.stubEnv("NEXUS_STORAGE_S3_REGION", "us-east-1");
+    vi.stubEnv("NEXUS_STORAGE_S3_PREFIX", "");
+    vi.stubEnv("NEXUS_STORAGE_S3_FORCE_PATH_STYLE", "true");
+    bucket = `nexus-migration-test-${randomUUID()}`;
+    vi.stubEnv("NEXUS_STORAGE_S3_BUCKET", bucket);
     client = new S3Client({
       endpoint,
       region: "us-east-1",
@@ -202,7 +202,7 @@ describe.skipIf(!endpoint || !databaseUrl)("run evidence migration (Postgres and
         normalizedSessionId = randomUUID();
       runs.push(runId);
       const events: PrpEvent[] = [1, 2].map((sourceSeq) => ({
-        schema: "paperclip.prp.event.v1",
+        schema: "nexus.prp.event.v1",
         schemaVersion: 1,
         runId,
         sourceInstanceId,
@@ -278,7 +278,7 @@ describe.skipIf(!endpoint || !databaseUrl)("run evidence migration (Postgres and
       const runId = randomUUID(),
         sourceInstanceId = randomUUID();
       const event: PrpEvent = {
-        schema: "paperclip.prp.event.v1",
+        schema: "nexus.prp.event.v1",
         schemaVersion: 1,
         runId,
         sourceInstanceId,
@@ -292,7 +292,7 @@ describe.skipIf(!endpoint || !databaseUrl)("run evidence migration (Postgres and
         payload: { text: "large tool result ".repeat(12_000) },
       };
       const chunk = compactRunLogChunk(formatNativeRunLogEvent(event));
-      expect(chunk).toContain("paperclip truncated run log chunk");
+      expect(chunk).toContain("nexus truncated run log chunk");
       expect(() => JSON.parse(chunk)).toThrow();
       const bytes = Buffer.from(
         `${JSON.stringify({ ts: "then", seq: 1, stream: "stdout", chunk })}\n`,

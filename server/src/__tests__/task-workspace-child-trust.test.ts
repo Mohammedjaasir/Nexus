@@ -7,7 +7,7 @@ import { errorHandler } from "../middleware/error-handler.js";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { agents, authUsers, companyMemberships, createDb, executionWorkspaces, heartbeatRuns, issues, projects, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { agents, authUsers, companyMemberships, createDb, executionWorkspaces, heartbeatRuns, issues, projects, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { executionWorkspaceService } from "../services/execution-workspaces.js";
 import { issueService } from "../services/issues.js";
 import { createRepositoryTrustFixture } from "./helpers/repository-trust-fixture.js";
@@ -62,7 +62,7 @@ const support = await getEmbeddedPostgresTestSupport();
     const previous = await settings.getExperimental();
     await settings.updateExperimental({ enableIsolatedWorkspaces: true });
     try {
-      const response = await request(app).patch(`/api/issues/${child.id}`).set("X-Paperclip-Run-Id", f.runId)
+      const response = await request(app).patch(`/api/issues/${child.id}`).set("X-Nexus-Run-Id", f.runId)
         .send({ executionWorkspaceSettings: { mode: "isolated_workspace", workspaceStrategy: { type: "git_worktree", baseRef: "main" } } });
       expect({ status: response.status, body: response.body }).toMatchObject({ status: 200, body: {
         id: child.id, executionWorkspaceId: f.workspace.id,

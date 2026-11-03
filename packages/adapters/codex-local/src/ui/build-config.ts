@@ -1,15 +1,15 @@
 import {
   buildAdapterEnvConfig,
-  isPaperclipRunnerProvider,
+  isNexusRunnerProvider,
   normalizeLegacyRunnerProvider,
-  resolvePaperclipRunnerModel,
-  resolvePaperclipRunnerIdleTimeoutMs,
-  resolvePaperclipRunnerPermissionMode,
-  resolvePaperclipRunnerCursorMode,
-  resolvePaperclipRunnerPiThinkingLevel,
-  PAPERCLIP_RUNNER_ACPX_PROFILES,
+  resolveNexusRunnerModel,
+  resolveNexusRunnerIdleTimeoutMs,
+  resolveNexusRunnerPermissionMode,
+  resolveNexusRunnerCursorMode,
+  resolveNexusRunnerPiThinkingLevel,
+  NEXUS_RUNNER_ACPX_PROFILES,
   type CreateConfigValues,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import { DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX } from "../index.js";
 
 function parseCommaArgs(value: string): string[] {
@@ -73,7 +73,7 @@ export function buildCodexLocalConfig(v: CreateConfigValues): Record<string, unk
 }
 
 /** Build a provider profile accepted by the experimental Rust runner. */
-export function buildPaperclipRunnerConfig(v: CreateConfigValues, context?: {
+export function buildNexusRunnerConfig(v: CreateConfigValues, context?: {
   candidateHarnesses?: readonly { agent: "antigravity"; model: string }[];
 }): Record<string, unknown> {
   const config = buildCodexLocalConfig(v);
@@ -100,7 +100,7 @@ export function buildPaperclipRunnerConfig(v: CreateConfigValues, context?: {
     delete schemaValues[unsupportedKey];
   }
   const providerCandidate = schemaValues.provider;
-  const provider = isPaperclipRunnerProvider(providerCandidate)
+  const provider = isNexusRunnerProvider(providerCandidate)
     ? providerCandidate
     : "codex";
   if (provider === "muse") {
@@ -111,7 +111,7 @@ export function buildPaperclipRunnerConfig(v: CreateConfigValues, context?: {
     return { provider, lifecycleMode: "per_turn", allowUnmeteredProvider: schemaValues.allowUnmeteredProvider === true, dotWorkspaceAccess: schemaValues.dotWorkspaceAccess === true, dotAttachmentAccess: schemaValues.dotAttachmentAccess === true,
       ...(typeof schemaValues.dotBindingId === "string" ? { dotBindingId: schemaValues.dotBindingId } : {}) };
   }
-  const selectedAcpxProfile = PAPERCLIP_RUNNER_ACPX_PROFILES.find(profile => profile.value === schemaValues.acpxAgent);
+  const selectedAcpxProfile = NEXUS_RUNNER_ACPX_PROFILES.find(profile => profile.value === schemaValues.acpxAgent);
   const candidate = context?.candidateHarnesses?.find(candidate => candidate.agent === schemaValues.acpxAgent);
   const selectedModel = typeof v.model === "string" && v.model ? v.model : schemaValues.model;
   if (provider === "acpx" && selectedAcpxProfile && !selectedAcpxProfile.qualified
@@ -119,8 +119,8 @@ export function buildPaperclipRunnerConfig(v: CreateConfigValues, context?: {
     throw new Error(`${selectedAcpxProfile.label} is not enabled for production`);
   }
   const acpxAgent = selectedAcpxProfile?.value ?? "claude";
-  const cursorMode = resolvePaperclipRunnerCursorMode(provider, acpxAgent, schemaValues.acpxSessionMode);
-  const piThinkingLevel = resolvePaperclipRunnerPiThinkingLevel(provider, acpxAgent, schemaValues.piThinkingLevel);
+  const cursorMode = resolveNexusRunnerCursorMode(provider, acpxAgent, schemaValues.acpxSessionMode);
+  const piThinkingLevel = resolveNexusRunnerPiThinkingLevel(provider, acpxAgent, schemaValues.piThinkingLevel);
 
   const schemaModel = typeof schemaValues.model === "string"
     ? schemaValues.model.trim()
@@ -183,11 +183,11 @@ export function buildPaperclipRunnerConfig(v: CreateConfigValues, context?: {
     300,
     "AWS AgentCore timeoutSeconds",
   );
-  const lifecycleCandidate = v.paperclipRunnerLifecycleMode ?? schemaValues.lifecycleMode;
+  const lifecycleCandidate = v.nexusRunnerLifecycleMode ?? schemaValues.lifecycleMode;
   const lifecycleMode = lifecycleCandidate === "warm" ? "warm" : "per_turn";
   const configuredIdleTimeoutMs =
-    v.paperclipRunnerIdleTimeoutMs ?? schemaValues.idleTimeoutMs;
-  const idleTimeoutMs = resolvePaperclipRunnerIdleTimeoutMs(
+    v.nexusRunnerIdleTimeoutMs ?? schemaValues.idleTimeoutMs;
+  const idleTimeoutMs = resolveNexusRunnerIdleTimeoutMs(
     configuredIdleTimeoutMs,
   );
   const configuredCodexPermissionMode =
@@ -198,7 +198,7 @@ export function buildPaperclipRunnerConfig(v: CreateConfigValues, context?: {
     && configuredCodexPermissionMode !== "never"
   ) {
     throw new Error(
-      "Paperclip Runner currently supports Codex only with codexPermissionMode set to never. Select Full auto (never ask) before saving.",
+      "Nexus Runner currently supports Codex only with codexPermissionMode set to never. Select Full auto (never ask) before saving.",
     );
   }
   for (const normalizedKey of [
@@ -253,16 +253,16 @@ export function buildPaperclipRunnerConfig(v: CreateConfigValues, context?: {
     ...schemaValues,
     provider,
     ...(provider === "codex"
-      ? { model: resolvePaperclipRunnerModel("codex", config.model),
+      ? { model: resolveNexusRunnerModel("codex", config.model),
           ...(v.search === false ? { search: false } : {}),
           ...(configuredEffort ? { modelReasoningEffort: configuredEffort } : {}) }
       : {}),
     codexPermissionMode: "never",
-    opencodePermissionMode: resolvePaperclipRunnerPermissionMode(
+    opencodePermissionMode: resolveNexusRunnerPermissionMode(
       "opencode",
       v.adapterSchemaValues?.opencodePermissionMode,
     ),
-    acpxPermissionMode: resolvePaperclipRunnerPermissionMode(
+    acpxPermissionMode: resolveNexusRunnerPermissionMode(
       "acpx",
       v.adapterSchemaValues?.acpxPermissionMode,
     ),
@@ -279,7 +279,7 @@ export function buildPaperclipRunnerConfig(v: CreateConfigValues, context?: {
           ...(acpxAgent === "claude" && configuredEffort ? { modelReasoningEffort: configuredEffort } : {}),
           ...(cursorMode === undefined ? {} : { acpxSessionMode: cursorMode }),
           ...(piThinkingLevel === undefined ? {} : { piThinkingLevel }),
-          model: configuredModel || schemaModel || (acpxAgent === "grok" ? "grok-4.7" : resolvePaperclipRunnerModel("acpx", undefined)),
+          model: configuredModel || schemaModel || (acpxAgent === "grok" ? "grok-4.7" : resolveNexusRunnerModel("acpx", undefined)),
         }
       : {}),
     ...(provider === "claude_managed"

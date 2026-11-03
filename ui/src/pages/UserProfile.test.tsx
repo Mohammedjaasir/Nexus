@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { UserProfileResponse } from "@paperclipai/shared";
+import type { UserProfileResponse } from "@nexusai/shared";
 import { queryKeys } from "../lib/queryKeys";
 import { UserProfile } from "./UserProfile";
 
@@ -36,7 +36,7 @@ vi.mock("../context/BreadcrumbContext", () => ({
 vi.mock("../context/CompanyContext", () => ({
   useCompany: () => ({
     selectedCompanyId: "company-1",
-    selectedCompany: { id: "company-1", name: "Paperclip", issuePrefix: "PAP" },
+    selectedCompany: { id: "company-1", name: "Nexus", issuePrefix: "PAP" },
   }),
 }));
 

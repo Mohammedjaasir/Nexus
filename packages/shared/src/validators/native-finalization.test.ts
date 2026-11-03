@@ -10,7 +10,7 @@ const validResult = {
   companyId: "10000000-0000-4000-8000-000000000003",
   result: { summary: "Completed the requested work" },
   terminal: {
-    schema: "paperclip.prp.terminal.v1",
+    schema: "nexus.prp.terminal.v1",
     turnTerminalState: "completed",
     runTerminalState: "succeeded",
     reportedWorkDisposition: "done",
@@ -34,7 +34,7 @@ describe("native finalization validators", () => {
   it("fails closed for unknown required versions and extra fields", () => {
     expect(nativeFinalizationResultSchema.safeParse({
       ...validResult,
-      schema: "paperclip.native-finalization.v2",
+      schema: "nexus.native-finalization.v2",
     }).success).toBe(false);
     expect(nativeFinalizationResultSchema.safeParse({
       ...validResult,

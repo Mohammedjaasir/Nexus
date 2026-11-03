@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
-import { agents, companies, createDb, heartbeatRunEvents, heartbeatRuns, issues, type Db } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRunEvents, heartbeatRuns, issues, type Db } from "@nexusai/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "../../__tests__/helpers/external-test-database.js";
 import { findNativeSessionResumeRun } from "./native-session-resume.js";
 import { resolveNativeControllerRecovery } from "./native-controller-recovery.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_TEST_DATABASE_URL");
 const supported = Boolean(externalUrl) || (await getEmbeddedPostgresTestSupport()).supported;
 
 (supported ? describe : describe.skip)("native session resume SQL projection", () => {
@@ -19,8 +19,8 @@ const supported = Boolean(externalUrl) || (await getEmbeddedPostgresTestSupport(
   const input = { companyId, agentId, issueId, normalizedSessionId, currentRunId, beforeCreatedAt: at(30) };
   const checkpoint = { sessionId: "provider-session", identity: { runId: "prior" }, complete: [false, 0, "", null] };
   const nativeExecutionInput = { binding: { issueId }, task: { prompt: "Complete native input", description: "Description" }, runtimeContext: { nested: [1, 2] } };
-  const paperclipWake = { externalChatProvider: "slack", githubReviewConfigurations: [{ key: "configuration", nested: { retained: true } }], other: ["preserved"] };
-  const paperclipIssue = { id: issueId, title: "Saved canonical title", description: "Saved canonical description" };
+  const nexusWake = { externalChatProvider: "slack", githubReviewConfigurations: [{ key: "configuration", nested: { retained: true } }], other: ["preserved"] };
+  const nexusIssue = { id: issueId, title: "Saved canonical title", description: "Saved canonical description" };
   const profile = { nativeExecutionInput, sessionCheckpoint: checkpoint, nativeToolContractFingerprint: "fingerprint", unrelated: "Omit" };
   const run = (second: number, overrides: Partial<typeof heartbeatRuns.$inferInsert> = {}) => ({
     id: randomUUID(), companyId, agentId, nativeIssueId: issueId, nativeSessionId: normalizedSessionId,
@@ -28,7 +28,7 @@ const supported = Boolean(externalUrl) || (await getEmbeddedPostgresTestSupport(
   });
   const select = () => findNativeSessionResumeRun(db, input);
   const source = () => run(0, { runnerInstanceId: randomUUID(), processPid: 17, processGroupId: 19, processStartedAt: at(0),
-    runnerProfileJson: profile, contextSnapshot: { paperclipWake, paperclipIssue: { ...paperclipIssue, unrelated: "Omit" }, prompt: "Omit" } });
+    runnerProfileJson: profile, contextSnapshot: { nexusWake, nexusIssue: { ...nexusIssue, unrelated: "Omit" }, prompt: "Omit" } });
   const writeProfile = (id: string, value: unknown) => db.execute(sql`update ${heartbeatRuns}
     set runner_profile_json = ${JSON.stringify(value)}::jsonb where ${heartbeatRuns.id} = ${id}`);
 
@@ -60,7 +60,7 @@ const supported = Boolean(externalUrl) || (await getEmbeddedPostgresTestSupport(
     await db.insert(heartbeatRuns).values([saved, run(1), run(2)]);
     const result = await select();
     expect(result).toEqual({ ...saved, runnerProfileJson: { nativeExecutionInput, sessionCheckpoint: checkpoint, nativeToolContractFingerprint: "fingerprint", nativeControllerRecovery: null },
-      contextSnapshot: { paperclipWake, paperclipIssue } });
+      contextSnapshot: { nexusWake, nexusIssue } });
     const stored = await db.select({ profile: heartbeatRuns.runnerProfileJson, context: heartbeatRuns.contextSnapshot }).from(heartbeatRuns).where(eq(heartbeatRuns.id, saved.id));
     expect(stored[0].profile).toEqual(profile);
     expect(stored[0].context).toEqual(saved.contextSnapshot);
@@ -104,14 +104,14 @@ const supported = Boolean(externalUrl) || (await getEmbeddedPostgresTestSupport(
   it("preserves malformed selected context values and missing brief fields", async () => {
     const saved = source();
     await db.insert(heartbeatRuns).values(saved);
-    for (const value of [null, false, 0, "invalid", [], {}, { paperclipWake: [], paperclipIssue: { id: issueId, title: false } },
-      { paperclipIssue: { id: issueId, title: "Valid title without description" } },
-      { paperclipIssue: { id: issueId, title: "Valid title", description: null } }]) {
+    for (const value of [null, false, 0, "invalid", [], {}, { nexusWake: [], nexusIssue: { id: issueId, title: false } },
+      { nexusIssue: { id: issueId, title: "Valid title without description" } },
+      { nexusIssue: { id: issueId, title: "Valid title", description: null } }]) {
       await db.execute(sql`update ${heartbeatRuns} set context_snapshot = ${JSON.stringify(value)}::jsonb where ${heartbeatRuns.id} = ${saved.id}`);
       const result = await select();
       const object = typeof value === "object" && value !== null && !Array.isArray(value) ? value : {};
-      expect(result?.contextSnapshot.paperclipWake).toEqual("paperclipWake" in object ? object.paperclipWake : null);
-      expect(result?.contextSnapshot.paperclipIssue).toEqual("paperclipIssue" in object ? object.paperclipIssue : null);
+      expect(result?.contextSnapshot.nexusWake).toEqual("nexusWake" in object ? object.nexusWake : null);
+      expect(result?.contextSnapshot.nexusIssue).toEqual("nexusIssue" in object ? object.nexusIssue : null);
     }
   });
 

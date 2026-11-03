@@ -3,7 +3,7 @@ import { createS3StorageProvider } from "../storage/s3-provider.js";
 import { skillInstallationMaintenance } from "../services/skill-installation-maintenance.js";
 import { removeRuntimeAssetTree } from "../services/native-runtime/runtime-asset-retention.js";
 import { eq } from "drizzle-orm";
-import { writePaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
+import { writeNexusSkillSyncPreference } from "@nexusai/adapter-utils/server-utils";
 import { materializeSelectedSkills, rehydratePinnedSkillAssets } from "../services/native-runtime/runtime-context.js";
 import { nativeRuntimeContextFixture } from "../services/native-runtime/runtime-context.test-fixture.js";
 import { randomUUID } from "node:crypto";
@@ -14,14 +14,14 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { applyPendingMigrations, agents, heartbeatRuns, companySkills, companySkillVersions, companies, createDb, instanceSettings } from "@paperclipai/db";
+import { applyPendingMigrations, agents, heartbeatRuns, companySkills, companySkillVersions, companies, createDb, instanceSettings } from "@nexusai/db";
 import { companySkillService } from "../services/company-skills.js";
 import * as storageModule from "../storage/index.js";
 import { createStorageService } from "../storage/service.js";
 import { createLocalDiskStorageProvider } from "../storage/local-disk-provider.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const externalDatabase = process.env.PAPERCLIP_SKILL_TEST_DATABASE_URL;
+const externalDatabase = process.env.NEXUS_SKILL_TEST_DATABASE_URL;
 const support = externalDatabase ? { supported: true } : await getEmbeddedPostgresTestSupport();
 if (!support.supported) console.warn("Managed skill integration database unavailable:", support);
 describe.skipIf(!support.supported)("managed skills use committed versions", () => {
@@ -29,9 +29,9 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
   let db: ReturnType<typeof createDb>;
   let root: string;
   let home: string;
-  const previousHome = process.env.PAPERCLIP_HOME;
-  const previousInstance = process.env.PAPERCLIP_INSTANCE_ID;
-  const previousStorage = process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED;
+  const previousHome = process.env.NEXUS_HOME;
+  const previousInstance = process.env.NEXUS_INSTANCE_ID;
+  const previousStorage = process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED;
   beforeAll(async () => {
     if (externalDatabase) {
       await applyPendingMigrations(externalDatabase);
@@ -40,24 +40,24 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
     db = createDb(database.connectionString);
     root = await fs.mkdtemp(path.join(os.tmpdir(), "managed-skill-content-"));
     home = path.join(root, "server-a");
-    process.env.PAPERCLIP_HOME = home;
-    process.env.PAPERCLIP_INSTANCE_ID = "default";
-    process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED = "true";
+    process.env.NEXUS_HOME = home;
+    process.env.NEXUS_INSTANCE_ID = "default";
+    process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED = "true";
     vi.spyOn(storageModule, "getStorageService").mockReturnValue(
       createStorageService(createLocalDiskStorageProvider(path.join(root, "objects"))),
     );
   }, 30_000);
   afterAll(async () => {
     vi.restoreAllMocks();
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = previousHome;
-    if (previousStorage === undefined) delete process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED;
-    else process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED = previousStorage;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = previousHome;
+    if (previousStorage === undefined) delete process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED;
+    else process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED = previousStorage;
     await db?.$client.end({ timeout: 1 });
     await database?.cleanup();
     if (root) await removeRuntimeAssetTree(root);
-    if (previousInstance === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-    else process.env.PAPERCLIP_INSTANCE_ID = previousInstance;
+    if (previousInstance === undefined) delete process.env.NEXUS_INSTANCE_ID;
+    else process.env.NEXUS_INSTANCE_ID = previousInstance;
   });
   async function company() {
     const id = randomUUID();
@@ -125,10 +125,10 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
         fileURLToPath(new URL("../../scripts/migrate-skill-packages.ts", import.meta.url)),
         `--phase=${phase}`, `--company=${companyId}`, "--limit=50",
       ], { env: { ...process.env, ...credentials, DATABASE_URL: database.connectionString,
-        PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: "disposable-cloud-cli-fixture",
-        PAPERCLIP_SECRETS_MASTER_KEY: "a".repeat(64), PAPERCLIP_STORAGE_PROVIDER: "s3",
-        PAPERCLIP_STORAGE_S3_BUCKET: "managed-skill-fixture", PAPERCLIP_STORAGE_S3_REGION: "us-east-1",
-        PAPERCLIP_STORAGE_S3_ENDPOINT: endpoint, PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE: "true", PAPERCLIP_STORAGE_S3_PREFIX: "" },
+        NEXUS_CLOUD_TENANT_SERVER_TOKEN: "disposable-cloud-cli-fixture",
+        NEXUS_SECRETS_MASTER_KEY: "a".repeat(64), NEXUS_STORAGE_PROVIDER: "s3",
+        NEXUS_STORAGE_S3_BUCKET: "managed-skill-fixture", NEXUS_STORAGE_S3_REGION: "us-east-1",
+        NEXUS_STORAGE_S3_ENDPOINT: endpoint, NEXUS_STORAGE_S3_FORCE_PATH_STYLE: "true", NEXUS_STORAGE_S3_PREFIX: "" },
         timeout: 60_000, maxBuffer: 1024 * 1024 });
       await expect(run("eligibility")).rejects.toThrow("Initialize Cloud runtime configuration");
       expect(await db.select().from(instanceSettings).where(eq(instanceSettings.singletonKey, key))).toHaveLength(0);
@@ -167,10 +167,10 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
   }, 180_000);
 
   it.each([
-    { storage: "legacy local", env: { PAPERCLIP_STORAGE_PROVIDER: "local_disk" }, expectedStatus: "local_storage" },
-    { storage: "shared S3", env: { PAPERCLIP_STORAGE_PROVIDER: "s3",
-      PAPERCLIP_STORAGE_S3_BUCKET: "managed-skill-cli-fixture", PAPERCLIP_STORAGE_S3_REGION: "us-east-1",
-      PAPERCLIP_SECRETS_MASTER_KEY: "12345678901234567890123456789012" }, expectedStatus: "provider_mismatch" },
+    { storage: "legacy local", env: { NEXUS_STORAGE_PROVIDER: "local_disk" }, expectedStatus: "local_storage" },
+    { storage: "shared S3", env: { NEXUS_STORAGE_PROVIDER: "s3",
+      NEXUS_STORAGE_S3_BUCKET: "managed-skill-cli-fixture", NEXUS_STORAGE_S3_REGION: "us-east-1",
+      NEXUS_SECRETS_MASTER_KEY: "12345678901234567890123456789012" }, expectedStatus: "provider_mismatch" },
   ])("loads persisted Cloud configuration for read-only $storage maintenance without seeding it", async ({ env, expectedStatus }) => {
     const companyId = await company();
     const skill = await companySkillService(db).createLocalSkill(companyId, { name: "Cloud CLI", markdown: "# Cloud CLI" });
@@ -182,8 +182,8 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
       fileURLToPath(new URL("../../scripts/migrate-skill-packages.ts", import.meta.url)),
       `--phase=${phase}`, `--company=${companyId}`, "--limit=50",
     ], { env: { ...process.env, DATABASE_URL: database.connectionString,
-      PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: "disposable-cloud-cli-fixture",
-      PAPERCLIP_STORAGE_LOCAL_DIR: path.join(root, "objects"), ...env },
+      NEXUS_CLOUD_TENANT_SERVER_TOKEN: "disposable-cloud-cli-fixture",
+      NEXUS_STORAGE_LOCAL_DIR: path.join(root, "objects"), ...env },
       timeout: 60_000, maxBuffer: 1024 * 1024 });
     await expect(run("eligibility")).rejects.toThrow("Initialize Cloud runtime configuration");
     expect(await db.select().from(instanceSettings).where(eq(instanceSettings.singletonKey, key))).toHaveLength(0);
@@ -259,7 +259,7 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
     const binary = await a.updateFile(companyId, skill.id, "data.bin", "AP8H", null,
       { encoding: "base64", expectedVersionId: saved.versionId });
     await fs.rm(home, { recursive: true, force: true });
-    process.env.PAPERCLIP_HOME = path.join(root, "server-b");
+    process.env.NEXUS_HOME = path.join(root, "server-b");
     const b = companySkillService(db);
     expect((await b.list(companyId)).some(item => item.id === skill.id)).toBe(true);
     expect(await b.readFile(companyId, skill.id, "data.bin")).toMatchObject({ content: "AP8H", encoding: "base64", versionId: binary.versionId });
@@ -268,8 +268,8 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
     expect(runtime).toMatchObject({ versionId: updated.versionId, sourceStatus: "available" });
     expect((await fs.stat(path.join(runtime!.source, "scripts/run.sh"))).mode & 0o111).not.toBe(0);
     expect(await fs.readFile(path.join(runtime!.source, "data.bin"))).toEqual(Buffer.from([0, 255, 7]));
-    await fs.rm(process.env.PAPERCLIP_HOME, { recursive: true, force: true });
-    process.env.PAPERCLIP_HOME = path.join(root, "server-c");
+    await fs.rm(process.env.NEXUS_HOME, { recursive: true, force: true });
+    process.env.NEXUS_HOME = path.join(root, "server-c");
     expect(await companySkillService(db).readFile(companyId, skill.id, "SKILL.md"))
       .toMatchObject({ content: "# Saved on B\n", versionId: updated.versionId });
     expect(await a.readFile(companyId, skill.id, "SKILL.md")).toMatchObject({ versionId: updated.versionId });
@@ -338,7 +338,7 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
       selectVersions: async selected => {
         expect(selected).toEqual([expect.objectContaining({ skillId: skill.id, versionId: skill.currentVersionId })]);
         expect(selected[0]).not.toHaveProperty("source");
-        await expect(fs.stat(path.join(process.env.PAPERCLIP_HOME!, "instances/default/skills", companyId,
+        await expect(fs.stat(path.join(process.env.NEXUS_HOME!, "instances/default/skills", companyId,
           "__versions__", skill.id, skill.currentVersionId!))).rejects.toMatchObject({ code: "ENOENT" });
         await db.update(heartbeatRuns).set({ contextSnapshot: { skillVersions: { [skill.key]: skill.currentVersionId }, skillSelectionSnapshot: true } })
           .where(eq(heartbeatRuns.id, run!.id));
@@ -346,11 +346,11 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
         return new Set([skill.key]);
       },
     }, async entries => { expect(persisted).toBe(true); return entries; });
-    const config = writePaperclipSkillSyncPreference({}, [{ key: skill.key, versionId: skill.currentVersionId }]);
+    const config = writeNexusSkillSyncPreference({}, [{ key: skill.key, versionId: skill.currentVersionId }]);
     const selected = await materializeSelectedSkills(config, entries, false);
     const context = { ...nativeRuntimeContextFixture(), skills: selected };
-    const originalHome = process.env.PAPERCLIP_HOME!;
-    process.env.PAPERCLIP_HOME = path.join(root, `recovery-${randomUUID()}`);
+    const originalHome = process.env.NEXUS_HOME!;
+    process.env.NEXUS_HOME = path.join(root, `recovery-${randomUUID()}`);
     const recovered = await rehydratePinnedSkillAssets(db, { companyId, agentId: agent!.id, runId: run!.id }, context);
     expect(recovered.skills[0]!.bundle.digest).toBe(selected[0]!.bundle.digest);
     expect(recovered.skills[0]!.bundle.rootPath).not.toBe(selected[0]!.bundle.rootPath);
@@ -361,7 +361,7 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
     await expect(service.deleteSkill(companyId, skill.id)).rejects.toMatchObject({ status: 422 });
     await db.update(heartbeatRuns).set({ status: "succeeded", finishedAt: new Date() }).where(eq(heartbeatRuns.id, run!.id));
     await expect(service.deleteSkill(companyId, skill.id)).resolves.toMatchObject({ id: skill.id });
-    process.env.PAPERCLIP_HOME = originalHome;
+    process.env.NEXUS_HOME = originalHome;
   });
 
   it("converts a legacy managed installation without changing its identity or identical version", async () => {
@@ -419,9 +419,9 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
 
   it.each([false, true])("blocks an incomplete installed repository version and converts only its exact source (package: %s)", async packaged => {
     const companyId = await company(), service = companySkillService(db);
-    process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED = String(packaged);
+    process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED = String(packaged);
     const skill = await service.createLocalSkill(companyId, { name: "Partial legacy repository", markdown: "# Installed revision" });
-    process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED = "true";
+    process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED = "true";
     const commit = "a".repeat(40);
     await db.update(companySkills).set({ sourceType: "github", sourceLocator: `https://github.com/fixture/skills/tree/${commit}/fixture`,
       sourceRef: commit, metadata: { owner: "fixture", repo: "skills", repoSkillDir: "fixture" },
@@ -466,19 +466,19 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
 
   it("keeps the compatibility override durable in Postgres and reports that storage accurately", async () => {
     const companyId = await company();
-    process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED = "false";
+    process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED = "false";
     try {
       const service = companySkillService(db);
       const skill = await service.createLocalSkill(companyId, { name: "Inline durable", markdown: "# database bytes" });
       const saved = await service.updateFile(companyId, skill.id, "support.txt", "also in Postgres");
       expect((await skillInstallationMaintenance(db).verifyVersions({ id: saved.versionId! })).results)
         .toEqual([expect.objectContaining({ status: "database_snapshot", packageId: null })]);
-      const priorHome = process.env.PAPERCLIP_HOME;
-      process.env.PAPERCLIP_HOME = path.join(root, `inline-cold-${randomUUID()}`);
+      const priorHome = process.env.NEXUS_HOME;
+      process.env.NEXUS_HOME = path.join(root, `inline-cold-${randomUUID()}`);
       try {
         expect(await companySkillService(db).readFile(companyId, skill.id, "support.txt")).toMatchObject({ content: "also in Postgres" });
-      } finally { process.env.PAPERCLIP_HOME = priorHome; }
-    } finally { process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED = "true"; }
+      } finally { process.env.NEXUS_HOME = priorHome; }
+    } finally { process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED = "true"; }
   });
 
 });

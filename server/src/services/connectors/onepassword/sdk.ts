@@ -2,7 +2,7 @@ import { createClient, type Client, type ItemCreateParams, type ItemField } from
 import { onePasswordArguments } from "./catalog.js";
 
 export async function executeOnePasswordSdk(token: string, tool: string, parameters: unknown,
-  authenticate: (token: string) => Promise<Client> = token => createClient({ auth: token, integrationName: "Paperclip", integrationVersion: "1.0.0" })) {
+  authenticate: (token: string) => Promise<Client> = token => createClient({ auth: token, integrationName: "Nexus", integrationVersion: "1.0.0" })) {
   const args = onePasswordArguments(tool, parameters);
   const client = await authenticate(token);
   const vaultId = args.vaultId as string, itemId = args.itemId as string;

@@ -6,7 +6,7 @@ import { QueryErrorState, useQueryView } from "@/components/QueryView";
 import { Button } from "@/components/ui/button";
 import { queryKeys } from "@/lib/queryKeys";
 import { useNavigate } from "@/lib/router";
-import { parseFrontmatterMarkdown } from "@paperclipai/shared";
+import { parseFrontmatterMarkdown } from "@nexusai/shared";
 
 export function TaskSkillPanel({ companyId, skillId }: { companyId: string; skillId: string }) {
   const navigate = useNavigate();

@@ -1,5 +1,5 @@
 import { ArrowUpRight, Check } from "lucide-react";
-import type { DecisionHistoryItem } from "@paperclipai/shared";
+import type { DecisionHistoryItem } from "@nexusai/shared";
 
 /** A recorded decision links to its context; it is not a second approval form. */
 export function CoordinatorDecisionReceipt({ item, onOpen }: { item: DecisionHistoryItem; onOpen: (href: string) => void }) {

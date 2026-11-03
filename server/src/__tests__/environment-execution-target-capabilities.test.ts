@@ -8,7 +8,7 @@ vi.mock("../services/environment-config.js", () => ({
   resolveEnvironmentDriverConfigForRuntime: mockResolveEnvironmentDriverConfigForRuntime,
 }));
 
-import type { EffectiveExecutionCapabilities } from "@paperclipai/adapter-utils/execution-target";
+import type { EffectiveExecutionCapabilities } from "@nexusai/adapter-utils/execution-target";
 import { resolveEnvironmentExecutionTarget } from "../services/environment-execution-target.js";
 import type { EnvironmentRuntimeService } from "../services/environment-runtime.js";
 
@@ -226,7 +226,7 @@ describe("resolveEnvironmentExecutionTarget effective capability snapshot", () =
     const target = await resolveEnvironmentExecutionTarget({
       db: {} as never,
       companyId: "company-1",
-      // This substrate PR does not advertise remote paperclip_runner support
+      // This substrate PR does not advertise remote nexus_runner support
       // until the Rust WSS transport lands. A supported direct adapter exercises
       // the same host-owned acquisition contract without widening rollout here.
       adapterType: "codex_local",

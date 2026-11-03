@@ -39,7 +39,7 @@ it("keeps archive authority in explicit protected jobs and the workflow-pinned t
 it("the actual private paid shell withholds launcher diagnostics on abnormal exit",async()=>{
  const root=await mkdtemp(path.join(os.tmpdir(),"manual-shell-test-"));
  try{const shell=step("test","Run paid cell").run.replaceAll('${{ matrix.executionId }}',"test");
- const result=spawnSync("bash",["-c",`pnpm(){ printf '%s\\n' 'synthetic-private-diagnostic'; return 7; };\n${shell}`],{encoding:"utf8",env:{PATH:process.env.PATH,PRIVATE_EVIDENCE_ROOT:root,PAPERCLIP_RUNNER_E2E_PRIVATE_PREFLIGHT:"bound"}});
+ const result=spawnSync("bash",["-c",`pnpm(){ printf '%s\\n' 'synthetic-private-diagnostic'; return 7; };\n${shell}`],{encoding:"utf8",env:{PATH:process.env.PATH,PRIVATE_EVIDENCE_ROOT:root,NEXUS_RUNNER_E2E_PRIVATE_PREFLIGHT:"bound"}});
  expect(result.status).toBe(7);expect(result.stdout+result.stderr).not.toContain("synthetic-private-diagnostic");expect(await readFile(path.join(root,"launcher-output.log"),"utf8")).toContain("synthetic-private-diagnostic");
  }finally{await rm(root,{recursive:true,force:true});}
 });

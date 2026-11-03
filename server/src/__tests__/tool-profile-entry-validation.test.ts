@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { companies, createDb, toolApplications, toolCatalogEntries, toolConnections, toolProfileEntries, toolProfiles } from "@paperclipai/db";
-import type { CreateToolProfileEntryForProfile } from "@paperclipai/shared";
+import { companies, createDb, toolApplications, toolCatalogEntries, toolConnections, toolProfileEntries, toolProfiles } from "@nexusai/db";
+import type { CreateToolProfileEntryForProfile } from "@nexusai/shared";
 import { eq } from "drizzle-orm";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { toolAccessService } from "../services/tool-access.js";
@@ -16,7 +16,7 @@ describeDatabase("tool profile entry validation", () => {
   const companyIds: string[] = [];
 
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-profile-entry-validation-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-profile-entry-validation-");
     db = createDb(database.connectionString);
   }, 20_000);
 

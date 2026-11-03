@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { agents, companies, issues, type Db } from "@paperclipai/db";
+import { agents, companies, issues, type Db } from "@nexusai/db";
 import type { taskInterruptionPresentations } from "../../services/task-interruption-presentation.js";
 
 export type InterruptionReader = typeof taskInterruptionPresentations;

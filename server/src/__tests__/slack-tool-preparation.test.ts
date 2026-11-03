@@ -5,8 +5,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import {
   agents, chatEndpoints, chatExternalPrincipals, chatIdentityLinks, companies,
   companyMemberships, createDb, heartbeatRuns, issues, toolApplications, toolConnections,
-} from "@paperclipai/db";
-import type { ToolCredentialSecretRef } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { ToolCredentialSecretRef } from "@nexusai/shared";
 import { createChatCredentials } from "../services/chat-channels/credentials.js";
 import { createSlackTaskAuthorityRegistration } from "../services/chat-channels/slack/task-authority.js";
 import { resolveSlackTaskAuthority } from "../services/connectors/slack-authority.js";
@@ -30,7 +30,7 @@ describeDatabase("Slack tool preparation", () => {
   let db: ReturnType<typeof createDb>;
 
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-slack-preparation-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-slack-preparation-");
     db = createDb(database.connectionString, { maxConnections: 1 });
     await instanceSettingsService(db).updateExperimental({ enableChatConnectors: true });
   });
@@ -55,7 +55,7 @@ describeDatabase("Slack tool preparation", () => {
       const [endpoint] = await db.insert(chatEndpoints).values({ companyId, connectionId: connection.id, assignedAgentId: agentId, provider: "slack", publicId: randomUUID(), providerAccountId: `T${i}`, status: "active" }).returning();
       endpoints.push(endpoint);
       const [principal] = await db.insert(chatExternalPrincipals).values({ companyId, provider: "slack", providerAccountId: `T${i}`, externalId: `U${i}`, isBot: false }).returning();
-      const [link] = await db.insert(chatIdentityLinks).values({ companyId, endpointId: endpoint.id, principalId: principal.id, paperclipUserId: userId, status: "linked" }).returning();
+      const [link] = await db.insert(chatIdentityLinks).values({ companyId, endpointId: endpoint.id, principalId: principal.id, nexusUserId: userId, status: "linked" }).returning();
       links.push(link);
       await db.transaction(tx => syncSlackBotTools(tx, endpoint, userId, true));
     }

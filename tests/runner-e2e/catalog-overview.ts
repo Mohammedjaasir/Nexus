@@ -16,7 +16,7 @@ export interface CatalogOverviewRow {
 }
 
 export interface CatalogOverview {
-  schema: "paperclip.catalog-overview/v2";
+  schema: "nexus.catalog-overview/v2";
   asOf: string;
   definitions: { lazy: number; legacy: number; featureAreas: number; capabilities: number; declaredGaps: number };
   accounting: { mainMeasurements: number; retainedRawResults: number; closedSlots: number; exhaustedFinals: number; theoreticalMainCeiling: number };
@@ -40,7 +40,7 @@ function choice<T extends object>(value: unknown, choices: T): keyof T {
 
 export function parseCatalogOverview(value: unknown): CatalogOverview {
   const input = object(value, ["schema", "asOf", "definitions", "accounting", "rows"]);
-  if (input.schema !== "paperclip.catalog-overview/v2" || typeof input.asOf !== "string" || !/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(input.asOf) || !Number.isFinite(Date.parse(input.asOf))) throw new Error("Invalid catalog overview snapshot");
+  if (input.schema !== "nexus.catalog-overview/v2" || typeof input.asOf !== "string" || !/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(input.asOf) || !Number.isFinite(Date.parse(input.asOf))) throw new Error("Invalid catalog overview snapshot");
   const d = object(input.definitions, ["lazy", "legacy", "featureAreas", "capabilities", "declaredGaps"]);
   const definitions = { lazy: integer(d.lazy), legacy: integer(d.legacy), featureAreas: integer(d.featureAreas), capabilities: integer(d.capabilities), declaredGaps: integer(d.declaredGaps) };
   if (definitions.lazy !== 242 || definitions.legacy !== 2 || definitions.featureAreas !== 35 || definitions.capabilities !== 191) throw new Error("Frozen catalog scope changed");
@@ -62,7 +62,7 @@ export function parseCatalogOverview(value: unknown): CatalogOverview {
   const knownExhausted = rows.filter(row => row.allowance === "exhausted").length;
   if (accounting.mainMeasurements < measured || accounting.retainedRawResults < accounting.mainMeasurements || accounting.closedSlots < accounting.retainedRawResults || accounting.exhaustedFinals < knownExhausted
     || accounting.exhaustedFinals > knownExhausted + rows.filter(row => row.allowance === "unknown").length || accounting.theoreticalMainCeiling > 244) throw new Error("Inconsistent catalog accounting");
-  return { schema: "paperclip.catalog-overview/v2", asOf: input.asOf, definitions, accounting, rows };
+  return { schema: "nexus.catalog-overview/v2", asOf: input.asOf, definitions, accounting, rows };
 }
 
 function label(value: string) {

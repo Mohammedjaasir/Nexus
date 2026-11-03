@@ -12,13 +12,13 @@ import {
   heartbeatRuns,
   issues,
   nativeRunFinalizations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { remoteTerminationReceipt } from "../services/remote-execution-termination.js";
 
 describe("P6-18 / MIG-01..04 native finalization migration", () => {
   it("repairs only later duplicates and preserves legacy event bytes and cursors", async () => {
-    const temporary = await startEmbeddedPostgresTestDatabase("paperclip-native-migration-");
+    const temporary = await startEmbeddedPostgresTestDatabase("nexus-native-migration-");
     const migration = await readFile(
       new URL("../../../packages/db/src/migrations/0227_modern_pandemic.sql", import.meta.url),
       "utf8",
@@ -41,8 +41,8 @@ describe("P6-18 / MIG-01..04 native finalization migration", () => {
       await rawDb.execute(sql.raw(`
         DROP TABLE IF EXISTS status_decision_effects, status_decisions, work_assessments,
           native_run_finalizations, native_run_results, completion_contracts CASCADE;
-        DROP TRIGGER IF EXISTS paperclip_issue_status_version_trigger ON issues;
-        DROP FUNCTION IF EXISTS paperclip_bump_issue_status_version();
+        DROP TRIGGER IF EXISTS nexus_issue_status_version_trigger ON issues;
+        DROP FUNCTION IF EXISTS nexus_bump_issue_status_version();
         DROP INDEX IF EXISTS heartbeat_run_events_run_seq_uq;
         CREATE INDEX IF NOT EXISTS heartbeat_run_events_run_seq_idx
           ON heartbeat_run_events (run_id, seq);
@@ -137,7 +137,7 @@ describe("P6-18 / MIG-01..04 native finalization migration", () => {
   }, 60_000);
 
   it("clears recovery state left on committed, unleased finalizations", async () => {
-    const temporary = await startEmbeddedPostgresTestDatabase("paperclip-native-recovery-backfill-");
+    const temporary = await startEmbeddedPostgresTestDatabase("nexus-native-recovery-backfill-");
     const migration = await readFile(
       new URL("../../../packages/db/src/migrations/0376_clear_committed_native_recovery_state.sql", import.meta.url),
       "utf8",
@@ -176,7 +176,7 @@ describe("P6-18 / MIG-01..04 native finalization migration", () => {
     }
   }, 60_000);
   it("clears process identity only on old settled native runs whose sandbox confirmed termination", async () => {
-    const temporary = await startEmbeddedPostgresTestDatabase("paperclip-native-process-backfill-");
+    const temporary = await startEmbeddedPostgresTestDatabase("nexus-native-process-backfill-");
     const migration = await readFile(
       new URL("../../../packages/db/src/migrations/0377_clear_settled_native_run_process_identity.sql", import.meta.url),
       "utf8",

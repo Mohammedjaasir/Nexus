@@ -131,7 +131,7 @@ describe("recent task synchronization", () => {
   });
 
   it("ignores writes from the old application after migration", async () => {
-    const legacyKey = "paperclip.recentTasks:company-1:user-1";
+    const legacyKey = "nexus.recentTasks:company-1:user-1";
     localStorage.setItem(legacyKey, JSON.stringify([{ ...task(10, "Legacy"), recordedAt: 100 }]));
     await act(async () => root.render(
       <QueryClientProvider client={client(task(20, "Current", "done"))}><RecentTasks name="current" /></QueryClientProvider>,

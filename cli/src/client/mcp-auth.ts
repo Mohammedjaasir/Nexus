@@ -4,8 +4,8 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { createHash, randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
-import { PUBLIC_MCP_PATH, PUBLIC_MCP_SCOPES } from "@paperclipai/shared";
-import { resolvePaperclipHomeDir } from "../config/home.js";
+import { PUBLIC_MCP_PATH, PUBLIC_MCP_SCOPES } from "@nexusai/shared";
+import { resolveNexusHomeDir } from "../config/home.js";
 
 const deviceGrant = "urn:ietf:params:oauth:grant-type:device_code";
 type Json = Record<string, unknown>;
@@ -16,11 +16,11 @@ export interface McpCredential {
 export function mcpResource(raw: string) {
   const url = new URL(raw);
   if ((url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)))
-    || url.username || url.password || url.search || url.hash || url.pathname !== PUBLIC_MCP_PATH) throw new Error("Use the exact Paperclip HTTPS MCP URL from Connections.");
+    || url.username || url.password || url.search || url.hash || url.pathname !== PUBLIC_MCP_PATH) throw new Error("Use the exact Nexus HTTPS MCP URL from Connections.");
   return url.toString();
 }
 export function credentialPath(resource: string) {
-  return path.join(resolvePaperclipHomeDir(), "mcp", createHash("sha256").update(resource).digest("hex") + ".json");
+  return path.join(resolveNexusHomeDir(), "mcp", createHash("sha256").update(resource).digest("hex") + ".json");
 }
 async function readCredential(file: string): Promise<McpCredential | null> {
   let handle;
@@ -85,7 +85,7 @@ async function withMcpOsLock<T>(file: string, work: () => Promise<T>) {
       try { lock.exec("BEGIN IMMEDIATE"); break; }
       catch (error) {
         if ((error as { errcode?: number }).errcode !== 5) throw error;
-        if (Date.now() >= deadline) throw new Error("Another Paperclip MCP login or refresh is in progress. Try again.");
+        if (Date.now() >= deadline) throw new Error("Another Nexus MCP login or refresh is in progress. Try again.");
         await sleep(100);
       }
     }
@@ -106,7 +106,7 @@ async function safeJson(response: Response): Promise<Json> {
     const value = await response.json();
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
     return value as Json;
-  } catch { throw new Error("Paperclip returned an invalid response. Check the connection before retrying."); }
+  } catch { throw new Error("Nexus returned an invalid response. Check the connection before retrying."); }
 }
 async function revoke(credential: McpCredential) {
   const response = await fetch(credential.issuer + "/mcp/oauth/revoke", { method: "POST", redirect: "error", signal: AbortSignal.timeout(20_000),
@@ -117,15 +117,15 @@ async function discovery(resource: string) {
   const origin = new URL(resource).origin;
   const protectedResource = await jsonRequest(origin + "/.well-known/oauth-protected-resource" + PUBLIC_MCP_PATH);
   if (!protectedResource.ok || protectedResource.data.resource !== resource || !Array.isArray(protectedResource.data.authorization_servers)
-    || !protectedResource.data.authorization_servers.includes(origin)) throw new Error("Paperclip resource discovery does not match this instance.");
+    || !protectedResource.data.authorization_servers.includes(origin)) throw new Error("Nexus resource discovery does not match this instance.");
   const metadata = await jsonRequest(origin + "/.well-known/oauth-authorization-server");
   if (!metadata.ok || metadata.data.issuer !== origin || metadata.data.token_endpoint !== origin + "/mcp/oauth/token"
     || metadata.data.device_authorization_endpoint !== origin + "/mcp/oauth/device_authorization"
-    || metadata.data.registration_endpoint !== origin + "/mcp/oauth/register") throw new Error("This Paperclip instance does not support device login.");
+    || metadata.data.registration_endpoint !== origin + "/mcp/oauth/register") throw new Error("This Nexus instance does not support device login.");
   return origin;
 }
 function tokens(data: Json, credential: Omit<McpCredential, "accessToken" | "expiresAt">): McpCredential {
-  if (typeof data.access_token !== "string" || data.token_type !== "Bearer" || typeof data.expires_in !== "number" || data.expires_in <= 0) throw new Error("Invalid Paperclip token response. Reconnect.");
+  if (typeof data.access_token !== "string" || data.token_type !== "Bearer" || typeof data.expires_in !== "number" || data.expires_in <= 0) throw new Error("Invalid Nexus token response. Reconnect.");
   return { ...credential, accessToken: data.access_token, expiresAt: Date.now() + data.expires_in * 1000,
     ...(typeof data.refresh_token === "string" ? { refreshToken: data.refresh_token } : {}) };
 }
@@ -136,27 +136,27 @@ export async function mcpRpc(resource: string, token: string, method: string, pa
       ...(method === "tools/call" && typeof params.name === "string" ? { "Mcp-Name": params.name } : {}) },
     body: JSON.stringify({ jsonrpc: "2.0", id: randomUUID(), method, params: { ...params, _meta: {
       "io.modelcontextprotocol/protocolVersion": version, "io.modelcontextprotocol/clientCapabilities": {},
-      "io.modelcontextprotocol/clientInfo": { name: "Paperclip CLI", version: "1" },
+      "io.modelcontextprotocol/clientInfo": { name: "Nexus CLI", version: "1" },
     } } }),
   });
-  if (!response.ok) throw new Error(`Paperclip MCP returned HTTP ${response.status}. Check the connection before retrying; a write may already have completed.`);
+  if (!response.ok) throw new Error(`Nexus MCP returned HTTP ${response.status}. Check the connection before retrying; a write may already have completed.`);
   const data = await safeJson(response);
-  if (data.error || !data.result || typeof data.result !== "object") throw new Error("Paperclip could not complete this MCP request. Check the connection before retrying.");
+  if (data.error || !data.result || typeof data.result !== "object") throw new Error("Nexus could not complete this MCP request. Check the connection before retrying.");
   return data.result as Json;
 }
 
 export async function loginMcpDevice(raw: string, companyId?: string, notify: (message: string) => void = console.error) {
   const resource = mcpResource(raw);
   const issuer = await discovery(resource);
-  const registration = await jsonRequest(issuer + "/mcp/oauth/register", { client_name: "Paperclip CLI (device)", redirect_uris: [], grant_types: [deviceGrant, "refresh_token"], response_types: [], token_endpoint_auth_method: "none" });
-  if (!registration.ok || typeof registration.data.client_id !== "string") throw new Error("Could not register the Paperclip device client.");
+  const registration = await jsonRequest(issuer + "/mcp/oauth/register", { client_name: "Nexus CLI (device)", redirect_uris: [], grant_types: [deviceGrant, "refresh_token"], response_types: [], token_endpoint_auth_method: "none" });
+  if (!registration.ok || typeof registration.data.client_id !== "string") throw new Error("Could not register the Nexus device client.");
   const clientId = registration.data.client_id;
   const authorization = await jsonRequest(issuer + "/mcp/oauth/device_authorization", { client_id: clientId, resource, scope: PUBLIC_MCP_SCOPES.join(" "), ...(companyId ? { company_id: companyId } : {}) });
   const device = authorization.data;
   if (!authorization.ok || typeof device.device_code !== "string" || typeof device.user_code !== "string"
     || device.verification_uri !== issuer + "/mcp-device" || typeof device.expires_in !== "number") throw new Error("Could not start device authorization.");
   const verification = new URL(device.verification_uri); verification.searchParams.set("user_code", device.user_code);
-  notify(`Approve Paperclip access in your browser: ${verification}\nConfirm code: ${device.user_code}\nWaiting for your approval…`);
+  notify(`Approve Nexus access in your browser: ${verification}\nConfirm code: ${device.user_code}\nWaiting for your approval…`);
   let interval = typeof device.interval === "number" ? Math.max(5, device.interval) : 5;
   const deadline = Date.now() + Math.min(600, device.expires_in) * 1000;
   while (Date.now() < deadline) {
@@ -168,7 +168,7 @@ export async function loginMcpDevice(raw: string, companyId?: string, notify: (m
       throw new Error(result.data.error === "access_denied" ? "Connection declined. No access was granted." : "Device authorization expired or failed. Start login again.");
     }
     const credential = tokens(result.data, { resource, issuer, clientId, companyId: companyId ?? "" });
-    const identity = await mcpRpc(resource, credential.accessToken, "tools/call", { name: "paperclip_connection", arguments: {} });
+    const identity = await mcpRpc(resource, credential.accessToken, "tools/call", { name: "nexus_connection", arguments: {} });
     const connected = identity.structuredContent as Json | undefined;
     if (identity.isError || typeof connected?.companyId !== "string" || (companyId && connected.companyId !== companyId)) throw new Error("The approved organization did not match. Reconnect before doing work.");
     credential.companyId = connected.companyId;
@@ -186,7 +186,7 @@ export async function replaceMcpCredential(file: string, credential: McpCredenti
     await saveCredential(file, credential);
     if (previous && previous.resource === credential.resource && previous.issuer === credential.issuer) {
       try { await revoke(previous); }
-      catch { notify("Connected. The previous connection could not be revoked; revoke it in Paperclip Connections."); }
+      catch { notify("Connected. The previous connection could not be revoked; revoke it in Nexus Connections."); }
     }
   });
 }
@@ -196,13 +196,13 @@ export async function mcpAccessToken(raw: string) {
   const file = credentialPath(resource);
   return withMcpCredentialLock(file, async () => {
     const credential = await readCredential(file);
-    if (!credential || credential.resource !== resource || credential.issuer !== new URL(resource).origin) throw new Error("Connect first with paperclipai mcp login --device --url <MCP URL>.");
+    if (!credential || credential.resource !== resource || credential.issuer !== new URL(resource).origin) throw new Error("Connect first with nexusai mcp login --device --url <MCP URL>.");
     if (credential.expiresAt > Date.now() + 30_000) return credential.accessToken;
-    if (!credential.refreshToken) throw new Error("Paperclip access expired. Sign in again.");
+    if (!credential.refreshToken) throw new Error("Nexus access expired. Sign in again.");
     // Validate issuer discovery again before sending a stored credential.
     await discovery(resource);
     const result = await jsonRequest(credential.issuer + "/mcp/oauth/token", { grant_type: "refresh_token", client_id: credential.clientId, resource, refresh_token: credential.refreshToken });
-    if (!result.ok) throw new Error("Paperclip access was revoked or expired. Sign in again.");
+    if (!result.ok) throw new Error("Nexus access was revoked or expired. Sign in again.");
     const updated = tokens(result.data, credential);
     await saveCredential(file, updated);
     return updated.accessToken;

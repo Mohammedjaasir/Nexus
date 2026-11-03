@@ -1,14 +1,14 @@
-import { agentHarnessType } from "@paperclipai/shared";
-import { observabilitySecretValues } from "@paperclipai/adapter-utils/agent-observability";
+import { agentHarnessType } from "@nexusai/shared";
+import { observabilitySecretValues } from "@nexusai/adapter-utils/agent-observability";
 import { agentObservabilityService, unavailableAgentObservability, type ResolvedAgentObservability } from "../agent-observability.js";
 import { agentObservabilityLaunch } from "../agent-observability-launch.js";
 import { withSkillActor } from "../skill-access.js";
 import type { AuthorizationActor } from "../authorization.js";
 import { eq, sql } from "drizzle-orm";
-import { heartbeatRuns, type Db, type agents, type projects } from "@paperclipai/db";
-import type { AiConnectionBinding } from "@paperclipai/shared";
-import { readPaperclipSkillSyncPreference, resolvePaperclipDesiredSkillNames, resolveLegacyPaperclipDesiredSkillNames,
-  writePaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
+import { heartbeatRuns, type Db, type agents, type projects } from "@nexusai/db";
+import type { AiConnectionBinding } from "@nexusai/shared";
+import { readNexusSkillSyncPreference, resolveNexusDesiredSkillNames, resolveLegacyNexusDesiredSkillNames,
+  writeNexusSkillSyncPreference } from "@nexusai/adapter-utils/server-utils";
 import { parseObject } from "../../adapters/utils.js";
 import { logger } from "../../middleware/logger.js";
 import { AI_CONNECTION_BUSY_RETRY_REASON, extractWakeCommentIds, isNonAssigneeWorkspaceBusyRetry } from "../../modules/run-dispatch/index.js";
@@ -39,7 +39,7 @@ import { buildExecutionWorkspaceConfigSnapshot, stripWorkspaceRuntimeFromExecuti
 import type { HeartbeatWorkspacePreparationInput } from "./workspace-preparation.js";
 
 const ACCEPTED_PLAN_CONVERSION_SKILL_KEY =
-  "paperclipai/paperclip/paperclip-converting-plans-to-tasks";
+  "paperclipai/paperclip/nexus-converting-plans-to-tasks";
 
 type ManagedAiRuntime = Awaited<ReturnType<typeof prepareManagedAiRuntime>>;
 type EnvironmentSelection = Awaited<ReturnType<typeof selectHeartbeatEnvironment>>;
@@ -96,11 +96,11 @@ export async function prepareHeartbeatExecutionConfiguration(db: Db, input: Hear
   const time = createHeartbeatPreparationTiming(run.id);
   const { issueId, context, responsibleUserId, acceptedPlanContinuationWake, acceptedPlanWakeRoutingDecision, taskProjectContext, routineEnvContext, pinnedSkillTest } = input.task;
   const { selectedEnvironmentId, selectedEnvironmentForConfig, resolvedInstanceSettings, persistedNativeExecutionInput } = input.environment;
-  const sourceWorkspaceConfig = agent.adapterType === "paperclip_runner"
+  const sourceWorkspaceConfig = agent.adapterType === "nexus_runner"
     ? { ...input.config.sourceWorkspaceConfig,
         homeMode: bindHeartbeatRunnerHomeMode(parseObject(agent.adapterConfig), persistedNativeExecutionInput).homeMode }
     : input.config.sourceWorkspaceConfig;
-  const preconfiguredHome = agent.adapterType === "paperclip_runner" && sourceWorkspaceConfig.homeMode === "preconfigured";
+  const preconfiguredHome = agent.adapterType === "nexus_runner" && sourceWorkspaceConfig.homeMode === "preconfigured";
   if (preconfiguredHome && pinnedSkillTest) {
     throw new ConfigurationIncompleteFailure("Skill tests require an isolated Runner home to deliver the saved version.", {
       configurationIncomplete: { reason: "skill_unavailable", actionUrl: `/agents/${agent.id}/runtime` },
@@ -109,7 +109,7 @@ export async function prepareHeartbeatExecutionConfiguration(db: Db, input: Hear
   const initialHarness = agentHarnessType(agent.adapterType, sourceWorkspaceConfig);
   const observabilityKind = (harness: string) => harness === "codex_local" ? "codex" as const
     : harness === "claude_local" ? "claude" as const
-      : harness === "opencode_local" && agent.adapterType === "paperclip_runner" ? "opencode" as const : undefined;
+      : harness === "opencode_local" && agent.adapterType === "nexus_runner" ? "opencode" as const : undefined;
   const unsupportedObservability = !observabilityKind(initialHarness)
     ? "unsupported_harness" as const : preconfiguredHome && initialHarness === "codex_local" ? "unsupported_home_mode" as const : undefined;
   const observabilitySnapshot: ResolvedAgentObservability = await agentObservabilityService(db).resolve(agent.companyId, { runId: run.id, agentId: agent.id, responsibleUserId, issueId, unavailableReason: unsupportedObservability })
@@ -239,11 +239,11 @@ export async function prepareHeartbeatExecutionConfiguration(db: Db, input: Hear
     await db.update(heartbeatRuns).set({ contextSnapshot: sql`coalesce(${heartbeatRuns.contextSnapshot}, '{}'::jsonb) || ${JSON.stringify({ aiConnection: context.aiConnection, ...(context.aiRouterTaskKey ? { aiRouterTaskKey: context.aiRouterTaskKey } : {}), ...(context.aiRouterSelection ? { aiRouterSelection: context.aiRouterSelection } : {}) })}::jsonb` }).where(eq(heartbeatRuns.id, run.id));
   }
   if (secretManifest.length > 0) {
-    context.paperclipSecrets = {
+    context.nexusSecrets = {
       manifest: secretManifest,
     };
   } else {
-    delete context.paperclipSecrets;
+    delete context.nexusSecrets;
   }
   const storedVersions = parseObject(run.contextSnapshot?.skillVersions);
   const hasStoredVersions = Object.prototype.hasOwnProperty.call(run.contextSnapshot ?? {}, "skillVersions");
@@ -261,7 +261,7 @@ export async function prepareHeartbeatExecutionConfiguration(db: Db, input: Hear
         ? [{ key: saved.key, shadowedBy: saved.shadowedBy }] : [];
     }) : [];
   const selectedConfig = pinnedSkillTest
-    ? writePaperclipSkillSyncPreference(resolvedConfig, [pinnedSkillTest])
+    ? writeNexusSkillSyncPreference(resolvedConfig, [pinnedSkillTest])
     : applyRunScopedMentionedSkillKeys(resolvedConfig, runScopedSkillKeys);
   const { config: effectiveResolvedConfig, skillKeys: environmentSkills, shadowedSkills } = hasStoredVersions
     ? { config: selectedConfig, skillKeys: [], shadowedSkills: savedShadowedSkills }
@@ -272,7 +272,7 @@ export async function prepareHeartbeatExecutionConfiguration(db: Db, input: Hear
       message: shadowedSkills.map(({ key, shadowedBy }) => `Skill "${key}" was skipped because required plugin skill "${shadowedBy}" uses the same name.`).join("\n"),
       payload: { shadowedSkills } });
   }
-  const runtimeSkillPreference = readPaperclipSkillSyncPreference(
+  const runtimeSkillPreference = readNexusSkillSyncPreference(
     effectiveResolvedConfig,
   );
   const nativeRunnerPreparationSpans: NativeRunHistoricalSpan[] = [];
@@ -294,7 +294,7 @@ export async function prepareHeartbeatExecutionConfiguration(db: Db, input: Hear
         versionSelections, snapshotLatest: true,
         ...(hasStoredVersions
           ? { onlyKeys: new Set(Object.keys(storedVersions)) }
-          : { selectionConfig: effectiveResolvedConfig, includeLegacy: agent.adapterType !== "paperclip_runner" }),
+          : { selectionConfig: effectiveResolvedConfig, includeLegacy: agent.adapterType !== "nexus_runner" }),
         selectVersions: async entries => {
           const available = hasStoredVersions ? entries.filter(entry => Object.prototype.hasOwnProperty.call(storedVersions, entry.key)) : entries;
           const availableKeys = new Set(available.map(entry => entry.key));
@@ -311,12 +311,12 @@ export async function prepareHeartbeatExecutionConfiguration(db: Db, input: Hear
           }
           const desiredKeys = hasStoredVersions
             ? Object.keys(storedVersions)
-            : agent.adapterType === "paperclip_runner"
-              ? resolvePaperclipDesiredSkillNames(effectiveResolvedConfig, available)
-              : resolveLegacyPaperclipDesiredSkillNames(effectiveResolvedConfig, available);
+            : agent.adapterType === "nexus_runner"
+              ? resolveNexusDesiredSkillNames(effectiveResolvedConfig, available)
+              : resolveLegacyNexusDesiredSkillNames(effectiveResolvedConfig, available);
           const selectedKeys = new Set(desiredKeys.filter(key => availableKeys.has(key)));
           const resolved = available.filter(entry => selectedKeys.has(entry.key));
-          skillDeliveryConfig = writePaperclipSkillSyncPreference(effectiveResolvedConfig,
+          skillDeliveryConfig = writeNexusSkillSyncPreference(effectiveResolvedConfig,
             resolved.map(entry => ({ key: entry.key, versionId: entry.versionId ?? null })));
           if (!hasStoredVersions) {
             const skillVersions = Object.fromEntries(resolved.map(entry => [entry.key, entry.versionId ?? entry.currentVersionId ?? null]));
@@ -338,7 +338,7 @@ export async function prepareHeartbeatExecutionConfiguration(db: Db, input: Hear
         return entries;
       }));
     } catch (error) {
-      if (agent.adapterType === "paperclip_runner") {
+      if (agent.adapterType === "nexus_runner") {
         await recordFailedSkillPreparation({
           runId: run.id,
           startedAtMs: skillsPrepareStartedAtMs,
@@ -371,13 +371,13 @@ export async function prepareHeartbeatExecutionConfiguration(db: Db, input: Hear
   const connectorAssignments = preparedAssignments.value;
   const connectorSkillConfig = await time("configuration_connector_skills", () => applyConnectorSkills(skillDeliveryConfig, runtimeSkillEntries, connectorAssignments));
   // Both CLI adapters and native context materialization use the same resolved set.
-  runtimeSkillEntries.splice(0, runtimeSkillEntries.length, ...connectorSkillConfig.paperclipRuntimeSkills);
+  runtimeSkillEntries.splice(0, runtimeSkillEntries.length, ...connectorSkillConfig.nexusRuntimeSkills);
   const connectorDelivery = await time("configuration_connector_delivery", () => prepareConnectorSkillDelivery(connectorSkillConfig, agent.adapterType));
   // Always replace this runtime-only field; caller wake data cannot supply skills.
-  context.paperclipWake = { ...parseObject(context.paperclipWake), connectorSkillInstructions: connectorDelivery.instructions };
+  context.nexusWake = { ...parseObject(context.nexusWake), connectorSkillInstructions: connectorDelivery.instructions };
   let runtimeConfig = await prepareConnectionInstructionDelivery({
     resolve: async () => preparedInstructions.value,
-    context, config: connectorDelivery.config, native: agent.adapterType === "paperclip_runner",
+    context, config: connectorDelivery.config, native: agent.adapterType === "nexus_runner",
   });
   const agentIdentity = supportsManagedAgentIdentity(agent.adapterType, agent.adapterConfig, run.runtimeMode === "native" ? run.driverKind : undefined)
     ? await time("configuration_agent_identity", () => agentIdentityService(db).ensureAgentIdentity(agent.companyId, agent.id))
@@ -401,7 +401,7 @@ export async function prepareHeartbeatExecutionConfiguration(db: Db, input: Hear
       });
   }
   onIdentityRedactorPrepared(identityRedactor);
-  if (agentIdentity) secretKeys.add("PAPERCLIP_AGENT_PRIVATE_KEY");
+  if (agentIdentity) secretKeys.add("NEXUS_AGENT_PRIVATE_KEY");
   return {
     prepared: true as const,
     mergedConfig, configSnapshot, runScopedMentionedSkillKeys, githubSelection, useHostGitHub,

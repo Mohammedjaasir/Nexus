@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 function slowClaude() {
-  const cwd = mkdtempSync(path.join(os.tmpdir(), "paperclip-slow-claude-"));
+  const cwd = mkdtempSync(path.join(os.tmpdir(), "nexus-slow-claude-"));
   directories.push(cwd);
   const command = path.join(cwd, "claude");
   writeFileSync(command, `#!${process.execPath}\nsetTimeout(() => {

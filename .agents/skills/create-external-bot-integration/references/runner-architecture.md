@@ -9,7 +9,7 @@
 - [Recovery needs identity evidence, not merely a reachable process](#recovery-needs-identity-evidence-not-merely-a-reachable-process)
 - [Revocation and native powers are different boundaries](#revocation-and-native-powers-are-different-boundaries)
 - [Files and commands are a separate capability decision](#files-and-commands-are-a-separate-capability-decision)
-- [Paperclip implementation anchors](#paperclip-implementation-anchors)
+- [Nexus implementation anchors](#nexus-implementation-anchors)
 
 ## Separate the bot, connection, controller, and workspace
 
@@ -17,13 +17,13 @@
 External provider
   Bot: reasoning, native browser/computer/apps, private memory
            | authenticated tools / signed wake events
-Paperclip control plane
+Nexus control plane
   MCP + OAuth + pairing + durable mailbox + operation broker
            | authenticated Runner protocol
 Managed execution environment (Cloud)
   Rust Runner: assignment lifecycle, catalog validation, durable receipts
            | semantic tool requests / correlated results
-Paperclip authority services
+Nexus authority services
   Task/company permissions, mutations, app gateway, result finalization
 ```
 
@@ -169,27 +169,27 @@ even though its old tools are already denied.
 ## Revocation and native powers are different boundaries
 
 Cancellation, pause, reassignment, membership loss, expired run authority, and
-grant revocation must prevent subsequent Paperclip effects. Cached tool results
+grant revocation must prevent subsequent Nexus effects. Cached tool results
 or UI binding references cannot restore revoked access. Old-grant revocation must
 not revoke a replacement binding accidentally.
 
-Report “Paperclip authority revoked” separately from “external bot stopped.” A
+Report “Nexus authority revoked” separately from “external bot stopped.” A
 fence acknowledgment proves receipt, not termination of all provider activity.
-Likewise, sandboxing the Paperclip Runner does not confine the bot's native Slack
+Likewise, sandboxing the Nexus Runner does not confine the bot's native Slack
 or provider computer. Those tools retain their own permissions. If strict total
 capability isolation is required, use a suitably isolated bot/account and verify
-the provider's actual controls; Paperclip cannot enforce it with prompt text.
+the provider's actual controls; Nexus cannot enforce it with prompt text.
 
 ## Files and commands are a separate capability decision
 
 Do not add workspace tools merely to make an external agent look like a coding
-CLI. A bot can research or write code on its own computer without Paperclip
+CLI. A bot can research or write code on its own computer without Nexus
 workspace access. The first Dot Cloud release intentionally offered none.
 
 When the release includes workspace tools:
 
 - Resolve paths within the admitted workspace; reject traversal, absolute paths,
-  symlinks/escapes, and Paperclip instance state such as `.paperclip`.
+  symlinks/escapes, and Nexus instance state such as `.nexus`.
 - Check reads, writes, API downloads, uploads, and artifact publication. A generic
   `call_api` path must not bypass attachment/workspace grants.
 - Serialize optimistic hash checks with writes. Two concurrent writes must not
@@ -204,7 +204,7 @@ When the release includes workspace tools:
   integrity checks, and live revocation before returning each page. Treat filenames
   and contents as untrusted data. Test the generic API escape path too.
 
-## Paperclip implementation anchors
+## Nexus implementation anchors
 
 Paths below existed in the qualified October 9 candidate. Locate their current
 equivalents before editing; do not paste line numbers from historical notes.
@@ -213,11 +213,11 @@ equivalents before editing; do not paste line numbers from historical notes.
 | --- | --- |
 | Bot broker and tool definitions | `server/src/services/dot-runner-broker.ts` |
 | Prototype public MCP bridge | `server/src/services/public-mcp/dot-runner.ts` |
-| Rust assignment backend | `packages/paperclip-runner/runner/crates/runner-core/src/dot_provider_backend.rs` |
-| TypeScript Runner driver | `packages/paperclip-runner/src/drivers/dot/runnerd-dot-driver.ts` |
-| Driver/backend selection | `packages/paperclip-runner/src/backends/native-backend-factory.ts` |
-| Per-turn instructions | `packages/paperclip-runner/src/backends/runtime-context.ts` |
-| Governed tool authority | `server/src/services/native-runtime/paperclip-runner-tool-authority.ts` |
+| Rust assignment backend | `packages/nexus-runner/runner/crates/runner-core/src/dot_provider_backend.rs` |
+| TypeScript Runner driver | `packages/nexus-runner/src/drivers/dot/runnerd-dot-driver.ts` |
+| Driver/backend selection | `packages/nexus-runner/src/backends/native-backend-factory.ts` |
+| Per-turn instructions | `packages/nexus-runner/src/backends/runtime-context.ts` |
+| Governed tool authority | `server/src/services/native-runtime/nexus-runner-tool-authority.ts` |
 | Admission, wake, terminal reconciliation | `server/src/services/heartbeat.ts`, `server/src/services/heartbeat/queue.ts`, `server/src/services/heartbeat/run-lifecycle.ts` |
 | Real Rust/DB and managed qualification | `server/src/__tests__/dot-runner.test.ts` |
 

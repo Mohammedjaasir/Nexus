@@ -5,7 +5,7 @@ import { expect, userEvent, within } from "storybook/test";
 import {
   storybookGoals,
   storybookProjects,
-} from "../../fixtures/paperclipData";
+} from "../../fixtures/nexusData";
 import {
   prepareFixtureApi,
   type FixtureState,
@@ -28,7 +28,7 @@ const meta = {
     "Projects and execution/Goals and work alignment/Aligned work and navigation",
   component: Goal,
   parameters: { layout: "padded", initialEntries: ["/PAP/goals/goal-gap"],
-    paperclip: {
+    nexus: {
       "capabilities": [
         "goals/alignment",
         "goals/navigation"

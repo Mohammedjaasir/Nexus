@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import { prepareAdapterExecutionTargetRuntime, runAdapterExecutionTargetShellCommand, type AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
-import { type DirectorySnapshot, type SnapshotEntry } from "@paperclipai/adapter-utils/workspace-restore-merge";
+import { prepareAdapterExecutionTargetRuntime, runAdapterExecutionTargetShellCommand, type AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
+import { type DirectorySnapshot, type SnapshotEntry } from "@nexusai/adapter-utils/workspace-restore-merge";
 import { captureAgentFiles, checkpointPath, type AgentFileManifest, type AgentFileCheckpointStats } from "./scripts/agent-file-checkpoint.mjs";
 import { inspectAgentFile, MAX_AGENT_DIRECTORY_BYTES, MAX_AGENT_DIRECTORY_ENTRIES, MAX_AGENT_FILE_BYTES } from "./agent-file-store.js";
 
@@ -74,7 +74,7 @@ export async function captureAgentFileCheckpoint(input: {
   const target = input.target?.kind === "remote" ? input.target : null;
   // Scratch lives inside this session's reserved runtime area, so retirement
   // reclaims it even if a transient transport failure interrupted cleanup.
-  const remoteDirectory = target ? path.posix.join(input.executionRoot, ".paperclip-runtime", path.basename(directory)) : null;
+  const remoteDirectory = target ? path.posix.join(input.executionRoot, ".nexus-runtime", path.basename(directory)) : null;
   let restore: Awaited<ReturnType<typeof prepareAdapterExecutionTargetRuntime>> | undefined;
   let cacheRuntime: Awaited<ReturnType<typeof prepareAdapterExecutionTargetRuntime>> | undefined;
   const cleanup = async () => {

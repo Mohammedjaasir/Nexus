@@ -17,8 +17,8 @@ import {
   issues,
   issueWorkProducts,
   projects,
-} from "@paperclipai/db";
-import { ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY } from "@paperclipai/shared";
+} from "@nexusai/db";
+import { ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY } from "@nexusai/shared";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -61,7 +61,7 @@ describeEmbeddedPostgres("companyArtifactsService", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-company-artifacts-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-company-artifacts-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -99,7 +99,7 @@ describeEmbeddedPostgres("companyArtifactsService", () => {
     const workProductAttachmentId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
     await db.insert(companies).values([
-      { id: companyId, name: "Paperclip", issuePrefix: "PAP", requireBoardApprovalForNewAgents: false },
+      { id: companyId, name: "Nexus", issuePrefix: "PAP", requireBoardApprovalForNewAgents: false },
       { id: otherCompanyId, name: "OtherCo", issuePrefix: "OTH", requireBoardApprovalForNewAgents: false },
     ]);
     await db.insert(agents).values([
@@ -328,7 +328,7 @@ describeEmbeddedPostgres("companyArtifactsService", () => {
       projectId,
       issueId,
       type: "artifact",
-      provider: "paperclip",
+      provider: "nexus",
       title: "Primary Cut",
       status: "ready_for_review",
       summary: "Main render for review",
@@ -555,7 +555,7 @@ describeEmbeddedPostgres("companyArtifactsService", () => {
       projectId,
       issueId,
       type: "artifact" as const,
-      provider: "paperclip",
+      provider: "nexus",
       title: `Filler Video ${index + 1}`,
       status: "ready_for_review" as const,
       summary: "Filler artifact to push the attachment-backed work product past the fetch window",
@@ -571,7 +571,7 @@ describeEmbeddedPostgres("companyArtifactsService", () => {
         projectId,
         issueId,
         type: "artifact",
-        provider: "paperclip",
+        provider: "nexus",
         title: "Late Render",
         status: "ready_for_review",
         summary: "Attachment-backed work product outside the limited fetch window",
@@ -605,7 +605,7 @@ describeEmbeddedPostgres("companyArtifactsService", () => {
       companyId,
       issueId,
       type: "artifact",
-      provider: "paperclip",
+      provider: "nexus",
       title: "Forged Run Artifact",
       status: "ready_for_review",
       summary: "Historically malformed run attribution",
@@ -671,7 +671,7 @@ describeEmbeddedPostgres("companyArtifactsService", () => {
       companyId,
       issueId: otherIssueId,
       type: "artifact",
-      provider: "paperclip",
+      provider: "nexus",
       title: "Forged Link Work Product",
       status: "ready_for_review",
       summary: "This row is company-owned but points at a foreign issue.",

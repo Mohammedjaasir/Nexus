@@ -21,7 +21,7 @@ export const piNativeTasks: readonly RunnerTaskFixture[] = [
 }));
 
 export function piNativeFinish(marker: string): string {
-  return `After verifying the requested outcome, call paperclip_finish once with reportedWorkDisposition done, summary ${marker}, the current completion contract revision, satisfied objective criterion with evidenceRefs [], no remaining work, evidence [], and verification []. Wait for acceptance, then reply exactly ${marker}. Do not create unrelated work.`;
+  return `After verifying the requested outcome, call nexus_finish once with reportedWorkDisposition done, summary ${marker}, the current completion contract revision, satisfied objective criterion with evidenceRefs [], no remaining work, evidence [], and verification []. Wait for acceptance, then reply exactly ${marker}. Do not create unrelated work.`;
 }
 
 /** Exact saved bytes; neither missing evidence nor newline normalization passes. */
@@ -35,10 +35,10 @@ export function gradePiNativeMemory(actual: unknown, nonce: string): boolean {
 export function hasPiNativeMemoryRead(events: readonly Record<string, any>[], nonce: string, remoteRun?: { agentId: string; runId: string }): boolean {
   const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u;
   if (remoteRun && (!uuid.test(remoteRun.agentId) || !uuid.test(remoteRun.runId))) return false;
-  const target = remoteRun ? `.paperclip-runtime/agent-files/${remoteRun.agentId}/${remoteRun.runId}/${PI_NATIVE_MEMORY_PATH}` : null;
+  const target = remoteRun ? `.nexus-runtime/agent-files/${remoteRun.agentId}/${remoteRun.runId}/${PI_NATIVE_MEMORY_PATH}` : null;
   const tools = events.filter(row => row.eventType === "tool.execution.completed")
     .map(row => row.payload?.prpEvent?.payload)
-    .filter(payload => payload?.schema === "paperclip.tool.execution.v1" && payload.transport === "builtin");
+    .filter(payload => payload?.schema === "nexus.tool.execution.v1" && payload.transport === "builtin");
   const memoryReads = tools.filter(payload => {
     if (payload.name !== "read" || payload.operation !== "read" || payload.status !== "completed"
       || payload.target !== target || payload.readOnly !== true || payload.outputTruncated !== false
@@ -70,17 +70,17 @@ export function piNativeMemoryPrompt(nonce: string, outsidePath?: string): strin
 
 export function piNativePrompt(id: string, nonce: string): string {
   if (id === "native-pending-provider-death") return [
-    'Call paperclip_native_question exactly once with {method:"input",title:"Pi native provider death",placeholder:"Answer"}. Wait for the real answer; never guess it or substitute semantic request_human_input.',
+    'Call nexus_native_question exactly once with {method:"input",title:"Pi native provider death",placeholder:"Answer"}. Wait for the real answer; never guess it or substitute semantic request_human_input.',
     "Only after receiving the actual answer, use native write to save its exact tool-result object as JSON to pi-provider-death-answer.json in the task workspace. Never write that file while the question is unanswered. This is an internal verification file, not a deliverable.",
     piNativeFinish(`PI-NATIVE-${id}-${nonce}`),
   ].join("\n");
   if (id === "native-pending-controller-restart") return [
-    'Call paperclip_native_question exactly once with {method:"input",title:"Pi native restart",placeholder:"Answer"}. Wait for the real answer; never guess it or substitute semantic request_human_input.',
+    'Call nexus_native_question exactly once with {method:"input",title:"Pi native restart",placeholder:"Answer"}. Wait for the real answer; never guess it or substitute semantic request_human_input.',
     "Use native write to save the exact returned tool-result object as JSON to pi-native-restart-answer.json in the task workspace. Do not change or infer its fields. This is an internal verification file, not a deliverable.",
     piNativeFinish(`PI-NATIVE-${id}-${nonce}`),
   ].join("\n");
   if (id === "native-questions") return [
-    "Use paperclip_native_question exactly four times, sequentially, waiting for each answer. Do not substitute semantic request_human_input.",
+    "Use nexus_native_question exactly four times, sequentially, waiting for each answer. Do not substitute semantic request_human_input.",
     'First: {method:"select",title:"Pi native color",options:[{id:"blue",label:"Blue"},{id:"red",label:"Red"}]}.',
     'Second: {method:"confirm",title:"Pi native confirmation",message:"Continue this fixture?"}.',
     'Third: {method:"input",title:"Pi native name",placeholder:"Name"}.',
@@ -113,7 +113,7 @@ export function gradePiNativeAnswers(actual: unknown, name: string, draft: strin
 export function hasFailedPiWrite(events: readonly Record<string, any>[], path: string): boolean {
   return events.some(row => {
     const payload = row.payload?.prpEvent?.payload;
-    return row.eventType === "tool.execution.completed" && payload?.schema === "paperclip.tool.execution.v1"
+    return row.eventType === "tool.execution.completed" && payload?.schema === "nexus.tool.execution.v1"
       && payload.operation === "edit" && payload.status === "failed"
       && payload.target === path;
   });
@@ -123,7 +123,7 @@ export function hasFailedPiWrite(events: readonly Record<string, any>[], path: s
 export function hasPiCrossRootDenial(events: readonly Record<string, any>[]): boolean {
   const denied = events.filter(row => {
     const payload = row.payload?.prpEvent?.payload;
-    return row.eventType === "tool.execution.completed" && payload?.schema === "paperclip.tool.execution.v1"
+    return row.eventType === "tool.execution.completed" && payload?.schema === "nexus.tool.execution.v1"
       && payload.transport === "builtin" && payload.operation === "edit" && payload.name === "write"
       && payload.status === "failed" && payload.target === null
       && typeof payload.executionId === "string" && payload.executionId.length > 0

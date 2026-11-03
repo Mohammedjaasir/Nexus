@@ -4,9 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { agents, companies, companyMemberships, companySkills, companySkillSources, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS,
-  projectAccessMembers, projects, projectSkillSources } from "@paperclipai/db";
+  projectAccessMembers, projects, projectSkillSources } from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
-import { PAPERCLIP_FEEDBACK_SKILL_KEYS, PAPERCLIP_OPERATIONAL_SKILL_KEY } from "@paperclipai/adapter-utils/server-utils";
+import { NEXUS_FEEDBACK_SKILL_KEYS, NEXUS_OPERATIONAL_SKILL_KEY } from "@nexusai/adapter-utils/server-utils";
 import { companySkillService } from "../services/company-skills.js";
 import { withSkillActor } from "../services/skill-access.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
@@ -18,18 +18,18 @@ describeDatabase("concurrent runtime skill preparation", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   let home: string;
-  const previousHome = process.env.PAPERCLIP_HOME;
+  const previousHome = process.env.NEXUS_HOME;
 
   beforeAll(async () => {
     database = await startEmbeddedPostgresTestDatabase("runtime-skill-concurrency-");
     db = createDb(database.connectionString);
     home = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-skill-concurrency-"));
-    process.env.PAPERCLIP_HOME = home;
+    process.env.NEXUS_HOME = home;
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
 
   afterAll(async () => {
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = previousHome;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = previousHome;
     await db?.$client.end({ timeout: 0 });
     await database?.cleanup();
     if (home) await fs.rm(home, { recursive: true, force: true });
@@ -41,15 +41,15 @@ describeDatabase("concurrent runtime skill preparation", () => {
     const select = vi.spyOn(db, "select");
     try {
       const selections = await Promise.all(Array.from({ length: 6 }, () => companySkillService(db).listRuntimeSkillEntries(companyId, {
-        selectionConfig: { paperclipSkillSync: { desiredSkills: [] } }, includeLegacy: true, snapshotLatest: true,
+        selectionConfig: { nexusSkillSync: { desiredSkills: [] } }, includeLegacy: true, snapshotLatest: true,
       })));
       for (const entries of selections) {
-        expect(entries.map(entry => entry.key).sort()).toEqual([PAPERCLIP_OPERATIONAL_SKILL_KEY, ...PAPERCLIP_FEEDBACK_SKILL_KEYS].sort());
+        expect(entries.map(entry => entry.key).sort()).toEqual([NEXUS_OPERATIONAL_SKILL_KEY, ...NEXUS_FEEDBACK_SKILL_KEYS].sort());
         expect(entries.every(entry => entry.sourceStatus === "available" && entry.versionId)).toBe(true);
       }
       expect(select.mock.calls.filter(([fields]) => fields && Object.keys(fields).length === 1 && fields.id === companies.id)).toHaveLength(1);
       await companySkillService(db).listRuntimeSkillEntries(companyId, {
-        selectionConfig: { paperclipSkillSync: { desiredSkills: [] } }, includeLegacy: true, snapshotLatest: true,
+        selectionConfig: { nexusSkillSync: { desiredSkills: [] } }, includeLegacy: true, snapshotLatest: true,
       });
       expect(select.mock.calls.filter(([fields]) => fields && Object.keys(fields).length === 1 && fields.id === companies.id)).toHaveLength(2);
     } finally { select.mockRestore(); }

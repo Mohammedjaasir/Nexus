@@ -2,10 +2,10 @@ import path from "node:path";
 
 // One bounded metadata record per server file. No test names, output, or secrets.
 // The refresh job reads these as data from successful protected-master runs.
-export const timingPrefix = "PAPERCLIP_TEST_TIMING ";
+export const timingPrefix = "NEXUS_TEST_TIMING ";
 
 export function fileTiming(module, root = process.cwd()) {
-  if (module.project.name !== "@paperclipai/server" || module.state() !== "passed") return null;
+  if (module.project.name !== "@nexusai/server" || module.state() !== "passed") return null;
   const file = path.relative(root, module.moduleId).split(path.sep).join("/");
   if (!/^server\/(?:src|scripts)\/.+\.test\.[cm]?[jt]s$/.test(file)) return null;
   const timing = module.diagnostic();

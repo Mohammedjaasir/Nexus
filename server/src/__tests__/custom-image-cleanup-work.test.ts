@@ -1,4 +1,4 @@
-import { createDb } from "@paperclipai/db";
+import { createDb } from "@nexusai/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { registerCustomImageCleanupWork } from "../services/custom-image-cleanup-work.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";

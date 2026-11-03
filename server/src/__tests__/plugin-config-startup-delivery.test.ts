@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { companies, createDb, pluginConfig, plugins } from "@paperclipai/db";
+import { companies, createDb, pluginConfig, plugins } from "@nexusai/db";
 import { pluginRegistryService } from "../services/plugin-registry.js";
 import {
   getEmbeddedPostgresTestSupport,
@@ -34,7 +34,7 @@ describeEmbeddedPostgres("registry.listConfigs (startup config delivery)", () =>
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-plugin-config-delivery-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-plugin-config-delivery-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -53,7 +53,7 @@ describeEmbeddedPostgres("registry.listConfigs (startup config delivery)", () =>
     await db.insert(plugins).values({
       id: pluginId,
       pluginKey,
-      packageName: `@paperclipai/${pluginKey}`,
+      packageName: `@nexusai/${pluginKey}`,
       version: "0.0.1",
       apiVersion: 1,
       categories: ["automation"],
@@ -63,7 +63,7 @@ describeEmbeddedPostgres("registry.listConfigs (startup config delivery)", () =>
         version: "0.0.1",
         displayName: pluginKey,
         description: "Test plugin",
-        author: "Paperclip",
+        author: "Nexus",
         categories: ["automation"],
         capabilities: [],
         entrypoints: { worker: "./dist/worker.js" },
@@ -86,7 +86,7 @@ describeEmbeddedPostgres("registry.listConfigs (startup config delivery)", () =>
 
   it("returns every company-scoped config row for a plugin", async () => {
     const registry = pluginRegistryService(db);
-    const pluginId = await seedPlugin("paperclip.gateway-test", 1);
+    const pluginId = await seedPlugin("nexus.gateway-test", 1);
     const companyA = await seedCompany();
     const companyB = await seedCompany();
 
@@ -109,8 +109,8 @@ describeEmbeddedPostgres("registry.listConfigs (startup config delivery)", () =>
 
   it("only returns rows for the requested plugin (no cross-plugin bleed)", async () => {
     const registry = pluginRegistryService(db);
-    const pluginId = await seedPlugin("paperclip.gateway-test", 1);
-    const otherPluginId = await seedPlugin("paperclip.other-test", 2);
+    const pluginId = await seedPlugin("nexus.gateway-test", 1);
+    const otherPluginId = await seedPlugin("nexus.other-test", 2);
     const companyA = await seedCompany();
 
     await registry.upsertConfig(pluginId, companyA, {
@@ -129,7 +129,7 @@ describeEmbeddedPostgres("registry.listConfigs (startup config delivery)", () =>
 
   it("returns an empty list when the plugin has no configured companies", async () => {
     const registry = pluginRegistryService(db);
-    const pluginId = await seedPlugin("paperclip.gateway-test", 1);
+    const pluginId = await seedPlugin("nexus.gateway-test", 1);
     const rows = await registry.listConfigs(pluginId);
     expect(rows).toEqual([]);
   });

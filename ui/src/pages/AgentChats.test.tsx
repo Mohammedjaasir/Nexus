@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { recordAgentChatVisit } from "@/lib/recent-agent-chats";
 import { AgentChats } from "./AgentChats";
 
@@ -64,9 +64,9 @@ beforeEach(() => {
   state.navigate.mockReset();
   for (const id of ["alice", "bob", "removed", "retired-id"])
     recordAgentChatVisit("company-a", "user-a", id, null);
-  localStorage.setItem("paperclip.recentAgentChats:company-a:user-a", "[]");
-  localStorage.setItem("paperclip.recentAgentChats:company-b:user-a", "[]");
-  localStorage.setItem("paperclip.recentAgentChats:company-a:user-b", "[]");
+  localStorage.setItem("nexus.recentAgentChats:company-a:user-a", "[]");
+  localStorage.setItem("nexus.recentAgentChats:company-b:user-a", "[]");
+  localStorage.setItem("nexus.recentAgentChats:company-a:user-b", "[]");
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);

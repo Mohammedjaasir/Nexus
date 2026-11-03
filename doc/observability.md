@@ -6,11 +6,11 @@ instrumentation contracts; see the
 [Telemetry Data Contract](../packages/shared/src/telemetry/README.md) for the
 separate first-party event system.
 
-Paperclip ships with **opt-in** OpenTelemetry auto-instrumentation for the
+Nexus ships with **opt-in** OpenTelemetry auto-instrumentation for the
 server process. When activated it produces **traces only** — no metrics and no
 logs are exported by this integration.
 
-`@opentelemetry/api` is a normal dependency of `@paperclipai/server`. Every
+`@opentelemetry/api` is a normal dependency of `@nexusai/server`. Every
 install includes it. It stays a no-op interface until an SDK registers a
 provider, so it exports no telemetry by itself.
 
@@ -30,7 +30,7 @@ server tests against; install that exact version. Our Dependabot cannot bump
 these versions: its npm parser reads only `dependencies`, `devDependencies`,
 and `optionalDependencies`, never `peerDependencies`. A peer version here is a
 compatibility claim, not an installed version, so raising it is a human
-decision. `@opentelemetry/api` is the one OpenTelemetry package Paperclip
+decision. `@opentelemetry/api` is the one OpenTelemetry package Nexus
 maintains as a dependency; once you install the packages below, they become
 normal dependencies of **your own** project, and your own Dependabot updates
 them.
@@ -44,7 +44,7 @@ Keep credential values out of logs and diagnostic reports.
 
 ## Budget admission, accounting, and enforcement
 
-The operator-gated `paperclip.budgets` tracer records
+The operator-gated `nexus.budgets` tracer records
 `budget.admission.evaluate`, `budget.admission.reserve`,
 `budget.accounting.transaction`, `budget.accounting.settlement`, `budget.accounting.lock_wait`,
 `budget.exposure.evaluate`, `budget.enforcement.deliver`,
@@ -59,7 +59,7 @@ The closed attribute list is `budget.policy_count` (number of applicable
 policies) and `budget.enforcement.queue_delay_ms` (time since the pending policy's
 last intent or retry timestamp). These spans contain no tool content, usage
 receipt bodies, credentials, or provider error bodies. They do not change
-Paperclip's separate first-party Telemetry contract.
+Nexus's separate first-party Telemetry contract.
 
 ## Slack receipt reactions
 
@@ -72,15 +72,15 @@ cleanup when the final response is published.
 
 The Slack adapter also skips the SDK's two-second polling wait for optional link
 unfurls before message dispatch. Text, formatted content, link URLs and file
-download handles remain available. Paperclip does not consume that optional
+download handles remain available. Nexus does not consume that optional
 preview metadata for task admission.
 
-With an operator OTLP endpoint, the `paperclip.chat` tracer records
+With an operator OTLP endpoint, the `nexus.chat` tracer records
 `chat.slack.receipt` around each Slack reaction API attempt. Its closed attributes
-are `paperclip.chat.receipt.operation` (`add` or `remove`),
-`paperclip.chat.receipt.outcome` (`confirmed` or `failed`),
-`paperclip.chat.receipt.queue_ms` (action creation to transport), and
-`paperclip.chat.receipt.delivery_age_ms` (durable inbound receipt to provider
+are `nexus.chat.receipt.operation` (`add` or `remove`),
+`nexus.chat.receipt.outcome` (`confirmed` or `failed`),
+`nexus.chat.receipt.queue_ms` (action creation to transport), and
+`nexus.chat.receipt.delivery_age_ms` (durable inbound receipt to provider
 confirmation or failure). `already_reacted` confirms an idempotent add.
 Delivery age excludes Slack-to-webhook transit and SDK parsing; the span duration
 measures provider I/O. A failed attempt is not an acknowledgement latency sample.
@@ -90,13 +90,13 @@ cannot change reaction transport or settlement.
 
 ## Task detail loading
 
-`GET /api/issues/:id` returns `Server-Timing` with `paperclip_issue` for the
+`GET /api/issues/:id` returns `Server-Timing` with `nexus_issue` for the
 whole handler and `issue_<phase>` for its reads. The total includes the final
 execution-blocker read after recovery revalidation. Concurrent phases overlap;
 do not sum them to obtain request duration.
 
 With the existing operator-configured OTLP endpoint, the same reads produce
-`issue.read.<phase>` child spans through the `paperclip.issue-read` tracer.
+`issue.read.<phase>` child spans through the `nexus.issue-read` tracer.
 There are no custom attributes, identifiers, content, or exception messages.
 The closed phase names in `server/src/services/issue-read-timing.ts` are:
 `lookup`, `authorization`, `project_goal`, `ancestors`, `mentions`, `documents`,
@@ -164,7 +164,7 @@ export OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4317"
 export OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
 
 # Optional — service identity attached to every span.
-export OTEL_SERVICE_NAME="paperclip"
+export OTEL_SERVICE_NAME="nexus"
 export OTEL_SERVICE_VERSION="2026.5.0"
 ```
 
@@ -178,7 +178,7 @@ returns a value:
    `dist/build-info.json`. The stamp wins so the reported version tracks the
    true built commit and cannot go stale across rebuilds. The build script
    reads the commit from `git rev-parse --short HEAD` first. A Docker image
-   build excludes `.git`, so the build script reads the `PAPERCLIP_BUILD_COMMIT`
+   build excludes `.git`, so the build script reads the `NEXUS_BUILD_COMMIT`
    environment variable instead. Pass the built commit in that variable so the
    image stamp records the true commit.
 2. **A runtime `git rev-parse --short HEAD`.** This covers `tsx src/index.ts`
@@ -186,14 +186,14 @@ returns a value:
    stamp. A failure here is not fatal.
 3. **The `OTEL_SERVICE_VERSION` environment variable.** This is the fallback
    for a build with no stamp and no reachable git — for example a tarball
-   build. `OTEL_SERVICE_VERSION` is a Paperclip-specific variable, not an
-   OpenTelemetry SDK variable, so Paperclip controls this precedence.
+   build. `OTEL_SERVICE_VERSION` is a Nexus-specific variable, not an
+   OpenTelemetry SDK variable, so Nexus controls this precedence.
 4. **`"unknown"`** when no source returns a value.
 
 The server logs the resolved `service.version` once at startup, so an operator
 can confirm the value.
 
-If `OTEL_EXPORTER_OTLP_PROTOCOL` is set to an unrecognized value, Paperclip
+If `OTEL_EXPORTER_OTLP_PROTOCOL` is set to an unrecognized value, Nexus
 logs a single warning and falls back to gRPC.
 
 Before it imports any OTel package, the server checks the four common
@@ -216,7 +216,7 @@ Those sections follow below.
 
 ## Controller preparation phases
 
-With an operator OTLP endpoint, `paperclip.heartbeat-preparation` emits active
+With an operator OTLP endpoint, `nexus.heartbeat-preparation` emits active
 `heartbeat.prepare.<phase>` spans around environment selection, execution
 configuration, session preparation, workspace preparation, GitHub environment
 and launcher preparation, run output initialization, workspace validation,
@@ -266,7 +266,7 @@ same hashed run ID and never capture reply content. A successful task status is
 separate from the time the reply is saved.
 
 These spans exist before provider dispatch, including setup failures. Preparation phases have
-only the existing `paperclip.task.run.run_id` attribute: the first 12 hexadecimal
+only the existing `nexus.task.run.run_id` attribute: the first 12 hexadecimal
 characters of the run UUID's SHA-256 hash. Failed operations set error status
 without recording exception messages, paths, inputs, or returned content.
 Search by that hash without a root-name filter to include these preparation
@@ -283,7 +283,7 @@ project repositories, and recovery-root reservation. These intervals are inside
 Do not add these intervals to the containing workspace duration. They use the
 same run hash and contain no workspace paths, commands, or returned records.
 
-The `paperclip.native-controller` tracer records
+The `nexus.native-controller` tracer records
 `native.controller.<phase>` spans around GitHub access setup, wake binding,
 backend construction, connector assignments, assigned MCP discovery, tool
 authority, companion selection and Runner binary resolution. It also records
@@ -307,7 +307,7 @@ cannot repeat work or replace its result or error. Automatic database children
 are not guaranteed: an aggregate workspace trace can contain just one span.
 If a process exits before an operation settles, its open span may not be exported.
 
-With an endpoint, `paperclip.controller-startup` records independent
+With an endpoint, `nexus.controller-startup` records independent
 `controller.startup.<phase>` root spans for tool reviews, gateway sessions,
 delivery-worker readiness, accounting, plugin-worker readiness, native recovery,
 hot-restart adoption, orphan reaping, scheduled retries, queued runs, and goal
@@ -320,11 +320,11 @@ Tracing failures cannot repeat recovery or replace its result or error.
 Native recovery and orphan reaping each run a native finalization
 reconciliation pass; the periodic recovery loop runs it on every scheduler tick.
 With an endpoint, a pass that takes at least one second records, after it ends,
-a `controller.native_reconciliation` root span from `paperclip.native-reconciliation`
+a `controller.native_reconciliation` root span from `nexus.native-reconciliation`
 with one child span per phase: `legacy_workspace_exports`,
 `obsolete_policy_reviews`, `automatic_completion_reviews`, `candidate_scan` and
-`candidates`. The pass span carries `paperclip.native_reconciliation.scoped` and,
-once known, `paperclip.native_reconciliation.candidates` (a count). A failed
+`candidates`. The pass span carries `nexus.native_reconciliation.scoped` and,
+once known, `nexus.native_reconciliation.candidates` (a count). A failed
 pass marks the pass span and the phase that was running with an error status.
 Faster passes record nothing.
 
@@ -338,7 +338,7 @@ branches before it returns an error or releases acquired credentials.
 
 ### Detailed execution phases
 
-The `paperclip.execution` tracer adds these content-free spans beneath the current
+The `nexus.execution` tracer adds these content-free spans beneath the current
 attempt or owning phase:
 
 | Span family | Measured work |
@@ -382,7 +382,7 @@ attempt or owning phase:
 | `execution.realtime` | Synchronous live-event and plugin publication dispatch. It does not measure browser receipt or paint. |
 
 For bounded native OpenCode diagnosis, set
-`PAPERCLIP_OPENCODE_PERFORMANCE_DIAGNOSTICS=1` as an agent/environment variable.
+`NEXUS_OPENCODE_PERFORMANCE_DIAGNOSTICS=1` as an agent/environment variable.
 The existing configured-environment projection carries it into the native Runner.
 It defaults off. The Runner creates an authenticated loopback OTLP sink and enables
 the pinned OpenCode runtime's internal tracing. The sink discards logs, resource
@@ -422,14 +422,14 @@ or per-file spans. Adding detail spans does not itself change work, query order,
 authorization, or locks.
 Manual transaction and dispatch boundaries retain their actual lifetime.
 Asset writes and verification may add only non-negative integer
-`paperclip.execution.fileCount` and `paperclip.execution.bytes` attributes.
+`nexus.execution.fileCount` and `nexus.execution.bytes` attributes.
 The closed keys are declared in `EXECUTION_PREPARATION_SPAN_ATTRS` in
 `packages/adapter-utils/src/acpx-engine/startup-timing.ts`.
 Repository checkout cache phases also carry the closed
-`paperclip.execution.repositoryCache.outcome` value: `disabled`, `hit`, `miss`,
+`nexus.execution.repositoryCache.outcome` value: `disabled`, `hit`, `miss`,
 `published`, `already_present`, `contended`, `capacity`, `budget`, `invalid`, or `error`.
 The clone span carries the boolean
-`paperclip.execution.repositoryCache.reference_supplied`, including `false` for
+`nexus.execution.repositoryCache.reference_supplied`, including `false` for
 a fallback clone. A lookup hit means a validated cache was found, and supplying
 a reference does not prove Git avoided a download. These attributes carry no
 cache keys, remote URLs, paths, refs, credentials, or error text.
@@ -585,7 +585,7 @@ No authorization result is cached across calls.
 
 ### Reading a slow startup in Honeycomb
 
-Filter `paperclip.task.run.run_id` to the first 12 hex characters of
+Filter `nexus.task.run.run_id` to the first 12 hex characters of
 `SHA256(run UUID)`, then inspect the attempt's waterfall with its
 `service.version`. An agent/model setting or the repository's checked-out commit
 does not establish the server revision. The detailed spans are available only
@@ -754,7 +754,7 @@ only for newly committed output; it does not reconstruct prior first-token timin
 `task.time_to_first_token` is a child of `task.provider_session` that overlaps
 queueing, preparation and execution; do not add its duration to those phases.
 No text or provider event identifiers are exported. The existing duration attribute
-is `paperclip.native.span.duration_ms`.
+is `nexus.native.span.duration_ms`.
 
 `tool.request.input_stream` measures the observed request-input window: from
 an ACP tool announcement to its last input update before the provider reports
@@ -780,7 +780,7 @@ retain their documented fallback behavior.
 
 The root carries only a hashed run id, runtime label, schema version, wall time,
 and outcome. Native child attributes use the bounded
-`paperclip.native.span.` prefix and a closed key allowlist; values are limited
+`nexus.native.span.` prefix and a closed key allowlist; values are limited
 to finite numbers, booleans, or short strings. Commands, arguments, environment
 values, paths, output, credentials, and raw identifiers are discarded by the
 trace helper. `task.provider_session.measured` records that same interval in the
@@ -795,7 +795,7 @@ run-log copy is unaffected.
 
 ## Sentry Error Monitoring
 
-Paperclip ships with **opt-in** Sentry error monitoring for the server
+Nexus ships with **opt-in** Sentry error monitoring for the server
 process and the browser app. The operator activates it with two
 environment variables: `SENTRY_DSN_FRONTEND` for the browser and
 `SENTRY_DSN_BACKEND` for the server. Each variable is optional. A
@@ -924,7 +924,7 @@ Both runtimes use Sentry's privacy options. The server also adds saved-run
 navigation links through a bounded `beforeSend` hook.
 
 - `sendDefaultPii` is `false`, on both runtimes.
-- `tracesSampleRate` is `0`, on both runtimes. Paperclip sends no
+- `tracesSampleRate` is `0`, on both runtimes. Nexus sends no
   performance trace and no profile.
 - The server hook reads only saved run and company metadata for navigation.
   It copies no request data and preserves the event if the lookup fails.
@@ -942,7 +942,7 @@ server event captured inside a real HTTP request handler carries no
 request field").
 
 The reason is `skipOpenTelemetrySetup: true`. This feature sets that
-option so it never fights Paperclip's separate, independently opt-in
+option so it never fights Nexus's separate, independently opt-in
 OpenTelemetry feature for control of the global tracer. The same option
 turns off Sentry's per-request context tracking. Sentry's built-in
 `RequestData` integration needs that tracking to find a URL, a method, a
@@ -964,7 +964,7 @@ below.
 ### Run failure context
 
 Run failure reporting requires a separate operator choice in addition to the
-backend Sentry DSN and the audited SDK. Set `PAPERCLIP_SENTRY_RUN_FAILURES` to:
+backend Sentry DSN and the audited SDK. Set `NEXUS_SENTRY_RUN_FAILURES` to:
 
 | Value | Reports |
 | --- | --- |
@@ -982,7 +982,7 @@ it on one staging instance without enabling it on other deployments. Restart the
 server after changing deployment environment variables.
 
 **Upgrade:** A backend DSN alone previously enabled run failure reports. Set
-`PAPERCLIP_SENTRY_RUN_FAILURES=unexpected` to preserve that reporting policy.
+`NEXUS_SENTRY_RUN_FAILURES=unexpected` to preserve that reporting policy.
 Use `all` to investigate every failed run in a selected deployment.
 
 Terminal run failures carry the company, agent, run and optional task IDs,
@@ -1009,9 +1009,9 @@ process-local cache of the latest 1,000 reports. A server restart or cache evict
 can report an old failure again. This task-state event can accompany a separate
 terminal run-failure report; the `failure_source` tag distinguishes them.
 
-The versioned `paperclip` context supplies company and agent IDs and relative
+The versioned `nexus` context supplies company and agent IDs and relative
 API paths for the saved run, events, log, and optional task. A valid HTTP(S)
-origin in `PAPERCLIP_PUBLIC_URL` also supplies absolute run, events, and log URLs.
+origin in `NEXUS_PUBLIC_URL` also supplies absolute run, events, and log URLs.
 Values with credentials, query parameters, fragments, or a path are omitted.
 The event never includes an API key or an access token. These references grant
 no access. A bot must authenticate to the correct instance and pass its existing
@@ -1019,17 +1019,17 @@ company, run-output, and private-task access checks.
 
 Server events associated with a saved run also include `task_url` and `run_url`
 tags for the normal company-prefixed board pages, plus `task_identifier` when
-available. The `paperclip` context contains the same navigation links as
+available. The `nexus` context contains the same navigation links as
 `taskUrl` and `runPageUrl`; the existing `runUrl` remains an API reference.
 This enrichment applies to run failures, adapter Stop timeouts, and server errors
 with authenticated run context. It resolves the saved company, agent, and task
 instead of copying request URLs, queries, or bodies. Taskless runs receive only a
-run link. Missing or unsafe `PAPERCLIP_PUBLIC_URL` values omit these links.
+run link. Missing or unsafe `NEXUS_PUBLIC_URL` values omit these links.
 The optional indexed metadata lookup has a one-second reporting deadline and a
 limit of eight unfinished reads. A failed or slow lookup preserves the original
 event without navigation links.
 URLs longer than Sentry's 200-character tag limit remain in context only.
-Links require the viewer's normal Paperclip access and apply to newly captured
+Links require the viewer's normal Nexus access and apply to newly captured
 events; existing Sentry events are not rewritten.
 
 The bot should use the exact run ID to read `GET /api/heartbeat-runs/{runId}`,
@@ -1045,7 +1045,7 @@ passes through the existing secret redaction and size limits.
 
 Use the Sentry group to combine repeated investigations, and the instance and
 run ID to identify each occurrence. Automated retries or proposed code fixes
-must use normal Paperclip authority and approval checks. Receiving an event
+must use normal Nexus authority and approval checks. Receiving an event
 does not authorize a bot to replay a run. This change provides the reporting
 contract; it does not install a bot or configure Sentry alerts.
 
@@ -1346,10 +1346,10 @@ own tool calls instead. Other ACP agents are watched only when
 The engine also observes ACP permission requests without deciding them; ACPX's
 permission mode still decides each one. A stalled run records
 `acpStalledToolPermissionRequested` (whether the stalled call's permission
-request reached Paperclip) and `acpPendingToolPermissionRequestedCount` (how many
+request reached Nexus) and `acpPendingToolPermissionRequestedCount` (how many
 pending calls had one). These fields record only that a request arrived, not
 that the reply reached the agent. A call whose request never arrived stalled
-before the request reached Paperclip. A call whose request arrived stalled
+before the request reached Nexus. A call whose request arrived stalled
 later: on the reply's return trip, or after the agent received the decision.
 Both fields hold only a boolean and a count.
 
@@ -1362,7 +1362,7 @@ the call stalled. The ACP kind is coarse, so peers of the same kind can be
 different tools with different permission rules. Read them this way:
 
 - All or nearly all finished peers sent a request, and the stalled call did not:
-  this supports a stall before the request reached Paperclip.
+  this supports a stall before the request reached Nexus.
 - No finished peer sent a request: calls of that kind may skip the request, so
   its absence on the stalled call says nothing about where it stalled.
 - Some finished peers sent a request and others did not: the counts do not show
@@ -1583,7 +1583,7 @@ The server sets `release` to the full source commit from its build metadata.
 An explicit `SENTRY_RELEASE` overrides that default. If neither is available,
 the server leaves the release unset.
 
-The browser also sets `release`, using the full `PAPERCLIP_BUILD_COMMIT`
+The browser also sets `release`, using the full `NEXUS_BUILD_COMMIT`
 supplied when its bundle is built, or the checkout commit for source and npm
 builds. The server reads its packaged build stamp when no deployment marker
 is present. Docker passes the same commit to both
@@ -1707,17 +1707,17 @@ Two controls belong to the operator. This feature ships neither one.
 
 ## Sandbox Startup Trace Spans
 
-Paperclip opens OpenTelemetry spans on the sandbox start path. These spans are
-an Observability surface. They are not Paperclip Telemetry events. The
+Nexus opens OpenTelemetry spans on the sandbox start path. These spans are
+an Observability surface. They are not Nexus Telemetry events. The
 generated telemetry contract does not cover them, so this section is their
 canonical contract.
 
-The spans are opt-in. Paperclip exports them only when an OTLP endpoint is
-configured. With no endpoint the whole span path is a no-op. Paperclip opens the
+The spans are opt-in. Nexus exports them only when an OTLP endpoint is
+configured. With no endpoint the whole span path is a no-op. Nexus opens the
 spans only for a run that targets a remote sandbox. A local run and an SSH run
 stay out of these spans.
 
-Every span attribute uses the closed `paperclip.sandbox.startup.` prefix and
+Every span attribute uses the closed `nexus.sandbox.startup.` prefix and
 rides a fixed allowlist. A command line, an argument, an environment value, a
 file path, program output, or a raw identifier never rides a span. It rides
 neither as an attribute nor as an event. The producer bounds each free-form
@@ -1728,7 +1728,7 @@ value:
 - An image id, a sandbox id, and a lease id ride only as a non-reversible short
   hash.
 
-Each numeric attribute is finite. Paperclip omits an attribute when its value is
+Each numeric attribute is finite. Nexus omits an attribute when its value is
 absent, never a misleading `0`.
 
 ### Spans
@@ -1746,7 +1746,7 @@ absent, never a misleading `0`.
 | `stage.asset.<key>`                   | One inbound asset stage task inside `stage.sync`. It packs and uploads one managed-home asset. The `<key>` segment is the asset key.                       | `stage.sync`                    |
 | `stage.project.<id>`                  | One inbound referenced-project stage task inside `stage.sync`. It uploads one referenced project. The `<id>` segment is the project id.                    | `stage.sync`                    |
 | `pack`                                | Host-side workspace tarball build inside the `stage.workspace` task.                                                                                       | `stage.workspace`               |
-| `bridge.paperclip`                    | Paperclip bridge start step.                                                                                                                               | `sandbox.startup`               |
+| `bridge.nexus`                    | Nexus bridge start step.                                                                                                                               | `sandbox.startup`               |
 | `bridge.process-session`              | Process-session bridge start step.                                                                                                                         | `sandbox.startup`               |
 | `acp.handshake`                       | ACP session handshake step.                                                                                                                                | `sandbox.startup`               |
 | `sandbox.syncBack`                    | The settlement sync-back that restores the managed home at teardown.                                                                                       | the active run span             |
@@ -1754,7 +1754,7 @@ absent, never a misleading `0`.
 | `restore.asset.<key>`                 | One outbound asset restore task at teardown. It reads one asset back to its host store. The `<key>` segment is the asset key.                              | `sandbox.syncBack`              |
 | `sandbox.agentSession.sendInput`      | One outbound ACP message to the agent — the socket handler's one `writeTextFile` exec.                                                                     | the active run span             |
 | `sandbox.agentSession.pollOutput`     | One 100 ms poll tick — `list`, then `read`+`remove` per file found (`1 + 2n` execs).                                                                       | the active run span             |
-| `sandbox.callbackBridge.relayRequest` | One Paperclip-API callback request — read the request, write the response, remove it.                                                                      | the active run span             |
+| `sandbox.callbackBridge.relayRequest` | One Nexus-API callback request — read the request, write the response, remove it.                                                                      | the active run span             |
 | `sandbox.agentProcess`                | The persistent streamed agent process the process-session bridge launches; open until the process settles or the bridge tears down, whichever comes first. | the active run span             |
 | `sandbox.exec`                        | One host-to-sandbox execution.                                                                                                                             | the active step or wrapper span |
 
@@ -1796,7 +1796,7 @@ status when the exit code is non-zero or the execution throws.
 
 ### Outcome values
 
-The `paperclip.sandbox.startup.outcome` attribute uses a closed value set:
+The `nexus.sandbox.startup.outcome` attribute uses a closed value set:
 
 - `ok` — the step or the execution settled with a success result.
 - `skipped` — a warm cache skipped the step; the step ran no work.
@@ -1808,16 +1808,16 @@ The `sandbox.startup` root span uses this closed attribute allowlist.
 
 | Attribute                                | Type    | Optional | Meaning                                                    |
 | ---------------------------------------- | ------- | -------- | ---------------------------------------------------------- |
-| `paperclip.sandbox.startup.root.wall_ms` | number  | no       | The root-span wall time of the whole bring-up.             |
-| `paperclip.sandbox.startup.root.work_ms` | number  | no       | The sum of the step wall times.                            |
-| `paperclip.sandbox.startup.root.diff_ms` | number  | no       | `work_ms − wall_ms`; the overlap the parallel steps saved. |
-| `paperclip.sandbox.startup.provider`     | string  | yes      | The normalized provider family.                            |
-| `paperclip.sandbox.startup.cold_start`   | boolean | yes      | Legacy value, set only when receipts establish cold or warm startup. |
-| `paperclip.sandbox.startup.warmth`       | string  | yes      | Receipt-derived `cold`, `warm`, `partial_reuse`, or `unknown`. |
-| `paperclip.sandbox.startup.region`       | string  | yes      | The clamped region label.                                  |
-| `paperclip.sandbox.startup.image_id`     | string  | yes      | The hashed image id.                                       |
-| `paperclip.sandbox.startup.sandbox_id`   | string  | yes      | The hashed sandbox id.                                     |
-| `paperclip.sandbox.startup.lease_id`     | string  | yes      | The hashed lease id.                                       |
+| `nexus.sandbox.startup.root.wall_ms` | number  | no       | The root-span wall time of the whole bring-up.             |
+| `nexus.sandbox.startup.root.work_ms` | number  | no       | The sum of the step wall times.                            |
+| `nexus.sandbox.startup.root.diff_ms` | number  | no       | `work_ms − wall_ms`; the overlap the parallel steps saved. |
+| `nexus.sandbox.startup.provider`     | string  | yes      | The normalized provider family.                            |
+| `nexus.sandbox.startup.cold_start`   | boolean | yes      | Legacy value, set only when receipts establish cold or warm startup. |
+| `nexus.sandbox.startup.warmth`       | string  | yes      | Receipt-derived `cold`, `warm`, `partial_reuse`, or `unknown`. |
+| `nexus.sandbox.startup.region`       | string  | yes      | The clamped region label.                                  |
+| `nexus.sandbox.startup.image_id`     | string  | yes      | The hashed image id.                                       |
+| `nexus.sandbox.startup.sandbox_id`   | string  | yes      | The hashed sandbox id.                                     |
+| `nexus.sandbox.startup.lease_id`     | string  | yes      | The hashed lease id.                                       |
 
 ### Step span attributes
 
@@ -1832,36 +1832,36 @@ rides the span name, so no `step` attribute repeats it.
 
 | Attribute                                                    | Type   | Optional | Meaning                                                  |
 | ------------------------------------------------------------ | ------ | -------- | -------------------------------------------------------- |
-| `paperclip.sandbox.startup.step.wall_ms`                     | number | no       | The wall time of the step.                               |
-| `paperclip.sandbox.startup.outcome`                          | string | no       | The step outcome (`ok`, `skipped`, or `failed`).         |
-| `paperclip.sandbox.startup.provider`                         | string | yes      | The normalized provider family.                          |
-| `paperclip.sandbox.startup.batch`                            | string | yes      | A shared tag that marks two parallel steps as one batch. |
-| `paperclip.sandbox.startup.handshake.create_runtime.wall_ms` | number | yes      | The create-runtime sub-time of the `acp.handshake` step. |
-| `paperclip.sandbox.startup.handshake.ensure_session.wall_ms` | number | yes      | The ensure-session sub-time of the `acp.handshake` step. |
+| `nexus.sandbox.startup.step.wall_ms`                     | number | no       | The wall time of the step.                               |
+| `nexus.sandbox.startup.outcome`                          | string | no       | The step outcome (`ok`, `skipped`, or `failed`).         |
+| `nexus.sandbox.startup.provider`                         | string | yes      | The normalized provider family.                          |
+| `nexus.sandbox.startup.batch`                            | string | yes      | A shared tag that marks two parallel steps as one batch. |
+| `nexus.sandbox.startup.handshake.create_runtime.wall_ms` | number | yes      | The create-runtime sub-time of the `acp.handshake` step. |
+| `nexus.sandbox.startup.handshake.ensure_session.wall_ms` | number | yes      | The ensure-session sub-time of the `acp.handshake` step. |
 
 The round-trip count and the provider durations no longer ride a step span. The
 per-execution `sandbox.exec` child spans carry that detail.
 
 ### `sandbox.exec` span attributes
 
-The `sandbox.exec` span uses this closed attribute allowlist. Paperclip omits a
+The `sandbox.exec` span uses this closed attribute allowlist. Nexus omits a
 numeric attribute when the provider does not report the value.
 
 | Attribute                                       | Type    | Optional | Meaning                                                                    |
 | ----------------------------------------------- | ------- | -------- | -------------------------------------------------------------------------- |
-| `paperclip.sandbox.startup.provider`            | string  | no       | The normalized provider family.                                            |
-| `paperclip.sandbox.startup.exec.command`        | string  | no       | The clamped `argv[0]` command label.                                       |
-| `paperclip.sandbox.startup.exec.exit_code`      | number  | yes      | The numeric process exit code.                                             |
-| `paperclip.sandbox.startup.exec.wall_ms`        | number  | no       | The host-measured wall time of the execution.                              |
-| `paperclip.sandbox.startup.exec.wait_before_ms` | number  | yes      | The provider handle-fetch wait before the execution ran.                   |
-| `paperclip.sandbox.startup.exec.sandbox_ms`     | number  | yes      | The in-sandbox run time of the execution.                                  |
-| `paperclip.sandbox.startup.exec.network_ms`     | number  | yes      | The transport time the host adds; `wall_ms − wait_before_ms − sandbox_ms`. |
-| `paperclip.sandbox.startup.exec.critical_path`  | boolean | no       | Whether the execution sits on the startup critical path.                   |
-| `paperclip.sandbox.startup.exec.cache_hit`      | boolean | yes      | Whether the provider served the sandbox handle from its warm cache.        |
-| `paperclip.sandbox.startup.outcome`             | string  | no       | The execution outcome (`ok` or `failed`).                                  |
+| `nexus.sandbox.startup.provider`            | string  | no       | The normalized provider family.                                            |
+| `nexus.sandbox.startup.exec.command`        | string  | no       | The clamped `argv[0]` command label.                                       |
+| `nexus.sandbox.startup.exec.exit_code`      | number  | yes      | The numeric process exit code.                                             |
+| `nexus.sandbox.startup.exec.wall_ms`        | number  | no       | The host-measured wall time of the execution.                              |
+| `nexus.sandbox.startup.exec.wait_before_ms` | number  | yes      | The provider handle-fetch wait before the execution ran.                   |
+| `nexus.sandbox.startup.exec.sandbox_ms`     | number  | yes      | The in-sandbox run time of the execution.                                  |
+| `nexus.sandbox.startup.exec.network_ms`     | number  | yes      | The transport time the host adds; `wall_ms − wait_before_ms − sandbox_ms`. |
+| `nexus.sandbox.startup.exec.critical_path`  | boolean | no       | Whether the execution sits on the startup critical path.                   |
+| `nexus.sandbox.startup.exec.cache_hit`      | boolean | yes      | Whether the provider served the sandbox handle from its warm cache.        |
+| `nexus.sandbox.startup.outcome`             | string  | no       | The execution outcome (`ok` or `failed`).                                  |
 
 The plugin decides the cache hit at the sandbox-handle lookup. The span no
-longer infers a cache hit from `wait_before_ms == 0`. Paperclip omits the
+longer infers a cache hit from `wait_before_ms == 0`. Nexus omits the
 `cache_hit` attribute when the provider does not report the value.
 
 To add a span attribute, extend the `SANDBOX_STARTUP_SPAN_ATTRS` allowlist in
@@ -1871,7 +1871,7 @@ the code first. Keep the attribute low-cardinality and free of user content.
 
 A sandbox provider plugin also opens spans for its own sync steps. These spans
 use the `sandbox.daytona.` name prefix. They share the
-`paperclip.sandbox.startup.` attribute prefix and obey the same opt-in and
+`nexus.sandbox.startup.` attribute prefix and obey the same opt-in and
 no-user-content rules as the startup spans above.
 
 The plugin worker runs in a separate process from the host. So the host treats
@@ -1882,7 +1882,7 @@ before it records the span.
 | Span                                 | Scope                                                                                                                                                                                | Parent                                                                                       |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
 | `sandbox.daytona.pack`               | The host-local pack step that builds the upload tarball. It makes no sandbox round trip.                                                                                             | the active startup step span                                                                 |
-| `sandbox.daytona.transfer`           | The transfer step: an upload to the sandbox (inbound) or a download from the sandbox (outbound). The `paperclip.sandbox.startup.transfer.direction` attribute records the direction. | the active sync task span (`stage.*` inbound, `restore.*` under `sandbox.syncBack` outbound) |
+| `sandbox.daytona.transfer`           | The transfer step: an upload to the sandbox (inbound) or a download from the sandbox (outbound). The `nexus.sandbox.startup.transfer.direction` attribute records the direction. | the active sync task span (`stage.*` inbound, `restore.*` under `sandbox.syncBack` outbound) |
 | `sandbox.daytona.ensureDirectory`    | The `mkdir -p` step that ensures a directory exists before a write.                                                                                                                  | the active startup step span                                                                 |
 | `sandbox.daytona.checkSymlinkEscape` | The re-check step that a path resolves inside the workspace root before use.                                                                                                         | the active startup step span                                                                 |
 | `sandbox.daytona.promote`            | The atomic move of a staged temp onto its target via a pinned dir handle.                                                                                                            | the active startup step span                                                                 |
@@ -1925,7 +1925,7 @@ execution.plugin_dispatch
 `lease.start` and `lease.recover` measure the actual SDK operation, including its
 internal readiness wait. They also cover starts triggered by execution or sync.
 They do not separate SDK-internal requests or provider-side queue time.
-Their `paperclip.sandbox.startup.state` attribute records the state before the
+Their `nexus.sandbox.startup.state` attribute records the state before the
 call: `started`, `stopped`, `archived`, `error`, or `other`. Both the plugin and
 host restrict this value; no provider error text or resource identity is sent.
 
@@ -1950,13 +1950,13 @@ the attributes that the producer sends for one span.
 
 | Attribute                                        | Type   | Optional | Meaning                                                                                                   |
 | ------------------------------------------------ | ------ | -------- | --------------------------------------------------------------------------------------------------------- |
-| `paperclip.sandbox.startup.provider`             | string | no       | The normalized provider family.                                                                           |
-| `paperclip.sandbox.startup.state`                | string | yes      | State before start/recovery: `started`, `stopped`, `archived`, `error`, or `other`.                            |
-| `paperclip.sandbox.startup.outcome`              | string | yes      | The step outcome (`ok`, `skipped`, or `failed`).                                                          |
-| `paperclip.sandbox.startup.pack.wall_ms`         | number | yes      | The host-local wall time of the pack step. It rides the `sandbox.daytona.pack` span.                      |
-| `paperclip.sandbox.startup.transfer.wall_ms`     | number | yes      | The wall time of the transfer step. It rides the `sandbox.daytona.transfer` span.                         |
-| `paperclip.sandbox.startup.transfer.guard.count` | number | yes      | The number of serial guard round trips before one transfer. It rides the `sandbox.daytona.transfer` span. |
-| `paperclip.sandbox.startup.transfer.direction`   | string | yes      | The transfer direction (`inbound` or `outbound`). It rides the `sandbox.daytona.transfer` span.           |
+| `nexus.sandbox.startup.provider`             | string | no       | The normalized provider family.                                                                           |
+| `nexus.sandbox.startup.state`                | string | yes      | State before start/recovery: `started`, `stopped`, `archived`, `error`, or `other`.                            |
+| `nexus.sandbox.startup.outcome`              | string | yes      | The step outcome (`ok`, `skipped`, or `failed`).                                                          |
+| `nexus.sandbox.startup.pack.wall_ms`         | number | yes      | The host-local wall time of the pack step. It rides the `sandbox.daytona.pack` span.                      |
+| `nexus.sandbox.startup.transfer.wall_ms`     | number | yes      | The wall time of the transfer step. It rides the `sandbox.daytona.transfer` span.                         |
+| `nexus.sandbox.startup.transfer.guard.count` | number | yes      | The number of serial guard round trips before one transfer. It rides the `sandbox.daytona.transfer` span. |
+| `nexus.sandbox.startup.transfer.direction`   | string | yes      | The transfer direction (`inbound` or `outbound`). It rides the `sandbox.daytona.transfer` span.           |
 
 The `span.record` host handler enforces the allowlist. It re-maps `provider`
 through the provider-family normalizer. It keeps `outcome` only when the value
@@ -1992,8 +1992,8 @@ This section documents one duplex transport with three sinks: an
 OpenTelemetry span, a counter in the `tool_runtime_metric_counters` table, and
 one run-log event.
 
-Paperclip opens a fixed observability surface for the sandbox duplex transport.
-This instrumentation is separate from Paperclip Telemetry events and from the
+Nexus opens a fixed observability surface for the sandbox duplex transport.
+This instrumentation is separate from Nexus Telemetry events and from the
 sandbox startup trace spans above. The generated telemetry contract does not
 cover it, so this section is its canonical contract. The code owner is
 `packages/adapter-utils/src/duplex-observability.ts`. That module holds each name and
@@ -2117,7 +2117,7 @@ no first-party Telemetry event is added.
 The `skills.*` detail spans above distinguish inventory reconciliation and lock
 acquisition from repository transfer and file validation. A repository-backed
 skill's authored `SKILL.md` is not its complete runtime payload: the generated
-discovery entrypoint includes the pinned repository under `.paperclip-repository`.
+discovery entrypoint includes the pinned repository under `.nexus-repository`.
 Measure the delivered bundle's file count and bytes when reproducing its cost.
 
 Runtime preparation refreshes the company inventory once per listing. Local and
@@ -2150,7 +2150,7 @@ Read-only listings validate caches without downloading or repairing them. A
 publication lock left by an abruptly terminated process is reported for operator
 cleanup; remove it only after confirming its recorded PID is no longer running.
 
-Run `pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-skill-preparation.ts` for an isolated embedded
+Run `pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-skill-preparation.ts` for an isolated embedded
 PostgreSQL benchmark with 114 mixed skills and at least 400 remote files. It
 reports one cold sample and ten warm samples (one in a new process), refresh and
 fetch counts, rebuilds, missing entries, and content checks. Upstream responses are

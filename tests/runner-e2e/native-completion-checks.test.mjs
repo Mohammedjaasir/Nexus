@@ -65,8 +65,8 @@ test("native completion prerequisite excludes future credentials and auth overri
     OPENAI_API_KEY: "secret", ANTHROPIC_API_KEY: "secret", FUTURE_TOKEN: "secret", NODE_OPTIONS: "secret", GH_TOKEN: "secret" }),
   { PATH: "/bin", HOME: "/fixture", CI: "true" });
 });
-const runnerdProof = () => ({ schema: "paperclip.native-completion-runnerd-provenance.v1", mode: "fresh_local_build", passed: true,
-  selectedPath: "packages/paperclip-runner/runner/target/debug/paperclip-runnerd", binarySha256: "9".repeat(64),
+const runnerdProof = () => ({ schema: "nexus.native-completion-runnerd-provenance.v1", mode: "fresh_local_build", passed: true,
+  selectedPath: "packages/nexus-runner/runner/target/debug/nexus-runnerd", binarySha256: "9".repeat(64),
   sourceSha: "a".repeat(40), sourceFingerprint: "b".repeat(64), archiveSha256: null, workflowRunId: null,
   workflowRunAttempt: null, artifactName: null, errors: [] });
 const current = variant => ({ runnerdProvenance: runnerdProof(), sha: "a".repeat(40), fingerprint: "b".repeat(64), fixtureFingerprint: "c".repeat(64),
@@ -100,7 +100,7 @@ const negatives = [
   ["extra cells", r => { r.expectedCells = 7; }], ["extra turns", r => { r.expectedTurns = 7; }],
   ["additional attempts", r => { r.maximumAttemptsPerCell = 2; }],
   ["missing runnerd provenance", r => { delete r.setup.runnerdProvenance; }],
-  ["wrong selected runnerd path", r => { r.setup.runnerdSelectedPath = "packages/paperclip-runner/dist/bin/paperclip-runnerd"; }],
+  ["wrong selected runnerd path", r => { r.setup.runnerdSelectedPath = "packages/nexus-runner/dist/bin/nexus-runnerd"; }],
   ["claimed hosted reuse of local binary", r => { r.setup.runnerdProvenance.mode = "trusted_hosted_archive"; r.setup.runnerdExitCode = null; }],
   ["failed runnerd build", r => { r.setup.runnerdExitCode = 1; }],
   ["stale runnerd binary", r => { r.setup.runnerdSha256 = "8".repeat(64); }],

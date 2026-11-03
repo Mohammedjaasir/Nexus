@@ -4,7 +4,7 @@ import path from "node:path";
 import type { MatrixExecution } from "./types.js";
 
 const root = path.resolve(import.meta.dirname, "../..");
-export const NATIVE_COMPLETION_PREFLIGHT_ENV = "PAPERCLIP_RUNNER_E2E_NATIVE_COMPLETION_PREFLIGHT";
+export const NATIVE_COMPLETION_PREFLIGHT_ENV = "NEXUS_RUNNER_E2E_NATIVE_COMPLETION_PREFLIGHT";
 
 /** Explicit fixture policy is enforced even when the workflow supplies only --id. */
 export function assertNativeCompletionSelection(executions: readonly MatrixExecution[]): void {
@@ -31,7 +31,7 @@ export function nativeCompletionPreflightEnvironment(source: NodeJS.ProcessEnv):
   return Object.fromEntries([
     "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "SYSTEMROOT", "LANG", "LC_ALL",
     "CARGO_HOME", "RUSTUP_HOME", "CI", "GITHUB_ACTIONS",
-    "PAPERCLIP_RUNNER_E2E_SOURCE_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT",
+    "NEXUS_RUNNER_E2E_SOURCE_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT",
   ].flatMap(name => source[name] === undefined ? [] : [[name, source[name]]]));
 }
 
@@ -42,7 +42,7 @@ export function verifyNativeCompletionPreflight(receiptPath: string | undefined)
   });
   if (run.status !== 0) throw new Error(`Native completion prerequisite verification failed: ${run.stderr || run.error?.message || run.status}`);
   const receipt = JSON.parse(run.stdout) as Record<string, unknown>;
-  const expectedSourceSha = process.env.PAPERCLIP_RUNNER_E2E_SOURCE_SHA?.trim();
+  const expectedSourceSha = process.env.NEXUS_RUNNER_E2E_SOURCE_SHA?.trim();
   if (expectedSourceSha && receipt.sourceSha !== expectedSourceSha)
     throw new Error("Native completion prerequisite source SHA differs from the requested immutable source.");
   return receipt;

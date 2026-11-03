@@ -1,11 +1,11 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
-import type { AiConnectionList, AiConnectionPool, AppDefinition } from "@paperclipai/shared";
+import type { AiConnectionList, AiConnectionPool, AppDefinition } from "@nexusai/shared";
 
 // Exercise the full shipped app and an installed router, with real persistence.
 // No browser routes, credentials, providers, or pool APIs are mocked. Opt in
 // only against a loopback test-drive company with existing saved accounts.
 const companyId = process.env.AI_CONNECTIONS_TEST_COMPANY_ID;
-test.skip(process.env.PAPERCLIP_CONNECTION_POOL_E2E !== "1" || !companyId, "Opt in with an isolated connection-pool test drive");
+test.skip(process.env.NEXUS_CONNECTION_POOL_E2E !== "1" || !companyId, "Opt in with an isolated connection-pool test drive");
 let prefix: string;
 let connector: AppDefinition;
 let accounts: AiConnectionList["connections"];

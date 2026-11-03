@@ -12,9 +12,9 @@ afterEach(async () => {
 });
 
 async function fixture(diskBacked: boolean) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-unchanged-restore-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-unchanged-restore-"));
   roots.push(root);
-  vi.stubEnv("PAPERCLIP_HOME", path.join(root, "home"));
+  vi.stubEnv("NEXUS_HOME", path.join(root, "home"));
   const target = path.join(root, "target"), source = path.join(root, "source");
   await fs.mkdir(target); await fs.mkdir(source);
   await fs.writeFile(path.join(target, "file"), "baseline");

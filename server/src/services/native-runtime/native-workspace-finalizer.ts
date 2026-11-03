@@ -7,14 +7,14 @@ import { restoreNativeWorkspaceBestEffort } from "./native-workspace-best-effort
 import { withNativeWorkspaceFinalizationOwnership } from "./native-workspace-finalization-ownership.js";
 import fs from "node:fs/promises";
 import { and, desc, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   executionWorkspaces,
   heartbeatRuns,
   issues,
   nativeRunFinalizations,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { workspaceOperationService } from "../workspace-operations.js";
 import { inspectManagedGitWorktreeBranch } from "../workspace-runtime.js";
 import { environmentService } from "../environments.js";
@@ -174,7 +174,7 @@ export async function attemptNativeWorkspaceFinalization(input: {
           return workspaceSyncFailure("workspace_sync_out_unrecoverable");
         }
         const target = await resolveEnvironmentExecutionTarget({
-          db: input.db, companyId: bound.companyId, adapterType: "paperclip_runner",
+          db: input.db, companyId: bound.companyId, adapterType: "nexus_runner",
           environment, leaseId: lease.id, leaseMetadata: lease.metadata, lease,
           environmentRuntime: input.environmentRuntime,
         });
@@ -230,7 +230,7 @@ export async function attemptNativeWorkspaceFinalization(input: {
         const target = await resolveEnvironmentExecutionTarget({
           db: input.db,
           companyId: bound.companyId,
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           environment,
           leaseId: lease.id,
           leaseMetadata: lease.metadata,

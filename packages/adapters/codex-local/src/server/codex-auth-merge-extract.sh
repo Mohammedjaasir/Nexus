@@ -8,7 +8,7 @@ fi
 asset_dir=$1
 asset_tar=$2
 auth_name=auth.json
-stage_root="$asset_dir.paperclip-extract.$$"
+stage_root="$asset_dir.nexus-extract.$$"
 stage_dir="$stage_root/stage"
 preserve_dir="$stage_root/preserve"
 sandbox_auth="$asset_dir/$auth_name"
@@ -36,7 +36,7 @@ if [ -f "$sandbox_auth" ]; then
       keep_sandbox=0
     fi
   else
-    echo "[paperclip] node not found in PATH; cannot evaluate auth-merge decision - aborting sandbox restore" >&2
+    echo "[nexus] node not found in PATH; cannot evaluate auth-merge decision - aborting sandbox restore" >&2
     exit 1
   fi
 fi
@@ -67,7 +67,7 @@ fi
 
 if [ -f "$source_auth" ]; then
   target_auth="$asset_dir/$auth_name"
-  target_tmp="$asset_dir/.auth.json.paperclip.$$"
+  target_tmp="$asset_dir/.auth.json.nexus.$$"
   ( umask 077 && rm -f "$target_tmp" && cat "$source_auth" > "$target_tmp" ) || exit 1
   mv -f "$target_tmp" "$target_auth" || exit 1
 fi

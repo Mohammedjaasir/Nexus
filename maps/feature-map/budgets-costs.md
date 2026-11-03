@@ -44,7 +44,7 @@ Open Activity → Costs (or `/costs` in the production shell), then Subscription
 
 Open the Costs overview and expand **run costs unavailable** or **billing types unknown**. Follow **View run** or the agent configuration link for context. **Retry cost recording** appears only for retryable entries and an eligible board user.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use synthetic low-cost events and small disposable budgets. Do not buy model usage merely to hit a threshold.
 
@@ -89,9 +89,9 @@ Sources: [Cost notice](../../ui/src/components/CostDataQualityNotice.tsx), [cost
 
 - Retry cost recording consumes saved usage evidence. It does not rerun the agent, recover missing historical model metadata, or prove that a provider invoice is reconciled.
 
-- A subscription fee is the full account or seat cost, including use outside Paperclip. Linking is for the same paid subscription; ending tracking does not cancel it at the provider.
+- A subscription fee is the full account or seat cost, including use outside Nexus. Linking is for the same paid subscription; ending tracking does not cancel it at the provider.
 
-- Paperclip cost accounting is not a provider invoice or a promise about externally billed spend.
+- Nexus cost accounting is not a provider invoice or a promise about externally billed spend.
 - Company, project, and agent gates can overlap; fixing one may leave another active.
 - A successful retry must not bypass an unresolved budget hold.
 

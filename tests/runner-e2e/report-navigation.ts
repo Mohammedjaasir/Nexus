@@ -1,4 +1,4 @@
-import { paperclipReportLogo } from "./report-brand.js";
+import { nexusReportLogo } from "./report-brand.js";
 import type { ReportExecution } from "./report-catalog.js";
 import type { RunnerE2EHistoryIndex } from "./types.js";
 
@@ -34,7 +34,7 @@ export function renderReportShell(input: {
   return `<div class="report-shell" data-report-scope="${campaign ? "campaign" : "global"}" data-campaign-label="${h(label)}">
     <button class="report-drawer-backdrop" type="button" data-nav-close aria-label="Close navigation" hidden></button>
     <aside class="report-sidebar" id="report-navigation" aria-label="Report navigation">
-      <a class="brand-lockup report-brand" href="https://pages.paperclip.ing/evals/" aria-label="Paperclip evaluations">${paperclipReportLogo}<small>Evaluations</small></a>
+      <a class="brand-lockup report-brand" href="https://pages.paperclip.ing/evals/" aria-label="Nexus evaluations">${nexusReportLogo}<small>Evaluations</small></a>
       <div class="report-sidebar-scroll"><nav class="report-global-nav" aria-label="Evaluations">
         <a href="${campaign ? "?view=all" : "?view=overview"}" data-nav-view="${campaign ? "all" : "overview"}" aria-current="page"><span aria-hidden="true">◫</span>${campaign ? "All results" : "Overview"}</a>
         <a href="https://d1p6rlowie26tp.cloudfront.net/runner-e2e/campaigns/chat-catalog-overview-20261029-175400z/" data-nav-catalog><span aria-hidden="true">▦</span>Chat catalog · Oct 29</a>

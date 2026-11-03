@@ -15,7 +15,7 @@ import { shippedChatEvidenceAuthority } from "./testops-chat-admission.js";
 const hash = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
 function request(env: NodeJS.ProcessEnv) {
   const ids = JSON.parse(env.MANUAL_PRIVATE_IDS ?? "null") as string[];
-  const approval = env.PAPERCLIP_TESTOPS_CHAT_MAIN_ADMISSION !== undefined ? shippedChatEvidenceAuthority(env) : authorizeManualPrivateEvidence({ workflowSha: env.GITHUB_SHA ?? "", targetSha: env.TARGET_SHA ?? "",
+  const approval = env.NEXUS_TESTOPS_CHAT_MAIN_ADMISSION !== undefined ? shippedChatEvidenceAuthority(env) : authorizeManualPrivateEvidence({ workflowSha: env.GITHUB_SHA ?? "", targetSha: env.TARGET_SHA ?? "",
     runId: env.GITHUB_RUN_ID ?? "", attempt: env.GITHUB_RUN_ATTEMPT ?? "", executionIds: ids }, env.MANUAL_PRIVATE_APPROVALS_JSON ?? "");
   return { ids, approval, bucket: env.RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET ?? "" };
 }

@@ -12,11 +12,11 @@ const reusableSandbox = {
   effectiveCapabilities: { reusableLeases: true },
 };
 
-describe("paperclip_runner sandbox lifecycle", () => {
+describe("nexus_runner sandbox lifecycle", () => {
   it("keeps a warm reusable sandbox running", () => {
     expect(
       resolveNativeSandboxLifecycle({
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         lifecyclePolicy: { mode: "warm", idleTimeoutMs: 300_000 },
         target: reusableSandbox,
       }),
@@ -43,7 +43,7 @@ describe("paperclip_runner sandbox lifecycle", () => {
   it("stops and reuses a per-turn reusable sandbox", () => {
     expect(
       resolveNativeSandboxLifecycle({
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         lifecyclePolicy: { mode: "per_turn", idleTimeoutMs: null },
         target: reusableSandbox,
       }),
@@ -57,7 +57,7 @@ describe("paperclip_runner sandbox lifecycle", () => {
   it("destroys a per-turn disposable sandbox", () => {
     expect(
       resolveNativeSandboxLifecycle({
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         lifecyclePolicy: { mode: "per_turn", idleTimeoutMs: null },
         target: {
           ...reusableSandbox,
@@ -74,7 +74,7 @@ describe("paperclip_runner sandbox lifecycle", () => {
   it("rejects warm mode without an effective reusable-lease capability", () => {
     expect(() =>
       resolveNativeSandboxLifecycle({
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         lifecyclePolicy: { mode: "warm", idleTimeoutMs: 300_000 },
         target: {
           ...reusableSandbox,
@@ -94,7 +94,7 @@ describe("paperclip_runner sandbox lifecycle", () => {
     ).toBeNull();
     expect(
       resolveNativeSandboxLifecycle({
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         lifecyclePolicy: { mode: "per_turn", idleTimeoutMs: null },
         target: { kind: "local" },
       }),

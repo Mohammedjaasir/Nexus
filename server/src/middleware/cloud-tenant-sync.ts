@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 const DEBOUNCE_MS = 5_000;
 const MAX_COMPLETED_USERS = 1_000;

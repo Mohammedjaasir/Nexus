@@ -1,0 +1,383 @@
+{
+  "schemaVersion": 1,
+  "rows": [
+    {
+      "id": "mcp:nexusMe",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusMe",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L290:nexusme",
+      "primaryDisposition": "control_plane_owned",
+      "semanticOperation": "injected_actor_context",
+      "expectedMockState": "runtime_decision_record"
+    },
+    {
+      "id": "mcp:nexusInboxLite",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusInboxLite",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L296:nexusinboxlite",
+      "primaryDisposition": "control_plane_owned",
+      "semanticOperation": "runner_work_selection",
+      "expectedMockState": "runtime_decision_record"
+    },
+    {
+      "id": "mcp:nexusListAgents",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusListAgents",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L302:nexuslistagents",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "list_agents",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusListSkills",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusListSkills",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L308:nexuslistskills",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "list_company_skills",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusGetAgent",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusGetAgent",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L314:nexusgetagent",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "get_agent",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusListIssues",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusListIssues",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L323:nexuslistissues",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "search_tasks",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusGetIssue",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusGetIssue",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L338:nexusgetissue",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "get_task_context",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusGetHeartbeatContext",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusGetHeartbeatContext",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L344:nexusgetheartbeatcontext",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "get_task_context",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusListComments",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusListComments",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L353:nexuslistcomments",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "get_task_history",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusGetComment",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusGetComment",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L366:nexusgetcomment",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "get_task_history",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusListIssueApprovals",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusListIssueApprovals",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L373:nexuslistissueapprovals",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "get_task_context",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusListDocuments",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusListDocuments",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L379:nexuslistdocuments",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "list_documents",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusGetDocument",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusGetDocument",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L385:nexusgetdocument",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "read_document",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusListDocumentRevisions",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusListDocumentRevisions",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L392:nexuslistdocumentrevisions",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "list_document_revisions",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusListProjects",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusListProjects",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L402:nexuslistprojects",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "list_projects",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusGetProject",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusGetProject",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L408:nexusgetproject",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "get_project",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusGetIssueWorkspaceRuntime",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusGetIssueWorkspaceRuntime",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L417:nexusgetissueworkspaceruntime",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "get_workspace_runtime",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusControlIssueWorkspaceServices",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusControlIssueWorkspaceServices",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L423:nexuscontrolissueworkspaceservices",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "control_workspace_service",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusWaitForIssueWorkspaceService",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusWaitForIssueWorkspaceService",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L440:nexuswaitforissueworkspaceservice",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "wait_for_workspace_service",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusListGoals",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusListGoals",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L466:nexuslistgoals",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "list_goals",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusGetGoal",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusGetGoal",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L472:nexusgetgoal",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "get_goal",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusListApprovals",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusListApprovals",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L478:nexuslistapprovals",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "list_approvals",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusCreateApproval",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusCreateApproval",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L487:nexuscreateapproval",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "request_approval",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusGetApproval",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusGetApproval",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L496:nexusgetapproval",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "get_approval",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusGetApprovalIssues",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusGetApprovalIssues",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L502:nexusgetapprovalissues",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "get_approval_context",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusListApprovalComments",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusListApprovalComments",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L508:nexuslistapprovalcomments",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "get_approval_context",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusCreateIssue",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusCreateIssue",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L514:nexuscreateissue",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "create_task",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusUpdateIssue",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusUpdateIssue",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L521:nexusupdateissue",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "semantic_task_disposition",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusCheckoutIssue",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusCheckoutIssue",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L528:nexuscheckoutissue",
+      "primaryDisposition": "control_plane_owned",
+      "semanticOperation": "atomic_checkout",
+      "expectedMockState": "runtime_decision_record"
+    },
+    {
+      "id": "mcp:nexusReleaseIssue",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusReleaseIssue",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L540:nexusreleaseissue",
+      "primaryDisposition": "control_plane_owned",
+      "semanticOperation": "runtime_release",
+      "expectedMockState": "runtime_decision_record"
+    },
+    {
+      "id": "mcp:nexusAddComment",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusAddComment",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L546:nexusaddcomment",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "report_progress",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusSuggestTasks",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusSuggestTasks",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L553:nexussuggesttasks",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "request_human_input",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusAskUserQuestions",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusAskUserQuestions",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L565:nexusaskuserquestions",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "request_human_input",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusRequestConfirmation",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusRequestConfirmation",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L577:nexusrequestconfirmation",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "request_human_input",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusRequestCheckboxConfirmation",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusRequestCheckboxConfirmation",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L589:nexusrequestcheckboxconfirmation",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "request_human_input",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusUpsertIssueDocument",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusUpsertIssueDocument",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L601:nexusupsertissuedocument",
+      "primaryDisposition": "always_agent_tool",
+      "semanticOperation": "write_document",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusRestoreIssueDocumentRevision",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusRestoreIssueDocumentRevision",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L612:nexusrestoreissuedocumentrevision",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "restore_document_revision",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusLinkIssueApproval",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusLinkIssueApproval",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L627:nexuslinkissueapproval",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "link_approval",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusUnlinkIssueApproval",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusUnlinkIssueApproval",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L636:nexusunlinkissueapproval",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "unlink_approval",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusApprovalDecision",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusApprovalDecision",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L646:nexusapprovaldecision",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "decide_approval",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusAddApprovalComment",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusAddApprovalComment",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L668:nexusaddapprovalcomment",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "comment_on_approval",
+      "expectedMockState": "operation_result"
+    },
+    {
+      "id": "mcp:nexusApiRequest",
+      "kind": "legacy_mcp_tool",
+      "name": "nexusApiRequest",
+      "sourceAnchor": "packages/mcp-server/src/tools.ts#L677:nexusapirequest",
+      "primaryDisposition": "optional_agent_tool",
+      "semanticOperation": "test_only_api_escape_hatch",
+      "expectedMockState": "operation_result"
+    }
+  ]
+}

@@ -16,7 +16,7 @@ import {
   issueReadStates,
   issueThreadInteractions,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -38,7 +38,7 @@ describeEmbeddedPostgres("issueService.remove referential integrity", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-issue-remove-cascade-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-issue-remove-cascade-");
     db = createDb(tempDb.connectionString);
     svc = issueService(db);
   }, 20_000);
@@ -72,7 +72,7 @@ describeEmbeddedPostgres("issueService.remove referential integrity", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });

@@ -7,7 +7,7 @@ const ownerFile = ".github/** @cryppadotta @devinfoley @nickyleach @forgottendev
 function fixture(overrides = {}) {
   const calls = [];
   const context = {
-    repo: { owner: "paperclipai", repo: "paperclip" },
+    repo: { owner: "nexusai", repo: "nexus" },
     eventName: "workflow_dispatch",
     ref: "refs/heads/codex/example",
     actor: "cryppadotta",
@@ -80,7 +80,7 @@ test("comments, teams, emails and partial account matches do not grant access", 
   for (const codeowners of [
     "# @cryppadotta\n.github/** @other",
     ".github/** @other # @cryppadotta",
-    ".github/** @paperclipai/cryppadotta",
+    ".github/** @nexusai/cryppadotta",
     ".github/** cryppadotta@example.com",
     ".github/** @cryppadotta-extra",
     "",
@@ -91,7 +91,7 @@ test("case-insensitive GitHub login matching", async () => {
 });
 test("rejects forks, PR events, automatic events and tags", async () => {
   for (const context of [
-    { repo: { owner: "outsider", repo: "paperclip" } },
+    { repo: { owner: "outsider", repo: "nexus" } },
     { eventName: "pull_request" }, { eventName: "push" },
     { eventName: "workflow_call" }, { ref: "refs/tags/release" },
   ]) await assert.rejects(authorize(fixture({ context })));

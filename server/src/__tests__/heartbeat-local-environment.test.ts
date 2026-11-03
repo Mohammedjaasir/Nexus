@@ -10,7 +10,7 @@ import {
   createDb,
   environmentLeases,
   environments,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -67,8 +67,8 @@ describeEmbeddedPostgres("heartbeat local environment lifecycle", () => {
   let previousAgentJwtSecret: string | undefined;
 
   beforeAll(async () => {
-    previousAgentJwtSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
-    process.env.PAPERCLIP_AGENT_JWT_SECRET = "heartbeat-local-environment-test-secret";
+    previousAgentJwtSecret = process.env.NEXUS_AGENT_JWT_SECRET;
+    process.env.NEXUS_AGENT_JWT_SECRET = "heartbeat-local-environment-test-secret";
     tempDb = await startEmbeddedPostgresTestDatabase("heartbeat-local-environment-");
     db = createDb(tempDb.connectionString);
     heartbeat = heartbeatService(db);
@@ -104,9 +104,9 @@ describeEmbeddedPostgres("heartbeat local environment lifecycle", () => {
     await heartbeat.drainActiveRunExecutions();
     await tempDb?.cleanup();
     if (previousAgentJwtSecret === undefined) {
-      delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
+      delete process.env.NEXUS_AGENT_JWT_SECRET;
     } else {
-      process.env.PAPERCLIP_AGENT_JWT_SECRET = previousAgentJwtSecret;
+      process.env.NEXUS_AGENT_JWT_SECRET = previousAgentJwtSecret;
     }
   });
 
@@ -117,7 +117,7 @@ describeEmbeddedPostgres("heartbeat local environment lifecycle", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix,
       requireBoardApprovalForNewAgents: false,
       defaultResponsibleUserId: "responsible-user",
@@ -159,7 +159,7 @@ describeEmbeddedPostgres("heartbeat local environment lifecycle", () => {
     expect(leases[0]?.releasedAt).not.toBeNull();
 
     const context = finished?.contextSnapshot as Record<string, unknown>;
-    expect(context.paperclipEnvironment).toMatchObject({
+    expect(context.nexusEnvironment).toMatchObject({
       id: localRows[0]?.id,
       name: "Local",
       driver: "local",
@@ -167,16 +167,16 @@ describeEmbeddedPostgres("heartbeat local environment lifecycle", () => {
     });
   });
 
-  it("injects run-scoped Paperclip env into process agents", async () => {
+  it("injects run-scoped Nexus env into process agents", async () => {
     const companyId = randomUUID();
     const agentId = randomUUID();
     const issuePrefix = `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
-    const tempDir = await mkdtemp(join(tmpdir(), "paperclip-process-env-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "nexus-process-env-"));
     const envPath = join(tempDir, "env.json");
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix,
       requireBoardApprovalForNewAgents: false,
       defaultResponsibleUserId: "responsible-user",
@@ -196,11 +196,11 @@ describeEmbeddedPostgres("heartbeat local environment lifecycle", () => {
           [
             "const fs = require('node:fs');",
             `fs.writeFileSync(${JSON.stringify(envPath)}, JSON.stringify({`,
-            "agentId: process.env.PAPERCLIP_AGENT_ID ?? null,",
-            "companyId: process.env.PAPERCLIP_COMPANY_ID ?? null,",
-            "apiUrl: process.env.PAPERCLIP_API_URL ?? null,",
-            "runId: process.env.PAPERCLIP_RUN_ID ?? null,",
-            "apiKeyPresent: Boolean(process.env.PAPERCLIP_API_KEY),",
+            "agentId: process.env.NEXUS_AGENT_ID ?? null,",
+            "companyId: process.env.NEXUS_COMPANY_ID ?? null,",
+            "apiUrl: process.env.NEXUS_API_URL ?? null,",
+            "runId: process.env.NEXUS_RUN_ID ?? null,",
+            "apiKeyPresent: Boolean(process.env.NEXUS_API_KEY),",
             "}));",
           ].join(" "),
         ],

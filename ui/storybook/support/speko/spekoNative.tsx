@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ChatEndpoint } from "@/api/chatEndpoints";
 import { queryKeys } from "@/lib/queryKeys";
-import { storybookAgents } from "../../fixtures/paperclipData";
+import { storybookAgents } from "../../fixtures/nexusData";
 
 export const spekoCompanyId = "company-storybook";
 export const spekoAgent = { ...storybookAgents[0]!, name: "Company Phone Agent" };
@@ -10,7 +10,7 @@ export const spekoEndpoint: ChatEndpoint = {
   id: "voice-endpoint-fixture", companyId: spekoCompanyId, provider: "speko", status: "active",
   assignedAgentId: spekoAgent.id, assignedAgentName: spekoAgent.name,
   botLabel: "Company reception", providerAccountLabel: "Speko workspace", allowUnlinkedPeople: false,
-  setup: { step: "complete", webhookUrl: "https://paperclip.example/api/voice-webhooks/fixture/tools" },
+  setup: { step: "complete", webhookUrl: "https://nexus.example/api/voice-webhooks/fixture/tools" },
   conversations: [], activity: [], resources: [], identityLinks: [],
 };
 export function SpekoQueryFixture({ children, endpoints = [spekoEndpoint], enabled = true }: { children: ReactNode; endpoints?: ChatEndpoint[]; enabled?: boolean }) {

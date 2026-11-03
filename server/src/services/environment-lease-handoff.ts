@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { environmentLeases } from "@paperclipai/db";
+import type { environmentLeases } from "@nexusai/db";
 
 type Lease = typeof environmentLeases.$inferSelect;
 type Binding = Pick<Lease, "id" | "companyId" | "environmentId" | "executionWorkspaceId" | "issueId" |
@@ -24,7 +24,7 @@ export function preserveReusableLeaseHandoff(previous: Record<string, unknown> |
 }
 
 function handoffBinding(previous: Binding, current: Binding) {
-  return { schema: "paperclip.reusable-lease-handoff.v1",
+  return { schema: "nexus.reusable-lease-handoff.v1",
     previousLeaseId: previous.id, successorLeaseId: current.id,
     previousRunId: previous.heartbeatRunId, successorRunId: current.heartbeatRunId,
     companyId: current.companyId, environmentId: current.environmentId,

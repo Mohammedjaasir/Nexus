@@ -1,11 +1,11 @@
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { readLinuxProcessStartedAt, type LinuxProcessStartOptions } from "../vendor/paperclip-runner/index.js";
+import { readLinuxProcessStartedAt, type LinuxProcessStartOptions } from "../vendor/nexus-runner/index.js";
 import {
-  resolvePaperclipHomeDir,
-  resolvePaperclipInstanceId,
-  resolvePaperclipInstanceRoot,
+  resolveNexusHomeDir,
+  resolveNexusInstanceId,
+  resolveNexusInstanceRoot,
 } from "../home-paths.js";
 
 export const HOT_RESTART_INTENT_FILENAME = "hot-restart-intent.json";
@@ -78,11 +78,11 @@ export type HotRestartReport = {
 };
 
 function resolveHotRestartPath(filename: string, homeDir?: string) {
-  return path.join(resolvePaperclipInstanceRoot({ homeDir }), filename);
+  return path.join(resolveNexusInstanceRoot({ homeDir }), filename);
 }
 
 function resolveLegacyHotRestartPath(filename: string, homeDir?: string) {
-  return path.join(resolvePaperclipHomeDir(homeDir), filename);
+  return path.join(resolveNexusHomeDir(homeDir), filename);
 }
 
 export function resolveHotRestartIntentPath(homeDir?: string) {
@@ -472,7 +472,7 @@ export async function readHotRestartIntent(homeDir?: string) {
   if (!instanceIntent) {
     // The home-root marker predates instances. Only the default instance may
     // consume it without an instance-root request to correlate against.
-    return resolvePaperclipInstanceId() === "default" ? legacyIntent : null;
+    return resolveNexusInstanceId() === "default" ? legacyIntent : null;
   }
   if (!legacyIntent || !isSameHotRestartRequest(instanceIntent, legacyIntent)) {
     return instanceIntent;
@@ -529,7 +529,7 @@ export async function writeHotRestartIntent(input: {
   };
   const instancePath = resolveHotRestartIntentPath(input.homeDir);
   const legacyPath = resolveLegacyHotRestartIntentPath(input.homeDir);
-  // The legacy location is shared by every instance under PAPERCLIP_HOME.
+  // The legacy location is shared by every instance under NEXUS_HOME.
   // Claim it without replacement so concurrent staged restarts fail closed
   // instead of making the first old server consume another instance's PID.
   await withHotRestartPathLock(legacyPath, () => claimLegacyHotRestartIntent(legacyPath, intent));

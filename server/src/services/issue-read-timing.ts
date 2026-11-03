@@ -13,7 +13,7 @@ export function createIssueReadTiming() {
   const durations = new Map<IssueReadPhase, number>();
   return {
     time<T>(phase: IssueReadPhase, read: () => Promise<T>): Promise<T> {
-      return trace.getTracer("paperclip.issue-read").startActiveSpan(`issue.read.${phase}`, async (span) => {
+      return trace.getTracer("nexus.issue-read").startActiveSpan(`issue.read.${phase}`, async (span) => {
         const phaseStart = performance.now();
         try {
           return await read();
@@ -28,7 +28,7 @@ export function createIssueReadTiming() {
     },
     header() {
       return [
-        `paperclip_issue;dur=${(performance.now() - start).toFixed(1)}`,
+        `nexus_issue;dur=${(performance.now() - start).toFixed(1)}`,
         ...[...durations].map(([phase, duration]) => `issue_${phase};dur=${duration.toFixed(1)}`),
       ].join(", ");
     },

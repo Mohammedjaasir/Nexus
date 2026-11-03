@@ -1,6 +1,6 @@
 # Live lifecycle baseline
 
-This explicit-only Product E2E suite runs real Chromium, Paperclip, an isolated
+This explicit-only Product E2E suite runs real Chromium, Nexus, an isolated
 database, the selected runner, and a real LLM. It is distinct from
 `pnpm test:lifecycle-baseline`, whose providers are scripted.
 
@@ -99,7 +99,7 @@ Runner Eval roster; arbitrary process-crash recovery and exhausted-repair races
 are not new paid model cases.
 
 The earlier native `same_agent` probes inject an internal compatibility result.
-The current public `paperclip_finish` schema exposes `response_wake`, which waits
+The current public `nexus_finish` schema exposes `response_wake`, which waits
 for a real response. Therefore those two failures do not demonstrate a reachable
 current model-facing autonomous-continuation defect. This live suite uses supported
 question/approval/dependency responses and restart boundaries; it does not instruct

@@ -13,7 +13,7 @@ export function questionEvidencePasses(input: {
     && run?.companyId === input.companyId && run.agentId === input.agentId && run.issueId === issue.id
     && run.status === "succeeded" && run.runtimeMode === input.runtimeMode
     && input.runtimeMode === "native" && Boolean(input.environmentId && input.provider && input.model)
-    && run.contextSnapshot?.paperclipEnvironment?.id === input.environmentId
+    && run.contextSnapshot?.nexusEnvironment?.id === input.environmentId
     && provider?.kind === input.provider && provider?.model === input.model
     && input.comments.filter(comment => comment.authorAgentId === input.agentId && comment.body.trim() === input.marker).length === 1;
 }

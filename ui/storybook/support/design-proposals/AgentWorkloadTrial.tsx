@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Agent, Issue } from "@paperclipai/shared";
+import type { Agent, Issue } from "@nexusai/shared";
 import { CirclePause, Coffee, ListChecks, SearchX, Users, Zap } from "lucide-react";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { CollectionToolbar } from "@/components/CollectionToolbar";
@@ -90,8 +90,8 @@ function AgentWorkloadContent({ initialQuery = "", initialFilter = "all", initia
   }}>
     <DesignPageShell
       title="Agent workload"
-      sidebarStorageKey="paperclip.design-proposal.agent-workload-trial.sidebar"
-      rightSidebarStorageKey="paperclip.design-proposal.agent-workload-trial.aside"
+      sidebarStorageKey="nexus.design-proposal.agent-workload-trial.sidebar"
+      rightSidebarStorageKey="nexus.design-proposal.agent-workload-trial.aside"
       sidebar={<DesignSidebar recentTasks={tasks.toSorted(newestFirst).slice(0, 5)} onNewTask={() => openNewIssue()} />}
       rightSidebarTitle="Agent tasks"
       rightSidebarMaximized={maximized}

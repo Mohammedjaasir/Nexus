@@ -1,7 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { costRoutes } from "../routes/costs.js";
 import { errorHandler } from "../middleware/error-handler.js";
 

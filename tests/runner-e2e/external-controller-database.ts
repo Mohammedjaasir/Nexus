@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createDb } from "../../packages/db/src/index.js";
-import { paperclipConfigSchema } from "../../packages/shared/src/config-schema.js";
+import { nexusConfigSchema } from "../../packages/shared/src/config-schema.js";
 import { recordControllerDatabaseOwnership } from "./instance-isolation.js";
 import { prepareRunnerE2EServerConfig } from "./server-config.js";
 
@@ -16,7 +16,7 @@ export async function createExternalControllerDatabase(input: {
     throw new Error("E2E Postgres administrator must use an explicit loopback test server");
   }
   await (await prepareRunnerE2EServerConfig(input))?.close();
-  const config = paperclipConfigSchema.parse(JSON.parse(await readFile(input.configPath, "utf8")));
+  const config = nexusConfigSchema.parse(JSON.parse(await readFile(input.configPath, "utf8")));
   if (config.database.mode !== "embedded-postgres") throw new Error("E2E database fixture already configured");
   const databaseName = `runner_e2e_${randomUUID().replaceAll("-", "")}`;
   const admin = createDb(input.adminUrl, { maxConnections: 1 });

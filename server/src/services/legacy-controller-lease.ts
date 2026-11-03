@@ -1,7 +1,7 @@
 import { notifyActiveExecutionRecovery, notifyLiveRunRecovery } from "./live-run-recovery-notifications.js";
 import { randomUUID } from "node:crypto";
 import { and, eq, gt, lte, sql } from "drizzle-orm";
-import { heartbeatRuns, livenessDb, type Db } from "@paperclipai/db";
+import { heartbeatRuns, livenessDb, type Db } from "@nexusai/db";
 import type { LegacyControllerLeaseLossCause, LegacyControllerLeaseLossTiming } from "./run-cancellation.js";
 
 // A boot UUID has meaning across containers; a numeric PID does not.

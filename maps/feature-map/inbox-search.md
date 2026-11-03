@@ -59,7 +59,7 @@ Open `/search` or the navigation search entry.
 Keep a company page open while another person or agent updates a task.
 See [toast semantics](../../doc/TOASTS.md) for eligibility and suppression rules.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Seed assigned, unread, blocked, and resolved tasks plus a pending decision. Record the combined Inbox/Tasks experimental setting.
 

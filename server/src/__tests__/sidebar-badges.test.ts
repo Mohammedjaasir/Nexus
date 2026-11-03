@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { count, eq, inArray } from "drizzle-orm";
-import { agents, approvals, companies, createDb, getEmbeddedPostgresTestSupport, heartbeatRuns, issueAccessGrants, issues, startEmbeddedPostgresTestDatabase, type Db } from "@paperclipai/db";
+import { agents, approvals, companies, createDb, getEmbeddedPostgresTestSupport, heartbeatRuns, issueAccessGrants, issues, startEmbeddedPostgresTestDatabase, type Db } from "@nexusai/db";
 import { sidebarBadgeService } from "../services/sidebar-badges.js";
 import { authorizationService } from "../services/authorization.js";
 import { getHeartbeatRunReadDecisions } from "../services/heartbeat-run-privacy.js";
 import { captureSidebarQueries, cleanupSidebarFixture, observedSidebarFailures, seedSidebarFixture, type BadgeOptions, type CapturedQuery } from "./helpers/sidebar-badges-fixture.js";
 
-const externalUrl = process.env.PAPERCLIP_SIDEBAR_TEST_DATABASE_URL;
+const externalUrl = process.env.NEXUS_SIDEBAR_TEST_DATABASE_URL;
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describePostgres = support.supported ? describe : describe.skip;
 if (!support.supported) console.warn(`Skipping sidebar badge SQL tests: ${support.reason}`);

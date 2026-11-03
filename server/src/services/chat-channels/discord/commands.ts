@@ -13,7 +13,7 @@ import {
   readChatControlChronology,
 } from "../../chat-control-chronology.js";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatActions,
@@ -23,12 +23,12 @@ import {
   chatEndpoints,
   issues,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEndpointSetupState,
   SafeChatPublicationPayload,
   ToolCredentialSecretRef,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   conflict,
@@ -514,18 +514,18 @@ export function createDiscordCommands(db: Db, options: DiscordCommandsOptions) {
                     2000,
                   )
                 : invocation.sourceKind === "guild_channel"
-                  ? "Open the Discord task thread to view its Paperclip status."
+                  ? "Open the Discord task thread to view its Nexus status."
                   : "No task is active in this conversation.";
           } else if (
             invocation.command === "new" &&
             invocation.sourceKind !== "direct_message"
           ) {
             content =
-              "Open a new Discord thread by mentioning this agent in a new channel message. This thread stays bound to its current Paperclip task.";
+              "Open a new Discord thread by mentioning this agent in a new channel message. This thread stays bound to its current Nexus task.";
           } else if (!active || !conversation || !issue) {
             content =
               invocation.sourceKind === "direct_message"
-                ? "No task is active. Send a message to start a new Paperclip task."
+                ? "No task is active. Send a message to start a new Nexus task."
                 : "No active task is bound here. Open its Discord thread to manage it.";
           } else if (
             (await readChatControlChronology(
@@ -548,10 +548,10 @@ export function createDiscordCommands(db: Db, options: DiscordCommandsOptions) {
           } else {
             const publicText =
               invocation.command === "new"
-                ? "Send your request to start a new Paperclip task."
+                ? "Send your request to start a new Nexus task."
                 : invocation.sourceKind === "direct_message"
                   ? "This chat conversation is closed. Send another message to start a new task."
-                  : "This chat conversation is closed. A later message here will continue the same Paperclip task.";
+                  : "This chat conversation is closed. A later message here will continue the same Nexus task.";
             const publication = await stageAuthorizedTaskControlPublication(
               tx,
               {

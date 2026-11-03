@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { ChatSdkCallbackEvent } from "./chat-sdk-runtime.js";
 import {
   createDiscordCommandRegistration,
-  discordPaperclipCommandDefinition,
+  discordNexusCommandDefinition,
 } from "./chat-discord-command-registration.js";
 import {
   isCurrentDiscordCommandRegistration,
@@ -31,7 +31,7 @@ function callback(rawOverrides: Record<string, unknown> = {}) {
     provider: "discord",
     transport: "discord_gateway",
     event: {
-      command: "/paperclip status",
+      command: "/nexus status",
       text: "",
       channelId: thread,
       channel: { id: thread },
@@ -49,7 +49,7 @@ function callback(rawOverrides: Record<string, unknown> = {}) {
         data: {
           id: commandId,
           type: 1,
-          name: "paperclip",
+          name: "nexus",
           options: [{ type: 1, name: "status" }],
         },
         user: { id: userId, username: "operator", bot: false },
@@ -79,7 +79,7 @@ function registrationAction() {
           definitionDigest: createHash("sha256")
             .update(
               JSON.stringify(
-                discordPaperclipCommandDefinition(prepared.ownerId),
+                discordNexusCommandDefinition(prepared.ownerId),
               ),
             )
             .digest("hex"),
@@ -180,7 +180,7 @@ describe("Discord native command service authority parser", () => {
         data: {
           id: commandId,
           type: 1,
-          name: "paperclip",
+          name: "nexus",
           options: [
             {
               type: 1,
@@ -197,7 +197,7 @@ describe("Discord native command service authority parser", () => {
         data: {
           id: commandId,
           type: 1,
-          name: "paperclip",
+          name: "nexus",
           options: [{ type: 1, name: "delete" }],
         },
       },
@@ -227,7 +227,7 @@ describe("Discord native command service authority parser", () => {
         c.event.user.userId = "444444444444444445";
       },
       (c: ReturnType<typeof callback>) => {
-        c.event.command = "/paperclip close";
+        c.event.command = "/nexus close";
       },
       (c: ReturnType<typeof callback>) => {
         c.event.text = "status";

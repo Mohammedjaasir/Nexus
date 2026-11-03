@@ -7,12 +7,12 @@ import {
   vercelGrantReference,
   vercelTokenRequest,
 } from "./vercel-connect.js";
-import type { VercelConnectCredentialReference } from "@paperclipai/shared";
+import type { VercelConnectCredentialReference } from "@nexusai/shared";
 
 const credential: VercelConnectCredentialReference = {
   provider: "vercel_connect",
   connectorId: "scl_posthog",
-  connectorUid: "posthog-paperclip",
+  connectorUid: "posthog-nexus",
   service: "posthog",
   connectorType: "api-key",
   principalMode: "user",
@@ -24,30 +24,30 @@ const credential: VercelConnectCredentialReference = {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("Vercel Connect credential adapter", () => {
-  it("canonicalizes Paperclip's loopback callback to Vercel's accepted localhost form", () => {
+  it("canonicalizes Nexus's loopback callback to Vercel's accepted localhost form", () => {
     expect(vercelConnectCallbackUrl(
       "http://127.0.0.1:3200/api/tools/oauth/callback?stale=1#fragment",
       "one-time-state",
     )).toBe("http://localhost:3200/api/tools/vercel-connect/callback?state=one-time-state");
     expect(vercelConnectCallbackUrl(
-      "https://paperclip.example/api/tools/oauth/callback",
+      "https://nexus.example/api/tools/oauth/callback",
       "one-time-state",
-    )).toBe("https://paperclip.example/api/tools/vercel-connect/callback?state=one-time-state");
+    )).toBe("https://nexus.example/api/tools/vercel-connect/callback?state=one-time-state");
   });
 
   it("gates new setup separately from runtime credential availability", () => {
     expect(vercelConnectIntegrationStatus({
-      PAPERCLIP_VERCEL_CONNECT_ENABLED: "false",
-      PAPERCLIP_VERCEL_CONNECT_ACCESS_TOKEN: "bootstrap-token",
+      NEXUS_VERCEL_CONNECT_ENABLED: "false",
+      NEXUS_VERCEL_CONNECT_ACCESS_TOKEN: "bootstrap-token",
     } as NodeJS.ProcessEnv)).toMatchObject({
       enabled: false,
       configured: true,
       authentication: "access_token",
     });
     expect(vercelConnectIntegrationStatus({
-      PAPERCLIP_VERCEL_CONNECT_ENABLED: "true",
+      NEXUS_VERCEL_CONNECT_ENABLED: "true",
       VERCEL_OIDC_TOKEN: "workload-token",
-      PAPERCLIP_VERCEL_CONNECT_ACCESS_TOKEN: "fallback-token",
+      NEXUS_VERCEL_CONNECT_ACCESS_TOKEN: "fallback-token",
     } as NodeJS.ProcessEnv)).toMatchObject({
       enabled: true,
       configured: true,
@@ -58,10 +58,10 @@ describe("Vercel Connect credential adapter", () => {
   it("prefers workload OIDC over the access-token fallback", () => {
     expect(vercelConnectSdkOptions({
       VERCEL_OIDC_TOKEN: "workload-token",
-      PAPERCLIP_VERCEL_CONNECT_ACCESS_TOKEN: "stale-fallback-token",
+      NEXUS_VERCEL_CONNECT_ACCESS_TOKEN: "stale-fallback-token",
     } as NodeJS.ProcessEnv)).toEqual({});
     expect(vercelConnectSdkOptions({
-      PAPERCLIP_VERCEL_CONNECT_ACCESS_TOKEN: "fallback-token",
+      NEXUS_VERCEL_CONNECT_ACCESS_TOKEN: "fallback-token",
     } as NodeJS.ProcessEnv, true)).toEqual({
       vercelToken: "fallback-token",
       forceRefresh: true,
@@ -69,7 +69,7 @@ describe("Vercel Connect credential adapter", () => {
   });
 
   it("derives stable company- and user-bound subjects without browser input", () => {
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "instance-one");
+    vi.stubEnv("NEXUS_INSTANCE_ID", "instance-one");
     const base = {
       credential,
       connectionId: "connection-one",
@@ -99,7 +99,7 @@ describe("Vercel Connect credential adapter", () => {
       resources: ["https://mcp.posthog.com/mcp"],
       grant: { kind: "organization", subjectUserId: null, externalCredential: null },
     })).toMatchObject({
-      connector: "posthog-paperclip",
+      connector: "posthog-nexus",
       subject: { type: "app" },
       resources: ["https://mcp.posthog.com/mcp"],
     });
@@ -114,7 +114,7 @@ describe("Vercel Connect credential adapter", () => {
         token: "provider-bearer-must-not-persist",
         tokenId: "stk_123",
         expiresAt: Date.parse("2026-08-26T13:00:00.000Z"),
-        connector: { id: "scl_posthog", uid: "posthog-paperclip", type: "api-key" },
+        connector: { id: "scl_posthog", uid: "posthog-nexus", type: "api-key" },
         installationId: "installation-1",
         tenantId: "project-1",
         claims: { email: "private@example.com" },

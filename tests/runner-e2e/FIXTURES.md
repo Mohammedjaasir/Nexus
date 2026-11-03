@@ -138,7 +138,7 @@ factory validated by the shared environment schema.
 The local environment is instance-managed: company creation ensures it exists,
 and the public API intentionally rejects a second local environment. The setup
 registry therefore discovers that row through the public environments API.
-This still provides full isolation because every cell starts a new Paperclip
+This still provides full isolation because every cell starts a new Nexus
 instance and database.
 
 
@@ -244,9 +244,9 @@ provider retirement before collection. Pi's separate `agent-files-fresh-run`
 case retains changed-home save and fresh-task restoration coverage. This split
 does not weaken the stable-process oracle or change the Codex checkpoint fixture.
 
-Native turns 1 and 2 include an actionable human review in the completion report's `attentionRequests`. Paperclip creates the review gate from that report. An explicit question-tool wait yields the turn and suppresses its final prose, so it is not interchangeable with this completion-review fixture. Turn 3 reports Done without another review.
+Native turns 1 and 2 include an actionable human review in the completion report's `attentionRequests`. Nexus creates the review gate from that report. An explicit question-tool wait yields the turn and suppresses its final prose, so it is not interchangeable with this completion-review fixture. Turn 3 reports Done without another review.
 
-Every selected case runs in its own isolated Paperclip process, and independent
+Every selected case runs in its own isolated Nexus process, and independent
 cases may run concurrently. Follow-up turns inside one case retain their shared
 task state. Each case creates and tears down its own company, secrets,
 environment selection, agent, and browser-created task. Strict Copilot command,
@@ -290,7 +290,7 @@ The source digest versions the grader and request in catalog metadata. See
 [Automatic task titles](README.md#automatic-task-titles) for live selectors,
 coverage limits, evidence, and calibration.
 
-## New Paperclip object fixtures
+## New Nexus object fixtures
 
 The explicit-only `lifecycle-baseline` suite reuses this registry and existing
 continuation, chat and governed-action flows. Its narrative pairs require actual
@@ -409,7 +409,7 @@ The explicit-only `kimi-qualification` suite reuses eight established user
 journeys and adds native pending-permission Stop and native worker-loss journeys
 in each local/Daytona environment, with one attempt per cell. The
 `runner-acpx-kimi` profile selects the exact candidate/model pair in the isolated
-server, and receives only an encrypted `KIMI_API_KEY` secret reference. No native question/plan or usage/cost support is inferred from these fixtures. Semantic Paperclip interaction cards retain their
+server, and receives only an encrypted `KIMI_API_KEY` secret reference. No native question/plan or usage/cost support is inferred from these fixtures. Semantic Nexus interaction cards retain their
 existing browser, durable revision, and continuation assertions.
 
 The file cell creates its project/workspace through the public fixture registry
@@ -621,7 +621,7 @@ deterministic calibration do not constitute paid qualification.
 
 Both cases create a task through the browser and select `approve-reads` and
 `per_turn` through the public agent API before startup. They retain
-`paperclip.e2e.pi-control-pending.v1` while an exact native Pi write and its
+`nexus.e2e.pi-control-pending.v1` while an exact native Pi write and its
 permission card are pending in one run/turn/session/source. The card's native
 tool ID is joined to the canonical execution ID using the existing runnerd
 identity mapping. Pi does not emit Cursor/Copilot diagnostic notices; those
@@ -689,7 +689,7 @@ provider timeout, 300s attempt budget). `native-permission-deny-write` denies on
 exact native edit through its browser card, waits for the delivered rejection and
 failed tool, then cancels through the public run API. Its expected outcome is a
 cancelled run and an unfinished task, not successful task completion.
-The current `paperclip.e2e.copilot-denial-settlement.v4` proof separates the exact
+The current `nexus.e2e.copilot-denial-settlement.v4` proof separates the exact
 provider terminal from the audited controller Stop. It records either
 `provider_cancelled_or_interrupted` or `provider_completed_observed_before_stop`.
 The latter requires the exact terminal row to be returned by the operator API
@@ -800,10 +800,10 @@ intent rather than overwrite it.
 
 The current Copilot fixture invokes the ordinary cancel endpoint without supplying
 its observation UUID. It retains that UUID only as fixture correlation in
-`paperclip.e2e.copilot-pre-stop-observation.v2`. The actual API response supplies
-the server's intent and audit IDs; `paperclip.e2e.copilot-stop-acknowledgement.v1`
+`nexus.e2e.copilot-pre-stop-observation.v2`. The actual API response supplies
+the server's intent and audit IDs; `nexus.e2e.copilot-stop-acknowledgement.v1`
 binds and hashes the returned cancellation metadata, exact caller and scope.
-The final `paperclip.e2e.copilot-denial-settlement.v4` receipt verifies that same
+The final `nexus.e2e.copilot-denial-settlement.v4` receipt verifies that same
 response metadata and the observation's monotonic order. The public API's optional
 `cancellationRequestId` support is separate from this fixture correlation.
 
@@ -824,7 +824,7 @@ attempts and v3 receipts are retained without regrading.
 
 `native-active-stop` / `pending-permission-stop` has four explicit-only cells:
 Cursor and Copilot, each local and Daytona. Its `native_active_stop` flow retains
-`paperclip.e2e.native-active-stop-pending.v2` from the public API while exactly one
+`nexus.e2e.native-active-stop-pending.v2` from the public API while exactly one
 native permission remains pending, the exact controller run is running, and no
 Stop or answer marker exists. The receipt independently binds native session,
 normalized session, turn, source instance, request/tool IDs, source sequences and
@@ -848,7 +848,7 @@ both input orders. Neither policy claims the original ACP wire order of a live
 attempt. Old v1 receipts are not valid inputs to the
 new grader. Earlier paid failures retain their original definition and grade.
 
-Suite version 4 and `paperclip.e2e.native-active-stop-settlement.v2` accept only
+Suite version 4 and `nexus.e2e.native-active-stop-settlement.v2` accept only
 `pending_permission_cancelled`: the Product harness's exact
 `runtime_request.cancelled` closure (`reason: turn_terminal`, matching request,
 item and turn, no answer), then one exact `turn.cancelled` (`status: cancelled`,
@@ -870,7 +870,7 @@ retired. Local files require four fresh observations through cleanup. Daytona
 instead retains two live snapshots (baseline and pending) plus one automatic
 owned-process-retirement seal, with a continuous zero-mutation watcher and the
 same complete root/descendant journal. Since suite version 2, this is retained as
-`paperclip.e2e.native-active-stop-remote-retirement.v1`; it explicitly records
+`nexus.e2e.native-active-stop-remote-retirement.v1`; it explicitly records
 `filesystemAfterRetirementObserved:false`. The per-turn observer seals itself
 when the owned tree retires, before the sandbox is released. Reading that receipt
 later is not a fresh post-UI or post-cleanup filesystem observation. Relabeled,
@@ -886,8 +886,8 @@ process death is not simulated by substituting the chat runner-worker crash hook
 
 ### Copilot attached semantic completion evidence (suite 8)
 
-Attached settlement now requires one native `paperclip_finish` lifecycle joined
-to an invocation-captured, bounded Paperclip bridge receipt by exact call, input
+Attached settlement now requires one native `nexus_finish` lifecycle joined
+to an invocation-captured, bounded Nexus bridge receipt by exact call, input
 and result digests in the same run/turn/native session and durable source stream.
 A matching display title is not authority. The exact proposed completion input
 must match a control-plane `run.result.accepted` body and the requested summary.
@@ -911,8 +911,8 @@ the native lifecycle; its normalized input hash must also match the authority.
 Exactly one proposed body must hash to that normalized digest and equal exactly
 one accepted body; identical duplicate proposals or receipts still fail.
 
-Suite 8 writes `paperclip.e2e.copilot-semantic-completion.v2` and requires
-`paperclip.semantic_tool_receipt.v2` under `paperclip_semantic_tool_receipt_v2`.
+Suite 8 writes `nexus.e2e.copilot-semantic-completion.v2` and requires
+`nexus.semantic_tool_receipt.v2` under `nexus_semantic_tool_receipt_v2`.
 The authority has exactly eight bounded details. An explicit null normalized
 digest is diagnostic only and cannot qualify a successful finish. Legacy v1
 receipts do not qualify fresh runs. This fixture depends on the corresponding
@@ -970,7 +970,7 @@ Cursor native denial qualification requires one exact absolute-target command, a
 correlated browser Reject once delivered after reconnect, six independent absence
 samples, a complete continuous mutation watcher, and retirement of the actual
 run-owned process tree. The pinned Cursor transport may report the rejected call
-as completed and end the native turn; Paperclip must retain a failed run with
+as completed and end the native turn; Nexus must retain a failed run with
 missing semantic finalization and an unfinished task. That is a denial outcome,
 not task success or operator cancellation. Stop during an unresolved permission
 remains a separate `native-active-stop/pending-permission-stop` gate.

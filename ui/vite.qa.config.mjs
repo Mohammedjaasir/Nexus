@@ -5,7 +5,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const BACKEND = "http://paperclip-dev:3100";
+const BACKEND = "http://nexus-dev:3100";
 
 // Mock the /tools/gallery endpoint (which only exists on PAP-10341 branch)
 // so we can visually test the "recognized domain" shortcut against a populated gallery.

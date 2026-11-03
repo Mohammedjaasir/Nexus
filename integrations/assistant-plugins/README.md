@@ -1,7 +1,7 @@
-# Paperclip assistant plugins
+# Nexus assistant plugins
 
 One shared set of workflows, with packages for OpenAI (ChatGPT/Codex) and Claude.
-The packages use only individually exposed first-party Paperclip tools. Agent
+The packages use only individually exposed first-party Nexus tools. Agent
 impersonation and generic connected-tool execution are not included.
 
 ## Build
@@ -11,7 +11,7 @@ impersonation and generic connected-tool execution are not included.
 node integrations/assistant-plugins/build.mjs
 
 # Replace with the operator's actual deployed endpoint before testing remotely:
-node integrations/assistant-plugins/build.mjs https://YOUR-PAPERCLIP-HOST/mcp/paperclip
+node integrations/assistant-plugins/build.mjs https://YOUR-NEXUS-HOST/mcp/nexus
 ```
 
 The builder accepts a fixed HTTPS endpoint (HTTP loopback is allowed for local
@@ -25,15 +25,15 @@ output has `.claude-plugin/plugin.json` and `.mcp.json`. The MCP endpoint is the
 same for both. No lifecycle hook, embedded UI or client-side executor is needed.
 
 See [server setup and release gates](../../doc/public-mcp.md). Configure the
-client to request `paperclip:read paperclip:write offline_access` for delegation
-and refresh, or just `paperclip:read` for a read-only connection. The person may
+client to request `nexus:read nexus:write offline_access` for delegation
+and refresh, or just `nexus:read` for a read-only connection. The person may
 decline write access during consent. Use each client's normal OAuth connection
 flow; do not put agent keys or browser cookies into plugin manifests.
 
 ## Distribution
 
-Package `openai/paperclip/` and `claude/paperclip/` separately. Before publishing,
-build against the stable Paperclip-owned public endpoint and complete the
+Package `openai/nexus/` and `claude/nexus/` separately. Before publishing,
+build against the stable Nexus-owned public endpoint and complete the
 provider's review metadata, branding, privacy/support links and live tests.
 Submit the Claude remote connector and workflow plugin separately, paired by
 server URL. OpenAI currently supports one connected MCP server per public

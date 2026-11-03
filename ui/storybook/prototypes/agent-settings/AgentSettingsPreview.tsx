@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 import { RuntimeTestCard } from "../RuntimeTestCard";
 import { type TestOutcome } from "../new-agent-fixtures";
 import { COMPANY, ID, REF, createSettingsFixtures, library } from "./fixtures";
-import { storybookIssues } from "../../fixtures/paperclipData";
+import { storybookIssues } from "../../fixtures/nexusData";
 import "./settings.css";
 
 const descriptions: Record<AgentLocalDetailView, string> = {
@@ -57,7 +57,7 @@ const descriptions: Record<AgentLocalDetailView, string> = {
   tools: "Manage installed connections, available tools, and access policies.",
   channels: "Manage the external chat connections dedicated to this agent.",
   permissions: "Set the agent’s trust level, authority, and boundaries.",
-  "api-keys": "Manage the keys this agent uses to authenticate with Paperclip.",
+  "api-keys": "Manage the keys this agent uses to authenticate with Nexus.",
   revisions:
     "Review past configuration changes and restore an earlier version.",
   activity: "Everything this agent did and everything done to it.",
@@ -85,8 +85,8 @@ export function AgentSettingsPreview({
 }) {
   const [fixtures] = useState(() => {
     const fixtures = createSettingsFixtures(adapterType, testOutcome, saveFails);
-    if (adapterType === "codex_local" || adapterType === "paperclip_runner") {
-      fixtures.agent.adapterConfig = { ...fixtures.agent.adapterConfig, model: "gpt-5.6-sol", modelReasoningEffort: "high", ...(adapterType === "paperclip_runner" ? { provider: "codex" } : {}) };
+    if (adapterType === "codex_local" || adapterType === "nexus_runner") {
+      fixtures.agent.adapterConfig = { ...fixtures.agent.adapterConfig, model: "gpt-5.6-sol", modelReasoningEffort: "high", ...(adapterType === "nexus_runner" ? { provider: "codex" } : {}) };
     }
     return fixtures;
   });
@@ -103,11 +103,11 @@ export function AgentSettingsPreview({
         const response = await previous(input, init);
         const data = await response.json();
         return Response.json(url.pathname === "/api/health" ? { ...data, status: "ok" }
-          : data.map((adapter: { type: string }) => adapter.type === "codex_local" ? { ...adapter, supportedRunners: ["paperclip", "legacy"], defaultRunner: "paperclip" } : adapter));
+          : data.map((adapter: { type: string }) => adapter.type === "codex_local" ? { ...adapter, supportedRunners: ["nexus", "legacy"], defaultRunner: "nexus" } : adapter));
       }
       return previous(input, init);
     };
-    if (adapterType === "codex_local" || adapterType === "paperclip_runner") window.fetch = codexFixture;
+    if (adapterType === "codex_local" || adapterType === "nexus_runner") window.fetch = codexFixture;
     const fixtureQueryKeys = [
       queryKeys.health,
       queryKeys.adapters.all,

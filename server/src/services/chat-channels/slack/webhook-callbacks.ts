@@ -1,13 +1,13 @@
-import { isProvisionedSlackSetup } from "@paperclipai/shared";
+import { isProvisionedSlackSetup } from "@nexusai/shared";
 import { slackRequestSignatureIsValid, slackRequestWorkspaceId, slackCallbackMatchesPublicUrl, inspectSlackCallback } from "./callback-verification.js";
 import type { InternalSetupState } from "../runtime-types.js";
 import { notifyChatVerificationWork } from "../../chat-work-notifications.js";
-import { chatSlackRegistrations } from "@paperclipai/db";
+import { chatSlackRegistrations } from "@nexusai/db";
 import { rememberVerifiedSlackSearchEvent } from "../../connectors/slack-search-context.js";
 import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { chatEndpoints, toolConnections } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { chatEndpoints, toolConnections } from "@nexusai/db";
 import { logActivity } from "../../activity-log.js";
 import type { EndpointRow, RuntimeContext } from "../runtime-types.js";
 import type { createChatCredentials } from "../credentials.js";

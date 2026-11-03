@@ -3,8 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AdapterExecutionContext } from "@paperclipai/adapter-utils";
-import { createPromptContextFixture } from "@paperclipai/adapter-utils/test-fixtures/prompt-context";
+import type { AdapterExecutionContext } from "@nexusai/adapter-utils";
+import { createPromptContextFixture } from "@nexusai/adapter-utils/test-fixtures/prompt-context";
 
 // Bundles the remote-lane mock state and every mocked execution-target
 // function behind one hoisted object, so the `vi.mock` factory below (which
@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => {
         const assetDirs =
           override?.assetDirs ??
           Object.fromEntries(
-            (input.assets ?? []).map((asset) => [asset.key, `/remote/workspace/.paperclip-runtime/grok/${asset.key}`]),
+            (input.assets ?? []).map((asset) => [asset.key, `/remote/workspace/.nexus-runtime/grok/${asset.key}`]),
           );
         const workspaceRemoteDir = override && "workspaceRemoteDir" in override
           ? override.workspaceRemoteDir
@@ -49,7 +49,7 @@ const {
   prepareRuntimeMock,
 } = mocks;
 
-vi.mock("@paperclipai/adapter-utils/execution-target", () => ({
+vi.mock("@nexusai/adapter-utils/execution-target", () => ({
   adapterExecutionTargetIsRemote: () => mocks.state.isRemote,
   adapterExecutionTargetRemoteCwd: (_target: unknown, cwd: string) =>
     mocks.state.isRemote ? "/remote/workspace" : cwd,
@@ -78,7 +78,7 @@ import { resolveManagedGrokHomeDir } from "./grok-home.js";
 const tempRoots: string[] = [];
 
 async function makeTempRoot() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-grok-local-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-grok-local-"));
   tempRoots.push(root);
   return root;
 }
@@ -114,7 +114,7 @@ function makeRestoreWorkspace(
     for (const asset of assets) {
       if (!asset.restore) continue;
       await asset.restore({
-        assetDir: "/remote/workspace/.paperclip-runtime/grok/home",
+        assetDir: "/remote/workspace/.nexus-runtime/grok/home",
         readFile: async () => {
           if (sandboxAuthFixture.error) throw sandboxAuthFixture.error;
           if (sandboxAuthFixture.bytes === null) {
@@ -188,7 +188,7 @@ describe("grok_local execute", () => {
     const result = await execute(second);
     const args = runProcessMock.mock.calls[1][3] as string[];
     expect(args[args.indexOf("--resume") + 1]).toBe("existing-session");
-    expect(runProcessMock.mock.calls[1][4].env.PAPERCLIP_RUNTIME_TOOLS_MCP_URL).toBe("https://example.test/current-tools/mcp");
+    expect(runProcessMock.mock.calls[1][4].env.NEXUS_RUNTIME_TOOLS_MCP_URL).toBe("https://example.test/current-tools/mcp");
     expect(result.sessionParams?.sessionId).toBe("existing-session");
   });
 
@@ -323,11 +323,11 @@ describe("grok_local execute", () => {
   it("stages Grok-native instructions and skills into the workspace for the run and cleans them up afterward", async () => {
     const root = await makeTempRoot();
     const instructionsPath = path.join(root, "managed", "AGENTS.md");
-    const skillSource = path.join(root, "runtime-skills", "paperclip");
+    const skillSource = path.join(root, "runtime-skills", "nexus");
     await fs.mkdir(path.dirname(instructionsPath), { recursive: true });
     await fs.writeFile(instructionsPath, "You are Grok.\n", "utf8");
     await fs.mkdir(skillSource, { recursive: true });
-    await fs.writeFile(path.join(skillSource, "SKILL.md"), "---\nname: paperclip\ndescription: test\n---\n", "utf8");
+    await fs.writeFile(path.join(skillSource, "SKILL.md"), "---\nname: nexus\ndescription: test\n---\n", "utf8");
 
     runProcessMock.mockImplementation(async (_runId, _target, _command, args, options) => {
       expect(args).toEqual(
@@ -341,7 +341,7 @@ describe("grok_local execute", () => {
       // so no permission mode may be passed unless explicitly configured.
       expect(args).not.toContain("--permission-mode");
       expect(await fs.readFile(path.join(root, "Agents.md"), "utf8")).toContain("You are Grok.");
-      expect(await pathExists(path.join(root, ".claude", "skills", "paperclip", "SKILL.md"))).toBe(true);
+      expect(await pathExists(path.join(root, ".claude", "skills", "nexus", "SKILL.md"))).toBe(true);
       await options.onLog?.("stdout", '{"type":"text","data":"done"}\n');
       return {
         exitCode: 0,
@@ -374,13 +374,13 @@ describe("grok_local execute", () => {
       config: {
         cwd: root,
         instructionsFilePath: instructionsPath,
-        paperclipRuntimeSkills: [{
-          key: "paperclip",
-          runtimeName: "paperclip",
+        nexusRuntimeSkills: [{
+          key: "nexus",
+          runtimeName: "nexus",
           source: skillSource,
           required: false,
         }],
-        paperclipSkillSync: { desiredSkills: ["paperclip"] },
+        nexusSkillSync: { desiredSkills: ["nexus"] },
       },
       context: {},
       authToken: "run-token",
@@ -399,7 +399,7 @@ describe("grok_local execute", () => {
       sessionDisplayId: "sess-1",
     });
     expect(await pathExists(path.join(root, "Agents.md"))).toBe(false);
-    expect(await pathExists(path.join(root, ".claude", "skills", "paperclip"))).toBe(false);
+    expect(await pathExists(path.join(root, ".claude", "skills", "nexus"))).toBe(false);
     expect(logs.map((entry) => entry.chunk)).not.toEqual([]);
   });
 
@@ -454,14 +454,14 @@ describe("grok_local execute", () => {
 
   describe("local lane GROK_HOME", () => {
     let previousApiKey: string | undefined;
-    let previousPaperclipHome: string | undefined;
+    let previousNexusHome: string | undefined;
     let previousGrokHome: string | undefined;
 
     beforeEach(async () => {
       previousApiKey = process.env.XAI_API_KEY;
-      previousPaperclipHome = process.env.PAPERCLIP_HOME;
+      previousNexusHome = process.env.NEXUS_HOME;
       previousGrokHome = process.env.GROK_HOME;
-      process.env.PAPERCLIP_HOME = await makeTempRoot();
+      process.env.NEXUS_HOME = await makeTempRoot();
       delete process.env.XAI_API_KEY;
       delete process.env.GROK_HOME;
     });
@@ -469,8 +469,8 @@ describe("grok_local execute", () => {
     afterEach(() => {
       if (previousApiKey === undefined) delete process.env.XAI_API_KEY;
       else process.env.XAI_API_KEY = previousApiKey;
-      if (previousPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-      else process.env.PAPERCLIP_HOME = previousPaperclipHome;
+      if (previousNexusHome === undefined) delete process.env.NEXUS_HOME;
+      else process.env.NEXUS_HOME = previousNexusHome;
       if (previousGrokHome === undefined) delete process.env.GROK_HOME;
       else process.env.GROK_HOME = previousGrokHome;
     });
@@ -648,11 +648,11 @@ describe("grok_local execute", () => {
   it("cleans up staged assets when setup fails before the Grok process starts", async () => {
     const root = await makeTempRoot();
     const instructionsPath = path.join(root, "managed", "AGENTS.md");
-    const skillSource = path.join(root, "runtime-skills", "paperclip");
+    const skillSource = path.join(root, "runtime-skills", "nexus");
     await fs.mkdir(path.dirname(instructionsPath), { recursive: true });
     await fs.writeFile(instructionsPath, "You are Grok.\n", "utf8");
     await fs.mkdir(skillSource, { recursive: true });
-    await fs.writeFile(path.join(skillSource, "SKILL.md"), "---\nname: paperclip\ndescription: test\n---\n", "utf8");
+    await fs.writeFile(path.join(skillSource, "SKILL.md"), "---\nname: nexus\ndescription: test\n---\n", "utf8");
     ensureCommandMock.mockRejectedValueOnce(new Error("grok not installed"));
 
     const ctx: AdapterExecutionContext = {
@@ -673,13 +673,13 @@ describe("grok_local execute", () => {
       config: {
         cwd: root,
         instructionsFilePath: instructionsPath,
-        paperclipRuntimeSkills: [{
-          key: "paperclip",
-          runtimeName: "paperclip",
+        nexusRuntimeSkills: [{
+          key: "nexus",
+          runtimeName: "nexus",
           source: skillSource,
           required: false,
         }],
-        paperclipSkillSync: { desiredSkills: ["paperclip"] },
+        nexusSkillSync: { desiredSkills: ["nexus"] },
       },
       context: {},
       authToken: "run-token",
@@ -689,21 +689,21 @@ describe("grok_local execute", () => {
     await expect(execute(ctx)).rejects.toThrow("grok not installed");
     expect(runProcessMock).not.toHaveBeenCalled();
     expect(await pathExists(path.join(root, "Agents.md"))).toBe(false);
-    expect(await pathExists(path.join(root, ".claude", "skills", "paperclip"))).toBe(false);
+    expect(await pathExists(path.join(root, ".claude", "skills", "nexus"))).toBe(false);
   });
 
   describe("remote lane credential staging", () => {
     let previousApiKey: string | undefined;
-    let previousPaperclipHome: string | undefined;
-    let paperclipHomeRoot: string;
+    let previousNexusHome: string | undefined;
+    let nexusHomeRoot: string;
 
     beforeEach(async () => {
       previousApiKey = process.env.XAI_API_KEY;
-      previousPaperclipHome = process.env.PAPERCLIP_HOME;
+      previousNexusHome = process.env.NEXUS_HOME;
       // Point the managed Grok home at a private tmp root, so staging never
-      // touches a real developer or CI-host `~/.paperclip` tree.
-      paperclipHomeRoot = await makeTempRoot();
-      process.env.PAPERCLIP_HOME = paperclipHomeRoot;
+      // touches a real developer or CI-host `~/.nexus` tree.
+      nexusHomeRoot = await makeTempRoot();
+      process.env.NEXUS_HOME = nexusHomeRoot;
       sandboxAuthFixture.bytes = null;
       sandboxAuthFixture.error = null;
     });
@@ -711,8 +711,8 @@ describe("grok_local execute", () => {
     afterEach(() => {
       if (previousApiKey === undefined) delete process.env.XAI_API_KEY;
       else process.env.XAI_API_KEY = previousApiKey;
-      if (previousPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-      else process.env.PAPERCLIP_HOME = previousPaperclipHome;
+      if (previousNexusHome === undefined) delete process.env.NEXUS_HOME;
+      else process.env.NEXUS_HOME = previousNexusHome;
     });
 
     async function seedHostGrokAuth(contents: string): Promise<string> {
@@ -747,7 +747,7 @@ describe("grok_local execute", () => {
           }
           return {
             workspaceRemoteDir: "/remote/workspace",
-            assetDirs: { home: "/remote/workspace/.paperclip-runtime/grok/home" },
+            assetDirs: { home: "/remote/workspace/.nexus-runtime/grok/home" },
             restoreWorkspace: async () => {},
           };
         },
@@ -774,7 +774,7 @@ describe("grok_local execute", () => {
 
       await execute(await makeCtx("run-remote-subscription-home", await makeTempRoot()));
 
-      expect(seenEnv.GROK_HOME).toBe("/remote/workspace/.paperclip-runtime/grok/home");
+      expect(seenEnv.GROK_HOME).toBe("/remote/workspace/.nexus-runtime/grok/home");
     });
 
     it("stages an empty company home instead of a configured host login for remote runs", async () => {
@@ -789,7 +789,7 @@ describe("grok_local execute", () => {
         stagedEntries = await fs.readdir(input.assets![0].localDir);
         return {
           workspaceRemoteDir: "/remote/workspace",
-          assetDirs: { home: "/remote/workspace/.paperclip-runtime/grok/home" },
+          assetDirs: { home: "/remote/workspace/.nexus-runtime/grok/home" },
           restoreWorkspace: async () => {},
         };
       });
@@ -798,7 +798,7 @@ describe("grok_local execute", () => {
       await execute(ctx);
 
       expect(stagedEntries).toEqual([]);
-      expect(runProcessMock.mock.calls[0][4].env.GROK_HOME).toBe("/remote/workspace/.paperclip-runtime/grok/home");
+      expect(runProcessMock.mock.calls[0][4].env.GROK_HOME).toBe("/remote/workspace/.nexus-runtime/grok/home");
     });
 
     it("uses the fallback remote path when assetDirs.home is absent", async () => {
@@ -815,7 +815,7 @@ describe("grok_local execute", () => {
       await execute(await makeCtx("run-remote-subscription-fallback", await makeTempRoot()));
 
       expect(seenEnv.GROK_HOME).toBe(
-        "/remote/fallback-workspace/.paperclip-runtime/grok/home",
+        "/remote/fallback-workspace/.nexus-runtime/grok/home",
       );
     });
 
@@ -856,7 +856,7 @@ describe("grok_local execute", () => {
         stagedDir = input.assets?.[0]?.localDir ?? "";
         return {
           workspaceRemoteDir: "/remote/workspace",
-          assetDirs: { home: "/remote/workspace/.paperclip-runtime/grok/home" },
+          assetDirs: { home: "/remote/workspace/.nexus-runtime/grok/home" },
           restoreWorkspace: async () => {},
         };
       });
@@ -876,7 +876,7 @@ describe("grok_local execute", () => {
         stagedDir = input.assets?.[0]?.localDir ?? "";
         return {
           workspaceRemoteDir: "/remote/workspace",
-          assetDirs: { home: "/remote/workspace/.paperclip-runtime/grok/home" },
+          assetDirs: { home: "/remote/workspace/.nexus-runtime/grok/home" },
           restoreWorkspace: async () => {},
         };
       });
@@ -905,7 +905,7 @@ describe("grok_local execute", () => {
         stagedDir = input.assets?.[0]?.localDir ?? "";
         return {
           workspaceRemoteDir: "/remote/workspace",
-          assetDirs: { home: "/remote/workspace/.paperclip-runtime/grok/home" },
+          assetDirs: { home: "/remote/workspace/.nexus-runtime/grok/home" },
           restoreWorkspace: async () => { order.push("restore"); },
         };
       });
@@ -937,7 +937,7 @@ describe("grok_local execute", () => {
       });
       prepareRuntimeMock.mockImplementationOnce(async () => ({
         workspaceRemoteDir: "/remote/workspace",
-        assetDirs: { home: "/remote/workspace/.paperclip-runtime/grok/home" },
+        assetDirs: { home: "/remote/workspace/.nexus-runtime/grok/home" },
         restoreWorkspace: async () => { throw new Error("restore failed"); },
       }));
       const ctx = await makeCtx("run-collection-and-restore-reject", await makeTempRoot());
@@ -972,7 +972,7 @@ describe("grok_local execute", () => {
         stagedDir = input.assets?.[0]?.localDir ?? "";
         return {
           workspaceRemoteDir: "/remote/workspace",
-          assetDirs: { home: "/remote/workspace/.paperclip-runtime/grok/home" },
+          assetDirs: { home: "/remote/workspace/.nexus-runtime/grok/home" },
           restoreWorkspace: async () => {
             throw new Error("restore failed");
           },
@@ -1010,7 +1010,7 @@ describe("grok_local execute", () => {
         }>;
         return {
           workspaceRemoteDir: "/remote/workspace",
-          assetDirs: { home: "/remote/workspace/.paperclip-runtime/grok/home" },
+          assetDirs: { home: "/remote/workspace/.nexus-runtime/grok/home" },
           restoreWorkspace: makeRestoreWorkspace(assets),
         };
       });
@@ -1036,7 +1036,7 @@ describe("grok_local execute", () => {
         }>;
         return {
           workspaceRemoteDir: "/remote/workspace",
-          assetDirs: { home: "/remote/workspace/.paperclip-runtime/grok/home" },
+          assetDirs: { home: "/remote/workspace/.nexus-runtime/grok/home" },
           restoreWorkspace: makeRestoreWorkspace(assets),
         };
       });
@@ -1063,7 +1063,7 @@ describe("grok_local execute", () => {
         }>;
         return {
           workspaceRemoteDir: "/remote/workspace",
-          assetDirs: { home: "/remote/workspace/.paperclip-runtime/grok/home" },
+          assetDirs: { home: "/remote/workspace/.nexus-runtime/grok/home" },
           restoreWorkspace: makeRestoreWorkspace(assets),
         };
       });
@@ -1091,7 +1091,7 @@ describe("grok_local execute", () => {
 
       await execute(ctx);
 
-      expect(deliveredPrompt).toContain(fixture.paperclipTaskMarkdownAssignment);
+      expect(deliveredPrompt).toContain(fixture.nexusTaskMarkdownAssignment);
       expect(deliveredPrompt.indexOf("Append the same ledger entry.")).toBeLessThan(
         deliveredPrompt.lastIndexOf("Append the same ledger entry."),
       );
@@ -1128,8 +1128,8 @@ describe("grok_local execute", () => {
 
       expect(result.exitCode).toBe(0);
       expect(prompts).toHaveLength(2);
-      expect(prompts[0]).toContain(fixture.paperclipTaskMarkdownAssignmentCompact);
-      expect(prompts[1]).toContain(fixture.paperclipTaskMarkdownAssignment);
+      expect(prompts[0]).toContain(fixture.nexusTaskMarkdownAssignmentCompact);
+      expect(prompts[1]).toContain(fixture.nexusTaskMarkdownAssignment);
       expect(prompts[1]).toContain("comment-first");
       expect(prompts[1]).toContain("comment-scope");
     });

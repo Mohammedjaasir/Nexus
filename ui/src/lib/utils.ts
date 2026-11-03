@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { deriveAgentUrlKey, deriveProjectUrlKey, normalizeProjectUrlKey, hasNonAsciiContent } from "@paperclipai/shared";
-import type { BillingType, FinanceDirection, FinanceEventKind } from "@paperclipai/shared";
+import { deriveAgentUrlKey, deriveProjectUrlKey, normalizeProjectUrlKey, hasNonAsciiContent } from "@nexusai/shared";
+import type { BillingType, FinanceDirection, FinanceEventKind } from "@nexusai/shared";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -213,9 +213,9 @@ export function visibleRunTokenTotal(usage: Record<string, unknown> | null | und
   return input + output + (inputExcludesCached ? cached : 0);
 }
 
-/** Muse exposes Paperclip bridge events, not raw private provider traffic. */
+/** Muse exposes Nexus bridge events, not raw private provider traffic. */
 export function supportsRawProviderTrace(adapterType: string, adapterConfig: Record<string, unknown> | null | undefined): boolean {
-  return adapterType !== "paperclip_runner" || adapterConfig?.provider !== "muse";
+  return adapterType !== "nexus_runner" || adapterConfig?.provider !== "muse";
 }
 
 /** Persisted accounting facts belong to this run, even after its agent changes provider. */

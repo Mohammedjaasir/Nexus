@@ -23,7 +23,7 @@ describe("scoped network egress", () => {
     const createNamespacedNetworkPolicy = vi.fn().mockResolvedValue({});
     await createScopedNetworkEgressPolicy({
       clients: { networking: { createNamespacedNetworkPolicy } } as never,
-      namespace: "paperclip-acme",
+      namespace: "nexus-acme",
       mode: "standard",
       runId: "run-123",
       workloadName: "pc-workload",
@@ -31,7 +31,7 @@ describe("scoped network egress", () => {
       grant: { allowFqdns: ["github.com", "pypi.org"], allowCidrs: [] },
     });
     expect(createNamespacedNetworkPolicy).toHaveBeenCalledWith(expect.objectContaining({
-      namespace: "paperclip-acme",
+      namespace: "nexus-acme",
       body: expect.objectContaining({
         metadata: expect.objectContaining({ name: "pc-workload-egress" }),
         spec: expect.objectContaining({ podSelector: { matchLabels: { "paperclip.io/run-id": "run-123" } } }),
@@ -45,7 +45,7 @@ describe("scoped network egress", () => {
 
     const name = await createScopedNetworkEgressPolicy({
       clients: { networking: { createNamespacedNetworkPolicy } } as never,
-      namespace: "paperclip-acme",
+      namespace: "nexus-acme",
       mode: "standard",
       runId: "run-123",
       workloadName,
@@ -74,7 +74,7 @@ describe("scoped network egress", () => {
           createNamespacedNetworkPolicy: vi.fn().mockRejectedValue(policyError),
         },
       } as never,
-      namespace: "paperclip-acme",
+      namespace: "nexus-acme",
       mode: "standard",
       runId: "run-123",
       workloadName: "pc-workload",

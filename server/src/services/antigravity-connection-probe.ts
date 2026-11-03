@@ -2,12 +2,12 @@ import { randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AdapterEnvironmentTestContext, AdapterEnvironmentTestResult } from "@paperclipai/adapter-utils";
-import { NativeEnvironmentProbeCleanupError, probeNativeRunnerEnvironment, resolveAcpxRuntimeRoot } from "../vendor/paperclip-runner/index.js";
+import type { AdapterEnvironmentTestContext, AdapterEnvironmentTestResult } from "@nexusai/adapter-utils";
+import { NativeEnvironmentProbeCleanupError, probeNativeRunnerEnvironment, resolveAcpxRuntimeRoot } from "../vendor/nexus-runner/index.js";
 import { logger } from "../middleware/logger.js";
 import { resolveAntigravityCandidateAdmission } from "./native-runtime/acpx-qualification.js";
 import { antigravityCredentialTurn, prepareAntigravityRunnerCredentials } from "./native-runtime/antigravity-runner-credentials.js";
-import { resolvePaperclipRunnerBinary } from "./native-runtime/native-codex-runner.js";
+import { resolveNexusRunnerBinary } from "./native-runtime/native-codex-runner.js";
 
 const TRANSPORT_KEYS = ["PATH", "LANG", "LANGUAGE", "TZ", "TMPDIR", "TEMP", "TMP", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "ALL_PROXY"];
 
@@ -31,17 +31,17 @@ export function antigravityConnectionProbeFailure(companyId: string, error: unkn
     classification: admission?.[2] ?? "unclassified",
     ...(admission ? { retryable: admission[1] === "true" } : {}),
   }, installation ? "Antigravity installation check failed before account verification" : "Antigravity runtime admission check failed");
-  return { adapterType: "paperclip_runner", status: "fail", testedAt: new Date().toISOString(), checks: [{ code, level: "error",
-    message: installation ? "Paperclip could not complete the local Google Antigravity installation check."
+  return { adapterType: "nexus_runner", status: "fail", testedAt: new Date().toISOString(), checks: [{ code, level: "error",
+    message: installation ? "Nexus could not complete the local Google Antigravity installation check."
       : "Google Antigravity could not complete its runtime check.",
     hint: installation ? "The instance operator needs to repair this runtime before Test can verify your Google connection."
-      : "Retry Test. If it still fails, ask your Paperclip operator to inspect the runtime check.",
+      : "Retry Test. If it still fails, ask your Nexus operator to inspect the runtime check.",
   }] };
 }
 
 /** The ordinary Test uses the selected managed account and no model turn. */
 export async function testAntigravityConnection(context: AdapterEnvironmentTestContext, model: string): Promise<AdapterEnvironmentTestResult> {
-  if (context.executionTarget?.kind === "remote") throw new Error("Google Antigravity candidate testing requires the Paperclip host.");
+  if (context.executionTarget?.kind === "remote") throw new Error("Google Antigravity candidate testing requires the Nexus host.");
   const admission = resolveAntigravityCandidateAdmission({ companyId: context.companyId, model });
   if (!admission) throw new Error("Google Antigravity is not available for this company.");
   const configured = context.config.env;
@@ -52,14 +52,14 @@ export async function testAntigravityConnection(context: AdapterEnvironmentTestC
   ]);
   const credentials = await prepareAntigravityRunnerCredentials({ environment, remote: false,
     managedHome: context.managedAiCredentialHome, lifecycleMode: "per_turn" });
-  const runtimeDirectory = await realpath(await mkdtemp(join(tmpdir(), "paperclip-antigravity-setup-")));
+  const runtimeDirectory = await realpath(await mkdtemp(join(tmpdir(), "nexus-antigravity-setup-")));
   const acpxRuntimeDirectory = join(runtimeDirectory, "acpx");
   const nonce = randomUUID(), normalizedSessionId = `setup-${nonce}`;
   let nativeHome: string, runnerBinary: string;
   try {
     await mkdir(acpxRuntimeDirectory, { mode: 0o700 });
     nativeHome = join(await resolveAcpxRuntimeRoot(acpxRuntimeDirectory, normalizedSessionId), "antigravity-home");
-    runnerBinary = resolvePaperclipRunnerBinary();
+    runnerBinary = resolveNexusRunnerBinary();
   } catch (error) {
     await rm(runtimeDirectory, { recursive: true, force: true });
     throw error;
@@ -84,7 +84,7 @@ export async function testAntigravityConnection(context: AdapterEnvironmentTestC
     || receipt.sessionAdmissionPassed !== true || receipt.admissionOnly !== true || receipt.helloProbePassed !== false) {
     throw new Error("The selected Google runtime returned no matching account and model admission receipt.");
   }
-  return { adapterType: "paperclip_runner", status: "pass", testedAt: new Date().toISOString(),
+  return { adapterType: "nexus_runner", status: "pass", testedAt: new Date().toISOString(),
     checks: [{ code: "antigravity_metadata_verified", level: "info",
       message: "The Google Antigravity candidate verified the selected account and exact model. No model prompt was sent." }] };
 }

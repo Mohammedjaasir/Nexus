@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
-const expectedVersion = process.env.PAPERCLIPAI_VERSION!;
+const expectedVersion = process.env.NEXUSAI_VERSION!;
 const companyName = `Canary Smoke ${Date.now()}`;
 const agentName = "Canary Smoke Lead";
 
@@ -16,13 +16,13 @@ test("the exact published canary installs and reaches Connect a model", async ({
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
-  // Browser storage is scoped to the Paperclip origin, not to a data directory.
+  // Browser storage is scoped to the Nexus origin, not to a data directory.
   // A customer can therefore start a freshly installed server with an existing
   // onboarding draft. Creating the organization invalidates the company list;
   // this release check must prove that a refetch does not remount the wizard
   // from that old draft and leave the customer on the name screen.
   await page.addInitScript(() => {
-    localStorage.setItem("paperclip-onboarding-state", JSON.stringify({
+    localStorage.setItem("nexus-onboarding-state", JSON.stringify({
       step: 1,
       companyName: "",
       createdCompanyId: null,

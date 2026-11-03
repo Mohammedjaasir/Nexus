@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
-import type { Db } from "@paperclipai/db";
-import { agentObservabilityRevisionSchema, updateAgentObservabilitySchema } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { agentObservabilityRevisionSchema, updateAgentObservabilitySchema } from "@nexusai/shared";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { canManageAiConnections } from "./ai-connections.js";
 import { forbidden } from "../errors.js";

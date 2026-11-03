@@ -6,7 +6,7 @@ import {
   type FixtureState,
 } from "../../support/capability-gaps/api";
 const files = {
-  ".paperclip.yaml": "schema: paperclip/v1\n",
+  ".nexus.yaml": "schema: nexus/v1\n",
   "agents/reviewer/AGENTS.md": "# Reviewer\n\nReview release evidence.",
 };
 const preview = {
@@ -53,7 +53,7 @@ const meta = {
   title: "Getting started and access/Companies and portability/Import preview",
   component: CompanyImport,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "companies/portability"
       ],

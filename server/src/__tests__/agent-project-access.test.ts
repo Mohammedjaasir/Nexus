@@ -4,7 +4,7 @@ import request from "supertest";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { agents, agentWakeupRequests, activityLog, authUsers, companies, companyMemberships, createDb,
-  executionWorkspaces, heartbeatRuns, issues, projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+  executionWorkspaces, heartbeatRuns, issues, projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { registerAgentProjectAccessRoutes } from "../routes/agent-project-access.js";
 import { errorHandler } from "../middleware/error-handler.js";
 import { assertTaskWorkspaceExecutionAccess, assertTaskWorkspaceSourceProjectAccess } from "../services/task-workspace-access.js";
@@ -18,7 +18,7 @@ describe("additive project access", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    const external = process.env.PAPERCLIP_TEST_DATABASE_URL;
+    const external = process.env.NEXUS_TEST_DATABASE_URL;
     if (external) db = createDb(external);
     else { database = await startEmbeddedPostgresTestDatabase("agent-project-access-"); db = createDb(database.connectionString); }
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);

@@ -1,4 +1,4 @@
-import { companies, type Db } from "@paperclipai/db";
+import { companies, type Db } from "@nexusai/db";
 import { isCloudManagedInstance } from "./cloud-instance.js";
 import { getCloudRuntimeIdentity } from "./cloud-runtime-identity.js";
 
@@ -15,12 +15,12 @@ export async function createCloudWarmStandby(
   db: Db,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<CloudWarmStandby> {
-  const stackId = env.PAPERCLIP_CLOUD_STACK_ID?.trim();
+  const stackId = env.NEXUS_CLOUD_STACK_ID?.trim();
   if (
-    env.PAPERCLIP_CLOUD_WARM_STANDBY !== "1"
+    env.NEXUS_CLOUD_WARM_STANDBY !== "1"
     || !isCloudManagedInstance(env)
     || !stackId
-    || !env.PAPERCLIP_CLOUD_RUNTIME_IDENTITY_JWKS?.trim()
+    || !env.NEXUS_CLOUD_RUNTIME_IDENTITY_JWKS?.trim()
     || getCloudRuntimeIdentity()
   ) return () => false;
 

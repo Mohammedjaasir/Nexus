@@ -60,7 +60,7 @@ function makeFakeProcess(input: {
 function createFakeSandbox(overrides: FakeSandboxOverrides = {}) {
   const execCalls: Array<{ argv: string[]; params?: unknown }> = [];
   const defaultExec = async (_argv: string[], _params?: unknown): Promise<FakeProcess> =>
-    makeFakeProcess({ exitCode: 0, stdout: "paperclip-probe" });
+    makeFakeProcess({ exitCode: 0, stdout: "nexus-probe" });
   const exec = vi.fn().mockImplementation(async (argv: string[], params?: unknown) => {
     execCalls.push({ argv, params });
     return overrides.execImpl ? overrides.execImpl(argv, params) : defaultExec(argv, params);
@@ -104,7 +104,7 @@ const baseAcquireParams = {
 };
 
 const baseConfig = {
-  appName: "paperclip-app",
+  appName: "nexus-app",
   image: "node:20",
   sandboxTimeoutMs: 3_600_000,
   execTimeoutMs: 300_000,
@@ -246,14 +246,14 @@ describe("Modal sandbox provider plugin", () => {
       config: { ...baseConfig, workdir: "/srv/work" },
     });
 
-    expect(mockAppFromName).toHaveBeenCalledWith("paperclip-app", {
+    expect(mockAppFromName).toHaveBeenCalledWith("nexus-app", {
       createIfMissing: true,
       environment: undefined,
     });
     expect(mockImageFromRegistry).toHaveBeenCalledWith("node:20");
     expect(sandbox.setTags).toHaveBeenCalledWith(expect.objectContaining({
-      "paperclip-provider": "modal",
-      "paperclip-company-id": "c-1",
+      "nexus-provider": "modal",
+      "nexus-company-id": "c-1",
     }));
     // First exec is the mkdir for the workspace, second is the probe command.
     expect(sandbox.execCalls[0]?.argv).toEqual([
@@ -264,7 +264,7 @@ describe("Modal sandbox provider plugin", () => {
     expect(sandbox.execCalls[1]?.argv).toEqual([
       "sh",
       "-lc",
-      "printf paperclip-probe",
+      "printf nexus-probe",
     ]);
     expect(sandbox.terminate).toHaveBeenCalled();
     expect(mockClientClose).toHaveBeenCalled();
@@ -282,7 +282,7 @@ describe("Modal sandbox provider plugin", () => {
   it("returns a failure probe result when the probe command exits non-zero", async () => {
     const sandbox = createFakeSandbox({
       execImpl: async (argv: string[]) => {
-        if (argv[2] === "printf paperclip-probe") {
+        if (argv[2] === "printf nexus-probe") {
           return makeFakeProcess({ exitCode: 7, stdout: "boom" });
         }
         return makeFakeProcess({ exitCode: 0 });
@@ -343,8 +343,8 @@ describe("Modal sandbox provider plugin", () => {
       }),
     });
     expect(sandbox.setTags).toHaveBeenCalledWith(expect.objectContaining({
-      "paperclip-run-id": "run-1",
-      "paperclip-reuse-lease": "true",
+      "nexus-run-id": "run-1",
+      "nexus-reuse-lease": "true",
     }));
     expect(sandbox.execCalls[0]?.argv).toEqual(["sh", "-lc", "mkdir -p '/srv/work'"]);
   });
@@ -388,7 +388,7 @@ describe("Modal sandbox provider plugin", () => {
         config: baseConfig,
       }),
     ).rejects.toThrow(
-      "Failed to create remote workspace directory '/workspace/paperclip': mkdir exited with code 17",
+      "Failed to create remote workspace directory '/workspace/nexus': mkdir exited with code 17",
     );
     expect(sandbox.terminate).toHaveBeenCalledTimes(1);
   });
@@ -608,16 +608,16 @@ describe("Modal sandbox provider plugin", () => {
     });
 
     expect(sandbox.openedFiles).toHaveLength(1);
-    expect(sandbox.openedFiles[0]?.path).toMatch(/^\/tmp\/paperclip-stdin-/);
+    expect(sandbox.openedFiles[0]?.path).toMatch(/^\/tmp\/nexus-stdin-/);
     expect(sandbox.openedFiles[0]?.mode).toBe("w");
     expect(sandbox.openedFiles[0]?.written).not.toBeNull();
     expect(new TextDecoder().decode(sandbox.openedFiles[0]!.written!)).toBe("input payload");
 
     // First exec is the user command; second is the rm cleanup.
     const userCall = sandbox.execCalls[0]!;
-    expect(userCall.argv[2]).toMatch(/&& exec 'cat' < '\/tmp\/paperclip-stdin-/);
+    expect(userCall.argv[2]).toMatch(/&& exec 'cat' < '\/tmp\/nexus-stdin-/);
     const cleanupCall = sandbox.execCalls[1]!;
-    expect(cleanupCall.argv[2]).toMatch(/^rm -f '\/tmp\/paperclip-stdin-/);
+    expect(cleanupCall.argv[2]).toMatch(/^rm -f '\/tmp\/nexus-stdin-/);
     expect(result?.exitCode).toBe(0);
   });
 
@@ -716,7 +716,7 @@ describe("modal manifest form defaults", () => {
   const properties = configSchema.properties ?? {};
 
   it("pre-fills the required app name and image so the form works out of the box", () => {
-    expect(properties.appName?.default).toBe("paperclip");
+    expect(properties.appName?.default).toBe("nexus");
     expect(properties.image?.default).toBe("node:24");
   });
 

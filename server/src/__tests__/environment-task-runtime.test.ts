@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
-import { executionWorkspaces, environmentLeases, type Db } from "@paperclipai/db";
-import { environmentTaskOperationSchema, parseEnvironmentTaskResult } from "@paperclipai/plugin-sdk";
+import { executionWorkspaces, environmentLeases, type Db } from "@nexusai/db";
+import { environmentTaskOperationSchema, parseEnvironmentTaskResult } from "@nexusai/plugin-sdk";
 import { executeEnvironmentTask, settleDispatchedEnvironmentTask } from "../services/environment-task-runtime.js";
 import { NativeExecutionContext } from "../services/native-runtime/native-execution-context.js";
 
@@ -216,7 +216,7 @@ describe("plugin-provided Runner execution", () => {
       normalizedSessionId: "session", turnId: "turn", itemId: "item" };
     Object.assign(value.lease.metadata, { runnerTaskIdentity: { ...submit.runner, leaseId: identity.environmentLeaseId } });
     const operation = { kind: "read_state" as const, identity };
-    const result = { kind: "state", taskId: "attempt-1", state: { schema: "paperclip.runner.durable.state.v1", ...identity, lifecycle: "suspended" } };
+    const result = { kind: "state", taskId: "attempt-1", state: { schema: "nexus.runner.durable.state.v1", ...identity, lifecycle: "suspended" } };
     const workers = worker(result);
     await expect(executeEnvironmentTask(database(value).db, workers as never, { companyId: "company", leaseId, operation })).resolves.toEqual(result);
     expect(workers.call).toHaveBeenCalledOnce(); workers.call.mockClear();
@@ -239,7 +239,7 @@ describe("plugin-provided Runner execution", () => {
     Object.assign(value.lease.metadata, {runnerTaskDispatched:true,runnerTaskLifecyclePolicy:{mode:"warm",idleTimeoutMs:120000},runnerTaskIdentity:{...submit.runner}});
     const identity = {runnerInstanceId:"runner",environmentLeaseId:leaseId,runId:"run",normalizedSessionId:"session",turnId:"turn",itemId:"item"};
     const operation = {kind:"read_state" as const,identity};
-    const result = {kind:"state",taskId:"attempt-1",state:{schema:"paperclip.runner.durable.state.v1",...identity,lifecycle:"suspended"}};
+    const result = {kind:"state",taskId:"attempt-1",state:{schema:"nexus.runner.durable.state.v1",...identity,lifecycle:"suspended"}};
     const workers = worker(result);
     await expect(executeEnvironmentTask(database(value).db,workers as never,{companyId:"company",leaseId,operation})).resolves.toEqual(result);
     expect(workers.call).toHaveBeenCalledOnce();
@@ -289,7 +289,7 @@ describe("plugin-provided Runner execution", () => {
   });
   it.each([false, true])("prepares scoped configuration with submit-time auth %s", async atSubmit => {
     const operation = { kind: "prepare" as const, projectIds: [projectId], requirements: {
-      schema: "paperclip.runner.launch-requirements.v1" as const,
+      schema: "nexus.runner.launch-requirements.v1" as const,
       identity: { runnerInstanceId: "runner", environmentLeaseId: leaseId, runId: "run",
         normalizedSessionId: "session", turnId: "turn", itemId: "item" },
       provider: "codex" as const, model: "selected", instructions: "Core instructions", runtimeContext: null,

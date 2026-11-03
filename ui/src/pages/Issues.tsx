@@ -23,7 +23,7 @@ import { readIssueSortParams, type IssueSort } from "../lib/issue-sort";
 import { TaskViewsMenu } from "../components/TaskViewsMenu";
 import { Button } from "@/components/ui/button";
 import { CircleDot, Plus } from "lucide-react";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 import { useStreamlinedUiEnabled } from "../hooks/useStreamlinedUiEnabled";
 import { useCombinedInboxTasksEnabled } from "../hooks/useCombinedInboxTasksEnabled";
 import { useDialogActions } from "../context/DialogContext";
@@ -198,7 +198,7 @@ function OrganizationIssues({
     }
     return urlSearch;
   }, [searchOverride, urlSearch, location.search]);
-  const showAgentCreatedTasks = useShowAgentCreatedTasks(selectedCompanyId, "paperclip:issues-view");
+  const showAgentCreatedTasks = useShowAgentCreatedTasks(selectedCompanyId, "nexus:issues-view");
   const sort = useMemo(() => readIssueSortParams(searchParams), [searchParams]);
   const includeBlockedBy = sort?.sortField === "workflow";
   const serverSortField = sort?.sortField === "created" ? "created" : "updated";
@@ -364,7 +364,7 @@ function OrganizationIssues({
       agents={agents}
       projects={projects}
       liveIssueIds={liveIssueIds}
-      viewStateKey="paperclip:issues-view"
+      viewStateKey="nexus:issues-view"
       rowPresentation={issuesPresentation.rowPresentation}
       toolbarPresentation={issuesPresentation.toolbarPresentation}
       issueLinkState={issueLinkState}

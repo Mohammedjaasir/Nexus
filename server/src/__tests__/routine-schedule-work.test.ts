@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agents, applyPendingMigrations, companies, costEvents, createDb, routineRuns, routineTriggers, type Db } from "@paperclipai/db";
+import { agents, applyPendingMigrations, companies, costEvents, createDb, routineRuns, routineTriggers, type Db } from "@nexusai/db";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { routineService } from "../services/routines.js";
@@ -12,7 +12,7 @@ import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_ROUTINE_SCHEDULE_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_ROUTINE_SCHEDULE_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("routine schedule deadline work", () => {
   let db: Db;

@@ -1,14 +1,14 @@
 # Company agent observability
 
 Company Settings → General → Agent observability configures one company-owned
-OTLP destination for Paperclip-managed Codex, Claude Code and native OpenCode executions. Export
+OTLP destination for Nexus-managed Codex, Claude Code and native OpenCode executions. Export
 is disabled by default. Choose Braintrust (US) or a custom HTTP(S) OTLP base URL;
 use your own collector when you need fan-out. Braintrust EU and self-hosted
 installations can use Custom OTLP with their required routing/authentication
 headers. The receiver must be reachable from every execution environment;
 `localhost` refers to the execution host, including a remote sandbox.
 
-This is separate from Paperclip's first-party Telemetry and its content-free
+This is separate from Nexus's first-party Telemetry and its content-free
 [infrastructure tracing](observability.md). Configuring it does not change either data path.
 
 ## Capture and supported runtimes
@@ -22,7 +22,7 @@ and response caps still apply. Claude Code applies its own native limits.
 Metrics, raw API bodies and Codex Guardian assessments are disabled.
 
 Native OpenCode 1.18.34 uses a runner-owned HTTP/JSON exporter. Each completed,
-failed or cancelled turn produces a trace with Paperclip company, agent, run and
+failed or cancelled turn produces a trace with Nexus company, agent, run and
 turn IDs. Tool outcomes and message-level token/cost receipts are child spans;
 repeated usage updates replace the same message receipt. Missing prices remain
 unknown. This projection excludes hidden reasoning, raw provider payloads and
@@ -59,7 +59,7 @@ outside this feature.
 
 ## Changes and process lifetime
 
-Paperclip reads settings once when an execution begins preparation. That
+Nexus reads settings once when an execution begins preparation. That
 snapshot governs instruction reservation, compatibility and launch. Already
 preparing or running work retains its configuration. A changed settings
 revision or resolved credential version retires an idle incompatible warm
@@ -77,7 +77,7 @@ observed; event delivery and task settlement do not wait for the receiver.
 
 Only board users with Manage connections permission can read or change this
 configuration. Agents cannot retrieve it through the settings API. The destination stores no credential
-values. Authentication headers live in one encrypted Paperclip-managed company
+values. Authentication headers live in one encrypted Nexus-managed company
 secret, bound to the system consumer company-observability. Updates rotate that
 secret; removal uses the secret service to retire it. Braintrust project
 routing is derived from the current project ID, independently of the API key.

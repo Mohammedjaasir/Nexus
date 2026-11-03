@@ -5,7 +5,7 @@ import { getIssuePullRequests, pullRequestHref, pullRequestIdentity } from "../.
 import { useWorkspaceIsolationControls } from "@/hooks/useWorkspaceIsolationControls";
 import { AgentIdentity } from "@/components/AgentIdentity";
 import { AgentAvatar } from "@/components/AgentAvatar";
-import { normalizeLegacyRunnerProvider } from "@paperclipai/adapter-utils";
+import { normalizeLegacyRunnerProvider } from "@nexusai/adapter-utils";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { createPortal } from "react-dom";
 import { PROPERTIES_PANE_HEADER_SLOT_ID } from "../PropertiesPanel";
@@ -18,7 +18,7 @@ import {
   type ExecutionWorkspace,
   type Issue,
   type IssueLabel,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { accessApi } from "../../api/access";
 import { agentsApi } from "../../api/agents";
@@ -756,7 +756,7 @@ export function IssueProperties({
   );
   const assigneeOverrideChrome = assigneeAdapterType === "claude_local"
     && assigneeOverrideAdapterConfig.chrome === true;
-  const catalogProvider = assigneeAdapterType === "paperclip_runner" ? String(normalizeLegacyRunnerProvider(assigneePrimaryAdapterConfig).provider ?? "codex") : undefined;
+  const catalogProvider = assigneeAdapterType === "nexus_runner" ? String(normalizeLegacyRunnerProvider(assigneePrimaryAdapterConfig).provider ?? "codex") : undefined;
   const catalogAcpxAgent = catalogProvider === "acpx" ? String(assigneePrimaryAdapterConfig.acpxAgent ?? "claude") : undefined;
   const catalogEnvironmentId = nativeCatalog ? assignee?.defaultEnvironmentId ?? null : null;
   const nativeCatalogScope = JSON.stringify(nativeCatalog ?? null);

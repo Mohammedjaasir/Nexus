@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { applyPendingMigrations, closeRegisteredClients, createDb } from "@paperclipai/db";
+import { applyPendingMigrations, closeRegisteredClients, createDb } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./embedded-postgres.js";
 
-export const recoveryPostgresSupport = process.env.PAPERCLIP_TEST_DATABASE_URL
+export const recoveryPostgresSupport = process.env.NEXUS_TEST_DATABASE_URL
   ? { supported: true } : await getEmbeddedPostgresTestSupport();
 
 /** Optional external host, always a fresh owned database; never reuse its data. */
 export async function startRecoveryPostgres(prefix: string) {
-  const external = process.env.PAPERCLIP_TEST_DATABASE_URL;
+  const external = process.env.NEXUS_TEST_DATABASE_URL;
   if (!external) return startEmbeddedPostgresTestDatabase(prefix);
   const databaseName = `recovery_${randomUUID().replaceAll("-", "")}`;
   const admin = createDb(external);

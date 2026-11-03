@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { supportsManagedNativeWarmSession, supportsNativeWarmFiles } from "./native-warm-capability.js";
-import type { PaperclipRunnerProviderProfile } from "./provider-profile.js";
+import type { NexusRunnerProviderProfile } from "./provider-profile.js";
 
 describe("native warm credential and file admission", () => {
-  const copilot: PaperclipRunnerProviderProfile = {
+  const copilot: NexusRunnerProviderProfile = {
     provider: "acpx", backend: "acpx_runtime", acpxAgent: "copilot", model: "gpt-5.6-luna",
   };
   it("admits the saved Copilot token with its session-owned home and file handoff", () => {
@@ -21,7 +21,7 @@ describe("native warm credential and file admission", () => {
     expect(supportsManagedNativeWarmSession(profile, { provider: "github", method: "api_key" })).toBe(false);
   });
   it("preserves Codex warm support", () => {
-    const profile: PaperclipRunnerProviderProfile = { provider: "codex", backend: "codex_app_server", model: "gpt-5.6-sol" };
+    const profile: NexusRunnerProviderProfile = { provider: "codex", backend: "codex_app_server", model: "gpt-5.6-sol" };
     expect(supportsNativeWarmFiles(profile)).toBe(true);
     expect(supportsManagedNativeWarmSession(profile, undefined)).toBe(true);
   });

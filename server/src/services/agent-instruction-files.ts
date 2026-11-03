@@ -166,7 +166,7 @@ export async function materializeInstructionBytes(
 export const instructionGitExcludeProgram = String.raw`
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const cwd=fs.realpathSync(process.argv[1]);
-const root=path.join(cwd,'.paperclip-runtime'),filename=path.join(root,'.gitignore');
+const root=path.join(cwd,'.nexus-runtime'),filename=path.join(root,'.gitignore');
 const stat=(name)=>{try{return fs.lstatSync(name)}catch(e){if(e.code==='ENOENT')return null;throw e}};
 const directory=stat(root);
 if(directory && (directory.isSymbolicLink() || !directory.isDirectory()))throw Error('Unsafe runtime exclusion directory');

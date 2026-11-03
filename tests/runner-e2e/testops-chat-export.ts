@@ -50,7 +50,7 @@ export async function exportTestOpsChat(reportRoot: string, output: string, bind
   if (!/^[1-9][0-9]{0,19}$/.test(binding.runId) || binding.attempt !== "1" || !sha.test(binding.workflowSha) || !sha.test(binding.targetSha)) throw new Error("Invalid TestOps run binding");
   const raw = JSON.parse((await ownedRead(reportRoot, "normalized-results.json", 8 * 1024 * 1024)).toString("utf8"));
   const campaignId = `gha-${binding.runId}-${binding.attempt}`;
-  if (raw.schema !== "paperclip.runner-e2e.campaign/v2" || raw.campaignId !== campaignId || !Array.isArray(raw.expected) || raw.expected.length !== 1 || raw.expected[0] !== TESTOPS_CHAT_EXECUTION || !Array.isArray(raw.results) || raw.results.length !== 1 || raw.retries !== 0) throw new Error("Foreign or repeated TestOps selection");
+  if (raw.schema !== "nexus.runner-e2e.campaign/v2" || raw.campaignId !== campaignId || !Array.isArray(raw.expected) || raw.expected.length !== 1 || raw.expected[0] !== TESTOPS_CHAT_EXECUTION || !Array.isArray(raw.results) || raw.results.length !== 1 || raw.retries !== 0) throw new Error("Foreign or repeated TestOps selection");
   const original = raw.results[0];
   validateRetainedRunnerResult(original);
   if (original.executionId !== TESTOPS_CHAT_EXECUTION || original.suiteId !== "chat-features" || original.profileId !== "runner-opencode-deepseek-1017" || original.environmentId !== "local" || original.caseId !== "create-backlog" || original.provider !== "opencode" || original.model !== model || original.runtimeMode !== "native" || original.attempt !== 1 || original.source?.sha !== binding.targetSha) throw new Error("Foreign TestOps result");
@@ -88,9 +88,9 @@ export async function exportTestOpsChat(reportRoot: string, output: string, bind
   if (findSecretLeakInJsonValues(campaign, [], { includeShapes: true })) throw new Error("Unsafe TestOps projection");
   files.set("normalized-results.json", Buffer.from(`${JSON.stringify(campaign, null, 2)}\n`));
   const failed = result.status !== "passed" || result.cleanup !== "passed";
-  files.set("junit.xml", Buffer.from(`<?xml version="1.0" encoding="UTF-8"?><testsuite name="Chat feature TestOps" tests="1" failures="${failed ? 1 : 0}"><testcase classname="paperclip.Product E2E.chat-features" name="create-backlog" time="${result.durationMs / 1000}">${failed ? '<failure message="Retained evaluation or cleanup failed"/>' : ""}</testcase></testsuite>\n`));
+  files.set("junit.xml", Buffer.from(`<?xml version="1.0" encoding="UTF-8"?><testsuite name="Chat feature TestOps" tests="1" failures="${failed ? 1 : 0}"><testcase classname="nexus.Product E2E.chat-features" name="create-backlog" time="${result.durationMs / 1000}">${failed ? '<failure message="Retained evaluation or cleanup failed"/>' : ""}</testcase></testsuite>\n`));
   const manifest = [...files].sort(([a], [b]) => a.localeCompare(b)).map(([file, bytes]) => ({ path: file, sha256: hash(bytes), bytes: bytes.length }));
-  const receipt = { schema: "paperclip.chat-feature-testops-export/v1", ...binding, executionId: TESTOPS_CHAT_EXECUTION, campaignId, resultStatus: result.status, cleanup: result.cleanup, files: manifest };
+  const receipt = { schema: "nexus.chat-feature-testops-export/v1", ...binding, executionId: TESTOPS_CHAT_EXECUTION, campaignId, resultStatus: result.status, cleanup: result.cleanup, files: manifest };
   await mkdir(output, { mode: 0o700 });
   for (const [relative, bytes] of files) { const target = path.join(output, relative); await mkdir(path.dirname(target), { recursive: true, mode: 0o700 }); await writeFile(target, bytes, { flag: "wx", mode: 0o600 }); }
   await writeFile(path.join(output, "binding.json"), `${JSON.stringify(receipt, null, 2)}\n`, { flag: "wx", mode: 0o600 });

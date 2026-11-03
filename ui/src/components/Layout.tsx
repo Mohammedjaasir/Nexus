@@ -589,7 +589,7 @@ export function Layout({ sidebarSections }: { sidebarSections?: ReactNode }) {
       ref={mobileViewportRef}
       data-mobile={isMobile ? "true" : undefined}
       className={cn(
-        "paperclip-app-shell bg-background text-foreground pt-(--sz-safe-top)",
+        "nexus-app-shell bg-background text-foreground pt-(--sz-safe-top)",
         coordinatorWorkspaceEnabled && "coordinator-workspace",
         // overflow-x-clip on mobile keeps a stray wide descendant from making the
         // whole viewport scroll horizontally. clip (not hidden) leaves overflow-y
@@ -643,7 +643,7 @@ export function Layout({ sidebarSections }: { sidebarSections?: ReactNode }) {
             collapsed={designSandbox || replacesPrimarySidebar ? false : collapsed}
             peeking={designSandbox || replacesPrimarySidebar ? false : peeking}
             resizable
-            storageKey={designSandbox ? "paperclip.design-proposals.sandbox.sidebar-width" : coordinatorWorkspaceEnabled ? "paperclip.coordinator.sidebar-width" : undefined}
+            storageKey={designSandbox ? "nexus.design-proposals.sandbox.sidebar-width" : coordinatorWorkspaceEnabled ? "nexus.coordinator.sidebar-width" : undefined}
             onPanelMouseEnter={replacesPrimarySidebar ? undefined : handlePanelPointerEnter}
             onPanelMouseLeave={replacesPrimarySidebar ? undefined : handlePanelPointerLeave}
             onPanelFocusCapture={!replacesPrimarySidebar && collapsed ? handlePanelFocus : undefined}

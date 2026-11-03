@@ -18,7 +18,7 @@ import {
   agents,
   companies,
   toolCatalogEntries,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   BROWSER_USE_IDLE_MS,
   type BrowserUseControl,
@@ -29,7 +29,7 @@ import {
   unitsToCents,
   centsToUsd,
   usdToUnits,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   browserUseClient,
   BrowserUseError,
@@ -73,16 +73,16 @@ const argsSchema = z
   .strict();
 const terminalSessions = ["closed", "failed"];
 const liveSessions = ["starting", "running", "idle", "stopping"];
-const requestMarker = (invocationId: string) => `\n\n[Paperclip request: ${invocationId}]`;
+const requestMarker = (invocationId: string) => `\n\n[Nexus request: ${invocationId}]`;
 type BrowserBudgetHold = { invocationId: string; amountCents: string; projectId: string | null;
   state: "held" | "released" | "settled"; uncapped?: boolean;
   dispatchCommittedAt?: string; accountedCentsExact?: string; billingUnknown?: boolean };
 const resultObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
-const budgetHold = (value: unknown) => resultObject(value).paperclipBudgetHold as BrowserBudgetHold | undefined;
+const budgetHold = (value: unknown) => resultObject(value).nexusBudgetHold as BrowserBudgetHold | undefined;
 function publicResult(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
-  const { paperclipBudgetHold: _internal, ...visible } = resultObject(value);
+  const { nexusBudgetHold: _internal, ...visible } = resultObject(value);
   return Object.keys(visible).length ? visible : null;
 }
 
@@ -208,7 +208,7 @@ export function browserUseService(
   async function assertBinding(binding: Binding, approved = false) {
     if (!binding.issueId || !binding.agentId || !binding.runId)
       throw forbidden(
-        "Browser tasks require an active Paperclip task and agent run. Use browser_profiles for a connection test.",
+        "Browser tasks require an active Nexus task and agent run. Use browser_profiles for a connection test.",
       );
     const [issue] = await db
       .select()
@@ -552,7 +552,7 @@ export function browserUseService(
       const hold: BrowserBudgetHold = { invocationId, amountCents: check.amountCents!, projectId: check.projectId!,
         state: "held", uncapped: check.maxCostUsd === undefined };
       await tx.insert(runs).values({
-        result: { paperclipBudgetHold: hold },
+        result: { nexusBudgetHold: hold },
         companyId: binding.companyId,
         sessionId: row.id,
         heartbeatRunId: binding.runId!,
@@ -592,7 +592,7 @@ export function browserUseService(
             return "Browser provider dispatch no longer owns this invocation.";
           const check = await admissionCheck(tx, publications, hold);
           if (check.reason) return check.reason;
-          await tx.update(runs).set({ result: { ...resultObject(current.result), paperclipBudgetHold: { ...hold, dispatchCommittedAt: new Date().toISOString() } } }).where(eq(runs.id, current.id));
+          await tx.update(runs).set({ result: { ...resultObject(current.result), nexusBudgetHold: { ...hold, dispatchCommittedAt: new Date().toISOString() } } }).where(eq(runs.id, current.id));
           return null;
         });
         if (reason) throw new BrowserUseError(403, reason, 0, true);
@@ -619,15 +619,15 @@ export function browserUseService(
       // A lost create response can mean paid work exists. Never submit it again.
       const rejected = !providerAttempted || (error instanceof BrowserUseError && error.requestRejected);
       const message = rejected ? (error instanceof Error ? error.message : "Browser dispatch was rejected.") :
-        "Browser run creation could not be confirmed. Paperclip is locating and stopping possible provider work. Do not start another run yet.";
+        "Browser run creation could not be confirmed. Nexus is locating and stopping possible provider work. Do not start another run yet.";
       await withAccountingTransaction(db, binding.companyId, async (tx, publications) => {
         await notifyDeliveryWork(tx, DELIVERY_QUEUES.browser);
         const [current] = await tx.select().from(sessions).where(eq(sessions.id, s.id)).for("update");
         if (rejected) {
-          await tx.update(runs).set({ result: sql`jsonb_set(${runs.result}, '{paperclipBudgetHold,state}', '"released"'::jsonb)` }).where(eq(runs.invocationId, invocationId));
+          await tx.update(runs).set({ result: sql`jsonb_set(${runs.result}, '{nexusBudgetHold,state}', '"released"'::jsonb)` }).where(eq(runs.invocationId, invocationId));
           await budgetServiceInTransaction(tx, publications).evaluateAffectedScopes(binding.companyId, binding.agentId, admitted.hold!.projectId);
         } else {
-          await tx.update(runs).set({ result: sql`jsonb_set(${runs.result}, '{paperclipBudgetHold,billingUnknown}', 'true'::jsonb)` }).where(eq(runs.invocationId, invocationId));
+          await tx.update(runs).set({ result: sql`jsonb_set(${runs.result}, '{nexusBudgetHold,billingUnknown}', 'true'::jsonb)` }).where(eq(runs.invocationId, invocationId));
           await budgetServiceInTransaction(tx, publications).evaluateAffectedScopes(binding.companyId, binding.agentId, admitted.hold!.projectId);
         }
         // A restart must not leave a drained rejection attached to a starting
@@ -1052,7 +1052,7 @@ export function browserUseService(
         accountedCentsExact: unitsToCents(amount > previous ? amount : previous) };
       await tx.update(runs).set({
         result: { ...resultObject(sanitizeBrowserUse({ result: summary.result, output: summary.output })),
-          paperclipBudgetHold: settled },
+          nexusBudgetHold: settled },
         eventsDrained: 1,
         accountedCents: Math.min(2_147_483_647, Math.round(Number(unitsToCents(amount > previous ? amount : previous)))),
       }).where(eq(runs.id, current.id));
@@ -1142,7 +1142,7 @@ export function browserUseService(
               || Date.now() - current.createdAt.getTime() <= 60_000) return null;
             await notifyDeliveryWork(tx, DELIVERY_QUEUES.browser);
             await tx.update(runs).set({ status: "failed", eventsDrained: 1,
-              result: { ...resultObject(current.result), paperclipBudgetHold: { ...hold, state: "released" } } }).where(eq(runs.id, run.id));
+              result: { ...resultObject(current.result), nexusBudgetHold: { ...hold, state: "released" } } }).where(eq(runs.id, run.id));
             const [session] = await tx.select().from(sessions).where(eq(sessions.id, s.id)).for("update");
             const stopping = session.stopRequested === "end";
             const [updated] = await tx.update(sessions).set({
@@ -1290,7 +1290,7 @@ export function browserUseService(
         if (confirmed.status !== "stopped")
           throw new BrowserUseError(
             502,
-            "Browser shutdown is not confirmed. Paperclip will retry.",
+            "Browser shutdown is not confirmed. Nexus will retry.",
           );
         await db
           .update(browsers)
@@ -1400,8 +1400,8 @@ export function browserUseService(
           .set({
             error:
               s.stopRequested === "end"
-                ? "Browser shutdown is not confirmed. Paperclip will retry."
-                : "Browser synchronization failed. Paperclip will retry.",
+                ? "Browser shutdown is not confirmed. Nexus will retry."
+                : "Browser synchronization failed. Nexus will retry.",
           })
           .where(eq(sessions.id, s.id));
       } finally {
@@ -1469,7 +1469,7 @@ export function browserUseService(
         .limit(1);
       if (pending)
         throw conflict(
-          "Browser access is disabled. Shutdown is still pending; retry removal after the browsers stop. Paperclip retains the key only for cleanup until then.",
+          "Browser access is disabled. Shutdown is still pending; retry removal after the browsers stop. Nexus retains the key only for cleanup until then.",
         );
     },
     async availableProfiles(

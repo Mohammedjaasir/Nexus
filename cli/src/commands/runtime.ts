@@ -7,14 +7,14 @@ import type { Command } from "commander";
 /** Resolve the public server dependency, without importing/starting the server. */
 export async function resolvePiProvisioner(serverUrl: string): Promise<string> {
   const url = new URL(serverUrl);
-  if (url.protocol !== "file:" || url.search || url.hash) throw new Error("Pi setup requires an installed Paperclip server");
+  if (url.protocol !== "file:" || url.search || url.hash) throw new Error("Pi setup requires an installed Nexus server");
   const entry = await realpath(fileURLToPath(url));
   if (!entry.endsWith("/dist/index.js")) throw new Error("Pi setup requires the published server layout");
   const root = resolve(dirname(entry), "..");
   const manifest = join(root, "package.json");
   const info = await lstat(manifest);
-  if (!info.isFile() || info.isSymbolicLink() || info.size > 65536 || JSON.parse(await readFile(manifest, "utf8")).name !== "@paperclipai/server") throw new Error("Pi setup server package identity is invalid");
-  const provisioner = join(root, "dist/vendor/paperclip-runner/cli/provision-pi.cjs");
+  if (!info.isFile() || info.isSymbolicLink() || info.size > 65536 || JSON.parse(await readFile(manifest, "utf8")).name !== "@nexusai/server") throw new Error("Pi setup server package identity is invalid");
+  const provisioner = join(root, "dist/vendor/nexus-runner/cli/provision-pi.cjs");
   if (await realpath(provisioner) !== provisioner || !(await lstat(provisioner)).isFile()) throw new Error("Pi setup entrypoint escapes its server package");
   return provisioner;
 }
@@ -37,7 +37,7 @@ export function buildPiSetupEnvironment(source: NodeJS.ProcessEnv = process.env)
 }
 
 export async function setupPiRuntime(): Promise<void> {
-  const provisioner = await resolvePiProvisioner(import.meta.resolve("@paperclipai/server"));
+  const provisioner = await resolvePiProvisioner(import.meta.resolve("@nexusai/server"));
   // Only explicit setup downloads. Enable Node's proxy handling for the helper;
   // provider keys, npm configuration, HOME and Node injection remain excluded.
   const child = spawn(process.execPath, ["--use-env-proxy", provisioner], {
@@ -60,20 +60,20 @@ export async function setupPiRuntime(): Promise<void> {
 
 export async function resolveCursorProvisioner(serverUrl: string): Promise<string> {
   const url = new URL(serverUrl);
-  if (url.protocol !== "file:" || url.search || url.hash) throw new Error("Cursor setup requires an installed Paperclip server");
+  if (url.protocol !== "file:" || url.search || url.hash) throw new Error("Cursor setup requires an installed Nexus server");
   const entry = await realpath(fileURLToPath(url));
   if (!entry.endsWith("/dist/index.js")) throw new Error("Cursor setup requires the published server layout");
   const root = resolve(dirname(entry), "..");
   const manifest = join(root, "package.json");
   const info = await lstat(manifest);
-  if (!info.isFile() || info.isSymbolicLink() || info.size > 65536 || JSON.parse(await readFile(manifest, "utf8")).name !== "@paperclipai/server") throw new Error("Cursor setup server package identity is invalid");
-  const provisioner = join(root, "dist/vendor/paperclip-runner/cli/provision-cursor.cjs");
+  if (!info.isFile() || info.isSymbolicLink() || info.size > 65536 || JSON.parse(await readFile(manifest, "utf8")).name !== "@nexusai/server") throw new Error("Cursor setup server package identity is invalid");
+  const provisioner = join(root, "dist/vendor/nexus-runner/cli/provision-cursor.cjs");
   if (await realpath(provisioner) !== provisioner || !(await lstat(provisioner)).isFile()) throw new Error("Cursor setup entrypoint escapes its server package");
   return provisioner;
 }
 
 export async function setupCursorRuntime(): Promise<void> {
-  const provisioner = await resolveCursorProvisioner(import.meta.resolve("@paperclipai/server"));
+  const provisioner = await resolveCursorProvisioner(import.meta.resolve("@nexusai/server"));
   const child = spawn(process.execPath, [provisioner], {
     stdio: "inherit", env: { PATH: process.env.PATH ?? "/usr/bin:/bin", LANG: "C.UTF-8" },
   });
@@ -95,20 +95,20 @@ export async function setupCursorRuntime(): Promise<void> {
 /** Resolve Antigravity setup without importing the server or starting a provider. */
 export async function resolveAntigravityProvisioner(serverUrl: string): Promise<string> {
   const url = new URL(serverUrl);
-  if (url.protocol !== "file:" || url.search || url.hash) throw new Error("Antigravity setup requires an installed Paperclip server");
+  if (url.protocol !== "file:" || url.search || url.hash) throw new Error("Antigravity setup requires an installed Nexus server");
   const entry = await realpath(fileURLToPath(url));
   if (!entry.endsWith("/dist/index.js")) throw new Error("Antigravity setup requires the published server layout");
   const root = resolve(dirname(entry), "..");
   const manifest = join(root, "package.json");
   const info = await lstat(manifest);
-  if (!info.isFile() || info.isSymbolicLink() || info.size > 65536 || JSON.parse(await readFile(manifest, "utf8")).name !== "@paperclipai/server") throw new Error("Antigravity setup server package identity is invalid");
-  const provisioner = join(root, "dist/vendor/paperclip-runner/cli/provision-antigravity.cjs");
+  if (!info.isFile() || info.isSymbolicLink() || info.size > 65536 || JSON.parse(await readFile(manifest, "utf8")).name !== "@nexusai/server") throw new Error("Antigravity setup server package identity is invalid");
+  const provisioner = join(root, "dist/vendor/nexus-runner/cli/provision-antigravity.cjs");
   if (await realpath(provisioner) !== provisioner || !(await lstat(provisioner)).isFile()) throw new Error("Antigravity setup entrypoint escapes its server package");
   return provisioner;
 }
 
 export async function setupAntigravityRuntime(): Promise<void> {
-  const provisioner = await resolveAntigravityProvisioner(import.meta.resolve("@paperclipai/server"));
+  const provisioner = await resolveAntigravityProvisioner(import.meta.resolve("@nexusai/server"));
   const child = spawn(process.execPath, ["--use-env-proxy", provisioner], {
     // Setup only downloads public assets. Reuse the existing network allowlist;
     // runtime credentials and process-loader settings never reach this child.
@@ -132,20 +132,20 @@ export async function setupAntigravityRuntime(): Promise<void> {
 
 export async function resolveKimiProvisioner(serverUrl: string): Promise<string> {
   const url = new URL(serverUrl);
-  if (url.protocol !== "file:" || url.search || url.hash) throw new Error("Kimi setup requires an installed Paperclip server");
+  if (url.protocol !== "file:" || url.search || url.hash) throw new Error("Kimi setup requires an installed Nexus server");
   const entry = await realpath(fileURLToPath(url));
   if (!entry.endsWith("/dist/index.js")) throw new Error("Kimi setup requires the published server layout");
   const root = resolve(dirname(entry), "..");
   const manifest = join(root, "package.json");
   const info = await lstat(manifest);
-  if (!info.isFile() || info.isSymbolicLink() || info.size > 65536 || JSON.parse(await readFile(manifest, "utf8")).name !== "@paperclipai/server") throw new Error("Kimi setup server package identity is invalid");
-  const provisioner = join(root, "dist/vendor/paperclip-runner/cli/provision-kimi.cjs");
+  if (!info.isFile() || info.isSymbolicLink() || info.size > 65536 || JSON.parse(await readFile(manifest, "utf8")).name !== "@nexusai/server") throw new Error("Kimi setup server package identity is invalid");
+  const provisioner = join(root, "dist/vendor/nexus-runner/cli/provision-kimi.cjs");
   if (await realpath(provisioner) !== provisioner || !(await lstat(provisioner)).isFile()) throw new Error("Kimi setup entrypoint escapes its server package");
   return provisioner;
 }
 
 export async function setupKimiRuntime(): Promise<void> {
-  const provisioner = await resolveKimiProvisioner(import.meta.resolve("@paperclipai/server"));
+  const provisioner = await resolveKimiProvisioner(import.meta.resolve("@nexusai/server"));
   const child = spawn(process.execPath, ["--use-env-proxy", provisioner], {
     stdio: "inherit", env: buildPiSetupEnvironment(),
   });
@@ -171,7 +171,7 @@ export function registerRuntimeCommands(program: Command): void {
     .description("Import a verified Linux Pi companion into the installed server (no downloads)")
     .requiredOption("--sha256 <digest>", "SHA256 of companion.json from the trusted release")
     .action(async (directory: string, options: { sha256: string }) => {
-      const modulePath = await resolveRemoteCompanionImporter(import.meta.resolve("@paperclipai/server"));
+      const modulePath = await resolveRemoteCompanionImporter(import.meta.resolve("@nexusai/server"));
       const importer = await import(pathToFileURL(modulePath).href) as { importRemotePiCompanion(input: { directory: string; sha256: string; checkCancelled: () => void }): Promise<unknown> };
       let cancelled = false;
       const cancel = () => { cancelled = true; };
@@ -189,6 +189,6 @@ export function registerRuntimeCommands(program: Command): void {
       else if (provider === "cursor") await setupCursorRuntime();
       else if (provider === "kimi") await setupKimiRuntime();
       else if (provider === "antigravity") await setupAntigravityRuntime();
-      else throw new Error("Supported runtime setup: paperclipai runtime setup pi, cursor, kimi, or antigravity");
+      else throw new Error("Supported runtime setup: nexusai runtime setup pi, cursor, kimi, or antigravity");
     });
 }

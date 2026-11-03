@@ -13,7 +13,7 @@ const MAX_CAS_ATTEMPTS = 8;
 export interface DiscordModalCorrectionResponse {
   action: "errors";
   errors: Record<string, string>;
-  paperclipDiscordCorrection: {
+  nexusDiscordCorrection: {
     version: 1;
     actionId: string;
     message: string;
@@ -213,7 +213,7 @@ export async function retainDiscordQuestionFormCorrection(
       return {
         action: "errors",
         errors: input.fieldErrors,
-        paperclipDiscordCorrection: {
+        nexusDiscordCorrection: {
           version: 1,
           actionId,
           message: messages.join("\n").slice(0, 1500),
@@ -332,6 +332,6 @@ export function discordQuestionFormCorrectionModal(
 export const discordQuestionFormDenialResponse = (): ModalResponse => ({
   action: "errors",
   errors: {
-    form: "This form is no longer authorized. Open the linked Paperclip task.",
+    form: "This form is no longer authorized. Open the linked Nexus task.",
   },
 });

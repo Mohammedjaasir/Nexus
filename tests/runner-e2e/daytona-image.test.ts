@@ -29,7 +29,7 @@ describe("runner E2E Daytona image contract", () => {
     "src/drivers/acpx/pi-node-pins.ts",
     "src/drivers/acpx/kimi-closure-pins.ts",
     "src/providers/grok/launcher.cjs",
-  ].map(input => `packages/paperclip-runner/${input}`);
+  ].map(input => `packages/nexus-runner/${input}`);
 
   it("retains the ACPX release attestation inputs in the Docker context", async () => {
     const dockerignore = await readFile(path.join(repositoryRoot, ".dockerignore"), "utf8");
@@ -42,8 +42,8 @@ describe("runner E2E Daytona image contract", () => {
   });
 
   it("invalidates the image content ID when a release attestation input changes", async () => {
-    const manifestPath = "packages/paperclip-runner/acpx-profiles.json";
-    const root = await mkdtemp(path.join(tmpdir(), "paperclip-daytona-attestation-"));
+    const manifestPath = "packages/nexus-runner/acpx-profiles.json";
+    const root = await mkdtemp(path.join(tmpdir(), "nexus-daytona-attestation-"));
     const options = {
       repositoryRoot: root,
       inputPaths: DAYTONA_IMAGE_INPUT_PATHS.filter(inputPath => inputPath === manifestPath),
@@ -68,14 +68,14 @@ describe("runner E2E Daytona image contract", () => {
 
   it("binds each Antigravity input consumed by the merged provider entrypoint builder", async () => {
     const required = [
-      "packages/paperclip-runner/antigravity-distributions.json",
-      "packages/paperclip-runner/scripts/provision-antigravity.mjs",
-      "packages/paperclip-runner/scripts/antigravity-provisioner-layout.mjs",
-      "packages/paperclip-runner/scripts/materialize-antigravity-distribution.mjs",
-      "packages/paperclip-runner/scripts/patch-antigravity-runtime.mjs",
-      "packages/paperclip-runner/scripts/patch-antigravity-runtime.admission.py",
+      "packages/nexus-runner/antigravity-distributions.json",
+      "packages/nexus-runner/scripts/provision-antigravity.mjs",
+      "packages/nexus-runner/scripts/antigravity-provisioner-layout.mjs",
+      "packages/nexus-runner/scripts/materialize-antigravity-distribution.mjs",
+      "packages/nexus-runner/scripts/patch-antigravity-runtime.mjs",
+      "packages/nexus-runner/scripts/patch-antigravity-runtime.admission.py",
     ];
-    const root = await mkdtemp(path.join(tmpdir(), "paperclip-daytona-builder-inputs-"));
+    const root = await mkdtemp(path.join(tmpdir(), "nexus-daytona-builder-inputs-"));
     const options = {
       repositoryRoot: root,
       inputPaths: DAYTONA_IMAGE_INPUT_PATHS.filter(input => required.includes(input)),
@@ -106,17 +106,17 @@ describe("runner E2E Daytona image contract", () => {
   it("keeps the qualified native Grok binary separate from the legacy command", async () => {
     const [dockerfile, packBuilder, runnerPackage] = await Promise.all([
       readFile(path.join(repositoryRoot, "docker/daytona-runner/Dockerfile"), "utf8"),
-      readFile(path.join(repositoryRoot, "packages/paperclip-runner/scripts/build-provider-pack.mjs"), "utf8"),
-      readFile(path.join(repositoryRoot, "packages/paperclip-runner/package.json"), "utf8"),
+      readFile(path.join(repositoryRoot, "packages/nexus-runner/scripts/build-provider-pack.mjs"), "utf8"),
+      readFile(path.join(repositoryRoot, "packages/nexus-runner/package.json"), "utf8"),
     ]);
     expect(dockerfile).toMatch(/@xai-official\/grok@\d+\.\d+\.\d+/);
     expect(dockerfile).not.toMatch(/for cli in[^;]*\bgrok\b/);
     expect(packBuilder).not.toMatch(/writePortable\w+Shim\("grok"/);
-    expect(JSON.parse(runnerPackage).dependencies).not.toHaveProperty("@paperclipai/grok-acp");
+    expect(JSON.parse(runnerPackage).dependencies).not.toHaveProperty("@nexusai/grok-acp");
     expect(packBuilder).toContain('path: "dist/providers/grok/launcher.cjs"');
     expect(dockerfile).toContain("scripts/provision-grok.mjs");
-    expect(dockerfile).toContain("/opt/paperclip/providers/grok/1.0.13/grok");
-    expect(DAYTONA_IMAGE_INPUT_PATHS).toContain("packages/paperclip-runner/scripts/provision-grok.mjs");
+    expect(dockerfile).toContain("/opt/nexus/providers/grok/1.0.13/grok");
+    expect(DAYTONA_IMAGE_INPUT_PATHS).toContain("packages/nexus-runner/scripts/provision-grok.mjs");
     expect(DAYTONA_IMAGE_INPUT_PATHS).not.toContain("packages/grok-acp/package.json");
   });
 
@@ -138,22 +138,22 @@ describe("runner E2E Daytona image contract", () => {
     const normalizedDockerfile = dockerfile.replace(/\\\r?\n\s*/g, " ");
     const daytonaImageJob = workflow.match(/^  daytona_image:\n[\s\S]*?(?=^  \w+:)/m)?.[0];
     expect(daytonaImageJob).toBeDefined();
-    expect(dockerfile).toContain("--bin paperclip-runnerd");
+    expect(dockerfile).toContain("--bin nexus-runnerd");
     expect(dockerfile).toContain("build-provider-pack.mjs /provider-pack");
     expect(normalizedDockerfile).not.toContain(
-      "COPY packages/paperclip-eval-kernel ./packages/paperclip-eval-kernel",
+      "COPY packages/nexus-eval-kernel ./packages/nexus-eval-kernel",
     );
     expect(normalizedDockerfile).not.toContain(
-      "COPY packages/paperclip-runner ./packages/paperclip-runner",
+      "COPY packages/nexus-runner ./packages/nexus-runner",
     );
     expect(dockerfile).toContain(
       "COPY packages ./packages",
     );
     expect(dockerfile).toContain(
-      "/opt/paperclip-runner/provider-pack/provider-pack.json",
+      "/opt/nexus-runner/provider-pack/provider-pack.json",
     );
     expect(dockerfile).toContain(
-      "${PAPERCLIP_RUNNER_PROVIDER_PACK_ROOT}/node_modules/.bin",
+      "${NEXUS_RUNNER_PROVIDER_PACK_ROOT}/node_modules/.bin",
     );
     for (const command of ["acpx", "claude-agent-acp", "codex-acp"]) {
       expect(dockerfile).toContain(command);
@@ -162,10 +162,10 @@ describe("runner E2E Daytona image contract", () => {
       expect(dockerfile).toContain(transport);
     }
     expect(dockerfile).toContain(
-      'metadata="$(paperclip-runnerd --build-metadata)"',
+      'metadata="$(nexus-runnerd --build-metadata)"',
     );
     expect(dockerfile).toContain("provider-pack.json");
-    expect(dockerfile).toContain("io.paperclip.runner.content-id");
+    expect(dockerfile).toContain("io.nexus.runner.content-id");
     expect(dockerfile).toContain("org.opencontainers.image.revision");
     expect(extractDaytonaDockerfileFrontendDigest(dockerfile)).toBe(
       "sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e",
@@ -176,21 +176,21 @@ describe("runner E2E Daytona image contract", () => {
       "daytonaio/sandbox:0.8.0@sha256:eadf88e4391072b7ad4bed27d9cadfc9fe9d8ed375d9219d34c2ccb518f213e3",
     ]);
     expect(dockerignore).toContain("**/node_modules");
-    expect(dockerignore).toContain("packages/paperclip-runner/dist");
-    expect(dockerignore).toContain("packages/paperclip-runner/runner/target");
-    expect(await readFile(path.join(repositoryRoot, ".github/docker-context-checks.Dockerfile"), "utf8")).toContain("node packages/paperclip-runner/scripts/generate-acpx-profiles.mjs --check");
-    expect(lastDockerignoreRule(dockerignore, "packages/paperclip-runner/test-fixtures/pi-acp/private-live-session.json")?.startsWith("!")).toBe(false);
+    expect(dockerignore).toContain("packages/nexus-runner/dist");
+    expect(dockerignore).toContain("packages/nexus-runner/runner/target");
+    expect(await readFile(path.join(repositoryRoot, ".github/docker-context-checks.Dockerfile"), "utf8")).toContain("node packages/nexus-runner/scripts/generate-acpx-profiles.mjs --check");
+    expect(lastDockerignoreRule(dockerignore, "packages/nexus-runner/test-fixtures/pi-acp/private-live-session.json")?.startsWith("!")).toBe(false);
     for (const developmentOnlyInput of [
-      "packages/paperclip-runner/devtools",
-      "packages/paperclip-runner/docs",
-      "packages/paperclip-runner/examples",
-      "packages/paperclip-runner/test",
-      "packages/paperclip-runner/test-fixtures",
-      "packages/paperclip-runner/test-support",
-      "packages/paperclip-runner/**/*.md",
-      "packages/paperclip-runner/**/*.test.ts",
-      "packages/paperclip-runner/runner/crates/*/tests",
-      "packages/paperclip-runner/scripts/*-smoke.mjs",
+      "packages/nexus-runner/devtools",
+      "packages/nexus-runner/docs",
+      "packages/nexus-runner/examples",
+      "packages/nexus-runner/test",
+      "packages/nexus-runner/test-fixtures",
+      "packages/nexus-runner/test-support",
+      "packages/nexus-runner/**/*.md",
+      "packages/nexus-runner/**/*.test.ts",
+      "packages/nexus-runner/runner/crates/*/tests",
+      "packages/nexus-runner/scripts/*-smoke.mjs",
     ]) {
       expect(dockerignore).toContain(developmentOnlyInput);
     }
@@ -202,7 +202,7 @@ describe("runner E2E Daytona image contract", () => {
       "e2e-content-${{ needs.catalog.outputs.daytona_image_content_id }}",
     );
     expect(workflow).toContain(
-      '--build-arg "PAPERCLIP_RUNNER_CONTENT_ID=${IMAGE_CONTENT_ID}"',
+      '--build-arg "NEXUS_RUNNER_CONTENT_ID=${IMAGE_CONTENT_ID}"',
     );
     expect(daytonaImageJob).toContain(
       "TARGET_LOCK_SHA256: ${{ needs.target_lock.outputs.lock_sha256 }}",
@@ -211,13 +211,13 @@ describe("runner E2E Daytona image contract", () => {
       '[[ "$TARGET_LOCK_SHA256" =~ ^[0-9a-f]{64}$ ]]',
     );
     expect(daytonaImageJob).toContain(
-      '--build-arg "PAPERCLIP_RUNNER_LOCK_SHA256=${TARGET_LOCK_SHA256}"',
+      '--build-arg "NEXUS_RUNNER_LOCK_SHA256=${TARGET_LOCK_SHA256}"',
     );
     expect(
       daytonaImageJob!.indexOf('[[ "$TARGET_LOCK_SHA256" =~ ^[0-9a-f]{64}$ ]]'),
     ).toBeLessThan(
       daytonaImageJob!.indexOf(
-        '--build-arg "PAPERCLIP_RUNNER_LOCK_SHA256=${TARGET_LOCK_SHA256}"',
+        '--build-arg "NEXUS_RUNNER_LOCK_SHA256=${TARGET_LOCK_SHA256}"',
       ),
     );
     expect(workflow).toContain(
@@ -246,15 +246,15 @@ describe("runner E2E Daytona image contract", () => {
     expect(workflow).toContain('.architecture == "amd64"');
     expect(workflow).toContain('.os == "linux"');
     expect(workflow).toContain('.config.User == "daytona"');
-    expect(workflow).toContain("PAPERCLIP_RUNNER_PROVIDER_PACK_ROOT=");
+    expect(workflow).toContain("NEXUS_RUNNER_PROVIDER_PACK_ROOT=");
     expect(workflow).toContain(
-      "node packages/paperclip-runner/scripts/build-provider-pack.mjs packages/paperclip-runner/provider-pack",
+      "node packages/nexus-runner/scripts/build-provider-pack.mjs packages/nexus-runner/provider-pack",
     );
     expect(workflow).toContain(
-      "PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH: ${{ github.workspace }}/packages/paperclip-runner/provider-pack",
+      "NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH: ${{ github.workspace }}/packages/nexus-runner/provider-pack",
     );
     expect(workflow).toContain(
-      "PAPERCLIP_RUNNER_SOURCE_REVISION: ${{ needs.daytona_image.outputs.source_revision }}",
+      "NEXUS_RUNNER_SOURCE_REVISION: ${{ needs.daytona_image.outputs.source_revision }}",
     );
     expect(workflow.indexOf("cosign verify")).toBeLessThan(
       workflow.indexOf("docker logout ghcr.io"),
@@ -263,17 +263,17 @@ describe("runner E2E Daytona image contract", () => {
       workflow.indexOf(`--format '{{json .Image}}'`),
     );
     const providerInstall = dockerfile.indexOf(
-      "pnpm install --frozen-lockfile --filter '@paperclipai/paperclip-runner...'",
+      "pnpm install --frozen-lockfile --filter '@nexusai/nexus-runner...'",
     );
     const runnerSourceCopy = dockerfile.indexOf(
       "COPY packages ./packages",
     );
     const providerRevisionArg = dockerfile.indexOf(
-      "ARG PAPERCLIP_RUNNER_SOURCE_REVISION",
+      "ARG NEXUS_RUNNER_SOURCE_REVISION",
     );
     const cliInstall = dockerfile.indexOf("npm install -g");
     const finalMetadataArgs = dockerfile.lastIndexOf(
-      "ARG PAPERCLIP_RUNNER_CONTENT_ID",
+      "ARG NEXUS_RUNNER_CONTENT_ID",
     );
     expect(providerInstall).toBeGreaterThan(0);
     expect(runnerSourceCopy).toBeGreaterThan(0);
@@ -292,35 +292,35 @@ describe("runner E2E Daytona image contract", () => {
       "docker/daytona-runner/Dockerfile",
       "pnpm-lock.yaml",
       "patches",
-      "packages/paperclip-eval-kernel/src",
-      "packages/paperclip-runner/package.json",
-      "packages/paperclip-runner/scripts/candidate-provider-pack.mjs",
-      "packages/paperclip-runner/scripts/build-copilot-distribution.mjs",
-      "packages/paperclip-runner/scripts/copilot-inner-distribution.mjs",
-      "packages/paperclip-runner/scripts/acpx-release-attestations.mjs",
-      "packages/paperclip-runner/scripts/generate-acpx-profiles.mjs",
-      "packages/paperclip-runner/scripts/materialize-copilot-binary.mjs",
-      "packages/paperclip-runner/scripts/install-copilot-assets.mjs",
-      "packages/paperclip-runner/scripts/materialize-cursor-distribution.mjs",
-      "packages/paperclip-runner/scripts/cursor-runtime-patch.mjs",
-      "packages/paperclip-runner/cursor-distributions.json",
-      "packages/paperclip-runner/runner/crates",
-      "packages/paperclip-runner/scripts/materialize-pi-distribution.mjs",
-      "packages/paperclip-runner/scripts/pi-distribution",
-      "packages/paperclip-runner/scripts/materialize-kimi-distribution.mjs",
-      "packages/paperclip-runner/scripts/patch-kimi-runtime.mjs",
-      "packages/paperclip-runner/scripts/kimi-instructions-runtime.mjs",
-      "packages/paperclip-runner/scripts/provision-kimi.mjs",
-      "packages/paperclip-runner/scripts/kimi-distribution",
-      "packages/paperclip-runner/src",
+      "packages/nexus-eval-kernel/src",
+      "packages/nexus-runner/package.json",
+      "packages/nexus-runner/scripts/candidate-provider-pack.mjs",
+      "packages/nexus-runner/scripts/build-copilot-distribution.mjs",
+      "packages/nexus-runner/scripts/copilot-inner-distribution.mjs",
+      "packages/nexus-runner/scripts/acpx-release-attestations.mjs",
+      "packages/nexus-runner/scripts/generate-acpx-profiles.mjs",
+      "packages/nexus-runner/scripts/materialize-copilot-binary.mjs",
+      "packages/nexus-runner/scripts/install-copilot-assets.mjs",
+      "packages/nexus-runner/scripts/materialize-cursor-distribution.mjs",
+      "packages/nexus-runner/scripts/cursor-runtime-patch.mjs",
+      "packages/nexus-runner/cursor-distributions.json",
+      "packages/nexus-runner/runner/crates",
+      "packages/nexus-runner/scripts/materialize-pi-distribution.mjs",
+      "packages/nexus-runner/scripts/pi-distribution",
+      "packages/nexus-runner/scripts/materialize-kimi-distribution.mjs",
+      "packages/nexus-runner/scripts/patch-kimi-runtime.mjs",
+      "packages/nexus-runner/scripts/kimi-instructions-runtime.mjs",
+      "packages/nexus-runner/scripts/provision-kimi.mjs",
+      "packages/nexus-runner/scripts/kimi-distribution",
+      "packages/nexus-runner/src",
     ]) {
       expect(DAYTONA_IMAGE_INPUT_PATHS).toContain(requiredPath);
     }
     expect(DAYTONA_IMAGE_INPUT_PATHS).not.toContain(
-      "packages/paperclip-eval-kernel",
+      "packages/nexus-eval-kernel",
     );
     expect(DAYTONA_IMAGE_INPUT_PATHS).not.toContain(
-      "packages/paperclip-runner",
+      "packages/nexus-runner",
     );
     expect(DAYTONA_IMAGE_DOCKERFILE_PATH).toBe(
       "docker/daytona-runner/Dockerfile",
@@ -332,17 +332,17 @@ describe("runner E2E Daytona image contract", () => {
 
   it("changes for runtime source, package, lockfile, Dockerfile, frontend, base, or platform inputs", async () => {
     const root = await mkdtemp(
-      path.join(tmpdir(), "paperclip-daytona-image-id-"),
+      path.join(tmpdir(), "nexus-daytona-image-id-"),
     );
     const inputPaths = [
       "docker/daytona-runner/Dockerfile",
       "package.json",
       "pnpm-lock.yaml",
-      "packages/paperclip-runner/package.json",
-      "packages/paperclip-runner/src",
-      "packages/paperclip-runner/runner/crates",
-      "packages/paperclip-runner/scripts/materialize-pi-distribution.mjs",
-      "packages/paperclip-runner/scripts/pi-distribution",
+      "packages/nexus-runner/package.json",
+      "packages/nexus-runner/src",
+      "packages/nexus-runner/runner/crates",
+      "packages/nexus-runner/scripts/materialize-pi-distribution.mjs",
+      "packages/nexus-runner/scripts/pi-distribution",
     ] as const;
     const options = {
       repositoryRoot: root,
@@ -354,13 +354,13 @@ describe("runner E2E Daytona image contract", () => {
       await mkdir(path.join(root, "docker/daytona-runner"), {
         recursive: true,
       });
-      await mkdir(path.join(root, "packages/paperclip-runner/src"), {
+      await mkdir(path.join(root, "packages/nexus-runner/src"), {
         recursive: true,
       });
       await mkdir(
         path.join(
           root,
-          "packages/paperclip-runner/runner/crates/runner-core/src",
+          "packages/nexus-runner/runner/crates/runner-core/src",
         ),
         { recursive: true },
       );
@@ -374,25 +374,25 @@ describe("runner E2E Daytona image contract", () => {
         "lockfileVersion: 9\n",
       );
       await writeFile(
-        path.join(root, "packages/paperclip-runner/package.json"),
-        '{"name":"@paperclipai/paperclip-runner"}\n',
+        path.join(root, "packages/nexus-runner/package.json"),
+        '{"name":"@nexusai/nexus-runner"}\n',
       );
       await writeFile(
-        path.join(root, "packages/paperclip-runner/src/runner.ts"),
+        path.join(root, "packages/nexus-runner/src/runner.ts"),
         "version one\n",
       );
       await writeFile(
         path.join(
           root,
-          "packages/paperclip-runner/runner/crates/runner-core/src/lib.rs",
+          "packages/nexus-runner/runner/crates/runner-core/src/lib.rs",
         ),
         'pub const VERSION: &str = "one";\n',
       );
-      await mkdir(path.join(root, "packages/paperclip-runner/scripts/pi-distribution"), { recursive: true });
+      await mkdir(path.join(root, "packages/nexus-runner/scripts/pi-distribution"), { recursive: true });
       for (const relativePath of [
-        "packages/paperclip-runner/scripts/materialize-pi-distribution.mjs",
-        "packages/paperclip-runner/scripts/pi-distribution/package.json",
-        "packages/paperclip-runner/scripts/pi-distribution/package-lock.json",
+        "packages/nexus-runner/scripts/materialize-pi-distribution.mjs",
+        "packages/nexus-runner/scripts/pi-distribution/package.json",
+        "packages/nexus-runner/scripts/pi-distribution/package-lock.json",
       ]) await writeFile(path.join(root, relativePath), "version one\n");
       const baseline = await computeDaytonaImageContentId(options);
       const candidate = await computeDaytonaImageContentId({ ...options, candidateProviders: ["pi"] });
@@ -428,12 +428,12 @@ describe("runner E2E Daytona image contract", () => {
         "docker/daytona-runner/Dockerfile",
         "package.json",
         "pnpm-lock.yaml",
-        "packages/paperclip-runner/package.json",
-        "packages/paperclip-runner/src/runner.ts",
-        "packages/paperclip-runner/scripts/materialize-pi-distribution.mjs",
-        "packages/paperclip-runner/scripts/pi-distribution/package.json",
-        "packages/paperclip-runner/scripts/pi-distribution/package-lock.json",
-        "packages/paperclip-runner/runner/crates/runner-core/src/lib.rs",
+        "packages/nexus-runner/package.json",
+        "packages/nexus-runner/src/runner.ts",
+        "packages/nexus-runner/scripts/materialize-pi-distribution.mjs",
+        "packages/nexus-runner/scripts/pi-distribution/package.json",
+        "packages/nexus-runner/scripts/pi-distribution/package-lock.json",
+        "packages/nexus-runner/runner/crates/runner-core/src/lib.rs",
       ]) {
         const absolutePath = path.join(root, relativePath);
         const original = await readFile(absolutePath, "utf8");
@@ -453,16 +453,16 @@ describe("runner E2E Daytona image contract", () => {
   });
 
   it.each([
-    "packages/paperclip-runner/scripts/cursor-runtime-patch.mjs",
-    "packages/paperclip-runner/scripts/provider-pack-executable-shims.mjs",
-    "packages/paperclip-runner/scripts/materialize-kimi-distribution.mjs",
-    "packages/paperclip-runner/scripts/patch-kimi-runtime.mjs",
-    "packages/paperclip-runner/scripts/kimi-instructions-runtime.mjs",
-    "packages/paperclip-runner/scripts/provision-kimi.mjs",
-    "packages/paperclip-runner/scripts/kimi-distribution/package.json",
-    "packages/paperclip-runner/scripts/kimi-distribution/package-lock.json",
+    "packages/nexus-runner/scripts/cursor-runtime-patch.mjs",
+    "packages/nexus-runner/scripts/provider-pack-executable-shims.mjs",
+    "packages/nexus-runner/scripts/materialize-kimi-distribution.mjs",
+    "packages/nexus-runner/scripts/patch-kimi-runtime.mjs",
+    "packages/nexus-runner/scripts/kimi-instructions-runtime.mjs",
+    "packages/nexus-runner/scripts/provision-kimi.mjs",
+    "packages/nexus-runner/scripts/kimi-distribution/package.json",
+    "packages/nexus-runner/scripts/kimi-distribution/package-lock.json",
   ])("invalidates the image when %s changes", async (patchPath) => {
-    const root = await mkdtemp(path.join(tmpdir(), "paperclip-provider-image-id-"));
+    const root = await mkdtemp(path.join(tmpdir(), "nexus-provider-image-id-"));
     expect(DAYTONA_IMAGE_INPUT_PATHS.some(inputPath => patchPath === inputPath || patchPath.startsWith(`${inputPath}/`))).toBe(true);
     const options = {
       repositoryRoot: root,
@@ -484,16 +484,16 @@ describe("runner E2E Daytona image contract", () => {
 
   it("reuses the image for runner-only tests and documentation", async () => {
     const root = await mkdtemp(
-      path.join(tmpdir(), "paperclip-daytona-runner-development-inputs-"),
+      path.join(tmpdir(), "nexus-daytona-runner-development-inputs-"),
     );
     const options = {
       repositoryRoot: root,
-      inputPaths: ["packages/paperclip-runner"],
+      inputPaths: ["packages/nexus-runner"],
       baseImages: [`example.test/base:1@sha256:${"a".repeat(64)}`],
       frontendDigest: `sha256:${"c".repeat(64)}`,
     } as const;
     try {
-      const runnerRoot = path.join(root, "packages/paperclip-runner");
+      const runnerRoot = path.join(root, "packages/nexus-runner");
       await mkdir(path.join(runnerRoot, "src/live"), { recursive: true });
       await mkdir(path.join(runnerRoot, "docs"), { recursive: true });
       await mkdir(path.join(runnerRoot, "spec"), { recursive: true });

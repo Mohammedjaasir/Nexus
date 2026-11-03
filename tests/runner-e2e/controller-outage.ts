@@ -10,7 +10,7 @@ export interface ControllerOutage {
 }
 
 export interface ControllerOutageReceipt extends ControllerOutage {
-  schema: "paperclip.e2e.controller-outage/v1";
+  schema: "nexus.e2e.controller-outage/v1";
   requestId: string;
   previousPid: number;
   replacementPid?: number;
@@ -34,9 +34,9 @@ export function parseControllerOutage(value: unknown): ControllerOutage {
 }
 
 export function configuredControllerOutage(env: NodeJS.ProcessEnv, defaultHoldMs = 1_000): ControllerOutage {
-  const raw = env.PAPERCLIP_RUNNER_E2E_CONTROLLER_OUTAGE_MS ?? String(defaultHoldMs);
-  if (!/^\d+$/.test(raw)) throw new Error("Invalid PAPERCLIP_RUNNER_E2E_CONTROLLER_OUTAGE_MS");
-  return parseControllerOutage({ signal: env.PAPERCLIP_RUNNER_E2E_CONTROLLER_STOP_SIGNAL ?? "SIGKILL", holdMs: Number(raw) });
+  const raw = env.NEXUS_RUNNER_E2E_CONTROLLER_OUTAGE_MS ?? String(defaultHoldMs);
+  if (!/^\d+$/.test(raw)) throw new Error("Invalid NEXUS_RUNNER_E2E_CONTROLLER_OUTAGE_MS");
+  return parseControllerOutage({ signal: env.NEXUS_RUNNER_E2E_CONTROLLER_STOP_SIGNAL ?? "SIGKILL", holdMs: Number(raw) });
 }
 
 export function controllerOutageForExecution(execution: MatrixExecution, env: NodeJS.ProcessEnv): ControllerOutage | undefined {
@@ -61,7 +61,7 @@ export function validControllerOutageReceipt(value: unknown, expected?: Controll
   const r = value as ControllerOutageReceipt;
   try { parseControllerOutage(r); } catch { return false; }
   const durations = [r.stoppedAfterMs, r.replacementStartedAfterMs, r.readyAfterMs];
-  return r.schema === "paperclip.e2e.controller-outage/v1"
+  return r.schema === "nexus.e2e.controller-outage/v1"
     && typeof r.requestId === "string" && /^[A-Za-z0-9._:-]{1,200}$/.test(r.requestId)
     && typeof r.startedAt === "string" && Number.isFinite(Date.parse(r.startedAt))
     && Number.isSafeInteger(r.previousPid) && r.previousPid > 0
@@ -105,7 +105,7 @@ export async function replaceController<T extends { pid?: number }>(input: {
 }): Promise<ControllerOutageReceipt> {
   const outage = parseControllerOutage(input.outage);
   const started = performance.now();
-  const receipt: ControllerOutageReceipt = { schema: "paperclip.e2e.controller-outage/v1",
+  const receipt: ControllerOutageReceipt = { schema: "nexus.e2e.controller-outage/v1",
     requestId: input.requestId, previousPid: input.previousPid, startedAt: new Date().toISOString(), ...outage,
     ...(input.previousArtifact ? { previousArtifact: input.previousArtifact } : {}) };
   const check = () => { if (input.cancelled()) throw new Error("Wrapper shutdown interrupted the controller outage"); };

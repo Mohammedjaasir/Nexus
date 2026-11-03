@@ -13,7 +13,7 @@ const fail = (code) => { throw Object.assign(new Error(code), { code }); };
 
 export function checkpointPath(name) {
   if (typeof name !== "string" || !name || name.includes("\\") || name.includes("\0") || name.startsWith("/") ||
-      name.split("/").some(p => !p || p === "." || p === ".." || p === ".paperclip-runtime") || name === "promptTemplate.legacy.md") fail("AGENT_FILES_UNSAFE_PATH");
+      name.split("/").some(p => !p || p === "." || p === ".." || p === ".nexus-runtime") || name === "promptTemplate.legacy.md") fail("AGENT_FILES_UNSAFE_PATH");
   return name;
 }
 
@@ -45,7 +45,7 @@ export async function captureAgentFiles(root, previous = { entries: [] }, output
   let total = 0;
   if (output) await fs.mkdir(path.join(output, "files"), { recursive: true, mode: 0o700 });
   const list = async dir => (await fs.readdir(path.join(root, dir)))
-    .filter(name => !(excludeTransportRuntime && dir === "" && name === ".paperclip-runtime")).sort();
+    .filter(name => !(excludeTransportRuntime && dir === "" && name === ".nexus-runtime")).sort();
   async function walk(dir) {
     const names = await list(dir);
     observed.set(dir, names);

@@ -57,7 +57,7 @@ export const readonlyCaseFixtures: CaseRecord[] = [
       "A provider retry can start the same intake twice. Keep one accepted delivery for each provider event, including when the first response is lost.",
     type: "Bug",
     status: "in_progress",
-    project: "Paperclip",
+    project: "Nexus",
     updatedAt: "2026-10-19T10:42:00Z",
     createdAt: "2026-10-19T09:10:00Z",
     fields: {
@@ -66,7 +66,7 @@ export const readonlyCaseFixtures: CaseRecord[] = [
       severity: "Medium",
       expected_behavior: "One accepted delivery per provider event",
       reproduction: "Replay a signed event after the first response times out",
-      provider_event: { id: "evt_104", repository: { name: "paperclip", private: true } },
+      provider_event: { id: "evt_104", repository: { name: "nexus", private: true } },
       delivery_attempts: [
         { request_id: "req_812", attempt: 1, result: "accepted" },
         { request_id: "req_813", attempt: 2, result: "original receipt returned" },
@@ -140,7 +140,7 @@ export const readonlyCaseFixtures: CaseRecord[] = [
       "Turn selected Slack threads into cases while keeping the source conversation and its access rules attached to the work.",
     type: "Feature",
     status: "in_review",
-    project: "Paperclip",
+    project: "Nexus",
     updatedAt: "2026-10-19T10:30:00Z",
     createdAt: "2026-10-19T08:55:00Z",
     fields: {
@@ -318,7 +318,7 @@ export const readonlyCaseFixtures: CaseRecord[] = [
       "Search feels slow in a larger company. Identify the expensive path and save a measured reproduction before proposing a fix.",
     type: "Bug",
     status: "open",
-    project: "Paperclip",
+    project: "Nexus",
     updatedAt: "2026-10-19T09:15:00Z",
     createdAt: "2026-10-19T08:10:00Z",
     fields: {
@@ -411,7 +411,7 @@ export const readonlyCaseFixtures: CaseRecord[] = [
       "Keep a small set of examples where people could not find an agent's saved result. No implementation has been scoped yet.",
     type: "Research",
     status: "open",
-    project: "Paperclip",
+    project: "Nexus",
     updatedAt: "2026-10-19T08:45:00Z",
     createdAt: "2026-10-19T07:30:00Z",
     fields: {
@@ -437,7 +437,7 @@ export const readonlyCaseFixtures: CaseRecord[] = [
       "Collect the provider retry limits and expected replay window before deciding whether any changes are needed.",
     type: "Research",
     status: "open",
-    project: "Paperclip",
+    project: "Nexus",
     updatedAt: "2026-10-18T16:30:00Z",
     createdAt: "2026-10-18T16:30:00Z",
     fields: {},

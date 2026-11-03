@@ -2,13 +2,13 @@
 
 A linked person can mention the bot and ask it to read the discussion, summarize
 decisions, and create assigned follow-up tasks. Task creation, assignment,
-approvals, and completion remain normal Paperclip operations. Slack contributes
+approvals, and completion remain normal Nexus operations. Slack contributes
 provider tools and a bundled skill; it does not introduce another task lifecycle.
 
 ## Authority and channel access
 
 The controller resolves company, endpoint, assigned agent, task, run, and accepted
-linked requester from the admitted Slack event or the current Paperclip task/run
+linked requester from the admitted Slack event or the current Nexus task/run
 identity. Slack-origin work remains bound to its originating endpoint. Ordinary
 tasks and routines receive only active Slack connections assigned to that agent,
 and use the accepted responsible user's linked Slack account. They never borrow
@@ -82,7 +82,7 @@ New manifests request collaboration scopes. Existing bots keep their current
 permissions and Settings identifies missing scopes. Add them under **OAuth &
 Permissions → Bot Token Scopes** in Slack and reinstall the app. Scope possession
 alone is not a guarantee: Slack feature availability, destination access and
-Paperclip per-action policy still apply.
+Nexus per-action policy still apply.
 
 ## Delivery and retry behavior
 
@@ -99,9 +99,9 @@ An identical automatic final response is suppressed after an explicit send, or
 held while that send's delivery remains unresolved. Distinct summaries, progress,
 questions and blockers continue through existing routing.
 
-## Continuing a Slack task from Paperclip
+## Continuing a Slack task from Nexus
 
-Human replies entered on a Slack-linked task are attributed to their Paperclip
+Human replies entered on a Slack-linked task are attributed to their Nexus
 author in the original Slack thread. The author must have an active linked Slack
 account for this connection. Delivery rechecks workspace and channel access;
 revoked or changed identities cannot deliver queued messages or agent replies.
@@ -109,7 +109,7 @@ Selected agent responses return to the same thread without echoing internal note
 
 The explicit channel composer also requests agent work through a durable outbox.
 It respects task pause holds, unresolved blockers, and closed isolated workspaces.
-Restore cancelled tasks or reopen closed workspaces in the ordinary Paperclip task
+Restore cancelled tasks or reopen closed workspaces in the ordinary Nexus task
 flow first. The outbox checks these guards again before dispatching queued work.
 
 ## Optional personal search authorization
@@ -142,7 +142,7 @@ separate search and plan limits. Bounded history remains available without OAuth
 ## Native and CLI execution
 
 The connector runtime contributes tools to verified Slack conversations and the
-assigned agent's Paperclip tasks and routines, when their responsible user has a
+assigned agent's Nexus tasks and routines, when their responsible user has a
 current link to that bot's workspace. The bundled
 [`skills/slack/SKILL.md`](../../skills/slack/SKILL.md) and generated adjacent
 `TOOLS.json` provide the equivalent HTTP interface for CLI/sandbox adapters:
@@ -150,7 +150,7 @@ current link to that bot's workspace. The bundled
 ```text
 POST /api/companies/:companyId/slack/tasks/:issueId/tools
 Authorization: Bearer <agent run key>
-X-Paperclip-Run-Id: <run ID>
+X-Nexus-Run-Id: <run ID>
 
 {"endpointId":"<assigned endpoint ID>","tool":"slack_history","arguments":{"channel":"C123","limit":50}}
 ```
@@ -177,7 +177,7 @@ Newly discovered Slack channels that people invite the bot to start enabled in
 Allowed Channels. This applies whether provider inventory, the bot's membership event, or
 the first verified message arrives first. Existing enabled/disabled choices are
 preserved across inventory refresh, repeat invitations, and reconnects. An
-explicitly disabled channel must be re-enabled in Paperclip; a mention does not
+explicitly disabled channel must be re-enabled in Nexus; a mention does not
 undo that choice. Provider removal and archive state still prevent delivery, and
 requesters still need the connection's usual identity and execution permissions.
 Channels created by the bot stay disabled until enabled by a person.
@@ -188,10 +188,10 @@ Process that original event through normal admission and deduplication; do not
 scan history and turn arbitrary old mentions into new work. Historical messages
 already filtered under the old disabled default are not automatically replayed.
 
-## Paperclip messages and scheduled delivery
+## Nexus messages and scheduled delivery
 
 Authenticated human messages submitted on a Slack-linked task are also queued to
-its original thread, labeled with the author's display name and “via Paperclip.”
+its original thread, labeled with the author's display name and “via Nexus.”
 The normal task wakeup performs the work. A durable mirror receipt establishes the
 return path for its selected final response; intermediate agent bookkeeping stays
 internal. Incoming Slack messages are not mirrored back, and retries use stable
@@ -201,7 +201,7 @@ idempotent wakeup outbox. Provider outages leave durable delivery state for retr
 The agent can use `slack_open_dm` to open its DM with the current task's linked
 responsible user, followed by `slack_post_message`. This needs `im:write`; existing
 apps without that scope require reinstalling with the updated manifest. Other
-people's bot DMs remain inaccessible. Scheduling uses ordinary Paperclip routines,
+people's bot DMs remain inaccessible. Scheduling uses ordinary Nexus routines,
 not a Slack-specific timer. Routine results are sent explicitly through the tool;
 ordinary task finals are not automatically broadcast to Slack.
 

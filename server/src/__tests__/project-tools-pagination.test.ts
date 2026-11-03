@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { callProjectTool, projectToolDefinitions } from "../services/project-tools.js";
 
 const input = {
-  name: "list_projects", arguments: {}, apiUrl: "http://paperclip.test", token: "test-token",
+  name: "list_projects", arguments: {}, apiUrl: "http://nexus.test", token: "test-token",
   companyId: "company", issueId: "issue", agentId: "agent", conversation: false,
 };
 
@@ -14,9 +14,9 @@ describe("project discovery result bounds", () => {
     const fetch = vi.fn(async (_url: string, _options: RequestInit) => ({ ok: true, json: async () => page }));
     vi.stubGlobal("fetch", fetch);
     expect(await callProjectTool(input)).toEqual(page);
-    expect(fetch.mock.calls[0]?.[0]).toBe("http://paperclip.test/api/companies/company/projects?view=summary&limit=50");
+    expect(fetch.mock.calls[0]?.[0]).toBe("http://nexus.test/api/companies/company/projects?view=summary&limit=50");
     await callProjectTool({ ...input, arguments: { limit: 3, cursor: page.nextCursor.toUpperCase() } });
-    expect(fetch.mock.calls[1]?.[0]).toBe(`http://paperclip.test/api/companies/company/projects?view=summary&limit=3&cursor=${page.nextCursor}`);
+    expect(fetch.mock.calls[1]?.[0]).toBe(`http://nexus.test/api/companies/company/projects?view=summary&limit=3&cursor=${page.nextCursor}`);
     expect(projectToolDefinitions("standard").find(t => t.name === "list_projects")?.inputSchema)
       .toMatchObject({ properties: { cursor: expect.any(Object), limit: expect.any(Object) } });
   });
@@ -36,8 +36,8 @@ describe("project creation receipt recovery", () => {
     const fetch = vi.fn(async (_url: string, _options: RequestInit) => new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetch);
     expect(await callProjectTool(create)).toBeUndefined();
-    expect(fetch).toHaveBeenCalledWith("http://paperclip.test/api/companies/company/projects", expect.objectContaining({
-      method: "POST", headers: expect.objectContaining({ "X-Paperclip-Receipt-Only": "true" }),
+    expect(fetch).toHaveBeenCalledWith("http://nexus.test/api/companies/company/projects", expect.objectContaining({
+      method: "POST", headers: expect.objectContaining({ "X-Nexus-Receipt-Only": "true" }),
       body: expect.any(String),
     }));
     expect(JSON.parse(fetch.mock.calls[0]![1].body as string)).toMatchObject(create.arguments);

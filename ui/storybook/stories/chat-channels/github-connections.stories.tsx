@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { getAppStoreDefinition } from "@paperclipai/shared";
+import { getAppStoreDefinition } from "@nexusai/shared";
 import { Link, Route, Routes, useLocation } from "@/lib/router";
 import { SetupWizardSidebarProvider } from "@/context/SetupWizardSidebarContext";
 import { SetupWizardSidebar } from "@/components/SetupWizard";
@@ -10,7 +10,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { Browse } from "@/pages/apps/Browse";
 import { AppsConnect } from "@/pages/apps/AppsConnect";
 import { ChatEndpointSetup } from "@/pages/apps/chat/ChatEndpointSetup";
-import { storybookAgents } from "../../fixtures/paperclipData";
+import { storybookAgents } from "../../fixtures/nexusData";
 
 const companyId = "company-storybook";
 // Hosted Storybooks live below a branch path; reuse their bundled GitHub marks.
@@ -45,7 +45,7 @@ function GitHubConnections({ saved = false, chatEnabled = true }) {
       authKind: "oauth", config: { sourceTemplateKey: "github" }, transportConfig: {},
     }] : [] });
     result.setQueryData(queryKeys.chatEndpoints.list(companyId), saved ? [
-      { id: "github-review", companyId, provider: "github", status: "active", assignedAgentId: "reviewer", assignedAgentName: "Reviewer", botLabel: "Paperclip Review", allowUnlinkedPeople: false },
+      { id: "github-review", companyId, provider: "github", status: "active", assignedAgentId: "reviewer", assignedAgentName: "Reviewer", botLabel: "Nexus Review", allowUnlinkedPeople: false },
       { id: "github-draft", companyId, provider: "github", status: "draft", assignedAgentId: "backup", assignedAgentName: "Backup reviewer", allowUnlinkedPeople: false },
     ] : []);
     result.setQueryData(queryKeys.access.companyUserDirectory(companyId), { users: [] });
@@ -87,7 +87,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     docs: { description: { component: "Production catalog cards and setup pages with local API query fixtures. GitHub opens account/tool access; GitHub Code Review Bot opens Choose agent. These stories cover discovery and entry into setup, without live GitHub consent or app installation." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "chat-channels/providers",
         "connection-setup/channel-setup"

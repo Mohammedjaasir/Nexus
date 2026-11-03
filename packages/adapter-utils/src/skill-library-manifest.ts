@@ -1,4 +1,4 @@
-import type { PaperclipSkillEntry } from "./server-utils.js";
+import type { NexusSkillEntry } from "./server-utils.js";
 
 /**
  * Render the company skill library as a short markdown section for an agent's
@@ -28,7 +28,7 @@ function sanitizeManifestText(value: string, maxLength: number): string {
 }
 
 export function buildSkillLibraryManifestMarkdown(input: {
-  entries: readonly PaperclipSkillEntry[];
+  entries: readonly NexusSkillEntry[];
   desiredSkillKeys: ReadonlySet<string>;
 }): string | null {
   if (input.entries.length === 0) return null;

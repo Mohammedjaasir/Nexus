@@ -46,7 +46,7 @@ export async function waitForEvalAgentReady(input: Omit<EvalAgentSetupInput, "ex
 }
 
 export async function finishBudgetedEvalSetup(input: EvalAgentSetupInput, env: NodeJS.ProcessEnv = process.env) {
-  if (env.PAPERCLIP_E2E_GATEWAY_BASE_URL) await waitForEvalAgentReady(input);
+  if (env.NEXUS_E2E_GATEWAY_BASE_URL) await waitForEvalAgentReady(input);
   await beginEvalAgentPhase(input.executionId, env);
 }
 

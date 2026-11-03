@@ -17,7 +17,7 @@ export interface WorkspaceSourceVerificationFailure {
 }
 
 export type WorkspaceSourceInspection = {
-  schema: "paperclip.workspace-source-inspection.v1";
+  schema: "nexus.workspace-source-inspection.v1";
   actionId: string;
   runId: string;
   observedAt: string;

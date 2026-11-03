@@ -4,13 +4,13 @@ import { expect, test } from "@playwright/test";
 
 test.use({ serviceWorkers: "block" });
 test.setTimeout(60_000);
-test.skip(!process.env.PAPERCLIP_ISSUE_PERF_DATABASE_URL, "The native saved-reply fixture requires a disposable PostgreSQL database");
+test.skip(!process.env.NEXUS_ISSUE_PERF_DATABASE_URL, "The native saved-reply fixture requires a disposable PostgreSQL database");
 
 let fixture: { prefix: string; identifier: string; runId: string; lastCommentId: string };
 
 test.beforeAll(async ({ request }) => {
-  const databaseUrl = process.env.PAPERCLIP_ISSUE_PERF_DATABASE_URL;
-  if (!databaseUrl) throw new Error("Set PAPERCLIP_ISSUE_PERF_DATABASE_URL for a disposable local database");
+  const databaseUrl = process.env.NEXUS_ISSUE_PERF_DATABASE_URL;
+  if (!databaseUrl) throw new Error("Set NEXUS_ISSUE_PERF_DATABASE_URL for a disposable local database");
   const target = new URL(databaseUrl);
   if (!["localhost", "127.0.0.1", "[::1]"].includes(target.hostname) || !target.pathname.endsWith("_test")) {
     throw new Error("The saved-reply fixture requires a disposable loopback database ending in _test");
@@ -20,7 +20,7 @@ test.beforeAll(async ({ request }) => {
   expect(companyResponse.ok(), await companyResponse.text()).toBeTruthy();
   const company = await companyResponse.json();
   const agentResponse = await request.post(`/api/companies/${company.id}/agents`, { data: {
-    name: "Saved investigation author", role: "engineer", status: "paused", adapterType: "paperclip_runner", adapterConfig: { provider: "codex" },
+    name: "Saved investigation author", role: "engineer", status: "paused", adapterType: "nexus_runner", adapterConfig: { provider: "codex" },
   } });
   expect(agentResponse.ok(), await agentResponse.text()).toBeTruthy();
   const agent = await agentResponse.json();
@@ -57,7 +57,7 @@ test.beforeAll(async ({ request }) => {
     for (let offset = 0; offset < comments.length; offset += 100) await db.insert(issueComments).values(comments.slice(offset, offset + 100));
     for (let offset = 0; offset < activity.length; offset += 100) await db.insert(activityLog).values(activity.slice(offset, offset + 100));
     await db.insert(heartbeatRunEvents).values({ companyId: company.id, agentId: agent.id, runId, seq: 1, eventType: "item.completed", createdAt: last.createdAt,
-      payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, eventType: "item.completed", runId,
+      payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, eventType: "item.completed", runId,
         emittedAt: last.createdAt!.toISOString(), itemId: `answer-${runId}`, payload: { kind: "agentMessage", text: last.body } } } });
   } finally { await closeRegisteredClients(databaseUrl); }
   fixture = { prefix: company.issuePrefix, identifier: issue.identifier, runId, lastCommentId: last.id! };

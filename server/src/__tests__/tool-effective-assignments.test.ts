@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import {
   agents, companies, createDb, toolApplications, toolCatalogEntries,
   toolConnections, toolProfileBindings, toolProfileEntries, toolProfiles, type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "./helpers/full-database-response-capture.js";
 import { toolAccessService } from "../services/tool-access.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
@@ -170,7 +170,7 @@ describeDatabase("effective tool assignments", () => {
     finally { capture.flush(); }
     expect(Number(events.at(-1)?.completedQueries)).toBeGreaterThan(0);
     expect(Number(events.at(-1)?.responseValueBytes)).toBeLessThan(16 * 1024);
-    const catalogQueries = events.filter(event => event.event === "paperclip.test_db_response_capture.entry.v1"
+    const catalogQueries = events.filter(event => event.event === "nexus.test_db_response_capture.entry.v1"
       && event.table === "tool_catalog_entries" && event.operation === "select");
     expect(catalogQueries).toHaveLength(1);
     expect(catalogQueries[0]).toMatchObject({ calls: 1, rows: 2 });
@@ -211,8 +211,8 @@ describeDatabase("effective tool assignments", () => {
     try {
       const scoped = await service.getConnectionAssignmentsForAgent(f.company.id, f.agent.id, [f.connection.id]);
       capture.flush();
-      const rules = events.filter(event => event.event === "paperclip.test_db_response_capture.entry.v1" && event.table === "tool_profile_entries");
-      const bindings = events.filter(event => event.event === "paperclip.test_db_response_capture.entry.v1" && event.table === "tool_profile_bindings");
+      const rules = events.filter(event => event.event === "nexus.test_db_response_capture.entry.v1" && event.table === "tool_profile_entries");
+      const bindings = events.filter(event => event.event === "nexus.test_db_response_capture.entry.v1" && event.table === "tool_profile_bindings");
       expect(rules).toHaveLength(1);
       expect(Number(rules[0].responseValueBytes)).toBeLessThan(4096);
       expect(rules[0]).toMatchObject({ calls: 1, rows: 2 });

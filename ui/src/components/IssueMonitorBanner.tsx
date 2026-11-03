@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Clock, X } from "lucide-react";
-import type { Issue, IssueWorkProduct } from "@paperclipai/shared";
+import type { Issue, IssueWorkProduct } from "@nexusai/shared";
 
 import { Button } from "@/components/ui/button";
 import {

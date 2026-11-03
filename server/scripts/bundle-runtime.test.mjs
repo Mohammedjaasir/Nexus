@@ -20,9 +20,9 @@ describe("bundleRuntime", () => {
   let root;
 
   beforeEach(() => {
-    root = realpathSync(mkdtempSync(path.join(tmpdir(), "paperclip-bundle-runtime-")));
+    root = realpathSync(mkdtempSync(path.join(tmpdir(), "nexus-bundle-runtime-")));
     const pkg = path.join(root, "packages", "fixture");
-    write(path.join(pkg, "package.json"), JSON.stringify({ name: "@paperclipai/fixture", type: "module", exports: { ".": "./src/index.ts" } }));
+    write(path.join(pkg, "package.json"), JSON.stringify({ name: "@nexusai/fixture", type: "module", exports: { ".": "./src/index.ts" } }));
     write(path.join(pkg, "src", "asset.txt"), "asset beside its source\n");
     write(path.join(pkg, "src", "helper.ts"), "export const double = (value: number): number => value * 2;\n");
     write(path.join(pkg, "src", "index.ts"), [
@@ -44,8 +44,8 @@ describe("bundleRuntime", () => {
     write(path.join(pkg, "node_modules", "dual-build-dep", "bundler", "index.js"), "export * from \"./extensionless\";\n");
 
     const server = path.join(root, "server");
-    mkdirSync(path.join(server, "node_modules", "@paperclipai"), { recursive: true });
-    symlinkSync(pkg, path.join(server, "node_modules", "@paperclipai", "fixture"), "dir");
+    mkdirSync(path.join(server, "node_modules", "@nexusai"), { recursive: true });
+    symlinkSync(pkg, path.join(server, "node_modules", "@nexusai", "fixture"), "dir");
     write(path.join(server, "package.json"), JSON.stringify({ name: "server", type: "module" }));
     for (const [version, flavor] of [["1", "installed at build"], ["2", "replaced after build"]]) {
       const store = path.join(root, "node_modules", ".pnpm", `server-dep@${version}`);
@@ -53,9 +53,9 @@ describe("bundleRuntime", () => {
       write(path.join(store, "index.js"), `export const flavor = ${JSON.stringify(flavor)};\n`);
     }
     symlinkSync(path.join(root, "node_modules", ".pnpm", "server-dep@1"), path.join(server, "node_modules", "server-dep"), "dir");
-    write(path.join(server, "dist", "late.js"), "import { values } from \"@paperclipai/fixture\";\nexport const late = () => values.doubled + 1;\n");
+    write(path.join(server, "dist", "late.js"), "import { values } from \"@nexusai/fixture\";\nexport const late = () => values.doubled + 1;\n");
     write(path.join(server, "dist", "index.js"), [
-      "import { asset, location, values } from \"@paperclipai/fixture\";",
+      "import { asset, location, values } from \"@nexusai/fixture\";",
       "import { flavor } from \"server-dep\";",
       "import { pathToFileURL } from \"node:url\";",
       "const { late } = await import(\"./late.js\");",
@@ -73,7 +73,7 @@ describe("bundleRuntime", () => {
 
   it("packages a maintenance entry without starting the application or needing a TypeScript loader", async () => {
     const maintenanceEntry = path.join(root, "server", "dist", "maintenance.js");
-    write(maintenanceEntry, 'import { asset } from "@paperclipai/fixture"; console.log(JSON.stringify({ asset, phase: process.argv.at(-1) }));');
+    write(maintenanceEntry, 'import { asset } from "@nexusai/fixture"; console.log(JSON.stringify({ asset, phase: process.argv.at(-1) }));');
     const outdir = path.join(root, "server", "dist-runtime");
     await bundleRuntime({ entry: path.join(root, "server", "dist", "index.js"), outdir, maintenanceEntry });
     const { stdout } = await execFileAsync(process.execPath, [path.join(outdir, "agent-files.mjs"), "--phase=eligibility"], { timeout: 30_000 });
@@ -82,7 +82,7 @@ describe("bundleRuntime", () => {
 
   it("packages standalone enrollment without starting the app", async () => {
     const ephemeralMigrationEntry = path.join(root, "server", "dist", "migration.js");
-    write(ephemeralMigrationEntry, 'import { values } from "@paperclipai/fixture"; console.log(JSON.stringify({ migrated: values.doubled }));');
+    write(ephemeralMigrationEntry, 'import { values } from "@nexusai/fixture"; console.log(JSON.stringify({ migrated: values.doubled }));');
     const outdir = path.join(root, "server", "dist-runtime");
     await bundleRuntime({ entry: path.join(root, "server", "dist", "index.js"), outdir, ephemeralMigrationEntry });
     const { stdout } = await execFileAsync(process.execPath, [path.join(outdir, "ephemeral-migration.mjs")], { timeout: 30_000 });
@@ -116,7 +116,7 @@ describe("bundleRuntime", () => {
     const summary = await bundleRuntime({ entry: path.join(root, "server", "dist", "index.js"), outdir: path.join(root, "server", "dist-runtime") });
     const env = { ...process.env };
     delete env.NODE_OPTIONS;
-    delete env.PAPERCLIP_DB_RESPONSE_CAPTURE_WINDOW;
+    delete env.NEXUS_DB_RESPONSE_CAPTURE_WINDOW;
     const options = { cwd: path.join(root, "server"), env, timeout: 30_000 };
     const plain = JSON.parse((await execFileAsync(process.execPath, [summary.outfile], options)).stdout);
     const mapped = JSON.parse((await execFileAsync(process.execPath, ["--enable-source-maps", summary.outfile], options)).stdout);
@@ -154,13 +154,13 @@ describe("bundleRuntime", () => {
     const summary = await bundleRuntime({ entry: path.join(root, "server", "dist", "index.js"), outdir: path.join(root, "server", "dist-runtime") });
     const env = { ...process.env };
     delete env.NODE_OPTIONS;
-    delete env.PAPERCLIP_DB_RESPONSE_CAPTURE_WINDOW;
+    delete env.NEXUS_DB_RESPONSE_CAPTURE_WINDOW;
     const { stdout } = await execFileAsync(process.execPath, [summary.outfile], { cwd: path.join(root, "server"), env, timeout: 30_000 });
     const events = JSON.parse(stdout);
-    const entries = events.filter(event => event.event === "paperclip.db_response_capture.entry.v2");
+    const entries = events.filter(event => event.event === "nexus.db_response_capture.entry.v2");
     expect(entries.map(entry => entry.owner).sort()).toEqual(["fixture.first", "fixture.second"]);
     for (const entry of entries) expect(entry).toMatchObject({ calls: 1, rows: 1, callers: [] });
-    expect(events.at(-1)).toMatchObject({ event: "paperclip.db_response_capture.summary.v2", completedQueries: 2 });
+    expect(events.at(-1)).toMatchObject({ event: "nexus.db_response_capture.summary.v2", completedQueries: 2 });
     expect(stdout).not.toContain("private-parameter");
     expect(stdout).not.toContain("private-result");
     expect(stdout).not.toContain(root);

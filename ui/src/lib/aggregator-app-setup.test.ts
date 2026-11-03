@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { aggregatorAppSetupTask, aggregatorSetupAgent } from "./aggregator-app-setup";
 
 function agent(id: string, overrides: Partial<Agent> = {}): Agent {

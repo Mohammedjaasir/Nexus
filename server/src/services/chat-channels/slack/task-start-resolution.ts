@@ -3,8 +3,8 @@ import { slackSlashTaskRecoveryPayload, slackTaskStarterThreadId } from "./task-
 import { SLACK_COMMAND_POST_STALE_MS, SLACK_COMMAND_EXPLICIT_RETRY_STALE_MS } from "../../chat-action-work.js";
 import { notifyChatActionWork } from "../../chat-work-notifications.js";
 import { and, eq, lte, ne, or, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { chatActions, chatEndpointResources, chatExternalPrincipals, chatIdentityLinks, companyMemberships } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { chatActions, chatEndpointResources, chatExternalPrincipals, chatIdentityLinks, companyMemberships } from "@nexusai/db";
 import { conflict, notFound } from "../../../errors.js";
 import { logActivity } from "../../activity-log.js";
 import type { createSlackTaskStart } from "./task-start.js";
@@ -210,7 +210,7 @@ export function createSlackTaskStartResolution(db: Db, options: ResolutionOption
         }
         const link = await db
           .select({
-            paperclipUserId: chatIdentityLinks.paperclipUserId,
+            nexusUserId: chatIdentityLinks.nexusUserId,
             status: chatIdentityLinks.status,
           })
           .from(chatIdentityLinks)
@@ -222,7 +222,7 @@ export function createSlackTaskStartResolution(db: Db, options: ResolutionOption
           )
           .then((rows) => rows[0] ?? null);
         let principalAllowed = false;
-        if (link?.status === "linked" && link.paperclipUserId) {
+        if (link?.status === "linked" && link.nexusUserId) {
           principalAllowed = await db
             .select({ membershipRole: companyMemberships.membershipRole })
             .from(companyMemberships)
@@ -230,7 +230,7 @@ export function createSlackTaskStartResolution(db: Db, options: ResolutionOption
               and(
                 eq(companyMemberships.companyId, record.endpoint.companyId),
                 eq(companyMemberships.principalType, "user"),
-                eq(companyMemberships.principalId, link.paperclipUserId),
+                eq(companyMemberships.principalId, link.nexusUserId),
                 eq(companyMemberships.status, "active"),
                 ne(companyMemberships.membershipRole, "viewer"),
               ),
@@ -451,7 +451,7 @@ export function createSlackTaskStartResolution(db: Db, options: ResolutionOption
             .set({
               // The provider send is now confirmed, but task admission is a
               // separate durable phase. Persist this fence before constructing the
-              // Paperclip delivery so a crash cannot turn into another Slack post.
+              // Nexus delivery so a crash cannot turn into another Slack post.
               status: "provider_confirmed",
               result: {
                 attemptCount: retryAttempt,

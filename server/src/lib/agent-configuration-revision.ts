@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { agentConfigurationSpec, canonicalAgentConfiguration, type AgentConfigurationSource } from "@paperclipai/shared";
+import { agentConfigurationSpec, canonicalAgentConfiguration, type AgentConfigurationSource } from "@nexusai/shared";
 import { normalizeAgentPermissions } from "./agent-permissions.js";
 import { REDACTED_EVENT_VALUE } from "../redaction.js";
 import { unprocessable } from "../errors.js";

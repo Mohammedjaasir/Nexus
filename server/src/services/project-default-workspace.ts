@@ -1,4 +1,4 @@
-import { projects, projectWorkspaces, type Db } from "@paperclipai/db";
+import { projects, projectWorkspaces, type Db } from "@nexusai/db";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { parseProjectExecutionWorkspacePolicy } from "./execution-workspace-policy.js";
 

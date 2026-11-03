@@ -6,7 +6,7 @@ import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator
 import { DELIVERY_QUEUES } from "../delivery-work-notifications.js";
 import { registerScopedDeadlineWork } from "../scoped-deadline-work.js";
 import { and, asc, desc, eq, exists, gt, inArray, isNull, ne, notExists, or, sql } from "drizzle-orm";
-import { completionContracts, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, nativeRunResults, workspaceOperations, type Db } from "@paperclipai/db";
+import { completionContracts, heartbeatRuns, issues, issueRecoveryActions, nativeRunFinalizations, nativeRunResults, workspaceOperations, type Db } from "@nexusai/db";
 import { publishLiveEvent } from "../live-events.js";
 import { buildHeartbeatRunStatusLiveEventPayload } from "../heartbeat-run-status-payload.js";
 import { appendHeartbeatRunEvent } from "../heartbeat-run-events.js";

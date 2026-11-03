@@ -2,7 +2,7 @@ import { useLayoutEffect, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { useQueryClient } from "@tanstack/react-query";
-import type { AgentObservabilitySettings, UpdateAgentObservabilityRequest } from "@paperclipai/shared";
+import type { AgentObservabilitySettings, UpdateAgentObservabilityRequest } from "@nexusai/shared";
 import { Route, Routes } from "@/lib/router";
 import { Layout } from "@/components/Layout";
 import { CompanySettings } from "@/pages/CompanySettings";
@@ -48,7 +48,7 @@ const meta = {
   id: "agent-observability-03-journey",
   title: "Getting started and access/Companies and portability/Agent observability/03 Journey",
   component: Journey,
-  parameters: { layout: "fullscreen", initialEntries: ["/PAP/company/settings"], paperclip: {
+  parameters: { layout: "fullscreen", initialEntries: ["/PAP/company/settings"], nexus: {
     capabilities: ["companies/agent-observability"], implementation: "production", boundary: "fixtures",
     notes: "Production company settings and app shell. Stateful mocked API verifies configure, save, test, disable, and remove; no real OTLP or credentials." } },
 } satisfies Meta<typeof Journey>;

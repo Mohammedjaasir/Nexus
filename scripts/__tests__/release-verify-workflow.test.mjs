@@ -176,7 +176,7 @@ test("canary publisher attaches the exact source while local and remote master a
 });
 
 for (const [name, overrides] of [
-  ["fork repository", { GITHUB_REPOSITORY: "example/paperclip" }],
+  ["fork repository", { GITHUB_REPOSITORY: "example/nexus" }],
   ["manual dispatch", { GITHUB_EVENT_NAME: "workflow_dispatch" }],
   ["scheduled release", { GITHUB_EVENT_NAME: "schedule" }],
   ["non-master push", { GITHUB_REF: "refs/heads/topic" }],
@@ -324,7 +324,7 @@ test("published canaries are gated by the exact-version onboarding browser smoke
   }
   assert.match(
     releaseWorkflow,
-    /PAPERCLIPAI_VERSION: \$\{\{ needs\.publish_canary\.outputs\.canary_version \}\}/,
+    /NEXUSAI_VERSION: \$\{\{ needs\.publish_canary\.outputs\.canary_version \}\}/,
   );
   assert.match(releaseWorkflow, /test:canary-onboarding-smoke/);
   assert.match(
@@ -343,7 +343,7 @@ test("published canaries are gated by the exact-version onboarding browser smoke
   );
   assert.match(
     releaseWorkflow,
-    /name: Smoke exact published canary through onboarding\n\s+env:\n\s+PAPERCLIP_CANARY_SMOKE_SERVER_LOG: \$\{\{ runner\.temp \}\}\/canary-onboarding-server\.log/,
+    /name: Smoke exact published canary through onboarding\n\s+env:\n\s+NEXUS_CANARY_SMOKE_SERVER_LOG: \$\{\{ runner\.temp \}\}\/canary-onboarding-server\.log/,
   );
   assert.match(
     releaseWorkflow,
@@ -467,7 +467,7 @@ test("release smoke workflow extends the container readiness budget for CI", () 
     "utf8",
   );
 
-  // CI containers cold-install paperclipai and embedded postgres, so the
+  // CI containers cold-install nexusai and embedded postgres, so the
   // workflow must extend the harness's local-default readiness budget.
   assert.match(smokeWorkflow, /SMOKE_READY_TIMEOUT_SECONDS=\d+/);
   const ciBudget = Number(
@@ -484,7 +484,7 @@ test("release smoke workflow extends the container readiness budget for CI", () 
   );
   assert.match(
     harness,
-    /wait_for_http "\$PAPERCLIP_PUBLIC_URL\/api\/health" "\$SMOKE_READY_TIMEOUT_SECONDS" 1/,
+    /wait_for_http "\$NEXUS_PUBLIC_URL\/api\/health" "\$SMOKE_READY_TIMEOUT_SECONDS" 1/,
   );
 });
 
@@ -498,12 +498,12 @@ test("release verify workflow covers the same split test surface as stable PR ve
   );
   assert.match(verifyWorkflow, /pnpm -r typecheck/);
   assert.match(verifyWorkflow, /pnpm build/);
-  const runnerScripts = JSON.parse(readFileSync(path.join(repoRoot, "packages/paperclip-runner/package.json"), "utf8")).scripts;
+  const runnerScripts = JSON.parse(readFileSync(path.join(repoRoot, "packages/nexus-runner/package.json"), "utf8")).scripts;
   const runnerChecks = [...verifyWorkflow.matchAll(/^            checks: (.+)$/gm)]
     .flatMap(([, checks]) => checks.split(" "));
   assert.deepEqual(runnerChecks, runnerScripts["check:all"].split(" && ")
     .map((command) => command.replace(/^pnpm run /, "")));
-  assert.match(verifyWorkflow, /pnpm --filter @paperclipai\/paperclip-runner "\$check"/);
+  assert.match(verifyWorkflow, /pnpm --filter @nexusai\/nexus-runner "\$check"/);
   assert.match(verifyWorkflow, /runner_workflow_evals:/);
   assert.match(verifyWorkflow, /runner_chaos_evals:/);
   assert.match(
@@ -549,7 +549,7 @@ test("release verify workflow covers the same split test surface as stable PR ve
 
 test("release verification builds native test binaries in a required Rust-cached lane", () => {
   const workflow = readWorkflow("release-verify.yml");
-  const runnerJob = workflow.match(/  verify_paperclip_runner:\n[\s\S]*?(?=\n  [A-Za-z0-9_-]+:|$)/)?.[0] ?? "";
+  const runnerJob = workflow.match(/  verify_nexus_runner:\n[\s\S]*?(?=\n  [A-Za-z0-9_-]+:|$)/)?.[0] ?? "";
   assert.equal((runnerJob.match(/- lane: server-integration/g) ?? []).length, 1);
   assert.doesNotMatch(runnerJob, /continue-on-error/);
   assert.match(runnerJob, /timeout-minutes: 20/);
@@ -558,7 +558,7 @@ test("release verification builds native test binaries in a required Rust-cached
   assert.match(runnerJob, /cache-bin: false/);
   assert.match(runnerJob, /save-if: \$\{\{ matrix\.lane == 'rust'/);
   assert.match(runnerJob, /Build native server test binaries\n\s+if: \$\{\{ matrix\.lane == 'server-integration' \}\}\n\s+timeout-minutes: 10/);
-  assert.match(runnerJob, /pnpm build:rust\n\s+cargo build --release --manifest-path runner\/Cargo\.toml --locked -p paperclip-runner-core --bin paperclip-runnerd --bin fake-codex-app-server/);
+  assert.match(runnerJob, /pnpm build:rust\n\s+cargo build --release --manifest-path runner\/Cargo\.toml --locked -p nexus-runner-core --bin nexus-runnerd --bin fake-codex-app-server/);
   assert.match(runnerJob, /Run native server integration suites\n\s+if: \$\{\{ matrix\.lane == 'server-integration' \}\}\n\s+run: pnpm test:run:general -- --group general-server-native-runner/);
   assert.ok(runnerJob.indexOf("Cache Runner Rust dependencies") < runnerJob.indexOf("Build native server test binaries"));
   assert.ok(runnerJob.indexOf("Build native server test binaries") < runnerJob.indexOf("Run native server integration suites"));
@@ -690,7 +690,7 @@ test("Runner eval workflows pin actions and gate paid live execution", () => {
         assert.match(value, /chat-completion-testops-cli\.mjs guard/);
         assert.match(value, /chat-completion-testops-cli\.mjs verify-selection/);
         assert.match(value, /--max-parallel 1 --max-automatic-retries 0/);
-        assert.match(value, /PAPERCLIP_CHAT_COMPLETION_TESTOPS: v1/);
+        assert.match(value, /NEXUS_CHAT_COMPLETION_TESTOPS: v1/);
         assert.doesNotMatch(value, /ALLURE_TOKEN/);
         assert.equal([...value.matchAll(providerSecretReference)].length, 2);
         assert.ok(value.indexOf("chat-completion-testops-cli.mjs verify-selection") < value.search(providerSecretReference));
@@ -807,7 +807,7 @@ test("Runner eval workflows pin actions and gate paid live execution", () => {
   assert.ok(runnerBlock, "expected Runner chaos test command");
   assert.ok(serverBlock, "expected server chaos test command");
   for (const [base, block] of [
-    [path.join(repoRoot, "packages/paperclip-runner"), runnerBlock],
+    [path.join(repoRoot, "packages/nexus-runner"), runnerBlock],
     [path.join(repoRoot, "server"), serverBlock],
   ]) {
     const listedTestPaths =
@@ -831,16 +831,16 @@ test("Runner eval workflows pin actions and gate paid live execution", () => {
 test("direct Grok qualification installs the pinned binary and scopes the selected credential", () => {
   const workflow = readWorkflow("runner-protocol-live-evals.yml");
   assert.ok(workflow.includes("XAI_API_KEY: ${{ matrix.credentialName == 'XAI_API_KEY' && secrets.XAI_API_KEY || '' }}"));
-  assert.ok(workflow.includes("if [ -f packages/paperclip-runner/scripts/provision-grok.mjs ]; then"));
-  assert.ok(workflow.indexOf("sudo node packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok") < workflow.indexOf("pnpm --filter @paperclipai/paperclip-runner deploy --prod"));
-  assert.ok(workflow.includes("PAPERCLIP_ACPX_GROK_AUTH_JSON_SECRET: ${{ matrix.credentialName == 'PAPERCLIP_ACPX_GROK_AUTH_JSON_SECRET' && secrets.GROK_AUTH_JSON || '' }}"));
+  assert.ok(workflow.includes("if [ -f packages/nexus-runner/scripts/provision-grok.mjs ]; then"));
+  assert.ok(workflow.indexOf("sudo node packages/nexus-runner/scripts/provision-grok.mjs /opt/nexus/providers/grok/1.0.13/grok") < workflow.indexOf("pnpm --filter @nexusai/nexus-runner deploy --prod"));
+  assert.ok(workflow.includes("NEXUS_ACPX_GROK_AUTH_JSON_SECRET: ${{ matrix.credentialName == 'NEXUS_ACPX_GROK_AUTH_JSON_SECRET' && secrets.GROK_AUTH_JSON || '' }}"));
   assert.equal((workflow.match(/secrets\.GROK_AUTH_JSON/gu) ?? []).length, 1);
 });
 
 test("direct protocol concurrency override only lowers the configured ceiling", () => {
   const workflow = readWorkflow("runner-protocol-live-evals.yml");
   const start = workflow.indexOf('          if [ -n "${REQUESTED_MAX_PARALLEL:-}" ]; then');
-  const end = workflow.indexOf("          node packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs catalog", start);
+  const end = workflow.indexOf("          node packages/nexus-runner/scripts/runner-protocol-eval-campaign.mjs catalog", start);
   assert.ok(start > 0 && end > start);
   const script = workflow.slice(start, end) + '\nprintf "%s" "$MAX_PARALLEL"\n';
   for (const [requested, expected] of [["", "8"], ["2", "2"], ["8", "8"], ["1", null], ["9", null], ["0", null], ["-1", null], ["2.5", null], ["garbage", null], ["9999999999999999999999", null]]) {
@@ -872,11 +872,11 @@ test("release daemon production uses exact-source native hosts and no publisher 
   assert.match(producer, /git rev-parse HEAD/);
   assert.match(producer, /process.platform \+ "-" \+ process.arch/);
   assert.match(producer, /\['native', \['build:binary'\]/);
-  const runner = JSON.parse(readFileSync(path.join(repoRoot, 'packages/paperclip-runner/package.json'), 'utf8'));
+  const runner = JSON.parse(readFileSync(path.join(repoRoot, 'packages/nexus-runner/package.json'), 'utf8'));
   assert.match(runner.scripts['build:binary'], /cargo build --release --manifest-path runner\/Cargo.toml --locked/);
   assert.match(runner.scripts['build:binary'], /&& node scripts\/stage-runner-binary.mjs$/);
   assert.match(producer, /stage-release-runner-binaries.mjs record/);
-  for (const job of ["runner_chaos_evals", "typecheck", "general_tests", "serialized_tests", "runner_workflow_evals", "verify_paperclip_runner", "build"]) {
+  for (const job of ["runner_chaos_evals", "typecheck", "general_tests", "serialized_tests", "runner_workflow_evals", "verify_nexus_runner", "build"]) {
     assert.ok(workflow.includes(`${job}:\n    if: \${{ !inputs.runner_binaries_only }}`));
   }
   const release = readWorkflow("release.yml");
@@ -909,11 +909,11 @@ test("release daemon production uses exact-source native hosts and no publisher 
     const block = release.split(`  ${job}:\n`)[1].split(/\n  [a-z_]+:\n/)[0];
     assert.match(block, /needs: .*release_runner_binaries/);
     assert.match(block, /pattern: \$\{\{ needs.release_runner_binaries.outputs.runner_artifact_prefix \}\}-\*/);
-    assert.match(block, /PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR/);
+    assert.match(block, /NEXUS_RELEASE_RUNNER_ARTIFACTS_DIR/);
   }
   const script = readFileSync(path.join(repoRoot, 'scripts/release.sh'), 'utf8');
-  assert.ok(script.indexOf('assemble-daemons "$PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR"') < script.indexOf('scripts/build-standalone-public-packages.mjs'));
-  assert.match(script, /cp -R .*paperclip-runner\/dist\/bin\/\." .*server\/dist\/vendor\/paperclip-runner\/bin\//);
+  assert.ok(script.indexOf('assemble-daemons "$NEXUS_RELEASE_RUNNER_ARTIFACTS_DIR"') < script.indexOf('scripts/build-standalone-public-packages.mjs'));
+  assert.match(script, /cp -R .*nexus-runner\/dist\/bin\/\." .*server\/dist\/vendor\/nexus-runner\/bin\//);
   assert.match(script, /elif \[ "\$dry_run" = false \]; then[\s\S]*?release_fail "Public releases require/);
 });
 
@@ -933,7 +933,7 @@ test('native dependency caches are target-bound and unmerged master callers cann
   const cache = producer.split('      - name: Cache native Rust dependencies\n')[1].split('\n      - ')[0];
   assert.match(cache, /Swatinem\/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6/);
   assert.match(cache, /workspaces: \$\{\{ steps.native_rust_workspace.outputs.path \}\} -> target/);
-  assert.match(cache, /shared-key: release-native-v2-\$\{\{ matrix.host \}\}-\$\{\{ matrix.target \}\}-\$\{\{ hashFiles\('packages\/paperclip-runner\/protocol\/\*\*', 'packages\/paperclip-runner\/src\/\*\*', 'packages\/paperclip-runner\/\*.json'\) \}\}/);
+  assert.match(cache, /shared-key: release-native-v2-\$\{\{ matrix.host \}\}-\$\{\{ matrix.target \}\}-\$\{\{ hashFiles\('packages\/nexus-runner\/protocol\/\*\*', 'packages\/nexus-runner\/src\/\*\*', 'packages\/nexus-runner\/\*.json'\) \}\}/);
   for (const option of ['cache-workspace-crates', 'cache-bin', 'cache-on-failure']) {
     assert.match(cache, new RegExp(option + ': false'));
   }
@@ -948,11 +948,11 @@ test('native dependency caches are target-bound and unmerged master callers cann
     [{ event_name: 'workflow_dispatch' }, 'b'.repeat(40)],
     [{ event_name: 'pull_request', ref: 'refs/pull/123/merge' }, github.sha],
     [{ ref: 'refs/heads/topic' }, github.sha],
-    [{ repository: 'fork/paperclip' }, github.sha],
+    [{ repository: 'fork/nexus' }, github.sha],
     [{ repository_id: '1' }, github.sha],
   ]) assert.equal(canSave({ ...github, ...overrides }, { ref: input }), false);
-  assert.match(producer, /pinned="\$HOME\/paperclip-runner-rust"/);
-  assert.match(producer, /ln -s "\$GITHUB_WORKSPACE\/packages\/paperclip-runner\/runner" "\$pinned"/);
+  assert.match(producer, /pinned="\$HOME\/nexus-runner-rust"/);
+  assert.match(producer, /ln -s "\$GITHUB_WORKSPACE\/packages\/nexus-runner\/runner" "\$pinned"/);
   assert.match(producer, /echo "RUSTUP_TOOLCHAIN=\$toolchain" >> "\$GITHUB_ENV"/);
   assert.doesNotMatch(producer, /cache-hit|continue-on-error/);
   assert.ok(producer.indexOf('Bind immutable producer source and target') < producer.indexOf('Cache native Rust dependencies'));
@@ -982,7 +982,7 @@ async function withNativePreparationFixture(mode, check) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'native-preparation-')));
   let controller;
   try {
-    for (const directory of ['scripts', 'tools', 'packages/paperclip-runner', 'logs']) {
+    for (const directory of ['scripts', 'tools', 'packages/nexus-runner', 'logs']) {
       mkdirSync(path.join(root, directory), { recursive: true });
     }
     for (const helper of ['prefetch-child.mjs', 'prefetch-supervisor.mjs']) {
@@ -1047,9 +1047,9 @@ test('native preparation overlaps independent outputs and joins both before reco
     const result = await completed;
     assert.equal(result.status, 0, result.stderr);
     for (const name of ['native', 'typescript']) assert.equal(readFileSync(path.join(root, name + '.finished'), 'utf8'), 'joined');
-    assert.equal(JSON.parse(readFileSync(path.join(root, 'native.started'), 'utf8')).cwd, path.join(root, 'packages/paperclip-runner'));
+    assert.equal(JSON.parse(readFileSync(path.join(root, 'native.started'), 'utf8')).cwd, path.join(root, 'packages/nexus-runner'));
     assert.deepEqual(JSON.parse(readFileSync(path.join(root, 'native.started'), 'utf8')).args, ['build:binary']);
-    assert.deepEqual(JSON.parse(readFileSync(path.join(root, 'typescript.started'), 'utf8')).args, ['--filter', '@paperclipai/paperclip-runner', 'build:typescript']);
+    assert.deepEqual(JSON.parse(readFileSync(path.join(root, 'typescript.started'), 'utf8')).args, ['--filter', '@nexusai/nexus-runner', 'build:typescript']);
     const results = result.stdout.split('\n').filter(line => line.startsWith('{')).map(line => JSON.parse(line));
     assert.deepEqual(results.map(item => [item.build, item.status, item.exitCode]), [['typescript', 'fulfilled', 0], ['native', 'fulfilled', 0]]);
   });
@@ -1092,7 +1092,7 @@ test("premerge native qualification consumes the same Linux-packed npm bytes wit
   const qualification = smoke.split("  qualification_daemons:\n")[1];
   assert.doesNotMatch(qualification, /secrets\.|npm publish|id-token: write|contents: write|continue-on-error/);
   assert.match(qualification, /runner_binaries_only: true/);
-  assert.match(qualification, /PAPERCLIP_RUNNER_PUBLIC_PACKS_DIR/);
+  assert.match(qualification, /NEXUS_RUNNER_PUBLIC_PACKS_DIR/);
   assert.match(qualification, /if: \$\{\{ !cancelled\(\) && steps.pack_identity.outputs.available == 'true' \}\}/);
   assert.match(qualification, /name: \$\{\{ inputs.artifact_name \}\}-public-packages/);
   assert.match(qualification, /--mac-consumer/);
@@ -1118,7 +1118,7 @@ test("native ARM qualification prepares its scoped distro sandbox before the exi
   assert.doesNotMatch(tooling + preparation, /github\.workflow_sha|github\.sha|ref: (?:master|main)|ref: \$\{\{ inputs\.qualification_source_sha/);
   assert.ok(native.indexOf("Checkout immutable ARM qualification tooling") < native.indexOf("Prepare Linux ARM sandbox prerequisites"));
   assert.ok(native.indexOf("Prepare Linux ARM sandbox prerequisites") < native.indexOf("Verify host identity and actual clean npm consumer"));
-  assert.match(native, /path: \|\n\s+\$\{\{ runner\.temp \}\}\/native-public-install\.json\n\s+\$\{\{ runner\.temp \}\}\/paperclip-arm-bwrap-prerequisite\//);
+  assert.match(native, /path: \|\n\s+\$\{\{ runner\.temp \}\}\/native-public-install\.json\n\s+\$\{\{ runner\.temp \}\}\/nexus-arm-bwrap-prerequisite\//);
   assert.doesNotMatch(smoke.split("  qualification_daemons:\n")[0], /prepare-linux-arm64-qualification/,
     "ordinary service and Docker smoke keep their existing setup");
 });
@@ -1151,7 +1151,7 @@ test("ARM qualification binds separate product and reusable-workflow revisions e
       assert.equal(existsSync(prepared), expectedStatus === 0);
       if (expectedStatus === 0) {
         assert.equal(readFileSync(prepared, "utf8").trim(), toolingSha);
-        const identity = JSON.parse(readFileSync(path.join(report, "paperclip-arm-bwrap-prerequisite", "qualification-identity.json"), "utf8"));
+        const identity = JSON.parse(readFileSync(path.join(report, "nexus-arm-bwrap-prerequisite", "qualification-identity.json"), "utf8"));
         assert.equal(identity.productSourceSha, productSha);
         assert.equal(identity.toolingSourceSha, toolingSha);
         assert.equal(identity.toolingRepository, "paperclipai/paperclip");
@@ -1181,7 +1181,7 @@ test("Linux ARM prerequisite setup rejects other hosts before invoking tools and
       assert.equal(result.status, 1);
       assert.match(result.stderr, /requires a GitHub Actions Linux runner/);
       assert.equal(existsSync(sentinel), false, "host guard must precede every external tool");
-      assert.equal(existsSync(path.join(root, "paperclip-arm-bwrap-prerequisite")), false);
+      assert.equal(existsSync(path.join(root, "nexus-arm-bwrap-prerequisite")), false);
     }
     assert.ok(source.indexOf('"${GITHUB_ACTIONS:-}" != true') < source.indexOf(". /etc/os-release"));
     assert.match(source, /-o Acquire::AllowInsecureRepositories=false/);
@@ -1219,14 +1219,14 @@ test("exact-source daemon matrices read inert data and never execute preview run
     };
     const template = path.join(root, 'empty-template'); mkdirSync(template);
     git(['init', '-q', '--template=' + template]);
-    const source = path.join(root, 'packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs');
-    const dataFile = path.join(root, 'packages/paperclip-runner/release-runner-targets.json');
+    const source = path.join(root, 'packages/nexus-runner/scripts/stage-release-runner-binaries.mjs');
+    const dataFile = path.join(root, 'packages/nexus-runner/release-runner-targets.json');
     mkdirSync(path.dirname(source), { recursive: true });
     const output = path.join(root, 'outputs'), marker = path.join(root, 'candidate-executed');
     const historical = ['darwin-arm64', 'darwin-x64', 'linux-x64'];
     const current = [...historical, 'linux-arm64'];
-    const contract = targets => JSON.stringify({ schema: 'paperclip.runner.release-targets.v1', targets });
-    const malicious = `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(marker)}, 'executed');\nwriteFileSync(process.env.GITHUB_OUTPUT, 'matrix={"include":[{"target":"linux-x64","host":"runs-on/fleet=paperclip-post-merge-x64/env=public-ci"}]}\\n');\nprocess.exit(0);\n`;
+    const contract = targets => JSON.stringify({ schema: 'nexus.runner.release-targets.v1', targets });
+    const malicious = `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(marker)}, 'executed');\nwriteFileSync(process.env.GITHUB_OUTPUT, 'matrix={"include":[{"target":"linux-x64","host":"runs-on/fleet=nexus-post-merge-x64/env=public-ci"}]}\\n');\nprocess.exit(0);\n`;
     const pin = (module, data) => {
       rmSync(dataFile, { force: true });
       writeFileSync(source, module);
@@ -1265,14 +1265,14 @@ test("exact-source daemon matrices read inert data and never execute preview run
       assertMatrix(targets);
     }
     const sha = pin(malicious, contract(current));
-    writeFileSync(dataFile, contract(['runs-on/fleet=paperclip-post-merge-x64/env=public-ci']));
+    writeFileSync(dataFile, contract(['runs-on/fleet=nexus-post-merge-x64/env=public-ci']));
     assert.equal(run(sha).status, 0, 'Read the immutable git blob, not a changed checkout file');
     assertMatrix(current);
     assert.equal(run('a'.repeat(40)).status, 1, 'Wrong checked-out source must fail before output');
     assert.equal(readFileSync(output, 'utf8'), '');
     for (const data of [
       contract(['linux-arm64']), contract([...current, 'linux-arm64']), contract([...current.slice(0, 3), 'win32-x64']),
-      JSON.stringify({ schema: 'paperclip.runner.release-targets.v1', targets: current, host: 'trusted-fleet' }),
+      JSON.stringify({ schema: 'nexus.runner.release-targets.v1', targets: current, host: 'trusted-fleet' }),
       JSON.stringify({ schema: 'other', targets: current }), contract('linux-arm64'), 'null', '{invalid', ' '.repeat(65 * 1024),
     ]) {
       const result = run(pin(`export const RELEASE_RUNNER_TARGETS = ${JSON.stringify(historical)};`, data));
@@ -1306,7 +1306,7 @@ test("historical promotion sources keep their packaging path while new sources r
     const tools = path.join(root, 'tools'); mkdirSync(tools);
     writeFileSync(path.join(tools, 'git'), '#!/bin/sh\ncase "$1" in\nrev-parse) printf "%s\\n" "$FIXTURE_HEAD";;\nshow) cat "$FIXTURE_SOURCE";;\n*) exit 3;;\nesac\n', { mode: 0o755 });
     const source = path.join(root, 'release.sh'), output = path.join(root, 'outputs');
-    for (const [contents, required] of [['pnpm build\n', false], ['assemble-daemons "$PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR" "$SOURCE_SHA"\n', true]]) {
+    for (const [contents, required] of [['pnpm build\n', false], ['assemble-daemons "$NEXUS_RELEASE_RUNNER_ARTIFACTS_DIR" "$SOURCE_SHA"\n', true]]) {
       writeFileSync(source, contents); writeFileSync(output, '');
       const result = spawnSync('bash', ['-euo', 'pipefail', '-c', script], { encoding: 'utf8', env: {
         PATH: `${tools}:/usr/bin:/bin`, SOURCE_SHA: 'a'.repeat(40), FIXTURE_HEAD: 'a'.repeat(40), FIXTURE_SOURCE: source, GITHUB_OUTPUT: output,
@@ -1343,7 +1343,7 @@ test("canary startup refreshes an incomplete dependency publication, then onboar
   assert.equal(onboarding.length, 1);
   for (const call of installs) {
     assert.equal(call.args[0], "install");
-    assert.ok(call.args.includes("paperclipai@2026.1009.0-canary.1"));
+    assert.ok(call.args.includes("nexusai@2026.1009.0-canary.1"));
     assert.ok(call.args.includes("--no-package-lock"));
     assert.ok(call.args.includes("--no-save"));
   }
@@ -1424,18 +1424,18 @@ test("nested ETARGET output does not retry a final authentication or network fai
 });
 
 const exactCanary = "2026.1009.0-canary.1";
-const canaryTarball = `https://registry.npmjs.org/@paperclipai/server/-/server-${exactCanary}.tgz`;
-const tarballFailure = (url = canaryTarball, prefix = "npm error") => `${prefix} code E404\n${prefix} 404 Not Found - GET ${url} - Not found\n${prefix} 404\n${prefix} 404  The requested resource '@paperclipai/server@${url}' could not be found or you do not have permission to access it.\n`;
+const canaryTarball = `https://registry.npmjs.org/@nexusai/server/-/server-${exactCanary}.tgz`;
+const tarballFailure = (url = canaryTarball, prefix = "npm error") => `${prefix} code E404\n${prefix} 404 Not Found - GET ${url} - Not found\n${prefix} 404\n${prefix} 404  The requested resource '@nexusai/server@${url}' could not be found or you do not have permission to access it.\n`;
 
 function tarballProof({ config = {}, manifest = {}, status = 200, redirected = false, responseUrl, rawBody } = {}) {
   const calls = [];
   const dist = { tarball: canaryTarball, integrity: `sha512-${Buffer.alloc(64).toString("base64")}`, ...manifest.dist };
-  const data = { name: "@paperclipai/server", version: exactCanary, ...manifest, dist };
+  const data = { name: "@nexusai/server", version: exactCanary, ...manifest, dist };
   return { calls, options: {
     signal: new AbortController().signal, prefix: "/fixture/install", env: {},
     runConfig: async (command, args, options) => {
       calls.push({ kind: "config", command, args, options });
-      return { code: 0, stdout: "registry=https://registry.npmjs.org/\n@paperclipai:registry=undefined\n", ...config };
+      return { code: 0, stdout: "registry=https://registry.npmjs.org/\n@nexusai:registry=undefined\n", ...config };
     },
     fetchMetadata: async (url, options) => {
       calls.push({ kind: "metadata", url, options });
@@ -1449,13 +1449,13 @@ test("exact published tarball proof uses quiet effective config and fresh public
     const fixture = tarballProof();
     assert.equal(await canRetryPublishedTarball404(tarballFailure(canaryTarball, prefix), exactCanary, fixture.options), true);
     const [config, metadata] = fixture.calls;
-    assert.deepEqual(config.args, ["config", "get", "registry", "@paperclipai:registry", "--prefix", "/fixture/install"]);
+    assert.deepEqual(config.args, ["config", "get", "registry", "@nexusai:registry", "--prefix", "/fixture/install"]);
     assert.equal(config.options.env, fixture.options.env);
     assert.equal(config.options.quiet, true);
     assert.equal(config.options.captureStdout, true);
     assert.equal(config.options.captureStderr, true);
     assert.equal(config.options.outputLimit, 4096);
-    assert.equal(metadata.url, `https://registry.npmjs.org/%40paperclipai%2Fserver/${exactCanary}`);
+    assert.equal(metadata.url, `https://registry.npmjs.org/%40nexusai%2Fserver/${exactCanary}`);
     assert.equal(metadata.options.signal, config.options.signal);
     assert.equal(metadata.options.redirect, "error");
     assert.equal(metadata.options.credentials, "omit");
@@ -1474,11 +1474,11 @@ test("mixed npm errors and noncanonical or unreleased tarballs never read config
     ...[
       canaryTarball + "?token=fixture", canaryTarball + "#fragment", canaryTarball.replace("npmjs.org/", "npmjs.org:443/"),
       canaryTarball.replace("npmjs.org/", "npmjs.org.example.invalid/"), canaryTarball.replace("npmjs.org/", "fixture@npmjs.org/"),
-      canaryTarball.replace("https:", "http:"), canaryTarball.replace("@paperclipai/server", "%40paperclipai%2Fserver"),
-      canaryTarball.replace("@paperclipai/server", "@paperclipai/../server"), canaryTarball.replace(exactCanary, "2026.1009.0-canary.2"),
-      "https://registry.npmjs.org/@paperclipai/not-released/-/not-released-2026.1009.0-canary.1.tgz",
-      "https://registry.npmjs.org/@paperclipai/plugin-createos/-/plugin-createos-2026.1009.0-canary.1.tgz",
-      "https://registry.npmjs.org/%40paperclipai%2Fserver/2026.1009.0-canary.1",
+      canaryTarball.replace("https:", "http:"), canaryTarball.replace("@nexusai/server", "%40nexusai%2Fserver"),
+      canaryTarball.replace("@nexusai/server", "@nexusai/../server"), canaryTarball.replace(exactCanary, "2026.1009.0-canary.2"),
+      "https://registry.npmjs.org/@nexusai/not-released/-/not-released-2026.1009.0-canary.1.tgz",
+      "https://registry.npmjs.org/@nexusai/plugin-createos/-/plugin-createos-2026.1009.0-canary.1.tgz",
+      "https://registry.npmjs.org/%40nexusai%2Fserver/2026.1009.0-canary.1",
     ].map((url) => tarballFailure(url)),
   ];
   for (const error of errors) {
@@ -1495,13 +1495,13 @@ test("mixed npm errors and noncanonical or unreleased tarballs never read config
 
 test("effective registry authority respects scope precedence and rejects unknown or private config", async () => {
   const configs = [
-    [{ stdout: "registry=https://registry.example.invalid/\n@paperclipai:registry=https://registry.npmjs.org/\n" }, true],
-    [{ stdout: "registry=undefined\n@paperclipai:registry=https://registry.npmjs.org/\n" }, true],
-    [{ stdout: "registry=https://registry.npmjs.org/\n@paperclipai:registry=https://registry.example.invalid/\n" }, false],
-    [{ stdout: "registry=https://registry.example.invalid/\n@paperclipai:registry=undefined\n" }, false],
-    [{ stdout: "registry=undefined\n@paperclipai:registry=undefined\n" }, false],
-    [{ stdout: "registry=https://registry.npmjs.org/\n@paperclipai:registry=\n" }, false],
-    [{ stdout: "registry=https://fixture:secret@registry.npmjs.org/\n@paperclipai:registry=undefined\n" }, false],
+    [{ stdout: "registry=https://registry.example.invalid/\n@nexusai:registry=https://registry.npmjs.org/\n" }, true],
+    [{ stdout: "registry=undefined\n@nexusai:registry=https://registry.npmjs.org/\n" }, true],
+    [{ stdout: "registry=https://registry.npmjs.org/\n@nexusai:registry=https://registry.example.invalid/\n" }, false],
+    [{ stdout: "registry=https://registry.example.invalid/\n@nexusai:registry=undefined\n" }, false],
+    [{ stdout: "registry=undefined\n@nexusai:registry=undefined\n" }, false],
+    [{ stdout: "registry=https://registry.npmjs.org/\n@nexusai:registry=\n" }, false],
+    [{ stdout: "registry=https://fixture:secret@registry.npmjs.org/\n@nexusai:registry=undefined\n" }, false],
     [{ stdout: "unexpected output\n" }, false], [{ code: 1 }, false], [{ signal: "SIGTERM" }, false], [{ outputTruncated: true }, false],
   ];
   for (const [config, expected] of configs) {
@@ -1515,7 +1515,7 @@ test("metadata must identify the exact published artifact with valid SHA512 synt
   const fixtures = [
     { status: 404 }, { status: 401 }, { status: 403 }, { status: 302 }, { redirected: true },
     { responseUrl: "https://registry.example.invalid/metadata" }, { rawBody: "not json" },
-    { manifest: { name: "@paperclipai/shared" } }, { manifest: { version: "2026.1009.0-canary.2" } },
+    { manifest: { name: "@nexusai/shared" } }, { manifest: { version: "2026.1009.0-canary.2" } },
     { manifest: { dist: { tarball: canaryTarball + "?query=1" } } },
     ...[undefined, "", "sha512-A===", `sha256-${Buffer.alloc(32).toString("base64")}`, `sha512-${Buffer.alloc(64).toString("base64")} extra`]
       .map((integrity) => ({ manifest: { dist: { integrity } } })),
@@ -1593,8 +1593,8 @@ test("real npm effective registry reads isolated prefix, user, and environment c
   try {
     for (const [user, project, override, expected] of [
       ["registry=https://registry.npmjs.org/\n", "", undefined, true],
-      ["registry=https://registry.example.invalid/\n", "@paperclipai:registry=https://registry.npmjs.org/\n", undefined, true],
-      ["registry=https://registry.npmjs.org/\n", "@paperclipai:registry=https://registry.example.invalid/\n", undefined, false],
+      ["registry=https://registry.example.invalid/\n", "@nexusai:registry=https://registry.npmjs.org/\n", undefined, true],
+      ["registry=https://registry.npmjs.org/\n", "@nexusai:registry=https://registry.example.invalid/\n", undefined, false],
       ["registry=https://registry.npmjs.org/\n", "", "https://registry.example.invalid/", false],
     ]) {
       writeFileSync(path.join(root, "user.npmrc"), user);

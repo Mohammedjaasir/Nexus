@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, lt, sql } from "drizzle-orm";
-import { chatActions, type Db } from "@paperclipai/db";
+import { chatActions, type Db } from "@nexusai/db";
 import { logger } from "../../middleware/logger.js";
 import { notifyVoiceReplies } from "./voice-reply-notifications.js";
 import { VOICE_REPLY_ACTION_KIND, VOICE_REPLY_DISPATCH_TIMEOUT_MS } from "./voice-reply-policy.js";

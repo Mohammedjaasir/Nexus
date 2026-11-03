@@ -56,7 +56,7 @@ function AppShellContent({ rightSidebar, overflowingContent }: AppShellPreviewPr
   return <>
     <DesignPageShell
       title="App shell"
-      sidebarStorageKey={`paperclip.design-proposal.app-shell.${variant}.width`}
+      sidebarStorageKey={`nexus.design-proposal.app-shell.${variant}.width`}
       sidebar={<DesignSidebar recentTasks={recentTasks.map(item => item.issue)} onNewTask={() => openNewIssue()} />}
       headerActions={rightSidebar && <span ref={panelToggleRef}><SidePanelToggleButton open={panelOpen} highlightWhenOpen={false} onToggle={() => panelOpen ? closePanel() : setPanelOpen(true)} /></span>}
       rightSidebarTitle="Right sidebar"

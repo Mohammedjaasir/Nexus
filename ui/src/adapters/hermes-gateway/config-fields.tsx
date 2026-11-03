@@ -130,7 +130,7 @@ export function HermesGatewayConfigFields({
   };
 
   const apiBaseUrl = String(readValue("apiBaseUrl", "") ?? "");
-  const paperclipApiUrl = String(readValue("paperclipApiUrl", "") ?? "");
+  const nexusApiUrl = String(readValue("nexusApiUrl", "") ?? "");
   const sessionKeyStrategy = String(readValue("sessionKeyStrategy", DEFAULT_SESSION_KEY_STRATEGY) ?? DEFAULT_SESSION_KEY_STRATEGY);
   const timeoutSec = Number(readValue("timeoutSec", DEFAULT_TIMEOUT_SEC) ?? DEFAULT_TIMEOUT_SEC);
   const eventReconnectMs = Number(readValue("eventReconnectMs", DEFAULT_EVENT_RECONNECT_MS) ?? DEFAULT_EVENT_RECONNECT_MS);
@@ -144,7 +144,7 @@ export function HermesGatewayConfigFields({
     <>
       <Field
         label="API base URL"
-        hint="Hermes API server base URL that Paperclip can reach, such as http://127.0.0.1:8642 or a private HTTPS URL. Default dashboard root/chat URLs such as http://127.0.0.1:9119/chat are accepted and map to /api."
+        hint="Hermes API server base URL that Nexus can reach, such as http://127.0.0.1:8642 or a private HTTPS URL. Default dashboard root/chat URLs such as http://127.0.0.1:9119/chat are accepted and map to /api."
       >
         <DraftInput
           value={apiBaseUrl}
@@ -159,17 +159,17 @@ export function HermesGatewayConfigFields({
         label="API key"
         value={isCreate ? String(readCreateValue(values, "apiKey", "") ?? "") : editApiKeyValue}
         onCommit={(v) => writeValue("apiKey", v || undefined)}
-        placeholder="Hermes API_SERVER_KEY, not PAPERCLIP_API_KEY"
+        placeholder="Hermes API_SERVER_KEY, not NEXUS_API_KEY"
         stored={!isCreate && hasStoredApiKey && !editApiKeyValue}
       />
 
       <Field
-        label="Paperclip API URL"
-        hint="Optional Paperclip API URL reachable by the Hermes host. This is not a credential."
+        label="Nexus API URL"
+        hint="Optional Nexus API URL reachable by the Hermes host. This is not a credential."
       >
         <DraftInput
-          value={paperclipApiUrl}
-          onCommit={(v) => writeValue("paperclipApiUrl", v || undefined)}
+          value={nexusApiUrl}
+          onCommit={(v) => writeValue("nexusApiUrl", v || undefined)}
           immediate
           className={inputClass}
           placeholder="http://127.0.0.1:3100"

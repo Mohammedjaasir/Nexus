@@ -36,14 +36,14 @@ describe("databaseClientOptionsFromEnv", () => {
         DATABASE_IDLE_TIMEOUT_SECONDS: "60",
         DATABASE_CONNECT_TIMEOUT_SECONDS: "10",
         DATABASE_MAX_LIFETIME_SECONDS: "1800",
-        DATABASE_APPLICATION_NAME: " paperclip-web ",
+        DATABASE_APPLICATION_NAME: " nexus-web ",
       }),
     ).toEqual({
       maxConnections: 25,
       idleTimeoutSeconds: 60,
       connectTimeoutSeconds: 10,
       maxLifetimeSeconds: 1800,
-      applicationName: "paperclip-web",
+      applicationName: "nexus-web",
     });
   });
 
@@ -82,7 +82,7 @@ describe("databaseClientOptionsFromEnv", () => {
         idleTimeoutSeconds: 60,
         connectTimeoutSeconds: 10,
         maxLifetimeSeconds: 1800,
-        applicationName: "paperclip-web",
+        applicationName: "nexus-web",
       }),
     ).toEqual({
       prepare: false,
@@ -90,7 +90,7 @@ describe("databaseClientOptionsFromEnv", () => {
       idle_timeout: 60,
       connect_timeout: 10,
       max_lifetime: 1800,
-      connection: { application_name: "paperclip-web" },
+      connection: { application_name: "nexus-web" },
     });
   });
 });
@@ -112,9 +112,9 @@ describe("resolveDatabaseClientOptions", () => {
       resolveDatabaseClientOptions({
         maxConnections: 3,
         idleTimeoutSeconds: 0,
-        applicationName: "paperclip-cli",
+        applicationName: "nexus-cli",
       }),
-    ).toEqual({ maxConnections: 3, idleTimeoutSeconds: 0, applicationName: "paperclip-cli" });
+    ).toEqual({ maxConnections: 3, idleTimeoutSeconds: 0, applicationName: "nexus-cli" });
     expect(postgresJsOptions(resolveDatabaseClientOptions({ idleTimeoutSeconds: 0 }))).toMatchObject({
       idle_timeout: 0,
     });

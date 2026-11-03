@@ -1,6 +1,6 @@
 # Plugin Authoring Guide
 
-This guide describes the current, implemented way to create a Paperclip plugin in this repo.
+This guide describes the current, implemented way to create a Nexus plugin in this repo.
 
 It is intentionally narrower than [PLUGIN_SPEC.md](./PLUGIN_SPEC.md). The spec includes future ideas; this guide only covers the alpha surface that exists now.
 
@@ -9,7 +9,7 @@ It is intentionally narrower than [PLUGIN_SPEC.md](./PLUGIN_SPEC.md). The spec i
 ## Current reality
 
 - Treat plugin workers and plugin UI as trusted code.
-- Plugin UI runs as same-origin JavaScript inside the main Paperclip app.
+- Plugin UI runs as same-origin JavaScript inside the main Nexus app.
 - Worker-side host APIs are capability-gated.
 - Plugin UI is not sandboxed by manifest capabilities.
 - External object reference providers are trusted-install only in the MVP.
@@ -21,7 +21,7 @@ It is intentionally narrower than [PLUGIN_SPEC.md](./PLUGIN_SPEC.md). The spec i
 - Plugin-owned JSON API routes must be declared in the manifest and are mounted
   only under `/api/plugins/:pluginId/api/*`.
 - The host provides a small shared React component kit through
-  `@paperclipai/plugin-sdk/ui`; use it for common Paperclip controls before
+  `@nexusai/plugin-sdk/ui`; use it for common Nexus controls before
   building custom versions.
 - `ctx.assets` is not supported in the current runtime.
 
@@ -66,7 +66,7 @@ lifecycle command commits. The lifecycle module owns admission, progress, and
 retries; a plugin does not need a readiness data handler or a polling job.
 
 ```ts
-import { definePlugin } from "@paperclipai/plugin-sdk";
+import { definePlugin } from "@nexusai/plugin-sdk";
 import { reconcileResources } from "./resources.js";
 
 export default definePlugin({
@@ -200,7 +200,7 @@ objectReferences: [
 Implement `onDetectExternalObjects()` in the worker to recognize sanitized URL
 candidates and return provider-stable identities. Implement
 `onResolveExternalObject()` to return normalized board-safe status metadata.
-Paperclip owns inline markdown rendering; plugins must not return React, HTML,
+Nexus owns inline markdown rendering; plugins must not return React, HTML,
 or `dangerouslySetInnerHTML` content for inline references.
 
 ## Scaffold a plugin
@@ -208,7 +208,7 @@ or `dangerouslySetInnerHTML` content for inline references.
 Use the CLI scaffold command:
 
 ```bash
-paperclipai plugin init @yourscope/plugin-name --output /absolute/path/to/plugin-repos
+nexusai plugin init @yourscope/plugin-name --output /absolute/path/to/plugin-repos
 ```
 
 That creates `<output>/plugin-name/` with:
@@ -220,13 +220,13 @@ That creates `<output>/plugin-name/` with:
 - `esbuild.config.mjs`
 - `rollup.config.mjs`
 
-Inside this monorepo, the scaffold uses `workspace:*` for `@paperclipai/plugin-sdk`.
+Inside this monorepo, the scaffold uses `workspace:*` for `@nexusai/plugin-sdk`.
 
-Outside this monorepo, the scaffold snapshots `@paperclipai/plugin-sdk` from the local Paperclip checkout into a `.paperclip-sdk/` tarball so you can build and test a plugin without publishing anything to npm first. Pass `--sdk-path /absolute/path/to/paperclip/packages/plugins/sdk` if you have more than one Paperclip checkout.
+Outside this monorepo, the scaffold snapshots `@nexusai/plugin-sdk` from the local Nexus checkout into a `.nexus-sdk/` tarball so you can build and test a plugin without publishing anything to npm first. Pass `--sdk-path /absolute/path/to/nexus/packages/plugins/sdk` if you have more than one Nexus checkout.
 
 ## Local development workflow
 
-See the short [Local Plugin Development guide](./LOCAL_PLUGIN_DEVELOPMENT.md) for the full happy path (`pnpm dev` → `paperclipai plugin install <absolute-path>` → `paperclipai plugin list`) and reload semantics.
+See the short [Local Plugin Development guide](./LOCAL_PLUGIN_DEVELOPMENT.md) for the full happy path (`pnpm dev` → `nexusai plugin install <absolute-path>` → `nexusai plugin list`) and reload semantics.
 
 Minimum verification from the generated plugin folder:
 
@@ -241,7 +241,7 @@ pnpm build
 
 ### CreateOS sandbox provider
 
-The in-repo [`@paperclipai/plugin-createos`](../../packages/plugins/sandbox-providers/createos/README.md)
+The in-repo [`@nexusai/plugin-createos`](../../packages/plugins/sandbox-providers/createos/README.md)
 package implements environment lifecycle hooks and incremental managed-process
 output and binary workspace transfers using CreateOS's public HTTP API. It does
 not advertise interactive login or template capture. Install
@@ -250,7 +250,7 @@ the built package by local path; its optional managed-image catalog key is
 
 ### boxd sandbox provider
 
-The in-repo [`@paperclipai/plugin-boxd`](../../packages/plugins/sandbox-providers/boxd/README.md)
+The in-repo [`@nexusai/plugin-boxd`](../../packages/plugins/sandbox-providers/boxd/README.md)
 package implements the environment lifecycle hooks on isolated boxd microVMs
 through the `@boxd-sh/sdk` package. It supports reusable leases: a released
 machine is suspended and the next run resumes it with its disk, memory and
@@ -337,14 +337,14 @@ handler. The worker receives sanitized headers, route params, query, parsed JSON
 body, actor context, and company id. Do not use plugin routes to claim core
 paths; they always remain under `/api/plugins/:pluginId/api/*`.
 
-## Managed Paperclip resources
+## Managed Nexus resources
 
-Plugins that provide durable Paperclip business objects should declare them in
+Plugins that provide durable Nexus business objects should declare them in
 the manifest and let the host create or relink the actual records per company.
 Do this for plugin-owned agents, projects, routines, and skills.
 Do not hide long-lived work behind private plugin state when it should be visible
 to the board, scoped to a company, audited, budgeted, and assigned like normal
-Paperclip work.
+Nexus work.
 
 Content-oriented plugins, such as LLM Wiki-style ingestion or durable knowledge
 systems, should use the same pattern: managed projects for operation issues,
@@ -356,7 +356,7 @@ Use these surfaces:
 - Managed agents: declare top-level `agents[]` and require
   `agents.managed`. Use this when the plugin provides a named worker the board
   should see in the org, budget, pause, invoke, and inspect. Managed agents are
-  normal Paperclip agents with plugin ownership metadata, not background plugin
+  normal Nexus agents with plugin ownership metadata, not background plugin
   workers.
 - Managed projects: declare top-level `projects[]` and require
   `projects.managed`. Use this when the plugin needs a stable company-scoped
@@ -364,12 +364,12 @@ Use these surfaces:
   in a project instead of scattering generated issues across unrelated projects.
 - Managed routines: declare top-level `routines[]` and require
   `routines.managed`. Use this for scheduled, webhook, or manually triggered
-  jobs that should create visible Paperclip issues. Prefer managed routines over
+  jobs that should create visible Nexus issues. Prefer managed routines over
   plugin `jobs[]` for recurring business work; plugin jobs are for plugin
   runtime maintenance that does not need a board-visible task trail.
 - Managed skills: declare top-level `skills[]` and require `skills.managed`.
   Use this for reusable plugin capabilities that should be surfaced to operators and
-  synced into Paperclip managed agents.
+  synced into Nexus managed agents.
 
 Managed resources are resolved by stable plugin keys, not hardcoded database
 ids. In a worker action or data handler, call `ctx.agents.managed.reconcile()`,
@@ -387,9 +387,9 @@ routine; if a ref is still missing, the routine resolution reports
 `missing_refs` instead of guessing.
 
 ```ts
-import type { PaperclipPluginManifestV1 } from "@paperclipai/plugin-sdk";
+import type { NexusPluginManifestV1 } from "@nexusai/plugin-sdk";
 
-const manifest: PaperclipPluginManifestV1 = {
+const manifest: NexusPluginManifestV1 = {
   id: "example.research-plugin",
   apiVersion: 1,
   version: "0.1.0",
@@ -417,7 +417,7 @@ const manifest: PaperclipPluginManifestV1 = {
       capabilities: "Runs recurring research briefs for this company.",
       adapterPreference: ["codex_local", "claude_local", "process"],
       instructions: {
-        content: "Follow the Paperclip heartbeat and produce concise research briefs.",
+        content: "Follow the Nexus heartbeat and produce concise research briefs.",
       },
     },
   ],
@@ -474,7 +474,7 @@ In the worker, expose a small setup action or settings-page action that
 reconciles the resources for the selected company:
 
 ```ts
-import { definePlugin } from "@paperclipai/plugin-sdk";
+import { definePlugin } from "@nexusai/plugin-sdk";
 
 export default definePlugin({
   setup(ctx) {
@@ -503,7 +503,7 @@ Authoring rules:
   the operator or resolved from `ctx.agents.managed`.
 - Use managed routines for recurring or externally triggered work that should
   produce tasks. Schedule, webhook, and API triggers are visible routine
-  triggers, and each run has the normal Paperclip issue/audit trail.
+  triggers, and each run has the normal Nexus issue/audit trail.
 - Use managed skills for reusable operator-visible capabilities that are shared
   by managed agents. Reconcile skill declarations by `skillKey` and keep the
   declared skill markdown and files in sync with agent behavior.
@@ -511,7 +511,7 @@ Authoring rules:
   project-scoped plugin UI a stable home. For filesystem access inside a
   project, still resolve project workspaces through `ctx.projects`.
 - Keep defaults conservative. Managed declarations are suggestions owned by the
-  plugin, but the resulting resources are normal Paperclip records that the
+  plugin, but the resulting resources are normal Nexus records that the
   operator can inspect, pause, and adjust.
 
 UI:
@@ -521,7 +521,7 @@ UI:
 - `usePluginStream`
 - `usePluginToast`
 - `useHostContext`
-- typed slot props from `@paperclipai/plugin-sdk/ui`
+- typed slot props from `@nexusai/plugin-sdk/ui`
 
 Mount surfaces currently wired in the host include:
 
@@ -560,12 +560,12 @@ the user chose as soon as they navigate away.
 
 ## Shared host components
 
-Use shared components from `@paperclipai/plugin-sdk/ui` when the plugin needs a
-Paperclip-native control. The host owns the implementation, so plugins inherit
+Use shared components from `@nexusai/plugin-sdk/ui` when the plugin needs a
+Nexus-native control. The host owns the implementation, so plugins inherit
 the board's current styling, ordering, recent selections, and dark-mode behavior
 without importing `ui/src` internals.
 
-Prefer shared components for common Paperclip UX patterns to reduce drift and
+Prefer shared components for common Nexus UX patterns to reduce drift and
 deprecation risk, especially for task/assignment flows and routine or sidebar-like
 plugin screens.
 
@@ -581,7 +581,7 @@ Currently exposed components include:
 - `ManagedRoutinesList` for plugin-owned routine settings pages.
 
 ```tsx
-import { AssigneePicker, ProjectPicker } from "@paperclipai/plugin-sdk/ui";
+import { AssigneePicker, ProjectPicker } from "@nexusai/plugin-sdk/ui";
 
 export function PluginAssignmentControls({ companyId }: { companyId: string }) {
   const [assignee, setAssignee] = useState("");
@@ -613,7 +613,7 @@ data the plugin actually has.
 
 ### When to use the shared `FileTree`
 
-Use `FileTree` from `@paperclipai/plugin-sdk/ui` whenever the plugin only needs
+Use `FileTree` from `@nexusai/plugin-sdk/ui` whenever the plugin only needs
 to render a serializable file/directory list and react to selection or
 expand/collapse. The host owns the implementation, so plugin UI inherits the
 board's icons, indent, focus ring, and dark-mode styling without importing host
@@ -623,7 +623,7 @@ internals.
 import {
   FileTree,
   type FileTreeNode,
-} from "@paperclipai/plugin-sdk/ui";
+} from "@nexusai/plugin-sdk/ui";
 
 const nodes: FileTreeNode[] = [
   { name: "AGENTS.md", path: "AGENTS.md", kind: "file", children: [] },
@@ -814,7 +814,7 @@ transfer API. Native agent execution is a separate integration.
 ## Plugin-provided Runner execution
 
 Plugins can [provide Runner execution through environment drivers](PLUGIN_RUNNER_EXECUTION.md).
-Core can select this path for `paperclip_runner` agents assigned to a saved plugin
+Core can select this path for `nexus_runner` agents assigned to a saved plugin
 environment. The plugin owns project volumes and starts Runner from structured
 task launch inputs. Core connects PRP and verifies cancellation and durable cleanup.
 Resource transfer and credential synchronization use a separate workflow.

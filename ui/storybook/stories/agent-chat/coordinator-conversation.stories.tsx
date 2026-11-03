@@ -16,7 +16,7 @@ function Conversation() {
   </div></div></CoordinatorPresentation.Provider>;
 }
 const meta = { id: "coordinator-conversation", title: "Tasks and conversations/Agent conversations and project handoff/Coordinator conversation", component: Conversation,
-  parameters: { layout: "fullscreen", paperclip: { capabilities: ["agent-chat/history"], status: "proposed", implementation: "production", boundary: "fixtures", notes: "Production task chat bubbles, shared relative timestamp primitive and approved Coordinator scoped tokens. The text is sample content solely for visual review; no agent/API execution or approval occurs." } },
+  parameters: { layout: "fullscreen", nexus: { capabilities: ["agent-chat/history"], status: "proposed", implementation: "production", boundary: "fixtures", notes: "Production task chat bubbles, shared relative timestamp primitive and approved Coordinator scoped tokens. The text is sample content solely for visual review; no agent/API execution or approval occurs." } },
 } satisfies Meta<typeof Conversation>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -46,7 +46,7 @@ const questionFixtures = () => {
 };
 export const TaskQuestion: Story = {
   render: () => <PendingTaskQuestion />, beforeEach: questionFixtures,
-  parameters: { paperclip: { capabilities: ["agent-chat/history", "inbox-search/decisions"], status: "current", implementation: "production", boundary: "fixtures", notes: "Real pending-question hook and canonical resolver, with simulated API read/respond transitions. Does not prove model clarification choice, real delivery, access checks, or background task resumption." } },
+  parameters: { nexus: { capabilities: ["agent-chat/history", "inbox-search/decisions"], status: "current", implementation: "production", boundary: "fixtures", notes: "Real pending-question hook and canonical resolver, with simulated API read/respond transitions. Does not prove model clarification choice, real delivery, access checks, or background task resumption." } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole("radio", { name: /People setting up agents/ }));

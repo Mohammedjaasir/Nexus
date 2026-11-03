@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { AiManagedConnectionSummary, ToolConnection } from "@paperclipai/shared";
+import type { AiManagedConnectionSummary, ToolConnection } from "@nexusai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { ManagedAiConnectionDetails } from "./ManagedAiConnectionDetails";
 

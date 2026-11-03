@@ -1,15 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { runAdapterExecutionTargetShellCommand, type AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
-import { kimiMetadataProbeDigest, kimiMetadataProbeNodeDigest, probeKimiMetadata, validateKimiMetadata } from "../vendor/paperclip-runner/live/index.js";
+import { runAdapterExecutionTargetShellCommand, type AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
+import { kimiMetadataProbeDigest, kimiMetadataProbeNodeDigest, probeKimiMetadata, validateKimiMetadata } from "../vendor/nexus-runner/live/index.js";
 import { unprocessable } from "../errors.js";
-import { createSshCommandManagedRuntimeRunner, runSshCommand } from "@paperclipai/adapter-utils/ssh";
-import { QUALIFIED_ACPX_PROFILES } from "../vendor/paperclip-runner/index.js";
+import { createSshCommandManagedRuntimeRunner, runSshCommand } from "@nexusai/adapter-utils/ssh";
+import { QUALIFIED_ACPX_PROFILES } from "../vendor/nexus-runner/index.js";
 import { resolveKimiCandidateAdmission } from "./native-runtime/acpx-qualification.js";
 
 const REQUEST_FAILED = () => unprocessable("Kimi Code metadata verification failed.", { code: "KIMI_REQUEST_FAILED" });
 const INSTALLATION_INVALID = () => unprocessable("Install the current verified Kimi Code runtime in this execution environment.", { code: "KIMI_INSTALLATION_INVALID" });
 
-const SSH_INPUT_PROBE = 'try { const input = JSON.parse(require("node:fs").readFileSync(0, "utf8")); if (typeof input.apiKey !== "string" || typeof input.model !== "string") process.exit(1); process.env.KIMI_API_KEY = input.apiKey; process.env.PAPERCLIP_KIMI_PROBE_MODEL = input.model; if (input.candidateAdmission !== undefined) process.env.PAPERCLIP_ACPX_CANDIDATE_ADMISSION = JSON.stringify(input.candidateAdmission); require(process.argv[1]); } catch { process.exit(1); }';
+const SSH_INPUT_PROBE = 'try { const input = JSON.parse(require("node:fs").readFileSync(0, "utf8")); if (typeof input.apiKey !== "string" || typeof input.model !== "string") process.exit(1); process.env.KIMI_API_KEY = input.apiKey; process.env.NEXUS_KIMI_PROBE_MODEL = input.model; if (input.candidateAdmission !== undefined) process.env.NEXUS_ACPX_CANDIDATE_ADMISSION = JSON.stringify(input.candidateAdmission); require(process.argv[1]); } catch { process.exit(1); }';
 
 export async function probeKimiExecutionTarget(apiKey: string, target: AdapterExecutionTarget | null | undefined, model: string, context: { companyId?: string } = {}) {
   if (typeof apiKey !== "string" || !apiKey.trim() || /[\0\r\n]/.test(apiKey) || Buffer.byteLength(apiKey) > 16 * 1024) {
@@ -38,8 +38,8 @@ export async function probeKimiExecutionTarget(apiKey: string, target: AdapterEx
   if (target.transport === "sandbox" && target.runnerTask) {
     throw unprocessable("Kimi Code metadata verification is unavailable in this hosting environment.", { code: "KIMI_INSTALLATION_INVALID" });
   }
-  let locations = ["/opt/paperclip-runner/provider-pack", '"$HOME/.local/share/paperclip-runner/provider-pack"'];
-  const selectedPackRoot = process.env.PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH?.trim();
+  let locations = ["/opt/nexus-runner/provider-pack", '"$HOME/.local/share/nexus-runner/provider-pack"'];
+  const selectedPackRoot = process.env.NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH?.trim();
   if (selectedPackRoot) {
     try {
       // Test uses the same complete-pack installer as native execution. It
@@ -76,10 +76,10 @@ export async function probeKimiExecutionTarget(apiKey: string, target: AdapterEx
       'actual=$(/usr/bin/env -i /usr/bin/sha256sum "$node" 2>/dev/null) || exit 126',
       `actual=\${actual%% *}; [ "$actual" = "${nodeDigest.slice(7)}" ] || exit 126`,
       target.transport === "ssh"
-        ? `exec /usr/bin/env -i PAPERCLIP_ACPX_PROVIDER_PACKAGE_ROOT="$pack" PAPERCLIP_ACPX_PROVIDER_PACKAGE_MANIFEST="$pack/package.json" "$node" -e '${SSH_INPUT_PROBE}' "$entry"`
-        : ['exec /usr/bin/env -i KIMI_API_KEY="$KIMI_API_KEY" PAPERCLIP_KIMI_PROBE_MODEL="$PAPERCLIP_KIMI_PROBE_MODEL"',
-          ...(candidateAdmission ? ['PAPERCLIP_ACPX_CANDIDATE_ADMISSION="$PAPERCLIP_ACPX_CANDIDATE_ADMISSION"'] : []),
-          'PAPERCLIP_ACPX_PROVIDER_PACKAGE_ROOT="$pack" PAPERCLIP_ACPX_PROVIDER_PACKAGE_MANIFEST="$pack/package.json" "$node" "$entry"'].join(" "),
+        ? `exec /usr/bin/env -i NEXUS_ACPX_PROVIDER_PACKAGE_ROOT="$pack" NEXUS_ACPX_PROVIDER_PACKAGE_MANIFEST="$pack/package.json" "$node" -e '${SSH_INPUT_PROBE}' "$entry"`
+        : ['exec /usr/bin/env -i KIMI_API_KEY="$KIMI_API_KEY" NEXUS_KIMI_PROBE_MODEL="$NEXUS_KIMI_PROBE_MODEL"',
+          ...(candidateAdmission ? ['NEXUS_ACPX_CANDIDATE_ADMISSION="$NEXUS_ACPX_CANDIDATE_ADMISSION"'] : []),
+          'NEXUS_ACPX_PROVIDER_PACKAGE_ROOT="$pack" NEXUS_ACPX_PROVIDER_PACKAGE_MANIFEST="$pack/package.json" "$node" "$entry"'].join(" "),
     ].join("; ");
     let response: Pick<Awaited<ReturnType<typeof runAdapterExecutionTargetShellCommand>>, "stdout" | "exitCode" | "signal" | "timedOut">;
     try {
@@ -97,8 +97,8 @@ export async function probeKimiExecutionTarget(apiKey: string, target: AdapterEx
         }
       } else {
         response = await runAdapterExecutionTargetShellCommand(`kimi-metadata-${randomUUID()}`, target, command, {
-          cwd: target.remoteCwd, env: { KIMI_API_KEY: apiKey, PAPERCLIP_KIMI_PROBE_MODEL: model,
-            ...(candidateAdmission ? { PAPERCLIP_ACPX_CANDIDATE_ADMISSION: JSON.stringify(candidateAdmission) } : {}) },
+          cwd: target.remoteCwd, env: { KIMI_API_KEY: apiKey, NEXUS_KIMI_PROBE_MODEL: model,
+            ...(candidateAdmission ? { NEXUS_ACPX_CANDIDATE_ADMISSION: JSON.stringify(candidateAdmission) } : {}) },
           timeoutSec: Math.max(1, Math.floor((remainingMs - 3_000) / 1000)), graceSec: 3,
         });
       }

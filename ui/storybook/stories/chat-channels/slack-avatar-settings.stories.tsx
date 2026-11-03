@@ -12,7 +12,7 @@ const meta = {
           "The production avatar section in a Settings layout fixture. Download remains available after onboarding; upload instructions expand in place.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "chat-channels/identity"
       ],

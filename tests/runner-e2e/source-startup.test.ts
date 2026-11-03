@@ -7,7 +7,7 @@ import { prepareSourceServerDependencies } from "./source-startup.js";
 const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
 async function fixture(source: string) {
-  const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-source-startup-")); roots.push(root);
+  const root = await mkdtemp(path.join(os.tmpdir(), "nexus-source-startup-")); roots.push(root);
   await mkdir(path.join(root, "scripts"));
   await writeFile(path.join(root, "scripts/ensure-plugin-build-deps.mjs"), source);
   return root;

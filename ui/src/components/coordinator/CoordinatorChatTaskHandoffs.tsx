@@ -1,6 +1,6 @@
 import { useMemo, useRef } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import type { ConversationTaskHandoff, ConversationTaskHandoffPage, IssueThreadInteraction } from "@paperclipai/shared";
+import type { ConversationTaskHandoff, ConversationTaskHandoffPage, IssueThreadInteraction } from "@nexusai/shared";
 import { api, detachInflightGet } from "@/api/client";
 import { useCoordinatorWorkspaceEnabled } from "@/hooks/useCoordinatorWorkspaceEnabled";
 import { Button } from "@/components/ui/button";

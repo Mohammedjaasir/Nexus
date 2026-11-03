@@ -19,7 +19,7 @@ const originalFs = await vi.importActual<typeof import("node:fs")>("node:fs");
 const roots: string[] = [];
 
 async function fixture() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-snapshot-concurrency-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-snapshot-concurrency-"));
   roots.push(root);
   return root;
 }

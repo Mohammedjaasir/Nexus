@@ -7,7 +7,7 @@ import { buildLocalAdapterTestProbeEnv } from "./probe-env.js";
 const tempDirs: string[] = [];
 
 async function makeTrustedPathWithClaude(): Promise<{ dir: string; claudePath: string }> {
-  const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-probe-env-"));
+  const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-probe-env-"));
   tempDirs.push(dir);
   const claudePath = path.join(dir, "claude");
   await writeFile(claudePath, "#!/bin/sh\nexit 0\n");
@@ -35,7 +35,7 @@ describe("buildLocalAdapterTestProbeEnv", () => {
   });
 
   it("returns a null command when the trusted PATH holds no claude", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-probe-env-empty-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-probe-env-empty-"));
     tempDirs.push(dir);
     const built = await buildLocalAdapterTestProbeEnv({
       callerEnv: {},

@@ -1,0 +1,35 @@
+{
+  "commandDigest": "sha256:8c9cb917026844e362e1b28da8529662a15da23cad1002ab5bcec79031b1339e",
+  "sourceDigest": "sha256:57da46dc476d78a55ffb61111a8ab328c879f1d2689f615ef65bc757149b24b7",
+  "declaration": {
+    "schema": "nexus.grok-profile-identity.v1",
+    "agent": "grok",
+    "agentProfileVersion": 17,
+    "agentServerPackage": "builtin:grok-acp",
+    "agentServerVersion": "1",
+    "agentRuntimePackage": "native:grok",
+    "agentRuntimeVersion": "1.0.13",
+    "requiresProviderPolicy": false,
+    "acpxVersion": "0.13.1",
+    "sources": {
+      "patches/acpx@0.13.1.patch": "sha256:626707ffa235287cfd8212ce69f4ecd999164e51470962392c4e83ea296aa9a8",
+      "packages/nexus-runner/src/cli/acpx-runtime-sidecar.ts": "sha256:6816fe12cdd274746b5241b75823b3c347b245f3cc03cdbe70f05ec1a0250663",
+      "packages/nexus-runner/src/cli/acpx-sidecar-input.ts": "sha256:17948ad74350dc487ab20d24a0fb89daf0b426b98396454fff0e3856e922d82c",
+      "packages/nexus-runner/src/drivers/acpx/admission-diagnostics.ts": "sha256:df8f1aa4f2d1bc63b2635bdd09cb8165c8b7681ddcc2618435c7c08ca90475af",
+      "packages/nexus-runner/src/drivers/acpx/grok-effort.ts": "sha256:f1e46cf2e1e36b7704bd797b678e3db8db2003f97bdb9d827cfa3d7662698777",
+      "packages/nexus-runner/src/drivers/acpx/grok-web-search.ts": "sha256:754b5ca2345c045421f6007f34999508d996e1cea035f0f1952b3d5f00072b9c",
+      "packages/nexus-runner/src/drivers/acpx/grok-credentials.ts": "sha256:fac674e4e1816ed18b07aff23a8fa1c41b5e2338829d9f0d483451e1498c8f9f",
+      "packages/nexus-runner/src/drivers/acpx/codex-runtime-adapter.ts": "sha256:47c9e907e428ede29aa19a367a57d631dafa206517a7b6b0bb6be076c95d3eff",
+      "packages/nexus-runner/src/drivers/acpx/runtime-host.ts": "sha256:080a50e2fb5ef533a6b7c1cbfa22813a0226fe60fa04fa2b3a1fffe0351f6147",
+      "packages/nexus-runner/src/drivers/preconfigured-home.ts": "sha256:762d6969252c588a4f4bd155dbf3fe72512ac9268d666bd93b1098ae0170ca2d",
+      "packages/nexus-runner/src/drivers/acpx/runtime-sandbox.ts": "sha256:706974f45124b271e68e47e40156a9e7a6ca57879d16058c71448671ab407376",
+      "packages/nexus-runner/src/drivers/acpx/sidecar-protocol.ts": "sha256:26b6b21dad582810d00f46e947e682a9615ee9761c487f6315970d6d014c05ab",
+      "packages/nexus-runner/src/drivers/acpx/native-distribution-integrity.ts": "sha256:d0e55217314e401c8976afaa80983c863ac1f7d154a39338a93c8016283f05d3",
+      "packages/nexus-runner/src/providers/grok/launcher.cjs": "sha256:f671c143af6a8ad5b19d66cebeb3ced2e513a577732f31ac8641066722cac1da",
+      "packages/nexus-runner/src/providers/grok/platforms.json": "sha256:931eed3abbf2bf041e6c72e6e9486d976f4352613cf069b216ddf010c9a8e704",
+      "packages/nexus-runner/runner/crates/runner-core/src/acpx_provider_backend.rs": "sha256:01836e46cba936845c5e612775a9fa5dfc277cdcb7f54cb97da9a334d9580fe1",
+      "packages/nexus-runner/runner/crates/runner-core/src/acpx_provider_session.rs": "sha256:1b84744cd16b8b233182a9441fe89bcddd29c2a1c607b3f45390e5475ed7be48",
+      "packages/nexus-runner/runner/crates/runner-core/src/acpx_sidecar_transport.rs": "sha256:37a552c1a8a59b1815df99b79552e0fda711cfa934055073ffd682cd17d7fb54"
+    }
+  }
+}

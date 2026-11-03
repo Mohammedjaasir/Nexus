@@ -41,8 +41,8 @@ describe("oauthCallbackUrlForBrowser", () => {
   it("prefers the callback URL advertised by the server", () => {
     expect(oauthCallbackUrlForBrowser(
       "http://localhost:3000",
-      "https://paperclip.example.test/api/tools/oauth/callback",
-    )).toBe("https://paperclip.example.test/api/tools/oauth/callback");
+      "https://nexus.example.test/api/tools/oauth/callback",
+    )).toBe("https://nexus.example.test/api/tools/oauth/callback");
   });
 
   it("uses localhost for local HTTP callbacks to match the API authorization request", () => {
@@ -55,8 +55,8 @@ describe("oauthCallbackUrlForBrowser", () => {
   });
 
   it("preserves public HTTPS origins", () => {
-    expect(oauthCallbackUrlForBrowser("https://paperclip.example.test")).toBe(
-      "https://paperclip.example.test/api/tools/oauth/callback",
+    expect(oauthCallbackUrlForBrowser("https://nexus.example.test")).toBe(
+      "https://nexus.example.test/api/tools/oauth/callback",
     );
   });
 });
@@ -93,20 +93,20 @@ describe("genericConnectGuidance", () => {
     expect(guidance.body).toContain("Advanced authentication");
   });
 
-  it("points at the deployment when Paperclip itself has no public HTTPS address", () => {
+  it("points at the deployment when Nexus itself has no public HTTPS address", () => {
     expect(genericConnectGuidance("oauth_redirect_origin_unsupported", null).focus).toBe("deployment");
   });
 
   it("does not ask the operator to resolve an internal name conflict", () => {
     const guidance = genericConnectGuidance("tool_access_name_conflict", null);
-    expect(guidance).toMatchObject({ title: "Paperclip couldn’t name this connection", focus: "none" });
+    expect(guidance).toMatchObject({ title: "Nexus couldn’t name this connection", focus: "none" });
     expect(guidance.body).not.toContain("different name");
   });
 
   it("passes a rejected header's own message through", () => {
     const guidance = genericConnectGuidance(
       "mcp_header_rejected",
-      'Paperclip manages the "Host" header and cannot send a custom value for it.',
+      'Nexus manages the "Host" header and cannot send a custom value for it.',
     );
     expect(guidance.body).toContain('"Host"');
     expect(guidance.focus).toBe("credentials");
@@ -126,9 +126,9 @@ describe("customHeaderError", () => {
     ])).toBeNull();
   });
 
-  it("rejects headers Paperclip refuses to send", () => {
+  it("rejects headers Nexus refuses to send", () => {
     expect(customHeaderError([{ id: "a", name: "Host", value: "evil.example" }]))
-      .toContain('Paperclip manages the "Host" header');
+      .toContain('Nexus manages the "Host" header');
   });
 
   it("rejects a value that would split the request", () => {

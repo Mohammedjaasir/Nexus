@@ -4,7 +4,7 @@ import { generateKeyPairSync, sign } from "node:crypto";
 import express from "express";
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createDb, instanceSettings } from "@paperclipai/db";
+import { createDb, instanceSettings } from "@nexusai/db";
 import {
   applyCloudRuntimeIdentityAssertion,
   CLOUD_RUNTIME_IDENTITY_AUDIENCE,
@@ -16,7 +16,7 @@ import {
   runtimePublicOrigin,
 } from "../services/cloud-runtime-identity.js";
 import { routineWebhookUrl } from "../services/routines.js";
-import { paperclipCloudConnectorEnrollmentStatus } from "../services/paperclip-cloud-connector-enrollment.js";
+import { nexusCloudConnectorEnrollmentStatus } from "../services/nexus-cloud-connector-enrollment.js";
 import { cloudRuntimeIdentityMiddleware } from "../middleware/cloud-runtime-identity.js";
 import { idleAdmissionMiddleware, trackIdleRequestHandlers } from "../middleware/idle-admission.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
@@ -85,48 +85,48 @@ describeEmbeddedPostgres("Cloud runtime identity", () => {
   const originalEnv = { ...process.env };
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-cloud-runtime-identity-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-cloud-runtime-identity-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
   beforeEach(async () => {
     await db.delete(instanceSettings);
     resetCloudRuntimeIdentityForTests();
-    process.env.PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN = "test-tenant-server-token";
-    process.env.PAPERCLIP_CLOUD_STACK_ID = STACK_ID;
-    process.env.PAPERCLIP_CLOUD_API_ORIGIN = "https://my-staging.paperclip.app";
-    process.env.PAPERCLIP_PUBLIC_URL = POOL_ORIGIN;
-    process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL = POOL_ORIGIN;
-    process.env.PAPERCLIP_API_URL = POOL_ORIGIN;
-    process.env.PAPERCLIP_PRIMARY_HOST = "pool-123.staging.paperclip.app";
-    process.env.PAPERCLIP_STACK_SLUG = "pool-123";
-    process.env.PAPERCLIP_CLOUD_RUNTIME_IDENTITY_JWKS = JSON.stringify({ keys: [publicJwk] });
-    process.env.PAPERCLIP_CLOUD_CONNECTOR_INSTANCE_ID = "managed-instance";
-    process.env.PAPERCLIP_CLOUD_CONNECTOR_SIGN_PRIVATE_KEY = "managed-signing-key";
-    process.env.PAPERCLIP_CLOUD_CONNECTOR_SEAL_PRIVATE_KEY = "managed-sealing-key";
-    process.env.PAPERCLIP_CLOUD_CONNECTOR_ENVIRONMENT = "staging";
-    process.env.PAPERCLIP_CLOUD_CONNECTOR_BASE_URL = "https://my-staging.paperclip.app";
+    process.env.NEXUS_CLOUD_TENANT_SERVER_TOKEN = "test-tenant-server-token";
+    process.env.NEXUS_CLOUD_STACK_ID = STACK_ID;
+    process.env.NEXUS_CLOUD_API_ORIGIN = "https://my-staging.paperclip.app";
+    process.env.NEXUS_PUBLIC_URL = POOL_ORIGIN;
+    process.env.NEXUS_AUTH_PUBLIC_BASE_URL = POOL_ORIGIN;
+    process.env.NEXUS_API_URL = POOL_ORIGIN;
+    process.env.NEXUS_PRIMARY_HOST = "pool-123.staging.paperclip.app";
+    process.env.NEXUS_STACK_SLUG = "pool-123";
+    process.env.NEXUS_CLOUD_RUNTIME_IDENTITY_JWKS = JSON.stringify({ keys: [publicJwk] });
+    process.env.NEXUS_CLOUD_CONNECTOR_INSTANCE_ID = "managed-instance";
+    process.env.NEXUS_CLOUD_CONNECTOR_SIGN_PRIVATE_KEY = "managed-signing-key";
+    process.env.NEXUS_CLOUD_CONNECTOR_SEAL_PRIVATE_KEY = "managed-sealing-key";
+    process.env.NEXUS_CLOUD_CONNECTOR_ENVIRONMENT = "staging";
+    process.env.NEXUS_CLOUD_CONNECTOR_BASE_URL = "https://my-staging.paperclip.app";
     await initializeCloudRuntimeIdentity(db);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     for (const key of [
-      "PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN",
-      "PAPERCLIP_CLOUD_STACK_ID",
-      "PAPERCLIP_CLOUD_API_ORIGIN",
-      "PAPERCLIP_PUBLIC_URL",
-      "PAPERCLIP_AUTH_PUBLIC_BASE_URL",
-      "PAPERCLIP_API_URL",
-      "PAPERCLIP_PRIMARY_HOST",
-      "PAPERCLIP_STACK_SLUG",
-      "PAPERCLIP_CLOUD_RUNTIME_IDENTITY_JWKS",
-      "PAPERCLIP_CLOUD_CONNECTOR_INSTANCE_ID",
-      "PAPERCLIP_CLOUD_CONNECTOR_SIGN_PRIVATE_KEY",
-      "PAPERCLIP_CLOUD_CONNECTOR_SEAL_PRIVATE_KEY",
-      "PAPERCLIP_CLOUD_CONNECTOR_ENVIRONMENT",
-      "PAPERCLIP_CLOUD_CONNECTOR_BASE_URL",
-      "PAPERCLIP_RUNTIME_API_CANDIDATES_JSON",
+      "NEXUS_CLOUD_TENANT_SERVER_TOKEN",
+      "NEXUS_CLOUD_STACK_ID",
+      "NEXUS_CLOUD_API_ORIGIN",
+      "NEXUS_PUBLIC_URL",
+      "NEXUS_AUTH_PUBLIC_BASE_URL",
+      "NEXUS_API_URL",
+      "NEXUS_PRIMARY_HOST",
+      "NEXUS_STACK_SLUG",
+      "NEXUS_CLOUD_RUNTIME_IDENTITY_JWKS",
+      "NEXUS_CLOUD_CONNECTOR_INSTANCE_ID",
+      "NEXUS_CLOUD_CONNECTOR_SIGN_PRIVATE_KEY",
+      "NEXUS_CLOUD_CONNECTOR_SEAL_PRIVATE_KEY",
+      "NEXUS_CLOUD_CONNECTOR_ENVIRONMENT",
+      "NEXUS_CLOUD_CONNECTOR_BASE_URL",
+      "NEXUS_RUNTIME_API_CANDIDATES_JSON",
     ]) {
       const original = originalEnv[key];
       if (original === undefined) delete process.env[key];
@@ -149,15 +149,15 @@ describeEmbeddedPostgres("Cloud runtime identity", () => {
     expect(applied.canonicalOrigin).toBe(CANONICAL_ORIGIN);
     expect(getCloudRuntimeIdentity()?.stackSlug).toBe("gonzo");
     expect(runtimePublicOrigin()).toBe(CANONICAL_ORIGIN);
-    expect(process.env.PAPERCLIP_PUBLIC_URL).toBe(CANONICAL_ORIGIN);
-    expect(process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL).toBe(CANONICAL_ORIGIN);
-    expect(process.env.PAPERCLIP_API_URL).toBe(CANONICAL_ORIGIN);
-    expect(process.env.PAPERCLIP_PRIMARY_HOST).toBe("gonzo.staging.paperclip.app");
-    expect(process.env.PAPERCLIP_STACK_SLUG).toBe("gonzo");
+    expect(process.env.NEXUS_PUBLIC_URL).toBe(CANONICAL_ORIGIN);
+    expect(process.env.NEXUS_AUTH_PUBLIC_BASE_URL).toBe(CANONICAL_ORIGIN);
+    expect(process.env.NEXUS_API_URL).toBe(CANONICAL_ORIGIN);
+    expect(process.env.NEXUS_PRIMARY_HOST).toBe("gonzo.staging.paperclip.app");
+    expect(process.env.NEXUS_STACK_SLUG).toBe("gonzo");
     expect(routineWebhookUrl("hook-1")).toBe(
       "https://gonzo.staging.paperclip.app/api/routine-triggers/public/hook-1/fire",
     );
-    expect(paperclipCloudConnectorEnrollmentStatus()).toMatchObject({
+    expect(nexusCloudConnectorEnrollmentStatus()).toMatchObject({
       configured: true,
       status: "active",
       origins: [CANONICAL_ORIGIN],
@@ -177,7 +177,7 @@ describeEmbeddedPostgres("Cloud runtime identity", () => {
 
     const response = await request(app)
       .get("/api/health")
-      .set("x-paperclip-cloud-runtime-identity", assertion({
+      .set("x-nexus-cloud-runtime-identity", assertion({
         claims: { iat: requestTime, exp: requestTime + 300 },
       }));
 
@@ -206,7 +206,7 @@ describeEmbeddedPostgres("Cloud runtime identity", () => {
     trackIdleRequestHandlers(app);
     const requestTime = Math.floor(Date.now() / 1000);
     const accepted = request(app).get("/api/health")
-      .set("x-paperclip-cloud-runtime-identity", assertion({ claims: { iat: requestTime, exp: requestTime + 300 } }))
+      .set("x-nexus-cloud-runtime-identity", assertion({ claims: { iat: requestTime, exp: requestTime + 300 } }))
       .then(response => response);
     try {
       await entered;
@@ -220,7 +220,7 @@ describeEmbeddedPostgres("Cloud runtime identity", () => {
   });
 
   it("keeps probes idle until a verified durable claim and stays active across restart", async () => {
-    const env = { ...process.env, PAPERCLIP_CLOUD_WARM_STANDBY: "1" };
+    const env = { ...process.env, NEXUS_CLOUD_WARM_STANDBY: "1" };
     const isStandby = await createCloudWarmStandby(db, env);
     const execute = vi.spyOn(db, "execute");
     const health = healthRoutes(db, {
@@ -234,20 +234,20 @@ describeEmbeddedPostgres("Cloud runtime identity", () => {
     expect((await request(app).get("/api/health")).body.warmStandby).toBe(true);
     expect(execute).not.toHaveBeenCalled();
     const requestTime = Math.floor(Date.now() / 1000);
-    const invalid = await request(app).get("/api/health").set("x-paperclip-cloud-runtime-identity", assertion({
+    const invalid = await request(app).get("/api/health").set("x-nexus-cloud-runtime-identity", assertion({
       claims: { sub: "another-stack", iat: requestTime, exp: requestTime + 300 },
     }));
     expect(invalid.status).toBe(401);
     expect(isStandby()).toBe(true);
     const signed = assertion({ claims: { iat: requestTime, exp: requestTime + 300 } });
-    const claimed = await request(app).get("/api/health").set("x-paperclip-cloud-runtime-identity", signed);
+    const claimed = await request(app).get("/api/health").set("x-nexus-cloud-runtime-identity", signed);
     expect(claimed.status).toBe(200);
     expect(claimed.body.warmStandby).toBeUndefined();
     expect(isStandby()).toBe(false);
     expect(execute).toHaveBeenCalledOnce();
-    expect((await request(app).get("/api/health").set("x-paperclip-cloud-runtime-identity", signed)).status).toBe(200);
+    expect((await request(app).get("/api/health").set("x-nexus-cloud-runtime-identity", signed)).status).toBe(200);
     resetCloudRuntimeIdentityForTests();
-    process.env.PAPERCLIP_PUBLIC_URL = POOL_ORIGIN;
+    process.env.NEXUS_PUBLIC_URL = POOL_ORIGIN;
     await initializeCloudRuntimeIdentity(db);
     expect((await createCloudWarmStandby(db, env))()).toBe(false);
   });
@@ -255,22 +255,22 @@ describeEmbeddedPostgres("Cloud runtime identity", () => {
   it("restores the canonical identity before consumers read stale startup variables", async () => {
     await applyCloudRuntimeIdentityAssertion({ db, compactJws: assertion(), now: NOW });
     resetCloudRuntimeIdentityForTests();
-    process.env.PAPERCLIP_PUBLIC_URL = POOL_ORIGIN;
-    process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL = POOL_ORIGIN;
-    process.env.PAPERCLIP_API_URL = POOL_ORIGIN;
+    process.env.NEXUS_PUBLIC_URL = POOL_ORIGIN;
+    process.env.NEXUS_AUTH_PUBLIC_BASE_URL = POOL_ORIGIN;
+    process.env.NEXUS_API_URL = POOL_ORIGIN;
 
     await initializeCloudRuntimeIdentity(db);
 
     expect(runtimePublicOrigin()).toBe(CANONICAL_ORIGIN);
-    expect(process.env.PAPERCLIP_API_URL).toBe(CANONICAL_ORIGIN);
+    expect(process.env.NEXUS_API_URL).toBe(CANONICAL_ORIGIN);
   });
 
   it("accepts the identical claim after a restart with already-aligned provider variables", async () => {
     await applyCloudRuntimeIdentityAssertion({ db, compactJws: assertion(), now: NOW });
     resetCloudRuntimeIdentityForTests();
-    process.env.PAPERCLIP_PUBLIC_URL = CANONICAL_ORIGIN;
-    process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL = CANONICAL_ORIGIN;
-    process.env.PAPERCLIP_API_URL = CANONICAL_ORIGIN;
+    process.env.NEXUS_PUBLIC_URL = CANONICAL_ORIGIN;
+    process.env.NEXUS_AUTH_PUBLIC_BASE_URL = CANONICAL_ORIGIN;
+    process.env.NEXUS_API_URL = CANONICAL_ORIGIN;
     await initializeCloudRuntimeIdentity(db);
 
     await expect(applyCloudRuntimeIdentityAssertion({

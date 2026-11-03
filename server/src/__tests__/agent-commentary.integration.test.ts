@@ -7,11 +7,11 @@ import { fileURLToPath } from "node:url";
 import { and, eq, sql } from "drizzle-orm";
 import express from "express";
 import request from "supertest";
-import { activityLog, agentApiKeys, agentCommentary, agents, authUsers, companyMemberships, heartbeatRuns, issues, nativeRunResults } from "@paperclipai/db";
+import { activityLog, agentApiKeys, agentCommentary, agents, authUsers, companyMemberships, heartbeatRuns, issues, nativeRunResults } from "@nexusai/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createLocalAgentJwt } from "../agent-auth-jwt.js";
 import { submitAgentCommentary } from "../services/agent-commentary.js";
-import { PaperclipRunnerToolAuthority } from "../services/native-runtime/paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "../services/native-runtime/nexus-runner-tool-authority.js";
 import { isSecretSensitiveHttpRequest } from "../middleware/http-log-policy.js";
 import { startRunnerApiTestServer } from "./helpers/runner-api-server.js";
 import { ensureNativeCompletionContract } from "../services/native-runtime/completion-contracts.js";
@@ -23,18 +23,18 @@ import { companyService } from "../services/companies.js";
 describe("internal agent commentary through both transports", () => {
   let server: Awaited<ReturnType<typeof startRunnerApiTestServer>>;
   let home: string;
-  const oldHome = process.env.PAPERCLIP_HOME;
-  const oldSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
+  const oldHome = process.env.NEXUS_HOME;
+  const oldSecret = process.env.NEXUS_AGENT_JWT_SECRET;
   beforeAll(async () => {
-    home = await mkdtemp(join(tmpdir(), "paperclip-commentary-"));
-    process.env.PAPERCLIP_HOME = home;
-    process.env.PAPERCLIP_AGENT_JWT_SECRET = randomUUID();
+    home = await mkdtemp(join(tmpdir(), "nexus-commentary-"));
+    process.env.NEXUS_HOME = home;
+    process.env.NEXUS_AGENT_JWT_SECRET = randomUUID();
     server = await startRunnerApiTestServer();
   }, 90_000);
   afterAll(async () => {
     await server?.close();
-    if (oldHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = oldHome;
-    if (oldSecret === undefined) delete process.env.PAPERCLIP_AGENT_JWT_SECRET; else process.env.PAPERCLIP_AGENT_JWT_SECRET = oldSecret;
+    if (oldHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = oldHome;
+    if (oldSecret === undefined) delete process.env.NEXUS_AGENT_JWT_SECRET; else process.env.NEXUS_AGENT_JWT_SECRET = oldSecret;
     if (home) await rm(home, { recursive: true, force: true });
   });
   type Fixture = Awaited<ReturnType<typeof server.fixture>>;
@@ -48,7 +48,7 @@ describe("internal agent commentary through both transports", () => {
   }
   async function post(f: Fixture & { token: string }, value: unknown, companyId = f.companyId) {
     return fetch(`${server.apiUrl}/api/companies/${companyId}/agent-commentary`, {
-      method: "POST", headers: { authorization: `Bearer ${f.token}`, "X-Paperclip-Run-Id": f.runId, "Content-Type": "application/json" }, body: JSON.stringify(value),
+      method: "POST", headers: { authorization: `Bearer ${f.token}`, "X-Nexus-Run-Id": f.runId, "Content-Type": "application/json" }, body: JSON.stringify(value),
     });
   }
 
@@ -64,7 +64,7 @@ describe("internal agent commentary through both transports", () => {
 
   it.each(["standard", "ask", "planning"] as const)("exposes native feedback in %s and persists only feedback plus a content-free audit", async (mode) => {
     const f = await server.fixture({ mode });
-    const authority = new PaperclipRunnerToolAuthority(server.db, { ...f, workMode: mode });
+    const authority = new NexusRunnerToolAuthority(server.db, { ...f, workMode: mode });
     expect(authority.definitions().map(t => t.name)).toEqual(expect.arrayContaining(["submit_complaint", "submit_suggestion"]));
     const before = await f.snapshot();
     for (const tool of ["submit_complaint", "submit_suggestion"]) {
@@ -173,7 +173,7 @@ describe("internal agent commentary through both transports", () => {
     await server.db.insert(heartbeatRuns).values({ id: replacementId, companyId: native.companyId, agentId: native.agentId, status: "running", invocationSource: "on_demand" });
     await server.db.update(issues).set({ executionRunId: replacementId }).where(eq(issues.id, native.issueId));
     await expect(native.authority.execute({ tool: "submit_suggestion", callId: "stale", arguments: input })).rejects.toThrow();
-    const reviewer = new PaperclipRunnerToolAuthority(server.db, { ...native, nativeReview: { nativeReviewInteractionId: randomUUID(), nativeReviewDecisionId: randomUUID() } });
+    const reviewer = new NexusRunnerToolAuthority(server.db, { ...native, nativeReview: { nativeReviewInteractionId: randomUUID(), nativeReviewDecisionId: randomUUID() } });
     expect(reviewer.definitions().map(t => t.name)).not.toContain("submit_complaint");
     expect(reviewer.definitions().map(t => t.name)).not.toContain("submit_suggestion");
     await expect(reviewer.execute({ tool: "submit_complaint", callId: "review", arguments: input })).rejects.toThrow();
@@ -239,11 +239,11 @@ describe("internal agent commentary through both transports", () => {
 
   it("runs the legacy stdin helper and handles failure silently without exposing its body", async () => {
     const f = await legacy();
-    const helper = fileURLToPath(new URL("../../../skills/paperclip/scripts/submit-agent-commentary.mjs", import.meta.url));
+    const helper = fileURLToPath(new URL("../../../skills/nexus/scripts/submit-agent-commentary.mjs", import.meta.url));
     const body = "Quotes, `backticks`, $(printf should-not-run), and emoji 😭 stay text.\n";
     async function run(apiUrl: string) {
       return new Promise<{ code: number | null; out: string; err: string }>((resolve, reject) => {
-        const child = spawn(process.execPath, [helper, "complaint", "helper-one"], { env: { ...process.env, PAPERCLIP_API_URL: apiUrl, PAPERCLIP_API_KEY: f.token, PAPERCLIP_COMPANY_ID: f.companyId, PAPERCLIP_RUN_ID: f.runId }, stdio: "pipe" });
+        const child = spawn(process.execPath, [helper, "complaint", "helper-one"], { env: { ...process.env, NEXUS_API_URL: apiUrl, NEXUS_API_KEY: f.token, NEXUS_COMPANY_ID: f.companyId, NEXUS_RUN_ID: f.runId }, stdio: "pipe" });
         let out = "", err = "";
         child.stdout.on("data", c => out += c); child.stderr.on("data", c => err += c);
         child.on("error", reject); child.on("close", code => resolve({ code, out, err }));

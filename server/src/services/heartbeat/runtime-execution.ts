@@ -13,11 +13,11 @@ import { measureRunPhase } from "../execution-preparation-timing.js";
 import { parseNativeSessionGoalControl } from "./scheduling.js";
 import { isHeartbeatRunTerminalStatus } from "./run-lifecycle.js";
 import {
-  PAPERCLIP_WAKE_PAYLOAD_KEY,
-  configuredPaperclipApiBaseUrl,
-  buildPaperclipRuntimeMcpServers,
+  NEXUS_WAKE_PAYLOAD_KEY,
+  configuredNexusApiBaseUrl,
+  buildNexusRuntimeMcpServers,
   createAdapterRuntimeToolAccess,
-  paperclipApiBaseUrl,
+  nexusApiBaseUrl,
   createAdapterRuntimeMcpAccess,
   createManagedMcpRunConfig,
   revokeHeartbeatRunGatewayTokens,
@@ -26,11 +26,11 @@ import {
   WorkspaceValidationFailure,
   isWorkspaceValidationFailure,
   fingerprintFinalizeWorkspaceBranchValidation,
-  attachPaperclipSessionMetadataToSessionParams,
+  attachNexusSessionMetadataToSessionParams,
 } from "./workspaces.js";
 import { recordLegacyWorkspaceRestoreFailure } from "../legacy-execution-recovery.js";
-import { configuredEnvironmentProjection } from "../../vendor/paperclip-runner/index.js";
-import { buildAgentIdentityEnv } from "@paperclipai/adapter-utils/server-utils";
+import { configuredEnvironmentProjection } from "../../vendor/nexus-runner/index.js";
+import { buildAgentIdentityEnv } from "@nexusai/adapter-utils/server-utils";
 import { externalObjectService } from "../external-objects.js";
 import { isAgentDirectoryCopy } from "../agent-directory-working-copies.js";
 import { restoreNativeWorkspaceBestEffort } from "../native-runtime/native-workspace-best-effort.js";
@@ -41,21 +41,21 @@ import {
   type NativeWorkspaceFinalizationOwnership,
 } from "../native-runtime/native-workspace-finalization-ownership.js";
 import { createRunUsageRecorder, readAcceptedRunUsageCheckpoint } from "../usage-receipts.js";
-import { applyWorkspaceRestoreFailure } from "@paperclipai/adapter-utils/workspace-restore-result";
-import { hasWorkspaceRestoreFailure } from "@paperclipai/shared";
+import { applyWorkspaceRestoreFailure } from "@nexusai/adapter-utils/workspace-restore-result";
+import { hasWorkspaceRestoreFailure } from "@nexusai/shared";
 import { isConversation } from "../agent-conversations.js";
-import { withAdapterExecutionPhase } from "@paperclipai/adapter-utils/execution-phase";
+import { withAdapterExecutionPhase } from "@nexusai/adapter-utils/execution-phase";
 import { remoteExecutionHasStopped } from "../remote-execution-termination.js";
 import { registerAdapterExecutionControl } from "../adapter-execution-control.js";
-import { resolveManagedOpenAiBilling } from "@paperclipai/adapter-utils";
+import { resolveManagedOpenAiBilling } from "@nexusai/adapter-utils";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { heartbeatRuns, nativeRunFinalizations, workspaceOperations } from "@paperclipai/db";
+import { heartbeatRuns, nativeRunFinalizations, workspaceOperations } from "@nexusai/db";
 import { conflict } from "../../errors.js";
 import { getStartupTraceContext } from "../../instrumentation.js";
 import { logger } from "../../middleware/logger.js";
 import {
   buildNativeProviderEnvironment,
-  executePaperclipNativeSession,
+  executeNexusNativeSession,
   finalizeNativeRun,
   isRunnerIngressAuthorized,
   materializeLegacyQuestionResponseWakeProjection,
@@ -83,7 +83,7 @@ import {
   isRunnerGoalActionCompleted,
   settleLiveRunnerGoalBeforeInterrupt,
 } from "../runner-goals.js";
-import type { Db, agents, executionWorkspaces } from "@paperclipai/db";
+import type { Db, agents, executionWorkspaces } from "@nexusai/db";
 import type { AdapterExecutionContext, ServerAdapterModule } from "../../adapters/index.js";
 import type { HeartbeatRuntimeSelectionInput, HeartbeatRuntimeSelectionResult } from "./runtime-selection.js";
 import type { createHeartbeatRunState } from "./run-state.js";
@@ -98,14 +98,14 @@ import type { environmentRunOrchestrator } from "../environment-run-orchestrator
 import type { instanceSettingsService } from "../instance-settings.js";
 import type { EffectiveRunSessionConfigMetadata } from "./workspaces.js";
 import type { ProviderResourceDisposition } from "../environment-runtime.js";
-import type { NativeExecutionInput, NativeSessionBackend } from "../../vendor/paperclip-runner/index.js";
+import type { NativeExecutionInput, NativeSessionBackend } from "../../vendor/nexus-runner/index.js";
 import type { PluginWorkerManager } from "../plugin-worker-manager.js";
 import type { RealizedExecutionWorkspace } from "../workspace-runtime.js";
 import type { reserveWarmNativeInstructionDirectory } from "../native-runtime/index.js";
 
 type Selection = HeartbeatRuntimeSelectionInput;
 type Selected = Extract<HeartbeatRuntimeSelectionResult, { selected: true }>;
-type NativeSessionInput = Parameters<typeof executePaperclipNativeSession>[0];
+type NativeSessionInput = Parameters<typeof executeNexusNativeSession>[0];
 type RunState = ReturnType<typeof createHeartbeatRunState>;
 type Lifecycle = ReturnType<typeof createHeartbeatLifecycle>;
 
@@ -279,7 +279,7 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
         runId: run.id,
         adapterType: agent.adapterType,
       },
-      "local agent jwt secret missing or invalid; running without injected PAPERCLIP_API_KEY",
+      "local agent jwt secret missing or invalid; running without injected NEXUS_API_KEY",
     );
   }
   let adapterFinalizeOutcome: "succeeded" | "failed" | null = null;
@@ -506,7 +506,7 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
   };
 
   const producerOwnsUsage = usesNativeUsageDelivery({
-    runnerd: nativeRuntimeResolution.kind === "native" && agent.adapterType === "paperclip_runner",
+    runnerd: nativeRuntimeResolution.kind === "native" && agent.adapterType === "nexus_runner",
     remote: executionTarget?.kind === "remote", provider: nativeExecution?.provider,
   });
   const usageRecorder = producerOwnsUsage ? undefined : await measureRunPhase("execution.usage_startup", () =>
@@ -525,7 +525,7 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
         nativeExecution.runtimeContext.mcp.bindingId
           ? nativeExecution.runtimeContext.mcp.digest
           : null;
-      const nativeMcpServers = "homeMode" in nativeExecution && nativeExecution.homeMode === "preconfigured" ? [] : await measureRunPhase("execution.mcp_handoff", () => buildPaperclipRuntimeMcpServers({
+      const nativeMcpServers = "homeMode" in nativeExecution && nativeExecution.homeMode === "preconfigured" ? [] : await measureRunPhase("execution.mcp_handoff", () => buildNexusRuntimeMcpServers({
         db,
         agent,
         runId: run.id,
@@ -574,7 +574,7 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
         ? {
             taskKey,
             adapterType: agent.adapterType,
-            sessionParamsJson: attachPaperclipSessionMetadataToSessionParams(
+            sessionParamsJson: attachNexusSessionMetadataToSessionParams(
               { ...runtimeSessionParamsForAdapter, cwd: executionWorkspace.cwd },
               configuredModel,
               sessionConfigMetadata,
@@ -585,9 +585,9 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
       const runCreatedAtMs = run.createdAt.getTime();
       const runStartedAtMs = (run.startedAt ?? run.createdAt).getTime();
       const wakeComments = Array.isArray(
-        parseObject(context.paperclipWake).comments,
+        parseObject(context.nexusWake).comments,
       )
-        ? (parseObject(context.paperclipWake).comments as unknown[])
+        ? (parseObject(context.nexusWake).comments as unknown[])
         : [];
       const wakeIngressSpan = buildNativeWakeIngressSpan({
         runCreatedAtMs,
@@ -611,8 +611,8 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
       const guardedDispatch =
         await dispatchWithTiming(
           (markDispatchStarted) => {
-            return executePaperclipNativeSession({
-              casesEnabled: context.paperclipCasesEnabled === true,
+            return executeNexusNativeSession({
+              casesEnabled: context.nexusCasesEnabled === true,
               db,
               execution: nativeExecution,
               observability,
@@ -628,7 +628,7 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
                 stopCleanup
                   ? options.nativeSessionBackendFactory?.(nativeExecution, { recoveryPurpose: "stop_cleanup" })
                   : options.nativeSessionBackendFactory?.(nativeExecution),
-              useRunnerd: agent.adapterType === "paperclip_runner",
+              useRunnerd: agent.adapterType === "nexus_runner",
               adapterType: agent.adapterType,
               sessionGoalControl,
               resumeSessionGoalHeartbeat:
@@ -638,7 +638,7 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
               onGoalCheckpoint: async (snapshot) => {
                 if (!taskKey) return;
                 const params =
-                  attachPaperclipSessionMetadataToSessionParams(
+                  attachNexusSessionMetadataToSessionParams(
                     {
                       ...runtimeSessionParamsForAdapter,
                       sessionId: snapshot.identity.sessionId,
@@ -689,16 +689,16 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
                 ...(input.instructions.instructionCopy && isAgentDirectoryCopy(input.instructions.instructionCopy) ? { AGENT_HOME: input.instructions.instructionCopy.executionRoot } : {}),
                 ...(nativeMcpServer
                   ? {
-                      PAPERCLIP_NATIVE_MCP_NAME: nativeMcpServer.name,
-                      PAPERCLIP_NATIVE_MCP_URL: nativeMcpServer.url,
-                      PAPERCLIP_NATIVE_MCP_TOKEN: nativeMcpServer.token,
+                      NEXUS_NATIVE_MCP_NAME: nativeMcpServer.name,
+                      NEXUS_NATIVE_MCP_URL: nativeMcpServer.url,
+                      NEXUS_NATIVE_MCP_TOKEN: nativeMcpServer.token,
                     }
                   : {}),
                 ...(providerTraceCapture
                   ? {
-                      PAPERCLIP_PROVIDER_TRACE_PATH:
+                      NEXUS_PROVIDER_TRACE_PATH:
                         providerTraceCapture.path,
-                      PAPERCLIP_PROVIDER_TRACE_MAX_BYTES: String(
+                      NEXUS_PROVIDER_TRACE_MAX_BYTES: String(
                         PROVIDER_TRACE_MAX_BYTES,
                       ),
                     }
@@ -710,21 +710,21 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
                 nativeRuntimeResolution,
               ),
               runnerPublicUrl:
-                runtimeEnv.PAPERCLIP_RUNNER_PUBLIC_URL?.trim() || null,
+                runtimeEnv.NEXUS_RUNNER_PUBLIC_URL?.trim() || null,
               runnerCaBundlePath:
-                runtimeEnv.PAPERCLIP_RUNNER_CA_BUNDLE_PATH?.trim() ||
+                runtimeEnv.NEXUS_RUNNER_CA_BUNDLE_PATH?.trim() ||
                 null,
               runnerRemoteBinaryPath:
-                runtimeEnv.PAPERCLIP_RUNNER_REMOTE_BINARY_PATH?.trim() ||
+                runtimeEnv.NEXUS_RUNNER_REMOTE_BINARY_PATH?.trim() ||
                 null,
               runnerRemoteCodexPath:
-                runtimeEnv.PAPERCLIP_RUNNER_REMOTE_CODEX_PATH?.trim() ||
+                runtimeEnv.NEXUS_RUNNER_REMOTE_CODEX_PATH?.trim() ||
                 null,
               runnerRemoteCodexNpmSpec:
-                runtimeEnv.PAPERCLIP_RUNNER_REMOTE_CODEX_NPM_SPEC?.trim() ||
+                runtimeEnv.NEXUS_RUNNER_REMOTE_CODEX_NPM_SPEC?.trim() ||
                 null,
               runnerRemoteProviderPackPath:
-                runtimeEnv.PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH?.trim() ||
+                runtimeEnv.NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH?.trim() ||
                 null,
               stopTaskForReassignment: async (target) => {
                 await settleLiveRunnerGoalBeforeInterrupt(db, target);
@@ -781,8 +781,8 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
         ...context,
         ...(legacyQuestionResponse
           ? {
-              [PAPERCLIP_WAKE_PAYLOAD_KEY]: {
-                ...parseObject(context[PAPERCLIP_WAKE_PAYLOAD_KEY]),
+              [NEXUS_WAKE_PAYLOAD_KEY]: {
+                ...parseObject(context[NEXUS_WAKE_PAYLOAD_KEY]),
                 questionResponse: legacyQuestionResponse,
               },
             }
@@ -804,7 +804,7 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
           "runtime connection tools could not be delivered",
         );
       }
-      const runtimeMcpServers = await buildPaperclipRuntimeMcpServers({
+      const runtimeMcpServers = await buildNexusRuntimeMcpServers({
         db,
         agent,
         runId: run.id,
@@ -813,19 +813,19 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
         adapter.runtimeToolDelivery ?? "invocation_context";
       if (runtimeTools && runtimeToolDelivery === "native_mcp") {
         runtimeMcpServers.unshift({
-          name: "Paperclip connections",
+          name: "Nexus connections",
           url: runtimeTools.mcpEndpoint,
           token: runtimeTools.bearerToken,
-          connectionId: "paperclip-runtime-tools",
+          connectionId: "nexus-runtime-tools",
         });
       }
-      if (authToken && configuredPaperclipApiBaseUrl() && issueRef) {
-        runtimeMcpServers.unshift({ name: "Paperclip projects", url: `${paperclipApiBaseUrl()}/api/mcp/project-tools`,
-          token: authToken, connectionId: "paperclip-project-tools" });
+      if (authToken && configuredNexusApiBaseUrl() && issueRef) {
+        runtimeMcpServers.unshift({ name: "Nexus projects", url: `${nexusApiBaseUrl()}/api/mcp/project-tools`,
+          token: authToken, connectionId: "nexus-project-tools" });
       }
       const runtimeMcp = createAdapterRuntimeMcpAccess(runtimeMcpServers);
       if (runtimeTools && runtimeToolDelivery === "invocation_context") {
-        adapterContext.paperclipRuntimeTools = runtimeTools;
+        adapterContext.nexusRuntimeTools = runtimeTools;
       }
       const managedMcpConfig = await measureRunPhase("execution.mcp_handoff", () => createManagedMcpRunConfig({
         db,
@@ -836,7 +836,7 @@ export async function executeHeartbeatRuntime(db: Db, input: HeartbeatRuntimeExe
         issueId: issueRef?.id ?? null,
       }));
       if (managedMcpConfig) {
-        adapterContext.paperclipManagedMcp = managedMcpConfig;
+        adapterContext.nexusManagedMcp = managedMcpConfig;
       }
       const guardedDispatch =
         await dispatchWithTiming(

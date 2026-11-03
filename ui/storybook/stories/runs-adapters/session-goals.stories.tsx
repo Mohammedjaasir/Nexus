@@ -5,7 +5,7 @@ import type {
   RunnerGoalPendingAction,
   RunnerGoalProjection,
   RunnerGoalStatus,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   RunnerGoalWidget,
   type RunnerGoalControl,
@@ -32,7 +32,7 @@ function projection(input: {
   return {
     issueId: "issue-story-goal",
     agentId: "agent-story-goal",
-    adapterType: "paperclip_runner",
+    adapterType: "nexus_runner",
     sessionId: "session-story-goal",
     capability: input.capability ?? codexCapability,
     goal: status
@@ -169,7 +169,7 @@ const meta = {
           "Capability, status, active-turn, and pending-control states for the issue composer session-goal widget.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "runs-adapters/session"
       ],

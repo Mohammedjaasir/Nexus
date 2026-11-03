@@ -1,4 +1,4 @@
-import type { TaskInterruptionPresentation } from "@paperclipai/shared";
+import type { TaskInterruptionPresentation } from "@nexusai/shared";
 import { AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "../lib/utils";

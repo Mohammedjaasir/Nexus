@@ -5,7 +5,7 @@ import { act as reactAct } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ExecutionWorkspace, Issue } from "@paperclipai/shared";
+import type { ExecutionWorkspace, Issue } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectWorkspaceSummary } from "../lib/project-workspaces-tab";
 import { queryKeys } from "../lib/queryKeys";
@@ -155,7 +155,7 @@ describe("ProjectWorkspaceSummaryCard", () => {
     act(() => {
       root.render(withQueryClient(
         <ProjectWorkspaceSummaryCard
-          projectRef="paperclip-app"
+          projectRef="nexus-app"
           summary={createSummary()}
           runtimeActionKey={null}
           runtimeActionPending={false}
@@ -188,7 +188,7 @@ describe("ProjectWorkspaceSummaryCard", () => {
       root.render(
         <QueryClientProvider client={queryClient}>
           <ProjectWorkspaceSummaryCard
-            projectRef="paperclip-app"
+            projectRef="nexus-app"
             summary={createSummary()}
             runtimeActionKey={null}
             runtimeActionPending={false}
@@ -223,7 +223,7 @@ describe("ProjectWorkspaceSummaryCard", () => {
     act(() => {
       root.render(withQueryClient(
         <ProjectWorkspaceSummaryCard
-          projectRef="paperclip-app"
+          projectRef="nexus-app"
           summary={createSummary()}
           runtimeActionKey={null}
           runtimeActionPending={false}
@@ -250,7 +250,7 @@ describe("ProjectWorkspaceSummaryCard", () => {
     act(() => {
       root.render(withQueryClient(
         <ProjectWorkspaceSummaryCard
-          projectRef="paperclip-app"
+          projectRef="nexus-app"
           summary={createSummary()}
           runtimeActionKey={null}
           runtimeActionPending={false}
@@ -288,7 +288,7 @@ describe("ProjectWorkspaceSummaryCard", () => {
     act(() => {
       root.render(withQueryClient(
         <ProjectWorkspaceSummaryCard
-          projectRef="paperclip-app"
+          projectRef="nexus-app"
           summary={createSummary({
             key: "project:workspace-2",
             kind: "project_workspace",
@@ -305,7 +305,7 @@ describe("ProjectWorkspaceSummaryCard", () => {
       ));
     });
 
-    const titleLink = container.querySelector("a[href='/projects/paperclip-app/workspaces/workspace-1']");
+    const titleLink = container.querySelector("a[href='/projects/nexus-app/workspaces/workspace-1']");
     expect(titleLink).not.toBeNull();
     expect(container.textContent).not.toContain("Close workspace");
     expect(container.textContent).not.toContain("Start services");
@@ -321,7 +321,7 @@ describe("ProjectWorkspaceSummaryCard", () => {
     act(() => {
       root.render(withQueryClient(
         <ProjectWorkspaceSummaryCard
-          projectRef="paperclip-app"
+          projectRef="nexus-app"
           summary={createSummary({
             executionWorkspaceStatus: "cleanup_failed" as ExecutionWorkspace["status"],
           })}
@@ -344,7 +344,7 @@ describe("ProjectWorkspaceSummaryCard", () => {
     const root = createRoot(container);
     const summary = createSummary({
       branchName: "PAP-1552-workspace-polish",
-      cwd: "/Users/dotta/paperclip/.worktrees/PAP-1552-workspace-polish",
+      cwd: "/Users/dotta/nexus/.worktrees/PAP-1552-workspace-polish",
     });
 
     vi.useFakeTimers();
@@ -352,7 +352,7 @@ describe("ProjectWorkspaceSummaryCard", () => {
       await reactAct(async () => {
         root.render(withQueryClient(
           <ProjectWorkspaceSummaryCard
-            projectRef="paperclip-app"
+            projectRef="nexus-app"
             summary={summary}
             runtimeActionKey={null}
             runtimeActionPending={false}
@@ -397,7 +397,7 @@ describe("ProjectWorkspaceSummaryCard", () => {
     act(() => {
       root.render(withQueryClient(
         <ProjectWorkspaceSummaryCard
-          projectRef="paperclip-app"
+          projectRef="nexus-app"
           summary={createSummary({
             primaryServiceUrl: "http://127.0.0.1:62475",
             primaryServiceUrlRunning: true,

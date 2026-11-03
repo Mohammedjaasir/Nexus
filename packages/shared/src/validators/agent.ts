@@ -95,7 +95,7 @@ export const createAgentSchema = z.object({
   capabilities: z.string().optional().nullable(),
   desiredSkills: z.array(agentDesiredSkillSelectionSchema).optional(),
   adapterType: agentAdapterTypeSchema,
-  runner: z.enum(["auto", "paperclip", "legacy"]).optional(),
+  runner: z.enum(["auto", "nexus", "legacy"]).optional(),
   adapterConfig: adapterConfigSchema.optional().default({}),
   instructionsBundle: createAgentInstructionsBundleSchema.optional(),
   runtimeConfig: agentRuntimeConfigSchema.optional().default({}),
@@ -124,7 +124,7 @@ export type CreateAgent = z.infer<typeof createAgentSchema>;
 
 export const builtInAgentProvisionSchema = z.object({
   adapterType: agentAdapterTypeSchema.optional(),
-  runner: z.enum(["auto", "paperclip", "legacy"]).optional(),
+  runner: z.enum(["auto", "nexus", "legacy"]).optional(),
   adapterConfig: adapterConfigSchema.optional(),
   budgetMonthlyCents: z.number().int().nonnegative().optional(),
 }).strict();
@@ -282,7 +282,7 @@ export const resetAgentSessionSchema = z.object({
 export type ResetAgentSession = z.infer<typeof resetAgentSessionSchema>;
 
 export const testAdapterEnvironmentSchema = z.object({
-  runner: z.enum(["auto", "paperclip", "legacy"]).optional(),
+  runner: z.enum(["auto", "nexus", "legacy"]).optional(),
   aiConnection: aiConnectionBindingSchema.optional(),
   /** Saved agent whose redacted environment entries are restored for this probe. */
   agentId: z.string().guid().optional(),
@@ -305,7 +305,7 @@ export const testAdapterEnvironmentSchema = z.object({
   adapterConfig: adapterConfigSchema.optional().default({}),
   /**
    * Optional environment to run the adapter test inside. When omitted, the
-   * test runs against the local Paperclip host. When provided and the
+   * test runs against the local Nexus host. When provided and the
    * environment is non-local (SSH/sandbox), the test probes are executed
    * inside that environment so the result reflects real agent execution.
    */

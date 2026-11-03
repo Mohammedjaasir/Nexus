@@ -7,7 +7,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { createCapturedOutputBuffer, parseJsonResponseWithLimit } from "./dev-runner-output.ts";
 import {
-  paperclipRunnerBinaryNeedsBuild,
+  nexusRunnerBinaryNeedsBuild,
   resolveNativeRunnerDevBinary,
   resolveNativeRunnerRequirement,
 } from "./dev-runner-native-binary.mjs";
@@ -39,20 +39,20 @@ try {
   cliArgs = appliedOptions.forwardedArgs;
   dataDir = appliedOptions.dataDir;
 } catch (error) {
-  console.error(`[paperclip] ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`[nexus] ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 }
 
 const worktreeEnvBootstrap = bootstrapDevRunnerWorktreeEnv(repoRoot, process.env);
 if (worktreeEnvBootstrap.missingEnv) {
   console.error(
-    `[paperclip] linked git worktree at ${repoRoot} is missing ${path.relative(repoRoot, worktreeEnvBootstrap.envPath)}. Run \`paperclipai worktree init\` in this worktree before \`pnpm dev\`.`,
+    `[nexus] linked git worktree at ${repoRoot} is missing ${path.relative(repoRoot, worktreeEnvBootstrap.envPath)}. Run \`nexusai worktree init\` in this worktree before \`pnpm dev\`.`,
   );
   process.exit(1);
 }
 if (isWorktreeSeedPending(repoRoot)) {
   console.error(
-    "[paperclip] this worktree database is seed-pending. Run `pnpm paperclipai worktree ensure-seeded` before `pnpm dev`.",
+    "[nexus] this worktree database is seed-pending. Run `pnpm nexusai worktree ensure-seeded` before `pnpm dev`.",
   );
   process.exit(1);
 }
@@ -61,10 +61,10 @@ const scanIntervalMs = 1500;
 const autoRestartPollIntervalMs = 2500;
 const gracefulShutdownTimeoutMs = 10_000;
 const changedPathSampleLimit = 5;
-const devServerStatusFilePath = path.join(repoRoot, ".paperclip", "dev-server-status.json");
-const devServerRestartRequestFilePath = path.join(repoRoot, ".paperclip", "dev-server-restart-request.json");
+const devServerStatusFilePath = path.join(repoRoot, ".nexus", "dev-server-status.json");
+const devServerRestartRequestFilePath = path.join(repoRoot, ".nexus", "dev-server-restart-request.json");
 const devServerStatusToken = mode === "dev" ? randomUUID() : null;
-const devServerStatusTokenHeader = "x-paperclip-dev-server-status-token";
+const devServerStatusTokenHeader = "x-nexus-dev-server-status-token";
 
 const watchedDirectories = [
   "cli",
@@ -98,8 +98,8 @@ const ignoredDirectoryNames = new Set([
 ]);
 
 const ignoredRelativePaths = new Set([
-  ".paperclip/dev-server-restart-request.json",
-  ".paperclip/dev-server-status.json",
+  ".nexus/dev-server-restart-request.json",
+  ".nexus/dev-server-status.json",
 ]);
 
 const tailscaleAuthFlagNames = new Set([
@@ -110,7 +110,7 @@ const tailscaleAuthFlagNames = new Set([
 let tailscaleAuth = false;
 let bindMode: BindMode | null = null;
 let bindHost: string | null = null;
-const managedRuntimeExposure = process.env.PAPERCLIP_MANAGED_RUNTIME_EXPOSURE === "tailscale_https";
+const managedRuntimeExposure = process.env.NEXUS_MANAGED_RUNTIME_EXPOSURE === "tailscale_https";
 const forwardedArgs: string[] = [];
 
 for (let index = 0; index < cliArgs.length; index += 1) {
@@ -122,7 +122,7 @@ for (let index = 0; index < cliArgs.length; index += 1) {
   if (arg === "--bind") {
     const value = cliArgs[index + 1];
     if (!value || value.startsWith("--") || !BIND_MODES.includes(value as BindMode)) {
-      console.error(`[paperclip] invalid --bind value. Use one of: ${BIND_MODES.join(", ")}`);
+      console.error(`[nexus] invalid --bind value. Use one of: ${BIND_MODES.join(", ")}`);
       process.exit(1);
     }
     bindMode = value as BindMode;
@@ -132,7 +132,7 @@ for (let index = 0; index < cliArgs.length; index += 1) {
   if (arg === "--bind-host") {
     const value = cliArgs[index + 1];
     if (!value || value.startsWith("--")) {
-      console.error("[paperclip] --bind-host requires a value");
+      console.error("[nexus] --bind-host requires a value");
       process.exit(1);
     }
     bindHost = value;
@@ -159,64 +159,64 @@ if (managedRuntimeExposure) {
   bindHost = "127.0.0.1";
 }
 if (bindMode === "custom" && !bindHost) {
-  console.error("[paperclip] --bind custom requires --bind-host <host>");
+  console.error("[nexus] --bind custom requires --bind-host <host>");
   process.exit(1);
 }
 
 // Managed HTTPS runtimes serve the built UI bundle: the Vite dev middleware's
 // unbundled module waterfall stalls behind the Tailscale HTTPS proxy and the
 // first page load in a fresh browser profile stays blank forever (PAP-18043).
-const explicitUiDevMiddleware = process.env.PAPERCLIP_UI_DEV_MIDDLEWARE;
+const explicitUiDevMiddleware = process.env.NEXUS_UI_DEV_MIDDLEWARE;
 const serveBuiltUiForManagedRuntime = managedRuntimeExposure && explicitUiDevMiddleware === undefined;
 const env: NodeJS.ProcessEnv = {
   ...process.env,
-  PAPERCLIP_UI_DEV_MIDDLEWARE: explicitUiDevMiddleware ?? (serveBuiltUiForManagedRuntime ? "false" : "true"),
+  NEXUS_UI_DEV_MIDDLEWARE: explicitUiDevMiddleware ?? (serveBuiltUiForManagedRuntime ? "false" : "true"),
 };
-const configuredRunnerBinary = env.PAPERCLIP_RUNNER_BINARY;
+const configuredRunnerBinary = env.NEXUS_RUNNER_BINARY;
 
 if (mode === "dev") {
-  env.PAPERCLIP_DEV_SERVER_STATUS_FILE = devServerStatusFilePath;
-  env.PAPERCLIP_DEV_SERVER_STATUS_TOKEN = devServerStatusToken ?? "";
-  env.PAPERCLIP_MIGRATION_AUTO_APPLY ??= "true";
+  env.NEXUS_DEV_SERVER_STATUS_FILE = devServerStatusFilePath;
+  env.NEXUS_DEV_SERVER_STATUS_TOKEN = devServerStatusToken ?? "";
+  env.NEXUS_MIGRATION_AUTO_APPLY ??= "true";
 }
 
 if (mode === "watch") {
-  delete env.PAPERCLIP_DEV_SERVER_STATUS_TOKEN;
-  env.PAPERCLIP_MIGRATION_PROMPT ??= "never";
-  env.PAPERCLIP_MIGRATION_AUTO_APPLY ??= "true";
+  delete env.NEXUS_DEV_SERVER_STATUS_TOKEN;
+  env.NEXUS_MIGRATION_PROMPT ??= "never";
+  env.NEXUS_MIGRATION_AUTO_APPLY ??= "true";
 }
 
 if (tailscaleAuth || bindMode) {
   const effectiveBind = bindMode ?? "lan";
   if (tailscaleAuth) {
-    console.log("[paperclip] note: --tailscale-auth/--authenticated-private are legacy aliases for --bind lan");
+    console.log("[nexus] note: --tailscale-auth/--authenticated-private are legacy aliases for --bind lan");
   }
-  env.PAPERCLIP_BIND = effectiveBind;
+  env.NEXUS_BIND = effectiveBind;
   if (bindHost) {
-    env.PAPERCLIP_BIND_HOST = bindHost;
+    env.NEXUS_BIND_HOST = bindHost;
   } else {
-    delete env.PAPERCLIP_BIND_HOST;
+    delete env.NEXUS_BIND_HOST;
   }
   if (effectiveBind === "loopback" && !tailscaleAuth) {
-    delete env.PAPERCLIP_DEPLOYMENT_MODE;
-    delete env.PAPERCLIP_DEPLOYMENT_EXPOSURE;
-    delete env.PAPERCLIP_AUTH_BASE_URL_MODE;
-    console.log("[paperclip] dev mode: local_trusted (bind=loopback)");
+    delete env.NEXUS_DEPLOYMENT_MODE;
+    delete env.NEXUS_DEPLOYMENT_EXPOSURE;
+    delete env.NEXUS_AUTH_BASE_URL_MODE;
+    console.log("[nexus] dev mode: local_trusted (bind=loopback)");
   } else {
-    env.PAPERCLIP_DEPLOYMENT_MODE = "authenticated";
-    env.PAPERCLIP_DEPLOYMENT_EXPOSURE = "private";
-    env.PAPERCLIP_AUTH_BASE_URL_MODE = managedRuntimeExposure ? "explicit" : "auto";
+    env.NEXUS_DEPLOYMENT_MODE = "authenticated";
+    env.NEXUS_DEPLOYMENT_EXPOSURE = "private";
+    env.NEXUS_AUTH_BASE_URL_MODE = managedRuntimeExposure ? "explicit" : "auto";
     console.log(
-      `[paperclip] dev mode: authenticated/private (bind=${effectiveBind}${bindHost ? `:${bindHost}` : ""})`,
+      `[nexus] dev mode: authenticated/private (bind=${effectiveBind}${bindHost ? `:${bindHost}` : ""})`,
     );
   }
 } else {
-  delete env.PAPERCLIP_BIND;
-  delete env.PAPERCLIP_BIND_HOST;
-  delete env.PAPERCLIP_DEPLOYMENT_MODE;
-  delete env.PAPERCLIP_DEPLOYMENT_EXPOSURE;
-  delete env.PAPERCLIP_AUTH_BASE_URL_MODE;
-  console.log("[paperclip] dev mode: local_trusted (default)");
+  delete env.NEXUS_BIND;
+  delete env.NEXUS_BIND_HOST;
+  delete env.NEXUS_DEPLOYMENT_MODE;
+  delete env.NEXUS_DEPLOYMENT_EXPOSURE;
+  delete env.NEXUS_AUTH_BASE_URL_MODE;
+  console.log("[nexus] dev mode: local_trusted (default)");
 }
 
 const serverPort = Number.parseInt(env.PORT ?? process.env.PORT ?? "3100", 10) || 3100;
@@ -235,7 +235,7 @@ const existingRunner = await findAdoptableLocalService({
 });
 if (existingRunner) {
   console.log(
-    `[paperclip] ${devService.serviceName} already running (pid ${existingRunner.pid}${typeof existingRunner.metadata?.childPid === "number" ? `, child ${existingRunner.metadata.childPid}` : ""})`,
+    `[nexus] ${devService.serviceName} already running (pid ${existingRunner.pid}${typeof existingRunner.metadata?.childPid === "number" ? `, child ${existingRunner.metadata.childPid}` : ""})`,
   );
   process.exit(0);
 }
@@ -346,7 +346,7 @@ async function updateDevServiceRecord(extra?: Record<string, unknown>) {
   await writeLocalServiceRegistryRecord({
     version: 1,
     serviceKey: devService.serviceKey,
-    profileKind: "paperclip-dev",
+    profileKind: "nexus-dev",
     serviceName: devService.serviceName,
     command: "dev-runner.ts",
     cwd: repoRoot,
@@ -413,14 +413,14 @@ async function runPnpm(args: string[], options: {
 
 async function getMigrationStatusPayload() {
   const status = await runPnpm(
-    ["--silent", "--filter", "@paperclipai/db", "exec", "tsx", "src/migration-status.ts", "--json"],
+    ["--silent", "--filter", "@nexusai/db", "exec", "tsx", "src/migration-status.ts", "--json"],
     { env },
   );
   if (status.code !== 0) {
     process.stderr.write(
       status.stderr ||
         status.stdout ||
-        `[paperclip] Command failed with code ${status.code}: pnpm --filter @paperclipai/db exec tsx src/migration-status.ts --json\n`,
+        `[nexus] Command failed with code ${status.code}: pnpm --filter @nexusai/db exec tsx src/migration-status.ts --json\n`,
     );
     process.exit(status.code);
   }
@@ -442,7 +442,7 @@ async function getMigrationStatusPayload() {
   process.stderr.write(
     status.stderr ||
       status.stdout ||
-      "[paperclip] migration-status returned invalid JSON payload\n",
+      "[nexus] migration-status returned invalid JSON payload\n",
   );
   throw new Error("Unable to parse migration-status JSON output");
 }
@@ -459,7 +459,7 @@ async function refreshPendingMigrations() {
 
 async function maybePreflightMigrations(options: { interactive?: boolean; autoApply?: boolean; exitOnDecline?: boolean } = {}) {
   const interactive = options.interactive ?? mode === "watch";
-  const autoApply = options.autoApply ?? env.PAPERCLIP_MIGRATION_AUTO_APPLY === "true";
+  const autoApply = options.autoApply ?? env.NEXUS_MIGRATION_AUTO_APPLY === "true";
   const exitOnDecline = options.exitOnDecline ?? mode === "watch";
 
   const payload = await refreshPendingMigrations();
@@ -492,7 +492,7 @@ async function maybePreflightMigrations(options: { interactive?: boolean; autoAp
   if (!shouldApply) {
     if (exitOnDecline) {
       process.stderr.write(
-        `[paperclip] Pending migrations detected (${formatPendingMigrationSummary(pendingMigrations)}). Refusing to start watch mode against a stale schema.\n`,
+        `[nexus] Pending migrations detected (${formatPendingMigrationSummary(pendingMigrations)}). Refusing to start watch mode against a stale schema.\n`,
       );
       process.exit(1);
     }
@@ -516,9 +516,9 @@ async function maybePreflightMigrations(options: { interactive?: boolean; autoAp
 }
 
 async function buildPluginSdk() {
-  console.log("[paperclip] building plugin sdk...");
+  console.log("[nexus] building plugin sdk...");
   const result = await runPnpm(
-    ["--filter", "@paperclipai/plugin-sdk", "build"],
+    ["--filter", "@nexusai/plugin-sdk", "build"],
     { stdio: "inherit" },
   );
   if (result.signal) {
@@ -526,7 +526,7 @@ async function buildPluginSdk() {
     return;
   }
   if (result.code !== 0) {
-    console.error("[paperclip] plugin sdk build failed");
+    console.error("[nexus] plugin sdk build failed");
     process.exit(result.code);
   }
 }
@@ -536,7 +536,7 @@ async function getNativeRunnerRequired(): Promise<boolean> {
     [
       "--silent",
       "--filter",
-      "@paperclipai/server",
+      "@nexusai/server",
       "exec",
       "tsx",
       "src/dev-native-runner-status.ts",
@@ -554,16 +554,16 @@ async function getNativeRunnerRequired(): Promise<boolean> {
   if (!requirement.valid) {
     const detail = status.stderr || status.stdout;
     process.stderr.write(
-      `[paperclip] unable to determine the native runner requirement; conservatively preparing the native runner${detail ? `\n${detail}` : "\n"}`,
+      `[nexus] unable to determine the native runner requirement; conservatively preparing the native runner${detail ? `\n${detail}` : "\n"}`,
     );
   }
   return requirement.nativeRunnerRequired;
 }
 
-async function buildPaperclipRunner() {
-  console.log("[paperclip] building paperclip runner...");
+async function buildNexusRunner() {
+  console.log("[nexus] building nexus runner...");
   const typescriptResult = await runPnpm(
-    ["--filter", "@paperclipai/paperclip-runner", "build:typescript"],
+    ["--filter", "@nexusai/nexus-runner", "build:typescript"],
     { stdio: "inherit" },
   );
   if (typescriptResult.signal) {
@@ -571,21 +571,21 @@ async function buildPaperclipRunner() {
     return;
   }
   if (typescriptResult.code !== 0) {
-    console.error("[paperclip] paperclip runner build failed");
+    console.error("[nexus] nexus runner build failed");
     process.exit(typescriptResult.code);
   }
 
   const nativeRunnerRequired = await getNativeRunnerRequired();
   if (
-    paperclipRunnerBinaryNeedsBuild({
+    nexusRunnerBinaryNeedsBuild({
       repoRoot,
       nativeRunnerRequired,
       configuredBinary: configuredRunnerBinary,
     })
   ) {
-    console.log("[paperclip] building paperclip runner native binary...");
+    console.log("[nexus] building nexus runner native binary...");
     const binaryResult = await runPnpm(
-      ["--filter", "@paperclipai/paperclip-runner", "build:binary"],
+      ["--filter", "@nexusai/nexus-runner", "build:binary"],
       { stdio: "inherit" },
     );
     if (binaryResult.signal) {
@@ -593,14 +593,14 @@ async function buildPaperclipRunner() {
       return;
     }
     if (binaryResult.code !== 0) {
-      console.error("[paperclip] paperclip runner native binary build failed");
+      console.error("[nexus] nexus runner native binary build failed");
       process.exit(binaryResult.code);
     }
   }
   if (!configuredRunnerBinary?.trim()) {
     const selected = nativeRunnerRequired ? resolveNativeRunnerDevBinary({ repoRoot }) : null;
-    if (selected?.sourceBuild) env.PAPERCLIP_RUNNER_BINARY = selected.binary;
-    else delete env.PAPERCLIP_RUNNER_BINARY;
+    if (selected?.sourceBuild) env.NEXUS_RUNNER_BINARY = selected.binary;
+    else delete env.NEXUS_RUNNER_BINARY;
   }
 }
 
@@ -633,9 +633,9 @@ function uiBundleIsFresh(): boolean {
 }
 
 async function buildUiBundleForManagedRuntime(): Promise<boolean> {
-  console.log("[paperclip] managed runtime: building the UI bundle for static serving...");
+  console.log("[nexus] managed runtime: building the UI bundle for static serving...");
   const result = await runPnpm(
-    ["--filter", "@paperclipai/ui", "build"],
+    ["--filter", "@nexusai/ui", "build"],
     { stdio: "inherit" },
   );
   if (result.signal) {
@@ -644,7 +644,7 @@ async function buildUiBundleForManagedRuntime(): Promise<boolean> {
   }
   if (result.code !== 0) {
     console.error(
-      "[paperclip] UI bundle build failed; falling back to the Vite dev middleware (the page may load slowly or stay blank over HTTPS)",
+      "[nexus] UI bundle build failed; falling back to the Vite dev middleware (the page may load slowly or stay blank over HTTPS)",
     );
     return false;
   }
@@ -713,13 +713,13 @@ async function stopChildForRestart() {
 }
 
 async function startServerChild() {
-  await buildPaperclipRunner();
+  await buildNexusRunner();
   await buildPluginSdk();
 
   const serverScript = mode === "watch" ? "dev:watch" : "dev";
   child = spawn(
     pnpmBin,
-    ["--filter", "@paperclipai/server", serverScript, ...forwardedArgs],
+    ["--filter", "@nexusai/server", serverScript, ...forwardedArgs],
     { stdio: "inherit", env, shell: process.platform === "win32" },
   );
 
@@ -893,14 +893,14 @@ process.on("SIGTERM", () => {
 let uiBundleBuild: Promise<boolean> | null = null;
 if (serveBuiltUiForManagedRuntime) {
   if (uiBundleIsFresh()) {
-    console.log("[paperclip] managed runtime: reusing the up-to-date UI bundle in ui/dist");
+    console.log("[nexus] managed runtime: reusing the up-to-date UI bundle in ui/dist");
   } else {
     uiBundleBuild = buildUiBundleForManagedRuntime();
   }
 }
 await maybePreflightMigrations();
 if (uiBundleBuild) {
-  env.PAPERCLIP_UI_DEV_MIDDLEWARE = (await uiBundleBuild) ? "false" : "true";
+  env.NEXUS_UI_DEV_MIDDLEWARE = (await uiBundleBuild) ? "false" : "true";
 }
 await startServerChild();
 installDevIntervals();

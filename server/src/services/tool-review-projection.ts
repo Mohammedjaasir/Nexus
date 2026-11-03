@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
-import { issueThreadInteractions, toolActionRequests, toolInvocations, type Db } from "@paperclipai/db";
+import { issueThreadInteractions, toolActionRequests, toolInvocations, type Db } from "@nexusai/db";
 
 export function toolReviewProjectionService(db: Db, reflect: (input: {
   actionRequestId: string;

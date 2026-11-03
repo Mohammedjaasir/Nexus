@@ -9,8 +9,8 @@ import { expect, type BrowserContext, type Page } from "@playwright/test";
 const require = createRequire(path.resolve(import.meta.dirname, "../../server/package.json"));
 const { Client } = await import(require.resolve("@modelcontextprotocol/sdk/client/index.js"));
 const { StreamableHTTPClientTransport } = await import(require.resolve("@modelcontextprotocol/sdk/client/streamableHttp.js"));
-export const origin = `http://127.0.0.1:${process.env.PAPERCLIP_RUNNER_E2E_PORT ?? process.env.PAPERCLIP_PUBLIC_MCP_EVAL_PORT ?? 3298}`;
-export const resource = origin + "/mcp/paperclip";
+export const origin = `http://127.0.0.1:${process.env.NEXUS_RUNNER_E2E_PORT ?? process.env.NEXUS_PUBLIC_MCP_EVAL_PORT ?? 3298}`;
+export const resource = origin + "/mcp/nexus";
 export interface Team { id: string; name: string; issuePrefix: string }
 export interface Agent { id: string; name: string; status: string }
 export interface Task { id: string; companyId: string; title: string; status: string; assigneeAgentId: string | null }
@@ -31,12 +31,12 @@ export async function oauthPost(route: string, body: unknown) {
 }
 
 export async function beginConnection(write = true, redirect = origin + "/eval-client-callback", configure = false) {
-  const registration = await oauthPost("register", { client_name: "Paperclip acceptance client", redirect_uris: [redirect] });
+  const registration = await oauthPost("register", { client_name: "Nexus acceptance client", redirect_uris: [redirect] });
   expect(registration.status, "public client registration").toBe(201);
   const { client_id: clientId } = await registration.json() as { client_id: string };
   const verifier = randomBytes(32).toString("base64url");
   const state = randomBytes(32).toString("base64url");
-  const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirect, response_type: "code", resource, code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256", state, scope: `paperclip:read ${write ? "paperclip:write " : ""}${configure ? "paperclip:configure " : ""}offline_access` });
+  const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirect, response_type: "code", resource, code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256", state, scope: `nexus:read ${write ? "nexus:write " : ""}${configure ? "nexus:configure " : ""}offline_access` });
   const response = await fetch(origin + "/mcp/oauth/authorize?" + params, { redirect: "manual" });
   expect(response.status, "authorization request").toBe(303);
   const consentUrl = response.headers.get("location")!;
@@ -45,7 +45,7 @@ export async function beginConnection(write = true, redirect = origin + "/eval-c
 
 export async function connect(context: BrowserContext, team: Team, write = true, page?: Page, secrets: string[] = [], configure = false) {
   // A real assistant callback has its own origin. A same-origin fake callback
-  // would be intercepted by Paperclip's service worker and render the board.
+  // would be intercepted by Nexus's service worker and render the board.
   const callbackServer = page ? createServer((_req, res) => { res.writeHead(200, { "Content-Type": "text/html", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); res.end("<h1>Assistant connected</h1>"); }) : undefined;
   if (callbackServer) { callbackServer.listen(0, "127.0.0.1"); await once(callbackServer, "listening"); }
   const address = callbackServer?.address();
@@ -55,9 +55,9 @@ export async function connect(context: BrowserContext, team: Team, write = true,
   let redirectUrl: string;
   if (page) {
     await page.goto(request.consentUrl);
-    await expect(page.getByRole("heading", { name: /^Connect .+ to Paperclip$/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Connect .+ to Nexus$/ })).toBeVisible();
     await page.getByRole("radio", { name: team.name, exact: true }).check();
-    if (write || configure) await page.getByRole("checkbox", { name: "Write all of your Paperclip data", exact: true }).check();
+    if (write || configure) await page.getByRole("checkbox", { name: "Write all of your Nexus data", exact: true }).check();
     await page.getByRole("button", { name: "Connect organization", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Assistant connected" })).toBeVisible();
     redirectUrl = page.url();
@@ -81,7 +81,7 @@ export async function connect(context: BrowserContext, team: Team, write = true,
 }
 
 export async function mcp(tokens: Tokens) {
-  const client = new Client({ name: "paperclip-product-eval", version: "1.0.0" });
+  const client = new Client({ name: "nexus-product-eval", version: "1.0.0" });
   await client.connect(new StreamableHTTPClientTransport(new URL(resource), { requestInit: { headers: { Authorization: `Bearer ${tokens.access_token}` } } }));
   return {
     list: async () => await client.listTools() as { tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown>; annotations: { readOnlyHint: boolean } }> },
@@ -145,7 +145,7 @@ export async function eventReceiver(secrets: string[], startupFailures: string[]
   server.listen(0, "127.0.0.1"); await once(server, "listening");
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Event receiver did not start");
-  const tunnel = spawn(process.env.PAPERCLIP_EVAL_CLOUDFLARED ?? "cloudflared", ["tunnel", "--no-autoupdate", "--protocol", "http2", "--url", `http://127.0.0.1:${address.port}`], { stdio: ["ignore", "pipe", "pipe"] });
+  const tunnel = spawn(process.env.NEXUS_EVAL_CLOUDFLARED ?? "cloudflared", ["tunnel", "--no-autoupdate", "--protocol", "http2", "--url", `http://127.0.0.1:${address.port}`], { stdio: ["ignore", "pipe", "pipe"] });
   const close = async () => {
     if (tunnel.pid && tunnel.exitCode === null && tunnel.signalCode === null) {
       const exited = once(tunnel, "exit").catch(() => {});

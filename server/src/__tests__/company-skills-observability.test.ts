@@ -8,7 +8,7 @@ import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { InMemorySpanExporter, SimpleSpanProcessor, TracerProvider } from "@opentelemetry/sdk-trace";
 import { companies, companySkills, companySkillVersions, companySkillRepositorySnapshots, createDb,
-  EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+  EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { createRunPreparationTiming, withRunExecutionTiming } from "../services/execution-preparation-timing.js";
 import { skillSnapshotHash } from "../services/skill-snapshot.js";
@@ -38,7 +38,7 @@ describeDatabase("runtime skill observability", () => {
     database = await startEmbeddedPostgresTestDatabase("skill-observability-");
     db = createDb(database.connectionString);
     home = await fs.mkdtemp(path.join(os.tmpdir(), "skill-observability-"));
-    vi.stubEnv("PAPERCLIP_HOME", home);
+    vi.stubEnv("NEXUS_HOME", home);
     vi.stubEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector.test");
     expect(context.setGlobalContextManager(manager.enable())).toBe(true);
     expect(trace.setGlobalTracerProvider(provider)).toBe(true);
@@ -123,7 +123,7 @@ describeDatabase("runtime skill observability", () => {
     expect(lifecycle.indexOf("end:skills.cache.acquire")).toBeLessThan(lifecycle.indexOf("start:skills.rows"));
     expect(new Set(spans.map(value => value.spanContext().traceId)).size).toBe(1);
     expect(spans.every(value => Object.keys(value.attributes).every(key => [
-      "paperclip.task.run.run_id", "paperclip.execution.fileCount", "paperclip.execution.bytes",
+      "nexus.task.run.run_id", "nexus.execution.fileCount", "nexus.execution.bytes",
     ].includes(key)))).toBe(true);
   }, 30_000);
 

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, agentWakeupRequests, companies, createDb, issueComments, issues } from "@paperclipai/db";
+import { agents, agentWakeupRequests, companies, createDb, issueComments, issues } from "@nexusai/db";
 import { conflict } from "../errors.js";
 import { deliverConversationComments, undeliveredConversationComments } from "../services/agent-conversations.js";
 import { instanceSettingsService } from "../services/instance-settings.js";

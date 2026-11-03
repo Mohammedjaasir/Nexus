@@ -2,7 +2,7 @@ import { usePrimaryAgentPresentation } from "./primary-agent/PrimaryAgentPresent
 import { useWorkspaceIsolationControls } from "@/hooks/useWorkspaceIsolationControls";
 import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties, type DragEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { AgentEnvConfig, EnvBinding, IssueWorkMode } from "@paperclipai/shared";
+import type { AgentEnvConfig, EnvBinding, IssueWorkMode } from "@nexusai/shared";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
 import { executionWorkspacesApi } from "../api/execution-workspaces";
@@ -54,9 +54,9 @@ import { useStagedIssueFiles } from "../hooks/useStagedIssueFiles";
 import type { StagedIssueFile } from "../lib/staged-issue-files";
 import { isImageAttachment } from "./task-chat/task-chat-attachments";
 
-const DRAFT_KEY = "paperclip:issue-draft";
+const DRAFT_KEY = "nexus:issue-draft";
 /** A create that is waiting to resend: its request body and idempotency key. */
-const PENDING_CREATE_KEY = "paperclip:issue-draft:pending-create";
+const PENDING_CREATE_KEY = "nexus:issue-draft:pending-create";
 
 /**
  * The create request keeps file names for reconciliation. File bytes are stored
@@ -91,7 +91,7 @@ class StagedFilesMissingError extends Error {
  * kept until a create succeeds or the user cancels, so reattaching after any
  * number of reloads replays a create that already reached the server.
  */
-const CREATE_AWAITING_FILES_KEY = "paperclip:issue-draft:create-awaiting-files";
+const CREATE_AWAITING_FILES_KEY = "nexus:issue-draft:create-awaiting-files";
 
 function stagedFilesMissingDescription(names: string[]): ErrorDescription {
   return describeError(new StagedFilesMissingError(names), { action: "create the task" });
@@ -210,7 +210,7 @@ interface IssueDraft {
  * key, after a reload mid-upload) gets the existing task back from the
  * server, and must not add those files a second time.
  */
-const CREATE_UPLOAD_RECEIPTS_PREFIX = "paperclip:issue-draft:create-uploads:";
+const CREATE_UPLOAD_RECEIPTS_PREFIX = "nexus:issue-draft:create-uploads:";
 
 function loadCreateUploadReceipts(idempotencyKey: string): Set<string> {
   try {
@@ -1439,7 +1439,7 @@ function AccountNewIssueDialog({ ignoreDefaults }: { ignoreDefaults: boolean }) 
           const target = event.detail.originalEvent.target as HTMLElement | null;
           if (
             createIssue.isPending ||
-            target?.closest("[data-radix-popper-content-wrapper], [data-paperclip-floating-ui]")
+            target?.closest("[data-radix-popper-content-wrapper], [data-nexus-floating-ui]")
           ) {
             event.preventDefault();
           }

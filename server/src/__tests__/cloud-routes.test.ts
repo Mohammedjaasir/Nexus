@@ -10,9 +10,9 @@ import { logger } from "../middleware/logger.js";
 afterEach(() => vi.restoreAllMocks());
 
 const cloudEnv = {
-  PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: "tenant-secret",
-  PAPERCLIP_CLOUD_STACK_ID: "stack-current",
-  PAPERCLIP_CLOUD_API_ORIGIN: "https://cloud.example.test/control-plane",
+  NEXUS_CLOUD_TENANT_SERVER_TOKEN: "tenant-secret",
+  NEXUS_CLOUD_STACK_ID: "stack-current",
+  NEXUS_CLOUD_API_ORIGIN: "https://cloud.example.test/control-plane",
 };
 
 function cloudActor(userId: string) {
@@ -64,7 +64,7 @@ describe("GET /api/cloud/stacks", () => {
     const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
     const response = await request(createApp({ fetchImpl })).get("/api/cloud/stacks").set("Cookie", "client-session=private-cookie");
     expect(response.status).toBe(502);
-    expect(response.body).toEqual({ error: "Paperclip Cloud portfolio request failed", code: "cloud_portfolio_upstream_error", details: { code: "cloud_portfolio_upstream_error" } });
+    expect(response.body).toEqual({ error: "Nexus Cloud portfolio request failed", code: "cloud_portfolio_upstream_error", details: { code: "cloud_portfolio_upstream_error" } });
     expect(response.headers["set-cookie"]).toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(new Headers(fetchImpl.mock.calls[0]![1]!.headers).has("cookie")).toBe(false);
@@ -74,7 +74,7 @@ describe("GET /api/cloud/stacks", () => {
     expect(error.diagnostics).toMatchObject({ phase: "http_response", upstreamStatus: status, networkCode: "unknown", elapsedMs: expect.any(Number) });
     expect(error.stack).toContain("routes/cloud.ts:");
     expect(error.stack).not.toContain("at portfolioError");
-    expect(warn).toHaveBeenCalledWith({ cloudPortfolio: error.diagnostics }, "Paperclip Cloud portfolio request failed");
+    expect(warn).toHaveBeenCalledWith({ cloudPortfolio: error.diagnostics }, "Nexus Cloud portfolio request failed");
     expect(JSON.stringify(warn.mock.calls)).not.toContain("private");
   });
 
@@ -87,7 +87,7 @@ describe("GET /api/cloud/stacks", () => {
     const app = createApp({ fetchImpl });
     const failure = await request(app).get("/api/cloud/stacks");
     expect(failure.status).toBe(502);
-    expect(failure.body).toEqual({ error: "Paperclip Cloud portfolio request failed", code: "cloud_portfolio_upstream_error", details: { code: "cloud_portfolio_upstream_error" } });
+    expect(failure.body).toEqual({ error: "Nexus Cloud portfolio request failed", code: "cloud_portfolio_upstream_error", details: { code: "cloud_portfolio_upstream_error" } });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const error = capture.mock.calls[0]![0] as CloudPortfolioError;
     expect(error.diagnostics).toMatchObject({ phase: "fetch", upstreamStatus: null, networkCode: "ECONNRESET" });
@@ -111,7 +111,7 @@ describe("GET /api/cloud/stacks", () => {
     for (let count = 1; count <= 2; count++) {
       const response = await request(app).get("/api/cloud/stacks");
       expect(response.status).toBe(502);
-      expect(response.body).toEqual({ error: "Paperclip Cloud portfolio returned invalid JSON", code: "cloud_portfolio_invalid_response", details: { code: "cloud_portfolio_invalid_response" } });
+      expect(response.body).toEqual({ error: "Nexus Cloud portfolio returned invalid JSON", code: "cloud_portfolio_invalid_response", details: { code: "cloud_portfolio_invalid_response" } });
       expect(fetchImpl).toHaveBeenCalledTimes(count);
     }
     expect(timeout).toHaveBeenCalledWith(10_000);
@@ -127,7 +127,7 @@ describe("GET /api/cloud/stacks", () => {
     const fetchImpl = vi.fn<typeof fetch>().mockRejectedValue(signal.reason);
     const capture = vi.spyOn(sentry, "captureException").mockImplementation(() => {});
     const response = await request(createApp({ fetchImpl })).get("/api/cloud/stacks");
-    expect(response.body).toEqual({ error: "Paperclip Cloud portfolio request failed", code: "cloud_portfolio_upstream_error", details: { code: "cloud_portfolio_upstream_error" } });
+    expect(response.body).toEqual({ error: "Nexus Cloud portfolio request failed", code: "cloud_portfolio_upstream_error", details: { code: "cloud_portfolio_upstream_error" } });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(fetchImpl.mock.calls[0]![1]?.signal).toBe(signal);
     expect(timeout).toHaveBeenCalledWith(10_000);
@@ -143,7 +143,7 @@ describe("GET /api/cloud/stacks", () => {
     const capture = vi.spyOn(sentry, "captureException").mockImplementation(() => {});
     const response = await request(createApp({ fetchImpl })).get("/api/cloud/stacks");
     expect(response.status).toBe(502);
-    expect(response.body).toEqual({ error: "Paperclip Cloud portfolio request failed", code: "cloud_portfolio_upstream_error", details: { code: "cloud_portfolio_upstream_error" } });
+    expect(response.body).toEqual({ error: "Nexus Cloud portfolio request failed", code: "cloud_portfolio_upstream_error", details: { code: "cloud_portfolio_upstream_error" } });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect((capture.mock.calls[0]![0] as CloudPortfolioError).diagnostics).toMatchObject({ phase: "response_write", upstreamStatus: 200, networkCode: "unknown" });
   });
@@ -155,7 +155,7 @@ describe("GET /api/cloud/stacks", () => {
 
     const res = await request(app)
       .get("/api/cloud/stacks?userId=client-supplied-user")
-      .set("x-paperclip-cloud-user-id", "spoofed-header-user")
+      .set("x-nexus-cloud-user-id", "spoofed-header-user")
       .set("authorization", "Bearer client-token");
 
     expect(res.status).toBe(200);
@@ -169,8 +169,8 @@ describe("GET /api/cloud/stacks", () => {
     expect(init?.headers).toEqual({
       accept: "application/json",
       authorization: "Bearer tenant-secret",
-      "x-paperclip-cloud-user-id": "actor-user",
-      "x-paperclip-cloud-stack-id": "stack-current",
+      "x-nexus-cloud-user-id": "actor-user",
+      "x-nexus-cloud-stack-id": "stack-current",
     });
     expect(JSON.stringify(init)).not.toContain("client-supplied-user");
     expect(JSON.stringify(init)).not.toContain("spoofed-header-user");
@@ -199,7 +199,7 @@ describe("GET /api/cloud/stacks", () => {
   it("keeps cache entries isolated by the server-derived actor user id", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
       const headers = new Headers(init?.headers);
-      return jsonResponse({ userId: headers.get("x-paperclip-cloud-user-id") });
+      return jsonResponse({ userId: headers.get("x-nexus-cloud-user-id") });
     });
     const app = express();
     app.use((req, _res, next) => {

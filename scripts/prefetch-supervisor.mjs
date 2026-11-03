@@ -19,7 +19,7 @@ import { fstatSync } from 'node:fs';
 import { constants } from 'node:os';
 
 const GROUPS = process.platform !== 'win32';
-const GRACE_MS = Number(process.env.PAPERCLIP_PREFETCH_GRACE_MS) || 5000;
+const GRACE_MS = Number(process.env.NEXUS_PREFETCH_GRACE_MS) || 5000;
 const [cmd, ...args] = process.argv.slice(2);
 if (!cmd) {
   process.stderr.write('prefetch supervisor: usage: prefetch-supervisor.mjs <command> [args...]\n');

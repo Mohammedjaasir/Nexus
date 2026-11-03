@@ -4,7 +4,7 @@ Updated: 2026-10-21. Status: US OAuth connected and exercised against an
 authorized account; US API-key and both EU methods still require live account
 qualification. The remaining qualification gaps are listed below.
 
-Braintrust is a P2 resource connection using Paperclip's existing remote MCP
+Braintrust is a P2 resource connection using Nexus's existing remote MCP
 transport, vault, catalog, access profiles, policy evaluation, run-scoped gateway,
 and audit. Sign-in tokens are never reused as resource tokens; id.paperclip.ing
 never stores resource tokens; no connections hub on the ID service.
@@ -27,11 +27,11 @@ Open **Apps → Braintrust** or `/apps/connect?source=braintrust`, choose access
 then select the method for the account's region. OAuth registers a client
 dynamically and requests only `mcp`. No client ID or secret is entered manually.
 For an API key, create a separate key in Braintrust **Settings → API keys**, then
-paste it into Paperclip's password field. Paperclip projects the write-only
+paste it into Nexus's password field. Nexus projects the write-only
 credential as `Authorization: Bearer <key>`. See the official
 [MCP setup guide](https://www.braintrust.dev/docs/integrations/developer-tools/mcp).
 
-Braintrust OAuth and API keys inherit their account's permissions. Paperclip
+Braintrust OAuth and API keys inherit their account's permissions. Nexus
 cannot grant an issued key additional access. See Braintrust's
 [authentication model](https://www.braintrust.dev/docs/admin/authentication).
 Use the normal personal or shared credential identity and agent selection.
@@ -39,13 +39,13 @@ Personal invocation credentials remain owned by their user; shared credentials
 use the company vault. Client-registration credentials are separate from
 invocation credentials. Agents receive gateway access, never the provider key.
 
-There is no Paperclip project filter: project IDs in tool arguments do not
+There is no Nexus project filter: project IDs in tool arguments do not
 establish an access boundary. Resource authorization remains with Braintrust,
-while Paperclip enforces company, grant, agent, task, and action policy.
+while Nexus enforces company, grant, agent, task, and action policy.
 
 Self-hosted Braintrust uses **Connect your own MCP server** with the deployment's
 MCP URL. See the [generic remote MCP guide](./GENERIC-REMOTE-MCP.md). This
-connector does not configure Paperclip's Braintrust trace exporter.
+connector does not configure Nexus's Braintrust trace exporter.
 
 ## Public protocol evidence
 
@@ -63,7 +63,7 @@ document, with the exact `/mcp` resource and same-origin authorization server.
 
 Both servers advertise `authorization_code` and `refresh_token`, scope `mcp`,
 PKCE `S256` and `plain`, and token authentication `client_secret_post`,
-`client_secret_basic`, and `none`. Paperclip uses PKCE S256 and declares only
+`client_secret_basic`, and `none`. Nexus uses PKCE S256 and declares only
 `ownershipModes: ["dcr"]`. Neither metadata document advertised CIMD or a
 revocation endpoint. No dynamic registration, consent, token exchange, or
 authenticated tool discovery was performed by these public probes.
@@ -75,7 +75,7 @@ policy registry selects it and declares catalog review behavior; the shared
 connection service applies those policies. Retrieval tools are reads, including SQL, schema and
 experiment inspection, object lookup, trace inspection, chart previews,
 documentation search, and skill loading. Loading a provider skill is a governed
-read; it does not install a Paperclip skill.
+read; it does not install a Nexus skill.
 
 `edit_dataset_rows` is destructive because rows can be permanently deleted.
 `set_automation_status` is destructive because activation can enable retention
@@ -89,7 +89,7 @@ mutations. The
 provider-permission rationale for every method.
 
 Risk classification does not change the central action defaults: discovered
-actions initially use Paperclip's current **Allowed** defaults. Operators can
+actions initially use Nexus's current **Allowed** defaults. Operators can
 set actions to **Ask first** or **Off** on **Permissions**. Existing decisions
 survive reconnect and refresh. After initial discovery, new or changed tools
 are quarantined for review; reconnect and refresh preserve that setting.
@@ -103,9 +103,9 @@ authorization. Do not switch regions to repair a credential error. An
 insufficient-permission failure requires the owner to authorize an account or
 key with the intended Braintrust access.
 
-Remove the connection in Paperclip to clear its local credentials and tool
+Remove the connection in Nexus to clear its local credentials and tool
 access. Deactivate an API key in Braintrust separately to invalidate copies
-outside Paperclip. API keys are displayed once; expired keys require replacement,
+outside Nexus. API keys are displayed once; expired keys require replacement,
 as described in the
 [authentication documentation](https://www.braintrust.dev/docs/admin/authentication).
 OAuth provider-side revocation is unqualified: the public metadata advertises
@@ -139,7 +139,7 @@ Catalog refresh and OAuth reconnect retained the same connection, US method,
 49 actions, and changed-tool quarantine configuration. A subsequent bounded
 read succeeded. The provider returned `openid profile email offline_access` in
 the token response scope despite the authorization request containing only
-`mcp`; Paperclip retained that discrepancy as provider metadata. Access-token
+`mcp`; Nexus retained that discrepancy as provider metadata. Access-token
 expiry and refresh were tested with fixtures, not forced on this live grant.
 
 Cleanup deleted the synthetic row, verified an empty result, and removed the
@@ -169,7 +169,7 @@ through the real run-scoped gateway. Verify cancellation/resume and reconnect
 without duplicate connections or regional changes. Inspect API responses,
 browser storage, logs, and stored secret references without copying tokens or
 customer traces into evidence. Fixture-backed verification establishes
-Paperclip behavior only; record its commands/results separately from live
+Nexus behavior only; record its commands/results separately from live
 provider proof, following the
 [connector playbook](./CONNECTOR-PLAYBOOK.md#step-9-align-with-production-validation).
 
@@ -189,7 +189,7 @@ The catalog suite validates all four reviewed contracts. Apps setup tests cover
 each region/authentication choice and retrying the saved EU OAuth connection.
 Brand validation checks the official local artwork; provenance is recorded in
 [`braintrust-brand-provenance-2026-10-21.json`](./braintrust-brand-provenance-2026-10-21.json).
-These checks establish Paperclip behavior with fixtures, not live Braintrust
+These checks establish Nexus behavior with fixtures, not live Braintrust
 account compatibility.
 
 The isolated browser walkthrough passed 15 checks covering Apps and direct-link

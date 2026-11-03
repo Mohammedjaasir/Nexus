@@ -3,7 +3,7 @@ title: Storage
 summary: Local disk vs S3-compatible storage
 ---
 
-Paperclip stores uploaded files (issue attachments, images) using a configurable storage provider.
+Nexus stores uploaded files (issue attachments, images) using a configurable storage provider.
 New run logs and explicitly requested provider traces reuse the same settings.
 S3 instances store these under `run-logs/` and `provider-traces/` within the
 existing prefix. Local-disk instances keep them local.
@@ -13,7 +13,7 @@ existing prefix. Local-disk instances keep them local.
 Files are stored at:
 
 ```
-~/.paperclip/instances/default/data/storage
+~/.nexus/instances/default/data/storage
 ```
 
 No configuration required. Suitable for local development and single-machine deployments.
@@ -25,7 +25,7 @@ For production or multi-node deployments, use S3-compatible object storage (AWS 
 Configure via CLI:
 
 ```sh
-pnpm paperclipai configure --section storage
+pnpm nexusai configure --section storage
 ```
 
 ## Configuration
@@ -38,5 +38,5 @@ pnpm paperclipai configure --section storage
 Storage configuration is stored in the instance config file:
 
 ```
-~/.paperclip/instances/default/config.json
+~/.nexus/instances/default/config.json
 ```

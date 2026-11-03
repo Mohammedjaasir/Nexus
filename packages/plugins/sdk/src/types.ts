@@ -1,8 +1,8 @@
 /**
- * Core types for the Paperclip plugin worker-side SDK.
+ * Core types for the Nexus plugin worker-side SDK.
  *
  * These types define the stable public API surface that plugin workers import
- * from `@paperclipai/plugin-sdk`.  The host provides a concrete implementation
+ * from `@nexusai/plugin-sdk`.  The host provides a concrete implementation
  * of `PluginContext` to the plugin at initialisation time.
  *
  * @see PLUGIN_SPEC.md §14 — SDK Surface
@@ -10,7 +10,7 @@
  */
 
 import type {
-  PaperclipPluginManifestV1,
+  NexusPluginManifestV1,
   PluginStateScopeKind,
   PluginEventType,
   PluginToolDeclaration,
@@ -56,15 +56,15 @@ import type {
   PrincipalPermissionGrant,
   PrincipalType,
   EnvSecretRefBinding,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import type { PluginPerformActionContext } from "./protocol.js";
 
 // ---------------------------------------------------------------------------
-// Re-exports from @paperclipai/shared (plugin authors import from one place)
+// Re-exports from @nexusai/shared (plugin authors import from one place)
 // ---------------------------------------------------------------------------
 
 export type {
-  PaperclipPluginManifestV1,
+  NexusPluginManifestV1,
   PluginJobDeclaration,
   PluginWebhookDeclaration,
   PluginToolDeclaration,
@@ -156,7 +156,7 @@ export type {
   PrincipalPermissionGrant,
   PrincipalType,
   EnvSecretRefBinding,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 // ---------------------------------------------------------------------------
 // Scope key — identifies where plugin state is stored
@@ -174,7 +174,7 @@ export type {
  * @see PLUGIN_SPEC.md §21.3 `plugin_state`
  */
 export interface ScopeKey {
-  /** What kind of Paperclip object this state is scoped to. */
+  /** What kind of Nexus object this state is scoped to. */
   scopeKind: PluginStateScopeKind;
   /** UUID or text identifier for the scoped object. Omit for `instance` scope. */
   scopeId?: string;
@@ -306,7 +306,7 @@ export interface PluginEntityUpsert {
   scopeId?: string;
   /** External identifier in the remote system (e.g. Linear issue ID). */
   externalId?: string;
-  /** Human-readable title for display in the Paperclip UI. */
+  /** Human-readable title for display in the Nexus UI. */
   title?: string;
   /** Optional status string. */
   status?: string;
@@ -516,7 +516,7 @@ export interface PluginLocalFolderListing {
 
 export interface PluginLocalFoldersClient {
   /** Manifest-declared local folders for this plugin. */
-  declarations(): import("@paperclipai/shared").PluginLocalFolderDeclaration[];
+  declarations(): import("@nexusai/shared").PluginLocalFolderDeclaration[];
   /** Persist a company-scoped local folder path after validating it. */
   configure(input: PluginLocalFolderConfigureInput): Promise<PluginLocalFolderStatus>;
   /** Check the stored folder readiness for a company and folder key. */
@@ -537,7 +537,7 @@ export interface PluginLocalFoldersClient {
 }
 
 /**
- * `ctx.events` — subscribe to and emit Paperclip domain events.
+ * `ctx.events` — subscribe to and emit Nexus domain events.
  *
  * Requires `events.subscribe` capability for `on()`.
  * Requires `events.emit` capability for `emit()`.
@@ -555,7 +555,7 @@ export interface PluginEventsClient {
   /** Acknowledge only after the provider operation succeeds. */
   acknowledgeLifecycle(companyId: string, eventId: string): Promise<void>;
   /**
-   * Subscribe to a core Paperclip domain event or a plugin-namespaced event.
+   * Subscribe to a core Nexus domain event or a plugin-namespaced event.
    *
    * @param name - Event type, e.g. `"issue.created"` or `"plugin.@acme/linear.sync-done"`
    * @param fn - Async event handler
@@ -696,7 +696,7 @@ export interface PluginHttpClient {
  *
  * Plugins store shared `{ type: "secret_ref", secretId, version? }` bindings in
  * company-scoped config. This client resolves a bound ref through the
- * Paperclip secret provider system at execution time.
+ * Nexus secret provider system at execution time.
  *
  * @see PLUGIN_SPEC.md §22 — Secrets
  */
@@ -952,7 +952,7 @@ export interface PluginExecutionWorkspacesClient {
 }
 
 /**
- * `ctx.routines` — resolve and reconcile plugin-managed Paperclip routines.
+ * `ctx.routines` — resolve and reconcile plugin-managed Nexus routines.
  *
  * Requires `routines.managed` capability.
  */
@@ -2059,7 +2059,7 @@ export interface PluginAuthorizationClient {
  * ctx.streams.close("chat");
  * ```
  *
- * @see usePluginStream in `@paperclipai/plugin-sdk/ui`
+ * @see usePluginStream in `@nexusai/plugin-sdk/ui`
  */
 export interface PluginStreamsClient {
   /**
@@ -2191,7 +2191,7 @@ export interface PluginDuplexChannelClient {
  *
  * @example
  * ```ts
- * import { definePlugin } from "@paperclipai/plugin-sdk";
+ * import { definePlugin } from "@nexusai/plugin-sdk";
  *
  * export default definePlugin({
  *   async setup(ctx) {
@@ -2211,7 +2211,7 @@ export interface PluginDuplexChannelClient {
  */
 export interface PluginContext {
   /** The plugin's manifest as validated at install time. */
-  manifest: PaperclipPluginManifestV1;
+  manifest: NexusPluginManifestV1;
 
   /** Read resolved operator configuration. */
   config: PluginConfigClient;

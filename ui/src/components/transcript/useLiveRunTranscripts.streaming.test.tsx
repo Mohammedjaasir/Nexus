@@ -2,7 +2,7 @@
 
 import { act, type ReactNode } from "react";
 import { createRoot as createReactRoot } from "react-dom/client";
-import type { LiveEvent } from "@paperclipai/shared";
+import type { LiveEvent } from "@nexusai/shared";
 import { __liveUpdatesTestUtils, type CompanyLiveEventHandler } from "../../context/LiveUpdatesProvider";
 import { LiveTranscriptInterests } from "../../lib/live-transcript-interests";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

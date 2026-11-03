@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { agents, companies, createDb, environments, heartbeatRuns, issues, projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, type Db } from "@paperclipai/db";
+import { agents, companies, createDb, environments, heartbeatRuns, issues, projects, projectWorkspaces, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, type Db } from "@nexusai/db";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
-import { resolvePaperclipInstanceRoot } from "../../home-paths.js";
+import { resolveNexusInstanceRoot } from "../../home-paths.js";
 import { environmentService } from "../environments.js";
 import { executionWorkspaceService } from "../execution-workspaces.js";
 import { instanceSettingsService } from "../instance-settings.js";
@@ -28,9 +28,9 @@ describe.skipIf(!support.supported)("heartbeat environment selection boundary", 
   let home: string;
   beforeAll(async () => {
     home = await mkdtemp(join(tmpdir(), "heartbeat-environment-selection-"));
-    vi.stubEnv("PAPERCLIP_HOME", home);
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "environment-selection");
-    await mkdir(resolvePaperclipInstanceRoot(), { recursive: true });
+    vi.stubEnv("NEXUS_HOME", home);
+    vi.stubEnv("NEXUS_INSTANCE_ID", "environment-selection");
+    await mkdir(resolveNexusInstanceRoot(), { recursive: true });
     database = await startEmbeddedPostgresTestDatabase("heartbeat-environment-selection-");
     db = createDb(database.connectionString);
     await db.execute(sql`set client_min_messages = warning`);
@@ -74,7 +74,7 @@ describe.skipIf(!support.supported)("heartbeat environment selection boundary", 
         issue: { id: issue.id, identifier: "ENV-1", title: issue.title, description: null, workMode: "standard" },
         taskPrompt: "Continue the same task", normalizedSessionId: randomUUID(), provider: "codex",
         workspace: { id: workspaceId, cwd: home, repoUrl: null, repoRef: null, branchName: null },
-        completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "paperclip.run-result.v1", contract: { revision: "1", objective: "Select the environment", criteria: [{ id: "objective", requirement: "Preserve the workspace" }] } },
+        completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "nexus.run-result.v1", contract: { revision: "1", objective: "Select the environment", criteria: [{ id: "objective", requirement: "Preserve the workspace" }] } },
         runtimeContext: nativeRuntimeContextFixture(),
       }) };
     };
@@ -191,7 +191,7 @@ describe.skipIf(!support.supported)("heartbeat environment selection boundary", 
     const { input, issue, workspace } = await fixture();
     const source = await workspace();
     const [sandbox] = await db.insert(environments).values({ name: `External controller ${provider}`, driver: "sandbox", status: "active", config: { provider: "fake" } }).returning();
-    input.agent.adapterType = "paperclip_runner";
+    input.agent.adapterType = "nexus_runner";
     input.agent.adapterConfig = { provider };
     input.agent.defaultEnvironmentId = sandbox.id;
     input.task.issueRef!.executionWorkspaceId = source.id;
@@ -230,7 +230,7 @@ describe.skipIf(!support.supported)("heartbeat environment selection boundary", 
   it("returns the task-owned local chat root before workspace realization", async () => {
     const { input, issue } = await fixture();
     await db.update(issues).set({ originKind: "chat_channel", projectId: null }).where(eq(issues.id, issue.id));
-    input.agent.adapterType = "paperclip_runner";
+    input.agent.adapterType = "nexus_runner";
     input.task.executionProjectId = null;
     input.task.workspaceProjectContext = null;
     const result = await selectHeartbeatEnvironment(db, input);
@@ -249,7 +249,7 @@ describe.skipIf(!support.supported)("heartbeat environment selection boundary", 
     input.task.workspaceProjectContext = { hasWorkspace: true };
     input.task.hasSelectedWorkspaceSource = true;
     input.task.taskWorkspaceIntent = intent;
-    input.agent.adapterType = "paperclip_runner";
+    input.agent.adapterType = "nexus_runner";
     input.policy.requestedExecutionWorkspaceMode = "isolated_workspace";
     input.config.sourceWorkspaceConfig = { workspaceStrategy: { type: strategy } };
     if (strategy === "project_primary") {

@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, isNotNull, isNull, notExists, sql } from "drizzle-orm";
-import { heartbeatRuns, issueComments, nativeRunFinalizations, statusDecisions, type Db } from "@paperclipai/db";
+import { heartbeatRuns, issueComments, nativeRunFinalizations, statusDecisions, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { DELIVERY_QUEUES } from "../delivery-work-notifications.js";
 import type { NativeReviewResponseScope } from "../native-review-response-notifications.js";
@@ -29,7 +29,7 @@ export function nativeReviewResponseWork(db: Db) {
         isNotNull(nativeRunFinalizations.resultId), isNotNull(nativeRunFinalizations.assessmentId),
         eq(heartbeatRuns.runtimeMode, "native"), eq(heartbeatRuns.status, "succeeded"),
         eq(statusDecisions.reasonCode, "governed_response_waiting"), eq(statusDecisions.applicationState, "applied"),
-        sql`${statusDecisions.decisionJson}->'externalChatReviewPresentation'->>'schema' = 'paperclip.chat_review_response_presentation.v1'`,
+        sql`${statusDecisions.decisionJson}->'externalChatReviewPresentation'->>'schema' = 'nexus.chat_review_response_presentation.v1'`,
         notExists(db.select({ id: issueComments.id }).from(issueComments).where(and(
           eq(issueComments.companyId, nativeRunFinalizations.companyId), eq(issueComments.issueId, nativeRunFinalizations.issueId),
           eq(issueComments.createdByRunId, nativeRunFinalizations.runId), eq(issueComments.authorAgentId, heartbeatRuns.agentId),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Db } from "@paperclipai/db";
-import { INSTANCE_FEATURE_CATALOG } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { INSTANCE_FEATURE_CATALOG } from "@nexusai/shared";
 import {
   applyManagedExperimentalOverlay,
   instanceSettingsService,
@@ -20,7 +20,7 @@ const MANAGED_RAW = JSON.stringify({
 });
 
 function managedEnv(raw: string | undefined = MANAGED_RAW) {
-  return { PAPERCLIP_MANAGED_CONFIG: raw };
+  return { NEXUS_MANAGED_CONFIG: raw };
 }
 
 /**
@@ -77,7 +77,7 @@ describe("applyManagedExperimentalOverlay", () => {
     // unmanaged keys keep their stored/default values
     expect(experimental.enableCases).toBe(false);
     expect(managedKeys).toEqual({
-      enableStatusCards: { managed: true, managedBy: "paperclip-cloud" },
+      enableStatusCards: { managed: true, managedBy: "nexus-cloud" },
     });
     // input is not mutated
     expect(stored.enableApps).toBe(true);
@@ -88,37 +88,37 @@ describe("instanceSettingsService managed overlay", () => {
   it.each(["team.staging.paperclip.app", "team.paperclip.app"])(
     "enables private Notebook through managed config without changing stored opt-out on %s",
     async (primaryHost) => {
-      const row = settingsRow({ enablePaperclipNotebook: false });
+      const row = settingsRow({ enableNexusNotebook: false });
       const { db, persistedSets } = stubDb(row);
       const service = instanceSettingsService(db, { runtimeEnv: {
-        PAPERCLIP_PRIMARY_HOST: primaryHost,
+        NEXUS_PRIMARY_HOST: primaryHost,
         ...managedEnv(JSON.stringify({
           v: 1, mode: "cloud", catalogVersion: "test",
-          features: { enablePaperclipNotebook: true }, plugins: { autoInstall: [] },
+          features: { enableNexusNotebook: true }, plugins: { autoInstall: [] },
         })),
       } });
       expect(await service.getExperimental()).toMatchObject({
-        enablePaperclipNotebook: true,
-        managedKeys: { enablePaperclipNotebook: { managed: true, managedBy: "paperclip-cloud" } },
+        enableNexusNotebook: true,
+        managedKeys: { enableNexusNotebook: { managed: true, managedBy: "nexus-cloud" } },
       });
-      expect((await service.get()).experimental.enablePaperclipNotebook).toBe(true);
+      expect((await service.get()).experimental.enableNexusNotebook).toBe(true);
       expect(persistedSets).toHaveLength(0);
-      expect(row.experimental).toEqual({ enablePaperclipNotebook: false });
-      expect((await instanceSettingsService(db, { runtimeEnv: {} }).getExperimental()).enablePaperclipNotebook).toBe(false);
+      expect(row.experimental).toEqual({ enableNexusNotebook: false });
+      expect((await instanceSettingsService(db, { runtimeEnv: {} }).getExperimental()).enableNexusNotebook).toBe(false);
     },
   );
 
   it("persists an explicit self-hosted Notebook opt-in and disable across service recreation", async () => {
     const row = settingsRow({});
     const { db, persistedSets } = stubDb(row);
-    expect((await instanceSettingsService(db, { runtimeEnv: {} }).getExperimental()).enablePaperclipNotebook).toBe(false);
+    expect((await instanceSettingsService(db, { runtimeEnv: {} }).getExperimental()).enableNexusNotebook).toBe(false);
     for (const enabled of [true, false]) {
       const service = instanceSettingsService(db, { runtimeEnv: {} });
-      const updated = await service.updateExperimental({ enablePaperclipNotebook: enabled });
+      const updated = await service.updateExperimental({ enableNexusNotebook: enabled });
       Object.assign(row, persistedSets.at(-1));
-      expect(updated.experimental.enablePaperclipNotebook).toBe(enabled);
-      expect((row.experimental as Record<string, unknown>).enablePaperclipNotebook).toBe(enabled);
-      expect((await instanceSettingsService(db, { runtimeEnv: {} }).getExperimental()).enablePaperclipNotebook).toBe(enabled);
+      expect(updated.experimental.enableNexusNotebook).toBe(enabled);
+      expect((row.experimental as Record<string, unknown>).enableNexusNotebook).toBe(enabled);
+      expect((await instanceSettingsService(db, { runtimeEnv: {} }).getExperimental()).enableNexusNotebook).toBe(enabled);
     }
   });
 
@@ -131,7 +131,7 @@ describe("instanceSettingsService managed overlay", () => {
       const stored = Object.fromEntries(Object.keys(features).map((key) => [key, false]));
       const { db, persistedSets } = stubDb(settingsRow(stored));
       const runtimeEnv = {
-        PAPERCLIP_PRIMARY_HOST: primaryHost,
+        NEXUS_PRIMARY_HOST: primaryHost,
         ...managedEnv(JSON.stringify({
           v: 1, mode: "cloud", catalogVersion: "test",
           features, plugins: { autoInstall: [] },
@@ -143,7 +143,7 @@ describe("instanceSettingsService managed overlay", () => {
       expect((await service.getExperimental()).managedKeys).toMatchObject(
         Object.fromEntries(Object.keys(features)
           .filter((key) => key !== "enableApps" && key !== "enableMcpAggregators")
-          .map((key) => [key, { managed: true, managedBy: "paperclip-cloud" }])),
+          .map((key) => [key, { managed: true, managedBy: "nexus-cloud" }])),
       );
       for (const key of Object.keys(features)) {
         await expect(service.updateExperimental({ [key]: false })).rejects.toMatchObject({
@@ -160,7 +160,7 @@ describe("instanceSettingsService managed overlay", () => {
     const row = settingsRow({ enableManagedSandboxOnly: false });
     const { db, persistedSets } = stubDb(row);
     const runtimeEnv = {
-      PAPERCLIP_PRIMARY_HOST: "team.staging.paperclip.app",
+      NEXUS_PRIMARY_HOST: "team.staging.paperclip.app",
       ...managedEnv(JSON.stringify({
         v: 1, mode: "cloud", catalogVersion: "test",
         features: { enableManagedSandboxOnly: true }, plugins: { autoInstall: [] },
@@ -173,7 +173,7 @@ describe("instanceSettingsService managed overlay", () => {
     for (const experimental of [await service.getExperimental(), restored]) {
       expect(experimental).toMatchObject({
         enableManagedSandboxOnly: true,
-        managedKeys: { enableManagedSandboxOnly: { managed: true, managedBy: "paperclip-cloud" } },
+        managedKeys: { enableManagedSandboxOnly: { managed: true, managedBy: "nexus-cloud" } },
       });
       expect(evaluateExecutionAllowlist(
         { managedSandboxOnly: experimental.enableManagedSandboxOnly },
@@ -191,12 +191,12 @@ describe("instanceSettingsService managed overlay", () => {
         features: { enableStatusCards: true, enableChatConnectors: false, enableNativeRunner: true },
         plugins: { autoInstall: [] },
       })),
-      PAPERCLIP_PRIMARY_HOST: "team.staging.paperclip.app",
+      NEXUS_PRIMARY_HOST: "team.staging.paperclip.app",
     };
     const service = instanceSettingsService(db, { runtimeEnv });
     const managedKeys = {
-      enableStatusCards: { managed: true, managedBy: "paperclip-cloud" },
-      enableNativeRunner: { managed: true, managedBy: "paperclip-cloud" },
+      enableStatusCards: { managed: true, managedBy: "nexus-cloud" },
+      enableNativeRunner: { managed: true, managedBy: "nexus-cloud" },
     };
     expect(await service.getExperimental()).toMatchObject({
       enableStatusCards: true, enableChatConnectors: false, enableNativeRunner: true, managedKeys,
@@ -220,7 +220,7 @@ describe("instanceSettingsService managed overlay", () => {
 
     const changedDefaults = instanceSettingsService(db, { runtimeEnv: {
       ...runtimeEnv,
-      PAPERCLIP_MANAGED_CONFIG: JSON.stringify({
+      NEXUS_MANAGED_CONFIG: JSON.stringify({
         v: 1, mode: "cloud", catalogVersion: "test",
         features: { enableStatusCards: false, enableChatConnectors: true, enableNativeRunner: true },
         plugins: { autoInstall: [] },
@@ -230,7 +230,7 @@ describe("instanceSettingsService managed overlay", () => {
       enableStatusCards: false, enableChatConnectors: true, enableNativeRunner: true,
     });
 
-    const production = instanceSettingsService(db, { runtimeEnv: { ...runtimeEnv, PAPERCLIP_PRIMARY_HOST: "team.paperclip.app" } });
+    const production = instanceSettingsService(db, { runtimeEnv: { ...runtimeEnv, NEXUS_PRIMARY_HOST: "team.paperclip.app" } });
     expect(await production.getExperimental()).toMatchObject({
       enableChatConnectors: false, enableNativeRunner: true,
       managedKeys: { enableChatConnectors: { managed: true }, enableNativeRunner: { managed: true } },
@@ -240,7 +240,7 @@ describe("instanceSettingsService managed overlay", () => {
   it("preserves Cloud owner access policy on staging", async () => {
     const { db } = stubDb(settingsRow({ enableOwnerInstanceAdmin: false }));
     const service = instanceSettingsService(db, { runtimeEnv: {
-      PAPERCLIP_PRIMARY_HOST: "team.staging.paperclip.app",
+      NEXUS_PRIMARY_HOST: "team.staging.paperclip.app",
       ...managedEnv(JSON.stringify({
         v: 1, mode: "cloud", catalogVersion: "test",
         features: { enableOwnerInstanceAdmin: true }, plugins: { autoInstall: [] },
@@ -248,7 +248,7 @@ describe("instanceSettingsService managed overlay", () => {
     } });
     expect(await service.getExperimental()).toMatchObject({
       enableOwnerInstanceAdmin: true,
-      managedKeys: { enableOwnerInstanceAdmin: { managed: true, managedBy: "paperclip-cloud" } },
+      managedKeys: { enableOwnerInstanceAdmin: { managed: true, managedBy: "nexus-cloud" } },
     });
     await expect(service.updateExperimental({ enableOwnerInstanceAdmin: false })).rejects.toMatchObject({ status: 403 });
   });
@@ -283,14 +283,14 @@ describe("instanceSettingsService managed overlay", () => {
     })) });
     expect(await service.getExperimental()).toMatchObject({
       enableChatConnectors: false,
-      managedKeys: { enableChatConnectors: { managed: true, managedBy: "paperclip-cloud" } },
+      managedKeys: { enableChatConnectors: { managed: true, managedBy: "nexus-cloud" } },
     });
     expect(persistedSets).toHaveLength(0);
   });
   it("fails closed at construction on a malformed managed config", () => {
     const { db } = stubDb(settingsRow({}));
     expect(() => instanceSettingsService(db, { runtimeEnv: managedEnv("{bad") })).toThrow(
-      /PAPERCLIP_MANAGED_CONFIG is not valid JSON/,
+      /NEXUS_MANAGED_CONFIG is not valid JSON/,
     );
   });
 
@@ -302,7 +302,7 @@ describe("instanceSettingsService managed overlay", () => {
     expect(experimental.enableApps).toBe(true);
     expect(experimental.enableStatusCards).toBe(true);
     expect(experimental.managedKeys).toEqual({
-      enableStatusCards: { managed: true, managedBy: "paperclip-cloud" },
+      enableStatusCards: { managed: true, managedBy: "nexus-cloud" },
     });
   });
 

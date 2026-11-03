@@ -1,6 +1,6 @@
 import { assertConfiguredTokenBrokerEndpointsAllowed } from "./token-broker/endpoint-policy.js";
 import { remoteEndpoint } from "./connection-methods.js";
-import type { DeploymentExposure, DeploymentMode } from "@paperclipai/shared";
+import type { DeploymentExposure, DeploymentMode } from "@nexusai/shared";
 import { badRequest, HttpError } from "../../errors.js";
 import { assertPublicRemoteHttpEndpoint, parseRemoteHttpEndpoint, type RemoteHttpEndpointLookup } from "../remote-http-endpoint-guard.js";
 import { guardedRemoteHttpFetch, type GuardedRemoteHttpFetchOptions } from "../remote-http-fetch.js";

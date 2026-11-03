@@ -49,7 +49,7 @@ const meta = {
   title: "Tasks and conversations/Task creation and lifecycle/Tasks/Context notices",
   component: TaskContextNotices,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "tasks/discussion"
       ],

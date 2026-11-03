@@ -10,7 +10,7 @@ function memoryStorage(initial: Record<string, string> = {}) {
 }
 
 const cssPreloadError = new Error(
-  "Unable to preload CSS for https://paperclip.example/assets/issue-detail-CIbQo9zW.css",
+  "Unable to preload CSS for https://nexus.example/assets/issue-detail-CIbQo9zW.css",
 );
 
 function preloadErrorEvent(payload: unknown) {
@@ -20,8 +20,8 @@ function preloadErrorEvent(payload: unknown) {
 describe("isChunkLoadError", () => {
   it("matches Vite CSS preload and browser dynamic import failures", () => {
     expect(isChunkLoadError(cssPreloadError)).toBe(true);
-    expect(isChunkLoadError(new TypeError("Failed to fetch dynamically imported module: https://paperclip.example/assets/a.js"))).toBe(true);
-    expect(isChunkLoadError(new TypeError("error loading dynamically imported module: https://paperclip.example/assets/a.js"))).toBe(true);
+    expect(isChunkLoadError(new TypeError("Failed to fetch dynamically imported module: https://nexus.example/assets/a.js"))).toBe(true);
+    expect(isChunkLoadError(new TypeError("error loading dynamically imported module: https://nexus.example/assets/a.js"))).toBe(true);
     expect(isChunkLoadError(new TypeError("Importing a module script failed."))).toBe(true);
   });
 
@@ -102,7 +102,7 @@ describe("reloadForChunkLoadError", () => {
 
   it("ignores an unreadable stored marker", () => {
     const reload = vi.fn();
-    const storage = memoryStorage({ "paperclip:chunk-load-reload-at": "not-a-time" });
+    const storage = memoryStorage({ "nexus:chunk-load-reload-at": "not-a-time" });
     const { reloadForChunkLoadError } = createChunkLoadRecovery({ storage: () => storage, reload, now: () => 1_000 });
     expect(reloadForChunkLoadError(cssPreloadError)).toBe(true);
   });

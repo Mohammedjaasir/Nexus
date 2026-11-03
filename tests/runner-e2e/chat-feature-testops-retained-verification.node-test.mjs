@@ -16,9 +16,9 @@ const event = { repository: repo, ref: 'refs/heads/master', sender: { id: 348927
 const ownRun = { id: 900, run_attempt: 1, head_sha: env.GITHUB_SHA, head_branch: 'master', event: 'workflow_dispatch', path: workflow,
   workflow_id: 901, repository: repo, actor: { id: 34892728 }, triggering_actor: { id: 34892728 } };
 const registered = { id: 901, path: workflow };
-const selection = { schema: 'paperclip.chat-feature-testops-selection/v1', runId: origin.runId, attempt: origin.attempt,
+const selection = { schema: 'nexus.chat-feature-testops-selection/v1', runId: origin.runId, attempt: origin.attempt,
   workflowSha: origin.workflowSha, targetSha: origin.targetSha, allureJobRunId: String(origin.jobRunId),
-  projectId: 1, planId: 36, jobId: 34, caseId: 388, launchId: 1069, fullName: 'paperclip.Product E2E.chat-features.create-backlog',
+  projectId: 1, planId: 36, jobId: 34, caseId: 388, launchId: 1069, fullName: 'nexus.Product E2E.chat-features.create-backlog',
   executionId: 'chat-features.runner-opencode-deepseek-1017.local.create-backlog', canonicalScenario: 'tasks.create-backlog' };
 const attachmentMetadata = [
   { name: 'Synthetic task and source conversation', contentType: 'image/png', contentLength: 104828 },

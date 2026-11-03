@@ -1,6 +1,6 @@
 import { projectInstanceSecretService } from "./project-instance-secrets.js";
 import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
-import { pluginCompanySettings, pluginConfig, plugins, type Db } from "@paperclipai/db";
+import { pluginCompanySettings, pluginConfig, plugins, type Db } from "@nexusai/db";
 import { logger } from "../middleware/logger.js";
 import { pluginLifecycleInbox } from "./plugin-lifecycle-inbox.js";
 import { DELIVERY_QUEUES } from "./delivery-work-notifications.js";
@@ -53,7 +53,7 @@ export function registerPluginLifecycleDelivery(
             .where(and(eq(pluginCompanySettings.pluginId, plugin.id), eq(pluginCompanySettings.companyId, companyId), eq(pluginCompanySettings.enabled, false)));
           if (disabled) continue;
           if (types.includes("agent_runtime") && !refreshedRuntimeCompanies.has(companyId)) {
-            await db.execute(sql`SELECT paperclip_invalidate_company_agent_runtimes(${companyId}::uuid)`);
+            await db.execute(sql`SELECT nexus_invalidate_company_agent_runtimes(${companyId}::uuid)`);
             refreshedRuntimeCompanies.add(companyId);
           }
           const inbox = pluginLifecycleInbox(db, plugin.id);
@@ -128,7 +128,7 @@ export function registerPluginLifecycleDelivery(
         .where(and(eq(plugins.status, "ready"), or(isNull(pluginCompanySettings.enabled), eq(pluginCompanySettings.enabled, true))));
       if (disposed) return;
       const wanted = installed.some(plugin => plugin.manifest.resourceLifecycle?.includes("agent_runtime") && plugin.manifest.capabilities?.includes("events.subscribe"));
-      if (wanted) listening ??= await db.$client.listen("paperclip_plugin_lifecycle", wake, wake);
+      if (wanted) listening ??= await db.$client.listen("nexus_plugin_lifecycle", wake, wake);
       else if (listening) {
         const subscription = listening;
         listening = undefined;

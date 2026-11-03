@@ -4,7 +4,7 @@ vi.mock("@opentelemetry/api",()=>({SpanStatusCode:{ERROR:2},trace:{
  getTracer:()=>({startSpan:(name:string,options:unknown,parent:unknown)=>{const span={name,options,parent,end:vi.fn(),setStatus:vi.fn()};mocks.spans.push(span);return span;}}),
  setSpan:(parent:unknown,span:unknown)=>({parent,span}),
 }}));
-vi.mock("@paperclipai/adapter-utils/acpx-engine/startup-timing",()=>({
+vi.mock("@nexusai/adapter-utils/acpx-engine/startup-timing",()=>({
  getActiveStepContext:()=>mocks.parent?{parentContext:mocks.parent}:null,
  runWithRuntimeParent:(_parent:unknown,work:()=>unknown)=>work(),
 }));

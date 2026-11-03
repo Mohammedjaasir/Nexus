@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import express from "express";
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { companies, companyMemberships, createDb, projectAccessMembers, projects } from "@paperclipai/db";
+import { companies, companyMemberships, createDb, projectAccessMembers, projects } from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -49,7 +49,7 @@ describeEmbeddedPostgres("project list archived route defaults", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-projects-list-archived-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-projects-list-archived-");
     db = createDb(tempDb.connectionString);
   }, 120_000);
 
@@ -70,7 +70,7 @@ describeEmbeddedPostgres("project list archived route defaults", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -113,12 +113,12 @@ describeEmbeddedPostgres("project list archived route defaults", () => {
 describeEmbeddedPostgres("private project route visibility", { concurrent: false }, () => {
   let db!: ReturnType<typeof createDb>;
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
-  const previousPrivacyMode = process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
+  const previousPrivacyMode = process.env.NEXUS_ISSUE_PRIVACY_MODE;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-private-project-routes-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-private-project-routes-");
     db = createDb(tempDb.connectionString);
-    process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "enforce";
+    process.env.NEXUS_ISSUE_PRIVACY_MODE = "enforce";
   }, 20_000);
 
   afterEach(async () => {
@@ -128,8 +128,8 @@ describeEmbeddedPostgres("private project route visibility", { concurrent: false
   });
 
   afterAll(async () => {
-    if (previousPrivacyMode === undefined) delete process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-    else process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = previousPrivacyMode;
+    if (previousPrivacyMode === undefined) delete process.env.NEXUS_ISSUE_PRIVACY_MODE;
+    else process.env.NEXUS_ISSUE_PRIVACY_MODE = previousPrivacyMode;
     await tempDb?.cleanup();
   });
 

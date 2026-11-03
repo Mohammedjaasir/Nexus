@@ -1,9 +1,9 @@
 import { AiConnectionPoolConnector } from "@/components/ai-connections/AiConnectionPoolConnector";
-import { aiConnectionRouterPluginKey } from "@paperclipai/shared";
+import { aiConnectionRouterPluginKey } from "@nexusai/shared";
 import { ConnectionInstructionsSettings } from "@/features/connections/ConnectionInstructions";
 import { HonchoWorkspaceSettings } from "@/features/connections/HonchoWorkspaceSettings";
 import { BrowserUseSettingsPanel } from "./app-detail/BrowserUseSettingsPanel";
-import { isRetiredComposioConnection, RETIRED_COMPOSIO_MESSAGE, isRemoteMcpConnectorId, isRemoteMcpConnectorMethod } from "@paperclipai/shared";
+import { isRetiredComposioConnection, RETIRED_COMPOSIO_MESSAGE, isRemoteMcpConnectorId, isRemoteMcpConnectorMethod } from "@nexusai/shared";
 import { RemoteMcpManagement } from "@/features/connections/remote-mcp/RemoteMcpManagement";
 import { remoteMcpProviders } from "@/features/connections/remote-mcp/providers";
 import { ManagedAiConnectionDetails } from "@/components/ai-connections/ManagedAiConnectionDetails";
@@ -16,13 +16,13 @@ import type {
   ToolConnection,
   ToolPolicy,
   ToolProfileConfiguration,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   connectionDisplaySecondaryHint,
   humanizeConnectionDisplayName,
   aiSubscriptionNeedsIsolatedLogin,
   isToolConnectionAttentionHealth as isAttentionHealthStatus,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { Navigate, useParams, useNavigate, useSearchParams } from "@/lib/router";
 import { useCompany } from "@/context/CompanyContext";
 import { useBreadcrumbs } from "@/context/BreadcrumbContext";
@@ -59,7 +59,7 @@ import { IdentitiesSection } from "./app-detail/IdentitiesSection";
 import { PermissionsPanel } from "./app-detail/PermissionsPanel";
 import { AgentConnectionAccess } from "./app-detail/AgentConnectionAccess";
 import { ConnectedAggregatorApps } from "./app-detail/ConnectedAggregatorApps";
-import { isAppAggregator } from "@paperclipai/shared/aggregator-apps";
+import { isAppAggregator } from "@nexusai/shared/aggregator-apps";
 import { actionPermissionMutation } from "./app-detail/action-permissions";
 import { RailwayAccessPanel } from "./app-detail/RailwayAccessPanel";
 import { ReviewPanel } from "./app-detail/ReviewPanel";
@@ -694,7 +694,7 @@ function StandardAppDetail({ renderActions, renderAgentSettings, renderConnectio
               {connection.config?.sourceTemplateKey === "composio" ? <p className="text-sm text-muted-foreground">
                 These permissions apply to all apps available through this Composio connection. Manage app accounts and sign-in in Composio.
               </p> : null}
-              {connection.config?.sourceTemplateKey !== "composio" && isRemoteMcpConnectorMethod(connection.config?.sourceTemplateKey, connection.config?.connectionMethodKey) && <p className="text-sm text-muted-foreground">Paperclip controls access to the tools listed here. App and action permissions inside these tools are managed in {baseAppName}.</p>}
+              {connection.config?.sourceTemplateKey !== "composio" && isRemoteMcpConnectorMethod(connection.config?.sourceTemplateKey, connection.config?.connectionMethodKey) && <p className="text-sm text-muted-foreground">Nexus controls access to the tools listed here. App and action permissions inside these tools are managed in {baseAppName}.</p>}
               <PermissionsPanel
                 afterAgentAccess={<>{logoEntry?.agentInstructions && <ConnectionInstructionsSettings key={connection.id} connection={connection} provider={logoEntry.name} template={logoEntry.agentInstructions} canConfigure={grantsQuery.data?.capabilities?.canConfigure ?? false} />}{renderAgentSettings?.(connection)}</>}
                 actions={actionsContent}

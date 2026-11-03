@@ -31,7 +31,7 @@ Open `/dashboard` or `/dashboard/live`.
 
 Open `/activity`, `/activity/runs`, or `/activity/timeline` in the streamlined shell; legacy routes may redirect.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Prepare known task mutations and completed/failed runs in a disposable company, recording their IDs and actors.
 

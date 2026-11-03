@@ -1,6 +1,6 @@
 import { notifyAttentionRetentionWork } from "../retention-work-notifications.js";
 import { and, eq, isNull, ne, sql } from "drizzle-orm";
-import { completionContracts, heartbeatRuns, issues, issueThreadInteractions, statusDecisionEffects, statusDecisions, workAssessments, type Db } from "@paperclipai/db";
+import { completionContracts, heartbeatRuns, issues, issueThreadInteractions, statusDecisionEffects, statusDecisions, workAssessments, type Db } from "@nexusai/db";
 import { hasPublishedGitHubReview } from "../chat-channels/github/review-wait.js";
 import { issueThreadInteractionService } from "../issue-thread-interactions.js";
 import { enqueueTerminalIssueInteractionChatPublications } from "../chat-interaction-publications.js";

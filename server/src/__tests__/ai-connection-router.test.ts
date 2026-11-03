@@ -5,12 +5,12 @@ import { mkdir } from "node:fs/promises";
 import { createIsolatedTestHome } from "./helpers/isolated-test-home.js";
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
-import { createDb, closeRegisteredClients, companies, agents, authUsers, companyMemberships, connectionGrants, plugins, aiConnectionRouterCursors, aiConnectionTaskPins, toolConnections, companySecrets, heartbeatRuns, issues, dotAgentBindings, grokBotRoutines } from "@paperclipai/db";
-import { startEmbeddedPostgresTestDatabase } from "@paperclipai/db/test-embedded-postgres";
-import type { AiConnectionPoolMember, AiConnectionRouterRequest, AiConnectionRouterResult, PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import { createDb, closeRegisteredClients, companies, agents, authUsers, companyMemberships, connectionGrants, plugins, aiConnectionRouterCursors, aiConnectionTaskPins, toolConnections, companySecrets, heartbeatRuns, issues, dotAgentBindings, grokBotRoutines } from "@nexusai/db";
+import { startEmbeddedPostgresTestDatabase } from "@nexusai/db/test-embedded-postgres";
+import type { AiConnectionPoolMember, AiConnectionRouterRequest, AiConnectionRouterResult, NexusPluginManifestV1 } from "@nexusai/shared";
 import { aiConnectionRouterService, AiConnectionPoolExhausted, poolMemberRuntimeConfig, applyAiConnectionRouterTaskSettings } from "../services/ai-connection-router.js";
 import { aiConnectionSessionCompatibilityInputs } from "../services/ai-connection-session.js";
-import { projectPaperclipRunnerTaskConfig, resolvePaperclipRunnerNativeProviderInput } from "../services/native-runtime/provider-profile.js";
+import { projectNexusRunnerTaskConfig, resolveNexusRunnerNativeProviderInput } from "../services/native-runtime/provider-profile.js";
 import { aiConnectionService } from "../services/ai-connections.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import { managedAiSessionFingerprintConfig, prepareManagedAiRuntime } from "../services/ai-connection-runtime.js";
@@ -35,13 +35,13 @@ vi.mock("../sentry.js", async (importOriginal) => ({
 }));
 
 let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
-const externalTestDatabaseUrl = process.env.PAPERCLIP_TEST_DATABASE_URL?.trim();
+const externalTestDatabaseUrl = process.env.NEXUS_TEST_DATABASE_URL?.trim();
 let db: ReturnType<typeof createDb>;
 let home: string;
 let isolatedHome: ReturnType<typeof createIsolatedTestHome> | undefined;
 const companyId = randomUUID(), otherCompanyId = randomUUID(), agentId = randomUUID(), secondAgentId = randomUUID(), pluginId = randomUUID();
 const pluginKey = "fixture.ai-router";
-const manifest: PaperclipPluginManifestV1 = { id: pluginKey, apiVersion: 1, version: "0.1.0", displayName: "Fixture router", description: "Fixture", author: "Tests", categories: ["connector"], capabilities: ["ai.connections.route"], aiConnectionRouter: { name: "AI connection pool", description: "Use saved connections" }, entrypoints: { worker: "worker.js" } };
+const manifest: NexusPluginManifestV1 = { id: pluginKey, apiVersion: 1, version: "0.1.0", displayName: "Fixture router", description: "Fixture", author: "Tests", categories: ["connector"], capabilities: ["ai.connections.route"], aiConnectionRouter: { name: "AI connection pool", description: "Use saved connections" }, entrypoints: { worker: "worker.js" } };
 let members: AiConnectionPoolMember[];
 const proposal = vi.fn(async (_id: string, _method: string, request: AiConnectionRouterRequest): Promise<AiConnectionRouterResult> => {
   const next = (request.memberOrder.indexOf(request.lastMemberId ?? "") + 1) % request.memberOrder.length;
@@ -52,16 +52,16 @@ const proposal = vi.fn(async (_id: string, _method: string, request: AiConnectio
 const worker = { isRunning: () => true, call: proposal } as unknown as PluginWorkerManager;
 const defaultProposal = proposal.getMockImplementation()!;
 const service = () => aiConnectionRouterService(db, worker);
-const resolve = (poolId: string, taskKey: string, extra = {}) => service().resolve({ companyId, poolId, agentId, userId: "alice", adapterType: "paperclip_runner", taskKey, ...extra });
+const resolve = (poolId: string, taskKey: string, extra = {}) => service().resolve({ companyId, poolId, agentId, userId: "alice", adapterType: "nexus_runner", taskKey, ...extra });
 const makePool = async (config = {}) => service().save(pluginKey, { companyId, config: { name: randomUUID(), enabled: true, mode: "round_robin", thresholdPercent: 90, members, ...config } }, "alice");
 beforeAll(async () => {
   isolatedHome = createIsolatedTestHome();
   home = isolatedHome.home;
-  vi.stubEnv("PAPERCLIP_HOME", home); vi.stubEnv("PAPERCLIP_INSTANCE_ID", "router-fixture");
+  vi.stubEnv("NEXUS_HOME", home); vi.stubEnv("NEXUS_INSTANCE_ID", "router-fixture");
   if (externalTestDatabaseUrl) db = createDb(externalTestDatabaseUrl);
-  else { database = await startEmbeddedPostgresTestDatabase("paperclip-router-db-"); db = createDb(database.connectionString); }
+  else { database = await startEmbeddedPostgresTestDatabase("nexus-router-db-"); db = createDb(database.connectionString); }
   await db.insert(companies).values([{ id: companyId, name: "Router fixture", issuePrefix: "RTF" }, { id: otherCompanyId, name: "Other", issuePrefix: "RTO" }]);
-  await db.insert(agents).values([agentId, secondAgentId].map(id => ({ id, companyId, name: "Router agent", adapterType: "paperclip_runner" })));
+  await db.insert(agents).values([agentId, secondAgentId].map(id => ({ id, companyId, name: "Router agent", adapterType: "nexus_runner" })));
   await db.insert(authUsers).values(["alice", "bob"].map(id => ({ id, name: id, email: `${id}@router.example.test`, createdAt: new Date(), updatedAt: new Date() }))).onConflictDoNothing();
   await db.insert(companyMemberships).values(["alice", "bob"].map(principalId => ({ companyId, principalId, principalType: "user", status: "active", membershipRole: "member" })));
   await db.insert(plugins).values({ id: pluginId, pluginKey, packageName: pluginKey, version: "0.1.0", manifestJson: manifest, status: "ready" });
@@ -172,7 +172,7 @@ describe("durable, authorized connection routing", () => {
     expect((await resolve(pool.id, "one")).memberId).toBe(members[0]!.id);
     expect((await resolve(pool.id, "two")).memberId).toBe(members[1]!.id);
     expect((await resolve(pool.id, "one", { overrides: { model: "claude-sonnet-5", modelReasoningEffort: "high" } })).memberId).toBe(members[0]!.id);
-    expect((await aiConnectionRouterService(db, worker).resolve({ companyId, poolId: pool.id, agentId, userId: "alice", adapterType: "paperclip_runner", taskKey: "one" })).memberId).toBe(members[0]!.id);
+    expect((await aiConnectionRouterService(db, worker).resolve({ companyId, poolId: pool.id, agentId, userId: "alice", adapterType: "nexus_runner", taskKey: "one" })).memberId).toBe(members[0]!.id);
     const [cursor] = await db.select().from(aiConnectionRouterCursors).where(eq(aiConnectionRouterCursors.poolId, pool.id)); expect(cursor?.version).toBe(2);
   });
   it("commits one allocation for duplicate starts and serializes concurrent tasks", async () => {
@@ -205,13 +205,13 @@ describe("durable, authorized connection routing", () => {
     const first = await resolve(pool.id, "composer");
     const changed = await resolve(pool.id, "composer", { overrides: { model: "claude-sonnet-5", modelReasoningEffort: "high" } });
     expect(changed.binding).toEqual(first.binding); expect(changed.runtimeConfig).toMatchObject({ provider: "codex", model: "gpt-5.6-sol", modelReasoningEffort: "high" }); expect(changed.notes).toHaveLength(1);
-    const claude = poolMemberRuntimeConfig(members[1]!, "paperclip_runner", { model: "gpt-5.6-sol", modelReasoningEffort: "ultra" });
+    const claude = poolMemberRuntimeConfig(members[1]!, "nexus_runner", { model: "gpt-5.6-sol", modelReasoningEffort: "ultra" });
     expect(claude.config).toMatchObject({ provider: "acpx", acpxAgent: "claude", model: "claude-sonnet-5" }); expect(claude.notes).toHaveLength(2);
-    const claudeEffort = poolMemberRuntimeConfig(members[1]!, "paperclip_runner", { modelReasoningEffort: "xhigh" });
+    const claudeEffort = poolMemberRuntimeConfig(members[1]!, "nexus_runner", { modelReasoningEffort: "xhigh" });
     expect(claudeEffort.config).toMatchObject({ provider: "acpx", acpxAgent: "claude", modelReasoningEffort: "xhigh" });
     expect(claudeEffort.notes).toEqual([]);
     const overrides = applyAiConnectionRouterTaskSettings({ model: "claude-sonnet-5", effort: "invalid", cwd: "/fixture" }, changed);
-    const native = resolvePaperclipRunnerNativeProviderInput({ backend: "codex_app_server", adapterConfig: projectPaperclipRunnerTaskConfig("codex_app_server", changed.runtimeConfig, overrides) });
+    const native = resolveNexusRunnerNativeProviderInput({ backend: "codex_app_server", adapterConfig: projectNexusRunnerTaskConfig("codex_app_server", changed.runtimeConfig, overrides) });
     expect(native).toMatchObject({ provider: "codex", model: "gpt-5.6-sol", codexReasoningEffort: "high" });
     expect(overrides).toMatchObject({ cwd: "/fixture" }); expect(overrides).not.toHaveProperty("effort");
   });
@@ -391,10 +391,10 @@ describe("durable, authorized connection routing", () => {
   }, 30_000);
   it("repairs the failed pool account without replacing the pool or adopting the configured provider", async () => {
     const pool = await makePool({ members: [members[1]!] });
-    const [agent] = await db.insert(agents).values({ companyId, name: "Pool repair", adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" }, runtimeConfig: { aiConnection: { mode: "router", connectionId: pool.id } } }).returning();
+    const [agent] = await db.insert(agents).values({ companyId, name: "Pool repair", adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "gpt-5.6-sol" }, runtimeConfig: { aiConnection: { mode: "router", connectionId: pool.id } } }).returning();
     const [issue] = await db.insert(issues).values({ companyId, title: "Pool repair", status: "in_progress", assigneeAgentId: agent!.id, responsibleUserId: "alice", createdByUserId: "alice" }).returning();
     const selection = await resolve(pool.id, issue!.id, { agentId: agent!.id });
-    const runtime = await prepareManagedAiRuntime(db, { companyId, agentId: agent!.id, responsibleUserId: "alice", adapterType: "paperclip_runner", config: selection.runtimeConfig, binding: selection.binding });
+    const runtime = await prepareManagedAiRuntime(db, { companyId, agentId: agent!.id, responsibleUserId: "alice", adapterType: "nexus_runner", config: selection.runtimeConfig, binding: selection.binding });
     const [run] = await db.insert(heartbeatRuns).values({ companyId, agentId: agent!.id, status: "failed", errorCode: "acpx_auth_required", responsibleUserId: "alice", startedAt: new Date(), contextSnapshot: { issueId: issue!.id, aiRouterTaskKey: issue!.id, aiRouterSelection: selection, aiConnection: { ...runtime!.attribution, identity: runtime!.identity } } }).returning();
     try {
       const intents = connectionIntentService(db);
@@ -430,20 +430,20 @@ describe("durable, authorized connection routing", () => {
     const pool = await makePool({ members: [members[0]!] });
     const selected = await resolve(pool.id, "managed-mode-adoption", { requireExisting: true, existingGrantId: members[0]!.binding.grantId });
     const directBinding = { mode: "responsible_user" as const, provider: "openai" as const, method: "api_key" as const };
-    const prepare = { companyId, agentId, responsibleUserId: "alice", adapterType: "paperclip_runner", config: selected.runtimeConfig };
+    const prepare = { companyId, agentId, responsibleUserId: "alice", adapterType: "nexus_runner", config: selected.runtimeConfig };
     const before = await prepareManagedAiRuntime(db, { ...prepare, binding: directBinding });
     const after = await prepareManagedAiRuntime(db, { ...prepare, binding: selected.binding });
     try {
       expect(before.config.managedAiConnection.mode).toBe("responsible_user");
       expect(after.config.managedAiConnection.mode).toBe("delegated");
       expect(after.sessionIdentity).toBe(before.sessionIdentity);
-      const common = { adapterType: "paperclip_runner", issueOverrides: null, workspaceConfig: {}, environment: {}, environmentEnv: null, projectEnv: null, routineEnv: null, runtimeSkills: [], agentConfigRevision: null };
+      const common = { adapterType: "nexus_runner", issueOverrides: null, workspaceConfig: {}, environment: {}, environmentEnv: null, projectEnv: null, routineEnv: null, runtimeSkills: [], agentConfigRevision: null };
       const previous = await buildEffectiveRunSessionConfigMetadata({ ...common, effectiveAdapterConfig: before.config, managedAiHome: before.home, agentRuntimeConfig: { aiConnection: directBinding } });
       const currentInput = { ...common, effectiveAdapterConfig: after.config, managedAiHome: after.home, agentRuntimeConfig: { aiConnection: { mode: "router", connectionId: pool.id } } };
       const current = await buildEffectiveRunSessionConfigMetadata(currentInput);
       const alternatives = aiConnectionSessionCompatibilityInputs({ ...currentInput, originalIssueOverrides: null, binding: selected.binding, router: true, storedIdentity: before.sessionIdentity, sessionIdentity: after.sessionIdentity, credentialIdentity: after.identity, revisions: [] });
       const compatibleConfigMetadata = await Promise.all(alternatives.map(candidate => buildEffectiveRunSessionConfigMetadata({ ...currentInput, ...candidate })));
-      expect(resolveTaskSessionConfigFreshness({ hasTaskSession: true, configuredModel: String(selected.runtimeConfig.model), taskSessionParams: { __paperclipConfiguredModel: selected.runtimeConfig.model, __paperclipConfigFingerprint: previous.fingerprint, __paperclipConfigFingerprintVersion: previous.version, __paperclipConfigCategoryFingerprints: previous.categoryFingerprints }, configMetadata: current, compatibleConfigMetadata }).reset).toBe(false);
+      expect(resolveTaskSessionConfigFreshness({ hasTaskSession: true, configuredModel: String(selected.runtimeConfig.model), taskSessionParams: { __nexusConfiguredModel: selected.runtimeConfig.model, __nexusConfigFingerprint: previous.fingerprint, __nexusConfigFingerprintVersion: previous.version, __nexusConfigCategoryFingerprints: previous.categoryFingerprints }, configMetadata: current, compatibleConfigMetadata }).reset).toBe(false);
     } finally { await before.cleanup(); await after.cleanup(); }
   });
   it("admits a healthy pool member when the saved Grok connection is held", async () => {
@@ -455,7 +455,7 @@ describe("durable, authorized connection routing", () => {
     const workspace = path.join(home, "routed-grok-work");
     await mkdir(workspace);
     const [agent] = await db.insert(agents).values({ companyId, name: "Routed Grok fixture", status: "idle",
-      adapterType: "paperclip_runner", adapterConfig: { provider: "grok_bot", externalBindingId: bindingId, cwd: workspace },
+      adapterType: "nexus_runner", adapterConfig: { provider: "grok_bot", externalBindingId: bindingId, cwd: workspace },
       runtimeConfig: { aiConnection: { mode: "router", connectionId: pool.id }, heartbeat: { enabled: false, wakeOnDemand: true } } }).returning();
     await db.insert(dotAgentBindings).values({ id: bindingId, companyId, agentId: agent.id,
       operatorId: "alice", providerKind: "grok_bot", status: "connected" });
@@ -495,7 +495,7 @@ describe("durable, authorized connection routing", () => {
   }, 30_000);
 
   it("keeps session identity and fingerprints stable on authenticated refresh, but changes them on manual replacement", async () => {
-    const input = { companyId, agentId, responsibleUserId: "alice", adapterType: "paperclip_runner", binding: members[0]!.binding, config: { provider: "codex", model: "gpt-5.6-sol" } };
+    const input = { companyId, agentId, responsibleUserId: "alice", adapterType: "nexus_runner", binding: members[0]!.binding, config: { provider: "codex", model: "gpt-5.6-sol" } };
     const first = await prepareManagedAiRuntime(db, input);
     const [grant] = await db.select().from(connectionGrants).where(eq(connectionGrants.id, members[0]!.binding.grantId)); const ref = grant!.credentialSecretRefs.find(ref => ref.configPath === "ai.credential")!;
     try {

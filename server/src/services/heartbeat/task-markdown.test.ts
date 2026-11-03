@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPaperclipTaskMarkdown } from "./task-markdown.js";
+import { buildNexusTaskMarkdown } from "./task-markdown.js";
 
 const issue = {
   id: "task-1",
@@ -9,7 +9,7 @@ const issue = {
 
 describe("heartbeat task markdown rendering", () => {
   it.each([true, false])("keeps native task clarification in the current task on full and resumed assignments (description=%s)", (includeDescription) => {
-    const markdown = buildPaperclipTaskMarkdown({
+    const markdown = buildNexusTaskMarkdown({
       issue: { ...issue, description: "Write a blog post about our launch." },
       nativeRunner: true,
       includeDescription,
@@ -29,7 +29,7 @@ describe("heartbeat task markdown rendering", () => {
   });
 
   it("preserves execution of a clear accepted plan without imposing clarification", () => {
-    const markdown = buildPaperclipTaskMarkdown({
+    const markdown = buildNexusTaskMarkdown({
       issue: { ...issue, workMode: "planning" },
       nativeRunner: true,
       acceptedPlanContinuation: true,
@@ -48,24 +48,24 @@ describe("heartbeat task markdown rendering", () => {
     { nativeRunner: true, coordinatorWorkspace: false, conversationAgentId: "coordinator" },
     { nativeRunner: true, coordinatorWorkspace: true, conversationAgentId: "coordinator" },
   ])("does not add native task clarification to adapter or standing-chat assignments: %j", ({ conversationAgentId, ...input }) => {
-    expect(buildPaperclipTaskMarkdown({ issue: { ...issue, conversationAgentId }, ...input }))
+    expect(buildNexusTaskMarkdown({ issue: { ...issue, conversationAgentId }, ...input }))
       .not.toContain("Task clarification directive:");
   });
 
   it("shows inferred task proposals only for opted-in native conversations while preserving explicit creation", () => {
     const issue = { id: "chat", identifier: null, title: "Chat", conversationAgentId: "coordinator" };
-    const classic = buildPaperclipTaskMarkdown({ issue, nativeRunner: true });
+    const classic = buildNexusTaskMarkdown({ issue, nativeRunner: true });
     expect(classic).not.toContain("Coordinator task proposals:");
-    const optedIn = buildPaperclipTaskMarkdown({ issue, nativeRunner: true, coordinatorWorkspace: true });
+    const optedIn = buildNexusTaskMarkdown({ issue, nativeRunner: true, coordinatorWorkspace: true });
     expect(optedIn).toContain('interactionKind: "suggest_tasks"');
     expect(optedIn).toContain("acceptance creates the task atomically");
     expect(optedIn).toContain("If the user explicitly authorized task creation, use create_task directly");
-    expect(buildPaperclipTaskMarkdown({ issue, nativeRunner: false, coordinatorWorkspace: true }))
+    expect(buildNexusTaskMarkdown({ issue, nativeRunner: false, coordinatorWorkspace: true }))
       .not.toContain("Coordinator task proposals:");
   });
   it("returns null without a task or a nonempty wake comment", () => {
-    expect(buildPaperclipTaskMarkdown({ issue: null })).toBeNull();
-    expect(buildPaperclipTaskMarkdown({
+    expect(buildNexusTaskMarkdown({ issue: null })).toBeNull();
+    expect(buildNexusTaskMarkdown({
       issue: null,
       wakeComments: [{ id: "empty", body: " \n " }],
     })).toBeNull();
@@ -81,7 +81,7 @@ describe("heartbeat task markdown rendering", () => {
       ],
     };
     const before = structuredClone(input);
-    const markdown = buildPaperclipTaskMarkdown(input)!;
+    const markdown = buildNexusTaskMarkdown(input)!;
 
     expect(markdown).toContain("Pending wake comments (oldest to newest):");
     expect(markdown.indexOf('("first")')).toBeLessThan(markdown.indexOf('("last")'));
@@ -89,13 +89,13 @@ describe("heartbeat task markdown rendering", () => {
     expect(markdown).toContain("\nLatest request.\n");
     expect(markdown).not.toContain('("empty")');
     expect(input).toEqual(before);
-    expect(buildPaperclipTaskMarkdown(input)).toBe(markdown);
+    expect(buildNexusTaskMarkdown(input)).toBe(markdown);
   });
 
   it("quotes task scalars and keeps embedded code fences inside the description", () => {
     const description = "First line.\n````text\nQuoted instruction.\n````\nLast line.";
     const title = 'A "quoted" title\nwith a second line';
-    const markdown = buildPaperclipTaskMarkdown({
+    const markdown = buildNexusTaskMarkdown({
       issue: { ...issue, title, description },
     });
 
@@ -104,7 +104,7 @@ describe("heartbeat task markdown rendering", () => {
   });
 
   it("keeps the nearest six ancestors and reports omitted ancestor context", () => {
-    const markdown = buildPaperclipTaskMarkdown({
+    const markdown = buildNexusTaskMarkdown({
       issue,
       ancestors: Array.from({ length: 7 }, (_, index) => ({
         id: `ancestor-${index + 1}`,
@@ -120,7 +120,7 @@ describe("heartbeat task markdown rendering", () => {
 
   it.each([true, false])("retains attachment-only wakes with hidden comment bodies (native=%s)", (nativeRunner) => {
     const contentPath = "/api/attachments/attachment-1/content";
-    const markdown = buildPaperclipTaskMarkdown({
+    const markdown = buildNexusTaskMarkdown({
       issue: null,
       nativeRunner,
       includeWakeComments: false,
@@ -145,12 +145,12 @@ describe("heartbeat task markdown rendering", () => {
       expect(markdown).toContain("read_task_attachment");
     } else {
       expect(markdown).toContain(contentPath);
-      expect(markdown).toContain("PAPERCLIP_API_KEY");
+      expect(markdown).toContain("NEXUS_API_KEY");
     }
   });
 
   it("keeps a rejected plan from granting execution through an older acceptance", () => {
-    const markdown = buildPaperclipTaskMarkdown({
+    const markdown = buildNexusTaskMarkdown({
       issue: { ...issue, workMode: "planning" },
       acceptedPlanContinuation: true,
       interaction: { kind: "request_confirmation", status: "accepted" },

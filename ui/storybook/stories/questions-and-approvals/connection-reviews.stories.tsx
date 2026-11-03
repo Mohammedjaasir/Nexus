@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { RequestConfirmationInteraction } from "@paperclipai/shared";
+import type { RequestConfirmationInteraction } from "@nexusai/shared";
 import { TaskChatThread } from "@/components/TaskChatThread";
 import { IssueThreadInteractionCard } from "@/components/IssueThreadInteractionCard";
 import {
@@ -16,8 +16,8 @@ import { within, userEvent } from "storybook/test";
 import { toolsApi } from "@/api/tools";
 import { issuesApi } from "@/api/issues";
 import { ReviewQueueCard } from "@/pages/apps/ReviewQueueCard";
-import type { ToolActionRequestListItem } from "@paperclipai/shared";
-import { storybookAgentMap } from "../../fixtures/paperclipData";
+import type { ToolActionRequestListItem } from "@nexusai/shared";
+import { storybookAgentMap } from "../../fixtures/nexusData";
 
 const readRequest: RequestConfirmationInteraction = {
   ...pendingToolActionWriteInteraction,
@@ -47,7 +47,7 @@ const meta = {
   id: "chat-comments-connection-reviews",
   title: "Tasks and conversations/Questions and approvals/Chat & Comments/Connection Reviews",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "questions-and-approvals/tool-review",
         "connection-setup/task-request"

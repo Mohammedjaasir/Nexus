@@ -16,7 +16,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatConversations,
@@ -24,7 +24,7 @@ import {
   chatExternalPrincipals,
   chatIdentityLinks,
   companyMemberships,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import {
   HttpError,
@@ -52,7 +52,7 @@ export function createChatInboundAuthority(db: Db, options: InboundAuthorityOpti
         eq(companyMemberships.principalId, userId), eq(companyMemberships.status, "active"), ne(companyMemberships.membershipRole, "viewer"),
       ))
       .where(and(eq(chatIdentityLinks.companyId, endpoint.companyId), eq(chatIdentityLinks.endpointId, endpoint.id),
-        eq(chatIdentityLinks.paperclipUserId, userId), eq(chatIdentityLinks.status, "linked")))
+        eq(chatIdentityLinks.nexusUserId, userId), eq(chatIdentityLinks.status, "linked")))
       .limit(1).then((rows) => rows[0] ?? null);
   }
 
@@ -108,7 +108,7 @@ export function createChatInboundAuthority(db: Db, options: InboundAuthorityOpti
     }
     const link = await db
       .select({
-        userId: chatIdentityLinks.paperclipUserId,
+        userId: chatIdentityLinks.nexusUserId,
         status: chatIdentityLinks.status,
       })
       .from(chatIdentityLinks)
@@ -204,7 +204,7 @@ export function createChatInboundAuthority(db: Db, options: InboundAuthorityOpti
     const link = await tx
       .select({
         status: chatIdentityLinks.status,
-        userId: chatIdentityLinks.paperclipUserId,
+        userId: chatIdentityLinks.nexusUserId,
       })
       .from(chatIdentityLinks)
       .where(

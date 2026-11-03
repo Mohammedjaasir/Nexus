@@ -1,19 +1,19 @@
 import { Router } from "express";
-import type { Db } from "@paperclipai/db";
-import { applyOnboardingSeedSchema } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { applyOnboardingSeedSchema } from "@nexusai/shared";
 import { validate } from "../middleware/index.js";
 import { onboardingSeedService } from "../services/onboarding-seed.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
 
 /**
- * Receiver for the onboarding seed Paperclip Cloud collects at signup and
+ * Receiver for the onboarding seed Nexus Cloud collects at signup and
  * pushes into the stack at activation.
  *
  * Authentication is the trusted Cloud envelope, resolved exactly as it is for
- * `POST /api/companies/:companyId/logo`: the `x-paperclip-cloud-*` headers
+ * `POST /api/companies/:companyId/logo`: the `x-nexus-cloud-*` headers
  * produce a company-scoped actor and `assertCompanyAccess` fails closed for
  * anyone else. The seed itself is customer free text and rides the JSON body
- * only — it is never read from a header. Every `x-paperclip-cloud-*` value is
+ * only — it is never read from a header. Every `x-nexus-cloud-*` value is
  * derived server-side from the host plus verified domain records, which is
  * what makes that set trustworthy; customer free text must not be mixed into
  * it.

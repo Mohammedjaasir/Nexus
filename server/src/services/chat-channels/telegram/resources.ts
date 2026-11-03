@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { chatConversations, chatEndpointResources, chatEndpoints, type Db } from "@paperclipai/db";
+import { chatConversations, chatEndpointResources, chatEndpoints, type Db } from "@nexusai/db";
 import { notifyChatRunMilestones } from "../../chat-run-milestone-notifications.js";
 import type { ChatProviderLifecycleEffect } from "../../chat-provider-lifecycle.js";
 type DbTransaction = Parameters<Parameters<Db["transaction"]>[0]>[0];

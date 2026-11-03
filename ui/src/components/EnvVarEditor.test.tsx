@@ -2,7 +2,7 @@
 
 import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
-import type { CompanySecret, EnvBinding, UserSecretDefinition } from "@paperclipai/shared";
+import type { CompanySecret, EnvBinding, UserSecretDefinition } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EnvironmentVariablesEditor } from "./environment-variables-editor";
 
@@ -17,7 +17,7 @@ const definition: UserSecretDefinition = {
   description: null,
   status: "active",
   provider: "local_encrypted",
-  managedMode: "paperclip_managed",
+  managedMode: "nexus_managed",
   providerConfigId: null,
   providerMetadata: null,
   usageGuidance: null,
@@ -101,7 +101,7 @@ describe("EnvironmentVariablesEditor user secret binding", () => {
       name: "API key",
       provider: "local_encrypted",
       status: "active",
-      managedMode: "paperclip_managed",
+      managedMode: "nexus_managed",
       externalRef: null,
       providerConfigId: null,
       providerMetadata: null,

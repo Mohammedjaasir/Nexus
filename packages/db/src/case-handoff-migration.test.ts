@@ -39,7 +39,7 @@ const describePostgres = support.supported ? describe : describe.skip;
 afterEach(async () => { while (cleanups.length) await cleanups.pop()?.(); });
 
 async function database() {
-  const temporary = await startEmbeddedPostgresTestDatabase("paperclip-case-migration-");
+  const temporary = await startEmbeddedPostgresTestDatabase("nexus-case-migration-");
   cleanups.push(temporary.cleanup);
   const sql = postgres(temporary.connectionString, { max: 1, onnotice: () => {} });
   cleanups.push(() => sql.end());

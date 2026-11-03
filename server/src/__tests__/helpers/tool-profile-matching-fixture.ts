@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { agents, companies, toolApplications, toolCatalogEntries, toolConnections, toolProfileBindings, toolProfileEntries, toolProfiles, type Db } from "@paperclipai/db";
+import { agents, companies, toolApplications, toolCatalogEntries, toolConnections, toolProfileBindings, toolProfileEntries, toolProfiles, type Db } from "@nexusai/db";
 
 export async function createToolProfileMatchingFixture(db: Db) {
   const [company] = await db.insert(companies).values({ name: "Synthetic profile matching", issuePrefix: `BM${randomUUID().slice(0, 6)}` }).returning();

@@ -6,16 +6,16 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 import { and, eq } from "drizzle-orm";
-import { executionWorkspaceSnapshots, type Db } from "@paperclipai/db";
+import { executionWorkspaceSnapshots, type Db } from "@nexusai/db";
 import { localEncryptedProvider } from "../secrets/local-encrypted-provider.js";
 import type { StoredSecretVersionMaterial } from "../secrets/types.js";
 import type { StorageService } from "../storage/types.js";
 import { notifyRemoteWorkspaceSnapshots, REMOTE_WORKSPACE_SNAPSHOT_GRACE_MS } from "./remote-workspace-snapshot-retention.js";
 
-const SCHEMA = "paperclip.workspace-snapshot.v1";
-const KEY_SCHEMA = "paperclip.workspace-snapshot-key.v1";
+const SCHEMA = "nexus.workspace-snapshot.v1";
+const KEY_SCHEMA = "nexus.workspace-snapshot-key.v1";
 const MAGIC = Buffer.from("PCWSE1\n");
-const FORMAT = "paperclip.remote-workspace-archive.v1";
+const FORMAT = "nexus.remote-workspace-archive.v1";
 type SnapshotRow = typeof executionWorkspaceSnapshots.$inferSelect;
 export interface WorkspaceSnapshotRef {
   schema: typeof SCHEMA;

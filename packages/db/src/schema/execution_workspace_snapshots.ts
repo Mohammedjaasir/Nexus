@@ -11,7 +11,7 @@ export const executionWorkspaceSnapshots = pgTable("execution_workspace_snapshot
   generation: integer("generation").notNull(),
   epoch: integer("epoch").notNull(),
   status: text("status").$type<"pending" | "uploaded" | "committed" | "superseded" | "delete_requested" | "deleted">().notNull().default("pending"),
-  format: text("format").notNull().default("paperclip.remote-workspace-archive.v1"),
+  format: text("format").notNull().default("nexus.remote-workspace-archive.v1"),
   objectKey: text("object_key"),
   sha256: text("sha256"),
   byteSize: bigint("byte_size", { mode: "number" }),

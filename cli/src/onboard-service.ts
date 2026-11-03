@@ -2,11 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
-import type { PaperclipConfig } from "./config/schema.js";
+import type { NexusConfig } from "./config/schema.js";
 import { openUrl } from "./client/board-auth.js";
 import { installCommand, runCommandWithDiagnostics, smokePayload } from "./commands/install.js";
-import { resolvePaperclipInstanceId } from "./config/home.js";
-import { readRuntimeInfo, type PaperclipRuntimeInfo } from "./runtime-info.js";
+import { resolveNexusInstanceId } from "./config/home.js";
+import { readRuntimeInfo, type NexusRuntimeInfo } from "./runtime-info.js";
 import {
   readInstallManifest,
   resolveInstallStorePaths,
@@ -29,26 +29,26 @@ export type OnboardServiceOptions = {
 
 type EnsureShimResult = { ok: boolean; installedNow: boolean; reason?: string };
 type OnboardServiceDashboardConfig = {
-  auth: Pick<PaperclipConfig["auth"], "baseUrlMode" | "publicBaseUrl">;
-  server: Pick<PaperclipConfig["server"], "host" | "port">;
+  auth: Pick<NexusConfig["auth"], "baseUrlMode" | "publicBaseUrl">;
+  server: Pick<NexusConfig["server"], "host" | "port">;
 };
 
 type OnboardServiceDashboardDependencies = {
   isInteractive: () => boolean;
-  waitUntilReady: () => Promise<PaperclipRuntimeInfo | null>;
+  waitUntilReady: () => Promise<NexusRuntimeInfo | null>;
   openDashboard: (url: string) => Promise<boolean>;
   info: (message: string) => void;
   success: (message: string) => void;
   warn: (message: string) => void;
 };
 
-function envDisablesBrowser(value = process.env.PAPERCLIP_NO_BROWSER): boolean {
+function envDisablesBrowser(value = process.env.NEXUS_NO_BROWSER): boolean {
   const normalized = value?.trim().toLowerCase();
   return normalized === "1" || normalized === "true" || normalized === "yes";
 }
 
-async function waitUntilDashboardReady(timeoutMs = 60_000): Promise<PaperclipRuntimeInfo | null> {
-  const instanceId = resolvePaperclipInstanceId();
+async function waitUntilDashboardReady(timeoutMs = 60_000): Promise<NexusRuntimeInfo | null> {
+  const instanceId = resolveNexusInstanceId();
   const detection = await detectServiceManager({ instanceId });
   if (!detection.supported) return null;
   const deadline = Date.now() + timeoutMs;
@@ -82,7 +82,7 @@ const defaultDashboardDependencies: OnboardServiceDashboardDependencies = {
 
 export function resolveOnboardServiceDashboardUrl(
   config: OnboardServiceDashboardConfig,
-  runtime?: Pick<PaperclipRuntimeInfo, "dashboardUrl"> | null,
+  runtime?: Pick<NexusRuntimeInfo, "dashboardUrl"> | null,
 ): string {
   if (runtime?.dashboardUrl.trim()) return runtime.dashboardUrl.trim().replace(/\/+$/, "");
   if (config.auth.baseUrlMode === "explicit" && config.auth.publicBaseUrl?.trim()) {
@@ -98,12 +98,12 @@ export async function handoffToOnboardedService(
   const deps = { ...defaultDashboardDependencies, ...dependencies };
   const runtime = await deps.waitUntilReady();
   const dashboardUrl = resolveOnboardServiceDashboardUrl(config, runtime);
-  deps.info(`Paperclip dashboard: ${pc.cyan(dashboardUrl)}`);
+  deps.info(`Nexus dashboard: ${pc.cyan(dashboardUrl)}`);
 
   if (!runtime) {
     deps.warn(
       `The background service started, but the dashboard is not ready yet. ` +
-        `Open ${dashboardUrl} after checking \`paperclipai service logs\`.`,
+        `Open ${dashboardUrl} after checking \`nexusai service logs\`.`,
     );
     return;
   }
@@ -111,7 +111,7 @@ export async function handoffToOnboardedService(
   if (!deps.isInteractive() || envDisablesBrowser()) return;
 
   if (await deps.openDashboard(dashboardUrl)) {
-    deps.success("Sent the Paperclip dashboard to your browser.");
+    deps.success("Sent the Nexus dashboard to your browser.");
   } else {
     deps.warn(`Could not open a browser automatically. Open ${dashboardUrl} manually.`);
   }
@@ -151,7 +151,7 @@ export async function ensureServiceShim(options: { installIfMissing?: boolean } 
     return {
       ok: false,
       installedNow: false,
-      reason: `no executable exists at ${shimPath} (PAPERCLIP_SHIM_PATH), and it is outside the managed install store`,
+      reason: `no executable exists at ${shimPath} (NEXUS_SHIM_PATH), and it is outside the managed install store`,
     };
   }
   let manifest: InstallManifest | null = null;
@@ -161,7 +161,7 @@ export async function ensureServiceShim(options: { installIfMissing?: boolean } 
   try {
     if (
       manifest &&
-      fs.existsSync(path.join(resolveInstallStorePaths().currentPath, "node_modules", "paperclipai", "dist", "index.js"))
+      fs.existsSync(path.join(resolveInstallStorePaths().currentPath, "node_modules", "nexusai", "dist", "index.js"))
     ) {
       // Only the shim is missing: smoke-test and restore it for the recorded payload,
       // keeping its version and update channel instead of reinstalling.
@@ -181,7 +181,7 @@ export async function ensureServiceShim(options: { installIfMissing?: boolean } 
         installedNow: false,
         reason:
           `this build reports version ${packageVersion}, which is not an installable release; ` +
-          "run `paperclipai install` (or `paperclipai install --repo <repo> --ref <ref>` for source builds) first",
+          "run `nexusai install` (or `nexusai install --repo <repo> --ref <ref>` for source builds) first",
       };
     }
   } catch (error) {
@@ -206,14 +206,14 @@ const defaultDependencies: OnboardServiceDependencies = {
   ensureServiceShim: () => ensureServiceShim(),
   confirm: async () => {
     const answer = await p.confirm({
-      message: "Install Paperclip as a background service?",
+      message: "Install Nexus as a background service?",
       initialValue: true,
     });
     return !p.isCancel(answer) && answer === true;
   },
   confirmLinger: async () => {
     const answer = await p.confirm({
-      message: "Allow Paperclip to keep running after logout? This may request system authorization.",
+      message: "Allow Nexus to keep running after logout? This may request system authorization.",
       initialValue: false,
     });
     return !p.isCancel(answer) && answer === true;
@@ -235,12 +235,12 @@ export async function handleOnboardService(
   const canPrompt = options.yes !== true && deps.isInteractive();
   if (!explicitlyRequested && !canPrompt) {
     deps.info(
-      "Background service not installed. Use `paperclipai onboard --install-service` or `paperclipai service install` to opt in.",
+      "Background service not installed. Use `nexusai onboard --install-service` or `nexusai service install` to opt in.",
     );
     return false;
   }
 
-  const instanceId = resolvePaperclipInstanceId();
+  const instanceId = resolveNexusInstanceId();
   const detection = await deps.detect(instanceId);
   if (!detection.supported) {
     if (explicitlyRequested) deps.warn(detection.reason);
@@ -257,12 +257,12 @@ export async function handleOnboardService(
   if (!shim.ok) {
     deps.warn(
       `Background service not installed: ${shim.reason ?? "the managed install could not be completed"}. ` +
-        "Run `paperclipai install`, then `paperclipai service install`.",
+        "Run `nexusai install`, then `nexusai service install`.",
     );
     return false;
   }
   if (shim.installedNow) {
-    deps.success("Installed the managed paperclipai payload and command shim for the service.");
+    deps.success("Installed the managed nexusai payload and command shim for the service.");
   }
 
   await detection.manager.install({ startNow: true, startOnLogin: true });

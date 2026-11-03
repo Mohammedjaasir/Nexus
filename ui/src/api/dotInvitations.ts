@@ -1,7 +1,7 @@
 import { api } from "./client";
 
-import type { DotInvitation, DotConnection, DotPairing } from "@paperclipai/shared";
-export type { DotBinding, DotInvitation, DotConnection, DotPairing } from "@paperclipai/shared";
+import type { DotInvitation, DotConnection, DotPairing } from "@nexusai/shared";
+export type { DotBinding, DotInvitation, DotConnection, DotPairing } from "@nexusai/shared";
 const path = (companyId: string, agentId: string) => `/companies/${companyId}/agents/${agentId}/dot-binding`;
 export const dotInvitationsApi = {
   create: (companyId: string) => api.post<DotInvitation>(`/companies/${companyId}/dot-invitations`, {}),

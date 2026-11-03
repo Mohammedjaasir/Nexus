@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { sql } from "drizzle-orm";
-import { createDb, providerTraceRecords, type Db } from "@paperclipai/db";
+import { createDb, providerTraceRecords, type Db } from "@nexusai/db";
 import {
   S3Client,
   CreateBucketCommand,
@@ -17,8 +17,8 @@ import { idleWorkSnapshot } from "./task-admission.js";
 import { resolveExternalTestDatabaseUrl } from "../__tests__/helpers/external-test-database.js";
 
 vi.mock("./activity-log.js", () => ({ logActivity: vi.fn(async () => undefined) }));
-const databaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_RUN_EVIDENCE_MIGRATION_DATABASE_URL");
-const endpoint = process.env.PAPERCLIP_LOG_TEST_S3_ENDPOINT;
+const databaseUrl = resolveExternalTestDatabaseUrl("NEXUS_RUN_EVIDENCE_MIGRATION_DATABASE_URL");
+const endpoint = process.env.NEXUS_LOG_TEST_S3_ENDPOINT;
 describe.skipIf(!databaseUrl)("provider trace retention and capture ownership", () => {
   let db: Db, directory: string, client: S3Client | undefined;
   const schema = `trace_retention_${randomUUID().replaceAll("-", "")}`;
@@ -45,10 +45,10 @@ describe.skipIf(!databaseUrl)("provider trace retention and capture ownership", 
   });
   beforeEach(async () => {
     directory = await fs.mkdtemp(path.join(os.tmpdir(), "trace-retention-"));
-    vi.stubEnv("PAPERCLIP_CONFIG", path.join(directory, "config.json"));
+    vi.stubEnv("NEXUS_CONFIG", path.join(directory, "config.json"));
     vi.stubEnv("PROVIDER_TRACE_BASE_PATH", directory);
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "local_disk");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "e".repeat(64));
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "local_disk");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "e".repeat(64));
     await db.execute(sql`truncate provider_trace_records`);
   });
   afterEach(async () => {
@@ -79,12 +79,12 @@ describe.skipIf(!databaseUrl)("provider trace retention and capture ownership", 
     }
   });
   function external() {
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "s3");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_BUCKET", bucket);
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_ENDPOINT", endpoint!);
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_REGION", "us-east-1");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE", "true");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_PREFIX", "");
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "s3");
+    vi.stubEnv("NEXUS_STORAGE_S3_BUCKET", bucket);
+    vi.stubEnv("NEXUS_STORAGE_S3_ENDPOINT", endpoint!);
+    vi.stubEnv("NEXUS_STORAGE_S3_REGION", "us-east-1");
+    vi.stubEnv("NEXUS_STORAGE_S3_FORCE_PATH_STYLE", "true");
+    vi.stubEnv("NEXUS_STORAGE_S3_PREFIX", "");
   }
   it("schedules expiry when a new local trace is created after startup becomes quiet", async () => {
     const store = providerTraceStore(db),
@@ -100,10 +100,10 @@ describe.skipIf(!databaseUrl)("provider trace retention and capture ownership", 
     expect(await store.nextRetentionDeadline()).toBe(
       new Date(capture.metadata.expiresAt).getTime(),
     );
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "s3");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_BUCKET", bucket);
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_ENDPOINT", "http://127.0.0.1:1");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", undefined);
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "s3");
+    vi.stubEnv("NEXUS_STORAGE_S3_BUCKET", bucket);
+    vi.stubEnv("NEXUS_STORAGE_S3_ENDPOINT", "http://127.0.0.1:1");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", undefined);
     const replacement = providerTraceStore(db);
     expect(await replacement.getByRun(runId, companyId)).not.toBeNull();
     await replacement.remove(runId, companyId);

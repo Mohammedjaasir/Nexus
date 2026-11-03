@@ -2,7 +2,7 @@ import { idleWorkSnapshot } from "../services/task-admission.js";
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agents, companies, costEvents, createDb, databaseWorkPending, heartbeatRuns, issues } from "@paperclipai/db";
+import { agents, companies, costEvents, createDb, databaseWorkPending, heartbeatRuns, issues } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { issueService } from "../services/issues.js";
@@ -14,7 +14,7 @@ import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordin
 import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { notifyRunDispatch } from "../services/run-dispatch-notifications.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_RUN_DISPATCH_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_RUN_DISPATCH_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 
 describe.skipIf(!support.supported)("run dispatch production wiring (controlled local process adapter)", () => {

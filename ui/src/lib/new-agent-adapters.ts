@@ -1,4 +1,4 @@
-import { PAPERCLIP_RUNNER_ACPX_PROFILES } from "@paperclipai/adapter-utils";
+import { NEXUS_RUNNER_ACPX_PROFILES } from "@nexusai/adapter-utils";
 const CLOUD_ADAPTERS = new Set([
   "claude_local",
   "codex_local",
@@ -19,13 +19,13 @@ export function isNewAgentAdapterAllowed(
   }: { cloud: boolean; nativeRunnerEnabled: boolean; openAiDotEnabled?: boolean; museEnabled?: boolean; runnerProvider?: string;
     candidateHarnesses?: readonly { agent: "antigravity"; model: string }[] },
 ) {
-  if (type === "openai_dot" || (type === "paperclip_runner" && runnerProvider === "openai_dot")) {
+  if (type === "openai_dot" || (type === "nexus_runner" && runnerProvider === "openai_dot")) {
     return openAiDotEnabled;
   }
-  if (type === "muse" || (type === "paperclip_runner" && runnerProvider === "muse")) return museEnabled && nativeRunnerEnabled;
-  if (type === "paperclip_runner" && runnerProvider === "antigravity") return PAPERCLIP_RUNNER_ACPX_PROFILES.some(profile => profile.value === "antigravity" && profile.qualified)
+  if (type === "muse" || (type === "nexus_runner" && runnerProvider === "muse")) return museEnabled && nativeRunnerEnabled;
+  if (type === "nexus_runner" && runnerProvider === "antigravity") return NEXUS_RUNNER_ACPX_PROFILES.some(profile => profile.value === "antigravity" && profile.qualified)
     || Boolean(candidateHarnesses?.some(candidate => candidate.agent === "antigravity" && candidate.model));
-  if (type === "paperclip_runner") return runnerProvider === "copilot" || nativeRunnerEnabled;
+  if (type === "nexus_runner") return runnerProvider === "copilot" || nativeRunnerEnabled;
   if (cloud) return CLOUD_ADAPTERS.has(type);
   return true;
 }

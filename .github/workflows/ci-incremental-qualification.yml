@@ -41,7 +41,7 @@ jobs:
       - uses: ./.github/actions/setup-ci-dependencies
       - name: Prove conservative graphs, exact partitions, manifests and failure fallbacks
         run: node --test scripts/ci/test-selection*.test.mjs scripts/ci/vitest-impact-report.integration.test.mjs
-      - name: Qualify selection against the real Paperclip workspace
+      - name: Qualify selection against the real Nexus workspace
         env:
           NODE_ENV: test
           VITEST: 'true'
@@ -56,9 +56,9 @@ jobs:
           const lanes = JSON.parse(readFileSync('.github/ci-task-matrix.json', 'utf8'));
           const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
           for (const [file, project, related] of [
-            ['ui/src/pages/Inbox.tsx', '@paperclipai/ui', 'ui/src/pages/Inbox.test.tsx'],
-            ['server/src/middleware/auth.ts', '@paperclipai/server', 'server/src/__tests__/agent-auth-middleware.test.ts'],
-            ['server/src/storage/config.test.ts', '@paperclipai/server', 'server/src/storage/config.test.ts'],
+            ['ui/src/pages/Inbox.tsx', '@nexusai/ui', 'ui/src/pages/Inbox.test.tsx'],
+            ['server/src/middleware/auth.ts', '@nexusai/server', 'server/src/__tests__/agent-auth-middleware.test.ts'],
+            ['server/src/storage/config.test.ts', '@nexusai/server', 'server/src/storage/config.test.ts'],
           ]) {
             const selected = await createTestSelection(planTasks({ config, lanes, paths: [file, "doc/DEVELOPING.md", "doc/plans/2026-10-30-ci-proof.md"] }), head);
             const graph = selected.graphs.find(graph => graph.project === project);
@@ -87,7 +87,7 @@ jobs:
         run: node --test .github/scripts/tests/ci-plan.test.mjs .github/scripts/tests/ci-routing.test.mjs
       - name: Prove real cache reuse and invalidation
         env:
-          PAPERCLIP_CI_TEST_TURBO: ${{ runner.temp }}/ci-tools/node_modules/.bin/turbo
+          NEXUS_CI_TEST_TURBO: ${{ runner.temp }}/ci-tools/node_modules/.bin/turbo
         run: node --test scripts/ci/cache.integration.test.mjs
       - name: Check the real repository task graph
         env:

@@ -1,10 +1,10 @@
 import { connectionActorUserId } from "../actor.js";
 import type { ActorInfo } from "../types.js";
-import { isRemoteMcpConnectorMethod } from "@paperclipai/shared";
+import { isRemoteMcpConnectorMethod } from "@nexusai/shared";
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { issueThreadInteractions, toolConnectionInstalls, toolConnections } from "@paperclipai/db";
-import type { ConnectToolAppResult, FinishToolApp, ToolCatalogEntry } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { issueThreadInteractions, toolConnectionInstalls, toolConnections } from "@nexusai/db";
+import type { ConnectToolAppResult, FinishToolApp, ToolCatalogEntry } from "@nexusai/shared";
 
 import type { FinishConnectionSetup } from "../catalog/contracts.js";
 function asRecord(value: unknown): Record<string, unknown> {

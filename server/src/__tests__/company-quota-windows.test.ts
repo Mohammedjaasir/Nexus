@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 const mocks = vi.hoisted(() => ({
   accounts: vi.fn(),
   credential: vi.fn(),
@@ -18,10 +18,10 @@ vi.mock("../services/ai-connections.js", () => ({
 vi.mock("../adapters/registry.js", () => ({
   listServerAdapters: mocks.adapters,
 }));
-vi.mock("@paperclipai/adapter-codex-local/server", () => ({
+vi.mock("@nexusai/adapter-codex-local/server", () => ({
   fetchCodexQuota: mocks.codex,
 }));
-vi.mock("@paperclipai/adapter-claude-local/server", () => ({
+vi.mock("@nexusai/adapter-claude-local/server", () => ({
   fetchClaudeQuota: mocks.claude,
 }));
 import { fetchCompanyQuotaWindows } from "../services/quota-windows.js";

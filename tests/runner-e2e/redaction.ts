@@ -15,8 +15,8 @@ const SECRET_SHAPES = [
 const SENSITIVE_JSON_KEY =
   /^(?:api[-_]?key|access[-_]?token|refresh[-_]?token|auth(?:orization)?|bearer|client[-_]?secret|cookie|password|secret|token)$/i;
 
-const SAFE_SECRET_SOURCES = new Set<string>([...CREDENTIAL_NAMES, "PAPERCLIP_AGENT_JWT_SECRET",
-  "PAPERCLIP_DECISION_SIGNING_SECRET", "PAPERCLIP_TOOL_ACTION_SIGNING_SECRET", "BETTER_AUTH_SECRET"]);
+const SAFE_SECRET_SOURCES = new Set<string>([...CREDENTIAL_NAMES, "NEXUS_AGENT_JWT_SECRET",
+  "NEXUS_DECISION_SIGNING_SECRET", "NEXUS_TOOL_ACTION_SIGNING_SECRET", "BETTER_AUTH_SECRET"]);
 // Credential dictionaries can have account identities as keys. Only known
 // schema fields, never arbitrary JSON keys, may become diagnostic labels.
 const SAFE_SECRET_FIELDS = new Set(["tokens", "account_id", "access_token", "refresh_token", "id_token", "token",
@@ -92,31 +92,31 @@ export function findSecretLeakMatch(value: string | Buffer, secrets: readonly st
 }
 
 export function isEphemeralCodexRuntimeAuthFile(
-  paperclipHome: string,
+  nexusHome: string,
   file: string,
 ) {
-  const relative = path.relative(paperclipHome, file).split(path.sep).join("/");
+  const relative = path.relative(nexusHome, file).split(path.sep).join("/");
   return (
     /^instances\/[^/]+\/companies\/[^/]+\/agents\/[^/]+\/codex-home\/auth\.json$/.test(
       relative,
     ) ||
-    /^instances\/[^/]+\/runtime\/paperclip-runner\/durable-sessions\/[^/]+\/codex-home\/auth\.json$/.test(
+    /^instances\/[^/]+\/runtime\/nexus-runner\/durable-sessions\/[^/]+\/codex-home\/auth\.json$/.test(
       relative,
     ) ||
-    /^instances\/[^/]+\/runtime\/paperclip-runner\/acpx\/acpx\/[^/]+\/codex-home\/auth\.json$/.test(
+    /^instances\/[^/]+\/runtime\/nexus-runner\/acpx\/acpx\/[^/]+\/codex-home\/auth\.json$/.test(
       relative,
     )
   );
 }
 
-export function isEphemeralCodexRuntimeIdentityDatabase(paperclipHome: string, file: string) {
+export function isEphemeralCodexRuntimeIdentityDatabase(nexusHome: string, file: string) {
   return /^(?:logs|state)_\d+\.sqlite(?:-wal|-shm)?$/.test(path.basename(file)) &&
-    isEphemeralCodexRuntimeAuthFile(paperclipHome, path.join(path.dirname(file), "auth.json"));
+    isEphemeralCodexRuntimeAuthFile(nexusHome, path.join(path.dirname(file), "auth.json"));
 }
 
-function isEphemeralCodexRolloutFile(paperclipHome: string, file: string) {
+function isEphemeralCodexRolloutFile(nexusHome: string, file: string) {
   const match = /^(.*\/codex-home)\/sessions\/\d{4}\/\d{2}\/\d{2}\/rollout-[\w-]+\.jsonl$/.exec(file.split(path.sep).join("/"));
-  return Boolean(match && isEphemeralCodexRuntimeAuthFile(paperclipHome, path.join(match[1]!, "auth.json")));
+  return Boolean(match && isEphemeralCodexRuntimeAuthFile(nexusHome, path.join(match[1]!, "auth.json")));
 }
 
 function privateCodexAccountIdentity(sources: SecretScanOptions["sources"]): string | undefined {
@@ -237,7 +237,7 @@ export function secretScanFailureEvidence(input: {
   finding?: SecretLeakMatch & { file: string; stateArea: string };
   originalResult: { status: string; failureClass?: string; error?: string };
 }, secrets: readonly string[]) {
-  return sanitizeJson({ schema: "paperclip.e2e.persisted-state-scan.v1", ...input }, secrets);
+  return sanitizeJson({ schema: "nexus.e2e.persisted-state-scan.v1", ...input }, secrets);
 }
 
 export function assertSecretFree(
@@ -250,16 +250,16 @@ export function assertSecretFree(
   if (leak) throw new Error(`Secret leak in ${label}: ${leak}`);
 }
 
-export function isEphemeralPostgresPidFile(paperclipHome: string, file: string): boolean {
-  const relative = path.relative(paperclipHome, file).split(path.sep).join("/");
+export function isEphemeralPostgresPidFile(nexusHome: string, file: string): boolean {
+  const relative = path.relative(nexusHome, file).split(path.sep).join("/");
   return /^instances\/[^/]+\/db\/postmaster\.pid$/.test(relative);
 }
 
-export function isEphemeralPostgresScanFile(paperclipHome: string, file: string): boolean {
-  const relative = path.relative(paperclipHome, file).split(path.sep).join("/");
+export function isEphemeralPostgresScanFile(nexusHome: string, file: string): boolean {
+  const relative = path.relative(nexusHome, file).split(path.sep).join("/");
   // A relation can be unlinked during PostgreSQL shutdown/checkpoint. Existing
   // files are always scanned; this predicate only permits ENOENT after readdir.
-  return isEphemeralPostgresPidFile(paperclipHome, file) ||
+  return isEphemeralPostgresPidFile(nexusHome, file) ||
     /^instances\/[^/]+\/db\/base\/\d+\/\d+(?:_(?:fsm|vm|init))?(?:\.\d+)?$/.test(relative);
 }
 

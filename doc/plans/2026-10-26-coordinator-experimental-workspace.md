@@ -20,8 +20,8 @@ The selected Coordinator synthesis is the visual and interaction reference. Use 
 
 - Source baseline: local master `1fbbef45a8d399771add7a27a04b12f3a20e264c`.
 - Branch: `codex/coordinator-experimental`.
-- Checkout: isolated `paperclip-functional` worktree.
-- Separate runtime home: sibling `paperclip-runtime` directory.
+- Checkout: isolated `nexus-functional` worktree.
+- Separate runtime home: sibling `nexus-runtime` directory.
 - Instance: `coordinator-functional`; explicitly empty initialization; fresh signing keys; no immediate or deferred copy from the primary instance.
 - Allocated ports: app 3210, embedded PostgreSQL 55460; verify actual ownership before claiming readiness.
 - The original prototype remains in its separate worktree and is not the application baseline.
@@ -86,7 +86,7 @@ Local review evidence lives outside the checkout in `../evidence/`: `coordinator
 Start this checkout with explicit `PORT=3210` as well as its isolated config:
 
 ```sh
-PORT=3210 PAPERCLIP_TELEMETRY_DISABLED=1 PAPERCLIP_NO_BROWSER=true PAPERCLIP_OPEN_ON_LISTEN=false PAPERCLIP_UPDATE_CHECK=0 pnpm dev:once
+PORT=3210 NEXUS_TELEMETRY_DISABLED=1 NEXUS_NO_BROWSER=true NEXUS_OPEN_ON_LISTEN=false NEXUS_UPDATE_CHECK=0 pnpm dev:once
 ```
 
 Use the pinned pnpm 9.15.4 toolchain on this machine. The initial launch omitted `PORT`; the app honored config port 3210 but the development supervisor polled its default 3100. A restart request returned 202 while remaining pending. The owned process was subsequently relaunched with explicit port after checking that no provider login or agent work was active; the current backend is loaded and serving the new history routes.
@@ -126,7 +126,7 @@ Late verification notes:
 
 - Every required lane/project executed. Across original invocations: 2,558 files passed, 10 skipped, 9 failed; 43,546 tests passed, 158 skipped, 40 failed. This is **not** a clean full-suite result.
 - The 29 IssueDetail fixture failures were corrected without changing production loading behavior; fresh 159/159 pass. Two history failures from the earlier long-lived transform pass on a fresh isolated five-case run. Original failures remain recorded.
-- Exact-name isolated retries passed for the heartbeat timeout and routines socket failure; their original causes are unconfirmed. The OpenCode mismatch persists and is explained by inherited PAPERCLIP_ADAPTER_MODELS taking precedence over the test's discovery mock in unchanged source.
+- Exact-name isolated retries passed for the heartbeat timeout and routines socket failure; their original causes are unconfirmed. The OpenCode mismatch persists and is explained by inherited NEXUS_ADAPTER_MODELS taking precedence over the test's discovery mock in unchanged source.
 - Other remaining environment failures: two Git default-branch fixture failures, one Python 3.9 Muse cleanup failure, and three Hermes failures because the host Python is below its >=3.10 prerequisite. No unrelated source or global environment changes were made to force a green run.
 - Full repository typecheck and build passed before the final native-tool contract edit. After that narrow edit, server typecheck, runner TypeScript build and 107 focused server/runner tests passed. Structural and final diff checks are recorded alongside the evidence.
 - Source of truth: `../evidence/coordinator-test-ledger.json`, which preserves first failures and subsequent verification separately.

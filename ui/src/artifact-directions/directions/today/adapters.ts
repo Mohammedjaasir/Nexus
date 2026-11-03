@@ -1,4 +1,4 @@
-import type { IssueDocument, IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueDocument, IssueWorkProduct } from "@nexusai/shared";
 import type { CompanyArtifact, CompanyArtifactGroup } from "@/api/artifacts";
 import type { AttachmentRef } from "@/components/task-chat/task-chat-attachments";
 import type { LabArtifact, LabGroup } from "../../kit";
@@ -71,7 +71,7 @@ export function toWorkProduct(a: LabArtifact, createdAt: Date = new Date(a.updat
   return {
     ...base,
     type: "artifact",
-    provider: "paperclip",
+    provider: "nexus",
     url: null,
     metadata: {
       ...attachmentPaths(a),

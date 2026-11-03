@@ -1,4 +1,4 @@
-import { getAppStoreDefinition } from "@paperclipai/shared";
+import { getAppStoreDefinition } from "@nexusai/shared";
 import { ApiKeyCredentialField } from "./ApiKeyCredentialField";
 
 export const AGENTMAIL_API_KEYS_URL = getAppStoreDefinition("agentmail")!.methods[0]!.consoleLinks!.keys!;

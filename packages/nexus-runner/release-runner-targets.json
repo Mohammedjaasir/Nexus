@@ -1,0 +1,4 @@
+{
+  "schema": "nexus.runner.release-targets.v1",
+  "targets": ["darwin-arm64", "darwin-x64", "linux-x64", "linux-arm64"]
+}

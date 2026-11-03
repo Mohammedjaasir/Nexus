@@ -34,7 +34,7 @@ import { issueTreeControlService } from "../issue-tree-control.js";
 import { randomUUID } from "node:crypto";
 import { preserveNativeWorkspaceExportLease } from "./native-workspace-export-resume.js";
 import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agentWakeupRequests,
   completionContracts,
@@ -49,9 +49,9 @@ import {
   statusDecisionEffects,
   workAssessments,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { classifyNativeEvidence } from "./evidence-classifier.js";
-import type { PrpIgnoredAttentionRequest, PrpTerminalState } from "@paperclipai/paperclip-runner";
+import type { PrpIgnoredAttentionRequest, PrpTerminalState } from "@nexusai/nexus-runner";
 import {
   arbitrateNativeStatus,
   NATIVE_STATUS_ARBITER_POLICY_VERSION,
@@ -809,8 +809,8 @@ async function recoverCommittedNativeChatResponseInScope(
               'conversationSessionGeneration', ${heartbeatRuns.contextSnapshot}->'conversationSessionGeneration',
               'source', ${heartbeatRuns.contextSnapshot}->'source',
               'externalChatContinuation', ${heartbeatRuns.contextSnapshot}->'externalChatContinuation',
-              'paperclipWake', jsonb_build_object('externalInteractionContinuation',
-                ${heartbeatRuns.contextSnapshot} #> '{paperclipWake,externalInteractionContinuation}')
+              'nexusWake', jsonb_build_object('externalInteractionContinuation',
+                ${heartbeatRuns.contextSnapshot} #> '{nexusWake,externalInteractionContinuation}')
             ) end`,
         })
         .from(heartbeatRuns)
@@ -885,7 +885,7 @@ async function recoverCommittedNativeChatResponseInScope(
       if (
         !accepted ||
         !decision ||
-        result.schema !== "paperclip.run_result.v1" ||
+        result.schema !== "nexus.run_result.v1" ||
         !(await acceptedResponseDigestMatches(tx, run, accepted))
       )
         return false;
@@ -1033,7 +1033,7 @@ async function recoverCommittedNativeChatResponseInScope(
             {
               presentationDecision,
               nativeCommittedChatResponse: {
-                schema: "paperclip.native_committed_chat_response.v1",
+                schema: "nexus.native_committed_chat_response.v1",
                 resultId: accepted.id,
                 canonicalSha256: accepted.canonicalSha256,
                 decisionId: decision.id,

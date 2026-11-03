@@ -1,5 +1,5 @@
 import { HttpError } from "../errors.js";
-import { BROWSER_USE_API_URL } from "@paperclipai/shared";
+import { BROWSER_USE_API_URL } from "@nexusai/shared";
 import { z } from "zod";
 import { guardedRemoteHttpFetch } from "./remote-http-fetch.js";
 

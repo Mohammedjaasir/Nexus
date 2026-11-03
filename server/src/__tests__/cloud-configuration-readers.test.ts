@@ -15,9 +15,9 @@ describe("bounded Cloud legacy readers and image inventory", () => {
   afterEach(async () => { await fs.rm(root, { recursive: true, force: true }); });
 
   it("distinguishes an absent adapter file from a saved empty preference", async () => {
-    expect(await readLegacyAdapterSettings({ PAPERCLIP_HOME: root })).toBeNull();
+    expect(await readLegacyAdapterSettings({ NEXUS_HOME: root })).toBeNull();
     await fs.writeFile(path.join(root, "adapter-settings.json"), '{"disabledTypes":[]}');
-    expect(await readLegacyAdapterSettings({ PAPERCLIP_HOME: root })).toEqual({ disabledTypes: [] });
+    expect(await readLegacyAdapterSettings({ NEXUS_HOME: root })).toEqual({ disabledTypes: [] });
   });
 
   it.skipIf(process.platform === "win32")("rejects symlinks and FIFOs without waiting for a writer", async () => {
@@ -25,11 +25,11 @@ describe("bounded Cloud legacy readers and image inventory", () => {
     const settings = path.join(root, "adapter-settings.json");
     await fs.writeFile(target, '{"disabledTypes":[]}');
     await fs.symlink(target, settings);
-    await expect(readLegacyAdapterSettings({ PAPERCLIP_HOME: root })).rejects.toMatchObject({ code: "ELOOP" });
+    await expect(readLegacyAdapterSettings({ NEXUS_HOME: root })).rejects.toMatchObject({ code: "ELOOP" });
     expect((await inspectLegacyExternalRegistrations(settings)).blocker).toBe("unreadable_external_registration_metadata");
     await fs.unlink(settings);
     execFileSync("mkfifo", [settings]);
-    await expect(readLegacyAdapterSettings({ PAPERCLIP_HOME: root })).rejects.toThrow("regular file");
+    await expect(readLegacyAdapterSettings({ NEXUS_HOME: root })).rejects.toThrow("regular file");
     expect((await inspectLegacyExternalRegistrations(settings)).blocker).toBe("invalid_external_registration_metadata");
   });
 

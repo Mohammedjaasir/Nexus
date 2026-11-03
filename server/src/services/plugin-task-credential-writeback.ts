@@ -1,13 +1,13 @@
-import { aiConnectionMetadataSchema } from "@paperclipai/shared";
+import { aiConnectionMetadataSchema } from "@nexusai/shared";
 import { and, eq, sql } from "drizzle-orm";
-import { companySecrets, connectionGrants, environmentLeases, toolConnections, type Db } from "@paperclipai/db";
-import { z, type PluginEnvironmentTaskCredential } from "@paperclipai/plugin-sdk";
+import { companySecrets, connectionGrants, environmentLeases, toolConnections, type Db } from "@nexusai/db";
+import { z, type PluginEnvironmentTaskCredential } from "@nexusai/plugin-sdk";
 import { mkdtemp, writeFile, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { decideCodexAuthMerge, withAccountHomeSecretMutationLock } from "@paperclipai/adapter-codex-local/server";
-import { WORKSPACE_RESTORE_LOCK_TIMEOUT_CODE } from "@paperclipai/adapter-utils/workspace-restore-merge";
+import { decideCodexAuthMerge, withAccountHomeSecretMutationLock } from "@nexusai/adapter-codex-local/server";
+import { WORKSPACE_RESTORE_LOCK_TIMEOUT_CODE } from "@nexusai/adapter-utils/workspace-restore-merge";
 import { aiConnectionService } from "./ai-connections.js";
 import { secretService } from "./secrets.js";
 
@@ -69,7 +69,7 @@ export async function settlePluginTaskCredentialHandoff(
     throw new Error("Plugin task credential process termination is unconfirmed");
   }
   const binding = handoff.binding;
-  const home = await mkdtemp(join(await realpath(tmpdir()), "paperclip-task-credential-"));
+  const home = await mkdtemp(join(await realpath(tmpdir()), "nexus-task-credential-"));
   try {
     // Revocation or an explicit account replacement intentionally discards an old refresh.
     const account = async (database: Db) => {

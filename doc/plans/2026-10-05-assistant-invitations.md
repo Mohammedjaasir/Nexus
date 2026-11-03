@@ -1,11 +1,11 @@
-# Invite an assistant to Paperclip with one message
+# Invite an assistant to Nexus with one message
 
 Date: 2026-10-05
 
 ## Outcome
 
 From Butter → Connections → Assistant Connection (MCP), copy a message or URL,
-paste it into an assistant, approve the identified client in Paperclip, and use
+paste it into an assistant, approve the identified client in Nexus, and use
 the organization's tools as the consenting human. Sharing an invitation grants
 no access. Keep the existing experimental setting and simplified consent UI.
 
@@ -29,7 +29,7 @@ no access. Keep the existing experimental setting and simplified consent UI.
 
 ## Acceptance
 
-- Cold start: no Paperclip tools/configuration initially; the invitation starts
+- Cold start: no Nexus tools/configuration initially; the invitation starts
   setup and consent; verify the resulting account/company before work.
 - Existing configuration, unavailable host setup, denied/expired consent,
   later-conversation reconnect, and required client restart are represented.

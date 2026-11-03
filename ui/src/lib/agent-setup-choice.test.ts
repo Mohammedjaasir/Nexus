@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { pendingAgentSetupChoice, pendingAgentSetupDisplayAdapter } from "./agent-setup-choice";
 
-const choice = { adapterType: "paperclip_runner", runnerProvider: "antigravity", runner: "auto" } as const;
+const choice = { adapterType: "nexus_runner", runnerProvider: "antigravity", runner: "auto" } as const;
 describe("held agent setup choice", () => {
   it("retains only the recognized display and navigation intent", () => {
     const draft = { pauseReason: "setup", metadata: { setupAdapterPending: true, setupAdapterChoice: { ...choice, env: "must not project" } } };

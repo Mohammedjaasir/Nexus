@@ -7,7 +7,7 @@ import { toolAccessService } from "../services/tool-access.js";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, ne, sql } from "drizzle-orm";
-import { applyPendingMigrations, companies, createDb, subscribeDatabaseWork, toolApplications, toolConnections } from "@paperclipai/db";
+import { applyPendingMigrations, companies, createDb, subscribeDatabaseWork, toolApplications, toolConnections } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { connectionHealthSchedule } from "../services/tool-access/catalog/health-schedule.js";
@@ -17,7 +17,7 @@ import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_TOOL_HEALTH_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_TOOL_HEALTH_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("scheduled tool connection health", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -148,7 +148,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
       }
       expect(returnedRows).toBeLessThanOrEqual(10 * fixtureConnections.length);
       await writeToolConnectionHealthChange(db, { companyId, applicationId: application.id }, async tx => {
-        await tx.update(toolApplications).set({ type: "paperclip_plugin" }).where(eq(toolApplications.id, application.id));
+        await tx.update(toolApplications).set({ type: "nexus_plugin" }).where(eq(toolApplications.id, application.id));
       });
       await vi.advanceTimersByTimeAsync(31_000);
       await vi.waitFor(() => expect(excludedApplicationLoaded).toBe(true));
@@ -173,7 +173,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const gate = new Promise<void>(resolve => { unlock = resolve; });
     const admitted = new Promise<void>(resolve => { acquired = resolve; });
     const holder = db.transaction(async tx => {
-      await tx.update(toolApplications).set({ type: "paperclip_plugin" }).where(eq(toolApplications.id, installed.application.id));
+      await tx.update(toolApplications).set({ type: "nexus_plugin" }).where(eq(toolApplications.id, installed.application.id));
       acquired(); await gate;
     });
     await admitted;
@@ -215,7 +215,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const service = connectionHealthSchedule(db, probe), load = vi.spyOn(service, "load");
     await start(service); await idleAt(checkedAt.getTime() + 900_000); load.mockClear();
     await writeToolConnectionHealthChange(db, { companyId, applicationId }, async tx => {
-      await tx.update(toolApplications).set({ type: "paperclip_plugin" }).where(eq(toolApplications.id, applicationId));
+      await tx.update(toolApplications).set({ type: "nexus_plugin" }).where(eq(toolApplications.id, applicationId));
     });
     await idleAt(other.healthCheckedAt!.getTime() + 900_000);
     expect(load).toHaveBeenCalledWith(companyId, undefined, applicationId, expect.any(AbortSignal));
@@ -230,7 +230,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const checkedAt = new Date();
     const first = await connection({ healthCheckedAt: checkedAt });
     const other = await connection({ healthCheckedAt: new Date(checkedAt.getTime() + 60_000) });
-    const [plugin] = await db.insert(toolApplications).values({ companyId, name: "Excluded app", type: "paperclip_plugin" }).returning();
+    const [plugin] = await db.insert(toolApplications).values({ companyId, name: "Excluded app", type: "nexus_plugin" }).returning();
     await start(); await idleAt(checkedAt.getTime() + 900_000);
     await writeToolConnectionHealthChange(db, first, async tx => {
       await tx.update(toolConnections).set({ applicationId: plugin.id }).where(eq(toolConnections.id, first.id));
@@ -392,18 +392,18 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
   });
   it("cancels and restores experimental connector checks through the settings producer", async () => {
     const settings = instanceSettingsService(db);
-    const original = (await settings.getExperimental()).enablePaperclipNotebook;
+    const original = (await settings.getExperimental()).enableNexusNotebook;
     try {
-      await settings.updateExperimental({ enablePaperclipNotebook: false });
-      await connection({ config: { sourceTemplateKey: "paperclip-notebook" } });
+      await settings.updateExperimental({ enableNexusNotebook: false });
+      await connection({ config: { sourceTemplateKey: "nexus-notebook" } });
       await start(); await quiet(); expect(probe).not.toHaveBeenCalled();
-      await settings.updateExperimental({ enablePaperclipNotebook: true });
+      await settings.updateExperimental({ enableNexusNotebook: true });
       await checked();
-      await settings.updateExperimental({ enablePaperclipNotebook: false });
+      await settings.updateExperimental({ enableNexusNotebook: false });
       await quiet();
     } finally {
       await coordinator?.stop(); coordinator = undefined;
-      await settings.updateExperimental({ enablePaperclipNotebook: original });
+      await settings.updateExperimental({ enableNexusNotebook: original });
     }
   });
   it("cancels a company's cached deadline when the real deletion service commits", async () => {

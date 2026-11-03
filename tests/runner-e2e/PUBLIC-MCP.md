@@ -1,4 +1,4 @@
-# Public Paperclip MCP acceptance
+# Public Nexus MCP acceptance
 
 This explicit-only Product E2E suite runs a paid external assistant model against
 the real direct-instance MCP catalog and shipped plugin skills. Delegated work goes
@@ -56,7 +56,7 @@ work even when it has a different title.
 The mutation oracle allows correcting an explicit pre-execution schema rejection;
 it requires a stable request ID once execution may have begun, including unknown
 outcomes. A malformed UUID that the server rejects creates no mutation receipt.
-The runtime Paperclip skill now documents creating arbitrary task documents and
+The runtime Nexus skill now documents creating arbitrary task documents and
 reading them back before completion. A retained Mini run tried POST, then treated a missing report's GET 404 as an
 unavailable document API and substituted a comment. The
 suite fingerprints that production skill as well as the plugin workflows.
@@ -107,14 +107,14 @@ boundaries retain their focused protocol tests; paid success does not replace th
 Five additional cases expand the explicit catalog to thirteen cases / 39 cells:
 `invitation-cold-start`, `invitation-existing-config`,
 `invitation-unavailable-host`, `invitation-denied`, and `invitation-reconnect`.
-Each begins with zero configured Paperclip tools or credentials. The paid model
+Each begins with zero configured Nexus tools or credentials. The paid model
 fetches the production public Markdown instructions and operates an evaluation-owned
 MCP host with explicit setup tools. Device authorization, browser consent, token
 redemption and the resulting MCP transport are real. This does not stand in for
 testing installation in OpenCode, Codex, Claude Code or browser connector settings.
 
 The host records configuration changes, preserves unrelated server entries and
-only exposes Paperclip tools after approval. Independent connection-list reads
+only exposes Nexus tools after approval. Independent connection-list reads
 check the granted company and absence of grants after refusal or an unsupported
 host. Models must verify their connected identity before delegation. Successful
 cases create one real worker task and retrieve its agent-authored result in a new
@@ -122,7 +122,7 @@ conversation; reconnect additionally closes and reopens the MCP transport using
 the saved authorization, without new consent. Negative cases use one explicitly
 fixture-created worker task to retain worker billing/terminal-state coverage;
 that task is not represented as assistant-authorized work. No assistant mutation
-or Paperclip tool access is permitted in those negative cases.
+or Nexus tool access is permitted in those negative cases.
 
 `public-mcp-invitation.json` records the host boundary and independent grants.
 The public setup source is fingerprinted alongside the existing workflow skills.
@@ -147,7 +147,7 @@ for source hashes, costs, reports and limits.
 
 The additional `event-follow-up` case expands the catalog to eight cases / 24
 cells. It starts a temporary fixture-only HTTPS callback with `cloudflared`
-(`PAPERCLIP_EVAL_CLOUDFLARED` may select the binary), independently verifies the
+(`NEXUS_EVAL_CLOUDFLARED` may select the binary), independently verifies the
 Standard Webhooks signatures, and subscribes through the production MCP 2.0
 endpoint immediately after the paid assistant creates the task. The real agent
 completes its report; the durable event worker delivers the completion webhook.
@@ -163,7 +163,7 @@ categories in event evidence, and reports exhausted setup independently of model
 behavior. It does not retry a paid cell automatically.
 
 The receiver exposes only a random signed callback path, carries only synthetic
-evaluation data, never exposes the Paperclip server, and closes its tunnel during
+evaluation data, never exposes the Nexus server, and closes its tunnel during
 cleanup. Callback secrets and OAuth material stay out of model prompts, logs and
 retained event evidence. `snapshots/public-mcp-events.json` retains verified
 fixture event payloads. Startup/network failures remain distinct from delivered

@@ -1,10 +1,10 @@
-import { CodexSessionState } from "../../packages/paperclip-runner/src/drivers/codex/codex-session-state.js";
-import { mapTerminalTurn } from "../../packages/paperclip-runner/src/drivers/codex/codex-session-terminal.js";
+import { CodexSessionState } from "../../packages/nexus-runner/src/drivers/codex/codex-session-state.js";
+import { mapTerminalTurn } from "../../packages/nexus-runner/src/drivers/codex/codex-session-terminal.js";
 import { observePiControlPending } from "./pi-controls-evidence.js";
 import { readActiveStopCaller } from "./native-active-stop-evidence.js";
 
 type Row = Record<string, any>;
-export const piControlCaller = readActiveStopCaller({ deploymentMode: "local_trusted" }, { session: { userId: "local-board", id: "paperclip:local_implicit:local-board" } });
+export const piControlCaller = readActiveStopCaller({ deploymentMode: "local_trusted" }, { session: { userId: "local-board", id: "nexus:local_implicit:local-board" } });
 export const piCancellationId = "11111111-2222-4333-8444-555555555555";
 export function piControlFixture(target = "target.txt") {
   const scope = { companyId: "company", issueId: "issue", runId: "run", target };
@@ -12,13 +12,13 @@ export function piControlFixture(target = "target.txt") {
   const row = (eventType: string, payload: Row, extra: Row = {}) => {
     const seq = events.length + 1;
     return { companyId: "company", runId: "run", seq, eventType, protocolSchemaVersion: 1,
-      payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn", normalizedSessionId: "session", sourceInstanceId: "source", sourceSeq: seq,
+      payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", eventType, runId: "run", turnId: "turn", normalizedSessionId: "session", sourceInstanceId: "source", sourceSeq: seq,
         sourceEventId: `source:run:${seq}`, emittedAt: "2026-10-01T00:00:00Z", payload, ...extra } } };
   };
   const append = (eventType: string, payload: Row, extra: Row = {}) => events.push(row(eventType, payload, extra));
-  const tool = { schema: "paperclip.tool.execution.v1", executionId: "pi-tool", transport: "builtin", name: "write", operation: "edit", target, status: "running" };
+  const tool = { schema: "nexus.tool.execution.v1", executionId: "pi-tool", transport: "builtin", name: "write", operation: "edit", target, status: "running" };
   append("tool.execution.started", tool);
-  const request = { schema: "paperclip.runtime_request.v2", type: "permission", requestKind: "permission_approval", method: "session/request_permission", status: "pending", requestId: "request", turnId: "turn", itemId: "permission-item",
+  const request = { schema: "nexus.runtime_request.v2", type: "permission", requestKind: "permission_approval", method: "session/request_permission", status: "pending", requestId: "request", turnId: "turn", itemId: "permission-item",
     origin: { adapter: "acpx-runtime-sidecar", provider: "pi", method: "session/request_permission" }, details: { toolCallId: "pi-tool" }, choices: [{ key: "decline", label: "Deny" }] };
   append("runtime_request.created", { request });
   const run: Row = { id: "run", companyId: "company", nativeIssueId: "issue", runtimeMode: "native", status: "running", resultJson: {}, processPid: 123, processGroupId: 123, processStartedAt: "2026-10-01T00:00:00Z" };
@@ -38,7 +38,7 @@ export function piControlFixture(target = "target.txt") {
     mapTerminalTurn(session, { id: "turn", status: "cancelled", error: null }, "turn");
     run.status = "cancelled";
     run.resultJson = { startupCancellation: { cancellationRequestId, requestedBy: { type: "board", userId: "local-board" } }, nativeCancellation: {
-      schema: "paperclip.native-cancellation.v1", intentId: `native-cancellation:${cancellationRequestId}`, companyId: "company", runId: "run", issueId: "issue", scope: "run",
+      schema: "nexus.native-cancellation.v1", intentId: `native-cancellation:${cancellationRequestId}`, companyId: "company", runId: "run", issueId: "issue", scope: "run",
       dispatched: true, dispatchState: "acknowledged", reasonCode: "cancellation_run_only", effects: ["release_run_resources"], intentAuditId: "intent-audit", acknowledgementAuditId: "ack-audit",
     } };
     return run;
@@ -53,10 +53,10 @@ export function piControlFixture(target = "target.txt") {
     append("tool.execution.completed", { ...tool, status: "failed", output: "Pi operation was denied or cancelled" });
     append("turn.completed", { status: "completed", error: null });
     run.status = "succeeded"; issue.status = "done";
-    append("run.result.accepted", { result: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "done", summary: finalMarker } }, {
+    append("run.result.accepted", { result: { schema: "nexus.run_result.v1", reportedWorkDisposition: "done", summary: finalMarker } }, {
       sourceKind: "control_plane", sourceInstanceId: "source:control", sourceSeq: 1, sourceEventId: "source:control:run:1",
     });
-    append("run.terminal", { schema: "paperclip.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "done" }, {
+    append("run.terminal", { schema: "nexus.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "done" }, {
       sourceKind: "control_plane", sourceInstanceId: "source:control", sourceSeq: 2, sourceEventId: "source:control:run:2",
     });
   }

@@ -133,7 +133,7 @@ describe("issue thread interaction helpers", () => {
           { id: "features", prompt: "Which features?", selectionMode: "multi", options: [{ id: "logs", label: "Request logs" }] },
         ],
         questionSet: {
-          schema: "paperclip.question_set.v1",
+          schema: "nexus.question_set.v1",
           questions: [
             { id: "purpose", header: "Purpose", prompt: "What is it for?", required: true, answerMode: "text" },
             { id: "runtime", header: "Runtime", prompt: "Which runtime?", required: true, answerMode: "single_select", options: [{ id: "node", label: "Node.js" }] },

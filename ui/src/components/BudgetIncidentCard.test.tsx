@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import type { BudgetIncident } from "@paperclipai/shared";
+import type { BudgetIncident } from "@nexusai/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BudgetIncidentCard } from "./BudgetIncidentCard";
 

@@ -4,11 +4,11 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { sql, and, eq, isNull, gt, inArray } from "drizzle-orm";
 import { agents, companies, issues, authUsers, companyMemberships, heartbeatRuns, nativeRunFinalizations, mcpOauthGrants,
-  dotAgentBindings, dotRunnerOperations, grokBotRoutines, museAgentBindings, museRunnerOperations, externalAgentHolds, type Db } from "@paperclipai/db";
+  dotAgentBindings, dotRunnerOperations, grokBotRoutines, museAgentBindings, museRunnerOperations, externalAgentHolds, type Db } from "@nexusai/db";
 import { issueReadSqlCondition } from "../../services/authorization.js";
 import { getNativeReviewAssignment, readNativeReviewAssignmentContext } from "../../services/native-runtime/native-review-participant.js";
 import { conflict, forbidden } from "../../errors.js";
-import { externalOperationDigest, digestPaperclipSemanticContent, parsePaperclipQuestionSet, type ExternalProviderOperation, type ExternalProviderPort, type DotBindingSnapshot } from "../../vendor/paperclip-runner/index.js";
+import { externalOperationDigest, digestNexusSemanticContent, parseNexusQuestionSet, type ExternalProviderOperation, type ExternalProviderPort, type DotBindingSnapshot } from "../../vendor/nexus-runner/index.js";
 import { consumeDotHistoryReceipt } from "../../services/dot-assignment-follow-up.js";
 import { grokRoutineService, lockGrokRoutineAcceptance } from "../../services/grok-bot/routine.js";
 import { authorizeExternalBotOperator } from "../../services/external-bot-authority.js";
@@ -64,7 +64,7 @@ export function createNativeExternalBroker<S>(db:Db,provider:Provider,identity:I
     const [company]=await database.select().from(companies).where(eq(companies.id,b.companyId));
     const [user]=await database.select({id:authUsers.id}).from(authUsers).where(eq(authUsers.id,b.operatorId));
     const [membership]=await database.select().from(companyMemberships).where(and(eq(companyMemberships.companyId,b.companyId),eq(companyMemberships.principalType,"user"),eq(companyMemberships.principalId,b.operatorId),eq(companyMemberships.status,"active")));
-    if(!agent||["paused","terminated","pending_approval"].includes(agent.status)||agent.adapterType!=="paperclip_runner"||agent.adapterConfig.provider!==actualProvider||agent.adapterConfig[actualProvider==="muse"?"museBindingId":actualProvider==="grok_bot"?"externalBindingId":"dotBindingId"]!==b.id||company?.status!=="active"||!user||!membership||membership.membershipRole==="viewer")throw forbidden("Current external agent or authorizer authority is unavailable.");
+    if(!agent||["paused","terminated","pending_approval"].includes(agent.status)||agent.adapterType!=="nexus_runner"||agent.adapterConfig.provider!==actualProvider||agent.adapterConfig[actualProvider==="muse"?"museBindingId":actualProvider==="grok_bot"?"externalBindingId":"dotBindingId"]!==b.id||company?.status!=="active"||!user||!membership||membership.membershipRole==="viewer")throw forbidden("Current external agent or authorizer authority is unavailable.");
     if(provider==="muse") {
       const [member]=await database.select({id:companyMemberships.id}).from(companyMemberships).where(and(eq(companyMemberships.companyId,b.companyId),eq(companyMemberships.principalType,"agent"),eq(companyMemberships.principalId,b.agentId),eq(companyMemberships.status,"active")));
       const [binding]=await database.select().from(museAgentBindings).where(and(eq(museAgentBindings.id,b.id),eq(museAgentBindings.generation,b.generation),eq(museAgentBindings.companyId,b.companyId),eq(museAgentBindings.agentId,b.agentId),eq(museAgentBindings.operatorId,b.operatorId)));
@@ -169,7 +169,7 @@ export function createNativeExternalBroker<S>(db:Db,provider:Provider,identity:I
     const authority=await identity.authorize(subject,id),{binding:b,assignment:a}=authority;
     if(!z.uuid().safeParse(requestId).success||Buffer.byteLength(JSON.stringify(input))>256*1024)throw conflict("Use a UUID requestId and bounded arguments.");
     if(provider==="openai_dot"&&["request_user_input","consume_input"].includes(action))throw forbidden("Dot-family runtime questions remain disabled.");
-    if(action==="request_user_input")parsePaperclipQuestionSet(input.questionSet);
+    if(action==="request_user_input")parseNexusQuestionSet(input.questionSet);
     if(action==="renew"&&(!Number.isSafeInteger(input.expiresAtUnixMs)||Number(input.expiresAtUnixMs)<=Date.now()||Number(input.expiresAtUnixMs)>Date.now()+2*60*60_000||Number(input.expiresAtUnixMs)>a.createdAt.getTime()+24*60*60_000))throw conflict("Renewal must stay within the two-hour rolling and 24-hour total lease bounds.");
     const command:ExternalProviderOperation={requestId,bindingId:b.id,bindingGeneration:b.generation,runId:a.runId,normalizedSessionId:a.normalizedSessionId,turnId:a.turnId,assignmentRevision:a.revision,action,input,digest:externalOperationDigest(action,input)};
     const reserved=await reserveNativeOperation(subject,authority,command,proof);
@@ -181,8 +181,8 @@ export function createNativeExternalBroker<S>(db:Db,provider:Provider,identity:I
       if(r?.status==="unknown"){await identity.authorize(subject,id,true);return {status:"unknown",assignmentId:id,requestId,canReplay:false};}
       await new Promise(resolve=>setTimeout(resolve,50));
     }
-    if(provider==="openai_dot"){const [binding]=await db.select({providerKind:dotAgentBindings.providerKind}).from(dotAgentBindings).where(eq(dotAgentBindings.id,b.id));if(binding?.providerKind==="grok_bot"){await db.update(dotRunnerOperations).set({pendingReturnedAt:new Date()}).where(eq(dotRunnerOperations.id,reserved.id));return {status:"pending",assignmentId:id,requestId,message:"Poll paperclip_grok_operation_status with this assignmentId and requestId until its receipt is terminal. Keep handling this routine; Paperclip will not start another routine for a tool result. Do not repeat the operation with a new request ID or perform dependent work before its receipt completes."};}}
-    return {status:"pending",assignmentId:id,requestId,message:provider==="openai_dot"?"Use paperclip_dot_operation_status or retry with the same requestId. Do not create a new request ID.":"Read the durable receipt or retry with the same request ID and identical arguments."};
+    if(provider==="openai_dot"){const [binding]=await db.select({providerKind:dotAgentBindings.providerKind}).from(dotAgentBindings).where(eq(dotAgentBindings.id,b.id));if(binding?.providerKind==="grok_bot"){await db.update(dotRunnerOperations).set({pendingReturnedAt:new Date()}).where(eq(dotRunnerOperations.id,reserved.id));return {status:"pending",assignmentId:id,requestId,message:"Poll nexus_grok_operation_status with this assignmentId and requestId until its receipt is terminal. Keep handling this routine; Nexus will not start another routine for a tool result. Do not repeat the operation with a new request ID or perform dependent work before its receipt completes."};}}
+    return {status:"pending",assignmentId:id,requestId,message:provider==="openai_dot"?"Use nexus_dot_operation_status or retry with the same requestId. Do not create a new request ID.":"Read the durable receipt or retry with the same request ID and identical arguments."};
   }
   function port(execution:Execution):ExternalProviderPort & Required<Pick<ExternalProviderPort,"inputAvailable">> {
     const runId=execution.binding.runId,ref=execution.provider.binding;
@@ -332,7 +332,7 @@ export function createNativeExternalBroker<S>(db:Db,provider:Provider,identity:I
       inputAvailable:async event=>{
         if(provider!=="muse")throw forbidden("Dot runtime questions remain disabled.");
         const p=event.payload,b=eventBinding(p),requestId=z.string().min(1).max(200).parse(p.requestId),turnId=z.literal(b.turnId).parse(p.turnId),inputDigest=z.string().regex(/^sha256:[a-f0-9]{64}$/).parse(p.inputDigest),response=z.record(z.string(),z.unknown()).parse(p.response);
-        if(inputDigest!==digestPaperclipSemanticContent({requestId,turnId,response}))throw conflict("Input digest does not match its canonical response.");
+        if(inputDigest!==digestNexusSemanticContent({requestId,turnId,response}))throw conflict("Input digest does not match its canonical response.");
         await db.transaction(tx=>withExternalAdmissionGuard(tx,b.companyId,b.agentId,async()=>{
           const binding=await currentBinding(tx,b.bindingId,b.bindingGeneration);await assertCurrentAuthority(tx,binding);
           const a=await eventAssignment(tx,b);if(!a||a.status==="fenced")throw forbidden("Input target authority unavailable.");

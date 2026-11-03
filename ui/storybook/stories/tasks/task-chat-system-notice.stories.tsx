@@ -67,7 +67,7 @@ const meta = {
           "Compact control-plane notice used for structured task-thread events. Expand the row to inspect workspace metadata without presenting it as an agent reply.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "tasks/discussion"
       ],

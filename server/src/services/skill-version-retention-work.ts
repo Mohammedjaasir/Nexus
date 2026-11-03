@@ -1,5 +1,5 @@
 import path from "node:path";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 import { logger } from "../middleware/logger.js";
 import { registerDeadlineWork } from "./deadline-work.js";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";
@@ -15,7 +15,7 @@ export function registerSkillVersionRetentionWork(
   service: RetentionService,
   canRun: () => boolean,
 ) {
-  const root = path.resolve(resolvePaperclipInstanceRoot(), "skills");
+  const root = path.resolve(resolveNexusInstanceRoot(), "skills");
   const dirty = new Set<string>();
   const deadlines = new Map<string, number>();
   const failures = new Map<string, number>();

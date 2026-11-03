@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { HeartbeatRunEvent, LiveEvent } from "@paperclipai/shared";
+import type { HeartbeatRunEvent, LiveEvent } from "@nexusai/shared";
 import { __liveUpdatesTestUtils, type CompanyLiveEventHandler } from "../../context/LiveUpdatesProvider";
 import { LiveTranscriptInterests } from "../../lib/live-transcript-interests";
 import { useNativeRunTranscripts } from "./useNativeRunTranscripts";
@@ -22,7 +22,7 @@ let subscription: { companyId: string; transcripts: LiveTranscriptInterests; sub
 const row = (seq: number, message = `row ${seq}`, runId = "run-1"): HeartbeatRunEvent => ({
   id: seq, seq, runId, companyId: "company-1", agentId: "agent-1", eventType: "item.completed",
   stream: null, level: null, color: null, message, payload: { prpEvent: {
-    schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceEventId: `event-${seq}`,
+    schema: "nexus.prp.event.v1", schemaVersion: 1, sourceEventId: `event-${seq}`,
     sourceSeq: seq, sourceInstanceId: "runner-1", sourceKind: "runner", runId,
     normalizedSessionId: "session-1", eventType: "item.completed", itemId: `message-${seq}`,
     emittedAt: "2026-10-24T00:00:00Z", payload: { kind: "agentMessage", channel: "progress", text: message },

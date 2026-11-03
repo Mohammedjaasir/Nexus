@@ -3,10 +3,10 @@ import { invalidateAgentFileProjection, persistDurableAgentFiles, restoreDurable
 import fs from "node:fs/promises";
 import path from "node:path";
 import { and, eq, sql } from "drizzle-orm";
-import { agentFileRoots, agentInstructionHeads, agents, fileStorageDb, type Db } from "@paperclipai/db";
+import { agentFileRoots, agentInstructionHeads, agents, fileStorageDb, type Db } from "@nexusai/db";
 import { instructionPath, assertInstructionPathSafe, instructionBytes, readInstructionBytes } from "./agent-instruction-files.js";
 import { notFound, unprocessable } from "../errors.js";
-import { resolveHomeAwarePath, resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { resolveHomeAwarePath, resolveNexusInstanceRoot } from "../home-paths.js";
 
 const ENTRY_FILE_DEFAULT = "AGENTS.md";
 const MODE_KEY = "instructionsBundleMode";
@@ -147,7 +147,7 @@ function resolvePathWithinRoot(rootPath: string, relativePath: string): string {
 
 export function resolveManagedInstructionsRoot(agent: AgentLike): string {
   return path.resolve(
-    resolvePaperclipInstanceRoot(),
+    resolveNexusInstanceRoot(),
     "companies",
     agent.companyId,
     "agents",
@@ -315,7 +315,7 @@ export function deriveBundleState(agent: AgentLike): BundleState {
 
 /** Configuration mutations cannot introduce authority on disposable disk. */
 export function assertEphemeralAgentInstructions(agent: AgentLike) {
-  if (process.env.PAPERCLIP_EPHEMERAL_SERVER === "true" && agentInstructionsBundleMode(agent) === "external") {
+  if (process.env.NEXUS_EPHEMERAL_SERVER === "true" && agentInstructionsBundleMode(agent) === "external") {
     throw unprocessable("Volume-free servers require managed agent instructions");
   }
 }
@@ -638,7 +638,7 @@ export function agentInstructionsService(db?: Db) {
   ): Promise<{ bundle: AgentInstructionsBundle; adapterConfig: Record<string, unknown> }> {
     const state = await recoverManagedBundleState(agent, deriveBundleState(agent));
     const nextMode = input.mode ?? state.mode ?? "managed";
-    if (process.env.PAPERCLIP_EPHEMERAL_SERVER === "true" && nextMode === "external") {
+    if (process.env.NEXUS_EPHEMERAL_SERVER === "true" && nextMode === "external") {
       throw unprocessable("Volume-free servers require managed agent instructions");
     }
     const nextEntryFile = input.entryFile ? normalizeRelativeFilePath(input.entryFile) : state.entryFile;

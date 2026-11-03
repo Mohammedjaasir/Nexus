@@ -17,22 +17,22 @@ let tempHome: string;
 let originalHome: string | undefined;
 
 beforeAll(async () => {
-  originalHome = process.env.PAPERCLIP_HOME;
-  tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-managed-clone-"));
-  process.env.PAPERCLIP_HOME = tempHome;
+  originalHome = process.env.NEXUS_HOME;
+  tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-managed-clone-"));
+  process.env.NEXUS_HOME = tempHome;
 });
 
 afterAll(async () => {
-  if (originalHome === undefined) delete process.env.PAPERCLIP_HOME;
-  else process.env.PAPERCLIP_HOME = originalHome;
+  if (originalHome === undefined) delete process.env.NEXUS_HOME;
+  else process.env.NEXUS_HOME = originalHome;
   await fs.rm(tempHome, { recursive: true, force: true });
 });
 
 async function createLocalSourceRepo() {
-  const sourceRepo = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-clone-source-"));
+  const sourceRepo = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-clone-source-"));
   await execFile("git", ["init"], { cwd: sourceRepo });
-  await execFile("git", ["config", "user.email", "paperclip@example.com"], { cwd: sourceRepo });
-  await execFile("git", ["config", "user.name", "Paperclip Test"], { cwd: sourceRepo });
+  await execFile("git", ["config", "user.email", "nexus@example.com"], { cwd: sourceRepo });
+  await execFile("git", ["config", "user.name", "Nexus Test"], { cwd: sourceRepo });
   await fs.writeFile(path.join(sourceRepo, "README.md"), "hello\n", "utf8");
   await execFile("git", ["add", "README.md"], { cwd: sourceRepo });
   await execFile("git", ["commit", "-m", "init"], { cwd: sourceRepo });
@@ -46,7 +46,7 @@ describe("ensureManagedProjectWorkspace clone credentials", () => {
     [null, "fatal: Authentication failed for 'https://example.test/team/repo.git/'\nfatal: bad config line 1 in file /tmp/config"],
     [null, "fatal: corrupt loose object"],
   ] as const)("preserves only proven outbound clone classification through the actionable wrapper: %s", async (reason, stderr) => {
-    const bin = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-fake-clone-"));
+    const bin = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-fake-clone-"));
     await fs.writeFile(path.join(bin, "git"), `#!/bin/sh
 printf '%s\\n' "$FIXTURE_CLONE_STDERR" >&2
 exit 128
@@ -88,7 +88,7 @@ exit 128
   });
 
   it("does not transfer clone classification to a later local checkout failure", async () => {
-    const bin = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-fake-checkout-"));
+    const bin = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-fake-checkout-"));
     const previousPath = process.env.PATH;
     await fs.writeFile(path.join(bin, "git"), `#!/bin/sh
 if [ "$1" = clone ]; then
@@ -131,7 +131,7 @@ exit 128
       const additional = await prepareProjectRepositoryWorkspaces(input);
       expect(additional).toHaveLength(1);
       expect(additional[0]!.workspaceId).toBe("second");
-      expect(path.relative(anchor.cwd, additional[0]!.cwd)).toMatch(/^\.paperclip-repositories\//);
+      expect(path.relative(anchor.cwd, additional[0]!.cwd)).toMatch(/^\.nexus-repositories\//);
       expect((await execFile("git", ["branch", "--show-current"], { cwd: additional[0]!.cwd })).stdout.trim()).toBe("project-branch");
       expect(resolveGitAuth).toHaveBeenCalledWith(second);
       await fs.writeFile(path.join(additional[0]!.cwd, "README.md"), "work in progress");
@@ -145,7 +145,7 @@ exit 128
 
   it("clones a remote sibling with a missing configured cwd and rechecks destination access on reuse", async () => {
     const source = await createLocalSourceRepo();
-    const task = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-remote-sibling-"));
+    const task = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-remote-sibling-"));
     try {
       const remote = "https://example.test/remote.git";
       const resolveGitAuth = vi.fn(async () => ({
@@ -185,7 +185,7 @@ exit 128
 
   it.each(["file_url", "absolute_path"] as const)("authorizes the actual %s fallback when the configured cwd is missing", async (transport) => {
     const source = await createLocalSourceRepo();
-    const task = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-local-sibling-"));
+    const task = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-local-sibling-"));
     try {
       let sourceReadable = false;
       const recheck = vi.fn(async () => {});
@@ -200,7 +200,7 @@ exit 128
           repoUrl: transport === "file_url" ? pathToFileURL(source).href : source, repoRef: null }],
       };
       await expect(prepareProjectRepositoryWorkspaces(input)).rejects.toThrow("Private source is not authorized");
-      expect(await fs.readdir(path.join(task, ".paperclip-repositories"))).toEqual([]);
+      expect(await fs.readdir(path.join(task, ".nexus-repositories"))).toEqual([]);
       sourceReadable = true;
       await fs.writeFile(path.join(source, "README.md"), "uncommitted source edits");
       const [repo] = await prepareProjectRepositoryWorkspaces(input);
@@ -323,7 +323,7 @@ exit 128
     // The failure here is a missing local path, not an auth rejection — the error must not
     // claim the credential "was rejected". Attribution for genuinely auth-shaped failures is
     // covered by the describeGitAuthFailure unit tests in git-credentials.test.ts.
-    const missingRepo = path.join(os.tmpdir(), "paperclip-definitely-missing", "repo.git");
+    const missingRepo = path.join(os.tmpdir(), "nexus-definitely-missing", "repo.git");
     const resolveGitAuth = vi.fn(async () => ({
       configArgs: [],
       env: { [GIT_CREDENTIAL_TOKEN_ENV_KEY]: "token", GIT_TERMINAL_PROMPT: "0" },
@@ -374,7 +374,7 @@ exit 128
   it("does not mention credentials when an unauthenticated clone fails for non-auth reasons", async () => {
     // The Settings → Secrets hint is reserved for auth-shaped failures (covered in
     // git-credentials.test.ts); a plain missing-repo failure must not suggest credentials.
-    const missingRepo = path.join(os.tmpdir(), "paperclip-definitely-missing", "repo.git");
+    const missingRepo = path.join(os.tmpdir(), "nexus-definitely-missing", "repo.git");
     const error = await ensureManagedProjectWorkspace({
       companyId: "company-noauthfail",
       projectId: "project-1",
@@ -388,7 +388,7 @@ exit 128
   });
 
   it("leaves neither the target nor temp directories behind when the clone fails", async () => {
-    const missingRepo = path.join(os.tmpdir(), "paperclip-definitely-missing", "repo.git");
+    const missingRepo = path.join(os.tmpdir(), "nexus-definitely-missing", "repo.git");
     const companyId = "company-cleanup";
     const projectId = "project-1";
     await expect(ensureManagedProjectWorkspace({
@@ -426,7 +426,7 @@ exit 128
 
   it("keeps the credential env alive through the sanitizer spread order", () => {
     // The clone env is `{ ...sanitize(process.env), GIT_TERMINAL_PROMPT, ...auth.env }`. The
-    // sanitizer strips every PAPERCLIP_* key, so the token env must be spread after it.
+    // sanitizer strips every NEXUS_* key, so the token env must be spread after it.
     const invocation = buildGitAuthInvocation({
       token: "tok",
       source: "company_secret",

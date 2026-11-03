@@ -7,7 +7,7 @@ import { Layout } from "@/components/Layout";
 import { TaskChatThread } from "@/components/TaskChatThread";
 import { PluginLauncherProvider } from "@/plugins/launchers";
 import { queryKeys } from "@/lib/queryKeys";
-import { storybookAuthSession } from "../../../fixtures/paperclipData";
+import { storybookAuthSession } from "../../../fixtures/nexusData";
 import { mixedComments as initialComments, profiles, alexId, samId, issueId, agentMap } from "../../../support/thread-human-identity/fixtures";
 
 function Conversation({ viewer = alexId, fullHistory = false }: { viewer?: string; fullHistory?: boolean }) {
@@ -47,7 +47,7 @@ const meta = {
   title: "Tasks and conversations/Task creation and lifecycle/Chat & Comments/Human identity/02 Mixed-author journey", component: Journey,
   args: { viewer: alexId, fullHistory: false },
   parameters: { layout: "fullscreen", initialEntries: ["/PAP/issues/human-identity-example"], docs: { story: { inline: false }, description: { component: "Representative turns from two humans and an agent in the production app shell and TaskChatThread, including its composer. Photos remain null so the shared initials fallback is visible. Swap the viewer: identity follows authorUserId. The default excerpt fits all three speakers in one view; Full Conversation includes all fixture messages. Sending is local to this preview." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "tasks/discussion"
       ],

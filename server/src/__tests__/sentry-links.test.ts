@@ -15,14 +15,14 @@ afterEach(() => {
 
 describe("Sentry navigation links", () => {
   it("adds normal UI URLs to run failures and Stop errors without changing API references or unrelated events", async () => {
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", "https://paperclip.example.com");
+    vi.stubEnv("NEXUS_PUBLIC_URL", "https://nexus.example.com");
     const resolve = vi.fn(async () => identity);
     setSentryRunLinkResolver(resolve);
-    const event = { tags: { run_id: runId, company_id: companyId }, contexts: { paperclip: { runUrl: "/api/original" } }, fingerprint: ["failure"] };
+    const event = { tags: { run_id: runId, company_id: companyId }, contexts: { nexus: { runUrl: "/api/original" } }, fingerprint: ["failure"] };
     const linked = await addSentryRunLinks(event);
-    const runUrl = `https://paperclip.example.com/TEAM/agents/${agentId}/runs/${runId}`;
-    expect(linked).toMatchObject({ tags: { task_url: "https://paperclip.example.com/TEAM/issues/TEAM-42", run_url: runUrl, task_identifier: "TEAM-42" },
-      contexts: { paperclip: { runUrl: "/api/original", runPageUrl: runUrl, taskUrl: "https://paperclip.example.com/TEAM/issues/TEAM-42" } }, fingerprint: ["failure"] });
+    const runUrl = `https://nexus.example.com/TEAM/agents/${agentId}/runs/${runId}`;
+    expect(linked).toMatchObject({ tags: { task_url: "https://nexus.example.com/TEAM/issues/TEAM-42", run_url: runUrl, task_identifier: "TEAM-42" },
+      contexts: { nexus: { runUrl: "/api/original", runPageUrl: runUrl, taskUrl: "https://nexus.example.com/TEAM/issues/TEAM-42" } }, fingerprint: ["failure"] });
     expect(resolve).toHaveBeenCalledWith({ runId, companyId });
     expect(await addSentryRunLinks({ contexts: { adapter_stop: { runId } } })).toMatchObject({ tags: { run_url: runUrl } });
     const unrelated = { tags: { error_code: "unrelated" } };
@@ -31,7 +31,7 @@ describe("Sentry navigation links", () => {
   });
 
   it("falls back to the task UUID and omits task links for taskless runs", async () => {
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", "http://localhost:3100");
+    vi.stubEnv("NEXUS_PUBLIC_URL", "http://localhost:3100");
     setSentryRunLinkResolver(async () => ({ ...identity, taskIdentifier: null }));
     expect(await addSentryRunLinks({ tags: { run_id: runId } })).toMatchObject({ tags: { task_url: `http://localhost:3100/TEAM/issues/${taskId}` } });
     setSentryRunLinkResolver(async () => ({ ...identity, taskId: null, taskIdentifier: null }));
@@ -42,14 +42,14 @@ describe("Sentry navigation links", () => {
   });
 
   it.each([17, 210])("keeps navigation for a saved %i-character company prefix within tag limits", async length => {
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", "https://paperclip.example.com");
+    vi.stubEnv("NEXUS_PUBLIC_URL", "https://nexus.example.com");
     const companyPrefix = "A".repeat(length);
     const taskIdentifier = `${companyPrefix}-42`;
     setSentryRunLinkResolver(async () => ({ ...identity, companyPrefix, taskIdentifier }));
     const linked = await addSentryRunLinks({ tags: { run_id: runId } });
-    const taskUrl = `https://paperclip.example.com/${companyPrefix}/issues/${taskIdentifier}`;
-    expect(linked).toHaveProperty("contexts.paperclip.taskUrl", taskUrl);
-    expect(linked).toHaveProperty("contexts.paperclip.runPageUrl");
+    const taskUrl = `https://nexus.example.com/${companyPrefix}/issues/${taskIdentifier}`;
+    expect(linked).toHaveProperty("contexts.nexus.taskUrl", taskUrl);
+    expect(linked).toHaveProperty("contexts.nexus.runPageUrl");
     if (length === 17) {
       expect(linked.tags).toHaveProperty("task_identifier", taskIdentifier);
       expect(linked.tags).toHaveProperty("task_url", taskUrl);
@@ -61,7 +61,7 @@ describe("Sentry navigation links", () => {
   });
 
   it.each(["https://user:secret@example.com", "https://example.com?secret=token", "https://example.com/#private", "https://example.com/private", "ftp://example.com", "invalid", ""])("omits unsafe instance origins without a database lookup: %s", async origin => {
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", origin);
+    vi.stubEnv("NEXUS_PUBLIC_URL", origin);
     const resolve = vi.fn(async () => identity);
     setSentryRunLinkResolver(resolve);
     const event = { tags: { run_id: runId } };
@@ -70,18 +70,18 @@ describe("Sentry navigation links", () => {
   });
 
   it("does not widen a malformed company identity or put long URLs in tags", async () => {
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", `https://${"a".repeat(60)}.${"b".repeat(60)}.example.com`);
+    vi.stubEnv("NEXUS_PUBLIC_URL", `https://${"a".repeat(60)}.${"b".repeat(60)}.example.com`);
     const resolve = vi.fn(async () => identity);
     setSentryRunLinkResolver(resolve);
     await addSentryRunLinks({ tags: { run_id: runId, company_id: "private-invalid" } });
     expect(resolve).not.toHaveBeenCalled();
     const linked = await addSentryRunLinks({ tags: { run_id: runId } });
     expect(linked.tags).not.toHaveProperty("run_url");
-    expect(linked).toHaveProperty("contexts.paperclip.runPageUrl");
+    expect(linked).toHaveProperty("contexts.nexus.runPageUrl");
   });
 
   it("preserves the error on lookup rejection and bounds a stalled lookup", async () => {
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", "https://paperclip.example.com");
+    vi.stubEnv("NEXUS_PUBLIC_URL", "https://nexus.example.com");
     const event = { tags: { run_id: runId } };
     setSentryRunLinkResolver(async () => { throw new Error("database unavailable"); });
     expect(await addSentryRunLinks(event)).toEqual(event);
@@ -97,7 +97,7 @@ describe("Sentry navigation links", () => {
   });
 
   it("limits abandoned database lookups while continuing to send subsequent errors", async () => {
-    vi.stubEnv("PAPERCLIP_PUBLIC_URL", "https://paperclip.example.com");
+    vi.stubEnv("NEXUS_PUBLIC_URL", "https://nexus.example.com");
     vi.useFakeTimers();
     const releases: Array<(value: typeof identity) => void> = [];
     const resolve = vi.fn(() => new Promise<typeof identity>(done => releases.push(done)));

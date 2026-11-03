@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { browserPaneSize, useBrowserViewport } from "./useBrowserViewport";
 import { browserUseApi } from "@/api/browser-use";
-import type { BrowserUseViewportState } from "@paperclipai/shared";
+import type { BrowserUseViewportState } from "@nexusai/shared";
 
 vi.mock("@/api/browser-use", () => ({
   browserUseApi: { resize: vi.fn(), releaseViewport: vi.fn(async () => ({})) },

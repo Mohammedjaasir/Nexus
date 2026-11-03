@@ -143,7 +143,7 @@ function Sidebar({ nav }: { nav: ShellNav }) {
             <Avatar size="sm">
               <AvatarFallback>TO</AvatarFallback>
             </Avatar>
-            <span className="min-w-0 flex-1 truncate">tonio+canary62@paperclip.example</span>
+            <span className="min-w-0 flex-1 truncate">tonio+canary62@nexus.example</span>
           </span>
         </div>
       </div>

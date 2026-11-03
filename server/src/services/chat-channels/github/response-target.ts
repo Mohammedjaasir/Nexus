@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
-import { chatActions, chatConversations, chatDeliveries, chatEndpoints, type Db } from "@paperclipai/db";
+import { chatActions, chatConversations, chatDeliveries, chatEndpoints, type Db } from "@nexusai/db";
 import { forbidden, HttpError } from "../../../errors.js";
 
 export type GitHubResponseSource = {
@@ -17,10 +17,10 @@ export type GitHubResponseSource = {
 export const isMainPullResponse = (source: GitHubResponseSource) =>
   !source.replyId && /^github:[^:]+:[1-9][0-9]*$/.test(source.conversation.externalThreadId);
 
-export const requestResponseMarker = (source: GitHubResponseSource) => `<!-- paperclip-response:${createHash("sha256")
+export const requestResponseMarker = (source: GitHubResponseSource) => `<!-- nexus-response:${createHash("sha256")
   .update(`${source.endpoint.companyId}:${source.endpoint.id}:${source.delivery.id}`).digest("hex")} -->`;
 
-export const pullResponseMarker = (source: GitHubResponseSource) => `<!-- paperclip-pr-response:${createHash("sha256")
+export const pullResponseMarker = (source: GitHubResponseSource) => `<!-- nexus-pr-response:${createHash("sha256")
   .update(`${source.endpoint.companyId}:${source.endpoint.id}:${source.conversation.externalThreadId.toLowerCase()}`).digest("hex")} -->`;
 
 /** The per-request ledger remains intact; only the main PR's publication target
@@ -51,7 +51,7 @@ export async function legacyPullResponseMarkers(db: Db, source: GitHubResponseSo
   )).orderBy(asc(chatActions.createdAt));
   // Per-request markers include the company and endpoint, and remain provable
   // after a receipt was lost between the provider write and the local commit.
-  const summary = source.repositoryId ? [`<!-- paperclip-review:${createHash("sha256")
+  const summary = source.repositoryId ? [`<!-- nexus-review:${createHash("sha256")
     .update(JSON.stringify(`${source.endpoint.id}:${source.repositoryId}:${source.number}`)).digest("hex")} -->`] : [];
   return [...summary, ...rows.filter(row => row.deliveryId).map(row => requestResponseMarker({ ...source, delivery: { ...source.delivery, id: row.deliveryId! } }))];
 }
@@ -74,7 +74,7 @@ export async function retireLegacyResponsePlaceholder(
       throw forbidden("GitHub response is no longer owned by this App");
     await assertCurrent();
     await api.request(`${item}/${old.id}`, { method: "PATCH", body: {
-      body: `See the [current review](${current.url}).\n\n${requestResponseMarker(source)}\n<!-- paperclip-response-state:final -->`,
+      body: `See the [current review](${current.url}).\n\n${requestResponseMarker(source)}\n<!-- nexus-response-state:final -->`,
     } });
   } catch (error) {
     const details = error instanceof HttpError ? error.details as { providerStatus?: number } | undefined : undefined;

@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.e2e.retained-mainline-stop.v1",
+  "schema": "nexus.e2e.retained-mainline-stop.v1",
   "sourceRevision": "2dd62ad52b8b4348d286c59e11e36144305bca6c",
   "outcome": "failed fixture expected unsupported caller-owned cancellation ID; calibration only",
   "run": {
@@ -27,7 +27,7 @@
       "nativeCancellation": {
         "runId": "be098444-7780-4afc-976a-4cfbc9565eb2",
         "scope": "run",
-        "schema": "paperclip.native-cancellation.v1",
+        "schema": "nexus.native-cancellation.v1",
         "effects": [
           "release_run_resources"
         ],

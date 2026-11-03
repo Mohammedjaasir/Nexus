@@ -14,7 +14,7 @@ export const userSecretDefinitions = pgTable(
     description: text("description"),
     status: text("status").notNull().default("active"),
     provider: text("provider").notNull().default("local_encrypted"),
-    managedMode: text("managed_mode").notNull().default("paperclip_managed"),
+    managedMode: text("managed_mode").notNull().default("nexus_managed"),
     providerConfigId: uuid("provider_config_id").references(() => companySecretProviderConfigs.id, { onDelete: "set null" }),
     providerMetadata: jsonb("provider_metadata").$type<Record<string, unknown>>(),
     usageGuidance: text("usage_guidance"),

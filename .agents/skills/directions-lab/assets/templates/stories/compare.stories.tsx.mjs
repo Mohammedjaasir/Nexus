@@ -63,7 +63,7 @@ const meta = {
           ${quote(`Pick a direction and a surface. 0.Today mounts the shipped ${ctx.title} components on the lab's fixtures; 1–${ctx.directions.length} are the explored directions. Page: ${ctx.publicUrl}.`)},
       },
     },
-    paperclip: {
+    nexus: {
       capabilities: [${ctx.capabilities.map(quote).join(", ")}],
       status: "proposed",
       home: "design-proposals",

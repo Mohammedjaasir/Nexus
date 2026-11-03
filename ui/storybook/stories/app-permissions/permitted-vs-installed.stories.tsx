@@ -6,7 +6,7 @@ import type {
   ToolCatalogEntry,
   ToolConnection,
   ToolConnectionCapabilities,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { IssueThreadInteractionCard } from "@/components/IssueThreadInteractionCard";
 import {
   issueThreadInteractionFixtureMeta,
@@ -125,7 +125,7 @@ const meta: Meta = {
   id: "tools-permitted-vs-installed",
   title: "Apps, channels, and extensions/App access and action permissions/Tools/Permitted vs Installed",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "app-permissions/agent-access",
         "app-permissions/action-policy"

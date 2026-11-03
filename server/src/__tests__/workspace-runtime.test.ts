@@ -22,7 +22,7 @@ import {
   projects,
   workspaceOperations,
   workspaceRuntimeServices,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import {
   buildExecutionWorkspaceAdapterConfig,
@@ -46,7 +46,7 @@ import {
   resetRuntimeServicesForTests,
   resetRuntimeServicePortReservationsForTests,
   MANAGED_RUNTIME_PUBLIC_URL_ENV,
-  resolveManagedPaperclipRuntimePublicOrigin,
+  resolveManagedNexusRuntimePublicOrigin,
   resolveRuntimeProvisionCommand,
   resolveWorkspaceRuntimeReadinessTimeoutSec,
   resolveShell,
@@ -77,9 +77,9 @@ import {
   deriveViteHmrPort,
   type Environment,
   type EnvironmentLease,
-} from "@paperclipai/shared";
-import { resolvePaperclipConfigPath } from "../paths.ts";
-import type { WorkspaceOperation } from "@paperclipai/shared";
+} from "@nexusai/shared";
+import { resolveNexusConfigPath } from "../paths.ts";
+import type { WorkspaceOperation } from "@nexusai/shared";
 import type { WorkspaceOperationRecorder } from "../services/workspace-operations.ts";
 import { HttpError } from "../errors.ts";
 import { deriveWorktreeInstanceId } from "../services/workspace-instance-cleanup.ts";
@@ -157,21 +157,21 @@ async function runPnpm(cwd: string, args: string[]) {
 }
 
 async function writeRegisteredSourceConfig(baseCwd: string, instanceId = "source-instance") {
-  const configDir = path.join(baseCwd, ".paperclip");
+  const configDir = path.join(baseCwd, ".nexus");
   await fs.mkdir(configDir, { recursive: true });
   await fs.writeFile(path.join(configDir, "config.json"), "{}\n", "utf8");
   await fs.writeFile(
     path.join(configDir, ".env"),
-    `PAPERCLIP_INSTANCE_ID=${instanceId}\n`,
+    `NEXUS_INSTANCE_ID=${instanceId}\n`,
     "utf8",
   );
 }
 
 async function createTempRepo(defaultBranch = "main") {
-  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-repo-"));
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-repo-"));
   await runGit(repoRoot, ["init", "--initial-branch", defaultBranch]);
-  await runGit(repoRoot, ["config", "user.email", "paperclip@example.com"]);
-  await runGit(repoRoot, ["config", "user.name", "Paperclip Test"]);
+  await runGit(repoRoot, ["config", "user.email", "nexus@example.com"]);
+  await runGit(repoRoot, ["config", "user.name", "Nexus Test"]);
   await fs.writeFile(path.join(repoRoot, "README.md"), "hello\n", "utf8");
   await runGit(repoRoot, ["add", "README.md"]);
   await runGit(repoRoot, ["commit", "-m", "Initial commit"]);
@@ -254,15 +254,15 @@ async function expectPersistedBranchMismatchRejected(input: {
 
 async function createClonedRepoWithRemote() {
   const sourceRepo = await createTempRepo("master");
-  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-remote-"));
-  const remotePath = path.join(remoteDir, "paperclip.git");
+  const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-remote-"));
+  const remotePath = path.join(remoteDir, "nexus.git");
   await execFileAsync("git", ["clone", "--bare", sourceRepo, remotePath]);
 
-  const cloneRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-clone-"));
-  const repoRoot = path.join(cloneRoot, "paperclip");
+  const cloneRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-clone-"));
+  const repoRoot = path.join(cloneRoot, "nexus");
   await execFileAsync("git", ["clone", remotePath, repoRoot]);
-  await runGit(repoRoot, ["config", "user.email", "paperclip@example.com"]);
-  await runGit(repoRoot, ["config", "user.name", "Paperclip Test"]);
+  await runGit(repoRoot, ["config", "user.email", "nexus@example.com"]);
+  await runGit(repoRoot, ["config", "user.name", "Nexus Test"]);
   return { sourceRepo, remotePath, repoRoot };
 }
 
@@ -453,10 +453,10 @@ afterEach(async () => {
       leasedRunIds.delete(runId);
     }),
   );
-  delete process.env.PAPERCLIP_CONFIG;
-  delete process.env.PAPERCLIP_HOME;
-  delete process.env.PAPERCLIP_INSTANCE_ID;
-  delete process.env.PAPERCLIP_WORKTREES_DIR;
+  delete process.env.NEXUS_CONFIG;
+  delete process.env.NEXUS_HOME;
+  delete process.env.NEXUS_INSTANCE_ID;
+  delete process.env.NEXUS_WORKTREES_DIR;
   delete process.env.DATABASE_URL;
   await resetRuntimeServicesForTests();
   // Registry reset does not clear the process-local allocation claims. A
@@ -465,12 +465,12 @@ afterEach(async () => {
 });
 
 describe("sanitizeRuntimeServiceBaseEnv", () => {
-  it("removes inherited Paperclip and pnpm auth flags before spawning runtime services", () => {
+  it("removes inherited Nexus and pnpm auth flags before spawning runtime services", () => {
     const sanitized = sanitizeRuntimeServiceBaseEnv({
       PATH: process.env.PATH,
-      DATABASE_URL: "postgres://example.test/paperclip",
-      PAPERCLIP_HOME: "/tmp/paperclip-home",
-      PAPERCLIP_INSTANCE_ID: "runtime-instance",
+      DATABASE_URL: "postgres://example.test/nexus",
+      NEXUS_HOME: "/tmp/nexus-home",
+      NEXUS_INSTANCE_ID: "runtime-instance",
       BETTER_AUTH_URL: "https://parent.example.test",
       BETTER_AUTH_BASE_URL: "https://legacy-parent.example.test",
       npm_config_tailscale_auth: "true",
@@ -478,8 +478,8 @@ describe("sanitizeRuntimeServiceBaseEnv", () => {
       HOST: "0.0.0.0",
     });
 
-    expect(sanitized.PAPERCLIP_HOME).toBeUndefined();
-    expect(sanitized.PAPERCLIP_INSTANCE_ID).toBeUndefined();
+    expect(sanitized.NEXUS_HOME).toBeUndefined();
+    expect(sanitized.NEXUS_INSTANCE_ID).toBeUndefined();
     expect(sanitized.BETTER_AUTH_URL).toBeUndefined();
     expect(sanitized.BETTER_AUTH_BASE_URL).toBeUndefined();
     expect(sanitized.DATABASE_URL).toBeUndefined();
@@ -489,20 +489,20 @@ describe("sanitizeRuntimeServiceBaseEnv", () => {
   });
 });
 
-describe("resolveManagedPaperclipRuntimePublicOrigin", () => {
+describe("resolveManagedNexusRuntimePublicOrigin", () => {
   const baseInput = {
-    serviceName: "paperclip-dev",
+    serviceName: "nexus-dev",
     command: "pnpm dev --bind lan",
   };
 
   it("leaves explicit operator origin configuration unchanged", () => {
-    expect(resolveManagedPaperclipRuntimePublicOrigin({
+    expect(resolveManagedNexusRuntimePublicOrigin({
       ...baseInput,
-      environment: { PAPERCLIP_PUBLIC_URL: "https://operator.example.com" },
+      environment: { NEXUS_PUBLIC_URL: "https://operator.example.com" },
       exposedUrl: "https://managed-worktree.example.com",
     })).toBeNull();
 
-    expect(resolveManagedPaperclipRuntimePublicOrigin({
+    expect(resolveManagedNexusRuntimePublicOrigin({
       ...baseInput,
       environment: { BETTER_AUTH_URL: "https://auth.example.com" },
       exposedUrl: "https://managed-worktree.example.com",
@@ -510,13 +510,13 @@ describe("resolveManagedPaperclipRuntimePublicOrigin", () => {
   });
 
   it("infers browser-reachable HTTPS and loopback origins", () => {
-    expect(resolveManagedPaperclipRuntimePublicOrigin({
+    expect(resolveManagedNexusRuntimePublicOrigin({
       ...baseInput,
       environment: {},
       exposedUrl: "https://paperclip-dev.tail29c1aa.ts.net/path?ignored=true",
       exposedUrlTemplate: "https://{{workspace.branchName}}.tail29c1aa.ts.net",
     })).toBe("https://paperclip-dev.tail29c1aa.ts.net");
-    expect(resolveManagedPaperclipRuntimePublicOrigin({
+    expect(resolveManagedNexusRuntimePublicOrigin({
       ...baseInput,
       environment: {},
       exposedUrl: "http://127.0.0.1:45439",
@@ -524,12 +524,12 @@ describe("resolveManagedPaperclipRuntimePublicOrigin", () => {
   });
 
   it("rejects internal-only and unsafe inferred origins with actionable guidance", () => {
-    expect(() => resolveManagedPaperclipRuntimePublicOrigin({
+    expect(() => resolveManagedNexusRuntimePublicOrigin({
       ...baseInput,
       environment: {},
-      exposedUrl: "http://paperclip-dev:45439",
-    })).toThrow(/internal-only.*Configure PAPERCLIP_PUBLIC_URL or BETTER_AUTH_URL/);
-    expect(() => resolveManagedPaperclipRuntimePublicOrigin({
+      exposedUrl: "http://nexus-dev:45439",
+    })).toThrow(/internal-only.*Configure NEXUS_PUBLIC_URL or BETTER_AUTH_URL/);
+    expect(() => resolveManagedNexusRuntimePublicOrigin({
       ...baseInput,
       environment: {},
       exposedUrl: "http://10.0.0.8:45439",
@@ -537,14 +537,14 @@ describe("resolveManagedPaperclipRuntimePublicOrigin", () => {
   });
 
   it("keeps interpolated hostnames inside the operator-configured domain", () => {
-    expect(() => resolveManagedPaperclipRuntimePublicOrigin({
+    expect(() => resolveManagedNexusRuntimePublicOrigin({
       ...baseInput,
       environment: {},
       exposedUrl: "https://evil.com/workaround.tail29c1aa.ts.net",
       exposedUrlTemplate: "https://{{workspace.branchName}}.tail29c1aa.ts.net",
     })).toThrow(/outside the hostname boundary configured by expose\.urlTemplate/);
 
-    expect(() => resolveManagedPaperclipRuntimePublicOrigin({
+    expect(() => resolveManagedNexusRuntimePublicOrigin({
       ...baseInput,
       environment: {},
       exposedUrl: "https://managed-worktree.paperclip.dev",
@@ -555,7 +555,7 @@ describe("resolveManagedPaperclipRuntimePublicOrigin", () => {
 
 describe("resolveRuntimeProvisionCommand", () => {
   it("backfills deferred seeding for legacy managed git worktrees", async () => {
-    const baseCwd = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-provision-"));
+    const baseCwd = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-provision-"));
     const cwd = path.join(baseCwd, "worktree");
     try {
       await fs.mkdir(path.join(baseCwd, "scripts"), { recursive: true });
@@ -574,13 +574,13 @@ describe("resolveRuntimeProvisionCommand", () => {
         "bash ./scripts/provision-worktree-runtime.sh",
       );
 
-      await fs.mkdir(path.join(cwd, ".paperclip"), { recursive: true });
-      await fs.writeFile(path.join(cwd, ".paperclip", "config.json"), "{}\n");
+      await fs.mkdir(path.join(cwd, ".nexus"), { recursive: true });
+      await fs.writeFile(path.join(cwd, ".nexus", "config.json"), "{}\n");
       expect(resolveRuntimeProvisionCommand({ config: {}, workspace })).toBe(
         "bash ./scripts/provision-worktree-runtime.sh",
       );
 
-      await fs.writeFile(path.join(cwd, ".paperclip", "seed-pending"), "{}\n");
+      await fs.writeFile(path.join(cwd, ".nexus", "seed-pending"), "{}\n");
       expect(resolveRuntimeProvisionCommand({ config: {}, workspace })).toBe(
         "bash ./scripts/provision-worktree-runtime.sh",
       );
@@ -589,27 +589,27 @@ describe("resolveRuntimeProvisionCommand", () => {
         workspace,
       })).toBe("./custom-provision.sh");
 
-      await fs.writeFile(path.join(cwd, ".paperclip", "seed-complete"), "{}\n");
+      await fs.writeFile(path.join(cwd, ".nexus", "seed-complete"), "{}\n");
       expect(resolveRuntimeProvisionCommand({ config: {}, workspace })).toBe(
         "bash ./scripts/provision-worktree-runtime.sh",
       );
 
       await fs.writeFile(
-        path.join(cwd, ".paperclip", "seed-manifest.json"),
+        path.join(cwd, ".nexus", "seed-manifest.json"),
         JSON.stringify({ version: 2, state: "failed" }),
       );
       expect(resolveRuntimeProvisionCommand({ config: {}, workspace })).toBe(
         "bash ./scripts/provision-worktree-runtime.sh",
       );
       await fs.writeFile(
-        path.join(cwd, ".paperclip", "seed-manifest.json"),
+        path.join(cwd, ".nexus", "seed-manifest.json"),
         JSON.stringify({ version: 2, state: "verified" }),
       );
       expect(resolveRuntimeProvisionCommand({ config: {}, workspace })).toBe(
         "bash ./scripts/provision-worktree-runtime.sh",
       );
       await fs.writeFile(
-        path.join(cwd, ".paperclip", "seed-manifest.json"),
+        path.join(cwd, ".nexus", "seed-manifest.json"),
         JSON.stringify({
           version: 2,
           source: { instanceId: "source", configPath: "/source/config.json" },
@@ -661,7 +661,7 @@ describe("refreshRemoteTrackingBaseRef git auth", () => {
 
   it("attributes a failed authenticated fetch to the credential that was used", async () => {
     const { repoRoot } = await createClonedRepoWithRemote();
-    await runGit(repoRoot, ["remote", "set-url", "origin", path.join(os.tmpdir(), "paperclip-missing-remote", "repo.git")]);
+    await runGit(repoRoot, ["remote", "set-url", "origin", path.join(os.tmpdir(), "nexus-missing-remote", "repo.git")]);
     const warnings = await refreshRemoteTrackingBaseRef(repoRoot, "origin/master", async () => ({
       configArgs: [],
       env: { GIT_TERMINAL_PROMPT: "0" },
@@ -675,7 +675,7 @@ describe("refreshRemoteTrackingBaseRef git auth", () => {
 
   it("keeps the unauthenticated failure warning credential-free without a provider", async () => {
     const { repoRoot } = await createClonedRepoWithRemote();
-    await runGit(repoRoot, ["remote", "set-url", "origin", path.join(os.tmpdir(), "paperclip-missing-remote", "repo.git")]);
+    await runGit(repoRoot, ["remote", "set-url", "origin", path.join(os.tmpdir(), "nexus-missing-remote", "repo.git")]);
     const warnings = await refreshRemoteTrackingBaseRef(repoRoot, "origin/master");
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain("Could not refresh base ref origin/master");
@@ -685,9 +685,9 @@ describe("refreshRemoteTrackingBaseRef git auth", () => {
 
 describe("ensureServerWorkspaceLinksCurrent", () => {
   it("relinks stale server workspace dependencies inside the current repo root", async () => {
-    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-links-"));
-    const staleRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-links-stale-"));
-    const serverNodeModulesScopeDir = path.join(repoRoot, "server", "node_modules", "@paperclipai");
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-links-"));
+    const staleRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-links-stale-"));
+    const serverNodeModulesScopeDir = path.join(repoRoot, "server", "node_modules", "@nexusai");
     const expectedPackageDir = path.join(repoRoot, "packages", "db");
     const stalePackageDir = path.join(staleRoot, "db");
 
@@ -695,26 +695,26 @@ describe("ensureServerWorkspaceLinksCurrent", () => {
     await fs.mkdir(expectedPackageDir, { recursive: true });
     await fs.mkdir(stalePackageDir, { recursive: true });
     await fs.mkdir(serverNodeModulesScopeDir, { recursive: true });
-    await fs.writeFile(path.join(repoRoot, ".git"), "gitdir: /tmp/paperclip-main/.git/worktrees/runtime-links\n", "utf8");
+    await fs.writeFile(path.join(repoRoot, ".git"), "gitdir: /tmp/nexus-main/.git/worktrees/runtime-links\n", "utf8");
     await fs.writeFile(path.join(repoRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n  - server\n", "utf8");
     await fs.writeFile(
       path.join(repoRoot, "server", "package.json"),
       JSON.stringify({
-        name: "@paperclipai/server",
+        name: "@nexusai/server",
         dependencies: {
-          "@paperclipai/db": "workspace:*",
+          "@nexusai/db": "workspace:*",
         },
       }),
       "utf8",
     );
     await fs.writeFile(
       path.join(expectedPackageDir, "package.json"),
-      JSON.stringify({ name: "@paperclipai/db" }),
+      JSON.stringify({ name: "@nexusai/db" }),
       "utf8",
     );
     await fs.writeFile(
       path.join(stalePackageDir, "package.json"),
-      JSON.stringify({ name: "@paperclipai/db" }),
+      JSON.stringify({ name: "@nexusai/db" }),
       "utf8",
     );
     await fs.symlink(stalePackageDir, path.join(serverNodeModulesScopeDir, "db"));
@@ -724,28 +724,28 @@ describe("ensureServerWorkspaceLinksCurrent", () => {
   });
 
   it("skips relinking when server workspace dependencies already point at the repo", async () => {
-    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-links-current-"));
-    const serverNodeModulesScopeDir = path.join(repoRoot, "server", "node_modules", "@paperclipai");
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-links-current-"));
+    const serverNodeModulesScopeDir = path.join(repoRoot, "server", "node_modules", "@nexusai");
     const expectedPackageDir = path.join(repoRoot, "packages", "db");
 
     await fs.mkdir(path.join(repoRoot, "server"), { recursive: true });
     await fs.mkdir(expectedPackageDir, { recursive: true });
     await fs.mkdir(serverNodeModulesScopeDir, { recursive: true });
-    await fs.writeFile(path.join(repoRoot, ".git"), "gitdir: /tmp/paperclip-main/.git/worktrees/runtime-links-current\n", "utf8");
+    await fs.writeFile(path.join(repoRoot, ".git"), "gitdir: /tmp/nexus-main/.git/worktrees/runtime-links-current\n", "utf8");
     await fs.writeFile(path.join(repoRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n  - server\n", "utf8");
     await fs.writeFile(
       path.join(repoRoot, "server", "package.json"),
       JSON.stringify({
-        name: "@paperclipai/server",
+        name: "@nexusai/server",
         dependencies: {
-          "@paperclipai/db": "workspace:*",
+          "@nexusai/db": "workspace:*",
         },
       }),
       "utf8",
     );
     await fs.writeFile(
       path.join(expectedPackageDir, "package.json"),
-      JSON.stringify({ name: "@paperclipai/db" }),
+      JSON.stringify({ name: "@nexusai/db" }),
       "utf8",
     );
     await fs.symlink(expectedPackageDir, path.join(serverNodeModulesScopeDir, "db"));
@@ -754,9 +754,9 @@ describe("ensureServerWorkspaceLinksCurrent", () => {
   });
 
   it("skips relinking outside linked git worktrees", async () => {
-    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-links-non-worktree-"));
-    const staleRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-links-non-worktree-stale-"));
-    const serverNodeModulesScopeDir = path.join(repoRoot, "server", "node_modules", "@paperclipai");
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-links-non-worktree-"));
+    const staleRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-links-non-worktree-stale-"));
+    const serverNodeModulesScopeDir = path.join(repoRoot, "server", "node_modules", "@nexusai");
     const expectedPackageDir = path.join(repoRoot, "packages", "db");
     const stalePackageDir = path.join(staleRoot, "db");
 
@@ -769,21 +769,21 @@ describe("ensureServerWorkspaceLinksCurrent", () => {
     await fs.writeFile(
       path.join(repoRoot, "server", "package.json"),
       JSON.stringify({
-        name: "@paperclipai/server",
+        name: "@nexusai/server",
         dependencies: {
-          "@paperclipai/db": "workspace:*",
+          "@nexusai/db": "workspace:*",
         },
       }),
       "utf8",
     );
     await fs.writeFile(
       path.join(expectedPackageDir, "package.json"),
-      JSON.stringify({ name: "@paperclipai/db" }),
+      JSON.stringify({ name: "@nexusai/db" }),
       "utf8",
     );
     await fs.writeFile(
       path.join(stalePackageDir, "package.json"),
-      JSON.stringify({ name: "@paperclipai/db" }),
+      JSON.stringify({ name: "@nexusai/db" }),
       "utf8",
     );
     await fs.symlink(stalePackageDir, path.join(serverNodeModulesScopeDir, "db"));
@@ -795,7 +795,7 @@ describe("ensureServerWorkspaceLinksCurrent", () => {
 
 describe("realizeExecutionWorkspace", () => {
   it.each(["primary", "linked"] as const)("realizes from a %s checkout with separate Git metadata without adopting its unrelated parent", async sourceKind => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-separate-owner-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-separate-owner-"));
     try {
       const wrongOwner = path.join(root, "wrong-owner"), primary = path.join(root, "source");
       const common = path.join(wrongOwner, "separate-metadata");
@@ -831,15 +831,15 @@ describe("realizeExecutionWorkspace", () => {
 
   it("defaults new git worktrees to freshly fetched origin/master", async () => {
     const sourceRepo = await createTempRepo("master");
-    const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-remote-"));
-    const remotePath = path.join(remoteDir, "paperclip.git");
+    const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-remote-"));
+    const remotePath = path.join(remoteDir, "nexus.git");
     await execFileAsync("git", ["clone", "--bare", sourceRepo, remotePath]);
 
-    const cloneRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-clone-"));
-    const repoRoot = path.join(cloneRoot, "paperclip");
+    const cloneRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-clone-"));
+    const repoRoot = path.join(cloneRoot, "nexus");
     await execFileAsync("git", ["clone", remotePath, repoRoot]);
-    await runGit(repoRoot, ["config", "user.email", "paperclip@example.com"]);
-    await runGit(repoRoot, ["config", "user.name", "Paperclip Test"]);
+    await runGit(repoRoot, ["config", "user.email", "nexus@example.com"]);
+    await runGit(repoRoot, ["config", "user.name", "Nexus Test"]);
 
     await fs.writeFile(path.join(sourceRepo, "auth-fix.txt"), "cookie fix\n", "utf8");
     await runGit(sourceRepo, ["add", "auth-fix.txt"]);
@@ -915,7 +915,7 @@ describe("realizeExecutionWorkspace", () => {
     expect(first.created).toBe(true);
     expect(first.branchCreatedByRuntime).toBe(true);
     expect(first.branchName).toBe("PAP-447-add-worktree-support");
-    expect(first.cwd).toContain(path.join(".paperclip", "worktrees"));
+    expect(first.cwd).toContain(path.join(".nexus", "worktrees"));
     await expect(fs.stat(path.join(first.cwd, ".git"))).resolves.toBeTruthy();
 
     const second = await realizeExecutionWorkspace({
@@ -978,23 +978,23 @@ describe("realizeExecutionWorkspace", () => {
     }
   });
 
-  it.each([false, true])("realizes a plain Paperclip checkout without a local seed instance (image default env: %s)", async (defaultConfigInEnv) => {
+  it.each([false, true])("realizes a plain Nexus checkout without a local seed instance (image default env: %s)", async (defaultConfigInEnv) => {
     const repoRoot = await createTempRepo();
-    const paperclipHome = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-env-only-home-")));
+    const nexusHome = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "nexus-env-only-home-")));
     const previousEnv = {
-      PAPERCLIP_HOME: process.env.PAPERCLIP_HOME,
-      PAPERCLIP_CONFIG: process.env.PAPERCLIP_CONFIG,
-      PAPERCLIP_INSTANCE_ID: process.env.PAPERCLIP_INSTANCE_ID,
+      NEXUS_HOME: process.env.NEXUS_HOME,
+      NEXUS_CONFIG: process.env.NEXUS_CONFIG,
+      NEXUS_INSTANCE_ID: process.env.NEXUS_INSTANCE_ID,
     };
     try {
       await fs.mkdir(path.join(repoRoot, "scripts"));
       await fs.copyFile(provisionWorktreeScriptPath, path.join(repoRoot, "scripts", "provision-worktree.sh"));
       await runGit(repoRoot, ["add", "scripts/provision-worktree.sh"]);
-      await runGit(repoRoot, ["commit", "-m", "Add Paperclip worktree provisioner"]);
-      process.env.PAPERCLIP_HOME = paperclipHome;
-      process.env.PAPERCLIP_INSTANCE_ID = "default";
-      if (defaultConfigInEnv) process.env.PAPERCLIP_CONFIG = path.join(paperclipHome, "instances", "default", "config.json");
-      else delete process.env.PAPERCLIP_CONFIG;
+      await runGit(repoRoot, ["commit", "-m", "Add Nexus worktree provisioner"]);
+      process.env.NEXUS_HOME = nexusHome;
+      process.env.NEXUS_INSTANCE_ID = "default";
+      if (defaultConfigInEnv) process.env.NEXUS_CONFIG = path.join(nexusHome, "instances", "default", "config.json");
+      else delete process.env.NEXUS_CONFIG;
 
       const workspace = await realizeWorktreeForTest(repoRoot, "HEAD");
 
@@ -1002,16 +1002,16 @@ describe("realizeExecutionWorkspace", () => {
       expect(workspace.created).toBe(true);
       expect(await readGit(workspace.cwd, ["branch", "--show-current"])).toBe(workspace.branchName);
       for (const file of ["config.json", ".env", "seed-manifest.json", "seed-pending", "seed-complete"]) {
-        expect(existsSync(path.join(workspace.cwd, ".paperclip", file))).toBe(false);
+        expect(existsSync(path.join(workspace.cwd, ".nexus", file))).toBe(false);
       }
-      expect(await fs.readdir(paperclipHome)).toEqual([]);
+      expect(await fs.readdir(nexusHome)).toEqual([]);
     } finally {
       for (const [key, value] of Object.entries(previousEnv)) {
         if (value === undefined) delete process.env[key];
         else process.env[key] = value;
       }
       await fs.rm(repoRoot, { recursive: true, force: true });
-      await fs.rm(paperclipHome, { recursive: true, force: true });
+      await fs.rm(nexusHome, { recursive: true, force: true });
     }
   });
 
@@ -1023,8 +1023,8 @@ describe("realizeExecutionWorkspace", () => {
       [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
-        "mkdir -p .paperclip",
-        "printf 'provisioned\\n' > .paperclip/default-provision-ran",
+        "mkdir -p .nexus",
+        "printf 'provisioned\\n' > .nexus/default-provision-ran",
         "",
       ].join("\n"),
       "utf8",
@@ -1060,7 +1060,7 @@ describe("realizeExecutionWorkspace", () => {
     });
 
     await expect(
-      fs.readFile(path.join(workspace.cwd, ".paperclip", "default-provision-ran"), "utf8"),
+      fs.readFile(path.join(workspace.cwd, ".nexus", "default-provision-ran"), "utf8"),
     ).resolves.toBe("provisioned\n");
   });
 
@@ -1283,7 +1283,7 @@ describe("realizeExecutionWorkspace", () => {
     expect(readUnresolvedWorkspaceBaseRefDiagnostic(forged)).toBeNull();
     // No worktree directory was created for the fresh-create path.
     await expect(
-      fs.stat(path.join(repoRoot, ".paperclip", "worktrees", "PAP-447-add-worktree-support")),
+      fs.stat(path.join(repoRoot, ".nexus", "worktrees", "PAP-447-add-worktree-support")),
     ).rejects.toThrow();
   });
 
@@ -1299,7 +1299,7 @@ describe("realizeExecutionWorkspace", () => {
     expect(unresolved.message).toContain("Check that the ref exists");
     expect(unresolved.message).not.toContain("authenticated fetch");
     await expect(
-      fs.stat(path.join(repoRoot, ".paperclip", "worktrees", "PAP-447-add-worktree-support")),
+      fs.stat(path.join(repoRoot, ".nexus", "worktrees", "PAP-447-add-worktree-support")),
     ).rejects.toThrow();
 
     const workspace = await realizeWorktreeForTest(repoRoot, "master");
@@ -1349,7 +1349,7 @@ describe("realizeExecutionWorkspace", () => {
     const { repoRoot } = await createClonedRepoWithRemote();
     // Point origin at a path that no repository backs. The authenticated fetch
     // fails, so the ref never resolves and the resolver reports the fetch error.
-    await runGit(repoRoot, ["remote", "set-url", "origin", path.join(os.tmpdir(), "paperclip-missing-remote.git")]);
+    await runGit(repoRoot, ["remote", "set-url", "origin", path.join(os.tmpdir(), "nexus-missing-remote.git")]);
 
     const error = await realizeWorktreeForTest(repoRoot, "fix/unreachable").then(
       () => null,
@@ -1451,7 +1451,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
   it("rejects reusing an empty directory that only looks like a worktree because it sits inside the repo", async () => {
     const repoRoot = await createTempRepo();
     const branchName = "PAP-447-add-worktree-support";
-    const poisonedPath = path.join(repoRoot, ".paperclip", "worktrees", branchName);
+    const poisonedPath = path.join(repoRoot, ".nexus", "worktrees", branchName);
     await fs.mkdir(poisonedPath, { recursive: true });
 
     await expect(
@@ -1487,7 +1487,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
   it("reuses the current linked worktree instead of nesting another worktree inside it", async () => {
     const repoRoot = await createTempRepo();
     const branchName = "PAP-1355-worktree-reuse";
-    const currentWorktree = path.join(repoRoot, ".paperclip", "worktrees", branchName);
+    const currentWorktree = path.join(repoRoot, ".nexus", "worktrees", branchName);
 
     await fs.mkdir(path.dirname(currentWorktree), { recursive: true });
     await execFileAsync("git", ["worktree", "add", "-b", branchName, currentWorktree, "HEAD"], { cwd: repoRoot });
@@ -1609,7 +1609,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
   it("reuses an already checked out branch from git worktree metadata even when the target path differs", async () => {
     const repoRoot = await createTempRepo();
     const branchName = "PAP-1355-worktree-reuse";
-    const existingWorktree = path.join(repoRoot, ".paperclip", "worktrees", branchName);
+    const existingWorktree = path.join(repoRoot, ".nexus", "worktrees", branchName);
     const { recorder, operations } = createWorkspaceOperationRecorderDouble();
 
     await fs.mkdir(path.dirname(existingWorktree), { recursive: true });
@@ -1628,7 +1628,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         workspaceStrategy: {
           type: "git_worktree",
           branchTemplate: "{{issue.identifier}}-{{slug}}",
-          worktreeParentDir: ".paperclip/other-worktrees",
+          worktreeParentDir: ".nexus/other-worktrees",
         },
       },
       issue: {
@@ -1778,9 +1778,9 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
-        "printf '%s\\n' \"$PAPERCLIP_WORKSPACE_BRANCH\" > .paperclip-provision-branch",
-        "printf '%s\\n' \"$PAPERCLIP_WORKSPACE_BASE_CWD\" > .paperclip-provision-base",
-        "printf '%s\\n' \"$PAPERCLIP_WORKSPACE_CREATED\" > .paperclip-provision-created",
+        "printf '%s\\n' \"$NEXUS_WORKSPACE_BRANCH\" > .nexus-provision-branch",
+        "printf '%s\\n' \"$NEXUS_WORKSPACE_BASE_CWD\" > .nexus-provision-base",
+        "printf '%s\\n' \"$NEXUS_WORKSPACE_CREATED\" > .nexus-provision-created",
       ].join("\n"),
       "utf8",
     );
@@ -1815,13 +1815,13 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       },
     });
 
-    await expect(fs.readFile(path.join(workspace.cwd, ".paperclip-provision-branch"), "utf8")).resolves.toBe(
+    await expect(fs.readFile(path.join(workspace.cwd, ".nexus-provision-branch"), "utf8")).resolves.toBe(
       "PAP-448-run-provision-command\n",
     );
-    await expect(fs.readFile(path.join(workspace.cwd, ".paperclip-provision-base"), "utf8")).resolves.toBe(
+    await expect(fs.readFile(path.join(workspace.cwd, ".nexus-provision-base"), "utf8")).resolves.toBe(
       `${repoRoot}\n`,
     );
-    await expect(fs.readFile(path.join(workspace.cwd, ".paperclip-provision-created"), "utf8")).resolves.toBe(
+    await expect(fs.readFile(path.join(workspace.cwd, ".nexus-provision-created"), "utf8")).resolves.toBe(
       "true\n",
     );
 
@@ -1853,7 +1853,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       },
     });
 
-    await expect(fs.readFile(path.join(reused.cwd, ".paperclip-provision-created"), "utf8")).resolves.toBe("false\n");
+    await expect(fs.readFile(path.join(reused.cwd, ".nexus-provision-created"), "utf8")).resolves.toBe("false\n");
   });
 
   it("uses the latest repo-managed provision script when reusing an existing worktree", async () => {
@@ -1864,7 +1864,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
-        "printf 'v1\\n' > .paperclip-provision-version",
+        "printf 'v1\\n' > .nexus-provision-version",
       ].join("\n"),
       "utf8",
     );
@@ -1899,14 +1899,14 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       },
     });
 
-    await expect(fs.readFile(path.join(initial.cwd, ".paperclip-provision-version"), "utf8")).resolves.toBe("v1\n");
+    await expect(fs.readFile(path.join(initial.cwd, ".nexus-provision-version"), "utf8")).resolves.toBe("v1\n");
 
     await fs.writeFile(
       path.join(repoRoot, "scripts", "provision.sh"),
       [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
-        "printf 'v2\\n' > .paperclip-provision-version",
+        "printf 'v2\\n' > .nexus-provision-version",
       ].join("\n"),
       "utf8",
     );
@@ -1943,30 +1943,30 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       },
     });
 
-    await expect(fs.readFile(path.join(reused.cwd, ".paperclip-provision-version"), "utf8")).resolves.toBe("v2\n");
+    await expect(fs.readFile(path.join(reused.cwd, ".nexus-provision-version"), "utf8")).resolves.toBe("v2\n");
   }, 30_000);
 
-  it("writes an isolated repo-local Paperclip config and worktree branding when provisioning", async () => {
+  it("writes an isolated repo-local Nexus config and worktree branding when provisioning", async () => {
     const repoRoot = await createTempRepo();
     await writeRegisteredSourceConfig(repoRoot, "worktree-base-source");
     const previousCwd = process.cwd();
     const previousPath = process.env.PATH;
-    const previousConfig = process.env.PAPERCLIP_CONFIG;
-    const previousHome = process.env.PAPERCLIP_HOME;
-    const previousInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
-    const previousWorktreesDir = process.env.PAPERCLIP_WORKTREES_DIR;
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-home-"));
-    const isolatedWorktreeHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktrees-"));
-    const isolatedBin = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-bin-"));
+    const previousConfig = process.env.NEXUS_CONFIG;
+    const previousHome = process.env.NEXUS_HOME;
+    const previousInstanceId = process.env.NEXUS_INSTANCE_ID;
+    const previousWorktreesDir = process.env.NEXUS_WORKTREES_DIR;
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-home-"));
+    const isolatedWorktreeHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktrees-"));
+    const isolatedBin = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-bin-"));
     const instanceId = "worktree-base";
-    const sharedConfigDir = path.join(paperclipHome, "instances", instanceId);
+    const sharedConfigDir = path.join(nexusHome, "instances", instanceId);
     const sharedConfigPath = path.join(sharedConfigDir, "config.json");
     const sharedEnvPath = path.join(sharedConfigDir, ".env");
 
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = instanceId;
-    process.env.PAPERCLIP_WORKTREES_DIR = isolatedWorktreeHome;
-    delete process.env.PAPERCLIP_CONFIG;
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = instanceId;
+    process.env.NEXUS_WORKTREES_DIR = isolatedWorktreeHome;
+    delete process.env.NEXUS_CONFIG;
     // Keep this server-side fixture on provision-worktree.sh's config writer path;
     // CLI/database seeding is covered by the CLI worktree tests.
     await fs.symlink(process.execPath, path.join(isolatedBin, "node"));
@@ -2015,7 +2015,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
               baseDir: path.join(sharedConfigDir, "storage"),
             },
             s3: {
-              bucket: "paperclip",
+              bucket: "nexus",
               region: "us-east-1",
               prefix: "",
               forcePathStyle: false,
@@ -2034,7 +2034,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       ) + "\n",
       "utf8",
     );
-    await fs.writeFile(sharedEnvPath, 'DATABASE_URL="postgres://worktree:test@db.example.com:6543/paperclip"\n', "utf8");
+    await fs.writeFile(sharedEnvPath, 'DATABASE_URL="postgres://worktree:test@db.example.com:6543/nexus"\n', "utf8");
 
     await fs.mkdir(path.join(repoRoot, "scripts"), { recursive: true });
     await fs.copyFile(
@@ -2074,8 +2074,8 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       } satisfies Parameters<typeof realizeExecutionWorkspace>[0];
       const workspace = await realizeExecutionWorkspace(workspaceInput);
 
-      const configPath = path.join(workspace.cwd, ".paperclip", "config.json");
-      const envPath = path.join(workspace.cwd, ".paperclip", ".env");
+      const configPath = path.join(workspace.cwd, ".nexus", "config.json");
+      const envPath = path.join(workspace.cwd, ".nexus", ".env");
       const envContents = await fs.readFile(envPath, "utf8");
       const configContents = JSON.parse(await fs.readFile(configPath, "utf8"));
       const configStats = await fs.lstat(configPath);
@@ -2095,14 +2095,14 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       );
       expect(envContents).not.toContain("DATABASE_URL=");
       const envVars = parseEnvContents(envContents);
-      expect(envVars.PAPERCLIP_HOME).toBe(isolatedWorktreeHome);
-      expect(envVars.PAPERCLIP_INSTANCE_ID).toBe(expectedInstanceId);
-      expect(await fs.realpath(envVars.PAPERCLIP_CONFIG!)).toBe(await fs.realpath(configPath));
-      expect(envVars.PAPERCLIP_IN_WORKTREE).toBe("true");
-      expect(envVars.PAPERCLIP_WORKTREE_NAME).toBe("PAP-885-show-worktree-banner");
+      expect(envVars.NEXUS_HOME).toBe(isolatedWorktreeHome);
+      expect(envVars.NEXUS_INSTANCE_ID).toBe(expectedInstanceId);
+      expect(await fs.realpath(envVars.NEXUS_CONFIG!)).toBe(await fs.realpath(configPath));
+      expect(envVars.NEXUS_IN_WORKTREE).toBe("true");
+      expect(envVars.NEXUS_WORKTREE_NAME).toBe("PAP-885-show-worktree-banner");
 
       process.chdir(workspace.cwd);
-      expect(resolvePaperclipConfigPath()).toBe(configPath);
+      expect(resolveNexusConfigPath()).toBe(configPath);
 
       const preservedPort = 39999;
       await fs.writeFile(
@@ -2120,7 +2120,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         ) + "\n",
         "utf8",
       );
-      await fs.writeFile(envPath, `${envContents}PAPERCLIP_WORKTREE_COLOR="#112233"\n`, "utf8");
+      await fs.writeFile(envPath, `${envContents}NEXUS_WORKTREE_COLOR="#112233"\n`, "utf8");
 
       const reusedWorkspace = await realizeExecutionWorkspace(workspaceInput);
       const reusedConfigContents = JSON.parse(await fs.readFile(configPath, "utf8"));
@@ -2130,7 +2130,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       expect(reusedWorkspace.created).toBe(false);
       expect(reusedConfigContents.server.port).toBe(preservedPort);
       expect(reusedConfigContents.database.embeddedPostgresDataDir).toBe(path.join(expectedInstanceRoot, "db"));
-      expect(reusedEnvContents).toContain('PAPERCLIP_WORKTREE_COLOR="#112233"');
+      expect(reusedEnvContents).toContain('NEXUS_WORKTREE_COLOR="#112233"');
     } finally {
       process.chdir(previousCwd);
       if (previousPath === undefined) {
@@ -2139,10 +2139,10 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         process.env.PATH = previousPath;
       }
       for (const [key, value] of [
-        ["PAPERCLIP_CONFIG", previousConfig],
-        ["PAPERCLIP_HOME", previousHome],
-        ["PAPERCLIP_INSTANCE_ID", previousInstanceId],
-        ["PAPERCLIP_WORKTREES_DIR", previousWorktreesDir],
+        ["NEXUS_CONFIG", previousConfig],
+        ["NEXUS_HOME", previousHome],
+        ["NEXUS_INSTANCE_ID", previousInstanceId],
+        ["NEXUS_WORKTREES_DIR", previousWorktreesDir],
       ] as const) {
         if (value === undefined) {
           delete process.env[key];
@@ -2327,13 +2327,13 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       },
     });
 
-    await expect(fs.readFile(path.join(workspace.cwd, ".paperclip", "config.json"), "utf8")).resolves.toContain(
+    await expect(fs.readFile(path.join(workspace.cwd, ".nexus", "config.json"), "utf8")).resolves.toContain(
       "\"database\"",
     );
   }, 30_000);
 
   it("reinstalls worktree-local pnpm dependencies when package metadata changes", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-stale-deps-"));
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-stale-deps-"));
     const baseRoot = path.join(tempRoot, "base");
     const worktreeRoot = path.join(tempRoot, "worktree");
     const fakeBin = path.join(tempRoot, "bin");
@@ -2376,7 +2376,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         fakePnpmPath,
         [
           "#!/bin/sh",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"--help\" ]; then",
+          "if [ \"$1\" = \"nexusai\" ] && [ \"$2\" = \"--help\" ]; then",
           "  exit 1",
           "fi",
           "if [ \"$1\" = \"install\" ] && [ \"$2\" = \"--prod=false\" ] && [ \"$3\" = \"--frozen-lockfile\" ]; then",
@@ -2396,8 +2396,8 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         env: {
           ...process.env,
           PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
-          PAPERCLIP_WORKSPACE_BASE_CWD: baseRoot,
-          PAPERCLIP_WORKSPACE_CWD: worktreeRoot,
+          NEXUS_WORKSPACE_BASE_CWD: baseRoot,
+          NEXUS_WORKSPACE_CWD: worktreeRoot,
         },
       });
 
@@ -2427,7 +2427,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
   }, 30_000);
 
   it("fails instead of writing an unseeded fallback config when worktree init errors after CLI detection succeeds", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-provision-fail-"));
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-provision-fail-"));
     const baseRoot = path.join(tempRoot, "base");
     const worktreeRoot = path.join(tempRoot, "worktree");
     const fakeBin = path.join(tempRoot, "bin");
@@ -2445,10 +2445,10 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         fakePnpmPath,
         [
           "#!/bin/sh",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"--help\" ]; then",
+          "if [ \"$1\" = \"nexusai\" ] && [ \"$2\" = \"--help\" ]; then",
           "  exit 0",
           "fi",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"worktree\" ] && [ \"$3\" = \"init\" ]; then",
+          "if [ \"$1\" = \"nexusai\" ] && [ \"$2\" = \"worktree\" ] && [ \"$3\" = \"init\" ]; then",
           "  echo \"simulated init failure\" >&2",
           "  exit 42",
           "fi",
@@ -2466,8 +2466,8 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
           env: {
             ...process.env,
             PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
-            PAPERCLIP_WORKSPACE_BASE_CWD: baseRoot,
-            PAPERCLIP_WORKSPACE_CWD: worktreeRoot,
+            NEXUS_WORKSPACE_BASE_CWD: baseRoot,
+            NEXUS_WORKSPACE_CWD: worktreeRoot,
           },
         });
       } catch (error) {
@@ -2476,61 +2476,61 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
 
       expect(caught).toBeTruthy();
       expect(String(caught)).toContain("simulated init failure");
-      await expect(fs.stat(path.join(worktreeRoot, ".paperclip", "config.json"))).rejects.toThrow();
-      await expect(fs.stat(path.join(worktreeRoot, ".paperclip", ".env"))).rejects.toThrow();
+      await expect(fs.stat(path.join(worktreeRoot, ".nexus", "config.json"))).rejects.toThrow();
+      await expect(fs.stat(path.join(worktreeRoot, ".nexus", ".env"))).rejects.toThrow();
     } finally {
       await fs.rm(tempRoot, { recursive: true, force: true });
     }
   });
 
   it("regenerates stale worktree config that points at another host", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-stale-config-"));
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-stale-config-"));
     const baseRoot = path.join(tempRoot, "base");
     const worktreeRoot = path.join(tempRoot, "worktree");
     const fakeBin = path.join(tempRoot, "bin");
     const fakePnpmPath = path.join(fakeBin, "pnpm");
     const scriptPath = path.join(worktreeRoot, "provision-worktree.sh");
-    const paperclipDir = path.join(worktreeRoot, ".paperclip");
+    const nexusDir = path.join(worktreeRoot, ".nexus");
 
     try {
       await fs.mkdir(baseRoot, { recursive: true });
       await writeRegisteredSourceConfig(baseRoot);
-      await fs.mkdir(paperclipDir, { recursive: true });
+      await fs.mkdir(nexusDir, { recursive: true });
       await fs.mkdir(fakeBin, { recursive: true });
       await fs.copyFile(provisionWorktreeScriptPath, scriptPath);
       await fs.chmod(scriptPath, 0o755);
       await fs.writeFile(
-        path.join(paperclipDir, "config.json"),
+        path.join(nexusDir, "config.json"),
         JSON.stringify({
           database: {
             mode: "embedded-postgres",
-            embeddedPostgresDataDir: "/Users/example/.paperclip-worktrees/instances/stale/db",
+            embeddedPostgresDataDir: "/Users/example/.nexus-worktrees/instances/stale/db",
           },
           logging: {
             mode: "file",
-            logDir: "/Users/example/.paperclip-worktrees/instances/stale/logs",
+            logDir: "/Users/example/.nexus-worktrees/instances/stale/logs",
           },
           storage: {
             provider: "local_disk",
             localDisk: {
-              baseDir: "/Users/example/.paperclip-worktrees/instances/stale/data/storage",
+              baseDir: "/Users/example/.nexus-worktrees/instances/stale/data/storage",
             },
           },
           secrets: {
             provider: "local_encrypted",
             localEncrypted: {
-              keyFilePath: "/Users/example/.paperclip-worktrees/instances/stale/secrets/master.key",
+              keyFilePath: "/Users/example/.nexus-worktrees/instances/stale/secrets/master.key",
             },
           },
         }),
         "utf8",
       );
       await fs.writeFile(
-        path.join(paperclipDir, ".env"),
+        path.join(nexusDir, ".env"),
         [
-          "PAPERCLIP_HOME=/Users/example/.paperclip-worktrees",
-          "PAPERCLIP_INSTANCE_ID=stale",
-          `PAPERCLIP_CONFIG=/Users/example/paperclip/${path.basename(worktreeRoot)}/.paperclip/config.json`,
+          "NEXUS_HOME=/Users/example/.nexus-worktrees",
+          "NEXUS_INSTANCE_ID=stale",
+          `NEXUS_CONFIG=/Users/example/nexus/${path.basename(worktreeRoot)}/.nexus/config.json`,
           "",
         ].join("\n"),
         "utf8",
@@ -2539,13 +2539,13 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         fakePnpmPath,
         [
           "#!/bin/sh",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"--help\" ]; then",
+          "if [ \"$1\" = \"nexusai\" ] && [ \"$2\" = \"--help\" ]; then",
           "  exit 0",
           "fi",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"worktree\" ] && [ \"$3\" = \"init\" ]; then",
-          "  mkdir -p \"$PWD/.paperclip\"",
-          "  printf '%s\\n' '{\"database\":{\"embeddedPostgresDataDir\":\"'$PWD'/.paperclip/runtime/db\"}}' > \"$PWD/.paperclip/config.json\"",
-          "  printf '%s\\n' \"PAPERCLIP_HOME=$PWD/.paperclip/runtime\" \"PAPERCLIP_INSTANCE_ID=healthy\" \"PAPERCLIP_CONFIG=$PWD/.paperclip/config.json\" > \"$PWD/.paperclip/.env\"",
+          "if [ \"$1\" = \"nexusai\" ] && [ \"$2\" = \"worktree\" ] && [ \"$3\" = \"init\" ]; then",
+          "  mkdir -p \"$PWD/.nexus\"",
+          "  printf '%s\\n' '{\"database\":{\"embeddedPostgresDataDir\":\"'$PWD'/.nexus/runtime/db\"}}' > \"$PWD/.nexus/config.json\"",
+          "  printf '%s\\n' \"NEXUS_HOME=$PWD/.nexus/runtime\" \"NEXUS_INSTANCE_ID=healthy\" \"NEXUS_CONFIG=$PWD/.nexus/config.json\" > \"$PWD/.nexus/.env\"",
           "  exit 0",
           "fi",
           "exit 0",
@@ -2560,23 +2560,23 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         env: {
           ...process.env,
           PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
-          PAPERCLIP_WORKSPACE_BASE_CWD: baseRoot,
-          PAPERCLIP_WORKSPACE_CWD: worktreeRoot,
+          NEXUS_WORKSPACE_BASE_CWD: baseRoot,
+          NEXUS_WORKSPACE_CWD: worktreeRoot,
         },
       });
 
-      expect(result.stderr).toContain("Existing isolated Paperclip worktree config is stale for this host; regenerating.");
-      await expect(fs.readFile(path.join(paperclipDir, ".env"), "utf8")).resolves.toContain(
-        `PAPERCLIP_CONFIG=${worktreeRoot}/.paperclip/config.json`,
+      expect(result.stderr).toContain("Existing isolated Nexus worktree config is stale for this host; regenerating.");
+      await expect(fs.readFile(path.join(nexusDir, ".env"), "utf8")).resolves.toContain(
+        `NEXUS_CONFIG=${worktreeRoot}/.nexus/config.json`,
       );
-      await expect(fs.readFile(path.join(paperclipDir, "config.json"), "utf8")).resolves.toContain(worktreeRoot);
+      await expect(fs.readFile(path.join(nexusDir, "config.json"), "utf8")).resolves.toContain(worktreeRoot);
     } finally {
       await fs.rm(tempRoot, { recursive: true, force: true });
     }
   });
 
   it("retries worktree-local pnpm install without a frozen lockfile when the lockfile is outdated", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-outdated-lockfile-"));
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-outdated-lockfile-"));
     const baseRoot = path.join(tempRoot, "base");
     const worktreeRoot = path.join(tempRoot, "worktree");
     const fakeBin = path.join(tempRoot, "bin");
@@ -2612,7 +2612,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         fakePnpmPath,
         [
           "#!/bin/sh",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"--help\" ]; then",
+          "if [ \"$1\" = \"nexusai\" ] && [ \"$2\" = \"--help\" ]; then",
           "  exit 1",
           "fi",
           "if [ \"$1\" = \"install\" ] && [ \"$2\" = \"--prod=false\" ] && [ \"$3\" = \"--frozen-lockfile\" ]; then",
@@ -2636,14 +2636,14 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         env: {
           ...process.env,
           PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
-          PAPERCLIP_WORKSPACE_BASE_CWD: baseRoot,
-          PAPERCLIP_WORKSPACE_CWD: worktreeRoot,
+          NEXUS_WORKSPACE_BASE_CWD: baseRoot,
+          NEXUS_WORKSPACE_CWD: worktreeRoot,
         },
       });
 
       expect(result.stderr).toContain("retrying install without --frozen-lockfile");
       await expect(fs.readFile(path.join(worktreeRoot, "node_modules", ".retry-success"), "utf8")).resolves.toBe("");
-      await expect(fs.readFile(path.join(worktreeRoot, ".paperclip", "config.json"), "utf8")).resolves.toContain(
+      await expect(fs.readFile(path.join(worktreeRoot, ".nexus", "config.json"), "utf8")).resolves.toContain(
         "\"database\"",
       );
     } finally {
@@ -2815,7 +2815,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
-        "printf '%s\\n' \"$PAPERCLIP_WORKSPACE_BRANCH\" > .paperclip-restored-branch",
+        "printf '%s\\n' \"$NEXUS_WORKSPACE_BRANCH\" > .nexus-restored-branch",
       ].join("\n"),
       "utf8",
     );
@@ -2898,7 +2898,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     expect(restored).not.toBeNull();
     expect(restored?.cwd).toBe(initial.cwd);
     await expect(fs.readFile(path.join(initial.cwd, "feature.txt"), "utf8")).resolves.toBe("persisted\n");
-    await expect(fs.readFile(path.join(initial.cwd, ".paperclip-restored-branch"), "utf8")).resolves.toBe(`${branchName}\n`);
+    await expect(fs.readFile(path.join(initial.cwd, ".nexus-restored-branch"), "utf8")).resolves.toBe(`${branchName}\n`);
     const actualHead = (await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: initial.cwd })).stdout.trim();
     expect(actualHead).toBe(expectedHead);
   }, 15_000);
@@ -2907,8 +2907,8 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     const repoRoot = await createTempRepo();
     const expectedBranch = "PAP-454-repair-clean-branch-mismatch";
     const actualBranch = "PAP-454-publish-head";
-    const realWorktreeRoot = path.join(repoRoot, ".paperclip", "real-worktrees");
-    const symlinkedWorktreeRoot = path.join(repoRoot, ".paperclip", "worktrees");
+    const realWorktreeRoot = path.join(repoRoot, ".nexus", "real-worktrees");
+    const symlinkedWorktreeRoot = path.join(repoRoot, ".nexus", "worktrees");
     const realWorktreePath = path.join(realWorktreeRoot, expectedBranch);
     const worktreePath = path.join(symlinkedWorktreeRoot, expectedBranch);
     await fs.mkdir(realWorktreeRoot, { recursive: true });
@@ -2975,7 +2975,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
   it("reattaches a clean forward detached HEAD to the recorded persisted git worktree branch", async () => {
     const repoRoot = await createTempRepo();
     const branchName = "PAP-454-reattach-detached-head";
-    const worktreePath = path.join(repoRoot, ".paperclip", "worktrees", branchName);
+    const worktreePath = path.join(repoRoot, ".nexus", "worktrees", branchName);
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     await runGit(repoRoot, ["branch", branchName]);
     await runGit(repoRoot, ["worktree", "add", worktreePath, branchName]);
@@ -3031,7 +3031,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     const repoRoot = await createTempRepo();
     const expectedBranch = "PAP-455-reject-dirty-branch-mismatch";
     const actualBranch = "PAP-455-publish-head";
-    const worktreePath = path.join(repoRoot, ".paperclip", "worktrees", expectedBranch);
+    const worktreePath = path.join(repoRoot, ".nexus", "worktrees", expectedBranch);
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     await runGit(repoRoot, ["branch", expectedBranch]);
     await runGit(repoRoot, ["worktree", "add", "-b", actualBranch, worktreePath, "HEAD"]);
@@ -3104,7 +3104,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
   it("routes non-reusable persisted git worktrees through workspace validation recovery", async () => {
     const repoRoot = await createTempRepo();
     const expectedBranch = "PAP-455-not-registered-worktree";
-    const detachedWorktreePath = path.join(repoRoot, ".paperclip", "worktrees", expectedBranch);
+    const detachedWorktreePath = path.join(repoRoot, ".nexus", "worktrees", expectedBranch);
     await fs.mkdir(path.dirname(detachedWorktreePath), { recursive: true });
     await execFileAsync("git", ["clone", repoRoot, detachedWorktreePath]);
     await runGit(detachedWorktreePath, ["checkout", "-B", expectedBranch]);
@@ -3235,7 +3235,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     const repoRoot = await createTempRepo();
     const expectedBranch = "PAP-457-recorded-work";
     const actualBranch = "PAP-457-sibling-work";
-    const worktreePath = path.join(repoRoot, ".paperclip", "worktrees", expectedBranch);
+    const worktreePath = path.join(repoRoot, ".nexus", "worktrees", expectedBranch);
 
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     await runGit(repoRoot, ["branch", expectedBranch]);
@@ -3317,7 +3317,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     const repoRoot = await createTempRepo();
     const expectedBranch = "PAP-458-deleted-recorded-branch";
     const actualBranch = "PAP-458-actual-work";
-    const worktreePath = path.join(repoRoot, ".paperclip", "worktrees", expectedBranch);
+    const worktreePath = path.join(repoRoot, ".nexus", "worktrees", expectedBranch);
 
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     await runGit(repoRoot, ["branch", expectedBranch]);
@@ -3399,7 +3399,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     const repoRoot = await createTempRepo();
     const expectedBranch = "PAP-458-deleted-recorded-branch-flag-off";
     const actualBranch = "PAP-458-actual-work-flag-off";
-    const worktreePath = path.join(repoRoot, ".paperclip", "worktrees", expectedBranch);
+    const worktreePath = path.join(repoRoot, ".nexus", "worktrees", expectedBranch);
 
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     await runGit(repoRoot, ["branch", expectedBranch]);
@@ -3471,7 +3471,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     const repoRoot = await createTempRepo();
     const expectedBranch = "PAP-459-recorded-content";
     const actualBranch = "PAP-459-rewritten-content";
-    const worktreePath = path.join(repoRoot, ".paperclip", "worktrees", expectedBranch);
+    const worktreePath = path.join(repoRoot, ".nexus", "worktrees", expectedBranch);
 
     await runGit(repoRoot, ["checkout", "-b", expectedBranch]);
     await fs.writeFile(path.join(repoRoot, "same-content.txt"), "same content\n", "utf8");
@@ -3501,7 +3501,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     const repoRoot = await createTempRepo();
     const expectedBranch = "PAP-459-recorded-task";
     const actualBranch = "PAP-999-unrelated-task";
-    const worktreePath = path.join(repoRoot, ".paperclip", "worktrees", expectedBranch);
+    const worktreePath = path.join(repoRoot, ".nexus", "worktrees", expectedBranch);
 
     await runGit(repoRoot, ["checkout", "-b", expectedBranch]);
     await fs.writeFile(path.join(repoRoot, "recorded-task.txt"), "recorded task work\n", "utf8");
@@ -3531,7 +3531,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     const repoRoot = await createTempRepo();
     const expectedBranch = "PAP-459-recorded-ahead";
     const actualBranch = "PAP-459-live-behind";
-    const worktreePath = path.join(repoRoot, ".paperclip", "worktrees", expectedBranch);
+    const worktreePath = path.join(repoRoot, ".nexus", "worktrees", expectedBranch);
 
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     await runGit(repoRoot, ["branch", expectedBranch]);
@@ -3555,7 +3555,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
   }, 15_000);
 
   it("does not reuse a missing persisted local filesystem workspace", async () => {
-    const baseCwd = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-base-"));
+    const baseCwd = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-workspace-base-"));
     const missingCwd = path.join(baseCwd, "missing-workspace");
 
     const restored = await ensurePersistedExecutionWorkspaceAvailable({
@@ -3601,7 +3601,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
-        "printf 'reprovisioned\\n' > .paperclip-restored-state",
+        "printf 'reprovisioned\\n' > .nexus-restored-state",
       ].join("\n"),
       "utf8",
     );
@@ -3637,7 +3637,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       },
     });
 
-    await fs.rm(path.join(initial.cwd, ".paperclip-restored-state"), { force: true });
+    await fs.rm(path.join(initial.cwd, ".nexus-restored-state"), { force: true });
 
     await ensurePersistedExecutionWorkspaceAvailable({
       base: {
@@ -3674,7 +3674,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       },
     });
 
-    await expect(fs.readFile(path.join(initial.cwd, ".paperclip-restored-state"), "utf8")).resolves.toBe("reprovisioned\n");
+    await expect(fs.readFile(path.join(initial.cwd, ".nexus-restored-state"), "utf8")).resolves.toBe("reprovisioned\n");
   }, 15_000);
 
   it("rejects an empty base checkout path with a clear cause", async () => {
@@ -3779,7 +3779,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     // exists locally. Note: refs/remotes/origin/HEAD is NOT set by a manual
     // fetch — that requires git clone or git remote set-head. This test
     // exercises the heuristic fallback path in detectDefaultBranch.
-    const bareRemote = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-bare-"));
+    const bareRemote = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-bare-"));
     await runGit(bareRemote, ["init", "--bare"]);
     await runGit(repoRoot, ["remote", "add", "origin", bareRemote]);
     await runGit(repoRoot, ["push", "-u", "origin", "master"]);
@@ -3827,7 +3827,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     const repoRoot = await createTempRepo("main");
     await runGit(repoRoot, ["branch", "-f", "master", "main"]);
 
-    const bareRemote = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-bare-symref-"));
+    const bareRemote = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-worktree-bare-symref-"));
     await runGit(bareRemote, ["init", "--bare"]);
     await runGit(repoRoot, ["remote", "add", "origin", bareRemote]);
     await runGit(repoRoot, ["branch", "-f", "master"]);
@@ -4181,17 +4181,17 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       },
     });
 
-    const worktreesDir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-cleanup-instances-"));
+    const worktreesDir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-cleanup-instances-"));
     const instanceId = deriveWorktreeInstanceId(workspace.cwd);
     const instanceRoot = path.join(worktreesDir, "instances", instanceId);
     await fs.mkdir(path.join(instanceRoot, "db"), { recursive: true });
-    await fs.mkdir(path.join(workspace.cwd, ".paperclip"), { recursive: true });
+    await fs.mkdir(path.join(workspace.cwd, ".nexus"), { recursive: true });
     await fs.writeFile(
-      path.join(workspace.cwd, ".paperclip", ".env"),
-      `PAPERCLIP_HOME=${JSON.stringify(worktreesDir)}\nPAPERCLIP_INSTANCE_ID=${JSON.stringify(instanceId)}\n`,
+      path.join(workspace.cwd, ".nexus", ".env"),
+      `NEXUS_HOME=${JSON.stringify(worktreesDir)}\nNEXUS_INSTANCE_ID=${JSON.stringify(instanceId)}\n`,
       "utf8",
     );
-    process.env.PAPERCLIP_WORKTREES_DIR = worktreesDir;
+    process.env.NEXUS_WORKTREES_DIR = worktreesDir;
     const canonicalInstanceRoot = await fs.realpath(instanceRoot);
 
     await cleanupExecutionWorkspaceArtifacts({
@@ -4243,15 +4243,15 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
 
 describe("ensureRuntimeServicesForRun", () => {
   function configureRuntimeProvisionTestHome(workspaceRoot: string, suffix: string) {
-    const previousPaperclipHome = process.env.PAPERCLIP_HOME;
-    const previousPaperclipInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
-    process.env.PAPERCLIP_HOME = workspaceRoot;
-    process.env.PAPERCLIP_INSTANCE_ID = `${suffix}-${randomUUID()}`;
+    const previousNexusHome = process.env.NEXUS_HOME;
+    const previousNexusInstanceId = process.env.NEXUS_INSTANCE_ID;
+    process.env.NEXUS_HOME = workspaceRoot;
+    process.env.NEXUS_INSTANCE_ID = `${suffix}-${randomUUID()}`;
     return () => {
-      if (previousPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-      else process.env.PAPERCLIP_HOME = previousPaperclipHome;
-      if (previousPaperclipInstanceId === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-      else process.env.PAPERCLIP_INSTANCE_ID = previousPaperclipInstanceId;
+      if (previousNexusHome === undefined) delete process.env.NEXUS_HOME;
+      else process.env.NEXUS_HOME = previousNexusHome;
+      if (previousNexusInstanceId === undefined) delete process.env.NEXUS_INSTANCE_ID;
+      else process.env.NEXUS_INSTANCE_ID = previousNexusInstanceId;
     };
   }
 
@@ -4307,8 +4307,8 @@ describe("ensureRuntimeServicesForRun", () => {
   }
 
   it.each(["configured", "builtin"] as const)("suppresses %s runtime provision scripts for remote runs without disabling local provisioning", async kind => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-remote-runtime-provision-"));
-    const restorePaperclipEnv = configureRuntimeProvisionTestHome(workspaceRoot, "remote-runtime-provision");
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-remote-runtime-provision-"));
+    const restoreNexusEnv = configureRuntimeProvisionTestHome(workspaceRoot, "remote-runtime-provision");
     const marker = path.join(workspaceRoot, "runtime-script-ran");
     const command = `printf host-runtime > '${marker}'`;
     await fs.mkdir(path.join(workspaceRoot, "scripts"));
@@ -4330,13 +4330,13 @@ describe("ensureRuntimeServicesForRun", () => {
     } finally {
       await stopRuntimeServicesForExecutionWorkspace({ executionWorkspaceId: input.executionWorkspaceId, workspaceCwd: workspaceRoot });
       await fs.rm(workspaceRoot, { recursive: true, force: true });
-      restorePaperclipEnv();
+      restoreNexusEnv();
     }
   });
 
   it("runs runtime provisioning once when service starts race for the same workspace", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-provision-race-"));
-    const restorePaperclipEnv = configureRuntimeProvisionTestHome(workspaceRoot, "runtime-provision-race");
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-provision-race-"));
+    const restoreNexusEnv = configureRuntimeProvisionTestHome(workspaceRoot, "runtime-provision-race");
     const counterPath = path.join(workspaceRoot, "runtime-provision-count.txt");
     const provisionScript = [
       "const fs = require('node:fs');",
@@ -4375,13 +4375,13 @@ describe("ensureRuntimeServicesForRun", () => {
         workspaceCwd: workspaceRoot,
       });
       await fs.rm(workspaceRoot, { recursive: true, force: true });
-      restorePaperclipEnv();
+      restoreNexusEnv();
     }
   });
 
   it("logs runtime provisioning failure and retries it on the next service start", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-provision-retry-"));
-    const restorePaperclipEnv = configureRuntimeProvisionTestHome(workspaceRoot, "runtime-provision-retry");
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-provision-retry-"));
+    const restoreNexusEnv = configureRuntimeProvisionTestHome(workspaceRoot, "runtime-provision-retry");
     const attemptPath = path.join(workspaceRoot, "runtime-provision-attempt.txt");
     const provisionScript = [
       "const fs = require('node:fs');",
@@ -4427,15 +4427,15 @@ describe("ensureRuntimeServicesForRun", () => {
         workspaceCwd: workspaceRoot,
       });
       await fs.rm(workspaceRoot, { recursive: true, force: true });
-      restorePaperclipEnv();
+      restoreNexusEnv();
     }
   });
 
   it("records the built-in deferred seed as failed when its manifest is not verified", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-seed-operation-"));
-    const restorePaperclipEnv = configureRuntimeProvisionTestHome(workspaceRoot, "workspace-seed-operation");
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-workspace-seed-operation-"));
+    const restoreNexusEnv = configureRuntimeProvisionTestHome(workspaceRoot, "workspace-seed-operation");
     const scriptsDir = path.join(workspaceRoot, "scripts");
-    const markerDir = path.join(workspaceRoot, ".paperclip");
+    const markerDir = path.join(workspaceRoot, ".nexus");
     await fs.mkdir(scriptsDir, { recursive: true });
     await fs.mkdir(markerDir, { recursive: true });
     await fs.writeFile(path.join(markerDir, "seed-pending"), "{}\n", "utf8");
@@ -4444,7 +4444,7 @@ describe("ensureRuntimeServicesForRun", () => {
       [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
-        `printf '%s\\n' '${JSON.stringify({ version: 2, state: "failed", phase: "source_validation" })}' > .paperclip/seed-manifest.json`,
+        `printf '%s\\n' '${JSON.stringify({ version: 2, state: "failed", phase: "source_validation" })}' > .nexus/seed-manifest.json`,
       ].join("\n"),
       "utf8",
     );
@@ -4485,13 +4485,13 @@ describe("ensureRuntimeServicesForRun", () => {
         workspaceCwd: workspaceRoot,
       });
       await fs.rm(workspaceRoot, { recursive: true, force: true });
-      restorePaperclipEnv();
+      restoreNexusEnv();
     }
   });
 
   it("keeps an explicit command matching the built-in seed command as runtime provisioning", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-explicit-runtime-provision-"));
-    const restorePaperclipEnv = configureRuntimeProvisionTestHome(workspaceRoot, "explicit-runtime-provision");
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-explicit-runtime-provision-"));
+    const restoreNexusEnv = configureRuntimeProvisionTestHome(workspaceRoot, "explicit-runtime-provision");
     const scriptsDir = path.join(workspaceRoot, "scripts");
     await fs.mkdir(scriptsDir, { recursive: true });
     await fs.writeFile(
@@ -4528,13 +4528,13 @@ describe("ensureRuntimeServicesForRun", () => {
         workspaceCwd: workspaceRoot,
       });
       await fs.rm(workspaceRoot, { recursive: true, force: true });
-      restorePaperclipEnv();
+      restoreNexusEnv();
     }
   });
 
   it("does not create a runtime provision operation when the command is absent", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-provision-noop-"));
-    const restorePaperclipEnv = configureRuntimeProvisionTestHome(workspaceRoot, "runtime-provision-noop");
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-provision-noop-"));
+    const restoreNexusEnv = configureRuntimeProvisionTestHome(workspaceRoot, "runtime-provision-noop");
     const workspace = buildWorkspace(workspaceRoot);
     const config = runtimeProvisionTestConfig({});
     const { recorder, operations } = createWorkspaceOperationRecorderDouble();
@@ -4551,14 +4551,14 @@ describe("ensureRuntimeServicesForRun", () => {
         workspaceCwd: workspaceRoot,
       });
       await fs.rm(workspaceRoot, { recursive: true, force: true });
-      restorePaperclipEnv();
+      restoreNexusEnv();
     }
   });
 
   it("preserves the selected persisted runtime id when starting one configured service", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-selected-id-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-selected-id-"));
     const workspace = buildWorkspace(workspaceRoot);
-    const restorePaperclipEnv = configureRuntimeProvisionTestHome(workspaceRoot, "runtime-selected-id");
+    const restoreNexusEnv = configureRuntimeProvisionTestHome(workspaceRoot, "runtime-selected-id");
     const runtimeServiceId = randomUUID();
     const config = runtimeProvisionTestConfig({});
 
@@ -4577,12 +4577,12 @@ describe("ensureRuntimeServicesForRun", () => {
         workspaceCwd: workspaceRoot,
       });
       await fs.rm(workspaceRoot, { recursive: true, force: true });
-      restorePaperclipEnv();
+      restoreNexusEnv();
     }
   });
 
   it("leaves manual runtime services untouched during agent runs", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-manual-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-manual-"));
     const workspace = buildWorkspace(workspaceRoot);
 
     const services = await ensureRuntimeServicesForRun({
@@ -4612,15 +4612,15 @@ describe("ensureRuntimeServicesForRun", () => {
     expect(services).toEqual([]);
   });
 
-  it("enables UI dev middleware by default for managed Paperclip worktree runtimes", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-ui-dev-"));
+  it("enables UI dev middleware by default for managed Nexus worktree runtimes", async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-ui-dev-"));
     const workspace = buildWorkspace(workspaceRoot);
     const serviceScript =
       "const http=require('node:http');"
       + "http.createServer((req,res)=>{"
       + "if(req.url==='/api/health'){res.setHeader('content-type','application/json');"
       + "res.end(JSON.stringify({status:'ok'}));return;}"
-      + "res.end(process.env.PAPERCLIP_UI_DEV_MIDDLEWARE||'missing');"
+      + "res.end(process.env.NEXUS_UI_DEV_MIDDLEWARE||'missing');"
       + "}).listen(Number(process.env.PORT),'127.0.0.1');";
 
     try {
@@ -4632,7 +4632,7 @@ describe("ensureRuntimeServicesForRun", () => {
         config: {
           workspaceRuntime: {
             services: [{
-              name: "paperclip-dev",
+              name: "nexus-dev",
               command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify(serviceScript)}`,
               port: { type: "auto" },
               readiness: {
@@ -4666,8 +4666,8 @@ describe("ensureRuntimeServicesForRun", () => {
   });
 
   it("injects isolated browser callback origins into separate worktree runtimes", async () => {
-    const firstRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-origin-first-"));
-    const secondRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-origin-second-"));
+    const firstRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-origin-first-"));
+    const secondRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-origin-second-"));
     const firstWorkspace: RealizedExecutionWorkspace = {
       ...buildWorkspace(firstRoot),
       source: "task_session",
@@ -4693,7 +4693,7 @@ describe("ensureRuntimeServicesForRun", () => {
       workspaceRuntime: {
         services: [
           {
-            name: "paperclip-dev",
+            name: "nexus-dev",
             command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify(serviceScript)}`,
             port: { type: "auto" },
             readiness: {
@@ -4752,10 +4752,10 @@ describe("ensureRuntimeServicesForRun", () => {
     }
   }, 15_000);
 
-  it("requires Paperclip dev runtime services to pass /api/health readiness", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-health-"));
+  it("requires Nexus dev runtime services to pass /api/health readiness", async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-health-"));
     const workspace = buildWorkspace(workspaceRoot);
-    const runId = "run-paperclip-health";
+    const runId = "run-nexus-health";
     const serviceCommand =
       "node -e \"const http=require('node:http'); http.createServer((req,res)=>{ if (req.url==='/api/health') { res.statusCode=503; res.end('database_unreachable'); return; } res.end('ok'); }).listen(Number(process.env.PORT), '127.0.0.1')\"";
 
@@ -4774,7 +4774,7 @@ describe("ensureRuntimeServicesForRun", () => {
             workspaceRuntime: {
               services: [
                 {
-                  name: "paperclip-dev",
+                  name: "nexus-dev",
                   command: serviceCommand,
                   cwd: ".",
                   port: { type: "auto" },
@@ -4808,8 +4808,8 @@ describe("ensureRuntimeServicesForRun", () => {
     }
   });
 
-  it("replaces a reused Paperclip dev runtime whose 2xx health payload is unhealthy", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-misreported-health-"));
+  it("replaces a reused Nexus dev runtime whose 2xx health payload is unhealthy", async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-misreported-health-"));
     const workspace = buildWorkspace(workspaceRoot);
     const serviceCommand =
       "node -e \"let healthy=true;const http=require('node:http');http.createServer((req,res)=>{if(req.url==='/misreport'){healthy=false;res.end('failed');return;}if(req.url==='/api/health'){res.setHeader('content-type','application/json');res.end(JSON.stringify(healthy?{status:'ok'}:{status:'unhealthy',error:'database_unreachable'}));return;}res.end('ok')}).listen(Number(process.env.PORT),'127.0.0.1')\"";
@@ -4819,7 +4819,7 @@ describe("ensureRuntimeServicesForRun", () => {
       workspace,
       executionWorkspaceId: "execution-workspace-health",
       config: { workspaceRuntime: { services: [{
-        name: "paperclip-dev",
+        name: "nexus-dev",
         command: serviceCommand,
         cwd: ".",
         port: { type: "auto" as const },
@@ -4853,8 +4853,8 @@ describe("ensureRuntimeServicesForRun", () => {
     }
   }, 30_000);
 
-  it("reuses a shared Paperclip dev runtime after one transient unhealthy response", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-transient-health-"));
+  it("reuses a shared Nexus dev runtime after one transient unhealthy response", async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-transient-health-"));
     const workspace = buildWorkspace(workspaceRoot);
     const serviceCommand =
       "node -e \"let failNext=false;const http=require('node:http');http.createServer((req,res)=>{if(req.url==='/fail-next'){failNext=true;res.end('armed');return;}if(req.url==='/api/health'){res.setHeader('content-type','application/json');const healthy=!failNext;failNext=false;res.end(JSON.stringify({status:healthy?'ok':'unhealthy'}));return;}res.end('ok')}).listen(Number(process.env.PORT),'127.0.0.1')\"";
@@ -4864,7 +4864,7 @@ describe("ensureRuntimeServicesForRun", () => {
       workspace,
       executionWorkspaceId: "execution-workspace-transient-health",
       config: { workspaceRuntime: { services: [{
-        name: "paperclip-dev",
+        name: "nexus-dev",
         command: serviceCommand,
         cwd: ".",
         port: { type: "auto" as const },
@@ -4893,9 +4893,9 @@ describe("ensureRuntimeServicesForRun", () => {
   }, 30_000);
 
   it("rejects an unreachable exposed origin even when readiness uses a local probe", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-explicit-readiness-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-explicit-readiness-"));
     const workspace = buildWorkspace(workspaceRoot);
-    const runId = "run-paperclip-explicit-readiness";
+    const runId = "run-nexus-explicit-readiness";
     const serviceCommand =
       "node -e \"const http=require('node:http'); http.createServer((req,res)=>{ if (req.url==='/api/health') { res.end('ok'); return; } res.statusCode=404; res.end('not found'); }).listen(Number(process.env.PORT), '127.0.0.1')\"";
 
@@ -4913,7 +4913,7 @@ describe("ensureRuntimeServicesForRun", () => {
           workspaceRuntime: {
             services: [
               {
-                name: "paperclip-dev",
+                name: "nexus-dev",
                 command: serviceCommand,
                 cwd: ".",
                 port: { type: "auto" },
@@ -4925,7 +4925,7 @@ describe("ensureRuntimeServicesForRun", () => {
                 },
                 expose: {
                   type: "url",
-                  urlTemplate: "http://not-a-real-paperclip-host.invalid:{{port}}",
+                  urlTemplate: "http://not-a-real-nexus-host.invalid:{{port}}",
                 },
                 lifecycle: "shared",
                 stopPolicy: {
@@ -4936,14 +4936,14 @@ describe("ensureRuntimeServicesForRun", () => {
           },
         },
         adapterEnv: {},
-      })).rejects.toThrow(/internal-only or non-resolvable.*Configure PAPERCLIP_PUBLIC_URL or BETTER_AUTH_URL/);
+      })).rejects.toThrow(/internal-only or non-resolvable.*Configure NEXUS_PUBLIC_URL or BETTER_AUTH_URL/);
     } finally {
       await releaseRuntimeServicesForRun(runId);
     }
   });
 
   it("reuses shared runtime services across runs and starts a new service after release", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-workspace-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-workspace-"));
     const workspace = buildWorkspace(workspaceRoot);
     const serviceCommand =
       "node -e \"require('node:http').createServer((req,res)=>res.end('ok')).listen(Number(process.env.PORT), '127.0.0.1')\"";
@@ -5042,8 +5042,8 @@ describe("ensureRuntimeServicesForRun", () => {
   }, 10_000);
 
   it("does not reuse project-scoped shared services across different workspace launch contexts", async () => {
-    const primaryWorkspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-primary-"));
-    const worktreeWorkspaceRoot = path.join(primaryWorkspaceRoot, ".paperclip", "worktrees", "PAP-874-chat-speed-issues");
+    const primaryWorkspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-primary-"));
+    const worktreeWorkspaceRoot = path.join(primaryWorkspaceRoot, ".nexus", "worktrees", "PAP-874-chat-speed-issues");
     await fs.mkdir(worktreeWorkspaceRoot, { recursive: true });
 
     const primaryWorkspace = buildWorkspace(primaryWorkspaceRoot);
@@ -5055,19 +5055,19 @@ describe("ensureRuntimeServicesForRun", () => {
       branchName: "PAP-874-chat-speed-issues",
       worktreePath: worktreeWorkspaceRoot,
     };
-    // A Paperclip dev runtime must answer `/api/health` semantically before it may
+    // A Nexus dev runtime must answer `/api/health` semantically before it may
     // be published, so the fake serves the same shape a real one does.
     const serviceCommand =
-      "node -e \"require('node:http').createServer((req,res)=>{if(req.url==='/api/health'){res.setHeader('content-type','application/json');res.end(JSON.stringify({status:'ok'}));return;}res.end(process.env.PAPERCLIP_HOME)}).listen(Number(process.env.PORT), '127.0.0.1')\"";
+      "node -e \"require('node:http').createServer((req,res)=>{if(req.url==='/api/health'){res.setHeader('content-type','application/json');res.end(JSON.stringify({status:'ok'}));return;}res.end(process.env.NEXUS_HOME)}).listen(Number(process.env.PORT), '127.0.0.1')\"";
     const config = {
       workspaceRuntime: {
         services: [
           {
-            name: "paperclip-dev",
+            name: "nexus-dev",
             command: serviceCommand,
             cwd: ".",
             env: {
-              PAPERCLIP_HOME: "{{workspace.cwd}}/.paperclip/runtime-services",
+              NEXUS_HOME: "{{workspace.cwd}}/.nexus/runtime-services",
             },
             port: { type: "auto" },
             readiness: {
@@ -5132,14 +5132,14 @@ describe("ensureRuntimeServicesForRun", () => {
     expect(executionServices[0]?.url).not.toBe(primaryServices[0]?.url);
 
     const primaryResponse = await fetch(primaryServices[0]!.url!);
-    expect(await primaryResponse.text()).toBe(path.join(primaryWorkspaceRoot, ".paperclip", "runtime-services"));
+    expect(await primaryResponse.text()).toBe(path.join(primaryWorkspaceRoot, ".nexus", "runtime-services"));
 
     const executionResponse = await fetch(executionServices[0]!.url!);
-    expect(await executionResponse.text()).toBe(path.join(worktreeWorkspaceRoot, ".paperclip", "runtime-services"));
+    expect(await executionResponse.text()).toBe(path.join(worktreeWorkspaceRoot, ".nexus", "runtime-services"));
   });
 
-  it("does not leak parent Paperclip instance env into runtime service commands", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-env-"));
+  it("does not leak parent Nexus instance env into runtime service commands", async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-env-"));
     const workspace = buildWorkspace(workspaceRoot);
     const envCapturePath = path.join(workspaceRoot, "captured-env.json");
     const serviceCommand = [
@@ -5148,9 +5148,9 @@ describe("ensureRuntimeServicesForRun", () => {
         [
           "const fs = require('node:fs');",
           `fs.writeFileSync(${JSON.stringify(envCapturePath)}, JSON.stringify({`,
-          "paperclipConfig: process.env.PAPERCLIP_CONFIG ?? null,",
-          "paperclipHome: process.env.PAPERCLIP_HOME ?? null,",
-          "paperclipInstanceId: process.env.PAPERCLIP_INSTANCE_ID ?? null,",
+          "nexusConfig: process.env.NEXUS_CONFIG ?? null,",
+          "nexusHome: process.env.NEXUS_HOME ?? null,",
+          "nexusInstanceId: process.env.NEXUS_INSTANCE_ID ?? null,",
           "databaseUrl: process.env.DATABASE_URL ?? null,",
           "customEnv: process.env.RUNTIME_CUSTOM_ENV ?? null,",
           "port: process.env.PORT ?? null,",
@@ -5160,10 +5160,10 @@ describe("ensureRuntimeServicesForRun", () => {
       ),
     ].join(" ");
 
-    process.env.PAPERCLIP_CONFIG = "/tmp/base-paperclip-config.json";
-    process.env.PAPERCLIP_HOME = "/tmp/base-paperclip-home";
-    process.env.PAPERCLIP_INSTANCE_ID = "base-instance";
-    process.env.DATABASE_URL = "postgres://shared-db.example.com/paperclip";
+    process.env.NEXUS_CONFIG = "/tmp/base-nexus-config.json";
+    process.env.NEXUS_HOME = "/tmp/base-nexus-home";
+    process.env.NEXUS_INSTANCE_ID = "base-instance";
+    process.env.DATABASE_URL = "postgres://shared-db.example.com/nexus";
 
     const runId = "run-env";
     leasedRunIds.add(runId);
@@ -5207,9 +5207,9 @@ describe("ensureRuntimeServicesForRun", () => {
 
     expect(services).toHaveLength(1);
     const captured = JSON.parse(await fs.readFile(envCapturePath, "utf8")) as Record<string, string | null>;
-    expect(captured.paperclipConfig).toBeNull();
-    expect(captured.paperclipHome).toBeNull();
-    expect(captured.paperclipInstanceId).toBeNull();
+    expect(captured.nexusConfig).toBeNull();
+    expect(captured.nexusHome).toBeNull();
+    expect(captured.nexusInstanceId).toBeNull();
     expect(captured.databaseUrl).toBeNull();
     expect(captured.customEnv).toBe("from-adapter");
     expect(captured.port).toMatch(/^\d+$/);
@@ -5219,7 +5219,7 @@ describe("ensureRuntimeServicesForRun", () => {
   });
 
   it("stops execution workspace runtime services by executionWorkspaceId", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-stop-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-stop-"));
     const workspace = buildWorkspace(workspaceRoot);
     const runId = "run-stop";
     leasedRunIds.add(runId);
@@ -5273,7 +5273,7 @@ describe("ensureRuntimeServicesForRun", () => {
   });
 
   it("does not stop services in sibling directories when matching by workspace cwd", async () => {
-    const workspaceParent = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-sibling-"));
+    const workspaceParent = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-sibling-"));
     const targetWorkspaceRoot = path.join(workspaceParent, "project");
     const siblingWorkspaceRoot = path.join(workspaceParent, "project-extended", "service");
     await fs.mkdir(targetWorkspaceRoot, { recursive: true });
@@ -5332,7 +5332,7 @@ describe("ensureRuntimeServicesForRun", () => {
   });
 
   it("starts only the selected workspace-controlled runtime service", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-control-start-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-control-start-"));
     const workspace = buildWorkspace(workspaceRoot);
 
     const services = await startRuntimeServicesForWorkspaceControl({
@@ -5393,7 +5393,7 @@ describe("ensureRuntimeServicesForRun", () => {
   });
 
   it("stops only the selected execution workspace runtime service", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-control-stop-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-control-stop-"));
     const workspace = buildWorkspace(workspaceRoot);
 
     const services = await startRuntimeServicesForWorkspaceControl({
@@ -5688,7 +5688,7 @@ describe("readLocalServicePortOwner", () => {
   });
 
   it("attributes a Windows listener to a descendant of the launched process", async () => {
-    const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-windows-tools-"));
+    const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-windows-tools-"));
     const previousPath = process.env.PATH;
     const port = 43_123;
     const listenerPid = 43_210;
@@ -5717,7 +5717,7 @@ describe("readLocalServicePortOwner", () => {
   });
 
   it("accepts service cwd nested within the requested workspace", async () => {
-    const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-workspace-"));
+    const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-workspace-"));
     const serviceCwd = path.join(workspace, "server");
     await fs.mkdir(serviceCwd);
 
@@ -5725,9 +5725,9 @@ describe("readLocalServicePortOwner", () => {
   });
 
   it("preserves newlines and trailing whitespace from Darwin lsof cwd output", async () => {
-    const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-lsof-tools-"));
+    const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-lsof-tools-"));
     const previousPath = process.env.PATH;
-    const reportedCwd = path.join(os.tmpdir(), "paperclip-runtime-line\nbreak ");
+    const reportedCwd = path.join(os.tmpdir(), "nexus-runtime-line\nbreak ");
     const output = `p${process.pid}\0fcwd\0n${reportedCwd}\0\n`;
     await fs.writeFile(
       path.join(fakeBin, "lsof"),
@@ -5749,7 +5749,7 @@ describe("readLocalServicePortOwner", () => {
   it("returns null for invalid PIDs and a missing Darwin lsof binary", async () => {
     await expect(readLocalServiceProcessCwd(-1)).resolves.toBeNull();
 
-    const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-missing-lsof-"));
+    const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-missing-lsof-"));
     const previousPath = process.env.PATH;
     Object.defineProperty(process, "platform", { value: "darwin" });
     process.env.PATH = fakeBin;
@@ -5775,9 +5775,9 @@ describe("readLocalServicePortOwner", () => {
     const address = server.address();
     const port = typeof address === "object" && address ? address.port : null;
     const serviceKey = `unsupported-cwd-${randomUUID()}`;
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-home-"));
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `unsupported-cwd-${randomUUID()}`;
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-home-"));
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `unsupported-cwd-${randomUUID()}`;
     expect(port).toBeTypeOf("number");
 
     try {
@@ -5811,7 +5811,7 @@ describe("readLocalServicePortOwner", () => {
       await new Promise<void>((resolve, reject) => {
         server.close((error) => error ? reject(error) : resolve());
       });
-      await fs.rm(paperclipHome, { recursive: true, force: true });
+      await fs.rm(nexusHome, { recursive: true, force: true });
     }
   });
 
@@ -5834,11 +5834,11 @@ describe("readLocalServicePortOwner", () => {
       return;
     }
 
-    const targetWorkspace = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-target-"));
-    const ownerWorkspace = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-owner-"));
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-home-"));
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `cross-workspace-${randomUUID()}`;
+    const targetWorkspace = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-target-"));
+    const ownerWorkspace = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-owner-"));
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-home-"));
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `cross-workspace-${randomUUID()}`;
     const serviceKey = `cross-workspace-${randomUUID()}`;
     const child = spawn(
       process.execPath,
@@ -5915,7 +5915,7 @@ describe("readLocalServicePortOwner", () => {
     } finally {
       child.kill("SIGTERM");
       await new Promise<void>((resolve) => child.once("exit", () => resolve()));
-      await fs.rm(paperclipHome, { recursive: true, force: true });
+      await fs.rm(nexusHome, { recursive: true, force: true });
     }
   });
 
@@ -5927,10 +5927,10 @@ describe("readLocalServicePortOwner", () => {
       return;
     }
 
-    const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-adopt-"));
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-home-"));
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `adopt-port-owner-${randomUUID()}`;
+    const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-adopt-"));
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-home-"));
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `adopt-port-owner-${randomUUID()}`;
     const serviceKey = `adopt-port-owner-${randomUUID()}`;
     // Detach, because managed runtime services also start detached
     // (`detached: process.platform !== "win32"`). An attached child shares the
@@ -5968,7 +5968,7 @@ describe("readLocalServicePortOwner", () => {
     } finally {
       child.kill("SIGTERM");
       await new Promise<void>((resolve) => child.once("exit", () => resolve()));
-      await fs.rm(paperclipHome, { recursive: true, force: true });
+      await fs.rm(nexusHome, { recursive: true, force: true });
       await fs.rm(workspace, { recursive: true, force: true });
     }
   });
@@ -5981,15 +5981,15 @@ describe("readLocalServicePortOwner", () => {
       return;
     }
 
-    const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-ws-"));
+    const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-ws-"));
     // A sibling directory whose name is the workspace name plus one space.
     // These are different directories, so a listener in one must not be
     // adopted into the other.
     const lookalike = `${workspace} `;
     await fs.mkdir(lookalike, { recursive: true });
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-home-"));
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `adopt-whitespace-${randomUUID()}`;
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-home-"));
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `adopt-whitespace-${randomUUID()}`;
     const serviceKey = `adopt-whitespace-${randomUUID()}`;
     const child = spawn(
       process.execPath,
@@ -6021,7 +6021,7 @@ describe("readLocalServicePortOwner", () => {
     } finally {
       child.kill("SIGTERM");
       await new Promise<void>((resolve) => child.once("exit", () => resolve()));
-      await fs.rm(paperclipHome, { recursive: true, force: true });
+      await fs.rm(nexusHome, { recursive: true, force: true });
       await fs.rm(lookalike, { recursive: true, force: true });
       await fs.rm(workspace, { recursive: true, force: true });
     }
@@ -6033,7 +6033,7 @@ describeEmbeddedPostgres("workspace dirty quarantine branch repair", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-workspace-dirty-quarantine-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-workspace-dirty-quarantine-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -6059,7 +6059,7 @@ describeEmbeddedPostgres("workspace dirty quarantine branch repair", () => {
     actualBranch: string;
   }) {
     const repoRoot = await createTempRepo();
-    const worktreePath = path.join(repoRoot, ".paperclip", "worktrees", input.expectedBranch);
+    const worktreePath = path.join(repoRoot, ".nexus", "worktrees", input.expectedBranch);
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     await runGit(repoRoot, ["branch", input.expectedBranch]);
     await runGit(repoRoot, ["worktree", "add", "-b", input.actualBranch, worktreePath, input.expectedBranch]);
@@ -6088,7 +6088,7 @@ describeEmbeddedPostgres("workspace dirty quarantine branch repair", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `Q${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -6106,7 +6106,7 @@ describeEmbeddedPostgres("workspace dirty quarantine branch repair", () => {
     await db.insert(projects).values({
       id: projectId,
       companyId,
-      name: "Paperclip App",
+      name: "Nexus App",
       status: "in_progress",
     });
     await db.insert(projectWorkspaces).values({
@@ -6205,8 +6205,8 @@ describeEmbeddedPostgres("workspace dirty quarantine branch repair", () => {
         strategyType: "git_worktree",
         name: input.actualBranch,
         status: "active",
-        cwd: path.join(input.repoRoot, ".paperclip", "claimants", claimantWorkspaceId),
-        providerRef: path.join(input.repoRoot, ".paperclip", "claimants", claimantWorkspaceId),
+        cwd: path.join(input.repoRoot, ".nexus", "claimants", claimantWorkspaceId),
+        providerRef: path.join(input.repoRoot, ".nexus", "claimants", claimantWorkspaceId),
         baseRef: "HEAD",
         branchName: input.actualBranch,
         providerType: "git_worktree",
@@ -6320,7 +6320,7 @@ describeEmbeddedPostgres("workspace dirty quarantine branch repair", () => {
     const warning = restored?.warnings.find((entry) => entry.includes("dirty worktree state was quarantined"));
     expect(warning).toBeTruthy();
     const rescueBranch = warning?.match(/"([^"]+)"/)?.[1] ?? "";
-    expect(rescueBranch).toMatch(/^paperclip\/rescue\/PAP-455\/\d{8}T\d{6}Z$/);
+    expect(rescueBranch).toMatch(/^nexus\/rescue\/PAP-455\/\d{8}T\d{6}Z$/);
     const rescueCommitSha = await readGit(repoRoot, ["rev-parse", rescueBranch]);
     await expect(readGit(worktreePath, ["branch", "--show-current"])).resolves.toBe(expectedBranch);
     await expect(readGit(worktreePath, ["status", "--porcelain", "--untracked-files=all"])).resolves.toBe("");
@@ -6379,7 +6379,7 @@ describeEmbeddedPostgres("workspace dirty quarantine branch repair", () => {
   it("quarantines a worktree wedged mid-rebase and clears the interrupted rebase state", async () => {
     const expectedBranch = "PAP-456-recorded";
     const repoRoot = await createTempRepo("master");
-    const worktreePath = path.join(repoRoot, ".paperclip", "worktrees", expectedBranch);
+    const worktreePath = path.join(repoRoot, ".nexus", "worktrees", expectedBranch);
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     await runGit(repoRoot, ["branch", expectedBranch]);
     await runGit(repoRoot, ["worktree", "add", worktreePath, expectedBranch]);
@@ -6416,7 +6416,7 @@ describeEmbeddedPostgres("workspace dirty quarantine branch repair", () => {
     const warning = restored?.warnings.find((entry) => entry.includes("dirty worktree state was quarantined"));
     expect(warning).toContain("An interrupted git rebase was also cleared");
     const rescueBranch = warning?.match(/"([^"]+)"/)?.[1] ?? "";
-    expect(rescueBranch).toMatch(/^paperclip\/rescue\/PAP-456\/\d{8}T\d{6}Z$/);
+    expect(rescueBranch).toMatch(/^nexus\/rescue\/PAP-456\/\d{8}T\d{6}Z$/);
 
     await expect(readGit(worktreePath, ["branch", "--show-current"])).resolves.toBe(expectedBranch);
     await expect(readGit(worktreePath, ["status", "--porcelain", "--untracked-files=all"])).resolves.toBe("");
@@ -6542,10 +6542,10 @@ describeEmbeddedPostgres("workspace dirty quarantine branch repair", () => {
       issueId: ids.sourceIssueId,
       scopeType: "execution_workspace",
       scopeId: ids.sourceWorkspaceId,
-      serviceName: "paperclip-dev",
+      serviceName: "nexus-dev",
       status: "running",
       lifecycle: "shared",
-      reuseKey: `execution_workspace:${ids.sourceWorkspaceId}:paperclip-dev`,
+      reuseKey: `execution_workspace:${ids.sourceWorkspaceId}:nexus-dev`,
       command: "pnpm dev",
       cwd: worktreePath,
       port: 49195,
@@ -6586,7 +6586,7 @@ describeEmbeddedPostgres("workspace dirty quarantine branch repair", () => {
     await expect(readGit(repoRoot, [
       "for-each-ref",
       "--format=%(refname:short)",
-      "refs/heads/paperclip/rescue",
+      "refs/heads/nexus/rescue",
     ])).resolves.toBe("");
   }, 20_000);
 
@@ -6676,7 +6676,7 @@ describeEmbeddedPostgres("workspace runtime service control persistence", () => 
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-workspace-runtime-control-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-workspace-runtime-control-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -6705,12 +6705,12 @@ describeEmbeddedPostgres("workspace runtime service control persistence", () => 
   });
 
   it("persists provisioning before starting and excludes provision time from readiness timeout", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-slow-control-"));
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-control-home-"));
-    const previousPaperclipHome = process.env.PAPERCLIP_HOME;
-    const previousPaperclipInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `runtime-control-${randomUUID()}`;
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-slow-control-"));
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-control-home-"));
+    const previousNexusHome = process.env.NEXUS_HOME;
+    const previousNexusInstanceId = process.env.NEXUS_INSTANCE_ID;
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `runtime-control-${randomUUID()}`;
 
     const companyId = randomUUID();
     const projectId = randomUUID();
@@ -6738,7 +6738,7 @@ describeEmbeddedPostgres("workspace runtime service control persistence", () => 
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -6919,11 +6919,11 @@ describeEmbeddedPostgres("workspace runtime service control persistence", () => 
         executionWorkspaceId,
         workspaceCwd: workspaceRoot,
       });
-      await fs.rm(paperclipHome, { recursive: true, force: true });
-      if (previousPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-      else process.env.PAPERCLIP_HOME = previousPaperclipHome;
-      if (previousPaperclipInstanceId === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-      else process.env.PAPERCLIP_INSTANCE_ID = previousPaperclipInstanceId;
+      await fs.rm(nexusHome, { recursive: true, force: true });
+      if (previousNexusHome === undefined) delete process.env.NEXUS_HOME;
+      else process.env.NEXUS_HOME = previousNexusHome;
+      if (previousNexusInstanceId === undefined) delete process.env.NEXUS_INSTANCE_ID;
+      else process.env.NEXUS_INSTANCE_ID = previousNexusInstanceId;
     }
   }, 15_000);
 
@@ -6935,7 +6935,7 @@ describeEmbeddedPostgres("workspace runtime service control persistence", () => 
     const agentId = randomUUID();
     const projectId = randomUUID();
     const projectWorkspaceId = randomUUID();
-    const baseRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-port-fixture-"));
+    const baseRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-port-fixture-"));
     const workspaceModes = input?.workspaceModes ?? ["isolated_workspace"];
     const workspaceRows = await Promise.all(workspaceModes.map(async (mode, index) => {
       const cwd = await fs.mkdtemp(path.join(baseRoot, `workspace-${index}-`));
@@ -7049,17 +7049,17 @@ describeEmbeddedPostgres("workspace runtime service control persistence", () => 
   }
 
   async function createRuntimeHome() {
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-port-home-"));
-    const previousPaperclipHome = process.env.PAPERCLIP_HOME;
-    const previousPaperclipInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `runtime-ports-${randomUUID()}`;
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-port-home-"));
+    const previousNexusHome = process.env.NEXUS_HOME;
+    const previousNexusInstanceId = process.env.NEXUS_INSTANCE_ID;
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `runtime-ports-${randomUUID()}`;
     return async () => {
-      if (previousPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-      else process.env.PAPERCLIP_HOME = previousPaperclipHome;
-      if (previousPaperclipInstanceId === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-      else process.env.PAPERCLIP_INSTANCE_ID = previousPaperclipInstanceId;
-      await fs.rm(paperclipHome, { recursive: true, force: true });
+      if (previousNexusHome === undefined) delete process.env.NEXUS_HOME;
+      else process.env.NEXUS_HOME = previousNexusHome;
+      if (previousNexusInstanceId === undefined) delete process.env.NEXUS_INSTANCE_ID;
+      else process.env.NEXUS_INSTANCE_ID = previousNexusInstanceId;
+      await fs.rm(nexusHome, { recursive: true, force: true });
     };
   }
 
@@ -7077,9 +7077,9 @@ describeEmbeddedPostgres("workspace runtime service control persistence", () => 
     return {
       workspaceRuntime: {
         services: [{
-          name: "paperclip-dev",
+          name: "nexus-dev",
           command,
-          env: { PAPERCLIP_PUBLIC_URL: "http://127.0.0.1:3100" },
+          env: { NEXUS_PUBLIC_URL: "http://127.0.0.1:3100" },
           port: { type: "fixed", value: 45_439, envKey: "PORT" },
           readiness: {
             type: "http",
@@ -7091,7 +7091,7 @@ describeEmbeddedPostgres("workspace runtime service control persistence", () => 
             type: "tailscale_https",
             hostname: "auto",
             publicPort: "same",
-            includePaperclipViteHmr: true,
+            includeNexusViteHmr: true,
             failurePolicy: "fail_closed",
           },
           lifecycle: "shared",
@@ -7549,7 +7549,7 @@ describeEmbeddedPostgres("workspace runtime service control persistence", () => 
     const cleanupRuntimeHome = await createRuntimeHome();
     const workspace = fixture.workspaces[0]!;
     const basePort = await findFreePort();
-    const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-no-lsof-"));
+    const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-no-lsof-"));
     const fakeLsof = path.join(fakeBin, "lsof");
     const previousPath = process.env.PATH;
     await fs.writeFile(fakeLsof, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
@@ -7705,7 +7705,7 @@ describeEmbeddedPostgres("workspace runtime service control persistence", () => 
       expect(sharedWorkspaceError).toBeInstanceOf(Error);
       expect(sharedWorkspaceError).not.toMatchObject({ status: 409 });
 
-      const identitylessCwd = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-identityless-"));
+      const identitylessCwd = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-identityless-"));
       try {
         await expect(startRuntimeServicesForWorkspaceControl({
           actor: { id: null, name: "Board", companyId: fixture.companyId },
@@ -7741,7 +7741,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-workspace-runtime-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-workspace-runtime-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -7775,10 +7775,10 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
   });
 
   it("restores desired services when one row is stopped and a live registered service has no row", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-desired-reconcile-"));
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-home-"));
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `runtime-desired-reconcile-${randomUUID()}`;
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-desired-reconcile-"));
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-home-"));
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `runtime-desired-reconcile-${randomUUID()}`;
 
     const reservePorts = async () => {
       const probes = [net.createServer(), net.createServer()];
@@ -7854,7 +7854,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -7894,7 +7894,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
       },
     });
 
-    const actor = { id: null, name: "Paperclip", companyId };
+    const actor = { id: null, name: "Nexus", companyId };
     const workspace = {
       ...buildWorkspace(workspaceRoot),
       projectId,
@@ -7956,7 +7956,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
         executionWorkspaceId,
         workspaceCwd: workspaceRoot,
       });
-      await fs.rm(paperclipHome, { recursive: true, force: true });
+      await fs.rm(nexusHome, { recursive: true, force: true });
     }
   }, 20_000);
 
@@ -7964,13 +7964,13 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
     // PAP-17158: an eligible workspace created before the feature must come
     // forward on the *same* workspace/runtime-service row — not by recreating it
     // — and must never keep its HTTP URL as a healthy fallback.
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-https-backfill-"));
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-home-"));
-    const previousPaperclipHome = process.env.PAPERCLIP_HOME;
-    const previousPaperclipInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
-    const previousHttpsMode = process.env.PAPERCLIP_MANAGED_RUNTIME_HTTPS;
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `runtime-https-backfill-${randomUUID()}`;
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-https-backfill-"));
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-home-"));
+    const previousNexusHome = process.env.NEXUS_HOME;
+    const previousNexusInstanceId = process.env.NEXUS_INSTANCE_ID;
+    const previousHttpsMode = process.env.NEXUS_MANAGED_RUNTIME_HTTPS;
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `runtime-https-backfill-${randomUUID()}`;
 
     const reservePort = async () => {
       for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -8002,9 +8002,9 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
     const workspaceRuntime = {
       services: [
         {
-          name: "paperclip-dev",
+          name: "nexus-dev",
           command,
-          env: { PAPERCLIP_PUBLIC_URL: "http://127.0.0.1:3100" },
+          env: { NEXUS_PUBLIC_URL: "http://127.0.0.1:3100" },
           port: legacyPort,
           // The pre-feature block: backend URL only, no exposure declaration.
           expose: { type: "url", urlTemplate: "http://127.0.0.1:{{port}}" },
@@ -8018,7 +8018,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -8045,7 +8045,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
       },
     });
 
-    const actor = { id: null, name: "Paperclip", companyId };
+    const actor = { id: null, name: "Nexus", companyId };
     const workspace = {
       ...buildWorkspace(workspaceRoot),
       projectId,
@@ -8097,7 +8097,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
 
     try {
       // ---- Before: the workspace as it exists today, on plain HTTP. ----
-      process.env.PAPERCLIP_MANAGED_RUNTIME_HTTPS = "off";
+      process.env.NEXUS_MANAGED_RUNTIME_HTTPS = "off";
       const before = await startRuntimeServicesForWorkspaceControl({
         db,
         actor,
@@ -8116,9 +8116,9 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
       await expect(fetch(`http://127.0.0.1:${legacyPort}`)).resolves.toMatchObject({ ok: true });
       expect(brokerCalls).toEqual([]);
 
-      // ---- Deploy: the feature turns on and Paperclip restarts. ----
+      // ---- Deploy: the feature turns on and Nexus restarts. ----
       await resetRuntimeServicesForTests();
-      delete process.env.PAPERCLIP_MANAGED_RUNTIME_HTTPS;
+      delete process.env.NEXUS_MANAGED_RUNTIME_HTTPS;
       installExposureDeps();
 
       const result = await reconcilePersistedRuntimeServicesOnStartup(db);
@@ -8163,22 +8163,22 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
         workspaceCwd: workspaceRoot,
       }).catch(() => undefined);
       await resetRuntimeServicesForTests();
-      await fs.rm(paperclipHome, { recursive: true, force: true });
+      await fs.rm(nexusHome, { recursive: true, force: true });
       await fs.rm(workspaceRoot, { recursive: true, force: true });
-      if (previousPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-      else process.env.PAPERCLIP_HOME = previousPaperclipHome;
-      if (previousPaperclipInstanceId === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-      else process.env.PAPERCLIP_INSTANCE_ID = previousPaperclipInstanceId;
-      if (previousHttpsMode === undefined) delete process.env.PAPERCLIP_MANAGED_RUNTIME_HTTPS;
-      else process.env.PAPERCLIP_MANAGED_RUNTIME_HTTPS = previousHttpsMode;
+      if (previousNexusHome === undefined) delete process.env.NEXUS_HOME;
+      else process.env.NEXUS_HOME = previousNexusHome;
+      if (previousNexusInstanceId === undefined) delete process.env.NEXUS_INSTANCE_ID;
+      else process.env.NEXUS_INSTANCE_ID = previousNexusInstanceId;
+      if (previousHttpsMode === undefined) delete process.env.NEXUS_MANAGED_RUNTIME_HTTPS;
+      else process.env.NEXUS_MANAGED_RUNTIME_HTTPS = previousHttpsMode;
     }
   }, 40_000);
 
   it("re-adopts a request-logging service on the same auto port after supervisor stdio closes", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-reconcile-"));
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-home-"));
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `runtime-reconcile-${randomUUID()}`;
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-reconcile-"));
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-home-"));
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `runtime-reconcile-${randomUUID()}`;
 
     const companyId = randomUUID();
     const agentId = randomUUID();
@@ -8186,7 +8186,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -8290,19 +8290,19 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
 
     await resetRuntimeServicesForTests({ terminateProcesses: true });
     leasedRunIds.delete(runId);
-    await fs.rm(paperclipHome, { recursive: true, force: true });
+    await fs.rm(nexusHome, { recursive: true, force: true });
     await fs.rm(workspaceRoot, { recursive: true, force: true });
 
     await expect(fetch(service!.url!)).rejects.toThrow();
   });
 
   it("re-adopts a live service whose shell command differs from the surviving process argv", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-pnpm-reconcile-"));
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-home-"));
-    const previousPaperclipHome = process.env.PAPERCLIP_HOME;
-    const previousInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `runtime-pnpm-reconcile-${randomUUID()}`;
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-pnpm-reconcile-"));
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-home-"));
+    const previousNexusHome = process.env.NEXUS_HOME;
+    const previousInstanceId = process.env.NEXUS_INSTANCE_ID;
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `runtime-pnpm-reconcile-${randomUUID()}`;
 
     // Reserve a port outside the runtime exposure app-port range (42000-42999).
     // The reconciler stores this port on the row. A port inside that range makes
@@ -8393,7 +8393,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
 
       await db.insert(companies).values({
         id: companyId,
-        name: "Paperclip",
+        name: "Nexus",
         issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
         requireBoardApprovalForNewAgents: false,
       });
@@ -8508,20 +8508,20 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
         }
       }
       await resetRuntimeServicesForTests();
-      if (previousPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-      else process.env.PAPERCLIP_HOME = previousPaperclipHome;
-      if (previousInstanceId === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-      else process.env.PAPERCLIP_INSTANCE_ID = previousInstanceId;
-      await fs.rm(paperclipHome, { recursive: true, force: true });
+      if (previousNexusHome === undefined) delete process.env.NEXUS_HOME;
+      else process.env.NEXUS_HOME = previousNexusHome;
+      if (previousInstanceId === undefined) delete process.env.NEXUS_INSTANCE_ID;
+      else process.env.NEXUS_INSTANCE_ID = previousInstanceId;
+      await fs.rm(nexusHome, { recursive: true, force: true });
       await fs.rm(workspaceRoot, { recursive: true, force: true });
     }
   }, 20_000);
 
   it("does not reuse a stopped auto-port service port while another process owns it", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-unhealthy-adopt-"));
-    const paperclipHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-home-"));
-    process.env.PAPERCLIP_HOME = paperclipHome;
-    process.env.PAPERCLIP_INSTANCE_ID = `runtime-unhealthy-adopt-${randomUUID()}`;
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-unhealthy-adopt-"));
+    const nexusHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-home-"));
+    process.env.NEXUS_HOME = nexusHome;
+    process.env.NEXUS_INSTANCE_ID = `runtime-unhealthy-adopt-${randomUUID()}`;
 
     const portProbe = net.createServer();
     await new Promise<void>((resolve) => portProbe.listen(0, "127.0.0.1", resolve));
@@ -8550,7 +8550,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
         stableStringifyForTest({
           scopeType,
           scopeId,
-          serviceName: "paperclip-dev",
+          serviceName: "nexus-dev",
           command: serviceCommand,
           cwd: workspaceRoot,
           port: null,
@@ -8588,7 +8588,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
 
       await db.insert(companies).values({
         id: companyId,
-        name: "Paperclip",
+        name: "Nexus",
         issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
         requireBoardApprovalForNewAgents: false,
       });
@@ -8640,7 +8640,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
         issueId: null,
         scopeType,
         scopeId,
-        serviceName: "paperclip-dev",
+        serviceName: "nexus-dev",
         status: "stopped",
         lifecycle: "shared",
         reuseKey,
@@ -8679,7 +8679,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
           workspaceRuntime: {
             services: [
               {
-                name: "paperclip-dev",
+                name: "nexus-dev",
                 command: serviceCommand,
                 cwd: ".",
                 port: { type: "auto" },
@@ -8750,7 +8750,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -8766,7 +8766,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
       projectId,
       name: "Primary",
       sourceType: "local_path",
-      cwd: "/tmp/paperclip-primary",
+      cwd: "/tmp/nexus-primary",
       isPrimary: true,
     });
     await db.insert(workspaceRuntimeServices).values({
@@ -8778,12 +8778,12 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
       issueId: null,
       scopeType: "project_workspace",
       scopeId: projectWorkspaceId,
-      serviceName: "paperclip-dev",
+      serviceName: "nexus-dev",
       status: "running",
       lifecycle: "shared",
-      reuseKey: `project_workspace:${projectWorkspaceId}:paperclip-dev`,
+      reuseKey: `project_workspace:${projectWorkspaceId}:nexus-dev`,
       command: "pnpm dev",
-      cwd: "/tmp/paperclip-primary",
+      cwd: "/tmp/nexus-primary",
       port: 49195,
       url: "http://127.0.0.1:49195",
       provider: "local_process",
@@ -8800,9 +8800,9 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
     });
     await writeLocalServiceRegistryRecord({
       version: 1,
-      serviceKey: "workspace-runtime-paperclip-dev-stale",
+      serviceKey: "workspace-runtime-nexus-dev-stale",
       profileKind: "workspace-runtime",
-      serviceName: "paperclip-dev",
+      serviceName: "nexus-dev",
       command: "pnpm dev",
       cwd: process.cwd(),
       envFingerprint: "fingerprint",
@@ -8812,7 +8812,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
       processGroupId: process.pid,
       provider: "local_process",
       runtimeServiceId,
-      reuseKey: `project_workspace:${projectWorkspaceId}:paperclip-dev`,
+      reuseKey: `project_workspace:${projectWorkspaceId}:nexus-dev`,
       startedAt: startedAt.toISOString(),
       lastSeenAt: updatedAt.toISOString(),
       metadata: null,
@@ -8839,11 +8839,11 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
     const projectWorkspaceId = randomUUID();
     const executionWorkspaceId = randomUUID();
     const cwd = process.cwd();
-    const reuseKey = `project_workspace:${projectWorkspaceId}:paperclip-dev`;
+    const reuseKey = `project_workspace:${projectWorkspaceId}:nexus-dev`;
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -8884,7 +8884,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
       issueId: null,
       scopeType: "project_workspace",
       scopeId: projectWorkspaceId,
-      serviceName: "paperclip-dev",
+      serviceName: "nexus-dev",
       status: "stopped",
       lifecycle: "shared",
       reuseKey,
@@ -8906,9 +8906,9 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
     });
     await writeLocalServiceRegistryRecord({
       version: 1,
-      serviceKey: "workspace-runtime-paperclip-dev-live-stopped",
+      serviceKey: "workspace-runtime-nexus-dev-live-stopped",
       profileKind: "workspace-runtime",
-      serviceName: "paperclip-dev",
+      serviceName: "nexus-dev",
       command: "node",
       cwd,
       envFingerprint: reuseKey,
@@ -8939,7 +8939,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
   });
 
   it("persists controlled execution workspace stops as stopped", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-stop-persisted-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-stop-persisted-"));
     const companyId = randomUUID();
     const agentId = randomUUID();
     const projectId = randomUUID();
@@ -8948,7 +8948,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -9060,7 +9060,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
   });
 
   it("restarts a stopped auto-port service on the same port when rendered env changes", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-port-reuse-env-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-port-reuse-env-"));
     const companyId = randomUUID();
     const agentId = randomUUID();
     const projectId = randomUUID();
@@ -9068,7 +9068,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -9120,7 +9120,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
           {
             name: "web",
             command: serviceCommand,
-            env: { PAPERCLIP_TEST_RUNTIME_FLAG: flag },
+            env: { NEXUS_TEST_RUNTIME_FLAG: flag },
             port: { type: "auto" },
             readiness: {
               type: "http",
@@ -9185,7 +9185,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
   });
 
   it("restarts a stopped auto-port service on the same port when it is available", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-port-reuse-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-runtime-port-reuse-"));
     const companyId = randomUUID();
     const agentId = randomUUID();
     const projectId = randomUUID();
@@ -9193,7 +9193,7 @@ describeEmbeddedPostgres("workspace runtime startup reconciliation", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -9849,7 +9849,7 @@ describe("realizeExecutionWorkspace with an exact existing branch", () => {
     expect(workspace.created).toBe(true);
     expect(workspace.branchCreatedByRuntime).toBe(false);
     expect(workspace.cwd).not.toBe(repoRoot);
-    expect(workspace.cwd).toContain(path.join(".paperclip", "worktrees"));
+    expect(workspace.cwd).toContain(path.join(".nexus", "worktrees"));
     expect(await readGit(workspace.cwd, ["branch", "--show-current"])).toBe("feature/preexisting-work");
     expect(await readGit(workspace.cwd, ["rev-parse", "HEAD"])).toBe(branchTip);
     expect(await readGit(repoRoot, ["rev-parse", "feature/preexisting-work"])).toBe(branchTip);
@@ -9905,14 +9905,14 @@ describe("realizeExecutionWorkspace with an exact existing branch", () => {
 
     expect(await readGit(repoRoot, ["branch", "--list", "feature/never-created"])).toBe("");
     expect(
-      existsSync(path.join(repoRoot, ".paperclip", "worktrees", "feature", "never-created")),
+      existsSync(path.join(repoRoot, ".nexus", "worktrees", "feature", "never-created")),
     ).toBe(false);
   });
 
   it("fails closed instead of reconciling when the managed worktree path holds another branch", async () => {
     const repoRoot = await createTempRepo();
     const branchTip = await createBranchWithCommit(repoRoot, "feature/pinned", "pinned.txt");
-    const managedPath = path.join(repoRoot, ".paperclip", "worktrees", "feature/pinned");
+    const managedPath = path.join(repoRoot, ".nexus", "worktrees", "feature/pinned");
     await runGit(repoRoot, ["worktree", "add", "-b", "stale-occupant", managedPath]);
 
     await expect(realizeExistingBranch(repoRoot, "feature/pinned")).rejects.toMatchObject({
@@ -10187,7 +10187,7 @@ describe("runWorkspaceJobForControl", () => {
   const actor = { id: null, name: "Board", companyId: "company-1" };
 
   it("reports a failing operator job as an unprocessable job result, not a server error", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-job-failure-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-workspace-job-failure-"));
     const { recorder, operations } = createWorkspaceOperationRecorderDouble();
     const jobScript = "console.error('Restored patch differs from exact source'); process.exit(3);";
 
@@ -10217,7 +10217,7 @@ describe("runWorkspaceJobForControl", () => {
   });
 
   it("rejects a job without a command as unprocessable", async () => {
-    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-job-missing-"));
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-workspace-job-missing-"));
     const { recorder, operations } = createWorkspaceOperationRecorderDouble();
 
     try {

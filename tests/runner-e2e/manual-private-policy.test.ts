@@ -7,7 +7,7 @@ import { MANUAL_PRIVATE_EXECUTIONS } from "./manual-private-retention.js";
 vi.mock("./catalog.js",()=>({runnerMatrix:[]}));
 import { parseRunnerSelectors, selectRunnerExecutions } from "./selectors.js";
 import type { MatrixExecution } from "./types.js";
-const env={EVENT_NAME:"workflow_dispatch",EVAL_CADENCE:"manual",TEST_RUNNER:"runs-on/fleet=paperclip-public-pr-x64/env=public-ci"};
+const env={EVENT_NAME:"workflow_dispatch",EVAL_CADENCE:"manual",TEST_RUNNER:"runs-on/fleet=nexus-public-pr-x64/env=public-ci"};
 it.each(["chat-features"," chat-features ","first-task, chat-features "])("rejects broad sensitive suite %s before credentials",suite=>expect(()=>manualEvidenceRouting({...env,SELECT_SUITE:suite})).toThrow());
 it("classifies exact private IDs without granting run approval",()=>expect(manualEvidenceRouting({...env,SELECT_ID:` ${MANUAL_PRIVATE_EXECUTIONS[0]} `})).toEqual({retention:"private",executionIds:[MANUAL_PRIVATE_EXECUTIONS[0]]}));
 it.each(["chat-features","chat-features.runner-opencode.local.*","chat-features.runner-opencode.local.unknown"])("rejects partial or unsupported sensitive ID %s",id=>expect(()=>manualEvidenceRouting({...env,SELECT_ID:id})).toThrow());

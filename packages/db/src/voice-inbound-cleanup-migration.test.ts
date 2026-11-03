@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { applyPendingMigrations } from "./client.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./test-embedded-postgres.js";
 
-const external = process.env.PAPERCLIP_MIGRATION_TEST_DATABASE_URL;
+const external = process.env.NEXUS_MIGRATION_TEST_DATABASE_URL;
 if (external && !new URL(external).pathname.endsWith("_test")) throw new Error("Migration test URL must name a test database");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const migrationFile = "0396_tan_paladin.sql";
@@ -43,7 +43,7 @@ const indexName = "chat_voice_inbound_cleanup_idx";
       const [company, otherCompany] = await client`INSERT INTO companies (name, issue_prefix)
         VALUES ('First', 'VM1'), ('Second', 'VM2') RETURNING id`;
       const agentId = randomUUID(), applicationId = randomUUID(), connectionId = randomUUID(), endpointId = randomUUID();
-      await client`INSERT INTO agents (id, company_id, name, adapter_type) VALUES (${agentId}, ${company.id}, 'Migration voice', 'paperclip_runner')`;
+      await client`INSERT INTO agents (id, company_id, name, adapter_type) VALUES (${agentId}, ${company.id}, 'Migration voice', 'nexus_runner')`;
       await client`INSERT INTO tool_applications (id, company_id, name, type) VALUES (${applicationId}, ${company.id}, 'Voice', 'chat')`;
       await client`INSERT INTO tool_connections (id, company_id, application_id, name, uid, transport, connection_purpose)
         VALUES (${connectionId}, ${company.id}, ${applicationId}, 'Voice', ${connectionId}, 'voice', 'channel')`;

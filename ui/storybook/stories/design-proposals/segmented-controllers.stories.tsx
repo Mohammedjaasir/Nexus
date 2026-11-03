@@ -14,7 +14,7 @@ const meta = {
   },
   parameters: {
     layout: "fullscreen",
-    paperclip: {
+    nexus: {
       capabilities: [], home: "design-proposals", status: "proposed",
       exception: "Cross-cutting comparison of segmented controller patterns from proposal and production surfaces.",
       implementation: "mixed", boundary: "fixtures",

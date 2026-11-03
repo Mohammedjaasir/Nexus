@@ -1,4 +1,4 @@
-import { readConnectionFailure, type GitConnectionFailure } from "@paperclipai/adapter-utils/connection-failure";
+import { readConnectionFailure, type GitConnectionFailure } from "@nexusai/adapter-utils/connection-failure";
 
 /** Observations only: none of these outcomes proves that a ref is absent. */
 export interface WorkspaceBaseRefDiagnostic {

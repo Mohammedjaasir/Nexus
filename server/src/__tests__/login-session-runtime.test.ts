@@ -2,7 +2,7 @@ import { installDatabaseWorkSignals, databaseWorkPending } from "../../../packag
 import { DELIVERY_QUEUES, subscribeDeliveryWork } from "../services/delivery-work-notifications.js";
 import { describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
-import type { AgentAdapterType } from "@paperclipai/shared";
+import type { AgentAdapterType } from "@nexusai/shared";
 
 // The production runtime resolves the environment through `environmentService`.
 // These tests replace it with a fake, so the runtime runs with no database. The
@@ -50,7 +50,7 @@ function makeBinding(overrides: Partial<LoginPtySessionBinding> = {}): LoginPtyS
     environment: { id: "env-1", driver: "sandbox" } as never,
     lease: {
       id: "lease-1",
-      metadata: { pluginId: "paperclip.daytona", provider: "daytona" },
+      metadata: { pluginId: "nexus.daytona", provider: "daytona" },
     } as never,
     ...overrides,
   };
@@ -74,7 +74,7 @@ describe("createWorkerBoundLoginPtyOpener", () => {
 
     expect(openLoginPtySession).toHaveBeenCalledTimes(1);
     const [pluginId, input] = openLoginPtySession.mock.calls[0];
-    expect(pluginId).toBe("paperclip.daytona");
+    expect(pluginId).toBe("nexus.daytona");
     expect(input).toMatchObject({
       driverKey: "daytona",
       companyId: "company-1",

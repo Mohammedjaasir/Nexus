@@ -45,20 +45,20 @@ export function normalizeProviderFamily(key: string | undefined): string {
  * The common prefix for every sandbox-startup span attribute. One prefix keeps
  * the attribute namespace closed and easy to find in the OpenTelemetry backend.
  */
-export const SANDBOX_STARTUP_SPAN_ATTR_PREFIX = "paperclip.sandbox.startup.";
+export const SANDBOX_STARTUP_SPAN_ATTR_PREFIX = "nexus.sandbox.startup.";
 
 export const EXECUTION_PREPARATION_SPAN_ATTRS = {
-  runId: "paperclip.task.run.run_id",
-  fileCount: "paperclip.execution.fileCount",
-  bytes: "paperclip.execution.bytes",
-  repositoryCacheOutcome: "paperclip.execution.repositoryCache.outcome",
-  repositoryCacheReferenceSupplied: "paperclip.execution.repositoryCache.reference_supplied",
+  runId: "nexus.task.run.run_id",
+  fileCount: "nexus.execution.fileCount",
+  bytes: "nexus.execution.bytes",
+  repositoryCacheOutcome: "nexus.execution.repositoryCache.outcome",
+  repositoryCacheReferenceSupplied: "nexus.execution.repositoryCache.reference_supplied",
 } as const;
 
 /**
  * The closed attribute-name contract for every sandbox-startup span. This is
  * the single source of truth for the harness span attributes. Each name uses
- * the `paperclip.sandbox.startup.` prefix and a type suffix:
+ * the `nexus.sandbox.startup.` prefix and a type suffix:
  *
  * - `*.wall_ms` — one wall-clock time in float milliseconds.
  * - `*.count` — a count.
@@ -722,7 +722,7 @@ export interface SandboxRootSpanContext {
 /**
  * Assemble every root-span (`sandbox.startup`) attribute in one place. This is
  * the single producer-side boundary for the root span: it sets only the closed
- * `paperclip.sandbox.startup.` allowlist. It records the wall, work, and diff
+ * `nexus.sandbox.startup.` allowlist. It records the wall, work, and diff
  * times, and the bounded context. A raw id, an image reference, or a region
  * never rides the span un-bounded, and an absent value sets no attribute.
  */

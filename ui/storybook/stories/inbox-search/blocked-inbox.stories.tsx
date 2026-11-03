@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { Issue, IssueBlockedInboxAttention } from "@paperclipai/shared";
+import type { Issue, IssueBlockedInboxAttention } from "@nexusai/shared";
 import { BlockedInboxView } from "@/components/BlockedInboxView";
 import { BlockedReasonChip } from "@/components/BlockedReasonChip";
 import { defaultIssueFilterState } from "@/lib/issue-filters";
 import { queryKeys } from "@/lib/queryKeys";
-import { storybookIssues } from "../../fixtures/paperclipData";
+import { storybookIssues } from "../../fixtures/nexusData";
 
 const companyId = "company-storybook";
 const blockedViewDefaults = {
@@ -277,7 +277,7 @@ const meta = {
           "Stopped-work triage Inbox tab. Rows group by reason variant and sort by severity → stoppedSinceAt. The reason chip + owner + action combo sits next to the issue title. No quick archive on this tab.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "inbox-search/triage",
         "recovery/diagnosis"

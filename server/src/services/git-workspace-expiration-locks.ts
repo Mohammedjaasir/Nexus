@@ -7,7 +7,7 @@ export type GitExpirationLockLocation = { root: string; relativePath: string; ch
 
 function marker(token: string) {
   if (!/^[a-f0-9]{64}$/.test(token)) throw new Error("invalid_expiration_lock_token");
-  return Buffer.from(`paperclip-git-expiration-lock-v1:${token}\n`);
+  return Buffer.from(`nexus-git-expiration-lock-v1:${token}\n`);
 }
 
 async function lockPaths(location: GitExpirationLockLocation, token: string, create: boolean) {
@@ -31,7 +31,7 @@ async function lockPaths(location: GitExpirationLockLocation, token: string, cre
     if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("unsafe_expiration_lock_path");
   }
   const digest = createHash("sha256").update(location.relativePath).digest("hex").slice(0, 16);
-  return { lock: path.join(parent, segments.at(-1)!), temporary: path.join(parent, `.paperclip-expiration-${token}-${digest}`) };
+  return { lock: path.join(parent, segments.at(-1)!), temporary: path.join(parent, `.nexus-expiration-${token}-${digest}`) };
 }
 
 async function removeOwnedFile(target: string, expected: Buffer, allowPartial: boolean) {

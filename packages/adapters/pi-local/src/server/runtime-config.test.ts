@@ -24,7 +24,7 @@ async function readModelsJson(agentConfigDir: string): Promise<Record<string, un
 describe("preparePiRuntimeConfig", () => {
   it("attributes OpenRouter aliases and model overrides while preserving routing and other providers", async () => {
     const other = { baseUrl: "https://other.example/v1", headers: { "X-Title": "Other" } };
-    const prepared = await preparePiRuntimeConfig({ env: { PAPERCLIP_PI_PROVIDERS: JSON.stringify({
+    const prepared = await preparePiRuntimeConfig({ env: { NEXUS_PI_PROVIDERS: JSON.stringify({
       router: {
         baseUrl: "https://openrouter.ai/api/v1", apiKey: "fixture-key",
         headers: { "http-referer": "https://pi.example", "X-Route": "selected" },
@@ -35,14 +35,14 @@ describe("preparePiRuntimeConfig", () => {
     const { providers } = await readModelsJson(prepared.env.PI_CODING_AGENT_DIR) as { providers: Record<string, any> };
     expect(providers.router).toMatchObject({ apiKey: "fixture-key", headers: { "HTTP-Referer": "https://paperclip.ing", "X-Route": "selected" } });
     expect(providers.router.headers).not.toHaveProperty("http-referer");
-    expect(providers.router.modelOverrides.model.headers["X-Title"]).toBe("Paperclip");
+    expect(providers.router.modelOverrides.model.headers["X-Title"]).toBe("Nexus");
     expect(providers.router.modelOverrides.model.headers).not.toHaveProperty("x-title");
     expect(providers.other).toEqual(other);
     expect(providers.openrouter).toEqual(other);
     await prepared.cleanup();
   });
 
-  it("is a no-op when PAPERCLIP_PI_PROVIDERS is unset", async () => {
+  it("is a no-op when NEXUS_PI_PROVIDERS is unset", async () => {
     const prepared = await preparePiRuntimeConfig({ env: { FOO: "bar" } });
 
     expect(prepared.env).toEqual({ FOO: "bar" });
@@ -72,7 +72,7 @@ describe("preparePiRuntimeConfig", () => {
     };
 
     const prepared = await preparePiRuntimeConfig({
-      env: { PAPERCLIP_PI_PROVIDERS: JSON.stringify(providers) },
+      env: { NEXUS_PI_PROVIDERS: JSON.stringify(providers) },
     });
     const agentConfigDir = prepared.env.PI_CODING_AGENT_DIR;
     expect(agentConfigDir).toBeTruthy();
@@ -86,9 +86,9 @@ describe("preparePiRuntimeConfig", () => {
     await expect(fs.access(agentConfigDir)).rejects.toThrow();
   });
 
-  it("reads PAPERCLIP_PI_PROVIDERS from process.env when absent from the run env", async () => {
+  it("reads NEXUS_PI_PROVIDERS from process.env when absent from the run env", async () => {
     const providers = { tensorix: { baseUrl: "http://gw/anthropic", api: "anthropic-messages", models: [] } };
-    process.env.PAPERCLIP_PI_PROVIDERS = JSON.stringify(providers);
+    process.env.NEXUS_PI_PROVIDERS = JSON.stringify(providers);
     try {
       const prepared = await preparePiRuntimeConfig({ env: {} });
       const agentConfigDir = prepared.env.PI_CODING_AGENT_DIR;
@@ -97,7 +97,7 @@ describe("preparePiRuntimeConfig", () => {
       expect(await readModelsJson(agentConfigDir)).toEqual({ providers });
       await prepared.cleanup();
     } finally {
-      delete process.env.PAPERCLIP_PI_PROVIDERS;
+      delete process.env.NEXUS_PI_PROVIDERS;
     }
   });
 
@@ -107,7 +107,7 @@ describe("preparePiRuntimeConfig", () => {
     };
     const prepared = await preparePiRuntimeConfig({
       env: {
-        PAPERCLIP_PI_PROVIDERS: JSON.stringify(providers),
+        NEXUS_PI_PROVIDERS: JSON.stringify(providers),
         ANTHROPIC_API_KEY: "sk-bf-REALVK",
       },
     });
@@ -122,12 +122,12 @@ describe("preparePiRuntimeConfig", () => {
 
   it("expands {env:VAR} placeholders from process.env when absent from the run env", async () => {
     const providers = {
-      tensorix: { baseUrl: "http://gw/anthropic", apiKey: "{env:PAPERCLIP_PI_TEST_KEY}", api: "anthropic-messages", models: [] },
+      tensorix: { baseUrl: "http://gw/anthropic", apiKey: "{env:NEXUS_PI_TEST_KEY}", api: "anthropic-messages", models: [] },
     };
-    process.env.PAPERCLIP_PI_TEST_KEY = "sk-from-process-env";
+    process.env.NEXUS_PI_TEST_KEY = "sk-from-process-env";
     try {
       const prepared = await preparePiRuntimeConfig({
-        env: { PAPERCLIP_PI_PROVIDERS: JSON.stringify(providers) },
+        env: { NEXUS_PI_PROVIDERS: JSON.stringify(providers) },
       });
       const agentConfigDir = prepared.env.PI_CODING_AGENT_DIR;
       cleanupPaths.add(agentConfigDir);
@@ -137,7 +137,7 @@ describe("preparePiRuntimeConfig", () => {
       expect(modelsJson.providers.tensorix.apiKey).toBe("sk-from-process-env");
       await prepared.cleanup();
     } finally {
-      delete process.env.PAPERCLIP_PI_TEST_KEY;
+      delete process.env.NEXUS_PI_TEST_KEY;
     }
   });
 
@@ -146,7 +146,7 @@ describe("preparePiRuntimeConfig", () => {
       tensorix: { baseUrl: "http://gw/anthropic", apiKey: "{env:DEFINITELY_UNSET_VAR_XYZ}", api: "anthropic-messages", models: [] },
     };
     const prepared = await preparePiRuntimeConfig({
-      env: { PAPERCLIP_PI_PROVIDERS: JSON.stringify(providers) },
+      env: { NEXUS_PI_PROVIDERS: JSON.stringify(providers) },
     });
     const agentConfigDir = prepared.env.PI_CODING_AGENT_DIR;
     cleanupPaths.add(agentConfigDir);
@@ -157,25 +157,25 @@ describe("preparePiRuntimeConfig", () => {
     await prepared.cleanup();
   });
 
-  it("ignores malformed PAPERCLIP_PI_PROVIDERS without writing a config", async () => {
+  it("ignores malformed NEXUS_PI_PROVIDERS without writing a config", async () => {
     const prepared = await preparePiRuntimeConfig({
-      env: { PAPERCLIP_PI_PROVIDERS: "not json" },
+      env: { NEXUS_PI_PROVIDERS: "not json" },
     });
     expect(prepared.env.PI_CODING_AGENT_DIR).toBeUndefined();
     expect(prepared.notes).toEqual([
-      "PAPERCLIP_PI_PROVIDERS contains invalid JSON; custom providers ignored.",
+      "NEXUS_PI_PROVIDERS contains invalid JSON; custom providers ignored.",
     ]);
     await prepared.cleanup();
   });
 
   it("ignores provider entries that are not objects and names them in the note", async () => {
     const prepared = await preparePiRuntimeConfig({
-      env: { PAPERCLIP_PI_PROVIDERS: JSON.stringify({ tensorix: "nope" }) },
+      env: { NEXUS_PI_PROVIDERS: JSON.stringify({ tensorix: "nope" }) },
     });
     expect(prepared.env.PI_CODING_AGENT_DIR).toBeUndefined();
     expect(prepared.agentConfigDir).toBeNull();
     expect(prepared.notes).toEqual([
-      "PAPERCLIP_PI_PROVIDERS: skipped provider(s) with non-object values: tensorix.",
+      "NEXUS_PI_PROVIDERS: skipped provider(s) with non-object values: tensorix.",
     ]);
     await prepared.cleanup();
   });
@@ -183,7 +183,7 @@ describe("preparePiRuntimeConfig", () => {
   it("surfaces skipped non-object entries while keeping the usable ones", async () => {
     const prepared = await preparePiRuntimeConfig({
       env: {
-        PAPERCLIP_PI_PROVIDERS: JSON.stringify({
+        NEXUS_PI_PROVIDERS: JSON.stringify({
           bad: "http://gw/v1",
           tensorix: { baseUrl: "http://gw/anthropic", apiKey: "k", api: "anthropic-messages", models: [] },
         }),
@@ -198,47 +198,47 @@ describe("preparePiRuntimeConfig", () => {
     expect(modelsJson.providers.tensorix).toBeDefined();
     expect(modelsJson.providers.bad).toBeUndefined();
     expect(prepared.notes).toEqual([
-      "PAPERCLIP_PI_PROVIDERS: skipped provider(s) with non-object values: bad.",
-      "Injected 1 custom Pi provider(s) from PAPERCLIP_PI_PROVIDERS into a managed models.json: tensorix.",
+      "NEXUS_PI_PROVIDERS: skipped provider(s) with non-object values: bad.",
+      "Injected 1 custom Pi provider(s) from NEXUS_PI_PROVIDERS into a managed models.json: tensorix.",
     ]);
     await prepared.cleanup();
   });
 
-  it("surfaces a note when PAPERCLIP_PI_PROVIDERS contains invalid JSON", async () => {
+  it("surfaces a note when NEXUS_PI_PROVIDERS contains invalid JSON", async () => {
     const prepared = await preparePiRuntimeConfig({
-      env: { PAPERCLIP_PI_PROVIDERS: "{not json" },
+      env: { NEXUS_PI_PROVIDERS: "{not json" },
     });
     expect(prepared.env.PI_CODING_AGENT_DIR).toBeUndefined();
     expect(prepared.notes).toEqual([
-      "PAPERCLIP_PI_PROVIDERS contains invalid JSON; custom providers ignored.",
+      "NEXUS_PI_PROVIDERS contains invalid JSON; custom providers ignored.",
     ]);
     await prepared.cleanup();
   });
 
-  it("surfaces a note when PAPERCLIP_PI_PROVIDERS is not a JSON object", async () => {
+  it("surfaces a note when NEXUS_PI_PROVIDERS is not a JSON object", async () => {
     const prepared = await preparePiRuntimeConfig({
-      env: { PAPERCLIP_PI_PROVIDERS: "[1,2]" },
+      env: { NEXUS_PI_PROVIDERS: "[1,2]" },
     });
     expect(prepared.notes).toEqual([
-      "PAPERCLIP_PI_PROVIDERS is set but is not a JSON object; custom providers ignored.",
+      "NEXUS_PI_PROVIDERS is set but is not a JSON object; custom providers ignored.",
     ]);
     await prepared.cleanup();
   });
 
   it("surfaces the skipped entries when no provider objects remain", async () => {
     const prepared = await preparePiRuntimeConfig({
-      env: { PAPERCLIP_PI_PROVIDERS: '{"a": 1}' },
+      env: { NEXUS_PI_PROVIDERS: '{"a": 1}' },
     });
     expect(prepared.env.PI_CODING_AGENT_DIR).toBeUndefined();
     expect(prepared.notes).toEqual([
-      "PAPERCLIP_PI_PROVIDERS: skipped provider(s) with non-object values: a.",
+      "NEXUS_PI_PROVIDERS: skipped provider(s) with non-object values: a.",
     ]);
     await prepared.cleanup();
   });
 
-  it("stays silent when PAPERCLIP_PI_PROVIDERS is an empty object", async () => {
+  it("stays silent when NEXUS_PI_PROVIDERS is an empty object", async () => {
     const prepared = await preparePiRuntimeConfig({
-      env: { PAPERCLIP_PI_PROVIDERS: "{}" },
+      env: { NEXUS_PI_PROVIDERS: "{}" },
     });
     expect(prepared.env.PI_CODING_AGENT_DIR).toBeUndefined();
     expect(prepared.notes).toEqual([]);

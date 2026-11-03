@@ -1,4 +1,4 @@
-import { agents, type Db } from "@paperclipai/db";
+import { agents, type Db } from "@nexusai/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { conflict } from "../../../errors.js";
 import { agentRecordQueries } from "../../../lib/agent-records.js";

@@ -8,13 +8,13 @@ import { createOAuthClientProtocol, storedOAuthTokenEndpointAuthMethod } from ".
 import { normalizeOAuthProviderError, oauthProviderErrorMessage } from "./provider-errors.js";
 import { oauthConfig, normalizeOauthScopes, resolveGrantedOauthScopes } from "./metadata.js";
 import { connectionMethodForConnection } from "../connection-methods.js";
-import { googleWorkspaceEffectiveScopes, isGoogleWorkspaceScopeGrant } from "@paperclipai/shared";
+import { googleWorkspaceEffectiveScopes, isGoogleWorkspaceScopeGrant } from "@nexusai/shared";
 import { emitConnectionUpdated } from "../../connector-telemetry.js";
 import { and, eq, ne } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { connectionGrants, companyMemberships, principalPermissionGrants, issueThreadInteractions, toolApplications, toolConnections } from "@paperclipai/db";
-import type { ConnectToolAppResult } from "@paperclipai/shared";
-import { getConnectableAppDefinition, recommendedDefaultsForApp } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { connectionGrants, companyMemberships, principalPermissionGrants, issueThreadInteractions, toolApplications, toolConnections } from "@nexusai/db";
+import type { ConnectToolAppResult } from "@nexusai/shared";
+import { getConnectableAppDefinition, recommendedDefaultsForApp } from "@nexusai/shared";
 import { badRequest, forbidden, HttpError, unprocessable } from "../../../errors.js";
 import { secretService } from "../../secrets.js";
 
@@ -70,7 +70,7 @@ export function createDirectOAuthCallback(db: Db, dependencies: Dependencies) {
     actor?: ActorInfo;
   }): Promise<ConnectToolAppResult> {
     // Binding first, outcome second: the provider's report of a failure is only
-    // acted on once the callback is bound to a state Paperclip issued and to the
+    // acted on once the callback is bound to a state Nexus issued and to the
     // actor that started the flow, so an unsolicited callback cannot drive any
     // path here. Consuming the state up front is what makes a denial terminal —
     // a refused request must not stay completable by a later code (PAP-17109).

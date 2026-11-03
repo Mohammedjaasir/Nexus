@@ -14,7 +14,7 @@ export interface CreateKvDemoMcpServerResult {
  */
 export function createKvDemoMcpServer(store: KvStore = new KvStore()): CreateKvDemoMcpServerResult {
   const server = new McpServer({
-    name: "paperclip-kv-demo",
+    name: "nexus-kv-demo",
     version: "0.1.0",
   });
 

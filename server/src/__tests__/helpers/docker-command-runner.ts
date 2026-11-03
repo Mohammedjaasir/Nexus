@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { createConnection, type Socket } from "node:net";
 import { createServer } from "node:tls";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 
 export function dockerCommandRunner(container: string): CommandManagedRuntimeRunner {
   return {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AttentionItem, DecisionHistoryItem } from "@paperclipai/shared";
+import type { AttentionItem, DecisionHistoryItem } from "@nexusai/shared";
 import { COORDINATOR_RECENT_DECISION_MS, pendingDecisionTaskIds, recentDecisionReceipts } from "./coordinator-attention";
 
 describe("Coordinator attention projections", () => {

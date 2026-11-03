@@ -10,7 +10,7 @@ const embeddedSupport = vi.hoisted(() => vi.fn());
 vi.mock("./helpers/embedded-postgres.js", () => ({ getEmbeddedPostgresTestSupport: embeddedSupport }));
 
 let root: string | undefined;
-beforeEach(() => { vi.clearAllMocks(); vi.stubEnv("PAPERCLIP_MAINTENANCE_KEEP_ARTIFACTS", ""); });
+beforeEach(() => { vi.clearAllMocks(); vi.stubEnv("NEXUS_MAINTENANCE_KEEP_ARTIFACTS", ""); });
 afterEach(async () => {
   vi.unstubAllEnvs(); vi.restoreAllMocks();
   if (root) await rm(root, { recursive: true, force: true });
@@ -48,7 +48,7 @@ describe("owned maintenance artifacts", () => {
     expect(await readdir(root!)).toEqual([]);
   });
   it("retains receipts only with explicit opt-in and exposes their path once", async () => {
-    vi.stubEnv("PAPERCLIP_MAINTENANCE_KEEP_ARTIFACTS", "1");
+    vi.stubEnv("NEXUS_MAINTENANCE_KEEP_ARTIFACTS", "1");
     const print = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     const artifacts = await createMaintenanceArtifacts(await ownedRoot());
     const receipt = path.join(artifacts.directory, "measurement.json");
@@ -64,12 +64,12 @@ describe("owned maintenance artifacts", () => {
     expect(await readdir(parent)).toEqual([]);
   });
   it("prints retained diagnostics when failed startup was explicitly opted in", async () => {
-    vi.stubEnv("PAPERCLIP_MAINTENANCE_KEEP_ARTIFACTS", "1");
+    vi.stubEnv("NEXUS_MAINTENANCE_KEEP_ARTIFACTS", "1");
     const print = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     const parent = await ownedRoot();
     await expect(startMaintenanceServer("not-a-database-url", { artifactRoot: parent })).rejects.toThrow("Invalid URL");
     const [name] = await readdir(parent);
-    expect(name).toMatch(/^paperclip-maintenance-/);
+    expect(name).toMatch(/^nexus-maintenance-/);
     expect(print).toHaveBeenCalledExactlyOnceWith(`[maintenance-test] retained artifacts: ${path.join(parent, name!)}\n`);
   });
 });

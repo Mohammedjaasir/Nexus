@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AgentConfigRevision, AgentDetail as AgentDetailRecord } from "@paperclipai/shared";
+import type { AgentConfigRevision, AgentDetail as AgentDetailRecord } from "@nexusai/shared";
 import { agentsApi } from "@/api/agents";
 import { accessApi } from "@/api/access";
 import { AgentChip, agentTableHeadClass, agentTableRowClass } from "@/components/agent-detail/AgentPanels";

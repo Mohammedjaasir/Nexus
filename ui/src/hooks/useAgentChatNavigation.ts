@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Agent, Issue } from "@paperclipai/shared";
+import type { Agent, Issue } from "@nexusai/shared";
 import { agentsApi } from "@/api/agents";
 import { agentChatsApi } from "@/api/agentChats";
 import { authApi } from "@/api/auth";

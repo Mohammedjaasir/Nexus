@@ -84,7 +84,7 @@ and current producer fixtures before inventing new test contracts.
 
 The receiver parent has 218 selected passing tests, workspace typecheck/build,
 and is published/attached. CI run 40173962833 is live on its exact head; Greptile,
-security and Paperclip review are pending. This is not stack completion or merge
+security and Nexus review are pending. This is not stack completion or merge
 permission. The full original ledger, #17490 failure and final master
 reconciliation remain required.
 
@@ -107,7 +107,7 @@ pass after fixing the database projection of the internal runtime generation.
 The startup wiring regression failed before removal. This is a checkpoint only:
 full producer, lifecycle, race, backlog, and consumer evidence is still required.
 
-Receiver #17572 has Greptile 5/5 and no failed checks, but Paperclip Review 4/5
+Receiver #17572 has Greptile 5/5 and no failed checks, but Nexus Review 4/5
 requests suppressing rediscovery after discovery-initiated stops. Its optional
 full-refresh coalescing observation will also be addressed in the owning parent
 before this branch is published. Preserve all unfinished voice changes in this

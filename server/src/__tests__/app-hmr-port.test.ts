@@ -33,7 +33,7 @@ describe("resolveViteHmrHost", () => {
   it("uses the browser hostname for loopback while keeping non-loopback concrete hosts", () => {
     expect(resolveViteHmrHost("127.0.0.1")).toBeUndefined();
     expect(resolveViteHmrHost("localhost")).toBeUndefined();
-    expect(resolveViteHmrHost("paperclip-dev")).toBe("paperclip-dev");
+    expect(resolveViteHmrHost("nexus-dev")).toBe("nexus-dev");
   });
 });
 

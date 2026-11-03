@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { IssueAttachment } from "@paperclipai/shared";
+import type { IssueAttachment } from "@nexusai/shared";
 import { Routes, Route } from "@/lib/router";
 import { Layout } from "@/components/Layout";
 import { TaskChatBubble } from "@/components/task-chat/TaskChatBubble";
@@ -11,11 +11,11 @@ import { IssueArtifactFile } from "@/components/artifacts/IssueArtifactCard";
 import { TextAttachmentContext } from "@/context/TextAttachmentContext";
 import { PluginLauncherProvider } from "@/plugins/launchers";
 import { queryKeys } from "@/lib/queryKeys";
-import { createIssue, storybookAgents } from "../../../fixtures/paperclipData";
+import { createIssue, storybookAgents } from "../../../fixtures/nexusData";
 import { reportHtml } from "../../../support/html-artifacts/fixtures";
 import reportDownload from "../../../support/html-artifacts/report.html?url";
 
-const issue = createIssue({ id: "html-artifact-journey", identifier: "DEMO-101", title: "Find popular repositories that use Paperclip a lot", status: "done", completedAt: new Date("2026-10-07T12:54:00Z"), currentExecutionWorkspace: null, executionWorkspaceId: null });
+const issue = createIssue({ id: "html-artifact-journey", identifier: "DEMO-101", title: "Find popular repositories that use Nexus a lot", status: "done", completedAt: new Date("2026-10-07T12:54:00Z"), currentExecutionWorkspace: null, executionWorkspaceId: null });
 const attachment: IssueAttachment = {
   id: "html-usage-report", companyId: issue.companyId, issueId: issue.id, issueCommentId: null,
   assetId: "html-usage-asset", provider: "local_disk", sha256: "storybook-fixture",
@@ -44,7 +44,7 @@ function TaskJourney({ openInitially = false, streamlinedTabs = false, panelWidt
     cache.setQueryData(queryKeys.issues.runs(issue.id), []);
     cache.setQueryData(queryKeys.agents.list(issue.companyId), storybookAgents);
     cache.setQueryData(["task-text-attachment", issue.id, attachment.id], reportHtml);
-    window.localStorage.removeItem(`paperclip:task-side-panel:v1:storybook-html:${issue.companyId}`);
+    window.localStorage.removeItem(`nexus:task-side-panel:v1:storybook-html:${issue.companyId}`);
     return cache;
   });
   return <QueryClientProvider client={client}>
@@ -52,7 +52,7 @@ function TaskJourney({ openInitially = false, streamlinedTabs = false, panelWidt
       <div className="flex h-full min-h-0 flex-col gap-6 p-4 lg:flex-row">
         <section className="min-w-0 flex-1 space-y-6 overflow-auto">
           <h1 className="text-xl font-semibold">{issue.title}</h1>
-          <TaskChatBubble item={{ id: "request", kind: "message", author: "human", text: "Give me a report that combines repository popularity and repeated Paperclip usage." }} />
+          <TaskChatBubble item={{ id: "request", kind: "message", author: "human", text: "Give me a report that combines repository popularity and repeated Nexus usage." }} />
           <TaskChatBubble item={{ id: "response", kind: "message", author: "agent", text: "Hyperswitch and Storybook lead the combined ranking. Open the report to explore the weighting and filter the results." }} />
           <IssueArtifactFile id={attachment.id} attachmentId={attachment.id} title="Interactive repository usage report" summary="" filename={attachment.originalFilename!} contentType={attachment.contentType} contentPath={attachment.contentPath} downloadPath={attachment.downloadPath!} byteSize={attachment.byteSize} author="CodexRunner" updatedAt="7:54 AM" />
         </section>
@@ -73,7 +73,7 @@ const meta = {
   id: "html-artifacts-03-task-journey",
   title: "Tasks and conversations/Documents, attachments, and work products/HTML artifacts/03 Task journey", component: Journey,
   parameters: { layout: "fullscreen", initialEntries: ["/PAP/issues/html-artifact-journey"], docs: { description: { component: "Open the HTML artifact from the task's report card or Artifacts tab, filter the report, then switch to Raw beside Download. Uses the production app shell, artifact card, task panel and HTML renderer with simulated report data." }, story: { inline: false } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "documents-artifacts/attachments",
         "workspaces/files-git",

@@ -1,12 +1,12 @@
 import { ACCOUNT_BOUND_MODEL_DISCOVERY_QUERY_OPTIONS, isAccountBoundAcpxAgent } from "@/lib/native-model-catalog";
 import { useConnectionModels } from "./ai-connections/useConnectionModels";
-import { agentHarnessType, agentRunner, paperclipRunnerProfileForHarness, normalizeClaudeRunnerOptions, type AgentRunnerChoice } from "@paperclipai/shared";
+import { agentHarnessType, agentRunner, nexusRunnerProfileForHarness, normalizeClaudeRunnerOptions, type AgentRunnerChoice } from "@nexusai/shared";
 import { adaptersApi } from "../api/adapters";
 import { canQualifyRunnerEnvironment, qualifyRunnerEnvironment } from "../lib/qualify-claude-setup";
 import { AgentRunnerSelect } from "./AgentRunnerSelect";
-import { aiRoutingHarness } from "@paperclipai/shared";
+import { aiRoutingHarness } from "@nexusai/shared";
 import { AiConnectionField } from "./ai-connections/AiConnectionField";
-import { aiConnectionBindingSchema, aiRuntimeConnectionBindingSchema } from "@paperclipai/shared";
+import { aiConnectionBindingSchema, aiRuntimeConnectionBindingSchema } from "@nexusai/shared";
 import { testAgentSetup } from "@/lib/test-agent-setup";
 import { setupEfforts } from "../lib/agent-setup-fields";
 import { RuntimeTestCard } from "./RuntimeTestCard";
@@ -25,8 +25,8 @@ import type {
   EnvBinding,
   EnvSecretRefBinding,
   Environment,
-} from "@paperclipai/shared";
-import { AGENT_DEFAULT_MAX_CONCURRENT_RUNS, supportedEnvironmentDriversForAdapter, isValidBrowserCode, ADAPTER_AUTH_MISSING_CHECK_CODE } from "@paperclipai/shared";
+} from "@nexusai/shared";
+import { AGENT_DEFAULT_MAX_CONCURRENT_RUNS, supportedEnvironmentDriversForAdapter, isValidBrowserCode, ADAPTER_AUTH_MISSING_CHECK_CODE } from "@nexusai/shared";
 import type { AdapterModel } from "../api/agents";
 import { agentsApi } from "../api/agents";
 import { ApiError } from "../api/client";
@@ -37,12 +37,12 @@ import { assetsApi } from "../api/assets";
 import {
   DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX,
   DEFAULT_CODEX_LOCAL_MODEL,
-} from "@paperclipai/adapter-codex-local";
-import { DEFAULT_CLAUDE_LOCAL_MODEL } from "@paperclipai/adapter-claude-local";
-import { DEFAULT_CURSOR_LOCAL_MODEL } from "@paperclipai/adapter-cursor-local";
-import { DEFAULT_GEMINI_LOCAL_MODEL } from "@paperclipai/adapter-gemini-local";
-import { DEFAULT_KIMI_LOCAL_MODEL } from "@paperclipai/adapter-kimi-local";
-import { DEFAULT_OPENCODE_LOCAL_MODEL } from "@paperclipai/adapter-opencode-local";
+} from "@nexusai/adapter-codex-local";
+import { DEFAULT_CLAUDE_LOCAL_MODEL } from "@nexusai/adapter-claude-local";
+import { DEFAULT_CURSOR_LOCAL_MODEL } from "@nexusai/adapter-cursor-local";
+import { DEFAULT_GEMINI_LOCAL_MODEL } from "@nexusai/adapter-gemini-local";
+import { DEFAULT_KIMI_LOCAL_MODEL } from "@nexusai/adapter-kimi-local";
+import { DEFAULT_OPENCODE_LOCAL_MODEL } from "@nexusai/adapter-opencode-local";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, SelectPopover } from "@/components/ui/select";
@@ -101,14 +101,14 @@ import { codexReasoningEffortOptions } from "../lib/codex-reasoning-effort";
 
 /* ---- Create mode values ---- */
 
-// Canonical type lives in @paperclipai/adapter-utils; re-exported here
+// Canonical type lives in @nexusai/adapter-utils; re-exported here
 // so existing imports from this file keep working.
-export type { CreateConfigValues } from "@paperclipai/adapter-utils";
+export type { CreateConfigValues } from "@nexusai/adapter-utils";
 import {
-  PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES,
-  paperclipRunnerTransitionConfig,
+  NEXUS_RUNNER_PERMISSION_CAPABILITIES,
+  nexusRunnerTransitionConfig,
   type CreateConfigValues,
-} from "@paperclipai/adapter-utils";
+} from "@nexusai/adapter-utils";
 import { Badge } from "@/components/ui/badge";
 
 /* ---- Props ---- */
@@ -179,14 +179,14 @@ const emptyOverlay: AgentConfigOverlay = {
 const EMPTY_ENV: Record<string, EnvBinding> = {};
 
 export function supportsAdapterModelRefresh(adapterType: string): boolean {
-  return adapterType === "claude_local" || adapterType === "codex_local" || adapterType === "paperclip_runner" || adapterType === "opencode_local";
+  return adapterType === "claude_local" || adapterType === "codex_local" || adapterType === "nexus_runner" || adapterType === "opencode_local";
 }
 
-export function resolvePaperclipRunnerTransitionModel(
+export function resolveNexusRunnerTransitionModel(
   previousAdapterType: string,
   previousModel: unknown,
 ): string {
-  return paperclipRunnerTransitionConfig(previousAdapterType, previousModel).model as string;
+  return nexusRunnerTransitionConfig(previousAdapterType, previousModel).model as string;
 }
 
 function isOverlayDirty(o: AgentConfigOverlay): boolean {
@@ -419,9 +419,9 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     // their current value in edit mode, but the picker does not offer a fresh
     // native selection until the explicit experimental opt-in is known true.
     if (experimentalSettings?.enableNativeRunner !== true) {
-      next.add("paperclip_runner");
+      next.add("nexus_runner");
     }
-    if (experimentalSettings?.enableOpenAiDot !== true || disabledTypes.has("paperclip_runner")) {
+    if (experimentalSettings?.enableOpenAiDot !== true || disabledTypes.has("nexus_runner")) {
       next.add("openai_dot");
     }
     return next;
@@ -502,7 +502,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const runnerUpgraded = currentRunnerUpgrade?.status === "upgraded";
   const runnerUpgradeError = currentRunnerUpgrade?.error;
   useEffect(() => {
-    if (!isCreate && props.agent.adapterType !== "paperclip_runner") {
+    if (!isCreate && props.agent.adapterType !== "nexus_runner") {
       setRunnerUpgrade(current => current?.agentId === props.agent.id ? null : current);
     }
   }, [isCreate, !isCreate ? props.agent.id : undefined, !isCreate ? props.agent.adapterType : undefined]);
@@ -638,7 +638,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const effectiveConfig = isCreate ? props.values.adapterSchemaValues ?? {} : { ...config, ...overlay.adapterConfig };
   const harnessType = agentHarnessType(adapterType, effectiveConfig);
   const isCodexHarness = harnessType === "codex_local";
-  const runnerProfile = paperclipRunnerProfileForHarness(harnessType);
+  const runnerProfile = nexusRunnerProfileForHarness(harnessType);
   const isRunnerHarness = Boolean(runnerProfile);
   const rawCurrentDefaultEnvironmentId = isCreate
     ? props.values.defaultEnvironmentId ?? ""
@@ -656,7 +656,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const runnerAvailability = runnerDiscovery.data?.find(item => item.type === harnessType);
   const runner: AgentRunnerChoice = isCreate ? props.values.runner ?? "auto" : overlay.runner ?? agentRunner(adapterType);
   const fieldsAdapterType = isRunnerHarness
-    ? (runner === "paperclip" || (runner === "auto" && runnerAvailability?.defaultRunner === "paperclip") ? "paperclip_runner" : harnessType)
+    ? (runner === "nexus" || (runner === "auto" && runnerAvailability?.defaultRunner === "nexus") ? "nexus_runner" : harnessType)
     : adapterType;
   useEffect(() => {
     if (props.mode !== "create" || !isRunnerHarness) return;
@@ -665,18 +665,18 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   }, [props.mode, harnessType, isRunnerHarness, runner, runnerAvailability?.defaultRunner,
     isCreate ? props.values.resolvedRunner : undefined, isCreate ? props.onChange : undefined]);
   // A Runner-only environment, such as a plugin environment that runs Runner
-  // tasks, offers no Legacy runner. Switch a Legacy choice to Paperclip Runner
+  // tasks, offers no Legacy runner. Switch a Legacy choice to Nexus Runner
   // so the test and the save both resolve the Runner.
   const legacyRunnerUnavailable = isRunnerHarness && runner === "legacy"
     && runnerAvailability?.supportedRunners !== undefined && !runnerAvailability.supportedRunners.includes("legacy");
   useEffect(() => {
     if (!legacyRunnerUnavailable) return;
-    if (props.mode === "create") props.onChange({ runner: "paperclip" });
-    else setOverlay(prev => ({ ...prev, runner: "paperclip" }));
+    if (props.mode === "create") props.onChange({ runner: "nexus" });
+    else setOverlay(prev => ({ ...prev, runner: "nexus" }));
   }, [legacyRunnerUnavailable, props.mode, props.mode === "create" ? props.onChange : undefined]);
   const getCapabilities = useAdapterCapabilities();
   const adapterCaps = getCapabilities(isRunnerHarness ? harnessType : adapterType);
-  const runnerProvider = adapterType === "paperclip_runner"
+  const runnerProvider = adapterType === "nexus_runner"
     ? String(isCreate ? props.values.adapterSchemaValues?.provider ?? "codex"
       : eff("adapterConfig", "provider", config.provider === "acpx" && config.acpxAgent === "codex" ? "codex" : config.provider ?? "codex"))
     : undefined;
@@ -918,7 +918,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     () => environments.find((environment) => environment.id === effectiveLoginEnvironmentId) ?? null,
     [environments, effectiveLoginEnvironmentId],
   );
-  const nativeRunnerAvailability = runnerDiscovery.data?.find(item => item.type === "paperclip_runner");
+  const nativeRunnerAvailability = runnerDiscovery.data?.find(item => item.type === "nexus_runner");
   const upgradeEnvironment = forcedKubernetes ? kubernetesEnvironment : effectiveLoginEnvironment;
   const upgradeEnvironmentId = upgradeEnvironment?.id ?? null;
   const upgradeEnvironmentChanged = !isCreate && !forcedKubernetes
@@ -937,7 +937,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     && ["codex_local", "claude_local", "grok_local"].includes(props.agent.adapterType)
     && adapterType === props.agent.adapterType
     && !runnerDiscovery.isError
-    && (runnerAvailability?.defaultRunner === "paperclip" || canQualifyRunnerUpgrade);
+    && (runnerAvailability?.defaultRunner === "nexus" || canQualifyRunnerUpgrade);
   const upgradeRunner = async () => {
     if (isCreate || runnerUpgradePending || upgradeEnvironmentChanged) return;
     const agentId = props.agent.id;
@@ -948,7 +948,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
         ? { ...overlay, adapterConfig: { ...overlay.adapterConfig, env: flushedEnv } }
         : overlay;
       const pendingTarget = runnerSettingsTargetRef.current;
-      if (runnerAvailability?.defaultRunner !== "paperclip") {
+      if (runnerAvailability?.defaultRunner !== "nexus") {
         if (!canQualifyRunnerUpgrade || !upgradeEnvironmentId || !selectedCompanyId) {
           throw new Error("Could not determine which environment to verify. Retry the upgrade.");
         }
@@ -960,9 +960,9 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
         });
         if (!qualified) throw new Error("Agent settings changed during verification. Retry the upgrade with the current settings.");
         queryClient.setQueryData(queryKeys.adapters.availability(selectedCompanyId, rawCurrentDefaultEnvironmentId || null), qualified.adapters);
-        if (qualified.runner !== "paperclip") throw new Error("This environment does not support Paperclip Runner. Your agent still uses Legacy runner.");
+        if (qualified.runner !== "nexus") throw new Error("This environment does not support Nexus Runner. Your agent still uses Legacy runner.");
       }
-      await props.onSave({ ...buildAgentUpdatePatch(props.agent, nextOverlay), runner: "paperclip" });
+      await props.onSave({ ...buildAgentUpdatePatch(props.agent, nextOverlay), runner: "nexus" });
       setRunnerUpgrade(current => current?.agentId === agentId ? { agentId, status: "upgraded" } : current);
     } catch (error) {
       setRunnerUpgrade(current => current?.agentId === agentId ? {
@@ -1023,20 +1023,20 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const inheritedEnvironmentLabel = instanceDefaultEnvironment
     ? environmentDisplayLabel(instanceDefaultEnvironment)
     : managedSandboxOnly
-      ? "Paperclip Computer"
+      ? "Nexus Computer"
       : "Local";
 
   const modelProvider = adapterType === "opencode_local" && aiConnectionBindingSchema.safeParse(
     (overlay.runtime.runtimeConfig as Record<string, unknown> | undefined)?.aiConnection ?? runtimeConfig.aiConnection,
   ).data?.provider === "openrouter" ? "openrouter" : runnerProvider;
-  const runnerAcpxAgent = adapterType === "paperclip_runner" && runnerProvider === "acpx"
+  const runnerAcpxAgent = adapterType === "nexus_runner" && runnerProvider === "acpx"
     ? String(isCreate ? props.values.adapterSchemaValues?.acpxAgent ?? "claude" : eff("adapterConfig", "acpxAgent", config.acpxAgent ?? "claude")) : undefined;
   const modelAiBinding = aiConnectionBindingSchema.safeParse((overlay.runtime.runtimeConfig as Record<string, unknown> | undefined)?.aiConnection ?? runtimeConfig.aiConnection).data;
   const accountBoundCatalog = isAccountBoundAcpxAgent(runnerAcpxAgent);
   const modelCacheIdentity = accountBoundCatalog ? `${modelProvider}:${runnerAcpxAgent}:${isCreate ? "new" : props.agent.id}:${JSON.stringify(modelAiBinding ?? null)}` : runnerAcpxAgent ? `${modelProvider}:${runnerAcpxAgent}` : modelProvider;
   const connectionModels = useConnectionModels(isExternalRunner ? null : selectedCompanyId, isCreate ? undefined : modelAiBinding, aiRoutingHarness(adapterType, runnerProvider, runnerAcpxAgent));
   // Fetch adapter models for the effective provider, including unsaved changes.
-  const modelAdapterType = accountBoundCatalog ? "paperclip_runner" : isRunnerHarness ? harnessType : adapterType;
+  const modelAdapterType = accountBoundCatalog ? "nexus_runner" : isRunnerHarness ? harnessType : adapterType;
   const modelQueryKey = selectedCompanyId
     ? queryKeys.agents.adapterModels(selectedCompanyId, modelAdapterType, currentDefaultEnvironmentId || null, modelCacheIdentity)
     : ["agents", "none", "adapter-models", adapterType];
@@ -1079,7 +1079,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
       }
       return agentsApi.detectModel(selectedCompanyId, adapterType);
     },
-    enabled: Boolean(selectedCompanyId && isLocal && adapterType !== "opencode_local" && adapterType !== "paperclip_runner"),
+    enabled: Boolean(selectedCompanyId && isLocal && adapterType !== "opencode_local" && adapterType !== "nexus_runner"),
   });
   const detectedModel = detectedModelData?.model ?? null;
   const detectedModelCandidates = detectedModelData?.candidates ?? [];
@@ -1098,9 +1098,9 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     isCreate,
     adapterType: fieldsAdapterType,
     hideRunnerHarness: isRunnerHarness,
-    values: isCreate ? { ...props.values, ...(runnerProfile && fieldsAdapterType === "paperclip_runner" ? { adapterSchemaValues: { ...props.values.adapterSchemaValues, ...runnerProfile } } : {}) } : null,
+    values: isCreate ? { ...props.values, ...(runnerProfile && fieldsAdapterType === "nexus_runner" ? { adapterSchemaValues: { ...props.values.adapterSchemaValues, ...runnerProfile } } : {}) } : null,
     set: isCreate ? (patch: Partial<CreateConfigValues>) => props.onChange(patch) : null,
-    config: runnerProfile && fieldsAdapterType === "paperclip_runner" ? { ...config, ...runnerProfile } : config,
+    config: runnerProfile && fieldsAdapterType === "nexus_runner" ? { ...config, ...runnerProfile } : config,
     eff: eff as <T>(group: "adapterConfig", field: string, original: T) => T,
     // Harness transitions supply the new harness's default model. Resolve
     // user-selected model IDs in ModelDropdown, not through the previous
@@ -1225,8 +1225,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
       const aiConnection = isCreate ? undefined : aiRuntimeConnectionBindingSchema.safeParse(
         (overlay.runtime.runtimeConfig as Record<string, unknown> | undefined)?.aiConnection ?? props.agent.runtimeConfig.aiConnection,
       ).data;
-      if (!isCreate && props.agent.adapterType === "paperclip_runner" && adapterType === "paperclip_runner"
-        && runnerAvailability?.defaultRunner !== "paperclip"
+      if (!isCreate && props.agent.adapterType === "nexus_runner" && adapterType === "nexus_runner"
+        && runnerAvailability?.defaultRunner !== "nexus"
         && !isExternalRunner && aiConnection?.mode !== "router" && !isDirty && environmentId && canQualifyRunnerEnvironment(environmentList.find(environment => environment.id === environmentId))) {
         const target = runnerSettingsTargetRef.current;
         // Qualify only the saved computer. The strict agent-scoped endpoint
@@ -1238,7 +1238,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
         }
       }
       if (props.compactTestFeedback) {
-        const providerAdapter = adapterType === "paperclip_runner"
+        const providerAdapter = adapterType === "nexus_runner"
           ? adapterConfig.provider === "codex" ? "codex_local"
             : adapterConfig.provider === "acpx" && adapterConfig.acpxAgent === "grok" ? "grok_local"
             : adapterConfig.provider === "acpx" && adapterConfig.acpxAgent === "claude" ? "claude_local"
@@ -1437,7 +1437,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   }
 
   const thinkingEffortKey =
-    isCodexHarness || (adapterType === "paperclip_runner" && harnessType === "claude_local")
+    isCodexHarness || (adapterType === "nexus_runner" && harnessType === "claude_local")
       ? "modelReasoningEffort"
       : adapterType === "cursor"
         ? "mode"
@@ -1467,7 +1467,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 : claudeThinkingEffortOptions;
   const currentThinkingEffort = isCreate
     ? val!.thinkingEffort
-    : isCodexHarness || (adapterType === "paperclip_runner" && ["claude_local", "grok_local"].includes(harnessType))
+    : isCodexHarness || (adapterType === "nexus_runner" && ["claude_local", "grok_local"].includes(harnessType))
       ? eff(
           "adapterConfig",
           thinkingEffortKey,
@@ -1478,10 +1478,10 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
         : adapterType === "opencode_local"
           ? eff("adapterConfig", "variant", String(config.variant ?? ""))
           : eff("adapterConfig", thinkingEffortKey, String(config[thinkingEffortKey] ?? ""));
-  const showThinkingEffort = !(harnessType === "pi_local" && fieldsAdapterType === "paperclip_runner")
+  const showThinkingEffort = !(harnessType === "pi_local" && fieldsAdapterType === "nexus_runner")
     && adapterType !== "gemini_local"
     && adapterType !== "cursor_cloud"
-    && (adapterType !== "paperclip_runner" || isRunnerHarness);
+    && (adapterType !== "nexus_runner" || isRunnerHarness);
   const codexSearchEnabled = adapterType === "codex_local"
     ? (isCreate ? Boolean(val!.search) : eff("adapterConfig", "search", Boolean(config.search)))
     : false;
@@ -1608,12 +1608,12 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
         <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="text-sm font-medium">Upgrade to Paperclip Runner</p>
+              <p className="text-sm font-medium">Upgrade to Nexus Runner</p>
               <p className="text-sm text-muted-foreground">
                 Keep your harness, model, account, and compatible settings.
                 New sessions start fresh; past runs stay available.
               </p>
-              {canQualifyRunnerUpgrade && runnerAvailability?.defaultRunner !== "paperclip" ? (
+              {canQualifyRunnerUpgrade && runnerAvailability?.defaultRunner !== "nexus" ? (
                 <p className="text-xs text-muted-foreground">The upgrade will verify your computer first. This can take a few minutes.</p>
               ) : null}
               {upgradeWarnings.map(warning => <p key={warning.field} className="text-xs text-muted-foreground">{warning.message}</p>)}
@@ -1629,8 +1629,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
           {runnerUpgradeError ? <p role="alert" className="text-sm text-destructive">{runnerUpgradeError}</p> : null}
         </div>
       ) : null}
-      {runnerUpgraded ? <p role="status" className="text-sm text-muted-foreground">Upgraded to Paperclip Runner.</p> : null}
-      {adapterType === "paperclip_runner" && upgradeWarnings.length > 0 ? (
+      {runnerUpgraded ? <p role="status" className="text-sm text-muted-foreground">Upgraded to Nexus Runner.</p> : null}
+      {adapterType === "nexus_runner" && upgradeWarnings.length > 0 ? (
         <div role="status" className="space-y-1 rounded-lg border border-border bg-muted/30 p-4">
           {upgradeWarnings.map(warning => <p key={warning.field} className="text-sm text-muted-foreground">{warning.message}</p>)}
         </div>
@@ -1819,7 +1819,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   const dot = choice === "openai_dot";
                   const muse = choice === "muse";
                   const external = dot || muse;
-                  const t = external ? "paperclip_runner" : choice;
+                  const t = external ? "nexus_runner" : choice;
                   if (isCreate) {
                     // Reset all adapter-specific fields to defaults when switching adapter type
                     const { adapterType: _at, ...defaults } = defaultCreateValues;
@@ -1835,7 +1835,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                       nextValues.model = DEFAULT_CURSOR_LOCAL_MODEL;
                     } else if (t === "opencode_local") {
                       nextValues.model = DEFAULT_OPENCODE_LOCAL_MODEL;
-                    } else if (t === "paperclip_runner") {
+                    } else if (t === "nexus_runner") {
                       nextValues.model = DEFAULT_CODEX_LOCAL_MODEL;
                     }
                     if (external) {
@@ -1861,8 +1861,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                             : t === "cursor"
                               ? DEFAULT_CURSOR_LOCAL_MODEL
                             : external ? ""
-                            : t === "paperclip_runner"
-                              ? resolvePaperclipRunnerTransitionModel(adapterType, config.model)
+                            : t === "nexus_runner"
+                              ? resolveNexusRunnerTransitionModel(adapterType, config.model)
                               : "",
                         effort: "",
                         modelReasoningEffort: "",
@@ -1870,9 +1870,9 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                         mode: "",
                         ...(external
                             ? { provider: muse ? "muse" : "openai_dot", lifecycleMode: "per_turn", allowUnmeteredProvider: false, ...(dot ? { dotAttachmentAccess: false, dotWorkspaceAccess: false } : {}) }
-                          : t === "paperclip_runner"
+                          : t === "nexus_runner"
                             ? {
-                                ...paperclipRunnerTransitionConfig(adapterType, eff("adapterConfig", "model", config.model)),
+                                ...nexusRunnerTransitionConfig(adapterType, eff("adapterConfig", "model", config.model)),
                               }
                           : {}),
                       },
@@ -1969,14 +1969,14 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 open={modelOpen}
                 onOpenChange={setModelOpen}
                 defaultLabel={adapterType === "claude_local" ? `Default (${DEFAULT_CLAUDE_LOCAL_MODEL})` : undefined}
-                allowDefault={adapterType !== "opencode_local" && adapterType !== "pi_local" && adapterType !== "paperclip_runner"}
+                allowDefault={adapterType !== "opencode_local" && adapterType !== "pi_local" && adapterType !== "nexus_runner"}
                 required={adapterType === "opencode_local" || adapterType === "pi_local" || runnerAcpxAgent === "antigravity"}
                 groupByProvider={!connectionModels && (adapterType === "opencode_local" || adapterType === "pi_local")}
                 preserveOrder={Boolean(connectionModels) || adapterCuratesModelOrder(adapterType)}
                 creatable
                 detectedModel={connectionModels ? undefined : detectedModel}
                 detectedModelCandidates={[]}
-                onDetectModel={connectionModels || adapterType === "opencode_local" || adapterType === "paperclip_runner"
+                onDetectModel={connectionModels || adapterType === "opencode_local" || adapterType === "nexus_runner"
                   ? undefined
                   : async () => {
                       const result = await refetchDetectedModel();
@@ -2087,7 +2087,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                     defaultRunner={runnerAvailability?.defaultRunner}
                     supportedRunners={runnerAvailability?.supportedRunners}
                     onChange={next => isCreate ? set!({ runner: next }) : setOverlay(prev => ({ ...prev, runner: next }))} />}
-                  {isLocal && (!isRunnerHarness || fieldsAdapterType !== "paperclip_runner") && (<>              {/*
+                  {isLocal && (!isRunnerHarness || fieldsAdapterType !== "nexus_runner") && (<>              {/*
                 The command names a binary on the execution host, so the
                 managed-sandbox-only policy hides it: the platform-managed image
                 owns the binary. Hiding is presentation only. A stored
@@ -2368,7 +2368,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
               <div className="mt-3 flex items-start gap-2 rounded-md border border-border bg-background/60 px-3 py-2 text-xs text-foreground">
                 <Bug className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span>
-                  Raw tracing is on for future runs. Paperclip keeps at most 64 MiB per run and automatically deletes it after 24 hours.
+                  Raw tracing is on for future runs. Nexus keeps at most 64 MiB per run and automatically deletes it after 24 hours.
                 </span>
               </div>
             ) : null}
@@ -2509,7 +2509,7 @@ export type AdapterLoginDescriptor = {
 // correctly, and the first thing to rot would have been the timeout and
 // cleanup paths, which are the ones nobody exercises by hand.
 export type AdapterLoginPanelProps = AdapterLoginDescriptor & {
-  aiConnection?: import("@paperclipai/shared").AiConnectionLoginIntent;
+  aiConnection?: import("@nexusai/shared").AiConnectionLoginIntent;
   onStored?: (storedSessionId: string) => void;
   onApplyStored?: () => void;
   // Applies the non-secret Codex account-binding claim from an authenticated
@@ -3907,8 +3907,8 @@ export function AdapterTypeDropdown({
     [...listAdapterOptions(type => adapterLabels[type] ?? getAdapterLabel(type)),
       ...(openAiDotEnabled ? [{ value: "openai_dot", label: "OpenAI Dot", experimental: true, comingSoon: false }] : []),
       ...(museEnabled ? [{ value: "muse", label: "Muse — Personal agent", experimental: true, comingSoon: false }] : []),
-    ].filter(item => !item.comingSoon && (item.value !== "paperclip_runner" || nativeRunnerEnabled) && !disabledTypes.has(item.value))
-      .sort((a, b) => Number(a.value === "paperclip_runner") - Number(b.value === "paperclip_runner")),
+    ].filter(item => !item.comingSoon && (item.value !== "nexus_runner" || nativeRunnerEnabled) && !disabledTypes.has(item.value))
+      .sort((a, b) => Number(a.value === "nexus_runner") - Number(b.value === "nexus_runner")),
     [disabledTypes, openAiDotEnabled, nativeRunnerEnabled, museEnabled]);
   return <SelectPopover aria-label="Harness" value={value} onValueChange={onChange}
     displayValue={<span className="inline-flex min-w-0 items-center gap-1.5">
@@ -3917,7 +3917,7 @@ export function AdapterTypeDropdown({
       {selectedDisplay.experimental && <ExperimentalBadge />}
     </span>}
     options={adapterList.map(item => ({ value: item.value,
-      group: item.value === "paperclip_runner" ? "Advanced" : undefined,
+      group: item.value === "nexus_runner" ? "Advanced" : undefined,
       label: <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="inline-flex shrink-0"><AdapterMark type={item.value} className="size-4" /></span><span>{item.label}</span>{item.experimental && <ExperimentalBadge />}</span>,
     }))} />;
 }
@@ -4045,7 +4045,7 @@ export function ModelDropdown({
   }
 
   if (presentation === "native") {
-    const customOption = "__paperclip_custom_model__";
+    const customOption = "__nexus_custom_model__";
     const extraModels = [...new Set([value, ...promotedModelIds])].filter(id => id && (!models.some(model => model.id === id) || promotedModelIds.has(id)));
     return (
       <Field label="Model" hint={help.model}>

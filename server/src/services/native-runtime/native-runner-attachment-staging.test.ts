@@ -13,7 +13,7 @@ vi.mock("node:fs/promises", async (original) => {
     open: (...args: Parameters<typeof actual.open>) => {
       if (
         control.redirectedPath &&
-        String(args[0]).includes("/.paperclip-inbound/")
+        String(args[0]).includes("/.nexus-inbound/")
       ) {
         return actual.open(control.redirectedPath, constants.O_RDWR);
       }

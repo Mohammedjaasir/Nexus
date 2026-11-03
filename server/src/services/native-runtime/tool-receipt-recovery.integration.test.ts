@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
-import { activityLog, agentCommentary, agents, companies, createDb, heartbeatRuns, issueComments, issues } from "@paperclipai/db";
+import { activityLog, agentCommentary, agents, companies, createDb, heartbeatRuns, issueComments, issues } from "@nexusai/db";
 import { startRecoveryPostgres } from "../../__tests__/helpers/recovery-postgres.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 
 describe("tool receipt recovery through the mutation owner", () => {
   let temporary: Awaited<ReturnType<typeof startRecoveryPostgres>>;
@@ -18,8 +18,8 @@ describe("tool receipt recovery through the mutation owner", () => {
     const companyId = randomUUID(), agentId = randomUUID(), nextId = randomUUID(), issueId = randomUUID(), runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Receipt recovery", issuePrefix: `R${companyId.slice(0, 6)}` });
     await db.insert(agents).values([
-      { id: agentId, companyId, name: "Manager", role: "ceo", status: "active", adapterType: "paperclip_runner" },
-      { id: nextId, companyId, name: "Engineer", role: "engineer", status: "active", adapterType: "paperclip_runner" },
+      { id: agentId, companyId, name: "Manager", role: "ceo", status: "active", adapterType: "nexus_runner" },
+      { id: nextId, companyId, name: "Engineer", role: "engineer", status: "active", adapterType: "nexus_runner" },
     ]);
     await db.insert(issues).values({ id: issueId, companyId, title: "Coordinate", status: "in_progress", assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "running", runtimeMode: "native", nativeIssueId: issueId, contextSnapshot: { issueId } });
@@ -27,7 +27,7 @@ describe("tool receipt recovery through the mutation owner", () => {
     const enqueueWakeup = vi.fn().mockResolvedValue(null);
     const stopTaskForReassignment = vi.fn().mockResolvedValue(undefined);
     const binding = { companyId, agentId, issueId, runId, enqueueWakeup, stopTaskForReassignment, syncIssueExternalObjects: vi.fn().mockResolvedValue(undefined) };
-    const replacement = () => new PaperclipRunnerToolAuthority(db, binding);
+    const replacement = () => new NexusRunnerToolAuthority(db, binding);
     const effects = async () => ({
       activity: await db.select().from(activityLog).where(eq(activityLog.companyId, companyId)),
       comments: await db.select().from(issueComments).where(eq(issueComments.companyId, companyId)),

@@ -16,7 +16,7 @@ afterEach(() => {
   window.sessionStorage.clear();
 });
 
-describe("Paperclip Cloud OAuth handoff", () => {
+describe("Nexus Cloud OAuth handoff", () => {
   it("uses the fixed same-origin endpoint and never navigates to the legacy confirmation URL", async () => {
     const request = vi.fn(async () => Response.json({
       authorizationUrl: "https://provider.example.test/authorize?state=one",
@@ -24,7 +24,7 @@ describe("Paperclip Cloud OAuth handoff", () => {
 
     const target = await prepareOAuthNavigation({
       authorizationUrl: "https://my.example.test/connections/confirm?session=legacy",
-      handoff: { kind: "paperclip_cloud", session: SESSION },
+      handoff: { kind: "nexus_cloud", session: SESSION },
     }, { request: request as typeof fetch });
 
     expect(request).toHaveBeenCalledWith("/cloud/connections/handoff", expect.objectContaining({
@@ -43,7 +43,7 @@ describe("Paperclip Cloud OAuth handoff", () => {
 
     await prepareOAuthNavigation({
       authorizationUrl: "https://my.example.test/connections/confirm",
-      handoff: { kind: "paperclip_cloud", session: SESSION },
+      handoff: { kind: "nexus_cloud", session: SESSION },
     }, { request });
 
     expect(request).toHaveBeenCalledTimes(2);
@@ -58,7 +58,7 @@ describe("Paperclip Cloud OAuth handoff", () => {
 
     await expect(prepareOAuthNavigation({
       authorizationUrl: "https://my.example.test/connections/confirm",
-      handoff: { kind: "paperclip_cloud", session: SESSION },
+      handoff: { kind: "nexus_cloud", session: SESSION },
     }, { request: request as typeof fetch })).resolves.toMatchObject({ kind: "reauthentication" });
 
     request.mockResolvedValueOnce(Response.json({
@@ -67,7 +67,7 @@ describe("Paperclip Cloud OAuth handoff", () => {
     }, { status: 401 }));
     await expect(prepareOAuthNavigation({
       authorizationUrl: "https://my.example.test/connections/confirm",
-      handoff: { kind: "paperclip_cloud", session: SESSION },
+      handoff: { kind: "nexus_cloud", session: SESSION },
     }, { request: request as typeof fetch })).rejects.toMatchObject({ code: "forbidden" });
   });
 
@@ -75,14 +75,14 @@ describe("Paperclip Cloud OAuth handoff", () => {
     const request = vi.fn();
     await expect(prepareOAuthNavigation({
       authorizationUrl: "https://provider.example.test/authorize",
-      handoff: { kind: "paperclip_cloud", session: "bad session" },
+      handoff: { kind: "nexus_cloud", session: "bad session" },
     }, { request: request as typeof fetch })).rejects.toBeInstanceOf(OAuthHandoffError);
     expect(request).not.toHaveBeenCalled();
   });
 
   it("keeps the opaque handoff in per-tab storage for reauthentication resume", () => {
     savePendingCloudHandoff(SESSION);
-    expect(readPendingCloudHandoff()).toEqual({ kind: "paperclip_cloud", session: SESSION });
+    expect(readPendingCloudHandoff()).toEqual({ kind: "nexus_cloud", session: SESSION });
     clearPendingCloudHandoff();
     expect(readPendingCloudHandoff()).toBeNull();
   });

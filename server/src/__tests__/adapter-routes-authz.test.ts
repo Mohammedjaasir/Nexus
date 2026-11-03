@@ -94,7 +94,7 @@ function registerRouteMocks() {
 }
 
 const EXTERNAL_ADAPTER_TYPE = "external_admin_test";
-const EXTERNAL_PACKAGE_NAME = "paperclip-external-adapter";
+const EXTERNAL_PACKAGE_NAME = "nexus-external-adapter";
 let adapterRoutes: typeof import("../routes/adapters.js").adapterRoutes;
 let errorHandler: typeof import("../middleware/index.js").errorHandler;
 let registerServerAdapter: typeof import("../adapters/registry.js").registerServerAdapter;
@@ -291,7 +291,7 @@ describe("adapter management route authorization", () => {
       ...mocks.externalRecords.values(),
     ]);
     mocks.getAdapterPluginsDir.mockReturnValue(
-      "/tmp/paperclip-adapter-route-authz-test",
+      "/tmp/nexus-adapter-route-authz-test",
     );
     mocks.getDisabledAdapterTypes.mockReturnValue([]);
     mocks.setAdapterDisabled.mockReturnValue(true);
@@ -377,13 +377,13 @@ describe("adapter management route authorization", () => {
     afterEach(() => vi.unstubAllEnvs());
 
     it.each(
-      ["PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN", "PAPERCLIP_MANAGED_CONFIG"].flatMap((signal) =>
+      ["NEXUS_CLOUD_TENANT_SERVER_TOKEN", "NEXUS_MANAGED_CONFIG"].flatMap((signal) =>
         ["install", "reinstall", "reload", "override", "delete"].map((routeName) => [signal, routeName]),
       ),
     )("blocks %s adapter %s before package or registration access", async (signal, routeName) => {
       seedInstalledExternalAdapter();
       vi.clearAllMocks();
-      vi.stubEnv(signal, signal === "PAPERCLIP_MANAGED_CONFIG" ? "" : "test-server-token");
+      vi.stubEnv(signal, signal === "NEXUS_MANAGED_CONFIG" ? "" : "test-server-token");
       const app = createApp(instanceAdmin);
 
       const res = await sendMutatingRequest(app, routeName);
@@ -402,10 +402,10 @@ describe("adapter management route authorization", () => {
 
   describe("operator-hidden adapter management floor", () => {
     beforeEach(() => {
-      process.env.PAPERCLIP_HIDDEN_SETTINGS = "instance.adapters";
+      process.env.NEXUS_HIDDEN_SETTINGS = "instance.adapters";
     });
     afterEach(() => {
-      delete process.env.PAPERCLIP_HIDDEN_SETTINGS;
+      delete process.env.NEXUS_HIDDEN_SETTINGS;
     });
 
     it.each([

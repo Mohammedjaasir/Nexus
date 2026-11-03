@@ -1,11 +1,11 @@
 import WebSocket from "ws";
 import { REMOTE_RUNNER_RECONNECT_GRACE_MS } from "../services/native-runtime/native-runner-recovery-contract.js";
-import type { RunnerIngressEndpoint } from "@paperclipai/adapter-utils/runner-connectivity";
+import type { RunnerIngressEndpoint } from "@nexusai/adapter-utils/runner-connectivity";
 import type {
   DurablePrpControlPlane,
   PrpWireConnection,
   TransportCloseReason,
-} from "../vendor/paperclip-runner/index.js";
+} from "../vendor/nexus-runner/index.js";
 
 const DEFAULT_STARTUP_DEADLINE_MS = 60_000;
 const DEFAULT_RECOVERY_GRACE_MS = REMOTE_RUNNER_RECONNECT_GRACE_MS;
@@ -255,7 +255,7 @@ export interface RunnerPrpOutboundHandle {
 }
 
 /**
- * Keep a Paperclip-originated provider-ingress WebSocket attached to one PRP
+ * Keep a Nexus-originated provider-ingress WebSocket attached to one PRP
  * authority. Authentication is the readiness signal; HTTP success alone is not.
  */
 export function connectRunnerPrpIngress(input: {

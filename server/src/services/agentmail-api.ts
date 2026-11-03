@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Webhook } from "svix";
-import type { EmailAddressCheckResult, EmailEnvelope } from "@paperclipai/shared";
+import type { EmailAddressCheckResult, EmailEnvelope } from "@nexusai/shared";
 
 const strings = z.array(z.string());
 export const agentmailMessageSchema = z.object({
@@ -312,7 +312,7 @@ export function agentmailApi(apiKey: string, fetchImpl: typeof fetch = fetch) {
       request<{ api_key: string; api_key_id: string }>(
         `${inboxPath(id)}/api-keys`,
         "POST",
-        { name: "Paperclip email runtime" },
+        { name: "Nexus email runtime" },
       ),
     deleteInboxKey: (id: string, keyId: string) =>
       request<void>(

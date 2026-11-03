@@ -477,7 +477,7 @@ export function AdapterManager() {
                     <Label htmlFor="adapterPackageName">Package Name</Label>
                     <Input
                       id="adapterPackageName"
-                      placeholder="my-paperclip-adapter"
+                      placeholder="my-nexus-adapter"
                       value={installPackage}
                       onChange={(e) => setInstallPackage(e.target.value)}
                     />

@@ -90,7 +90,7 @@
         "logSha256": "d498153df7fd34e0fe41d1c8996cc867553b949b266fe6e83bd1c72b76a0a6a2",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected [ 'Experimental features', \u2026(3) ] to not include 'Pipelines'\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2077:15)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/pages/InstanceExperimentalSettings.test.tsx:319:26\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected [ 'Experimental features', \u2026(3) ] to not include 'Pipelines'\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:2077:15)\n    at Proxy.<anonymous> (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/index.C4tKZ0yW.js:1944:14)\n    at Proxy.methodWrapper (file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/chai@6.3.0/node_modules/chai/index.js:1737:25)\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/pages/InstanceExperimentalSettings.test.tsx:319:26\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -118,7 +118,7 @@
         "logSha256": "09c205c0b6bb1b99738b5d9ae609402c623d2e9880502dc6ea07ee406a020c8b",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected <button \u2026(1)></button> to be null\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/pages/InstanceExperimentalSettings.test.tsx:320:99\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected <button \u2026(1)></button> to be null\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/pages/InstanceExperimentalSettings.test.tsx:320:99\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -146,7 +146,7 @@
         "logSha256": "145903c50a5cb4eb8185d3c160f986a470c068259c54c74d7c05961df6cb828d",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'ExperimentalOpt into features that ar\u2026' to contain 'Only tasks created after enabling wil\u2026'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/pages/InstanceExperimentalSettings.test.tsx:593:35\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'ExperimentalOpt into features that ar\u2026' to contain 'Only tasks created after enabling wil\u2026'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/pages/InstanceExperimentalSettings.test.tsx:593:35\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -174,7 +174,7 @@
         "logSha256": "c0efad555c6819cd6e7c91692ac64521de7f1045be075ca3330cc6dd1c43df84",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'ExperimentalOpt into features that ar\u2026' to contain 'Toggling off and on resets the cutoff.'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/pages/InstanceExperimentalSettings.test.tsx:596:35\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'ExperimentalOpt into features that ar\u2026' to contain 'Toggling off and on resets the cutoff.'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/pages/InstanceExperimentalSettings.test.tsx:596:35\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -202,7 +202,7 @@
         "logSha256": "7accc209bfd5438d9772a1d2f3d121b976f0579af35853d8367c527c80ada5af",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'ExperimentalOpt into features that ar\u2026' not to contain 'Running tasks created after'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/pages/InstanceExperimentalSettings.test.tsx:598:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'ExperimentalOpt into features that ar\u2026' not to contain 'Running tasks created after'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/pages/InstanceExperimentalSettings.test.tsx:598:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     },
@@ -230,7 +230,7 @@
         "logSha256": "4f2dc5d037bea144ce679f1800079de085b153040ea553bae985bdc765e670fa",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'ExperimentalOpt into features that ar\u2026' not to contain 'Execution is suppressed'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/pages/InstanceExperimentalSettings.test.tsx:599:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'ExperimentalOpt into features that ar\u2026' not to contain 'Execution is suppressed'\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/pages/InstanceExperimentalSettings.test.tsx:599:39\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     }

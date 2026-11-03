@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import type { PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { createNativeDeliverableTextObservation } from "./native-deliverable-text.js";
 
 function event(eventType: string, payload: Record<string, unknown>, itemId?: string) {
@@ -32,7 +32,7 @@ describe("native deliverable text", () => {
 
   it("accepts an accepted result summary without any streamed text", () => {
     const observe = createNativeDeliverableTextObservation();
-    const result = { schema: "paperclip.run_result.v1", summary: "Done" };
+    const result = { schema: "nexus.run_result.v1", summary: "Done" };
     expect(observe(event("run.result.proposed", result))).toBeNull();
     expect(observe(event("run.result.accepted", { result }))).toBe("agentMessage");
   });
@@ -48,7 +48,7 @@ describe("native deliverable text", () => {
     event("tool.execution.started", { executionId: "tool", text: "tool" }),
     event("turn.started", { kind: "agentMessage", text: "metadata" }),
     event("run.result.accepted", { result: { schema: "other", summary: "wrong schema" } }),
-    event("run.result.accepted", { result: { schema: "paperclip.run_result.v1", summary: " " } }),
+    event("run.result.accepted", { result: { schema: "nexus.run_result.v1", summary: " " } }),
     event("turn.completed", { outputTails: [{ payload: { kind: "agentMessage", text: "no identity" } }] }),
   ])("ignores text that the task transcript cannot show: %j", (candidate) => {
     expect(createNativeDeliverableTextObservation()(candidate)).toBeNull();

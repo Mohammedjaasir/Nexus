@@ -1,5 +1,5 @@
 import { and, asc, eq, sql } from "drizzle-orm";
-import { chatConversations, chatEndpointResources, chatEndpoints, type Db } from "@paperclipai/db";
+import { chatConversations, chatEndpointResources, chatEndpoints, type Db } from "@nexusai/db";
 import { conflict, notFound } from "../../../errors.js";
 import type { CredentialMutationLeaseGuard } from "../../chat-credential-mutation-lease.js";
 import type { ChatProviderResourceInventoryItem } from "../../chat-provider-inventory.js";
@@ -219,7 +219,7 @@ export function createGitHubResources(db: Db, options: GitHubResourceOptions) {
       const resource = await upsertProviderResourceRow(tx, endpoint, item);
       if (!resource) return;
       // A correctly signed repository callback is current provider proof. Keep
-      // Paperclip's enabled choice, and reopen only conversations previously
+      // Nexus's enabled choice, and reopen only conversations previously
       // quarantined for provider availability loss.
       await restoreResourceConversations(tx, endpoint, resource.id);
       await credentialLease.assertOwned(tx);

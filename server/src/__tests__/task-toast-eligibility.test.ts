@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { activityLog, agents, companies, createDb, heartbeatRuns, issueComments, issues } from "@paperclipai/db";
-import type { LiveEvent } from "@paperclipai/shared";
+import { activityLog, agents, companies, createDb, heartbeatRuns, issueComments, issues } from "@nexusai/db";
+import type { LiveEvent } from "@nexusai/shared";
 import { taskToastEligible } from "../realtime/task-toast-eligibility.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
@@ -13,7 +13,7 @@ describe.skipIf(!support.supported)("personal task toast eligibility (persisted 
   const companyId = randomUUID();
   const agentId = randomUUID();
   beforeAll(async () => {
-    temp = await startEmbeddedPostgresTestDatabase("paperclip-task-toasts-");
+    temp = await startEmbeddedPostgresTestDatabase("nexus-task-toasts-");
     db = createDb(temp.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Toast test", issuePrefix: "TST" });
     await db.insert(agents).values({ id: agentId, companyId, name: "Shared agent", role: "engineer", adapterType: "process" });

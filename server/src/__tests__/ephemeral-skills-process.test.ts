@@ -7,24 +7,24 @@ import os from "node:os";
 import path from "node:path";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { S3Client, CreateBucketCommand, DeleteBucketCommand, ListObjectsV2Command, DeleteObjectsCommand } from "@aws-sdk/client-s3";
-import { companies, createDb } from "@paperclipai/db";
+import { companies, createDb } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { removeRuntimeAssetTree } from "../services/native-runtime/runtime-asset-retention.js";
 
 type Server = { child: ChildProcess; url: string; home: string; rpc(method: string, input?: Record<string, unknown>): Promise<any> };
-const enabled = Boolean(process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL && process.env.PAPERCLIP_TEST_S3_ENDPOINT);
+const enabled = Boolean(process.env.NEXUS_TEST_POSTGRES_ADMIN_URL && process.env.NEXUS_TEST_S3_ENDPOINT);
 describe.skipIf(!enabled)("skills survive web-server replacement", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   let root: string;
   let s3: S3Client;
-  const bucket = `paperclip-skills-${randomUUID()}`;
+  const bucket = `nexus-skills-${randomUUID()}`;
   const servers: Server[] = [];
   beforeAll(async () => {
     database = await startEmbeddedPostgresTestDatabase("ephemeral-skills-");
     db = createDb(database.connectionString);
     root = await fs.mkdtemp(path.join(os.tmpdir(), "ephemeral-skills-process-"));
-    s3 = new S3Client({ region: "us-east-1", endpoint: process.env.PAPERCLIP_TEST_S3_ENDPOINT, forcePathStyle: true });
+    s3 = new S3Client({ region: "us-east-1", endpoint: process.env.NEXUS_TEST_S3_ENDPOINT, forcePathStyle: true });
     await s3.send(new CreateBucketCommand({ Bucket: bucket }));
   }, 90_000);
   async function stop(server: Server) {
@@ -53,10 +53,10 @@ describe.skipIf(!enabled)("skills survive web-server replacement", () => {
     const home = path.join(root, name);
     const child = fork(fileURLToPath(new URL("./helpers/ephemeral-skills-server.ts", import.meta.url)), [], {
       execArgv: ["--import", fileURLToPath(import.meta.resolve("tsx"))], stdio: ["ignore", "pipe", "pipe", "ipc"],
-      env: { ...process.env, DATABASE_URL: database.connectionString, PAPERCLIP_HOME: home, PAPERCLIP_INSTANCE_ID: "default",
-        PAPERCLIP_STORAGE_PROVIDER: "s3", PAPERCLIP_STORAGE_S3_BUCKET: bucket,
-        PAPERCLIP_STORAGE_S3_ENDPOINT: process.env.PAPERCLIP_TEST_S3_ENDPOINT, PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE: "true",
-        PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED: "true", PAPERCLIP_LOG_LEVEL: "error", PAPERCLIP_TELEMETRY_ENABLED: "false" },
+      env: { ...process.env, DATABASE_URL: database.connectionString, NEXUS_HOME: home, NEXUS_INSTANCE_ID: "default",
+        NEXUS_STORAGE_PROVIDER: "s3", NEXUS_STORAGE_S3_BUCKET: bucket,
+        NEXUS_STORAGE_S3_ENDPOINT: process.env.NEXUS_TEST_S3_ENDPOINT, NEXUS_STORAGE_S3_FORCE_PATH_STYLE: "true",
+        NEXUS_SKILL_PACKAGE_STORAGE_ENABLED: "true", NEXUS_LOG_LEVEL: "error", NEXUS_TELEMETRY_ENABLED: "false" },
     });
     let logs = "";
     child.stdout?.on("data", data => { logs = (logs + data).slice(-5000); });

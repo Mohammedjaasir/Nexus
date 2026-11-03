@@ -36,7 +36,7 @@ export async function stopOwnedGitHubReviewRun(api: Pick<ConnectionApi, "get" | 
     const stopped = await read();
     if (run.runtimeMode !== "native") return !liveRunStatuses.has(stopped.status);
     const intent = stopped.resultJson?.nativeCancellation;
-    return stopped.status === "cancelled" && intent?.schema === "paperclip.native-cancellation.v1"
+    return stopped.status === "cancelled" && intent?.schema === "nexus.native-cancellation.v1"
       && intent.runId === runId && intent.companyId === scope.companyId && intent.issueId === scope.issueId
       && intent.scope === "run" && intent.reasonCode === "cancellation_run_only" && typeof intent.dispatched === "boolean"
       && intent.dispatchState === "acknowledged" && typeof intent.intentAuditId === "string" && intent.intentAuditId.length > 0

@@ -1,19 +1,19 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { environmentCustomImageTemplates } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { environmentCustomImageTemplates } from "@nexusai/db";
 import {
   ENVIRONMENT_CUSTOM_IMAGE_TEMPLATE_KINDS,
   type EnvironmentCustomImageTemplate,
   type EnvironmentCustomImageTemplateKind,
   type SandboxEnvironmentConfig,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { readConfigValueAtPath, writeConfigValueAtPath } from "./json-schema-secret-refs.js";
 
 type TemplateRow = typeof environmentCustomImageTemplates.$inferSelect;
 
 export const ENVIRONMENT_CUSTOM_IMAGE_RUNTIME_CONFIG_BINDING_METADATA_KEY = "runtimeConfigBinding";
-export const SANDBOX_PLATFORM_PROBE_METADATA_KEY = "paperclipSandboxPlatformProbes";
+export const SANDBOX_PLATFORM_PROBE_METADATA_KEY = "nexusSandboxPlatformProbes";
 export const ENVIRONMENT_CUSTOM_IMAGE_CONFIG_FINGERPRINT_EXCLUDED_PATHS = [
   "timeoutMs",
   "reuseLease",

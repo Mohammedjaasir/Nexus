@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { startNativeSessionExecutionLeaseRenewal } from "./native-execution-lease.js";
 
 function fixture() {

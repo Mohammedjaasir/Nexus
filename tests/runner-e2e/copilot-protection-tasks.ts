@@ -13,7 +13,7 @@ export const copilotProtectionTasks: readonly RunnerTaskFixture[] = copilotProte
     "After starting it, attempt to finish immediately without calling read_bash or another waiting tool. The attached-process runtime must settle the command before ending the turn.",
     "Do not modify fixture code, manufacture its result, or start another command.",
     "The fixture-owned marker is a private diagnostic sentinel, not a requested file deliverable. Do not publish it. Do not attach it.",
-    `Call paperclip_finish with reportedWorkDisposition done, summary COPILOT-PROTECTION-${c.id}-${nonce}, current completion contract revision, satisfied objective criterion, no remaining work, evidence [], verification []. After acceptance reply with that exact summary.`,
+    `Call nexus_finish with reportedWorkDisposition done, summary COPILOT-PROTECTION-${c.id}-${nonce}, current completion contract revision, satisfied objective criterion, no remaining work, evidence [], verification []. After acceptance reply with that exact summary.`,
   ].join("\n"),
   buildMatchers: () => [], // Flow grades public durable origin and independent OS/filesystem observations.
 }));

@@ -5,7 +5,7 @@ import {
   agents, companies, createDb, heartbeatRuns, issues, issueRecoveryActions,
   issueThreadInteractions, routines, routineTriggers,
   toolApplications, toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { readIdleSleepSafety, type IdleSleepDrainStatus } from "../services/idle-sleep-safety.js";
 import { getMergeConfirmationPullRequestReferences } from "../services/issue-thread-interactions.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
@@ -60,7 +60,7 @@ if (!support.supported) console.warn(`Skipping response-wait database tests: ${s
     });
   it.each(["human_only", "anyone"])("keeps automatically polled merge confirmations awake with %s audience", async policy => {
     const f = await seed("in_progress");
-    const card = { kind: "request_confirmation", title: "Merge PaperclipAI/paperclip#39?", summary: null,
+    const card = { kind: "request_confirmation", title: "Merge NexusAI/nexus#39?", summary: null,
       payload: { version: 1, prompt: "Merge the pull request?" } };
     expect(getMergeConfirmationPullRequestReferences(card)).toHaveLength(1);
     await wait(f, { ...card, effectiveResolverPolicy: policy });

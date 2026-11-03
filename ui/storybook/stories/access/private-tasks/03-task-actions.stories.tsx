@@ -60,7 +60,7 @@ const meta = {
   title: "Getting started and access/Login, invitations, and access/Private tasks/03 Task actions",
   decorators: [privacyDecorator],
   parameters: { ...privacyParameters, docs: { description: { component: "Task menu privacy actions, permission gates and disclosure confirmation." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "access/resources",
         "tasks/properties"

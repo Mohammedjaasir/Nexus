@@ -18,7 +18,7 @@ const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
 async function createTempDatabase(): Promise<string> {
-  const db = await startEmbeddedPostgresTestDatabase("paperclip-derived-attribution-");
+  const db = await startEmbeddedPostgresTestDatabase("nexus-derived-attribution-");
   cleanups.push(db.cleanup);
   return db.connectionString;
 }

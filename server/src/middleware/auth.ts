@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Request, RequestHandler } from "express";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   activityLog,
   agentApiKeys,
@@ -11,7 +11,7 @@ import {
   companyMemberships,
   heartbeatRuns,
   instanceUserRoles,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   MAX_ISSUE_PREFIX_ATTEMPTS,
   deriveIssuePrefixBase,
@@ -23,7 +23,7 @@ import {
 import { verifyLocalAgentJwt } from "../agent-auth-jwt.js";
 import { agentRunWritesRevoked } from "../agent-run-cancellation.js";
 import { loadAgentRunAuthentication } from "./agent-run-authentication.js";
-import { isUuidLike, normalizeAgentApiKeyScope, type DeploymentMode } from "@paperclipai/shared";
+import { isUuidLike, normalizeAgentApiKeyScope, type DeploymentMode } from "@nexusai/shared";
 import type { BetterAuthSessionResult } from "../auth/better-auth.js";
 import { logger } from "./logger.js";
 import { captureRunIdentity } from "../services/run-identity.js";
@@ -237,7 +237,7 @@ export function actorMiddleware(db: Db, opts: ActorMiddlewareOptions): RequestHa
       return;
     }
 
-    const runIdHeader = req.header("x-paperclip-run-id");
+    const runIdHeader = req.header("x-nexus-run-id");
 
     const authHeader = req.header("authorization");
     const hasBearerCredentials = /^bearer(?:\s|$)/i.test(authHeader ?? "");
@@ -383,7 +383,7 @@ export function actorMiddleware(db: Db, opts: ActorMiddlewareOptions): RequestHa
           url: req.originalUrl,
         });
         next(
-          unprocessable("X-Paperclip-Run-Id does not match signed agent JWT run_id", {
+          unprocessable("X-Nexus-Run-Id does not match signed agent JWT run_id", {
             code: "agent_jwt_run_id_mismatch",
             claimRunId: claims.run_id,
             headerRunId: normalizedRunIdHeader,
@@ -414,7 +414,7 @@ export function actorMiddleware(db: Db, opts: ActorMiddlewareOptions): RequestHa
         // This signed projection exists only for internal native tools. Recheck
         // the admitted run and current immutable binding on every API call.
         try {
-          const { parseNativeExecutionInput } = await import("../vendor/paperclip-runner/index.js");
+          const { parseNativeExecutionInput } = await import("../vendor/nexus-runner/index.js");
           const { museRunnerBroker } = await import("../services/muse-runner-broker.js");
           const [nativeRun] = await db.select({ status: heartbeatRuns.status, runtimeMode: heartbeatRuns.runtimeMode,
             nativeExecutionInput: sql<unknown>`${heartbeatRuns.runnerProfileJson}->'nativeExecutionInput'`,
@@ -422,7 +422,7 @@ export function actorMiddleware(db: Db, opts: ActorMiddlewareOptions): RequestHa
             eq(heartbeatRuns.id, claims.run_id), eq(heartbeatRuns.companyId, claims.company_id), eq(heartbeatRuns.agentId, claims.sub),
           ));
           const execution = parseNativeExecutionInput(nativeRun?.nativeExecutionInput);
-          if (nativeRun?.status !== "running" || nativeRun.runtimeMode !== "native" || execution.schema !== "paperclip.native-execution-input.v8"
+          if (nativeRun?.status !== "running" || nativeRun.runtimeMode !== "native" || execution.schema !== "nexus.native-execution-input.v8"
             || execution.binding.runId !== claims.run_id || execution.binding.agentId !== claims.sub || execution.binding.companyId !== claims.company_id
             || await museRunnerBroker(db).authorizingUserIdForBinding(execution.provider.binding) !== claims.authorizing_user_id) {
             throw new Error("Muse internal tool authority mismatch");
@@ -583,26 +583,26 @@ async function resolveCloudTenantActorOnce(
   db: Db,
   req: CloudActorHeaderSource,
 ): Promise<Express.Request["actor"] | null> {
-  const expectedToken = process.env.PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN?.trim();
+  const expectedToken = process.env.NEXUS_CLOUD_TENANT_SERVER_TOKEN?.trim();
   if (!expectedToken) return null;
 
-  const token = req.header("x-paperclip-cloud-tenant-token")?.trim();
+  const token = req.header("x-nexus-cloud-tenant-token")?.trim();
   if (!token || !constantTimeStringEqual(token, expectedToken)) return null;
 
-  const userId = requiredCloudHeader(req, "x-paperclip-cloud-user-id");
-  const userEmail = requiredCloudHeader(req, "x-paperclip-cloud-user-email").toLowerCase();
-  const stackId = requiredCloudHeader(req, "x-paperclip-cloud-stack-id");
-  const stackRole = stackMembershipRole(req.header("x-paperclip-cloud-stack-role"));
-  const userName = req.header("x-paperclip-cloud-user-name")?.trim() || userEmail;
-  const paperclipCompanyId = req.header("x-paperclip-cloud-paperclip-company-id")?.trim();
-  const paperclipCompanyName = req
-    .header("x-paperclip-cloud-paperclip-company-name")
+  const userId = requiredCloudHeader(req, "x-nexus-cloud-user-id");
+  const userEmail = requiredCloudHeader(req, "x-nexus-cloud-user-email").toLowerCase();
+  const stackId = requiredCloudHeader(req, "x-nexus-cloud-stack-id");
+  const stackRole = stackMembershipRole(req.header("x-nexus-cloud-stack-role"));
+  const userName = req.header("x-nexus-cloud-user-name")?.trim() || userEmail;
+  const nexusCompanyId = req.header("x-nexus-cloud-nexus-company-id")?.trim();
+  const nexusCompanyName = req
+    .header("x-nexus-cloud-nexus-company-name")
     ?.trim();
   const companyId = cloudTenantCompanyId(stackId);
-  const companyName = paperclipCompanyName || humanizeCloudStackSlug(stackId);
+  const companyName = nexusCompanyName || humanizeCloudStackSlug(stackId);
   const membershipRole = stackRole === "owner" || stackRole === "admin" ? "owner" : stackRole;
   const syncFingerprint = JSON.stringify([
-    userEmail, userName, stackId, stackRole, paperclipCompanyId ?? "", paperclipCompanyName ?? "",
+    userEmail, userName, stackId, stackRole, nexusCompanyId ?? "", nexusCompanyName ?? "",
   ]);
   let effectiveMembership: { companyId: string; membershipRole: string | null; status: string } = {
     companyId,
@@ -641,11 +641,11 @@ async function resolveCloudTenantActorOnce(
       });
 
     await insertCloudTenantCompany(db, { companyId, companyName, now });
-    if (paperclipCompanyName) {
+    if (nexusCompanyName) {
       await repairCloudTenantCompanyName(db, {
         companyId,
-        paperclipCompanyId,
-        paperclipCompanyName,
+        nexusCompanyId,
+        nexusCompanyName,
         now,
       });
     }
@@ -767,7 +767,7 @@ function cloudTenantCompanyId(stackId: string): string {
 export function humanizeCloudStackSlug(stackId: string): string {
   const slug = stackId
     .trim()
-    .replace(/^paperclip-stack-/i, "")
+    .replace(/^nexus-stack-/i, "")
     .replace(/^stack-/i, "");
   const displayName = slug
     .split(/[-_]+/)
@@ -779,15 +779,15 @@ export function humanizeCloudStackSlug(stackId: string): string {
 
 export function isKnownBadCloudCompanyName(
   name: string,
-  ids: { companyId: string; paperclipCompanyId?: string },
+  ids: { companyId: string; nexusCompanyId?: string },
 ): boolean {
   const normalized = name.trim();
   return (
-    /^paperclip-stack-.+/i.test(normalized) ||
-    /^stack-.+\s+paperclip$/i.test(normalized) ||
+    /^nexus-stack-.+/i.test(normalized) ||
+    /^stack-.+\s+nexus$/i.test(normalized) ||
     normalized === ids.companyId ||
-    (ids.paperclipCompanyId !== undefined &&
-      normalized === ids.paperclipCompanyId)
+    (ids.nexusCompanyId !== undefined &&
+      normalized === ids.nexusCompanyId)
   );
 }
 
@@ -795,8 +795,8 @@ async function repairCloudTenantCompanyName(
   db: Db,
   input: {
     companyId: string;
-    paperclipCompanyId?: string;
-    paperclipCompanyName: string;
+    nexusCompanyId?: string;
+    nexusCompanyName: string;
     now: Date;
   },
 ): Promise<void> {
@@ -810,7 +810,7 @@ async function repairCloudTenantCompanyName(
       !existing ||
       !isKnownBadCloudCompanyName(existing.name, {
         companyId: input.companyId,
-        paperclipCompanyId: input.paperclipCompanyId,
+        nexusCompanyId: input.nexusCompanyId,
       })
     ) {
       return;
@@ -818,7 +818,7 @@ async function repairCloudTenantCompanyName(
     await db.transaction(async (tx) => {
       const [updated] = await tx
         .update(companies)
-        .set({ name: input.paperclipCompanyName, updatedAt: input.now })
+        .set({ name: input.nexusCompanyName, updatedAt: input.now })
         .where(
           and(
             eq(companies.id, input.companyId),
@@ -842,7 +842,7 @@ async function repairCloudTenantCompanyName(
           source: "cloud_tenant_auth",
           reason: "legacy_machine_name_repair",
           previousName: existing.name,
-          name: input.paperclipCompanyName,
+          name: input.nexusCompanyName,
         },
       });
     });
@@ -904,7 +904,7 @@ function legacyProvisionedIssuePrefix(stackId: string): string {
 }
 
 /** The placeholder description that pre-name-derivation builds wrote. */
-const LEGACY_PROVISIONED_DESCRIPTION_PREFIX = "Provisioned by Paperclip Cloud for stack ";
+const LEGACY_PROVISIONED_DESCRIPTION_PREFIX = "Provisioned by Nexus Cloud for stack ";
 
 /**
  * One-time repair for companies claimed by a pre-name-derivation build.

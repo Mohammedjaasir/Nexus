@@ -66,19 +66,19 @@ describe("adapter configuration sections", () => {
     };
     const adapter = await renderSection(
       CodexLocalConfigFields,
-      "paperclip_runner",
+      "nexus_runner",
       "adapter",
       config,
     );
     const configuration = await renderSection(
       CodexLocalConfigFields,
-      "paperclip_runner",
+      "nexus_runner",
       "configuration",
       config,
     );
     const policy = await renderSection(
       CodexLocalConfigFields,
-      "paperclip_runner",
+      "nexus_runner",
       "runPolicy",
       config,
     );
@@ -93,8 +93,8 @@ describe("adapter configuration sections", () => {
 
   it("keeps ACP agent admission choices in the adapter section", async () => {
     const config = { provider: "acpx", acpxAgent: "claude" };
-    const adapter = await renderSection(CodexLocalConfigFields, "paperclip_runner", "adapter", config, "ACP agent");
-    const policy = await renderSection(CodexLocalConfigFields, "paperclip_runner", "runPolicy", config);
+    const adapter = await renderSection(CodexLocalConfigFields, "nexus_runner", "adapter", config, "ACP agent");
+    const policy = await renderSection(CodexLocalConfigFields, "nexus_runner", "runPolicy", config);
 
     const options = new DOMParser().parseFromString(adapter, "text/html").querySelectorAll('[role="option"]');
     expect(Array.from(options, option => ({ label: option.textContent?.trim(), disabled: option.hasAttribute("data-disabled") })))

@@ -1,10 +1,10 @@
 import { measureRunPhase } from "../execution-preparation-timing.js";
 import { createHash } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
-import { environmentTaskOperationSchema, environmentTaskResultSchema, type PluginEnvironmentTaskOperation, type PluginEnvironmentTaskResult, type PluginEnvironmentTaskCredential } from "@paperclipai/plugin-sdk";
-import type { RunnerIngressEndpoint } from "@paperclipai/adapter-utils/runner-connectivity";
+import { environmentTaskOperationSchema, environmentTaskResultSchema, type PluginEnvironmentTaskOperation, type PluginEnvironmentTaskResult, type PluginEnvironmentTaskCredential } from "@nexusai/plugin-sdk";
+import type { RunnerIngressEndpoint } from "@nexusai/adapter-utils/runner-connectivity";
 import { RUNNER_PRP_PROTOCOL_MIN, RUNNER_PRP_PROTOCOL_MAX, type RunnerProcessHandle, type RunnerProcessLaunchSpec,
-  type DurablePrpControlPlane, type RunnerExecutionDriver, type RunnerLaunchPreparer, type DurableRecoveryIdentity } from "../../vendor/paperclip-runner/index.js";
+  type DurablePrpControlPlane, type RunnerExecutionDriver, type RunnerLaunchPreparer, type DurableRecoveryIdentity } from "../../vendor/nexus-runner/index.js";
 import { connectRunnerPrpIngress } from "../../realtime/runner-prp-outbound.js";
 import type { NativeExecutionContext } from "./native-execution-context.js";
 
@@ -18,7 +18,7 @@ export async function verifyPluginRunnerTaskReattachment(
     throw new Error("Plugin Runner is not running");
   }
   const result = environmentTaskResultSchema.parse(await task(operation));
-  if (result.kind !== "state" || result.state.schema !== "paperclip.runner.durable.state.v1"
+  if (result.kind !== "state" || result.state.schema !== "nexus.runner.durable.state.v1"
     || Object.entries(operation.identity).some(([key, value]) => result.state[key] !== value)) {
     throw new Error("Plugin Runner adoption identity mismatch");
   }
@@ -296,7 +296,7 @@ export function createPluginRunnerTaskOwner(input: {
         }
         if (settlement === "settled" && stoppedState?.sessionStateAvailable === true && input.onSessionRetained) {
           const state = await readRunnerState();
-          if (state.schema !== "paperclip.runner.durable.state.v1" || state.lifecycle !== "suspended"
+          if (state.schema !== "nexus.runner.durable.state.v1" || state.lifecycle !== "suspended"
             || !preparedIdentity || Object.entries(preparedIdentity).some(([key, value]) => state[key] !== value)) {
             throw new Error("Plugin Runner suspended state identity mismatch");
           }

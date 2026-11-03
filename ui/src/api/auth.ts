@@ -4,7 +4,7 @@ import {
   type AuthSession,
   type CurrentUserProfile,
   type UpdateCurrentUserProfile,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { redactUrlSecrets } from "@/lib/redact-url-secrets";
 import { tenantSessionRecovery } from "@/lib/tenant-session-recovery";
 import { apiFetch } from "./client";

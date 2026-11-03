@@ -12,7 +12,7 @@ import type {
   SummarySlotDocument,
   SummarySlotIssueRef,
   SummarySlotRevision,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import { SummarySlotCard } from "@/components/SummarySlotCard";
 import type { BuiltInAgentState } from "@/api/builtInAgents";
@@ -329,7 +329,7 @@ const meta: Meta<typeof CardHarness> = {
   title: "Agents and reusable capabilities/Hiring, configuration, and organization/Summaries/SummarySlotCard",
   component: CardHarness,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agents/built-in"
       ],

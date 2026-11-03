@@ -109,10 +109,10 @@ export function createDatabaseResponseCapture(
     }
     scope.disable();
     const ordered = [...entries.values()].sort((a, b) => b.calls - a.calls);
-    for (const [groupIndex, entry] of ordered.entries()) send({ event: "paperclip.db_response_capture.entry.v2", captureId: id,
+    for (const [groupIndex, entry] of ordered.entries()) send({ event: "nexus.db_response_capture.entry.v2", captureId: id,
       groupIndex, groupPage: Math.floor(groupIndex / GROUP_PAGE_SIZE),
       ...entry });
-    send({ event: "paperclip.db_response_capture.summary.v2", captureId: id,
+    send({ event: "nexus.db_response_capture.summary.v2", captureId: id,
       windowStart: new Date(window.start).toISOString(), windowEnd: new Date(window.end).toISOString(),
       closedAt: new Date(now()).toISOString(),
       startedQueries: started, completedQueries: completed, inFlightAtEnd: inFlight, groups: entries.size,
@@ -219,7 +219,7 @@ function pacedCaptureLogger() {
 }
 
 export function databaseResponseCaptureFromEnv(env: NodeJS.ProcessEnv = process.env): Capture | undefined {
-  const key = env.PAPERCLIP_DB_RESPONSE_CAPTURE_WINDOW;
+  const key = env.NEXUS_DB_RESPONSE_CAPTURE_WINDOW;
   const window = responseCaptureWindow(key);
   if (!key || !window) return;
   if (environmentCapture?.key === key) return environmentCapture.capture;

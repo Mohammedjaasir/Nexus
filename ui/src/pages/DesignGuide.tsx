@@ -11,7 +11,7 @@ import { ExternalAgentPresetPicker, DotConnectionChecks, MuseConnectionChecks } 
 import { AgentMailApiKeyField } from "@/features/connections/AgentMailApiKeyField";
 import { TaskBrowserFooter } from "@/components/task-side-panel/TaskBrowserFooter";
 import { TaskBrowserActivity } from "@/components/task-side-panel/TaskBrowserActivity";
-import type { TaskBrowser } from "@paperclipai/shared";
+import type { TaskBrowser } from "@nexusai/shared";
 import { DispositionRecoveryNotice } from "../components/DispositionRecoveryNotice";
 import { CloudSignIn } from "../components/CloudSignIn";
 import { CloudAccessError } from "../components/CloudAccessGate";
@@ -34,13 +34,13 @@ import { AiConnectionDesignExamples } from "@/components/ai-connections/AiConnec
 import { SavedProviderKeySelect } from "../components/onboarding/SavedProviderKeySelect";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { AgentCharacter } from "@/components/AgentCharacter";
-import { AGENT_PALETTE_IDS, appearanceForPalette } from "@paperclipai/shared";
+import { AGENT_PALETTE_IDS, appearanceForPalette } from "@nexusai/shared";
 import { RepositoryEditor } from "@/components/RepositoryEditor";
 import { TaskChatRunnerActivityGroup } from "@/components/task-chat/TaskChatRunnerActivityGroup";
 import { TaskChatMarker } from "@/components/task-chat/TaskChatMarker";
 import { TaskChatComposer } from "@/components/task-chat/TaskChatComposer";
 import { ComposerAddMenu, ComposerModeChip } from "@/components/task-chat/ComposerAddMenu";
-import type { IssueWorkMode } from "@paperclipai/shared";
+import type { IssueWorkMode } from "@nexusai/shared";
 import { TaskTreeControlDialog, TaskTreeControlMenuItems } from "@/components/TaskTreeControls";
 import { useState } from "react";
 import {
@@ -194,7 +194,7 @@ import {
   pendingConnectionIntentInteraction,
   retryConnectionIntentInteraction,
 } from "@/fixtures/issueThreadInteractionFixtures";
-import type { CompanySecret, EnvBinding, Issue } from "@paperclipai/shared";
+import type { CompanySecret, EnvBinding, Issue } from "@nexusai/shared";
 import { CollectionToolbar } from "@/components/CollectionToolbar";
 import { IssueRow } from "@/components/IssueRow";
 import {
@@ -216,7 +216,7 @@ import {
   sampleTeam,
   warnTeam,
 } from "@/pages/TeamCatalog.fixtures";
-import type { IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueWorkProduct } from "@nexusai/shared";
 
 /* ------------------------------------------------------------------ */
 /*  Sample data for the Issue Output surface showcase                  */
@@ -238,7 +238,7 @@ function sampleOutput(
     executionWorkspaceId: null,
     runtimeServiceId: null,
     type: "artifact",
-    provider: "paperclip",
+    provider: "nexus",
     externalId: null,
     title: filename,
     url: null,
@@ -351,7 +351,7 @@ const DESIGN_GUIDE_SECRETS: CompanySecret[] = [
     name: "GITHUB_TOKEN",
     provider: "local_encrypted",
     status: "active",
-    managedMode: "paperclip_managed",
+    managedMode: "nexus_managed",
     externalRef: null,
     providerConfigId: null,
     providerMetadata: null,
@@ -375,7 +375,7 @@ const DESIGN_GUIDE_SECRETS: CompanySecret[] = [
     name: "DB_CONNECTION",
     provider: "local_encrypted",
     status: "active",
-    managedMode: "paperclip_managed",
+    managedMode: "nexus_managed",
     externalRef: null,
     providerConfigId: null,
     providerMetadata: null,
@@ -536,7 +536,7 @@ export function DesignGuide() {
       <div>
         <h2 className="text-xl font-bold">Design Guide</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Every component, style, and pattern used across Paperclip.
+          Every component, style, and pattern used across Nexus.
         </p>
       </div>
 
@@ -1257,7 +1257,7 @@ export function DesignGuide() {
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink href="#">Paperclip App</BreadcrumbLink>
+              <BreadcrumbLink href="#">Nexus App</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -1282,7 +1282,7 @@ export function DesignGuide() {
                   status, adapterType: "codex_local", invocationSource: "on_demand", triggerDetail: "manual",
                   startedAt: null, finishedAt: null, createdAt: "2026-09-11T12:00:00Z", issueId: "design-guide-task",
                 }}
-                issue={{ identifier: "PAP-559", title: "Recreate this wireframe on pages Paperclip", status: status === "succeeded" ? "done" : "in_progress" }}
+                issue={{ identifier: "PAP-559", title: "Recreate this wireframe on pages Nexus", status: status === "succeeded" ? "done" : "in_progress" }}
               />
             ))}
           </div>
@@ -2259,7 +2259,7 @@ export function DesignGuide() {
         </SubSection>
         <SubSection title="Selected and searchable">
           <RepositoryEditor selected={[{ id: "1", fullName: "paperclipai/paperclip", url: "https://github.com/paperclipai/paperclip", connections: ["Your GitHub"] }]}
-            available={[{ id: "2", fullName: "paperclipai/docs", url: "https://github.com/paperclipai/docs", connections: ["Company GitHub"] }]}
+            available={[{ id: "2", fullName: "nexusai/docs", url: "https://github.com/paperclipai/docs", connections: ["Company GitHub"] }]}
             onChange={() => {}} onConnect={() => {}} onRetry={() => {}} />
         </SubSection>
         <p className="text-sm text-muted-foreground">Loading, errors, empty search, mobile, and short viewports are covered in the Project repos Storybook stories.</p>
@@ -2318,7 +2318,7 @@ export function DesignGuide() {
       </Section>
 
       <Section title="Cloud sign-in unavailable">
-        <CloudSignIn cloud={{ managed: true, managedBy: "paperclip-cloud", cloudBaseUrl: null, stackSlug: null }} returnTo="/" />
+        <CloudSignIn cloud={{ managed: true, managedBy: "nexus-cloud", cloudBaseUrl: null, stackSlug: null }} returnTo="/" />
       </Section>
 
       <Section title="Saved provider API keys">
@@ -2347,7 +2347,7 @@ export function DesignGuide() {
         </div>
         <SpekoPhoneLineForm onRefresh={() => {}} onSave={() => {}} />
         <SpekoIncomingCallCard call={{id: "demo", state: "awaiting_approval", approvalCode: "123456", createdAt: "2026-10-07T17:00:00Z", expiresAt: "2026-10-07T17:02:00Z", sessionId: null}} onDecide={() => {}} />
-        <SpekoProviderSetup agentName="Company Phone Agent" callbackUrl="https://paperclip.example/api/voice-webhooks/example/tools" credentials={{}} onChange={() => {}} onConnect={() => {}} />
+        <SpekoProviderSetup agentName="Company Phone Agent" callbackUrl="https://nexus.example/api/voice-webhooks/example/tools" credentials={{}} onChange={() => {}} onConnect={() => {}} />
       </Section>
 
       <Section title="External agent invitation">
@@ -2440,7 +2440,7 @@ export function DesignGuide() {
       {/* ============================================================ */}
       <Section title="Webhook URL warnings">
         <div className="space-y-3">
-          {["http://localhost:3100", "https://paperclip.internal", "https://paperclip.example-tailnet.ts.net", "http://paperclip.example.com", "not-a-url"].map((url) => <WebhookUrlWarning key={url} url={url} />)}
+          {["http://localhost:3100", "https://nexus.internal", "https://paperclip.example-tailnet.ts.net", "http://nexus.example.com", "not-a-url"].map((url) => <WebhookUrlWarning key={url} url={url} />)}
         </div>
       </Section>
 
@@ -2459,7 +2459,7 @@ export function DesignGuide() {
             title="Built-in agent"
             actions={<Button variant="outline" size="sm">Reset to defaults</Button>}
           >
-            Ships with Paperclip and powers <strong>Briefs</strong>. It can be paused but not deleted.
+            Ships with Nexus and powers <strong>Briefs</strong>. It can be paused but not deleted.
           </InlineBanner>
           <InlineBanner
             tone="warning"

@@ -2,19 +2,19 @@ import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import type { AgentDetail, GrokConnection } from "@paperclipai/shared";
+import type { AgentDetail, GrokConnection } from "@nexusai/shared";
 import { ConfigurationTab } from "@/pages/AgentDetail";
-import { storybookAgents } from "../../../fixtures/paperclipData";
+import { storybookAgents } from "../../../fixtures/nexusData";
 
 const agent: AgentDetail = {
   ...storybookAgents[0]!, id: "grok-config-agent", name: "Night Shift", urlKey: "night-shift",
-  adapterType: "paperclip_runner", adapterConfig: { provider: "grok_bot", allowUnmeteredProvider: true },
+  adapterType: "nexus_runner", adapterConfig: { provider: "grok_bot", allowUnmeteredProvider: true },
   chainOfCommand: [], access: { canAssignTasks: true, taskAssignSource: "explicit_grant", membership: null, grants: [] },
 };
 const bindingId = "11111111-1111-4111-8111-111111111111";
 const at = "2026-10-13T12:00:00Z";
 const connection: GrokConnection = {
-  enabled: true, resourceUrl: "https://paperclip.example/mcp/runner", agentStatus: "idle",
+  enabled: true, resourceUrl: "https://nexus.example/mcp/runner", agentStatus: "idle",
   agentLifecycleState: "ready", canConfigureConnection: true, recoveryNeeded: false,
   binding: {
     id: bindingId, providerKind: "grok_bot", status: "ready", connected: true, subscriptionVerified: false,
@@ -60,7 +60,7 @@ const meta = {
   title: "Agents and reusable capabilities/Hiring, configuration, and organization/Onboarding/Grok Bot/Configuration",
   component: Configuration,
   tags: ["autodocs"],
-  parameters: { layout: "fullscreen", docs: { story: { inline: false } }, paperclip: { capabilities: ["agents/grok-bot"], status: "proposed", implementation: "production", boundary: "fixtures", notes: "Production configuration page with synthetic connection observations. No Grok or authorization calls." } },
+  parameters: { layout: "fullscreen", docs: { story: { inline: false } }, nexus: { capabilities: ["agents/grok-bot"], status: "proposed", implementation: "production", boundary: "fixtures", notes: "Production configuration page with synthetic connection observations. No Grok or authorization calls." } },
 } satisfies Meta<typeof Configuration>;
 export default meta;
 type Story = StoryObj<typeof meta>;

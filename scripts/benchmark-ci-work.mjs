@@ -12,7 +12,7 @@ mkdirSync(output, { recursive: true });
 const results = [];
 const commands = [
   ['general-server', process.execPath, ['scripts/run-vitest-stable.mjs', '--mode', 'general', '--group', 'general-server-without-chat-or-native-runner', '--shard-index', '0', '--shard-count', '12']],
-  ['fixtures', 'pnpm', ['exec', 'vitest', 'run', '--project', '@paperclipai/server',
+  ['fixtures', 'pnpm', ['exec', 'vitest', 'run', '--project', '@nexusai/server',
     'server/src/services/workspace-git-snapshot-streaming.test.ts', 'server/src/__tests__/workspace-runtime.test.ts',
     '-t', 'streams.*all four real Git|commits fixed-port reservations']],
 ];
@@ -23,8 +23,8 @@ for (const [variant, cwd] of [['baseline', baseline], ['candidate', candidate]])
     const started = performance.now();
     const result = spawnSync(command, args, {
       cwd, encoding: 'utf8', timeout: 15 * 60_000, maxBuffer: 64 * 1024 * 1024,
-      env: { ...process.env, GITHUB_WORKSPACE: cwd, NODE_ENV: 'test', PAPERCLIP_CI_PROFILE: 'true',
-        PAPERCLIP_CI_PROFILE_DIR: profile, PAPERCLIP_CI_PROFILE_JOB: `benchmark-${variant}-${name}` },
+      env: { ...process.env, GITHUB_WORKSPACE: cwd, NODE_ENV: 'test', NEXUS_CI_PROFILE: 'true',
+        NEXUS_CI_PROFILE_DIR: profile, NEXUS_CI_PROFILE_JOB: `benchmark-${variant}-${name}` },
     });
     const wallMs = performance.now() - started;
     writeFileSync(path.join(output, `${variant}-${name}.log`), `${result.stdout ?? ''}\n${result.stderr ?? ''}`);

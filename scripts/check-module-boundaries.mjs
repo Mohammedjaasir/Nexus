@@ -9,7 +9,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const defaultServerSrc = resolve(repoRoot, "server/src");
 const defaultModulesRoot = resolve(defaultServerSrc, "modules");
 const layerNames = new Set(["domain", "application", "adapters"]);
-const databasePackages = ["@paperclipai/db", "drizzle-orm", "embedded-postgres", "postgres"];
+const databasePackages = ["@nexusai/db", "drizzle-orm", "embedded-postgres", "postgres"];
 const configurationTransactionCallers = new Set([
   "modules/external-agents/muse.ts", "modules/external-agents/dot.ts",
   "services/secret-proposals.ts", "services/connection-intents.ts", "services/dot-runner-broker.ts",

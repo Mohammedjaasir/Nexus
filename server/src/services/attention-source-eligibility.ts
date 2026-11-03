@@ -1,5 +1,5 @@
 import { and, eq, gt, inArray, sql, type SQL } from "drizzle-orm";
-import { heartbeatRuns, issueRecoveryActions, type Db } from "@paperclipai/db";
+import { heartbeatRuns, issueRecoveryActions, type Db } from "@nexusai/db";
 
 export const HUMAN_RECOVERY_OWNER_TYPES = ["user", "board"] as const;
 const OPEN_RECOVERY_ATTENTION_STATUSES = ["active", "escalated"] as const;

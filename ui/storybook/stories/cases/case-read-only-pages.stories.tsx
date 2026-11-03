@@ -12,7 +12,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     initialEntries: ["/PAP/cases"],
-    paperclip: {
+    nexus: {
       capabilities: ["cases/browse", "cases/structure", "cases/history", "cases/task-links", "cases/handoffs"],
       status: "current",
       implementation: "production",
@@ -63,7 +63,7 @@ export const Detail: Story = {
     await expect(tableElement).toHaveClass("font-mono");
     for (const [key, value] of [
       ["provider_event.id", "evt_104"],
-      ["provider_event.repository.name", "paperclip"],
+      ["provider_event.repository.name", "nexus"],
       ["delivery_attempts[0].request_id", "req_812"],
       ["delivery_attempts[1].result", "original receipt returned"],
     ]) {

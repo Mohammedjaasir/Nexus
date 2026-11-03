@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { grokConsumerDockerArgs } from './grok-public-install-sandbox.mjs';
 
-export const CURSOR_INSTALL_ACCOUNT_HOME = '/home/paperclip';
+export const CURSOR_INSTALL_ACCOUNT_HOME = '/home/nexus';
 
 // The host UID need not exist in the pinned image. Give it a real, isolated
 // account home that survives the separate installation and offline probe runs.
@@ -13,7 +13,7 @@ export function prepareCursorInstallAccount(root, uid, gid) {
   const home = join(root, 'account-home');
   const passwd = join(root, 'account-passwd');
   mkdirSync(home, { mode: 0o700 });
-  writeFileSync(passwd, `root:x:0:0:root:/root:/usr/sbin/nologin\npaperclip:x:${uid}:${gid}:Paperclip verification:${CURSOR_INSTALL_ACCOUNT_HOME}:/usr/sbin/nologin\n`, { mode: 0o444, flag: 'wx' });
+  writeFileSync(passwd, `root:x:0:0:root:/root:/usr/sbin/nologin\nnexus:x:${uid}:${gid}:Nexus verification:${CURSOR_INSTALL_ACCOUNT_HOME}:/usr/sbin/nologin\n`, { mode: 0o444, flag: 'wx' });
   return { home, passwd };
 }
 

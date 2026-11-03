@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ACPX_QUALIFICATION_MODELS } from "../acpx-qualification-models.js";
-import { QUALIFIED_OPENCODE_MODEL } from "../../packages/paperclip-runner/src/drivers/opencode/opencode-server-driver.js";
+import { QUALIFIED_OPENCODE_MODEL } from "../../packages/nexus-runner/src/drivers/opencode/opencode-server-driver.js";
 import {
   directAcceptanceProfiles,
   nativeAcceptanceProfiles,

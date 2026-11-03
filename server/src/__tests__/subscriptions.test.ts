@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { and, eq, sql } from "drizzle-orm";
-import { createDb, companies, agents, heartbeatRuns, costEvents, activityLog, aiSubscriptions, aiSubscriptionPrices, aiSubscriptionConnections, companySecrets, toolApplications, toolConnections, connectionGrants, connectionGrantMembers } from "@paperclipai/db";
-import { startEmbeddedPostgresTestDatabase } from "@paperclipai/db/test-embedded-postgres";
-import { monthlySubscriptionCents, subscriptionPlan, subscriptionPriceSchema } from "@paperclipai/shared";
+import { createDb, companies, agents, heartbeatRuns, costEvents, activityLog, aiSubscriptions, aiSubscriptionPrices, aiSubscriptionConnections, companySecrets, toolApplications, toolConnections, connectionGrants, connectionGrantMembers } from "@nexusai/db";
+import { startEmbeddedPostgresTestDatabase } from "@nexusai/db/test-embedded-postgres";
+import { monthlySubscriptionCents, subscriptionPlan, subscriptionPriceSchema } from "@nexusai/shared";
 import { subscriptionService, type SubscriptionConnection } from "../services/subscriptions.js";
 import { subscriptionCostReport } from "../services/subscription-report.js";
 import { refreshSubscriptionConnection } from "../services/subscription-refresh.js";
@@ -30,7 +30,7 @@ async function verifiedConnection(input: SubscriptionConnection) {
   return subscriptionService(db).register(input, observed);
 }
 
-beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("paperclip-subscriptions-"); db = createDb(database.connectionString); }, 90000);
+beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("nexus-subscriptions-"); db = createDb(database.connectionString); }, 90000);
 afterAll(async () => { await database?.cleanup(); });
 
 async function company() {

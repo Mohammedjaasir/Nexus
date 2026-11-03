@@ -11,9 +11,9 @@ import { restConnectorFor } from "../../connectors/rest-registry.js";
 import { retainMcpConnectionFailure } from "../../mcp-connection-failure.js";
 import { isBrowserUseConnection } from "../../browser-use-client.js";
 import { and, asc, eq, isNull, lte, ne, or, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { connectionGrants, toolApplications, toolConnections, toolRuntimeSlots } from "@paperclipai/db";
-import type { ToolConnectionHealthCheckResult, ToolConnectionHealthStatus } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { connectionGrants, toolApplications, toolConnections, toolRuntimeSlots } from "@nexusai/db";
+import type { ToolConnectionHealthCheckResult, ToolConnectionHealthStatus } from "@nexusai/shared";
 import { HttpError, unprocessable } from "../../../errors.js";
 
 import type { ToolAccessAudit } from "../audit.js";
@@ -254,7 +254,7 @@ export function createConnectionHealth(db: Db, { now, audit, getConnectionRow, d
           eq(toolConnections.status, "active"),
           ne(toolConnections.transport, "chat_sdk"),
           ne(toolConnections.transport, "runtime_auth"),
-          ne(toolApplications.type, "paperclip_plugin"),
+          ne(toolApplications.type, "nexus_plugin"),
           or(isNull(toolConnections.healthCheckedAt), lte(toolConnections.healthCheckedAt, cutoff)),
         ),
       )

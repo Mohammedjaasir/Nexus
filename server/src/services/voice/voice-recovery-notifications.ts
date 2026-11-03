@@ -1,7 +1,7 @@
 import { notifyVoiceReports } from "./voice-report-notifications.js";
 import { notifyVoiceInbound } from "./voice-inbound-notifications.js";
 import { notifyVoiceReplies } from "./voice-reply-notifications.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "../delivery-work-notifications.js";
 
 export type VoiceRecoveryScope = { kind: "session" | "endpoint" | "connection" | "company"; id: string };

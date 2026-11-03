@@ -5,25 +5,25 @@ import path from "node:path";
 import { parse as parseToml } from "smol-toml";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRuntimeStore, type AcpRuntimeOptions, type AcpSessionRecord, type AcpSessionStore } from "acpx/runtime";
-import type { AdapterExecutionContext, AdapterRuntimeMcpAccess } from "@paperclipai/adapter-utils";
+import type { AdapterExecutionContext, AdapterRuntimeMcpAccess } from "@nexusai/adapter-utils";
 import {
   DEFAULT_REMOTE_SANDBOX_ADAPTER_TIMEOUT_SEC,
   prepareAdapterExecutionTargetRuntime,
-  startAdapterExecutionTargetPaperclipBridge,
+  startAdapterExecutionTargetNexusBridge,
   startAdapterExecutionTargetProcessSessionBridge,
-} from "@paperclipai/adapter-utils/execution-target";
+} from "@nexusai/adapter-utils/execution-target";
 
 // Wrap the staging seam + both sandbox bridges in call-recording spies that
 // still delegate to the real implementations (a runner-backed sandbox test
 // exercises them end-to-end against a local runner). This lets the staging
 // tests assert the exact `runtimeRootDir`/`workspaceLocalDir`/`assets` the
 // engine threads without changing any real behavior for the other tests.
-vi.mock("@paperclipai/adapter-utils/execution-target", async (importActual) => {
-  const actual = await importActual<typeof import("@paperclipai/adapter-utils/execution-target")>();
+vi.mock("@nexusai/adapter-utils/execution-target", async (importActual) => {
+  const actual = await importActual<typeof import("@nexusai/adapter-utils/execution-target")>();
   return {
     ...actual,
     prepareAdapterExecutionTargetRuntime: vi.fn(actual.prepareAdapterExecutionTargetRuntime),
-    startAdapterExecutionTargetPaperclipBridge: vi.fn(actual.startAdapterExecutionTargetPaperclipBridge),
+    startAdapterExecutionTargetNexusBridge: vi.fn(actual.startAdapterExecutionTargetNexusBridge),
     startAdapterExecutionTargetProcessSessionBridge: vi.fn(actual.startAdapterExecutionTargetProcessSessionBridge),
   };
 });
@@ -64,7 +64,7 @@ const tempRoots: string[] = [];
 let defaultGeminiTestHome: string | undefined;
 
 async function makeTempRoot() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-acpx-skills-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-acpx-skills-"));
   tempRoots.push(root);
   return root;
 }
@@ -100,7 +100,7 @@ async function createSkill(root: string, name: string, body = `---\nrequired: fa
   await fs.mkdir(skillDir, { recursive: true });
   await fs.writeFile(path.join(skillDir, "SKILL.md"), body, "utf8");
   return {
-    key: `paperclipai/test/${name}`,
+    key: `nexusai/test/${name}`,
     runtimeName: name,
     source: skillDir,
     required: false,
@@ -365,7 +365,7 @@ function issueSandboxExecFromStore(
 // The closed span-attribute allowlist for a sandbox-start span. A test asserts
 // every recorded attribute key is in this set, so a command, path, id, or
 // error-text key can never ride a span. Every key uses the closed
-// `paperclip.sandbox.startup.` prefix from the attribute contract.
+// `nexus.sandbox.startup.` prefix from the attribute contract.
 const A = SANDBOX_STARTUP_SPAN_ATTRS;
 const ALLOWED_STARTUP_SPAN_ATTRIBUTE_KEYS = new Set<string>([
   // Step-span keys.
@@ -392,15 +392,15 @@ const ALLOWED_STARTUP_SPAN_ATTRIBUTE_KEYS = new Set<string>([
 // non-reversible run-id hash and its own wall time, so no command, path, id, or
 // error text can ride the `task.run` span.
 const ALLOWED_RUN_SPAN_ATTRIBUTE_KEYS = new Set<string>([
-  "paperclip.task.run.run_id",
-  "paperclip.task.run.wall_ms",
+  "nexus.task.run.run_id",
+  "nexus.task.run.wall_ms",
 ]);
 
 // The closed attribute allowlist for the agent turn span. It carries only its
 // own wall time, so no command, path, id, prompt, or error text can ride the
 // `agent.turn` span.
 const ALLOWED_TURN_SPAN_ATTRIBUTE_KEYS = new Set<string>([
-  "paperclip.agent.turn.wall_ms",
+  "nexus.agent.turn.wall_ms",
 ]);
 
 describe("shared ACPX engine runtime behavior", () => {
@@ -425,7 +425,7 @@ describe("shared ACPX engine runtime behavior", () => {
     expect(result.summary).toBe("end_turn");
     expect(result.sessionParams?.configFingerprint).toBeTypeOf("string");
     expect((result.sessionParams?.configFingerprint as string).length).toBeGreaterThan(0);
-    expect(result.sessionParams?.sessionKey).toBe(`paperclip:company-1:agent-1:default:${result.sessionParams?.configFingerprint}`);
+    expect(result.sessionParams?.sessionKey).toBe(`nexus:company-1:agent-1:default:${result.sessionParams?.configFingerprint}`);
   });
 
   it.each(["agentCommand", "cwd", "model", "thinkingEffort", "mode", "fastMode"] as const)(
@@ -436,7 +436,7 @@ describe("shared ACPX engine runtime behavior", () => {
         agent: dimension === "fastMode" ? "codex" : "custom", agentCommand: "node ./fake-acp.js",
         stateDir: path.join(root, "state"), cwd: root,
         env: { CODEX_HOME: path.join(root, "codex-home") },
-        paperclipRuntimeSkills: [], paperclipSkillSync: { desiredSkills: [] },
+        nexusRuntimeSkills: [], nexusSkillSync: { desiredSkills: [] },
       };
       const changed: Record<string, unknown> = {
         agentCommand: "node ./other-acp.js", cwd: path.join(root, "other-workspace"), model: "test-model",
@@ -555,7 +555,7 @@ describe("shared ACPX engine runtime behavior", () => {
     };
     const context = {
       taskId: "issue-1",
-      paperclipWorkspace: { cwd: root },
+      nexusWorkspace: { cwd: root },
     };
     const firstOnSpawn = vi.fn(async (meta: unknown) => {
       expect(meta).toEqual({ pid: processPid, processGroupId: null, startedAt });
@@ -617,7 +617,7 @@ describe("shared ACPX engine runtime behavior", () => {
   it.each([true, false])("applies company export to a server-managed Codex credential home (enabled=%s)", async (enabled) => {
     const root = await makeTempRoot();
     const home = path.join(root, "server-credential-projection", "provider");
-    const original = 'model = "managed-model"\n[model_providers.paperclip]\nname = "Managed provider"\n[mcp_servers.fixture]\nurl = "https://tools.example.test/mcp"\n';
+    const original = 'model = "managed-model"\n[model_providers.nexus]\nname = "Managed provider"\n[mcp_servers.fixture]\nurl = "https://tools.example.test/mcp"\n';
     await fs.mkdir(home, { recursive: true });
     await fs.writeFile(path.join(home, "config.toml"), original);
     await fs.writeFile(path.join(home, "auth.json"), '{"OPENAI_API_KEY":"fake-managed-provider-key"}');
@@ -628,7 +628,7 @@ describe("shared ACPX engine runtime behavior", () => {
     const run = await runExecutor({
       agent: "codex", agentCommand: "node ./fake-acp.js", cwd: root, stateDir: path.join(root, "state"),
       env: { CODEX_HOME: home }, managedAiConnection: { provider: "openai", method: "api_key", identity: "server-resolved-credential" },
-      paperclipRuntimeSkills: [], paperclipSkillSync: { desiredSkills: [] },
+      nexusRuntimeSkills: [], nexusSkillSync: { desiredSkills: [] },
     }, { observability: { kind: "codex", compatibilityKey: enabled ? "enabled" : "disabled", otelConfig, environment: {} } });
     expect(run.result.exitCode).toBe(0);
     const env = (run.sessionInputs[0]!.sessionOptions as { env: Record<string, string> }).env;
@@ -636,7 +636,7 @@ describe("shared ACPX engine runtime behavior", () => {
     const config = parseToml(await fs.readFile(path.join(env.CODEX_HOME!, "config.toml"), "utf8"));
     expect(config.otel).toEqual(otelConfig);
     expect(config.model).toBe("managed-model");
-    expect(config.model_providers).toEqual({ paperclip: { name: "Managed provider" } });
+    expect(config.model_providers).toEqual({ nexus: { name: "Managed provider" } });
     expect(config.mcp_servers).toEqual({ fixture: { url: "https://tools.example.test/mcp" } });
     expect(await fs.readFile(path.join(home, "config.toml"), "utf8")).toBe(original);
     expect(await fs.realpath(path.join(env.CODEX_HOME!, "auth.json"))).toBe(await fs.realpath(path.join(home, "auth.json")));
@@ -646,10 +646,10 @@ describe("shared ACPX engine runtime behavior", () => {
 
   it("changes the ACPX Codex configuration home while resuming the same conversation after export changes", async () => {
     const root = await makeTempRoot();
-    vi.stubEnv("PAPERCLIP_HOME", path.join(root, "paperclip"));
+    vi.stubEnv("NEXUS_HOME", path.join(root, "nexus"));
     vi.stubEnv("CODEX_HOME", path.join(root, "source"));
     try {
-      const config = { agent: "codex", agentCommand: "node ./fake-acp.js", cwd: root, stateDir: path.join(root, "state"), paperclipRuntimeSkills: [], paperclipSkillSync: { desiredSkills: [] } };
+      const config = { agent: "codex", agentCommand: "node ./fake-acp.js", cwd: root, stateDir: path.join(root, "state"), nexusRuntimeSkills: [], nexusSkillSync: { desiredSkills: [] } };
       const launch = (key: string) => ({ kind: "codex" as const, compatibilityKey: key, otelConfig: { exporter: "none", trace_exporter: "none", metrics_exporter: "none" }, environment: {} });
       const first = await runExecutor(config, { observability: launch("first") });
       const second = await runExecutor(config, { observability: launch("second"), runtime: { sessionParams: first.result.sessionParams } });
@@ -685,7 +685,7 @@ describe("shared ACPX engine runtime behavior", () => {
 
   it.each([true, false])("delivers configured service tokens to Codex shells while isolating host and provider credentials (identity: %s)", async (withIdentity) => {
     const root = await makeTempRoot();
-    vi.stubEnv("PAPERCLIP_HOME", root);
+    vi.stubEnv("NEXUS_HOME", root);
     vi.stubEnv("HOST_SERVICE_TOKEN", "host-token-canary");
     vi.stubEnv("DATABASE_URL", "postgres://host/private");
     try {
@@ -702,7 +702,7 @@ describe("shared ACPX engine runtime behavior", () => {
       const config = JSON.parse(String((meta[0]?.env as Record<string, string>).CODEX_CONFIG ?? "{}"));
       expect(config.shell_environment_policy?.include_only).toContain("SLACK_BOT_TOKEN");
       if (withIdentity) expect(config.shell_environment_policy.include_only).toEqual(expect.arrayContaining([
-        "PAPERCLIP_API_KEY", "PAPERCLIP_AGENT_PRIVATE_KEY",
+        "NEXUS_API_KEY", "NEXUS_AGENT_PRIVATE_KEY",
       ]));
       for (const key of ["HOST_SERVICE_TOKEN", "DATABASE_URL", "OPENAI_API_KEY", "OTEL_EXPORTER_OTLP_HEADERS"]) {
         expect(config.shell_environment_policy.include_only).not.toContain(key);
@@ -763,7 +763,7 @@ describe("shared ACPX engine runtime behavior", () => {
     });
     expect(logs).toContainEqual({
       stream: "stderr",
-      text: "[paperclip] Ignoring invalid user CODEX_CONFIG while applying runtime Codex settings; expected a JSON object.\n",
+      text: "[nexus] Ignoring invalid user CODEX_CONFIG while applying runtime Codex settings; expected a JSON object.\n",
     });
   });
 
@@ -808,8 +808,8 @@ describe("shared ACPX engine runtime behavior", () => {
     expect(prompt).toContain("You are agent agent-1");
     expect(prompt).toContain("Connection tools:");
     expect(prompt).not.toContain("Execution contract:");
-    expect(prompt).toContain(context.paperclipTaskMarkdownAssignment);
-    expect(prompt).toContain(context.paperclipTaskCommunicationGuidance);
+    expect(prompt).toContain(context.nexusTaskMarkdownAssignment);
+    expect(prompt).toContain(context.nexusTaskCommunicationGuidance);
     expect(prompt).not.toContain('"objective":');
     expect(prompt).not.toContain("### Issue description");
     expect(prompt).toContain('"id":"comment-first"');
@@ -822,8 +822,8 @@ describe("shared ACPX engine runtime behavior", () => {
     expect(resumed.sessionInputs[0]?.resumeSessionId).toBe(fresh.result.sessionId);
     const resumedPrompt = String(resumed.turnInputs[0]?.text ?? "");
     expect(resumedPrompt).not.toContain("Execution contract:");
-    expect(resumedPrompt).toContain(context.paperclipTaskMarkdownAssignmentCompact);
-    expect(resumedPrompt).not.toContain(context.paperclipTaskCommunicationGuidance);
+    expect(resumedPrompt).toContain(context.nexusTaskMarkdownAssignmentCompact);
+    expect(resumedPrompt).not.toContain(context.nexusTaskCommunicationGuidance);
     expect(resumedPrompt).not.toContain('"id":"comment-first"');
     expect(resumedPrompt).toContain('"id":"comment-second"');
     const reset = await runExecutor(config, { context });
@@ -831,11 +831,11 @@ describe("shared ACPX engine runtime behavior", () => {
     const resetPrompt = String(reset.turnInputs[0]?.text ?? "");
     expect(resetPrompt).toContain("You are agent agent-1");
     expect(resetPrompt).toContain("Connection tools:");
-    expect(resetPrompt).toContain(context.paperclipTaskMarkdownAssignment);
+    expect(resetPrompt).toContain(context.nexusTaskMarkdownAssignment);
     expect(resetPrompt).not.toContain("Execution contract:");
   });
 
-  it("includes Paperclip env and API access notes in the ACPX prompt without leaking the token", async () => {
+  it("includes Nexus env and API access notes in the ACPX prompt without leaking the token", async () => {
     const { meta } = await runExecutor(
       { agent: "custom", agentCommand: "node ./fake-acp.js" },
       {
@@ -843,7 +843,7 @@ describe("shared ACPX engine runtime behavior", () => {
         context: {
           taskId: "issue-1",
           wakeReason: "issue_assigned",
-          paperclipWake: {
+          nexusWake: {
             reason: "issue_assigned",
             issue: { id: "issue-1", identifier: "TEST-1" },
           },
@@ -853,18 +853,18 @@ describe("shared ACPX engine runtime behavior", () => {
 
     const prompt = String(meta[0]?.prompt ?? "");
     const promptMetrics = meta[0]?.promptMetrics as Record<string, number> | undefined;
-    expect(prompt).toContain("Paperclip runtime note:");
-    expect(prompt).toContain("PAPERCLIP_AGENT_ID");
-    expect(prompt).toContain("PAPERCLIP_API_KEY");
-    expect(prompt).not.toContain("PAPERCLIP_WAKE_PAYLOAD_JSON");
-    expect(prompt).toContain("## Paperclip Wake Payload");
+    expect(prompt).toContain("Nexus runtime note:");
+    expect(prompt).toContain("NEXUS_AGENT_ID");
+    expect(prompt).toContain("NEXUS_API_KEY");
+    expect(prompt).not.toContain("NEXUS_WAKE_PAYLOAD_JSON");
+    expect(prompt).toContain("## Nexus Wake Payload");
     expect(prompt).toContain("TEST-1");
-    expect(prompt).toContain("Paperclip API access note:");
-    expect(prompt).toContain('PAPERCLIP_API_BASE="${PAPERCLIP_API_URL%/}"; PAPERCLIP_API_BASE="${PAPERCLIP_API_BASE%/api}"');
-    expect(prompt).toContain("$PAPERCLIP_API_BASE/api/agents/me");
-    expect(prompt).toContain("$PAPERCLIP_API_BASE/api/issues/$PAPERCLIP_TASK_ID");
-    expect(prompt).toContain("X-Paperclip-Run-Id");
-    expect(prompt).not.toContain("$PAPERCLIP_API_URL/api/");
+    expect(prompt).toContain("Nexus API access note:");
+    expect(prompt).toContain('NEXUS_API_BASE="${NEXUS_API_URL%/}"; NEXUS_API_BASE="${NEXUS_API_BASE%/api}"');
+    expect(prompt).toContain("$NEXUS_API_BASE/api/agents/me");
+    expect(prompt).toContain("$NEXUS_API_BASE/api/issues/$NEXUS_TASK_ID");
+    expect(prompt).toContain("X-Nexus-Run-Id");
+    expect(prompt).not.toContain("$NEXUS_API_URL/api/");
     expect(prompt).not.toContain("/api/issues/{id}");
     expect(prompt).not.toContain("-d '{...}'");
     expect(prompt).not.toContain("runtime-secret-token");
@@ -875,7 +875,7 @@ describe("shared ACPX engine runtime behavior", () => {
     const root = await makeTempRoot();
     const config = {
       agent: "claude", cwd: root, stateDir: path.join(root, "state"), mode: "persistent",
-      env: { PAPERCLIP_WAKE_PAYLOAD_JSON: "stale configured wake" },
+      env: { NEXUS_WAKE_PAYLOAD_JSON: "stale configured wake" },
     };
     const messages = Array.from({ length: 50 }, (_, index) => ({
       id: `message-${index}`, authorType: "user", authorId: "user-1",
@@ -895,21 +895,21 @@ describe("shared ACPX engine runtime behavior", () => {
       completedActions, coverage: { kind: "full_task_history", throughCommentId: messages[49]!.id, summaryThroughCommentId: null },
     };
     expect(Buffer.byteLength(JSON.stringify(continuation))).toBeGreaterThan(128 * 1024);
-    const context = { taskId: "issue-1", paperclipWake: {
+    const context = { taskId: "issue-1", nexusWake: {
       reason: "issue_commented", issue: { id: "issue-1" }, executionContinuation: continuation,
     } };
     const fresh = await runExecutor(config, { context });
     const changedMessage = { ...messages[49]!, body: "Updated direction: preserve approval gates." };
     const resumed = await runExecutor(config, {
       runtime: { sessionParams: fresh.result.sessionParams },
-      context: { ...context, paperclipWake: { ...context.paperclipWake, executionContinuation: {
+      context: { ...context, nexusWake: { ...context.nexusWake, executionContinuation: {
         ...continuation, resumeDelta: { baseRunId: "run-1", messages: [changedMessage] },
       } } },
     });
     expect(resumed.sessionInputs[0]?.resumeSessionId).toBe(fresh.result.sessionId);
     for (const run of [fresh, resumed]) {
       const sessionOptions = run.sessionInputs[0]?.sessionOptions as Record<string, unknown>;
-      expect(sessionOptions.env).not.toHaveProperty("PAPERCLIP_WAKE_PAYLOAD_JSON");
+      expect(sessionOptions.env).not.toHaveProperty("NEXUS_WAKE_PAYLOAD_JSON");
       const prompt = String(run.turnInputs[0]?.text);
       expect(prompt).not.toContain("stale configured wake");
       for (const action of completedActions) expect(prompt).toContain(JSON.stringify(action));
@@ -933,10 +933,10 @@ describe("shared ACPX engine runtime behavior", () => {
     const context = {
       conversationMode: true,
       taskId: "chat-1",
-      paperclipTaskMarkdown: chatDirective,
-      paperclipTaskMarkdownCompact: chatDirective,
-      paperclipTaskCommunicationGuidance: "Frozen Slack communication preference.",
-      paperclipWake: {
+      nexusTaskMarkdown: chatDirective,
+      nexusTaskMarkdownCompact: chatDirective,
+      nexusTaskCommunicationGuidance: "Frozen Slack communication preference.",
+      nexusWake: {
         reason: "issue_commented",
         issue: { id: "chat-1", workMode: "planning", status: "in_progress" },
         interactionKind: "request_confirmation",
@@ -980,8 +980,8 @@ describe("shared ACPX engine runtime behavior", () => {
         authToken: "runtime-secret-token",
         context: {
           taskId: "issue-chat-1",
-          paperclipTaskMarkdown: "# CHAT-1 — Answer the provider message",
-          paperclipWake: {
+          nexusTaskMarkdown: "# CHAT-1 — Answer the provider message",
+          nexusWake: {
             reason: "External chat message received",
             externalChatProvider: "discord",
             checkedOutByHarness: true,
@@ -1018,9 +1018,9 @@ describe("shared ACPX engine runtime behavior", () => {
     const promptMetrics = meta[0]?.promptMetrics as Record<string, number> | undefined;
     expect(prompt).toContain("## External chat response contract");
     expect(prompt).toContain("# CHAT-1 — Answer the provider message");
-    expect(prompt).toContain("Make zero Paperclip API calls");
-    expect(prompt).not.toContain("Paperclip API access note:");
-    expect(prompt).not.toContain("Paperclip runtime note:");
+    expect(prompt).toContain("Make zero Nexus API calls");
+    expect(prompt).not.toContain("Nexus API access note:");
+    expect(prompt).not.toContain("Nexus runtime note:");
     expect(prompt).not.toContain(
       "Leave durable progress in comments, documents, or work products",
     );
@@ -1035,8 +1035,8 @@ describe("shared ACPX engine runtime behavior", () => {
         authToken: "runtime-secret-token",
         context: {
           taskId: "issue-chat-overflow",
-          paperclipTaskMarkdown: "# CHAT-2 — Answer every queued message",
-          paperclipWake: {
+          nexusTaskMarkdown: "# CHAT-2 — Answer every queued message",
+          nexusWake: {
             reason: "External chat message received",
             externalChatProvider: "slack",
             checkedOutByHarness: true,
@@ -1070,7 +1070,7 @@ describe("shared ACPX engine runtime behavior", () => {
     const prompt = String(meta[0]?.prompt ?? "");
     expect(prompt).not.toContain("read_current_wake_comments");
     expect(prompt).not.toContain("## External chat response contract");
-    expect(prompt).toContain("Paperclip API access note:");
+    expect(prompt).toContain("Nexus API access note:");
     expect(prompt).toContain("Only fetch the API thread");
   });
 
@@ -1084,7 +1084,7 @@ describe("shared ACPX engine runtime behavior", () => {
       {
         context: {
           taskId: "issue-chat-1",
-          paperclipWake: {
+          nexusWake: {
             reason: "External chat message received",
             externalChatProvider: "telegram",
             checkedOutByHarness: true,
@@ -1122,9 +1122,9 @@ describe("shared ACPX engine runtime behavior", () => {
     );
 
     const prompt = String(meta[0]?.prompt ?? "");
-    expect(prompt).toContain("Paperclip API access note:");
+    expect(prompt).toContain("Nexus API access note:");
     expect(prompt).toContain("Use a real issue id from the current context before making issue write requests.");
-    expect(prompt).not.toContain("$PAPERCLIP_API_BASE/api/issues/$PAPERCLIP_TASK_ID");
+    expect(prompt).not.toContain("$NEXUS_API_BASE/api/issues/$NEXUS_TASK_ID");
   });
 
   it("emits ACP text deltas as stdout transcript records", async () => {
@@ -1786,8 +1786,8 @@ describe("shared ACPX engine runtime behavior", () => {
     const { meta } = await runExecutor({
       agent: "claude",
       stateDir,
-      paperclipRuntimeSkills: [skill],
-      paperclipSkillSync: { desiredSkills: [skill.key] },
+      nexusRuntimeSkills: [skill],
+      nexusSkillSync: { desiredSkills: [skill.key] },
     });
 
     const mountedRoot = await onlyChildDir(path.join(stateDir, "runtime-skills", "claude"));
@@ -1815,18 +1815,18 @@ describe("shared ACPX engine runtime behavior", () => {
       agent: "codex",
       stateDir: path.join(root, "state"),
       env: { CODEX_HOME: codexHome },
-      paperclipRuntimeSkills: [keep, remove],
+      nexusRuntimeSkills: [keep, remove],
     };
 
     await runExecutor({
       ...baseConfig,
-      paperclipSkillSync: { desiredSkills: [keep.key, remove.key] },
+      nexusSkillSync: { desiredSkills: [keep.key, remove.key] },
     });
     expect(await pathExists(path.join(codexHome, "skills", remove.runtimeName, "SKILL.md"))).toBe(true);
 
     await runExecutor({
       ...baseConfig,
-      paperclipSkillSync: { desiredSkills: [keep.key] },
+      nexusSkillSync: { desiredSkills: [keep.key] },
     });
 
     expect(await pathExists(path.join(codexHome, "skills", keep.runtimeName, "SKILL.md"))).toBe(true);
@@ -1840,16 +1840,16 @@ describe("shared ACPX engine runtime behavior", () => {
     const skillRoot = path.join(root, "skills");
     const codexHome = path.join(root, "codex-home");
     const operational = {
-      ...await createSkill(skillRoot, "paperclip"),
-      key: "paperclipai/paperclip/paperclip",
+      ...await createSkill(skillRoot, "nexus"),
+      key: "paperclipai/paperclip/nexus",
     };
 
     await runExecutor({
       agent: "codex",
       stateDir: path.join(root, "state"),
       env: { CODEX_HOME: codexHome },
-      paperclipRuntimeSkills: [operational],
-      paperclipSkillSync: { desiredSkills: [] },
+      nexusRuntimeSkills: [operational],
+      nexusSkillSync: { desiredSkills: [] },
     });
 
     expect(await pathExists(path.join(codexHome, "skills", operational.runtimeName, "SKILL.md"))).toBe(true);
@@ -1858,8 +1858,8 @@ describe("shared ACPX engine runtime behavior", () => {
   it.each(["codex", "gemini"])("refreshes the %s skill root when a connection home changes between turns", async (agent) => {
     const root = await makeTempRoot();
     const operational = {
-      ...await createSkill(path.join(root, "skills"), "paperclip"),
-      key: "paperclipai/paperclip/paperclip",
+      ...await createSkill(path.join(root, "skills"), "nexus"),
+      key: "paperclipai/paperclip/nexus",
     };
     const homes = [path.join(root, "first-home"), path.join(root, "next-home")];
     for (const home of homes) {
@@ -1867,8 +1867,8 @@ describe("shared ACPX engine runtime behavior", () => {
         agent,
         stateDir: path.join(root, "state"),
         env: agent === "codex" ? { CODEX_HOME: home } : { HOME: home },
-        paperclipRuntimeSkills: [operational],
-        paperclipSkillSync: { desiredSkills: [] },
+        nexusRuntimeSkills: [operational],
+        nexusSkillSync: { desiredSkills: [] },
       });
       const skillsHome = agent === "codex" ? path.join(home, "skills") : path.join(home, ".gemini", "skills");
       expect(String(meta[0]?.prompt ?? "")).toContain(`Skill root for this run: ${skillsHome}`);
@@ -1891,8 +1891,8 @@ describe("shared ACPX engine runtime behavior", () => {
       agent: "codex",
       stateDir: path.join(root, "state"),
       env: { CODEX_HOME: codexHome },
-      paperclipRuntimeSkills: [legacy],
-      paperclipSkillSync: { desiredSkills: [] },
+      nexusRuntimeSkills: [legacy],
+      nexusSkillSync: { desiredSkills: [] },
     });
 
     expect(await pathExists(path.join(skillsHome, legacy.runtimeName))).toBe(false);
@@ -1901,12 +1901,12 @@ describe("shared ACPX engine runtime behavior", () => {
   it.skipIf(process.platform === "win32")("replaces stale managed Codex auth files with source symlinks", async () => {
     const root = await makeTempRoot();
     const sourceCodexHome = path.join(root, "source-codex-home");
-    const paperclipHome = path.join(root, "paperclip-home");
-    const paperclipInstanceId = "test-instance";
+    const nexusHome = path.join(root, "nexus-home");
+    const nexusInstanceId = "test-instance";
     const managedCodexHome = path.join(
-      paperclipHome,
+      nexusHome,
       "instances",
-      paperclipInstanceId,
+      nexusInstanceId,
       "companies",
       "company-1",
       "codex-home",
@@ -1919,25 +1919,25 @@ describe("shared ACPX engine runtime behavior", () => {
     await fs.writeFile(managedAuth, "{\"stale\":true}", "utf8");
 
     const previousCodexHome = process.env.CODEX_HOME;
-    const previousPaperclipHome = process.env.PAPERCLIP_HOME;
-    const previousPaperclipInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
+    const previousNexusHome = process.env.NEXUS_HOME;
+    const previousNexusInstanceId = process.env.NEXUS_INSTANCE_ID;
     try {
       process.env.CODEX_HOME = sourceCodexHome;
-      process.env.PAPERCLIP_HOME = paperclipHome;
-      process.env.PAPERCLIP_INSTANCE_ID = paperclipInstanceId;
+      process.env.NEXUS_HOME = nexusHome;
+      process.env.NEXUS_INSTANCE_ID = nexusInstanceId;
       await runExecutor({
         agent: "codex",
         stateDir: path.join(root, "state"),
-        paperclipRuntimeSkills: [],
-        paperclipSkillSync: { desiredSkills: [] },
+        nexusRuntimeSkills: [],
+        nexusSkillSync: { desiredSkills: [] },
       });
     } finally {
       if (previousCodexHome === undefined) delete process.env.CODEX_HOME;
       else process.env.CODEX_HOME = previousCodexHome;
-      if (previousPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-      else process.env.PAPERCLIP_HOME = previousPaperclipHome;
-      if (previousPaperclipInstanceId === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-      else process.env.PAPERCLIP_INSTANCE_ID = previousPaperclipInstanceId;
+      if (previousNexusHome === undefined) delete process.env.NEXUS_HOME;
+      else process.env.NEXUS_HOME = previousNexusHome;
+      if (previousNexusInstanceId === undefined) delete process.env.NEXUS_INSTANCE_ID;
+      else process.env.NEXUS_INSTANCE_ID = previousNexusInstanceId;
     }
 
     const authStat = await fs.lstat(managedAuth);
@@ -1950,12 +1950,12 @@ describe("shared ACPX engine runtime behavior", () => {
     async (keyName) => {
       const root = await makeTempRoot();
       const sourceCodexHome = path.join(root, "source-codex-home");
-      const paperclipHome = path.join(root, "paperclip-home");
+      const nexusHome = path.join(root, "nexus-home");
       await fs.mkdir(sourceCodexHome, { recursive: true });
       const sourceAuth = path.join(sourceCodexHome, "auth.json");
       await fs.writeFile(sourceAuth, JSON.stringify({ tokens: "host-login" }), "utf8");
       const managedHome = path.join(
-        paperclipHome, "instances", "test-instance", "companies", "company-1",
+        nexusHome, "instances", "test-instance", "companies", "company-1",
         "acp-engine", "agents", "agent-1", "codex-home",
       );
       await fs.mkdir(managedHome, { recursive: true });
@@ -1967,8 +1967,8 @@ describe("shared ACPX engine runtime behavior", () => {
       }
 
       vi.stubEnv("CODEX_HOME", sourceCodexHome);
-      vi.stubEnv("PAPERCLIP_HOME", paperclipHome);
-      vi.stubEnv("PAPERCLIP_INSTANCE_ID", "test-instance");
+      vi.stubEnv("NEXUS_HOME", nexusHome);
+      vi.stubEnv("NEXUS_INSTANCE_ID", "test-instance");
       vi.stubEnv("OPENAI_API_KEY", "");
       vi.stubEnv("CODEX_API_KEY", "");
       try {
@@ -1976,8 +1976,8 @@ describe("shared ACPX engine runtime behavior", () => {
           agent: "codex",
           stateDir: path.join(root, "state"),
           env: { [keyName]: "sk-acp-test-key" },
-          paperclipRuntimeSkills: [],
-          paperclipSkillSync: { desiredSkills: [] },
+          nexusRuntimeSkills: [],
+          nexusSkillSync: { desiredSkills: [] },
         });
         const sessionEnv = (sessionInputs[0]!.sessionOptions as { env: Record<string, string> }).env;
         expect(sessionEnv.CODEX_HOME).toBe(managedHome);
@@ -1996,12 +1996,12 @@ describe("shared ACPX engine runtime behavior", () => {
 
   it("sets GROK_HOME for a Grok run from the company Grok home, and leaves CODEX_HOME unchanged for a Codex run", async () => {
     const root = await makeTempRoot();
-    const paperclipHome = path.join(root, "paperclip-home");
-    const previousPaperclipHome = process.env.PAPERCLIP_HOME;
-    const previousPaperclipInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
+    const nexusHome = path.join(root, "nexus-home");
+    const previousNexusHome = process.env.NEXUS_HOME;
+    const previousNexusInstanceId = process.env.NEXUS_INSTANCE_ID;
     try {
-      process.env.PAPERCLIP_HOME = paperclipHome;
-      process.env.PAPERCLIP_INSTANCE_ID = "default";
+      process.env.NEXUS_HOME = nexusHome;
+      process.env.NEXUS_INSTANCE_ID = "default";
 
       const grokRun = await runExecutor({
         agent: "grok",
@@ -2011,7 +2011,7 @@ describe("shared ACPX engine runtime behavior", () => {
       expect(grokRun.sessionInputs[0]?.sessionOptions).toMatchObject({
         env: expect.objectContaining({
           GROK_HOME: path.join(
-            paperclipHome,
+            nexusHome,
             "instances",
             "default",
             "companies",
@@ -2026,18 +2026,18 @@ describe("shared ACPX engine runtime behavior", () => {
         agent: "codex",
         stateDir: path.join(root, "state-codex"),
         env: { CODEX_HOME: codexHome },
-        paperclipRuntimeSkills: [],
-        paperclipSkillSync: { desiredSkills: [] },
+        nexusRuntimeSkills: [],
+        nexusSkillSync: { desiredSkills: [] },
       });
       const codexEnv = (codexRun.sessionInputs[0]?.sessionOptions as { env: Record<string, string> })
         .env;
       expect(codexEnv.CODEX_HOME).toBe(codexHome);
       expect(codexEnv.GROK_HOME).toBeUndefined();
     } finally {
-      if (previousPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-      else process.env.PAPERCLIP_HOME = previousPaperclipHome;
-      if (previousPaperclipInstanceId === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-      else process.env.PAPERCLIP_INSTANCE_ID = previousPaperclipInstanceId;
+      if (previousNexusHome === undefined) delete process.env.NEXUS_HOME;
+      else process.env.NEXUS_HOME = previousNexusHome;
+      if (previousNexusInstanceId === undefined) delete process.env.NEXUS_INSTANCE_ID;
+      else process.env.NEXUS_INSTANCE_ID = previousNexusInstanceId;
     }
   });
 
@@ -2065,7 +2065,7 @@ describe("shared ACPX engine runtime behavior", () => {
     ).toBe("node ./fake-acp.js");
     expect(
       (second.sessionInputs[0]!.sessionOptions as { env: Record<string, string> }).env
-        .PAPERCLIP_API_KEY,
+        .NEXUS_API_KEY,
     ).toBe("new-key");
     await expect(fs.access(path.join(stateDir, "wrappers"))).rejects.toThrow();
   });
@@ -2082,11 +2082,11 @@ describe("shared ACPX engine runtime behavior", () => {
           // Server-resolved secret_ref values arrive here as plain strings.
           OPENROUTER_API_KEY: "resolved-secret-value",
           // Reserved-namespace config keys must not clobber runtime identity/wake.
-          PAPERCLIP_TASK_ID: "attacker-issue",
-          // PAPERCLIP_API_KEY is never accepted from config.
-          PAPERCLIP_API_KEY: "config-key",
-          // A PAPERCLIP_*-named key the harness does not assign flows through.
-          PAPERCLIP_CLOUD_PROVIDER_TOKEN: "cloud-token",
+          NEXUS_TASK_ID: "attacker-issue",
+          // NEXUS_API_KEY is never accepted from config.
+          NEXUS_API_KEY: "config-key",
+          // A NEXUS_*-named key the harness does not assign flows through.
+          NEXUS_CLOUD_PROVIDER_TOKEN: "cloud-token",
         },
       },
       {
@@ -2097,9 +2097,9 @@ describe("shared ACPX engine runtime behavior", () => {
     const env = (sessionInputs[0]!.sessionOptions as { env: Record<string, string> }).env;
     expect(env.OOGA_BOOGA_123).toBe("plain-value");
     expect(env.OPENROUTER_API_KEY).toBe("resolved-secret-value");
-    expect(env.PAPERCLIP_TASK_ID).toBe("issue-real");
-    expect(env.PAPERCLIP_API_KEY).toBe("runtime-secret-token");
-    expect(env.PAPERCLIP_CLOUD_PROVIDER_TOKEN).toBe("cloud-token");
+    expect(env.NEXUS_TASK_ID).toBe("issue-real");
+    expect(env.NEXUS_API_KEY).toBe("runtime-secret-token");
+    expect(env.NEXUS_CLOUD_PROVIDER_TOKEN).toBe("cloud-token");
   });
 
   it.each(["OPENAI_API_KEY", "CODEX_API_KEY"] as const)(
@@ -2116,8 +2116,8 @@ describe("shared ACPX engine runtime behavior", () => {
           CODEX_HOME: codexHome,
           [apiKeyName]: "sk-acp-test-key",
         },
-        paperclipRuntimeSkills: [],
-        paperclipSkillSync: { desiredSkills: [] },
+        nexusRuntimeSkills: [],
+        nexusSkillSync: { desiredSkills: [] },
       });
 
       const env = (sessionInputs[0]!.sessionOptions as { env: Record<string, string> }).env;
@@ -2142,8 +2142,8 @@ describe("shared ACPX engine runtime behavior", () => {
           agent: "codex",
           stateDir: path.join(root, "state"),
           env: { CODEX_HOME: codexHome },
-          paperclipRuntimeSkills: [],
-          paperclipSkillSync: { desiredSkills: [] },
+          nexusRuntimeSkills: [],
+          nexusSkillSync: { desiredSkills: [] },
         });
 
         const env = (sessionInputs[0]!.sessionOptions as { env: Record<string, string> }).env;
@@ -2181,7 +2181,7 @@ describe("shared ACPX engine runtime behavior", () => {
     expect(fp(first)).toBeDefined();
     expect(fp(changedEnv)).not.toBe(fp(first));
     // A new heartbeat with the same config env keeps the fingerprint stable, so
-    // per-wake PAPERCLIP_* churn does not needlessly reset the session.
+    // per-wake NEXUS_* churn does not needlessly reset the session.
     expect(fp(sameEnvNewWake)).toBe(fp(first));
   });
 
@@ -2190,9 +2190,9 @@ describe("shared ACPX engine runtime behavior", () => {
     const config = { agentCommand: "node ./fake-acp.js", stateDir: path.join(root, "state") };
     async function withScratch(dir: string, userTemp: string) {
       return runExecutor({ ...config, env: {
-        PAPERCLIP_RUN_SCRATCH_DIR: dir, PAPERCLIP_TASK_SCRATCH_DIR: dir,
-        PAPERCLIP_SCRATCH_DIR: dir, PAPERCLIP_TMPDIR: dir, TEMP: dir, TMP: dir, TMPDIR: userTemp,
-      } }, { context: { taskId: "issue-1", paperclipScratch: { type: "heartbeat_run", dir, tempKeysApplied: ["TEMP", "TMP"] } } });
+        NEXUS_RUN_SCRATCH_DIR: dir, NEXUS_TASK_SCRATCH_DIR: dir,
+        NEXUS_SCRATCH_DIR: dir, NEXUS_TMPDIR: dir, TEMP: dir, TMP: dir, TMPDIR: userTemp,
+      } }, { context: { taskId: "issue-1", nexusScratch: { type: "heartbeat_run", dir, tempKeysApplied: ["TEMP", "TMP"] } } });
     }
     const first = await withScratch(path.join(root, "run-1"), "/custom/tmp-1");
     const second = await withScratch(path.join(root, "run-2"), "/custom/tmp-1");
@@ -2201,22 +2201,22 @@ describe("shared ACPX engine runtime behavior", () => {
     expect(changed.result.sessionParams?.configFingerprint).not.toBe(first.result.sessionParams?.configFingerprint);
   });
 
-  it("busts the session fingerprint when a stable configured PAPERCLIP_* value rotates", async () => {
+  it("busts the session fingerprint when a stable configured NEXUS_* value rotates", async () => {
     const root = await makeTempRoot();
     const stateDir = path.join(root, "state");
     const baseConfig = { agentCommand: "node ./fake-acp.js", stateDir };
 
-    // A configured PAPERCLIP_*-named value the harness does not assign (e.g. a
+    // A configured NEXUS_*-named value the harness does not assign (e.g. a
     // cloud provider token binding) is stable per-run config: rotating it must
     // invalidate a warm/resumable session so the next launch sources the new
     // value, even across an otherwise-identical wake context.
     const context = { taskId: "issue-1", wakeReason: "issue_assigned" };
     const withKey = await runExecutor(
-      { ...baseConfig, env: { PAPERCLIP_CLOUD_PROVIDER_TOKEN: "explicit-key-1" } },
+      { ...baseConfig, env: { NEXUS_CLOUD_PROVIDER_TOKEN: "explicit-key-1" } },
       { context },
     );
     const rotatedKey = await runExecutor(
-      { ...baseConfig, env: { PAPERCLIP_CLOUD_PROVIDER_TOKEN: "explicit-key-2" } },
+      { ...baseConfig, env: { NEXUS_CLOUD_PROVIDER_TOKEN: "explicit-key-2" } },
       { context },
     );
 
@@ -2240,7 +2240,7 @@ describe("shared ACPX engine runtime behavior", () => {
       context: {
         taskId: "issue-1",
         wakeReason: "issue_assigned",
-        paperclipWorkspace: { cwd, realization: { additional } },
+        nexusWorkspace: { cwd, realization: { additional } },
       },
     });
     const projectA = {
@@ -2301,7 +2301,7 @@ describe("shared ACPX engine runtime behavior", () => {
         context: {
           taskId: "issue-1",
           wakeReason: "issue_assigned",
-          paperclipWorkspace: {
+          nexusWorkspace: {
             cwd,
             realization: {
               additional: projectPaths.map((localPath, index) => ({
@@ -2348,7 +2348,7 @@ describe("shared ACPX engine runtime behavior", () => {
       context: {
         taskId: "issue-1",
         wakeReason: "issue_assigned",
-        paperclipWorkspace: { cwd, realization: { additional: [referencedProject] } },
+        nexusWorkspace: { cwd, realization: { additional: [referencedProject] } },
       },
     });
     const fp = (r: { result: { sessionParams?: unknown } }) =>
@@ -2400,7 +2400,7 @@ describe("shared ACPX engine runtime behavior", () => {
       context: {
         taskId: "issue-1",
         wakeReason: "issue_assigned",
-        paperclipWorkspace: { cwd, realization: { additional: [referencedProject] } },
+        nexusWorkspace: { cwd, realization: { additional: [referencedProject] } },
       },
     });
     const fp = (r: { result: { sessionParams?: unknown } }) =>
@@ -2504,10 +2504,10 @@ describe("shared ACPX engine runtime behavior", () => {
     const remoteCwd = "/workspace/remote";
     const { sessionInputs, runtimeOptions } = await runExecutor(
       { agent: "custom", agentCommand: "node ./fake-acp.js", cwd: localCwd, stateDir: path.join(root, "state") },
-      { context: { paperclipWorkspace: { cwd: localCwd, workspaceWorktreePath: localCwd } }, executionTarget: { kind: "remote", transport: "ssh", remoteCwd } },
+      { context: { nexusWorkspace: { cwd: localCwd, workspaceWorktreePath: localCwd } }, executionTarget: { kind: "remote", transport: "ssh", remoteCwd } },
     );
     const env = (sessionInputs[0]!.sessionOptions as { env: Record<string, string> }).env;
-    expect(env.PAPERCLIP_WORKSPACE_CWD).toBe(localCwd);
+    expect(env.NEXUS_WORKSPACE_CWD).toBe(localCwd);
     // The ssh remote transport is NOT the runner-backed process-session lane, so
     // it stays byte-identical: no host-spawn redirect. `cwd` is the host cwd and
     // `spawnCwd` is unset.
@@ -2529,11 +2529,11 @@ describe("shared ACPX engine runtime behavior", () => {
     ]);
     expect(
       (first.sessionInputs[0]!.sessionOptions as { env: Record<string, string> }).env
-        .PAPERCLIP_API_KEY,
+        .NEXUS_API_KEY,
     ).toBe("first");
     expect(
       (second.sessionInputs[0]!.sessionOptions as { env: Record<string, string> }).env
-        .PAPERCLIP_API_KEY,
+        .NEXUS_API_KEY,
     ).toBe("second");
   });
 
@@ -2635,9 +2635,9 @@ describe("shared ACPX engine runtime behavior", () => {
     let sessionPayload: Record<string, unknown> | null = null;
     const runner = createLocalSandboxRunner(
       (input: { args?: string[]; env?: Record<string, string> }) => {
-        if (input.env?.PAPERCLIP_SANDBOX_EXEC_CHANNEL === "bridge") {
+        if (input.env?.NEXUS_SANDBOX_EXEC_CHANNEL === "bridge") {
           const script = input.args?.[1] ?? "";
-          const match = script.match(/PAPERCLIP_PROCESS_SESSION_COMMAND_B64='([^']+)'/);
+          const match = script.match(/NEXUS_PROCESS_SESSION_COMMAND_B64='([^']+)'/);
           if (match) {
             sessionPayload = JSON.parse(Buffer.from(match[1]!, "base64").toString("utf8")) as Record<string, unknown>;
           }
@@ -2677,17 +2677,17 @@ describe("shared ACPX engine runtime behavior", () => {
     expect(runtimeOptions[0]!.spawnCwd).toBe(localCwd);
     const proxyCommand = (runtimeOptions[0]!.agentRegistry as { resolve(name: string): string }).resolve("custom");
     expect(proxyCommand.startsWith(`${JSON.stringify(process.execPath.replaceAll("\\", "/"))} `)).toBe(true);
-    expect(proxyCommand).toContain("paperclip-process-session-proxy.mjs");
+    expect(proxyCommand).toContain("nexus-process-session-proxy.mjs");
     expect(runtimeOptions[0]!.spawnCwd).not.toBe(sessionInputs[0]!.cwd);
     const payloadEnv = ((sessionPayload as Record<string, unknown> | null)?.env ?? {}) as Record<string, unknown>;
     expect(payloadEnv).toMatchObject({
-      PAPERCLIP_API_BRIDGE_MODE: "queue_v1",
+      NEXUS_API_BRIDGE_MODE: "queue_v1",
     });
-    expect(String(payloadEnv.PAPERCLIP_API_URL ?? "")).toMatch(
+    expect(String(payloadEnv.NEXUS_API_URL ?? "")).toMatch(
       /^http:\/\/127\.0\.0\.1:\d+$/,
     );
-    expect(payloadEnv.PAPERCLIP_API_KEY).toBeTruthy();
-    expect(payloadEnv.PAPERCLIP_API_KEY).not.toBe("real-run-jwt");
+    expect(payloadEnv.NEXUS_API_KEY).toBeTruthy();
+    expect(payloadEnv.NEXUS_API_KEY).not.toBe("real-run-jwt");
   });
 
   it("keeps the session fingerprint stable when only the host spawn cwd changes", async () => {
@@ -2815,7 +2815,7 @@ describe("shared ACPX engine runtime behavior", () => {
     await expect(fs.readFile(path.join(stateDir, "run-stderr", "run-warm-2.log"), "utf8")).resolves.toContain("current-run-stderr");
   });
 
-  it("passes Paperclip env through ACPX session options instead of process.env", async () => {
+  it("passes Nexus env through ACPX session options instead of process.env", async () => {
     let observedSessionEnv: Record<string, string> | undefined;
     const execute = createAcpxEngineExecutor({
       createRuntime: () => ({
@@ -2831,9 +2831,9 @@ describe("shared ACPX engine runtime behavior", () => {
         close: async () => {},
       }) as never,
     });
-    const previousApiKey = process.env.PAPERCLIP_API_KEY;
+    const previousApiKey = process.env.NEXUS_API_KEY;
     try {
-      delete process.env.PAPERCLIP_API_KEY;
+      delete process.env.NEXUS_API_KEY;
       const result = await execute({
         runId: "run-1",
         agent: { id: "agent-1", companyId: "company-1" },
@@ -2845,15 +2845,15 @@ describe("shared ACPX engine runtime behavior", () => {
         onMeta: async () => {},
       } as never);
       expect(result.exitCode).toBe(0);
-      expect(observedSessionEnv?.PAPERCLIP_API_KEY).toBe("runtime-key");
-      expect(process.env.PAPERCLIP_API_KEY).toBeUndefined();
+      expect(observedSessionEnv?.NEXUS_API_KEY).toBe("runtime-key");
+      expect(process.env.NEXUS_API_KEY).toBeUndefined();
     } finally {
-      if (previousApiKey === undefined) delete process.env.PAPERCLIP_API_KEY;
-      else process.env.PAPERCLIP_API_KEY = previousApiKey;
+      if (previousApiKey === undefined) delete process.env.NEXUS_API_KEY;
+      else process.env.NEXUS_API_KEY = previousApiKey;
     }
   });
 
-  it("writes a Paperclip-managed .claude/settings.local.json for the claude agent so it can reach the Paperclip API", async () => {
+  it("writes a Nexus-managed .claude/settings.local.json for the claude agent so it can reach the Nexus API", async () => {
     const root = await makeTempRoot();
     const stateDir = path.join(root, "state");
     const cwd = path.join(root, "worktree");
@@ -2861,7 +2861,7 @@ describe("shared ACPX engine runtime behavior", () => {
 
     const { meta } = await runExecutor(
       { agent: "claude", stateDir, cwd },
-      { context: { paperclipWorkspace: { cwd, agentHome: path.join(root, "agent-home") } } },
+      { context: { nexusWorkspace: { cwd, agentHome: path.join(root, "agent-home") } } },
     );
 
     const settingsPath = path.join(cwd, ".claude", "settings.local.json");
@@ -2876,19 +2876,19 @@ describe("shared ACPX engine runtime behavior", () => {
     const allow = written.permissions?.allow;
     expect(Array.isArray(allow)).toBe(true);
     expect(allow).toContain("Bash(curl:*)");
-    expect(allow).toContain(`Bash(${cwd}/scripts/paperclip-issue-update.sh:*)`);
+    expect(allow).toContain(`Bash(${cwd}/scripts/nexus-issue-update.sh:*)`);
     const additionalDirectories = written.permissions?.additionalDirectories as string[] | undefined;
     expect(Array.isArray(additionalDirectories)).toBe(true);
     expect(additionalDirectories).toContain(stateDir);
     expect(additionalDirectories).toContain(path.join(root, "agent-home"));
 
     const note = (meta[0]?.commandNotes as string[] | undefined)?.find((entry) =>
-      entry.includes("Paperclip-managed Claude settings"),
+      entry.includes("Nexus-managed Claude settings"),
     );
     expect(note).toBeTruthy();
   });
 
-  it("merges Paperclip allowlist into an existing .claude/settings.local.json without losing user entries", async () => {
+  it("merges Nexus allowlist into an existing .claude/settings.local.json without losing user entries", async () => {
     const root = await makeTempRoot();
     const stateDir = path.join(root, "state");
     const cwd = path.join(root, "worktree");
@@ -2912,7 +2912,7 @@ describe("shared ACPX engine runtime behavior", () => {
 
     await runExecutor(
       { agent: "claude", stateDir, cwd },
-      { context: { paperclipWorkspace: { cwd } } },
+      { context: { nexusWorkspace: { cwd } } },
     );
 
     const written = JSON.parse(
@@ -2946,7 +2946,7 @@ describe("shared ACPX engine runtime behavior", () => {
 
     const { meta } = await runExecutor(
       { agent: "claude", stateDir, cwd },
-      { context: { paperclipWorkspace: { cwd } } },
+      { context: { nexusWorkspace: { cwd } } },
     );
 
     const written = JSON.parse(
@@ -2982,7 +2982,7 @@ describe("shared ACPX engine runtime behavior", () => {
           agent === "custom"
             ? { agent, agentCommand: "node ./fake-acp.js", stateDir: path.join(root, `state-${agent}`), cwd }
             : { agent, stateDir: path.join(root, `state-${agent}`), cwd },
-        context: { paperclipWorkspace: { cwd } },
+        context: { nexusWorkspace: { cwd } },
         onLog: async () => {},
         onMeta: async () => {},
       } as never);
@@ -3003,7 +3003,7 @@ describe("shared ACPX engine runtime behavior", () => {
 
     await runExecutor(
       { agent: "codex", stateDir, cwd },
-      { context: { paperclipWorkspace: { cwd } } },
+      { context: { nexusWorkspace: { cwd } } },
     );
 
     expect(await pathExists(path.join(cwd, ".claude", "settings.local.json"))).toBe(false);
@@ -3019,7 +3019,7 @@ describe("shared ACPX engine runtime behavior", () => {
 
     const first = await runExecutor(baseConfig, {
       context: {
-        paperclipSecrets: {
+        nexusSecrets: {
           manifest: [
             {
               configPath: "env.API_TOKEN",
@@ -3036,7 +3036,7 @@ describe("shared ACPX engine runtime behavior", () => {
     });
     const second = await runExecutor(baseConfig, {
       context: {
-        paperclipSecrets: {
+        nexusSecrets: {
           manifest: [
             {
               configPath: "env.API_TOKEN",
@@ -3061,7 +3061,7 @@ describe("shared ACPX engine runtime behavior", () => {
     const root = await makeTempRoot();
     // This fixture injects its runtime. Keep session identity independent of
     // host CLI discovery/version probes while testing MCP credential changes.
-    const config = { agent, agentCommand: "node ./fake-acp.js", cwd: root, stateDir: path.join(root, "state"), paperclipRuntimeSkills: [], paperclipSkillSync: { desiredSkills: [] } };
+    const config = { agent, agentCommand: "node ./fake-acp.js", cwd: root, stateDir: path.join(root, "state"), nexusRuntimeSkills: [], nexusSkillSync: { desiredSkills: [] } };
     const first = await runExecutor(config);
     const server = { name: "github", url: "https://example.test/github/mcp", connectionId: "github", token: "current-token" };
     const second = await runExecutor(config, {
@@ -3078,7 +3078,7 @@ describe("shared ACPX engine runtime behavior", () => {
   });
 
   it("bounds Claude MCP tool calls only when runtime MCP servers are attached", async () => {
-    const server = { name: "paperclip-assigned", url: "https://example.test/mcp/gateways/g", connectionId: "assignment:x", token: "t" };
+    const server = { name: "nexus-assigned", url: "https://example.test/mcp/gateways/g", connectionId: "assignment:x", token: "t" };
     const runtimeMcp = { getServers: () => [server] };
     const envOf = (run: { meta: Array<Record<string, unknown>> }) => run.meta[0]?.env as Record<string, string>;
 
@@ -3104,7 +3104,7 @@ describe("shared ACPX engine runtime behavior", () => {
     };
     const server = {
       name: "github",
-      url: "https://paperclip.example/api/tool-gateway/gateways/github/mcp",
+      url: "https://nexus.example/api/tool-gateway/gateways/github/mcp",
       connectionId: "connection-1",
     };
     const first = await runExecutor(baseConfig, {
@@ -3147,7 +3147,7 @@ describe("findAncestorBin", () => {
 
   it("finds the binary in the start directory's own node_modules/.bin", async () => {
     const root = await makeTempRoot();
-    const packageDir = path.join(root, "node_modules", "@paperclipai", "adapter-utils");
+    const packageDir = path.join(root, "node_modules", "@nexusai", "adapter-utils");
     await fs.mkdir(packageDir, { recursive: true });
     const expectedBin = await writeFakeBin(packageDir, "claude-agent-acp");
 
@@ -3158,7 +3158,7 @@ describe("findAncestorBin", () => {
 
   it("finds the binary hoisted to an ancestor node_modules/.bin", async () => {
     const root = await makeTempRoot();
-    const packageDir = path.join(root, "node_modules", "@paperclipai", "adapter-utils");
+    const packageDir = path.join(root, "node_modules", "@nexusai", "adapter-utils");
     await fs.mkdir(packageDir, { recursive: true });
     const expectedBin = await writeFakeBin(root, "claude-agent-acp");
 
@@ -3169,7 +3169,7 @@ describe("findAncestorBin", () => {
 
   it("returns null when the binary is not present in any ancestor", async () => {
     const root = await makeTempRoot();
-    const packageDir = path.join(root, "node_modules", "@paperclipai", "adapter-utils");
+    const packageDir = path.join(root, "node_modules", "@nexusai", "adapter-utils");
     await fs.mkdir(packageDir, { recursive: true });
 
     const resolved = await findAncestorBin(packageDir, "claude-agent-acp");
@@ -3278,7 +3278,7 @@ describe("gemini ACP flag selection", () => {
     );
     expect(startLine).toBeTruthy();
     expect(startLine!.text).toContain(
-      `[paperclip] Adapter execution timeout: timeoutSec=${DEFAULT_REMOTE_SANDBOX_ADAPTER_TIMEOUT_SEC} ` +
+      `[nexus] Adapter execution timeout: timeoutSec=${DEFAULT_REMOTE_SANDBOX_ADAPTER_TIMEOUT_SEC} ` +
         "(sandbox default; set adapterConfig.timeoutSec to override).",
     );
   });
@@ -3393,7 +3393,7 @@ describe("gemini ACP flag selection", () => {
           runtimeSessionName: "runtime-session",
         }),
         startTurn: () => ({
-          // Never yields on its own: only the Paperclip wall-clock timer's
+          // Never yields on its own: only the Nexus wall-clock timer's
           // cancel unblocks the turn, simulating a hung run.
           events: (async function* () {
             await turnCancelled;
@@ -3653,7 +3653,7 @@ describe("ACP activity diagnostics", () => {
       config: { agent: "custom", agentCommand: "node ./fake-acp.js", stateDir: path.join(root, "state"), cwd },
       context: {}, onMeta: async () => {}, onLog: async (_stream: string, text: string) => { logs.push(text); },
     } as never);
-    expect(cancelReasons).toEqual(["paperclip stalled tool watchdog"]);
+    expect(cancelReasons).toEqual(["nexus stalled tool watchdog"]);
     expect(result.timedOut).toBe(false);
     expect(result.exitCode).toBe(1);
     expect(result.errorCode).toBe("acpx_tool_stalled");
@@ -3673,7 +3673,7 @@ describe("ACP activity diagnostics", () => {
     // The host only observes the request; ACPX's permission mode decides it.
     expect(permissionDecisions).toEqual([undefined]);
     expect(logs.join("")).toContain(
-      "[paperclip] A pending tool call (kind other) had no update for 6s; ending the turn. Its permission request did not reach Paperclip.",
+      "[nexus] A pending tool call (kind other) had no update for 6s; ending the turn. Its permission request did not reach Nexus.",
     );
     const diagnostics = Object.fromEntries(Object.entries(result.resultJson ?? {}).filter(([key]) => key.startsWith("acp")));
     expect(JSON.stringify(diagnostics)).not.toContain("private");
@@ -3716,11 +3716,11 @@ describe("ACP activity diagnostics", () => {
       config: { agent: "custom", agentCommand: "node ./fake-acp.js", stateDir: path.join(root, "state"), cwd },
       context: {}, onMeta: async () => {}, onLog: async () => {},
     } as never);
-    expect(closeStreamReasons).toEqual(["paperclip stalled tool cancel deadline"]);
+    expect(closeStreamReasons).toEqual(["nexus stalled tool cancel deadline"]);
     expect(result.errorCode).toBe("acpx_tool_stalled");
     expect(result.resultJson).toMatchObject({
       status: "failed",
-      stopReason: "paperclip_stalled_tool_deadline",
+      stopReason: "nexus_stalled_tool_deadline",
       acpStalledToolKind: "other",
     });
   }, 15_000);
@@ -3769,7 +3769,7 @@ describe("ACP activity diagnostics", () => {
       acpSettledSameKindToolCount: 0,
       acpSettledSameKindToolPermissionRequestedCount: 0,
     });
-    expect(logs.join("")).toContain("Its permission request reached Paperclip.");
+    expect(logs.join("")).toContain("Its permission request reached Nexus.");
   }, 15_000);
 
   it("leaves a turn alone while its long-running tool keeps receiving updates", async () => {
@@ -3893,7 +3893,7 @@ describe("ACP activity diagnostics", () => {
     } as never);
     // Only the wall-clock timeout ended this turn.
     expect(cancelReasons).toHaveLength(1);
-    expect(cancelReasons[0]).not.toBe("paperclip stalled tool watchdog");
+    expect(cancelReasons[0]).not.toBe("nexus stalled tool watchdog");
     expect(result.timedOut).toBe(true);
     expect(result.errorCode).toBe("acpx_timeout");
   }, 15_000);
@@ -4113,12 +4113,12 @@ describe("ACPX engine remote sandbox staging seam (PR 1: workspace + cwd)", () =
     expect(stageArgs.installCommand ?? null).toBeNull();
 
     // Both bridges receive the real (non-null) runtimeRootDir from staging.
-    const paperclipArgs = vi.mocked(startAdapterExecutionTargetPaperclipBridge).mock.calls[0]![0];
+    const nexusArgs = vi.mocked(startAdapterExecutionTargetNexusBridge).mock.calls[0]![0];
     const processArgs = vi.mocked(startAdapterExecutionTargetProcessSessionBridge).mock.calls[0]![0];
-    expect(paperclipArgs.runtimeRootDir).toBeTruthy();
+    expect(nexusArgs.runtimeRootDir).toBeTruthy();
     expect(processArgs.runtimeRootDir).toBeTruthy();
-    expect(String(paperclipArgs.runtimeRootDir)).toContain(".paperclip-runtime");
-    expect(processArgs.runtimeRootDir).toBe(paperclipArgs.runtimeRootDir);
+    expect(String(nexusArgs.runtimeRootDir)).toContain(".nexus-runtime");
+    expect(processArgs.runtimeRootDir).toBe(nexusArgs.runtimeRootDir);
 
     // The workspace really landed in the sandbox workspace dir.
     await expect(fs.readFile(path.join(remoteCwd, "hello.txt"), "utf8")).resolves.toBe("hi");
@@ -4126,17 +4126,17 @@ describe("ACPX engine remote sandbox staging seam (PR 1: workspace + cwd)", () =
     expect(sessionInputs[0]?.cwd).toBe(remoteCwd);
   });
 
-  it("hands the merged paperclip env to the process-session launch when the setups overlap", async () => {
+  it("hands the merged nexus env to the process-session launch when the setups overlap", async () => {
     const { stateDir, localCwd, remoteCwd, executionTarget } = await setupRemoteSandbox();
     // Decode the process-session LAUNCH payload (the base64 command blob) — the
     // in-sandbox process env is carried there, NOT in the exec's own `env`.
     let launchPayload: Record<string, unknown> | null = null;
     let bridgeExecEnv: Record<string, string> | undefined;
     (executionTarget as { runner: unknown }).runner = createLocalSandboxRunner((input) => {
-      if (input.env?.PAPERCLIP_SANDBOX_EXEC_CHANNEL === "bridge") {
+      if (input.env?.NEXUS_SANDBOX_EXEC_CHANNEL === "bridge") {
         bridgeExecEnv = input.env;
         const script = input.args?.[1] ?? "";
-        const match = script.match(/PAPERCLIP_PROCESS_SESSION_COMMAND_B64='([^']+)'/);
+        const match = script.match(/NEXUS_PROCESS_SESSION_COMMAND_B64='([^']+)'/);
         if (match) {
           launchPayload = JSON.parse(Buffer.from(match[1]!, "base64").toString("utf8")) as Record<
             string,
@@ -4152,25 +4152,25 @@ describe("ACPX engine remote sandbox staging seam (PR 1: workspace + cwd)", () =
     );
 
     // The process-session bridge receives its launch env as a DEFERRED thunk —
-    // the seam that lets its env-independent setup overlap the paperclip bridge
+    // the seam that lets its env-independent setup overlap the nexus bridge
     // start instead of running strictly after it.
     const processArgs = vi.mocked(startAdapterExecutionTargetProcessSessionBridge).mock.calls[0]![0];
     expect(typeof processArgs.env).toBe("function");
 
-    // ...and despite the overlap the launch still observes the MERGED paperclip
-    // env: the paperclip-`env` → process-session-launch hand-off stays sequenced
+    // ...and despite the overlap the launch still observes the MERGED nexus
+    // env: the nexus-`env` → process-session-launch hand-off stays sequenced
     // under concurrency (bridge base URL + minted bridge token both present, and
     // the token is NOT the host run JWT).
     const payloadEnv = ((launchPayload as Record<string, unknown> | null)?.env ?? {}) as Record<
       string,
       unknown
     >;
-    expect(payloadEnv).toMatchObject({ PAPERCLIP_API_BRIDGE_MODE: "queue_v1" });
-    expect(String(payloadEnv.PAPERCLIP_API_URL ?? "")).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-    expect(payloadEnv.PAPERCLIP_API_KEY).toBeTruthy();
-    expect(payloadEnv.PAPERCLIP_API_KEY).not.toBe("real-run-jwt");
-    expect(bridgeExecEnv?.PAPERCLIP_SANDBOX_EXEC_CHANNEL).toBe("bridge");
-    expect(bridgeExecEnv?.PAPERCLIP_API_KEY).toBeUndefined();
+    expect(payloadEnv).toMatchObject({ NEXUS_API_BRIDGE_MODE: "queue_v1" });
+    expect(String(payloadEnv.NEXUS_API_URL ?? "")).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    expect(payloadEnv.NEXUS_API_KEY).toBeTruthy();
+    expect(payloadEnv.NEXUS_API_KEY).not.toBe("real-run-jwt");
+    expect(bridgeExecEnv?.NEXUS_SANDBOX_EXEC_CHANNEL).toBe("bridge");
+    expect(bridgeExecEnv?.NEXUS_API_KEY).toBeUndefined();
   });
 
   it("publishes referenced-project workspace hints repointed at their staged sandbox directories", async () => {
@@ -4184,9 +4184,9 @@ describe("ACPX engine remote sandbox staging seam (PR 1: workspace + cwd)", () =
     // Decode the process-session LAUNCH payload — the in-sandbox process env is carried there.
     let launchPayload: Record<string, unknown> | null = null;
     (executionTarget as { runner: unknown }).runner = createLocalSandboxRunner((input) => {
-      if (input.env?.PAPERCLIP_SANDBOX_EXEC_CHANNEL === "bridge") {
+      if (input.env?.NEXUS_SANDBOX_EXEC_CHANNEL === "bridge") {
         const script = input.args?.[1] ?? "";
-        const match = script.match(/PAPERCLIP_PROCESS_SESSION_COMMAND_B64='([^']+)'/);
+        const match = script.match(/NEXUS_PROCESS_SESSION_COMMAND_B64='([^']+)'/);
         if (match) {
           launchPayload = JSON.parse(Buffer.from(match[1]!, "base64").toString("utf8")) as Record<
             string,
@@ -4204,7 +4204,7 @@ describe("ACPX engine remote sandbox staging seam (PR 1: workspace + cwd)", () =
         context: {
           taskId: "issue-1",
           wakeReason: "issue_assigned",
-          paperclipWorkspace: {
+          nexusWorkspace: {
             cwd: localCwd,
             realization: {
               additional: [
@@ -4220,7 +4220,7 @@ describe("ACPX engine remote sandbox staging seam (PR 1: workspace + cwd)", () =
           },
           // The plural workspace-hints channel the agent reads. The referenced hint points at the
           // host path today; on a remote target the run must repoint it at the staged directory.
-          paperclipWorkspaces: [
+          nexusWorkspaces: [
             {
               workspaceId: "ws-a",
               cwd: referencedProjectDir,
@@ -4237,7 +4237,7 @@ describe("ACPX engine remote sandbox staging seam (PR 1: workspace + cwd)", () =
       string,
       unknown
     >;
-    const workspacesJson = payloadEnv.PAPERCLIP_WORKSPACES_JSON;
+    const workspacesJson = payloadEnv.NEXUS_WORKSPACES_JSON;
     expect(typeof workspacesJson).toBe("string");
     const hints = JSON.parse(String(workspacesJson)) as Array<Record<string, unknown>>;
     const referencedHint = hints.find((hint) => hint.projectId === "a");
@@ -4247,14 +4247,14 @@ describe("ACPX engine remote sandbox staging seam (PR 1: workspace + cwd)", () =
     expect(referencedHint!.cwd).not.toBe(referencedProjectDir);
   });
 
-  it("stops the process-session bridge when the paperclip bridge fails under concurrency", async () => {
+  it("stops the process-session bridge when the nexus bridge fails under concurrency", async () => {
     const { stateDir, localCwd, executionTarget } = await setupRemoteSandbox();
-    // The paperclip bridge fails; the process-session bridge — started CONCURRENTLY
+    // The nexus bridge fails; the process-session bridge — started CONCURRENTLY
     // with it — still resolves a live handle. The abandon path must stop that
     // handle so no started bridge leaks on partial failure.
     const stop = vi.fn(async () => {});
-    vi.mocked(startAdapterExecutionTargetPaperclipBridge).mockImplementationOnce(async () => {
-      throw new Error("paperclip bridge boom");
+    vi.mocked(startAdapterExecutionTargetNexusBridge).mockImplementationOnce(async () => {
+      throw new Error("nexus bridge boom");
     });
     vi.mocked(startAdapterExecutionTargetProcessSessionBridge).mockImplementationOnce(
       async () => ({ agentCommand: null, stop }) as never,
@@ -4277,7 +4277,7 @@ describe("ACPX engine remote sandbox staging seam (PR 1: workspace + cwd)", () =
         onMeta: async () => {},
         onEvent: async () => {},
       } as never),
-    ).rejects.toThrow("paperclip bridge boom");
+    ).rejects.toThrow("nexus bridge boom");
 
     // The concurrently-started process-session bridge was stopped exactly once.
     expect(stop).toHaveBeenCalledTimes(1);
@@ -4371,7 +4371,7 @@ describe("ACPX engine remote sandbox staging seam (PR 1: workspace + cwd)", () =
     // A local (non-remote) run never crosses the staging seam or starts a
     // bridge, and session/new stays on the HOST cwd — byte-identical to today.
     expect(vi.mocked(prepareAdapterExecutionTargetRuntime)).not.toHaveBeenCalled();
-    expect(vi.mocked(startAdapterExecutionTargetPaperclipBridge)).not.toHaveBeenCalled();
+    expect(vi.mocked(startAdapterExecutionTargetNexusBridge)).not.toHaveBeenCalled();
     expect(vi.mocked(startAdapterExecutionTargetProcessSessionBridge)).not.toHaveBeenCalled();
     expect(sessionInputs[0]?.cwd).toBe(localCwd);
     expect(runtimeOptions[0]?.cwd).toBe(localCwd);
@@ -4490,7 +4490,7 @@ describe("ACPX engine remote managed-home seam (PR 2: per-adapter home seed)", (
     await expect(fs.readFile(path.join(remoteAssetDir, "config.json"), "utf8")).resolves.toBe("{}");
     // ...the staged asset dir resolves under the run's managed runtime root (an
     // in-sandbox path), not the host managed-home dir.
-    expect(remoteAssetDir).toContain(".paperclip-runtime");
+    expect(remoteAssetDir).toContain(".nexus-runtime");
     expect(remoteAssetDir).not.toBe(managedHomeDir);
     expect(path.isAbsolute(remoteAssetDir)).toBe(true);
   });
@@ -4595,7 +4595,7 @@ describe("ACPX engine remote managed-home seam (PR 2: per-adapter home seed)", (
       (entry) => entry.stream === "stderr" && entry.text.includes("proj-x"),
     );
     expect(failureLine?.text).toBe(
-      "[paperclip] Referenced project proj-x failed to stage; the run continues without it: extract failed: boom\n",
+      "[nexus] Referenced project proj-x failed to stage; the run continues without it: extract failed: boom\n",
     );
   });
 });
@@ -4644,18 +4644,18 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
     const cwd = path.join(root, "worktree");
     const stateDir = path.join(root, "state");
     await fs.mkdir(cwd, { recursive: true });
-    const skill = await createSkill(path.join(root, "sources"), "paperclip--versioned", [
-      "---", "description: >-", "  Use for Paperclip-managed tasks", "  and durable task documents.",
+    const skill = await createSkill(path.join(root, "sources"), "nexus--versioned", [
+      "---", "description: >-", "  Use for Nexus-managed tasks", "  and durable task documents.",
       "---", "PRIVATE_SKILL_BODY_RECIPE", "",
     ].join("\n"));
     const { meta, result } = await runExecutor({
       agent: "claude", agentCommand: "node ./fake-acp.js", stateDir, cwd,
-      paperclipRuntimeSkills: [skill], paperclipSkillSync: { desiredSkills: [skill.key] },
+      nexusRuntimeSkills: [skill], nexusSkillSync: { desiredSkills: [skill.key] },
     });
     const bundle = await onlyChildDir(path.join(stateDir, "runtime-skills", "claude"));
     const stagedFile = path.join(bundle, ".claude", "skills", skill.runtimeName, "SKILL.md");
     const prompt = String(meta[0]?.prompt ?? "");
-    expect(prompt).toContain(`- ${skill.runtimeName}: Use for Paperclip-managed tasks and durable task documents. (file: ${stagedFile})`);
+    expect(prompt).toContain(`- ${skill.runtimeName}: Use for Nexus-managed tasks and durable task documents. (file: ${stagedFile})`);
     expect(prompt).not.toContain("PRIVATE_SKILL_BODY_RECIPE");
     expect(prompt).not.toContain(skill.source);
     expect(result.sessionParams?.skills).toMatchObject({ selectedSkills: [skill.runtimeName] });
@@ -4674,7 +4674,7 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
     const skills = [bounded, absent, malformed];
     const { meta } = await runExecutor({
       agent: "claude", agentCommand: "node ./fake-acp.js", stateDir, cwd,
-      paperclipRuntimeSkills: skills, paperclipSkillSync: { desiredSkills: skills.map((skill) => skill.key) },
+      nexusRuntimeSkills: skills, nexusSkillSync: { desiredSkills: skills.map((skill) => skill.key) },
     });
     const prompt = String(meta[0]?.prompt ?? "");
     expect(prompt).toContain(`- bounded: ${"x".repeat(512)} (file: `);
@@ -4694,8 +4694,8 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
         agentCommand: "node ./fake-acp.js",
         stateDir,
         cwd: localCwd,
-        paperclipRuntimeSkills: [skill],
-        paperclipSkillSync: { desiredSkills: [skill.key] },
+        nexusRuntimeSkills: [skill],
+        nexusSkillSync: { desiredSkills: [skill.key] },
       },
       { authToken: "real-run-jwt", executionTarget, prepareRemoteManagedHome: stagingClaudeSeam() },
     );
@@ -4730,8 +4730,8 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
       agentCommand: "node ./fake-acp.js",
       stateDir,
       cwd: localCwd,
-      paperclipRuntimeSkills: [skill],
-      paperclipSkillSync: { desiredSkills: [skill.key] },
+      nexusRuntimeSkills: [skill],
+      nexusSkillSync: { desiredSkills: [skill.key] },
     };
     const seamWithOverriddenSkillsDir = (
       overridePath: string,
@@ -4773,8 +4773,8 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
         agentCommand: "node ./fake-acp.js",
         stateDir,
         cwd: localCwd,
-        paperclipRuntimeSkills: [],
-        paperclipSkillSync: { desiredSkills: [] },
+        nexusRuntimeSkills: [],
+        nexusSkillSync: { desiredSkills: [] },
       },
       { authToken: "real-run-jwt", executionTarget, prepareRemoteManagedHome: stagingClaudeSeam() },
     );
@@ -4789,7 +4789,7 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
     const skillsRoot = path.join(localCwd, "skills");
     const review = await createSkill(skillsRoot, "review");
 
-    // A skill whose source is a symlink. `materializePaperclipSkillCopy`
+    // A skill whose source is a symlink. `materializeNexusSkillCopy`
     // refuses a symlinked skill root, so this skill's copy fails while its
     // source still exists (it does not hit the separate missing-source
     // filter).
@@ -4799,7 +4799,7 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
     const brokenSource = path.join(skillsRoot, "broken");
     await fs.symlink(linkedTarget, brokenSource, "dir");
     const broken = {
-      key: "paperclipai/test/broken",
+      key: "nexusai/test/broken",
       runtimeName: "broken",
       source: brokenSource,
       required: false,
@@ -4811,8 +4811,8 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
         agentCommand: "node ./fake-acp.js",
         stateDir,
         cwd: localCwd,
-        paperclipRuntimeSkills: [review, broken],
-        paperclipSkillSync: { desiredSkills: [review.key, broken.key] },
+        nexusRuntimeSkills: [review, broken],
+        nexusSkillSync: { desiredSkills: [review.key, broken.key] },
       },
       { authToken: "real-run-jwt", executionTarget, prepareRemoteManagedHome: stagingClaudeSeam() },
     );
@@ -4838,7 +4838,7 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
     const brokenSource = path.join(skillsRoot, "broken");
     await fs.symlink(linkedTarget, brokenSource, "dir");
     const broken = {
-      key: "paperclipai/test/broken",
+      key: "nexusai/test/broken",
       runtimeName: "broken",
       source: brokenSource,
       required: false,
@@ -4850,8 +4850,8 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
         agentCommand: "node ./fake-acp.js",
         stateDir,
         cwd: localCwd,
-        paperclipRuntimeSkills: [broken],
-        paperclipSkillSync: { desiredSkills: [broken.key] },
+        nexusRuntimeSkills: [broken],
+        nexusSkillSync: { desiredSkills: [broken.key] },
       },
       { authToken: "real-run-jwt", executionTarget, prepareRemoteManagedHome: stagingClaudeSeam() },
     );
@@ -4867,7 +4867,7 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
     const review = await createSkill(skillsRoot, "review");
 
     // A skill root that is a real directory (so the copy itself does not
-    // throw), but whose `SKILL.md` is a symlink. `materializePaperclipSkillCopy`
+    // throw), but whose `SKILL.md` is a symlink. `materializeNexusSkillCopy`
     // skips a symlinked file entry instead of copying it, so the staged
     // directory ends up with no `SKILL.md`.
     const linkedSkillMdTarget = path.join(skillsRoot, "linked-skill-md-target.md");
@@ -4876,7 +4876,7 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
     await fs.mkdir(symlinkedSkillMdSource, { recursive: true });
     await fs.symlink(linkedSkillMdTarget, path.join(symlinkedSkillMdSource, "SKILL.md"), "file");
     const symlinkedSkillMd = {
-      key: "paperclipai/test/symlinked-skill-md",
+      key: "nexusai/test/symlinked-skill-md",
       runtimeName: "symlinked-skill-md",
       source: symlinkedSkillMdSource,
       required: false,
@@ -4887,7 +4887,7 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
     await fs.mkdir(noSkillMdSource, { recursive: true });
     await fs.writeFile(path.join(noSkillMdSource, "notes.md"), "# notes\n", "utf8");
     const noSkillMd = {
-      key: "paperclipai/test/no-skill-md",
+      key: "nexusai/test/no-skill-md",
       runtimeName: "no-skill-md",
       source: noSkillMdSource,
       required: false,
@@ -4899,8 +4899,8 @@ describe("ACPX engine Claude skill bundle staging (remote ACP lane)", () => {
         agentCommand: "node ./fake-acp.js",
         stateDir,
         cwd: localCwd,
-        paperclipRuntimeSkills: [review, symlinkedSkillMd, noSkillMd],
-        paperclipSkillSync: { desiredSkills: [review.key, symlinkedSkillMd.key, noSkillMd.key] },
+        nexusRuntimeSkills: [review, symlinkedSkillMd, noSkillMd],
+        nexusSkillSync: { desiredSkills: [review.key, symlinkedSkillMd.key, noSkillMd.key] },
       },
       { authToken: "real-run-jwt", executionTarget, prepareRemoteManagedHome: stagingClaudeSeam() },
     );
@@ -5499,12 +5499,12 @@ describe("ACPX engine remote session-lifecycle re-staging (PR 3: stage once / re
 
     // Run B resumes the same session and borrows the cached staged runtime, but a
     // bridge fails during bring-up.
-    vi.mocked(startAdapterExecutionTargetPaperclipBridge).mockImplementationOnce(async () => {
-      throw new Error("paperclip bridge boom");
+    vi.mocked(startAdapterExecutionTargetNexusBridge).mockImplementationOnce(async () => {
+      throw new Error("nexus bridge boom");
     });
     await expect(
       execute({ runId: "run-b", runtime: { sessionParams: first.sessionParams }, ...base } as never),
-    ).rejects.toThrow("paperclip bridge boom");
+    ).rejects.toThrow("nexus bridge boom");
 
     // The rollback removed the borrowed cache entry through the identity guard, so a
     // later resume can never reuse an entry whose host staged-temp was disposed...
@@ -5722,8 +5722,8 @@ describe("ACPX engine sandbox-start spans (opt-in root + child parenting)", () =
     expect(runRootSpan.parentContextArg).toBeUndefined();
     expect(runRootSpan.endCalls).toBe(1);
     expect(runRootSpan.status).toBeNull();
-    expect(runRootSpan.attributes["paperclip.task.run.run_id"]).toMatch(/^[0-9a-f]{12}$/);
-    expect(String(runRootSpan.attributes["paperclip.task.run.run_id"])).not.toContain("run-");
+    expect(runRootSpan.attributes["nexus.task.run.run_id"]).toMatch(/^[0-9a-f]{12}$/);
+    expect(String(runRootSpan.attributes["nexus.task.run.run_id"])).not.toContain("run-");
 
     // The sandbox bring-up span parents to the run root span.
     const startupSpan = spans.find((span) => span.name === "sandbox.startup");
@@ -5763,7 +5763,7 @@ describe("ACPX engine sandbox-start spans (opt-in root + child parenting)", () =
     expect(childNames).toEqual(
       [
         "acp.handshake",
-        "bridge.paperclip",
+        "bridge.nexus",
         "bridge.process-session",
         "codex-home.seed",
         "pack",
@@ -6031,15 +6031,15 @@ describe("ACPX engine sandbox-start spans (opt-in root + child parenting)", () =
 
     const rootSpan = spans.find((span) => span.name === "sandbox.startup");
     expect(rootSpan).toBeTruthy();
-    const paperclip = spans.find((span) => span.name === "bridge.paperclip");
+    const nexus = spans.find((span) => span.name === "bridge.nexus");
     const processSession = spans.find((span) => span.name === "bridge.process-session");
-    expect(paperclip?.parent).toBe(rootSpan);
+    expect(nexus?.parent).toBe(rootSpan);
     expect(processSession?.parent).toBe(rootSpan);
     // Both bridge spans carry the same batch tag, so the trace marks them as one
     // parallel batch.
-    expect(paperclip?.attributes[A.batch]).toBe("bridge");
+    expect(nexus?.attributes[A.batch]).toBe("bridge");
     expect(processSession?.attributes[A.batch]).toBe("bridge");
-    expect(paperclip?.attributes[A.batch]).toBe(processSession?.attributes[A.batch]);
+    expect(nexus?.attributes[A.batch]).toBe(processSession?.attributes[A.batch]);
 
     const handshake = spans.find((span) => span.name === "acp.handshake");
     expect(handshake).toBeTruthy();
@@ -6529,7 +6529,7 @@ describe("ACPX engine per-step startup timing (run.startup.step events)", () => 
       "codex-home.seed",
       "skills.reconcile",
       "stage.sync",
-      "bridge.paperclip",
+      "bridge.nexus",
       "bridge.process-session",
       "acp.handshake",
     ]) {
@@ -6571,7 +6571,7 @@ describe("ACPX engine per-step startup timing (run.startup.step events)", () => 
     for (const step of [
       "workspace.resolve",
       "stage.sync",
-      "bridge.paperclip",
+      "bridge.nexus",
       "bridge.process-session",
       "acp.handshake",
     ]) {
@@ -6722,7 +6722,7 @@ describe("ACPX engine per-step startup timing (run.startup.step events)", () => 
     expect(emitted.has("workspace.resolve")).toBe(true);
     expect(emitted.has("acp.handshake")).toBe(true);
     expect(emitted.has("stage.sync")).toBe(false);
-    expect(emitted.has("bridge.paperclip")).toBe(false);
+    expect(emitted.has("bridge.nexus")).toBe(false);
     expect(emitted.has("bridge.process-session")).toBe(false);
   });
 });
@@ -6780,10 +6780,10 @@ describe("ACPX engine run lifecycle corrections (F1: settle every failure after 
   it.each(["create_failure", "relay_respawn", "stalled_receipt"])(
     "keeps remote provider evidence unknown and releases the staging lease on %s", async (scenario) => {
       const { stateDir, localCwd, executionTarget } = await setupRemoteSandbox();
-      const paperclipStop = vi.fn(async () => {});
+      const nexusStop = vi.fn(async () => {});
       const processStop = vi.fn(async () => {});
-      vi.mocked(startAdapterExecutionTargetPaperclipBridge).mockImplementationOnce(
-        async () => ({ env: {}, stop: paperclipStop }) as never,
+      vi.mocked(startAdapterExecutionTargetNexusBridge).mockImplementationOnce(
+        async () => ({ env: {}, stop: nexusStop }) as never,
       );
       vi.mocked(startAdapterExecutionTargetProcessSessionBridge).mockImplementationOnce(
         async () => ({ agentCommand: null, stop: processStop }) as never,
@@ -6850,7 +6850,7 @@ describe("ACPX engine run lifecycle corrections (F1: settle every failure after 
         layers: { provider_process: { state: "unknown", reason: "evidence_missing" } },
       });
       // Both live bridges stop exactly once.
-      expect(paperclipStop).toHaveBeenCalledTimes(1);
+      expect(nexusStop).toHaveBeenCalledTimes(1);
       expect(processStop).toHaveBeenCalledTimes(1);
       // The per-session staging lease released, so the lock map does not strand the
       // next same-session run.
@@ -6878,7 +6878,7 @@ describe("ACPX engine run lifecycle corrections (F1: settle every failure after 
     // A throwing accessor on a field only `buildPrompt` reads makes the prompt
     // build fail after the session handshake succeeds.
     const context: Record<string, unknown> = {};
-    Object.defineProperty(context, "paperclipSessionHandoffMarkdown", {
+    Object.defineProperty(context, "nexusSessionHandoffMarkdown", {
       enumerable: false,
       get() {
         if (failure === "prompt") throw new Error("prompt build boom");
@@ -7207,11 +7207,11 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
   // Stub both sandbox bridges with stop spies collected per start, so a test can
   // assert the bridges stopped without running the real bridge transport.
   function stubBridges() {
-    const paperclipStops: Array<ReturnType<typeof vi.fn>> = [];
+    const nexusStops: Array<ReturnType<typeof vi.fn>> = [];
     const processStops: Array<ReturnType<typeof vi.fn>> = [];
-    vi.mocked(startAdapterExecutionTargetPaperclipBridge).mockImplementation(async () => {
+    vi.mocked(startAdapterExecutionTargetNexusBridge).mockImplementation(async () => {
       const stop = vi.fn(async () => {});
-      paperclipStops.push(stop);
+      nexusStops.push(stop);
       return { env: {}, stop } as never;
     });
     vi.mocked(startAdapterExecutionTargetProcessSessionBridge).mockImplementation(async () => {
@@ -7223,12 +7223,12 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
       stops.some((stop) => stop.mock.calls.length > 0);
     const stoppedCount = (stops: Array<ReturnType<typeof vi.fn>>) =>
       stops.filter((stop) => stop.mock.calls.length > 0).length;
-    return { paperclipStops, processStops, anyStopped, stoppedCount };
+    return { nexusStops, processStops, anyStopped, stoppedCount };
   }
 
   function throwingHandoffContext(): Record<string, unknown> {
     const context: Record<string, unknown> = {};
-    Object.defineProperty(context, "paperclipSessionHandoffMarkdown", {
+    Object.defineProperty(context, "nexusSessionHandoffMarkdown", {
       enumerable: false,
       get() {
         throw new Error("prompt build boom");
@@ -7287,7 +7287,7 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
       const block = () => { entered(); return gate; };
       const scopes = new Map<symbol, string>();
       if (blockedPhase === "stop_transport") {
-        vi.mocked(startAdapterExecutionTargetPaperclipBridge).mockImplementation(async () => ({ env: {}, stop: block }) as never);
+        vi.mocked(startAdapterExecutionTargetNexusBridge).mockImplementation(async () => ({ env: {}, stop: block }) as never);
       }
       const execute = createAcpxEngineExecutor({
         createRuntime: () => ({
@@ -7387,7 +7387,7 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
     // and the seam teardown, and read the still-held lease during the sync-back.
     const { stateDir, localCwd, executionTarget } = await setupRemoteSandbox();
     const order: string[] = [];
-    vi.mocked(startAdapterExecutionTargetPaperclipBridge).mockImplementation(async () => ({
+    vi.mocked(startAdapterExecutionTargetNexusBridge).mockImplementation(async () => ({
       env: {},
       stop: vi.fn(async () => {
         order.push("bridge-stop");
@@ -7450,9 +7450,9 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
       discard: boolean;
       exitCode: number;
     }> = [
-      { status: "completed", reason: "paperclip completed turn cleanup", discard: false, exitCode: 0 },
-      { status: "failed", reason: "paperclip turn failed", discard: false, exitCode: 1 },
-      { status: "cancelled", reason: "paperclip turn cancelled", discard: true, exitCode: 1 },
+      { status: "completed", reason: "nexus completed turn cleanup", discard: false, exitCode: 0 },
+      { status: "failed", reason: "nexus turn failed", discard: false, exitCode: 1 },
+      { status: "cancelled", reason: "nexus turn cancelled", discard: true, exitCode: 1 },
     ];
 
     for (const testCase of cases) {
@@ -7500,7 +7500,7 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
 
   it("collects instructions after confirmed close on a thrown provider turn, before workspace restore", async () => {
     const { stateDir, localCwd, executionTarget } = await setupRemoteSandbox();
-    const { paperclipStops, anyStopped } = stubBridges();
+    const { nexusStops, anyStopped } = stubBridges();
     const order: string[] = [];
     const execute = createAcpxEngineExecutor({
       stagingLocks: new Map(), warmHandles: new Map(), stagedRuntimes: new Map(),
@@ -7509,7 +7509,7 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
     });
     const result = await execute({ runId: "instruction-stop-failure",
       ...remoteArgs(stateDir, localCwd, executionTarget, { onProviderStopped: async () => {
-        expect(anyStopped(paperclipStops)).toBe(true);
+        expect(anyStopped(nexusStops)).toBe(true);
         order.push("collect");
       } }),
     } as never);
@@ -7519,7 +7519,7 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
 
   it("test_teardown_continues_after_one_teardown_step_fails", async () => {
     const { stateDir, localCwd, executionTarget } = await setupRemoteSandbox();
-    const { paperclipStops, processStops, anyStopped } = stubBridges();
+    const { nexusStops, processStops, anyStopped } = stubBridges();
     const stagingLocks = new Map<string, Promise<unknown>>();
     const collectInstructions = vi.fn(async () => {});
     const logs: Array<{ stream: string; text: string }> = [];
@@ -7551,7 +7551,7 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
     expect(result.exitCode).toBe(1);
     expect(collectInstructions).not.toHaveBeenCalled();
     // The close failure did not stop the bridge stops or the lease release.
-    expect(anyStopped(paperclipStops)).toBe(true);
+    expect(anyStopped(nexusStops)).toBe(true);
     expect(anyStopped(processStops)).toBe(true);
     expect(stagingLocks.size).toBe(0);
     // The close failure was recorded, not silently dropped.
@@ -7562,7 +7562,7 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
 
   it("restores managed home and releases the lease when instruction collection rejects", async () => {
     const { stateDir, localCwd, executionTarget } = await setupRemoteSandbox();
-    const { paperclipStops, processStops, anyStopped } = stubBridges();
+    const { nexusStops, processStops, anyStopped } = stubBridges();
     const stagingLocks = new Map<string, Promise<unknown>>();
     const order: string[] = [];
     const logs: string[] = [];
@@ -7583,7 +7583,7 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
     } as never);
     expect(result.exitCode).toBe(1);
     expect(order).toEqual(["close", "collect", "restore"]);
-    expect(anyStopped(paperclipStops)).toBe(true);
+    expect(anyStopped(nexusStops)).toBe(true);
     expect(anyStopped(processStops)).toBe(true);
     expect(stagingLocks.size).toBe(0);
     expect(logs.some(text => text.includes('teardown step "instruction-collection" failed: Instruction collection failed'))).toBe(true);
@@ -7671,7 +7671,7 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
 
   it("test_result_emission_failure_does_not_skip_teardown", async () => {
     const { stateDir, localCwd, executionTarget } = await setupRemoteSandbox();
-    const { paperclipStops, processStops, anyStopped } = stubBridges();
+    const { nexusStops, processStops, anyStopped } = stubBridges();
     const stagingLocks = new Map<string, Promise<unknown>>();
     const execute = createAcpxEngineExecutor({
       stagingLocks,
@@ -7695,14 +7695,14 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
       }),
     } as never).catch(() => {});
 
-    expect(anyStopped(paperclipStops)).toBe(true);
+    expect(anyStopped(nexusStops)).toBe(true);
     expect(anyStopped(processStops)).toBe(true);
     expect(stagingLocks.size).toBe(0);
   });
 
   it("test_result_mapping_throw_after_close_does_not_rerun_teardown", async () => {
     const { stateDir, localCwd, executionTarget } = await setupRemoteSandbox();
-    const { paperclipStops, processStops, stoppedCount } = stubBridges();
+    const { nexusStops, processStops, stoppedCount } = stubBridges();
     let closeCount = 0;
     const execute = createAcpxEngineExecutor({
       warmHandles: new Map(),
@@ -7738,7 +7738,7 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
     // The completed turn closed the runtime once; the mapping throw did not re-run
     // the teardown through the turn catch.
     expect(closeCount).toBe(1);
-    expect(stoppedCount(paperclipStops)).toBe(1);
+    expect(stoppedCount(nexusStops)).toBe(1);
     expect(stoppedCount(processStops)).toBe(1);
   });
 
@@ -7789,7 +7789,7 @@ describe("ACPX engine run lifecycle corrections (F3: one teardown error policy)"
 
       for (const scenario of scenarios) {
         const root = await makeTempRoot();
-        const marker = `paperclip-flush-probe-${scenario.name}`;
+        const marker = `nexus-flush-probe-${scenario.name}`;
         const execute = createAcpxEngineExecutor({
           createRuntime: (options) => {
             const opts = options as {
@@ -7866,9 +7866,9 @@ describe("ACPX engine sandbox bridge run-disposition seam (fail-closed)", () => 
     const stop = vi.fn(async () => {});
     const handle = {
       env: {
-        PAPERCLIP_API_URL: "http://127.0.0.1:1",
-        PAPERCLIP_API_KEY: "bridge-token",
-        PAPERCLIP_API_BRIDGE_MODE: "http2_v1",
+        NEXUS_API_URL: "http://127.0.0.1:1",
+        NEXUS_API_KEY: "bridge-token",
+        NEXUS_API_BRIDGE_MODE: "http2_v1",
       },
       readRunDisposition: () => readDisposition(),
       settleRunDisposition,
@@ -8046,7 +8046,7 @@ describe("ACPX engine sandbox bridge run-disposition seam (fail-closed)", () => 
     sandbox: Awaited<ReturnType<typeof setupRemoteSandbox>>,
     deps: Partial<AcpxEngineExecutorOptions> = {},
   ) {
-    vi.mocked(startAdapterExecutionTargetPaperclipBridge).mockImplementationOnce(
+    vi.mocked(startAdapterExecutionTargetNexusBridge).mockImplementationOnce(
       async () => handle as never,
     );
     vi.mocked(startAdapterExecutionTargetProcessSessionBridge).mockImplementationOnce(
@@ -8850,16 +8850,16 @@ describe("ACPX startup handshake guard and late-completion fence", () => {
     const readDisposition = () => ({ failed: lossOrdered, lossReason: lossOrdered ? "provider_exit" : null });
     const bridgeHandle = {
       env: {
-        PAPERCLIP_API_URL: "http://127.0.0.1:1",
-        PAPERCLIP_API_KEY: "bridge-token",
-        PAPERCLIP_API_BRIDGE_MODE: "http2_v1",
+        NEXUS_API_URL: "http://127.0.0.1:1",
+        NEXUS_API_KEY: "bridge-token",
+        NEXUS_API_BRIDGE_MODE: "http2_v1",
       },
       readRunDisposition: () => readDisposition(),
       settleRunDisposition: () => readDisposition(),
       markOrderlyCompletion: () => {},
       stop: async () => {},
     };
-    vi.mocked(startAdapterExecutionTargetPaperclipBridge).mockImplementationOnce(
+    vi.mocked(startAdapterExecutionTargetNexusBridge).mockImplementationOnce(
       async () => bridgeHandle as never,
     );
     vi.mocked(startAdapterExecutionTargetProcessSessionBridge).mockImplementationOnce(

@@ -80,7 +80,7 @@ export async function transferPrivateArtifact(options: TransferOptions) {
 
 async function transferVerifiedArtifact(options: TransferOptions) {
   const key = privateArtifactKey(options.kind, options.runId);
-  const temporary = await mkdtemp(path.join(os.tmpdir(), "paperclip-private-history-"));
+  const temporary = await mkdtemp(path.join(os.tmpdir(), "nexus-private-history-"));
   const archive = path.join(temporary, "archive.zip");
   try {
     if (options.operation === "upload") {

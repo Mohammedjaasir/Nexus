@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
-import { heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db } from "@paperclipai/db";
+import { heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db } from "@nexusai/db";
 import { nativeRunnerOwnershipNotHeldCondition } from "./native-runner-ownership.js";
 
 import type { RetainedNativeSessionCleanupScope } from "../retained-native-session-cleanup-notifications.js";

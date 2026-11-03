@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { CurrentBoardAccess } from "@/api/access";
 import type { HealthStatus } from "@/api/health";
 import { queryKeys } from "@/lib/queryKeys";
-import { storybookAuthSession, storybookCompanies } from "../../fixtures/paperclipData";
+import { storybookAuthSession, storybookCompanies } from "../../fixtures/nexusData";
 import { installFixtureApi } from "../capability-gaps/api";
 
 /** Supply the same owner access and loaded operator policy that production

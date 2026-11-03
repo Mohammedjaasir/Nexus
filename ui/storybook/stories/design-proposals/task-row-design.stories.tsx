@@ -3,7 +3,7 @@ import { useArgs } from "storybook/preview-api";
 import { Fragment, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, GitBranch } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 import { IssueRow } from "@/components/IssueRow";
 import { TaskRowGroup } from "@/components/TaskRowGroup";
 import { TaskList } from "@/components/TaskList";
@@ -32,7 +32,7 @@ function ReviewFrame({ title, detail, children, wide = false }: { title: string;
       <output hidden data-testid="task-row-design-route">{location.pathname}</output>
       <div className={`mx-auto flex flex-col gap-8 ${wide ? "max-w-none" : "max-w-6xl"}`}>
         <header className="flex flex-col gap-3">
-          <p className="text-xs font-normal text-muted-foreground">Paperclip · Design system · Proposed</p>
+          <p className="text-xs font-normal text-muted-foreground">Nexus · Design system · Proposed</p>
           <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
           <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">{detail}</p>
         </header>
@@ -217,7 +217,7 @@ const meta = {
         component: "Proposed task-row design using production IssueRow and TaskRowGroup. Comfortable and compact share one component. Read/unread typography is independent of hover; nested guides and group boundaries follow the parent hierarchy. Use real pointer hover to inspect the four visual combinations. Play assertions cover typography, disclosure, and full-title access; fixtures do not establish production navigation or persistence.",
       },
     },
-    paperclip: {
+    nexus: {
       capabilities: ["tasks/organize"],
       status: "proposed",
       home: "design-proposals",
@@ -249,7 +249,7 @@ export const AllColumns: Story = {
 export const Summary: Story = {
   name: "Narrow",
   parameters: {
-    paperclip: {
+    nexus: {
       capabilities: ["tasks/organize", "activity/overview"],
       status: "proposed", home: "design-proposals", implementation: "production", boundary: "fixtures",
       exception: "Reusable narrow summary staged with the task-list proposal; Dashboard opts in only in the local integration sandbox.",

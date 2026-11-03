@@ -7,14 +7,14 @@ outstanding.
 Superagent (`superagent.sh`) is a security platform: PR security scans,
 dependency updates, red-team reports, context guardrails that score content
 before agents consume it, and runtime guardrails for coding agents. It appears
-in Apps and uses Paperclip's shared remote-MCP connection, vault, catalog,
+in Apps and uses Nexus's shared remote-MCP connection, vault, catalog,
 grants, policies, gateway, and audit trail. It is a resource connection, not
-Paperclip sign-in. No plugin or database migration is required. The only
+Nexus sign-in. No plugin or database migration is required. The only
 provider-specific runtime code is a reviewed risk-classification rule.
 
-Paperclip connects to Superagent's hosted MCP server at
+Nexus connects to Superagent's hosted MCP server at
 `https://www.superagent.sh/mcp` (Streamable HTTP) with one method: an
-organization API key stored as a Paperclip secret and sent as an
+organization API key stored as a Nexus secret and sent as an
 `Authorization: Bearer sk_live_...` header.
 
 The `www` host is pinned deliberately. The bare `superagent.sh` domain
@@ -29,23 +29,23 @@ reach Superagent's server. It can also be connected generically from
 
 ## Service involvement
 
-Superagent hosts the MCP resource. Paperclip stores the key as a secret
+Superagent hosts the MCP resource. Nexus stores the key as a secret
 reference, discovers tools with `tools/list`, and sends the key on every
-governed call. No Paperclip-operated vendor relay is involved; cloud and
+governed call. No Nexus-operated vendor relay is involved; cloud and
 self-hosted instances use the same path.
 
 ## Administrator setup
 
 1. In Superagent, open **Settings → API keys** (`/app/settings#api-keys`) and
-   create a key for Paperclip. Use a separate key so it can be revoked
+   create a key for Nexus. Use a separate key so it can be revoked
    independently.
-2. In Paperclip, open **Apps → Browse → Superagent**, paste the key, and click
+2. In Nexus, open **Apps → Browse → Superagent**, paste the key, and click
    **Connect**.
 3. On the connection's **Permissions** screen, set the billable and
    destructive actions listed below to **Ask first** or **Off** if agents run
    unattended.
 
-Revoke the key in Superagent, then remove the connection in Paperclip, to
+Revoke the key in Superagent, then remove the connection in Nexus, to
 disconnect.
 
 ## Capabilities and policy
@@ -66,7 +66,7 @@ Superagent's documentation calls out these tools:
 - Immediate endpoint-policy changes: `set_agent_builtin_rule_mode`,
   `restore_agent_builtin_rule`.
 
-Paperclip applies a reviewed Superagent risk rule in `classifyRisk`, because
+Nexus applies a reviewed Superagent risk rule in `classifyRisk`, because
 several mutations use names the generic classifier reads as reads
 (`triage_finding`, `scan_*`, `restore_agent_builtin_rule`). Only `list_*` and
 `get_*` tools, and tools Superagent marks `readOnlyHint: true`, are reads.
@@ -87,7 +87,7 @@ destructive tools behind Ask first.
 - Auth: `api_key`, `Authorization: Bearer <key>`. Keys use the `sk_live_`
   prefix.
 - Key permissions: not scoped. A key reaches everything in its organization.
-  Paperclip cannot narrow an issued key.
+  Nexus cannot narrow an issued key.
 - OAuth: not offered. The server returns
   `WWW-Authenticate: Bearer ... resource_metadata="https://www.superagent.sh/.well-known/oauth-protected-resource"`,
   and that document names `https://superagent.sh` as its authorization

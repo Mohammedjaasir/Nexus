@@ -3,18 +3,18 @@ import { readFile } from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import Ajv2020 from "ajv/dist/2020.js";
 import { eq } from "drizzle-orm";
-import { agentWakeupRequests, authUsers, companyMemberships, heartbeatRuns, issueComments, issueThreadInteractions, issues } from "@paperclipai/db";
-import { createIssueThreadInteractionSchema } from "@paperclipai/shared";
+import { agentWakeupRequests, authUsers, companyMemberships, heartbeatRuns, issueComments, issueThreadInteractions, issues } from "@nexusai/db";
+import { createIssueThreadInteractionSchema } from "@nexusai/shared";
 import { issueThreadInteractionService } from "../services/issue-thread-interactions.js";
 import { documentService } from "../services/documents.js";
 import { resolveConfirmationFromComment } from "../services/confirmation-comment-resolution.js";
-import { PaperclipRunnerToolAuthority } from "../services/native-runtime/paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "../services/native-runtime/nexus-runner-tool-authority.js";
 import { createLocalAgentJwt } from "../agent-auth-jwt.js";
 import { initializeRunIdentity } from "../services/run-identity.js";
 import { issueService } from "../services/issues.js";
 import { recoveryPostgresSupport as support } from "./helpers/recovery-postgres.js";
 import { startRunnerApiTestServer } from "./helpers/runner-api-server.js";
-import { CAPABILITY_SEMANTIC_TOOL_CATALOG } from "../vendor/paperclip-runner/index.js";
+import { CAPABILITY_SEMANTIC_TOOL_CATALOG } from "../vendor/nexus-runner/index.js";
 
 async function nativeProposalRecipe(kind: "confirmation" | "checkbox", planRevisionId = randomUUID()) {
   const skill = await readFile(new URL("../onboarding-assets/first-task/skills/first-task/SKILL.md", import.meta.url), "utf8");
@@ -42,15 +42,15 @@ it.each(["confirmation", "checkbox"] as const)("ships a native %s recipe accepte
 if (!support.supported) console.warn(`Skipping first-task admission database tests: ${support.reason}`);
 describe.skipIf(!support.supported)("onboarding first-task execution admission", () => {
   let server: Awaited<ReturnType<typeof startRunnerApiTestServer>>;
-  const originalSecret = process.env.PAPERCLIP_AGENT_JWT_SECRET;
+  const originalSecret = process.env.NEXUS_AGENT_JWT_SECRET;
   beforeAll(async () => {
-    process.env.PAPERCLIP_AGENT_JWT_SECRET = randomUUID();
+    process.env.NEXUS_AGENT_JWT_SECRET = randomUUID();
     server = await startRunnerApiTestServer({ humanSessions: true });
   }, 60_000);
   afterAll(async () => {
     await server?.close();
-    if (originalSecret === undefined) delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
-    else process.env.PAPERCLIP_AGENT_JWT_SECRET = originalSecret;
+    if (originalSecret === undefined) delete process.env.NEXUS_AGENT_JWT_SECRET;
+    else process.env.NEXUS_AGENT_JWT_SECRET = originalSecret;
   });
 
   const fixture = async () => {
@@ -64,7 +64,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
     const before = await f.snapshot();
     const [beforeRun] = await server.db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, f.runId));
     const wakes: unknown[] = [];
-    const authority = new PaperclipRunnerToolAuthority(server.db, { ...f, enqueueWakeup: async (...args) => { wakes.push(args); return null; } });
+    const authority = new NexusRunnerToolAuthority(server.db, { ...f, enqueueWakeup: async (...args) => { wakes.push(args); return null; } });
     await expect(authority.execute({ tool: "create_task", callId: randomUUID(), arguments: {
       title: "Execute proposed work", idempotencyKey: "before-acceptance", status: "todo",
     } })).rejects.toThrow(/proposal.*accept/i);
@@ -79,7 +79,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
   it.each(["root", "child"])("rejects generic %s creation including explicit standalone parent before acceptance", async path => {
     const f = await fixture();
     const before = await f.snapshot();
-    const token = createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", f.runId)!;
+    const token = createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", f.runId)!;
     const route = path === "root" ? `/api/companies/${f.companyId}/issues` : `/api/issues/${f.issueId}/children`;
     const response = await fetch(`${server.apiUrl}${route}`, {
       method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -118,7 +118,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
     const f = await fixture();
     await accept(f, await proposal(f));
     const wakes: unknown[] = [];
-    const authority = new PaperclipRunnerToolAuthority(server.db, { ...f, enqueueWakeup: async (...args) => { wakes.push(args); return null; } });
+    const authority = new NexusRunnerToolAuthority(server.db, { ...f, enqueueWakeup: async (...args) => { wakes.push(args); return null; } });
     const before = await f.snapshot();
     const [beforeRun] = await server.db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, f.runId));
     const input = { title: "Approved artifact child", idempotencyKey: "first-task-handoff", status: "todo",
@@ -149,7 +149,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
     const f = await fixture();
     await accept(f, await proposal(f));
     const before = await f.snapshot();
-    const token = createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", f.runId, f.responsibleUserId)!;
+    const token = createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", f.runId, f.responsibleUserId)!;
     const route = path === "root" ? `/api/companies/${f.companyId}/issues` : `/api/issues/${f.issueId}/children`;
     const response = await fetch(`${server.apiUrl}${route}`, {
       method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -170,7 +170,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
       else await server.db.update(issues).set({ originKind: "manual", description: "Ordinary task mentioning /first-task." }).where(eq(issues.id, f.issueId));
       const blockerId = onboarding ? f.blockerId : f.issueId;
       const wakes: unknown[] = [];
-      const authority = new PaperclipRunnerToolAuthority(server.db, { ...f, enqueueWakeup: async (...args) => { wakes.push(args); return null; } });
+      const authority = new NexusRunnerToolAuthority(server.db, { ...f, enqueueWakeup: async (...args) => { wakes.push(args); return null; } });
       const created = await authority.execute({ tool: "create_task", callId: randomUUID(), arguments: {
         title: "Work with a real prerequisite", idempotencyKey: "valid-blocker", status: "todo", blockedByTaskIds: [blockerId],
       } }) as { task: { id: string } };
@@ -199,7 +199,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
       .find(value => value.createTask && value.setDependencies);
     if (!recipe) throw new Error("Missing shipped first-task handoff recipe");
     const wakes: unknown[] = [];
-    const authority = new PaperclipRunnerToolAuthority(server.db, { ...f, enqueueWakeup: async (...args) => { wakes.push(args); return null; } });
+    const authority = new NexusRunnerToolAuthority(server.db, { ...f, enqueueWakeup: async (...args) => { wakes.push(args); return null; } });
     await authority.execute({ tool: "set_dependencies", callId: randomUUID(), arguments: {
       idempotencyKey: "existing-prerequisite", blockedByTaskIds: [f.blockerId],
     } });
@@ -226,7 +226,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
       status: "running", runtimeMode: "native", nativeIssueId: created.task.id,
       responsibleUserId: f.responsibleUserId, contextSnapshot: { issueId: created.task.id } });
     await server.db.update(issues).set({ status: "in_progress", executionRunId: childRunId }).where(eq(issues.id, created.task.id));
-    const childAuthority = new PaperclipRunnerToolAuthority(server.db, { ...f, issueId: created.task.id, runId: childRunId });
+    const childAuthority = new NexusRunnerToolAuthority(server.db, { ...f, issueId: created.task.id, runId: childRunId });
     const context = await childAuthority.execute({ tool: "get_task_context", callId: randomUUID(), arguments: {} }) as {
       activeTask: { description: string };
     };
@@ -257,7 +257,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
     } }) as { task: { id: string } };
     const before = await f.snapshot();
     const beforeWakes = await server.db.select().from(agentWakeupRequests).where(eq(agentWakeupRequests.companyId, f.companyId));
-    const token = createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", f.runId, f.responsibleUserId)!;
+    const token = createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", f.runId, f.responsibleUserId)!;
     const response = await fetch(`${server.apiUrl}/api/issues/${created.task.id}`, {
       method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ status: "blocked", blockedByIssueIds: [f.issueId.toUpperCase()] }),
@@ -294,9 +294,9 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
     await server.db.update(issues).set({ status: "in_progress", executionRunId: childRunId }).where(eq(issues.id, created.task.id));
     await initializeRunIdentity(server.db, { companyId: f.companyId, runId: childRunId, issueId: created.task.id,
       responsibleUserId: f.responsibleUserId, cause: "instruction" });
-    const childAuthority = new PaperclipRunnerToolAuthority(server.db, { ...f, issueId: created.task.id, runId: childRunId });
+    const childAuthority = new NexusRunnerToolAuthority(server.db, { ...f, issueId: created.task.id, runId: childRunId });
     await issueService(server.db).checkout(created.task.id, f.agentId, ["in_progress"], childRunId);
-    const token = createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", childRunId, f.responsibleUserId)!;
+    const token = createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", childRunId, f.responsibleUserId)!;
     return { f, childId: created.task.id, childRunId, childAuthority, token };
   };
 
@@ -376,7 +376,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
       title: "Existing approved child", idempotencyKey: "approved-before-new-proposal", status: "todo",
     } }) as { task: { id: string } };
     await proposal(f);
-    const token = createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", f.runId, f.responsibleUserId)!;
+    const token = createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", f.runId, f.responsibleUserId)!;
     for (const blockedByIssueIds of [[f.blockerId], []]) {
       const response = await fetch(`${server.apiUrl}/api/issues/${created.task.id}`, {
         method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -397,7 +397,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
     const created = await f.authority.execute({ tool: "create_task", callId: randomUUID(), arguments: {
       title: "Ordinary child", idempotencyKey: "ordinary-child", status: "todo",
     } }) as { task: { id: string } };
-    const token = createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", f.runId, f.responsibleUserId)!;
+    const token = createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", f.runId, f.responsibleUserId)!;
     const response = await fetch(`${server.apiUrl}/api/issues/${created.task.id}`, {
       method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ status: "blocked", blockedByIssueIds: [f.issueId] }),
@@ -414,7 +414,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
     const { interaction } = await f.authority.execute({ tool: "request_human_input", callId: randomUUID(), arguments: {
       idempotencyKey: "first-task-proposal-1", interactionKind: "questions", title: "Approve child task",
       prompt: "I propose exactly one child task and will wait for approval.", continuationPolicy: "wake_assignee",
-      payload: { questionSet: { schema: "paperclip.question_set.v1", questions: [{ id: "approve_child_task",
+      payload: { questionSet: { schema: "nexus.question_set.v1", questions: [{ id: "approve_child_task",
         prompt: 'Approve exactly one child task named "Approved child"?', required: true, answerMode: "single_select",
         options: [{ id: "approve", label: "Approve" }, { id: "revise", label: "Revise" }] }] } },
     } }) as { interaction: { id: string; kind: string } };
@@ -470,7 +470,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
     expect(wakes).toHaveLength(1);
     expect(wakes[0]).toMatchObject({ agentId: f.agentId, requestedByActorType: "user", requestedByActorId: f.responsibleUserId,
       payload: { issueId: f.issueId, interactionId: interaction.id, interactionStatus: "rejected",
-        paperclipAgentMessage: { text: "Please revise the proposed scope.", source: "interaction_rejection" } } });
+        nexusAgentMessage: { text: "Please revise the proposed scope.", source: "interaction_rejection" } } });
     // The fixture disables execution: observe the real durable wake, not a model call.
     expect((await server.db.select().from(heartbeatRuns).where(eq(heartbeatRuns.companyId, f.companyId))).map(run => run.id)).toEqual([f.runId]);
     await expect(create(f)).rejects.toThrow(/proposal.*accept/i);
@@ -610,7 +610,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
     const p = await proposal(f);
     await accept(f, p);
     const wakes: unknown[] = [];
-    const authority = new PaperclipRunnerToolAuthority(server.db, { ...f, enqueueWakeup: async (...args) => { wakes.push(args); return null; } });
+    const authority = new NexusRunnerToolAuthority(server.db, { ...f, enqueueWakeup: async (...args) => { wakes.push(args); return null; } });
     const input = { tool: "create_task", callId: randomUUID(), arguments: { title: "Approved child", idempotencyKey: "owned", status: "todo" } };
     const first = await authority.execute(input);
     expect(wakes).toHaveLength(1);
@@ -632,7 +632,7 @@ describe.skipIf(!support.supported)("onboarding first-task execution admission",
   it("replays an owned generic creation after a newer pending proposal", async () => {
     const f = await fixture();
     await accept(f, await proposal(f));
-    const token = createLocalAgentJwt(f.agentId, f.companyId, "paperclip_runner", f.runId, f.responsibleUserId)!;
+    const token = createLocalAgentJwt(f.agentId, f.companyId, "nexus_runner", f.runId, f.responsibleUserId)!;
     const route = `${server.apiUrl}/api/companies/${f.companyId}/issues`;
     const body = { title: "Approved child", parentId: f.issueId, idempotencyKey: "owned-rest", assigneeAgentId: f.agentId, status: "backlog" };
     const post = async (input = body) => {

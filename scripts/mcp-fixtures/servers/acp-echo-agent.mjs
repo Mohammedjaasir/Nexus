@@ -20,22 +20,22 @@ async function handleRequest(request) {
     process.stderr.write(
       "Error handling request { method: 'nes/close' } { code: -32601 }\n",
     );
-    process.stderr.write("paperclip-acp-echo-agent started\n");
+    process.stderr.write("nexus-acp-echo-agent started\n");
     return {
       protocolVersion: 1,
       agentCapabilities: {
         loadSession: false,
         sessionCapabilities: { close: {} },
       },
-      agentInfo: { name: "paperclip-acp-echo-agent", version: "1.0.0" },
+      agentInfo: { name: "nexus-acp-echo-agent", version: "1.0.0" },
     };
   }
   if (request.method === "session/new") return { sessionId: randomUUID() };
   if (request.method === "session/prompt") {
-    const typedFailure = process.env.PAPERCLIP_ACPX_TYPED_FAILURE_FILE
-      ? JSON.parse(await readFile(process.env.PAPERCLIP_ACPX_TYPED_FAILURE_FILE, "utf8"))
+    const typedFailure = process.env.NEXUS_ACPX_TYPED_FAILURE_FILE
+      ? JSON.parse(await readFile(process.env.NEXUS_ACPX_TYPED_FAILURE_FILE, "utf8"))
       : {};
-    const typedFailureCanary = typedFailure.title ?? process.env.PAPERCLIP_ACPX_TYPED_FAILURE_CANARY;
+    const typedFailureCanary = typedFailure.title ?? process.env.NEXUS_ACPX_TYPED_FAILURE_CANARY;
     if (typedFailureCanary) {
       if (!supportsTypedSessionFailure) {
         throw new Error(
@@ -45,7 +45,7 @@ async function handleRequest(request) {
       const sessionFailure = {
         id: `${request.params.sessionId}:error`,
         revision: 1,
-        category: typedFailure.category ?? process.env.PAPERCLIP_ACPX_TYPED_FAILURE_CATEGORY ?? "request",
+        category: typedFailure.category ?? process.env.NEXUS_ACPX_TYPED_FAILURE_CATEGORY ?? "request",
         severity: "error",
         title: typedFailureCanary,
         ...(typedFailure.details
@@ -69,7 +69,7 @@ async function handleRequest(request) {
         _meta: { jetbrains: { air: { version: 1, sessionFailure } } },
       };
     }
-    const typedWarningCanary = process.env.PAPERCLIP_ACPX_TYPED_WARNING_CANARY;
+    const typedWarningCanary = process.env.NEXUS_ACPX_TYPED_WARNING_CANARY;
     let responseMeta;
     if (typedWarningCanary) {
       if (!supportsTypedSessionFailure) {
@@ -104,7 +104,7 @@ async function handleRequest(request) {
           sessionUpdate: "agent_message_chunk",
           content: {
             type: "text",
-            text: process.env.PAPERCLIP_ACPX_SPAWN_SMOKE ?? "missing",
+            text: process.env.NEXUS_ACPX_SPAWN_SMOKE ?? "missing",
           },
         },
       },

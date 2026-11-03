@@ -20,14 +20,14 @@ The installation tests verify those source hashes,
 canonical declaration digest, immutable Pi 31 bytes, and historical decoding.
 
 The Antigravity distribution declaration, command digest, and native patch
-`1.4.3-paperclip.4` remain unchanged. This identity refresh supplies build
+`1.4.3-nexus.4` remain unchanged. This identity refresh supplies build
 provenance; it does not transfer prior live qualification to changed sources or
 mark the pending Antigravity profile qualified.
 
 ## Subsequent native .5 candidate
 
 The paragraph above describes the earlier `.4` identity-refresh snapshot and
-remains its historical record. The later `1.4.3-paperclip.5` native patch closes
+remains its historical record. The later `1.4.3-nexus.5` native patch closes
 each client file-operation result by its exact call/step identity after delivery.
 A genuine finish failure no longer broadcasts failure onto earlier completed
 edit/read activities. Its maintained profile command digest is

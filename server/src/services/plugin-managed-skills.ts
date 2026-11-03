@@ -1,15 +1,15 @@
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   pluginManagedResources,
-} from "@paperclipai/db";
-import { joinFrontmatterBlock, normalizeAgentUrlKey, splitFrontmatterBlock } from "@paperclipai/shared";
+} from "@nexusai/db";
+import { joinFrontmatterBlock, normalizeAgentUrlKey, splitFrontmatterBlock } from "@nexusai/shared";
 import type {
   CompanySkill,
-  PaperclipPluginManifestV1,
+  NexusPluginManifestV1,
   PluginManagedSkillDeclaration,
   PluginManagedSkillResolution,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { notFound } from "../errors.js";
 import { logActivity } from "./activity-log.js";
 import { companySkillService } from "./company-skills.js";
@@ -19,7 +19,7 @@ const MANAGED_SKILL_RESOURCE_KIND = "skill";
 interface PluginManagedSkillServiceOptions {
   pluginId: string;
   pluginKey: string;
-  manifest?: PaperclipPluginManifestV1 | null;
+  manifest?: NexusPluginManifestV1 | null;
 }
 
 function pluginKeySlug(pluginKey: string) {

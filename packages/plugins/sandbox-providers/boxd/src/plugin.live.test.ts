@@ -12,7 +12,7 @@ const params = {
   environmentId: "boxd-plugin-smoke",
   config: {
     ...(process.env.BOXD_ORG ? { org: process.env.BOXD_ORG } : {}),
-    namePrefix: "paperclip-e2e",
+    namePrefix: "nexus-e2e",
     reuseLease: true,
     timeoutMs: 120_000,
   },
@@ -77,9 +77,9 @@ describe.skipIf(!live)("boxd live", () => {
   it("probes with a sized throwaway machine and deletes it", async () => {
     const before = new Set((await sdk().machines.list()).map((machine) => machine.id));
     const probe = await timed("probe", () => hooks.onEnvironmentProbe!({ ...params, config: { ...params.config, vcpu: 2 } }));
-    expect(probe).toMatchObject({ ok: true, metadata: { remoteCwd: "/home/boxd/paperclip-workspace" } });
+    expect(probe).toMatchObject({ ok: true, metadata: { remoteCwd: "/home/boxd/nexus-workspace" } });
     const name = String(probe.metadata?.machineName);
-    expect(name).toMatch(/^paperclip-e2e-probe-/);
+    expect(name).toMatch(/^nexus-e2e-probe-/);
     const leftover = (await sdk().machines.list()).filter((machine) => !before.has(machine.id) && machine.name === name);
     expect(leftover).toEqual([]);
 
@@ -94,15 +94,15 @@ describe.skipIf(!live)("boxd live", () => {
     try {
       const machine = await sdk().machines.get(providerLeaseId);
       expect(machine.labels).toMatchObject({
-        "paperclip-provider": "boxd",
-        "paperclip-environment": "boxd-plugin-smoke",
+        "nexus-provider": "boxd",
+        "nexus-environment": "boxd-plugin-smoke",
       });
-      expect(machine.labels["paperclip-run"]).toMatch(/^smoke-/);
+      expect(machine.labels["nexus-run"]).toMatch(/^smoke-/);
       expect(machine.networking.isolated).toBe(true);
       if (process.env.BOXD_ORG) expect([machine.org?.id, machine.org?.name]).toContain(process.env.BOXD_ORG);
 
       const workspace = await hooks.onEnvironmentRealizeWorkspace!({ ...params, lease, workspace: {} });
-      expect(workspace.cwd).toBe("/home/boxd/paperclip-workspace");
+      expect(workspace.cwd).toBe("/home/boxd/nexus-workspace");
 
       const tools = await hooks.onEnvironmentExecute!({
         ...params, lease, command: "sh", args: ["-c", "command -v node && command -v tar && command -v claude"],
@@ -115,7 +115,7 @@ describe.skipIf(!live)("boxd live", () => {
       }));
       expect(streams).toEqual({ exitCode: 7, timedOut: false, stdout: "", stderr: "stderr works" });
       const staged = await hooks.onEnvironmentExecute!({
-        ...params, lease, command: "sh", args: ["-c", "ls /tmp | grep -c '^paperclip-stdin-' || true"],
+        ...params, lease, command: "sh", args: ["-c", "ls /tmp | grep -c '^nexus-stdin-' || true"],
       });
       expect(staged.stdout.trim()).toBe("0");
 
@@ -277,7 +277,7 @@ describe.skipIf(!live)("boxd live", () => {
 
   it("restores each run from a snapshot", async () => {
     const source = await acquire(ephemeral);
-    const snapshotName = `paperclip-e2e-${randomUUID().slice(0, 8)}`;
+    const snapshotName = `nexus-e2e-${randomUUID().slice(0, 8)}`;
     let restoredId: string | null = null;
     try {
       await hooks.onEnvironmentExecute!({ ...ephemeral, lease: source, command: "sh", args: ["-c", "echo from-snapshot > /home/boxd/golden.txt"] });
@@ -317,7 +317,7 @@ describe.skipIf(!live)("boxd live", () => {
 
   it("leaves no machines behind", async () => {
     const leftover = (await sdk().machines.list())
-      .filter((machine) => machine.name.startsWith("paperclip-e2e-") && machine.status !== "destroyed");
+      .filter((machine) => machine.name.startsWith("nexus-e2e-") && machine.status !== "destroyed");
     expect(leftover.map((machine) => machine.name)).toEqual([]);
   });
 });

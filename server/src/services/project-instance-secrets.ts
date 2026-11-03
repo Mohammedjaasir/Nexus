@@ -9,8 +9,8 @@ import {
   projectWorkspaces,
   resourceLifecycleEvents,
   type Db,
-} from "@paperclipai/db";
-import type { ResourceLifecycleEvent } from "@paperclipai/plugin-sdk";
+} from "@nexusai/db";
+import type { ResourceLifecycleEvent } from "@nexusai/plugin-sdk";
 import { z } from "zod";
 import { secretService } from "./secrets.js";
 import { persistActivity, type ActivityPublication } from "./activity-log.js";

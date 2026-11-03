@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { ProjectSkillRepository, RoutineRunSummary, Issue } from '@paperclipai/shared';
-import { buildSkillMentionHref } from '@paperclipai/shared';
+import type { ProjectSkillRepository, RoutineRunSummary, Issue } from '@nexusai/shared';
+import { buildSkillMentionHref } from '@nexusai/shared';
 import { skillSourcesApi } from '@/api/skillSources';
 import { companySkillsApi } from '@/api/companySkills';
 import { projectsApi } from '@/api/projects';
@@ -12,7 +12,7 @@ import { ApiError } from '@/api/client';
 import { issuesApi } from '@/api/issues';
 import { queryKeys } from '@/lib/queryKeys';
 import { baseRoutine } from '../fixtures/routineWebhooks';
-import { storybookProjects, storybookIssues } from '../fixtures/paperclipData';
+import { storybookProjects, storybookIssues } from '../fixtures/nexusData';
 import { COMPANY_ID, SOURCE_ID, COMMIT, installFixtures, candidates, sourceFixture } from '../fixtures/githubSkillSources';
 
 export type Scenario = 'new-project' | 'attach-repository' | 'legacy' | 'duplicate' | 'partial-adoption' | 'missing-branch' | 'ready' | 'refreshing' | 'error' | 'empty' | 'private' | 'shared' | 'shared-private' | 'long' | 'many' | 'paused' | 'removed' | 'validation' | 'repair' | 'repair-conflict' | 'automatic' | 'latest';
@@ -38,12 +38,12 @@ export function installProjectSkillFixtures(scenario: Scenario, client: QueryCli
   let live = true, automaticUpdates = scenario !== 'paused', failed = ['error', 'repair', 'repair-conflict', 'missing-branch'].includes(scenario);
   let sourceRevision = sourceFixture().revision, repairConflict = scenario === 'repair-conflict';
   const privateProject = scenario === 'private';
-  let repository = { ...projectRepository, projectName: scenario === 'partial-adoption' ? 'Paperclip' : projectRepository.projectName,
+  let repository = { ...projectRepository, projectName: scenario === 'partial-adoption' ? 'Nexus' : projectRepository.projectName,
     projectVisibility: privateProject ? 'private' as const : 'open' as const };
   if (!['new-project', 'legacy', 'duplicate'].includes(scenario)) repository = { ...repository, sourceId: SOURCE_ID, bindingId: 'binding-skills', status: 'ready' };
   let additionalRepositories: ProjectSkillRepository[] = scenario === 'duplicate' ? [{ ...repository, workspaceId: 'second-workspace', projectId: 'second-project', projectName: 'Sentry' }]
     : scenario === 'partial-adoption' ? [
-      { ...repository, workspaceId: 'cloud-workspace', projectId: 'paperclip-cloud', projectName: 'Paperclip Cloud', sourceId: null, bindingId: null, status: 'available' },
+      { ...repository, workspaceId: 'cloud-workspace', projectId: 'nexus-cloud', projectName: 'Nexus Cloud', sourceId: null, bindingId: null, status: 'available' },
       { ...repository, workspaceId: 'sentry-workspace', projectId: 'sentry', projectName: 'Sentry', sourceId: null, bindingId: null, status: 'available' },
     ] : [];
   let project = { ...storybookProjects[0]!, id: repository.projectId, urlKey: repository.projectId, name: repository.projectName, companyId: COMPANY_ID,

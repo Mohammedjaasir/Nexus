@@ -4,7 +4,7 @@ import { initializeMcpHttpSession, mcpHttpRequestHeaders, parseMcpHttpResponseBo
 
 export const RAILWAY_MCP_URL = "https://mcp.railway.com";
 export const RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2";
-export const RAILWAY_TOOL_PREFIX = "paperclip-railway-";
+export const RAILWAY_TOOL_PREFIX = "nexus-railway-";
 /** Reserve time for target checks while staying inside the gateway's 60s cap. */
 export function railwayCommandBudgetMs(parameters: unknown): number {
   const seconds = parameters && typeof parameters === "object" ? (parameters as Record<string, unknown>).timeoutSeconds : undefined;
@@ -31,7 +31,7 @@ export function isRailwayConnection(connection: {
   config: Record<string, unknown>;
 }): boolean {
   return connection.transport === "mcp_remote" && connection.authKind === "oauth"
-    && connection.credentialSource === "paperclip_vault"
+    && connection.credentialSource === "nexus_vault"
     && connection.config.sourceTemplateKey === "railway"
     && connection.config.connectionMethodKey === "mcp-oauth"
     && isRailwayEndpoint(connection.config.url);
@@ -133,17 +133,17 @@ const instanceFields = "id environmentId serviceId serviceName source { repo } l
 
 /** All query documents are authored here. Caller input is only ever variables. */
 export const RAILWAY_QUERIES = {
-  projects: `query PaperclipRailwayProjects($workspaceId:String!,$first:Int!,$after:String) { projects(workspaceId:$workspaceId,first:$first,after:$after) { edges { node { id name workspaceId } } ${pageInfo} } }`,
-  services: `query PaperclipRailwayServices($projectId:String!,$first:Int!,$after:String) { project(id:$projectId) { id services(first:$first,after:$after) { edges { node { id name projectId } } ${pageInfo} } } }`,
-  environments: `query PaperclipRailwayEnvironments($projectId:String!,$first:Int!,$after:String) { project(id:$projectId) { id environments(first:$first,after:$after) { edges { node { id name projectId } } ${pageInfo} } } }`,
-  target: `query PaperclipRailwayTarget($projectId:String!,$environmentId:String!,$serviceId:String!) { project(id:$projectId) { id } environment(id:$environmentId) { id projectId } service(id:$serviceId) { id projectId } serviceInstance(environmentId:$environmentId,serviceId:$serviceId) { ${instanceFields} } }`,
-  deployment: `query PaperclipRailwayDeployment($deploymentId:String!) { deployment(id:$deploymentId) { ${deploymentFields} instances { id } } }`,
-  deployments: `query PaperclipRailwayDeployments($input:DeploymentListInput!,$first:Int!,$after:String) { deployments(input:$input,first:$first,after:$after) { edges { node { ${deploymentFields} } } ${pageInfo} } }`,
-  buildLogs: `query PaperclipRailwayBuildLogs($deploymentId:String!,$limit:Int!,$startDate:DateTime,$endDate:DateTime,$filter:String) { buildLogs(deploymentId:$deploymentId,limit:$limit,startDate:$startDate,endDate:$endDate,filter:$filter) { timestamp message severity } }`,
-  runtimeLogs: `query PaperclipRailwayRuntimeLogs($deploymentId:String!,$limit:Int!,$startDate:DateTime,$endDate:DateTime,$filter:String) { deploymentLogs(deploymentId:$deploymentId,limit:$limit,startDate:$startDate,endDate:$endDate,filter:$filter) { timestamp message severity } }`,
-  redeploy: `mutation PaperclipRailwayRedeploy($deploymentId:String!) { deploymentRedeploy(id:$deploymentId,usePreviousImageTag:true) { id status } }`,
-  restart: `mutation PaperclipRailwayRestart($deploymentId:String!) { deploymentRestart(id:$deploymentId) }`,
-  rollback: `mutation PaperclipRailwayRollback($deploymentId:String!) { deploymentRollback(id:$deploymentId) }`,
+  projects: `query NexusRailwayProjects($workspaceId:String!,$first:Int!,$after:String) { projects(workspaceId:$workspaceId,first:$first,after:$after) { edges { node { id name workspaceId } } ${pageInfo} } }`,
+  services: `query NexusRailwayServices($projectId:String!,$first:Int!,$after:String) { project(id:$projectId) { id services(first:$first,after:$after) { edges { node { id name projectId } } ${pageInfo} } } }`,
+  environments: `query NexusRailwayEnvironments($projectId:String!,$first:Int!,$after:String) { project(id:$projectId) { id environments(first:$first,after:$after) { edges { node { id name projectId } } ${pageInfo} } } }`,
+  target: `query NexusRailwayTarget($projectId:String!,$environmentId:String!,$serviceId:String!) { project(id:$projectId) { id } environment(id:$environmentId) { id projectId } service(id:$serviceId) { id projectId } serviceInstance(environmentId:$environmentId,serviceId:$serviceId) { ${instanceFields} } }`,
+  deployment: `query NexusRailwayDeployment($deploymentId:String!) { deployment(id:$deploymentId) { ${deploymentFields} instances { id } } }`,
+  deployments: `query NexusRailwayDeployments($input:DeploymentListInput!,$first:Int!,$after:String) { deployments(input:$input,first:$first,after:$after) { edges { node { ${deploymentFields} } } ${pageInfo} } }`,
+  buildLogs: `query NexusRailwayBuildLogs($deploymentId:String!,$limit:Int!,$startDate:DateTime,$endDate:DateTime,$filter:String) { buildLogs(deploymentId:$deploymentId,limit:$limit,startDate:$startDate,endDate:$endDate,filter:$filter) { timestamp message severity } }`,
+  runtimeLogs: `query NexusRailwayRuntimeLogs($deploymentId:String!,$limit:Int!,$startDate:DateTime,$endDate:DateTime,$filter:String) { deploymentLogs(deploymentId:$deploymentId,limit:$limit,startDate:$startDate,endDate:$endDate,filter:$filter) { timestamp message severity } }`,
+  redeploy: `mutation NexusRailwayRedeploy($deploymentId:String!) { deploymentRedeploy(id:$deploymentId,usePreviousImageTag:true) { id status } }`,
+  restart: `mutation NexusRailwayRestart($deploymentId:String!) { deploymentRestart(id:$deploymentId) }`,
+  rollback: `mutation NexusRailwayRollback($deploymentId:String!) { deploymentRollback(id:$deploymentId) }`,
 };
 
 function record(value: unknown): Record<string, any> {
@@ -174,12 +174,12 @@ export async function discoverRailwayWorkspace(options: RailwayClientOptions): P
   const headers = { Authorization: options.authorization };
   const list = (requestHeaders: Record<string, string>) => send({
     method: "POST", headers: mcpHttpRequestHeaders(requestHeaders),
-    body: JSON.stringify({ jsonrpc: "2.0", id: "paperclip-railway-workspace-probe", method: "tools/call", params: { name: "list-workspaces", arguments: {} } }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: "nexus-railway-workspace-probe", method: "tools/call", params: { name: "list-workspaces", arguments: {} } }),
   });
   let response = await list(headers);
   if (response.status === 400) {
     await response.body?.cancel();
-    response = await list(await initializeMcpHttpSession({ send, headers, requestId: "paperclip-railway-workspace-probe" }));
+    response = await list(await initializeMcpHttpSession({ send, headers, requestId: "nexus-railway-workspace-probe" }));
   }
   if (!response.ok) {
     await response.body?.cancel();

@@ -1,4 +1,4 @@
-const RECOVERY_KEY = "paperclip.cloud-sign-in-attempt";
+const RECOVERY_KEY = "nexus.cloud-sign-in-attempt";
 const RECOVERY_WINDOW_MS = 5 * 60 * 1000;
 
 export function clearCloudSignInAttempt() {

@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { heartbeatRuns, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { heartbeatRuns, nativeRunFinalizations, type Db } from "@nexusai/db";
 import { legacyControllerBootId } from "../legacy-controller-lease.js";
 import { currentNativeControllerIdentity } from "../native-runtime/native-restart-recovery.js";
 

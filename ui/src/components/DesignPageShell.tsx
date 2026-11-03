@@ -24,7 +24,7 @@ export function DesignPageShell({
   sidebar,
   title,
   children,
-  sidebarStorageKey = "paperclip.design-proposal.sidebar-width",
+  sidebarStorageKey = "nexus.design-proposal.sidebar-width",
   headerActions,
   rightSidebar,
   rightSidebarTitle = "Details",

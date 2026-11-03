@@ -6,7 +6,7 @@ const meta = {
   id: "assistant-connections-manage-connections",
   title: "Apps, channels, and extensions/Tool gateways and access profiles/Assistant connections/Manage connections", component: AssistantConnectionsPage,
   parameters: { layout: "padded", initialEntries: ["/assistant-connections"], docs: { description: { component: "Production /assistant-connections page. Revocation changes only the in-memory story fixture." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "gateways-profiles/client-connect"
       ],

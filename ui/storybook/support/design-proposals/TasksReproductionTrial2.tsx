@@ -12,7 +12,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { useDialogActions } from "@/context/DialogContext";
 import { useTaskListCollection } from "@/hooks/useTaskListCollection";
 import { taskListViewStorageKey } from "@/lib/task-list-views";
-import { storybookAgents, storybookAuthSession, storybookIssueLabels, storybookProjects } from "../../fixtures/paperclipData";
+import { storybookAgents, storybookAuthSession, storybookIssueLabels, storybookProjects } from "../../fixtures/nexusData";
 import { DesignProposalAccess } from "./DesignProposalAccess";
 import { initialItems, recentTasks } from "./task-page-data";
 

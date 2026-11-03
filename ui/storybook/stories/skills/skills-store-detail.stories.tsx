@@ -4,7 +4,7 @@ import type {
   CompanySkillDetail,
   CompanySkillFileDetail,
   CompanySkillVersion,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { SkillDetailPage } from "@/pages/CompanySkills";
 
 type DetailTab = "overview" | "files" | "versions" | "agents";
@@ -204,7 +204,7 @@ const meta: Meta<typeof SkillDetailHarness> = {
   title: "Agents and reusable capabilities/Skills and Skill Studio/Skills Store/Skill detail",
   component: SkillDetailHarness,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "skills/discovery",
         "skills/versions",

@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { agents, builtInManagedResources, companies, companySecretVersions, createDb, environmentLeases, environments, heartbeatRuns, plugins, sandboxCreationOperations } from "@paperclipai/db";
+import { agents, builtInManagedResources, companies, companySecretVersions, createDb, environmentLeases, environments, heartbeatRuns, plugins, sandboxCreationOperations } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { environmentRuntimeService } from "../services/environment-runtime.js";
 import { environmentService } from "../services/environments.js";
@@ -39,9 +39,9 @@ describe("durable sandbox creation through the runtime entry point", () => {
     await db.insert(agents).values({ id: agentId, companyId, name: "Fixture", role: "engineer", adapterType: "codex_local" });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "running", invocationSource: "manual" });
     await db.insert(environments).values({ id: environmentId, name: environmentId, driver: "sandbox", config: { provider: "creation-fixture", image: "fixture", reuseLease: false } });
-    await db.insert(plugins).values({ id: pluginId, pluginKey: "paperclip.creation-fixture", packageName: "creation-fixture", version: "1.0.0", apiVersion: 1,
-      status: "ready", categories: ["automation"], manifestJson: { id: "paperclip.creation-fixture", version: "1.0.0", apiVersion: 1,
-      displayName: "Creation fixture", description: "Controlled remote provider", author: "Paperclip", categories: ["automation"],
+    await db.insert(plugins).values({ id: pluginId, pluginKey: "nexus.creation-fixture", packageName: "creation-fixture", version: "1.0.0", apiVersion: 1,
+      status: "ready", categories: ["automation"], manifestJson: { id: "nexus.creation-fixture", version: "1.0.0", apiVersion: 1,
+      displayName: "Creation fixture", description: "Controlled remote provider", author: "Nexus", categories: ["automation"],
       capabilities: ["environment.drivers.register"], entrypoints: { worker: "fixture.js" }, environmentDrivers: [{
         driverKey: "creation-fixture", kind: "sandbox_provider", displayName: "Fixture", creationOperationVersion: 1, configSchema: { type: "object" },
       }] } });
@@ -64,7 +64,7 @@ describe("durable sandbox creation through the runtime entry point", () => {
           if (!resource) return { providerLeaseId: id, state: "unknown" };
           return { providerLeaseId: resource, state: "active", creationCleanup: { providerLeaseId: resource,
             observedProviderLeaseId: resource, companyId, environmentId, runId: input.creationOperation.runId, attemptId: id,
-            accountFingerprint: "a".repeat(64), labels: { "paperclip-create-attempt": id } } };
+            accountFingerprint: "a".repeat(64), labels: { "nexus-create-attempt": id } } };
         }
         if (method === "environmentDestroyLease") {
           destroys++;

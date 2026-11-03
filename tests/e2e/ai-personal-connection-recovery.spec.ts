@@ -26,7 +26,7 @@ test("a ready agent with a missing personal key offers Claude setup in chat and 
       adapterConfig: { engine: "acp", cwd: root, stateDir: path.join(root, "state"),
         agentCommand: `${JSON.stringify(process.execPath)} ${JSON.stringify(path.resolve("scripts/mcp-fixtures/servers/acp-stop-agent.mjs"))}`,
         env: { ANTHROPIC_API_KEY: { type: "user_secret_ref", key: definition.key, version: "latest", required: true },
-          PAPERCLIP_STOP_FIXTURE_ROOT: root } },
+          NEXUS_STOP_FIXTURE_ROOT: root } },
     } }));
     const chatPath = `/api/companies/${company.id}/chats/${agent.id}`;
     await page.goto(`/${company.issuePrefix}/chats/${agent.id}`);
@@ -36,7 +36,7 @@ test("a ready agent with a missing personal key offers Claude setup in chat and 
     await expect(page.getByText("Chief of Staff needs your own AI connection.", { exact: false })).toBeVisible();
     await expect(page.getByRole("button", { name: "Try again", exact: true })).toHaveCount(0);
     const chat = await json(await request.get(chatPath));
-    // Real pre-dispatch failure, not a seeded card or mocked Paperclip response.
+    // Real pre-dispatch failure, not a seeded card or mocked Nexus response.
     const before = await json(await request.get(`/api/companies/${company.id}/heartbeat-runs`));
     expect(before).toHaveLength(1);
     const failed = await json(await request.get(`/api/heartbeat-runs/${before[0].id}`));
@@ -48,7 +48,7 @@ test("a ready agent with a missing personal key offers Claude setup in chat and 
     await page.getByRole("button", { name: "Connect Claude", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByRole("button", { name: "Use API key instead", exact: true }).click();
-    await page.getByPlaceholder("Enter API key here").fill("paperclip-e2e-personal-claude-key");
+    await page.getByPlaceholder("Enter API key here").fill("nexus-e2e-personal-claude-key");
     await page.getByRole("button", { name: "Connect", exact: true }).click();
     await expect(page.getByRole("button", { name: "Use connection and continue", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Use connection and continue", exact: true }).click();

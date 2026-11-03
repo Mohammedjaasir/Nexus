@@ -1,4 +1,4 @@
-import type { CompanySearchResponse, CompanySearchScope, CompanySearchSort, IssuePriority, IssueDisplayStatus } from "@paperclipai/shared";
+import type { CompanySearchResponse, CompanySearchScope, CompanySearchSort, IssuePriority, IssueDisplayStatus } from "@nexusai/shared";
 import { api } from "./client";
 
 export interface CompanySearchParams {

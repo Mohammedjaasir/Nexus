@@ -13,12 +13,12 @@ export async function stageCodexSubscriptionFixture(input: {
   if (!parsed?.tokens || !["account_id", "access_token", "refresh_token", "id_token"].every(key => typeof parsed.tokens[key] === "string" && parsed.tokens[key].trim())
       || parsed.OPENAI_API_KEY) throw new Error("Codex login fixture requires subscription tokens");
   const env = input.environment;
-  const root = env.PAPERCLIP_RUNNER_E2E_TEMP_ROOT;
-  if (!root || !/^[0-9a-f-]{36}$/i.test(input.companyId) || !/^runner-e2e-[a-z0-9-]+$/.test(env.PAPERCLIP_INSTANCE_ID ?? "")) {
+  const root = env.NEXUS_RUNNER_E2E_TEMP_ROOT;
+  if (!root || !/^[0-9a-f-]{36}$/i.test(input.companyId) || !/^runner-e2e-[a-z0-9-]+$/.test(env.NEXUS_INSTANCE_ID ?? "")) {
     throw new Error("Codex login fixture requires an isolated test company and instance");
   }
   const canonicalRoot = await realpath(root);
-  if (!env.PAPERCLIP_HOME || await realpath(env.PAPERCLIP_HOME) !== path.join(canonicalRoot, "paperclip-home")) {
+  if (!env.NEXUS_HOME || await realpath(env.NEXUS_HOME) !== path.join(canonicalRoot, "nexus-home")) {
     throw new Error("Codex login fixture refuses a home outside its isolated root");
   }
   const companyHome = resolveManagedCodexHomeDir(env, input.companyId);

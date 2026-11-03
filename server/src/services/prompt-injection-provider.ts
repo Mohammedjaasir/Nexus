@@ -1,11 +1,11 @@
 import { generateText } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { OPENROUTER_ATTRIBUTION_HEADERS } from "@paperclipai/shared/openrouter-attribution";
+import { OPENROUTER_ATTRIBUTION_HEADERS } from "@nexusai/shared/openrouter-attribution";
 import {
   PROMPT_INJECTION_DEFAULT_MODEL, PROMPT_INJECTION_DEADLINE_MS, PROMPT_INJECTION_MAX_REQUEST_BYTES,
   PROMPT_INJECTION_MAX_OUTPUT_TOKENS, PROMPT_INJECTION_POLICY_VERSION, promptInjectionVerdictSchema,
   type PromptInjectionVerdict, type PromptInjectionFallbackReason,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { providerUsageReceipt } from "./provider-usage.js";
 import type { DecisionProviderReceipt } from "./decision-model-provider.js";
 

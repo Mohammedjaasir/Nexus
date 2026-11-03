@@ -33,7 +33,7 @@ import {
   teamsConversationId,
 } from "../chat-control-chronology.js";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatActions,
@@ -42,10 +42,10 @@ import {
   chatEndpointResources,
   chatEndpoints,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatProvider,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   parseTelegramCallbackReceipt,
@@ -231,7 +231,7 @@ export function createProviderEffects(db: Db, options: ProviderEffectsOptions) {
     return {
       kind: "delivery_unknown" as const,
       reason:
-        "Provider effect completed, but Paperclip could not confirm its durable result",
+        "Provider effect completed, but Nexus could not confirm its durable result",
     };
   }
 

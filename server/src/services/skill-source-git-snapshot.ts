@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process';
 import { chmod, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import type { SkillSourceScanProgress } from '@paperclipai/shared';
-import { parseGitHubSkillRepositoryUrl } from '@paperclipai/shared';
+import type { SkillSourceScanProgress } from '@nexusai/shared';
+import { parseGitHubSkillRepositoryUrl } from '@nexusai/shared';
 import { unprocessable } from '../errors.js';
 import { buildGitAuthInvocation } from './git-credentials.js';
 import { MAX_REPOSITORY_BYTES, MAX_REPOSITORY_FILES } from './skill-repository-package.js';
@@ -135,7 +135,7 @@ async function runGit(directory: string, args: string[], token: string, options:
       }
     });
     child.on('error', error => stop(unprocessable((error as NodeJS.ErrnoException).code === 'ENOENT'
-      ? 'Git is required to import repositories. Install Git on the Paperclip server and try again.' : 'Could not start the repository download. Try again.')));
+      ? 'Git is required to import repositories. Install Git on the Nexus server and try again.' : 'Could not start the repository download. Try again.')));
     child.on('close', async code => {
       closed = true;
       clearInterval(monitor); clearTimeout(killTimer);
@@ -249,7 +249,7 @@ export async function openGitSkillSnapshot(input: { repositoryUrl: string; ref: 
   activeDownloads++;
   let directory: string | undefined;
   try {
-    directory = await mkdtemp(path.join(os.tmpdir(), 'paperclip-skill-git-'));
+    directory = await mkdtemp(path.join(os.tmpdir(), 'nexus-skill-git-'));
     await chmod(directory, 0o700);
     await runGit(directory, ['init', '--bare', '--quiet', '.'], '', options);
     if (!input.commitSha && !/^[a-f0-9]{40}$/i.test(input.ref)) await runGit(directory, ['check-ref-format', '--branch', input.ref], '', options);

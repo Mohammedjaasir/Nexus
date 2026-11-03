@@ -16,7 +16,7 @@
 import express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { authAccounts, createDb } from "@paperclipai/db";
+import { authAccounts, createDb } from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -63,16 +63,16 @@ describeEmbeddedPostgres("Better Auth credential sign-up against the real schema
   let app!: express.Express;
   const originalEnv = {
     secret: process.env.BETTER_AUTH_SECRET,
-    rateLimit: process.env.PAPERCLIP_AUTH_RATE_LIMIT_ENABLED,
+    rateLimit: process.env.NEXUS_AUTH_RATE_LIMIT_ENABLED,
   };
 
   beforeAll(async () => {
     process.env.BETTER_AUTH_SECRET = "better-auth-secret-for-credential-signup-tests";
     // The rate limiter is on by default in `authenticated` mode and would score
     // the sign-up and sign-in this suite issues back to back.
-    process.env.PAPERCLIP_AUTH_RATE_LIMIT_ENABLED = "false";
+    process.env.NEXUS_AUTH_RATE_LIMIT_ENABLED = "false";
 
-    database = await startEmbeddedPostgresTestDatabase("paperclip-better-auth-signup-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-better-auth-signup-");
     db = createDb(database.connectionString);
 
     const auth = createBetterAuthInstance(db, testConfig(), [ORIGIN]);
@@ -86,8 +86,8 @@ describeEmbeddedPostgres("Better Auth credential sign-up against the real schema
     await database?.cleanup();
     if (originalEnv.secret === undefined) delete process.env.BETTER_AUTH_SECRET;
     else process.env.BETTER_AUTH_SECRET = originalEnv.secret;
-    if (originalEnv.rateLimit === undefined) delete process.env.PAPERCLIP_AUTH_RATE_LIMIT_ENABLED;
-    else process.env.PAPERCLIP_AUTH_RATE_LIMIT_ENABLED = originalEnv.rateLimit;
+    if (originalEnv.rateLimit === undefined) delete process.env.NEXUS_AUTH_RATE_LIMIT_ENABLED;
+    else process.env.NEXUS_AUTH_RATE_LIMIT_ENABLED = originalEnv.rateLimit;
   });
 
   it("creates the user and its credential account, then signs that user in", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { inheritNativeRunnerAdapterConfig } from "./native-agent-runtime-inheritance.js";
-import { resolvePaperclipRunnerProviderProfile } from "./provider-profile.js";
+import { resolveNexusRunnerProviderProfile } from "./provider-profile.js";
 
 describe("native hire runtime inheritance", () => {
   it("does not inherit operator-owned home mode into a hired agent", () => {
@@ -24,7 +24,7 @@ describe("native hire runtime inheritance", () => {
       runtimeSessionId: "parent-session",
       env: { API_KEY: "parent-secret" },
     });
-    expect(resolvePaperclipRunnerProviderProfile(inherited)).toMatchObject({
+    expect(resolveNexusRunnerProviderProfile(inherited)).toMatchObject({
       provider,
       [profileKey]: "qualified-company-profile",
     });

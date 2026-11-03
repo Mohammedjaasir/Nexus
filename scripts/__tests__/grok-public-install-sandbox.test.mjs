@@ -10,7 +10,7 @@ import { isWorkspacePackage, parseWorkspaceEntries } from '../build-standalone-p
 import { GROK_PUBLIC_INSTALL_IMAGE, GROK_PUBLIC_INSTALL_LIFECYCLE, assertInstalledCodexPlatformProvenance, assertInstalledNativeConsumerContinuity, assertNoBundledCodexPayloads, grokConsumerDockerArgs, installedClaudeProbeSource, installedCodexProbeSource, installedDaemonProbeSource, macNodeHeadersDirectory, macPublicInstallLifecycleProfile, macInstalledStartupProbeSource, runMacInitialInstallWithDiagnostics } from '../grok-public-install-sandbox.mjs';
 import { verifyPiPackagedDaemon } from '../pi-public-install-probe.mjs';
 import { publicInstallClosure } from '../public-install-closure.mjs';
-import { runnerBinaryTarget } from '../../packages/paperclip-runner/src/live/runner-binary.ts';
+import { runnerBinaryTarget } from '../../packages/nexus-runner/src/live/runner-binary.ts';
 
 const paths = { assets: '/private/staging/assets', consumer: '/private/staging/consumer', cache: '/private/staging/cache', uid: 1001, gid: 1001 };
 const values = (args, flag) => args.flatMap((value, index) => value === flag ? [args[index + 1]] : []);
@@ -38,7 +38,7 @@ test('ordinary Claude consumer admission rejects authority overrides before invo
     const fixture = join(root, 'runner.mjs'), probe = join(root, 'probe.mjs');
     writeFileSync(probe, installedClaudeProbeSource(fixture));
     writeFileSync(fixture, "export async function probeAcpxClaudeInstallation() { throw Error('provider verifier invoked'); }\n");
-    for (const key of ['PAPERCLIP_ACPX_PROVIDER_PACKAGE_ROOT', 'PAPERCLIP_ACPX_PROVIDER_PACKAGE_MANIFEST']) {
+    for (const key of ['NEXUS_ACPX_PROVIDER_PACKAGE_ROOT', 'NEXUS_ACPX_PROVIDER_PACKAGE_MANIFEST']) {
       const rejected = spawnSync(process.execPath, [probe], { encoding: 'utf8', timeout: 5000,
         env: { PATH: process.env.PATH, [key]: root } });
       assert.notEqual(rejected.status, 0);
@@ -194,7 +194,7 @@ test('only the scripts-disabled dependency download gets network access', () => 
 });
 
 test('Pi assembly gets bounded scratch capacity while preserving sandbox restrictions', () => {
-  const args = grokConsumerDockerArgs({ ...paths, download: true, temporarySizeMiB: 2048, command: ['node', '/consumer/node_modules/paperclipai/dist/index.js', 'runtime', 'setup', 'pi'] });
+  const args = grokConsumerDockerArgs({ ...paths, download: true, temporarySizeMiB: 2048, command: ['node', '/consumer/node_modules/nexusai/dist/index.js', 'runtime', 'setup', 'pi'] });
   assert.deepEqual(values(args, '--tmpfs'), ['/tmp:rw,nosuid,nodev,noexec,size=2048m,mode=1777']);
   assert.deepEqual(values(args, '--memory'), ['3g']);
   assert.ok(args.includes('--read-only'));
@@ -206,7 +206,7 @@ test('Pi assembly gets bounded scratch capacity while preserving sandbox restric
 });
 
 test('only an offline runtime probe can execute its verified scratch snapshot', () => {
-  const command = ['node', '/packages/pi-public-install-probe.mjs', '/consumer/node_modules/@paperclipai/server'];
+  const command = ['node', '/packages/pi-public-install-probe.mjs', '/consumer/node_modules/@nexusai/server'];
   const args = grokConsumerDockerArgs({ ...paths, command, temporarySizeMiB: 2048, temporaryExecutable: true });
   assert.deepEqual(values(args, '--tmpfs'), ['/tmp:rw,nosuid,nodev,exec,size=2048m,mode=1777']);
   assert.deepEqual(values(args, '--network'), ['none']);
@@ -224,7 +224,7 @@ test('the separately provisioned executable is exposed read-only to the offline 
   const prerequisite = '/private/staging/native/grok';
   const args = grokConsumerDockerArgs({ ...paths, prerequisite, command: ['node', '/packages/probe.mjs', 'present'] });
   assert.deepEqual(values(args, '--network'), ['none']);
-  assert.equal(values(args, '--mount').at(-1), `type=bind,src=${prerequisite},dst=/opt/paperclip/providers/grok/1.0.13/grok,readonly`);
+  assert.equal(values(args, '--mount').at(-1), `type=bind,src=${prerequisite},dst=/opt/nexus/providers/grok/1.0.13/grok,readonly`);
 });
 
 test('verification never elevates PR-controlled provisioning or cleanup on the host', () => {
@@ -240,7 +240,7 @@ test('the image and Grok downloads start before staging and join without weakeni
   // Exactly the pinned consumer image is pulled, for the platform the probes run on.
   const imagePull = position("prefetch('image', 'docker', ['pull', '--platform', 'linux/amd64', GROK_PUBLIC_INSTALL_IMAGE])");
   // Grok is provisioned into the prefetch directory, never straight into `native/grok`.
-  const grokProvision = position("prefetch('grok', process.execPath, [join(repo, 'packages/paperclip-runner/scripts/provision-grok.mjs'), stagedGrok])");
+  const grokProvision = position("prefetch('grok', process.execPath, [join(repo, 'packages/nexus-runner/scripts/provision-grok.mjs'), stagedGrok])");
   assert.ok(source.includes("const stagedGrok = join(prefetched, 'grok')"));
   assert.doesNotMatch(source, /provision-grok\.mjs'\), prerequisite\]/);
   // Both downloads start before any package is staged and before the first sandbox runs.
@@ -312,10 +312,10 @@ test('the verifier stages only workspace packages, so it skips the standalone bu
   // the same flag is what later decides whether retention runs at all.
   const standaloneBuild = "run(process.execPath, [join(repo, 'scripts/build-standalone-public-packages.mjs')], repo)";
   assert.equal(source.split('build-standalone-public-packages').length - 1, 1, 'the standalone build is referenced once, inside the retention gate');
-  const gate = position("const retainQualificationPackages = Boolean(process.env.PAPERCLIP_RUNNER_QUALIFICATION_PACKAGES_DIR);\n  if (retainQualificationPackages) {\n    const standaloneStarted = performance.now();\n    " + standaloneBuild);
+  const gate = position("const retainQualificationPackages = Boolean(process.env.NEXUS_RUNNER_QUALIFICATION_PACKAGES_DIR);\n  if (retainQualificationPackages) {\n    const standaloneStarted = performance.now();\n    " + standaloneBuild);
   assert.ok(source.includes('timing.stage_standalone_build_ms ='), 'the gated build is timed under its own key');
   assert.ok(source.includes('if (retainQualificationPackages) {\n    const retained = retainRunnerQualificationPackages({'), 'retention is gated by the same flag as the build');
-  assert.doesNotMatch(source, /if \(process\.env\.PAPERCLIP_RUNNER_QUALIFICATION_PACKAGES_DIR\)/, 'no second reading of the retention flag can diverge from the build gate');
+  assert.doesNotMatch(source, /if \(process\.env\.NEXUS_RUNNER_QUALIFICATION_PACKAGES_DIR\)/, 'no second reading of the retention flag can diverge from the build gate');
   const retention = readFileSync(new URL('../retain-runner-qualification-packages.mjs', import.meta.url), 'utf8');
   assert.ok(retention.includes("const pluginRelative = 'packages/plugins/sandbox-providers/daytona';") && retention.includes("cpSync(join(repo, pluginRelative, 'dist'), join(plugin, 'dist'), { recursive: true })"), 'retention still packs the Daytona plugin from its dist, which is why the gated build exists');
   const repo = new URL('../../', import.meta.url);
@@ -331,7 +331,7 @@ test('the verifier stages only workspace packages, so it skips the standalone bu
   // gated standalone build keeps release.sh's order: after the closure is
   // known and before the UI copy and any staged source.
   assert.deepEqual(JSON.parse(readFileSync(new URL('server/package.json', repo), 'utf8')).files, ['dist', 'ui-dist', 'skills', 'scripts/install-copilot-assets.mjs']);
-  assert.ok(source.includes("PAPERCLIP_RELEASE_REUSE_UI_DIST: '1'"));
+  assert.ok(source.includes("NEXUS_RELEASE_REUSE_UI_DIST: '1'"));
   const uiDist = position("run('bash', [join(repo, 'scripts/prepare-server-ui-dist.sh')], repo)");
   assert.ok(position('publicInstallClosure(repo)') < gate && gate < uiDist && uiDist < position('timing.stage_ui_dist_ms =') && uiDist < position('const stageSource = '));
 });
@@ -358,11 +358,11 @@ test('the installed Codex probe exercises the public export and rejects incomple
       resolved: `https://registry.npmjs.org/@openai/codex/-/codex-${manifest.version}.tgz`, integrity: `sha512-${Buffer.alloc(64, 1).toString('base64')}` };
     const lock = { lockfileVersion: 3, packages: { [platformPath]: entry } };
     writeFileSync(join(consumer, 'package-lock.json'), JSON.stringify(lock));
-    const server = join(consumer, 'node_modules/@paperclipai/server');
-    const vendor = join(server, 'dist/vendor/paperclip-runner'), drivers = join(vendor, 'drivers/acpx'); mkdirSync(drivers, { recursive: true });
+    const server = join(consumer, 'node_modules/@nexusai/server');
+    const vendor = join(server, 'dist/vendor/nexus-runner'), drivers = join(vendor, 'drivers/acpx'); mkdirSync(drivers, { recursive: true });
     mkdirSync(join(vendor, 'live'));
     writeFileSync(join(vendor, 'live/runner-binary.js'), `export const runnerBinaryTarget = ${runnerBinaryTarget.toString()};`);
-    writeFileSync(join(server, 'package.json'), JSON.stringify({ name: '@paperclipai/server', type: 'module' }));
+    writeFileSync(join(server, 'package.json'), JSON.stringify({ name: '@nexusai/server', type: 'module' }));
     const integrity = join(drivers, 'installation-integrity.js');
     const security = join(vendor, 'drivers/codex/codex-security-config.js'); mkdirSync(join(vendor, 'drivers/codex'));
     const securitySource = `export const codexExecutableReadOnlyRoots = () => [${JSON.stringify(nativeVendor)}];
@@ -487,7 +487,7 @@ test('the installed Codex probe exercises the public export and rejects incomple
 
 test('actual tar member checks allow Codex JavaScript but reject nested platform packages and native vendor payloads', () => {
   const javascript = ['package/package.json', 'package/node_modules/@openai/codex/package.json',
-    'package/node_modules/@openai/codex/bin/codex.js', 'package/dist/vendor/paperclip-runner/index.js'];
+    'package/node_modules/@openai/codex/bin/codex.js', 'package/dist/vendor/nexus-runner/index.js'];
   assert.doesNotThrow(() => assertNoBundledCodexPayloads(javascript));
   for (const payload of [
     'package/node_modules/@openai/codex-linux-x64/package.json',
@@ -548,7 +548,7 @@ test('hosted Mac lifecycle denies OS networking and writes outside owned scratch
 });
 
 test('installed daemon proof uses the production host resolver and complete source-bound manifest', () => {
-  const source = installedDaemonProbeSource('/consumer/server/dist/vendor/paperclip-runner', '/consumer', 'a'.repeat(40));
+  const source = installedDaemonProbeSource('/consumer/server/dist/vendor/nexus-runner', '/consumer', 'a'.repeat(40));
   assert.match(source, /defaultCapabilityRunnerdBinary\(\)/);
   assert.match(source, /Object.keys\(manifest.platforms\).sort\(\), targets.sort\(\)/);
   assert.match(source, /manifest.sourceRevision, "a{40}"/);
@@ -556,7 +556,7 @@ test('installed daemon proof uses the production host resolver and complete sour
   assert.match(source, /createHash\('sha256'\)/);
   assert.match(source, /metadata.binaryContractVersion, expected.contracts.runnerdArtifact/);
   assert.match(source, /'linux-arm64'/);
-  assert.doesNotMatch(source, /PAPERCLIP_RUNNERD_BINARY|runner\/target\/debug|execFileSync\('paperclip-runnerd'/);
+  assert.doesNotMatch(source, /NEXUS_RUNNERD_BINARY|runner\/target\/debug|execFileSync\('nexus-runnerd'/);
 });
 
 test('native ARM clean consumers keep the existing container and installed-runtime boundaries', () => {
@@ -579,7 +579,7 @@ test('native ARM clean consumers keep the existing container and installed-runti
   assert.match(arm, /process.versions.node.split\('\.'\)\[0\], '24'/);
   assert.match(arm, /macInstalledStartupProbeSource\(consumer, hostServer, daemon.sha256, join\(assets, 'installed-cli.ts'\)\)/);
   assert.match(arm, /startupEnvironment: 'native host, same installed graph, isolated empty homes'/);
-  assert.doesNotMatch(arm, /stage-runner|runner\/target|PAPERCLIP_RUNNER_BINARY|prerequisite:/);
+  assert.doesNotMatch(arm, /stage-runner|runner\/target|NEXUS_RUNNER_BINARY|prerequisite:/);
 });
 
 
@@ -598,12 +598,12 @@ test('Mac startup wiring normalizes only validated manifest digests and uses ser
 
 test('Pi admission verifies assembled host daemon identity and preserves the flat source-package control', async () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'pi-installed-daemon-'))), server = join(root, 'server');
-  const output = join(server, 'dist/vendor/paperclip-runner'), target = 'linux-x64', source = 'a'.repeat(40);
-  const binary = join(output, 'bin', target, 'paperclip-runnerd'), manifestPath = join(output, 'bin/release-manifest.json');
+  const output = join(server, 'dist/vendor/nexus-runner'), target = 'linux-x64', source = 'a'.repeat(40);
+  const binary = join(output, 'bin', target, 'nexus-runnerd'), manifestPath = join(output, 'bin/release-manifest.json');
   const bytes = Buffer.alloc(64); bytes.set([0x7f, 0x45, 0x4c, 0x46, 2, 1]); bytes.writeUInt16LE(62, 18);
   const sha256 = value => `sha256:${createHash('sha256').update(value).digest('hex')}`;
-  const manifest = { schema: 'paperclip.runner.release-binaries.v1', sourceRevision: source,
-    platforms: { [target]: { path: `${target}/paperclip-runnerd`, sha256: sha256(bytes) } } };
+  const manifest = { schema: 'nexus.runner.release-binaries.v1', sourceRevision: source,
+    platforms: { [target]: { path: `${target}/nexus-runnerd`, sha256: sha256(bytes) } } };
   const check = () => verifyPiPackagedDaemon(server, binary, target, runnerBinaryTarget);
   try {
     mkdirSync(join(output, 'bin', target), { recursive: true });
@@ -623,7 +623,7 @@ test('Pi admission verifies assembled host daemon identity and preserves the fla
     const outside = join(root, 'outside'); writeFileSync(outside, bytes);
     rmSync(binary); symlinkSync(outside, binary); await assert.rejects(check());
     rmSync(binary); writeFileSync(binary, bytes); rmSync(manifestPath);
-    const flat = join(output, 'bin/paperclip-runnerd'); writeFileSync(flat, bytes);
+    const flat = join(output, 'bin/nexus-runnerd'); writeFileSync(flat, bytes);
     await verifyPiPackagedDaemon(server, flat, target, runnerBinaryTarget);
     await assert.rejects(check(), /strictly equal/);
     writeFileSync(manifestPath, 'null');

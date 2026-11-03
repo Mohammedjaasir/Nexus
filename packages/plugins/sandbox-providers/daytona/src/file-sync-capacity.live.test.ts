@@ -5,7 +5,7 @@ import path from "node:path";
 import { expect, it, vi } from "vitest";
 
 vi.mock("./plugin.js", async () => {
-  const { NOOP_PLUGIN_TRACER } = await import("@paperclipai/plugin-sdk");
+  const { NOOP_PLUGIN_TRACER } = await import("@nexusai/plugin-sdk");
   return { getPluginTracer: () => NOOP_PLUGIN_TRACER };
 });
 import { performSyncOut } from "./file-sync.js";
@@ -36,7 +36,7 @@ it.skipIf(!process.env.DAYTONA_API_KEY)("preserves a stopped Daytona workspace a
     const execute = sandbox.process.executeCommand.bind(sandbox.process);
     const failures: string[] = [];
     sandbox.process.executeCommand = async (...args: Parameters<typeof execute>) => {
-      if (args[0].includes("tar -c")) args[0] = args[0].replace(/\/tmp\/archive-capacity-proof\/\.paperclip-upload-[\w-]+\.tar/g, "/dev/full");
+      if (args[0].includes("tar -c")) args[0] = args[0].replace(/\/tmp\/archive-capacity-proof\/\.nexus-upload-[\w-]+\.tar/g, "/dev/full");
       const result = await execute(...args);
       if (result.exitCode !== 0) failures.push(result.result);
       return result;
@@ -57,7 +57,7 @@ it.skipIf(!process.env.DAYTONA_API_KEY)("preserves a stopped Daytona workspace a
     expect(await fs.readdir(output)).toEqual(expect.arrayContaining([".hidden", "saved.bin", "safe-link"]));
     expect(await fs.readdir(output)).not.toEqual(expect.arrayContaining(["unsafe-link"]));
     expect(await fs.readdir(output)).not.toEqual(expect.arrayContaining(["ignored"]));
-    const retained = await execute(`sha256sum ${remote}/saved.bin && readlink ${remote}/unsafe-link && find ${remote} -name '.paperclip-upload*'`);
+    const retained = await execute(`sha256sum ${remote}/saved.bin && readlink ${remote}/unsafe-link && find ${remote} -name '.nexus-upload*'`);
     expect(retained.result.trim().split("\n")).toEqual([`${sourceDigest}  ${remote}/saved.bin`, "/etc/passwd"]);
     // Reconnect to the retained workspace and export a later saved result.
     await sandbox.stop();

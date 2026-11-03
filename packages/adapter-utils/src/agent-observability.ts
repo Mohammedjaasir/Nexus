@@ -1,4 +1,4 @@
-import type { AgentObservabilityCapture } from "@paperclipai/shared";
+import type { AgentObservabilityCapture } from "@nexusai/shared";
 
 /** Secret-bearing, controller-owned launch material. Never persist or merge into adapter config. */
 export type ProviderObservabilityLaunch = {
@@ -17,7 +17,7 @@ export const AGENT_OBSERVABILITY_ENV_KEYS = [
   "OTEL_EXPORTER_OTLP_LOGS_HEADERS", "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
   "OTEL_EXPORTER_OTLP_LOGS_TIMEOUT", "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT",
   "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "OTEL_EXPORTER_OTLP_METRICS_HEADERS", "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL",
-  "PAPERCLIP_OBSERVABILITY_CODEX_CONFIG", "PAPERCLIP_OBSERVABILITY_OPENCODE",
+  "NEXUS_OBSERVABILITY_CODEX_CONFIG", "NEXUS_OBSERVABILITY_OPENCODE",
   "OTEL_LOG_USER_PROMPTS", "OTEL_LOG_ASSISTANT_RESPONSES", "OTEL_LOG_TOOL_DETAILS", "OTEL_LOG_TOOL_CONTENT", "OTEL_LOG_RAW_API_BODIES",
 ] as const;
 
@@ -48,7 +48,7 @@ export function buildProviderObservabilityLaunch(input: {
   logsEndpoint?: string; tracesEndpoint?: string; headers?: Readonly<Record<string, string>>;
 }): ProviderObservabilityLaunch {
   const { enabled, capture, kind, compatibilityKey } = input;
-  const attributes = { "paperclip.company.id": input.companyId, "paperclip.agent.id": input.agentId, "paperclip.observability.revision": input.revision ?? "unconfigured" };
+  const attributes = { "nexus.company.id": input.companyId, "nexus.agent.id": input.agentId, "nexus.observability.revision": input.revision ?? "unconfigured" };
   const environment: Record<string, string> = {
     OTEL_EXPORTER_OTLP_LOGS_TIMEOUT: "3000", OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: "3000",
   };
@@ -67,7 +67,7 @@ export function buildProviderObservabilityLaunch(input: {
   }
   if (kind === "opencode") {
     // The runner owns this exporter. Never pass its credentials to OpenCode or tools.
-    environment.PAPERCLIP_OBSERVABILITY_OPENCODE = enabled ? "1" : "0";
+    environment.NEXUS_OBSERVABILITY_OPENCODE = enabled ? "1" : "0";
     if (enabled) Object.assign(environment, {
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: input.tracesEndpoint,
       OTEL_EXPORTER_OTLP_TRACES_HEADERS: encodeObservabilityHeaders(input.headers ?? {}),

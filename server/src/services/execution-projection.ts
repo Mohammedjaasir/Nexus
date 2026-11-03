@@ -9,8 +9,8 @@ import {
   issueThreadInteractions,
   nativeRunFinalizations,
   type Db,
-} from "@paperclipai/db";
-import type { ExecutionProjection } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { ExecutionProjection } from "@nexusai/shared";
 import { EXECUTION_CONTROL_DEADLINE_MS } from "./execution-control-deadline.js";
 import { executionFailureRetryCount } from "./execution-recovery-attempt.js";
 import { retryIdempotentDatabaseOperation } from "../database-retry.js";

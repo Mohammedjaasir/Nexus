@@ -1,8 +1,8 @@
-import type { IssueDocument, IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueDocument, IssueWorkProduct } from "@nexusai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { uploadedDocumentKey } from "@/lib/issue-artifact-upload";
 import { QueryClient } from "@tanstack/react-query";
-import { createIssue, storybookAgents } from "../../fixtures/paperclipData";
+import { createIssue, storybookAgents } from "../../fixtures/nexusData";
 
 export const issue = createIssue({
   id: "artifact-upload-placeholder", identifier: "PAP-214", issueNumber: 214,
@@ -14,7 +14,7 @@ export const issue = createIssue({
 
 export const handoffBody = `# Instance sleep: engineering handoff
 
-Paperclip should release idle database connections and let inactive instances sleep without losing scheduled work, incoming events, accounting, or recovery.
+Nexus should release idle database connections and let inactive instances sleep without losing scheduled work, incoming events, accounting, or recovery.
 
 ## Start here
 
@@ -94,7 +94,7 @@ export async function addPreviewFile(client: QueryClient, file: File, id: string
   const contentPath = `/api/attachments/${id}/content`;
   const product: IssueWorkProduct = {
     id, companyId: issue.companyId, issueId: issue.id, projectId: issue.projectId,
-    executionWorkspaceId: null, runtimeServiceId: null, type: "artifact", provider: "paperclip",
+    executionWorkspaceId: null, runtimeServiceId: null, type: "artifact", provider: "nexus",
     externalId: null, title: file.name, url: null, status: "active", reviewState: "none",
     isPrimary: false, healthStatus: "healthy", summary: null, createdByRunId: null,
     metadata: { attachmentId: id, contentType: file.type || "application/octet-stream", byteSize: file.size, contentPath, openPath: contentPath, downloadPath: `${contentPath}?download=1`, originalFilename: file.name },

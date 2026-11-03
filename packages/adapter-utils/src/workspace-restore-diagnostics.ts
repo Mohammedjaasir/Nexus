@@ -274,7 +274,7 @@ export async function withWorkspaceRestoreDiagnostics<T>(
         onDiagnostic?.({ ...fields });
       } catch { /* Diagnostic consumers cannot replace a restore failure. */ }
       try {
-        if (!parent?.active) await onProgress?.(`[paperclip] Workspace restore diagnostic: ${JSON.stringify(fields)}\n`);
+        if (!parent?.active) await onProgress?.(`[nexus] Workspace restore diagnostic: ${JSON.stringify(fields)}\n`);
       } catch {
         // A broken log sink must not replace a restore failure or relax its safety classification.
       }

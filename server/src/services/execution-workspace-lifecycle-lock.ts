@@ -1,4 +1,4 @@
-import { withDedicatedDbConnection, type Db } from "@paperclipai/db";
+import { withDedicatedDbConnection, type Db } from "@nexusai/db";
 import { sql } from "drizzle-orm";
 import { withWorkspaceLockKeepalive } from "./native-runtime/native-workspace-lock-keepalive.js";
 

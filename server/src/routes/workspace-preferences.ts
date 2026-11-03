@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { companies, type Db } from "@paperclipai/db";
+import { companies, type Db } from "@nexusai/db";
 import { eq } from "drizzle-orm";
-import { updateWorkspacePreferenceSchema } from "@paperclipai/shared";
+import { updateWorkspacePreferenceSchema } from "@nexusai/shared";
 import { forbidden, notFound } from "../errors.js";
 import { validate } from "../middleware/validate.js";
 import { workspacePreferenceService } from "../services/workspace-preferences.js";

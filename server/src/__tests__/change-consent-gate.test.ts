@@ -8,7 +8,7 @@ import {
   heartbeatRuns,
   issueThreadInteractions,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -26,7 +26,7 @@ describeEmbeddedPostgres("changeConsentGateService", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-reflection-coach-gate-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-reflection-coach-gate-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -52,7 +52,7 @@ describeEmbeddedPostgres("changeConsentGateService", () => {
 
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: "PAP",
       defaultResponsibleUserId: "board-user",
     });

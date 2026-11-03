@@ -2,17 +2,17 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
-import { resolvePaperclipInstanceRoot } from "../../home-paths.js";
+import type { Db } from "@nexusai/db";
+import { resolveNexusInstanceRoot } from "../../home-paths.js";
 import { materializeAsset } from "./runtime-context.js";
 import { removeRuntimeAssetTree, runtimeAssetRetention, RUNTIME_ASSET_RETENTION_MS } from "./runtime-asset-retention.js";
 
 let home: string;
-const originalHome = process.env.PAPERCLIP_HOME;
-beforeEach(async () => { home = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-asset-gc-")); process.env.PAPERCLIP_HOME = home; });
+const originalHome = process.env.NEXUS_HOME;
+beforeEach(async () => { home = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-asset-gc-")); process.env.NEXUS_HOME = home; });
 afterEach(async () => {
   await removeRuntimeAssetTree(home);
-  if (originalHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = originalHome;
+  if (originalHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = originalHome;
   vi.restoreAllMocks();
 });
 function database(rows: unknown[] = []) {
@@ -20,7 +20,7 @@ function database(rows: unknown[] = []) {
   return { db: { select } as unknown as Db, select };
 }
 async function age(digest: string) {
-  const manifest = path.join(resolvePaperclipInstanceRoot(), "runtime-context-assets", "manifests", `${digest}.json`);
+  const manifest = path.join(resolveNexusInstanceRoot(), "runtime-context-assets", "manifests", `${digest}.json`);
   const old = new Date(Date.now() - RUNTIME_ASSET_RETENTION_MS - 1_000);
   await fs.utimes(manifest, old, old);
 }

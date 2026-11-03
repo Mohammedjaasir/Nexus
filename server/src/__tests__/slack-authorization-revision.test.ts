@@ -6,7 +6,7 @@ import {
   agents, chatEndpointResources, chatEndpoints, chatExternalPrincipals, chatIdentityLinks,
   companies, connectionGrants, createDb, toolApplications, toolCatalogEntries, toolConnections,
   toolPolicies, toolProfileBindings, toolProfileEntries, toolProfiles,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { slackAuthorizationRevision } from "../services/connectors/slack-revision.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
@@ -19,7 +19,7 @@ describeDatabase("Slack authorization revision", () => {
   const companyIds: string[] = [];
 
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-slack-revision-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-slack-revision-");
     db = createDb(database.connectionString);
   }, 20_000);
 
@@ -42,7 +42,7 @@ describeDatabase("Slack authorization revision", () => {
     const [resource] = await db.insert(chatEndpointResources).values({ companyId: company.id, endpointId: endpoint.id, type: "channel", providerResourceId: randomUUID(), label: "Allowed channel", enabled: true }).returning();
     const [principal] = await db.insert(chatExternalPrincipals).values({ companyId: company.id, provider: "slack", providerAccountId: randomUUID(), externalId: randomUUID() }).returning();
     const userId = randomUUID();
-    const [link] = await db.insert(chatIdentityLinks).values({ companyId: company.id, endpointId: endpoint.id, principalId: principal.id, paperclipUserId: userId, status: "linked" }).returning();
+    const [link] = await db.insert(chatIdentityLinks).values({ companyId: company.id, endpointId: endpoint.id, principalId: principal.id, nexusUserId: userId, status: "linked" }).returning();
     const [grant] = await db.insert(connectionGrants).values({ companyId: company.id, connectionId: connection.id, subjectUserId: userId, kind: "user" }).returning();
     const [catalog] = await db.insert(toolCatalogEntries).values({ companyId: company.id, connectionId: connection.id, name: "Read", toolName: "read", versionHash: "version-one" }).returning();
     const [profile] = await db.insert(toolProfiles).values({ companyId: company.id, profileKey: randomUUID(), name: "Allowed tools" }).returning();
@@ -102,7 +102,7 @@ describeDatabase("Slack authorization revision", () => {
     await db.update(toolProfiles).set({ metadata: { changed: true } }).where(eq(toolProfiles.id, foreign.profile.id));
     const [otherPrincipal] = await db.insert(chatExternalPrincipals).values({ companyId: own.company.id, provider: "slack", providerAccountId: randomUUID(), externalId: randomUUID() }).returning();
     const otherUserId = randomUUID();
-    await db.insert(chatIdentityLinks).values({ companyId: own.company.id, endpointId: own.endpoint.id, principalId: otherPrincipal.id, paperclipUserId: otherUserId, status: "linked" });
+    await db.insert(chatIdentityLinks).values({ companyId: own.company.id, endpointId: own.endpoint.id, principalId: otherPrincipal.id, nexusUserId: otherUserId, status: "linked" });
     await db.insert(connectionGrants).values({ companyId: own.company.id, connectionId: own.connection.id, subjectUserId: otherUserId, kind: "user" });
     await db.insert(toolProfileBindings).values({ companyId: own.company.id, profileId: own.profile.id, targetType: "agent", targetId: randomUUID() });
     expect(await own.revision()).toBe(before);

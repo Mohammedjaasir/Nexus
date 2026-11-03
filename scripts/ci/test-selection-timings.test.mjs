@@ -6,7 +6,7 @@ import { parseTimings, updatedDurations, validateRun } from "./refresh-test-dura
 
 const file = "server/src/slow.test.ts", second = "server/src/fast.test.ts";
 test("file costs include loading and setup, and failed files cannot become samples", () => {
-  const module = { project: { name: "@paperclipai/server" }, moduleId: `${process.cwd()}/${file}`,
+  const module = { project: { name: "@nexusai/server" }, moduleId: `${process.cwd()}/${file}`,
     state: () => "passed", diagnostic: () => ({ duration: 100, collectDuration: 200, setupDuration: 30,
       prepareDuration: 20, environmentSetupDuration: 10 }) };
   assert.deepEqual(fileTiming(module), { version: 1, file, durationMs: 360 });
@@ -16,7 +16,7 @@ test("file costs include loading and setup, and failed files cannot become sampl
 
 test("structured measurements replace bootstrap logs without allowing arbitrary paths", () => {
   const inventory = new Set([file]);
-  const log = `2026-10-31T00:00:00Z ✓ @paperclipai/server src/slow.test.ts (2 tests) 100ms\n`;
+  const log = `2026-10-31T00:00:00Z ✓ @nexusai/server src/slow.test.ts (2 tests) 100ms\n`;
   assert.deepEqual(parseTimings(log, inventory).get(file), { ms: 100, complete: false });
   const record = { version: 1, file, durationMs: 360 };
   assert.deepEqual(parseTimings(log + timingPrefix + JSON.stringify(record), inventory).get(file), { ms: 360, complete: true });

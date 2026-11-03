@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
-import { agents, chatConversations, chatEndpoints, companies, issues, toolApplications, toolConnections, type Db } from "@paperclipai/db";
+import { agents, chatConversations, chatEndpoints, companies, issues, toolApplications, toolConnections, type Db } from "@nexusai/db";
 import type { issueService } from "../../services/issues.js";
 
 export type ProjectionQuery = { sql: string; params: unknown[] };
@@ -65,7 +65,7 @@ export async function seedTaskListProjectionFixture(db: Db, options: { count: nu
   await db.$client.unsafe(`insert into agent_wakeup_requests(company_id,agent_id,source,status,payload,created_at)
     select $1::uuid,$2::uuid,'synthetic','consumed',case when n%3=0 then jsonb_build_object('issueId',id::text,'noise',$4::text)
       when n%3=1 then jsonb_build_object('taskId',id::text,'noise',$4::text)
-      else jsonb_build_object('_paperclipWakeContext',jsonb_build_object('issueId',id::text),'noise',$4::text) end,'2026-01-02'::timestamptz+n*interval '1 second'
+      else jsonb_build_object('_nexusWakeContext',jsonb_build_object('issueId',id::text),'noise',$4::text) end,'2026-01-02'::timestamptz+n*interval '1 second'
     from unnest($3::uuid[]) task(id) cross join generate_series(1,$5::integer)n`, [companyId, agentId, records.map(row => row.id), wakeNoise, options.hostedShape ? 28 : options.history]);
   const liveCount = options.hostedShape ? 210 : options.liveCount ?? 0;
   const liveIds = records.slice(options.hostedShape ? options.chatCount : 0).map(row => row.id);
@@ -81,7 +81,7 @@ export async function seedTaskListProjectionFixture(db: Db, options: { count: nu
       select $1::uuid,$2::uuid,'synthetic',case when $7::boolean then case when n<=139 then 'claimed' else 'deferred_issue_execution' end else case n%3 when 0 then 'queued' when 1 then 'claimed' else 'deferred_issue_execution' end end,
         case n%3 when 0 then jsonb_build_object('issueId',id::text,'noise',$4::text)
           when 1 then jsonb_build_object('taskId',id::text,'noise',$4::text)
-          else jsonb_build_object('_paperclipWakeContext',jsonb_build_object('issueId',id::text),'noise',$4::text) end,
+          else jsonb_build_object('_nexusWakeContext',jsonb_build_object('issueId',id::text),'noise',$4::text) end,
         '2026-01-04'::timestamptz
       from generate_series(1,$5::integer)n join unnest($3::uuid[]) with ordinality task(id,ordinal)
         on ordinal=1+(n%least($6::integer,12))`, [companyId, agentId, liveIds, wakeNoise, liveCount, liveIds.length, options.hostedShape ?? false]);

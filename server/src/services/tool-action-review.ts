@@ -9,7 +9,7 @@ import {
   toolInvocations,
   toolActionDeliveries,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { conflict, forbidden, notFound } from "../errors.js";
 import { assertIssueThreadInteractionResolverAudience } from "./issue-thread-interaction-resolution.js";
 import { emitConnectionInvoked } from "./connector-telemetry.js";

@@ -7,7 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import {
   agents, authUsers, closeRegisteredClients, companies, companyMemberships, companySecrets, companySecretVersions,
   connectionGrants, createDb, userSecretDefinitions,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createIsolatedTestHome } from "./helpers/isolated-test-home.js";
@@ -15,13 +15,13 @@ import { aiConnectionService } from "../services/ai-connections.js";
 import { managedAiSessionFingerprintConfig, prepareManagedAiRuntime, withManagedAiProbe } from "../services/ai-connection-runtime.js";
 import { secretService } from "../services/secrets.js";
 import { quotaCredentialHash, quotaCredentialRecovery, quotaCredentialRecoveryPath } from "../services/quota-credential-recovery.js";
-import * as codexAdapter from "@paperclipai/adapter-codex-local/server";
-import * as workspaceLocks from "@paperclipai/adapter-utils/workspace-restore-merge";
+import * as codexAdapter from "@nexusai/adapter-codex-local/server";
+import * as workspaceLocks from "@nexusai/adapter-utils/workspace-restore-merge";
 import { reconcileRetainedGoogleCleanup, retainGoogleCredentialCleanup } from "../services/retained-google-credential-cleanup.js";
 
 // External runs require an already migrated dedicated database ending in _test.
 // The shared helper rejects ordinary application database names and overrides.
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_GOOGLE_AI_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_GOOGLE_AI_TEST_DATABASE_URL");
 const support = external ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 if (!support.supported) console.warn(`Skipping Google AI PostgreSQL integration on this host: ${support.reason ?? "embedded PostgreSQL unavailable"}`);
 const describeDatabase = support.supported ? describe : describe.skip;
@@ -40,9 +40,9 @@ describeDatabase("Google AI connection authority with real PostgreSQL", () => {
 
   beforeAll(async () => {
     isolatedHome = createIsolatedTestHome();
-    vi.stubEnv("PAPERCLIP_HOME", isolatedHome.home);
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "google-ai-real-db");
-    if (!external) embedded = await startEmbeddedPostgresTestDatabase("paperclip-google-ai-db-");
+    vi.stubEnv("NEXUS_HOME", isolatedHome.home);
+    vi.stubEnv("NEXUS_INSTANCE_ID", "google-ai-real-db");
+    if (!external) embedded = await startEmbeddedPostgresTestDatabase("nexus-google-ai-db-");
     db = createDb(external ?? embedded!.connectionString);
     request = vi.spyOn(globalThis, "fetch");
   }, 90_000);
@@ -69,9 +69,9 @@ describeDatabase("Google AI connection authority with real PostgreSQL", () => {
       { companyId: otherCompanyId, principalId: owner, principalType: "user", status: "active", membershipRole: "member" },
     ]);
     await db.insert(agents).values([
-      { id: agentId, companyId, name: "Selected Google agent", adapterType: "paperclip_runner" },
-      { id: peerAgentId, companyId, name: "Uninstalled peer", adapterType: "paperclip_runner" },
-      { id: foreignAgentId, companyId: otherCompanyId, name: "Foreign agent", adapterType: "paperclip_runner" },
+      { id: agentId, companyId, name: "Selected Google agent", adapterType: "nexus_runner" },
+      { id: peerAgentId, companyId, name: "Uninstalled peer", adapterType: "nexus_runner" },
+      { id: foreignAgentId, companyId: otherCompanyId, name: "Foreign agent", adapterType: "nexus_runner" },
     ]);
     const service = aiConnectionService(db);
     const credential = method === "api_key" ? "fixture-selected-google-api-key" : googleCredential();
@@ -83,10 +83,10 @@ describeDatabase("Google AI connection authority with real PostgreSQL", () => {
     const binding = { provider: "google", method, mode: "responsible_user" } as const;
     const config = { provider: "acpx", acpxAgent: "antigravity", model: "caller-selected-model", env: {
       GEMINI_API_KEY: "fixture-ambient-key", GOOGLE_API_KEY: "fixture-other-key", GEMINI_HOME: "/ambient/home",
-      GOOGLE_APPLICATION_CREDENTIALS: "/ambient/google.json", PAPERCLIP_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "fixture-forged-inline",
+      GOOGLE_APPLICATION_CREDENTIALS: "/ambient/google.json", NEXUS_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "fixture-forged-inline",
     } };
-    const select = { companyId, userId: owner, agentId, adapterType: "paperclip_runner", runnerProvider: "acpx", acpxAgent: "antigravity", model: config.model, binding };
-    const runtime = { companyId, responsibleUserId: owner, agentId, adapterType: "paperclip_runner", config, binding };
+    const select = { companyId, userId: owner, agentId, adapterType: "nexus_runner", runnerProvider: "acpx", acpxAgent: "antigravity", model: config.model, binding };
+    const runtime = { companyId, responsibleUserId: owner, agentId, adapterType: "nexus_runner", config, binding };
     const selection = await service.select(select);
     const secretId = selection.grant.credentialSecretRefs.find(ref => ref.configPath === "ai.credential")!.secretId;
     return { companyId, otherCompanyId, agentId, peerAgentId, foreignAgentId, owner, otherUser, saved, service, select, runtime, selection, secretId, credential, intent };
@@ -109,7 +109,7 @@ describeDatabase("Google AI connection authority with real PostgreSQL", () => {
       expect(first.home).not.toBe(second.home);
       expect(await realpath(first.home!)).toBe(first.home);
       expect(await realpath(String(first.config.env.GEMINI_HOME))).toBe(first.config.env.GEMINI_HOME);
-      expect(first.config.env).toMatchObject({ GOOGLE_API_KEY: "", GOOGLE_APPLICATION_CREDENTIALS: "", PAPERCLIP_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "",
+      expect(first.config.env).toMatchObject({ GOOGLE_API_KEY: "", GOOGLE_APPLICATION_CREDENTIALS: "", NEXUS_ACPX_ANTIGRAVITY_AUTH_JSON_SECRET: "",
         GEMINI_API_KEY: method === "api_key" ? f.credential : "" });
       const directory = join(String(first.config.env.GEMINI_HOME), "antigravity-acp");
       expect(JSON.parse(await readFile(join(directory, "settings.json"), "utf8"))).toEqual({ auth: { type: method === "api_key" ? "gemini-api-key" : "oauth-personal" } });

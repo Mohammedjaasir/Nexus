@@ -58,7 +58,7 @@ jobs:
           set -u
 
           github_runner='ubuntu-latest'
-          aws_runner='runs-on/fleet=paperclip-public-pr-x64/env=public-ci'
+          aws_runner='runs-on/fleet=nexus-public-pr-x64/env=public-ci'
 
           fail_closed() {
             echo "runner=$github_runner" >> "$GITHUB_OUTPUT"
@@ -100,11 +100,11 @@ jobs:
 
           # Both the resolver and CODEOWNERS come from the same protected master
           # revision. Never use the PR's CODEOWNERS or execute its source here.
-          trusted_sha="$(gh api /repos/paperclipai/paperclip/git/ref/heads/master --jq .object.sha)" \
+          trusted_sha="$(gh api /repos/nexusai/nexus/git/ref/heads/master --jq .object.sha)" \
             || fail_closed 'could not resolve trusted CODEOWNERS revision'
           is_commit_sha "$trusted_sha" || fail_closed 'invalid trusted CODEOWNERS revision'
           owner_helper="$RUNNER_TEMP/aws-ci-owners.mjs"
-          if ! gh api "/repos/paperclipai/paperclip/contents/scripts/ci-profile/authorize.mjs?ref=$trusted_sha" \
+          if ! gh api "/repos/nexusai/nexus/contents/scripts/ci-profile/authorize.mjs?ref=$trusted_sha" \
               --jq '.content' > "$owner_helper.base64" ||
              ! base64 --decode < "$owner_helper.base64" > "$owner_helper"; then
             fail_closed 'could not load trusted CODEOWNERS resolver'
@@ -128,7 +128,7 @@ jobs:
           pr_json="$(gh api \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "/repos/paperclipai/paperclip/pulls/$EVENT_PR_NUMBER" 2>/dev/null)" \
+            "/repos/nexusai/nexus/pulls/$EVENT_PR_NUMBER" 2>/dev/null)" \
             || fail_closed 'could not refresh pull request state'
 
           jq -e \
@@ -151,7 +151,7 @@ jobs:
           base_ref_json="$(gh api \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "/repos/paperclipai/paperclip/git/ref/heads/$EVENT_BASE_REF" 2>/dev/null)" \
+            "/repos/nexusai/nexus/git/ref/heads/$EVENT_BASE_REF" 2>/dev/null)" \
             || fail_closed 'could not inspect the current base branch'
           live_base_ref_sha="$(jq -r '.object.sha // empty' <<< "$base_ref_json")"
           is_commit_sha "$live_base_ref_sha" || fail_closed 'current base branch has no valid commit SHA'
@@ -159,7 +159,7 @@ jobs:
           base_comparison="$(gh api \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "/repos/paperclipai/paperclip/compare/$EVENT_BASE_SHA...$live_base_ref_sha" 2>/dev/null)" \
+            "/repos/nexusai/nexus/compare/$EVENT_BASE_SHA...$live_base_ref_sha" 2>/dev/null)" \
             || fail_closed 'could not compare the triggering and current base branches'
           jq -e \
             --arg event_base_sha "$EVENT_BASE_SHA" '
@@ -171,13 +171,13 @@ jobs:
           event_merge_json="$(gh api \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "/repos/paperclipai/paperclip/git/commits/$EVENT_MERGE_SHA" 2>/dev/null)" \
+            "/repos/nexusai/nexus/git/commits/$EVENT_MERGE_SHA" 2>/dev/null)" \
             || fail_closed 'could not inspect the event merge commit'
 
           live_merge_json="$(gh api \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "/repos/paperclipai/paperclip/git/commits/$live_merge_sha" 2>/dev/null)" \
+            "/repos/nexusai/nexus/git/commits/$live_merge_sha" 2>/dev/null)" \
             || fail_closed 'could not inspect the current merge commit'
 
           validate_merge_commit() {
@@ -208,7 +208,7 @@ jobs:
             base_merge_json="$(gh api \
               -H 'Accept: application/vnd.github+json' \
               -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "/repos/paperclipai/paperclip/git/commits/$event_merge_parent" 2>/dev/null)" \
+              "/repos/nexusai/nexus/git/commits/$event_merge_parent" 2>/dev/null)" \
               || fail_closed 'could not inspect the stacked base merge commit'
             jq -e \
               --arg expected_sha "$event_merge_parent" \
@@ -231,7 +231,7 @@ jobs:
           run_json="$(gh api \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "/repos/paperclipai/paperclip/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT" 2>/dev/null)" \
+            "/repos/nexusai/nexus/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT" 2>/dev/null)" \
             || fail_closed 'could not refresh workflow run state'
 
           triggering_actor_id="$(jq -r '.triggering_actor.id // empty' <<< "$run_json")"
@@ -265,10 +265,10 @@ jobs:
           fi
           # Fetch only from canonical master, never the PR ref. Pin both the
           # authorization program and CODEOWNERS to the same trusted revision.
-          if ! TRUSTED_PROFILE_SHA="$(gh api /repos/paperclipai/paperclip/git/ref/heads/master --jq .object.sha)" ||
+          if ! TRUSTED_PROFILE_SHA="$(gh api /repos/nexusai/nexus/git/ref/heads/master --jq .object.sha)" ||
              [[ ! "$TRUSTED_PROFILE_SHA" =~ ^[0-9a-f]{40}$ ]] ||
              ! gh api -H 'Accept: application/vnd.github.raw+json' \
-               "/repos/paperclipai/paperclip/contents/scripts/ci-profile/authorize.mjs?ref=$TRUSTED_PROFILE_SHA" \
+               "/repos/nexusai/nexus/contents/scripts/ci-profile/authorize.mjs?ref=$TRUSTED_PROFILE_SHA" \
                > "$RUNNER_TEMP/ci-profile-authorize.mjs"; then
             echo 'profile_ci=false' >> "$GITHUB_OUTPUT"
             exit 0
@@ -312,7 +312,7 @@ jobs:
             comparison="$(gh api \
               -H 'Accept: application/vnd.github+json' \
               -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "/repos/paperclipai/paperclip/compare/$EVENT_BASE_SHA...$EVENT_HEAD_SHA" 2>/dev/null)" \
+              "/repos/nexusai/nexus/compare/$EVENT_BASE_SHA...$EVENT_HEAD_SHA" 2>/dev/null)" \
               || return 1
 
             # The compare API lists at most 300 files, so a full page may be
@@ -383,13 +383,13 @@ jobs:
           fallback() { echo 'plan=' >> "$GITHUB_OUTPUT"; exit 0; }
           [[ "$FULL_CI" == 'true' ]] || fallback
           [[ "$EVENT_HEAD_SHA" =~ ^[0-9a-f]{40}$ && "$EVENT_MERGE_SHA" =~ ^[0-9a-f]{40}$ ]] || fallback
-          trusted="$(gh api /repos/paperclipai/paperclip/git/ref/heads/master --jq .object.sha)" || fallback
+          trusted="$(gh api /repos/nexusai/nexus/git/ref/heads/master --jq .object.sha)" || fallback
           [[ "$trusted" =~ ^[0-9a-f]{40}$ ]] || fallback
           directory="$(mktemp -d)"
           trap 'rm -rf "$directory"' EXIT
           for file in .github/scripts/ci-plan.mjs .github/scripts/ci-inputs.mjs .github/scripts/ci-diff.mjs .github/ci-task-matrix.json turbo.json; do
             gh api -H 'Accept: application/vnd.github.raw+json' \
-              "/repos/paperclipai/paperclip/contents/$file?ref=$trusted" \
+              "/repos/nexusai/nexus/contents/$file?ref=$trusted" \
               > "$directory/${file##*/}" || fallback
           done
           # Read the exact tested merge and both parents. The event's base SHA can

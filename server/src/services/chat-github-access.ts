@@ -6,7 +6,7 @@ import {
   chatIdentityLinks,
   companyMemberships,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 type Database = Db | Parameters<Parameters<Db["transaction"]>[0]>[0];
 
@@ -53,7 +53,7 @@ export async function githubChatPrincipalAccess(
     (p) => p.githubUserId === principal.externalId,
   );
   const [link] = await db
-    .select({ status: chatIdentityLinks.status, paperclipUserId: chatIdentityLinks.paperclipUserId })
+    .select({ status: chatIdentityLinks.status, nexusUserId: chatIdentityLinks.nexusUserId })
     .from(chatIdentityLinks)
     .where(
       and(
@@ -78,16 +78,16 @@ export async function githubChatPrincipalAccess(
       .for("share");
     return !!membership && membership.membershipRole !== "viewer";
   };
-  if (link?.status === "linked" && link.paperclipUserId) {
+  if (link?.status === "linked" && link.nexusUserId) {
     const allowed =
-      (await activeMember(link.paperclipUserId)) &&
+      (await activeMember(link.nexusUserId)) &&
       (config.memberAccess === "all_linked" ||
-        (person?.kind === "member" && person.userId === link.paperclipUserId));
+        (person?.kind === "member" && person.userId === link.nexusUserId));
     return {
       ...denied,
       allowed,
       linkedDenied: !allowed,
-      userId: allowed ? link.paperclipUserId : null,
+      userId: allowed ? link.nexusUserId : null,
     };
   }
   // Revocation is not an invitation to fall back to a guest identity.

@@ -33,7 +33,7 @@ describe("streamed API response capture", () => {
     })).rejects.toMatchObject({ code: "api_response_too_large" });
     expect(cancelled).toBe(true);
     expect(reserved).toBe(1);
-    expect((await readdir(tmpdir())).filter(name => name.startsWith("paperclip-api-response-") && !before.has(name))).toEqual([]);
+    expect((await readdir(tmpdir())).filter(name => name.startsWith("nexus-api-response-") && !before.has(name))).toEqual([]);
   });
   it("accepts exactly the capture limit", async () => {
     const captured = await captureRunnerApiResponse(new Response(Buffer.alloc(8192)), 4096, controller(), 1000, undefined, { maxBytes: 8192 });
@@ -119,10 +119,10 @@ describe("large response concurrency", () => {
   it("only accepts finite positive operator quotas, never unlimited settings", () => {
     try {
       for (const value of ["0", "-1", "Infinity", "NaN", "1", "9007199254740992"]) {
-        vi.stubEnv("PAPERCLIP_RUNNER_API_COMPANY_CAPTURE_MAX_BYTES", value);
+        vi.stubEnv("NEXUS_RUNNER_API_COMPANY_CAPTURE_MAX_BYTES", value);
         expect(runnerApiCompanyCaptureMaxBytes()).toBe(20 * RUNNER_API_RESPONSE_MAX_BYTES);
       }
-      vi.stubEnv("PAPERCLIP_RUNNER_API_COMPANY_CAPTURE_MAX_BYTES", String(2 * RUNNER_API_RESPONSE_MAX_BYTES));
+      vi.stubEnv("NEXUS_RUNNER_API_COMPANY_CAPTURE_MAX_BYTES", String(2 * RUNNER_API_RESPONSE_MAX_BYTES));
       expect(runnerApiCompanyCaptureMaxBytes()).toBe(2 * RUNNER_API_RESPONSE_MAX_BYTES);
     } finally { vi.unstubAllEnvs(); }
   });

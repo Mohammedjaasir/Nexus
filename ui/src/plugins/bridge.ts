@@ -2,7 +2,7 @@
  * Plugin UI bridge runtime — concrete implementations of the bridge hooks.
  *
  * Plugin UI bundles import `usePluginData`, `usePluginAction`, and
- * `useHostContext` from `@paperclipai/plugin-sdk/ui`.  Those are type-only
+ * `useHostContext` from `@nexusai/plugin-sdk/ui`.  Those are type-only
  * declarations in the SDK package. The host provides the real implementations
  * by injecting this bridge runtime into the plugin's module scope.
  *
@@ -32,7 +32,7 @@ import type {
   PluginLauncherBounds,
   PluginLauncherRenderContextSnapshot,
   PluginLauncherRenderEnvironment,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { pluginsApi } from "@/api/plugins";
 import { ApiError } from "@/api/client";
 import { isTransientError } from "@/api/errors";
@@ -169,7 +169,7 @@ export type PluginBridgeContextValue = {
  * resolve the current plugin without ambient mutable globals.
  *
  * Because plugin bundles share the host's React instance (via the bridge
- * registry on `globalThis.__paperclipPluginBridge__`), context propagation
+ * registry on `globalThis.__nexusPluginBridge__`), context propagation
  * works correctly across the host/plugin boundary.
  */
 export const PluginBridgeContext =
@@ -295,7 +295,7 @@ function isLegacyInstanceSettingsPath(pathname: string): boolean {
 }
 
 /**
- * Resolve a plugin-provided Paperclip path to the active company scope.
+ * Resolve a plugin-provided Nexus path to the active company scope.
  *
  * This intentionally handles plugin page roots such as `/wiki`, which cannot
  * be listed in the host router's static board-route table ahead of time.

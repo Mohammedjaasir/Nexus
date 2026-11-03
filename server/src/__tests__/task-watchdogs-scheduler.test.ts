@@ -17,11 +17,11 @@ import {
   issueWorkProducts,
   issues,
   issueWatchdogs,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
-  normalizePaperclipWakePayload,
-  renderPaperclipWakePrompt,
-} from "@paperclipai/adapter-utils/server-utils";
+  normalizeNexusWakePayload,
+  renderNexusWakePrompt,
+} from "@nexusai/adapter-utils/server-utils";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -30,7 +30,7 @@ import { taskWatchdogService } from "../services/task-watchdogs.ts";
 
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_WATCHDOG_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_WATCHDOG_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalUrl ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -46,7 +46,7 @@ describeEmbeddedPostgres("task watchdog scheduler", () => {
 
   beforeAll(async () => {
     if (externalUrl) await applyPendingMigrations(externalUrl);
-    else tempDb = await startEmbeddedPostgresTestDatabase("paperclip-task-watchdogs-scheduler-");
+    else tempDb = await startEmbeddedPostgresTestDatabase("nexus-task-watchdogs-scheduler-");
     db = createDb(externalUrl ?? tempDb!.connectionString);
   }, 20_000);
 
@@ -268,10 +268,10 @@ describeEmbeddedPostgres("task watchdog scheduler", () => {
     expect(snapshot).toMatchObject({ taskWatchdog: { customInstructions: boardInstructions } });
 
     // End-to-end: the text the agent actually receives.
-    const normalized = normalizePaperclipWakePayload(snapshot);
+    const normalized = normalizeNexusWakePayload(snapshot);
     expect(normalized?.taskWatchdog?.customInstructions).toBe(boardInstructions);
 
-    const prompt = renderPaperclipWakePrompt(normalized);
+    const prompt = renderNexusWakePrompt(normalized);
     expect(prompt).toContain("## Task Watchdog Mandate");
     expect(prompt).toContain(boardInstructions);
     expect(prompt).not.toContain("No board-supplied watchdog instructions");

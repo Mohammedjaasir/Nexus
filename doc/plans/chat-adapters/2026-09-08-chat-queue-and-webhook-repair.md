@@ -3,7 +3,7 @@
 ## Execution target
 
 The isolated live agent remains Maya E2E, `31f56712-3944-423e-b7c7-404bb8fbb993`,
-using `paperclip_runner` and `gpt-5.6-luna`. The initial live runner binary was
+using `nexus_runner` and `gpt-5.6-luna`. The initial live runner binary was
 `af19f64dfdf7e2e4efb5b41275e26cd873338315207c36fd4d108bdb69bae3c1`.
 Actual Codex app-server source/continuation evidence and measured Slack,
 Discord, and Telegram timings are recorded in the
@@ -57,7 +57,7 @@ remain on the private control plane, not in external chat.
 - Independent review found the two queue defects above and confirmed the final
   corrections without an authorization/privacy bypass.
 
-Logs are retained under `.paperclip-runtime/chat-adapters-live/` with the
+Logs are retained under `.nexus-runtime/chat-adapters-live/` with the
 `chat-queue-gateway-webhook-full-final-0908`, `chat-queue-webhook-unit-final-0908`,
 and `github-reconnect-copy-browser-final-0908` prefixes.
 
@@ -107,9 +107,9 @@ deployment candidate but has not yet passed its fresh live qualification.
 
 The first source message `1788868365.043179` was sent at 11:52:45.043, but the
 first matching local HTTP request arrived at 11:53:45.946: **60.903 seconds
-before Paperclip received it**. The request carried retry 2 / `http_error`
+before Nexus received it**. The request carried retry 2 / `http_error`
 hints; those hints are diagnostic, not authenticated authority. No earlier
-matching request appears in this server log. Paperclip acknowledged the
+matching request appears in this server log. Nexus acknowledged the
 received request in 22.738 ms. Run `e007b44a-a6d9-4f17-92ba-19ee10c44552`
 took 22.542 seconds and its actual answer was published at 11:54:09.815:
 84.772 seconds from source to answer. All publications used one attempt and
@@ -197,7 +197,7 @@ round trips remain to be verified after this correction.
 
 The failed Slack session is retained in quarantine; an audited task-scoped
 session reset after deployment will create a new provider session, not recover
-or replay the failed accepted answer. Paperclip issue, message, file, and run
+or replay the failed accepted answer. Nexus issue, message, file, and run
 history will remain. No reset has been performed yet.
 
 The ignored, local webhook-only qualification proxy now has closed timing
@@ -282,7 +282,7 @@ Browser input became responsive again. The earlier prepared drafts were not
 counted; the following are newly submitted, provider-visible requests on the
 `84a601459` server and staged `a0fd2789…` runner. All four active endpoints
 (Slack, Discord, GitHub, Telegram) still bind to Maya E2E with adapter
-`paperclip_runner` and configured model `gpt-5.6-luna`. Each run below also
+`nexus_runner` and configured model `gpt-5.6-luna`. Each run below also
 independently records `driver_kind=codex_app_server` and the same model in its
 native execution profile. No Terra substitution or legacy adapter was used.
 
@@ -291,7 +291,7 @@ native execution profile. No Terra substitution or legacy adapter was used.
   `e9b877f2-4087-413e-bc3d-4f1edd313420` succeeded in 59.769 seconds.
   Working feedback appeared at 12:49:03.800; a safe native progress update
   reused the same message `1546864951203864586`. The complete long answer
-  was delivered as `paperclip-response.md` in message `1546865203755614239`
+  was delivered as `nexus-response.md` in message `1546865203755614239`
   at 12:50:04.135, **62.277 seconds** after submission. The attachment was
   opened in Discord's whole-file preview, not inferred from an outbox flag.
   Two follow-ups submitted at 12:49:19.640/.670 shared one queued notice,
@@ -329,13 +329,13 @@ native execution profile. No Terra substitution or legacy adapter was used.
 - **GitHub native question:** new PR comment `5585485583`, submitted at
   12:56:45.673, started run `1ac82077-478b-444a-a459-efa52aaf9d4d` at
   12:56:49.409. It succeeded in 12.884 seconds and visibly published
-  “Choose Quartz or Jade” with its normal Paperclip link. Opening that link
+  “Choose Quartz or Jade” with its normal Nexus link. Opening that link
   reached the actual pending Board question. Its answer is intentionally
   pending deployment of the separately reproduced native Board-answer
   continuation correction; question creation is not a completed round trip.
 
 These are individual live samples, not latency percentiles. Private reasoning
-and raw tool/diagnostic events stay in Paperclip; external progress uses the
+and raw tool/diagnostic events stay in Nexus; external progress uses the
 closed, safe phase projection. Teams still lacks a qualified Microsoft 365
 tenant and is not counted among these four active live endpoints.
 
@@ -573,9 +573,9 @@ is an operator-recovery UX gap, not a reason to bypass identity checks.
 After verifying that retention and the absence of the old processes, root
 submitted `TG-AFTER-RETIRED-CHECKPOINT-0908` at 14:00:46.314. Run
 `a4938fcc-dc2c-4146-a776-12512cf4b613` started at 14:00:47.771 using
-Paperclip Runner, Codex app-server, and Luna. The configured low-effort field
+Nexus Runner, Codex app-server, and Luna. The configured low-effort field
 was later found not to reach this native path; effective effort is unverified.
-The provider produced `paperclip_finish` at 14:01:26.348, but the run stayed
+The provider produced `nexus_finish` at 14:01:26.348, but the run stayed
 active without delivering its answer. Working/progress publications each
 used one attempt against Telegram message `417200359:123`.
 
@@ -840,7 +840,7 @@ errors and objects that merely resemble its code stay on their existing
 paths. A database-confirmed replay conflict now uses the typed class after
 the existing authorization and exact-run lock. The server's recovery decision
 is permanent/operator-owned, and external chat receives only a safe request
-to have a Paperclip admin review the run.
+to have a Nexus admin review the run.
 
 Initial verification passed **130/130** controller/staged-transport tests,
 **238/238** Codex-driver/backend tests, **78/78** runtime tests, and **183/183**
@@ -863,7 +863,7 @@ claim that all subsequent edits have completed verification.
 ## Composed damaged-session replacement proof
 
 A new **35/35** resume cohort includes a real PostgreSQL, runnerd, driver,
-native runtime and Paperclip control-plane path. Only the Codex provider
+native runtime and Nexus control-plane path. Only the Codex provider
 process and a generated historical corruption seed are synthetic. A normally
 suspended disposable root receives an invalid pending semantic event. A
 nonterminal prior database owner prevents rotation without changing its bytes.
@@ -964,7 +964,7 @@ Slack `1788884841.421029`, GitHub `5588442165`, Telegram `417200359:132`.
 No duplicate final reply was observed. Slack's browser initially retained an
 older scrolled thread and needed a reload to restore its composer; the new
 message then sent normally. This is provider-browser navigation friction,
-not evidence of a failed Paperclip delivery.
+not evidence of a failed Nexus delivery.
 
 Discord's Eigenjoy browser login had expired, so no new Discord live send is
 claimed. Its login tab was left open and the user notified; the bot connection
@@ -1051,7 +1051,7 @@ event diagnostics were added; none of the ownership, archive or result
 assertions was relaxed. The exact historical failure cause remains unproven.
 
 Independent investigation did produce a deterministic related failure: an
-authenticated `paperclip_finish` can arrive on the semantic callback path
+authenticated `nexus_finish` can arrive on the semantic callback path
 before the turn-start response establishes the driver’s active provider turn.
 The driver rejected that valid call as `tool_binding_mismatch`. Waiting only
 in the driver is insufficient because the transport had already copied its
@@ -1297,7 +1297,7 @@ current-task cluster remained to clean up; no further unchanged retry was run.
 
 ### Reasoning-effort evidence correction
 
-The live runs demonstrably use native Paperclip Runner, Codex app-server and
+The live runs demonstrably use native Nexus Runner, Codex app-server and
 `gpt-5.6-luna`. Earlier notes also called them low reasoning because Maya's
 agent configuration contains `modelReasoningEffort: "low"`. A final audit
 found that this legacy field is **not projected by the native execution path**.
@@ -1332,7 +1332,7 @@ App webhook API then redelivered only the exact original created event once.
 The [attachment authority record](2026-09-08-github-private-attachment-authority.md)
 records the exact source hashes and bounded proof.
 
-Paperclip rejected the canonical body mismatch before selecting a signed image
+Nexus rejected the canonical body mismatch before selecting a signed image
 target. The current input had one unavailable omission and no attachment or
 view event. Native Luna took **14.881 seconds**; one final publication arrived
 **17.755 seconds after ingress** and truthfully said the exact image could not
@@ -1342,8 +1342,8 @@ not deleted-source or in-flight revocation qualification.
 The test also exposed a separate callback failure: GitHub reported a bot-created
 event **502 in 0.1 seconds**, with an empty response and no headers. Its
 destination exactly matched the current App webhook and successful neighboring
-deliveries. No matching request reached the local proxy or Paperclip. The later
-bot-edit callback reached Paperclip and was correctly filtered, but that does
+deliveries. No matching request reached the local proxy or Nexus. The later
+bot-edit callback reached Nexus and was correctly filtered, but that does
 not explain the missing created callback. A bounded Tailscale/system-log query
 found no matching failure diagnostic. Its pre-proxy cause remains open.
 
@@ -1553,7 +1553,7 @@ catalog, without an error banner or sign-in redirect.
 One `DISPATCH-MERGE-0908` continuation was sent through each signed-in provider
 UI. Slack, GitHub and Telegram returned exactly `DISPATCH-MERGE-READY` in
 **16.188 / 17.441 / 14.776 seconds**; native Luna execution used
-**13.622 / 12.898 / 11.510 seconds**. All used Paperclip Runner with Codex
+**13.622 / 12.898 / 11.510 seconds**. All used Nexus Runner with Codex
 app-server, one current wake comment, one succeeded run and one accepted
 native result. Each retained its existing task/current conversation generation
 and used one provider message for working→final, with one attempt per update.
@@ -1566,7 +1566,7 @@ screenshot was taken because its unrelated chat list was outside this check.
 Only sampled transitions were inspected; this is not an exhaustive flicker test.
 
 The first Slack follow-up pair, `QUEUE-MERGE-0908`, produced correct ordered
-replies but did **not** exercise queuing: B's webhook reached Paperclip
+replies but did **not** exercise queuing: B's webhook reached Nexus
 **1.073 seconds after A finished**. It remains sequential-continuation proof.
 The next pair, `QUEUE-INFLIGHT-0908`, submitted B immediately after the current
 working indicator appeared: A at **18:26:29.050**, B at **18:26:31.781 UTC**.
@@ -1652,7 +1652,7 @@ The proxy was restarted without fault injection and a public Board health
 request remained **404**. Existing local Board access stayed available.
 
 Functionally, this specific lost-callback journey succeeded. It remains slower
-than normal chat, since Paperclip cannot acknowledge an input it never received.
+than normal chat, since Nexus cannot acknowledge an input it never received.
 The intermittent upstream/Funnel 502 cause remains unproven. Automatic recovery
 does not retroactively restore message order after later requests have run,
 recover edited/deleted/lifecycle events, or scan unbounded high-volume history.
@@ -1755,7 +1755,7 @@ current design, production code and test coverage are retained.
 Full merged workspace typecheck and build passed. Root reloaded the live Board
 after a transient `useCompany` error during merge editing; the normal reload
 restored Activity, agent overview and Channels. The overview identifies
-Paperclip Runner and `gpt-5.6-luna`. The new upstream section heading duplicated
+Nexus Runner and `gpt-5.6-luna`. The new upstream section heading duplicated
 the Channels panel's own heading. A browser regression reproduced **two**
 headings where one was expected. The parent now leaves this title to its
 existing panel. Root inspected before/after screenshots and verified one
@@ -1828,7 +1828,7 @@ that the separate Discord restart crash was fixed.
 
 The existing 115-reply Slack thread remained at **Loading replies…** without a
 reply composer after normal refresh/reopen attempts. No continuation was sent
-there; this is not a Paperclip ingress failure. A fresh root mention in the
+there; this is not a Nexus ingress failure. A fresh root mention in the
 same authorized QA channel is the bounded post-patch alternate journey.
 
 Server 56 loaded the frozen patch at **20:13:21.244 UTC**, became ready at
@@ -1843,7 +1843,7 @@ Root opened the actual thread and inspected the reply, eyes reaction and usable
 continuation composer. The initial mention autocomplete incorrectly labeled the
 existing bot as not in the channel; actual mention resolution, ingress and
 delivery succeeded without changing membership. The old long-thread stall and
-this provider autocomplete inconsistency are not claimed fixed by Paperclip.
+this provider autocomplete inconsistency are not claimed fixed by Nexus.
 
 The final fresh PostgreSQL integration run passed **421/421**, with no skips,
 in **91.49 seconds**. Its database was absent before creation and held zero
@@ -1910,7 +1910,7 @@ These live journeys used server 58, started at **20:27:40.584 UTC** and ready
 at **20:27:45.773** on September 8. Its server baseline is `63c8b5d8d`; the
 subsequent wireframe-only commit changes no runtime bytes. The runner SHA-256
 remains `e758b7cdb6ba7c9f176d89cbd17b98dc4c42975326012582d6a7cdf230fb0373`.
-Both journeys used Maya E2E, native Paperclip Runner, Codex app-server and
+Both journeys used Maya E2E, native Nexus Runner, Codex app-server and
 `gpt-5.6-luna`. They do not qualify the uncommitted exact-retry implementation.
 
 ### Slack: edited-source reuse is refused without leaking a file
@@ -1937,7 +1937,7 @@ Its only current input was comment `af4df257-af6c-4361-9abc-4badc39a71b8`.
 The actual `reuse_chat_attachment` call at sequence 34 used original comment
 `54a3c07b-2f34-4a8c-8c0e-432b4d1fa751` and attachment
 `5040777e-5fa6-424c-9c50-8eb3e8cc1021`. Sequence 35 returned
-`paperclip_runner_chat_attachment_source_denied`, `is_error: true`, at
+`nexus_runner_chat_attachment_source_denied`, `is_error: true`, at
 **20:58:58.873**. There was one reuse attempt and zero new attachments, work
 products or file publications. The original stored asset remained unchanged.
 Working and final each used one attempt on Slack message `1788901131.307639`.
@@ -1990,7 +1990,7 @@ to native session `ce94db0c-3aec-40be-8caa-c80d008fcbbb`.
 
 Five publication records, each with one attempt, updated two Telegram messages
 (`417200359:150` and `417200359:152`). Both ended with **Maya E2E stopped before
-completing this turn. Open the task in Paperclip:** and the correct task URL.
+completing this turn. Open the task in Nexus:** and the correct task URL.
 There were zero generated attachments, work products or file publications;
 B never executed a file reuse/register action. Its actual file consumption,
 returned bytes and output isolation therefore remain unqualified. This is a
@@ -2083,7 +2083,7 @@ binary's presence alone is not live proof of its control-first repair.
 Each input produced one published failure notice in one attempt (GitHub
 `5592126063` and `5592127485`), respectively 1.812 and 2.274 seconds after local
 receipt. Root read both actual rendered messages: **Maya E2E stopped before
-completing this turn. Open the task in Paperclip:** with the correct CHA-9 URL.
+completing this turn. Open the task in Nexus:** with the correct CHA-9 URL.
 There was no plan or requested short answer. The functional outcome failed;
 the experience needs improvement because identical generic notices conceal
 different setup/recovery causes and provide no usable in-channel recovery.
@@ -2093,7 +2093,7 @@ The shared external milestone copy now recognizes only the typed cleanup
 quarantine code. It explains that an earlier session needs admin recovery,
 the request is saved, and resending will not repair it. Unknown errors remain
 generic, and neither checkpoint/process details nor private error text leave
-Paperclip. Two exact-copy regressions failed against the old projection;
+Nexus. Two exact-copy regressions failed against the old projection;
 the final milestone/task-link/safe-projection cohort passed **43/43**. This
 copy change is not deployed or visually retested yet, and it is not the
 session recovery implementation itself.
@@ -2213,7 +2213,7 @@ log in again” in Discord. No new Discord message or account switch was made.
 GitHub's recently released CLI media upload was checked as a potential native
 file-delivery improvement, but its official implementation explicitly accepts
 OAuth/PAT credentials, not App installation tokens. It is not a supported
-substitute for the bot's existing authenticated Paperclip download links:
+substitute for the bot's existing authenticated Nexus download links:
 [GitHub CLI upload implementation](https://github.com/cli/cli/blob/v2.99.0/internal/attachments/client.go).
 
 ### Already-ended provider shutdown and recovery qualification
@@ -2531,7 +2531,7 @@ ownership-barrier verification.
 From the live Board dashboard, root opened original failed run
 `38dfc3ec-4fa7-4ed4-8563-7650dfce3d47` and used its Retry control once. New run
 `7c4827a6-705a-4295-8196-f51a821a4af3` retained the exact latest wake comment and
-source-run link. The Board showed Paperclip Runner / Codex / `gpt-5.6-luna`,
+source-run link. The Board showed Nexus Runner / Codex / `gpt-5.6-luna`,
 then success in 15 seconds. In the private disposable GitHub QA repository,
 comment `5593571969` changed from working feedback to exactly
 `CONTROL-FIRST-B-READY`. Refresh and screenshot inspection confirmed persistence
@@ -2547,7 +2547,7 @@ no provider credential or permission change was needed for this retry.
 ### Revoked-editor source invalidation
 
 A provider-authenticated edit of an already-admitted source now records a
-content-free invalidation even when its actor no longer has Paperclip admission
+content-free invalidation even when its actor no longer has Nexus admission
 rights. Regranting that actor cannot resurrect the stale file or make an exact
 old-source retry admissible. GitHub bot edits can invalidate only an exact linked
 inbound source; unknown, self and outbound echoes remain suppressed. New edited
@@ -2695,7 +2695,7 @@ remote byte hashes; exact-byte checks here are deterministic local API tests.
 
 Server 64 runs `58de1c105` on loopback 3137 with the normally built runner
 `4acf2d1dbe99a6202d07b6d0be73b469ebf153103cda2bbd097e5e4233fcd57a`.
-Maya uses Paperclip Runner / Codex app-server / `gpt-5.6-luna`, not a legacy
+Maya uses Nexus Runner / Codex app-server / `gpt-5.6-luna`, not a legacy
 adapter. Signed-in provider UI created Discord thread `1547043763581358111`
 (CHA-32) and Slack thread `1788914422.188869` (CHA-33). Initial checklist and
 short follow-up turns succeeded; these first pairs were sequential, not a
@@ -2816,7 +2816,7 @@ anchor, no signed download target. Anonymous retrieval returned 404 without a
 redirect; the body was not consumed. The image comparison `5589001728` exposes
 an exact same-asset signed image target through the equivalent App read.
 Removing the generic-file guard alone cannot fix this fixture. Preserve the
-safe omission and offer direct Paperclip attachment or pasted text; never
+safe omission and offer direct Nexus attachment or pasted text; never
 borrow browser cookies or send App credentials to upload/CDN URLs. The focused
 attachment suite passed 96/96. This is evidence for these fixtures and the
 supported App-read route, not a claim that GitHub can never add another route.
@@ -2843,7 +2843,7 @@ The opt-in actual-provider regression is now reproducible:
 node --import ./server/node_modules/tsx/dist/loader.mjs scripts/tests/native-cleanup-paginated-codex.mjs
 ```
 
-It requires exact Codex CLI 0.153.4 (`PAPERCLIP_TEST_CODEX_BINARY` may select it),
+It requires exact Codex CLI 0.153.4 (`NEXUS_TEST_CODEX_BINARY` may select it),
 uses only fresh synthetic homes, and makes no `turn/start` or model request.
 It proves the real stale-path failure, successful same-thread paginated resume
 after staging relocation, and successful resume after canonical activation.
@@ -2954,7 +2954,7 @@ runner denied snapshot/open before a second provider launch or RPC; the launch
 ledger, complete provider trace, original startup receipt and failed-command
 result were unchanged. Both runner ChildProcesses were joined with exit 1.
 
-Root fixture `paperclip-real-startup-fXxrjh` and its summary/trace remain under
+Root fixture `nexus-real-startup-fXxrjh` and its summary/trace remain under
 the host's temporary directory for inspection; provider PID was 35821. CLI
 preflight checks observed zero launches and fixture creation, and eight isolated
 emergency-cleanup checks covered absent, matching, mismatched and still-live
@@ -3006,7 +3006,7 @@ cohort passed **49/49**, package types/build and strict binary signature passed.
 The normally staged candidate is
 `2400740c02b85a0099c18c17cb8567905c8dd07fc677363c90f98d0d9b9dbbc8`.
 The final actual-Codex canary also passed against it, fixture
-`paperclip-real-startup-87DVmb`, provider PID 61163, with only the three expected
+`nexus-real-startup-87DVmb`, provider PID 61163, with only the three expected
 initialization/resume methods and no second provider launch after reopen.
 The final full transport cohort passed **105/105**, zero skips, in **143.09s**
 on that exact normal binary. This includes the startup/no-relaunch, legacy
@@ -3064,12 +3064,12 @@ TXT matches throughout. Remote downloaded bytes were not independently hashed.
 GitHub's new private-file fallback request was sent through the dedicated QA
 PR's comment UI, not the implementation PR. Source comment `5594742103` yielded
 one native Luna run and one reply, `5594742965`, stating that the exact file
-could not be imported and offering direct Paperclip attachment or pasted text.
+could not be imported and offering direct Nexus attachment or pasted text.
 No file content was guessed and no browser credential was borrowed. Root then
 followed the paste suggestion with the complete synthetic original text and
 visually verified reply `5594755807`: “Shape: hexagon. Color: teal. Count: 47.”
 The paste recovery is functional. Experience still needs improvement: the
-direct-attachment advice names “this Paperclip task” without a clickable task
+direct-attachment advice names “this Nexus task” without a clickable task
 link. A focused fix is under investigation; unavailable GitHub private generic
 file import itself is not claimed to work.
 
@@ -3245,7 +3245,7 @@ executor tests; package TS build/types, direct server types and Rust formatting
 passed. Server 68 drained zero active runs and exited; the normal five-second
 HTTP close deadline retired remaining connections. Root deliberately staged
 and strict-verified the exact optimized `6279d39a…` artifact. Its real-Codex
-canary (`paperclip-real-startup-phHTMj`) passed with exactly one provider process,
+canary (`nexus-real-startup-phHTMj`) passed with exactly one provider process,
 no model turn, original startup receipt retained and reopen denied before RPC.
 
 Server **69**, PID **12088**, started **03:36:05.657 UTC**, loaded
@@ -3313,7 +3313,7 @@ provider message.
 ### September 9: actual Discord button-denial boundary
 
 The new standalone test joins the installed patched Discord adapter, actual
-Chat SDK and Paperclip runtime instead of stopping at a mocked SDK callback.
+Chat SDK and Nexus runtime instead of stopping at a mocked SDK callback.
 It showed that Gateway normalization produces plain JSON: the raw
 `deferUpdate` and `isMessageComponent` functions used by the service's denial
 check do not survive. A real service/database composition then reproduced the
@@ -3396,7 +3396,7 @@ parsed denial case, in **5.31 seconds** on
 socket remain simulated; this is not a native model turn or live click proof.
 This coverage addition did not reproduce another product defect.
 
-The new Slack modal bridge uses real Paperclip form construction, signed
+The new Slack modal bridge uses real Nexus form construction, signed
 synthetic envelopes, the installed adapter/Chat SDK and runtime, with a local
 fake Web API. It verifies opaque field IDs and wrapped private metadata,
 canonical answer validation, inline field errors, corrected retries after
@@ -3420,7 +3420,7 @@ two text blocks. Original inputs and Submit disappeared, and the visible error
 label exposed an opaque field ID. The first focused run passed 12/13, with
 this missing-correction path as the genuine failure.
 
-Paperclip now rebuilds an invalid-but-current Teams form after the existing
+Nexus now rebuilds an invalid-but-current Teams form after the existing
 source, actor, destination, publication and pending-interaction checks. The
 replacement preserves the original durable callback token and known choices,
 uses canonical question labels for errors, and retains text up to the existing
@@ -3645,7 +3645,7 @@ remains outstanding. No provider request or server restart occurred here.
 ### September 9: Discord native form workflow and concurrency qualification
 
 The v6 pinned adapter implements native text/select modal opening and submission,
-with closed rendering limits and opaque Paperclip action IDs. Discord interaction
+with closed rendering limits and opaque Nexus action IDs. Discord interaction
 tokens are kept out of persisted Chat SDK context. A failed or ambiguous modal
 open cannot receive a second success acknowledgment or automatic resend.
 Duplicate open attempts remain unconfirmed rather than fabricating success.
@@ -3747,7 +3747,7 @@ survives expiry recovery without a second consent POST or PUT; maintenance
 itself never performs provider I/O.
 
 Discord command registration groundwork now has a closed durable descriptor
-for `/paperclip status`, `new`, and `close`. It preserves other app commands,
+for `/nexus status`, `new`, and `close`. It preserves other app commands,
 uses individual writes only, and reconciles uncertain writes with GET rather
 than blindly reposting. A public ownership marker is an identifier, not a
 credential; the stored descriptor and exact provider identity remain required.
@@ -3939,7 +3939,7 @@ and outcome `registered`, and real provider command ID `1547131713472430131`.
 Its instance-wide ownership row points to the original company/endpoint/action;
 the active endpoint now exposes slash commands and ephemeral messages. This is
 real provider registration through existing secret references, not a mocked
-receipt. It does **not** prove the live `/paperclip` invocation, private reply,
+receipt. It does **not** prove the live `/nexus` invocation, private reply,
 DM-new or close experience; those still require browser qualification.
 
 The safe run inventory at `06:30:30.324 UTC` remained 290 terminal runs
@@ -4161,7 +4161,7 @@ attachment ceiling. The pinned attachment-factory seam is checked at startup.
 The final Telegram cohort passes **21/21** (14 new, six video-note and one
 existing media case) on fresh `chat_telegram_optional_media_20260909_final01`;
 helper/runtime checks pass **85/85**, and plain server TypeScript passes.
-A separate fresh process with `PAPERCLIP_ATTACHMENT_MAX_BYTES=2097152`
+A separate fresh process with `NEXUS_ATTACHMENT_MAX_BYTES=2097152`
 passes its service rejection case with 2 MB guidance. Logs are
 `telegram-optional-media-{red01,final01,units-final,types-final,cap01}-0909.log`.
 Independent review found no remaining code blocker. Provider HTTP is simulated;
@@ -4817,7 +4817,7 @@ used the production bundle helper and materialized publish manifests only in
 scratch with one synthetic sibling version. npm **10.9.7** packed all 17 and
 installed **340 packages** in a fresh consumer/cache. No package was published.
 
-The local registry trap rejected every Paperclip sibling metadata request
+The local registry trap rejected every Nexus sibling metadata request
 (18 probes, HTTP 409). The initial harness incorrectly required zero probes
 and therefore failed after the install itself succeeded. Subsequent inspection
 verified all 17 installed sibling lock entries point to the exact local
@@ -4831,7 +4831,7 @@ streaming/awaited completion receipt and compiled Telegram draft Stop passed
 with synthetic provider transport. An explicit outside-consumer import failed
 as intended. These checks do not make real provider requests or model runs.
 
-The retained stage is `.paperclip-runtime/current-server-consumer.VjpmfK`.
+The retained stage is `.nexus-runtime/current-server-consumer.VjpmfK`.
 Its server tarball is **45,576,751 bytes**, **26,297 entries**, SHA256
 `9296a3817ea16882c78dfa4f3fc317556d399bddfc4f3201cb6a4e1b6cab28c2`.
 The compiled server tree has 4,037 files, SHA256
@@ -4854,11 +4854,11 @@ fixture code changed; no product or packed artifact was altered.
 Earlier assembly/validation guards also needed fixture-only correction: absent
 optional declared `files` entries are now recorded rather than invented, and
 the sibling-path matcher distinguishes nested third-party packages from
-Paperclip siblings. Those failed attempts remain separate from final proof.
+Nexus siblings. Those failed attempts remain separate from final proof.
 
 Root's packaged static-UI qualification uses a separate owned port **3221**,
 fresh migrated database `chat_current_consumer_browser_20260909_root01`, and a
-fresh temporary Paperclip home. Source CLI onboarding is used only to create
+fresh temporary Nexus home. Source CLI onboarding is used only to create
 fixture configuration (`invokedByRun: true`, no service installation); the
 server process runs the actual installed compiled entry with a resolution
 guard denying outside-consumer and TypeScript-module fallback. It does not
@@ -4871,14 +4871,14 @@ keys. No production code or artifact was changed for those harness repairs.
 During the third attempt, HTTP GETs of `index.html`, `sw.js` and the main
 `assets/index-7u1MFQgd.js` returned 200 with the correct MIME types and exact
 staged byte hashes. The proof is in
-`.paperclip-runtime/current-chat-ui.MnjT3M/static-http-proof.log`;
+`.nexus-runtime/current-chat-ui.MnjT3M/static-http-proof.log`;
 the fresh Vite build log is alongside it. Existing large-chunk and mixed
 static/dynamic import warnings remain, not a clean-bundle-size claim.
 The packaged browser suite passes **31/31** in **2.0 minutes**, exit 0, without
 retries. It covers the default-off experiment gate preserving GitHub tool
 setup, all five provider setup/management UIs, task-bound uploads, pending
 consent and file-batch state across reload, uncertain delivery and exact failed
-run retry feedback. Its `page.route('**/api/**')` fixtures mock Paperclip's
+run retry feedback. Its `page.route('**/api/**')` fixtures mock Nexus's
 chat-control-plane routes, not just remote provider requests. The compiled
 server handles unmocked bootstrap/company/agent/catalog requests and serves
 the current built UI. This does **not** establish compiled chat-backend or
@@ -4915,7 +4915,7 @@ The Mac became available and the user restored Eigenjoy's Discord login.
 Root operated the signed-in in-app browser for every provider action below;
 parallel agents correlated only the exact fresh tasks, receipts and files.
 These observations are on **server 78**, loaded `ea528f44c`, with the retained
-qualified runner and Maya's native `paperclip_runner` / Codex / Luna path.
+qualified runner and Maya's native `nexus_runner` / Codex / Luna path.
 They supersede the earlier locked-browser state, not the historical failures.
 
 ### Slack: one thread, FIFO, real files, actual Stop and continuation
@@ -4952,7 +4952,7 @@ proved both output files match the **Slack-stored input** bytes:
 
 - PNG source `F0C0NHCVBL1`, output `F0C0QA0G5FW`: 2,088,249 bytes,
   SHA256 `005f8dabdb19ef786c0e2e76695596d22c1d0bb53de374e0be209cc6d89851c9`.
-  Slack changed the uploaded local PNG before Paperclip received it; the local
+  Slack changed the uploaded local PNG before Nexus received it; the local
   file was 2,111,878 bytes / `7693966f…`. Do not claim original-local byte identity.
 - TXT source `F0C0NHDCA81`, output `F0C0593M2R5`: 152 bytes,
   SHA256 `e5ea1c89ad69c0ae9dffea0599c730e5d284816dbcd9dae44746c7a29f790293`.
@@ -4971,7 +4971,7 @@ oversized cached-mention boundary.
 
 ### GitHub: fresh replies pass; real fallback finds two deeper failures
 
-Root created disposable [issue 4](https://github.com/cryppadotta/paperclip-chat-e2e-enabled/issues/4)
+Root created disposable [issue 4](https://github.com/cryppadotta/nexus-chat-e2e-enabled/issues/4)
 and sent A as a native bot mention, then unmentioned B. Both mapped to CHA-38,
 issue `350675e8-ce15-44f7-a995-d8f55f9b2d6d`, and one native session. A's
 source comment `5602056149` received exact `GH78-A-READY` at 12:46:24.538
@@ -4982,7 +4982,7 @@ Each progress/final pair used one provider message, one attempt.
 C (`5602115684`) attached the fresh TXT through GitHub's real chooser. The
 native run correctly refused to guess unavailable attachment contents, but
 its 12:51:08.147 final said that no task link could be provided immediately
-before Paperclip appended the correct task link. Root verified the actual
+before Nexus appended the correct task link. Root verified the actual
 DOM and screenshot. Native-only guidance fix **`d399d7a41`** is committed and
 pushed: explain service-owned navigation, conditional on current-source
 authorization and a safe configured Board URL; do not invent or promise a
@@ -5022,7 +5022,7 @@ coherent deployment and repetition of the complete browser journey.
 Fresh Clawd root/thread `1547228059797561475` created CHA-39 (issue
 `9e0afdaa-b34d-40c0-a01c-c25dafcf6c5e`). A returned exact
 `DISCORD78-A-READY` at 12:52:09.364, 13.782s from ingestion. The actual native
-picker displayed `/paperclip status`, `/paperclip new`, `/paperclip close`.
+picker displayed `/nexus status`, `/nexus new`, `/nexus close`.
 Root invoked status and guild-new. Both visibly said “Only you can see this”;
 status action `8a2af942…` processed at 12:56:08.225 with no run, ordinary wake
 or public publication. Guild-new explained how to create a new root and did
@@ -5107,18 +5107,18 @@ provider results do not satisfy its live qualification.
 
 All provider actions used the already signed-in in-app browser, Eigenjoy's
 account and the existing Maya bot. The live process still loaded server 78
-(`ea528f44c`), with `paperclip_runner` / Codex / `gpt-5.6-luna`.
+(`ea528f44c`), with `nexus_runner` / Codex / `gpt-5.6-luna`.
 
-DM command attempts at 13:20 and 13:25 were rejected before Paperclip because
+DM command attempts at 13:20 and 13:25 were rejected before Nexus because
 Discord required a shared guild with DMs enabled. They later appeared as
-“The application did not respond”; no corresponding Paperclip action existed.
+“The application did not respond”; no corresponding Nexus action existed.
 Clawd's original Direct Messages setting was off. Root temporarily enabled
 that server's switch for the DM test, verified the checked state, then restored
 it off after the test. Message requests became disabled again; activity
 sharing/joining were unchanged. A first click did not persist the toggle;
 keyboard Space did. No other server or global privacy settings were changed.
 
-The successful `/paperclip new` at 13:28:33.828 produced a private recorded
+The successful `/nexus new` at 13:28:33.828 produced a private recorded
 acknowledgement and the normal “Send your request” confirmation. The next
 message created CHA-41, issue `20e15668-0011-4dd0-85db-528fc226d546`, conversation
 `cb6becfa-fbb2-4f7e-9f91-eb37f26e8e1a`, generation 2, provider DM
@@ -5191,7 +5191,7 @@ browser tests prove byte-identical TXT/PNG receipts, reload persistence, real
 comment binding, accepted-but-response-lost handling, explicit review/discard,
 known-rejection retry and pending/failed attachment removal. This is not a
 cross-tab atomicity or server-idempotency claim. Screenshots and all failed
-attempts remain under `.paperclip-runtime/board-receipts-browser.bzXvpe/`.
+attempts remain under `.nexus-runtime/board-receipts-browser.bzXvpe/`.
 
 Runner fixes are frozen in local commit `c76988f93`: 227 serial source tests
 and 27 composed tests against the actual optimized release binary passed.
@@ -5213,7 +5213,7 @@ Stop/restart group passed 34/34; do not combine these partial suites into a
 fictional full green result. All databases were newly created per attempt.
 
 `e67df56fa` also corrects close wording and provider command descriptions:
-closing a chat conversation does not claim a Paperclip task status change,
+closing a chat conversation does not claim a Nexus task status change,
 nor does it imply physical Discord-thread or Telegram-topic archival. Six
 fresh-database control tests and 62 focused unit tests passed; task status is
 explicitly checked unchanged. These words are not yet deployed. The causal
@@ -5241,7 +5241,7 @@ does not establish whether the model or earlier native sanitization caused it.
 It remains a quality follow-up, not a reason to weaken credential redaction.
 
 The exact qualified release binary was copied to private ignored
-`qualified-runner-79.z262Ty/paperclip-runnerd` under the live QA runtime root.
+`qualified-runner-79.z262Ty/nexus-runnerd` under the live QA runtime root.
 Its SHA256 still equals `6844f20ee4a5fb7f7963117263a384f520054b4bd1e0f812fc58a4f34808b503`;
 mode is 0500 and strict codesign verification passed. It is **not activated**.
 No installed binary, live server, old runner journal or agent status changed.
@@ -5250,7 +5250,7 @@ No installed binary, live server, old runner journal or agent status changed.
 
 Fresh database `chat_snapshot_full_20260909_root06` passed all **860/860** chat
 integration tests (177.16s tests, 185.33s total). The exact log is
-`.paperclip-runtime/chat-adapters-live/chat-snapshot-full-root06-0909.log`.
+`.nexus-runtime/chat-adapters-live/chat-snapshot-full-root06-0909.log`.
 All previous RED logs/databases remain. UI/shared TypeScript checks also passed.
 Recovery's separate full file passed 183/183 before its final durable admission
 marker was added. That last change addresses a newly prepared native turn
@@ -5314,7 +5314,7 @@ gave a private receipt, an Answered card and
 15.777, 12.753 and 14.545 seconds. This is real provider interaction, not an
 injected interaction response.
 
-The subsequent native `/paperclip close` interaction `1547257864891142196`
+The subsequent native `/nexus close` interaction `1547257864891142196`
 arrived at 14:50:21 but remained “thinking.” There was no durable command action
 or close effect. The stored command receipt matched the exact previous close
 description; a current-definition-only parser rejected it, and initialization
@@ -5345,10 +5345,10 @@ ran 15:10:03.589–15:10:19.840 and returned exactly
 `SLACK79-AFTER-STOP-READY`, without resuming the checklist.
 
 **GitHub private-file journey:** actual issue
-<https://github.com/cryppadotta/paperclip-chat-e2e-enabled/issues/5> and comment
+<https://github.com/cryppadotta/nexus-chat-e2e-enabled/issues/5> and comment
 `5603841952` admitted CHA-45. The final replaced progress comment `5603843439`
 after 21.701 seconds from ingress, truthfully reported the private upload
-unavailable, and exposed a working stable “Open this Paperclip task” link.
+unavailable, and exposed a working stable “Open this Nexus task” link.
 Root clicked it and uploaded the original 152-byte TXT through the actual Board
 composer. Attachment `398ed177-8316-4cf3-8ed5-4d5e6ce7fd82` remained bound to
 comment `4da2353e-1888-411e-b931-39c1563cbb06`; stored SHA256 was exactly
@@ -5382,7 +5382,7 @@ are fixture-backed; real transactional rejection behavior is separately tested
 with PostgreSQL. The live GitHub explicit-send journey remains pending.
 
 **Telegram:** fresh `/new` acknowledged at 14:56:48, followed by a long native
-answer delivered as `paperclip-response.md` after exceeding the message limit.
+answer delivered as `nexus-response.md` after exceeding the message limit.
 This was not a draft Stop test: the ordinary answer replaces progress, and the
 overflow is an attachment. Telegram draft Stop is a presentation control, not
 an agent-run cancellation. No Stop success is claimed. Teams work-tenant/admin
@@ -5491,11 +5491,11 @@ then sent once with new key `ab57a871-24f0-4a5d-a817-1b2ece106a15`.
 One Board comment `10519b6a-48f8-4f87-93ba-f8f2d675cf5e` owns the new
 attachment `2a3880ef-297f-44f6-9ca0-389c4eeccb11`. The original
 `398ed177-8316-4cf3-8ed5-4d5e6ce7fd82` binding was not changed. Actual GitHub
-comments [text](https://github.com/cryppadotta/paperclip-chat-e2e-enabled/issues/5#issuecomment-5604427235)
-and [file fallback](https://github.com/cryppadotta/paperclip-chat-e2e-enabled/issues/5#issuecomment-5604427382)
+comments [text](https://github.com/cryppadotta/nexus-chat-e2e-enabled/issues/5#issuecomment-5604427235)
+and [file fallback](https://github.com/cryppadotta/nexus-chat-e2e-enabled/issues/5#issuecomment-5604427382)
 were visible after refresh. Both publications succeeded on attempt 1 by
 15:29:35.618. The file fallback truthfully links to the stable authenticated
-Paperclip task; it does not claim GitHub App comment-file upload support.
+Nexus task; it does not claim GitHub App comment-file upload support.
 
 **Discord close: PASS; fresh-after-close publication: FAIL.** The old cached
 Discord client initially did not show current command suggestions. Reloading
@@ -5764,7 +5764,7 @@ ready at **16:15:43.931 UTC**. Maya resumed through the audited API. Private
 Board health returned 200; the webhook-only public Funnel still returned
 404 for `/api/health`, as intended. No historical owner claim was cleared.
 
-Fresh actual Discord `/paperclip close` interaction
+Fresh actual Discord `/nexus close` interaction
 `1547279491607437352` returned a private receipt and public confirmation
 `1547279493977210942` at 16:16:18.642. A later explicit source
 `1547279569520824380` started run `1d4162d4-d0b5-43f9-9b6c-422febc8514a`
@@ -5847,7 +5847,7 @@ Close `ea6960ee…` published as `417200359:180` at 16:24:17.645 and the
 actual Telegram chat confirmed that the next message starts a new task.
 The launched run continued internally and succeeded at 16:24:52.599;
 there was no later final publication into the closed conversation. This is
-the intended conversation-only closure, not cancellation of Paperclip work.
+the intended conversation-only closure, not cancellation of Nexus work.
 
 The exact already-published working message `417200359:178` nonetheless
 remained "Maya E2E is working…" after the run finished. Independent code
@@ -5937,7 +5937,7 @@ closing Telegram, Slack, Discord or Teams. It requires the current outbound link
 current publication ownership and historical same-run milestone proof. It refuses
 multiple lanes, cards, authored finals and possibly delivered consuming questions.
 After a confirmed close commit it removes only that run's owned receipt reactions;
-the Paperclip run continues internally under the existing close semantics.
+the Nexus run continues internally under the existing close semantics.
 
 Independent review reproduced four pending/unknown question or confirmation
 consumer cases that the initial final-only veto missed. A second root review then
@@ -6066,7 +6066,7 @@ rule; this is not a claim that all historical tasks were exempted. Resume was
 audited at 17:10:18.426. Six quarantined historical owners remain untouched.
 
 The untouched CHA-40 Board page now actually shows Open Telegram pointing to
-`https://t.me/MayaPaperclipQA1234bot`. Independent database inspection confirms
+`https://t.me/MayaNexusQA1234bot`. Independent database inspection confirms
 its stored historical URL is still `https://t.me/cryppadotta/162`; the successful
 projection was not manufactured by rewriting that conversation.
 
@@ -6210,7 +6210,7 @@ gates; no chat merge or broad whole-workspace pass is claimed here.
 ### Provider-owned delivery evidence and control-boundary RED (17:32 UTC)
 
 Read-only GitHub App delivery diagnostics used the user-supplied PEM privately,
-first verifying exact App 4853886 / `paperclip-maya-e2e-0906`. No credentials,
+first verifying exact App 4853886 / `nexus-maya-e2e-0906`. No credentials,
 headers or full request payloads were emitted, and the diagnostic requested no
 redelivery or configuration change. Source D `5605906590`, GUID
 `8ab03910-ac72-11f1-9e07-66a68432143c`, has two provider delivery records:
@@ -6220,7 +6220,7 @@ redelivery or configuration change. Source D `5605906590`, GUID
   failure classification, not proof an upstream HTTP server emitted a 502 body.
 - `3841793250094514176`, 17:19:50.434: successful 202 redelivery, 0.54s duration.
 
-Paperclip recovery action `050f9df7…` began its scan at 17:19:48.249, requested
+Nexus recovery action `050f9df7…` began its scan at 17:19:48.249, requested
 the exact redelivery at 17:19:49.491, and confirmed that request at 17:19:49.688.
 The callback reached the proxy at 17:19:50.296. Thus the existing scheduled
 repair genuinely recovered this failed callback. The normal 60-second scan
@@ -6316,7 +6316,7 @@ The older-control confirmation test now uses normal Board task completion,
 a new DM generation, its newer close, then confirmation of the old unknown
 publication; no FIFO bypass or fabricated transport receipt. Final test SHA256
 is `84ed28cc3e506b85360744089a244291ba21159256bcfdce634d5499bc157b03`;
-production SHA above is unchanged. Logs are `.paperclip-runtime/first-seen-control-final02.log`
+production SHA above is unchanged. Logs are `.nexus-runtime/first-seen-control-final02.log`
 and `first-seen-control-types-final02.log`. Root12 retains the earlier test
 snapshot; its in-progress result is not the final repeat of these corrections.
 
@@ -6324,11 +6324,11 @@ snapshot; its in-progress result is not the final repeat of these corrections.
 
 Root12 completed **964/968** on the original test snapshot in 452.85s, with
 exactly the four previously classified fixture failures and no additional
-failures. Log: `.paperclip-runtime/chat-adapters-live/chat-snapshot-full-root12-0909.log`.
+failures. Log: `.nexus-runtime/chat-adapters-live/chat-snapshot-full-root12-0909.log`.
 The full deterministic chat plus Board attachment/receipt browser run passed
 **43/43**, zero retries, in 5.8 minutes on fresh
 `board_receipts_browser_20260909_final09`, against the frozen production guard.
-Log: `.paperclip-runtime/board-receipts-browser.bzXvpe/channel-and-board-full-browser-final09-0909.log`.
+Log: `.nexus-runtime/board-receipts-browser.bzXvpe/channel-and-board-full-browser-final09-0909.log`.
 
 An additional consistency probe is genuinely red, separately from the 64-case
 green cohort. The real-shaped native Discord close command dates to
@@ -6340,7 +6340,7 @@ requires provider source time after publication confirmation, unlike the new
 command-clock admission proof. The test establishes the exact admission/run
 prerequisites; it does not separately instrument every later grant predicate.
 Fresh DB: `chat_control_confirmation_gap_20260909_red01`; log:
-`.paperclip-runtime/control-confirmation-gap-red01.log`; test 666ms, total10.11s.
+`.nexus-runtime/control-confirmation-gap-red01.log`; test 666ms, total10.11s.
 
 The planned correction shares the exact read-only command-chronology proof.
 Affirmative presentation additionally requires proof coverage for every
@@ -6362,7 +6362,7 @@ boundary; presentation requires the explicit affirmative proof, complete raw
 published-candidate inventory, and all previous causal/current-authority guards.
 An earlier 68/69 run failed constructing a null NOT NULL issue ID; its corrected
 negative uses another real same-company issue, without changing production.
-Logs: `.paperclip-runtime/control-chronology-shared-green02.log` and
+Logs: `.nexus-runtime/control-chronology-shared-green02.log` and
 `control-chronology-shared-types-green02.log`.
 
 A separate Teams native-thread probe failed before presentation: `/close` there
@@ -6378,12 +6378,12 @@ qualification.
 The bounded probe confirmed a real mismatch: actual Telegram `/close\n` was
 accepted and published, but proof used PostgreSQL's space-only `btrim`, allowing
 an older first-seen source to be processed. The one-case RED took 559ms;
-log `.paperclip-runtime/control-whitespace-red01.log`. The narrow correction
+log `.nexus-runtime/control-whitespace-red01.log`. The narrow correction
 uses the exact ECMAScript trim-character set in SQL, retaining the same anchored
 command and bot-suffix grammar rather than accepting new command shapes.
 The truthful Teams personal close → regional service URL → new-generation
 presentation positive also passes (644ms tests, 10.92s total), log
-`.paperclip-runtime/teams-post-close-route-green01.log`, without a route-authority
+`.nexus-runtime/teams-post-close-route-green01.log`, without a route-authority
 production change. The combined final cohort and full suite are still pending.
 
 Root full integration `chat_snapshot_full_20260909_root13` and deterministic
@@ -6392,12 +6392,12 @@ against frozen helper `ed01066a…`, service `836d899c…`, issues `65d79903…`
 and test `e17162c4…`. They are pending, not passing gates. The exact whitespace
 parity probe found all 25 ECMAScript trim characters and matching SQL results
 for nine valid/invalid command shapes; log
-`.paperclip-runtime/control-whitespace-parity-final01.log`.
+`.nexus-runtime/control-whitespace-parity-final01.log`.
 
 Final focused/adjacent repeat passes **71/71** (35.12s tests, 43.01s total) on
 fresh `chat_control_chronology_shared_20260909_final01`, with plain server types,
 diff check and independent final source review clear. Logs:
-`.paperclip-runtime/control-chronology-shared-final01.log` and
+`.nexus-runtime/control-chronology-shared-final01.log` and
 `control-chronology-shared-types-final01.log`. The four frozen hashes are
 unchanged. Full root13 and browser final10 remain in progress; no live cutover
 or merge is implied by this focused result.
@@ -6408,7 +6408,7 @@ processed sources in Discord CHA-43 and Telegram CHA-48 return
 `after_all_proven_controls`; Slack CHA-44 and GitHub CHA-45 correctly return
 `no_proven_control`. This checks chronology only, not the complete run-level
 presentation grant, and changes no live state. Log:
-`.paperclip-runtime/chat-adapters-live/control-chronology-preflight-83.log`.
+`.nexus-runtime/chat-adapters-live/control-chronology-preflight-83.log`.
 The isolated qualified runner's SHA256 remains `6844f20e…` and its strict code
 signature check passes; tracked runner binary and lockfile remain unchanged.
 
@@ -6416,7 +6416,7 @@ The full deterministic chat/Board receipt browser repeat completed **43/43**,
 zero retries, in 5.3 minutes (exit 0) on fresh
 `board_receipts_browser_20260909_final10`. All four frozen source/test hashes
 remain unchanged. Log:
-`.paperclip-runtime/board-receipts-browser.bzXvpe/channel-and-board-full-browser-final10-0909.log`.
+`.nexus-runtime/board-receipts-browser.bzXvpe/channel-and-board-full-browser-final10-0909.log`.
 Full root13 remains pending; server82 is still the live process.
 
 ### Full shared-proof run and bare-control fixture correction (18:18 UTC)
@@ -6433,7 +6433,7 @@ negatives, explicitly checks missing authorization, and denies presentation
 after this unproven published record. It does not manufacture a supported Teams
 native-thread close or relax production authority. The 71 genuine-control cases
 remain separate coverage. Log:
-`.paperclip-runtime/chat-adapters-live/chat-snapshot-full-root13-0909.log`.
+`.nexus-runtime/chat-adapters-live/chat-snapshot-full-root13-0909.log`.
 Fresh root14 is being prepared; server83 remains undeployed.
 
 The test-only correction is green on fresh
@@ -6442,7 +6442,7 @@ all 11 timestamp-provenance cases), 48.90s tests/60.99s total, plus plain server
 types. Test SHA256 is
 `ddab366732298fa43e8272d824eef516ad7be42f29a56b6b5450aea5e2c8d3ec`;
 all production hashes remain unchanged. Logs:
-`.paperclip-runtime/timestamp-proof-fixture-final01.log` and
+`.nexus-runtime/timestamp-proof-fixture-final01.log` and
 `timestamp-proof-fixture-types-final01.log`. Fresh full root14 started at
 18:20:15 UTC and is still pending. Root13's failed result is retained; no
 production fix, full green claim, or live cutover is implied by this correction.
@@ -6453,13 +6453,13 @@ Fresh `chat_snapshot_full_20260909_root14` passes **975/975**, no skips, exit 0:
 409.45s tests/422.95s total. Production hashes remain `ed01066a…` helper,
 `836d899c…` service and `65d79903…` issues; test `ddab3667…`. This joins final10
 browser **43/43**, zero retries, and the 82-case focused/types gate. Log:
-`.paperclip-runtime/chat-adapters-live/chat-snapshot-full-root14-0909.log`.
+`.nexus-runtime/chat-adapters-live/chat-snapshot-full-root14-0909.log`.
 The earlier root13 970/975 result remains recorded rather than overwritten.
 
 At 18:27:38 UTC the exact QA agent was idle with zero queued/running runs and
 queued/claimed wakes. An audited pause rechecked both sets before SIGTERM of
 server82 PID60999. Backup
-`.paperclip-runtime/chat-adapters-live/pre-83-backup.1FdJts/pre-server-83-20260909-132744.sql.gz`
+`.nexus-runtime/chat-adapters-live/pre-83-backup.1FdJts/pre-server-83-20260909-132744.sql.gz`
 is 14,920,506 bytes, directory0700/file0600, gzip verified, no pruned backups;
 restore was not tested. Schema258 was already up to date, so no migration ran.
 Server83 loaded root `0c7f29207`, PID2295, loopback3137; proxy3104 and shared
@@ -6509,7 +6509,7 @@ temporarily busy; the server explicitly records no provider delivery attempted.
 Attempt2 published the final at18:34:05.210. This is not an ambiguous replay.
 All scoped publications/actions settled, all receipt removals processed, and
 actual Slack/GitHub browser final text matches the receipts. Sources:
-`.paperclip-runtime/chat-adapters-live/live83-final-receipts.json`,
+`.nexus-runtime/chat-adapters-live/live83-final-receipts.json`,
 `live83-queue-overlap-receipts.json` and `server-experimental-landing-83.log`.
 No new live Teams or Telegram native draft-Stop qualification is claimed.
 
@@ -6559,7 +6559,7 @@ no success or live deployment of that repair is claimed. Ignored evidence:
 `terminal-ack-holdspawned-baseline-0909.log`,
 `terminal-ack-fsync-zero-evidence-0909.log` and
 `terminal-ack-fsync-ten-evidence-0909.log` under
-`.paperclip-runtime/chat-adapters-live/`.
+`.nexus-runtime/chat-adapters-live/`.
 
 ### September 9, 19:11 UTC — terminal replay, queue drain and final authority qualified
 
@@ -6592,7 +6592,7 @@ not count as production REDs.
 Root independently repeated the original delayed-fsync case on final source:
 1/1 passed,16.67s tests/17.41s total. The same10ms injection recorded525 target
 fsyncs and about9.383s cumulative latency across the fixture. Evidence is
-`.paperclip-runtime/chat-adapters-live/terminal-ack-fsync-ten-fixed-authority-final-0909.log`.
+`.nexus-runtime/chat-adapters-live/terminal-ack-fsync-ten-fixed-authority-final-0909.log`.
 Frozen SHA-256 values:
 
 - Transport: `266dfb99e6a5a022e9994a6af7bb919451b6d07ada6a02d383f2495634866392`.
@@ -6627,7 +6627,7 @@ The failing files were artifact metadata, local runner, installed-provider
 integrity and Codex credentials. The10 skips are three opt-in benchmarks and
 seven Linux-only cases; Linux/x64 CI skips only those same three benchmarks.
 No skip was added by the candidate. Evidence is the landing worktree's
-`.paperclip-runtime/landing-20260909/integration-base-verify-YAhDBQ/final-runner-check-all02.log`.
+`.nexus-runtime/landing-20260909/integration-base-verify-YAhDBQ/final-runner-check-all02.log`.
 
 The artifact failure compares `/var/folders/...` with its intended production
 `realpath` result `/private/var/folders/...`; SHA, byte size and metadata all
@@ -6681,7 +6681,7 @@ The Rust failure is the first five-second loop of
 `durable_descendant_lineage_survives_capacity_and_provider_restoration`, before
 restoration or capacity assertions. That target reported 80 passed, one failed
 and two ignored helper declarations in 82.37s; its 8,190-turn rollover passed.
-The saved fixture `paperclip-runner-codex-descendant-restoration-89523-52` has an
+The saved fixture `nexus-runner-codex-descendant-restoration-89523-52` has an
 active root, 255 descendants, no pending or queued events, next event sequence
 259 and no receipt-limit interrupt. The 128-events-per-poll limit accounts for
 the exact prefix: root turn-start plus 255 descendant starts make two batches.
@@ -6745,7 +6745,7 @@ unselected tests, 17.58s test time/18.44s total, exit 1. The log confirms the
 fixture-only intervention. This is causal diagnostic RED, not qualification,
 and the preload is not installed in any server or subsequent qualification.
 Evidence: original worktree
-`.paperclip-runtime/chat-adapters-live/terminal-ack-fast-save-old-fixture-0909.log`.
+`.nexus-runtime/chat-adapters-live/terminal-ack-fast-save-old-fixture-0909.log`.
 The physical source and release binary were not edited for this control.
 
 The proposed test-only correction uses the existing public authenticated-wire
@@ -6770,7 +6770,7 @@ in Downloads. The effective download interface exposes no local-path accessor;
 no downloaded-byte hash is claimed and no provider defect is inferred from
 that observation. No fallback account/browser, raw HTTP or repeated downloads
 were used. Detailed ignored evidence:
-`.paperclip-runtime/chat-adapters-live/discord-existing-media-recheck-0909.md`.
+`.nexus-runtime/chat-adapters-live/discord-existing-media-recheck-0909.md`.
 
 ### September 9, 20:01 UTC — deterministic terminal-loss fixture qualified
 
@@ -6798,10 +6798,10 @@ Production transport remains SHA-256
 `266dfb99e6a5a022e9994a6af7bb919451b6d07ada6a02d383f2495634866392`.
 The code delta is one existing test file. Final independent source review is
 clear. Evidence under the landing worktree's physical
-`.paperclip-runtime/landing-20260909/integration-base-verify-YAhDBQ/`:
+`.nexus-runtime/landing-20260909/integration-base-verify-YAhDBQ/`:
 `terminal-ack-wire-full171-final01.log` and
 `terminal-ack-wire-focused-final.log`; owned formatting evidence is
-`.paperclip-runtime/landing-20260909/terminal-ack-wire-format01.log`.
+`.nexus-runtime/landing-20260909/terminal-ack-wire-format01.log`.
 The initial three-case run on the earlier `cd1c…` artifact passed separately,
 but is not substituted for this current-base evidence.
 
@@ -6824,7 +6824,7 @@ one setup-reaction entry; its later formatted diff also contains the exact
 expected `telegram:77118896` / `77118896:930` / `eyes` entry. This is concrete
 evidence that the mutable result changed after the assertion, not proof that
 the requested removal was wrong or lost. Log:
-`.paperclip-runtime/landing-20260909/ci-585-server4-job.log`.
+`.nexus-runtime/landing-20260909/ci-585-server4-job.log`.
 
 Source inspection confirms the relevant asynchronous contract. After terminal
 publication and action durability, the service schedules non-critical receipt
@@ -6873,7 +6873,7 @@ source review is clear. Final integration test SHA-256:
 `9bd5f108d0790731a5816df31dddf715df8c85af38f429b9b8e1d182cfdeacc9`.
 Production service remains
 `b9ad5151cb91b72f97a7fe24773021e6eb72350639bfee84c5adef5998b2b008`.
-Logs in the landing `.paperclip-runtime/landing-20260909/`:
+Logs in the landing `.nexus-runtime/landing-20260909/`:
 `close-receipt-held-red01.log`, `close-receipt-held-green01.log` and
 `close-receipt-types01.log`. Earlier complete 585 CI remains failed; a new
 exact-head full CI run is still required. Original/live state is untouched.
@@ -6968,7 +6968,7 @@ Mounted test SHA-256:
 The final cohort passes **70/70**, two files, 1.19s tests/2.27s total; plain
 UI types, scoped formatting and diff checks pass. Root independently verifies
 hashes, reviews the source and runs token gates successfully. Independent child
-scope review is clear. Logs under landing `.paperclip-runtime/landing-20260909/`:
+scope review is clear. Logs under landing `.nexus-runtime/landing-20260909/`:
 `composer-stop-toast-alias-red01.log`, `composer-stop-toast-child-red01.log`,
 `composer-stop-toast-child-green-final.log`, and
 `composer-stop-toast-child-types-final.log`.
@@ -7483,7 +7483,7 @@ complete-response caption. The actual Telegram Web Instant View reader opened
 the file; root visually inspected beginning/Unicode/escaped punctuation/code
 formatting and the ending marker. The middle marker was present in the actual
 reader accessibility tree, not separately screenshotted. The native downloaded
-`paperclip-response.md` is exactly 100,009 bytes and has the complete source
+`nexus-response.md` is exactly 100,009 bytes and has the complete source
 hash; root and an independent agent read and verified it. The independent check
 also validated UTF-8 and all marker positions. Source text existed only in
 memory before the provider download, not in a precreated local lookalike file.
@@ -7499,11 +7499,11 @@ path retains deterministic coverage but remains live-unqualified.
 The existing Clawd QA thread `1547256172023779448`, under #general
 `1457808933082108089`, remained bound to CHA-43. A read-only preflight confirmed
 no running/queued agent work or unsettled provider effects. Root used Discord's
-real native command picker to invoke `/paperclip status` at 22:02:30.612 UTC;
+real native command picker to invoke `/nexus status` at 22:02:30.612 UTC;
 the private reply identified CHA-43 / in_progress. Root disabled only
 **Enable #general** at 22:03:52.783, verified OFF after reload at 22:04:11.181,
 and invoked a fresh native status at 22:04:18.858. The actual private response
-was: “This command is not available here. Open the Paperclip task or ask an
+was: “This command is not available here. Open the Nexus task or ask an
 operator to link this account.” It showed **Only you can see this**.
 
 Root restored #general at 22:06:55.237 (persisted at 55.261), reloaded and

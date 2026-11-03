@@ -1,6 +1,6 @@
 import { cardToBlockKit } from "@chat-adapter/slack";
 import type { AdapterPostableMessage, ActionEvent } from "chat";
-import type { SafeChatPublicationPayload } from "@paperclipai/shared";
+import type { SafeChatPublicationPayload } from "@nexusai/shared";
 import { Actions, Button, Card, CardText, LinkButton, type CardElement } from "chat";
 import { isChatQuestionFormOpenActionId } from "../../chat-question-forms.js";
 
@@ -19,7 +19,7 @@ export function slackPublicationCard(payload: SafeChatPublicationPayload): CardE
   for (let offset = 0; offset < visibleBody.length; offset += 2000) {
     children.push(CardText(visibleBody.slice(offset, offset + 2000).join("")));
   }
-  if (body.length > MAX_CARD_BODY_LENGTH) children.push(CardText("This request is too long for Slack. Open it in Paperclip to read the complete request and respond."));
+  if (body.length > MAX_CARD_BODY_LENGTH) children.push(CardText("This request is too long for Slack. Open it in Nexus to read the complete request and respond."));
   const actions = (card.actions ?? []).map(action => {
     const label = Array.from(action.label).slice(0, 75).join("");
     return action.type === "callback"
@@ -29,21 +29,21 @@ export function slackPublicationCard(payload: SafeChatPublicationPayload): CardE
   if (actions.length) children.push(Actions(actions));
   const rendered = Card({ title: Array.from(card.title).slice(0, 150).join(""), children });
   if (!card.selection) return rendered;
-  return Object.assign(rendered, { paperclipSelection: card.selection, paperclipInteractionId: payload.interactionId });
+  return Object.assign(rendered, { nexusSelection: card.selection, nexusInteractionId: payload.interactionId });
 }
 
 /** Slack-only wire rendering; the durable publication contains provider-neutral choices. */
 export function slackSelectionMessage(message: AdapterPostableMessage) {
   if (typeof message !== "object" || !("card" in message)) return null;
   const card = message.card as CardElement & {
-    paperclipSelection?: NonNullable<SafeChatPublicationPayload["card"]>["selection"];
-    paperclipInteractionId?: string;
+    nexusSelection?: NonNullable<SafeChatPublicationPayload["card"]>["selection"];
+    nexusInteractionId?: string;
   };
-  const selection = card.paperclipSelection;
-  if (!selection || !card.paperclipInteractionId) return null;
+  const selection = card.nexusSelection;
+  if (!selection || !card.nexusInteractionId) return null;
   const options = selection.options.map(option => ({
     text: { type: "plain_text" as const, text: option.label },
-    value: selection.multiple ? option.actionId : `${option.actionId}|${card.paperclipInteractionId}`,
+    value: selection.multiple ? option.actionId : `${option.actionId}|${card.nexusInteractionId}`,
     ...(option.description ? { description: { type: "plain_text" as const, text: option.description } } : {}),
   }));
   const blocks = cardToBlockKit(card);
@@ -55,7 +55,7 @@ export function slackSelectionMessage(message: AdapterPostableMessage) {
     blocks.push({ type: "actions", elements: [options.length <= 10
       ? { type: "checkboxes", action_id: `pcsv:${selection.actionId}`, options, ...initial }
       : { type: "multi_static_select", action_id: `pcsv:${selection.actionId}`, placeholder: { type: "plain_text", text: selection.label }, options, ...initial }] });
-    blocks.push({ type: "actions", elements: [{ type: "button", action_id: selection.actionId, text: { type: "plain_text", text: selection.submitLabel ?? "Submit" }, value: card.paperclipInteractionId, style: "primary" }, ...footer.flatMap(block => block.type === "actions" ? block.elements : [])] });
+    blocks.push({ type: "actions", elements: [{ type: "button", action_id: selection.actionId, text: { type: "plain_text", text: selection.submitLabel ?? "Submit" }, value: card.nexusInteractionId, style: "primary" }, ...footer.flatMap(block => block.type === "actions" ? block.elements : [])] });
   } else {
     blocks.push({ type: "actions", elements: [{ type: "static_select", action_id: selection.actionId, placeholder: { type: "plain_text", text: selection.label }, options, ...(initial_options[0] ? { initial_option: initial_options[0] } : {}) }] });
   }

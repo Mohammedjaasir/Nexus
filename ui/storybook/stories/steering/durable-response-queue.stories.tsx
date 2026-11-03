@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { IssueQueuedCommentQueue } from "@paperclipai/shared";
+import type { IssueQueuedCommentQueue } from "@nexusai/shared";
 import { expect, userEvent, within, waitFor } from "storybook/test";
 import { TaskChatQueuedMessages } from "@/components/task-chat/TaskChatQueuedMessages";
 const initialQueue: IssueQueuedCommentQueue = {
@@ -9,7 +9,7 @@ const initialQueue: IssueQueuedCommentQueue = {
   state: "deferred",
   targetRunId: "run-gap",
   revision: "rev-1",
-  protocol: "paperclip_runner_v1",
+  protocol: "nexus_runner_v1",
   steeringDisposition: "available",
   entries: [
     {
@@ -97,7 +97,7 @@ const meta = {
           "Production queue with an immutable accepted response and remote-cleanup wait. Delivery uses local state; it does not prove persisted queues or runtime continuation.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "steering/approval-queue",
         "recovery/user-continuation"

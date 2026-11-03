@@ -6,7 +6,7 @@ const meta = {
   id: "assistant-connections-experimental-setting",
   title: "Apps, channels, and extensions/Tool gateways and access profiles/Assistant connections/Experimental setting", component: InstanceExperimentalSettings,
   parameters: { layout: "padded", initialEntries: ["/PAP/company/settings/instance/experimental"], docs: { description: { component: "The production Experimental page, including surrounding settings. Changes are local to this story." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "gateways-profiles/client-connect",
         "instance-operations/configuration"
@@ -24,7 +24,7 @@ const name = "Toggle assistant connections experimental setting";
 export const DisabledByDefault: Story = { play: async ({ canvasElement }) => {
   const c = within(canvasElement);
   await expect(await c.findByRole("switch", { name })).not.toBeChecked();
-  await expect(c.getByRole("switch", { name: "Toggle Paperclip Runner experimental setting" })).toBeChecked();
+  await expect(c.getByRole("switch", { name: "Toggle Nexus Runner experimental setting" })).toBeChecked();
 } };
 export const Enabled: Story = { parameters: { fixture: { enabled: true } } };
 export const ManagedByCloud: Story = { parameters: { fixture: { enabled: true, managed: true } }, play: async ({ canvasElement }) => {

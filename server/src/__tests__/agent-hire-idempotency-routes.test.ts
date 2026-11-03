@@ -13,7 +13,7 @@ import {
   createDb,
   heartbeatRuns,
   principalPermissionGrants,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { errorHandler } from "../middleware/index.js";
 import { agentRoutes } from "../routes/agents.js";
@@ -101,7 +101,7 @@ describeEmbeddedPostgres("agent hire idempotency within a run", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-agent-hire-idempotency-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-agent-hire-idempotency-");
     db = createDb(tempDb.connectionString);
     // Embedded Postgres cold-starts slowly on a loaded machine.
   }, 60_000);

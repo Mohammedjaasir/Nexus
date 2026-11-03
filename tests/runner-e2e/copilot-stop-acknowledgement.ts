@@ -7,7 +7,7 @@ type Row = Record<string, any>;
 export type CopilotStopDispatchRequirement = "active-provider" | "provider-completed-before-stop";
 export interface CopilotStopScope { companyId: string; runId: string; issueId: string; callerUserId: string }
 export interface CopilotStopAcknowledgement extends CopilotStopScope {
-  schema: "paperclip.e2e.copilot-stop-acknowledgement.v1";
+  schema: "nexus.e2e.copilot-stop-acknowledgement.v1";
   fixtureCorrelationId: string; dispatchMonotonicNs: string; apiResponseObservedMonotonicNs: string;
   intentId: string; intentAuditId: string; acknowledgementAuditId: string; responseMetadataSha256: string;
 }
@@ -30,7 +30,7 @@ export function readCopilotStopAcknowledgement(runInput: unknown, scope: Copilot
     || result.cancelledByActorType !== "user" || result.cancelledByUserId !== scope.callerUserId
     || cancellation.source !== "operator" || cancellation.expected !== true || rec(cancellation.initiator).type !== "user" || rec(cancellation.initiator).id !== scope.callerUserId
     || typeof startup.requestedAt !== "string" || !Number.isFinite(Date.parse(startup.requestedAt)) || startup.beforeNativeSelection !== false
-    || stop.schema !== "paperclip.native-cancellation.v1" || stop.runId !== scope.runId || stop.companyId !== scope.companyId || stop.issueId !== scope.issueId
+    || stop.schema !== "nexus.native-cancellation.v1" || stop.runId !== scope.runId || stop.companyId !== scope.companyId || stop.issueId !== scope.issueId
     || typeof stop.intentId !== "string" || !stop.intentId.startsWith("native-cancellation:") || !uuid(stop.intentId.slice("native-cancellation:".length))
     || stop.scope !== "run" || typeof stop.dispatched !== "boolean"
     || (!stop.dispatched && dispatchRequirement !== "provider-completed-before-stop") || stop.dispatchState !== "acknowledged" || stop.reasonCode !== "cancellation_run_only"
@@ -38,7 +38,7 @@ export function readCopilotStopAcknowledgement(runInput: unknown, scope: Copilot
     || !id(stop.intentAuditId) || !id(stop.acknowledgementAuditId) || stop.intentAuditId === stop.acknowledgementAuditId) throw invalid();
   const metadata = { id: run.id, companyId: run.companyId, nativeIssueId: run.nativeIssueId, runtimeMode: run.runtimeMode, status: run.status,
     cancelledByActorType: result.cancelledByActorType, cancelledByUserId: result.cancelledByUserId, cancellation, startupCancellation: startup, nativeCancellation: stop };
-  return { schema: "paperclip.e2e.copilot-stop-acknowledgement.v1", ...scope, fixtureCorrelationId, dispatchMonotonicNs, apiResponseObservedMonotonicNs,
+  return { schema: "nexus.e2e.copilot-stop-acknowledgement.v1", ...scope, fixtureCorrelationId, dispatchMonotonicNs, apiResponseObservedMonotonicNs,
     intentId: stop.intentId, intentAuditId: stop.intentAuditId, acknowledgementAuditId: stop.acknowledgementAuditId,
     responseMetadataSha256: `sha256:${createHash("sha256").update(canonicalJson(metadata)).digest("hex")}` };
 }
@@ -46,7 +46,7 @@ export function readCopilotStopAcknowledgement(runInput: unknown, scope: Copilot
 export function assertCopilotStopAcknowledgement(proof: CopilotStopAcknowledgement, run: unknown, scope: CopilotStopScope,
   fixtureCorrelationId: string, dispatchMonotonicNs: string,
   dispatchRequirement: CopilotStopDispatchRequirement = "active-provider"): void {
-  if (!proof || proof.schema !== "paperclip.e2e.copilot-stop-acknowledgement.v1") throw new Error("Copilot Stop acknowledgement response was not retained");
+  if (!proof || proof.schema !== "nexus.e2e.copilot-stop-acknowledgement.v1") throw new Error("Copilot Stop acknowledgement response was not retained");
   const current = readCopilotStopAcknowledgement(run, scope, fixtureCorrelationId, dispatchMonotonicNs, proof.apiResponseObservedMonotonicNs, dispatchRequirement);
   if (canonicalJson(proof) !== canonicalJson(current)) throw new Error("Copilot Stop acknowledgement changed after the API response");
 }

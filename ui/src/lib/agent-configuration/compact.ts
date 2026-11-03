@@ -1,4 +1,4 @@
-import type { AgentConfigurationDocument, AgentConfigurationInput } from "@paperclipai/shared";
+import type { AgentConfigurationDocument, AgentConfigurationInput } from "@nexusai/shared";
 
 const nonempty = (value: unknown) => value !== null && value !== undefined
   && (typeof value !== "object" || Object.keys(value).length > 0);

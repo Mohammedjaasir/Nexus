@@ -16,9 +16,9 @@ import os from "node:os";
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import type { AdapterRuntimeServiceReport } from "@paperclipai/adapter-utils";
-import type { Db } from "@paperclipai/db";
-import { executionWorkspaces, issueComments, issues, projectWorkspaces, workspaceRuntimeServices } from "@paperclipai/db";
+import type { AdapterRuntimeServiceReport } from "@nexusai/adapter-utils";
+import type { Db } from "@nexusai/db";
+import { executionWorkspaces, issueComments, issues, projectWorkspaces, workspaceRuntimeServices } from "@nexusai/db";
 import {
   DEFAULT_TAILSCALE_HTTPS_EXPOSURE,
   readRemoteWorkspaceAuthority,
@@ -42,7 +42,7 @@ import {
   type WorkspaceOperationPhase,
   type WorkspaceRuntimeDesiredState,
   type WorkspaceRuntimeServiceStateMap,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { and, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { asNumber, asString, parseObject, renderTemplate } from "../adapters/utils.js";
 import { conflict, unprocessable } from "../errors.js";
@@ -142,7 +142,7 @@ export interface ExecutionWorkspaceAdditionalInput {
 }
 
 export interface ExecutionWorkspaceInput {
-  providerBinding?: import("@paperclipai/shared").WorkspaceProviderBinding;
+  providerBinding?: import("@nexusai/shared").WorkspaceProviderBinding;
   baseCwd: string;
   source: "project_primary" | "task_session" | "agent_home";
   projectId: string | null;
@@ -292,7 +292,7 @@ const OPEN_EXECUTION_WORKSPACE_LEASE_STATUSES = ["active", "idle", "in_review"] 
 const DEFAULT_EXECUTE_PROCESS_OUTPUT_BYTES = 256 * 1024;
 export const WORKSPACE_RUNTIME_PORT_ALLOCATION_ATTEMPTS = 32;
 const ACTIVE_RUNTIME_PORT_RESERVATION_STATUSES = ["provisioning", "starting", "running"] as const;
-const DEFAULT_TAILSCALE_BROKER_SOCKET = "/run/paperclip-tailscale-broker/broker.sock";
+const DEFAULT_TAILSCALE_BROKER_SOCKET = "/run/nexus-tailscale-broker/broker.sock";
 
 class RuntimeServicePortBindCollision extends Error {
   readonly port: number;
@@ -326,7 +326,7 @@ export type WorkspaceRuntimeExposureDeps = ExposureManagerDeps & {
   isPortAvailable: (port: number) => Promise<boolean>;
   /**
    * Whether this host can actually broker HTTPS exposures right now. Gating the
-   * automatic default on broker availability is what keeps a Paperclip install
+   * automatic default on broker availability is what keeps a Nexus install
    * without the host broker from failing every managed runtime start closed.
    * An explicit opt-in still bypasses this and fails loudly.
    */
@@ -345,7 +345,7 @@ async function isLoopbackPortAvailable(port: number): Promise<boolean> {
 }
 
 function resolveTailscaleBrokerSocketPath(): string {
-  return process.env.PAPERCLIP_TAILSCALE_BROKER_SOCKET?.trim() || DEFAULT_TAILSCALE_BROKER_SOCKET;
+  return process.env.NEXUS_TAILSCALE_BROKER_SOCKET?.trim() || DEFAULT_TAILSCALE_BROKER_SOCKET;
 }
 
 function defaultWorkspaceRuntimeExposureDeps(): WorkspaceRuntimeExposureDeps {
@@ -392,7 +392,7 @@ export function setWorkspaceRuntimeExposureDepsForTests(deps: WorkspaceRuntimeEx
 /**
  * Deployment-level switch for the automatic default (PAP-17158).
  *
- *  - `auto` (default): eligible Paperclip-managed worktree runtimes get
+ *  - `auto` (default): eligible Nexus-managed worktree runtimes get
  *    `tailscale_https` without any project template or UI caller supplying an
  *    exposure block, provided the host broker is available.
  *  - `off`: no automatic default. Explicit opt-ins still work.
@@ -403,7 +403,7 @@ export function setWorkspaceRuntimeExposureDepsForTests(deps: WorkspaceRuntimeEx
 export type ManagedRuntimeHttpsMode = "auto" | "off" | "force";
 
 export function resolveManagedRuntimeHttpsMode(): ManagedRuntimeHttpsMode {
-  const raw = process.env.PAPERCLIP_MANAGED_RUNTIME_HTTPS?.trim().toLowerCase();
+  const raw = process.env.NEXUS_MANAGED_RUNTIME_HTTPS?.trim().toLowerCase();
   if (raw === "off" || raw === "false" || raw === "0") return "off";
   if (raw === "force") return "force";
   return "auto";
@@ -412,12 +412,12 @@ export function resolveManagedRuntimeHttpsMode(): ManagedRuntimeHttpsMode {
 /**
  * Whether a service would be defaulted to HTTPS if it declared nothing.
  *
- * Intentionally narrow: only the Paperclip-managed dev runtime. Unmanaged and
+ * Intentionally narrow: only the Nexus-managed dev runtime. Unmanaged and
  * custom external services are left exactly as they are, because the broker
- * only publishes allowlisted loopback ports it can prove Paperclip owns and we
+ * only publishes allowlisted loopback ports it can prove Nexus owns and we
  * do not want to relocate a service somebody else addresses by port.
  *
- * A *pinned* port is still a candidate. The pre-feature Paperclip App template
+ * A *pinned* port is still a candidate. The pre-feature Nexus App template
  * hard-codes `port: 45439`, which the broker's dedicated allowlist can never
  * publish, so defaulting it to HTTPS necessarily relocates it into the
  * dedicated range. "Keep existing runtime ports when safe" is honored one layer
@@ -428,7 +428,7 @@ function isManagedHttpsDefaultCandidate(input: {
   serviceName: string;
   command: string | null;
 }): boolean {
-  return isPaperclipDevRuntimeService(input);
+  return isNexusDevRuntimeService(input);
 }
 
 export type ResolvedRuntimeServiceExposure = {
@@ -481,7 +481,7 @@ async function resolveRuntimeServiceExposure(input: {
  *
  * Reads the service name and command straight off the raw config entry rather
  * than resolving the full reuse identity: templates never rewrite a service
- * name, and the substrings `isPaperclipDevRuntimeService` matches survive
+ * name, and the substrings `isNexusDevRuntimeService` matches survive
  * rendering, so this agrees with the per-service decision made during spawn.
  */
 async function anyRuntimeServiceUsesHttpsExposure(
@@ -513,7 +513,7 @@ type ProcessOutputAccumulator = {
  * Drops in-memory runtime state between tests.
  *
  * By default the spawned backend processes are deliberately left running: the
- * startup-reconciliation suites use this to simulate a Paperclip restart, where
+ * startup-reconciliation suites use this to simulate a Nexus restart, where
  * the point is that a live backend survives and has to be adopted.
  *
  * Suites that spawn real backends and do *not* need that must pass
@@ -535,7 +535,7 @@ export async function resetRuntimeServicesForTests(
     if (opts.simulateSupervisorExit) {
       // A real supervisor exit closes its side of every inherited pipe. Tests
       // use this to prove surviving request-logging services do not depend on
-      // Paperclip keeping an anonymous stdio peer alive.
+      // Nexus keeping an anonymous stdio peer alive.
       record.child?.stdout?.destroy();
       record.child?.stderr?.destroy();
     }
@@ -596,7 +596,7 @@ function isLinkedGitWorktreeCheckout(rootDir: string) {
 
 function discoverWorkspacePackagePaths(rootDir: string): Map<string, string> {
   const packagePaths = new Map<string, string>();
-  const ignoredDirNames = new Set([".git", ".paperclip", "dist", "node_modules"]);
+  const ignoredDirNames = new Set([".git", ".nexus", "dist", "node_modules"]);
 
   function visit(dirPath: string) {
     if (!existsSync(dirPath)) return;
@@ -800,7 +800,7 @@ export function sanitizeBranchName(value: string): string {
     .replace(/[^A-Za-z0-9._/-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^[-/.]+|[-/.]+$/g, "")
-    .slice(0, 120) || "paperclip-work";
+    .slice(0, 120) || "nexus-work";
 }
 
 function isAbsolutePath(value: string) {
@@ -1222,7 +1222,7 @@ function formatUtcBranchTimestamp(date = new Date()) {
 
 function buildDirtyQuarantineRescueBranch(sourceIssue: ExecutionWorkspaceIssueRef | null) {
   const issueComponent = sanitizeBranchName(sourceIssue?.identifier ?? sourceIssue?.id ?? "issue");
-  return sanitizeBranchName(`paperclip/rescue/${issueComponent}/${formatUtcBranchTimestamp()}`);
+  return sanitizeBranchName(`nexus/rescue/${issueComponent}/${formatUtcBranchTimestamp()}`);
 }
 
 function formatIssueReference(issueId: string | null | undefined, identifier: string | null | undefined) {
@@ -1394,7 +1394,7 @@ function explainGitWorktreeBranchIncoherence(input: {
 }) {
   const actualBranch = formatBranchForMessage(input.actualBranchName);
   if (!input.expectedHeadSha || !input.actualHeadSha) {
-    return `Paperclip could not determine branch ancestry because the recorded branch "${input.expectedBranchName}" or checked-out branch "${actualBranch}" is missing a resolvable HEAD commit.`;
+    return `Nexus could not determine branch ancestry because the recorded branch "${input.expectedBranchName}" or checked-out branch "${actualBranch}" is missing a resolvable HEAD commit.`;
   }
   if (input.sameHead) {
     return `The recorded branch "${input.expectedBranchName}" and checked-out branch "${actualBranch}" resolve to the same commit, so the mismatch is branch metadata rather than commit divergence.`;
@@ -1403,9 +1403,9 @@ function explainGitWorktreeBranchIncoherence(input: {
     return `The recorded branch "${input.expectedBranchName}" is an ancestor of the checked-out branch "${actualBranch}", so the checked-out branch is forward of the recorded branch.`;
   }
   if (input.ancestryVerdict === "diverged") {
-    return `The recorded branch "${input.expectedBranchName}" is not an ancestor of the checked-out branch "${actualBranch}", so Paperclip cannot prove a forward-only reconciliation.`;
+    return `The recorded branch "${input.expectedBranchName}" is not an ancestor of the checked-out branch "${actualBranch}", so Nexus cannot prove a forward-only reconciliation.`;
   }
-  return `Paperclip could not determine whether the checked-out branch "${actualBranch}" is forward of the recorded branch "${input.expectedBranchName}".`;
+  return `Nexus could not determine whether the checked-out branch "${actualBranch}" is forward of the recorded branch "${input.expectedBranchName}".`;
 }
 
 async function inspectGitWorktreeBranchIncoherence(input: {
@@ -1836,7 +1836,7 @@ async function quarantineDirtyWorktreeBranchIncoherence(input: {
       args: [
         "commit",
         "-m",
-        "Paperclip dirty workspace rescue",
+        "Nexus dirty workspace rescue",
         "-m",
         [
           `Source-Issue: ${input.evidence.sourceIdentifier ?? input.evidence.sourceIssueId ?? "unknown"}`,
@@ -2228,7 +2228,7 @@ export async function ensureGitWorktreeBranchCoherent(input: {
   ) {
     const reason = evidence.provenance.expectedBranchExists
       ? "Automatic forward reconciliation: recorded branch is an ancestor of the checked-out branch."
-      : "Automatic forward reconciliation: the recorded branch no longer exists, so Paperclip adopted the clean checked-out branch.";
+      : "Automatic forward reconciliation: the recorded branch no longer exists, so Nexus adopted the clean checked-out branch.";
     if (input.executionWorkspaceId && input.persistForwardReconcile !== false) {
       if (!input.db) {
         evidence.safeRepair.reason = "forward reconciliation requires database access to update the execution workspace record";
@@ -2327,7 +2327,7 @@ export async function ensureGitWorktreeBranchCoherent(input: {
       branchName: currentBranch,
       reconciledForward: false,
       warnings: [
-        `${warningPrefix} The checked-out branch contains the recorded branch plus newer commits, so Paperclip adopted it for subsequent runs.`,
+        `${warningPrefix} The checked-out branch contains the recorded branch plus newer commits, so Nexus adopted it for subsequent runs.`,
       ],
     };
   }
@@ -2377,7 +2377,7 @@ export async function ensureGitWorktreeBranchCoherent(input: {
       branchName: expectedBranchName,
       reconciledForward: false,
       warnings: [
-        `${warningPrefix} The detached HEAD contained the recorded branch plus newer commits, so Paperclip moved the recorded branch to that HEAD.`,
+        `${warningPrefix} The detached HEAD contained the recorded branch plus newer commits, so Nexus moved the recorded branch to that HEAD.`,
       ],
     };
   }
@@ -2992,25 +2992,25 @@ function buildWorkspaceCommandEnv(input: {
   created: boolean;
 }) {
   const env: NodeJS.ProcessEnv = { ...process.env };
-  env.PAPERCLIP_WORKSPACE_CWD = input.worktreePath;
-  env.PAPERCLIP_WORKSPACE_PATH = input.worktreePath;
-  env.PAPERCLIP_WORKSPACE_WORKTREE_PATH = input.worktreePath;
-  env.PAPERCLIP_WORKSPACE_BRANCH = input.branchName;
-  env.PAPERCLIP_WORKSPACE_BASE_CWD = input.base.baseCwd;
-  env.PAPERCLIP_WORKSPACE_REPO_ROOT = input.repoRoot;
-  env.PAPERCLIP_WORKSPACE_SOURCE = input.base.source;
-  env.PAPERCLIP_WORKSPACE_REPO_REF = input.base.repoRef ?? "";
-  env.PAPERCLIP_WORKSPACE_REPO_URL = input.base.repoUrl ?? "";
-  env.PAPERCLIP_WORKSPACE_CREATED = input.created ? "true" : "false";
-  env.PAPERCLIP_PROJECT_ID = input.base.projectId ?? "";
-  env.PAPERCLIP_PROJECT_WORKSPACE_ID = input.base.workspaceId ?? "";
-  env.PAPERCLIP_AGENT_ID = input.agent.id ?? "";
-  env.PAPERCLIP_AGENT_NAME = input.agent.name;
-  env.PAPERCLIP_COMPANY_ID = input.agent.companyId;
-  env.PAPERCLIP_ISSUE_ID = input.issue?.id ?? "";
-  env.PAPERCLIP_ISSUE_IDENTIFIER = input.issue?.identifier ?? "";
-  env.PAPERCLIP_ISSUE_TITLE = input.issue?.title ?? "";
-  env.PAPERCLIP_ISSUE_WORK_MODE = input.issue?.workMode ?? "";
+  env.NEXUS_WORKSPACE_CWD = input.worktreePath;
+  env.NEXUS_WORKSPACE_PATH = input.worktreePath;
+  env.NEXUS_WORKSPACE_WORKTREE_PATH = input.worktreePath;
+  env.NEXUS_WORKSPACE_BRANCH = input.branchName;
+  env.NEXUS_WORKSPACE_BASE_CWD = input.base.baseCwd;
+  env.NEXUS_WORKSPACE_REPO_ROOT = input.repoRoot;
+  env.NEXUS_WORKSPACE_SOURCE = input.base.source;
+  env.NEXUS_WORKSPACE_REPO_REF = input.base.repoRef ?? "";
+  env.NEXUS_WORKSPACE_REPO_URL = input.base.repoUrl ?? "";
+  env.NEXUS_WORKSPACE_CREATED = input.created ? "true" : "false";
+  env.NEXUS_PROJECT_ID = input.base.projectId ?? "";
+  env.NEXUS_PROJECT_WORKSPACE_ID = input.base.workspaceId ?? "";
+  env.NEXUS_AGENT_ID = input.agent.id ?? "";
+  env.NEXUS_AGENT_NAME = input.agent.name;
+  env.NEXUS_COMPANY_ID = input.agent.companyId;
+  env.NEXUS_ISSUE_ID = input.issue?.id ?? "";
+  env.NEXUS_ISSUE_IDENTIFIER = input.issue?.identifier ?? "";
+  env.NEXUS_ISSUE_TITLE = input.issue?.title ?? "";
+  env.NEXUS_ISSUE_WORK_MODE = input.issue?.workMode ?? "";
   return env;
 }
 
@@ -3289,18 +3289,18 @@ function buildExecutionWorkspaceCleanupEnv(input: {
   projectWorkspaceCwd?: string | null;
 }) {
   const env: NodeJS.ProcessEnv = sanitizeRuntimeServiceBaseEnv(process.env);
-  env.PAPERCLIP_WORKSPACE_CWD = input.workspace.cwd ?? "";
-  env.PAPERCLIP_WORKSPACE_PATH = input.workspace.cwd ?? "";
-  env.PAPERCLIP_WORKSPACE_WORKTREE_PATH =
+  env.NEXUS_WORKSPACE_CWD = input.workspace.cwd ?? "";
+  env.NEXUS_WORKSPACE_PATH = input.workspace.cwd ?? "";
+  env.NEXUS_WORKSPACE_WORKTREE_PATH =
     input.workspace.providerRef ?? input.workspace.cwd ?? "";
-  env.PAPERCLIP_WORKSPACE_BRANCH = input.workspace.branchName ?? "";
-  env.PAPERCLIP_WORKSPACE_BASE_CWD = input.projectWorkspaceCwd ?? "";
-  env.PAPERCLIP_WORKSPACE_REPO_ROOT = input.projectWorkspaceCwd ?? "";
-  env.PAPERCLIP_WORKSPACE_REPO_URL = input.workspace.repoUrl ?? "";
-  env.PAPERCLIP_WORKSPACE_REPO_REF = input.workspace.baseRef ?? "";
-  env.PAPERCLIP_PROJECT_ID = input.workspace.projectId ?? "";
-  env.PAPERCLIP_PROJECT_WORKSPACE_ID = input.workspace.projectWorkspaceId ?? "";
-  env.PAPERCLIP_ISSUE_ID = input.workspace.sourceIssueId ?? "";
+  env.NEXUS_WORKSPACE_BRANCH = input.workspace.branchName ?? "";
+  env.NEXUS_WORKSPACE_BASE_CWD = input.projectWorkspaceCwd ?? "";
+  env.NEXUS_WORKSPACE_REPO_ROOT = input.projectWorkspaceCwd ?? "";
+  env.NEXUS_WORKSPACE_REPO_URL = input.workspace.repoUrl ?? "";
+  env.NEXUS_WORKSPACE_REPO_REF = input.workspace.baseRef ?? "";
+  env.NEXUS_PROJECT_ID = input.workspace.projectId ?? "";
+  env.NEXUS_PROJECT_WORKSPACE_ID = input.workspace.projectWorkspaceId ?? "";
+  env.NEXUS_ISSUE_ID = input.workspace.sourceIssueId ?? "";
   return env;
 }
 
@@ -3409,7 +3409,7 @@ export async function realizeExecutionWorkspace(input: {
   const configuredParentDir = asString(rawStrategy.worktreeParentDir, "");
   const worktreeParentDir = configuredParentDir
     ? resolveConfiguredPath(configuredParentDir, repoRoot)
-    : path.join(repoRoot, ".paperclip", "worktrees");
+    : path.join(repoRoot, ".nexus", "worktrees");
   const worktreePath = path.join(worktreeParentDir, branchName);
   if (path.relative(worktreeParentDir, worktreePath).startsWith("..")) {
     throw new WorkspaceRuntimeValidationFailure(
@@ -4221,7 +4221,7 @@ async function deleteGitBranchAtVerifiedTip(input: {
   const commonDir = path.isAbsolute(commonDirRaw)
     ? commonDirRaw
     : path.resolve(input.repoRoot, commonDirRaw);
-  const detachedGitDir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-branch-delete-"));
+  const detachedGitDir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-branch-delete-"));
   const detachedWorktree = `${detachedGitDir}-worktree`;
 
   try {
@@ -4630,7 +4630,7 @@ async function buildCompanyExposureReservationLedger(input: {
 }
 
 /**
- * Rows Paperclip reports stopped/removed whose reserved pair is still live on
+ * Rows Nexus reports stopped/removed whose reserved pair is still live on
  * the host or still mapped to someone else (PAP-17419 regression #3).
  *
  * The point is visibility. A false `stopped`/`removed` row used to be
@@ -4689,7 +4689,7 @@ async function detectPersistedExposureReservationDrift(input: {
   });
 }
 
-/** Paperclip-owned Serve mappings, or null when the broker cannot be read. */
+/** Nexus-owned Serve mappings, or null when the broker cannot be read. */
 async function readBrokerExposureMappings(): Promise<BrokerMappingSnapshot[] | null> {
   try {
     const owned = await workspaceRuntimeExposureDeps.broker.list();
@@ -5468,21 +5468,21 @@ async function waitForAllocatedPortBind(input: {
   throw new Error(`Runtime service did not bind allocated port ${input.port} before timeout`);
 }
 
-function isPaperclipDevRuntimeService(input: { serviceName?: string | null; command?: string | null }) {
+function isNexusDevRuntimeService(input: { serviceName?: string | null; command?: string | null }) {
   const serviceName = (input.serviceName ?? "").trim().toLowerCase();
   const command = (input.command ?? "").trim().toLowerCase();
   return (
-    serviceName === "paperclip-dev"
-    || serviceName === "paperclip-dev-once"
+    serviceName === "nexus-dev"
+    || serviceName === "nexus-dev-once"
     || (command.includes("dev:once") && command.includes("tailscale-auth"))
   );
 }
 
-export const MANAGED_RUNTIME_PUBLIC_URL_ENV = "PAPERCLIP_MANAGED_RUNTIME_PUBLIC_URL";
+export const MANAGED_RUNTIME_PUBLIC_URL_ENV = "NEXUS_MANAGED_RUNTIME_PUBLIC_URL";
 
 const EXPLICIT_RUNTIME_ORIGIN_ENV_KEYS = [
-  "PAPERCLIP_PUBLIC_URL",
-  "PAPERCLIP_AUTH_PUBLIC_BASE_URL",
+  "NEXUS_PUBLIC_URL",
+  "NEXUS_AUTH_PUBLIC_BASE_URL",
   "BETTER_AUTH_URL",
   "BETTER_AUTH_BASE_URL",
 ] as const;
@@ -5498,7 +5498,7 @@ function isLoopbackRuntimeHostname(hostname: string) {
 function managedRuntimeOriginError(serviceName: string, reason: string) {
   return new Error(
     `Runtime service "${serviceName}" cannot derive a browser-reachable OAuth callback origin: ${reason}. `
-    + "Configure PAPERCLIP_PUBLIC_URL or BETTER_AUTH_URL for this service, or publish an HTTPS expose.urlTemplate "
+    + "Configure NEXUS_PUBLIC_URL or BETTER_AUTH_URL for this service, or publish an HTTPS expose.urlTemplate "
     + "that the operator's browser can reach (loopback HTTP is also supported).",
   );
 }
@@ -5512,7 +5512,7 @@ function trustedRuntimeHostnameBoundary(
 ): TrustedRuntimeHostnameBoundary | null {
   if (!urlTemplate?.trim()) return null;
   let markerIndex = 0;
-  const markerPrefix = "paperclip-runtime-template-";
+  const markerPrefix = "nexus-runtime-template-";
   const safeTemplate = urlTemplate.replace(
     /{{\s*([a-zA-Z0-9_.-]+)\s*}}/g,
     (_match, path: string) => path === "port" ? "443" : `${markerPrefix}${markerIndex++}`,
@@ -5527,7 +5527,7 @@ function trustedRuntimeHostnameBoundary(
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
 
   const hostname = parsed.hostname.trim().toLowerCase().replace(/^\[|\]$/g, "");
-  const markers = [...hostname.matchAll(/paperclip-runtime-template-\d+/g)];
+  const markers = [...hostname.matchAll(/nexus-runtime-template-\d+/g)];
   const lastMarker = markers.at(-1);
   if (!lastMarker || lastMarker.index === undefined) {
     return hostname ? { exactHostname: hostname } : null;
@@ -5542,17 +5542,17 @@ function trustedRuntimeHostnameBoundary(
 }
 
 /**
- * Resolve the low-priority public URL hint injected into a managed Paperclip dev
+ * Resolve the low-priority public URL hint injected into a managed Nexus dev
  * service. Explicit operator origin settings are deliberately left untouched.
  */
-export function resolveManagedPaperclipRuntimePublicOrigin(input: {
+export function resolveManagedNexusRuntimePublicOrigin(input: {
   serviceName: string;
   command: string;
   environment: Record<string, string>;
   exposedUrl: string | null;
   exposedUrlTemplate?: string | null;
 }) {
-  if (!isPaperclipDevRuntimeService(input)) return null;
+  if (!isNexusDevRuntimeService(input)) return null;
   if (EXPLICIT_RUNTIME_ORIGIN_ENV_KEYS.some((key) => input.environment[key]?.trim())) return null;
   if (!input.exposedUrl) {
     throw managedRuntimeOriginError(input.serviceName, "the managed service does not report an exposed URL");
@@ -5627,7 +5627,7 @@ function resolveRuntimeServiceHealthUrl(
   url: string | null,
   input?: { serviceName?: string | null; command?: string | null },
 ) {
-  if (!url || !isPaperclipDevRuntimeService(input ?? {})) return url;
+  if (!url || !isNexusDevRuntimeService(input ?? {})) return url;
   try {
     const parsed = new URL(url);
     if (parsed.pathname === "/" || parsed.pathname === "") {
@@ -5677,7 +5677,7 @@ async function probeManagedWorkspaceRuntimeReadiness(
   healthUrl: string,
   input: RuntimeServiceHealthProbeInput,
 ): Promise<boolean | null> {
-  if (!isPaperclipDevRuntimeService(input)) return null;
+  if (!isNexusDevRuntimeService(input)) return null;
   const identity = resolveManagedWorkspaceIdentity({
     workspaceCwd: input.cwd ?? null,
     executionWorkspaceId: input.executionWorkspaceId ?? null,
@@ -5711,7 +5711,7 @@ async function isRuntimeServiceUrlHealthy(
   url: string | null,
   input?: RuntimeServiceHealthProbeInput,
 ) {
-  const localProbeUrl = input?.provider === "local_process" && input.port && isPaperclipDevRuntimeService(input)
+  const localProbeUrl = input?.provider === "local_process" && input.port && isNexusDevRuntimeService(input)
     ? `http://127.0.0.1:${input.port}`
     : null;
   const probeUrl = localProbeUrl ?? url;
@@ -5725,7 +5725,7 @@ async function isRuntimeServiceUrlHealthy(
   try {
     const response = await fetch(healthUrl, { signal: AbortSignal.timeout(2_000) });
     if (!response.ok) return false;
-    if (!isPaperclipDevRuntimeService(input ?? {})) return true;
+    if (!isNexusDevRuntimeService(input ?? {})) return true;
     const payload = await response.json().catch(() => null) as { status?: unknown } | null;
     return payload?.status === "ok";
   } catch {
@@ -5993,7 +5993,7 @@ function readWorkspaceSeedOperationEvidence(worktreePath: string): {
   error: string | null;
   metadata: Record<string, unknown>;
 } {
-  const manifestPath = path.join(worktreePath, ".paperclip", "seed-manifest.json");
+  const manifestPath = path.join(worktreePath, ".nexus", "seed-manifest.json");
   try {
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
     const state = typeof manifest.state === "string" ? manifest.state : "unknown";
@@ -6036,7 +6036,7 @@ export function resolveRuntimeProvisionCommand(input: {
 
   if (input.workspace.strategy !== "git_worktree") return "";
 
-  const stateDir = path.join(input.workspace.cwd, ".paperclip");
+  const stateDir = path.join(input.workspace.cwd, ".nexus");
   if (existsSync(path.join(stateDir, "seed-empty"))) return "";
   const manifestPath = path.join(stateDir, "seed-manifest.json");
   const provisionScript = path.join(
@@ -6214,8 +6214,8 @@ async function spawnLocalRuntimeService(input: StartLocalRuntimeServiceInput): P
   // An exposed listener MUST be loopback-only or the broker denies it. Env vars
   // alone cannot guarantee that: the process that has to honour them is the
   // *guest checkout's* dev runner, and one from before managed exposure existed
-  // overwrites PAPERCLIP_BIND from its own `--bind` argv and deletes
-  // PAPERCLIP_BIND_HOST — which is exactly how a branch pinned at plain master
+  // overwrites NEXUS_BIND from its own `--bind` argv and deletes
+  // NEXUS_BIND_HOST — which is exactly how a branch pinned at plain master
   // bound 0.0.0.0 and failed every start (PAP-17256). argv is honoured by every
   // dev-runner version, so put the loopback bind there.
   //
@@ -6290,7 +6290,7 @@ async function spawnLocalRuntimeService(input: StartLocalRuntimeServiceInput): P
   // is honored when it is already an allowlisted app port whose HMR companion is
   // free — that keeps a restart on the same port and keeps a backfilled service
   // stable across deploys — and quietly relocated when it is not, which is the
-  // only way a legacy pinned port (the Paperclip App template's 45439) can be
+  // only way a legacy pinned port (the Nexus App template's 45439) can be
   // published at all. If the backend then fails to listen where we allocated,
   // the broker's /proc ownership proof refuses the mapping and the start fails
   // closed; it never falls back to HTTP.
@@ -6406,18 +6406,18 @@ async function spawnLocalRuntimeService(input: StartLocalRuntimeServiceInput): P
     ...sanitizeRuntimeServiceBaseEnv(process.env),
     ...runtimeEnvOverrides,
   } as Record<string, string>;
-  // Managed Paperclip worktrees are development environments, so their UI
+  // Managed Nexus worktrees are development environments, so their UI
   // should track source edits without each project repeating this setting.
   // An HTTPS profile must publish the companion HMR listener before it can use
   // this default. Otherwise, leave the value unset so dev-runner keeps its
   // built-UI safeguard. Keep every explicit service/adapter value.
   const uiDevMiddlewareHasTransport =
-    !exposureConfig || exposureConfig.includePaperclipViteHmr;
+    !exposureConfig || exposureConfig.includeNexusViteHmr;
   if (
     uiDevMiddlewareHasTransport
-    && isPaperclipDevRuntimeService({ serviceName, command })
+    && isNexusDevRuntimeService({ serviceName, command })
   ) {
-    env.PAPERCLIP_UI_DEV_MIDDLEWARE ??= "true";
+    env.NEXUS_UI_DEV_MIDDLEWARE ??= "true";
   }
   if (port) {
     const portEnvKey = asString(portConfig.envKey, "PORT");
@@ -6425,10 +6425,10 @@ async function spawnLocalRuntimeService(input: StartLocalRuntimeServiceInput): P
   }
 
   // Per-workspace handoff key, readiness token, and workspace id. Injected for
-  // the Paperclip dev runtime whether or not it is HTTPS-exposed, because the
+  // the Nexus dev runtime whether or not it is HTTPS-exposed, because the
   // password-independent login handoff and the protected readiness probe are
   // both needed for a plain-HTTP loopback workspace too (PAP-17572).
-  const managedWorkspaceIdentity = isPaperclipDevRuntimeService({ serviceName, command })
+  const managedWorkspaceIdentity = isNexusDevRuntimeService({ serviceName, command })
     ? resolveManagedWorkspaceIdentity({
         workspaceCwd: input.workspace.cwd,
         executionWorkspaceId: input.executionWorkspaceId ?? null,
@@ -6440,22 +6440,22 @@ async function spawnLocalRuntimeService(input: StartLocalRuntimeServiceInput): P
   }
 
   if (exposureConfig) {
-    // Paperclip dev-runtime-specific hardening. Other managed processes are
+    // Nexus dev-runtime-specific hardening. Other managed processes are
     // still rejected by the broker unless /proc proves loopback-only listeners.
     //
     // Three independent layers force the loopback bind, because a guest checkout
     // can be arbitrarily old (PAP-17256): the `--bind loopback` argv
     // added above, these env vars for a runner that reads them, and HOST for one
     // old enough to ignore both and infer its bind mode from HOST alone.
-    env.PAPERCLIP_BIND = RUNTIME_EXPOSURE_BIND_MODE;
-    env.PAPERCLIP_BIND_HOST = RUNTIME_EXPOSURE_BIND_HOST;
+    env.NEXUS_BIND = RUNTIME_EXPOSURE_BIND_MODE;
+    env.NEXUS_BIND_HOST = RUNTIME_EXPOSURE_BIND_HOST;
     env.HOST = RUNTIME_EXPOSURE_BIND_HOST;
-    env.PAPERCLIP_VITE_HMR_PROTOCOL = "wss";
-    env.PAPERCLIP_MANAGED_RUNTIME_EXPOSURE = "tailscale_https";
-    env.PAPERCLIP_ALLOWED_HOSTNAMES = exposureHostname!;
-    env.PAPERCLIP_AUTH_BASE_URL_MODE = "explicit";
-    env.PAPERCLIP_AUTH_PUBLIC_BASE_URL = `https://${exposureHostname}:${port}`;
-    env.PAPERCLIP_PUBLIC_URL = `https://${exposureHostname}:${port}`;
+    env.NEXUS_VITE_HMR_PROTOCOL = "wss";
+    env.NEXUS_MANAGED_RUNTIME_EXPOSURE = "tailscale_https";
+    env.NEXUS_ALLOWED_HOSTNAMES = exposureHostname!;
+    env.NEXUS_AUTH_BASE_URL_MODE = "explicit";
+    env.NEXUS_AUTH_PUBLIC_BASE_URL = `https://${exposureHostname}:${port}`;
+    env.NEXUS_PUBLIC_URL = `https://${exposureHostname}:${port}`;
   }
 
   const expose = parseObject(input.service.expose);
@@ -6467,7 +6467,7 @@ async function spawnLocalRuntimeService(input: StartLocalRuntimeServiceInput): P
   let url = exposureConfig ? null : backendUrl;
   const readinessUrlTemplate = asString(readiness.urlTemplate, "");
   const readinessUrl = readinessUrlTemplate ? renderTemplate(readinessUrlTemplate, templateData) : null;
-  const managedRuntimePublicOrigin = resolveManagedPaperclipRuntimePublicOrigin({
+  const managedRuntimePublicOrigin = resolveManagedNexusRuntimePublicOrigin({
     serviceName,
     command,
     // Includes the trusted public origin injected above for managed HTTPS
@@ -6679,7 +6679,7 @@ async function spawnLocalRuntimeService(input: StartLocalRuntimeServiceInput): P
       env,
       detached: process.platform !== "win32",
       // The service receives duplicate append-only file descriptors. Closing
-      // Paperclip (or this parent handle below) cannot strand a request logger
+      // Nexus (or this parent handle below) cannot strand a request logger
       // on an orphaned socketpair during startup reconciliation.
       stdio: ["ignore", serviceLog.handle.fd, serviceLog.handle.fd],
     });
@@ -6746,7 +6746,7 @@ async function spawnLocalRuntimeService(input: StartLocalRuntimeServiceInput): P
     ? exposureConfig
       ? [
           port,
-          ...(exposureConfig.includePaperclipViteHmr ? [deriveViteHmrPort(port)] : []),
+          ...(exposureConfig.includeNexusViteHmr ? [deriveViteHmrPort(port)] : []),
         ]
       : canAllocateFixedPort
         ? [port]
@@ -6867,7 +6867,7 @@ async function spawnLocalRuntimeService(input: StartLocalRuntimeServiceInput): P
     // bounded retries.
     const exposureAssignedPorts: number[] =
       exposureConfig && port
-        ? [port, ...(exposureConfig.includePaperclipViteHmr ? [deriveViteHmrPort(port)] : [])]
+        ? [port, ...(exposureConfig.includeNexusViteHmr ? [deriveViteHmrPort(port)] : [])]
         : [];
     const collisionText = `${failureMessage}\n${serviceOutputExcerpt}`;
     const exposureNamedPorts = exposureAssignedPorts.filter((candidate) =>
@@ -8693,7 +8693,7 @@ export async function reconcilePersistedRuntimeServicesOnStartup(db: Db) {
     );
     // Pre-feature rows carry no exposure state at all. An eligible one that is
     // still serving plain HTTP must not be adopted as-is, or the deploy would
-    // leave `http://paperclip-dev:<port>` as the canonical URL forever. Stopping
+    // leave `http://nexus-dev:<port>` as the canonical URL forever. Stopping
     // it here hands it to the desired-state restart below, which brings it back
     // through the normal fail-closed exposure lifecycle.
     const backfillDecision = decideManagedRuntimeExposureBackfill({
@@ -8924,7 +8924,7 @@ export async function restartDesiredRuntimeServicesOnStartup(db: Db) {
     try {
       const refs = await startRuntimeServicesForWorkspaceControl({
         db,
-        actor: { id: null, name: "Paperclip", companyId: row.companyId },
+        actor: { id: null, name: "Nexus", companyId: row.companyId },
         issue: null,
         workspace: {
           baseCwd: row.cwd,
@@ -8973,7 +8973,7 @@ export async function restartDesiredRuntimeServicesOnStartup(db: Db) {
     try {
       const refs = await startRuntimeServicesForWorkspaceControl({
         db,
-        actor: { id: null, name: "Paperclip", companyId: row.companyId },
+        actor: { id: null, name: "Nexus", companyId: row.companyId },
         issue: row.sourceIssueId
           ? {
               id: row.sourceIssueId,

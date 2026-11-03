@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import { and, eq } from "drizzle-orm";
-import { issues, type Db } from "@paperclipai/db";
+import { issues, type Db } from "@nexusai/db";
 import { forbidden } from "../errors.js";
 import { captureRunIdentity, type RunIdentityCapture } from "./run-identity.js";
 

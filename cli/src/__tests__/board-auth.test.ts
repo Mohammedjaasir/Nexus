@@ -11,7 +11,7 @@ import {
 } from "../client/board-auth.js";
 
 function createTempAuthPath(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-cli-auth-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-cli-auth-"));
   return path.join(dir, "auth.json");
 }
 

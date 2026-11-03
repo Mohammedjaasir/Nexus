@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 type CompanyDeletionTransaction = Parameters<Parameters<Db["transaction"]>[0]>[0];
 

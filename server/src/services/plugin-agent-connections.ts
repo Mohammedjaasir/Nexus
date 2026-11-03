@@ -1,6 +1,6 @@
 import { and, eq, or } from "drizzle-orm";
-import { toolConnections, toolConnectionInstalls, toolProfiles, toolProfileBindings, type Db } from "@paperclipai/db";
-import type { PluginAgentConnectionAssignments } from "@paperclipai/plugin-sdk";
+import { toolConnections, toolConnectionInstalls, toolProfiles, toolProfileBindings, type Db } from "@nexusai/db";
+import type { PluginAgentConnectionAssignments } from "@nexusai/plugin-sdk";
 import { unprocessable } from "../errors.js";
 
 export async function pluginAgentConnectionAssignments(db: Db, companyId: string, agentId: string, features: PluginAgentConnectionAssignments["features"]): Promise<PluginAgentConnectionAssignments> {

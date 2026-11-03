@@ -18,7 +18,7 @@ describe("Google Sheets app gallery availability", () => {
   });
 
   it("reads the robot email from a service-account JSON file path", () => {
-    const dir = mkdtempSync(join(tmpdir(), "paperclip-sheets-"));
+    const dir = mkdtempSync(join(tmpdir(), "nexus-sheets-"));
     try {
       const path = join(dir, "service-account.json");
       writeFileSync(path, JSON.stringify({ client_email: "robot-from-file@example.com" }));

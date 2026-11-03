@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, authUsers, companies, companyMemberships, companySkills, companySkillTestRuns, createDb, executionWorkspaces, heartbeatRunEvents, heartbeatRuns, issues, projects, plugins, environments } from "@paperclipai/db";
+import { agents, authUsers, companies, companyMemberships, companySkills, companySkillTestRuns, createDb, executionWorkspaces, heartbeatRunEvents, heartbeatRuns, issues, projects, plugins, environments } from "@nexusai/db";
 import { companySkillService } from "../services/company-skills.js";
 import { withSkillVersionCacheLock } from "../services/skill-version-cache.js";
 import { registerServerAdapter, unregisterServerAdapter, type AdapterExecutionContext } from "../adapters/index.js";
@@ -15,7 +15,7 @@ import { HttpError } from "../errors.js";
 import { heartbeatService } from "../services/heartbeat.js";
 import { bindHeartbeatRunnerHomeMode, prepareHeartbeatExecutionConfiguration, type HeartbeatExecutionConfigurationInput } from "../services/heartbeat/execution-configuration.js";
 import { buildEffectiveRunSessionConfigMetadata, resolveTaskSessionConfigFreshness } from "../services/heartbeat/workspaces.js";
-import { aiRuntimeConnectionBindingSchema } from "@paperclipai/shared";
+import { aiRuntimeConnectionBindingSchema } from "@nexusai/shared";
 import { secretService } from "../services/secrets.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import { aiConnectionService } from "../services/ai-connections.js";
@@ -43,12 +43,12 @@ const skillWaits = vi.hoisted(() => new Map<string, () => Promise<void>>());
 
 describe("Runner home mode during recovery preparation", () => {
   const fingerprint = (effectiveAdapterConfig: Record<string, unknown>) => buildEffectiveRunSessionConfigMetadata({
-    adapterType: "paperclip_runner", effectiveAdapterConfig, agentRuntimeConfig: {}, issueOverrides: null,
+    adapterType: "nexus_runner", effectiveAdapterConfig, agentRuntimeConfig: {}, issueOverrides: null,
     workspaceConfig: {}, environment: null, environmentEnv: null, projectEnv: null, routineEnv: null, runtimeSkills: [],
   });
   it.each([
-    { schema: "paperclip.native-execution-input.v5" },
-    { schema: "paperclip.native-execution-input.v7", homeMode: "isolated" },
+    { schema: "nexus.native-execution-input.v5" },
+    { schema: "nexus.native-execution-input.v7", homeMode: "isolated" },
   ])("preserves the implicit isolated fingerprint through recovery and the next run: %j", async saved => {
     const config = { provider: "codex", model: "fixture-model" };
     // This is the effective configuration shape built by preparation, including
@@ -60,30 +60,30 @@ describe("Runner home mode during recovery preparation", () => {
     expect(recovered.fingerprint).toBe(fresh.fingerprint);
     expect(next.fingerprint).toBe(recovered.fingerprint);
     expect(resolveTaskSessionConfigFreshness({ hasTaskSession: true, configuredModel: config.model,
-      taskSessionParams: { __paperclipConfiguredModel: config.model, __paperclipConfigFingerprint: recovered.fingerprint,
-        __paperclipConfigFingerprintVersion: recovered.version, __paperclipConfigCategoryFingerprints: recovered.categoryFingerprints },
+      taskSessionParams: { __nexusConfiguredModel: config.model, __nexusConfigFingerprint: recovered.fingerprint,
+        __nexusConfigFingerprintVersion: recovered.version, __nexusConfigCategoryFingerprints: recovered.categoryFingerprints },
       configMetadata: next })).toMatchObject({ reset: false, changedCategories: [] });
     expect(config).not.toHaveProperty("homeMode");
   });
 
   it("pins the admitted isolated mode but invalidates a genuinely preconfigured next run", async () => {
     const config = { provider: "codex", model: "fixture-model", homeMode: "preconfigured" };
-    const recoveredConfig = bindHeartbeatRunnerHomeMode(config, { schema: "paperclip.native-execution-input.v5" });
+    const recoveredConfig = bindHeartbeatRunnerHomeMode(config, { schema: "nexus.native-execution-input.v5" });
     expect(recoveredConfig.homeMode).toBe("isolated");
     expect(bindHeartbeatRunnerHomeMode(config, null).homeMode).toBe("preconfigured");
     const recovered = await fingerprint(recoveredConfig);
     const next = await fingerprint(config);
     expect(next.fingerprint).not.toBe(recovered.fingerprint);
     expect(resolveTaskSessionConfigFreshness({ hasTaskSession: true, configuredModel: config.model,
-      taskSessionParams: { __paperclipConfiguredModel: config.model, __paperclipConfigFingerprint: recovered.fingerprint,
-        __paperclipConfigFingerprintVersion: recovered.version, __paperclipConfigCategoryFingerprints: recovered.categoryFingerprints },
+      taskSessionParams: { __nexusConfiguredModel: config.model, __nexusConfigFingerprint: recovered.fingerprint,
+        __nexusConfigFingerprintVersion: recovered.version, __nexusConfigCategoryFingerprints: recovered.categoryFingerprints },
       configMetadata: next })).toMatchObject({ reset: true, changedCategories: ["adapterConfig"] });
   });
 
   it.each([
-    ["preconfigured", { schema: "paperclip.native-execution-input.v5" }, "isolated"],
-    ["preconfigured", { schema: "paperclip.native-execution-input.v7", homeMode: "isolated" }, "isolated"],
-    ["isolated", { schema: "paperclip.native-execution-input.v7", homeMode: "preconfigured" }, "preconfigured"],
+    ["preconfigured", { schema: "nexus.native-execution-input.v5" }, "isolated"],
+    ["preconfigured", { schema: "nexus.native-execution-input.v7", homeMode: "isolated" }, "isolated"],
+    ["isolated", { schema: "nexus.native-execution-input.v7", homeMode: "preconfigured" }, "preconfigured"],
   ])("prepares the saved mode after current configuration changes to %s", (current, saved, expected) => {
     const config = { homeMode: current, model: "current-model", env: { TASK_VALUE: "kept" } };
     // Called before router selection and again after mutable task overrides.
@@ -125,14 +125,14 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
   const captured = new Map<string, AdapterExecutionContext>();
   const inspect = new Map<string, (input: AdapterExecutionContext) => Promise<void>>();
   const adapterType = "codex_local";
-  const oldHome = process.env.PAPERCLIP_HOME;
+  const oldHome = process.env.NEXUS_HOME;
   let home: string;
 
   beforeAll(async () => {
     temporary = await startRecoveryPostgres("heartbeat-execution-config-");
     db = createDb(temporary.connectionString);
-    home = await mkdtemp(path.join(tmpdir(), "paperclip-execution-skills-"));
-    process.env.PAPERCLIP_HOME = home;
+    home = await mkdtemp(path.join(tmpdir(), "nexus-execution-skills-"));
+    process.env.NEXUS_HOME = home;
     heartbeat = heartbeatService(db);
     // Exercise real preparation for a managed-capable adapter without calling a provider.
     registerServerAdapter({
@@ -152,7 +152,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     unregisterServerAdapter(adapterType);
     await db?.$client.end({ timeout: 0 });
     await temporary?.cleanup();
-    if (oldHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = oldHome;
+    if (oldHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = oldHome;
     if (home) await rm(home, { recursive: true, force: true });
   });
 
@@ -178,8 +178,8 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
 
   async function execute(f: Awaited<ReturnType<typeof seed>>) {
     const run = await heartbeat.wakeup(f.agentId, { source: "on_demand", triggerDetail: "manual", reason: "manual", payload: { issueId: f.issueId }, contextSnapshot: {
-      issueId: f.issueId, paperclipSecrets: { manifest: [{ secretKey: "untrusted-wake-value" }] },
-      paperclipWake: { connectorSkillInstructions: "untrusted wake instructions" },
+      issueId: f.issueId, nexusSecrets: { manifest: [{ secretKey: "untrusted-wake-value" }] },
+      nexusWake: { connectorSkillInstructions: "untrusted wake instructions" },
     } });
     expect(run).not.toBeNull();
     await heartbeat.drainActiveRunExecutions();
@@ -195,7 +195,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     { saved: null, managed: true, failure: "saved managed login required" },
   ] as const)("retains $saved preparation after configuration changes (managed: $managed)", async ({ saved, managed, failure }) => {
     const f = await seed(managed);
-    const [agent] = await db.update(agents).set({ adapterType: "paperclip_runner", adapterConfig: {
+    const [agent] = await db.update(agents).set({ adapterType: "nexus_runner", adapterConfig: {
       provider: "codex", model: "gpt-6.1-sol", homeMode: saved === "isolated" ? "preconfigured" : "isolated",
     } }).where(eq(agents.id, f.agentId)).returning();
     const [run] = await db.insert(heartbeatRuns).values({ companyId: f.companyId, agentId: f.agentId,
@@ -204,7 +204,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     const prepare = vi.spyOn(aiRuntime, "prepareManagedAiRuntime").mockRejectedValue(new Error("saved managed login required"));
     skillFailures.set(f.companyId, "saved isolated skills required");
     // Preparation only reads the persisted mode and whether recovery is active.
-    const persisted = saved === null ? null : { schema: saved === "isolated" ? "paperclip.native-execution-input.v5" : "paperclip.native-execution-input.v7",
+    const persisted = saved === null ? null : { schema: saved === "isolated" ? "nexus.native-execution-input.v5" : "nexus.native-execution-input.v7",
       ...(saved === "preconfigured" ? { homeMode: saved } : {}),
     } as unknown as HeartbeatExecutionConfigurationInput["environment"]["persistedNativeExecutionInput"];
     const opening = prepareHeartbeatExecutionConfiguration(db, {
@@ -230,11 +230,11 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
 
   it.each(["agent", "stored task override"] as const)("uses operator preconfigured mode despite %s configuration", async source => {
     const f = await seed(true);
-    const nativeHome = await mkdtemp(path.join(tmpdir(), "paperclip-preconfigured-preparation-"));
+    const nativeHome = await mkdtemp(path.join(tmpdir(), "nexus-preconfigured-preparation-"));
     const workspace = path.join(nativeHome, "workspace");
     await mkdir(workspace);
-    process.env.PAPERCLIP_HOME = nativeHome;
-    await db.update(agents).set({ adapterType: "paperclip_runner", adapterConfig: {
+    process.env.NEXUS_HOME = nativeHome;
+    await db.update(agents).set({ adapterType: "nexus_runner", adapterConfig: {
       provider: "codex", model: "gpt-6.1-sol", homeMode: "preconfigured", cwd: workspace,
     } }).where(eq(agents.id, f.agentId));
     if (source === "stored task override") {
@@ -262,7 +262,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
       expect(saved?.contextSnapshot?.aiConnection).toBeUndefined();
     } finally {
       await nativeHeartbeat.drainActiveRunExecutions();
-      process.env.PAPERCLIP_HOME = home;
+      process.env.NEXUS_HOME = home;
       // Native preparation seals context bundles; release only this test's tree.
       const release = async (directory: string): Promise<void> => {
         await chmod(directory, 0o700);
@@ -275,7 +275,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     }
   });
 
-  async function configuration(f: Awaited<ReturnType<typeof seed>>, config: Record<string, unknown>, snapshot: Record<string, unknown> = {}, type = "paperclip_runner", explicitTaskDirectory = false, requestedExecutionWorkspaceMode: HeartbeatExecutionConfigurationInput["policy"]["requestedExecutionWorkspaceMode"] = "shared_workspace", selectedEnvironmentForConfig: HeartbeatExecutionConfigurationInput["environment"]["selectedEnvironmentForConfig"] = null, pinnedSkillTest?: HeartbeatExecutionConfigurationInput["task"]["pinnedSkillTest"]) {
+  async function configuration(f: Awaited<ReturnType<typeof seed>>, config: Record<string, unknown>, snapshot: Record<string, unknown> = {}, type = "nexus_runner", explicitTaskDirectory = false, requestedExecutionWorkspaceMode: HeartbeatExecutionConfigurationInput["policy"]["requestedExecutionWorkspaceMode"] = "shared_workspace", selectedEnvironmentForConfig: HeartbeatExecutionConfigurationInput["environment"]["selectedEnvironmentForConfig"] = null, pinnedSkillTest?: HeartbeatExecutionConfigurationInput["task"]["pinnedSkillTest"]) {
     const [agent] = await db.update(agents).set({ adapterType: type, adapterConfig: config }).where(eq(agents.id, f.agentId)).returning();
     const [run] = await db.insert(heartbeatRuns).values({ companyId: f.companyId, agentId: f.agentId, issueId: f.issueId, scopeKind: "issue", status: "running", contextSnapshot: snapshot }).returning();
     const resolvedInstanceSettings = await instanceSettingsService(db).get();
@@ -300,9 +300,9 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     const other = await skills.createLocalSkill(f.companyId, { name: "Ordinary assignment" });
     const pin = { key: selected.key, versionId: selected.currentVersionId! };
     await skills.updateFile(f.companyId, selected.id, "SKILL.md", "# Studio\nNewer head.\n");
-    const config = { paperclipSkillSync: { desiredSkills: [other.key] } };
+    const config = { nexusSkillSync: { desiredSkills: [other.key] } };
     await instanceSettingsService(db).updateExperimental({ enableBetaSkills: false });
-    const opening = await configuration(f, config, {}, "paperclip_runner", false, "shared_workspace", null, pin);
+    const opening = await configuration(f, config, {}, "nexus_runner", false, "shared_workspace", null, pin);
     const result = await opening.prepare();
     expect(result.prepared).toBe(true);
     if (!result.prepared) throw new Error("Configuration did not finish");
@@ -310,12 +310,12 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     expect(await readFile(path.join(result.runtimeSkillEntries[0]!.source, "SKILL.md"), "utf8")).toContain("Original selected bytes.");
     const [saved] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, opening.run.id));
     expect(saved.contextSnapshot!.skillVersions).toEqual({ [selected.key]: pin.versionId });
-    const restoring = await configuration(f, { paperclipSkillSync: { desiredSkills: [] } }, saved.contextSnapshot!, "paperclip_runner");
+    const restoring = await configuration(f, { nexusSkillSync: { desiredSkills: [] } }, saved.contextSnapshot!, "nexus_runner");
     expect(await restoring.prepare()).toMatchObject({ runtimeSkillEntries: [expect.objectContaining({ key: selected.key, versionId: pin.versionId })] });
-    const preconfigured = await configuration(f, { ...config, homeMode: "preconfigured" }, {}, "paperclip_runner", false, "shared_workspace", null, pin);
+    const preconfigured = await configuration(f, { ...config, homeMode: "preconfigured" }, {}, "nexus_runner", false, "shared_workspace", null, pin);
     await expect(preconfigured.prepare()).rejects.toThrow("isolated Runner home");
     await db.update(companySkills).set({ accessSourceId: randomUUID() }).where(eq(companySkills.id, selected.id));
-    const denied = await configuration(f, config, {}, "paperclip_runner", false, "shared_workspace", null, pin);
+    const denied = await configuration(f, config, {}, "nexus_runner", false, "shared_workspace", null, pin);
     await expect(denied.prepare()).rejects.toThrow("pinned skill is unavailable or no longer permitted");
   }, 60_000);
 
@@ -325,23 +325,23 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     const script = "#!/bin/sh\nprintf 'studio-pinned-proof\\n'\n";
     const saved = await skills.updateFile(f.companyId, selected.id, "scripts/prove.sh", script, null, { executable: true });
     const other = await skills.createLocalSkill(f.companyId, { name: "Assigned instead" });
-    await db.update(agents).set({ adapterConfig: { paperclipSkillSync: { desiredSkills: [other.key] } } }).where(eq(agents.id, f.agentId));
+    await db.update(agents).set({ adapterConfig: { nexusSkillSync: { desiredSkills: [other.key] } } }).where(eq(agents.id, f.agentId));
     await db.update(issues).set({ workMode: "skill_test", harnessKind: "skill_test" }).where(eq(issues.id, f.issueId));
     await db.insert(companySkillTestRuns).values({ companyId: f.companyId, skillId: selected.id, skillVersionId: saved.versionId!,
       agentId: f.agentId, issueId: f.issueId, inputSnapshot: "Run the saved script." });
     await skills.updateFile(f.companyId, selected.id, "scripts/prove.sh", "#!/bin/sh\necho newer\n", null, { executable: true });
     const { finished, input } = await execute(f);
     expect(finished.status, finished.error ?? undefined).toBe("succeeded");
-    const delivered = input?.config.paperclipRuntimeSkills as Array<{ key: string; source: string; versionId: string }>;
+    const delivered = input?.config.nexusRuntimeSkills as Array<{ key: string; source: string; versionId: string }>;
     const testSkill = delivered.find(entry => entry.key === selected.key)!;
     expect(testSkill).toMatchObject({ versionId: saved.versionId });
     expect(delivered.some(entry => entry.key === other.key)).toBe(false);
     expect(await readFile(path.join(testSkill.source, "scripts/prove.sh"), "utf8")).toBe(script);
     expect((await stat(path.join(testSkill.source, "scripts/prove.sh"))).mode & 0o111).not.toBe(0);
     expect(finished.contextSnapshot).toMatchObject({ skillVersions: { [selected.key]: saved.versionId },
-      paperclipSkillTest: { skillKey: selected.key, skillVersionId: saved.versionId } });
+      nexusSkillTest: { skillKey: selected.key, skillVersionId: saved.versionId } });
     const [unchangedAgent] = await db.select().from(agents).where(eq(agents.id, f.agentId));
-    expect(unchangedAgent.adapterConfig).toMatchObject({ paperclipSkillSync: { desiredSkills: [other.key] } });
+    expect(unchangedAgent.adapterConfig).toMatchObject({ nexusSkillSync: { desiredSkills: [other.key] } });
   }, 60_000);
   it("overlaps skills with assignments and dependent connection instructions before composition", async () => {
     const f = await seed();
@@ -391,10 +391,10 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
         environmentDrivers: [{ driverKey: "tasks", displayName: "Tasks", configSchema: {}, skillKeys: ["new-invalid"] }],
         skills: [{ skillKey: "new-invalid", displayName: "New invalid skill", markdown: "---\nname: new-invalid\nmetadata:\n  sources:\n    - kind: github-dir\n      repo: fixture/skills\n---\nUnpinned." }] } });
     const [environment] = await db.insert(environments).values({ name: "Fixture", driver: "plugin", config: { pluginKey, driverKey: "tasks", driverConfig: {} } }).returning();
-    const config = { paperclipSkillSync: { desiredSkills: [] } };
-    const restoring = await configuration(f, config, { skillVersions: {}, skillSelectionSnapshot: true }, "paperclip_runner", false, "shared_workspace", environment);
+    const config = { nexusSkillSync: { desiredSkills: [] } };
+    const restoring = await configuration(f, config, { skillVersions: {}, skillSelectionSnapshot: true }, "nexus_runner", false, "shared_workspace", environment);
     expect(await restoring.prepare()).toMatchObject({ prepared: true, runtimeSkillEntries: [] });
-    const fresh = await configuration(f, config, {}, "paperclip_runner", false, "shared_workspace", environment);
+    const fresh = await configuration(f, config, {}, "nexus_runner", false, "shared_workspace", environment);
     const rejected = await fresh.prepare().then(() => false, error => { expect(error.message).toMatch(/pinned Git commit/); return true; });
     expect(rejected).toBe(true);
   });
@@ -410,8 +410,8 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
         skills: [{ skillKey: "desktop", displayName: "Desktop" }] } });
     const [environment] = await db.insert(environments).values({ name: randomUUID(), driver: "plugin", config: { pluginKey, driverKey: "tasks" } }).returning();
     await db.update(issues).set({ description: `Use [company skill](skill://${existing.id}).` }).where(eq(issues.id, f.issueId));
-    const config = { paperclipSkillSync: { desiredSkills: [existing.key] } };
-    const run = await configuration(f, config, {}, "paperclip_runner", false, "shared_workspace", environment);
+    const config = { nexusSkillSync: { desiredSkills: [existing.key] } };
+    const run = await configuration(f, config, {}, "nexus_runner", false, "shared_workspace", environment);
     const result = await run.prepare();
     expect(result.prepared).toBe(true);
     if (!result.prepared) throw new Error("Configuration did not finish");
@@ -422,7 +422,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     const [saved] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, run.run.id));
     expect(saved.contextSnapshot!.shadowedSkills).toEqual([{ key: existing.key, shadowedBy: key }]);
     expect(Object.keys(saved.contextSnapshot!.skillVersions as object)).toEqual([key]);
-    const recovery = await configuration(f, config, saved.contextSnapshot!, "paperclip_runner", false, "shared_workspace", environment);
+    const recovery = await configuration(f, config, saved.contextSnapshot!, "nexus_runner", false, "shared_workspace", environment);
     const resumed = await recovery.prepare();
     expect(resumed.prepared).toBe(true);
     if (!resumed.prepared) throw new Error("Recovery did not finish");
@@ -431,7 +431,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
   });
   it("keeps default task-directory configuration stable when the directory is reused", async () => {
     const f = await seed();
-    const initial = await (await configuration(f, {}, {}, "paperclip_runner", true)).prepare();
+    const initial = await (await configuration(f, {}, {}, "nexus_runner", true)).prepare();
     const reused = await (await configuration(f, {})).prepare();
     expect(initial.prepared).toBe(true);
     expect(reused.prepared).toBe(true);
@@ -450,12 +450,12 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     await mkdir(instructionsRootPath);
     await writeFile(path.join(instructionsRootPath, "AGENTS.md"), "Preserve the workspace across controller replacement.\n");
     const config = { provider: "codex", model: "fixture-model", lifecycleMode: "warm", idleTimeoutMs: 300_000,
-      codexPermissionMode: "full", paperclipSkillSync: { desiredSkills: selectedSkills.map(skill => skill.key) },
+      codexPermissionMode: "full", nexusSkillSync: { desiredSkills: selectedSkills.map(skill => skill.key) },
       instructionsRootPath, instructionsFilePath: path.join(instructionsRootPath, "AGENTS.md"),
       instructionsEntryFile: "AGENTS.md", instructionsBundleMode: "managed", env: { OPENAI_API_KEY: "fixture-direct-key" } };
     const [environment] = await db.insert(environments).values({ name: `Directory ${f.companyId}`, driver: "plugin",
       config: { pluginKey: "test.directory", driverKey: "tasks" } }).returning();
-    const [agent] = await db.update(agents).set({ adapterType: "paperclip_runner", adapterConfig: config,
+    const [agent] = await db.update(agents).set({ adapterType: "nexus_runner", adapterConfig: config,
       defaultEnvironmentId: environment.id }).where(eq(agents.id, f.agentId)).returning();
     const [issue] = await db.select().from(issues).where(eq(issues.id, f.issueId));
     const [run] = await db.insert(heartbeatRuns).values({ companyId: f.companyId, agentId: f.agentId,
@@ -493,7 +493,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
           appendRunEvent: vi.fn(), finalizeAiConnectionBusyDeferral: vi.fn() },
         onFailureSecretsResolved: () => {}, onManagedAiRuntimeAcquired: () => {}, onIdentityRedactorPrepared: () => {} });
       if (!result.prepared) throw new Error("Configuration was not prepared");
-      const metadata = await buildEffectiveRunSessionConfigMetadata({ adapterType: "paperclip_runner",
+      const metadata = await buildEffectiveRunSessionConfigMetadata({ adapterType: "nexus_runner",
         effectiveAdapterConfig: result.runtimeConfig, agentRuntimeConfig: {}, issueOverrides: null, workspaceConfig: {},
         environment: null, environmentEnv: null, projectEnv: null, routineEnv: null, runtimeSkills: result.runtimeSkillEntries });
       return { selected, result, metadata };
@@ -502,7 +502,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     expect(first.selected.useIsolatedTaskDirectory).toBe(false);
     expect(first.result.runtimeConfig.workspaceStrategy).toBeUndefined();
     // Preserve the pre-fix fresh name/key query order, including exact versions.
-    expect(first.result.runtimeConfig.paperclipSkillSync).toEqual({ desiredSkills: selectedSkills.map(skill => ({
+    expect(first.result.runtimeConfig.nexusSkillSync).toEqual({ desiredSkills: selectedSkills.map(skill => ({
       key: skill.key, versionId: skill.currentVersionId,
     })) });
     // Read the actual JSONB snapshot rather than reusing the pre-persistence
@@ -517,7 +517,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
       companyId: f.companyId, agentId: agent.id, runId: run.id, normalizedSessionId: randomUUID(), provider: "codex",
       issue: { id: issue.id, identifier: "CFG-1", title: issue.title, description: null, workMode: "standard" },
       taskPrompt: "Continue the admitted work", workspace: { id: workspaceId, cwd: workspace.cwd!, repoUrl: null, repoRef: null, branchName: null },
-      completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "paperclip.run-result.v1",
+      completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "nexus.run-result.v1",
         contract: { revision: "1", objective: "Retain the directory", criteria: [{ id: "objective", requirement: "Preserve the workspace" }] } },
       runtimeContext: nativeRuntimeContextFixture(),
     }) };
@@ -526,8 +526,8 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     expect(recovered.selected.useIsolatedTaskDirectory).toBe(false);
     expect(recovered.result.runtimeSkillEntries).toEqual(first.result.runtimeSkillEntries);
     expect(resolveTaskSessionConfigFreshness({ hasTaskSession: true, configuredModel: config.model,
-      taskSessionParams: { __paperclipConfiguredModel: config.model, __paperclipConfigFingerprint: first.metadata.fingerprint,
-        __paperclipConfigFingerprintVersion: first.metadata.version, __paperclipConfigCategoryFingerprints: first.metadata.categoryFingerprints },
+      taskSessionParams: { __nexusConfiguredModel: config.model, __nexusConfigFingerprint: first.metadata.fingerprint,
+        __nexusConfigFingerprintVersion: first.metadata.version, __nexusConfigCategoryFingerprints: first.metadata.categoryFingerprints },
       configMetadata: recovered.metadata })).toMatchObject({ reset: false, changedCategories: [] });
     expect(recovered.result.runtimeConfig).toEqual(first.result.runtimeConfig);
     expect(recovered.metadata.fingerprint).toBe(first.metadata.fingerprint);
@@ -538,7 +538,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     expect(next.metadata.fingerprint).toBe(first.metadata.fingerprint);
 
     selectionInput.config.sourceWorkspaceConfig = sourceConfig({ ...config,
-      paperclipSkillSync: { desiredSkills: selectedSkills.slice(1).map(skill => skill.key) } });
+      nexusSkillSync: { desiredSkills: selectedSkills.slice(1).map(skill => skill.key) } });
     const fewerSkills = await prepare();
     expect(fewerSkills.result.runtimeSkillEntries).toHaveLength(3);
     expect(fewerSkills.metadata.fingerprint).not.toBe(first.metadata.fingerprint);
@@ -557,7 +557,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     { mode: "agent_default" as const, config: {} },
   ])("still selects directory transport instead of a $mode strategy", async ({ mode, config }) => {
     const f = await seed();
-    const prepared = await (await configuration(f, config, {}, "paperclip_runner", true, mode)).prepare();
+    const prepared = await (await configuration(f, config, {}, "nexus_runner", true, mode)).prepare();
     expect(prepared.prepared).toBe(true);
     if (!prepared.prepared) throw new Error("Configuration was not prepared");
     expect(prepared.mergedConfig.workspaceStrategy).toEqual({ type: "project_primary" });
@@ -566,7 +566,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
   it.each(["fresh", "saved empty"])("prepares a %s native skill selection while another run holds the company cache lock", async kind => {
     const f = await seed();
     const selected = kind === "saved empty" ? await companySkillService(db).createLocalSkill(f.companyId, { name: "Later assignment" }) : null;
-    const input = await configuration(f, selected ? { paperclipSkillSync: { desiredSkills: [selected.key] } } : {},
+    const input = await configuration(f, selected ? { nexusSkillSync: { desiredSkills: [selected.key] } } : {},
       kind === "saved empty" ? { skillVersions: {}, skillSelectionSnapshot: true } : {});
     let release!: () => void;
     let acquired!: () => void;
@@ -596,7 +596,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
   it.each(["selected native", "legacy operational"])("retains the cache exclusion for %s skills", async kind => {
     const f = await seed();
     const selected = await companySkillService(db).createLocalSkill(f.companyId, { name: "Selected lock control" });
-    const input = await configuration(f, { paperclipSkillSync: { desiredSkills: kind === "selected native" ? [selected.key] : [] } }, {}, kind === "selected native" ? "paperclip_runner" : "codex_local");
+    const input = await configuration(f, { nexusSkillSync: { desiredSkills: kind === "selected native" ? [selected.key] : [] } }, {}, kind === "selected native" ? "nexus_runner" : "codex_local");
     let release!: () => void;
     let acquired!: () => void;
     const ready = new Promise<void>(resolve => { acquired = resolve; });
@@ -611,7 +611,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     } finally { release(); await holder; }
     const result = await pending;
     expect(result.prepared).toBe(true);
-    if (result.prepared) expect(result.runtimeSkillEntries.some(entry => entry.key === (kind === "selected native" ? selected.key : "paperclipai/paperclip/paperclip"))).toBe(true);
+    if (result.prepared) expect(result.runtimeSkillEntries.some(entry => entry.key === (kind === "selected native" ? selected.key : "paperclipai/paperclip/nexus"))).toBe(true);
   });
 
   it("applies project environment and issue overrides and replaces caller-supplied runtime fields", async () => {
@@ -619,8 +619,8 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     const { finished, input } = await execute(f);
     expect(finished.status, finished.error ?? undefined).toBe("succeeded");
     expect(input?.config).toMatchObject({ model: "issue-model", env: { SHARED_VALUE: "project", AGENT_ONLY: "agent-only", PROJECT_ONLY: "project-only" } });
-    expect(input?.context.paperclipSecrets).toBeUndefined();
-    expect(JSON.stringify(input?.context.paperclipWake)).not.toContain("untrusted wake instructions");
+    expect(input?.context.nexusSecrets).toBeUndefined();
+    expect(JSON.stringify(input?.context.nexusWake)).not.toContain("untrusted wake instructions");
   });
 
   it("delivers the selected credential in an isolated home and removes it after completion", async () => {
@@ -650,7 +650,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
       await provider.forceFlush();
       const runIdHash = createHash("sha256").update(finished.id).digest("hex").slice(0, 12);
       const steps = exporter.getFinishedSpans().filter(span => span.name.startsWith("heartbeat.prepare.configuration_")
-        && span.attributes["paperclip.task.run.run_id"] === runIdHash);
+        && span.attributes["nexus.task.run.run_id"] === runIdHash);
       expect(steps.map(span => span.name).sort()).toEqual([
         "configuration_mentions", "configuration_github_identity", "configuration_secrets", "configuration_ai_runtime",
         "configuration_skills", "configuration_connector_assignments", "configuration_connector_skills",
@@ -658,7 +658,7 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
       ].map(step => `heartbeat.prepare.${step}`).sort());
       for (const span of steps) {
         expect(span.status).toEqual({ code: 0 });
-        expect(span.attributes).toEqual({ "paperclip.task.run.run_id": runIdHash });
+        expect(span.attributes).toEqual({ "nexus.task.run.run_id": runIdHash });
         expect(span.events).toEqual([]);
       }
     } finally {
@@ -697,12 +697,12 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
       await provider.forceFlush();
       const runIdHash = createHash("sha256").update(finished.id).digest("hex").slice(0, 12);
       const steps = exporter.getFinishedSpans().filter(span => span.name.startsWith("heartbeat.prepare.configuration_")
-        && span.attributes["paperclip.task.run.run_id"] === runIdHash);
+        && span.attributes["nexus.task.run.run_id"] === runIdHash);
       expect(steps.find(span => span.name === "heartbeat.prepare.configuration_ai_runtime")?.status.code).toBe(0);
       expect(steps.find(span => span.name === "heartbeat.prepare.configuration_skills")?.status).toEqual({ code: 2 });
       expect(steps.some(span => span.name === "heartbeat.prepare.configuration_connector_assignments")).toBe(true);
       for (const span of steps) {
-        expect(span.attributes).toEqual({ "paperclip.task.run.run_id": runIdHash });
+        expect(span.attributes).toEqual({ "nexus.task.run.run_id": runIdHash });
         expect(span.events).toEqual([]);
       }
       expect(JSON.stringify(steps.map(span => ({ name: span.name, status: span.status, attributes: span.attributes, events: span.events })))).not.toContain(f.credential);
@@ -729,11 +729,11 @@ describePostgres("heartbeat execution configuration through adapter dispatch", (
     const unused = await skills.createLocalSkill(f.companyId, { name: "Unused workflow" });
     const restricted = await skills.createLocalSkill(f.companyId, { name: "Restricted workflow" });
     await db.update(companySkills).set({ accessSourceId: randomUUID() }).where(eq(companySkills.id, restricted.id));
-    await db.update(agents).set({ adapterConfig: { paperclipSkillSync: { desiredSkills: [restricted.key] } } }).where(eq(agents.id, f.agentId));
+    await db.update(agents).set({ adapterConfig: { nexusSkillSync: { desiredSkills: [restricted.key] } } }).where(eq(agents.id, f.agentId));
     await db.update(issues).set({ description: "Use [/selected](skill://" + selected.id + "?s=selected-workflow)." }).where(eq(issues.id, f.issueId));
     const { finished, input } = await execute(f);
     expect(finished.status, finished.error ?? undefined).toBe("succeeded");
-    const inventory = input?.config.paperclipRuntimeSkills as Array<{ key: string; source: string; versionId: string }>;
+    const inventory = input?.config.nexusRuntimeSkills as Array<{ key: string; source: string; versionId: string }>;
     expect(inventory.some(entry => entry.key === unused.key || entry.key === restricted.key)).toBe(false);
     const delivered = inventory.find(entry => entry.key === selected.key)!;
     expect(delivered.versionId).toBe(selected.currentVersionId);

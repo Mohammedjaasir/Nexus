@@ -61,7 +61,7 @@ Upload files** or drop files anywhere in that panel. On mobile, open
 
 Open `/artifacts` and its grouping, search, and media controls.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 The explicit `build-revise` [Product journey](../../tests/runner-e2e/PRODUCT-JOURNEYS.md) covers `documents-artifacts/attachments`: browser downloads of two ZIP versions, an independent content oracle, and preservation of the original. Its shared source is not proof of a pass on any deployed target.
 

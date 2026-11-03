@@ -74,7 +74,7 @@ const excludedAdapters = new Set([
   "claude_managed",
   "aws_agentcore",
   "acpx_local",
-  "paperclip_runner",
+  "nexus_runner",
   "cursor_cloud",
 ]);
 
@@ -216,7 +216,7 @@ function AgentRoutingFields({
       </fieldset>
       {nativePending && (
         <Notice error>
-          This harness is not yet available through Paperclip Runner. Select a
+          This harness is not yet available through Nexus Runner. Select a
           supported harness or configure its legacy adapter.
         </Notice>
       )}

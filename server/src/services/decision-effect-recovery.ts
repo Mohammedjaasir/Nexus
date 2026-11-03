@@ -1,15 +1,15 @@
 import { and, asc, desc, lte, sql } from "drizzle-orm";
-import { decisions, type Db } from "@paperclipai/db";
+import { decisions, type Db } from "@nexusai/db";
 
 const running = sql`${decisions.status} = 'decided' AND ${decisions.executionStatus} = 'running'`;
 
 export function decisionSweepBatchSize() {
-  const value = Number(process.env.PAPERCLIP_DECISIONS_SWEEP_BATCH_SIZE ?? 100);
+  const value = Number(process.env.NEXUS_DECISIONS_SWEEP_BATCH_SIZE ?? 100);
   return Number.isFinite(value) ? Math.max(1, Math.trunc(value)) : 100;
 }
 
 function recoveryGraceMs() {
-  const value = Number(process.env.PAPERCLIP_DECISIONS_RECOVERY_GRACE_MS ?? 60_000);
+  const value = Number(process.env.NEXUS_DECISIONS_RECOVERY_GRACE_MS ?? 60_000);
   return Number.isFinite(value) && value >= 0 ? value : 60_000;
 }
 

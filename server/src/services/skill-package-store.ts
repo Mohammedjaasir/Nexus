@@ -7,10 +7,10 @@ import { constants, createReadStream, createWriteStream, promises as fs } from "
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { and, eq, getTableColumns, inArray, sql } from "drizzle-orm";
-import { companySkillRepositorySnapshots as snapshots, companySkillVersions, companySkillSources, withDedicatedDbConnection, type Db, type SkillPackageFileMapping, type SkillPackageStorageReceipt, type SkillPackageRestoreRecipe } from "@paperclipai/db";
-import type { CompanySkillVersionFileInventoryEntry } from "@paperclipai/shared";
+import { companySkillRepositorySnapshots as snapshots, companySkillVersions, companySkillSources, withDedicatedDbConnection, type Db, type SkillPackageFileMapping, type SkillPackageStorageReceipt, type SkillPackageRestoreRecipe } from "@nexusai/db";
+import type { CompanySkillVersionFileInventoryEntry } from "@nexusai/shared";
 import { getStorageService, type StorageService } from "../storage/index.js";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 import { conflict, notFound } from "../errors.js";
 import { assertSkillSnapshotPath, skillFileBytes } from "./skill-snapshot.js";
 import { ensureSkillCacheDirectory, SkillCacheBusy, withSkillVersionCacheLock } from "./skill-version-cache.js";
@@ -20,7 +20,7 @@ import { boundedHashStream, extractSkillPackageArchive, MAX_SKILL_MANIFEST_BYTES
 
 /** External storage is the default; false is an explicit rolling-upgrade escape hatch. */
 export function skillPackageStorageEnabled() {
-  return process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED !== "false";
+  return process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED !== "false";
 }
 
 const descriptorColumns = { id: snapshots.id, companyId: snapshots.companyId, contentHash: snapshots.contentHash,
@@ -137,7 +137,7 @@ function rememberManifest(key: string, manifest: SkillPackageManifest, bytes: nu
 }
 export function skillPackagePaths(companyId: string, snapshotId: string) {
   if (![companyId, snapshotId].every(id => /^[a-f0-9-]{36}$/i.test(id))) throw new Error("Invalid skill package identity");
-  const parent = path.join(resolvePaperclipInstanceRoot(), "skills", companyId, "__packages__");
+  const parent = path.join(resolveNexusInstanceRoot(), "skills", companyId, "__packages__");
   return { parent, directory: path.join(parent, snapshotId), manifest: path.join(parent, `${snapshotId}.json`) };
 }
 async function readBoundedObject(storage: StorageService, companyId: string, key: string, length: number, hash: string, signal: AbortSignal) {

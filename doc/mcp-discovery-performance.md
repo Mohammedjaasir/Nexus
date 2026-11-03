@@ -187,8 +187,8 @@ contain the baseline and pending-fix commits named above.
 git fetch https://github.com/paperclipai/paperclip.git refs/pull/18681/head
 pnpm install --frozen-lockfile
 node server/scripts/profile-tool-projection/compile.mjs
-node --expose-gc --import ./server/scripts/profile-tool-projection/register.mjs server/scripts/profile-tool-projection/benchmark.mjs --output-dir /tmp/paperclip-tool-projection --repeat 5
-node --expose-gc --import ./server/scripts/profile-tool-projection/register.mjs server/scripts/profile-tool-projection/responsiveness.mjs --output-dir /tmp/paperclip-tool-projection
+node --expose-gc --import ./server/scripts/profile-tool-projection/register.mjs server/scripts/profile-tool-projection/benchmark.mjs --output-dir /tmp/nexus-tool-projection --repeat 5
+node --expose-gc --import ./server/scripts/profile-tool-projection/register.mjs server/scripts/profile-tool-projection/responsiveness.mjs --output-dir /tmp/nexus-tool-projection
 ```
 
 The compile step writes the baseline and pending-only owner modules beside
@@ -217,7 +217,7 @@ comparison does not establish a page-load percentage or production capacity.
 Use a matched deployment window to confirm the effect on user requests.
 
 Both benchmark scripts use the test database helper. Set
-`PAPERCLIP_TEST_POSTGRES_ADMIN_URL` to use a local PostgreSQL server; otherwise
+`NEXUS_TEST_POSTGRES_ADMIN_URL` to use a local PostgreSQL server; otherwise
 they create and remove an embedded test database. The helper creates a unique
 disposable database and removes it afterward. Benchmark setup and fixture
 insertion are outside the timing samples.

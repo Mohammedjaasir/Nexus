@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { agents, companies, completionContracts, createDb, heartbeatRuns, issues,
-  nativeRunFinalizations, nativeRunResults } from "@paperclipai/db";
+  nativeRunFinalizations, nativeRunResults } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { deliverExecutionStatuses } from "../execution-status-delivery.js";
 import { buildIssueMonitorTriggeredPatch, normalizeIssueExecutionPolicy } from "../issue-execution-policy.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 import { finalizeNativeRun } from "./native-run-finalizer.js";
 
 const support = await getEmbeddedPostgresTestSupport();
@@ -24,26 +24,26 @@ describe.skipIf(!support.supported)("native terminal status projection", () => {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), runId = randomUUID();
     const contractId = randomUUID(), resultId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Monitor status", issuePrefix: `S${companyId.slice(0, 7)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", adapterType: "paperclip_runner", status: "active" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", adapterType: "nexus_runner", status: "active" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Saved check", status: "in_progress", assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, nativeIssueId: issueId,
       runtimeMode: "native", status: "running", contextSnapshot: { issueId } });
     await db.update(issues).set({ executionRunId: runId }).where(eq(issues.id, issueId));
-    const authority = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
+    const authority = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId });
     await authority.execute({ tool: "set_task_monitor", callId: randomUUID(), arguments: {
       idempotencyKey: "saved-monitor", monitor: { nextCheckAt: new Date(Date.now() + 60_000).toISOString(), notes: "Check the saved result." },
     } });
     await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1", policyVersion: "test", risk: "standard",
+      schemaVersion: "nexus.completion-contract.v1", policyVersion: "test", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "test", criteria: [] }, canonicalSha256: randomUUID(),
       createdByActorType: "system", createdByActorId: "test" });
-    const accepted = { result: { schema: "paperclip.run_result.v1", reportedWorkDisposition: "yielded",
+    const accepted = { result: { schema: "nexus.run_result.v1", reportedWorkDisposition: "yielded",
       summary: "Wait for the saved check.", completionClaim: { contractRevision: "test", objectiveSatisfied: false,
         criteria: [], remainingWork: [{ description: "Check again", blocksCompletion: true }] },
       continuation: { kind: "monitor", summary: "Wait for the check", idempotencyKey: "provider-selected" },
       evidence: [], verification: [], attentionRequests: [], artifacts: [] },
-      terminal: { schema: "paperclip.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" } };
+      terminal: { schema: "nexus.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" } };
     const finishedAt = new Date("2020-01-01T00:00:00Z");
     await db.update(heartbeatRuns).set({ status: "succeeded", finishedAt, completionContractId: contractId }).where(eq(heartbeatRuns.id, runId));
     await db.insert(nativeRunResults).values({ id: resultId, companyId, issueId, runId, completionContractId: contractId,

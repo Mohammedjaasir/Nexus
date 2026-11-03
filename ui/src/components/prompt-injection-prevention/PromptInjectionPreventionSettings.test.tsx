@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, it, vi } from "vitest";
-import { PROMPT_INJECTION_DEFAULT_MODEL, type PromptInjectionPreventionSettings, type PromptInjectionTestResult } from "@paperclipai/shared";
+import { PROMPT_INJECTION_DEFAULT_MODEL, type PromptInjectionPreventionSettings, type PromptInjectionTestResult } from "@nexusai/shared";
 import { PromptInjectionPreventionSettingsSection, PromptInjectionPreventionSettingsView } from "./PromptInjectionPreventionSettings";
 import { choices as allChoices } from "../../../storybook/support/decision-models/fixtures";
 vi.mock("@/context/CompanyContext", () => ({ useCompany: () => ({ selectedCompanyId: "company-storybook" }) }));

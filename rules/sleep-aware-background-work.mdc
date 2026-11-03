@@ -1,6 +1,6 @@
 ---
 description: Prevent new idle polling; require event-driven work, shared deadlines, and recoverable sleep-safe lifecycle behavior.
-globs: "server/src/**,packages/db/src/**,packages/adapter-utils/src/**,packages/adapters/*/src/**,packages/plugins/*/src/**,packages/paperclip-runner/src/**,packages/paperclip-runner/runner/**"
+globs: "server/src/**,packages/db/src/**,packages/adapter-utils/src/**,packages/adapters/*/src/**,packages/plugins/*/src/**,packages/nexus-runner/src/**,packages/nexus-runner/runner/**"
 alwaysApply: false
 ---
 

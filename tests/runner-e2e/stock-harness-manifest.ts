@@ -1,13 +1,13 @@
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { buildContract } from "../../packages/paperclip-runner/scripts/generate-capability-contract.mjs";
+import { buildContract } from "../../packages/nexus-runner/scripts/generate-capability-contract.mjs";
 
 /** Canonical derived metadata must match the instruction sources before providers. */
 export async function verifyCapabilityManifest(
   read = (path: string) => readFileSync(path, "utf8"),
   checkInventory = () => execFileSync(process.execPath, [fileURLToPath(new URL(
-    "../../packages/paperclip-runner/scripts/check-capability-inventory.mjs", import.meta.url,
+    "../../packages/nexus-runner/scripts/check-capability-inventory.mjs", import.meta.url,
   ))], { stdio: "pipe" }),
 ) {
   const expected = await buildContract();

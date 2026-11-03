@@ -2,7 +2,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createIssue } from "../../storybook/fixtures/paperclipData";
+import { createIssue } from "../../storybook/fixtures/nexusData";
 import { TaskList, type TaskListItem } from "./TaskList";
 import { TooltipProvider } from "./ui/tooltip";
 import { readTaskListSortParams } from "../lib/task-list";

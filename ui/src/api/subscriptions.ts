@@ -1,4 +1,4 @@
-import type { SubscriptionCostReport, UpdateSubscriptionPrice } from "@paperclipai/shared";
+import type { SubscriptionCostReport, UpdateSubscriptionPrice } from "@nexusai/shared";
 import { api } from "./client";
 
 export const subscriptionsApi = {

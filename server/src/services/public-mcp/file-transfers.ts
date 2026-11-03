@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { pipeline } from "node:stream/promises";
 import express, { Router } from "express";
 import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
-import { type Db, mcpAttachmentUploads, mcpFileTickets, mcpOauthGrants, issues } from "@paperclipai/db";
+import { type Db, mcpAttachmentUploads, mcpFileTickets, mcpOauthGrants, issues } from "@nexusai/db";
 import { z } from "zod";
 import { MAX_ATTACHMENT_BYTES, isAllowedContentType } from "../../attachment-types.js";
 import type { StorageService } from "../../storage/types.js";
@@ -21,9 +21,9 @@ export const uploadSchema = z.object({ ...task, requestId,
   sha256: z.string().regex(/^[a-f0-9]{64}$/).describe("SHA-256 of the exact file bytes. The upload must match this digest and byteSize."),
 }).strict();
 const attachmentFields = ["id", "issueId", "originalFilename", "contentType", "byteSize", "sha256", "createdAt"];
-const unavailable = () => new McpCapabilityError("This transfer is expired, revoked, invalid or no longer authorized. Request a new transfer link from Paperclip.");
+const unavailable = () => new McpCapabilityError("This transfer is expired, revoked, invalid or no longer authorized. Request a new transfer link from Nexus.");
 function requireWrite(p: McpPrincipal) {
-  if (!p.grant.scopes.includes("paperclip:write") || p.actor.memberships?.[0]?.membershipRole === "viewer") throw unavailable();
+  if (!p.grant.scopes.includes("nexus:write") || p.actor.memberships?.[0]?.membershipRole === "viewer") throw unavailable();
 }
 
 export interface AgentFileSession {
@@ -227,10 +227,10 @@ export function createPublicMcpTransfers(db: Db, oauth: PublicMcpOAuth, api: Api
 }
 export type PublicMcpTransfers = ReturnType<typeof createPublicMcpTransfers>;
 export const fileTransferCapabilities: Capability[] = [
-  { name: "paperclip_get_upload_url", write: true, ephemeral: true,
+  { name: "nexus_get_upload_url", write: true, ephemeral: true,
     description: "Get a temporary URL to attach a file, video or document to a task. Compute its size and SHA-256 locally, then PUT the exact bytes to the URL. A successful upload saves the attachment immediately and returns its ID. Reuse requestId after a lost response. Requires host file/HTTP tools; if unavailable explain the manual upload step.",
     schema: uploadSchema, run: async (p, a, _api, _origin, transfers) => { if (!transfers) throw unavailable(); return transfers.getUploadUrl(p, a); } },
-  { name: "paperclip_get_download_url", ephemeral: true,
-    description: "Get a ten-minute download URL for one task attachment from paperclip_list_deliverables. Use your host's HTTP/file tools to download it. This temporary credential does not grant access to other files.",
+  { name: "nexus_get_download_url", ephemeral: true,
+    description: "Get a ten-minute download URL for one task attachment from nexus_list_deliverables. Use your host's HTTP/file tools to download it. This temporary credential does not grant access to other files.",
     schema: z.object({ ...company, attachmentId: z.uuid() }).strict(), run: async (p, a, _api, _origin, transfers) => { if (!transfers) throw unavailable(); return transfers.getDownloadUrl(p, String(a.attachmentId)); } },
 ];

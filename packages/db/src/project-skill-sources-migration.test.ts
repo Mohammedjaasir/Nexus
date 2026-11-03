@@ -9,7 +9,7 @@ const describePostgres = support.supported ? describe : describe.skip;
 
 describePostgres("project skill source migration replay", () => {
   it("keeps imported content, private provenance and scheduling when renumbered SQL runs again", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-project-skill-migration-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-project-skill-migration-");
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
     try {
       const companyId = randomUUID(), projectId = randomUUID(), workspaceId = randomUUID();

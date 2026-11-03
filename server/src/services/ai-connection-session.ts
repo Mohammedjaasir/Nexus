@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import type { AiConnectionBinding } from "@paperclipai/shared";
+import type { AiConnectionBinding } from "@nexusai/shared";
 
 type ConfigRevision = {
   id: string;

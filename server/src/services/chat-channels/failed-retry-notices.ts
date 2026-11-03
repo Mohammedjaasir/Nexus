@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { agentWakeupRequests, chatActions, chatPublications, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, chatActions, chatPublications, type Db } from "@nexusai/db";
 import type { DbOrTransaction } from "./runtime-types.js";
 import { notifyChatPublicationWork } from "../chat-work-notifications.js";
 import { projectSafeChatPublication } from "../chat-publication-projection.js";
@@ -66,7 +66,7 @@ export function createFailedRetryNotices(db: Db, options: Options) {
             idempotencyKey: inboundWakePublicationKey(action.id, state, source.endpointId, source.conversationId),
             payload: projectSafeChatPublication({ classification: "external", source: "safe_milestone",
               text: state === "queued" ? "Your retry is queued."
-                : "This retry was not started. Open the task in Paperclip for details.",
+                : "This retry was not started. Open the task in Nexus for details.",
               progressState: state === "queued" ? "queued" : "failed",
             }), state: "pending",
           }).onConflictDoNothing().returning({ id: chatPublications.id })).length;

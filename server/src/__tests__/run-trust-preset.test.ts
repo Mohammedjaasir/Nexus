@@ -17,8 +17,8 @@ import {
   heartbeatRuns,
   issues,
   projects,
-} from "@paperclipai/db";
-import { LOW_TRUST_REVIEW_PRESET } from "@paperclipai/shared";
+} from "@nexusai/db";
+import { LOW_TRUST_REVIEW_PRESET } from "@nexusai/shared";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -83,7 +83,7 @@ it("dispatch retains raw trust before workspace and broker setup", () => {
 
     beforeAll(async () => {
       database = await startEmbeddedPostgresTestDatabase(
-        "paperclip-run-trust-",
+        "nexus-run-trust-",
       );
       db = createDb(database.connectionString);
     }, 30_000);
@@ -117,7 +117,7 @@ it("dispatch retains raw trust before workspace and broker setup", () => {
         companyId,
         name: "Native chat runner",
         role: "engineer",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
       });
       await db
         .insert(projects)

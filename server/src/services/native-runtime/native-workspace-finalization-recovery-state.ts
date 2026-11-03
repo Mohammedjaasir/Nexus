@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { heartbeatRuns, type Db } from "@paperclipai/db";
-import { isUuidLike, type IssueRecoveryAction } from "@paperclipai/shared";
+import { heartbeatRuns, type Db } from "@nexusai/db";
+import { isUuidLike, type IssueRecoveryAction } from "@nexusai/shared";
 import { nativeSha256 } from "./canonical.js";
 
 export const NATIVE_WORKSPACE_OWNER_UNVERIFIED = "native_workspace_finalization_owner_unverified";

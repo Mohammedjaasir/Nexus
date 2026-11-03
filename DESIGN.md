@@ -1,4 +1,4 @@
-# Paperclip Design Principles
+# Nexus Design Principles
 
 **Status:** v0.3 — anchor document for design-language simplification. Governs structure, not brand. Brand values (color, type, iconography) are intentionally unspecified: they are being redesigned and will land as token values only. Nothing in `ui/` may hardcode them. Spacing/radius scales are likewise TBD pending the token audit (see Principle 3).
 
@@ -10,7 +10,7 @@ Agents and humans modifying `ui/` treat this file as the source of truth for des
 
 ## Product stance
 
-Paperclip is an operational control plane: org charts, tasks, heartbeat runs, budgets, approvals, audit logs. The user is an operator scanning state and making decisions. Every screen should answer, in order: *what is happening, does it need me, what do I do about it.* Density in service of scanning beats whitespace in service of aesthetics — but density comes from information, never from chrome.
+Nexus is an operational control plane: org charts, tasks, heartbeat runs, budgets, approvals, audit logs. The user is an operator scanning state and making decisions. Every screen should answer, in order: *what is happening, does it need me, what do I do about it.* Density in service of scanning beats whitespace in service of aesthetics — but density comes from information, never from chrome.
 
 ## The token layer (where visual values live)
 
@@ -22,7 +22,7 @@ Existing tiers already in index.css (~80+ tokens) — extraction maps to these o
 
 1. **Semantic tier** — shadcn core set: `--background`, `--foreground`, `--card`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring`, `--sidebar-*`, `--chart-1..5` (OKLCH, light/dark overrides).
 2. **Brand tier** — agent gradients `--agent-1a/1b..10a/10b` (fixed hex) and status hues `--status-task-*` / `--status-agent-*` (WCAG-tuned; see inline comments).
-3. **Domain tier** — match-chip tokens `--chip-match-*`, annotation highlights `--paperclip-doc-annotation-highlight-*`, plus motion/typography tokens.
+3. **Domain tier** — match-chip tokens `--chip-match-*`, annotation highlights `--nexus-doc-annotation-highlight-*`, plus motion/typography tokens.
 
 ## Principles
 
@@ -758,7 +758,7 @@ agents, persist uploads or establish backend behavior.
 ### Local integration sandbox
 
 The development app can opt into **Design proposals only** with
-`VITE_PAPERCLIP_DESIGN_SANDBOX=true`. The bottom-right **Design proposals: On/Off**
+`VITE_NEXUS_DESIGN_SANDBOX=true`. The bottom-right **Design proposals: On/Off**
 control persists a local comparison preference. Production builds and development
 instances without this environment switch cannot activate it through browser
 storage. This experiment does not enable other Storybook explorations.
@@ -774,7 +774,7 @@ the existing sidebar, Tasks surface and menu appearance.
 
 The resizable contextual pane uses `--design-page-aside-width` for its default
 and double-click reset while the proposal is on (currently 320px). Sandbox
-widths use separate `paperclip.design-proposal.properties-pane-width.*` storage
+widths use separate `nexus.design-proposal.properties-pane-width.*` storage
 keys, so toggling off retains the ordinary 434px task-detail default and its
 saved widths. This adapts the existing task-detail pane; it does not replace its
 production content or maximize behavior with the layout-story fixtures.
@@ -823,13 +823,13 @@ Use the worktree-local isolated config and database. For a desktop visual review
 without building the agent runner, the documented direct API/UI dev path is:
 
 ```sh
-PAPERCLIP_CONFIG="$PWD/.paperclip/config.json" \
-PAPERCLIP_HOME="$PWD/.paperclip-local" \
-PAPERCLIP_INSTANCE_ID=design-system-sandbox \
-PAPERCLIP_UI_DEV_MIDDLEWARE=true \
-VITE_PAPERCLIP_DESIGN_SANDBOX=true \
+NEXUS_CONFIG="$PWD/.nexus/config.json" \
+NEXUS_HOME="$PWD/.nexus-local" \
+NEXUS_INSTANCE_ID=design-system-sandbox \
+NEXUS_UI_DEV_MIDDLEWARE=true \
+VITE_NEXUS_DESIGN_SANDBOX=true \
 HEARTBEAT_SCHEDULER_ENABLED=false \
-PAPERCLIP_TELEMETRY_DISABLED=1 \
+NEXUS_TELEMETRY_DISABLED=1 \
 pnpm dev:server
 ```
 

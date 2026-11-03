@@ -6,11 +6,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createEphemeralSessionEnvironmentStore } from "./ephemeral-session-environment.js";
 
 const currentEnvironment = Object.freeze({
-  PAPERCLIP_API_KEY: "current-credential-fixture",
-  PAPERCLIP_RUN_ID: "current-run-fixture",
+  NEXUS_API_KEY: "current-credential-fixture",
+  NEXUS_RUN_ID: "current-run-fixture",
   PATH: "/fixture/current-bin",
 });
-const oldEnvironment = { PAPERCLIP_API_KEY: "old-credential-fixture", OLD_RUN_PATH: "/fixture/old-run" };
+const oldEnvironment = { NEXUS_API_KEY: "old-credential-fixture", OLD_RUN_PATH: "/fixture/old-run" };
 
 function record(): AcpSessionRecord {
   return {
@@ -49,7 +49,7 @@ function stubStore(loaded: AcpSessionRecord | undefined) {
 const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map(directory => rm(directory, { recursive: true, force: true }))); });
 async function diskStore() {
-  const stateDir = await mkdtemp(join(tmpdir(), "paperclip-session-env-")); directories.push(stateDir);
+  const stateDir = await mkdtemp(join(tmpdir(), "nexus-session-env-")); directories.push(stateDir);
   return { store: createRuntimeStore({ stateDir }), file: join(stateDir, "sessions", "fixture-record.json") };
 }
 
@@ -108,8 +108,8 @@ describe("ephemeral ACPX session environment", () => {
     expect(loaded?.acpx?.session_options).not.toBe(stored.acpx?.session_options);
     expect(loaded?.acpx?.session_options?.env).not.toBe(currentEnvironment);
     expect(stored.acpx?.session_options?.env).toEqual(oldEnvironment);
-    loaded!.acpx!.session_options!.env!.PAPERCLIP_API_KEY = "isolated-loaded-fixture";
-    expect(currentEnvironment.PAPERCLIP_API_KEY).toBe("current-credential-fixture");
+    loaded!.acpx!.session_options!.env!.NEXUS_API_KEY = "isolated-loaded-fixture";
+    expect(currentEnvironment.NEXUS_API_KEY).toBe("current-credential-fixture");
   });
 
   it("saves only a copied env-free projection, preserving unrelated and caller metadata", async () => {

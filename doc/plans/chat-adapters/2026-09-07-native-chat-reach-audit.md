@@ -4,7 +4,7 @@
 
 Server `074271e3fc4c2419c8894b7a564916ff54b90e32`, isolated Board
 `http://127.0.0.1:3103`, company Chat Adapter E2E. Maya E2E remains
-`paperclip_runner`, provider `codex`, model `gpt-5.6-luna`. The server's startup
+`nexus_runner`, provider `codex`, model `gpt-5.6-luna`. The server's startup
 recovery was ready before this exercise. Slack, GitHub, Discord, and Telegram
 were active; Teams was not configured.
 
@@ -18,13 +18,13 @@ run was rewritten or replayed to manufacture a successful result.
 Starting from Connectors → Browse → Manage, the linked Board operator disabled
 only the existing authorized test destination in Settings, sent one message in
 the provider's existing test conversation through the signed-in in-app browser,
-and inspected Paperclip Activity and the provider. Returning to Settings proved
+and inspected Nexus Activity and the provider. Returning to Settings proved
 the disabled state persisted; the original setting was then restored.
 
 | Provider | Disabled setting                         | Send time (UTC) | Observed result                                                                                                                           |
 | -------- | ---------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Slack    | `#pc-chat-live-0905b`                    | 17:56:10.018    | Activity: filtered, “Destination is not enabled in Paperclip”; no reaction/reply                                                          |
-| GitHub   | `cryppadotta/paperclip-chat-e2e-enabled` | 18:01:08.615    | Saved comment persisted after reload; signed webhook acknowledged at 18:01:10; content rejected before durable ingress; no reaction/reply |
+| Slack    | `#pc-chat-live-0905b`                    | 17:56:10.018    | Activity: filtered, “Destination is not enabled in Nexus”; no reaction/reply                                                          |
+| GitHub   | `cryppadotta/nexus-chat-e2e-enabled` | 18:01:08.615    | Saved comment persisted after reload; signed webhook acknowledged at 18:01:10; content rejected before durable ingress; no reaction/reply |
 | Discord  | Clawd `#general`                         | 18:02:53.827    | Activity: filtered, same destination explanation; no reaction/reply                                                                       |
 | Telegram | Allow direct messages                    | 18:03:55.816    | Activity: filtered, same destination explanation; no reply                                                                                |
 
@@ -32,7 +32,7 @@ Provider markers were `SLACK-REACH-DISABLED-0907-1256`,
 `GITHUB-REACH-DISABLED-0907-1301`, `DISCORD-REACH-DISABLED-0907-1304`, and
 `TELEGRAM-REACH-DISABLED-0907-1305`. The suffix is a unique test label, not a
 precise send-time claim. GitHub's comment is
-[issuecomment-5574211696](https://github.com/cryppadotta/paperclip-chat-e2e-enabled/issues/2#issuecomment-5574211696).
+[issuecomment-5574211696](https://github.com/cryppadotta/nexus-chat-e2e-enabled/issues/2#issuecomment-5574211696).
 
 ## Durable cross-checks
 
@@ -56,8 +56,8 @@ From the 17:55:49.711 baseline through the final 18:05:41.790 read:
 - The company had **zero** new tasks, internal comments, or publications.
 - All four endpoints were active, with direct-message settings restored true.
 - Slack's original private test channel, Discord `#general`, and GitHub's
-  `paperclip-chat-e2e-enabled` repository were restored enabled.
-- GitHub's separate `paperclip-chat-e2e-disabled` repository stayed disabled;
+  `nexus-chat-e2e-enabled` repository were restored enabled.
+- GitHub's separate `nexus-chat-e2e-disabled` repository stayed disabled;
   no other Discord channel was enabled.
 
 ## Experience findings
@@ -108,13 +108,13 @@ the repository is re-enabled.
 Restarted the isolated server at commit
 `639bf1a20af9ca9afaecae126c12b7add714f19c`, with startup recovery ready before
 the test. From Connectors → Browse → Manage GitHub → Settings, disabled only
-`paperclip-chat-e2e-enabled`, then sent `GITHUB-REACH-RECEIPT-0907-1325` at
+`nexus-chat-e2e-enabled`, then sent `GITHUB-REACH-RECEIPT-0907-1325` at
 **18:24:59.455 UTC** in the same live test issue. The comment persisted after
 navigating out to the repository's issue list and reopening the issue:
-[issuecomment-5574403287](https://github.com/cryppadotta/paperclip-chat-e2e-enabled/issues/2#issuecomment-5574403287).
+[issuecomment-5574403287](https://github.com/cryppadotta/nexus-chat-e2e-enabled/issues/2#issuecomment-5574403287).
 
-Paperclip Activity showed “message ignored”, “Destination is not enabled in
-Paperclip”, and **Sep 7, 2026, 1:25:02 PM** (local time). The rendered row was
+Nexus Activity showed “message ignored”, “Destination is not enabled in
+Nexus”, and **Sep 7, 2026, 1:25:02 PM** (local time). The rendered row was
 readable with no clipping at the observed desktop viewport. The initial
 Activity visit preceded the new receipt appearing; revisiting the tab showed
 it. This does not establish instantaneous live refresh or all transition
@@ -130,7 +130,7 @@ From baseline **18:24:49.768** through **18:26:00.895 UTC**, counts remained
 Maya runs **86**, company tasks **17**, internal comments **216**, and
 publications **200**. Restored the enabled repository; the separate disabled
 repository stayed off. Maya's persisted configuration remained
-`paperclip_runner` → `codex` → `gpt-5.6-luna`.
+`nexus_runner` → `codex` → `gpt-5.6-luna`.
 
 Functional outcome: the original missing-receipt symptom is fixed in this
 live case without admitting refused work or retaining its content. Experience

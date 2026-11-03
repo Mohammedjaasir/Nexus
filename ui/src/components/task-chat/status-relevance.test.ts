@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ExecutionProjection } from "@paperclipai/shared";
+import type { ExecutionProjection } from "@nexusai/shared";
 import type { IssueChatComment } from "@/lib/issue-chat-messages";
 import { taskChatStatusRelevance, withoutHistoricalRunStatus } from "./status-relevance";
 import type { TaskChatItem } from "./task-chat-model";

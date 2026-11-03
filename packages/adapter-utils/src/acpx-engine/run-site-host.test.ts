@@ -43,25 +43,25 @@ describe("host run site", () => {
 
     // Warm save: the entry lands in the caller's map as the sole warm entry, the
     // same set the baseline warm-save path produces (`warmHandles.size` is 1).
-    const entry = makeEntry("paperclip:c:a:t:fp", Date.now());
+    const entry = makeEntry("nexus:c:a:t:fp", Date.now());
     store.save(entry.handle.sessionKey, entry);
-    expect(new Set(warmHandles.keys())).toEqual(new Set(["paperclip:c:a:t:fp"]));
-    expect(warmHandles.get("paperclip:c:a:t:fp")).toBe(entry);
+    expect(new Set(warmHandles.keys())).toEqual(new Set(["nexus:c:a:t:fp"]));
+    expect(warmHandles.get("nexus:c:a:t:fp")).toBe(entry);
     // The save armed a per-entry idle timer.
     expect(entry.cleanupTimer).toBeDefined();
 
     // Warm hit: a borrow returns the same entry and leaves it in the map, so an
     // overlapping run of the same session still reads it. The borrow cleared the
     // idle timer, so the reused runtime does not expire while it is in use.
-    expect(store.borrow("paperclip:c:a:t:fp")).toBe(entry);
+    expect(store.borrow("nexus:c:a:t:fp")).toBe(entry);
     expect(warmHandles.size).toBe(1);
     await vi.advanceTimersByTimeAsync(120_000);
     expect(closed).toEqual([]);
-    expect(warmHandles.get("paperclip:c:a:t:fp")).toBe(entry);
+    expect(warmHandles.get("nexus:c:a:t:fp")).toBe(entry);
 
     // A discard drops the entry and closes its runtime once, matching the
     // baseline drop set (empty map, one close).
-    await store.discard("paperclip:c:a:t:fp");
+    await store.discard("nexus:c:a:t:fp");
     expect(warmHandles.size).toBe(0);
     expect(closed).toEqual([entry]);
   });

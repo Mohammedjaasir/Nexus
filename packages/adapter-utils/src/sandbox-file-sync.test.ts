@@ -93,7 +93,7 @@ describe("sandbox native file sync", () => {
   });
 
   it("syncs a selected repository subfolder without parent files, history, or ignored files", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-native-nested-workspace-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-native-nested-workspace-"));
     cleanupDirs.push(rootDir);
     const repo = path.join(rootDir, "repo");
     const selectedDir = path.join(repo, "project");
@@ -132,7 +132,7 @@ describe("sandbox native file sync", () => {
     // files has nothing for ignore rules to govern, so the scan is skipped
     // rather than failed (git-ignore-scan-failed took down the whole
     // preparation in production).
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-native-absent-workspace-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-native-absent-workspace-"));
     cleanupDirs.push(rootDir);
     const remoteDir = path.join(rootDir, "remote");
 
@@ -151,7 +151,7 @@ describe("sandbox native file sync", () => {
     // unreadable must not quietly become an empty remote workspace, so any
     // other access error still fails the preparation. A path whose parent is
     // a file gives a deterministic non-ENOENT error on every platform.
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-native-unreadable-workspace-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-native-unreadable-workspace-"));
     cleanupDirs.push(rootDir);
     const notADirectory = path.join(rootDir, "a-file");
     await writeFile(notADirectory, "not a directory\n");
@@ -166,7 +166,7 @@ describe("sandbox native file sync", () => {
   });
 
   it("prefers the native path for default-provision asset inbound and workspace outbound", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-native-sync-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-native-sync-"));
     cleanupDirs.push(rootDir);
     const localWorkspaceDir = path.join(rootDir, "local-workspace");
     const remoteWorkspaceDir = path.join(rootDir, "remote-workspace");
@@ -225,7 +225,7 @@ describe("sandbox native file sync", () => {
     // `client.run` — not the provider sync client's own default. When the two
     // differ, a command left without a `timeoutMs` outlives (or is killed under)
     // the wrong limit; here a distinctive `spec.timeoutMs` proves propagation.
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-native-timeout-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-native-timeout-"));
     cleanupDirs.push(rootDir);
     const localWorkspaceDir = path.join(rootDir, "local-workspace");
     const remoteWorkspaceDir = path.join(rootDir, "remote-workspace");
@@ -266,7 +266,7 @@ describe("sandbox native file sync", () => {
   });
 
   it("routes a custom-provision asset through syncIn with its bespoke post-upload command (native)", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-native-custom-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-native-custom-"));
     cleanupDirs.push(rootDir);
     const localWorkspaceDir = path.join(rootDir, "local-workspace");
     const remoteWorkspaceDir = path.join(rootDir, "remote-workspace");
@@ -305,7 +305,7 @@ describe("sandbox native file sync", () => {
   });
 
   it("stages each additional project into its own isolated dir via a native directory syncIn", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-native-additional-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-native-additional-"));
     cleanupDirs.push(rootDir);
     const localWorkspaceDir = path.join(rootDir, "local-workspace");
     const remoteWorkspaceDir = path.join(rootDir, "remote-workspace");
@@ -378,7 +378,7 @@ describe("sandbox native file sync", () => {
   });
 
   it("isolates one additional project's sync failure and stages the rest", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-native-additional-fail-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-native-additional-fail-"));
     cleanupDirs.push(rootDir);
     const localWorkspaceDir = path.join(rootDir, "local-workspace");
     const remoteWorkspaceDir = path.join(rootDir, "remote-workspace");
@@ -411,7 +411,7 @@ describe("sandbox native file sync", () => {
   });
 
   it("dereferences symlinks only when followSymlinks is true (native honors the flag)", async () => {
-    const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-native-symlink-"));
+    const rootDir = await mkdtemp(path.join(os.tmpdir(), "nexus-native-symlink-"));
     cleanupDirs.push(rootDir);
     const localWorkspaceDir = path.join(rootDir, "local-workspace");
     const remoteWorkspaceDir = path.join(rootDir, "remote-workspace");

@@ -1,4 +1,4 @@
-import { applyPendingMigrations, closeRegisteredClients, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { applyPendingMigrations, closeRegisteredClients, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
@@ -8,19 +8,19 @@ import path from "node:path";
 import { constants as fsConstants } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { and, eq, sql } from "drizzle-orm";
-import { agents, companies, createDb, executionWorkspaces, executionWorkspaceRepositories, heartbeatRuns, issues } from "@paperclipai/db";
+import { agents, companies, createDb, executionWorkspaces, executionWorkspaceRepositories, heartbeatRuns, issues } from "@nexusai/db";
 import { executionWorkspaceService } from "../services/execution-workspaces.js";
 import { executionWorkspaceRepositoryService } from "../services/execution-workspace-repositories.js";
 import * as remoteWorkspaces from "../services/remote-workspaces.js";
-import type { EnvironmentLease } from "@paperclipai/shared";
-import { listLocalProjectRepositories } from "@paperclipai/adapter-utils/ssh";
-import { readManagedWorkspaceRepositories, disposeGitWorkspaceSnapshot } from "@paperclipai/adapter-utils/git-workspace-sync";
-import { captureDirectorySnapshot, disposeDirectorySnapshot } from "@paperclipai/adapter-utils/workspace-restore-merge";
+import type { EnvironmentLease } from "@nexusai/shared";
+import { listLocalProjectRepositories } from "@nexusai/adapter-utils/ssh";
+import { readManagedWorkspaceRepositories, disposeGitWorkspaceSnapshot } from "@nexusai/adapter-utils/git-workspace-sync";
+import { captureDirectorySnapshot, disposeDirectorySnapshot } from "@nexusai/adapter-utils/workspace-restore-merge";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
 const catalog = vi.hoisted(() => ({ available: true }));
 vi.mock("../services/tool-access.js", () => ({ toolAccessService: () => ({ listProjectRepositories: async () => ({ repositories: catalog.available ? [{ id: "123", fullName: "team/source", url: "https://github.com/team/source", connections: [] }] : [] }) }) }));
-const externalDatabaseUrl = process.env.PAPERCLIP_TASK_REPOSITORIES_TEST_DATABASE_URL;
+const externalDatabaseUrl = process.env.NEXUS_TASK_REPOSITORIES_TEST_DATABASE_URL;
 if (externalDatabaseUrl && new URL(externalDatabaseUrl).pathname !== "/remote_workspace_repositories_test") {
   throw new Error("Remote repository tests require the disposable remote_workspace_repositories_test database");
 }
@@ -31,15 +31,15 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
   let companyId: string, issueId: string, workspaceId: string, agentId: string, cwd: string;
   const actor = { type: "board" as const, source: "local_implicit" as const, userId: "local-board" };
   beforeAll(async () => {
-    vi.stubEnv("PAPERCLIP_ISSUE_PRIVACY_MODE", "enforce");
+    vi.stubEnv("NEXUS_ISSUE_PRIVACY_MODE", "enforce");
     if (externalDatabaseUrl) await applyPendingMigrations(externalDatabaseUrl);
     temporary = externalDatabaseUrl ? { connectionString: externalDatabaseUrl,
       cleanup: () => closeRegisteredClients(externalDatabaseUrl) }
-      : await startEmbeddedPostgresTestDatabase("paperclip-task-repositories-");
+      : await startEmbeddedPostgresTestDatabase("nexus-task-repositories-");
     db = createDb(temporary.connectionString);
     await db.execute(sql`set client_min_messages = warning`);
     if (externalDatabaseUrl) await db.execute(sql`truncate table companies restart identity cascade`);
-    cwd = await mkdtemp(path.join(tmpdir(), "paperclip-task-repositories-files-"));
+    cwd = await mkdtemp(path.join(tmpdir(), "nexus-task-repositories-files-"));
     [companyId] = (await db.insert(companies).values({ name: "Task repositories", issuePrefix: "TREPO" }).returning()).map(row => row.id);
     [agentId] = (await db.insert(agents).values({ companyId, name: "Repository worker", adapterType: "process", status: "idle" }).returning()).map(row => row.id);
     [workspaceId] = (await db.insert(executionWorkspaces).values({ companyId, projectId: null, name: "Task files", cwd, mode: "shared_workspace", strategyType: "task_directory" }).returning()).map(row => row.id);
@@ -58,7 +58,7 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
     await db.insert(issues).values({ id: taskId, companyId, title: "Remote repositories" });
     await db.insert(executionWorkspaces).values({ id: remoteWorkspaceId, companyId, sourceIssueId: taskId,
       name: "Remote task", cwd: remoteCwd, mode: "isolated_workspace", strategyType: "project_primary", providerType: "cloud_sandbox",
-      metadata: { remoteWorkspace: { schema: "paperclip.remote-workspace.v1", epoch: 1, snapshotId: null,
+      metadata: { remoteWorkspace: { schema: "nexus.remote-workspace.v1", epoch: 1, snapshotId: null,
         source: { kind: "empty" }, writerRunId: runId, dirty: true,
         location: { leaseId, environmentId, providerLeaseId: "remote-allocation", remoteCwd } } } });
     await db.update(issues).set({ executionWorkspaceId: remoteWorkspaceId }).where(eq(issues.id, taskId));
@@ -86,7 +86,7 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
     } finally { prepare.mockRestore(); }
   });
   it("publishes a requested repository from an absent path through real admission locking and cloning", async () => {
-    const root = await mkdtemp(path.join(tmpdir(), "paperclip-fresh-repository-"));
+    const root = await mkdtemp(path.join(tmpdir(), "nexus-fresh-repository-"));
     const previousPath = process.env.PATH;
     const exec = promisify(execFileCallback);
     try {
@@ -147,11 +147,11 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
         const snapshots = await readManagedWorkspaceRepositories(taskRoot);
         try { expect(snapshots.map(repo => repo.path)).toEqual([readyIntent.repository.relativePath]); }
         finally { await Promise.all(snapshots.map(repo => disposeGitWorkspaceSnapshot(repo.snapshot))); }
-        expect((await readdir(path.join(taskRoot, ".paperclip-runtime", "repository-staging"))).filter(name => name.includes(".clone-")).length).toBe(1);
+        expect((await readdir(path.join(taskRoot, ".nexus-runtime", "repository-staging"))).filter(name => name.includes(".clone-")).length).toBe(1);
         expect((await exec(realGit, ["-C", taskRoot, "status", "--porcelain", "--untracked-files=all"])).stdout.trim()).toBe("?? report.txt");
         await exec(realGit, ["-C", taskRoot, "add", "."]);
         expect((await exec(realGit, ["-C", taskRoot, "diff", "--cached", "--name-only"])).stdout.trim()).toBe("report.txt");
-        const baseline = await captureDirectorySnapshot(taskRoot, { exclude: [".paperclip-runtime"] });
+        const baseline = await captureDirectorySnapshot(taskRoot, { exclude: [".nexus-runtime"] });
         try { expect([...baseline.entries.keys()].some(entry => entry.includes("repository-staging") || entry.includes(".clone-"))).toBe(false); }
         finally { await disposeDirectorySnapshot(baseline); }
       } finally {
@@ -161,7 +161,7 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
       }
       for (const prepared of results) expect(prepared).toEqual([expect.objectContaining({ id: intent.operationId, pinnedCommit: pin })]);
       expect(await readFile(path.join(checkout, "source.txt"), "utf8")).toBe("original source\n");
-      expect(JSON.parse(await readFile(path.join(checkout, ".git", "paperclip-workspace-owner.json"), "utf8")))
+      expect(JSON.parse(await readFile(path.join(checkout, ".git", "nexus-workspace-owner.json"), "utf8")))
         .toMatchObject({ repositoryId: intent.operationId, pinnedCommit: pin });
       expect((await db.select().from(executionWorkspaceRepositories).where(eq(executionWorkspaceRepositories.id, intent.operationId)))[0])
         .toMatchObject({ state: "ready", pinnedCommit: pin, failureCode: null });
@@ -174,13 +174,13 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
     }
   });
   it.skipIf(process.platform === "win32").each(["parent", "ignore_file"])("rejects a symlinked runtime staging %s before cloning", async (unsafeEntry) => {
-    const root = await mkdtemp(path.join(tmpdir(), "paperclip-unsafe-repository-staging-"));
+    const root = await mkdtemp(path.join(tmpdir(), "nexus-unsafe-repository-staging-"));
     try {
       const taskRoot = path.join(root, "task"), outside = path.join(root, "outside");
       await mkdir(taskRoot); await mkdir(outside);
-      if (unsafeEntry === "parent") await symlink(outside, path.join(taskRoot, ".paperclip-runtime"));
+      if (unsafeEntry === "parent") await symlink(outside, path.join(taskRoot, ".nexus-runtime"));
       else {
-        const staging = path.join(taskRoot, ".paperclip-runtime", "repository-staging");
+        const staging = path.join(taskRoot, ".nexus-runtime", "repository-staging");
         await mkdir(staging, { recursive: true });
         await symlink(outside, path.join(staging, ".gitignore"));
       }
@@ -238,7 +238,7 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
     expect(prepared[0].pinnedCommit).toBe(commit);
     expect(await readFile(path.join(checkout, "source.txt"), "utf8")).toBe("uncommitted work\n");
     if (process.platform !== "win32") {
-      const receiptPath = path.join(checkout, ".git", "paperclip-workspace-owner.json");
+      const receiptPath = path.join(checkout, ".git", "nexus-workspace-owner.json");
       await rm(receiptPath, { force: true });
       await promisify(execFileCallback)("mkfifo", [receiptPath]);
       let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -263,12 +263,12 @@ const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPos
     const intent = await service.request({ companyId, issueId: secondIssue.id, actor, request: { repository: { kind: "catalog", id: "123" }, requestKey: "shared-second" } });
     const admission = { companyId, issueId: secondIssue.id, workspaceId: secondWorkspace.id, cwd, agentId: secondAgent.id, runId: randomUUID(), responsibleUserId: null };
     const [original] = await db.select().from(executionWorkspaceRepositories).where(eq(executionWorkspaceRepositories.executionWorkspaceId, workspaceId));
-    await writeFile(path.join(cwd, original.relativePath, ".git", "paperclip-workspace-owner.json"),
+    await writeFile(path.join(cwd, original.relativePath, ".git", "nexus-workspace-owner.json"),
       JSON.stringify({ version: 1, repositoryId: original.id, pinnedCommit: original.pinnedCommit }));
     const prepared = await prepareForAdmission(admission);
     expect(prepared[0]).toMatchObject({ id: intent.operationId, cwd: path.join(await realpath(cwd), original.relativePath), pinnedCommit: original.pinnedCommit });
     expect(await readFile(path.join(prepared[0].cwd, "source.txt"), "utf8")).toBe("uncommitted work\n");
-    expect(JSON.parse(await readFile(path.join(prepared[0].cwd, ".git", "paperclip-workspace-owner.json"), "utf8")))
+    expect(JSON.parse(await readFile(path.join(prepared[0].cwd, ".git", "nexus-workspace-owner.json"), "utf8")))
       .toMatchObject({ repositoryId: intent.operationId, pinnedCommit: original.pinnedCommit });
     const [differentRefWorkspace] = await db.insert(executionWorkspaces).values({ companyId, name: "Conflicting ref", cwd, mode: "shared_workspace", strategyType: "operator_directory" }).returning();
     const [differentRefIssue] = await db.insert(issues).values({ companyId, title: "Different ref", executionWorkspaceId: differentRefWorkspace.id }).returning();

@@ -2,9 +2,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyPendingMigrations, closeRegisteredClients, createDb, instanceSettings, plugins, type Db } from "@paperclipai/db";
+import { applyPendingMigrations, closeRegisteredClients, createDb, instanceSettings, plugins, type Db } from "@nexusai/db";
 import { eq, inArray, sql } from "drizzle-orm";
-import { paperclipConfigSchema } from "@paperclipai/shared";
+import { nexusConfigSchema } from "@nexusai/shared";
 import { adapterSettingsService, initializeAdapterSettings } from "../services/adapter-settings.js";
 import { cloudRuntimeConfigService, initializeCloudRuntimeConfig } from "../services/cloud-runtime-config.js";
 import { cloudConfigurationMigrationService } from "../services/cloud-configuration-migration.js";
@@ -17,7 +17,7 @@ import { ensureBundledPlugins } from "../services/bundled-plugins.js";
 import { bundledImageFixture } from "./helpers/bundled-image-fixture.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const externalDatabaseUrl = process.env.PAPERCLIP_CLOUD_CONFIGURATION_TEST_DATABASE_URL?.trim();
+const externalDatabaseUrl = process.env.NEXUS_CLOUD_CONFIGURATION_TEST_DATABASE_URL?.trim();
 const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const keys = ["adapter-settings:v1", "cloud-runtime-config:v1", "cloud-configuration-migration:v1"];
 (support.supported ? describe : describe.skip)("Cloud configuration migration and current-image qualification", () => {
@@ -28,7 +28,7 @@ const keys = ["adapter-settings:v1", "cloud-runtime-config:v1", "cloud-configura
   let homeB: string;
   const roots: string[] = [];
   const fixture = (version = "1.0.0") => { const image = bundledImageFixture({ version }); roots.push(image.root); return image; };
-  const env = (home = homeA) => ({ PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN: "test-cloud-token", PAPERCLIP_HOME: home, PAPERCLIP_CONFIG: path.join(home, "config.json") });
+  const env = (home = homeA) => ({ NEXUS_CLOUD_TENANT_SERVER_TOKEN: "test-cloud-token", NEXUS_HOME: home, NEXUS_CONFIG: path.join(home, "config.json") });
   const migration = (client = db, home = homeA) => cloudConfigurationMigrationService(client, { runtimeEnv: env(home) });
   beforeAll(async () => {
     if (externalDatabaseUrl) {
@@ -52,7 +52,7 @@ const keys = ["adapter-settings:v1", "cloud-runtime-config:v1", "cloud-configura
   afterAll(async () => { await database?.cleanup(); });
 
   async function legacy() {
-    const config = paperclipConfigSchema.parse({
+    const config = nexusConfigSchema.parse({
       $meta: { version: 1, updatedAt: "2026-10-30T00:00:00.000Z", source: "configure" },
       database: { mode: "postgres" }, logging: { mode: "cloud" },
       storage: { provider: "s3", s3: { bucket: "migration-bucket" } },
@@ -125,7 +125,7 @@ const keys = ["adapter-settings:v1", "cloud-runtime-config:v1", "cloud-configura
     const config = await legacy();
     config.storage.provider = "local_disk";
     await fs.writeFile(path.join(homeA, "config.json"), JSON.stringify(config));
-    await expect(migration().migrate()).rejects.toThrow(/PAPERCLIP_STORAGE_PROVIDER=s3/);
+    await expect(migration().migrate()).rejects.toThrow(/NEXUS_STORAGE_PROVIDER=s3/);
     expect(await peer.select().from(instanceSettings).where(inArray(instanceSettings.singletonKey, keys))).toEqual([]);
     config.storage.provider = "s3";
     await fs.writeFile(path.join(homeA, "config.json"), JSON.stringify(config));
@@ -299,8 +299,8 @@ const keys = ["adapter-settings:v1", "cloud-runtime-config:v1", "cloud-configura
     await install(image);
     await migration().migrate();
     const runtimeEnv = {
-      ...env(homeB), DATABASE_URL: database.connectionString, PAPERCLIP_BUNDLED_PLUGIN_ROOT: image.root,
-      PAPERCLIP_MANAGED_CONFIG: JSON.stringify({ v: 1, mode: "cloud", catalogVersion: "fixture", features: {}, plugins: { autoInstall: ["fixture"] } }),
+      ...env(homeB), DATABASE_URL: database.connectionString, NEXUS_BUNDLED_PLUGIN_ROOT: image.root,
+      NEXUS_MANAGED_CONFIG: JSON.stringify({ v: 1, mode: "cloud", catalogVersion: "fixture", features: {}, plugins: { autoInstall: ["fixture"] } }),
     };
     const initial = await qualifyCloudConfigurationForCurrentImage(db, { runtimeEnv });
     expect(initial?.configurationPackagesEligible).toBe(true);
@@ -310,7 +310,7 @@ const keys = ["adapter-settings:v1", "cloud-runtime-config:v1", "cloud-configura
       const report = stdout.mock.calls.map((call) => String(call[0])).find((text) => text.startsWith('{\n  "receiptRevision"'));
       expect(report && JSON.parse(report).samePackageOverlapEligible).toBe(true);
     } finally { stdout.mockRestore(); }
-    const missing = await qualifyCloudConfigurationForCurrentImage(peer, { runtimeEnv: { ...runtimeEnv, PAPERCLIP_MANAGED_CONFIG: runtimeEnv.PAPERCLIP_MANAGED_CONFIG.replace('"fixture"]', '"absent"]') } });
+    const missing = await qualifyCloudConfigurationForCurrentImage(peer, { runtimeEnv: { ...runtimeEnv, NEXUS_MANAGED_CONFIG: runtimeEnv.NEXUS_MANAGED_CONFIG.replace('"fixture"]', '"absent"]') } });
     expect(missing?.configurationPackagesEligible).toBe(false);
     expect(missing?.blockers).toContainEqual(expect.objectContaining({ code: "current_image_catalog_unavailable" }));
     expect((await migration().inspectStored())?.lastPackageMismatch?.blockers).toContainEqual(expect.objectContaining({ code: "current_image_catalog_unavailable" }));

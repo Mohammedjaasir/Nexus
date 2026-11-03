@@ -1,6 +1,6 @@
 import type { Thread } from "chat";
 import { and, eq, ne, sql } from "drizzle-orm";
-import { chatEndpointResources } from "@paperclipai/db";
+import { chatEndpointResources } from "@nexusai/db";
 import type { EndpointRow, DbTransaction, DbOrTransaction } from "../runtime-types.js";
 import { nonDirectDestinationAllowed } from "../inbound/surfaces.js";
 

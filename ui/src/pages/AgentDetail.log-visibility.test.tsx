@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import type { HeartbeatRun, HeartbeatRunEvent, LiveEvent } from "@paperclipai/shared";
+import type { HeartbeatRun, HeartbeatRunEvent, LiveEvent } from "@nexusai/shared";
 import { afterEach, expect, it, vi } from "vitest";
 import { __liveUpdatesTestUtils, type CompanyLiveEventHandler } from "../context/LiveUpdatesProvider";
 import { LiveTranscriptInterests } from "../lib/live-transcript-interests";
 import { LogViewer } from "../components/run-log/LogViewer";
 
-const { log, events, empty } = vi.hoisted(() => ({ log: vi.fn(), events: vi.fn(async (_runId?: string, _cursor?: number, _limit?: number, _options?: { signal?: AbortSignal }): Promise<import("@paperclipai/shared").HeartbeatRunEvent[]> => []), empty: [] }));
+const { log, events, empty } = vi.hoisted(() => ({ log: vi.fn(), events: vi.fn(async (_runId?: string, _cursor?: number, _limit?: number, _options?: { signal?: AbortSignal }): Promise<import("@nexusai/shared").HeartbeatRunEvent[]> => []), empty: [] }));
 vi.mock("../api/heartbeats", () => ({ heartbeatsApi: { log, events } }));
 vi.mock("@tanstack/react-query", async (original) => ({
   ...await original<typeof import("@tanstack/react-query")>(),
@@ -185,7 +185,7 @@ it("preserves saved event details and catches up payload-free commit signals", a
   const root = createRoot(container);
   const { LiveEventSubscriptionContext } = __liveUpdatesTestUtils;
   try {
-    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={run} adapterType="paperclip_runner" /></LiveEventSubscriptionContext.Provider>));
+    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={run} adapterType="nexus_runner" /></LiveEventSubscriptionContext.Provider>));
     await act(async () => {
       transcripts.open({ send: text => messages.push(JSON.parse(text)) });
       transcripts.receive({ type: "live.capabilities", version: 1, capabilities: ["run-interests"] });
@@ -213,7 +213,7 @@ it("preserves saved event details and catches up payload-free commit signals", a
     expect(container.textContent).toContain("saved event details");
     expect(container.textContent).toContain("live row 2205");
     expect(container.textContent).toContain("Events (2200)");
-    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={{ ...run, status: "succeeded" }} adapterType="paperclip_runner" /></LiveEventSubscriptionContext.Provider>));
+    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={{ ...run, status: "succeeded" }} adapterType="nexus_runner" /></LiveEventSubscriptionContext.Provider>));
     expect(container.textContent).toContain("saved event details");
     expect(container.textContent).toContain("live row 2205");
   } finally { await act(async () => root.unmount()); }
@@ -239,7 +239,7 @@ it("merges saved and live rows with colliding database and run-sequence IDs", as
     for (const listener of listeners) listener(event);
   };
   try {
-    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={run} adapterType="paperclip_runner" /></LiveEventSubscriptionContext.Provider>));
+    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={run} adapterType="nexus_runner" /></LiveEventSubscriptionContext.Provider>));
     await act(async () => { emit(2, "live second row"); emit(3, "live third row"); });
     expect(container.textContent).toContain("saved first row");
     expect(container.textContent).toContain("live second row");
@@ -276,7 +276,7 @@ it.each([
   let finishEvents!: (value: HeartbeatRunEvent[]) => void;
   const held = stalled === "log" ? log : events;
   try {
-    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={run} adapterType="paperclip_runner" /></LiveEventSubscriptionContext.Provider>));
+    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={run} adapterType="nexus_runner" /></LiveEventSubscriptionContext.Provider>));
     await act(async () => {
       transcripts.open({ send: text => messages.push(JSON.parse(text)) });
       transcripts.receive({ type: "live.capabilities", version: 1, capabilities: ["run-interests"] });
@@ -320,7 +320,7 @@ it("shows and retries an initial event-history failure instead of claiming empty
   const container = document.createElement("div");
   const root = createRoot(container);
   try {
-    await act(async () => root.render(<LogViewer run={run} adapterType="paperclip_runner" />));
+    await act(async () => root.render(<LogViewer run={run} adapterType="nexus_runner" />));
     expect(container.textContent).toContain("Could not load events. Try again.");
     expect(container.textContent).not.toContain("No log events.");
     await act(async () => vi.advanceTimersByTimeAsync(2000));
@@ -355,7 +355,7 @@ it("recovers a paginated live tail and preserves pages explicitly loaded afterwa
     subscribe(fn: CompanyLiveEventHandler) { listeners.add(fn); return () => { listeners.delete(fn); }; } };
   const container = document.createElement("div"), root = createRoot(container);
   const { LiveEventSubscriptionContext } = __liveUpdatesTestUtils;
-  const render = async (status = "running") => act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={{ ...run, status } as HeartbeatRun} adapterType="paperclip_runner" /></LiveEventSubscriptionContext.Provider>));
+  const render = async (status = "running") => act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={{ ...run, status } as HeartbeatRun} adapterType="nexus_runner" /></LiveEventSubscriptionContext.Provider>));
   const emit = (row: HeartbeatRunEvent) => { for (const listener of listeners) listener({ id: row.seq,
     companyId: run.companyId, type: "heartbeat.run.event", createdAt: row.createdAt.toISOString(), payload: { ...row } }); };
   try {
@@ -408,7 +408,7 @@ it.each(["completed-return", "catchup-retry"].map(mode => ({ mode })))("preserve
   const container = document.createElement("div"), root = createRoot(container);
   const { LiveEventSubscriptionContext } = __liveUpdatesTestUtils;
   try {
-    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={run} adapterType="paperclip_runner" /></LiveEventSubscriptionContext.Provider>));
+    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={run} adapterType="nexus_runner" /></LiveEventSubscriptionContext.Provider>));
     expect(events).toHaveBeenCalledTimes(1);
     if (mode === "completed-return") {
       await act(async () => { visibility.mockReturnValue("hidden"); document.dispatchEvent(new Event("visibilitychange")); });
@@ -452,7 +452,7 @@ it("recovers the latest saved tail when acknowledgement aborts the initial histo
   const container = document.createElement("div"), root = createRoot(container);
   const { LiveEventSubscriptionContext } = __liveUpdatesTestUtils;
   try {
-    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={run} adapterType="paperclip_runner" /></LiveEventSubscriptionContext.Provider>));
+    await act(async () => root.render(<LiveEventSubscriptionContext.Provider value={subscription}><LogViewer run={run} adapterType="nexus_runner" /></LiveEventSubscriptionContext.Provider>));
     const initialSignal = events.mock.calls[0]![3]!.signal!;
     await act(async () => {
       transcripts.open({ send: text => sent.push(JSON.parse(text)) });

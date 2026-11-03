@@ -8,7 +8,7 @@ import { MuseConnectionChecks } from "./new-agent/ExternalAgentInviteContent";
 import { museConnectionState } from "@/hooks/useMuseConnection";
 import { museConnection, stoppedMuseConnection, museStopBoundary, musePairing } from "../../storybook/support/external-agent-invite/muse-fixtures";
 import { museInvitationsApi } from "@/api/museInvitations";
-import { MUSE_CLIENT_VERSION, type MuseConnection } from "@paperclipai/shared";
+import { MUSE_CLIENT_VERSION, type MuseConnection } from "@nexusai/shared";
 
 vi.mock("@/api/companies-query", () => ({ useAccountIdentity: () => ({ userId: "operator", settled: true, failed: false }) }));
 
@@ -245,7 +245,7 @@ it("withdraws cached readiness after a failed update and restores it only after 
 
 
 function cleanupConnection(): MuseConnection {
-  return { ...stoppedMuseConnection, binding: { ...stoppedMuseConnection.binding!, qualification: { id: "88888888-8888-4888-8888-888888888888", expiresAt: "2026-10-15T14:00:00Z" }, cleanup: { ...stoppedMuseConnection.binding!.cleanup, attestationEligible: true, hookScript: `~/hooks/scripts/paperclip-muse-${stoppedMuseConnection.binding!.id}.sh`, detectorEvidence: null } } };
+  return { ...stoppedMuseConnection, binding: { ...stoppedMuseConnection.binding!, qualification: { id: "88888888-8888-4888-8888-888888888888", expiresAt: "2026-10-15T14:00:00Z" }, cleanup: { ...stoppedMuseConnection.binding!.cleanup, attestationEligible: true, hookScript: `~/hooks/scripts/nexus-muse-${stoppedMuseConnection.binding!.id}.sh`, detectorEvidence: null } } };
 }
 async function fillDetectorObservation() {
   await act(async () => button("Record detector removal observation").click());

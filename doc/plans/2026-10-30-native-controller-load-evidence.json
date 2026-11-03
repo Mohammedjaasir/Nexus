@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.native-controller-load-summary/v1",
+  "schema": "nexus.native-controller-load-summary/v1",
   "baselineRevision": "59e191c368",
   "candidateRevision": "4f710fd7e7",
   "qualification": "failed; host contention and unequal completed work invalidate the ABBA comparison",

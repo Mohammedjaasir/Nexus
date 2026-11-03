@@ -58,8 +58,8 @@ for (const mobile of [false, true]) test(`a rich task uses one stable loading fr
           ready: !!document.querySelector('[data-testid="task-chat-thread"] > [aria-busy="false"]'),
           headerVisible: !!header && getComputedStyle(header).visibility === "visible" && bounds!.bottom > 60 && bounds!.top < innerHeight,
           loading: box('[data-testid="task-chat-loading-frame"]'),
-          loadingComposer: box('[data-testid="task-chat-loading-composer"] .paperclip-task-chat-composer'),
-          composer: box('[data-testid="task-chat-composer-stack"] .paperclip-task-chat-composer'),
+          loadingComposer: box('[data-testid="task-chat-loading-composer"] .nexus-task-chat-composer'),
+          composer: box('[data-testid="task-chat-composer-stack"] .nexus-task-chat-composer'),
           latestY: [...document.querySelectorAll('[id^="comment-"]')].at(-1)?.getBoundingClientRect().y,
           scrollHeight: document.querySelector('[data-testid="task-chat-scroller"]')?.scrollHeight,
           loadingFont: font('[data-slot="task-loading-title"]'),
@@ -150,7 +150,7 @@ for (const coordinator of [false, true]) test(`mobile chrome stays fixed when pe
     const frames: number[][] = [];
     Object.assign(window, { mobileShellFrames: frames });
     const sample = () => {
-      const shell = document.querySelector(".paperclip-app-shell");
+      const shell = document.querySelector(".nexus-app-shell");
       if (shell && shell.getBoundingClientRect().width > 0) {
         const rects = [".app-breadcrumb", ".mobile-bottom-nav", "#main-content"].map(selector => document.querySelector(selector)!.getBoundingClientRect());
         frames.push([innerWidth, innerHeight, scrollX, scrollY, ...rects.flatMap((rect, index) => index === 2 ? [rect.x, rect.y, rect.width] : [rect.x, rect.y, rect.width, rect.height])]);
@@ -171,7 +171,7 @@ for (const coordinator of [false, true]) test(`mobile chrome stays fixed when pe
     });
     await page.goto(fixture.route);
     await expect(page.getByTestId("shell-configuration-loading")).toBeVisible();
-    await expect(page.locator(".paperclip-app-shell")).toBeHidden();
+    await expect(page.locator(".nexus-app-shell")).toBeHidden();
     expect(await page.evaluate(() => (window as unknown as { mobileShellFrames: number[][] }).mobileShellFrames)).toEqual([]);
     release();
     if (coordinator) await expect(page.getByTestId("task-chat-thread").locator(':scope > [aria-busy="false"]')).toBeVisible();

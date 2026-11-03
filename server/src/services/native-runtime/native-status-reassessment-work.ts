@@ -1,6 +1,6 @@
 import { and, asc, eq, exists, gt, inArray, isNotNull, isNull, ne, not, notExists, or, sql } from "drizzle-orm";
 import { heartbeatRuns, issues, issueThreadInteractions, issueWorkProducts, nativeRunFinalizations,
-  statusDecisionEffects, statusDecisions, workAssessments, type Db } from "@paperclipai/db";
+  statusDecisionEffects, statusDecisions, workAssessments, type Db } from "@nexusai/db";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { DELIVERY_QUEUES } from "../delivery-work-notifications.js";
 import type { NativeStatusReassessmentScope } from "../native-status-reassessment-notifications.js";

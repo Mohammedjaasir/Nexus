@@ -1,4 +1,4 @@
-import { agentRuntimeSettingsHarness, aiRuntimeConnectionBindingSchema, type Agent, type AiConnectionBinding, type AiConnectionList, type AiRuntimeConnectionBinding } from "@paperclipai/shared";
+import { agentRuntimeSettingsHarness, aiRuntimeConnectionBindingSchema, type Agent, type AiConnectionBinding, type AiConnectionList, type AiRuntimeConnectionBinding } from "@nexusai/shared";
 
 export const bulkAgentHarness = (agent: Agent) => agentRuntimeSettingsHarness(agent.adapterType, agent.adapterConfig);
 export const agentDefaultModel = (agent: Agent) => typeof agent.adapterConfig.model === "string" ? agent.adapterConfig.model.trim() || null : null;

@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { pluginJobs, pluginJobRuns, type Db } from "@paperclipai/db";
+import { pluginJobs, pluginJobRuns, type Db } from "@nexusai/db";
 import { pluginJobStore, type PluginJobStore } from "./plugin-job-store.js";
 import type { PluginWorkerManager } from "./plugin-worker-manager.js";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";

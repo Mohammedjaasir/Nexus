@@ -1,4 +1,4 @@
-import { createDb } from "@paperclipai/db";
+import { createDb } from "@nexusai/db";
 import { createConnection } from "node:net";
 import { once } from "node:events";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -56,7 +56,7 @@ describe("passive maintenance PostgreSQL observer", () => {
   });
 });
 
-let databaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_MAINTENANCE_TEST_DATABASE_URL");
+let databaseUrl = resolveExternalTestDatabaseUrl("NEXUS_MAINTENANCE_TEST_DATABASE_URL");
 let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
 const databaseSupport = await maintenanceDatabaseSupport(databaseUrl);
 const describeDatabase = databaseSupport.supported ? describe : describe.skip;

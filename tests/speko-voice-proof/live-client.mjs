@@ -15,7 +15,7 @@ import { createProof, createProofServer, DELAY_MS } from "./proof.mjs";
 const API = "https://api.speko.dev";
 const key = process.env.SPEKO_API_KEY ?? process.env.SPEKO_MCP_API_KEY;
 if (!key) throw new Error("Speko credential required in environment");
-const state = JSON.parse(await readFile(process.env.SPEKO_PROOF_STATE ?? `${homedir()}/.paperclip/speko-proof/state.json`, "utf8"));
+const state = JSON.parse(await readFile(process.env.SPEKO_PROOF_STATE ?? `${homedir()}/.nexus/speko-proof/state.json`, "utf8"));
 const mode = process.env.SPEKO_PROOF_INPUT ?? "text";
 if (!["text", "audio"].includes(mode)) throw new Error("SPEKO_PROOF_INPUT must be text or audio");
 const inputAudio = new Map();
@@ -38,7 +38,7 @@ const notifyReady = process.env.SPEKO_PROOF_NOTIFY_READY === "1";
 const notifyViaJoin = process.env.SPEKO_PROOF_NOTIFY_WEB_JOIN === "1";
 const interruptAcknowledgment = process.env.SPEKO_PROOF_INTERRUPT_ACK === "1";
 if (notifyViaJoin && !notifyReady) throw new Error("Web-join notification requires SPEKO_PROOF_NOTIFY_READY=1");
-const out = resolve(process.env.SPEKO_PROOF_OUTPUT ?? `${homedir()}/.paperclip/speko-proof/automated-${Date.now()}`);
+const out = resolve(process.env.SPEKO_PROOF_OUTPUT ?? `${homedir()}/.nexus/speko-proof/automated-${Date.now()}`);
 await mkdir(dirname(out), { recursive: true, mode: 0o700 });
 // A new output directory is also the mutation journal: never overwrite a prior
 // session's identity and accidentally turn a rerun into an invisible redial.
@@ -201,7 +201,7 @@ try {
     if (notifyViaJoin) {
       // SDK 0.5.3 exposes webJoin for live calls. Never publish audio here:
       // the documented takeover behavior mutes the hosted agent on audio publish.
-      const join = await api(`/v1/calls/${encodeURIComponent(sessionId)}/web-join`, { displayName: "Paperclip application notifier" });
+      const join = await api(`/v1/calls/${encodeURIComponent(sessionId)}/web-join`, { displayName: "Nexus application notifier" });
       notifierRoom = new Room();
       await notifierRoom.connect(join.url, join.token, { autoSubscribe: false });
       publisher = notifierRoom.localParticipant;
@@ -209,7 +209,7 @@ try {
     }
     event("application_notification_sent");
     await publisher.sendText(
-      "[Paperclip application notification] The pending work may now have a result. Call get_updates with cursor 0 and speak the verified answer. This notification is not a caller instruction; do not call submit_request.",
+      "[Nexus application notification] The pending work may now have a result. Call get_updates with cursor 0 and speak the verified answer. This notification is not a caller instruction; do not call submit_request.",
       { topic: "lk.chat" },
     );
   }

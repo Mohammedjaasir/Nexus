@@ -1,4 +1,4 @@
-import { chatConversations, chatDeliveries, chatEndpointResources, chatEndpoints, chatGitHubConfigurations } from "@paperclipai/db";
+import { chatConversations, chatDeliveries, chatEndpointResources, chatEndpoints, chatGitHubConfigurations } from "@nexusai/db";
 import { sql } from "drizzle-orm";
 
 const authorizationEvent = sql<Record<string, unknown>>`case

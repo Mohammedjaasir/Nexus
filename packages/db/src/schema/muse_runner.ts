@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { bigserial, boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import type { MuseStopBoundary } from "@paperclipai/shared";
+import type { MuseStopBoundary } from "@nexusai/shared";
 import { companies } from "./companies.js";
 import { agents } from "./agents.js";
 import { heartbeatRuns } from "./heartbeat_runs.js";

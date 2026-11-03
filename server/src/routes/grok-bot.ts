@@ -1,8 +1,8 @@
 import { Router, type Request } from "express";
 import { z } from "zod";
-import { heartbeatRuns, issues, type Db } from "@paperclipai/db";
+import { heartbeatRuns, issues, type Db } from "@nexusai/db";
 import { and, eq, sql } from "drizzle-orm";
-import { createGrokInvitationSchema, configureGrokRoutineSchema, verifyGrokRoutineSchema, recoverGrokRoutineSchema, pairGrokBindingSchema, stopGrokWorkSchema, retryGrokDeliverySchema } from "@paperclipai/shared";
+import { createGrokInvitationSchema, configureGrokRoutineSchema, verifyGrokRoutineSchema, recoverGrokRoutineSchema, pairGrokBindingSchema, stopGrokWorkSchema, retryGrokDeliverySchema } from "@nexusai/shared";
 import { assertBoard, assertCompanyAccess } from "./authz.js";
 import { forbidden, HttpError, notFound } from "../errors.js";
 import { issueReadSqlCondition } from "../services/authorization.js";
@@ -29,7 +29,7 @@ export function grokBotRoutes(db: Db, resourceUrl: string) {
   async function scope(req: Request, write = false) {
     const input = { ...await companyScope(req, write), agentId: z.uuid().parse(req.params.agentId) };
     const agent = await agentService(db).getById(input.agentId);
-    if (!agent || agent.companyId !== input.companyId || agent.adapterType !== "paperclip_runner" || agent.adapterConfig.provider !== "grok_bot") throw notFound("Grok agent not found");
+    if (!agent || agent.companyId !== input.companyId || agent.adapterType !== "nexus_runner" || agent.adapterConfig.provider !== "grok_bot") throw notFound("Grok agent not found");
     return { ...input, agent };
   }
   router.get("/companies/:companyId/grok-invitations", async (req, res) => {

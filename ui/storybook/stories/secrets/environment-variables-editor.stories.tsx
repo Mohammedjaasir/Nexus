@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { CompanySecret, EnvBinding, SecretStatus } from "@paperclipai/shared";
+import type { CompanySecret, EnvBinding, SecretStatus } from "@nexusai/shared";
 import { EnvironmentVariablesEditor } from "@/components/environment-variables-editor";
 import { ToastProvider } from "@/context/ToastContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,7 @@ function secret(
     name,
     provider: "local_encrypted",
     status: "active" as SecretStatus,
-    managedMode: "paperclip_managed",
+    managedMode: "nexus_managed",
     externalRef: null,
     providerConfigId: null,
     providerMetadata: null,
@@ -41,7 +41,7 @@ const SECRETS: CompanySecret[] = [
   secret("s-github", "GITHUB_TOKEN", { latestVersion: 3 }),
   secret("s-db", "DB_CONNECTION", { latestVersion: 3 }),
   secret("s-openai", "OPENAI_API_KEY", { latestVersion: 2 }),
-  secret("s-resend-long", "/paperclip-cloud/prod/provider/resend/api-key-with-a-very-long-name", { latestVersion: 4 }),
+  secret("s-resend-long", "/nexus-cloud/prod/provider/resend/api-key-with-a-very-long-name", { latestVersion: 4 }),
   secret("s-legacy", "LEGACY_DEPLOY_KEY", { status: "disabled", latestVersion: 2 }),
   secret("s-archived", "OLD_STRIPE_KEY", { status: "archived", latestVersion: 4 }),
 ];
@@ -94,7 +94,7 @@ const meta: Meta = {
   id: "product-environment-variables-editor",
   title: "Apps, channels, and extensions/Secrets and proposals/Product/Environment Variables Editor",
   parameters: { layout: "fullscreen", a11y: { test: "off" },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "secrets/runtime-delivery"
       ],
@@ -183,7 +183,7 @@ export const Validation: Story = {
       <Editor
         initial={{
           "API-URL": { type: "plain", value: "https://api.example.com" },
-          PAPERCLIP_TOKEN: { type: "plain", value: "override" },
+          NEXUS_TOKEN: { type: "plain", value: "override" },
           ABANDONED: { type: "secret_ref", secretId: "gone-1234", version: "latest" },
           LEGACY: { type: "secret_ref", secretId: "s-legacy", version: "latest" },
         }}

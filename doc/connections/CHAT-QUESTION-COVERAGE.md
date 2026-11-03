@@ -53,7 +53,7 @@ Use this row schema:
 | Field | Required content |
 | --- | --- |
 | Inventory ID and variant | Q01–Q11 or a newly added ID, exact payload/source entry point, and required/optional/default/size variations. |
-| Provider capability and treatment | Native control, structured reply, or Paperclip handoff; official capability/limit reference and installed adapter behavior. Explain why this is the best feasible path. |
+| Provider capability and treatment | Native control, structured reply, or Nexus handoff; official capability/limit reference and installed adapter behavior. Explain why this is the best feasible path. |
 | Canonical mapping and authority | How the response maps to the saved question/decision, actor and conversation, including validation and current authorization. A review-link click is navigation, not a response or grant. |
 | Functional status | Pass, fail, not run, or not applicable with reason; expected versus actual saved result, canonical continuation policy/count, artifacts, and delivery receipts. |
 | Experience grades | Separate ✓/✕ for good experience and best feasible experience, with a short rationale after inspecting unanswered, answering, and settled states. Missing inspection is not run. |

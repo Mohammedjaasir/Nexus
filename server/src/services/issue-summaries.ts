@@ -1,7 +1,7 @@
 import { issueDisplayStatusSql } from "./issue-display-status.js";
 import { and, eq, inArray, isNull, type SQL } from "drizzle-orm";
-import { issues, type Db } from "@paperclipai/db";
-import { ISSUE_SUMMARIES_MAX_IDS } from "@paperclipai/shared";
+import { issues, type Db } from "@nexusai/db";
+import { ISSUE_SUMMARIES_MAX_IDS } from "@nexusai/shared";
 import { externalConversationStateSql } from "./slack-conversation-state.js";
 
 /** A bounded projection with the columns needed by task-read authorization. */

@@ -7,7 +7,7 @@ permissions remain governed by the implementation spec and access companions.
 
 ## Authored sources
 
-Each story owns its small `parameters.paperclip` annotation. There is no authored
+Each story owns its small `parameters.nexus` annotation. There is no authored
 central catalog, review ledger, date stamp, source list or fingerprint to update.
 Storybook's CSF parser supplies filenames, titles, explicit meta IDs, exports,
 play-function counts and story IDs without executing story modules.
@@ -17,7 +17,7 @@ const meta = {
   id: "tasks-create",
   title: "Tasks and conversations/Task creation and lifecycle/Create",
   parameters: {
-    paperclip: {
+    nexus: {
       capabilities: ["tasks/create"],
       implementation: "production",
       boundary: "fixtures",

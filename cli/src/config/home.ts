@@ -7,33 +7,33 @@ import {
   resolveDefaultSecretsKeyFilePath as resolveSharedDefaultSecretsKeyFilePath,
   resolveDefaultStorageDir as resolveSharedDefaultStorageDir,
   resolveHomeAwarePath,
-  resolvePaperclipConfigPathForInstance,
-  resolvePaperclipHomeDir,
-  resolvePaperclipInstanceId,
-  resolvePaperclipInstanceRoot as resolveSharedPaperclipInstanceRoot,
-} from "@paperclipai/shared/home-paths";
+  resolveNexusConfigPathForInstance,
+  resolveNexusHomeDir,
+  resolveNexusInstanceId,
+  resolveNexusInstanceRoot as resolveSharedNexusInstanceRoot,
+} from "@nexusai/shared/home-paths";
 
 export {
   expandHomePrefix,
   resolveHomeAwarePath,
-  resolvePaperclipHomeDir,
-  resolvePaperclipInstanceId,
+  resolveNexusHomeDir,
+  resolveNexusInstanceId,
 };
 
-export function resolvePaperclipInstanceRoot(instanceId?: string): string {
-  return resolveSharedPaperclipInstanceRoot({ instanceId });
+export function resolveNexusInstanceRoot(instanceId?: string): string {
+  return resolveSharedNexusInstanceRoot({ instanceId });
 }
 
 export function resolveDefaultConfigPath(instanceId?: string): string {
-  return resolvePaperclipConfigPathForInstance({ instanceId });
+  return resolveNexusConfigPathForInstance({ instanceId });
 }
 
 export function resolveDefaultContextPath(): string {
-  return path.resolve(resolvePaperclipHomeDir(), "context.json");
+  return path.resolve(resolveNexusHomeDir(), "context.json");
 }
 
 export function resolveDefaultCliAuthPath(): string {
-  return path.resolve(resolvePaperclipHomeDir(), "auth.json");
+  return path.resolve(resolveNexusHomeDir(), "auth.json");
 }
 
 export function resolveDefaultEmbeddedPostgresDir(instanceId?: string): string {
@@ -57,10 +57,10 @@ export function resolveDefaultBackupDir(instanceId?: string): string {
 }
 
 export function describeLocalInstancePaths(instanceId?: string) {
-  const resolvedInstanceId = resolvePaperclipInstanceId(instanceId);
-  const instanceRoot = resolvePaperclipInstanceRoot(resolvedInstanceId);
+  const resolvedInstanceId = resolveNexusInstanceId(instanceId);
+  const instanceRoot = resolveNexusInstanceRoot(resolvedInstanceId);
   return {
-    homeDir: resolvePaperclipHomeDir(),
+    homeDir: resolveNexusHomeDir(),
     instanceId: resolvedInstanceId,
     instanceRoot,
     configPath: resolveDefaultConfigPath(resolvedInstanceId),

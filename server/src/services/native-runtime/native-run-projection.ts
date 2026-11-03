@@ -5,7 +5,7 @@ import { pendingNativeStatusEffectsCondition } from "./native-pending-effect-wor
 import { notifyNativeRunProjection } from "../native-run-projection-notifications.js";
 import { randomUUID } from "node:crypto";
 import { and, eq, exists, inArray, isNotNull, isNull, not, or, sql, type SQL } from "drizzle-orm";
-import { heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db } from "@paperclipai/db";
+import { heartbeatRuns, nativeRunFinalizations, nativeRunResults, type Db } from "@nexusai/db";
 import { notifyRetainedNativeSessionCleanup } from "../retained-native-session-cleanup-notifications.js";
 import { notifyInstructionCollection } from "../instruction-collection-notifications.js";
 import { notifyCancelledWorkspacePreservation } from "../cancelled-workspace-preservation-notifications.js";
@@ -82,7 +82,7 @@ export function recoveredExecutionFailureMetadata() {
 
   return sql`case when ${heartbeatRuns.error} is not null or ${heartbeatRuns.errorCode} is not null
     then jsonb_build_object('recoveredExecutionFailure', jsonb_build_object(
-      'schema', 'paperclip.recovered_execution_failure.v1',
+      'schema', 'nexus.recovered_execution_failure.v1',
       'errorCode', ${heartbeatRuns.errorCode}, 'error', ${heartbeatRuns.error},
       'observedAt', ${heartbeatRuns.updatedAt}
     )) else '{}'::jsonb end`;

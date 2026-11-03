@@ -3,7 +3,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { CompanyArtifact, Issue } from "@paperclipai/shared";
+import type { CompanyArtifact, Issue } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AgentArtifactsPanel, AgentTasksPanel, sortAgentTasks } from "./AgentWorkPanels";

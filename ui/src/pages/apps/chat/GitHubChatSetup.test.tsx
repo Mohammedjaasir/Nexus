@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GitHubChatSetup, gitHubAppManifestAction } from "./GitHubChatSetup";
-import { defaultGitHubReviewPolicy } from "@paperclipai/shared";
+import { defaultGitHubReviewPolicy } from "@nexusai/shared";
 import { ChatEndpointDetail } from "./ChatEndpointDetail";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { agentsApi } from "@/api/agents";
@@ -555,7 +555,7 @@ describe("GitHub App wizard", () => {
     window.history.replaceState(null, "", "/BOT/apps/chat/connect?provider=github&purpose=chat&resume=draft-1");
     try {
       await render("purpose=chat&resume=draft-1");
-      await click("Connect Paperclip Cloud");
+      await click("Connect Nexus Cloud");
       expect(toolsApi.startCloudConnectorEnrollment).toHaveBeenCalledWith("company-1", undefined, "/apps/chat/connect?provider=github&purpose=chat&resume=draft-1");
     } finally {
       window.history.replaceState(null, "", prior);
@@ -631,22 +631,22 @@ describe("GitHub App wizard", () => {
       ], connectionCount: 1, failedConnectionCount: 0,
     });
     vi.mocked(chatEndpointsApi.list).mockResolvedValue([
-      { ...fixture.endpoint, id: "connected", status: "active", setup: { github: { ownerType: "organization", ownerLogin: "paperclipai" } } },
+      { ...fixture.endpoint, id: "connected", status: "active", setup: { github: { ownerType: "organization", ownerLogin: "nexusai" } } },
       { ...fixture.endpoint, id: "unconnected", setup: { github: { ownerType: "organization", ownerLogin: "unfinished" } } },
     ]);
     await render("resume=draft-1");
     const select = container.querySelector("#github-owner-type") as HTMLSelectElement;
     expect([...select.options].map(option => option.textContent)).toEqual([
-      "My account", "ACME", "paperclipai", "Another organization",
+      "My account", "ACME", "nexusai", "Another organization",
     ]);
     await act(async () => {
-      select.value = "organization:paperclipai";
+      select.value = "organization:nexusai";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(container.querySelector("#github-owner-login")).toBeNull();
     await click("Continue to GitHub");
     expect(githubChatApi.registration).toHaveBeenCalledWith("draft-1", {
-      name: "Reviewer", ownerType: "organization", ownerLogin: "paperclipai",
+      name: "Reviewer", ownerType: "organization", ownerLogin: "nexusai",
     });
   });
   it("keeps Another organization editable even when the typed name is already known", async () => {

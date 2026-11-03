@@ -38,7 +38,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatActions,
@@ -47,11 +47,11 @@ import {
   chatEndpoints,
   chatSdkState,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEndpointSetupState,
   ToolCredentialSecretRef,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   conflict,
@@ -493,7 +493,7 @@ export function createGitHubWebhookIngress(db: Db, options: GitHubWebhookIngress
                   eventKind,
                   state: "filtered",
                   processedAt: new Date(),
-                  redactedError: "Destination is not enabled in Paperclip",
+                  redactedError: "Destination is not enabled in Nexus",
                   normalizedEvent: {
                     providerEventId,
                     kind: eventKind,
@@ -869,7 +869,7 @@ export function createGitHubWebhookIngress(db: Db, options: GitHubWebhookIngress
         record.endpoint.publicId,
         "github",
         new Request(
-          `https://paperclip.internal/api/chat-webhooks/${record.endpoint.publicId}/github`,
+          `https://nexus.internal/api/chat-webhooks/${record.endpoint.publicId}/github`,
           {
             method: "POST",
             headers: {

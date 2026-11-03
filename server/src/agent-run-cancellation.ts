@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { caseHandoffs, heartbeatRuns, type Db } from "@paperclipai/db";
+import { caseHandoffs, heartbeatRuns, type Db } from "@nexusai/db";
 import { forbidden } from "./errors.js";
 
 /** Stop revokes write authority before waiting for the executor to settle. */

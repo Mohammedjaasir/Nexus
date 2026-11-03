@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Company } from "@paperclipai/shared";
+import type { Company } from "@nexusai/shared";
 import { companiesApi } from "../api/companies";
 import {
   fetchCompanyListForCurrentAccount,
@@ -45,7 +45,7 @@ interface CompanyContextValue {
   }) => Promise<Company>;
 }
 
-const STORAGE_KEY = "paperclip.selectedCompanyId";
+const STORAGE_KEY = "nexus.selectedCompanyId";
 
 // A refresh can replace consumers before a mounted provider is replaced. Keep
 // their context identity in Vite's per-module data; never store account state.

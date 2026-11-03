@@ -36,7 +36,7 @@ provider or Core/local choice. Conflicting defaults remain visible for repair.
 
 Open `/projects/:projectId/configuration`, use **Private project**, and choose **Manage access** or **View access** according to your authority. Create a private project through the supported creation surface or API when needed for a fixture.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use a disposable project and a small repository you can access; record checkout and credential ownership.
 

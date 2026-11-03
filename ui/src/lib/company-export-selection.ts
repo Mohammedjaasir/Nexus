@@ -1,13 +1,13 @@
 import type {
   CompanyPortabilityEmbeddedAssetManifestEntry,
   CompanyPortabilityIssueManifestEntry,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 /**
  * Export selection is category-driven: instead of per-file checkboxes the
  * export page exposes a small set of toggles, and the checked-file set is
  * derived from them. Root-level files (README.md, COMPANY.md,
- * .paperclip.yaml, images, company logo) always export and have no toggle.
+ * .nexus.yaml, images, company logo) always export and have no toggle.
  */
 export type ExportCategoryKey =
   | "agents"
@@ -172,7 +172,7 @@ function isEmbeddedAssetBlobIncluded(
 /**
  * Classify a bundle file path into its export category, or null for
  * root-level files that always export (README.md, COMPANY.md,
- * .paperclip.yaml, images, company logo).
+ * .nexus.yaml, images, company logo).
  */
 export function categorizeExportFile(
   filePath: string,

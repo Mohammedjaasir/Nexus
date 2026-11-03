@@ -1,9 +1,9 @@
 import { pendingNewToolsForProfile, profileCatalogColumns } from "../profiles/projection.js";
 import { and, eq, isNotNull, ne } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { toolActionRequests, toolCatalogEntries, toolConnections, toolInvocations, toolProfileEntries, toolProfiles } from "@paperclipai/db";
-import type { ToolConnectionHealthStatus, ToolAppsAttentionResponse } from "@paperclipai/shared";
-import { isToolConnectionAttentionHealth } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { toolActionRequests, toolCatalogEntries, toolConnections, toolInvocations, toolProfileEntries, toolProfiles } from "@nexusai/db";
+import type { ToolConnectionHealthStatus, ToolAppsAttentionResponse } from "@nexusai/shared";
+import { isToolConnectionAttentionHealth } from "@nexusai/shared";
 import { toConnection } from "../connections/projection.js";
 function isAttentionHealthStatus(
   status: ToolConnectionHealthStatus,

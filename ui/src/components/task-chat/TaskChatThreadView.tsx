@@ -3,7 +3,7 @@ import { TaskChatProjectCreatedCard } from "./TaskChatProjectCreatedCard";
 import { TaskChatSkillCreatedCard } from "./TaskChatSkillCreatedCard";
 import { TaskChatTaskCreatedCard } from "./TaskChatTaskCreatedCard";
 import { useMemo, type ReactNode } from "react";
-import type { IssueAttachment } from "@paperclipai/shared";
+import type { IssueAttachment } from "@nexusai/shared";
 import { cn } from "@/lib/utils";
 import { useStreamlinedTaskChatPresentation } from "./presentation-mode";
 import type {
@@ -416,7 +416,7 @@ export function TaskChatThreadView({
   const body = (
     <div
       className={cn(
-        "paperclip-mobile-thread mx-auto flex w-full max-w-(--tc-shell-max-w) flex-col px-1 py-3 md:px-4 md:py-4",
+        "nexus-mobile-thread mx-auto flex w-full max-w-(--tc-shell-max-w) flex-col px-1 py-3 md:px-4 md:py-4",
         streamlined ? "md:px-0" : "gap-5",
         className,
       )}

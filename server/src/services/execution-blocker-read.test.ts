@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { agents, companies, createDb, heartbeatRuns, issueRecoveryActions, issues, type Db } from "@paperclipai/db";
+import { agents, companies, createDb, heartbeatRuns, issueRecoveryActions, issues, type Db } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
@@ -24,7 +24,7 @@ describe.skipIf(!support.supported)("execution blocker PostgreSQL read projectio
     const [run] = await db.insert(heartbeatRuns).values({ companyId, agentId, status: "failed", runtimeMode: "legacy",
       startedAt: new Date("2020-01-01T00:00:00Z"), finishedAt: new Date("2020-01-01T00:01:00Z"),
       errorCode: "adapter_failed", error: "Fixture failure", contextSnapshot: { issueId, prompt: payload },
-      runnerProfileJson: { adapterDispatch: { adapterType: "paperclip_runner", adapterConfig: { instructions: payload } }, instructions: payload },
+      runnerProfileJson: { adapterDispatch: { adapterType: "nexus_runner", adapterConfig: { instructions: payload } }, instructions: payload },
       stdoutExcerpt: payload, ...patch,
     }).returning();
     await db.insert(issueRecoveryActions).values({ companyId, sourceIssueId: issueId, kind: "active_run_watchdog",
@@ -96,9 +96,9 @@ describe.skipIf(!support.supported)("execution blocker PostgreSQL read projectio
   it.each([true, false])("preserves native no-workspace evidence and cwd presence (%s)", async hasCwd => {
     const f = await fixture({ runtimeMode: "native", driverKind: "grok_bot_mcp" }, {
       workspaceRestoreFailure: "restore_unsafe_archive",
-      workspaceRestoreRecovery: { schema: "paperclip.workspace-restore-recovery.v1", leaseIds: [] },
+      workspaceRestoreRecovery: { schema: "nexus.workspace-restore-recovery.v1", leaseIds: [] },
     });
-    const input = { schema: "paperclip.native-execution-input.v6",
+    const input = { schema: "nexus.native-execution-input.v6",
       binding: { runId: f.run.id, companyId: f.companyId, agentId: f.agentId, issueId: f.issueId },
       provider: { kind: "grok_bot" }, workspace: { access: "none", ...(hasCwd ? { cwd: null } : {}) },
       task: { description: randomBytes(128 * 1024).toString("base64") },
@@ -115,10 +115,10 @@ describe.skipIf(!support.supported)("execution blocker PostgreSQL read projectio
     "does not relax native workspace recovery for invalid input (%s)", async kind => {
       const f = await fixture({ runtimeMode: "native", driverKind: "grok_bot_mcp" }, {
         workspaceRestoreFailure: "restore_unsafe_archive",
-        workspaceRestoreRecovery: { schema: "paperclip.workspace-restore-recovery.v1", leaseIds: [] },
+        workspaceRestoreRecovery: { schema: "nexus.workspace-restore-recovery.v1", leaseIds: [] },
       });
       const input: Record<string, unknown> = {
-        schema: "paperclip.native-execution-input.v6",
+        schema: "nexus.native-execution-input.v6",
         binding: { runId: f.run.id, companyId: f.companyId, agentId: f.agentId, issueId: f.issueId },
         provider: { kind: "grok_bot" }, workspace: { access: "none", cwd: null },
         task: { description: randomBytes(128 * 1024).toString("base64") },

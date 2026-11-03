@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { CompanySkillFileDetail } from '@paperclipai/shared';
+import type { CompanySkillFileDetail } from '@nexusai/shared';
 import { Button } from './ui/button';
 export function SkillBinaryFile({ file }: { file: CompanySkillFileDetail }) {
   const [url, setUrl] = useState('');

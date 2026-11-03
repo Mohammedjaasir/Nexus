@@ -14,11 +14,11 @@ import signal
 import stat
 import sys
 
-PACK = '/opt/paperclip-runner/provider-pack'
+PACK = '/opt/nexus-runner/provider-pack'
 ENTRY = 'node_modules/@earendil-works/pi-coding-agent/dist/cli.js'
 NODE = 'node/bin/node'
-EXTENSION = 'extensions/paperclip.js'
-GUARD = '.paperclip-native-module-guard.cjs'
+EXTENSION = 'extensions/nexus.js'
+GUARD = '.nexus-native-module-guard.cjs'
 
 
 def require(value, code):
@@ -99,7 +99,7 @@ def parse_closure_metadata(content, expected_pin):
         require(isinstance(path, str) and 0 < len(path) <= 4096 and not os.path.isabs(path)
                 and not re.search(r'[\x00-\x1f\x7f\\]', path)
                 and all(part not in ('', '.', '..') for part in path.split('/'))
-                and path > previous and path != 'manifest.json' and not path.startswith('.paperclip-'), 'closure_entry_path')
+                and path > previous and path != 'manifest.json' and not path.startswith('.nexus-'), 'closure_entry_path')
         require(isinstance(entry['sha256'], str) and re.fullmatch(r'[a-f0-9]{64}', entry['sha256'])
                 and type(entry['size']) is int and 0 <= entry['size'] <= 384 * 1024 * 1024
                 and type(entry['executable']) is bool, 'closure_entry_metadata')
@@ -119,8 +119,8 @@ def inspect(config):
     root = proc(expected['pid'], boot)
     require(root == expected and os.getpgid(root['pid']) == root['pid'], 'root_changed')
     root_args = argv(root['pid'])
-    runtime_root = binding['remoteCwd'] + '/.paperclip-runtime/paperclip-runner'
-    runner = runtime_root + '/bin/paperclip-runnerd'
+    runtime_root = binding['remoteCwd'] + '/.nexus-runtime/nexus-runner'
+    runner = runtime_root + '/bin/nexus-runnerd'
     require(root_args[0] == runner and flag(root_args, '--run-id') == binding['runId']
             and flag(root_args, '--environment-lease-id') == config['runtimeEnvironmentLeaseId']
             and flag(root_args, '--lifecycle-mode') == 'per_turn', 'root_binding')
@@ -131,7 +131,7 @@ def inspect(config):
     closure_bytes, _ = checked_file(PACK + '/provider-assets/pi/linux-x64/native-closure.json', 4 * 1024 * 1024)
     admitted_entries = parse_closure_metadata(closure_bytes, config['closureSha256'])
     entries = {e['path']: e for e in admitted_entries}
-    for name in (NODE, ENTRY, EXTENSION, 'pi-entry.cjs', 'node_modules/pi-acp/dist/index.js', 'node_modules/pi-acp/dist/paperclip-runtime.js'):
+    for name in (NODE, ENTRY, EXTENSION, 'pi-entry.cjs', 'node_modules/pi-acp/dist/index.js', 'node_modules/pi-acp/dist/nexus-runtime.js'):
         require(name in entries and re.fullmatch(r'[a-f0-9]{64}', entries[name]['sha256']), 'closure_entry')
     pids = [int(p) for p in os.listdir('/proc') if p.isdigit() and int(p) > 1]
     require(len(pids) <= 4096, 'process_bound')
@@ -164,7 +164,7 @@ def inspect(config):
         if len(parent_args) != 4 or not parent_args[3].endswith('/distribution/pi-entry.cjs'):
             continue
         distribution = parent_args[3][:-len('/pi-entry.cjs')]
-        require(re.fullmatch(r'/tmp/paperclip-acpx-native-[A-Za-z0-9_-]+/distribution', distribution), 'snapshot_path')
+        require(re.fullmatch(r'/tmp/nexus-acpx-native-[A-Za-z0-9_-]+/distribution', distribution), 'snapshot_path')
         require(parent_args[1:] == ['--require', distribution + '/' + GUARD, distribution + '/pi-entry.cjs'], 'wrapper_parent')
         descriptor = None
         if parent_args[0] != distribution + '/' + NODE:
@@ -182,7 +182,7 @@ def inspect(config):
             require(stat.S_ISDIR(st.st_mode) and not st.st_mode & 0o222 and os.path.realpath(directory) == directory, 'snapshot_seal')
         require(os.readlink(f'/proc/{pid}/cwd') == binding['remoteCwd'], 'cwd')
         identities = {}
-        for name in (NODE, ENTRY, EXTENSION, 'pi-entry.cjs', 'node_modules/pi-acp/dist/index.js', 'node_modules/pi-acp/dist/paperclip-runtime.js'):
+        for name in (NODE, ENTRY, EXTENSION, 'pi-entry.cjs', 'node_modules/pi-acp/dist/index.js', 'node_modules/pi-acp/dist/nexus-runtime.js'):
             content, inode = checked_file(distribution + '/' + name, 256 * 1024 * 1024, True)
             require(len(content) == entries[name]['size'] and digest(content) == entries[name]['sha256'], 'snapshot_digest')
             identities[name] = inode
@@ -213,7 +213,7 @@ def terminate(config):
         fields = dict(line.split(':', 1) for line in Path(f'/proc/self/fdinfo/{fd}').read_text().splitlines() if ':' in line)
         require(int(fields.get('Pid', '-1').strip()) == pid, 'pidfd_retired')
         signal.pidfd_send_signal(fd, signal.SIGKILL, None, 0)
-        return {'schema': 'paperclip.e2e.pi-provider-death.v1', 'binding': config['binding'], 'runtimeEnvironmentLeaseId': config['runtimeEnvironmentLeaseId'],
+        return {'schema': 'nexus.e2e.pi-provider-death.v1', 'binding': config['binding'], 'runtimeEnvironmentLeaseId': config['runtimeEnvironmentLeaseId'],
                 **before, 'signalled': True, 'signal': 'SIGKILL', 'targetKind': 'pi_native_child', 'workerSignalled': False}
     finally:
         os.close(fd)

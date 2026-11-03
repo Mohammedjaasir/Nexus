@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type {
   DocumentAnnotationThreadWithComments,
   IssueDocument,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DocumentAnnotationsCountChip,
@@ -455,7 +455,7 @@ describe("IssueDocumentAnnotations", () => {
       expect(anchor!.style.width).toBe("360px");
       expect(anchor!.className).not.toContain("fixed");
       expect(anchor!.style.left).toBe("");
-      const host = container.querySelector(".paperclip-doc-annotation-host") as HTMLElement | null;
+      const host = container.querySelector(".nexus-doc-annotation-host") as HTMLElement | null;
       expect(host!.className).toContain("lg:flex");
       // The panel is sticky inside the gutter so it stays beside the doc while scrolling.
       expect(anchor!.querySelector(".sticky")).not.toBeNull();
@@ -1018,7 +1018,7 @@ describe("IssueDocumentAnnotations", () => {
       const sheet = container.querySelector('[data-slot="sheet-content"]');
       expect(sheet).not.toBeNull();
       expect(sheet?.getAttribute("data-side")).toBe("bottom");
-      expect(sheet?.className).toContain("paperclip-doc-annotation-sheet");
+      expect(sheet?.className).toContain("nexus-doc-annotation-sheet");
       expect(sheet?.className).toContain("z-(--z-60)");
       expect(sheet?.className).toContain("bg-popover");
     } finally {

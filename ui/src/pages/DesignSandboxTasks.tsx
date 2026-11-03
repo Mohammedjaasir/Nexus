@@ -19,7 +19,7 @@ import { useTaskListCollection } from "@/hooks/useTaskListCollection";
 import { buildCompanyUserLabelMap } from "@/lib/company-members";
 import { queryKeys } from "@/lib/queryKeys";
 import { taskListViewStorageKey } from "@/lib/task-list-views";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 
 const pageSize = 200;
 

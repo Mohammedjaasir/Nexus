@@ -14,11 +14,11 @@ const migration = readFileSync(new URL("./migrations/0248_small_manta.sql", impo
     try {
       const companyId = randomUUID(), agentId = randomUUID(), sessionId = randomUUID(), clearedId = randomUUID();
       await sql`INSERT INTO companies (id, name, issue_prefix) VALUES (${companyId}, 'Goal migration', 'GMG')`;
-      await sql`INSERT INTO agents (id, company_id, name, role, adapter_type) VALUES (${agentId}, ${companyId}, 'Goal agent', 'engineer', 'paperclip_runner')`;
+      await sql`INSERT INTO agents (id, company_id, name, role, adapter_type) VALUES (${agentId}, ${companyId}, 'Goal agent', 'engineer', 'nexus_runner')`;
       const goal = { objective: "Keep the preview objective", status: "paused" };
       await sql`INSERT INTO agent_task_sessions (id, company_id, agent_id, adapter_type, task_key, goal_json, goal_status, goal_revision)
-        VALUES (${sessionId}, ${companyId}, ${agentId}, 'paperclip_runner', 'active', ${sql.json(goal)}, 'paused', 7),
-               (${clearedId}, ${companyId}, ${agentId}, 'paperclip_runner', 'cleared', NULL, NULL, 9)`;
+        VALUES (${sessionId}, ${companyId}, ${agentId}, 'nexus_runner', 'active', ${sql.json(goal)}, 'paused', 7),
+               (${clearedId}, ${companyId}, ${agentId}, 'nexus_runner', 'cleared', NULL, NULL, 9)`;
       await sql`INSERT INTO agent_session_goal_actions (company_id, session_id, request_id, action, payload_json)
         VALUES (${companyId}, ${sessionId}, 'resume-once', 'resume', '{}')`;
       for (let pass = 0; pass < 2; pass++) {

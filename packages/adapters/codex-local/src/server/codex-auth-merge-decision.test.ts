@@ -81,7 +81,7 @@ describe("codex-auth-merge-decision predicate seed mode", () => {
     sourceAuth: string;
     destinationAuth: string | typeof ABSENT;
   }): Promise<number> {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-codex-seed-decision-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-codex-seed-decision-"));
     cleanupDirs.push(dir);
     const sourcePath = path.join(dir, "source-auth.json");
     const destinationPath = path.join(dir, "destination-auth.json");

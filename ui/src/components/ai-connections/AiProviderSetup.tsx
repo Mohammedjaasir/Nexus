@@ -8,7 +8,7 @@ import {
   type AiProviderRouting,
   type AiConnectionBinding,
   type AiManagedConnectionSummary,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { aiConnectionsApi } from "@/api/ai-connections";
 import { agentsApi } from "@/api/agents";
 import { ConnectionChoiceList } from "@/features/connections/ConnectionChoiceList";

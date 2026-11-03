@@ -103,7 +103,7 @@ export function CliAuthPage() {
         <Card className="block p-6">
           <h1 className="text-xl font-semibold">CLI access approved</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            The Paperclip CLI can now finish authentication on the requesting machine.
+            The Nexus CLI can now finish authentication on the requesting machine.
           </p>
           <p className="mt-4 text-sm text-muted-foreground">
             Command: <span className="font-mono text-foreground">{challenge.command}</span>
@@ -147,7 +147,7 @@ export function CliAuthPage() {
   return (
     <div className="mx-auto max-w-xl py-10">
       <Card className="block p-6">
-        <h1 className="text-xl font-semibold">Approve Paperclip CLI access</h1>
+        <h1 className="text-xl font-semibold">Approve Nexus CLI access</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           A CLI client is requesting full board access to the organizations you can access on this instance. Approve only if you started this request in your own terminal.
         </p>
@@ -159,7 +159,7 @@ export function CliAuthPage() {
           </div>
           <div>
             <div className="text-muted-foreground">Client</div>
-            <div className="text-foreground">{challenge.clientName ?? "paperclipai cli"}</div>
+            <div className="text-foreground">{challenge.clientName ?? "nexusai cli"}</div>
           </div>
           <div>
             <div className="text-muted-foreground">Requested access</div>

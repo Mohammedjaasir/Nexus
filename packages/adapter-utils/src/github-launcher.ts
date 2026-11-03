@@ -13,8 +13,8 @@ const os = require('node:os');
 const { spawn } = require('node:child_process');
 // A PATH shim can capture this launcher's absolute path and call it again.
 // Reject that cycle before resolving another executable or capturing authority.
-if (process.env.PAPERCLIP_GITHUB_OPERATION_ACTIVE) {
-  process.stderr.write('Paperclip: GitHub launcher_recursion_rejected.\n');
+if (process.env.NEXUS_GITHUB_OPERATION_ACTIVE) {
+  process.stderr.write('Nexus: GitHub launcher_recursion_rejected.\n');
   process.exit(126);
 }
 const directory = path.dirname(fs.realpathSync(process.argv[1]));
@@ -26,7 +26,7 @@ const executable = originalPath.map(p => path.join(p, program)).find(p => {
   try { fs.accessSync(p, fs.constants.X_OK); return fs.statSync(p).isFile(); } catch { return false; }
 });
 if (!['git', 'gh'].includes(program) || !executable) {
-  process.stderr.write('Paperclip: requested GitHub command is not installed.\n');
+  process.stderr.write('Nexus: requested GitHub command is not installed.\n');
   process.exit(127);
 }
 const localGitCommands = new Set(['init', 'status', 'add', 'config', 'rev-parse', 'log', 'diff', 'diff-files', 'write-tree', 'show', 'branch', 'checkout', 'switch', 'restore', 'reset', 'rm', 'mv', 'worktree', 'grep', 'blame', 'describe', 'ls-files', 'ls-tree', 'cat-file', 'rev-list', 'merge-base', 'show-ref', 'for-each-ref', 'symbolic-ref', 'check-ignore', 'version', 'help']);
@@ -46,20 +46,20 @@ function isLocalGit(args) {
 async function main() {
   let env = { ...process.env };
 ${options.brokerFile ? String.raw`
-  delete env.PAPERCLIP_API_URL;
-  delete env.PAPERCLIP_API_KEY;
-  delete env.PAPERCLIP_GITHUB_BRIDGE_TOKEN;
-  env.PAPERCLIP_GITHUB_BROKER_URL = '';
-  env.PAPERCLIP_GITHUB_BROKER_TOKEN = '';
+  delete env.NEXUS_API_URL;
+  delete env.NEXUS_API_KEY;
+  delete env.NEXUS_GITHUB_BRIDGE_TOKEN;
+  env.NEXUS_GITHUB_BROKER_URL = '';
+  env.NEXUS_GITHUB_BROKER_TOKEN = '';
   try {
     const broker = JSON.parse(fs.readFileSync(path.join(directory, 'broker.json'), 'utf8'));
     if (typeof broker.url === 'string' && typeof broker.token === 'string') {
-      env.PAPERCLIP_GITHUB_BROKER_URL = broker.url;
-      env.PAPERCLIP_GITHUB_BROKER_TOKEN = broker.token;
+      env.NEXUS_GITHUB_BROKER_URL = broker.url;
+      env.NEXUS_GITHUB_BROKER_TOKEN = broker.token;
     }
   } catch {}
 ` : ''}
-  const diagnostic = (code) => process.stderr.write('Paperclip: GitHub ' + code + '; continuing without managed credentials.\n');
+  const diagnostic = (code) => process.stderr.write('Nexus: GitHub ' + code + '; continuing without managed credentials.\n');
   const configRoot = env.GH_CONFIG_DIR || os.tmpdir();
   // A missing/unwritable scratch directory must not break local Git. The
   // fallback deliberately cannot load the host's gh authentication files.
@@ -68,16 +68,16 @@ ${options.brokerFile ? String.raw`
   let authorReady = false;
   try {
     fs.mkdirSync(configRoot, { recursive: true, mode: 0o700 });
-    configDirectory = fs.mkdtempSync(path.join(configRoot, 'paperclip-github-operation-'));
+    configDirectory = fs.mkdtempSync(path.join(configRoot, 'nexus-github-operation-'));
     fs.chmodSync(configDirectory, 0o700);
     configReady = true;
     process.once('exit', () => { try { fs.rmSync(configDirectory, { recursive: true, force: true }); } catch {} });
-    fs.writeFileSync(path.join(configDirectory, 'gitconfig'), '[user]\n\tname = Paperclip\n\temail = noreply@paperclip.ing\n', { mode: 0o600 });
+    fs.writeFileSync(path.join(configDirectory, 'gitconfig'), '[user]\n\tname = Nexus\n\temail = noreply@paperclip.ing\n', { mode: 0o600 });
     authorReady = true;
   } catch { diagnostic('configuration_directory_unavailable'); }
   {
     for (const key of Object.keys(env)) {
-      if (/^(GH_TOKEN|GITHUB_TOKEN|GH_ENTERPRISE_TOKEN|GITHUB_ENTERPRISE_TOKEN|PAPERCLIP_GIT_TOKEN|GIT_AUTHOR_.*|GIT_COMMITTER_.*|GIT_CONFIG_.*|GIT_ASKPASS|SSH_ASKPASS|SSH_AUTH_SOCK|GIT_SSH.*)$/.test(key)) delete env[key];
+      if (/^(GH_TOKEN|GITHUB_TOKEN|GH_ENTERPRISE_TOKEN|GITHUB_ENTERPRISE_TOKEN|NEXUS_GIT_TOKEN|GIT_AUTHOR_.*|GIT_COMMITTER_.*|GIT_CONFIG_.*|GIT_ASKPASS|SSH_ASKPASS|SSH_AUTH_SOCK|GIT_SSH.*)$/.test(key)) delete env[key];
     }
     Object.assign(env, {
       GH_CONFIG_DIR: configDirectory, SSH_AUTH_SOCK: '',
@@ -89,11 +89,11 @@ ${options.brokerFile ? String.raw`
       GIT_CONFIG_KEY_3: 'core.askPass', GIT_CONFIG_VALUE_3: '',
       GIT_CONFIG_KEY_4: 'user.useConfigOnly', GIT_CONFIG_VALUE_4: 'true',
     });
-    const base = env.PAPERCLIP_GITHUB_BROKER_URL || env.PAPERCLIP_API_URL;
+    const base = env.NEXUS_GITHUB_BROKER_URL || env.NEXUS_API_URL;
     const askBroker = !isLocalGit(process.argv.slice(2));
     try {
     let response;
-    if (askBroker && base && env.PAPERCLIP_GITHUB_BROKER_TOKEN) {
+    if (askBroker && base && env.NEXUS_GITHUB_BROKER_TOKEN) {
       const url = base.replace(/\/+$/, '').replace(/\/api$/, '') + '/runtime-tools/github/credentials';
       // A slow or restarting control plane must not cost the operation its
       // managed identity, so a failed request is retried before giving up.
@@ -104,8 +104,8 @@ ${options.brokerFile ? String.raw`
         try {
           response = await fetch(url, {
             method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10000),
-            headers: { authorization: 'Bearer ' + (env.PAPERCLIP_GITHUB_BRIDGE_TOKEN || env.PAPERCLIP_API_KEY || env.PAPERCLIP_GITHUB_BROKER_TOKEN),
-              'x-paperclip-github-capability': env.PAPERCLIP_GITHUB_BROKER_TOKEN, 'content-type': 'application/json' },
+            headers: { authorization: 'Bearer ' + (env.NEXUS_GITHUB_BRIDGE_TOKEN || env.NEXUS_API_KEY || env.NEXUS_GITHUB_BROKER_TOKEN),
+              'x-nexus-github-capability': env.NEXUS_GITHUB_BROKER_TOKEN, 'content-type': 'application/json' },
             body: '{}',
           });
           if (response.status === 409 && conflicts < 29) {
@@ -128,12 +128,12 @@ ${options.brokerFile ? String.raw`
       if (result.status === 'unavailable') {
         const reason = typeof result.reason === 'string'
           ? result.reason.replace(/[\x00-\x1f\x7f]/g, ' ').slice(0, 500)
-          : 'Check the GitHub connection in Paperclip';
-        process.stderr.write('Paperclip: GitHub access unavailable: ' + reason + '. Continuing without GitHub credentials.\n');
+          : 'Check the GitHub connection in Nexus';
+        process.stderr.write('Nexus: GitHub access unavailable: ' + reason + '. Continuing without GitHub credentials.\n');
       }
       if (result.status === 'available' && configReady) {
         for (const [key, value] of Object.entries(result.env || {})) {
-          if (/^(GH_TOKEN|GITHUB_TOKEN|PAPERCLIP_GIT_TOKEN|GIT_TERMINAL_PROMPT|GIT_AUTHOR_(NAME|EMAIL)|GIT_COMMITTER_(NAME|EMAIL)|GIT_CONFIG_COUNT|GIT_CONFIG_(KEY|VALUE)_\d+)$/.test(key) && typeof value === 'string') env[key] = value;
+          if (/^(GH_TOKEN|GITHUB_TOKEN|NEXUS_GIT_TOKEN|GIT_TERMINAL_PROMPT|GIT_AUTHOR_(NAME|EMAIL)|GIT_COMMITTER_(NAME|EMAIL)|GIT_CONFIG_COUNT|GIT_CONFIG_(KEY|VALUE)_\d+)$/.test(key) && typeof value === 'string') env[key] = value;
         }
       }
       }
@@ -141,7 +141,7 @@ ${options.brokerFile ? String.raw`
     } catch { diagnostic('broker_transport_unavailable'); }
   }
   // Only this invocation and its children inherit the captured credential.
-  env.PAPERCLIP_GITHUB_OPERATION_ACTIVE = '1';
+  env.NEXUS_GITHUB_OPERATION_ACTIVE = '1';
   // Its Git children use the real binary, so steering cannot split a gh operation.
   env.PATH = originalPath.join(path.delimiter);
   // Nested shell aliases must not reload the parent launcher profile and
@@ -151,10 +151,10 @@ ${options.brokerFile ? String.raw`
   env.GIT_SSH_COMMAND = 'ssh -F /dev/null -o IdentityAgent=none -o IdentitiesOnly=yes -o IdentityFile=none -o BatchMode=yes';
   const child = spawn(executable, process.argv.slice(2), { env, stdio: 'inherit' });
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, () => child.kill(signal));
-  child.once('error', () => { process.stderr.write('Paperclip: GitHub command could not start.\n'); process.exitCode = 1; });
+  child.once('error', () => { process.stderr.write('Nexus: GitHub command could not start.\n'); process.exitCode = 1; });
   child.once('exit', (code, signal) => { process.exitCode = code === null ? 128 : code; });
 }
-main().catch(() => { process.stderr.write('Paperclip: GitHub launcher_setup_failed.\n'); process.exitCode = 1; });
+main().catch(() => { process.stderr.write('Nexus: GitHub launcher_setup_failed.\n'); process.exitCode = 1; });
 `;
 }
 
@@ -162,7 +162,7 @@ main().catch(() => { process.stderr.write('Paperclip: GitHub launcher_setup_fail
 export function githubBrokerEnvironment(input: Record<string, unknown>, broker: { url: string; token: string }): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(input)) if (typeof value === "string") env[key] = value;
-  for (const key of ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "PAPERCLIP_GIT_TOKEN", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "GIT_CONFIG_COUNT", "PAPERCLIP_GITHUB_OPERATION_ACTIVE"]) env[key] = "";
+  for (const key of ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "NEXUS_GIT_TOKEN", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "GIT_CONFIG_COUNT", "NEXUS_GITHUB_OPERATION_ACTIVE"]) env[key] = "";
   for (const key of Object.keys(env)) {
     if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(key)) env[key] = "";
   }
@@ -174,7 +174,7 @@ export function githubBrokerEnvironment(input: Record<string, unknown>, broker: 
   env.SSH_ASKPASS = "";
   env.GIT_SSH_COMMAND = "ssh -F /dev/null -o IdentityAgent=none -o IdentitiesOnly=yes -o IdentityFile=none -o BatchMode=yes";
   env.SSH_AUTH_SOCK = "";
-  env.PAPERCLIP_GITHUB_BROKER_URL = broker.url;
-  env.PAPERCLIP_GITHUB_BROKER_TOKEN = broker.token;
+  env.NEXUS_GITHUB_BROKER_URL = broker.url;
+  env.NEXUS_GITHUB_BROKER_TOKEN = broker.token;
   return env;
 }

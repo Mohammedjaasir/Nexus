@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import * as runner from "../../vendor/paperclip-runner/index.js";
+import * as runner from "../../vendor/nexus-runner/index.js";
 import * as lifecycle from "./provider-lifecycle.js";
-import { resolveQualifiedAcpxProfile, validatePrpStructuredRunResult } from "../../vendor/paperclip-runner/index.js";
+import { resolveQualifiedAcpxProfile, validatePrpStructuredRunResult } from "../../vendor/nexus-runner/index.js";
 import { buildQuestionResponseDeliveryEnvelope } from "../question-response-delivery.js";
 import { NATIVE_COMPLETION_CONTRACT_SCHEMA, NATIVE_COMPLETION_POLICY_VERSION } from "./completion-contracts.js";
 import { nativeSha256 } from "./canonical.js";
@@ -9,7 +9,7 @@ import { hasCommittedNativePlanWait, nativePlanWaitFromFacts, type PlanWaitFacts
 
 function committedDb(f: PlanWaitFacts, source: unknown, result: unknown, legacy = false) {
   const sourceRecord = source as any;
-  const resultJson = { result, terminal: { schema: "paperclip.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" } };
+  const resultJson = { result, terminal: { schema: "nexus.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" } };
   const canonicalSha256 = nativeSha256(resultJson);
   const identity = { resultId: "result", resultSha256: canonicalSha256 };
   const decisionJson = legacy ? { cursorPlanWait: source, cursorPlanWaitResult: identity } : { planWait: source, planWaitResult: identity };
@@ -31,14 +31,14 @@ function fixture(): PlanWaitFacts {
   const contractMetadata = { schemaVersion: NATIVE_COMPLETION_CONTRACT_SCHEMA, policyVersion: NATIVE_COMPLETION_POLICY_VERSION, risk: "low", completionAuthority: "agent_claim_policy" };
   const contractSha = nativeSha256({ ...contractMetadata, contract });
   const planId = `plan-${"a".repeat(64)}`;
-  const input = { schema: "paperclip.question_set.v1", title: "Plan", description: "Exact revised plan text", questions: [{ id: planId, prompt: "Proceed?", required: true, answerMode: "single_select", options: [{ id: "accept", label: "Accept" }, { id: "reject", label: "Reject" }, { id: "cancel", label: "Cancel" }] }] };
+  const input = { schema: "nexus.question_set.v1", title: "Plan", description: "Exact revised plan text", questions: [{ id: planId, prompt: "Proceed?", required: true, answerMode: "single_select", options: [{ id: "accept", label: "Accept" }, { id: "reject", label: "Reject" }, { id: "cancel", label: "Cancel" }] }] };
   const i = { id: "interaction", ...b, sourceRunId: b.runId, createdByAgentId: b.agentId, resolvedByUserId: "board", resolvedByAgentId: null, resolvedAt: new Date(0),
-    kind: "ask_user_questions", status: "answered", continuationPolicy: "none", idempotencyKey: "paperclip-runner-question:run:request",
+    kind: "ask_user_questions", status: "answered", continuationPolicy: "none", idempotencyKey: "nexus-runner-question:run:request",
     payload: { runtimeRequestId: "request", questionSet: input }, result: { version: 1, answers: [{ questionId: planId, optionIds: ["accept"] }] } };
   const envelope = buildQuestionResponseDeliveryEnvelope(i as never);
   const d = { id: "delivery", ...b, interactionId: i.id, sourceRunId: b.runId, targetRunId: b.runId, targetTurnId: null, status: "delivered", deliveryMode: "steered", acknowledgedAt: new Date(1), payloadSha256: nativeSha256(envelope) };
   const event = (sourceSeq: number, eventType: string, payload: Record<string, unknown>) => {
-    const e = { schema: "paperclip.prp.event.v1", runId: b.runId, normalizedSessionId: "session", turnId: "turn", sourceInstanceId: "instance", sourceEventId: `instance:${sourceSeq}`, sourceSeq, sourceKind: "runner", schemaVersion: 1, eventType, payload };
+    const e = { schema: "nexus.prp.event.v1", runId: b.runId, normalizedSessionId: "session", turnId: "turn", sourceInstanceId: "instance", sourceEventId: `instance:${sourceSeq}`, sourceSeq, sourceKind: "runner", schemaVersion: 1, eventType, payload };
     return { ...b, seq: sourceSeq, eventType, payload: { prpEvent: e }, sourceInstanceId: e.sourceInstanceId, sourceEventId: e.sourceEventId, sourceSeq, sourcePayloadSha256: nativeSha256(e), protocolSchemaVersion: 1 };
   };
   return {
@@ -46,10 +46,10 @@ function fixture(): PlanWaitFacts {
     run: { id: b.runId, companyId: b.companyId, agentId: b.agentId, nativeIssueId: b.issueId, runtimeMode: "native", runnerInstanceId: "instance", status: "running", completionContractId: "contract", completionContractSha256: contractSha, runnerProfileJson: { nativeExecutionInput: { binding: b, provider: { kind: "acpx", agent: "cursor", mode: "plan", model: "gpt-5.6-luna[context=272k,reasoning=medium,fast=false]", profile: resolveQualifiedAcpxProfile("cursor", "gpt-5.6-luna[context=272k,reasoning=medium,fast=false]") }, session: { normalizedSessionId: "session" }, completionContract: { id: "contract", sha256: contractSha, contract } } } },
     contract: { id: "contract", ...contractMetadata, canonicalSha256: contractSha, contractJson: contract },
     events: [
-      event(275, "runtime_request.created", { request: { schema: "paperclip.runtime_request.v2", status: "pending", type: "input", requestKind: "runtime", requestId: "request", turnId: "turn", itemId: "native-plan-tool", origin: { provider: "cursor", method: "cursor/create_plan", adapter: "acpx-runtime-sidecar" }, input } }),
-      event(294, "tool.execution.started", { schema: "paperclip.tool.execution.v1", executionId: "native-plan-tool", transport: "builtin", operation: "execute", status: "running", name: "arbitrary display name" }),
+      event(275, "runtime_request.created", { request: { schema: "nexus.runtime_request.v2", status: "pending", type: "input", requestKind: "runtime", requestId: "request", turnId: "turn", itemId: "native-plan-tool", origin: { provider: "cursor", method: "cursor/create_plan", adapter: "acpx-runtime-sidecar" }, input } }),
+      event(294, "tool.execution.started", { schema: "nexus.tool.execution.v1", executionId: "native-plan-tool", transport: "builtin", operation: "execute", status: "running", name: "arbitrary display name" }),
       event(300, "runtime_request.resolved", { requestId: "request", turnId: "turn", action: "submit", response: envelope.response }),
-      event(303, "tool.execution.completed", { schema: "paperclip.tool.execution.v1", executionId: "native-plan-tool", transport: "builtin", operation: "execute", status: "completed" }),
+      event(303, "tool.execution.completed", { schema: "nexus.tool.execution.v1", executionId: "native-plan-tool", transport: "builtin", operation: "execute", status: "completed" }),
       event(304, "turn.completed", { status: "completed", error: null }),
     ],
     interactions: [{ interaction: i, delivery: d }],
@@ -88,7 +88,7 @@ describe("accepted Cursor plan passive-wait authority", () => {
   it("writes and replays a provider-neutral receipt while preserving its exact authority", async () => {
     const f = fixture(); f.run.status = "succeeded";
     const proof = nativePlanWaitFromFacts(f)!;
-    expect(proof.source.schema).toBe("paperclip.native_plan_wait.v1");
+    expect(proof.source.schema).toBe("nexus.native_plan_wait.v1");
     expect(proof.result.continuation!.idempotencyKey).toMatch(/^native-plan-wait:/);
     expect(await hasCommittedNativePlanWait(committedDb(f, proof.source, proof.result), f.binding)).toBe(true);
     const changed = structuredClone(proof.result); changed.summary = "different result";
@@ -130,7 +130,7 @@ describe("accepted Cursor plan passive-wait authority", () => {
     f.events = f.events.filter(e => !e.eventType.startsWith("tool.execution."));
     const payload = (type: string) => (f.events.find(e => e.eventType === type)!.payload as any).prpEvent;
     const { interaction, delivery } = f.interactions[0]!;
-    const source = { ...proof.source, schema: "paperclip.native_cursor_plan_wait.v1", authoritySha256: nativeSha256({ admission, contract: f.contract,
+    const source = { ...proof.source, schema: "nexus.native_cursor_plan_wait.v1", authoritySha256: nativeSha256({ admission, contract: f.contract,
       created: payload("runtime_request.created"), resolved: payload("runtime_request.resolved"), terminal: payload("turn.completed"),
       interaction, delivery, resolvedAt: interaction.resolvedAt!.toISOString(), acknowledgedAt: delivery.acknowledgedAt!.toISOString() }) };
     delete source.toolExecutionId; delete source.toolLifecycleSha256;
@@ -185,11 +185,11 @@ describe("accepted Cursor plan passive-wait authority", () => {
     const payload = (type: string) => (f.events.find(e => e.eventType === type)!.payload as any).prpEvent;
     const { interaction, delivery } = f.interactions[0]!;
     const toolBinding = { toolExecutionId: proof.source.toolExecutionId, toolLifecycleSha256: proof.source.toolLifecycleSha256 };
-    const source = { ...proof.source, schema: "paperclip.native_cursor_plan_wait.v1", authoritySha256: nativeSha256({ admission, contract: f.contract,
+    const source = { ...proof.source, schema: "nexus.native_cursor_plan_wait.v1", authoritySha256: nativeSha256({ admission, contract: f.contract,
       created: payload("runtime_request.created"), resolved: payload("runtime_request.resolved"), terminal: payload("turn.completed"),
       interaction, delivery, resolvedAt: interaction.resolvedAt!.toISOString(), acknowledgedAt: delivery.acknowledgedAt!.toISOString(), toolBinding }) };
     proof.result.continuation!.idempotencyKey = proof.result.continuation!.idempotencyKey.replace("native-plan-wait:", "cursor-plan-wait:");
-    const resultJson = { result: proof.result, terminal: { schema: "paperclip.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" } };
+    const resultJson = { result: proof.result, terminal: { schema: "nexus.prp.terminal.v1", runTerminalState: "succeeded", turnTerminalState: "completed", reportedWorkDisposition: "yielded" } };
     const canonicalSha256 = nativeSha256(resultJson);
     const db = () => {
       const rows = [

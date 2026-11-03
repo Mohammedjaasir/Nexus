@@ -106,7 +106,7 @@ export function assertHireBinding(scope: HireScope, agents: Row[], hiredId?: str
   if (agents.length !== 1 || hires.length !== 1) throw new JourneyError("failed", "exactly_one_native_hire_required");
   const hired = hires[0]!;
   if (hired.id === scope.leadId || hiredId && hired.id !== hiredId || hired.companyId !== scope.companyId
-    || hired.reportsTo !== scope.leadId || hired.adapterType !== "paperclip_runner" || hired.adapterConfig?.model !== scope.model
+    || hired.reportsTo !== scope.leadId || hired.adapterType !== "nexus_runner" || hired.adapterConfig?.model !== scope.model
     || !scope.connectionBinding || (!isDeepStrictEqual(hired.runtimeConfig?.aiConnection, scope.connectionBinding)
       && !approvedFallback(scope, hired.runtimeConfig?.aiConnection))) {
     throw new JourneyError("failed", "hire_native_binding_mismatch");
@@ -182,7 +182,7 @@ export function assertHireRuns(scope: HireScope, hiredId: string | undefined, ta
     }
     if (!["queued", "running", "succeeded"].includes(run.status)) throw new JourneyError("failed", "hire_native_run_failed");
     if (run.status === "succeeded" && (run.runtimeMode !== "native" || provider?.kind !== scope.provider || provider?.model !== scope.model
-      || run.contextSnapshot?.paperclipEnvironment?.id !== scope.environmentId)) throw new JourneyError("failed", "hire_run_runtime_mismatch");
+      || run.contextSnapshot?.nexusEnvironment?.id !== scope.environmentId)) throw new JourneyError("failed", "hire_run_runtime_mismatch");
     if (run.status === "succeeded" && scope.connectionChoice) {
       const actual = run.contextSnapshot?.aiConnection, expected = scope.connectionChoice;
       if (actual?.connectionId !== expected.connectionId || actual.grantId !== expected.grantId

@@ -3,7 +3,7 @@ import { AlertTriangle, MessageSquarePlus } from "lucide-react";
 import type {
   DocumentAnnotationAnchorState,
   DocumentAnnotationThreadStatus,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -19,7 +19,7 @@ import {
   recordMarkdownMutations,
   recordSelectionChange,
 } from "@/lib/document-annotation-debug";
-import type { DocumentAnnotationAnchorSelector } from "@paperclipai/shared";
+import type { DocumentAnnotationAnchorSelector } from "@nexusai/shared";
 
 export interface AnnotationOverlayThread {
   id: string;
@@ -74,7 +74,7 @@ export interface AnnotationLayerProps {
 }
 
 /** Synthetic thread id used to render the in-progress (pending) comment highlight. */
-const PENDING_HIGHLIGHT_THREAD_ID = "__paperclip-pending-annotation__";
+const PENDING_HIGHLIGHT_THREAD_ID = "__nexus-pending-annotation__";
 
 interface HighlightRect {
   threadId: string;
@@ -109,10 +109,10 @@ type HighlightRegistry = {
 };
 
 const NATIVE_HIGHLIGHT_NAMES: Record<NativeHighlightKind, string> = {
-  open: "paperclip-doc-annotation-open",
-  focused: "paperclip-doc-annotation-focused",
-  stale: "paperclip-doc-annotation-stale",
-  resolved: "paperclip-doc-annotation-resolved",
+  open: "nexus-doc-annotation-open",
+  focused: "nexus-doc-annotation-focused",
+  stale: "nexus-doc-annotation-stale",
+  resolved: "nexus-doc-annotation-resolved",
 };
 
 const nativeHighlightInstances = new Map<string, NativeHighlightRanges>();
@@ -396,13 +396,13 @@ export function DocumentAnnotationLayer({
       ? new window.MutationObserver((mutations) => {
         if (selectionDebugEnabled) {
           const markdownMutations = mutations.filter((mutation) =>
-            Boolean(elementFromNode(mutation.target)?.closest(".paperclip-markdown")),
+            Boolean(elementFromNode(mutation.target)?.closest(".nexus-markdown")),
           );
           if (markdownMutations.length > 0) recordMarkdownMutations(markdownMutations.length);
         }
         const onlyLayerMutations = mutations.every((mutation) => {
           const target = elementFromNode(mutation.target);
-          return !!target?.closest(".paperclip-doc-annotation-layer, .paperclip-doc-annotation-visual-layer");
+          return !!target?.closest(".nexus-doc-annotation-layer, .nexus-doc-annotation-visual-layer");
         });
         if (!onlyLayerMutations) schedule();
       })
@@ -502,7 +502,7 @@ export function DocumentAnnotationLayer({
 
   const content = (
     <>
-      <div className="paperclip-doc-annotation-visual-layer pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+      <div className="nexus-doc-annotation-visual-layer pointer-events-none absolute inset-0 z-0" aria-hidden="true">
         <div className="relative h-full w-full">
           {highlightRects.map((rect, index) => {
             const isFocused = rect.focused;
@@ -515,7 +515,7 @@ export function DocumentAnnotationLayer({
                 data-status={rect.status}
                 data-focused={isFocused || undefined}
                 data-hovered={isHovered || undefined}
-                className="paperclip-doc-annotation-highlight absolute"
+                className="nexus-doc-annotation-highlight absolute"
                 style={{
                   top: rect.top,
                   left: rect.left,
@@ -528,7 +528,7 @@ export function DocumentAnnotationLayer({
         </div>
       </div>
       <div
-        className="paperclip-doc-annotation-layer pointer-events-none absolute inset-0 z-(--z-2)"
+        className="nexus-doc-annotation-layer pointer-events-none absolute inset-0 z-(--z-2)"
         aria-hidden="true"
       >
         <div ref={overlayRef} className="relative h-full w-full">
@@ -547,7 +547,7 @@ export function DocumentAnnotationLayer({
                 data-hovered={isHovered || undefined}
                 aria-label="Open annotation thread"
                 className={cn(
-                  "paperclip-doc-annotation-hit-target pointer-events-auto absolute cursor-pointer rounded-none bg-transparent transition-colors",
+                  "nexus-doc-annotation-hit-target pointer-events-auto absolute cursor-pointer rounded-none bg-transparent transition-colors",
                   isFocused && "ring-1 ring-transparent",
                 )}
                 style={{
@@ -578,7 +578,7 @@ export function DocumentAnnotationLayer({
                 key={`tail-${rect.threadId}-${index}`}
                 aria-hidden="true"
                 data-thread-id={rect.threadId}
-                className="paperclip-doc-annotation-tail pointer-events-none absolute inline-flex items-center justify-center rounded-sm bg-amber-500/95 text-amber-50 shadow-sm dark:bg-amber-500/90 dark:text-amber-50"
+                className="nexus-doc-annotation-tail pointer-events-none absolute inline-flex items-center justify-center rounded-sm bg-amber-500/95 text-amber-50 shadow-sm dark:bg-amber-500/90 dark:text-amber-50"
                 style={{
                   top: rect.top + Math.max(0, rect.height / 2 - 8),
                   left: rect.left + rect.width + 2,
@@ -596,7 +596,7 @@ export function DocumentAnnotationLayer({
               data-testid="document-annotation-selection-toolbar"
               role="toolbar"
               aria-label="Selection actions"
-              className="paperclip-doc-annotation-selection-toolbar pointer-events-auto absolute z-10 flex items-center gap-1 rounded-md border border-border bg-popover px-1 py-1 shadow-md"
+              className="nexus-doc-annotation-selection-toolbar pointer-events-auto absolute z-10 flex items-center gap-1 rounded-md border border-border bg-popover px-1 py-1 shadow-md"
               style={{ top: toolbarPosition.top, left: toolbarPosition.left }}
               onMouseDown={(event) => event.preventDefault()}
             >

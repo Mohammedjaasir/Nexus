@@ -141,7 +141,7 @@ API: `present` — representative operation IDs:
 - `POST /api/issues/{id}/tree-holds`.
 - `POST /api/agents/{id}/pause`.
 
-Agent access: `restricted` — Board control APIs; agent paperclip_finish/paperclip_block
+Agent access: `restricted` — Board control APIs; agent nexus_finish/nexus_block
 for its own turn.
 
 Policy: Queue inspection follows task visibility; queued user-message mutation and run

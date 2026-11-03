@@ -23,7 +23,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatActions,
@@ -33,7 +33,7 @@ import {
   chatPublications,
   issueThreadInteractions,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 import {
   type ChatSdkCallbackEvent,
@@ -184,7 +184,7 @@ export function createChatConfirmationActions(db: Db, options: ChatConfirmationO
                 runtimeContext,
               });
             },
-            afterResolveInTransaction: async (tx: DbTransaction, resolved: import("@paperclipai/shared").IssueThreadInteraction) => {
+            afterResolveInTransaction: async (tx: DbTransaction, resolved: import("@nexusai/shared").IssueThreadInteraction) => {
               await notifyChatConfirmationWork(tx, { companyId: action.companyId, issueId: conversation.issueId });
               const [owned] = await tx
                 .update(chatActions)
@@ -609,7 +609,7 @@ export function createChatConfirmationActions(db: Db, options: ChatConfirmationO
           .onConflictDoNothing();
       }
       // A provider callback can lose the pending -> terminal interaction race
-      // to the Paperclip UI. In that case this transaction only retires the
+      // to the Nexus UI. In that case this transaction only retires the
       // now-redundant provider action and must not fabricate a second external
       // resolution event attributed to the board winner.
       if (resolvedByThisProviderAction) {

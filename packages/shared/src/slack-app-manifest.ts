@@ -11,8 +11,8 @@ export const SLACK_CHAT_BOT_SCOPES = [
 
 export function defaultSlackAppConfiguration(agentName: string): SlackAppConfiguration {
   const botName = agentName.normalize("NFKD").toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "paperclip-agent";
-  return { appName: `${botName}-paperclip`, botName, command: `/${botName.replace(/[._]+/g, "-")}` };
+    .replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "nexus-agent";
+  return { appName: `${botName}-nexus`, botName, command: `/${botName.replace(/[._]+/g, "-")}` };
 }
 
 export function buildSlackAppManifest(input: {
@@ -22,10 +22,10 @@ export function buildSlackAppManifest(input: {
   redirectUri?: string;
 }) {
   return {
-    display_information: { name: input.app.appName, description: `Talk to ${input.agentName} and manage work in Paperclip.`.slice(0, 140) },
+    display_information: { name: input.app.appName, description: `Talk to ${input.agentName} and manage work in Nexus.`.slice(0, 140) },
     features: {
       app_home: { home_tab_enabled: false, messages_tab_enabled: true, messages_tab_read_only_enabled: false },
-      agent_view: { agent_description: "Work with a Paperclip agent in a task-backed conversation." },
+      agent_view: { agent_description: "Work with a Nexus agent in a task-backed conversation." },
       bot_user: { display_name: input.app.botName },
       slash_commands: [{ command: input.app.command, description: `Start or manage work with ${input.agentName}`,
         usage_hint: "status | new | close | <task>", should_escape: false, url: input.webhookUrl }],
@@ -72,7 +72,7 @@ export const slackAvatarStateSchema = z.discriminatedUnion("status", [
 export type SlackAvatarState = z.infer<typeof slackAvatarStateSchema>;
 export const slackAccountStateSchema = z.object({
   externalUserId: z.string().regex(/^[UW][A-Z0-9]+$/),
-  paperclipUserId: z.string().min(1),
+  nexusUserId: z.string().min(1),
   status: z.enum(["pending", "linked"]),
   welcomeStatus: z.enum(["pending", "sending", "sent", "failed", "uncertain"]),
   verificationStatus: z.enum(["pending", "sending", "sent", "failed", "uncertain"]).optional(),
@@ -80,7 +80,7 @@ export const slackAccountStateSchema = z.object({
 }).strict();
 export type SlackAccountState = z.infer<typeof slackAccountStateSchema>;
 export const slackInstallAuthorizationSchema = z.object({ authorizationUrl: z.string().url(), expiresAt: z.string().datetime() });
-export const slackManagerAuthorizationSchema = slackInstallAuthorizationSchema.extend({ handoff: z.object({ kind: z.literal("paperclip_cloud"), session: z.string().min(16).max(512) }).optional() });
+export const slackManagerAuthorizationSchema = slackInstallAuthorizationSchema.extend({ handoff: z.object({ kind: z.literal("nexus_cloud"), session: z.string().min(16).max(512) }).optional() });
 export type SlackManagerAuthorization = z.infer<typeof slackManagerAuthorizationSchema>;
 export type SlackInstallAuthorization = z.infer<typeof slackInstallAuthorizationSchema>;
 export const slackSetupActionSchema = z.object({}).strict();
@@ -118,9 +118,9 @@ export function slackRegistrationErrorMessage(code: string): string {
     slack_install_failed: "Slack installation could not be completed. Authorize the same app again.",
     slack_install_identity_mismatch: "Slack returned a different app, workspace, or bot. Install the app created for this connection.",
     slack_install_scopes_missing: "Slack did not grant all required bot permissions. Install the app again and approve its requested permissions.",
-    slack_bot_already_connected: "This Slack bot is already connected to Paperclip. Resume its existing connection or use a different app.",
+    slack_bot_already_connected: "This Slack bot is already connected to Nexus. Resume its existing connection or use a different app.",
     slack_install_token_invalid: "Slack rejected the saved bot credentials. Continue in Slack to authorize this app again.",
-    slack_configuration_incomplete: "The app is installed, but Paperclip could not finish connecting it. Retry connecting the saved installation.",
+    slack_configuration_incomplete: "The app is installed, but Nexus could not finish connecting it. Retry connecting the saved installation.",
     slack_install_account_missing: "Slack did not identify your account. Authorize the same app again to connect your Slack account.",
     slack_install_account_conflict: "This Slack account already has an existing link. Manage account links in connection settings, or authorize with your own Slack account.",
   };

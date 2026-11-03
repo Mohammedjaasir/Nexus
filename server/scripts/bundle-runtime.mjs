@@ -7,7 +7,7 @@ import { build } from "esbuild";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const serverDir = join(scriptDir, "..");
 
-const REQUIRE_SHIM = "import { createRequire as __paperclipCreateRequire } from 'node:module'; const require = __paperclipCreateRequire(import.meta.url);";
+const REQUIRE_SHIM = "import { createRequire as __nexusCreateRequire } from 'node:module'; const require = __nexusCreateRequire(import.meta.url);";
 
 export function preserveModuleLocation(source, file) {
   return source
@@ -20,7 +20,7 @@ function runtimeEntry(entry) {
   return {
     name: "runtime-entry",
     setup(builder) {
-      builder.onResolve({ filter: /^paperclip-runtime-entry$/ }, () => ({ path: "paperclip-runtime-entry", namespace: "runtime-entry" }));
+      builder.onResolve({ filter: /^nexus-runtime-entry$/ }, () => ({ path: "nexus-runtime-entry", namespace: "runtime-entry" }));
       builder.onLoad({ filter: /.*/, namespace: "runtime-entry" }, () => ({
         contents: `process.argv[1] = ${JSON.stringify(entry)};\nawait import(${JSON.stringify(entry)});\n`,
         loader: "js",
@@ -71,10 +71,10 @@ function externalizeThirdParty(isBundled, runtimeDir) {
   };
 }
 
-export async function bundleRuntime({ entry, outdir, maintenanceEntry, ephemeralMigrationEntry, isBundled = (specifier) => specifier.startsWith("@paperclipai/") }) {
+export async function bundleRuntime({ entry, outdir, maintenanceEntry, ephemeralMigrationEntry, isBundled = (specifier) => specifier.startsWith("@nexusai/") }) {
   await rm(outdir, { recursive: true, force: true });
   const result = await build({
-    entryPoints: { index: "paperclip-runtime-entry", server: entry, ...(maintenanceEntry ? { "agent-files": maintenanceEntry } : {}),
+    entryPoints: { index: "nexus-runtime-entry", server: entry, ...(maintenanceEntry ? { "agent-files": maintenanceEntry } : {}),
       ...(ephemeralMigrationEntry ? { "ephemeral-migration": ephemeralMigrationEntry } : {}) },
     outdir,
     outExtension: { ".js": ".mjs" },

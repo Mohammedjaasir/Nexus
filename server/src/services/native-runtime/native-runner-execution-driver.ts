@@ -1,11 +1,11 @@
 import { existsSync } from "node:fs";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
-import { resolvePaperclipRunnerTransport, type PaperclipRunnerTransport } from "@paperclipai/adapter-utils/runner-connectivity";
-import type { RunnerExecutionDriver } from "../../vendor/paperclip-runner/index.js";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
+import { resolveNexusRunnerTransport, type NexusRunnerTransport } from "@nexusai/adapter-utils/runner-connectivity";
+import type { RunnerExecutionDriver } from "../../vendor/nexus-runner/index.js";
 import { registerRunnerPrpAuthority } from "../../realtime/runner-prp-ws.js";
 import { connectRunnerPrpIngress } from "../../realtime/runner-prp-outbound.js";
 import type { NativeRunTrace } from "./native-run-trace.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { nativeRunnerCheckpointRegistration } from "./native-runner-checkpoint.js";
 
 type ConnectionRegistration = NonNullable<RunnerExecutionDriver["controlPlaneRegistration"]>;
@@ -65,8 +65,8 @@ export function resolveRemoteRunnerTransportMode(input: {
 type RemotePreparation = Pick<NativeRunnerExecutionDriverInput,
   "target" | "runnerIngressAuthorized" | "runnerPublicUrl" | "runnerCaBundlePath" | "prepareRemote"> & { runId: string };
 
-async function resolveOutboundTransport(input: RemotePreparation): Promise<PaperclipRunnerTransport> {
-  const transport = await resolvePaperclipRunnerTransport({ target: input.target, runId: input.runId,
+async function resolveOutboundTransport(input: RemotePreparation): Promise<NexusRunnerTransport> {
+  const transport = await resolveNexusRunnerTransport({ target: input.target, runId: input.runId,
     localConnectUrl: "ws://127.0.0.1/unused", runnerPublicUrl: input.runnerPublicUrl,
     runnerCaBundlePath: input.runnerCaBundlePath, runnerIngressAuthorized: input.runnerIngressAuthorized === true });
   if (transport.mode === "direct_outbound" && transport.caBundlePath && !existsSync(transport.caBundlePath)) {
@@ -131,7 +131,7 @@ export function createNativeRunnerExecutionDriver(input: NativeRunnerExecutionDr
             });
             await input.onLog?.(
               "stderr",
-              "[paperclip-runner] transport mode=local_loopback state=connecting\n",
+              "[nexus-runner] transport mode=local_loopback state=connecting\n",
             );
             const registration = await measureNativeRunnerSpan(
               input.trace,
@@ -156,7 +156,7 @@ export function createNativeRunnerExecutionDriver(input: NativeRunnerExecutionDr
             target: input.target,
             runnerIngressAuthorized: input.runnerIngressAuthorized === true,
           });
-          let transport: PaperclipRunnerTransport;
+          let transport: NexusRunnerTransport;
           if (requiredMode === "dial_wss") {
             // Validate eligibility before staging any artifact.
             transport = await measureNativeRunnerSpan(
@@ -181,7 +181,7 @@ export function createNativeRunnerExecutionDriver(input: NativeRunnerExecutionDr
               input.trace,
               "runner.ingress.acquire",
               () =>
-                resolvePaperclipRunnerTransport({
+                resolveNexusRunnerTransport({
                   target: input.target,
                   runId:
                     attachmentIdentity?.runId ??
@@ -204,14 +204,14 @@ export function createNativeRunnerExecutionDriver(input: NativeRunnerExecutionDr
               mode: transport.mode,
               connectionOwner:
                 transport.mode === "provider_ingress"
-                  ? "paperclip"
+                  ? "nexus"
                   : "runnerd",
             },
           });
 
           await input.onLog?.(
             "stderr",
-            `[paperclip-runner] transport mode=${transport.mode} state=connecting\n`,
+            `[nexus-runner] transport mode=${transport.mode} state=connecting\n`,
           );
 
           if (transport.mode === "direct_outbound") {
@@ -277,7 +277,7 @@ export function createNativeRunnerExecutionDriver(input: NativeRunnerExecutionDr
                     onStateChange: (state, failureCode) => {
                       void input.onLog?.(
                         "stderr",
-                        `[paperclip-runner] transport mode=provider_ingress state=${state}${failureCode ? ` failure=${failureCode}` : ""}\n`,
+                        `[nexus-runner] transport mode=provider_ingress state=${state}${failureCode ? ` failure=${failureCode}` : ""}\n`,
                       );
                     },
                   });

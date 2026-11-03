@@ -25,10 +25,10 @@ export function braintrustTraceIndexQuery(projectId: string, result: RunnerE2ERe
     : `span_attributes.name = 'claude_code.llm_request' AND span_attributes.type = 'llm'`;
   const tool = (name: string) => result.profileId === "runner-codex"
     ? `metadata."event.name" = 'codex.tool_result' AND metadata.tool_name = '${name}' AND metadata.success = 'true'`
-    : `span_attributes.type = 'tool' AND span_attributes.name = 'mcp__paperclip__${name}'`;
+    : `span_attributes.type = 'tool' AND span_attributes.name = 'mcp__nexus__${name}'`;
   return `SELECT COUNT(*) AS records,
-    SUM(CASE WHEN span_id = '${trace.spanId}' AND span_attributes.name = 'paperclip.eval.attempt' THEN 1 ELSE 0 END) AS roots,
-    SUM(CASE WHEN span_id = '${trace.finalization!.spanId}' AND span_attributes.name = 'paperclip.eval.finalization' THEN 1 ELSE 0 END) AS finalizations,
+    SUM(CASE WHEN span_id = '${trace.spanId}' AND span_attributes.name = 'nexus.eval.attempt' THEN 1 ELSE 0 END) AS roots,
+    SUM(CASE WHEN span_id = '${trace.finalization!.spanId}' AND span_attributes.name = 'nexus.eval.finalization' THEN 1 ELSE 0 END) AS finalizations,
     SUM(CASE WHEN ${nativeRequest} THEN 1 ELSE 0 END) AS native_api_records,
     SUM(CASE WHEN ${tool("submit_complaint")} THEN 1 ELSE 0 END) AS complaints,
     SUM(CASE WHEN ${tool("submit_suggestion")} THEN 1 ELSE 0 END) AS suggestions

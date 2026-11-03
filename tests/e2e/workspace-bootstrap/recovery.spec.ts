@@ -81,7 +81,7 @@ for (const persistent of [false, true]) {
       expect(completedRun.lastOutputSeq).toBeGreaterThan(0);
       expect(completedRun.lastOutputBytes).toBe(completedRun.logBytes);
       expect(completedLog.content).toContain("Workspace recovery verification complete.");
-      const [runtimeService] = completedRun.contextSnapshot.paperclipRuntimeServices;
+      const [runtimeService] = completedRun.contextSnapshot.nexusRuntimeServices;
       expect(runtimeService).toMatchObject({ serviceName: "fixture-web", companyId: fixture.companyId, provider: "local_process" });
       const comments = await api(`/issues/${task.id}/comments`);
       expect(comments.some((comment: { body: string }) => comment.body.includes("## Workspace Ready") && comment.body.includes(runtimeService.url))).toBe(true);

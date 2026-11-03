@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { IssueRecoveryAction } from "@paperclipai/shared";
+import type { IssueRecoveryAction } from "@nexusai/shared";
 import { WorkspaceExportRecovery } from "./WorkspaceExportRecovery";
 const action = { cause: "native_workspace_finalization_owner_unverified", status: "escalated", ownerType: "board", evidence: { runId: "run", owner: { token: "owner", hostname: "secret-host", pid: 2 } }, wakePolicy: null } as unknown as IssueRecoveryAction;
 describe("WorkspaceExportRecovery", () => {

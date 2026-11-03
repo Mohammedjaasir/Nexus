@@ -5,7 +5,7 @@ import type { RunnerE2EResult } from "./types.js";
 
 function result(executionId: string, startMs: number, durationMs: number, attempt = 1): RunnerE2EResult {
   return {
-    schema: "paperclip.runner-e2e.result/v2", executionId, suiteId: "timing-fixture",
+    schema: "nexus.runner-e2e.result/v2", executionId, suiteId: "timing-fixture",
     accountingIdentity: { campaignId: "timing-campaign", attemptId: `${executionId}-${attempt}` },
     attempt, status: "passed", profileId: "runner-codex", environmentId: "local",
     caseId: executionId, provider: "codex", model: "fixture-model", runtimeMode: "native",

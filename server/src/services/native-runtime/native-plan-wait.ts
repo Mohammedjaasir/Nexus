@@ -3,12 +3,12 @@ import {
   completionContracts, heartbeatRunEvents, heartbeatRuns, issues, issueComments,
   nativeRunFinalizations, nativeRunResults, statusDecisions,
   issueQuestionResponseDeliveries, issueThreadInteractions, type Db,
-} from "@paperclipai/db";
-import type { AskUserQuestionsInteraction } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { AskUserQuestionsInteraction } from "@nexusai/shared";
 import {
-  parsePaperclipQuestionResponse, parsePaperclipQuestionSet,
+  parseNexusQuestionResponse, parseNexusQuestionSet,
   type PrpStructuredRunResult,
-} from "../../vendor/paperclip-runner/index.js";
+} from "../../vendor/nexus-runner/index.js";
 import { buildQuestionResponseDeliveryEnvelope } from "../question-response-delivery.js";
 import { nativeCompletionContractSha256 } from "./completion-contracts.js";
 import { nativeSha256 } from "./canonical.js";
@@ -86,7 +86,7 @@ function planWaitFromFacts(facts: PlanWaitFacts, committedSource?: NativePlanWai
       const event = record(record(row.payload).prpEvent);
       if (!event.schema) continue; // Non-PRP aggregate rows are not native evidence.
       if (row.companyId !== b.companyId || row.runId !== b.runId || row.agentId !== b.agentId || row.seq <= lastRowSeq ||
-        event.schema !== "paperclip.prp.event.v1" || event.schemaVersion !== 1 || event.sourceInstanceId !== run.runnerInstanceId || event.sourceKind !== "runner" || event.runId !== b.runId || event.normalizedSessionId !== sessionId ||
+        event.schema !== "nexus.prp.event.v1" || event.schemaVersion !== 1 || event.sourceInstanceId !== run.runnerInstanceId || event.sourceKind !== "runner" || event.runId !== b.runId || event.normalizedSessionId !== sessionId ||
         row.eventType !== event.eventType || row.sourceEventId !== event.sourceEventId || row.sourceInstanceId !== event.sourceInstanceId || row.sourceSeq !== event.sourceSeq || row.protocolSchemaVersion !== event.schemaVersion ||
         typeof event.sourceInstanceId !== "string" || !event.sourceInstanceId || typeof event.sourceEventId !== "string" || !event.sourceEventId || !Number.isSafeInteger(event.sourceSeq) || event.sourceSeq < 1 || row.sourcePayloadSha256 !== nativeSha256(event) ||
         (lastSourceSeq.get(event.sourceInstanceId) ?? 0) >= event.sourceSeq || ids.has(event.sourceEventId) || seqs.has(`${event.sourceInstanceId}:${event.sourceSeq}`)) return null;
@@ -99,7 +99,7 @@ function planWaitFromFacts(facts: PlanWaitFacts, committedSource?: NativePlanWai
     if (turn.some(e => e.sourceInstanceId !== terminal.sourceInstanceId) || turn.filter(e => ["turn.completed", "turn.failed", "turn.cancelled"].includes(e.eventType)).length !== 1) return null;
     const requests = turn.filter(e => e.eventType === "runtime_request.created");
     const created = requests.at(-1), request = record(record(created?.payload).request);
-    if (!created || request.schema !== "paperclip.runtime_request.v2" || request.type !== "input" || request.requestKind !== "runtime" || request.status !== "pending" || request.turnId !== terminal.turnId ||
+    if (!created || request.schema !== "nexus.runtime_request.v2" || request.type !== "input" || request.requestKind !== "runtime" || request.status !== "pending" || request.turnId !== terminal.turnId ||
       !adapter.isRequest(request) || typeof request.requestId !== "string") return null;
     if (new Set(requests.map(e => record(record(e.payload).request).requestId)).size !== requests.length) return null;
     // No unresolved earlier input or later work is disguised as an accepted plan boundary.
@@ -127,22 +127,22 @@ function planWaitFromFacts(facts: PlanWaitFacts, committedSource?: NativePlanWai
       const ends = lifecycle.filter(e => e.eventType === "tool.execution.completed");
       if (starts.length !== 1 || ends.length !== 1 || starts[0]!.sourceSeq >= resolved.sourceSeq || ends[0]!.sourceSeq <= resolved.sourceSeq || ends[0]!.sourceSeq >= terminal.sourceSeq ||
         lifecycle[0] !== starts[0] || lifecycle.at(-1) !== ends[0] ||
-        lifecycle.some(e => record(e.payload).schema !== "paperclip.tool.execution.v1" || record(e.payload).transport !== "builtin" || record(e.payload).operation !== "execute" || record(e.payload).status !== (e.eventType === "tool.execution.completed" ? "completed" : "running")) ||
+        lifecycle.some(e => record(e.payload).schema !== "nexus.tool.execution.v1" || record(e.payload).transport !== "builtin" || record(e.payload).operation !== "execute" || record(e.payload).status !== (e.eventType === "tool.execution.completed" ? "completed" : "running")) ||
         tools.some(e => e.sourceSeq > created.sourceSeq && record(e.payload).executionId !== id)) return null;
       toolBinding = { toolExecutionId: id, toolLifecycleSha256: nativeSha256(lifecycle) };
     }
-    const questionSet = parsePaperclipQuestionSet(request.input);
-    const response = parsePaperclipQuestionResponse(questionSet, resolution.response);
+    const questionSet = parseNexusQuestionSet(request.input);
+    const response = parseNexusQuestionResponse(questionSet, resolution.response);
     const planRevision = adapter.acceptedRevision(questionSet, response);
     if (planRevision === null) return null;
     const matches = facts.interactions.filter(({ interaction: i }) => record(i.payload).runtimeRequestId === request.requestId);
     if (matches.length !== 1) return null;
     const { interaction: i, delivery: d } = matches[0]!;
     if (i.companyId !== b.companyId || i.issueId !== b.issueId || i.sourceRunId !== b.runId || i.createdByAgentId !== b.agentId || i.kind !== "ask_user_questions" || i.status !== "answered" || i.continuationPolicy !== "none" || !i.resolvedByUserId || !i.resolvedAt || i.resolvedByAgentId ||
-      i.idempotencyKey !== `paperclip-runner-question:${b.runId}:${request.requestId}` || !same(record(i.payload).questionSet, questionSet) ||
+      i.idempotencyKey !== `nexus-runner-question:${b.runId}:${request.requestId}` || !same(record(i.payload).questionSet, questionSet) ||
       d.companyId !== b.companyId || d.issueId !== b.issueId || d.interactionId !== i.id || d.sourceRunId !== b.runId || d.targetRunId !== b.runId || d.status !== "delivered" || d.deliveryMode !== "steered" || !d.acknowledgedAt || (d.targetTurnId !== null && d.targetTurnId !== terminal.turnId)) return null;
     const envelope = buildQuestionResponseDeliveryEnvelope(i as unknown as AskUserQuestionsInteraction);
-    if (d.payloadSha256 !== nativeSha256(envelope) || !same(parsePaperclipQuestionResponse(questionSet, envelope.response), response)) return null;
+    if (d.payloadSha256 !== nativeSha256(envelope) || !same(parseNexusQuestionResponse(questionSet, envelope.response), response)) return null;
     const source: NativePlanWaitSource = {
       ...b, schema: format.schema, contractId: contract.id, contractSha256: contract.canonicalSha256, interactionId: i.id, requestId: request.requestId, planRevision,
       turnId: terminal.turnId, normalizedSessionId: sessionId, sourceInstanceId: terminal.sourceInstanceId,
@@ -153,7 +153,7 @@ function planWaitFromFacts(facts: PlanWaitFacts, committedSource?: NativePlanWai
     if (committedSource && !same(source, committedSource)) return null;
     const ref = `interaction:${i.id}`;
     const result: PrpStructuredRunResult = {
-      schema: "paperclip.run_result.v1", reportedWorkDisposition: "yielded", summary: SUMMARY,
+      schema: "nexus.run_result.v1", reportedWorkDisposition: "yielded", summary: SUMMARY,
       completionClaim: { contractRevision: String(contract.contractJson.revision), objectiveSatisfied: false,
         criteria: (contract.contractJson.criteria as Array<{id: string}>).map(c => ({ criterionId: c.id, status: "unknown", evidenceRefs: [ref] })),
         remainingWork: [{ description: "Continue or finalize the accepted plan only after explicit direction; remain in the selected mode.", blocksCompletion: true }] },
@@ -228,7 +228,7 @@ export async function hasCommittedNativePlanWait(db: Db, binding: Binding): Prom
   const envelope = record(receipt.result.resultJson), terminal = record(envelope.terminal);
   const acceptedIdentity = committed.identity;
   if (!proof || receipt.result.completionContractId !== proof.source.contractId || receipt.result.turnId !== proof.source.turnId || acceptedIdentity.resultId !== receipt.result.id || acceptedIdentity.resultSha256 !== receipt.result.canonicalSha256 || !same(committedSource, proof.source) || !same(envelope.result, proof.result) ||
-    terminal.schema !== "paperclip.prp.terminal.v1" || terminal.runTerminalState !== "succeeded" || terminal.turnTerminalState !== "completed" || terminal.reportedWorkDisposition !== "yielded") return false;
+    terminal.schema !== "nexus.prp.terminal.v1" || terminal.runTerminalState !== "succeeded" || terminal.turnTerminalState !== "completed" || terminal.reportedWorkDisposition !== "yielded") return false;
   const [run] = await db.select().from(heartbeatRuns).where(and(eq(heartbeatRuns.id, binding.runId), eq(heartbeatRuns.companyId, binding.companyId))).limit(1);
   if (!run || run.status !== "succeeded") return false;
   // Settings for future runs cannot authorize work on this accepted plan.

@@ -23,12 +23,12 @@ function normalizeTokenBrokerAllowedHost(value: string): string | null {
 }
 
 function tokenBrokerAllowedPrivateHosts(): Set<string> {
-  const configured = (process.env.PAPERCLIP_TOKEN_BROKER_ALLOWED_HOSTS ?? "")
+  const configured = (process.env.NEXUS_TOKEN_BROKER_ALLOWED_HOSTS ?? "")
     .split(/[,\s]+/)
     .map(normalizeTokenBrokerAllowedHost)
     .filter((host): host is string => host !== null);
   const pagesApiHost = normalizeTokenBrokerAllowedHost(
-    process.env.PAPERCLIP_PAGES_API_URL ?? "",
+    process.env.NEXUS_PAGES_API_URL ?? "",
   );
   if (pagesApiHost) configured.push(pagesApiHost);
   return new Set(configured);

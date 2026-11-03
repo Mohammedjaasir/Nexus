@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { BudgetIncident } from "@paperclipai/shared";
+import type { BudgetIncident } from "@nexusai/shared";
 import { expect, userEvent, within, waitFor } from "storybook/test";
 import type { ComponentProps } from "react";
 import { Costs } from "@/pages/Costs";
@@ -39,7 +39,7 @@ const meta = {
   component: BudgetHost,
   args: { embedded: true, initialTab: "budgets", lockTab: true },
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "budgets-costs/resolution"
       ],

@@ -1,6 +1,6 @@
 # Agent instruction route graph reuse recheck (2026-10-13)
 
-Owner: `server/src/__tests__/agent-instructions-routes.test.ts`. Rechecked in `/private/tmp/paperclip-test-audit-pr-stack` at `9b4d0cd872ca1fc897f320cb181fc060f0bd5bf1` without changing its branch. The owner blob is identical to both `codex/test-audit-r15-onboarding-duplicates` at `568ba003a5` and the parent of prior candidate `0e5043c65513ac470208152dd90e0e74b6dcd022`: `4f7a65449b3d5ed70539bec18b1865e18c7648b7`.
+Owner: `server/src/__tests__/agent-instructions-routes.test.ts`. Rechecked in `/private/tmp/nexus-test-audit-pr-stack` at `9b4d0cd872ca1fc897f320cb181fc060f0bd5bf1` without changing its branch. The owner blob is identical to both `codex/test-audit-r15-onboarding-duplicates` at `568ba003a5` and the parent of prior candidate `0e5043c65513ac470208152dd90e0e74b6dcd022`: `4f7a65449b3d5ed70539bec18b1865e18c7648b7`.
 
 The earlier 34-line candidate removes duplicated module setup, not duplicated endpoint executions. Applied its exact owner patch after the parent explicitly authorized this setup reduction. Test source changes by +16/-50 lines, 853 to 819 lines, net -34. Registered and expanded cases remain 24; removed executions and assertions: zero. Production files changed: zero.
 
@@ -11,7 +11,7 @@ The complete section from the first test declaration through the final lifecycle
 Full owner command, with authorized local loopback access:
 
 ```sh
-node node_modules/vitest/vitest.mjs run --project @paperclipai/server server/src/__tests__/agent-instructions-routes.test.ts --reporter=json --outputFile=/private/tmp/agent-instructions-current-ARM.json
+node node_modules/vitest/vitest.mjs run --project @nexusai/server server/src/__tests__/agent-instructions-routes.test.ts --reporter=json --outputFile=/private/tmp/agent-instructions-current-ARM.json
 ```
 
 | Arm | Passed | Report start-to-suite-end duration |
@@ -22,4 +22,4 @@ node node_modules/vitest/vitest.mjs run --project @paperclipai/server server/src
 
 These are local observations on a concurrently used host, with one baseline and no reverse-order control. They support stable candidate behavior, not a quantified performance or CI speedup claim. Two sandboxed attempts stalled at HTTP fixtures and were cancelled (exit 130); they are excluded. Existing provider-trace cleanup warnings also appeared in passing baseline and candidate runs.
 
-Exact PR-branch rerun also passed 24/24 in 8.06 seconds with `node_modules/.bin/vitest run --project @paperclipai/server server/src/__tests__/agent-instructions-routes.test.ts --silent=true`. `git diff --check` passed. Reports: `/private/tmp/agent-instructions-current-baseline.json`, `/private/tmp/agent-instructions-current-candidate.json`, and `/private/tmp/agent-instructions-current-candidate-repeat.json`. No staging, commit, push, branch switch, or edits to other owners were performed. Repo-wide checks were not run for this narrow test-only worker handoff.
+Exact PR-branch rerun also passed 24/24 in 8.06 seconds with `node_modules/.bin/vitest run --project @nexusai/server server/src/__tests__/agent-instructions-routes.test.ts --silent=true`. `git diff --check` passed. Reports: `/private/tmp/agent-instructions-current-baseline.json`, `/private/tmp/agent-instructions-current-candidate.json`, and `/private/tmp/agent-instructions-current-candidate-repeat.json`. No staging, commit, push, branch switch, or edits to other owners were performed. Repo-wide checks were not run for this narrow test-only worker handoff.

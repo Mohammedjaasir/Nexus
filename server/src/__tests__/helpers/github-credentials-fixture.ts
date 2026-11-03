@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { agents, companies, companyMemberships, companySecrets, connectionGrants, heartbeatRuns, issueComments, issues, toolApplications, toolConnectionInstalls, toolConnections, userSecretDefinitions, type Db } from "@paperclipai/db";
+import { agents, companies, companyMemberships, companySecrets, connectionGrants, heartbeatRuns, issueComments, issues, toolApplications, toolConnectionInstalls, toolConnections, userSecretDefinitions, type Db } from "@nexusai/db";
 import { initializeRunIdentity, reserveSteeredIdentity, reconcileSteeredIdentity } from "../../services/run-identity.js";
 
 export function githubCredentialsFixture(getDb: () => Db) {

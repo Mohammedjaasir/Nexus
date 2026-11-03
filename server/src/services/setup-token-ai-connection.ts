@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { adapterAuthSessions, type Db } from "@paperclipai/db";
-import type { AgentAdapterType } from "@paperclipai/shared";
+import { adapterAuthSessions, type Db } from "@nexusai/db";
+import type { AgentAdapterType } from "@nexusai/shared";
 import { forbidden } from "../errors.js";
 import { aiConnectionService } from "./ai-connections.js";
 import {

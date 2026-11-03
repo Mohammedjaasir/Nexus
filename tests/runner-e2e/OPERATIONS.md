@@ -2,7 +2,7 @@
 
 The request ledger and gateway are opt-in. The ordinary launcher still supports
 unmetered legacy campaigns. Do not infer a spending limit from a campaign ID.
-Enable the bounded path with `PAPERCLIP_E2E_OPERATIONS_MANIFEST=/absolute/file.json`.
+Enable the bounded path with `NEXUS_E2E_OPERATIONS_MANIFEST=/absolute/file.json`.
 Keep this manifest, its journal, and request receipts private.
 
 The [coverage and operating-cost guide](OPERATIONS-COVERAGE.md) records cadence
@@ -120,7 +120,7 @@ frozen install in the credential-bearing job.
 ### Public history retention
 
 Public history remains an explicit manual operation. The optional bounded publisher
-uses `<history-prefix>/bounded-v1/` when `PAPERCLIP_E2E_BOUNDED_HISTORY=true`; existing
+uses `<history-prefix>/bounded-v1/` when `NEXUS_E2E_BOUNDED_HISTORY=true`; existing
 manual history otherwise retains its original prefix. Bounded publication is limited
 to the original CI workflow attempt and is not retried under the same allowance.
 
@@ -159,7 +159,7 @@ keys. The server environment strips the gateway token and upstream credentials.
 Every upstream attempt reserves its maximum estimated charge in an fsynced
 journal before dispatch. Requests, retries, and cancelled calls retain distinct
 IDs. Braintrust gateway requests include the reserved request ID, campaign,
-execution, attempt and phase as allowlisted `paperclip_eval_*` metadata in the
+execution, attempt and phase as allowlisted `nexus_eval_*` metadata in the
 SDK-compatible parent context. The private receipt saves that context before
 dispatch. A live hosted probe did not retain the propagated metadata, so this
 header alone does not prove lookup by request ID after a pre-header cancellation.
@@ -783,7 +783,7 @@ The original files supply each attempt's actual source and definition hash;
 the selected result's revision must not be assigned to older attempts.
 
 ```sh
-PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID=PROJECT_UUID \
+NEXUS_E2E_BRAINTRUST_PROJECT_ID=PROJECT_UUID \
 node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/braintrust-experiment-import.ts \
   /private/campaign/normalized-results.json /private/campaign/original-result-paths.json \
   /private/campaign/experiment-plan.json --dry-run
@@ -806,7 +806,7 @@ The importer validates an existing receipt before retrying and never lowers its
 confirmed accepted-row count. The receipt checkpoints accepted batches;
 HTTP acceptance still requires independent indexing/UI verification. Retain failed
 receipts. A retry must use the same original evidence, not newly run agents.
-Set `PAPERCLIP_E2E_BRAINTRUST_EXPERIMENT` to the receipt path when rebuilding the
+Set `NEXUS_E2E_BRAINTRUST_EXPERIMENT` to the receipt path when rebuilding the
 campaign report to retain the experiment link. Its evidence hash must match the
 report's selected source/definition identities, attempts, request-ledger checkpoint
 and feedback review. Refreshing only
@@ -836,7 +836,7 @@ and [insert retained events](https://www.braintrust.dev/docs/api-reference/exper
   written, and the launcher/report command exits unsuccessfully. Recover the
   original journal before resuming paid work; reporting does not repair or reset it.
 - To regenerate a merged report with the same ledger, pass
-  `PAPERCLIP_E2E_OPERATIONS_LEDGER=/absolute/ledger.jsonl` to `report.ts`.
+  `NEXUS_E2E_OPERATIONS_LEDGER=/absolute/ledger.jsonl` to `report.ts`.
   Dashboard refresh and public publication preserve and validate its closed
   numeric projection. Raw request receipts and the journal remain private.
 
@@ -865,7 +865,7 @@ separate remaining integration work.
 
 Each admitted attempt creates a private phase checkpoint under
 `<ledgerPath>.attempts/`. The launcher passes its path only to the test worker;
-the Paperclip server does not inherit it. Before fixture setup finishes,
+the Nexus server does not inherit it. Before fixture setup finishes,
 requests are recorded as `setup`, including connection checks and hello probes.
 The worker atomically advances the checkpoint to `agent` immediately after
 fixture creation and before task execution. Cleanup does not reset this phase,
@@ -935,7 +935,7 @@ product, cleanup, feedback and trace checks still fail qualification.
 
 A manual manifest can set `remoteGateway: "cloudflare"` for the native Codex
 or Claude marker/feedback Daytona cells. Install `cloudflared` on the controller
-PATH, or set `PAPERCLIP_EVAL_CLOUDFLARED` to its executable path. Empty overrides
+PATH, or set `NEXUS_EVAL_CLOUDFLARED` to its executable path. Empty overrides
 use the PATH default. The parent starts its existing model
 gateway and native OTLP relay, then exposes only their authenticated endpoints
 through one owned HTTPS quick tunnel. It verifies a fresh health nonce before

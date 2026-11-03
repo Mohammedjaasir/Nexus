@@ -52,7 +52,7 @@ test("native source contract rejects an ambiguous identical variant map", () => 
 });
 test("native source contract binds common Rust carrier source and the shared behavioral projection fixture", () => {
   const f = fixture(), before = nativeCompletionSourceFingerprint(f.read, f.contract);
-  f.bytes.set("packages/paperclip-runner/runner/crates/runner-core/src/provider_events.rs", Buffer.from("Changed carrier"));
+  f.bytes.set("packages/nexus-runner/runner/crates/runner-core/src/provider_events.rs", Buffer.from("Changed carrier"));
   const carrier = nativeCompletionSourceFingerprint(f.read, f.contract);
   assert.equal(carrier.variant, "candidate"); assert.notEqual(carrier.fingerprint, before.fingerprint);
   f.bytes.set("tests/runner-e2e/fixtures/native-completion/terminal-tool-carrier.json", Buffer.from("Changed projection"));

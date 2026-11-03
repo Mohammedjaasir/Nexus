@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within, waitFor } from "storybook/test";
 import { CoordinatorWorkspaceSetting } from "@/components/CoordinatorWorkspaceSetting";
-import { storybookAuthSession } from "../../fixtures/paperclipData";
+import { storybookAuthSession } from "../../fixtures/nexusData";
 import { prepareFixtureApi, type FixtureState } from "../../support/capability-gaps/api";
 
 const meta = {
@@ -10,7 +10,7 @@ const meta = {
   component: CoordinatorWorkspaceSetting,
   parameters: {
     layout: "padded",
-    paperclip: {
+    nexus: {
       capabilities: ["navigation-preferences/preferences"],
       status: "current",
       implementation: "production",

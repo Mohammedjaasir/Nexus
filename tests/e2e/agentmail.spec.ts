@@ -60,7 +60,7 @@ test("AgentMail setup and email work through the normal task conversation", asyn
   let reservedInbox: typeof inbox | null = null;
   const setupRequests: { idempotencyKey: string; username?: string }[] = [];
   const addressTakenError = "This email address is already in use. Choose a different address.";
-  const permissionError = "AgentMail did not allow Paperclip to create an inbox-scoped API key. Check your API key permissions and AgentMail account limits, then try again.";
+  const permissionError = "AgentMail did not allow Nexus to create an inbox-scoped API key. Check your API key permissions and AgentMail account limits, then try again.";
   const sends: any[] = [];
   const conversationId = randomUUID();
   const thread = {

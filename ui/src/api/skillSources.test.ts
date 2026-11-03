@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { skillSourcesApi } from './skillSources';
 import { tenantSessionRecovery } from '@/lib/tenant-session-recovery';
-import type { SkillSourceDiscovery, SkillSourceDiscoveryEvent } from '@paperclipai/shared';
+import type { SkillSourceDiscovery, SkillSourceDiscoveryEvent } from '@nexusai/shared';
 
 const input = { repositoryUrl: 'https://github.com/acme/skills' };
 const discovery: SkillSourceDiscovery = { repositoryId: '1', ...input, fullName: 'acme/skills', trackingRef: 'main', commitSha: 'a'.repeat(40), candidates: [], warnings: [] };

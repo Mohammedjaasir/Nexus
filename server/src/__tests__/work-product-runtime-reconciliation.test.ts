@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueWorkProduct } from "@nexusai/shared";
 import { reconcileRuntimeServiceWorkProducts } from "../services/work-products.js";
 
 function workProduct(overrides: Partial<IssueWorkProduct> = {}): IssueWorkProduct {
@@ -11,7 +11,7 @@ function workProduct(overrides: Partial<IssueWorkProduct> = {}): IssueWorkProduc
     executionWorkspaceId: "ews-1",
     runtimeServiceId: "runtime-1",
     type: "runtime_service",
-    provider: "paperclip",
+    provider: "nexus",
     externalId: null,
     title: "Workspace preview",
     url: "https://workspace.example.ts.net:42013/",

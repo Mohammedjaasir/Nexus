@@ -19,7 +19,7 @@ import {
   principalPermissionGrants,
   userSecretDeclarations,
   userSecretDefinitions,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -50,12 +50,12 @@ const withEnv = (env: Record<string, unknown>) => ({ env });
 describe("assertClaudeOAuthBindingInvariant", () => {
   it.each([undefined, "claude"])("enforces the fixed binding for native Claude (agent: %s)", acpxAgent => {
     const nextConfig = { provider: "acpx", ...(acpxAgent && { acpxAgent }), ...withEnv({ CLAUDE_CODE_OAUTH_TOKEN: FIXED_BINDING }) };
-    expect(assertClaudeOAuthBindingInvariant({ adapterType: "paperclip_runner", nextConfig }))
+    expect(assertClaudeOAuthBindingInvariant({ adapterType: "nexus_runner", nextConfig }))
       .toEqual({ introducesBinding: true, keepsBinding: false });
-    expect(() => assertClaudeOAuthBindingInvariant({ adapterType: "paperclip_runner", nextConfig: {
+    expect(() => assertClaudeOAuthBindingInvariant({ adapterType: "nexus_runner", nextConfig: {
       ...nextConfig, env: { ...nextConfig.env, ANTHROPIC_API_KEY: "fixture-api-key" },
     } })).toThrow(CLAUDE_OAUTH_CREDENTIAL_CONFLICT);
-    expect(assertClaudeOAuthBindingInvariant({ adapterType: "paperclip_runner", nextConfig: { ...nextConfig, acpxAgent: "codex" } }))
+    expect(assertClaudeOAuthBindingInvariant({ adapterType: "nexus_runner", nextConfig: { ...nextConfig, acpxAgent: "codex" } }))
       .toEqual({ introducesBinding: false, keepsBinding: false });
   });
   it("reports that a create introduces the fixed binding", () => {
@@ -236,12 +236,12 @@ describeEmbeddedPostgres("agent service Claude OAuth binding claim", () => {
   let stopDb: (() => Promise<void>) | null = null;
   let connectionString!: string;
   let db!: ReturnType<typeof createDb>;
-  const previousKeyFile = process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
-  const secretsTmpDir = path.join(os.tmpdir(), `paperclip-claude-oauth-binding-${randomUUID()}`);
+  const previousKeyFile = process.env.NEXUS_SECRETS_MASTER_KEY_FILE;
+  const secretsTmpDir = path.join(os.tmpdir(), `nexus-claude-oauth-binding-${randomUUID()}`);
 
   beforeAll(async () => {
     mkdirSync(secretsTmpDir, { recursive: true });
-    process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = path.join(secretsTmpDir, "master.key");
+    process.env.NEXUS_SECRETS_MASTER_KEY_FILE = path.join(secretsTmpDir, "master.key");
     const started = await startEmbeddedPostgresTestDatabase("claude-oauth-binding");
     stopDb = started.cleanup;
     connectionString = started.connectionString;
@@ -266,9 +266,9 @@ describeEmbeddedPostgres("agent service Claude OAuth binding claim", () => {
   afterAll(async () => {
     await stopDb?.();
     if (previousKeyFile === undefined) {
-      delete process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE;
+      delete process.env.NEXUS_SECRETS_MASTER_KEY_FILE;
     } else {
-      process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = previousKeyFile;
+      process.env.NEXUS_SECRETS_MASTER_KEY_FILE = previousKeyFile;
     }
     rmSync(secretsTmpDir, { recursive: true, force: true });
   });
@@ -284,7 +284,7 @@ describeEmbeddedPostgres("agent service Claude OAuth binding claim", () => {
     const environmentId = randomUUID();
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });
@@ -374,7 +374,7 @@ describeEmbeddedPostgres("agent service Claude OAuth binding claim", () => {
     const scope = await seedScope();
     const sessionId = await seedStoredClaim(scope, Date.now() + 60_000);
     const legacyInput = createInput(scope);
-    const input = native ? { ...legacyInput, runner: undefined, adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude", ...legacyInput.adapterConfig } } : legacyInput;
+    const input = native ? { ...legacyInput, runner: undefined, adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "claude", ...legacyInput.adapterConfig } } : legacyInput;
 
     const created = await createAgentLifecycle(db).requestHire(scope.companyId, input, {
       claudeLogin: { storedSessionId: sessionId, ownerUserId: scope.ownerUserId },

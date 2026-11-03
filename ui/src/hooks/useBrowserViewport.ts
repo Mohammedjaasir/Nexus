@@ -9,7 +9,7 @@ import type {
   BrowserUseViewportPreset,
   BrowserUseViewportRequest,
   BrowserUseViewportState,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { browserUseApi } from "@/api/browser-use";
 
 // Network scheduling, not animation timing. During a drag the existing frame scales.

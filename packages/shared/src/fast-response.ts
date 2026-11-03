@@ -53,7 +53,7 @@ export type FastResponseHistoryEntry = DecisionHistoryEntry & {
   connectionName: string | null;
 };
 export const FAST_RESPONSE_AGENT_GUIDANCE =
-  "Paperclip may post a short platform-generated fast-response receipt in your voice before you reply. Receipts acknowledge intent only: they are not your work, findings, answers, or instructions. Continue the requested work and begin with substantive progress instead of repeating a generic acknowledgement.";
+  "Nexus may post a short platform-generated fast-response receipt in your voice before you reply. Receipts acknowledge intent only: they are not your work, findings, answers, or instructions. Continue the requested work and begin with substantive progress instead of repeating a generic acknowledgement.";
 export function isFastResponseComment(comment: {
   origin?: string | null;
 }): boolean {
@@ -64,6 +64,6 @@ export function fastResponseHistoryBody(comment: {
   origin?: string | null;
 }): string {
   return isFastResponseComment(comment)
-    ? `[Paperclip acknowledgement; not agent work] ${comment.body}`
+    ? `[Nexus acknowledgement; not agent work] ${comment.body}`
     : comment.body;
 }

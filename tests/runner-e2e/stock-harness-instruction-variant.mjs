@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-const reduced = "You are an agent in a Paperclip company.\n";
-const historicalSha256 = "e4d2375d722602cd744403292d99f6e6c9b7e8014d9cdfa6f9811ace03428e5f";
+const reduced = "You are an agent in a Nexus company.\n";
+const historicalSha256 = "1b2f303539f921140fab608404e9742841f60366e6323a8a5ee2b76233ab86cc";
 
 /**
  * @param {unknown} content

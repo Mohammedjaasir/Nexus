@@ -18,10 +18,10 @@ Use the saved connection's ordinary Permissions screen to choose agents and set
 actions to Allowed, Ask first, or Off.
 
 This is a provider-focused connector. Sandbox IDs and names come from Daytona;
-no Paperclip task, run, or environment lease is required. Granting access to this
+no Nexus task, run, or environment lease is required. Granting access to this
 connection grants access to the provider resources its credential can reach.
 Some user/account and administrator operations require extra provider authority
-or user authentication and will reject an API key. Paperclip does not fall back
+or user authentication and will reject an API key. Nexus does not fall back
 to another identity when Daytona denies access.
 
 ## Complete published HTTP action catalog
@@ -31,13 +31,13 @@ The catalog contains **274 actions** from Daytona's published specifications:
 creation, start/stop/recovery/deletion, snapshots, volumes, files and transfers,
 Git, commands and sessions, computer use, organization/account administration,
 and provider telemetry queries. These provider telemetry tools do not emit
-Paperclip first-party telemetry.
+Nexus first-party telemetry.
 
 Actions have provider names such as `daytona_api_list_sandboxes`,
 `daytona_api_create_sandbox`, `daytona_toolbox_execute_command`, and
 `daytona_toolbox_download_file`. The generated schemas retain the provider's
 path/query/body arguments and required fields. Toolbox actions also take a
-`sandboxId`. Returned provider objects are not reduced to Paperclip task data.
+`sandboxId`. Returned provider objects are not reduced to Nexus task data.
 The selected connection credential is redacted from results and errors.
 
 | Action group | Permission classification |
@@ -75,7 +75,7 @@ organization header. Generic credential export rejects Daytona.
 
 File uploads take base64 bytes; downloads return bytes with content type and
 length. The connector never reads a local host file path, writes host files,
-launches the Daytona CLI, or executes commands on the Paperclip server. Provider
+launches the Daytona CLI, or executes commands on the Nexus server. Provider
 commands execute inside the selected Daytona sandbox. Reads and transfers have
 an 8 MiB bound. An action shares one deadline across identity, target lookup,
 dispatch, and response reading: the caller's budget, capped at 30 seconds.
@@ -119,7 +119,7 @@ platform key or live provider credential is installed by this change. Existing
 saved connections must review the expanded catalog through normal Permissions;
 new actions do not inherit approval from the previous four diagnostic actions.
 Opening a saved Daytona connection upgrades an outdated catalog. The earlier
-Paperclip-specific actions are retired and hidden from both Permissions and
+Nexus-specific actions are retired and hidden from both Permissions and
 agent discovery, even if a provider outage prevents refresh. Historical rows
 remain for audit, and newly discovered actions require review.
 Agent discovery and dispatch also check same-name saved contracts against the

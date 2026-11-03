@@ -1,5 +1,5 @@
 import { REST_CONNECTORS } from "./rest-registry.js";
-import type { ToolRiskLevel } from "@paperclipai/shared";
+import type { ToolRiskLevel } from "@nexusai/shared";
 import { NATIVE_PROVIDER_CATALOGS } from "../native-provider-catalogs.js";
 import { classifyRailwayToolRisk, isRailwayEndpoint } from "../railway.js";
 import { braintrustRisk } from "./braintrust/risk.js";

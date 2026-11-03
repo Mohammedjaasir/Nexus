@@ -69,7 +69,7 @@ const SHAPES: Record<LabKind, ReactNode> = {
       <path d="M15.4 5.6l6 6.4-6 6.4" />
     </g>
   ),
-  // The generic file: the product's paperclip.
+  // The generic file: the product's nexus.
   file: (
     <path
       d="m20.6 11.3-8.4 8.4a5.5 5.5 0 0 1-7.8-7.8l8.2-8.2a3.7 3.7 0 0 1 5.2 5.2l-8.2 8.2a1.85 1.85 0 0 1-2.6-2.6l7.6-7.6"

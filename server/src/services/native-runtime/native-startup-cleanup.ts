@@ -1,5 +1,5 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { environmentLeases, heartbeatRuns, issues, nativeRunFinalizations, sandboxCreationOperations, type Db } from "@paperclipai/db";
+import { environmentLeases, heartbeatRuns, issues, nativeRunFinalizations, sandboxCreationOperations, type Db } from "@nexusai/db";
 import { conflict } from "../../errors.js";
 import { persistActivity, publishActivity } from "../activity-log.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "../delivery-work-notifications.js";
@@ -18,7 +18,7 @@ export class NativeStartupCleanupPendingError extends Error {
 
 type Run = typeof heartbeatRuns.$inferSelect;
 export interface NativeStartupCleanup {
-  schema: "paperclip.native-startup-cleanup.v1";
+  schema: "nexus.native-startup-cleanup.v1";
   companyId: string; agentId: string; runId: string;
   contextId: string; deadlineAtMs: number; leaseOwner: string;
   controllerGeneration: number; attempt: number; leaseId: string; taskId: string;
@@ -27,7 +27,7 @@ export interface NativeStartupCleanup {
 
 export function readNativeStartupCleanup(run: Pick<Run, "id" | "companyId" | "agentId" | "resultJson">): NativeStartupCleanup | null {
   const marker = run.resultJson?.nativeStartupCleanup as NativeStartupCleanup | undefined;
-  return marker?.schema === "paperclip.native-startup-cleanup.v1" && marker.companyId === run.companyId &&
+  return marker?.schema === "nexus.native-startup-cleanup.v1" && marker.companyId === run.companyId &&
     marker.runId === run.id && marker.agentId === run.agentId && ["contextId", "leaseOwner", "leaseId", "taskId", "auditId"].every(key =>
       typeof marker[key as keyof NativeStartupCleanup] === "string" && String(marker[key as keyof NativeStartupCleanup]).length > 0) &&
     Number.isSafeInteger(marker.deadlineAtMs) && Number.isSafeInteger(marker.controllerGeneration) && marker.controllerGeneration > 0 &&
@@ -40,7 +40,7 @@ export function readNativeStartupContext(run: Run,
   const value = run.runnerProfileJson?.nativeStartupContext as { schema?: unknown; companyId?: unknown; agentId?: unknown; runId?: unknown;
     contextId?: unknown; deadlineAtMs?: unknown; leaseId?: unknown; leaseOwner?: unknown; controllerGeneration?: unknown; attempt?: unknown } | undefined;
   if (run.runtimeMode !== "native" || run.status !== "running" || run.sessionIdAfter || owner.resultId || isNativeRunnerOwnershipHeld(run) ||
-      !owner.leaseOwner || owner.controllerGeneration < 1 || owner.attempt < 1 || value?.schema !== "paperclip.native-startup-context.v1" ||
+      !owner.leaseOwner || owner.controllerGeneration < 1 || owner.attempt < 1 || value?.schema !== "nexus.native-startup-context.v1" ||
       value.companyId !== run.companyId || value.agentId !== run.agentId || value.runId !== run.id || value.leaseOwner !== owner.leaseOwner ||
       value.controllerGeneration !== owner.controllerGeneration || value.attempt !== owner.attempt ||
       typeof value.contextId !== "string" || !value.contextId || typeof value.leaseId !== "string" || !value.leaseId ||
@@ -114,7 +114,7 @@ export async function requestNativeStartupCleanup(db: Db, input: {
     if (!activity.activity?.id) throw new Error("Native startup cleanup audit unavailable");
     publication = activity.publication;
     const preparation = lease.metadata?.runnerTaskStartup as { contextId?: unknown; runId?: unknown } | undefined;
-    const marker: NativeStartupCleanup = { schema: "paperclip.native-startup-cleanup.v1", companyId: run.companyId, agentId: run.agentId,
+    const marker: NativeStartupCleanup = { schema: "nexus.native-startup-cleanup.v1", companyId: run.companyId, agentId: run.agentId,
       runId: run.id, contextId: input.contextId, deadlineAtMs: input.deadlineAtMs, leaseOwner: input.leaseOwner,
       controllerGeneration: coordinator.controllerGeneration, attempt: coordinator.attempt, leaseId: lease.id,
       taskId: lease.providerLeaseId!, requiresPreparationStop: input.requiresPreparationStop ||

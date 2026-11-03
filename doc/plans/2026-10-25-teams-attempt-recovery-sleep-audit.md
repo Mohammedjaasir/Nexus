@@ -86,7 +86,7 @@ Logs: /tmp/sleep27-teams-tests.log (initial failures),
 ## Stack gates
 
 Consent parent #17590 at 5ddb4543ed has Greptile 5/5 with no inline findings;
-CI is still running. Voice-report #17586 now has two new Paperclip findings:
+CI is still running. Voice-report #17586 now has two new Nexus findings:
 explicit single-active-process writer support and indexed report reconstruction.
 They require owning-parent review/repair and propagation before stack acceptance.
 Older #17490 E2E and #17580 deletion-policy findings and final master reconciliation

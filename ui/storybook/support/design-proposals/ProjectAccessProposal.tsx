@@ -166,7 +166,7 @@ function Proposal({ initialView = "task", initialState = "blocked", canManage = 
   </div>;
 
   return <div className="[&_.design-page-navigation]:hidden md:[&_.design-page-navigation]:flex">
-    <DesignPageShell title={view === "task" ? "Tasks / DEMO-42" : "Agents / Reviewer"} sidebarStorageKey="paperclip.proposal.project-access.sidebar"
+    <DesignPageShell title={view === "task" ? "Tasks / DEMO-42" : "Agents / Reviewer"} sidebarStorageKey="nexus.proposal.project-access.sidebar"
       sidebar={<DesignSidebar onNewTask={() => setShellNotice("This preview focuses on project access. Use Manage project access to try the repair.")} />}
       headerActions={<span className="text-xs text-muted-foreground">Design preview</span>}>
       {shellNotice && <p role="status" className="text-xs text-muted-foreground">{shellNotice}</p>}

@@ -129,7 +129,7 @@ test("rejects selected ids that were not offered", () => {
 test("decodes the responsible user and normalizes API URLs locally", () => {
   const payload = Buffer.from(JSON.stringify({ responsible_user_id: "user-1" })).toString("base64url");
   assert.equal(decodeJwtPayload(`header.${payload}.signature`).responsible_user_id, "user-1");
-  assert.equal(normalizeApiBase("https://paperclip.example/api/"), "https://paperclip.example");
+  assert.equal(normalizeApiBase("https://nexus.example/api/"), "https://nexus.example");
 });
 
 test("scans Mine once per status and merges rows by issue id", async (t) => {
@@ -147,7 +147,7 @@ test("scans Mine once per status and merges rows by issue id", async (t) => {
   });
 
   const result = await fetchMineInboxRows({
-    apiBase: "https://paperclip.example",
+    apiBase: "https://nexus.example",
     apiKey: "secret",
   }, "user-1");
 
@@ -176,7 +176,7 @@ test("warns when an individual status query reaches the Mine endpoint cap", asyn
   });
 
   const result = await fetchMineInboxRows({
-    apiBase: "https://paperclip.example",
+    apiBase: "https://nexus.example",
     apiKey: "secret",
   }, "user-1");
 

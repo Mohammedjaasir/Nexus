@@ -20,7 +20,7 @@ import { issues } from "./issues.js";
 import { labels } from "./labels.js";
 import { projects } from "./projects.js";
 import { workflows } from "./workflows.js";
-import type { CaseWorkflowTransition } from "@paperclipai/shared";
+import type { CaseWorkflowTransition } from "@nexusai/shared";
 
 export const cases = pgTable(
   "cases",

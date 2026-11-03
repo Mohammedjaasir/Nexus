@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { GitConnectionFailure } from "@paperclipai/adapter-utils/connection-failure";
+import type { GitConnectionFailure } from "@nexusai/adapter-utils/connection-failure";
 import {
   classifyGitCloneFailure,
   GitConnectionFailureError,

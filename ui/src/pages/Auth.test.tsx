@@ -128,7 +128,7 @@ describe("AuthPage", () => {
   }
 
   it.each(["https://my.paperclip.app", "https://my-staging.paperclip.app"])("recovers Cloud auth through %s without rendering an instance form", async (origin) => {
-    healthMock.mockResolvedValue({ cloud: { managed: true, managedBy: "paperclip-cloud", cloudBaseUrl: origin, stackSlug: "team" } });
+    healthMock.mockResolvedValue({ cloud: { managed: true, managedBy: "nexus-cloud", cloudBaseUrl: origin, stackSlug: "team" } });
     const { root } = await mount("/auth?next=%2FTEST%2Fissues%2FTEST-1%3Ftab%3Dactivity%23comment");
     await vi.waitFor(() => expect(beginCloudSignInMock).toHaveBeenCalledTimes(1));
     const target = new URL(beginCloudSignInMock.mock.calls[0][0]);
@@ -156,16 +156,16 @@ describe("AuthPage", () => {
   });
 
   it("offers a manual Cloud retry after the automatic recovery limit", async () => {
-    healthMock.mockResolvedValue({ cloud: { managed: true, managedBy: "paperclip-cloud", cloudBaseUrl: "https://my.paperclip.app", stackSlug: "team" } });
+    healthMock.mockResolvedValue({ cloud: { managed: true, managedBy: "nexus-cloud", cloudBaseUrl: "https://my.paperclip.app", stackSlug: "team" } });
     beginCloudSignInMock.mockReturnValue(false);
     const { root } = await mount();
-    await vi.waitFor(() => expect(container.textContent).toContain("Continue to Paperclip Cloud"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Continue to Nexus Cloud"));
     expect(container.querySelector("form")).toBeNull();
     await act(() => root.unmount());
   });
 
   it("keeps incomplete Cloud configuration out of the instance form", async () => {
-    healthMock.mockResolvedValue({ cloud: { managed: true, managedBy: "paperclip-cloud", cloudBaseUrl: null, stackSlug: null } });
+    healthMock.mockResolvedValue({ cloud: { managed: true, managedBy: "nexus-cloud", cloudBaseUrl: null, stackSlug: null } });
     const { root } = await mount();
     await vi.waitFor(() => expect(container.textContent).toContain("Cloud sign-in is unavailable"));
     expect(container.querySelector("form")).toBeNull();
@@ -331,7 +331,7 @@ describe("CliAuthPage rate-limit recovery", () => {
   }
 
   function pending(expiresAt = new Date(Date.now() + 10 * 60_000).toISOString()) {
-    return { id: challengeId, status: "pending", command: "paperclipai auth login", clientName: "paperclipai cli",
+    return { id: challengeId, status: "pending", command: "nexusai auth login", clientName: "nexusai cli",
       requestedAccess: "board", requestedCompanyId: null, requestedCompanyName: null, approvedAt: null,
       cancelledAt: null, expiresAt, approvedByUser: null, requiresSignIn: false, canApprove: true, currentUserId: "operator" };
   }
@@ -388,7 +388,7 @@ describe("CliAuthPage rate-limit recovery", () => {
     expect(fetchCli).toHaveBeenCalledTimes(2);
     expect(cliClient!.getQueryState(challengeQueryKey)).toMatchObject({ status: "success", fetchStatus: "idle", data: { status: "pending" } });
     await advance(1);
-    expect(cliContainer.textContent).toContain("Approve Paperclip CLI access");
+    expect(cliContainer.textContent).toContain("Approve Nexus CLI access");
     expect(fetchCli.mock.calls.map(([url, init]) => [String(url), init?.method]))
       .toEqual([[challengePath, "GET"], [challengePath, "GET"]]);
   });
@@ -425,7 +425,7 @@ describe("CliAuthPage rate-limit recovery", () => {
     fetchCli.mockResolvedValueOnce(response(pending(new Date(Date.now() + 1500).toISOString())))
       .mockImplementation(async () => response({ error: "Too many CLI auth requests", details: { retryAfterSeconds: 2 } }, 429));
     await mountCli();
-    expect(cliContainer.textContent).toContain("Approve Paperclip CLI access");
+    expect(cliContainer.textContent).toContain("Approve Nexus CLI access");
     await reactAct(async () => { void cliClient!.invalidateQueries({ queryKey: challengeQueryKey }); });
     await advance(0);
     expect(fetchCli).toHaveBeenCalledTimes(2);

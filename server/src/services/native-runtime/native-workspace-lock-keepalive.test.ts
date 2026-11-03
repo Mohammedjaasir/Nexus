@@ -1,7 +1,7 @@
 import { setImmediate } from "node:timers/promises";
 import * as timers from "node:timers/promises";
 import { expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { withWorkspaceLockKeepalive } from "./native-workspace-lock-keepalive.js";
 
 vi.mock("node:timers/promises", async importOriginal => {

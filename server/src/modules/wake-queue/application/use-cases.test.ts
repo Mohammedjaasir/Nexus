@@ -494,9 +494,9 @@ describe("releaseIssueExecution", () => {
             wakeCommentIds: ["comment-1"],
             // A queue-time render from a prior coalesced run. Promotion must
             // not persist this alongside the current (unrelated) comment id.
-            paperclipTaskMarkdown: "queue-time markdown",
-            paperclipTaskMarkdownCompact: "queue-time compact markdown",
-            paperclipWake: { commentId: "comment-1" },
+            nexusTaskMarkdown: "queue-time markdown",
+            nexusTaskMarkdownCompact: "queue-time compact markdown",
+            nexusWake: { commentId: "comment-1" },
             executionStage: { stage: "review" },
             planReviewInteraction: { acceptedTargetRevision: { revisionId: "revision-1" } },
             acceptedPlanWakeRouting: { targetAgentId: "agent-1" },
@@ -517,9 +517,9 @@ describe("releaseIssueExecution", () => {
     // The rendered text is cleared; `executeRun` rebuilds it, with proper
     // trust-based redaction, from the current issue and comment rows before
     // the run dispatches.
-    expect(promotedContextSnapshot.paperclipTaskMarkdown).toBeUndefined();
-    expect(promotedContextSnapshot.paperclipTaskMarkdownCompact).toBeUndefined();
-    expect(promotedContextSnapshot.paperclipWake).toBeUndefined();
+    expect(promotedContextSnapshot.nexusTaskMarkdown).toBeUndefined();
+    expect(promotedContextSnapshot.nexusTaskMarkdownCompact).toBeUndefined();
+    expect(promotedContextSnapshot.nexusWake).toBeUndefined();
     // The raw fields that render depends on are not dropped.
     expect(promotedContextSnapshot.issueId).toBe(ISSUE.id);
     expect(promotedContextSnapshot.executionStage).toEqual({ stage: "review" });
@@ -910,7 +910,7 @@ describe("admitWakeBehindIssueExecution", () => {
           durableReceipt,
           payload: {
             issueId: "issue-1",
-            _paperclipWakeContext: contextSnapshot,
+            _nexusWakeContext: contextSnapshot,
           },
         }),
       );
@@ -1103,7 +1103,7 @@ describe("admitWakeBehindIssueExecution", () => {
         mergedPayload: {
           issueId: "issue-1",
           preserved: true,
-          _paperclipWakeContext: {
+          _nexusWakeContext: {
             preservedContext: true,
             wakeReason: "issue_commented",
           },

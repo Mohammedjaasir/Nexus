@@ -5,7 +5,7 @@ import {
   CONNECTABLE_APP_DEFINITIONS,
   type AppDefinition,
   type McpJsonImportPreview,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { AppsConnect } from "@/pages/apps/AppsConnect";
 import { PasteConfigTab } from "@/pages/tools/PasteConfigTab";
@@ -61,7 +61,7 @@ const meta: Meta = {
   id: "apps-connect-discoverability-pap-11091",
   title: "Apps, channels, and extensions/Connection setup/Apps/Connect discoverability (PAP-11091)",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/catalog"
       ],
@@ -189,7 +189,7 @@ const MIXED_PREVIEW: McpJsonImportPreview = {
         { name: "GITHUB_TOKEN", secretId: "draft-2", placement: "env", key: "GITHUB_TOKEN" },
       ],
       credentialFields: [],
-      warnings: ["Imported stdio commands stay draft-only unless mapped to an approved Paperclip template."],
+      warnings: ["Imported stdio commands stay draft-only unless mapped to an approved Nexus template."],
     },
   ],
 };
@@ -205,7 +205,7 @@ const STDIO_PREVIEW: McpJsonImportPreview = {
         { name: "GITHUB_TOKEN", secretId: "draft-3", placement: "env", key: "GITHUB_TOKEN" },
       ],
       credentialFields: [],
-      warnings: ["Imported stdio commands stay draft-only unless mapped to an approved Paperclip template."],
+      warnings: ["Imported stdio commands stay draft-only unless mapped to an approved Nexus template."],
     },
   ],
 };

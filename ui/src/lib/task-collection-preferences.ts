@@ -1,4 +1,4 @@
-export const TASK_COLLECTION_PREFERENCES_CHANGED = "paperclip:task-collection-preferences-changed";
+export const TASK_COLLECTION_PREFERENCES_CHANGED = "nexus:task-collection-preferences-changed";
 
 export const TASK_COLLECTION_PREFERENCES_VERSION = 1 as const;
 
@@ -48,7 +48,7 @@ export function taskCollectionPreferencesStorageKey({
   companyId,
   collectionKey,
 }: Pick<TaskCollectionPreferenceLocation, "companyId" | "collectionKey">): string {
-  return `paperclip:task-collection:v${TASK_COLLECTION_PREFERENCES_VERSION}:${encodeURIComponent(companyId)}:${encodeURIComponent(collectionKey)}`;
+  return `nexus:task-collection:v${TASK_COLLECTION_PREFERENCES_VERSION}:${encodeURIComponent(companyId)}:${encodeURIComponent(collectionKey)}`;
 }
 
 function isCurrentEnvelope<TViewState, TColumn extends string>(

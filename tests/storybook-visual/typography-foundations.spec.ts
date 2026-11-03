@@ -24,12 +24,12 @@ test("proposal typography reaches shared buttons, prose and identifiers", async 
   await expect(guide.locator("[data-ramp]")).toHaveCount(9);
   await expect(guide.locator('[data-type-sample^="weight-"]')).toHaveCount(2);
   await expect(guide.getByRole("button", { name: "Continue", exact: true })).toHaveCSS("font-weight", "400");
-  for (const selector of ['[data-type-sample="detail-id"]', ".paperclip-markdown code", '.task-row-columns [data-column="taskId"]']) {
+  for (const selector of ['[data-type-sample="detail-id"]', ".nexus-markdown code", '.task-row-columns [data-column="taskId"]']) {
     const element = guide.locator(selector).first();
     await expect(element).toHaveCSS("font-family", /"Paper Mono"/);
   }
-  await expect(guide.locator(".paperclip-markdown a")).toHaveCSS("font-weight", "400");
-  await expect(guide.locator(".paperclip-markdown strong")).toHaveCSS("font-weight", "600");
+  await expect(guide.locator(".nexus-markdown a")).toHaveCSS("font-weight", "400");
+  await expect(guide.locator(".nexus-markdown strong")).toHaveCSS("font-weight", "600");
   await expect(guide.locator('[data-type-sample="message-time"]')).toHaveCSS("font-size", "12px");
   await expect(guide.locator('[data-type-sample="message-time"]')).toHaveCSS("line-height", "16px");
   const label = (id: string) => guide.locator(`[data-type-sample="${id}"]`).evaluate(element => {
@@ -176,7 +176,7 @@ test("proposal conversation uses two sizes with muted progress, contrasting bubb
   await expect(pill.locator("span").filter({ hasText: /^for / }).last()).toHaveCSS("font-size", "12px");
   await guide.getByRole("button", { name: "Expand details & measure", exact: true }).click();
   expect(await guide.locator("[data-conversation-size]").evaluateAll(elements => elements.map(element => element.getAttribute("data-conversation-size")).sort())).toEqual(["12px", "14px"]);
-  await expect(preview.locator('[data-testid="task-chat-runner-activity-detail"] .paperclip-markdown p').first()).toHaveCSS("font-size", "14px");
+  await expect(preview.locator('[data-testid="task-chat-runner-activity-detail"] .nexus-markdown p').first()).toHaveCSS("font-size", "14px");
   const streamingFinal = preview.locator('[data-preview-case="streaming-final"] [data-conversation-text="final"] p').last();
   await expect(streamingFinal).toHaveCSS("color", await resolvedColor(preview, "--foreground"));
   await expect(preview.locator('[data-testid="task-chat-turn-status-header"] [data-conversation-meta]').last()).toHaveCSS("font-size", "12px");
@@ -212,7 +212,7 @@ test("conversation playback progresses through one thread and supports pause and
   await expect(runningLabel).toHaveCSS("color", foreground);
   await page.clock.runFor(7500);
   await expect(playback).toHaveAttribute("data-playback-stage", "6");
-  await expect(playback.locator('[data-conversation-text="final"] .paperclip-markdown').last()).toHaveCSS("color", foreground);
+  await expect(playback.locator('[data-conversation-text="final"] .nexus-markdown').last()).toHaveCSS("color", foreground);
   await page.clock.runFor(7500);
   await expect(playback).toHaveAttribute("data-playback-stage", "9");
   await expect(playback.getByText("Which reconnect policy should I test?", { exact: true })).toBeVisible();
@@ -268,7 +268,7 @@ test("playback appends complete words with a fade while retaining previous word 
   const playback = page.getByTestId("conversation-playback");
   await playback.getByRole("button", { name: "Play conversation", exact: true }).click();
   await page.clock.runFor(3500);
-  const prose = playback.locator('[data-conversation-text="progress"] .paperclip-markdown').last();
+  const prose = playback.locator('[data-conversation-text="progress"] .nexus-markdown').last();
   const words = prose.locator(".conversation-stream-word");
   await expect(words.first()).toHaveText("I’ll");
   await expect(words.first()).toHaveCSS("animation-name", "conversation-word-in");

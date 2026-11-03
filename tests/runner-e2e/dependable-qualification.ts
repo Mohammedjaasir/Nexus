@@ -6,11 +6,11 @@ export const DEPENDABLE_JOURNEYS = [
 ] as const;
 export type DependableJourney = typeof DEPENDABLE_JOURNEYS[number];
 export type DependableProvider = "codie" | "claude";
-export type DependableSurface = "paperclip" | "slack";
+export type DependableSurface = "nexus" | "slack";
 export type DependableCell = `${DependableProvider}.${DependableSurface}.${DependableJourney}`;
 
 export const DEPENDABLE_CELLS: readonly DependableCell[] = (["codie", "claude"] as const).flatMap(provider =>
-  (["paperclip", "slack"] as const).flatMap(surface => DEPENDABLE_JOURNEYS.map(journey => `${provider}.${surface}.${journey}` as const)));
+  (["nexus", "slack"] as const).flatMap(surface => DEPENDABLE_JOURNEYS.map(journey => `${provider}.${surface}.${journey}` as const)));
 
 export function dependableExecutionId(cell: DependableCell) {
   if (!DEPENDABLE_CELLS.includes(cell)) throw new Error("Unknown dependable-work cell");
@@ -131,7 +131,7 @@ export function gradeDependableQualification(config: DependableQualification, at
     return { cell, candidatePassed: candidate.length, candidateRequired: 3, stagingPassedAfterCheckpoint: staging.length,
       complete: checkpointAt !== null && staging.length > 0 };
   });
-  return { schema: "paperclip.e2e.dependable-qualification.v1", revision: config.revision,
+  return { schema: "nexus.e2e.dependable-qualification.v1", revision: config.revision,
     requiredCells: 24, requiredCandidatePasses: 72, complete: cells.every(cell => cell.complete) && !observations.some(row =>
       row.problems.includes("duplicate-attempt-receipt") || row.problems.includes("missing-attempt-receipt")), cells,
     observations, failedAttempts: observations.filter(row => row.originalStatus === "failed").length,

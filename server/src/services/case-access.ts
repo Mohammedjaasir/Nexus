@@ -1,6 +1,6 @@
 import { and, eq, inArray, or, sql, type SQL } from "drizzle-orm";
-import { agents, cases, caseAccessSources, caseDocuments, caseEvents, companyMemberships, documentRevisions, documents, heartbeatRuns, issues, projects, type Db } from "@paperclipai/db";
-import { isUuidLike } from "@paperclipai/shared";
+import { agents, cases, caseAccessSources, caseDocuments, caseEvents, companyMemberships, documentRevisions, documents, heartbeatRuns, issues, projects, type Db } from "@nexusai/db";
+import { isUuidLike } from "@nexusai/shared";
 import { forbidden, notFound } from "../errors.js";
 import { authorizationService, issueReadSqlCondition, projectReadSqlCondition, type AuthorizationActor } from "./authorization.js";
 import { isLowTrustQuarantined, resolveActorSourceTrustForIssue } from "./source-trust.js";
@@ -24,7 +24,7 @@ export async function assertActorCanWriteCase(db: CaseDb, actor: AuthorizationAc
   if (!actor.agentId || (actor.runId && !isUuidLike(actor.runId))) throw forbidden(CASE_TRUST_ERROR);
   const [run] = actor.runId ? await db.select({
     agentId: heartbeatRuns.agentId, issueId: heartbeatRuns.issueId, nativeIssueId: heartbeatRuns.nativeIssueId,
-    contextIssueId: sql<unknown>`coalesce(${heartbeatRuns.contextSnapshot}->>'issueId', ${heartbeatRuns.contextSnapshot}->'paperclipIssue'->>'id', ${heartbeatRuns.contextSnapshot}->>'taskId')`,
+    contextIssueId: sql<unknown>`coalesce(${heartbeatRuns.contextSnapshot}->>'issueId', ${heartbeatRuns.contextSnapshot}->'nexusIssue'->>'id', ${heartbeatRuns.contextSnapshot}->>'taskId')`,
   }).from(heartbeatRuns).where(and(eq(heartbeatRuns.id, actor.runId), eq(heartbeatRuns.companyId, input.companyId))).limit(1) : [];
   if (actor.runId && (!run || run.agentId !== actor.agentId)) throw forbidden(CASE_TRUST_ERROR);
   let sourceId = run ? runIssueId(run) : null;
@@ -74,7 +74,7 @@ export async function assertCaseTrustedForExecution(db: CaseDb, identity: CaseId
   const runs = runIds.length ? await db.select({ id: heartbeatRuns.id, agentId: heartbeatRuns.agentId,
     issueId: heartbeatRuns.issueId, nativeIssueId: heartbeatRuns.nativeIssueId,
     executionPolicy: sql<unknown>`${heartbeatRuns.contextSnapshot}->'executionPolicy'`,
-    contextIssueId: sql<unknown>`coalesce(${heartbeatRuns.contextSnapshot}->>'issueId', ${heartbeatRuns.contextSnapshot}->'paperclipIssue'->>'id', ${heartbeatRuns.contextSnapshot}->>'taskId')`,
+    contextIssueId: sql<unknown>`coalesce(${heartbeatRuns.contextSnapshot}->>'issueId', ${heartbeatRuns.contextSnapshot}->'nexusIssue'->>'id', ${heartbeatRuns.contextSnapshot}->>'taskId')`,
   }).from(heartbeatRuns).where(and(eq(heartbeatRuns.companyId, identity.companyId), inArray(heartbeatRuns.id, runIds))) : [];
   const runMap = new Map(runs.map(row => [row.id, row]));
   if (runs.length !== runIds.length || writes.some(row => row.runId && row.agentId && runMap.get(row.runId)?.agentId !== row.agentId)) throw forbidden(CASE_TRUST_ERROR);

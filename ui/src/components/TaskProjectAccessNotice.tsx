@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { TaskInterruptionPresentation } from "@paperclipai/shared";
+import type { TaskInterruptionPresentation } from "@nexusai/shared";
 import { agentsApi } from "../api/agents";
 import { useNavigate } from "../lib/router";
 import { queryKeys } from "../lib/queryKeys";

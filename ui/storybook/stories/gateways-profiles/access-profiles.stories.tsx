@@ -9,7 +9,7 @@ import type {
   ToolProfileNewToolsReview,
   ToolProfileSummary,
   ToolProfileWithDetails,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { AgentToolsTab } from "@/pages/AgentToolsTab";
 import { ProfileDetail } from "@/pages/tools/profiles/ProfileDetail";
@@ -276,7 +276,7 @@ const CONNECTIONS: ToolConnection[] = [
     ownership: "customer",
     transport: "mcp_remote",
     authKind: "oauth",
-    credentialSource: "paperclip_vault",
+    credentialSource: "nexus_vault",
     credentialPolicy: "per_user",
     status: "active",
     transportConfig: {},
@@ -313,7 +313,7 @@ const CONNECTIONS: ToolConnection[] = [
     ownership: "customer",
     transport: "mcp_remote",
     authKind: "oauth",
-    credentialSource: "paperclip_vault",
+    credentialSource: "nexus_vault",
     credentialPolicy: "per_user",
     status: "active",
     transportConfig: {},
@@ -477,7 +477,7 @@ const meta: Meta = {
   id: "tools-access-profiles",
   title: "Apps, channels, and extensions/Tool gateways and access profiles/Tools/Access profiles",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "gateways-profiles/profiles"
       ],

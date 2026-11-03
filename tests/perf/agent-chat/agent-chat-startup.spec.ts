@@ -192,7 +192,7 @@ test("live updates keep an unpinned reader and draft, and the saved message appe
   expect(sourceRunId).toBeTruthy();
   const body = `Live saved message ${randomUUID()}`;
   const response = await request.post(`/api/issues/${fixture.issue.id}/comments`, {
-    headers: { authorization: `Bearer ${key.token}`, "x-paperclip-run-id": sourceRunId! }, data: { body },
+    headers: { authorization: `Bearer ${key.token}`, "x-nexus-run-id": sourceRunId! }, data: { body },
   });
   await request.delete(`/api/agents/${fixture.agent.id}/keys/${key.id}`);
   expect(response.ok(), await response.text()).toBeTruthy();

@@ -6,7 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 import {
   captureRemoteWorkspaceArchive,
   cleanupRemoteWorkspaceArchive,
@@ -150,7 +150,7 @@ describe("remote workspace transport safety with real sandbox commands", () => {
       await cleanupRemoteWorkspaceArchive({ target: remote, remoteCwd: restored.stagingRoot, operationId: restored.operationId });
       expect(await fs.readFile(path.join(root, "saved.txt"), "utf8")).toBe("saved synthetic files\n");
       expect(await fs.readFile(path.join(root, "newer.txt"), "utf8")).toBe("retain later edits\n");
-      expect(await fs.readdir(path.join(scratch, ".paperclip-runtime", "workspace-snapshots"))).toEqual([]);
+      expect(await fs.readdir(path.join(scratch, ".nexus-runtime", "workspace-snapshots"))).toEqual([]);
       await expect(restoreRemoteWorkspaceDirectory({ ...input, restorationIdentity: "b".repeat(64) })).rejects.toThrow();
       expect(await fs.readFile(path.join(root, "newer.txt"), "utf8")).toBe("retain later edits\n");
     } finally { await captured.cleanup(); }
@@ -215,7 +215,7 @@ describe("remote workspace transport safety with real sandbox commands", () => {
       expect(completed[0]!.manifestDigest).toBe(completed[1]!.manifestDigest);
       expect(completed[0]!.sha256).toBe(completed[1]!.sha256);
       for (const saved of completed) expect(createHash("sha256").update(await fs.readFile(saved.archivePath)).digest("hex")).toBe(saved.sha256);
-      const directory = path.join(workspace, ".paperclip-runtime", "workspace-snapshots", operationId);
+      const directory = path.join(workspace, ".nexus-runtime", "workspace-snapshots", operationId);
       expect((await fs.readdir(directory)).filter(name => name.startsWith("capture-"))).toEqual([]);
       await fs.writeFile(path.join(workspace, "saved.txt"), "later work must not replace a completed capture\n");
       const replay = await captureRemoteWorkspaceArchive({ target: remote, remoteCwd: workspace, operationId });
@@ -226,7 +226,7 @@ describe("remote workspace transport safety with real sandbox commands", () => {
 
   it("recaptures after an abandoned partial attempt without unlinking unknown staging", async () => {
     await fs.writeFile(path.join(workspace, "saved.txt"), "work after interrupted capture\n");
-    const operationId = randomUUID(), directory = path.join(workspace, ".paperclip-runtime", "workspace-snapshots", operationId);
+    const operationId = randomUUID(), directory = path.join(workspace, ".nexus-runtime", "workspace-snapshots", operationId);
     const abandoned = path.join(directory, "capture-abandoned"); await fs.mkdir(abandoned, { recursive: true });
     const legacy = path.join(directory, "workspace.pcws"), partial = path.join(abandoned, "workspace.pcws");
     await fs.writeFile(legacy, "unknown old in-progress archive\n"); await fs.writeFile(partial, "abandoned partial archive\n");
@@ -245,7 +245,7 @@ describe("remote workspace transport safety with real sandbox commands", () => {
 
   it("prefers the canonical capture and reads a completed legacy pair without replacing it", async () => {
     await fs.writeFile(path.join(workspace, "saved.txt"), "immutable completed capture\n");
-    const operationId = randomUUID(), directory = path.join(workspace, ".paperclip-runtime", "workspace-snapshots", operationId);
+    const operationId = randomUUID(), directory = path.join(workspace, ".nexus-runtime", "workspace-snapshots", operationId);
     const { remote } = target();
     const captured = await captureRemoteWorkspaceArchive({ target: remote, remoteCwd: workspace, operationId });
     try {
@@ -276,7 +276,7 @@ describe("remote workspace transport safety with real sandbox commands", () => {
   });
 
   it("rejects a preexisting canonical capture symlink without touching its target", async () => {
-    const operationId = randomUUID(), directory = path.join(workspace, ".paperclip-runtime", "workspace-snapshots", operationId);
+    const operationId = randomUUID(), directory = path.join(workspace, ".nexus-runtime", "workspace-snapshots", operationId);
     const outside = path.join(scratch, "outside-capture"); await fs.mkdir(outside); await fs.mkdir(directory, { recursive: true });
     await fs.writeFile(path.join(outside, "workspace.pcws"), "outside archive sentinel\n");
     await fs.symlink(outside, path.join(directory, "captured"));
@@ -299,7 +299,7 @@ describe("remote workspace transport safety with real sandbox commands", () => {
     const gitOperation = "remote_workspace_archive_git_operation_in_progress: finish or abort the Git operation before saving the workspace";
     const operationId = randomUUID();
     await expect(captureRemoteWorkspaceArchive({ target: remote, remoteCwd: workspace, operationId })).rejects.toThrow(gitOperation);
-    const directory = path.join(workspace, ".paperclip-runtime", "workspace-snapshots", operationId);
+    const directory = path.join(workspace, ".nexus-runtime", "workspace-snapshots", operationId);
     for (const name of ["workspace.pcws", "receipt.json"]) await expect(fs.access(path.join(directory, name))).rejects.toMatchObject({ code: "ENOENT" });
     const failure = { exitCode: 1, stdout: "", stderr: `${gitOperation}\nSYNTHETIC_PRIVATE_PATH_OR_CREDENTIAL`,
       timedOut: false, signal: null, pid: process.pid, startedAt: new Date().toISOString() };
@@ -314,7 +314,7 @@ describe("remote workspace transport safety with real sandbox commands", () => {
   it("never follows a preexisting snapshot receipt temporary symlink", async () => {
     await fs.writeFile(path.join(workspace, "result.txt"), "synthetic saved result\n");
     const operationId = randomUUID();
-    const directory = path.join(workspace, ".paperclip-runtime", "workspace-snapshots", operationId);
+    const directory = path.join(workspace, ".nexus-runtime", "workspace-snapshots", operationId);
     const outside = path.join(scratch, "outside-sentinel");
     await fs.mkdir(directory, { recursive: true });
     await fs.writeFile(outside, "untouched\n");
@@ -334,11 +334,11 @@ describe("remote workspace transport safety with real sandbox commands", () => {
     const globalConfig = path.join(scratch, "synthetic-gitconfig");
     const sentinel = path.join(scratch, "filter-received-credential");
     await git(origin, "config", "--file", globalConfig, "filter.synthetic-probe.smudge",
-      `sh -c 'printf %s "$PAPERCLIP_GIT_TOKEN" > "${sentinel}"; cat'`);
+      `sh -c 'printf %s "$NEXUS_GIT_TOKEN" > "${sentinel}"; cat'`);
     const calibration = path.join(scratch, "filter-calibration");
     await git(scratch, "clone", "--no-hardlinks", "--", origin, calibration);
     await exec("git", ["-C", calibration, "checkout", "--detach", "HEAD~1"], {
-      env: { PATH: process.env.PATH, GIT_CONFIG_GLOBAL: globalConfig, GIT_CONFIG_NOSYSTEM: "1", PAPERCLIP_GIT_TOKEN: "SYNTHETIC_ONLY" },
+      env: { PATH: process.env.PATH, GIT_CONFIG_GLOBAL: globalConfig, GIT_CONFIG_NOSYSTEM: "1", NEXUS_GIT_TOKEN: "SYNTHETIC_ONLY" },
     });
     expect(await fs.readFile(sentinel, "utf8")).toBe("SYNTHETIC_ONLY");
     await fs.rm(sentinel);
@@ -348,7 +348,7 @@ describe("remote workspace transport safety with real sandbox commands", () => {
     await prepareRemoteWorkspaceDirectory({ target: remote, remoteCwd: path.join(workspace, "clone"),
       preparationIdentity: createHash("sha256").update("synthetic-filter-preparation").digest("hex"),
       source: { kind: "git", repoUrl: origin, ref: "HEAD~1" },
-      resolveGitAuth: async () => ({ configArgs: [], env: { PAPERCLIP_GIT_TOKEN: "SYNTHETIC_ONLY" },
+      resolveGitAuth: async () => ({ configArgs: [], env: { NEXUS_GIT_TOKEN: "SYNTHETIC_ONLY" },
         source: "company_secret", secretName: "SYNTHETIC_FIXTURE" }) });
     expect(await fs.readFile(path.join(workspace, "clone", "source.txt"), "utf8")).toBe("initial synthetic source\n");
     expect(await fs.lstat(sentinel).catch(() => null)).toBeNull();

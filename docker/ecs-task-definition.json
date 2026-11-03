@@ -1,15 +1,15 @@
 {
-  "family": "paperclip-server",
+  "family": "nexus-server",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "2048",
   "memory": "4096",
-  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/paperclip-ecs-execution",
-  "taskRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/paperclip-ecs-task",
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/nexus-ecs-execution",
+  "taskRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/nexus-ecs-task",
   "containerDefinitions": [
     {
-      "name": "paperclip-server",
-      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/paperclip-server:latest",
+      "name": "nexus-server",
+      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/nexus-server:latest",
       "essential": true,
       "portMappings": [
         {
@@ -22,41 +22,41 @@
         { "name": "HOST", "value": "0.0.0.0" },
         { "name": "PORT", "value": "3100" },
         { "name": "SERVE_UI", "value": "true" },
-        { "name": "PAPERCLIP_HOME", "value": "/paperclip" },
-        { "name": "PAPERCLIP_INSTANCE_ID", "value": "default" },
-        { "name": "PAPERCLIP_CONFIG", "value": "/paperclip/instances/default/config.json" },
-        { "name": "PAPERCLIP_DEPLOYMENT_MODE", "value": "authenticated" },
-        { "name": "PAPERCLIP_DEPLOYMENT_EXPOSURE", "value": "public" },
-        { "name": "PAPERCLIP_PUBLIC_URL", "value": "https://<DOMAIN>" },
-        { "name": "PAPERCLIP_MIGRATION_AUTO_APPLY", "value": "true" },
+        { "name": "NEXUS_HOME", "value": "/nexus" },
+        { "name": "NEXUS_INSTANCE_ID", "value": "default" },
+        { "name": "NEXUS_CONFIG", "value": "/nexus/instances/default/config.json" },
+        { "name": "NEXUS_DEPLOYMENT_MODE", "value": "authenticated" },
+        { "name": "NEXUS_DEPLOYMENT_EXPOSURE", "value": "public" },
+        { "name": "NEXUS_PUBLIC_URL", "value": "https://<DOMAIN>" },
+        { "name": "NEXUS_MIGRATION_AUTO_APPLY", "value": "true" },
         { "name": "HEARTBEAT_SCHEDULER_ENABLED", "value": "true" }
       ],
       "secrets": [
         {
           "name": "DATABASE_URL",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:paperclip/database-url"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:nexus/database-url"
         },
         {
           "name": "BETTER_AUTH_SECRET",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:paperclip/better-auth-secret"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:nexus/better-auth-secret"
         },
         {
           "name": "ANTHROPIC_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:paperclip/anthropic-api-key"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:nexus/anthropic-api-key"
         },
         {
           "name": "OPENAI_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:paperclip/openai-api-key"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:nexus/openai-api-key"
         },
         {
           "name": "GITHUB_TOKEN",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:paperclip/github-token"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:nexus/github-token"
         }
       ],
       "mountPoints": [
         {
-          "sourceVolume": "paperclip-data",
-          "containerPath": "/paperclip",
+          "sourceVolume": "nexus-data",
+          "containerPath": "/nexus",
           "readOnly": false
         }
       ],
@@ -70,7 +70,7 @@
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "/ecs/paperclip",
+          "awslogs-group": "/ecs/nexus",
           "awslogs-region": "<REGION>",
           "awslogs-stream-prefix": "server"
         }
@@ -79,7 +79,7 @@
   ],
   "volumes": [
     {
-      "name": "paperclip-data",
+      "name": "nexus-data",
       "efsVolumeConfiguration": {
         "fileSystemId": "<EFS_ID>",
         "rootDirectory": "/",

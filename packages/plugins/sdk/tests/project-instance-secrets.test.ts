@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createTestHarness } from "../src/testing.js";
-import type { PaperclipPluginManifestV1 } from "../src/types.js";
+import type { NexusPluginManifestV1 } from "../src/types.js";
 const manifest = {
   id: "fixture",
   apiVersion: 1,
   resourceLifecycle: ["project"],
   capabilities: ["projects.instance-secrets", "events.subscribe"],
-} as PaperclipPluginManifestV1;
+} as NexusPluginManifestV1;
 describe("project instance secret harness", () => {
   it("returns only seeded company/project credentials and isolates returned copies", async () => {
     const h = createTestHarness({ manifest });

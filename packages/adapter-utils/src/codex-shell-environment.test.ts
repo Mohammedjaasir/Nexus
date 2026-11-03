@@ -12,8 +12,8 @@ it("admits assigned service secrets by name while retaining unassigned secret ex
 it("keeps Codex authentication, observability and runtime transports out of the service-secret opt-in", () => {
   const configured = {
     SLACK_BOT_TOKEN: "assigned", OPENAI_API_KEY: "openai", CODEX_API_KEY: "codex",
-    PAPERCLIP_AI_PROVIDER_KEY: "managed", OTEL_EXPORTER_OTLP_HEADERS: "authorization=export",
-    PAPERCLIP_NATIVE_MCP_TOKEN: "mcp",
+    NEXUS_AI_PROVIDER_KEY: "managed", OTEL_EXPORTER_OTLP_HEADERS: "authorization=export",
+    NEXUS_NATIVE_MCP_TOKEN: "mcp",
   };
   const names = codexShellEnvironmentKeys(configured, configured, true);
   expect(names).toContain("SLACK_BOT_TOKEN");
@@ -36,9 +36,9 @@ it("removes the secret opt-in when a binding is removed or has not been resolved
 });
 
 it("passes the run's GitHub broker capability so the gh and git launchers can fetch its credential", () => {
-  const environment = { PAPERCLIP_GITHUB_BROKER_URL: "https://paperclip.example", PAPERCLIP_GITHUB_BROKER_TOKEN: "capability", PAPERCLIP_GITHUB_BRIDGE_TOKEN: "" };
+  const environment = { NEXUS_GITHUB_BROKER_URL: "https://nexus.example", NEXUS_GITHUB_BROKER_TOKEN: "capability", NEXUS_GITHUB_BRIDGE_TOKEN: "" };
   const names = codexShellEnvironmentKeys(environment, environment, true);
-  expect(names).toEqual(expect.arrayContaining(["PAPERCLIP_GITHUB_BROKER_URL", "PAPERCLIP_GITHUB_BROKER_TOKEN"]));
-  expect(names).not.toContain("PAPERCLIP_GITHUB_BRIDGE_TOKEN");
+  expect(names).toEqual(expect.arrayContaining(["NEXUS_GITHUB_BROKER_URL", "NEXUS_GITHUB_BROKER_TOKEN"]));
+  expect(names).not.toContain("NEXUS_GITHUB_BRIDGE_TOKEN");
   expect(JSON.stringify(names)).not.toContain("capability");
 });

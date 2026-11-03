@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { activityLog, companies, createDb, issueComments, issueReferenceMentions, issues } from "@paperclipai/db";
+import { activityLog, companies, createDb, issueComments, issueReferenceMentions, issues } from "@nexusai/db";
 import { completeIssueCommentReceipt } from "../services/issue-comment-receipt.js";
 import { issueReferenceService } from "../services/issue-references.js";
 import { issueService } from "../services/issues.js";
@@ -15,7 +15,7 @@ describePostgres("accepted comment finalization", () => {
   let db: ReturnType<typeof createDb>;
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-comment-receipt-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-comment-receipt-");
     db = createDb(database.connectionString);
   }, 30_000);
   afterAll(async () => {

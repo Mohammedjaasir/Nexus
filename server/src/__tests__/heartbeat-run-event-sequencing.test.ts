@@ -8,7 +8,7 @@ import {
   createDb,
   heartbeatRunEvents,
   heartbeatRuns,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   allocateHeartbeatRunEventSeq,
   appendHeartbeatRunEvent,
@@ -16,7 +16,7 @@ import {
 } from "../services/heartbeat-run-events.js";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_EVENT_SEQUENCING_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_EVENT_SEQUENCING_TEST_DATABASE_URL");
 async function clearExternalFixture(db: ReturnType<typeof createDb>, companyId: string) {
   if (!externalUrl) return;
   await db.delete(heartbeatRunEvents).where(eq(heartbeatRunEvents.companyId, companyId));
@@ -27,7 +27,7 @@ async function clearExternalFixture(db: ReturnType<typeof createDb>, companyId: 
 
 describe("P6-11..13 / P6-17 canonical event allocator", () => {
   it("keeps native cursor responses bounded with long histories and a late gap fill", async () => {
-    const temporary = await startEmbeddedPostgresTestDatabase("paperclip-native-cursor-budget-");
+    const temporary = await startEmbeddedPostgresTestDatabase("nexus-native-cursor-budget-");
     const db = createDb(temporary.connectionString);
     const companyId = "20000000-0000-4000-8000-000000000001";
     const agentId = "20000000-0000-4000-8000-000000000002";
@@ -67,7 +67,7 @@ describe("P6-11..13 / P6-17 canonical event allocator", () => {
       installDatabaseResponseCapture(db, { heartbeatRunEvents }, capture);
       try { expect((await append(5002)).highestContiguousSourceSeq).toBe(5000); }
       finally { capture.flush(); }
-      const reads = events.filter(event => event.event === "paperclip.test_db_response_capture.entry.v1"
+      const reads = events.filter(event => event.event === "nexus.test_db_response_capture.entry.v1"
         && event.table === "heartbeat_run_events" && (event.operation === "select" || event.operation === "execute"));
       expect(reads.reduce((sum, event) => sum + Number(event.calls), 0)).toBeGreaterThan(0);
       expect(reads.reduce((sum, event) => sum + Number(event.rows), 0)).toBeLessThan(16);
@@ -83,7 +83,7 @@ describe("P6-11..13 / P6-17 canonical event allocator", () => {
   }, 60_000);
 
   it.each([false, true])("deduplicates concurrent retry exhaustion (historical receipt: %s)", async (historical) => {
-    const temporary = externalUrl ? undefined : await startEmbeddedPostgresTestDatabase("paperclip-exhaustion-events-");
+    const temporary = externalUrl ? undefined : await startEmbeddedPostgresTestDatabase("nexus-exhaustion-events-");
     const db = createDb(externalUrl ?? temporary!.connectionString);
     const otherDb = createDb(externalUrl ?? temporary!.connectionString);
     const companyId = "20000000-0000-4000-8000-000000000001";
@@ -147,7 +147,7 @@ describe("P6-11..13 / P6-17 canonical event allocator", () => {
   }, 60_000);
 
   it("serializes concurrent writers and rejects conflicting replay without cursor drift", async () => {
-    const temporary = externalUrl ? undefined : await startEmbeddedPostgresTestDatabase("paperclip-native-events-");
+    const temporary = externalUrl ? undefined : await startEmbeddedPostgresTestDatabase("nexus-native-events-");
     const db = createDb(externalUrl ?? temporary!.connectionString);
     const companyId = "20000000-0000-4000-8000-000000000001";
     const agentId = "20000000-0000-4000-8000-000000000002";
@@ -239,7 +239,7 @@ describe("P6-11..13 / P6-17 canonical event allocator", () => {
   }, 60_000);
 
   it("reports the highest contiguous source seq per source instance across gaps and late arrivals", async () => {
-    const temporary = await startEmbeddedPostgresTestDatabase("paperclip-native-cursor-");
+    const temporary = await startEmbeddedPostgresTestDatabase("nexus-native-cursor-");
     const db = createDb(temporary.connectionString);
     const companyId = "20000000-0000-4000-8000-000000000001";
     const agentId = "20000000-0000-4000-8000-000000000002";

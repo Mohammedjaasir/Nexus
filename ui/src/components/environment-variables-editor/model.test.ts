@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CompanySecret, UserSecretDefinition } from "@paperclipai/shared";
+import type { CompanySecret, UserSecretDefinition } from "@nexusai/shared";
 import {
   computeDuplicateNames,
   computeRowHealth,
@@ -23,7 +23,7 @@ function makeUserSecretDefinition(overrides: { key: string; status?: "active" | 
     description: null,
     status: overrides.status ?? "active",
     provider: "local_encrypted",
-    managedMode: "paperclip_managed",
+    managedMode: "nexus_managed",
     providerConfigId: null,
     providerMetadata: null,
     usageGuidance: null,
@@ -47,7 +47,7 @@ function makeSecret(overrides: Partial<CompanySecret> & Pick<CompanySecret, "id"
     name: overrides.id.toUpperCase(),
     provider: "local_encrypted",
     status: "active",
-    managedMode: "paperclip_managed",
+    managedMode: "nexus_managed",
     externalRef: null,
     providerConfigId: null,
     providerMetadata: null,
@@ -153,7 +153,7 @@ describe("valueFromRows (emit semantics)", () => {
 });
 
 describe("validateName", () => {
-  const reserved = ["PAPERCLIP_"];
+  const reserved = ["NEXUS_"];
 
   it("returns null for empty and valid names", () => {
     expect(validateName("", new Set(), reserved)).toBeNull();
@@ -171,13 +171,13 @@ describe("validateName", () => {
   });
 
   it("flags reserved prefixes as warnings", () => {
-    const issue = validateName("PAPERCLIP_HOME", new Set(), reserved);
+    const issue = validateName("NEXUS_HOME", new Set(), reserved);
     expect(issue?.level).toBe("warn");
     expect(issue?.message).toMatch(/Reserved prefix/);
   });
 
   it("charset error takes precedence over reserved prefix", () => {
-    expect(validateName("PAPERCLIP-X", new Set(), reserved)?.level).toBe("error");
+    expect(validateName("NEXUS-X", new Set(), reserved)?.level).toBe("error");
   });
 });
 

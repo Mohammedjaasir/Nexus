@@ -15,7 +15,7 @@ const copy = vi.hoisted(() => vi.fn());
 vi.mock("@/api/museInvitations", () => ({ museInvitationsApi: museApi }));
 vi.mock("@/api/companies-query", () => ({ useAccountIdentity: () => identity }));
 vi.mock("@/api/instanceSettings", () => ({ instanceSettingsApi: { getExperimental: async () => settings } }));
-vi.mock("@/context/CompanyContext", () => ({ useCompany: () => ({ selectedCompany: { name: "Paperclip" } }) }));
+vi.mock("@/context/CompanyContext", () => ({ useCompany: () => ({ selectedCompany: { name: "Nexus" } }) }));
 vi.mock("@/lib/router", () => ({ Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => createElement("a", { href: to, ...props }, children) }));
 vi.mock("@/lib/clipboard", () => ({ copyTextToClipboard: copy }));
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });

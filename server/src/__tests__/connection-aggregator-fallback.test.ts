@@ -1,6 +1,6 @@
 import Ajv2020 from "ajv/dist/2020.js";
-import { requestHumanInputAction } from "../../../packages/paperclip-runner/src/protocol-actions/request-human-input.js";
-import { questionSetToAskUserQuestionsPayload } from "@paperclipai/shared";
+import { requestHumanInputAction } from "../../../packages/nexus-runner/src/protocol-actions/request-human-input.js";
+import { questionSetToAskUserQuestionsPayload } from "@nexusai/shared";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -22,7 +22,7 @@ import {
   toolProfiles,
   toolProfileBindings,
   toolConnectionInstalls,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type { RuntimeToolsTokenClaims } from "../runtime-tools-token.js";
 import { connectionIntentService } from "../services/connection-intents.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
@@ -42,7 +42,7 @@ const support = await getEmbeddedPostgresTestSupport();
     let runId!: string;
     beforeAll(async () => {
       const tempDb = await startEmbeddedPostgresTestDatabase(
-        "paperclip-connection-intents-",
+        "nexus-connection-intents-",
       );
       cleanup = tempDb.cleanup;
       connectionString = tempDb.connectionString;

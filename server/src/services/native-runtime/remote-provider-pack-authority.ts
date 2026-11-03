@@ -16,12 +16,12 @@ export type ProviderPackBinding = {
 };
 export type RunnerArtifactIdentity = { version: string; digest: string };
 
-const schema = "paperclip.remote-provider-pack-authority.v1";
+const schema = "nexus.remote-provider-pack-authority.v1";
 const filename = "provider-pack-authority.json";
 const maximumBytes = 512 * 1024;
 
 function assertManifest(manifest: ProviderPackIdentity): void {
-  if (manifest?.schema !== "paperclip-runner/remote-provider-pack/v1" || !manifest.payload
+  if (manifest?.schema !== "nexus-runner/remote-provider-pack/v1" || !manifest.payload
     || manifest.digest !== `sha256:${createHash("sha256").update(canonicalProviderPackJson(manifest.payload)).digest("hex")}`) {
     throw new Error("runner_remote_provider_artifact_incompatible: saved provider pack authority is invalid");
   }
@@ -111,7 +111,7 @@ export async function recordAdmittedRemoteProviderPack(
   } catch (error) {
     const reason = redactSensitiveText(error instanceof Error ? error.message : String(error)).slice(-1_024);
     try {
-      await onWarning(`[paperclip-runner] could not save remote release authority; recovery still requires a verified receipt or current release artifacts: ${reason}\n`);
+      await onWarning(`[nexus-runner] could not save remote release authority; recovery still requires a verified receipt or current release artifacts: ${reason}\n`);
     } catch {}
     return false;
   }

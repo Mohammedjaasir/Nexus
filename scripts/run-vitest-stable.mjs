@@ -23,26 +23,26 @@ const serverSrcDir = path.join(repoRoot, "server", "src");
 const serverTestsDir = path.join(repoRoot, "server", "src", "__tests__");
 const serverScriptsDir = path.join(repoRoot, "server", "scripts");
 const nonServerProjects = [
-  "@paperclipai/shared",
-  "@paperclipai/skills-catalog",
-  "@paperclipai/db",
-  "@paperclipai/adapter-utils",
-  "@paperclipai/adapter-claude-local",
-  "@paperclipai/adapter-codex-local",
-  "@paperclipai/adapter-cursor-cloud",
-  "@paperclipai/adapter-cursor-local",
-  "@paperclipai/adapter-gemini-local",
-  "@paperclipai/adapter-grok-local",
-  "@paperclipai/hermes-paperclip-adapter",
-  "@paperclipai/adapter-kimi-local",
-  "@paperclipai/adapter-openclaw-gateway",
-  "@paperclipai/adapter-opencode-local",
-  "@paperclipai/adapter-pi-local",
-  "@paperclipai/plugin-daytona",
-  "@paperclipai/plugin-sdk",
-  "@paperclipai/create-paperclip-plugin",
-  "@paperclipai/ui",
-  "paperclipai",
+  "@nexusai/shared",
+  "@nexusai/skills-catalog",
+  "@nexusai/db",
+  "@nexusai/adapter-utils",
+  "@nexusai/adapter-claude-local",
+  "@nexusai/adapter-codex-local",
+  "@nexusai/adapter-cursor-cloud",
+  "@nexusai/adapter-cursor-local",
+  "@nexusai/adapter-gemini-local",
+  "@nexusai/adapter-grok-local",
+  "@nexusai/hermes-nexus-adapter",
+  "@nexusai/adapter-kimi-local",
+  "@nexusai/adapter-openclaw-gateway",
+  "@nexusai/adapter-opencode-local",
+  "@nexusai/adapter-pi-local",
+  "@nexusai/plugin-daytona",
+  "@nexusai/plugin-sdk",
+  "@nexusai/create-nexus-plugin",
+  "@nexusai/ui",
+  "nexusai",
 ];
 const routeTestPattern = /[^/]*(?:route|routes|authz)[^/]*\.test\.ts$/;
 const additionalSerializedServerTests = new Set([
@@ -73,9 +73,9 @@ const additionalSerializedServerTests = new Set([
   "server/src/__tests__/routines-e2e.test.ts",
 ]);
 // Suite-specific external URLs can also name a shared mutable database.
-// Owned database factories use PAPERCLIP_TEST_POSTGRES_ADMIN_URL instead.
+// Owned database factories use NEXUS_TEST_POSTGRES_ADMIN_URL instead.
 const hasSharedTestDatabase = Object.entries(process.env).some(([key, value]) =>
-  key.startsWith("PAPERCLIP_") && key.endsWith("_TEST_DATABASE_URL") && value?.trim(),
+  key.startsWith("NEXUS_") && key.endsWith("_TEST_DATABASE_URL") && value?.trim(),
 );
 let invocationIndex = 0;
 const serializedModeName = "serialized";
@@ -104,10 +104,10 @@ const nativeRunnerSuites = [
   "server/src/services/native-runtime/native-usage-delivery.integration.test.ts",
 ];
 // In the PR workflow (pr.yml, the caller of pr-trusted.yml — reusable
-// workflows inherit the caller's GITHUB_WORKFLOW), the last Verify Paperclip
+// workflows inherit the caller's GITHUB_WORKFLOW), the last Verify Nexus
 // Runner vitest shard runs the native-runner group instead, because those
 // lanes restore the shared release-runner-v2 Rust cache (see
-// packages/paperclip-runner/scripts/run-pr-vitest-lane.mjs). Every other
+// packages/nexus-runner/scripts/run-pr-vitest-lane.mjs). Every other
 // caller of the same group keeps the suite in the server shards, so a renamed or
 // unknown workflow degrades to today's slower-but-covered behavior rather
 // than dropping the suite.
@@ -131,7 +131,7 @@ function excludedServerSuites(groupName) {
 const generalWorkspacesAGroupName = "general-workspaces-a";
 const generalWorkspacesBGroupName = "general-workspaces-b";
 const generalWorkspacesCGroupName = "general-workspaces-c";
-const generalWorkspacesAProjects = ["@paperclipai/ui", "paperclipai"];
+const generalWorkspacesAProjects = ["@nexusai/ui", "nexusai"];
 // The db project runs in its own lane. Its vitest invocation took 168-250s
 // of a 436-513s workspaces-b job (PR runs 38084171761, 38083084276 and
 // 38083020834, 2026-10-10), which made workspaces-b the slowest check once
@@ -141,7 +141,7 @@ const generalWorkspacesAProjects = ["@paperclipai/ui", "paperclipai"];
 // slow suites on one runner. Splitting by project is deterministic and
 // leaves the remaining projects at ~265-275s of vitest time, roughly level
 // with this lane.
-const generalWorkspacesCProjects = ["@paperclipai/db"];
+const generalWorkspacesCProjects = ["@nexusai/db"];
 const generalWorkspacesBProjects = nonServerProjects.filter(
   (project) => !generalWorkspacesAProjects.includes(project) && !generalWorkspacesCProjects.includes(project),
 );
@@ -400,20 +400,20 @@ async function runVitest(args, label, testShard = null, exactFiles = false) {
   const env = {
     ...process.env,
     NODE_ENV: "test",
-    PAPERCLIP_TEST_HOST_HOME: process.env.PAPERCLIP_TEST_HOST_HOME
-      ?? (process.env.PAPERCLIP_HOME?.trim() || path.join(os.homedir(), ".paperclip")),
-    PAPERCLIP_HOME: path.join(testRoot, "h"),
-    // Config discovery otherwise prefers the checkout's .paperclip/config.json
-    // over PAPERCLIP_HOME, importing preview scheduling policy into unit tests.
-    PAPERCLIP_CONFIG: path.join(testRoot, "h", "config.json"),
-    PAPERCLIP_INSTANCE_ID: `vt-${process.pid}-${invocationIndex}`,
+    NEXUS_TEST_HOST_HOME: process.env.NEXUS_TEST_HOST_HOME
+      ?? (process.env.NEXUS_HOME?.trim() || path.join(os.homedir(), ".nexus")),
+    NEXUS_HOME: path.join(testRoot, "h"),
+    // Config discovery otherwise prefers the checkout's .nexus/config.json
+    // over NEXUS_HOME, importing preview scheduling policy into unit tests.
+    NEXUS_CONFIG: path.join(testRoot, "h", "config.json"),
+    NEXUS_INSTANCE_ID: `vt-${process.pid}-${invocationIndex}`,
     TMPDIR: path.join(testRoot, "t"),
   };
   // The wrapper has already validated and consumed this shard's manifest.
   // Tests may launch independent runner fixtures with a different root/inventory.
-  delete env.PAPERCLIP_CI_TEST_SELECTION;
-  delete env.PAPERCLIP_CI_SELECTION_HASH;
-  mkdirSync(env.PAPERCLIP_HOME, { recursive: true });
+  delete env.NEXUS_CI_TEST_SELECTION;
+  delete env.NEXUS_CI_SELECTION_HASH;
+  mkdirSync(env.NEXUS_HOME, { recursive: true });
   mkdirSync(env.TMPDIR, { recursive: true });
   if (testShard) {
     const file = path.resolve(repoRoot, chatSuite);
@@ -468,7 +468,7 @@ async function runVitest(args, label, testShard = null, exactFiles = false) {
 
 async function runGeneralSuites(routeTests, chatShards) {
   for (const shard of chatShards ?? []) {
-    await runVitest(["--project", "@paperclipai/server", ...serializedServerVitestArgs, chatSuite],
+    await runVitest(["--project", "@nexusai/server", ...serializedServerVitestArgs, chatSuite],
       "chat integration test shard", shard);
   }
   for (const groupName of generalGroupNames) {
@@ -502,7 +502,7 @@ async function runGeneralGroup(routeTests, groupName, shardIndex = null, shardCo
     // Each invocation gets its own temporary home and embedded PostgreSQL.
     // Wait for both children even on failure so no sibling is abandoned.
     const results = await Promise.allSettled(chatShardWorkers(shardIndex, shardCount).map((shard) =>
-      runVitest(["--project", "@paperclipai/server", ...serializedServerVitestArgs, chatSuite],
+      runVitest(["--project", "@nexusai/server", ...serializedServerVitestArgs, chatSuite],
         "chat integration test shard", shard),
     ));
     const failed = results.find((result) => result.status === "rejected");
@@ -511,7 +511,7 @@ async function runGeneralGroup(routeTests, groupName, shardIndex = null, shardCo
   }
   if (groupName === generalServerNativeRunnerGroupName) {
     await runVitest(
-      ["--project", "@paperclipai/server",
+      ["--project", "@nexusai/server",
         // Each file owns its database, home, and processes. Keep cases serial,
         // but overlap long real lease windows in two isolated fork workers.
         ...(hasSharedTestDatabase ? serializedServerVitestArgs
@@ -541,7 +541,7 @@ async function runGeneralGroup(routeTests, groupName, shardIndex = null, shardCo
       await runVitest(
         [
           "--project",
-          "@paperclipai/server",
+          "@nexusai/server",
           // Files have separate fork processes and isolated homes/configs.
           // Keep each file's cases serial; overlap only two independent files.
           // An explicit shared test database cannot be isolated this way.
@@ -562,7 +562,7 @@ async function runGeneralGroup(routeTests, groupName, shardIndex = null, shardCo
     await runVitest(
       [
         "--project",
-        "@paperclipai/server",
+        "@nexusai/server",
         ...serializedServerVitestArgs,
         ...excludeRouteArgs,
       ],
@@ -603,7 +603,7 @@ async function runSerializedSuites(routeTests, shardIndex, shardCount) {
     await runVitest(
       [
         "--project",
-        "@paperclipai/server",
+        "@nexusai/server",
         ...shardTests.map((test) => test.repoPath),
         "--pool=forks",
         "--isolate",
@@ -642,16 +642,16 @@ const generalServerTestFiles = [
 
 const options = parseCliOptions(process.argv.slice(2));
 const selectionProjects = options.mode === serializedModeName || generalServerGroups.includes(options.group)
-  ? ["@paperclipai/server"]
+  ? ["@nexusai/server"]
   : options.group === generalWorkspacesAGroupName ? generalWorkspacesAProjects
     : options.group === generalWorkspacesBGroupName ? generalWorkspacesBProjects
       : options.group === generalWorkspacesCGroupName ? generalWorkspacesCProjects : [];
-const selection = process.env.PAPERCLIP_CI_TEST_SELECTION
+const selection = process.env.NEXUS_CI_TEST_SELECTION
   ? selectedShard(loadSelection(), options, selectionProjects) : null;
-if (selection?.["@paperclipai/server"]) {
+if (selection?.["@nexusai/server"]) {
   const owned = new Set(options.mode === serializedModeName ? routeTests.map((test) => test.repoPath)
     : generalServerTestFiles.filter((file) => !excludedServerSuites(options.group).includes(file)));
-  for (const file of selection["@paperclipai/server"]) {
+  for (const file of selection["@nexusai/server"]) {
     if (!owned.has(file)) fail(`Selected test belongs to another server lane: ${file}`);
   }
 }
@@ -721,7 +721,7 @@ if (options.dryRun) {
 try {
   if (selection) {
     for (const [project, files] of Object.entries(selection)) {
-      const serverArgs = project !== "@paperclipai/server" ? []
+      const serverArgs = project !== "@nexusai/server" ? []
         : options.mode === serializedModeName || hasSharedTestDatabase
           ? ["--pool=forks", "--isolate", ...serializedServerVitestArgs]
           : ["--pool=forks", "--isolate", "--fileParallelism", "--maxWorkers=2"];

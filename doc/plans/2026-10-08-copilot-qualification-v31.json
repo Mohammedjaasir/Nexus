@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.copilot.production-readiness-current/v1",
+  "schema": "nexus.copilot.production-readiness-current/v1",
   "updatedAt": "2026-10-08T14:45:17.483258+00:00",
   "runtimeSourceRevision": "4acb084fc5b6805a483bf419c2cdc6de3f7ec13d",
   "ordinaryInstallationSourceRevision": "d99959f00b62ad2099b5cdaca3f7656dcb88a8e8",

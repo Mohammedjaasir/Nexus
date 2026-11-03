@@ -19,7 +19,7 @@ async function fixture(descriptors: readonly CatalogCase[] = cases, context: Pil
   const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "chat-completion-export-"))); roots.push(root);
   const report = path.join(root, "report"), output = path.join(root, "projection"), allure = path.join(root, "allure");
   const results = cases.map(row => ({
-    schema: "paperclip.runner-e2e.result/v2", executionId: row.executionId, suiteId: "chat-features", suiteDefinitionHash: "c".repeat(64),
+    schema: "nexus.runner-e2e.result/v2", executionId: row.executionId, suiteId: "chat-features", suiteDefinitionHash: "c".repeat(64),
     source: { sha: targetSha, ref: "refs/heads/codex/chat-catalog-master-integration", workflowRunUrl: `https://github.com/paperclipai/paperclip/actions/runs/${binding.runId}` },
     attempt: 1, status: "passed", cleanup: "passed", evidenceValid: true,
     runIds: Array.from({ length: row.maximumRuns }, (_, i) => `synthetic-${row.key}-${i}`),
@@ -33,9 +33,9 @@ async function fixture(descriptors: readonly CatalogCase[] = cases, context: Pil
     const file = path.join(report, "evidence", row.executionId, "attempt-1", "final-state.png");
     await mkdir(path.dirname(file), { recursive: true }); await writeFile(file, png);
   }
-  const campaign = { schema: "paperclip.runner-e2e.campaign/v2", campaignId: `gha-${binding.runId}-1`,
+  const campaign = { schema: "nexus.runner-e2e.campaign/v2", campaignId: `gha-${binding.runId}-1`,
     generatedAt: results[0]!.finishedAt, expected: cases.map(row => row.executionId), results, retries: 0 };
-  const selected = { schema: "paperclip.chat-completion-testops-selection/v1", ...binding, projectId: 1,
+  const selected = { schema: "nexus.chat-completion-testops-selection/v1", ...binding, projectId: 1,
     planId: 10, jobId: 11, launchId: 12, allureJobRunId: "77", cases: cases.map((row, i) => ({ ...row, caseId: 100 + i })) };
   const save = () => writeFile(path.join(report, "normalized-results.json"), JSON.stringify(campaign));
   await save(); return { root, report, output, allure, campaign, results, selected, save };
@@ -54,7 +54,7 @@ it("exports the complete244 fixture selection without treating registration as a
   const serialized = (await readdir(f.allure)).filter(name => name.endsWith("-result.json"));
   expect(serialized).toHaveLength(244);
   const rendered = await Promise.all(serialized.map(async name => JSON.parse(await readFile(path.join(f.allure, name), "utf8"))));
-  expect(rendered.find(row => row.fullName === "paperclip.Product E2E.chat-features.tasks.create-backlog").parameters)
+  expect(rendered.find(row => row.fullName === "nexus.Product E2E.chat-features.tasks.create-backlog").parameters)
     .toContainEqual({ name: "canonicalScenario", value: "tasks.create-backlog" });
   expect(await readFile(path.join(f.output, "normalized-results.json"), "utf8")).not.toMatch(/PRIVATE_|OPAQUE_PROVIDER_BODY/);
 });
@@ -106,7 +106,7 @@ it("uses the unchanged evidence authority owner for the authenticated exact sele
   const policy = evidencePolicy(f.selected, binding, "77");
   const identity = { ...binding, executionIds: f.campaign.expected };
   const admitted = authorizeManualPrivateEvidence(identity, JSON.stringify(policy));
-  expect(admitted).toMatchObject({ targetSha, executionIds: f.campaign.expected, protocol: "paperclip.manual-private-evidence/v1" });
+  expect(admitted).toMatchObject({ targetSha, executionIds: f.campaign.expected, protocol: "nexus.manual-private-evidence/v1" });
   expect(() => authorizeManualPrivateEvidence({ ...identity, executionIds: ["chat-features.runner-opencode.local.foreign"] }, JSON.stringify(policy))).toThrow();
   expect(() => authorizeManualPrivateEvidence({ ...identity, targetSha: "b".repeat(40) }, JSON.stringify(policy))).toThrow();
 });

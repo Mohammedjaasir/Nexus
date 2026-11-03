@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { activityLog, agentWakeupRequests, agents, companies, createDb, heartbeatRuns, issueThreadInteractions, issues } from "@paperclipai/db";
-import { ONBOARDING_FIRST_TASK_ORIGIN_KIND } from "@paperclipai/shared";
+import { activityLog, agentWakeupRequests, agents, companies, createDb, heartbeatRuns, issueThreadInteractions, issues } from "@nexusai/db";
+import { ONBOARDING_FIRST_TASK_ORIGIN_KIND } from "@nexusai/shared";
 import { startRecoveryPostgres } from "../../__tests__/helpers/recovery-postgres.js";
 import { issueThreadInteractionService } from "../issue-thread-interactions.js";
 import { documentService } from "../documents.js";
 import { buildNativeExecutionInput } from "./native-execution-input.js";
 import { materializeNativeInteractionResponses } from "./native-interaction-bridge.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
 import { nativeRuntimeContextFixture } from "./runtime-context.test-fixture.js";
 
 describe("native accepted confirmation replay", () => {
@@ -16,7 +16,7 @@ describe("native accepted confirmation replay", () => {
   let db: ReturnType<typeof createDb>;
 
   beforeAll(async () => {
-    temporary = await startRecoveryPostgres("paperclip-confirmation-replay-");
+    temporary = await startRecoveryPostgres("nexus-confirmation-replay-");
     db = createDb(temporary.connectionString);
   });
 
@@ -28,7 +28,7 @@ describe("native accepted confirmation replay", () => {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID();
     const sourceRunId = randomUUID(), runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Confirmation replay", issuePrefix: `R${companyId.slice(0, 6).toUpperCase()}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Operator", adapterType: "paperclip_runner", status: "active" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Operator", adapterType: "nexus_runner", status: "active" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Create the approved artifact", status: "in_progress",
       workMode: "standard", originKind: ONBOARDING_FIRST_TASK_ORIGIN_KIND, assigneeAgentId: agentId });
     await db.insert(heartbeatRuns).values({ id: sourceRunId, companyId, agentId, runtimeMode: "native", nativeIssueId: issueId,
@@ -47,7 +47,7 @@ describe("native accepted confirmation replay", () => {
     const input = { idempotencyKey: "approved-artifact", interactionKind, title: "Approve artifact work",
       prompt: "Create the requested file and save its task document.", continuationPolicy: "wake_assignee",
       payload };
-    const original = new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId: sourceRunId });
+    const original = new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId: sourceRunId });
     const created = await original.execute({ tool: "request_human_input", callId: randomUUID(), arguments: input }) as { interaction: { id: string } };
     await db.update(heartbeatRuns).set({ status: "succeeded", nativePhase: "committed", finishedAt: new Date() })
       .where(eq(heartbeatRuns.id, sourceRunId));
@@ -65,12 +65,12 @@ describe("native accepted confirmation replay", () => {
       taskPrompt: "Continue the accepted work.", provider: "codex", normalizedSessionId: randomUUID(), resumedSession: true,
       workspace: { id: randomUUID(), cwd: "/workspace", repoUrl: null, repoRef: null, branchName: null },
       interactionResponses: responses, runtimeContext: nativeRuntimeContextFixture(),
-      completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "paperclip.run-result.v1",
+      completionContract: { id: randomUUID(), sha256: `sha256:${"a".repeat(64)}`, schemaVersion: "nexus.run-result.v1",
         contract: { revision: "1", objective: "Deliver the requested artifact", criteria: [{ id: "artifact", requirement: "Publish the requested artifact." }] } } });
     await db.update(heartbeatRuns).set({ runnerProfileJson: { nativeExecutionInput: execution } }).where(eq(heartbeatRuns.id, runId));
     await db.update(issues).set({ executionRunId: runId }).where(eq(issues.id, issueId));
     return { companyId, agentId, issueId, sourceRunId, runId, input, execution, accepted: accepted.interaction, plan,
-      authority: new PaperclipRunnerToolAuthority(db, { companyId, agentId, issueId, runId }) };
+      authority: new NexusRunnerToolAuthority(db, { companyId, agentId, issueId, runId }) };
   }
 
   it.each(["confirmation", "checkbox"] as const)("returns the original accepted %s to its resumed native run without another human wait", async interactionKind => {
@@ -93,7 +93,7 @@ describe("native accepted confirmation replay", () => {
     await expect(f.authority.recover(call)).resolves.toEqual({ result });
     await expect(f.authority.execute({ tool: "report_progress", callId: randomUUID(), arguments: {
       idempotencyKey: f.input.idempotencyKey, body: "A different operation cannot reuse this receipt key.",
-    } })).rejects.toThrow("paperclip_runner_tool_idempotency_conflict");
+    } })).rejects.toThrow("nexus_runner_tool_idempotency_conflict");
     const child = await f.authority.execute({ tool: "create_task", callId: randomUUID(), arguments: {
       idempotencyKey: "approved-child", title: "Create the approved artifact", description: "Create the requested file and task document.",
     } });
@@ -153,11 +153,11 @@ describe("native accepted confirmation replay", () => {
 
   it("keeps a different creating agent from replaying another agent's acceptance", async () => {
     const f = await fixture(), otherAgentId = randomUUID();
-    await db.insert(agents).values({ id: otherAgentId, companyId: f.companyId, name: "Other operator", adapterType: "paperclip_runner", status: "active" });
+    await db.insert(agents).values({ id: otherAgentId, companyId: f.companyId, name: "Other operator", adapterType: "nexus_runner", status: "active" });
     const execution = structuredClone(f.execution); execution.binding.agentId = otherAgentId;
     await db.update(heartbeatRuns).set({ agentId: otherAgentId, runnerProfileJson: { nativeExecutionInput: execution } }).where(eq(heartbeatRuns.id, f.runId));
     await db.update(issues).set({ assigneeAgentId: otherAgentId }).where(eq(issues.id, f.issueId));
-    const authority = new PaperclipRunnerToolAuthority(db, { ...f, agentId: otherAgentId });
+    const authority = new NexusRunnerToolAuthority(db, { ...f, agentId: otherAgentId });
     await expect(authority.execute({ tool: "request_human_input", callId: randomUUID(), arguments: f.input }))
       .rejects.toThrow("Interaction idempotency key already exists for a different request");
   });

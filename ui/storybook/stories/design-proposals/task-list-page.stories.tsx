@@ -9,7 +9,7 @@ const meta = {
     layout: "fullscreen",
     initialEntries: ["/PAP/issues"],
     docs: { description: { component: "Full-page design proposal composed from the reviewed task rows and columns, production sidebar organization/account menus, task filters, Kanban board and task composer. Default opens with Task, Task ID and Last updated; headers remain inactive until the user sorts. Search, filters, views, expand/collapse, sorting and column configuration run against local fixture state. Sidebar labels use sm and icons match Paper. Organization selection uses the production switcher with company-scoped task fixtures. Views are Inbox, Unread, Needs attention and All tasks. New users start on All tasks; the last view persists per user in isolated proposal browser storage. Navigation, task creation, cross-device preferences and backend behavior require app integration." } },
-    paperclip: {
+    nexus: {
       capabilities: ["tasks/organize", "inbox-search/search"],
       status: "proposed",
       home: "design-proposals",

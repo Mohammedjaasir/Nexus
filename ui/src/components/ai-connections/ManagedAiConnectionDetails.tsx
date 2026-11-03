@@ -7,7 +7,7 @@ import { useNavigate } from "@/lib/router";
 import { AiConnectionAccountControls } from "./AiConnectionAccountControls";
 import { AiConnectionUsagePanel } from "./AiConnectionUsagePanel";
 import { AiConnectionAccountDetails } from "./AiConnectionAccountDetails";
-import type { ToolConnection, AiConnectionMetadata } from "@paperclipai/shared";
+import type { ToolConnection, AiConnectionMetadata } from "@nexusai/shared";
 import { aiMethodLabel } from "./model";
 import { queryKeys } from "@/lib/queryKeys";
 import { retryTransientOnly } from "@/lib/query-client";

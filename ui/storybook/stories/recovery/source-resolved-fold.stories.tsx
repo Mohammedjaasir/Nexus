@@ -54,11 +54,11 @@ function DefaultPanel() {
 }
 
 const meta = {
-  id: "paperclip-source-resolved-fold",
-  title: "Projects and execution/Recovery/Paperclip/Source-resolved Fold",
+  id: "nexus-source-resolved-fold",
+  title: "Projects and execution/Recovery/Nexus/Source-resolved Fold",
   component: DefaultPanel,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "recovery/diagnosis",
         "recovery/source-action"

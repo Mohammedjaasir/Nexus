@@ -68,16 +68,16 @@ export async function cleanupConnectionCompany(input: {
 
 export async function openConnectionBrowser(config: Pick<ConnectionConfig, "browser">, repositoryRoot: string, origin: string) {
   const temporary = config.browser.freshness === "signed-out" || !config.browser.profileDir;
-  const profile = temporary ? await mkdtemp(path.join(os.tmpdir(), "paperclip-qa-browser-")) : path.resolve(config.browser.profileDir!);
+  const profile = temporary ? await mkdtemp(path.join(os.tmpdir(), "nexus-qa-browser-")) : path.resolve(config.browser.profileDir!);
   await assertOutsideRepository(profile, repositoryRoot);
   await mkdir(profile, { recursive: true, mode: 0o700 });
   const stat = await lstat(profile);
   if (stat.isSymbolicLink() || !stat.isDirectory() || (stat.mode & 0o077) !== 0) throw new ConnectionBlock("blocked_target", "browser_profile_requires_private_directory");
-  const marker = path.join(profile, ".paperclip-provider-qa");
+  const marker = path.join(profile, ".nexus-provider-qa");
   const entries = await readdir(profile);
   if (entries.length && !entries.includes(path.basename(marker))) throw new ConnectionBlock("blocked_target", "use_a_dedicated_empty_qa_browser_profile");
-  if (!entries.length) await writeFile(marker, "Dedicated Paperclip provider QA browser. Contains private authentication state.\n", { mode: 0o600, flag: "wx" });
-  const lock = path.join(profile, ".paperclip-qa.lock");
+  if (!entries.length) await writeFile(marker, "Dedicated Nexus provider QA browser. Contains private authentication state.\n", { mode: 0o600, flag: "wx" });
+  const lock = path.join(profile, ".nexus-qa.lock");
   try { await (await open(lock, "wx", 0o600)).close(); }
   catch { throw new ConnectionBlock("blocked_target", "qa_browser_profile_in_use"); }
   let context: BrowserContext;
@@ -125,7 +125,7 @@ async function safeWrite(file: string, value: unknown, secrets: readonly string[
 async function connectionAttempt(execution: MatrixExecution, config: ConnectionConfig, origin: string, summaryDir: string, repositoryRoot: string, signal: AbortSignal): Promise<RunnerE2EResult> {
   const startedAt = new Date().toISOString();
   const nonce = randomBytes(6).toString("hex");
-  const privateDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-connection-proof-"));
+  const privateDir = await mkdtemp(path.join(os.tmpdir(), "nexus-connection-proof-"));
   const evidenceDir = path.join(summaryDir, execution.suite.id, execution.profile.id, execution.environment.id, execution.task.id, "attempt-1");
   await mkdir(evidenceDir, { recursive: true, mode: 0o700 });
   const { entry, mode } = connectionCell(execution);
@@ -133,7 +133,7 @@ async function connectionAttempt(execution: MatrixExecution, config: ConnectionC
     target: { mode: config.target.mode, origin, commit: null, deploymentMode: null }, entry, method: mode, checkpoints: {}, waits: [] };
   const secrets: string[] = [];
   const checkpoint = async (phase: string) => { evidence.phase = phase; await safeWrite(path.join(summaryDir, "progress.json"), { executionId: execution.id, ...evidence }, secrets); };
-  const result: RunnerE2EResult = { schema: "paperclip.runner-e2e.result/v2", executionId: execution.id, suiteId: execution.suite.id, suiteDefinitionHash: execution.suiteDefinitionHash,
+  const result: RunnerE2EResult = { schema: "nexus.runner-e2e.result/v2", executionId: execution.id, suiteId: execution.suite.id, suiteDefinitionHash: execution.suiteDefinitionHash,
     source: sourceRevision(repositoryRoot), attempt: 1, status: "failed", profileId: execution.profile.id, environmentId: execution.environment.id, caseId: execution.task.id,
     provider: execution.profile.provider, model: execution.profile.model, runtimeMode: execution.profile.generation, startedAt, finishedAt: startedAt, durationMs: 0, cleanup: "not_started", providerConnection: evidence };
   let browser: Awaited<ReturnType<typeof openConnectionBrowser>> | undefined;
@@ -220,7 +220,7 @@ async function connectionAttempt(execution: MatrixExecution, config: ConnectionC
       evidence.assisted = true;
       evidence.waits.push({ kind: "board_login", startedAt: new Date().toISOString() });
       await checkpoint("awaiting_board_login");
-      console.log(`[provider-connections] Sign in to Paperclip at ${origin} in the QA browser; this test resumes automatically.`);
+      console.log(`[provider-connections] Sign in to Nexus at ${origin} in the QA browser; this test resumes automatically.`);
       const deadline = Date.now() + config.browser.loginTimeoutMs;
       let ready = false;
       while (Date.now() < deadline) { assertActive(); try { await api.get("/api/companies"); ready = true; break; } catch { await connectionDelay(1000); } }

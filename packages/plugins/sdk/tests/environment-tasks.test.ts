@@ -15,7 +15,7 @@ describe("task lifecycle policy",()=>{
 
 const prepare = {
   kind: "prepare", projectIds: [], requirements: {
-    schema: "paperclip.runner.launch-requirements.v1",
+    schema: "nexus.runner.launch-requirements.v1",
     identity: { runnerInstanceId: "runner", environmentLeaseId: "lease", runId: "run",
       normalizedSessionId: "session", turnId: "turn", itemId: "item" },
     provider: "codex", model: "selected-model", instructions: "Verify the selected account.",

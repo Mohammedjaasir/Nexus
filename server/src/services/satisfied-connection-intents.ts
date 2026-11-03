@@ -4,8 +4,8 @@ import { enqueueTerminalIssueInteractionChatPublications } from "./chat-interact
 import { connectionManagementService } from "./connection-management.js";
 import { chatCredentialEntryGenerations } from "./chat-channels/credentials.js";
 import { and, asc, eq, gt, inArray, isNull, or } from "drizzle-orm";
-import { approvals, chatEndpoints, chatExternalPrincipals, chatIdentityLinks, toolConnections, companyMemberships, connectionIntentDeliveries, issueApprovals, issueThreadInteractions, issues, type Db } from "@paperclipai/db";
-import { connectionIntentPayloadSchema } from "@paperclipai/shared";
+import { approvals, chatEndpoints, chatExternalPrincipals, chatIdentityLinks, toolConnections, companyMemberships, connectionIntentDeliveries, issueApprovals, issueThreadInteractions, issues, type Db } from "@nexusai/db";
+import { connectionIntentPayloadSchema } from "@nexusai/shared";
 import { logActivity, publishActivity, type ActivityPublication } from "./activity-log.js";
 import { chatCredentialRotationId, connectionIntentService } from "./connection-intents.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
@@ -38,7 +38,7 @@ async function findAvailableToolConnection(db: Db, task: Task, intent: Intent, p
         .innerJoin(chatExternalPrincipals, and(eq(chatExternalPrincipals.id, chatIdentityLinks.principalId),
           eq(chatExternalPrincipals.companyId, chatIdentityLinks.companyId)))
         .where(and(eq(chatIdentityLinks.companyId, task.companyId), eq(chatIdentityLinks.endpointId, endpoint.id),
-          eq(chatIdentityLinks.paperclipUserId, intent.addresseeUserId), eq(chatIdentityLinks.status, "linked"),
+          eq(chatIdentityLinks.nexusUserId, intent.addresseeUserId), eq(chatIdentityLinks.status, "linked"),
           eq(chatExternalPrincipals.provider, endpoint.provider), eq(chatExternalPrincipals.providerAccountId, endpoint.providerAccountId)))
         .limit(1);
       if (!link) return null;

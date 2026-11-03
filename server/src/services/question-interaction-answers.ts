@@ -1,15 +1,15 @@
-import type { AskUserQuestionsAnswer, AskUserQuestionsPayload, PaperclipQuestionSetPayload } from "@paperclipai/shared";
-import { parsePaperclipQuestionResponse, type PaperclipQuestionResponse } from "../vendor/paperclip-runner/index.js";
+import type { AskUserQuestionsAnswer, AskUserQuestionsPayload, NexusQuestionSetPayload } from "@nexusai/shared";
+import { parseNexusQuestionResponse, type NexusQuestionResponse } from "../vendor/nexus-runner/index.js";
 import { validateQuestionPatterns } from "./question-pattern-validation.js";
 
 function prepareQuestionInteractionAnswers(
-  questionSet: PaperclipQuestionSetPayload,
+  questionSet: NexusQuestionSetPayload,
   answers: readonly AskUserQuestionsAnswer[],
   storageQuestions: AskUserQuestionsPayload["questions"],
 ) {
   const answerByQuestionId = new Map(answers.map((answer) => [answer.questionId, answer]));
-  const response: PaperclipQuestionResponse = {
-    schema: "paperclip.question_response.v1",
+  const response: NexusQuestionResponse = {
+    schema: "nexus.question_response.v1",
     answers: {},
   };
   for (const question of questionSet.questions) {
@@ -55,7 +55,7 @@ function prepareQuestionInteractionAnswers(
       return { ...question, textValidation };
     }),
   };
-  const parsed = parsePaperclipQuestionResponse(withoutPatterns, response);
+  const parsed = parseNexusQuestionResponse(withoutPatterns, response);
   const checks = answerableQuestionSet.questions.flatMap((question) => {
     const pattern = question.textValidation?.pattern;
     const answer = parsed.answers[question.id];
@@ -67,10 +67,10 @@ function prepareQuestionInteractionAnswers(
 
 /** Validate untrusted answers before persistence, including bounded patterns. */
 export async function parseQuestionInteractionAnswers(
-  questionSet: PaperclipQuestionSetPayload,
+  questionSet: NexusQuestionSetPayload,
   answers: readonly AskUserQuestionsAnswer[],
   storageQuestions: AskUserQuestionsPayload["questions"],
-): Promise<PaperclipQuestionResponse> {
+): Promise<NexusQuestionResponse> {
   const { parsed, checks } = prepareQuestionInteractionAnswers(questionSet, answers, storageQuestions);
   await validateQuestionPatterns(checks);
   return parsed;
@@ -78,9 +78,9 @@ export async function parseQuestionInteractionAnswers(
 
 /** Saved answers already passed pattern validation; delivery must not depend on worker capacity. */
 export function parseSavedQuestionInteractionAnswers(
-  questionSet: PaperclipQuestionSetPayload,
+  questionSet: NexusQuestionSetPayload,
   answers: readonly AskUserQuestionsAnswer[],
   storageQuestions: AskUserQuestionsPayload["questions"],
-): PaperclipQuestionResponse {
+): NexusQuestionResponse {
   return prepareQuestionInteractionAnswers(questionSet, answers, storageQuestions).parsed;
 }

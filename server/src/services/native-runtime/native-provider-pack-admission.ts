@@ -1,7 +1,7 @@
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
-import { heartbeatRuns, nativeRunFinalizations, type Db } from "@paperclipai/db";
-import type { NativeSession } from "../../vendor/paperclip-runner/index.js";
+import { heartbeatRuns, nativeRunFinalizations, type Db } from "@nexusai/db";
+import type { NativeSession } from "../../vendor/nexus-runner/index.js";
 import { canonicalProviderPackJson, type ProviderPackIdentity } from "./remote-provider-pack-verification.js";
 
 type Selection = {
@@ -17,7 +17,7 @@ type Selection = {
 };
 
 export type NativeProviderPackAdmission = Omit<Selection, "admittedRunId" | "environmentLeaseId"> & {
-  schema: "paperclip.native-provider-pack-admission.v1";
+  schema: "nexus.native-provider-pack-admission.v1";
   stage: "session_admitted";
   authority: "core_verified_selection";
   runId: string;
@@ -32,14 +32,14 @@ type NativeRunIdentity = ReturnType<NativeSession["identity"]>;
 export type NativeProviderPackAdmissionSource = { runId: string; receipt: unknown; state: unknown };
 
 export function nativeProviderPackAdmissionPending(admissionEpoch: string) {
-  return { schema: "paperclip.native-provider-pack-admission-state.v1" as const, state: "pending" as const, admissionEpoch };
+  return { schema: "nexus.native-provider-pack-admission-state.v1" as const, state: "pending" as const, admissionEpoch };
 }
 
 function verifiedState(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const state = value as Record<string, unknown>;
   return Object.keys(state).sort().join(",") === "admissionEpoch,schema,state"
-    && state.schema === "paperclip.native-provider-pack-admission-state.v1" && state.state === "verified"
+    && state.schema === "nexus.native-provider-pack-admission-state.v1" && state.state === "verified"
     && typeof state.admissionEpoch === "string" && /^[a-f0-9-]{36}$/.test(state.admissionEpoch);
 }
 
@@ -96,7 +96,7 @@ export async function rememberRecoveredNativeProviderPack(db: Db, session: Nativ
   const receipt = value as Record<string, unknown>;
   const keys = new Set(["schema", "stage", "authority", "companyId", "agentId", "runId", "sessionId", "runnerInstanceId",
     "runnerEnvironmentLeaseId", "providerPackDigest", "opencodeProxySha256", "sourceRevision", "inheritedFromRunId"]);
-  if (Object.keys(receipt).some(key => !keys.has(key)) || receipt.schema !== "paperclip.native-provider-pack-admission.v1"
+  if (Object.keys(receipt).some(key => !keys.has(key)) || receipt.schema !== "nexus.native-provider-pack-admission.v1"
     || receipt.stage !== "session_admitted" || receipt.authority !== "core_verified_selection"
     || receipt.runId !== input.sourceRunId || receipt.companyId !== input.identity.companyId || receipt.agentId !== input.identity.agentId
     || receipt.sessionId !== input.identity.sessionId || receipt.runnerInstanceId !== input.runnerInstanceId
@@ -117,7 +117,7 @@ export function admittedNativeProviderPack(session: NativeSession, identity: Nat
   if (canonicalProviderPackJson(actual) !== canonicalProviderPackJson(identity)
     || actual.companyId !== selected.companyId || actual.agentId !== selected.agentId || actual.sessionId !== selected.sessionId) return null;
   const { admittedRunId, environmentLeaseId, ...identityFields } = selected;
-  return { schema: "paperclip.native-provider-pack-admission.v1", stage: "session_admitted",
+  return { schema: "nexus.native-provider-pack-admission.v1", stage: "session_admitted",
     authority: "core_verified_selection", ...identityFields, runId: actual.runId, runnerEnvironmentLeaseId: environmentLeaseId,
     ...(admittedRunId === actual.runId ? {} : { inheritedFromRunId: admittedRunId }) };
 }
@@ -145,7 +145,7 @@ export async function recordNativeProviderPackAdmission(db: Db, input: {
     )).for("update", { noWait: true }).limit(1);
     if (!run) return false;
     const current = run.profile?.nativeProviderPackAdmissionState as Record<string, unknown> | undefined;
-    if (current?.schema !== "paperclip.native-provider-pack-admission-state.v1" || current.admissionEpoch !== input.admissionEpoch
+    if (current?.schema !== "nexus.native-provider-pack-admission-state.v1" || current.admissionEpoch !== input.admissionEpoch
       || !["pending", "verified", "unknown"].includes(String(current.state))) return false;
     if (current.state === "unknown") return false;
     const previous = run.profile?.nativeProviderPackAdmission;

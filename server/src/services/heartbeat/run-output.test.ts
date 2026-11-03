@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
-import type { Db, heartbeatRuns } from "@paperclipai/db";
+import type { Db, heartbeatRuns } from "@nexusai/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDurableRunLogStore } from "../run-log-store.js";
 import type { StorageProvider } from "../../storage/types.js";
@@ -192,7 +192,7 @@ describe("object-backed diagnostic recording", () => {
     await handlers.onPersistedNativeLog!(
       1,
       formatNativeRunLogEvent({
-        schema: "paperclip.prp.event.v1",
+        schema: "nexus.prp.event.v1",
         schemaVersion: 1,
         runId: row.id,
         sourceEventId: "source:1",

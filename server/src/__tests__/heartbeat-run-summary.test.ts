@@ -30,7 +30,7 @@ describe.each(["scheduled_monitor_waiting", "scheduled_monitor_dispatched", "sch
     finalizationPhase: "committed",
     finalizationReasonCode,
     nativeResult: {
-      schema: "paperclip.run_result.v1",
+      schema: "nexus.run_result.v1",
       reportedWorkDisposition: "yielded",
       summary: "QA is still pending. The repository is being prepared and I will continue automatically.",
       continuation: { kind: "monitor", summary: "Continue with the prepared repository.", idempotencyKey: "repository-ready" },
@@ -345,7 +345,7 @@ describe("buildHeartbeatRunIssueComment", () => {
       buildHeartbeatRunIssueComment({
         summary: "",
         nativeResult: {
-          schema: "paperclip.run_result.v1",
+          schema: "nexus.run_result.v1",
           reportedWorkDisposition: "done",
           summary,
         },
@@ -357,7 +357,7 @@ describe("buildHeartbeatRunIssueComment", () => {
 describe("resolveHeartbeatRunResponse", () => {
   const resultJson = {
     nativeResult: {
-      schema: "paperclip.run_result.v1",
+      schema: "nexus.run_result.v1",
       reportedWorkDisposition: "done",
       summary: "semantic result",
     },
@@ -456,7 +456,7 @@ describe("resolveHeartbeatRunResponse", () => {
       resolveHeartbeatRunResponse({
         resultJson: {
           nativeResult: {
-            schema: "paperclip.run_result.v1",
+            schema: "nexus.run_result.v1",
             reportedWorkDisposition: "yielded",
             summary: "Waiting for Choose an output format.",
           },
@@ -472,7 +472,7 @@ describe("resolveHeartbeatRunResponse", () => {
         resultJson: {
           summary: "Waiting for Choose an output format.",
           nativeResult: {
-            schema: "paperclip.run_result.v1",
+            schema: "nexus.run_result.v1",
             reportedWorkDisposition: "yielded",
             summary: "Waiting for Choose an output format.",
           },
@@ -491,7 +491,7 @@ describe("resolveHeartbeatRunResponse", () => {
       resolveHeartbeatRunResponse({
         resultJson: {
           nativeResult: {
-            schema: "paperclip.run_result.v1",
+            schema: "nexus.run_result.v1",
             reportedWorkDisposition: "yielded",
             summary: "Waiting for Choose an output format.",
           },
@@ -514,7 +514,7 @@ describe("resolveHeartbeatRunResponse", () => {
   it("persists a final assistant reply when the server completed a conversation turn", () => {
     expect(resolveHeartbeatRunResponse({
       conversationTurnFinished: true,
-      resultJson: { nativeResult: { schema: "paperclip.run_result.v1",
+      resultJson: { nativeResult: { schema: "nexus.run_result.v1",
         reportedWorkDisposition: "yielded", summary: "Waiting for the next message." } },
       finalAgentMessage: { text: "Which project should own this?",
         sourceEventId: "chat-final-1", channel: "final" },
@@ -598,7 +598,7 @@ describe("resolveHeartbeatRunResponse", () => {
       resolveHeartbeatRunResponse({
         resultJson: {
           acceptedResult: {
-            schema: "paperclip.run_result.v1",
+            schema: "nexus.run_result.v1",
             reportedWorkDisposition: "done",
             summary: "TELEGRAM-ACCEPTED-Onyx",
           },
@@ -670,7 +670,7 @@ describe("resolveHeartbeatRunResponse", () => {
       resolveHeartbeatRunResponse({
         resultJson: {
           nativeResult: {
-            schema: "paperclip.run_result.v1",
+            schema: "nexus.run_result.v1",
             reportedWorkDisposition: "yielded",
             summary: "Waiting for a provider answer.",
           },
@@ -696,7 +696,7 @@ describe("resolveHeartbeatRunResponse", () => {
       finalizationPhase: "committed",
       finalizationReasonCode: "external_chat_response_waiting",
       nativeResult: {
-        schema: "paperclip.run_result.v1",
+        schema: "nexus.run_result.v1",
         reportedWorkDisposition: "yielded",
         summary: "SLACK-LUNA-WAITING",
         continuation: {
@@ -782,7 +782,7 @@ describe("resolveHeartbeatRunResponse", () => {
       finalizationReasonCode: "prior_status_terminal_preserved",
       externalChatCommittedResponseWakeSummaryAuthorized: true,
       nativeResult: {
-        schema: "paperclip.run_result.v1",
+        schema: "nexus.run_result.v1",
         reportedWorkDisposition: "yielded",
         summary: "Exact accepted public response",
         continuation: {
@@ -851,10 +851,10 @@ describe("resolveHeartbeatRunResponse", () => {
       finalizationPhase: "committed",
       finalizationReasonCode: "governed_response_waiting",
       externalChatReviewPresentation: {
-        schema: "paperclip.chat_review_response_presentation.v1",
+        schema: "nexus.chat_review_response_presentation.v1",
       },
       nativeResult: {
-        schema: "paperclip.run_result.v1",
+        schema: "nexus.run_result.v1",
         reportedWorkDisposition: "yielded",
         summary:
           "The original image is prepared for delivery; the completion review is still pending.",
@@ -937,13 +937,13 @@ describe("resolveHeartbeatRunResponse", () => {
     ).toBe(true);
     expect(
       isExternalChatPresentationContext({
-        paperclipWake: { externalInteractionContinuation: true },
+        nexusWake: { externalInteractionContinuation: true },
       }),
     ).toBe(true);
     expect(
       isExternalChatPresentationContext({
         externalChatContinuation: false,
-        paperclipWake: { externalInteractionContinuation: false },
+        nexusWake: { externalInteractionContinuation: false },
       }),
     ).toBe(false);
     expect(isExternalChatPresentationContext({ source: "chatty:github" })).toBe(
@@ -967,7 +967,7 @@ describe("projectHistoricalHeartbeatRunComment", () => {
     expect(
       projectHistoricalHeartbeatRunComment(LEGACY_WITHHELD_RUN_COMMENT, {
         nativeResult: {
-          schema: "paperclip.run_result.v1",
+          schema: "nexus.run_result.v1",
           summary,
         },
       }),
@@ -978,7 +978,7 @@ describe("projectHistoricalHeartbeatRunComment", () => {
     expect(
       projectHistoricalHeartbeatRunComment("Real response", {
         nativeResult: {
-          schema: "paperclip.run_result.v1",
+          schema: "nexus.run_result.v1",
           summary: "Different response",
         },
       }),
@@ -1008,8 +1008,8 @@ describe("findHeartbeatRunCompletionComment", () => {
     expect(resolveHeartbeatRunResponse({
       resultJson,
       existingComment,
-      finalAgentMessage: { text: "PAPERCLIP_E2E_WARM_T3", sourceEventId: "final-event", channel: "final" },
-    })).toMatchObject({ text: "PAPERCLIP_E2E_WARM_T3", decision: { commentAction: "create" } });
+      finalAgentMessage: { text: "NEXUS_E2E_WARM_T3", sourceEventId: "final-event", channel: "final" },
+    })).toMatchObject({ text: "NEXUS_E2E_WARM_T3", decision: { commentAction: "create" } });
     // A final reply already materialized on a retry keeps precedence.
     expect(findHeartbeatRunCompletionComment([prepared, explicit], resultJson)).toEqual(explicit);
     // The body alone does not mark an ordinary agent comment as generated.

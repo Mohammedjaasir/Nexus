@@ -67,7 +67,7 @@ describe("native reconciliation pass timing", () => {
     const calls = handles.startSpan.mock.calls;
     expect(calls[0]).toEqual([
       "controller.native_reconciliation",
-      { startTime: 10_000, attributes: { "paperclip.native_reconciliation.scoped": false, "paperclip.native_reconciliation.candidates": 187 } },
+      { startTime: 10_000, attributes: { "nexus.native_reconciliation.scoped": false, "nexus.native_reconciliation.candidates": 187 } },
       "root",
     ]);
     const pass = handles.startSpan.mock.results[0]!.value;

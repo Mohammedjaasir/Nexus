@@ -5,7 +5,7 @@ import type {
   DocumentAnnotationThreadWithComments,
   DocumentAnnotationThreadStatus,
   DocumentAnnotationAnchorState,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { DocumentAnnotationPanel } from "@/components/DocumentAnnotationPanel";
 import type { PendingAnchor } from "@/components/DocumentAnnotationLayer";
 import type { CompanyUserProfile } from "@/lib/company-members";
@@ -110,7 +110,7 @@ function PanelFrame({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="paperclip-story__label">{label}</div>
+      <div className="nexus-story__label">{label}</div>
       <QueryClientProvider client={client}>
         <div className="h-[460px]">
           <DocumentAnnotationPanel
@@ -138,11 +138,11 @@ function PanelFrame({
 
 function DocumentCommentsMatrix() {
   return (
-    <div className="paperclip-story">
-      <main className="paperclip-story__inner">
-        <section className="paperclip-story__frame overflow-hidden">
+    <div className="nexus-story">
+      <main className="nexus-story__inner">
+        <section className="nexus-story__frame overflow-hidden">
           <div className="border-b border-border px-5 py-4">
-            <div className="paperclip-story__label">Document comments · PAP-10960</div>
+            <div className="nexus-story__label">Document comments · PAP-10960</div>
             <h2 className="mt-1 text-xl font-semibold">Simplified annotation panel</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               No header, no filter chips, no empty-state copy. Revision indicator sits top-right.
@@ -179,7 +179,7 @@ const meta = {
           "Inline document comment panel (PAP-10960): simplified to drop the header, filter chips, and empty-state, surface the author identity in the composer, and clamp quotes to two lines.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "documents-artifacts/annotations"
       ],

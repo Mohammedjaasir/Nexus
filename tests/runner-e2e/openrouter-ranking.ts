@@ -9,7 +9,7 @@ export interface OpenRouterRankedModel {
 }
 
 export interface OpenRouterRankingSnapshot {
-  schema: "paperclip.runner-e2e.openrouter-ranking/v1";
+  schema: "nexus.runner-e2e.openrouter-ranking/v1";
   snapshotId: string;
   ranking: "top-weekly";
   requiredParameter: "tools";
@@ -30,7 +30,7 @@ export function validateOpenRouterRankingSnapshot(
     throw new Error("OpenRouter ranking snapshot must be an object");
   }
   const snapshot = value as Partial<OpenRouterRankingSnapshot>;
-  if (snapshot.schema !== "paperclip.runner-e2e.openrouter-ranking/v1") {
+  if (snapshot.schema !== "nexus.runner-e2e.openrouter-ranking/v1") {
     throw new Error("OpenRouter ranking snapshot has an unknown schema");
   }
   if (

@@ -11,11 +11,11 @@ import { setTimeout as delay } from "node:timers/promises";
 import { and, eq } from "drizzle-orm";
 
 if (!process.argv.includes("--run")) throw new Error("Pass --run to authorize the live two-turn Codex smoke.");
-const root = await mkdtemp(join(tmpdir(), "paperclip-live-task-monitor-"));
-process.env.PAPERCLIP_HOME = join(root, "paperclip");
-process.env.PAPERCLIP_INSTANCE_ID = "monitor-smoke";
-process.env.PAPERCLIP_TELEMETRY_ENABLED = "false";
-const { createDb, companies, agents, authUsers, companyMemberships, issues, heartbeatRuns, agentWakeupRequests, nativeRunResults, statusDecisions } = await import("@paperclipai/db");
+const root = await mkdtemp(join(tmpdir(), "nexus-live-task-monitor-"));
+process.env.NEXUS_HOME = join(root, "nexus");
+process.env.NEXUS_INSTANCE_ID = "monitor-smoke";
+process.env.NEXUS_TELEMETRY_ENABLED = "false";
+const { createDb, companies, agents, authUsers, companyMemberships, issues, heartbeatRuns, agentWakeupRequests, nativeRunResults, statusDecisions } = await import("@nexusai/db");
 const { startEmbeddedPostgresTestDatabase } = await import("../src/__tests__/helpers/embedded-postgres.js");
 const { createAgentLifecycle, startAgentLifecycle } = await import("../src/services/agent-lifecycle.js");
 const { createLifecycleDriver } = await import("../src/services/agent-lifecycle-driver.js");
@@ -29,8 +29,8 @@ const server = createServer();
 await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
 const address = server.address();
 if (!address || typeof address === "string") throw new Error("TCP listener missing");
-process.env.PAPERCLIP_API_URL = `http://127.0.0.1:${address.port}`;
-setupRunnerPrpWebSocketServer(server, { apiUrl: process.env.PAPERCLIP_API_URL });
+process.env.NEXUS_API_URL = `http://127.0.0.1:${address.port}`;
+setupRunnerPrpWebSocketServer(server, { apiUrl: process.env.NEXUS_API_URL });
 const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID();
 const heartbeat = heartbeatService(db);
 const lifecycle = startAgentLifecycle(db, createLifecycleDriver(db, createPluginWorkerManager()), () => true);
@@ -42,7 +42,7 @@ try {
   await db.insert(companies).values({ id: companyId, name: "Isolated monitor smoke", issuePrefix: "MON", defaultResponsibleUserId: "monitor-smoke", requireBoardApprovalForNewAgents: false });
   await db.insert(authUsers).values({ id: "monitor-smoke", name: "Monitor smoke", email: "monitor-smoke@example.test", createdAt: new Date(), updatedAt: new Date() });
   await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: "monitor-smoke", status: "active", membershipRole: "owner" });
-  await createAgentLifecycle(db).requestHire(companyId, { id: agentId, name: "Monitor verifier", status: "active", adapterType: "paperclip_runner",
+  await createAgentLifecycle(db).requestHire(companyId, { id: agentId, name: "Monitor verifier", status: "active", adapterType: "nexus_runner",
     adapterConfig: { provider: "codex", cwd, lifecycleMode: "warm", idleTimeoutMs: 300_000, timeoutSeconds: 180 },
     runtimeConfig: { heartbeat: { enabled: false, wakeOnDemand: true } } });
   const setupDeadline = Date.now() + 3 * 60_000;
@@ -55,7 +55,7 @@ try {
     await delay(250);
   }
   await db.insert(issues).values({ id: issueId, companyId, title: "Verify a one-shot native task monitor", identifier: "MON-1", status: "in_progress", assigneeAgentId: agentId,
-    description: "This is an isolated two-run integration test. First run: use set_task_monitor on this task with a fresh nextCheckAt about 45 seconds in the future (compute the current UTC time if needed), notes saying to verify issue_monitor_due, and idempotencyKey monitor-live-first. Confirm the receipt. Then call paperclip_finish with yielded and continuation.kind monitor, accurately retaining the second run as blocking remaining work. End immediately after acceptance. Do not sleep or poll. Second run: if the wake reason is issue_monitor_due, the requested check succeeded. Report that reason and finish done using the current completion contract. Do not schedule another monitor or request human review. No files or other deliverables are required." });
+    description: "This is an isolated two-run integration test. First run: use set_task_monitor on this task with a fresh nextCheckAt about 45 seconds in the future (compute the current UTC time if needed), notes saying to verify issue_monitor_due, and idempotencyKey monitor-live-first. Confirm the receipt. Then call nexus_finish with yielded and continuation.kind monitor, accurately retaining the second run as blocking remaining work. End immediately after acceptance. Do not sleep or poll. Second run: if the wake reason is issue_monitor_due, the requested check succeeded. Report that reason and finish done using the current completion contract. Do not schedule another monitor or request human review. No files or other deliverables are required." });
   await heartbeat.wakeup(agentId, { source: "on_demand", triggerDetail: "manual", reason: "monitor_smoke",
     requestedByActorType: "system", requestedByActorId: "monitor-smoke", payload: { issueId }, contextSnapshot: { issueId, wakeReason: "monitor_smoke" } });
   const deadline = Date.now() + 8 * 60_000;

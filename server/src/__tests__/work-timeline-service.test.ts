@@ -13,7 +13,7 @@ import {
   issueApprovals,
   issueComments,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -36,7 +36,7 @@ describeEmbeddedPostgres("work timeline aggregation", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-work-timeline-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-work-timeline-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 

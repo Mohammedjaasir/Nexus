@@ -65,7 +65,7 @@ async function inspectStdioServer(server) {
   await request("initialize", {
     protocolVersion: "2024-11-05",
     capabilities: {},
-    clientInfo: { name: "paperclip-acp-isolation-fixture", version: "1.0.0" },
+    clientInfo: { name: "nexus-acp-isolation-fixture", version: "1.0.0" },
   });
   child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
   const toolsResult = await request("tools/list");
@@ -88,7 +88,7 @@ async function handleRequest(request) {
         mcpCapabilities: { http: false, sse: false },
         sessionCapabilities: { close: {} },
       },
-      agentInfo: { name: "paperclip-acp-isolation-fixture", version: "1.0.0" },
+      agentInfo: { name: "nexus-acp-isolation-fixture", version: "1.0.0" },
     };
   }
 

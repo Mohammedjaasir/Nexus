@@ -22,10 +22,10 @@ describe("parseKimiStdoutLine", () => {
   it("renders assistant content as an assistant transcript entry", () => {
     const line = JSON.stringify({
       role: "assistant",
-      content: "PAPERCLIP_ADAPTER_TEST_OK",
+      content: "NEXUS_ADAPTER_TEST_OK",
     });
     expect(parseKimiStdoutLine(line, ts)).toEqual([
-      { kind: "assistant", ts, text: "PAPERCLIP_ADAPTER_TEST_OK" },
+      { kind: "assistant", ts, text: "NEXUS_ADAPTER_TEST_OK" },
     ]);
   });
 
@@ -53,14 +53,14 @@ describe("parseKimiStdoutLine", () => {
     const line = JSON.stringify({
       role: "tool",
       tool_call_id: "tool_8c1OWyRBe68OMTbWY6NqnkMm",
-      content: "1\thello paperclip",
+      content: "1\thello nexus",
     });
     expect(parseKimiStdoutLine(line, ts)).toEqual([
       {
         kind: "tool_result",
         ts,
         toolUseId: "tool_8c1OWyRBe68OMTbWY6NqnkMm",
-        content: "1\thello paperclip",
+        content: "1\thello nexus",
         isError: false,
       },
     ]);

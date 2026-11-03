@@ -77,7 +77,7 @@ if (process.argv.includes("--worker")) {
     const outfile = path.join(evidence, `${variant}.mjs`);
     await build({ absWorkingDir: checkout, entryPoints: ["server/src/services/native-runtime/native-harness-backup-publication.ts"],
       outfile, bundle: true, platform: "node", format: "esm", target: "node24", sourcemap: true,
-      alias: { "@paperclipai/db/work-signals": path.join(checkout, "packages/db/src/work-signals.ts") },
+      alias: { "@nexusai/db/work-signals": path.join(checkout, "packages/db/src/work-signals.ts") },
       plugins: variant === "baseline" ? [{ name: "pinned-source", setup(builder) {
         builder.onLoad({ filter: /\.ts$/ }, args => {
           const relative = path.relative(checkout, args.path);

@@ -29,7 +29,7 @@
     "GITHUB_WORKFLOW",
     "NODE_OPTIONS",
     "TZ",
-    "PAPERCLIP_*",
+    "NEXUS_*",
     "TEST_*",
     "VITE_*",
     "DATABASE_URL",
@@ -154,7 +154,7 @@
     },
     "//#ci:runner-rust": {
       "inputs": [
-        "packages/paperclip-runner/**"
+        "packages/nexus-runner/**"
       ],
       "outputs": [],
       "cache": true

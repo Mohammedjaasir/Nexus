@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { experimentalSettingKey } from "@paperclipai/shared";
+import { experimentalSettingKey } from "@nexusai/shared";
 import { accessApi } from "@/api/access";
 import { instanceSettingsApi } from "@/api/instanceSettings";
 import { useCompany } from "@/context/CompanyContext";

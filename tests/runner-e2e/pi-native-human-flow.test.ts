@@ -20,7 +20,7 @@ vi.mock("./copilot-local-fixtures.js", async importOriginal => {
 vi.mock("@playwright/test", () => ({ expect: (actual: any, message?: string) => ({
   toBe: (value: unknown) => expect(actual, message).toBe(value), toBeVisible: async () => {}, toHaveCount: async (value: number) => expect(actual.count).toBe(value),
 }) }));
-const wrap = (eventType: string, seq: number, payload: unknown) => ({ runId: "run", protocolSchemaVersion: 1, eventType, seq, payload: { prpEvent: { schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", runId: "run", turnId: "turn", eventType, payload } } });
+const wrap = (eventType: string, seq: number, payload: unknown) => ({ runId: "run", protocolSchemaVersion: 1, eventType, seq, payload: { prpEvent: { schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", runId: "run", turnId: "turn", eventType, payload } } });
 async function exercise(mutation: boolean, remote = false, adapter = "acpx-runtime", incomplete = false, duplicatePermission = false) {
   proof.mutation = mutation; proof.incomplete = incomplete; proof.live = false; proof.target = "pi-human-denied.txt"; proof.prompt = "";
   const workspacePath = await mkdtemp(join(tmpdir(), "pi-human-fixture-"));
@@ -29,7 +29,7 @@ async function exercise(mutation: boolean, remote = false, adapter = "acpx-runti
   const issue = () => ({ id: "issue", identifier: "PI-1", title: "Provider-generated task name", companyId: "company", assigneeAgentId: "agent", status: declined ? "done" : "in_progress" });
   const run = () => ({ id: "run", status: declined ? "succeeded" : "running", runtimeMode: "native", processPid: 123, processGroupId: 123, processStartedAt: "2026-09-29T00:00:00Z" });
   const request = { requestId: "request", turnId: "turn", type: "permission", status: "pending", details: { toolCallId: "pi-tool-1" }, origin: { adapter, provider: "pi", method: "session/request_permission" }, choices: [{ key: "decline", label: "Decline" }] };
-  const events = () => [wrap("runtime_request.created", 1, { request }), ...(declined ? [wrap("runtime_request.resolved", 2, { requestId: "request", turnId: "turn", action: "decline" }), wrap("tool.execution.completed", 3, { schema: "paperclip.tool.execution.v1", transport: "builtin", operation: "edit", executionId: "pi-tool-1", name: "write", target: proof.target, status: "failed", output: "Pi operation was denied or cancelled" })] : [])];
+  const events = () => [wrap("runtime_request.created", 1, { request }), ...(declined ? [wrap("runtime_request.resolved", 2, { requestId: "request", turnId: "turn", action: "decline" }), wrap("tool.execution.completed", 3, { schema: "nexus.tool.execution.v1", transport: "builtin", operation: "edit", executionId: "pi-tool-1", name: "write", target: proof.target, status: "failed", output: "Pi operation was denied or cancelled" })] : [])];
   const api = {
     post: async () => ({ name: "Pi fixture project" }), patch: async (_path: string, value: any) => value,
     get: async (path: string) => {

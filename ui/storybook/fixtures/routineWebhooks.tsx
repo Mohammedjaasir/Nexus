@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { ActivityEvent, Issue, RoutineDetail as RoutineDetailData, RoutineRunSummary, RoutineTrigger } from "@paperclipai/shared";
+import type { ActivityEvent, Issue, RoutineDetail as RoutineDetailData, RoutineRunSummary, RoutineTrigger } from "@nexusai/shared";
 import { PluginLauncherProvider } from "@/plugins/launchers";
 import { routinesApi } from "@/api/routines";
 import { issuesApi } from "@/api/issues";
@@ -9,12 +9,12 @@ import { RoutineDetail } from "@/pages/RoutineDetail";
 import { Routines } from "@/pages/Routines";
 import { Route, Routes, useNavigate } from "@/lib/router";
 import { useCompany } from "@/context/CompanyContext";
-import { storybookAgents, storybookIssues } from "./paperclipData";
+import { storybookAgents, storybookIssues } from "./nexusData";
 
 const now = new Date("2026-09-18T15:00:00Z");
 const routineId = "routine-webhook-story";
 const companyId = "company-storybook";
-const defaultWebhookUrl = "https://acme.paperclip.example/api/routine-triggers/public/0123456789abcdef01234567/fire";
+const defaultWebhookUrl = "https://acme.nexus.example/api/routine-triggers/public/0123456789abcdef01234567/fire";
 const demoSecret = "storybook-demo-secret-not-a-real-credential";
 const actorFields = {
   createdByAgentId: null, createdByUserId: null,

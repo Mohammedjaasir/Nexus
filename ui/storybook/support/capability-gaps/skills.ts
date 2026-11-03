@@ -1,11 +1,11 @@
-import type { CompanySkillDetail } from "@paperclipai/shared";
+import type { CompanySkillDetail } from "@nexusai/shared";
 export function makeSkill(
   overrides: Partial<CompanySkillDetail> = {},
 ): CompanySkillDetail {
   return {
     id: "skill-gap",
     companyId: "company-storybook",
-    key: "paperclip/demo-skill",
+    key: "nexus/demo-skill",
     slug: "demo-skill",
     name: "Demo Skill",
     description: "A demo skill.",

@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
-import type { Db } from "@paperclipai/db";
-import { activityLog, cases, heartbeatRuns, issueComments, issueDocuments, issues } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { activityLog, cases, heartbeatRuns, issueComments, issueDocuments, issues } from "@nexusai/db";
 import { createActivityDetailsRedactor } from "./activity-log.js";
 import { badRequest } from "../errors.js";
 import { visibleIssueCondition } from "./issue-visibility.js";

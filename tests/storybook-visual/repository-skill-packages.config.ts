@@ -9,7 +9,7 @@ export default defineConfig({
   outputDir: './repository-skill-results',
   reporter: 'list',
   use: {
-    baseURL: process.env.PAPERCLIP_REPOSITORY_STORYBOOK_URL ?? 'http://localhost:6106',
+    baseURL: process.env.NEXUS_REPOSITORY_STORYBOOK_URL ?? 'http://localhost:6106',
     viewport: { width: 1280, height: 900 },
     reducedMotion: 'reduce',
   },

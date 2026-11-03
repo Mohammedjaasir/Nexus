@@ -1,10 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { and, eq, sql } from "drizzle-orm";
-import { heartbeatRuns, type Db } from "@paperclipai/db";
-import { withDirectoryPublicationLock } from "@paperclipai/adapter-utils/workspace-restore-merge";
-import { resolvePaperclipInstanceRoot } from "../../home-paths.js";
-import { parseNativeExecutionInput } from "../../vendor/paperclip-runner/index.js";
+import { heartbeatRuns, type Db } from "@nexusai/db";
+import { withDirectoryPublicationLock } from "@nexusai/adapter-utils/workspace-restore-merge";
+import { resolveNexusInstanceRoot } from "../../home-paths.js";
+import { parseNativeExecutionInput } from "../../vendor/nexus-runner/index.js";
 import { ensureSkillCacheDirectory, skillRunNeedsFilesSql } from "../skill-version-cache.js";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { DELIVERY_QUEUES } from "../delivery-work-notifications.js";
@@ -13,7 +13,7 @@ export const RUNTIME_ASSET_RETENTION_MS = 30 * 24 * 60 * 60_000;
 const TOUCH_MS = 60 * 60_000;
 const touched = new Map<string, number>();
 const observers = new Set<() => void>();
-const root = () => path.join(resolvePaperclipInstanceRoot(), "runtime-context-assets");
+const root = () => path.join(resolveNexusInstanceRoot(), "runtime-context-assets");
 function paths(digest: string) {
   if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error("Invalid runtime asset digest");
   return { bundle: path.join(root(), "bundles", digest), manifest: path.join(root(), "manifests", `${digest}.json`) };

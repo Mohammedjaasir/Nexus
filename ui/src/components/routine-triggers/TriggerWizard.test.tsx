@@ -21,7 +21,7 @@ it("offers the shared app flow without a Fireflies-specific sender", async () =>
 
 it("resumes generic setup with a signing secret and preserves the draft", async () => {
   const onSaveExit = vi.fn();
-  await act(async () => root.render(<RoutineTriggerWizard initialDraft={{ ...defaultTriggerDraft, kind: "webhook", created: true, step: 1, availableStep: 1 }} routineTitle="Process meetings" routineId="routine-1" webhookUrl="https://paperclip.example/api/routine-triggers/public/test/fire" webhookSecret="test-signing-secret" onSaveExit={onSaveExit} onFinish={() => {}} />));
+  await act(async () => root.render(<RoutineTriggerWizard initialDraft={{ ...defaultTriggerDraft, kind: "webhook", created: true, step: 1, availableStep: 1 }} routineTitle="Process meetings" routineId="routine-1" webhookUrl="https://nexus.example/api/routine-triggers/public/test/fire" webhookSecret="test-signing-secret" onSaveExit={onSaveExit} onFinish={() => {}} />));
   expect(container.textContent).toContain("Secret key");
   expect(container.textContent).toContain("signing secret field");
   expect(container.textContent).not.toContain("Fireflies");
@@ -31,7 +31,7 @@ it("resumes generic setup with a signing secret and preserves the draft", async 
 });
 
 it("explains both supported app authentication methods", () => {
-  const instructions = webhookAgentInstructions("custom", "Meetings", "https://paperclip.example/webhook", "signing-secret");
+  const instructions = webhookAgentInstructions("custom", "Meetings", "https://nexus.example/webhook", "signing-secret");
   expect(instructions).toContain("Secret key: signing-secret");
   expect(instructions).toContain("X-Hub-Signature");
   expect(instructions).toContain("Authorization: Bearer signing-secret");
@@ -40,7 +40,7 @@ it("explains both supported app authentication methods", () => {
 });
 
 it("keeps legacy bearer setup instructions accurate", () => {
-  const instructions = webhookAgentInstructions("custom", "Meetings", "https://paperclip.example/webhook", "secret", true, "bearer");
+  const instructions = webhookAgentInstructions("custom", "Meetings", "https://nexus.example/webhook", "secret", true, "bearer");
   expect(instructions).toContain("Authorization: Bearer secret");
   expect(instructions).not.toContain("HMAC-SHA256");
 });

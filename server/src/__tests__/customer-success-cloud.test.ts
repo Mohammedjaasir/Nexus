@@ -15,7 +15,7 @@ import {
   issues,
   projects,
   projectWorkspaces,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { customerSuccessRoutes } from "../routes/customer-success.js";
 import { agentIdentityService } from "../services/agent-identity.js";
 import { createLocalAgentJwt } from "../agent-auth-jwt.js";
@@ -26,7 +26,7 @@ import type { StorageService } from "../storage/types.js";
 
 // Coordinated qualification against the sibling Cloud build, never a customer
 // stack or hosted provider. Default unit runs have no cross-repository dependency.
-const cloudDist = process.env.PAPERCLIP_INSPECTION_CLOUD_DIST;
+const cloudDist = process.env.NEXUS_INSPECTION_CLOUD_DIST;
 describe.skipIf(!cloudDist)("customer-success managed agent / Cloud / tenant qualification", () => {
   it("uses the existing managed-runtime identity, active JWT, PostgreSQL broker, HTTP permits, and audited tenant reads", async () => {
     const load = (module: string) => import(pathToFileURL(resolve(cloudDist!, module)).href);
@@ -58,14 +58,14 @@ describe.skipIf(!cloudDist)("customer-success managed agent / Cloud / tenant qua
       connectionTimeoutMillis: 1000,
     });
     try {
-      vi.stubEnv("PAPERCLIP_HOME", directory);
-      vi.stubEnv("PAPERCLIP_INSTANCE_ID", "qualification-home");
-      vi.stubEnv("PAPERCLIP_AGENT_JWT_SECRET", "isolated-qualification-jwt");
-      vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY_FILE", join(directory, "master.key"));
-      vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "");
-      vi.stubEnv("PAPERCLIP_CUSTOMER_SUCCESS_AUTHORITY_ENABLED", "true");
-      vi.stubEnv("PAPERCLIP_CUSTOMER_SUCCESS_INSPECTION_ENABLED", "true");
-      vi.stubEnv("PAPERCLIP_CLOUD_STACK_ID", "qualification-stack");
+      vi.stubEnv("NEXUS_HOME", directory);
+      vi.stubEnv("NEXUS_INSTANCE_ID", "qualification-home");
+      vi.stubEnv("NEXUS_AGENT_JWT_SECRET", "isolated-qualification-jwt");
+      vi.stubEnv("NEXUS_SECRETS_MASTER_KEY_FILE", join(directory, "master.key"));
+      vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "");
+      vi.stubEnv("NEXUS_CUSTOMER_SUCCESS_AUTHORITY_ENABLED", "true");
+      vi.stubEnv("NEXUS_CUSTOMER_SUCCESS_INSPECTION_ENABLED", "true");
+      vi.stubEnv("NEXUS_CLOUD_STACK_ID", "qualification-stack");
       const homeDb = createDb(home.connectionString);
       const tenantDb = createDb(tenant.connectionString);
       const [homeCompany] = await homeDb
@@ -189,7 +189,7 @@ describe.skipIf(!cloudDist)("customer-success managed agent / Cloud / tenant qua
         "qualification",
         generateKeyPairSync("ed25519").privateKey.export({ format: "jwk" }),
       );
-      vi.stubEnv("PAPERCLIP_CUSTOMER_SUCCESS_INSPECTION_JWKS", signer.publicJwks);
+      vi.stubEnv("NEXUS_CUSTOMER_SUCCESS_INSPECTION_JWKS", signer.publicJwks);
       // Use the production wake controller with a disposable local provider.
       // The tenant HTTP process is already listening; no hosted stack is woken.
       const sleep = new CloudStackSleepController({
@@ -253,7 +253,7 @@ describe.skipIf(!cloudDist)("customer-success managed agent / Cloud / tenant qua
           res.end("{}");
         }
       });
-      vi.stubEnv("PAPERCLIP_CUSTOMER_SUCCESS_CLOUD_ORIGIN", cloudOrigin);
+      vi.stubEnv("NEXUS_CUSTOMER_SUCCESS_CLOUD_ORIGIN", cloudOrigin);
       await broker.configure("qualification-operator", {
         binding: {
           sourceOrigin,
@@ -286,7 +286,7 @@ describe.skipIf(!cloudDist)("customer-success managed agent / Cloud / tenant qua
           command: process.execPath,
           args: [programFile],
           cwd: directory,
-          env: { PAPERCLIP_CUSTOMER_SUCCESS_CLOUD_ORIGIN: cloudOrigin },
+          env: { NEXUS_CUSTOMER_SUCCESS_CLOUD_ORIGIN: cloudOrigin },
         },
         context: {},
         runtime: { sessionId: null, sessionParams: null, taskKey: null },

@@ -2,16 +2,16 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { authUsers, companyMemberships, agents, companies, completionContracts, costEvents, createDb, budgetReservations, activityLog, environments, environmentLeases, heartbeatRuns, issues, nativeRunFinalizations } from "@paperclipai/db";
-import { executeNativeSession as executeActualNativeSession, type ControlPlanePort, type NativeExecutionInputV1, type PrpEvent } from "@paperclipai/paperclip-runner";
+import { authUsers, companyMemberships, agents, companies, completionContracts, costEvents, createDb, budgetReservations, activityLog, environments, environmentLeases, heartbeatRuns, issues, nativeRunFinalizations } from "@nexusai/db";
+import { executeNativeSession as executeActualNativeSession, type ControlPlanePort, type NativeExecutionInputV1, type PrpEvent } from "@nexusai/nexus-runner";
 import { createIsolatedTestHome } from "../../__tests__/helpers/isolated-test-home.js";
 import { registerNativeRunnerCheckpoint } from "./native-runner-checkpoint.js";
-import { DurablePrpControlPlane } from "../../vendor/paperclip-runner/index.js";
+import { DurablePrpControlPlane } from "../../vendor/nexus-runner/index.js";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 
 const provider = vi.hoisted(() => ({ execute: vi.fn() }));
-vi.mock("../../vendor/paperclip-runner/index.js", async importOriginal => ({
-  ...(await importOriginal<typeof import("../../vendor/paperclip-runner/index.js")>()), executeNativeSession: provider.execute,
+vi.mock("../../vendor/nexus-runner/index.js", async importOriginal => ({
+  ...(await importOriginal<typeof import("../../vendor/nexus-runner/index.js")>()), executeNativeSession: provider.execute,
 }));
 import { createPostgresRunDispatchAdapter } from "../../modules/run-dispatch/adapters/postgres.js";
 import * as githubLaunchers from "../heartbeat-github-launchers.js";
@@ -25,7 +25,7 @@ import { reserveRunBudget } from "../budget-reservations.js";
 import { requestedRunCancellation } from "../run-cancellation.js";
 import { readClaimedNativeStopRecovery } from "./native-cancellation-request.js";
 import { currentNativeControllerIdentity } from "./native-restart-recovery.js";
-import { executePaperclipNativeSession } from "./native-session-executor.js";
+import { executeNexusNativeSession } from "./native-session-executor.js";
 import { buildNativeCompletionContract } from "./completion-contracts.js";
 import { prepareNativeHeartbeatRun } from "./prepare-native-run.js";
 import { createRunUsageRecorder } from "../usage-receipts.js";
@@ -39,7 +39,7 @@ describe("native Stop accounting after the last usage receipt", () => {
   let home: ReturnType<typeof createIsolatedTestHome>;
   beforeAll(async () => {
     home = createIsolatedTestHome();
-    vi.stubEnv("PAPERCLIP_HOME", home.home);
+    vi.stubEnv("NEXUS_HOME", home.home);
     temporary = await startEmbeddedPostgresTestDatabase("native-stop-accounting-");
     db = createDb(temporary.connectionString);
     await db.insert(authUsers).values({ id: "test-board", name: "Test Board", email: "board@example.test", emailVerified: true, createdAt: new Date(), updatedAt: new Date() });
@@ -50,7 +50,7 @@ describe("native Stop accounting after the last usage receipt", () => {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Stopped accounting", issuePrefix: randomUUID().slice(0, 8) });
     await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: "test-board", status: "active", membershipRole: "owner" });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Stopped worker", status: "active", adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: "test-model", cwd: home.home } });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Stopped worker", status: "active", adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: "test-model", cwd: home.home } });
     const [issue] = await db.insert(issues).values({ id: issueId, companyId, title: "Resume after Stop", responsibleUserId: "test-board", status: "in_progress", assigneeAgentId: agentId }).returning();
     const [run] = await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "running", runtimeMode: "native",
       nativeIssueId: issueId, issueId, scopeKind: "issue", contextSnapshot: { issueId }, invocationSource: "on_demand", costAccountingPending: true }).returning();
@@ -59,13 +59,13 @@ describe("native Stop accounting after the last usage receipt", () => {
     const [contract] = await db.select().from(completionContracts).where(eq(completionContracts.issueId, issueId));
     await db.insert(nativeRunFinalizations).values({ runId, companyId, issueId, phase: "observed" });
     const execution: NativeExecutionInputV1 = {
-      schema: "paperclip.native-execution-input.v1", binding: { companyId, runId, issueId, agentId, executionWorkspaceId: runId },
+      schema: "nexus.native-execution-input.v1", binding: { companyId, runId, issueId, agentId, executionWorkspaceId: runId },
       provider: { kind: "codex", model: "test-model" },
       task: { identifier: issueId, title: issue.title, description: null, prompt: "Keep the task context.", workMode: "standard" },
       workspace: { cwd: home.home, repoUrl: null, repoRef: null, branchName: null },
       session: { normalizedSessionId: native.normalizedSessionId, driverKind: "codex_app_server", protocolVersion: 1,
         lifecyclePolicy: { mode: "per_turn", idleTimeoutMs: null } },
-      completionContract: { id: contract.id, sha256: contract.canonicalSha256, schemaVersion: "paperclip.completion-contract.v1",
+      completionContract: { id: contract.id, sha256: contract.canonicalSha256, schemaVersion: "nexus.completion-contract.v1",
         contract: buildNativeCompletionContract(issue, { revision: contract.revision }) },
       interactionResponses: [], credentialBindings: [],
     };
@@ -75,14 +75,14 @@ describe("native Stop accounting after the last usage receipt", () => {
 
   it.each([true, false])("wakes settlement after Stop closure while preserving incomplete receipt debt (complete=%s)", async complete => {
     const { companyId, agentId, issueId, runId, native, execution } = await fixture();
-    const usage = await createRunUsageRecorder(db, { companyId, runId, adapterType: "paperclip_runner" });
+    const usage = await createRunUsageRecorder(db, { companyId, runId, adapterType: "nexus_runner" });
     const reconcile = vi.fn(createCostAccountingReconciler(db));
     const coordinator = createDeliveryWorkCoordinator({ owner: db, canRun: () => true, onError: error => { throw error; } });
     const worker = registerCostAccountingWork(db, coordinator, reconcile);
     const readRun = () => db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, runId)).then(rows => rows[0]);
     await worker.ready;
     const event = (eventType: string, sourceSeq: number, payload: Record<string, unknown>): PrpEvent => ({
-      schema: "paperclip.prp.event.v1", runId, normalizedSessionId: native.normalizedSessionId, turnId: native.turnId,
+      schema: "nexus.prp.event.v1", runId, normalizedSessionId: native.normalizedSessionId, turnId: native.turnId,
       sourceInstanceId: native.runnerInstanceId, sourceEventId: `stop-accounting-${sourceSeq}`, sourceSeq,
       sourceKind: "runner", eventType, schemaVersion: 1, priority: 0, emittedAt: new Date().toISOString(), payload,
     } as PrpEvent);
@@ -92,7 +92,7 @@ describe("native Stop accounting after the last usage receipt", () => {
       await options.controlPlane.appendEvent(event("turn.started", 1, {}));
       await db.update(heartbeatRuns).set({ status: "cancelled", finishedAt: new Date(), resultJson: {
         cancelledByActorType: "user", cancelledByUserId: "local-board", nativeCancellation: {
-          schema: "paperclip.native-cancellation.v1", companyId, issueId, runId, scope: "run", reasonCode: "cancellation_run_only",
+          schema: "nexus.native-cancellation.v1", companyId, issueId, runId, scope: "run", reasonCode: "cancellation_run_only",
           dispatched: true, dispatchState: "acknowledged", intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID(),
         },
       } }).where(eq(heartbeatRuns.id, runId));
@@ -111,7 +111,7 @@ describe("native Stop accounting after the last usage receipt", () => {
     const unexpected = async () => { throw new Error("Unexpected real provider access"); };
     let beforeClosure = 0;
     try {
-      await expect(executePaperclipNativeSession({ db, execution, runnerInstanceId: native.runnerInstanceId,
+      await expect(executeNexusNativeSession({ db, execution, runnerInstanceId: native.runnerInstanceId,
         backend: { descriptor: unexpected, openSession: unexpected }, onUsage: receipt => usage.capture(receipt).then(() => undefined) }))
         .rejects.toThrow("native_cancellation_pending_recovery");
       expect((await db.select().from(nativeRunFinalizations).where(eq(nativeRunFinalizations.runId, runId)))[0])
@@ -159,7 +159,7 @@ describe("native Stop accounting after the last usage receipt", () => {
       try { await registerNativeRunnerCheckpoint({ db, binding: { companyId, issueId, runId }, bootId: controller.bootId, authority }); }
       finally { await authority.stop(); }
       await db.update(heartbeatRuns).set({ runnerProfileJson: sql`${heartbeatRuns.runnerProfileJson} || ${JSON.stringify({
-        nativeWorkspaceSync: { schema: "paperclip.native-workspace-sync/v1", state: "prepared", descriptorSha256: "a".repeat(64),
+        nativeWorkspaceSync: { schema: "nexus.native-workspace-sync/v1", state: "prepared", descriptorSha256: "a".repeat(64),
           baselineSha256: "b".repeat(64), workspaceId: runId, leaseId: native.environmentLeaseId,
           providerLeaseId: "existing-sandbox", remoteCwd: "/workspace" },
         sessionCheckpoint: { backendKind: "mock", sessionId: native.normalizedSessionId,
@@ -173,7 +173,7 @@ describe("native Stop accounting after the last usage receipt", () => {
       cancellation: requestedRunCancellation({ cancelledByActorType: actorType }, "Operator requested Stop"),
       startupCancellation: { beforeNativeSelection: false, errorCode: "cancelled", requestedAt },
       executionCancellation: { state: "requested", requestedAt },
-      nativeCancellation: { schema: "paperclip.native-cancellation.v1", companyId, issueId, runId, scope: "run",
+      nativeCancellation: { schema: "nexus.native-cancellation.v1", companyId, issueId, runId, scope: "run",
         reasonCode: "cancellation_run_only", intentId: `native-cancellation:${randomUUID()}`, intentAuditId, dispatchState: "pending", dispatched: false,
         effects: ["release_run_resources"] },
     }, usageJson: { accountingReceiptReady: false, accountingReceiptSequence: 0 } }).where(eq(heartbeatRuns.id, runId));
@@ -186,7 +186,7 @@ describe("native Stop accounting after the last usage receipt", () => {
     }
     const reservation = entry === "dispatch" ? await reserveRunBudget(db, companyId, runId, null, {}, owner) : hold;
     if (entry === "dispatch") expect(reservation).toMatchObject({ id: hold.id, reused: true });
-    const usage = await createRunUsageRecorder(db, { companyId, runId, adapterType: "paperclip_runner" });
+    const usage = await createRunUsageRecorder(db, { companyId, runId, adapterType: "nexus_runner" });
     let completeCleanup!: () => void;
     const cleanup = new Promise<void>(resolve => { completeCleanup = resolve; });
     const startTurn = vi.fn(() => { throw new Error("Stop cleanup must not start a provider turn"); }), cancel = vi.fn(() => ({ cleanup }));
@@ -197,7 +197,7 @@ describe("native Stop accounting after the last usage receipt", () => {
         snapshot: async () => ({ identity, sessionId: identity.sessionId, backendKind: "mock" as const }) })) };
     Object.assign(backend, { recoverSession: async () => ({ recovered: true, session: await backend.openSession() }) });
     provider.execute.mockReset().mockImplementationOnce(executeActualNativeSession);
-    const dispatch = vi.fn(() => executePaperclipNativeSession({ db, execution, runnerInstanceId: native.runnerInstanceId,
+    const dispatch = vi.fn(() => executeNexusNativeSession({ db, execution, runnerInstanceId: native.runnerInstanceId,
       backend: backend as never, leaseOwner: owner, restartRecovery: { kind: "reattach_remote_runner", runId, leaseOwner: owner,
         controllerGeneration: 2, providerAttempt: 1, restartKind: "hard", recoveryRequestId: null,
         remote: { providerLeaseId: "existing-sandbox", remoteCwd: "/workspace" } },
@@ -212,8 +212,8 @@ describe("native Stop accounting after the last usage receipt", () => {
       const target = vi.spyOn(executionTargets, "resolveEnvironmentExecutionTarget").mockResolvedValue({
         kind: "remote", transport: "sandbox", providerKey: "daytona", remoteCwd: "/workspace", leaseId: native.environmentLeaseId,
         sandboxLeaseAcquisition: { outcome: "resumed", providerLeaseId: "existing-sandbox" }, runner: { execute: async request => ({
-          exitCode: 0, signal: null, pid: 123, startedAt: new Date().toISOString(), timedOut: false, stderr: "", stdout: request.args?.includes("paperclip-git-context")
-            ? "\0PAPERCLIP_GIT_CONTEXT_V1\0\0PAPERCLIP_GIT_CONTEXT_END\0"
+          exitCode: 0, signal: null, pid: 123, startedAt: new Date().toISOString(), timedOut: false, stderr: "", stdout: request.args?.includes("nexus-git-context")
+            ? "\0NEXUS_GIT_CONTEXT_V1\0\0NEXUS_GIT_CONTEXT_END\0"
             : request.args?.[1]?.includes("base64") ? Buffer.from(JSON.stringify({ ...remoteIdentity, lifecycle: "running" })).toString("base64")
             : request.args?.[1]?.includes("cat --") ? `nonce\n123\n2026-09-19T10:00:00.000Z\n${native.runnerInstanceId}\nlinux:abcd-1234:100\n` : "",
         }) },
@@ -297,7 +297,7 @@ describe("native Stop accounting after the last usage receipt", () => {
     await reconcile();
     expect((await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, runId)))[0].costAccountingPending).toBe(true);
     expect(await db.select().from(costEvents).where(eq(costEvents.heartbeatRunId, runId))).toHaveLength(0);
-    const finalUsage = entry === "heartbeat" ? await createRunUsageRecorder(db, { companyId, runId, adapterType: "paperclip_runner" }) : usage;
+    const finalUsage = entry === "heartbeat" ? await createRunUsageRecorder(db, { companyId, runId, adapterType: "nexus_runner" }) : usage;
     await finalUsage.capture({ complete: true, provider: "openai", model: "test-model", billingType: "metered_api",
       usageBasis: "per_run", usage: { inputTokens: 120, outputTokens: 10 }, costUsd: 0.25 });
     await reconcile();

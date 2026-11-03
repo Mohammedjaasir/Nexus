@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AggregatorDiscoveryUnavailableError, discoverArcadeApps, discoverExecutorApps, EXECUTOR_INVENTORY_CODE, inventoryPayload } from "../services/aggregator-app-discovery.js";
-import { aggregatorManagementUrl } from "@paperclipai/shared/aggregator-apps";
+import { aggregatorManagementUrl } from "@nexusai/shared/aggregator-apps";
 
 const account = (id: string, user = "u1") => ({ id, user_id: user, provider_id: "notion-provider", connection_status: "active", provider_user_info: { email: "Work", access_token: "do-not-store" } });
 const tool = { qualified_name: "Notion.ListPages", toolkit: { name: "Notion" }, requirements: { met: true, authorization: { provider_id: "notion-provider", token_status: "completed" } } };

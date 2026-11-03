@@ -6,7 +6,7 @@ import {
   definePlugin,
   PluginEnvironmentCreationCleanupError,
   readEnvironmentCreationCleanupError,
-} from "@paperclipai/plugin-sdk";
+} from "@nexusai/plugin-sdk";
 import type {
   PluginEnvironmentCreationCleanup,
   PluginEnvironmentAcquireLeaseParams,
@@ -25,7 +25,7 @@ import type {
   PluginEnvironmentTerminationReceipt,
   PluginEnvironmentValidateConfigParams,
   PluginEnvironmentValidationResult,
-} from "@paperclipai/plugin-sdk";
+} from "@nexusai/plugin-sdk";
 
 interface BoxdDriverConfig {
   apiKey: string | null;
@@ -44,9 +44,9 @@ const STATE_POLL_INTERVAL_MS = 250;
 const EXPIRY_MARGIN_SECONDS = 5;
 const PROBE_DELETE_AFTER_SECONDS = 900;
 const STDIN_MODE = 0o600;
-const CREATION_CLEANUP_SCHEMA = "paperclip/environment-creation-cleanup/v1";
+const CREATION_CLEANUP_SCHEMA = "nexus/environment-creation-cleanup/v1";
 const CLEANUP_IDENTIFIER = /^[a-zA-Z0-9_-]{1,200}$/;
-const WORKSPACE_DIR = "paperclip-workspace";
+const WORKSPACE_DIR = "nexus-workspace";
 const FALLBACK_HOME = "/home/boxd";
 const MEMORY_BY_VCPU: Record<number, string> = { 1: "4G", 2: "8G", 4: "16G", 8: "32G" };
 const ACTIVE_STATES = new Set(["pending", "starting", "running", "migrating"]);
@@ -65,12 +65,12 @@ function parseOptionalInteger(value: unknown): number | null {
 }
 
 function normalizeNamePrefix(value: string | null): string {
-  const normalized = (value ?? "paperclip")
+  const normalized = (value ?? "nexus")
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .replace(/-{2,}/g, "-");
-  return normalized.length > 0 ? normalized.slice(0, 24).replace(/-+$/, "") : "paperclip";
+  return normalized.length > 0 ? normalized.slice(0, 24).replace(/-+$/, "") : "nexus";
 }
 
 function parseDriverConfig(raw: Record<string, unknown>): BoxdDriverConfig {
@@ -136,11 +136,11 @@ function buildMachineName(config: BoxdDriverConfig, environmentId: string, runId
 }
 
 function machineLabels(environmentId: string, runId: string): Record<string, string> {
-  const labels: Record<string, string> = { "paperclip-provider": "boxd" };
+  const labels: Record<string, string> = { "nexus-provider": "boxd" };
   const environment = environmentId.replace(/[^A-Za-z0-9._-]+/g, "").slice(0, 63);
   const run = runId.replace(/[^A-Za-z0-9._-]+/g, "").slice(0, 63);
-  if (environment) labels["paperclip-environment"] = environment;
-  if (run) labels["paperclip-run"] = run;
+  if (environment) labels["nexus-environment"] = environment;
+  if (run) labels["nexus-run"] = run;
   return labels;
 }
 
@@ -681,7 +681,7 @@ const plugin = definePlugin({
     });
     const timeoutMs = params.timeoutMs != null && params.timeoutMs > 0 ? params.timeoutMs : config.timeoutMs;
     const cwd = params.cwd ?? parseOptionalString(params.lease.metadata?.remoteCwd) ?? undefined;
-    const stdinPath = params.stdin != null ? `/tmp/paperclip-stdin-${randomUUID()}` : null;
+    const stdinPath = params.stdin != null ? `/tmp/nexus-stdin-${randomUUID()}` : null;
     const command = stdinPath ? `${script} < ${shellQuote(stdinPath)}` : script;
 
     try {

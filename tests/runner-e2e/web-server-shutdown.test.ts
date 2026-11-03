@@ -10,7 +10,7 @@ import { runnerE2EWebServerGracefulShutdown, runnerE2ETypeScriptProcessArgs } fr
 const require = createRequire(import.meta.url);
 
 it("lets Playwright reap a restarted server through the production bounded shutdown policy", async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-playwright-shutdown-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "nexus-playwright-shutdown-"));
   const reservation = await reserveRunnerE2EDatabasePort(3100);
   const port = reservation.port;
   const supervisorPath = path.join(root, "supervisor.cjs");
@@ -118,7 +118,7 @@ it("lets Playwright reap a restarted server through the production bounded shutd
 
 
 it("owns the actual server PID so a forced restart cannot leave a late database closer", async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-server-pid-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "nexus-server-pid-"));
   const entry = path.join(root, "server.mts");
   let candidate: ReturnType<typeof spawn> | undefined;
   let actualPid: number | undefined;

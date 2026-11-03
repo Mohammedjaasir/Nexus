@@ -29,25 +29,25 @@ describe("stopped Codex turn inventory", () => {
   const completionRows = (source: string) => [meta, start, context,
     { type: "response_item", payload: { type: "custom_tool_call", name: "exec", call_id: "script", input: source } },
     { type: "event_msg", payload: { type: "item_completed", thread_id: "thread", turn_id: "turn",
-      item: { type: "DynamicToolCall", tool: "paperclip_finish", id: completed.callId, arguments: completed.input, status: "completed", success: true } } },
+      item: { type: "DynamicToolCall", tool: "nexus_finish", id: completed.callId, arguments: completed.input, status: "completed", success: true } } },
     { type: "response_item", payload: { type: "custom_tool_call_output", call_id: "script", output: [] } }, answer, stop];
   const checkCompletion = (source: string, calls = [completed]) => stoppedCodexTurnIsTextOnly({
     rows: completionRows(source), threadId: "thread", turnId: "turn", cwd: "/workspace", completedTaskControlCalls: calls,
   });
   it("preserves completion bookkeeping with an exact accepted receipt", () => {
-    expect(checkCompletion('const r = await tools.paperclip_finish({summary: "ready"}); text(r);')).toBe(true);
-    expect(checkCompletion('const r = await tools.paperclip_finish({summary: "ready"}); text(r);', [])).toBe(false);
-    expect(checkCompletion('const r = await tools.paperclip_finish({summary: "different"}); text(r);')).toBe(false);
+    expect(checkCompletion('const r = await tools.nexus_finish({summary: "ready"}); text(r);')).toBe(true);
+    expect(checkCompletion('const r = await tools.nexus_finish({summary: "ready"}); text(r);', [])).toBe(false);
+    expect(checkCompletion('const r = await tools.nexus_finish({summary: "different"}); text(r);')).toBe(false);
   });
   it.each([
-    'await tools.send_email({}); const r = await tools.paperclip_finish({summary: "ready"}); text(r);',
-    'const r = await tools.paperclip_finish({summary: tools.write_file()}); text(r);',
-    'const r = await tools.paperclip_finish({get summary() { return "ready"; }}); text(r);',
-    'const r = await tools.paperclip_finish({...external, summary: "ready"}); text(r);',
-    'const r = await tools.paperclip_finish({summary: `ready`}); text(r);',
-    'const r = await tools["paperclip_finish"]({summary: "ready"}); text(r);',
-    'const r = await tools.paperclip_finish({summary: "ready"}); tools.send_email(r);',
-    'const r = await tools.paperclip_finish({__proto__: {summary: "ready"}}); text(r);',
+    'await tools.send_email({}); const r = await tools.nexus_finish({summary: "ready"}); text(r);',
+    'const r = await tools.nexus_finish({summary: tools.write_file()}); text(r);',
+    'const r = await tools.nexus_finish({get summary() { return "ready"; }}); text(r);',
+    'const r = await tools.nexus_finish({...external, summary: "ready"}); text(r);',
+    'const r = await tools.nexus_finish({summary: `ready`}); text(r);',
+    'const r = await tools["nexus_finish"]({summary: "ready"}); text(r);',
+    'const r = await tools.nexus_finish({summary: "ready"}); tools.send_email(r);',
+    'const r = await tools.nexus_finish({__proto__: {summary: "ready"}}); text(r);',
   ])("refuses unverified execution hidden in completion code %s", source => {
     expect(checkCompletion(source)).toBe(false);
   });

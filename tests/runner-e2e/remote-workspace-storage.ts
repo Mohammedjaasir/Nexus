@@ -89,7 +89,7 @@ export function gradeRemoteWorkspaceStorage(evidence: RemoteWorkspaceStorageEvid
   const committed = (point: RemoteWorkspaceStorageCheckpoint | undefined) => Boolean(point
     && uuid.test(point.workspaceId) && uuid.test(point.snapshotId) && uuid.test(point.runId)
     && point.snapshotId === point.runSnapshotId && point.runSaveState === "saved"
-    && point.authoritySchema === "paperclip.remote-workspace.v1" && point.authorityDirty === false
+    && point.authoritySchema === "nexus.remote-workspace.v1" && point.authorityDirty === false
     && point.authorityWriter === null && point.providerType === "cloud_sandbox"
     && point.fileSource === "live" && /^[a-f0-9]{64}$/.test(point.proofSha256));
   return [
@@ -123,12 +123,12 @@ export function remoteWorkspaceStorageServerEnvironment(input: {
   if (!input.executions.length || !input.executions.every(isRemoteWorkspaceStorageExecution)) {
     throw new Error("Remote workspace storage qualification must run alone");
   }
-  const bucket = input.env.PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_BUCKET?.trim();
+  const bucket = input.env.NEXUS_RUNNER_E2E_WORKSPACE_STORAGE_BUCKET?.trim();
   if (!bucket || !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket)) {
     throw new Error("Remote workspace storage requires an explicit disposable S3 bucket");
   }
   if (!/^[a-zA-Z0-9._-]+$/.test(input.instanceId)) throw new Error("Invalid isolated instance identity");
-  const endpoint = input.env.PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_ENDPOINT?.trim();
+  const endpoint = input.env.NEXUS_RUNNER_E2E_WORKSPACE_STORAGE_ENDPOINT?.trim();
   if (endpoint) {
     const url = new URL(endpoint);
     if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
@@ -136,11 +136,11 @@ export function remoteWorkspaceStorageServerEnvironment(input: {
     }
   }
   return {
-    PAPERCLIP_STORAGE_PROVIDER: "s3",
-    PAPERCLIP_STORAGE_S3_BUCKET: bucket,
-    PAPERCLIP_STORAGE_S3_REGION: input.env.PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_REGION?.trim() || "us-east-1",
-    PAPERCLIP_STORAGE_S3_PREFIX: `runner-e2e/${input.instanceId}/`,
-    ...(endpoint ? { PAPERCLIP_STORAGE_S3_ENDPOINT: endpoint,
-      PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE: input.env.PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_FORCE_PATH_STYLE === "true" ? "true" : "false" } : {}),
+    NEXUS_STORAGE_PROVIDER: "s3",
+    NEXUS_STORAGE_S3_BUCKET: bucket,
+    NEXUS_STORAGE_S3_REGION: input.env.NEXUS_RUNNER_E2E_WORKSPACE_STORAGE_REGION?.trim() || "us-east-1",
+    NEXUS_STORAGE_S3_PREFIX: `runner-e2e/${input.instanceId}/`,
+    ...(endpoint ? { NEXUS_STORAGE_S3_ENDPOINT: endpoint,
+      NEXUS_STORAGE_S3_FORCE_PATH_STYLE: input.env.NEXUS_RUNNER_E2E_WORKSPACE_STORAGE_FORCE_PATH_STYLE === "true" ? "true" : "false" } : {}),
   };
 }

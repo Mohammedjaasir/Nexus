@@ -1,5 +1,5 @@
 import { sql, type SQL } from "drizzle-orm";
-import { activityLog, cases, type Db } from "@paperclipai/db";
+import { activityLog, cases, type Db } from "@nexusai/db";
 import type { AuthorizationActor } from "./authorization.js";
 import { caseReadSqlCondition } from "./case-access.js";
 

@@ -6,7 +6,7 @@ import {
   browserUseCdpUrl,
   createBrowserUseViewportManager,
 } from "../services/browser-use-viewport.js";
-import { browserUseViewportSchema } from "@paperclipai/shared";
+import { browserUseViewportSchema } from "@nexusai/shared";
 
 function fixture(allowResize = true, now?: () => number) {
   const id = randomUUID();

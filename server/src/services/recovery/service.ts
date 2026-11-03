@@ -16,7 +16,7 @@ import { isAiAuthenticationBlocked } from "../ai-auth-failure.js";
 import { RESTRICTED_WORKSPACE_SOURCE_REASON } from "../workspace-source-restriction.js";
 import { hasCommittedNativePlanWait } from "../native-runtime/native-plan-wait.js";
 import { listExternalReviewWaits } from "../native-runtime/external-review-wait.js";
-import { isNativeWorkspaceExportRepairCause } from "@paperclipai/shared";
+import { isNativeWorkspaceExportRepairCause } from "@nexusai/shared";
 import { pendingExternalConversationSettlement, settleSlackConversation } from "../slack-conversation-lifecycle.js";
 import { externalConversationStateSql } from "../slack-conversation-state.js";
 import { isIssueReviewPathRecoveryRun } from "./review-path-recovery.js";
@@ -48,7 +48,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   hasCommittedNativeBoardResponseWait,
   readNativeBoardResponseWaitSource,
@@ -61,7 +61,7 @@ import {
   requiresExecutionReconciliation,
   type IssueCommentMetadata,
   type IssueCommentPresentation,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   agents,
   agentTaskSessions,
@@ -86,7 +86,7 @@ import {
   routines,
   workAssessments,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { parseObject, asBoolean, asNumber } from "../../adapters/utils.js";
 import { runningProcesses } from "../../adapters/index.js";
 import {
@@ -198,7 +198,7 @@ export const ACTIVE_RUN_OUTPUT_CRITICAL_THRESHOLD_MS = 15 * 60 * 1000;
 export const ACTIVE_RUN_OUTPUT_CONTINUE_REARM_MS = 30 * 60 * 1000;
 const STRANDED_ISSUE_RECOVERY_ORIGIN_KIND =
   RECOVERY_ORIGIN_KINDS.strandedIssueRecovery;
-const DEFERRED_WAKE_CONTEXT_KEY = "_paperclipWakeContext";
+const DEFERRED_WAKE_CONTEXT_KEY = "_nexusWakeContext";
 const EXECUTION_REVIEW_PARTICIPANT_RECOVERY_REASON =
   "execution_review_participant_recovery";
 const STRANDED_BOARD_ESCALATION_POLICY = "board_escalation_no_takeover_v1";
@@ -1356,7 +1356,7 @@ export function recoveryService(
     const terminal = parseObject(envelope.terminal);
     const continuation = parseObject(result.continuation);
     if (
-      result.schema !== "paperclip.run_result.v1" ||
+      result.schema !== "nexus.run_result.v1" ||
       result.reportedWorkDisposition !== "yielded" ||
       continuation.kind !== "response_wake" ||
       !readNonEmptyString(continuation.idempotencyKey) ||
@@ -1464,9 +1464,9 @@ export function recoveryService(
       if (
         error instanceof Error &&
         [
-          "paperclip_runner_chat_attachment_binding_denied",
-          "paperclip_runner_chat_attachment_destination_denied",
-          "paperclip_runner_chat_attachment_principal_denied",
+          "nexus_runner_chat_attachment_binding_denied",
+          "nexus_runner_chat_attachment_destination_denied",
+          "nexus_runner_chat_attachment_principal_denied",
         ].includes(error.message)
       )
         return false;
@@ -1497,7 +1497,7 @@ export function recoveryService(
       return true;
 
     // A provider thread owns the next wake for a successful external-chat
-    // turn. The Paperclip issue intentionally remains in progress so the next
+    // turn. The Nexus issue intentionally remains in progress so the next
     // message can reuse it; that idle state is not stranded execution. Keep
     // this scoped to the run that actually came from chat so an unrelated
     // board/internal run on the same issue retains normal recovery semantics.
@@ -1599,7 +1599,7 @@ export function recoveryService(
     const terminal = parseObject(envelope.terminal);
     const blocker = parseObject(result.blocker);
     if (
-      result.schema !== "paperclip.run_result.v1" ||
+      result.schema !== "nexus.run_result.v1" ||
       result.reportedWorkDisposition !== "blocked" ||
       terminal.runTerminalState !== "succeeded" ||
       terminal.reportedWorkDisposition !== "blocked" ||
@@ -2273,7 +2273,7 @@ export function recoveryService(
         [
           "## Assigned Orphan Blocker",
           "",
-          `Paperclip found this issue is blocking ${blockingLinks} but had no assignee, so no heartbeat could pick it up.`,
+          `Nexus found this issue is blocking ${blockingLinks} but had no assignee, so no heartbeat could pick it up.`,
           "",
           "- Assigned it back to the agent that created the blocker.",
           "- Next action: resolve this blocker or reassign it to the right owner.",
@@ -2811,7 +2811,7 @@ export function recoveryService(
     const failureSummary = summarizeRunFailureForIssueComment(input.latestRun);
 
     return [
-      "Paperclip stopped automatic stranded-work recovery for this recovery issue.",
+      "Nexus stopped automatic stranded-work recovery for this recovery issue.",
       "",
       `- Recovery issue: ${issueUiLink({ identifier: input.issue.identifier, id: input.issue.id }, input.prefix)}`,
       `- Previous status: \`${input.previousStatus}\``,
@@ -3043,7 +3043,7 @@ export function recoveryService(
       `This task is waiting on ${waitingOn} to finish. ` +
         "It will continue automatically when that work is done — there's nothing you need to do. " +
         "(It was paused because the latest run reported it was waiting for review/approval; " +
-        "Paperclip turned that into a normal dependency wait instead of flagging it as stuck.)",
+        "Nexus turned that into a normal dependency wait instead of flagging it as stuck.)",
       {},
       {
         authorType: "system",
@@ -3728,7 +3728,7 @@ export function recoveryService(
     await issuesSvc.addComment(
       input.issue.id,
       [
-        "Paperclip exhausted the bounded original-owner disposition repair without a durable source-state change.",
+        "Nexus exhausted the bounded original-owner disposition repair without a durable source-state change.",
         "",
         `- Attempts: ${input.attemptCount}/${input.legacyEpisode?.maxAttempts ?? DISPOSITION_REPAIR_MAX_ATTEMPTS}`,
         `- Terminal reason: \`${input.terminalReason}\``,
@@ -3835,7 +3835,7 @@ export function recoveryService(
       db.select({ status: agentTaskSessions.goalStatus }).from(agentTaskSessions).where(and(eq(agentTaskSessions.companyId, issue.companyId), eq(agentTaskSessions.agentId, run.agentId), eq(agentTaskSessions.taskKey, issue.id))).limit(1),
       getLatestIssueRun(issue.companyId, issue.id),
       hasPersistedDurableWaitPath(issue, run),
-      parseObject(context.paperclipWorkspace).mode === "shared_workspace" ? healthyOpenChildIssues(issue, true) : Promise.resolve([]),
+      parseObject(context.nexusWorkspace).mode === "shared_workspace" ? healthyOpenChildIssues(issue, true) : Promise.resolve([]),
     ]);
     const ownsRepair = active?.kind === "deliberate_wait_without_target" && active.ownerType === "agent";
     return decideLegacyContinuation({
@@ -4763,7 +4763,7 @@ export function recoveryService(
             previousStatus: issue.status as StrandedPreviousStatus,
             latestRun,
             comment:
-              "Paperclip cannot safely continue automatic recovery because the original assignee is not invokable. " +
+              "Nexus cannot safely continue automatic recovery because the original assignee is not invokable. " +
               "The source assignment is unchanged and the board must choose the next action.",
           });
           if (updated) {
@@ -4898,7 +4898,7 @@ export function recoveryService(
                 ? EXECUTION_REVIEW_PARTICIPANT_RECOVERY_REASON
                 : undefined,
             comment:
-              "Paperclip cannot safely continue automatic recovery because the original recovery target is over budget. " +
+              "Nexus cannot safely continue automatic recovery because the original recovery target is over budget. " +
               "The source assignment is unchanged and the board must choose the next action.",
           });
           if (updated) {
@@ -5011,7 +5011,7 @@ export function recoveryService(
             latestRun,
             recoveryCause: "configuration_incomplete",
             comment:
-              "Paperclip classified the latest adapter failure as `configuration_incomplete`. " +
+              "Nexus classified the latest adapter failure as `configuration_incomplete`. " +
               "Moving the issue to `blocked` with the configuration fix recorded instead of creating a recovery takeover.",
           });
           if (updated) {
@@ -5127,7 +5127,7 @@ export function recoveryService(
               previousStatus: issue.status as StrandedPreviousStatus,
               latestRun: latestPostResolutionRun,
               comment:
-                `Paperclip stopped requeueing accepted interaction \`${acceptedContinuationInteraction.id}\` after ` +
+                `Nexus stopped requeueing accepted interaction \`${acceptedContinuationInteraction.id}\` after ` +
                 `${consecutive} consecutive continuation wakes were cancelled while waiting on review. ` +
                 "Moving the issue to `blocked` so the missing execution path is visible for intervention.",
             });
@@ -5241,7 +5241,7 @@ export function recoveryService(
             latestRun: participantLatestRun,
             recoveryCause: "configuration_incomplete",
             comment:
-              "Paperclip classified the active review participant's latest adapter failure as " +
+              "Nexus classified the active review participant's latest adapter failure as " +
               "`configuration_incomplete`. Moving the issue to `blocked` with the configuration fix " +
               "recorded instead of repeatedly requeueing the reviewer.",
           });
@@ -5414,7 +5414,7 @@ export function recoveryService(
             latestRun,
             notice: {
               body:
-                "Paperclip automatically retried dispatch for this assigned `todo` issue after a lost wake/run, " +
+                "Nexus automatically retried dispatch for this assigned `todo` issue after a lost wake/run, " +
                 "but it still has no live execution path. " +
                 "Moving it to `blocked` so it is visible for intervention.",
               title: "No live execution path",
@@ -5463,7 +5463,7 @@ export function recoveryService(
             latestRun,
             notice: {
               body:
-                "Paperclip automatically retried dispatch for this assigned `todo` issue after a lost wake/run, " +
+                "Nexus automatically retried dispatch for this assigned `todo` issue after a lost wake/run, " +
                 "but the bounded retry budget is spent and it still has no live execution path. " +
                 "Moving it to `blocked` so it is visible for intervention.",
               title: "No live execution path",
@@ -5566,7 +5566,7 @@ export function recoveryService(
         // the shared workspace. Repeated automatic parent continuations can
         // otherwise reacquire it before the child's resource retry is due.
         // This only gates recovery; explicit messages still follow admission.
-        const workspace = parseObject(parseObject(successfulRun.contextSnapshot).paperclipWorkspace);
+        const workspace = parseObject(parseObject(successfulRun.contextSnapshot).nexusWorkspace);
         if (workspace.mode === "shared_workspace" && (await healthyOpenChildIssues(issue, true)).length > 0) {
           result.productiveContinuationObserved += 1;
           result.skipped += 1;
@@ -5596,7 +5596,7 @@ export function recoveryService(
               previousStatus: "in_progress",
               latestRun: successfulRun,
               comment:
-                "Paperclip automatically retried continuation for this assigned `in_progress` issue and the retry " +
+                "Nexus automatically retried continuation for this assigned `in_progress` issue and the retry " +
                 "made progress, but it still has no live execution path. Moving it to `blocked` so it is visible for intervention.",
             });
             if (updated) {
@@ -5665,7 +5665,7 @@ export function recoveryService(
             latestRun,
             notice: {
               body:
-                "Paperclip detected a non-retryable failure on this issue's continuation run " +
+                "Nexus detected a non-retryable failure on this issue's continuation run " +
                 `(\`${classification.errorCode}\`). Skipping automatic retries and moving it to \`blocked\` ` +
                 "so it is visible for intervention.",
               title: "Continuation failed",
@@ -5698,7 +5698,7 @@ export function recoveryService(
               latestRun,
               notice: {
                 body:
-                  "Paperclip automatically retried continuation for this assigned `in_progress` issue after its live " +
+                  "Nexus automatically retried continuation for this assigned `in_progress` issue after its live " +
                   `execution disappeared, but it still has no live execution path${attemptCopy}. ` +
                   "Moving it to `blocked` so it is visible for intervention.",
                 title: "No live execution path",
@@ -5762,7 +5762,7 @@ export function recoveryService(
           latestRun,
           notice: {
             body:
-              "Paperclip retried this issue's run after it ended without finishing, but the bounded retry budget " +
+              "Nexus retried this issue's run after it ended without finishing, but the bounded retry budget " +
               "is spent and it still has no live execution path. " +
               "Moving it to `blocked` so it is visible for intervention.",
             title: "No live execution path",

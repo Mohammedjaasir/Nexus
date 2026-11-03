@@ -1,5 +1,5 @@
-import { createDb } from "@paperclipai/db";
-import { closeIdleWarmNativeSessionsForRestart, executePaperclipNativeSession } from "../../services/native-runtime/native-session-executor.js";
+import { createDb } from "@nexusai/db";
+import { closeIdleWarmNativeSessionsForRestart, executeNexusNativeSession } from "../../services/native-runtime/native-session-executor.js";
 import { dockerCommandRunner } from "./docker-command-runner.js";
 
 // Separate TypeScript fixture import time from actual controller admission.
@@ -11,7 +11,7 @@ process.once("message", async (input: {
   ingressUrl: string;
   suspendAfterTurn?: boolean;
   transientBackpressureInspection?: boolean;
-  options: Parameters<typeof executePaperclipNativeSession>[0];
+  options: Parameters<typeof executeNexusNativeSession>[0];
 }) => {
   const target = input.options.runnerExecutionTarget;
   if (target?.kind !== "remote") throw new Error("Expected remote worker target");
@@ -31,7 +31,7 @@ process.once("message", async (input: {
       }
       return result;
     };
-    const result = await executePaperclipNativeSession({
+    const result = await executeNexusNativeSession({
       ...input.options,
       db: createDb(input.connectionString),
       runnerExecutionTarget: {

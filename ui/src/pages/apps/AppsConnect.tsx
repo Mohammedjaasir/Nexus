@@ -4,13 +4,13 @@ import { AiConnectionCredentialStep } from "@/components/ai-connections/AiConnec
 import { AiProviderSetup } from "@/components/ai-connections/AiProviderSetup";
 import { AiConnectionPoolConnector } from "@/components/ai-connections/AiConnectionPoolConnector";
 import { useEffect } from "react";
-import { isRetiredComposioConnection } from "@paperclipai/shared";
-import { findComposioCatalogApp } from "@paperclipai/shared/aggregator-app-catalog";
+import { isRetiredComposioConnection } from "@nexusai/shared";
+import { findComposioCatalogApp } from "@nexusai/shared/aggregator-app-catalog";
 import { toolsApi } from "@/api/tools";
 import { queryKeys } from "@/lib/queryKeys";
 import { Button } from "@/components/ui/button";
 import { ConnectionSetupFlow } from "@/features/connections/ConnectionSetupFlow";
-import { aiProviderSetupPreset, type ToolConnectionCredentialSource } from "@paperclipai/shared";
+import { aiProviderSetupPreset, type ToolConnectionCredentialSource } from "@nexusai/shared";
 import { useCompany } from "@/context/CompanyContext";
 import { useNavigate, useParams, useSearchParams } from "@/lib/router";
 import { consumeSkillSourceReturn, skillSourceReturnPath } from "@/lib/skill-source-connect-return";
@@ -18,7 +18,7 @@ import { consumeSkillSourceReturn, skillSourceReturnPath } from "@/lib/skill-sou
 export { AccessStep, OAuthConnectStateScreen, type OAuthConnectPhase } from "@/features/connections/ConnectionSetupFlow";
 
 /** Full-page host for the same setup used by inline connection requests. */
-export function AppsConnect({ byoOnly = false, credentialSource = "paperclip_vault" }: {
+export function AppsConnect({ byoOnly = false, credentialSource = "nexus_vault" }: {
   byoOnly?: boolean;
   credentialSource?: ToolConnectionCredentialSource;
 } = {}) {
@@ -40,7 +40,7 @@ export function AppsConnect({ byoOnly = false, credentialSource = "paperclip_vau
   const toolkit = searchParams.get("targetToolkit");
   const reuseComposio = source === "composio" && Boolean(toolkit && findComposioCatalogApp(toolkit))
     && searchParams.get("new") !== "1" && !searchParams.get("resume") && !searchParams.get("reconnect")
-    && !byoOnly && credentialSource === "paperclip_vault";
+    && !byoOnly && credentialSource === "nexus_vault";
   const saved = useQuery({ queryKey: queryKeys.tools.connections(selectedCompanyId ?? "__none__"),
     queryFn: () => toolsApi.listConnections(selectedCompanyId!), enabled: reuseComposio && Boolean(selectedCompanyId), retry: false });
   const hasSavedComposio = reuseComposio && saved.data?.connections.some(connection =>

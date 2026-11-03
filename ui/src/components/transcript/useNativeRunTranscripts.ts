@@ -3,7 +3,7 @@ import { useTranscriptLiveStream } from "../../context/LiveUpdatesProvider";
 import { usePageVisibility } from "../../lib/page-visibility";
 import { liveRunEvent, mergeRunEvents } from "../../lib/live-run-event";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { HeartbeatRunEvent } from "@paperclipai/shared";
+import type { HeartbeatRunEvent } from "@nexusai/shared";
 import type { TranscriptEntry } from "@/adapters";
 import { heartbeatsApi } from "@/api/heartbeats";
 import { nativeRunEventsToTranscript } from "./native-run-events";

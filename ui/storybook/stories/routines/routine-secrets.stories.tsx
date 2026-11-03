@@ -9,18 +9,18 @@ import type {
   RoutineEnvConfig,
   RoutineRevision,
   RoutineRevisionSnapshotV1,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { EnvironmentVariablesEditor } from "@/components/environment-variables-editor";
 import { RoutineHistoryTab } from "@/components/RoutineHistoryTab";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCompany } from "@/context/CompanyContext";
 import { queryKeys } from "@/lib/queryKeys";
-import { storybookCompanies, storybookSecrets } from "../../fixtures/paperclipData";
+import { storybookCompanies, storybookSecrets } from "../../fixtures/nexusData";
 
 const COMPANY_ID = "company-storybook";
 
 if (typeof window !== "undefined") {
-  window.localStorage.setItem("paperclip.selectedCompanyId", COMPANY_ID);
+  window.localStorage.setItem("nexus.selectedCompanyId", COMPANY_ID);
 }
 
 function StorybookRoutineFixtures({
@@ -52,7 +52,7 @@ const meta: Meta = {
   parameters: {
     layout: "fullscreen",
     a11y: { test: "off" },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "routines/definition",
         "secrets/runtime-delivery"
@@ -89,7 +89,7 @@ function SecretsTabSurface({
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">
           Routine secrets apply to every issue this routine creates. They override matching keys in
-          project and agent env. <span className="font-mono">PAPERCLIP_*</span> variables are reserved.
+          project and agent env. <span className="font-mono">NEXUS_*</span> variables are reserved.
         </p>
         <EnvironmentVariablesEditor
           value={env}

@@ -5,9 +5,9 @@ import { createHash } from "node:crypto";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { and, eq, sql } from "drizzle-orm";
-import { executionWorkspaces, projectWorkspaces, type Db } from "@paperclipai/db";
-import { readRemoteWorkspaceAuthority } from "@paperclipai/shared";
-import { PROJECT_REPOSITORIES_DIR } from "@paperclipai/adapter-utils/git-workspace-sync";
+import { executionWorkspaces, projectWorkspaces, type Db } from "@nexusai/db";
+import { readRemoteWorkspaceAuthority } from "@nexusai/shared";
+import { PROJECT_REPOSITORIES_DIR } from "@nexusai/adapter-utils/git-workspace-sync";
 import { acquireGitExpirationLocks, recoverGitExpirationLocks, type GitExpirationLockLocation } from "./git-workspace-expiration-locks.js";
 import { allocatedBytes, withAnonymousGitFallback, type GitExpirationFailure } from "./git-workspace-expiration.js";
 import { GIT_CACHE_RESTORATION_KEY, readGitCacheRestoration, type GitCacheRestoration } from "./git-workspace-restoration.js";
@@ -24,7 +24,7 @@ const execFile = promisify(execFileCallback);
 const SHA = /^[0-9a-f]{40}$/;
 const OPEN_STATUSES = ["active", "idle", "in_review"];
 const CHECKOUT_NAME = /^[A-Za-z0-9_-]+-[a-f0-9]{12}$/;
-const REPO_ONLY_CWD_SENTINEL = "/__paperclip_repo_only__";
+const REPO_ONLY_CWD_SENTINEL = "/__nexus_repo_only__";
 const STAGING_SUFFIXES = { worktree: ".clone-migrating", aside: ".clone-standalone", trash: ".clone-trash" } as const;
 const LOCAL_CONFIG = /^(core\.(repositoryformatversion|filemode|bare|logallrefupdates|ignorecase|precomposeunicode)|remote\.origin\.(url|fetch)|branch\..+\.(remote|merge))$/;
 const UNSUPPORTED_GIT_STATE = ["shallow", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG", "rebase-apply", "rebase-merge", "sequencer",
@@ -286,7 +286,7 @@ async function preservedCandidates(checkout: string, head: string, boundary: str
 }
 
 function lockToken(workspaceId: string, name: string) {
-  return createHash("sha256").update(`paperclip-nested-clone-migration:${workspaceId}:${name}`).digest("hex");
+  return createHash("sha256").update(`nexus-nested-clone-migration:${workspaceId}:${name}`).digest("hex");
 }
 
 function cloneLockLocations(checkout: string, branch: string | null): GitExpirationLockLocation[] {

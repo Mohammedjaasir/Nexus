@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { SkillSourceCandidate } from '@paperclipai/shared';
+import type { SkillSourceCandidate } from '@nexusai/shared';
 import { FileTree, buildFileTree, collectAllPaths, type FileTreeNode } from '@/components/FileTree';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';

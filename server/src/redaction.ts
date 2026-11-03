@@ -1,5 +1,5 @@
-import { redactCommandText } from "@paperclipai/adapter-utils";
-import { isPublicExecutorToolSelector, looksLikeCredentialJwt } from "@paperclipai/adapter-utils/command-redaction";
+import { redactCommandText } from "@nexusai/adapter-utils";
+import { isPublicExecutorToolSelector, looksLikeCredentialJwt } from "@nexusai/adapter-utils/command-redaction";
 
 const SECRET_FIELD_NAME_PATTERN = String.raw`[A-Za-z0-9_-]*(?:api[-_]?key|access[-_]?token|auth(?:_?token)?|token|authorization(?:[-_]?code)?|bearer|secrets?|passwd|passwords?|credentials?|jwt|private[-_]?key|cookie|connectionstring|browser[-_]?code|login[-_]?url)(?:[-_]?(?:value|header|prod(?:uction)?|dev(?:elopment)?|test|staging|primary|secondary))*`;
 const SECRET_FIELD_NAME_START = String.raw`(?<![A-Za-z0-9_-])`;
@@ -43,159 +43,159 @@ function isAuditCountField(key: string, value: unknown): boolean {
   );
 }
 const COMMAND_PAYLOAD_KEY_RE =
-  /(^command$|^cmd$|command[-_]?line|resolved[-_]?command|PAPERCLIP_RESOLVED_COMMAND)/i;
+  /(^command$|^cmd$|command[-_]?line|resolved[-_]?command|NEXUS_RESOLVED_COMMAND)/i;
 const COMMAND_ARGS_PAYLOAD_KEY_RE = /^(commandArgs|command_?args|argv)$/i;
 // Public protocol discriminators are retained verbatim. A dotted identifier
 // alone is not a credential; JWT detection requires an encoded JSON header.
-const PAPERCLIP_SCHEMA_FIELDS = new Set(["schema", "runtimeSchema"]);
-export const PAPERCLIP_PUBLIC_SCHEMA_IDS = new Set([
-  "paperclip.artifact.generated.v1",
-  "paperclip.artifact.viewed.v1",
-  "paperclip.auth.credentials.updated.v1",
-  "paperclip.capability-discovery.v1",
-  "paperclip.capability.authorization-record.v1",
-  "paperclip.capability.control-plane.v1",
-  "paperclip.capability.devtools.v1",
-  "paperclip.capability.eval-parity-report.v1",
-  "paperclip.capability.exposure.v1",
-  "paperclip.capability.issue-thread-view.v1",
-  "paperclip.capability.live-session-checkpoint.v1",
-  "paperclip.capability.live-session.v1",
-  "paperclip.capability.live-smoke.v1",
-  "paperclip.capability.mock-export.v1",
-  "paperclip.capability.mock-state.v1",
-  "paperclip.capability.model-tool-result.v1",
-  "paperclip.capability.run-artifact.v1",
-  "paperclip.capability.run-context.v1",
-  "paperclip.capability.scenario-index.v1",
-  "paperclip.capability.scenario-parity.v1",
-  "paperclip.capability.semantic-tool-runtime.v1",
-  "paperclip.capability.state-diff.v1",
-  "paperclip.capability.tool-result.v1",
-  "paperclip.capability.turn-stream.v1",
-  "paperclip.capability.visible-tools.v1",
-  "paperclip.completion-contract.v1",
-  "paperclip.context.compacted.v1",
-  "paperclip.delegation.v1",
-  "paperclip.fake_harness.script.v1",
-  "paperclip.hook.v1",
-  "paperclip.interaction_request.v1",
-  "paperclip.local-provider-boundary-golden.v1",
-  "paperclip.memory.citation.v1",
-  "paperclip.model.provider_message.v1",
-  "paperclip.model.route_changed.v1",
-  "paperclip.model.verification.v1",
-  "paperclip.native-cancellation.v1",
-  "paperclip.native-execution-input.v1",
-  "paperclip.native-execution-input.v2",
-  "paperclip.native-execution-input.v3",
-  "paperclip.native-execution-input.v4",
-  "paperclip.native-execution-input.v5",
-  "paperclip.native-execution-input.v7",
-  "paperclip.native-execution-input.v8",
-  "paperclip.native-execution-input.v9",
-  "paperclip.native-execution-input.v10",
-  "paperclip.native-finalization.v1",
-  "paperclip.native-finalization.v2",
-  "paperclip.native-harness-backup-stamp.v1",
-  "paperclip.native-harness-backup-stamp.v2",
-  "paperclip.native-harness-backup.v1",
-  "paperclip.native-model-envelope.v1",
-  "paperclip.native-model-envelope.v2",
-  "paperclip.native-model-envelope.v3",
-  "paperclip.native-session-scope.v2",
-  "paperclip.native-session-supervisor.v1",
-  "paperclip.plan.updated.v1",
-  "paperclip.provider.native.v1",
-  "paperclip.provider.notice.v1",
-  "paperclip.provider_trace_frame.v1",
-  "paperclip.provider_trace_interpretation.v1",
-  "paperclip.provider_trace_metadata.v1",
-  "paperclip.prp.capabilities.v1",
-  "paperclip.prp.command.v1",
-  "paperclip.prp.contract_manifest.v1",
-  "paperclip.prp.event.v1",
-  "paperclip.prp.event.v2",
-  "paperclip.prp.fixture.v1",
-  "paperclip.prp.identity.v1",
-  "paperclip.prp.semantic_tool.v1",
-  "paperclip.prp.semantic_tool.v2",
-  "paperclip.prp.semantic_tools.v1",
-  "paperclip.prp.session-snapshot.v1",
-  "paperclip.prp.stop_reason.v1",
-  "paperclip.prp.terminal.v1",
-  "paperclip.question_adapter_fixture.v1",
-  "paperclip.question_response.v1",
-  "paperclip.question_response_delivery.v1",
-  "paperclip.question_set.v1",
-  "paperclip.research.v1",
-  "paperclip.review.mode_changed.v1",
-  "paperclip.run-performance-span.v1",
-  "paperclip.run-result.v1",
-  "paperclip.run_presentation_decision.v1",
-  "paperclip.run_result.v1",
-  "paperclip.runner.acpx-identity.v1",
-  "paperclip.runner.acpx-identity.v2",
-  "paperclip.runner.authorized-tools.v1",
-  "paperclip.runner.codex.metadata.v1",
-  "paperclip.runner.codex.trace.v1",
-  "paperclip.runner.compatibility.v1",
-  "paperclip.runner.conformance.fixture.v1",
-  "paperclip.runner.conformance.output.v1",
-  "paperclip.runner.durable.control-plane-state.v1",
-  "paperclip.runner.durable.diagnostics.v1",
-  "paperclip.runner.durable.state.v1",
-  "paperclip.runner.durable.trace.v1",
-  "paperclip.runner.eval-bundle-evidence.v1",
-  "paperclip.runner.eval-bundle.v1",
-  "paperclip.runner.eval-scorecard.v1",
-  "paperclip.runner.eval-scorecard.v2",
-  "paperclip.runner.eval-slice-report.v1",
-  "paperclip.runner.live-console.conformance.v1",
-  "paperclip.runner.live-eval-candidate.v1",
-  "paperclip.runner.live-eval-schedule.v1",
-  "paperclip.runner.local-acpx-authority.v1",
-  "paperclip.runner.local-runner.metadata.v1",
-  "paperclip.runner.local-runner.summary.v1",
-  "paperclip.runner.local-runner.trace.v1",
-  "paperclip.runner.profile.v1",
-  "paperclip.runner.retained_cleanup_failure.v1",
-  "paperclip.runner.sanitized-provider-fixture.v1",
-  "paperclip.runner.secure-frame.v1",
-  "paperclip.runner.standalone.standalone-demo.v1",
-  "paperclip.runner.stream.v1",
-  "paperclip.runner.stress-eval-traceability.v1",
-  "paperclip.runner.workflow-eval-case.v1",
-  "paperclip.runner.workflow-eval-report.v1",
-  "paperclip.runner.workflow-observation.v1",
-  "paperclip.runtime-asset-manifest.v1",
-  "paperclip.runtime-asset.v1",
-  "paperclip.runtime_request.v1",
-  "paperclip.runtime_request.v2",
-  "paperclip.safety.review.v1",
-  "paperclip.semantic-action.v1",
-  "paperclip.semantic-authorization-record.v1",
-  "paperclip.semantic-binding.v1",
-  "paperclip.semantic-conformance-report.v1",
-  "paperclip.semantic-denial.v1",
-  "paperclip.semantic-discovery.v1",
-  "paperclip.semantic-interaction-result.v1",
-  "paperclip.semantic-tool.v1",
-  "paperclip.semantic_tool_result.v1",
-  "paperclip.semantic_tool_result_chunks.v1",
-  "paperclip.skillless_task.v1",
-  "paperclip.status-authority-conformance.v1",
-  "paperclip.stop_reason.v1",
-  "paperclip.tagged_graph.v1",
-  "paperclip.task_envelope.v1",
-  "paperclip.terminal.input_sent.v1",
-  "paperclip.tool.execution.v1",
-  "paperclip.wait.v1",
-  "paperclip.workspace.diff.v1",
-  "paperclip.workspace.file_reference.v1",
-  "paperclip.workspace_create_target.v1",
-  "paperclip.workspace_entry.v1",
-  "paperclip.workspace_relative_display.v2",
+const NEXUS_SCHEMA_FIELDS = new Set(["schema", "runtimeSchema"]);
+export const NEXUS_PUBLIC_SCHEMA_IDS = new Set([
+  "nexus.artifact.generated.v1",
+  "nexus.artifact.viewed.v1",
+  "nexus.auth.credentials.updated.v1",
+  "nexus.capability-discovery.v1",
+  "nexus.capability.authorization-record.v1",
+  "nexus.capability.control-plane.v1",
+  "nexus.capability.devtools.v1",
+  "nexus.capability.eval-parity-report.v1",
+  "nexus.capability.exposure.v1",
+  "nexus.capability.issue-thread-view.v1",
+  "nexus.capability.live-session-checkpoint.v1",
+  "nexus.capability.live-session.v1",
+  "nexus.capability.live-smoke.v1",
+  "nexus.capability.mock-export.v1",
+  "nexus.capability.mock-state.v1",
+  "nexus.capability.model-tool-result.v1",
+  "nexus.capability.run-artifact.v1",
+  "nexus.capability.run-context.v1",
+  "nexus.capability.scenario-index.v1",
+  "nexus.capability.scenario-parity.v1",
+  "nexus.capability.semantic-tool-runtime.v1",
+  "nexus.capability.state-diff.v1",
+  "nexus.capability.tool-result.v1",
+  "nexus.capability.turn-stream.v1",
+  "nexus.capability.visible-tools.v1",
+  "nexus.completion-contract.v1",
+  "nexus.context.compacted.v1",
+  "nexus.delegation.v1",
+  "nexus.fake_harness.script.v1",
+  "nexus.hook.v1",
+  "nexus.interaction_request.v1",
+  "nexus.local-provider-boundary-golden.v1",
+  "nexus.memory.citation.v1",
+  "nexus.model.provider_message.v1",
+  "nexus.model.route_changed.v1",
+  "nexus.model.verification.v1",
+  "nexus.native-cancellation.v1",
+  "nexus.native-execution-input.v1",
+  "nexus.native-execution-input.v2",
+  "nexus.native-execution-input.v3",
+  "nexus.native-execution-input.v4",
+  "nexus.native-execution-input.v5",
+  "nexus.native-execution-input.v7",
+  "nexus.native-execution-input.v8",
+  "nexus.native-execution-input.v9",
+  "nexus.native-execution-input.v10",
+  "nexus.native-finalization.v1",
+  "nexus.native-finalization.v2",
+  "nexus.native-harness-backup-stamp.v1",
+  "nexus.native-harness-backup-stamp.v2",
+  "nexus.native-harness-backup.v1",
+  "nexus.native-model-envelope.v1",
+  "nexus.native-model-envelope.v2",
+  "nexus.native-model-envelope.v3",
+  "nexus.native-session-scope.v2",
+  "nexus.native-session-supervisor.v1",
+  "nexus.plan.updated.v1",
+  "nexus.provider.native.v1",
+  "nexus.provider.notice.v1",
+  "nexus.provider_trace_frame.v1",
+  "nexus.provider_trace_interpretation.v1",
+  "nexus.provider_trace_metadata.v1",
+  "nexus.prp.capabilities.v1",
+  "nexus.prp.command.v1",
+  "nexus.prp.contract_manifest.v1",
+  "nexus.prp.event.v1",
+  "nexus.prp.event.v2",
+  "nexus.prp.fixture.v1",
+  "nexus.prp.identity.v1",
+  "nexus.prp.semantic_tool.v1",
+  "nexus.prp.semantic_tool.v2",
+  "nexus.prp.semantic_tools.v1",
+  "nexus.prp.session-snapshot.v1",
+  "nexus.prp.stop_reason.v1",
+  "nexus.prp.terminal.v1",
+  "nexus.question_adapter_fixture.v1",
+  "nexus.question_response.v1",
+  "nexus.question_response_delivery.v1",
+  "nexus.question_set.v1",
+  "nexus.research.v1",
+  "nexus.review.mode_changed.v1",
+  "nexus.run-performance-span.v1",
+  "nexus.run-result.v1",
+  "nexus.run_presentation_decision.v1",
+  "nexus.run_result.v1",
+  "nexus.runner.acpx-identity.v1",
+  "nexus.runner.acpx-identity.v2",
+  "nexus.runner.authorized-tools.v1",
+  "nexus.runner.codex.metadata.v1",
+  "nexus.runner.codex.trace.v1",
+  "nexus.runner.compatibility.v1",
+  "nexus.runner.conformance.fixture.v1",
+  "nexus.runner.conformance.output.v1",
+  "nexus.runner.durable.control-plane-state.v1",
+  "nexus.runner.durable.diagnostics.v1",
+  "nexus.runner.durable.state.v1",
+  "nexus.runner.durable.trace.v1",
+  "nexus.runner.eval-bundle-evidence.v1",
+  "nexus.runner.eval-bundle.v1",
+  "nexus.runner.eval-scorecard.v1",
+  "nexus.runner.eval-scorecard.v2",
+  "nexus.runner.eval-slice-report.v1",
+  "nexus.runner.live-console.conformance.v1",
+  "nexus.runner.live-eval-candidate.v1",
+  "nexus.runner.live-eval-schedule.v1",
+  "nexus.runner.local-acpx-authority.v1",
+  "nexus.runner.local-runner.metadata.v1",
+  "nexus.runner.local-runner.summary.v1",
+  "nexus.runner.local-runner.trace.v1",
+  "nexus.runner.profile.v1",
+  "nexus.runner.retained_cleanup_failure.v1",
+  "nexus.runner.sanitized-provider-fixture.v1",
+  "nexus.runner.secure-frame.v1",
+  "nexus.runner.standalone.standalone-demo.v1",
+  "nexus.runner.stream.v1",
+  "nexus.runner.stress-eval-traceability.v1",
+  "nexus.runner.workflow-eval-case.v1",
+  "nexus.runner.workflow-eval-report.v1",
+  "nexus.runner.workflow-observation.v1",
+  "nexus.runtime-asset-manifest.v1",
+  "nexus.runtime-asset.v1",
+  "nexus.runtime_request.v1",
+  "nexus.runtime_request.v2",
+  "nexus.safety.review.v1",
+  "nexus.semantic-action.v1",
+  "nexus.semantic-authorization-record.v1",
+  "nexus.semantic-binding.v1",
+  "nexus.semantic-conformance-report.v1",
+  "nexus.semantic-denial.v1",
+  "nexus.semantic-discovery.v1",
+  "nexus.semantic-interaction-result.v1",
+  "nexus.semantic-tool.v1",
+  "nexus.semantic_tool_result.v1",
+  "nexus.semantic_tool_result_chunks.v1",
+  "nexus.skillless_task.v1",
+  "nexus.status-authority-conformance.v1",
+  "nexus.stop_reason.v1",
+  "nexus.tagged_graph.v1",
+  "nexus.task_envelope.v1",
+  "nexus.terminal.input_sent.v1",
+  "nexus.tool.execution.v1",
+  "nexus.wait.v1",
+  "nexus.workspace.diff.v1",
+  "nexus.workspace.file_reference.v1",
+  "nexus.workspace_create_target.v1",
+  "nexus.workspace_entry.v1",
+  "nexus.workspace_relative_display.v2",
 ]);
 // Keep this closed catalog aligned with PRP v1's event.schema.json. These
 // values are public protocol discriminators, but their dotted shape overlaps
@@ -321,7 +321,7 @@ export const PRP_V2_EVENT_TYPES = new Set([
   "session.goal.updated",
   "session.goal.cleared",
 ]);
-const NATIVE_RUN_SPAN_SCHEMA = "paperclip.run-performance-span.v1";
+const NATIVE_RUN_SPAN_SCHEMA = "nexus.run-performance-span.v1";
 const NATIVE_RUN_SPAN_FIELDS = ["span", "parentSpan"] as const;
 const NATIVE_RUN_SPAN_NAMES = new Set([
   "agent.turn",
@@ -879,23 +879,23 @@ function isKnownPrpEventDiscriminator(
   return (
     key === "eventType" &&
     typeof value === "string" &&
-    ((container.schema === "paperclip.prp.event.v1" &&
+    ((container.schema === "nexus.prp.event.v1" &&
       container.schemaVersion === 1 &&
       PRP_V1_EVENT_TYPES.has(value)) ||
-      (container.schema === "paperclip.prp.event.v2" &&
+      (container.schema === "nexus.prp.event.v2" &&
         container.schemaVersion === 2 &&
         (PRP_V1_EVENT_TYPES.has(value) || PRP_V2_EVENT_TYPES.has(value))))
   );
 }
 
-function isPaperclipSchemaDiscriminator(
+function isNexusSchemaDiscriminator(
   key: string,
   value: unknown,
 ): value is string {
   return (
-    PAPERCLIP_SCHEMA_FIELDS.has(key) &&
+    NEXUS_SCHEMA_FIELDS.has(key) &&
     typeof value === "string" &&
-    PAPERCLIP_PUBLIC_SCHEMA_IDS.has(value)
+    NEXUS_PUBLIC_SCHEMA_IDS.has(value)
   );
 }
 
@@ -937,7 +937,7 @@ export function sanitizeRecord(
       redacted[key] = value;
       continue;
     }
-    if (isPaperclipSchemaDiscriminator(key, value)) {
+    if (isNexusSchemaDiscriminator(key, value)) {
       redacted[key] = value;
       continue;
     }
@@ -949,7 +949,7 @@ export function sanitizeRecord(
       typeof value === "string" &&
       looksLikeCredentialJwt(value) &&
       !isPublicExecutorToolSelector(value) &&
-      !isPaperclipSchemaDiscriminator(key, value)
+      !isNexusSchemaDiscriminator(key, value)
     ) {
       redacted[key] = REDACTED_EVENT_VALUE;
       continue;

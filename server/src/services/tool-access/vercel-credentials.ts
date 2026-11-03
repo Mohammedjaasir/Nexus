@@ -2,9 +2,9 @@ import { connectionActorUserId } from "./actor.js";
 import type { ActorInfo } from "./types.js";
 import { remoteEndpoint } from "./connection-methods.js";
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { connectionGrants, toolConnections } from "@paperclipai/db";
-import type { VercelConnectCredentialReference, VercelConnectGrantReference } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { connectionGrants, toolConnections } from "@nexusai/db";
+import type { VercelConnectCredentialReference, VercelConnectGrantReference } from "@nexusai/shared";
 import { conflict, HttpError, unprocessable } from "../../errors.js";
 import { deriveVercelConnectSubject, vercelGrantReference, vercelTokenRequest, VercelConnectClientError, type VercelConnectClient } from "../vercel-connect.js";
 

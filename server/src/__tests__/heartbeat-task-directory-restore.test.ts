@@ -16,7 +16,7 @@ import {
   executionWorkspaces,
   heartbeatRuns,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { drainHeartbeatRunsToQuiescence } from "./helpers/drain-heartbeat-runs.js";
 import { heartbeatService } from "../services/heartbeat.ts";
@@ -44,7 +44,7 @@ describe.skipIf(!support.supported)("heartbeat resume of a removed task director
   beforeAll(async () => {
     database = await startEmbeddedPostgresTestDatabase("heartbeat-task-directory-restore-");
     db = createDb(database.connectionString);
-    root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-heartbeat-task-directory-")));
+    root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "nexus-heartbeat-task-directory-")));
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
   afterEach(async () => {
     await drainHeartbeatRunsToQuiescence(db, heartbeatService(db));
@@ -72,9 +72,9 @@ describe.skipIf(!support.supported)("heartbeat resume of a removed task director
 
   it("restores a removed task directory before the run uses it", async () => {
     const mode = "shared_workspace";
-    vi.stubEnv("PAPERCLIP_HOME", path.join(root, randomUUID()));
-    vi.stubEnv("PAPERCLIP_INSTANCE_ID", "default");
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "31".repeat(32));
+    vi.stubEnv("NEXUS_HOME", path.join(root, randomUUID()));
+    vi.stubEnv("NEXUS_INSTANCE_ID", "default");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "31".repeat(32));
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), workspaceId = randomUUID();
     const runId = randomUUID(), wakeupId = randomUUID();
     const issuePrefix = `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
@@ -111,7 +111,7 @@ describe.skipIf(!support.supported)("heartbeat resume of a removed task director
     await heartbeat.waitForRunExecutionDrain(runId);
     expect(run).toMatchObject({ status: "succeeded" });
     expect(adapterExecute).toHaveBeenCalledTimes(1);
-    expect(adapterExecute.mock.calls[0]?.[0]).toMatchObject({ context: { executionWorkspaceId: workspaceId, paperclipWorkspace: { cwd } } });
+    expect(adapterExecute.mock.calls[0]?.[0]).toMatchObject({ context: { executionWorkspaceId: workspaceId, nexusWorkspace: { cwd } } });
     expect(await fs.readFile(path.join(cwd, "out", "report.md"), "utf8")).toBe("only copy of the report\n");
     const restored = await workspace();
     expect(restored.status).not.toBe("archived");

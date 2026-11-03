@@ -7,9 +7,9 @@ import {
   Search,
 } from "lucide-react";
 import type {
-  PaperclipQuestionResponse,
-  PaperclipQuestionSet,
-} from "@paperclipai/adapter-utils";
+  NexusQuestionResponse,
+  NexusQuestionSet,
+} from "@nexusai/adapter-utils";
 import type { MentionOption } from "@/components/MarkdownEditor";
 import { DecisionCardFooter } from "@/components/DecisionCardFooter";
 import { MarkdownBody } from "@/components/MarkdownBody";
@@ -28,8 +28,8 @@ import {
 import { TaskChatRichInput } from "./TaskChatRichInput";
 import { matchSafeQuestionValidationPattern } from "./question-validation-pattern";
 
-type Question = PaperclipQuestionSet["questions"][number];
-type Answer = PaperclipQuestionResponse["answers"][string];
+type Question = NexusQuestionSet["questions"][number];
+type Answer = NexusQuestionResponse["answers"][string];
 
 /**
  * A form-level message, tagged with whether answering a question resolves it.
@@ -46,14 +46,14 @@ export interface QuestionFormProps {
   footerSlot?: ReactNode;
   id: string;
   presentation?: "default" | "decision";
-  questionSet: PaperclipQuestionSet;
-  initialResponse?: PaperclipQuestionResponse | null;
+  questionSet: NexusQuestionSet;
+  initialResponse?: NexusQuestionResponse | null;
   implicitCustomAnswer?: boolean;
   draftKey?: string;
   disabled?: boolean;
   imageUploadHandler?: (file: File) => Promise<string>;
   mentions?: MentionOption[];
-  onSubmit: (response: PaperclipQuestionResponse) => void | Promise<void>;
+  onSubmit: (response: NexusQuestionResponse) => void | Promise<void>;
   /**
    * Resolves the request itself (a timeline card cancelling the interaction).
    * Inside the composer takeover the form falls back to dismissing the
@@ -195,8 +195,8 @@ export function QuestionResponseSummary({
   questionSet,
   response,
 }: {
-  questionSet: PaperclipQuestionSet;
-  response: PaperclipQuestionResponse;
+  questionSet: NexusQuestionSet;
+  response: NexusQuestionResponse;
 }) {
   return (
     <dl className="grid gap-2 text-sm">
@@ -417,7 +417,7 @@ function QuestionFormForRequest({
     setError(null);
     try {
       await onSubmit({
-        schema: "paperclip.question_response.v1",
+        schema: "nexus.question_response.v1",
         answers: structuredClone(responseAnswers),
       });
       if (draftKey) clearDraft(draftKey);

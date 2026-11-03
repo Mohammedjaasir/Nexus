@@ -5,7 +5,7 @@ import { agentVisibilityFromPermissions, isSharedAgentVisibility } from "@/lib/i
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Lock, Trash2, UserPlus } from "lucide-react";
-import type { Project } from "@paperclipai/shared";
+import type { Project } from "@nexusai/shared";
 import { accessApi } from "@/api/access";
 import { agentsApi } from "@/api/agents";
 import { projectsApi } from "@/api/projects";

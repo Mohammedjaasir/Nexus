@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 
 import { Button } from "@/components/ui/button";
 import { EntityRow } from "@/components/EntityRow";
@@ -43,7 +43,7 @@ const briefsAgent: Agent = {
   pausedAt: null,
   permissions: { canCreateAgents: false },
   lastHeartbeatAt: null,
-  metadata: { paperclipBuiltInAgent: { key: "briefs", featureKeys: ["briefs"] } },
+  metadata: { nexusBuiltInAgent: { key: "briefs", featureKeys: ["briefs"] } },
   createdAt: new Date("2026-06-01T09:00:00.000Z"),
   updatedAt: new Date("2026-07-01T09:00:00.000Z"),
 };
@@ -53,7 +53,7 @@ const definition = {
   displayName: "Briefs Agent",
   featureKeys: ["briefs"],
   shortPurpose: "Prepares concise operational briefs for the board and agent company.",
-  defaultInstructions: "You are Paperclip's built-in Briefs agent.",
+  defaultInstructions: "You are Nexus's built-in Briefs agent.",
   defaultRole: "general",
   allowedAdapterTypes: ["codex_local", "claude_local", "gemini_local", "opencode_local", "process"],
   defaultBudgetMonthlyCents: 0,
@@ -114,7 +114,7 @@ const meta: Meta = {
   id: "product-built-in-agents",
   title: "Agents and reusable capabilities/Hiring, configuration, and organization/Product/Built-in Agents",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agents/built-in"
       ],
@@ -152,7 +152,7 @@ export const SurfaceGallery: Story = {
           title="Built-in agent"
           actions={<Button variant="outline" size="sm">Reset to defaults</Button>}
         >
-          Ships with Paperclip and powers <strong>Briefs</strong>. Configure it like any agent —
+          Ships with Nexus and powers <strong>Briefs</strong>. Configure it like any agent —
           model, instructions, budget. It can be paused but not deleted; pausing it pauses Briefs.
         </InlineBanner>
       </div>
@@ -284,7 +284,7 @@ const reflectionBundle = {
     skillKey: "reflection-coach",
     displayName: "reflection-coach",
     slug: "reflection-coach",
-    canonicalKey: "paperclipai/bundled/paperclip-operations/reflection-coach",
+    canonicalKey: "nexusai/bundled/nexus-operations/reflection-coach",
     files: ["reflection-coach/SKILL.md"],
   },
   routine: {
@@ -300,7 +300,7 @@ const reflectionDefinition = {
   displayName: "Reflection Coach",
   featureKeys: ["reflection"],
   shortPurpose: "Reviews recent agents and coaches them.",
-  defaultInstructions: "You are Paperclip's built-in Reflection Coach.",
+  defaultInstructions: "You are Nexus's built-in Reflection Coach.",
   defaultRole: "general",
   allowedAdapterTypes: ["codex_local", "claude_local"],
   defaultBudgetMonthlyCents: 0,

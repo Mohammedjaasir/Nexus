@@ -5,7 +5,7 @@ import { heartbeatService } from "../services/heartbeat.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import { createHeartbeatLifecycle, type HeartbeatLifecycleDependencies } from "../services/heartbeat/run-lifecycle.js";
 import { reconcileNativeFinalizations } from "../services/native-runtime/native-finalization-reconciler.js";
-import { statusDecisionEffects } from "@paperclipai/db";
+import { statusDecisionEffects } from "@nexusai/db";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -13,20 +13,20 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agents, companies, completionContracts, createDb, heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@paperclipai/db";
+import { agents, companies, completionContracts, createDb, heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@nexusai/db";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { nativeRecoveryNoticeWork } from "../services/native-runtime/native-recovery-notice-work.js";
 import { resolveCommittedNativeRecoveryNotices } from "../services/native-runtime/native-recovery-notices.js";
 import { notifyNativeFinalizationWork } from "../services/native-finalization-notifications.js";
 import { issueRecoveryActionService } from "../services/issue-recovery-actions.js";
-import { issueRecoveryActions } from "@paperclipai/db";
+import { issueRecoveryActions } from "@nexusai/db";
 import { finalizeNativeRun } from "../services/native-runtime/native-run-finalizer.js";
 import * as statusCommitter from "../services/native-runtime/status-decision-committer.js";
-import { PaperclipControlPlanePort } from "../services/native-runtime/paperclip-control-plane-port.js";
+import { NexusControlPlanePort } from "../services/native-runtime/nexus-control-plane-port.js";
 import { NativeRunCoordinatorStore } from "../services/native-runtime/native-run-coordinator-store.js";
 import { workspaceOperationService } from "../services/workspace-operations.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
-import { CONTROL_PLANE_CONFORMANCE_RESULT, CONTROL_PLANE_CONFORMANCE_TERMINAL } from "../vendor/paperclip-runner/testing.js";
+import { CONTROL_PLANE_CONFORMANCE_RESULT, CONTROL_PLANE_CONFORMANCE_TERMINAL } from "../vendor/nexus-runner/testing.js";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { emitAgentTaskRun } from "../services/agent-task-run-telemetry.js";
@@ -47,11 +47,11 @@ describe("committed native recovery notice lifecycle", () => {
   beforeAll(async () => {
     root = await mkdtemp(join(tmpdir(), "native-recovery-notice-"));
     process.env.WORKSPACE_OPERATION_LOG_BASE_PATH = root;
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_NATIVE_RECOVERY_NOTICE_TEST_DATABASE_URL");
+    const external = resolveExternalTestDatabaseUrl("NEXUS_NATIVE_RECOVERY_NOTICE_TEST_DATABASE_URL");
     if (!external) temporary = await startEmbeddedPostgresTestDatabase("native-recovery-notice-");
     db = createDb(external ?? temporary!.connectionString);
     await db.insert(companies).values({ id: companyId, name: "Result commits", issuePrefix: `RC${randomUUID().slice(0, 6)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Result worker", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Result worker", adapterType: "nexus_runner" });
   }, 30_000);
   beforeEach(() => {
     admitted = true; errors.length = 0; vi.mocked(emitAgentTaskRun).mockClear();
@@ -92,7 +92,7 @@ describe("committed native recovery notice lifecycle", () => {
     const runId = randomUUID(), issueId = randomUUID(), contractId = randomUUID(), sourceInstanceId = randomUUID();
     await db.insert(issues).values({ id: issueId, companyId, title: "Commit accepted work", status: "in_progress", assigneeAgentId: agentId });
     await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1,
-      schemaVersion: "paperclip.completion-contract.v1", policyVersion: "result-worker-v1", risk: "standard",
+      schemaVersion: "nexus.completion-contract.v1", policyVersion: "result-worker-v1", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "result-worker-v1", objective: "Finish", criteria: [{ id: "objective", requirement: "Complete the task" }] },
       canonicalSha256: contractId, createdByActorType: "system", createdByActorId: "test" });
@@ -104,7 +104,7 @@ describe("committed native recovery notice lifecycle", () => {
       completionContractSha256: contractId, sourceInstanceId, controlPlaneSourceInstanceId: "result-worker-test" };
   }
   async function complete(binding: Awaited<ReturnType<typeof seed>>, producer: "control_plane" | "coordinator", writer: Db = db, terminalStatus: "succeeded" | "failed" | "cancelled" = "succeeded") {
-    const port = producer === "control_plane" ? new PaperclipControlPlanePort(writer, binding)
+    const port = producer === "control_plane" ? new NexusControlPlanePort(writer, binding)
       : new NativeRunCoordinatorStore(writer, { ...binding, normalizedSessionId: binding.sessionId,
         runnerSourceInstanceId: binding.sourceInstanceId,
         completionContractRevision: CONTROL_PLANE_CONFORMANCE_RESULT.completionClaim.contractRevision,
@@ -218,8 +218,8 @@ describe("committed native recovery notice lifecycle", () => {
   });
   it.each(["restore", "worktree"])("preserves %s suppression and settings activation", async mode => {
     const binding = await committed(); const pending = await notice(binding);
-    const runtimeEnv = mode === "restore" ? { PAPERCLIP_DATABASE_RESTORE_IN_PROGRESS: "true" }
-      : { PAPERCLIP_IN_WORKTREE: "true", PAPERCLIP_INSTANCE_ID: "notice-suppression-test" };
+    const runtimeEnv = mode === "restore" ? { NEXUS_DATABASE_RESTORE_IN_PROGRESS: "true" }
+      : { NEXUS_IN_WORKTREE: "true", NEXUS_INSTANCE_ID: "notice-suppression-test" };
     const settings = instanceSettingsService(db, { runtimeEnv });
     if (mode === "worktree") await settings.updateExperimental({ enableWorktreeRunExecution: false });
     coordinator = createDeliveryWorkCoordinator({ owner: db, canRun: () => admitted, canReconcile: () => admitted,

@@ -35,8 +35,8 @@ import plugin, {
   __getDaytonaWritableDirsForTest,
   __setDaytonaPluginContextForTest,
 } from "./plugin.js";
-import type { PluginContext } from "@paperclipai/plugin-sdk";
-import { environmentSyncErrorData, readEnvironmentSyncErrorDiagnostic, withEnvironmentSyncErrorCapture, environmentCreationCleanupErrorData, readEnvironmentCreationCleanupError, readEnvironmentAcquisitionDiagnostic } from "@paperclipai/plugin-sdk";
+import type { PluginContext } from "@nexusai/plugin-sdk";
+import { environmentSyncErrorData, readEnvironmentSyncErrorDiagnostic, withEnvironmentSyncErrorCapture, environmentCreationCleanupErrorData, readEnvironmentCreationCleanupError, readEnvironmentAcquisitionDiagnostic } from "@nexusai/plugin-sdk";
 import manifest from "./manifest.js";
 import { parseTarVerboseListingLine, splitLinkEntryOnce } from "./file-sync.js";
 
@@ -98,16 +98,16 @@ describe("Daytona durable creation identity", () => {
     creationOperation: { id, runId } };
   beforeEach(() => { mockCreate.mockReset(); mockGet.mockReset(); __resetDaytonaSandboxHandleCacheForTest(); });
   afterEach(() => { vi.unstubAllEnvs(); __resetDaytonaSandboxHandleCacheForTest(); });
-  function resource() { return { ...createMockSandbox({ name: `paperclip-create-${id}` }), labels: {
-    "paperclip-provider": "daytona", "paperclip-create-attempt": id,
-    "paperclip-company-id": params.companyId, "paperclip-environment-id": params.environmentId,
-    "paperclip-run-id": runId,
+  function resource() { return { ...createMockSandbox({ name: `nexus-create-${id}` }), labels: {
+    "nexus-provider": "daytona", "nexus-create-attempt": id,
+    "nexus-company-id": params.companyId, "nexus-environment-id": params.environmentId,
+    "nexus-run-id": runId,
   } }; }
   it("locates the exact resource by stable name without creation or lifecycle calls", async () => {
     const sandbox = resource(); mockGet.mockResolvedValue(sandbox);
     const observed = await plugin.definition.onEnvironmentInspectLease!(params);
-    expect(mockGet).toHaveBeenCalledWith(`paperclip-create-${id}`);
-    expect(observed).toMatchObject({ providerLeaseId: `paperclip-create-${id}`, state: "active",
+    expect(mockGet).toHaveBeenCalledWith(`nexus-create-${id}`);
+    expect(observed).toMatchObject({ providerLeaseId: `nexus-create-${id}`, state: "active",
       creationCleanup: { observedProviderLeaseId: sandbox.id, attemptId: id, runId } });
     expect(mockCreate).not.toHaveBeenCalled(); expect(sandbox.delete).not.toHaveBeenCalled();
     await plugin.definition.onEnvironmentDestroyLease!({ ...params, providerLeaseId: observed.providerLeaseId,
@@ -116,11 +116,11 @@ describe("Daytona durable creation identity", () => {
   });
   it("retains uncertainty when a creation name is absent", async () => {
     mockGet.mockRejectedValue(new MockDaytonaNotFoundError("not yet visible"));
-    expect(await plugin.definition.onEnvironmentInspectLease!(params)).toEqual({ providerLeaseId: `paperclip-create-${id}`, state: "unknown" });
+    expect(await plugin.definition.onEnvironmentInspectLease!(params)).toEqual({ providerLeaseId: `nexus-create-${id}`, state: "unknown" });
     expect(mockCreate).not.toHaveBeenCalled();
   });
   it("rejects a name or label owned by another creation", async () => {
-    mockGet.mockResolvedValue({ ...resource(), labels: { "paperclip-company-id": "foreign" } });
+    mockGet.mockResolvedValue({ ...resource(), labels: { "nexus-company-id": "foreign" } });
     await expect(plugin.definition.onEnvironmentInspectLease!(params)).rejects.toThrow("ownership does not match");
   });
   it("requires the recorded endpoint when ambient configuration changes", async () => {
@@ -341,7 +341,7 @@ function createMockSandbox(overrides: {
 } = {}) {
   return {
     id: overrides.id ?? "sandbox-123",
-    name: overrides.name ?? "paperclip-sandbox",
+    name: overrides.name ?? "nexus-sandbox",
     state: overrides.state ?? "started",
     recoverable: overrides.recoverable ?? false,
     target: "us",
@@ -654,7 +654,7 @@ describe("Daytona sandbox provider plugin", () => {
         companyId: "company-1",
         environmentId: "env-1",
         providerLeaseId: "sandbox-123",
-        command: ["node", "/paperclip/gateway.mjs"],
+        command: ["node", "/nexus/gateway.mjs"],
       });
       expect(open?.workerSessionId).toMatch(/^duplex-/);
       // The open reply echoes the host route id, so the host binds the exact pair.
@@ -664,8 +664,8 @@ describe("Daytona sandbox provider plugin", () => {
       // The launch wrapper sets raw mode with echo off and redirects diagnostics.
       // It quotes each command argument and the diagnostics path as a shell word.
       expect(inputs[0]).toContain("stty raw -echo");
-      expect(inputs[0]).toContain("exec 'node' '/paperclip/gateway.mjs'");
-      expect(inputs[0]).toMatch(/2>'\/tmp\/paperclip-duplex-.+\.log'/);
+      expect(inputs[0]).toContain("exec 'node' '/nexus/gateway.mjs'");
+      expect(inputs[0]).toMatch(/2>'\/tmp\/nexus-duplex-.+\.log'/);
 
       // A host write on the exact pair reaches the process on the same channel.
       // `data` arrives in the wire-safe base64 form (see `ChannelBytesWireValue`
@@ -925,7 +925,7 @@ describe("Daytona sandbox provider plugin", () => {
       ["absent", () => mockGet.mockRejectedValue(new MockDaytonaNotFoundError("private-not-found"))],
       ["unavailable", () => mockGet.mockRejectedValue(new Error("private-provider-failure"))],
       ["unavailable", () => mockGet.mockImplementation(async () => {
-        const foreign = ownedCreation("started"); foreign.labels["paperclip-run-id"] = "foreign-run"; return foreign;
+        const foreign = ownedCreation("started"); foreign.labels["nexus-run-id"] = "foreign-run"; return foreign;
       })],
     ])("records %s when the deadline lookup cannot attribute an allocation", async (expected, arrange) => {
       mockCreate.mockImplementation(() => new Promise(() => {}));
@@ -1177,7 +1177,7 @@ describe("Daytona sandbox provider plugin", () => {
     it.each(["company", "account", "labels"])("fences failed-creation retries by %s", async (mismatch) => {
       const { cleanup } = await unresolvedCreation();
       const orphan = ownedSandbox(); mockGet.mockResolvedValue(orphan);
-      if (mismatch === "labels") orphan.labels["paperclip-run-id"] = "foreign-run";
+      if (mismatch === "labels") orphan.labels["nexus-run-id"] = "foreign-run";
       const retry = { ...params, providerLeaseId: cleanup.providerLeaseId, leaseMetadata: { failedCreateCleanup: cleanup } };
       if (mismatch === "company") retry.companyId = "foreign-company";
       if (mismatch === "account") process.env.DAYTONA_API_KEY = "another-account-key";
@@ -1189,13 +1189,13 @@ describe("Daytona sandbox provider plugin", () => {
       let orphan: ReturnType<typeof ownedSandbox>;
       mockGet.mockImplementation(async () => (orphan = ownedSandbox()));
       await expect(plugin.definition.onEnvironmentAcquireLease?.(params)).rejects.toBe(createError);
-      expect(mockCreate.mock.calls[0][0].name).toMatch(/^paperclip-create-[0-9a-f-]{36}$/);
+      expect(mockCreate.mock.calls[0][0].name).toMatch(/^nexus-create-[0-9a-f-]{36}$/);
       expect(mockGet).toHaveBeenCalledWith(mockCreate.mock.calls[0][0].name);
       expect(orphan!.delete).toHaveBeenCalledWith(10, true);
       expect(orphan!.process.executeCommand).not.toHaveBeenCalled();
     });
 
-    it.each(["paperclip-company-id", "paperclip-environment-id", "paperclip-run-id", "paperclip-create-attempt", "paperclip-provider"])("never deletes a sandbox with a mismatched %s", async (label) => {
+    it.each(["nexus-company-id", "nexus-environment-id", "nexus-run-id", "nexus-create-attempt", "nexus-provider"])("never deletes a sandbox with a mismatched %s", async (label) => {
       let orphan: ReturnType<typeof ownedSandbox>;
       mockGet.mockImplementation(async () => {
         orphan = ownedSandbox(); orphan.labels[label] = "different-owner"; return orphan;
@@ -1293,7 +1293,7 @@ describe("Daytona sandbox provider plugin", () => {
       const requests = mockCreate.mock.calls.map(([request]) => request);
       expect(requests).toHaveLength(2);
       expect(new Set(requests.map((r) => r.name)).size).toBe(2);
-      expect(new Set(requests.map((r) => r.labels["paperclip-create-attempt"])).size).toBe(2);
+      expect(new Set(requests.map((r) => r.labels["nexus-create-attempt"])).size).toBe(2);
     });
   });
 
@@ -1334,7 +1334,7 @@ describe("Daytona sandbox provider plugin", () => {
     });
 
     expect(mockCreate).toHaveBeenCalled();
-    expect(sandbox.fs.createFolder).toHaveBeenCalledWith("/home/daytona/paperclip-workspace", "755");
+    expect(sandbox.fs.createFolder).toHaveBeenCalledWith("/home/daytona/nexus-workspace", "755");
     expect(sandbox.delete).toHaveBeenCalledWith(300, true);
     expect(result).toMatchObject({
       ok: true,
@@ -1342,7 +1342,7 @@ describe("Daytona sandbox provider plugin", () => {
         provider: "daytona",
         shellCommand: "bash",
         sandboxId: "sandbox-123",
-        remoteCwd: "/home/daytona/paperclip-workspace",
+        remoteCwd: "/home/daytona/nexus-workspace",
       },
     });
   });
@@ -1373,21 +1373,21 @@ describe("Daytona sandbox provider plugin", () => {
         provider: "daytona",
         shellCommand: "bash",
         sandboxId: "sandbox-123",
-        remoteCwd: "/home/daytona/paperclip-workspace",
+        remoteCwd: "/home/daytona/nexus-workspace",
         reuseLease: true,
         workspaceSentinel: {
-          path: "/home/daytona/paperclip-workspace/.paperclip-runtime/reusable-sandbox-lease.json",
+          path: "/home/daytona/nexus-workspace/.nexus-runtime/reusable-sandbox-lease.json",
           result: "written",
         },
       },
     });
     expect(sandbox.fs.createFolder).toHaveBeenCalledWith(
-      "/home/daytona/paperclip-workspace/.paperclip-runtime",
+      "/home/daytona/nexus-workspace/.nexus-runtime",
       "755",
     );
     expect(sandbox.fs.uploadFile).toHaveBeenCalledWith(
       expect.any(Buffer),
-      "/home/daytona/paperclip-workspace/.paperclip-runtime/reusable-sandbox-lease.json",
+      "/home/daytona/nexus-workspace/.nexus-runtime/reusable-sandbox-lease.json",
       300,
     );
   });
@@ -1594,9 +1594,9 @@ describe("Daytona sandbox provider plugin", () => {
     expect(createParams).toMatchObject({
       snapshot: "existing-secret-snapshot",
       labels: {
-        "paperclip-provider": "daytona",
-        "paperclip-setup-session-id": "setup-1",
-        "paperclip-purpose": "interactive_setup",
+        "nexus-provider": "daytona",
+        "nexus-setup-session-id": "setup-1",
+        "nexus-purpose": "interactive_setup",
       },
     });
     expect(createParams).not.toHaveProperty("image");
@@ -1651,9 +1651,9 @@ describe("Daytona sandbox provider plugin", () => {
     expect(createParams).toMatchObject({
       image: "node:20",
       labels: {
-        "paperclip-provider": "daytona",
-        "paperclip-setup-session-id": "setup-image-1",
-        "paperclip-purpose": "interactive_setup",
+        "nexus-provider": "daytona",
+        "nexus-setup-session-id": "setup-image-1",
+        "nexus-purpose": "interactive_setup",
       },
     });
     expect(createParams).not.toHaveProperty("snapshot");
@@ -1748,7 +1748,7 @@ describe("Daytona sandbox provider plugin", () => {
       companyId: "company-1",
       environmentId: "env-1",
       providerLeaseId: "sandbox-setup",
-      templateLabel: " Paperclip Env 1 ",
+      templateLabel: " Nexus Env 1 ",
       sourceTemplateRef: "source-secret-snapshot",
       previousTemplateRef: "previous-secret-snapshot",
       timeoutMs: 120000,
@@ -1759,10 +1759,10 @@ describe("Daytona sandbox provider plugin", () => {
       },
     });
 
-    expect(sandbox._experimental_createSnapshot).toHaveBeenCalledWith("paperclip-env-1", 120);
+    expect(sandbox._experimental_createSnapshot).toHaveBeenCalledWith("nexus-env-1", 120);
     expect(result).toMatchObject({
       templateKind: "snapshot",
-      templateRef: "paperclip-env-1",
+      templateRef: "nexus-env-1",
       metadata: {
         provider: "daytona",
         sandboxId: "sandbox-setup",
@@ -1976,7 +1976,7 @@ describe("Daytona sandbox provider plugin", () => {
     const sandbox = createMockSandbox({ id: "ephemeral-owned" });
     mockCreate.mockResolvedValue(sandbox);
     const base = { driverKey: "daytona", companyId: "company-1", environmentId: "env-1", agentId: "agent-1",
-      issueId: "issue-1", adapterType: "paperclip_runner", config: { reuseLease: false } };
+      issueId: "issue-1", adapterType: "nexus_runner", config: { reuseLease: false } };
     const lease = await plugin.definition.onEnvironmentAcquireLease!({ ...base, runId: "run-1" });
     const sentinel = lease.metadata!.workspaceSentinel as { token: string; result: string };
     expect(sentinel).toMatchObject({ token: expect.stringMatching(/^[a-f0-9]{64}$/), result: "written" });
@@ -2155,7 +2155,7 @@ describe("Daytona sandbox provider plugin", () => {
       },
       leaseMetadata: {
         workspaceSentinel: {
-          path: "/home/daytona/paperclip-workspace/.paperclip-runtime/reusable-sandbox-lease.json",
+          path: "/home/daytona/nexus-workspace/.nexus-runtime/reusable-sandbox-lease.json",
           token: "sentinel-token",
           result: "written",
         },
@@ -2179,10 +2179,10 @@ describe("Daytona sandbox provider plugin", () => {
 
   it.each([true, false])("resumes the recorded workspace cwd after workspace preparation (reuse=%s)", async reuseLease => {
     const sandbox = createMockSandbox({ id: "sandbox-retained", state: "stopped" });
-    const allocationRoot = "/home/daytona/paperclip-workspace";
+    const allocationRoot = "/home/daytona/nexus-workspace";
     const workspaceId = "6028a46b-b65a-421f-952d-66b9c002b8e2";
-    const remoteCwd = `${allocationRoot}/.paperclip-workspaces/${workspaceId}`;
-    const sentinelPath = `${allocationRoot}/.paperclip-runtime/reusable-sandbox-lease.json`;
+    const remoteCwd = `${allocationRoot}/.nexus-workspaces/${workspaceId}`;
+    const sentinelPath = `${allocationRoot}/.nexus-runtime/reusable-sandbox-lease.json`;
     sandbox.process.executeCommand.mockImplementation(async command => ({ exitCode: 0,
       result: command.startsWith("cat ") ? JSON.stringify({ token: "sentinel-token" }) : "bash" }));
     mockGet.mockResolvedValue(sandbox);
@@ -2218,9 +2218,9 @@ describe("Daytona sandbox provider plugin", () => {
     mockGet.mockResolvedValue(sandbox);
     const resumed = await plugin.definition.onEnvironmentResumeLease!({ driverKey: "daytona", companyId: "company-1",
       environmentId: "env-1", providerLeaseId: sandbox.id, config: { apiKey: "fixture-key" },
-      requestedCwd: "/home/daytona/paperclip-workspace/.paperclip-workspaces/fixture-workspace", leaseMetadata: {
-        remoteCwd: "/home/daytona/paperclip-workspace/.paperclip-workspaces/fixture-workspace",
-        workspaceSentinel: { path: "/home/daytona/paperclip-workspace/.paperclip-runtime/reusable-sandbox-lease.json",
+      requestedCwd: "/home/daytona/nexus-workspace/.nexus-workspaces/fixture-workspace", leaseMetadata: {
+        remoteCwd: "/home/daytona/nexus-workspace/.nexus-workspaces/fixture-workspace",
+        workspaceSentinel: { path: "/home/daytona/nexus-workspace/.nexus-runtime/reusable-sandbox-lease.json",
           token: "expected", result: "written" },
       } });
     expect(resumed).toMatchObject({ providerLeaseId: null, metadata: { expired: true, workspaceSentinel: { result: "mismatch" } } });
@@ -2231,25 +2231,25 @@ describe("Daytona sandbox provider plugin", () => {
 
   it.each(["same-workspace", "later-task-workspace"])("keeps the allocation root for ordinary %s admission", async workspaceId => {
     const sandbox = createMockSandbox({ state: "stopped" });
-    const allocationRoot = "/home/daytona/paperclip-workspace";
+    const allocationRoot = "/home/daytona/nexus-workspace";
     sandbox.process.executeCommand.mockImplementation(async command => ({ exitCode: 0,
       result: command.startsWith("cat ") ? JSON.stringify({ token: "sentinel-token" }) : "bash" }));
     mockGet.mockResolvedValue(sandbox);
     const resumed = await plugin.definition.onEnvironmentResumeLease!({ driverKey: "daytona", companyId: "company-1",
       environmentId: "env-1", providerLeaseId: sandbox.id, config: { apiKey: "fixture-key" }, leaseMetadata: {
-        remoteCwd: `${allocationRoot}/.paperclip-workspaces/${workspaceId}`,
-        workspaceSentinel: { path: `${allocationRoot}/.paperclip-runtime/reusable-sandbox-lease.json`, token: "sentinel-token" },
+        remoteCwd: `${allocationRoot}/.nexus-workspaces/${workspaceId}`,
+        workspaceSentinel: { path: `${allocationRoot}/.nexus-runtime/reusable-sandbox-lease.json`, token: "sentinel-token" },
       } });
     expect(resumed).toMatchObject({ providerLeaseId: sandbox.id, metadata: { remoteCwd: allocationRoot } });
     expect(sandbox.fs.createFolder).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
-  it.each([undefined, null, "/home/daytona/paperclip-workspace/.paperclip-workspaces/foreign"])(
+  it.each([undefined, null, "/home/daytona/nexus-workspace/.nexus-workspaces/foreign"])(
     "rejects an export cwd without an exact recorded source: %j", async recordedCwd => {
       await expect(plugin.definition.onEnvironmentResumeLease!({ driverKey: "daytona", companyId: "company-1",
         environmentId: "env-1", providerLeaseId: "sandbox-retained", config: { apiKey: "fixture-key" },
-        requestedCwd: "/home/daytona/paperclip-workspace/.paperclip-workspaces/owned",
+        requestedCwd: "/home/daytona/nexus-workspace/.nexus-workspaces/owned",
         leaseMetadata: recordedCwd === undefined ? {} : { remoteCwd: recordedCwd },
       })).rejects.toThrow("recorded Daytona workspace directory");
       expect(mockGet).not.toHaveBeenCalled();
@@ -2259,9 +2259,9 @@ describe("Daytona sandbox provider plugin", () => {
 
   it("opens existing files in the recorded directory after a stopped sandbox resumes", async () => {
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), "daytona-resume-cwd-"));
-    const allocationRoot = path.join(directory, "paperclip-workspace");
-    const remoteCwd = path.join(allocationRoot, ".paperclip-workspaces", "fixture-workspace");
-    const sentinelPath = path.join(allocationRoot, ".paperclip-runtime", "reusable-sandbox-lease.json");
+    const allocationRoot = path.join(directory, "nexus-workspace");
+    const remoteCwd = path.join(allocationRoot, ".nexus-workspaces", "fixture-workspace");
+    const sentinelPath = path.join(allocationRoot, ".nexus-runtime", "reusable-sandbox-lease.json");
     await fs.mkdir(remoteCwd, { recursive: true });
     await fs.mkdir(path.dirname(sentinelPath), { recursive: true });
     await fs.writeFile(sentinelPath, JSON.stringify({ token: "file-token" }));
@@ -2289,7 +2289,7 @@ describe("Daytona sandbox provider plugin", () => {
     const params = {
       driverKey: "daytona", companyId: "company-1", environmentId: "env-1", providerLeaseId: sandboxId,
       config: { apiKey: "host-key", timeoutMs: 300000, livenessTimeoutMs: 100, reuseLease: true },
-      leaseMetadata: { workspaceSentinel: { path: "/home/daytona/paperclip-workspace/.paperclip-runtime/reusable-sandbox-lease.json", token: "sentinel-token" } },
+      leaseMetadata: { workspaceSentinel: { path: "/home/daytona/nexus-workspace/.nexus-runtime/reusable-sandbox-lease.json", token: "sentinel-token" } },
     };
     const resume = () => plugin.definition.onEnvironmentResumeLease!(params);
     function missingSandbox() {
@@ -2430,7 +2430,7 @@ describe("Daytona sandbox provider plugin", () => {
       },
       leaseMetadata: {
         workspaceSentinel: {
-          path: "/home/daytona/paperclip-workspace/.paperclip-runtime/reusable-sandbox-lease.json",
+          path: "/home/daytona/nexus-workspace/.nexus-runtime/reusable-sandbox-lease.json",
           token: "sentinel-token",
           result: "written",
         },
@@ -2440,7 +2440,7 @@ describe("Daytona sandbox provider plugin", () => {
       metadata: {
         expired: true,
         workspaceSentinel: {
-          path: "/home/daytona/paperclip-workspace/.paperclip-runtime/reusable-sandbox-lease.json",
+          path: "/home/daytona/nexus-workspace/.nexus-runtime/reusable-sandbox-lease.json",
           token: "sentinel-token",
           result: "mismatch",
         },
@@ -2814,7 +2814,7 @@ describe("Daytona sandbox provider plugin", () => {
 
       expect(sandbox.process.createSession).toHaveBeenCalledTimes(1);
       const sessionId = sandbox.process.createSession.mock.calls[0]![0] as string;
-      expect(sessionId).toMatch(/^paperclip-/);
+      expect(sessionId).toMatch(/^nexus-/);
     });
 
     it("deletes the session and clears the store on release", async () => {
@@ -2955,9 +2955,9 @@ describe("Daytona sandbox provider plugin", () => {
         providerLeaseId: "sandbox-123",
         config: { timeoutMs: 300000, reuseLease: false },
         leaseMetadata: {
-          remoteCwd: "/home/daytona/paperclip-workspace",
+          remoteCwd: "/home/daytona/nexus-workspace",
           workspaceSentinel: {
-            path: "/home/daytona/paperclip-workspace/.paperclip-runtime/reusable-sandbox-lease.json",
+            path: "/home/daytona/nexus-workspace/.nexus-runtime/reusable-sandbox-lease.json",
             token: "token-1",
           },
         },
@@ -2986,9 +2986,9 @@ describe("Daytona sandbox provider plugin", () => {
         providerLeaseId: "sandbox-123",
         config: { timeoutMs: 300000, reuseLease: false },
         leaseMetadata: {
-          remoteCwd: "/home/daytona/paperclip-workspace",
+          remoteCwd: "/home/daytona/nexus-workspace",
           workspaceSentinel: {
-            path: "/home/daytona/paperclip-workspace/.paperclip-runtime/reusable-sandbox-lease.json",
+            path: "/home/daytona/nexus-workspace/.nexus-runtime/reusable-sandbox-lease.json",
             token: "token-1",
           },
         },
@@ -3021,7 +3021,7 @@ describe("Daytona sandbox provider plugin", () => {
         const setup = spans.find((span) => span.name === "session.open");
         expect(setup).toBeDefined();
         expect(setup!.ended).toBe(true);
-        expect(setup!.attributes["paperclip.sandbox.startup.provider"]).toBe("daytona");
+        expect(setup!.attributes["nexus.sandbox.startup.provider"]).toBe("daytona");
 
         await plugin.definition.onEnvironmentReleaseLease?.({
           driverKey: "daytona",
@@ -3033,7 +3033,7 @@ describe("Daytona sandbox provider plugin", () => {
         const teardown = spans.find((span) => span.name === "session.close");
         expect(teardown).toBeDefined();
         expect(teardown!.ended).toBe(true);
-        expect(teardown!.attributes["paperclip.sandbox.startup.provider"]).toBe("daytona");
+        expect(teardown!.attributes["nexus.sandbox.startup.provider"]).toBe("daytona");
       } finally {
         restore();
       }
@@ -3089,7 +3089,7 @@ describe("Daytona sandbox provider plugin", () => {
         { command: string; runAsync?: boolean },
         number,
       ];
-      expect(sid).toMatch(/^paperclip-/);
+      expect(sid).toMatch(/^nexus-/);
       expect(req.runAsync).toBe(true);
       expect(timeoutArg).toBe(1);
       // The built command carries the login-shell script and the user command.
@@ -3132,7 +3132,7 @@ describe("Daytona sandbox provider plugin", () => {
 
       expect(sandbox.process.createSession).toHaveBeenCalledTimes(1);
       const sessionId = sandbox.process.createSession.mock.calls[0]![0] as string;
-      expect(sessionId).toMatch(/^paperclip-/);
+      expect(sessionId).toMatch(/^nexus-/);
       const firstSid = sandbox.process.executeSessionCommand.mock.calls[0]![0] as string;
       const secondSid = sandbox.process.executeSessionCommand.mock.calls[1]![0] as string;
       expect(firstSid).toBe(secondSid);
@@ -4129,16 +4129,16 @@ describe("Daytona sandbox provider plugin", () => {
 
     expect(sandbox.fs.uploadFile).toHaveBeenCalledWith(
       Buffer.from("input payload", "utf8"),
-      expect.stringMatching(/^\/tmp\/paperclip-stdin-/),
+      expect.stringMatching(/^\/tmp\/nexus-stdin-/),
       1,
     );
     const [command] = sandbox.process.executeCommand.mock.calls[0] as [string];
     expect(command).toMatch(/\/etc\/profile/);
     expect(command).not.toMatch(/nvm\.sh/);
     expect(command).toMatch(/&& cd '\/workspace'/);
-    expect(command).toMatch(/env .* 'cat' < '\/tmp\/paperclip-stdin-/);
+    expect(command).toMatch(/env .* 'cat' < '\/tmp\/nexus-stdin-/);
     expect(command).not.toMatch(/(?:^|&& )exec /);
-    expect(sandbox.fs.deleteFile).toHaveBeenCalledWith(expect.stringMatching(/^\/tmp\/paperclip-stdin-/));
+    expect(sandbox.fs.deleteFile).toHaveBeenCalledWith(expect.stringMatching(/^\/tmp\/nexus-stdin-/));
     expect(result).toMatchObject({
       exitCode: 0,
       timedOut: false,
@@ -4156,7 +4156,7 @@ describe("Daytona sandbox provider plugin", () => {
       environmentId: "env-1",
       config: { timeoutMs: 300000, reuseLease: false },
       bypassSession: true,
-      lease: { providerLeaseId: "sandbox-123", metadata: { remoteCwd: "/home/daytona/paperclip-workspace" } },
+      lease: { providerLeaseId: "sandbox-123", metadata: { remoteCwd: "/home/daytona/nexus-workspace" } },
       command: "printf",
       args: ["hello"],
       cwd: "/workspace",
@@ -4771,7 +4771,7 @@ describe("Daytona sandbox provider plugin", () => {
       const hostDir = await fs.mkdtemp(path.join(os.tmpdir(), "daytona-cancel-sync-"));
       const source = path.join(hostDir, "payload.txt");
       await fs.writeFile(source, "payload");
-      const remoteDir = "/home/daytona/paperclip-workspace";
+      const remoteDir = "/home/daytona/nexus-workspace";
 
       const sandbox = createMockSandbox({ id: "lease-a" });
       let resolveUpload!: () => void;
@@ -5001,7 +5001,7 @@ describe("Daytona sandbox provider plugin", () => {
         config: { timeoutMs: 300000, reuseLease: true },
         leaseMetadata: {
           workspaceSentinel: {
-            path: "/home/daytona/paperclip-workspace/.paperclip-runtime/reusable-sandbox-lease.json",
+            path: "/home/daytona/nexus-workspace/.nexus-runtime/reusable-sandbox-lease.json",
             token: "expected-token",
             result: "written",
           },
@@ -5234,7 +5234,7 @@ describe("Daytona sandbox provider plugin", () => {
       expect(realizedConfig).toMatchObject({ target: "us" });
       await plugin.definition.onEnvironmentRealizeWorkspace!({
         ...base, config: realizedConfig, lease,
-        workspace: { remotePath: "/home/daytona/paperclip-workspace" },
+        workspace: { remotePath: "/home/daytona/nexus-workspace" },
       });
       expect(mockGet).not.toHaveBeenCalled();
       await plugin.definition.onEnvironmentReleaseLease!({
@@ -5242,11 +5242,11 @@ describe("Daytona sandbox provider plugin", () => {
       });
       await expect(plugin.definition.onEnvironmentRealizeWorkspace!({
         ...base, config, lease,
-        workspace: { remotePath: "/home/daytona/paperclip-workspace" },
+        workspace: { remotePath: "/home/daytona/nexus-workspace" },
       })).rejects.toThrow(/no longer active/);
       await expect(plugin.definition.onEnvironmentRealizeWorkspace!({
         ...base, config: realizedConfig, lease,
-        workspace: { remotePath: "/home/daytona/paperclip-workspace" },
+        workspace: { remotePath: "/home/daytona/nexus-workspace" },
       })).rejects.toThrow(/no longer active/);
 
       sandbox.state = "stopped";
@@ -5264,8 +5264,8 @@ describe("Daytona sandbox provider plugin", () => {
       });
       await expect(plugin.definition.onEnvironmentRealizeWorkspace!({
         ...base, config: { ...config, ...resumed.metadata }, lease: resumed,
-        workspace: { remotePath: "/home/daytona/paperclip-workspace" },
-      })).resolves.toMatchObject({ cwd: "/home/daytona/paperclip-workspace" });
+        workspace: { remotePath: "/home/daytona/nexus-workspace" },
+      })).resolves.toMatchObject({ cwd: "/home/daytona/nexus-workspace" });
     });
 
     it("realizes the workspace from the acquire-seeded handle without a client.get", async () => {
@@ -5286,21 +5286,21 @@ describe("Daytona sandbox provider plugin", () => {
       const realize = await plugin.definition.onEnvironmentRealizeWorkspace?.({
         ...base,
         lease: { providerLeaseId: lease!.providerLeaseId, metadata: lease!.metadata },
-        workspace: { remotePath: "/home/daytona/paperclip-workspace" },
+        workspace: { remotePath: "/home/daytona/nexus-workspace" },
         config,
       });
 
       // Acquire seeded the handle under the exact scope realize reads, so realize
       // reuses it and never pays a real REST re-fetch.
       expect(mockGet).not.toHaveBeenCalled();
-      expect(sandbox.fs.createFolder).toHaveBeenCalledWith("/home/daytona/paperclip-workspace", "755");
-      expect(realize?.cwd).toBe("/home/daytona/paperclip-workspace");
+      expect(sandbox.fs.createFolder).toHaveBeenCalledWith("/home/daytona/nexus-workspace", "755");
+      expect(realize?.cwd).toBe("/home/daytona/nexus-workspace");
     });
   });
 });
 
 describe("daytona native file-sync hooks", () => {
-  const REMOTE_DIR = "/home/daytona/paperclip-workspace";
+  const REMOTE_DIR = "/home/daytona/nexus-workspace";
   const tempDirs: string[] = [];
 
   async function makeHostDir(): Promise<string> {
@@ -5443,7 +5443,7 @@ describe("daytona native file-sync hooks", () => {
               // post-upload command extracts it into the workspace directory. So
               // `writablePath` names the real read-write destination.
               sourcePath: source,
-              targetPath: `${REMOTE_DIR}/.paperclip-runtime/workspace-upload.tar`,
+              targetPath: `${REMOTE_DIR}/.nexus-runtime/workspace-upload.tar`,
               kind: "file" as const,
               access: "rw" as const,
               writablePath: REMOTE_DIR,
@@ -5457,7 +5457,7 @@ describe("daytona native file-sync hooks", () => {
     // The set holds the extract destination, not the staging archive parent.
     const recorded = __getDaytonaWritableDirsForTest(params);
     expect(recorded).toContain(REMOTE_DIR);
-    expect(recorded).not.toContain(`${REMOTE_DIR}/.paperclip-runtime`);
+    expect(recorded).not.toContain(`${REMOTE_DIR}/.nexus-runtime`);
   });
 
   it("falls back to the parent directory of an rw mapping with no writablePath", async () => {
@@ -5518,14 +5518,14 @@ describe("daytona native file-sync hooks", () => {
           files: [
             {
               sourcePath: roSource,
-              targetPath: `${REMOTE_DIR}/.paperclip-runtime/project-proj-first`,
+              targetPath: `${REMOTE_DIR}/.nexus-runtime/project-proj-first`,
               kind: "directory" as const,
               access: "ro" as const,
             },
             {
               // An absent `access` defaults to read-only, so it is not recorded.
               sourcePath: defaultSource,
-              targetPath: `${REMOTE_DIR}/.paperclip-runtime/default-upload.tar`,
+              targetPath: `${REMOTE_DIR}/.nexus-runtime/default-upload.tar`,
               kind: "file" as const,
             },
           ],
@@ -5572,7 +5572,7 @@ describe("daytona native file-sync hooks", () => {
     // String sources stream from the local path; destinations are reserved temps.
     expect(uploads[0].source).toBe(secretSource);
     for (const upload of uploads) {
-      expect(path.posix.basename(upload.destination)).toMatch(/^\.paperclip-upload-/);
+      expect(path.posix.basename(upload.destination)).toMatch(/^\.nexus-upload-/);
       expect(upload.destination).not.toBe(`${REMOTE_DIR}/.secret/auth.json`);
       // TOCTOU-hardened: the privileged upload destination is a DIRECT child of the
       // workspace root, never a sibling under the target's (sandbox-swappable)
@@ -5584,7 +5584,7 @@ describe("daytona native file-sync hooks", () => {
     // never appears at a widened window; applied via setFilePermissions as "600".
     expect(sandbox.fs.setFilePermissions).toHaveBeenCalledTimes(1);
     const [permPath, perms] = sandbox.fs.setFilePermissions.mock.calls[0] as [string, { mode: string }];
-    expect(path.posix.basename(permPath)).toMatch(/^\.paperclip-upload-/);
+    expect(path.posix.basename(permPath)).toMatch(/^\.nexus-upload-/);
     expect(perms).toEqual({ mode: "600" });
 
     // The setFilePermissions on the temp precedes the mv that promotes it.
@@ -5668,9 +5668,9 @@ describe("daytona native file-sync hooks", () => {
     expect(transfer).toBeDefined();
     expect(transfer!.ended).toBe(true);
     // One serial guard round trip before the transfer: mkdir (with the zstd probe).
-    expect(transfer!.attributes["paperclip.sandbox.startup.transfer.guard.count"]).toBe(1);
-    expect(transfer!.attributes["paperclip.sandbox.startup.provider"]).toBe("daytona");
-    expect(typeof transfer!.attributes["paperclip.sandbox.startup.transfer.wall_ms"]).toBe("number");
+    expect(transfer!.attributes["nexus.sandbox.startup.transfer.guard.count"]).toBe(1);
+    expect(transfer!.attributes["nexus.sandbox.startup.provider"]).toBe("daytona");
+    expect(typeof transfer!.attributes["nexus.sandbox.startup.transfer.wall_ms"]).toBe("number");
     // A bulk file upload builds no host tarball, so it opens no pack span.
     expect(spans.find((span) => span.name === "pack")).toBeUndefined();
   });
@@ -5699,7 +5699,7 @@ describe("daytona native file-sync hooks", () => {
     // An upload to the sandbox is an inbound transfer.
     const transfer = spans.find((span) => span.name === "transfer");
     expect(transfer).toBeDefined();
-    expect(transfer!.attributes["paperclip.sandbox.startup.transfer.direction"]).toBe("inbound");
+    expect(transfer!.attributes["nexus.sandbox.startup.transfer.direction"]).toBe("inbound");
   });
 
   it("marks the outbound transfer span with the outbound direction attribute", async () => {
@@ -5732,7 +5732,7 @@ describe("daytona native file-sync hooks", () => {
     // A download from the sandbox is an outbound transfer.
     const transfer = spans.find((span) => span.name === "transfer");
     expect(transfer).toBeDefined();
-    expect(transfer!.attributes["paperclip.sandbox.startup.transfer.direction"]).toBe("outbound");
+    expect(transfer!.attributes["nexus.sandbox.startup.transfer.direction"]).toBe("outbound");
   });
 
   it("opens a pack span and a transfer span around a directory mapping sync", async () => {
@@ -5756,7 +5756,7 @@ describe("daytona native file-sync hooks", () => {
           {
             operationId: "sync-op-dir",
             files: [
-              { sourcePath: sourceDir, targetPath: `${REMOTE_DIR}/.paperclip-runtime/assets`, kind: "directory" },
+              { sourcePath: sourceDir, targetPath: `${REMOTE_DIR}/.nexus-runtime/assets`, kind: "directory" },
             ],
           },
         ],
@@ -5768,13 +5768,13 @@ describe("daytona native file-sync hooks", () => {
     const pack = spans.find((span) => span.name === "pack");
     expect(pack).toBeDefined();
     expect(pack!.ended).toBe(true);
-    expect(pack!.attributes["paperclip.sandbox.startup.provider"]).toBe("daytona");
-    expect(typeof pack!.attributes["paperclip.sandbox.startup.pack.wall_ms"]).toBe("number");
+    expect(pack!.attributes["nexus.sandbox.startup.provider"]).toBe("daytona");
+    expect(typeof pack!.attributes["nexus.sandbox.startup.pack.wall_ms"]).toBe("number");
 
     const transfer = spans.find((span) => span.name === "transfer");
     expect(transfer).toBeDefined();
     // One serial guard round trip before the transfer: mkdir.
-    expect(transfer!.attributes["paperclip.sandbox.startup.transfer.guard.count"]).toBe(1);
+    expect(transfer!.attributes["nexus.sandbox.startup.transfer.guard.count"]).toBe(1);
   });
 
   it("opens ensureDirectory, transfer, promote spans in call order for a file-mapping sync", async () => {
@@ -5811,12 +5811,12 @@ describe("daytona native file-sync hooks", () => {
     ]);
     for (const span of spans) {
       expect(span.ended).toBe(true);
-      expect(span.attributes["paperclip.sandbox.startup.provider"]).toBe("daytona");
+      expect(span.attributes["nexus.sandbox.startup.provider"]).toBe("daytona");
       // A per-round-trip span carries no `*.wall_ms` attribute; the native span
       // width carries its time. Only `pack` and `transfer` keep a wall_ms value.
       if (span.name !== "transfer") {
-        expect(span.attributes["paperclip.sandbox.startup.ensureDirectory.wall_ms"]).toBeUndefined();
-        expect(span.attributes["paperclip.sandbox.startup.promote.wall_ms"]).toBeUndefined();
+        expect(span.attributes["nexus.sandbox.startup.ensureDirectory.wall_ms"]).toBeUndefined();
+        expect(span.attributes["nexus.sandbox.startup.promote.wall_ms"]).toBeUndefined();
       }
     }
   });
@@ -5842,7 +5842,7 @@ describe("daytona native file-sync hooks", () => {
           {
             operationId: "sync-op-dir-order",
             files: [
-              { sourcePath: sourceDir, targetPath: `${REMOTE_DIR}/.paperclip-runtime/assets`, kind: "directory" },
+              { sourcePath: sourceDir, targetPath: `${REMOTE_DIR}/.nexus-runtime/assets`, kind: "directory" },
             ],
           },
         ],
@@ -5858,7 +5858,7 @@ describe("daytona native file-sync hooks", () => {
       "extractTarball",
     ]);
     for (const span of spans) {
-      expect(span.attributes["paperclip.sandbox.startup.provider"]).toBe("daytona");
+      expect(span.attributes["nexus.sandbox.startup.provider"]).toBe("daytona");
     }
   });
 
@@ -5900,7 +5900,7 @@ describe("daytona native file-sync hooks", () => {
     ]);
     const provision = spans.find((span) => span.name === "postUploadCommand");
     expect(provision!.ended).toBe(true);
-    expect(provision!.attributes["paperclip.sandbox.startup.provider"]).toBe("daytona");
+    expect(provision!.attributes["nexus.sandbox.startup.provider"]).toBe("daytona");
   });
 
   it("gzip-tars a directory mapping host-side honoring excludes and the followSymlinks flag, then extracts it in-sandbox via a single quoted tar command", async () => {
@@ -5933,7 +5933,7 @@ describe("daytona native file-sync hooks", () => {
           files: [
             {
               sourcePath: sourceDir,
-              targetPath: `${REMOTE_DIR}/.paperclip-runtime/assets`,
+              targetPath: `${REMOTE_DIR}/.nexus-runtime/assets`,
               kind: "directory",
               exclude: ["*.log"],
             },
@@ -5946,7 +5946,7 @@ describe("daytona native file-sync hooks", () => {
     const [uploads] = sandbox.fs.uploadFiles.mock.calls[0] as [Array<{ source: string; destination: string }>];
     expect(uploads).toHaveLength(1);
     expect(uploads[0].source).toMatch(/\.tar\.gz$/);
-    expect(path.posix.basename(uploads[0].destination)).toMatch(/^\.paperclip-upload-.*\.tar\.gz$/);
+    expect(path.posix.basename(uploads[0].destination)).toMatch(/^\.nexus-upload-.*\.tar\.gz$/);
     expect(uploads[0].destination.startsWith(`${REMOTE_DIR}/`)).toBe(true);
 
     // Inspect the real host tar: excluded file gone; symlink preserved AS a link.
@@ -5958,7 +5958,7 @@ describe("daytona native file-sync hooks", () => {
     const mkdirCall = sandbox.process.executeCommand.mock.calls.find(
       ([cmd]) =>
         String(cmd).includes("mkdir -p") &&
-        String(cmd).includes(`'${REMOTE_DIR}/.paperclip-runtime/assets'`) &&
+        String(cmd).includes(`'${REMOTE_DIR}/.nexus-runtime/assets'`) &&
         !String(cmd).includes("tar -xf"),
     );
     expect(mkdirCall).toBeDefined();
@@ -5968,9 +5968,9 @@ describe("daytona native file-sync hooks", () => {
     const extractCommand = String(extractCall?.[0]);
     // The extract is one plain `tar -xf <scratch-tar> -C <target>` command,
     // followed by removing the scratch tar.
-    expect(extractCommand).toContain(".paperclip-runtime/assets");
+    expect(extractCommand).toContain(".nexus-runtime/assets");
     expect(extractCommand).toContain("tar -xf");
-    expect(extractCommand).toMatch(/rm -f .*\.paperclip-upload-.*\.tar\.gz/);
+    expect(extractCommand).toMatch(/rm -f .*\.nexus-upload-.*\.tar\.gz/);
   });
 
   it("syncIn dereferences symlinks to bytes when followSymlinks is true (tar -h)", async () => {
@@ -6045,11 +6045,11 @@ describe("daytona native file-sync hooks", () => {
     const [requests] = sandbox.fs.downloadFiles.mock.calls[0] as [Array<{ source: string; destination: string }>];
     expect(requests).toHaveLength(2);
     for (const req of requests) {
-      expect(path.basename(req.destination)).toMatch(/^\.paperclip-upload-/);
+      expect(path.basename(req.destination)).toMatch(/^\.nexus-upload-/);
       // TOCTOU-closed: the download reads a reserved snapshot inside the remote
       // dir, never the mutable original source path.
       expect(req.source.startsWith(`${REMOTE_DIR}/`)).toBe(true);
-      expect(path.posix.basename(req.source)).toMatch(/^\.paperclip-upload-/);
+      expect(path.posix.basename(req.source)).toMatch(/^\.nexus-upload-/);
     }
     expect(requests.map((req) => req.source)).not.toContain(`${REMOTE_DIR}/out/result.txt`);
     expect(requests.map((req) => req.source)).not.toContain(`${REMOTE_DIR}/out/secret.key`);
@@ -6254,7 +6254,7 @@ describe("daytona native file-sync hooks", () => {
 
     const sandbox = createMockSandbox();
     // mkdir + realpath guard succeed; the promoting `mv -f` fails, leaving staged
-    // `.paperclip-upload-*` temps that the error path must sweep with `rm -f`.
+    // `.nexus-upload-*` temps that the error path must sweep with `rm -f`.
     sandbox.process.executeCommand.mockImplementation(async (command: string) => {
       if (command.includes("mv -f")) {
         return { exitCode: 1, result: "mv: permission denied", artifacts: { stdout: "mv: permission denied" } };
@@ -6282,7 +6282,7 @@ describe("daytona native file-sync hooks", () => {
     // The upload happened, so a temp was staged; the error path cleans it up.
     expect(sandbox.fs.uploadFiles).toHaveBeenCalledTimes(1);
     const cleanupCall = sandbox.process.executeCommand.mock.calls.find(
-      ([cmd]) => String(cmd).includes("rm -f") && String(cmd).includes(".paperclip-upload-"),
+      ([cmd]) => String(cmd).includes("rm -f") && String(cmd).includes(".nexus-upload-"),
     );
     expect(cleanupCall).toBeDefined();
   });
@@ -6336,7 +6336,7 @@ describe("daytona native file-sync hooks", () => {
     await expect(fs.stat(path.join(hostRoot, "escape.txt"))).rejects.toThrow();
   });
 
-  it.each(["../../outside.txt", "/tmp/paperclip-git-workspace-example/skills/demo"])("syncOut refuses a sandbox-authored tarball with escaping symlink target %s", async (linkTarget) => {
+  it.each(["../../outside.txt", "/tmp/nexus-git-workspace-example/skills/demo"])("syncOut refuses a sandbox-authored tarball with escaping symlink target %s", async (linkTarget) => {
     const hostRoot = await makeHostDir();
     const restored = path.join(hostRoot, "restored");
     const sandbox = createMockSandbox();
@@ -6596,7 +6596,7 @@ describe("daytona native file-sync hooks", () => {
     const overlayTar = path.join(hostDir, "workspace.tar");
     await fs.writeFile(gitTar, "git-bytes");
     await fs.writeFile(overlayTar, "overlay-bytes");
-    const runtimeDir = `${REMOTE_DIR}/.paperclip-runtime/adapter`;
+    const runtimeDir = `${REMOTE_DIR}/.nexus-runtime/adapter`;
 
     const sandbox = createMockSandbox();
     mockGet.mockResolvedValue(sandbox);
@@ -6654,7 +6654,7 @@ describe("daytona native file-sync hooks", () => {
     const overlayTar = path.join(hostDir, "workspace.tar");
     await fs.writeFile(gitTar, "git-bytes");
     await fs.writeFile(overlayTar, "overlay-bytes");
-    const runtimeDir = `${REMOTE_DIR}/.paperclip-runtime/adapter`;
+    const runtimeDir = `${REMOTE_DIR}/.nexus-runtime/adapter`;
 
     const sandbox = createMockSandbox();
     // The first (git-history) extract exits non-zero; every transfer/guard script
@@ -6779,7 +6779,7 @@ describe("daytona native file-sync hooks", () => {
     );
     expect(destinations).toHaveLength(2);
     for (const destination of destinations) {
-      expect(path.posix.basename(destination)).toMatch(/^\.paperclip-upload-/);
+      expect(path.posix.basename(destination)).toMatch(/^\.nexus-upload-/);
       expect(path.posix.dirname(destination)).toBe(REMOTE_DIR);
     }
     expect(new Set(destinations).size).toBe(destinations.length);
@@ -6820,7 +6820,7 @@ describe("daytona native file-sync hooks", () => {
     expect(sources).toHaveLength(2);
     for (const source of sources) {
       expect(source.startsWith(`${REMOTE_DIR}/`)).toBe(true);
-      expect(path.posix.basename(source)).toMatch(/^\.paperclip-upload-/);
+      expect(path.posix.basename(source)).toMatch(/^\.nexus-upload-/);
     }
     expect(new Set(sources).size).toBe(sources.length);
     expect(await fs.readFile(targetA, "utf8")).toBe("bytes");
@@ -6937,9 +6937,9 @@ describe("daytona native file-sync hooks", () => {
     expect(transfer).toBeDefined();
     expect(transfer!.ended).toBe(true);
     // One serial guard round trip before the transfer: the validate-and-snapshot.
-    expect(transfer!.attributes["paperclip.sandbox.startup.transfer.guard.count"]).toBe(1);
-    expect(transfer!.attributes["paperclip.sandbox.startup.provider"]).toBe("daytona");
-    expect(typeof transfer!.attributes["paperclip.sandbox.startup.transfer.wall_ms"]).toBe("number");
+    expect(transfer!.attributes["nexus.sandbox.startup.transfer.guard.count"]).toBe(1);
+    expect(transfer!.attributes["nexus.sandbox.startup.provider"]).toBe("daytona");
+    expect(typeof transfer!.attributes["nexus.sandbox.startup.transfer.wall_ms"]).toBe("number");
   });
 
   it("opens a transfer span around a directory-mapping download with the guard round-trip count", async () => {
@@ -6979,8 +6979,8 @@ describe("daytona native file-sync hooks", () => {
     expect(transfer!.ended).toBe(true);
     // Two serial guard round trips before the transfer: confinement + in-sandbox
     // tar.
-    expect(transfer!.attributes["paperclip.sandbox.startup.transfer.guard.count"]).toBe(2);
-    expect(typeof transfer!.attributes["paperclip.sandbox.startup.transfer.wall_ms"]).toBe("number");
+    expect(transfer!.attributes["nexus.sandbox.startup.transfer.guard.count"]).toBe(2);
+    expect(typeof transfer!.attributes["nexus.sandbox.startup.transfer.wall_ms"]).toBe("number");
   });
 });
 

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { agents, agentApiKeys, companies, budgetPolicies, type Db } from "@paperclipai/db";
-import type { AgentLifecycleOperation } from "@paperclipai/shared";
+import { agents, agentApiKeys, companies, budgetPolicies, type Db } from "@nexusai/db";
+import type { AgentLifecycleOperation } from "@nexusai/shared";
 import { AgentLifecycleConflict, compatibilityStatus, isLifecycleWorkPending, transition, type LifecycleCommand } from "../domain/policy.js";
 import type { LifecycleEffects } from "./effects.js";
 import type { LifecycleStore } from "../application/ports.js";

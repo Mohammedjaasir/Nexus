@@ -31,7 +31,7 @@ describe("reconstructable worktree FETCH_HEAD", () => {
   }
 
   beforeEach(async () => {
-    root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-fetch-head-")));
+    root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "nexus-fetch-head-")));
     source = path.join(root, "source");
     remote = path.join(root, "remote.git");
     worktree = path.join(root, "worktree");

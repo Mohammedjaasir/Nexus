@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
-import { isSupportedNodeVersion, MINIMUM_NODE_VERSION } from "@paperclipai/shared/node-version";
+import { isSupportedNodeVersion, MINIMUM_NODE_VERSION } from "@nexusai/shared/node-version";
 import {
   addManagedPathBlock,
   assertManagedShimWritable,
@@ -72,7 +72,7 @@ export function resolveGitInstallWorkspacePackages(checkoutPath: string): Releas
       const dependencies = packageJson[section];
       if (!dependencies || typeof dependencies !== "object") continue;
       for (const dependencyName of Object.keys(dependencies)) {
-        if (dependencyName.startsWith("@paperclipai/")) visit(dependencyName);
+        if (dependencyName.startsWith("@nexusai/")) visit(dependencyName);
       }
     }
     visiting.delete(packageName);
@@ -80,13 +80,13 @@ export function resolveGitInstallWorkspacePackages(checkoutPath: string): Releas
     ordered.push(entry);
   };
 
-  visit("@paperclipai/server");
+  visit("@nexusai/server");
   return ordered;
 }
 
 export function assertSupportedNodeVersion(): void {
   if (!isSupportedNodeVersion(process.versions.node)) {
-    throw new Error(`Installing or updating Paperclip requires Node.js ${MINIMUM_NODE_VERSION} or newer (found ${process.version} at ${process.execPath}). Put a supported Node bin directory first on PATH and run 'npx paperclipai@latest install --yes' to re-pin an existing managed install.`);
+    throw new Error(`Installing or updating Nexus requires Node.js ${MINIMUM_NODE_VERSION} or newer (found ${process.version} at ${process.execPath}). Put a supported Node bin directory first on PATH and run 'npx nexusai@latest install --yes' to re-pin an existing managed install.`);
   }
 }
 
@@ -122,7 +122,7 @@ function parseResolvedVersion(stdout: string): string {
 export async function resolvePublishedVersion(spec: string, runCommand: CommandRunner): Promise<string> {
   const result = await runCommand(
     "npm",
-    ["view", `paperclipai@${spec}`, "version", "--json", `--registry=${PUBLIC_NPM_REGISTRY}`],
+    ["view", `nexusai@${spec}`, "version", "--json", `--registry=${PUBLIC_NPM_REGISTRY}`],
     { maxBuffer: 1024 * 1024 },
   );
   return parseResolvedVersion(result.stdout);
@@ -149,7 +149,7 @@ async function runGitHubCurl(
   // The token travels via a curl --config file so it never appears in process args.
   const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
   if (!token) return runCommand("curl", args, options);
-  const configDir = fs.mkdtempSync(path.join(os.tmpdir(), "paperclipai-gh-"));
+  const configDir = fs.mkdtempSync(path.join(os.tmpdir(), "nexusai-gh-"));
   const configFile = path.join(configDir, "headers");
   try {
     fs.writeFileSync(configFile, `header = "Authorization: Bearer ${token}"\n`, { mode: 0o600 });
@@ -160,7 +160,7 @@ async function runGitHubCurl(
 }
 
 export async function resolveGitHubRef(repo: string, ref: string, runCommand: CommandRunner): Promise<string> {
-  const result = await runGitHubCurl(["--fail", "--silent", "--show-error", "--location", "--header", "Accept: application/vnd.github+json", "--header", "User-Agent: paperclipai-install", `https://api.github.com/repos/${repo}/commits/${encodeURIComponent(ref)}`], runCommand, { maxBuffer: 4 * 1024 * 1024 });
+  const result = await runGitHubCurl(["--fail", "--silent", "--show-error", "--location", "--header", "Accept: application/vnd.github+json", "--header", "User-Agent: nexusai-install", `https://api.github.com/repos/${repo}/commits/${encodeURIComponent(ref)}`], runCommand, { maxBuffer: 4 * 1024 * 1024 });
   let sha: unknown;
   try { sha = (JSON.parse(result.stdout) as { sha?: unknown }).sha; } catch { throw new Error(`GitHub returned an invalid response while resolving ${repo}@${ref}.`); }
   if (typeof sha !== "string" || !/^[0-9a-f]{40}$/i.test(sha)) throw new Error(`GitHub did not return a full commit SHA for ${repo}@${ref}.`);
@@ -168,7 +168,7 @@ export async function resolveGitHubRef(repo: string, ref: string, runCommand: Co
 }
 
 function payloadEntrypoint(payloadPath: string): string {
-  return path.join(payloadPath, "node_modules", "paperclipai", "dist", "index.js");
+  return path.join(payloadPath, "node_modules", "nexusai", "dist", "index.js");
 }
 
 export async function smokePayload(payloadPath: string, expectedVersion: string, runCommand: CommandRunner): Promise<void> {
@@ -206,7 +206,7 @@ export async function installNpmPayload(
   try {
     fs.writeFileSync(
       npmUserConfigPath,
-      `registry=${PUBLIC_NPM_REGISTRY}\n@paperclipai:registry=${PUBLIC_NPM_REGISTRY}\n`,
+      `registry=${PUBLIC_NPM_REGISTRY}\n@nexusai:registry=${PUBLIC_NPM_REGISTRY}\n`,
       { mode: 0o600 },
     );
     await runCommand(
@@ -215,9 +215,9 @@ export async function installNpmPayload(
         "install",
         "--prefix",
         stagingPath,
-        `paperclipai@${version}`,
+        `nexusai@${version}`,
         `--registry=${PUBLIC_NPM_REGISTRY}`,
-        `--@paperclipai:registry=${PUBLIC_NPM_REGISTRY}`,
+        `--@nexusai:registry=${PUBLIC_NPM_REGISTRY}`,
         "--no-audit",
         "--no-fund",
       ],
@@ -248,7 +248,7 @@ export async function installGitPayload(repo: string, sha: string, runCommand: C
   const identifier = sha.slice(0, 12);
   const payloadPath = payloadPathFor(paths, "git", identifier);
   if (fs.existsSync(payloadPath)) {
-    const metadata = JSON.parse(fs.readFileSync(path.join(payloadPath, "node_modules", "paperclipai", "package.json"), "utf8")) as { version: string };
+    const metadata = JSON.parse(fs.readFileSync(path.join(payloadPath, "node_modules", "nexusai", "package.json"), "utf8")) as { version: string };
     await smokePayload(payloadPath, metadata.version, runCommand);
     return { payloadPath, reused: true, version: metadata.version };
   }
@@ -279,7 +279,7 @@ export async function installGitPayload(repo: string, sha: string, runCommand: C
     await runCommand("corepack", ["enable", "pnpm", "--install-directory", pnpmShimDir], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 4 * 1024 * 1024 });
     await runCommand("corepack", ["pnpm", "install", "--frozen-lockfile"], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 32 * 1024 * 1024 });
     await runCommand("bash", ["scripts/build-npm.sh", "--skip-checks", "--skip-typecheck"], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 32 * 1024 * 1024 });
-    await runCommand("corepack", ["pnpm", "-r", "--filter", "@paperclipai/server...", "--if-present", "run", "build"], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 32 * 1024 * 1024 });
+    await runCommand("corepack", ["pnpm", "-r", "--filter", "@nexusai/server...", "--if-present", "run", "build"], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 32 * 1024 * 1024 });
     const metadata = JSON.parse(fs.readFileSync(path.join(checkoutPath, "cli", "package.json"), "utf8")) as { version: string };
     const workspacePackages = resolveGitInstallWorkspacePackages(checkoutPath);
     for (const [index, workspacePackage] of workspacePackages.entries()) {
@@ -291,12 +291,12 @@ export async function installGitPayload(repo: string, sha: string, runCommand: C
         await runCommand(process.execPath, [path.join(checkoutPath, "scripts", "prepare-bundled-package.mjs"), packageDir, stagedPackage], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 32 * 1024 * 1024 });
         await runCommand("npm", ["pack", stagedPackage, "--pack-destination", stagingRoot], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 16 * 1024 * 1024 });
       } else {
-        await runCommand("corepack", ["pnpm", "--dir", workspacePackage.dir, "pack", "--pack-destination", stagingRoot], { cwd: checkoutPath, env: buildEnv({ PAPERCLIP_RELEASE_REUSE_UI_DIST: "1" }), maxBuffer: 32 * 1024 * 1024 });
+        await runCommand("corepack", ["pnpm", "--dir", workspacePackage.dir, "pack", "--pack-destination", stagingRoot], { cwd: checkoutPath, env: buildEnv({ NEXUS_RELEASE_REUSE_UI_DIST: "1" }), maxBuffer: 32 * 1024 * 1024 });
       }
     }
     await runCommand("npm", ["pack", "--pack-destination", stagingRoot], { cwd: path.join(checkoutPath, "cli"), env: buildEnv(), maxBuffer: 16 * 1024 * 1024 });
     const tarballs = fs.readdirSync(stagingRoot).filter((entry) => entry.endsWith(".tgz"));
-    const cliTarball = tarballs.find((entry) => entry === `paperclipai-${metadata.version}.tgz`);
+    const cliTarball = tarballs.find((entry) => entry === `nexusai-${metadata.version}.tgz`);
     const workspaceTarballs = tarballs.filter((entry) => entry !== cliTarball);
     if (!cliTarball || workspaceTarballs.length !== workspacePackages.length) {
       throw new Error(`Git install packaging produced ${workspaceTarballs.length} workspace tarballs; expected ${workspacePackages.length}.`);
@@ -329,7 +329,7 @@ async function ensureShimOnPath(options: InstallOptions): Promise<void> {
   const manualInstruction = `export PATH="$HOME/.local/bin:$PATH"`;
   const rcPath = shellRcPath();
   if (!process.stdin.isTTY || !process.stdout.isTTY || !rcPath) {
-    console.log(pc.yellow(`Add Paperclip to PATH for this shell:\n  ${manualInstruction}`));
+    console.log(pc.yellow(`Add Nexus to PATH for this shell:\n  ${manualInstruction}`));
     return;
   }
   const confirmed = options.yes === true ? true : await p.confirm({ message: `Add ~/.local/bin to PATH in ${rcPath}?`, initialValue: true });
@@ -380,13 +380,13 @@ export async function installCommand(
       writeManagedShim(paths); pruneInstallPayloads(nextManifest, paths); return payload;
     }, paths);
     await ensureShimOnPath(options);
-    console.log(pc.green(`${installed.reused ? "Activated cached" : "Installed"} paperclipai git payload ${sha.slice(0, 12)}.`));
+    console.log(pc.green(`${installed.reused ? "Activated cached" : "Installed"} nexusai git payload ${sha.slice(0, 12)}.`));
     return;
   }
   const request = resolveNpmInstallRequest(options);
-  console.log(`Resolving paperclipai@${request.spec} from ${PUBLIC_NPM_REGISTRY}...`);
+  console.log(`Resolving nexusai@${request.spec} from ${PUBLIC_NPM_REGISTRY}...`);
   const version = await resolvePublishedVersion(request.spec, runCommand);
-  console.log(`Installing paperclipai@${version}...`);
+  console.log(`Installing nexusai@${version}...`);
 
   const paths = resolveInstallStorePaths();
   const installed = await withInstallStoreLock(async () => {
@@ -416,7 +416,7 @@ export async function installCommand(
   }, paths);
   await ensureShimOnPath(options);
 
-  console.log(pc.green(`${installed.reused ? "Activated cached" : "Installed"} paperclipai ${version} (${request.channel}).`));
+  console.log(pc.green(`${installed.reused ? "Activated cached" : "Installed"} nexusai ${version} (${request.channel}).`));
   console.log(pc.dim(`Payload: ${installed.payloadPath}`));
-  console.log(`Run ${pc.cyan("paperclipai --version")} to verify the managed install.`);
+  console.log(`Run ${pc.cyan("nexusai --version")} to verify the managed install.`);
 }

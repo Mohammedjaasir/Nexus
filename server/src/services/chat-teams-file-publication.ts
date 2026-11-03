@@ -1,7 +1,7 @@
 import { notifyChatPublicationWork } from "./chat-work-notifications.js";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { CHAT_FILE_TRANSFER_PHASES } from "@paperclipai/shared";
+import { CHAT_FILE_TRANSFER_PHASES } from "@nexusai/shared";
 import {
   chatActions,
   chatConversations,
@@ -13,7 +13,7 @@ import {
   issueComments,
   issues,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { projectChatFileTransfer } from "./chat-publication-batches.js";
 import type { TeamsFileTransferSummary } from "./chat-teams-file-transfers.js";
 
@@ -132,7 +132,7 @@ export async function projectTeamsFilePublication(
       responseActivityId: chatTeamsFileTransfers.responseActivityId,
       attemptId: chatTeamsFileTransfers.attemptId,
       attemptExpiresAt: chatTeamsFileTransfers.attemptExpiresAt,
-      operatorConfirmed: sql<boolean>`coalesce(${chatTeamsFileTransfers.privateState}->'resolution'->>'schema' = 'paperclip.teams.file-resolution.v1'
+      operatorConfirmed: sql<boolean>`coalesce(${chatTeamsFileTransfers.privateState}->'resolution'->>'schema' = 'nexus.teams.file-resolution.v1'
       and ${chatTeamsFileTransfers.privateState}->'resolution'->>'action' = 'mark_delivered'
       and ${chatTeamsFileTransfers.privateState}->'resolution'->>'fromPhase' = 'file_info_unknown', false)`,
     })
@@ -264,7 +264,7 @@ export async function projectTeamsFilePublication(
     if (!transfer.attemptId || !transfer.attemptExpiresAt) fail();
     const providerActionId = `teams-file-effect:${transfer.attemptId}`;
     const payload = {
-      schema: "paperclip.teams.file-effect-intent.v1",
+      schema: "nexus.teams.file-effect-intent.v1",
       transferId: s.id,
       publicationId: s.publicationId,
       attemptId: transfer.attemptId,

@@ -254,7 +254,7 @@ describeLinux("runDescriptorBoundAuthRead", () => {
   }
 
   // A syntactically valid session home. The wrapper revalidates the shape.
-  const VALID_HOME = "/tmp/paperclip-adapter-login/11111111-1111-1111-1111-111111111111";
+  const VALID_HOME = "/tmp/nexus-adapter-login/11111111-1111-1111-1111-111111111111";
 
   it("returns the credential bytes on a valid read", async () => {
     const localHome = mkdtempSync(path.join(root, "valid-"));

@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { Issue, IssueCommentMetadata } from "@paperclipai/shared";
+import type { Issue, IssueCommentMetadata } from "@nexusai/shared";
 import { WorkspaceBaseRefRecoveryProvider, useWorkspaceBaseRefRecovery, useCurrentWorkspaceRetry } from "./WorkspaceBaseRefRecovery";
 import { WorkspaceRetryControl } from "./WorkspaceRetryButton";
 import { WorkspaceBaseRefRecoveryNotice } from "./WorkspaceBaseRefRecoveryNotice";

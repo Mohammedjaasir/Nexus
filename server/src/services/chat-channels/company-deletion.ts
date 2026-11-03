@@ -1,5 +1,5 @@
 import { assertVoiceInboundCleanupSettled } from "../voice/voice-inbound-cleanup.js";
-import { chatEndpoints } from "@paperclipai/db";
+import { chatEndpoints } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import type { CompanyDeletionParticipant } from "../../lib/company-deletion.js";
 

@@ -6,15 +6,15 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: /^@paperclipai\/paperclip-runner\/live$/,
+        find: /^@nexusai\/nexus-runner\/live$/,
         replacement: fileURLToPath(
-          new URL("../packages/paperclip-runner/src/live/index.ts", import.meta.url),
+          new URL("../packages/nexus-runner/src/live/index.ts", import.meta.url),
         ),
       },
       {
-        find: /^@paperclipai\/paperclip-runner$/,
+        find: /^@nexusai\/nexus-runner$/,
         replacement: fileURLToPath(
-          new URL("../packages/paperclip-runner/src/index.ts", import.meta.url),
+          new URL("../packages/nexus-runner/src/index.ts", import.meta.url),
         ),
       },
     ],

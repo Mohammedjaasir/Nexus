@@ -26,7 +26,7 @@ export async function skillRepositoryDependencies(
     if (entry.type === 'blob' && ['100644', '100755'].includes(entry.mode) && /\.md$/i.test(entry.path)) pending.push(entry);
   };
   for (const entry of initial) add(entry);
-  const manifest = byPath.get('paperclip.skills.json');
+  const manifest = byPath.get('nexus.skills.json');
   if (manifest) add(manifest);
   while (pending.length) {
     const frontier = pending;

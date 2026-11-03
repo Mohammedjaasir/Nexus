@@ -13,7 +13,7 @@ import {
   statusDecisions,
   workAssessments,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   persistActivity,
   publishActivity,

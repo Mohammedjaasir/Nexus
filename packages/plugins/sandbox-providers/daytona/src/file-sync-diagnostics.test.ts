@@ -3,9 +3,9 @@ import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import { environmentSyncErrorData, withEnvironmentSyncErrorCapture, readEnvironmentSyncErrorDiagnostic } from "@paperclipai/plugin-sdk";
+import { environmentSyncErrorData, withEnvironmentSyncErrorCapture, readEnvironmentSyncErrorDiagnostic } from "@nexusai/plugin-sdk";
 vi.mock("./plugin.js", async () => {
-  const { NOOP_PLUGIN_TRACER } = await import("@paperclipai/plugin-sdk");
+  const { NOOP_PLUGIN_TRACER } = await import("@nexusai/plugin-sdk");
   return { getPluginTracer: () => NOOP_PLUGIN_TRACER };
 });
 import { performSyncOut } from "./file-sync.js";

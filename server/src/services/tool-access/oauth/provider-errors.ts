@@ -5,13 +5,13 @@
  *
  * A generic remote MCP connection points at an arbitrary authorization server,
  * so everything that server says about a failure is attacker-chosen: `error`,
- * `error_description`, `error_uri`, and the response body. Paperclip surfaces
+ * `error_description`, `error_uri`, and the response body. Nexus surfaces
  * connection failures to the operator through API responses, board UI copy,
  * audit rows and logs, so reflecting any of that text would let a hostile
  * provider plant secrets, ANSI escapes, or instructions ("paste your recovery
- * key here") into Paperclip's own voice.
+ * key here") into Nexus's own voice.
  *
- * The rule is therefore: the operator only ever reads text Paperclip authored.
+ * The rule is therefore: the operator only ever reads text Nexus authored.
  * The provider's `error` code survives — as a *label* in structured `details`,
  * never in a message — and only when it is one of the codes the RFCs define,
  * because a label is still untrusted input. Everything else is dropped, and an
@@ -54,9 +54,9 @@ const MAX_OAUTH_PROVIDER_ERROR_LENGTH = 64;
 const OAUTH_PROVIDER_ERROR_PATTERN = /^[a-z0-9_-]+$/;
 
 /**
- * Stable, Paperclip-authored operator copy for each allowlisted provider error.
+ * Stable, Nexus-authored operator copy for each allowlisted provider error.
  * Deliberately keyed on the code alone: the calling context is already carried
- * by the Paperclip `code` in `details`, so one table serves the callback,
+ * by the Nexus `code` in `details`, so one table serves the callback,
  * token-exchange and registration paths without any of them composing a message
  * out of provider text.
  */
@@ -68,18 +68,18 @@ const OAUTH_PROVIDER_ERROR_MESSAGES: Record<string, string> = {
     "The authorization server needs consent to be granted. Try connecting again.",
   interaction_required:
     "The authorization server needs to be signed in to interactively. Try connecting again.",
-  invalid_client: "The authorization server rejected Paperclip's OAuth client.",
+  invalid_client: "The authorization server rejected Nexus's OAuth client.",
   invalid_client_metadata:
-    "The authorization server rejected Paperclip's client registration details.",
+    "The authorization server rejected Nexus's client registration details.",
   invalid_grant:
     "The authorization server rejected the authorization code or refresh token.",
   invalid_redirect_uri:
-    "The authorization server rejected Paperclip's callback URL.",
+    "The authorization server rejected Nexus's callback URL.",
   invalid_request:
     "The authorization server rejected the request as malformed.",
   invalid_scope: "The authorization server rejected the requested permissions.",
   invalid_software_statement:
-    "The authorization server rejected Paperclip's client registration details.",
+    "The authorization server rejected Nexus's client registration details.",
   login_required:
     "The authorization server needs to be signed in to. Try connecting again.",
   server_error:
@@ -87,20 +87,20 @@ const OAUTH_PROVIDER_ERROR_MESSAGES: Record<string, string> = {
   temporarily_unavailable:
     "The authorization server is temporarily unavailable. Try again shortly.",
   unapproved_software_statement:
-    "The authorization server rejected Paperclip's client registration details.",
+    "The authorization server rejected Nexus's client registration details.",
   unauthorized_client:
-    "The authorization server refused to authorize Paperclip's OAuth client.",
+    "The authorization server refused to authorize Nexus's OAuth client.",
   unsupported_grant_type:
-    "The authorization server does not support the grant Paperclip uses.",
+    "The authorization server does not support the grant Nexus uses.",
   unsupported_response_type:
-    "The authorization server does not support the sign-in flow Paperclip uses.",
+    "The authorization server does not support the sign-in flow Nexus uses.",
 };
 
 /**
  * Reduce a provider-supplied `error` to a bounded, allowlisted label safe to
  * keep in structured `details`. Returns `null` only when the provider sent no
  * `error` at all, so the caller can tell "silent failure" from "said something
- * Paperclip does not recognize".
+ * Nexus does not recognize".
  */
 export function normalizeOAuthProviderError(value: unknown): string | null {
   if (typeof value !== "string" || value.length === 0) return null;
@@ -116,7 +116,7 @@ export function normalizeOAuthProviderError(value: unknown): string | null {
     : UNRECOGNIZED_OAUTH_PROVIDER_ERROR;
 }
 
-/** Paperclip's own message for a provider failure, never the provider's. */
+/** Nexus's own message for a provider failure, never the provider's. */
 export function oauthProviderErrorMessage(
   providerError: string | null,
   fallback: string,

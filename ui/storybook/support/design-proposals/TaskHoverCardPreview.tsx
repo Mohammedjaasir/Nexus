@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { FlyoutAppearanceProvider } from "@/components/ui/flyout";
 import { Link } from "@/lib/router";
 import { queryKeys } from "@/lib/queryKeys";
-import { createIssue, storybookActivityEvents, storybookAgentMap, storybookProjects } from "../../fixtures/paperclipData";
+import { createIssue, storybookActivityEvents, storybookAgentMap, storybookProjects } from "../../fixtures/nexusData";
 
 const task = createIssue({
   id: "design-task-hover-card", identifier: "PAP-173", status: "done",
@@ -33,7 +33,7 @@ export function TaskHoverCardPreview({ enabled = true, showDescription = true, o
     <main className="task-row-design-preview min-h-screen px-6 py-10 text-foreground sm:px-10">
       <div className="mx-auto flex max-w-4xl flex-col gap-8">
         <header className="space-y-3">
-          <p className="text-xs text-muted-foreground">Paperclip · Design system · Proposed</p>
+          <p className="text-xs text-muted-foreground">Nexus · Design system · Proposed</p>
           <h1 className="text-3xl font-semibold">Task hover card</h1>
           <p className="max-w-2xl text-sm text-muted-foreground">A contextual task preview for links and activity. Summary rows use their own local text reveal and keep this preview off.</p>
         </header>

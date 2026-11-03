@@ -1,4 +1,4 @@
-import { createDb } from "@paperclipai/db";
+import { createDb } from "@nexusai/db";
 import { migrateRunEvidence } from "../src/services/run-evidence-migration.js";
 
 if (!process.env.DATABASE_URL)

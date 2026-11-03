@@ -1,12 +1,12 @@
 import { useLayoutEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ActivityEvent } from "@paperclipai/shared";
+import type { ActivityEvent } from "@nexusai/shared";
 import { ActivityList } from "@/components/ActivityList";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FlyoutAppearanceProvider } from "@/components/ui/flyout";
 import { queryKeys } from "@/lib/queryKeys";
-import { storybookActivityEvents, storybookAgentMap, storybookProjects } from "../../fixtures/paperclipData";
+import { storybookActivityEvents, storybookAgentMap, storybookProjects } from "../../fixtures/nexusData";
 import { recoveryChild } from "./task-list-data";
 
 type Density = "comfortable" | "compact";
@@ -35,7 +35,7 @@ const names = new Map([
   ["agent:agent-codex", "CodexCoder"],
   [`project:${project.id}`, project.name],
   ["approval:approval-budget", "Monthly budget adjustment"],
-  ["company:company-storybook", "Paperclip Storybook"],
+  ["company:company-storybook", "Nexus Storybook"],
 ]);
 const titles = new Map([[`issue:${recoveryChild.id}`, recoveryChild.title]]);
 const profiles = new Map([["board", { label: "Riley Board", image: null }]]);
@@ -51,7 +51,7 @@ export function ActivityListPreview({ density = "comfortable", containerWidth = 
     <main className="task-row-design-preview min-h-screen px-6 py-10 text-foreground sm:px-10">
       <div className="mx-auto flex max-w-4xl flex-col gap-8">
         <header className="space-y-3">
-          <p className="text-xs text-muted-foreground">Paperclip · Design system · Proposed</p>
+          <p className="text-xs text-muted-foreground">Nexus · Design system · Proposed</p>
           <h1 className="text-3xl font-semibold">Activity list</h1>
           <p className="text-sm text-muted-foreground">Task, agent, project, approval, run and system activity. Rows share task-list density, type, fade and cell-local marquee. Task entries retain their hover card; other entries keep their own destination.</p>
         </header>

@@ -56,7 +56,7 @@ describe("Runner acceptance redaction", () => {
     expect(findSensitiveValue(secretShapedValue)).toBe("secret-shaped value");
     expect(findSensitiveJsonValue({ password: "fixture-password" }))
       .toBe("sensitive field password");
-    expect(findSensitiveJsonValue({ schema: "paperclip.runner-acceptance.result/v1" }))
+    expect(findSensitiveJsonValue({ schema: "nexus.runner-acceptance.result/v1" }))
       .toBeNull();
   });
 });

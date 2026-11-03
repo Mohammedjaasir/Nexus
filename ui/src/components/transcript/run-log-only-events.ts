@@ -9,7 +9,7 @@ export function isRunLogOnlyProviderEvent(
   // Older runners dropped the classification when converting this diagnostic
   // into a notice. Match its complete notice shape so real warnings stay visible.
   return eventType === "provider.notice.recorded"
-    && payload.schema === "paperclip.provider.notice.v1"
+    && payload.schema === "nexus.provider.notice.v1"
     && payload.severity === "warning"
     && payload.category === "warning"
     && payload.summary === "ignored unrelated provider information";

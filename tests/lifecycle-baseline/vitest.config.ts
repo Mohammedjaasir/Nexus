@@ -11,8 +11,8 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: /^@paperclipai\/paperclip-runner$/,
-        replacement: resolve(root, "packages/paperclip-runner/src/index.ts"),
+        find: /^@nexusai\/nexus-runner$/,
+        replacement: resolve(root, "packages/nexus-runner/src/index.ts"),
       },
     ],
   },

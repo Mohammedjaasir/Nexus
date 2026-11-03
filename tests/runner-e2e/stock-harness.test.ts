@@ -10,13 +10,13 @@ const gradeStockHarness = (evidence: StockHarnessEvidence) => gradeSourceHarness
 
 function recording(generation: "legacy" | "native" = "legacy"): StockHarnessEvidence {
   return {
-    schema: "paperclip.stock-harness.v1", generation, agentId: "agent",
+    schema: "nexus.stock-harness.v1", generation, agentId: "agent",
     budgets: { companyMonthlyCents: 1_000, agentMonthlyCents: 1_000 },
     bundle: { entryFile: "AGENTS.md", files: [{ path: "AGENTS.md", content: STOCK_HIRE_IDENTITY }] },
     runIds: ["fresh", "resumed"],
     invocations: generation === "native" ? [] : [
       { runId: "fresh", conversationMode: false, prompt: "You are agent agent (QA).\nConnection tools:\nUse connections_search.\nCurrent assignment.", promptMetrics: { heartbeatPromptChars: 113 } },
-      { runId: "resumed", conversationMode: false, prompt: "## Paperclip Resume Delta\nCurrent ordered comments.", promptMetrics: { heartbeatPromptChars: 0 } },
+      { runId: "resumed", conversationMode: false, prompt: "## Nexus Resume Delta\nCurrent ordered comments.", promptMetrics: { heartbeatPromptChars: 0 } },
     ],
   };
 }
@@ -31,13 +31,13 @@ describe("stock harness Product E2E", () => {
     ]));
     expect(new Set(cells.map(row => row.task.id))).toEqual(new Set([
       "ordered-comment-continuation", "assigned-skill-explicit-invocation", "continuity-restart",
-      "assigned-skill-paperclip-document",
+      "assigned-skill-nexus-document",
     ]));
     expect(cells.every(row => row.suite.manualOnly && row.environment.id === "local")).toBe(true);
     expect(cells.every(row => row.task.automaticRetryPolicy === "single_attempt")).toBe(true);
     expect(cells[0]!.suite.definitionMetadata).toMatchObject({ automaticRetryPolicy: "single_attempt", maximumAttemptsPerCell: 1 });
     expect(cells.reduce((turns, row) => turns + row.task.expectedRunCount, 0)).toBe(50);
-    expect(cells.filter(row => row.task.id === "assigned-skill-paperclip-document").map(row => row.profile.id).sort()).toEqual(["legacy-claude", "legacy-opencode"]);
+    expect(cells.filter(row => row.task.id === "assigned-skill-nexus-document").map(row => row.profile.id).sort()).toEqual(["legacy-claude", "legacy-opencode"]);
     expect(cells[0]!.suite.definitionMetadata?.sourceDigest).toMatch(/^[a-f0-9]{64}$/);
   });
 
@@ -102,7 +102,7 @@ describe("stock harness Product E2E", () => {
     const evidence = recording();
     evidence.bundle.files[0]!.content = historical.content;
     for (const row of evidence.invocations) row.conversationMode = true;
-    evidence.invocations[0]!.prompt += "\nContinue your Paperclip conversation using the supplied chat mode directive.\nAfter 2 consecutive failures of the same control-plane write";
+    evidence.invocations[0]!.prompt += "\nContinue your Nexus conversation using the supplied chat mode directive.\nAfter 2 consecutive failures of the same control-plane write";
     expect(gradeSourceHarness(evidence, historical).every(check => check.passed)).toBe(true);
     evidence.invocations[1]!.prompt += "\nExecution contract:";
     expect(gradeSourceHarness(evidence, historical)).toContainEqual(expect.objectContaining({ id: "historical-continuation-contract", passed: false }));

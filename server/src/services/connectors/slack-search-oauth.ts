@@ -1,4 +1,4 @@
-import { slackSearchConfigSchema } from "@paperclipai/shared";
+import { slackSearchConfigSchema } from "@nexusai/shared";
 import { SLACK_NATIVE_SEARCH_LIMITATION } from "./slack-native-search.js";
 import { syncConnectionCredentialBindings } from "../connection-credential-bindings.js";
 import { randomBytes } from "node:crypto";
@@ -12,7 +12,7 @@ import {
   toolConnections,
   toolOauthStates,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { z } from "zod";
 import {
   badRequest,
@@ -127,7 +127,7 @@ export function slackSearchOAuthService(
         and(
           eq(chatIdentityLinks.companyId, companyId),
           eq(chatIdentityLinks.endpointId, endpointId),
-          eq(chatIdentityLinks.paperclipUserId, userId),
+          eq(chatIdentityLinks.nexusUserId, userId),
           eq(chatIdentityLinks.status, "linked"),
           eq(
             chatExternalPrincipals.providerAccountId,
@@ -553,7 +553,7 @@ export function slackSearchOAuthService(
         typeof user.access_token !== "string"
       )
         throw forbidden(
-          "Authorize the same Slack user and workspace that you linked in Paperclip",
+          "Authorize the same Slack user and workspace that you linked in Nexus",
         );
       const scopes = String(user.scope ?? "").split(",");
       if (

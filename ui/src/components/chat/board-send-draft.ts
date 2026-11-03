@@ -2,7 +2,7 @@ import {
   CHAT_PUBLICATION_STATES,
   type ChatPublicationSummary,
   type ChatPublicationBatchStatus,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { ApiError } from "@/api/client";
 
 export type BoardSendRejection = {
@@ -75,8 +75,8 @@ export function boardSendDraftKey(
 ) {
   const scope = [companyId, issueId, endpointId, conversationId];
   return owner === undefined
-    ? `paperclip:board-send:v1:${JSON.stringify(scope)}`
-    : `paperclip:board-send:v2:${JSON.stringify([owner, ...scope])}`;
+    ? `nexus:board-send:v1:${JSON.stringify(scope)}`
+    : `nexus:board-send:v2:${JSON.stringify([owner, ...scope])}`;
 }
 
 export function readBoardSendDraft(key: string): RetainedBoardSend | null {

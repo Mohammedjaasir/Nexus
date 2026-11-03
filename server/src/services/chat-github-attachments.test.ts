@@ -26,7 +26,7 @@ const request = vi.mocked(guardedRemoteHttpFetch);
 const imageUrl =
   "https://github.com/user-attachments/assets/11111111-2222-3333-4444-555555555555";
 const fileUrl = "https://github.com/user-attachments/files/31917991/proof.txt";
-const threadId = "github:paperclipai/chat-e2e:issue:42";
+const threadId = "github:nexusai/chat-e2e:issue:42";
 const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0]);
 function message(overrides: Record<string, unknown> = {}): Message {
   return {
@@ -43,7 +43,7 @@ function message(overrides: Record<string, unknown> = {}): Message {
       type: "issue_comment",
       prNumber: 42,
       threadType: "issue",
-      repository: { full_name: "paperclipai/chat-e2e" },
+      repository: { full_name: "nexusai/chat-e2e" },
       comment: { id: 4242, body: `![Image](${imageUrl}) [proof](${fileUrl})` },
     },
     ...overrides,
@@ -81,7 +81,7 @@ describe("GitHub description and review-summary attachment provenance", () => {
     const source = { id: 4242, number: 42, body };
     const mention = githubExplicitMentionEvent(event, {
       action: event === "pull_request_review" ? "submitted" : "opened",
-      repository: { id: 12, full_name: "paperclipai/chat-e2e" }, sender: { id: 77, login: "octocat" },
+      repository: { id: 12, full_name: "nexusai/chat-e2e" }, sender: { id: 77, login: "octocat" },
       issue: source, pull_request: source, review: source,
     }, "body-delivery", "maya")!;
     const inbound = message({ id: mention.messageId, threadId: mention.threadId, raw: mention.raw, formatted: parseMarkdown(body) });
@@ -424,7 +424,7 @@ describe("GitHub exact-comment private image resolution", () => {
   });
   it("uses the documented review-comment media type and exact review-root binding", () => {
     const value = message({
-      threadId: "github:paperclipai/chat-e2e:42:rc:4000",
+      threadId: "github:nexusai/chat-e2e:42:rc:4000",
     });
     const raw = value.raw as Record<string, unknown>;
     raw.type = "review_comment";
@@ -728,8 +728,8 @@ describe("public GitHub attachment extraction", () => {
   it.each([
     { id: "99" },
     { threadId: "github:other/repo:issue:42" },
-    { threadId: "github:paperclipai/chat-e2e:issue:43" },
-    { threadId: "github:paperclipai/chat-e2e:42:rc:4242" },
+    { threadId: "github:nexusai/chat-e2e:issue:43" },
+    { threadId: "github:nexusai/chat-e2e:42:rc:4242" },
   ])("rejects forged source tuples %j", (override) => {
     expect(githubPublicAttachmentsFromMessage(message(override))).toEqual([]);
     expect(request).not.toHaveBeenCalled();
@@ -898,7 +898,7 @@ describe("public GitHub attachment download", () => {
       expect(init.credentials).toBe("omit");
       expect(init.headers).toEqual({
         accept: "*/*",
-        "user-agent": "Paperclip/ChatAttachments",
+        "user-agent": "Nexus/ChatAttachments",
       });
       expect(guard.allowPrivateNetwork).toBe(false);
     }

@@ -1,5 +1,5 @@
 import { and, eq, gt, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
-import { chatEndpoints, chatVoiceInboundCalls, type Db } from "@paperclipai/db";
+import { chatEndpoints, chatVoiceInboundCalls, type Db } from "@nexusai/db";
 import { registerScopedDeadlineWork } from "../scoped-deadline-work.js";
 import type { createDeliveryWorkCoordinator } from "../delivery-work-coordinator.js";
 import { DELIVERY_QUEUES } from "../delivery-work-notifications.js";

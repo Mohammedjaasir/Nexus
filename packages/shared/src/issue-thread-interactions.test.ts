@@ -10,7 +10,7 @@ import {
   askUserQuestionsResultSchema,
   askUserQuestionsPayloadSchema,
   createIssueThreadInteractionSchema,
-  paperclipQuestionSetPayloadSchema,
+  nexusQuestionSetPayloadSchema,
   requestConfirmationPayloadSchema,
   requestConfirmationResultSchema,
   requestItemVerdictsResultSchema,
@@ -19,35 +19,35 @@ import {
 
 describe("issue thread interaction schemas", () => {
   it("derives every legacy question from a complete mixed canonical form", () => {
-    const questionSet = paperclipQuestionSetPayloadSchema.parse({
-      schema: "paperclip.question_set.v1",
+    const questionSet = nexusQuestionSetPayloadSchema.parse({
+      schema: "nexus.question_set.v1",
       questions: [
         { id: "repo", prompt: "Repository URL?", required: true, answerMode: "text", textValidation: { minLength: 1 } },
         { id: "scope", prompt: "Review scope?", required: true, answerMode: "single_select", options: [{ id: "all", label: "All changes", recommended: true }, { id: "selected", label: "Selected changes" }] },
-        { id: "hosting", prompt: "Preview hosting?", required: false, answerMode: "multi_select", options: [{ id: "paperclip_custom_answer", label: "Existing host" }, { id: "new", label: "New host" }], customAnswer: { enabled: true } },
+        { id: "hosting", prompt: "Preview hosting?", required: false, answerMode: "multi_select", options: [{ id: "nexus_custom_answer", label: "Existing host" }, { id: "new", label: "New host" }], customAnswer: { enabled: true } },
       ],
     });
     const parsed = createIssueThreadInteractionSchema.parse({ kind: "ask_user_questions", payload: { version: 1, questionSet } });
     if (parsed.kind !== "ask_user_questions") throw new Error("expected questions");
     expect(parsed.payload.questionSet).toEqual(questionSet);
     expect(parsed.payload.questions).toMatchObject([
-      { id: "repo", required: true, selectionMode: "single", options: [{ id: "paperclip_text_answer", freeText: true }] },
+      { id: "repo", required: true, selectionMode: "single", options: [{ id: "nexus_text_answer", freeText: true }] },
       { id: "scope", required: true, selectionMode: "single", allowOther: false, options: [{ id: "all", label: "All changes" }, { id: "selected", label: "Selected changes" }] },
-      { id: "hosting", required: false, selectionMode: "multi", allowOther: true, options: [{ id: "paperclip_custom_answer" }, { id: "new" }, { id: "paperclip_custom_answer_2", freeText: true }] },
+      { id: "hosting", required: false, selectionMode: "multi", allowOther: true, options: [{ id: "nexus_custom_answer" }, { id: "new" }, { id: "nexus_custom_answer_2", freeText: true }] },
     ]);
     expect(askUserQuestionsPayloadSchema.parse(parsed.payload)).toEqual(parsed.payload);
   });
 
   it("rejects canonical-only forms with invalid modes or missing questions", () => {
     for (const questionSet of [
-      { schema: "paperclip.question_set.v1", questions: [] },
-      { schema: "paperclip.question_set.v1", questions: [{ id: "repo", prompt: "Repository?", required: true, answerMode: "text", options: [{ id: "a", label: "A" }] }] },
+      { schema: "nexus.question_set.v1", questions: [] },
+      { schema: "nexus.question_set.v1", questions: [{ id: "repo", prompt: "Repository?", required: true, answerMode: "text", options: [{ id: "a", label: "A" }] }] },
     ]) expect(createIssueThreadInteractionSchema.safeParse({ kind: "ask_user_questions", payload: { version: 1, questionSet } }).success).toBe(false);
     expect(createIssueThreadInteractionSchema.safeParse({ kind: "ask_user_questions", payload: { version: 1 } }).success).toBe(false);
   });
 
   it("preserves canonical display whitespace while deriving trimmed storage fields", () => {
-    const questionSet = { schema: "paperclip.question_set.v1", questions: [
+    const questionSet = { schema: "nexus.question_set.v1", questions: [
       { id: "scope", prompt: "  Review scope? \n", required: true, answerMode: "single_select", options: [{ id: "all", label: " All changes " }, { id: "selected", label: " Selected changes " }] },
       { id: "repo", prompt: " Repository URL? ", required: true, answerMode: "text" },
     ] };
@@ -66,7 +66,7 @@ describe("issue thread interaction schemas", () => {
     ]) {
       const parsed = createIssueThreadInteractionSchema.safeParse({ kind: "ask_user_questions", payload: { version: 1,
         questions: [{ id: "scope", prompt: "Scope?", required: true, selectionMode: "single", ...storage }],
-        questionSet: { schema: "paperclip.question_set.v1", questions: [{ id: "scope", prompt: "Scope?", required: true, answerMode: "single_select", options }] },
+        questionSet: { schema: "nexus.question_set.v1", questions: [{ id: "scope", prompt: "Scope?", required: true, answerMode: "single_select", options }] },
       } });
       expect(parsed.success).toBe(false);
     }
@@ -315,7 +315,7 @@ describe("issue thread interaction schemas", () => {
 
   it("retains canonical runner question sets without narrowing their public bounds", () => {
     const questionSet = {
-      schema: "paperclip.question_set.v1" as const,
+      schema: "nexus.question_set.v1" as const,
       title: "Runner input",
       questions: [{
         id: "deployment-color",
@@ -345,7 +345,7 @@ describe("issue thread interaction schemas", () => {
     if (parsed.kind !== "ask_user_questions") return;
     expect(parsed.payload.questionSet).toEqual(questionSet);
 
-    expect(() => paperclipQuestionSetPayloadSchema.parse({
+    expect(() => nexusQuestionSetPayloadSchema.parse({
       ...questionSet,
       questions: [{ ...questionSet.questions[0], answerMode: "text", options: questionSet.questions[0].options }],
     })).toThrow("text questions cannot define options");
@@ -358,7 +358,7 @@ describe("issue thread interaction schemas", () => {
         { id: "club_name", prompt: "Club name?", selectionMode: "single", required: true, options: [{ id: "text", label: "Answer", freeText: true }] },
         { id: "audience", prompt: "Audience?", selectionMode: "single", required: true, options: [{ id: "beginners", label: "Beginners" }, { id: "everyone", label: "Everyone" }] },
       ],
-      questionSet: { schema: "paperclip.question_set.v1", questions: [{ id: "club_name", prompt: "Club name?", answerMode: "text", required: true }] },
+      questionSet: { schema: "nexus.question_set.v1", questions: [{ id: "club_name", prompt: "Club name?", answerMode: "text", required: true }] },
     };
     expect(() => createIssueThreadInteractionSchema.parse({ kind: "ask_user_questions", payload })).toThrow("must present every questions entry");
     expect(askUserQuestionsPayloadSchema.parse(payload).questions).toHaveLength(2);
@@ -376,7 +376,7 @@ describe("issue thread interaction schemas", () => {
     const payload = {
       version: 1,
       questions: [{ id: "color", prompt: "Color?", required: true, selectionMode: "single", options: [{ id: "blue", label: "Blue" }] }],
-      questionSet: { schema: "paperclip.question_set.v1", questions: [{ id: "color", prompt: "Color?", required: true, answerMode: "single_select", options: [{ id: "blue", label: "Blue" }], ...changes }] },
+      questionSet: { schema: "nexus.question_set.v1", questions: [{ id: "color", prompt: "Color?", required: true, answerMode: "single_select", options: [{ id: "blue", label: "Blue" }], ...changes }] },
     };
     expect(() => createIssueThreadInteractionSchema.parse({ kind: "ask_user_questions", payload })).toThrow("must match");
     expect(askUserQuestionsPayloadSchema.parse(payload).questions).toHaveLength(1);

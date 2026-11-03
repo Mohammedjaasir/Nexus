@@ -40,7 +40,7 @@ export async function readBoundChatExport(root, expected) {
   const bindingBytes = await readFile(path.join(root, 'binding.json'));
   if (bindingBytes.length > 128_000) fail();
   const binding = JSON.parse(bindingBytes);
-  if (binding.schema !== 'paperclip.chat-feature-testops-export/v1' || binding.attempt !== '1'
+  if (binding.schema !== 'nexus.chat-feature-testops-export/v1' || binding.attempt !== '1'
     || binding.runId !== expected.runId || binding.workflowSha !== expected.workflowSha || binding.targetSha !== expected.targetSha
     || binding.executionId !== executionId || binding.campaignId !== `gha-${expected.runId}-1`
     || !Array.isArray(binding.files) || binding.files.length < 2 || binding.files.length > 10) fail();
@@ -60,7 +60,7 @@ export async function readBoundChatExport(root, expected) {
   const bytes = retained.get('normalized-results.json');
   if (bytes.length > 2_000_000) fail();
   const campaign = JSON.parse(bytes);
-  if (campaign.schema !== 'paperclip.runner-e2e.campaign/v2' || campaign.campaignId !== binding.campaignId
+  if (campaign.schema !== 'nexus.runner-e2e.campaign/v2' || campaign.campaignId !== binding.campaignId
     || !Array.isArray(campaign.results) || campaign.results.length !== 1) fail();
   const result = campaign.results[0];
   if (result.executionId !== executionId || result.suiteId !== 'chat-features' || result.caseId !== 'create-backlog'
@@ -123,7 +123,7 @@ export async function exportChatAllure({ root, output, expected, selected }) {
     statusDetails: { message: status === 'passed' ? 'Real Product E2E assertions and cleanup passed' : 'Real Product E2E evaluation or cleanup failed; original verdict preserved' },
     labels: [{ name: 'AS_ID', value: String(selected.caseId) }, { name: 'parentSuite', value: 'Product E2E' },
       { name: 'suite', value: 'chat-features' }, { name: 'area', value: 'Chat and collaboration' },
-      { name: 'framework', value: 'Paperclip Evals' }, { name: 'tag', value: 'chat-feature-testops' }],
+      { name: 'framework', value: 'Nexus Evals' }, { name: 'tag', value: 'chat-feature-testops' }],
     parameters: [{ name: 'canonicalScenario', value: 'tasks.create-backlog' }, { name: 'model', value: model }, { name: 'environment', value: 'GitHub Actions / AWS' }],
     links: [{ name: 'GitHub Actions run', type: 'custom', url: `https://github.com/paperclipai/paperclip/actions/runs/${expected.runId}` },
       { name: 'Evaluated source', type: 'custom', url: `https://github.com/paperclipai/paperclip/commit/${expected.targetSha}` }],

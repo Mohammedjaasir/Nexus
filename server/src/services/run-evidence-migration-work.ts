@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { loadStorageConfig, type StorageConfig } from "../storage/config.js";
 import { logger } from "../middleware/logger.js";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";

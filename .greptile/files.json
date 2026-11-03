@@ -10,7 +10,7 @@
     },
     {
       "path": "rules/pull-request-review.mdc",
-      "description": "Existing Paperclip review guidance for PR descriptions, UI evidence, and growth of large source files."
+      "description": "Existing Nexus review guidance for PR descriptions, UI evidence, and growth of large source files."
     },
     {
       "path": "rules/product-harness-responsibility.mdc",
@@ -27,8 +27,8 @@
         "server/src/**",
         "packages/adapter-utils/src/**",
         "packages/adapters/*/src/**",
-        "packages/paperclip-runner/src/**",
-        "packages/paperclip-runner/runner/**"
+        "packages/nexus-runner/src/**",
+        "packages/nexus-runner/runner/**"
       ]
     },
     {
@@ -68,24 +68,24 @@
         "packages/adapter-utils/src/**",
         "packages/adapters/*/src/**",
         "packages/plugins/*/src/**",
-        "packages/paperclip-runner/src/**",
-        "packages/paperclip-runner/runner/**"
+        "packages/nexus-runner/src/**",
+        "packages/nexus-runner/runner/**"
       ]
     },
     {
       "path": "rules/acpx-profile-identity.mdc",
       "description": "ACPX provider identity model: provider digests attest upstream releases, the pack contract digest covers Runner source and the shared ACPX layer, and profile versions change only for deliberate resets.",
       "scope": [
-        "packages/paperclip-runner/acpx-profiles.json",
-        "packages/paperclip-runner/cursor-contract.json",
-        "packages/paperclip-runner/cursor-distributions.json",
-        "packages/paperclip-runner/antigravity-distributions.json",
-        "packages/paperclip-runner/scripts/acpx-release-attestations.mjs",
-        "packages/paperclip-runner/scripts/generate-acpx-profiles.mjs",
-        "packages/paperclip-runner/scripts/contracts/**",
-        "packages/paperclip-runner/src/drivers/acpx/**",
-        "packages/paperclip-runner/src/providers/**",
-        "packages/paperclip-runner/protocol/**"
+        "packages/nexus-runner/acpx-profiles.json",
+        "packages/nexus-runner/cursor-contract.json",
+        "packages/nexus-runner/cursor-distributions.json",
+        "packages/nexus-runner/antigravity-distributions.json",
+        "packages/nexus-runner/scripts/acpx-release-attestations.mjs",
+        "packages/nexus-runner/scripts/generate-acpx-profiles.mjs",
+        "packages/nexus-runner/scripts/contracts/**",
+        "packages/nexus-runner/src/drivers/acpx/**",
+        "packages/nexus-runner/src/providers/**",
+        "packages/nexus-runner/protocol/**"
       ]
     }
   ]

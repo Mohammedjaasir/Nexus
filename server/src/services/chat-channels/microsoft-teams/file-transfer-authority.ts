@@ -23,7 +23,7 @@ import {
   canonicalTeamsThreadId,
 } from "../../chat-control-chronology.js";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   createDurableChatWakeupRequest,
 } from "../../durable-chat-wakeup.js";
@@ -45,14 +45,14 @@ import {
   issueAttachments,
   issues,
   toolConnections,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatEndpointSetupState,
   ToolCredentialSecretRef,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   isUuidLike,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   isAllowedContentType,
   MAX_ATTACHMENT_BYTES,
@@ -358,7 +358,7 @@ export function createTeamsFileAuthority(options: TeamsFileAuthorityOptions) {
       )
       .for("update", { noWait: true });
     const userId =
-      link?.status === "linked" ? link.paperclipUserId : endpoint.sponsorUserId;
+      link?.status === "linked" ? link.nexusUserId : endpoint.sponsorUserId;
     if (userId)
       await tx
         .select()
@@ -686,7 +686,7 @@ export function createTeamsFileAuthority(options: TeamsFileAuthorityOptions) {
     userId: string,
   ) {
     return {
-      schema: "paperclip.teams.board-file-intent.v1",
+      schema: "nexus.teams.board-file-intent.v1",
       publicationId: scope.publication.id,
       issueId: scope.conversation.issueId,
       commentId: scope.comment.id,
@@ -884,7 +884,7 @@ export function createTeamsFileAuthority(options: TeamsFileAuthorityOptions) {
       if (
         !run ||
         !marker ||
-        marker.schema !== "paperclip.native_committed_chat_response.v1" ||
+        marker.schema !== "nexus.native_committed_chat_response.v1" ||
         typeof marker.resultId !== "string" ||
         !isUuidLike(marker.resultId) ||
         typeof marker.decisionId !== "string" ||
@@ -1001,7 +1001,7 @@ export function createTeamsFileAuthority(options: TeamsFileAuthorityOptions) {
     // No mutable stage, attempt, receipt, route URL or provider token enters
     // this digest. The next authorization derives these facts afresh.
     const sourceDigest = teamsFileProofHash({
-      schema: "paperclip.teams.file-source.v1",
+      schema: "nexus.teams.file-source.v1",
       companyId: scope.endpoint.companyId,
       endpointId: scope.endpoint.id,
       conversationId: scope.conversation.id,

@@ -37,7 +37,7 @@ Studio test is separate.
 
 Use skill policy/agent selection in the library or an agent’s Skills tab.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 The explicit `create-skill-studio` [Product journey](../../tests/runner-e2e/PRODUCT-JOURNEYS.md) covers `skills/authoring`: native creation of an owned company skill, its task activity card, a Studio edit, reload, and task-card readback. It does not establish policy, source-update, or Studio-test coverage. A deployed target requires its own live result.
 
@@ -85,7 +85,7 @@ checks this round trip and retention of explicit historical pins.
 
 Manual: Enable the skill for one test agent and leave another without access. Run a small task on each, inspect the available skill context, then change the release/policy and verify the next eligible run uses the intended version.
 
-A Paperclip Runner run with no selected skills must proceed while another run
+A Nexus Runner run with no selected skills must proceed while another run
 holds the company skill-cache lock. A saved empty selection remains empty after
 later assignments. Selected skills and the legacy operational skill retain cache
 exclusion through version pinning. The [configuration regression](../../server/src/__tests__/heartbeat-execution-configuration.test.ts)

@@ -21,7 +21,7 @@ const meta = {
   parameters: {
     initialEntries: ["/cli-auth/challenge-gap?token=fixture-code"],
     layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "access/cli-auth"
       ],
@@ -40,7 +40,7 @@ const meta = {
           read: () => ({
             id: "challenge-gap",
             status,
-            command: "paperclipai auth login",
+            command: "nexusai auth login",
             clientName: "Review workstation",
             requestedAccess: "board",
             requestedCompanyId: "company-storybook",

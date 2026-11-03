@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import { isValidExistingBranchName } from "@paperclipai/shared";
+import { isValidExistingBranchName } from "@nexusai/shared";
 import { Check, ChevronDown, GitBranch, Loader2, TriangleAlert } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -112,7 +112,7 @@ export function WorkspaceBaseRefRecoveryNotice({
               { kind: "text", label: "Setting", value: taskOverride ? "Task-specific starting branch" : "Workspace starting branch" },
               { kind: "code", label: "Requested branch", value: requestedRef },
               ...(configuredBy ? [{ kind: "text" as const, label: "Set by", value: configuredBy }] : []),
-              { kind: "text", label: "Why it stopped", value: taskOverride ? "An explicit task branch overrides the repository default. Paperclip does not silently switch branches." : "The configured starting branch must resolve before the agent can start. This repair overrides it for this task." },
+              { kind: "text", label: "Why it stopped", value: taskOverride ? "An explicit task branch overrides the repository default. Nexus does not silently switch branches." : "The configured starting branch must resolve before the agent can start. This repair overrides it for this task." },
             ] }]} />
           </div>}
         </div>

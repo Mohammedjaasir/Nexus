@@ -13,7 +13,7 @@ import {
   ServerCog,
   X,
 } from "lucide-react";
-import type { SmokeRun, SmokeRunStep } from "@paperclipai/shared";
+import type { SmokeRun, SmokeRunStep } from "@nexusai/shared";
 import { smokeLabApi } from "@/api/smokeLab";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/context/ToastContext";
@@ -36,7 +36,7 @@ import {
 // Public, non-secret fixture credentials for the fake OAuth provider. Kept in
 // sync with SMOKE_LAB_DEMO_EMAIL / SMOKE_LAB_DEMO_PASSWORD in
 // server/src/services/smoke-lab.ts — deterministic demo values, never real.
-const DEMO_EMAIL = "smoke@paperclip.test";
+const DEMO_EMAIL = "smoke@nexus.test";
 const DEMO_PASSWORD = "smoke-password";
 
 function formatTime(value: string | Date | null | undefined): string {

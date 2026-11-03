@@ -59,7 +59,7 @@ test("CLI: absent and empty legacy layouts clear without migration", async () =>
 
 test("CLI: real pending legacy files block, preserve bytes and reveal no secrets or names", async () => {
   const root = await fixture();
-  const receipt = JSON.stringify({ schema: "paperclip/accounting-receipt/v1", id: grant, companyId: company,
+  const receipt = JSON.stringify({ schema: "nexus/accounting-receipt/v1", id: grant, companyId: company,
     runId: company, sourceId: company, sequence: 1, receivedAt: "2026-10-30T00:00:00.000Z", adapterType: "codex_local",
     receipt: { complete: true, usage: { inputTokens: 1, outputTokens: 1 } } });
   const files = await Promise.all([

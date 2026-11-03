@@ -59,7 +59,7 @@ describe("useSignOut", () => {
       status: "ok",
       cloud: {
         managed: true,
-        managedBy: "paperclip-cloud",
+        managedBy: "nexus-cloud",
         stackSlug: "acme",
         cloudBaseUrl: "https://cloud.example.test",
       },
@@ -232,7 +232,7 @@ describe("useSignOut", () => {
       status: "ok",
       cloud: {
         managed: true,
-        managedBy: "paperclip-cloud",
+        managedBy: "nexus-cloud",
         stackSlug: "acme",
         cloudBaseUrl: "https://cloud.example.test",
       },

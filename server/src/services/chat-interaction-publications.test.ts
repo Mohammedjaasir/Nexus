@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AskUserQuestionsInteraction } from "@paperclipai/shared";
+import type { AskUserQuestionsInteraction } from "@nexusai/shared";
 import { TelegramAdapter } from "@chat-adapter/telegram";
 import { Actions, Button, Card, CardText } from "chat";
 import {
@@ -53,7 +53,7 @@ describe("native chat question eligibility", () => {
     });
   });
 
-  it("keeps an explicitly open question on the Paperclip-only response path", () => {
+  it("keeps an explicitly open question on the Nexus-only response path", () => {
     expect(nativeChatQuestion(closedQuestion(true))).toBeNull();
   });
 });
@@ -69,7 +69,7 @@ class CapturingTelegramAdapter extends TelegramAdapter {
       botToken: "123:test-token",
       mode: "webhook",
       secretToken: "test-webhook-secret",
-      userName: "paperclip_test_bot",
+      userName: "nexus_test_bot",
     });
   }
 

@@ -1,4 +1,4 @@
-import type { IssueDisplayStatus } from "@paperclipai/shared";
+import type { IssueDisplayStatus } from "@nexusai/shared";
 import { issueDisplayStatusSql } from "./issue-display-status.js";
 import { notifyStrandedAgentStatus, notifyActiveRunSilence } from "./live-run-recovery-notifications.js";
 import { finishedIdleWake } from "./idle-work-proof.js";
@@ -35,7 +35,7 @@ import { automaticReadRecoveryCleanupCondition, directHumanCommentCondition, hum
 import { resolveProjectDefaultWorkspaceId } from "./project-default-workspace.js";
 import { type AuthorizationActor, executionWorkspaceReadSqlCondition, projectReadSqlCondition } from "./authorization.js";
 import { assertExecutionWorkspaceRecordAccess, assertTaskWorkspaceSourceProjectAccess } from "./task-workspace-access.js";
-import { type TaskWorkspaceSelection, type TaskWorkspaceIntent } from "@paperclipai/shared";
+import { type TaskWorkspaceSelection, type TaskWorkspaceIntent } from "@nexusai/shared";
 import { executionWorkspaceService } from "./execution-workspaces.js";
 import { notifyChatPublicationWork } from "./chat-work-notifications.js";
 import { notifyTerminalWorkspaceWork } from "./terminal-workspace-work.js";
@@ -51,7 +51,7 @@ import { documentService } from "./documents.js";
 import { parseTaskSearch, taskSearchCtes, taskSearchScore } from "./task-search.js";
 import { createdFromIssueCondition } from "./issue-creation-origin.js";
 import { executionProjectionsForRuns } from "./execution-projection.js";
-import type { ExecutionProjection } from "@paperclipai/shared";
+import type { ExecutionProjection } from "@nexusai/shared";
 import { Buffer } from "node:buffer";
 import { isDeepStrictEqual } from "node:util";
 import { createHash, randomUUID } from "node:crypto";
@@ -80,7 +80,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   activityLog,
   chatActions,
@@ -128,7 +128,7 @@ import {
   projects,
   toolConnections,
   workspaceOperations,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   AcceptedPlanDecomposition,
   IssueComment,
@@ -145,7 +145,7 @@ import type {
   IssueWatchdogSummary,
   LowTrustBoundary,
   SuccessfulRunHandoffState,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   clampIssueRequestDepth,
   extractAgentMentionIds,
@@ -156,7 +156,7 @@ import {
   isAgentCreatedIssue,
   isUuidLike,
   normalizeIssueIdentifier as normalizeIssueReferenceIdentifier,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { conflict, forbidden, HttpError, notFound, unprocessable } from "../errors.js";
 import { isForeignKeyViolation } from "../db-errors.js";
 import { logger } from "../middleware/logger.js";
@@ -346,8 +346,8 @@ function wakeRequestTargetsIssue(issueId: string) {
   return sql`(
     ${agentWakeupRequests.payload} ->> 'issueId' = ${issueId}
     or ${agentWakeupRequests.payload} ->> 'taskId' = ${issueId}
-    or ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'issueId' = ${issueId}
-    or ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'taskId' = ${issueId}
+    or ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'issueId' = ${issueId}
+    or ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'taskId' = ${issueId}
   )`;
 }
 
@@ -1164,7 +1164,7 @@ async function freshChatSourceAfterPublishedControl(
   } catch (error) {
     if (
       error instanceof Error &&
-      /^paperclip_runner_chat_attachment_(binding|destination|principal)_denied$/.test(
+      /^nexus_runner_chat_attachment_(binding|destination|principal)_denied$/.test(
         error.message,
       )
     )
@@ -1724,7 +1724,7 @@ export function isExplicitExternalAgentComment(
   metadata: IssueCommentMetadata | null | undefined,
 ): boolean {
   const reason = metadata?.authorizationReason?.trim() ?? "";
-  return reason === "paperclip_runner_protocol" || reason.startsWith("allow_");
+  return reason === "nexus_runner_protocol" || reason.startsWith("allow_");
 }
 
 type SelectedChatPresentationAttachment = {
@@ -1770,7 +1770,7 @@ async function listSelectedChatPresentationAttachments(
         eq(issueComments.authorAgentId, input.agentId),
         isNull(issueComments.deletedAt),
         sql<boolean>`(
-          coalesce(${issueComments.metadata}->>'authorizationReason', '') = 'paperclip_runner_protocol'
+          coalesce(${issueComments.metadata}->>'authorizationReason', '') = 'nexus_runner_protocol'
           or left(coalesce(${issueComments.metadata}->>'authorizationReason', ''), 6) = 'allow_'
         )`,
       ),
@@ -3087,9 +3087,9 @@ function inboxVisibleForUserCondition(companyId: string, userId: string) {
 }
 
 const LEGACY_PLUGIN_OPERATION_ORIGIN_KINDS = [
-  "plugin:paperclipai.content-machine:case",
-  "plugin:paperclipai.content-machine:evaluation",
-  "plugin:paperclipai.content-machine:source-sync",
+  "plugin:nexusai.content-machine:case",
+  "plugin:nexusai.content-machine:evaluation",
+  "plugin:nexusai.content-machine:source-sync",
 ] as const;
 
 function nonPluginOperationIssueCondition() {
@@ -4720,8 +4720,8 @@ async function listIssueReviewAttentionMap(
         issueId: sql<string | null>`coalesce(
           ${agentWakeupRequests.payload} ->> 'issueId',
           ${agentWakeupRequests.payload} ->> 'taskId',
-          ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'issueId',
-          ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'taskId'
+          ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'issueId',
+          ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'taskId'
         )`,
         agentId: agentWakeupRequests.agentId,
         status: agentWakeupRequests.status,
@@ -4741,8 +4741,8 @@ async function listIssueReviewAttentionMap(
             sql<string>`coalesce(
           ${agentWakeupRequests.payload} ->> 'issueId',
           ${agentWakeupRequests.payload} ->> 'taskId',
-          ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'issueId',
-          ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'taskId'
+          ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'issueId',
+          ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'taskId'
         )`,
             reviewIds,
           ),
@@ -5843,8 +5843,8 @@ async function listIssueBlockedInboxAttentionMap(
             issueId: sql<string | null>`coalesce(
               ${agentWakeupRequests.payload} ->> 'issueId',
               ${agentWakeupRequests.payload} ->> 'taskId',
-              ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'issueId',
-              ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'taskId'
+              ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'issueId',
+              ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'taskId'
             )`,
             agentId: agentWakeupRequests.agentId,
             status: agentWakeupRequests.status,
@@ -5860,8 +5860,8 @@ async function listIssueBlockedInboxAttentionMap(
                 sql<string>`coalesce(
               ${agentWakeupRequests.payload} ->> 'issueId',
               ${agentWakeupRequests.payload} ->> 'taskId',
-              ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'issueId',
-              ${agentWakeupRequests.payload} -> '_paperclipWakeContext' ->> 'taskId'
+              ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'issueId',
+              ${agentWakeupRequests.payload} -> '_nexusWakeContext' ->> 'taskId'
             )`,
                 graphIssueIds,
               ),
@@ -9305,8 +9305,8 @@ export function issueService(db: Db) {
           coalesce(
             wake.payload ->> 'issueId',
             wake.payload ->> 'taskId',
-            wake.payload -> '_paperclipWakeContext' ->> 'issueId',
-            wake.payload -> '_paperclipWakeContext' ->> 'taskId'
+            wake.payload -> '_nexusWakeContext' ->> 'issueId',
+            wake.payload -> '_nexusWakeContext' ->> 'taskId'
           )
         `;
         const rawWakeRows = Array.from(
@@ -10372,8 +10372,8 @@ export function issueService(db: Db) {
             issueData.projectId = workspaceSource.projectId;
           }
           // Workspace linkage is only inheritable inside the source project. A
-          // cross-project child (for example, a Paperclip ID issue created from
-          // a Paperclip App parent) must fall through to its own project's
+          // cross-project child (for example, a Nexus ID issue created from
+          // a Nexus App parent) must fall through to its own project's
           // default workspaces, otherwise the inherited ids fail the
           // project-match assertions below and the create is impossible without
           // the caller naming the target workspaces explicitly.
@@ -11576,8 +11576,8 @@ export function issueService(db: Db) {
             eq(agentWakeupRequests.companyId, receiptExisting.companyId), eq(agentWakeupRequests.requestedByActorType, "user"),
             sql`(${sql.raw(finishedIdleWake("agent_wakeup_requests"))}) IS NOT TRUE`,
             sql`coalesce(${agentWakeupRequests.payload}->>'issueId', ${agentWakeupRequests.payload}->>'taskId',
-              ${agentWakeupRequests.payload}->'_paperclipWakeContext'->>'issueId',
-              ${agentWakeupRequests.payload}->'_paperclipWakeContext'->>'taskId') = ${id}`,
+              ${agentWakeupRequests.payload}->'_nexusWakeContext'->>'issueId',
+              ${agentWakeupRequests.payload}->'_nexusWakeContext'->>'taskId') = ${id}`,
           )).for("update");
           for (const agentId of new Set<string>(affectedWakes.map((wake: { agentId: string }) => wake.agentId)))
             await notifyStrandedAgentStatus(tx, { companyId: receiptExisting.companyId, agentId });
@@ -11586,8 +11586,8 @@ export function issueService(db: Db) {
             .where(and(eq(agentWakeupRequests.companyId, receiptExisting.companyId),
               eq(agentWakeupRequests.requestedByActorType, "user"),
               sql`coalesce(${agentWakeupRequests.payload}->>'issueId', ${agentWakeupRequests.payload}->>'taskId',
-                ${agentWakeupRequests.payload}->'_paperclipWakeContext'->>'issueId',
-                ${agentWakeupRequests.payload}->'_paperclipWakeContext'->>'taskId') = ${id}`));
+                ${agentWakeupRequests.payload}->'_nexusWakeContext'->>'issueId',
+                ${agentWakeupRequests.payload}->'_nexusWakeContext'->>'taskId') = ${id}`));
         }
         // Reasserting Blocked or changing its blockers is a fresh decision even
         // when the status string stays the same. Invalidate recovery's prior
@@ -13000,7 +13000,7 @@ export function issueService(db: Db) {
         createdAt?: Date | string | null;
         clientRequestId?: string;
         proactiveChatMessage?: { sourceTaskId: string; userId: string };
-        /** Server-only: authenticated Paperclip messages also belong in the Slack thread. */
+        /** Server-only: authenticated Nexus messages also belong in the Slack thread. */
         mirrorToSlack?: boolean;
       },
       dbOrTx: any = db,
@@ -13530,9 +13530,9 @@ export function issueService(db: Db) {
       // Only an explicitly authored comment from the run causally woken by an
       // inbound chat message is automatically publishable. Presentation,
       // recovery, automation, and ordinary internal agent comments stay in
-      // Paperclip even while a bound conversation is active.
+      // Nexus even while a bound conversation is active.
       if (authorType === "agent" && isExplicitExternalAgentComment(metadata)) {
-        // An external-chat run may perform ordinary Paperclip lifecycle or
+        // An external-chat run may perform ordinary Nexus lifecycle or
         // bookkeeping writes before its adapter result is finalized. Those
         // writes remain internal: only heartbeat's selected final presentation
         // may consume this provider response slot. Explicit board "Send to
@@ -13822,7 +13822,7 @@ export function issueService(db: Db) {
                 companyId: issue.companyId,
                 issueId: issue.id,
                 type: "artifact",
-                provider: "paperclip",
+                provider: "nexus",
                 externalId: attachment.id,
                 title: asset.originalFilename ?? "Attachment",
                 status: "active",

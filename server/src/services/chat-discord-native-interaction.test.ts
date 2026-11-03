@@ -49,7 +49,7 @@ function component(customId: string, overrides: Record<string, unknown> = {}) {
 }
 
 // Exercise the installed, compatibility-checked adapter and Chat SDK. Only the
-// Discord socket/API and final Paperclip service/DB callback are test doubles;
+// Discord socket/API and final Nexus service/DB callback are test doubles;
 // this suite does not claim a provider login or a native model continuation.
 interface DiscordAdapterSeam {
   handleGatewayInteraction(event: ReturnType<typeof component>): Promise<void>;
@@ -295,7 +295,7 @@ describe("Discord native question adapter-to-runtime boundary", () => {
     expect(click.deferUpdate).not.toHaveBeenCalled();
     expect(click.reply).toHaveBeenCalledWith({
       content:
-        "This action is no longer available. Open the linked Paperclip task or ask an operator to link this account.",
+        "This action is no longer available. Open the linked Nexus task or ask an operator to link this account.",
       flags: 64,
     });
   });
@@ -311,7 +311,7 @@ describe("Discord native question adapter-to-runtime boundary", () => {
     expect(click.deferUpdate).not.toHaveBeenCalled();
     expect(click.reply).toHaveBeenCalledWith({
       content:
-        "This action is no longer available. Open the linked Paperclip task or ask an operator to link this account.",
+        "This action is no longer available. Open the linked Nexus task or ask an operator to link this account.",
       flags: 64,
     });
   });
@@ -406,7 +406,7 @@ describe("Discord native question adapter-to-runtime boundary", () => {
         return new Response(null, { status: 200 });
       });
     const webhook = runtime.handleWebhook(
-      new Request("https://paperclip.test/webhook", { method: "POST" }),
+      new Request("https://nexus.test/webhook", { method: "POST" }),
     );
     try {
       await observed;
@@ -433,7 +433,7 @@ describe("Discord native question adapter-to-runtime boundary", () => {
     expect(
       (
         await runtime.handleWebhook(
-          new Request("https://paperclip.test/webhook", {
+          new Request("https://nexus.test/webhook", {
             method: "POST",
             body: JSON.stringify({ type: 3, transport: "discord_gateway" }),
           }),

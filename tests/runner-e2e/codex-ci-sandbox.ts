@@ -20,7 +20,7 @@ export async function prepareCodexCiSandbox(
   if (process.platform !== "linux" || process.env.GITHUB_ACTIONS !== "true")
     return;
   const runnerRequire = createRequire(
-    path.join(repositoryRoot, "packages/paperclip-runner/package.json"),
+    path.join(repositoryRoot, "packages/nexus-runner/package.json"),
   );
   const acpRequire = createRequire(
     runnerRequire.resolve("@agentclientprotocol/codex-acp/package.json"),
@@ -47,11 +47,11 @@ export async function prepareCodexCiSandbox(
       [
         "sandbox",
         "--permission-profile",
-        "paperclip-e2e-probe",
+        "nexus-e2e-probe",
         "-c",
-        'permissions.paperclip-e2e-probe.filesystem={":root"="read"}',
+        'permissions.nexus-e2e-probe.filesystem={":root"="read"}',
         "-c",
-        "permissions.paperclip-e2e-probe.network.enabled=false",
+        "permissions.nexus-e2e-probe.network.enabled=false",
         "-C",
         temporaryRoot,
         "--",

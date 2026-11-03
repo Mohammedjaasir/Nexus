@@ -115,7 +115,7 @@ export function verifyChatAdmissionWaitCoverage(input: {
   const stopped = rows.find(row => row!.id === input.stoppedRunId), cancellation = object(object(stopped?.resultJson)?.nativeCancellation);
   require(stopped && stopped.runtimeMode === "native" && stopped.status === "cancelled" &&
     stopped.companyId === input.companyId && stopped.agentId === input.agentId && stopped.nativeIssueId === issue.id &&
-    cancellation?.schema === "paperclip.native-cancellation.v1" && cancellation.runId === stopped.id &&
+    cancellation?.schema === "nexus.native-cancellation.v1" && cancellation.runId === stopped.id &&
     cancellation.companyId === input.companyId && cancellation.issueId === issue.id && cancellation.scope === "run" &&
     cancellation.reasonCode === "cancellation_run_only" && cancellation.dispatchState === "acknowledged" &&
     cancellation.dispatched === true, "stopped_native_source");
@@ -161,11 +161,11 @@ export function verifyChatAdmissionWaitCoverage(input: {
       authorization.actorId === comment[0]!.authorUserId && authorization.runId === reset[0]!.id &&
       authorization.queuedCommentRequestId === wait.wakeupRequestId &&
       authorization.commentBodyHash === createHash("sha256").update("/new").digest("hex") &&
-      recovery?.schema === "paperclip.system-recovery.v1" && recovery.sourceRunId === stopped.id && recovery.state === "complete" &&
+      recovery?.schema === "nexus.system-recovery.v1" && recovery.sourceRunId === stopped.id && recovery.state === "complete" &&
       recovery.phase === "reconcile_effects" && Array.isArray(recovery.preservationOperationIds) && recovery.preservationOperationIds.length > 0 &&
       recovery.preservationOperationIds.every(uuid) && new Set(recovery.preservationOperationIds).size === recovery.preservationOperationIds.length &&
-      preservation?.schema === "paperclip.workspace-recovery.v1" && preservation.runId === stopped.id && preservation.status === "recovered" &&
-      inspection?.schema === "paperclip.workspace-source-inspection.v1" && inspection.actionId === wait.recoveryActionId &&
+      preservation?.schema === "nexus.workspace-recovery.v1" && preservation.runId === stopped.id && preservation.status === "recovered" &&
+      inspection?.schema === "nexus.workspace-source-inspection.v1" && inspection.actionId === wait.recoveryActionId &&
       inspection.runId === stopped.id && inspection.scope === "recorded_source_identity" && inspection.status === "verified", "preserved_native_source");
     waits.push(wait);
   }

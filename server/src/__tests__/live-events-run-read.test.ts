@@ -1,5 +1,5 @@
 import { readTaskPanelActivations } from "../services/plugin-task-panels.js";
-import { plugins, heartbeatRunEvents } from "@paperclipai/db";
+import { plugins, heartbeatRunEvents } from "@nexusai/db";
 import { subscribeCompanyLiveEvents } from "../services/live-events.js";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { homedir } from "node:os";
@@ -17,8 +17,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   agentApiKeys, agents, authUsers, companies, companyMemberships, createDb,
   heartbeatRuns, issueAccessGrants, issues, type Db,
-} from "@paperclipai/db";
-import * as schema from "@paperclipai/db/schema/index";
+} from "@nexusai/db";
+import * as schema from "@nexusai/db/schema/index";
 import { setupLiveEventsWebSocketServer } from "../realtime/live-events-ws.js";
 import { publishLiveEvent } from "../services/live-events.js";
 import { authorizationService, type AuthorizationActor } from "../services/authorization.js";
@@ -28,21 +28,21 @@ import { startRecoveryPostgres } from "./helpers/recovery-postgres.js";
 describe("live-event run read boundaries", () => {
   let temporary: Awaited<ReturnType<typeof startRecoveryPostgres>>;
   let db: Db;
-  const previousPrivacy = process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-  const previousMasterKey = process.env.PAPERCLIP_SECRETS_MASTER_KEY;
+  const previousPrivacy = process.env.NEXUS_ISSUE_PRIVACY_MODE;
+  const previousMasterKey = process.env.NEXUS_SECRETS_MASTER_KEY;
 
   beforeAll(async () => {
     temporary = await startRecoveryPostgres("live-event-run-reads-");
     db = createDb(temporary.connectionString);
-    process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = "enforce";
-    process.env.PAPERCLIP_SECRETS_MASTER_KEY = randomBytes(32).toString("base64");
+    process.env.NEXUS_ISSUE_PRIVACY_MODE = "enforce";
+    process.env.NEXUS_SECRETS_MASTER_KEY = randomBytes(32).toString("base64");
   }, 120_000);
 
   afterAll(async () => {
-    if (previousPrivacy === undefined) delete process.env.PAPERCLIP_ISSUE_PRIVACY_MODE;
-    else process.env.PAPERCLIP_ISSUE_PRIVACY_MODE = previousPrivacy;
-    if (previousMasterKey === undefined) delete process.env.PAPERCLIP_SECRETS_MASTER_KEY;
-    else process.env.PAPERCLIP_SECRETS_MASTER_KEY = previousMasterKey;
+    if (previousPrivacy === undefined) delete process.env.NEXUS_ISSUE_PRIVACY_MODE;
+    else process.env.NEXUS_ISSUE_PRIVACY_MODE = previousPrivacy;
+    if (previousMasterKey === undefined) delete process.env.NEXUS_SECRETS_MASTER_KEY;
+    else process.env.NEXUS_SECRETS_MASTER_KEY = previousMasterKey;
     await temporary?.cleanup();
   });
 
@@ -281,7 +281,7 @@ describe("live-event run read boundaries", () => {
       const baseline = queries.length;
       publishLiveEvent({ companyId, type: "heartbeat.run.event", payload: sourcePayload }); await barrier();
       expect(messages.some(message => message.type === "heartbeat.run.event")).toBe(false);
-      expect(queries.slice(baseline).some(query => query.includes("paperclipSecretRedactions") || query.includes('from "instance_settings"'))).toBe(false);
+      expect(queries.slice(baseline).some(query => query.includes("nexusSecretRedactions") || query.includes('from "instance_settings"'))).toBe(false);
       socket.send(JSON.stringify({ type: "live.interests", version: 1, revision: 2, runIds: [run.id] }));
       await expect.poll(() => messages.some(message => message.type === "live.subscribed" && message.revision === 2)).toBe(true);
       publishLiveEvent({ companyId, type: "heartbeat.run.event", payload: sourcePayload }); await barrier();

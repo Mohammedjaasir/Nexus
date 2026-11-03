@@ -5,7 +5,7 @@ import {
   type AiConnectionBinding,
   type AiRuntimeConnectionBinding,
   type AiProvider,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 // Only keys read by the child's provider express a child auth override.
 // A config copied from another provider can retain unrelated keys.
@@ -14,7 +14,7 @@ const PROVIDER_AUTH_ENV_KEYS: Record<AiProvider, readonly string[]> = {
   google: ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GEMINI_BASE_URL"],
   anthropic: ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR", "ANTHROPIC_BASE_URL", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY"],
   openai: ["OPENAI_API_KEY", "CODEX_API_KEY", "CODEX_HOME", "OPENAI_BASE_URL"],
-  openrouter: ["OPENROUTER_API_KEY", "OPENCODE_AUTH_JSON", "OPENCODE_CONFIG_CONTENT", "OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR", "PAPERCLIP_OPENCODE_PROVIDERS"],
+  openrouter: ["OPENROUTER_API_KEY", "OPENCODE_AUTH_JSON", "OPENCODE_CONFIG_CONTENT", "OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR", "NEXUS_OPENCODE_PROVIDERS"],
   xai: ["XAI_API_KEY", "GROK_API_KEY", "GROK_HOME", "XAI_BASE_URL"],
 };
 
@@ -40,7 +40,7 @@ export function defaultAiConnectionForHire(
     // OpenCode also supports explicitly configured providers whose models are
     // outside the managed OpenRouter catalog. Their auth still takes precedence.
     const childProvider = adapterType === "opencode_local"
-      || (adapterType === "paperclip_runner" && config.provider === "opencode")
+      || (adapterType === "nexus_runner" && config.provider === "opencode")
       ? "openrouter"
       : AI_PROVIDERS.find((provider) =>
         compatible({ provider, method: "api_key", mode: "responsible_user" }));

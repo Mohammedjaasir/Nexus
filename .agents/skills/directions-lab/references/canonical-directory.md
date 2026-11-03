@@ -217,7 +217,7 @@ cd ui && npx vitest run storybook/map-tooling.test.ts  # 1 passed; wraps the thr
 
 The vitest wrapper is the CI signal (`maps/storybook-map/README.md:104-105`); a green
 `node --test` alone is not. `cd ui && pnpm typecheck` also re-runs the catalog (`ui/package.json:23`);
-report it as not run if `@paperclipai/plugin-sdk` is not built.
+report it as not run if `@nexusai/plugin-sdk` is not built.
 
 With Part 2 merged, a lab records stages as `lifecycle.md` mode B says: proposed and adopted map
 to `status: "proposed"`, current to `"current"`, historical to `"historical"` plus `replacement`.
@@ -230,7 +230,7 @@ In the same PR amend README line 34 from `status: "proposed"` to "`status` of `p
 
 ## What does not change
 
-- The literal-only rule: `parameters.paperclip` is parsed, never executed, and must follow
+- The literal-only rule: `parameters.nexus` is parsed, never executed, and must follow
   spreads (`scripts/storybook-catalog.mjs:26-59`). Stage never becomes a computed value.
 - The `statuses` list (`:13`) and the `home` allow-list (`:95`): no new status, no new home.
 - Meta ids and exports: `stableId` is required (`:109`) and every id stays; Part 1 removes the

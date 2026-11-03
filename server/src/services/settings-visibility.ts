@@ -1,14 +1,14 @@
-import { experimentalSettingKey, INSTANCE_FEATURE_KEYS, parseHiddenSettingsList } from "@paperclipai/shared";
+import { experimentalSettingKey, INSTANCE_FEATURE_KEYS, parseHiddenSettingsList } from "@nexusai/shared";
 import { logger } from "../middleware/logger.js";
 import { isCloudStagingExperimentalSetting, isCloudStagingInstance } from "./cloud-instance.js";
 
 /**
- * Operator-hidden settings, from the `PAPERCLIP_HIDDEN_SETTINGS` env var
+ * Operator-hidden settings, from the `NEXUS_HIDDEN_SETTINGS` env var
  * (comma-separated keys from the shared settings-visibility registry). Unknown
  * keys are warned about once and ignored so one list can be rolled across a
  * fleet of mixed app versions without refusing boot on older images.
  */
-export const HIDDEN_SETTINGS_ENV_KEY = "PAPERCLIP_HIDDEN_SETTINGS";
+export const HIDDEN_SETTINGS_ENV_KEY = "NEXUS_HIDDEN_SETTINGS";
 
 export type HiddenSettingsEnv = Record<string, string | undefined>;
 

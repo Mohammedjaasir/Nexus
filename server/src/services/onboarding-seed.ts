@@ -1,13 +1,13 @@
 import { and, eq, ne, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { agents, companyOnboardingSeeds, goals, issues, projects } from "@paperclipai/db";
-import type { ApplyOnboardingSeed } from "@paperclipai/shared";
-import { writePaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
+import type { Db } from "@nexusai/db";
+import { agents, companyOnboardingSeeds, goals, issues, projects } from "@nexusai/db";
+import type { ApplyOnboardingSeed } from "@nexusai/shared";
+import { writeNexusSkillSyncPreference } from "@nexusai/adapter-utils/server-utils";
 import { findActiveServerAdapter } from "../adapters/registry.js";
 import { agentService } from "./agents.js";
 import { createAgentLifecycle, scheduleAgentLifecycle } from "./agent-lifecycle.js";
-import { withDedicatedDbConnection } from "@paperclipai/db";
-import { PAPERCLIP_CORE_SKILL_KEYS } from "./company-skills.js";
+import { withDedicatedDbConnection } from "@nexusai/db";
+import { NEXUS_CORE_SKILL_KEYS } from "./company-skills.js";
 import { goalService } from "./goals.js";
 import { projectService } from "./projects.js";
 import { issueService } from "./issues.js";
@@ -36,19 +36,19 @@ const SEEDED_AGENT_ROLE = "ceo";
 const FALLBACK_SEEDED_AGENT_ADAPTER_TYPE = "claude_local";
 
 function seededAgentAdapterType() {
-  const configured = process.env.PAPERCLIP_ONBOARDING_SEED_ADAPTER_TYPE?.trim()
-    || process.env.PAPERCLIP_TEAMS_CATALOG_DEFAULT_ADAPTER_TYPE?.trim()
+  const configured = process.env.NEXUS_ONBOARDING_SEED_ADAPTER_TYPE?.trim()
+    || process.env.NEXUS_TEAMS_CATALOG_DEFAULT_ADAPTER_TYPE?.trim()
     || FALLBACK_SEEDED_AGENT_ADAPTER_TYPE;
   // Server-seeded onboarding deliberately stays on a direct adapter. Native
   // runner rollout is an explicit post-onboarding configuration choice.
-  return configured === "paperclip_runner"
+  return configured === "nexus_runner"
     ? FALLBACK_SEEDED_AGENT_ADAPTER_TYPE
     : configured;
 }
 
 /**
  * Adapter config for the seeded CEO. The default CEO instructions tell the
- * agent to use the core paperclip skills (hiring, memory, coordination), and
+ * agent to use the core nexus skills (hiring, memory, coordination), and
  * an agent's runtime only receives skills listed in its own desired set — so
  * a seeded CEO with an empty adapter config arrives with zero skills and
  * truthfully reports its own toolkit as not installed. Enable the core set
@@ -57,9 +57,9 @@ function seededAgentAdapterType() {
 function seededAgentAdapterConfig(adapterType: string): Record<string, unknown> {
   const adapter = findActiveServerAdapter(adapterType);
   if (!adapter?.listSkills && !adapter?.syncSkills) return {};
-  return writePaperclipSkillSyncPreference(
+  return writeNexusSkillSyncPreference(
     {},
-    PAPERCLIP_CORE_SKILL_KEYS.map((key) => ({ key, versionId: null })),
+    NEXUS_CORE_SKILL_KEYS.map((key) => ({ key, versionId: null })),
   );
 }
 
@@ -360,7 +360,7 @@ export function onboardingSeedService(db: Db) {
     const publications: ActivityPublication[] = [];
 
     const database = db;
-    const lockKey = `paperclip:onboarding-seed:${companyId}`;
+    const lockKey = `nexus:onboarding-seed:${companyId}`;
     return withDedicatedDbConnection(db, lockDb => lockDb.transaction(async lock => {
       await lock.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
       const preparedAgentId = await prepareAgent(database, companyId, seed, audit);

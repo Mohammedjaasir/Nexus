@@ -6,14 +6,14 @@ import { join, resolve } from "node:path";
 import { createConnection, createServer } from "node:net";
 import WebSocket from "ws";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { RunnerProcessHandle, RunnerProcessLaunchSpec } from "../../vendor/paperclip-runner/index.js";
-import * as runnerRuntime from "../../vendor/paperclip-runner/index.js";
-const { spawnRunner } = await import(new URL("../../../../packages/paperclip-runner/src/control-plane/durable-prp-control-plane.ts", import.meta.url).href) as {
+import type { RunnerProcessHandle, RunnerProcessLaunchSpec } from "../../vendor/nexus-runner/index.js";
+import * as runnerRuntime from "../../vendor/nexus-runner/index.js";
+const { spawnRunner } = await import(new URL("../../../../packages/nexus-runner/src/control-plane/durable-prp-control-plane.ts", import.meta.url).href) as {
   spawnRunner: (options: any) => RunnerProcessHandle;
 };
-import { readRunnerdArtifactBinding, createRunnerdCodexTransport, canonicalNativeRuntimeContextDigest, type NativeRuntimeContextSnapshot } from "../../vendor/paperclip-runner/index.js";
-import { bindRunnerLaunchResources, createRunnerProviderLaunch, runnerLaunchRequirementsDigest } from "@paperclipai/paperclip-runner";
-import type { PluginEnvironmentTaskOperation, PluginEnvironmentTaskResult } from "@paperclipai/plugin-sdk";
+import { readRunnerdArtifactBinding, createRunnerdCodexTransport, canonicalNativeRuntimeContextDigest, type NativeRuntimeContextSnapshot } from "../../vendor/nexus-runner/index.js";
+import { bindRunnerLaunchResources, createRunnerProviderLaunch, runnerLaunchRequirementsDigest } from "@nexusai/nexus-runner";
+import type { PluginEnvironmentTaskOperation, PluginEnvironmentTaskResult } from "@nexusai/plugin-sdk";
 import { createPluginRunnerTaskOwner } from "./plugin-runner-task.js";
 import { probePluginRunnerEnvironment } from "./plugin-runner-probe.js";
 
@@ -37,8 +37,8 @@ vi.mock("../../realtime/runner-prp-outbound.js", async importOriginal => {
 
 describe("plugin Runner setup", () => {
   beforeAll(() => {
-    execFileSync("cargo", ["build", "--release", "--locked", "--manifest-path", "packages/paperclip-runner/runner/Cargo.toml",
-      "-p", "paperclip-runner-core", "--bin", "paperclip-runnerd", "--bin", "fake-codex-app-server"], { stdio: "pipe" });
+    execFileSync("cargo", ["build", "--release", "--locked", "--manifest-path", "packages/nexus-runner/runner/Cargo.toml",
+      "-p", "nexus-runner-core", "--bin", "nexus-runnerd", "--bin", "fake-codex-app-server"], { stdio: "pipe" });
   }, 600_000);
   it("preserves the typed cleanup owner and removes its local root only after late proof", async () => {
     let root: string | undefined, options: Parameters<typeof runnerRuntime.probeNativeRunnerEnvironment>[0] | undefined;
@@ -53,7 +53,7 @@ describe("plugin Runner setup", () => {
       root = input.runtimeDirectory; options = input; throw failure;
     });
     try {
-      await expect(probePluginRunnerEnvironment({ companyId: "fixture-company", adapterType: "paperclip_runner", config: { provider: "codex", model: "fixture-model" },
+      await expect(probePluginRunnerEnvironment({ companyId: "fixture-company", adapterType: "nexus_runner", config: { provider: "codex", model: "fixture-model" },
         executionTarget: { kind: "remote", transport: "sandbox", remoteCwd: ".", leaseId: "probe-lease",
           runnerTaskProbe: { runId: "probe-run", sessionId: "probe-session" },
           runnerTask: async () => ({ kind: "description", launchPreparationVersion: 1, projectAuthCheckVersion: 1, taskId: "probe-task", runner: { version: "fixture", digest: `sha256:${"a".repeat(64)}` } }),
@@ -76,7 +76,7 @@ describe("plugin Runner setup", () => {
       return { provider: config.provider, providerDriver: config.provider === "codex" ? "codex_app_server" : "acpx_runtime", effectiveModel: config.model, helloProbePassed: true };
     });
     try {
-      const result = await probePluginRunnerEnvironment({ companyId: "fixture-company", adapterType: "paperclip_runner",
+      const result = await probePluginRunnerEnvironment({ companyId: "fixture-company", adapterType: "nexus_runner",
         config,
         executionTarget: { kind: "remote", transport: "sandbox", remoteCwd: ".", leaseId: "probe-lease",
           runnerTaskProbe: { runId: "probe-run", sessionId: "probe-session" },
@@ -93,7 +93,7 @@ describe("plugin Runner setup", () => {
     { managedAiConnection: { identity: "untrusted-config-identity" } },
   ])("rejects untrusted account input before testing an installed account: %j", async supplied => {
     const task = vi.fn();
-    const result = await probePluginRunnerEnvironment({ companyId: "fixture", adapterType: "paperclip_runner",
+    const result = await probePluginRunnerEnvironment({ companyId: "fixture", adapterType: "nexus_runner",
       config: { provider: "codex", model: "fixture", ...supplied },
       executionTarget: { kind: "remote", transport: "sandbox", remoteCwd: ".", leaseId: "probe-lease",
         runnerTaskProbe: { runId: "probe-run", sessionId: "probe-session" }, runnerTask: task } });
@@ -109,8 +109,8 @@ describe("plugin Runner setup", () => {
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     const port = (server.address() as { port: number }).port;
     await new Promise<void>(resolve => server.close(() => resolve()));
-    const runnerBinary = resolve("packages/paperclip-runner/runner/target/release/paperclip-runnerd");
-    const fakeCodex = resolve("packages/paperclip-runner/runner/target/release/fake-codex-app-server");
+    const runnerBinary = resolve("packages/nexus-runner/runner/target/release/nexus-runnerd");
+    const fakeCodex = resolve("packages/nexus-runner/runner/target/release/fake-codex-app-server");
     const codexCommand = join(root, "codex");
     await writeFile(codexCommand, `#!/bin/sh\nexec '${fakeCodex.replace(/'/g, "'\\''")}' "$@" --state-file '${join(root, "fake-state.json")}' ${mode === "wrong-model" ? "--returned-model wrong-model" : ""}\n`);
     await chmod(codexCommand, 0o700);
@@ -219,10 +219,10 @@ describe("plugin Runner setup", () => {
         const context = (bindingId: string): NativeRuntimeContextSnapshot => {
           const digest = "0".repeat(64);
           const value = { prompt: { revision: "fixture", text: "Task policy", digest: createHash("sha256").update("Task policy").digest("hex") },
-            instructions: { entryPath: "AGENTS.md", bundle: { schema: "paperclip.runtime-asset.v1" as const,
+            instructions: { entryPath: "AGENTS.md", bundle: { schema: "nexus.runtime-asset.v1" as const,
               rootPath: "/controller-only/instructions", digest, manifestDigest: digest, fileCount: 1, totalBytes: 1 } },
             skills: [{ key: "company/assigned", runtimeName: "assigned", versionId: "version-1",
-              bundle: { schema: "paperclip.runtime-asset.v1" as const, rootPath: "/controller-only/skills", digest,
+              bundle: { schema: "nexus.runtime-asset.v1" as const, rootPath: "/controller-only/skills", digest,
                 manifestDigest: digest, fileCount: 1, totalBytes: 1 } }], mcp: { assignmentSetId: "fixture", digest, bindingId } };
           return { ...value, aggregateDigest: canonicalNativeRuntimeContextDigest(value) };
         };
@@ -271,7 +271,7 @@ describe("plugin Runner setup", () => {
         expect(operations.filter(op => op.kind === "submit")[1]).toMatchObject({ resumeFrom: "task" });
         return;
       }
-      const result = await probePluginRunnerEnvironment({ companyId: "fixture", adapterType: "paperclip_runner",
+      const result = await probePluginRunnerEnvironment({ companyId: "fixture", adapterType: "nexus_runner",
         config: { provider: "codex", model: "gpt-6.1-sol", env: ["managed-account", "unsafe-project"].includes(mode)
             ? { OPENAI_API_KEY: "core-secret-not-transferred", CODEX_HOME: accountHome } : {},
           ...(["managed-account", "unsafe-project"].includes(mode) ? { managedAiConnection: { identity: "selected-revision", sessionIdentity: "selected-account" } } : {}) },

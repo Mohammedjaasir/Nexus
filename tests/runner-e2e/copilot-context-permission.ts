@@ -31,17 +31,17 @@ export function pendingCopilotContextPermission(events: readonly unknown[], comp
     || group.some(n => n.target !== undefined || n.commandSha256 !== undefined || n.shellId !== undefined || n.readTargetSha256 !== undefined)) throw new Error("Context fixture lacks an exact read-only origin");
   for (const r of [row, ...canonical, ...group.map(n => rows.find(r => r.seq === n.seq)!)]) {
     const e = record(record(r?.payload).prpEvent);
-    if (r?.companyId !== companyId || r.runId !== runId || e.schema !== "paperclip.prp.event.v1" || e.sourceKind !== "runner"
+    if (r?.companyId !== companyId || r.runId !== runId || e.schema !== "nexus.prp.event.v1" || e.sourceKind !== "runner"
       || e.eventType !== r.eventType || e.runId !== runId || e.turnId !== native.turnId || e.normalizedSessionId !== frame.normalizedSessionId
       || e.sourceInstanceId !== frame.sourceInstanceId || r.sourceInstanceId !== e.sourceInstanceId || r.sourceSeq !== e.sourceSeq
       || !Number.isSafeInteger(e.sourceSeq) || !Number.isSafeInteger(r.seq)) throw new Error("Context fixture has foreign durable evidence");
   }
-  if (request.schema !== "paperclip.runtime_request.v2" || request.type !== "permission" || request.status !== "pending"
+  if (request.schema !== "nexus.runtime_request.v2" || request.type !== "permission" || request.status !== "pending"
     || request.requestKind !== "permission_approval" || request.turnId !== native.turnId || request.method !== "session/request_permission"
     || !(hasAcpxNativeOrigin(request.origin, "copilot", "session/request_permission") || hasAcpxNativeOrigin(request.origin, "acpx", "session/request_permission"))
     || !Array.isArray(request.choices) || !["accept", "decline"].every(key => request.choices.some((c: Row) => c.key === key))) throw new Error("Context fixture cannot approve this card");
   const tool = record(record(record(canonical[0]?.payload).prpEvent).payload);
-  if (canonical.length && (tool.name !== `paperclip-${operationId}` || tool.operation !== (discovery ? "search" : "read") || tool.readOnly !== true || tool.target !== null || tool.transport !== "builtin")) throw new Error("Context fixture cannot approve this card");
+  if (canonical.length && (tool.name !== `nexus-${operationId}` || tool.operation !== (discovery ? "search" : "read") || tool.readOnly !== true || tool.target !== null || tool.transport !== "builtin")) throw new Error("Context fixture cannot approve this card");
   if (!started.length || !canonical.length) return undefined; // Await matching origin rows within the existing deadline.
   if (discovery && !isCopilotContextDiscoveryProgress(tool.progress)) throw new Error("Context discovery must search only for the required context tool");
   return { operationId, runId, requestId: native.requestId!, turnId: native.turnId, toolCallId: native.toolCallId };
@@ -78,7 +78,7 @@ export async function approveCopilotContextThroughUi(input: {
     await card.getByRole("button", { name: "Allow once", exact: true }).click();
     const body = (await sent).postDataJSON();
     if (body.turnId !== pending.turnId || body.requestKind !== "permission_approval" || body.resolution?.action !== "accept") throw new Error("Context fixture submitted a foreign decision");
-    await input.evidence(`copilot-initial-${index}-${pending.operationId}-decision.json`, { schema: "paperclip.e2e.copilot-context-decision.v1", ...pending, action: "accept", source: "normal browser permission card; fixture human decision" });
+    await input.evidence(`copilot-initial-${index}-${pending.operationId}-decision.json`, { schema: "nexus.e2e.copilot-context-decision.v1", ...pending, action: "accept", source: "normal browser permission card; fixture human decision" });
     if (pending.operationId === "get_task_context") return;
   }
   throw new Error("Context fixture exhausted its bounded bootstrap decisions");

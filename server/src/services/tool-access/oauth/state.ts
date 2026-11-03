@@ -1,9 +1,9 @@
 import { notifyIssueReviewState } from "../../issue-review-state-notifications.js";
 import type { ActorInfo } from "../types.js";
 import { and, eq } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { issueThreadInteractions, toolOauthStates } from "@paperclipai/db";
-import { connectionIntentPayloadSchema } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { issueThreadInteractions, toolOauthStates } from "@nexusai/db";
+import { connectionIntentPayloadSchema } from "@nexusai/shared";
 import { badRequest, forbidden } from "../../../errors.js";
 
 import { actorBinding } from "../actor.js";

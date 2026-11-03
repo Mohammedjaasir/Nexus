@@ -1,6 +1,6 @@
 import { withExternalAdmissionGuard } from "../modules/external-agents/index.js";
 import { and, eq, gt, gte, inArray, isNull, sql } from "drizzle-orm";
-import { museAgentBindings, museMailboxItems, museRunnerAssignments, museRunnerOperations, agentWakeupRequests, heartbeatRuns, issueComments, issues, type Db } from "@paperclipai/db";
+import { museAgentBindings, museMailboxItems, museRunnerAssignments, museRunnerOperations, agentWakeupRequests, heartbeatRuns, issueComments, issues, type Db } from "@nexusai/db";
 import { queuedCommentIdsFromWakePayload, withQueuedCommentIdsInWakePayload } from "./issue-queued-comment-queue.js";
 
 /** Call inside the issue admission transaction, while its execution lock is held.

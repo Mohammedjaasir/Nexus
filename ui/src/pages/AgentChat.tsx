@@ -11,7 +11,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { Link, useParams } from "@/lib/router";
 import { agentRouteRef } from "@/lib/utils";
 import { TaskDetailSurface } from "./IssueDetail";
-import { isUuidLike, type Issue } from "@paperclipai/shared";
+import { isUuidLike, type Issue } from "@nexusai/shared";
 
 export function AgentChat() {
   const { agentRef = "" } = useParams<{ agentRef: string }>();

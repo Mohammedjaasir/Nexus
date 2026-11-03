@@ -11,8 +11,8 @@ import { getSecretProvider } from "../secrets/provider-registry.js";
 // Provider contracts (commercial personal chats, no Graph authorization added):
 // https://learn.microsoft.com/en-us/microsoftteams/platform/bots/how-to/bots-filesv4
 // https://learn.microsoft.com/en-us/graph/api/driveitem-createuploadsession
-const SCHEMA = "paperclip.teams.file-consent.v1";
-const INSTALLED_HOOK = Symbol("paperclip.teams.file-consent.hook");
+const SCHEMA = "nexus.teams.file-consent.v1";
+const INSTALLED_HOOK = Symbol("nexus.teams.file-consent.hook");
 const MAX_RESPONSE_BYTES = 64 * 1024;
 const MAX_URL_LENGTH = 8192;
 const opaqueId = z
@@ -107,7 +107,7 @@ async function sealPrivate(
   try {
     const prepared = await getSecretProvider("local_encrypted").createSecret({
       value: JSON.stringify({
-        schema: "paperclip.teams.file-private.v1",
+        schema: "nexus.teams.file-private.v1",
         context: parsed.data,
         purpose,
         value,
@@ -135,7 +135,7 @@ async function openPrivate(
     if (Buffer.byteLength(plaintext) > 64 * 1024) throw new Error();
     const envelope = z
       .object({
-        schema: z.literal("paperclip.teams.file-private.v1"),
+        schema: z.literal("nexus.teams.file-private.v1"),
         context: privateContextSchema,
         purpose: z.string(),
         value: z.unknown(),
@@ -270,7 +270,7 @@ export function buildTeamsFileConsentCard(binding: TeamsFileConsentBinding) {
     contentType: "application/vnd.microsoft.teams.card.file.consent" as const,
     name: validated.filename,
     content: {
-      description: "Allow Paperclip to upload this file to your OneDrive.",
+      description: "Allow Nexus to upload this file to your OneDrive.",
       sizeInBytes: validated.byteSize,
       acceptContext: {
         schema: SCHEMA,
@@ -1131,7 +1131,7 @@ export function parseTeamsFileConsentCard(
       content: z
         .object({
           description: z.literal(
-            "Allow Paperclip to upload this file to your OneDrive.",
+            "Allow Nexus to upload this file to your OneDrive.",
           ),
           sizeInBytes: z
             .number()

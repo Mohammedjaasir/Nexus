@@ -57,7 +57,7 @@ afterEach(() => {
 
 describe("configure invalid-config repair", () => {
   it("repairs only after confirmation and commits the staged config atomically", async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-configure-repair-"));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-configure-repair-"));
     const configPath = path.join(root, "config.json");
     const invalidBytes = Buffer.from('{"server": invalid}\n', "utf8");
     fs.writeFileSync(configPath, invalidBytes);

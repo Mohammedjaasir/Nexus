@@ -1,4 +1,4 @@
-import type { IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueWorkProduct } from "@nexusai/shared";
 import { Badge } from "@/components/ui/badge";
 import { pullRequestHref, pullRequestIdentity, pullRequestLabel, pullRequestNeedsReview, pullRequestState } from "@/lib/issue-pull-requests";
 import type { ExternalObjectPillData } from "./ExternalObjectPill";

@@ -5,7 +5,7 @@ import { MANUAL_PRIVATE_PROTOCOL } from "./manual-private-retention.js";
 import type { MatrixExecution } from "./types.js";
 
 const executionId = "chat-features.runner-opencode-deepseek-1017.local.create-backlog";
-const authority = "paperclip.shipped-chat-testops/v1";
+const authority = "nexus.shipped-chat-testops/v1";
 const repository = "paperclipai/paperclip";
 const workflow = ".github/workflows/chat-feature-testops.yml";
 
@@ -14,7 +14,7 @@ export function authorizeShippedChat(env: NodeJS.ProcessEnv, event: unknown, sel
   const branch = payload.repository?.default_branch;
   const actor = env.GITHUB_ACTOR_ID, triggering = env.TESTOPS_TRIGGERING_ACTOR_ID;
   const allowed = JSON.parse(env.TESTOPS_ALLOWED_ACTOR_IDS ?? "null");
-  if (env.PAPERCLIP_TESTOPS_CHAT_MAIN_ADMISSION !== "v1" || env.GITHUB_ACTIONS !== "true" || env.GITHUB_EVENT_NAME !== "workflow_dispatch"
+  if (env.NEXUS_TESTOPS_CHAT_MAIN_ADMISSION !== "v1" || env.GITHUB_ACTIONS !== "true" || env.GITHUB_EVENT_NAME !== "workflow_dispatch"
     || env.GITHUB_REPOSITORY !== repository || payload.repository?.full_name !== repository || payload.repository.private !== false
     || typeof branch !== "string" || !/^[A-Za-z0-9._/-]+$/.test(branch) || env.GITHUB_REF !== `refs/heads/${branch}` || payload.ref !== env.GITHUB_REF
     || env.GITHUB_WORKFLOW_REF !== `${repository}/${workflow}@refs/heads/${branch}` || !["chat", "report"].includes(env.GITHUB_JOB ?? "")

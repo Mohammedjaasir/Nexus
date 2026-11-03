@@ -23,7 +23,7 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
     result = {
       protocolVersion: 1,
       agentCapabilities: { loadSession: false, sessionCapabilities: { close: {} } },
-      agentInfo: { name: "paperclip-acp-filesystem-fixture", version: "1.0.0" },
+      agentInfo: { name: "nexus-acp-filesystem-fixture", version: "1.0.0" },
     };
   } else if (message.method === "session/new") {
     result = { sessionId: "filesystem-fixture" };

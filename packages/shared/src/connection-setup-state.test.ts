@@ -23,7 +23,7 @@ describe("connectionSetupStateForApp", () => {
   });
 
   it.each(["gmail", "asana"])("follows %s ownership availability rather than the catalog order", (slug) => {
-    // These providers publish a Paperclip-managed method, but it is
+    // These providers publish a Nexus-managed method, but it is
     // `platform_shared` and therefore unavailable until an operator configures
     // the cloud connector. The state has to reflect what this instance can
     // actually do, or the card promises one click and the screen shows a form.

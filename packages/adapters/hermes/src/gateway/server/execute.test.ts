@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import type { AdapterExecutionContext } from "@paperclipai/adapter-utils";
-import { createPromptContextFixture } from "@paperclipai/adapter-utils/test-fixtures/prompt-context";
+import type { AdapterExecutionContext } from "@nexusai/adapter-utils";
+import { createPromptContextFixture } from "@nexusai/adapter-utils/test-fixtures/prompt-context";
 import { execute, mapFinalResultForTest, parseSseFramesForTest, resolveSessionKey } from "./execute.js";
 import { testEnvironment } from "./test.js";
 import { parseHermesGatewayStdoutLine } from "../ui/parse-stdout.js";
@@ -25,7 +25,7 @@ function makeCtx(config: Record<string, unknown>): AdapterExecutionContext {
     context: {
       issueId: "issue-1",
       wakeReason: "manual",
-      paperclipWake: {
+      nexusWake: {
         issue: { identifier: "PAP-1", title: "Do the thing" },
       },
     },
@@ -57,7 +57,7 @@ describe("resolveSessionKey", () => {
         runId: "run-1",
         issueId: "issue-1",
       }),
-    ).toBe("paperclip:company:company-1:agent:agent-1:issue:issue-1");
+    ).toBe("nexus:company:company-1:agent:agent-1:issue:issue-1");
   });
 
   it("omits the session key for none strategy", () => {
@@ -202,11 +202,11 @@ describe("execute", () => {
       Authorization: "Bearer secret-key",
       "Content-Type": "application/json",
       "Idempotency-Key": "pc-run-1",
-      "X-Hermes-Session-Key": "paperclip:company:company-1:agent:agent-1:issue:issue-1",
+      "X-Hermes-Session-Key": "nexus:company:company-1:agent:agent-1:issue:issue-1",
     });
     const body = JSON.parse(String(init.body));
     expect(body.input).toContain("Do the thing");
-    expect(body.session_id).toBe("paperclip:company:company-1:agent:agent-1:issue:issue-1");
+    expect(body.session_id).toBe("nexus:company:company-1:agent:agent-1:issue:issue-1");
   });
 
   it.each([false, true])("preserves chat handoff policy on gateway turns (resumed=%s)", async (resumed) => {
@@ -222,9 +222,9 @@ describe("execute", () => {
     ctx.context = {
       conversationMode: true,
       issueId: "issue-1",
-      paperclipTaskMarkdown: directive,
-      paperclipTaskMarkdownCompact: directive,
-      paperclipWake: {
+      nexusTaskMarkdown: directive,
+      nexusTaskMarkdownCompact: directive,
+      nexusWake: {
         reason: "issue_commented",
         issue: { id: "issue-1", workMode: "planning", status: "in_progress" },
         interactionKind: "request_confirmation",
@@ -246,7 +246,7 @@ describe("execute", () => {
   it("sends the task brief once on fresh runs and compacts it on stable-session resumes", async () => {
     const description = "Update launch-card.svg and change the CTA to Try Team free.";
     const fullTaskMarkdown = [
-      "Paperclip task context:",
+      "Nexus task context:",
       '- Issue: "PAP-1"',
       "",
       "Issue description:",
@@ -254,7 +254,7 @@ describe("execute", () => {
       description,
       "```",
     ].join("\n");
-    const compactTaskMarkdown = ["Paperclip task context:", '- Issue: "PAP-1"'].join("\n");
+    const compactTaskMarkdown = ["Nexus task context:", '- Issue: "PAP-1"'].join("\n");
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith("/v1/runs")) {
@@ -267,9 +267,9 @@ describe("execute", () => {
     const wakeContext = (reason: string) => ({
       issueId: "issue-1",
       wakeReason: reason,
-      paperclipTaskMarkdown: fullTaskMarkdown,
-      paperclipTaskMarkdownCompact: compactTaskMarkdown,
-      paperclipWake: {
+      nexusTaskMarkdown: fullTaskMarkdown,
+      nexusTaskMarkdownCompact: compactTaskMarkdown,
+      nexusWake: {
         reason,
         issue: {
           id: "issue-1",
@@ -307,7 +307,7 @@ describe("execute", () => {
     // Fresh run: brief exactly once (task markdown only; wake-prompt copy suppressed).
     expect(runBodies[0]!.input.split(description)).toHaveLength(2);
     // Stable-session resume: compact task markdown, no re-sent brief.
-    expect(runBodies[1]!.input).toContain("Paperclip task context:");
+    expect(runBodies[1]!.input).toContain("Nexus task context:");
     expect(runBodies[1]!.input).not.toContain(description);
   });
 
@@ -421,16 +421,16 @@ describe("execute", () => {
     const ctx = makeCtx({ apiBaseUrl: "http://127.0.0.1:8642", apiKey: "secret-key" });
     ctx.context = {
       issueId: "issue-1",
-      paperclipTaskMarkdown: [
-        "Paperclip task context:",
+      nexusTaskMarkdown: [
+        "Nexus task context:",
         '- Issue: "PAP-1"',
       ].join("\n"),
-      paperclipTurnContext: {
+      nexusTurnContext: {
         version: 1,
         assignment: { owner: "task_markdown" },
         events: { owner: "wake_prompt", comments: [{ id: "comment-1", revision: "rev-1" }] },
       },
-      paperclipWake: {
+      nexusWake: {
         reason: "issue_commented",
         issue: { id: "issue-1", identifier: "PAP-1", title: "Do the thing", status: "in_progress" },
         commentWindow: { requestedCount: 1, includedCount: 1, missingCount: 0 },
@@ -505,10 +505,10 @@ describe("execute", () => {
           sseStream(
             [
               "event: message.delta",
-              "data: {\"delta\":\"Authorization: Bearer secret-key\\nX-Hermes-Session-Key: paperclip:company:company-1:agent:agent-1:issue:issue-1\"}",
+              "data: {\"delta\":\"Authorization: Bearer secret-key\\nX-Hermes-Session-Key: nexus:company:company-1:agent:agent-1:issue:issue-1\"}",
               "",
               "event: run.completed",
-              "data: {\"status\":\"completed\",\"output\":\"Authorization: Bearer secret-key\\nraw key secret-key\\nX-Hermes-Session-Key: paperclip:company:company-1:agent:agent-1:issue:issue-1\"}",
+              "data: {\"status\":\"completed\",\"output\":\"Authorization: Bearer secret-key\\nraw key secret-key\\nX-Hermes-Session-Key: nexus:company:company-1:agent:agent-1:issue:issue-1\"}",
               "",
             ].join("\n"),
           ),
@@ -527,22 +527,22 @@ describe("execute", () => {
     expect(result.summary).toContain("raw key [redacted len=10]");
     expect(result.summary).toContain("X-Hermes-Session-Key: [redacted]");
     expect(result.summary).not.toContain("secret-key");
-    expect(result.summary).not.toContain("paperclip:company:company-1:agent:agent-1:issue:issue-1");
+    expect(result.summary).not.toContain("nexus:company:company-1:agent:agent-1:issue:issue-1");
     expect(result.resultJson?.output).toBe(result.summary);
     expect(logText).toContain("Bearer [redacted]");
     expect(logText).toContain("X-Hermes-Session-Key: [redacted]");
     expect(logText).not.toContain("secret-key");
-    expect(logText).not.toContain("paperclip:company:company-1:agent:agent-1:issue:issue-1");
+    expect(logText).not.toContain("nexus:company:company-1:agent:agent-1:issue:issue-1");
   });
 
-  it("redacts agent-scoped Paperclip session keys from logs and public result metadata", async () => {
+  it("redacts agent-scoped Nexus session keys from logs and public result metadata", async () => {
     const ctx = makeCtx({
       apiBaseUrl: "http://127.0.0.1:8642",
       apiKey: "secret-key",
       sessionKeyStrategy: "agent",
       timeoutSec: 5,
     });
-    const agentSessionKey = "paperclip:company:company-1:agent:agent-1";
+    const agentSessionKey = "nexus:company:company-1:agent:agent-1";
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith("/v1/runs")) {
@@ -659,7 +659,7 @@ describe("execute", () => {
     ctx.onDispatch = vi.fn();
     const result = await execute(ctx);
 
-    expect(result.errorMessage).toContain("refers to the Paperclip server, not an agent sandbox");
+    expect(result.errorMessage).toContain("refers to the Nexus server, not an agent sandbox");
     expect(result.errorMessage).toContain("adapterConfig.apiBaseUrl");
     expect(result.errorMessage).toContain("hermes_local");
     expect(result.errorMessage).not.toContain("gateway-private-key");
@@ -693,7 +693,7 @@ describe("execute", () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw Object.assign(new Error("fetch failed"), { cause }); }));
     const result = await execute(makeCtx({ apiBaseUrl, apiKey: "secret-key" }));
     expect(result.errorCode).toBe("hermes_gateway_connect_failed");
-    expect(result.errorMessage).not.toContain("refers to the Paperclip server");
+    expect(result.errorMessage).not.toContain("refers to the Nexus server");
     expect(result.errorMeta).toEqual({});
     expect(result.executionRecovery).toBeUndefined();
   });
@@ -705,7 +705,7 @@ describe("execute", () => {
     const result = await execute(makeCtx({ apiBaseUrl: "http://127.0.0.1:8642", apiKey: "secret-key" }));
     expect(result.errorCode).toBe("hermes_gateway_upstream_error");
     expect(result.errorMeta?.category).toBeUndefined();
-    expect(result.errorMessage).not.toContain("refers to the Paperclip server");
+    expect(result.errorMessage).not.toContain("refers to the Nexus server");
     expect(result.executionRecovery).toBeUndefined();
   });
 
@@ -716,9 +716,9 @@ describe("execute", () => {
         new Response(
           JSON.stringify({
             message: "Authorization rejected: Bearer secret-key raw secret-key",
-            detail: "X-Hermes-Session-Key: paperclip:company:company-1:agent:agent-1:issue:issue-1",
+            detail: "X-Hermes-Session-Key: nexus:company:company-1:agent:agent-1:issue:issue-1",
             nested: {
-              note: "session paperclip:company:company-1:agent:agent-1",
+              note: "session nexus:company:company-1:agent:agent-1",
             },
           }),
           { status: 401 },
@@ -740,7 +740,7 @@ describe("execute", () => {
       },
     });
     expect(result.errorMessage).not.toContain("secret-key");
-    expect(result.errorMessage).not.toContain("paperclip:company:company-1:agent:agent-1:issue:issue-1");
+    expect(result.errorMessage).not.toContain("nexus:company:company-1:agent:agent-1:issue:issue-1");
   });
 
   it("calls stop on timeout", async () => {

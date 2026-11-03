@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { applyPendingMigrations, chatActions, createDb } from "@paperclipai/db";
+import { applyPendingMigrations, chatActions, createDb } from "@nexusai/db";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "../../../__tests__/helpers/full-database-response-capture.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../../__tests__/helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "../../../__tests__/helpers/external-test-database.js";
@@ -9,7 +9,7 @@ import { cleanupIngressFixture, githubIngressFixture as createFixture } from "..
 import { createGitHubWebhookIngress } from "./webhook-ingress.js";
 import { PROVIDER_EFFECT_STALE_MS } from "../../chat-action-work.js";
 
-const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_TEST_DATABASE_URL");
+const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_TEST_DATABASE_URL");
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 describe.skipIf(!support.supported)("GitHub webhook ingress claim PostgreSQL behavior", () => {
   let db: ReturnType<typeof createDb>;
@@ -67,7 +67,7 @@ describe.skipIf(!support.supported)("GitHub webhook ingress claim PostgreSQL beh
     expect(response?.status ?? null).toBe(accepted ? 202 : null);
     expect(await f.readAction(action.id)).toEqual(action);
     expect(f.calls).toEqual([]);
-    expect(events.find(event => event.event === "paperclip.test_db_response_capture.summary.v1")?.responseValueBytes).toBeLessThan(1024);
+    expect(events.find(event => event.event === "nexus.test_db_response_capture.summary.v1")?.responseValueBytes).toBeLessThan(1024);
   });
 
   it.each(["received", "failed", "processing"])("settles eligible malformed %s payloads without replay", async status => {

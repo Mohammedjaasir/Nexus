@@ -4,7 +4,7 @@ import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { IssueAttachment } from "@paperclipai/shared";
+import type { IssueAttachment } from "@nexusai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExternallyConnectedTaskBanner } from "./ExternallyConnectedTaskBanner";
 import { boardSendDraftKey, readBoardSendDraft } from "./board-send-draft";
@@ -159,7 +159,7 @@ describe("ExternallyConnectedTaskBanner publication truth", () => {
       endpointId: "endpoint-1",
       provider: "slack",
       botLabel: "Maya",
-      externalLabel: "#paperclip",
+      externalLabel: "#nexus",
       externalUrl: "https://example.slack.com/archives/channel-1",
       conversationId: "conversation-1",
       publicationState: null,

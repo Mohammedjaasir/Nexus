@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { companies, companySkills, companySkillVersions as versions, companySkillRepositorySnapshots as snapshots, skillPackageDeletions, createDb } from "@paperclipai/db";
+import { companies, companySkills, companySkillVersions as versions, companySkillRepositorySnapshots as snapshots, skillPackageDeletions, createDb } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { createStorageService } from "../storage/service.js";
 import { createLocalDiskStorageProvider } from "../storage/local-disk-provider.js";
@@ -23,13 +23,13 @@ describe.skipIf(!support.supported)("automatic skill package work", () => {
   let storage: ReturnType<typeof createStorageService>;
   let coordinator: ReturnType<typeof createDeliveryWorkCoordinator> | undefined;
   let home: string;
-  const previousHome = process.env.PAPERCLIP_HOME;
+  const previousHome = process.env.NEXUS_HOME;
   const files = [{ path: "SKILL.md", kind: "skill" as const, content: "---\nname: legacy\n---\noriginal" }];
   beforeAll(async () => {
     database = await startEmbeddedPostgresTestDatabase("skill-package-work-");
     db = createDb(database.connectionString, { maxConnections: 2 });
     home = await fs.mkdtemp(path.join(os.tmpdir(), "skill-package-work-"));
-    process.env.PAPERCLIP_HOME = home;
+    process.env.NEXUS_HOME = home;
     storage = createStorageService(createLocalDiskStorageProvider(path.join(home, "objects")));
   });
   beforeEach(async () => {
@@ -38,7 +38,7 @@ describe.skipIf(!support.supported)("automatic skill package work", () => {
   });
   afterEach(async () => { await coordinator?.stop(); coordinator = undefined; vi.useRealTimers(); vi.restoreAllMocks(); });
   afterAll(async () => {
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previousHome;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = previousHome;
     await db?.$client.end({ timeout: 1 }); await database?.cleanup();
     if (home) await fs.rm(home, { recursive: true, force: true });
   });

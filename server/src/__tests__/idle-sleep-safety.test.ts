@@ -8,7 +8,7 @@ import {
   feedbackExports, feedbackVotes, companySkills, companySkillVersions, companySkillRepositorySnapshots,
   heartbeatRuns, issues, issueWatchdogs, issueThreadInteractions, issueQuestionResponseDeliveries,
   projects, projectWorkspaces, routines, routineTriggers, toolApplications, toolConnections, workspaceOperations, executionWorkspaceRuntimeLeases, type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { readIdleSleepSafety, type IdleSleepDrainStatus } from "../services/idle-sleep-safety.js";
 
@@ -188,8 +188,8 @@ if (!support.supported) console.warn(`Skipping idle sleep Postgres tests: ${supp
   }
 
   it.each(["true", "false"])("lets optional conversion retries sleep with package storage %s", async enabled => {
-    const previous = process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED;
-    process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED = enabled;
+    const previous = process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED;
+    process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED = enabled;
     try {
       const { companyId } = await seed();
       const [skill] = await db.insert(companySkills).values({ companyId, key: "legacy", slug: "legacy", name: "Legacy", markdown: "original" }).returning();
@@ -199,8 +199,8 @@ if (!support.supported) console.warn(`Skipping idle sleep Postgres tests: ${supp
         fileInventory: [{ path: "SKILL.md", kind: "skill", content: "original" }], migrationAt: new Date(0) });
       expect(await read()).toEqual(none);
     } finally {
-      if (previous === undefined) delete process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED;
-      else process.env.PAPERCLIP_SKILL_PACKAGE_STORAGE_ENABLED = previous;
+      if (previous === undefined) delete process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED;
+      else process.env.NEXUS_SKILL_PACKAGE_STORAGE_ENABLED = previous;
     }
   });
 
@@ -544,10 +544,10 @@ if (!support.supported) console.warn(`Skipping idle sleep Postgres tests: ${supp
       runId, companyId, agentId, responsibleUserId: "test-user", entryFile: "AGENTS.md",
       baseHash: "test-hash", localRoot: "/tmp/idle-copy", executionRoot: "/tmp/idle-copy",
       location: "local", state: "saved", processStoppedAt: new Date(now),
-      receipt: { schema: "paperclip.agent-files.v1", cleanupPending: true },
+      receipt: { schema: "nexus.agent-files.v1", cleanupPending: true },
     });
     expect(await read()).toEqual(present);
-    await db.update(agentInstructionWorkingCopies).set({ receipt: { schema: "paperclip.agent-files.v1" } })
+    await db.update(agentInstructionWorkingCopies).set({ receipt: { schema: "nexus.agent-files.v1" } })
       .where(eq(agentInstructionWorkingCopies.runId, runId));
     expect(await read()).toEqual(none);
   });
@@ -705,7 +705,7 @@ if (!support.supported) console.warn(`Skipping idle sleep Postgres tests: ${supp
     const [environment] = await db.insert(environments).values({ name: "Failed turn environment", driver: "sandbox" }).returning();
     const leaseId = randomUUID();
     const receipt = {
-      schema: "paperclip.remote-termination.v1", companyId: seeded.companyId,
+      schema: "nexus.remote-termination.v1", companyId: seeded.companyId,
       runId: seeded.runId, leaseId, provider: "plugin:demo:sandbox",
       providerLeaseId: "fixture-resource", state: "destroyed", confirmedAt: new Date(now).toISOString(),
     };

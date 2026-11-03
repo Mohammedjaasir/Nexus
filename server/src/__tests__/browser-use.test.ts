@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { describe, it, expect, vi } from "vitest";
-import { BROWSER_USE_TOOLS } from "@paperclipai/shared";
+import { BROWSER_USE_TOOLS } from "@nexusai/shared";
 import {
   browserUseClient,
   browserUseCostCap,

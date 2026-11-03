@@ -26,7 +26,7 @@ export function DocumentMarkdownBody({ documentKey, revisionId, documentIssueId,
   const image = matchesDocument ? target.image : undefined;
 
   const readImages = useCallback(() =>
-    Array.from(containerRef.current?.querySelectorAll<HTMLImageElement>(".paperclip-markdown img[src]") ?? [])
+    Array.from(containerRef.current?.querySelectorAll<HTMLImageElement>(".nexus-markdown img[src]") ?? [])
       .filter((element) => Boolean(element.getAttribute("src"))), []);
 
   useEffect(() => {

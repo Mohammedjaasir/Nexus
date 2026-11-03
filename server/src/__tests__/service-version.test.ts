@@ -36,7 +36,7 @@ describe("readGitCommit", () => {
     if (baseline === null) return;
 
     const original = process.cwd();
-    const launchDir = mkdtempSync(join(tmpdir(), "paperclip-no-git-"));
+    const launchDir = mkdtempSync(join(tmpdir(), "nexus-no-git-"));
     try {
       // Move the process into a directory with no repository. The lookup still
       // returns the checkout commit, because it reads the module directory, not

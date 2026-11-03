@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
-import { slackRegistrationErrorMessage } from "@paperclipai/shared";
+import { slackRegistrationErrorMessage } from "@nexusai/shared";
 import { chatEndpointsApi, type ChatEndpoint } from "@/api/chatEndpoints";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -147,7 +147,7 @@ export function OwnSlackAppSetup({ endpoint, stage, disabled, saveDetails, onSav
             <li>Select the workspace where you want to install your bot.</li>
             <li>Copy the <strong>Access Token</strong> and paste it below.</li>
           </ol>
-          <p className="text-muted-foreground">Paperclip uses this token to create your app</p>
+          <p className="text-muted-foreground">Nexus uses this token to create your app</p>
         </div>
         <label htmlFor="slack-configuration-token" className="text-sm font-medium">App configuration access token</label>
         <Input id="slack-configuration-token" type="password" autoComplete="off" spellCheck={false}
@@ -158,7 +158,7 @@ export function OwnSlackAppSetup({ endpoint, stage, disabled, saveDetails, onSav
     {creating && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Creating your Slack app. You can return to this saved setup.</p>}
     {created && <p className="text-sm">
       <strong>{endpoint.setup?.slackApp?.appName ?? "Your Slack app"}</strong> is created.
-      {stage === "credentials" && " Approve installation with your Slack account. Paperclip will link it to your signed-in Paperclip account and send you a welcome DM."}
+      {stage === "credentials" && " Approve installation with your Slack account. Nexus will link it to your signed-in Nexus account and send you a welcome DM."}
     </p>}
     {stage === "credentials" && registration?.status === "credentials_saved" && <div className="space-y-2">
       <p className="text-sm text-muted-foreground">Your installation credentials are saved. Retry connecting to finish setup. If Slack access has changed, authorize the same app again.</p>

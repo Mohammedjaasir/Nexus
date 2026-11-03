@@ -8,9 +8,9 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createDb, companies, companyMemberships, agents, issues, heartbeatRuns, toolApplications, toolConnections, connectionGrants,
-  toolCatalogEntries, toolPolicies, toolInvocations, toolCallEvents, toolActionRequests, promptInjectionInvocations, costEvents, budgetReservations } from "@paperclipai/db";
-import { startEmbeddedPostgresTestDatabase } from "@paperclipai/db/test-embedded-postgres";
-import { PROMPT_INJECTION_DEFAULT_MODEL } from "@paperclipai/shared";
+  toolCatalogEntries, toolPolicies, toolInvocations, toolCallEvents, toolActionRequests, promptInjectionInvocations, costEvents, budgetReservations } from "@nexusai/db";
+import { startEmbeddedPostgresTestDatabase } from "@nexusai/db/test-embedded-postgres";
+import { PROMPT_INJECTION_DEFAULT_MODEL } from "@nexusai/shared";
 import { createToolGatewayService } from "../services/tool-gateway.js";
 import { toolGatewayRoutes } from "../routes/tool-gateway.js";
 import { initializeRunIdentity } from "../services/run-identity.js";
@@ -22,9 +22,9 @@ import type { PluginToolDispatcher } from "../services/plugin-tool-dispatcher.js
 import { promptInjectionCorpus } from "./fixtures/prompt-injection-corpus.js";
 let db: ReturnType<typeof createDb>, database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>, home: string;
 beforeAll(async () => {
-  home = await realpath(await mkdtemp(path.join(os.tmpdir(), "paperclip-guard-gateway-")));
-  vi.stubEnv("PAPERCLIP_HOME", home);
-  database = await startEmbeddedPostgresTestDatabase("paperclip-guard-gateway-db-"); db = createDb(database.connectionString);
+  home = await realpath(await mkdtemp(path.join(os.tmpdir(), "nexus-guard-gateway-")));
+  vi.stubEnv("NEXUS_HOME", home);
+  database = await startEmbeddedPostgresTestDatabase("nexus-guard-gateway-db-"); db = createDb(database.connectionString);
 }, 90000);
 afterAll(async () => { await database?.cleanup(); vi.unstubAllEnvs(); if (home) await rm(home, { recursive: true, force: true }); });
 async function createRunFixture(db: ReturnType<typeof createDb>) {
@@ -153,7 +153,7 @@ describe("model classification at gateway result boundaries", () => {
     if (source === "disconnect") { server.listen(0, "127.0.0.1"); await once(server, "listening"); }
     const pending = source === "disconnect"
       ? fetch(`http://127.0.0.1:${(server.address() as { port: number }).port}/tool-gateway/tools/call`, {
-          method: "POST", headers: { "content-type": "application/json", "x-paperclip-tool-gateway-token": f.session.token },
+          method: "POST", headers: { "content-type": "application/json", "x-nexus-tool-gateway-token": f.session.token },
           body: JSON.stringify({ tool: f.tool.name, parameters: {} }), signal: caller.signal,
         })
       : f.gateway.executeTool({ sessionToken: f.session.token, tool: f.tool.name, parameters: {}, signal: caller.signal });

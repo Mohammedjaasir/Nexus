@@ -19,8 +19,8 @@ Do not use “OAuth is broken” for every setup failure. Trace these independen
 A. Provider backend -> public origin -> discovery, MCP, token exchange
 B. Provider browser -> authorization page -> preview/consent -> provider callback
 C. Agent runtime -> loaded plugin actions -> authenticated read/tool calls
-D. Paperclip event worker -> verified callback -> bot wake -> mailbox/challenge
-E. Paperclip scheduler -> managed lease -> Runner -> tools -> finalizer -> cleanup
+D. Nexus event worker -> verified callback -> bot wake -> mailbox/challenge
+E. Nexus scheduler -> managed lease -> Runner -> tools -> finalizer -> cleanup
 ```
 
 For each, collect a timestamp, exact failing operation, status/visible error,
@@ -82,13 +82,13 @@ and tokens out of pasted logs; use the existing authenticated test client when a
 protected operation must be inspected.
 
 ChatGPT's historical client metadata preferred `private_key_jwt` while also
-advertising `none`. Paperclip originally rejected it instead of negotiating its
+advertising `none`. Nexus originally rejected it instead of negotiating its
 supported public-client method with PKCE. Inspect the complete advertised methods;
 do not disable authentication or exact redirect/resource validation to work around
 a preference mismatch. Keep S256 PKCE and current registration checks.
 
-An optional `PAPERCLIP_MCP_AUTHORIZATION_ORIGIN` supported a different authorized
-browser ingress to the same instance, while `PAPERCLIP_PUBLIC_URL` retained the
+An optional `NEXUS_MCP_AUTHORIZATION_ORIGIN` supported a different authorized
+browser ingress to the same instance, while `NEXUS_PUBLIC_URL` retained the
 MCP resource/issuer/token origin. This was a workaround for different client
 reachability, not an OAuth requirement. Use only explicitly configured trusted
 origins and verify callback/CSRF/issuer behavior. Prefer a single working origin.
@@ -171,7 +171,7 @@ Match platform and provider capability; a Mac controller's current binary cannot
 stand in for a Linux sandbox artifact. Digest/capability checks should fail clearly
 before an assignment is offered.
 
-For the historical private `paperclip-cloud` repository, the supported targeted
+For the historical private `nexus-cloud` repository, the supported targeted
 deployment CLI was `scripts/deploy-stack.mjs <workspace-url> <ref> --plain`, with
 `--resume <request-id>` for the same operation. Inspect current help/runbook before
 using it. Do not invent or replay old tenant IDs, deployment requests, or secrets.
@@ -207,7 +207,7 @@ After the final task, inspect leases and actual provider resources. Expired leas
 status alone is weaker than a successful sandbox deletion receipt. Preserve a
 requested review instance with access and resumption information; release owned
 disposable compute. For an authorized reset, account for provider account link,
-Paperclip binding/grant, event subscription/automation, and cached configuration.
+Nexus binding/grant, event subscription/automation, and cached configuration.
 Disconnecting one layer can leave an enabled provider automation behind.
 
 Report qualified, review-ready, merged, deployed, and canary-verified separately.

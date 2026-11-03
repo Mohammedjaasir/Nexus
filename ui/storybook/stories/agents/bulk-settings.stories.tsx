@@ -8,8 +8,8 @@ import { PluginLauncherProvider } from "@/plugins/launchers";
 import { Layout } from "@/components/Layout";
 import { Agents } from "@/pages/Agents";
 import { queryKeys } from "@/lib/queryKeys";
-import type { Agent, AiConnectionBinding, AiManagedConnectionSummary } from "@paperclipai/shared";
-import { storybookAgents } from "../../fixtures/paperclipData";
+import type { Agent, AiConnectionBinding, AiManagedConnectionSummary } from "@nexusai/shared";
+import { storybookAgents } from "../../fixtures/nexusData";
 import { connections, harnesses, roster } from "../../support/design-proposals/bulk-agent-settings-data";
 
 const companyId = "company-storybook";
@@ -70,7 +70,7 @@ function BulkSettingsPage({ failOne = false, localHermes = false }: { failOne?: 
 const meta = {
   id: "agents-bulk-settings", title: "Agents and reusable capabilities/Hiring, configuration, and organization/Agents/Bulk settings",
   component: BulkSettingsPage,
-  parameters: { layout: "fullscreen", initialEntries: ["/PAP/agents/all"], paperclip: {
+  parameters: { layout: "fullscreen", initialEntries: ["/PAP/agents/all"], nexus: {
     capabilities: ["agents/organization", "agents/instructions"], implementation: "production", boundary: "fixtures",
     notes: "Actual Agents page, filter icon/popover with preserved selection, bulk roster, sheet, account picker, model intersection and narrow PATCH client. Includes paused agents at normal contrast. The roster has no status selector or persistent selection hint. HTTP accounts/catalogs/writes are synthetic, including one transient failure and an empty local Hermes catalog. Does not establish live provider credential validity or database persistence. The original approved proposal remains in Design proposals.",
   } },

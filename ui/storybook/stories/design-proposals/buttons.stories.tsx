@@ -21,7 +21,7 @@ const meta = {
     layout: "fullscreen",
     initialEntries: ["/PAP/issues"],
     docs: { story: { inline: false }, description: { component: "Sandbox button styling workbench. Visible controls and Storybook args select label, style, measured size, icon placement, default/hover/keyboard-focus/pressed/disabled/loading state and semantic surface. All examples use the same proposed theme as the local design sandbox. Specimens report computed pixel dimensions, typography, padding, radius, icon size and colors. Forced states derive from compiled component CSS and remain preview-only. Contextual controls use real shared components with local fixture actions. No production comparison or repository-wide usage counts are shown." } },
-    paperclip: {
+    nexus: {
       capabilities: ["developer-labs/design"],
       home: "design-proposals",
       status: "proposed",

@@ -27,7 +27,7 @@ add an expression index or claim constant database CPU at every company size.
 From the repository root, use a disposable PostgreSQL 17 container:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-cloud-membership-sync.ts \
+pnpm --filter @nexusai/server exec tsx ../scripts/benchmark-cloud-membership-sync.ts \
   --baseline-ref=db70c5acd92f50fa37fb4f0dea3da0e7685089a2 --docker-postgres=17 \
   > /tmp/cloud-membership-sync.json
 ```

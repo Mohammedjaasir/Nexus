@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { z } from "zod";
 import { logger } from "../middleware/logger.js";
 import { getCloudStackContext } from "./cloud-instance.js";
@@ -25,7 +25,7 @@ export type CurrentCloudOwnerAuthority = Readonly<CloudOwnerIdentity & { role: "
 
 function currentIdentity(userId: string): CloudOwnerIdentity | null {
   const context = getCloudStackContext();
-  const token = process.env.PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN?.trim();
+  const token = process.env.NEXUS_CLOUD_TENANT_SERVER_TOKEN?.trim();
   if (!userId || !context?.cloudOrigin || !context.stackId || !context.stackSlug || !token) return null;
   try {
     const origin = new URL(context.cloudOrigin);
@@ -42,8 +42,8 @@ export async function loadCurrentCloudOwnerAuthority(userId: string): Promise<Cu
   try {
     const response = await fetch(new URL("/v1/tenant/portfolio", identity.origin), {
       method: "GET", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(10_000),
-      headers: { accept: "application/json", authorization: `Bearer ${process.env.PAPERCLIP_CLOUD_TENANT_SERVER_TOKEN!.trim()}`,
-        "x-paperclip-cloud-user-id": userId, "x-paperclip-cloud-stack-id": identity.stackId },
+      headers: { accept: "application/json", authorization: `Bearer ${process.env.NEXUS_CLOUD_TENANT_SERVER_TOKEN!.trim()}`,
+        "x-nexus-cloud-user-id": userId, "x-nexus-cloud-stack-id": identity.stackId },
     });
     if (!response.ok) return null;
     const parsed = portfolioSchema.safeParse(await response.json());

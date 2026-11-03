@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { expect, test as base, type APIRequestContext, type APIResponse, type Page } from "@playwright/test";
 import { parse, stringify } from "yaml";
-import type { AgentConfigurationInput } from "@paperclipai/shared";
+import type { AgentConfigurationInput } from "@nexusai/shared";
 import { startReviewProvider } from "../fixtures/connection-review-provider";
 
 const test = base.extend<{ toolProvider: Awaited<ReturnType<typeof startReviewProvider>>; settings: void }>({
@@ -62,7 +62,7 @@ async function document(page: Page): Promise<AgentConfigurationInput> {
       element.dispatchEvent(new ClipboardEvent("copy", { clipboardData, bubbles: true, cancelable: true }));
       return clipboardData.getData("text/plain");
     });
-    return /^apiVersion: paperclip\/v1(?:\r?\n|$)/.test(source);
+    return /^apiVersion: nexus\/v1(?:\r?\n|$)/.test(source);
   }, { message: "Copy the current YAML from the focused editor" }).toBe(true);
   return parse(source);
 }
@@ -306,7 +306,7 @@ test("a lost creation response requires reload and cannot blindly replay command
   // text as well as the YAML header. The read helper must reacquire a clean
   // editor copy instead of accepting the header and parsing the whole page.
   await page.evaluate(() => document.addEventListener("copy", event => {
-    event.clipboardData?.setData("text/plain", "Skip to Main Content\napiVersion: paperclip/v1\nCopied surrounding page text");
+    event.clipboardData?.setData("text/plain", "Skip to Main Content\napiVersion: nexus/v1\nCopied surrounding page text");
     event.preventDefault();
   }, { capture: true, once: true }));
   expect((await document(page)).spec.apiKeys!.create).toHaveLength(2);

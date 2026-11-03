@@ -219,7 +219,7 @@ test.describe("Board send delivery refresh", () => {
         request,
       }) => {
         await page.addLocatorHandler(
-          page.getByRole("complementary", { name: "Paperclip announcements", exact: true })
+          page.getByRole("complementary", { name: "Nexus announcements", exact: true })
             .getByRole("button", { name: "Dismiss announcement", exact: true }),
           async (dismiss) => {
             const menuOpen = await page.getByRole("menu", { name: "Add to composer", exact: true }).isVisible();
@@ -246,7 +246,7 @@ test.describe("Board send delivery refresh", () => {
         await expect
           .poll(() =>
             page.evaluate(() =>
-              localStorage.getItem("paperclip.selectedCompanyId"),
+              localStorage.getItem("nexus.selectedCompanyId"),
             ),
           )
           .toBe(selected.companyId);
@@ -335,7 +335,7 @@ test.describe("Board send delivery refresh", () => {
         await expect
           .poll(() =>
             page.evaluate(() =>
-              localStorage.getItem("paperclip.selectedCompanyId"),
+              localStorage.getItem("nexus.selectedCompanyId"),
             ),
           )
           .toBe(target.companyId);
@@ -757,7 +757,7 @@ test.describe("Board send delivery refresh", () => {
         await request.get("/api/auth/get-session"),
         "read receipt owner",
       );
-      const storageKey = `paperclip:board-send:v2:${JSON.stringify([session.user.id, seed.companyId, issue.id, endpointId, conversationId])}`;
+      const storageKey = `nexus:board-send:v2:${JSON.stringify([session.user.id, seed.companyId, issue.id, endpointId, conversationId])}`;
       await page.route("**/api/instance/settings/experimental", (route) =>
         fulfill(route, { enableChatConnectors: true }),
       );
@@ -771,7 +771,7 @@ test.describe("Board send delivery refresh", () => {
         }),
       );
       // Only the publication API is simulated. Task creation and safe file
-      // uploads use this test's isolated Paperclip instance, never Teams.
+      // uploads use this test's isolated Nexus instance, never Teams.
       await page.route(`**${publicationsPath}`, (route) => {
         expect(route.request().method()).toBe("POST");
         posts.push(bodyOf(route));

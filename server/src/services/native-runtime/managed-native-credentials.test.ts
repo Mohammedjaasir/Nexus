@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { NativeSession } from "../../vendor/paperclip-runner/index.js";
+import type { NativeSession } from "../../vendor/nexus-runner/index.js";
 import { bindManagedNativeCredentialTurn, completeManagedNativeCredentialTurn } from "./managed-native-credentials.js";
 
 function fixture() {

@@ -97,7 +97,7 @@
     "reportSha256": "896b9928af85a4c7d588dfca93484980aadb238bd79d8142e671c62f0b191fa8",
     "controlsSha256": "0d445f6f066032f2d9cd724525a8d7d2290246cbfeee1f6ab4b44818467af2a7"
   },
-  "ciInclusion": "@paperclipai/ui project in general-workspaces-a; complete file remains included; no routing changes",
+  "ciInclusion": "@nexusai/ui project in general-workspaces-a; complete file remains included; no routing changes",
   "netCombinedTestLinesRemoved": 371,
   "combinedRegisteredInvocationsRemoved": 2
 }

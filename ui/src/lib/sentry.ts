@@ -92,7 +92,7 @@ export function initBrowserErrorMonitoring(dsn: string, environment?: string | n
       // single diagnostic. The gate fails open — the app keeps running
       // without error monitoring rather than crashing on an opt-in feature.
       // eslint-disable-next-line no-console
-      console.error("[paperclip] Sentry browser bootstrap failed", err);
+      console.error("[nexus] Sentry browser bootstrap failed", err);
     }
   });
 }
@@ -129,7 +129,7 @@ export function teardownBrowserErrorMonitoring(): Promise<void> {
       Sentry.getCurrentScope().setClient(undefined);
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("[paperclip] Sentry client detach failed", err);
+      console.error("[nexus] Sentry client detach failed", err);
     }
     // A second, separate guarded try, for the same reason as the one
     // above: this step must never reject the returned promise.
@@ -140,7 +140,7 @@ export function teardownBrowserErrorMonitoring(): Promise<void> {
       await client?.close(2_000);
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("[paperclip] Sentry teardownBrowserErrorMonitoring failed", err);
+      console.error("[nexus] Sentry teardownBrowserErrorMonitoring failed", err);
     }
   });
 }
@@ -163,7 +163,7 @@ export function captureBrowserException(error: unknown, details?: BrowserErrorDe
       else sentry?.captureException(error);
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("[paperclip] Sentry captureBrowserException failed", err);
+      console.error("[nexus] Sentry captureBrowserException failed", err);
     }
   });
 }
@@ -183,8 +183,8 @@ export function buildBrowserSentryInitOptions(
     environment: environment ?? undefined,
     // Use the loaded bundle's build, even when the server has since deployed.
     release:
-      typeof __PAPERCLIP_BUILD_COMMIT__ === "string"
-        ? __PAPERCLIP_BUILD_COMMIT__
+      typeof __NEXUS_BUILD_COMMIT__ === "string"
+        ? __NEXUS_BUILD_COMMIT__
         : undefined,
     tracesSampleRate: 0,
     sendDefaultPii: false,

@@ -1,8 +1,8 @@
 import { collectSecretRefPaths, isUuidSecretRef, parseSecretRefBindingObject, readConfigValueAtPath } from "./json-schema-secret-refs.js";
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq, lte, or, sql } from "drizzle-orm";
-import { companies, environments, sandboxCreationOperations, type Db } from "@paperclipai/db";
-import { readEnvironmentCreationCleanupError, type PluginEnvironmentLease, type PluginEnvironmentLeaseObservation } from "@paperclipai/plugin-sdk";
+import { companies, environments, sandboxCreationOperations, type Db } from "@nexusai/db";
+import { readEnvironmentCreationCleanupError, type PluginEnvironmentLease, type PluginEnvironmentLeaseObservation } from "@nexusai/plugin-sdk";
 import { assertEnvironmentCompanyBinding, environmentService } from "./environments.js";
 import { ENVIRONMENT_CLEANUP_RETRY_MS, recoverableSandboxCreationCondition } from "./environment-cleanup-state.js";
 import { logger } from "../middleware/logger.js";
@@ -181,7 +181,7 @@ export async function recoverSandboxCreations(db: Db,
       }
       if (existingCompany && recoverableTaskCreation(candidate)) throw new Error("Task creation identity is not available yet");
       const cleanup = observation?.creationCleanup ? readEnvironmentCreationCleanupError({ data: {
-        schema: "paperclip/environment-creation-cleanup/v1", cleanup: observation.creationCleanup,
+        schema: "nexus/environment-creation-cleanup/v1", cleanup: observation.creationCleanup,
       } }) : null;
       if (cleanup && (cleanup.companyId !== candidate.companyId || cleanup.environmentId !== candidate.originalEnvironmentId ||
         cleanup.runId !== candidate.runId || cleanup.attemptId !== candidate.id || cleanup.providerLeaseId !== observation!.providerLeaseId)) {

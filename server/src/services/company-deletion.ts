@@ -14,8 +14,8 @@ import { notifyCompanyRetentionWork } from "./retention-work-notifications.js";
 import { notifyToolReviewChange } from "./tool-review-work-notifications.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 import { agentObservabilityService } from "./agent-observability.js";
-import { withAccountHomeSecretMutationLock } from "@paperclipai/adapter-codex-local/server";
-import type { Db } from "@paperclipai/db";
+import { withAccountHomeSecretMutationLock } from "@nexusai/adapter-codex-local/server";
+import type { Db } from "@nexusai/db";
 import { eq, inArray } from "drizzle-orm";
 import { createAgentLifecycle, processAgentLifecycle } from "./agent-lifecycle.js";
 import { requestRestorePointDeletion } from "./git-restore-point-ledger.js";
@@ -58,7 +58,7 @@ import {
   routineTriggers,
   routineRevisions,
   routines,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 
 export async function deleteCompany(db: Db, id: string) {
   const lifecycle = createAgentLifecycle(db);

@@ -21,14 +21,14 @@ export async function stageGrokSubscriptionFixture(input: {
 }): Promise<() => Promise<void>> {
   credential(input.raw);
   const env = input.environment;
-  const root = env.PAPERCLIP_RUNNER_E2E_TEMP_ROOT;
+  const root = env.NEXUS_RUNNER_E2E_TEMP_ROOT;
   if (!root || !/^[0-9a-f-]{36}$/i.test(input.companyId) ||
-      !/^runner-e2e-[a-z0-9-]+$/.test(env.PAPERCLIP_INSTANCE_ID ?? "")) {
+      !/^runner-e2e-[a-z0-9-]+$/.test(env.NEXUS_INSTANCE_ID ?? "")) {
     throw new Error("Grok fixture requires an isolated test company and instance");
   }
   const canonicalRoot = await realpath(root);
-  const home = env.PAPERCLIP_HOME;
-  if (!home || await realpath(home) !== path.join(canonicalRoot, "paperclip-home")) {
+  const home = env.NEXUS_HOME;
+  if (!home || await realpath(home) !== path.join(canonicalRoot, "nexus-home")) {
     throw new Error("Grok fixture refuses a home outside its isolated test root");
   }
   const companyHome = resolveManagedGrokHomeDir(env, input.companyId);

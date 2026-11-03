@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { vi, type Mock } from "vitest";
 import { eq } from "drizzle-orm";
-import { agents, authUsers, companies, companyMemberships, createDb, executionWorkspaces, heartbeatRuns, issueAccessGrants, issues } from "@paperclipai/db";
+import { agents, authUsers, companies, companyMemberships, createDb, executionWorkspaces, heartbeatRuns, issueAccessGrants, issues } from "@nexusai/db";
 import { executionWorkspaceRepositoryService } from "../../services/execution-workspace-repositories.js";
 import { startEmbeddedPostgresTestDatabase } from "./embedded-postgres.js";
 
@@ -15,10 +15,10 @@ export function createRepositoryTrustFixture(acquisition: { managedAuth: Mock; m
   let db: ReturnType<typeof createDb>;
   let root: string;
   async function setup() {
-    vi.stubEnv("PAPERCLIP_ISSUE_PRIVACY_MODE", "enforce");
-    database = await startEmbeddedPostgresTestDatabase("paperclip-repository-trust-");
+    vi.stubEnv("NEXUS_ISSUE_PRIVACY_MODE", "enforce");
+    database = await startEmbeddedPostgresTestDatabase("nexus-repository-trust-");
     db = createDb(database.connectionString);
-    root = await mkdtemp(path.join(tmpdir(), "paperclip-repository-trust-"));
+    root = await mkdtemp(path.join(tmpdir(), "nexus-repository-trust-"));
     return { db, root };
   }
   async function cleanup() {

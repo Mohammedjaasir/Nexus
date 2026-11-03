@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, expect, it } from "vitest";
 import { codexSubscriptionAgentConfig, stageCodexSubscriptionFixture } from "./codex-subscription-fixture.js";
 import { resolveManagedCodexHomeDir } from "../../packages/adapters/codex-local/src/server/codex-home.js";
-import { buildPaperclipServerEnvironment } from "./harness-env.js";
+import { buildNexusServerEnvironment } from "./harness-env.js";
 import { normalizedSecrets, findSecretLeak } from "./redaction.js";
 const companyId = "11111111-2222-4333-8444-555555555555";
 const raw = JSON.stringify({ tokens: { account_id: "fixture-account", access_token: "fixture-access-token", refresh_token: "fixture-refresh-token", id_token: "fixture-id-token" } });
@@ -12,8 +12,8 @@ const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
 async function environment() {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), "codex-fixture-"))); roots.push(root);
-  const home = path.join(root, "paperclip-home"); await mkdir(home);
-  return { PAPERCLIP_RUNNER_E2E_TEMP_ROOT: root, PAPERCLIP_HOME: home, PAPERCLIP_INSTANCE_ID: "runner-e2e-test" };
+  const home = path.join(root, "nexus-home"); await mkdir(home);
+  return { NEXUS_RUNNER_E2E_TEMP_ROOT: root, NEXUS_HOME: home, NEXUS_INSTANCE_ID: "runner-e2e-test" };
 }
 it("seeds only explicit subscription auth into a new disposable production company home", async () => {
   const env = await environment(), home = resolveManagedCodexHomeDir(env, companyId);
@@ -35,6 +35,6 @@ it("rejects API keys, malformed data and redirected nonisolated homes", async ()
   await expect(stageCodexSubscriptionFixture({ raw, companyId, environment: env })).rejects.toThrow("redirected");
 });
 it("strips login JSON from server process environment and redacts individual tokens", () => {
-  expect(buildPaperclipServerEnvironment({ CODEX_AUTH_JSON: raw }).CODEX_AUTH_JSON).toBeUndefined();
+  expect(buildNexusServerEnvironment({ CODEX_AUTH_JSON: raw }).CODEX_AUTH_JSON).toBeUndefined();
   expect(findSecretLeak("fixture-refresh-token", normalizedSecrets([raw]))).toBeTruthy();
 });

@@ -13,7 +13,7 @@ import {
 } from "./helpers/embedded-postgres.js";
 import { createStoredZipArchive } from "./helpers/zip.js";
 import { removeTestHome } from "../../../tests/helpers/remove-test-home.js";
-import { PAPERCLIP_RUNTIME_INFO_FILENAME, readRuntimeInfo } from "../runtime-info.js";
+import { NEXUS_RUNTIME_INFO_FILENAME, readRuntimeInfo } from "../runtime-info.js";
 
 const execFileAsync = promisify(execFile);
 type ServerProcess = ReturnType<typeof spawn>;
@@ -90,7 +90,7 @@ function writeTestConfig(configPath: string, tempRoot: string, port: number, con
         baseDir: path.join(tempRoot, "storage"),
       },
       s3: {
-        bucket: "paperclip",
+        bucket: "nexus",
         region: "us-east-1",
         prefix: "",
         forcePathStyle: false,
@@ -109,26 +109,26 @@ function writeTestConfig(configPath: string, tempRoot: string, port: number, con
   writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 }
 
-interface TestPaperclipEnv {
+interface TestNexusEnv {
   configPath: string;
-  paperclipHome: string;
+  nexusHome: string;
   instanceId: string;
   shellHome?: string;
 }
 
-function createBasePaperclipEnv(options: TestPaperclipEnv) {
+function createBaseNexusEnv(options: TestNexusEnv) {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
-    if (key.startsWith("PAPERCLIP_")) {
+    if (key.startsWith("NEXUS_")) {
       delete env[key];
     }
   }
 
-  env.PAPERCLIP_CONFIG = options.configPath;
-  env.PAPERCLIP_HOME = options.paperclipHome;
-  env.PAPERCLIP_INSTANCE_ID = options.instanceId;
-  env.PAPERCLIP_CONTEXT = path.join(options.paperclipHome, "context.json");
-  env.PAPERCLIP_AUTH_STORE = path.join(options.paperclipHome, "auth.json");
+  env.NEXUS_CONFIG = options.configPath;
+  env.NEXUS_HOME = options.nexusHome;
+  env.NEXUS_INSTANCE_ID = options.instanceId;
+  env.NEXUS_CONTEXT = path.join(options.nexusHome, "context.json");
+  env.NEXUS_AUTH_STORE = path.join(options.nexusHome, "auth.json");
   if (options.shellHome) {
     env.HOME = options.shellHome;
   }
@@ -140,9 +140,9 @@ function createServerEnv(
   configPath: string,
   port: number,
   connectionString: string,
-  options: Omit<TestPaperclipEnv, "configPath">,
+  options: Omit<TestNexusEnv, "configPath">,
 ) {
-  const env = createBasePaperclipEnv({
+  const env = createBaseNexusEnv({
     configPath,
     ...options,
   });
@@ -157,25 +157,25 @@ function createServerEnv(
   env.HOST = "127.0.0.1";
   env.PORT = String(port);
   env.SERVE_UI = "false";
-  env.PAPERCLIP_DB_BACKUP_ENABLED = "false";
-  env.PAPERCLIP_DECISION_SIGNING_SECRET = "company-import-export-decision-signing-secret";
+  env.NEXUS_DB_BACKUP_ENABLED = "false";
+  env.NEXUS_DECISION_SIGNING_SECRET = "company-import-export-decision-signing-secret";
   env.HEARTBEAT_SCHEDULER_ENABLED = "false";
-  env.PAPERCLIP_MIGRATION_AUTO_APPLY = "true";
-  env.PAPERCLIP_UI_DEV_MIDDLEWARE = "false";
+  env.NEXUS_MIGRATION_AUTO_APPLY = "true";
+  env.NEXUS_UI_DEV_MIDDLEWARE = "false";
 
   return env;
 }
 
-function createCliEnv(options: TestPaperclipEnv) {
-  const env = createBasePaperclipEnv(options);
+function createCliEnv(options: TestNexusEnv) {
+  const env = createBaseNexusEnv(options);
   delete env.DATABASE_URL;
   delete env.PORT;
   delete env.HOST;
   delete env.SERVE_UI;
-  delete env.PAPERCLIP_DB_BACKUP_ENABLED;
+  delete env.NEXUS_DB_BACKUP_ENABLED;
   delete env.HEARTBEAT_SCHEDULER_ENABLED;
-  delete env.PAPERCLIP_MIGRATION_AUTO_APPLY;
-  delete env.PAPERCLIP_UI_DEV_MIDDLEWARE;
+  delete env.NEXUS_MIGRATION_AUTO_APPLY;
+  delete env.NEXUS_UI_DEV_MIDDLEWARE;
   return env;
 }
 
@@ -215,16 +215,16 @@ async function api<T>(baseUrl: string, pathname: string, init?: RequestInit): Pr
 }
 
 function isPortableAgent(agent: { metadata?: Record<string, unknown> | null }) {
-  const marker = agent.metadata?.paperclipBuiltInAgent;
+  const marker = agent.metadata?.nexusBuiltInAgent;
   return typeof marker !== "object" || marker === null;
 }
 
 async function runCliJson<T>(
   args: string[],
-  opts: TestPaperclipEnv & { apiBase?: string; includeConfigArg?: boolean },
+  opts: TestNexusEnv & { apiBase?: string; includeConfigArg?: boolean },
 ) {
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-  const cliArgs = ["--silent", "paperclipai", ...args];
+  const cliArgs = ["--silent", "nexusai", ...args];
   if (opts.apiBase) {
     cliArgs.push("--api-base", opts.apiBase);
   }
@@ -259,7 +259,7 @@ async function waitForServer(
   while (Date.now() - startedAt < 30_000) {
     if (child.exitCode !== null) {
       throw new Error(
-        `paperclipai run exited before healthcheck succeeded.\nstdout:\n${output.stdout.join("")}\nstderr:\n${output.stderr.join("")}`,
+        `nexusai run exited before healthcheck succeeded.\nstdout:\n${output.stdout.join("")}\nstderr:\n${output.stderr.join("")}`,
       );
     }
 
@@ -282,29 +282,29 @@ async function waitForServer(
   );
 }
 
-describeEmbeddedPostgres("paperclipai company import/export e2e", () => {
+describeEmbeddedPostgres("nexusai company import/export e2e", () => {
   let tempRoot = "";
   let configPath = "";
   let exportDir = "";
   let apiBase = "";
-  let paperclipHome = "";
+  let nexusHome = "";
   let cliShellHome = "";
-  let paperclipInstanceId = "";
+  let nexusInstanceId = "";
   let serverProcess: ServerProcess | null = null;
   let requestedPortReservation: Awaited<ReturnType<typeof reserveRequestedPort>> | null = null;
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempRoot = mkdtempSync(path.join(os.tmpdir(), "paperclip-company-cli-e2e-"));
+    tempRoot = mkdtempSync(path.join(os.tmpdir(), "nexus-company-cli-e2e-"));
     configPath = path.join(tempRoot, "config", "config.json");
     exportDir = path.join(tempRoot, "exported-company");
-    paperclipHome = path.join(tempRoot, "paperclip-home");
+    nexusHome = path.join(tempRoot, "nexus-home");
     cliShellHome = path.join(tempRoot, "shell-home");
-    paperclipInstanceId = "company-cli-e2e";
-    mkdirSync(paperclipHome, { recursive: true });
+    nexusInstanceId = "company-cli-e2e";
+    mkdirSync(nexusHome, { recursive: true });
     mkdirSync(cliShellHome, { recursive: true });
 
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-company-cli-db-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-company-cli-db-");
 
 
 
@@ -320,8 +320,8 @@ describeEmbeddedPostgres("paperclipai company import/export e2e", () => {
       {
         cwd: repoRoot,
         env: createServerEnv(configPath, port, tempDb.connectionString, {
-          paperclipHome,
-          instanceId: paperclipInstanceId,
+          nexusHome,
+          instanceId: nexusInstanceId,
           shellHome: cliShellHome,
         }),
         stdio: ["ignore", "pipe", "pipe"],
@@ -336,8 +336,8 @@ describeEmbeddedPostgres("paperclipai company import/export e2e", () => {
     });
 
     apiBase = await waitForServer(
-      paperclipInstanceId,
-      path.join(paperclipHome, "instances", paperclipInstanceId, PAPERCLIP_RUNTIME_INFO_FILENAME),
+      nexusInstanceId,
+      path.join(nexusHome, "instances", nexusInstanceId, NEXUS_RUNTIME_INFO_FILENAME),
       child,
       output,
     );
@@ -364,15 +364,15 @@ describeEmbeddedPostgres("paperclipai company import/export e2e", () => {
       ["context", "set", "--profile", "isolation-check", "--api-base", "https://example.test"],
       {
         configPath,
-        paperclipHome,
-        instanceId: paperclipInstanceId,
+        nexusHome,
+        instanceId: nexusInstanceId,
         shellHome: cliShellHome,
         includeConfigArg: false,
       },
     );
 
-    const expectedContextPath = path.join(paperclipHome, "context.json");
-    const leakedContextPath = path.join(cliShellHome, ".paperclip", "context.json");
+    const expectedContextPath = path.join(nexusHome, "context.json");
+    const leakedContextPath = path.join(cliShellHome, ".nexus", "context.json");
     expect(cliContext.contextPath).toBe(expectedContextPath);
     expect(cliContext.profileName).toBe("isolation-check");
     expect(cliContext.profile.apiBase).toBe("https://example.test");
@@ -460,8 +460,8 @@ describeEmbeddedPostgres("paperclipai company import/export e2e", () => {
       {
         apiBase,
         configPath,
-        paperclipHome,
-        instanceId: paperclipInstanceId,
+        nexusHome,
+        instanceId: nexusInstanceId,
         shellHome: cliShellHome,
       },
     );
@@ -469,7 +469,7 @@ describeEmbeddedPostgres("paperclipai company import/export e2e", () => {
     expect(exportResult.ok).toBe(true);
     expect(exportResult.filesWritten).toBeGreaterThan(0);
     expect(readFileSync(path.join(exportDir, "COMPANY.md"), "utf8")).toContain(sourceCompany.name);
-    expect(readFileSync(path.join(exportDir, ".paperclip.yaml"), "utf8")).toContain('schema: "paperclip/v1"');
+    expect(readFileSync(path.join(exportDir, ".nexus.yaml"), "utf8")).toContain('schema: "nexus/v1"');
 
     const importedNew = await runCliJson<{
       company: { id: string; name: string; action: string };
@@ -490,8 +490,8 @@ describeEmbeddedPostgres("paperclipai company import/export e2e", () => {
       {
         apiBase,
         configPath,
-        paperclipHome,
-        instanceId: paperclipInstanceId,
+        nexusHome,
+        instanceId: nexusInstanceId,
         shellHome: cliShellHome,
       },
     );
@@ -544,8 +544,8 @@ describeEmbeddedPostgres("paperclipai company import/export e2e", () => {
       {
         apiBase,
         configPath,
-        paperclipHome,
-        instanceId: paperclipInstanceId,
+        nexusHome,
+        instanceId: nexusInstanceId,
         shellHome: cliShellHome,
       },
     );
@@ -577,8 +577,8 @@ describeEmbeddedPostgres("paperclipai company import/export e2e", () => {
       {
         apiBase,
         configPath,
-        paperclipHome,
-        instanceId: paperclipInstanceId,
+        nexusHome,
+        instanceId: nexusInstanceId,
         shellHome: cliShellHome,
       },
     );
@@ -610,7 +610,7 @@ describeEmbeddedPostgres("paperclipai company import/export e2e", () => {
     const zipPath = path.join(tempRoot, "exported-company.zip");
     const portableFiles: Record<string, string> = {};
     collectTextFiles(exportDir, exportDir, portableFiles);
-    writeFileSync(zipPath, createStoredZipArchive(portableFiles, "paperclip-demo"));
+    writeFileSync(zipPath, createStoredZipArchive(portableFiles, "nexus-demo"));
 
     const importedFromZip = await runCliJson<{
       company: { id: string; name: string; action: string };
@@ -631,8 +631,8 @@ describeEmbeddedPostgres("paperclipai company import/export e2e", () => {
       {
         apiBase,
         configPath,
-        paperclipHome,
-        instanceId: paperclipInstanceId,
+        nexusHome,
+        instanceId: nexusInstanceId,
         shellHome: cliShellHome,
       },
     );

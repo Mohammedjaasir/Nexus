@@ -15,7 +15,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     docs: { description: { component: "Two canonical filled tab sizes: Compact (12px) and Standard (14px), based on the supplied artifact selector and Paper tab bar. TabBar retains Radix content-panel semantics; TabFilters provides exclusive collection choices with roving focus. Agents, Audit, Connectors and Artifacts compose the same shared types." } },
-    paperclip: {
+    nexus: {
       capabilities: [], home: "design-proposals", status: "proposed",
       exception: "Cross-cutting tab and collection-filter comparison staged for design consolidation rather than acceptance coverage of any whole feature.",
       implementation: "mixed", boundary: "fixtures",

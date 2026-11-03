@@ -123,7 +123,7 @@ export class BoundedHistoryPublisher {
     const file = await open(`${this.receipt}.tmp`, "w", 0o600);
     try {
       await file.writeFile(`${JSON.stringify({
-      schema: "paperclip.runner-e2e.history-publication/v1",
+      schema: "nexus.runner-e2e.history-publication/v1",
       startedAt: new Date(this.startedAt).toISOString(), observedAt: new Date().toISOString(),
       workflowRunId: process.env.GITHUB_RUN_ID ?? null, workflowAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
       limits: HISTORY_LIMITS, billedUsd: null, requests: this.observations,

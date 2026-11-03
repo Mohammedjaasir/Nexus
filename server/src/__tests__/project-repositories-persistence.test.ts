@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { companies, companyMemberships, companySecrets, connectionGrants, connectionGrantMembers, toolApplications, toolConnections, createDb, projects as projectTable, userSecretDefinitions } from "@paperclipai/db";
+import { companies, companyMemberships, companySecrets, connectionGrants, connectionGrantMembers, toolApplications, toolConnections, createDb, projects as projectTable, userSecretDefinitions } from "@nexusai/db";
 import { eq } from "drizzle-orm";
 import { toolAccessService } from "../services/tool-access.js";
 import { projectService } from "../services/projects.js";
@@ -18,7 +18,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let companyId: string;
   const repo = (id: string) => ({ id, fullName: `org/repo-${id}`, url: `https://github.com/org/repo-${id}`, connections: [] });
   beforeAll(async () => {
-    temp = await startEmbeddedPostgresTestDatabase("paperclip-repositories-");
+    temp = await startEmbeddedPostgresTestDatabase("nexus-repositories-");
     db = createDb(temp.connectionString);
     [companyId] = (await db.insert(companies).values({ name: "Repositories", issuePrefix: "REPO" }).returning()).map((company) => company.id);
   }, 20_000);

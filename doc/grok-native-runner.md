@@ -1,7 +1,7 @@
 # Grok Build native runner
 
 Select **Grok Build** in the native runner provider selector. The stored contract is
-`adapterType: "paperclip_runner"` with `provider: "acpx"`, `acpxAgent: "grok"`,
+`adapterType: "nexus_runner"` with `provider: "acpx"`, `acpxAgent: "grok"`,
 and `model: "grok-4.7"`. Existing `grok_local` agents keep their legacy adapter
 until an explicit upgrade. On a qualified macOS ARM64 or Linux x64 computer,
 **Harness / Runtime → Upgrade runner** preserves the agent, model, account,
@@ -47,20 +47,20 @@ unset native configurations retain their provider default. See Grok's
 
 Grok Build speaks [ACP over stdio](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/15-agent-mode.md).
 The runner owns `grok agent --no-leader stdio` through ACPX, including session
-identity, cancellation, recovery and the authenticated Paperclip MCP bridge.
+identity, cancellation, recovery and the authenticated Nexus MCP bridge.
 ACP permission requests are approved by the runner under the default full-auto
 policy. It does not add `--always-approve`: permission decisions remain under
 the selected ACPX policy. Grok's ACP metadata cannot independently establish
-Paperclip tool authority, so explicitly selecting `approve-paperclip` or
+Nexus tool authority, so explicitly selecting `approve-nexus` or
 `approve-reads` returns the approval-required outcome; `deny-all` rejects requests.
-Full auto does not bypass Paperclip's company permissions, governed approvals,
+Full auto does not bypass Nexus's company permissions, governed approvals,
 or execution-environment boundaries. Isolated ask
 rules override project allow rules, and compatible always-approve settings are
 locked off. Compatible hook/MCP discovery and shell login capture are disabled.
 
 ## Installation and identity
 
-Grok support ships inside the native runner and the public Paperclip server npm
+Grok support ships inside the native runner and the public Nexus server npm
 artifact. There is no separate Grok npm package, binary payload, or npm lifecycle
 download. The built-in launcher is identified as `builtin:grok-acp` version 1;
 its native runtime identity is `native:grok` version 1.0.13. The historical
@@ -74,15 +74,15 @@ guarded at the pack boundary by the provider pack's `contractDigest`, so the
 controller reuses an installed pack only when that digest matches and stages its
 current verified pack otherwise. Earlier profile versions decode for recovery,
 but they do not authorize a fresh launch. After changing the launcher, run
-`pnpm --filter @paperclipai/paperclip-runner generate:acpx-profiles`; the
+`pnpm --filter @nexusai/nexus-runner generate:acpx-profiles`; the
 `check:acpx-profiles` build gate refuses a stale digest.
 
 Provision Grok Build 1.0.13 at
-`/opt/paperclip/providers/grok/1.0.13/grok` in the selected execution environment.
+`/opt/nexus/providers/grok/1.0.13/grok` in the selected execution environment.
 The sandbox provisioning helper is explicit and is never run by npm:
 
 ```sh
-sudo node packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok
+sudo node packages/nexus-runner/scripts/provision-grok.mjs /opt/nexus/providers/grok/1.0.13/grok
 ```
 
 The standard Daytona image provisions it separately from the provider pack.
@@ -122,7 +122,7 @@ to Grok.
 
 ## Evaluation
 
-The private `paperclip-evals` repository maintains `live-acpx-grok-4.7.json` and
+The private `nexus-evals` repository maintains `live-acpx-grok-4.7.json` and
 `rosters/live-acpx-grok.json`. The roster covers all 39 protocol cases. Its campaign
 lane remains disabled pending complete live qualification.
 
@@ -140,7 +140,7 @@ interactive sign-in UI. Authentication mode remains part of the profile identity
 After a subscription upgrade, a fresh `grok login` may be needed if the existing
 login still reports the previous entitlement through ACP.
 
-`packages/paperclip-runner/scripts/grok-native-smoke.mjs` records explicit auth,
+`packages/nexus-runner/scripts/grok-native-smoke.mjs` records explicit auth,
 model/binary identity, MCP outcome, durable resume and restrictive permissions.
 Pass `--auth subscription --auth-file /private/path/auth.json --output /private/report.json`
 or `--auth api --output /private/report.json` with an explicitly supplied key.
@@ -173,10 +173,10 @@ positive probe mounts that binary read-only at the canonical sandbox path.
 
 
 The Cloud application image also carries the controller-owned provider pack and
-sets `PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH`. Remote ACPX execution verifies
+sets `NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH`. Remote ACPX execution verifies
 the sandbox against that pack before using it, or stages the matching pack when
 needed. The Cloud controller image does not install the native Grok executable;
 the selected sandbox image must provide the prerequisite above.
-Cloud builds must supply the full source SHA through `PAPERCLIP_BUILD_COMMIT`
+Cloud builds must supply the full source SHA through `NEXUS_BUILD_COMMIT`
 to produce that verified pack. Unstamped local Cloud builds still work for other
 features, but omit the pack and cannot start remote ACPX sessions.

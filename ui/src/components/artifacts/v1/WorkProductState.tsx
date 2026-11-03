@@ -1,4 +1,4 @@
-import type { IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueWorkProduct } from "@nexusai/shared";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { stateChipFor } from "@/components/task-chat/RichWorkProductCard";

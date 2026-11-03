@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.rich-acp-ui-browser-proof.v1",
+  "schema": "nexus.rich-acp-ui-browser-proof.v1",
   "sourceRevision": "851c60a1fbc7c68990077204022295ed2c2c11a1",
   "recordedAt": "2026-09-28T17:17:49.521920+00:00",
   "environment": {
@@ -13,7 +13,7 @@
   "paidProviderCalls": 0,
   "spendUsd": 0,
   "observedDefect": {
-    "path": "ui/src/adapters/paperclip-runner/index.ts",
+    "path": "ui/src/adapters/nexus-runner/index.ts",
     "beforeDescriptionCharacters": 4000,
     "canonicalDescriptionCharacters": 100000,
     "fix": "Preserve valid complete input context; reject oversized context with an explicit notice. Render complete Markdown context in a keyboard-focusable scroll region."
@@ -23,7 +23,7 @@
     "revision": "eedc589b367de4f6366ff76090d93676adb1e2238d4c5af280ac88393e1adef3",
     "requestId": "cursor-create-plan-revision-7",
     "pipeline": [
-      "paperclipRunnerUIAdapter",
+      "nexusRunnerUIAdapter",
       "transcriptToTaskChatItems",
       "TaskChatProtocolCard",
       "QuestionForm"
@@ -33,7 +33,7 @@
     "manuallyScrolledToEnd": true,
     "manualApprovalReceiptVerified": true,
     "fixtureSource": "Canonical runtime_request.created fixture matches normalizeCursorPlanRequest output; the browser does not launch Cursor or execute its normalizer.",
-    "normalizerReference": "packages/paperclip-runner/src/drivers/acpx/cursor-extensions.ts (Cursor provider branch)"
+    "normalizerReference": "packages/nexus-runner/src/drivers/acpx/cursor-extensions.ts (Cursor provider branch)"
   },
   "storybookPlays": [
     {
@@ -139,7 +139,7 @@
     }
   ],
   "reproduce": {
-    "command": "pnpm --filter @paperclipai/ui storybook",
+    "command": "pnpm --filter @nexusai/ui storybook",
     "storyFile": "ui/storybook/stories/rich-acp-interactions.stories.tsx",
     "instructions": "Open each story ID listed below. Storybook play assertions run against production components. Inspect the Native Cursor plan pending story and scroll the Question context region to the final sentinel."
   },

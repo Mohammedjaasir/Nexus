@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { VOICE_RESULT_NOTIFICATION, VOICE_REPEAT_NOTIFICATION, type VoiceTranscriptEntry } from "@paperclipai/shared";
+import { VOICE_RESULT_NOTIFICATION, VOICE_REPEAT_NOTIFICATION, type VoiceTranscriptEntry } from "@nexusai/shared";
 import { redactSensitiveText } from "../../redaction.js";
 const timestamp = z.string().datetime({ offset: true });
 const entry = z.object({

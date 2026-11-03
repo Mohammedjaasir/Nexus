@@ -60,7 +60,7 @@ export function upgradeRunnerResult(result: RunnerE2EResult): RunnerE2EResult {
     suiteId: result.suiteId ?? execution.suite.id,
     suiteDefinitionHash:
       result.suiteDefinitionHash ?? execution.suiteDefinitionHash,
-    ...(result.schema === "paperclip.runner-e2e.result/v1"
+    ...(result.schema === "nexus.runner-e2e.result/v1"
       ? {
           source: result.source ?? {
             sha: null,
@@ -210,7 +210,7 @@ export function buildRunnerCampaign(input: {
     ).values(),
   ];
   const campaign: RunnerE2ECampaign = {
-    schema: "paperclip.runner-e2e.campaign/v2",
+    schema: "nexus.runner-e2e.campaign/v2",
     campaignId: input.campaignId,
     generatedAt: input.generatedAt,
     source,
@@ -283,7 +283,7 @@ export function campaignHistoryRecord(
 
 export function emptyRunnerHistory(): RunnerE2EHistoryIndex {
   return {
-    schema: "paperclip.runner-e2e.history/v1",
+    schema: "nexus.runner-e2e.history/v1",
     updatedAt: new Date(0).toISOString(),
     latestCampaignId: null,
     latestGreenCampaignId: null,
@@ -299,7 +299,7 @@ export function mergeRunnerHistory(
   retention?: { now: number; maxAgeMs: number; maxCampaigns: number },
 ): RunnerE2EHistoryIndex {
   const base =
-    current?.schema === "paperclip.runner-e2e.history/v1"
+    current?.schema === "nexus.runner-e2e.history/v1"
       ? current
       : emptyRunnerHistory();
   const campaigns = [
@@ -326,7 +326,7 @@ export function mergeRunnerHistory(
     }
   }
   return {
-    schema: "paperclip.runner-e2e.history/v1",
+    schema: "nexus.runner-e2e.history/v1",
     updatedAt: new Date(retention?.now ?? Date.now()).toISOString(),
     latestCampaignId: campaigns[0]?.campaignId ?? null,
     latestGreenCampaignId:

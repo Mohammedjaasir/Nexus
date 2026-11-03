@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { agents, companies, createDb } from "@paperclipai/db";
+import { agents, companies, createDb } from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -30,19 +30,19 @@ describeEmbeddedPostgres("teams catalog install with no caller adapter overrides
   let db!: ReturnType<typeof createDb>;
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
   let tempHome: string | null = null;
-  let oldPaperclipHome: string | undefined;
+  let oldNexusHome: string | undefined;
 
   beforeAll(async () => {
-    oldPaperclipHome = process.env.PAPERCLIP_HOME;
-    tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-teams-catalog-no-overrides-"));
-    process.env.PAPERCLIP_HOME = tempHome;
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-teams-catalog-no-overrides-");
+    oldNexusHome = process.env.NEXUS_HOME;
+    tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-teams-catalog-no-overrides-"));
+    process.env.NEXUS_HOME = tempHome;
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-teams-catalog-no-overrides-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
   afterAll(async () => {
-    if (oldPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-    else process.env.PAPERCLIP_HOME = oldPaperclipHome;
+    if (oldNexusHome === undefined) delete process.env.NEXUS_HOME;
+    else process.env.NEXUS_HOME = oldNexusHome;
     if (tempHome) await fs.rm(tempHome, { recursive: true, force: true });
     await tempDb?.cleanup();
   });
@@ -69,7 +69,7 @@ describeEmbeddedPostgres("teams catalog install with no caller adapter overrides
       })
       .from(agents)
       .where(eq(agents.companyId, companyId));
-    for (const row of rows.filter(row => row.adapterType === "paperclip_runner")) {
+    for (const row of rows.filter(row => row.adapterType === "nexus_runner")) {
       expect(row.adapterConfig).toMatchObject(row.name === expectedOpenCodeName
         ? { provider: "opencode", model: "anthropic/claude-opus-4" }
         : { provider: "acpx", acpxAgent: "claude" });
@@ -90,7 +90,7 @@ describeEmbeddedPostgres("teams catalog install with no caller adapter overrides
     expect(byName.size).toBe(3);
 
     const adapterTypes = Array.from(byName.values()).map((row) => row.adapterType);
-    expect(adapterTypes).toEqual(["paperclip_runner", "paperclip_runner", "paperclip_runner"]);
+    expect(adapterTypes).toEqual(["nexus_runner", "nexus_runner", "nexus_runner"]);
     expect(adapterTypes).not.toContain("process");
     expect(adapterTypes).not.toContain("http");
   });
@@ -107,7 +107,7 @@ describeEmbeddedPostgres("teams catalog install with no caller adapter overrides
     const byName = await listAdapterTypesByName(companyId);
     expect(byName.size).toBe(1);
     const adapterTypes = Array.from(byName.values()).map((row) => row.adapterType);
-    expect(adapterTypes).toEqual(["paperclip_runner"]);
+    expect(adapterTypes).toEqual(["nexus_runner"]);
     expect(adapterTypes).not.toContain("process");
   });
 
@@ -123,7 +123,7 @@ describeEmbeddedPostgres("teams catalog install with no caller adapter overrides
     const byName = await listAdapterTypesByName(companyId);
     expect(byName.size).toBe(3);
     const adapterTypes = Array.from(byName.values()).map((row) => row.adapterType);
-    expect(adapterTypes).toEqual(["paperclip_runner", "paperclip_runner", "paperclip_runner"]);
+    expect(adapterTypes).toEqual(["nexus_runner", "nexus_runner", "nexus_runner"]);
     expect(adapterTypes).not.toContain("process");
     expect(byName.get("CTO")?.permissions).toMatchObject({ canCreateAgents: true });
   });
@@ -143,10 +143,10 @@ describeEmbeddedPostgres("teams catalog install with no caller adapter overrides
     const byName = await listAdapterTypesByName(companyId, "CTO");
     expect(byName.size).toBe(3);
     const ctoRow = Array.from(byName.values()).find((row) => row.role === "engineering-manager" || row.name === "CTO");
-    expect(ctoRow?.adapterType).toBe("paperclip_runner");
+    expect(ctoRow?.adapterType).toBe("nexus_runner");
     const otherAdapters = Array.from(byName.values())
       .filter((row) => row !== ctoRow)
       .map((row) => row.adapterType);
-    expect(otherAdapters).toEqual(["paperclip_runner", "paperclip_runner"]);
+    expect(otherAdapters).toEqual(["nexus_runner", "nexus_runner"]);
   });
 });

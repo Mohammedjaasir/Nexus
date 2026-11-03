@@ -1,11 +1,11 @@
 ---
 name: diagnose-why-work-stopped
-description: Compatibility entry point for failed, stalled, looping, or over-recovered Paperclip work. Use fix-failed-paperclip-run for the full diagnosis, regression, repair, real verification, and green-PR workflow; honor an explicitly requested diagnosis-only scope.
+description: Compatibility entry point for failed, stalled, looping, or over-recovered Nexus work. Use fix-failed-nexus-run for the full diagnosis, regression, repair, real verification, and green-PR workflow; honor an explicitly requested diagnosis-only scope.
 ---
 
 # Diagnose Why Work Stopped
 
-Use [Fix Failed Paperclip Run](../fix-failed-paperclip-run/SKILL.md). It owns the current
+Use [Fix Failed Nexus Run](../fix-failed-nexus-run/SKILL.md). It owns the current
 workflow: find the first causal failure, reproduce it red, repair the shared
 contract, test second-order effects, verify the real workflow, and deliver a PR
 with passing checks. A normal request to fix stopped work continues through that

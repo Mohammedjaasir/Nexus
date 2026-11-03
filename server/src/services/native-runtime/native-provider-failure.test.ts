@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PrpEvent, PrpTerminalState } from "../../vendor/paperclip-runner/index.js";
+import type { PrpEvent, PrpTerminalState } from "../../vendor/nexus-runner/index.js";
 import { createNativeProviderFailureObservation, NATIVE_MODEL_REJECTION_DIAGNOSTIC, NATIVE_MODEL_REJECTION_MESSAGE, NATIVE_PROVIDER_OVERLOADED_MESSAGE, readNativeTurnFailureDiagnostic } from "./native-provider-failure.js";
 
 const model = "test-model";
@@ -8,13 +8,13 @@ const response = {
   error: { type: "invalid_request_error", message: `The '${model}' model is not supported when using Codex with a ChatGPT account.` },
 };
 const event: PrpEvent = {
-  schema: "paperclip.prp.event.v1", runId: "run", normalizedSessionId: "session", turnId: "turn",
+  schema: "nexus.prp.event.v1", runId: "run", normalizedSessionId: "session", turnId: "turn",
   sourceInstanceId: "runner", sourceEventId: "failure", sourceSeq: 1, sourceKind: "runner",
   eventType: "turn.failed", schemaVersion: 1, priority: 0, emittedAt: "2026-01-01T00:00:00.000Z",
   payload: { status: "failed", error: { message: JSON.stringify(response), codexErrorInfo: "other" } },
 };
 const terminal: PrpTerminalState = {
-  schema: "paperclip.prp.terminal.v1", turnTerminalState: "failed", runTerminalState: "failed", reportedWorkDisposition: "blocked",
+  schema: "nexus.prp.terminal.v1", turnTerminalState: "failed", runTerminalState: "failed", reportedWorkDisposition: "blocked",
 };
 const observation = () => createNativeProviderFailureObservation({ kind: "codex", model });
 

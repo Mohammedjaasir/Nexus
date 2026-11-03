@@ -1,4 +1,4 @@
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@nexusai/shared";
 import type { TaskChatTaskCreatedItem } from "./task-chat-model";
 
 /** Tasks come from the existing access-checked child/source-task reads, never tool output. */

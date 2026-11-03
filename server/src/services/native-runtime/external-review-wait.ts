@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { chatConversations, chatEndpoints, heartbeatRuns, issues, statusDecisions, type Db } from "@paperclipai/db";
+import { chatConversations, chatEndpoints, heartbeatRuns, issues, statusDecisions, type Db } from "@nexusai/db";
 import { readInheritedGitHubReviewWait } from "../chat-channels/github/review-wait.js";
 import { authorizeChatConversationForBoundRun } from "./chat-attachment-reuse.js";
 import { EXTERNAL_CHAT_QUESTION_RESPONSE_KEY } from "./external-chat-question-response.js";
@@ -7,7 +7,7 @@ import { EXTERNAL_CHAT_QUESTION_RESPONSE_KEY } from "./external-chat-question-re
 const authorizationContextKeys = [
   "source", "issueId", "wakeReason", "interactionKind", "interactionStatus", "externalChatContinuation",
   "interactionId", "sourceRunId", "sourceCommentId", "wakeCommentId", "wakeCommentIds",
-  "paperclipHarnessCheckedOut", "paperclipExternalChatExecutionBound",
+  "nexusHarnessCheckedOut", "nexusExternalChatExecutionBound",
   EXTERNAL_CHAT_QUESTION_RESPONSE_KEY,
 ] as const;
 
@@ -71,8 +71,8 @@ export async function listExternalReviewWaits(db: Db, companyId: string, issueId
       await authorizeChatConversationForBoundRun(db, { companyId, issueId: wait.issueId, runId, agentId }, inheritedWait?.context ?? contextSnapshot, "read");
       return wait;
     } catch (error) {
-      if (error instanceof Error && ["paperclip_runner_chat_attachment_binding_denied",
-        "paperclip_runner_chat_attachment_destination_denied", "paperclip_runner_chat_attachment_principal_denied"].includes(error.message)) return null;
+      if (error instanceof Error && ["nexus_runner_chat_attachment_binding_denied",
+        "nexus_runner_chat_attachment_destination_denied", "nexus_runner_chat_attachment_principal_denied"].includes(error.message)) return null;
       throw error;
     }
   }));

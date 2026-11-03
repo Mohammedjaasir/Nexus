@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { heartbeatRuns, nativeRunFinalizations, type Db } from "@paperclipai/db";
-import { parseNativeExecutionInput, type DurableRecoveryIdentity, type NativeExecutionInput, type PrpEvent } from "../../vendor/paperclip-runner/index.js";
+import { heartbeatRuns, nativeRunFinalizations, type Db } from "@nexusai/db";
+import { parseNativeExecutionInput, type DurableRecoveryIdentity, type NativeExecutionInput, type PrpEvent } from "../../vendor/nexus-runner/index.js";
 import { createNativeUsageContinuationDelivery } from "./native-usage-delivery.js";
 
 const identityKeys = ["runId", "runnerInstanceId", "environmentLeaseId", "normalizedSessionId", "turnId", "itemId"] as const;

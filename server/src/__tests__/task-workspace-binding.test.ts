@@ -1,5 +1,5 @@
 import { findNativeChatWorkspaceScope } from "../services/native-runtime/native-chat-workspace.js";
-import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { assertGitSensitiveAdapterWorkspaceValid, createHeartbeatWorkspaceResolver } from "../services/heartbeat/workspaces.js";
 import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
 import fs from "node:fs/promises";
@@ -13,7 +13,7 @@ import request from "supertest";
 import { taskWorkspaceRoutes } from "../routes/task-workspaces.js";
 import { issueRoutes } from "../routes/issues.js";
 import { errorHandler } from "../middleware/error-handler.js";
-import { agents, authUsers, companies, companyMemberships, completionContracts, createDb, environmentLeases, executionWorkspaceRepositories, executionWorkspaceRepositoryAccess, executionWorkspaces, heartbeatRunEvents, heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults, workspaceOperations, principalPermissionGrants, projectAccessMembers, projects, projectWorkspaces } from "@paperclipai/db";
+import { agents, authUsers, companies, companyMemberships, completionContracts, createDb, environmentLeases, executionWorkspaceRepositories, executionWorkspaceRepositoryAccess, executionWorkspaces, heartbeatRunEvents, heartbeatRuns, issues, nativeRunFinalizations, nativeRunResults, workspaceOperations, principalPermissionGrants, projectAccessMembers, projects, projectWorkspaces } from "@nexusai/db";
 import { executionWorkspaceService } from "../services/execution-workspaces.js";
 import { authorizationService, canActorReadExecutionWorkspace } from "../services/authorization.js";
 import { assertChatExecutionDefaultsAccess } from "../services/chat-execution-defaults.js";
@@ -28,7 +28,7 @@ const support = await getEmbeddedPostgresTestSupport();
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   beforeAll(async () => {
-    temporary = await startEmbeddedPostgresTestDatabase("paperclip-task-workspace-");
+    temporary = await startEmbeddedPostgresTestDatabase("nexus-task-workspace-");
     db = createDb(temporary.connectionString);
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
   afterAll(async () => { await temporary?.cleanup(); });
@@ -369,7 +369,7 @@ const support = await getEmbeddedPostgresTestSupport();
       let resultId: string | null = null;
       if (acceptedResult) {
         const [contract] = await db.insert(completionContracts).values({ companyId: f.companyId, issueId: f.issueId,
-          revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "test", risk: "low",
+          revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "test", risk: "low",
           completionAuthority: "agent", incompleteCriteriaPolicy: "block", contractJson: {}, canonicalSha256: "contract",
           createdByActorType: "agent", createdByActorId: agent.id }).returning();
         await db.update(heartbeatRuns).set({ completionContractId: contract.id }).where(eq(heartbeatRuns.id, run.id));
@@ -557,7 +557,7 @@ const support = await getEmbeddedPostgresTestSupport();
   });
 
   it.each(["binding", "configured_source"] as const)("preserves selected app configuration privacy on legacy PATCH %s", async kind => {
-    vi.stubEnv("PAPERCLIP_ISSUE_PRIVACY_MODE", "enforce");
+    vi.stubEnv("NEXUS_ISSUE_PRIVACY_MODE", "enforce");
     const f = await fixture(), userId = randomUUID(), settings = instanceSettingsService(db), previous = await settings.getExperimental();
     await settings.updateExperimental({ enableIsolatedWorkspaces: true });
     try {
@@ -709,7 +709,7 @@ const support = await getEmbeddedPostgresTestSupport();
   it("defaults app and chat tasks to independent directories without hydrating legacy agent files", async () => {
     const f = await fixture();
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "task-workspace-default-"));
-    vi.stubEnv("PAPERCLIP_HOME", root);
+    vi.stubEnv("NEXUS_HOME", root);
     try {
       const [agent] = await db.insert(agents).values({ companyId: f.companyId, name: "File worker", adapterType: "process", status: "idle" }).returning();
       const legacy = resolveDefaultAgentWorkspaceDir(agent!.id);
@@ -735,7 +735,7 @@ const support = await getEmbeddedPostgresTestSupport();
       expect(organized.cwd).toBe(chat.cwd);
       expect(organized.projectId).toBeNull();
       const nativeChatScope = await findNativeChatWorkspaceScope(db, {
-        adapterType: "paperclip_runner", environmentDriver: "local", companyId: f.companyId,
+        adapterType: "nexus_runner", environmentDriver: "local", companyId: f.companyId,
         agentId: agent!.id, issueId: chatId, instanceRoot: root,
       });
       expect(nativeChatScope?.projectId).toBeNull();
@@ -746,7 +746,7 @@ const support = await getEmbeddedPostgresTestSupport();
   it.each(["missing_path", "clone_failure", "deleted_source"] as const)("refuses sibling and session fallbacks for an explicit configured source: %s", async (failure) => {
     const f = await fixture();
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "task-source-selection-"));
-    vi.stubEnv("PAPERCLIP_HOME", root);
+    vi.stubEnv("NEXUS_HOME", root);
     try {
       const projectId = randomUUID(), sourceId = randomUUID(), siblingId = randomUUID();
       const siblingCwd = path.join(root, "usable-sibling");
@@ -791,7 +791,7 @@ const support = await getEmbeddedPostgresTestSupport();
   });
 
   it.each(["creation", "selection"] as const)("retains private writers after an existing workspace is installed by %s and then detached", async (installation) => {
-    vi.stubEnv("PAPERCLIP_ISSUE_PRIVACY_MODE", "enforce");
+    vi.stubEnv("NEXUS_ISSUE_PRIVACY_MODE", "enforce");
     try {
       const f = await fixture(), svc = executionWorkspaceService(db);
       const [project] = await db.insert(projects).values({ companyId: f.companyId, name: "Organization" }).returning();

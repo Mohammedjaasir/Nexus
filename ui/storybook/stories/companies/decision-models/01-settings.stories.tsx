@@ -4,7 +4,7 @@ import { DecisionModelSettingsView } from "@/components/decision-models/Decision
 import { choices, configured, result, unconfigured } from "../../../support/decision-models/fixtures";
 
 const meta = {
-  parameters: { paperclip: {
+  parameters: { nexus: {
       "capabilities": [
         "companies/identity",
         "budgets-costs/cost-reporting",

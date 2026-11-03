@@ -19,7 +19,7 @@ import {
   issues,
   nativeRunFinalizations,
   workspaceRuntimeServices,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { executionWorkspaceService } from "../services/execution-workspaces.js";
 import { materializeIsolatedTaskDirectory } from "../services/isolated-task-directory.js";
@@ -49,15 +49,15 @@ describeEmbeddedPostgres("isolated task directory retention", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let root: string;
   let outside: string;
-  const previousHome = process.env.PAPERCLIP_HOME;
-  const previousInstance = process.env.PAPERCLIP_INSTANCE_ID;
+  const previousHome = process.env.NEXUS_HOME;
+  const previousInstance = process.env.NEXUS_INSTANCE_ID;
   beforeAll(async () => {
     database = await startEmbeddedPostgresTestDatabase("isolated-task-directory-retention-");
     db = createDb(database.connectionString);
-    root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-task-directory-retention-")));
-    process.env.PAPERCLIP_HOME = path.join(root, "home");
-    process.env.PAPERCLIP_INSTANCE_ID = "default";
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "31".repeat(32));
+    root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "nexus-task-directory-retention-")));
+    process.env.NEXUS_HOME = path.join(root, "home");
+    process.env.NEXUS_INSTANCE_ID = "default";
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "31".repeat(32));
     outside = path.join(root, "outside");
     await fs.mkdir(outside);
     await fs.writeFile(path.join(outside, "keep.txt"), "outside\n");
@@ -69,8 +69,8 @@ describeEmbeddedPostgres("isolated task directory retention", () => {
   });
   afterAll(async () => {
     vi.unstubAllEnvs();
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previousHome;
-    if (previousInstance === undefined) delete process.env.PAPERCLIP_INSTANCE_ID; else process.env.PAPERCLIP_INSTANCE_ID = previousInstance;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = previousHome;
+    if (previousInstance === undefined) delete process.env.NEXUS_INSTANCE_ID; else process.env.NEXUS_INSTANCE_ID = previousInstance;
     await db.$client.end({ timeout: 1 }); await database.cleanup(); await fs.rm(root, { recursive: true, force: true });
   });
 

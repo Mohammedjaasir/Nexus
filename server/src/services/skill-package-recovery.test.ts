@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { recoverSkillPackage } from "./skill-package-recovery.js";
 import { skillPackageManifest } from "./skill-package-files.js";
 import type { GitHubRead } from "./github-skill-source.js";
-import type { SkillPackageRestoreRecipe } from "@paperclipai/db";
+import type { SkillPackageRestoreRecipe } from "@nexusai/db";
 import { MAX_REPOSITORY_BYTES, MAX_REPOSITORY_FILES } from "./skill-repository-package.js";
 
 function fixture() {

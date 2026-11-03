@@ -148,7 +148,7 @@ export function TaskChatDescriptionBubble({ brief }: TaskChatDescriptionBubblePr
             <MarkdownBody
               // On the solid --liveness-blue human bubble, keep prose body text
               // following the bubble's `text-white` in both themes.
-              className={isHuman ? "paperclip-markdown-on-accent" : undefined}
+              className={isHuman ? "nexus-markdown-on-accent" : undefined}
               softBreaks
               linkIssueReferences
               externalReferences={brief.externalReferences}

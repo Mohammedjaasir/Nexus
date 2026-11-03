@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Decorator } from "@storybook/react-vite";
-import type { Agent, Issue, ResourceMemberships } from "@paperclipai/shared";
+import type { Agent, Issue, ResourceMemberships } from "@nexusai/shared";
 import { Layout } from "@/components/Layout";
 import { Layout as ClassicLayout } from "@/components/Layout.production";
 import { SidebarAgents } from "@/components/SidebarAgents";
@@ -19,7 +19,7 @@ import { useToastActions } from "@/context/ToastContext";
 import { queryKeys } from "@/lib/queryKeys";
 import { agentChatDraft } from "@/lib/agent-chat-draft";
 import { Navigate, Route, Routes } from "@/lib/router";
-import { storybookAgents, storybookAuthSession, storybookCompanies, storybookIssues, storybookDashboardSummary } from "../../fixtures/paperclipData";
+import { storybookAgents, storybookAuthSession, storybookCompanies, storybookIssues, storybookDashboardSummary } from "../../fixtures/nexusData";
 
 export const companyId = "company-storybook";
 export const mobile = { viewport: { value: "mobile", isRotated: false } };
@@ -151,7 +151,7 @@ function installFixtures(state: StoryState, changed: () => void) {
     if (path.endsWith("/capabilities") && path.includes("/environments")) return json({ environments: [], defaultEnvironmentId: null });
     if (path.includes("/models") || path === "/api/adapters" || path.includes("/model-profiles")) return previousFetch(input, init);
     // Other existing read-only shell panels are empty in this isolated company.
-    // Refuse unknown writes rather than ever reaching a running Paperclip API.
+    // Refuse unknown writes rather than ever reaching a running Nexus API.
     return method === "GET" ? json([]) : Response.json({ error: "This action is outside the primary-agent design preview." }, { status: 422 });
   };
   return () => { window.fetch = previousFetch; };
@@ -169,7 +169,7 @@ function Sandbox({ options, children }: { options: PrimaryScenario; children: Re
   const { selectedCompanyId, setSelectedCompanyId } = useCompany();
   const { pushToast, dismissToast } = useToastActions();
   useLayoutEffect(() => {
-    const storageKeys = [`paperclip:issue-draft:${storybookAuthSession.user!.id}`, "paperclip:recent-assignees", `paperclip:recent-assignees:${companyId}`, `paperclip.recentAgentChats:${companyId}:user-board`, ...state.agents.map(a => `paperclip.recentAgentChatIssue:${companyId}:user-board:${a.id}`)];
+    const storageKeys = [`nexus:issue-draft:${storybookAuthSession.user!.id}`, "nexus:recent-assignees", `nexus:recent-assignees:${companyId}`, `nexus.recentAgentChats:${companyId}:user-board`, ...state.agents.map(a => `nexus.recentAgentChatIssue:${companyId}:user-board:${a.id}`)];
     const previous = storageKeys.map(key => [key, localStorage.getItem(key)] as const);
     storageKeys.forEach(key => localStorage.removeItem(key));
     const changed = () => {
@@ -196,7 +196,7 @@ function Sandbox({ options, children }: { options: PrimaryScenario; children: Re
   useEffect(() => {
     if (!ready) return;
     const id = options.recentAssignee ? specialist.id : primaryId;
-    localStorage.setItem(`paperclip:recent-assignees:${companyId}`, JSON.stringify(id ? [`agent:${id}`] : []));
+    localStorage.setItem(`nexus:recent-assignees:${companyId}`, JSON.stringify(id ? [`agent:${id}`] : []));
   }, [ready, primaryId, options.recentAssignee]);
   const changePrimary = (id: string) => {
     const before = state.primaryId;
@@ -249,7 +249,7 @@ export function PrimaryPage({ task, drawer }: { task?: "primary" | "recent" | "e
     if (task && !launched.current) {
       launched.current = true;
       if (task === "draft") {
-        localStorage.setItem(`paperclip:issue-draft:${storybookAuthSession.user!.id}`, JSON.stringify({ title: "Review the launch mockups", description: "Keep the mobile navigation compact.", companyId, status: "todo", priority: "medium", assigneeValue: `agent:${designer.id}`, projectId: "", reviewerValue: "", approverValue: "", assigneeModelOverride: "", assigneeThinkingEffort: "", assigneeChrome: false }));
+        localStorage.setItem(`nexus:issue-draft:${storybookAuthSession.user!.id}`, JSON.stringify({ title: "Review the launch mockups", description: "Keep the mobile navigation compact.", companyId, status: "todo", priority: "medium", assigneeValue: `agent:${designer.id}`, projectId: "", reviewerValue: "", approverValue: "", assigneeModelOverride: "", assigneeThinkingEffort: "", assigneeChrome: false }));
         openNewIssue();
       } else {
         openNewIssue({ title: "Plan next week's launch", ...(task === "explicit" ? { assigneeAgentId: designer.id } : task === "primary" ? { assigneeAgentId: state.primaryId ?? undefined } : {}) });

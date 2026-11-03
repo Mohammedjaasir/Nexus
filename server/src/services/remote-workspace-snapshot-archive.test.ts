@@ -295,11 +295,11 @@ describe("portable remote workspace archives", () => {
     for (const value of ["one", "two"]) {
       await fs.writeFile(path.join(base, "file"), value); await git(base, "add", "."); await git(base, "commit", "-qm", value);
     }
-    const cwd = path.join(root, "task"), checkouts = path.join(cwd, ".paperclip-repositories"); await fs.mkdir(checkouts, { recursive: true });
+    const cwd = path.join(root, "task"), checkouts = path.join(cwd, ".nexus-repositories"); await fs.mkdir(checkouts, { recursive: true });
     const repository = path.join(checkouts, "repo");
     await git(root, "clone", "-q", "--depth=1", `file://${base}`, repository);
     const snapshot = await capture(cwd); await fs.rm(base, { recursive: true }); await fs.rm(cwd, { recursive: true });
-    const restored = path.join(await restore(snapshot), ".paperclip-repositories", "repo");
+    const restored = path.join(await restore(snapshot), ".nexus-repositories", "repo");
     expect(await git(restored, "rev-parse", "--is-shallow-repository")).toBe("true");
     expect(await git(restored, "rev-list", "--count", "HEAD")).toBe("1");
     expect(await fs.readFile(path.join(restored, "file"), "utf8")).toBe("two");
@@ -378,7 +378,7 @@ describe("portable remote workspace archives", () => {
     await expect(capture(linked)).rejects.toThrow("source_invalid");
   });
   it("rejects path traversal before creating a restored directory", async () => {
-    const manifest = { schema: "paperclip.remote-workspace-archive.v1", entries: [{ path: "../escape", type: "file", mode: 0o600,
+    const manifest = { schema: "nexus.remote-workspace-archive.v1", entries: [{ path: "../escape", type: "file", mode: 0o600,
       size: 0, sha256: createHash("sha256").digest("hex") }] };
     const bytes = Buffer.from(JSON.stringify(manifest)), length = Buffer.alloc(4); length.writeUInt32BE(bytes.length);
     const archivePath = path.join(root, "unsafe.pcws"), targetDir = path.join(root, "target");

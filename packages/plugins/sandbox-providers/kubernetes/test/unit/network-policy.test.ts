@@ -3,16 +3,16 @@ import { buildNetworkPolicyManifests } from "../../src/network-policy.js";
 
 describe("buildNetworkPolicyManifests", () => {
   const baseInput = {
-    namespace: "paperclip-acme",
-    paperclipServerNamespace: "paperclip",
+    namespace: "nexus-acme",
+    nexusServerNamespace: "nexus",
     egressAllowCidrs: [] as string[],
   };
 
   it("produces a deny-all + egress allow pair", () => {
     const manifests = buildNetworkPolicyManifests(baseInput);
     expect(manifests).toHaveLength(2);
-    expect(manifests[0].metadata.name).toBe("paperclip-deny-all");
-    expect(manifests[1].metadata.name).toBe("paperclip-egress-allow");
+    expect(manifests[0].metadata.name).toBe("nexus-deny-all");
+    expect(manifests[1].metadata.name).toBe("nexus-egress-allow");
   });
 
   it("deny-all has no ingress/egress rules and applies to all pods", () => {
@@ -23,17 +23,17 @@ describe("buildNetworkPolicyManifests", () => {
     expect(denyAll.spec.egress).toBeUndefined();
   });
 
-  it("egress allow includes kube-dns and paperclip-server callback", () => {
+  it("egress allow includes kube-dns and nexus-server callback", () => {
     const [, egress] = buildNetworkPolicyManifests(baseInput);
     const rules = egress.spec.egress;
     const dnsRule = rules.find((r: { ports?: { protocol: string; port: number }[] }) =>
       r.ports?.some((p) => p.port === 53),
     );
     expect(dnsRule).toBeDefined();
-    const paperclipRule = rules.find((r: { to: { namespaceSelector?: { matchLabels?: Record<string, string> } }[] }) =>
-      r.to.some((t) => t.namespaceSelector?.matchLabels?.["kubernetes.io/metadata.name"] === "paperclip"),
+    const nexusRule = rules.find((r: { to: { namespaceSelector?: { matchLabels?: Record<string, string> } }[] }) =>
+      r.to.some((t) => t.namespaceSelector?.matchLabels?.["kubernetes.io/metadata.name"] === "nexus"),
     );
-    expect(paperclipRule).toBeDefined();
+    expect(nexusRule).toBeDefined();
   });
 
   it("includes user-supplied CIDRs in egress allow", () => {
@@ -44,10 +44,10 @@ describe("buildNetworkPolicyManifests", () => {
     expect(cidrRule).toBeDefined();
   });
 
-  it("uses paperclip-server pod label selector for callback ingress to paperclip ns", () => {
+  it("uses nexus-server pod label selector for callback ingress to nexus ns", () => {
     const [, egress] = buildNetworkPolicyManifests(baseInput);
     const callbackRule = egress.spec.egress.find((r: { to: { podSelector?: { matchLabels?: Record<string, string> } }[] }) =>
-      r.to.some((t) => t.podSelector?.matchLabels?.app === "paperclip-server"),
+      r.to.some((t) => t.podSelector?.matchLabels?.app === "nexus-server"),
     );
     expect(callbackRule).toBeDefined();
     expect(callbackRule.ports[0].port).toBe(3100);

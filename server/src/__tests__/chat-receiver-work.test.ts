@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { applyPendingMigrations, agents, chatEndpoints, chatEndpointLeases, companies, createDb, toolApplications, toolConnections } from "@paperclipai/db";
+import { applyPendingMigrations, agents, chatEndpoints, chatEndpointLeases, companies, createDb, toolApplications, toolConnections } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
@@ -11,7 +11,7 @@ import { chatReceiverSchedule } from "../services/chat-channels/runtime/receiver
 import { registerChatReceiverWork } from "../services/chat-channels/runtime/receiver-work.js";
 import { notifyChatEndpointConfiguration, notifyChatConnectionConfiguration, notifyChatCompanyConfiguration } from "../services/chat-channels/configuration-work-notifications.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_RECEIVER_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_RECEIVER_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("chat receiver discovery", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;

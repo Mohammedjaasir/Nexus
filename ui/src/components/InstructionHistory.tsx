@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
-import type { AgentInstructionsFileDetail } from "@paperclipai/shared";
+import type { AgentInstructionsFileDetail } from "@nexusai/shared";
 import { agentsApi } from "../api/agents";
 import { Button } from "./ui/button";
 

@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { createFullDatabaseResponseCapture, installDatabaseResponseCapture } from "../../__tests__/helpers/full-database-response-capture.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   agentWakeupRequests,
@@ -9,7 +9,7 @@ import {
   createDb,
   heartbeatRuns,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { eq, sql, type SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -182,7 +182,7 @@ describePostgres("heartbeat run state database wiring", () => {
     const [run] = await db.insert(heartbeatRuns).values({ companyId, agentId: agent.id, status: "cancelled", runtimeMode: "legacy",
       startedAt: new Date("2020-01-01T00:00:00Z"), finishedAt: new Date("2020-01-01T00:01:00Z"),
       contextSnapshot: { ...context, prompt: payload }, resultJson: result,
-      runnerProfileJson: { adapterDispatch: { adapterType: "paperclip_runner", adapterConfig: { prompt: payload } }, savedInput: payload },
+      runnerProfileJson: { adapterDispatch: { adapterType: "nexus_runner", adapterConfig: { prompt: payload } }, savedInput: payload },
       stdoutExcerpt: payload, stderrExcerpt: payload,
     }).returning();
     const observed = createDb(database.connectionString), events: Array<Record<string, unknown>> = [], now = Date.now();
@@ -192,11 +192,11 @@ describePostgres("heartbeat run state database wiring", () => {
       const state = extracted.createHeartbeatRunState(observed);
       const read = await state.getRunExecutionWait(companyId, run.id);
       capture.flush();
-      const summary = events.find(event => event.event === "paperclip.test_db_response_capture.summary.v1")!;
+      const summary = events.find(event => event.event === "nexus.test_db_response_capture.summary.v1")!;
       expect(summary.completedQueries).toBe(2);
       expect(summary.responseValueBytes).toBeLessThan(4096);
       expect(read).toMatchObject({ id: run.id, companyId, agentId: agent.id, status: "cancelled", contextSnapshot: context,
-        runnerProfileJson: { adapterDispatch: { adapterType: "paperclip_runner" } },
+        runnerProfileJson: { adapterDispatch: { adapterType: "nexus_runner" } },
         resultJson: { startupCancellation: result.startupCancellation, cancellation: result.cancellation,
           acpToolInventoryComplete: true, acpPendingToolCount: 0 } });
       expect(JSON.stringify(read)).not.toContain(payload.slice(0, 64));
@@ -236,7 +236,7 @@ describePostgres("heartbeat run state database wiring", () => {
         id: run.id, companyId, scopeKind: "issue", issueId: issue.id, executionWorkspaceId: workspaceId,
       });
       capture.flush();
-      const summary = events.find(event => event.event === "paperclip.test_db_response_capture.summary.v1")!;
+      const summary = events.find(event => event.event === "nexus.test_db_response_capture.summary.v1")!;
       expect(summary.completedQueries).toBe(1);
       expect(summary.responseValueBytes).toBeLessThan(1024);
       expect((await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, run.id)))[0]).toEqual(run);
@@ -255,7 +255,7 @@ describePostgres("heartbeat run state database wiring", () => {
       runtimeMode: "legacy", runtimeModeResolvedAt: null,
       startedAt: new Date("2020-01-01T00:00:00Z"),
       contextSnapshot: { issueId: issue.id, prompt: payload },
-      runnerProfileJson: { adapterDispatch: { adapterType: "paperclip_runner", adapterConfig: { prompt: payload } }, savedInput: payload },
+      runnerProfileJson: { adapterDispatch: { adapterType: "nexus_runner", adapterConfig: { prompt: payload } }, savedInput: payload },
       resultJson: { stdout: payload }, stdoutExcerpt: payload, stderrExcerpt: payload,
     }).returning();
     const observed = createDb(database.connectionString);
@@ -268,9 +268,9 @@ describePostgres("heartbeat run state database wiring", () => {
       expect(active).toEqual(direct);
       expect(direct).toEqual({ id: run.id, companyId, agentId: agent.id, status: "running", runtimeMode: "legacy",
         runtimeModeResolvedAt: null, startedAt: run.startedAt, createdAt: run.createdAt,
-        contextSnapshot: { issueId: issue.id }, runnerProfileJson: { adapterDispatch: { adapterType: "paperclip_runner" } } });
+        contextSnapshot: { issueId: issue.id }, runnerProfileJson: { adapterDispatch: { adapterType: "nexus_runner" } } });
       capture.flush();
-      const summary = events.find(event => event.event === "paperclip.test_db_response_capture.summary.v1")!;
+      const summary = events.find(event => event.event === "nexus.test_db_response_capture.summary.v1")!;
       expect(summary.completedQueries).toBe(2);
       expect(summary.responseValueBytes).toBeLessThan(2048);
       expect((await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, run.id)))[0]).toEqual(run);
@@ -285,7 +285,7 @@ describePostgres("heartbeat run state database wiring", () => {
   it("preserves native preparation, legacy steering, and typed issue context in issue control reads", async () => {
     const { companyId, agent, issue, state } = await fixture();
     for (const mode of ["native", "legacy"] as const) {
-      for (const value of [null, false, 42, [], {}, { nested: true }, "paperclip_runner", "process"]) {
+      for (const value of [null, false, 42, [], {}, { nested: true }, "nexus_runner", "process"]) {
         const [run] = await db.insert(heartbeatRuns).values({ companyId, agentId: agent.id, status: "running", runtimeMode: mode,
           contextSnapshot: { issueId: value }, runnerProfileJson: { adapterDispatch: { adapterType: value } },
         }).returning();
@@ -293,7 +293,7 @@ describePostgres("heartbeat run state database wiring", () => {
         expect(narrow?.contextSnapshot?.issueId).toEqual(value);
         expect(narrow?.runnerProfileJson).toEqual({ adapterDispatch: { adapterType: value } });
         for (const queueState of ["queued", "deferred", null] as const) {
-          const facts = { state: queueState, queueRunRuntimeMode: mode, assignedAgentAdapterType: "paperclip_runner", queuedCommentCount: 1 };
+          const facts = { state: queueState, queueRunRuntimeMode: mode, assignedAgentAdapterType: "nexus_runner", queuedCommentCount: 1 };
           expect(decideQueuedCommentQueueSteering({ ...facts, activeRun: narrow }))
             .toEqual(decideQueuedCommentQueueSteering({ ...facts, activeRun: full }));
         }
@@ -309,7 +309,7 @@ describePostgres("heartbeat run state database wiring", () => {
   it("reads cleanup and workspace settlement without transferring saved input or changing the run", async () => {
     const { companyId, agent, issue, state } = await fixture();
     const bulk = "cleanup-saved-input-sentinel🙂".repeat(40_000);
-    const sync = { schema: "paperclip.native-workspace-sync.v1", state: "prepared", resourceDisposition: "destroy" };
+    const sync = { schema: "nexus.native-workspace-sync.v1", state: "prepared", resourceDisposition: "destroy" };
     const [run] = await db.insert(heartbeatRuns).values({
       companyId, agentId: agent.id, issueId: issue.id, runtimeMode: "native", status: "failed",
       errorCode: "provider_transport_failed", error: "Retain saved files", nativePhase: "terminal_failure",
@@ -334,7 +334,7 @@ describePostgres("heartbeat run state database wiring", () => {
       contextSnapshot: { timerClaimWasFirstHeartbeat: true },
     });
     capture.flush();
-    const summary = events.find(event => event.event === "paperclip.test_db_response_capture.summary.v1")!;
+    const summary = events.find(event => event.event === "nexus.test_db_response_capture.summary.v1")!;
     expect(summary.completedQueries).toBe(2);
     expect(summary.responseValueBytes).toBeLessThan(2000);
     expect((await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, run.id)))[0]).toEqual(run);

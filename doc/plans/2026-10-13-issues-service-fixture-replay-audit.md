@@ -24,7 +24,7 @@ Against the existing stack, the test-file diff is 63 lines added and 218 removed
 
 ## Validation
 
-`git diff --check` passed. The adapted candidate passed the complete owner suite with embedded PostgreSQL enabled: **130/130 passing** in **29.51 seconds** (start 08:19:20), using `node_modules/.bin/vitest run --project @paperclipai/server server/src/__tests__/issues-service.test.ts`. This exact-head rerun validates the 60-row self-referencing batch insert after removing the inline comment. An initial sandboxed attempt could not open localhost sockets and was stopped; the completed run used permission to enable the PostgreSQL fixture. No baseline/candidate timing comparison was performed, so no runtime savings are claimed. Repository-wide checks and CI remain campaign-level gates.
+`git diff --check` passed. The adapted candidate passed the complete owner suite with embedded PostgreSQL enabled: **130/130 passing** in **29.51 seconds** (start 08:19:20), using `node_modules/.bin/vitest run --project @nexusai/server server/src/__tests__/issues-service.test.ts`. This exact-head rerun validates the 60-row self-referencing batch insert after removing the inline comment. An initial sandboxed attempt could not open localhost sockets and was stopped; the completed run used permission to enable the PostgreSQL fixture. No baseline/candidate timing comparison was performed, so no runtime savings are claimed. Repository-wide checks and CI remain campaign-level gates.
 
 ## Deferred work
 

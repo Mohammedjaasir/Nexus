@@ -25,7 +25,7 @@ async function readVerifiedSelection(file, env) {
   const bytes = await readFile(absolute);
   if (hash(bytes) !== env.EXPECTED_SELECTION_SHA256) fail();
   const value = JSON.parse(bytes);
-  if (value.schema !== 'paperclip.chat-feature-testops-selection/v1' || value.runId !== expected.runId || value.attempt !== '1'
+  if (value.schema !== 'nexus.chat-feature-testops-selection/v1' || value.runId !== expected.runId || value.attempt !== '1'
     || value.workflowSha !== expected.workflowSha || value.targetSha !== expected.targetSha || value.allureJobRunId !== env.ALLURE_JOB_RUN_ID
     || value.executionId !== executionId || value.canonicalScenario !== scenario || value.projectId !== 1 || !aliases.includes(value.fullName)
     || ['planId', 'jobId', 'caseId', 'launchId'].some(key => !Number.isSafeInteger(value[key]) || value[key] <= 0)) fail();

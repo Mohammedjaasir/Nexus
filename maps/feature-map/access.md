@@ -37,7 +37,7 @@ role after sign-in; agent invitations still use join-request approval.
 
 Start the CLI auth/connect flow and approve its `/cli-auth/:id` browser page; instance access is under Settings when visible.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). For login tests use authenticated mode and two test users; local-trusted mode does not prove session enforcement. Use two companies for isolation checks.
 

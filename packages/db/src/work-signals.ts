@@ -81,7 +81,7 @@ export async function signalDatabaseWork(connection: object, topic: string, hint
   }
 }
 
-export const DATABASE_WORK_CHANNEL = "paperclip_work_v1";
+export const DATABASE_WORK_CHANNEL = "nexus_work_v1";
 const validTopic = (topic: string) => /^[a-zA-Z0-9:_-]{1,200}$/.test(topic);
 function notification(scope: Scope, topic: string) {
   if (!validTopic(topic)) throw new Error("Invalid database work topic");

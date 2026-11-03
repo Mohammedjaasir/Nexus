@@ -30,7 +30,7 @@ export function assertChatHire(input: {
   const hired = hires[0]!;
   const lead = input.agents.find(agent => agent.id === input.leadId)!;
   expect(input.connectionId).toBeTruthy();
-  expect(hired).toMatchObject({ reportsTo: input.leadId, adapterType: "paperclip_runner" });
+  expect(hired).toMatchObject({ reportsTo: input.leadId, adapterType: "nexus_runner" });
   if (input.hiredId) expect(hired.id).toBe(input.hiredId);
   expect(hired.adapterConfig?.model).toBe(lead.adapterConfig?.model);
   expect(hired.runtimeConfig?.aiConnection).toEqual(input.binding);
@@ -125,7 +125,7 @@ export async function runChatHardeningFlow(context: {
   try {
   if (execution.task.id === "hire-delegate-reuse") {
     const hireName = `Morgan Reviewer ${nonce}`;
-    await turn(`Hire exactly one teammate named ${hireName}, reporting to you, using your native runner, model, and available AI connection. Have that teammate write a concise launch checklist as a saved Paperclip document with the line "Reference: ${marker}". Put the work in one assigned task in ${project.name}. Link it here and let the teammate complete it.`, 2);
+    await turn(`Hire exactly one teammate named ${hireName}, reporting to you, using your native runner, model, and available AI connection. Have that teammate write a concise launch checklist as a saved Nexus document with the line "Reference: ${marker}". Put the work in one assigned task in ${project.name}. Link it here and let the teammate complete it.`, 2);
     const first = (await tasks())[0]!;
     expect(first).toBeTruthy();
     const firstOutput = await output(first.id, marker);

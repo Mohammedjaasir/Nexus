@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import type { Db } from '@paperclipai/db';
+import type { Db } from '@nexusai/db';
 import { projectSkillSetupIdentity } from '../services/project-skill-source-bindings.js';
 const { capture } = vi.hoisted(() => ({ capture: vi.fn() }));
 vi.mock('../services/run-identity.js', () => ({ captureRunIdentity: capture }));

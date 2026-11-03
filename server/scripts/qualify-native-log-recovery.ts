@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { eq, sql } from "drizzle-orm";
-import { createDb, heartbeatRuns } from "@paperclipai/db";
+import { createDb, heartbeatRuns } from "@nexusai/db";
 import {
   S3Client,
   CreateBucketCommand,
@@ -19,19 +19,19 @@ import {
 import {
   DurablePrpControlPlane,
   decodeDurablePrpCheckpoint,
-} from "../src/vendor/paperclip-runner/index.js";
+} from "../src/vendor/nexus-runner/index.js";
 import { createS3StorageProvider } from "../src/storage/s3-provider.js";
 import { createObjectRunLogStore } from "../src/services/object-run-log-store.js";
 import { createObjectByteJournal } from "../src/services/object-byte-journal.js";
 import { createHeartbeatRunOutput } from "../src/services/heartbeat/run-output.js";
 import { createAgentIdentityRedactor } from "../src/services/agent-identity-redaction.js";
 import { appendHeartbeatRunEvent } from "../src/services/heartbeat-run-events.js";
-import { PaperclipControlPlanePort } from "../src/services/native-runtime/paperclip-control-plane-port.js";
+import { NexusControlPlanePort } from "../src/services/native-runtime/nexus-control-plane-port.js";
 import { formatNativeRunLogEvent } from "../src/services/native-runtime/native-run-log-export.js";
 import { createNativeRunLogTestTables } from "../src/__tests__/helpers/native-run-log-database.js";
 
-const endpoint = process.env.PAPERCLIP_LOG_TEST_S3_ENDPOINT;
-const databaseUrl = process.env.PAPERCLIP_RUN_EVIDENCE_MIGRATION_DATABASE_URL;
+const endpoint = process.env.NEXUS_LOG_TEST_S3_ENDPOINT;
+const databaseUrl = process.env.NEXUS_RUN_EVIDENCE_MIGRATION_DATABASE_URL;
 if (
   !endpoint ||
   !databaseUrl ||
@@ -158,7 +158,7 @@ if (childMode) {
   const record = async (event: Parameters<typeof formatNativeRunLogEvent>[0], cursor: number) => {
     await handlers.onPersistedNativeLog!(cursor, formatNativeRunLogEvent(event));
   };
-  const persistence = new PaperclipControlPlanePort(
+  const persistence = new NexusControlPlanePort(
     db,
     {
       ...config,
@@ -232,7 +232,7 @@ if (childMode) {
       ],
       {
         cwd: process.cwd(),
-        env: { ...process.env, PAPERCLIP_HOME: home },
+        env: { ...process.env, NEXUS_HOME: home },
         stdio: ["ignore", "ignore", "pipe", "ipc"],
       },
     );
@@ -293,7 +293,7 @@ if (childMode) {
     const homeA = path.join(root, "web-a"),
       a = await controller(homeA);
     const runner = spawn(
-      path.resolve("packages/paperclip-runner/runner/target/debug/examples/recovery-fixture"),
+      path.resolve("packages/nexus-runner/runner/target/debug/examples/recovery-fixture"),
       [
         "--fixture-script",
         scriptFile,
@@ -325,7 +325,7 @@ if (childMode) {
         "60000",
       ],
       {
-        env: { ...process.env, PAPERCLIP_RUNNER_BOOTSTRAP_TICKET: a.ready.ticket },
+        env: { ...process.env, NEXUS_RUNNER_BOOTSTRAP_TICKET: a.ready.ticket },
         stdio: ["ignore", "ignore", "pipe"],
       },
     );
@@ -403,7 +403,7 @@ if (childMode) {
     process.stdout.write(
       `${JSON.stringify({
         result: "passed",
-        source: "real Rust recovery fixture and PaperclipControlPlanePort",
+        source: "real Rust recovery fixture and NexusControlPlanePort",
         acknowledgedBeforeKill: 32,
         objectSourceCursorBeforeKill: before.sourceCursor,
         controllerLoss: "SIGKILL",

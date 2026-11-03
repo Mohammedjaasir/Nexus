@@ -25,7 +25,7 @@ export interface TaskChatThread {
   messages: TaskChatMessage[];
 }
 export interface TaskChatEvidence {
-  schema: "paperclip.runner-e2e.task-chat/v1";
+  schema: "nexus.runner-e2e.task-chat/v1";
   capturedAt: string;
   status: "complete" | "partial" | "unavailable";
   threads: TaskChatThread[];
@@ -110,7 +110,7 @@ export async function captureTaskChat(input: {
     if (Date.now() >= deadlineAt) return Promise.reject(new Error("Task chat collection deadline"));
     return input.get<T>(route);
   };
-  const evidence: TaskChatEvidence = { schema: "paperclip.runner-e2e.task-chat/v1", capturedAt: new Date().toISOString(),
+  const evidence: TaskChatEvidence = { schema: "nexus.runner-e2e.task-chat/v1", capturedAt: new Date().toISOString(),
     status: "complete", threads: [], missing: [] };
   const issues = new Map<string, Row>();
   let names = new Map<string, string>();

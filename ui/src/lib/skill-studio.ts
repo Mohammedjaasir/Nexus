@@ -10,7 +10,7 @@ import type {
   CompanySkillTestRunTemplate,
   IssueAttachment,
   IssueDocument,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   getIssueOutputs,
   getPromotedOutputAttachmentIds,
@@ -32,7 +32,7 @@ export const TERMINAL_RUN_STATUSES: readonly CompanySkillTestRunStatus[] = [
 ];
 
 export const DEFAULT_TEST_RUN_TEMPLATE_ID = "built-in:default-test-template";
-export const NO_TEST_RUN_TEMPLATE_STORAGE_VALUE = "__paperclip_no_template__";
+export const NO_TEST_RUN_TEMPLATE_STORAGE_VALUE = "__nexus_no_template__";
 
 export function isTerminalRunStatus(status: CompanySkillTestRunStatus): boolean {
   return TERMINAL_RUN_STATUSES.includes(status);

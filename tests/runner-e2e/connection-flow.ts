@@ -92,7 +92,7 @@ async function waitForFreshConnection(input: ConnectionFlowInput, before: Set<st
         evidence.assisted = true;
         evidence.waits.push({ kind: "provider_login", startedAt: new Date().toISOString() });
         await input.checkpoint("awaiting_provider_login");
-        console.log(`[provider-connections] Sign in to ${harness.label} in the opened browser (${config.browser.accountAlias}); complete the code/consent step in Paperclip. This test resumes automatically.`);
+        console.log(`[provider-connections] Sign in to ${harness.label} in the opened browser (${config.browser.accountAlias}); complete the code/consent step in Nexus. This test resumes automatically.`);
       }
       // Grok currently exposes a terminal handoff; do not pretend it has the same browser flow.
       if (!loginOpened && harness.id === "grok" && await page.getByRole("button", { name: "Copy sign-in command" }).isVisible()) {
@@ -100,7 +100,7 @@ async function waitForFreshConnection(input: ConnectionFlowInput, before: Set<st
         evidence.assisted = true;
         evidence.waits.push({ kind: "provider_login", startedAt: new Date().toISOString() });
         await input.checkpoint("awaiting_provider_login");
-        console.log("[provider-connections] Grok requires the sign-in command shown in Paperclip. Complete that production handoff; the test will resume automatically.");
+        console.log("[provider-connections] Grok requires the sign-in command shown in Nexus. Complete that production handoff; the test will resume automatically.");
       }
       const connect = page.getByRole("button", { name: "Connect", exact: true }).last();
       if (!connected && await connect.isVisible() && await connect.isEnabled()) { await connect.click(); connected = true; }
@@ -295,7 +295,7 @@ export async function runConnectionFlow(input: ConnectionFlowInput) {
     `Input bytes (base64): ${Buffer.from(proof.input, "utf8").toString("base64")}`,
     "Create the input and output files inside your current workspace using relative filenames. Do not put them in /tmp or another directory outside the workspace.",
     'Write connection-proof.json with exactly this schema: {"nonce": string, "count": number, "total": number, "sha256": string}. Set nonce from the input, count to the number of values, total to their sum, and sha256 to the hash of the exact input file bytes. All four fields are required; use the literal field name "total", not "sum". Compute and validate with a tool; do not guess or paraphrase the data.',
-    "Deliver connection-proof.json as a downloadable attachment on this task. Use the normal Paperclip artifact/attachment workflow and include its download link in your final response. Then mark this task done. Do not create other tasks, read credentials, or inspect unrelated files.",
+    "Deliver connection-proof.json as a downloadable attachment on this task. Use the normal Nexus artifact/attachment workflow and include its download link in your final response. Then mark this task done. Do not create other tasks, read credentials, or inspect unrelated files.",
     execution.profile.generation === "native" ? "Use your native register_deliverable tool with workspace-relative contentRef connection-proof.json and the exact byteSize and SHA-256 of that output file. Never submit an absolute contentRef." : "",
   ].join("\n") });
   const issue = await api.get<Row>(`/api/issues/${createdTask.issueId}`);

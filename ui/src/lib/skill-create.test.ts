@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CompanySkillDetail } from "@paperclipai/shared";
+import type { CompanySkillDetail } from "@nexusai/shared";
 import {
   buildBlankSkillDraft,
   buildForkSkillDraft,
@@ -13,7 +13,7 @@ function skill(overrides: Partial<CompanySkillDetail> = {}): CompanySkillDetail 
   return {
     id: "skill-1",
     companyId: "company-1",
-    key: "paperclip/demo-skill",
+    key: "nexus/demo-skill",
     slug: "demo-skill",
     name: "Demo Skill",
     description: "A demo skill.",

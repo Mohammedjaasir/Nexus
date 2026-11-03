@@ -9,18 +9,18 @@ import { extractImportSpecifiers, scanModuleBoundaries } from "./check-module-bo
 test("extractImportSpecifiers recognizes supported TypeScript dependency forms", () => {
   assert.deepEqual(
     extractImportSpecifiers([
-      'import type { Db } from "@paperclipai/db";',
+      'import type { Db } from "@nexusai/db";',
       'export { helper } from "./helper.js";',
       'const adapter = await import("../adapters/postgres.js");',
       'const postgres = require("postgres");',
       'import fs = require("node:fs");',
     ].join("\n")),
-    ["@paperclipai/db", "./helper.js", "../adapters/postgres.js", "postgres", "node:fs"],
+    ["@nexusai/db", "./helper.js", "../adapters/postgres.js", "postgres", "node:fs"],
   );
 });
 
 test("scanModuleBoundaries rejects outward dependencies and module-internal imports", () => {
-  const serverSrc = mkdtempSync(join(tmpdir(), "paperclip-module-boundaries-"));
+  const serverSrc = mkdtempSync(join(tmpdir(), "nexus-module-boundaries-"));
   const modulesRoot = join(serverSrc, "modules");
 
   const write = (relativePath, source) => {
@@ -43,7 +43,7 @@ test("scanModuleBoundaries rejects outward dependencies and module-internal impo
         'import { parse } from "../../../adapters/application-utils.js";',
         'import { forbidden } from "../../../errors.js";',
         'import { helper } from "../../../services/example.js";',
-        'import db = require("@paperclipai/db");',
+        'import db = require("@nexusai/db");',
       ].join("\n"),
     );
     write("modules/watchdog/adapters/postgres.ts", 'import { eq } from "drizzle-orm";\n');
@@ -64,7 +64,7 @@ test("scanModuleBoundaries rejects outward dependencies and module-internal impo
           specifier: "../../../services/example.js",
           reason: "application cannot import server services or routes",
         },
-        { specifier: "@paperclipai/db", reason: "application cannot import database packages" },
+        { specifier: "@nexusai/db", reason: "application cannot import database packages" },
         { specifier: "drizzle-orm", reason: "domain cannot import database packages" },
         {
           specifier: "../../../services/example.js",
@@ -91,7 +91,7 @@ test("the repository's feature modules satisfy their import boundaries", () => {
 });
 
 test("only the company deletion coordinator can import module deletion entry points", () => {
-  const serverSrc = mkdtempSync(join(tmpdir(), "paperclip-company-deletion-boundaries-"));
+  const serverSrc = mkdtempSync(join(tmpdir(), "nexus-company-deletion-boundaries-"));
   const modulesRoot = join(serverSrc, "modules");
   try {
     mkdirSync(join(serverSrc, "services"));
@@ -110,7 +110,7 @@ test("only the company deletion coordinator can import module deletion entry poi
 });
 
 test("configuration integration is limited to its composition and workflow callers", () => {
-  const serverSrc = mkdtempSync(join(tmpdir(), "paperclip-configuration-boundaries-"));
+  const serverSrc = mkdtempSync(join(tmpdir(), "nexus-configuration-boundaries-"));
   const modulesRoot = join(serverSrc, "modules");
   try {
     mkdirSync(join(serverSrc, "services"));
@@ -131,7 +131,7 @@ test("configuration integration is limited to its composition and workflow calle
 });
 
 test("agent lifecycle adapters and entry point cannot depend on services", () => {
-  const serverSrc = mkdtempSync(join(tmpdir(), "paperclip-lifecycle-boundaries-"));
+  const serverSrc = mkdtempSync(join(tmpdir(), "nexus-lifecycle-boundaries-"));
   const modulesRoot = join(serverSrc, "modules");
   try {
     mkdirSync(join(modulesRoot, "agent-lifecycle", "adapters"), { recursive: true });

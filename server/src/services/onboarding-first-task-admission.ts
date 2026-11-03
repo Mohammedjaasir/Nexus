@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { agents, documents, heartbeatRuns, issueComments, issueDocuments, issues, issueThreadInteractions, type Db } from "@paperclipai/db";
+import { agents, documents, heartbeatRuns, issueComments, issueDocuments, issues, issueThreadInteractions, type Db } from "@nexusai/db";
 import { ONBOARDING_FIRST_TASK_ORIGIN_KIND, requestCheckboxConfirmationPayloadSchema, requestCheckboxConfirmationResultSchema,
-  requestConfirmationPayloadSchema, requestConfirmationResultSchema } from "@paperclipai/shared";
+  requestConfirmationPayloadSchema, requestConfirmationResultSchema } from "@nexusai/shared";
 import { badRequest, forbidden } from "../errors.js";
 
 const object = (value: unknown): Record<string, unknown> =>

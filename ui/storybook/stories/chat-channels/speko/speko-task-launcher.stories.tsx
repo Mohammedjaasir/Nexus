@@ -12,7 +12,7 @@ import { chatEndpointsApi } from "@/api/chatEndpoints";
 import { SpekoQueryFixture, spekoAgent, spekoCompanyId, spekoEndpoint } from "../../../support/speko/spekoNative";
 import { voiceStoryLifecycle } from "../../../support/speko/voiceStoryLifecycle";
 const props = { companyId: spekoCompanyId, issueId: "task-fixture", agentId: spekoAgent.id };
-const meta: Meta<typeof TaskVoiceLauncher> = { ...voiceStoryLifecycle, id: "connections-speko-task-launcher", title: "Apps, channels, and extensions/External chat and email/Speko/Task launcher", component: TaskVoiceLauncher, parameters: { layout: "padded", paperclip: {"capabilities": ["chat-channels/conversation", "chat-channels/lifecycle"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production task launcher and connection surfaces with fixture endpoints. Persona recovery uses a simulated call-host transition; it never opens media or creates a call."} } };
+const meta: Meta<typeof TaskVoiceLauncher> = { ...voiceStoryLifecycle, id: "connections-speko-task-launcher", title: "Apps, channels, and extensions/External chat and email/Speko/Task launcher", component: TaskVoiceLauncher, parameters: { layout: "padded", nexus: {"capabilities": ["chat-channels/conversation", "chat-channels/lifecycle"], "status": "current", "implementation": "production", "boundary": "fixtures", "notes": "Production task launcher and connection surfaces with fixture endpoints. Persona recovery uses a simulated call-host transition; it never opens media or creates a call."} } };
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const ExistingAgent: Story = { render: () => <SpekoQueryFixture><TaskVoiceLauncher {...props} /></SpekoQueryFixture> };

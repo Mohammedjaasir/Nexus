@@ -64,7 +64,7 @@ const meta = {
           "Shows local development recovery surfaces, including the restart-required banner and its manual restart action.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "instance-operations/server-service"
       ],

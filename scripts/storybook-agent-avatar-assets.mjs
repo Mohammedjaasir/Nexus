@@ -18,7 +18,7 @@ export function storybookAgentAvatarAssets() {
       })();
       server.middlewares.use((req, res, next) => {
         const pathname = new URL(req.url ?? "/", "http://storybook.local").pathname;
-        const match = /^\/agent-avatar-images\/cap-v1\/([^/]+)\/([^/]+)-(\d+)-([12])(-paperclip-dark-v1)?\.png$/.exec(pathname);
+        const match = /^\/agent-avatar-images\/cap-v1\/([^/]+)\/([^/]+)-(\d+)-([12])(-nexus-dark-v1)?\.png$/.exec(pathname);
         if (!match) return next();
         void (async () => {
           const [, palette, pose, sizeText, scaleText, darkBackground] = match;
@@ -33,7 +33,7 @@ export function storybookAgentAvatarAssets() {
           }
           if (!images.has(pathname)) {
             const appearance = appearanceForPalette(muted ? AGENT_PALETTE_IDS[0] : palette);
-            images.set(pathname, pool.render({ appearance, size, scale, pose, muted, background: darkBackground ? "paperclip-dark" : "transparent" }).catch((error) => {
+            images.set(pathname, pool.render({ appearance, size, scale, pose, muted, background: darkBackground ? "nexus-dark" : "transparent" }).catch((error) => {
               images.delete(pathname);
               throw error;
             }));
@@ -61,7 +61,7 @@ export function storybookAgentAvatarAssets() {
           CHARACTER_STATES.flatMap(pose => AGENT_AVATAR_SIZES.flatMap(size =>
             [1, 2].map(scale => ({ appearance: appearanceForPalette(palette), size, scale, pose, muted }))))));
       // Slack exports use this one opaque preset; ordinary UI avatars stay clear.
-      requests.push(...AGENT_PALETTE_IDS.map(palette => ({ appearance: appearanceForPalette(palette), size: 512, scale: 1, pose: "rest", muted: false, background: "paperclip-dark" })));
+      requests.push(...AGENT_PALETTE_IDS.map(palette => ({ appearance: appearanceForPalette(palette), size: 512, scale: 1, pose: "rest", muted: false, background: "nexus-dark" })));
       const pool = createAgentAvatarPool(2);
       const images = [];
       let next = 0;

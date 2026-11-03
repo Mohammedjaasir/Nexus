@@ -15,7 +15,7 @@ import { eq, sql } from "drizzle-orm";
 import { authUsers, companyMemberships, companySkillSources, heartbeatRuns, projects, projectSkillSources,
   companies, companySkills, companySkillVersions, companySkillRepositorySnapshots,
   applyPendingMigrations, closeRegisteredClients, createDb, startEmbeddedPostgresTestDatabase } from "../../packages/db/src/index.js";
-import type { CompanySkillVersionFileInventoryEntry } from "@paperclipai/shared";
+import type { CompanySkillVersionFileInventoryEntry } from "@nexusai/shared";
 import { createRunPreparationTiming, withRunExecutionTiming } from "../src/services/execution-preparation-timing.js";
 import { repositorySkillProjection } from "../src/services/skill-repository-package.js";
 import { materializeSelectedSkills } from "../src/services/native-runtime/runtime-context.js";
@@ -75,7 +75,7 @@ for (let i = 1; i < selectedSkillCount; i++) {
   entrypoints.push(next);
 }
 const projected = repositorySkillProjection(files, entrypoint);
-const previous = { home: process.env.PAPERCLIP_HOME, instance: process.env.PAPERCLIP_INSTANCE_ID, endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT };
+const previous = { home: process.env.NEXUS_HOME, instance: process.env.NEXUS_INSTANCE_ID, endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT };
 const home = await fs.mkdtemp(path.join(os.tmpdir(), "native-skill-benchmark-"));
 let provider: TracerProvider | undefined;
 let manager: AsyncLocalStorageContextManager | undefined;
@@ -84,8 +84,8 @@ let db: ReturnType<typeof createDb> | undefined;
 let proxy: ReturnType<typeof createServer> | null = null;
 const connections = new Set<Socket>();
 try {
-  process.env.PAPERCLIP_HOME = home;
-  process.env.PAPERCLIP_INSTANCE_ID = "default";
+  process.env.NEXUS_HOME = home;
+  process.env.NEXUS_INSTANCE_ID = "default";
   process.env.OTEL_EXPORTER_OTLP_ENDPOINT = exportOtlp ? previous.endpoint : "http://127.0.0.1:4318";
   const exporter = new InMemorySpanExporter();
   const processors = [new SimpleSpanProcessor({ exporter })];
@@ -103,7 +103,7 @@ try {
     } }));
   }
   provider = new TracerProvider({ spanProcessors: processors, resource: resourceFromAttributes({
-    "service.name": process.env.OTEL_SERVICE_NAME || "paperclip",
+    "service.name": process.env.OTEL_SERVICE_NAME || "nexus",
     "service.version": `local-skill-bench-${sourceChangesHash.slice(0, 12)}`,
     "deployment.environment.name": "local-diagnostic",
   }) });
@@ -184,7 +184,7 @@ try {
   await db.insert(companies).values({ id: companyId, name: "Native preparation benchmark", issuePrefix: "BENCH" });
   if (authenticated) {
     await createAgentLifecycle(db).requestHire(companyId, {
-      id: agentId, name: "Diagnostic reader", adapterType: "paperclip_runner", status: "paused",
+      id: agentId, name: "Diagnostic reader", adapterType: "nexus_runner", status: "paused",
     }, { runnerResolved: true });
     await db.insert(authUsers).values({ id: userId, name: "Diagnostic owner", email: `${userId}@example.invalid`, createdAt: new Date(), updatedAt: new Date() });
     await db.insert(companyMemberships).values([
@@ -251,7 +251,7 @@ try {
       if (authenticated) await benchmarkDb.update(heartbeatRuns).set({ contextSnapshot: sql`coalesce(${heartbeatRuns.contextSnapshot}, '{}'::jsonb) || ${JSON.stringify({ skillVersions: Object.fromEntries(selections), skillSelectionSnapshot: true })}::jsonb` }).where(eq(heartbeatRuns.id, runId));
       if (nativeAssets) {
         const started = performance.now();
-        await materializeSelectedSkills({ paperclipSkillSync: { desiredSkills: [...selections.keys()] } }, entries, true);
+        await materializeSelectedSkills({ nexusSkillSync: { desiredSkills: [...selections.keys()] } }, entries, true);
         nativeAssetMs = performance.now() - started;
       }
       return entries;
@@ -276,9 +276,9 @@ try {
     await provider.forceFlush();
     if (exportOtlp) assert.ok(exportResults.length > 0 && exportResults.every(code => code === 0), "OTLP export failed");
     const spans = exporter.getFinishedSpans();
-    assert.ok(spans.some(span => span.name === "skills.version.verify" && span.attributes["paperclip.execution.fileCount"] === projected.length));
+    assert.ok(spans.some(span => span.name === "skills.version.verify" && span.attributes["nexus.execution.fileCount"] === projected.length));
     assert.equal(new Set(spans.map(span => span.spanContext().traceId)).size, 1);
-    assert.ok(spans.every(span => Object.keys(span.attributes).every(key => ["paperclip.task.run.run_id", "paperclip.execution.fileCount", "paperclip.execution.bytes"].includes(key))));
+    assert.ok(spans.every(span => Object.keys(span.attributes).every(key => ["nexus.task.run.run_id", "nexus.execution.fileCount", "nexus.execution.bytes"].includes(key))));
     samples.push({ label, elapsedMs, ...measuredIo, rootPoolQueries: queryCount, traceId: spans[0]!.spanContext().traceId,
       phases: spans.filter(span => span.name.startsWith("skills.")).map(span => ({ name: span.name,
         durationMs: span.duration[0] * 1000 + span.duration[1] / 1e6,
@@ -301,7 +301,7 @@ try {
     return total;
   }
   const instanceDisk = await diskUsage(home);
-  console.log(JSON.stringify({ schema: "paperclip.native-skill-preparation-benchmark.v1",
+  console.log(JSON.stringify({ schema: "nexus.native-skill-preparation-benchmark.v1",
     sourceRevision, sourceChangesHash, exportedOtlp: exportOtlp,
     source: snapshotFile ? "supplied immutable snapshot" : "synthetic repository",
     networkDelayMsPerDirection: networkDelayMs, authenticated, stagingShape, externalPackages, nativeAssets, selectedSkillCount, instanceDisk,
@@ -317,7 +317,7 @@ try {
   await database?.cleanup();
   await provider?.shutdown();
   trace.disable(); context.disable(); manager?.disable();
-  for (const [name, value] of Object.entries({ PAPERCLIP_HOME: previous.home, PAPERCLIP_INSTANCE_ID: previous.instance, OTEL_EXPORTER_OTLP_ENDPOINT: previous.endpoint })) {
+  for (const [name, value] of Object.entries({ NEXUS_HOME: previous.home, NEXUS_INSTANCE_ID: previous.instance, OTEL_EXPORTER_OTLP_ENDPOINT: previous.endpoint })) {
     if (value === undefined) delete process.env[name]; else process.env[name] = value;
   }
   async function writableDirectories(root: string): Promise<void> {

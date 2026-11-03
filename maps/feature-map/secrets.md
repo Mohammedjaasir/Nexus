@@ -36,7 +36,7 @@ and their secret references remain present.
 
 Use the Proposals tab or Import from vault where available.
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey). Use dummy credentials in an isolated company, two user identities, and a test agent. Never print actual secret values in evidence.
 

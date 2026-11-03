@@ -2,8 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { agents, chatActions, chatConversations, chatEndpointResources, chatEndpoints,
   chatGitHubReviews, chatMessageLinks, companies, heartbeatRuns, issueComments, issues,
-  runIdentityContexts, toolApplications, toolConnections, type Db } from "@paperclipai/db";
-import { defaultGitHubReviewPolicy } from "@paperclipai/shared";
+  runIdentityContexts, toolApplications, toolConnections, type Db } from "@nexusai/db";
+import { defaultGitHubReviewPolicy } from "@nexusai/shared";
 
 export async function seedGitHubReviewWait(db: Db) {
   const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), runId = randomUUID();

@@ -5,7 +5,7 @@ import type {
   BrowserUseControl,
   BrowserUseViewportPreset,
   TaskBrowser,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { TaskBrowserFooter } from "@/components/task-side-panel/TaskBrowserFooter";
 import { browserFixture } from "../../fixtures/browser-use";
 const now = Date.parse("2026-09-29T16:00:00Z");
@@ -26,7 +26,7 @@ const meta = {
           "The quiet footer: contextual Stop browsing and an options menu with automatic fitting and fixed viewport presets. Costs are recorded on the task and hidden here. Countdown appears only at five minutes or less. Keep browsing resets idle time; it cannot extend the provider’s lifetime limit.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "workspaces/services",
         "tasks/discussion"

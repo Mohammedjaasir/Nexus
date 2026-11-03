@@ -34,7 +34,7 @@ jobs:
   typecheck:
     if: ${{ !inputs.runner_binaries_only }}
     name: Typecheck
-    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=paperclip-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
+    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=nexus-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -71,14 +71,14 @@ jobs:
         id: runner_rust_workspace
         run: |
           set -euo pipefail
-          pinned="$HOME/paperclip-runner-rust"
+          pinned="$HOME/nexus-runner-rust"
           # A symlink here is removed as a link, never followed into the checkout.
           rm -rf "$pinned"
-          ln -s "$GITHUB_WORKSPACE/packages/paperclip-runner/runner" "$pinned"
+          ln -s "$GITHUB_WORKSPACE/packages/nexus-runner/runner" "$pinned"
           echo "path=$pinned" >> "$GITHUB_OUTPUT"
 
       - name: Select the pinned Runner Rust toolchain
-        working-directory: packages/paperclip-runner
+        working-directory: packages/nexus-runner
         run: |
           set -euo pipefail
           rustup show
@@ -120,7 +120,7 @@ jobs:
   general_tests:
     if: ${{ !inputs.runner_binaries_only }}
     name: General tests (${{ matrix.group_label }})
-    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=paperclip-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
+    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=nexus-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -232,7 +232,7 @@ jobs:
   serialized_tests:
     if: ${{ !inputs.runner_binaries_only }}
     name: Serialized tests (${{ matrix.shard_label }})
-    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=paperclip-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
+    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=nexus-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -282,7 +282,7 @@ jobs:
   runner_workflow_evals:
     if: ${{ !inputs.runner_binaries_only }}
     name: Runner workflow eval scorer contract
-    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=paperclip-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
+    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=nexus-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -310,10 +310,10 @@ jobs:
       - name: Run deterministic Runner workflow scorer tests
         run: pnpm test:runner-workflow-evals
 
-  verify_paperclip_runner:
+  verify_nexus_runner:
     if: ${{ !inputs.runner_binaries_only }}
-    name: Verify Paperclip Runner (${{ matrix.lane }})
-    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=paperclip-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
+    name: Verify Nexus Runner (${{ matrix.lane }})
+    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=nexus-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -360,14 +360,14 @@ jobs:
         id: runner_rust_workspace
         run: |
           set -euo pipefail
-          pinned="$HOME/paperclip-runner-rust"
+          pinned="$HOME/nexus-runner-rust"
           # A symlink here is removed as a link, never followed into the checkout.
           rm -rf "$pinned"
-          ln -s "$GITHUB_WORKSPACE/packages/paperclip-runner/runner" "$pinned"
+          ln -s "$GITHUB_WORKSPACE/packages/nexus-runner/runner" "$pinned"
           echo "path=$pinned" >> "$GITHUB_OUTPUT"
 
       - name: Select the pinned Runner Rust toolchain
-        working-directory: packages/paperclip-runner
+        working-directory: packages/nexus-runner
         run: |
           set -euo pipefail
           rustup show
@@ -413,34 +413,34 @@ jobs:
       - name: Build native server test binaries
         if: ${{ matrix.lane == 'server-integration' }}
         timeout-minutes: 10
-        working-directory: packages/paperclip-runner
+        working-directory: packages/nexus-runner
         run: |
           set -euo pipefail
           pnpm build:rust
-          cargo build --release --manifest-path runner/Cargo.toml --locked -p paperclip-runner-core --bin paperclip-runnerd --bin fake-codex-app-server
+          cargo build --release --manifest-path runner/Cargo.toml --locked -p nexus-runner-core --bin nexus-runnerd --bin fake-codex-app-server
 
       - name: Run native server integration suites
         if: ${{ matrix.lane == 'server-integration' }}
         run: pnpm test:run:general -- --group general-server-native-runner
 
-      - name: Verify Paperclip Runner
+      - name: Verify Nexus Runner
         if: ${{ matrix.lane != 'server-integration' }}
         env:
           RUNNER_CHECKS: ${{ matrix.checks }}
         run: |
           set -euo pipefail
           for check in $RUNNER_CHECKS; do
-            pnpm --filter @paperclipai/paperclip-runner "$check"
+            pnpm --filter @nexusai/nexus-runner "$check"
           done
 
       - name: Warm debug dependencies for the shared Runner cache
         # Protocol tests need debug binaries. Populate their dependencies in
         # the sole cache writer, so a cold save also serves the protocol lane.
         if: ${{ matrix.lane == 'rust' && github.repository == 'paperclipai/paperclip' && github.event_name == 'push' && github.ref == 'refs/heads/master' && inputs.ref == github.sha }}
-        run: pnpm --filter @paperclipai/paperclip-runner build:rust
+        run: pnpm --filter @nexusai/nexus-runner build:rust
 
       # The dependency cache above deliberately leaves the Runner's own crate
-      # out, so every pull request build compiled paperclip-runner-core in
+      # out, so every pull request build compiled nexus-runner-core in
       # release mode (28-49s) although most pushes leave its inputs alone.
       # This master push saves that crate's release artifacts for the readers
       # in pr-trusted.yml ("Restore the Runner release crate") under a key
@@ -465,20 +465,20 @@ jobs:
         with:
           lookup-only: true
           path: |
-            packages/paperclip-runner/runner/target/release/.fingerprint/paperclip-runner-core-*
-            packages/paperclip-runner/runner/target/release/deps/libpaperclip_runner_core-*
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runner_core-*.d
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runnerd-*
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd.d
-          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/paperclip-runner/rust-toolchain.toml', 'packages/paperclip-runner/acpx-profiles.json', 'packages/paperclip-runner/antigravity-distributions.json', 'packages/paperclip-runner/runner/Cargo.toml', 'packages/paperclip-runner/runner/Cargo.lock', 'packages/paperclip-runner/runner/crates/**', 'packages/paperclip-runner/protocol/**', 'packages/paperclip-runner/test-fixtures/**', 'packages/paperclip-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
+            packages/nexus-runner/runner/target/release/.fingerprint/nexus-runner-core-*
+            packages/nexus-runner/runner/target/release/deps/libnexus_runner_core-*
+            packages/nexus-runner/runner/target/release/deps/nexus_runner_core-*.d
+            packages/nexus-runner/runner/target/release/deps/nexus_runnerd-*
+            packages/nexus-runner/runner/target/release/nexus-runnerd
+            packages/nexus-runner/runner/target/release/nexus-runnerd.d
+          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/nexus-runner/rust-toolchain.toml', 'packages/nexus-runner/acpx-profiles.json', 'packages/nexus-runner/antigravity-distributions.json', 'packages/nexus-runner/runner/Cargo.toml', 'packages/nexus-runner/runner/Cargo.lock', 'packages/nexus-runner/runner/crates/**', 'packages/nexus-runner/protocol/**', 'packages/nexus-runner/test-fixtures/**', 'packages/nexus-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
 
       - name: Build the Runner release crate for its cache
         if: ${{ matrix.lane == 'rust' && github.repository == 'paperclipai/paperclip' && github.event_name == 'push' && github.ref == 'refs/heads/master' && inputs.ref == github.sha && steps.runner_release_crate.outputs.cache-hit != 'true' }}
-        working-directory: packages/paperclip-runner
+        working-directory: packages/nexus-runner
         run: |
           set -euo pipefail
-          cargo clean --release --manifest-path runner/Cargo.toml -p paperclip-runner-core
+          cargo clean --release --manifest-path runner/Cargo.toml -p nexus-runner-core
           pnpm build:binary
 
       - name: Save the Runner release crate
@@ -486,18 +486,18 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            packages/paperclip-runner/runner/target/release/.fingerprint/paperclip-runner-core-*
-            packages/paperclip-runner/runner/target/release/deps/libpaperclip_runner_core-*
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runner_core-*.d
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runnerd-*
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd.d
-          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/paperclip-runner/rust-toolchain.toml', 'packages/paperclip-runner/acpx-profiles.json', 'packages/paperclip-runner/antigravity-distributions.json', 'packages/paperclip-runner/runner/Cargo.toml', 'packages/paperclip-runner/runner/Cargo.lock', 'packages/paperclip-runner/runner/crates/**', 'packages/paperclip-runner/protocol/**', 'packages/paperclip-runner/test-fixtures/**', 'packages/paperclip-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
+            packages/nexus-runner/runner/target/release/.fingerprint/nexus-runner-core-*
+            packages/nexus-runner/runner/target/release/deps/libnexus_runner_core-*
+            packages/nexus-runner/runner/target/release/deps/nexus_runner_core-*.d
+            packages/nexus-runner/runner/target/release/deps/nexus_runnerd-*
+            packages/nexus-runner/runner/target/release/nexus-runnerd
+            packages/nexus-runner/runner/target/release/nexus-runnerd.d
+          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/nexus-runner/rust-toolchain.toml', 'packages/nexus-runner/acpx-profiles.json', 'packages/nexus-runner/antigravity-distributions.json', 'packages/nexus-runner/runner/Cargo.toml', 'packages/nexus-runner/runner/Cargo.lock', 'packages/nexus-runner/runner/crates/**', 'packages/nexus-runner/protocol/**', 'packages/nexus-runner/test-fixtures/**', 'packages/nexus-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
 
   build:
     if: ${{ !inputs.runner_binaries_only }}
     name: Build
-    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=paperclip-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
+    runs-on: ${{ vars.AWS_POST_MERGE_CI_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.sha != '' && inputs.ref == github.sha && 'runs-on/fleet=nexus-post-merge-x64/env=public-ci' || 'ubuntu-latest' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -565,15 +565,15 @@ jobs:
             assert.ok(entries[0].startsWith('100644 blob ') && entries[0].endsWith('\t' + file), 'Target contract must be a regular source file');
             return execFileSync('git', ['show', source + ':' + file], { encoding: 'utf8', maxBuffer: 64 * 1024 });
           };
-          const data = readBlob('packages/paperclip-runner/release-runner-targets.json');
+          const data = readBlob('packages/nexus-runner/release-runner-targets.json');
           let declared;
           if (data !== undefined) {
             const contract = JSON.parse(data);
-            assert.ok(contract && contract.schema === 'paperclip.runner.release-targets.v1'
+            assert.ok(contract && contract.schema === 'nexus.runner.release-targets.v1'
               && Object.keys(contract).sort().join() === 'schema,targets', 'Unknown exact-source daemon platform contract');
             declared = contract.targets;
           } else {
-            const legacy = readBlob('packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs');
+            const legacy = readBlob('packages/nexus-runner/scripts/stage-release-runner-binaries.mjs');
             const declarations = [...(legacy ?? '').matchAll(/^[ \t]*export const RELEASE_RUNNER_TARGETS = (?:Object\.freeze\()?(\[[^\r\n]*\])\)?;[ \t]*$/gm)];
             assert.equal(declarations.length, 1, 'Unknown exact-source daemon platform contract');
             declared = JSON.parse(declarations[0][1]);
@@ -625,21 +625,21 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]] || exit 1
           [[ "$(node -p 'process.platform + "-" + process.arch')" == "$TARGET" ]] || exit 1
           echo "artifact_prefix=runner-release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
-          if node --input-type=module -e 'const m = await import("./packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs"); process.exit(m.RELEASE_PROVIDER_PACK_TARGETS ? 0 : 1)'; then
+          if node --input-type=module -e 'const m = await import("./packages/nexus-runner/scripts/stage-release-runner-binaries.mjs"); process.exit(m.RELEASE_PROVIDER_PACK_TARGETS ? 0 : 1)'; then
             echo "provider_pack_artifact_prefix=runner-provider-packs-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
           fi
       - name: Pin native Cargo workspace and toolchain
         id: native_rust_workspace
-        working-directory: packages/paperclip-runner
+        working-directory: packages/nexus-runner
         run: |
           set -euo pipefail
-          pinned="$HOME/paperclip-runner-rust"
+          pinned="$HOME/nexus-runner-rust"
           if [[ -e "$pinned" && ! -L "$pinned" ]]; then
             echo '::error::Native Cargo cache path must not replace a real directory'
             exit 1
           fi
           rm -f "$pinned"
-          ln -s "$GITHUB_WORKSPACE/packages/paperclip-runner/runner" "$pinned"
+          ln -s "$GITHUB_WORKSPACE/packages/nexus-runner/runner" "$pinned"
           echo "path=$pinned" >> "$GITHUB_OUTPUT"
           rustup show
           toolchain="$(rustup show active-toolchain | awk '{print $1}')"
@@ -654,7 +654,7 @@ jobs:
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           workspaces: ${{ steps.native_rust_workspace.outputs.path }} -> target
-          shared-key: release-native-v2-${{ matrix.host }}-${{ matrix.target }}-${{ hashFiles('packages/paperclip-runner/protocol/**', 'packages/paperclip-runner/src/**', 'packages/paperclip-runner/*.json') }}
+          shared-key: release-native-v2-${{ matrix.host }}-${{ matrix.target }}-${{ hashFiles('packages/nexus-runner/protocol/**', 'packages/nexus-runner/src/**', 'packages/nexus-runner/*.json') }}
           cache-workspace-crates: false
           cache-bin: false
           cache-on-failure: false
@@ -673,8 +673,8 @@ jobs:
           let failure;
           try {
             for (const [name, args, cwd] of [
-              ['typescript', ['--filter', '@paperclipai/paperclip-runner', 'build:typescript'], root],
-              ['native', ['build:binary'], join(root, 'packages/paperclip-runner')],
+              ['typescript', ['--filter', '@nexusai/nexus-runner', 'build:typescript'], root],
+              ['native', ['build:binary'], join(root, 'packages/nexus-runner')],
             ]) {
               builds.push(startPrefetch({ name, cmd: 'pnpm', args, cwd, env: process.env, logPath: join(logs, name + '.log') }));
             }
@@ -698,8 +698,8 @@ jobs:
           SOURCE_SHA: ${{ inputs.ref }}
           TARGET: ${{ matrix.target }}
         run: |
-          node packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs record "$SOURCE_SHA" "$TARGET" \
-            packages/paperclip-runner/dist/bin/paperclip-runnerd "$RUNNER_TEMP/runner-release/$TARGET"
+          node packages/nexus-runner/scripts/stage-release-runner-binaries.mjs record "$SOURCE_SHA" "$TARGET" \
+            packages/nexus-runner/dist/bin/nexus-runnerd "$RUNNER_TEMP/runner-release/$TARGET"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ${{ steps.identity.outputs.artifact_prefix }}-${{ matrix.target }}
@@ -716,10 +716,10 @@ jobs:
         run: |
           set -euo pipefail
           pack="$RUNNER_TEMP/provider-pack"
-          PAPERCLIP_RUNNER_SOURCE_REVISION="$SOURCE_SHA" node packages/paperclip-runner/scripts/build-provider-pack.mjs "$pack"
+          NEXUS_RUNNER_SOURCE_REVISION="$SOURCE_SHA" node packages/nexus-runner/scripts/build-provider-pack.mjs "$pack"
           node --input-type=module - "$pack/provider-pack.json" <<'NODE'
           import { readFileSync } from 'node:fs';
-          import { verifyReleaseProviderPack } from './packages/paperclip-runner/scripts/release-provider-pack.mjs';
+          import { verifyReleaseProviderPack } from './packages/nexus-runner/scripts/release-provider-pack.mjs';
           verifyReleaseProviderPack(JSON.parse(readFileSync(process.argv[2], 'utf8')), process.env.SOURCE_SHA, process.env.TARGET);
           NODE
           mkdir -p "$RUNNER_TEMP/release-provider-packs/$TARGET"

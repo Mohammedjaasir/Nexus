@@ -1,4 +1,4 @@
-import { chatMessageLinks, type Db, type issues } from "@paperclipai/db";
+import { chatMessageLinks, type Db, type issues } from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
 import { photonReplyReference } from "../../photon/adapter.js";
 import { logActivity, type ActivityPublication } from "../../activity-log.js";

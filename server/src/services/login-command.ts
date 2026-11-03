@@ -66,7 +66,7 @@ export function isLoginCommandSupportedAdapterType(adapterType: string): boolean
  * home under this root. The path shape is exact, so the provider revalidates it
  * before it touches the filesystem.
  */
-export const LOGIN_SESSION_HOME_ROOT = "/tmp/paperclip-adapter-login";
+export const LOGIN_SESSION_HOME_ROOT = "/tmp/nexus-adapter-login";
 
 /** Matches one lowercase-hyphenated UUID (version 4 layout not enforced). */
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -83,7 +83,7 @@ const SESSION_HOME_PATTERN = new RegExp(
 
 /**
  * Derives the session home from a session UUID. It builds the exact
- * `/tmp/paperclip-adapter-login/<uuid>` path. It throws the fixed non-secret
+ * `/tmp/nexus-adapter-login/<uuid>` path. It throws the fixed non-secret
  * error when the id is not a UUID, so a malformed id never becomes a home.
  */
 export function deriveLoginSessionHome(sessionUuid: string): string {

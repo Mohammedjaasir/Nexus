@@ -1,6 +1,6 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { heartbeatRuns, issueComments, issueThreadInteractions, issues, type Db } from "@paperclipai/db";
-import { resolveConfirmationFromCommentSchema, type ResolveConfirmationFromComment } from "@paperclipai/shared";
+import { heartbeatRuns, issueComments, issueThreadInteractions, issues, type Db } from "@nexusai/db";
+import { resolveConfirmationFromCommentSchema, type ResolveConfirmationFromComment } from "@nexusai/shared";
 import { assertAgentRunWriteAllowed } from "../agent-run-cancellation.js";
 import { conflict, forbidden, notFound, unprocessable } from "../errors.js";
 import { persistActivity, publishActivity, type ActivityPublication } from "./activity-log.js";

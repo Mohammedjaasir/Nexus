@@ -5,16 +5,16 @@ import { notifyUnsafeWorkspaceExportRecovery } from "./unsafe-workspace-export-n
 import { writeExecutionControl } from "./execution-control-notifications.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 import { and, desc, eq, inArray, isNull, isNotNull, or, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { heartbeatRuns, issueRecoveryActions, workspaceOperations } from "@paperclipai/db";
-import { isUuidLike } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { heartbeatRuns, issueRecoveryActions, workspaceOperations } from "@nexusai/db";
+import { isUuidLike } from "@nexusai/shared";
 import type {
   IssueRecoveryAction,
   IssueRecoveryActionKind,
   IssueRecoveryActionOwnerType,
   IssueRecoveryActionOutcome,
   IssueRecoveryActionStatus,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import { isNativeWorkspaceFinalizationOperationActive } from "./workspace-operations.js";
 

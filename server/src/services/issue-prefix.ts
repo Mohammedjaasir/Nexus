@@ -1,8 +1,8 @@
 import { notifyStatusCardIssueChange } from "./status-card-notifications.js";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
-import type { Db } from "@paperclipai/db";
-import { cases, companies, issues } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { cases, companies, issues } from "@nexusai/db";
 
 type DbTransaction = Parameters<Parameters<Db["transaction"]>[0]>[0];
 

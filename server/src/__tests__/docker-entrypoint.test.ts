@@ -77,7 +77,7 @@ function installStubs(ids: StubOptions) {
     ].join("\n"),
   );
   writeStub("gosu", `echo "gosu $*" >> "${logFile}"\nshift\nexec "$@"`);
-  const nodeHome = ids.nodeHome === undefined ? "/paperclip" : ids.nodeHome;
+  const nodeHome = ids.nodeHome === undefined ? "/nexus" : ids.nodeHome;
   writeStub(
     "getent",
     nodeHome === null
@@ -115,12 +115,12 @@ describe("docker-entrypoint.sh", () => {
     expect(calls).not.toContain("chown");
   });
 
-  it("remaps the node user and chowns /paperclip before gosu when root requests a different UID/GID", async () => {
+  it("remaps the node user and chowns /nexus before gosu when root requests a different UID/GID", async () => {
     // The stubbed node uid stays 1000 while the stat probe reports the old
     // ownership, modelling the post-remap mismatch that must trigger chown.
     installStubs({ uid: 0, gid: 0, homeMismatch: true });
 
-    const { stdout, calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", PAPERCLIP_HOME: stubDir });
+    const { stdout, calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", NEXUS_HOME: stubDir });
 
     expect(stdout).toContain("ENTRYPOINT-CMD-RAN");
     expect(calls).toContain("usermod -o -u 1001 node");
@@ -132,13 +132,13 @@ describe("docker-entrypoint.sh", () => {
   it("moves the app home away during the remap so usermod does not walk it", async () => {
     installStubs({ uid: 0, gid: 0, homeMismatch: true, nodeHome: stubDir });
 
-    const { calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", PAPERCLIP_HOME: stubDir });
+    const { calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", NEXUS_HOME: stubDir });
 
     const lines = calls.trim().split("\n");
     // usermod re-owns files only under the current home, so every ID change
     // runs while the home points at a placeholder that does not exist.
     expect(lines.filter((line) => line.startsWith("usermod "))).toEqual([
-      `usermod -d /nonexistent/paperclip-uid-remap${stubDir} node`,
+      `usermod -d /nonexistent/nexus-uid-remap${stubDir} node`,
       "usermod -o -u 1001 node",
       "usermod -g 1001 node",
       `usermod -d ${stubDir} node`,
@@ -150,10 +150,10 @@ describe("docker-entrypoint.sh", () => {
   it("moves the app home away for a GID-only remap too", async () => {
     installStubs({ uid: 0, gid: 0, nodeUid: 1001, nodeGid: 1000, nodeHome: stubDir });
 
-    const { calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", PAPERCLIP_HOME: stubDir });
+    const { calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", NEXUS_HOME: stubDir });
 
     expect(calls.trim().split("\n").filter((line) => line.startsWith("usermod "))).toEqual([
-      `usermod -d /nonexistent/paperclip-uid-remap${stubDir} node`,
+      `usermod -d /nonexistent/nexus-uid-remap${stubDir} node`,
       "usermod -g 1001 node",
       `usermod -d ${stubDir} node`,
     ]);
@@ -162,9 +162,9 @@ describe("docker-entrypoint.sh", () => {
   it("keeps the plain remap when the passwd home is outside the app home", async () => {
     // The ownership probe covers only the app home, so usermod must still
     // re-own a separate passwd home.
-    installStubs({ uid: 0, gid: 0, nodeHome: "/paperclip" });
+    installStubs({ uid: 0, gid: 0, nodeHome: "/nexus" });
 
-    const { calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", PAPERCLIP_HOME: stubDir });
+    const { calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", NEXUS_HOME: stubDir });
 
     expect(calls).toContain("usermod -o -u 1001 node");
     expect(calls).not.toContain("usermod -d");
@@ -173,7 +173,7 @@ describe("docker-entrypoint.sh", () => {
   it("remaps without moving the home when the node passwd entry is unavailable", async () => {
     installStubs({ uid: 0, gid: 0, homeMismatch: true, nodeHome: null });
 
-    const { stdout, calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", PAPERCLIP_HOME: stubDir });
+    const { stdout, calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", NEXUS_HOME: stubDir });
 
     expect(stdout).toContain("ENTRYPOINT-CMD-RAN");
     expect(calls).toContain("usermod -o -u 1001 node");
@@ -181,9 +181,9 @@ describe("docker-entrypoint.sh", () => {
   });
 
   it("restores the home left by an interrupted remap when the IDs already match", async () => {
-    installStubs({ uid: 0, gid: 0, nodeUid: 1001, nodeGid: 1001, nodeHome: `/nonexistent/paperclip-uid-remap${stubDir}` });
+    installStubs({ uid: 0, gid: 0, nodeUid: 1001, nodeGid: 1001, nodeHome: `/nonexistent/nexus-uid-remap${stubDir}` });
 
-    const { stdout, calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", PAPERCLIP_HOME: stubDir });
+    const { stdout, calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", NEXUS_HOME: stubDir });
 
     expect(stdout).toContain("ENTRYPOINT-CMD-RAN");
     expect(calls.trim().split("\n").filter((line) => line.startsWith("usermod "))).toEqual([
@@ -192,13 +192,13 @@ describe("docker-entrypoint.sh", () => {
   });
 
   it("restores the original home, not the placeholder, when an interrupted remap is retried", async () => {
-    installStubs({ uid: 0, gid: 0, nodeHome: `/nonexistent/paperclip-uid-remap${stubDir}` });
+    installStubs({ uid: 0, gid: 0, nodeHome: `/nonexistent/nexus-uid-remap${stubDir}` });
 
-    const { calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", PAPERCLIP_HOME: stubDir });
+    const { calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", NEXUS_HOME: stubDir });
 
     expect(calls.trim().split("\n").filter((line) => line.startsWith("usermod "))).toEqual([
       `usermod -d ${stubDir} node`,
-      `usermod -d /nonexistent/paperclip-uid-remap${stubDir} node`,
+      `usermod -d /nonexistent/nexus-uid-remap${stubDir} node`,
       "usermod -o -u 1001 node",
       "usermod -g 1001 node",
       `usermod -d ${stubDir} node`,
@@ -208,7 +208,7 @@ describe("docker-entrypoint.sh", () => {
   it.each([false, true])("skips remapping a cloud identity while preserving volume repair (mismatch: %s)", async (homeMismatch) => {
     installStubs({ uid: 0, gid: 0, nodeUid: 1001, nodeGid: 1001, homeMismatch });
 
-    const { stdout, calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", PAPERCLIP_HOME: stubDir });
+    const { stdout, calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", NEXUS_HOME: stubDir });
 
     expect(stdout).toContain("ENTRYPOINT-CMD-RAN");
     expect(calls).not.toContain("usermod");
@@ -224,7 +224,7 @@ describe("docker-entrypoint.sh", () => {
     // first mkdir.
     installStubs({ uid: 0, gid: 0, homeMismatch: true });
 
-    const { stdout, calls } = await runEntrypoint({ PAPERCLIP_HOME: stubDir });
+    const { stdout, calls } = await runEntrypoint({ NEXUS_HOME: stubDir });
 
     expect(stdout).toContain("ENTRYPOINT-CMD-RAN");
     expect(calls).toContain(`chown -R node:node ${stubDir}`);
@@ -235,7 +235,7 @@ describe("docker-entrypoint.sh", () => {
   it("repairs ownership on a GID-only remap (stale group on persisted descendants)", async () => {
     installStubs({ uid: 0, gid: 0, homeMismatch: true });
 
-    const { calls } = await runEntrypoint({ USER_GID: "1001", PAPERCLIP_HOME: stubDir });
+    const { calls } = await runEntrypoint({ USER_GID: "1001", NEXUS_HOME: stubDir });
 
     expect(calls).toContain("groupmod -o -g 1001 node");
     expect(calls).toContain(`chown -R node:node ${stubDir}`);
@@ -244,28 +244,28 @@ describe("docker-entrypoint.sh", () => {
   it("keeps a fully node-owned tree chown-free (no per-boot recursive chown)", async () => {
     installStubs({ uid: 0, gid: 0, homeMismatch: false });
 
-    const { calls } = await runEntrypoint({ PAPERCLIP_HOME: stubDir });
+    const { calls } = await runEntrypoint({ NEXUS_HOME: stubDir });
 
     expect(calls).not.toContain("chown");
     expect(calls).toContain("gosu node echo ENTRYPOINT-CMD-RAN");
   });
 
-  it("honours PAPERCLIP_HOME for the ownership probe", async () => {
+  it("honours NEXUS_HOME for the ownership probe", async () => {
     installStubs({ uid: 0, gid: 0, homeMismatch: true });
 
-    const { calls } = await runEntrypoint({ PAPERCLIP_HOME: stubDir });
+    const { calls } = await runEntrypoint({ NEXUS_HOME: stubDir });
 
     expect(calls).toContain(`chown -R node:node ${stubDir}`);
   });
 
   describe("ownership probe cost", () => {
-    const marker = () => join(stubDir, ".paperclip-ownership-verified");
+    const marker = () => join(stubDir, ".nexus-ownership-verified");
 
     it("skips the full-tree walk when ownership is correct and the marker is current", async () => {
       installStubs({ uid: 0, gid: 0 });
       writeFileSync(marker(), "v1 1000:1000\n");
 
-      const { stdout, calls } = await runEntrypoint({ PAPERCLIP_HOME: stubDir });
+      const { stdout, calls } = await runEntrypoint({ NEXUS_HOME: stubDir });
 
       expect(calls).toContain(`find-shallow ${stubDir}`);
       expect(calls).not.toContain("find-full");
@@ -279,7 +279,7 @@ describe("docker-entrypoint.sh", () => {
       installStubs({ uid: 0, gid: 0, deepMismatch: true });
       writeFileSync(marker(), "v1 1000:1000\n");
 
-      const { calls } = await runEntrypoint({ PAPERCLIP_HOME: stubDir });
+      const { calls } = await runEntrypoint({ NEXUS_HOME: stubDir });
 
       expect(calls).not.toContain("find-full");
       expect(calls).not.toContain("chown");
@@ -289,7 +289,7 @@ describe("docker-entrypoint.sh", () => {
       // First boot after upgrading from an image without the marker.
       installStubs({ uid: 0, gid: 0 });
 
-      const { calls } = await runEntrypoint({ PAPERCLIP_HOME: stubDir });
+      const { calls } = await runEntrypoint({ NEXUS_HOME: stubDir });
 
       expect(calls).toContain(`find-shallow ${stubDir}`);
       expect(calls).toContain(`find-full ${stubDir}`);
@@ -300,7 +300,7 @@ describe("docker-entrypoint.sh", () => {
     it("does not record the marker when the full-tree walk fails without finding a mismatch", async () => {
       installStubs({ uid: 0, gid: 0, fullProbeFails: true });
 
-      const { stdout, calls } = await runEntrypoint({ PAPERCLIP_HOME: stubDir });
+      const { stdout, calls } = await runEntrypoint({ NEXUS_HOME: stubDir });
 
       expect(calls).toContain(`find-full ${stubDir}`);
       expect(calls).not.toContain("chown");
@@ -312,7 +312,7 @@ describe("docker-entrypoint.sh", () => {
     it("repairs a deep mismatch found by the full-tree walk when there is no marker", async () => {
       installStubs({ uid: 0, gid: 0, deepMismatch: true });
 
-      const { calls } = await runEntrypoint({ PAPERCLIP_HOME: stubDir });
+      const { calls } = await runEntrypoint({ NEXUS_HOME: stubDir });
 
       expect(calls).toContain(`find-full ${stubDir}`);
       expect(calls).toContain(`chown -R node:node ${stubDir}`);
@@ -323,7 +323,7 @@ describe("docker-entrypoint.sh", () => {
       installStubs({ uid: 0, gid: 0, homeMismatch: true });
       writeFileSync(marker(), "v1 1000:1000\n");
 
-      const { calls } = await runEntrypoint({ PAPERCLIP_HOME: stubDir });
+      const { calls } = await runEntrypoint({ NEXUS_HOME: stubDir });
 
       expect(calls).toContain(`find-shallow ${stubDir}`);
       expect(calls).not.toContain("find-full");
@@ -334,7 +334,7 @@ describe("docker-entrypoint.sh", () => {
       installStubs({ uid: 0, gid: 0, nodeUid: 1001, nodeGid: 1001, deepMismatch: true });
       writeFileSync(marker(), "v1 1000:1000\n");
 
-      const { calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", PAPERCLIP_HOME: stubDir });
+      const { calls } = await runEntrypoint({ USER_UID: "1001", USER_GID: "1001", NEXUS_HOME: stubDir });
 
       expect(calls).toContain(`find-full ${stubDir}`);
       expect(calls).toContain(`chown -R node:node ${stubDir}`);
@@ -344,7 +344,7 @@ describe("docker-entrypoint.sh", () => {
     it("logs timestamped start, repair duration, and pre-exec lines", async () => {
       installStubs({ uid: 0, gid: 0, homeMismatch: true });
 
-      const { stdout } = await runEntrypoint({ PAPERCLIP_HOME: stubDir });
+      const { stdout } = await runEntrypoint({ NEXUS_HOME: stubDir });
       const stamp = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z docker-entrypoint\\.sh: ";
 
       expect(stdout).toMatch(new RegExp(`^${stamp}starting$`, "m"));

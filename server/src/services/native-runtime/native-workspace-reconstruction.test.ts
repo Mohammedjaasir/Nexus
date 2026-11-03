@@ -3,7 +3,7 @@ import express from "express";
 import request from "supertest";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { activityLog, agents, agentWakeupRequests, assets, authUsers, companies, companyMemberships, completionContracts, createDb, applyPendingMigrations, subscribeDatabaseWork, type Db, environmentLeases, heartbeatRuns, issueAttachments, issueComments, issueRecoveryActions, issues, nativeRunFinalizations, nativeRunResults } from "@paperclipai/db";
+import { activityLog, agents, agentWakeupRequests, assets, authUsers, companies, companyMemberships, completionContracts, createDb, applyPendingMigrations, subscribeDatabaseWork, type Db, environmentLeases, heartbeatRuns, issueAttachments, issueComments, issueRecoveryActions, issues, nativeRunFinalizations, nativeRunResults } from "@nexusai/db";
 import { DELIVERY_QUEUES } from "../delivery-work-notifications.js";
 import { createHeartbeatQueue } from "../heartbeat/queue.js";
 import { createHeartbeatQueueTestDependencies } from "../../__tests__/helpers/heartbeat-queue.js";
@@ -35,7 +35,7 @@ describe("reconstruction after confirmed native workspace loss", () => {
   let db: ReturnType<typeof createDb>;
   let runningHeartbeat: ReturnType<typeof heartbeatService> | null = null;
   beforeAll(async () => {
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_NATIVE_RECONSTRUCTION_TEST_DATABASE_URL");
+    const external = resolveExternalTestDatabaseUrl("NEXUS_NATIVE_RECONSTRUCTION_TEST_DATABASE_URL");
     if (external) {
       await applyPendingMigrations(external);
       db = createDb(external, { maxConnections: 6 });
@@ -60,13 +60,13 @@ describe("reconstruction after confirmed native workspace loss", () => {
     await db.insert(authUsers).values({ id: userId, name: "Operator", email: `${userId}@example.test`, emailVerified: true, createdAt: new Date(), updatedAt: new Date() });
     await db.insert(companies).values({ id: companyId, name: "Reconstruction", issuePrefix: `REC${companyId.replaceAll("-", "").slice(0, 6)}`, defaultResponsibleUserId: userId, budgetMonthlyCents: 10000 });
     await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: userId, membershipRole: "owner", status: "active" });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", status: "idle", adapterType: "paperclip_runner", budgetMonthlyCents: 5000, runtimeConfig: { heartbeat: { maxConcurrentRuns: 1 } } });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", status: "idle", adapterType: "nexus_runner", budgetMonthlyCents: 5000, runtimeConfig: { heartbeat: { maxConcurrentRuns: 1 } } });
     await db.insert(issues).values({ id: issueId, companyId, title: "Finish bounded work", status: "blocked", assigneeAgentId: agentId });
-    await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "test", risk: "standard", completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal", contractJson: { objective: "Finish bounded work" }, canonicalSha256: contractId, createdByActorType: "system", createdByActorId: "test" });
+    await db.insert(completionContracts).values({ id: contractId, companyId, issueId, revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "test", risk: "standard", completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal", contractJson: { objective: "Finish bounded work" }, canonicalSha256: contractId, createdByActorType: "system", createdByActorId: "test" });
     await db.insert(heartbeatRuns).values({ id: runId, companyId, agentId, status: "failed", runtimeMode: "native", nativeIssueId: issueId, nativePhase: "terminal_failure", completionContractId: contractId,
       createdAt: new Date("2026-05-01T00:00:00Z"), finishedAt: new Date("2026-05-01T01:30:00Z"), responsibleUserId: userId, scheduledRetryAttempt: 2,
       contextSnapshot: { issueId, originalWorkDeadline: "2026-05-01T01:30:00Z" }, errorCode: "native_session_interrupted", processPid: process.pid,
-      runnerProfileJson: { nativeWorkspaceSync: { schema: "paperclip.native-workspace-sync/v1", state: "prepared", descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null, workspaceId: randomUUID(), leaseId, providerLeaseId, remoteCwd: "/work", resourceDisposition: "destroy" } } });
+      runnerProfileJson: { nativeWorkspaceSync: { schema: "nexus.native-workspace-sync/v1", state: "prepared", descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null, workspaceId: randomUUID(), leaseId, providerLeaseId, remoteCwd: "/work", resourceDisposition: "destroy" } } });
     await db.insert(nativeRunResults).values({ id: resultId, companyId, issueId, runId, completionContractId: contractId, serverFingerprint: resultId, schemaStatus: "accepted", resultJson: { work: "Unfinished local edits; no published PR" }, canonicalSha256: resultId });
     const cause = "native_workspace_sync_out_unrecoverable";
     await db.insert(nativeRunFinalizations).values({ runId, companyId, issueId, phase: "terminal_failure", resultId, failureCode: cause });
@@ -91,10 +91,10 @@ describe("reconstruction after confirmed native workspace loss", () => {
       issueId: f.issueId, nativeIssueId: f.issueId, scopeKind: "issue", runtimeMode: "native", status: "cancelled",
       nativePhase: "observed", createdAt: new Date("2026-05-02T00:00:00Z"), finishedAt: new Date("2026-05-02T00:01:00Z"),
       contextSnapshot: { issueId: f.issueId }, resultJson: { cancelledByActorType: "user", cancelledByUserId: f.actorId,
-        nativeCancellation: { schema: "paperclip.native-cancellation.v1", runId, companyId: f.companyId, issueId: f.issueId,
+        nativeCancellation: { schema: "nexus.native-cancellation.v1", runId, companyId: f.companyId, issueId: f.issueId,
           scope: "run", reasonCode: "cancellation_run_only", dispatchState: "acknowledged", dispatched: true,
           intentAuditId: randomUUID(), acknowledgementAuditId: randomUUID() } },
-      runnerProfileJson: { nativeWorkspaceSync: { schema: "paperclip.native-workspace-sync/v3", state: "prepared",
+      runnerProfileJson: { nativeWorkspaceSync: { schema: "nexus.native-workspace-sync/v3", state: "prepared",
         descriptorSha256: "d".repeat(64), baselineSha256: "b".repeat(64), finalHostSha256: null,
         workspaceId: randomUUID(), leaseId, providerLeaseId, remoteCwd: "/work", resourceDisposition: "destroy" } },
     }).returning();
@@ -164,7 +164,7 @@ describe("reconstruction after confirmed native workspace loss", () => {
   it("pins a historical cancelled workspace through public heartbeat startup without replaying its turn", async () => {
     const f = await seed();
     const later = await interveningCancelledRun(f, false);
-    const heartbeat = runningHeartbeat = heartbeatService(db, { runtimeEnv: { PAPERCLIP_IN_WORKTREE: "false" } });
+    const heartbeat = runningHeartbeat = heartbeatService(db, { runtimeEnv: { NEXUS_IN_WORKTREE: "false" } });
     await heartbeat.recoverNativeRunsAfterRestart();
     expect((await db.select().from(environmentLeases).where(eq(environmentLeases.id, later.leaseId)))[0])
       .toMatchObject({ status: "pending_cleanup", leasePolicy: "retain_on_failure",
@@ -179,7 +179,7 @@ describe("reconstruction after confirmed native workspace loss", () => {
     const later = await interveningCancelledRun(f, kind !== "unrepaired");
     if (kind === "unconfirmed") await db.update(environmentLeases).set({ metadata: {} }).where(eq(environmentLeases.id, later.leaseId));
     if (kind === "foreign_agent") {
-      const [agent] = await db.insert(agents).values({ companyId: f.companyId, name: "Different owner", adapterType: "paperclip_runner" }).returning();
+      const [agent] = await db.insert(agents).values({ companyId: f.companyId, name: "Different owner", adapterType: "nexus_runner" }).returning();
       await db.update(heartbeatRuns).set({ agentId: agent.id }).where(eq(heartbeatRuns.id, later.runId));
     }
     if (kind === "missing_ack") await db.update(heartbeatRuns).set({ resultJson: {} }).where(eq(heartbeatRuns.id, later.runId));
@@ -360,7 +360,7 @@ describe("reconstruction after confirmed native workspace loss", () => {
     if (kind === "paused") await db.update(agents).set({ status: "paused" }).where(eq(agents.id, f.agentId));
     if (kind === "forged_wake") await db.update(agentWakeupRequests).set({ requestedByActorType: "agent" }).where(eq(agentWakeupRequests.id, retry.run.wakeupRequestId!));
     if (kind === "foreign_parent") {
-      const [other] = await db.insert(agents).values({ companyId: f.companyId, name: "Other", adapterType: "paperclip_runner" }).returning();
+      const [other] = await db.insert(agents).values({ companyId: f.companyId, name: "Other", adapterType: "nexus_runner" }).returning();
       await db.update(heartbeatRuns).set({ agentId: other.id }).where(eq(heartbeatRuns.id, firstId));
     }
     if (kind === "unrelated_run") await db.insert(heartbeatRuns).values({ companyId: f.companyId, agentId: f.agentId,
@@ -399,7 +399,7 @@ describe("reconstruction after confirmed native workspace loss", () => {
     await db.update(heartbeatRuns).set({ scheduledRetryAttempt: 0 }).where(eq(heartbeatRuns.id, f.runId));
     await reconstructNativeWorkspace(f);
     const [busy] = await db.insert(heartbeatRuns).values({ companyId: f.companyId, agentId: f.agentId, status: "running" }).returning();
-    const heartbeat = runningHeartbeat = heartbeatService(db, { runtimeEnv: { PAPERCLIP_IN_WORKTREE: "false" } });
+    const heartbeat = runningHeartbeat = heartbeatService(db, { runtimeEnv: { NEXUS_IN_WORKTREE: "false" } });
     await deliverReconciledExecutions(db, heartbeat.wakeup);
     const [action] = await db.select().from(issueRecoveryActions).where(eq(issueRecoveryActions.id, f.actionId));
     const firstId = String(action.evidence.continuationRunId);
@@ -441,7 +441,7 @@ describe("reconstruction after confirmed native workspace loss", () => {
     await db.update(agents).set({ adapterType: "codex_local" }).where(eq(agents.id, f.agentId));
     await reconstructNativeWorkspace(f);
     const [busy] = await db.insert(heartbeatRuns).values({ companyId: f.companyId, agentId: f.agentId, status: "running" }).returning();
-    const heartbeat = runningHeartbeat = heartbeatService(db, { runtimeEnv: { PAPERCLIP_IN_WORKTREE: "false" } });
+    const heartbeat = runningHeartbeat = heartbeatService(db, { runtimeEnv: { NEXUS_IN_WORKTREE: "false" } });
     await deliverReconciledExecutions(db, heartbeat.wakeup);
     const [action] = await db.select().from(issueRecoveryActions).where(eq(issueRecoveryActions.id, f.actionId));
     const successorId = String(action.evidence.continuationRunId);

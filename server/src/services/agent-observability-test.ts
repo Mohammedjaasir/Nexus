@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { ProtobufLogsSerializer, ProtobufTraceSerializer } from "@opentelemetry/otlp-transformer";
-import type { AgentObservabilityTestReceipt, OtlpSignalTestResult } from "@paperclipai/shared";
+import type { AgentObservabilityTestReceipt, OtlpSignalTestResult } from "@nexusai/shared";
 import { guardedRemoteHttpFetch } from "./remote-http-fetch.js";
 import type { ResolvedAgentObservability } from "./agent-observability.js";
 
@@ -44,20 +44,20 @@ export async function testAgentObservability(input: {
   allowPrivateNetwork: boolean; timeoutMs?: number;
 }): Promise<AgentObservabilityTestReceipt> {
   const startedAt = new Date().toISOString();
-  const marker = `paperclip-observability-test-${randomUUID()}`;
+  const marker = `nexus-observability-test-${randomUUID()}`;
   const traceId = randomBytes(16).toString("hex"), spanId = randomBytes(8).toString("hex");
   const spanContext = { traceId, spanId, traceFlags: 1 };
   const now = Date.now();
   const time: [number, number] = [Math.floor(now / 1000), (now % 1000) * 1_000_000];
-  const attributes = { "paperclip.company.id": input.companyId, "paperclip.observability.revision": input.revision, "paperclip.observability.test_marker": marker };
-  const resource = resourceFromAttributes({ "service.name": "paperclip-observability-test", ...attributes });
-  const instrumentationScope = { name: "paperclip.agent-observability", version: "1" };
+  const attributes = { "nexus.company.id": input.companyId, "nexus.observability.revision": input.revision, "nexus.observability.test_marker": marker };
+  const resource = resourceFromAttributes({ "service.name": "nexus-observability-test", ...attributes });
+  const instrumentationScope = { name: "nexus.agent-observability", version: "1" };
   const log: Parameters<typeof ProtobufLogsSerializer.serializeRequest>[0][number] = {
     resource, instrumentationScope, hrTime: time, hrTimeObserved: time,
     severityNumber: 9, severityText: "INFO", body: marker, attributes, droppedAttributesCount: 0, spanContext,
   };
   const span: Parameters<typeof ProtobufTraceSerializer.serializeRequest>[0][number] = {
-    name: "paperclip.observability.connection_test", kind: 0, spanContext: () => spanContext,
+    name: "nexus.observability.connection_test", kind: 0, spanContext: () => spanContext,
     startTime: time, endTime: time, duration: [0, 0], status: { code: 1 }, attributes,
     links: [], events: [], ended: true, resource, instrumentationScope,
     droppedAttributesCount: 0, droppedEventsCount: 0, droppedLinksCount: 0,

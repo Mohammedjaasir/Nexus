@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
 import { afterEach, describe, expect, it } from "vitest";
 import { prepareCompatibleClaudeCommand } from "./sandbox-cli-version.js";
 
@@ -61,9 +61,9 @@ async function fixture(version: string, installer = "success") {
 describe("managed sandbox Claude CLI compatibility", () => {
   it("updates an existing outdated CLI to the exact required version and verifies it", async () => {
     const { input, receipt } = await fixture("2.1.263");
-    expect(await prepareCompatibleClaudeCommand(input)).toMatchObject({ version: "2.1.280", command: path.join(input.cwd, ".paperclip-runtime/claude-cli/2.1.280/bin/claude"), check: { code: "claude_runtime_prepared", level: "info" } });
+    expect(await prepareCompatibleClaudeCommand(input)).toMatchObject({ version: "2.1.280", command: path.join(input.cwd, ".nexus-runtime/claude-cli/2.1.280/bin/claude"), check: { code: "claude_runtime_prepared", level: "info" } });
     expect(await readFile(path.join(input.cwd, "version"), "utf8")).toBe("2.1.263");
-    expect((await readFile(receipt, "utf8")).trim()).toBe(`install --global --prefix ${path.join(input.cwd, ".paperclip-runtime/claude-cli/2.1.280")} @anthropic-ai/claude-code@2.1.280`);
+    expect((await readFile(receipt, "utf8")).trim()).toBe(`install --global --prefix ${path.join(input.cwd, ".nexus-runtime/claude-cli/2.1.280")} @anthropic-ai/claude-code@2.1.280`);
   });
 
   it.each(["2.1.280", "2.1.286"])("keeps a compatible CLI %s without installing", async version => {
@@ -75,7 +75,7 @@ describe("managed sandbox Claude CLI compatibility", () => {
   it.each(["fail", "unchanged"])("preserves the failed version gate after an installer result of %s", async installer => {
     const { input, receipt } = await fixture("2.1.263", installer);
     expect(await prepareCompatibleClaudeCommand(input)).toMatchObject({ command: "claude", version: "2.1.263", check: { code: "claude_runtime_preparation_failed", level: "warn" } });
-    expect((await readFile(receipt, "utf8")).trim()).toBe(`install --global --prefix ${path.join(input.cwd, ".paperclip-runtime/claude-cli/2.1.280")} @anthropic-ai/claude-code@2.1.280`);
+    expect((await readFile(receipt, "utf8")).trim()).toBe(`install --global --prefix ${path.join(input.cwd, ".nexus-runtime/claude-cli/2.1.280")} @anthropic-ai/claude-code@2.1.280`);
   });
 
   it.each([

@@ -10,7 +10,7 @@ import type {
   EmailEndpointSetupInput,
   EmailAddressCheckInput,
   EmailAddressCheckResult,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 export const emailApi = {
   credentials: (companyId: string) => api.get<EmailCredentialOption[]>(`/companies/${companyId}/email/connections`),
   checkAddress: (companyId: string, connectionId: string, input: EmailAddressCheckInput, signal?: AbortSignal) =>

@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url';
 
 export async function createProviderPackArchive(root) {
   const manifest = JSON.parse(await readFile(resolve(root, 'provider-pack.json'), 'utf8'));
-  if (manifest.schema !== 'paperclip-runner/remote-provider-pack/v1'
+  if (manifest.schema !== 'nexus-runner/remote-provider-pack/v1'
     || !/^sha256:[a-f0-9]{64}$/.test(manifest.digest ?? '')) throw Error('Invalid provider pack identity');
   const archive = `${root}.tar.zst`;
   const tar = spawn('tar', ['--no-xattrs', '-cf', '-', '-C', root, '.'], {
@@ -29,7 +29,7 @@ export async function createProviderPackArchive(root) {
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(archive)) hash.update(chunk);
   const receipt = {
-    schema: 'paperclip-runner/provider-pack-archive/v1',
+    schema: 'nexus-runner/provider-pack-archive/v1',
     encoding: 'tar+zstd',
     providerPackDigest: manifest.digest,
     sha256: hash.digest('hex'),
@@ -43,7 +43,7 @@ export async function createProviderPackArchive(root) {
 // image bytes without trusting that image's older provider-pack identity.
 export async function createProviderPackLayers(root) {
   const manifest = JSON.parse(await readFile(resolve(root, 'provider-pack.json'), 'utf8'));
-  if (manifest.schema !== 'paperclip-runner/remote-provider-pack/v1'
+  if (manifest.schema !== 'nexus-runner/remote-provider-pack/v1'
     || !/^sha256:[a-f0-9]{64}$/.test(manifest.digest ?? '')) throw Error('Invalid provider pack identity');
   const directory = `${root}.archives`;
   await mkdir(directory, { recursive: true });
@@ -84,7 +84,7 @@ export async function createProviderPackLayers(root) {
   };
   const overlay = await archive('overlay.tar.zst', small);
   for (const [index, file] of files.entries()) file.archive = await archive(`${index}.tar.zst`, [file.path]);
-  const receipt = { schema: 'paperclip-runner/provider-pack-archive/v2', encoding: 'tar+zstd',
+  const receipt = { schema: 'nexus-runner/provider-pack-archive/v2', encoding: 'tar+zstd',
     providerPackDigest: manifest.digest, overlay, files };
   await writeFile(`${root}.archive.json`, JSON.stringify(receipt) + '\n');
   return receipt;

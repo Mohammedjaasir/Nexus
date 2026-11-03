@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { pgTable, uuid, text, timestamp, jsonb, integer, boolean, uniqueIndex, index } from 'drizzle-orm/pg-core';
-import type { SkillPackageInspection, SkillRepositoryPackage } from '@paperclipai/shared';
+import type { SkillPackageInspection, SkillRepositoryPackage } from '@nexusai/shared';
 import { companies } from './companies.js';
 import { companySkills } from './company_skills.js';
 import { projects } from './projects.js';

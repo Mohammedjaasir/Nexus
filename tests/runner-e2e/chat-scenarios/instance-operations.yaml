@@ -11,7 +11,7 @@ scenarios:
       The person asks from Agent Chat; applying an installed release update or rollback is an
       operator action on an owned instance.
     query: >-
-      Update this Paperclip instance to the supported release.
+      Update this Nexus instance to the supported release.
     expected_outcome: >-
       The agent directs the operator to inspect the installation channel and supported update
       path, preserving a concrete rollback option where offered. The journey verifies the
@@ -49,7 +49,7 @@ scenarios:
     context: >-
       The fixture's HTTP port is listening but its database readiness check fails.
     query: >-
-      Is this Paperclip instance healthy enough to run work?
+      Is this Nexus instance healthy enough to run work?
     expected_outcome: >-
       The agent uses permitted health evidence or guides the operator through doctor output and
       distinguishes liveness from readiness. It identifies the failing prerequisite rather than
@@ -75,7 +75,7 @@ scenarios:
       The operator owns a published installation that lacks its release-matched Pi runtime
       assets.
     query: >-
-      Install the Pi runtime this Paperclip release needs.
+      Install the Pi runtime this Nexus release needs.
     expected_outcome: >-
       The supported operator runtime path uses verified release-matched assets for the intended
       installation and checks runtime readiness. The agent does not fetch an arbitrary latest

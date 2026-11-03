@@ -54,7 +54,7 @@ describe("public repository paid workflow security", () => {
     expect(manual).toContain('SOURCE_SHA: ${{ needs.authorize_manual.outputs.target_sha }}');
     expect([...manual.matchAll(/secrets\.([A-Z_]+)/gu)].map(match => match[1])).toEqual(["GITHUB_TOKEN"]);
     expect(manual).toContain('pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile');
-    expect(manual).toContain('PAPERCLIP_RUNNER_LOCK_SHA256=$lock_sha');
+    expect(manual).toContain('NEXUS_RUNNER_LOCK_SHA256=$lock_sha');
     expect(manual).toContain('docker logout ghcr.io');
     expect(manual.indexOf('Apply reviewed qualification lock corrections')).toBeLessThan(manual.indexOf('Resolve source dependencies without lifecycle scripts'));
     expect(manual).toContain('node tests/runner-e2e/prepare-report-lock.mjs');
@@ -253,7 +253,7 @@ describe("public repository paid workflow security", () => {
       /(?:(?:OPENAI|ANTHROPIC|OPENROUTER|DAYTONA|XAI)_API_KEY|GROK_AUTH_JSON)/,
     );
     expect(authorizeJob).toContain(
-      "aws_runner='runs-on/fleet=paperclip-public-pr-x64/env=public-ci'",
+      "aws_runner='runs-on/fleet=nexus-public-pr-x64/env=public-ci'",
     );
     expect(authorizeJob).toContain("github_runner='ubuntu-latest'");
     expect(authorizeJob).toContain(
@@ -321,7 +321,7 @@ describe("public repository paid workflow security", () => {
       "if: needs.authorize.outputs.playwright_channel != 'chrome'",
     );
     expect(paidJob).toContain(
-      "PAPERCLIP_PLAYWRIGHT_CHANNEL: ${{ needs.authorize.outputs.playwright_channel }}",
+      "NEXUS_PLAYWRIGHT_CHANNEL: ${{ needs.authorize.outputs.playwright_channel }}",
     );
     expect(paidJob).not.toContain(
       "pnpm exec playwright install --with-deps chromium",
@@ -354,7 +354,7 @@ describe("public repository paid workflow security", () => {
     expect(grokPreparation).toBeGreaterThan(paidInstall);
     expect(paidExecution).toBeGreaterThan(grokPreparation);
     expect(paidJob).toContain("if: matrix.environmentId == 'local' && (matrix.profileId == 'runner-acpx-grok' || matrix.profileId == 'runner-acpx-grok-subscription')");
-    expect(paidJob).toContain("run: sudo node packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok");
+    expect(paidJob).toContain("run: sudo node packages/nexus-runner/scripts/provision-grok.mjs /opt/nexus/providers/grok/1.0.13/grok");
 
     const everydayOracleStep = paidJob.slice(
       everydayOraclePreparation,
@@ -413,11 +413,11 @@ describe("public repository paid workflow security", () => {
       "node scripts/link-plugin-dev-sdk.mjs",
     );
     expect(preparedBeforeProviderAccess).toContain(
-      '"@paperclipai/plugin-daytona"',
+      '"@nexusai/plugin-daytona"',
     );
-    expect(preparedBeforeProviderAccess).toContain('"@paperclipai/plugin-sdk"');
+    expect(preparedBeforeProviderAccess).toContain('"@nexusai/plugin-sdk"');
     expect(preparedBeforeProviderAccess).toContain(
-      'realpath "$daytona_root/node_modules/@paperclipai/plugin-sdk"',
+      'realpath "$daytona_root/node_modules/@nexusai/plugin-sdk"',
     );
     expect(preparedBeforeProviderAccess).toContain(
       'pnpm --dir "$daytona_root" build',
@@ -545,7 +545,7 @@ describe("public repository paid workflow security", () => {
     expect(fullStack.match(/persist-credentials: false/g)).toHaveLength(10);
     expect(fullStack).not.toContain("ref: ${{ inputs.target_branch }}");
     expect(fullStack).toContain(
-      "PAPERCLIP_RUNNER_SOURCE_REVISION=${TARGET_SHA}",
+      "NEXUS_RUNNER_SOURCE_REVISION=${TARGET_SHA}",
     );
     const reportJob = fullStack.slice(
       fullStack.indexOf("  report:"),
@@ -578,10 +578,10 @@ describe("public repository paid workflow security", () => {
     );
     for (const targetProvenanceJob of [paidJob, reportJob]) {
       expect(targetProvenanceJob).toContain(
-        "PAPERCLIP_RUNNER_E2E_SOURCE_SHA: ${{ needs.authorize.outputs.target_sha }}",
+        "NEXUS_RUNNER_E2E_SOURCE_SHA: ${{ needs.authorize.outputs.target_sha }}",
       );
       expect(targetProvenanceJob).toContain(
-        "PAPERCLIP_RUNNER_E2E_SOURCE_REF: ${{ needs.authorize.outputs.target_ref }}",
+        "NEXUS_RUNNER_E2E_SOURCE_REF: ${{ needs.authorize.outputs.target_ref }}",
       );
     }
     for (const [secret, condition] of Object.entries({
@@ -679,16 +679,16 @@ describe("public repository paid workflow security", () => {
       buildJob.match(/pnpm install --frozen-lockfile --ignore-scripts/g),
     ).toHaveLength(2);
     expect(buildJob).toContain(
-      "pnpm --filter @paperclipai/paperclip-runner build:typescript",
+      "pnpm --filter @nexusai/nexus-runner build:typescript",
     );
     expect(buildJob).toContain(
-      "pnpm --filter @paperclipai/paperclip-runner build:runner-binaries",
+      "pnpm --filter @nexusai/nexus-runner build:runner-binaries",
     );
     expect(buildJob).toContain(
-      "node packages/paperclip-runner/scripts/build-provider-pack.mjs",
+      "node packages/nexus-runner/scripts/build-provider-pack.mjs",
     );
     expect(buildJob).toContain(
-      "node packages/paperclip-runner/scripts/materialize-opencode-binary.mjs",
+      "node packages/nexus-runner/scripts/materialize-opencode-binary.mjs",
     );
     expect(buildJob).toContain("runner-e2e-build-bundle.tar.gz.sha256");
     expect(buildJob).toContain("runner-e2e-provider-pack.tar.gz.sha256");
@@ -732,7 +732,7 @@ describe("public repository paid workflow security", () => {
       testJob.indexOf("tar --extract"),
     );
     expect(testJob).toContain(
-      "test -x packages/paperclip-runner/runner/target/debug/paperclip-runnerd",
+      "test -x packages/nexus-runner/runner/target/debug/nexus-runnerd",
     );
     expect(testJob).toContain(".payload.runnerSourceRevision == $revision");
     expect(workflow).toContain("Qualify local provider Node interpreter");
@@ -743,7 +743,7 @@ describe("public repository paid workflow security", () => {
       "matrix.profileId == 'legacy-opencode' || matrix.profileId == 'runner-opencode' || matrix.suiteId == 'openrouter-model-breadth'",
     );
     expect(testJob).toContain(
-      "node packages/paperclip-runner/scripts/materialize-opencode-binary.mjs",
+      "node packages/nexus-runner/scripts/materialize-opencode-binary.mjs",
     );
     expect(testJob).not.toContain("postinstall.mjs");
     expect(testJob).not.toContain("pnpm rebuild");
@@ -759,14 +759,14 @@ describe("public repository paid workflow security", () => {
     );
 
     expect(config).toContain(
-      "process.env.PAPERCLIP_PLAYWRIGHT_CHANNEL?.trim()",
+      "process.env.NEXUS_PLAYWRIGHT_CHANNEL?.trim()",
     );
     expect(config).toContain("{ channel: playwrightChannel }");
     expect(config).toContain(
-      "process.env.PAPERCLIP_RUNNER_E2E_CHROMIUM_EXECUTABLE?.trim()",
+      "process.env.NEXUS_RUNNER_E2E_CHROMIUM_EXECUTABLE?.trim()",
     );
     expect(config).toContain(
-      "PAPERCLIP_PLAYWRIGHT_CHANNEL and PAPERCLIP_RUNNER_E2E_CHROMIUM_EXECUTABLE are mutually exclusive",
+      "NEXUS_PLAYWRIGHT_CHANNEL and NEXUS_RUNNER_E2E_CHROMIUM_EXECUTABLE are mutually exclusive",
     );
   });
 
@@ -814,13 +814,13 @@ describe("public repository paid workflow security", () => {
     expect(report).toContain("Select latest workflow attempt per cell");
     expect(report).toContain("tests/runner-e2e/select-rerun-artifacts.ts");
     expect(report).toContain(
-      "PAPERCLIP_RUNNER_E2E_REPORT_ROOT: ${{ github.workspace }}/selected-runner-e2e",
+      "NEXUS_RUNNER_E2E_REPORT_ROOT: ${{ github.workspace }}/selected-runner-e2e",
     );
     expect(report).toContain(
-      "PAPERCLIP_RUNNER_E2E_HISTORY_PUBLIC_BASE_URL: ${{ needs.catalog.outputs.operations_cadence == '' && needs.authorize.outputs.evidence_retention == 'actions' && vars.RUNNER_E2E_HISTORY_PUBLIC_BASE_URL || '' }}",
+      "NEXUS_RUNNER_E2E_HISTORY_PUBLIC_BASE_URL: ${{ needs.catalog.outputs.operations_cadence == '' && needs.authorize.outputs.evidence_retention == 'actions' && vars.RUNNER_E2E_HISTORY_PUBLIC_BASE_URL || '' }}",
     );
     const historyPrefix = "${{ vars.RUNNER_E2E_HISTORY_PREFIX || 'runner-e2e' }}";
-    expect(report).toContain(`PAPERCLIP_RUNNER_E2E_HISTORY_PREFIX: ${historyPrefix}`);
+    expect(report).toContain(`NEXUS_RUNNER_E2E_HISTORY_PREFIX: ${historyPrefix}`);
     expect(publisher).toContain(`RUNNER_E2E_HISTORY_PREFIX: ${historyPrefix}`);
     expect(publisher).toContain("needs.catalog.outputs.operations_cadence == '' && needs.authorize.outputs.evidence_retention == 'actions' && needs.report.outputs.history_source_ready == 'true'");
     expect(
@@ -985,7 +985,7 @@ it("keeps dependency resolution and shared caches out of Runner protocol archive
   expect(upload).toContain("id: upload");
   expect(builder).toContain("artifact-ids: ${{ steps.upload.outputs.artifact-id }}");
   expect(builder).toContain("run: node --test .github/tests/runner-controller-artifact-transport.test.mjs");
-  expect(builder).toContain("PAPERCLIP_CONTROLLER_RECEIPT_SHA256: ${{ steps.build.outputs.runtime_receipt_sha256 }}");
+  expect(builder).toContain("NEXUS_CONTROLLER_RECEIPT_SHA256: ${{ steps.build.outputs.runtime_receipt_sha256 }}");
   const preparer = jobs.find(job => job.startsWith("  prepare_controller:"))!;
   expect(preparer).not.toMatch(/pnpm install/u);
   expect(preparer.indexOf("verify-runtime.mjs")).toBeLessThan(preparer.indexOf('hosted.mjs" prepare'));

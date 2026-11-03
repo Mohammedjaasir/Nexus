@@ -1,11 +1,11 @@
 import { nativeProviderCatalogFor } from "../../native-provider-catalogs.js";
 import { restConnectorFor } from "../../connectors/rest-registry.js";
-import { googleWorkspaceToolTarget } from "@paperclipai/shared";
-import { BROWSER_USE_TOOLS } from "@paperclipai/shared";
-import { isMemoryConnectorId } from "@paperclipai/shared";
-import { toolConnections } from "@paperclipai/db";
-import type { ToolRiskLevel } from "@paperclipai/shared";
-import { GOOGLE_WORKSPACE_CONNECTOR_PROFILES, type GoogleWorkspaceConnectorProfileId } from "@paperclipai/shared";
+import { googleWorkspaceToolTarget } from "@nexusai/shared";
+import { BROWSER_USE_TOOLS } from "@nexusai/shared";
+import { isMemoryConnectorId } from "@nexusai/shared";
+import { toolConnections } from "@nexusai/db";
+import type { ToolRiskLevel } from "@nexusai/shared";
+import { GOOGLE_WORKSPACE_CONNECTOR_PROFILES, type GoogleWorkspaceConnectorProfileId } from "@nexusai/shared";
 import { connectorToolPolicy } from "../../connectors/tool-policy.js";
 
 function asRecord(value: unknown): Record<string, unknown> {

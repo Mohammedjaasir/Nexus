@@ -1,11 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { parsePaperclipQuestionResponse } from "@paperclipai/paperclip-runner";
+import { parseNexusQuestionResponse } from "@nexusai/nexus-runner";
 import { buildMuseSetupInstruction, museReceiverAssets } from "../services/muse-setup.js";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect, vi } from "vitest";
 import express from "express";
 import request from "supertest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { museTransportRoutes } from "../routes/muse.js";
 
 // Asset routing must not create a credential, touch a DB or start a receiver.
@@ -25,12 +25,12 @@ describe("personal Muse client durability", () => {
 
 
 describe("Muse canonical multi-select compatibility", () => {
-  const questionSet = { schema: "paperclip.question_set.v1", questions: [
+  const questionSet = { schema: "nexus.question_set.v1", questions: [
     { id: "choices", prompt: "Choose supported options", required: true, answerMode: "multi_select",
       options: Array.from({ length: 128 }, (_, index) => ({ id: `choice-${index}`, label: `Choice ${index}` })) },
     { id: "format", prompt: "Choose a format", required: true, answerMode: "text" },
   ] };
-  const response = (selectedOptionIds: string[]) => ({ schema: "paperclip.question_response.v1",
+  const response = (selectedOptionIds: string[]) => ({ schema: "nexus.question_response.v1",
     answers: { choices: { selectedOptionIds }, format: { text: "Markdown" } } });
   const clientValid = (value: unknown) => JSON.parse(execFileSync("python3", ["-c",
     "import importlib.util,json,sys; sys.dont_write_bytecode=True; spec=importlib.util.spec_from_file_location('muse_validator',sys.argv[1]); module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module); print(json.dumps(module.input_response_valid(json.load(sys.stdin))))",
@@ -39,19 +39,19 @@ describe("Muse canonical multi-select compatibility", () => {
 
   it.each([64, 65, 128])("accepts all %s canonical selections without losing another question", count => {
     const value = response(Array.from({ length: count }, (_, index) => `choice-${index}`));
-    expect(parsePaperclipQuestionResponse(questionSet, value)).toEqual(value);
+    expect(parseNexusQuestionResponse(questionSet, value)).toEqual(value);
     expect(clientValid(value)).toBe(true);
   });
 
   it("retains duplicate and overflow rejection and canonical option-membership authority", () => {
     for (const selected of [Array.from({ length: 129 }, (_, index) => `choice-${index}`), ["choice-0", "choice-0"]]) {
       const value = response(selected);
-      expect(() => parsePaperclipQuestionResponse(questionSet, value)).toThrow();
+      expect(() => parseNexusQuestionResponse(questionSet, value)).toThrow();
       expect(clientValid(value)).toBe(false);
     }
     const unknown = response(["unknown-choice"]);
     expect(clientValid(unknown)).toBe(true); // Local journal validation has no persisted question set.
-    expect(() => parsePaperclipQuestionResponse(questionSet, unknown)).toThrow(/unknown option/);
+    expect(() => parseNexusQuestionResponse(questionSet, unknown)).toThrow(/unknown option/);
   });
 });
 
@@ -59,44 +59,44 @@ describe("Muse approval-aware setup",()=>{
   it.each([1, 2, 3, 4, 5, 6, 7, 8] as const)("preserves every published version%s byte pin", async version => {
     const pins = {
     "1": {
-        "client.py": "8926534cce48e11d5ea157dfd4deb435c9f8d7d8ea58d3d8a5424b45ab31d1f7",
-        "detector.sh": "09981df12ebce8c50b68e5da64edfe5ab5350d56bf6392ec52023c4990ca658d",
-        "instructions.md": "d347f4d0e7a03bb0397dd4b2ddf38350c8b73ee3c0a91b50cd6c3cd84458a45f"
+        "client.py": "a5d2eab8727a91595186c8473f9d75b231759775b433646d1fb889aca6e7dfc4",
+        "detector.sh": "174511aa07a08e728eda30b0a41e5dfd98fc5d78e8bcf35a5257c3d1d350f102",
+        "instructions.md": "1ea22c96ec6fec5a433bdb10690c619b29d2760b1d288cd2bf4164da719ac249"
     },
     "2": {
-        "client.py": "a89a90cf6ca6ae76be1662a9efda83f69dba3bccdd4c37cfe1935563b1f7330f",
-        "detector.sh": "8e9f5de4f7dc18cbca7121fff6bcab4039dc66056441396826460d7f396c3b41",
-        "instructions.md": "6770734ec4494a5d0403e5cc56ac69613faab96b66a96cf56108cec8dcda07a0"
+        "client.py": "86067330b63438e42ca5cdf242a0a359adcd3acac9e5bfc5879183b12fe25f19",
+        "detector.sh": "255611533fd2ee8001e225e59abcadfee0f271abbed50054265f0bd49dcf1812",
+        "instructions.md": "8389506104cad989a9c74ea8cf3229dc007505cea1f0bd31582f7d7fc45e9367"
     },
     "3": {
-        "client.py": "ed171e60dac5d1ea92b5cce40323ad10d5c87448a926678e9e32aacdd5feca0f",
-        "detector.sh": "8e9f5de4f7dc18cbca7121fff6bcab4039dc66056441396826460d7f396c3b41",
-        "instructions.md": "2e7a4677b1b55ca391b62c7530736441c51e9f7ec9354ed50c776bc786bfa901"
+        "client.py": "11db39295b04bc45c4de17c1f5bd404a79dcb8127196405a7a14a2b3221640d4",
+        "detector.sh": "255611533fd2ee8001e225e59abcadfee0f271abbed50054265f0bd49dcf1812",
+        "instructions.md": "16b2c4abd4fb203454aa07e1fe6ca2f8effdcf4a369a7558a9f98ad4b6a2bb3e"
     },
     "4": {
-        "client.py": "42d9a1a9d795da54393bc9616e9e3ae6e9d9f6735d7728148e6080608aafdfc7",
-        "detector.sh": "8e9f5de4f7dc18cbca7121fff6bcab4039dc66056441396826460d7f396c3b41",
-        "instructions.md": "d57f1c43c0d3c7a76f9ed99e73a5a5cdb46c2b7e470efd451519bc3cc3d7d8f3"
+        "client.py": "c35a2b5e2a67aef5bebd660ea83707a86b724d11a928437842ab6f8cf40ae530",
+        "detector.sh": "255611533fd2ee8001e225e59abcadfee0f271abbed50054265f0bd49dcf1812",
+        "instructions.md": "28f68972879a4283b6dcb47d7719a32418968e8f0557675e2715d1e8ebb9d5c6"
     },
     "5": {
-        "client.py": "55001af1ac3f5e2e904af1254180d4852025e41ed5c424c0814831a9537e50ca",
-        "detector.sh": "1cbd1dd379987c7dadebbc466af312d72065e322d19c1ac2d8931ae2779885d7",
-        "instructions.md": "46488fc1f50520e5f0a53e2a1cd4f944fcf4bd5cacad57de1d68d41d10904041"
+        "client.py": "4691de2f28a80b21cd8d564a9b885829b41376b1e8c98d922b46e7f03cf89f4f",
+        "detector.sh": "b9e3372e527d2f076e7837ad54041c7912ff0e35ed4a30e04fb3926293535e00",
+        "instructions.md": "a0c518ad061ed97f21b8636f34b6e81ad3a9c3a04e767535e4431efe75852269"
     },
     "6": {
-        "client.py": "cf207b0823bc59271d5d4ca930e8960eb9362b1244aea1a4e16eabc3889613bb",
-        "detector.sh": "1cbd1dd379987c7dadebbc466af312d72065e322d19c1ac2d8931ae2779885d7",
-        "instructions.md": "7957130682c5a8d2a1faf0e56e9505f548a2d95c294048e979c8499b698aa8d5"
+        "client.py": "69c09a84740e49d7e0c7b8b6a8e793f4ca36702c0920e560dbbd66274f59037b",
+        "detector.sh": "b9e3372e527d2f076e7837ad54041c7912ff0e35ed4a30e04fb3926293535e00",
+        "instructions.md": "3944c7397ae94554205af73c00fc1da9890286f72325500915641df1804c9c4d"
     },
     "7": {
-        "client.py": "bd3a70f650b16b7d28a67ec78e96a465741be1203e062e6680ebb6dc4d0db427",
-        "detector.sh": "1cbd1dd379987c7dadebbc466af312d72065e322d19c1ac2d8931ae2779885d7",
-        "instructions.md": "ad86ec766cd009fb11095407460f0e0362f0dd10749b94d51ebb1f3fd13bd357"
+        "client.py": "db2f7864fdf564e9b2a2f93150a4e578a850a60f231aeca7a5fa047ebb22fbda",
+        "detector.sh": "b9e3372e527d2f076e7837ad54041c7912ff0e35ed4a30e04fb3926293535e00",
+        "instructions.md": "7eec37434a3d049a3fc04470da6cfb62bdd3512e81e06d7d08848868071b933d"
     },
     "8": {
-        "client.py": "4eb06c9a0399f1cb94faba4f83ef945c509d39c6eb1c650cf6083e9c2363956a",
-        "detector.sh": "1cbd1dd379987c7dadebbc466af312d72065e322d19c1ac2d8931ae2779885d7",
-        "instructions.md": "fb76062f9f4179e39a317cf7f0635847996132195f3cbe7a5a071232b2fe0eb0"
+        "client.py": "073729b3213ca0ddacfe24d53d6af0166272077011e7afb164a0bac09d2cfda2",
+        "detector.sh": "b9e3372e527d2f076e7837ad54041c7912ff0e35ed4a30e04fb3926293535e00",
+        "instructions.md": "a3073fba43d6f6af577d35bda7f20c3f1f434639b4ea62885c7a3acbe0b2acc4"
     }
 };
     expect((await museReceiverAssets(version)).manifest.assets).toEqual(
@@ -108,29 +108,29 @@ describe("Muse approval-aware setup",()=>{
     expect(current.detector).toBe(historical.detector);
     expect(current.instructions).toContain("input-receipts-v2/");
     expect(current.instructions).toContain("work-continuations/");
-    expect(current.instructions).toContain("paperclip.muse_work_continuation.v1");
+    expect(current.instructions).toContain("nexus.muse_work_continuation.v1");
     expect(current.client).toContain('VERSION = "9"');
   });
 
   it("preserves the published asset5 pins after completion guidance changes", async () => {
     expect((await museReceiverAssets(5)).manifest.assets).toEqual({
   "client.py": {
-    "sha256": "55001af1ac3f5e2e904af1254180d4852025e41ed5c424c0814831a9537e50ca"
+    "sha256": "4691de2f28a80b21cd8d564a9b885829b41376b1e8c98d922b46e7f03cf89f4f"
   },
   "detector.sh": {
-    "sha256": "1cbd1dd379987c7dadebbc466af312d72065e322d19c1ac2d8931ae2779885d7"
+    "sha256": "b9e3372e527d2f076e7837ad54041c7912ff0e35ed4a30e04fb3926293535e00"
   },
   "instructions.md": {
-    "sha256": "46488fc1f50520e5f0a53e2a1cd4f944fcf4bd5cacad57de1d68d41d10904041"
+    "sha256": "a0c518ad061ed97f21b8636f34b6e81ad3a9c3a04e767535e4431efe75852269"
   }
 });
   });
   it("preserves the published asset4 pins after a receiver update", async () => {
     const assets = await museReceiverAssets(4);
     expect(assets.manifest.assets).toEqual({
-      "client.py": { sha256: "42d9a1a9d795da54393bc9616e9e3ae6e9d9f6735d7728148e6080608aafdfc7" },
-      "detector.sh": { sha256: "8e9f5de4f7dc18cbca7121fff6bcab4039dc66056441396826460d7f396c3b41" },
-      "instructions.md": { sha256: "d57f1c43c0d3c7a76f9ed99e73a5a5cdb46c2b7e470efd451519bc3cc3d7d8f3" },
+      "client.py": { sha256: "c35a2b5e2a67aef5bebd660ea83707a86b724d11a928437842ab6f8cf40ae530" },
+      "detector.sh": { sha256: "255611533fd2ee8001e225e59abcadfee0f271abbed50054265f0bd49dcf1812" },
+      "instructions.md": { sha256: "28f68972879a4283b6dcb47d7719a32418968e8f0557675e2715d1e8ebb9d5c6" },
     });
   });
   it("orders current-chat consent, pinned asset9, public preflight, authenticated status and hook registration",async()=>{
@@ -159,7 +159,7 @@ describe("Muse approval-aware setup",()=>{
 });
 
 describe("finite immutable Muse asset routing", () => {
-  function app() { const value = express(); value.use(museTransportRoutes({} as Db, "https://paperclip.invalid")); return value; }
+  function app() { const value = express(); value.use(museTransportRoutes({} as Db, "https://nexus.invalid")); return value; }
   it("serves all nine pinned versions and only their four exact GET paths", async () => {
     const value = app();
     for (const version of [1, 2, 3, 4, 5, 6, 7, 8, 9] as const) {

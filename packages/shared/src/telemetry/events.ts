@@ -1,5 +1,5 @@
 import type { TelemetryClient } from "./client.js";
-import type { EventDimensionsMap } from "./generated/paperclip-telemetry.js";
+import type { EventDimensionsMap } from "./generated/nexus-telemetry.js";
 
 type RawDimension<T extends string | undefined> = T | (string & {});
 

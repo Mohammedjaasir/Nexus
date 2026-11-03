@@ -104,7 +104,7 @@ test("deadline cleanup remains incomplete until detector removal is requested an
     assert.ok(report.reasons.includes("deadline_cleanup_not_verified"));
   }
   const complete = qualificationReport(evidence(), expiry + 2000);
-  assert.equal(complete.schema, "paperclip.muse-qualification.v4");
+  assert.equal(complete.schema, "nexus.muse-qualification.v4");
   assert.equal(complete.qualificationPassed, true); assert.equal(complete.releaseQualified, true);
   assert.equal(complete.deadlineCleanupVerified, true);
   assert.equal(complete.detectorRemovalRequested, true); assert.equal(complete.detectorRemovalReported, true);

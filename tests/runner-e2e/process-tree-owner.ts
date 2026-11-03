@@ -117,7 +117,7 @@ export function createProcessTreeOwner(root: ChildProcess, options: {
     if (restartRunner || exited()) throw new Error("Restart runner admission must precede controller exit");
     const tree = observeDescendantProcessTree(table, root.pid!);
     const candidate = tree.members.map(member => member.process).find(row => row.pid === expected.processPid);
-    if (!candidate || !running(candidate) || candidate.kind !== "paperclip-runnerd"
+    if (!candidate || !running(candidate) || candidate.kind !== "nexus-runnerd"
       || candidate.processGroupId !== expected.processGroupId
       || !restartProcessStartMatches(candidate.started, expected.processStartedAt)
       || candidate.processGroupId === root.pid) throw new Error("Restart runner is not the exact owned durable daemon");

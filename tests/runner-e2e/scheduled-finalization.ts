@@ -23,7 +23,7 @@ export function reviewScheduledFeedback(campaign: RunnerE2ECampaign,
     if (result.suiteId !== "feedback-persistence" || !feedback || result.feedback?.collection !== "complete"
         || result.feedback.invocationCollection !== "complete") continue;
     const marker = result.matcherResults?.find(row => row.matcher.kind === "message_exact")?.matcher;
-    const nonce = marker?.kind === "message_exact" ? /^PAPERCLIP_E2E_OK_([a-z0-9]+-[1-9][0-9]*)$/.exec(marker.expected)?.[1] : undefined;
+    const nonce = marker?.kind === "message_exact" ? /^NEXUS_E2E_OK_([a-z0-9]+-[1-9][0-9]*)$/.exec(marker.expected)?.[1] : undefined;
     if (!nonce) continue;
     const checks = ["complete-retained-evidence", "one-of-each", "complaint-body-and-attribution", "complaint-completed-tool",
       "suggestion-body-and-attribution", "suggestion-completed-tool", "only-expected-submissions"];
@@ -61,9 +61,9 @@ export function scheduledCampaignFindings(campaign: RunnerE2ECampaign): string[]
 }
 
 export async function finalizeScheduledCampaign(env: NodeJS.ProcessEnv) {
-  if (!env.PAPERCLIP_E2E_OPERATIONS_MANIFEST || !env.GITHUB_WORKSPACE) throw new Error("Missing scheduled campaign manifest");
-  const manifest = JSON.parse(await readFile(env.PAPERCLIP_E2E_OPERATIONS_MANIFEST, "utf8")) as EvalOperationsManifest;
-  const directory = path.dirname(env.PAPERCLIP_E2E_OPERATIONS_MANIFEST);
+  if (!env.NEXUS_E2E_OPERATIONS_MANIFEST || !env.GITHUB_WORKSPACE) throw new Error("Missing scheduled campaign manifest");
+  const manifest = JSON.parse(await readFile(env.NEXUS_E2E_OPERATIONS_MANIFEST, "utf8")) as EvalOperationsManifest;
+  const directory = path.dirname(env.NEXUS_E2E_OPERATIONS_MANIFEST);
   const root = path.join(env.GITHUB_WORKSPACE, "tests/runner-e2e/results", manifest.limits.campaignId);
   const campaign = JSON.parse(await readFile(path.join(root, "campaign.json"), "utf8")) as RunnerE2ECampaign;
   const originals: RunnerE2EResult[] = [], evidence: Array<{ result: RunnerE2EResult; feedback: FeedbackEvidence | null }> = [];

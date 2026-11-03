@@ -5,10 +5,10 @@ import type { ActorInfo } from "../types.js";
 import { connectionMethodForConnection } from "../connection-methods.js";
 import { emitConnectionUpdated } from "../../connector-telemetry.js";
 import { and, eq, inArray, or } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { connectionGrantMembers, connectionGrantDelegations, connectionGrants, companySecrets, toolApplications, toolCatalogEntries, toolConnectionInstalls, toolConnections } from "@paperclipai/db";
-import type { FinishToolAppResult, FinalizeOAuthAccess, ToolCredentialSecretRef } from "@paperclipai/shared";
-import { getConnectableAppDefinition, recommendedDefaultsForApp } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { connectionGrantMembers, connectionGrantDelegations, connectionGrants, companySecrets, toolApplications, toolCatalogEntries, toolConnectionInstalls, toolConnections } from "@nexusai/db";
+import type { FinishToolAppResult, FinalizeOAuthAccess, ToolCredentialSecretRef } from "@nexusai/shared";
+import { getConnectableAppDefinition, recommendedDefaultsForApp } from "@nexusai/shared";
 import { badRequest, conflict, forbidden, unprocessable } from "../../../errors.js";
 import { secretService } from "../../secrets.js";
 

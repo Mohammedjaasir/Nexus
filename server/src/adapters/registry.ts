@@ -3,16 +3,16 @@ import { HttpError } from "../errors.js";
 import type { AdapterRuntimeCommandSpec, ServerAdapterModule } from "./types.js";
 import { parseAdapterModelsEnv } from "../services/adapter-models-env.js";
 import { validateAiApiKey } from "../services/ai-api-key-test.js";
-import type { AdapterEnvironmentTestResult } from "@paperclipai/shared";
+import type { AdapterEnvironmentTestResult } from "@nexusai/shared";
 import { stampClaudeAgentIdHeader } from "./claude-agent-id-header.js";
 import {
   buildSandboxNpmInstallCommand,
   getAdapterSessionManagement,
-  PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES,
-  PAPERCLIP_RUNNER_ACPX_PROFILES,
-} from "@paperclipai/adapter-utils";
-import type { AdapterLoginCapability } from "@paperclipai/adapter-utils";
-import { runAdapterExecutionTargetShellCommand } from "@paperclipai/adapter-utils/execution-target";
+  NEXUS_RUNNER_PERMISSION_CAPABILITIES,
+  NEXUS_RUNNER_ACPX_PROFILES,
+} from "@nexusai/adapter-utils";
+import type { AdapterLoginCapability } from "@nexusai/adapter-utils";
+import { runAdapterExecutionTargetShellCommand } from "@nexusai/adapter-utils/execution-target";
 import {
   execute as claudeExecute,
   listClaudeSkills,
@@ -26,11 +26,11 @@ import {
   CLAUDE_SETUP_TOKEN_COMMAND,
   parseSetupTokenPrompt,
   parseSetupTokenCredential,
-} from "@paperclipai/adapter-claude-local/server";
+} from "@nexusai/adapter-claude-local/server";
 import {
   agentConfigurationDoc as claudeAgentConfigurationDoc,
   models as claudeModels,
-} from "@paperclipai/adapter-claude-local";
+} from "@nexusai/adapter-claude-local";
 import {
   execute as codexExecute,
   listCodexSkills,
@@ -41,29 +41,29 @@ import {
   getConfigSchema as getCodexConfigSchema,
   CODEX_DEVICE_LOGIN_COMMAND,
   parseDeviceLoginPrompt,
-} from "@paperclipai/adapter-codex-local/server";
+} from "@nexusai/adapter-codex-local/server";
 import {
   agentConfigurationDoc as codexAgentConfigurationDoc,
   models as codexModels,
-} from "@paperclipai/adapter-codex-local";
+} from "@nexusai/adapter-codex-local";
 import {
   execute as cursorExecute,
   listCursorSkills,
   syncCursorSkills,
   testEnvironment as cursorTestEnvironment,
   sessionCodec as cursorSessionCodec,
-} from "@paperclipai/adapter-cursor-local/server";
+} from "@nexusai/adapter-cursor-local/server";
 import {
   agentConfigurationDoc as cursorAgentConfigurationDoc,
   models as cursorModels,
-} from "@paperclipai/adapter-cursor-local";
+} from "@nexusai/adapter-cursor-local";
 import {
   execute as cursorCloudExecute,
   getConfigSchema as getCursorCloudConfigSchema,
   sessionCodec as cursorCloudSessionCodec,
   testEnvironment as cursorCloudTestEnvironment,
-} from "@paperclipai/adapter-cursor-cloud/server";
-import { agentConfigurationDoc as cursorCloudAgentConfigurationDoc } from "@paperclipai/adapter-cursor-cloud";
+} from "@nexusai/adapter-cursor-cloud/server";
+import { agentConfigurationDoc as cursorCloudAgentConfigurationDoc } from "@nexusai/adapter-cursor-cloud";
 import {
   execute as geminiExecute,
   listGeminiSkills,
@@ -71,11 +71,11 @@ import {
   testEnvironment as geminiTestEnvironment,
   sessionCodec as geminiSessionCodec,
   getConfigSchema as getGeminiConfigSchema,
-} from "@paperclipai/adapter-gemini-local/server";
+} from "@nexusai/adapter-gemini-local/server";
 import {
   agentConfigurationDoc as geminiAgentConfigurationDoc,
   models as geminiModels,
-} from "@paperclipai/adapter-gemini-local";
+} from "@nexusai/adapter-gemini-local";
 import {
   execute as grokExecute,
   listGrokSkills,
@@ -84,26 +84,26 @@ import {
   sessionCodec as grokSessionCodec,
   GROK_DEVICE_LOGIN_COMMAND,
   parseGrokDeviceLoginPrompt,
-} from "@paperclipai/adapter-grok-local/server";
+} from "@nexusai/adapter-grok-local/server";
 import {
   agentConfigurationDoc as grokAgentConfigurationDoc,
   models as grokModels,
-} from "@paperclipai/adapter-grok-local";
+} from "@nexusai/adapter-grok-local";
 import {
   execute as kimiExecute,
   listKimiSkills,
   syncKimiSkills,
   testEnvironment as kimiTestEnvironment,
   sessionCodec as kimiSessionCodec,
-} from "@paperclipai/adapter-kimi-local/server";
+} from "@nexusai/adapter-kimi-local/server";
 import {
   agentConfigurationDoc as kimiAgentConfigurationDoc,
   models as kimiModels,
-} from "@paperclipai/adapter-kimi-local";
+} from "@nexusai/adapter-kimi-local";
 import {
   createHermesGatewayServerAdapter,
   createHermesLocalServerAdapter,
-} from "@paperclipai/hermes-paperclip-adapter";
+} from "@nexusai/hermes-nexus-adapter";
 import {
   execute as openCodeExecute,
   listOpenCodeSkills,
@@ -111,19 +111,19 @@ import {
   testEnvironment as openCodeTestEnvironment,
   sessionCodec as openCodeSessionCodec,
   listOpenCodeModels,
-} from "@paperclipai/adapter-opencode-local/server";
+} from "@nexusai/adapter-opencode-local/server";
 import {
   agentConfigurationDoc as openCodeAgentConfigurationDoc,
   models as openCodeModels,
-} from "@paperclipai/adapter-opencode-local";
+} from "@nexusai/adapter-opencode-local";
 import {
   execute as openclawGatewayExecute,
   testEnvironment as openclawGatewayTestEnvironment,
-} from "@paperclipai/adapter-openclaw-gateway/server";
+} from "@nexusai/adapter-openclaw-gateway/server";
 import {
   agentConfigurationDoc as openclawGatewayAgentConfigurationDoc,
   models as openclawGatewayModels,
-} from "@paperclipai/adapter-openclaw-gateway";
+} from "@nexusai/adapter-openclaw-gateway";
 import { listCodexModels, refreshCodexModels } from "./codex-models.js";
 import { listCursorModels } from "./cursor-models.js";
 import {
@@ -133,21 +133,21 @@ import {
   testEnvironment as piTestEnvironment,
   sessionCodec as piSessionCodec,
   listPiModels,
-} from "@paperclipai/adapter-pi-local/server";
-import { agentConfigurationDoc as piAgentConfigurationDoc } from "@paperclipai/adapter-pi-local";
+} from "@nexusai/adapter-pi-local/server";
+import { agentConfigurationDoc as piAgentConfigurationDoc } from "@nexusai/adapter-pi-local";
 import { BUILTIN_ADAPTER_TYPES } from "./builtin-adapter-types.js";
 import { buildExternalAdapters } from "./plugin-loader.js";
 import { isCloudManagedInstance } from "../services/cloud-instance.js";
 import { assertExternalAdapterCodeAllowed } from "../services/adapter-code-policy.js";
-import { NativeEnvironmentProbeCleanupError } from "../vendor/paperclip-runner/index.js";
+import { NativeEnvironmentProbeCleanupError } from "../vendor/nexus-runner/index.js";
 import { processAdapter } from "./process/index.js";
 import { httpAdapter } from "./http/index.js";
 import {
   DEFAULT_OPENCODE_RUNNER_MODEL,
-  PaperclipRunnerProviderProfileError,
+  NexusRunnerProviderProfileError,
   DEFAULT_ACPX_RUNNER_MODELS,
   QUALIFIED_OPENCODE_RUNNER_VERSION,
-  resolvePaperclipRunnerProviderProfile,
+  resolveNexusRunnerProviderProfile,
 } from "../services/native-runtime/provider-profile.js";
 
 /** Reuse the existing provider key check without requiring a global Claude CLI.
@@ -228,7 +228,7 @@ The standalone ACPX adapter has been retired. Use:
 - claude_local with adapterConfig.engine="acp" for Claude ACP execution.
 - codex_local with adapterConfig.engine="acp" for Codex ACP execution.
 
-Paperclip keeps this tombstone registered so stale acpx_local rows fail clearly instead of falling back to the process adapter.
+Nexus keeps this tombstone registered so stale acpx_local rows fail clearly instead of falling back to the process adapter.
 `;
 
 // The Claude interactive login capability. Claude runs `claude setup-token` on a
@@ -393,18 +393,18 @@ const codexLocalAdapter: ServerAdapterModule = {
   loginCapability: codexLoginCapability,
 };
 
-const paperclipRunnerAdapter: ServerAdapterModule = {
-  type: "paperclip_runner",
+const nexusRunnerAdapter: ServerAdapterModule = {
+  type: "nexus_runner",
   runtimeToolDelivery: "environment",
   async execute(ctx) {
-    const message = "paperclip_runner requires the native runner coordinator";
+    const message = "nexus_runner requires the native runner coordinator";
     await ctx.onLog("stderr", `${message}\n`);
     return {
       exitCode: 1,
       signal: null,
       timedOut: false,
       errorMessage: message,
-      errorCode: "paperclip_runner_coordinator_required",
+      errorCode: "nexus_runner_coordinator_required",
       provider: ctx.config.provider === "opencode"
         ? "opencode"
         : ctx.config.provider === "claude_managed"
@@ -418,18 +418,18 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
     };
   },
   async testEnvironment(context) {
-    let profile: ReturnType<typeof resolvePaperclipRunnerProviderProfile>;
+    let profile: ReturnType<typeof resolveNexusRunnerProviderProfile>;
     try {
-      profile = resolvePaperclipRunnerProviderProfile(context.config, { companyId: context.companyId });
+      profile = resolveNexusRunnerProviderProfile(context.config, { companyId: context.companyId });
     } catch (error) {
-      const profileError = error instanceof PaperclipRunnerProviderProfileError
+      const profileError = error instanceof NexusRunnerProviderProfileError
         ? error
-        : new PaperclipRunnerProviderProfileError(
-            "paperclip_runner_provider_unsupported",
-            "Paperclip Runner provider configuration is invalid.",
+        : new NexusRunnerProviderProfileError(
+            "nexus_runner_provider_unsupported",
+            "Nexus Runner provider configuration is invalid.",
           );
       return {
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         status: "fail" as const,
         testedAt: new Date().toISOString(),
         checks: [{
@@ -443,12 +443,12 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
       return probePluginRunnerEnvironment(context);
     }
     if (profile.provider === "muse") {
-      return { adapterType: "paperclip_runner", status: "warn" as const, testedAt: new Date().toISOString(),
-        checks: [{ code: "muse_background_test_required", level: "warn" as const, message: "Muse manages its model and billing. Verify the paired receiver and independent background reply in Paperclip; this read-only check does not wake Muse." }] };
+      return { adapterType: "nexus_runner", status: "warn" as const, testedAt: new Date().toISOString(),
+        checks: [{ code: "muse_background_test_required", level: "warn" as const, message: "Muse manages its model and billing. Verify the paired receiver and independent background reply in Nexus; this read-only check does not wake Muse." }] };
     }
     if (profile.provider === "openai_dot") {
-      return { adapterType: "paperclip_runner", status: "warn" as const, testedAt: new Date().toISOString(),
-        checks: [{ code: "dot_event_test_required", level: "warn" as const, message: "Dot manages its model and billing. Validate the dedicated agent binding and event round trip in Paperclip; this read-only check does not wake the Dot." }] };
+      return { adapterType: "nexus_runner", status: "warn" as const, testedAt: new Date().toISOString(),
+        checks: [{ code: "dot_event_test_required", level: "warn" as const, message: "Dot manages its model and billing. Validate the dedicated agent binding and event round trip in Nexus; this read-only check does not wake the Dot." }] };
     }
     if (profile.provider === "acpx") {
       try {
@@ -461,12 +461,12 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
           const token = configured && typeof configured === "object" && !Array.isArray(configured)
             ? (configured as Record<string, unknown>).COPILOT_GITHUB_TOKEN : undefined;
           if (typeof token !== "string" || !token) {
-            return { adapterType: "paperclip_runner", status: "fail" as const, testedAt: new Date().toISOString(),
+            return { adapterType: "nexus_runner", status: "fail" as const, testedAt: new Date().toISOString(),
               checks: [{ code: "COPILOT_AUTH_REQUIRED", level: "error" as const, message: "Select a saved Copilot token connection." }] };
           }
           const { probeCopilotExecutionTarget } = await import("../services/copilot-connection-probe.js");
           await probeCopilotExecutionTarget(token, context.executionTarget, profile.model);
-          return { adapterType: "paperclip_runner", status: "pass" as const, testedAt: new Date().toISOString(),
+          return { adapterType: "nexus_runner", status: "pass" as const, testedAt: new Date().toISOString(),
             checks: [{ code: "copilot_metadata_verified", level: "info" as const,
               message: "The verified Copilot runtime authenticated this account and accepted the selected model. No model prompt was sent." }] };
         }
@@ -474,7 +474,7 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
         if (profile.acpxAgent === "kimi") {
           const environment = context.config.env as Record<string, unknown> | undefined;
           if (typeof environment?.KIMI_API_KEY !== "string" || !environment.KIMI_API_KEY.trim()) {
-            return { adapterType: "paperclip_runner", status: "fail" as const, testedAt: new Date().toISOString(),
+            return { adapterType: "nexus_runner", status: "fail" as const, testedAt: new Date().toISOString(),
               checks: [{ code: "KIMI_AUTH_REQUIRED", level: "error" as const, message: "Bind a company secret to KIMI_API_KEY in the agent environment." }] };
           }
         }
@@ -482,7 +482,7 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
         if (profile.acpxAgent === "kimi") {
           const { probeKimiExecutionTarget } = await import("../services/kimi-connection-probe.js");
           await probeKimiExecutionTarget((context.config.env as Record<string, string>).KIMI_API_KEY, target, profile.model, { companyId: context.companyId });
-          return { adapterType: "paperclip_runner", status: "pass" as const, testedAt: new Date().toISOString(),
+          return { adapterType: "nexus_runner", status: "pass" as const, testedAt: new Date().toISOString(),
             checks: [{ code: "kimi_metadata_verified", level: "info" as const,
               message: "The selected environment verified the pinned Kimi Code runtime. Its Code model catalog accepted the credential and lists the exact selected model. No model prompt was sent." }] };
         }
@@ -497,15 +497,15 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
             throw new Error(`ACPX ${profile.acpxAgent} requires a qualified Linux ${profile.acpxAgent === "claude" ? "x64/ARM64" : "x64"} or macOS architecture.`);
           }
           return verifyNativeClaudeApiKey(context.config, {
-            adapterType: "paperclip_runner", status: "warn" as const, testedAt: new Date().toISOString(),
+            adapterType: "nexus_runner", status: "warn" as const, testedAt: new Date().toISOString(),
             checks: [{ code: "acpx_remote_runtime_unverified", level: "warn" as const,
               message: "The remote platform is supported. Runtime package integrity and readiness must still be verified by the remote runner before launch." }],
           });
         }
-        const { probeAcpxClaudeInstallation, probeAcpxGrokInstallation, probeAcpxCursorInstallation, probeAcpxPiInstallation } = await import("../vendor/paperclip-runner/live/index.js");
+        const { probeAcpxClaudeInstallation, probeAcpxGrokInstallation, probeAcpxCursorInstallation, probeAcpxPiInstallation } = await import("../vendor/nexus-runner/live/index.js");
         await (profile.acpxAgent === "pi" ? probeAcpxPiInstallation : profile.acpxAgent === "grok" ? probeAcpxGrokInstallation : profile.acpxAgent === "cursor" ? probeAcpxCursorInstallation : probeAcpxClaudeInstallation)(profile.model);
         return verifyNativeClaudeApiKey(context.config, {
-          adapterType: "paperclip_runner", status: "pass" as const, testedAt: new Date().toISOString(),
+          adapterType: "nexus_runner", status: "pass" as const, testedAt: new Date().toISOString(),
           checks: [{ code: "acpx_runtime_ready", level: "info" as const, message: `ACPX ${profile.acpxAgent} runtime is installed and verified. Model access is checked when it runs.` }],
         });
       } catch (error) {
@@ -521,11 +521,11 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
             ? error.details as Record<string, unknown> : {};
           const codes = ["COPILOT_AUTH_REQUIRED", "COPILOT_ENTITLEMENT_DENIED", "COPILOT_MODEL_UNAVAILABLE", "COPILOT_INSTALLATION_INVALID", "COPILOT_REQUEST_FAILED"];
           const code = typeof details.code === "string" && codes.includes(details.code) ? details.code : "COPILOT_REQUEST_FAILED";
-          return { adapterType: "paperclip_runner", status: "fail" as const, testedAt: new Date().toISOString(),
+          return { adapterType: "nexus_runner", status: "fail" as const, testedAt: new Date().toISOString(),
             checks: [{ code, level: "error" as const, message: error instanceof HttpError ? error.message : "Copilot metadata verification failed." }] };
         }
         return {
-          adapterType: "paperclip_runner", status: "fail" as const, testedAt: new Date().toISOString(),
+          adapterType: "nexus_runner", status: "fail" as const, testedAt: new Date().toISOString(),
           checks: [{
             code: error instanceof Error && "code" in error && error.code === "ACPX_RUNTIME_PACKAGE_MISSING"
               ? "acpx_runtime_package_missing" : "acpx_runtime_unavailable",
@@ -537,7 +537,7 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
     }
     if (profile.provider === "claude_managed") {
       return {
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         status: "warn" as const,
         testedAt: new Date().toISOString(),
         checks: [{
@@ -553,7 +553,7 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
     }
     if (profile.provider === "aws_agentcore") {
       return {
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         status: "warn" as const,
         testedAt: new Date().toISOString(),
         checks: [{
@@ -572,7 +572,7 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
       return testNativeRunnerAuthentication(context, "codex", profile.model);
     }
     const result = await openCodeTestEnvironment(context);
-    return { ...result, adapterType: "paperclip_runner" };
+    return { ...result, adapterType: "nexus_runner" };
   },
   listSkills: listCodexSkills,
   syncSkills: syncCodexSkills,
@@ -602,7 +602,7 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
   getRuntimeCommandSpec: (config) => config.provider === "claude_managed"
     || config.provider === "aws_agentcore"
     || config.provider === "acpx"
-    ? { command: "paperclip-runnerd", detectCommand: null, installCommand: null }
+    ? { command: "nexus-runnerd", detectCommand: null, installCommand: null }
     : config.provider === "opencode"
       ? buildNpmRuntimeCommandSpec(
           config,
@@ -611,7 +611,7 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
         )
       : buildNpmRuntimeCommandSpec(config, "codex", "@openai/codex@0.160.0"),
   agentConfigurationDoc:
-    "# Paperclip Runner\n\nAdapter: paperclip_runner\n\nRuns Codex, OpenCode, Claude Managed, AWS AgentCore, or ACPX Claude/Grok Build/Cursor/Pi through the Rust Paperclip runner and authenticated PRP transport. Pi accepts an explicit provider/model ID and uses the company credentials bound to the agent environment. GitHub Copilot requires a saved GitHub token and an explicitly selected available model. Managed providers use company-scoped qualified profiles, explicit retention acknowledgement, and spend limits.\n",
+    "# Nexus Runner\n\nAdapter: nexus_runner\n\nRuns Codex, OpenCode, Claude Managed, AWS AgentCore, or ACPX Claude/Grok Build/Cursor/Pi through the Rust Nexus runner and authenticated PRP transport. Pi accepts an explicit provider/model ID and uses the company credentials bound to the agent environment. GitHub Copilot requires a saved GitHub token and an explicitly selected available model. Managed providers use company-scoped qualified profiles, explicit retention acknowledgement, and spend limits.\n",
   getConfigSchema: () => ({
     fields: [
       {
@@ -630,29 +630,29 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
       },
       {
         key: "acpxAgent", label: "ACP agent", type: "select" as const, default: "claude",
-        options: PAPERCLIP_RUNNER_ACPX_PROFILES.filter(profile => profile.qualified).map(profile => ({ value: profile.value, label: profile.label })),
+        options: NEXUS_RUNNER_ACPX_PROFILES.filter(profile => profile.qualified).map(profile => ({ value: profile.value, label: profile.label })),
         meta: { visibleWhen: { key: "provider", value: "acpx" } },
       },
       {
         key: "codexPermissionMode",
         label: "Codex permission mode",
         type: "select" as const,
-        default: PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES.codex.defaultMode,
-        options: PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES.codex.options.map(
+        default: NEXUS_RUNNER_PERMISSION_CAPABILITIES.codex.defaultMode,
+        options: NEXUS_RUNNER_PERMISSION_CAPABILITIES.codex.options.map(
           ({ value, label }) => ({ value, label }),
         ),
-        hint: PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES.codex.description,
+        hint: NEXUS_RUNNER_PERMISSION_CAPABILITIES.codex.description,
         meta: { visibleWhen: { key: "provider", value: "codex" } },
       },
       {
         key: "opencodePermissionMode",
         label: "OpenCode permission mode",
         type: "select" as const,
-        default: PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES.opencode.defaultMode,
-        options: PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES.opencode.options.map(
+        default: NEXUS_RUNNER_PERMISSION_CAPABILITIES.opencode.defaultMode,
+        options: NEXUS_RUNNER_PERMISSION_CAPABILITIES.opencode.options.map(
           ({ value, label }) => ({ value, label }),
         ),
-        hint: PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES.opencode.description,
+        hint: NEXUS_RUNNER_PERMISSION_CAPABILITIES.opencode.description,
         meta: { visibleWhen: { key: "provider", value: "opencode" } },
       },
       {
@@ -672,11 +672,11 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
         key: "acpxPermissionMode",
         label: "ACPX permission mode",
         type: "select" as const,
-        default: PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES.acpx.defaultMode,
-        options: PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES.acpx.options.map(
+        default: NEXUS_RUNNER_PERMISSION_CAPABILITIES.acpx.defaultMode,
+        options: NEXUS_RUNNER_PERMISSION_CAPABILITIES.acpx.options.map(
           ({ value, label }) => ({ value, label }),
         ),
-        hint: PAPERCLIP_RUNNER_PERMISSION_CAPABILITIES.acpx.description,
+        hint: NEXUS_RUNNER_PERMISSION_CAPABILITIES.acpx.description,
         meta: { visibleWhen: { key: "provider", value: "acpx" } },
       },
       {
@@ -725,7 +725,7 @@ const paperclipRunnerAdapter: ServerAdapterModule = {
         label: "Estimated session ceiling (USD)",
         type: "number" as const,
         default: 1,
-        hint: "Paperclip estimate; AWS does not provide a per-session currency hard stop.",
+        hint: "Nexus estimate; AWS does not provide a per-session currency hard stop.",
         meta: { visibleWhen: { key: "provider", value: "aws_agentcore" } },
       },
       {
@@ -980,7 +980,7 @@ function registerBuiltInAdapters() {
     acpxLocalAdapter,
     claudeLocalAdapter,
     codexLocalAdapter,
-    paperclipRunnerAdapter,
+    nexusRunnerAdapter,
     openCodeLocalAdapter,
     piLocalAdapter,
     cursorCloudAdapter,
@@ -1052,7 +1052,7 @@ const externalAdaptersReady: Promise<void> = (async () => {
       const overriding = BUILTIN_ADAPTER_TYPES.has(externalAdapter.type);
       if (overriding) {
         console.log(
-          `[paperclip] External adapter "${externalAdapter.type}" overrides built-in adapter`,
+          `[nexus] External adapter "${externalAdapter.type}" overrides built-in adapter`,
         );
         // Save the original builtin for later restoration.
         const existing = adaptersByType.get(externalAdapter.type);
@@ -1066,7 +1066,7 @@ const externalAdaptersReady: Promise<void> = (async () => {
       );
     }
   } catch (err) {
-    console.error("[paperclip] Failed to load external adapters:", err);
+    console.error("[nexus] Failed to load external adapters:", err);
   }
 })();
 
@@ -1121,7 +1121,7 @@ export function getServerAdapter(type: string): ServerAdapterModule {
 }
 
 /**
- * Memoized view of PAPERCLIP_ADAPTER_MODELS, keyed by the raw env string so
+ * Memoized view of NEXUS_ADAPTER_MODELS, keyed by the raw env string so
  * tests (and live env mutation) that change the variable are still observed.
  * Parsing happens at most once per distinct raw value instead of per
  * `listAdapterModels` request, and malformed values fail SOFT here: we log the
@@ -1134,7 +1134,7 @@ let adapterModelsEnvCache: {
 } | null = null;
 
 function getDeclaredAdapterModels(): ReturnType<typeof parseAdapterModelsEnv> {
-  const raw = process.env.PAPERCLIP_ADAPTER_MODELS;
+  const raw = process.env.NEXUS_ADAPTER_MODELS;
   if (adapterModelsEnvCache && adapterModelsEnvCache.raw === raw) {
     return adapterModelsEnvCache.value;
   }
@@ -1143,7 +1143,7 @@ function getDeclaredAdapterModels(): ReturnType<typeof parseAdapterModelsEnv> {
     value = parseAdapterModelsEnv(process.env);
   } catch (err) {
     console.error(
-      "[paperclip] Invalid PAPERCLIP_ADAPTER_MODELS; ignoring declared model lists:",
+      "[nexus] Invalid NEXUS_ADAPTER_MODELS; ignoring declared model lists:",
       err,
     );
   }
@@ -1245,12 +1245,12 @@ export function setOverridePaused(type: string, paused: boolean): boolean {
   const wasPaused = pausedOverrides.has(type);
   if (paused && !wasPaused) {
     pausedOverrides.add(type);
-    console.log(`[paperclip] Override paused for "${type}" — builtin adapter restored`);
+    console.log(`[nexus] Override paused for "${type}" — builtin adapter restored`);
     return true;
   }
   if (!paused && wasPaused) {
     pausedOverrides.delete(type);
-    console.log(`[paperclip] Override resumed for "${type}" — external adapter active`);
+    console.log(`[nexus] Override resumed for "${type}" — external adapter active`);
     return true;
   }
   return false;

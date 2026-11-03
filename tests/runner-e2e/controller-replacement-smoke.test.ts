@@ -15,9 +15,9 @@ it.each(["invalid-database-url", "postgres://fixture:fixture@127.0.0.1:1/fixture
     const configRoot = await mkdtemp(path.join(tmpdir(), "replacement-config-"));
     const manifest = path.join(configRoot, "malformed.json");
     await writeFile(manifest, "{broken JSON");
-    const fixtureEnv: NodeJS.ProcessEnv = { ...process.env, PAPERCLIP_TEST_DATABASE_URL: connectionString,
+    const fixtureEnv: NodeJS.ProcessEnv = { ...process.env, NEXUS_TEST_DATABASE_URL: connectionString,
       [upgradeArtifactKey]: undefined };
-    if (connectionString === "invalid-outage") fixtureEnv.PAPERCLIP_RUNNER_E2E_CONTROLLER_OUTAGE_MS = "invalid";
+    if (connectionString === "invalid-outage") fixtureEnv.NEXUS_RUNNER_E2E_CONTROLLER_OUTAGE_MS = "invalid";
     if (connectionString === "invalid-manifest") fixtureEnv[upgradeArtifactKey] = manifest;
     let output = "", exitCode: unknown;
     try {
@@ -35,15 +35,15 @@ it.each(["invalid-database-url", "postgres://fixture:fixture@127.0.0.1:1/fixture
       .find(value => value.started === true);
     expect(started?.evidence).toEqual(expect.any(String));
     const temporaryRoot = path.dirname(started.evidence);
-    expect(path.basename(temporaryRoot)).toMatch(/^paperclip-runner-e2e-/);
+    expect(path.basename(temporaryRoot)).toMatch(/^nexus-runner-e2e-/);
     try {
       expect(exitCode).toBe(1);
       const report = JSON.parse(await readFile(started.evidence, "utf8"));
-      expect(report).toMatchObject({ schema: "paperclip.e2e.controller-replacement-smoke/v1",
+      expect(report).toMatchObject({ schema: "nexus.e2e.controller-replacement-smoke/v1",
         passed: false, providerTurns: 0, activeAgentContinuityQualified: false,
         databaseCreated: false, wrapperStarted: false, cleanupConfirmed: true,
         error: expect.any(String) });
-      if (connectionString === "invalid-outage") expect(report.error).toContain("Invalid PAPERCLIP_RUNNER_E2E_CONTROLLER_OUTAGE_MS");
+      if (connectionString === "invalid-outage") expect(report.error).toContain("Invalid NEXUS_RUNNER_E2E_CONTROLLER_OUTAGE_MS");
       if (connectionString === "invalid-manifest") expect(report.error).toMatch(/JSON/);
       expect(report.replacements).toBeUndefined();
       expect(output).toContain('"passed":false');

@@ -36,13 +36,13 @@ export type PluginEnvironmentTaskCredential = z.infer<typeof environmentTaskCred
 
 /** Runner owns this versioned data contract. The plugin resolves its execution-host locations. */
 export const environmentRunnerLaunchRequirementsSchema = z.object({
-  schema: z.literal("paperclip.runner.launch-requirements.v1"),
+  schema: z.literal("nexus.runner.launch-requirements.v1"),
   identity: durableIdentity,
   provider: z.enum(["codex", "opencode", "acpx", "claude_managed", "aws_agentcore"]),
   model: z.string().min(1).nullable(), instructions: z.string().max(1024 * 1024),
   runtimeContext: z.record(z.string(), z.unknown()).nullable(),
   settings: z.object({ acpxAgent: identifier.optional(), acpxMode: z.string().optional(),
-    acpxPermissionMode: z.enum(["approve-all", "approve-paperclip", "approve-reads", "deny-all"]).optional(),
+    acpxPermissionMode: z.enum(["approve-all", "approve-nexus", "approve-reads", "deny-all"]).optional(),
     acpxPermissionModePinned: z.boolean().optional(), piThinkingLevel: z.enum(["off", "low", "high", "max"]).optional(),
     claudeEffort: z.enum(["low", "medium", "high", "xhigh", "max"]).optional(),
     opencodePermissionMode: z.enum(["allow", "ask", "deny"]).optional(),
@@ -191,7 +191,7 @@ export interface PluginEnvironmentTaskParams extends Omit<PluginEnvironmentDrive
   agentId: string | null;
   /** Company-validated projects to prepare on submit; empty during cleanup. */
   projectIds: string[];
-  workspace?: import("@paperclipai/shared").WorkspaceProviderBinding;
+  workspace?: import("@nexusai/shared").WorkspaceProviderBinding;
   fresh?: import("./workspace-provider.js").PluginFreshWorkspace;
   operation: PluginEnvironmentTaskOperation;
   executionContextSupported?: 1;

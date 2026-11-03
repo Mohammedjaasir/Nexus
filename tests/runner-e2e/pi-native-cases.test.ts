@@ -30,7 +30,7 @@ describe("Pi native Product qualification", () => {
   it("requires a completed native read and rejects a shell shortcut or missing receipt", () => {
     const nonce = "0123456789abcdef0123456789abcdef";
     const read = { eventType: "tool.execution.completed", payload: { prpEvent: { payload: {
-      schema: "paperclip.tool.execution.v1", transport: "builtin", name: "read", operation: "read", status: "completed", executionId: "read-1", target: null, readOnly: true, outputTruncated: false, output: JSON.stringify({ content: [{ type: "text", text: `${nonce}\n` }] }),
+      schema: "nexus.tool.execution.v1", transport: "builtin", name: "read", operation: "read", status: "completed", executionId: "read-1", target: null, readOnly: true, outputTruncated: false, output: JSON.stringify({ content: [{ type: "text", text: `${nonce}\n` }] }),
     } } } };
     expect(hasPiNativeMemoryRead([read], nonce)).toBe(true);
     const change = (patch: Record<string, unknown>) => ({ ...read, payload: { prpEvent: { payload: { ...read.payload.prpEvent.payload, ...patch } } } });
@@ -43,9 +43,9 @@ describe("Pi native Product qualification", () => {
   it("binds the remote memory read to the exact agent and current run", () => {
     const nonce = "0123456789abcdef0123456789abcdef";
     const remoteRun = { agentId: "11111111-1111-4111-8111-111111111111", runId: "22222222-2222-4222-8222-222222222222" };
-    const target = `.paperclip-runtime/agent-files/${remoteRun.agentId}/${remoteRun.runId}/memory/pi-native.txt`;
+    const target = `.nexus-runtime/agent-files/${remoteRun.agentId}/${remoteRun.runId}/memory/pi-native.txt`;
     const read = (patch: Record<string, unknown> = {}) => ({ eventType: "tool.execution.completed", payload: { prpEvent: { payload: {
-      schema: "paperclip.tool.execution.v1", transport: "builtin", name: "read", operation: "read", status: "completed", executionId: "remote-read-1", target, readOnly: true, outputTruncated: false, output: JSON.stringify({ content: [{ type: "text", text: `${nonce}\n` }] }), ...patch,
+      schema: "nexus.tool.execution.v1", transport: "builtin", name: "read", operation: "read", status: "completed", executionId: "remote-read-1", target, readOnly: true, outputTruncated: false, output: JSON.stringify({ content: [{ type: "text", text: `${nonce}\n` }] }), ...patch,
     } } } });
     expect(hasPiNativeMemoryRead([read()], nonce, remoteRun)).toBe(true);
     expect(hasPiNativeMemoryRead([read({ target: "bootstrap.md", output: JSON.stringify({ content: [{ type: "text", text: "bootstrap" }] }) }), read()], nonce, remoteRun)).toBe(true);
@@ -75,17 +75,17 @@ describe("Pi native Product qualification", () => {
     expect(cells.reduce((sum, row) => sum + row.task.expectedRunCount, 0)).toBe(12);
     expect(selectRunnerExecutions(parseRunnerSelectors(["--all"])).some(row => row.suite.id === suite.id)).toBe(false);
     expect(runnerMatrix.filter(row => row.suite.id === "extended-harnesses")).toHaveLength(30);
-    expect(piNativeTasks[0]!.buildPrompt("fixture")).toContain("paperclip_native_question");
+    expect(piNativeTasks[0]!.buildPrompt("fixture")).toContain("nexus_native_question");
     expect(piNativeTasks[1]!.buildPrompt("fixture")).toContain("AGENT_HOME");
   });
 
   it("admits explicit local and remote Pi native candidates and discards ambient admission", () => {
     const cell = runnerMatrix.find(row => row.suite.id === "pi-native")!;
-    const source = { PAPERCLIP_RUNNER_ACPX_QUALIFICATION: "ambient" };
-    expect(buildRunnerE2EProcessEnvironment(source, [cell]).PAPERCLIP_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
+    const source = { NEXUS_RUNNER_ACPX_QUALIFICATION: "ambient" };
+    expect(buildRunnerE2EProcessEnvironment(source, [cell]).NEXUS_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
     const remote = runnerMatrix.find(row => row.suite.id === "pi-native" && row.environment.id === "daytona")!;
-    expect(buildRunnerE2EProcessEnvironment(source, [remote]).PAPERCLIP_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
-    expect(buildRunnerE2EProcessEnvironment(source, []).PAPERCLIP_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
+    expect(buildRunnerE2EProcessEnvironment(source, [remote]).NEXUS_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
+    expect(buildRunnerE2EProcessEnvironment(source, []).NEXUS_RUNNER_ACPX_QUALIFICATION).toBeUndefined();
     for (const changed of [
       { ...cell, suite: { ...cell.suite, manualOnly: false } },
       { ...cell, suite: { ...cell.suite, id: "implicit" } },
@@ -102,7 +102,7 @@ describe("Pi native Product qualification", () => {
   });
 
   it("requires exactly one native cross-root policy receipt when public paths are suppressed", () => {
-    const event = { eventType: "tool.execution.completed", payload: { prpEvent: { payload: { schema: "paperclip.tool.execution.v1", transport: "builtin", operation: "edit", name: "write", status: "failed", target: null, executionId: "native-1", output: "Pi tool path is outside its assigned workspace and agent files" } } } };
+    const event = { eventType: "tool.execution.completed", payload: { prpEvent: { payload: { schema: "nexus.tool.execution.v1", transport: "builtin", operation: "edit", name: "write", status: "failed", target: null, executionId: "native-1", output: "Pi tool path is outside its assigned workspace and agent files" } } } };
     expect(hasPiCrossRootDenial([event])).toBe(true);
     expect(hasPiCrossRootDenial([event, event])).toBe(false);
     for (const patch of [{ output: "model claims denied" }, { executionId: "" }, { status: "completed" }, { transport: "mcp" }, { target: "other.txt" }]) {
@@ -111,7 +111,7 @@ describe("Pi native Product qualification", () => {
   });
 
   it("requires a correlated failed native edit, never a model claim or an unexecuted intent", () => {
-    const event = { eventType: "tool.execution.completed", payload: { prpEvent: { payload: { schema: "paperclip.tool.execution.v1", operation: "edit", status: "failed", name: "write", target: "pi-denied.txt" } } } };
+    const event = { eventType: "tool.execution.completed", payload: { prpEvent: { payload: { schema: "nexus.tool.execution.v1", operation: "edit", status: "failed", name: "write", target: "pi-denied.txt" } } } };
     expect(hasFailedPiWrite([event], "pi-denied.txt")).toBe(true);
     for (const events of [[], [{ eventType: "assistant.message", text: "Write pi-denied.txt failed" }], [{ ...event, eventType: "tool.execution.started" }], [{ ...event, payload: { prpEvent: { payload: { ...event.payload.prpEvent.payload, status: "completed" } } } }]]) expect(hasFailedPiWrite(events, "pi-denied.txt")).toBe(false);
     expect(hasFailedPiWrite([event], "other.txt")).toBe(false);

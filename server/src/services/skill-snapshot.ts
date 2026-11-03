@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { CompanySkillVersionFileInventoryEntry } from '@paperclipai/shared';
+import type { CompanySkillVersionFileInventoryEntry } from '@nexusai/shared';
 
 export const MAX_SKILL_SNAPSHOT_BYTES = 100 * 1024 * 1024;
 export const MAX_SKILL_SNAPSHOT_FILES = 10_000;

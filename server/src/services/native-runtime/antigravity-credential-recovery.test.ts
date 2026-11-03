@@ -8,7 +8,7 @@ const removal = vi.hoisted(() => ({ failures: 0 }));
 vi.mock("node:fs/promises", async importOriginal => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();
   return { ...actual, rm: async (...args: Parameters<typeof actual.rm>) => {
-    if (removal.failures && String(args[0]).split("/").at(-1)?.startsWith("paperclip-google-recovery-")) {
+    if (removal.failures && String(args[0]).split("/").at(-1)?.startsWith("nexus-google-recovery-")) {
       removal.failures -= 1;
       await actual.rm(join(String(args[0]), "antigravity-acp", "acp_token.json"), { force: true });
       throw new Error("fixture partial home removal");

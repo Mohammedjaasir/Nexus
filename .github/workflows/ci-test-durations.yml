@@ -62,7 +62,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add scripts/general-server-shard-durations.json scripts/serialized-shard-durations.json
-          git commit -m 'chore(ci): refresh measured test durations' -m 'Co-Authored-By: Paperclip <noreply@paperclip.ing>'
+          git commit -m 'chore(ci): refresh measured test durations' -m 'Co-Authored-By: Nexus <noreply@paperclip.ing>'
           gh auth setup-git
           git push origin "$branch"
           gh pr create --repo paperclipai/paperclip --base master --head "$branch" \

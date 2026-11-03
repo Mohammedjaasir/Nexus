@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import type { PaperclipQuestionSet, TranscriptEntry } from "@paperclipai/adapter-utils";
+import type { NexusQuestionSet, TranscriptEntry } from "@nexusai/adapter-utils";
 import { IssueThreadInteractionCard } from "@/components/IssueThreadInteractionCard";
 import { TaskChatCompactInteractionCard } from "@/components/task-chat/TaskChatCompactInteractionCard";
 import { TaskChatProtocolActivityRow } from "@/components/task-chat/TaskChatProtocolActivityRow";
 import { TaskChatProtocolCard } from "@/components/task-chat/TaskChatProtocolCard";
 import type { TaskChatRuntimeRequestDecision } from "@/components/task-chat/task-chat-model";
-import { paperclipRunnerUIAdapter } from "@/adapters/paperclip-runner";
+import { nexusRunnerUIAdapter } from "@/adapters/nexus-runner";
 import { transcriptToTaskChatItems } from "@/components/task-chat/transcript-adapter";
 import {
   issueThreadInteractionFixtureMeta,
@@ -19,16 +19,16 @@ import type {
   AskUserQuestionsInteraction,
   RequestConfirmationInteraction,
 } from "@/lib/issue-thread-interactions";
-import { storybookAgentMap } from "../../fixtures/paperclipData";
+import { storybookAgentMap } from "../../fixtures/nexusData";
 
 // Production components and production projection, with callbacks kept in memory.
 // No provider, runner, or control-plane mutation is made by these stories.
 function Frame({ children }: { children: ReactNode }) {
-  return <div className="paperclip-story"><main className="paperclip-story__inner space-y-6">{children}</main></div>;
+  return <div className="nexus-story"><main className="nexus-story__inner space-y-6">{children}</main></div>;
 }
 
-const questionSet: PaperclipQuestionSet = {
-  schema: "paperclip.question_set.v1",
+const questionSet: NexusQuestionSet = {
+  schema: "nexus.question_set.v1",
   title: "Deployment details",
   questions: [
     {
@@ -99,8 +99,8 @@ const revisionId = "77777777-7777-4777-8777-777777777777";
 // This is the native runtime-question path, distinct from a synchronized plan document.
 const cursorPlanRevision = "eedc589b367de4f6366ff76090d93676adb1e2238d4c5af280ac88393e1adef3";
 const cursorPlanQuestionId = `plan-${cursorPlanRevision}`;
-const cursorPlanQuestions: PaperclipQuestionSet = {
-  schema: "paperclip.question_set.v1", title: "Review Cursor's plan", description: fullPlan, submitLabel: "Send decision",
+const cursorPlanQuestions: NexusQuestionSet = {
+  schema: "nexus.question_set.v1", title: "Review Cursor's plan", description: fullPlan, submitLabel: "Send decision",
   questions: [
     { id: cursorPlanQuestionId, prompt: "How should Cursor proceed with this plan?", required: true, answerMode: "single_select", options: [
       { id: "accept", label: "Accept plan" }, { id: "reject", label: "Reject plan" }, { id: "cancel", label: "Cancel plan request" },
@@ -111,8 +111,8 @@ const cursorPlanQuestions: PaperclipQuestionSet = {
 
 function NativeCursorPlan() {
   const [receipt, setReceipt] = useState<{ requestId: string; decision: TaskChatRuntimeRequestDecision } | null>(null);
-  const entries = paperclipRunnerUIAdapter.parseStdoutLine(JSON.stringify({
-    type: "paperclip.prp.event", event: { eventType: "runtime_request.created", turnId: "cursor-plan-turn", payload: {
+  const entries = nexusRunnerUIAdapter.parseStdoutLine(JSON.stringify({
+    type: "nexus.prp.event", event: { eventType: "runtime_request.created", turnId: "cursor-plan-turn", payload: {
       request: { requestId: "cursor-create-plan-revision-7", requestKind: "runtime", type: "input", status: "pending", prompt: "Review Cursor's plan", input: cursorPlanQuestions },
     } },
   }), "2026-09-28T12:00:00.000Z");
@@ -162,7 +162,7 @@ const notice: TranscriptEntry = {
   eventType: "provider.notice.recorded", title: "Provider notice", status: "informational",
   summary: "The provider is retrying after a temporary capacity limit.",
   payload: {
-    schema: "paperclip.provider.notice.v1", severity: "warning", category: "retry", scope: "turn",
+    schema: "nexus.provider.notice.v1", severity: "warning", category: "retry", scope: "turn",
     recoverable: true, userActionable: false, summary: "The provider is retrying after a temporary capacity limit.",
     details: [
       { name: "Provider", value: "pi / ACP" },
@@ -184,7 +184,7 @@ const meta = {
   id: "chat-comments-rich-acp-interactions",
   title: "Tasks and conversations/Questions and approvals/Chat & Comments/Rich ACP interactions",
   parameters: { layout: "fullscreen", docs: { description: { component: "Credential-free production UI fixtures. Callback receipts establish UI payload fidelity only; they do not claim provider execution or server persistence." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "questions-and-approvals/questions",
         "questions-and-approvals/confirmations",
@@ -318,7 +318,7 @@ function nativePlanVerification(choice: "accept" | "reject" | "cancel"): Story["
     await userEvent.click(canvas.getByRole("button", { name: "Send decision" }));
     await waitFor(() => expect(JSON.parse(canvas.getByTestId("native-plan-receipt").textContent!)).toMatchObject({
       requestId: "cursor-create-plan-revision-7", decision: {
-        action: "submit", response: { schema: "paperclip.question_response.v1", answers: {
+        action: "submit", response: { schema: "nexus.question_response.v1", answers: {
           [cursorPlanQuestionId]: { selectedOptionIds: [choice] },
           ...(choice === "reject" ? { reason: { text: "Add per-region rollback checks." } } : {}),
         } },

@@ -16,7 +16,7 @@ const fixture = fileURLToPath(new URL("./__fixtures__/postgres-connection-recove
 describe.skipIf(!support.supported)("postgres connection recovery", () => {
   let database: EmbeddedPostgresTestDatabase;
   beforeAll(async () => {
-    database = await startEmbeddedPostgresTestDatabase("paperclip-driver-recovery-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-driver-recovery-");
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
   afterAll(async () => { await database?.cleanup(); });
 

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq, getTableColumns, sql } from "drizzle-orm";
-import { chatActions, chatDeliveries, chatEndpoints, createDb, startEmbeddedPostgresTestDatabase, type Db } from "@paperclipai/db";
+import { chatActions, chatDeliveries, chatEndpoints, createDb, startEmbeddedPostgresTestDatabase, type Db } from "@nexusai/db";
 import { createChatConversationDeliveryQueue } from "../services/chat-channels/inbound/conversation-queue.js";
 import { pendingInboundWakeupCondition } from "../services/chat-channels/inbound/delivery-ledger.js";
 import { captureInboundQuery, pendingIds, queueOptions, runQuery, seedInboundDiscovery } from "./helpers/inbound-discovery-fixture.js";

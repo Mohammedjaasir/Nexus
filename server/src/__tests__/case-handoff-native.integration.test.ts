@@ -8,7 +8,7 @@ import { join } from "node:path";
 import express from "express";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, agentTaskSessions, agentWakeupRequests, authUsers, caseDocuments, caseEvents, caseHandoffs, cases, companies, companyMemberships, createDb, documents, heartbeatRuns, issueDocuments, issues } from "@paperclipai/db";
+import { agents, agentTaskSessions, agentWakeupRequests, authUsers, caseDocuments, caseEvents, caseHandoffs, cases, companies, companyMemberships, createDb, documents, heartbeatRuns, issueDocuments, issues } from "@nexusai/db";
 import { actorMiddleware } from "../middleware/auth.js";
 import { errorHandler } from "../middleware/error-handler.js";
 import { caseRoutes } from "../routes/cases.js";
@@ -19,7 +19,7 @@ import { caseHandoffService } from "../services/case-handoffs.js";
 import { caseHandoffDeliveryService } from "../services/case-handoff-delivery.js";
 import { heartbeatService } from "../services/heartbeat.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
-import { defaultCapabilityRunnerdBinary } from "../vendor/paperclip-runner/index.js";
+import { defaultCapabilityRunnerdBinary } from "../vendor/nexus-runner/index.js";
 import type { StorageService } from "../storage/types.js";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 
@@ -38,12 +38,12 @@ suite("case handoff through the assembled native runner", () => {
   let restoreCodex: (() => void) | undefined;
   beforeAll(async () => {
     root = await mkdtemp(join(tmpdir(), "case-native-integration-"));
-    for (const key of ["PAPERCLIP_AGENT_JWT_SECRET", "PAPERCLIP_API_URL", "PAPERCLIP_HOME", "PAPERCLIP_INSTANCE_ID", "PAPERCLIP_RUNNER_STATE_DIR"]) restore.set(key, process.env[key]);
-    process.env.PAPERCLIP_AGENT_JWT_SECRET = "case-native-integration-secret";
-    process.env.PAPERCLIP_HOME = join(root, "paperclip-home");
-    process.env.PAPERCLIP_INSTANCE_ID = "case-native-integration";
-    process.env.PAPERCLIP_RUNNER_STATE_DIR = join(root, "runner-state");
-    await mkdir(process.env.PAPERCLIP_HOME, { recursive: true });
+    for (const key of ["NEXUS_AGENT_JWT_SECRET", "NEXUS_API_URL", "NEXUS_HOME", "NEXUS_INSTANCE_ID", "NEXUS_RUNNER_STATE_DIR"]) restore.set(key, process.env[key]);
+    process.env.NEXUS_AGENT_JWT_SECRET = "case-native-integration-secret";
+    process.env.NEXUS_HOME = join(root, "nexus-home");
+    process.env.NEXUS_INSTANCE_ID = "case-native-integration";
+    process.env.NEXUS_RUNNER_STATE_DIR = join(root, "runner-state");
+    await mkdir(process.env.NEXUS_HOME, { recursive: true });
     temporary = await startEmbeddedPostgresTestDatabase("case-native-integration-db-");
     db = createDb(temporary.connectionString);
     await instanceSettingsService(db).updateExperimental({ enableCases: true });
@@ -56,7 +56,7 @@ suite("case handoff through the assembled native runner", () => {
     server = createServer(app);
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     const apiUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-    process.env.PAPERCLIP_API_URL = apiUrl;
+    process.env.NEXUS_API_URL = apiUrl;
     setupRunnerPrpWebSocketServer(server, { apiUrl });
   }, 30_000);
   afterAll(async () => {
@@ -89,7 +89,7 @@ suite("case handoff through the assembled native runner", () => {
     await db.insert(companies).values({ id: companyId, name: "Native factory proof", issuePrefix: `N${companyId.slice(0, 6)}`, defaultResponsibleUserId: userId });
     await db.insert(companyMemberships).values({ companyId, principalType: "user", principalId: userId, membershipRole: "operator", status: "active" });
     for (const [id, role] of [[triage, "ceo"], [engineer, "engineer"]] as const) await db.insert(agents).values({ id, companyId, name: role,
-      role, ...(id === engineer ? { reportsTo: triage } : {}), status: "idle", adapterType: "paperclip_runner",
+      role, ...(id === engineer ? { reportsTo: triage } : {}), status: "idle", adapterType: "nexus_runner",
       adapterConfig: { provider: "codex", model: "gpt-5.6-sol", cwd: workspace, lifecycleMode: "per_turn", codexPermissionMode: "never", timeoutSec: 30,
         env: { CODEX_HOME: sourceHome, OPENAI_API_KEY: "", CODEX_API_KEY: "" } }, runtimeConfig: { heartbeat: { enabled: false } } });
     const initial = await caseHandoffService(db).handoff(companyId, { type: "board", source: "local_implicit", userId }, {
@@ -145,7 +145,7 @@ for await (const line of createInterface({input:process.stdin})) {
     else if(finishing&&step===2) {
       writeFileSync(config.terminal,JSON.stringify(value));
       if(!contract) throw new Error('fixture did not receive the current completion contract');
-      call('paperclip_finish',{reportedWorkDisposition:'done',summary:'Saved the native handoff observation document and completed this same task.',completionClaim:{contractRevision:contract.revision,objectiveSatisfied:true,criteria:contract.criteria.map(c=>({criterionId:c.id,status:'satisfied',evidenceRefs:[]})),remainingWork:[]},evidence:[],verification:[],attentionRequests:[],artifacts:[]});
+      call('nexus_finish',{reportedWorkDisposition:'done',summary:'Saved the native handoff observation document and completed this same task.',completionClaim:{contractRevision:contract.revision,objectiveSatisfied:true,criteria:contract.criteria.map(c=>({criterionId:c.id,status:'satisfied',evidenceRefs:[]})),remainingWork:[]},evidence:[],verification:[],attentionRequests:[],artifacts:[]});
     } else if(returning) {active=false;send({method:'turn/completed',params:{threadId:thread,turn:{id:turn,status:'completed'}}});}
     else if(step===2) {
       const response=value.result??value;
@@ -190,7 +190,7 @@ for await (const line of createInterface({input:process.stdin})) {
     const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
     await writeFile(command, `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(provider)}\n`, { mode: 0o700 });
     await chmod(command, 0o700);
-    const resolver = await vi.importActual<{ resolveCodexCommand: () => string }>("../../../packages/paperclip-runner/src/drivers/codex/codex-command.js");
+    const resolver = await vi.importActual<{ resolveCodexCommand: () => string }>("../../../packages/nexus-runner/src/drivers/codex/codex-command.js");
     const spy = vi.spyOn(resolver, "resolveCodexCommand").mockReturnValue(command); restoreCodex = () => spy.mockRestore();
     const wait = async (predicate: () => Promise<boolean>, label: string, bound = 35_000) => {
       const deadline = Date.now() + bound;
@@ -226,7 +226,7 @@ for await (const line of createInterface({input:process.stdin})) {
       nativeResult: { reportedWorkDisposition: "yielded", continuation: { kind: "case_handoff", handoffId: receipt.handoffId } } });
     const [sourceSession] = await db.select().from(agentTaskSessions).where(and(eq(agentTaskSessions.agentId, triage), eq(agentTaskSessions.taskKey, initial.taskId)));
     expect(sourceSession).toMatchObject({ lastRunId: source!.id, sessionParamsJson: {
-      __paperclipConfigFingerprint: expect.any(String), __paperclipConfigFingerprintVersion: expect.any(Number),
+      __nexusConfigFingerprint: expect.any(String), __nexusConfigFingerprintVersion: expect.any(Number),
     } });
     expect(sourceSession!.sessionDisplayId).toBeTruthy();
     expect(() => process.kill(accepted.pid, 0)).toThrow();
@@ -238,7 +238,7 @@ for await (const line of createInterface({input:process.stdin})) {
     expect(observed).toMatchObject({ actorId: engineer, taskId: initial.taskId });
     const [successor] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.agentId, engineer));
     expect(successor).toMatchObject({ runtimeMode: "native", nativeIssueId: initial.taskId });
-    expect(successor!.contextSnapshot?.paperclipCase).toMatchObject({ phase: "implementation", handoffVersion: 2, taskId: initial.taskId,
+    expect(successor!.contextSnapshot?.nexusCase).toMatchObject({ phase: "implementation", handoffVersion: 2, taskId: initial.taskId,
       incomingHandoff: { instructions: expect.stringContaining("Implement the persisted native specification canary") } });
     const [document] = await db.select({ body: documents.latestBody }).from(issueDocuments)
       .innerJoin(documents, eq(documents.id, issueDocuments.documentId))
@@ -258,14 +258,14 @@ for await (const line of createInterface({input:process.stdin})) {
     expect(returned.prompt.split("Verify the saved native handoff observation and finish this case")).toHaveLength(2);
     expect(returned.prompt).toContain("verification");
     const returningEnvelope = JSON.parse(JSON.parse(returned.prompt).input.find((item: { type: string }) => item.type === "text").text);
-    expect(returningEnvelope.schema).toBe("paperclip.native-continuation.v1");
+    expect(returningEnvelope.schema).toBe("nexus.native-continuation.v1");
     await heartbeat.drainActiveRunExecutions();
     await delivery.sweepPending();
     await wait(async () => existsSync(config.finalTurn), "verified native agent did not resume the unchanged case");
     const finalTurn = JSON.parse(await readFile(config.finalTurn, "utf8"));
     expect(finalTurn.threadMethod).toBe("thread/resume");
     const finalEnvelope = JSON.parse(JSON.parse(finalTurn.prompt).input.find((item: { type: string }) => item.type === "text").text);
-    expect(finalEnvelope.schema).toBe("paperclip.native-continuation.v1");
+    expect(finalEnvelope.schema).toBe("nexus.native-continuation.v1");
     const finalEvents = JSON.parse(finalEnvelope.events);
     expect(finalEvents.workflowCase).toMatchObject({ phase: "finalization", factsUnchanged: true,
       incomingHandoff: { instructions: "Handoff to finalization\n\nFinish the verified native handoff case" } });

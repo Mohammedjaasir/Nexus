@@ -7,7 +7,7 @@ import { registerNativeHarnessBackupExpirationWork } from "../services/native-ru
 import { noteNativeHarnessBackupChange } from "../services/native-harness-backup-expiration-notifications.js";
 import { writeEnvironmentCleanup } from "../services/environment-cleanup-notifications.js";
 import { issueService } from "../services/issues.js";
-import { applyPendingMigrations } from "@paperclipai/db";
+import { applyPendingMigrations } from "@nexusai/db";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { registerNativeRunnerEvidenceRetentionWork } from "../services/native-runtime/native-runner-evidence-retention-work.js";
 import { noteNativeRunnerEvidence } from "../services/native-runtime/native-runner-evidence-signal.js";
@@ -30,13 +30,13 @@ import {
   issues,
   nativeRunFinalizations,
   nativeRunnerCheckpoints,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { recoveryPostgresSupport as embeddedPostgresSupport, startRecoveryPostgres } from "./helpers/recovery-postgres.js";
 import { nativeHarnessBackupExpirationService } from "../services/native-runtime/native-harness-backup-expiration.ts";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { logger } from "../middleware/logger.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_NATIVE_RETENTION_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_NATIVE_RETENTION_TEST_DATABASE_URL");
 const describeEmbeddedPostgres = external || embeddedPostgresSupport.supported ? describe : describe.skip;
 
 if (!external && !embeddedPostgresSupport.supported) {
@@ -58,7 +58,7 @@ describeEmbeddedPostgres("native harness backup expiration", () => {
   const now = new Date();
 
   beforeAll(async () => {
-    if (!external) tempDb = await startRecoveryPostgres("paperclip-native-backup-expiration-");
+    if (!external) tempDb = await startRecoveryPostgres("nexus-native-backup-expiration-");
     if (external) await applyPendingMigrations(external);
     db = createDb(external ?? tempDb!.connectionString);
   }, 20_000);
@@ -98,7 +98,7 @@ describeEmbeddedPostgres("native harness backup expiration", () => {
     backupAgeDays?: number;
     cleanupActive?: boolean;
   } = {}) {
-    if (!stateBase) stateBase = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-durable-sessions-"));
+    if (!stateBase) stateBase = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-durable-sessions-"));
     const companyId = input.companyId ?? randomUUID();
     if (!input.companyId) await db.insert(companies).values({ id: companyId, name: "Backups", issuePrefix: `B${companyId.slice(0, 6)}` });
     const [agent] = input.agentId ? [{ id: input.agentId }]
@@ -126,7 +126,7 @@ describeEmbeddedPostgres("native harness backup expiration", () => {
     await db.insert(agentTaskSessions).values({
       companyId,
       agentId: agent!.id,
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       taskKey: issue!.id,
       sessionParamsJson: { sessionId },
       lastRunId: run!.id,
@@ -431,7 +431,7 @@ describeEmbeddedPostgres("native harness backup expiration", () => {
   it("retains incomplete native snapshot publications even after the issue closes", async () => {
     const session = await seedSession({ finalization: { phase: "committed" } });
     await db.update(heartbeatRuns).set({ runnerProfileJson: { nativeControllerRecovery: {
-      schema: "paperclip.native-controller-recovery.v1", checkpoint: null,
+      schema: "nexus.native-controller-recovery.v1", checkpoint: null,
     } } }).where(eq(heartbeatRuns.id, session.runId));
     expect(await service().tick()).toMatchObject({ expired: 0, skipped: { native_recovery_incomplete: 1 } });
     expect(await exists(session.current)).toBe(true);
@@ -533,7 +533,7 @@ describeEmbeddedPostgres("native harness backup expiration", () => {
     scope: string,
     input: { stampedDaysAgo?: number; name?: string } = {},
   ) {
-    if (!stateBase) stateBase = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-durable-sessions-"));
+    if (!stateBase) stateBase = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-durable-sessions-"));
     const stampedAt = now.getTime() - (input.stampedDaysAgo ?? 10) * DAY_MS;
     const entry = path.join(
       stateBase,
@@ -556,7 +556,7 @@ describeEmbeddedPostgres("native harness backup expiration", () => {
   }
 
   async function emptyStateBase() {
-    if (!stateBase) stateBase = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-durable-sessions-"));
+    if (!stateBase) stateBase = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-durable-sessions-"));
     return createHash("sha256").update(randomUUID()).digest("hex");
   }
 
@@ -1284,7 +1284,7 @@ describeEmbeddedPostgres("native harness backup expiration", () => {
 
   it("skips symlinked evidence without following it", async () => {
     const session = await seedSession({ issueStatus: "in_progress" });
-    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-evidence-outside-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-evidence-outside-"));
     try {
       await fs.writeFile(path.join(outside, "keep.txt"), "keep");
       const stampedAt = now.getTime() - 10 * DAY_MS;
@@ -1313,7 +1313,7 @@ describeEmbeddedPostgres("native harness backup expiration", () => {
 
   it("skips symlinked evidence folders without following them", async () => {
     const session = await seedSession({ issueStatus: "in_progress" });
-    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-evidence-outside-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-evidence-outside-"));
     try {
       const stampedAt = now.getTime() - 10 * DAY_MS;
       const inside = path.join(outside, `${stampedAt}-${randomUUID()}`);

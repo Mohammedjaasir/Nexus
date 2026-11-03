@@ -3,15 +3,15 @@ import type { AdapterInfo } from "../api/adapters";
 import { qualifyClaudeSetup } from "./qualify-claude-setup";
 
 const image = `registry.example.test/runtime@sha256:${"a".repeat(64)}`;
-const discovery = (runner: "paperclip" | "legacy", overrides = {}) => [
+const discovery = (runner: "nexus" | "legacy", overrides = {}) => [
   { type: "claude_local", defaultRunner: runner, supportedRunners: [runner], ...overrides },
-  { type: "paperclip_runner" },
+  { type: "nexus_runner" },
 ] as AdapterInfo[];
 function setup() {
   return {
     adapterType: "claude_local", runner: "auto" as const,
     environment: { driver: "sandbox" as const, config: { provider: "daytona", image } },
-    readAdapters: vi.fn().mockResolvedValueOnce(discovery("legacy")).mockResolvedValue(discovery("paperclip")),
+    readAdapters: vi.fn().mockResolvedValueOnce(discovery("legacy")).mockResolvedValue(discovery("nexus")),
     probeEnvironment: vi.fn().mockResolvedValue({ ok: true, driver: "sandbox", summary: "Measured image",
       details: { platformQualificationRecorded: true, leaseId: "owned-probe-lease" } }),
     isCurrent: vi.fn(() => true),
@@ -22,10 +22,10 @@ describe("Claude explicit setup qualification", () => {
   it("qualifies a named Daytona snapshot through the normal Connect action", async () => {
     const s = setup();
     const input: Parameters<typeof qualifyClaudeSetup>[0] = { ...s, environment: { driver: "sandbox", config: { provider: "daytona", snapshot: "managed-snapshot" } } };
-    expect((await qualifyClaudeSetup(input))?.runner).toBe("paperclip");
+    expect((await qualifyClaudeSetup(input))?.runner).toBe("nexus");
     expect(s.probeEnvironment).toHaveBeenCalledTimes(1);
   });
-  it.each(["paperclip", "legacy"] as const)("uses fresh discovery and honors measured %s selection", async runner => {
+  it.each(["nexus", "legacy"] as const)("uses fresh discovery and honors measured %s selection", async runner => {
     const s = setup();
     s.readAdapters.mockResolvedValueOnce(discovery(runner));
     const result = await qualifyClaudeSetup(s);
@@ -48,13 +48,13 @@ describe("Claude explicit setup qualification", () => {
   it.each(["legacy", "native", "local", "snapshot", "tag", "saved", "codex", "qualified", "disabled", "override", "missing-native"])("does not allocate an extra probe for %s", async mode => {
     const s = setup();
     const input: Parameters<typeof qualifyClaudeSetup>[0] = s;
-    if (mode === "legacy" || mode === "native") input.runner = mode === "native" ? "paperclip" : "legacy";
+    if (mode === "legacy" || mode === "native") input.runner = mode === "native" ? "nexus" : "legacy";
     if (mode === "local") input.environment = { driver: "local", config: {} };
     if (mode === "snapshot") input.environment = { driver: "sandbox", config: { image, snapshot: "named-snapshot" } };
     if (mode === "tag") input.environment = { driver: "sandbox", config: { image: "registry.example.test/runtime:latest" } };
     if (mode === "saved") input.savedAgentId = "saved-agent";
     if (mode === "codex") input.adapterType = "codex_local";
-    if (mode === "qualified") s.readAdapters.mockReset().mockResolvedValue(discovery("paperclip"));
+    if (mode === "qualified") s.readAdapters.mockReset().mockResolvedValue(discovery("nexus"));
     if (mode === "disabled" || mode === "override") s.readAdapters.mockReset().mockResolvedValue(discovery("legacy", mode === "disabled" ? { disabled: true } : { overriddenBuiltin: true }));
     if (mode === "missing-native") s.readAdapters.mockReset().mockResolvedValue(discovery("legacy").slice(0, 1));
     await qualifyClaudeSetup(input);

@@ -1,11 +1,11 @@
 import { CASE_STATUSES, type CaseDetail, type CaseEvent, type CaseHandoffView } from "@/api/cases";
-import { instanceExperimentalSettingsSchema } from "@paperclipai/shared";
-import { storybookAgents, storybookProjects } from "../fixtures/paperclipData";
+import { instanceExperimentalSettingsSchema } from "@nexusai/shared";
+import { storybookAgents, storybookProjects } from "../fixtures/nexusData";
 import { caseActors, readonlyCaseFixtures, type CaseRecord } from "./cases-read-only-fixtures";
 import { prepareFixtureApi, type FixtureState } from "./capability-gaps/api";
 
 const companyId = "company-storybook";
-const projectId = (name: string | null) => name === "Paperclip" ? "project-cases-paperclip" : name === "Website" ? "project-cases-website" : null;
+const projectId = (name: string | null) => name === "Nexus" ? "project-cases-nexus" : name === "Website" ? "project-cases-website" : null;
 const caseId = (record: CaseRecord) => `case-${record.identifier}`;
 const taskId = (record: CaseRecord) => record.task ? `task-${record.task.identifier}` : null;
 const actor = (role: string) => caseActors[role];
@@ -82,7 +82,7 @@ export function installReadOnlyCaseFixtures(state: FixtureState = "ready") {
   let failFirstListRead = state === "failure";
   const listState = state === "failure" ? "ready" : state;
   const findCase = (value: string) => details.find(record => record.id === value || record.identifier === value);
-  const projects = ["Paperclip", "Website"].map((name, index) => ({
+  const projects = ["Nexus", "Website"].map((name, index) => ({
     ...storybookProjects[index], id: projectId(name)!, companyId, name,
   }));
   const agents = Object.values(caseActors).filter(value => value.kind === "agent").map(value => ({
@@ -97,7 +97,7 @@ export function installReadOnlyCaseFixtures(state: FixtureState = "ready") {
     { path: /\/budgets\/overview$/, state: "ready", read: () => ({ policies: [], activeIncidents: [], pausedAgentCount: 0, pausedProjectCount: 0, pendingApprovalCount: 0 }) },
     { path: "/api/plugins/ui-contributions", state: "ready", read: () => [] },
     { path: `/api/companies/${companyId}/projects`, state: "ready", read: () => projects },
-    { path: /^\/api\/projects\/project-cases-(paperclip|website)$/, state: "ready", read: ({ url }) => projects.find(project => project.id === url.pathname.split("/").at(-1)) },
+    { path: /^\/api\/projects\/project-cases-(nexus|website)$/, state: "ready", read: ({ url }) => projects.find(project => project.id === url.pathname.split("/").at(-1)) },
     { path: `/api/companies/${companyId}/agents`, state: "ready", read: () => agents },
     { path: `/api/companies/${companyId}/cases/types`, state: "ready", read: () => state === "empty" ? [] : [...new Set(details.map(record => record.caseType))].sort() },
     { path: `/api/companies/${companyId}/cases`, state: listState, read: ({ url }) => {

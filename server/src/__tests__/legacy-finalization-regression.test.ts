@@ -17,7 +17,7 @@ import {
   statusDecisions,
   workAssessments,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { drainHeartbeatRunsToQuiescence } from "./helpers/drain-heartbeat-runs.js";
 
@@ -59,7 +59,7 @@ describe("P6-32 legacy finalization regression", () => {
   const issueId = randomUUID();
 
   beforeAll(async () => {
-    temporary = await startEmbeddedPostgresTestDatabase("paperclip-native-legacy-");
+    temporary = await startEmbeddedPostgresTestDatabase("nexus-native-legacy-");
     db = createDb(temporary.connectionString);
     await instanceSettingsService(db).updateExperimental({ enableNativeRunner: false });
     await db.insert(companies).values({

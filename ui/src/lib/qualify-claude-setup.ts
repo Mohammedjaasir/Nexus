@@ -1,4 +1,4 @@
-import type { AgentRunner, AgentRunnerChoice, Environment, EnvironmentProbeResult } from "@paperclipai/shared";
+import type { AgentRunner, AgentRunnerChoice, Environment, EnvironmentProbeResult } from "@nexusai/shared";
 import type { AdapterInfo } from "../api/adapters";
 
 export function needsClaudeSetupQualification(input: {
@@ -37,7 +37,7 @@ export async function qualifyRunnerEnvironment(input: {
   const validate = (adapters: AdapterInfo[]) => {
     const harness = adapters.find(adapter => adapter.type === input.adapterType);
     const runner = harness?.defaultRunner;
-    if (!harness || (runner !== "paperclip" && runner !== "legacy") || !harness.supportedRunners?.includes(runner)) {
+    if (!harness || (runner !== "nexus" && runner !== "legacy") || !harness.supportedRunners?.includes(runner)) {
       throw new Error("Could not confirm runner availability for this environment. Retry setup.");
     }
     return { runner, harness };
@@ -45,8 +45,8 @@ export async function qualifyRunnerEnvironment(input: {
   let adapters = await input.readAdapters();
   if (!input.isCurrent()) return undefined;
   const selected = validate(adapters);
-  const native = adapters.find(adapter => adapter.type === "paperclip_runner");
-  if (selected.runner === "paperclip" || selected.harness.disabled || selected.harness.overriddenBuiltin
+  const native = adapters.find(adapter => adapter.type === "nexus_runner");
+  if (selected.runner === "nexus" || selected.harness.disabled || selected.harness.overriddenBuiltin
     || !native || native.disabled || native.overriddenBuiltin) return { runner: selected.runner, adapters };
   const probe = await input.probeEnvironment();
   if (!input.isCurrent()) return undefined;

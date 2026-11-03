@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { IssueScheduledRetryCard } from "@/components/IssueScheduledRetryCard";
 
 const meta = {
-  parameters: { paperclip: {
+  parameters: { nexus: {
       "capabilities": [
         "recovery/bounded-continuation"
       ],

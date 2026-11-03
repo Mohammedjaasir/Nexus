@@ -2,11 +2,11 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AdapterExecutionContext, AdapterExecutionResult } from "@paperclipai/adapter-utils";
+import type { AdapterExecutionContext, AdapterExecutionResult } from "@nexusai/adapter-utils";
 
 const processResult = vi.hoisted(() => vi.fn());
-vi.mock("@paperclipai/adapter-utils/execution-target", async (original) => ({
-  ...await original<typeof import("@paperclipai/adapter-utils/execution-target")>(),
+vi.mock("@nexusai/adapter-utils/execution-target", async (original) => ({
+  ...await original<typeof import("@nexusai/adapter-utils/execution-target")>(),
   runAdapterExecutionTargetProcess: processResult,
 }));
 
@@ -34,7 +34,7 @@ describe("CLI adapter accounting on timeout", () => {
   const directories: string[] = [];
   afterEach(async () => { vi.clearAllMocks(); for (const dir of directories.splice(0)) await rm(dir, { recursive: true, force: true }); });
   it.each(cases.filter(f => ["codex", "cursor", "opencode"].includes(f.name)))("$name preserves malformed optional counters through the checkpoint wrapper", async fixture => {
-    const dir = await mkdtemp(join(tmpdir(), "paperclip-invalid-counter-")); directories.push(dir);
+    const dir = await mkdtemp(join(tmpdir(), "nexus-invalid-counter-")); directories.push(dir);
     const command = join(dir, "runtime"); await writeFile(command, "#!/bin/sh\nprintf 'openai  test\\n'\n", { mode: 0o755 });
     const execute = await fixture.execute();
     for (const cached of ["private malformed counter", false, {}, 0, undefined]) for (const newline of [false, true]) {
@@ -50,7 +50,7 @@ describe("CLI adapter accounting on timeout", () => {
       const result = await execute({
         runId: "invalid-counter-run", agent: { id: "agent", companyId: "company", name: "Worker", adapterType: `${fixture.name}_local`, adapterConfig: {} },
         runtime: { sessionId: null, sessionParams: null, sessionDisplayId: null, taskKey: null },
-        config: { engine: "cli", command, cwd: dir, model: fixture.name === "opencode" ? "openai/test" : "gpt-6-astra", paperclipRuntimeSkills: [],
+        config: { engine: "cli", command, cwd: dir, model: fixture.name === "opencode" ? "openai/test" : "gpt-6-astra", nexusRuntimeSkills: [],
           env: { XDG_CONFIG_HOME: dir, OPENAI_API_KEY: "fixture", OPENCODE_ALLOW_ALL_MODELS: "1" } },
         context: {}, onLog: async () => {}, onUsage,
       });
@@ -65,7 +65,7 @@ describe("CLI adapter accounting on timeout", () => {
     }
   });
   it.each(cases.filter(fixture => fixture.name !== "kimi"))("$name flushes its attempt and surfaces checkpoint persistence failures", async (fixture) => {
-    const dir = await mkdtemp(join(tmpdir(), "paperclip-accounting-adapter-")); directories.push(dir);
+    const dir = await mkdtemp(join(tmpdir(), "nexus-accounting-adapter-")); directories.push(dir);
     const command = join(dir, "runtime"); await writeFile(command, "#!/bin/sh\nprintf 'openai  test\\n'\n", { mode: 0o755 });
     const stdout = JSON.stringify(fixture.event);
     processResult.mockImplementation(async (_run, _target, _command, _args, options) => {
@@ -78,7 +78,7 @@ describe("CLI adapter accounting on timeout", () => {
     const context: AdapterExecutionContext = {
       runId: "test-run", agent: { id: "test-agent", companyId: "test-company", name: "Accounting", adapterType: `${fixture.name}_local`, adapterConfig: {} },
       runtime: { sessionId: null, sessionParams: null, sessionDisplayId: null, taskKey: null },
-      config: { engine: "cli", command, cwd: dir, model: ["opencode", "pi"].includes(fixture.name) ? "openai/test" : fixture.name === "cursor" ? "gpt-5" : "test", paperclipRuntimeSkills: [],
+      config: { engine: "cli", command, cwd: dir, model: ["opencode", "pi"].includes(fixture.name) ? "openai/test" : fixture.name === "cursor" ? "gpt-5" : "test", nexusRuntimeSkills: [],
         env: { XDG_CONFIG_HOME: dir, OPENAI_API_KEY: "test-placeholder", ANTHROPIC_API_KEY: "test-placeholder", GEMINI_API_KEY: "test-placeholder", OPENCODE_ALLOW_ALL_MODELS: "1", CLAUDE_CONFIG_DIR: dir } },
       context: {}, onLog: async () => {}, onUsage,
     };
@@ -100,7 +100,7 @@ describe("CLI adapter accounting on timeout", () => {
       }
       for (const [kind, auth, biller] of [["openrouter", "api_key", "openrouter"], ["custom", "api_key", "unknown"], ["local", "none", "unknown"]]) {
         const routed = await execute({ ...context, config: { ...context.config,
-          managedAiRouting: { kind, auth }, env: { ...(context.config.env as object), OPENAI_API_KEY: "", PAPERCLIP_AI_PROVIDER_KEY: auth === "none" ? "" : "fixture" },
+          managedAiRouting: { kind, auth }, env: { ...(context.config.env as object), OPENAI_API_KEY: "", NEXUS_AI_PROVIDER_KEY: auth === "none" ? "" : "fixture" },
         } });
         expect(routed).toMatchObject({ billingType: "api", biller, costUsd: null });
         expect(onUsage.mock.calls.at(-1)![0]).toMatchObject({ billingType: "api", biller, costUsd: null });
@@ -190,7 +190,7 @@ describe("CLI adapter accounting on timeout", () => {
     await expect(execute(context)).rejects.toThrow("Receipt persistence failed");
   });
   it.each(cases.filter(f => ["pi", "opencode"].includes(f.name)))("$name preserves full-stream accounting after stdout truncation", async (fixture) => {
-    const dir = await mkdtemp(join(tmpdir(), "paperclip-accounting-tail-")); directories.push(dir);
+    const dir = await mkdtemp(join(tmpdir(), "nexus-accounting-tail-")); directories.push(dir);
     const command = join(dir, "runtime"); await writeFile(command, "#!/bin/sh\nprintf 'anthropic  test\\n'\n", { mode: 0o755 });
     const execute = await fixture.execute();
     for (const checkpoint of [true, false]) for (const timedOut of [false, true]) for (const missingPrice of [false, true]) {
@@ -213,7 +213,7 @@ describe("CLI adapter accounting on timeout", () => {
       const result = await execute({
         runId: "tail-run", agent: { id: "test-agent", companyId: "test-company", name: "Accounting", adapterType: `${fixture.name}_local`, adapterConfig: {} },
         runtime: { sessionId: null, sessionParams: null, sessionDisplayId: null, taskKey: null },
-        config: { engine: "cli", command, cwd: dir, model: "anthropic/test", paperclipRuntimeSkills: [], env: { XDG_CONFIG_HOME: dir, ANTHROPIC_API_KEY: "fixture", OPENAI_BASE_URL: "https://unrelated-proxy.example/v1", OPENROUTER_API_KEY: "unrelated-key", OPENCODE_ALLOW_ALL_MODELS: "1" } },
+        config: { engine: "cli", command, cwd: dir, model: "anthropic/test", nexusRuntimeSkills: [], env: { XDG_CONFIG_HOME: dir, ANTHROPIC_API_KEY: "fixture", OPENAI_BASE_URL: "https://unrelated-proxy.example/v1", OPENROUTER_API_KEY: "unrelated-key", OPENCODE_ALLOW_ALL_MODELS: "1" } },
         context: {}, onLog: async () => {}, onUsage,
       });
       expect(result.usage).toMatchObject({ inputTokens: 40, outputTokens: 20, cachedInputTokens: 200 });
@@ -225,14 +225,14 @@ describe("CLI adapter accounting on timeout", () => {
   });
 
   it.each(cases)("$name retains observed accounting when the process times out", async (fixture) => {
-    const dir = await mkdtemp(join(tmpdir(), "paperclip-accounting-adapter-")); directories.push(dir);
+    const dir = await mkdtemp(join(tmpdir(), "nexus-accounting-adapter-")); directories.push(dir);
     const command = join(dir, "runtime"); await writeFile(command, "#!/bin/sh\nprintf 'openai  test\\n'\n", { mode: 0o755 });
     processResult.mockResolvedValue({ exitCode: null, signal: "SIGTERM", timedOut: true, stdout: JSON.stringify(fixture.event), stderr: "", pid: 123, startedAt: new Date().toISOString() });
     const execute = await fixture.execute();
     const result = await execute({
       runId: "test-run", agent: { id: "test-agent", companyId: "test-company", name: "Accounting", adapterType: `${fixture.name}_local`, adapterConfig: {} },
       runtime: { sessionId: null, sessionParams: null, sessionDisplayId: null, taskKey: null },
-      config: { engine: "cli", command, cwd: dir, model: ["opencode", "pi"].includes(fixture.name) ? "openai/test" : fixture.name === "cursor" ? "gpt-5" : "test", paperclipRuntimeSkills: [],
+      config: { engine: "cli", command, cwd: dir, model: ["opencode", "pi"].includes(fixture.name) ? "openai/test" : fixture.name === "cursor" ? "gpt-5" : "test", nexusRuntimeSkills: [],
         env: { XDG_CONFIG_HOME: dir, OPENAI_API_KEY: "test-placeholder", ANTHROPIC_API_KEY: "test-placeholder", GEMINI_API_KEY: "test-placeholder", MOONSHOT_API_KEY: "test-placeholder", OPENCODE_ALLOW_ALL_MODELS: "1", CLAUDE_CONFIG_DIR: dir } },
       context: {}, onLog: async () => {},
     });
@@ -251,7 +251,7 @@ describe("CLI adapter accounting on timeout", () => {
 describe("incremental protocol accounting", () => {
   it.each(["turn.failed", "error", "turn.started"])("saves an unpriced Codex %s checkpoint before exposing its log", async (type) => {
     const { createCodexJsonlParser } = await import("../../../packages/adapters/codex-local/src/server/parse.js");
-    const { createUsageCheckpointLog } = await import("@paperclipai/adapter-utils/usage-checkpoint");
+    const { createUsageCheckpointLog } = await import("@nexusai/adapter-utils/usage-checkpoint");
     const consume = createCodexJsonlParser();
     const order: string[] = [];
     const saved = vi.fn(async () => { order.push("receipt"); });
@@ -307,8 +307,8 @@ describe("process adapter bootstrap accounting proof", () => {
     runtime: { sessionId: null, sessionParams: null, sessionDisplayId: null, taskKey: null },
     config, context: {}, onLog: async () => {},
   });
-  it.each([{}, { command: "/nonexistent-paperclip-accounting-command" },
-    { command: process.execPath, cwd: "/nonexistent-paperclip-accounting-directory" }])(
+  it.each([{}, { command: "/nonexistent-nexus-accounting-command" },
+    { command: process.execPath, cwd: "/nonexistent-nexus-accounting-directory" }])(
     "proves no provider work for a failure before spawn: %j", async (config) => {
       const { execute } = await import("../adapters/process/execute.js");
       const onSpawn = vi.fn();

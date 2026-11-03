@@ -1,4 +1,4 @@
-import { heartbeatRuns, type Db } from "@paperclipai/db";
+import { heartbeatRuns, type Db } from "@nexusai/db";
 import { and, eq, getTableColumns, sql } from "drizzle-orm";
 import { recoveryRunResultColumn } from "./run-result-read.js";
 

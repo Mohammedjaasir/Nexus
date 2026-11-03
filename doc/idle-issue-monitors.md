@@ -1,6 +1,6 @@
 # Issue monitor scheduling
 
-Paperclip reconstructs monitor deadlines from saved issue rows at server startup.
+Nexus reconstructs monitor deadlines from saved issue rows at server startup.
 While running, supported issue, execution, company, and native-run services
 notify the monitor worker when their database transactions commit. The worker
 uses those notifications to re-read durable state. It does not depend on a
@@ -19,7 +19,7 @@ that request. Shutdown cancels local timers; restart reconstructs durable work.
 
 ## Supported writers
 
-Use Paperclip's API and services to create or change monitor work. These writers
+Use Nexus's API and services to create or change monitor work. These writers
 share the serving process's database-work notification scope, including nested
 transactions and uncertain commit reconciliation. Supported import paths also
 use these service boundaries or startup reconstruction.

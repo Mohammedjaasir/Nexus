@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     reporters: [...configDefaults.reporters,
       ...(process.env.GITHUB_ACTIONS === "true" ? ["./scripts/ci/test-timing-reporter.mjs"] : []),
-      ...(process.env.PAPERCLIP_CI_PROFILE === "true" ? ["./scripts/ci-profile/vitest-reporter.mjs"] : [])],
+      ...(process.env.NEXUS_CI_PROFILE === "true" ? ["./scripts/ci-profile/vitest-reporter.mjs"] : [])],
     projects: [
       "packages/shared",
       "packages/skills-catalog",
@@ -22,7 +22,7 @@ export default defineConfig({
       "packages/adapters/opencode-local",
       "packages/adapters/pi-local",
       "packages/plugins/sdk",
-      "packages/plugins/create-paperclip-plugin",
+      "packages/plugins/create-nexus-plugin",
       "packages/plugins/sandbox-providers/daytona",
       "server",
       "ui",

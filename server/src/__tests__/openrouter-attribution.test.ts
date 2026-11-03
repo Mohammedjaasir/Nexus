@@ -1,13 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import type { AiProviderRouting } from "@paperclipai/shared";
-import { OPENROUTER_ATTRIBUTION_HEADERS } from "@paperclipai/shared/openrouter-attribution";
+import type { AiProviderRouting } from "@nexusai/shared";
+import { OPENROUTER_ATTRIBUTION_HEADERS } from "@nexusai/shared/openrouter-attribution";
 import { managedProviderRouting } from "../services/ai-provider-routing.js";
 
-describe("Paperclip OpenRouter connection attribution", () => {
+describe("Nexus OpenRouter connection attribution", () => {
   it("keeps the standalone Runner policy identical to the control-plane policy", async () => {
     const shared = await readFile(new URL("../../../packages/shared/src/openrouter-attribution.ts", import.meta.url), "utf8");
-    const runner = await readFile(new URL("../../../packages/paperclip-runner/src/drivers/openrouter-attribution.ts", import.meta.url), "utf8");
+    const runner = await readFile(new URL("../../../packages/nexus-runner/src/drivers/openrouter-attribution.ts", import.meta.url), "utf8");
     expect(runner.slice(runner.indexOf("/**"))).toBe(shared);
   });
   it.each(["codex_local", "claude_local", "opencode_local", "hermes_local"])("attributes managed and custom OpenRouter connections for %s", harness => {

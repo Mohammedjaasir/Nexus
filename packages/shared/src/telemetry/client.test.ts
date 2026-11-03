@@ -68,9 +68,9 @@ describe("TelemetryClient runtime event gate", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
     const { client, stateFactory } = makeClient();
 
-    // @ts-expect-error constructor is grammar-valid but not a registered Paperclip event.
+    // @ts-expect-error constructor is grammar-valid but not a registered Nexus event.
     client.track("constructor", {});
-    // @ts-expect-error toString is grammar-valid but not a registered Paperclip event.
+    // @ts-expect-error toString is grammar-valid but not a registered Nexus event.
     client.track("toString", {});
 
     await client.flush();
@@ -89,7 +89,7 @@ describe("TelemetryClient runtime event gate", () => {
     expect(stateFactory).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(sentBody()).toMatchObject({
-      app: "paperclip",
+      app: "nexus",
       schemaVersion: "1",
       installId: "test-install",
       version: "0.0.0-test",

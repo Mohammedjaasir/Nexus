@@ -3,7 +3,7 @@ import { parseSpekoDeliveryDiagnostics } from "../services/voice/speko-delivery-
 const acceptedAt = "2026-10-09T13:39:14.340Z";
 const deliveries = [{messageId: "msg_test", acceptedAt}];
 function fixture() {
-  const prompt = "Paperclip pushes approved task answers. private prompt credential";
+  const prompt = "Nexus pushes approved task answers. private prompt credential";
   return {
     call: {id: "call_test", status: "ended", ended_at: "2026-10-09T13:39:36.000Z",
       recording_url: "https://private.example/recording", phone: "+12015551234", metadata: {token: "private-token"},

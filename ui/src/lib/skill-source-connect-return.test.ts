@@ -19,6 +19,6 @@ it("expires abandoned setup and rejects arbitrary redirect destinations", () => 
   expect(consumeSkillSourceReturn("company-a")).toBeNull();
   rememberSkillSourceReturn("company-a", "https://example.com");
   expect(skillSourceReturnPath("company-a")).toBeNull();
-  sessionStorage.setItem("paperclip.skill-source-connect-return:company-a", JSON.stringify({ sourceId: "//example.com", expiresAt: Date.now() + 1000 }));
+  sessionStorage.setItem("nexus.skill-source-connect-return:company-a", JSON.stringify({ sourceId: "//example.com", expiresAt: Date.now() + 1000 }));
   expect(consumeSkillSourceReturn("company-a")).toBeNull();
 });

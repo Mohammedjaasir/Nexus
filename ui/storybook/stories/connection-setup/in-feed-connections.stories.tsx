@@ -3,13 +3,13 @@ import { addons } from "storybook/preview-api";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { expect, userEvent, within, waitFor } from "storybook/test";
-import { CONNECTABLE_APP_DEFINITIONS, type ConnectionIntentInteraction, type ToolConnection } from "@paperclipai/shared";
+import { CONNECTABLE_APP_DEFINITIONS, type ConnectionIntentInteraction, type ToolConnection } from "@nexusai/shared";
 import { ConnectionIntentInteractionBody } from "@/features/connections/ConnectionIntentInteractionBody";
 import { ConnectionSetupFlow, ConnectionSetupCompletionScreen, AccessStep, OAuthConnectStateScreen, type OAuthConnectPhase } from "@/features/connections/ConnectionSetupFlow";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { TaskChatComposer } from "@/components/task-chat/TaskChatComposer";
 import { TaskChatInteractionCard } from "@/components/task-chat/TaskChatInteractionCard";
-import { storybookAgentMap, storybookAgents } from "../../fixtures/paperclipData";
+import { storybookAgentMap, storybookAgents } from "../../fixtures/nexusData";
 import { useNavigate } from "@/lib/router";
 import {
   pendingConnectionIntentInteraction as pending,
@@ -30,7 +30,7 @@ const connection = {
   uid: "notion/storybook", transport: "mcp_remote", authKind: "oauth", status: "active",
   enabled: true, healthStatus: "ok", credentialPolicy: "per_user",
   config: { sourceTemplateKey: "notion" }, transportConfig: { sourceTemplateKey: "notion" },
-  connectionKind: "managed", connectionPurpose: "tool", ownership: "customer", credentialSource: "paperclip_vault",
+  connectionKind: "managed", connectionPurpose: "tool", ownership: "customer", credentialSource: "nexus_vault",
   credentialSecretRefs: [], healthCheckedAt: null, lastError: null,
   createdByAgentId: null, createdByUserId: "user-board", createdAt: new Date("2026-09-07"), updatedAt: new Date("2026-09-07"),
 } satisfies ToolConnection;
@@ -40,7 +40,7 @@ const meta: Meta = {
   id: "connections-in-task-connections",
   title: "Apps, channels, and extensions/Connection setup/Connections/In-task connections",
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/task-request"
       ],
@@ -89,7 +89,7 @@ const meta: Meta = {
       if (scenario.ai && url.pathname.endsWith("/ai-connections") && init?.method === "POST") return scenario.completeError
         ? Response.json({ error: "This key could not be verified. Check it and try again." }, { status: 422 })
         : Response.json({ connectionId: aiAccount.id, grantId: aiAccount.grantId });
-      if (url.pathname.endsWith("/agents")) return Response.json([{ id: pending.payload.requestingAgentId, companyId: pending.companyId, name: pending.payload.requestingAgentName, status: "active", adapterType: "paperclip_runner", role: "researcher" }]);
+      if (url.pathname.endsWith("/agents")) return Response.json([{ id: pending.payload.requestingAgentId, companyId: pending.companyId, name: pending.payload.requestingAgentName, status: "active", adapterType: "nexus_runner", role: "researcher" }]);
       if (scenario.access && url.pathname === `/api/agents/${accessPending.payload.requestingAgentId}`) return Response.json({
         ...storybookAgents[0], id: accessPending.payload.requestingAgentId, name: accessPending.payload.requestingAgentName,
       });

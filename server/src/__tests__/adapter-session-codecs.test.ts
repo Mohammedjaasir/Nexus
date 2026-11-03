@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { sessionCodec as claudeSessionCodec } from "@paperclipai/adapter-claude-local/server";
-import { sessionCodec as codexSessionCodec, isCodexUnknownSessionError } from "@paperclipai/adapter-codex-local/server";
+import { sessionCodec as claudeSessionCodec } from "@nexusai/adapter-claude-local/server";
+import { sessionCodec as codexSessionCodec, isCodexUnknownSessionError } from "@nexusai/adapter-codex-local/server";
 import {
   sessionCodec as cursorSessionCodec,
   isCursorUnknownSessionError,
-} from "@paperclipai/adapter-cursor-local/server";
+} from "@nexusai/adapter-cursor-local/server";
 import {
   sessionCodec as geminiSessionCodec,
   isGeminiSessionUnrecoverableError,
-} from "@paperclipai/adapter-gemini-local/server";
+} from "@nexusai/adapter-gemini-local/server";
 import {
   sessionCodec as opencodeSessionCodec,
   isOpenCodeUnknownSessionError,
-} from "@paperclipai/adapter-opencode-local/server";
-import { sessionCodec as acpxSessionCodec } from "@paperclipai/adapter-utils/acpx-engine/session-codec";
+} from "@nexusai/adapter-opencode-local/server";
+import { sessionCodec as acpxSessionCodec } from "@nexusai/adapter-utils/acpx-engine/session-codec";
 
 describe("adapter session codecs", () => {
   it("normalizes claude session params with cwd", () => {
@@ -42,9 +42,9 @@ describe("adapter session codecs", () => {
       sessionId: "11111111-1111-4111-8111-111111111111",
       cwd: "/tmp/workspace",
       mcpServerIdentity: JSON.stringify([{
-        name: "Paperclip projects",
+        name: "Nexus projects",
         url: "http://localhost:3100/api/mcp/project-tools",
-        connectionId: "paperclip-project-tools",
+        connectionId: "nexus-project-tools",
       }]),
     };
     expect(claudeSessionCodec.deserialize(claudeSessionCodec.serialize(params))).toEqual(params);
@@ -52,7 +52,7 @@ describe("adapter session codecs", () => {
 
   it("preserves claude ACP session params for ACP lane resumes", () => {
     const parsed = claudeSessionCodec.deserialize({
-      sessionKey: "paperclip:company:agent:task:fingerprint",
+      sessionKey: "nexus:company:agent:task:fingerprint",
       runtimeSessionName: "runtime-session-1",
       acpxRecordId: "record-1",
       acpSessionId: "acp-session-1",
@@ -97,7 +97,7 @@ describe("adapter session codecs", () => {
 
   it("preserves codex ACP session params for ACP lane resumes", () => {
     const parsed = codexSessionCodec.deserialize({
-      sessionKey: "paperclip:company:agent:task:fingerprint",
+      sessionKey: "nexus:company:agent:task:fingerprint",
       runtimeSessionName: "runtime-session-1",
       acpxRecordId: "record-1",
       acpSessionId: "acp-session-1",
@@ -178,7 +178,7 @@ describe("adapter session codecs", () => {
 
   it("preserves gemini ACP session params for ACP lane resumes", () => {
     const parsed = geminiSessionCodec.deserialize({
-      sessionKey: "paperclip:company:agent:task:fingerprint",
+      sessionKey: "nexus:company:agent:task:fingerprint",
       runtimeSessionName: "runtime-session-1",
       acpxRecordId: "record-1",
       acpSessionId: "acp-session-1",
@@ -205,7 +205,7 @@ describe("adapter session codecs", () => {
 
   it("preserves acpx session params required for compatibility checks", () => {
     const parsed = acpxSessionCodec.deserialize({
-      sessionKey: "paperclip:company:agent:task:fingerprint",
+      sessionKey: "nexus:company:agent:task:fingerprint",
       runtimeSessionName: "runtime-session-1",
       acpxRecordId: "record-1",
       acpSessionId: "acp-session-1",
@@ -225,7 +225,7 @@ describe("adapter session codecs", () => {
     });
 
     expect(parsed).toMatchObject({
-      sessionKey: "paperclip:company:agent:task:fingerprint",
+      sessionKey: "nexus:company:agent:task:fingerprint",
       runtimeSessionName: "runtime-session-1",
       acpxRecordId: "record-1",
       acpSessionId: "acp-session-1",

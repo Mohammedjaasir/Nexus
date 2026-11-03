@@ -2,7 +2,7 @@ import { parseRestartRunnerIdentity, type RestartRunnerIdentity } from "./proces
 import { createHash, randomBytes } from "node:crypto";
 import { expect, type Page } from "@playwright/test";
 import { canonicalJson } from "../../packages/shared/src/portability-hash.js";
-import { validatePrpStructuredRunResult } from "../../packages/paperclip-runner/src/protocol/replay-contract.js";
+import { validatePrpStructuredRunResult } from "../../packages/nexus-runner/src/protocol/replay-contract.js";
 import { pollUntil } from "./api.js";
 import { hasAcpxNativeOrigin } from "./acpx-native-origin.js";
 import { isValidNativePrpEnvelope } from "./native-event-envelope.js";
@@ -61,12 +61,12 @@ function inspect(state: State, events: readonly Row[], companyId: string, header
   requireProof(created.length === 1, "exactly one native request creation required");
   const opening = created[0]!, request = rec(opening.event.payload?.request), questionSet = rec(request.input);
   const question = Array.isArray(questionSet.questions) && questionSet.questions.length === 1 ? rec(questionSet.questions[0]) : {};
-  requireProof(request.schema === "paperclip.runtime_request.v2" && request.requestKind === "runtime" && request.type === "input" && request.status === "pending"
+  requireProof(request.schema === "nexus.runtime_request.v2" && request.requestKind === "runtime" && request.type === "input" && request.status === "pending"
     && id(request.requestId) && id(request.itemId) && id(request.turnId) && request.turnId === opening.event.turnId && request.itemId === opening.event.itemId
-    && hasAcpxNativeOrigin(request.origin, "pi", "elicitation/create") && questionSet.schema === "paperclip.question_set.v1"
+    && hasAcpxNativeOrigin(request.origin, "pi", "elicitation/create") && questionSet.schema === "nexus.question_set.v1"
     && id(question.id) && question.answerMode === "text" && question.header === header
     && card.payload?.runtimeRequestId === request.requestId && digest(card.payload.questionSet) === digest(questionSet)
-    && card.idempotencyKey === `paperclip-runner-question:${run.id}:${request.requestId}`, "canonical Pi input request identity missing");
+    && card.idempotencyKey === `nexus-runner-question:${run.id}:${request.requestId}`, "canonical Pi input request identity missing");
   const submitted = rows.filter(x => x.event.eventType === "turn.submitted");
   const unboundSubmission = submitted.find(x => x.event.turnId == null);
   if (unboundSubmission) {
@@ -110,7 +110,7 @@ export function gradePiRestartCompletion(state: State, events: readonly Row[], p
   const delivered = resolved[0]!.event, response = rec(delivered.payload);
   requireProof(response.requestId === pending.requestId && response.turnId === pending.turnId && response.itemId === pending.itemId
     && response.action === "submit" && delivered.itemId === pending.itemId && delivered.sourceSeq > pending.createdSourceSeq
-    && digest(response.response) === digest({ schema: "paperclip.question_response.v1", answers: { [pending.questionId]: { text: answer } } }),
+    && digest(response.response) === digest({ schema: "nexus.question_response.v1", answers: { [pending.questionId]: { text: answer } } }),
   "hidden browser answer was not delivered to the original native request");
   requireProof(terminal.length === 1 && terminal[0]!.event.eventType === "turn.completed" && terminal[0]!.event.payload?.status === "completed"
     && terminal[0]!.event.payload?.error == null && terminal[0]!.event.sourceSeq > delivered.sourceSeq
@@ -123,7 +123,7 @@ export function gradePiRestartCompletion(state: State, events: readonly Row[], p
     && digest(proposed[0]!.event.payload) === digest(result)
     && proposed[0]!.row.seq > resolved[0]!.row.seq && proposed[0]!.row.seq < terminal[0]!.row.seq
     && accepted[0]!.row.seq > terminal[0]!.row.seq && runTerminal[0]!.row.seq > accepted[0]!.row.seq
-    && digest(runTerminal[0]!.event.payload) === digest({ schema: "paperclip.prp.terminal.v1", turnTerminalState: "completed", runTerminalState: "succeeded", reportedWorkDisposition: "done" }),
+    && digest(runTerminal[0]!.event.payload) === digest({ schema: "nexus.prp.terminal.v1", turnTerminalState: "completed", runTerminalState: "succeeded", reportedWorkDisposition: "done" }),
   "control-plane completion does not accept the original successful native result");
   requireProof(card.status === "answered" && Array.isArray(card.result?.answers) && card.result.answers.length === 1
     && card.result.answers[0].questionId === pending.questionId && card.result.answers[0].otherText === answer, "durable interaction answer missing or wrong");

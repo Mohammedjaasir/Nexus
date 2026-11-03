@@ -38,7 +38,7 @@ export async function copySharedEvidence(privateRoot: string, casePrivateDir: st
     try { receipt = JSON.parse(raw); }
     catch {
       // Never include parser excerpts: they can quote private receipt bytes.
-      receipt = { schema: "paperclip.e2e.controller-outage-parse-error/v1", source: entry.name,
+      receipt = { schema: "nexus.e2e.controller-outage-parse-error/v1", source: entry.name,
         error: "invalid_json", byteLength: Buffer.byteLength(raw), sha256: createHash("sha256").update(raw).digest("hex") };
       await writeFile(path.join(snapshots, `${entry.name}.invalid.txt`), redactText(raw, secrets), { mode: 0o600 });
     }

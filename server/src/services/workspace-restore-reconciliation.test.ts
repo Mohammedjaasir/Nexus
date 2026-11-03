@@ -4,15 +4,15 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   agents, companies, createDb, environmentLeases, heartbeatRuns,
   issueComments, issueRecoveryActions, issues,
-} from "@paperclipai/db";
-import type { ExecutionReconciliation } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { ExecutionReconciliation } from "@nexusai/shared";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { getExecutionBlocker } from "./execution-blocker.js";
 import { markExecutionReconciliation, validateExecutionReconciliation } from "./execution-recovery-resolution.js";
 import { remoteTerminationReceipt } from "./remote-execution-termination.js";
 import { LEGACY_WORKSPACE_RECOVERY_SCHEMA } from "./workspace-restore-recovery-state.js";
 
-const external = process.env.PAPERCLIP_TEST_DATABASE_URL;
+const external = process.env.NEXUS_TEST_DATABASE_URL;
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("retained workspace repair admission", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -84,7 +84,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const f = await seed();
     const [action] = await db.select().from(issueRecoveryActions).where(eq(issueRecoveryActions.id, f.actionId));
     await db.update(issueRecoveryActions).set({ evidence: { ...action.evidence, workspaceRecovery: {
-      schema: "paperclip.workspace-recovery.v1", runId: f.sourceRunId, status: "recovering",
+      schema: "nexus.workspace-recovery.v1", runId: f.sourceRunId, status: "recovering",
       stage: "restoring_files", attempt: 1, requestIds: [],
     } } }).where(eq(issueRecoveryActions.id, f.actionId));
     expect(await getExecutionBlocker(db, f.companyId, f.issueId)).toMatchObject({

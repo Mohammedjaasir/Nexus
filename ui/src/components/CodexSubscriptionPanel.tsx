@@ -1,5 +1,5 @@
 import { quotaUnavailableMessage } from "@/lib/quota-refresh";
-import type { QuotaWindow } from "@paperclipai/shared";
+import type { QuotaWindow } from "@nexusai/shared";
 import { cn, quotaSourceDisplayName } from "@/lib/utils";
 
 interface CodexSubscriptionPanelProps {

@@ -1,6 +1,6 @@
 import { captureEnvironmentAcquisitionDiagnostic } from "../environment-acquisition-diagnostics.js";
 import { describe, expect, it } from "vitest";
-import type { heartbeatRuns } from "@paperclipai/db";
+import type { heartbeatRuns } from "@nexusai/db";
 import { attachRemoteRunnerRecoveryDiagnostic, RemoteRunnerRecoveryError } from "../native-runtime/remote-runner-recovery-diagnostics.js";
 import { collectRunFailureDiagnostics, collectRunFailureSecretValues, redactRunFailureSecretValues, sanitizeRunFailureDiagnostics, sanitizeRunFailureText } from "../run-failure-diagnostics.js";
 
@@ -49,7 +49,7 @@ describe("run failure diagnostics", () => {
   it("ignores forged acquisition fields and persisted JSON without private producer evidence", () => {
     const acquisitionDiagnostic = { phase: "shell", elapsedMs: 2_000, budgetMs: 2_000 };
     const error = Object.assign(new Error("Acquisition failed"), { acquisitionDiagnostic,
-      data: { schema: "paperclip/environment-creation-cleanup/v1", acquisitionDiagnostic },
+      data: { schema: "nexus/environment-creation-cleanup/v1", acquisitionDiagnostic },
     });
     expect(collectRunFailureDiagnostics(run({ errorCode: "setup_failed", resultJson: { acquisitionDiagnostic,
       environmentAcquisitionPhase: "shell", environmentAcquisitionElapsedMs: 2_000,
@@ -519,11 +519,11 @@ describe("run failure diagnostics", () => {
   });
 
   it("preserves known boolean and numeric settings without exempting unknown or declared secrets", () => {
-    const env = { PAPERCLIP_DB_BACKUP_ENABLED: "false", PAPERCLIP_DB_BACKUP_RETENTION_DAYS: "1" };
+    const env = { NEXUS_DB_BACKUP_ENABLED: "false", NEXUS_DB_BACKUP_RETENTION_DAYS: "1" };
     expect(collectRunFailureSecretValues(env, [], true)).toEqual([]);
-    expect(collectRunFailureSecretValues(env, ["PAPERCLIP_DB_BACKUP_ENABLED"], true)).toEqual(["false"]);
+    expect(collectRunFailureSecretValues(env, ["NEXUS_DB_BACKUP_ENABLED"], true)).toEqual(["false"]);
     expect(collectRunFailureSecretValues({ CUSTOM_BINDING: "1" }, [], true)).toEqual(["1"]);
-    expect(collectRunFailureSecretValues({ PAPERCLIP_DB_BACKUP_ENABLED: "opaque" }, [], true)).toEqual(["opaque"]);
+    expect(collectRunFailureSecretValues({ NEXUS_DB_BACKUP_ENABLED: "opaque" }, [], true)).toEqual(["opaque"]);
   });
   it("preserves generic exceptions, numeric codes and nested network causes", () => {
     const root = Object.assign(new Error("network failed"), { code: "ECONNRESET", statusCode: 502, request_id: "req-123" });

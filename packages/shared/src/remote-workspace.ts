@@ -25,7 +25,7 @@ export type RemoteWorkspaceSource = z.infer<typeof remoteWorkspaceSourceSchema>;
 
 /** Paths in this record belong to the named remote allocation, never the controller. */
 export const remoteWorkspaceAuthoritySchema = z.object({
-  schema: z.literal("paperclip.remote-workspace.v1"),
+  schema: z.literal("nexus.remote-workspace.v1"),
   epoch: z.number().int().positive(),
   snapshotId: z.string().uuid().nullable(),
   source: remoteWorkspaceSourceSchema,
@@ -39,7 +39,7 @@ export const remoteWorkspaceAuthoritySchema = z.object({
 export type RemoteWorkspaceAuthority = z.infer<typeof remoteWorkspaceAuthoritySchema>;
 
 export const remoteWorkspaceRunReferenceSchema = z.object({
-  schema: z.literal("paperclip.remote-workspace-run.v1"),
+  schema: z.literal("nexus.remote-workspace-run.v1"),
   workspaceId: z.string().uuid(), leaseId: z.string().uuid(), providerLeaseId: z.string().min(1),
   remoteCwd: z.string().min(1), epoch: z.number().int().positive(),
   state: z.enum(["prepared", "saved"]), snapshotId: z.string().uuid().nullable(),

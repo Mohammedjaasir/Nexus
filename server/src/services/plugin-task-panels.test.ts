@@ -14,7 +14,7 @@ describe("structured runtime activity", () => {
   it("accepts only bounded panel identifiers without caller run identity", () => {
     const panel = { namespace: "example.runtime", activityKey: "screen" };
     expect(runtimeActivity(panel)).toEqual(panel);
-    for (const payload of [null, { output: "[paperclip-task-panel:example.runtime:screen]" },
+    for (const payload of [null, { output: "[nexus-task-panel:example.runtime:screen]" },
       { ...panel, runId: "caller-run" }, { ...panel, activityKey: "" }, { ...panel, activityKey: "x".repeat(161) },
       { ...panel, namespace: "invalid\nkey" }]) expect(runtimeActivity(payload)).toBeNull();
   });

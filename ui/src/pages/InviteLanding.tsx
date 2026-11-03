@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AGENT_ADAPTER_TYPES } from "@paperclipai/shared";
-import type { AgentAdapterType, JoinRequest } from "@paperclipai/shared";
+import { AGENT_ADAPTER_TYPES } from "@nexusai/shared";
+import type { AgentAdapterType, JoinRequest } from "@nexusai/shared";
 import { Button } from "@/components/ui/button";
 import { CompanyPatternIcon } from "@/components/CompanyPatternIcon";
 import { useCompany } from "@/context/CompanyContext";
@@ -22,7 +22,7 @@ type AuthFeedback = { tone: "error" | "info"; message: string };
 // belongs in authenticated agent configuration after an administrator enables
 // the experimental flag.
 const joinAdapterOptions: AgentAdapterType[] = AGENT_ADAPTER_TYPES.filter(
-  (type) => type !== "paperclip_runner",
+  (type) => type !== "nexus_runner",
 );
 const ENABLED_INVITE_ADAPTERS = new Set([
   "claude_local",
@@ -91,7 +91,7 @@ function mapInviteAuthFeedback(
     return {
       tone: "error",
       message:
-        "That email and password did not match an existing Paperclip account. Check both fields, or create an account first if you are new here.",
+        "That email and password did not match an existing Nexus account. Check both fields, or create an account first if you are new here.",
     };
   }
 
@@ -99,7 +99,7 @@ function mapInviteAuthFeedback(
     return {
       tone: "error",
       message:
-        "That email and password did not match an existing Paperclip account. Check both fields, or create an account first if you are new here.",
+        "That email and password did not match an existing Nexus account. Check both fields, or create an account first if you are new here.",
     };
   }
 
@@ -299,7 +299,7 @@ export function InviteLandingPage() {
     Boolean(invite?.companyId) &&
     companyList.some((company) => company.id === invite?.companyId);
   const companyName = invite?.companyName?.trim() || null;
-  const companyDisplayName = companyName || "this Paperclip company";
+  const companyDisplayName = companyName || "this Nexus company";
   const companyLogoUrl = invite?.companyLogoUrl?.trim() || null;
   const invitedByUserName = invite?.invitedByUserName?.trim() || null;
   const inviteMessage = invite?.inviteMessage?.trim() || null;
@@ -569,16 +569,16 @@ export function InviteLandingPage() {
               />
               <div className="min-w-0">
                 <p className="text-xs uppercase tracking-(--tracking-caps) text-zinc-500">
-                  You&apos;ve been invited to join Paperclip
+                  You&apos;ve been invited to join Nexus
                 </p>
                 <h1 className="mt-2 text-2xl font-semibold">
-                  {invite.inviteType === "bootstrap_ceo" ? "Set up Paperclip" : `Join ${companyDisplayName}`}
+                  {invite.inviteType === "bootstrap_ceo" ? "Set up Nexus" : `Join ${companyDisplayName}`}
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300">
                   {showsAgentForm
                     ? "Review the invite details, then submit the agent information below to start the join request."
                     : requiresHumanAccount
-                      ? "Create your Paperclip account first. If you already have one, switch to sign in and continue the invite with the same email."
+                      ? "Create your Nexus account first. If you already have one, switch to sign in and continue the invite with the same email."
                       : "Your account is ready. Review the invite details, then accept it to continue."}
                 </p>
               </div>
@@ -591,7 +591,7 @@ export function InviteLandingPage() {
               </div>
               <div className="border border-zinc-800 p-3">
                 <div className="text-xs uppercase tracking-(--tracking-caps) text-zinc-500">Invited by</div>
-                <div className="mt-1 text-sm text-zinc-100">{invitedByUserName ?? "Paperclip board"}</div>
+                <div className="mt-1 text-sm text-zinc-100">{invitedByUserName ?? "Nexus board"}</div>
               </div>
               <div className="border border-zinc-800 p-3">
                 <div className="text-xs uppercase tracking-(--tracking-caps) text-zinc-500">Requested access</div>
@@ -676,8 +676,8 @@ export function InviteLandingPage() {
                   </h2>
                   <p className="mt-1 text-sm text-zinc-400">
                     {authMode === "sign_up"
-                      ? `Start with a Paperclip account. After that, you'll come right back here to accept the invite for ${companyDisplayName}.`
-                      : "Use the Paperclip account that already matches this invite. If you do not have one yet, switch back to create account."}
+                      ? `Start with a Nexus account. After that, you'll come right back here to accept the invite for ${companyDisplayName}.`
+                      : "Use the Nexus account that already matches this invite. If you do not have one yet, switch back to create account."}
                   </p>
                 </div>
 
@@ -814,7 +814,7 @@ export function InviteLandingPage() {
 
                 <p className="text-xs leading-5 text-zinc-500">
                   {authMode === "sign_up"
-                    ? "Already signed up before? Use the existing-account option instead so the invite lands on the right Paperclip user."
+                    ? "Already signed up before? Use the existing-account option instead so the invite lands on the right Nexus user."
                     : "No account yet? Switch back to create account so you can accept the invite with a new login."}
                 </p>
               </div>
@@ -836,7 +836,7 @@ export function InviteLandingPage() {
                       : isCurrentMember
                       ? `This account already belongs to ${companyDisplayName}.`
                       : `This will ${
-                          invite.inviteType === "bootstrap_ceo" ? "finish setting up Paperclip" : `grant or complete your access to ${companyDisplayName}`
+                          invite.inviteType === "bootstrap_ceo" ? "finish setting up Nexus" : `grant or complete your access to ${companyDisplayName}`
                         }.`}
                   </p>
                 </div>

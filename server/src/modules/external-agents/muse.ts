@@ -6,10 +6,10 @@ import { z } from "zod";
 import { agents, companies, projects, activityLog, heartbeatRuns, issues, issueComments, issueDocuments, documents, nativeRunFinalizations, agentWakeupRequests,
   museAgentBindings as bindings, museCredentials as credentials, museRunnerAssignments as assignments, museRunnerOperations as operations,
   museMailboxItems as mailbox, museInputDeliveries as inputs, museIdleReceipts as idleReceipts, externalAgentHolds as holds,
-  museReceiverContactBuckets, mcpOauthGrants, mcpOauthTokens, type Db } from "@paperclipai/db";
+  museReceiverContactBuckets, mcpOauthGrants, mcpOauthTokens, type Db } from "@nexusai/db";
 import { MUSE_TICKET_TTL_MS, MUSE_CLEANUP_TTL_MS, MUSE_RESOURCE_PATH, museStopBoundarySchema, MUSE_ASSET_VERSION, type AgentConnectionSubject, type MuseBinding, type MuseCommand,
-  type MuseQuery, type MusePairing, type MuseStopBoundary, type MuseQualificationEvidence, type MuseQualificationBeginResult, museDetectorCleanupAttestationSchema, type MuseDetectorCleanupEvidence, type MuseDetectorCleanupAttestationInput } from "@paperclipai/shared";
-import { externalOperationDigest, parsePaperclipQuestionSet, type MuseBindingSnapshot, type ExternalProviderPort, type ExternalProviderOperation } from "../../vendor/paperclip-runner/index.js";
+  type MuseQuery, type MusePairing, type MuseStopBoundary, type MuseQualificationEvidence, type MuseQualificationBeginResult, museDetectorCleanupAttestationSchema, type MuseDetectorCleanupEvidence, type MuseDetectorCleanupAttestationInput } from "@nexusai/shared";
+import { externalOperationDigest, parseNexusQuestionSet, type MuseBindingSnapshot, type ExternalProviderPort, type ExternalProviderOperation } from "../../vendor/nexus-runner/index.js";
 import { conflict, forbidden, notFound, unprocessable } from "../../errors.js";
 import { museIdentity, museCredentialHash, assertMuseCurrentAuthority, assertMuseSubjectCredential, inspectMuseConnectionCredential, assertMuseCleanupCredential, museCleanupBoundaryIds, assertMuseDisabledStopControlCredential, museStopControlBoundaryIds } from "../../services/muse-identity.js";
 import { instanceSettingsService } from "../../services/instance-settings.js";
@@ -136,7 +136,7 @@ function createMuseBroker(db:Db, publicOrigin?:string) {
     assertSubjectCredential:async(tx,s)=>{await assertMuseSubjectCredential(tx,s,s.credentialSource==="oauth"?connectionResource():undefined);},
     authorize:async(s,id,settled)=>{const {b,a}=await authorizeAssignment(s,id,settled);return {binding:b,assignment:a};}});
   const operation=nativeBroker.operation;
-  const detectorHook=(b:typeof bindings.$inferSelect)=>`~/hooks/scripts/paperclip-muse-${b.id}.sh`;
+  const detectorHook=(b:typeof bindings.$inferSelect)=>`~/hooks/scripts/nexus-muse-${b.id}.sh`;
   async function detectorEvidence(database:Db|ExternalAdmissionTransaction,b:typeof bindings.$inferSelect):Promise<MuseDetectorCleanupEvidence|null> {
     if(!b.detectorRemovedAt)return null;
     const rows=await database.select().from(activityLog).where(and(eq(activityLog.companyId,b.companyId),eq(activityLog.entityType,"agent"),eq(activityLog.entityId,b.agentId),eq(activityLog.agentId,b.agentId),
@@ -160,7 +160,7 @@ function createMuseBroker(db:Db, publicOrigin?:string) {
   const broker={
     enabled:identity.enabled,
     async createPairing(input:{companyId:string;agentId:string;operatorId:string;replaceBindingId?:string;expectedRevision?:number}):Promise<MusePairing> {
-      if(!await identity.enabled())throw forbidden("Enable Muse and Paperclip Runner before connecting.");
+      if(!await identity.enabled())throw forbidden("Enable Muse and Nexus Runner before connecting.");
       const ticket=randomBytes(32).toString("base64url"),bindingId=randomUUID();
       // Validate the public assets before changing any existing invitation.
       const [scopeAgent]=await db.select({id:agents.id,name:agents.name}).from(agents).where(and(eq(agents.id,input.agentId),eq(agents.companyId,input.companyId)));
@@ -169,7 +169,7 @@ function createMuseBroker(db:Db, publicOrigin?:string) {
       const setupInstruction=await buildMuseSetupInstruction(publicOrigin,ticket,bindingId,{companyId:scopeCompany.id,companyName:scopeCompany.name,agentId:scopeAgent.id,agentName:scopeAgent.name});
       const {binding:b,replacedRuns}=await db.transaction(tx=>withExternalAdmissionGuard(tx,input.companyId,input.agentId,async()=>{
         const [agent]=await tx.select().from(agents).where(and(eq(agents.id,input.agentId),eq(agents.companyId,input.companyId))).for("update");
-        if(!agent||agent.adapterType!=="paperclip_runner"||agent.adapterConfig.provider!=="muse"||!canConfigureAgentConnection(agent))throw conflict("Choose an approved Muse Runner agent.");
+        if(!agent||agent.adapterType!=="nexus_runner"||agent.adapterConfig.provider!=="muse"||!canConfigureAgentConnection(agent))throw conflict("Choose an approved Muse Runner agent.");
         const [old]=await tx.select().from(bindings).where(and(eq(bindings.companyId,input.companyId),eq(bindings.agentId,input.agentId),isNull(bindings.revokedAt))).for("update");
         let replacedRuns:string[]=[];
         if(old) {

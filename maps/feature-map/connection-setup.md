@@ -90,7 +90,7 @@ person; audit attribution stays with the acting agent. Existing agents retain
 their explicit grants and restrictions. See the [access companion](../agent-access-map/connection-setup.md)
 and [native admission contract](../agent-access-map/README.md#native-rest-transport).
 
-## Driving it with Playwright and the Paperclip CLI
+## Driving it with Playwright and the Nexus CLI
 
 Preconditions: follow the [baseline](./README.md#before-driving-a-journey).
 Choose a disposable provider account/resource and record its auth method,
@@ -119,12 +119,12 @@ saved connection. Run a permitted read-only action with an eligible agent and
 verify its useful result. Try an ineligible agent and confirm denial. Repeat
 with a user who cannot install company-wide; the UI must not imply broad access.
 
-Notebook is internally gated by `enablePaperclipNotebook` (default off, no settings toggle). Disabled instances hide setup/discovery and deny curated Notebook dispatch and publishing; local removal and grant revocation remain available.
+Notebook is internally gated by `enableNexusNotebook` (default off, no settings toggle). Disabled instances hide setup/discovery and deny curated Notebook dispatch and publishing; local removal and grant revocation remain available.
 
 Availability is catalog metadata evaluated by shared connector checks. Notebook
 publication and file uploads stay in the Notebook service.
 
-Paperclip Notebook uses the existing personal-account MCP OAuth setup at
+Nexus Notebook uses the existing personal-account MCP OAuth setup at
 `https://notebook.paperclip.app/mcp`. Sign in through Cloud, assign agents, and
 verify tool discovery. The connection keeps its default catalog name.
 Reconnect must preserve agent assignments and Allowed / Ask first / Off choices.
@@ -132,13 +132,13 @@ Removal disables local use and clears saved credentials. Remote authorization
 can be revoked separately in Notebook's Connected apps screen; automatic remote
 cleanup and custom keyed refresh recovery are deferred. A lost rotating-token
 response may require reconnecting. Notebook tools use the selected connection's
-ordinary action gateway. See [Notebook](../../doc/connections/PAPERCLIP-NOTEBOOK.md)
+ordinary action gateway. See [Notebook](../../doc/connections/NEXUS-NOTEBOOK.md)
 for the Notebook-owned uploader and fixture coverage. Live Notebook qualification
 still requires the deployed service and both hosted and self-hosted clients.
 
 Daytona follows this same key/access wizard. Its native method exposes the
 published platform and Toolbox HTTP actions using provider sandbox IDs, without
-a Paperclip task or lease requirement. [Daytona browser setup](../../tests/e2e/daytona-connector.spec.ts)
+a Nexus task or lease requirement. [Daytona browser setup](../../tests/e2e/daytona-connector.spec.ts)
 checks the catalog, password field, access controls, and optional organization
 pin. It does not submit a key or qualify a real provider account. See
 [Daytona](../../doc/connections/DAYTONA.md) for API-key authority and OAuth limits.
@@ -267,7 +267,7 @@ field-specific credential entry and saved rotation recovery, and the
 
 ## Gotchas
 
-- For connecting an assistant to Paperclip itself, use [Assistant connections (MCP)](./assistant-connections.md). This recipe's MCP-link journey connects Paperclip to an external app server.
+- For connecting an assistant to Nexus itself, use [Assistant connections (MCP)](./assistant-connections.md). This recipe's MCP-link journey connects Nexus to an external app server.
 - Private endpoint rejection depends on deployment: owned loopback MCP servers
   are supported in local-trusted/private instances. Public authenticated
   deployments apply the private-network restriction.

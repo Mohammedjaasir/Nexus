@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, it, vi } from "vitest";
-import type { IssueComment } from "@paperclipai/shared";
+import type { IssueComment } from "@nexusai/shared";
 import { useIssueHistoryWindow } from "./useIssueHistoryWindow";
 import { queryKeys } from "@/lib/queryKeys";
 const api = vi.hoisted(() => ({ recentComments: vi.fn(), listComments: vi.fn() }));

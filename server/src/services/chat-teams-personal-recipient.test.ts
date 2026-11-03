@@ -79,7 +79,7 @@ describe("Teams durable personal-recipient evidence", () => {
     expect(message.threadId.endsWith(":personal")).toBe(false);
     const proof = deriveTeamsPersonalRecipient(message, admission);
     expect(proof).toEqual({
-      schema: "paperclip.teams.personal-recipient.v1",
+      schema: "nexus.teams.personal-recipient.v1",
       companyId,
       endpointId,
       runtimeGeneration: 7,
@@ -109,7 +109,7 @@ describe("Teams durable personal-recipient evidence", () => {
       binding,
     );
     expect(bound).toEqual({
-      schema: "paperclip.teams.personal-recipient-binding.v1",
+      schema: "nexus.teams.personal-recipient-binding.v1",
       recipient: proof,
       deliveryId,
       principalId,

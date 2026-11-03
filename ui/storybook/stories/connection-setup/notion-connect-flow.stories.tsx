@@ -7,7 +7,7 @@ import {
   type ConnectionGrant,
   type ConnectionGrantsResponse,
   type ToolConnection,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { Browse } from "@/pages/apps/Browse";
 import { AppLogo } from "@/pages/apps/AppLogo";
@@ -134,7 +134,7 @@ function notionConnection(
     ownership: "dcr",
     transport: "mcp_remote",
     authKind: "oauth",
-    credentialSource: "paperclip_vault",
+    credentialSource: "nexus_vault",
     credentialPolicy: "per_user",
     status: "active",
     transportConfig: { url: "https://mcp.notion.com/mcp" },
@@ -320,7 +320,7 @@ function VercelConnectProvenanceHost() {
           externalCredential: {
             provider: "vercel_connect",
             connectorId: "scl_storybook",
-            connectorUid: "notion-paperclip",
+            connectorUid: "notion-nexus",
             service: "notion",
             connectorType: "oauth",
             principalMode: "user",
@@ -342,7 +342,7 @@ const meta: Meta = {
   id: "apps-notion-mcp-connect-flow-pap-16650",
   title: "Apps, channels, and extensions/Connection setup/Apps/Notion MCP connect flow (PAP-16650)",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "connection-setup/credentials",
         "connection-setup/failure"
@@ -381,7 +381,7 @@ export const ConnectError: Story = {
   render: () => (
     <OAuthStateHost
       phase="error"
-      error="Paperclip couldn’t reach Notion’s authorization service. Check the connection and try again."
+      error="Nexus couldn’t reach Notion’s authorization service. Check the connection and try again."
     />
   ),
 };

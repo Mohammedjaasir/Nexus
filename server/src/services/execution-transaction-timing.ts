@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { beginRunPhase, measureRunPhase } from "./execution-preparation-timing.js";
 
 type Transaction = Parameters<Parameters<Db["transaction"]>[0]>[0];

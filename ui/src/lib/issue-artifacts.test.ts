@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { IssueAttachment, IssueWorkProduct } from "@paperclipai/shared";
+import type { IssueAttachment, IssueWorkProduct } from "@nexusai/shared";
 import {
   documentDisplayTitle,
   getAttachmentBackedWorkProductAttachmentIds,
@@ -47,7 +47,7 @@ function makePromotingWorkProduct(attachmentId: string): IssueWorkProduct {
     executionWorkspaceId: null,
     runtimeServiceId: null,
     type: "artifact",
-    provider: "paperclip",
+    provider: "nexus",
     externalId: null,
     title: "output.png",
     url: null,
@@ -170,7 +170,7 @@ describe("getAttachmentBackedWorkProductAttachmentIds", () => {
     expect(ids).toEqual(new Set([imageId, markdownId]));
   });
 
-  it("ignores non-canonical or non-paperclip work products", () => {
+  it("ignores non-canonical or non-nexus work products", () => {
     const attachmentId = "00000000-0000-4000-8000-000000000003";
     const foreign = { ...makePromotingWorkProduct(attachmentId), provider: "github" };
     const invalid = {

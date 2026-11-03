@@ -31,7 +31,7 @@ export async function prepareCodexObservabilityProfile(input: {
   home: string; runId: string; launch: ProviderObservabilityLaunch; sourceProfile?: string;
 }) {
   if (!/^[A-Za-z0-9_-]+$/.test(input.runId)) throw new Error("Invalid observability run identity");
-  const name = `paperclip-observability-${input.runId}`;
+  const name = `nexus-observability-${input.runId}`;
   const filename = `${name}.config.toml`;
   const file = path.join(input.home, filename);
   let source: Record<string, unknown> = {};

@@ -162,7 +162,7 @@ describe("TaskChatProtocolActivityRow", () => {
       summary: "Searching the task index",
       details: [
         { label: "Transport", value: "mcp" },
-        { label: "Namespace", value: "paperclip", mono: true },
+        { label: "Namespace", value: "nexus", mono: true },
         { label: "Operation", value: "search" },
         { label: "Name", value: "search_tasks", mono: true },
       ],
@@ -173,7 +173,7 @@ describe("TaskChatProtocolActivityRow", () => {
 
     const row = container.querySelector('[data-testid="task-chat-protocol-activity-row"]');
     expect(row?.textContent).toContain("Searched tasks");
-    expect(row?.textContent).toContain("Searching the task index · Paperclip · search_tasks");
+    expect(row?.textContent).toContain("Searching the task index · Nexus · search_tasks");
     expect(row?.textContent).not.toMatch(/Ran a tool|Tool execution|tool call/i);
     expect(row?.querySelector('[data-testid="task-chat-protocol-activity-icon"]')?.querySelectorAll("path")).toHaveLength(3);
   });

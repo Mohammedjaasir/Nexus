@@ -75,7 +75,7 @@ const VIEWS_BY_KEY = new Map<TaskViewKey, TaskView>(
 
 export const DEFAULT_TASK_VIEW: TaskViewKey = "mine";
 export const TASK_VIEW_PARAM = "view";
-export const TASK_LAST_VIEW_KEY = "paperclip:tasks:last-view";
+export const TASK_LAST_VIEW_KEY = "nexus:tasks:last-view";
 
 export function isTaskViewKey(value: unknown): value is TaskViewKey {
   return typeof value === "string" && VIEWS_BY_KEY.has(value as TaskViewKey);

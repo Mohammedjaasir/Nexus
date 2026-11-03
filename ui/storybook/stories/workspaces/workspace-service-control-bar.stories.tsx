@@ -12,7 +12,7 @@ function entry(overrides: Partial<WorkspaceServiceControlEntry> = {}): Workspace
     name: "dev",
     state: "running",
     healthStatus: "healthy",
-    url: "http://paperclip-dev:45439",
+    url: "http://nexus-dev:45439",
     port: 45439,
     canStart: true,
     ...overrides,
@@ -25,7 +25,7 @@ const meta: Meta<typeof WorkspaceServiceControlBar> = {
   component: WorkspaceServiceControlBar,
   parameters: {
     layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "workspaces/services"
       ],

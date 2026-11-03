@@ -1,5 +1,5 @@
 import { trace, SpanStatusCode, type Context, type Span } from "@opentelemetry/api";
-import { getActiveStepContext, runWithRuntimeParent } from "@paperclipai/adapter-utils/acpx-engine/startup-timing";
+import { getActiveStepContext, runWithRuntimeParent } from "@nexusai/adapter-utils/acpx-engine/startup-timing";
 
 const phases = new Set(["runner.transport.cold_start", "runner.transport.resume", "runner.transport.attach", "runner.transport.prepare",
   "runner.transport.turn_start", "runner.transport.started_event", "runner.transport.command_ack", "runner.transport.registration", "runner.transport.provider_identity"]);
@@ -15,7 +15,7 @@ export function measureRunnerOperation<T>(phase: string, work: () => Promise<T>,
   try {
     const bounded = Object.fromEntries(Object.entries(attributes ?? {}).filter(([key,value])=>keys.has(key) &&
       (typeof value === "boolean" || Number.isSafeInteger(value) && value >= 0 && value <= 1e12)));
-    span = trace.getTracer("paperclip.native-runner").startSpan(phase,{attributes:bounded},parent as Context);
+    span = trace.getTracer("nexus.native-runner").startSpan(phase,{attributes:bounded},parent as Context);
     const currentSpan = span;
     const child = trace.setSpan(parent as Context,currentSpan);
     return runWithRuntimeParent(child,once).then(value=>{try {currentSpan.end();}catch{} return value;},error=>{
@@ -36,7 +36,7 @@ export function recordRunnerTimingReceipt(raw: unknown): void {
   const opened: Array<{span:Span; end:number}> = [];
   const end = Date.now(), start=end-runner, sidecarStart=end-sidecar;
   try {
-    const tracer = trace.getTracer("paperclip.native-runner");
+    const tracer = trace.getTracer("nexus.native-runner");
     const root = tracer.startSpan("runner.remote.turn_start",{startTime:start},parent as Context);
     opened.push({span:root,end});
     const rootContext=trace.setSpan(parent as Context,root);

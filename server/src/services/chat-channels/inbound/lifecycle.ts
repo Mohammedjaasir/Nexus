@@ -35,7 +35,7 @@ import {
   teamsConversationId,
 } from "../../chat-control-chronology.js";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatConversations,
@@ -44,10 +44,10 @@ import {
   chatEndpoints,
   chatExternalPrincipals,
   chatMessageLinks,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   ChatProvider,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import { normalizeTelegramRichMessage } from "../../chat-telegram-rich-intake.js";
 
@@ -105,7 +105,7 @@ export function createChatMessageLifecycle(db: Db, options: MessageLifecycleOpti
       .then((rows) => rows[0] ?? null);
     if (exact || !threadId.startsWith("teams:")) return exact;
 
-    // Before Paperclip made Teams route state independent, the adapter
+    // Before Nexus made Teams route state independent, the adapter
     // embedded the mutable Bot Connector serviceUrl in every thread id. Read
     // those rows by the immutable conversation id so a regional route change
     // continues the same task. New rows use the canonical route-free id.
@@ -741,7 +741,7 @@ export function createChatMessageLifecycle(db: Db, options: MessageLifecycleOpti
             return false;
           const invalidatedAt = new Date();
           // Provider authentication proves the exact source changed. The
-          // editor's current Paperclip rights govern admitting new content,
+          // editor's current Nexus rights govern admitting new content,
           // not whether a later regrant can resurrect the stale old source.
           await notifyChatDeliveryWork(tx);
           await tx

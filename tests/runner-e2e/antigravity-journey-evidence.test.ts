@@ -6,7 +6,7 @@ import { antigravityEvidenceFixture, antigravityTurnFixture } from "./antigravit
 import { antigravityPrimaryOwner, gradeAntigravityJourney, gradeAntigravityJourneyTurn, sameAntigravityConversation, selectAntigravityIssueRun, validateAntigravityJourneyEvidence, verifyAntigravityJourneyTurn } from "./antigravity-journey-evidence.js";
 import type { ConnectionApi } from "./connection-target.js";
 import { observeRunProcesses } from "./copilot-local-fixtures.js";
-import { readLinuxProcessStartedAt } from "../../packages/paperclip-runner/src/live/linux-process-start.js";
+import { readLinuxProcessStartedAt } from "../../packages/nexus-runner/src/live/linux-process-start.js";
 
 it("consumes the activity router's public runId summary rather than a full heartbeat row", () => {
   const service = readFileSync(new URL("../../server/src/services/activity.ts", import.meta.url), "utf8");

@@ -1,5 +1,5 @@
 import { and, asc, eq, getTableColumns, lte, sql } from "drizzle-orm";
-import { decisions, type Db } from "@paperclipai/db";
+import { decisions, type Db } from "@nexusai/db";
 import { logActivity, publishActivity, type ActivityPublication } from "./activity-log.js";
 import { writeDecisionChange } from "./decision-work-notifications.js";
 
@@ -41,7 +41,7 @@ export function decisionExpiryService(db: Db, deliverContinuation: (id: string) 
     let expired = 0;
     if (signal?.aborted) return { expired };
     const errors: unknown[] = [];
-    const configuredBatchSize = Number(process.env.PAPERCLIP_DECISIONS_SWEEP_BATCH_SIZE ?? 100);
+    const configuredBatchSize = Number(process.env.NEXUS_DECISIONS_SWEEP_BATCH_SIZE ?? 100);
     const batchSize = Number.isFinite(configuredBatchSize) ? Math.max(1, Math.trunc(configuredBatchSize)) : 100;
     const rows = await due(now, batchSize, recoveryCursor);
     for (const row of rows) {

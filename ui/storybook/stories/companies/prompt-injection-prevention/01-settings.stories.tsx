@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { PromptInjectionPreventionSettingsView } from "@/components/prompt-injection-prevention/PromptInjectionPreventionSettings";
-import { PROMPT_INJECTION_DEFAULT_MODEL } from "@paperclipai/shared";
+import { PROMPT_INJECTION_DEFAULT_MODEL } from "@nexusai/shared";
 import { choices as allChoices } from "../../../support/decision-models/fixtures";
 const choices = allChoices.filter(c => c.provider === "openrouter");
 const empty = { companyId: "company-storybook", enabled: false, connectionId: null, grantId: null, model: PROMPT_INJECTION_DEFAULT_MODEL };
 const configured = { ...empty, enabled: true, connectionId: choices[0]!.id, grantId: choices[0]!.grantId };
 const meta = {
-  parameters: { paperclip: {
+  parameters: { nexus: {
     capabilities: ["companies/prompt-injection-prevention", "connection-setup/identity-and-access", "budgets-costs/cost-reporting"],
     implementation: "production", boundary: "fixtures",
     notes: "Production settings view with simulated save/test callbacks. Covers empty, configured, custom model, disabled, stale connection, saving, testing, success, incorrect verdict, and provider failure. Does not establish provider accuracy or API authorization.",

@@ -4,7 +4,7 @@ import { constants, existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import type { NativeRuntimeContextSnapshot } from "../../vendor/paperclip-runner/index.js";
+import type { NativeRuntimeContextSnapshot } from "../../vendor/nexus-runner/index.js";
 import { openRunnerApiWorkspaceFile, openRunnerWorkspaceFile } from "./runner-api-files.js";
 const relativeFile = z.string().min(1).max(1000).refine(value => !value.includes("\\") && !value.includes("\0") && !path.isAbsolute(value) && value.split("/").every(part => part && part !== "." && part !== ".."), "Use a relative path without traversal");
 const specs = [
@@ -20,7 +20,7 @@ const specs = [
   ["workspace_list", "List entries inside the assigned workspace.", z.object({ path: z.union([relativeFile, z.literal("")]).default(""), after: z.string().optional() }).strict(), "read"],
   ["workspace_read", "Read a UTF-8 workspace file with SHA-256 and byte size. Paginate with nextOffset.", z.object({ path: relativeFile, offset: z.number().int().min(0).default(0) }).strict(), "read"],
   ["workspace_write", "Write a UTF-8 workspace file. expectedSha256 null requires a new file; existing files require the hash from workspace_read. Parent directories must exist. Use a stable call ID.", z.object({ path: relativeFile, text: z.string().max(128000), expectedSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable() }).strict(), "mutation"],
-  ["workspace_run", "Execute a program in an OS sandbox confined to the assigned workspace plus read-only system runtime files. No host home or Paperclip/provider credentials are exposed. Output and time are bounded; authority loss stops the sandbox and its descendants. Use assigned app tools for external services.", z.object({ program: z.string().min(1).max(1000), args: z.array(z.string().max(16000)).max(100).default([]), timeoutMs: z.number().int().min(100).max(120000).default(30000) }).strict(), "mutation"],
+  ["workspace_run", "Execute a program in an OS sandbox confined to the assigned workspace plus read-only system runtime files. No host home or Nexus/provider credentials are exposed. Output and time are bounded; authority loss stops the sandbox and its descendants. Use assigned app tools for external services.", z.object({ program: z.string().min(1).max(1000), args: z.array(z.string().max(16000)).max(100).default([]), timeoutMs: z.number().int().min(100).max(120000).default(30000) }).strict(), "mutation"],
 ] as const;
 export const RUNNER_BRIDGE_READ_OPERATIONS: ReadonlySet<string> = new Set(specs.filter(([, , , effect]) => effect === "read").map(([name]) => name));
 export const RUNNER_BRIDGE_SCHEMAS = new Map<string, z.ZodType>(specs.map(([name, , schema]) => [name, schema]));
@@ -36,13 +36,13 @@ export function runnerBridgeDefinitions(options: { workspace: boolean; skills: b
 }
 const digest = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const PAGE_BYTES = 24000;
-const instanceStateName = (name: string) => name.toLowerCase() === ".paperclip";
+const instanceStateName = (name: string) => name.toLowerCase() === ".nexus";
 /** Instance state is never part of the remotely exposed task workspace. */
 export function assertRunnerWorkspacePathAllowed(name: string) {
   if (name.split(/[\\/]/u).some(instanceStateName)) throw new Error("runner_workspace_instance_state_denied");
 }
 async function protectedWorkspaceDirectories(root: string) {
-  const protectedPaths = new Set([path.join(root, ".paperclip")]);
+  const protectedPaths = new Set([path.join(root, ".nexus")]);
   const pending = [root];
   let scanned = 0;
   while (pending.length) {
@@ -174,9 +174,9 @@ async function executeWorkspaceToolInLane(root: string, name: string, raw: unkno
     return { path: input.path, sha256: digest(bytes), byteSize: bytes.length };
   }
   if (name !== "workspace_run" || !workspaceCommandSandboxAvailable()) throw new Error("runner_workspace_command_sandbox_unavailable");
-  const cwd = await fs.realpath(root), privateHome = path.join(cwd, ".paperclip-dot-home");
+  const cwd = await fs.realpath(root), privateHome = path.join(cwd, ".nexus-dot-home");
   await fs.mkdir(privateHome, { recursive: true, mode: 0o700 });
-  await confined(cwd, ".paperclip-dot-home");
+  await confined(cwd, ".nexus-dot-home");
   // Bubblewrap owns a private PID namespace and an init/reaper. Killing the
   // outer supervisor tears it down even when descendants fork and setsid().
   const program = "/usr/bin/bwrap";

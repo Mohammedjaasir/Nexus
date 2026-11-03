@@ -1,6 +1,6 @@
-import type { Db } from "@paperclipai/db";
-import type { AiConnectionBinding } from "@paperclipai/shared";
-import { AntigravityModelDiscoveryCleanupError, discoverAntigravityModels } from "../vendor/paperclip-runner/index.js";
+import type { Db } from "@nexusai/db";
+import type { AiConnectionBinding } from "@nexusai/shared";
+import { AntigravityModelDiscoveryCleanupError, discoverAntigravityModels } from "../vendor/nexus-runner/index.js";
 import { unprocessable } from "../errors.js";
 import { logger } from "../middleware/logger.js";
 import { prepareManagedAiRuntime } from "./ai-connection-runtime.js";
@@ -21,7 +21,7 @@ export async function antigravityConnectionModels(db: Db, input: {
   const runtime = await prepareManagedAiRuntime(db, {
     companyId: input.companyId, responsibleUserId: input.userId,
     agentId: input.agentId ?? "00000000-0000-0000-0000-000000000000",
-    adapterType: "paperclip_runner", binding: input.binding,
+    adapterType: "nexus_runner", binding: input.binding,
     allowUninstalledPersonal: !input.agentId,
     allowUninstalledShared: input.allowUninstalledShared,
     config: { provider: "acpx", acpxAgent: "antigravity" },

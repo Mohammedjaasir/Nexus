@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { BUNDLED_PLUGIN_CATALOG, resolveBundledCatalogRoot, resolveBundledPluginInstalls, resolveManagedBundledPluginKeys, type ResolvedBundledPlugin } from "./bundled-plugins.js";
 import { readDistributionPluginCatalog } from "./distribution-plugin-catalog.js";
 import { createBundledPluginPackageResolver } from "./bundled-plugin-package.js";

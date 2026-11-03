@@ -1,4 +1,4 @@
-import type { LiveEvent } from "@paperclipai/shared";
+import type { LiveEvent } from "@nexusai/shared";
 
 export const LIVE_DELIVERY_MAX_ITEMS = 1_000;
 export const LIVE_DELIVERY_MAX_BYTES = 1024 * 1024;

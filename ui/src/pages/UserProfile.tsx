@@ -5,7 +5,7 @@ import {
   hidesInstancePage,
   type UserProfileDailyPoint,
   type UserProfileWindowStats,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { Link, useParams } from "@/lib/router";
 import { authApi } from "../api/auth";
 import { userProfilesApi } from "../api/userProfiles";
@@ -238,7 +238,7 @@ export function UserProfile() {
     () =>
       (data?.topAgents ?? []).map((row) => ({
         key: row.agentId ?? "unknown",
-        label: row.agentName ?? (row.agentId ? row.agentId.slice(0, 8) : "Paperclip services"),
+        label: row.agentName ?? (row.agentId ? row.agentId.slice(0, 8) : "Nexus services"),
         sublabel: "Task-linked usage",
         costCents: row.costCents,
         inputTokens: row.inputTokens,

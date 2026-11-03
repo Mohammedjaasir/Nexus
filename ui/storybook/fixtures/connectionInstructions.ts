@@ -1,7 +1,7 @@
-import { defaultConnectionAgentInstructions, getConnectableAppDefinition, instanceExperimentalSettingsSchema } from "@paperclipai/shared";
+import { defaultConnectionAgentInstructions, getConnectableAppDefinition, instanceExperimentalSettingsSchema } from "@nexusai/shared";
 import type { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
-import { storybookAgents } from "./paperclipData";
+import { storybookAgents } from "./nexusData";
 import inventory from "../../../doc/connections/memory-tool-inventory.json";
 
 export const GUIDANCE_COMPANY = "company-storybook";
@@ -25,7 +25,7 @@ export function installConnectionGuidanceFixtures(client: QueryClient, provider:
     healthStatus: "ok", healthMessage: null, requiresReauthorization: false,
     createdByUserId: "user-storybook", createdByAgentId: null,
     agentInstructions: app.agentInstructions ? { ...defaultConnectionAgentInstructions(app.agentInstructions)!, enabled: !options.disabled } : null,
-    config: { methodConfig: { workspaceId: options.missingWorkspace ? "" : "paperclip-acme" }, sourceTemplateKey: app.slug, connectionMethodKey: app.methods[0]?.key, url: app.methods[0]?.defaults?.serverUrl },
+    config: { methodConfig: { workspaceId: options.missingWorkspace ? "" : "nexus-acme" }, sourceTemplateKey: app.slug, connectionMethodKey: app.methods[0]?.key, url: app.methods[0]?.defaults?.serverUrl },
     createdAt: timestamp, updatedAt: timestamp,
   };
   const application = { id: "guidance-app", companyId: company, applicationKey: app.slug, name: app.name, status: "active", metadata: { sourceTemplateKey: app.slug } };
@@ -53,7 +53,7 @@ export function installConnectionGuidanceFixtures(client: QueryClient, provider:
   const gallery = { apps: [app], capabilities };
   const settings = { ...instanceExperimentalSettingsSchema.parse({}), enableMemoryConnectors: true };
   const directory = { users: [{ principalId: "user-storybook", status: "active", user: {
-    id: "user-storybook", email: "board@paperclip.local", name: "Riley Board", image: null,
+    id: "user-storybook", email: "board@nexus.local", name: "Riley Board", image: null,
   } }] };
   client.setQueryData(queryKeys.instance.experimentalSettings, settings);
   const responses = new Map<string, () => unknown>([

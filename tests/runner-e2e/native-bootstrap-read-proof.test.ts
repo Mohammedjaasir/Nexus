@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import { expect, it } from "vitest";
 import { bootstrapReadExecutionId, withoutProvenBootstrapReads, type BootstrapReadNotice } from "./native-bootstrap-read-proof.js";
-const actionFile = `.paperclip-eval-action-${"a".repeat(36)}.txt`;
+const actionFile = `.nexus-eval-action-${"a".repeat(36)}.txt`;
 const origin: BootstrapReadNotice = { runId: "run", sessionId: "session", turnId: "turn", toolCallId: "tested", stage: "tool", operation: "execute", status: "pending", seq: 20 };
 function read(status = "completed", seq = 1): BootstrapReadNotice { return { ...origin, toolCallId: "bootstrap", operation: "read", readTargetSha256: `sha256:${createHash("sha256").update(actionFile).digest("hex")}`, status, seq }; }
 function receipt(type = "completed", status = "completed", seq = 2) {
   return { runId: "run", seq, protocolSchemaVersion: 1, eventType: `tool.execution.${type}`, payload: { prpEvent: {
-    schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", runId: "run", turnId: "turn", eventType: `tool.execution.${type}`, emittedAt: new Date(seq).toISOString(),
-    payload: { schema: "paperclip.tool.execution.v1", executionId: "bootstrap", transport: "builtin", operation: "read", target: actionFile, status },
+    schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", runId: "run", turnId: "turn", eventType: `tool.execution.${type}`, emittedAt: new Date(seq).toISOString(),
+    payload: { schema: "nexus.tool.execution.v1", executionId: "bootstrap", transport: "builtin", operation: "read", target: actionFile, status },
   } } };
 }
 it.each(["completed", "failed"])("accepts an exact %s read even when the first native event is terminal", status => {
@@ -82,8 +82,8 @@ it("accepts omitted terminal path/kind only with the retained single-path origin
 });
 
 it.each(["cursor", "copilot"] as const)("correlates actual %s passive notices through the public reader and canonical omitted-field updates", async provider => {
-  const { createCursorToolEvidence } = await import("../../packages/paperclip-runner/src/drivers/acpx/cursor-tool-evidence.js");
-  const { createCopilotToolEvidence } = await import("../../packages/paperclip-runner/src/drivers/acpx/copilot-tool-evidence.js");
+  const { createCursorToolEvidence } = await import("../../packages/nexus-runner/src/drivers/acpx/cursor-tool-evidence.js");
+  const { createCopilotToolEvidence } = await import("../../packages/nexus-runner/src/drivers/acpx/copilot-tool-evidence.js");
   const { readCursorToolEvidence } = await import("./cursor-native-evidence.js");
   const { readCopilotToolEvidence } = await import("./copilot-evidence.js");
   const create = provider === "cursor" ? createCursorToolEvidence : createCopilotToolEvidence;
@@ -92,7 +92,7 @@ it.each(["cursor", "copilot"] as const)("correlates actual %s passive notices th
     const rows: any[] = [];
     const projector = create({ sessionId: "session", turnId: "turn", workingDirectory: "/workspace", active: () => true,
       emit: event => rows.push({ runId: "run", seq: rows.length * 2 + 1, protocolSchemaVersion: 1, eventType: event.eventType, payload: { prpEvent: {
-        schema: "paperclip.prp.event.v1", schemaVersion: 1, sourceKind: "runner", runId: "run", turnId: "turn", emittedAt: new Date(1).toISOString(), eventType: event.eventType, payload: event.payload,
+        schema: "nexus.prp.event.v1", schemaVersion: 1, sourceKind: "runner", runId: "run", turnId: "turn", emittedAt: new Date(1).toISOString(), eventType: event.eventType, payload: event.payload,
       } } }),
     });
     const path = variant === "wrong-path" ? "private.txt" : actionFile;
@@ -118,7 +118,7 @@ it("accepts bounded correlated progress for status-omitting native content updat
 });
 
 it("requires the exact short Copilot setup path and rejects a miscopied path", () => {
-  const shortPath = ".paperclip-eval-action-4c0217d3b2bb.txt";
+  const shortPath = ".nexus-eval-action-4c0217d3b2bb.txt";
   const notice = { ...read(), readTargetSha256: `sha256:${createHash("sha256").update(shortPath).digest("hex")}` };
   const row = receipt(); row.payload.prpEvent.payload.target = shortPath;
   expect(withoutProvenBootstrapReads([notice, origin], origin, { actionFile: shortPath, events: [row] })).toEqual([origin]);

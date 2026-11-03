@@ -1,4 +1,4 @@
-import { PaperclipApiError } from "./client.js";
+import { NexusApiError } from "./client.js";
 
 type McpTextResponse = {
   content: Array<{ type: "text"; text: string }>;
@@ -16,7 +16,7 @@ export function formatTextResponse(value: unknown): McpTextResponse {
 }
 
 export function formatErrorResponse(error: unknown): McpTextResponse {
-  if (error instanceof PaperclipApiError) {
+  if (error instanceof NexusApiError) {
     return formatTextResponse({
       error: error.message,
       status: error.status,

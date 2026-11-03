@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { getStoredBoardCredential } from "../../cli/src/client/board-auth.js";
-import type { MuseConnection, MuseQualificationEvidence } from "@paperclipai/shared";
+import type { MuseConnection, MuseQualificationEvidence } from "@nexusai/shared";
 import { qualificationReport, qualificationCadence } from "./muse-qualification-report.mjs";
 
 const HOUR = 3_600_000;
@@ -19,7 +19,7 @@ interface State {
   samples: Sample[]; stopped: boolean; interventions: Array<{ kind: string; at: string }>;
 }
 if (process.argv.includes("--help")) {
-  console.log("Muse qualification: start|check|stop|report --state <private-file>\nStart additionally requires --api-base <origin> --company-id <uuid> --agent-id <uuid> --core-revision <sha> --runner-revision <sha> --environment local|cloud|self-hosted --evidence-mode live|synthetic. Authenticate with paperclipai auth login first. The server enforces the 24-hour deadline; schedule check externally. No Muse cookie or API key is accepted.");
+  console.log("Muse qualification: start|check|stop|report --state <private-file>\nStart additionally requires --api-base <origin> --company-id <uuid> --agent-id <uuid> --core-revision <sha> --runner-revision <sha> --environment local|cloud|self-hosted --evidence-mode live|synthetic. Authenticate with nexusai auth login first. The server enforces the 24-hour deadline; schedule check externally. No Muse cookie or API key is accepted.");
   process.exit(0);
 }
 const args = process.argv.slice(2);
@@ -39,14 +39,14 @@ function origin(input: string) {
 }
 async function request<T>(state: Pick<State, "apiBase">, method: string, path: string, body?: unknown): Promise<T> {
   const credential = getStoredBoardCredential(state.apiBase);
-  if (!credential) throw new Error("Run paperclipai auth login for the selected API origin first");
+  if (!credential) throw new Error("Run nexusai auth login for the selected API origin first");
   const response = await fetch(state.apiBase + "/api" + path, { method,
     headers: { Authorization: `Bearer ${credential.token}`, "Content-Type": "application/json", Accept: "application/json", Origin: state.apiBase },
     body: body === undefined ? undefined : JSON.stringify(body), redirect: "error", signal: AbortSignal.timeout(25_000) });
-  if (!response.ok) throw new Error(`Paperclip returned HTTP ${response.status}; the sample remains recorded`);
+  if (!response.ok) throw new Error(`Nexus returned HTTP ${response.status}; the sample remains recorded`);
   if (response.status === 204) return undefined as T;
-  if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("Paperclip did not return protocol JSON");
-  const reader = response.body?.getReader(); if (!reader) throw new Error("Empty Paperclip response");
+  if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("Nexus did not return protocol JSON");
+  const reader = response.body?.getReader(); if (!reader) throw new Error("Empty Nexus response");
   const chunks: Uint8Array[] = []; let bytes = 0;
   for (;;) {
     const { value, done } = await reader.read(); if (done) break;
@@ -154,7 +154,7 @@ async function tick(state: State, stop = false) {
   if (creating && !state.stopped && !expired && scheduledHour && creating.slot === hour && healthy) {
     const title = `Muse qualification sample ${creating.slot}`;
     const issue = await request<{ id: string; createdAt: string }>(state, "POST", `/companies/${state.companyId}/issues`, {
-      title, description: `Unattended personal Muse receiver qualification, sample ${creating.slot}. Save a short Markdown task document with key report explaining which sample arrived and that it was received through the installed Paperclip receiver. Use only Paperclip task tools; no external service or unrelated changes. Complete this task through the native runner after saving the document.`,
+      title, description: `Unattended personal Muse receiver qualification, sample ${creating.slot}. Save a short Markdown task document with key report explaining which sample arrived and that it was received through the installed Nexus receiver. Use only Nexus task tools; no external service or unrelated changes. Complete this task through the native runner after saving the document.`,
       status: "todo", assigneeAgentId: state.agentId, idempotencyKey: `muse-qualification:${state.qualificationId}:${creating.slot}`,
     });
     creating.issueId = issue.id; creating.queuedAt = issue.createdAt; await save(state);

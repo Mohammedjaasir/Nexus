@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { agents, applyPendingMigrations, companies, createDb, executionWorkspaceRestorePoints, executionWorkspaces, heartbeatRuns, issues, projects, projectWorkspaces } from "@paperclipai/db";
+import { agents, applyPendingMigrations, companies, createDb, executionWorkspaceRestorePoints, executionWorkspaces, heartbeatRuns, issues, projects, projectWorkspaces } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { materializeManagedProjectWorkspace } from "../services/managed-repository-checkout.js";
 import { materializeIsolatedRemoteWorkspaceSource } from "../services/isolated-remote-workspace-source.js";
@@ -46,23 +46,23 @@ describe("nested clone migration batches", () => {
 
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_NESTED_CLONE_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_NESTED_CLONE_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = support.supported ? describe : describe.skip;
 describeEmbeddedPostgres("nested repository clone migration", () => {
   let db: ReturnType<typeof createDb>;
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
   let root: string;
-  const previousHome = process.env.PAPERCLIP_HOME;
-  const previousInstance = process.env.PAPERCLIP_INSTANCE_ID;
+  const previousHome = process.env.NEXUS_HOME;
+  const previousInstance = process.env.NEXUS_INSTANCE_ID;
   beforeAll(async () => {
     if (external) await applyPendingMigrations(external);
     else database = await startEmbeddedPostgresTestDatabase("nested-clone-migration-");
     db = createDb(external ?? database!.connectionString);
-    root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-nested-migration-"));
-    process.env.PAPERCLIP_HOME = path.join(root, "home");
-    process.env.PAPERCLIP_INSTANCE_ID = "default";
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "51".repeat(32));
+    root = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-nested-migration-"));
+    process.env.NEXUS_HOME = path.join(root, "home");
+    process.env.NEXUS_INSTANCE_ID = "default";
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "51".repeat(32));
   });
   afterEach(async () => {
     await db.delete(executionWorkspaceRestorePoints);
@@ -70,8 +70,8 @@ describeEmbeddedPostgres("nested repository clone migration", () => {
   });
   afterAll(async () => {
     vi.unstubAllEnvs();
-    if (previousHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previousHome;
-    if (previousInstance === undefined) delete process.env.PAPERCLIP_INSTANCE_ID; else process.env.PAPERCLIP_INSTANCE_ID = previousInstance;
+    if (previousHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = previousHome;
+    if (previousInstance === undefined) delete process.env.NEXUS_INSTANCE_ID; else process.env.NEXUS_INSTANCE_ID = previousInstance;
     await db.$client.end({ timeout: 1 }); await database?.cleanup(); await fs.rm(root, { recursive: true, force: true });
   });
 
@@ -105,12 +105,12 @@ describeEmbeddedPostgres("nested repository clone migration", () => {
       const base = { baseCwd, source: "task_session" as const, projectId: null, workspaceId: null, repoUrl: main.url, repoRef: "origin/main" };
       const realized = await realizeExecutionWorkspace({ base, issue: { id: issueId, identifier: `NM-${label}`, title: "Fixture" },
         agent: { id: null, name: "Fixture", companyId }, skipHostProvision: true,
-        config: { workspaceStrategy: { type: "git_worktree", branchTemplate: `task-${label}`, worktreeParentDir: path.join(baseCwd, ".paperclip", "worktrees"), baseRef: "origin/main" } } });
+        config: { workspaceStrategy: { type: "git_worktree", branchTemplate: `task-${label}`, worktreeParentDir: path.join(baseCwd, ".nexus", "worktrees"), baseRef: "origin/main" } } });
       await db.insert(executionWorkspaces).values({ id: workspaceId, companyId, projectId, sourceIssueId: issueId, mode: "isolated_workspace",
         strategyType: "git_worktree", name: `Task ${label}`, status: "active", providerType: "local_fs", cwd: realized.cwd, providerRef: realized.cwd,
         repoUrl: main.url, baseRef: "origin/main", branchName: realized.branchName,
         metadata: { createdByRuntime: realized.branchCreatedByRuntime, gitBranchOwnershipVersion: 1, baseRefSha: realized.baseRefSha,
-          isolatedRemoteSource: { schema: "paperclip.isolated-remote-source.v1", companyId, issueId, repoUrl: main.url } } });
+          isolatedRemoteSource: { schema: "nexus.isolated-remote-source.v1", companyId, issueId, repoUrl: main.url } } });
       await db.update(issues).set({ executionWorkspaceId: workspaceId }).where(eq(issues.id, issueId));
       const [prepared] = await prepareProjectRepositoryWorkspaces({ cwd: realized.cwd, anchorRepoUrl: main.url, workspaces: [source!], resolveGitAuth: noAuth });
       const checkout = await fs.realpath(prepared!.cwd);

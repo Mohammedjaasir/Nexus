@@ -3,7 +3,7 @@ import { toolAccessService } from "../services/tool-access.js";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { applyPendingMigrations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, agents, chatConversations, chatEndpoints, chatVoiceSessions, companies, createDb, issues, subscribeDatabaseWork, toolApplications, toolConnections } from "@paperclipai/db";
+import { applyPendingMigrations, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS, agents, chatConversations, chatEndpoints, chatVoiceSessions, companies, createDb, issues, subscribeDatabaseWork, toolApplications, toolConnections } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
@@ -14,7 +14,7 @@ import { registerVoiceRecoveryWork } from "../services/voice/voice-recovery-work
 import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { notifyVoiceRecovery, withVoiceSessionChange } from "../services/voice/voice-recovery-notifications.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_VOICE_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_VOICE_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("voice session recovery lifecycle", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -38,7 +38,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     fixtureCompanies.push(companyId);
     const applicationId = randomUUID(), connectionId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Voice recovery", issuePrefix: `V${companyId.slice(0, 7)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Voice", adapterType: "paperclip_runner" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Voice", adapterType: "nexus_runner" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Voice", assigneeAgentId: agentId, status: "in_progress" });
     await db.insert(toolApplications).values({ id: applicationId, companyId, name: "Voice", type: "chat" });
     await db.insert(toolConnections).values({ id: connectionId, companyId, applicationId, name: "Voice", uid: connectionId, transport: "voice", connectionPurpose: "channel", config: { provider: "speko" }, enabled: true, status: "active" });

@@ -10,7 +10,7 @@ export const agentConfigurationDoc = `# pi_local agent configuration
 Adapter: pi_local
 
 Use when:
-- You want Paperclip to run Pi (the AI coding agent) locally as the agent runtime
+- You want Nexus to run Pi (the AI coding agent) locally as the agent runtime
 - You want provider/model routing in Pi format (--provider <name> --model <id>)
 - You want Pi session resume across heartbeats via --session
 - You need Pi's tool set (read, bash, edit, write, grep, find, ls)
@@ -33,13 +33,13 @@ Operational fields:
 - timeoutSec (number, optional): run timeout in seconds
 - graceSec (number, optional): SIGTERM grace period in seconds
 - stdoutLogMode (string, optional, default "compact"): controls how Pi --mode json stdout is
-  compacted before entering the Paperclip run log. Pi emits cumulative state
+  compacted before entering the Nexus run log. Pi emits cumulative state
   in every message_update event, which makes run logs grow ~quadratically.
   Modes:
   - "raw": legacy passthrough, no filtering (full transcript; large logs).
   - "compact" (default): strips cumulative copies (message_update.message,
     assistantMessageEvent.partial), converts tool_execution_update to a
-    throttled content-free Paperclip progress event. Streaming deltas are
+    throttled content-free Nexus progress event. Streaming deltas are
     preserved — parsePiJsonl output and live UI typing are unchanged.
   In compact mode, if a run is terminated before tool_execution_end, its
   partial tool output is not retained; use "raw" when full forensic output is required.
@@ -49,8 +49,8 @@ Operational fields:
 
 Notes:
 - Pi supports multiple providers and models. Use \`pi --list-models\` to list available options.
-- Paperclip requires an explicit \`model\` value for \`pi_local\` agents.
-- Sessions are stored in ~/.pi/paperclips/ and resumed with --session.
+- Nexus requires an explicit \`model\` value for \`pi_local\` agents.
+- Sessions are stored in ~/.pi/nexuss/ and resumed with --session.
 - All tools (read, bash, edit, write, grep, find, ls) are enabled by default.
 - Agent instructions are appended to Pi's system prompt via --append-system-prompt, while the user task is sent via -p.
 `;

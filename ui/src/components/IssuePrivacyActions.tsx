@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Globe, Lock, Users } from "lucide-react";
-import type { Issue, IssueVisibility } from "@paperclipai/shared";
+import type { Issue, IssueVisibility } from "@nexusai/shared";
 import {
   AlertDialog,
   AlertDialogAction,

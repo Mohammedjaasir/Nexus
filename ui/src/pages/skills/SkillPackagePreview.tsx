@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, FileImage, AlertTriangle } from 'lucide-react';
-import type { SkillSourceDiscoveryRequest, SkillRepositoryPackage } from '@paperclipai/shared';
+import type { SkillSourceDiscoveryRequest, SkillRepositoryPackage } from '@nexusai/shared';
 import { skillSourcesApi } from '@/api/skillSources';
 import { queryKeys } from '@/lib/queryKeys';
 import { FileTree, buildFileTree, collectAllPaths } from '@/components/FileTree';

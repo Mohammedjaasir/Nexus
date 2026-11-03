@@ -161,7 +161,7 @@ export function ReviewIndex() {
         Use example credentials only. In the recovery demo, “invalid” simulates
         rejection. Stories reset on navigation. Local state and intercepted
         fixture APIs keep credentials, tests, and settings in the preview;
-        nothing is sent to a provider or Paperclip server.
+        nothing is sent to a provider or Nexus server.
       </p>
     </Surface>
   );

@@ -8,7 +8,7 @@ if (process.argv[2] === "root") {
   spawn(process.execPath, [fileURLToPath(import.meta.url), "grandchild", String(process.pid)], { stdio: "inherit" });
   for (const signal of ["SIGTERM", "SIGINT"]) process.on(signal, () => process.exit(0));
 } else {
-  const sql = postgres(process.env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL, { max: 1 });
+  const sql = postgres(process.env.NEXUS_TEST_POSTGRES_ADMIN_URL, { max: 1 });
   await sql`SELECT 1`;
   fs.writeFileSync(process.env.TEST_COMMAND_TREE_READY, JSON.stringify({ root: Number(process.argv[3]), grandchild: process.pid }));
   let stopping = false;

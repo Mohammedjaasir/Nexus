@@ -5,7 +5,7 @@ import { flushSync } from "react-dom";
 import { useState, type AnchorHTMLAttributes, type ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AttentionItem, AttentionSourceKind } from "@paperclipai/shared";
+import type { AttentionItem, AttentionSourceKind } from "@nexusai/shared";
 import { approvalsApi } from "../api/approvals";
 import { ApiError } from "../api/client";
 import { issuesApi } from "../api/issues";
@@ -395,7 +395,7 @@ describe("AttentionQueueRow", () => {
             kind: "issue",
             id: "i1",
             companyId: "c1",
-            title: "Update primary paperclip instance",
+            title: "Update primary nexus instance",
             identifier: "PAP-23",
             status: "blocked",
             href: "/PAP/issues/PAP-23",
@@ -426,7 +426,7 @@ describe("AttentionQueueRow", () => {
             kind: "issue",
             id: "i1",
             companyId: "c1",
-            title: "Update primary paperclip instance",
+            title: "Update primary nexus instance",
             identifier: "PAP-23",
             status: "blocked",
             href: "/PAP/issues/PAP-23",

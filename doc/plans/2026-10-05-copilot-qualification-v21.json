@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.copilot.qualification-progress/v1",
+  "schema": "nexus.copilot.qualification-progress/v1",
   "status": "Historical v21 evidence; superseded by the unfrozen v22 master integration; production remains gated",
   "updatedAt": "2026-10-05T19:03:10.191470+00:00",
   "productionAdmission": "gated",
@@ -391,7 +391,7 @@
         "server/src/__tests__/workspace-runtime-exposure-reservation.test.ts",
         "server/src/__tests__/photon/photon.test.ts",
         "server/src/__tests__/photon/channel.integration.test.ts",
-        "server/src/__tests__/paperclip-skill-utils.test.ts"
+        "server/src/__tests__/nexus-skill-utils.test.ts"
       ],
       "status": "failed",
       "exitCode": 1,
@@ -505,7 +505,7 @@
     "sha256": "sha256:de5c8eb7357f4f450fe6305a814bbe010e9d680880ea5cd3545e0a0ea79bf2c0"
   },
   "qualificationOnlyAmendments": {
-    "packages/paperclip-runner/test/acpx-codex-package-contract.test.mjs": {
+    "packages/nexus-runner/test/acpx-codex-package-contract.test.mjs": {
       "sha256": "sha256:97c0eef3c1261b5a931fa6c3fd1de6a3b5afd39dd6a88c8ed4dea1f82d5e713a",
       "patchPath": "/tmp/copilot-production-campaign-v21/qualification-package-contract-amendment.patch",
       "patchSha256": "sha256:003a101f0b66a7e2493d8de2a27f67b0bc191c6483e838a9bb00dea1c2c467ec",

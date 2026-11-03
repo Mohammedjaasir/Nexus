@@ -8,7 +8,7 @@ import { notifyChatPublicationWork } from "../../chat-work-notifications.js";
 
 import { type CredentialMutationLeaseGuard } from "../../chat-credential-mutation-lease.js";
 
-import { chatGitHubConfigurations } from "@paperclipai/db";
+import { chatGitHubConfigurations } from "@nexusai/db";
 
 import { githubResponseCommentService } from "../../chat-github-response-comments.js";
 
@@ -24,7 +24,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 import {
   chatActions,
@@ -32,10 +32,10 @@ import {
   heartbeatRuns,
   nativeRunFinalizations,
   issueComments,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   SafeChatPublicationPayload,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 
 import {
   NativeChatReviewPresentationContentionError,
@@ -193,7 +193,7 @@ export function createGitHubPublicationPolicy(db: Db, options: GitHubPublication
       if (prepared) return publication.payload.text;
       const text = publication.payload.text.includes(taskUrl)
         ? publication.payload.text
-        : `${publication.payload.text}\n\n[Open this Paperclip task](${taskUrl})`;
+        : `${publication.payload.text}\n\n[Open this Nexus task](${taskUrl})`;
       await tx.insert(chatActions).values({
         companyId: publication.companyId,
         endpointId: publication.endpointId,

@@ -7,9 +7,9 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Readable } from "node:stream";
 import { and, eq } from "drizzle-orm";
-import { environments, environmentLeases, executionWorkspaces, type Db } from "@paperclipai/db";
-import type { Environment, EnvironmentLease, WorkspaceFileListMode, WorkspaceFileSource } from "@paperclipai/shared";
-import { readRemoteWorkspaceAuthority } from "@paperclipai/shared";
+import { environments, environmentLeases, executionWorkspaces, type Db } from "@nexusai/db";
+import type { Environment, EnvironmentLease, WorkspaceFileListMode, WorkspaceFileSource } from "@nexusai/shared";
+import { readRemoteWorkspaceAuthority } from "@nexusai/shared";
 import { HttpError, notFound, unprocessable } from "../errors.js";
 import type { EnvironmentRuntimeService } from "./environment-runtime.js";
 import { hasRemoteTerminationReceipt } from "./remote-execution-termination.js";
@@ -87,7 +87,7 @@ const { createHash } = require('node:crypto');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const input = JSON.parse(process.argv[1]);
-const denied = new Set(['.git','.paperclip','.paperclip-runtime','node_modules','.pnpm-store','.yarn','.cache','.turbo','.next','.vite','.vercel','dist','build','coverage','runtime-services','.runtime']);
+const denied = new Set(['.git','.nexus','.nexus-runtime','node_modules','.pnpm-store','.yarn','.cache','.turbo','.next','.vite','.vercel','dist','build','coverage','runtime-services','.runtime']);
 const fail = code => { const error = new Error(code); error.code = code; throw error; };
 const deniedPath = relative => {
   const parts = relative.toLowerCase().split('/');
@@ -365,7 +365,7 @@ export function createRemoteWorkspaceFiles(db: Db, options: RemoteWorkspaceFileO
           const file = path.join(root, ...relativePath.split("/"));
           return { stream: createReadStream(file), byteSize: expected.byteSize!, cleanup: async () => {} };
         }
-        const directory = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-workspace-file-"));
+        const directory = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-workspace-file-"));
         const cleanup = async () => { await fs.rm(directory, { recursive: true, force: true }); };
         try {
           await options.environmentRuntime!.syncOut({ environment: environment!, lease: lease!, operations: [{

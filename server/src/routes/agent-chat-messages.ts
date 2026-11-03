@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { forbidden } from "../errors.js";
 import { sendAgentChatMessage } from "../services/agent-chat-messages.js";
 import { assertCompanyAccess } from "./authz.js";

@@ -34,7 +34,7 @@ function makeRoot() {
   mkdirSync(path.join(root, "ui/src"), { recursive: true });
   mkdirSync(path.join(root, "ui/storybook/stories/design-proposals"), { recursive: true });
   mkdirSync(path.join(root, "scripts"), { recursive: true });
-  writeFileSync(path.join(root, ".claude/launch.json"), `${JSON.stringify({ version: "0.0.1", configurations: [{ name: "paperclip", port: 3121 }] }, null, 2)}\n`);
+  writeFileSync(path.join(root, ".claude/launch.json"), `${JSON.stringify({ version: "0.0.1", configurations: [{ name: "nexus", port: 3121 }] }, null, 2)}\n`);
   writeFileSync(path.join(root, ".gitignore"), "node_modules\ndist/\ndist-flow-preview/\nserver/ui-dist/\n");
   writeFileSync(path.join(root, "scripts/storybook-catalog.mjs"), `const sentence = "${MODE_A_SENTENCE}";\n`);
   return root;
@@ -337,13 +337,13 @@ describe("rendering the three eval shapes", () => {
     }
   });
 
-  it("registers the story with the literal paperclip block last and the stable exports", () => {
+  it("registers the story with the literal nexus block last and the stable exports", () => {
     const story = readFileSync(path.join(root, "ui/storybook/stories/design-proposals/composer-directions.stories.tsx"), "utf8");
     assert.ok(story.includes('id: "design-composer-directions"'));
     assert.ok(story.includes('title: "Design proposals/Components/Composer directions/Compare"'));
     assert.ok(story.includes('status: "proposed"') && story.includes('home: "design-proposals"') && story.includes('implementation: "prototype"') && story.includes('boundary: "fixtures"'));
     assert.ok(story.includes("exception: \"Design directory entry for Composer: the shipped baseline and 3 proposed directions compared on static mocks of Task-thread and Right-panel.\""));
-    assert.ok(/paperclip: \{[\s\S]*?\n    \},\n  \},\n\} satisfies Meta/.test(story), "paperclip is the last parameter");
+    assert.ok(/nexus: \{[\s\S]*?\n    \},\n  \},\n\} satisfies Meta/.test(story), "nexus is the last parameter");
     for (const name of ["Compare", "Today", "D1", "D2", "D3", "TodayProductionPalette"]) assert.ok(new RegExp(`^export const ${name}: Story`, "m").test(story), name);
     assert.ok(story.includes("parameters: { designProposalTheme: false }"));
     const two = readFileSync(path.join(root, "ui/storybook/stories/design-proposals/inbox-row-directions.stories.tsx"), "utf8");
@@ -353,7 +353,7 @@ describe("rendering the three eval shapes", () => {
   it("adds two launch entries per lab and one gitignore line after the anchor", () => {
     const launch = JSON.parse(readFileSync(path.join(root, ".claude/launch.json"), "utf8"));
     const names = launch.configurations.map((entry) => entry.name);
-    assert.deepEqual(names, ["paperclip", "composer-directions-dev", "composer-directions", "inbox-row-directions-dev", "inbox-row-directions", "agent-profile-card-directions-dev", "agent-profile-card-directions"]);
+    assert.deepEqual(names, ["nexus", "composer-directions-dev", "composer-directions", "inbox-row-directions-dev", "inbox-row-directions", "agent-profile-card-directions-dev", "agent-profile-card-directions"]);
     const dev = launch.configurations.find((entry) => entry.name === "composer-directions-dev");
     assert.deepEqual(dev, { name: "composer-directions-dev", runtimeExecutable: "/bin/sh", runtimeArgs: ["-c", "cd ui && npx vite --config vite.composer-directions.config.mjs --port 5200 --strictPort"], port: 5200 });
     const preview = launch.configurations.find((entry) => entry.name === "composer-directions");

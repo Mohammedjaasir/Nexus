@@ -1,12 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { agents, caseAccessSources, caseEvents, caseHandoffs, caseIssueLinks, cases, chatConversations, companies, heartbeatRuns, issues, projects } from "@paperclipai/db";
-import { handoffCaseSchema, isUuidLike, type DoneCaseHandoffInput, type HandoffCaseInput, type HandoffCaseResult } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { agents, caseAccessSources, caseEvents, caseHandoffs, caseIssueLinks, cases, chatConversations, companies, heartbeatRuns, issues, projects } from "@nexusai/db";
+import { handoffCaseSchema, isUuidLike, type DoneCaseHandoffInput, type HandoffCaseInput, type HandoffCaseResult } from "@nexusai/shared";
 import { conflict, forbidden, HttpError, notFound, unprocessable } from "../errors.js";
 import { assertAgentRunWriteAllowed } from "../agent-run-cancellation.js";
 import { withExternalAdmissionGuard, type ExternalAdmissionTransaction } from "../modules/external-agents/index.js";
-import { parseNativeExecutionInput } from "../vendor/paperclip-runner/index.js";
+import { parseNativeExecutionInput } from "../vendor/nexus-runner/index.js";
 import { assertAssignableAgent } from "./agent-assignability.js";
 import { persistActivity, publishActivity, type ActivityPublication } from "./activity-log.js";
 import { authorizationService, type AuthorizationActor } from "./authorization.js";
@@ -452,7 +452,7 @@ export function caseHandoffService(db: Db) {
         if (!caseRow) {
           const create = "create" in input.case ? input.case.create : null;
           if (!create) throw notFound("Case not found");
-          await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`paperclip:cases:${companyId}`}))`);
+          await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`nexus:cases:${companyId}`}))`);
           const [company] = await tx.select({ prefix: companies.issuePrefix }).from(companies).where(eq(companies.id, companyId));
           if (!company) throw notFound("Company not found");
           const [max] = await tx.select({ number: sql<number>`coalesce(max(${cases.caseNumber}), 0)` }).from(cases).where(eq(cases.companyId, companyId));

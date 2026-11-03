@@ -13,7 +13,7 @@ async function openActions(canvasElement: HTMLElement, name: string, profile = f
 const maiaProfile = { initialEntries: ["/PAP/agents/maia"] };
 export default { id: "primary-agent-06-journeys",
   title: "Agents and reusable capabilities/Hiring, configuration, and organization/Primary Agent/06 Journeys", decorators: [primaryDecorator], parameters: { ...primaryParameters, initialEntries: ["/PAP/agents/alex"],
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agents/primary-agent",
         "tasks/create",

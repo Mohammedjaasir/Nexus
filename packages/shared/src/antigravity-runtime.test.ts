@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { agentHarnessType, agentRuntimeSettingsHarness, paperclipRunnerProfileForHarness } from "./agent-runner.js";
+import { agentHarnessType, agentRuntimeSettingsHarness, nexusRunnerProfileForHarness } from "./agent-runner.js";
 import { aiConnectionMetadataSchema, isAiConnectionCompatible } from "./ai-connections.js";
 import { aiRoutingHarness } from "./ai-provider-routing.js";
 
 describe("Antigravity native runtime identity and credentials", () => {
   const config = { provider: "acpx", acpxAgent: "antigravity" };
   const compatible = (connection: Parameters<typeof isAiConnectionCompatible>[0]) =>
-    isAiConnectionCompatible(connection, "paperclip_runner", "exact-model", "acpx", "antigravity");
+    isAiConnectionCompatible(connection, "nexus_runner", "exact-model", "acpx", "antigravity");
 
   it("uses a native harness identity without a legacy adapter transition", () => {
-    expect(agentHarnessType("paperclip_runner", config)).toBe("antigravity_runtime");
-    expect(agentRuntimeSettingsHarness("paperclip_runner", config)).toBe("antigravity_runtime");
-    expect(aiRoutingHarness("paperclip_runner", "acpx", "antigravity")).toBe("antigravity_runtime");
-    expect(paperclipRunnerProfileForHarness("antigravity_runtime")).toBeUndefined();
+    expect(agentHarnessType("nexus_runner", config)).toBe("antigravity_runtime");
+    expect(agentRuntimeSettingsHarness("nexus_runner", config)).toBe("antigravity_runtime");
+    expect(aiRoutingHarness("nexus_runner", "acpx", "antigravity")).toBe("antigravity_runtime");
+    expect(nexusRunnerProfileForHarness("antigravity_runtime")).toBeUndefined();
   });
 
   it("accepts Google runtime sign-in and API keys without tool OAuth or custom endpoints", () => {

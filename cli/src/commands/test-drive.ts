@@ -5,8 +5,8 @@ import { createServer } from "node:net";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { Option, type Command } from "commander";
-import type { Agent, Company, InstanceExperimentalSettings } from "@paperclipai/shared";
-import { PaperclipApiClient } from "../client/http.js";
+import type { Agent, Company, InstanceExperimentalSettings } from "@nexusai/shared";
+import { NexusApiClient } from "../client/http.js";
 import { openUrl } from "../client/board-auth.js";
 import {
   expandHomePrefix,
@@ -14,7 +14,7 @@ import {
   resolveDefaultContextPath,
 } from "../config/home.js";
 import { readConfig } from "../config/store.js";
-import type { PaperclipConfig } from "../config/schema.js";
+import type { NexusConfig } from "../config/schema.js";
 import { runCommand, type StartedServer } from "./run.js";
 import { isLinkedGitWorktree } from "./git-workspace.js";
 
@@ -32,7 +32,7 @@ export interface TestDriveOptions {
   browser?: boolean;
 }
 
-export type TestDriveApi = Pick<PaperclipApiClient, "get" | "post" | "patch" | "delete">;
+export type TestDriveApi = Pick<NexusApiClient, "get" | "post" | "patch" | "delete">;
 
 type HarnessDefinition = {
   adapterType: "claude_local" | "codex_local" | "opencode_local";
@@ -78,7 +78,7 @@ const HARNESS_DEFINITIONS: Record<TestDriveHarness, HarnessDefinition> = {
   },
 };
 
-const NON_PAPERCLIP_ISOLATED_ENV_KEYS = [
+const NON_NEXUS_ISOLATED_ENV_KEYS = [
   "DATABASE_URL",
   "DATABASE_MIGRATION_URL",
   "HOST",
@@ -90,7 +90,7 @@ const NON_PAPERCLIP_ISOLATED_ENV_KEYS = [
 
 function requiredApiResult<T>(value: T | null, action: string): T {
   if (value === null) {
-    throw new Error(`Paperclip returned no result while ${action}.`);
+    throw new Error(`Nexus returned no result while ${action}.`);
   }
   return value;
 }
@@ -136,7 +136,7 @@ export function resolveTestDriveDataDir(dataDir?: string): string {
   if (explicit) {
     return path.resolve(expandHomePrefix(explicit));
   }
-  return fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-test-drive-"));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "nexus-test-drive-"));
 }
 
 async function loopbackPortAvailable(port: number): Promise<boolean> {
@@ -163,7 +163,7 @@ export async function resolveTestDriveServerPort(preferredPort = 3100, available
 /**
  * Establish isolation before the CLI's normal config and .env loading hook.
  * The selected credential source is preserved in case its name happens to use
- * a PAPERCLIP_ prefix; all other Paperclip routing/configuration is discarded.
+ * a NEXUS_ prefix; all other Nexus routing/configuration is discarded.
  */
 export async function prepareTestDriveEnvironment(
   options: Pick<TestDriveOptions, "dataDir" | "apiKeyEnv">,
@@ -173,11 +173,11 @@ export async function prepareTestDriveEnvironment(
   const preservedCredential = sourceEnvName ? process.env[sourceEnvName] : undefined;
 
   for (const key of Object.keys(process.env)) {
-    if (key.startsWith("PAPERCLIP_")) {
+    if (key.startsWith("NEXUS_")) {
       delete process.env[key];
     }
   }
-  for (const key of NON_PAPERCLIP_ISOLATED_ENV_KEYS) {
+  for (const key of NON_NEXUS_ISOLATED_ENV_KEYS) {
     delete process.env[key];
   }
   if (sourceEnvName && preservedCredential !== undefined) {
@@ -186,20 +186,20 @@ export async function prepareTestDriveEnvironment(
 
   const dataDir = resolveTestDriveDataDir(options.dataDir);
   const linkedWorktree = isLinkedGitWorktree(cwd);
-  process.env.PAPERCLIP_HOME = dataDir;
-  process.env.PAPERCLIP_INSTANCE_ID = "default";
-  process.env.PAPERCLIP_CONFIG = resolveDefaultConfigPath("default");
-  process.env.PAPERCLIP_CONTEXT = resolveDefaultContextPath();
-  process.env.PAPERCLIP_IN_WORKTREE = linkedWorktree ? "true" : "false";
-  process.env.PAPERCLIP_OPEN_ON_LISTEN = "false";
-  process.env.PAPERCLIP_DISABLE_CWD_ENV_FILE = "true";
-  process.env.PAPERCLIP_DEPLOYMENT_MODE = "local_trusted";
-  process.env.PAPERCLIP_DEPLOYMENT_EXPOSURE = "private";
-  process.env.PAPERCLIP_BIND = "loopback";
+  process.env.NEXUS_HOME = dataDir;
+  process.env.NEXUS_INSTANCE_ID = "default";
+  process.env.NEXUS_CONFIG = resolveDefaultConfigPath("default");
+  process.env.NEXUS_CONTEXT = resolveDefaultContextPath();
+  process.env.NEXUS_IN_WORKTREE = linkedWorktree ? "true" : "false";
+  process.env.NEXUS_OPEN_ON_LISTEN = "false";
+  process.env.NEXUS_DISABLE_CWD_ENV_FILE = "true";
+  process.env.NEXUS_DEPLOYMENT_MODE = "local_trusted";
+  process.env.NEXUS_DEPLOYMENT_EXPOSURE = "private";
+  process.env.NEXUS_BIND = "loopback";
   process.env.HOST = "127.0.0.1";
   let preferredPort = 3100;
   try {
-    preferredPort = readConfig(process.env.PAPERCLIP_CONFIG)?.server.port ?? preferredPort;
+    preferredPort = readConfig(process.env.NEXUS_CONFIG)?.server.port ?? preferredPort;
   } catch {
     // The normal startup doctor owns invalid-config diagnostics and repair.
   }
@@ -213,7 +213,7 @@ export async function prepareTestDriveEnvironment(
 export function assertTestDriveDatabaseIsolation(
   configPath?: string,
   env: NodeJS.ProcessEnv = process.env,
-  readConfigFile: (path?: string) => PaperclipConfig | null = readConfig,
+  readConfigFile: (path?: string) => NexusConfig | null = readConfig,
 ): void {
   if (env.DATABASE_URL?.trim() || env.DATABASE_MIGRATION_URL?.trim()) {
     throw new Error(
@@ -321,8 +321,8 @@ export async function reconcileTestDriveWorktreeExecution(
   );
   if (!worktreeExecutionArmed(verified, instanceId)) {
     throw new Error(
-      `Could not arm “Run tasks in this worktree” for Paperclip instance ${instanceId}. ` +
-        "Check that PAPERCLIP_IN_WORKTREE=true and retry the command.",
+      `Could not arm “Run tasks in this worktree” for Nexus instance ${instanceId}. ` +
+        "Check that NEXUS_IN_WORKTREE=true and retry the command.",
     );
   }
 }
@@ -414,16 +414,16 @@ export async function testDriveCommand(
   options: TestDriveOptions,
   dependencies: TestDriveDependencies = {
     run: runCommand,
-    createApi: (apiBase) => new PaperclipApiClient({ apiBase }),
+    createApi: (apiBase) => new NexusApiClient({ apiBase }),
     openBrowser: openUrl,
   },
 ): Promise<void> {
   // Commander has already copied the value into options. Remove it from the
   // JavaScript argv view before logging, telemetry, diagnostics, or startup.
   redactTestDriveArgv(options.apiKey);
-  const dataDir = path.resolve(process.env.PAPERCLIP_HOME ?? resolveTestDriveDataDir(options.dataDir));
-  const linkedWorktree = process.env.PAPERCLIP_IN_WORKTREE === "true";
-  const instanceId = process.env.PAPERCLIP_INSTANCE_ID ?? "default";
+  const dataDir = path.resolve(process.env.NEXUS_HOME ?? resolveTestDriveDataDir(options.dataDir));
+  const linkedWorktree = process.env.NEXUS_IN_WORKTREE === "true";
+  const instanceId = process.env.NEXUS_INSTANCE_ID ?? "default";
   // Resolve environment-backed credentials against the CLI environment as it
   // exists before server startup. In-process server initialization must not
   // change which credential the post-listen bootstrap observes.
@@ -435,7 +435,7 @@ export async function testDriveCommand(
   ];
 
   p.log.message(pc.dim(`Data directory: ${dataDir}`));
-  p.log.message(pc.dim("The data directory is retained when Paperclip exits."));
+  p.log.message(pc.dim("The data directory is retained when Nexus exits."));
   if (options.apiKey !== undefined) {
     p.log.warn("A key passed with --api-key may be visible in process arguments and shell history.");
   }
@@ -449,7 +449,7 @@ export async function testDriveCommand(
       // Auto-created directories are private to this process. Explicitly reused
       // directories retain the normal guard against an already-managed instance.
       skipServiceManagerCheck: !options.dataDir?.trim(),
-      introLabel: "paperclipai test-drive",
+      introLabel: "nexusai test-drive",
       afterStart: async (server) => {
         const api = dependencies.createApi(server.apiUrl);
         const result = await bootstrapTestDrive({
@@ -474,14 +474,14 @@ export async function testDriveCommand(
 
         const url = dashboardUrl(server);
         if (options.browser === false) {
-          p.log.success(`Paperclip is ready at ${pc.cyan(url)}.`);
+          p.log.success(`Nexus is ready at ${pc.cyan(url)}.`);
           return;
         }
         const opened = await dependencies.openBrowser(url);
         if (opened) {
-          p.log.success(`Paperclip is ready and opened at ${pc.cyan(url)}.`);
+          p.log.success(`Nexus is ready and opened at ${pc.cyan(url)}.`);
         } else {
-          p.log.warn(`Paperclip is ready, but the browser could not be opened. Visit ${url}.`);
+          p.log.warn(`Nexus is ready, but the browser could not be opened. Visit ${url}.`);
         }
       },
     });
@@ -493,8 +493,8 @@ export async function testDriveCommand(
 export function registerTestDriveCommand(program: Command): void {
   program
     .command("test-drive")
-    .description("Start an isolated, initialized Paperclip instance for manual testing")
-    .option("-d, --data-dir <path>", "Paperclip data directory to create or reuse")
+    .description("Start an isolated, initialized Nexus instance for manual testing")
+    .option("-d, --data-dir <path>", "Nexus data directory to create or reuse")
     .option("--company-name <name>", "Initial company name", "Test Company")
     .option("--agent-name <name>", "Initial CEO agent name", "CEO")
     .addOption(

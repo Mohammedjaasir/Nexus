@@ -3,7 +3,7 @@ import { ApiError } from "@/api/client";
 import { ApiUnavailableError } from "@/api/response";
 import { createConnectivityStore, probeServerHealth, type ConnectivityStore, type ProbeResult } from "./connectivity";
 
-const outage = new ApiError("Paperclip is restarting", 503, { error: "tenant_app_unavailable" });
+const outage = new ApiError("Nexus is restarting", 503, { error: "tenant_app_unavailable" });
 const down: ProbeResult = { reachable: false, retryAfterMs: null };
 const up: ProbeResult = { reachable: true };
 

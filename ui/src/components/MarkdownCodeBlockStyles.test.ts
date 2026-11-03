@@ -26,7 +26,7 @@ function cssBlock(selector: string): string {
 
 describe("markdown code block styles", () => {
   it("rides theme tokens for the rendered code block surface", () => {
-    const block = cssBlock(".paperclip-markdown pre");
+    const block = cssBlock(".nexus-markdown pre");
 
     expect(block).toContain("background-color: var(--muted)");
     expect(block).toContain("color: var(--foreground)");
@@ -35,7 +35,7 @@ describe("markdown code block styles", () => {
   });
 
   it("rides theme tokens for the editor content code block surface", () => {
-    const block = cssBlock(".paperclip-mdxeditor-content pre");
+    const block = cssBlock(".nexus-mdxeditor-content pre");
 
     expect(block).toContain("background: var(--muted)");
     expect(block).toContain("color: var(--foreground)");
@@ -44,7 +44,7 @@ describe("markdown code block styles", () => {
   });
 
   it("points the normal and inverted prose variables at the same tokens", () => {
-    const block = cssBlock(".paperclip-markdown");
+    const block = cssBlock(".nexus-markdown");
 
     expect(block).toContain("--tw-prose-pre-bg: var(--muted)");
     expect(block).toContain("--tw-prose-pre-code: var(--foreground)");
@@ -53,7 +53,7 @@ describe("markdown code block styles", () => {
   });
 
   it("keeps every themed code surface free of hardcoded colors", () => {
-    for (const selector of [".paperclip-markdown pre", ".paperclip-mdxeditor-content pre", ".paperclip-markdown"]) {
+    for (const selector of [".nexus-markdown pre", ".nexus-mdxeditor-content pre", ".nexus-markdown"]) {
       // Any hex literal, or an rgb()/hsl() literal, re-pins the surface to one mode.
       expect(cssBlock(selector), `${selector} must not hardcode a color`).not.toMatch(
         /#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(/i,

@@ -6,7 +6,7 @@ Run the repeatable baseline from the repository root:
 pnpm exec playwright test --config tests/perf/issue-detail/playwright.config.ts
 ```
 
-The rig starts an isolated seeded Paperclip instance, runs five samples for each scenario/profile, and writes median-ready raw data plus a Markdown table to `test-results/issue-detail-perf/`.
+The rig starts an isolated seeded Nexus instance, runs five samples for each scenario/profile, and writes median-ready raw data plus a Markdown table to `test-results/issue-detail-perf/`.
 
 Scenarios:
 
@@ -21,12 +21,12 @@ Profiles:
 Override the sample count (minimum five) or port when needed:
 
 ```sh
-PAPERCLIP_ISSUE_PERF_RUNS=7 PAPERCLIP_ISSUE_PERF_PORT=3210 pnpm exec playwright test --config tests/perf/issue-detail/playwright.config.ts
+NEXUS_ISSUE_PERF_RUNS=7 NEXUS_ISSUE_PERF_PORT=3210 pnpm exec playwright test --config tests/perf/issue-detail/playwright.config.ts
 ```
 
 Outputs include `baseline.md`, `baseline.json`, and a Chrome trace for the first run of each scenario/profile. Open `*.trace.json` in Chrome DevTools Performance to inspect the `issue-detail:*` user-timing marks.
 
-Set `PAPERCLIP_ISSUE_PERF_PROFILE=1` to capture actual Chrome CPU samples and
+Set `NEXUS_ISSUE_PERF_PROFILE=1` to capture actual Chrome CPU samples and
 conversation-readiness transitions in one diagnostic sample per scenario/profile.
 Import the resulting `*.cpuprofile` in DevTools and inspect `*.readiness.json` for
 the task, comments, metadata, activity, runs, runtime, plan and transcript gates.
@@ -37,15 +37,15 @@ Readiness marks stay in the local browser and contain only fixed gate names and
 booleans; the harness enables them before navigation.
 
 For bundle comparisons, build the UI and serve the production assets from an
-isolated local instance with `PAPERCLIP_UI_DEV_MIDDLEWARE=false`. The default
+isolated local instance with `NEXUS_UI_DEV_MIDDLEWARE=false`. The default
 managed server above uses development middleware, which does not reproduce
 production chunk loading. Keep the server, database, browser profile and sample
 count the same for both builds, and avoid concurrent builds or test suites while
 measuring latency.
 
 Copy the first run's output outside `test-results/issue-detail-perf`, then reuse
-its persisted task with `PAPERCLIP_ISSUE_PERF_SEED_FILE=/path/to/before/baseline.json`
-and `PAPERCLIP_ISSUE_PERF_BASE_URL` pointing to that disposable instance. The
+its persisted task with `NEXUS_ISSUE_PERF_SEED_FILE=/path/to/before/baseline.json`
+and `NEXUS_ISSUE_PERF_BASE_URL` pointing to that disposable instance. The
 harness validates the task identity before measuring. Network spans in the trace
 use recorded request start/end timestamps relative to task navigation; they
 include completed requests observed during the sample, even after content paint.
@@ -117,7 +117,7 @@ saved draft, sends one reply, and independently checks its persisted comment.
 To run against an existing **disposable local test-drive instance**:
 
 ```sh
-PAPERCLIP_ISSUE_PERF_BASE_URL=http://127.0.0.1:3102 \
+NEXUS_ISSUE_PERF_BASE_URL=http://127.0.0.1:3102 \
   pnpm exec playwright test --config tests/perf/issue-detail/playwright.config.ts layout-stability.spec.ts
 ```
 
@@ -125,7 +125,7 @@ The suite creates its own company and fixtures. The URL override accepts only
 loopback origins and rejects remote hosts. Use a disposable local instance,
 not a shared or production instance. Without the override, the harness starts its own
 isolated instance as before. Live provider walkthroughs additionally require a
-configured native Paperclip runner and Codex authentication; deterministic
+configured native Nexus runner and Codex authentication; deterministic
 browser fixtures do not substitute for watching an actual provider run.
 
 `saved-reply-startup.spec.ts` adds a PostgreSQL fixture with 200 long saved agent
@@ -133,22 +133,22 @@ replies, 200 completed native runs, and a Plan linked to the latest run. It hold
 transcript requests, checks both task presentations on desktop and mobile, and measures
 reply positions on each frame. Opening older history must start the transcript
 reads and preserve the editor and draft. This case is skipped unless
-`PAPERCLIP_ISSUE_PERF_DATABASE_URL` points to a disposable loopback PostgreSQL
+`NEXUS_ISSUE_PERF_DATABASE_URL` points to a disposable loopback PostgreSQL
 database whose name ends in `_test`. Use the same database as the local server:
 
 ```sh
-PAPERCLIP_ISSUE_PERF_BASE_URL=http://127.0.0.1:3102 \
-PAPERCLIP_ISSUE_PERF_DATABASE_URL=postgres://paperclip:paperclip@127.0.0.1:5432/task_loading_test \
+NEXUS_ISSUE_PERF_BASE_URL=http://127.0.0.1:3102 \
+NEXUS_ISSUE_PERF_DATABASE_URL=postgres://nexus:nexus@127.0.0.1:5432/task_loading_test \
   pnpm exec playwright test --config tests/perf/issue-detail/playwright.config.ts saved-reply-startup.spec.ts
 ```
 
-For the live walkthrough, first assign a disposable task to a native Paperclip
+For the live walkthrough, first assign a disposable task to a native Nexus
 runner configured with the Codex provider. Its scratch project should contain
 a small `sum.mjs` fixture. The script sends a paced job, scrolls up, disconnects
 and reconnects, steers a follow-up, and records through completion:
 
 ```sh
-PAPERCLIP_LAYOUT_LIVE_URL=http://127.0.0.1:3102/LAY/issues/LAY-8 \
+NEXUS_LAYOUT_LIVE_URL=http://127.0.0.1:3102/LAY/issues/LAY-8 \
   node tests/perf/issue-detail/live-feed.walkthrough.mjs
 ```
 

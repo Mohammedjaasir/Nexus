@@ -10,9 +10,9 @@ import { materializeManagedProjectWorkspace } from "../server/src/services/manag
 
 const execFile = promisify(execute);
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "repository-cache-benchmark-"));
-const previousHome = process.env.PAPERCLIP_HOME;
+const previousHome = process.env.NEXUS_HOME;
 const previousTrace = process.env.GIT_TRACE_PACKFILE;
-process.env.PAPERCLIP_HOME = path.join(root, "home");
+process.env.NEXUS_HOME = path.join(root, "home");
 const source = path.join(root, "source");
 const cache = path.join(root, "cache/company");
 const samples = Number(process.argv.find(arg => arg.startsWith("--samples="))?.split("=")[1] ?? 5);
@@ -56,7 +56,7 @@ try {
   console.log(JSON.stringify({ node: process.version, platform: process.platform, transport: "local file:// Git upload-pack; no injected latency",
     files: 128, contentBytes: 32 * 1024 * 1024, commits: 4, samples, cachePrimeMs, summary, results }, null, 2));
 } finally {
-  if (previousHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previousHome;
+  if (previousHome === undefined) delete process.env.NEXUS_HOME; else process.env.NEXUS_HOME = previousHome;
   if (previousTrace === undefined) delete process.env.GIT_TRACE_PACKFILE; else process.env.GIT_TRACE_PACKFILE = previousTrace;
   await fs.rm(root, { recursive: true, force: true });
 }

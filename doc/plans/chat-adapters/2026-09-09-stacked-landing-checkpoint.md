@@ -12,7 +12,7 @@ live hardening is represented by its own follow-up PR.
 - Captured all 29 modified/new implementation and qualification-document paths
   using an alternate Git index. All 29 working-file hashes matched the snapshot.
   The original checkout's HEAD and empty staging area were unchanged.
-- Landing worktree: `/Users/dotta/paperclipai/branches/chat-adapters-landing-20260909`.
+- Landing worktree: `/Users/dotta/nexusai/branches/chat-adapters-landing-20260909`.
 - Initial landing branch: `codex/chat-adapters-landing-20260909`.
 - Origin master at snapshot: `5acf56658bff7eeb12438a6fdcae5f4d2fe1e90e`.
 - Ignored live runtime, credentials, databases, generated packages, and the

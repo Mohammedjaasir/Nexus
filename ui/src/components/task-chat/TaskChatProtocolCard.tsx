@@ -700,7 +700,7 @@ function RuntimeRequestCard({
 }) {
   const historyIssueId = useContext(TaskChatRequestHistoryContext);
   const draftKey = requestedDraftKey ?? (historyIssueId
-    ? `paperclip:task-input:${historyIssueId}:runtime:${item.runId}:${item.requestId}`
+    ? `nexus:task-input:${historyIssueId}:runtime:${item.runId}:${item.requestId}`
     : undefined);
   const title =
     item.questionSet?.title ??

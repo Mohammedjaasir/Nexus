@@ -7,14 +7,14 @@ import { createOAuthEndpointPolicy } from "./endpoint-policy.js";
 import { createOAuthDiscovery } from "./discovery.js";
 import { asRecord, oauthConfig, normalizeOauthScopes, originOf } from "./metadata.js";
 import { connectionMethodForConnection } from "../connection-methods.js";
-import { googleWorkspaceDraftRequestedScopes, googleWorkspaceSelectedScopes, type GoogleWorkspaceServiceSelection, isGoogleWorkspaceScopeGrant } from "@paperclipai/shared";
+import { googleWorkspaceDraftRequestedScopes, googleWorkspaceSelectedScopes, type GoogleWorkspaceServiceSelection, isGoogleWorkspaceScopeGrant } from "@nexusai/shared";
 import { and, eq, lt } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { companies, agents, connectionGrants, issueThreadInteractions, toolConnections, toolOauthStates } from "@paperclipai/db";
-import type { ConnectionGrantKind, ToolOAuthStartResult } from "@paperclipai/shared";
-import { getConnectableAppDefinition } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { companies, agents, connectionGrants, issueThreadInteractions, toolConnections, toolOauthStates } from "@nexusai/db";
+import type { ConnectionGrantKind, ToolOAuthStartResult } from "@nexusai/shared";
+import { getConnectableAppDefinition } from "@nexusai/shared";
 import { badRequest, conflict, forbidden, notFound, unprocessable } from "../../../errors.js";
-import { isPaperclipCloudConnectorStrategy, type PaperclipCloudConnector } from "../../paperclip-cloud-connector.js";
+import { isNexusCloudConnectorStrategy, type NexusCloudConnector } from "../../nexus-cloud-connector.js";
 import { deriveVercelConnectSubject, vercelConnectCallbackUrl, VercelConnectClientError, type VercelConnectClient } from "../../vercel-connect.js";
 
 import type { ConnectionSetupPolicy } from "../connections/setup-policy.js";
@@ -29,7 +29,7 @@ type Dependencies = {
   getConnectionRow(idOrUid: string, companyId?: string): Promise<typeof toolConnections.$inferSelect>;
   setupPolicy: ConnectionSetupPolicy;
   fixedPersonalIdentityForReconnect: ReturnType<typeof createPersonalConnectionIdentity>;
-  currentCloudConnector: () => PaperclipCloudConnector | null;
+  currentCloudConnector: () => NexusCloudConnector | null;
   vercelConnect: VercelConnectClient | null;
   ensureOAuthClient: ReturnType<typeof createOAuthClientRegistration>;
   oauthEndpointsForConnection: ReturnType<typeof createOAuthDiscovery>["oauthEndpointsForConnection"];
@@ -341,7 +341,7 @@ export function createOAuthAuthorizationStart(db: Db, dependencies: Dependencies
     }
     if (
       galleryMethod &&
-      isPaperclipCloudConnectorStrategy(galleryMethod.oauthStrategy)
+      isNexusCloudConnectorStrategy(galleryMethod.oauthStrategy)
     ) {
       const connectorProfile = galleryMethod.connectorProfile;
       const managedProfile = managedConnectorProfile(connectorProfile);
@@ -351,9 +351,9 @@ export function createOAuthAuthorizationStart(db: Db, dependencies: Dependencies
       const cloudConnector = currentCloudConnector();
       if (!cloudConnector) {
         throw unprocessable(
-          `${providerName} connections through Paperclip are not available on this instance yet`,
+          `${providerName} connections through Nexus are not available on this instance yet`,
           {
-            code: "paperclip_cloud_connector_unavailable",
+            code: "nexus_cloud_connector_unavailable",
           },
         );
       }
@@ -409,9 +409,9 @@ export function createOAuthAuthorizationStart(db: Db, dependencies: Dependencies
         state,
         companyId,
         connectionId: connection.id,
-        // Paperclip Cloud owns PKCE for this flow. The local state row remains the
+        // Nexus Cloud owns PKCE for this flow. The local state row remains the
         // single-use browser correlator and never stores broker token material.
-        codeVerifier: "paperclip-cloud-connector",
+        codeVerifier: "nexus-cloud-connector",
         createdByActorType: binding.actorType,
         createdByActorId: binding.actorId,
         createdBySessionId: binding.sessionId,
@@ -510,7 +510,7 @@ export function createOAuthAuthorizationStart(db: Db, dependencies: Dependencies
     // unvetted target.
     const authorizationUrl = new URL(
       assertOAuthEndpointUrl("authorization", endpoints.authorizationUrl, {
-        // Paperclip's own callback origin: a first-party authorization endpoint is
+        // Nexus's own callback origin: a first-party authorization endpoint is
         // served however this deployment is served, plaintext LAN host included.
         firstPartyOrigin: originOf(input.redirectUri),
       }),
@@ -531,7 +531,7 @@ export function createOAuthAuthorizationStart(db: Db, dependencies: Dependencies
     // Curated definitions are an allowlist, not a suggestion. Never copy every
     // scope advertised by discovery into a provider consent screen: a curated
     // method either sends its reviewed hint or omits scope entirely. Generic
-    // MCP URLs retain discovery-first behavior because Paperclip has no manifest
+    // MCP URLs retain discovery-first behavior because Nexus has no manifest
     // against which it could safely judge the caller's requested scope.
     if (authorizationScopes.length > 0)
       authorizationUrl.searchParams.set("scope", authorizationScopes.join(" "));
@@ -686,7 +686,7 @@ export function createOAuthAuthorizationStart(db: Db, dependencies: Dependencies
         metadataUrl: endpoints.metadataUrl ?? null,
         // Curated apps persist only the reviewed scopes attached to this OAuth
         // state. Discovery metadata can advertise a provider's entire scope
-        // universe and must never silently become Paperclip's requested set.
+        // universe and must never silently become Nexus's requested set.
         scopes: authorizationScopes,
         offlineAccessSupported: endpoints.offlineAccessSupported,
         grantTypesSupported: endpoints.grantTypesSupported ?? [],

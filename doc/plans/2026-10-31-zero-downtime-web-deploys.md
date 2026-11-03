@@ -334,7 +334,7 @@ probe directories; no credential or live target identity belongs here.
 
 ## Outcome and endpoint
 
-Keep the main Paperclip web/API usable through an app-only Railway deployment.
+Keep the main Nexus web/API usable through an app-only Railway deployment.
 A person saves or answers while an agent works, sees that execution finish once,
 and continues with its saved result after both webserver replacements. Finish at
 reviewed/merged changes and a verified forward deploy and compatible rollback on
@@ -412,15 +412,15 @@ The stored absolute path allowed B to read A's directory on the same host.
 Overall result: **failed**, with agent-file durable authority a demonstrated
 prerequisite. No browser, live agent, managed-cloud auth or packaged build proof.
 
-Private evidence: `/private/var/folders/74/zhncxl_j05xb5_r6_vfbk73h0000gn/T/paperclip-runner-e2e-4Q7BmG/rolling-deployment-evidence.json`.
+Private evidence: `/private/var/folders/74/zhncxl_j05xb5_r6_vfbk73h0000gn/T/nexus-runner-e2e-4Q7BmG/rolling-deployment-evidence.json`.
 Setup failures are retained: host embedded Postgres could not initialize;
 the first full-server boot lacked the fresh SDK build. Isolated Docker Postgres
 and a built SDK resolved those setup failures. No product assertions were reached
 in those attempts. The proxy's in-flight write handoff regression passed.
 
-Owned temporary dependencies: Docker containers `paperclip-zdt-postgres-20261031`
-and `paperclip-zdt-s3-20261031`, loopback only. Connection files under
-`/private/tmp/paperclip-zdt-{database,storage}.json` are private and must never be
+Owned temporary dependencies: Docker containers `nexus-zdt-postgres-20261031`
+and `nexus-zdt-s3-20261031`, loopback only. Connection files under
+`/private/tmp/nexus-zdt-{database,storage}.json` are private and must never be
 committed or uploaded. Each attempt cleans its own database and bucket. Retire
 these containers and credential files when local qualification no longer needs them.
 
@@ -429,18 +429,18 @@ these containers and credential files when local qualification no longer needs t
 The agent-file service owns a current Postgres manifest and immutable S3 objects.
 Managed roots are disposable projections; existing authorization, hash conflicts,
 runtime directory merges and activity logging keep their owners. A durable head
-remains authoritative if `PAPERCLIP_DURABLE_AGENT_FILES` is subsequently disabled.
+remains authoritative if `NEXUS_DURABLE_AGENT_FILES` is subsequently disabled.
 Legacy local data must be adopted on its owning server before filesystem removal.
 Separate bounded file-transfer connections protect ordinary HTTP and controller
 renewals during S3 stalls. No idle polling or listeners were added.
 
 Source-mode evidence (base `34f8d25089` plus uncommitted changes):
 
-- `paperclip-runner-e2e-A05NfC`: 76 reads/16 acknowledged writes, deletion of A's
+- `nexus-runner-e2e-A05NfC`: 76 reads/16 acknowledged writes, deletion of A's
   full home, saved agent file recovered by B; all checks passed.
-- `paperclip-runner-e2e-NcNG3F`: bidirectional A/B edits and stale-write 409 also
+- `nexus-runner-e2e-NcNG3F`: bidirectional A/B edits and stale-write 409 also
   passed. No browser or active-agent claim.
-- `paperclip-runner-e2e-zQMAji`: both transfer connections deliberately held;
+- `nexus-runner-e2e-zQMAji`: both transfer connections deliberately held;
   unrelated task read completed in 20ms. A failed-write read unexpectedly returned
   200, so this expanded run failed and is retained for diagnosis. Fresh C did
   recover the primary saved file after deleting both previous homes.
@@ -455,16 +455,16 @@ The failed first write exposed rollback followed by re-import of dirty local
 bytes. A private pre-mutation import receipt fixes that retry; committed heads
 remain solely in Postgres. The harness also now explicitly seeds process-agent
 instructions through the canonical API (agent creation ignores that field).
-The corrected run `paperclip-runner-e2e-Xdn96H` passed all eight checks.
+The corrected run `nexus-runner-e2e-Xdn96H` passed all eight checks.
 
-Latest source-mode receipt `paperclip-runner-e2e-eGJIqp` passed all nine checks:
+Latest source-mode receipt `nexus-runner-e2e-eGJIqp` passed all nine checks:
 114 reads, 23 acknowledged writes, 2,508ms handoff, 31ms unrelated task read while
 both storage connections were held. An admitted file save finished after SIGTERM;
 C restored both saved files after A and B homes were removed. Cleanup confirmed.
 The receipt records the source patch and lockfile digests. No browser, managed
 auth, distinct packaged releases or live-agent qualification is claimed.
 
-An earlier passing drain receipt `paperclip-runner-e2e-iW2OCt` took 32 seconds:
+An earlier passing drain receipt `nexus-runner-e2e-iW2OCt` took 32 seconds:
 Node's listener-close callback also waited for upgraded sockets. HTTP drain now
 uses the existing request/promise tracker, while browser and agent sockets retain
 their own shutdown owners. Readiness becomes unavailable immediately on SIGTERM.
@@ -485,7 +485,7 @@ pass; no partial page is an instance-wide eligibility report.
 
 ### Browser and overlap commands, 2026-11-01
 
-Receipt `paperclip-runner-e2e-oYdmER` passed all ten checks using independent
+Receipt `nexus-runner-e2e-oYdmER` passed all ten checks using independent
 compiled server/UI directories and workspace dependencies: 91 reads, 19 writes,
 2,870ms handoff, 1,013ms browser reconnect and 23ms task read during the S3 outage.
 The original tab opened Audit after A's entire home/build was deleted, loading
@@ -528,7 +528,7 @@ review/merge, ten staging deploys and production forward/rollback. Draft PRs are
 Cloud CI passed; Core CI and review corrections are underway. No merge or deployment yet. The same owned worktrees and acceptance remain.
 
 Migration must preserve the original `decision-signing.key` as the stable
-`PAPERCLIP_DECISION_SIGNING_SECRET` before removing the volume. Ephemeral startup
+`NEXUS_DECISION_SIGNING_SECRET` before removing the volume. Ephemeral startup
 now refuses a missing/short value. Fresh Cloud provisioning must supply a stable
 key too; the storage master key alone does not preserve decision signatures.
 
@@ -571,15 +571,15 @@ The actual supervisor passed two replacements with no model calls, 436 ordinary
 reads and 45 saved/read-back comments, zero request failures, old homes removed,
 and owned database/bucket/process cleanup confirmed. B readiness was 18,694 ms;
 C readiness was 109,182 ms. Receipt (private local):
-`/private/var/folders/74/zhncxl_j05xb5_r6_vfbk73h0000gn/T/paperclip-runner-e2e-meJSIF/replacement-evidence.json`.
+`/private/var/folders/74/zhncxl_j05xb5_r6_vfbk73h0000gn/T/nexus-runner-e2e-meJSIF/replacement-evidence.json`.
 It is source/compiled-with-workspace-dependencies, not a released container.
 The prior attempt `srF1rz` timed out on C and remains failed; its first replacement
 had 107 reads and 11 saves without failures. The initial `Ro7sxQ` setup failed
 because a partial TypeScript build had not copied the compiled Runner vendor;
 the normal build vendoring step corrected it. All three attempts cleaned up.
 
-Staging read-only discovery and authentication work with AWS `paperclip-dev`
-(account `078455283791`); production `paperclip-prod` is also authenticated.
+Staging read-only discovery and authentication work with AWS `nexus-dev`
+(account `078455283791`); production `nexus-prod` is also authenticated.
 The existing shared `canary-staging` stack is `stack-pool-8fabb27531db`.
 Do not assume it is exclusively owned: select a dedicated zero-downtime test
 stack or acquire the existing stack operation lock before any hosted mutation.
@@ -597,7 +597,7 @@ key decryption/restoration. The earlier model-free receipt remains evidence for
 HTTP availability and cleanup, not active checkpoint recovery.
 
 The full harness run at `0f122611a1` completed with 5,814 passes, 17 failures and
-four skips. Preserve `/private/tmp/paperclip-zdt-e2e-unit-all-rolling.log`:
+four skips. Preserve `/private/tmp/nexus-zdt-e2e-unit-all-rolling.log`:
 four onboarding mock expectations, four unchanged workflow security expectations,
 one Pi profile version expectation, three date-expired accounting fixtures,
 two report-command timeouts, two process-shutdown races and one host embedded
@@ -612,7 +612,7 @@ all CI passed and a 5/5 review. The opt-in remains disabled on hosted stacks.
 Qualification PR #18526 remains open; Cloud #1096 remains open. No hosted
 mutation or paid model test has occurred yet.
 
-Fresh browser receipt `paperclip-runner-e2e-tg3nel` passed all 11 checks:
+Fresh browser receipt `nexus-runner-e2e-tg3nel` passed all 11 checks:
 246 reads, 50 acknowledged/read-back saves, zero failures, 1,058ms browser
 reconnect and zero page errors. Both old homes were deleted; C restored saved
 files with legacy adoption disabled. Unready B left A serving. The admitted
@@ -666,7 +666,7 @@ staging manager found no sandbox with that exact attempt label. This does not
 prove absence in an unknown old-key organization. The OpenAI key independently
 returns 401. A user request to refresh the E2E credential is pending; do not
 retry a paid attempt until authentication succeeds. No model execution is claimed.
-Private receipts are under `/private/tmp/paperclip-zdt-live-evidence`.
+Private receipts are under `/private/tmp/nexus-zdt-live-evidence`.
 
 A Linux Runner binary built from `0f122611a1` has SHA256
 `681f9709f21abcc90f6e87fd1d0b263c158896b8fb3d30df6786d89723ddfdad`;
@@ -676,7 +676,7 @@ uses the authenticated staging manager to mint one attempt-specific Daytona key,
 and revokes it during cleanup. No attempt key has yet been minted.
 
 Enrollment implementation is isolated in Core
-`/private/tmp/paperclip-zdt-enrollment-20261101` and the Cloud worktree, both on
+`/private/tmp/nexus-zdt-enrollment-20261101` and the Cloud worktree, both on
 `codex/zero-downtime-enrollment`. Core's dedicated maintenance process is being
 verified: ordinary app writers never start; existing owner migrations verify
 shared bytes; the original decision key exports only through a per-attempt
@@ -738,7 +738,7 @@ passed authenticated private-mode overlap: 130 reads, 26 acknowledged saves,
 zero failures, two full predecessor-container/home deletions, the same browser
 session cookie, shared-file reads and unready replacement rejection. Every
 normal container exited cleanly. Test PostgreSQL and S3 resources were removed.
-Receipt: `/private/tmp/paperclip-zdt-container-eVSi2A/evidence.json`.
+Receipt: `/private/tmp/nexus-zdt-container-eVSi2A/evidence.json`.
 This is HTTP session and storage proof; it does not qualify browser rendering,
 distinct versions or active model execution. Earlier failed fixtures retain
 receipts: local-trusted non-loopback bind refusal, loopback auth-origin rewrite,
@@ -746,12 +746,12 @@ and incomplete public-origin configuration. They reached no overlap assertions.
 
 A 1,024-file, 64 MiB cold directory exposed sequential restoration timing out
 at 30.065s with 25ms added latency per GET. Receipt:
-`/private/tmp/paperclip-zdt-cold-cAEX5q/evidence.json`. The file authority owner
+`/private/tmp/nexus-zdt-cold-cAEX5q/evidence.json`. The file authority owner
 now restores with eight bounded streams, cancelling and awaiting every sibling
 on failure. The same real PG/S3 experiment passed in 4.180s (1,025 GETs including
 instructions), with the entire predecessor home deleted and local adoption
-disabled. Receipt: `/private/tmp/paperclip-zdt-cold-C0DRZV/evidence.json`;
-tested source patch: `/private/tmp/paperclip-zdt-cold-restore-tested.patch`.
+disabled. Receipt: `/private/tmp/nexus-zdt-cold-C0DRZV/evidence.json`;
+tested source patch: `/private/tmp/nexus-zdt-cold-restore-tested.patch`.
 Eight durable-file regressions passed, including corruption, cancellation,
 retained previous projection and successful retry. This qualifies the recorded
 size and latency; the unchanged upper storage limits are not a performance claim.
@@ -760,7 +760,7 @@ The existing staging volume E2E target was selected after browser access and
 idle-agent checks. Its active fleet campaign was allowed to finish; the target
 was then pinned through the audited user-managed API. Exact private target,
 prior version, audit and resulting version are recorded in
-`/private/tmp/paperclip-zdt-staging-pin.json`. No volume has been detached or
+`/private/tmp/nexus-zdt-staging-pin.json`. No volume has been detached or
 hosted overlap sequence started by this chat. Deploy and qualify the merged
 maintenance image before calling enrollment; the enrollment/campaign owners
 must continue to hold their normal operation leases.
@@ -786,7 +786,7 @@ without a volume or deployment mutation by this chat. The superseded browser
 fixture auto-assigned an agent despite the composer showing no assignee;
 that attempted run failed. The task was then unassigned, paused and hidden.
 Do not count this as successful agent execution or assume it incurred no cost.
-Private setup and restoration receipts remain under `/private/tmp/paperclip-zdt-`.
+Private setup and restoration receipts remain under `/private/tmp/nexus-zdt-`.
 
 A dedicated staging fixture was provisioned through the normal signup API.
 Its concrete host and stack identity remain in the private qualification receipt.
@@ -799,7 +799,7 @@ through the normal Cloud entry-code/session flow. The tenant serves Core
 The fixture contains a paused, wake-disabled agent with 34 synthetic files
 (524,936 bytes), all read back through the API, and unassigned backlog task
 with one saved comment. The data will exercise volume enrollment and
-subsequent replacement. Receipt: `/private/tmp/paperclip-zdt-hosted-fixture.json`.
+subsequent replacement. Receipt: `/private/tmp/nexus-zdt-hosted-fixture.json`.
 No hosted enrollment or overlap has yet run; the original volume is attached.
 This controlled fixture does not qualify arbitrary historic local workspaces.
 The saved E2E model credential remains an external blocker for paid-agent proof.
@@ -814,7 +814,7 @@ app routes were absent. Both predecessor containers and the entire volume were
 then deleted. A new empty-home container retained the original session and read
 the migrated files. Two further replacements served 111 reads and 23 saves with
 zero failures; unready replacement refusal and clean exits passed. Owned test
-resources were removed. Receipt: `/private/tmp/paperclip-zdt-container-7r1Nwv/evidence.json`.
+resources were removed. Receipt: `/private/tmp/nexus-zdt-container-7r1Nwv/evidence.json`.
 This small-file Core image rehearsal complements the multi-page migration tests;
 it does not qualify Cloud routing, large cold folders or active agents.
 
@@ -824,14 +824,14 @@ The exact Cloud composition `cloud-41296664811-1`, Core `d941ed3879`,
 digest `sha256:bce104e05623bd365740013c8fbb87680da7e152f9c94bd099884a9a5f6367cc`,
 passed the same real-volume maintenance, key preservation, full volume removal
 and empty-home replacement rehearsal: 121 reads, 25 saves, zero failures.
-Receipt: `/private/tmp/paperclip-zdt-container-JBK8C7/evidence.json`.
+Receipt: `/private/tmp/nexus-zdt-container-JBK8C7/evidence.json`.
 This verifies the private Cloud packaging contains the working maintenance entry;
 it does not substitute for Railway routing or active-agent acceptance.
 
 The dedicated hosted fixture passed a ten-second authenticated baseline with
 19 reads, three saves, one WebSocket connection and all 34 file hashes intact.
 Normal browser entry and an issue-title edit persisted. Receipt:
-`/private/tmp/paperclip-zdt-hosted-smoke-s1Q33a/evidence.json`.
+`/private/tmp/nexus-zdt-hosted-smoke-s1Q33a/evidence.json`.
 The first named-stack deployment was refused before creating a campaign because
 an existing fleet campaign still reserved the fixture. That campaign completed
 at 10:24:40 UTC and skipped the now-pinned fixture. Its operation lease was not
@@ -853,8 +853,8 @@ byte equality while avoiding generic assertion traversal over 40 large buffers.
 After that assertion-only change, all eight tests passed in 5.90 seconds, with
 the cold-folder case taking 561 ms. The 15-second test timeout and 30-second
 production deadline remain unchanged. The original CI failure is retained at
-`/private/tmp/paperclip-zdt-final-source-verification-failed.log`; local before
-and after logs are `/private/tmp/paperclip-zdt-buffer-test-{before,after}-pg.log`.
+`/private/tmp/nexus-zdt-final-source-verification-failed.log`; local before
+and after logs are `/private/tmp/nexus-zdt-buffer-test-{before,after}-pg.log`.
 A first local attempt failed before tests because embedded PostgreSQL could not
 start; the existing external test database enabled the comparison. The failed
 post-merge shard was retried once while the assertion fix proceeds through review.
@@ -866,7 +866,7 @@ The post-merge source retry passed. The final Cloud composition for Core
 `sha256:800cb8578368c63e33bdd048786ec66b3e7a9902f0f221d7fe41ea3c35134020`.
 It passed the real-volume migration and empty-home rehearsal with 121 reads,
 25 saves and zero failures; receipt:
-`/private/tmp/paperclip-zdt-container-drdrQS/evidence.json`.
+`/private/tmp/nexus-zdt-container-drdrQS/evidence.json`.
 
 The forward/rollback manifest comparison exposed a real packaging blocker.
 The Agent Computer bundle differed only in its embedded Runner source revision
@@ -883,18 +883,18 @@ A real shallow-checkout probe selected the same source in 25.6 seconds without
 modifying the caller. The focused suite passed 32 cases; full Cloud tests passed
 4,830 cases with 129 gated skips and no failures. Rebuilt package equality and
 hosted overlap remain unverified. Private receipts are
-`/private/tmp/paperclip-zdt-canonical-source-{proof,shallow-proof}.json`.
+`/private/tmp/nexus-zdt-canonical-source-{proof,shallow-proof}.json`.
 
 Core's assertion fix is in #18533, reviewed at 5/5. One CI shard received a
 runner shutdown signal, so that cancelled shard and its downstream aggregate
 gate were retried. The original cancellation log remains at
-`/private/tmp/paperclip-zdt-buffer-pr-cancelled-job.log`.
+`/private/tmp/nexus-zdt-buffer-pr-cancelled-job.log`.
 No hosted enrollment has occurred. After the controller became quiet, the
 qualified maintenance image was added to the staging allowlist without an
 automatic deployment. An explicit controller configuration restart was then
 submitted with a mutation-confirmed deployment identity. The prior busy-campaign
 and pending-default checks produced no mutations. Private receipt:
-`/private/tmp/paperclip-zdt-controller-allowlist-RzRa7k/receipt.json`.
+`/private/tmp/nexus-zdt-controller-allowlist-RzRa7k/receipt.json`.
 The paid-agent credential blocker and all remaining acceptance criteria remain.
 
 
@@ -916,7 +916,7 @@ that response in the existing lifecycle test fails identically. The correction
 accepts the nullable project field from the project-scoped query while rejecting
 explicit project, service or environment mismatches before provider mutation.
 The original attempt identity is retained for retry after reviewed deployment.
-Private failure receipt: `/private/tmp/paperclip-zdt-enrollment-controller-logs.json`.
+Private failure receipt: `/private/tmp/nexus-zdt-enrollment-controller-logs.json`.
 No hosted overlap deployment or production canary has passed yet.
 
 
@@ -934,13 +934,13 @@ The rebuilt pair now has byte-identical Cloud bundles, SDKs and dependency lock:
 `d941ed3879`). Both select the same canonical Runner source. The production
 `ephemeralPackageOverlap` function accepts this pair. There is no database diff
 between the two Core commits. Exact manifest receipt:
-`/private/tmp/paperclip-zdt-canonical-pair-proof.json`.
+`/private/tmp/nexus-zdt-canonical-pair-proof.json`.
 
 Each exact image passed its own packaged migration, complete predecessor-volume
 deletion and two empty-home replacements against real PostgreSQL and S3: 118
 reads/24 saves and 116 reads/24 saves respectively, no failures, all owned
-resources cleaned. Receipts: `/private/tmp/paperclip-zdt-container-woB7ci/evidence.json`
-and `/private/tmp/paperclip-zdt-container-tMUSnD/evidence.json`. Both images were
+resources cleaned. Receipts: `/private/tmp/nexus-zdt-container-woB7ci/evidence.json`
+and `/private/tmp/nexus-zdt-container-tMUSnD/evidence.json`. Both images were
 added to the staging allowlist with deployment skipped, under the normal quiet
 guards, before the reviewed controller rollout. The repeated hosted experiment
 will invoke the existing fleet workflow driver with exact release references and
@@ -963,13 +963,13 @@ Docker rehearsal replaced only CMD. The maintenance process therefore ran as roo
 and refused the original UID-1000-owned signing key. An explicit local entrypoint
 override reproduced the same blocked status and captured root process identity
 and key ownership, without reading key contents into evidence. Failed receipt:
-`/private/tmp/paperclip-zdt-container-5nGSUs/evidence.json`.
+`/private/tmp/nexus-zdt-container-5nGSUs/evidence.json`.
 
 Cloud #1101 preserves Core's init and entrypoint wrapper in the maintenance
 command. With actual entrypoint replacement, the corrected packaged rehearsal
 passed original-key preservation, volume deletion and later empty-home recovery:
 116 reads, 24 saves, no failures, cleanup confirmed in
-`/private/tmp/paperclip-zdt-container-POFr0C/evidence.json`. Twelve lifecycle tests,
+`/private/tmp/nexus-zdt-container-POFr0C/evidence.json`. Twelve lifecycle tests,
 root typecheck, the full 4,831-pass suite and ordinary golden-path smoke passed.
 The PR is awaiting CI/review; hosted preparation will resume with the same
 attempt after deployment. The original live volume remains attached and retained.
@@ -982,7 +982,7 @@ all latest-head checks passing and no unresolved review findings. The exact imag
 currently held in staging also passed the corrected Railway-entrypoint rehearsal:
 118 reads, 24 saves, zero failures, original signing authority retained, predecessor
 volume deleted and all owned test resources cleaned. Private receipt:
-`/private/tmp/paperclip-zdt-container-vyIrsD/evidence.json`.
+`/private/tmp/nexus-zdt-container-vyIrsD/evidence.json`.
 
 Automatic staging controller workflow `41302710585` passed preflight and is
 waiting for the ordinary controller coordination gate. The concurrent app campaign

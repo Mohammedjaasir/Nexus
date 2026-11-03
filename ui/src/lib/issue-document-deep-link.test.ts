@@ -49,7 +49,7 @@ describe("resolveIssueDocumentDeepLink", () => {
 });
 
 describe("sameIssueDocumentHash", () => {
-  const current = new URL("https://paperclip.example/PAP/issues/PAP-1");
+  const current = new URL("https://nexus.example/PAP/issues/PAP-1");
   const references = ["PAP-1", "issue-uuid"];
   it.each(["#document-plan", "/PAP/issues/PAP-1#document-plan", "/PAP/issues/issue-uuid#document-plan", "/issues/issue-uuid#document-plan"])("opens a current-task document in place: %s", (href) => {
     expect(sameIssueDocumentHash(href, current, references)).toBe("#document-plan");

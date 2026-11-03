@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { agentWakeupRequests, environmentLeases, heartbeatRuns, issueRecoveryActions, nativeRunFinalizations, nativeRunResults, issues, type Db } from "@paperclipai/db";
+import { agentWakeupRequests, environmentLeases, heartbeatRuns, issueRecoveryActions, nativeRunFinalizations, nativeRunResults, issues, type Db } from "@nexusai/db";
 import { buildExecutionContinuation } from "../execution-continuation.js";
 import { readTaskRetryIntent } from "../task-retry.js";
 import { hasNativeLocalProcessStop, hasHistoricalSuspendedNativeSession, recordedLocalExecutionStopped } from "../native-local-process-stop.js";

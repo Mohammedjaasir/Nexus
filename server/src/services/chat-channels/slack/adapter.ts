@@ -2,7 +2,7 @@ import { SlackAdapter } from "@chat-adapter/slack";
 import type { AdapterPostableMessage, LinkPreview, RawMessage } from "chat";
 import { slackSelectionMessage } from "./cards.js";
 
-export class PaperclipSlackAdapter extends SlackAdapter {
+export class NexusSlackAdapter extends SlackAdapter {
   override async postMessage(threadId: string, message: AdapterPostableMessage): Promise<RawMessage> {
     const payload = slackSelectionMessage(message);
     if (!payload) return super.postMessage(threadId, message);
@@ -26,7 +26,7 @@ export class PaperclipSlackAdapter extends SlackAdapter {
   }
 
   // The SDK polls for an optional Slack unfurl for two seconds before it
-  // delivers a message containing a URL. Paperclip accepts the message text,
+  // delivers a message containing a URL. Nexus accepts the message text,
   // links and files directly; preview metadata is not part of task admission.
   protected override async enrichLinks(links: LinkPreview[]): Promise<LinkPreview[]> {
     return links;

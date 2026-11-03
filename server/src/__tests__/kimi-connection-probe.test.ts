@@ -3,13 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AdapterExecutionTarget } from "@paperclipai/adapter-utils/execution-target";
-import { KIMI_DISTRIBUTION_CLOSURE_SHA256, KIMI_NODE_DISTRIBUTIONS, KIMI_NODE_VERSION, KIMI_RUNTIME_VERSION } from "../../../packages/paperclip-runner/src/drivers/acpx/kimi-closure-pins.js";
-import { QUALIFIED_ACPX_PROFILES } from "../../../packages/paperclip-runner/src/drivers/acpx/qualified-profiles.js";
+import type { AdapterExecutionTarget } from "@nexusai/adapter-utils/execution-target";
+import { KIMI_DISTRIBUTION_CLOSURE_SHA256, KIMI_NODE_DISTRIBUTIONS, KIMI_NODE_VERSION, KIMI_RUNTIME_VERSION } from "../../../packages/nexus-runner/src/drivers/acpx/kimi-closure-pins.js";
+import { QUALIFIED_ACPX_PROFILES } from "../../../packages/nexus-runner/src/drivers/acpx/qualified-profiles.js";
 
 const mocks = vi.hoisted(() => ({ command: vi.fn(), local: vi.fn(), digest: vi.fn(), ssh: vi.fn(), prepare: vi.fn(), select: vi.fn(), wire: [] as Array<{ file: string; args: string[]; stdin: boolean }> }));
-vi.mock("@paperclipai/adapter-utils/execution-target", () => ({ runAdapterExecutionTargetShellCommand: mocks.command }));
-vi.mock("@paperclipai/adapter-utils/ssh", () => ({ runSshCommand: mocks.ssh }));
+vi.mock("@nexusai/adapter-utils/execution-target", () => ({ runAdapterExecutionTargetShellCommand: mocks.command }));
+vi.mock("@nexusai/adapter-utils/ssh", () => ({ runSshCommand: mocks.ssh }));
 vi.mock("../services/native-runtime/native-session-executor.js", () => ({
   prepareRemoteProviderPackOnTarget: mocks.prepare, resolveRemoteProviderPackSource: mocks.select,
 }));
@@ -28,8 +28,8 @@ vi.mock("node:child_process", async importOriginal => {
     },
   };
 });
-vi.mock("../vendor/paperclip-runner/live/index.js", async () => {
-  const provider = await import("../../../packages/paperclip-runner/src/drivers/acpx/kimi-metadata-probe.js");
+vi.mock("../vendor/nexus-runner/live/index.js", async () => {
+  const provider = await import("../../../packages/nexus-runner/src/drivers/acpx/kimi-metadata-probe.js");
   return { probeKimiMetadata: mocks.local, kimiMetadataProbeDigest: mocks.digest,
     validateKimiMetadata: provider.validateKimiMetadata, kimiMetadataProbeNodeDigest: provider.kimiMetadataProbeNodeDigest };
 });
@@ -39,18 +39,18 @@ const model = "selected-model'; $(never-execute)";
 const apiKey = "selected-secret'; $(never-execute)";
 const digest = `sha256:${"a".repeat(64)}`;
 const remote = { kind: "remote", transport: "sandbox", remoteCwd: "/workspace" } as AdapterExecutionTarget;
-const verified = () => ({ schema: "paperclip.kimi.metadata.v1", status: "verified", version: KIMI_RUNTIME_VERSION,
+const verified = () => ({ schema: "nexus.kimi.metadata.v1", status: "verified", version: KIMI_RUNTIME_VERSION,
   nodeVersion: KIMI_NODE_VERSION, profileDigest: QUALIFIED_ACPX_PROFILES.kimi.commandDigest, target: "linux-x64",
   closureDigest: `sha256:${KIMI_DISTRIBUTION_CLOSURE_SHA256["linux-x64"]}`, model, contextLength: 1048576, promptSent: false });
 const response = (value: unknown = verified(), exitCode = 0) => ({ stdout: JSON.stringify(value), stderr: "", exitCode, signal: null, timedOut: false });
-const failed = (code: string) => ({ schema: "paperclip.kimi.metadata.v1", status: "failed", code, message: apiKey, promptSent: false });
+const failed = (code: string) => ({ schema: "nexus.kimi.metadata.v1", status: "failed", code, message: apiKey, promptSent: false });
 
 const companyId = "candidate-company";
 const pending = QUALIFIED_ACPX_PROFILES.kimi.qualificationStatus === "pending";
 function probeKimiExecutionTarget(apiKey: string, target: AdapterExecutionTarget | null | undefined, model: string) {
   const platform = target?.kind === "remote" ? "linux" : process.platform;
   const architecture = target?.kind === "remote" ? "x64" : process.arch;
-  vi.stubEnv("PAPERCLIP_ACPX_CANDIDATE_ADMISSION", JSON.stringify({ schema: "paperclip.acpx-candidate-admission.v1",
+  vi.stubEnv("NEXUS_ACPX_CANDIDATE_ADMISSION", JSON.stringify({ schema: "nexus.acpx-candidate-admission.v1",
     companyId, agent: "kimi", model, profileDigest: QUALIFIED_ACPX_PROFILES.kimi.commandDigest,
     platform, architecture, expiresAt: Date.now() + 60_000,
     nativeClosureDigest: `sha256:${KIMI_DISTRIBUTION_CLOSURE_SHA256[`${platform}-${architecture}` as "darwin-arm64" | "linux-x64"]}` }));
@@ -84,7 +84,7 @@ describe("Kimi setup on a selected execution target", () => {
       expect(mocks.command).toHaveBeenCalledOnce();
       expect(call![1]).toBe(target);
     }
-    expect(command).toContain("pack=/opt/paperclip-runner/provider-pack");
+    expect(command).toContain("pack=/opt/nexus-runner/provider-pack");
     expect(command).toContain('node="$pack/provider-assets/kimi/linux-x64/runtime/node/bin/node"');
     expect(command).toContain('/usr/bin/sha256sum "$entry"');
     expect(command).toContain(digest.slice(7));
@@ -93,7 +93,7 @@ describe("Kimi setup on a selected execution target", () => {
     expect(command.indexOf('/usr/bin/sha256sum "$entry"')).toBeLessThan(command.indexOf('exec /usr/bin/env -i'));
     expect(command.indexOf('/usr/bin/sha256sum "$node"')).toBeLessThan(command.indexOf('exec /usr/bin/env -i'));
     expect(command).toContain("unset NODE_OPTIONS NODE_PATH NODE_EXTRA_CA_CERTS");
-    expect(command).toContain('PAPERCLIP_ACPX_PROVIDER_PACKAGE_ROOT="$pack"');
+    expect(command).toContain('NEXUS_ACPX_PROVIDER_PACKAGE_ROOT="$pack"');
     expect(command).not.toContain(model);
     expect(command).not.toContain(apiKey);
     if (transport === "ssh") {
@@ -105,7 +105,7 @@ describe("Kimi setup on a selected execution target", () => {
       expect(options.timeoutMs).toBeGreaterThan(0);
       expect(options.timeoutMs).toBeLessThanOrEqual(32000);
     } else {
-      expect(options).toEqual({ cwd: "/workspace", env: { KIMI_API_KEY: apiKey, PAPERCLIP_KIMI_PROBE_MODEL: model, ...(pending ? { PAPERCLIP_ACPX_CANDIDATE_ADMISSION: expect.any(String) } : {}) }, timeoutSec: expect.any(Number), graceSec: 3 });
+      expect(options).toEqual({ cwd: "/workspace", env: { KIMI_API_KEY: apiKey, NEXUS_KIMI_PROBE_MODEL: model, ...(pending ? { NEXUS_ACPX_CANDIDATE_ADMISSION: expect.any(String) } : {}) }, timeoutSec: expect.any(Number), graceSec: 3 });
       expect(options.timeoutSec).toBeGreaterThan(0);
       expect(options.timeoutSec).toBeLessThanOrEqual(32);
     }
@@ -157,22 +157,22 @@ describe("remote Kimi installation fallback and failure admission", () => {
     // and complete selected Linux pack require the newer bytes.
     const imageHelper = "9e87ba56ce4663aa36f310a7eb6224bebb7d838be479c1741c3393577f2953c7";
     const selectedHelper = "22bf5125adbda95208d26762d4889de2b365a351b403ac92863f8f838f6d36fc";
-    const installedRoot = "/workspace/.paperclip-runtime/paperclip-runner/provider-pack";
+    const installedRoot = "/workspace/.nexus-runtime/nexus-runner/provider-pack";
     const runner = { execute: vi.fn() };
     const selected = { configuredRoot: "/controller/complete-linux-pack",
       manifest: { payload: { target: { platform: "linux", architecture: "x64" } } } };
     mocks.select.mockReturnValue(selected);
     mocks.prepare.mockResolvedValue({ root: installedRoot, manifest: selected.manifest, source: "uploaded" });
     mocks.digest.mockResolvedValue(`sha256:${selectedHelper}`);
-    vi.stubEnv("PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH", "/controller/complete-linux-pack");
-    vi.stubEnv("PAPERCLIP_RUNNER_REMOTE_BINARY_PATH", "/controller/linux-runnerd");
+    vi.stubEnv("NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH", "/controller/complete-linux-pack");
+    vi.stubEnv("NEXUS_RUNNER_REMOTE_BINARY_PATH", "/controller/linux-runnerd");
     mocks.command.mockImplementation(async (_id, _target, command) => {
       expect(command).toContain(selectedHelper);
-      if (command.includes("pack=/opt/paperclip-runner/provider-pack")) {
+      if (command.includes("pack=/opt/nexus-runner/provider-pack")) {
         expect(imageHelper).not.toBe(selectedHelper);
         return { ...response(), stdout: "", exitCode: 126 };
       }
-      if (command.includes('pack="$HOME/.local/share/paperclip-runner/provider-pack"')) {
+      if (command.includes('pack="$HOME/.local/share/nexus-runner/provider-pack"')) {
         return { ...response(), stdout: "", exitCode: 127 };
       }
       expect(command).toContain(`pack='${installedRoot}'`);
@@ -188,7 +188,7 @@ describe("remote Kimi installation fallback and failure admission", () => {
   });
 
   it.each(["unreadable-source", "wrong-platform", "missing-transport", "failed-install"])("does not transmit credentials or use the baked image after %s", async failure => {
-    vi.stubEnv("PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH", "/controller/selected-pack");
+    vi.stubEnv("NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH", "/controller/selected-pack");
     mocks.select.mockReturnValue({ configuredRoot: "/controller/selected-pack",
       manifest: { payload: { target: { platform: failure === "wrong-platform" ? "darwin" : "linux", architecture: "x64" } } } });
     if (failure === "unreadable-source") mocks.select.mockImplementation(() => { throw new Error(apiKey); });
@@ -203,8 +203,8 @@ describe("remote Kimi installation fallback and failure admission", () => {
   });
 
   it("uses the current qualification policy before selected-pack preparation", async () => {
-    vi.stubEnv("PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH", "/controller/selected-pack");
-    vi.stubEnv("PAPERCLIP_ACPX_CANDIDATE_ADMISSION", JSON.stringify({ schema: "paperclip.acpx-candidate-admission.v1",
+    vi.stubEnv("NEXUS_RUNNER_REMOTE_PROVIDER_PACK_PATH", "/controller/selected-pack");
+    vi.stubEnv("NEXUS_ACPX_CANDIDATE_ADMISSION", JSON.stringify({ schema: "nexus.acpx-candidate-admission.v1",
       companyId: "other-company", agent: "kimi", model, profileDigest: QUALIFIED_ACPX_PROFILES.kimi.commandDigest,
       platform: "linux", architecture: "x64", expiresAt: Date.now() + 60_000,
       nativeClosureDigest: `sha256:${KIMI_DISTRIBUTION_CLOSURE_SHA256["linux-x64"]}` }));
@@ -219,10 +219,10 @@ describe("remote Kimi installation fallback and failure admission", () => {
       const selected = { configuredRoot: "/controller/selected-pack",
         manifest: { payload: { target: { platform: "linux", architecture: "x64" } } } };
       mocks.select.mockReturnValue(selected);
-      mocks.prepare.mockResolvedValue({ root: "/workspace/.paperclip-runtime/paperclip-runner/provider-pack", manifest: selected.manifest, source: "uploaded" });
+      mocks.prepare.mockResolvedValue({ root: "/workspace/.nexus-runtime/nexus-runner/provider-pack", manifest: selected.manifest, source: "uploaded" });
       await expect(rawProbeKimiExecutionTarget(apiKey, { ...remote, runner } as AdapterExecutionTarget, model, { companyId })).resolves.toEqual(verified());
       expect(mocks.prepare).toHaveBeenCalledOnce();
-      expect(mocks.command.mock.calls[0]![3].env).not.toHaveProperty("PAPERCLIP_ACPX_CANDIDATE_ADMISSION");
+      expect(mocks.command.mock.calls[0]![3].env).not.toHaveProperty("NEXUS_ACPX_CANDIDATE_ADMISSION");
     }
   });
 
@@ -234,7 +234,7 @@ describe("remote Kimi installation fallback and failure admission", () => {
     mocks.command.mockResolvedValueOnce(first).mockResolvedValueOnce(response());
     await expect(probeKimiExecutionTarget(apiKey, remote, model)).resolves.toEqual(verified());
     expect(mocks.command).toHaveBeenCalledTimes(2);
-    expect(mocks.command.mock.calls[1]![2]).toContain('pack="$HOME/.local/share/paperclip-runner/provider-pack"');
+    expect(mocks.command.mock.calls[1]![2]).toContain('pack="$HOME/.local/share/nexus-runner/provider-pack"');
     expect(mocks.local).not.toHaveBeenCalled();
   });
 
@@ -314,7 +314,7 @@ it("keeps the selected SSH key out of actual ssh argv and delivers it only over 
   const target = { kind: "remote", transport: "ssh", remoteCwd: "/workspace", spec } as AdapterExecutionTarget;
   await probeKimiExecutionTarget(wireApiKey, target, wireModel);
   const selected = mocks.ssh.mock.calls[0] ?? [spec, mocks.command.mock.calls[0]![2], { env: mocks.command.mock.calls[0]![3].env }];
-  const { runSshCommand } = await vi.importActual<typeof import("@paperclipai/adapter-utils/ssh")>("@paperclipai/adapter-utils/ssh");
+  const { runSshCommand } = await vi.importActual<typeof import("@nexusai/adapter-utils/ssh")>("@nexusai/adapter-utils/ssh");
   const result = await runSshCommand(spec, selected[1], selected[2]);
   expect(mocks.wire).toHaveLength(1);
   const argv = JSON.stringify(mocks.wire[0]!.args);
@@ -335,7 +335,7 @@ it("loads the verified entry after decoding private stdin without interpreting k
   const root = await mkdtemp(path.join(os.tmpdir(), "kimi-probe-stdin-"));
   try {
     const entry = path.join(root, "entry.cjs");
-    await writeFile(entry, 'process.stdout.write(JSON.stringify({ key:process.env.KIMI_API_KEY, model:process.env.PAPERCLIP_KIMI_PROBE_MODEL, ambient:process.env.UNSELECTED_SECRET }));');
+    await writeFile(entry, 'process.stdout.write(JSON.stringify({ key:process.env.KIMI_API_KEY, model:process.env.NEXUS_KIMI_PROBE_MODEL, ambient:process.env.UNSELECTED_SECRET }));');
     const execute = (input: string) => new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
       const child = spawn(process.execPath, ["-e", bootstrap!, entry], { env: {}, stdio: ["pipe", "pipe", "pipe"] });
       let stdout = "", stderr = "";
@@ -355,7 +355,7 @@ it("preserves SSH installation fallback and typed rejection while stripping tran
   mocks.ssh.mockRejectedValueOnce(Object.assign(new Error(apiKey), { code:127, stdout:"" }));
   await expect(probeKimiExecutionTarget(apiKey, target, model)).resolves.toEqual(verified());
   expect(mocks.ssh).toHaveBeenCalledTimes(2);
-  expect(mocks.ssh.mock.calls[1]![1]).toContain('pack="$HOME/.local/share/paperclip-runner/provider-pack"');
+  expect(mocks.ssh.mock.calls[1]![1]).toContain('pack="$HOME/.local/share/nexus-runner/provider-pack"');
   for (const failure of [Object.assign(new Error(apiKey), { code:1, stdout:JSON.stringify(failed("KIMI_AUTH_REJECTED")) }),
     Object.assign(new Error(apiKey), { code:"ETIMEDOUT" })]) {
     mocks.ssh.mockRejectedValueOnce(failure);
@@ -366,18 +366,18 @@ it("preserves SSH installation fallback and typed rejection while stripping tran
 
 it("uses trusted authority only for a pending metadata Test and ordinary no-grant execution after release", async () => {
   if (!pending) {
-    vi.stubEnv("PAPERCLIP_ACPX_CANDIDATE_ADMISSION", "unrelated-invalid-authority");
+    vi.stubEnv("NEXUS_ACPX_CANDIDATE_ADMISSION", "unrelated-invalid-authority");
     for (const context of [{}, { companyId }, { companyId, candidateAdmission: { allowAll: true } }]) {
       await expect(rawProbeKimiExecutionTarget(apiKey, remote, model, context)).resolves.toEqual(verified());
     }
     expect(mocks.command).toHaveBeenCalledTimes(3);
     for (const call of mocks.command.mock.calls) {
-      expect(call[2]).not.toContain("PAPERCLIP_ACPX_CANDIDATE_ADMISSION");
-      expect(call[3].env).not.toHaveProperty("PAPERCLIP_ACPX_CANDIDATE_ADMISSION");
+      expect(call[2]).not.toContain("NEXUS_ACPX_CANDIDATE_ADMISSION");
+      expect(call[3].env).not.toHaveProperty("NEXUS_ACPX_CANDIDATE_ADMISSION");
     }
   } else {
-  vi.stubEnv("PAPERCLIP_ACPX_CANDIDATE_ADMISSION", undefined);
-  vi.stubEnv("PAPERCLIP_RUNNER_ACPX_QUALIFICATION", JSON.stringify([{ agent: "kimi", model }]));
+  vi.stubEnv("NEXUS_ACPX_CANDIDATE_ADMISSION", undefined);
+  vi.stubEnv("NEXUS_RUNNER_ACPX_QUALIFICATION", JSON.stringify([{ agent: "kimi", model }]));
   for (const context of [{}, { companyId }, { companyId, candidateAdmission: { allowAll: true } }]) {
     await expect(rawProbeKimiExecutionTarget(apiKey, remote, model, context)).rejects.toMatchObject({ details: { code: "KIMI_QUALIFICATION_REQUIRED" } });
   }
@@ -388,38 +388,38 @@ it("uses trusted authority only for a pending metadata Test and ordinary no-gran
   for (const context of [{ companyId: "foreign" }, {}]) {
     await expect(rawProbeKimiExecutionTarget(apiKey, remote, model, context)).rejects.toMatchObject({ details: { code: "KIMI_QUALIFICATION_REQUIRED" } });
   }
-  const grant = JSON.parse(process.env.PAPERCLIP_ACPX_CANDIDATE_ADMISSION!);
-  vi.stubEnv("PAPERCLIP_ACPX_CANDIDATE_ADMISSION", JSON.stringify({ ...grant, expiresAt: 0 }));
+  const grant = JSON.parse(process.env.NEXUS_ACPX_CANDIDATE_ADMISSION!);
+  vi.stubEnv("NEXUS_ACPX_CANDIDATE_ADMISSION", JSON.stringify({ ...grant, expiresAt: 0 }));
   await expect(rawProbeKimiExecutionTarget(apiKey, remote, model, { companyId })).rejects.toMatchObject({ details: { code: "KIMI_QUALIFICATION_REQUIRED" } });
   expect(mocks.command).not.toHaveBeenCalled(); expect(mocks.digest).not.toHaveBeenCalled();
   }
 });
 
 it("omits candidate authority entirely for released metadata Test, including the actual remote shell environment", async () => {
-  const path = "../vendor/paperclip-runner/index.js";
+  const path = "../vendor/nexus-runner/index.js";
   vi.doMock(path, async () => {
-    const actual = await vi.importActual<typeof import("../vendor/paperclip-runner/index.js")>(path);
+    const actual = await vi.importActual<typeof import("../vendor/nexus-runner/index.js")>(path);
     return { ...actual, QUALIFIED_ACPX_PROFILES: { ...actual.QUALIFIED_ACPX_PROFILES,
       kimi: { ...actual.QUALIFIED_ACPX_PROFILES.kimi, qualificationStatus: undefined } } };
   });
   vi.resetModules();
   const root = await mkdtemp(os.tmpdir() + "/kimi-released-probe-");
   try {
-    vi.stubEnv("PAPERCLIP_ACPX_CANDIDATE_ADMISSION", undefined);
+    vi.stubEnv("NEXUS_ACPX_CANDIDATE_ADMISSION", undefined);
     const { probeKimiExecutionTarget } = await import("../services/kimi-connection-probe.js");
     const { resolveKimiCandidateAdmission } = await import("../services/native-runtime/acpx-qualification.js");
-    expect(resolveKimiCandidateAdmission({ companyId, model }, { PAPERCLIP_ACPX_CANDIDATE_ADMISSION: "stale-invalid-candidate" })).toBeUndefined();
+    expect(resolveKimiCandidateAdmission({ companyId, model }, { NEXUS_ACPX_CANDIDATE_ADMISSION: "stale-invalid-candidate" })).toBeUndefined();
     await probeKimiExecutionTarget(apiKey, remote, model, { companyId });
     const command = mocks.command.mock.calls[0]![2] as string;
     const options = mocks.command.mock.calls[0]![3];
-    expect(command).not.toContain("PAPERCLIP_ACPX_CANDIDATE_ADMISSION");
-    expect(options.env).not.toHaveProperty("PAPERCLIP_ACPX_CANDIDATE_ADMISSION");
+    expect(command).not.toContain("NEXUS_ACPX_CANDIDATE_ADMISSION");
+    expect(options.env).not.toHaveProperty("NEXUS_ACPX_CANDIDATE_ADMISSION");
     const entry = root + "/environment.cjs";
-    await writeFile(entry, 'process.stdout.write(JSON.stringify({candidatePresent:Object.hasOwn(process.env,"PAPERCLIP_ACPX_CANDIDATE_ADMISSION")}));');
+    await writeFile(entry, 'process.stdout.write(JSON.stringify({candidatePresent:Object.hasOwn(process.env,"NEXUS_ACPX_CANDIDATE_ADMISSION")}));');
     const suffix = command.slice(command.lastIndexOf("exec /usr/bin/env -i"));
     const result = await new Promise<{code:number|null;stdout:string;stderr:string}>((resolve, reject) => {
       const child = spawn("/bin/sh", ["-c", suffix], { env: { node: process.execPath, entry, pack: root,
-        KIMI_API_KEY: apiKey, PAPERCLIP_KIMI_PROBE_MODEL: model, PAPERCLIP_ACPX_CANDIDATE_ADMISSION: "ambient-forgery" }, stdio: ["ignore", "pipe", "pipe"] });
+        KIMI_API_KEY: apiKey, NEXUS_KIMI_PROBE_MODEL: model, NEXUS_ACPX_CANDIDATE_ADMISSION: "ambient-forgery" }, stdio: ["ignore", "pipe", "pipe"] });
       let stdout = "", stderr = "";
       child.stdout.on("data", chunk => { stdout += chunk; }); child.stderr.on("data", chunk => { stderr += chunk; });
       child.on("error", reject); child.on("close", code => resolve({ code, stdout, stderr }));

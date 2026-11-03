@@ -1,13 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const ADMIN_EMAIL =
-  process.env.PAPERCLIP_RELEASE_SMOKE_EMAIL ??
+  process.env.NEXUS_RELEASE_SMOKE_EMAIL ??
   process.env.SMOKE_ADMIN_EMAIL ??
-  "smoke-admin@paperclip.local";
+  "smoke-admin@nexus.local";
 const ADMIN_PASSWORD =
-  process.env.PAPERCLIP_RELEASE_SMOKE_PASSWORD ??
+  process.env.NEXUS_RELEASE_SMOKE_PASSWORD ??
   process.env.SMOKE_ADMIN_PASSWORD ??
-  "paperclip-smoke-password";
+  "nexus-smoke-password";
 
 // A hire needs a live-verified credential since #13344 — the subscription
 // path now dead-ends on a `claude auth login` no CI machine can finish — so
@@ -19,17 +19,17 @@ const ADMIN_PASSWORD =
 // The placeholder is offered only to a loopback target — where the mocked
 // harness lives. Any other target reaches the real provider, which would
 // reject the placeholder late inside the wizard, so those runs must set
-// PAPERCLIP_RELEASE_SMOKE_ANTHROPIC_API_KEY and fail up front without it.
+// NEXUS_RELEASE_SMOKE_ANTHROPIC_API_KEY and fail up front without it.
 // A real key entered here also lands in Playwright's failure traces and DOM
 // snapshots (the field is masked on screen, not in the DOM) — those artifacts
 // stay on the machine running the suite, and CI never uses a real key.
 const BASE_URL =
-  process.env.PAPERCLIP_RELEASE_SMOKE_BASE_URL ?? "http://127.0.0.1:3232";
+  process.env.NEXUS_RELEASE_SMOKE_BASE_URL ?? "http://127.0.0.1:3232";
 const TARGET_IS_LOOPBACK = /^https?:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(
   BASE_URL
 );
 const ANTHROPIC_API_KEY =
-  process.env.PAPERCLIP_RELEASE_SMOKE_ANTHROPIC_API_KEY ??
+  process.env.NEXUS_RELEASE_SMOKE_ANTHROPIC_API_KEY ??
   (TARGET_IS_LOOPBACK ? "sk-ant-release-smoke-placeholder" : "");
 
 const COMPANY_NAME = `Release-Smoke-${Date.now()}`;
@@ -39,7 +39,7 @@ const AGENT_NAME = "Release Smoke Lead";
 const AGENT_ROLE = "general";
 // Seeded by the wizard's launch step (DEFAULT_TASK_TITLE in
 // ui/src/components/OnboardingWizard.tsx).
-const FIRST_TASK_TITLE = "Paperclip onboarding";
+const FIRST_TASK_TITLE = "Nexus onboarding";
 
 async function signIn(page: Page) {
   await page.goto("/");
@@ -59,7 +59,7 @@ async function getJson<T>(page: Page, url: string): Promise<T> {
 }
 
 // ONBOARDING_STORAGE_KEY in ui/src/components/OnboardingWizard.tsx.
-const ONBOARDING_DRAFT_STORAGE_KEY = "paperclip-onboarding-state";
+const ONBOARDING_DRAFT_STORAGE_KEY = "nexus-onboarding-state";
 
 /**
  * Open the wizard on its first step and hand back the organization-name field.
@@ -103,7 +103,7 @@ test.describe("Docker authenticated onboarding smoke", () => {
     // placeholder to the real provider and timing out deep in the wizard.
     expect(
       ANTHROPIC_API_KEY,
-      "This target reaches the real provider — set PAPERCLIP_RELEASE_SMOKE_ANTHROPIC_API_KEY to a key it accepts"
+      "This target reaches the real provider — set NEXUS_RELEASE_SMOKE_ANTHROPIC_API_KEY to a key it accepts"
     ).toBeTruthy();
 
     await signIn(page);
@@ -277,7 +277,7 @@ test.describe("Docker authenticated onboarding smoke", () => {
     // card are seeded without an LLM, so their absence means the launch
     // half-finished) …
     await expect(
-      page.getByText("Welcome to Paperclip!").first()
+      page.getByText("Welcome to Nexus!").first()
     ).toBeVisible({ timeout: 20_000 });
     // The timeline also summarizes the unanswered question. Check the open
     // question card so a summary alone cannot satisfy this assertion.

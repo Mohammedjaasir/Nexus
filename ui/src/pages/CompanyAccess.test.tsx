@@ -86,7 +86,7 @@ vi.mock("@/context/SidebarContext", () => ({
 vi.mock("@/context/CompanyContext", () => ({
   useCompany: () => ({
     selectedCompanyId: "company-1",
-    selectedCompany: { id: "company-1", name: "Paperclip" },
+    selectedCompany: { id: "company-1", name: "Nexus" },
   }),
 }));
 
@@ -129,7 +129,7 @@ describe("CompanyAccess", () => {
           updatedAt: "2026-04-10T00:00:00.000Z",
           user: {
             id: "user-1",
-            email: "codexcoder@paperclip.local",
+            email: "codexcoder@nexus.local",
             name: "Codex Coder",
             image: "/api/assets/avatar-1/content",
           },
@@ -146,7 +146,7 @@ describe("CompanyAccess", () => {
           updatedAt: "2026-04-10T00:00:00.000Z",
           user: {
             id: "user-2",
-            email: "board@paperclip.local",
+            email: "board@nexus.local",
             name: "Board User",
             image: null,
           },
@@ -167,11 +167,11 @@ describe("CompanyAccess", () => {
         createdAt: "2026-04-10T00:00:00.000Z",
         requesterUser: {
           id: "user-2",
-          email: "board@paperclip.local",
+          email: "board@nexus.local",
           name: "Board User",
           image: null,
         },
-        requestEmailSnapshot: "board@paperclip.local",
+        requestEmailSnapshot: "board@nexus.local",
         requestingUserId: "user-2",
         invite: {
           allowedJoinTypes: "human",
@@ -238,7 +238,7 @@ describe("CompanyAccess", () => {
     await flushReact();
     await flushReact();
 
-    expect(container.textContent).not.toContain("Manage the people who can work in Paperclip");
+    expect(container.textContent).not.toContain("Manage the people who can work in Nexus");
     expect(container.textContent).not.toContain("Members can collaborate across the company by default");
     expect(container.textContent).not.toContain("Core keeps this page focused on membership");
     expect(container.textContent).not.toContain("Manage human company memberships and status here");
@@ -391,7 +391,7 @@ describe("CompanyAccess", () => {
           updatedAt: "2026-04-10T00:00:00.000Z",
           user: {
             id: "admin-user",
-            email: "admin@paperclip.local",
+            email: "admin@nexus.local",
             name: "Admin User",
             image: null,
           },
@@ -587,7 +587,7 @@ describe("CompanyAccess invites tab", () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     client.setQueryData(["health"], {
       hiddenSettings: ["company.invites"],
-      cloud: { managed: true, managedBy: "paperclip-cloud", cloudBaseUrl, stackSlug: "old-slug" },
+      cloud: { managed: true, managedBy: "nexus-cloud", cloudBaseUrl, stackSlug: "old-slug" },
     });
     return client;
   }

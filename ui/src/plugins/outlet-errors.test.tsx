@@ -60,7 +60,7 @@ const probeText = () => container.querySelector('[data-testid="probe"]')?.textCo
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   // Module and session fetches stay pending; components are registered directly.
-  vi.stubGlobal("__paperclipPluginBridge__", {});
+  vi.stubGlobal("__nexusPluginBridge__", {});
   vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
   client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   container = document.createElement("div"); document.body.append(container); root = createRoot(container);

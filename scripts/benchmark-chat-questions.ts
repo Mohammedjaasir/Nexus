@@ -8,14 +8,14 @@ import { agents, companies, createDb, issues, issueThreadInteractions, startEmbe
 import { conversationDecisionReceiptsService } from "../server/src/services/conversation-decision-receipts.js";
 import { attentionService } from "../server/src/services/attention.js";
 import { resolveExternalTestDatabaseUrl } from "../server/src/__tests__/helpers/external-test-database.js";
-import type { AttentionItem } from "@paperclipai/shared";
+import type { AttentionItem } from "@nexusai/shared";
 
 const baselineRef = process.argv.find(arg => arg.startsWith("--baseline-ref="))?.slice(15);
 assert.ok(baselineRef, "Pass the pre-fix --baseline-ref commit");
 const baselineRevision = execFileSync("git", ["rev-parse", "--verify", `${baselineRef}^{commit}`], { encoding: "utf8" }).trim();
 const unrelated = Number(process.argv.find(arg => arg.startsWith("--unrelated="))?.slice(12) ?? 1000);
 assert.ok(Number.isSafeInteger(unrelated) && unrelated >= 0 && unrelated <= 5000);
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_CHAT_QUESTIONS_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_CHAT_QUESTIONS_TEST_DATABASE_URL");
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const baselineDir = path.join(repoRoot, "server/src/services", `.chat-question-baseline-${randomUUID()}`);
 let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;

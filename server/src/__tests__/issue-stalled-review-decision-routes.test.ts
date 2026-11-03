@@ -18,7 +18,7 @@ import {
   issueRecoveryActions,
   issueThreadInteractions,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { errorHandler } from "../middleware/index.js";
 import { issueRoutes } from "../routes/issues.js";
 import {
@@ -41,7 +41,7 @@ describeEmbeddedPostgres("stalled review decision routes", () => {
   const enqueueWakeup = vi.fn(async () => ({ id: randomUUID() }));
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-stalled-review-decision-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-stalled-review-decision-");
     db = createDb(tempDb.connectionString);
   }, 30_000);
 

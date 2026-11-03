@@ -1,6 +1,6 @@
 import { createPrivateKey, createSign } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { chatEndpoints, toolConnections, type Db } from "@paperclipai/db";
+import { chatEndpoints, toolConnections, type Db } from "@nexusai/db";
 import { secretService } from "./secrets.js";
 import { conflict, forbidden, unprocessable } from "../errors.js";
 import { githubPublicationRetry, githubProviderRetry, GITHUB_INLINE_RETRY_WINDOW_MS, GITHUB_INLINE_MAX_ATTEMPTS } from "./chat-channels/github/retry.js";

@@ -1,4 +1,4 @@
-const STORAGE_KEY = "paperclip:composer-effort";
+const STORAGE_KEY = "nexus:composer-effort";
 
 /** Undefined means no preference; null is the user's explicit Default choice. */
 export function getLastComposerEffort(companyId: string): string | null | undefined {

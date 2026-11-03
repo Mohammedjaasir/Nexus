@@ -3,7 +3,7 @@ import { setupPluginApiWebSocketServer } from "../realtime/plugin-api-ws.js";
 import { setupRunnerPrpWebSocketServer } from "../realtime/runner-prp-ws.js";
 
 /** Create the HTTP listener used by both production and custom launchers. */
-export function createPaperclipHttpServer(
+export function createNexusHttpServer(
   listener: RequestListener,
   options: { apiUrl: string; httpOptions?: ServerOptions },
 ) {

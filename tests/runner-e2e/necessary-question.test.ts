@@ -10,8 +10,8 @@ function recording(provider = false): any[] {
   const contract = necessaryQuestionContract(), scenario = continuationScenario("necessary-free-text", "nonce");
   const card: Row = { id: "card", kind: "ask_user_questions", status: "pending", companyId: "company", issueId: "task", createdByAgentId: "agent",
     sourceRunId: "first", continuationPolicy: provider ? "none" : "wake_assignee",
-    idempotencyKey: provider ? "paperclip-runner-question:first:request" : "question",
-    payload: { ...(provider ? { runtimeRequestId: "request" } : {}), questionSet: { schema: "paperclip.question_set.v1", description: contract.context,
+    idempotencyKey: provider ? "nexus-runner-question:first:request" : "question",
+    payload: { ...(provider ? { runtimeRequestId: "request" } : {}), questionSet: { schema: "nexus.question_set.v1", description: contract.context,
       questions: [{ id: "reference", answerMode: "text", prompt: contract.prompt, required: true }] } } };
   const run: Row = { id: "first", companyId: "company", issueId: "task", agentId: "agent", status: provider ? "running" : "succeeded", runtimeMode: "native",
     nativePhase: provider ? "running" : "committed", resultJson: { finalizationPhase: provider ? null : "committed", semanticToolReceipts: provider ? {} : {

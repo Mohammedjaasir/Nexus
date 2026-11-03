@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { agentsApi } from "../api/agents";
 import { queryKeys } from "../lib/queryKeys";
-import type { Agent, AgentLifecycleState } from "@paperclipai/shared";
+import type { Agent, AgentLifecycleState } from "@nexusai/shared";
 import { Loader2 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -66,6 +66,6 @@ export function AgentLifecycleStatus({ agent, onRetry, retryPending, refreshErro
     </div>}
     {phase && agent.lifecycleError && <p className="text-muted-foreground">{agent.lifecycleState === "verifying"
       ? "Retry now checks the saved configuration again immediately."
-      : "Paperclip retries automatically; Retry now checks again immediately."}</p>}
+      : "Nexus retries automatically; Retry now checks again immediately."}</p>}
   </div>;
 }

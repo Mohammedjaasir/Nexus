@@ -1,8 +1,8 @@
 import { probeCopilotExecutionTarget } from "../services/copilot-connection-probe.js";
 import { HttpError } from "../errors.js";
-import { probeAcpxClaudeInstallation, probeAcpxCursorInstallation, probeAcpxPiInstallation } from "../vendor/paperclip-runner/live/index.js";
+import { probeAcpxClaudeInstallation, probeAcpxCursorInstallation, probeAcpxPiInstallation } from "../vendor/nexus-runner/live/index.js";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
-import { buildSandboxNpmInstallCommand } from "@paperclipai/adapter-utils";
+import { buildSandboxNpmInstallCommand } from "@nexusai/adapter-utils";
 import type { ServerAdapterModule } from "../adapters/index.js";
 
 import {
@@ -26,7 +26,7 @@ vi.mock("../services/native-runtime/setup-readiness.js", () => ({
 }));
 vi.mock("../services/copilot-connection-probe.js",()=>({probeCopilotExecutionTarget:vi.fn(async()=>({status:"verified",models:[{id:"gpt-5.6-luna"}]}))}));
 
-vi.mock("../vendor/paperclip-runner/live/index.js", () => ({
+vi.mock("../vendor/nexus-runner/live/index.js", () => ({
   probeAcpxClaudeInstallation: vi.fn(async () => undefined),
   probeAcpxGrokInstallation: vi.fn(async () => undefined),
   probeAcpxPiInstallation: vi.fn(async () => undefined),
@@ -259,29 +259,29 @@ describe("server adapter registry", () => {
   });
 
   it("rejects an incomplete managed runner provider before probing Codex", async () => {
-    const adapter = requireServerAdapter("paperclip_runner");
+    const adapter = requireServerAdapter("nexus_runner");
     expect(adapter.supportsInstructionsBundle).toBe(true);
     expect(adapter.instructionsPathKey).toBe("instructionsFilePath");
     const result = await adapter.testEnvironment({
       companyId: "company-1",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       config: { provider: "claude_managed" },
     });
 
     expect(result).toMatchObject({
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       status: "fail",
       checks: [{
-        code: "paperclip_runner_claude_managed_profile_required",
+        code: "nexus_runner_claude_managed_profile_required",
         level: "error",
       }],
     });
   });
 
   it.each(["pass", "fail"] as const)("uses the selected native Codex runtime for setup (%s)", async status => {
-    nativeSetup.authenticate.mockReset().mockResolvedValue({ adapterType: "paperclip_runner", status, testedAt: "", checks: [{ code: `codex_hello_probe_${status === "pass" ? "passed" : "auth_required"}`, level: status === "pass" ? "info" : "error", message: "Selected native account" }] });
-    const context = { companyId: "company-1", adapterType: "paperclip_runner", config: { provider: "codex", model: "gpt-5.6-sol", modelReasoningEffort: "high", env: { OPENAI_API_KEY: "selected-key" } } };
-    const result = await requireServerAdapter("paperclip_runner").testEnvironment(context);
+    nativeSetup.authenticate.mockReset().mockResolvedValue({ adapterType: "nexus_runner", status, testedAt: "", checks: [{ code: `codex_hello_probe_${status === "pass" ? "passed" : "auth_required"}`, level: status === "pass" ? "info" : "error", message: "Selected native account" }] });
+    const context = { companyId: "company-1", adapterType: "nexus_runner", config: { provider: "codex", model: "gpt-5.6-sol", modelReasoningEffort: "high", env: { OPENAI_API_KEY: "selected-key" } } };
+    const result = await requireServerAdapter("nexus_runner").testEnvironment(context);
     expect(result.status).toBe(status);
     expect(nativeSetup.authenticate).toHaveBeenCalledWith(context, "codex", "gpt-5.6-sol");
   });
@@ -308,14 +308,14 @@ describe("server adapter registry", () => {
       agentCoreRetentionAcknowledged: true,
     }, "aws_agentcore_profile_selected"],
   ] as const)("accepts a complete %s profile selection", async (provider, config, code) => {
-    const result = await requireServerAdapter("paperclip_runner").testEnvironment({
+    const result = await requireServerAdapter("nexus_runner").testEnvironment({
       companyId: "company-1",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       config: { provider, ...config },
     });
 
     expect(result).toMatchObject({
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       status: "warn",
       checks: expect.arrayContaining([expect.objectContaining({ code, level: "info" })]),
     });
@@ -324,9 +324,9 @@ describe("server adapter registry", () => {
   it.each([
     ["claude", "claude-sonnet-5"],
   ] as const)("does not claim runtime readiness from the remote ACPX %s platform alone", async (acpxAgent, model) => {
-    const result = await requireServerAdapter("paperclip_runner").testEnvironment({
+    const result = await requireServerAdapter("nexus_runner").testEnvironment({
       companyId: "company-1",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       config: { provider: "acpx", acpxAgent, model },
       executionTarget: {
         kind: "remote",
@@ -338,7 +338,7 @@ describe("server adapter registry", () => {
     });
 
     expect(result).toMatchObject({
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       status: "warn",
       checks: [{ code: "acpx_remote_runtime_unverified", level: "warn" }],
     });
@@ -348,8 +348,8 @@ describe("server adapter registry", () => {
     const probe = vi.mocked(probeAcpxClaudeInstallation);
     if (ready) probe.mockResolvedValueOnce(undefined);
     else probe.mockRejectedValueOnce(new Error("Runtime package integrity verification failed"));
-    const result = await requireServerAdapter("paperclip_runner").testEnvironment({
-      companyId: "company-1", adapterType: "paperclip_runner",
+    const result = await requireServerAdapter("nexus_runner").testEnvironment({
+      companyId: "company-1", adapterType: "nexus_runner",
       config: { provider: "acpx", acpxAgent: "claude", model: "custom-claude-model" },
     });
     expect(probe).toHaveBeenLastCalledWith("custom-claude-model");
@@ -363,9 +363,9 @@ describe("server adapter registry", () => {
     const probe = vi.mocked(probeAcpxPiInstallation);
     if (ready) probe.mockResolvedValueOnce(undefined);
     else probe.mockRejectedValueOnce(new Error("Pi closure unavailable"));
-    const result = await requireServerAdapter("paperclip_runner").testEnvironment({
+    const result = await requireServerAdapter("nexus_runner").testEnvironment({
       companyId: "company-1",
-      adapterType: "paperclip_runner",
+      adapterType: "nexus_runner",
       config: {
         provider: "acpx",
         acpxAgent: "pi",
@@ -383,23 +383,23 @@ describe("server adapter registry", () => {
     const prior=process.env.COPILOT_GITHUB_TOKEN;process.env.COPILOT_GITHUB_TOKEN="ambient-not-authority";
     const probe=vi.mocked(probeCopilotExecutionTarget);probe.mockClear();
     try{
-      const result=await requireServerAdapter("paperclip_runner").testEnvironment({companyId:"company-1",adapterType:"paperclip_runner",config:{provider:"acpx",acpxAgent:"copilot",model:"gpt-5.6-luna"}});
+      const result=await requireServerAdapter("nexus_runner").testEnvironment({companyId:"company-1",adapterType:"nexus_runner",config:{provider:"acpx",acpxAgent:"copilot",model:"gpt-5.6-luna"}});
       expect(result).toMatchObject({status:"fail",checks:[{code:"COPILOT_AUTH_REQUIRED"}]});expect(probe).not.toHaveBeenCalled();
     }finally{if(prior===undefined)delete process.env.COPILOT_GITHUB_TOKEN;else process.env.COPILOT_GITHUB_TOKEN=prior;}
   });
   it.each([undefined,{kind:"remote",remoteCwd:"/workspace"}])("verifies the selected Copilot runtime and model without a prompt",async(executionTarget)=>{
-    const result=await requireServerAdapter("paperclip_runner").testEnvironment({companyId:"company-1",adapterType:"paperclip_runner",config:{provider:"acpx",acpxAgent:"copilot",model:"gpt-5.6-luna",env:{COPILOT_GITHUB_TOKEN:"fixture-token"}},executionTarget} as any);
+    const result=await requireServerAdapter("nexus_runner").testEnvironment({companyId:"company-1",adapterType:"nexus_runner",config:{provider:"acpx",acpxAgent:"copilot",model:"gpt-5.6-luna",env:{COPILOT_GITHUB_TOKEN:"fixture-token"}},executionTarget} as any);
     expect(probeCopilotExecutionTarget).toHaveBeenLastCalledWith("fixture-token",executionTarget,"gpt-5.6-luna");
     expect(result).toMatchObject({status:"pass",checks:[{code:"copilot_metadata_verified"}]});
   });
   it.each(["COPILOT_AUTH_REQUIRED","COPILOT_ENTITLEMENT_DENIED","COPILOT_MODEL_UNAVAILABLE","COPILOT_INSTALLATION_INVALID","COPILOT_REQUEST_FAILED"])("reports distinct Copilot failure %s",async code=>{
     vi.mocked(probeCopilotExecutionTarget).mockRejectedValueOnce(new HttpError(422,"Fixture metadata failure",{code}));
-    const result=await requireServerAdapter("paperclip_runner").testEnvironment({companyId:"company-1",adapterType:"paperclip_runner",config:{provider:"acpx",acpxAgent:"copilot",model:"gpt-5.6-luna",env:{COPILOT_GITHUB_TOKEN:"fixture-token"}}});
+    const result=await requireServerAdapter("nexus_runner").testEnvironment({companyId:"company-1",adapterType:"nexus_runner",config:{provider:"acpx",acpxAgent:"copilot",model:"gpt-5.6-luna",env:{COPILOT_GITHUB_TOKEN:"fixture-token"}}});
     expect(result).toMatchObject({status:"fail",checks:[{code}]});
   });
   it("sanitizes unexpected Copilot metadata failures",async()=>{
     vi.mocked(probeCopilotExecutionTarget).mockRejectedValueOnce(new Error("fixture private implementation detail"));
-    const result=await requireServerAdapter("paperclip_runner").testEnvironment({companyId:"company-1",adapterType:"paperclip_runner",config:{provider:"acpx",acpxAgent:"copilot",model:"gpt-5.6-luna",env:{COPILOT_GITHUB_TOKEN:"fixture-token"}}});
+    const result=await requireServerAdapter("nexus_runner").testEnvironment({companyId:"company-1",adapterType:"nexus_runner",config:{provider:"acpx",acpxAgent:"copilot",model:"gpt-5.6-luna",env:{COPILOT_GITHUB_TOKEN:"fixture-token"}}});
     expect(result).toMatchObject({status:"fail",checks:[{code:"COPILOT_REQUEST_FAILED",message:"Copilot metadata verification failed."}]});
     expect(JSON.stringify(result)).not.toContain("private implementation detail");
   });
@@ -431,18 +431,18 @@ describe("server adapter registry", () => {
       detectCommand: "opencode",
       installCommand: expectedOpenCodeInstall,
     });
-    expect(findActiveServerAdapter("paperclip_runner")?.getRuntimeCommandSpec?.({ provider: "codex" })).toEqual({
+    expect(findActiveServerAdapter("nexus_runner")?.getRuntimeCommandSpec?.({ provider: "codex" })).toEqual({
       command: "codex",
       detectCommand: "codex",
       installCommand: expectedRunnerCodexInstall,
     });
-    expect(findActiveServerAdapter("paperclip_runner")?.getRuntimeCommandSpec?.({ provider: "opencode" })).toEqual({
+    expect(findActiveServerAdapter("nexus_runner")?.getRuntimeCommandSpec?.({ provider: "opencode" })).toEqual({
       command: "opencode",
       detectCommand: "opencode",
       installCommand: expectedRunnerOpenCodeInstall,
     });
-    expect(findActiveServerAdapter("paperclip_runner")?.getRuntimeCommandSpec?.({ provider: "acpx" })).toEqual({
-      command: "paperclip-runnerd",
+    expect(findActiveServerAdapter("nexus_runner")?.getRuntimeCommandSpec?.({ provider: "acpx" })).toEqual({
+      command: "nexus-runnerd",
       detectCommand: null,
       installCommand: null,
     });

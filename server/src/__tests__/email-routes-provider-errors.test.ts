@@ -1,6 +1,6 @@
 import express from "express";
 import request from "supertest";
-import { agents, type Db } from "@paperclipai/db";
+import { agents, type Db } from "@nexusai/db";
 import { describe, expect, it, vi } from "vitest";
 import { forbidden } from "../errors.js";
 import { errorHandler } from "../middleware/error-handler.js";
@@ -69,7 +69,7 @@ describe("AgentMail provider errors at the HTTP boundary", () => {
 
   it.each([
     [401, 422, "AgentMail rejected the API key"],
-    [403, 422, "AgentMail did not allow Paperclip to create the email address"],
+    [403, 422, "AgentMail did not allow Nexus to create the email address"],
     [400, 422, "Try a different address"],
     [409, 422, "Try a different address"],
     [422, 422, "Try a different address"],
@@ -102,7 +102,7 @@ describe("AgentMail provider errors at the HTTP boundary", () => {
     expect(response.body.details.operation).toBe("create_inbox_key");
   });
 
-  it("keeps a rejected provider key distinct from Paperclip session authentication", async () => {
+  it("keeps a rejected provider key distinct from Nexus session authentication", async () => {
     const api = agentmailApi("private-api-key", vi.fn(async () => new Response(null, { status: 401 })));
     const response = await request(app(() => api.whoami()))
       .post(`/api/companies/${companyId}/email/inspect`).send({ apiKey: "private-api-key" }).expect(422);
@@ -110,7 +110,7 @@ describe("AgentMail provider errors at the HTTP boundary", () => {
     expect(response.body.details.operation).toBe("inspect_key");
   });
 
-  it("preserves Paperclip authorization errors", async () => {
+  it("preserves Nexus authorization errors", async () => {
     const response = await request(app(async () => { throw forbidden("Missing permission: tools:manage_connections"); }))
       .post(setupPath).send(setupInput).expect(403);
     expect(response.body.error).toBe("Missing permission: tools:manage_connections");

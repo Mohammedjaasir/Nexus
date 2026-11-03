@@ -1,10 +1,10 @@
 {
-  "name": "@paperclipai/adapter-hermes-gateway",
+  "name": "@nexusai/adapter-hermes-gateway",
   "version": "0.1.0",
-  "description": "Deprecated compatibility shim for Hermes Gateway; use @paperclipai/hermes-paperclip-adapter/gateway",
+  "description": "Deprecated compatibility shim for Hermes Gateway; use @nexusai/hermes-nexus-adapter/gateway",
   "type": "module",
   "license": "MIT",
-  "author": "Paperclip",
+  "author": "Nexus",
   "repository": {
     "type": "git",
     "url": "https://github.com/paperclipai/paperclip",
@@ -15,7 +15,7 @@
   },
   "homepage": "https://github.com/paperclipai/paperclip/tree/master/packages/adapters/hermes#readme",
   "keywords": [
-    "paperclip",
+    "nexus",
     "hermes",
     "gateway",
     "adapter",
@@ -28,7 +28,7 @@
     "./cli": "./src/cli/index.ts",
     "./ui-parser": "./ui-parser.cjs"
   },
-  "paperclip": {
+  "nexus": {
     "adapterUiParser": "1.0.0"
   },
   "publishConfig": {
@@ -67,7 +67,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@paperclipai/hermes-paperclip-adapter": "workspace:*"
+    "@nexusai/hermes-nexus-adapter": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -27,7 +27,7 @@ export function buildTrace(run, jobs, records = []) {
   const warnings = [];
   if (carriedJobs.length) warnings.push(`${carriedJobs.length} completed jobs carried over from earlier attempts were excluded`);
   const shared = {
-    "service.name": "paperclip-ci",
+    "service.name": "nexus-ci",
     "trace.trace_id": traceId,
     "ci.repository": run.repository.full_name,
     "ci.run_id": String(run.id),
@@ -150,9 +150,9 @@ export function buildTrace(run, jobs, records = []) {
   if (!expectedReceipts.length) warnings.push("Job/step timings only; no test reporter collection steps were present");
   const root = events[0].data;
   const expectedFramework = (name) => {
-    if (/General tests|Verify serialized server suites|Verify Paperclip Runner \(vitest/.test(name)) return "vitest";
+    if (/General tests|Verify serialized server suites|Verify Nexus Runner \(vitest/.test(name)) return "vitest";
     if (/e2e shard/.test(name)) return "playwright";
-    if (/\/ policy$|Typecheck \+ Release Registry|Verify Paperclip Runner \(static checks/.test(name)) return "node";
+    if (/\/ policy$|Typecheck \+ Release Registry|Verify Nexus Runner \(static checks/.test(name)) return "node";
     return null;
   };
   const missingTests = jobs.filter((job) => {

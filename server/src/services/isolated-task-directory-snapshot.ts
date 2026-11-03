@@ -4,7 +4,7 @@ import path from "node:path";
 import { DEFAULT_RESTORE_POINT_LIMITS } from "./git-restore-point.js";
 
 export const TASK_DIRECTORY_RETENTION_KEY = "isolatedTaskDirectoryRetention";
-export const TASK_DIRECTORY_SNAPSHOT_SCHEMA = "paperclip.task-directory-snapshot.v1";
+export const TASK_DIRECTORY_SNAPSHOT_SCHEMA = "nexus.task-directory-snapshot.v1";
 const PAYLOAD_MAGIC = Buffer.from("PCTD-PLAIN1\n");
 const MAX_MANIFEST_BYTES = 64 * 1024 * 1024;
 

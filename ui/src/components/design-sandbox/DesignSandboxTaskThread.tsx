@@ -5,7 +5,7 @@ import { ConversationPlayback } from "./ConversationPlayback";
 import { settledPreviewReply as settledReply } from "./settled-preview-reply";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { Agent, FeedbackVoteValue, IssueWorkMode } from "@paperclipai/shared";
+import type { Agent, FeedbackVoteValue, IssueWorkMode } from "@nexusai/shared";
 import { useStreamlinedUiEnabled } from "../../hooks/useStreamlinedUiEnabled";
 import { Button } from "../ui/button";
 import { NativeSelect } from "../ui/select";
@@ -20,7 +20,7 @@ import { TaskChatProtocolCard } from "../task-chat/TaskChatProtocolCard";
 import { TaskChatBubbleActions } from "../task-chat/TaskChatBubbleActions";
 import { TaskChatPresentationProvider } from "../task-chat/presentation-mode";
 import { parseCssTimeMs } from "../task-chat/motion-tokens";
-import { isTerminalRunStatus, paperclipRunnerFinalResponse, transcriptToTaskChatItems } from "../task-chat/transcript-adapter";
+import { isTerminalRunStatus, nexusRunnerFinalResponse, transcriptToTaskChatItems } from "../task-chat/transcript-adapter";
 import type { TaskChatItem, TaskChatMessageItem, TaskChatRuntimeRequestDecision, TaskChatRuntimeRequestItem } from "../task-chat/task-chat-model";
 import { previewHistory, THREAD_PREVIEW_ALIASES, THREAD_PREVIEW_CASES, type ThreadPreviewCase } from "./task-thread-fixtures";
 
@@ -126,7 +126,7 @@ function PreviewCase({ example, header, agentName, agent, replay, streamlined }:
     onVote: async vote => { setVotes(current => ({ ...current, [item.id]: vote })); },
   }} /> : null;
   const followup: TaskChatMessageItem = { id: "synthetic-followup", kind: "message", author: "human", isCurrentUser: true, text: "Tell me your method for finding this out.", timestamp: "10:12 AM", optimistic: scenario.messageState };
-  const final = terminal && !scenario.renderer ? paperclipRunnerFinalResponse(parsed, { allowFallback: true }) : undefined;
+  const final = terminal && !scenario.renderer ? nexusRunnerFinalResponse(parsed, { allowFallback: true }) : undefined;
   const failed = ["failed", "timed_out", "cancelled"].includes(status);
   const notice: TaskChatItem[] = scenario.notice ? [{ id: "synthetic-notice", kind: "message", author: "system", text: "Synthetic workspace notice. Expand this row to inspect the details.", timestamp: "10:13 AM", presentation: { kind: "system_notice", tone: scenario.notice, title: `Workspace preview · ${scenario.notice}`, detailsDefaultOpen: false, density: "compact" } }] : [];
   const historyItems = [...history, followup, ...(final ? settledReply({ ...final, interstitial: false, streaming: false, authorName: agentName, agent, timestamp: "10:13 AM" }, scenario.entries, `synthetic-${example.id}`, failed) : []), ...notice, ...messages];
@@ -153,7 +153,7 @@ function PreviewCase({ example, header, agentName, agent, replay, streamlined }:
         enableReassign reassignOptions={[{ id: `agent:${agent?.id ?? "synthetic-agent"}`, label: agentName }]}
         workMode={workMode} onWorkModeChange={setWorkMode}
         placeholder={`Message ${agentName} — synthetic reply…`}
-        draftKey={`paperclip:design-sandbox:synthetic-thread:${example.id}`}
+        draftKey={`nexus:design-sandbox:synthetic-thread:${example.id}`}
         onStop={!terminal ? async () => setStopped(true) : undefined}
         pause={scenario.paused && !resumed ? { scope: scenario.paused, onResume: async () => setResumed(true) } : null}
         takeover={pending && !takeoverDismissed ? {

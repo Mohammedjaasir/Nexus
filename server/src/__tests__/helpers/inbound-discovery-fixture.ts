@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { and, eq, getTableName, sql } from "drizzle-orm";
-import { agents, chatActions, chatDeliveries, chatEndpoints, companies, toolApplications, toolConnections, type Db } from "@paperclipai/db";
+import { agents, chatActions, chatDeliveries, chatEndpoints, companies, toolApplications, toolConnections, type Db } from "@nexusai/db";
 import { createChatConversationDeliveryQueue } from "../../services/chat-channels/inbound/conversation-queue.js";
 import { chatChannelService } from "../../services/chat-channels.js";
 

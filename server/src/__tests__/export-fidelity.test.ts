@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { companies, createDb, issueLabels, issueRelations, issues, labels } from "@paperclipai/db";
+import { companies, createDb, issueLabels, issueRelations, issues, labels } from "@nexusai/db";
 
 import { buildExportFidelityReport, collectExportFidelityCounts } from "../services/export-fidelity.js";
 import {
@@ -22,7 +22,7 @@ describeEmbeddedPostgres("export fidelity counts", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-export-fidelity-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-export-fidelity-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -97,7 +97,7 @@ describeEmbeddedPostgres("export fidelity counts", () => {
     await db.insert(issueLabels).values([{ issueId, labelId, companyId }]);
 
     const report = buildExportFidelityReport(companyId, await collectExportFidelityCounts(db, companyId));
-    expect(report.schema).toBe("paperclip-export-fidelity-v1");
+    expect(report.schema).toBe("nexus-export-fidelity-v1");
     expect(report.companyId).toBe(companyId);
     // Labels travel in the bundle now, so their counts stay informational.
     expect(report.counts.labelDefinitions).toBe(1);
@@ -109,7 +109,7 @@ describeEmbeddedPostgres("export fidelity counts", () => {
   async function seedCompany(companyId: string) {
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
     });

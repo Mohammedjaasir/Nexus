@@ -1,5 +1,5 @@
 {
-  "schema": "paperclip.e2e.sanitized-pi-file-stream.v1",
+  "schema": "nexus.e2e.sanitized-pi-file-stream.v1",
   "description": "44 retained native Rust-projected edit/bash rows; only fixture nonce and execution identities replaced. Timestamps, private identities and unrelated events omitted. This calibrates the oracle, not the original failed attempt result.",
   "events": [
     {
@@ -7,7 +7,7 @@
       "sourceSeq": 46,
       "eventType": "tool.execution.started",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -25,7 +25,7 @@
       "sourceSeq": 47,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -43,7 +43,7 @@
       "sourceSeq": 48,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -61,7 +61,7 @@
       "sourceSeq": 49,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -79,7 +79,7 @@
       "sourceSeq": 50,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -97,7 +97,7 @@
       "sourceSeq": 51,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -115,7 +115,7 @@
       "sourceSeq": 52,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -133,7 +133,7 @@
       "sourceSeq": 53,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -151,7 +151,7 @@
       "sourceSeq": 54,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -169,7 +169,7 @@
       "sourceSeq": 55,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -187,7 +187,7 @@
       "sourceSeq": 56,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -205,7 +205,7 @@
       "sourceSeq": 57,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -223,7 +223,7 @@
       "sourceSeq": 58,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -241,7 +241,7 @@
       "sourceSeq": 59,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -259,7 +259,7 @@
       "sourceSeq": 60,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -277,7 +277,7 @@
       "sourceSeq": 61,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -295,7 +295,7 @@
       "sourceSeq": 63,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -313,7 +313,7 @@
       "sourceSeq": 64,
       "eventType": "tool.execution.completed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "edit",
         "operation": "edit",
         "transport": "builtin",
@@ -331,7 +331,7 @@
       "sourceSeq": 66,
       "eventType": "tool.execution.started",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -349,7 +349,7 @@
       "sourceSeq": 67,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -367,7 +367,7 @@
       "sourceSeq": 68,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -385,7 +385,7 @@
       "sourceSeq": 69,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -403,7 +403,7 @@
       "sourceSeq": 70,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -421,7 +421,7 @@
       "sourceSeq": 71,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -439,7 +439,7 @@
       "sourceSeq": 72,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -457,7 +457,7 @@
       "sourceSeq": 73,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -475,7 +475,7 @@
       "sourceSeq": 74,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -493,7 +493,7 @@
       "sourceSeq": 75,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -511,7 +511,7 @@
       "sourceSeq": 76,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -529,7 +529,7 @@
       "sourceSeq": 77,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -547,7 +547,7 @@
       "sourceSeq": 78,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -565,7 +565,7 @@
       "sourceSeq": 79,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -583,7 +583,7 @@
       "sourceSeq": 80,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -601,7 +601,7 @@
       "sourceSeq": 81,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -619,7 +619,7 @@
       "sourceSeq": 82,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -637,7 +637,7 @@
       "sourceSeq": 83,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -655,7 +655,7 @@
       "sourceSeq": 84,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -673,7 +673,7 @@
       "sourceSeq": 85,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -691,7 +691,7 @@
       "sourceSeq": 86,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -709,7 +709,7 @@
       "sourceSeq": 87,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -727,7 +727,7 @@
       "sourceSeq": 89,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -745,7 +745,7 @@
       "sourceSeq": 90,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -763,7 +763,7 @@
       "sourceSeq": 91,
       "eventType": "tool.execution.progressed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",
@@ -781,7 +781,7 @@
       "sourceSeq": 92,
       "eventType": "tool.execution.completed",
       "payload": {
-        "schema": "paperclip.tool.execution.v1",
+        "schema": "nexus.tool.execution.v1",
         "name": "bash",
         "operation": "execute",
         "transport": "builtin",

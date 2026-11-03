@@ -116,7 +116,7 @@ Evidence logs: `/tmp/sleep26-teams-tests.log` (initial two fixture failures),
 `/tmp/sleep26-workspace-{types,build}.log` (pass).
 
 Parent #17586 at 250fca6cff has passing Actions, security and Greptile checks;
-Paperclip Review is still running at the latest inspection. This does not clear
+Nexus Review is still running at the latest inspection. This does not clear
 older stack findings or imply merge authority. Refreshed master is b7dc594bfa;
 final whole-stack reconciliation is still required.
 

@@ -3,7 +3,7 @@ import { expect, userEvent, within } from "storybook/test";
 import { ConnectionPoolConnectorHost } from "../../prototypes/ConnectionPoolConnectorHost";
 const meta = { id: "connectors-pool-host",
   title: "Agents and reusable capabilities/Runs, harnesses, and model accounts/Connectors/Pool host", component: ConnectionPoolConnectorHost, parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "runs-adapters/validation",
         "connection-setup/catalog"

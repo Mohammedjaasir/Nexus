@@ -4,9 +4,9 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { isBoundFreshPluginTaskDirectory, releaseProviderRecoveryTransfers, stageProviderFreshWorkspace } from "./provider-fresh-workspace.js";
-import type { ExecutionWorkspace } from "@paperclipai/shared";
+import type { ExecutionWorkspace } from "@nexusai/shared";
 const state = vi.hoisted(() => ({ getObject: vi.fn() }));
 vi.mock("../storage/index.js", () => ({ getStorageService: () => ({ getObject: state.getObject }) }));
 let home: string | undefined;
@@ -34,12 +34,12 @@ describe("fresh provider recovery transfer staging", () => {
     });
 
   it("verifies immutable transfer files and reuses stable descriptors after interruption", async () => {
-    home = await mkdtemp(path.join(tmpdir(), "provider-recovery-")); vi.stubEnv("PAPERCLIP_HOME", home);
+    home = await mkdtemp(path.join(tmpdir(), "provider-recovery-")); vi.stubEnv("NEXUS_HOME", home);
     const companyId = randomUUID(), sourceRunId = randomUUID(), leaseId = randomUUID(), operationId = randomUUID();
     const archive = Buffer.from("verified archive"), manifest = Buffer.from("verified manifest");
     const stored = (bytes: Buffer, extension: string) => { const sha256 = createHash("sha256").update(bytes).digest("hex");
       return { objectKey: `${companyId}/workspace-recovery/${sourceRunId}/${leaseId}/${sha256}.${extension}`, sha256, byteSize: bytes.length }; };
-    const metadata = { schema: "paperclip.workspace-recovery-snapshot.v1", recoveryActionId: randomUUID(), leaseId,
+    const metadata = { schema: "nexus.workspace-recovery-snapshot.v1", recoveryActionId: randomUUID(), leaseId,
       providerLeaseId: "retained-task", archive: stored(archive, "tar"), manifest: stored(manifest, "jsonl") };
     const db = { execute: async () => [{ id: sourceRunId }], select: () => ({ from: () => ({ where: async () => [{ id: operationId, metadata }] }) }) } as unknown as Db;
     state.getObject.mockImplementation(async (_companyId, key) => ({ stream: Readable.from([key.endsWith(".tar") ? archive : manifest]) }));

@@ -11,7 +11,7 @@ const meta = {
     layout: "fullscreen",
     initialEntries: ["/PAP/agents"],
     docs: { description: { component: "Independent desktop workload composition using Design Proposals foundations, shell, sidebar, collection controls and narrow task summaries. Working means running; active tasks are in_progress and queued tasks are todo/backlog. Recent history excludes active and queued tasks to avoid duplication. Summary counts describe the full selected organization. Search matches every entered word across name, role and title and intersects the state filter. Selection opens a resizable contextual pane; Escape or Close dismisses it and restores card focus. Shared controls support maximize/restore. Six synthetic agents and 24 synthetic tasks include long names, busy/idle/paused states, an agent with no tasks and empty results. No agents are run, and no backend state changes are made." } },
-    paperclip: {
+    nexus: {
       capabilities: ["agents/organization", "agents/lifecycle"],
       home: "design-proposals", status: "proposed",
       exception: "Independent Agent workload reuse trial staged for desktop dark-mode review with synthetic workload data.",

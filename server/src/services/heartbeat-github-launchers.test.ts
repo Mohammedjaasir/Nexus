@@ -3,8 +3,8 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { cleanupGitHubOperationLaunchers } from "@paperclipai/adapter-utils/execution-target";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+import { cleanupGitHubOperationLaunchers } from "@nexusai/adapter-utils/execution-target";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 import { describe, expect, it, vi } from "vitest";
 import { prepareHeartbeatGitHubLaunchers } from "./heartbeat-github-launchers.js";
 
@@ -16,10 +16,10 @@ describe("heartbeat GitHub launcher lifetime", () => {
     const env = { OPENAI_API_KEY: "selected-credential" };
     const result = await prepareHeartbeatGitHubLaunchers({ native: true, githubConfigured, agentId: "agent",
       runId: "run", target: { ...target, runnerTask: async () => ({}) }, cwd: "/core/workspace",
-      env, brokerUrl: "https://paperclip.test", createBrokerToken: mint }, prepare);
+      env, brokerUrl: "https://nexus.test", createBrokerToken: mint }, prepare);
     expect(result.cleanupLocation).toBeNull();
-    expect(result.env).toMatchObject({ ...env, GH_TOKEN: "", PAPERCLIP_GITHUB_BROKER_URL: githubConfigured ? "https://paperclip.test" : "",
-      PAPERCLIP_GITHUB_BROKER_TOKEN: githubConfigured ? "run-capability" : "" });
+    expect(result.env).toMatchObject({ ...env, GH_TOKEN: "", NEXUS_GITHUB_BROKER_URL: githubConfigured ? "https://nexus.test" : "",
+      NEXUS_GITHUB_BROKER_TOKEN: githubConfigured ? "run-capability" : "" });
     expect(prepare).not.toHaveBeenCalled();
     expect(mint).toHaveBeenCalledTimes(githubConfigured ? 1 : 0);
   });
@@ -28,25 +28,25 @@ describe("heartbeat GitHub launcher lifetime", () => {
     const mint = vi.fn();
     const result = await prepareHeartbeatGitHubLaunchers({
       native: true, githubConfigured: true, agentId: "agent-a", runId: "run-a", target,
-      cwd: "/workspace", env: { GH_TOKEN: "ambient" }, brokerUrl: "https://paperclip.test", createBrokerToken: mint,
+      cwd: "/workspace", env: { GH_TOKEN: "ambient" }, brokerUrl: "https://nexus.test", createBrokerToken: mint,
     }, prepare);
     expect(prepare).not.toHaveBeenCalled();
     expect(mint).not.toHaveBeenCalled();
     expect(result.cleanupLocation).toBeNull();
-    expect(result.env).toMatchObject({ GH_TOKEN: "", PAPERCLIP_GITHUB_BROKER_TOKEN: "" });
+    expect(result.env).toMatchObject({ GH_TOKEN: "", NEXUS_GITHUB_BROKER_TOKEN: "" });
   });
   it("keeps anonymous native sandbox launchers stable without issuing a run capability", async () => {
     const createBrokerToken = vi.fn(() => "run-secret");
     const prepareLaunchers = vi.fn(async (input) => input.env);
     const inputs = { native: true, githubConfigured: false, agentId: "agent-a", target,
-      cwd: "/workspace", env: { GH_TOKEN: "ambient-secret" }, brokerUrl: "https://paperclip.test", createBrokerToken };
+      cwd: "/workspace", env: { GH_TOKEN: "ambient-secret" }, brokerUrl: "https://nexus.test", createBrokerToken };
     const first = await prepareHeartbeatGitHubLaunchers({ ...inputs, runId: "run-one" }, prepareLaunchers);
     const second = await prepareHeartbeatGitHubLaunchers({ ...inputs, runId: "run-two" }, prepareLaunchers);
     expect(createBrokerToken).not.toHaveBeenCalled();
     expect(prepareLaunchers.mock.calls.map(([input]) => input.runId)).toEqual([expect.stringMatching(/^anonymous-agent-a-/), prepareLaunchers.mock.calls[0]?.[0].runId]);
     expect(first.cleanupLocation).toBeNull();
     expect(second.cleanupLocation).toBeNull();
-    expect(first.env).toMatchObject({ GH_TOKEN: "", PAPERCLIP_GITHUB_BROKER_TOKEN: "", PAPERCLIP_GITHUB_BROKER_URL: "" });
+    expect(first.env).toMatchObject({ GH_TOKEN: "", NEXUS_GITHUB_BROKER_TOKEN: "", NEXUS_GITHUB_BROKER_URL: "" });
   });
   it.each([false, true])("cleans partial run-scoped staging and preserves its error (cleanup fails: %s)", async (cleanupFails) => {
     const stagingError = new Error("remote launcher staging failed");
@@ -56,7 +56,7 @@ describe("heartbeat GitHub launcher lifetime", () => {
     });
     await expect(prepareHeartbeatGitHubLaunchers({
       native: false, githubConfigured: true, agentId: "agent-a", target,
-      runId: "failed-run", cwd: "/workspace", env: {}, brokerUrl: "https://paperclip.test",
+      runId: "failed-run", cwd: "/workspace", env: {}, brokerUrl: "https://nexus.test",
       createBrokerToken: () => "current-run-secret",
     }, prepareLaunchers, cleanupLaunchers)).rejects.toBe(stagingError);
     expect(cleanupLaunchers).toHaveBeenCalledExactlyOnceWith({ runId: "failed-run", target });
@@ -67,7 +67,7 @@ describe("heartbeat GitHub launcher lifetime", () => {
     const cleanupLaunchers = vi.fn(async () => undefined);
     await expect(prepareHeartbeatGitHubLaunchers({
       native: true, githubConfigured: false, agentId: "agent-a", target,
-      runId: "failed-run", cwd: "/workspace", env: {}, brokerUrl: "https://paperclip.test",
+      runId: "failed-run", cwd: "/workspace", env: {}, brokerUrl: "https://nexus.test",
       createBrokerToken: () => { throw new Error("must not mint a capability"); },
     }, async () => { throw stagingError; }, cleanupLaunchers)).rejects.toBe(stagingError);
     expect(cleanupLaunchers).not.toHaveBeenCalled();
@@ -81,11 +81,11 @@ describe("heartbeat GitHub launcher lifetime", () => {
     const createBrokerToken = vi.fn(() => "current-run-secret");
     const prepareLaunchers = vi.fn(async (input) => input.env);
     const result = await prepareHeartbeatGitHubLaunchers({ ...mode, agentId: "agent-a", runId: "run-one",
-      cwd: "/workspace", env: {}, brokerUrl: "https://paperclip.test", createBrokerToken }, prepareLaunchers);
+      cwd: "/workspace", env: {}, brokerUrl: "https://nexus.test", createBrokerToken }, prepareLaunchers);
     expect(createBrokerToken).toHaveBeenCalledOnce();
     expect(prepareLaunchers.mock.calls[0]?.[0].runId).toBe("run-one");
     expect(result.cleanupLocation).toEqual({ runId: "run-one", target: mode.target });
-    expect(result.env.PAPERCLIP_GITHUB_BROKER_TOKEN).toBe("current-run-secret");
+    expect(result.env.NEXUS_GITHUB_BROKER_TOKEN).toBe("current-run-secret");
   });
 });
 
@@ -115,20 +115,20 @@ process.stdout.write(JSON.stringify({token:process.env.GH_TOKEN || '', githubTok
     const first = await prepareHeartbeatGitHubLaunchers({ ...base, runId: "run-one" });
     await cleanupGitHubOperationLaunchers({ runId: "run-one", target: sandboxTarget });
     const second = await prepareHeartbeatGitHubLaunchers({ ...base, runId: "run-two" });
-    expect(first.env.PAPERCLIP_GITHUB_LAUNCHER_DIR).toBe(second.env.PAPERCLIP_GITHUB_LAUNCHER_DIR);
-    expect(await readFile(path.join(first.env.PAPERCLIP_GITHUB_LAUNCHER_DIR, "gh"), "utf8")).not.toContain("ambient-token");
+    expect(first.env.NEXUS_GITHUB_LAUNCHER_DIR).toBe(second.env.NEXUS_GITHUB_LAUNCHER_DIR);
+    expect(await readFile(path.join(first.env.NEXUS_GITHUB_LAUNCHER_DIR, "gh"), "utf8")).not.toContain("ambient-token");
     // A still-live provider uses its first-turn environment, not the new one.
-    const command = await execute({ command: path.join(first.env.PAPERCLIP_GITHUB_LAUNCHER_DIR, "gh"), env: first.env });
+    const command = await execute({ command: path.join(first.env.NEXUS_GITHUB_LAUNCHER_DIR, "gh"), env: first.env });
     const result = JSON.parse(command.stdout);
     expect(result).toEqual({ token: "", githubToken: "", ssh: "", imageConfig: false,
-      global: expect.stringMatching(/\/paperclip-github-operation-[^/]+\/gitconfig$/),
-      globalConfig: "[user]\n\tname = Paperclip\n\temail = noreply@paperclip.ing\n" });
+      global: expect.stringMatching(/\/nexus-github-operation-[^/]+\/gitconfig$/),
+      globalConfig: "[user]\n\tname = Nexus\n\temail = noreply@paperclip.ing\n" });
     await expect(readFile(result.global)).rejects.toMatchObject({ code: "ENOENT" });
     const commit = await execute({ command: "bash", args: ["--noprofile", "--norc", "-c",
       "git init -q && git commit --allow-empty -qm 'Local work' && git log -1 --format='%an <%ae>|%cn <%ce>'"], env: first.env });
-    expect(commit.stdout.trim()).toBe("Paperclip <noreply@paperclip.ing>|Paperclip <noreply@paperclip.ing>");
+    expect(commit.stdout.trim()).toBe("Nexus <noreply@paperclip.ing>|Nexus <noreply@paperclip.ing>");
     const changedPath = await prepareHeartbeatGitHubLaunchers({ ...base, runId: "run-three", env: { ...imageEnv, PATH: `${imageEnv.PATH}:/extra` } });
-    expect(changedPath.env.PAPERCLIP_GITHUB_LAUNCHER_DIR).not.toBe(first.env.PAPERCLIP_GITHUB_LAUNCHER_DIR);
+    expect(changedPath.env.NEXUS_GITHUB_LAUNCHER_DIR).not.toBe(first.env.NEXUS_GITHUB_LAUNCHER_DIR);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

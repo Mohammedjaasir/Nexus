@@ -302,7 +302,7 @@ describe("execution workspace routes", () => {
       },
       auditCommentId: "comment-1",
       rescueRef: {
-        branchName: "paperclip/rescue/PAP-123/20260709T120000Z",
+        branchName: "nexus/rescue/PAP-123/20260709T120000Z",
         commitSha: "3333333",
         fileCount: 2,
         sourceAuditCommentId: "comment-0",
@@ -341,7 +341,7 @@ describe("execution workspace routes", () => {
         fingerprint: "workspace_incoherence:v1:sha256:dirty",
         recoveryActionId: "recovery-1",
         rescueRef: expect.objectContaining({
-          branchName: "paperclip/rescue/PAP-123/20260709T120000Z",
+          branchName: "nexus/rescue/PAP-123/20260709T120000Z",
           commitSha: "3333333",
         }),
         sourceIssueStatus: "todo",
@@ -354,7 +354,7 @@ describe("execution workspace routes", () => {
         issueId: "issue-1",
         recoveryActionId: "recovery-1",
         executionWorkspaceId: "workspace-1",
-        rescueRef: "paperclip/rescue/PAP-123/20260709T120000Z",
+        rescueRef: "nexus/rescue/PAP-123/20260709T120000Z",
         mutation: "execution_workspace_quarantine_restore",
       }),
       contextSnapshot: expect.objectContaining({
@@ -364,7 +364,7 @@ describe("execution workspace routes", () => {
         source: "execution_workspace.quarantine_restore",
         recoveryActionId: "recovery-1",
         executionWorkspaceId: "workspace-1",
-        rescueRef: "paperclip/rescue/PAP-123/20260709T120000Z",
+        rescueRef: "nexus/rescue/PAP-123/20260709T120000Z",
       }),
     }));
   });

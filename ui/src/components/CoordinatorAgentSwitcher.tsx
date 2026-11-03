@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { AgentChatPicker } from "./AgentChatPicker";
 import { Button } from "./ui/button";
 import { useAgentChatNavigation } from "@/hooks/useAgentChatNavigation";

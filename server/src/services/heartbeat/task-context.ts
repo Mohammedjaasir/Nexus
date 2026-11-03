@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import type { Db, agents, agentTaskSessions, heartbeatRuns } from "@paperclipai/db";
-import { FAST_RESPONSE_AGENT_GUIDANCE, fastResponseHistoryBody } from "@paperclipai/shared";
-import type { PaperclipTurnContext } from "@paperclipai/adapter-utils/server-utils";
+import type { Db, agents, agentTaskSessions, heartbeatRuns } from "@nexusai/db";
+import { FAST_RESPONSE_AGENT_GUIDANCE, fastResponseHistoryBody } from "@nexusai/shared";
+import type { NexusTurnContext } from "@nexusai/adapter-utils/server-utils";
 import { parseObject } from "../../adapters/utils.js";
 import { isConversation } from "../agent-conversations.js";
 import { chatCompletionInstruction } from "../chat-completion-delivery.js";
@@ -15,8 +15,8 @@ import { getTaskPlanContext } from "../task-plan-context.js";
 import { caseExecutionMarkdown, getCaseExecutionContext } from "../case-context.js";
 import type { TrustPresetResolution } from "../trust-preset-resolver.js";
 import { liveVoiceExecutionGuidance } from "../voice/voice-execution-guidance.js";
-import { buildPaperclipWakePayload, ConfigurationIncompleteFailure, readHeartbeatWakeComments, PAPERCLIP_WAKE_PAYLOAD_KEY, type createHeartbeatRunPreparation } from "./run-preparation.js";
-import { buildPaperclipTaskMarkdown } from "./task-markdown.js";
+import { buildNexusWakePayload, ConfigurationIncompleteFailure, readHeartbeatWakeComments, NEXUS_WAKE_PAYLOAD_KEY, type createHeartbeatRunPreparation } from "./run-preparation.js";
+import { buildNexusTaskMarkdown } from "./task-markdown.js";
 import { deriveCommentId, extractWakeCommentIds } from "../../modules/run-dispatch/index.js";
 import { workspacePreferenceService } from "../workspace-preferences.js";
 
@@ -55,17 +55,17 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
   const { issueRef, issueContext, context, taskSession } = input.task;
   const { trustPreset, experimentalInstanceSettings } = input.policy;
   const { issuesSvc, getPinnedSkillTestContext } = input.services;
-  const admittedScope = parseObject(context.paperclipAgentJwtScope);
+  const admittedScope = parseObject(context.nexusAgentJwtScope);
   if (!input.policy.recovering || (admittedScope.kind !== "standard" && admittedScope.kind !== "skill_test")) {
-    const savedIssue = parseObject(context.paperclipIssue);
+    const savedIssue = parseObject(context.nexusIssue);
     const skillTest = input.policy.recovering
-      ? savedIssue.workMode === "skill_test" || Boolean(context.paperclipSkillTest)
+      ? savedIssue.workMode === "skill_test" || Boolean(context.nexusSkillTest)
       : issueRef?.workMode === "skill_test";
-    context.paperclipAgentJwtScope = skillTest && issueRef
+    context.nexusAgentJwtScope = skillTest && issueRef
       ? { kind: "skill_test", issueId: issueRef.id }
       : { kind: "standard" };
   }
-  const isSkillTest = parseObject(context.paperclipAgentJwtScope).kind === "skill_test";
+  const isSkillTest = parseObject(context.nexusAgentJwtScope).kind === "skill_test";
   const wakeCommentId = deriveCommentId(context, null);
   const commentIds = [...new Set([...extractWakeCommentIds(context), ...(wakeCommentId ? [wakeCommentId] : [])])];
   const [summary, ancestors, pinnedSkillTestRead, wakeComments] = await Promise.allSettled([
@@ -108,7 +108,7 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
       ? sanitizeQuarantinedCommentForHigherTrust(wakeCommentContext)
       : wakeCommentContext;
   if (continuationSummary) {
-    context.paperclipContinuationSummary = {
+    context.nexusContinuationSummary = {
       key: safeContinuationSummary!.key,
       title: safeContinuationSummary!.title,
       body: safeContinuationSummary!.body,
@@ -116,7 +116,7 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
       updatedAt: safeContinuationSummary!.updatedAt.toISOString(),
     };
   } else {
-    delete context.paperclipContinuationSummary;
+    delete context.nexusContinuationSummary;
   }
   if (isSkillTest && !pinnedSkillTestContext) {
     throw new ConfigurationIncompleteFailure("The skill test's saved version is unavailable.", {
@@ -124,13 +124,13 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
     });
   }
   if (pinnedSkillTestContext) {
-    context.paperclipSkillTest = {
+    context.nexusSkillTest = {
       ...pinnedSkillTestContext,
       directive:
         "Use this pinned file inventory as the exact skill revision under test, regardless of synced runtime skills.",
     };
   } else {
-    delete context.paperclipSkillTest;
+    delete context.nexusSkillTest;
   }
   const executionContinuation =
     issueRef && !isConversation(issueContext) && issueContext?.assigneeAgentId === agent.id
@@ -147,7 +147,7 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
         })
       : null;
   context.executionContinuation = executionContinuation;
-  const paperclipWakePayload = await buildPaperclipWakePayload({
+  const nexusWakePayload = await buildNexusWakePayload({
     db,
     companyId: agent.companyId,
     agentId: agent.id,
@@ -174,12 +174,12 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
       experimentalInstanceSettings.enableSimplifiedEnglishInteractions ===
       true,
   });
-  if (paperclipWakePayload) {
-    context[PAPERCLIP_WAKE_PAYLOAD_KEY] = paperclipWakePayload;
+  if (nexusWakePayload) {
+    context[NEXUS_WAKE_PAYLOAD_KEY] = nexusWakePayload;
   } else {
-    delete context[PAPERCLIP_WAKE_PAYLOAD_KEY];
+    delete context[NEXUS_WAKE_PAYLOAD_KEY];
   }
-  const safeWakeComments = (paperclipWakePayload?.comments ?? []).flatMap(
+  const safeWakeComments = (nexusWakePayload?.comments ?? []).flatMap(
     (comment) =>
       typeof comment.id === "string" && typeof comment.body === "string"
         ? [
@@ -226,19 +226,19 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
   const liveVoiceGuidance = issueContext?.chatAssignedAgentId === agent.id && issueContext.chatProvider === "speko"
     ? await liveVoiceExecutionGuidance(db, { companyId: agent.companyId, issueId: issueContext.id, agentId: agent.id })
     : null;
-  context.paperclipTaskCommunicationGuidance =
+  context.nexusTaskCommunicationGuidance =
     issueContext?.chatAssignedAgentId === agent.id
       ? issueContext.chatCommunicationGuidance
       : null;
   // Use the standing chat owner's saved presentation choice, never worker text.
   // Recovery retains the admitted choice instead of silently changing its prompt.
-  const coordinatorWorkspace = agent.adapterType === "paperclip_runner" && isConversation(issueContext)
+  const coordinatorWorkspace = agent.adapterType === "nexus_runner" && isConversation(issueContext)
     && issueContext?.conversationUserId
     ? input.policy.recovering
-      ? context.paperclipCoordinatorWorkspaceEnabled === true
+      ? context.nexusCoordinatorWorkspaceEnabled === true
       : (await workspacePreferenceService(db).get(issueContext.conversationUserId)).coordinatorWorkspaceEnabled
     : false;
-  context.paperclipCoordinatorWorkspaceEnabled = Boolean(coordinatorWorkspace);
+  context.nexusCoordinatorWorkspaceEnabled = Boolean(coordinatorWorkspace);
   const taskMarkdownInput = {
     coordinatorWorkspace: Boolean(coordinatorWorkspace),
     conversationConfirmations: issueRef && isConversation(issueContext)
@@ -259,20 +259,20 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
     ancestors: issueAncestors,
     wakeComment: safeWakeCommentContext,
     wakeComments: safeWakeComments,
-    attachmentOmissions: paperclipWakePayload?.attachmentOmissions,
-    externalChatProvider: paperclipWakePayload?.externalChatProvider,
+    attachmentOmissions: nexusWakePayload?.attachmentOmissions,
+    externalChatProvider: nexusWakePayload?.externalChatProvider,
     slackCommand: issueContext?.chatAssignedAgentId === agent.id
       ? issueContext.chatSlackCommand
       : null,
-    nativeRunner: agent.adapterType === "paperclip_runner",
+    nativeRunner: agent.adapterType === "nexus_runner",
     interaction: {
       kind: readNonEmptyString(context.interactionKind),
       status: readNonEmptyString(context.interactionStatus),
     },
-    planReview: paperclipWakePayload?.planReviewContext?.interaction
+    planReview: nexusWakePayload?.planReviewContext?.interaction
       ? {
-          status: paperclipWakePayload.planReviewContext.interaction.status,
-          reason: paperclipWakePayload.planReviewContext.interaction.result?.reason,
+          status: nexusWakePayload.planReviewContext.interaction.status,
+          reason: nexusWakePayload.planReviewContext.interaction.result?.reason,
         }
       : null,
     acceptedPlanContinuation:
@@ -308,32 +308,32 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
   // Unlike the frozen initial communication preferences, live-call context
   // must also reach resumed turns. Rebuild it from server records each wake.
   const liveVoiceTaskPrefix = liveVoiceGuidance ? `${liveVoiceGuidance}\n\n` : "";
-  context.paperclipCasesEnabled = experimentalInstanceSettings.enableCases === true;
+  context.nexusCasesEnabled = experimentalInstanceSettings.enableCases === true;
   const workflowCase = issueRef && experimentalInstanceSettings.enableCases
     ? await getCaseExecutionContext(db, { companyId: agent.companyId, issueId: issueRef.id, agentId: agent.id, runId: run.id, exposeLowTrustRaw })
     : null;
-  if (workflowCase) context.paperclipCase = workflowCase;
-  else delete context.paperclipCase;
+  if (workflowCase) context.nexusCase = workflowCase;
+  else delete context.nexusCase;
   const assignmentPrefix = liveVoiceTaskPrefix + caseExecutionMarkdown(workflowCase);
-  let taskMarkdown = assignmentPrefix + buildPaperclipTaskMarkdown({ ...taskMarkdownInput, taskPlan }) + chatCompletionInstruction(context);
-  let taskMarkdownAssignment = assignmentPrefix + buildPaperclipTaskMarkdown({
+  let taskMarkdown = assignmentPrefix + buildNexusTaskMarkdown({ ...taskMarkdownInput, taskPlan }) + chatCompletionInstruction(context);
+  let taskMarkdownAssignment = assignmentPrefix + buildNexusTaskMarkdown({
     ...taskMarkdownInput,
     taskPlan,
     includeWakeComments: false,
   }) + chatCompletionInstruction(context);
-  const taskMarkdownCompact = assignmentPrefix + buildPaperclipTaskMarkdown({
+  const taskMarkdownCompact = assignmentPrefix + buildNexusTaskMarkdown({
     ...taskMarkdownInput,
     taskPlan,
     includeDescription: false,
   }) + chatCompletionInstruction(context);
-  const taskMarkdownAssignmentCompact = assignmentPrefix + buildPaperclipTaskMarkdown({
+  const taskMarkdownAssignmentCompact = assignmentPrefix + buildNexusTaskMarkdown({
     ...taskMarkdownInput,
     taskPlan,
     includeDescription: false,
     includeWakeComments: false,
   }) + chatCompletionInstruction(context);
   if (issueRef) {
-    context.paperclipIssue = {
+    context.nexusIssue = {
       id: issueRef.id,
       identifier: issueRef.identifier,
       title: issueRef.title,
@@ -341,69 +341,69 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
       workMode: issueRef.workMode,
     };
   } else {
-    delete context.paperclipIssue;
+    delete context.nexusIssue;
   }
   if (wakeCommentContext) {
-    context.paperclipWakeComment = safeWakeCommentContext;
+    context.nexusWakeComment = safeWakeCommentContext;
   } else {
-    delete context.paperclipWakeComment;
+    delete context.nexusWakeComment;
   }
   if (taskMarkdown) {
-    context.paperclipTaskMarkdown = taskMarkdown;
+    context.nexusTaskMarkdown = taskMarkdown;
   } else {
-    delete context.paperclipTaskMarkdown;
+    delete context.nexusTaskMarkdown;
   }
   if (taskMarkdownAssignment) {
-    context.paperclipTaskMarkdownAssignment = taskMarkdownAssignment;
+    context.nexusTaskMarkdownAssignment = taskMarkdownAssignment;
   } else {
-    delete context.paperclipTaskMarkdownAssignment;
+    delete context.nexusTaskMarkdownAssignment;
   }
   if (taskMarkdownCompact && taskMarkdownCompact !== taskMarkdown) {
-    context.paperclipTaskMarkdownCompact = taskMarkdownCompact;
+    context.nexusTaskMarkdownCompact = taskMarkdownCompact;
   } else {
-    delete context.paperclipTaskMarkdownCompact;
+    delete context.nexusTaskMarkdownCompact;
   }
   if (taskMarkdownAssignmentCompact && taskMarkdownAssignmentCompact !== taskMarkdownAssignment) {
-    context.paperclipTaskMarkdownAssignmentCompact = taskMarkdownAssignmentCompact;
+    context.nexusTaskMarkdownAssignmentCompact = taskMarkdownAssignmentCompact;
   } else {
-    delete context.paperclipTaskMarkdownAssignmentCompact;
+    delete context.nexusTaskMarkdownAssignmentCompact;
   }
-  context.paperclipTaskCommunicationGuidance = [context.paperclipTaskCommunicationGuidance, FAST_RESPONSE_AGENT_GUIDANCE].filter(Boolean).join("\n\n");
+  context.nexusTaskCommunicationGuidance = [context.nexusTaskCommunicationGuidance, FAST_RESPONSE_AGENT_GUIDANCE].filter(Boolean).join("\n\n");
   if (issueRef) {
     const redactedWakeContext = await createRunSecretRedactionRegistry(
       db,
     ).redactForIssue(agent.companyId, issueRef.id, {
-      paperclipIssue: context.paperclipIssue,
-      paperclipCase: context.paperclipCase,
-      paperclipWakeComment: context.paperclipWakeComment,
-      paperclipTaskCommunicationGuidance: context.paperclipTaskCommunicationGuidance,
-      paperclipTaskMarkdown: context.paperclipTaskMarkdown,
-      paperclipTaskMarkdownCompact: context.paperclipTaskMarkdownCompact,
-      paperclipTaskMarkdownAssignment: context.paperclipTaskMarkdownAssignment,
-      paperclipTaskMarkdownAssignmentCompact: context.paperclipTaskMarkdownAssignmentCompact,
+      nexusIssue: context.nexusIssue,
+      nexusCase: context.nexusCase,
+      nexusWakeComment: context.nexusWakeComment,
+      nexusTaskCommunicationGuidance: context.nexusTaskCommunicationGuidance,
+      nexusTaskMarkdown: context.nexusTaskMarkdown,
+      nexusTaskMarkdownCompact: context.nexusTaskMarkdownCompact,
+      nexusTaskMarkdownAssignment: context.nexusTaskMarkdownAssignment,
+      nexusTaskMarkdownAssignmentCompact: context.nexusTaskMarkdownAssignmentCompact,
     });
-    context.paperclipIssue = redactedWakeContext.paperclipIssue;
-    if (redactedWakeContext.paperclipCase) context.paperclipCase = redactedWakeContext.paperclipCase;
-    context.paperclipTaskCommunicationGuidance = redactedWakeContext.paperclipTaskCommunicationGuidance;
-    if (redactedWakeContext.paperclipWakeComment) {
-      context.paperclipWakeComment =
-        redactedWakeContext.paperclipWakeComment;
+    context.nexusIssue = redactedWakeContext.nexusIssue;
+    if (redactedWakeContext.nexusCase) context.nexusCase = redactedWakeContext.nexusCase;
+    context.nexusTaskCommunicationGuidance = redactedWakeContext.nexusTaskCommunicationGuidance;
+    if (redactedWakeContext.nexusWakeComment) {
+      context.nexusWakeComment =
+        redactedWakeContext.nexusWakeComment;
     }
-    if (redactedWakeContext.paperclipTaskMarkdown) {
-      context.paperclipTaskMarkdown =
-        redactedWakeContext.paperclipTaskMarkdown;
+    if (redactedWakeContext.nexusTaskMarkdown) {
+      context.nexusTaskMarkdown =
+        redactedWakeContext.nexusTaskMarkdown;
     }
-    if (redactedWakeContext.paperclipTaskMarkdownCompact) {
-      context.paperclipTaskMarkdownCompact =
-        redactedWakeContext.paperclipTaskMarkdownCompact;
+    if (redactedWakeContext.nexusTaskMarkdownCompact) {
+      context.nexusTaskMarkdownCompact =
+        redactedWakeContext.nexusTaskMarkdownCompact;
     }
-    if (redactedWakeContext.paperclipTaskMarkdownAssignment) {
-      context.paperclipTaskMarkdownAssignment =
-        redactedWakeContext.paperclipTaskMarkdownAssignment;
+    if (redactedWakeContext.nexusTaskMarkdownAssignment) {
+      context.nexusTaskMarkdownAssignment =
+        redactedWakeContext.nexusTaskMarkdownAssignment;
     }
-    if (redactedWakeContext.paperclipTaskMarkdownAssignmentCompact) {
-      context.paperclipTaskMarkdownAssignmentCompact =
-        redactedWakeContext.paperclipTaskMarkdownAssignmentCompact;
+    if (redactedWakeContext.nexusTaskMarkdownAssignmentCompact) {
+      context.nexusTaskMarkdownAssignmentCompact =
+        redactedWakeContext.nexusTaskMarkdownAssignmentCompact;
     }
   }
   if (issueRef) {
@@ -413,8 +413,8 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
             .update(value.trim().replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ""))
             .digest("hex")
         : null;
-    const redactedIssue = parseObject(context.paperclipIssue);
-    context.paperclipTurnContext = {
+    const redactedIssue = parseObject(context.nexusIssue);
+    context.nexusTurnContext = {
       version: 1,
       assignment: {
         owner: "task_markdown",
@@ -430,11 +430,11 @@ export async function prepareHeartbeatTaskContext(db: Db, input: HeartbeatTaskCo
           revision: digest(comment.body),
         })),
       },
-    } satisfies PaperclipTurnContext;
+    } satisfies NexusTurnContext;
   } else {
-    delete context.paperclipTurnContext;
+    delete context.nexusTurnContext;
   }
   const pinnedSkillTest = pinnedSkillTestContext
     ? { key: pinnedSkillTestContext.skillKey, versionId: pinnedSkillTestContext.skillVersionId } : null;
-  return { continuationSummary, executionContinuation, paperclipWakePayload, safeWakeComments, safeWakeCommentContext, pinnedSkillTest };
+  return { continuationSummary, executionContinuation, nexusWakePayload, safeWakeComments, safeWakeCommentContext, pinnedSkillTest };
 }

@@ -1,9 +1,9 @@
-import { codexLocalReasoningEffortsForModel, DEFAULT_CODEX_LOCAL_MODEL } from "@paperclipai/adapter-codex-local";
-import { claudeLocalReasoningEffortsForModel, DEFAULT_CLAUDE_LOCAL_MODEL } from "@paperclipai/adapter-claude-local";
+import { codexLocalReasoningEffortsForModel, DEFAULT_CODEX_LOCAL_MODEL } from "@nexusai/adapter-codex-local";
+import { claudeLocalReasoningEffortsForModel, DEFAULT_CLAUDE_LOCAL_MODEL } from "@nexusai/adapter-claude-local";
 import { unprocessable } from "../../errors.js";
 
 function effortSettings(adapterType: string, config: Record<string, unknown>) {
-  if (adapterType === "codex_local" || (adapterType === "paperclip_runner" && (config.provider ?? "codex") === "codex")) {
+  if (adapterType === "codex_local" || (adapterType === "nexus_runner" && (config.provider ?? "codex") === "codex")) {
     return { field: "modelReasoningEffort", supported: codexLocalReasoningEffortsForModel(typeof config.model === "string" ? config.model : DEFAULT_CODEX_LOCAL_MODEL) };
   }
   if (adapterType === "claude_local") {

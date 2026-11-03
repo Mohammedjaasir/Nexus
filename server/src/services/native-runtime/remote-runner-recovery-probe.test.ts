@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/command-managed-runtime";
+import type { CommandManagedRuntimeRunner } from "@nexusai/adapter-utils/command-managed-runtime";
 import { readRemoteRunnerRecoveryError } from "./remote-runner-recovery-diagnostics.js";
 import { readRemoteRunnerRecoveryProbe } from "./remote-runner-recovery-probe.js";
 

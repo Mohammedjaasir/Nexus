@@ -50,7 +50,7 @@ describe("connection grants phase 4 migration", () => {
 
 describeEmbeddedPostgres("connection grants phase 4 executable migration", () => {
   it("converts one owner and rejects two-owner or mixed legacy references", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-connection-phase4-migration-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-connection-phase4-migration-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1, onnotice: () => {} });
 

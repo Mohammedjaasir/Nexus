@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   issueExecutionWorkspaceSettingsSchema,
   projectExecutionWorkspacePolicySchema,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   applyDefaultIsolatedExecutionWorkspacePolicy,
   buildExecutionWorkspaceAdapterConfig,
@@ -327,7 +327,7 @@ describe("execution workspace policy helpers", () => {
       type: "git_worktree" as const,
       baseRef: "origin/main",
       branchTemplate: "{{issue.identifier}}-{{slug}}",
-      worktreeParentDir: ".paperclip/worktrees",
+      worktreeParentDir: ".nexus/worktrees",
       provisionCommand: "true",
       runtimeProvisionCommand: "npm run setup:runtime",
       teardownCommand: "npm run teardown",
@@ -475,7 +475,7 @@ describe("execution workspace policy helpers", () => {
         defaultMode: "isolated",
         workspaceStrategy: {
           type: "git_worktree",
-          worktreeParentDir: ".paperclip/worktrees",
+          worktreeParentDir: ".nexus/worktrees",
           provisionCommand: "bash ./scripts/provision-worktree.sh",
           runtimeProvisionCommand: "bash ./scripts/provision-runtime.sh",
           teardownCommand: "bash ./scripts/teardown-worktree.sh",
@@ -487,7 +487,7 @@ describe("execution workspace policy helpers", () => {
       defaultMode: "isolated_workspace",
       workspaceStrategy: {
         type: "git_worktree",
-        worktreeParentDir: ".paperclip/worktrees",
+        worktreeParentDir: ".nexus/worktrees",
         provisionCommand: "bash ./scripts/provision-worktree.sh",
         runtimeProvisionCommand: "bash ./scripts/provision-runtime.sh",
         teardownCommand: "bash ./scripts/teardown-worktree.sh",

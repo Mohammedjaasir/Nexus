@@ -228,7 +228,7 @@ export function compatibility(
     connection.provider === "bedrock" &&
     !["codex", "claude", "opencode"].includes(harness)
   )
-    return "Bedrock support has not been verified for this harness in Paperclip.";
+    return "Bedrock support has not been verified for this harness in Nexus.";
   if (
     !harnesses
       .find((item) => item.value === harness)!

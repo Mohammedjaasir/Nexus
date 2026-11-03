@@ -3,14 +3,14 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import {
   folderSlugSchema,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   companies,
   companySkills,
   createDb,
   folders,
   routines,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -25,7 +25,7 @@ describeEmbeddedPostgres("folder service", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-folders-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-folders-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 
@@ -44,7 +44,7 @@ describeEmbeddedPostgres("folder service", () => {
     const companyId = randomUUID();
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
       requireBoardApprovalForNewAgents: false,
       defaultResponsibleUserId: "responsible-user",
@@ -418,7 +418,7 @@ describeEmbeddedPostgres("folder service", () => {
     let markLockAcquired!: () => void;
     const lockAcquired = new Promise<void>((resolve) => { markLockAcquired = resolve; });
     const holdLock = new Promise<void>((resolve) => { releaseLock = resolve; });
-    const lockKey = `paperclip:folders:${companyId}`;
+    const lockKey = `nexus:folders:${companyId}`;
     const blocker = db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
       markLockAcquired();

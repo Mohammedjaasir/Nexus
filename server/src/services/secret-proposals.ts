@@ -1,9 +1,9 @@
 import { notifyChatRunMilestones } from "./chat-run-milestone-notifications.js";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 import { updateAgentConfigurationInTransaction } from "./agent-configuration-transaction.js";
-import { withAgentAppearance } from "@paperclipai/shared";
+import { withAgentAppearance } from "@nexusai/shared";
 import { and, count, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   companySecretBindings,
@@ -14,8 +14,8 @@ import {
   issues,
   userSecretDeclarations,
   userSecretDefinitions,
-} from "@paperclipai/db";
-import type { SecretProvider } from "@paperclipai/shared";
+} from "@nexusai/db";
+import type { SecretProvider } from "@nexusai/shared";
 import { badRequest, conflict, forbidden, HttpError, notFound, unprocessable } from "../errors.js";
 import { getSecretProvider } from "../secrets/provider-registry.js";
 import { agentService } from "./agents.js";

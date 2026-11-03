@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { WorkTimelineResult } from "@paperclipai/shared";
+import type { WorkTimelineResult } from "@nexusai/shared";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { Timeline } from "@/pages/Timeline";
 import {
@@ -55,7 +55,7 @@ function FullPageTimelineHarness() {
   const { selectedCompanyId, setSelectedCompanyId } = useCompany();
 
   useEffect(() => {
-    window.localStorage.setItem("paperclip.selectedCompanyId", COMPANY_ID);
+    window.localStorage.setItem("nexus.selectedCompanyId", COMPANY_ID);
     if (selectedCompanyId !== COMPANY_ID) {
       setSelectedCompanyId(COMPANY_ID);
     }
@@ -163,7 +163,7 @@ const meta: Meta<typeof TimelineHarness> = {
   title: "Oversight and operation/Dashboards and audit trails/Pages/Work Timeline",
   component: TimelineHarness,
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "activity/timeline"
       ],

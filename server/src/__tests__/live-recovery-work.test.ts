@@ -7,7 +7,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { agents, authUsers, companies, companyMemberships, createDb, closeLivenessDb, closeCheckpointDb,
   heartbeatRuns, heartbeatRunEvents, nativeRunFinalizations, environmentLeases, issueThreadInteractions, applyPendingMigrations,
-  issueRecoveryActions, issues, activityLog, agentWakeupRequests, reconcileDatabaseWork } from "@paperclipai/db";
+  issueRecoveryActions, issues, activityLog, agentWakeupRequests, reconcileDatabaseWork } from "@nexusai/db";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
@@ -48,7 +48,7 @@ describe("residual recovery production matrix", () => {
   const timeline: unknown[] = [];
   const extraStops: Array<() => Promise<void>> = [];
   beforeAll(async () => {
-    const external = resolveExternalTestDatabaseUrl("PAPERCLIP_LIVE_RECOVERY_TEST_DATABASE_URL");
+    const external = resolveExternalTestDatabaseUrl("NEXUS_LIVE_RECOVERY_TEST_DATABASE_URL");
     if (!external) temporary = await startEmbeddedPostgresTestDatabase("live-recovery-");
     else await applyPendingMigrations(external);
     db = createDb(external ?? temporary!.connectionString, { maxConnections: 6, idleTimeoutSeconds: 0, maxLifetimeSeconds: 0 });
@@ -156,7 +156,7 @@ describe("residual recovery production matrix", () => {
       const [run] = await db.insert(heartbeatRuns).values({ companyId: f.companyId, agentId: f.agent.id,
         status: "failed", runtimeMode: "native", nativeIssueId: f.issue.id, contextSnapshot: { issueId: f.issue.id },
         finishedAt: new Date(), errorCode: "saved_native_failure",
-        runnerProfileJson: remote ? { nativeWorkspaceSync: { schema: "paperclip.native-workspace-sync/v1",
+        runnerProfileJson: remote ? { nativeWorkspaceSync: { schema: "nexus.native-workspace-sync/v1",
           state: "prepared", descriptorSha256: "a".repeat(64), baselineSha256: "b".repeat(64),
           workspaceId: randomUUID(), leaseId: randomUUID(), providerLeaseId: "remote-retry-fixture", remoteCwd: "/workspace" } } : null,
       }).returning();
@@ -194,9 +194,9 @@ describe("residual recovery production matrix", () => {
       phase: "observed", recoveryState: "awaiting_evidence", leaseExpiresAt: new Date(Date.now() + 60_000) });
     await db.insert(issueThreadInteractions).values({ companyId: f.companyId, issueId: f.issue.id, kind: "ask_user_questions",
       sourceRunId: run.id, status: "pending", continuationPolicy: "none",
-      idempotencyKey: `paperclip-runner-question:${run.id}:question-1`, payload: {
+      idempotencyKey: `nexus-runner-question:${run.id}:question-1`, payload: {
         version: 1, questions: [{ id: "continue", prompt: "Continue?", selectionMode: "single", required: true, allowOther: false, options: [{ id: "yes", label: "Yes" }] }],
-        questionSet: { schema: "paperclip.question_set.v1", questions: [{ id: "continue", prompt: "Continue?", required: true, answerMode: "single_select", options: [{ id: "yes", label: "Yes" }] }] }, runtimeRequestId: "question-1",
+        questionSet: { schema: "nexus.question_set.v1", questions: [{ id: "continue", prompt: "Continue?", required: true, answerMode: "single_select", options: [{ id: "yes", label: "Yes" }] }] }, runtimeRequestId: "question-1",
       } });
     await start(); await issueService(db).update(f.issue.id, { status: "done" });
     await vi.waitFor(async () => expect((await getRun(run.id)).status).toBe("cancelled"), { timeout: 15_000 });
@@ -228,7 +228,7 @@ describe("residual recovery production matrix", () => {
       companyId: f.companyId, agentId: f.agent.id, runtimeMode: "native", nativeIssueId: f.issue.id,
       status: "failed", finishedAt: new Date(), nativePhase: "terminal_failure",
       contextSnapshot: { nativeQuestionCancellation: marker }, resultJson: { nativeCancellation: {
-        schema: "paperclip.native-cancellation.v1", runId: randomUUID(), companyId: f.companyId, issueId: f.issue.id,
+        schema: "nexus.native-cancellation.v1", runId: randomUUID(), companyId: f.companyId, issueId: f.issue.id,
         scope: "run", intentId: randomUUID(), intentAuditId: randomUUID(), dispatched: false, dispatchState: "pending",
       } },
     }))).returning();
@@ -236,7 +236,7 @@ describe("residual recovery production matrix", () => {
       runId: row.id, phase: "terminal_failure", failureCode: "native_retry_cancelled", recoveryState: "blocked" })));
     draining = true; await start();
     expect(await db.transaction(tx => requestNativeQuestionRunCancellation(tx, { companyId: f.companyId,
-      issueId: f.issue.id, sourceRunId: run.id, idempotencyKey: `paperclip-runner-question:${run.id}:raced-question`,
+      issueId: f.issue.id, sourceRunId: run.id, idempotencyKey: `nexus-runner-question:${run.id}:raced-question`,
       payload: { questionSet: {}, runtimeRequestId: "raced-question" },
     }, { kind: "issue_terminal", issueStatus: "done" }))).toBe(run.id);
     expect((await getRun(run.id)).contextSnapshot?.nativeQuestionCancellation).toMatchObject(marker);
@@ -523,7 +523,7 @@ describe("residual recovery production matrix", () => {
     expect((await getLease(lease.id)).leasePolicy).toBe("retain_on_failure");
     expect((await getLease(lease.id)).metadata?.workspaceRestoreRecovery).toBeTruthy();
     expect((await getLease(lease.id)).providerLeaseId).toBe(lease.providerLeaseId);
-    expect((await getLease(lease.id)).metadata).toMatchObject({ workspaceRestoreRecovery: { schema: "paperclip.workspace-restore-recovery.v1", runId: run.id } });
+    expect((await getLease(lease.id)).metadata).toMatchObject({ workspaceRestoreRecovery: { schema: "nexus.workspace-restore-recovery.v1", runId: run.id } });
     await quiet();
   });
   it("settles stranded agent status at its saved grace", async () => {
@@ -687,7 +687,7 @@ describe("residual recovery production matrix", () => {
       heartbeatRunId: run.id, issueId: f.issue.id, status: "active", provider: "daytona",
       providerLeaseId: `sandbox-${run.id}`, metadata: { driver: "sandbox", remoteCwd: "/workspace" }, updatedAt: old }).returning();
     await db.update(heartbeatRuns).set({ runnerProfileJson: { nativeWorkspaceSync: {
-      schema: "paperclip.native-workspace-sync/v3", state: "prepared", descriptorSha256: "a".repeat(64),
+      schema: "nexus.native-workspace-sync/v3", state: "prepared", descriptorSha256: "a".repeat(64),
       baselineSha256: "b".repeat(64), finalHostSha256: null, workspaceId: randomUUID(), leaseId: lease.id,
       providerLeaseId: lease.providerLeaseId, remoteCwd: "/workspace", resourceDisposition: "destroy",
     } } }).where(eq(heartbeatRuns.id, run.id));
@@ -784,7 +784,7 @@ describe("residual recovery production matrix", () => {
   });
   it("parks suppressed worktree recovery without probes and reconstructs it on the committed feature change", async () => {
     const f = await fixture(), old = new Date(Date.now() - 6 * 60_000);
-    const runtimeEnv = { PAPERCLIP_IN_WORKTREE: "true", PAPERCLIP_INSTANCE_ID: "live-recovery-worktree" };
+    const runtimeEnv = { NEXUS_IN_WORKTREE: "true", NEXUS_INSTANCE_ID: "live-recovery-worktree" };
     const settings = instanceSettingsService(db, { runtimeEnv });
     await settings.updateExperimental({ enableWorktreeRunExecution: false });
     heartbeat = heartbeatService(db, { runtimeEnv });

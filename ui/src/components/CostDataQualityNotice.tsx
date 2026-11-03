@@ -2,7 +2,7 @@ import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Link } from "../lib/router";
-import type { CostDataQualityItem, CostDataQualityReason } from "@paperclipai/shared";
+import type { CostDataQualityItem, CostDataQualityReason } from "@nexusai/shared";
 import { costsApi } from "../api/costs";
 import { formatDateTime } from "../lib/utils";
 import { Button } from "./ui/button";
@@ -13,11 +13,11 @@ import { useToastActions } from "../context/ToastContext";
 const explanations: Record<CostDataQualityReason, { label: string; description: string }> = {
   unknown_billing: {
     label: "Billing category unknown",
-    description: "This run did not identify API or subscription billing. Any recorded charges are included in the inference ledger. For future runs, select an AI connection in the agent’s configuration so Paperclip can identify its billing.",
+    description: "This run did not identify API or subscription billing. Any recorded charges are included in the inference ledger. For future runs, select an AI connection in the agent’s configuration so Nexus can identify its billing.",
   },
   missing_model: {
     label: "Model not reported",
-    description: "Token usage was recorded without a model, so Paperclip cannot estimate its cost. Select an explicit model in the agent’s configuration for future runs. Changing settings will not reprice this past run.",
+    description: "Token usage was recorded without a model, so Nexus cannot estimate its cost. Select an explicit model in the agent’s configuration for future runs. Changing settings will not reprice this past run.",
   },
   missing_price: {
     label: "Cost unavailable",
@@ -25,15 +25,15 @@ const explanations: Record<CostDataQualityReason, { label: string; description: 
   },
   waiting_for_receipt: {
     label: "Receiving usage",
-    description: "This run has stopped. Paperclip is waiting for its final usage data and will record it automatically. You do not need to rerun the agent.",
+    description: "This run has stopped. Nexus is waiting for its final usage data and will record it automatically. You do not need to rerun the agent.",
   },
   receipt_unavailable: {
     label: "Final usage unavailable",
-    description: "This run stopped without final usage data. Its cost remains unresolved for budget checks. Paperclip will record a late receipt if one arrives; rerunning the agent will not recover this usage.",
+    description: "This run stopped without final usage data. Its cost remains unresolved for budget checks. Nexus will record a late receipt if one arrives; rerunning the agent will not recover this usage.",
   },
   retryable: {
     label: "Ready to record",
-    description: "Saved usage data is ready to be recorded. Paperclip retries automatically, or you can retry now. This records costs only; it does not rerun the agent.",
+    description: "Saved usage data is ready to be recorded. Nexus retries automatically, or you can retry now. This records costs only; it does not rerun the agent.",
   },
 };
 
@@ -79,7 +79,7 @@ export function CostDataQualityNotice({ companyId, from, to, reportKey, unpriced
     for (const item of items) {
       let group = groups.get(item.agentId);
       if (!group) {
-        group = { agent: { id: item.agentId ?? undefined, name: item.agentName ?? (item.agentId ? "Unknown agent" : "Paperclip services"), appearance: item.agentAppearance }, items: [] };
+        group = { agent: { id: item.agentId ?? undefined, name: item.agentName ?? (item.agentId ? "Unknown agent" : "Nexus services"), appearance: item.agentAppearance }, items: [] };
         groups.set(item.agentId, group);
       }
       group.items.push({ item, source });

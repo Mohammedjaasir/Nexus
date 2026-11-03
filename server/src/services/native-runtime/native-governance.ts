@@ -1,5 +1,5 @@
 import { and, eq, inArray, notInArray } from "drizzle-orm";
-import { approvals, issueApprovals, issueComments, issueThreadInteractions, issues, type Db } from "@paperclipai/db";
+import { approvals, issueApprovals, issueComments, issueThreadInteractions, issues, type Db } from "@nexusai/db";
 import { activeIssueInteractionCondition } from "../issue-question-context.js";
 import { isConversation } from "../agent-conversations.js";
 import type { NativeGovernanceGate } from "./status-arbiter.js";

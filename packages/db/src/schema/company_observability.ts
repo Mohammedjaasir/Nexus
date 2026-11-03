@@ -1,5 +1,5 @@
 import { boolean, jsonb, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
-import type { AgentObservabilityCapture, AgentObservabilityDestination, AgentObservabilityTestReceipt } from "@paperclipai/shared";
+import type { AgentObservabilityCapture, AgentObservabilityDestination, AgentObservabilityTestReceipt } from "@nexusai/shared";
 import { companies } from "./companies.js";
 import { companySecrets } from "./company_secrets.js";
 

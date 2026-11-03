@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getTableName, type SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { dashboardService } from "../services/dashboard.js";
 
 const { overview } = vi.hoisted(() => ({ overview: vi.fn() }));

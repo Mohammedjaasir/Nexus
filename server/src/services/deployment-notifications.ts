@@ -1,6 +1,6 @@
-import { createDb, type Db } from "@paperclipai/db";
+import { createDb, type Db } from "@nexusai/db";
 import { DATABASE_WORK_CHANNEL, enableDatabaseWorkNotifications, publishDatabaseWorkHint,
-  receiveDatabaseWorkNotification, reconcileDatabaseWorkNotifications, subscribeDatabaseWork } from "@paperclipai/db/work-signals";
+  receiveDatabaseWorkNotification, reconcileDatabaseWorkNotifications, subscribeDatabaseWork } from "@nexusai/db/work-signals";
 import { DELIVERY_QUEUES } from "./delivery-work-notifications.js";
 import type { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";
 import { activeNativeExecutionRunIds, subscribeActiveNativeExecutions } from "./native-runtime/native-active-runs.js";
@@ -29,7 +29,7 @@ export function deploymentNotifications(db: Db, coordinator: ReturnType<typeof c
       if (!wanted()) { await close(); return; }
       if (client) return;
       const opened = createDb(input.directDatabaseUrl, { maxConnections: 1, connectTimeoutSeconds: 5,
-        applicationName: "paperclip-deployment-notifications" }).$client;
+        applicationName: "nexus-deployment-notifications" }).$client;
       client = opened;
       const abort = () => { void opened.end({ timeout: 0 }); };
       signal.addEventListener("abort", abort, { once: true });

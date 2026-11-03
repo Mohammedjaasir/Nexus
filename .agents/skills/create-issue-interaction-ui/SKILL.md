@@ -1,22 +1,22 @@
 ---
 name: create-issue-interaction-ui
 description: >
-  Add a new Paperclip issue-thread interaction kind end-to-end. Use when repo
+  Add a new Nexus issue-thread interaction kind end-to-end. Use when repo
   work introduces or extends interaction cards like request_confirmation,
   checkbox confirmations, ask_user_questions, or suggest_tasks.
 ---
 
 # Create a new issue-thread interaction UI (Developer/maintainer skill)
 
-Developer/maintainer skill. Do NOT install this on production Paperclip agents.
+Developer/maintainer skill. Do NOT install this on production Nexus agents.
 
-This skill walks a Paperclip contributor through introducing a new issue-thread
+This skill walks a Nexus contributor through introducing a new issue-thread
 interaction kind from shared contract to issue-detail wiring, helpers, and
 docs. It is intentionally a developer/maintainer skill: the audience is a
 human or coding agent making code changes inside `paperclipai/paperclip`, not
-the operational agents that run inside a deployed Paperclip company.
+the operational agents that run inside a deployed Nexus company.
 
-Do NOT install this on production Paperclip agents. This guide is for repository contributors changing Paperclip itself.
+Do NOT install this on production Nexus agents. This guide is for repository contributors changing Nexus itself.
 
 ## When to use
 
@@ -32,7 +32,7 @@ Do NOT install this on production Paperclip agents. This guide is for repository
 
 - Adding fields to an existing interaction kind that does not need a new
   payload schema. Patch the existing validators/UI in place instead.
-- Changing how Paperclip agents *call* interactions. Update `skills/paperclip`
+- Changing how Nexus agents *call* interactions. Update `skills/nexus`
   or `references/api-reference.md`; that is agent guidance, not card work.
 - Building a non-thread UI (issue detail sidebar, project board widget, etc.).
   Those have their own component conventions.
@@ -46,8 +46,8 @@ Every issue-thread interaction has five moving parts:
 | Shared       | Kind constant, payload/result interfaces, Zod validators, exported types, shared-test coverage.    |
 | Server       | Service create/accept/reject/respond, staleness, supersede, idempotency, activity log, wake send. |
 | UI           | Card pending/resolved/stale states, fixtures, Storybook, issue-thread/IssueDetail wiring.         |
-| Channels     | Complete question/context, native response or Paperclip handoff, callback authorization, and settled provider cards. |
-| Helpers/Docs | CLI command, MCP tool, plugin SDK type+host+testing path, `skills/paperclip` guidance.            |
+| Channels     | Complete question/context, native response or Nexus handoff, callback authorization, and settled provider cards. |
+| Helpers/Docs | CLI command, MCP tool, plugin SDK type+host+testing path, `skills/nexus` guidance.            |
 
 Use the current `ISSUE_THREAD_INTERACTION_KINDS` as the inventory. Pick the
 closest existing kind and reuse its plumbing rather than inventing parallel mechanics:
@@ -75,7 +75,7 @@ git show --stat 4d5322c82
 
 The plan it implemented is preserved as an issue document on
 [PAP-10415](/PAP/issues/PAP-10415#document-plan). Use it as the template for
-your own plan document if you are running this work through Paperclip itself.
+your own plan document if you are running this work through Nexus itself.
 
 ## Order of operations
 
@@ -192,7 +192,7 @@ UI invariants:
 Read the [chat channel connector contract](../../../doc/connections/CONNECTOR-PLAYBOOK.md#chat-channel-connectors).
 Every new kind or changed form needs a usable path through each supported
 conversation channel: complete safe question/context plus native response controls
-or an explicit link to the authorized Paperclip surface. Include runtime/composer
+or an explicit link to the authorized Nexus surface. Include runtime/composer
 variants; do not assume that adding a board card makes it available in Slack.
 
 Extend the existing presentation, publication, response, and settlement owners.
@@ -229,9 +229,9 @@ hand-writing JSON. Touch:
 
 Touch:
 
-- `skills/paperclip/SKILL.md` — add a row to the interaction-kinds table:
+- `skills/nexus/SKILL.md` — add a row to the interaction-kinds table:
   *when to use*, *when not to use*, plus a copyable payload example.
-- `skills/paperclip/references/api-reference.md` — full payload and result
+- `skills/nexus/references/api-reference.md` — full payload and result
   schemas, validation limits, create/respond bodies, error codes.
 
 The skills text is read by the runtime agents. Keep it concise — differentiate
@@ -273,12 +273,12 @@ If UI vitest fails with `act is not a function`, the shell is running with
       validation-error states; resolved-state large selections summarize by
       count first.
 - [ ] Fixtures and Storybook entries exist for the new kind.
-- [ ] Every supported channel has a native response or explicit Paperclip handoff
+- [ ] Every supported channel has a native response or explicit Nexus handoff
       for the form, with settlement and continuation coverage. Local simulations
       and real-provider acceptance are reported separately.
 - [ ] CLI, MCP, and plugin SDK helpers all accept the new payload shape and
       have test coverage.
-- [ ] `skills/paperclip/SKILL.md` and `references/api-reference.md` updated.
+- [ ] `skills/nexus/SKILL.md` and `references/api-reference.md` updated.
 - [ ] Focused test set above is green; CI gates pass.
 
 ## Anti-patterns observed in review

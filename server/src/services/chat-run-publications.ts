@@ -17,7 +17,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   chatActions,
@@ -30,7 +30,7 @@ import {
   heartbeatRuns,
   issueComments,
   issues,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { projectSafeChatPublication } from "./chat-publication-projection.js";
 import { safeChatTaskUrl } from "./chat-task-url.js";
 import { hasChatRunOwnedProviderInteraction } from "./chat-interaction-arbitration.js";
@@ -91,7 +91,7 @@ export async function resolveChatRunPresentationAuthorizationReason(
   if (bindings.length === 0) return "internal_agent_write";
   // A native question/confirmation is the provider-visible result of its
   // originating run. Keep the runner's final presentation as an internal
-  // Paperclip comment even if a fast provider answer resolves the interaction
+  // Nexus comment even if a fast provider answer resolves the interaction
   // before this check; otherwise model metadata can appear as a noisy sibling
   // beside the card or its continuation response.
   if (await hasChatRunOwnedProviderInteraction(db, input)) {
@@ -248,20 +248,20 @@ export function safeMilestoneText(input: {
     input.milestone === "completed"
       ? `${input.agentName} has no final response to show yet.`
       : input.milestone === "waiting_for_input"
-      ? `${input.agentName} needs a Paperclip admin to safely recover this turn before more work can start.`
+      ? `${input.agentName} needs a Nexus admin to safely recover this turn before more work can start.`
       : input.errorCode === "low_trust_isolation_unavailable"
-        ? `${input.agentName} couldn't safely start this turn because this task was started for an unlinked external guest and isolated guest execution isn't available. Ask a Paperclip admin to create a private identity link for this account or enable isolated guest execution, then start a new task.`
+        ? `${input.agentName} couldn't safely start this turn because this task was started for an unlinked external guest and isolated guest execution isn't available. Ask a Nexus admin to create a private identity link for this account or enable isolated guest execution, then start a new task.`
         : input.errorCode === "native_provider_usage_limit"
-          ? `${input.agentName} couldn't complete this turn because the model provider's usage allowance is exhausted. A Paperclip admin needs to restore capacity before retrying.`
+          ? `${input.agentName} couldn't complete this turn because the model provider's usage allowance is exhausted. A Nexus admin needs to restore capacity before retrying.`
           : input.errorCode === "native_event_replay_conflict"
-            ? `${input.agentName} couldn't safely continue this turn. A Paperclip admin needs to review the run before it can be retried.`
+            ? `${input.agentName} couldn't safely continue this turn. A Nexus admin needs to review the run before it can be retried.`
             : input.errorCode === "native_session_cleanup_quarantined"
-              ? `${input.agentName} couldn't start this turn because an earlier session needs recovery. Your request is saved. Ask a Paperclip admin to recover that session before retrying; sending the request again won't repair it.`
+              ? `${input.agentName} couldn't start this turn because an earlier session needs recovery. Your request is saved. Ask a Nexus admin to recover that session before retrying; sending the request again won't repair it.`
               : `${input.agentName} stopped before completing this turn.`;
   return `${recovery}${
     taskUrl
-      ? ` Open the task in Paperclip: ${taskUrl}`
-      : " Open the task in Paperclip for details."
+      ? ` Open the task in Nexus: ${taskUrl}`
+      : " Open the task in Nexus for details."
   }`;
 }
 
@@ -273,7 +273,7 @@ type ChatRunMilestoneCursor = {
 };
 
 const explicitlyAuthoredCommentReason = sql<boolean>`(
-    ${issueComments.metadata} ->> 'authorizationReason' = 'paperclip_runner_protocol'
+    ${issueComments.metadata} ->> 'authorizationReason' = 'nexus_runner_protocol'
     or left(coalesce(${issueComments.metadata} ->> 'authorizationReason', ''), 6) = 'allow_'
   )`;
 
@@ -601,7 +601,7 @@ export async function loadChatRunLifecycleMilestoneScopes(
 
 /**
  * Project only coarse run lifecycle into bound external conversations. Raw
- * output, errors, tool events, and reasoning stay in Paperclip. Idempotency is
+ * output, errors, tool events, and reasoning stay in Nexus. Idempotency is
  * keyed by run, milestone, and endpoint so polling and restarts are harmless.
  */
 export async function enqueueChatRunLifecycleMilestones(

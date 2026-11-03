@@ -22,8 +22,8 @@ diff --git a/dist/index.d.ts b/dist/index.d.ts
      private pollingTask;
      private pollingActive;
      private nextDraftId;
-+    /** Paperclip durable private-draft stop handshake; not task cancellation. */
-+    readonly paperclipDraftStopVersion: 1;
++    /** Nexus durable private-draft stop handshake; not task cancellation. */
++    readonly nexusDraftStopVersion: 1;
      private richMessagesAvailable;
      get botUserId(): string | undefined;
      get userName(): string;
@@ -64,7 +64,7 @@ diff --git a/dist/index.js b/dist/index.js
    pollingTask = null;
    pollingActive = false;
    nextDraftId = Math.max(1, Date.now() % 2147483647);
-+  paperclipDraftStopVersion = 1;
++  nexusDraftStopVersion = 1;
    richMessagesAvailable = true;
    get botUserId() {
      return this._botUserId;
@@ -85,7 +85,7 @@ diff --git a/dist/index.js b/dist/index.js
      });
    }
    async stream(threadId, textStream, options) {
-+    if (options?.paperclipDraftControl && (!this.nativeStreaming || !this.isDM(threadId))) {
++    if (options?.nexusDraftControl && (!this.nativeStreaming || !this.isDM(threadId))) {
 +      throw new ValidationError2("telegram", "Durable draft control requires native private streaming");
 +    }
      if (this.nativeStreaming && this.isDM(threadId)) {
@@ -95,7 +95,7 @@ diff --git a/dist/index.js b/dist/index.js
    }
    async nativeDraftStream(threadId, textStream, options) {
      const parsedThread = this.resolveThreadId(threadId);
-+    const draftControl = options?.paperclipDraftControl;
++    const draftControl = options?.nexusDraftControl;
 +    if (draftControl && (draftControl.version !== 1 || !Number.isSafeInteger(draftControl.draftId) || draftControl.draftId <= 0 || draftControl.draftId > 2147483647 || typeof draftControl.beforeDraft !== "function" || typeof draftControl.beforeFinal !== "function")) {
 +      throw new ValidationError2("telegram", "Invalid durable draft control");
 +    }
@@ -191,7 +191,7 @@ diff --git a/dist/index.js b/dist/index.js
        renderer.push(text2);
        if (Date.now() - lastFlushAt >= updateIntervalMs) {
          await flushDraft();
-+        if (draftStopped) return { paperclipDraftStopped: true };
++        if (draftStopped) return { nexusDraftStopped: true };
        }
      }
      if (!accumulated.trim()) {
@@ -200,7 +200,7 @@ diff --git a/dist/index.js b/dist/index.js
      const finalMarkdown = renderer.finish();
      await flushDraft();
 +    if (draftStopped || draftControl && !await draftControl.beforeFinal()) {
-+      return { paperclipDraftStopped: true };
++      return { nexusDraftStopped: true };
 +    }
      if (streamUsesRich) {
        const markdown = truncateRichMarkdown(finalMarkdown);

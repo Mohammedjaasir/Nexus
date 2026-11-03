@@ -10,7 +10,7 @@ import {
 } from "./task-protocol-surfaces";
 
 function schema(name: string): Record<string, unknown> {
-  const path = fileURLToPath(new URL(`../../../../packages/paperclip-runner/protocol/schemas/${name}`, import.meta.url));
+  const path = fileURLToPath(new URL(`../../../../packages/nexus-runner/protocol/schemas/${name}`, import.meta.url));
   return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
 }
 
@@ -24,7 +24,7 @@ function enumStrings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 }
 
-describe("Paperclip task protocol surface registry", () => {
+describe("Nexus task protocol surface registry", () => {
   it("folds activation into the task panel instead of adding a chat message", () => {
     expect(TASK_PROTOCOL_EVENT_SURFACE_REGISTRY["runtime.activity.recorded"]).toMatchObject({ disposition: "folded", surface: "task_panel" });
   });

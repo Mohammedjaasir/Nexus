@@ -27,7 +27,7 @@ export function extractModelName(modelId: string): string {
 const CURATED_MODEL_ORDER_ADAPTERS: ReadonlySet<string> = new Set([
   "claude_local",
   "codex_local",
-  "paperclip_runner",
+  "nexus_runner",
   "gemini_local",
   "grok_local",
   "kimi_local",

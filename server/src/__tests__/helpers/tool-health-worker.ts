@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { expect, vi } from "vitest";
 import { createDeliveryWorkCoordinator } from "../../services/delivery-work-coordinator.js";
 import { connectionHealthSchedule } from "../../services/tool-access/catalog/health-schedule.js";

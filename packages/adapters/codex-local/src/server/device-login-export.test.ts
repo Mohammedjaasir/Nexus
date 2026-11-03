@@ -33,13 +33,13 @@ describe("device-login credential export", () => {
   });
 
   async function makeInstanceRoot(): Promise<string> {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "paperclip-codex-proof-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "nexus-codex-proof-"));
     cleanupDirs.push(dir);
     return dir;
   }
 
   function envFor(instanceHome: string, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
-    return { PAPERCLIP_HOME: instanceHome, PAPERCLIP_INSTANCE_ID: "default", ...extra };
+    return { NEXUS_HOME: instanceHome, NEXUS_INSTANCE_ID: "default", ...extra };
   }
 
   function subscriptionAuth(input: { accountId: string; lastRefresh?: string; marker?: string }): Buffer {

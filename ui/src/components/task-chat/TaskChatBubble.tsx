@@ -10,10 +10,10 @@ import { ArtifactPreview } from "@/components/artifacts/ArtifactCard";
 import { isVideoLikeOutput } from "@/lib/issue-output";
 import { AgentAvatar, type AvatarAgent } from "../AgentAvatar";
 import { Identity } from "../Identity";
-import { paperclipHumanAvatarUrl } from "@/lib/issue-chat-human-author";
+import { nexusHumanAvatarUrl } from "@/lib/issue-chat-human-author";
 import { useCallback, useContext, useState, type ReactNode } from "react";
 import { useEmailComment } from "@/components/EmailMessageCard";
-import type { IssueAttachment } from "@paperclipai/shared";
+import type { IssueAttachment } from "@nexusai/shared";
 import { IssueGalleryContext } from "@/context/IssueGalleryContext";
 import { cn } from "@/lib/utils";
 import { agentDetailHref } from "@/pages/agent-detail-navigation";
@@ -257,7 +257,7 @@ function TaskChatBubbleContent({
       </Link>}
       {isHuman && !item.isCurrentUser && item.authorName ? (
         <span className="px-1 text-sm font-semibold text-foreground" data-testid="task-chat-human-identity" data-author-user-id={item.authorUserId}>
-          <Identity name={item.authorName} avatarUrl={paperclipHumanAvatarUrl(item.authorAvatarUrl)} size="default" className="gap-2" />
+          <Identity name={item.authorName} avatarUrl={nexusHumanAvatarUrl(item.authorAvatarUrl)} size="default" className="gap-2" />
         </span>
       ) : null}
       {!isHuman && item.authorName && !hideAgentIdentity ? (
@@ -287,10 +287,10 @@ function TaskChatBubbleContent({
             // The own-message bubble sits on the solid --liveness-blue accent, so the
             // prose body text must follow the bubble's `text-white` rather than
             // the default light-mode prose color (which reads as black on blue).
-            // `paperclip-markdown-on-accent` flips prose tokens to currentColor
+            // `nexus-markdown-on-accent` flips prose tokens to currentColor
             // (== inherited white) in both themes; dark mode was already correct
             // only because `prose-invert` happened to lighten the text.
-            className={isOwnMessage ? "paperclip-markdown-on-accent" : undefined}
+            className={isOwnMessage ? "nexus-markdown-on-accent" : undefined}
             softBreaks
             linkIssueReferences
             onImageClick={openImage}

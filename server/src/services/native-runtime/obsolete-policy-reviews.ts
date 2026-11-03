@@ -7,7 +7,7 @@ import {
   approvals, issueApprovals, issueThreadInteractions, issues,
   nativeRunFinalizations, statusDecisionEffects, statusDecisions, workAssessments,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { logger } from "../../middleware/logger.js";
 import { issueService } from "../issues.js";
 import { issueThreadInteractionService } from "../issue-thread-interactions.js";
@@ -86,7 +86,7 @@ async function dismissCandidates(db: Db, candidates: Awaited<ReturnType<typeof f
         const now = new Date();
         const [cancelled] = await tx.update(issueThreadInteractions).set({
           status: "cancelled",
-          result: { version: 1, outcome: "withdrawn", reason: "A Paperclip upgrade does not require completion review." },
+          result: { version: 1, outcome: "withdrawn", reason: "A Nexus upgrade does not require completion review." },
           resolvedAt: now,
           updatedAt: now,
         }).where(and(

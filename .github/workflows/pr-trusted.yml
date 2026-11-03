@@ -14,7 +14,7 @@ permissions:
 # Test reporters write local artifacts only. The workflow_run exporter owns
 # the Honeycomb credential, so fork PRs cannot execute with it.
 env:
-  PAPERCLIP_CI_PROFILE_DIR: ${{ github.workspace }}/.ci-profile
+  NEXUS_CI_PROFILE_DIR: ${{ github.workspace }}/.ci-profile
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}
@@ -107,8 +107,8 @@ jobs:
     timeout-minutes: 10
 
     env:
-      PAPERCLIP_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
-      PAPERCLIP_CI_PROFILE_JOB: policy
+      NEXUS_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
+      NEXUS_CI_PROFILE_JOB: policy
 
     steps:
       - name: Checkout repository
@@ -119,7 +119,7 @@ jobs:
 
       - name: Initialize CI profile
         continue-on-error: true
-        if: env.PAPERCLIP_CI_PROFILE == 'true'
+        if: env.NEXUS_CI_PROFILE == 'true'
         run: node scripts/ci-profile/initialize.mjs
 
       - name: Select compatible Node test command
@@ -214,7 +214,7 @@ jobs:
       - name: Verify release package bootstrap for changed manifests
         run: |
           mapfile -t changed_paths < <(git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}")
-          PAPERCLIP_RELEASE_BOOTSTRAP_BASE_SHA="${{ github.event.pull_request.base.sha }}" \
+          NEXUS_RELEASE_BOOTSTRAP_BASE_SHA="${{ github.event.pull_request.base.sha }}" \
             node ./scripts/check-release-package-bootstrap.mjs "${changed_paths[@]}"
 
       # Each lane resolves a stale lockfile inline; this early check still
@@ -224,7 +224,7 @@ jobs:
 
       - name: Upload CI profile timings
         continue-on-error: true
-        if: always() && env.PAPERCLIP_CI_PROFILE == 'true'
+        if: always() && env.NEXUS_CI_PROFILE == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-profile-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}
@@ -241,8 +241,8 @@ jobs:
     timeout-minutes: 20
 
     env:
-      PAPERCLIP_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
-      PAPERCLIP_CI_PROFILE_JOB: Typecheck + Release Registry
+      NEXUS_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
+      NEXUS_CI_PROFILE_JOB: Typecheck + Release Registry
 
     steps:
       - name: Checkout repository
@@ -252,7 +252,7 @@ jobs:
 
       - name: Initialize CI profile
         continue-on-error: true
-        if: env.PAPERCLIP_CI_PROFILE == 'true'
+        if: env.NEXUS_CI_PROFILE == 'true'
         run: node scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
@@ -305,10 +305,10 @@ jobs:
             pnpm install --frozen-lockfile
           fi
 
-      # typecheck:build-gaps builds @paperclipai/server, whose build script
+      # typecheck:build-gaps builds @nexusai/server, whose build script
       # rebuilds the Runner release binary; without the shared Rust cache that
       # is a ~3m40s cold compile of all third-party crates (run 35036001734,
-      # 2026-09-15). Same restore-only contract as Verify Paperclip Runner.
+      # 2026-09-15). Same restore-only contract as Verify Nexus Runner.
 
       # rust-cache hashes its absolute cache paths into the entry's version,
       # and GitHub only serves an entry whose key and version both match. The
@@ -325,14 +325,14 @@ jobs:
         id: runner_rust_workspace
         run: |
           set -euo pipefail
-          pinned="$HOME/paperclip-runner-rust"
+          pinned="$HOME/nexus-runner-rust"
           # A symlink here is removed as a link, never followed into the checkout.
           rm -rf "$pinned"
-          ln -s "$GITHUB_WORKSPACE/packages/paperclip-runner/runner" "$pinned"
+          ln -s "$GITHUB_WORKSPACE/packages/nexus-runner/runner" "$pinned"
           echo "path=$pinned" >> "$GITHUB_OUTPUT"
 
       - name: Select the pinned Runner Rust toolchain
-        working-directory: packages/paperclip-runner
+        working-directory: packages/nexus-runner
         run: |
           set -uo pipefail
 
@@ -380,7 +380,7 @@ jobs:
       # The Runner's own crate is the one thing the entry above leaves out:
       # rust-cache drops workspace crates when it saves, and a fresh checkout
       # would invalidate cargo's mtime fingerprints for them anyway. So this
-      # job compiled paperclip-runner-core in release mode on every run,
+      # job compiled nexus-runner-core in release mode on every run,
       # 28-49s (runs 38169436532 to 38183149920, 2026-10-11), while 221 of
       # the 239 master commits of the preceding week left its inputs alone.
       # The master Rust lane in release-verify.yml saves that crate's release
@@ -401,13 +401,13 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            packages/paperclip-runner/runner/target/release/.fingerprint/paperclip-runner-core-*
-            packages/paperclip-runner/runner/target/release/deps/libpaperclip_runner_core-*
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runner_core-*.d
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runnerd-*
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd.d
-          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/paperclip-runner/rust-toolchain.toml', 'packages/paperclip-runner/acpx-profiles.json', 'packages/paperclip-runner/antigravity-distributions.json', 'packages/paperclip-runner/runner/Cargo.toml', 'packages/paperclip-runner/runner/Cargo.lock', 'packages/paperclip-runner/runner/crates/**', 'packages/paperclip-runner/protocol/**', 'packages/paperclip-runner/test-fixtures/**', 'packages/paperclip-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
+            packages/nexus-runner/runner/target/release/.fingerprint/nexus-runner-core-*
+            packages/nexus-runner/runner/target/release/deps/libnexus_runner_core-*
+            packages/nexus-runner/runner/target/release/deps/nexus_runner_core-*.d
+            packages/nexus-runner/runner/target/release/deps/nexus_runnerd-*
+            packages/nexus-runner/runner/target/release/nexus-runnerd
+            packages/nexus-runner/runner/target/release/nexus-runnerd.d
+          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/nexus-runner/rust-toolchain.toml', 'packages/nexus-runner/acpx-profiles.json', 'packages/nexus-runner/antigravity-distributions.json', 'packages/nexus-runner/runner/Cargo.toml', 'packages/nexus-runner/runner/Cargo.lock', 'packages/nexus-runner/runner/crates/**', 'packages/nexus-runner/protocol/**', 'packages/nexus-runner/test-fixtures/**', 'packages/nexus-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
 
       - name: Mark the restored Runner release crate current
         if: ${{ steps.runner_release_crate.outputs.cache-hit == 'true' }}
@@ -417,14 +417,14 @@ jobs:
         run: pnpm run typecheck:build-gaps
 
       - name: Verify repository-wide CLI guidance safety
-        run: pnpm exec vitest run --project @paperclipai/server server/src/__tests__/cli-invocation-safety.test.ts
+        run: pnpm exec vitest run --project @nexusai/server server/src/__tests__/cli-invocation-safety.test.ts
 
       - name: Verify release registry test coverage
         run: pnpm run test:release-registry
 
       - name: Upload CI profile timings
         continue-on-error: true
-        if: always() && env.PAPERCLIP_CI_PROFILE == 'true'
+        if: always() && env.NEXUS_CI_PROFILE == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-profile-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}
@@ -444,10 +444,10 @@ jobs:
       matrix: ${{ fromJSON((needs.test_selection.outputs.plan || needs.gate.outputs.plan) != '' && toJSON(fromJSON((needs.test_selection.outputs.plan || needs.gate.outputs.plan)).jobs.general_tests.matrix) || '{"include":[{"group":"general-server-without-chat","group_label":"server (1/12)","shard_index":0,"shard_count":12,"task":"ci:server"},{"group":"general-server-without-chat","group_label":"server (2/12)","shard_index":1,"shard_count":12,"task":"ci:server"},{"group":"general-server-without-chat","group_label":"server (3/12)","shard_index":2,"shard_count":12,"task":"ci:server"},{"group":"general-server-without-chat","group_label":"server (4/12)","shard_index":3,"shard_count":12,"task":"ci:server"},{"group":"general-server-without-chat","group_label":"server (5/12)","shard_index":4,"shard_count":12,"task":"ci:server"},{"group":"general-server-without-chat","group_label":"server (6/12)","shard_index":5,"shard_count":12,"task":"ci:server"},{"group":"general-server-without-chat","group_label":"server (7/12)","shard_index":6,"shard_count":12,"task":"ci:server"},{"group":"general-server-without-chat","group_label":"server (8/12)","shard_index":7,"shard_count":12,"task":"ci:server"},{"group":"general-server-without-chat","group_label":"server (9/12)","shard_index":8,"shard_count":12,"task":"ci:server"},{"group":"general-server-without-chat","group_label":"server (10/12)","shard_index":9,"shard_count":12,"task":"ci:server"},{"group":"general-server-without-chat","group_label":"server (11/12)","shard_index":10,"shard_count":12,"task":"ci:server"},{"group":"general-server-without-chat","group_label":"server (12/12)","shard_index":11,"shard_count":12,"task":"ci:server"},{"group":"general-chat","group_label":"chat (1/3)","shard_index":0,"shard_count":3,"task":"ci:chat"},{"group":"general-chat","group_label":"chat (2/3)","shard_index":1,"shard_count":3,"task":"ci:chat"},{"group":"general-chat","group_label":"chat (3/3)","shard_index":2,"shard_count":3,"task":"ci:chat"},{"group":"general-workspaces-a","group_label":"workspaces-a (1/2)","shard_index":0,"shard_count":2,"task":"ci:workspaces-a"},{"group":"general-workspaces-a","group_label":"workspaces-a (2/2)","shard_index":1,"shard_count":2,"task":"ci:workspaces-a"},{"group":"general-workspaces-b","group_label":"workspaces-b","task":"ci:workspaces-b"},{"group":"general-workspaces-c","group_label":"workspaces-c","task":"ci:db"}]}') }}
 
     env:
-      PAPERCLIP_CI_TEST_SELECTION: ${{ matrix.selection && '.ci-test-selection/manifest.json' || '' }}
-      PAPERCLIP_CI_SELECTION_HASH: ${{ matrix.selection && fromJSON(needs.test_selection.outputs.plan).testSelection.hash || '' }}
-      PAPERCLIP_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
-      PAPERCLIP_CI_PROFILE_JOB: General tests (${{ matrix.group_label }})
+      NEXUS_CI_TEST_SELECTION: ${{ matrix.selection && '.ci-test-selection/manifest.json' || '' }}
+      NEXUS_CI_SELECTION_HASH: ${{ matrix.selection && fromJSON(needs.test_selection.outputs.plan).testSelection.hash || '' }}
+      NEXUS_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
+      NEXUS_CI_PROFILE_JOB: General tests (${{ matrix.group_label }})
 
     steps:
       - name: Checkout repository
@@ -464,7 +464,7 @@ jobs:
 
       - name: Initialize CI profile
         continue-on-error: true
-        if: env.PAPERCLIP_CI_PROFILE == 'true'
+        if: env.NEXUS_CI_PROFILE == 'true'
         run: node scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
@@ -538,7 +538,7 @@ jobs:
 
       - name: Upload CI profile timings
         continue-on-error: true
-        if: always() && env.PAPERCLIP_CI_PROFILE == 'true'
+        if: always() && env.NEXUS_CI_PROFILE == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-profile-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}
@@ -555,8 +555,8 @@ jobs:
     timeout-minutes: 15
 
     env:
-      PAPERCLIP_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
-      PAPERCLIP_CI_PROFILE_JOB: Docker context integrity
+      NEXUS_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
+      NEXUS_CI_PROFILE_JOB: Docker context integrity
 
     steps:
       - name: Checkout repository
@@ -569,7 +569,7 @@ jobs:
       # too rather than failing before it checks anything.
       - name: Initialize CI profile
         continue-on-error: true
-        if: env.PAPERCLIP_CI_PROFILE == 'true'
+        if: env.NEXUS_CI_PROFILE == 'true'
         run: node scripts/ci-profile/initialize.mjs
 
       - name: Set up Docker Buildx
@@ -595,7 +595,7 @@ jobs:
 
       - name: Upload CI profile timings
         continue-on-error: true
-        if: always() && env.PAPERCLIP_CI_PROFILE == 'true'
+        if: always() && env.NEXUS_CI_PROFILE == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-profile-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}
@@ -607,7 +607,7 @@ jobs:
   verify:
     name: verify
     if: ${{ always() }}
-    needs: [gate, test_selection, policy, typecheck_release_registry, general_tests, verify_paperclip_runner, build, docker_context_integrity, verify_serialized_server, canary_dry_run]
+    needs: [gate, test_selection, policy, typecheck_release_registry, general_tests, verify_nexus_runner, build, docker_context_integrity, verify_serialized_server, canary_dry_run]
     runs-on: ${{ needs.gate.outputs.runner }}
     timeout-minutes: 5
     steps:
@@ -626,26 +626,26 @@ jobs:
           const plan = process.env.CI_PLAN ? JSON.parse(process.env.CI_PLAN) : null;
           if (plan) assert.equal(plan.version, 1, 'Supported task plan required');
           if (plan?.testSelection) assert.equal(results.test_selection.result, 'success', 'Published selection must succeed');
-          for (const job of ["typecheck_release_registry","general_tests","verify_paperclip_runner","build","docker_context_integrity","verify_serialized_server","canary_dry_run"]) {
+          for (const job of ["typecheck_release_registry","general_tests","verify_nexus_runner","build","docker_context_integrity","verify_serialized_server","canary_dry_run"]) {
             if (plan) assert.equal(typeof plan.jobs[job]?.run, 'boolean', 'Missing suite decision: ' + job);
             const selected = process.env.FULL_CI === 'true' && (!plan || plan.jobs[job].run);
             assert.equal(results[job].result, selected ? 'success' : 'skipped', job);
           }
           NODE
 
-  verify_paperclip_runner:
-    name: Verify Paperclip Runner (${{ matrix.lane_label }})
+  verify_nexus_runner:
+    name: Verify Nexus Runner (${{ matrix.lane_label }})
     needs: [gate]
-    if: ${{ needs.gate.outputs.full_ci == 'true' && (needs.gate.outputs.plan == '' || fromJSON(needs.gate.outputs.plan).jobs.verify_paperclip_runner.run) }}
+    if: ${{ needs.gate.outputs.full_ci == 'true' && (needs.gate.outputs.plan == '' || fromJSON(needs.gate.outputs.plan).jobs.verify_nexus_runner.run) }}
     runs-on: ${{ needs.gate.outputs.runner }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.gate.outputs.plan != '' && toJSON(fromJSON(needs.gate.outputs.plan).jobs.verify_paperclip_runner.matrix) || '{"include":[{"lane_label":"static checks","command":"check:static","task":"ci:runner-static"},{"lane_label":"rust","command":"check:runner","release_crate":true,"task":"ci:runner-rust"},{"lane_label":"vitest 1/2","command":"test:typescript:vitest --shard=1/2","task":"ci:runner-vitest"},{"lane_label":"vitest 2/2","command":"test:typescript:vitest --shard=2/2","release_crate":true,"task":"ci:runner-vitest"}]}') }}
+      matrix: ${{ fromJSON(needs.gate.outputs.plan != '' && toJSON(fromJSON(needs.gate.outputs.plan).jobs.verify_nexus_runner.matrix) || '{"include":[{"lane_label":"static checks","command":"check:static","task":"ci:runner-static"},{"lane_label":"rust","command":"check:runner","release_crate":true,"task":"ci:runner-rust"},{"lane_label":"vitest 1/2","command":"test:typescript:vitest --shard=1/2","task":"ci:runner-vitest"},{"lane_label":"vitest 2/2","command":"test:typescript:vitest --shard=2/2","release_crate":true,"task":"ci:runner-vitest"}]}') }}
 
     env:
-      PAPERCLIP_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
-      PAPERCLIP_CI_PROFILE_JOB: Verify Paperclip Runner (${{ matrix.lane_label }})
+      NEXUS_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
+      NEXUS_CI_PROFILE_JOB: Verify Nexus Runner (${{ matrix.lane_label }})
 
     steps:
       - name: Checkout repository
@@ -655,7 +655,7 @@ jobs:
 
       - name: Initialize CI profile
         continue-on-error: true
-        if: env.PAPERCLIP_CI_PROFILE == 'true'
+        if: env.NEXUS_CI_PROFILE == 'true'
         run: node scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
@@ -731,14 +731,14 @@ jobs:
         id: runner_rust_workspace
         run: |
           set -euo pipefail
-          pinned="$HOME/paperclip-runner-rust"
+          pinned="$HOME/nexus-runner-rust"
           # A symlink here is removed as a link, never followed into the checkout.
           rm -rf "$pinned"
-          ln -s "$GITHUB_WORKSPACE/packages/paperclip-runner/runner" "$pinned"
+          ln -s "$GITHUB_WORKSPACE/packages/nexus-runner/runner" "$pinned"
           echo "path=$pinned" >> "$GITHUB_OUTPUT"
 
       - name: Select the pinned Runner Rust toolchain
-        working-directory: packages/paperclip-runner
+        working-directory: packages/nexus-runner
         run: |
           set -uo pipefail
 
@@ -786,7 +786,7 @@ jobs:
       # The Runner's own crate is the one thing the entry above leaves out:
       # rust-cache drops workspace crates when it saves, and a fresh checkout
       # would invalidate cargo's mtime fingerprints for them anyway. So this
-      # job compiled paperclip-runner-core in release mode on every run,
+      # job compiled nexus-runner-core in release mode on every run,
       # 28-49s (runs 38169436532 to 38183149920, 2026-10-11), while 221 of
       # the 239 master commits of the preceding week left its inputs alone.
       # The master Rust lane in release-verify.yml saves that crate's release
@@ -814,13 +814,13 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            packages/paperclip-runner/runner/target/release/.fingerprint/paperclip-runner-core-*
-            packages/paperclip-runner/runner/target/release/deps/libpaperclip_runner_core-*
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runner_core-*.d
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runnerd-*
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd.d
-          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/paperclip-runner/rust-toolchain.toml', 'packages/paperclip-runner/acpx-profiles.json', 'packages/paperclip-runner/antigravity-distributions.json', 'packages/paperclip-runner/runner/Cargo.toml', 'packages/paperclip-runner/runner/Cargo.lock', 'packages/paperclip-runner/runner/crates/**', 'packages/paperclip-runner/protocol/**', 'packages/paperclip-runner/test-fixtures/**', 'packages/paperclip-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
+            packages/nexus-runner/runner/target/release/.fingerprint/nexus-runner-core-*
+            packages/nexus-runner/runner/target/release/deps/libnexus_runner_core-*
+            packages/nexus-runner/runner/target/release/deps/nexus_runner_core-*.d
+            packages/nexus-runner/runner/target/release/deps/nexus_runnerd-*
+            packages/nexus-runner/runner/target/release/nexus-runnerd
+            packages/nexus-runner/runner/target/release/nexus-runnerd.d
+          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/nexus-runner/rust-toolchain.toml', 'packages/nexus-runner/acpx-profiles.json', 'packages/nexus-runner/antigravity-distributions.json', 'packages/nexus-runner/runner/Cargo.toml', 'packages/nexus-runner/runner/Cargo.lock', 'packages/nexus-runner/runner/crates/**', 'packages/nexus-runner/protocol/**', 'packages/nexus-runner/test-fixtures/**', 'packages/nexus-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
 
       - name: Mark the restored Runner release crate current
         if: ${{ steps.runner_release_crate.outputs.cache-hit == 'true' }}
@@ -835,17 +835,17 @@ jobs:
           partition: ${{ strategy.job-index || 0 }}
           force: ${{ needs.gate.outputs.profile_ci == 'true' || needs.gate.outputs.plan == '' || fromJSON(needs.gate.outputs.plan).mode != 'enabled' || fromJSON(needs.gate.outputs.plan).forceReason != null }}
 
-      - name: Verify Paperclip Runner
+      - name: Verify Nexus Runner
         if: matrix.command != 'check:runner' || hashFiles('turbo.json') == ''
         # pnpm appends trailing args to the end of the script's shell chain,
         # so the vitest lanes' --shard lands on `vitest run`. Do not add a
         # `--` separator: pnpm forwards it literally and vitest would then
         # read the shard flag as a test filter.
-        run: pnpm --filter @paperclipai/paperclip-runner ${{ matrix.command }}
+        run: pnpm --filter @nexusai/nexus-runner ${{ matrix.command }}
 
       - name: Upload CI profile timings
         continue-on-error: true
-        if: always() && env.PAPERCLIP_CI_PROFILE == 'true'
+        if: always() && env.NEXUS_CI_PROFILE == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-profile-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}
@@ -862,8 +862,8 @@ jobs:
     timeout-minutes: 20
 
     env:
-      PAPERCLIP_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
-      PAPERCLIP_CI_PROFILE_JOB: Build
+      NEXUS_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
+      NEXUS_CI_PROFILE_JOB: Build
 
     steps:
       - name: Checkout repository
@@ -873,7 +873,7 @@ jobs:
 
       - name: Initialize CI profile
         continue-on-error: true
-        if: env.PAPERCLIP_CI_PROFILE == 'true'
+        if: env.NEXUS_CI_PROFILE == 'true'
         run: node scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
@@ -941,14 +941,14 @@ jobs:
           (
             # The default `bash -e` would skip the status line on a failure.
             set +e
-            PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE="$RUNNER_TEMP/public-install-npm-cache" node scripts/warm-public-install-npm-cache.mjs
+            NEXUS_PUBLIC_INSTALL_NPM_CACHE="$RUNNER_TEMP/public-install-npm-cache" node scripts/warm-public-install-npm-cache.mjs
             echo $? > "$RUNNER_TEMP/public-install-npm-cache.status"
           ) > "$RUNNER_TEMP/public-install-npm-cache.log" 2>&1 &
 
       # pnpm build reaches the Runner package's build:binary step; without the
       # shared Rust cache that is a ~3m40s cold compile of all third-party
       # crates (run 35036001734, 2026-09-15). Same restore-only contract as
-      # Verify Paperclip Runner.
+      # Verify Nexus Runner.
 
       # rust-cache hashes its absolute cache paths into the entry's version,
       # and GitHub only serves an entry whose key and version both match. The
@@ -965,14 +965,14 @@ jobs:
         id: runner_rust_workspace
         run: |
           set -euo pipefail
-          pinned="$HOME/paperclip-runner-rust"
+          pinned="$HOME/nexus-runner-rust"
           # A symlink here is removed as a link, never followed into the checkout.
           rm -rf "$pinned"
-          ln -s "$GITHUB_WORKSPACE/packages/paperclip-runner/runner" "$pinned"
+          ln -s "$GITHUB_WORKSPACE/packages/nexus-runner/runner" "$pinned"
           echo "path=$pinned" >> "$GITHUB_OUTPUT"
 
       - name: Select the pinned Runner Rust toolchain
-        working-directory: packages/paperclip-runner
+        working-directory: packages/nexus-runner
         run: |
           set -uo pipefail
 
@@ -1020,7 +1020,7 @@ jobs:
       # The Runner's own crate is the one thing the entry above leaves out:
       # rust-cache drops workspace crates when it saves, and a fresh checkout
       # would invalidate cargo's mtime fingerprints for them anyway. So this
-      # job compiled paperclip-runner-core in release mode on every run,
+      # job compiled nexus-runner-core in release mode on every run,
       # 28-49s (runs 38169436532 to 38183149920, 2026-10-11), while 221 of
       # the 239 master commits of the preceding week left its inputs alone.
       # The master Rust lane in release-verify.yml saves that crate's release
@@ -1041,20 +1041,20 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            packages/paperclip-runner/runner/target/release/.fingerprint/paperclip-runner-core-*
-            packages/paperclip-runner/runner/target/release/deps/libpaperclip_runner_core-*
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runner_core-*.d
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runnerd-*
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd.d
-          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/paperclip-runner/rust-toolchain.toml', 'packages/paperclip-runner/acpx-profiles.json', 'packages/paperclip-runner/antigravity-distributions.json', 'packages/paperclip-runner/runner/Cargo.toml', 'packages/paperclip-runner/runner/Cargo.lock', 'packages/paperclip-runner/runner/crates/**', 'packages/paperclip-runner/protocol/**', 'packages/paperclip-runner/test-fixtures/**', 'packages/paperclip-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
+            packages/nexus-runner/runner/target/release/.fingerprint/nexus-runner-core-*
+            packages/nexus-runner/runner/target/release/deps/libnexus_runner_core-*
+            packages/nexus-runner/runner/target/release/deps/nexus_runner_core-*.d
+            packages/nexus-runner/runner/target/release/deps/nexus_runnerd-*
+            packages/nexus-runner/runner/target/release/nexus-runnerd
+            packages/nexus-runner/runner/target/release/nexus-runnerd.d
+          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/nexus-runner/rust-toolchain.toml', 'packages/nexus-runner/acpx-profiles.json', 'packages/nexus-runner/antigravity-distributions.json', 'packages/nexus-runner/runner/Cargo.toml', 'packages/nexus-runner/runner/Cargo.lock', 'packages/nexus-runner/runner/crates/**', 'packages/nexus-runner/protocol/**', 'packages/nexus-runner/test-fixtures/**', 'packages/nexus-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
 
       - name: Mark the restored Runner release crate current
         if: ${{ steps.runner_release_crate.outputs.cache-hit == 'true' }}
         run: node scripts/runner-release-crate-cache.mjs mark-current
 
       - name: Build Runner Evalbook viewer
-        run: pnpm --filter @paperclipai/paperclip-runner build:issue-thread
+        run: pnpm --filter @nexusai/nexus-runner build:issue-thread
 
       - name: Build
         run: pnpm build
@@ -1065,7 +1065,7 @@ jobs:
       # instance, and wait for /api/health to report ok.
       - name: Boot the production runtime bundle
         run: |
-          pnpm --filter @paperclipai/server build:runtime
+          pnpm --filter @nexusai/server build:runtime
           scripts/server-boot-smoke.sh node server/dist-runtime/index.mjs
 
       # This verification only needs `pnpm build` output (the verifier stages
@@ -1091,13 +1091,13 @@ jobs:
               echo '::notice title=Public-install npm cache::warm-up did not finish cleanly; the verifier fetches what is missing'
               tail -n 20 "$RUNNER_TEMP/public-install-npm-cache.log"
             fi
-            export PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE="$RUNNER_TEMP/public-install-npm-cache"
+            export NEXUS_PUBLIC_INSTALL_NPM_CACHE="$RUNNER_TEMP/public-install-npm-cache"
           fi
           node scripts/verify-grok-npm-install.mjs
 
       - name: Upload CI profile timings
         continue-on-error: true
-        if: always() && env.PAPERCLIP_CI_PROFILE == 'true'
+        if: always() && env.NEXUS_CI_PROFILE == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-profile-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}
@@ -1117,10 +1117,10 @@ jobs:
       matrix: ${{ fromJSON((needs.test_selection.outputs.plan || needs.gate.outputs.plan) != '' && toJSON(fromJSON((needs.test_selection.outputs.plan || needs.gate.outputs.plan)).jobs.verify_serialized_server.matrix) || '{"include":[{"shard_index":0,"shard_count":9,"shard_label":"1/9","task":"ci:serialized"},{"shard_index":1,"shard_count":9,"shard_label":"2/9","task":"ci:serialized"},{"shard_index":2,"shard_count":9,"shard_label":"3/9","task":"ci:serialized"},{"shard_index":3,"shard_count":9,"shard_label":"4/9","task":"ci:serialized"},{"shard_index":4,"shard_count":9,"shard_label":"5/9","task":"ci:serialized"},{"shard_index":5,"shard_count":9,"shard_label":"6/9","task":"ci:serialized"},{"shard_index":6,"shard_count":9,"shard_label":"7/9","task":"ci:serialized"},{"shard_index":7,"shard_count":9,"shard_label":"8/9","task":"ci:serialized"},{"shard_index":8,"shard_count":9,"shard_label":"9/9","task":"ci:serialized"}]}') }}
 
     env:
-      PAPERCLIP_CI_TEST_SELECTION: ${{ matrix.selection && '.ci-test-selection/manifest.json' || '' }}
-      PAPERCLIP_CI_SELECTION_HASH: ${{ matrix.selection && fromJSON(needs.test_selection.outputs.plan).testSelection.hash || '' }}
-      PAPERCLIP_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
-      PAPERCLIP_CI_PROFILE_JOB: Verify serialized server suites (${{ matrix.shard_label }})
+      NEXUS_CI_TEST_SELECTION: ${{ matrix.selection && '.ci-test-selection/manifest.json' || '' }}
+      NEXUS_CI_SELECTION_HASH: ${{ matrix.selection && fromJSON(needs.test_selection.outputs.plan).testSelection.hash || '' }}
+      NEXUS_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
+      NEXUS_CI_PROFILE_JOB: Verify serialized server suites (${{ matrix.shard_label }})
 
     steps:
       - name: Checkout repository
@@ -1137,7 +1137,7 @@ jobs:
 
       - name: Initialize CI profile
         continue-on-error: true
-        if: env.PAPERCLIP_CI_PROFILE == 'true'
+        if: env.NEXUS_CI_PROFILE == 'true'
         run: node scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
@@ -1205,7 +1205,7 @@ jobs:
 
       - name: Upload CI profile timings
         continue-on-error: true
-        if: always() && env.PAPERCLIP_CI_PROFILE == 'true'
+        if: always() && env.NEXUS_CI_PROFILE == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-profile-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}
@@ -1222,8 +1222,8 @@ jobs:
     timeout-minutes: 20
 
     env:
-      PAPERCLIP_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
-      PAPERCLIP_CI_PROFILE_JOB: Canary Dry Run
+      NEXUS_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
+      NEXUS_CI_PROFILE_JOB: Canary Dry Run
 
     steps:
       - name: Checkout repository
@@ -1233,7 +1233,7 @@ jobs:
 
       - name: Initialize CI profile
         continue-on-error: true
-        if: env.PAPERCLIP_CI_PROFILE == 'true'
+        if: env.NEXUS_CI_PROFILE == 'true'
         run: node scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
@@ -1289,7 +1289,7 @@ jobs:
       # release.sh's Step 2/7 workspace build reaches the Runner package's
       # build:binary step; without the shared Rust cache that is a ~3m40s cold
       # compile of all third-party crates (run 35036001734, 2026-09-15). Same
-      # restore-only contract as Verify Paperclip Runner.
+      # restore-only contract as Verify Nexus Runner.
 
       # rust-cache hashes its absolute cache paths into the entry's version,
       # and GitHub only serves an entry whose key and version both match. The
@@ -1306,14 +1306,14 @@ jobs:
         id: runner_rust_workspace
         run: |
           set -euo pipefail
-          pinned="$HOME/paperclip-runner-rust"
+          pinned="$HOME/nexus-runner-rust"
           # A symlink here is removed as a link, never followed into the checkout.
           rm -rf "$pinned"
-          ln -s "$GITHUB_WORKSPACE/packages/paperclip-runner/runner" "$pinned"
+          ln -s "$GITHUB_WORKSPACE/packages/nexus-runner/runner" "$pinned"
           echo "path=$pinned" >> "$GITHUB_OUTPUT"
 
       - name: Select the pinned Runner Rust toolchain
-        working-directory: packages/paperclip-runner
+        working-directory: packages/nexus-runner
         run: |
           set -uo pipefail
 
@@ -1361,7 +1361,7 @@ jobs:
       # The Runner's own crate is the one thing the entry above leaves out:
       # rust-cache drops workspace crates when it saves, and a fresh checkout
       # would invalidate cargo's mtime fingerprints for them anyway. So this
-      # job compiled paperclip-runner-core in release mode on every run,
+      # job compiled nexus-runner-core in release mode on every run,
       # 28-49s (runs 38169436532 to 38183149920, 2026-10-11), while 221 of
       # the 239 master commits of the preceding week left its inputs alone.
       # The master Rust lane in release-verify.yml saves that crate's release
@@ -1382,13 +1382,13 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            packages/paperclip-runner/runner/target/release/.fingerprint/paperclip-runner-core-*
-            packages/paperclip-runner/runner/target/release/deps/libpaperclip_runner_core-*
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runner_core-*.d
-            packages/paperclip-runner/runner/target/release/deps/paperclip_runnerd-*
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd
-            packages/paperclip-runner/runner/target/release/paperclip-runnerd.d
-          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/paperclip-runner/rust-toolchain.toml', 'packages/paperclip-runner/acpx-profiles.json', 'packages/paperclip-runner/antigravity-distributions.json', 'packages/paperclip-runner/runner/Cargo.toml', 'packages/paperclip-runner/runner/Cargo.lock', 'packages/paperclip-runner/runner/crates/**', 'packages/paperclip-runner/protocol/**', 'packages/paperclip-runner/test-fixtures/**', 'packages/paperclip-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
+            packages/nexus-runner/runner/target/release/.fingerprint/nexus-runner-core-*
+            packages/nexus-runner/runner/target/release/deps/libnexus_runner_core-*
+            packages/nexus-runner/runner/target/release/deps/nexus_runner_core-*.d
+            packages/nexus-runner/runner/target/release/deps/nexus_runnerd-*
+            packages/nexus-runner/runner/target/release/nexus-runnerd
+            packages/nexus-runner/runner/target/release/nexus-runnerd.d
+          key: runner-release-crate-v1-${{ steps.runner_release_crate_key.outputs.scope }}-${{ hashFiles('packages/nexus-runner/rust-toolchain.toml', 'packages/nexus-runner/acpx-profiles.json', 'packages/nexus-runner/antigravity-distributions.json', 'packages/nexus-runner/runner/Cargo.toml', 'packages/nexus-runner/runner/Cargo.lock', 'packages/nexus-runner/runner/crates/**', 'packages/nexus-runner/protocol/**', 'packages/nexus-runner/test-fixtures/**', 'packages/nexus-runner/test/fixtures/**', 'tests/runner-e2e/fixtures/**') }}
 
       - name: Mark the restored Runner release crate current
         if: ${{ steps.runner_release_crate.outputs.cache-hit == 'true' }}
@@ -1408,7 +1408,7 @@ jobs:
             git checkout -- pnpm-lock.yaml
           else
             git add pnpm-lock.yaml
-            git -c user.email=ci@paperclip.local -c user.name=CI \
+            git -c user.email=ci@nexus.local -c user.name=CI \
               commit --no-verify -m "ci(canary): stage regenerated lockfile"
           fi
           ./scripts/release.sh canary --skip-verify --dry-run
@@ -1420,7 +1420,7 @@ jobs:
 
       - name: Upload CI profile timings
         continue-on-error: true
-        if: always() && env.PAPERCLIP_CI_PROFILE == 'true'
+        if: always() && env.NEXUS_CI_PROFILE == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-profile-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}
@@ -1440,8 +1440,8 @@ jobs:
       matrix: ${{ fromJSON(needs.gate.outputs.plan != '' && toJSON(fromJSON(needs.gate.outputs.plan).jobs.e2e_shards.matrix) || '{"include":[{"shard_index":0,"shard_count":8,"shard_label":"1/8","task":"ci:e2e"},{"shard_index":1,"shard_count":8,"shard_label":"2/8","task":"ci:e2e"},{"shard_index":2,"shard_count":8,"shard_label":"3/8","task":"ci:e2e"},{"shard_index":3,"shard_count":8,"shard_label":"4/8","task":"ci:e2e"},{"shard_index":4,"shard_count":8,"shard_label":"5/8","task":"ci:e2e"},{"shard_index":5,"shard_count":8,"shard_label":"6/8","task":"ci:e2e"},{"shard_index":6,"shard_count":8,"shard_label":"7/8","task":"ci:e2e"},{"shard_index":7,"shard_count":8,"shard_label":"8/8","task":"ci:e2e"}]}') }}
 
     env:
-      PAPERCLIP_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
-      PAPERCLIP_CI_PROFILE_JOB: e2e shard (${{ matrix.shard_label }})
+      NEXUS_CI_PROFILE: ${{ needs.gate.outputs.profile_ci }}
+      NEXUS_CI_PROFILE_JOB: e2e shard (${{ matrix.shard_label }})
 
     steps:
       - name: Checkout repository
@@ -1451,7 +1451,7 @@ jobs:
 
       - name: Initialize CI profile
         continue-on-error: true
-        if: env.PAPERCLIP_CI_PROFILE == 'true'
+        if: env.NEXUS_CI_PROFILE == 'true'
         run: node scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
@@ -1510,10 +1510,10 @@ jobs:
         # browser bundles inside the 30 minute job budget.
         run: google-chrome --version
 
-      - name: Generate Paperclip config
+      - name: Generate Nexus config
         run: |
-          mkdir -p ~/.paperclip/instances/default
-          cat > ~/.paperclip/instances/default/config.json << 'CONF'
+          mkdir -p ~/.nexus/instances/default
+          cat > ~/.nexus/instances/default/config.json << 'CONF'
           {
             "$meta": { "version": 1, "updatedAt": "2026-01-01T00:00:00.000Z", "source": "onboard" },
             "database": { "mode": "embedded-postgres" },
@@ -1527,8 +1527,8 @@ jobs:
 
       - name: Run e2e tests
         env:
-          PAPERCLIP_E2E_SKIP_LLM: "true"
-          PAPERCLIP_PLAYWRIGHT_CHANNEL: "chrome"
+          NEXUS_E2E_SKIP_LLM: "true"
+          NEXUS_PLAYWRIGHT_CHANNEL: "chrome"
         run: |
           # Playwright's own --shard balances by test count, and one spec
           # (smoke-lab) is ~40% of the lane's wall clock. Partition by recorded
@@ -1552,7 +1552,7 @@ jobs:
 
       - name: Upload CI profile timings
         continue-on-error: true
-        if: always() && env.PAPERCLIP_CI_PROFILE == 'true'
+        if: always() && env.NEXUS_CI_PROFILE == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-profile-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}

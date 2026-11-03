@@ -1,14 +1,14 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq, sql } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
-import { completionContracts } from "@paperclipai/db";
-import type { NativeCompletionSource, StrictCompletionContractInput } from "../../vendor/paperclip-runner/index.js";
+import type { Db } from "@nexusai/db";
+import { completionContracts } from "@nexusai/db";
+import type { NativeCompletionSource, StrictCompletionContractInput } from "../../vendor/nexus-runner/index.js";
 
 import { nativeSha256 } from "./canonical.js";
 import { isConversation, type ConversationIdentity } from "../agent-conversations.js";
 
-export const NATIVE_COMPLETION_CONTRACT_SCHEMA = "paperclip.completion-contract.v1";
+export const NATIVE_COMPLETION_CONTRACT_SCHEMA = "nexus.completion-contract.v1";
 export const NATIVE_COMPLETION_POLICY_VERSION = "phase6-v4";
 
 /** Canonical persisted receipt includes the policy that governs the contract. */
@@ -142,7 +142,7 @@ export function buildNativeCompletionContract(
 }
 
 function nativeCompletionContractLockKey(companyId: string, issueId: string): string {
-  return `paperclip:native-completion-contract:${companyId}:${issueId}`;
+  return `nexus:native-completion-contract:${companyId}:${issueId}`;
 }
 
 export async function lockCurrentNativeCompletionContract(tx: Db, input: {

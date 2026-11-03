@@ -1,6 +1,6 @@
 import { providerUsageReceipt as fastResponseReceipt } from "./provider-usage.js";
 export { providerUsageReceipt as fastResponseReceipt } from "./provider-usage.js";
-import { isOpenRouterUrl, OPENROUTER_ATTRIBUTION_HEADERS } from "@paperclipai/shared/openrouter-attribution";
+import { isOpenRouterUrl, OPENROUTER_ATTRIBUTION_HEADERS } from "@nexusai/shared/openrouter-attribution";
 import { generateText, type LanguageModel } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -14,10 +14,10 @@ import {
   unitsToCents,
   usdToUnits,
   type AiConnectionMetadata,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { priceCodexReceipt } from "./codex-pricing.js";
 import { priceAnthropicReceipt } from "./anthropic-pricing.js";
-import type { AdapterUsageCheckpoint } from "@paperclipai/adapter-utils";
+import type { AdapterUsageCheckpoint } from "@nexusai/adapter-utils";
 import type { DecisionProviderReceipt } from "./decision-model-provider.js";
 
 const SYSTEM = `Return only a brief positive acknowledgement as plain text in the assigned assistant's voice and the user's language.

@@ -4,7 +4,7 @@
 
 ## Current stricter executable replay
 
-Code revision: `e4077ade1818d98b9862ae79ee1d49a007dcf9c1`. Hiring grader: `paperclip.hiring-templates.v3`; turn accounting: `paperclip.hiring-template-turn-accounting.v2`. The separately versioned [v2 JSON receipt](2026-10-02-hiring-executable-accounting-replay.v2.json) pins exact source hashes and unchanged original inputs.
+Code revision: `e4077ade1818d98b9862ae79ee1d49a007dcf9c1`. Hiring grader: `nexus.hiring-templates.v3`; turn accounting: `nexus.hiring-template-turn-accounting.v2`. The separately versioned [v2 JSON receipt](2026-10-02-hiring-executable-accounting-replay.v2.json) pins exact source hashes and unchanged original inputs.
 
 | Profile | Original machine grades | Limited sidecar v1 / initial executable v2 | Stricter executable accounting | Source-read coverage |
 | --- | --- | --- | --- | --- |

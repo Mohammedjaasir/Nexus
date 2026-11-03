@@ -32,7 +32,7 @@ credential values. AgentMail provisioning remains owned by its connection flow.
 ## Document contract
 
 ```yaml
-apiVersion: paperclip/v1
+apiVersion: nexus/v1
 kind: Agent
 spec:
   name: Codie
@@ -55,7 +55,7 @@ spec:
     mode: managed
     entryFile: AGENTS.md
   skills:
-    - paperclip
+    - nexus
   tools:
     profiles:
       - profileKey: engineering
@@ -106,13 +106,13 @@ and an empty `files: {}` are preserved. The entry file cannot be removed.
 Binary/read-only/virtual files remain visible in Instructions. A legacy virtual
 prompt template can still be edited explicitly with `adapterConfig.promptTemplate`.
 It is hidden by default and preserved when another adapter setting changes.
-Managed root paths are assigned by Paperclip and omitted from the default YAML.
+Managed root paths are assigned by Nexus and omitted from the default YAML.
 
 Changing the mode, root, or entry file is a separate save from editing file
 contents. That save loads the destination files without writing the old YAML's
 contents over them. The native bundle service may seed an empty destination or
 a missing entry file from the previous bundle. Review the freshly loaded files
-before editing them. A managed root is assigned by Paperclip; choose `external`
+before editing them. A managed root is assigned by Nexus; choose `external`
 mode to select another directory.
 
 Skills accept a key string or `{ key, versionId }`; `versionId: null` follows
@@ -120,7 +120,7 @@ the current version. An empty list unassigns skills through the normal sync
 API. These keys are organization-library references, not embedded skill source.
 
 The `instructionsBundleMode`, `instructionsRootPath`, `instructionsEntryFile`,
-`instructionsFilePath`, and `paperclipSkillSync` adapter keys are represented by
+`instructionsFilePath`, and `nexusSkillSync` adapter keys are represented by
 the dedicated sections. Direct edits to those adapter keys are rejected so two
 sections cannot disagree about the same setting.
 
@@ -323,5 +323,5 @@ does not qualify provider login or agent execution.
 
 The lifecycle regressions can use a dedicated external PostgreSQL database when
 embedded PostgreSQL is unavailable. Set
-`PAPERCLIP_AGENT_LIFECYCLE_TEST_DATABASE_URL` to a database ending in `_test`
+`NEXUS_AGENT_LIFECYCLE_TEST_DATABASE_URL` to a database ending in `_test`
 before running `server/src/modules/agent-lifecycle/__tests__/lifecycle.test.ts`.

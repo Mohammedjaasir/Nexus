@@ -1,8 +1,8 @@
-import { readPaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
+import { readNexusSkillSyncPreference } from "@nexusai/adapter-utils/server-utils";
 import { promises as fs } from "node:fs";
 import { and, eq, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { companySkillRepositorySnapshots as snapshots, companySkillVersions as versions,
-  skillPackageDeletions, agents, type Db } from "@paperclipai/db";
+  skillPackageDeletions, agents, type Db } from "@nexusai/db";
 import { getStorageService, type StorageService } from "../storage/index.js";
 import { storageFailureDiagnosticsFor } from "../storage/failure-diagnostics.js";
 import { logger } from "../middleware/logger.js";
@@ -93,7 +93,7 @@ export function skillPackageWork(db: Db, storage?: StorageService) {
             if (current) return;
             const pinned = new Set<string>();
             for (const agent of await tx.select({ config: agents.adapterConfig }).from(agents).where(eq(agents.companyId, row.companyId))) {
-              for (const entry of readPaperclipSkillSyncPreference(agent.config ?? {}).desiredSkillEntries) if (entry.versionId) pinned.add(entry.versionId);
+              for (const entry of readNexusSkillSyncPreference(agent.config ?? {}).desiredSkillEntries) if (entry.versionId) pinned.add(entry.versionId);
             }
             const { versions: active } = await protectedVersions(tx as unknown as Db, row.companyId);
             if (!active || referenced.some(version => active.has(version.id) || pinned.has(version.id))) return;

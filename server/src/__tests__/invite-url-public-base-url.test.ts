@@ -144,13 +144,13 @@ describe("invite URL: authPublicBaseUrl precedence", () => {
 
     const res = await request(app)
       .post("/api/companies/company-1/invites")
-      .set("host", "paperclip.example")
+      .set("host", "nexus.example")
       .set("x-forwarded-proto", "https")
       .send({ allowedJoinTypes: "human", humanRole: "viewer" });
 
     expect(res.status).toBe(201);
     expect(res.body.inviteUrl).toMatch(
-      /^https:\/\/paperclip\.example\/invite\/pcp_invite_/,
+      /^https:\/\/nexus\.example\/invite\/pcp_invite_/,
     );
   });
 

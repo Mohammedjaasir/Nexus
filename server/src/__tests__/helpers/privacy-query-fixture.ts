@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { companies, type Db } from "@paperclipai/db";
+import { companies, type Db } from "@nexusai/db";
 
 export type PrivacyPlan = Record<string, any>;
 export function recursiveIssueWork(plan: PrivacyPlan) {

@@ -1,7 +1,7 @@
 ---
 name: setup-code-maintenance-bot
 description: >
-  Set up a Paperclip agent and routine that applies a selected code-maintenance
+  Set up a Nexus agent and routine that applies a selected code-maintenance
   skill to a repository and opens pull requests. Use for nightly maintenance
   bots, scheduled code gardening, or webhook-driven maintenance, using an
   existing agent or a new hire.
@@ -9,7 +9,7 @@ description: >
 
 # Set Up a Code Maintenance Bot
 
-Turn the user's maintenance intent into a runnable Paperclip routine with a
+Turn the user's maintenance intent into a runnable Nexus routine with a
 named agent, accessible repository and skill, bounded work, and inspectable PRs.
 The maintenance skill supplies the domain judgment: test auditing, documentation
 upkeep, dependency maintenance, refactoring, or another chosen task.
@@ -22,14 +22,14 @@ while setting up the bot. An immediate trial is a separate choice from schedulin
 
 Start with the instance and agent choices, using answers already supplied:
 
-- **Instance:** show a clickable, verified Paperclip web URL and ask which
+- **Instance:** show a clickable, verified Nexus web URL and ask which
   instance to use. If none is known, ask for its URL; never assume localhost,
   the instance used in an earlier task, or the first connected tool.
 - **Company:** resolve the company within that instance; ask if ambiguous.
 - **Agent:** list accessible, suitable agents with names and links, and offer
   **use an existing agent** or **create a new agent**. Do not silently choose.
 
-Example, after resolving the actual URL: “Use [Paperclip](<verified-web-url>),
+Example, after resolving the actual URL: “Use [Nexus](<verified-web-url>),
 company Acme? Which agent should own this: an existing agent or a new one?”
 
 For a new agent, resolve its name, harness/adapter, provider and model, AI
@@ -40,10 +40,10 @@ settings and preserve them unless the requested maintenance needs an authorized
 change. Keep maintenance-specific instructions in the routine, not by replacing
 an existing agent's role.
 
-Read [references/paperclip-api.md](references/paperclip-api.md) for authentication,
+Read [references/nexus-api.md](references/nexus-api.md) for authentication,
 discovery, connection binding, hiring, and exact provisioning calls. If the API
 is unavailable or not working and browser access is available, use the selected
-instance's Paperclip UI to perform the same setup. Verify the instance and
+instance's Nexus UI to perform the same setup. Verify the instance and
 company, honor UI approval gates, and inspect the saved agent and routine after
 saving. Reconcile any partially completed API setup before creating through the
 browser so the fallback does not duplicate resources. Resolve access against
@@ -107,7 +107,7 @@ paused if a hire approval, credential, workspace, or skill is unresolved.
 Do not change shared project defaults just to make this bot work.
 
 Enable the trigger and activate the routine only when readiness and scheduling
-authorization are established. Use Paperclip's routine trigger as the clock;
+authorization are established. Use Nexus's routine trigger as the clock;
 do not add a second agent timer or a desktop automation for the same work.
 Run a maintenance trial only if requested. Read back the saved schedule and
 next run time; distinguish configured scheduling from an observed successful run.

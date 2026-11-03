@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { IssueRecoveryAction } from "@paperclipai/shared";
+import type { IssueRecoveryAction } from "@nexusai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { recoveryAction } from "../workspace-finalization-recovery/fixtures";
 

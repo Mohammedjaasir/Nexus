@@ -10,7 +10,7 @@ type Row = Record<string, any>;
 export interface KimiLifecycleScope { companyId: string; issueId: string; runId: string; target: string; actionFile?: string; contextProof?: KimiContextProof }
 export interface KimiLifecycleState { run: Row; issue: Row; events: readonly unknown[] }
 export interface KimiLifecyclePending {
-  schema: "paperclip.e2e.kimi-native-write-pending.v1"; scope: KimiLifecycleScope;
+  schema: "nexus.e2e.kimi-native-write-pending.v1"; scope: KimiLifecycleScope;
   requestId: string; toolCallId: string; executionId: string; itemId: string; turnId: string;
   normalizedSessionId: string; sourceInstanceId: string; requestSourceSeq: number; startedSourceSeq: number;
   requestRowSha256: string; startedRowSha256: string; observedMonotonicNs: string;
@@ -44,7 +44,7 @@ function origin(events: readonly unknown[], scope: KimiLifecycleScope) {
   if (scope.contextProof) demand(card.row.seq > scope.contextProof.completedSeq && card.event.turnId === scope.contextProof.turnId
     && card.event.normalizedSessionId === scope.contextProof.sessionId && card.event.sourceInstanceId === scope.contextProof.sourceInstanceId,
     "native Write must follow the exact completed scoped context read");
-  demand(request.schema === "paperclip.runtime_request.v2" && request.type === "permission" && request.requestKind === "permission_approval" && request.status === "pending"
+  demand(request.schema === "nexus.runtime_request.v2" && request.type === "permission" && request.requestKind === "permission_approval" && request.status === "pending"
     && id(request.requestId) && id(request.itemId) && id(request.details?.toolCallId) && request.turnId === card.event.turnId
     && id(card.event.turnId) && id(card.event.normalizedSessionId) && hasAcpxNativeOrigin(request.origin, "kimi", "session/request_permission")
     && request.prompt === `Change file: ${scope.target}` && (request.details.kind === undefined || request.details.kind === "edit")
@@ -62,7 +62,7 @@ function origin(events: readonly unknown[], scope: KimiLifecycleScope) {
   const write = executions.filter(x => x.event.payload.executionId === executionId);
   const started = write.filter(x => x.event.eventType === "tool.execution.started"), metadataIndex = write.findIndex(x => x.event.payload.name === "Write" && x.event.payload.operation === "edit");
   demand(started.length === 1 && write[0] === started[0] && metadataIndex >= 0 && write.filter(x => x.event.eventType === "tool.execution.completed").length <= 1
-    && write.every((x, index) => x.event.payload.schema === "paperclip.tool.execution.v1" && x.event.payload.transport === "builtin"
+    && write.every((x, index) => x.event.payload.schema === "nexus.tool.execution.v1" && x.event.payload.transport === "builtin"
       && ["tool.execution.started", "tool.execution.progressed", "tool.execution.completed"].includes(x.event.eventType)
       && (x.event.payload.name === "Write" || index < metadataIndex && x.event.payload.name === null)
       && (x.event.payload.operation === "edit" || index < metadataIndex && x.event.payload.operation === "unknown")
@@ -72,8 +72,8 @@ function origin(events: readonly unknown[], scope: KimiLifecycleScope) {
   const extra = executions.filter(x => x.event.payload.executionId !== executionId), reads = new Map<string, typeof extra>();
   for (const x of extra) {
     const p = rec(x.event.payload);
-    demand(scope.actionFile && /^\.paperclip-eval-action-[a-f0-9]{36}\.txt$/u.test(scope.actionFile)
-      && p.schema === "paperclip.tool.execution.v1" && p.transport === "builtin"
+    demand(scope.actionFile && /^\.nexus-eval-action-[a-f0-9]{36}\.txt$/u.test(scope.actionFile)
+      && p.schema === "nexus.tool.execution.v1" && p.transport === "builtin"
       && x.row.seq < Math.min(card.row.seq, started[0]!.row.seq) && id(p.executionId), "extra native or semantic operation");
     const group = reads.get(p.executionId) ?? []; group.push(x); reads.set(p.executionId, group);
   }
@@ -97,7 +97,7 @@ export function observeKimiLifecyclePending(input: KimiLifecycleState & { scope:
     && run.resultJson?.startupCancellation == null && run.resultJson?.nativeCancellation == null, "run is not original active native work");
   demand(!p.rows.some(x => terminalTypes.has(x.event.eventType) || closureTypes.has(x.event.eventType)
     || x.event.eventType === "tool.execution.completed" && x.event.payload.executionId === p.executionId), "permission or provider already settled");
-  return { schema: "paperclip.e2e.kimi-native-write-pending.v1", scope, requestId: p.request.requestId, toolCallId: p.request.details.toolCallId,
+  return { schema: "nexus.e2e.kimi-native-write-pending.v1", scope, requestId: p.request.requestId, toolCallId: p.request.details.toolCallId,
     executionId: p.executionId, itemId: p.request.itemId, turnId: p.card.event.turnId, normalizedSessionId: p.card.event.normalizedSessionId,
     sourceInstanceId: p.card.event.sourceInstanceId, requestSourceSeq: p.card.event.sourceSeq, startedSourceSeq: p.started.event.sourceSeq,
     requestRowSha256: hash(p.card.row), startedRowSha256: hash(p.started.row), observedMonotonicNs: process.hrtime.bigint().toString() };
@@ -107,7 +107,7 @@ export function assertSameKimiPending(before: KimiLifecyclePending, after: KimiL
 }
 export function readKimiLifecycleSettlement(input: KimiLifecycleState & { pending: KimiLifecyclePending; branch: "stop" | "loss"; dispatchMonotonicNs: string; caller?: ActiveStopCaller; cancellationRequestId?: string }) {
   const b = input.pending, { run, issue } = input, p = origin(input.events, b.scope);
-  demand(b.schema === "paperclip.e2e.kimi-native-write-pending.v1" && hash(p.card.row) === b.requestRowSha256 && hash(p.started.row) === b.startedRowSha256
+  demand(b.schema === "nexus.e2e.kimi-native-write-pending.v1" && hash(p.card.row) === b.requestRowSha256 && hash(p.started.row) === b.startedRowSha256
     && p.request.requestId === b.requestId && p.request.details.toolCallId === b.toolCallId && p.executionId === b.executionId && p.request.itemId === b.itemId
     && p.card.event.turnId === b.turnId && p.card.event.normalizedSessionId === b.normalizedSessionId && p.card.event.sourceInstanceId === b.sourceInstanceId
     && p.card.event.sourceSeq === b.requestSourceSeq && p.started.event.sourceSeq === b.startedSourceSeq
@@ -130,13 +130,13 @@ export function readKimiLifecycleSettlement(input: KimiLifecycleState & { pendin
       && c.event.eventType === "runtime_request.cancelled" && cp.reason === "turn_terminal"
       && t.event.eventType === "turn.cancelled" && tp.status === "cancelled" && tp.error === null && run.status === "cancelled" && issue.status === "in_progress"
       && startup.requestedBy?.type === caller.type && startup.requestedBy?.userId === caller.userId && startup.cancellationRequestId === input.cancellationRequestId
-      && stop.schema === "paperclip.native-cancellation.v1" && stop.intentId === `native-cancellation:${input.cancellationRequestId}` && stop.companyId === b.scope.companyId && stop.runId === run.id && stop.issueId === issue.id
+      && stop.schema === "nexus.native-cancellation.v1" && stop.intentId === `native-cancellation:${input.cancellationRequestId}` && stop.companyId === b.scope.companyId && stop.runId === run.id && stop.issueId === issue.id
       && stop.scope === "run" && stop.dispatched === true && stop.dispatchState === "acknowledged" && stop.reasonCode === "cancellation_run_only"
       && Array.isArray(stop.effects) && stop.effects.length === 1 && stop.effects[0] === "release_run_resources"
       && id(stop.intentAuditId) && id(stop.acknowledgementAuditId) && stop.intentAuditId !== stop.acknowledgementAuditId, "caller-owned Stop acknowledgement missing");
   } else demand(c.event.eventType === "runtime_request.expired" && cp.reason === "provider_process_lost" && cp.requestType === "permission" && cp.replayAllowed === false
     && cp.request === undefined && t.event.eventType === "turn.failed" && run.status === "failed" && issue.status === "blocked"
     && run.resultJson?.nativeCancellation == null && run.resultJson?.startupCancellation == null, "spontaneous native-worker loss did not expire the original callback");
-  return { schema: "paperclip.e2e.kimi-native-write-settlement.v1", branch: input.branch, pending: b,
+  return { schema: "nexus.e2e.kimi-native-write-settlement.v1", branch: input.branch, pending: b,
     requestClosure: c.event.eventType, closedRowSha256: hash(c.row), terminalRowSha256: hash(t.row), replayAllowed: false, completedMutation: false };
 }

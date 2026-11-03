@@ -1,5 +1,5 @@
-import { appearanceForPalette, type Agent } from "@paperclipai/shared";
-import { storybookAgents } from "../../fixtures/paperclipData";
+import { appearanceForPalette, type Agent } from "@nexusai/shared";
+import { storybookAgents } from "../../fixtures/nexusData";
 
 export type SidebarScenario = "conversation" | "landing" | "large-team";
 

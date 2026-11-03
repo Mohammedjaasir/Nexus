@@ -22,6 +22,7 @@ async function migrationHash() {
 function markerObj(key: string) {
   // Return a plain object (not a JSON string) so `sql.json` stores it as a jsonb
   // object; a JSON string param + `::jsonb` would double-encode into a scalar.
+  // 0195 predates the Nexus rename, so its replay reads the legacy marker key.
   return { paperclipBuiltInAgent: { key, featureKeys: [key] } };
 }
 
@@ -31,7 +32,7 @@ describeEmbeddedPostgres("built-in agent unique marker migration", () => {
   });
 
   it("resolves pre-existing duplicates and enforces uniqueness going forward", async () => {
-    const database = await startEmbeddedPostgresTestDatabase("paperclip-built-in-unique-marker-");
+    const database = await startEmbeddedPostgresTestDatabase("nexus-built-in-unique-marker-");
     cleanups.push(database.cleanup);
     const sql = postgres(database.connectionString, { max: 1 });
     cleanups.push(async () => sql.end());

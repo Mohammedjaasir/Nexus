@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { slackRegistrationErrorMessage } from "@paperclipai/shared";
+import { slackRegistrationErrorMessage } from "@nexusai/shared";
 import { chatEndpointsApi } from "@/api/chatEndpoints";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

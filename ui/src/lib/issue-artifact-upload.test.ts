@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isArtifactReviewDocumentKey, isSystemIssueDocumentKey, issueDocumentKeySchema } from "@paperclipai/shared";
+import { isArtifactReviewDocumentKey, isSystemIssueDocumentKey, issueDocumentKeySchema } from "@nexusai/shared";
 import { uploadedDocumentKey } from "./issue-artifact-upload";
 
 describe("uploadedDocumentKey", () => {

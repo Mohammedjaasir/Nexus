@@ -3,7 +3,7 @@ title: Docker
 summary: Docker Compose quickstart
 ---
 
-Run Paperclip in Docker without installing Node or pnpm locally.
+Run Nexus in Docker without installing Node or pnpm locally.
 
 ## Compose Quickstart (Recommended)
 
@@ -16,32 +16,32 @@ Open [http://localhost:3100](http://localhost:3100).
 Defaults:
 
 - Host port: `3100`
-- Data directory: `./data/docker-paperclip`
+- Data directory: `./data/docker-nexus`
 
 Override with environment variables:
 
 ```sh
-PAPERCLIP_PORT=3200 PAPERCLIP_DATA_DIR=../data/pc \
+NEXUS_PORT=3200 NEXUS_DATA_DIR=../data/pc \
   docker compose -f docker/docker-compose.quickstart.yml up --build
 ```
 
-**Note:** `PAPERCLIP_DATA_DIR` is resolved relative to the compose file (`docker/`), so `../data/pc` maps to `data/pc` in the project root.
+**Note:** `NEXUS_DATA_DIR` is resolved relative to the compose file (`docker/`), so `../data/pc` maps to `data/pc` in the project root.
 
 ## Manual Docker Build
 
 ```sh
-docker build -t paperclip-local .
-docker run --name paperclip \
+docker build -t nexus-local .
+docker run --name nexus \
   -p 3100:3100 \
   -e HOST=0.0.0.0 \
-  -e PAPERCLIP_HOME=/paperclip \
-  -v "$(pwd)/data/docker-paperclip:/paperclip" \
-  paperclip-local
+  -e NEXUS_HOME=/nexus \
+  -v "$(pwd)/data/docker-nexus:/nexus" \
+  nexus-local
 ```
 
 ## Data Persistence
 
-All data is persisted under the bind mount (`./data/docker-paperclip`):
+All data is persisted under the bind mount (`./data/docker-nexus`):
 
 - Embedded PostgreSQL data
 - Uploaded assets
@@ -60,15 +60,15 @@ The Docker image pre-installs these agent CLIs so their `*_local` adapters can r
 Pass API keys to enable local adapter runs inside the container:
 
 ```sh
-docker run --name paperclip \
+docker run --name nexus \
   -p 3100:3100 \
   -e HOST=0.0.0.0 \
-  -e PAPERCLIP_HOME=/paperclip \
+  -e NEXUS_HOME=/nexus \
   -e OPENAI_API_KEY=sk-... \
   -e ANTHROPIC_API_KEY=sk-... \
   -e GEMINI_API_KEY=... \
-  -v "$(pwd)/data/docker-paperclip:/paperclip" \
-  paperclip-local
+  -v "$(pwd)/data/docker-nexus:/nexus" \
+  nexus-local
 ```
 
 Each adapter reads its provider's standard credentials — for example `ANTHROPIC_API_KEY` (Claude), `OPENAI_API_KEY` (Codex), and `GEMINI_API_KEY` or `GOOGLE_API_KEY` (Gemini). OpenCode is multi-provider and uses whichever provider key you supply.

@@ -1,4 +1,4 @@
-import type { ToolConnectionHealthStatus } from "@paperclipai/shared";
+import type { ToolConnectionHealthStatus } from "@nexusai/shared";
 import { HttpError, unprocessable } from "../../../errors.js";
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -9,7 +9,7 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 /**
  * Did this error come from the OAuth endpoint gate (PAP-17099)? Such a refusal
- * is Paperclip's own decision about an unsafe address, so it must keep its code
+ * is Nexus's own decision about an unsafe address, so it must keep its code
  * and its 422 instead of being folded into a generic upstream failure.
  */
 export function isOAuthEndpointRejection(error: unknown): boolean {
@@ -138,7 +138,7 @@ export function sanitizeHttpFailure(error: unknown): {
         code: "secret_missing",
       };
     }
-    return { status: "error", message: error.message, code: "paperclip_error" };
+    return { status: "error", message: error.message, code: "nexus_error" };
   }
   if (error instanceof Error) {
     return {

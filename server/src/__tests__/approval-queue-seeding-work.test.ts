@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { activityLog, approvals, companies, createDb, applyPendingMigrations, decisionQueueItems, decisionQueues, decisionRetention, decisionTriageEvents, issueApprovals, issues, issueWorkProducts, subscribeDatabaseWork, type Db } from "@paperclipai/db";
+import { activityLog, approvals, companies, createDb, applyPendingMigrations, decisionQueueItems, decisionQueues, decisionRetention, decisionTriageEvents, issueApprovals, issues, issueWorkProducts, subscribeDatabaseWork, type Db } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { approvalRecords } from "../services/approvals.js";
@@ -17,7 +17,7 @@ import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordin
 import { DELIVERY_QUEUES } from "../services/delivery-work-notifications.js";
 import { idleWorkSnapshot } from "../services/task-admission.js";
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_APPROVAL_QUEUE_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_APPROVAL_QUEUE_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("approval queue seeding", () => {
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;

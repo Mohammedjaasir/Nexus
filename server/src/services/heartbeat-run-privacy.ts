@@ -1,5 +1,5 @@
-import type { Db } from "@paperclipai/db";
-import { issues, heartbeatRuns } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { issues, heartbeatRuns } from "@nexusai/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { canActorReadExecutionWorkspace, type AuthorizationActor, type AuthorizationDecision, type authorizationService } from "./authorization.js";
 import { retryIdempotentDatabaseOperation } from "../database-retry.js";

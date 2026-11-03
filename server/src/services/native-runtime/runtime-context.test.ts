@@ -2,11 +2,11 @@ import fs from "node:fs/promises";
 import { mkdtemp, mkdir, readFile, readdir, chmod, lstat, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
-  PAPERCLIP_OPERATIONAL_SKILL_KEY,
-  type PaperclipSkillEntry,
-} from "@paperclipai/adapter-utils/server-utils";
+  NEXUS_OPERATIONAL_SKILL_KEY,
+  type NexusSkillEntry,
+} from "@nexusai/adapter-utils/server-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const serviceMocks = vi.hoisted(() => ({
@@ -45,7 +45,7 @@ import { withRunExecutionTiming } from "../execution-preparation-timing.js";
 import { buildNativeRuntimeContext, resolveNativeRuntimeMcpSnapshot } from "./runtime-context.js";
 
 const temporaryRoots: string[] = [];
-let previousPaperclipHome: string | undefined;
+let previousNexusHome: string | undefined;
 let previousInstanceId: string | undefined;
 
 async function makeTreeWritable(target: string): Promise<void> {
@@ -66,12 +66,12 @@ beforeEach(async () => {
   serviceMocks.readCommittedForRuntime.mockResolvedValue(null);
   serviceMocks.githubBotConnectionIdsForRun.mockResolvedValue(new Set());
   serviceMocks.spekoToolsForSession.mockResolvedValue([]);
-  previousPaperclipHome = process.env.PAPERCLIP_HOME;
-  previousInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
-  const root = await mkdtemp(path.join(tmpdir(), "paperclip-native-context-"));
+  previousNexusHome = process.env.NEXUS_HOME;
+  previousInstanceId = process.env.NEXUS_INSTANCE_ID;
+  const root = await mkdtemp(path.join(tmpdir(), "nexus-native-context-"));
   temporaryRoots.push(root);
-  process.env.PAPERCLIP_HOME = root;
-  process.env.PAPERCLIP_INSTANCE_ID = "runtime_context_test";
+  process.env.NEXUS_HOME = root;
+  process.env.NEXUS_INSTANCE_ID = "runtime_context_test";
   serviceMocks.getEffectiveToolAssignmentsForAgent.mockResolvedValue({
     agentId: "agent-1",
     profiles: [],
@@ -90,10 +90,10 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  if (previousPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
-  else process.env.PAPERCLIP_HOME = previousPaperclipHome;
-  if (previousInstanceId === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
-  else process.env.PAPERCLIP_INSTANCE_ID = previousInstanceId;
+  if (previousNexusHome === undefined) delete process.env.NEXUS_HOME;
+  else process.env.NEXUS_HOME = previousNexusHome;
+  if (previousInstanceId === undefined) delete process.env.NEXUS_INSTANCE_ID;
+  else process.env.NEXUS_INSTANCE_ID = previousInstanceId;
   // A rejected Promise.all does not cancel the other materializers. Let their
   // bounded local writes settle before removing the read-only asset tree.
   await new Promise((resolve) => setTimeout(resolve, 25));
@@ -115,7 +115,7 @@ describe("buildNativeRuntimeContext", () => {
     });
     const context = await buildNativeRuntimeContext({
       db: {} as Db,
-      agent: { id: "agent-1", companyId: "company-1", name: "Reviewer", adapterType: "paperclip_runner", adapterConfig: { instructionsBundleMode: "managed" } },
+      agent: { id: "agent-1", companyId: "company-1", name: "Reviewer", adapterType: "nexus_runner", adapterConfig: { instructionsBundleMode: "managed" } },
       runId: "run-1", runtimeConfig: {}, runtimeSkillEntries: [],
     });
     expect(await readFile(path.join(context.instructions.bundle.rootPath, context.instructions.entryPath), "utf8"))
@@ -147,7 +147,7 @@ describe("buildNativeRuntimeContext", () => {
     await writeFile(path.join(workingRoot, "instructions/CHARter.md"), "Original instructions.\n");
     const context = await buildNativeRuntimeContext({
       db: {} as Db,
-      agent: { id: "agent-1", companyId: "company-1", name: "Reviewer", adapterType: "paperclip_runner", adapterConfig: {} },
+      agent: { id: "agent-1", companyId: "company-1", name: "Reviewer", adapterType: "nexus_runner", adapterConfig: {} },
       runId: "run-1",
       runtimeConfig: {},
       runtimeSkillEntries: [],
@@ -188,7 +188,7 @@ describe("buildNativeRuntimeContext", () => {
           id: "agent-1",
           companyId: "company-1",
           name: "Reviewer",
-          adapterType: "paperclip_runner",
+          adapterType: "nexus_runner",
           adapterConfig: {},
         },
         runId: "run-1",
@@ -243,7 +243,7 @@ describe("buildNativeRuntimeContext", () => {
         id: "agent-1",
         companyId: "company-1",
         name: "Reviewer",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         adapterConfig: {},
       },
       runId: "run-1",
@@ -263,7 +263,7 @@ describe("buildNativeRuntimeContext", () => {
         "references/policy.md": "Company policy sibling.\n",
       },
     });
-    const sourceRoot = await mkdtemp(path.join(tmpdir(), "paperclip-native-skill-"));
+    const sourceRoot = await mkdtemp(path.join(tmpdir(), "nexus-native-skill-"));
     temporaryRoots.push(sourceRoot);
     const selectedRoot = path.join(sourceRoot, "reviewer");
     const unselectedRoot = path.join(sourceRoot, "unused");
@@ -272,7 +272,7 @@ describe("buildNativeRuntimeContext", () => {
     await writeFile(path.join(selectedRoot, "SKILL.md"), "# Reviewer\nUse the checklist.\n");
     await writeFile(path.join(selectedRoot, "references", "checklist.md"), "- Verify tests\n");
     await writeFile(path.join(unselectedRoot, "SKILL.md"), "# Not selected\n");
-    const entries: PaperclipSkillEntry[] = [
+    const entries: NexusSkillEntry[] = [
       { key: "company-1/reviewer", runtimeName: "reviewer", source: selectedRoot, versionId: "version-1" },
       { key: "company-1/unused", runtimeName: "unused", source: unselectedRoot, versionId: "version-2" },
     ];
@@ -282,11 +282,11 @@ describe("buildNativeRuntimeContext", () => {
         id: "agent-1",
         companyId: "company-1",
         name: "Reviewer",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         adapterConfig: {},
       },
       runId: "run-1",
-      runtimeConfig: { paperclipSkillSync: { desiredSkills: ["company-1/reviewer"] } },
+      runtimeConfig: { nexusSkillSync: { desiredSkills: ["company-1/reviewer"] } },
       runtimeSkillEntries: entries,
     };
 
@@ -345,8 +345,8 @@ describe("buildNativeRuntimeContext", () => {
   it("does not materialize assigned skills or external MCP in preconfigured mode", async () => {
     serviceMocks.exportFiles.mockResolvedValue({ entryFile: "AGENTS.md", files: { "AGENTS.md": "Test\n" } });
     const context = await buildNativeRuntimeContext({ db: {} as Db,
-      agent: { id: "agent-1", companyId: "company-1", name: "Reviewer", adapterType: "paperclip_runner", adapterConfig: {} },
-      runId: "run-1", runtimeConfig: { homeMode: "preconfigured", paperclipSkillSync: { desiredSkills: ["missing"] } },
+      agent: { id: "agent-1", companyId: "company-1", name: "Reviewer", adapterType: "nexus_runner", adapterConfig: {} },
+      runId: "run-1", runtimeConfig: { homeMode: "preconfigured", nexusSkillSync: { desiredSkills: ["missing"] } },
       runtimeSkillEntries: [{ key: "missing", runtimeName: "missing", source: "/does/not/exist", sourceStatus: "missing" }],
     });
     expect(context.skills).toEqual([]);
@@ -362,14 +362,14 @@ describe("buildNativeRuntimeContext", () => {
         id: "agent-1",
         companyId: "company-1",
         name: "Reviewer",
-        adapterType: "paperclip_runner",
+        adapterType: "nexus_runner",
         adapterConfig: {},
       },
       runId: "run-1",
     };
     await expect(buildNativeRuntimeContext({
       ...base,
-      runtimeConfig: { paperclipSkillSync: { desiredSkills: ["company-1/missing"] } },
+      runtimeConfig: { nexusSkillSync: { desiredSkills: ["company-1/missing"] } },
       runtimeSkillEntries: [{
         key: "company-1/missing",
         runtimeName: "missing",
@@ -378,20 +378,20 @@ describe("buildNativeRuntimeContext", () => {
         missingDetail: "assigned skill checkout is unavailable",
       }],
     })).rejects.toThrow("assigned skill checkout is unavailable");
-    const supportedRoot = await mkdtemp(path.join(tmpdir(), "paperclip-native-supported-skill-"));
+    const supportedRoot = await mkdtemp(path.join(tmpdir(), "nexus-native-supported-skill-"));
     temporaryRoots.push(supportedRoot);
     await writeFile(path.join(supportedRoot, "SKILL.md"), "# Supported\n");
     const context = await buildNativeRuntimeContext({
       ...base,
       runtimeConfig: {
-        paperclipSkillSync: {
-          desiredSkills: [PAPERCLIP_OPERATIONAL_SKILL_KEY, "company-1/supported"],
+        nexusSkillSync: {
+          desiredSkills: [NEXUS_OPERATIONAL_SKILL_KEY, "company-1/supported"],
         },
       },
       runtimeSkillEntries: [
         {
-          key: PAPERCLIP_OPERATIONAL_SKILL_KEY,
-          runtimeName: "paperclip",
+          key: NEXUS_OPERATIONAL_SKILL_KEY,
+          runtimeName: "nexus",
           source: "/unused",
         },
         {
@@ -473,7 +473,7 @@ it("keeps instructions, selected skills, and MCP concurrent and distinguishes co
   await writeFile(path.join(source, "SKILL.md"), "Private skill fixture");
   const input = {
     db: {} as Db, agent: { id: "agent-1", companyId: "company-1", name: "Reviewer", adapterConfig: {} },
-    runId: "concurrent-context", runtimeConfig: { paperclipSkillSync: { desiredSkills: ["selected"] } },
+    runId: "concurrent-context", runtimeConfig: { nexusSkillSync: { desiredSkills: ["selected"] } },
     runtimeSkillEntries: [{ key: "selected", runtimeName: "selected", source }],
   };
   const pending = withRunExecutionTiming(input.runId, () => buildNativeRuntimeContext(input));

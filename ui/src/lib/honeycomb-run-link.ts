@@ -1,9 +1,9 @@
 const HONEYCOMB_QUERY_URL =
-  "https://ui.honeycomb.io/paperclip/environments/test/datasets/paperclip/";
+  "https://ui.honeycomb.io/nexus/environments/test/datasets/nexus/";
 
-export const HONEYCOMB_RUN_HASH_ATTRIBUTE = "paperclip.task.run.run_id";
+export const HONEYCOMB_RUN_HASH_ATTRIBUTE = "nexus.task.run.run_id";
 
-export async function hashPaperclipRunId(
+export async function hashNexusRunId(
   runId: string,
   subtle: SubtleCrypto = globalThis.crypto.subtle,
 ): Promise<string> {
@@ -25,7 +25,7 @@ export function buildHoneycombRunQueryUrl(runIdHash: string): string {
     calculations: [{ op: "COUNT" }],
     breakdowns: ["trace.trace_id"],
     filters: [
-      { column: "service.name", op: "=", value: "paperclip" },
+      { column: "service.name", op: "=", value: "nexus" },
       { column: "name", op: "in", value: ["task.run", "task.provider_session", "task.execution_attempt", "task.workspace_finalization", "task.response_presentation"] },
       { column: HONEYCOMB_RUN_HASH_ATTRIBUTE, op: "=", value: runIdHash },
     ],
@@ -43,5 +43,5 @@ export async function buildHoneycombRunUrl(
   runId: string,
   subtle: SubtleCrypto = globalThis.crypto.subtle,
 ): Promise<string> {
-  return buildHoneycombRunQueryUrl(await hashPaperclipRunId(runId, subtle));
+  return buildHoneycombRunQueryUrl(await hashNexusRunId(runId, subtle));
 }

@@ -1,5 +1,5 @@
 import { inArray } from "drizzle-orm";
-import { heartbeatRuns, type Db } from "@paperclipai/db";
+import { heartbeatRuns, type Db } from "@nexusai/db";
 import { getStorageService } from "../storage/index.js";
 import { migrateAgentFiles, verifyAgentFileObjects } from "../services/agent-file-maintenance.js";
 import { readEphemeralServerDataEligibility } from "../services/ephemeral-server-contract.js";

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { agents, companies, createDb, applyPendingMigrations, heartbeatRuns, museRunnerAssignments, museAgentBindings } from "@paperclipai/db";
+import { agents, companies, createDb, applyPendingMigrations, heartbeatRuns, museRunnerAssignments, museAgentBindings } from "@nexusai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../__tests__/helpers/embedded-postgres.js";
 import { startMuseMaintenance } from "./muse-maintenance.js";
 import { createDeliveryWorkCoordinator } from "./delivery-work-coordinator.js";
@@ -14,7 +14,7 @@ const effects = vi.hoisted(() => ({
 }));
 vi.mock("./muse-runner-broker.js", () => ({ museRunnerBroker: () => effects }));
 vi.mock("./muse-receiver.js", () => ({ museReceiver: () => effects }));
-const externalUrl = process.env.PAPERCLIP_MUSE_MAINTENANCE_TEST_DATABASE_URL;
+const externalUrl = process.env.NEXUS_MUSE_MAINTENANCE_TEST_DATABASE_URL;
 const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeDatabase = support.supported ? describe : describe.skip;
 

@@ -213,7 +213,7 @@ Verification:
 - Workspace typecheck and build pass after final source/wiring/index changes
   (`/tmp/sleep35-workspace-types.log`, `/tmp/sleep35-workspace-build.log`).
 - Fresh complete chat/publication/startup acceptance is running on
-  `paperclip_sleep35_full_20261025_test`, log `/tmp/sleep35-full-chat.log`.
+  `nexus_sleep35_full_20261025_test`, log `/tmp/sleep35-full-chat.log`.
   Its expected count is 1,571. Do not claim completion before its terminal result.
 - Remote checks/review and any resulting repairs remain required.
 

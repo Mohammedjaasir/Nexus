@@ -1,9 +1,9 @@
 import * as p from "@clack/prompts";
 import type { StorageConfig } from "../config/schema.js";
-import { resolveDefaultStorageDir, resolvePaperclipInstanceId } from "../config/home.js";
+import { resolveDefaultStorageDir, resolveNexusInstanceId } from "../config/home.js";
 
 function defaultStorageBaseDir(): string {
-  return resolveDefaultStorageDir(resolvePaperclipInstanceId());
+  return resolveDefaultStorageDir(resolveNexusInstanceId());
 }
 
 export function defaultStorageConfig(): StorageConfig {
@@ -13,7 +13,7 @@ export function defaultStorageConfig(): StorageConfig {
       baseDir: defaultStorageBaseDir(),
     },
     s3: {
-      bucket: "paperclip",
+      bucket: "nexus",
       region: "us-east-1",
       endpoint: undefined,
       prefix: "",
@@ -74,12 +74,12 @@ export async function promptStorage(current?: StorageConfig): Promise<StorageCon
     };
   }
 
-  const bucketDefault = base.s3.bucket || "paperclip";
+  const bucketDefault = base.s3.bucket || "nexus";
   const regionDefault = base.s3.region || "us-east-1";
   const bucket = await p.text({
     message: "S3 bucket",
     defaultValue: bucketDefault,
-    placeholder: "paperclip",
+    placeholder: "nexus",
     validate: (value) => {
       if ((value || bucketDefault).trim().length === 0) return "Bucket is required";
     },
@@ -118,7 +118,7 @@ export async function promptStorage(current?: StorageConfig): Promise<StorageCon
   const prefix = await p.text({
     message: "Object key prefix (optional)",
     defaultValue: base.s3.prefix ?? "",
-    placeholder: "paperclip/",
+    placeholder: "nexus/",
   });
 
   if (p.isCancel(prefix)) {

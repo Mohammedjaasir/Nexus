@@ -16,7 +16,7 @@ import {
   issueThreadInteractions,
   projectWorkspaces,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -40,7 +40,7 @@ describeEmbeddedPostgres("decision training", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-decision-training-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-decision-training-");
     db = createDb(tempDb.connectionString);
   }, 30_000);
 

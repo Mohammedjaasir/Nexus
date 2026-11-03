@@ -3,7 +3,7 @@ import { readIdleLocalWork, type IdleLocalWork } from "./idle-local-work.js";
 import { readIdleRoutineSchedule, type ScheduledWake } from "./idle-scheduled-work.js";
 import { combineIdleSchedules, readIdleIssueSchedule } from "./idle-issue-schedule.js";
 import { connectionDeliveryWaitingForResponse, finishedIdleRun as finishedRun, finishedIdleWake, finishedFailedIdleLease as finishedFailedLease, passiveBoardRecovery } from "./idle-work-proof.js";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { sql } from "drizzle-orm";
 import { verifiedResourceCleanup } from "./cleanup-verification-proof.js";
 import { companyHoldMismatch } from "../modules/agent-lifecycle/index.js";

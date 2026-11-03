@@ -174,7 +174,7 @@ export async function runKimiLifecycleFlow(input: {
         if (remote) {
           const run = runs[0]!, workspace = run.contextSnapshot?.executionWorkspaceId;
           if (typeof workspace !== "string" || run.runnerProfileJson?.nativeExecutionInput?.binding?.executionWorkspaceId !== workspace
-            || run.contextSnapshot?.paperclipEnvironment?.leaseId !== fixture!.binding.leaseId || fixture!.baseline.scope.observedPrpEnvironmentLeaseId !== workspace
+            || run.contextSnapshot?.nexusEnvironment?.leaseId !== fixture!.binding.leaseId || fixture!.baseline.scope.observedPrpEnvironmentLeaseId !== workspace
             || !fixture!.terminateKimiProvider) throw new Error("Kimi fault lacks exact public run/workspace/lease authority");
           return fixture!.terminateKimiProvider(workspace);
         }

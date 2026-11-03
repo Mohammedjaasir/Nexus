@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { AdapterExecutionContext } from "@paperclipai/adapter-utils";
+import type { AdapterExecutionContext } from "@nexusai/adapter-utils";
 
 import { execute } from "./execute.js";
 import { sessionCodec } from "./index.js";
@@ -23,7 +23,7 @@ describe("Hermes managed instruction delivery (real capture process)", () => {
   let capturePath: string;
 
   beforeEach(async () => {
-    dir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-hermes-instructions-"));
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), "nexus-hermes-instructions-"));
     command = path.join(dir, "hermes.cjs");
     instructionsFilePath = path.join(dir, "instructions.md");
     capturePath = path.join(dir, "invocations.jsonl");
@@ -34,7 +34,7 @@ const args = process.argv.slice(2);
 fs.appendFileSync(process.env.CAPTURE_PATH, JSON.stringify({
   args,
   systemPrompt: process.env.HERMES_EPHEMERAL_SYSTEM_PROMPT ?? null,
-  runId: process.env.PAPERCLIP_RUN_ID,
+  runId: process.env.NEXUS_RUN_ID,
 }) + "\\n");
 if (process.env.FIXTURE_STDOUT) console.log(process.env.FIXTURE_STDOUT);
 if (args.includes("missing-session")) {
@@ -67,9 +67,9 @@ console.log("Fixture completed\\nsession_id: ${SESSION_ID}");
       },
       context: {
         issueId: "task-synthetic",
-        paperclipTaskMarkdownAssignment: "Complete current synthetic task.",
-        paperclipTaskMarkdownCompact: "Current synthetic task.",
-        paperclipWake: {
+        nexusTaskMarkdownAssignment: "Complete current synthetic task.",
+        nexusTaskMarkdownCompact: "Current synthetic task.",
+        nexusWake: {
           reason: "issue_commented",
           issue: { id: "task-synthetic", title: "Synthetic task", status: "in_progress" },
           comments: [{ id: "comment-synthetic", body: "Fresh human direction." }],
@@ -109,11 +109,11 @@ console.log("Fixture completed\\nsession_id: ${SESSION_ID}");
       expect(query(invocation)).toContain("Fresh human direction.");
       expect(query(invocation)).toContain(invocation.runId);
       expect(query(invocation)).toContain("company-synthetic");
-      expect(invocation.systemPrompt).toContain("$PAPERCLIP_API_KEY");
-      expect(invocation.systemPrompt).toContain('-H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID"');
+      expect(invocation.systemPrompt).toContain("$NEXUS_API_KEY");
+      expect(invocation.systemPrompt).toContain('-H "X-Nexus-Run-Id: $NEXUS_RUN_ID"');
       expect(invocation.systemPrompt).toContain("body=$(cat <<'MD'");
       expect(invocation.systemPrompt).toContain("--data-binary @-");
-      expect(invocation.systemPrompt).toContain('$api/issues/$PAPERCLIP_TASK_ID');
+      expect(invocation.systemPrompt).toContain('$api/issues/$NEXUS_TASK_ID');
       expect(invocation.systemPrompt).not.toContain(invocation.runId);
     }
   });
@@ -138,8 +138,8 @@ console.log("Fixture completed\\nsession_id: ${SESSION_ID}");
     const result = await execute({ ...ctx, config: { ...ctx.config, persistSession: false }, runtime: { ...ctx.runtime, sessionParams: { sessionId: SESSION_ID } } });
     const [invocation] = await invocations();
     expect(invocation.args).not.toContain("--resume");
-    expect(query(invocation)).toContain("## Paperclip Wake Payload");
-    expect(query(invocation)).not.toContain("## Paperclip Resume Delta");
+    expect(query(invocation)).toContain("## Nexus Wake Payload");
+    expect(query(invocation)).not.toContain("## Nexus Resume Delta");
     expect(invocation.systemPrompt).toContain(INSTRUCTIONS);
     expect(result.sessionParams).toBeUndefined();
   });
@@ -204,7 +204,7 @@ console.log("Fixture completed\\nsession_id: ${SESSION_ID}");
     await execute({ ...ctx, config: { ...ctx.config, instructionsFilePath: undefined }, runtime: { ...ctx.runtime, sessionParams: { sessionId: SESSION_ID } } });
     const [, resumed] = await invocations();
     expect(resumed.systemPrompt).not.toContain(INSTRUCTIONS);
-    expect(resumed.systemPrompt).toContain("Paperclip API guidance:");
+    expect(resumed.systemPrompt).toContain("Nexus API guidance:");
     expect(query(resumed)).toContain("Fresh human direction.");
   });
 });

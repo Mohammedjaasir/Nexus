@@ -16,7 +16,7 @@ import {
   toolProfileEntries,
   toolProfiles,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { and, eq } from "drizzle-orm";
 import { errorHandler } from "../middleware/index.js";
 import { toolAccessRoutes } from "../routes/tool-access.js";
@@ -27,7 +27,7 @@ import {
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
 
-const externalDatabaseUrl = process.env.PAPERCLIP_TOOL_ACCESS_TEST_DATABASE_URL?.trim();
+const externalDatabaseUrl = process.env.NEXUS_TOOL_ACCESS_TEST_DATABASE_URL?.trim();
 const support = externalDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeDatabase = support.supported ? describe : describe.skip;
 
@@ -57,7 +57,7 @@ describeDatabase("connection install permission preservation", () => {
       db = createDb(externalDatabaseUrl);
       return;
     }
-    database = await startEmbeddedPostgresTestDatabase("paperclip-install-permissions-");
+    database = await startEmbeddedPostgresTestDatabase("nexus-install-permissions-");
     db = createDb(database.connectionString);
   }, 90_000);
 

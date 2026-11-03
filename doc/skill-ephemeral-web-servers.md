@@ -9,7 +9,7 @@ logs, traffic switching or readiness/draining for volume removal.
 
 ## Ownership and publication
 
-`managed` is Paperclip ownership. Its locator is null; editability does not depend
+`managed` is Nexus ownership. Its locator is null; editability does not depend
 on a directory's position beneath a managed root. Existing policies normalize it
 to `workspace`, the policy category previously used by managed local skills.
 Repository provenance and tracking remain separate from installed content. Forks
@@ -74,8 +74,8 @@ not prove the other is finished.
 Run the existing bounded CLI with the target's explicit database and storage config:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx scripts/migrate-skill-packages.ts --phase=eligibility --company=<uuid> --limit=10
-pnpm --filter @paperclipai/server exec tsx scripts/migrate-skill-packages.ts --phase=installations --company=<uuid> --limit=10
+pnpm --filter @nexusai/server exec tsx scripts/migrate-skill-packages.ts --phase=eligibility --company=<uuid> --limit=10
+pnpm --filter @nexusai/server exec tsx scripts/migrate-skill-packages.ts --phase=installations --company=<uuid> --limit=10
 ```
 
 These commands return a cursor. Continue each phase with `--after=<uuid>` until an
@@ -96,7 +96,7 @@ use the latest branch as a replacement for missing installed content.
 4. Apply final installation conversion on the host with the legacy files:
 
    ```sh
-   pnpm --filter @paperclipai/server exec tsx scripts/migrate-skill-packages.ts --phase=installations --company=<uuid> --limit=10 --apply --writers-stopped
+   pnpm --filter @nexusai/server exec tsx scripts/migrate-skill-packages.ts --phase=installations --company=<uuid> --limit=10 --apply --writers-stopped
    ```
 
 5. Sweep `eligibility` and `verification`, including all historical versions. The
@@ -167,8 +167,8 @@ that URL. The S3 test creates and removes its own random bucket. Supply test-onl
 credentials through the environment:
 
 ```sh
-PAPERCLIP_TEST_POSTGRES_ADMIN_URL=<disposable-postgres-url> \
-PAPERCLIP_TEST_S3_ENDPOINT=<disposable-s3-endpoint> \
+NEXUS_TEST_POSTGRES_ADMIN_URL=<disposable-postgres-url> \
+NEXUS_TEST_S3_ENDPOINT=<disposable-s3-endpoint> \
 pnpm exec vitest run server/src/__tests__/ephemeral-skills-process.test.ts
 ```
 

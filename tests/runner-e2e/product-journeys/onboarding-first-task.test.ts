@@ -25,11 +25,11 @@ function fixture(options: Options = {}) {
   const run = (id: string, issueId: string): Row => ({
     id, companyId: "company", agentId: "agent", nativeIssueId: issueId, runtimeMode: "native", status: "succeeded",
     startedAt: "2026-01-01T00:00:00Z", finishedAt: "2026-01-01T00:00:01Z", usageJson: { inputTokens: 1, outputTokens: 1 },
-    contextSnapshot: { issueId, aiConnection: { connectionId: "connection", method: "api_key" }, paperclipEnvironment: { id: "environment" } },
+    contextSnapshot: { issueId, aiConnection: { connectionId: "connection", method: "api_key" }, nexusEnvironment: { id: "environment" } },
   });
   const state = () => {
     const accepted = phase === "accepted";
-    const parent = { id: "parent", identifier: "QA-1", title: "Paperclip onboarding", originKind: "onboarding_first_task", description: "/first-task", assigneeAgentId: "agent", status: accepted ? "done" : "in_review" };
+    const parent = { id: "parent", identifier: "QA-1", title: "Nexus onboarding", originKind: "onboarding_first_task", description: "/first-task", assigneeAgentId: "agent", status: accepted ? "done" : "in_review" };
     const opening = { id: "opening", kind: "ask_user_questions", status: phase === "opening" ? "pending" : "answered", payload: { submitLabel: "Continue", questions: [{ id: "first-task-opening", options: [{ id: "task", label: "I have a task in mind", freeText: true }] }] } };
     const proposal = { id: "proposal", kind: options.plan ? "request_checkbox_confirmation" : "request_confirmation", status: accepted ? "accepted" : "pending", payload: { prompt: `Create one child task: ${title}`, ...(options.plan ? { options: [{ id: "scope", label: "One artifact task" }], target: { type: "issue_document", key: "plan", revisionId: "revision" } } : {}) } };
     const result = {
@@ -607,7 +607,7 @@ function workspaceDeferral(): Row {
     processStartedAt: null, sessionIdAfter: null, externalRunId: null, exitCode: null, signal: null,
     startedAt: "2026-01-01T00:00:00Z", finishedAt: "2026-01-01T00:00:01Z", lastOutputSeq: 0,
     usageJson: { ledgerScope: { companyId: "company", agentId: "agent", issueId: "child" } }, costUsd: null,
-    runnerProfileJson: { adapterDispatch: { adapterType: "paperclip_runner" } },
+    runnerProfileJson: { adapterDispatch: { adapterType: "nexus_runner" } },
     contextSnapshot: { issueId: "child" }, resultJson: {
       executionRecovery: { kind: "workspace_wait", providerWorkStarted: false },
       cancellation: { source: "control_plane", expected: true, initiator: { type: "system" } },

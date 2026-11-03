@@ -701,7 +701,7 @@ content identity is `4560ebf62a9640e43aff893b1a6dd497746eeb2787732818b62acd911cd
 Create/load instruction acknowledgments and bounded EOF passed without prompts or
 credentials. Local collection verified the full archive, source, profile,
 closure, pack and daemon hashes. Its published immutable reference is
-`public.ecr.aws/q2k8x0v0/paperclip/kimi-qualification-eed3@sha256:bad9994dadf1a55743dabed3cd3f785210131938d4407c8b0ca92a30a922c177`.
+`public.ecr.aws/q2k8x0v0/nexus/kimi-qualification-eed3@sha256:bad9994dadf1a55743dabed3cd3f785210131938d4407c8b0ca92a30a922c177`.
 A real credential-free Daytona import/native smoke passed in 122.4 seconds on
 Linux x64 with 4 CPU, 4 GiB memory and 10 GiB disk, then its exact sandbox was
 deleted and checked404. It verified native create/load/model/instruction/EOF
@@ -767,7 +767,7 @@ it is not applied and does not count as qualification.
   subscribed. Those failures remain failures; no cost counters were available.
 - The first entitled turn completed native execution and called the exact MCP
   echo with the instruction-only nonce. Its smoke observer incorrectly expected
-  `paperclip_echo` at a handler that receives canonical `echo`. Native arguments,
+  `nexus_echo` at a handler that receives canonical `echo`. Native arguments,
   MCP receiver error, and terminal completion establish a grading/observer failure,
   not a successful tool round trip. The corrected observer then passed a real
   authenticated semantic echo, native terminal completion, and physical cleanup.

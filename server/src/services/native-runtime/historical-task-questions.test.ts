@@ -4,22 +4,22 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   activityLog, agents, agentWakeupRequests, approvals, companies, completionContracts, createDb, heartbeatRuns, issueApprovals,
   issueComments, issueQuestionResponseDeliveries, issueThreadInteractions, issueWorkProducts, issues, statusDecisions,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { readTaskQuestionContext } from "../issue-question-context.js";
 import { issueThreadInteractionService } from "../issue-thread-interactions.js";
 import { nativeCompletionFeedback } from "./native-completion-feedback.js";
 import { finalizeNativeRun, pendingNativeGovernance } from "./native-run-finalizer.js";
-import { PaperclipControlPlanePort } from "./paperclip-control-plane-port.js";
-import { CONTROL_PLANE_CONFORMANCE_RESULT, CONTROL_PLANE_CONFORMANCE_TERMINAL } from "../../vendor/paperclip-runner/testing.js";
-import { PaperclipRunnerToolAuthority } from "./paperclip-runner-tool-authority.js";
-import { PaperclipRunnerSemanticAuthority } from "./runner-semantic-authority.js";
-import type { PrpStructuredRunResult } from "../../vendor/paperclip-runner/index.js";
+import { NexusControlPlanePort } from "./nexus-control-plane-port.js";
+import { CONTROL_PLANE_CONFORMANCE_RESULT, CONTROL_PLANE_CONFORMANCE_TERMINAL } from "../../vendor/nexus-runner/testing.js";
+import { NexusRunnerToolAuthority } from "./nexus-runner-tool-authority.js";
+import { NexusRunnerSemanticAuthority } from "./runner-semantic-authority.js";
+import type { PrpStructuredRunResult } from "../../vendor/nexus-runner/index.js";
 
 const questionTime = new Date("2026-01-01T12:00:00Z");
 const messageTime = new Date("2026-01-01T12:01:00Z");
 const done: PrpStructuredRunResult = {
-  schema: "paperclip.run_result.v1", reportedWorkDisposition: "done", summary: "Configuration verified.",
+  schema: "nexus.run_result.v1", reportedWorkDisposition: "done", summary: "Configuration verified.",
   completionClaim: { contractRevision: "test", objectiveSatisfied: true, criteria: [], remainingWork: [] },
   evidence: [], verification: [], attentionRequests: [], artifacts: [],
 };
@@ -36,7 +36,7 @@ describe("historical task questions", () => {
   async function fixture(conversationMode = false) {
     const companyId = randomUUID(), agentId = randomUUID(), issueId = randomUUID(), runId = randomUUID();
     await db.insert(companies).values({ id: companyId, name: "Question history", issuePrefix: `Q${companyId.slice(0, 8)}` });
-    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", adapterType: "paperclip_runner", status: "active" });
+    await db.insert(agents).values({ id: agentId, companyId, name: "Worker", adapterType: "nexus_runner", status: "active" });
     await db.insert(issues).values({ id: issueId, companyId, title: "Verify configuration", status: "in_progress",
       assigneeAgentId: agentId, ...(conversationMode ? { conversationAgentId: agentId,
         conversationUserId: "board-user", conversationState: "active" as const } : {}) });
@@ -76,10 +76,10 @@ describe("historical task questions", () => {
     });
     expect(blockedFeedback).toContain("Explain why work cannot continue");
     expect(blockedFeedback).not.toContain(f.question.id);
-    const authority = new PaperclipRunnerToolAuthority(db, f);
+    const authority = new NexusRunnerToolAuthority(db, f);
     expect(await authority.execute({ tool: "get_task_context", callId: "context", arguments: {} }))
       .toMatchObject({ taskQuestionContext: { questions: [{ id: f.question.id, historical: true }], truncated: false } });
-    const semantic = new PaperclipRunnerSemanticAuthority(db, f);
+    const semantic = new NexusRunnerSemanticAuthority(db, f);
     expect(await semantic.dispatch({ callId: "context", operationId: "get_task_context", input: {},
       correlation: { runId: f.runId, normalizedSessionId: randomUUID(), turnId: "turn", itemId: "item" } }))
       .toMatchObject({ ok: true, value: { taskQuestionContext: { questions: [{ id: f.question.id, historical: true }] } } });
@@ -170,7 +170,7 @@ describe("historical task questions", () => {
     const contractId = randomUUID(), sessionId = randomUUID(), runnerId = randomUUID();
     const contractSha256 = "historical-question-contract";
     await db.insert(completionContracts).values({ id: contractId, companyId: f.companyId, issueId: f.issueId,
-      revision: 1, schemaVersion: "paperclip.completion-contract.v1", policyVersion: "test", risk: "standard",
+      revision: 1, schemaVersion: "nexus.completion-contract.v1", policyVersion: "test", risk: "standard",
       completionAuthority: "server_arbiter", incompleteCriteriaPolicy: "preserve_non_terminal",
       contractJson: { revision: "standalone-v1", objective: "Verify configuration", criteria: [{ id: "objective", requirement: "Verify configuration" }] },
       canonicalSha256: contractSha256, createdByActorType: "system", createdByActorId: "test" });
@@ -184,7 +184,7 @@ describe("historical task questions", () => {
         criteria: [{ criterionId: "objective", status: "satisfied", evidenceRefs: [evidenceRef] }] },
       evidence: [{ kind: "work_product", ref: evidenceRef }],
       verification: [{ commandOrCheck: "Configuration verification", status: "passed", artifactRef: evidenceRef }] };
-    const port = new PaperclipControlPlanePort(db, { ...f, sessionId, completionContractId: contractId,
+    const port = new NexusControlPlanePort(db, { ...f, sessionId, completionContractId: contractId,
       completionContractSha256: contractSha256, sourceInstanceId: runnerId, controlPlaneSourceInstanceId: randomUUID() });
     await port.openRun({ identity: { ...f, sessionId }, backendKind: "mock", sourceInstanceId: runnerId });
     await port.completeRun({ result: verifiedResult, terminal: CONTROL_PLANE_CONFORMANCE_TERMINAL,

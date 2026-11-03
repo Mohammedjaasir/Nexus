@@ -1,4 +1,4 @@
-import type { ChatProvider, ToolConnectionTransport } from "@paperclipai/shared";
+import type { ChatProvider, ToolConnectionTransport } from "@nexusai/shared";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "../../delivery-work-notifications.js";
 import { leasedChatProvider } from "./receiver-policy.js";
 

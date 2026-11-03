@@ -51,7 +51,7 @@ export function emptyFeedbackSummary(): FeedbackSummary {
 
 function feedbackKind(name: unknown): FeedbackInvocation["kind"] | undefined {
   if (typeof name !== "string") return undefined;
-  const canonicalName = name.replace(/^(?:mcp__paperclip__|paperclip__|paperclip_)/, "");
+  const canonicalName = name.replace(/^(?:mcp__nexus__|nexus__|nexus_)/, "");
   if (/(?:^|[.\/])submit_complaint$/.test(canonicalName)) return "complaint";
   if (/(?:^|[.\/])submit_suggestion$/.test(canonicalName)) return "suggestion";
   return undefined;

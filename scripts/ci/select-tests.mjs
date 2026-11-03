@@ -31,7 +31,7 @@ function runnerInventory(group) {
     : ["--mode", "general", "--group", group,
       ...(group === "general-server-without-chat" ? ["--shard-index", "0", "--shard-count", "1"] : [])];
   const env = { ...process.env, GITHUB_WORKFLOW: "PR" };
-  delete env.PAPERCLIP_CI_TEST_SELECTION;
+  delete env.NEXUS_CI_TEST_SELECTION;
   return JSON.parse(execFileSync(process.execPath, ["scripts/run-vitest-stable.mjs", ...args, "--dry-run"],
     { env, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }));
 }
@@ -52,9 +52,9 @@ export async function createTestSelection(plan, head) {
   for (const group of groups) {
     const inventory = inventoryFor(group);
     if (group === "serialized" || group === "general-server-without-chat") {
-      owners[group] = { "@paperclipai/server": group === "serialized"
+      owners[group] = { "@nexusai/server": group === "serialized"
         ? inventory.selectedSerializedSuites : inventory.selectedGeneralServerSuites };
-      projects.add("@paperclipai/server");
+      projects.add("@nexusai/server");
     } else {
       owners[group] = Object.fromEntries(inventory.workspaceProjects.map((project) => [project, null]));
       for (const project of inventory.workspaceProjects) projects.add(project);
@@ -69,7 +69,7 @@ export async function createTestSelection(plan, head) {
   }
   const covered = new Set(graphs.flatMap((graph) => graph.coveredChanges));
   for (const file of changed) assert.ok(covered.has(file), `Change outside the resolved test graphs: ${file}`);
-  const server = graphs.find((graph) => graph.project === "@paperclipai/server");
+  const server = graphs.find((graph) => graph.project === "@nexusai/server");
   if (server) {
     const general = inventoryFor("general-server-without-chat");
     const native = inventoryFor("general-server-native-runner");

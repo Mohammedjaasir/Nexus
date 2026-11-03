@@ -30,7 +30,7 @@ for (const cloudOrigin of ["https://my.paperclip.app", "https://my-staging.paper
         const response = await route.fetch();
         await route.fulfill({ response, json: {
           ...await response.json(), deploymentMode: "authenticated", bootstrapStatus: "ready",
-          cloud: { managed: true, managedBy: "paperclip-cloud", cloudBaseUrl: cloudOrigin, stackSlug: "test-workspace" },
+          cloud: { managed: true, managedBy: "nexus-cloud", cloudBaseUrl: cloudOrigin, stackSlug: "test-workspace" },
         } });
       });
       await page.route("**/api/auth/get-session", (route) => route.fulfill(authenticated ? {
@@ -59,6 +59,6 @@ for (const cloudOrigin of ["https://my.paperclip.app", "https://my-staging.paper
 test("self-hosted auth still shows the instance sign-in form", async ({ page }) => {
   await page.route("**/api/auth/get-session", (route) => route.fulfill({ status: 401, json: { error: "Board authentication required" } }));
   await page.goto("/auth");
-  await expect(page.getByRole("heading", { name: "Sign in to Paperclip", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to Nexus", exact: true })).toBeVisible();
   await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
 });

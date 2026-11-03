@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { Db } from "@paperclipai/db";
-import { updatePromptInjectionPreventionSchema } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { updatePromptInjectionPreventionSchema } from "@nexusai/shared";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { canManageAiConnections } from "./ai-connections.js";
 import { forbidden } from "../errors.js";

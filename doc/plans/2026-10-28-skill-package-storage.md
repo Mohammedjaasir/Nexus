@@ -75,7 +75,7 @@ Source pointers: [project attachment](../../server/src/services/projects.ts),
 
 `company-skills.ts::runtimeVersionInventory` selects the entire repository snapshot,
 then `repositorySkillProjection` builds a generated discovery wrapper plus the full
-original tree under `.paperclip-repository/`.
+original tree under `.nexus-repository/`.
 
 | Consumer | Current unnecessary or amplified work | Replacement |
 | --- | --- | --- |
@@ -264,7 +264,7 @@ the hashed manifest, including unexpected files and modes, without rereading SQL
 Audit continues to inspect actual content and may require new policy scans independently
 of package immutability.
 
-Keep the current self-contained `.paperclip-repository` skill layout initially. Build it
+Keep the current self-contained `.nexus-repository` skill layout initially. Build it
 from the shared package cache and reuse the manifest in materialization and audit. Preserve
 the existing company cache lock through final publication and durable run pinning. Stage
 slow downloads before that lock, then recheck authority/version identity inside it; if

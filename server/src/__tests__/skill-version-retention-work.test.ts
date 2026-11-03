@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { installDatabaseWorkSignals } from "../../../packages/db/src/work-signals.js";
 import { afterEach, expect, it, vi } from "vitest";
-import { resolvePaperclipInstanceRoot } from "../home-paths.js";
+import { resolveNexusInstanceRoot } from "../home-paths.js";
 import { createDeliveryWorkCoordinator } from "../services/delivery-work-coordinator.js";
 import { noteSkillVersionCacheChange } from "../services/skill-version-retention-notifications.js";
 import { registerSkillVersionRetentionWork } from "../services/skill-version-retention-work.js";
@@ -24,8 +24,8 @@ afterEach(async () => {
 
 it("keeps an expired cache change eligible when its own paged scan finishes", async () => {
   home = mkdtempSync(path.join(tmpdir(), "sleep64-retention-work-"));
-  vi.stubEnv("PAPERCLIP_HOME", home);
-  vi.stubEnv("PAPERCLIP_INSTANCE_ID", "sleep64-retention-work");
+  vi.stubEnv("NEXUS_HOME", home);
+  vi.stubEnv("NEXUS_INSTANCE_ID", "sleep64-retention-work");
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
   const companyId = randomUUID();
@@ -43,7 +43,7 @@ it("keeps an expired cache change eligible when its own paged scan finishes", as
   worker = registerSkillVersionRetentionWork(coordinator, service, () => true);
   await worker.ready;
   expect(prune).toHaveBeenCalledOnce();
-  noteSkillVersionCacheChange(path.join(resolvePaperclipInstanceRoot(), "skills", companyId,
+  noteSkillVersionCacheChange(path.join(resolveNexusInstanceRoot(), "skills", companyId,
     "__versions__", randomUUID(), randomUUID()), { source: "access" });
   await vi.advanceTimersByTimeAsync(1_000);
   await vi.advanceTimersByTimeAsync(1_000);
@@ -58,8 +58,8 @@ it("keeps an expired cache change eligible when its own paged scan finishes", as
 
 it("continues a successful page when another company's grace deadline expires during it", async () => {
   home = mkdtempSync(path.join(tmpdir(), "retention-page-deadline-"));
-  vi.stubEnv("PAPERCLIP_HOME", home);
-  vi.stubEnv("PAPERCLIP_INSTANCE_ID", "retention-page-deadline");
+  vi.stubEnv("NEXUS_HOME", home);
+  vi.stubEnv("NEXUS_INSTANCE_ID", "retention-page-deadline");
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2099-01-01T00:00:00Z"));
   const startedAt = Date.now();

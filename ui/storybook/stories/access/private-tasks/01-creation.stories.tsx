@@ -53,7 +53,7 @@ const meta = {
   title: "Getting started and access/Login, invitations, and access/Private tasks/01 Creation",
   decorators: [privacyDecorator],
   parameters: { ...privacyParameters, waitForViewport: true, docs: { description: { component: "Route /PAP/issues with the new-task composer. Choose Private task from +; the lock chip keeps the selection visible. Hover, focus, or tap an inherited chip to see the parent task or private project that requires privacy. Mobile stories use the real shell and check that menu actions and composer controls stay inside the viewport." } },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "access/resources",
         "tasks/properties"

@@ -157,7 +157,7 @@ const meta: Meta = {
   id: "tools-activity-audit-feed",
   title: "Oversight and operation/Dashboards and audit trails/Tools/Activity (audit feed)",
   parameters: { layout: "fullscreen",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "activity/activity",
         "gateways-profiles/activity"

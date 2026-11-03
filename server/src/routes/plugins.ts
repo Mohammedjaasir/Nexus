@@ -29,7 +29,7 @@ import { fileURLToPath } from "node:url";
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import {
   agents,
   companies,
@@ -37,17 +37,17 @@ import {
   pluginLogs,
   pluginWebhookDeliveries,
   projects,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   PluginApiRouteDeclaration,
   PluginStatus,
-  PaperclipPluginManifestV1,
+  NexusPluginManifestV1,
   PluginBridgeErrorCode,
   PluginLauncherRenderContextSnapshot,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import {
   PLUGIN_STATUSES,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { pluginRegistryService } from "../services/plugin-registry.js";
 import { pluginLifecycleManager } from "../services/plugin-lifecycle.js";
 import {
@@ -65,8 +65,8 @@ import type { PluginWorkerManager } from "../services/plugin-worker-manager.js";
 import type { PluginStreamBus } from "../services/plugin-stream-bus.js";
 import type { PluginToolDispatcher } from "../services/plugin-tool-dispatcher.js";
 import { ToolGatewayHttpError, type ToolGatewayService } from "../services/tool-gateway.js";
-import type { PluginPerformActionActorContext, ToolRunContext } from "@paperclipai/plugin-sdk";
-import { JsonRpcCallError, PLUGIN_RPC_ERROR_CODES } from "@paperclipai/plugin-sdk";
+import type { PluginPerformActionActorContext, ToolRunContext } from "@nexusai/plugin-sdk";
+import { JsonRpcCallError, PLUGIN_RPC_ERROR_CODES } from "@nexusai/plugin-sdk";
 import {
   assertAuthenticated,
   assertBoard,
@@ -99,7 +99,7 @@ import { badRequest, forbidden, notFound, unauthorized, unprocessable } from "..
 
 /**
  * Floor: when the hosting operator hides the Plugins settings surface
- * (`instance.plugins` in PAPERCLIP_HIDDEN_SETTINGS), plugin lifecycle and
+ * (`instance.plugins` in NEXUS_HIDDEN_SETTINGS), plugin lifecycle and
  * configuration writes are rejected alongside it. Reads stay open — installed
  * plugins keep running and `/plugins/ui-contributions` still powers their UI.
  */
@@ -112,9 +112,9 @@ function assertPluginManagementVisible() {
 }
 
 /** UI slot declaration extracted from plugin manifest */
-type PluginUiSlotDeclaration = NonNullable<NonNullable<PaperclipPluginManifestV1["ui"]>["slots"]>[number];
+type PluginUiSlotDeclaration = NonNullable<NonNullable<NexusPluginManifestV1["ui"]>["slots"]>[number];
 /** Launcher declaration extracted from plugin manifest */
-type PluginLauncherDeclaration = NonNullable<PaperclipPluginManifestV1["launchers"]>[number];
+type PluginLauncherDeclaration = NonNullable<NexusPluginManifestV1["launchers"]>[number];
 
 /**
  * Normalized UI contribution for frontend slot host consumption.
@@ -138,7 +138,7 @@ type PluginUiContribution = {
 
 /** Request body for POST /api/plugins/install */
 interface PluginInstallRequest {
-  /** npm package name (e.g., @paperclip/plugin-linear) or local path */
+  /** npm package name (e.g., @nexus/plugin-linear) or local path */
   packageName: string;
   /** Target version for npm packages (optional, defaults to latest) */
   version?: string;
@@ -184,9 +184,9 @@ const PLUGIN_SCOPED_API_RESPONSE_HEADER_ALLOWLIST = new Set([
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXPERIMENTAL_BUNDLED_PLUGIN_PACKAGE_NAMES = new Set([
-  "@paperclipai/plugin-llm-wiki",
-  "@paperclipai/plugin-modal",
-  "@paperclipai/plugin-workspace-diff",
+  "@nexusai/plugin-llm-wiki",
+  "@nexusai/plugin-modal",
+  "@nexusai/plugin-workspace-diff",
 ]);
 /**
  * Cached bundled-plugin discovery. Static metadata (name, key, display, paths)
@@ -205,7 +205,7 @@ let bundledPluginsCache: Promise<DiscoveredBundledPlugin[]> | null = null;
 function titleCasePluginName(packageName: string): string {
   const localName = packageName.split("/").pop() ?? packageName;
   return localName
-    .replace(/^paperclip-plugin-/, "")
+    .replace(/^nexus-plugin-/, "")
     .replace(/^plugin-/, "")
     .split("-")
     .filter(Boolean)
@@ -250,16 +250,16 @@ async function findPackageJsonFiles(root: string, maxDepth = 4): Promise<string[
 }
 
 function manifestSourcePath(packageRoot: string, pkgJson: Record<string, unknown>): string | null {
-  const paperclipPlugin = pkgJson.paperclipPlugin;
+  const nexusPlugin = pkgJson.nexusPlugin;
   if (
-    !paperclipPlugin
-    || typeof paperclipPlugin !== "object"
-    || Array.isArray(paperclipPlugin)
+    !nexusPlugin
+    || typeof nexusPlugin !== "object"
+    || Array.isArray(nexusPlugin)
   ) {
     return null;
   }
 
-  const manifestPath = (paperclipPlugin as Record<string, unknown>).manifest;
+  const manifestPath = (nexusPlugin as Record<string, unknown>).manifest;
   if (typeof manifestPath !== "string") return null;
 
   const sourcePath = manifestPath
@@ -314,12 +314,12 @@ async function discoverBundledPlugins(): Promise<DiscoveredBundledPlugin[]> {
   for (const packageJsonPath of await findPackageJsonFiles(pluginRoot)) {
     const packageRoot = path.dirname(packageJsonPath);
     const pkgJson = await readJsonFile(packageJsonPath);
-    const paperclipPlugin = pkgJson?.paperclipPlugin;
+    const nexusPlugin = pkgJson?.nexusPlugin;
     if (
       !pkgJson
-      || !paperclipPlugin
-      || typeof paperclipPlugin !== "object"
-      || Array.isArray(paperclipPlugin)
+      || !nexusPlugin
+      || typeof nexusPlugin !== "object"
+      || Array.isArray(nexusPlugin)
     ) {
       continue;
     }
@@ -335,7 +335,7 @@ async function discoverBundledPlugins(): Promise<DiscoveredBundledPlugin[]> {
         pluginKey: metadata.pluginKey ?? packageName,
         displayName: metadata.displayName ?? titleCasePluginName(packageName),
         description: metadata.description
-          ?? `Bundled Paperclip plugin from ${path.relative(REPO_ROOT, packageRoot)}.`,
+          ?? `Bundled Nexus plugin from ${path.relative(REPO_ROOT, packageRoot)}.`,
         localPath: packageRoot,
         tag,
         experimental: isExperimentalBundledPlugin(packageRoot, packageName),
@@ -571,7 +571,7 @@ export function pluginRoutes(
       "accept",
       "content-type",
       "user-agent",
-      "x-paperclip-run-id",
+      "x-nexus-run-id",
       "x-request-id",
     ]);
     const headers: Record<string, string> = {};
@@ -936,7 +936,7 @@ export function pluginRoutes(
    * [
    *   {
    *     "pluginId": "plg_123",
-   *     "pluginKey": "paperclip.claude-usage",
+   *     "pluginKey": "nexus.claude-usage",
    *     "displayName": "Claude Usage",
    *     "version": "1.0.0",
    *     "uiEntryFile": "index.js",
@@ -1162,7 +1162,7 @@ export function pluginRoutes(
    * 4. Transitions to `ready` state if no new capability approval is needed
    *
    * Cloud-managed instances (identified by the harness-injected
-   * `PAPERCLIP_MANAGED_CONFIG` environment variable) enforce a positive
+   * `NEXUS_MANAGED_CONFIG` environment variable) enforce a positive
    * allowlist: only local paths that canonicalize to a directory inside the
    * bundled plugin catalog root may be installed. npm/registry installs and
    * arbitrary local paths are rejected with `403`. Local paths are

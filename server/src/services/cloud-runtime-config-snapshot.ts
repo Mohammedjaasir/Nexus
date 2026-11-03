@@ -3,15 +3,15 @@ import {
   databaseBackupConfigSchema,
   llmConfigSchema,
   loggingConfigSchema,
-  paperclipConfigSchema,
+  nexusConfigSchema,
   secretsConfigSchema,
   secretsLocalEncryptedConfigSchema,
   serverConfigSchema,
   storageConfigSchema,
   storageLocalDiskConfigSchema,
   storageS3ConfigSchema,
-  type PaperclipConfig,
-} from "@paperclipai/shared";
+  type NexusConfig,
+} from "@nexusai/shared";
 import { z } from "zod";
 
 const publicUrl = z.string().url().refine((value) => {
@@ -50,12 +50,12 @@ export function parseStoredCloudRuntimeConfig(value: unknown): StoredCloudRuntim
   if (!parsed.success || Buffer.byteLength(JSON.stringify(parsed.data), "utf8") > 65_536) {
     throw new Error("Persisted Cloud runtime configuration is invalid");
   }
-  const full = parsed.data.config === null ? { success: true } : paperclipConfigSchema.safeParse(toPaperclipConfig(parsed.data.config));
+  const full = parsed.data.config === null ? { success: true } : nexusConfigSchema.safeParse(toNexusConfig(parsed.data.config));
   if (!full.success) throw new Error("Persisted Cloud runtime configuration is invalid");
   return parsed.data;
 }
 
-export function toPaperclipConfig(config: CloudRuntimeConfig | null): PaperclipConfig | null {
+export function toNexusConfig(config: CloudRuntimeConfig | null): NexusConfig | null {
   if (config === null) return null;
   const { backup, ...settings } = structuredClone(config);
   return {
@@ -70,7 +70,7 @@ export function toPaperclipConfig(config: CloudRuntimeConfig | null): PaperclipC
   };
 }
 
-export function projectCloudRuntimeConfig(source: PaperclipConfig): CloudRuntimeConfig {
+export function projectCloudRuntimeConfig(source: NexusConfig): CloudRuntimeConfig {
   const raw = {
     server: {
       deploymentMode: source.server.deploymentMode,

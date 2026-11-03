@@ -13,12 +13,12 @@ import {
   companyMemberships,
   toolConnections,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type {
   GitHubAppRegistrationInput,
   GitHubAppWizardState,
   GitHubAppCloudState,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { logActivity } from "./activity-log.js";
 import {
@@ -32,11 +32,11 @@ import {
 } from "./chat-github-webhook-config.js";
 import { githubChatManagementService } from "./chat-github-management.js";
 import {
-  createPaperclipCloudConnector,
-  paperclipCloudConnectorConfigFromEnv,
-  type PaperclipCloudConnector,
-} from "./paperclip-cloud-connector.js";
-import { paperclipCloudConnectorEnrollmentStatus } from "./paperclip-cloud-connector-enrollment.js";
+  createNexusCloudConnector,
+  nexusCloudConnectorConfigFromEnv,
+  type NexusCloudConnector,
+} from "./nexus-cloud-connector.js";
+import { nexusCloudConnectorEnrollmentStatus } from "./nexus-cloud-connector-enrollment.js";
 import { pollGitHubBotCloudSetupEvents } from "./chat-github-cloud-ingress.js";
 
 /** Loopback aliases are equivalent locally, but Cloud requires the approved exact origin. */
@@ -72,7 +72,7 @@ export function githubChatWizardService(
   options: {
     origin: () => string | null;
     fetch?: typeof fetch;
-    connector?: () => PaperclipCloudConnector | null;
+    connector?: () => NexusCloudConnector | null;
     startDirect: (
       endpointId: string,
       userId: string,
@@ -125,9 +125,9 @@ export function githubChatWizardService(
   const connector =
     options.connector ??
     (() => {
-      const config = paperclipCloudConnectorConfigFromEnv();
+      const config = nexusCloudConnectorConfigFromEnv();
       return config
-        ? createPaperclipCloudConnector({ config, request: fetchImpl })
+        ? createNexusCloudConnector({ config, request: fetchImpl })
         : null;
     });
   const pending = new Map<string, Promise<GitHubAppWizardState>>();
@@ -200,7 +200,7 @@ export function githubChatWizardService(
     return `${options.origin()}/${company!.prefix}/apps/chat/connect?provider=github&purpose=chat&resume=${bot.id}`;
   }
   function origin() {
-    const enrollment = paperclipCloudConnectorEnrollmentStatus();
+    const enrollment = nexusCloudConnectorEnrollmentStatus();
     const value = githubWizardBrowserOrigin(
       options.origin(),
       enrollment.status === "active" ? enrollment.origins : [],
@@ -270,12 +270,12 @@ export function githubChatWizardService(
         endpointId: id,
         state: "enrollment",
         message:
-          "Use Paperclip Cloud to receive GitHub events for this local instance.",
+          "Use Nexus Cloud to receive GitHub events for this local instance.",
       } satisfies GitHubAppWizardState;
     }
     if (!(await cloud.githubAppsAvailable()))
       throw conflict(
-        "GitHub App setup is not enabled on your Paperclip Cloud connector yet.",
+        "GitHub App setup is not enabled on your Nexus Cloud connector yet.",
       );
     const trustedOrigin = origin();
     const session = await db.transaction(async (tx) => {
@@ -330,7 +330,7 @@ export function githubChatWizardService(
           endpointId: id,
           registrationId: created!.id,
           ownerType: input.ownerType,
-          transport: "paperclip_cloud",
+          transport: "nexus_cloud",
         },
       });
       return created!;
@@ -421,7 +421,7 @@ export function githubChatWizardService(
   ) {
     const cloud = connector();
     if (!cloud || !session.handoff)
-      throw conflict("Restore Paperclip Cloud enrollment");
+      throw conflict("Restore Nexus Cloud enrollment");
     const material = await cloud.claimGitHubApp({
       subject: session.userId,
       companyId: session.companyId,
@@ -520,7 +520,7 @@ export function githubChatWizardService(
     await managementContext?.reauthorize();
     const bot = await endpoint(id, userId);
     const cloud = connector();
-    if (!cloud) throw conflict("Restore Paperclip Cloud enrollment before continuing");
+    if (!cloud) throw conflict("Restore Nexus Cloud enrollment before continuing");
     const trustedOrigin = origin();
     const created = await db.transaction(async (tx) => {
       const [locked] = await tx.select().from(chatEndpoints)
@@ -608,7 +608,7 @@ export function githubChatWizardService(
       throw forbidden("The configuring member must recover this registration");
     if (!cloud)
       throw conflict(
-        "Restore Paperclip Cloud enrollment before reconnecting this App",
+        "Restore Nexus Cloud enrollment before reconnecting this App",
       );
     const binding = { subject: userId, companyId: bot.companyId };
     const state = await cloud.githubApp({
@@ -733,7 +733,7 @@ export function githubChatWizardService(
           endpointId: id,
           state: "enrollment",
           message:
-            "Restore this instance's Paperclip Cloud enrollment to resume.",
+            "Restore this instance's Nexus Cloud enrollment to resume.",
         };
       const [connection] = await db
         .select({ refs: toolConnections.credentialSecretRefs })
@@ -993,7 +993,7 @@ export function githubChatWizardService(
         .where(
           and(
             eq(chatIdentityLinks.companyId, bot.companyId),
-            eq(chatIdentityLinks.paperclipUserId, userId),
+            eq(chatIdentityLinks.nexusUserId, userId),
             eq(chatIdentityLinks.status, "linked"),
             eq(chatExternalPrincipals.provider, "github"),
           ),
@@ -1050,7 +1050,7 @@ export function githubChatWizardService(
         and(
           eq(chatIdentityLinks.companyId, bot.companyId),
           eq(chatIdentityLinks.endpointId, bot.id),
-          eq(chatIdentityLinks.paperclipUserId, userId),
+          eq(chatIdentityLinks.nexusUserId, userId),
           eq(chatIdentityLinks.status, "linked"),
         ),
       )
@@ -1187,7 +1187,7 @@ export function githubChatWizardService(
     const challenge = createHash("sha256").update(verifier).digest("base64url");
     if (session.handoff?.cloudId) {
       const cloud = connector();
-      if (!cloud) throw conflict("Restore Paperclip Cloud enrollment");
+      if (!cloud) throw conflict("Restore Nexus Cloud enrollment");
       const result = await cloud.githubApp({
         subject: userId,
         companyId: bot.companyId,
@@ -1392,7 +1392,7 @@ export function githubChatWizardService(
       throw forbidden("GitHub return did not match this instance");
     const managementContext = await authorizeBrowserReturn(session, actor, session.handoff.identityStateHash === hash(state));
     const cloud = connector();
-    if (!cloud) throw conflict("Restore Paperclip Cloud enrollment");
+    if (!cloud) throw conflict("Restore Nexus Cloud enrollment");
     const opened = await cloud.claimGitHubApp({
       subject: session.userId,
       companyId: session.companyId,

@@ -21,13 +21,13 @@ import {
   statusCards,
   statusCardUpdates,
   subscribeDatabaseWork,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   defaultStatusCardRefreshPolicy,
   LOW_TRUST_REVIEW_PRESET,
   STATUS_CARD_AGENT_MAX_CARDS,
   STATUS_CARD_AGENT_MAX_INTEREST_PROMPT_LENGTH,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { errorHandler } from "../middleware/index.js";
 import { statusCardRoutes } from "../routes/status-cards.js";
 import { withBuiltInAgentMarker } from "../lib/built-in-agent-metadata.js";
@@ -41,7 +41,7 @@ import {
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
 
-const externalDatabaseUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_STATUS_CARDS_TEST_DATABASE_URL");
+const externalDatabaseUrl = resolveExternalTestDatabaseUrl("NEXUS_STATUS_CARDS_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalDatabaseUrl ? { supported: true } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -84,7 +84,7 @@ describeEmbeddedPostgres("status card routes", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    if (!externalDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("paperclip-status-cards-");
+    if (!externalDatabaseUrl) tempDb = await startEmbeddedPostgresTestDatabase("nexus-status-cards-");
     db = createDb(externalDatabaseUrl ?? tempDb!.connectionString, { maxConnections: 6 });
   }, 20_000);
 

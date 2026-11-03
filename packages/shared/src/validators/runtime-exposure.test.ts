@@ -50,9 +50,9 @@ describe("runtimeExposureConfigSchema", () => {
 
 describe("readRuntimeExposureIntent", () => {
   it("treats a legacy expose block with no exposure fields as unset", () => {
-    // The pre-feature Paperclip App template shape: an `expose` block that only
+    // The pre-feature Nexus App template shape: an `expose` block that only
     // describes the backend URL. This must be defaultable, not opted out.
-    expect(readRuntimeExposureIntent({ urlTemplate: "http://paperclip-dev:{{port}}" })).toBe("unset");
+    expect(readRuntimeExposureIntent({ urlTemplate: "http://nexus-dev:{{port}}" })).toBe("unset");
     expect(readRuntimeExposureIntent(undefined)).toBe("unset");
     expect(readRuntimeExposureIntent(null)).toBe("unset");
     expect(readRuntimeExposureIntent({})).toBe("unset");
@@ -79,7 +79,7 @@ describe("readRuntimeExposureIntent", () => {
 describe("resolveDeclaredRuntimeExposureConfig", () => {
   it("returns null unless the block explicitly opts in", () => {
     expect(resolveDeclaredRuntimeExposureConfig(undefined)).toBeNull();
-    expect(resolveDeclaredRuntimeExposureConfig({ urlTemplate: "http://paperclip-dev:{{port}}" })).toBeNull();
+    expect(resolveDeclaredRuntimeExposureConfig({ urlTemplate: "http://nexus-dev:{{port}}" })).toBeNull();
     expect(resolveDeclaredRuntimeExposureConfig({ tailscaleHttps: false })).toBeNull();
   });
 
@@ -104,8 +104,8 @@ describe("resolveDeclaredRuntimeExposureConfig", () => {
 
   it("honors an explicit sub-field override", () => {
     expect(
-      resolveDeclaredRuntimeExposureConfig({ type: "tailscale_https", includePaperclipViteHmr: false }),
-    ).toEqual({ ...DEFAULT_TAILSCALE_HTTPS_EXPOSURE, includePaperclipViteHmr: false });
+      resolveDeclaredRuntimeExposureConfig({ type: "tailscale_https", includeNexusViteHmr: false }),
+    ).toEqual({ ...DEFAULT_TAILSCALE_HTTPS_EXPOSURE, includeNexusViteHmr: false });
   });
 
   it("still rejects smuggled fields and invalid sub-field values", () => {

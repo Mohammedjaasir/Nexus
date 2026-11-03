@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { resolveGitHubApiCredential, type GitHubApiCredential } from "./git-credentials.js";
 import { projectGitAuthorizationService } from "./project-git-authorization.js";
 import type { GitHubPullRequestReference } from "./github-pull-request-merge.js";

@@ -53,25 +53,25 @@ describe("Runner workspace bridge", () => {
 
   it("excludes instance state from workspace reads, writes, listings and upload reads", async () => {
     const directory = await root();
-    await mkdir(join(directory, ".paperclip"));
-    await writeFile(join(directory, ".paperclip", ".env"), "SYNTHETIC_INSTANCE_SECRET");
-    await mkdir(join(directory, "nested", ".PaPeRcLiP"), { recursive: true });
-    for (const path of [".paperclip/.env", "nested/.PaPeRcLiP/config.json"]) {
+    await mkdir(join(directory, ".nexus"));
+    await writeFile(join(directory, ".nexus", ".env"), "SYNTHETIC_INSTANCE_SECRET");
+    await mkdir(join(directory, "nested", ".NeXuS"), { recursive: true });
+    for (const path of [".nexus/.env", "nested/.NeXuS/config.json"]) {
       await expect(executeWorkspaceTool(directory, "workspace_read", { path }, authorize)).rejects.toThrow("instance_state_denied");
       await expect(executeWorkspaceTool(directory, "workspace_write", { path, text: "overwrite", expectedSha256: null }, authorize)).rejects.toThrow("instance_state_denied");
       await expect(readWorkspaceUploadFile(directory, path)).rejects.toThrow("instance_state_denied");
     }
-    await expect(executeWorkspaceTool(directory, "workspace_list", { path: ".paperclip" }, authorize)).rejects.toThrow("instance_state_denied");
+    await expect(executeWorkspaceTool(directory, "workspace_list", { path: ".nexus" }, authorize)).rejects.toThrow("instance_state_denied");
     expect(await executeWorkspaceTool(directory, "workspace_list", { path: "" }, authorize)).toMatchObject({ entries: [{ name: "nested" }] });
-    expect(await readFile(join(directory, ".paperclip", ".env"), "utf8")).toBe("SYNTHETIC_INSTANCE_SECRET");
+    expect(await readFile(join(directory, ".nexus", ".env"), "utf8")).toBe("SYNTHETIC_INSTANCE_SECRET");
   });
 
   it.skipIf(!workspaceCommandSandboxAvailable())("denies command access to instance keys while preserving ordinary workspace work", async () => {
     const directory = join(await root(), "project.[safe]");
     await mkdir(directory);
-    await mkdir(join(directory, ".paperclip"));
-    await mkdir(join(directory, "nested", ".PaPeRcLiP"), { recursive: true });
-    const keys = [".paperclip/.env", "nested/.PaPeRcLiP/config.json"];
+    await mkdir(join(directory, ".nexus"));
+    await mkdir(join(directory, "nested", ".NeXuS"), { recursive: true });
+    const keys = [".nexus/.env", "nested/.NeXuS/config.json"];
     for (const key of keys) await writeFile(join(directory, key), "SYNTHETIC_INSTANCE_SECRET");
     for (const key of keys) {
       const read = await executeWorkspaceTool(directory, "workspace_run", { program: "/bin/cat", args: [key] }, authorize) as any;
@@ -150,7 +150,7 @@ if sys.argv[1] != "completion":
   it.skipIf(!workspaceCommandSandboxAvailable())("runs useful commands but denies files outside the workspace and injected credentials", async () => {
     const directory = await root(), outside = await root();
     const secret = join(outside, "private.txt"); await writeFile(secret, "PRIVATE");
-    const success = await executeWorkspaceTool(directory, "workspace_run", { program: "/bin/sh", args: ["-c", "printf hello > output.txt; printf '%s' \"${PAPERCLIP_SECRETS_MASTER_KEY-unset}\"" ] }, authorize);
+    const success = await executeWorkspaceTool(directory, "workspace_run", { program: "/bin/sh", args: ["-c", "printf hello > output.txt; printf '%s' \"${NEXUS_SECRETS_MASTER_KEY-unset}\"" ] }, authorize);
     expect(success).toMatchObject({ exitCode: 0, output: "unset", stopped: null });
     expect(await readFile(join(directory, "output.txt"), "utf8")).toBe("hello");
     const read = await executeWorkspaceTool(directory, "workspace_run", { program: "/bin/cat", args: [secret] }, authorize);

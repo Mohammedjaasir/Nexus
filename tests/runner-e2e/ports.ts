@@ -1,5 +1,5 @@
 import { createServer } from "node:net";
-import { derivePaperclipViteHmrPort } from "../../packages/shared/src/runtime-exposure/ports.js";
+import { deriveNexusViteHmrPort } from "../../packages/shared/src/runtime-exposure/ports.js";
 
 export const RUNNER_E2E_EMBEDDED_POSTGRES_PORT = 54_329;
 
@@ -40,7 +40,7 @@ export function runnerE2EServerPortConflictsWithDatabase(
 ) {
   return (
     serverPort === databasePort ||
-    derivePaperclipViteHmrPort(serverPort) === databasePort
+    deriveNexusViteHmrPort(serverPort) === databasePort
   );
 }
 
@@ -72,7 +72,7 @@ export async function reserveRunnerE2EServerPort(
       ) {
         continue;
       }
-      const hmrPort = derivePaperclipViteHmrPort(serverReservation.port);
+      const hmrPort = deriveNexusViteHmrPort(serverReservation.port);
       try {
         hmrReservation = await openPort(hmrPort);
       } catch (error) {
@@ -87,7 +87,7 @@ export async function reserveRunnerE2EServerPort(
   }
 
   throw new Error(
-    `Failed to reserve a conflict-free Paperclip/Vite port pair after ${maxAttempts} attempts`,
+    `Failed to reserve a conflict-free Nexus/Vite port pair after ${maxAttempts} attempts`,
   );
 }
 

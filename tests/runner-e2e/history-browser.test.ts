@@ -11,7 +11,7 @@ import type { RunnerE2EResult } from "./types.js";
 const temporary: string[] = [];
 afterEach(async () => { await Promise.all(temporary.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
 function fixture() {
-  const result: RunnerE2EResult = { schema: "paperclip.runner-e2e.result/v2", executionId: "app-basics.browser.daytona.create",
+  const result: RunnerE2EResult = { schema: "nexus.runner-e2e.result/v2", executionId: "app-basics.browser.daytona.create",
     suiteId: "app-basics", suiteDefinitionHash: "recorded-definition", profileId: "browser", environmentId: "daytona", caseId: "create",
     provider: null, model: null, runtimeMode: "none", targetUrl: "https://qa.test.paperclip.app/", attempt: 1,
     status: "passed", cleanup: "passed", startedAt: "2026-10-27T12:00:00Z", finishedAt: "2026-10-27T12:00:01Z", durationMs: 1000 };

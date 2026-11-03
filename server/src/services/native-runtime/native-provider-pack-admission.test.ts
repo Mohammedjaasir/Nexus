@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { agents, companies, createDb, heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@paperclipai/db";
-import type { NativeSession } from "../../vendor/paperclip-runner/index.js";
+import { agents, companies, createDb, heartbeatRuns, issues, nativeRunFinalizations, type Db } from "@nexusai/db";
+import type { NativeSession } from "../../vendor/nexus-runner/index.js";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { canonicalProviderPackJson, type ProviderPackIdentity } from "./remote-provider-pack-verification.js";
 import { admittedNativeProviderPack, nativeProviderPackAdmissionPending, recordNativeProviderPackAdmission,
@@ -14,7 +14,7 @@ function manifest(revision = "a".repeat(40)): ProviderPackIdentity {
   const payload = { runnerSourceRevision: revision, pins: { opencode: "1.18.34" },
     target: { platform: "linux", architecture: "x64" },
     artifacts: { nodeCommand: artifact, opencodeCommand: artifact, opencodeProxy: artifact } };
-  return { schema: "paperclip-runner/remote-provider-pack/v1", payload, digest: hash(canonicalProviderPackJson(payload)) };
+  return { schema: "nexus-runner/remote-provider-pack/v1", payload, digest: hash(canonicalProviderPackJson(payload)) };
 }
 const initial = { companyId: "company", agentId: "agent", issueId: "issue", runId: "source-run", sessionId: "session" };
 function sessionFixture(identity = initial) {

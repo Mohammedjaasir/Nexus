@@ -14,7 +14,7 @@ The remaining route declarations continue to cover provider-specific model refre
 
 The historical serialized weight is 24,906 ms and includes isolated process startup, imports, tests, and teardown. It is not a measured runtime reduction. The change removes one test declaration and about 13 test lines, including its separator. It removes no production lines, and no CI time reduction is claimed.
 
-Focused exact-head validation passed: `pnpm exec vitest run --project @paperclipai/server server/src/__tests__/agent-adapter-validation-routes.test.ts` reported **44/44 passing** in 29.57 seconds with local bind access. `git diff --check` is also required before commit. Relevant adapter registry/environment siblings remain to be validated if later changes touch their behavior.
+Focused exact-head validation passed: `pnpm exec vitest run --project @nexusai/server server/src/__tests__/agent-adapter-validation-routes.test.ts` reported **44/44 passing** in 29.57 seconds with local bind access. `git diff --check` is also required before commit. Relevant adapter registry/environment siblings remain to be validated if later changes touch their behavior.
 
 ## Integration with current master
 

@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
-import type { Db } from "@paperclipai/db";
-import { completionContracts, heartbeatRuns } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
+import { completionContracts, heartbeatRuns } from "@nexusai/db";
 
 import { ensureNativeCompletionContract } from "./completion-contracts.js";
 import { NATIVE_RUNTIME_RESOLVER_VERSION } from "./runtime-mode.js";
@@ -129,10 +129,10 @@ export async function prepareNativeHeartbeatRun(input: {
         runtimeMode: "native",
         runtimeModeResolverVersion:
           locked.runtimeModeResolverVersion ?? NATIVE_RUNTIME_RESOLVER_VERSION,
-        runtimeModeReason: locked.runtimeModeReason ?? "explicit_paperclip_runner",
+        runtimeModeReason: locked.runtimeModeReason ?? "explicit_nexus_runner",
         runtimeModeResolvedAt: locked.runtimeModeResolvedAt ?? new Date(),
         runnerProfileJson: {
-          schema: "paperclip.runner.profile.v1",
+          schema: "nexus.runner.profile.v1",
           provider: "codex",
           turnId,
           itemId,

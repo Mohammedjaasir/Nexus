@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { agents, authUsers, companies, companyMemberships, createDb, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS,
-  environmentLeases, environments, executionWorkspaces, heartbeatRuns, issues, type Db } from "@paperclipai/db";
-import { readRemoteWorkspaceAuthority } from "@paperclipai/shared";
+  environmentLeases, environments, executionWorkspaces, heartbeatRuns, issues, type Db } from "@nexusai/db";
+import { readRemoteWorkspaceAuthority } from "@nexusai/shared";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { heartbeatService } from "../services/heartbeat.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
@@ -24,11 +24,11 @@ describe.skipIf(!support.supported)("inherited remote workspace heartbeat wait",
     home = await mkdtemp(join(tmpdir(), "heartbeat-remote-workspace-busy-"));
     database = await startEmbeddedPostgresTestDatabase("heartbeat-remote-workspace-busy-");
     db = createDb(database.connectionString);
-    vi.stubEnv("PAPERCLIP_HOME", home);
+    vi.stubEnv("NEXUS_HOME", home);
     vi.stubEnv("DATABASE_URL", database.connectionString);
-    vi.stubEnv("PAPERCLIP_SECRETS_MASTER_KEY", "71".repeat(32));
-    vi.stubEnv("PAPERCLIP_STORAGE_PROVIDER", "s3");
-    vi.stubEnv("PAPERCLIP_STORAGE_S3_BUCKET", "unused-reservation-fixture");
+    vi.stubEnv("NEXUS_SECRETS_MASTER_KEY", "71".repeat(32));
+    vi.stubEnv("NEXUS_STORAGE_PROVIDER", "s3");
+    vi.stubEnv("NEXUS_STORAGE_S3_BUCKET", "unused-reservation-fixture");
     await instanceSettingsService(db).updateExperimental({ enableIsolatedWorkspaces: true });
     heartbeat = heartbeatService(db);
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
@@ -56,13 +56,13 @@ describe.skipIf(!support.supported)("inherited remote workspace heartbeat wait",
     const [environment] = await db.insert(environments).values({ name: `Remote wait ${randomUUID()}`,
       driver: "sandbox", status: "active", config: { provider: "daytona" } }).returning();
     const [agent] = await db.insert(agents).values({ companyId: company.id, name: "Native worker", status: "idle",
-      adapterType: "paperclip_runner", defaultEnvironmentId: environment.id,
+      adapterType: "nexus_runner", defaultEnvironmentId: environment.id,
       adapterConfig: { provider: "codex", model: "gpt-6.1-sol" }, runtimeConfig: { heartbeat: { maxConcurrentRuns: 2 } } }).returning();
     const [parent] = await db.insert(issues).values({ companyId: company.id, title: "Running coordinator",
       status: "in_progress", assigneeAgentId: agent.id, responsibleUserId: userId }).returning();
     const [writer] = await db.insert(heartbeatRuns).values({ companyId: company.id, agentId: agent.id,
       nativeIssueId: parent.id, runtimeMode: "native", status: "running", startedAt: new Date(), lastOutputAt: new Date() }).returning();
-    const authority = { schema: "paperclip.remote-workspace.v1" as const, epoch: 3, snapshotId: randomUUID(),
+    const authority = { schema: "nexus.remote-workspace.v1" as const, epoch: 3, snapshotId: randomUUID(),
       source: { kind: "empty" as const }, location: null, writerRunId: writer.id, dirty: true };
     const [workspace] = await db.insert(executionWorkspaces).values({ companyId: company.id, sourceIssueId: parent.id,
       name: "Inherited remote workspace", mode, strategyType: "project_primary", providerType: "cloud_sandbox",

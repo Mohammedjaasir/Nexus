@@ -1,4 +1,4 @@
-import { subscribeDatabaseWork } from "@paperclipai/db";
+import { subscribeDatabaseWork } from "@nexusai/db";
 import { DELIVERY_QUEUES } from "../../../services/delivery-work-notifications.js";
 import { resolveExternalTestDatabaseUrl } from "../../../__tests__/helpers/external-test-database.js";
 import { createAgentLifecycle as createLifecycleCommands } from "../index.js";
@@ -19,7 +19,7 @@ import { errorHandler } from "../../../middleware/error-handler.js";
 import { createLifecycleDriver } from "../../../services/agent-lifecycle-driver.js";
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
-import { agents, approvals, projects, issues, heartbeatRuns, nativeRunFinalizations, budgetPolicies, environmentLeases, environments, agentApiKeys, activityLog, agentConfigRevisions, userCompanyPreferences, companies, companyMemberships, principalPermissionGrants, plugins, pluginCompanySettings, applyPendingMigrations, closeRegisteredClients, createDb, type Db } from "@paperclipai/db";
+import { agents, approvals, projects, issues, heartbeatRuns, nativeRunFinalizations, budgetPolicies, environmentLeases, environments, agentApiKeys, activityLog, agentConfigRevisions, userCompanyPreferences, companies, companyMemberships, principalPermissionGrants, plugins, pluginCompanySettings, applyPendingMigrations, closeRegisteredClients, createDb, type Db } from "@nexusai/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "../../../__tests__/helpers/embedded-postgres.js";
 import { createAgentLifecycle, configureAgentLifecycle, startAgentLifecycle } from "../../../services/agent-lifecycle.js";
@@ -32,7 +32,7 @@ import { agentConfigurationRevision } from "../../../lib/agent-configuration-rev
 
 const createLifecycleStore = (db: Db) => createStore(db, createAgentLifecycleEffects());
 
-const external = resolveExternalTestDatabaseUrl("PAPERCLIP_AGENT_LIFECYCLE_TEST_DATABASE_URL");
+const external = resolveExternalTestDatabaseUrl("NEXUS_AGENT_LIFECYCLE_TEST_DATABASE_URL");
 const support = external ? { supported: true } : await getEmbeddedPostgresTestSupport();
 (support.supported ? describe : describe.skip)("agent lifecycle commands", () => {
   let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;
@@ -41,7 +41,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
   const workers: ReturnType<typeof configureAgentLifecycle>[] = [];
   beforeAll(async () => {
     if (external) { await applyPendingMigrations(external); db = createDb(external, { maxConnections: 6 }); }
-    else { database = await startEmbeddedPostgresTestDatabase("paperclip-agent-lifecycle-"); db = createDb(database.connectionString); }
+    else { database = await startEmbeddedPostgresTestDatabase("nexus-agent-lifecycle-"); db = createDb(database.connectionString); }
   }, 90_000);
   afterAll(async () => {
     for (const worker of workers) await worker.stop();
@@ -69,7 +69,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const adapterConfig = provider === "claude" ? { provider: "acpx", acpxAgent: "claude", model: "claude-sonnet-4-6", lifecycleMode: "per_turn" }
       : { provider: "codex", model: "gpt-5.6-luna", lifecycleMode: "per_turn" };
     const lifecycle = createAgentLifecycle(db);
-    const input = { name: "Warm hire", adapterType: "paperclip_runner", adapterConfig, defaultEnvironmentId: environmentId };
+    const input = { name: "Warm hire", adapterType: "nexus_runner", adapterConfig, defaultEnvironmentId: environmentId };
     const draft = path === "setup" ? await lifecycle.requestHire(companyId, input, { setupOnly: true }) : null;
     const hired = await lifecycle.requestHire(companyId, { ...input, ...(path === "approval" ? { status: "pending_approval" } : {}) }, draft ? { setupAgentId: draft.id } : undefined);
     if (path === "approval") await lifecycle.approveHire(hired.id, "board");
@@ -303,20 +303,20 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     app.use("/api", agentRoutes(db)); app.use(errorHandler);
     const setupId = randomUUID();
     const created = await request(app).post(`/api/companies/${companyId}/agents`).send({ setupId, name: "Native saved setup",
-      adapterType: "paperclip_runner", adapterConfig: { provider: "codex", env: { SETUP_LABEL: { type: "plain", value: "saved-native-value" } } },
+      adapterType: "nexus_runner", adapterConfig: { provider: "codex", env: { SETUP_LABEL: { type: "plain", value: "saved-native-value" } } },
     });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     expect(created.body.adapterConfig.env.SETUP_LABEL).toEqual({ type: "plain", value: "***REDACTED***" });
-    const probe = vi.spyOn(requireServerAdapter("paperclip_runner"), "testEnvironment").mockResolvedValue({ adapterType: "paperclip_runner", status: "pass", checks: [], testedAt: new Date().toISOString() });
+    const probe = vi.spyOn(requireServerAdapter("nexus_runner"), "testEnvironment").mockResolvedValue({ adapterType: "nexus_runner", status: "pass", checks: [], testedAt: new Date().toISOString() });
     try {
       const tested = await request(app).post(`/api/companies/${companyId}/adapters/codex_local/test-environment`).send({
-        agentId: setupId, runner: "paperclip", adapterConfig: created.body.adapterConfig,
+        agentId: setupId, runner: "nexus", adapterConfig: created.body.adapterConfig,
       });
       expect(tested.status, JSON.stringify(tested.body)).toBe(200);
       expect(probe).toHaveBeenCalledWith(expect.objectContaining({ config: expect.objectContaining({ env: { SETUP_LABEL: "saved-native-value" } }) }));
     } finally { probe.mockRestore(); }
     const finished = await request(app).post(`/api/companies/${companyId}/agent-hires`).send({ setupAgentId: setupId, name: "Native saved setup",
-      adapterType: "codex_local", runner: "paperclip", adapterConfig: created.body.adapterConfig,
+      adapterType: "codex_local", runner: "nexus", adapterConfig: created.body.adapterConfig,
     });
     expect(finished.status, JSON.stringify(finished.body)).toBe(201);
     expect((await current(setupId)).adapterConfig.env).toEqual({ SETUP_LABEL: { type: "plain", value: "saved-native-value" } });
@@ -328,13 +328,13 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     app.use((req, _res, next) => { req.actor = { type: "board", source: "local_implicit", userId: "board", companyIds: [companyId] }; next(); });
     app.use("/api", agentRoutes(db)); app.use(errorHandler);
     const setupId = randomUUID();
-    const body = { name: "Copilot setup", adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "copilot" } };
+    const body = { name: "Copilot setup", adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "copilot" } };
     const created = await request(app).post(`/api/companies/${companyId}/agents`).send({ ...body, setupId });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     expect(created.body).toMatchObject({ id: setupId, pauseReason: "setup", lifecycleState: "paused" });
     const finished = await request(app).post(`/api/companies/${companyId}/agent-hires`).send({ ...body, setupAgentId: setupId });
     expect(finished.status, JSON.stringify(finished.body)).toBe(422);
-    expect(finished.body.details?.code ?? finished.body.code).toBe("paperclip_runner_acpx_model_required");
+    expect(finished.body.details?.code ?? finished.body.code).toBe("nexus_runner_acpx_model_required");
     expect((await current(setupId)).lifecycleHolds).toContain("setup");
     await request(app).post(`/api/companies/${companyId}/agents`).send(body).expect(422);
   });
@@ -347,11 +347,11 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     const setupId = randomUUID();
     await request(app).post(`/api/companies/${companyId}/agents`).send({ setupId, name: "Name-only Copilot", adapterType: "process", metadata: { setupAdapterPending: true } }).expect(201);
     const config = { provider: "acpx", acpxAgent: "copilot" };
-    const saved = await request(app).patch(`/api/agents/${setupId}`).send({ adapterType: "paperclip_runner", adapterConfig: config, metadata: { setupAdapterPending: false } });
+    const saved = await request(app).patch(`/api/agents/${setupId}`).send({ adapterType: "nexus_runner", adapterConfig: config, metadata: { setupAdapterPending: false } });
     expect(saved.status, JSON.stringify(saved.body)).toBe(200);
     expect(saved.body).toMatchObject({ id: setupId, pauseReason: "setup", adapterConfig: config });
     expect(saved.body.runtimeConfig.aiConnection).toBeUndefined();
-    const finished = await request(app).post(`/api/companies/${companyId}/agent-hires`).send({ setupAgentId: setupId, name: "Name-only Copilot", adapterType: "paperclip_runner", adapterConfig: { ...config, model: "gpt-5.6-luna" } });
+    const finished = await request(app).post(`/api/companies/${companyId}/agent-hires`).send({ setupAgentId: setupId, name: "Name-only Copilot", adapterType: "nexus_runner", adapterConfig: { ...config, model: "gpt-5.6-luna" } });
     expect(finished.status, JSON.stringify(finished.body)).toBe(422);
     expect(finished.body.error).toMatch(/connection|account/i);
     expect((await current(setupId)).lifecycleHolds).toContain("setup");
@@ -850,8 +850,8 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
       manifestJson: { agentLifecycle: true, capabilities: ["agents.lifecycle.manage"] } as never });
     let resourcesReady = false;
     let resourcesRemoved = false;
-    const requests: import("@paperclipai/shared").AgentLifecycleRequest[] = [];
-    const call = async (id: string, method: string, input: import("@paperclipai/shared").AgentLifecycleRequest) => {
+    const requests: import("@nexusai/shared").AgentLifecycleRequest[] = [];
+    const call = async (id: string, method: string, input: import("@nexusai/shared").AgentLifecycleRequest) => {
       expect(id).toBe(pluginId);
       expect(method).toBe("agentLifecycle");
       expect(input.companyId).toBe(companyId);

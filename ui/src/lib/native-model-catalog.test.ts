@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@nexusai/shared";
 import { nativeTaskModelCatalogOptions } from "./native-model-catalog";
 import { isNewAgentAdapterAllowed } from "./new-agent-adapters";
 
-const agent = { id: "google-agent", adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "antigravity" } } as unknown as Agent;
+const agent = { id: "google-agent", adapterType: "nexus_runner", adapterConfig: { provider: "acpx", acpxAgent: "antigravity" } } as unknown as Agent;
 describe("Antigravity model catalog scope", () => {
   it("binds discovery to the assignee and selected Google account", () => {
     const binding = { provider: "google", method: "subscription", mode: "responsible_user" } as const;
@@ -19,6 +19,6 @@ describe("Antigravity model catalog scope", () => {
     expect(nativeTaskModelCatalogOptions({ ...agent, adapterConfig: { provider: "acpx", acpxAgent: "claude" } })).toBeUndefined();
   });
   it("keeps pending Antigravity unavailable even when experimental Runner is enabled", () => {
-    expect(isNewAgentAdapterAllowed("paperclip_runner", { cloud: false, nativeRunnerEnabled: true, runnerProvider: "antigravity" })).toBe(false);
+    expect(isNewAgentAdapterAllowed("nexus_runner", { cloud: false, nativeRunnerEnabled: true, runnerProvider: "antigravity" })).toBe(false);
   });
 });

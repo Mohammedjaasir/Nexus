@@ -23,7 +23,7 @@ let db: Db | undefined, temporary: Awaited<ReturnType<typeof startEmbeddedPostgr
 const companyIds: string[] = [];
 let benchmarkFailure: { error: unknown } | undefined;
 try {
-  const externalUrl = resolveExternalTestDatabaseUrl("PAPERCLIP_CHAT_LINEAGE_BENCHMARK_DATABASE_URL");
+  const externalUrl = resolveExternalTestDatabaseUrl("NEXUS_CHAT_LINEAGE_BENCHMARK_DATABASE_URL");
   if (externalUrl) await applyPendingMigrations(externalUrl);
   else temporary = await startEmbeddedPostgresTestDatabase("chat-lineage-benchmark-");
   db = createDb(externalUrl ?? temporary!.connectionString);

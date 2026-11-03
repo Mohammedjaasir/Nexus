@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { paperclipQuestionSetPayloadSchema } from "./validators/issue.js";
+import { nexusQuestionSetPayloadSchema } from "./validators/issue.js";
 
 export const MUSE_PROTOCOL_VERSION = 1 as const;
 export const MUSE_ASSET_VERSION = 9 as const;
@@ -57,7 +57,7 @@ export const MUSE_PUBLIC_ROUTES = [
 
 export const MUSE_RESOURCE_PATH = "/api/muse/v1" as const;
 export const MUSE_OAUTH_PATH = "/api/muse/v1/oauth" as const;
-export const MUSE_OAUTH_SCOPES = ["paperclip:agent", "offline_access"] as const;
+export const MUSE_OAUTH_SCOPES = ["nexus:agent", "offline_access"] as const;
 /** Dedicated machine identity, never a board actor or Dot grant. */
 interface MuseSubjectIdentity {
   provider: "muse";
@@ -83,7 +83,7 @@ const nativeRequestId = z.string().min(1).max(160).refine(
   "Native request IDs must start with an ASCII letter or digit and contain only ASCII letters, digits, '.', '_', ':', or '-'.",
 );
 const utf8Encoder = new TextEncoder();
-const nativeQuestionSet = paperclipQuestionSetPayloadSchema.refine(
+const nativeQuestionSet = nexusQuestionSetPayloadSchema.refine(
   value => utf8Encoder.encode(JSON.stringify(value)).byteLength <= 196 * 1024,
   "Question sets must not exceed Runner's 196 KiB durable UTF-8 byte bound.",
 ).refine(

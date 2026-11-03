@@ -248,7 +248,7 @@ If you only have the club name, audience, and tone, that is enough to begin; I c
     const nativePayload: AskUserQuestionsPayload = {
       ...payload,
       questionSet: {
-        schema: "paperclip.question_set.v1",
+        schema: "nexus.question_set.v1",
         submitLabel: "Continue",
         questions: [
           {
@@ -451,7 +451,7 @@ describe("reassignment outcome oracle", () => {
   const evidence = () => ({ readyId: "ready", queuedId: "queued", teammateId: "riley",
     tasks: [{ id: "ready", companyId: "co", title: "Ready", status: "done", assigneeAgentId: "riley" }, { id: "queued", companyId: "co", title: "Later", status: "backlog", assigneeAgentId: "riley" }],
     runs: [{ id: "successor", companyId: "co", agentId: "riley", status: "succeeded", runtimeMode: "native", contextSnapshot: { issueId: "ready" } }],
-    audit: [{ action: "issue.reassigned", details: { source: "paperclip_runner_protocol" } }], outputBody: "Launch CHECK123", marker: "CHECK123",
+    audit: [{ action: "issue.reassigned", details: { source: "nexus_runner_protocol" } }], outputBody: "Launch CHECK123", marker: "CHECK123",
   });
   it("accepts persisted ownership and exactly one successful successor", () => {
     expect(() => assertChatReassignment(evidence())).not.toThrow();
@@ -473,7 +473,7 @@ describe("backlog creation outcome oracle", () => {
     tasks: [{ id: "held", companyId: "co", title: "Later", status: "backlog", parentId: null, assigneeAgentId: "planner" }],
     runs: [] as ChatRun[], ownerId: "planner", marker: "PLAN123",
     plan: { body: "Three steps PLAN123", latestRevisionId: "revision-1", updatedAt: "2026-09-19T00:00:00Z" },
-    activity: [{ action: "issue.created", details: { status: "backlog", source: "paperclip_runner_protocol" } }],
+    activity: [{ action: "issue.created", details: { status: "backlog", source: "nexus_runner_protocol" } }],
   });
   it("accepts one planned backlog task with no execution", () => {
     expect(() => assertChatBacklogCreation(evidence())).not.toThrow();

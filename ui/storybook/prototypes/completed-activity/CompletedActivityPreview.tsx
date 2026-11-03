@@ -26,7 +26,7 @@ const read = tool(
 const command = tool(
   "command",
   "exec_command",
-  "pnpm --filter @paperclipai/ui typecheck",
+  "pnpm --filter @nexusai/ui typecheck",
   "completed",
   "Typecheck passed.",
 );

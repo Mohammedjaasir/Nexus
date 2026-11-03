@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { access, readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 
 const account = vi.hoisted(() => {
   const refs = [{ configPath: "ai.credential", secretId: "22222222-2222-4222-8222-222222222222", versionSelector: "latest" }];
@@ -39,7 +39,7 @@ describe("Antigravity private managed AI home", () => {
     }) }) } as unknown as Db;
     const input = {
       companyId: "44444444-4444-4444-8444-444444444444", agentId: "55555555-5555-4555-8555-555555555555", responsibleUserId: "alice",
-      adapterType: "paperclip_runner", binding: { provider: "google", method: "api_key", mode: "responsible_user" } as const,
+      adapterType: "nexus_runner", binding: { provider: "google", method: "api_key", mode: "responsible_user" } as const,
       config: { provider: "acpx", acpxAgent: "antigravity", model: "caller-exact-model", env: {
         GEMINI_API_KEY: "fixture-ambient-key", GOOGLE_API_KEY: "fixture-other-key", GEMINI_HOME: "/ambient/configured-home",
         GOOGLE_APPLICATION_CREDENTIALS: "/ambient/configured-credentials.json", GOOGLE_CLOUD_ACCESS_TOKEN: "fixture-oauth-token",

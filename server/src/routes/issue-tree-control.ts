@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import {
   issues as issueRows,
   type Db,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { getExecutionBlocker } from "../services/execution-blocker.js";
 import { ISSUE_TREE_RESUME_EXECUTABLE_STATUSES } from "../services/issue-tree-control.js";
@@ -13,7 +13,7 @@ import {
   isUuidLike,
   previewIssueTreeControlSchema,
   releaseIssueTreeHoldSchema,
-} from "@paperclipai/shared";
+} from "@nexusai/shared";
 import { validate } from "../middleware/validate.js";
 import {
   accessService,

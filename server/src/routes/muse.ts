@@ -1,7 +1,7 @@
 import express, { Router, type Request } from "express";
 import { z } from "zod";
-import type { Db } from "@paperclipai/db";
-import { MUSE_PUBLIC_ROUTES, MUSE_MAX_BODY_BYTES, MUSE_OAUTH_SCOPES, MUSE_RESOURCE_PATH, musePairSchema, museRefreshSchema, museCommandSchema, museQuerySchema, museCleanupSchema, museDetectorCleanupSchema, museStopBoundarySchema, museDetectorCleanupAttestationSchema } from "@paperclipai/shared";
+import type { Db } from "@nexusai/db";
+import { MUSE_PUBLIC_ROUTES, MUSE_MAX_BODY_BYTES, MUSE_OAUTH_SCOPES, MUSE_RESOURCE_PATH, musePairSchema, museRefreshSchema, museCommandSchema, museQuerySchema, museCleanupSchema, museDetectorCleanupSchema, museStopBoundarySchema, museDetectorCleanupAttestationSchema } from "@nexusai/shared";
 import { museExternalAgents } from "../modules/external-agents/index.js";
 import { museIdentity } from "../services/muse-identity.js";
 import { museOAuth } from "../services/muse-oauth.js";
@@ -68,7 +68,7 @@ export function museTransportRoutes(db:Db,publicOrigin?:string,options:{allowLeg
       }
       if(route.path.endsWith("/pair")) {if(!options.allowLegacyCredentials)throw notFound("Legacy test pairing is unavailable.");const value=musePairSchema.parse(req.body);res.json(await identity.pair(value.ticket,value.clientVersion));return;}
       if(route.path.endsWith("/refresh")) {if(!options.allowLegacyCredentials)throw notFound("Legacy test refresh is unavailable.");const value=museRefreshSchema.parse(req.body);res.json(await identity.refresh(value.refreshToken));return;}
-      if(route.path.endsWith("/signal")) {const bindingId=z.uuid().parse(req.get("X-Paperclip-Muse-Binding"));res.json(await receiver.signal(bindingId,musePublicOrigin(publicOrigin)+MUSE_RESOURCE_PATH));return;}
+      if(route.path.endsWith("/signal")) {const bindingId=z.uuid().parse(req.get("X-Nexus-Muse-Binding"));res.json(await receiver.signal(bindingId,musePublicOrigin(publicOrigin)+MUSE_RESOURCE_PATH));return;}
       if(route.path.endsWith("/cleanup")) {const value=museCleanupSchema.parse(req.body);const subject=await authenticateWorker(req,"cleanup",true);res.json(await broker.cleanup(subject,value));return;}
       if(route.path.endsWith("/detector-cleanup")) {const value=museDetectorCleanupSchema.parse(req.body),subject=await authenticateWorker(req,"detector_cleanup");if(value.bindingId!==subject.bindingId||value.generation!==subject.generation)throw forbidden("Detector cleanup identity mismatch.");res.json(await broker.detectorCleanup(subject,"detectorRemoved" in value));return;}
       const query=route.path.endsWith("/queries")?museQuerySchema.safeParse(req.body):null;

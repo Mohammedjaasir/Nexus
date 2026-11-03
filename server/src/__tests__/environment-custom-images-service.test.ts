@@ -13,7 +13,7 @@ import {
   environmentCustomImageTemplates,
   environments,
   plugins,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import type { PluginWorkerManager } from "../services/plugin-worker-manager.js";
 import {
   environmentCustomImageService,
@@ -31,7 +31,7 @@ import {
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
 
-const externalTestDatabase = resolveExternalTestDatabaseUrl("PAPERCLIP_CUSTOM_IMAGE_TEST_DATABASE_URL");
+const externalTestDatabase = resolveExternalTestDatabaseUrl("NEXUS_CUSTOM_IMAGE_TEST_DATABASE_URL");
 const embeddedPostgresSupport = externalTestDatabase ? { supported: true, reason: undefined } : await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -43,7 +43,7 @@ if (!embeddedPostgresSupport.supported) {
 
 function pluginManifest() {
   return {
-    id: "paperclip.fake-sandbox-provider",
+    id: "nexus.fake-sandbox-provider",
     apiVersion: 1,
     version: "0.1.0",
     displayName: "Fake Sandbox Provider",
@@ -196,8 +196,8 @@ describeEmbeddedPostgres("environmentCustomImageService", () => {
       envVars: {},
     });
     await db.insert(plugins).values({
-      pluginKey: "paperclip.fake-sandbox-provider",
-      packageName: "paperclip-plugin-fake-sandbox",
+      pluginKey: "nexus.fake-sandbox-provider",
+      packageName: "nexus-plugin-fake-sandbox",
       version: "0.1.0",
       apiVersion: 1,
       categories: ["automation"],
@@ -1053,8 +1053,8 @@ describeEmbeddedPostgres("environmentCustomImageService reconciliation", () => {
       envVars: {},
     });
     await db.insert(plugins).values({
-      pluginKey: "paperclip.fake-sandbox-provider",
-      packageName: "paperclip-plugin-fake-sandbox",
+      pluginKey: "nexus.fake-sandbox-provider",
+      packageName: "nexus-plugin-fake-sandbox",
       version: "0.1.0",
       apiVersion: 1,
       categories: ["automation"],
@@ -1225,7 +1225,7 @@ describeEmbeddedPostgres("environmentCustomImageService reconciliation", () => {
 
 function secretPluginManifest() {
   return {
-    id: "paperclip.fake-secret-sandbox-provider",
+    id: "nexus.fake-secret-sandbox-provider",
     apiVersion: 1,
     version: "0.1.0",
     displayName: "Fake Secret Sandbox Provider",
@@ -1264,7 +1264,7 @@ function secretPluginManifest() {
 
 function invalidIdentityPluginManifest() {
   return {
-    id: "paperclip.fake-invalid-sandbox-provider",
+    id: "nexus.fake-invalid-sandbox-provider",
     apiVersion: 1,
     version: "0.1.0",
     displayName: "Fake Invalid Identity Sandbox Provider",
@@ -1292,7 +1292,7 @@ function invalidIdentityPluginManifest() {
 
 function prototypeKeyIdentityPluginManifest() {
   return {
-    id: "paperclip.fake-prototype-key-sandbox-provider",
+    id: "nexus.fake-prototype-key-sandbox-provider",
     apiVersion: 1,
     version: "0.1.0",
     displayName: "Fake Prototype Key Sandbox Provider",
@@ -1365,7 +1365,7 @@ describeEmbeddedPostgres("environmentCustomImageService relink", () => {
     });
     await db.insert(plugins).values({
       pluginKey: manifest.id,
-      packageName: `paperclip-plugin-${provider}`,
+      packageName: `nexus-plugin-${provider}`,
       version: "0.1.0",
       apiVersion: 1,
       categories: ["automation"],

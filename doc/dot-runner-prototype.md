@@ -2,11 +2,11 @@
 
 The reference prototype is now accompanied by an experimental Rust Runner
 provider, dedicated `/mcp/runner` agent connection and durable broker. See
-[OpenAI Dot with Paperclip Runner](openai-dot-runner.md) for setup and the
+[OpenAI Dot with Nexus Runner](openai-dot-runner.md) for setup and the
 current qualification limits. The transport proof below remains specific to
 this reference harness.
 
-Built 2026-10-02 on the public MCP foundation from `codex/paperclip-mcp-experimental-setting`
+Built 2026-10-02 on the public MCP foundation from `codex/nexus-mcp-experimental-setting`
 (commit `a88448f77`), merged into the fresh `codex/dot-events-prototype` worktree.
 
 This is a working **protocol prototype**, not a production-selectable Dot
@@ -36,7 +36,7 @@ Fresh-worktree preparation (use the repository's pinned pnpm version):
 
 ```sh
 pnpm install --no-frozen-lockfile
-pnpm --filter '@paperclipai/server^...' --filter '!@paperclipai/paperclip-runner' --filter '!@paperclipai/ui' build
+pnpm --filter '@nexusai/server^...' --filter '!@nexusai/nexus-runner' --filter '!@nexusai/ui' build
 ```
 
 The local callback uses an injected transport restricted to one fixed synthetic
@@ -57,7 +57,7 @@ cloudflared tunnel --protocol http2 --url http://127.0.0.1:43127 --no-autoupdate
 DOT_LAB_ORIGIN=https://YOUR-TUNNEL-HOST pnpm prototype:dot:live
 ```
 
-Add `https://YOUR-TUNNEL-HOST/mcp/paperclip` as an OAuth MCP plugin in the
+Add `https://YOUR-TUNNEL-HOST/mcp/nexus` as an OAuth MCP plugin in the
 account that owns the Dot. The consent page waits for local operator approval.
 The lab prints a local `control.json` path; it contains a temporary credential,
 must stay local, and is removed when the lab stops. The separate control port
@@ -71,8 +71,8 @@ node server/scripts/dot-runner-live-control.mjs /path/to/control.json approve RE
 
 The consent page then returns to ChatGPT. Give Dot the standing instruction
 printed by the lab, including the exact company and inbox task IDs. Wait for a
-verified `paperclip.dot.work_available` subscription in `status`, then publish
-the assignment from Paperclip's side:
+verified `nexus.dot.work_available` subscription in `status`, then publish
+the assignment from Nexus's side:
 
 ```sh
 node server/scripts/dot-runner-live-control.mjs /path/to/control.json queue
@@ -93,13 +93,13 @@ the tunnel after the test. Use this command for reliable cleanup; development
 process wrappers may terminate on a signal before asynchronous cleanup finishes.
 The lab expires after two hours,
 revokes its connection on graceful shutdown, and deletes its temporary database
-and encryption key. It never opens the user's existing Paperclip database.
+and encryption key. It never opens the user's existing Nexus database.
 
 ## Two directions, two explicit identities
 
 ```mermaid
 sequenceDiagram
-  participant Host as Paperclip host
+  participant Host as Nexus host
   participant Runner as Dot runner bridge
   participant MCP as OAuth MCP + event outbox
   participant Dot as OpenAI Dot
@@ -113,8 +113,8 @@ sequenceDiagram
   Dot->>MCP: Call projected tools / report progress / propose result
   MCP->>Runner: Check current authority; deduplicate request ID
   Runner-->>Host: PRP progress and structured result
-  Note over Host: Paperclip decides final task disposition
-  Dot->>MCP: Personal Paperclip reads/writes while idle
+  Note over Host: Nexus decides final task disposition
+  Dot->>MCP: Personal Nexus reads/writes while idle
   Note over MCP: These retain the consenting person's identity
 ```
 
@@ -127,13 +127,13 @@ The registry has no MCP registration tool and no generic API executor.
 ## What is implemented
 
 - `DotHarnessDriver`: one turn per admitted run, explicit acceptance, bounded
-  lifetime, projected tools, progress and validated `paperclip.run_result.v1`
+  lifetime, projected tools, progress and validated `nexus.run_result.v1`
   completion. Reports normal PRP events consumed by the existing native backend.
 - `createDotRunnerMcpBridge`: six tools on the existing authenticated endpoint:
-  `paperclip_dot_inbox`, `paperclip_dot_read`, `paperclip_dot_accept`,
-  `paperclip_dot_tool`, `paperclip_dot_progress`, `paperclip_dot_finish`.
+  `nexus_dot_inbox`, `nexus_dot_read`, `nexus_dot_accept`,
+  `nexus_dot_tool`, `nexus_dot_progress`, `nexus_dot_finish`.
   Bound tools are visible only to the selected grant with write consent.
-- Optional `paperclip.dot.work_available` event on the existing durable outbox.
+- Optional `nexus.dot.work_available` event on the existing durable outbox.
   Its `companyId` and `taskId` identify a designated standing inbox task. Each
   assignment can concern a different task; the event carries only IDs, and Dot
   retrieves the current assignment through authenticated tools. Existing
@@ -171,7 +171,7 @@ factory or by creating a heartbeat row from an MCP request. Production needs:
    this prototype's runner registry does not. After restart it refuses recovery.
 3. Server-owned runtime tool projection/dispatch with ordinary audit receipts.
    The lab tool is not the production runner tool authority.
-4. A stop policy that can handle remote autonomy honestly. Revoking Paperclip
+4. A stop policy that can handle remote autonomy honestly. Revoking Nexus
    access cannot prove that Dot or its child tasks stopped. Active close reports
    `provider stop is unconfirmed`; interruption, steering and resume are not
    advertised. `dot-bridge:<session>` identifies this bridge, not an OpenAI task.
@@ -185,15 +185,15 @@ Unregister completed runs to release the bounded in-process registry.
 
 ## Intended live onboarding
 
-1. Connect the existing Paperclip MCP plugin in developer mode and consent to
+1. Connect the existing Nexus MCP plugin in developer mode and consent to
    the team and requested writes.
 2. Explicitly bind that connection to the chosen Dot agent after the production
    admission work above. Show the identity and the standing inbox task.
-3. Give Dot one standing instruction to subscribe to `paperclip.dot.work_available`
+3. Give Dot one standing instruction to subscribe to `nexus.dot.work_available`
    for that inbox, inspect current assignments, accept intended work, use the
    projected tools, and finish with a structured result. Treat duplicate events
    as wakeups, never as another task. Avoid comment-acknowledgement loops.
-4. Assign work in Paperclip and verify the entire loop with the actual account.
+4. Assign work in Nexus and verify the entire loop with the actual account.
 
 OpenAI now documents MCP Events for dots. Private developer-mode testing does
 not require a public directory listing; public distribution is a separate review.
@@ -204,8 +204,8 @@ and [app review](https://developers.openai.com/plugins/deploy/app-review).
 ## Verification
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner exec vitest run src/drivers/dot/dot-harness-driver.test.ts
-pnpm --filter @paperclipai/server exec vitest run src/__tests__/public-mcp.test.ts
+pnpm --filter @nexusai/nexus-runner exec vitest run src/drivers/dot/dot-harness-driver.test.ts
+pnpm --filter @nexusai/server exec vitest run src/__tests__/public-mcp.test.ts
 pnpm prototype:dot
 ```
 
@@ -235,7 +235,7 @@ The later attempts below used the correct existing Dot account.
 ### Actual Dot attempt, 2026-10-02
 
 With the existing Dot open in the correct Chrome profile, the user approved
-installing the private `Paperclip Dot Lab` plugin and its lab-only OAuth grant.
+installing the private `Nexus Dot Lab` plugin and its lab-only OAuth grant.
 The first real callback exposed a lab bug: OAuth consent request IDs are opaque
 `pcmcp_request_` tokens, not UUIDs. The live script now validates that format.
 Restarting the disposable database also erased ChatGPT's cached public client
@@ -254,9 +254,9 @@ Observed live results:
   using MCP 2026-07-28; all returned HTTP 200.
 - The plugin UI showed its connected account, 10 read tools, 6 write tools, and
   all four event definitions, including the six Dot runner actions.
-- Dot found `paperclip.dot.work_available` and recognized its argument schema.
-  Initially it reported no Paperclip action tools in its runtime, including the
-  read-only `paperclip_connection`. An explicit @ mention did not make them
+- Dot found `nexus.dot.work_available` and recognized its argument schema.
+  Initially it reported no Nexus action tools in its runtime, including the
+  read-only `nexus_connection`. An explicit @ mention did not make them
   available immediately.
 - Dot also reported that its event-subscription route requires a successful
   read-only connection check, so the reduced event-only test could not proceed.
@@ -269,8 +269,8 @@ The first lab and tunnel were stopped too early, revoking the temporary grant
 and deleting its database. Dot subsequently reported that the action tools had
 become available, but its connection check failed against that offline endpoint.
 This does not establish a Dot runtime incompatibility. A fresh lab and tunnel
-were connected as `Paperclip Dot Lab Retry`; the new server observed Dot calling
-`paperclip_connection` successfully. The first plugin definition remains
+were connected as `Nexus Dot Lab Retry`; the new server observed Dot calling
+`nexus_connection` successfully. The first plugin definition remains
 installed with its expired endpoint. Production still needs the admission,
 durable mailbox, recovery and tool-authority work above.
 
@@ -285,14 +285,14 @@ Observed server evidence (UTC):
 
 | Time | Observation |
 | --- | --- |
-| 22:16:30 | Dot called `paperclip_connection` successfully. |
-| 22:17:00 | `events/subscribe` succeeded; the verified `paperclip.dot.work_available` subscription was present. |
+| 22:16:30 | Dot called `nexus_connection` successfully. |
+| 22:17:00 | `events/subscribe` succeeded; the verified `nexus.dot.work_available` subscription was present. |
 | 22:17:24 | The operator queued the single assignment. Its webhook was observed as `delivered` after one attempt. |
-| 22:17:48 | Dot called `paperclip_dot_inbox` after the event, without another chat prompt. |
-| 22:17:56 | Dot read the assignment using `paperclip_dot_read`. |
+| 22:17:48 | Dot called `nexus_dot_inbox` after the event, without another chat prompt. |
+| 22:17:56 | Dot read the assignment using `nexus_dot_read`. |
 | 22:18:10 | Dot accepted it; the native Runner emitted `turn.started`. |
-| 22:18:23 | Dot called `save_report` through `paperclip_dot_tool`; the lab saved exactly one report: `Dot received the Paperclip event. 17 + 25 = 42.` |
-| 22:18:38 | Dot submitted a valid `paperclip.run_result.v1`; the Runner emitted `run.result.proposed`, `turn.completed` and `run.terminal` with state `succeeded`. |
+| 22:18:23 | Dot called `save_report` through `nexus_dot_tool`; the lab saved exactly one report: `Dot received the Nexus event. 17 + 25 = 42.` |
+| 22:18:38 | Dot submitted a valid `nexus.run_result.v1`; the Runner emitted `run.result.proposed`, `turn.completed` and `run.terminal` with state `succeeded`. |
 | 22:18:50 | `events/unsubscribe` succeeded; no subscription remained. |
 
 Dot's final chat message confirmed event receipt and completion. It could not

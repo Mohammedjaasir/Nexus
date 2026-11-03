@@ -10,7 +10,7 @@ import {
   pluginLogs,
   pluginWebhookDeliveries,
   plugins,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { errorHandler } from "../middleware/index.js";
 import { pluginRoutes } from "../routes/plugins.js";
 import { pluginJobStore } from "../services/plugin-job-store.js";
@@ -113,7 +113,7 @@ describeEmbeddedPostgres("plugin operational reads are company-scoped", () => {
   };
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-plugin-operational-reads-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-plugin-operational-reads-");
     db = createDb(tempDb.connectionString);
 
     await db.insert(companies).values([
@@ -123,13 +123,13 @@ describeEmbeddedPostgres("plugin operational reads are company-scoped", () => {
 
     await db.insert(plugins).values({
       id: pluginId,
-      pluginKey: "paperclip.operational-reads-test",
-      packageName: "@paperclipai/plugin-operational-reads-test",
+      pluginKey: "nexus.operational-reads-test",
+      packageName: "@nexusai/plugin-operational-reads-test",
       version: "0.0.1",
       apiVersion: 1,
       categories: ["automation"],
       manifestJson: {
-        id: "paperclip.operational-reads-test",
+        id: "nexus.operational-reads-test",
         apiVersion: 1,
         name: "Operational reads test",
         version: "0.0.1",

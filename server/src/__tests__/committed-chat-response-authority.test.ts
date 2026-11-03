@@ -1,6 +1,6 @@
 import { isNativeResponseEvidence } from "../services/native-response-presentation-notifications.js";
 import { describe, expect, it, vi } from "vitest";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@nexusai/db";
 import { authorizeCommittedChatResponse, onCommittedChatResponseAuthorityRegistered, registerCommittedChatResponseAuthority } from "../services/durable-chat-wakeup.js";
 
 describe("committed response authority lifecycle", () => {

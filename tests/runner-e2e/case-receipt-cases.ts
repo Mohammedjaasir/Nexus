@@ -41,7 +41,7 @@ export function caseReceiptAgentPrompt(role: CaseReceiptRole, agents: CaseReceip
     "Use the native read_case tool with explicit caseId to read current inputs and handoffVersion. Use get_task_context for the current task statusVersion.",
     "Save TASK documents using write_document with {key,title,body:<JSON string>,idempotencyKey:<stable phase key>}. Read with read_document({key}). For an update, read the current document and pass its latestRevisionId as baseRevisionId. These tools return the persisted document and revision metadata.",
     "Before handoff, read the current case and task versions. Supply case:{id}, expectedHandoffVersion, expectedIssueStatusVersion, and a stable phase-specific idempotencyKey. For agent transfers, end the turn when callerMustYield=true. A terminal handoff with to:'done' does not yield; finish the task normally afterward.",
-    "Use only native Paperclip tools; do not use generic call_api. No shell, files, repositories, external services, new tasks, new cases, or case status changes. Documents belong to the primary task and appear on the case through references.",
+    "Use only native Nexus tools; do not use generic call_api. No shell, files, repositories, external services, new tasks, new cases, or case status changes. Documents belong to the primary task and appear on the case through references.",
   ];
   const work = role === "triage" ? [
     "You own triage. Read the seeded task document brief with read_document({key:'brief'}), then read the case inputs and confirm items, quantity, unitPrice, and currency are present. Call update_case with caseId, a stable idempotencyKey and fields containing ALL current fields plus inputsValidated:true. Do not create documents or complete the task.",

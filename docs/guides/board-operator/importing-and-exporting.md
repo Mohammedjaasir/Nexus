@@ -3,7 +3,7 @@ title: Importing & Exporting Companies
 summary: Export companies to portable packages and import them from local paths or GitHub
 ---
 
-Paperclip companies can be exported to portable markdown packages and imported from local directories or GitHub repositories. This lets you share company configurations, duplicate setups, and version-control your agent teams.
+Nexus companies can be exported to portable markdown packages and imported from local directories or GitHub repositories. This lets you share company configurations, duplicate setups, and version-control your agent teams.
 
 ## Package Format
 
@@ -21,13 +21,13 @@ my-company/
 │   └── review/SKILL.md
 ├── tasks/
 │   └── onboarding/TASK.md
-└── .paperclip.yaml     # Adapter config, env inputs, routines
+└── .nexus.yaml     # Adapter config, env inputs, routines
 ```
 
 - **COMPANY.md** defines company name, description, and metadata.
 - **AGENT.md** files contain agent identity, role, and instructions.
 - **SKILL.md** files are compatible with the Agent Skills ecosystem.
-- **.paperclip.yaml** holds Paperclip-specific config (adapter types, env inputs, budgets) as an optional sidecar.
+- **.nexus.yaml** holds Nexus-specific config (adapter types, env inputs, budgets) as an optional sidecar.
 
 ## Export & Import in the App
 
@@ -44,7 +44,7 @@ The **Import** page previews the package, lets you resolve name collisions and a
 Export a company into a portable folder:
 
 ```sh
-paperclipai company export <company-id> --out ./my-export
+nexusai company export <company-id> --out ./my-export
 ```
 
 ### Options
@@ -63,13 +63,13 @@ paperclipai company export <company-id> --out ./my-export
 
 ```sh
 # Export company with agents and projects
-paperclipai company export abc123 --out ./backup --include company,agents,projects
+nexusai company export abc123 --out ./backup --include company,agents,projects
 
 # Export everything including tasks and skills
-paperclipai company export abc123 --out ./full-export --include company,agents,projects,tasks,skills
+nexusai company export abc123 --out ./full-export --include company,agents,projects,tasks,skills
 
 # Export only specific skills
-paperclipai company export abc123 --out ./skills-only --include skills --skills review,deploy
+nexusai company export abc123 --out ./skills-only --include skills --skills review,deploy
 ```
 
 ### What Gets Exported
@@ -79,7 +79,7 @@ paperclipai company export abc123 --out ./skills-only --include skills --skills 
 - Project definitions and workspace config
 - Task/issue descriptions (when included)
 - Skill packages (as references or vendored content)
-- Adapter type and env input declarations in `.paperclip.yaml`
+- Adapter type and env input declarations in `.nexus.yaml`
 
 Secret values, machine-local paths, and database IDs are **never** exported.
 
@@ -89,17 +89,17 @@ Import from a local directory, GitHub URL, or GitHub shorthand:
 
 ```sh
 # From a local folder
-paperclipai company import ./my-export
+nexusai company import ./my-export
 
 # From a GitHub URL
-paperclipai company import https://github.com/org/repo
+nexusai company import https://github.com/org/repo
 
 # From a GitHub subfolder
-paperclipai company import https://github.com/org/repo/tree/main/companies/acme
+nexusai company import https://github.com/org/repo/tree/main/companies/acme
 
 # From GitHub shorthand
-paperclipai company import org/repo
-paperclipai company import org/repo/companies/acme
+nexusai company import org/repo
+nexusai company import org/repo/companies/acme
 ```
 
 ### Options
@@ -122,7 +122,7 @@ paperclipai company import org/repo/companies/acme
 - **`new`** — Creates a fresh company from the package. Good for duplicating a company template.
 - **`existing`** — Merges the package into an existing company. Use `--company-id` to specify the target.
 
-If `--target` is not specified, Paperclip infers it: if a `--company-id` is provided (or one exists in context), it defaults to `existing`; otherwise `new`.
+If `--target` is not specified, Nexus infers it: if a `--company-id` is provided (or one exists in context), it defaults to `existing`; otherwise `new`.
 
 ### Collision Strategies
 
@@ -141,7 +141,7 @@ When running interactively (no `--yes` or `--json` flags), the import command sh
 Always preview first with `--dry-run`:
 
 ```sh
-paperclipai company import org/repo --target existing --company-id abc123 --dry-run
+nexusai company import org/repo --target existing --company-id abc123 --dry-run
 ```
 
 The preview shows:
@@ -159,7 +159,7 @@ Imports can additionally request `pauseAutomations` (the default in the app's Im
 **Clone a company template from GitHub:**
 
 ```sh
-paperclipai company import org/company-templates/engineering-team \
+nexusai company import org/company-templates/engineering-team \
   --target new \
   --new-company-name "My Engineering Team"
 ```
@@ -167,7 +167,7 @@ paperclipai company import org/company-templates/engineering-team \
 **Add agents from a package into your existing company:**
 
 ```sh
-paperclipai company import ./shared-agents \
+nexusai company import ./shared-agents \
   --target existing \
   --company-id abc123 \
   --include agents \
@@ -177,13 +177,13 @@ paperclipai company import ./shared-agents \
 **Import a specific branch or tag:**
 
 ```sh
-paperclipai company import org/repo --ref v2.0.0 --dry-run
+nexusai company import org/repo --ref v2.0.0 --dry-run
 ```
 
 **Non-interactive import (CI/scripts):**
 
 ```sh
-paperclipai company import ./package \
+nexusai company import ./package \
   --target new \
   --yes \
   --json
@@ -208,7 +208,7 @@ CEO agents can also use the safe import routes (`/imports/preview` and `/imports
 
 ## GitHub Sources
 
-Paperclip supports several GitHub URL formats:
+Nexus supports several GitHub URL formats:
 
 - Full URL: `https://github.com/org/repo`
 - Subfolder URL: `https://github.com/org/repo/tree/main/path/to/company`

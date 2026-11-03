@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { beforeAll, afterAll, afterEach, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { agentFileRoots, agents, companies, companySkills, companySkillVersions, executionWorkspaces, heartbeatRuns, providerTraceRecords, createDb } from "@paperclipai/db";
+import { agentFileRoots, agents, companies, companySkills, companySkillVersions, executionWorkspaces, heartbeatRuns, providerTraceRecords, createDb } from "@nexusai/db";
 import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { assertEphemeralServerData, readEphemeralServerDataEligibility } from "../services/ephemeral-server-contract.js";
 import { initializeDurableAgentFiles } from "../services/agent-file-durability.js";
@@ -12,7 +12,7 @@ beforeAll(async () => { database = await startEmbeddedPostgresTestDatabase("ephe
 afterAll(async () => { await db?.$client.end({ timeout: 1 }); await database?.cleanup(); });
 afterEach(() => vi.unstubAllEnvs());
 it("refuses volume-dependent rows before readiness and accepts their durable replacement", async () => {
-  vi.stubEnv("PAPERCLIP_EPHEMERAL_SERVER", "true"); vi.stubEnv("PAPERCLIP_DURABLE_AGENT_FILES", "true");
+  vi.stubEnv("NEXUS_EPHEMERAL_SERVER", "true"); vi.stubEnv("NEXUS_DURABLE_AGENT_FILES", "true");
   await expect(assertEphemeralServerData(db)).resolves.toBeUndefined();
   const companyId = randomUUID(), agentId = randomUUID();
   await db.insert(companies).values({ id: companyId, name: "Deployment gate", issuePrefix: "GATE" });
@@ -42,7 +42,7 @@ it("refuses volume-dependent rows before readiness and accepts their durable rep
 });
 
 it("keeps replacement readiness independent of a serving controller's unfinished skill selection", async () => {
-  vi.stubEnv("PAPERCLIP_EPHEMERAL_SERVER", "true"); vi.stubEnv("PAPERCLIP_DURABLE_AGENT_FILES", "true");
+  vi.stubEnv("NEXUS_EPHEMERAL_SERVER", "true"); vi.stubEnv("NEXUS_DURABLE_AGENT_FILES", "true");
   const companyId = randomUUID(), agentId = randomUUID(), skillId = randomUUID(), versionId = randomUUID();
   await db.insert(companies).values({ id: companyId, name: "Overlapping skill preparation", issuePrefix: "PINS" });
   await db.insert(agents).values({ id: agentId, companyId, name: "Preparing agent" });

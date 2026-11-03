@@ -65,7 +65,7 @@ function fixture(entry: Entry, options: { intentFailure?: boolean; qualification
     if (saved) result.push({ role: "combobox", name: "Model", select(value) { expect(value).toBe(gateway.model); model = value; } });
     if (source) result.push({ role: "summary", name: "Advanced", click() { advanced = true; } });
     if (advanced) result.push({ role: "button", name: "Runner", click() { runnerOpen = true; } });
-    if (runnerOpen) result.push({ role: "option", name: "Paperclip Runner (default)", click() { runner = "paperclip"; runnerOpen = false; } });
+    if (runnerOpen) result.push({ role: "option", name: "Nexus Runner (default)", click() { runner = "nexus"; runnerOpen = false; } });
     if (saved && model && runner) result.push({ role: "button", name: "Connect", click() {
       expect(events).toContain("qualified"); events.push("paid:connect"); hired = true;
     } });
@@ -100,7 +100,7 @@ function fixture(entry: Entry, options: { intentFailure?: boolean; qualification
     origin: "https://tenant.example.test",
     async get(route: string) {
       if (route.endsWith("/ai-connections")) return { connections: saved ? [connection] : [] };
-      if (route.endsWith("/agents")) return hired ? [{ id: "agent", name, adapterType: "paperclip_runner", adapterConfig: { provider: "codex", model: gateway.model } }] : [];
+      if (route.endsWith("/agents")) return hired ? [{ id: "agent", name, adapterType: "nexus_runner", adapterConfig: { provider: "codex", model: gateway.model } }] : [];
       throw new Error("Unexpected API read");
     },
   } };

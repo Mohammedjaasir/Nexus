@@ -1,7 +1,7 @@
-import type { ActivityEvent, ExecutionProjection, RunLivenessState } from "@paperclipai/shared";
+import type { ActivityEvent, ExecutionProjection, RunLivenessState } from "@nexusai/shared";
 import { api, type RequestOptions } from "./client";
 
-export type { RunLivenessState } from "@paperclipai/shared";
+export type { RunLivenessState } from "@nexusai/shared";
 
 export interface RunForIssue {
   runId: string;

@@ -80,7 +80,7 @@
         "logSha256": "cbc50ca1569ffab283e25d0106fcdbd4540d4006a6ba872aef20aefc5339972e",
         "caseStatus": "failed",
         "intendedFailureMessages": [
-          "AssertionError: expected 'other' to be 'agent' // Object.is equality\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/ui/src/components/OnboardingWizard.step.test.tsx:305:27\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/paperclip/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
+          "AssertionError: expected 'other' to be 'agent' // Object.is equality\n    at /Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/ui/src/components/OnboardingWizard.step.test.tsx:305:27\n    at file:///Users/dotta/.codex/worktrees/test-audit-r7-ui/nexus/node_modules/.pnpm/vitest@5.0.3_@opentelemetry+api@1.9.1_@types+node@24.13.3_jsdom@30.0.1_@noble+hashes@2.4.0__v_wr5mxfuu6kgge6st623q4v5egm/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2783:20"
         ]
       }
     }

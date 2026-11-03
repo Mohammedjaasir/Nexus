@@ -15,7 +15,7 @@ const manifest = (revision: string) => {
   const payload = { runnerSourceRevision: revision.repeat(40), target: { platform: "linux", architecture: "x64" },
     pins: { opencode: "1.18.34" }, artifacts: { nodeCommand: { path: "node", sha256: "sha256:" + "1".repeat(64) },
       opencodeCommand: { path: "opencode", sha256: "sha256:" + "2".repeat(64) } } };
-  return { schema: "paperclip-runner/remote-provider-pack/v1", payload,
+  return { schema: "nexus-runner/remote-provider-pack/v1", payload,
     digest: "sha256:" + createHash("sha256").update(canonicalProviderPackJson(payload)).digest("hex") };
 };
 it("reattaches with the verified launch authority after the controller release changes", () => {

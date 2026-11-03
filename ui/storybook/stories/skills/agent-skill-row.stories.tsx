@@ -46,7 +46,7 @@ const meta: Meta<typeof AgentSkillRow> = {
   title: "Agents and reusable capabilities/Skills and Skill Studio/Agent Skills/AgentSkillRow",
   component: AgentSkillRow,
   parameters: { layout: "padded",
-    paperclip: {
+    nexus: {
       "capabilities": [
         "skills/policy"
       ],
@@ -96,7 +96,7 @@ export const DisabledUnsupported: Story = {
     data: AVAILABLE,
     checked: false,
     disabled: true,
-    disabledReason: "Paperclip cannot manage skills for this adapter yet.",
+    disabledReason: "Nexus cannot manage skills for this adapter yet.",
   },
 };
 

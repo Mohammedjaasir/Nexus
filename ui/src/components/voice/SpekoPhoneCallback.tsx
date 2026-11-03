@@ -4,7 +4,7 @@ import { voiceCallbacksApi } from "@/api/voiceCallbacks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { VoiceCallbackPreference } from "@paperclipai/shared";
+import type { VoiceCallbackPreference } from "@nexusai/shared";
 export interface SpekoPhoneCallbackFormProps {
   preference?: VoiceCallbackPreference | null;
   loading?: boolean; saving?: boolean; error?: string; saved?: boolean;

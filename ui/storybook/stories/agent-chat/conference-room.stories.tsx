@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { BoardChat } from "@/pages/BoardChat";
 import { expect, userEvent, within } from "storybook/test";
-import { storybookIssues } from "../../fixtures/paperclipData";
+import { storybookIssues } from "../../fixtures/nexusData";
 import {
   prepareFixtureApi,
   type FixtureState,
@@ -19,7 +19,7 @@ const meta = {
           "Shipped Conference Room with isolated conversation receipts and SSE. This does not execute a provider or verify server access.",
       },
     },
-    paperclip: {
+    nexus: {
       "capabilities": [
         "agent-chat/conference-room"
       ],

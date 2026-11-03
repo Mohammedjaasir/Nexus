@@ -5,7 +5,7 @@ import { THREAD_PREVIEW_CASES } from "@/components/design-sandbox/task-thread-fi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
-import { storybookAgents } from "../../fixtures/paperclipData";
+import { storybookAgents } from "../../fixtures/nexusData";
 import { measureConversationType, type ConversationTypeInventory, type ConversationTypeRole } from "./conversation-type-inventory";
 
 const agent = { ...storybookAgents[0]!, name: "Connector engineer" };

@@ -1,4 +1,4 @@
-import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@paperclipai/db";
+import { EMBEDDED_POSTGRES_TEST_TIMEOUT_MS } from "@nexusai/db";
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
@@ -18,7 +18,7 @@ import {
   projectWorkspaces,
   projects,
   workspaceRuntimeServices,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -57,14 +57,14 @@ async function writeFile(filePath: string, contents: string) {
 }
 
 async function createRepo() {
-  const repoRoot = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-compaction-")));
+  const repoRoot = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "nexus-compaction-")));
   await git(repoRoot, ["init"]);
-  await git(repoRoot, ["config", "user.name", "Paperclip Test"]);
-  await git(repoRoot, ["config", "user.email", "test@paperclip.local"]);
+  await git(repoRoot, ["config", "user.name", "Nexus Test"]);
+  await git(repoRoot, ["config", "user.email", "test@nexus.local"]);
   await writeFile(path.join(repoRoot, "README.md"), "# Test repo\n");
   await writeFile(
     path.join(repoRoot, ".gitignore"),
-    ["node_modules/", "dist/", ".env", ".paperclip/", "local-data/", ""].join("\n"),
+    ["node_modules/", "dist/", ".env", ".nexus/", "local-data/", ""].join("\n"),
   );
   await git(repoRoot, ["add", "README.md", ".gitignore"]);
   await git(repoRoot, ["commit", "-m", "Initial commit"]);
@@ -79,7 +79,7 @@ const PRESERVED_PATHS = [
   "notes/findings.md",
   ".env",
   "local-data/state.json",
-  ".paperclip/instances/default/db.txt",
+  ".nexus/instances/default/db.txt",
 ];
 
 async function populateWorktree(worktreePath: string) {
@@ -89,7 +89,7 @@ async function populateWorktree(worktreePath: string) {
   await writeFile(path.join(worktreePath, "notes/findings.md"), "untracked agent notes\n");
   await writeFile(path.join(worktreePath, ".env"), "TOKEN=local\n");
   await writeFile(path.join(worktreePath, "local-data/state.json"), "{}\n");
-  await writeFile(path.join(worktreePath, ".paperclip/instances/default/db.txt"), "instance data\n");
+  await writeFile(path.join(worktreePath, ".nexus/instances/default/db.txt"), "instance data\n");
   await fs.appendFile(path.join(worktreePath, "README.md"), "uncommitted edit\n");
 }
 
@@ -99,7 +99,7 @@ describeEmbeddedPostgres("terminal workspace compaction", () => {
   const tempDirs = new Set<string>();
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-workspace-compaction-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-workspace-compaction-");
     db = createDb(tempDb.connectionString);
   }, EMBEDDED_POSTGRES_TEST_TIMEOUT_MS);
 
@@ -138,7 +138,7 @@ describeEmbeddedPostgres("terminal workspace compaction", () => {
     const issuePrefix = `C${companyId.slice(0, 7).toUpperCase()}`;
     await db.insert(companies).values({
       id: companyId,
-      name: "Paperclip",
+      name: "Nexus",
       issuePrefix,
       requireBoardApprovalForNewAgents: false,
     });
@@ -170,7 +170,7 @@ describeEmbeddedPostgres("terminal workspace compaction", () => {
     const branchName = `PAP-${Math.floor(Math.random() * 100000)}-finished-task`;
     let worktreePath = options.worktreePath;
     if (!worktreePath) {
-      worktreePath = path.join(repoRoot, ".paperclip", "worktrees", branchName);
+      worktreePath = path.join(repoRoot, ".nexus", "worktrees", branchName);
       await git(repoRoot, ["worktree", "add", "-b", branchName, worktreePath, "main"]);
     }
     if (options.commitOnBranch) {

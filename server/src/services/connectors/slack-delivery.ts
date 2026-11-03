@@ -1,6 +1,6 @@
 import { notifyChatPublicationWork } from "../chat-work-notifications.js";
 import { and, eq, sql, inArray } from "drizzle-orm";
-import { chatActions, type Db } from "@paperclipai/db";
+import { chatActions, type Db } from "@nexusai/db";
 import { forbidden } from "../../errors.js";
 import { authorizeSlackChannel } from "./slack-access.js";
 import type {

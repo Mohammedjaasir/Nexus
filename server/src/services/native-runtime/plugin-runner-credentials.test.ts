@@ -42,7 +42,7 @@ describe("plugin Runner selected credentials", () => {
 
 it("transfers only broker authority even when the provider owns its AI account", async () => {
   const result = await preparePluginRunnerCredentials({provider:"codex",home:"/must/not/read",environment:{
-    PAPERCLIP_GITHUB_BROKER_URL:"https://core.example.test",PAPERCLIP_GITHUB_BROKER_TOKEN:"runtime-capability",
-    GH_TOKEN:"ambient-secret",PAPERCLIP_API_KEY:"unrelated-key",HOME:"/controller/private"}});
+    NEXUS_GITHUB_BROKER_URL:"https://core.example.test",NEXUS_GITHUB_BROKER_TOKEN:"runtime-capability",
+    GH_TOKEN:"ambient-secret",NEXUS_API_KEY:"unrelated-key",HOME:"/controller/private"}});
   expect(result).toEqual({githubBroker:{url:"https://core.example.test",token:"runtime-capability"}});
 });

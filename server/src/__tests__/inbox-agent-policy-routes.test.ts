@@ -11,7 +11,7 @@ import {
   createDb,
   principalPermissionGrants,
   userInboxAgentPolicies,
-} from "@paperclipai/db";
+} from "@nexusai/db";
 import { errorHandler } from "../middleware/index.js";
 import { inboxAgentPolicyRoutes } from "../routes/inbox-agent-policy.js";
 import {
@@ -27,7 +27,7 @@ describeEmbeddedPostgres("inbox agent policy routes", () => {
   let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
 
   beforeAll(async () => {
-    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-inbox-agent-policy-routes-");
+    tempDb = await startEmbeddedPostgresTestDatabase("nexus-inbox-agent-policy-routes-");
     db = createDb(tempDb.connectionString);
   }, 20_000);
 

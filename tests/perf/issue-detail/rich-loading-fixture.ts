@@ -17,7 +17,7 @@ export interface RichLoadingFixture {
 const fixturePath = path.resolve("test-results/rich-loading-fixture.json");
 
 export async function richLoadingFixture(request: APIRequestContext): Promise<RichLoadingFixture> {
-  const databaseUrl = process.env.PAPERCLIP_ISSUE_PERF_DATABASE_URL;
+  const databaseUrl = process.env.NEXUS_ISSUE_PERF_DATABASE_URL;
   if (!databaseUrl) throw new Error("The rich loading fixture requires a disposable PostgreSQL database");
   const target = new URL(databaseUrl);
   if (!["localhost", "127.0.0.1", "[::1]"].includes(target.hostname) || !target.pathname.endsWith("_test")) {
